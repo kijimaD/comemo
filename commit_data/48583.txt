@@ -22,10 +22,253 @@ Date:   Thu May 27 18:07:36 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/internal/obj/arm64/obj7.go |  4 +-
  src/runtime/asm_arm64.s            | 78 ++++++++++++++++++++------------------
  src/runtime/duff_arm64.s           |  4 +-
  src/runtime/mkduff.go              |  4 +-
  src/runtime/race_arm64.s           | 16 ++++++--
  5 files changed, 60 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index c94a0b67ee..31b7c43245 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -325,9 +325,9 @@ func (c *ctxt7) rewriteToUseGot(p *obj.Prog) {
+ 		//     CALL REGTMP
+ 		var sym *obj.LSym
+ 		if p.As == obj.ADUFFZERO {
+-			sym = c.ctxt.Lookup("runtime.duffzero")
++			sym = c.ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
+ 		} else {
+-			sym = c.ctxt.Lookup("runtime.duffcopy")
++			sym = c.ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
+ 		}
+ 		offset := p.To.Offset
+ 		p.As = AMOVD
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 2d495397a8..ca04dddd5b 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -103,7 +103,7 @@ nocgo:
+ 	MOVD	R0, (R0)	// boom
+ 	UNDEF
+ 
+-DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
++DATA	runtime·mainPC+0(SB)/8,$runtime·main<ABIInternal>(SB)
+ GLOBL	runtime·mainPC(SB),RODATA,$8
+ 
+ TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
+@@ -1158,7 +1158,10 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ // It does not clobber any general-purpose registers,
+ // but may clobber others (e.g., floating point registers)
+ // The act of CALLing gcWriteBarrier will clobber R30 (LR).
+-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$200
++//
++// Defined as ABIInternal since the compiler generates ABIInternal
++// calls to it directly and it does not use the stack-based Go ABI.
++TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$200
+ 	// Save the registers clobbered by the fast path.
+ 	MOVD	R0, 184(RSP)
+ 	MOVD	R1, 192(RSP)
+@@ -1250,71 +1253,74 @@ flush:
+ // in the caller's stack frame. These stubs write the args into that stack space and
+ // then tail call to the corresponding runtime handler.
+ // The tail call makes these stubs disappear in backtraces.
+-TEXT runtime·panicIndex(SB),NOSPLIT,$0-16
++//
++// Defined as ABIInternal since the compiler generates ABIInternal
++// calls to it directly and it does not use the stack-based Go ABI.
++TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R0, x+0(FP)
+ 	MOVD	R1, y+8(FP)
+-	JMP	runtime·goPanicIndex(SB)
+-TEXT runtime·panicIndexU(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicIndex<ABIInternal>(SB)
++TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R0, x+0(FP)
+ 	MOVD	R1, y+8(FP)
+-	JMP	runtime·goPanicIndexU(SB)
+-TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
++TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R1, x+0(FP)
+ 	MOVD	R2, y+8(FP)
+-	JMP	runtime·goPanicSliceAlen(SB)
+-TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicSliceAlen<ABIInternal>(SB)
++TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R1, x+0(FP)
+ 	MOVD	R2, y+8(FP)
+-	JMP	runtime·goPanicSliceAlenU(SB)
+-TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicSliceAlenU<ABIInternal>(SB)
++TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R1, x+0(FP)
+ 	MOVD	R2, y+8(FP)
+-	JMP	runtime·goPanicSliceAcap(SB)
+-TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicSliceAcap<ABIInternal>(SB)
++TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R1, x+0(FP)
+ 	MOVD	R2, y+8(FP)
+-	JMP	runtime·goPanicSliceAcapU(SB)
+-TEXT runtime·panicSliceB(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
++TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R0, x+0(FP)
+ 	MOVD	R1, y+8(FP)
+-	JMP	runtime·goPanicSliceB(SB)
+-TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicSliceB<ABIInternal>(SB)
++TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R0, x+0(FP)
+ 	MOVD	R1, y+8(FP)
+-	JMP	runtime·goPanicSliceBU(SB)
+-TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
++TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R2, x+0(FP)
+ 	MOVD	R3, y+8(FP)
+-	JMP	runtime·goPanicSlice3Alen(SB)
+-TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicSlice3Alen<ABIInternal>(SB)
++TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R2, x+0(FP)
+ 	MOVD	R3, y+8(FP)
+-	JMP	runtime·goPanicSlice3AlenU(SB)
+-TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicSlice3AlenU<ABIInternal>(SB)
++TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R2, x+0(FP)
+ 	MOVD	R3, y+8(FP)
+-	JMP	runtime·goPanicSlice3Acap(SB)
+-TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicSlice3Acap<ABIInternal>(SB)
++TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R2, x+0(FP)
+ 	MOVD	R3, y+8(FP)
+-	JMP	runtime·goPanicSlice3AcapU(SB)
+-TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicSlice3AcapU<ABIInternal>(SB)
++TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R1, x+0(FP)
+ 	MOVD	R2, y+8(FP)
+-	JMP	runtime·goPanicSlice3B(SB)
+-TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicSlice3B<ABIInternal>(SB)
++TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R1, x+0(FP)
+ 	MOVD	R2, y+8(FP)
+-	JMP	runtime·goPanicSlice3BU(SB)
+-TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
++TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R0, x+0(FP)
+ 	MOVD	R1, y+8(FP)
+-	JMP	runtime·goPanicSlice3C(SB)
+-TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicSlice3C<ABIInternal>(SB)
++TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R0, x+0(FP)
+ 	MOVD	R1, y+8(FP)
+-	JMP	runtime·goPanicSlice3CU(SB)
+-TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
++	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
++TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R2, x+0(FP)
+ 	MOVD	R3, y+8(FP)
+-	JMP	runtime·goPanicSliceConvert(SB)
++	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)
+diff --git a/src/runtime/duff_arm64.s b/src/runtime/duff_arm64.s
+index 128b076af9..33c4905078 100644
+--- a/src/runtime/duff_arm64.s
++++ b/src/runtime/duff_arm64.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
++TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0
+ 	STP.P	(ZR, ZR), 16(R20)
+ 	STP.P	(ZR, ZR), 16(R20)
+ 	STP.P	(ZR, ZR), 16(R20)
+@@ -71,7 +71,7 @@ TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
+ 	STP	(ZR, ZR), (R20)
+ 	RET
+ 
+-TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0
++TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0
+ 	LDP.P	16(R20), (R26, R27)
+ 	STP.P	(R26, R27), 16(R21)
+ 
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+index da191cc594..f036745092 100644
+--- a/src/runtime/mkduff.go
++++ b/src/runtime/mkduff.go
+@@ -154,7 +154,7 @@ func zeroARM64(w io.Writer) {
+ 	// ZR: always zero
+ 	// R20: ptr to memory to be zeroed
+ 	// On return, R20 points to the last zeroed dword.
+-	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
++	fmt.Fprintln(w, "TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
+ 	for i := 0; i < 63; i++ {
+ 		fmt.Fprintln(w, "\tSTP.P\t(ZR, ZR), 16(R20)")
+ 	}
+@@ -167,7 +167,7 @@ func copyARM64(w io.Writer) {
+ 	// R21: ptr to destination memory
+ 	// R26, R27 (aka REGTMP): scratch space
+ 	// R20 and R21 are updated as a side effect
+-	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
++	fmt.Fprintln(w, "TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
+ 
+ 	for i := 0; i < 64; i++ {
+ 		fmt.Fprintln(w, "\tLDP.P\t16(R20), (R26, R27)")
+diff --git a/src/runtime/race_arm64.s b/src/runtime/race_arm64.s
+index c6d5b91edc..bfad08b9fb 100644
+--- a/src/runtime/race_arm64.s
++++ b/src/runtime/race_arm64.s
+@@ -43,7 +43,9 @@
+ 
+ // func runtime·raceread(addr uintptr)
+ // Called from instrumented code.
+-TEXT	runtime·raceread(SB), NOSPLIT, $0-8
++// Defined as ABIInternal so as to avoid introducing a wrapper,
++// which would make caller's PC ineffective.
++TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
+ 	MOVD	addr+0(FP), R1
+ 	MOVD	LR, R2
+ 	// void __tsan_read(ThreadState *thr, void *addr, void *pc);
+@@ -66,7 +68,9 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
+ 
+ // func runtime·racewrite(addr uintptr)
+ // Called from instrumented code.
+-TEXT	runtime·racewrite(SB), NOSPLIT, $0-8
++// Defined as ABIInternal so as to avoid introducing a wrapper,
++// which would make caller's PC ineffective.
++TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
+ 	MOVD	addr+0(FP), R1
+ 	MOVD	LR, R2
+ 	// void __tsan_write(ThreadState *thr, void *addr, void *pc);
+@@ -89,7 +93,9 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
+ 
+ // func runtime·racereadrange(addr, size uintptr)
+ // Called from instrumented code.
+-TEXT	runtime·racereadrange(SB), NOSPLIT, $0-16
++// Defined as ABIInternal so as to avoid introducing a wrapper,
++// which would make caller's PC ineffective.
++TEXT	runtime·racereadrange<ABIInternal>(SB), NOSPLIT, $0-16
+ 	MOVD	addr+0(FP), R1
+ 	MOVD	size+8(FP), R2
+ 	MOVD	LR, R3
+@@ -114,7 +120,9 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
+ 
+ // func runtime·racewriterange(addr, size uintptr)
+ // Called from instrumented code.
+-TEXT	runtime·racewriterange(SB), NOSPLIT, $0-16
++// Defined as ABIInternal so as to avoid introducing a wrapper,
++// which would make caller's PC ineffective.
++TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
+ 	MOVD	addr+0(FP), R1
+ 	MOVD	size+8(FP), R2
+ 	MOVD	LR, R3

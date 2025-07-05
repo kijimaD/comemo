@@ -10,6 +10,26 @@ Date:   Fri Mar 14 21:22:03 2014 +0400
     R=golang-codereviews
     CC=golang-codereviews, khr, rsc
     https://golang.org/cl/75820045
-
+---
  src/pkg/runtime/stack.c | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 81005de5d7..c0b98634d7 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -102,8 +102,12 @@ runtime·stackalloc(G *gp, uint32 n)
+ 		runtime·printf("stackalloc %d\n", n);
+ 
+ 	gp->stacksize += n;
+-	if(runtime·debug.efence || StackFromSystem)
+-		return runtime·SysAlloc(ROUND(n, PageSize), &mstats.stacks_sys);
++	if(runtime·debug.efence || StackFromSystem) {
++		v = runtime·SysAlloc(ROUND(n, PageSize), &mstats.stacks_sys);
++		if(v == nil)
++			runtime·throw("out of memory (stackalloc)");
++		return v;
++	}
+ 
+ 	// Minimum-sized stacks are allocated with a fixed-size free-list allocator,
+ 	// but if we need a stack of a bigger size, we fall back on malloc

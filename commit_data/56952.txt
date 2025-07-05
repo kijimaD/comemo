@@ -13,8 +13,76 @@ Date:   Thu Jun 1 10:16:01 2023 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/infer.go            |  8 +++++++-
  src/go/types/infer.go                               |  8 +++++++-
  src/internal/types/testdata/fixedbugs/issue60556.go | 19 +++++++++++++++++++
  3 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index c2b1395953..94747aa0cf 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -249,9 +249,15 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 					// It must have (at least) all the methods of the type constraint,
+ 					// and the method signatures must unify; otherwise tx cannot satisfy
+ 					// the constraint.
++					// TODO(gri) Now that unification handles interfaces, this code can
++					//           be reduced to calling u.unify(tx, tpar.iface(), assign)
++					//           (which will compare signatures exactly as we do below).
++					//           We leave it as is for now because missingMethod provides
++					//           a failure cause which allows for a better error message.
++					//           Eventually, unify should return an error with cause.
+ 					var cause string
+ 					constraint := tpar.iface()
+-					if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, 0) }, &cause); m != nil {
++					if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, exact) }, &cause); m != nil {
+ 						// TODO(gri) better error message (see TODO above)
+ 						check.errorf(pos, CannotInferTypeArgs, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
+ 						return nil
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index f39ef41415..9f0ce000b5 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -251,9 +251,15 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 					// It must have (at least) all the methods of the type constraint,
+ 					// and the method signatures must unify; otherwise tx cannot satisfy
+ 					// the constraint.
++					// TODO(gri) Now that unification handles interfaces, this code can
++					//           be reduced to calling u.unify(tx, tpar.iface(), assign)
++					//           (which will compare signatures exactly as we do below).
++					//           We leave it as is for now because missingMethod provides
++					//           a failure cause which allows for a better error message.
++					//           Eventually, unify should return an error with cause.
+ 					var cause string
+ 					constraint := tpar.iface()
+-					if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, 0) }, &cause); m != nil {
++					if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, exact) }, &cause); m != nil {
+ 						// TODO(gri) better error message (see TODO above)
+ 						check.errorf(posn, CannotInferTypeArgs, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
+ 						return nil
+diff --git a/src/internal/types/testdata/fixedbugs/issue60556.go b/src/internal/types/testdata/fixedbugs/issue60556.go
+new file mode 100644
+index 0000000000..77e5034730
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue60556.go
+@@ -0,0 +1,19 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type I[T any] interface {
++	m(I[T])
++}
++
++type S[T any] struct{}
++
++func (S[T]) m(I[T]) {}
++
++func f[T I[E], E any](T) {}
++
++func _() {
++	f(S[int]{})
++}

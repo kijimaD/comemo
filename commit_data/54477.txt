@@ -18,9 +18,72 @@ Date:   Wed Jun 15 16:21:07 2022 -0400
     Run-TryBot: Matt Layher <mdlayher@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  api/next/51766.txt          |  1 +
  api/next/51777.txt          |  1 +
  src/net/netip/netip.go      |  7 +++++++
  src/net/netip/netip_test.go | 12 ++++++++++++
  4 files changed, 21 insertions(+)
+
+diff --git a/api/next/51766.txt b/api/next/51766.txt
+new file mode 100644
+index 0000000000..4b80839419
+--- /dev/null
++++ b/api/next/51766.txt
+@@ -0,0 +1 @@
++pkg net/netip, func IPv6LinkLocalAllRouters() Addr #51766
+diff --git a/api/next/51777.txt b/api/next/51777.txt
+new file mode 100644
+index 0000000000..9ed128715f
+--- /dev/null
++++ b/api/next/51777.txt
+@@ -0,0 +1 @@
++pkg net/netip, func IPv6Loopback() Addr #51777
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index b5d55acdb3..2d7c838499 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -75,6 +75,13 @@ var (
+ // address ff02::1.
+ func IPv6LinkLocalAllNodes() Addr { return AddrFrom16([16]byte{0: 0xff, 1: 0x02, 15: 0x01}) }
+ 
++// IPv6LinkLocalAllRouters returns the IPv6 link-local all routers multicast
++// address ff02::2.
++func IPv6LinkLocalAllRouters() Addr { return AddrFrom16([16]byte{0: 0xff, 1: 0x02, 15: 0x02}) }
++
++// IPv6Loopback returns the IPv6 loopback address ::1.
++func IPv6Loopback() Addr { return AddrFrom16([16]byte{15: 0x01}) }
++
+ // IPv6Unspecified returns the IPv6 unspecified address "::".
+ func IPv6Unspecified() Addr { return Addr{z: z6noz} }
+ 
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index fcd2501b3e..b915b240ea 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -784,6 +784,16 @@ func TestAddrWellKnown(t *testing.T) {
+ 			ip:   IPv6LinkLocalAllNodes(),
+ 			std:  net.IPv6linklocalallnodes,
+ 		},
++		{
++			name: "IPv6 link-local all routers",
++			ip:   IPv6LinkLocalAllRouters(),
++			std:  net.IPv6linklocalallrouters,
++		},
++		{
++			name: "IPv6 loopback",
++			ip:   IPv6Loopback(),
++			std:  net.IPv6loopback,
++		},
+ 		{
+ 			name: "IPv6 unspecified",
+ 			ip:   IPv6Unspecified(),
+@@ -1867,6 +1877,8 @@ func TestNoAllocs(t *testing.T) {
+ 	test("ParseAddr/6", func() { sinkIP = panicIP(ParseAddr("::1")) })
+ 	test("MustParseAddr", func() { sinkIP = MustParseAddr("1.2.3.4") })
+ 	test("IPv6LinkLocalAllNodes", func() { sinkIP = IPv6LinkLocalAllNodes() })
++	test("IPv6LinkLocalAllRouters", func() { sinkIP = IPv6LinkLocalAllRouters() })
++	test("IPv6Loopback", func() { sinkIP = IPv6Loopback() })
+ 	test("IPv6Unspecified", func() { sinkIP = IPv6Unspecified() })
+ 
+ 	// IP methods

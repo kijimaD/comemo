@@ -29,6 +29,52 @@ Date:   Wed Oct 5 14:35:47 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 3b9f49d9df..4cf957a41a 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -389,7 +389,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
+ 	// We generate a Copy and record it. It will be deleted if never used.
+ 	v2 := s.regs[r].v
+ 	m := s.compatRegs(v2.Type) &^ s.used &^ s.tmpused &^ (regMask(1) << r)
+-	if countRegs(s.values[v2.ID].regs) == 1 && m != 0 {
++	if m != 0 && !s.values[v2.ID].rematerializeable && countRegs(s.values[v2.ID].regs) == 1 {
+ 		r2 := pickReg(m)
+ 		c := s.curBlock.NewValue1(v2.Line, OpCopy, v2.Type, s.regs[r].c)
+ 		s.copies[c] = false
+@@ -1146,6 +1146,10 @@ func (s *regAllocState) regalloc(f *Func) {
+ 					// arg0 is dead.  We can clobber its register.
+ 					goto ok
+ 				}
++				if s.values[v.Args[0].ID].rematerializeable {
++					// We can rematerialize the input, don't worry about clobbering it.
++					goto ok
++				}
+ 				if countRegs(s.values[v.Args[0].ID].regs) >= 2 {
+ 					// we have at least 2 copies of arg0.  We can afford to clobber one.
+ 					goto ok
+@@ -1155,6 +1159,10 @@ func (s *regAllocState) regalloc(f *Func) {
+ 						args[0], args[1] = args[1], args[0]
+ 						goto ok
+ 					}
++					if s.values[v.Args[1].ID].rematerializeable {
++						args[0], args[1] = args[1], args[0]
++						goto ok
++					}
+ 					if countRegs(s.values[v.Args[1].ID].regs) >= 2 {
+ 						args[0], args[1] = args[1], args[0]
+ 						goto ok
+@@ -1389,6 +1397,9 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				if vi.regs != 0 {
+ 					continue
+ 				}
++				if vi.rematerializeable {
++					continue
++				}
+ 				v := s.orig[vid]
+ 				if s.f.Config.use387 && v.Type.IsFloat() {
+ 					continue // 387 can't handle floats in registers between blocks

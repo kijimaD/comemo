@@ -9,10 +9,204 @@ Date:   Tue Jul 28 20:23:16 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/arm64/asm.go  | 14 +++-----------
  src/cmd/link/internal/ld/data.go    | 29 ++++++++++++++++++++++++++---
  src/cmd/link/internal/mips/asm.go   | 18 +++---------------
  src/cmd/link/internal/mips64/asm.go | 18 +++---------------
  src/cmd/link/internal/ppc64/asm.go  | 24 ++++--------------------
  5 files changed, 39 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index e7be4e639d..fb9f175f06 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -688,16 +688,10 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVarian
+ }
+ 
+ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
+-	rs := ldr.ResolveABIAlias(r.Sym())
+-	var rr loader.ExtReloc
+ 	switch rt := r.Type(); rt {
+ 	case objabi.R_ARM64_GOTPCREL,
+ 		objabi.R_ADDRARM64:
+-
+-		// set up addend for eventual relocation via outer symbol.
+-		rs, off := ld.FoldSubSymbolOffset(ldr, rs)
+-		rr.Xadd = r.Add() + off
+-		rr.Xsym = rs
++		rr := ld.ExtrelocViaOuterSym(ldr, r, s)
+ 
+ 		// Note: ld64 currently has a bug that any non-zero addend for BR26 relocation
+ 		// will make the linking fail because it thinks the code is not PIC even though
+@@ -716,11 +710,9 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.S
+ 	case objabi.R_CALLARM64,
+ 		objabi.R_ARM64_TLS_LE,
+ 		objabi.R_ARM64_TLS_IE:
+-		rr.Xsym = rs
+-		rr.Xadd = r.Add()
+-		return rr, true
++		return ld.ExtrelocSimple(ldr, r), true
+ 	}
+-	return rr, false
++	return loader.ExtReloc{}, false
+ }
+ 
+ func elfsetupplt(ctxt *ld.Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 2a3d6e7fe7..f09734fab4 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -627,9 +627,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2, ri
+ 		return rr, false
+ 
+ 	case objabi.R_XCOFFREF:
+-		rs := ldr.ResolveABIAlias(r.Sym())
+-		rr.Xsym = rs
+-		rr.Xadd = r.Add()
++		return ExtrelocSimple(ldr, r), true
+ 
+ 	// These reloc types don't need external relocations.
+ 	case objabi.R_ADDROFF, objabi.R_WEAKADDROFF, objabi.R_METHODOFF, objabi.R_ADDRCUOFF,
+@@ -639,6 +637,31 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2, ri
+ 	return rr, true
+ }
+ 
++// ExtrelocSimple creates a simple external relocation from r, with the same
++// symbol and addend.
++func ExtrelocSimple(ldr *loader.Loader, r loader.Reloc2) loader.ExtReloc {
++	var rr loader.ExtReloc
++	rs := ldr.ResolveABIAlias(r.Sym())
++	rr.Xsym = rs
++	rr.Xadd = r.Add()
++	return rr
++}
++
++// ExtrelocViaOuterSym creates an external relocation from r targeting the
++// outer symbol and folding the subsymbol's offset into the addend.
++func ExtrelocViaOuterSym(ldr *loader.Loader, r loader.Reloc2, s loader.Sym) loader.ExtReloc {
++	// set up addend for eventual relocation via outer symbol.
++	var rr loader.ExtReloc
++	rs, off := FoldSubSymbolOffset(ldr, r.Sym())
++	rr.Xadd = r.Add() + off
++	rst := ldr.SymType(rs)
++	if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
++		ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
++	}
++	rr.Xsym = rs
++	return rr
++}
++
+ // relocSymState hold state information needed when making a series of
+ // successive calls to relocsym(). The items here are invariant
+ // (meaning that they are set up once initially and then don't change
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index 71cd7681fb..1e5b3781f1 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -145,24 +145,12 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVarian
+ }
+ 
+ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
+-	rs := ldr.ResolveABIAlias(r.Sym())
+-	var rr loader.ExtReloc
+ 	switch r.Type() {
+ 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
+-		// set up addend for eventual relocation via outer symbol.
+-		rs, off := ld.FoldSubSymbolOffset(ldr, rs)
+-		rr.Xadd = r.Add() + off
+-		rst := ldr.SymType(rs)
+-		if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
+-			ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
+-		}
+-		rr.Xsym = rs
+-		return rr, true
++		return ld.ExtrelocViaOuterSym(ldr, r, s), true
+ 
+ 	case objabi.R_ADDRMIPSTLS, objabi.R_CALLMIPS, objabi.R_JMPMIPS:
+-		rr.Xsym = rs
+-		rr.Xadd = r.Add()
+-		return rr, true
++		return ld.ExtrelocSimple(ldr, r), true
+ 	}
+-	return rr, false
++	return loader.ExtReloc{}, false
+ }
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 8b9a7e5c69..6310a7095d 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -143,27 +143,15 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVarian
+ }
+ 
+ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
+-	rs := ldr.ResolveABIAlias(r.Sym())
+-	var rr loader.ExtReloc
+ 	switch r.Type() {
+ 	case objabi.R_ADDRMIPS,
+ 		objabi.R_ADDRMIPSU:
+-		// set up addend for eventual relocation via outer symbol.
+-		rs, off := ld.FoldSubSymbolOffset(ldr, rs)
+-		rr.Xadd = r.Add() + off
+-		rst := ldr.SymType(rs)
+-		if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
+-			ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
+-		}
+-		rr.Xsym = rs
+-		return rr, true
++		return ld.ExtrelocViaOuterSym(ldr, r, s), true
+ 
+ 	case objabi.R_ADDRMIPSTLS,
+ 		objabi.R_CALLMIPS,
+ 		objabi.R_JMPMIPS:
+-		rr.Xsym = rs
+-		rr.Xadd = r.Add()
+-		return rr, true
++		return ld.ExtrelocSimple(ldr, r), true
+ 	}
+-	return rr, false
++	return loader.ExtReloc{}, false
+ }
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 23cacb32ad..371e911ca6 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -967,34 +967,18 @@ overflow:
+ }
+ 
+ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
+-	rs := ldr.ResolveABIAlias(r.Sym())
+-	var rr loader.ExtReloc
+ 	switch r.Type() {
+-	case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
+-		rr.Xadd = r.Add()
+-		rr.Xsym = rs
+-		return rr, true
++	case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE, objabi.R_CALLPOWER:
++		return ld.ExtrelocSimple(ldr, r), true
+ 	case objabi.R_ADDRPOWER,
+ 		objabi.R_ADDRPOWER_DS,
+ 		objabi.R_ADDRPOWER_TOCREL,
+ 		objabi.R_ADDRPOWER_TOCREL_DS,
+ 		objabi.R_ADDRPOWER_GOT,
+ 		objabi.R_ADDRPOWER_PCREL:
+-		// set up addend for eventual relocation via outer symbol.
+-		rs, off := ld.FoldSubSymbolOffset(ldr, rs)
+-		rr.Xadd = r.Add() + off
+-		rst := ldr.SymType(rs)
+-		if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
+-			ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
+-		}
+-		rr.Xsym = rs
+-		return rr, true
+-	case objabi.R_CALLPOWER:
+-		rr.Xsym = rs
+-		rr.Xadd = r.Add()
+-		return rr, true
++		return ld.ExtrelocViaOuterSym(ldr, r, s), true
+ 	}
+-	return rr, false
++	return loader.ExtReloc{}, false
+ }
+ 
+ func addpltsym(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {

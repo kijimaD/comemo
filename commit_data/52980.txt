@@ -16,10 +16,105 @@ Date:   Tue Jun 21 02:29:49 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/expr.go             | 1 +
  src/cmd/compile/internal/noder/reader.go        | 5 +++++
  src/cmd/compile/internal/reflectdata/helpers.go | 8 ++------
  src/cmd/compile/internal/walk/complit.go        | 3 +++
  src/cmd/compile/internal/walk/order.go          | 1 +
  5 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 4a8db70904..0058a98824 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -194,6 +194,7 @@ type CompLitExpr struct {
+ 	miniExpr
+ 	origNode
+ 	List     Nodes // initialized values
++	RType    Node  `mknode:"-"` // *runtime._type for OMAPLIT map types
+ 	Prealloc *Name
+ 	// For OSLICELIT, Len is the backing array length.
+ 	// For OMAPLIT, Len is the number of entries that we've removed from List and
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 7588e52d96..32276e7553 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1812,6 +1812,11 @@ func (r *reader) compLit() ir.Node {
+ 	}
+ 
+ 	lit := typecheck.Expr(ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, elems))
++	switch lit.Op() {
++	case ir.OMAPLIT:
++		lit := lit.(*ir.CompLitExpr)
++		lit.RType = reflectdata.TypePtrAt(pos, typ)
++	}
+ 	if typ0.IsPtr() {
+ 		lit = typecheck.Expr(typecheck.NodAddrAt(pos, lit))
+ 		lit.SetType(typ0)
+diff --git a/src/cmd/compile/internal/reflectdata/helpers.go b/src/cmd/compile/internal/reflectdata/helpers.go
+index 22431a2bcb..66f1864474 100644
+--- a/src/cmd/compile/internal/reflectdata/helpers.go
++++ b/src/cmd/compile/internal/reflectdata/helpers.go
+@@ -160,9 +160,7 @@ func DeleteMapRType(pos src.XPos, n *ir.CallExpr) ir.Node {
+ // map type.
+ func IndexMapRType(pos src.XPos, n *ir.IndexExpr) ir.Node {
+ 	assertOp(n, ir.OINDEXMAP)
+-	// TODO(mdempsky): Need to propagate RType from OMAPLIT nodes to
+-	// emitted OINDEXMAP nodes.
+-	if haveRType(n, n.RType, "RType", false) {
++	if haveRType(n, n.RType, "RType", true) {
+ 		return n.RType
+ 	}
+ 	return mapRType(pos, n.X.Type())
+@@ -184,9 +182,7 @@ func MakeChanRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
+ // representing that map type.
+ func MakeMapRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
+ 	assertOp(n, ir.OMAKEMAP)
+-	// TODO(mdempsky): Need to propagate RType from OMAPLIT nodes to
+-	// emitted OMAKEMAP nodes.
+-	if haveRType(n, n.RType, "RType", false) {
++	if haveRType(n, n.RType, "RType", true) {
+ 		return n.RType
+ 	}
+ 	return mapRType(pos, n.Type())
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index d8e5a955c2..7dec9ae6d8 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -416,6 +416,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
+ 	// make the map var
+ 	args := []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(n.Len + int64(len(n.List)))}
+ 	a := typecheck.Expr(ir.NewCallExpr(base.Pos, ir.OMAKE, nil, args)).(*ir.MakeExpr)
++	a.RType = n.RType
+ 	a.SetEsc(n.Esc())
+ 	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, m, a))
+ 
+@@ -471,6 +472,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
+ 		// typechecker rewrites OINDEX to OINDEXMAP
+ 		lhs := typecheck.AssignExpr(ir.NewIndexExpr(base.Pos, m, kidx)).(*ir.IndexExpr)
+ 		base.AssertfAt(lhs.Op() == ir.OINDEXMAP, lhs.Pos(), "want OINDEXMAP, have %+v", lhs)
++		lhs.RType = n.RType
+ 
+ 		zero := ir.NewAssignStmt(base.Pos, i, ir.NewInt(0))
+ 		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(tk.NumElem()))
+@@ -510,6 +512,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
+ 		// typechecker rewrites OINDEX to OINDEXMAP
+ 		lhs := typecheck.AssignExpr(ir.NewIndexExpr(base.Pos, m, tmpkey)).(*ir.IndexExpr)
+ 		base.AssertfAt(lhs.Op() == ir.OINDEXMAP, lhs.Pos(), "want OINDEXMAP, have %+v", lhs)
++		lhs.RType = n.RType
+ 
+ 		var a ir.Node = ir.NewAssignStmt(base.Pos, lhs, tmpelem)
+ 		a = typecheck.Stmt(a)
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 2602e20563..525c29b96f 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -1452,6 +1452,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
+ 		for _, r := range dynamics {
+ 			lhs := typecheck.AssignExpr(ir.NewIndexExpr(base.Pos, m, r.Key)).(*ir.IndexExpr)
+ 			base.AssertfAt(lhs.Op() == ir.OINDEXMAP, lhs.Pos(), "want OINDEXMAP, have %+v", lhs)
++			lhs.RType = n.RType
+ 
+ 			as := ir.NewAssignStmt(base.Pos, lhs, r.Value)
+ 			typecheck.Stmt(as)

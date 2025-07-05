@@ -16,6 +16,28 @@ Date:   Thu Apr 6 16:38:47 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/signal_unix.go | 10 ----------
  1 file changed, 10 deletions(-)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index c7edbcd239..66c1ddaac3 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -973,16 +973,6 @@ func raisebadsignal(sig uint32, c *sigctxt) {
+ 
+ //go:nosplit
+ func crash() {
+-	// OS X core dumps are linear dumps of the mapped memory,
+-	// from the first virtual byte to the last, with zeros in the gaps.
+-	// Because of the way we arrange the address space on 64-bit systems,
+-	// this means the OS X core file will be >128 GB and even on a zippy
+-	// workstation can take OS X well over an hour to write (uninterruptible).
+-	// Save users from making that mistake.
+-	if GOOS == "darwin" && GOARCH == "amd64" {
+-		return
+-	}
+-
+ 	dieFromSignal(_SIGABRT)
+ }
+ 

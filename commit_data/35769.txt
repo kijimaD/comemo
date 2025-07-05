@@ -11,6 +11,31 @@ Date:   Wed Mar 7 09:46:47 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/pe/string.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/debug/pe/string.go b/src/debug/pe/string.go
+index c30255f341..cab0366ade 100644
+--- a/src/debug/pe/string.go
++++ b/src/debug/pe/string.go
+@@ -5,6 +5,7 @@
+ package pe
+ 
+ import (
++	"bytes"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"io"
+@@ -13,8 +14,9 @@ import (
+ // cstring converts ASCII byte sequence b to string.
+ // It stops once it finds 0 or reaches end of b.
+ func cstring(b []byte) string {
+-	var i int
+-	for i = 0; i < len(b) && b[i] != 0; i++ {
++	i := bytes.IndexByte(b, 0)
++	if i == -1 {
++		i = len(b)
+ 	}
+ 	return string(b[:i])
+ }

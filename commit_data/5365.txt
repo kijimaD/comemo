@@ -8,7 +8,38 @@ Date:   Tue Apr 27 11:57:17 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/943046
-
+---
  src/pkg/go/parser/parser.go      | 2 ++
  src/pkg/go/parser/parser_test.go | 3 +++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 6831a53de2..52504994e6 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1105,9 +1105,11 @@ func (p *parser) parseCompositeLit(typ ast.Expr) ast.Expr {
+ 
+ 	lbrace := p.expect(token.LBRACE)
+ 	var elts []ast.Expr
++	p.exprLev++
+ 	if p.tok != token.RBRACE {
+ 		elts = p.parseElementList()
+ 	}
++	p.exprLev--
+ 	rbrace := p.expect(token.RBRACE)
+ 	return &ast.CompositeLit{typ, lbrace, elts, rbrace}
+ }
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 75ebd8cec7..01327a41d7 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -38,6 +38,9 @@ var validPrograms = []interface{}{
+ 	`package main; func f(func() func() func())` + "\n",
+ 	`package main; func f(...)` + "\n",
+ 	`package main; func f(float, ...int)` + "\n",
++	`package main; type T []int; var a []bool; func f() { if a[T{42}[0]] {} }` + "\n",
++	`package main; type T []int; func g(int) bool { return true }; func f() { if g(T{42}[0]) {} }` + "\n",
++	`package main; type T []int; func f() { for _ = range []int{T{42}[0]} {} }` + "\n",
+ }
+ 
+ 

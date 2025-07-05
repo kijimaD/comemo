@@ -9,6 +9,20 @@ Date:   Wed Jan 19 19:02:47 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4006043
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 0a345d8f66..ab8415e087 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -2607,7 +2607,7 @@ class MercurialVCS(VersionControlSystem):
+ 			self.base_rev = self.options.revision
+ 		else:
+ 			mqparent, err = RunShellWithReturnCode(['hg', 'log', '--rev', 'qparent', '--template={node}'])
+-			if not err:
++			if not err and mqparent != "":
+ 				self.base_rev = mqparent
+ 			else:
+ 				self.base_rev = RunShell(["hg", "parents", "-q"]).split(':')[1].strip()

@@ -13,7 +13,39 @@ Date:   Thu Oct 7 15:30:03 2021 +0800
     Trust: Robert Findley <rfindley@google.com>
     Trust: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/unicode/utf8/example_test.go | 10 ++++++++++
  src/unicode/utf8/utf8_test.go    |  2 +-
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/unicode/utf8/example_test.go b/src/unicode/utf8/example_test.go
+index 5cd931d242..fe434c9476 100644
+--- a/src/unicode/utf8/example_test.go
++++ b/src/unicode/utf8/example_test.go
+@@ -214,3 +214,13 @@ func ExampleValidString() {
+ 	// true
+ 	// false
+ }
++
++func ExampleAppendRune() {
++	buf1 := utf8.AppendRune(nil, 0x10000)
++	buf2 := utf8.AppendRune([]byte("init"), 0x10000)
++	fmt.Println(string(buf1))
++	fmt.Println(string(buf2))
++	// Output:
++	// 𐀀
++	// init𐀀
++}
+diff --git a/src/unicode/utf8/utf8_test.go b/src/unicode/utf8/utf8_test.go
+index a60040ecfd..e9be4d2d63 100644
+--- a/src/unicode/utf8/utf8_test.go
++++ b/src/unicode/utf8/utf8_test.go
+@@ -133,7 +133,7 @@ func TestAppendRune(t *testing.T) {
+ 			t.Errorf("AppendRune(nil, %#04x) = %s, want %s", m.r, buf, m.str)
+ 		}
+ 		if buf := AppendRune([]byte("init"), m.r); string(buf) != "init"+m.str {
+-			t.Errorf("AppendRune(nil, %#04x) = %s, want %s", m.r, buf, "init"+m.str)
++			t.Errorf("AppendRune(init, %#04x) = %s, want %s", m.r, buf, "init"+m.str)
+ 		}
+ 	}
+ }

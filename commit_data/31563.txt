@@ -14,7 +14,54 @@ Date:   Wed Mar 1 18:39:01 2017 +0100
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  .../vendor/github.com/google/pprof/internal/driver/fetch_test.go    | 6 +++---
  src/cmd/vendor/vendor.json                                          | 4 ++--
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+index e592b77cc8..a1b52affbc 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+@@ -38,7 +38,7 @@ func TestSymbolizationPath(t *testing.T) {
+ 	}
+ 
+ 	// Save environment variables to restore after test
+-	saveHome := os.Getenv("HOME")
++	saveHome := os.Getenv(homeEnv())
+ 	savePath := os.Getenv("PPROF_BINARY_PATH")
+ 
+ 	tempdir, err := ioutil.TempDir("", "home")
+@@ -50,7 +50,7 @@ func TestSymbolizationPath(t *testing.T) {
+ 	os.Create(filepath.Join(tempdir, "pprof", "binaries", "abcde10001", "binary"))
+ 
+ 	obj := testObj{tempdir}
+-	os.Setenv("HOME", tempdir)
++	os.Setenv(homeEnv(), tempdir)
+ 	for _, tc := range []struct {
+ 		env, file, buildID, want string
+ 		msgCount                 int
+@@ -79,7 +79,7 @@ func TestSymbolizationPath(t *testing.T) {
+ 			t.Errorf("%s:%s:%s, want %s, got %s", tc.env, tc.file, tc.buildID, tc.want, file)
+ 		}
+ 	}
+-	os.Setenv("HOME", saveHome)
++	os.Setenv(homeEnv(), saveHome)
+ 	os.Setenv("PPROF_BINARY_PATH", savePath)
+ }
+ 
+diff --git a/src/cmd/vendor/vendor.json b/src/cmd/vendor/vendor.json
+index 71b2905d87..a6e828147d 100644
+--- a/src/cmd/vendor/vendor.json
++++ b/src/cmd/vendor/vendor.json
+@@ -9,8 +9,8 @@
+ 		{
+ 			"canonical": "github.com/google/pprof",
+ 			"local": "github.com/google/pprof",
+-			"revision": "e41fb7133e7ebb84ba6af2f6443032c728db26d3",
+-			"revisionTime": "2017-03-01T00:04:42Z",
++			"revision": "b1c91b9f8fa7647e4c43c96c50f245df551f7013",
++			"revisionTime": "2017-03-01T17:36:15Z",
+ 		},
+ 		{
+ 			"canonical": "golang.org/x/arch/x86/x86asm",

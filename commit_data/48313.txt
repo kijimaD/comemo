@@ -19,7 +19,64 @@ Date:   Thu May 6 20:36:10 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/stdlib_test.go | 10 +++-------
  src/go/types/stdlib_test.go                    | 10 +++-------
  2 files changed, 6 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 7d6753e5c2..cde35c17b6 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -204,6 +204,9 @@ func TestStdKen(t *testing.T) {
+ // Package paths of excluded packages.
+ var excluded = map[string]bool{
+ 	"builtin": true,
++
++	// See #46027: some imports are missing for this submodule.
++	"crypto/ed25519/internal/edwards25519/field/_asm": true,
+ }
+ 
+ // typecheck typechecks the given package files.
+@@ -301,13 +304,6 @@ func (w *walker) walk(dir string) {
+ 		return
+ 	}
+ 
+-	// skip submodules, which might not be vendored
+-	for _, f := range files {
+-		if f.Name() == "go.mod" {
+-			return
+-		}
+-	}
+-
+ 	// apply pkgh to the files in directory dir
+ 	// but ignore files directly under $GOROOT/src (might be temporary test files).
+ 	if dir != filepath.Join(runtime.GOROOT(), "src") {
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index b565956e08..3dea8dcf1e 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -200,6 +200,9 @@ func TestStdKen(t *testing.T) {
+ // Package paths of excluded packages.
+ var excluded = map[string]bool{
+ 	"builtin": true,
++
++	// See #46027: some imports are missing for this submodule.
++	"crypto/ed25519/internal/edwards25519/field/_asm": true,
+ }
+ 
+ // typecheck typechecks the given package files.
+@@ -306,13 +309,6 @@ func (w *walker) walk(dir string) {
+ 		return
+ 	}
+ 
+-	// skip submodules, which might not be vendored
+-	for _, f := range files {
+-		if f.Name() == "go.mod" {
+-			return
+-		}
+-	}
+-
+ 	// apply pkgh to the files in directory dir
+ 	// but ignore files directly under $GOROOT/src (might be temporary test files).
+ 	if dir != filepath.Join(runtime.GOROOT(), "src") {

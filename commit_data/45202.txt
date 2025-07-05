@@ -13,9 +13,121 @@ Date:   Mon Oct 12 13:11:03 2020 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go           |  2 +-
  src/cmd/compile/internal/syntax/nodes.go       | 33 ++++++++++++++------------
  src/cmd/compile/internal/syntax/parser.go      |  2 +-
  src/cmd/compile/internal/syntax/parser_test.go |  2 +-
  4 files changed, 21 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 5dce533e4b..8b11055983 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -60,7 +60,7 @@ func parseFiles(filenames []string) uint {
+ 		}
+ 
+ 		p.node()
+-		lines += p.file.Lines
++		lines += p.file.EOF.Line()
+ 		p.file = nil // release memory
+ 
+ 		if nsyntaxerrors != 0 {
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index 815630fcd4..f2dbdcda29 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -37,7 +37,7 @@ type File struct {
+ 	Pragma   Pragma
+ 	PkgName  *Name
+ 	DeclList []Decl
+-	Lines    uint
++	EOF      Pos
+ 	node
+ }
+ 
+@@ -74,11 +74,12 @@ type (
+ 
+ 	// Name Type
+ 	TypeDecl struct {
+-		Group  *Group // nil means not part of a group
+-		Pragma Pragma
+-		Name   *Name
+-		Alias  bool
+-		Type   Expr
++		Group      *Group // nil means not part of a group
++		Pragma     Pragma
++		Name       *Name
++		TParamList []*Field // nil means no type parameters
++		Alias      bool
++		Type       Expr
+ 		decl
+ 	}
+ 
+@@ -99,11 +100,12 @@ type (
+ 	// func Receiver Name Type { Body }
+ 	// func Receiver Name Type
+ 	FuncDecl struct {
+-		Pragma Pragma
+-		Recv   *Field // nil means regular function
+-		Name   *Name
+-		Type   *FuncType
+-		Body   *BlockStmt // nil means no body (forward declaration)
++		Pragma     Pragma
++		Recv       *Field // nil means regular function
++		Name       *Name
++		TParamList []*Field // nil means no type parameters
++		Type       *FuncType
++		Body       *BlockStmt // nil means no body (forward declaration)
+ 		decl
+ 	}
+ )
+@@ -223,9 +225,10 @@ type (
+ 
+ 	// Fun(ArgList[0], ArgList[1], ...)
+ 	CallExpr struct {
+-		Fun     Expr
+-		ArgList []Expr // nil means no arguments
+-		HasDots bool   // last argument is followed by ...
++		Fun      Expr
++		ArgList  []Expr // nil means no arguments
++		HasDots  bool   // last argument is followed by ...
++		Brackets bool   // []'s instead of ()'s
+ 		expr
+ 	}
+ 
+@@ -272,7 +275,7 @@ type (
+ 
+ 	// interface { MethodList[0]; MethodList[1]; ... }
+ 	InterfaceType struct {
+-		MethodList []*Field
++		MethodList []*Field // a field named "type" means a type constraint
+ 		expr
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 1485b70059..146f83ed01 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -445,7 +445,7 @@ func (p *parser) fileOrNil() *File {
+ 	// p.tok == _EOF
+ 
+ 	p.clearPragma()
+-	f.Lines = p.line
++	f.EOF = p.pos()
+ 
+ 	return f
+ }
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index 81945faee9..f1c5433b40 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -76,7 +76,7 @@ func TestStdLib(t *testing.T) {
+ 				if *verify {
+ 					verifyPrint(filename, ast)
+ 				}
+-				results <- parseResult{filename, ast.Lines}
++				results <- parseResult{filename, ast.EOF.Line()}
+ 			})
+ 		}
+ 	}()

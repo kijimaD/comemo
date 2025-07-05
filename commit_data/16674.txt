@@ -10,8 +10,48 @@ Date:   Fri Jun 28 12:06:25 2013 -0700
     TBR=iant
     CC=golang-dev
     https://golang.org/cl/10676047
-
+---
  src/cmd/5g/ggen.c | 2 +-
  src/cmd/6g/ggen.c | 2 +-
  src/cmd/8g/ggen.c | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index d9935ca25a..70049a89cc 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -39,7 +39,7 @@ markautoused(Prog* p)
+ 	}
+ }
+ 
+-// Fixup instructions after compactframe has moved all autos around.
++// Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
+ void
+ fixautoused(Prog* p)
+ {
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index e7c4c7ebfb..a47de23bdb 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -36,7 +36,7 @@ markautoused(Prog* p)
+ 	}
+ }
+ 
+-// Fixup instructions after compactframe has moved all autos around.
++// Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
+ void
+ fixautoused(Prog *p)
+ {
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index d7d58d917f..60b22bbea2 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -38,7 +38,7 @@ markautoused(Prog* p)
+ 	}
+ }
+ 
+-// Fixup instructions after compactframe has moved all autos around.
++// Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
+ void
+ fixautoused(Prog* p)
+ {

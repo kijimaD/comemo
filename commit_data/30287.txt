@@ -19,6 +19,55 @@ Date:   Sat Oct 29 18:44:07 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/h2_bundle.go | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index f69623c1f5..da7c02578c 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -2173,6 +2173,17 @@ func (w *http2responseWriter) Push(target string, opts *PushOptions) error {
+ 	return w.push(target, internalOpts)
+ }
+ 
++func http2configureServer18(h1 *Server, h2 *http2Server) error {
++	if h2.IdleTimeout == 0 {
++		if h1.IdleTimeout != 0 {
++			h2.IdleTimeout = h1.IdleTimeout
++		} else {
++			h2.IdleTimeout = h1.ReadTimeout
++		}
++	}
++	return nil
++}
++
+ var http2DebugGoroutines = os.Getenv("DEBUG_HTTP2_GOROUTINES") == "1"
+ 
+ type http2goroutineLock uint64
+@@ -2971,15 +2982,25 @@ func (s *http2Server) maxConcurrentStreams() uint32 {
+ 	return http2defaultMaxStreams
+ }
+ 
++// List of funcs for ConfigureServer to run. Both h1 and h2 are guaranteed
++// to be non-nil.
++var http2configServerFuncs []func(h1 *Server, h2 *http2Server) error
++
+ // ConfigureServer adds HTTP/2 support to a net/http Server.
+ //
+ // The configuration conf may be nil.
+ //
+ // ConfigureServer must be called before s begins serving.
+ func http2ConfigureServer(s *Server, conf *http2Server) error {
++	if s == nil {
++		panic("nil *http.Server")
++	}
+ 	if conf == nil {
+ 		conf = new(http2Server)
+ 	}
++	if err := http2configureServer18(s, conf); err != nil {
++		return err
++	}
+ 
+ 	if s.TLSConfig == nil {
+ 		s.TLSConfig = new(tls.Config)

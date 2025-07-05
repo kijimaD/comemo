@@ -7,8 +7,263 @@ Date:   Mon Jan 7 10:48:06 2013 +1100
     R=rsc, mdempsky, dave
     CC=golang-dev
     https://golang.org/cl/7028051
-
+---
  src/pkg/bytes/buffer_test.go |  2 +-
  src/pkg/bytes/bytes.go       | 60 ++++++++++++++++++++++----------------------
  src/pkg/bytes/bytes_test.go  | 26 +++++++++----------
  3 files changed, 44 insertions(+), 44 deletions(-)
+
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index c53544a74a..69b2507733 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -260,7 +260,7 @@ func TestWriteTo(t *testing.T) {
+ 
+ func TestRuneIO(t *testing.T) {
+ 	const NRune = 1000
+-	// Built a test array while we write the data
++	// Built a test slice while we write the data
+ 	b := make([]byte, utf8.UTFMax*NRune)
+ 	var buf Buffer
+ 	n := 0
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index c3980bb2ab..cb4dae6aec 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -11,7 +11,7 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// Compare returns an integer comparing the two byte arrays lexicographically.
++// Compare returns an integer comparing two byte slices lexicographically.
+ // The result will be 0 if a==b, -1 if a < b, and +1 if a > b
+ // A nil argument is equivalent to an empty slice.
+ func Compare(a, b []byte) int {
+@@ -53,8 +53,8 @@ func equalPortable(a, b []byte) bool {
+ 	return true
+ }
+ 
+-// explode splits s into an array of UTF-8 sequences, one per Unicode character (still arrays of bytes),
+-// up to a maximum of n byte arrays. Invalid UTF-8 sequences are chopped into individual bytes.
++// explode splits s into a slice of UTF-8 sequences, one per Unicode character (still slices of bytes),
++// up to a maximum of n byte slices. Invalid UTF-8 sequences are chopped into individual bytes.
+ func explode(s []byte, n int) [][]byte {
+ 	if n <= 0 {
+ 		n = len(s)
+@@ -226,7 +226,7 @@ func LastIndexAny(s []byte, chars string) int {
+ }
+ 
+ // Generic split: splits after each instance of sep,
+-// including sepSave bytes of sep in the subarrays.
++// including sepSave bytes of sep in the subslices.
+ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
+ 	if n == 0 {
+ 		return nil
+@@ -287,15 +287,15 @@ func SplitAfter(s, sep []byte) [][]byte {
+ 	return genSplit(s, sep, len(sep), -1)
+ }
+ 
+-// Fields splits the array s around each instance of one or more consecutive white space
+-// characters, returning a slice of subarrays of s or an empty list if s contains only white space.
++// Fields splits the slice s around each instance of one or more consecutive white space
++// characters, returning a slice of subslices of s or an empty list if s contains only white space.
+ func Fields(s []byte) [][]byte {
+ 	return FieldsFunc(s, unicode.IsSpace)
+ }
+ 
+ // FieldsFunc interprets s as a sequence of UTF-8-encoded Unicode code points.
+-// It splits the array s at each run of code points c satisfying f(c) and
+-// returns a slice of subarrays of s.  If no code points in s satisfy f(c), an
++// It splits the slice s at each run of code points c satisfying f(c) and
++// returns a slice of subslices of s.  If no code points in s satisfy f(c), an
+ // empty slice is returned.
+ func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
+ 	n := 0
+@@ -333,46 +333,46 @@ func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
+ 	return a[0:na]
+ }
+ 
+-// Join concatenates the elements of a to create a new byte array. The separator
+-// sep is placed between elements in the resulting array.
+-func Join(a [][]byte, sep []byte) []byte {
+-	if len(a) == 0 {
++// Join concatenates the elements of s to create a new byte slice. The separator
++// sep is placed between elements in the resulting slice.
++func Join(s [][]byte, sep []byte) []byte {
++	if len(s) == 0 {
+ 		return []byte{}
+ 	}
+-	if len(a) == 1 {
++	if len(s) == 1 {
+ 		// Just return a copy.
+-		return append([]byte(nil), a[0]...)
++		return append([]byte(nil), s[0]...)
+ 	}
+-	n := len(sep) * (len(a) - 1)
+-	for i := 0; i < len(a); i++ {
+-		n += len(a[i])
++	n := len(sep) * (len(s) - 1)
++	for _, v := range s {
++		n += len(v)
+ 	}
+ 
+ 	b := make([]byte, n)
+-	bp := copy(b, a[0])
+-	for _, s := range a[1:] {
++	bp := copy(b, s[0])
++	for _, v := range s[1:] {
+ 		bp += copy(b[bp:], sep)
+-		bp += copy(b[bp:], s)
++		bp += copy(b[bp:], v)
+ 	}
+ 	return b
+ }
+ 
+-// HasPrefix tests whether the byte array s begins with prefix.
++// HasPrefix tests whether the byte slice s begins with prefix.
+ func HasPrefix(s, prefix []byte) bool {
+ 	return len(s) >= len(prefix) && Equal(s[0:len(prefix)], prefix)
+ }
+ 
+-// HasSuffix tests whether the byte array s ends with suffix.
++// HasSuffix tests whether the byte slice s ends with suffix.
+ func HasSuffix(s, suffix []byte) bool {
+ 	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix):], suffix)
+ }
+ 
+-// Map returns a copy of the byte array s with all its characters modified
++// Map returns a copy of the byte slice s with all its characters modified
+ // according to the mapping function. If mapping returns a negative value, the character is
+ // dropped from the string with no replacement.  The characters in s and the
+ // output are interpreted as UTF-8-encoded Unicode code points.
+ func Map(mapping func(r rune) rune, s []byte) []byte {
+-	// In the worst case, the array can grow when mapped, making
++	// In the worst case, the slice can grow when mapped, making
+ 	// things unpleasant.  But it's so rare we barge in assuming it's
+ 	// fine.  It could also shrink but that falls out naturally.
+ 	maxbytes := len(s) // length of b
+@@ -413,28 +413,28 @@ func Repeat(b []byte, count int) []byte {
+ 	return nb
+ }
+ 
+-// ToUpper returns a copy of the byte array s with all Unicode letters mapped to their upper case.
++// ToUpper returns a copy of the byte slice s with all Unicode letters mapped to their upper case.
+ func ToUpper(s []byte) []byte { return Map(unicode.ToUpper, s) }
+ 
+-// ToLower returns a copy of the byte array s with all Unicode letters mapped to their lower case.
++// ToLower returns a copy of the byte slice s with all Unicode letters mapped to their lower case.
+ func ToLower(s []byte) []byte { return Map(unicode.ToLower, s) }
+ 
+-// ToTitle returns a copy of the byte array s with all Unicode letters mapped to their title case.
++// ToTitle returns a copy of the byte slice s with all Unicode letters mapped to their title case.
+ func ToTitle(s []byte) []byte { return Map(unicode.ToTitle, s) }
+ 
+-// ToUpperSpecial returns a copy of the byte array s with all Unicode letters mapped to their
++// ToUpperSpecial returns a copy of the byte slice s with all Unicode letters mapped to their
+ // upper case, giving priority to the special casing rules.
+ func ToUpperSpecial(_case unicode.SpecialCase, s []byte) []byte {
+ 	return Map(func(r rune) rune { return _case.ToUpper(r) }, s)
+ }
+ 
+-// ToLowerSpecial returns a copy of the byte array s with all Unicode letters mapped to their
++// ToLowerSpecial returns a copy of the byte slice s with all Unicode letters mapped to their
+ // lower case, giving priority to the special casing rules.
+ func ToLowerSpecial(_case unicode.SpecialCase, s []byte) []byte {
+ 	return Map(func(r rune) rune { return _case.ToLower(r) }, s)
+ }
+ 
+-// ToTitleSpecial returns a copy of the byte array s with all Unicode letters mapped to their
++// ToTitleSpecial returns a copy of the byte slice s with all Unicode letters mapped to their
+ // title case, giving priority to the special casing rules.
+ func ToTitleSpecial(_case unicode.SpecialCase, s []byte) []byte {
+ 	return Map(func(r rune) rune { return _case.ToTitle(r) }, s)
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 2311329ad0..05956d460a 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -25,16 +25,16 @@ func eq(a, b []string) bool {
+ 	return true
+ }
+ 
+-func arrayOfString(a [][]byte) []string {
+-	result := make([]string, len(a))
+-	for j := 0; j < len(a); j++ {
+-		result[j] = string(a[j])
++func sliceOfString(s [][]byte) []string {
++	result := make([]string, len(s))
++	for i, v := range s {
++		result[i] = string(v)
+ 	}
+ 	return result
+ }
+ 
+ // For ease of reading, the test cases use strings that are converted to byte
+-// arrays before invoking the functions.
++// slices before invoking the functions.
+ 
+ var abcd = "abcd"
+ var faces = "☺☻☹"
+@@ -435,7 +435,7 @@ var explodetests = []ExplodeTest{
+ func TestExplode(t *testing.T) {
+ 	for _, tt := range explodetests {
+ 		a := SplitN([]byte(tt.s), nil, tt.n)
+-		result := arrayOfString(a)
++		result := sliceOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf(`Explode("%s", %d) = %v; want %v`, tt.s, tt.n, result, tt.a)
+ 			continue
+@@ -473,7 +473,7 @@ var splittests = []SplitTest{
+ func TestSplit(t *testing.T) {
+ 	for _, tt := range splittests {
+ 		a := SplitN([]byte(tt.s), []byte(tt.sep), tt.n)
+-		result := arrayOfString(a)
++		result := sliceOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
+ 			continue
+@@ -519,7 +519,7 @@ var splitaftertests = []SplitTest{
+ func TestSplitAfter(t *testing.T) {
+ 	for _, tt := range splitaftertests {
+ 		a := SplitAfterN([]byte(tt.s), []byte(tt.sep), tt.n)
+-		result := arrayOfString(a)
++		result := sliceOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
+ 			continue
+@@ -559,7 +559,7 @@ var fieldstests = []FieldsTest{
+ func TestFields(t *testing.T) {
+ 	for _, tt := range fieldstests {
+ 		a := Fields([]byte(tt.s))
+-		result := arrayOfString(a)
++		result := sliceOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
+ 			continue
+@@ -570,7 +570,7 @@ func TestFields(t *testing.T) {
+ func TestFieldsFunc(t *testing.T) {
+ 	for _, tt := range fieldstests {
+ 		a := FieldsFunc([]byte(tt.s), unicode.IsSpace)
+-		result := arrayOfString(a)
++		result := sliceOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf("FieldsFunc(%q, unicode.IsSpace) = %v; want %v", tt.s, a, tt.a)
+ 			continue
+@@ -585,15 +585,15 @@ func TestFieldsFunc(t *testing.T) {
+ 	}
+ 	for _, tt := range fieldsFuncTests {
+ 		a := FieldsFunc([]byte(tt.s), pred)
+-		result := arrayOfString(a)
++		result := sliceOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
+ 		}
+ 	}
+ }
+ 
+-// Test case for any function which accepts and returns a byte array.
+-// For ease of creation, we write the byte arrays as strings.
++// Test case for any function which accepts and returns a byte slice.
++// For ease of creation, we write the byte slices as strings.
+ type StringTest struct {
+ 	in, out string
+ }

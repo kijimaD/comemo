@@ -18,7 +18,133 @@ Date:   Thu Jul 26 16:42:15 2018 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modload/load.go        | 19 +++++++
  src/cmd/go/testdata/script/mod_replace.txt | 89 ++++++++++++++++++++++++++++++
  2 files changed, 108 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 36dc0deee7..e8c984baa7 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -115,6 +115,25 @@ func ImportPaths(args []string) []string {
+ 		}
+ 		return roots
+ 	})
++
++	// A given module path may be used as itself or as a replacement for another
++	// module, but not both at the same time. Otherwise, the aliasing behavior is
++	// too subtle (see https://golang.org/issue/26607), and we don't want to
++	// commit to a specific behavior at this point.
++	firstPath := make(map[module.Version]string, len(buildList))
++	for _, mod := range buildList {
++		src := mod
++		if rep := Replacement(mod); rep.Path != "" {
++			src = rep
++		}
++		if prev, ok := firstPath[src]; !ok {
++			firstPath[src] = mod.Path
++		} else if prev != mod.Path {
++			base.Errorf("go: %s@%s used for two different module paths (%s and %s)", mod.Path, mod.Version, prev, mod.Path)
++		}
++	}
++	base.ExitIfErrors()
++
+ 	WriteGoMod()
+ 
+ 	// Process paths to produce final paths list.
+diff --git a/src/cmd/go/testdata/script/mod_replace.txt b/src/cmd/go/testdata/script/mod_replace.txt
+new file mode 100644
+index 0000000000..3e7f0bc313
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_replace.txt
+@@ -0,0 +1,89 @@
++env GO111MODULE=on
++
++go build -o a1.exe .
++exec ./a1.exe
++stdout 'Don''t communicate by sharing memory'
++
++# Modules can be replaced by local packages.
++go mod -replace=rsc.io/quote/v3=./local/rsc.io/quote/v3
++go build -o a2.exe .
++exec ./a2.exe
++stdout 'Concurrency is not parallelism.'
++
++# The module path of the replacement doesn't need to match.
++# (For example, it could be a long-running fork with its own import path.)
++go mod -replace=rsc.io/quote/v3=./local/not-rsc.io/quote/v3
++go build -o a3.exe .
++exec ./a3.exe
++stdout 'Clear is better than clever.'
++
++# However, the same module can't be used as two different paths.
++go mod -dropreplace=rsc.io/quote/v3
++go mod -replace=not-rsc.io/quote/v3@v3.0.0=rsc.io/quote/v3@v3.0.0
++go mod -require=not-rsc.io/quote/v3@v3.0.0
++! go build -o a4.exe .
++
++
++-- go.mod --
++module quoter
++
++require rsc.io/quote/v3 v3.0.0
++
++-- main.go --
++package main
++
++import (
++	"fmt"
++	"rsc.io/quote/v3"
++)
++
++func main() {
++	fmt.Println(quote.GoV3())
++}
++
++-- local/rsc.io/quote/v3/go.mod --
++module rsc.io/quote/v3
++
++require rsc.io/sampler v1.3.0
++
++-- local/rsc.io/quote/v3/quote.go --
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package quote collects pithy sayings.
++package quote
++
++import "rsc.io/sampler"
++
++// Hello returns a greeting.
++func HelloV3() string {
++	return sampler.Hello()
++}
++
++// Glass returns a useful phrase for world travelers.
++func GlassV3() string {
++	// See http://www.oocities.org/nodotus/hbglass.html.
++	return "I can eat glass and it doesn't hurt me."
++}
++
++// Go returns a REPLACED Go proverb.
++func GoV3() string {
++	return "Concurrency is not parallelism."
++}
++
++// Opt returns a optimization truth.
++func OptV3() string {
++	// Wisdom from ken.
++	return "If a program is too slow, it must have a loop."
++}
++
++-- local/not-rsc.io/quote/v3/go.mod --
++module not-rsc.io/quote/v3
++
++-- local/not-rsc.io/quote/v3/quote.go --
++package quote
++
++func GoV3() string {
++	return "Clear is better than clever."
++}

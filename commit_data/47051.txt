@@ -17,9 +17,136 @@ Date:   Wed Feb 17 11:36:58 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/builtin.go      |  2 +-
  .../compile/internal/typecheck/builtin/runtime.go  |  2 +-
  src/cmd/compile/internal/walk/select.go            | 20 ++++++---------
  src/runtime/chan.go                                | 30 +++-------------------
  4 files changed, 13 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index f9a4f6aef4..17393f801c 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -316,7 +316,7 @@ func runtimeTypes() []*types.Type {
+ 	typs[92] = newSig(params(typs[1], typs[3]), nil)
+ 	typs[93] = newSig(params(typs[1], typs[3], typs[15], typs[3], typs[15]), params(typs[15]))
+ 	typs[94] = newSig(params(typs[87], typs[3]), params(typs[6]))
+-	typs[95] = newSig(params(typs[3], typs[84]), params(typs[6]))
++	typs[95] = newSig(params(typs[3], typs[84]), params(typs[6], typs[6]))
+ 	typs[96] = types.NewPtr(typs[6])
+ 	typs[97] = newSig(params(typs[3], typs[96], typs[84]), params(typs[6]))
+ 	typs[98] = newSig(params(typs[63]), nil)
+diff --git a/src/cmd/compile/internal/typecheck/builtin/runtime.go b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+index acb69c7b28..77a6fdb026 100644
+--- a/src/cmd/compile/internal/typecheck/builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+@@ -166,7 +166,7 @@ func typedmemclr(typ *byte, dst *any)
+ func typedslicecopy(typ *byte, dstPtr *any, dstLen int, srcPtr *any, srcLen int) int
+ 
+ func selectnbsend(hchan chan<- any, elem *any) bool
+-func selectnbrecv(elem *any, hchan <-chan any) bool
++func selectnbrecv(elem *any, hchan <-chan any) (bool, bool)
+ func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
+ 
+ func selectsetpc(pc *uintptr)
+diff --git a/src/cmd/compile/internal/walk/select.go b/src/cmd/compile/internal/walk/select.go
+index 873be289dc..d2b67ddf55 100644
+--- a/src/cmd/compile/internal/walk/select.go
++++ b/src/cmd/compile/internal/walk/select.go
+@@ -106,7 +106,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 		ir.SetPos(n)
+ 		r := ir.NewIfStmt(base.Pos, nil, nil, nil)
+ 		*r.PtrInit() = cas.Init()
+-		var call ir.Node
++		var cond ir.Node
+ 		switch n.Op() {
+ 		default:
+ 			base.Fatalf("select %v", n.Op())
+@@ -115,7 +115,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 			// if selectnbsend(c, v) { body } else { default body }
+ 			n := n.(*ir.SendStmt)
+ 			ch := n.Chan
+-			call = mkcall1(chanfn("selectnbsend", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), ch, n.Value)
++			cond = mkcall1(chanfn("selectnbsend", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), ch, n.Value)
+ 
+ 		case ir.OSELRECV2:
+ 			n := n.(*ir.AssignListStmt)
+@@ -125,18 +125,14 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 			if ir.IsBlank(elem) {
+ 				elem = typecheck.NodNil()
+ 			}
+-			if ir.IsBlank(n.Lhs[1]) {
+-				// if selectnbrecv(&v, c) { body } else { default body }
+-				call = mkcall1(chanfn("selectnbrecv", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), elem, ch)
+-			} else {
+-				// TODO(cuonglm): make this use selectnbrecv()
+-				// if selectnbrecv2(&v, &received, c) { body } else { default body }
+-				receivedp := typecheck.Expr(typecheck.NodAddr(n.Lhs[1]))
+-				call = mkcall1(chanfn("selectnbrecv2", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), elem, receivedp, ch)
+-			}
++			cond = typecheck.Temp(types.Types[types.TBOOL])
++			fn := chanfn("selectnbrecv", 2, ch.Type())
++			call := mkcall1(fn, fn.Type().Results(), r.PtrInit(), elem, ch)
++			as := ir.NewAssignListStmt(r.Pos(), ir.OAS2, []ir.Node{cond, n.Lhs[1]}, []ir.Node{call})
++			r.PtrInit().Append(typecheck.Stmt(as))
+ 		}
+ 
+-		r.Cond = typecheck.Expr(call)
++		r.Cond = typecheck.Expr(cond)
+ 		r.Body = cas.Body
+ 		r.Else = append(dflt.Init(), dflt.Body...)
+ 		return []ir.Node{r, ir.NewBranchStmt(base.Pos, ir.OBREAK, nil)}
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index ba56e2cc40..f2a75b30f4 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -687,28 +687,6 @@ func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
+ 	return chansend(c, elem, false, getcallerpc())
+ }
+ 
+-// compiler implements
+-//
+-//	select {
+-//	case v = <-c:
+-//		... foo
+-//	default:
+-//		... bar
+-//	}
+-//
+-// as
+-//
+-//	if selectnbrecv(&v, c) {
+-//		... foo
+-//	} else {
+-//		... bar
+-//	}
+-//
+-func selectnbrecv(elem unsafe.Pointer, c *hchan) (selected bool) {
+-	selected, _ = chanrecv(c, elem, false)
+-	return
+-}
+-
+ // compiler implements
+ //
+ //	select {
+@@ -720,16 +698,14 @@ func selectnbrecv(elem unsafe.Pointer, c *hchan) (selected bool) {
+ //
+ // as
+ //
+-//	if c != nil && selectnbrecv2(&v, &ok, c) {
++//	if selected, ok = selectnbrecv(&v, c); selected {
+ //		... foo
+ //	} else {
+ //		... bar
+ //	}
+ //
+-func selectnbrecv2(elem unsafe.Pointer, received *bool, c *hchan) (selected bool) {
+-	// TODO(khr): just return 2 values from this function, now that it is in Go.
+-	selected, *received = chanrecv(c, elem, false)
+-	return
++func selectnbrecv(elem unsafe.Pointer, c *hchan) (selected, received bool) {
++	return chanrecv(c, elem, false)
+ }
+ 
+ //go:linkname reflect_chansend reflect.chansend

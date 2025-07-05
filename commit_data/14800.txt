@@ -32,7 +32,7 @@ Date:   Sun Jan 6 15:24:47 2013 -0500
     R=remyoudompheng, daniel.morsing, minux.ma, iant
     CC=golang-dev
     https://golang.org/cl/7035043
-
+---
  doc/go1.1.html      |  12 +++
  include/libc.h      |  10 ++
  src/cmd/5c/peep.c   |   2 +-
@@ -52,3 +52,1264 @@ Date:   Sun Jan 6 15:24:47 2013 -0500
  src/cmd/ld/lib.h    |   5 +
  src/lib9/flag.c     | 300 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  18 files changed, 606 insertions(+), 328 deletions(-)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index 55c76562e0..4aa5fa55da 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -18,6 +18,18 @@ TODO
+ 
+ TODO: more
+ 
++<h3 id="gc-flag">Command-line flag parsing</h3>
++
++<p>
++In the gc toolchain, the compilers and linkers now use the
++same command-line flag parsing rules as the Go flag package, a departure
++from the traditional Unix flag parsing. This may affect scripts that invoke
++the tool directly.
++For example,
++<code>go tool 6c -Fw -Dfoo</code> must now be written
++<code>go tool 6c -F -w -D foo</code>. 
++</p>
++
+ <h3 id="int">Size of int on 64-bit platforms</h3>
+ 
+ <p>
+diff --git a/include/libc.h b/include/libc.h
+index 42c653cf5e..9486b11430 100644
+--- a/include/libc.h
++++ b/include/libc.h
+@@ -292,6 +292,16 @@ extern	char*	getgoversion(void);
+ extern	char*	getgoarm(void);
+ extern	char*	getgo386(void);
+ 
++extern	void	flagcount(char*, char*, int*);
++extern	void	flagint32(char*, char*, int32*);
++extern	void	flagint64(char*, char*, int64*);
++extern	void	flagstr(char*, char*, char**);
++extern	void	flagparse(int*, char***, void (*usage)(void));
++extern	void	flagfn0(char*, char*, void(*fn)(void));
++extern	void	flagfn1(char*, char*, void(*fn)(char*));
++extern	void	flagfn2(char*, char*, void(*fn)(char*, char*));
++extern	void	flagprint(int);
++
+ #ifdef _WIN32
+ 
+ #ifndef _WIN64
+diff --git a/src/cmd/5c/peep.c b/src/cmd/5c/peep.c
+index cdfb9d7f69..2f902e02a2 100644
+--- a/src/cmd/5c/peep.c
++++ b/src/cmd/5c/peep.c
+@@ -824,7 +824,7 @@ xtramodes(Reg *r, Adr *a)
+ 	Adr v;
+ 
+ 	p = r->prog;
+-	if(debug['h'] && p->as == AMOVB && p->from.type == D_OREG)	/* byte load */
++	if(p->as == AMOVB && p->from.type == D_OREG)	/* byte load */
+ 		return 0;
+ 	v = *a;
+ 	v.type = D_REG;
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 16f7e58925..5b05932fdd 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -286,7 +286,7 @@ EXTERN	Prog*	curp;
+ EXTERN	Sym*	cursym;
+ EXTERN	Sym*	datap;
+ EXTERN	int32 	elfdatsize;
+-EXTERN	char	debug[128];
++EXTERN	int	debug[128];
+ EXTERN	Sym*	etextp;
+ EXTERN	char*	noname;
+ EXTERN	Prog*	lastp;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 74ac6ecb47..4e2b4d44ec 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -65,18 +65,10 @@ Header headers[] = {
+  *	-Hlinux -Tx -Rx			is linux elf
+  */
+ 
+-void
+-usage(void)
+-{
+-	fprint(2, "usage: 5l [-E entry] [-H head] [-I interpreter] [-L dir] [-T text] [-D data] [-R rnd] [-r path] [-o out] main.5\n");
+-	errorexit();
+-}
+-
+ void
+ main(int argc, char *argv[])
+ {
+-	int c;
+-	char *p, *name, *val;
++	char *p;
+ 	Sym *s;
+ 
+ 	Binit(&bso, 1, OWRITE);
+@@ -98,61 +90,41 @@ main(int argc, char *argv[])
+ 	if(goarm == 5)
+ 		debug['F'] = 1;
+ 
+-	ARGBEGIN {
+-	default:
+-		c = ARGC();
+-		if(c == 'l')
+-			usage();
+- 		if(c >= 0 && c < sizeof(debug))
+-			debug[c]++;
+-		break;
+-	case 'o':
+-		outfile = EARGF(usage());
+-		break;
+-	case 'E':
+-		INITENTRY = EARGF(usage());
+-		break;
+-	case 'I':
+-		debug['I'] = 1; // denote cmdline interpreter override
+-		interpreter = EARGF(usage());
+-		break;
+-	case 'L':
+-		Lflag(EARGF(usage()));
+-		break;
+-	case 'T':
+-		INITTEXT = atolwhex(EARGF(usage()));
+-		break;
+-	case 'D':
+-		INITDAT = atolwhex(EARGF(usage()));
+-		break;
+-	case 'R':
+-		INITRND = atolwhex(EARGF(usage()));
+-		break;
+-	case 'r':
+-		rpath = EARGF(usage());
+-		break;
+-	case 'H':
+-		HEADTYPE = headtype(EARGF(usage()));
+-		/* do something about setting INITTEXT */
+-		break;
+-	case 'V':
+-		print("%cl version %s\n", thechar, getgoversion());
+-		errorexit();
+-	case 'X':
+-		name = EARGF(usage());
+-		val = EARGF(usage());
+-		addstrdata(name, val);
+-		break;
+-	case 'B':
+-		val = EARGF(usage());
+-		addbuildinfo(val);
+-		break;
+-	case 'k':
+-		tracksym = EARGF(usage());
+-		break;
+-	} ARGEND
+-
+-	USED(argc);
++	flagcount("1", "use alternate profiling code", &debug['1']);
++	flagfn1("B", "info: define ELF NT_GNU_BUILD_ID note", addbuildinfo);
++	flagstr("E", "sym: entry symbol", &INITENTRY);
++	flagint32("D", "addr: data address", &INITDAT);
++	flagcount("G", "debug pseudo-ops", &debug['G']);
++	flagfn1("I", "interp: set ELF interp", setinterp);
++	flagfn1("L", "dir: add dir to library path", Lflag);
++	flagfn1("H", "head: header type", setheadtype);
++	flagcount("K", "add stack underflow checks", &debug['K']);
++	flagcount("M", "disable software div/mod", &debug['M']);
++	flagcount("O", "print pc-line tables", &debug['O']);
++	flagcount("P", "debug code generation", &debug['P']);
++	flagint32("R", "rnd: address rounding", &INITRND);
++	flagint32("T", "addr: text address", &INITTEXT);
++	flagfn0("V", "print version and exit", doversion);
++	flagcount("W", "disassemble input", &debug['W']);
++	flagfn2("X", "name value: define string data", addstrdata);
++	flagcount("Z", "clear stack frame on entry", &debug['Z']);
++	flagcount("a", "disassemble output", &debug['a']);
++	flagcount("b", "race detection", &debug['b']);
++	flagcount("c", "dump call graph", &debug['c']);
++	flagcount("d", "disable dynamic executable", &debug['d']);
++	flagcount("f", "ignore version mismatch", &debug['f']);
++	flagcount("g", "disable go package data checks", &debug['g']);
++	flagstr("k", "sym: set field tracking symbol", &tracksym);
++	flagcount("n", "dump symbol table", &debug['n']);
++	flagstr("o", "outfile: set output file", &outfile);
++	flagcount("p", "insert profiling code", &debug['p']);
++	flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath);
++	flagcount("s", "disable symbol table", &debug['s']);
++	flagcount("u", "reject unsafe packages", &debug['u']);
++	flagcount("v", "print link trace", &debug['v']);
++	flagcount("w", "disable DWARF generation", &debug['w']);
++	
++	flagparse(&argc, &argv, usage);
+ 
+ 	if(argc != 1)
+ 		usage();
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 9f18b475c8..054ae5e02c 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -317,8 +317,8 @@ enum
+ EXTERN	int32	HEADR;
+ EXTERN	int32	HEADTYPE;
+ EXTERN	int32	INITRND;
+-EXTERN	vlong	INITTEXT;
+-EXTERN	vlong	INITDAT;
++EXTERN	int64	INITTEXT;
++EXTERN	int64	INITDAT;
+ EXTERN	char*	INITENTRY;		/* entry point */
+ EXTERN	char*	pcstr;
+ EXTERN	Auto*	curauto;
+@@ -327,7 +327,7 @@ EXTERN	Prog*	curp;
+ EXTERN	Sym*	cursym;
+ EXTERN	Sym*	datap;
+ EXTERN	vlong	elfdatsize;
+-EXTERN	char	debug[128];
++EXTERN	int	debug[128];
+ EXTERN	char	literal[32];
+ EXTERN	Sym*	textp;
+ EXTERN	Sym*	etextp;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 08db03c4a3..56f3df768c 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -67,23 +67,11 @@ Header headers[] = {
+  *	-Hnetbsd -Tx -Rx		is NetBSD elf-exec
+  *	-Hopenbsd -Tx -Rx		is OpenBSD elf-exec
+  *	-Hwindows -Tx -Rx		is MS Windows PE32+
+- *
+- *	options used: 189BLQSWabcjlnpsvz
+  */
+ 
+-void
+-usage(void)
+-{
+-	fprint(2, "usage: 6l [-options] [-E entry] [-H head] [-I interpreter] [-L dir] [-T text] [-R rnd] [-r path] [-o out] main.6\n");
+-	exits("usage");
+-}
+-
+ void
+ main(int argc, char *argv[])
+ {
+-	int c;
+-	char *name, *val;
+-
+ 	Binit(&bso, 1, OWRITE);
+ 	listinit();
+ 	memset(debug, 0, sizeof(debug));
+@@ -96,58 +84,41 @@ main(int argc, char *argv[])
+ 	INITENTRY = 0;
+ 	nuxiinit();
+ 
+-	ARGBEGIN {
+-	default:
+-		c = ARGC();
+-		if(c == 'l')
+-			usage();
+- 		if(c >= 0 && c < sizeof(debug))
+-			debug[c]++;
+-		break;
+-	case 'o': /* output to (next arg) */
+-		outfile = EARGF(usage());
+-		break;
+-	case 'E':
+-		INITENTRY = EARGF(usage());
+-		break;
+-	case 'H':
+-		HEADTYPE = headtype(EARGF(usage()));
+-		break;
+-	case 'I':
+-		debug['I'] = 1; // denote cmdline interpreter override
+-		interpreter = EARGF(usage());
+-		break;
+-	case 'L':
+-		Lflag(EARGF(usage()));
+-		break;
+-	case 'T':
+-		INITTEXT = atolwhex(EARGF(usage()));
+-		break;
+-	case 'D':
+-		INITDAT = atolwhex(EARGF(usage()));
+-		break;
+-	case 'R':
+-		INITRND = atolwhex(EARGF(usage()));
+-		break;
+-	case 'r':
+-		rpath = EARGF(usage());
+-		break;
+-	case 'V':
+-		print("%cl version %s\n", thechar, getgoversion());
+-		errorexit();
+-	case 'X':
+-		name = EARGF(usage());
+-		val = EARGF(usage());
+-		addstrdata(name, val);
+-		break;
+-	case 'B':
+-		val = EARGF(usage());
+-		addbuildinfo(val);
+-		break;
+-	case 'k':
+-		tracksym = EARGF(usage());
+-		break;
+-	} ARGEND
++	flagcount("1", "use alternate profiling code", &debug['1']);
++	flagcount("8", "assume 64-bit addresses", &debug['8']);
++	flagfn1("B", "info: define ELF NT_GNU_BUILD_ID note", addbuildinfo);
++	flagint64("D", "addr: data address", &INITDAT);
++	flagstr("E", "sym: entry symbol", &INITENTRY);
++	flagfn1("I", "interp: set ELF interp", setinterp);
++	flagfn1("L", "dir: add dir to library path", Lflag);
++	flagfn1("H", "head: header type", setheadtype);
++	flagcount("K", "add stack underflow checks", &debug['K']);
++	flagcount("O", "print pc-line tables", &debug['O']);
++	flagcount("Q", "debug byte-register code gen", &debug['Q']);
++	flagint32("R", "rnd: address rounding", &INITRND);
++	flagcount("S", "check type signatures", &debug['S']);
++	flagint64("T", "addr: text address", &INITTEXT);
++	flagfn0("V", "print version and exit", doversion);
++	flagcount("W", "disassemble input", &debug['W']);
++	flagfn2("X", "name value: define string data", addstrdata);
++	flagcount("Z", "clear stack frame on entry", &debug['Z']);
++	flagcount("a", "disassemble output", &debug['a']);
++	flagcount("b", "race detection", &debug['b']);
++	flagcount("c", "dump call graph", &debug['c']);
++	flagcount("d", "disable dynamic executable", &debug['d']);
++	flagcount("f", "ignore version mismatch", &debug['f']);
++	flagcount("g", "disable go package data checks", &debug['g']);
++	flagstr("k", "sym: set field tracking symbol", &tracksym);
++	flagcount("n", "dump symbol table", &debug['n']);
++	flagstr("o", "outfile: set output file", &outfile);
++	flagcount("p", "insert profiling code", &debug['p']);
++	flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath);
++	flagcount("s", "disable symbol table", &debug['s']);
++	flagcount("u", "reject unsafe packages", &debug['u']);
++	flagcount("v", "print link trace", &debug['v']);
++	flagcount("w", "disable DWARF generation", &debug['w']);
++	
++	flagparse(&argc, &argv, usage);
+ 
+ 	if(argc != 1)
+ 		usage();
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 26f0eb016d..8452e4bd4d 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -283,7 +283,7 @@ EXTERN	Prog*	curp;
+ EXTERN	Sym*	cursym;
+ EXTERN	Sym*	datap;
+ EXTERN	int32	elfdatsize;
+-EXTERN	char	debug[128];
++EXTERN	int	debug[128];
+ EXTERN	char	literal[32];
+ EXTERN	Sym*	etextp;
+ EXTERN	Prog*	firstp;
+@@ -296,7 +296,6 @@ EXTERN	int	maxop;
+ EXTERN	int	nerrors;
+ EXTERN	char*	noname;
+ EXTERN	int32	pc;
+-EXTERN	char*	interpreter;
+ EXTERN	char*	rpath;
+ EXTERN	int32	spsize;
+ EXTERN	Sym*	symlist;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 66f1205e5a..5d32dfee73 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -76,19 +76,9 @@ Header headers[] = {
+  *	-Hwindows -Tx -Rx			is MS Windows PE32
+  */
+ 
+-void
+-usage(void)
+-{
+-	fprint(2, "usage: 8l [-options] [-E entry] [-H head] [-I interpreter] [-L dir] [-T text] [-R rnd] [-r path] [-o out] main.8\n");
+-	exits("usage");
+-}
+-
+ void
+ main(int argc, char *argv[])
+ {
+-	int c;
+-	char *name, *val;
+-
+ 	Binit(&bso, 1, OWRITE);
+ 	listinit();
+ 	memset(debug, 0, sizeof(debug));
+@@ -101,58 +91,40 @@ main(int argc, char *argv[])
+ 	INITENTRY = 0;
+ 	nuxiinit();
+ 
+-	ARGBEGIN {
+-	default:
+-		c = ARGC();
+-		if(c == 'l')
+-			usage();
+- 		if(c >= 0 && c < sizeof(debug))
+-			debug[c]++;
+-		break;
+-	case 'o': /* output to (next arg) */
+-		outfile = EARGF(usage());
+-		break;
+-	case 'E':
+-		INITENTRY = EARGF(usage());
+-		break;
+-	case 'H':
+-		HEADTYPE = headtype(EARGF(usage()));
+-		break;
+-	case 'I':
+-		debug['I'] = 1; // denote cmdline interpreter override
+-		interpreter = EARGF(usage());
+-		break;
+-	case 'L':
+-		Lflag(EARGF(usage()));
+-		break;
+-	case 'T':
+-		INITTEXT = atolwhex(EARGF(usage()));
+-		break;
+-	case 'D':
+-		INITDAT = atolwhex(EARGF(usage()));
+-		break;
+-	case 'R':
+-		INITRND = atolwhex(EARGF(usage()));
+-		break;
+-	case 'r':
+-		rpath = EARGF(usage());
+-		break;
+-	case 'V':
+-		print("%cl version %s\n", thechar, getgoversion());
+-		errorexit();
+-	case 'X':
+-		name = EARGF(usage());
+-		val = EARGF(usage());
+-		addstrdata(name, val);
+-		break;
+-	case 'B':
+-		val = EARGF(usage());
+-		addbuildinfo(val);
+-		break;
+-	case 'k':
+-		tracksym = EARGF(usage());
+-		break;
+-	} ARGEND
++	flagcount("1", "use alternate profiling code", &debug['1']);
++	flagfn1("B", "info: define ELF NT_GNU_BUILD_ID note", addbuildinfo);
++	flagstr("E", "sym: entry symbol", &INITENTRY);
++	flagint32("D", "addr: data address", &INITDAT);
++	flagfn1("I", "interp: set ELF interp", setinterp);
++	flagfn1("L", "dir: add dir to library path", Lflag);
++	flagfn1("H", "head: header type", setheadtype);
++	flagcount("K", "add stack underflow checks", &debug['K']);
++	flagcount("O", "print pc-line tables", &debug['O']);
++	flagcount("Q", "debug byte-register code gen", &debug['Q']);
++	flagint32("R", "rnd: address rounding", &INITRND);
++	flagcount("S", "check type signatures", &debug['S']);
++	flagint32("T", "addr: text address", &INITTEXT);
++	flagfn0("V", "print version and exit", doversion);
++	flagcount("W", "disassemble input", &debug['W']);
++	flagfn2("X", "name value: define string data", addstrdata);
++	flagcount("Z", "clear stack frame on entry", &debug['Z']);
++	flagcount("a", "disassemble output", &debug['a']);
++	flagcount("b", "race detection", &debug['b']);
++	flagcount("c", "dump call graph", &debug['c']);
++	flagcount("d", "disable dynamic executable", &debug['d']);
++	flagcount("f", "ignore version mismatch", &debug['f']);
++	flagcount("g", "disable go package data checks", &debug['g']);
++	flagstr("k", "sym: set field tracking symbol", &tracksym);
++	flagstr("o", "outfile: set output file", &outfile);
++	flagcount("p", "insert profiling code", &debug['p']);
++	flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath);
++	flagcount("s", "disable symbol table", &debug['s']);
++	flagcount("n", "dump symbol table", &debug['n']);
++	flagcount("u", "reject unsafe packages", &debug['u']);
++	flagcount("v", "print link trace", &debug['v']);
++	flagcount("w", "disable DWARF generation", &debug['w']);
++	
++	flagparse(&argc, &argv, usage);
+ 
+ 	if(argc != 1)
+ 		usage();
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 3a0147e9fb..6153bf9f75 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -474,7 +474,7 @@ EXTERN	int	autobn;
+ EXTERN	int32	autoffset;
+ EXTERN	int	blockno;
+ EXTERN	Decl*	dclstack;
+-EXTERN	char	debug[256];
++EXTERN	int	debug[256];
+ EXTERN	Hist*	ehist;
+ EXTERN	int32	firstbit;
+ EXTERN	Sym*	firstarg;
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index 653c298a24..b5408cf9ec 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -85,11 +85,38 @@ pathchar(void)
+  *	-.		Inhibit search for includes in source directory
+  */
+ 
++void
++usage(void)
++{
++	print("usage: %cc [options] file.c...\n", thechar);
++	flagprint(1);
++	errorexit();
++}
++
++void
++dospim(void)
++{
++	thechar = '0';
++	thestring = "spim";
++}
++
++char **defs;
++int ndef;
++
++void
++dodef(char *p)
++{
++	if(ndef%8 == 0)
++		defs = allocn(defs, ndef*sizeof(char *),
++			8*sizeof(char *));
++	defs[ndef++] = p;
++	dodefine(p);
++}
++
+ void
+ main(int argc, char *argv[])
+ {
+-	char **defs, *p;
+-	int c, ndef;
++	int c;
+ 
+ 	ensuresymb(NSYMB);
+ 	memset(debug, 0, sizeof(debug));
+@@ -103,46 +130,56 @@ main(int argc, char *argv[])
+ 	defs = nil;
+ 	outfile = 0;
+ 	setinclude(".");
+-	ARGBEGIN {
+-	default:
+-		c = ARGC();
+-		if(c >= 0 && c < sizeof(debug))
+-			debug[c]++;
+-		break;
+ 
+-	case 'l':			/* for little-endian mips */
+-		if(thechar != 'v'){
+-			print("can only use -l with vc\n");
+-			errorexit();
+-		}
+-		thechar = '0';
+-		thestring = "spim";
+-		break;
+-
+-	case 'o':
+-		outfile = ARGF();
+-		break;
++	flagcount("+", "pass -+ to preprocessor", &debug['+']);	
++	flagcount(".", "pass -. to preprocessor", &debug['.']);	
++	flagcount("<", "debug shift", &debug['<']);
++	flagcount("A", "debug alignment", &debug['A']);
++	flagcount("B", "allow pre-ANSI code", &debug['B']);
++	if(thechar == '5')
++		flagcount("C", "debug constant propagation", &debug['C']);
++	flagfn1("D", "name[=value]: add #define", dodef);
++	flagcount("F", "enable print format checks", &debug['F']);
++	if(thechar == '5')
++		flagcount("H", "debug shift propagation", &debug['H']);
++	flagfn1("I", "dir: add dir to include path", setinclude);
++	flagcount("L", "debug lexer", &debug['L']);
++	flagcount("M", "debug move generation", &debug['M']);
++	flagcount("N", "disable optimizations", &debug['N']);
++	flagcount("P", "debug peephole optimizer", &debug['P']);
++	flagcount("Q", "print exported Go definitions", &debug['Q']);
++	flagcount("R", "debug register optimizer", &debug['R']);
++	flagcount("S", "print assembly", &debug['S']);
++	flagcount("T", "enable type signatures", &debug['T']);
++	flagcount("V", "enable pointer type checks", &debug['V']);
++	flagcount("W", "debug switch generation", &debug['W']);
++	flagcount("X", "abort on error", &debug['X']);
++	flagcount("Y", "debug index generation", &debug['Y']);
++	flagcount("Z", "skip code generation", &debug['Z']);
++	flagcount("a", "print acid definitions", &debug['a']);
++	flagcount("c", "debug constant evaluation", &debug['c']);
++	flagcount("d", "debug declarations", &debug['d']);
++	flagcount("e", "debug macro expansion", &debug['e']);
++	flagcount("f", "debug pragmas", &debug['f']);
++	flagcount("g", "debug code generation", &debug['g']);
++	flagcount("i", "debug initialization", &debug['i']);
++	if(thechar == 'v')
++		flagfn0("l", "little-endian mips mode", dospim);
++	flagcount("m", "debug multiplication", &debug['m']);
++	flagcount("n", "print acid/Go to file, not stdout", &debug['n']);
++	flagstr("o", "file: set output file", &outfile);
++	flagcount("p", "invoke C preprocessor", &debug['p']);	
++	flagcount("q", "print Go definitions", &debug['q']);
++	flagcount("s", "print #define assembly offsets", &debug['s']);
++	flagcount("t", "debug code generation", &debug['t']);
++	flagcount("w", "enable warnings", &debug['w']);
++	flagcount("v", "increase debug verbosity", &debug['v']);	
++	
++	flagparse(&argc, &argv, usage);
++
++	if(argc < 1 && outfile == 0)
++		usage();
+ 
+-	case 'D':
+-		p = ARGF();
+-		if(p) {
+-			if(ndef%8 == 0)
+-				defs = allocn(defs, ndef*sizeof(char *),
+-					8*sizeof(char *));
+-			defs[ndef++] = p;
+-			dodefine(p);
+-		}
+-		break;
+-
+-	case 'I':
+-		p = ARGF();
+-		setinclude(p);
+-		break;
+-	} ARGEND
+-	if(argc < 1 && outfile == 0) {
+-		print("usage: %cc [-options] files\n", thechar);
+-		errorexit();
+-	}
+ 	if(argc > 1){
+ 		print("can't compile multiple files\n");
+ 		errorexit();
+diff --git a/src/cmd/cc/sub.c b/src/cmd/cc/sub.c
+index 424e2763ad..9f124cb820 100644
+--- a/src/cmd/cc/sub.c
++++ b/src/cmd/cc/sub.c
+@@ -847,12 +847,6 @@ simplifyshift(Node *n)
+ 	c2 = n->left->left->right->vconst;
+ 	c3 = n->left->right->vconst;
+ 
+-/*
+-	if(debug['h'])
+-		print("%.3o %d %d %d #%.ux\n",
+-			(s1<<3)|s2, c1, c2, topbit(c3), c3);
+-*/
+-
+ 	o = n->op;
+ 	switch((s1<<3)|s2) {
+ 	case 000:	/* (((e <<u c2) & c3) <<u c1) */
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 79149f4d00..59f5e7388e 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -841,7 +841,7 @@ EXTERN	int	safemode;
+ EXTERN	char	namebuf[NSYMB];
+ EXTERN	char	lexbuf[NSYMB];
+ EXTERN	char	litbuf[NSYMB];
+-EXTERN	char	debug[256];
++EXTERN	int	debug[256];
+ EXTERN	Sym*	hash[NHASH];
+ EXTERN	Sym*	importmyname;	// my name for package
+ EXTERN	Pkg*	localpkg;	// package being compiled
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index d7f9e42f4d..1073b985cc 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -133,42 +133,8 @@ enum
+ void
+ usage(void)
+ {
+-	print("gc: usage: %cg [flags] file.go...\n", thechar);
+-	print("flags:\n");
+-	// -A allow use of "any" type, for bootstrapping
+-	// -B disable bounds checking
+-	// -E print imported declarations
+-	// -K warn when lineno is zero
+-	// -M print arguments to gmove
+-	// -P print peephole diagnostics
+-	// -R print optimizer diagnostics
+-	// -g print code generation diagnostics
+-	// -i print line history
+-	// -j print variables to be initialized at runtime
+-	// -r print generated helper functions
+-	// -s print redundant types in composite literals
+-	// -v print more information with -P or -R
+-	// -y print declarations in cannedimports (used with -d)
+-	// -% print non-static initializers
+-	// -+ indicate that the runtime is being compiled
+-	print("  -D PATH interpret local imports relative to this import path\n");
+-	print("  -I DIR search for packages in DIR\n");
+-	print("  -L show full path in file:line prints\n");
+-	print("  -N disable optimizations\n");
+-	print("  -S print the assembly language\n");
+-	print("  -V print the compiler version\n");
+-	print("  -W print the parse tree after typing\n");
+-	print("  -d print declarations\n");
+-	print("  -e no limit on number of errors printed\n");
+-	print("  -f print stack frame structure\n");
+-	print("  -h panic on an error\n");
+-	print("  -l disable inlining\n");
+-	print("  -m print optimization decisions\n");
+-	print("  -o file specify output file\n");
+-	print("  -p assumed import path for this code\n");
+-	print("  -u disable package unsafe\n");
+-	print("  -w print type checking details\n");
+-	print("  -x print lex tokens\n");
++	print("usage: %cg [options] file.go...\n", thechar);
++	flagprint(1);
+ 	exits("usage");
+ }
+ 
+@@ -186,10 +152,22 @@ fault(int s)
+ 	fatal("fault");
+ }
+ 
++void
++doversion(void)
++{
++	char *p;
++
++	p = expstring();
++	if(strcmp(p, "X:none") == 0)
++		p = "";
++	print("%cg version %s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
++	exits(0);
++}
++
+ int
+ main(int argc, char *argv[])
+ {
+-	int i, c;
++	int i;
+ 	NodeList *l;
+ 	char *p;
+ 
+@@ -244,40 +222,44 @@ main(int argc, char *argv[])
+ 	setexp();
+ 
+ 	outfile = nil;
+-	ARGBEGIN {
+-	default:
+-		c = ARGC();
+-		if(c >= 0 && c < sizeof(debug))
+-			debug[c]++;
+-		break;
+-
+-	case 'o':
+-		outfile = EARGF(usage());
+-		break;
+-	
+-	case 'p':
+-		myimportpath = EARGF(usage());
+-		break;
+-
+-	case 'u':
+-		safemode = 1;
+-		break;
+-
+-	case 'D':
+-		localimport = EARGF(usage());
+-		break;
+-
+-	case 'I':
+-		addidir(EARGF(usage()));
+-		break;
+-	
+-	case 'V':
+-		p = expstring();
+-		if(strcmp(p, "X:none") == 0)
+-			p = "";
+-		print("%cg version %s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
+-		exits(0);
+-	} ARGEND
++	flagcount("+", "compiling runtime", &compiling_runtime);
++	flagcount("%", "debug non-static initializers", &debug['%']);
++	flagcount("A", "for bootstrapping, allow 'any' type", &debug['A']);
++	flagcount("B", "disable bounds checking", &debug['B']);
++	flagstr("D", "path: set relative path for local imports", &localimport);
++	flagcount("E", "debug symbol export", &debug['E']);
++	flagfn1("I", "dir: add dir to import search path", addidir);
++	flagcount("K", "debug missing line numbers", &debug['K']);
++	flagcount("L", "use full (long) path in error messages", &debug['L']);
++	flagcount("M", "debug move generation", &debug['M']);
++	flagcount("N", "disable optimizations", &debug['N']);
++	flagcount("P", "debug peephole optimizer", &debug['P']);
++	flagcount("R", "debug register optimizer", &debug['R']);
++	flagcount("S", "print assembly listing", &debug['S']);
++	flagfn0("V", "print compiler version", doversion);
++	flagcount("W", "debug parse tree after type checking", &debug['W']);
++	flagcount("b", "enable race detector", &debug['b']);
++	flagcount("complete", "compiling complete package (no C or assembly)", &pure_go);
++	flagcount("d", "debug declarations", &debug['d']);
++	flagcount("e", "no limit on number of errors reported", &debug['e']);
++	flagcount("f", "debug stack frames", &debug['f']);
++	flagcount("g", "debug code generation", &debug['g']);
++	flagcount("h", "halt on error", &debug['h']);
++	flagcount("i", "debug line number stack", &debug['i']);
++	flagcount("j", "debug runtime-initialized variables", &debug['j']);
++	flagcount("l", "disable inlining", &debug['l']);
++	flagcount("m", "print optimization decisions", &debug['m']);
++	flagstr("o", "obj: set output file", &outfile);
++	flagstr("p", "path: set expected package import path", &myimportpath);
++	flagcount("r", "debug generated wrappers", &debug['r']);
++	flagcount("s", "warn about composite literals that can be simplified", &debug['s']);
++	flagcount("u", "reject unsafe code", &safemode);
++	flagcount("v", "increase debug verbosity", &debug['v']);
++	flagcount("w", "debug type checking", &debug['w']);
++	flagcount("x", "debug lexer", &debug['x']);
++	flagcount("y", "debug declarations in canned imports (with -d)", &debug['y']);
++
++	flagparse(&argc, &argv, usage);
+ 
+ 	if(debug['b']) {
+ 		racepkg = mkpkg(strlit("runtime/race"));
+@@ -294,10 +276,6 @@ main(int argc, char *argv[])
+ 	if(argc < 1)
+ 		usage();
+ 
+-	// special flags used during build.
+-	compiling_runtime = debug['+']; // detect compilation of package runtime
+-	pure_go = debug['=']; // package is completely go (no C or assembly)
+-
+ 	pathname = mal(1000);
+ 	if(getwd(pathname, 999) == 0)
+ 		strcpy(pathname, "/???");
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index dbe4b2b339..5975e0bfc0 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1333,7 +1333,7 @@ func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
+ 		}
+ 	}
+ 	if extFiles == 0 {
+-		gcargs = append(gcargs, "-=")
++		gcargs = append(gcargs, "-complete")
+ 	}
+ 
+ 	args := stringList(tool(archChar+"g"), "-o", ofile, buildGcflags, gcargs, "-D", p.localPrefix, importArgs)
+@@ -1345,7 +1345,7 @@ func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
+ 
+ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	sfile = mkAbs(p.Dir, sfile)
+-	return b.run(p.Dir, p.ImportPath, tool(archChar+"a"), "-I", obj, "-o", ofile, "-DGOOS_"+goos, "-DGOARCH_"+goarch, sfile)
++	return b.run(p.Dir, p.ImportPath, tool(archChar+"a"), "-I", obj, "-o", ofile, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, sfile)
+ }
+ 
+ func (gcToolchain) pkgpath(basedir string, p *Package) string {
+@@ -1383,7 +1383,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action,
+ func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+ 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
+ 	cfile = mkAbs(p.Dir, cfile)
+-	args := stringList(tool(archChar+"c"), "-FVw", "-I", objdir, "-I", inc, "-o", ofile, buildCcflags, "-DGOOS_"+goos, "-DGOARCH_"+goarch, cfile)
++	args := stringList(tool(archChar+"c"), "-F", "-V", "-w", "-I", objdir, "-I", inc, "-o", ofile, buildCcflags, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, cfile)
+ 	return b.run(p.Dir, p.ImportPath, args)
+ }
+ 
+@@ -1419,9 +1419,9 @@ func (gccgcToolchain) gc(b *builder, p *Package, obj string, importArgs []string
+ 
+ func (gccgcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	sfile = mkAbs(p.Dir, sfile)
+-	defs := []string{"-DGOOS_" + goos, "-DGOARCH_" + goarch}
++	defs := []string{"-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch}
+ 	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
+-		defs = append(defs, `-DGOPKGPATH="`+pkgpath+`"`)
++		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
+ 	}
+ 	return b.run(p.Dir, p.ImportPath, "gccgo", "-I", obj, "-o", ofile, defs, sfile)
+ }
+@@ -1486,9 +1486,9 @@ func (tools gccgcToolchain) ld(b *builder, p *Package, out string, allactions []
+ func (gccgcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+ 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
+ 	cfile = mkAbs(p.Dir, cfile)
+-	defs := []string{"-DGOOS_" + goos, "-DGOARCH_" + goarch}
++	defs := []string{"-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch}
+ 	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
+-		defs = append(defs, `-DGOPKGPATH="`+pkgpath+`"`)
++		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
+ 	}
+ 	return b.run(p.Dir, p.ImportPath, "gcc", "-Wall", "-g",
+ 		"-I", objdir, "-I", inc, "-o", ofile, defs, "-c", cfile)
+@@ -1894,7 +1894,7 @@ func raceInit() {
+ 	}
+ 	buildGcflags = append(buildGcflags, "-b")
+ 	buildLdflags = append(buildLdflags, "-b")
+-	buildCcflags = append(buildCcflags, "-DRACE")
++	buildCcflags = append(buildCcflags, "-D", "RACE")
+ 	buildContext.InstallTag = "race"
+ 	buildContext.BuildTags = append(buildContext.BuildTags, "race")
+ }
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 4e1d79a506..4b91af6eb4 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1502,6 +1502,34 @@ cwrite(void *buf, int n)
+ 	coutpos += n;
+ }
+ 
++void
++usage(void)
++{
++	fprint(2, "usage: %cl [options] main.%c\n", thechar, thechar);
++	flagprint(2);
++	exits("usage");
++}
++
++void
++setheadtype(char *s)
++{
++	HEADTYPE = headtype(s);
++}
++
++void
++setinterp(char *s)
++{
++	debug['I'] = 1; // denote cmdline interpreter override
++	interpreter = s;
++}
++
++void
++doversion(void)
++{
++	print("%cl version %s\n", thechar, getgoversion());
++	errorexit();
++}
++
+ void
+ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ {
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 13009d2a3a..cc9e2dac60 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -136,6 +136,7 @@ EXTERN	int	havedynamic;
+ EXTERN	int	iscgo;
+ EXTERN	int	elfglobalsymndx;
+ EXTERN	char*	tracksym;
++EXTERN	char*	interpreter;
+ 
+ EXTERN	Segment	segtext;
+ EXTERN	Segment	segdata;
+@@ -224,6 +225,9 @@ void	dostkcheck(void);
+ void	undef(void);
+ void	doweak(void);
+ void	setpersrc(Sym*);
++void	doversion(void);
++void	usage(void);
++void	setinterp(char*);
+ 
+ int	pathchar(void);
+ void*	mal(uint32);
+@@ -291,6 +295,7 @@ EXTERN	char*	headstring;
+ extern	Header	headers[];
+ 
+ int	headtype(char*);
++void	setheadtype(char*);
+ 
+ int	Yconv(Fmt*);
+ 
+diff --git a/src/lib9/flag.c b/src/lib9/flag.c
+new file mode 100644
+index 0000000000..39441b9082
+--- /dev/null
++++ b/src/lib9/flag.c
+@@ -0,0 +1,300 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <u.h>
++#include <libc.h>
++
++// Flag hash.
++typedef struct Flag Flag;
++
++struct Flag
++{
++	char *name;
++	int namelen;
++	char *desc;
++	int iscount;
++	void (*set)(char*, void*);
++	void (*set2)(char*, char*, void*);
++	void *arg;
++	Flag *next;
++	Flag *allnext;
++};
++
++static Flag *curflag;
++
++static Flag *fhash[512];
++static Flag *first, *last;
++
++// FNV-1 hash. http://isthe.com/chongo/tech/comp/fnv/
++static uint32
++fnv(char *p, int n)
++{
++	uint32 h;
++	
++	h = 2166136261U;
++	while(n-- > 0)
++		h = (h*16777619) ^ (uchar)*p++;
++	return h;
++}
++
++static Flag*
++lookflag(char *name, int namelen, int creat)
++{
++	uint32 h;
++	Flag *f;
++
++	h = fnv(name, namelen) & (nelem(fhash)-1);
++	for(f=fhash[h]; f; f=f->next) {
++		if(f->namelen == namelen && memcmp(f->name, name, namelen) == 0) {
++			if(creat)
++				sysfatal("multiple definitions of flag -%s", name);
++			return f;
++		}
++	}
++	
++	if(!creat)
++		return nil;
++
++	f = malloc(sizeof *f);
++	if(f == nil)
++		sysfatal("out of memory");
++	memset(f, 0, sizeof *f);
++	f->name = name;
++	f->namelen = namelen;
++	f->next = fhash[h];
++	if(first == nil)
++		first = f;
++	else
++		last->allnext = f;
++	last = f;
++	fhash[h] = f;
++	return f;
++}
++
++static void
++count(char *arg, void *p)
++{
++	int *ip;
++	
++	ip = p;
++	if(arg != nil)
++		*ip = atoi(arg);
++	else
++		(*ip)++;
++}
++
++void
++flagcount(char *name, char *desc, int *p)
++{
++	Flag *f;
++	
++	f = lookflag(name, strlen(name), 1);
++	f->desc = desc;
++	f->iscount = 1;
++	f->set = count;
++	f->arg = p;
++}
++
++static void
++atollwhex(char *s, void *p)
++{
++	char *t;
++
++	*(int64*)p = strtoll(s, &t, 0);
++	if(*s == '\0' || *t != '\0')
++		sysfatal("invalid numeric argument -%s=%s", curflag->name, s);
++}
++
++void
++flagint64(char *name, char *desc, int64 *p)
++{
++	Flag *f;
++	
++	f = lookflag(name, strlen(name), 1);
++	f->desc = desc;
++	f->set = atollwhex;
++	f->arg = p;
++}
++
++static void
++atolwhex(char *s, void *p)
++{
++	char *t;
++
++	*(int32*)p = strtol(s, &t, 0);
++	if(*s == '\0' || *t != '\0')
++		sysfatal("invalid numeric argument -%s=%s", curflag->name, s);
++}
++
++void
++flagint32(char *name, char *desc, int32 *p)
++{
++	Flag *f;
++	
++	f = lookflag(name, strlen(name), 1);
++	f->desc = desc;
++	f->set = atolwhex;
++	f->arg = p;
++}
++
++static void
++string(char *s, void *p)
++{
++	*(char**)p = s;
++}
++
++void
++flagstr(char *name, char *desc, char **p)
++{
++
++	Flag *f;
++	
++	f = lookflag(name, strlen(name), 1);
++	f->desc = desc;
++	f->set = string;
++	f->arg = p;
++}	
++
++static void
++fn0(char *s, void *p)
++{
++	USED(s);
++	((void(*)(void))p)();
++}
++
++void
++flagfn0(char *name, char *desc, void (*fn)(void))
++{
++	Flag *f;
++	
++	f = lookflag(name, strlen(name), 1);
++	f->desc = desc;
++	f->set = fn0;
++	f->arg = fn;
++	f->iscount = 1;
++}
++
++static void
++fn1(char *s, void *p)
++{
++	((void(*)(char*))p)(s);
++}
++
++void
++flagfn1(char *name, char *desc, void (*fn)(char*))
++{
++	Flag *f;
++	
++	f = lookflag(name, strlen(name), 1);
++	f->desc = desc;
++	f->set = fn1;
++	f->arg = fn;
++}
++
++static void
++fn2(char *s, char *t, void *p)
++{
++	((void(*)(char*, char*))p)(s, t);
++}
++
++void
++flagfn2(char *name, char *desc, void (*fn)(char*, char*))
++{
++	Flag *f;
++	
++	f = lookflag(name, strlen(name), 1);
++	f->desc = desc;
++	f->set2 = fn2;
++	f->arg = fn;
++}
++
++void
++flagparse(int *argcp, char ***argvp, void (*usage)(void))
++{
++	int argc;
++	char **argv, *p, *q;
++	char *name;
++	int namelen;
++	Flag *f;
++	
++	argc = *argcp;
++	argv = *argvp;
++
++	__fixargv0();
++	argv0 = argv[0];
++	argc--;
++	argv++;
++	
++	while(argc > 0) {
++		p = *argv;
++		// stop before non-flag or -
++		if(*p != '-' || p[1] == '\0')
++			break;
++		argc--;
++		argv++;
++		// stop after --
++		if(p[1] == '-' && p[2] == '\0') {
++			break;
++		}
++		
++		// turn --foo into -foo
++		if(p[1] == '-' && p[2] != '-')
++			p++;
++		
++		// allow -flag=arg if present
++		name = p+1;
++		q = strchr(name, '=');
++		if(q != nil)
++			namelen = q++ - name;
++		else
++			namelen = strlen(name);
++		f = lookflag(name, namelen, 0);
++		if(f == nil) {
++			if(strcmp(p, "-h") == 0 || strcmp(p, "-help") == 0 || strcmp(p, "-?") == 0)
++				usage();
++			sysfatal("unknown flag %s", p);
++		}
++		curflag = f;
++
++		// otherwise consume next argument if non-boolean
++		if(!f->iscount && q == nil) {
++			if(argc-- == 0)
++				sysfatal("missing argument to flag %s", p);
++			q = *argv++;
++		}
++		
++		// and another if we need two
++		if(f->set2 != nil) {
++			if(argc-- == 0)
++				sysfatal("missing second argument to flag %s", p);
++			f->set2(q, *argv++, f->arg);
++			continue;
++		}
++
++		f->set(q, f->arg);			
++	}
++	
++	*argcp = argc;
++	*argvp = argv;		
++}
++
++void
++flagprint(int fd)
++{
++	Flag *f;
++	char *p, *q;
++	
++	for(f=first; f; f=f->allnext) {
++		p = f->desc;
++		if(p == nil || *p == '\0') // undocumented flag
++			continue;
++		q = strstr(p, ": ");
++		if(q)
++			fprint(fd, "  -%s %.*s\n    \t%s\n", f->name, utfnlen(p, q-p), p, q+2);
++		else if(f->namelen > 1)
++			fprint(fd, "  -%s\n    \t%s\n", f->name, p);
++		else
++			fprint(fd, "  -%s\t%s\n", f->name, p);
++	}
++}

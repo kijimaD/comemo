@@ -7,6 +7,19 @@ Date:   Wed Jul 10 14:19:35 2013 -0700
     R=khr
     CC=golang-dev
     https://golang.org/cl/11131043
-
+---
  src/pkg/go/format/format_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/go/format/format_test.go b/src/pkg/go/format/format_test.go
+index 7d7940bb51..93f0992477 100644
+--- a/src/pkg/go/format/format_test.go
++++ b/src/pkg/go/format/format_test.go
+@@ -90,7 +90,6 @@ var tests = []string{
+ 	"\n\t\t\n\n\t\t\tx := 0\n\t\t\tconst s = `\nfoo\n`\n\n\n", // no indentation inside raw strings
+ 
+ 	// erroneous programs
+-	"ERRORvar x",
+ 	"ERROR1 + 2 +",
+ 	"ERRORx :=  0",
+ }

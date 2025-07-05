@@ -21,6 +21,30 @@ Date:   Tue Oct 25 19:14:20 2016 -0700
     Change-Id: Iee159ea751caf4b73eacf3dfc86e29032646373f
     Reviewed-on: https://go-review.googlesource.com/32110
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/effective_go.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index e07c27ca2f..e3f3124631 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -245,15 +245,15 @@ func Compile(str string) (*Regexp, error) {
+ </pre>
+ 
+ <p>
+-If the name always begins the comment, the output of <code>godoc</code>
+-can usefully be run through <code>grep</code>.
++If every doc comment begins with the name of the item it describes,
++the output of <code>godoc</code> can usefully be run through <code>grep</code>.
+ Imagine you couldn't remember the name "Compile" but were looking for
+ the parsing function for regular expressions, so you ran
+ the command,
+ </p>
+ 
+ <pre>
+-$ godoc regexp | grep parse
++$ godoc regexp | grep -i parse
+ </pre>
+ 
+ <p>

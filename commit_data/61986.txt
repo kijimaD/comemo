@@ -16,6 +16,24 @@ Date:   Mon Jan 6 02:10:08 2025 +0000
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/http/request.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 686d53345a..434c1640f3 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -873,9 +873,9 @@ func NewRequest(method, url string, body io.Reader) (*Request, error) {
+ //
+ // NewRequestWithContext returns a Request suitable for use with
+ // [Client.Do] or [Transport.RoundTrip]. To create a request for use with
+-// testing a Server Handler, either use the [NewRequest] function in the
+-// net/http/httptest package, use [ReadRequest], or manually update the
+-// Request fields. For an outgoing client request, the context
++// testing a Server Handler, either use the [net/http/httptest.NewRequest] function,
++// use [ReadRequest], or manually update the Request fields.
++// For an outgoing client request, the context
+ // controls the entire lifetime of a request and its response:
+ // obtaining a connection, sending the request, and reading the
+ // response headers and body. See the Request type's documentation for

@@ -11,7 +11,82 @@ Date:   Thu Nov 10 22:12:50 2016 +0000
     Change-Id: I5e54c25257907c9cac7433f7a5bdfb176e8c3eee
     Reviewed-on: https://go-review.googlesource.com/33096
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/httputil/persist.go |  9 +++++++--
  src/net/http/request.go          | 35 +++++++++++++++++++++++++++--------
  2 files changed, 34 insertions(+), 10 deletions(-)
+
+diff --git a/src/net/http/httputil/persist.go b/src/net/http/httputil/persist.go
+index 87ddd52cd9..cbedf25ad1 100644
+--- a/src/net/http/httputil/persist.go
++++ b/src/net/http/httputil/persist.go
+@@ -15,9 +15,14 @@ import (
+ )
+ 
+ var (
++	// Deprecated: No longer used.
+ 	ErrPersistEOF = &http.ProtocolError{ErrorString: "persistent connection closed"}
+-	ErrClosed     = &http.ProtocolError{ErrorString: "connection closed by user"}
+-	ErrPipeline   = &http.ProtocolError{ErrorString: "pipeline error"}
++
++	// Deprecated: No longer used.
++	ErrClosed = &http.ProtocolError{ErrorString: "connection closed by user"}
++
++	// Deprecated: No longer used.
++	ErrPipeline = &http.ProtocolError{ErrorString: "pipeline error"}
+ )
+ 
+ // This is an API usage error - the local side is closed.
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 37a6a60fe4..fb4377285d 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -39,21 +39,40 @@ const (
+ // is either not present in the request or not a file field.
+ var ErrMissingFile = errors.New("http: no such file")
+ 
+-// HTTP request parsing errors.
++// ProtocolError represents an HTTP protocol error.
++//
++// Deprecated: Not all errors in the http package related to protocol errors
++// are of type ProtocolError.
+ type ProtocolError struct {
+ 	ErrorString string
+ }
+ 
+-func (err *ProtocolError) Error() string { return err.ErrorString }
++func (pe *ProtocolError) Error() string { return pe.ErrorString }
+ 
+ var (
+-	ErrHeaderTooLong        = &ProtocolError{"header too long"}
+-	ErrShortBody            = &ProtocolError{"entity body too short"}
+-	ErrNotSupported         = &ProtocolError{"feature not supported"}
+-	ErrUnexpectedTrailer    = &ProtocolError{"trailer header without chunked transfer encoding"}
++	// ErrNotSupported is returned by the Push method of Pusher
++	// implementations to indicate that HTTP/2 Push support is not
++	// available.
++	ErrNotSupported = &ProtocolError{"feature not supported"}
++
++	// ErrUnexpectedTrailer is returned by the Transport when a server
++	// replies with a Trailer header, but without a chunked reply.
++	ErrUnexpectedTrailer = &ProtocolError{"trailer header without chunked transfer encoding"}
++
++	// ErrMissingBoundary is returned by Request.MultipartReader when the
++	// request's Content-Type does not include a "boundary" parameter.
++	ErrMissingBoundary = &ProtocolError{"no multipart boundary param in Content-Type"}
++
++	// ErrNotMultipart is returned by Request.MultipartReader when the
++	// request's Content-Type is not multipart/form-data.
++	ErrNotMultipart = &ProtocolError{"request Content-Type isn't multipart/form-data"}
++
++	// Deprecated: ErrHeaderTooLong is not used.
++	ErrHeaderTooLong = &ProtocolError{"header too long"}
++	// Deprecated: ErrShortBody is not used.
++	ErrShortBody = &ProtocolError{"entity body too short"}
++	// Deprecated: ErrMissingContentLength is not used.
+ 	ErrMissingContentLength = &ProtocolError{"missing ContentLength in HEAD response"}
+-	ErrNotMultipart         = &ProtocolError{"request Content-Type isn't multipart/form-data"}
+-	ErrMissingBoundary      = &ProtocolError{"no multipart boundary param in Content-Type"}
+ )
+ 
+ type badStringError struct {

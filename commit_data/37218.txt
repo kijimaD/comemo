@@ -8,8 +8,51 @@ Date:   Tue Jul 10 06:47:44 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/122955
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/os/file_plan9.go   | 3 ++-
  src/os/file_unix.go    | 3 ++-
  src/os/file_windows.go | 3 ++-
  3 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index feca8630be..3a0b774aa2 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -133,7 +133,8 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ }
+ 
+ // Close closes the File, rendering it unusable for I/O.
+-// It returns an error, if any.
++// On files that support SetDeadline, any pending I/O operations will
++// be canceled and return immediately with an error.
+ func (f *File) Close() error {
+ 	if err := f.checkValid("close"); err != nil {
+ 		return err
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index e0b8119d96..4f80553a18 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -217,7 +217,8 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ }
+ 
+ // Close closes the File, rendering it unusable for I/O.
+-// It returns an error, if any.
++// On files that support SetDeadline, any pending I/O operations will
++// be canceled and return immediately with an error.
+ func (f *File) Close() error {
+ 	if f == nil {
+ 		return ErrInvalid
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index a17c6e2ac3..8901eadd25 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -171,7 +171,8 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ }
+ 
+ // Close closes the File, rendering it unusable for I/O.
+-// It returns an error, if any.
++// On files that support SetDeadline, any pending I/O operations will
++// be canceled and return immediately with an error.
+ func (file *File) Close() error {
+ 	if file == nil {
+ 		return ErrInvalid

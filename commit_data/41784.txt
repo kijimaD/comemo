@@ -16,7 +16,76 @@ Date:   Thu Oct 24 18:22:43 2019 +1100
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/fmt/scan.go      | 13 +++++++++++++
  src/fmt/scan_test.go | 19 ++++++++++++-------
  2 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/src/fmt/scan.go b/src/fmt/scan.go
+index 0dab2c98f7..8cab0180ee 100644
+--- a/src/fmt/scan.go
++++ b/src/fmt/scan.go
+@@ -940,6 +940,15 @@ const (
+ 	uintptrBits = 32 << (^uintptr(0) >> 63)
+ )
+ 
++// scanPercent scans a literal percent character.
++func (s *ss) scanPercent() {
++	s.SkipSpace()
++	s.notEOF()
++	if !s.accept("%") {
++		s.errorString("missing literal %")
++	}
++}
++
+ // scanOne scans a single value, deriving the scanner from the type of the argument.
+ func (s *ss) scanOne(verb rune, arg interface{}) {
+ 	s.buf = s.buf[:0]
+@@ -1203,6 +1212,10 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err erro
+ 		if c != 'c' {
+ 			s.SkipSpace()
+ 		}
++		if c == '%' {
++			s.scanPercent()
++			continue // Do not consume an argument.
++		}
+ 		s.argLimit = s.limit
+ 		if f := s.count + s.maxWid; f < s.argLimit {
+ 			s.argLimit = f
+diff --git a/src/fmt/scan_test.go b/src/fmt/scan_test.go
+index b14a6f5deb..1cc469ce36 100644
+--- a/src/fmt/scan_test.go
++++ b/src/fmt/scan_test.go
+@@ -318,13 +318,15 @@ var scanfTests = []ScanfTest{
+ 	{"%2s", "sssss", &xVal, Xs("ss")},
+ 
+ 	// Fixed bugs
+-	{"%d\n", "27\n", &intVal, 27},      // ok
+-	{"%d\n", "28 \n", &intVal, 28},     // was: "unexpected newline"
+-	{"%v", "0", &intVal, 0},            // was: "EOF"; 0 was taken as base prefix and not counted.
+-	{"%v", "0", &uintVal, uint(0)},     // was: "EOF"; 0 was taken as base prefix and not counted.
+-	{"%c", " ", &uintVal, uint(' ')},   // %c must accept a blank.
+-	{"%c", "\t", &uintVal, uint('\t')}, // %c must accept any space.
+-	{"%c", "\n", &uintVal, uint('\n')}, // %c must accept any space.
++	{"%d\n", "27\n", &intVal, 27},         // ok
++	{"%d\n", "28 \n", &intVal, 28},        // was: "unexpected newline"
++	{"%v", "0", &intVal, 0},               // was: "EOF"; 0 was taken as base prefix and not counted.
++	{"%v", "0", &uintVal, uint(0)},        // was: "EOF"; 0 was taken as base prefix and not counted.
++	{"%c", " ", &uintVal, uint(' ')},      // %c must accept a blank.
++	{"%c", "\t", &uintVal, uint('\t')},    // %c must accept any space.
++	{"%c", "\n", &uintVal, uint('\n')},    // %c must accept any space.
++	{"%d%%", "23%\n", &uintVal, uint(23)}, // %% matches literal %.
++	{"%%%d", "%23\n", &uintVal, uint(23)}, // %% matches literal %.
+ 
+ 	// space handling
+ 	{"%d", "27", &intVal, 27},
+@@ -467,6 +469,9 @@ var multiTests = []ScanfMultiTest{
+ 	{"X%d", "10X", args(&intVal), nil, "input does not match format"},
+ 	{"%d%", "42%", args(&intVal), args(42), "missing verb: % at end of format string"},
+ 	{"%d% ", "42%", args(&intVal), args(42), "too few operands for format '% '"}, // Slightly odd error, but correct.
++	{"%%%d", "xxx 42", args(&intVal), args(42), "missing literal %"},
++	{"%%%d", "x42", args(&intVal), args(42), "missing literal %"},
++	{"%%%d", "42", args(&intVal), args(42), "missing literal %"},
+ 
+ 	// Bad UTF-8: should see every byte.
+ 	{"%c%c%c", "\xc2X\xc2", args(&r1, &r2, &r3), args(utf8.RuneError, 'X', utf8.RuneError), ""},

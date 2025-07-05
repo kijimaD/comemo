@@ -11,7 +11,7 @@ Date:   Fri Dec 19 17:11:54 2008 -0800
     DELTA=352  (144 added, 68 deleted, 140 changed)
     OCL=21660
     CL=21662
-
+---
  src/cmd/6g/align.c      |   2 +
  src/cmd/6g/obj.c        |   7 +-
  src/cmd/gc/go.h         |   2 +-
@@ -28,3 +28,937 @@ Date:   Fri Dec 19 17:11:54 2008 -0800
  test/bigalg.go          |  54 +++++++++---
  test/mallocrep1.go      |   2 +-
  15 files changed, 246 insertions(+), 170 deletions(-)
+
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index 2a930523b4..9ced220966 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -160,6 +160,8 @@ dowidth(Type *t)
+ 		if(t->funarg)
+ 			fatal("dowidth fn struct %T", t);
+ 		w = widstruct(t, 0, 1);
++		if(w == 0)
++			w = maxround;
+ 		offmod(t);
+ 		break;
+ 
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index 13a9c9b1ba..e060f0691b 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -668,14 +668,11 @@ dumpsigt(Type *t0, Sym *s)
+ 
+ 	// first field of an type signature contains
+ 	// the element parameters and is not a real entry
+-	if(t->methptr & 2)
+-		t = types[tptr];
+-
+ 	// sigi[0].hash = elemalg
+-	gensatac(wi, algtype(t));
++	gensatac(wi, algtype(t0));
+ 
+ 	// sigi[0].offset = width
+-	gensatac(wi, t->width);
++	gensatac(wi, t0->width);
+ 
+ 	// skip the function
+ 	gensatac(widthptr, 0);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index c0faddd478..9dfd0ec75a 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -311,7 +311,7 @@ enum
+ 	OINDEX, OINDEXPTR, OSLICE,
+ 	ONOT, OCOM, OPLUS, OMINUS, OSEND, ORECV,
+ 	OLITERAL, OREGISTER, OINDREG,
+-	OCONV, OKEY,
++	OCONV, OCOMP, OKEY,
+ 	OBAD,
+ 
+ 	OEND,
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 60a88a2702..f6568a365b 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -60,7 +60,7 @@
+ %type	<node>		interfacedcl_list_r interfacedcl
+ %type	<node>		structdcl_list_r structdcl embed
+ %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
+-%type	<node>		keyexpr_list braced_keyexpr_list keyval_list_r keyval
++%type	<node>		braced_keyexpr_list keyval_list_r keyval
+ 
+ %type	<type>		typedclname new_type
+ %type	<type>		type Atype Btype
+@@ -864,11 +864,6 @@ pexpr:
+ 		$$ = nod(ONEW, $5, N);
+ 		$$->type = $3;
+ 	}
+-|	LCONVERT '(' type ',' keyexpr_list ')'
+-	{
+-		$$ = nod(OCONV, $5, N);
+-		$$->type = $3;
+-	}
+ |	latype '(' expr ')'
+ 	{
+ 		$$ = nod(OCONV, $3, N);
+@@ -884,7 +879,7 @@ pexpr:
+ 			$$ = nod(OEMPTY, N, N);
+ 		if(!iscomposite($1))
+ 			yyerror("illegal composite literal type %T", $1);
+-		$$ = nod(OCONV, $$, N);
++		$$ = nod(OCOMP, $$, N);
+ 		$$->type = $1;
+ 	}
+ |	fnliteral
+@@ -987,7 +982,6 @@ sym3:
+ |	LNEW
+ |	LBASETYPE
+ |	LTYPEOF
+-|	LCONVERT
+ 
+ /*
+  * keywords that we can
+@@ -1674,13 +1668,6 @@ keyval_list_r:
+ 		$$ = nod(OLIST, $1, $3);
+ 	}
+ 
+-keyexpr_list:
+-	keyval_list_r
+-	{
+-		$$ = rev($1);
+-	}
+-|	expr_list
+-
+ /*
+  * have to spell this out using _r lists to avoid yacc conflict
+  */
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index dc2ec6166a..874265a289 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1051,7 +1051,6 @@ static	struct
+ 	"chan",		LCHAN,		Txxx,
+ 	"const",	LCONST,		Txxx,
+ 	"continue",	LCONTINUE,	Txxx,
+-	"convert",	LCONVERT,	Txxx,
+ 	"default",	LDEFAULT,	Txxx,
+ 	"else",		LELSE,		Txxx,
+ 	"export",	LEXPORT,	Txxx,
+@@ -1268,7 +1267,6 @@ struct
+ 	LNEW,		"NEW",
+ 	LLEN,		"LEN",
+ 	LFALL,		"FALL",
+-	LCONVERT,	"CONVERT",
+ 	LIOTA,		"IOTA",
+ 	LPRINT,		"PRINT",
+ 	LPACKAGE,	"PACKAGE",
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 90cc9dc0b2..3a488ece4d 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -649,6 +649,7 @@ opnames[] =
+ 	[OFALL]		= "FALL",
+ 	[OCONV]		= "CONV",
+ 	[OCOM]		= "COM",
++	[OCOMP]		= "COMP",
+ 	[OCONST]	= "CONST",
+ 	[OCONTINUE]	= "CONTINUE",
+ 	[ODCLARG]	= "DCLARG",
+@@ -1657,10 +1658,6 @@ signame(Type *t)
+ 	if(t->etype == TINTER)
+ 		e = "sigi";
+ 
+-	// don't allow arrays in interfaces
+-	if(t->etype == TARRAY)
+-		goto bad;
+-
+ 	// name is exported name, like *[]byte or *Struct or Interface
+ 	// (special symbols don't bother the linker).
+ 	snprint(buf, sizeof(buf), "%#T", t);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index be0dd25505..f249334834 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -559,8 +559,7 @@ loop:
+ 		if(t == T)
+ 			goto ret;
+ 
+-		if(!iscomposite(t))
+-			convlit1(l, t, 1);
++		convlit1(l, t, 1);
+ 
+ 		// nil conversion
+ 		if(eqtype(t, l->type, 0)) {
+@@ -595,26 +594,6 @@ loop:
+ 		if(issarray(t) && isdarray(l->type))
+ 			goto ret;
+ 
+-		// structure literal
+-		if(t->etype == TSTRUCT) {
+-			indir(n, structlit(n));
+-			goto ret;
+-		}
+-
+-		// array literal
+-		if(t->etype == TARRAY) {
+-			r = arraylit(n);
+-			indir(n, r);
+-			goto ret;
+-		}
+-
+-		// map literal
+-		if(isptr[t->etype] && t->type != t && t->type->etype == TMAP) {
+-			r = maplit(n);
+-			indir(n, r);
+-			goto ret;
+-		}
+-
+ 		// interface and structure
+ 		et = isandss(n->type, l);
+ 		if(et != Inone) {
+@@ -642,6 +621,43 @@ loop:
+ 			yyerror("cannot convert %T to %T", l->type, t);
+ 		goto ret;
+ 
++	case OCOMP:
++		if(top == Etop)
++			goto nottop;
++
++		l = n->left;
++		if(l == N)
++			goto ret;
++
++		walktype(l, Erv);
++
++		t = n->type;
++		if(t == T)
++			goto ret;
++
++		// structure literal
++		if(t->etype == TSTRUCT) {
++			indir(n, structlit(n));
++			goto ret;
++		}
++
++		// array literal
++		if(t->etype == TARRAY) {
++			r = arraylit(n);
++			indir(n, r);
++			goto ret;
++		}
++
++		// map literal
++		if(isptr[t->etype] && t->type != t && t->type->etype == TMAP) {
++			r = maplit(n);
++			indir(n, r);
++			goto ret;
++		}
++
++		yyerror("bad composite literal %T", t);
++		goto ret;
++
+ 	case ORETURN:
+ 		if(top != Etop)
+ 			goto nottop;
+@@ -944,7 +960,7 @@ loop:
+ 	case OADDR:
+ 		if(top != Erv)
+ 			goto nottop;
+-		if(n->left->op == OCONV && n->left->type != T)
++		if(n->left->op == OCOMP && n->left->type != T)
+ 		if(n->left->type->etype == TSTRUCT) {
+ 			// turn &Point{1, 2} into allocation.
+ 			// initialize with
+@@ -1873,8 +1889,6 @@ ascompat(Type *t1, Type *t2)
+ //	if(eqtype(t2, nilptr, 0))
+ //		return 1;
+ 
+-	if(issarray(t1))
+-		return 0;
+ 	if(isnilinter(t1))
+ 		return 1;
+ 	if(isinter(t1)) {
+@@ -2722,11 +2736,8 @@ isandss(Type *lt, Node *r)
+ 				return I2I;
+ 			return Inone;
+ 		}
+-		if(isnilinter(lt)) {
+-			if(!issimple[rt->etype] && !isptr[rt->etype])
+-				yyerror("using %T as interface is unimplemented", rt);
++		if(isnilinter(lt))
+ 			return T2I;
+-		}
+ 		if(ismethod(rt) != T)
+ 			return T2I;
+ 		return Inone;
+diff --git a/src/lib/fmt/fmt_test.go b/src/lib/fmt/fmt_test.go
+index ac5511a930..20539df626 100644
+--- a/src/lib/fmt/fmt_test.go
++++ b/src/lib/fmt/fmt_test.go
+@@ -26,15 +26,6 @@ type FmtTest struct {
+ 	out string;
+ }
+ 
+-// TODO(rsc): return []byte, but need to be able to pass as interface.
+-func Bytes(s string) *[]byte {
+-	b := new([]byte, len(s)+1);
+-	syscall.StringToBytes(b, s);
+-	bp := new(*[]byte);
+-	*bp = b[0:len(s)];
+-	return bp;
+-}
+-
+ const B32 uint32 = 1<<32 - 1
+ const B64 uint64 = 1<<64 - 1
+ 
+@@ -47,12 +38,12 @@ var fmttests = []FmtTest{
+ 	FmtTest{ "%q",	"abc",	`"abc"` },
+ 
+ 	// basic bytes
+-	FmtTest{ "%s",	Bytes("abc"),	"abc" },
+-	FmtTest{ "%x",	Bytes("abc"),	"616263" },
+-	FmtTest{ "% x",	Bytes("abc"),	"61 62 63" },
+-	FmtTest{ "%x",	Bytes("xyz"),	"78797a" },
+-	FmtTest{ "%X",	Bytes("xyz"),	"78797A" },
+-	FmtTest{ "%q",	Bytes("abc"),	`"abc"` },
++	FmtTest{ "%s",	io.StringBytes("abc"),	"abc" },
++	FmtTest{ "%x",	io.StringBytes("abc"),	"616263" },
++	FmtTest{ "% x",	io.StringBytes("abc"),	"61 62 63" },
++	FmtTest{ "%x",	io.StringBytes("xyz"),	"78797a" },
++	FmtTest{ "%X",	io.StringBytes("xyz"),	"78797A" },
++	FmtTest{ "%q",	io.StringBytes("abc"),	`"abc"` },
+ 
+ 	// escaped strings
+ 	FmtTest{ "%#q",	`abc`,		"`abc`" },
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index d32fd531d4..bb69ba4200 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -253,12 +253,11 @@ func getString(v reflect.Value) (val string, ok bool) {
+ 	switch v.Kind() {
+ 	case reflect.StringKind:
+ 		return v.(reflect.StringValue).Get(), true;
+-	case reflect.PtrKind:
+-		if val, ok := v.Interface().(*[]byte); ok {
+-			return string(*val), true;
++	case reflect.ArrayKind:
++		if val, ok := v.Interface().([]byte); ok {
++			return string(val), true;
+ 		}
+ 	}
+-	// TODO(rsc): check for Interface().([]byte) too.
+ 	return "", false;
+ }
+ 
+diff --git a/src/lib/net/ip_test.go b/src/lib/net/ip_test.go
+index 7fd8539ac8..131c844326 100644
+--- a/src/lib/net/ip_test.go
++++ b/src/lib/net/ip_test.go
+@@ -14,7 +14,7 @@ func IPv4(a, b, c, d byte) []byte {
+ }
+ 
+ func Equal(a []byte, b []byte) bool {
+-	if a == b {
++	if a == nil && b == nil {
+ 		return true
+ 	}
+ 	if a == nil || b == nil || len(a) != len(b) {
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index e187a54604..f978e78600 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -124,7 +124,6 @@ type StubType struct {
+ }
+ 
+ func NewStubType(name string, typ Type) *StubType {
+-if typ == nil && len(name) > 0 && name[0] == '*' { panicln("NewStubType", name, typ) }
+ 	return &StubType{name, typ}
+ }
+ 
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index a5259db4f8..99beb396ed 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -8,10 +8,10 @@ static	int32	debug	= 0;
+ 
+ typedef	struct	Sigt	Sigt;
+ typedef	struct	Sigi	Sigi;
+-typedef	struct	Map	Map;
++typedef	struct	Itype	Itype;
+ 
+ /*
+- * the layout of Sigt and Sigi are known to the compiler
++ * the layout of Iface, Sigt and Sigi are known to the compiler
+  */
+ struct	Sigt
+ {
+@@ -28,17 +28,17 @@ struct	Sigi
+ 	uint32	perm;		// location of fun in Sigt // first is size
+ };
+ 
+-struct	Map
++struct	Itype
+ {
+ 	Sigi*	sigi;
+ 	Sigt*	sigt;
+-	Map*	link;
++	Itype*	link;
+ 	int32	bad;
+ 	int32	unused;
+ 	void	(*fun[])(void);
+ };
+ 
+-static	Map*	hash[1009];
++static	Itype*	hash[1009];
+ 
+ Sigi	sigi·empty[2] =	{ (byte*)"interface { }" };
+ 
+@@ -50,6 +50,8 @@ printsigi(Sigi *si)
+ 
+ 	sys·printpointer(si);
+ 	prints("{");
++	prints((int8*)si[0].name);
++	prints(":");
+ 	for(i=1;; i++) {
+ 		name = si[i].name;
+ 		if(name == nil)
+@@ -74,6 +76,8 @@ printsigt(Sigt *st)
+ 
+ 	sys·printpointer(st);
+ 	prints("{");
++	prints((int8*)st[0].name);
++	prints(":");
+ 	sys·printint(st[0].hash);	// first element has alg
+ 	prints(",");
+ 	sys·printint(st[0].offset);	// first element has width
+@@ -96,22 +100,28 @@ printsigt(Sigt *st)
+ }
+ 
+ static void
+-printiface(Map *im, void *it)
++printiface(Iface i)
+ {
++	int32 j;
++
+ 	prints("(");
+-	sys·printpointer(im);
++	sys·printpointer(i.type);
+ 	prints(",");
+-	sys·printpointer(it);
++	for(j=0; j<nelem(i.data); j++) {
++		if(j > 0)
++			prints(".");
++		sys·printpointer(i.data[0]);
++	}
+ 	prints(")");
+ }
+ 
+-static Map*
+-hashmap(Sigi *si, Sigt *st, int32 canfail)
++static Itype*
++itype(Sigi *si, Sigt *st, int32 canfail)
+ {
+ 	int32 nt, ni;
+ 	uint32 ihash, h;
+ 	byte *sname, *iname;
+-	Map *m;
++	Itype *m;
+ 
+ 	h = ((uint32)(uint64)si + (uint32)(uint64)st) % nelem(hash);
+ 	for(m=hash[h]; m!=nil; m=m->link) {
+@@ -129,7 +139,7 @@ hashmap(Sigi *si, Sigt *st, int32 canfail)
+ 					goto throw;
+ 				}
+ 			}
+-			// prints("old hashmap\n");
++			// prints("old itype\n");
+ 			return m;
+ 		}
+ 	}
+@@ -177,15 +187,22 @@ throw:
+ 	}
+ 	m->link = hash[h];
+ 	hash[h] = m;
+-	// prints("new hashmap\n");
++	// prints("new itype\n");
+ 	return m;
+ }
+ 
+ // ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
+ void
+-sys·ifaceT2I(Sigi *si, Sigt *st, void *elem, Map *retim, void *retit)
++sys·ifaceT2I(Sigi *si, Sigt *st, ...)
+ {
+-//	int32 alg, wid;
++	byte *elem;
++	Iface *ret;
++	int32 alg, wid;
++
++	elem = (byte*)(&st+1);
++	wid = st->offset;
++	ret = (Iface*)(elem + rnd(wid, 8));
++	ret->type = itype(si, st, 0);
+ 
+ 	if(debug) {
+ 		prints("T2I sigi=");
+@@ -193,39 +210,49 @@ sys·ifaceT2I(Sigi *si, Sigt *st, void *elem, Map *retim, void *retit)
+ 		prints(" sigt=");
+ 		printsigt(st);
+ 		prints(" elem=");
+-		sys·printpointer(elem);
++		sys·printpointer(*(void**)elem);
+ 		prints("\n");
+ 	}
+ 
+-	retim = hashmap(si, st, 0);
+-
+-//	alg = st->hash;
+-//	wid = st->offset;
+-//	algarray[alg].copy(wid, &retit, &elem);
+-	retit = elem;		// for speed could do this
++	alg = st->hash;
++	wid = st->offset;
++	if(wid <= sizeof ret->data)
++		algarray[alg].copy(wid, ret->data, elem);
++	else{
++		ret->data[0] = mal(wid);
++		if(debug)
++			printf("T2I mal %d %p\n", wid, ret->data[0]);
++		algarray[alg].copy(wid, ret->data[0], elem);
++	}
+ 
+ 	if(debug) {
+ 		prints("T2I ret=");
+-		printiface(retim, retit);
++		printiface(*ret);
+ 		prints("\n");
+ 	}
+ 
+-	FLUSH(&retim);
+-	FLUSH(&retit);
++	FLUSH(&ret);
+ }
+ 
+ // ifaceI2T(sigt *byte, iface any) (ret any);
+ void
+-sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
++sys·ifaceI2T(Sigt *st, Iface i, ...)
+ {
++	Itype *im;
++	byte *ret;
++	int32 wid, alg;
++
++	ret = (byte*)(&i+1);
++
+ 	if(debug) {
+ 		prints("I2T sigt=");
+ 		printsigt(st);
+ 		prints(" iface=");
+-		printiface(im, it);
++		printiface(i);
+ 		prints("\n");
+ 	}
+ 
++	im = i.type;
+ 	if(im == nil) {
+ 		prints("interface is nil, not ");
+ 		prints((int8*)st[0].name);
+@@ -243,10 +270,16 @@ sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
+ 		throw("interface conversion");
+ 	}
+ 
+-	ret = it;
++	alg = st->hash;
++	wid = st->offset;
++	if(wid <= sizeof i.data)
++		algarray[alg].copy(wid, ret, i.data);
++	else
++		algarray[alg].copy(wid, ret, i.data[0]);
++
+ 	if(debug) {
+ 		prints("I2T ret=");
+-		sys·printpointer(ret);
++		sys·printpointer(*(void**)ret);
+ 		prints("\n");
+ 	}
+ 	FLUSH(&ret);
+@@ -254,94 +287,113 @@ sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
+ 
+ // ifaceI2T2(sigt *byte, iface any) (ret any, ok bool);
+ void
+-sys·ifaceI2T2(Sigt *st, Map *im, void *it, void *ret, bool ok)
++sys·ifaceI2T2(Sigt *st, Iface i, ...)
+ {
++	byte *ret;
++	bool *ok;
++	Itype *im;
++	int32 alg, wid;
++
++	ret = (byte*)(&i+1);
++	alg = st->hash;
++	wid = st->offset;
++	ok = (bool*)(ret+rnd(wid, 8));
++
+ 	if(debug) {
+ 		prints("I2T2 sigt=");
+ 		printsigt(st);
+ 		prints(" iface=");
+-		printiface(im, it);
++		printiface(i);
+ 		prints("\n");
+ 	}
+ 
++	im = i.type;
+ 	if(im == nil || im->sigt != st) {
+-		ret = 0;
+-		ok = 0;
++		*ok = false;
++		sys·memclr(ret, wid);
+ 	} else {
+-		ret = it;
+-		ok = 1;
++		*ok = true;
++		if(wid <= sizeof i.data)
++			algarray[alg].copy(wid, ret, i.data);
++		else
++			algarray[alg].copy(wid, ret, i.data[0]);
+ 	}
+ 	if(debug) {
+ 		prints("I2T2 ret=");
+-		sys·printpointer(ret);
+-		sys·printbool(ok);
++		sys·printpointer(*(void**)ret);
++		sys·printbool(*ok);
+ 		prints("\n");
+ 	}
+-	FLUSH(&ret);
+-	FLUSH(&ok);
+ }
+ 
+ // ifaceI2I(sigi *byte, iface any) (ret any);
+ void
+-sys·ifaceI2I(Sigi *si, Map *im, void *it, Map *retim, void *retit)
++sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
+ {
++	Itype *im;
++	int32 j;
++
+ 	if(debug) {
+ 		prints("I2I sigi=");
+ 		printsigi(si);
+ 		prints(" iface=");
+-		printiface(im, it);
++		printiface(i);
+ 		prints("\n");
+ 	}
+ 
++	im = i.type;
+ 	if(im == nil) {
+ 		// If incoming interface is uninitialized (zeroed)
+ 		// make the outgoing interface zeroed as well.
+-		retim = nil;
+-		retit = nil;
++		ret.type = nil;
++		for(j=0; j<nelem(ret.data); j++)
++			ret.data[j] = nil;
+ 	} else {
+-		retit = it;
+-		retim = im;
++		ret = i;
+ 		if(im->sigi != si)
+-			retim = hashmap(si, im->sigt, 0);
++			ret.type = itype(si, im->sigt, 0);
+ 	}
+ 
+ 	if(debug) {
+ 		prints("I2I ret=");
+-		printiface(retim, retit);
++		printiface(ret);
+ 		prints("\n");
+ 	}
+ 
+-	FLUSH(&retim);
+-	FLUSH(&retit);
++	FLUSH(&ret);
+ }
+ 
+ // ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
+ void
+-sys·ifaceI2I2(Sigi *si, Map *im, void *it, Map *retim, void *retit, bool ok)
++sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
+ {
++	Itype *im;
++	int32 j;
++
+ 	if(debug) {
+ 		prints("I2I2 sigi=");
+ 		printsigi(si);
+ 		prints(" iface=");
+-		printiface(im, it);
++		printiface(i);
+ 		prints("\n");
+ 	}
+ 
++	im = i.type;
+ 	if(im == nil) {
+ 		// If incoming interface is uninitialized (zeroed)
+ 		// make the outgoing interface zeroed as well.
+-		retim = nil;
+-		retit = nil;
++		ret.type = nil;
++		for(j=0; j<nelem(ret.data); j++)
++			ret.data[j] = nil;
+ 		ok = 1;
+ 	} else {
+-		retit = it;
+-		retim = im;
++		ret = i;
+ 		ok = 1;
+ 		if(im->sigi != si) {
+-			retim = hashmap(si, im->sigt, 1);
+-			if(retim == nil) {
+-				retit = nil;
+-				retim = nil;
++			ret.type = itype(si, im->sigt, 1);
++			if(ret.type == nil) {
++				for(j=0; j<nelem(ret.data); j++)
++					ret.data[j] = nil;
+ 				ok = 0;
+ 			}
+ 		}
+@@ -349,51 +401,55 @@ sys·ifaceI2I2(Sigi *si, Map *im, void *it, Map *retim, void *retit, bool ok)
+ 
+ 	if(debug) {
+ 		prints("I2I ret=");
+-		printiface(retim, retit);
++		printiface(ret);
+ 		prints("\n");
+ 	}
+ 
+-	FLUSH(&retim);
+-	FLUSH(&retit);
++	FLUSH(&ret);
+ 	FLUSH(&ok);
+ }
+ 
+ // ifaceeq(i1 any, i2 any) (ret bool);
+ void
+-sys·ifaceeq(Map *im1, void *it1, Map *im2, void *it2, byte ret)
++sys·ifaceeq(Iface i1, Iface i2, bool ret)
+ {
+ 	int32 alg, wid;
+ 
+ 	if(debug) {
+ 		prints("Ieq i1=");
+-		printiface(im1, it1);
++		printiface(i1);
+ 		prints(" i2=");
+-		printiface(im2, it2);
++		printiface(i2);
+ 		prints("\n");
+ 	}
+ 
+ 	ret = false;
+ 
+ 	// are they both nil
+-	if(im1 == nil) {
+-		if(im2 == nil)
++	if(i1.type == nil) {
++		if(i2.type == nil)
+ 			goto yes;
+ 		goto no;
+ 	}
+-	if(im2 == nil)
++	if(i2.type == nil)
+ 		goto no;
+ 
+ 	// value
+-	alg = im1->sigt->hash;
+-	if(alg != im2->sigt->hash)
++	alg = i1.type->sigt->hash;
++	if(alg != i2.type->sigt->hash)
+ 		goto no;
+ 
+-	wid = im1->sigt->offset;
+-	if(wid != im2->sigt->offset)
++	wid = i1.type->sigt->offset;
++	if(wid != i2.type->sigt->offset)
+ 		goto no;
+ 
+-	if(!algarray[alg].equal(wid, &it1, &it2))
+-		goto no;
++	if(wid <= sizeof i1.data) {
++		if(!algarray[alg].equal(wid, i1.data, i2.data))
++			goto no;
++	} else {
++		if(!algarray[alg].equal(wid, i1.data[0], i2.data[0]))
++			goto no;
++	}
+ 
+ yes:
+ 	ret = true;
+@@ -407,13 +463,13 @@ no:
+ }
+ 
+ void
+-sys·printinter(Map *im, void *it)
++sys·printinter(Iface i)
+ {
+-	printiface(im, it);
++	printiface(i);
+ }
+ 
+ void
+-sys·reflect(Map *im, void *it, uint64 retit, string rettype)
++sys·reflect(Itype *im, void *it, uint64 retit, string rettype)
+ {
+ 	if(im == nil) {
+ 		retit = 0;
+@@ -476,13 +532,13 @@ findtype(string type)
+ }
+ 
+ void
+-sys·unreflect(uint64 it, string type, Map *retim, void *retit)
++sys·unreflect(uint64 it, string type, Itype *retim, void *retit)
+ {
+ 	if(cmpstring(type, emptystring) == 0) {
+ 		retim = 0;
+ 		retit = 0;
+ 	} else {
+-		retim = hashmap(sigi·empty, findtype(type), 0);
++		retim = itype(sigi·empty, findtype(type), 0);
+ 		retit = (void*)it;
+ 	}
+ 	FLUSH(&retim);
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index c0f943abf4..bb970da8af 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -48,8 +48,10 @@ typedef	union	Note		Note;
+ typedef	struct	Stktop		Stktop;
+ typedef	struct	String		*string;
+ typedef	struct	Usema		Usema;
+-typedef	struct	SigTab	SigTab;
+-typedef	struct	MCache	MCache;
++typedef	struct	SigTab		SigTab;
++typedef	struct	MCache		MCache;
++typedef	struct	Iface		Iface;
++typedef	struct	Itype		Itype;
+ 
+ /*
+  * per cpu declaration
+@@ -105,6 +107,11 @@ struct String
+ 	int32	len;
+ 	byte	str[1];
+ };
++struct Iface
++{
++	Itype *type;
++	void *data[1];	// could make bigger later
++};
+ 
+ struct	Array
+ {				// must not move anything
+diff --git a/test/bigalg.go b/test/bigalg.go
+index 0f92f66ab3..748ef858fa 100644
+--- a/test/bigalg.go
++++ b/test/bigalg.go
+@@ -32,15 +32,16 @@ func arraycmptest() {
+ 	if a == nil || nil == a {
+ 		println("fail3:", a, "== nil");
+ 	}
+-	if a == NIL || NIL == a {
+-		println("fail4:", a, "==", NIL);
+-	}
+-	if a != a {
+-		println("fail5:", a, "!=", a);
++}
++
++func SameArray(a, b []int) bool {
++	if len(a) != len(b) || cap(a) != cap(b) {
++		return false;
+ 	}
+-	if a1 != a {
+-		println("fail6:", a1, "!=", a);
++	if len(a) > 0 && &a[0] != &b[0] {
++		return false;
+ 	}
++	return true;
+ }
+ 
+ var t = T{1.5, 123, "hello", 255}
+@@ -56,7 +57,7 @@ func maptest() {
+ 
+ 	ma[1] = a;
+ 	a1 := ma[1];
+-	if a1 != a {
++	if !SameArray(a, a1) {
+ 		println("fail: map val array", a, a1);
+ 	}
+ }
+@@ -93,18 +94,49 @@ func chantest() {
+ 
+ 	t1 := <-ct;
+ 	if t1.a != t.a || t1.b != t.b || t1.c != t.c || t1.d != t.d {
+-		println("fail: chan struct", t1.a, t1.b, t1.c, t1.d);
++		println("fail: map val struct", t1.a, t1.b, t1.c, t1.d);
+ 	}
+ 
+ 	a1 := <-ca;
+-	if a1 != a {
+-		println("fail: chan array", a, a1);
++	if !SameArray(a, a1) {
++		println("fail: map val array", a, a1);
+ 	}
+ }
+ 
++type E struct { }
++var e E
++
++func interfacetest() {
++	var i interface{};
++
++	i = a;
++	a1 := i.([]int);
++	if !SameArray(a, a1) {
++		println("interface <-> []int", a, a1);
++	}
++	pa := new(*[]int);
++	*pa = a;
++	i = pa;
++	a1 = *i.(*[]int);
++	if !SameArray(a, a1) {
++		println("interface <-> *[]int", a, a1);
++	}
++
++	i = t;
++	t1 := i.(T);
++	if t1.a != t.a || t1.b != t.b || t1.c != t.c || t1.d != t.d {
++		println("interface <-> struct", t1.a, t1.b, t1.c, t1.d);
++	}
++
++	i = e;
++	e1 := i.(E);
++	// nothing to check; just verify it doesn't crash
++}
++
+ func main() {
+ 	arraycmptest();
+ 	maptest();
+ 	maptest2();
+ 	chantest();
++	interfacetest();
+ }
+diff --git a/test/mallocrep1.go b/test/mallocrep1.go
+index 50f557b7a7..ae54ab81b4 100644
+--- a/test/mallocrep1.go
++++ b/test/mallocrep1.go
+@@ -22,7 +22,7 @@ var reverse_flag = flag.Bool("r", false, &reverse, "reverse");
+ var longtest bool;
+ var longtest_flag = flag.Bool("l", false, &longtest, "long test");
+ 
+-var b *[]*byte;
++var b []*byte;
+ var stats = malloc.GetStats();
+ 
+ func OkAmount(size, n uint64) bool {

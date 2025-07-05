@@ -16,7 +16,63 @@ Date:   Wed Mar 2 20:16:54 2022 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mfinal.go      | 24 +++++++++---------------
  src/runtime/mfinal_test.go |  9 +++++++++
  2 files changed, 18 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index e2ac5d4993..10623e4d67 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -187,21 +187,15 @@ func runfinq() {
+ 				f := &fb.fin[i-1]
+ 
+ 				var regs abi.RegArgs
+-				var framesz uintptr
+-				if argRegs > 0 {
+-					// The args can always be passed in registers if they're
+-					// available, because platforms we support always have no
+-					// argument registers available, or more than 2.
+-					//
+-					// But unfortunately because we can have an arbitrary
+-					// amount of returns and it would be complex to try and
+-					// figure out how many of those can get passed in registers,
+-					// just conservatively assume none of them do.
+-					framesz = f.nret
+-				} else {
+-					// Need to pass arguments on the stack too.
+-					framesz = unsafe.Sizeof((any)(nil)) + f.nret
+-				}
++				// The args may be passed in registers or on stack. Even for
++				// the register case, we still need the spill slots.
++				// TODO: revisit if we remove spill slots.
++				//
++				// Unfortunately because we can have an arbitrary
++				// amount of returns and it would be complex to try and
++				// figure out how many of those can get passed in registers,
++				// just conservatively assume none of them do.
++				framesz := unsafe.Sizeof((any)(nil)) + f.nret
+ 				if framecap < framesz {
+ 					// The frame does not contain pointers interesting for GC,
+ 					// all not yet finalized objects are stored in finq.
+diff --git a/src/runtime/mfinal_test.go b/src/runtime/mfinal_test.go
+index 04ba7a6830..902ccc57f8 100644
+--- a/src/runtime/mfinal_test.go
++++ b/src/runtime/mfinal_test.go
+@@ -42,6 +42,15 @@ func TestFinalizerType(t *testing.T) {
+ 		{func(x *int) any { return Tintptr(x) }, func(v *int) { finalize(v) }},
+ 		{func(x *int) any { return (*Tint)(x) }, func(v *Tint) { finalize((*int)(v)) }},
+ 		{func(x *int) any { return (*Tint)(x) }, func(v Tinter) { finalize((*int)(v.(*Tint))) }},
++		// Test case for argument spill slot.
++		// If the spill slot was not counted for the frame size, it will (incorrectly) choose
++		// call32 as the result has (exactly) 32 bytes. When the argument actually spills,
++		// it clobbers the caller's frame (likely the return PC).
++		{func(x *int) any { return x }, func(v any) [4]int64 {
++			print() // force spill
++			finalize(v.(*int))
++			return [4]int64{}
++		}},
+ 	}
+ 
+ 	for i, tt := range finalizerTests {

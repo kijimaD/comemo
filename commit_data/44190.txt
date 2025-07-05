@@ -9,6 +9,28 @@ Date:   Sun May 24 19:16:03 2020 +0200
     Change-Id: I807f49e23cc33e1c9b64029c7504b5a1f81a6bab
     Reviewed-on: https://go-review.googlesource.com/c/go/+/235138
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/syscall/js/func.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/js/func.go b/src/syscall/js/func.go
+index 9e99027e9f..da4cf68774 100644
+--- a/src/syscall/js/func.go
++++ b/src/syscall/js/func.go
+@@ -39,7 +39,7 @@ type Func struct {
+ // immediate deadlock. Therefore a blocking function should explicitly start a
+ // new goroutine.
+ //
+-// Func.Release must be called to free up resources when the function will not be used any more.
++// Func.Release must be called to free up resources when the function will not be invoked any more.
+ func FuncOf(fn func(this Value, args []Value) interface{}) Func {
+ 	funcsMu.Lock()
+ 	id := nextFuncID
+@@ -54,6 +54,7 @@ func FuncOf(fn func(this Value, args []Value) interface{}) Func {
+ 
+ // Release frees up resources allocated for the function.
+ // The function must not be invoked after calling Release.
++// It is allowed to call Release while the function is still running.
+ func (c Func) Release() {
+ 	funcsMu.Lock()
+ 	delete(funcs, c.id)

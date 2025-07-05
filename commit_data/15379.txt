@@ -13,7 +13,7 @@ Date:   Fri Feb 22 14:25:50 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7369048
-
+---
  src/cmd/5g/ggen.c               |   5 +-
  src/cmd/5g/gsubr.c              |  21 +++++++
  src/cmd/5g/peep.c               |   2 +
@@ -34,3 +34,929 @@ Date:   Fri Feb 22 14:25:50 2013 -0500
  src/pkg/runtime/closure_amd64.c | 127 --------------------------------------
  src/pkg/runtime/closure_arm.c   | 132 ----------------------------------------
  19 files changed, 172 insertions(+), 441 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 4f2e324cfd..679354da9a 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -78,13 +78,14 @@ ginscall(Node *f, int proc)
+ 				gins(AUNDEF, N, N);
+ 			break;
+ 		}
+-		nodreg(&r, types[tptr], 0);
++		nodreg(&r, types[tptr], 7);
+ 		nodreg(&r1, types[tptr], 1);
+ 		gmove(f, &r);
+ 		r.op = OINDREG;
+ 		gmove(&r, &r1);
++		r.op = OREGISTER;
+ 		r1.op = OINDREG;
+-		gins(ABL, N, &r1);
++		gins(ABL, &r, &r1);
+ 		break;
+ 
+ 	case 3:	// normal call of c function pointer
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 52090fa07c..ce5ae422e0 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1208,6 +1208,8 @@ checkoffset(Addr *a, int canemitcode)
+ void
+ naddr(Node *n, Addr *a, int canemitcode)
+ {
++	Prog *p;
++
+ 	a->type = D_NONE;
+ 	a->name = D_NONE;
+ 	a->reg = NREG;
+@@ -1277,6 +1279,25 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->name = D_PARAM;
+ 		a->node = n->left->orig;
+ 		break;
++	
++	case OCLOSUREVAR:
++		if(!canemitcode)
++			fatal("naddr OCLOSUREVAR cannot emit code");
++		p = gins(AMOVW, N, N);
++		p->from.type = D_OREG;
++		p->from.reg = 7;
++		p->from.offset = n->xoffset;
++		p->to.type = D_REG;
++		p->to.reg = 1;
++		a->type = D_REG;
++		a->reg = 1;
++		a->sym = S;
++		break;		
++
++	case OCFUNC:
++		naddr(n->left, a, canemitcode);
++		a->sym = n->left->sym;
++		break;
+ 
+ 	case ONAME:
+ 		a->etype = 0;
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 1fcdd3dd67..c729a64661 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -1174,6 +1174,8 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		if(v->type == D_FREG)
+ 			if(v->reg <= FREGEXT && v->reg > exfregoffset)
+ 				return 2;
++		if(p->from.type == D_REG && v->type == D_REG && p->from.reg == v->reg)
++			return 2;
+ 
+ 		if(s != A) {
+ 			if(copysub(&p->to, v, s, 1))
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 2f93acdfcb..10c116d623 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -82,7 +82,8 @@ ginscall(Node *f, int proc)
+ 		gmove(f, &reg);
+ 		reg.op = OINDREG;
+ 		gmove(&reg, &r1);
+-		gins(ACALL, N, &r1);
++		reg.op = OREGISTER;
++		gins(ACALL, &reg, &r1);
+ 		break;
+ 	
+ 	case 3:	// normal call of c function pointer
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 07bab24d5b..34965126e8 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1097,6 +1097,8 @@ checkoffset(Addr *a, int canemitcode)
+ void
+ naddr(Node *n, Addr *a, int canemitcode)
+ {
++	Prog *p;
++
+ 	a->scale = 0;
+ 	a->index = D_NONE;
+ 	a->type = D_NONE;
+@@ -1158,6 +1160,22 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->type = D_PARAM;
+ 		a->node = n->left->orig;
+ 		break;
++	
++	case OCLOSUREVAR:
++		if(!canemitcode)
++			fatal("naddr OCLOSUREVAR cannot emit code");
++		p = gins(AMOVQ, N, N);
++		p->from.type = D_DX+D_INDIR;
++		p->from.offset = n->xoffset;
++		p->to.type = D_BX;
++		a->type = D_BX;
++		a->sym = S;
++		break;
++	
++	case OCFUNC:
++		naddr(n->left, a, canemitcode);
++		a->sym = n->left->sym;
++		break;
+ 
+ 	case ONAME:
+ 		a->etype = 0;
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index ee58d67fbc..070077f105 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -1169,6 +1169,8 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 			return 2;
+ 		if(REGARG >= 0 && v->type == (uchar)REGARG)
+ 			return 2;
++		if(v->type == p->from.type)
++			return 2;
+ 
+ 		if(s != A) {
+ 			if(copysub(&p->to, v, s, 1))
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index b0a1624e5e..e8d6747c4a 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -125,7 +125,8 @@ ginscall(Node *f, int proc)
+ 		gmove(f, &reg);
+ 		reg.op = OINDREG;
+ 		gmove(&reg, &r1);
+-		gins(ACALL, N, &r1);
++		reg.op = OREGISTER;
++		gins(ACALL, &reg, &r1);
+ 		break;
+ 	
+ 	case 3:	// normal call of c function pointer
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 6e7c12ee9f..3650d34a05 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -2200,6 +2200,8 @@ checkoffset(Addr *a, int canemitcode)
+ void
+ naddr(Node *n, Addr *a, int canemitcode)
+ {
++	Prog *p;
++
+ 	a->scale = 0;
+ 	a->index = D_NONE;
+ 	a->type = D_NONE;
+@@ -2235,6 +2237,22 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->node = n->left->orig;
+ 		break;
+ 
++	case OCLOSUREVAR:
++		if(!canemitcode)
++			fatal("naddr OCLOSUREVAR cannot emit code");
++		p = gins(AMOVL, N, N);
++		p->from.type = D_DX+D_INDIR;
++		p->from.offset = n->xoffset;
++		p->to.type = D_BX;
++		a->type = D_BX;
++		a->sym = S;
++		break;
++
++	case OCFUNC:
++		naddr(n->left, a, canemitcode);
++		a->sym = n->left->sym;
++		break;
++
+ 	case ONAME:
+ 		a->etype = 0;
+ 		a->width = 0;
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index 3a61e528dc..ccf7dcd339 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -895,6 +895,8 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 			return 2;
+ 		if(REGARG >= 0 && v->type == (uchar)REGARG)
+ 			return 2;
++		if(v->type == p->from.type)
++			return 2;
+ 
+ 		if(s != A) {
+ 			if(copysub(&p->to, v, s, 1))
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 2043ab0ed7..3e65e0dd2c 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -133,19 +133,35 @@ typecheckclosure(Node *func, int top)
+ static Node*
+ makeclosure(Node *func, int nowrap)
+ {
+-	Node *xtype, *v, *addr, *xfunc;
+-	NodeList *l;
++	Node *xtype, *v, *addr, *xfunc, *cv;
++	NodeList *l, *body;
+ 	static int closgen;
+ 	char *p;
++	int offset;
+ 
+ 	/*
+ 	 * wrap body in external function
+-	 * with extra closure parameters.
++	 * that begins by reading closure parameters.
+ 	 */
+ 	xtype = nod(OTFUNC, N, N);
++	xtype->list = func->list;
++	xtype->rlist = func->rlist;
+ 
+-	// each closure variable has a corresponding
+-	// address parameter.
++	// create the function
++	xfunc = nod(ODCLFUNC, N, N);
++	snprint(namebuf, sizeof namebuf, "func·%.3d", ++closgen);
++	xfunc->nname = newname(lookup(namebuf));
++	xfunc->nname->sym->flags |= SymExported; // disable export
++	xfunc->nname->ntype = xtype;
++	xfunc->nname->defn = xfunc;
++	declare(xfunc->nname, PFUNC);
++	xfunc->nname->funcdepth = func->funcdepth;
++	xfunc->funcdepth = func->funcdepth;
++	
++	// declare variables holding addresses taken from closure
++	// and initialize in entry prologue.
++	body = nil;
++	offset = widthptr;
+ 	for(l=func->cvars; l; l=l->next) {
+ 		v = l->n;
+ 		if(v->op == 0)
+@@ -155,39 +171,29 @@ makeclosure(Node *func, int nowrap)
+ 		addr->sym = lookup(p);
+ 		free(p);
+ 		addr->ntype = nod(OIND, typenod(v->type), N);
+-		addr->class = PPARAM;
++		addr->class = PAUTO;
+ 		addr->addable = 1;
+ 		addr->ullman = 1;
+-
++		addr->used = 1;
++		addr->curfn = xfunc;
++		xfunc->dcl = list(xfunc->dcl, addr);
+ 		v->heapaddr = addr;
+-
+-		xtype->list = list(xtype->list, nod(ODCLFIELD, addr, addr->ntype));
++		cv = nod(OCLOSUREVAR, N, N);
++		cv->type = ptrto(v->type);
++		cv->xoffset = offset;
++		body = list(body, nod(OAS, addr, cv));
++		offset += widthptr;
+ 	}
++	typechecklist(body, Etop);
++	walkstmtlist(body);
++	xfunc->enter = body;
+ 
+-	// then a dummy arg where the closure's caller pc sits
+-	if (!nowrap)
+-		xtype->list = list(xtype->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
+-
+-	// then the function arguments
+-	xtype->list = concat(xtype->list, func->list);
+-	xtype->rlist = concat(xtype->rlist, func->rlist);
+-
+-	// create the function
+-	xfunc = nod(ODCLFUNC, N, N);
+-	snprint(namebuf, sizeof namebuf, "func·%.3d", ++closgen);
+-	xfunc->nname = newname(lookup(namebuf));
+-	xfunc->nname->sym->flags |= SymExported; // disable export
+-	xfunc->nname->ntype = xtype;
+-	xfunc->nname->defn = xfunc;
+-	declare(xfunc->nname, PFUNC);
+-	xfunc->nname->funcdepth = func->funcdepth;
+-	xfunc->funcdepth = func->funcdepth;
+ 	xfunc->nbody = func->nbody;
+-	xfunc->dcl = func->dcl;
++	xfunc->dcl = concat(func->dcl, xfunc->dcl);
+ 	if(xfunc->nbody == nil)
+ 		fatal("empty body - won't generate any code");
+ 	typecheck(&xfunc, Etop);
+-	
++
+ 	xfunc->closure = func;
+ 	func->closure = xfunc;
+ 	
+@@ -201,51 +207,51 @@ makeclosure(Node *func, int nowrap)
+ Node*
+ walkclosure(Node *func, NodeList **init)
+ {
++	Node *clos, *typ;
++	NodeList *l;
++	char buf[20];
+ 	int narg;
+-	Node *xtype, *xfunc, *call, *clos;
+-	NodeList *l, *in;
+ 
+-	// no closure vars, don't bother wrapping
++	// If no closure vars, don't bother wrapping.
+ 	if(func->cvars == nil)
+ 		return func->closure->nname;
+ 
+-	/*
+-	 * wrap body in external function
+-	 * with extra closure parameters.
+-	 */
+-
+-	// create the function
+-	xfunc = func->closure;
+-	xtype = xfunc->nname->ntype;
++	// Create closure in the form of a composite literal.
++	// supposing the closure captures an int i and a string s
++	// and has one float64 argument and no results,
++	// the generated code looks like:
++	//
++	//	clos = &struct{F uintptr; A0 *int; A1 *string}{func·001, &i, &s}
++	//
++	// The use of the struct provides type information to the garbage
++	// collector so that it can walk the closure. We could use (in this case)
++	// [3]unsafe.Pointer instead, but that would leave the gc in the dark.
++	// The information appears in the binary in the form of type descriptors;
++	// the struct is unnamed so that closures in multiple packages with the
++	// same struct type can share the descriptor.
+ 
+-	// prepare call of sys.closure that turns external func into func literal value.
+-	clos = syslook("closure", 1);
+-	clos->type = T;
+-	clos->ntype = nod(OTFUNC, N, N);
+-	in = list1(nod(ODCLFIELD, N, typenod(types[TINT])));	// siz
+-	in = list(in, nod(ODCLFIELD, N, xtype));
+ 	narg = 0;
++	typ = nod(OTSTRUCT, N, N);
++	typ->list = list1(nod(ODCLFIELD, newname(lookup("F")), typenod(types[TUINTPTR])));
+ 	for(l=func->cvars; l; l=l->next) {
+ 		if(l->n->op == 0)
+ 			continue;
+-		narg++;
+-		in = list(in, nod(ODCLFIELD, N, l->n->heapaddr->ntype));
++		snprint(buf, sizeof buf, "A%d", narg++);
++		typ->list = list(typ->list, nod(ODCLFIELD, newname(lookup(buf)), l->n->heapaddr->ntype));
+ 	}
+-	clos->ntype->list = in;
+-	clos->ntype->rlist = list1(nod(ODCLFIELD, N, typenod(func->type)));
+-	typecheck(&clos, Erv);
+ 
+-	call = nod(OCALL, clos, N);
+-	if(narg*widthptr > 100)
+-		yyerror("closure needs too many variables; runtime will reject it");
+-	in = list1(nodintconst(narg*widthptr));
+-	in = list(in, xfunc->nname);
+-	in = concat(in, func->enter);
+-	call->list = in;
++	clos = nod(OCOMPLIT, N, nod(OIND, typ, N));
++	clos->right->implicit = 1;
++	clos->list = concat(list1(nod(OCFUNC, func->closure->nname, N)), func->enter);
++
++	// Force type conversion from *struct to the func type.
++	clos = nod(OCONVNOP, clos, N);
++	clos->type = func->type;
++	
++	typecheck(&clos, Erv);
++	walkexpr(&clos, init);
+ 
+-	typecheck(&call, Erv);
+-	walkexpr(&call, init);
+-	return call;
++	return clos;
+ }
+ 
+ // Special case for closures that get called in place.
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 82e1b1b48b..68a0563aac 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -561,6 +561,8 @@ enum
+ 	OINLCALL,	// intermediary representation of an inlined call.
+ 	OEFACE,	// itable and data words of an empty-interface value.
+ 	OITAB,	// itable word of an interface value.
++	OCLOSUREVAR, // variable reference at beginning of closure function
++	OCFUNC,	// reference to c function pointer (not go func value)
+ 
+ 	// arch-specific registers
+ 	OREGISTER,	// a register, such as AX.
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 5fa74ff20e..bae98ec1b7 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -139,6 +139,10 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 		racewalknode(&n->left, init, 1, 0);
+ 		racewalknode(&n->right, init, 0, 0);
+ 		goto ret;
++	
++	case OCFUNC:
++		// can't matter
++		goto ret;
+ 
+ 	case OBLOCK:
+ 		if(n->list == nil)
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 73c81fad2c..c49d05c5cc 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -119,8 +119,6 @@ func block()
+ func makeslice(typ *byte, nel int64, cap int64) (ary []any)
+ func growslice(typ *byte, old []any, n int64) (ary []any)
+ 
+-func closure() // has args, but compiler fills in
+-
+ func memequal(eq *bool, size uintptr, x, y *any)
+ func memequal8(eq *bool, size uintptr, x, y *any)
+ func memequal16(eq *bool, size uintptr, x, y *any)
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 40ad5e385f..6b750384c0 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1533,6 +1533,21 @@ reswitch:
+ 			fatal("OITAB of %T", t);
+ 		n->type = ptrto(types[TUINTPTR]);
+ 		goto ret;
++	
++	case OCLOSUREVAR:
++		ok |= Erv;
++		goto ret;
++	
++	case OCFUNC:
++		ok |= Erv;
++		typecheck(&n->left, Erv);
++		n->type = types[TUINTPTR];
++		goto ret;
++
++	case OCONVNOP:
++		ok |= Erv;
++		typecheck(&n->left, Erv);
++		goto ret;
+ 
+ 	/*
+ 	 * statements
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index ce76c6b89a..c79339ca77 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -536,6 +536,11 @@ walkexpr(Node **np, NodeList **init)
+ 		n->addable = 1;
+ 		goto ret;
+ 
++	case OCLOSUREVAR:
++	case OCFUNC:
++		n->addable = 1;
++		goto ret;
++
+ 	case ONAME:
+ 		if(!(n->class & PHEAP) && n->class != PPARAMREF)
+ 			n->addable = 1;
+@@ -556,10 +561,12 @@ walkexpr(Node **np, NodeList **init)
+ 		if(n->list && n->list->n->op == OAS)
+ 			goto ret;
+ 
++		/*
+ 		if(n->left->op == OCLOSURE) {
+ 			walkcallclosure(n, init);
+ 			t = n->left->type;
+ 		}
++		*/
+ 
+ 		walkexpr(&n->left, init);
+ 		walkexprlist(n->list, init);
+@@ -1340,7 +1347,7 @@ ascompatee(int op, NodeList *nl, NodeList *nr, NodeList **init)
+ 
+ 	// cannot happen: caller checked that lists had same length
+ 	if(ll || lr)
+-		yyerror("error in shape across %+H %O %+H", nl, op, nr);
++		yyerror("error in shape across %+H %O %+H / %d %d [%s]", nl, op, nr, count(nl), count(nr), curfn->nname->sym->name);
+ 	return nn;
+ }
+ 
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index dc2438cc04..a10c91c654 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -112,7 +112,7 @@ TEXT runtime·gogo(SB), 7, $-4
+ 	MOVW	gobuf_sp(R1), SP	// restore SP
+ 	MOVW	gobuf_pc(R1), PC
+ 
+-// void gogocall(Gobuf*, void (*fn)(void), uintptr r0)
++// void gogocall(Gobuf*, void (*fn)(void), uintptr r7)
+ // restore state from Gobuf but then call fn.
+ // (call fn, returning to state in Gobuf)
+ // using frame size $-4 means do not save LR on stack.
+@@ -124,7 +124,7 @@ TEXT runtime·gogocall(SB), 7, $-4
+ 	MOVW	cgo_save_gm(SB), R0
+ 	CMP 	$0, R0 // if in Cgo, we have to save g and m
+ 	BL.NE	(R0) // this call will clobber R0
+-	MOVW	8(FP), R0	// context
++	MOVW	8(FP), R7	// context
+ 	MOVW	gobuf_sp(R3), SP	// restore SP
+ 	MOVW	gobuf_pc(R3), LR
+ 	MOVW	R1, PC
+@@ -143,7 +143,7 @@ TEXT runtime·gogocallfn(SB), 7, $-4
+ 	BL.NE	(R0) // this call will clobber R0
+ 	MOVW	gobuf_sp(R3), SP	// restore SP
+ 	MOVW	gobuf_pc(R3), LR
+-	MOVW	R1, R0
++	MOVW	R1, R7
+ 	MOVW	0(R1), PC
+ 
+ // void mcall(void (*fn)(G*))
+@@ -188,7 +188,7 @@ TEXT runtime·morestack(SB),7,$-4
+ 	BL.EQ	runtime·abort(SB)
+ 
+ 	// Save in m.
+-	MOVW	R0, m_cret(m) // function context
++	MOVW	R7, m_cret(m) // function context
+ 	MOVW	R1, m_moreframesize(m)
+ 	MOVW	R2, m_moreargsize(m)
+ 
+@@ -260,10 +260,10 @@ TEXT runtime·lessstack(SB), 7, $-4
+ TEXT runtime·jmpdefer(SB), 7, $0
+ 	MOVW	0(SP), LR
+ 	MOVW	$-4(LR), LR	// BL deferreturn
+-	MOVW	fn+0(FP), R0
++	MOVW	fn+0(FP), R7
+ 	MOVW	argp+4(FP), SP
+ 	MOVW	$-4(SP), SP	// SP is 4 below argp, due to saved LR
+-	MOVW	0(R0), R1
++	MOVW	0(R7), R1
+ 	B	(R1)
+ 
+ // Dummy function to use in saved gobuf.PC,
+diff --git a/src/pkg/runtime/closure_386.c b/src/pkg/runtime/closure_386.c
+deleted file mode 100644
+index c4ef3aee49..0000000000
+--- a/src/pkg/runtime/closure_386.c
++++ /dev/null
+@@ -1,108 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-
+-#pragma textflag 7
+-// func closure(siz int32,
+-//	fn func(arg0, arg1, arg2 *ptr, callerpc uintptr, xxx) yyy,
+-//	arg0, arg1, arg2 *ptr) (func(xxx) yyy)
+-void
+-runtime·closure(int32 siz, byte *fn, byte *arg0)
+-{
+-	byte *p, *q, **ret;
+-	int32 i, n;
+-	int32 pcrel;
+-
+-	if(siz < 0 || siz%4 != 0)
+-		runtime·throw("bad closure size");
+-
+-	fn = *(byte**)fn;
+-	ret = (byte**)((byte*)&arg0 + siz);
+-
+-	if(siz > 100) {
+-		// TODO(rsc): implement stack growth preamble?
+-		runtime·throw("closure too big");
+-	}
+-
+-	// compute size of new fn.
+-	// must match code laid out below.
+-	n = 6+5+2+1;	// SUBL MOVL MOVL CLD
+-	if(siz <= 4*4)
+-		n += 1*siz/4;	// MOVSL MOVSL...
+-	else
+-		n += 6+2;	// MOVL REP MOVSL
+-	n += 5;	// CALL
+-	n += 6+1;	// ADDL RET
+-
+-	// store args aligned after code, so gc can find them.
+-	n += siz;
+-	if(n%4)
+-		n += 4 - n%4;
+-
+-	p = runtime·mal(4+n);
+-	*ret = p;
+-	*(byte**)p = p+4;
+-	p += 4;
+-	q = p + n - siz;
+-
+-	if(siz > 0) {
+-		runtime·memmove(q, (byte*)&arg0, siz);
+-
+-		// SUBL $siz, SP
+-		*p++ = 0x81;
+-		*p++ = 0xec;
+-		*(uint32*)p = siz;
+-		p += 4;
+-
+-		// MOVL $q, SI
+-		*p++ = 0xbe;
+-		*(byte**)p = q;
+-		p += 4;
+-
+-		// MOVL SP, DI
+-		*p++ = 0x89;
+-		*p++ = 0xe7;
+-
+-		// CLD
+-		*p++ = 0xfc;
+-
+-		if(siz <= 4*4) {
+-			for(i=0; i<siz; i+=4) {
+-				// MOVSL
+-				*p++ = 0xa5;
+-			}
+-		} else {
+-			// MOVL $(siz/4), CX  [32-bit immediate siz/4]
+-			*p++ = 0xc7;
+-			*p++ = 0xc1;
+-			*(uint32*)p = siz/4;
+-			p += 4;
+-
+-			// REP; MOVSL
+-			*p++ = 0xf3;
+-			*p++ = 0xa5;
+-		}
+-	}
+-
+-	// call fn
+-	pcrel = fn - (p+5);
+-	// direct call with pc-relative offset
+-	// CALL fn
+-	*p++ = 0xe8;
+-	*(int32*)p = pcrel;
+-	p += 4;
+-
+-	// ADDL $siz, SP
+-	*p++ = 0x81;
+-	*p++ = 0xc4;
+-	*(uint32*)p = siz;
+-	p += 4;
+-
+-	// RET
+-	*p++ = 0xc3;
+-
+-	if(p > q)
+-		runtime·throw("bad math in sys.closure");
+-}
+diff --git a/src/pkg/runtime/closure_amd64.c b/src/pkg/runtime/closure_amd64.c
+deleted file mode 100644
+index f7deb7b85f..0000000000
+--- a/src/pkg/runtime/closure_amd64.c
++++ /dev/null
+@@ -1,127 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-
+-#pragma textflag 7
+-// func closure(siz int32,
+-//	fn func(arg0, arg1, arg2 *ptr, callerpc uintptr, xxx) yyy,
+-//	arg0, arg1, arg2 *ptr) (func(xxx) yyy)
+-void
+-runtime·closure(int32 siz, byte *fn, byte *arg0)
+-{
+-	byte *p, *q, **ret;
+-	int32 i, n;
+-	int64 pcrel;
+-
+-	if(siz < 0 || siz%8 != 0)
+-		runtime·throw("bad closure size");
+-
+-	fn = *(byte**)fn;
+-	ret = (byte**)((byte*)&arg0 + siz);
+-
+-	if(siz > 100) {
+-		// TODO(rsc): implement stack growth preamble?
+-		runtime·throw("closure too big");
+-	}
+-
+-	// compute size of new fn.
+-	// must match code laid out below.
+-	n = 7+10+3;	// SUBQ MOVQ MOVQ
+-	if(siz <= 4*8)
+-		n += 2*siz/8;	// MOVSQ MOVSQ...
+-	else
+-		n += 7+3;	// MOVQ REP MOVSQ
+-	n += 12;	// CALL worst case; sometimes only 5
+-	n += 7+1;	// ADDQ RET
+-
+-	// store args aligned after code, so gc can find them.
+-	n += siz;
+-	if(n%8)
+-		n += 8 - n%8;
+-
+-	p = runtime·mal(8+n);
+-	*ret = p;
+-	*(byte**)p = (p+8);
+-	p += 8;
+-	q = p + n - siz;
+-
+-
+-	if(siz > 0) {
+-		runtime·memmove(q, (byte*)&arg0, siz);
+-
+-		// SUBQ $siz, SP
+-		*p++ = 0x48;
+-		*p++ = 0x81;
+-		*p++ = 0xec;
+-		*(uint32*)p = siz;
+-		p += 4;
+-
+-		// MOVQ $q, SI
+-		*p++ = 0x48;
+-		*p++ = 0xbe;
+-		*(byte**)p = q;
+-		p += 8;
+-
+-		// MOVQ SP, DI
+-		*p++ = 0x48;
+-		*p++ = 0x89;
+-		*p++ = 0xe7;
+-
+-		if(siz <= 4*8) {
+-			for(i=0; i<siz; i+=8) {
+-				// MOVSQ
+-				*p++ = 0x48;
+-				*p++ = 0xa5;
+-			}
+-		} else {
+-			// MOVQ $(siz/8), CX  [32-bit immediate siz/8]
+-			*p++ = 0x48;
+-			*p++ = 0xc7;
+-			*p++ = 0xc1;
+-			*(uint32*)p = siz/8;
+-			p += 4;
+-
+-			// REP; MOVSQ
+-			*p++ = 0xf3;
+-			*p++ = 0x48;
+-			*p++ = 0xa5;
+-		}
+-	}
+-
+-	// call fn
+-	pcrel = fn - (p+5);
+-	if((int32)pcrel == pcrel) {
+-		// can use direct call with pc-relative offset
+-		// CALL fn
+-		*p++ = 0xe8;
+-		*(int32*)p = pcrel;
+-		p += 4;
+-	} else {
+-		// MOVQ $fn, CX  [64-bit immediate fn]
+-		*p++ = 0x48;
+-		*p++ = 0xb9;
+-		*(byte**)p = fn;
+-		p += 8;
+-
+-		// CALL *CX
+-		*p++ = 0xff;
+-		*p++ = 0xd1;
+-	}
+-
+-	// ADDQ $siz, SP
+-	*p++ = 0x48;
+-	*p++ = 0x81;
+-	*p++ = 0xc4;
+-	*(uint32*)p = siz;
+-	p += 4;
+-
+-	// RET
+-	*p++ = 0xc3;
+-
+-	if(p > q)
+-		runtime·throw("bad math in sys.closure");
+-}
+-
+-
+diff --git a/src/pkg/runtime/closure_arm.c b/src/pkg/runtime/closure_arm.c
+deleted file mode 100644
+index 08792ac590..0000000000
+--- a/src/pkg/runtime/closure_arm.c
++++ /dev/null
+@@ -1,132 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-
+-/*
+-	There are two bits of magic:
+-	- The signature of the compiler generated function uses two stack frames
+-	as arguments (callerpc separates these frames)
+-	- size determines how many arguments runtime.closure actually has
+-	starting at arg0.
+-
+-	Example closure with 3 captured variables:
+-	func closure(siz int32,
+-	fn func(arg0, arg1, arg2 *ptr, callerpc uintptr, xxx) yyy,
+-		arg0, arg1, arg2 *ptr) (func(xxx) yyy)
+-
+-	Code generated:
+-	src R0
+-	dst R1
+-	end R3
+-	tmp R4
+-	frame = siz+4
+-
+-//skip loop for 0 size closures
+-		MOVW.W	R14,-frame(R13)
+-
+-		MOVW	$vars(PC), R0
+-		MOVW	$4(SP), R1
+-		MOVW	$siz(R0), R3
+-loop:		MOVW.P	4(R0), R4
+-		MOVW.P	R4, 4(R1)
+-		CMP		R0, R3
+-		BNE		loop
+-
+-		MOVW	8(PC), R0
+-		BL		(R0)			// 2 words
+-		MOVW.P	frame(R13),R15
+-fptr:		WORD	*fn
+-vars:		WORD	arg0
+-		WORD	arg1
+-		WORD	arg2
+-*/
+-
+-extern void runtime·cacheflush(byte* start, byte* end);
+-
+-#pragma textflag 7
+-void
+-runtime·closure(int32 siz, byte *fn, byte *arg0)
+-{
+-	byte *p, *q, **ret;
+-	uint32 *pc;
+-	int32 n;
+-
+-	if(siz < 0 || siz%4 != 0)
+-		runtime·throw("bad closure size");
+-
+-	fn = *(byte**)fn;
+-	ret = (byte**)((byte*)&arg0 + siz);
+-
+-	if(siz > 100) {
+-		// TODO(kaib): implement stack growth preamble?
+-		runtime·throw("closure too big");
+-	}
+-
+-	// size of new fn.
+-	// must match code laid out below.
+-	if (siz > 0)
+-		n = 6 * 4 + 7 * 4;
+-	else
+-		n = 6 * 4;
+-
+-	// store args aligned after code, so gc can find them.
+-	n += siz;
+-
+-	p = runtime·mal(4+n);
+-	*ret = p;
+-	*(byte**)p = p+4;
+-	p += 4;
+-	q = p + n - siz;
+-
+-	pc = (uint32*)p;
+-
+-	//	MOVW.W	R14,-frame(R13)
+-	*pc++ = 0xe52de000 | (siz + 4);
+-
+-	if(siz > 0) {
+-		runtime·memmove(q, (byte*)&arg0, siz);
+-
+-		//	MOVW	$vars(PC), R0
+-		*pc = 0xe28f0000 | (int32)(q - (byte*)pc - 8);
+-		pc++;
+-
+-		//	MOVW	$4(SP), R1
+-		*pc++ = 0xe28d1004;
+-
+-		//	MOVW	$siz(R0), R3
+-		*pc++ = 0xe2803000 | siz;
+-
+-		//	MOVW.P	4(R0), R4
+-		*pc++ = 0xe4904004;
+-		//	MOVW.P	R4, 4(R1)
+-		*pc++ = 0xe4814004;
+-		//	CMP		R0, R3
+-		*pc++ = 0xe1530000;
+-		//	BNE		loop
+-		*pc++ = 0x1afffffb;
+-	}
+-
+-	//	MOVW	fptr(PC), R0
+-	*pc = 0xe59f0008 | (int32)((q - 4) -(byte*) pc - 8);
+-	pc++;
+-
+-	//	BL		(R0)
+-	*pc++ = 0xe28fe000;
+-	*pc++ = 0xe280f000;
+-
+-	//	MOVW.P	frame(R13),R15
+-	*pc++ = 0xe49df000 | (siz + 4);
+-
+-	//	WORD	*fn
+-	*pc++ = (uint32)fn;
+-
+-	p = (byte*)pc;
+-
+-	if(p > q)
+-		runtime·throw("bad math in sys.closure");
+-
+-	runtime·cacheflush(*ret, q+siz);
+-}
+-

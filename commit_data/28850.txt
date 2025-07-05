@@ -25,7 +25,7 @@ Date:   Wed Aug 10 11:44:57 2016 -0700
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |   9 +-
  src/cmd/compile/internal/ppc64/prog.go       |   3 +
  src/cmd/compile/internal/ppc64/ssa.go        | 175 ++++++++---
@@ -40,3 +40,1853 @@ Date:   Wed Aug 10 11:44:57 2016 -0700
  src/cmd/internal/obj/ppc64/anames.go         |   2 +
  src/cmd/internal/obj/ppc64/asm9.go           |  18 +-
  13 files changed, 863 insertions(+), 157 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2e7d45d543..997e972e0a 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3953,8 +3953,9 @@ type SSAGenState struct {
+ 	bstart []*obj.Prog
+ 
+ 	// 387 port: maps from SSE registers (REG_X?) to 387 registers (REG_F?)
+-	SSEto387   map[int16]int16
+-	Scratch387 *Node
++	SSEto387 map[int16]int16
++	// Some architectures require a 64-bit temporary for FP-related register shuffling. Examples include x86-387, PPC, and Sparc V8.
++	ScratchFpMem *Node
+ }
+ 
+ // Pc returns the current Prog.
+@@ -3993,7 +3994,9 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 
+ 	if Thearch.Use387 {
+ 		s.SSEto387 = map[int16]int16{}
+-		s.Scratch387 = temp(Types[TUINT64])
++	}
++	if f.Config.NeedsFpScratch {
++		s.ScratchFpMem = temp(Types[TUINT64])
+ 	}
+ 
+ 	// Emit basic blocks
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index af5fa3f60a..117eb24299 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -82,6 +82,7 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
+ 	ppc64.AFDIV & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AFDIVS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AFCTIDZ & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFCTIWZ & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AFCFID & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AFCFIDU & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AFCMPU & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
+@@ -104,6 +105,8 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
+ 	ppc64.AMOVD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
+ 	ppc64.AMOVDU & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move | gc.PostInc},
+ 	ppc64.AFMOVS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	ppc64.AFMOVSX & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	ppc64.AFMOVSZ & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+ 	ppc64.AFMOVD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+ 
+ 	// Jumps
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 1aca551091..b6d06f88e1 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -73,11 +73,11 @@ var ssaRegToReg = []int16{
+ 	ppc64.REG_F24,
+ 	ppc64.REG_F25,
+ 	ppc64.REG_F26,
+-	ppc64.REG_F27,
+-	ppc64.REG_F28,
+-	ppc64.REG_F29,
+-	ppc64.REG_F30,
+-	ppc64.REG_F31,
++	// ppc64.REG_F27, // reserved for "floating conversion constant"
++	// ppc64.REG_F28, // 0.0
++	// ppc64.REG_F29, // 0.5
++	// ppc64.REG_F30, // 1.0
++	// ppc64.REG_F31, // 2.0
+ 
+ 	// ppc64.REG_CR0,
+ 	// ppc64.REG_CR1,
+@@ -88,21 +88,12 @@ var ssaRegToReg = []int16{
+ 	// ppc64.REG_CR6,
+ 	// ppc64.REG_CR7,
+ 
+-	ppc64.REG_CR,
++	// ppc64.REG_CR,
+ 	// ppc64.REG_XER,
+ 	// ppc64.REG_LR,
+ 	// ppc64.REG_CTR,
+ }
+ 
+-// Associated condition bit
+-var condBits = map[ssa.Op]uint8{
+-	ssa.OpPPC64Equal:        ppc64.C_COND_EQ,
+-	ssa.OpPPC64NotEqual:     ppc64.C_COND_EQ,
+-	ssa.OpPPC64LessThan:     ppc64.C_COND_LT,
+-	ssa.OpPPC64GreaterEqual: ppc64.C_COND_LT,
+-	ssa.OpPPC64GreaterThan:  ppc64.C_COND_GT,
+-	ssa.OpPPC64LessEqual:    ppc64.C_COND_GT,
+-}
+ var condOps = map[ssa.Op]obj.As{
+ 	ssa.OpPPC64Equal:        ppc64.ABEQ,
+ 	ssa.OpPPC64NotEqual:     ppc64.ABNE,
+@@ -110,16 +101,11 @@ var condOps = map[ssa.Op]obj.As{
+ 	ssa.OpPPC64GreaterEqual: ppc64.ABGE,
+ 	ssa.OpPPC64GreaterThan:  ppc64.ABGT,
+ 	ssa.OpPPC64LessEqual:    ppc64.ABLE,
+-}
+ 
+-// Is the condition bit set? 1=yes 0=no
+-var condBitSet = map[ssa.Op]uint8{
+-	ssa.OpPPC64Equal:        1,
+-	ssa.OpPPC64NotEqual:     0,
+-	ssa.OpPPC64LessThan:     1,
+-	ssa.OpPPC64GreaterEqual: 0,
+-	ssa.OpPPC64GreaterThan:  1,
+-	ssa.OpPPC64LessEqual:    0,
++	ssa.OpPPC64FLessThan:     ppc64.ABLT, // 1 branch for FCMP
++	ssa.OpPPC64FGreaterThan:  ppc64.ABGT, // 1 branch for FCMP
++	ssa.OpPPC64FLessEqual:    ppc64.ABLT, // 2 branches for FCMP <=, second is BEQ
++	ssa.OpPPC64FGreaterEqual: ppc64.ABGT, // 2 branches for FCMP >=, second is BEQ
+ }
+ 
+ // markMoves marks any MOVXconst ops that need to avoid clobbering flags.
+@@ -205,6 +191,17 @@ func storeByType(t ssa.Type) obj.As {
+ 	panic("bad store type")
+ }
+ 
++// scratchFpMem initializes an Addr (field of a Prog)
++// to reference the scratchpad memory for movement between
++// F and G registers for FP conversions.
++func scratchFpMem(s *gc.SSAGenState, a *obj.Addr) {
++	a.Type = obj.TYPE_MEM
++	a.Name = obj.NAME_AUTO
++	a.Node = s.ScratchFpMem
++	a.Sym = gc.Linksym(s.ScratchFpMem.Sym)
++	a.Reg = ppc64.REGSP
++}
++
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	s.SetLineno(v.Line)
+ 	switch v.Op {
+@@ -212,22 +209,55 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		// memory arg needs no code
+ 	case ssa.OpArg:
+ 		// input args need no code
+-	case ssa.OpSP, ssa.OpSB:
++	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
+ 		// nothing to do
+ 
+ 	case ssa.OpCopy, ssa.OpPPC64MOVDconvert:
+-		// TODO: copy of floats
+-		if v.Type.IsMemory() {
++		t := v.Type
++		if t.IsMemory() {
+ 			return
+ 		}
+ 		x := gc.SSARegNum(v.Args[0])
+ 		y := gc.SSARegNum(v)
+ 		if x != y {
+-			p := gc.Prog(ppc64.AMOVD)
++			rt := obj.TYPE_REG
++			op := ppc64.AMOVD
++
++			if t.IsFloat() {
++				op = ppc64.AFMOVD
++			}
++			p := gc.Prog(op)
++			p.From.Type = rt
++			p.From.Reg = x
++			p.To.Type = rt
++			p.To.Reg = y
++		}
++
++	case ssa.OpPPC64Xf2i64:
++		{
++			x := gc.SSARegNum(v.Args[0])
++			y := gc.SSARegNum(v)
++			p := gc.Prog(ppc64.AFMOVD)
+ 			p.From.Type = obj.TYPE_REG
+ 			p.From.Reg = x
++			scratchFpMem(s, &p.To)
++			p = gc.Prog(ppc64.AMOVD)
++			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = y
++			scratchFpMem(s, &p.From)
++		}
++	case ssa.OpPPC64Xi2f64:
++		{
++			x := gc.SSARegNum(v.Args[0])
++			y := gc.SSARegNum(v)
++			p := gc.Prog(ppc64.AMOVD)
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = x
++			scratchFpMem(s, &p.To)
++			p = gc.Prog(ppc64.AFMOVD)
+ 			p.To.Type = obj.TYPE_REG
++			p.To.Reg = y
++			scratchFpMem(s, &p.From)
+ 		}
+ 
+ 	case ssa.OpPPC64LoweredGetClosurePtr:
+@@ -235,8 +265,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.CheckLoweredGetClosurePtr(v)
+ 
+ 	case ssa.OpLoadReg:
+-		p := gc.Prog(loadByType(v.Type))
++		loadOp := loadByType(v.Type)
+ 		n, off := gc.AutoVar(v.Args[0])
++		p := gc.Prog(loadOp)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Node = n
+ 		p.From.Sym = gc.Linksym(n.Sym)
+@@ -251,10 +282,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Reg = gc.SSARegNum(v)
+ 
+ 	case ssa.OpStoreReg:
+-		p := gc.Prog(storeByType(v.Type))
++		storeOp := storeByType(v.Type)
++		n, off := gc.AutoVar(v)
++		p := gc.Prog(storeOp)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = gc.SSARegNum(v.Args[0])
+-		n, off := gc.AutoVar(v)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Node = n
+ 		p.To.Sym = gc.Linksym(n.Sym)
+@@ -376,7 +408,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = ppc64.REGTMP // Ignored; this is for the carry effect.
+ 
+-	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG:
++	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FRSP:
+ 		r := gc.SSARegNum(v)
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+@@ -510,8 +542,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpPPC64Equal,
+ 		ssa.OpPPC64NotEqual,
+ 		ssa.OpPPC64LessThan,
++		ssa.OpPPC64FLessThan,
+ 		ssa.OpPPC64LessEqual,
+ 		ssa.OpPPC64GreaterThan,
++		ssa.OpPPC64FGreaterThan,
+ 		ssa.OpPPC64GreaterEqual:
+ 		// On Power7 or later, can use isel instruction:
+ 		// for a < b, a > b, a = b:
+@@ -549,6 +583,30 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p = gc.Prog(obj.ANOP)
+ 		gc.Patch(pb, p)
+ 
++	case ssa.OpPPC64FLessEqual, // These include a second branch for EQ -- dealing with NaN prevents REL= to !REL conversion
++		ssa.OpPPC64FGreaterEqual:
++
++		p := gc.Prog(ppc64.AMOVW)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 1
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++
++		pb0 := gc.Prog(condOps[v.Op])
++		pb0.To.Type = obj.TYPE_BRANCH
++		pb1 := gc.Prog(ppc64.ABEQ)
++		pb1.To.Type = obj.TYPE_BRANCH
++
++		p = gc.Prog(ppc64.AMOVW)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++
++		p = gc.Prog(obj.ANOP)
++		gc.Patch(pb0, p)
++		gc.Patch(pb1, p)
++
+ 	case ssa.OpPPC64LoweredZero:
+ 		// Similar to how this is done on ARM,
+ 		// except that PPC MOVDU x,off(y) is *(y+off) = x; y=y+off
+@@ -843,20 +901,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ }
+ 
+ var blockJump = [...]struct {
+-	asm, invasm obj.As
++	asm, invasm     obj.As
++	asmeq, invasmeq bool
+ }{
+-	ssa.BlockPPC64EQ: {ppc64.ABEQ, ppc64.ABNE},
+-	ssa.BlockPPC64NE: {ppc64.ABNE, ppc64.ABEQ},
+-
+-	ssa.BlockPPC64LT: {ppc64.ABLT, ppc64.ABGE},
+-	ssa.BlockPPC64GE: {ppc64.ABGE, ppc64.ABLT},
+-	ssa.BlockPPC64LE: {ppc64.ABLE, ppc64.ABGT},
+-	ssa.BlockPPC64GT: {ppc64.ABGT, ppc64.ABLE},
+-
+-	ssa.BlockPPC64ULT: {ppc64.ABLT, ppc64.ABGE},
+-	ssa.BlockPPC64UGE: {ppc64.ABGE, ppc64.ABLT},
+-	ssa.BlockPPC64ULE: {ppc64.ABLE, ppc64.ABGT},
+-	ssa.BlockPPC64UGT: {ppc64.ABGT, ppc64.ABLE},
++	ssa.BlockPPC64EQ: {ppc64.ABEQ, ppc64.ABNE, false, false},
++	ssa.BlockPPC64NE: {ppc64.ABNE, ppc64.ABEQ, false, false},
++
++	ssa.BlockPPC64LT: {ppc64.ABLT, ppc64.ABGE, false, false},
++	ssa.BlockPPC64GE: {ppc64.ABGE, ppc64.ABLT, false, false},
++	ssa.BlockPPC64LE: {ppc64.ABLE, ppc64.ABGT, false, false},
++	ssa.BlockPPC64GT: {ppc64.ABGT, ppc64.ABLE, false, false},
++
++	// TODO: need to work FP comparisons into block jumps
++	ssa.BlockPPC64FLT: {ppc64.ABLT, ppc64.ABGT, false, true},
++	ssa.BlockPPC64FGE: {ppc64.ABGT, ppc64.ABLT, true, false},
++	ssa.BlockPPC64FLE: {ppc64.ABLT, ppc64.ABGT, true, false},
++	ssa.BlockPPC64FGT: {ppc64.ABGT, ppc64.ABLT, false, true},
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+@@ -893,12 +953,17 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		gc.Prog(obj.AUNDEF) // tell plive.go that we never reach here
+ 	case ssa.BlockRet:
+ 		gc.Prog(obj.ARET)
++	case ssa.BlockRetJmp:
++		p := gc.Prog(obj.AJMP)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Linksym(b.Aux.(*gc.Sym))
+ 
+ 	case ssa.BlockPPC64EQ, ssa.BlockPPC64NE,
+ 		ssa.BlockPPC64LT, ssa.BlockPPC64GE,
+ 		ssa.BlockPPC64LE, ssa.BlockPPC64GT,
+-		ssa.BlockPPC64ULT, ssa.BlockPPC64UGT,
+-		ssa.BlockPPC64ULE, ssa.BlockPPC64UGE:
++		ssa.BlockPPC64FLT, ssa.BlockPPC64FGE,
++		ssa.BlockPPC64FLE, ssa.BlockPPC64FGT:
+ 		jmp := blockJump[b.Kind]
+ 		likely := b.Likely
+ 		var p *obj.Prog
+@@ -908,14 +973,30 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 			likely *= -1
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
++			if jmp.invasmeq {
++				// TODO: The second branch is probably predict-not-taken since it is for FP equality
++				q := gc.Prog(ppc64.ABEQ)
++				q.To.Type = obj.TYPE_BRANCH
++				s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
++			}
+ 		case b.Succs[1].Block():
+ 			p = gc.Prog(jmp.asm)
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
++			if jmp.asmeq {
++				q := gc.Prog(ppc64.ABEQ)
++				q.To.Type = obj.TYPE_BRANCH
++				s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[0].Block()})
++			}
+ 		default:
+ 			p = gc.Prog(jmp.asm)
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
++			if jmp.asmeq {
++				q := gc.Prog(ppc64.ABEQ)
++				q.To.Type = obj.TYPE_BRANCH
++				s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[0].Block()})
++			}
+ 			q := gc.Prog(obj.AJMP)
+ 			q.To.Type = obj.TYPE_BRANCH
+ 			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 0ef4364e0c..149ceae379 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -31,6 +31,7 @@ type Config struct {
+ 	noDuffDevice    bool                       // Don't use Duff's device
+ 	nacl            bool                       // GOOS=nacl
+ 	use387          bool                       // GO386=387
++	NeedsFpScratch  bool                       // No direct move between GP and FP register sets
+ 	sparsePhiCutoff uint64                     // Sparse phi location algorithm used above this #blocks*#variables score
+ 	curFunc         *Func
+ 
+@@ -190,6 +191,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 		c.fpRegMask = fpRegMaskPPC64
+ 		c.FPReg = framepointerRegPPC64
+ 		c.noDuffDevice = true // TODO: Resolve PPC64 DuffDevice (has zero, but not copy)
++		c.NeedsFpScratch = true
+ 		c.hasGReg = true
+ 	default:
+ 		fe.Unimplementedf(0, "arch %s not implemented", arch)
+@@ -245,6 +247,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ }
+ 
+ func (c *Config) Set387(b bool) {
++	c.NeedsFpScratch = b
+ 	c.use387 = b
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index fd967edaa9..2e746e32d4 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -28,6 +28,8 @@
+ (Mod32 x y) -> (SUB x (MULLW y (DIVW x y)))
+ (Mod32u x y) -> (SUB x (MULLW y (DIVWU x y)))
+ 
++(Avg64u <t> x y) -> (ADD (ADD <t> (SRD <t> x (MOVDconst <t> [1])) (SRD <t> y (MOVDconst <t> [1]))) (ANDconst <t> (AND <t> x y) [1]))
++
+ (Mul64  x y) -> (MULLD  x y)
+ (Mul32  x y) -> (MULLW  x y)
+ (Mul16  x y) -> (MULLW x y)
+@@ -57,6 +59,22 @@
+ (Div32F x y) -> (FDIVS x y)
+ (Div64F x y) -> (FDIV x y)
+ 
++// Lowering float <-> int
++(Cvt32to32F x) -> (FRSP (FCFID (Xi2f64 (SignExt32to64 x))))
++(Cvt32to64F x) -> (FCFID (Xi2f64 (SignExt32to64 x)))
++(Cvt64to32F x) -> (FRSP (FCFID (Xi2f64 x)))
++(Cvt64to64F x) -> (FCFID (Xi2f64 x))
++
++(Cvt32Fto32 x) -> (Xf2i64 (FCTIWZ x))
++(Cvt32Fto64 x) -> (Xf2i64 (FCTIDZ x))
++(Cvt64Fto32 x) -> (Xf2i64 (FCTIWZ x))
++(Cvt64Fto64 x) -> (Xf2i64 (FCTIDZ x))
++
++(Cvt32Fto64F x) -> x // Note x will have the wrong type for patterns dependent on Float32/Float64
++(Cvt64Fto32F x) -> (FRSP x)
++
++(Sqrt x) -> (FSQRT x)
++
+ (Rsh64x64 x y)  -> (SRAD x (ORN y <config.fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] y))))
+ (Rsh64Ux64 x y) -> (SRD  x (ORN y <config.fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] y))))
+ (Lsh64x64 x y)  -> (SLD  x (ORN y <config.fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] y))))
+@@ -199,8 +217,8 @@
+ (Less16 x y) -> (LessThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+ (Less32 x y) -> (LessThan (CMPW x y))
+ (Less64 x y) -> (LessThan (CMP x y))
+-(Less32F x y) -> (LessThan (FCMPU x y))
+-(Less64F x y) -> (LessThan (FCMPU x y))
++(Less32F x y) -> (FLessThan (FCMPU x y))
++(Less64F x y) -> (FLessThan (FCMPU x y))
+ 
+ (Less8U x y)  -> (LessThan (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Less16U x y) -> (LessThan (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
+@@ -211,8 +229,8 @@
+ (Leq16 x y) -> (LessEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+ (Leq32 x y) -> (LessEqual (CMPW x y))
+ (Leq64 x y) -> (LessEqual (CMP x y))
+-(Leq32F x y) -> (LessEqual (FCMPU x y))
+-(Leq64F x y) -> (LessEqual (FCMPU x y))
++(Leq32F x y) -> (FLessEqual (FCMPU x y))
++(Leq64F x y) -> (FLessEqual (FCMPU x y))
+ 
+ (Leq8U x y)  -> (LessEqual (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Leq16U x y) -> (LessEqual (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
+@@ -223,8 +241,8 @@
+ (Greater16 x y) -> (GreaterThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+ (Greater32 x y) -> (GreaterThan (CMPW x y))
+ (Greater64 x y) -> (GreaterThan (CMP x y))
+-(Greater32F x y) -> (GreaterThan (FCMPU x y))
+-(Greater64F x y) -> (GreaterThan (FCMPU x y))
++(Greater32F x y) -> (FGreaterThan (FCMPU x y))
++(Greater64F x y) -> (FGreaterThan (FCMPU x y))
+ 
+ (Greater8U x y)  -> (GreaterThan (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Greater16U x y) -> (GreaterThan (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
+@@ -235,8 +253,8 @@
+ (Geq16 x y) -> (GreaterEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+ (Geq32 x y) -> (GreaterEqual (CMPW x y))
+ (Geq64 x y) -> (GreaterEqual (CMP x y))
+-(Geq32F x y) -> (GreaterEqual (FCMPU x y))
+-(Geq64F x y) -> (GreaterEqual (FCMPU x y))
++(Geq32F x y) -> (FGreaterEqual (FCMPU x y))
++(Geq64F x y) -> (FGreaterEqual (FCMPU x y))
+ 
+ (Geq8U x y)  -> (GreaterEqual (CMPU (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Geq16U x y) -> (GreaterEqual (CMPU (ZeroExt16to32 x) (ZeroExt16to32 y)))
+@@ -250,6 +268,10 @@
+ (If (LessEqual cc) yes no) -> (LE cc yes no)
+ (If (GreaterThan cc) yes no) -> (GT cc yes no)
+ (If (GreaterEqual cc) yes no) -> (GE cc yes no)
++(If (FLessThan cc) yes no) -> (FLT cc yes no)
++(If (FLessEqual cc) yes no) -> (FLE cc yes no)
++(If (FGreaterThan cc) yes no) -> (FGT cc yes no)
++(If (FGreaterEqual cc) yes no) -> (FGE cc yes no)
+ 
+ (If cond yes no) -> (NE (CMPWconst [0] cond) yes no)
+ 
+@@ -260,6 +282,10 @@
+ (NE (CMPWconst [0] (LessEqual cc)) yes no) -> (LE cc yes no)
+ (NE (CMPWconst [0] (GreaterThan cc)) yes no) -> (GT cc yes no)
+ (NE (CMPWconst [0] (GreaterEqual cc)) yes no) -> (GE cc yes no)
++// (NE (CMPWconst [0] (FLessThan cc)) yes no) -> (FLT cc yes no)
++// (NE (CMPWconst [0] (FLessEqual cc)) yes no) -> (FLE cc yes no)
++// (NE (CMPWconst [0] (FGreaterThan cc)) yes no) -> (FGT cc yes no)
++// (NE (CMPWconst [0] (FGreaterEqual cc)) yes no) -> (FGE cc yes no)
+ 
+ // absorb flag constants into branches
+ (EQ (FlagEQ) yes no) -> (First nil yes no)
+@@ -294,6 +320,11 @@
+ (EQ (InvertFlags cmp) yes no) -> (EQ cmp yes no)
+ (NE (InvertFlags cmp) yes no) -> (NE cmp yes no)
+ 
++// (FLT (InvertFlags cmp) yes no) -> (FGT cmp yes no)
++// (FGT (InvertFlags cmp) yes no) -> (FLT cmp yes no)
++// (FLE (InvertFlags cmp) yes no) -> (FGE cmp yes no)
++// (FGE (InvertFlags cmp) yes no) -> (FLE cmp yes no)
++
+ // constant comparisons
+ (CMPWconst (MOVWconst [x]) [y]) && int32(x)==int32(y) -> (FlagEQ)
+ (CMPWconst (MOVWconst [x]) [y]) && int32(x)<int32(y)  -> (FlagLT)
+@@ -349,6 +380,10 @@
+ (GreaterThan (InvertFlags x)) -> (LessThan x)
+ (LessEqual (InvertFlags x)) -> (GreaterEqual x)
+ (GreaterEqual (InvertFlags x)) -> (LessEqual x)
++(FLessThan (InvertFlags x)) -> (FGreaterThan x)
++(FGreaterThan (InvertFlags x)) -> (FLessThan x)
++(FLessEqual (InvertFlags x)) -> (FGreaterEqual x)
++(FGreaterEqual (InvertFlags x)) -> (FLessEqual x)
+ 
+ 
+ // Lowering loads
+@@ -364,6 +399,7 @@
+ (Load <t> ptr mem) && is64BitFloat(t) -> (FMOVDload ptr mem)
+ 
+ (Store [8] ptr val mem) && is64BitFloat(val.Type) -> (FMOVDstore ptr val mem)
++(Store [8] ptr val mem) && is32BitFloat(val.Type) -> (FMOVDstore ptr val mem) // glitch from (Cvt32Fto64F x) -> x -- type is wrong
+ (Store [4] ptr val mem) && is32BitFloat(val.Type) -> (FMOVSstore ptr val mem)
+ (Store [8] ptr val mem) && (is64BitInt(val.Type) || isPtr(val.Type)) -> (MOVDstore ptr val mem)
+ (Store [4] ptr val mem) && is32BitInt(val.Type) -> (MOVWstore ptr val mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index a8e2818581..9f4416a383 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -77,11 +77,11 @@ var regNamesPPC64 = []string{
+ 	"F24",
+ 	"F25",
+ 	"F26",
+-	"F27",
+-	"F28",
+-	"F29",
+-	"F30",
+-	"F31",
++	// "F27", // reserved for "floating conversion constant"
++	// "F28", // 0.0
++	// "F29", // 0.5
++	// "F30", // 1.0
++	// "F31", // 2.0
+ 
+ 	// "CR0",
+ 	// "CR1",
+@@ -121,16 +121,16 @@ func init() {
+ 
+ 	var (
+ 		gp = buildReg("R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29")
+-		fp = buildReg("F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
++		fp = buildReg("F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26")
+ 		sp = buildReg("SP")
+ 		sb = buildReg("SB")
+-		// gr = buildReg("g")
+-		//cr = buildReg("CR")
+-		//ctr  = buildReg("CTR")
+-		//lr   = buildReg("LR")
++		// gr  = buildReg("g")
++		// cr  = buildReg("CR")
++		// ctr = buildReg("CTR")
++		// lr  = buildReg("LR")
+ 		tmp  = buildReg("R31")
+ 		ctxt = buildReg("R11")
+-		//		tls	= buildReg("R13")
++		// tls = buildReg("R13")
+ 		gp01        = regInfo{inputs: nil, outputs: []regMask{gp}}
+ 		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
+ 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
+@@ -142,6 +142,8 @@ func init() {
+ 		gpstorezero = regInfo{inputs: []regMask{gp | sp | sb}} // ppc64.REGZERO is reserved zero value
+ 		fp01        = regInfo{inputs: nil, outputs: []regMask{fp}}
+ 		fp11        = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
++		fpgp        = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
++		gpfp        = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
+ 		fp21        = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+ 		fp2cr       = regInfo{inputs: []regMask{fp, fp}}
+ 		fpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{fp}}
+@@ -195,6 +197,21 @@ func init() {
+ 
+ 		// MOD is implemented as rem := arg0 - (arg0/arg1) * arg1
+ 
++		// Conversions are all float-to-float register operations.  "Integer" refers to encoding in the FP register.
++		{name: "FCTIDZ", argLength: 1, reg: fp11, asm: "FCTIDZ", typ: "Float64"}, // convert float to 64-bit int round towards zero
++		{name: "FCTIWZ", argLength: 1, reg: fp11, asm: "FCTIWZ", typ: "Float64"}, // convert float to 32-bit int round towards zero
++		{name: "FCFID", argLength: 1, reg: fp11, asm: "FCFID", typ: "Float64"},   // convert 64-bit integer to float
++		{name: "FRSP", argLength: 1, reg: fp11, asm: "FRSP", typ: "Float64"},     // round float to 32-bit value
++
++		// Movement between float and integer registers with no change in bits; accomplished with stores+loads on PPC.
++		// Because the 32-bit load-literal-bits instructions have impoverished addressability, always widen the
++		// data instead and use FMOVDload and FMOVDstore instead (this will also dodge endianess issues).
++		// There are optimizations that should apply -- (Xi2f64 (MOVWload (not-ADD-ptr+offset) ) ) could use
++		// the word-load instructions.  (Xi2f64 (MOVDload ptr )) can be (FMOVDload ptr)
++
++		{name: "Xf2i64", argLength: 1, reg: fpgp, typ: "Int64"},   // move 64 bits of F register into G register
++		{name: "Xi2f64", argLength: 1, reg: gpfp, typ: "Float64"}, // move 64 bits of G register into F register
++
+ 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},               // arg0&arg1
+ 		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                // arg0&^arg1
+ 		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},                 // arg0|arg1
+@@ -203,6 +220,8 @@ func init() {
+ 		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true}, // arg0^^arg1
+ 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                  // -arg0 (integer)
+ 		{name: "FNEG", argLength: 1, reg: fp11, asm: "FNEG"},                                // -arg0 (floating point)
++		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"},                              // sqrt(arg0) (floating point)
++		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                            // sqrt(arg0) (floating point, single precision)
+ 
+ 		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64"},                                                                                     // arg0|aux
+ 		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64"},                                                                                   // arg0^aux
+@@ -254,12 +273,16 @@ func init() {
+ 		{name: "CMPWUconst", argLength: 1, reg: gp1cr, asm: "CMPWU", aux: "Int32", typ: "Flags"},
+ 
+ 		// pseudo-ops
+-		{name: "Equal", argLength: 1, reg: crgp},        // bool, true flags encode x==y false otherwise.
+-		{name: "NotEqual", argLength: 1, reg: crgp},     // bool, true flags encode x!=y false otherwise.
+-		{name: "LessThan", argLength: 1, reg: crgp},     // bool, true flags encode  x<y false otherwise.
+-		{name: "LessEqual", argLength: 1, reg: crgp},    // bool, true flags encode  x<=y false otherwise.
+-		{name: "GreaterThan", argLength: 1, reg: crgp},  // bool, true flags encode  x>y false otherwise.
+-		{name: "GreaterEqual", argLength: 1, reg: crgp}, // bool, true flags encode  x>=y false otherwise.
++		{name: "Equal", argLength: 1, reg: crgp},         // bool, true flags encode x==y false otherwise.
++		{name: "NotEqual", argLength: 1, reg: crgp},      // bool, true flags encode x!=y false otherwise.
++		{name: "LessThan", argLength: 1, reg: crgp},      // bool, true flags encode  x<y false otherwise.
++		{name: "FLessThan", argLength: 1, reg: crgp},     // bool, true flags encode  x<y false otherwise.
++		{name: "LessEqual", argLength: 1, reg: crgp},     // bool, true flags encode  x<=y false otherwise.
++		{name: "FLessEqual", argLength: 1, reg: crgp},    // bool, true flags encode  x<=y false otherwise; PPC <= === !> which is wrong for NaN
++		{name: "GreaterThan", argLength: 1, reg: crgp},   // bool, true flags encode  x>y false otherwise.
++		{name: "FGreaterThan", argLength: 1, reg: crgp},  // bool, true flags encode  x>y false otherwise.
++		{name: "GreaterEqual", argLength: 1, reg: crgp},  // bool, true flags encode  x>=y false otherwise.
++		{name: "FGreaterEqual", argLength: 1, reg: crgp}, // bool, true flags encode  x>=y false otherwise.; PPC >= === !< which is wrong for NaN
+ 
+ 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+ 		// and sorts it to the very beginning of the block to prevent other
+@@ -352,10 +375,10 @@ func init() {
+ 		{name: "LE"},
+ 		{name: "GT"},
+ 		{name: "GE"},
+-		{name: "ULT"},
+-		{name: "ULE"},
+-		{name: "UGT"},
+-		{name: "UGE"},
++		{name: "FLT"},
++		{name: "FLE"},
++		{name: "FGT"},
++		{name: "FGE"},
+ 	}
+ 
+ 	archs = append(archs, arch{
+diff --git a/src/cmd/compile/internal/ssa/lower.go b/src/cmd/compile/internal/ssa/lower.go
+index fd1dc513bb..0a86345a05 100644
+--- a/src/cmd/compile/internal/ssa/lower.go
++++ b/src/cmd/compile/internal/ssa/lower.go
+@@ -29,7 +29,7 @@ func checkLower(f *Func) {
+ 					continue // ok not to lower
+ 				}
+ 			}
+-			s := "not lowered: " + v.Op.String() + " " + v.Type.SimpleString()
++			s := "not lowered: " + v.String() + ", " + v.Op.String() + " " + v.Type.SimpleString()
+ 			for _, a := range v.Args {
+ 				s += " " + a.Type.SimpleString()
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 8fa816d075..be8cdd60ac 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -72,10 +72,10 @@ const (
+ 	BlockPPC64LE
+ 	BlockPPC64GT
+ 	BlockPPC64GE
+-	BlockPPC64ULT
+-	BlockPPC64ULE
+-	BlockPPC64UGT
+-	BlockPPC64UGE
++	BlockPPC64FLT
++	BlockPPC64FLE
++	BlockPPC64FGT
++	BlockPPC64FGE
+ 
+ 	BlockPlain
+ 	BlockIf
+@@ -149,10 +149,10 @@ var blockString = [...]string{
+ 	BlockPPC64LE:  "LE",
+ 	BlockPPC64GT:  "GT",
+ 	BlockPPC64GE:  "GE",
+-	BlockPPC64ULT: "ULT",
+-	BlockPPC64ULE: "ULE",
+-	BlockPPC64UGT: "UGT",
+-	BlockPPC64UGE: "UGE",
++	BlockPPC64FLT: "FLT",
++	BlockPPC64FLE: "FLE",
++	BlockPPC64FGT: "FGT",
++	BlockPPC64FGE: "FGE",
+ 
+ 	BlockPlain:  "Plain",
+ 	BlockIf:     "If",
+@@ -994,6 +994,12 @@ const (
+ 	OpPPC64DIVW
+ 	OpPPC64DIVDU
+ 	OpPPC64DIVWU
++	OpPPC64FCTIDZ
++	OpPPC64FCTIWZ
++	OpPPC64FCFID
++	OpPPC64FRSP
++	OpPPC64Xf2i64
++	OpPPC64Xi2f64
+ 	OpPPC64AND
+ 	OpPPC64ANDN
+ 	OpPPC64OR
+@@ -1002,6 +1008,8 @@ const (
+ 	OpPPC64EQV
+ 	OpPPC64NEG
+ 	OpPPC64FNEG
++	OpPPC64FSQRT
++	OpPPC64FSQRTS
+ 	OpPPC64ORconst
+ 	OpPPC64XORconst
+ 	OpPPC64ANDconst
+@@ -1047,9 +1055,13 @@ const (
+ 	OpPPC64Equal
+ 	OpPPC64NotEqual
+ 	OpPPC64LessThan
++	OpPPC64FLessThan
+ 	OpPPC64LessEqual
++	OpPPC64FLessEqual
+ 	OpPPC64GreaterThan
++	OpPPC64FGreaterThan
+ 	OpPPC64GreaterEqual
++	OpPPC64FGreaterEqual
+ 	OpPPC64LoweredGetClosurePtr
+ 	OpPPC64LoweredNilCheck
+ 	OpPPC64MOVDconvert
+@@ -11864,11 +11876,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:         ppc64.AFADD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 		},
+ 	},
+@@ -11879,11 +11891,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:         ppc64.AFADDS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 		},
+ 	},
+@@ -11907,11 +11919,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AFSUB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 		},
+ 	},
+@@ -11921,11 +11933,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AFSUBS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 		},
+ 	},
+@@ -12026,11 +12038,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:         ppc64.AFMUL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 		},
+ 	},
+@@ -12041,11 +12053,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:         ppc64.AFMULS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 		},
+ 	},
+@@ -12245,11 +12257,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AFDIV,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 		},
+ 	},
+@@ -12259,11 +12271,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AFDIVS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 		},
+ 	},
+@@ -12323,6 +12335,82 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FCTIDZ",
++		argLen: 1,
++		asm:    ppc64.AFCTIDZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FCTIWZ",
++		argLen: 1,
++		asm:    ppc64.AFCTIWZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FCFID",
++		argLen: 1,
++		asm:    ppc64.AFCFID,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FRSP",
++		argLen: 1,
++		asm:    ppc64.AFRSP,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "Xf2i64",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "Xi2f64",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
+ 	{
+ 		name:        "AND",
+ 		argLen:      2,
+@@ -12430,10 +12518,36 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AFNEG,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FSQRT",
++		argLen: 1,
++		asm:    ppc64.AFSQRT,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FSQRTS",
++		argLen: 1,
++		asm:    ppc64.AFSQRTS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 		},
+ 	},
+@@ -12665,7 +12779,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 		},
+ 	},
+@@ -12678,7 +12792,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 		},
+ 	},
+@@ -12737,8 +12851,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AFMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815},           // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 536866815},          // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -12749,8 +12863,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AFMOVS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 536866815},           // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 536866815},          // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -12845,7 +12959,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:               ppc64.AFMOVD,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 		},
+ 	},
+@@ -12857,7 +12971,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:               ppc64.AFMOVS,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 		},
+ 	},
+@@ -12867,8 +12981,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AFCMPU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 			},
+ 		},
+ 	},
+@@ -12987,6 +13101,15 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FLessThan",
++		argLen: 1,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:   "LessEqual",
+ 		argLen: 1,
+@@ -12996,6 +13119,15 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FLessEqual",
++		argLen: 1,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:   "GreaterThan",
+ 		argLen: 1,
+@@ -13005,6 +13137,15 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FGreaterThan",
++		argLen: 1,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:   "GreaterEqual",
+ 		argLen: 1,
+@@ -13014,6 +13155,15 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FGreaterEqual",
++		argLen: 1,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:   "LoweredGetClosurePtr",
+ 		argLen: 0,
+@@ -13053,7 +13203,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       1,
+ 		clobberFlags: true,
+ 		reg: regInfo{
+-			clobbers: 9223372033096675324, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			clobbers: 288230372393611260, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 		},
+ 	},
+ 	{
+@@ -13066,7 +13216,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 1024},      // R11
+ 				{0, 536866813}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+-			clobbers: 9223372033096675324, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			clobbers: 288230372393611260, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 		},
+ 	},
+ 	{
+@@ -13075,7 +13225,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       1,
+ 		clobberFlags: true,
+ 		reg: regInfo{
+-			clobbers: 9223372033096675324, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			clobbers: 288230372393611260, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 		},
+ 	},
+ 	{
+@@ -13084,7 +13234,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       1,
+ 		clobberFlags: true,
+ 		reg: regInfo{
+-			clobbers: 9223372033096675324, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			clobbers: 288230372393611260, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 		},
+ 	},
+ 	{
+@@ -13096,7 +13246,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+-			clobbers: 9223372033096675324, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			clobbers: 288230372393611260, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 		},
+ 	},
+ 	{
+@@ -14949,12 +15099,7 @@ var registersPPC64 = [...]Register{
+ 	{55, "F24"},
+ 	{56, "F25"},
+ 	{57, "F26"},
+-	{58, "F27"},
+-	{59, "F28"},
+-	{60, "F29"},
+-	{61, "F30"},
+-	{62, "F31"},
+ }
+ var gpRegMaskPPC64 = regMask(536866812)
+-var fpRegMaskPPC64 = regMask(9223372032559808512)
++var fpRegMaskPPC64 = regMask(288230371856744448)
+ var framepointerRegPPC64 = int8(0)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 7ba0a9cb9c..9675d2f731 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -34,6 +34,8 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpAnd8(v, config)
+ 	case OpAndB:
+ 		return rewriteValuePPC64_OpAndB(v, config)
++	case OpAvg64u:
++		return rewriteValuePPC64_OpAvg64u(v, config)
+ 	case OpClosureCall:
+ 		return rewriteValuePPC64_OpClosureCall(v, config)
+ 	case OpCom16:
+@@ -62,6 +64,26 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpConstNil(v, config)
+ 	case OpConvert:
+ 		return rewriteValuePPC64_OpConvert(v, config)
++	case OpCvt32Fto32:
++		return rewriteValuePPC64_OpCvt32Fto32(v, config)
++	case OpCvt32Fto64:
++		return rewriteValuePPC64_OpCvt32Fto64(v, config)
++	case OpCvt32Fto64F:
++		return rewriteValuePPC64_OpCvt32Fto64F(v, config)
++	case OpCvt32to32F:
++		return rewriteValuePPC64_OpCvt32to32F(v, config)
++	case OpCvt32to64F:
++		return rewriteValuePPC64_OpCvt32to64F(v, config)
++	case OpCvt64Fto32:
++		return rewriteValuePPC64_OpCvt64Fto32(v, config)
++	case OpCvt64Fto32F:
++		return rewriteValuePPC64_OpCvt64Fto32F(v, config)
++	case OpCvt64Fto64:
++		return rewriteValuePPC64_OpCvt64Fto64(v, config)
++	case OpCvt64to32F:
++		return rewriteValuePPC64_OpCvt64to32F(v, config)
++	case OpCvt64to64F:
++		return rewriteValuePPC64_OpCvt64to64F(v, config)
+ 	case OpDeferCall:
+ 		return rewriteValuePPC64_OpDeferCall(v, config)
+ 	case OpDiv16:
+@@ -328,6 +350,14 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpPPC64CMPconst(v, config)
+ 	case OpPPC64Equal:
+ 		return rewriteValuePPC64_OpPPC64Equal(v, config)
++	case OpPPC64FGreaterEqual:
++		return rewriteValuePPC64_OpPPC64FGreaterEqual(v, config)
++	case OpPPC64FGreaterThan:
++		return rewriteValuePPC64_OpPPC64FGreaterThan(v, config)
++	case OpPPC64FLessEqual:
++		return rewriteValuePPC64_OpPPC64FLessEqual(v, config)
++	case OpPPC64FLessThan:
++		return rewriteValuePPC64_OpPPC64FLessThan(v, config)
+ 	case OpPPC64GreaterEqual:
+ 		return rewriteValuePPC64_OpPPC64GreaterEqual(v, config)
+ 	case OpPPC64GreaterThan:
+@@ -430,6 +460,8 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpSignExt8to32(v, config)
+ 	case OpSignExt8to64:
+ 		return rewriteValuePPC64_OpSignExt8to64(v, config)
++	case OpSqrt:
++		return rewriteValuePPC64_OpSqrt(v, config)
+ 	case OpStaticCall:
+ 		return rewriteValuePPC64_OpStaticCall(v, config)
+ 	case OpStore:
+@@ -680,6 +712,41 @@ func rewriteValuePPC64_OpAndB(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpAvg64u(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Avg64u <t> x y)
++	// cond:
++	// result: (ADD (ADD <t> (SRD <t> x (MOVDconst <t> [1])) (SRD <t> y (MOVDconst <t> [1]))) (ANDconst <t> (AND <t> x y) [1]))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64ADD)
++		v0 := b.NewValue0(v.Line, OpPPC64ADD, t)
++		v1 := b.NewValue0(v.Line, OpPPC64SRD, t)
++		v1.AddArg(x)
++		v2 := b.NewValue0(v.Line, OpPPC64MOVDconst, t)
++		v2.AuxInt = 1
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v3 := b.NewValue0(v.Line, OpPPC64SRD, t)
++		v3.AddArg(y)
++		v4 := b.NewValue0(v.Line, OpPPC64MOVDconst, t)
++		v4.AuxInt = 1
++		v3.AddArg(v4)
++		v0.AddArg(v3)
++		v.AddArg(v0)
++		v5 := b.NewValue0(v.Line, OpPPC64ANDconst, t)
++		v5.AuxInt = 1
++		v6 := b.NewValue0(v.Line, OpPPC64AND, t)
++		v6.AddArg(x)
++		v6.AddArg(y)
++		v5.AddArg(v6)
++		v.AddArg(v5)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpClosureCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -875,6 +942,161 @@ func rewriteValuePPC64_OpConvert(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpCvt32Fto32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32Fto32 x)
++	// cond:
++	// result: (Xf2i64 (FCTIWZ x))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64Xf2i64)
++		v0 := b.NewValue0(v.Line, OpPPC64FCTIWZ, config.fe.TypeFloat64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpCvt32Fto64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32Fto64 x)
++	// cond:
++	// result: (Xf2i64 (FCTIDZ x))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64Xf2i64)
++		v0 := b.NewValue0(v.Line, OpPPC64FCTIDZ, config.fe.TypeFloat64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpCvt32Fto64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32Fto64F x)
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpCvt32to32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32to32F x)
++	// cond:
++	// result: (FRSP (FCFID (Xi2f64 (SignExt32to64 x))))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64FRSP)
++		v0 := b.NewValue0(v.Line, OpPPC64FCFID, config.fe.TypeFloat64())
++		v1 := b.NewValue0(v.Line, OpPPC64Xi2f64, config.fe.TypeFloat64())
++		v2 := b.NewValue0(v.Line, OpSignExt32to64, config.fe.TypeInt64())
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpCvt32to64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32to64F x)
++	// cond:
++	// result: (FCFID (Xi2f64 (SignExt32to64 x)))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64FCFID)
++		v0 := b.NewValue0(v.Line, OpPPC64Xi2f64, config.fe.TypeFloat64())
++		v1 := b.NewValue0(v.Line, OpSignExt32to64, config.fe.TypeInt64())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpCvt64Fto32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt64Fto32 x)
++	// cond:
++	// result: (Xf2i64 (FCTIWZ x))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64Xf2i64)
++		v0 := b.NewValue0(v.Line, OpPPC64FCTIWZ, config.fe.TypeFloat64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpCvt64Fto32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt64Fto32F x)
++	// cond:
++	// result: (FRSP x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64FRSP)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpCvt64Fto64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt64Fto64 x)
++	// cond:
++	// result: (Xf2i64 (FCTIDZ x))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64Xf2i64)
++		v0 := b.NewValue0(v.Line, OpPPC64FCTIDZ, config.fe.TypeFloat64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpCvt64to32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt64to32F x)
++	// cond:
++	// result: (FRSP (FCFID (Xi2f64 x)))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64FRSP)
++		v0 := b.NewValue0(v.Line, OpPPC64FCFID, config.fe.TypeFloat64())
++		v1 := b.NewValue0(v.Line, OpPPC64Xi2f64, config.fe.TypeFloat64())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpCvt64to64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt64to64F x)
++	// cond:
++	// result: (FCFID (Xi2f64 x))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64FCFID)
++		v0 := b.NewValue0(v.Line, OpPPC64Xi2f64, config.fe.TypeFloat64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpDeferCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1265,11 +1487,11 @@ func rewriteValuePPC64_OpGeq32F(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Geq32F x y)
+ 	// cond:
+-	// result: (GreaterEqual (FCMPU x y))
++	// result: (FGreaterEqual (FCMPU x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpPPC64GreaterEqual)
++		v.reset(OpPPC64FGreaterEqual)
+ 		v0 := b.NewValue0(v.Line, OpPPC64FCMPU, TypeFlags)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+@@ -1316,11 +1538,11 @@ func rewriteValuePPC64_OpGeq64F(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Geq64F x y)
+ 	// cond:
+-	// result: (GreaterEqual (FCMPU x y))
++	// result: (FGreaterEqual (FCMPU x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpPPC64GreaterEqual)
++		v.reset(OpPPC64FGreaterEqual)
+ 		v0 := b.NewValue0(v.Line, OpPPC64FCMPU, TypeFlags)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+@@ -1477,11 +1699,11 @@ func rewriteValuePPC64_OpGreater32F(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Greater32F x y)
+ 	// cond:
+-	// result: (GreaterThan (FCMPU x y))
++	// result: (FGreaterThan (FCMPU x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpPPC64GreaterThan)
++		v.reset(OpPPC64FGreaterThan)
+ 		v0 := b.NewValue0(v.Line, OpPPC64FCMPU, TypeFlags)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+@@ -1528,11 +1750,11 @@ func rewriteValuePPC64_OpGreater64F(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Greater64F x y)
+ 	// cond:
+-	// result: (GreaterThan (FCMPU x y))
++	// result: (FGreaterThan (FCMPU x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpPPC64GreaterThan)
++		v.reset(OpPPC64FGreaterThan)
+ 		v0 := b.NewValue0(v.Line, OpPPC64FCMPU, TypeFlags)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+@@ -1878,11 +2100,11 @@ func rewriteValuePPC64_OpLeq32F(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Leq32F x y)
+ 	// cond:
+-	// result: (LessEqual (FCMPU x y))
++	// result: (FLessEqual (FCMPU x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpPPC64LessEqual)
++		v.reset(OpPPC64FLessEqual)
+ 		v0 := b.NewValue0(v.Line, OpPPC64FCMPU, TypeFlags)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+@@ -1929,11 +2151,11 @@ func rewriteValuePPC64_OpLeq64F(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Leq64F x y)
+ 	// cond:
+-	// result: (LessEqual (FCMPU x y))
++	// result: (FLessEqual (FCMPU x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpPPC64LessEqual)
++		v.reset(OpPPC64FLessEqual)
+ 		v0 := b.NewValue0(v.Line, OpPPC64FCMPU, TypeFlags)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+@@ -2064,11 +2286,11 @@ func rewriteValuePPC64_OpLess32F(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Less32F x y)
+ 	// cond:
+-	// result: (LessThan (FCMPU x y))
++	// result: (FLessThan (FCMPU x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpPPC64LessThan)
++		v.reset(OpPPC64FLessThan)
+ 		v0 := b.NewValue0(v.Line, OpPPC64FCMPU, TypeFlags)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+@@ -2115,11 +2337,11 @@ func rewriteValuePPC64_OpLess64F(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Less64F x y)
+ 	// cond:
+-	// result: (LessThan (FCMPU x y))
++	// result: (FLessThan (FCMPU x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpPPC64LessThan)
++		v.reset(OpPPC64FLessThan)
+ 		v0 := b.NewValue0(v.Line, OpPPC64FCMPU, TypeFlags)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+@@ -3956,6 +4178,78 @@ func rewriteValuePPC64_OpPPC64Equal(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64_OpPPC64FGreaterEqual(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (FGreaterEqual (InvertFlags x))
++	// cond:
++	// result: (FLessEqual x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64InvertFlags {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpPPC64FLessEqual)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpPPC64FGreaterThan(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (FGreaterThan (InvertFlags x))
++	// cond:
++	// result: (FLessThan x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64InvertFlags {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpPPC64FLessThan)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpPPC64FLessEqual(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (FLessEqual (InvertFlags x))
++	// cond:
++	// result: (FGreaterEqual x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64InvertFlags {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpPPC64FGreaterEqual)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpPPC64FLessThan(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (FLessThan (InvertFlags x))
++	// cond:
++	// result: (FGreaterThan x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64InvertFlags {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpPPC64FGreaterThan)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValuePPC64_OpPPC64GreaterEqual(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -5444,6 +5738,19 @@ func rewriteValuePPC64_OpSignExt8to64(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpSqrt(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sqrt x)
++	// cond:
++	// result: (FSQRT x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64FSQRT)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpStaticCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -5483,6 +5790,25 @@ func rewriteValuePPC64_OpStore(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (Store [8] ptr val mem)
++	// cond: is32BitFloat(val.Type)
++	// result: (FMOVDstore ptr val mem)
++	for {
++		if v.AuxInt != 8 {
++			break
++		}
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32BitFloat(val.Type)) {
++			break
++		}
++		v.reset(OpPPC64FMOVDstore)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (Store [4] ptr val mem)
+ 	// cond: is32BitFloat(val.Type)
+ 	// result: (FMOVSstore ptr val mem)
+@@ -6515,6 +6841,74 @@ func rewriteBlockPPC64(b *Block) bool {
+ 			_ = no
+ 			return true
+ 		}
++		// match: (If (FLessThan cc) yes no)
++		// cond:
++		// result: (FLT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64FLessThan {
++				break
++			}
++			cc := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64FLT
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (If (FLessEqual cc) yes no)
++		// cond:
++		// result: (FLE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64FLessEqual {
++				break
++			}
++			cc := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64FLE
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (If (FGreaterThan cc) yes no)
++		// cond:
++		// result: (FGT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64FGreaterThan {
++				break
++			}
++			cc := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64FGT
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (If (FGreaterEqual cc) yes no)
++		// cond:
++		// result: (FGE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64FGreaterEqual {
++				break
++			}
++			cc := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64FGE
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
+ 		// match: (If cond yes no)
+ 		// cond:
+ 		// result: (NE (CMPWconst [0] cond) yes no)
+diff --git a/src/cmd/compile/internal/x86/387.go b/src/cmd/compile/internal/x86/387.go
+index bd0971cf4e..d7c9c71c4a 100644
+--- a/src/cmd/compile/internal/x86/387.go
++++ b/src/cmd/compile/internal/x86/387.go
+@@ -380,7 +380,7 @@ func flush387(s *gc.SSAGenState) {
+ func scratch387(s *gc.SSAGenState, a *obj.Addr) {
+ 	a.Type = obj.TYPE_MEM
+ 	a.Name = obj.NAME_AUTO
+-	a.Node = s.Scratch387
+-	a.Sym = gc.Linksym(s.Scratch387.Sym)
++	a.Node = s.ScratchFpMem
++	a.Sym = gc.Linksym(s.ScratchFpMem.Sym)
+ 	a.Reg = x86.REG_SP
+ }
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 460243f8c6..eb0baaf6df 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -219,8 +219,8 @@ const (
+ 	C_LAUTO
+ 	C_SEXT
+ 	C_LEXT
+-	C_ZOREG
+-	C_SOREG
++	C_ZOREG // conjecture: either (1) register + zeroed offset, or (2) "R0" implies zero or C_REG
++	C_SOREG // register + signed offset
+ 	C_LOREG
+ 	C_FPSCR
+ 	C_MSR
+@@ -324,6 +324,8 @@ const (
+ 	AFMOVDU
+ 	AFMOVS
+ 	AFMOVSU
++	AFMOVSX
++	AFMOVSZ
+ 	AFMSUB
+ 	AFMSUBCC
+ 	AFMSUBS
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index eb42c9a953..a2e5cf46d8 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -91,6 +91,8 @@ var Anames = []string{
+ 	"FMOVDU",
+ 	"FMOVS",
+ 	"FMOVSU",
++	"FMOVSX",
++	"FMOVSZ",
+ 	"FMSUB",
+ 	"FMSUBCC",
+ 	"FMSUBS",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 5366809d2f..52cae12333 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -53,7 +53,7 @@ type Optab struct {
+ 	a2    uint8
+ 	a3    uint8
+ 	a4    uint8
+-	type_ int8
++	type_ int8 // cases in asmout below. E.g., 44 = st r,(ra+rb); 45 = ld (ra+rb), r
+ 	size  int8
+ 	param int16
+ }
+@@ -310,6 +310,12 @@ var optab = []Optab{
+ 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_LAUTO, 35, 8, REGSP},
+ 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_LOREG, 35, 8, REGZERO},
+ 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_ADDR, 74, 8, 0},
++	{AFMOVSX, C_ZOREG, C_REG, C_NONE, C_FREG, 45, 4, 0},
++	{AFMOVSX, C_ZOREG, C_NONE, C_NONE, C_FREG, 45, 4, 0},
++	{AFMOVSX, C_FREG, C_REG, C_NONE, C_ZOREG, 44, 4, 0},
++	{AFMOVSX, C_FREG, C_NONE, C_NONE, C_ZOREG, 44, 4, 0},
++	{AFMOVSZ, C_ZOREG, C_REG, C_NONE, C_FREG, 45, 4, 0},
++	{AFMOVSZ, C_ZOREG, C_NONE, C_NONE, C_FREG, 45, 4, 0},
+ 	{ASYNC, C_NONE, C_NONE, C_NONE, C_NONE, 46, 4, 0},
+ 	{AWORD, C_LCON, C_NONE, C_NONE, C_NONE, 40, 4, 0},
+ 	{ADWORD, C_LCON, C_NONE, C_NONE, C_NONE, 31, 8, 0},
+@@ -920,7 +926,7 @@ func buildop(ctxt *obj.Link) {
+ 		switch r {
+ 		default:
+ 			ctxt.Diag("unknown op in build: %v", obj.Aconv(r))
+-			log.Fatalf("bad code")
++			log.Fatalf("instruction missing from switch in asm9.go:buildop: %v", obj.Aconv(r))
+ 
+ 		case ADCBF: /* unary indexed: op (b+a); op (b) */
+ 			opset(ADCBI, r0)
+@@ -1265,6 +1271,8 @@ func buildop(ctxt *obj.Link) {
+ 
+ 		case AADD,
+ 			AANDCC, /* and. Rb,Rs,Ra; andi. $uimm,Rs,Ra; andis. $uimm,Rs,Ra */
++			AFMOVSX,
++			AFMOVSZ,
+ 			ALSW,
+ 			AMOVW,
+ 			/* load/store/move word with sign extension; special 32-bit move; move 32-bit literals */
+@@ -3238,6 +3246,10 @@ func oploadx(ctxt *obj.Link, a obj.As) uint32 {
+ 		return OPVCC(31, 535, 0, 0) /* lfsx */
+ 	case AFMOVSU:
+ 		return OPVCC(31, 567, 0, 0) /* lfsux */
++	case AFMOVSX:
++		return OPVCC(31, 855, 0, 0) /* lfiwax - power6, isa 2.05 */
++	case AFMOVSZ:
++		return OPVCC(31, 887, 0, 0) /* lfiwzx - power7, isa 2.06 */
+ 	case AMOVH:
+ 		return OPVCC(31, 343, 0, 0) /* lhax */
+ 	case AMOVHU:
+@@ -3332,6 +3344,8 @@ func opstorex(ctxt *obj.Link, a obj.As) uint32 {
+ 		return OPVCC(31, 663, 0, 0) /* stfsx */
+ 	case AFMOVSU:
+ 		return OPVCC(31, 695, 0, 0) /* stfsux */
++	case AFMOVSX:
++		return OPVCC(31, 983, 0, 0) /* stfiwx */
+ 
+ 	case AMOVHZ, AMOVH:
+ 		return OPVCC(31, 407, 0, 0) /* sthx */

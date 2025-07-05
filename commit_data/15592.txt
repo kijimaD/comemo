@@ -20,7 +20,46 @@ Date:   Tue Mar 5 21:40:37 2013 +1100
     R=golang-dev, minux.ma, rsc, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/7449046
-
+---
  src/pkg/syscall/passfd_test.go | 4 ----
  src/pkg/syscall/syscall_bsd.go | 5 +++++
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/syscall/passfd_test.go b/src/pkg/syscall/passfd_test.go
+index 079c9303ba..a0e5909507 100644
+--- a/src/pkg/syscall/passfd_test.go
++++ b/src/pkg/syscall/passfd_test.go
+@@ -13,7 +13,6 @@ import (
+ 	"net"
+ 	"os"
+ 	"os/exec"
+-	"runtime"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+@@ -27,9 +26,6 @@ import (
+ // "-test.run=^TestPassFD$" and an environment variable used to signal
+ // that the test should become the child process instead.
+ func TestPassFD(t *testing.T) {
+-	if runtime.GOOS == "openbsd" {
+-		t.Skip("issue 4956")
+-	}
+ 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+ 		passFDChild()
+ 		return
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index a1e0d153f7..560409a262 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -327,6 +327,11 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
+ 	if err = getsockname(fd, &rsa, &len); err != nil {
+ 		return
+ 	}
++	// TODO(jsing): Remove after OpenBSD 5.4 is released (see issue 3349).
++	if runtime.GOOS == "openbsd" && rsa.Addr.Family == AF_UNSPEC && rsa.Addr.Len == 0 {
++		rsa.Addr.Family = AF_UNIX
++		rsa.Addr.Len = SizeofSockaddrUnix
++	}
+ 	return anyToSockaddr(&rsa)
+ }
+ 

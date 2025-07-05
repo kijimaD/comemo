@@ -21,7 +21,7 @@ Date:   Sat Apr 5 14:36:32 2025 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/664896
     Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/math/big/arith.go           |   4 +-
  src/math/big/arith_386.s        |   8 +--
  src/math/big/arith_amd64.s      |   8 +--
@@ -51,3 +51,1290 @@ Date:   Sat Apr 5 14:36:32 2025 -0400
  src/math/big/rat.go             |   8 +--
  src/math/big/ratconv.go         |   6 +-
  28 files changed, 213 insertions(+), 307 deletions(-)
+
+diff --git a/src/math/big/arith.go b/src/math/big/arith.go
+index f857ab8867..cd2b8a4228 100644
+--- a/src/math/big/arith.go
++++ b/src/math/big/arith.go
+@@ -143,7 +143,7 @@ func subVWlarge(z, x []Word, y Word) (c Word) {
+ 	return
+ }
+ 
+-func shlVU_g(z, x []Word, s uint) (c Word) {
++func lshVU_g(z, x []Word, s uint) (c Word) {
+ 	if s == 0 {
+ 		copy(z, x)
+ 		return
+@@ -162,7 +162,7 @@ func shlVU_g(z, x []Word, s uint) (c Word) {
+ 	return
+ }
+ 
+-func shrVU_g(z, x []Word, s uint) (c Word) {
++func rshVU_g(z, x []Word, s uint) (c Word) {
+ 	if s == 0 {
+ 		copy(z, x)
+ 		return
+diff --git a/src/math/big/arith_386.s b/src/math/big/arith_386.s
+index 04d4eae926..c3567c632d 100644
+--- a/src/math/big/arith_386.s
++++ b/src/math/big/arith_386.s
+@@ -105,8 +105,8 @@ E4:	CMPL BX, BP		// i < n
+ 	RET
+ 
+ 
+-// func shlVU(z, x []Word, s uint) (c Word)
+-TEXT ·shlVU(SB),NOSPLIT,$0
++// func lshVU(z, x []Word, s uint) (c Word)
++TEXT ·lshVU(SB),NOSPLIT,$0
+ 	MOVL z_len+4(FP), BX	// i = z
+ 	SUBL $1, BX		// i--
+ 	JL X8b			// i < 0	(n <= 0)
+@@ -140,8 +140,8 @@ X8b:	MOVL $0, c+28(FP)
+ 	RET
+ 
+ 
+-// func shrVU(z, x []Word, s uint) (c Word)
+-TEXT ·shrVU(SB),NOSPLIT,$0
++// func rshVU(z, x []Word, s uint) (c Word)
++TEXT ·rshVU(SB),NOSPLIT,$0
+ 	MOVL z_len+4(FP), BP
+ 	SUBL $1, BP		// n--
+ 	JL X9b			// n < 0	(n <= 0)
+diff --git a/src/math/big/arith_amd64.s b/src/math/big/arith_amd64.s
+index 3bc78a1c45..d93ede30ce 100644
+--- a/src/math/big/arith_amd64.s
++++ b/src/math/big/arith_amd64.s
+@@ -234,8 +234,8 @@ large:
+ 	JMP ·subVWlarge(SB)
+ 
+ 
+-// func shlVU(z, x []Word, s uint) (c Word)
+-TEXT ·shlVU(SB),NOSPLIT,$0
++// func lshVU(z, x []Word, s uint) (c Word)
++TEXT ·lshVU(SB),NOSPLIT,$0
+ 	MOVQ z_len+8(FP), BX	// i = z
+ 	SUBQ $1, BX		// i--
+ 	JL X8b			// i < 0	(n <= 0)
+@@ -269,8 +269,8 @@ X8b:	MOVQ $0, c+56(FP)
+ 	RET
+ 
+ 
+-// func shrVU(z, x []Word, s uint) (c Word)
+-TEXT ·shrVU(SB),NOSPLIT,$0
++// func rshVU(z, x []Word, s uint) (c Word)
++TEXT ·rshVU(SB),NOSPLIT,$0
+ 	MOVQ z_len+8(FP), R11
+ 	SUBQ $1, R11		// n--
+ 	JL X9b			// n < 0	(n <= 0)
+diff --git a/src/math/big/arith_arm.s b/src/math/big/arith_arm.s
+index 4d0ec68320..5b04e07bd0 100644
+--- a/src/math/big/arith_arm.s
++++ b/src/math/big/arith_arm.s
+@@ -118,8 +118,8 @@ E4:
+ 	RET
+ 
+ 
+-// func shlVU(z, x []Word, s uint) (c Word)
+-TEXT ·shlVU(SB),NOSPLIT,$0
++// func lshVU(z, x []Word, s uint) (c Word)
++TEXT ·lshVU(SB),NOSPLIT,$0
+ 	MOVW	z_len+4(FP), R5
+ 	TEQ	$0, R5
+ 	BEQ	X7
+@@ -129,8 +129,6 @@ TEXT ·shlVU(SB),NOSPLIT,$0
+ 	ADD	R5<<2, R2, R2
+ 	ADD	R5<<2, R1, R5
+ 	MOVW	s+24(FP), R3
+-	TEQ	$0, R3	// shift 0 is special
+-	BEQ	Y7
+ 	ADD	$4, R1	// stop one word early
+ 	MOVW	$32, R4
+ 	SUB	R3, R4
+@@ -154,20 +152,15 @@ E7:
+ 	MOVW	R7, -4(R5)
+ 	RET
+ 
+-Y7:	// copy loop, because shift 0 == shift 32
+-	MOVW.W	-4(R2), R6
+-	MOVW.W	R6, -4(R5)
+-	TEQ	R1, R5
+-	BNE Y7
+-
+ X7:
+ 	MOVW	$0, R1
+ 	MOVW	R1, c+28(FP)
+ 	RET
+ 
+ 
+-// func shrVU(z, x []Word, s uint) (c Word)
+-TEXT ·shrVU(SB),NOSPLIT,$0
++
++// func rshVU(z, x []Word, s uint) (c Word)
++TEXT ·rshVU(SB),NOSPLIT,$0
+ 	MOVW	z_len+4(FP), R5
+ 	TEQ	$0, R5
+ 	BEQ	X6
+@@ -176,8 +169,6 @@ TEXT ·shrVU(SB),NOSPLIT,$0
+ 	MOVW	x+12(FP), R2
+ 	ADD	R5<<2, R1, R5
+ 	MOVW	s+24(FP), R3
+-	TEQ	$0, R3	// shift 0 is special
+-	BEQ Y6
+ 	SUB	$4, R5	// stop one word early
+ 	MOVW	$32, R4
+ 	SUB	R3, R4
+@@ -203,18 +194,11 @@ E6:
+ 	MOVW	R7, 0(R1)
+ 	RET
+ 
+-Y6:	// copy loop, because shift 0 == shift 32
+-	MOVW.P	4(R2), R6
+-	MOVW.P	R6, 4(R1)
+-	TEQ R1, R5
+-	BNE Y6
+-
+ X6:
+ 	MOVW	$0, R1
+ 	MOVW	R1, c+28(FP)
+ 	RET
+ 
+-
+ // func mulAddVWW(z, x []Word, m, a Word) (c Word)
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	MOVW	$0, R0
+diff --git a/src/math/big/arith_arm64.s b/src/math/big/arith_arm64.s
+index 3fa714e607..e0a8b39e78 100644
+--- a/src/math/big/arith_arm64.s
++++ b/src/math/big/arith_arm64.s
+@@ -251,19 +251,18 @@ copy_4:				// no carry flag, copy the rest
+ 	vwOneIterCopy(R0, done)
+ 	B	copy_4
+ 
+-// func shlVU(z, x []Word, s uint) (c Word)
++// func lshVU(z, x []Word, s uint) (c Word)
+ // This implementation handles the shift operation from the high word to the low word,
+ // which may be an error for the case where the low word of x overlaps with the high
+ // word of z. When calling this function directly, you need to pay attention to this
+ // situation.
+-TEXT ·shlVU(SB),NOSPLIT,$0
++TEXT ·lshVU(SB),NOSPLIT,$0
+ 	LDP	z+0(FP), (R0, R1)	// R0 = z.ptr, R1 = len(z)
+ 	MOVD	x+24(FP), R2
+ 	MOVD	s+48(FP), R3
+ 	ADD	R1<<3, R0	// R0 = &z[n]
+ 	ADD	R1<<3, R2	// R2 = &x[n]
+ 	CBZ	R1, len0
+-	CBZ	R3, copy	// if the number of shift is 0, just copy x to z
+ 	MOVD	$64, R4
+ 	SUB	R3, R4
+ 	// handling the most significant element x[n-1]
+@@ -313,36 +312,16 @@ done:
+ 	MOVD.W	R8, -8(R0)	// the first element x[0]
+ 	MOVD	R5, c+56(FP)	// the part moved out from x[n-1]
+ 	RET
+-copy:
+-	CMP	R0, R2
+-	BEQ	len0
+-	TBZ	$0, R1, ctwo
+-	MOVD.W	-8(R2), R4
+-	MOVD.W	R4, -8(R0)
+-	SUB	$1, R1
+-ctwo:
+-	TBZ	$1, R1, cloop
+-	LDP.W	-16(R2), (R4, R5)
+-	STP.W	(R4, R5), -16(R0)
+-	SUB	$2, R1
+-cloop:
+-	CBZ	R1, len0
+-	LDP.W	-32(R2), (R4, R5)
+-	LDP	16(R2), (R6, R7)
+-	STP.W	(R4, R5), -32(R0)
+-	STP	(R6, R7), 16(R0)
+-	SUB	$4, R1
+-	B	cloop
+ len0:
+ 	MOVD	$0, c+56(FP)
+ 	RET
+ 
+-// func shrVU(z, x []Word, s uint) (c Word)
++// func rshVU(z, x []Word, s uint) (c Word)
+ // This implementation handles the shift operation from the low word to the high word,
+ // which may be an error for the case where the high word of x overlaps with the low
+ // word of z. When calling this function directly, you need to pay attention to this
+ // situation.
+-TEXT ·shrVU(SB),NOSPLIT,$0
++TEXT ·rshVU(SB),NOSPLIT,$0
+ 	MOVD	z+0(FP), R0
+ 	MOVD	z_len+8(FP), R1
+ 	MOVD	x+24(FP), R2
+@@ -351,7 +330,6 @@ TEXT ·shrVU(SB),NOSPLIT,$0
+ 	MOVD	$64, R4
+ 	SUB	R3, R4
+ 	CBZ	R1, len0
+-	CBZ	R3, copy	// if the number of shift is 0, just copy x to z
+ 
+ 	MOVD.P	8(R2), R20
+ 	LSR	R3, R20, R8
+@@ -400,26 +378,6 @@ loop:
+ done:
+ 	MOVD	R8, (R0)	// deal with the last element
+ 	RET
+-copy:
+-	CMP	R0, R2
+-	BEQ	len0
+-	TBZ	$0, R1, ctwo
+-	MOVD.P	8(R2), R3
+-	MOVD.P	R3, 8(R0)
+-	SUB	$1, R1
+-ctwo:
+-	TBZ	$1, R1, cloop
+-	LDP.P	16(R2), (R4, R5)
+-	STP.P	(R4, R5), 16(R0)
+-	SUB	$2, R1
+-cloop:
+-	CBZ	R1, len0
+-	LDP.P	32(R2), (R4, R5)
+-	LDP	-16(R2), (R6, R7)
+-	STP.P	(R4, R5), 32(R0)
+-	STP	(R6, R7), -16(R0)
+-	SUB	$4, R1
+-	B	cloop
+ len0:
+ 	MOVD	$0, c+56(FP)
+ 	RET
+diff --git a/src/math/big/arith_decl.go b/src/math/big/arith_decl.go
+index 26734c6ca2..ca73485df0 100644
+--- a/src/math/big/arith_decl.go
++++ b/src/math/big/arith_decl.go
+@@ -58,7 +58,7 @@ func addVW(z, x []Word, y Word) (c Word)
+ //go:noescape
+ func subVW(z, x []Word, y Word) (c Word)
+ 
+-// shlVU should be an internal detail,
++// shlVU should be an internal detail (and a stale one at that),
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/remyoudompheng/bigfft
+@@ -67,11 +67,23 @@ func subVW(z, x []Word, y Word) (c Word)
+ // See go.dev/issue/67401.
+ //
+ //go:linkname shlVU
++func shlVU(z, x []Word, s uint) (c Word) {
++	if s == 0 {
++		copy(z, x)
++		return 0
++	}
++	return lshVU(z, x, s)
++}
++
++// lshVU sets z = x<<s, returning the high bits c. 1 ≤ s ≤ _B-1.
++//
+ //go:noescape
+-func shlVU(z, x []Word, s uint) (c Word)
++func lshVU(z, x []Word, s uint) (c Word)
+ 
++// rshVU sets z = x>>s, returning the low bits c. 1 ≤ s ≤ _B-1.
++//
+ //go:noescape
+-func shrVU(z, x []Word, s uint) (c Word)
++func rshVU(z, x []Word, s uint) (c Word)
+ 
+ // mulAddVWW should be an internal detail,
+ // but widely used packages access it using linkname.
+diff --git a/src/math/big/arith_decl_pure.go b/src/math/big/arith_decl_pure.go
+index 9442c8e5a4..60672d3e6c 100644
+--- a/src/math/big/arith_decl_pure.go
++++ b/src/math/big/arith_decl_pure.go
+@@ -32,12 +32,12 @@ func subVW(z, x []Word, y Word) (c Word) {
+ 	return fn(z, x, y)
+ }
+ 
+-func shlVU(z, x []Word, s uint) (c Word) {
+-	return shlVU_g(z, x, s)
++func lshVU(z, x []Word, s uint) (c Word) {
++	return lshVU_g(z, x, s)
+ }
+ 
+-func shrVU(z, x []Word, s uint) (c Word) {
+-	return shrVU_g(z, x, s)
++func rshVU(z, x []Word, s uint) (c Word) {
++	return rshVU_g(z, x, s)
+ }
+ 
+ func mulAddVWW(z, x []Word, y, r Word) (c Word) {
+diff --git a/src/math/big/arith_loong64.s b/src/math/big/arith_loong64.s
+index ef6833e9eb..12cfb84eea 100644
+--- a/src/math/big/arith_loong64.s
++++ b/src/math/big/arith_loong64.s
+@@ -21,11 +21,11 @@ TEXT ·addVW(SB),NOSPLIT,$0
+ TEXT ·subVW(SB),NOSPLIT,$0
+ 	JMP ·subVW_g(SB)
+ 
+-TEXT ·shlVU(SB),NOSPLIT,$0
+-	JMP ·shlVU_g(SB)
++TEXT ·lshVU(SB),NOSPLIT,$0
++	JMP ·lshVU_g(SB)
+ 
+-TEXT ·shrVU(SB),NOSPLIT,$0
+-	JMP ·shrVU_g(SB)
++TEXT ·rshVU(SB),NOSPLIT,$0
++	JMP ·rshVU_g(SB)
+ 
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	JMP ·mulAddVWW_g(SB)
+diff --git a/src/math/big/arith_mips64x.s b/src/math/big/arith_mips64x.s
+index 846c4a6330..6c6da48c32 100644
+--- a/src/math/big/arith_mips64x.s
++++ b/src/math/big/arith_mips64x.s
+@@ -21,11 +21,11 @@ TEXT ·addVW(SB),NOSPLIT,$0
+ TEXT ·subVW(SB),NOSPLIT,$0
+ 	JMP ·subVW_g(SB)
+ 
+-TEXT ·shlVU(SB),NOSPLIT,$0
+-	JMP ·shlVU_g(SB)
++TEXT ·lshVU(SB),NOSPLIT,$0
++	JMP ·lshVU_g(SB)
+ 
+-TEXT ·shrVU(SB),NOSPLIT,$0
+-	JMP ·shrVU_g(SB)
++TEXT ·rshVU(SB),NOSPLIT,$0
++	JMP ·rshVU_g(SB)
+ 
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	JMP ·mulAddVWW_g(SB)
+diff --git a/src/math/big/arith_mipsx.s b/src/math/big/arith_mipsx.s
+index 929da24468..0e2a0a4b8b 100644
+--- a/src/math/big/arith_mipsx.s
++++ b/src/math/big/arith_mipsx.s
+@@ -21,11 +21,11 @@ TEXT ·addVW(SB),NOSPLIT,$0
+ TEXT ·subVW(SB),NOSPLIT,$0
+ 	JMP	·subVW_g(SB)
+ 
+-TEXT ·shlVU(SB),NOSPLIT,$0
+-	JMP	·shlVU_g(SB)
++TEXT ·lshVU(SB),NOSPLIT,$0
++	JMP	·lshVU_g(SB)
+ 
+-TEXT ·shrVU(SB),NOSPLIT,$0
+-	JMP	·shrVU_g(SB)
++TEXT ·rshVU(SB),NOSPLIT,$0
++	JMP	·rshVU_g(SB)
+ 
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	JMP	·mulAddVWW_g(SB)
+diff --git a/src/math/big/arith_ppc64x.s b/src/math/big/arith_ppc64x.s
+index 404d2d9d23..a47ea83aa3 100644
+--- a/src/math/big/arith_ppc64x.s
++++ b/src/math/big/arith_ppc64x.s
+@@ -339,15 +339,13 @@ done:
+ 	MOVD  R4, c+56(FP)
+ 	RET
+ 
+-//func shlVU(z, x []Word, s uint) (c Word)
+-TEXT ·shlVU(SB), NOSPLIT, $0
++//func lshVU(z, x []Word, s uint) (c Word)
++TEXT ·lshVU(SB), NOSPLIT, $0
+ 	MOVD    z+0(FP), R3
+ 	MOVD    x+24(FP), R6
+ 	MOVD    s+48(FP), R9
+ 	MOVD    z_len+8(FP), R4
+ 	MOVD    x_len+32(FP), R7
+-	CMP     R9, $0          // s==0 copy(z,x)
+-	BEQ     zeroshift
+ 	CMP     R4, $0          // len(z)==0 return
+ 	BEQ     done
+ 
+@@ -378,51 +376,18 @@ loopexit:
+ 	MOVD    R4, 0(R3)       // z[0]=x[0]<<s
+ 	MOVD    R7, c+56(FP)    // store pre-computed x[len(z)-1]>>ŝ into c
+ 	RET
+-
+-zeroshift:
+-	CMP     R6, $0          // x is null, nothing to copy
+-	BEQ     done
+-	CMP     R6, R3          // if x is same as z, nothing to copy
+-	BEQ     done
+-	CMP     R7, R4
+-	ISEL    $0, R7, R4, R7  // Take the lower bound of lengths of x,z
+-	SLD     $3, R7, R7
+-	SUB     R6, R3, R11     // dest - src
+-	CMPU    R11, R7, CR2    // < len?
+-	BLT     CR2, backward   // there is overlap, copy backwards
+-	MOVD    $0, R14
+-	// shlVU processes backwards, but added a forward copy option
+-	// since its faster on POWER
+-repeat:
+-	MOVD    (R6)(R14), R15  // Copy 8 bytes at a time
+-	MOVD    R15, (R3)(R14)
+-	ADD     $8, R14
+-	CMP     R14, R7         // More 8 bytes left?
+-	BLT     repeat
+-	BR      done
+-backward:
+-	ADD     $-8,R7, R14
+-repeatback:
+-	MOVD    (R6)(R14), R15  // copy x into z backwards
+-	MOVD    R15, (R3)(R14)  // copy 8 bytes at a time
+-	SUB     $8, R14
+-	CMP     R14, $-8        // More 8 bytes left?
+-	BGT     repeatback
+-
+ done:
+ 	MOVD    R0, c+56(FP)    // c=0
+ 	RET
+ 
+-//func shrVU(z, x []Word, s uint) (c Word)
+-TEXT ·shrVU(SB), NOSPLIT, $0
++//func rshVU(z, x []Word, s uint) (c Word)
++TEXT ·rshVU(SB), NOSPLIT, $0
+ 	MOVD    z+0(FP), R3
+ 	MOVD    x+24(FP), R6
+ 	MOVD    s+48(FP), R9
+ 	MOVD    z_len+8(FP), R4
+ 	MOVD    x_len+32(FP), R7
+ 
+-	CMP     R9, $0          // s==0, copy(z,x)
+-	BEQ     zeroshift
+ 	CMP     R4, $0          // len(z)==0 return
+ 	BEQ     done
+ 	SUBC    R9, $64, R5     // ŝ=_W-s, we skip & by _W-1 as the caller ensures s < _W(64)
+@@ -476,22 +441,6 @@ loopexit:
+ 	MOVD    R5, (R3)(R4)    // z[len(z)-1]=x[len(z)-1]>>s
+ 	MOVD    R7, c+56(FP)    // store pre-computed x[0]<<ŝ into c
+ 	RET
+-
+-zeroshift:
+-	CMP     R6, $0          // x is null, nothing to copy
+-	BEQ     done
+-	CMP     R6, R3          // if x is same as z, nothing to copy
+-	BEQ     done
+-	CMP     R7, R4
+-	ISEL    $0, R7, R4, R7  // Take the lower bounds of lengths of x, z
+-	SLD     $3, R7, R7
+-	MOVD    $0, R14
+-repeat:
+-	MOVD    (R6)(R14), R15  // copy 8 bytes at a time
+-	MOVD    R15, (R3)(R14)  // shrVU processes bytes only forwards
+-	ADD     $8, R14
+-	CMP     R14, R7         // More 8 bytes left?
+-	BLT     repeat
+ done:
+ 	MOVD    R0, c+56(FP)
+ 	RET
+diff --git a/src/math/big/arith_riscv64.s b/src/math/big/arith_riscv64.s
+index f91d50f5fe..1ba25ce387 100644
+--- a/src/math/big/arith_riscv64.s
++++ b/src/math/big/arith_riscv64.s
+@@ -293,11 +293,11 @@ done:
+ 	MOV	X29, c+56(FP)	// return b
+ 	RET
+ 
+-TEXT ·shlVU(SB),NOSPLIT,$0
+-	JMP ·shlVU_g(SB)
++TEXT ·lshVU(SB),NOSPLIT,$0
++	JMP ·lshVU_g(SB)
+ 
+-TEXT ·shrVU(SB),NOSPLIT,$0
+-	JMP ·shrVU_g(SB)
++TEXT ·rshVU(SB),NOSPLIT,$0
++	JMP ·rshVU_g(SB)
+ 
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	MOV	x+24(FP), X5
+diff --git a/src/math/big/arith_s390x.s b/src/math/big/arith_s390x.s
+index b579fc6ebc..57b263a4c3 100644
+--- a/src/math/big/arith_s390x.s
++++ b/src/math/big/arith_s390x.s
+@@ -682,13 +682,13 @@ returnC:
+ 	MOVD R7, c+56(FP)
+ 	RET
+ 
+-// func shlVU(z, x []Word, s uint) (c Word)
+-TEXT ·shlVU(SB), NOSPLIT, $0
+-	BR ·shlVU_g(SB)
++// func lshVU(z, x []Word, s uint) (c Word)
++TEXT ·lshVU(SB), NOSPLIT, $0
++	BR ·lshVU_g(SB)
+ 
+-// func shrVU(z, x []Word, s uint) (c Word)
+-TEXT ·shrVU(SB), NOSPLIT, $0
+-	BR ·shrVU_g(SB)
++// func rshVU(z, x []Word, s uint) (c Word)
++TEXT ·rshVU(SB), NOSPLIT, $0
++	BR ·rshVU_g(SB)
+ 
+ // CX = R4, r8 = r8, r9=r9, r10 = r2, r11 = r5, DX = r3, AX = r6, BX = R1, (R0 set to 0) + use R11 + use R7 for i
+ // func mulAddVWW(z, x []Word, m, a Word) (c Word)
+diff --git a/src/math/big/arith_test.go b/src/math/big/arith_test.go
+index 8a7d3e6384..28baea3a15 100644
+--- a/src/math/big/arith_test.go
++++ b/src/math/big/arith_test.go
+@@ -136,32 +136,26 @@ var sumVW = []argVW{
+ 	{nat{585}, nat{314}, 271, 0},
+ }
+ 
+-var lshVW = []argVW{
++var lshVWTests = []argVW{
+ 	{},
+-	{nat{0}, nat{0}, 0, 0},
+ 	{nat{0}, nat{0}, 1, 0},
+ 	{nat{0}, nat{0}, 20, 0},
+ 
+-	{nat{_M}, nat{_M}, 0, 0},
+ 	{nat{_M << 1 & _M}, nat{_M}, 1, 1},
+ 	{nat{_M << 20 & _M}, nat{_M}, 20, _M >> (_W - 20)},
+ 
+-	{nat{_M, _M, _M}, nat{_M, _M, _M}, 0, 0},
+ 	{nat{_M << 1 & _M, _M, _M}, nat{_M, _M, _M}, 1, 1},
+ 	{nat{_M << 20 & _M, _M, _M}, nat{_M, _M, _M}, 20, _M >> (_W - 20)},
+ }
+ 
+-var rshVW = []argVW{
++var rshVWTests = []argVW{
+ 	{},
+-	{nat{0}, nat{0}, 0, 0},
+ 	{nat{0}, nat{0}, 1, 0},
+ 	{nat{0}, nat{0}, 20, 0},
+ 
+-	{nat{_M}, nat{_M}, 0, 0},
+ 	{nat{_M >> 1}, nat{_M}, 1, _M << (_W - 1) & _M},
+ 	{nat{_M >> 20}, nat{_M}, 20, _M << (_W - 20) & _M},
+ 
+-	{nat{_M, _M, _M}, nat{_M, _M, _M}, 0, 0},
+ 	{nat{_M, _M, _M >> 1}, nat{_M, _M, _M}, 1, _M << (_W - 1) & _M},
+ 	{nat{_M, _M, _M >> 20}, nat{_M, _M, _M}, 20, _M << (_W - 20) & _M},
+ }
+@@ -214,20 +208,20 @@ func TestFunVW(t *testing.T) {
+ 		testFunVW(t, "subVW", subVW, arg)
+ 	}
+ 
+-	shlVW_g := makeFunVW(shlVU_g)
+-	shlVW := makeFunVW(shlVU)
+-	for _, a := range lshVW {
++	lshVW_g := makeFunVW(lshVU_g)
++	lshVW := makeFunVW(lshVU)
++	for _, a := range lshVWTests {
+ 		arg := a
+-		testFunVW(t, "shlVU_g", shlVW_g, arg)
+-		testFunVW(t, "shlVU", shlVW, arg)
++		testFunVW(t, "lshVU_g", lshVW_g, arg)
++		testFunVW(t, "lshVU", lshVW, arg)
+ 	}
+ 
+-	shrVW_g := makeFunVW(shrVU_g)
+-	shrVW := makeFunVW(shrVU)
+-	for _, a := range rshVW {
++	rshVW_g := makeFunVW(rshVU_g)
++	rshVW := makeFunVW(rshVU)
++	for _, a := range rshVWTests {
+ 		arg := a
+-		testFunVW(t, "shrVU_g", shrVW_g, arg)
+-		testFunVW(t, "shrVU", shrVW, arg)
++		testFunVW(t, "rshVU_g", rshVW_g, arg)
++		testFunVW(t, "rshVU", rshVW, arg)
+ 	}
+ }
+ 
+@@ -285,56 +279,48 @@ type argVU struct {
+ 	m  string // message.
+ }
+ 
+-var argshlVUIn = []Word{1, 2, 4, 8, 16, 32, 64, 0, 0, 0}
+-var argshlVUr0 = []Word{1, 2, 4, 8, 16, 32, 64}
+-var argshlVUr1 = []Word{2, 4, 8, 16, 32, 64, 128}
+-var argshlVUrWm1 = []Word{1 << (_W - 1), 0, 1, 2, 4, 8, 16}
+-
+-var argshlVU = []argVU{
+-	// test cases for shlVU
+-	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0}, 7, 0, 0, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "complete overlap of shlVU"},
+-	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0}, 7, 0, 3, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "partial overlap by half of shlVU"},
+-	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0, 0, 0, 0}, 7, 0, 6, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "partial overlap by 1 Word of shlVU"},
+-	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0, 0, 0, 0, 0}, 7, 0, 7, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "no overlap of shlVU"},
+-	// additional test cases with shift values of 0, 1 and (_W-1)
+-	{argshlVUIn, 7, 0, 0, 0, argshlVUr0, 0, "complete overlap of shlVU and shift of 0"},
+-	{argshlVUIn, 7, 0, 0, 1, argshlVUr1, 0, "complete overlap of shlVU and shift of 1"},
+-	{argshlVUIn, 7, 0, 0, _W - 1, argshlVUrWm1, 32, "complete overlap of shlVU and shift of _W - 1"},
+-	{argshlVUIn, 7, 0, 1, 0, argshlVUr0, 0, "partial overlap by 6 Words of shlVU and shift of 0"},
+-	{argshlVUIn, 7, 0, 1, 1, argshlVUr1, 0, "partial overlap by 6 Words of shlVU and shift of 1"},
+-	{argshlVUIn, 7, 0, 1, _W - 1, argshlVUrWm1, 32, "partial overlap by 6 Words of shlVU and shift of _W - 1"},
+-	{argshlVUIn, 7, 0, 2, 0, argshlVUr0, 0, "partial overlap by 5 Words of shlVU and shift of 0"},
+-	{argshlVUIn, 7, 0, 2, 1, argshlVUr1, 0, "partial overlap by 5 Words of shlVU and shift of 1"},
+-	{argshlVUIn, 7, 0, 2, _W - 1, argshlVUrWm1, 32, "partial overlap by 5 Words of shlVU abd shift of _W - 1"},
+-	{argshlVUIn, 7, 0, 3, 0, argshlVUr0, 0, "partial overlap by 4 Words of shlVU and shift of 0"},
+-	{argshlVUIn, 7, 0, 3, 1, argshlVUr1, 0, "partial overlap by 4 Words of shlVU and shift of 1"},
+-	{argshlVUIn, 7, 0, 3, _W - 1, argshlVUrWm1, 32, "partial overlap by 4 Words of shlVU and shift of _W - 1"},
+-}
+-
+-var argshrVUIn = []Word{0, 0, 0, 1, 2, 4, 8, 16, 32, 64}
+-var argshrVUr0 = []Word{1, 2, 4, 8, 16, 32, 64}
+-var argshrVUr1 = []Word{0, 1, 2, 4, 8, 16, 32}
+-var argshrVUrWm1 = []Word{4, 8, 16, 32, 64, 128, 0}
+-
+-var argshrVU = []argVU{
+-	// test cases for shrVU
+-	{[]Word{0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 1, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "complete overlap of shrVU"},
+-	{[]Word{0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 4, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "partial overlap by half of shrVU"},
+-	{[]Word{0, 0, 0, 0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 7, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "partial overlap by 1 Word of shrVU"},
+-	{[]Word{0, 0, 0, 0, 0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 8, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "no overlap of shrVU"},
++var arglshVUIn = []Word{1, 2, 4, 8, 16, 32, 64, 0, 0, 0}
++var arglshVUr0 = []Word{1, 2, 4, 8, 16, 32, 64}
++var arglshVUr1 = []Word{2, 4, 8, 16, 32, 64, 128}
++var arglshVUrWm1 = []Word{1 << (_W - 1), 0, 1, 2, 4, 8, 16}
++
++var arglshVU = []argVU{
++	// test cases for lshVU
++	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0}, 7, 0, 0, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "complete overlap of lshVU"},
++	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0}, 7, 0, 3, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "partial overlap by half of lshVU"},
++	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0, 0, 0, 0}, 7, 0, 6, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "partial overlap by 1 Word of lshVU"},
++	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0, 0, 0, 0, 0}, 7, 0, 7, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "no overlap of lshVU"},
++	// additional test cases with shift values of 1 and (_W-1)
++	{arglshVUIn, 7, 0, 0, 1, arglshVUr1, 0, "complete overlap of lshVU and shift of 1"},
++	{arglshVUIn, 7, 0, 0, _W - 1, arglshVUrWm1, 32, "complete overlap of lshVU and shift of _W - 1"},
++	{arglshVUIn, 7, 0, 1, 1, arglshVUr1, 0, "partial overlap by 6 Words of lshVU and shift of 1"},
++	{arglshVUIn, 7, 0, 1, _W - 1, arglshVUrWm1, 32, "partial overlap by 6 Words of lshVU and shift of _W - 1"},
++	{arglshVUIn, 7, 0, 2, 1, arglshVUr1, 0, "partial overlap by 5 Words of lshVU and shift of 1"},
++	{arglshVUIn, 7, 0, 2, _W - 1, arglshVUrWm1, 32, "partial overlap by 5 Words of lshVU abd shift of _W - 1"},
++	{arglshVUIn, 7, 0, 3, 1, arglshVUr1, 0, "partial overlap by 4 Words of lshVU and shift of 1"},
++	{arglshVUIn, 7, 0, 3, _W - 1, arglshVUrWm1, 32, "partial overlap by 4 Words of lshVU and shift of _W - 1"},
++}
++
++var argrshVUIn = []Word{0, 0, 0, 1, 2, 4, 8, 16, 32, 64}
++var argrshVUr0 = []Word{1, 2, 4, 8, 16, 32, 64}
++var argrshVUr1 = []Word{0, 1, 2, 4, 8, 16, 32}
++var argrshVUrWm1 = []Word{4, 8, 16, 32, 64, 128, 0}
++
++var argrshVU = []argVU{
++	// test cases for rshVU
++	{[]Word{0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 1, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "complete overlap of rshVU"},
++	{[]Word{0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 4, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "partial overlap by half of rshVU"},
++	{[]Word{0, 0, 0, 0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 7, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "partial overlap by 1 Word of rshVU"},
++	{[]Word{0, 0, 0, 0, 0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 8, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "no overlap of rshVU"},
+ 	// additional test cases with shift values of 0, 1 and (_W-1)
+-	{argshrVUIn, 7, 3, 3, 0, argshrVUr0, 0, "complete overlap of shrVU and shift of 0"},
+-	{argshrVUIn, 7, 3, 3, 1, argshrVUr1, 1 << (_W - 1), "complete overlap of shrVU and shift of 1"},
+-	{argshrVUIn, 7, 3, 3, _W - 1, argshrVUrWm1, 2, "complete overlap of shrVU and shift of _W - 1"},
+-	{argshrVUIn, 7, 3, 2, 0, argshrVUr0, 0, "partial overlap by 6 Words of shrVU and shift of 0"},
+-	{argshrVUIn, 7, 3, 2, 1, argshrVUr1, 1 << (_W - 1), "partial overlap by 6 Words of shrVU and shift of 1"},
+-	{argshrVUIn, 7, 3, 2, _W - 1, argshrVUrWm1, 2, "partial overlap by 6 Words of shrVU and shift of _W - 1"},
+-	{argshrVUIn, 7, 3, 1, 0, argshrVUr0, 0, "partial overlap by 5 Words of shrVU and shift of 0"},
+-	{argshrVUIn, 7, 3, 1, 1, argshrVUr1, 1 << (_W - 1), "partial overlap by 5 Words of shrVU and shift of 1"},
+-	{argshrVUIn, 7, 3, 1, _W - 1, argshrVUrWm1, 2, "partial overlap by 5 Words of shrVU and shift of _W - 1"},
+-	{argshrVUIn, 7, 3, 0, 0, argshrVUr0, 0, "partial overlap by 4 Words of shrVU and shift of 0"},
+-	{argshrVUIn, 7, 3, 0, 1, argshrVUr1, 1 << (_W - 1), "partial overlap by 4 Words of shrVU and shift of 1"},
+-	{argshrVUIn, 7, 3, 0, _W - 1, argshrVUrWm1, 2, "partial overlap by 4 Words of shrVU and shift of _W - 1"},
++	{argrshVUIn, 7, 3, 3, 1, argrshVUr1, 1 << (_W - 1), "complete overlap of rshVU and shift of 1"},
++	{argrshVUIn, 7, 3, 3, _W - 1, argrshVUrWm1, 2, "complete overlap of rshVU and shift of _W - 1"},
++	{argrshVUIn, 7, 3, 2, 1, argrshVUr1, 1 << (_W - 1), "partial overlap by 6 Words of rshVU and shift of 1"},
++	{argrshVUIn, 7, 3, 2, _W - 1, argrshVUrWm1, 2, "partial overlap by 6 Words of rshVU and shift of _W - 1"},
++	{argrshVUIn, 7, 3, 1, 1, argrshVUr1, 1 << (_W - 1), "partial overlap by 5 Words of rshVU and shift of 1"},
++	{argrshVUIn, 7, 3, 1, _W - 1, argrshVUrWm1, 2, "partial overlap by 5 Words of rshVU and shift of _W - 1"},
++	{argrshVUIn, 7, 3, 0, 1, argrshVUr1, 1 << (_W - 1), "partial overlap by 4 Words of rshVU and shift of 1"},
++	{argrshVUIn, 7, 3, 0, _W - 1, argrshVUrWm1, 2, "partial overlap by 4 Words of rshVU and shift of _W - 1"},
+ }
+ 
+ func testShiftFunc(t *testing.T, f func(z, x []Word, s uint) Word, a argVU) {
+@@ -346,24 +332,24 @@ func testShiftFunc(t *testing.T, f func(z, x []Word, s uint) Word, a argVU) {
+ 	c := f(z, x, a.s)
+ 	for i, zi := range z {
+ 		if zi != a.r[i] {
+-			t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot z[%d] = %#x; want %#x", a.d, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, i, zi, a.r[i])
++			t.Errorf("d := %v, %s (d[%d:%d], d[%d:%d], %d)\n\tgot z[%d] = %#x; want %#x", a.d, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, i, zi, a.r[i])
+ 			break
+ 		}
+ 	}
+ 	if c != a.c {
+-		t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot c = %#x; want %#x", a.d, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, c, a.c)
++		t.Errorf("d := %v, %s (d[%d:%d], d[%d:%d], %d)\n\tgot c = %#x; want %#x", a.d, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, c, a.c)
+ 	}
+ }
+ 
+ func TestShiftOverlap(t *testing.T) {
+-	for _, a := range argshlVU {
++	for _, a := range arglshVU {
+ 		arg := a
+-		testShiftFunc(t, shlVU, arg)
++		testShiftFunc(t, lshVU, arg)
+ 	}
+ 
+-	for _, a := range argshrVU {
++	for _, a := range argrshVU {
+ 		arg := a
+-		testShiftFunc(t, shrVU, arg)
++		testShiftFunc(t, rshVU, arg)
+ 	}
+ }
+ 
+@@ -374,11 +360,11 @@ func TestIssue31084(t *testing.T) {
+ 	// compute 10^n via 5^n << n.
+ 	const n = 165
+ 	p := nat(nil).expNN(stk, nat{5}, nat{n}, nil, false)
+-	p = p.shl(p, n)
++	p = p.lsh(p, n)
+ 	got := string(p.utoa(10))
+ 	want := "1" + strings.Repeat("0", n)
+ 	if got != want {
+-		t.Errorf("shl(%v, %v)\n\tgot  %s\n\twant %s", p, n, got, want)
++		t.Errorf("lsh(%v, %v)\n\tgot  %s\n\twant %s", p, n, got, want)
+ 	}
+ }
+ 
+@@ -387,11 +373,11 @@ const issue42838Value = "1593091911132452277028880397767711805591104555192618786
+ func TestIssue42838(t *testing.T) {
+ 	const s = 192
+ 	z, _, _, _ := nat(nil).scan(strings.NewReader(issue42838Value), 0, false)
+-	z = z.shl(z, s)
++	z = z.lsh(z, s)
+ 	got := string(z.utoa(10))
+ 	want := "1" + strings.Repeat("0", s)
+ 	if got != want {
+-		t.Errorf("shl(%v, %v)\n\tgot  %s\n\twant %s", z, s, got, want)
++		t.Errorf("lsh(%v, %v)\n\tgot  %s\n\twant %s", z, s, got, want)
+ 	}
+ }
+ 
+@@ -687,14 +673,14 @@ func BenchmarkNonZeroShifts(b *testing.B) {
+ 		z := make([]Word, n)
+ 		b.Run(fmt.Sprint(n), func(b *testing.B) {
+ 			b.SetBytes(int64(n * _W))
+-			b.Run("shrVU", func(b *testing.B) {
++			b.Run("rshVU", func(b *testing.B) {
+ 				for i := 0; i < b.N; i++ {
+-					_ = shrVU(z, x, s)
++					_ = rshVU(z, x, s)
+ 				}
+ 			})
+-			b.Run("shlVU", func(b *testing.B) {
++			b.Run("lshVU", func(b *testing.B) {
+ 				for i := 0; i < b.N; i++ {
+-					_ = shlVU(z, x, s)
++					_ = lshVU(z, x, s)
+ 				}
+ 			})
+ 		})
+diff --git a/src/math/big/arith_wasm.s b/src/math/big/arith_wasm.s
+index bbe743c84b..8aadeaa28d 100644
+--- a/src/math/big/arith_wasm.s
++++ b/src/math/big/arith_wasm.s
+@@ -18,11 +18,11 @@ TEXT ·addVW(SB),NOSPLIT,$0
+ TEXT ·subVW(SB),NOSPLIT,$0
+ 	JMP ·subVW_g(SB)
+ 
+-TEXT ·shlVU(SB),NOSPLIT,$0
+-	JMP ·shlVU_g(SB)
++TEXT ·lshVU(SB),NOSPLIT,$0
++	JMP ·lshVU_g(SB)
+ 
+-TEXT ·shrVU(SB),NOSPLIT,$0
+-	JMP ·shrVU_g(SB)
++TEXT ·rshVU(SB),NOSPLIT,$0
++	JMP ·rshVU_g(SB)
+ 
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	JMP ·mulAddVWW_g(SB)
+diff --git a/src/math/big/decimal.go b/src/math/big/decimal.go
+index 716f03bfa4..9e391adef9 100644
+--- a/src/math/big/decimal.go
++++ b/src/math/big/decimal.go
+@@ -69,13 +69,13 @@ func (x *decimal) init(m nat, shift int) {
+ 		if s >= ntz {
+ 			s = ntz // shift at most ntz bits
+ 		}
+-		m = nat(nil).shr(m, s)
++		m = nat(nil).rsh(m, s)
+ 		shift += int(s)
+ 	}
+ 
+ 	// Do any shift left in binary representation.
+ 	if shift > 0 {
+-		m = nat(nil).shl(m, uint(shift))
++		m = nat(nil).lsh(m, uint(shift))
+ 		shift = 0
+ 	}
+ 
+@@ -93,15 +93,15 @@ func (x *decimal) init(m nat, shift int) {
+ 	// Do any (remaining) shift right in decimal representation.
+ 	if shift < 0 {
+ 		for shift < -maxShift {
+-			shr(x, maxShift)
++			rsh(x, maxShift)
+ 			shift += maxShift
+ 		}
+-		shr(x, uint(-shift))
++		rsh(x, uint(-shift))
+ 	}
+ }
+ 
+-// shr implements x >> s, for s <= maxShift.
+-func shr(x *decimal, s uint) {
++// rsh implements x >> s, for s <= maxShift.
++func rsh(x *decimal, s uint) {
+ 	// Division by 1<<s using shift-and-subtract algorithm.
+ 
+ 	// pick up enough leading digits to cover first shift
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 2c5234a4ce..b99088a733 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -488,7 +488,7 @@ func (z *Float) round(sbit uint) {
+ 				}
+ 				z.exp++
+ 				// adjust mantissa: divide by 2 to compensate for exponent adjustment
+-				shrVU(z.mant, z.mant, 1)
++				rshVU(z.mant, z.mant, 1)
+ 				// set msb == carry == 1 from the mantissa overflow above
+ 				const msb = 1 << (_W - 1)
+ 				z.mant[n-1] |= msb
+@@ -585,9 +585,9 @@ func fnorm(m nat) int64 {
+ 	}
+ 	s := nlz(m[len(m)-1])
+ 	if s > 0 {
+-		c := shlVU(m, m, s)
++		c := lshVU(m, m, s)
+ 		if debugFloat && c != 0 {
+-			panic("nlz or shlVU incorrect")
++			panic("nlz or lshVU incorrect")
+ 		}
+ 	}
+ 	return int64(s)
+@@ -1110,11 +1110,11 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
+ 		z.neg = x.neg
+ 		switch {
+ 		case exp > allBits:
+-			z.abs = z.abs.shl(x.mant, exp-allBits)
++			z.abs = z.abs.lsh(x.mant, exp-allBits)
+ 		default:
+ 			z.abs = z.abs.set(x.mant)
+ 		case exp < allBits:
+-			z.abs = z.abs.shr(x.mant, allBits-exp)
++			z.abs = z.abs.rsh(x.mant, allBits-exp)
+ 		}
+ 		return z, acc
+ 
+@@ -1150,7 +1150,7 @@ func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {
+ 		z.a.neg = x.neg
+ 		switch {
+ 		case x.exp > allBits:
+-			z.a.abs = z.a.abs.shl(x.mant, uint(x.exp-allBits))
++			z.a.abs = z.a.abs.lsh(x.mant, uint(x.exp-allBits))
+ 			z.b.abs = z.b.abs[:0] // == 1 (see Rat)
+ 			// z already in normal form
+ 		default:
+@@ -1160,7 +1160,7 @@ func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {
+ 		case x.exp < allBits:
+ 			z.a.abs = z.a.abs.set(x.mant)
+ 			t := z.b.abs.setUint64(1)
+-			z.b.abs = t.shl(t, uint(allBits-x.exp))
++			z.b.abs = t.lsh(t, uint(allBits-x.exp))
+ 			z.norm()
+ 		}
+ 		return z, Exact
+@@ -1234,10 +1234,10 @@ func (z *Float) uadd(x, y *Float) {
+ 	switch {
+ 	case ex < ey:
+ 		if al {
+-			t := nat(nil).shl(y.mant, uint(ey-ex))
++			t := nat(nil).lsh(y.mant, uint(ey-ex))
+ 			z.mant = z.mant.add(x.mant, t)
+ 		} else {
+-			z.mant = z.mant.shl(y.mant, uint(ey-ex))
++			z.mant = z.mant.lsh(y.mant, uint(ey-ex))
+ 			z.mant = z.mant.add(x.mant, z.mant)
+ 		}
+ 	default:
+@@ -1245,10 +1245,10 @@ func (z *Float) uadd(x, y *Float) {
+ 		z.mant = z.mant.add(x.mant, y.mant)
+ 	case ex > ey:
+ 		if al {
+-			t := nat(nil).shl(x.mant, uint(ex-ey))
++			t := nat(nil).lsh(x.mant, uint(ex-ey))
+ 			z.mant = z.mant.add(t, y.mant)
+ 		} else {
+-			z.mant = z.mant.shl(x.mant, uint(ex-ey))
++			z.mant = z.mant.lsh(x.mant, uint(ex-ey))
+ 			z.mant = z.mant.add(z.mant, y.mant)
+ 		}
+ 		ex = ey
+@@ -1279,10 +1279,10 @@ func (z *Float) usub(x, y *Float) {
+ 	switch {
+ 	case ex < ey:
+ 		if al {
+-			t := nat(nil).shl(y.mant, uint(ey-ex))
++			t := nat(nil).lsh(y.mant, uint(ey-ex))
+ 			z.mant = t.sub(x.mant, t)
+ 		} else {
+-			z.mant = z.mant.shl(y.mant, uint(ey-ex))
++			z.mant = z.mant.lsh(y.mant, uint(ey-ex))
+ 			z.mant = z.mant.sub(x.mant, z.mant)
+ 		}
+ 	default:
+@@ -1290,10 +1290,10 @@ func (z *Float) usub(x, y *Float) {
+ 		z.mant = z.mant.sub(x.mant, y.mant)
+ 	case ex > ey:
+ 		if al {
+-			t := nat(nil).shl(x.mant, uint(ex-ey))
++			t := nat(nil).lsh(x.mant, uint(ex-ey))
+ 			z.mant = t.sub(t, y.mant)
+ 		} else {
+-			z.mant = z.mant.shl(x.mant, uint(ex-ey))
++			z.mant = z.mant.lsh(x.mant, uint(ex-ey))
+ 			z.mant = z.mant.sub(z.mant, y.mant)
+ 		}
+ 		ex = ey
+diff --git a/src/math/big/ftoa.go b/src/math/big/ftoa.go
+index c5939d731d..c94fbeee44 100644
+--- a/src/math/big/ftoa.go
++++ b/src/math/big/ftoa.go
+@@ -188,9 +188,9 @@ func roundShortest(d *decimal, x *Float) {
+ 	s := mant.bitLen() - int(x.prec+1)
+ 	switch {
+ 	case s < 0:
+-		mant = mant.shl(mant, uint(-s))
++		mant = mant.lsh(mant, uint(-s))
+ 	case s > 0:
+-		mant = mant.shr(mant, uint(+s))
++		mant = mant.rsh(mant, uint(+s))
+ 	}
+ 	exp += s
+ 	// x = mant * 2**exp with lsb(mant) == 1/2 ulp of x.prec
+@@ -329,9 +329,9 @@ func (x *Float) fmtB(buf []byte) []byte {
+ 	m := x.mant
+ 	switch w := uint32(len(x.mant)) * _W; {
+ 	case w < x.prec:
+-		m = nat(nil).shl(m, uint(x.prec-w))
++		m = nat(nil).lsh(m, uint(x.prec-w))
+ 	case w > x.prec:
+-		m = nat(nil).shr(m, uint(w-x.prec))
++		m = nat(nil).rsh(m, uint(w-x.prec))
+ 	}
+ 
+ 	buf = append(buf, m.utoa(10)...)
+@@ -380,9 +380,9 @@ func (x *Float) fmtX(buf []byte, prec int) []byte {
+ 	m := x.mant
+ 	switch w := uint(len(x.mant)) * _W; {
+ 	case w < n:
+-		m = nat(nil).shl(m, n-w)
++		m = nat(nil).lsh(m, n-w)
+ 	case w > n:
+-		m = nat(nil).shr(m, w-n)
++		m = nat(nil).rsh(m, w-n)
+ 	}
+ 	exp64 := int64(x.exp) - 1 // avoid wrap-around
+ 
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 4abfd19278..8eb0db6c58 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -1097,7 +1097,7 @@ func (z *Int) ModSqrt(x, p *Int) *Int {
+ 
+ // Lsh sets z = x << n and returns z.
+ func (z *Int) Lsh(x *Int, n uint) *Int {
+-	z.abs = z.abs.shl(x.abs, n)
++	z.abs = z.abs.lsh(x.abs, n)
+ 	z.neg = x.neg
+ 	return z
+ }
+@@ -1107,13 +1107,13 @@ func (z *Int) Rsh(x *Int, n uint) *Int {
+ 	if x.neg {
+ 		// (-x) >> s == ^(x-1) >> s == ^((x-1) >> s) == -(((x-1) >> s) + 1)
+ 		t := z.abs.sub(x.abs, natOne) // no underflow because |x| > 0
+-		t = t.shr(t, n)
++		t = t.rsh(t, n)
+ 		z.abs = t.add(t, natOne)
+ 		z.neg = true // z cannot be zero if x is negative
+ 		return z
+ 	}
+ 
+-	z.abs = z.abs.shr(x.abs, n)
++	z.abs = z.abs.rsh(x.abs, n)
+ 	z.neg = false
+ 	return z
+ }
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index f701652f1b..eb5c177be0 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -1614,7 +1614,7 @@ func TestModInverse(t *testing.T) {
+ 
+ func BenchmarkModInverse(b *testing.B) {
+ 	p := new(Int).SetInt64(1) // Mersenne prime 2**1279 -1
+-	p.abs = p.abs.shl(p.abs, 1279)
++	p.abs = p.abs.lsh(p.abs, 1279)
+ 	p.Sub(p, intOne)
+ 	x := new(Int).Sub(p, intOne)
+ 	z := new(Int)
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 1fa0ff79c7..feff4835da 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -380,7 +380,7 @@ func same(x, y nat) bool {
+ }
+ 
+ // z = x << s
+-func (z nat) shl(x nat, s uint) nat {
++func (z nat) lsh(x nat, s uint) nat {
+ 	if s == 0 {
+ 		if same(z, x) {
+ 			return z
+@@ -398,14 +398,19 @@ func (z nat) shl(x nat, s uint) nat {
+ 
+ 	n := m + int(s/_W)
+ 	z = z.make(n + 1)
+-	z[n] = shlVU(z[n-m:n], x, s%_W)
++	if s %= _W; s == 0 {
++		copy(z[n-m:n], x)
++		z[n] = 0
++	} else {
++		z[n] = lshVU(z[n-m:n], x, s)
++	}
+ 	clear(z[0 : n-m])
+ 
+ 	return z.norm()
+ }
+ 
+ // z = x >> s
+-func (z nat) shr(x nat, s uint) nat {
++func (z nat) rsh(x nat, s uint) nat {
+ 	if s == 0 {
+ 		if same(z, x) {
+ 			return z
+@@ -423,7 +428,11 @@ func (z nat) shr(x nat, s uint) nat {
+ 	// n > 0
+ 
+ 	z = z.make(n)
+-	shrVU(z, x[m-n:], s%_W)
++	if s %= _W; s == 0 {
++		copy(z, x[m-n:])
++	} else {
++		rshVU(z, x[m-n:], s)
++	}
+ 
+ 	return z.norm()
+ }
+@@ -745,8 +754,8 @@ func (z nat) expNN(stk *stack, x, y, m nat, slow bool) nat {
+ func (z nat) expNNMontgomeryEven(stk *stack, x, y, m nat) nat {
+ 	// Split m = m₁ × m₂ where m₁ = 2ⁿ
+ 	n := m.trailingZeroBits()
+-	m1 := nat(nil).shl(natOne, n)
+-	m2 := nat(nil).shr(m, n)
++	m1 := nat(nil).lsh(natOne, n)
++	m2 := nat(nil).rsh(m, n)
+ 
+ 	// We want z = x**y mod m.
+ 	// z₁ = x**y mod m1 = (x**y mod m) mod m1 = z mod m1
+@@ -906,7 +915,7 @@ func (z nat) expNNMontgomery(stk *stack, x, y, m nat) nat {
+ 
+ 	// RR = 2**(2*_W*len(m)) mod m
+ 	RR := nat(nil).setWord(1)
+-	zz := nat(nil).shl(RR, uint(2*numWords*_W))
++	zz := nat(nil).lsh(RR, uint(2*numWords*_W))
+ 	_, RR = nat(nil).div(stk, RR, zz, m)
+ 	if len(RR) < numWords {
+ 		zz = zz.make(numWords)
+@@ -1053,11 +1062,11 @@ func (z nat) sqrt(stk *stack, x nat) nat {
+ 	var z1, z2 nat
+ 	z1 = z
+ 	z1 = z1.setUint64(1)
+-	z1 = z1.shl(z1, uint(x.bitLen()+1)/2) // must be ≥ √x
++	z1 = z1.lsh(z1, uint(x.bitLen()+1)/2) // must be ≥ √x
+ 	for n := 0; ; n++ {
+ 		z2, _ = z2.div(stk, nil, x, z1)
+ 		z2 = z2.add(z2, z1)
+-		z2 = z2.shr(z2, 1)
++		z2 = z2.rsh(z2, 1)
+ 		if z2.cmp(z1) >= 0 {
+ 			// z1 is answer.
+ 			// Figure out whether z1 or z2 is currently aliased to z by looking at loop count.
+diff --git a/src/math/big/nat_test.go b/src/math/big/nat_test.go
+index f99fd19293..96f30dc5e4 100644
+--- a/src/math/big/nat_test.go
++++ b/src/math/big/nat_test.go
+@@ -430,7 +430,7 @@ var leftShiftTests = []shiftTest{
+ func TestShiftLeft(t *testing.T) {
+ 	for i, test := range leftShiftTests {
+ 		var z nat
+-		z = z.shl(test.in, test.shift)
++		z = z.lsh(test.in, test.shift)
+ 		for j, d := range test.out {
+ 			if j >= len(z) || z[j] != d {
+ 				t.Errorf("#%d: got: %v want: %v", i, z, test.out)
+@@ -453,7 +453,7 @@ var rightShiftTests = []shiftTest{
+ func TestShiftRight(t *testing.T) {
+ 	for i, test := range rightShiftTests {
+ 		var z nat
+-		z = z.shr(test.in, test.shift)
++		z = z.rsh(test.in, test.shift)
+ 		for j, d := range test.out {
+ 			if j >= len(z) || z[j] != d {
+ 				t.Errorf("#%d: got: %v want: %v", i, z, test.out)
+@@ -469,24 +469,24 @@ func BenchmarkZeroShifts(b *testing.B) {
+ 	b.Run("Shl", func(b *testing.B) {
+ 		for i := 0; i < b.N; i++ {
+ 			var z nat
+-			z.shl(x, 0)
++			z.lsh(x, 0)
+ 		}
+ 	})
+ 	b.Run("ShlSame", func(b *testing.B) {
+ 		for i := 0; i < b.N; i++ {
+-			x.shl(x, 0)
++			x.lsh(x, 0)
+ 		}
+ 	})
+ 
+ 	b.Run("Shr", func(b *testing.B) {
+ 		for i := 0; i < b.N; i++ {
+ 			var z nat
+-			z.shr(x, 0)
++			z.rsh(x, 0)
+ 		}
+ 	})
+ 	b.Run("ShrSame", func(b *testing.B) {
+ 		for i := 0; i < b.N; i++ {
+-			x.shr(x, 0)
++			x.rsh(x, 0)
+ 		}
+ 	})
+ }
+diff --git a/src/math/big/natconv.go b/src/math/big/natconv.go
+index 4a0c17d109..96cba37c06 100644
+--- a/src/math/big/natconv.go
++++ b/src/math/big/natconv.go
+@@ -268,7 +268,7 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
+ 		slices.Reverse(z)
+ 		z = z.norm()
+ 		if i > 0 {
+-			z = z.shr(z, uint(n-i)*uint(_W/n))
++			z = z.rsh(z, uint(n-i)*uint(_W/n))
+ 		}
+ 	} else {
+ 		if i > 0 {
+diff --git a/src/math/big/natdiv.go b/src/math/big/natdiv.go
+index 1244fb61c5..c9b7f4e355 100644
+--- a/src/math/big/natdiv.go
++++ b/src/math/big/natdiv.go
+@@ -605,9 +605,15 @@ func (z nat) divLarge(stk *stack, u, uIn, vIn nat) (q, r nat) {
+ 	defer stk.restore(stk.save())
+ 	shift := nlz(vIn[n-1])
+ 	v := stk.nat(n)
+-	shlVU(v, vIn, shift)
+ 	u = u.make(len(uIn) + 1)
+-	u[len(uIn)] = shlVU(u[:len(uIn)], uIn, shift)
++	if shift == 0 {
++		copy(v, vIn)
++		copy(u[:len(uIn)], uIn)
++		u[len(uIn)] = 0
++	} else {
++		lshVU(v, vIn, shift)
++		u[len(uIn)] = lshVU(u[:len(uIn)], uIn, shift)
++	}
+ 
+ 	// The caller should not pass aliased z and u, since those are
+ 	// the two different outputs, but correct just in case.
+@@ -626,7 +632,9 @@ func (z nat) divLarge(stk *stack, u, uIn, vIn nat) (q, r nat) {
+ 	q = q.norm()
+ 
+ 	// Undo scaling of remainder.
+-	shrVU(u, u, shift)
++	if shift != 0 {
++		rshVU(u, u, shift)
++	}
+ 	r = u.norm()
+ 
+ 	return q, r
+diff --git a/src/math/big/natmul.go b/src/math/big/natmul.go
+index 77c82137dd..175ce7fcab 100644
+--- a/src/math/big/natmul.go
++++ b/src/math/big/natmul.go
+@@ -128,7 +128,7 @@ func basicSqr(stk *stack, z, x nat) {
+ 		// t collects the products x[i] * x[j] where j < i
+ 		t[2*i] = addMulVVWW(t[i:2*i], t[i:2*i], x[0:i], d, 0)
+ 	}
+-	t[2*n-1] = shlVU(t[1:2*n-1], t[1:2*n-1], 1) // double the j < i products
++	t[2*n-1] = lshVU(t[1:2*n-1], t[1:2*n-1], 1) // double the j < i products
+ 	addVV(z, z, t)                              // combine the result
+ }
+ 
+diff --git a/src/math/big/prime.go b/src/math/big/prime.go
+index bba5a07685..1739b03e93 100644
+--- a/src/math/big/prime.go
++++ b/src/math/big/prime.go
+@@ -89,7 +89,7 @@ func (n nat) probablyPrimeMillerRabin(stk *stack, reps int, force2 bool) bool {
+ 	nm1 := nat(nil).sub(n, natOne)
+ 	// determine q, k such that nm1 = q << k
+ 	k := nm1.trailingZeroBits()
+-	q := nat(nil).shr(nm1, k)
++	q := nat(nil).rsh(nm1, k)
+ 
+ 	nm3 := nat(nil).sub(nm1, natTwo)
+ 	rand := rand.New(rand.NewSource(int64(n[0])))
+@@ -217,7 +217,7 @@ func (n nat) probablyPrimeLucas(stk *stack) bool {
+ 	// Arrange s = (n - Jacobi(Δ, n)) / 2^r = (n+1) / 2^r.
+ 	s := nat(nil).add(n, natOne)
+ 	r := int(s.trailingZeroBits())
+-	s = s.shr(s, uint(r))
++	s = s.rsh(s, uint(r))
+ 	nm2 := nat(nil).sub(n, natTwo) // n-2
+ 
+ 	// We apply the "almost extra strong" test, which checks the above conditions
+@@ -288,7 +288,7 @@ func (n nat) probablyPrimeLucas(stk *stack) bool {
+ 		// Since we are checking for U(k) == 0 it suffices to check 2 V(k+1) == P V(k) mod n,
+ 		// or P V(k) - 2 V(k+1) == 0 mod n.
+ 		t1 := t1.mul(stk, vk, natP)
+-		t2 := t2.shl(vk1, 1)
++		t2 := t2.lsh(vk1, 1)
+ 		if t1.cmp(t2) < 0 {
+ 			t1, t2 = t2, t1
+ 		}
+diff --git a/src/math/big/rat.go b/src/math/big/rat.go
+index ac94056a83..c7f79a5666 100644
+--- a/src/math/big/rat.go
++++ b/src/math/big/rat.go
+@@ -112,9 +112,9 @@ func quotToFloat32(stk *stack, a, b nat) (f float32, exact bool) {
+ 	a2 = a2.set(a)
+ 	b2 = b2.set(b)
+ 	if shift := Msize2 - exp; shift > 0 {
+-		a2 = a2.shl(a2, uint(shift))
++		a2 = a2.lsh(a2, uint(shift))
+ 	} else if shift < 0 {
+-		b2 = b2.shl(b2, uint(-shift))
++		b2 = b2.lsh(b2, uint(-shift))
+ 	}
+ 
+ 	// 2. Compute quotient and remainder (q, r).  NB: due to the
+@@ -210,9 +210,9 @@ func quotToFloat64(stk *stack, a, b nat) (f float64, exact bool) {
+ 	a2 = a2.set(a)
+ 	b2 = b2.set(b)
+ 	if shift := Msize2 - exp; shift > 0 {
+-		a2 = a2.shl(a2, uint(shift))
++		a2 = a2.lsh(a2, uint(shift))
+ 	} else if shift < 0 {
+-		b2 = b2.shl(b2, uint(-shift))
++		b2 = b2.lsh(b2, uint(-shift))
+ 	}
+ 
+ 	// 2. Compute quotient and remainder (q, r).  NB: due to the
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index 84602ff455..229f31b8f0 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -197,9 +197,9 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 		return nil, false // avoid excessively large exponents
+ 	}
+ 	if exp2 > 0 {
+-		z.a.abs = z.a.abs.shl(z.a.abs, uint(exp2))
++		z.a.abs = z.a.abs.lsh(z.a.abs, uint(exp2))
+ 	} else if exp2 < 0 {
+-		z.b.abs = z.b.abs.shl(z.b.abs, uint(-exp2))
++		z.b.abs = z.b.abs.lsh(z.b.abs, uint(-exp2))
+ 	}
+ 
+ 	z.a.neg = neg && len(z.a.abs) > 0 // 0 has no sign
+@@ -421,7 +421,7 @@ func (x *Rat) FloatPrec() (n int, exact bool) {
+ 	// Do this first to reduce q as much as possible.
+ 	var q nat
+ 	p2 := d.trailingZeroBits()
+-	q = q.shr(d, p2)
++	q = q.rsh(d, p2)
+ 
+ 	// Determine p5 by counting factors of 5.
+ 	// Build a table starting with an initial power of 5,

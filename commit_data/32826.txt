@@ -13,6 +13,21 @@ Date:   Sat Jan 7 23:30:47 2017 +0100
     Change-Id: Idb1b4c256fb9a7158a74256136eca3b8ce44476f
     Reviewed-on: https://go-review.googlesource.com/34938
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/math/const.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/math/const.go b/src/math/const.go
+index b4405383c8..951e9a2a4b 100644
+--- a/src/math/const.go
++++ b/src/math/const.go
+@@ -3,6 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package math provides basic constants and mathematical functions.
++//
++// Note that the package doesn't guarantee identical results of floating point operations on
++// different architectures.
+ package math
+ 
+ // Mathematical constants.

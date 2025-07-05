@@ -21,10 +21,400 @@ Date:   Mon Feb 22 11:19:15 2016 +0100
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/cse.go            |   4 +
  src/cmd/compile/internal/ssa/gen/genericOps.go |  60 +++++-----
  src/cmd/compile/internal/ssa/gen/main.go       |   6 +-
  src/cmd/compile/internal/ssa/op.go             |   1 +
  src/cmd/compile/internal/ssa/opGen.go          | 150 +++++++++++++++----------
  5 files changed, 130 insertions(+), 91 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 545e173928..ea4fe0a97b 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -35,6 +35,10 @@ func cse(f *Func) {
+ 			if v.Type.IsMemory() {
+ 				continue // memory values can never cse
+ 			}
++			if opcodeTable[v.Op].commutative && len(v.Args) == 2 && v.Args[1].ID < v.Args[0].ID {
++				// Order the arguments of binary commutative operations.
++				v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
++			}
+ 			a = append(a, v)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index fe5169d233..9f53024b21 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -8,10 +8,10 @@ var genericOps = []opData{
+ 	// 2-input arithmetic
+ 	// Types must be consistent with Go typing.  Add, for example, must take two values
+ 	// of the same type and produces that same type.
+-	{name: "Add8"}, // arg0 + arg1
+-	{name: "Add16"},
+-	{name: "Add32"},
+-	{name: "Add64"},
++	{name: "Add8", commutative: true}, // arg0 + arg1
++	{name: "Add16", commutative: true},
++	{name: "Add32", commutative: true},
++	{name: "Add64", commutative: true},
+ 	{name: "AddPtr"}, // For address calculations.  arg0 is a pointer and arg1 is an int.
+ 	{name: "Add32F"},
+ 	{name: "Add64F"},
+@@ -25,10 +25,10 @@ var genericOps = []opData{
+ 	{name: "Sub32F"},
+ 	{name: "Sub64F"},
+ 
+-	{name: "Mul8"}, // arg0 * arg1
+-	{name: "Mul16"},
+-	{name: "Mul32"},
+-	{name: "Mul64"},
++	{name: "Mul8", commutative: true}, // arg0 * arg1
++	{name: "Mul16", commutative: true},
++	{name: "Mul32", commutative: true},
++	{name: "Mul64", commutative: true},
+ 	{name: "Mul32F"},
+ 	{name: "Mul64F"},
+ 
+@@ -65,20 +65,20 @@ var genericOps = []opData{
+ 	{name: "Mod64"},
+ 	{name: "Mod64u"},
+ 
+-	{name: "And8"}, // arg0 & arg1
+-	{name: "And16"},
+-	{name: "And32"},
+-	{name: "And64"},
++	{name: "And8", commutative: true}, // arg0 & arg1
++	{name: "And16", commutative: true},
++	{name: "And32", commutative: true},
++	{name: "And64", commutative: true},
+ 
+-	{name: "Or8"}, // arg0 | arg1
+-	{name: "Or16"},
+-	{name: "Or32"},
+-	{name: "Or64"},
++	{name: "Or8", commutative: true}, // arg0 | arg1
++	{name: "Or16", commutative: true},
++	{name: "Or32", commutative: true},
++	{name: "Or64", commutative: true},
+ 
+-	{name: "Xor8"}, // arg0 ^ arg1
+-	{name: "Xor16"},
+-	{name: "Xor32"},
+-	{name: "Xor64"},
++	{name: "Xor8", commutative: true}, // arg0 ^ arg1
++	{name: "Xor16", commutative: true},
++	{name: "Xor32", commutative: true},
++	{name: "Xor64", commutative: true},
+ 
+ 	// For shifts, AxB means the shifted value has A bits and the shift amount has B bits.
+ 	{name: "Lsh8x8"}, // arg0 << arg1
+@@ -158,21 +158,21 @@ var genericOps = []opData{
+ 	{name: "Lrot64", aux: "Int64"},
+ 
+ 	// 2-input comparisons
+-	{name: "Eq8"}, // arg0 == arg1
+-	{name: "Eq16"},
+-	{name: "Eq32"},
+-	{name: "Eq64"},
+-	{name: "EqPtr"},
++	{name: "Eq8", commutative: true}, // arg0 == arg1
++	{name: "Eq16", commutative: true},
++	{name: "Eq32", commutative: true},
++	{name: "Eq64", commutative: true},
++	{name: "EqPtr", commutative: true},
+ 	{name: "EqInter"}, // arg0 or arg1 is nil; other cases handled by frontend
+ 	{name: "EqSlice"}, // arg0 or arg1 is nil; other cases handled by frontend
+ 	{name: "Eq32F"},
+ 	{name: "Eq64F"},
+ 
+-	{name: "Neq8"}, // arg0 != arg1
+-	{name: "Neq16"},
+-	{name: "Neq32"},
+-	{name: "Neq64"},
+-	{name: "NeqPtr"},
++	{name: "Neq8", commutative: true}, // arg0 != arg1
++	{name: "Neq16", commutative: true},
++	{name: "Neq32", commutative: true},
++	{name: "Neq64", commutative: true},
++	{name: "NeqPtr", commutative: true},
+ 	{name: "NeqInter"}, // arg0 or arg1 is nil; other cases handled by frontend
+ 	{name: "NeqSlice"}, // arg0 or arg1 is nil; other cases handled by frontend
+ 	{name: "Neq32F"},
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index d739b29079..bb4188c349 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -32,7 +32,8 @@ type opData struct {
+ 	typ               string // default result type
+ 	aux               string
+ 	rematerializeable bool
+-	variableLength    bool // if true the operation has a variable number of arguments
++	variableLength    bool // this operation has a variable number of arguments
++	commutative       bool // this operation is commutative (e.g. addition)
+ }
+ 
+ type blockData struct {
+@@ -131,6 +132,9 @@ func genOp() {
+ 				}
+ 				fmt.Fprintln(w, "rematerializeable: true,")
+ 			}
++			if v.commutative {
++				fmt.Fprintln(w, "commutative: true,")
++			}
+ 			if a.name == "generic" {
+ 				fmt.Fprintln(w, "generic:true,")
+ 				fmt.Fprintln(w, "},") // close op
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index a868fdbb6f..c118a6c609 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -21,6 +21,7 @@ type opInfo struct {
+ 	auxType           auxType
+ 	generic           bool // this is a generic (arch-independent) opcode
+ 	rematerializeable bool // this op is rematerializeable
++	commutative       bool // this operation is commutative (e.g. addition)
+ }
+ 
+ type inputInfo struct {
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index dfd9df8ba4..ae257c0ba6 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -3597,20 +3597,24 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 
+ 	{
+-		name:    "Add8",
+-		generic: true,
++		name:        "Add8",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Add16",
+-		generic: true,
++		name:        "Add16",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Add32",
+-		generic: true,
++		name:        "Add32",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Add64",
+-		generic: true,
++		name:        "Add64",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+ 		name:    "AddPtr",
+@@ -3653,20 +3657,24 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Mul8",
+-		generic: true,
++		name:        "Mul8",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Mul16",
+-		generic: true,
++		name:        "Mul16",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Mul32",
+-		generic: true,
++		name:        "Mul32",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Mul64",
+-		generic: true,
++		name:        "Mul64",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+ 		name:    "Mul32F",
+@@ -3785,52 +3793,64 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "And8",
+-		generic: true,
++		name:        "And8",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "And16",
+-		generic: true,
++		name:        "And16",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "And32",
+-		generic: true,
++		name:        "And32",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "And64",
+-		generic: true,
++		name:        "And64",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Or8",
+-		generic: true,
++		name:        "Or8",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Or16",
+-		generic: true,
++		name:        "Or16",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Or32",
+-		generic: true,
++		name:        "Or32",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Or64",
+-		generic: true,
++		name:        "Or64",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Xor8",
+-		generic: true,
++		name:        "Xor8",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Xor16",
+-		generic: true,
++		name:        "Xor16",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Xor32",
+-		generic: true,
++		name:        "Xor32",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Xor64",
+-		generic: true,
++		name:        "Xor64",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+ 		name:    "Lsh8x8",
+@@ -4045,24 +4065,29 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Eq8",
+-		generic: true,
++		name:        "Eq8",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Eq16",
+-		generic: true,
++		name:        "Eq16",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Eq32",
+-		generic: true,
++		name:        "Eq32",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Eq64",
+-		generic: true,
++		name:        "Eq64",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "EqPtr",
+-		generic: true,
++		name:        "EqPtr",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+ 		name:    "EqInter",
+@@ -4081,24 +4106,29 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Neq8",
+-		generic: true,
++		name:        "Neq8",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Neq16",
+-		generic: true,
++		name:        "Neq16",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Neq32",
+-		generic: true,
++		name:        "Neq32",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Neq64",
+-		generic: true,
++		name:        "Neq64",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "NeqPtr",
+-		generic: true,
++		name:        "NeqPtr",
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+ 		name:    "NeqInter",

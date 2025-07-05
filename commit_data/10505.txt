@@ -7,7 +7,32 @@ Date:   Fri Nov 25 10:50:19 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5432076
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 38c14222f2..5d3658d41b 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -70,6 +70,7 @@ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+ Giles Lean <giles.lean@pobox.com>
+ Google Inc.
+ Graham Miller <graham.miller@gmail.com>
++Gustav Paul <gustav.paul@gmail.com>
+ Gustavo Niemeyer <gustavo@niemeyer.net>
+ Harley Laue <losinggeneration@gmail.com>
+ Hector Chu <hectorchu@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 30d8651a70..3b1161979c 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -112,6 +112,7 @@ Gary Burd <gary@beagledreams.com> <gary.burd@gmail.com>
+ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+ Giles Lean <giles.lean@pobox.com>
+ Graham Miller <graham.miller@gmail.com>
++Gustav Paul <gustav.paul@gmail.com>
+ Gustavo Niemeyer <gustavo@niemeyer.net> <n13m3y3r@gmail.com>
+ Harley Laue <losinggeneration@gmail.com>
+ Hector Chu <hectorchu@gmail.com>

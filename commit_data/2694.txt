@@ -8,6 +8,38 @@ Date:   Tue Jul 14 09:28:42 2009 -0700
     DELTA=20  (0 added, 20 deleted, 0 changed)
     OCL=31584
     CL=31598
-
+---
  src/cmd/ld/go.c | 20 --------------------
  1 file changed, 20 deletions(-)
+
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index c138a8d43b..5a55384708 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -315,26 +315,6 @@ parsemethod(char **pp, char *ep, char **methp)
+ 	return 1;
+ }
+ 
+-static int
+-importcmp(const void *va, const void *vb)
+-{
+-	Import *a, *b;
+-
+-	a = *(Import**)va;
+-	b = *(Import**)vb;
+-	return strcmp(a->name, b->name);
+-}
+-
+-static int
+-symcmp(const void *va, const void *vb)
+-{
+-	Sym *a, *b;
+-
+-	a = *(Sym**)va;
+-	b = *(Sym**)vb;
+-	return strcmp(a->name, b->name);
+-}
+-
+ static void mark(Sym*);
+ static int markdepth;
+ 

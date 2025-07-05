@@ -7,6 +7,20 @@ Date:   Sat Nov 5 00:57:45 2016 +0100
     Change-Id: I0520a37a48a56d231a8ac2dc58b2bf1762282760
     Reviewed-on: https://go-review.googlesource.com/32795
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/plugin/plugin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/plugin/plugin.go b/src/plugin/plugin.go
+index e812a2f677..5c822bd9ba 100644
+--- a/src/plugin/plugin.go
++++ b/src/plugin/plugin.go
+@@ -51,7 +51,7 @@ func (p *Plugin) Lookup(symName string) (Symbol, error) {
+ //
+ //	var V int
+ //
+-//	func F() { fmt.Println("Hello, number %d", V) }
++//	func F() { fmt.Printf("Hello, number %d\n", V) }
+ //
+ // may be loaded with the Open function and then the exported package
+ // symbols V and F can be accessed

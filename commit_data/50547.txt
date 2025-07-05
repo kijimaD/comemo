@@ -13,6 +13,38 @@ Date:   Mon Nov 1 18:17:49 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/sync/pool_test.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/sync/pool_test.go b/src/sync/pool_test.go
+index f94153c8d7..d991621624 100644
+--- a/src/sync/pool_test.go
++++ b/src/sync/pool_test.go
+@@ -270,6 +270,26 @@ func BenchmarkPoolOverflow(b *testing.B) {
+ 	})
+ }
+ 
++// Simulate object starvation in order to force Ps to steal objects
++// from other Ps.
++func BenchmarkPoolStarvation(b *testing.B) {
++	var p Pool
++	count := 100
++	// Reduce number of putted objects by 33 %. It creates objects starvation
++	// that force P-local storage to steal objects from other Ps.
++	countStarved := count - int(float32(count)*0.33)
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			for b := 0; b < countStarved; b++ {
++				p.Put(1)
++			}
++			for b := 0; b < count; b++ {
++				p.Get()
++			}
++		}
++	})
++}
++
+ var globalSink interface{}
+ 
+ func BenchmarkPoolSTW(b *testing.B) {

@@ -9,6 +9,38 @@ Date:   Mon Jan 4 17:18:14 2016 -0800
     Change-Id: I1c248dc48abc62e51836b9ba50d6deb89706c730
     Reviewed-on: https://go-review.googlesource.com/18226
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.6.html | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/doc/go1.6.html b/doc/go1.6.html
+index 3dee58fb2d..b4ac96ef96 100644
+--- a/doc/go1.6.html
++++ b/doc/go1.6.html
+@@ -747,6 +747,26 @@ now return correct results when inquiring about an
+ <a href="/pkg/os/#SyscallError"><code>SyscallError</code></a>.
+ </li>
+ 
++<li>
++On Unix-like systems, when a write
++to <a href="/pkg/os/#pkg-variables"><code>os.Stdout</code>
++or <code>os.Stderr</code></a> (more precisely, an <code>os.File</code>
++opened for file descriptor 1 or 2) fails due to a broken pipe error,
++the program will raise a <code>SIGPIPE</code> signal.
++By default this will cause the program to exit; this may be changed by
++calling the
++<a href="/pkg/os/signal"><code>os/signal</code></a>
++<a href="/pkg/os/signal/#Notify"><code>Notify</code></a> function
++for <code>syscall.SIGPIPE</code>.
++A write to a broken pipe on a file descriptor other 1 or 2 will simply
++return <code>syscall.EPIPE</code> (possibly wrapped in
++<a href="/pkg/os#PathError"><code>os.PathError</code></a>
++and/or <a href="/pkg/os#SyscallError"><code>os.SyscallError</code></a>)
++to the caller.
++The old behavior of raising an uncatchable <code>SIGPIPE</code> signal
++after 10 consecutive writes to a broken pipe no longer occurs.
++</li>
++
+ <li>
+ In the <a href="/pkg/os/exec/"><code>os/exec</code></a> package,
+ <a href="/pkg/os/exec/#Cmd"><code>Cmd</code></a>'s

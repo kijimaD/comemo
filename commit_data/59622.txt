@@ -16,7 +16,7 @@ Date:   Mon Apr 1 15:39:41 2024 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/link/internal/ld/data.go      | 2 +-
  src/cmd/link/internal/ld/deadcode.go  | 4 ++--
  src/cmd/link/internal/ld/decodesym.go | 8 ++++----
@@ -24,3 +24,111 @@ Date:   Mon Apr 1 15:39:41 2024 -0400
  src/internal/abi/type.go              | 8 ++++----
  src/internal/reflectlite/type.go      | 2 +-
  6 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index b4930277e4..11dc48b18b 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1346,7 +1346,7 @@ func (p *GCProg) AddSym(s loader.Sym) {
+ 	}
+ 
+ 	sval := ldr.SymValue(s)
+-	if decodetypeUsegcprog(p.ctxt.Arch, typData) == 0 {
++	if !decodetypeUsegcprog(p.ctxt.Arch, typData) {
+ 		// Copy pointers from mask into program.
+ 		mask := decodetypeGcmask(p.ctxt, typ)
+ 		for i := int64(0); i < nptr; i++ {
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index f635d7582f..241cf603db 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -512,7 +512,7 @@ func (d *deadcodePass) decodeIfaceMethod(ldr *loader.Loader, arch *sys.Arch, sym
+ 	if p == nil {
+ 		panic(fmt.Sprintf("missing symbol %q", ldr.SymName(symIdx)))
+ 	}
+-	if abi.Kind(decodetypeKind(arch, p)&abi.KindMask) != abi.Interface {
++	if decodetypeKind(arch, p) != abi.Interface {
+ 		panic(fmt.Sprintf("symbol %q is not an interface", ldr.SymName(symIdx)))
+ 	}
+ 	relocs := ldr.Relocs(symIdx)
+@@ -533,7 +533,7 @@ func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, sym
+ 		panic(fmt.Sprintf("no methods on %q", ldr.SymName(symIdx)))
+ 	}
+ 	off := commonsize(arch) // reflect.rtype
+-	switch abi.Kind(decodetypeKind(arch, p) & abi.KindMask) {
++	switch decodetypeKind(arch, p) {
+ 	case abi.Struct: // reflect.structType
+ 		off += 4 * arch.PtrSize
+ 	case abi.Pointer: // reflect.ptrType
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 99f058aed2..ab2b8fac59 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -37,13 +37,13 @@ func structfieldSize(arch *sys.Arch) int { return abi.StructFieldSize(arch.PtrSi
+ func uncommonSize(arch *sys.Arch) int    { return int(abi.UncommonSize()) }           // runtime.uncommontype
+ 
+ // Type.commonType.kind
+-func decodetypeKind(arch *sys.Arch, p []byte) uint8 {
+-	return p[2*arch.PtrSize+7] & abi.KindMask //  0x13 / 0x1f
++func decodetypeKind(arch *sys.Arch, p []byte) abi.Kind {
++	return abi.Kind(p[2*arch.PtrSize+7]) & abi.KindMask //  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.kind
+-func decodetypeUsegcprog(arch *sys.Arch, p []byte) uint8 {
+-	return p[2*arch.PtrSize+7] & abi.KindGCProg //  0x13 / 0x1f
++func decodetypeUsegcprog(arch *sys.Arch, p []byte) bool {
++	return abi.Kind(p[2*arch.PtrSize+7])&abi.KindGCProg != 0 //  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.size
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 50fbdf1f18..886c1ff672 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -542,7 +542,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
+ 	bytesize := decodetypeSize(d.arch, tdata)
+ 
+ 	var die, typedefdie *dwarf.DWDie
+-	switch abi.Kind(kind) {
++	switch kind {
+ 	case abi.Bool:
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
+ 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_boolean, 0)
+diff --git a/src/internal/abi/type.go b/src/internal/abi/type.go
+index 1b6cc00855..0686bac4c3 100644
+--- a/src/internal/abi/type.go
++++ b/src/internal/abi/type.go
+@@ -72,9 +72,9 @@ const (
+ 
+ const (
+ 	// TODO (khr, drchase) why aren't these in TFlag?  Investigate, fix if possible.
+-	KindDirectIface = 1 << 5
+-	KindGCProg      = 1 << 6 // Type.gc points to GC program
+-	KindMask        = (1 << 5) - 1
++	KindDirectIface Kind = 1 << 5
++	KindGCProg      Kind = 1 << 6 // Type.gc points to GC program
++	KindMask        Kind = (1 << 5) - 1
+ )
+ 
+ // TFlag is used by a Type to signal what extra type information is
+@@ -166,7 +166,7 @@ var kindNames = []string{
+ 	UnsafePointer: "unsafe.Pointer",
+ }
+ 
+-func (t *Type) Kind() Kind { return Kind(t.Kind_ & KindMask) }
++func (t *Type) Kind() Kind { return t.Kind_ & KindMask }
+ 
+ func (t *Type) HasName() bool {
+ 	return t.TFlag&TFlagNamed != 0
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index e585d24f53..8c47a265b8 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -661,5 +661,5 @@ func toType(t *abi.Type) Type {
+ 
+ // ifaceIndir reports whether t is stored indirectly in an interface value.
+ func ifaceIndir(t *abi.Type) bool {
+-	return t.Kind_&abi.KindDirectIface == 0
++	return abi.Kind(t.Kind_)&abi.KindDirectIface == 0
+ }

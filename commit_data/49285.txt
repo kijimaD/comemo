@@ -14,9 +14,85 @@ Date:   Thu Aug 5 18:33:22 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/importer/iimport.go   |  4 ----
  src/cmd/compile/internal/noder/reader2.go      |  4 +---
  src/cmd/compile/internal/types2/interface.go   | 19 -------------------
  src/cmd/compile/internal/types2/issues_test.go |  3 ++-
  4 files changed, 3 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 6dd8d595ae..523b00313d 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -183,10 +183,6 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
+ 		p.doDecl(localpkg, name)
+ 	}
+ 
+-	for _, typ := range p.interfaceList {
+-		typ.Complete()
+-	}
+-
+ 	// record all referenced packages as imports
+ 	list := append(([]*types2.Package)(nil), pkgList[1:]...)
+ 	sort.Sort(byPath(list))
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index fe1f329c82..5637196dc0 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -303,9 +303,7 @@ func (r *reader2) interfaceType() *types2.Interface {
+ 		embeddeds[i] = r.typ()
+ 	}
+ 
+-	typ := types2.NewInterfaceType(methods, embeddeds)
+-	typ.Complete()
+-	return typ
++	return types2.NewInterfaceType(methods, embeddeds)
+ }
+ 
+ func (r *reader2) signature(recv *types2.Var) *types2.Signature {
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index 89cf846598..2617f748de 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -100,25 +100,6 @@ func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
+ // IsConstraint reports whether interface t is not just a method set.
+ func (t *Interface) IsConstraint() bool { return !t.typeSet().IsMethodSet() }
+ 
+-// Complete computes the interface's type set. It must be called by users of
+-// NewInterfaceType and NewInterface after the interface's embedded types are
+-// fully defined and before using the interface type in any way other than to
+-// form other types. The interface must not contain duplicate methods or a
+-// panic occurs. Complete returns the receiver.
+-//
+-// Deprecated: Type sets are now computed lazily, on demand; this function
+-//             is only here for backward-compatibility. It does not have to
+-//             be called explicitly anymore.
+-func (t *Interface) Complete() *Interface {
+-	// Some tests are still depending on the state change
+-	// (string representation of an Interface not containing an
+-	// /* incomplete */ marker) caused by the explicit Complete
+-	// call, so we compute the type set eagerly here.
+-	t.complete = true
+-	t.typeSet()
+-	return t
+-}
+-
+ func (t *Interface) Underlying() Type { return t }
+ func (t *Interface) String() string   { return TypeString(t, nil) }
+ 
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index aafe8de367..9890b79323 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -402,8 +402,9 @@ func TestIssue28282(t *testing.T) {
+ 	// create type interface { error }
+ 	et := Universe.Lookup("error").Type()
+ 	it := NewInterfaceType(nil, []Type{et})
+-	it.Complete()
+ 	// verify that after completing the interface, the embedded method remains unchanged
++	// (interfaces are "completed" lazily now, so the completion happens implicitly when
++	// accessing Method(0))
+ 	want := et.Underlying().(*Interface).Method(0)
+ 	got := it.Method(0)
+ 	if got != want {

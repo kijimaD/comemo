@@ -13,7 +13,110 @@ Date:   Wed Jul 29 15:11:19 2009 -0700
     DELTA=44  (29 added, 12 deleted, 3 changed)
     OCL=32460
     CL=32464
-
+---
  test/golden.out | 38 +++++++++++++++++++++++++-------------
  test/run        |  9 +++++++--
  2 files changed, 32 insertions(+), 15 deletions(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index a92efaffec..29b4bcab78 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,4 +1,6 @@
+ 
++== ./
++
+ =========== ./cmp2.go
+ comparing uncomparable type []int
+ throw: interface compare
+@@ -49,6 +51,8 @@ survived SIGCHLD
+ =========== ./turing.go
+ Hello World!
+ 
++== ken/
++
+ =========== ken/intervar.go
+  print 1 bio 2 file 3 -- abc
+ 
+@@ -70,9 +74,13 @@ hello world
+ =========== ken/string.go
+ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ 
++== chan/
++
+ =========== chan/nonblock.go
+ PASS
+ 
++== interface/
++
+ =========== interface/fail.go
+ *main.S is not main.I: missing method Foo
+ throw: interface conversion
+@@ -85,19 +93,7 @@ throw: interface conversion
+ 
+ panic PC=xxx
+ 
+-=========== bugs/bug132.go
+-BUG: compilation succeeds incorrectly
+-
+-=========== bugs/bug159.go
+-abc: expected 4 5 6 got 4 4 -4
+-BUG: bug159
+-
+-=========== bugs/bug162.go
+-123
+-BUG: should fail
+-
+-=========== bugs/bug169.go
+-BUG: errchk: command succeeded unexpectedly
++== fixedbugs/
+ 
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+@@ -233,3 +229,19 @@ interface is main.T, not main.T·bug148·1
+ throw: interface conversion
+ 
+ panic PC=xxx
++
++== bugs/
++
++=========== bugs/bug132.go
++BUG: compilation succeeds incorrectly
++
++=========== bugs/bug159.go
++abc: expected 4 5 6 got 4 4 -4
++BUG: bug159
++
++=========== bugs/bug162.go
++123
++BUG: should fail
++
++=========== bugs/bug169.go
++BUG: errchk: command succeeded unexpectedly
+diff --git a/test/run b/test/run
+index 094aa8427f..839b4014c7 100755
+--- a/test/run
++++ b/test/run
+@@ -34,8 +34,10 @@ TMP2FILE=/tmp/gotest2-$$-$USER
+ # on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
+ ulimit -v 4000000
+ 
+-for dir in . ken chan interface bugs fixedbugs
++for dir in . ken chan interface fixedbugs bugs
+ do
++	echo
++	echo '==' $dir'/'
+ 	for i in $dir/*.go
+ 	do
+ 		export F=$(basename $i .go)
+@@ -80,6 +82,9 @@ then
+ 	failed=1
+ fi
+ 
+-echo 2>&1 $(grep -c '^BUG' run.out) tests are behaving incorrectly
++notinbugs=$(sed '/^== bugs/q' run.out | grep -c '^BUG')
++inbugs=$(sed '1,/^== bugs/d' run.out | grep -c '^BUG')
++
++echo 2>&1 $inbugs known bugs';' $notinbugs unexpected bugs
+ 
+ exit $failed

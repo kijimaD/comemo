@@ -14,7 +14,7 @@ Date:   Wed Sep 21 12:57:48 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/issues_test.go     |  2 +-
  src/cmd/compile/internal/types2/typexpr.go         |  8 ++------
  src/go/types/issues_test.go                        |  2 +-
@@ -37,3 +37,472 @@ Date:   Wed Sep 21 12:57:48 2022 -0700
  .../types/testdata/fixedbugs/issue50929.go         |  2 +-
  .../types/testdata/fixedbugs/issue54405.go         |  4 ++--
  21 files changed, 59 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index b77e8a8fe1..78691b9bf4 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -28,7 +28,7 @@ func TestIssue5770(t *testing.T) {
+ 	f := mustParse(t, `package p; type S struct{T}`)
+ 	var conf Config
+ 	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, nil) // do not crash
+-	want := "undeclared name: T"
++	const want = "undefined: T"
+ 	if err == nil || !strings.Contains(err.Error(), want) {
+ 		t.Errorf("got: %v; want: %s", err, want)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 6953203788..900a730916 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -37,11 +37,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 				check.error(e, _InvalidBlank, "cannot use _ as value or type")
+ 			}
+ 		} else {
+-			if check.conf.CompilerErrorMessages {
+-				check.errorf(e, _UndeclaredName, "undefined: %s", e.Value)
+-			} else {
+-				check.errorf(e, _UndeclaredName, "undeclared name: %s", e.Value)
+-			}
++			check.errorf(e, _UndeclaredName, "undefined: %s", e.Value)
+ 		}
+ 		return
+ 	case universeAny, universeComparable:
+@@ -482,7 +478,7 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
+ 	if name, _ := e.(*syntax.Name); name != nil {
+ 		obj := check.lookup(name.Value)
+ 		if obj == nil {
+-			check.errorf(name, _InvalidArrayLen, "undeclared name %s for array length", name.Value)
++			check.errorf(name, _InvalidArrayLen, "undefined %s for array length", name.Value)
+ 			return -1
+ 		}
+ 		if _, ok := obj.(*Const); !ok {
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 4f926ed421..b033460770 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -31,7 +31,7 @@ func TestIssue5770(t *testing.T) {
+ 	f := mustParse(t, `package p; type S struct{T}`)
+ 	conf := Config{Importer: importer.Default()}
+ 	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // do not crash
+-	want := "undeclared name: T"
++	const want = "undefined: T"
+ 	if err == nil || !strings.Contains(err.Error(), want) {
+ 		t.Errorf("got: %v; want: %s", err, want)
+ 	}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index fb34bcc2b2..3323e455d7 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -38,7 +38,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
+ 				check.error(e, _InvalidBlank, "cannot use _ as value or type")
+ 			}
+ 		} else {
+-			check.errorf(e, _UndeclaredName, "undeclared name: %s", e.Name)
++			check.errorf(e, _UndeclaredName, "undefined: %s", e.Name)
+ 		}
+ 		return
+ 	case universeAny, universeComparable:
+@@ -469,7 +469,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
+ 	if name, _ := e.(*ast.Ident); name != nil {
+ 		obj := check.lookup(name.Name)
+ 		if obj == nil {
+-			check.errorf(name, _InvalidArrayLen, "undeclared name %s for array length", name.Name)
++			check.errorf(name, _InvalidArrayLen, "undefined %s for array length", name.Name)
+ 			return -1
+ 		}
+ 		if _, ok := obj.(*Const); !ok {
+diff --git a/src/internal/types/testdata/check/constdecl.go b/src/internal/types/testdata/check/constdecl.go
+index bb07a361fa..faa9b9d5cb 100644
+--- a/src/internal/types/testdata/check/constdecl.go
++++ b/src/internal/types/testdata/check/constdecl.go
+@@ -87,7 +87,7 @@ func _() {
+ // Caused panic because the constant value was not set up (gri - 7/8/2014).
+ func _() {
+ 	const (
+-	    x string = missing /* ERROR "undeclared name" */
++	    x string = missing /* ERROR "undefined" */
+ 	    y = x + ""
+ 	)
+ }
+@@ -97,11 +97,11 @@ const A /* ERROR initialization cycle */ = unsafe.Sizeof(func() { _ = A })
+ 
+ func _() {
+ 	// The function literal below must not see a.
+-	const a = unsafe.Sizeof(func() { _ = a /* ERROR "undeclared name" */ })
++	const a = unsafe.Sizeof(func() { _ = a /* ERROR "undefined" */ })
+ 	const b = unsafe.Sizeof(func() { _ = a })
+ 
+ 	// The function literal below must not see x, y, or z.
+-	const x, y, z = 0, 1, unsafe.Sizeof(func() { _ = x /* ERROR "undeclared name" */ + y /* ERROR "undeclared name" */ + z /* ERROR "undeclared name" */ })
++	const x, y, z = 0, 1, unsafe.Sizeof(func() { _ = x /* ERROR "undefined" */ + y /* ERROR "undefined" */ + z /* ERROR "undefined" */ })
+ }
+ 
+ // Test cases for errors in inherited constant initialization expressions.
+diff --git a/src/internal/types/testdata/check/cycles0.go b/src/internal/types/testdata/check/cycles0.go
+index aaf82d49d2..e5368d13c9 100644
+--- a/src/internal/types/testdata/check/cycles0.go
++++ b/src/internal/types/testdata/check/cycles0.go
+@@ -86,8 +86,8 @@ func _() {
+ 		t1 /* ERROR invalid recursive type */ t1
+ 		t2 *t2
+ 
+-		t3 t4 /* ERROR undeclared */
+-		t4 t5 /* ERROR undeclared */
++		t3 t4 /* ERROR undefined */
++		t4 t5 /* ERROR undefined */
+ 		t5 t3
+ 
+ 		// arrays
+diff --git a/src/internal/types/testdata/check/decls0.go b/src/internal/types/testdata/check/decls0.go
+index 9f7a006a20..6002a9e8a7 100644
+--- a/src/internal/types/testdata/check/decls0.go
++++ b/src/internal/types/testdata/check/decls0.go
+@@ -13,7 +13,7 @@ import "unsafe"
+ const pi = 3.1415
+ 
+ type (
+-	N undeclared /* ERROR "undeclared" */
++	N undefined /* ERROR "undefined" */
+ 	B bool
+ 	I int32
+ 	A [10]P
+diff --git a/src/internal/types/testdata/check/decls2/decls2a.go b/src/internal/types/testdata/check/decls2/decls2a.go
+index cccbf29793..731405b20b 100644
+--- a/src/internal/types/testdata/check/decls2/decls2a.go
++++ b/src/internal/types/testdata/check/decls2/decls2a.go
+@@ -47,8 +47,8 @@ type T2 struct {
+ }
+ 
+ // Methods declared without a declared type.
+-func (undeclared /* ERROR "undeclared" */) m() {}
+-func (x *undeclared /* ERROR "undeclared" */) m() {}
++func (undefined /* ERROR "undefined" */) m() {}
++func (x *undefined /* ERROR "undefined" */) m() {}
+ 
+ func (pi /* ERROR "not a type" */) m1() {}
+ func (x pi /* ERROR "not a type" */) m2() {}
+diff --git a/src/internal/types/testdata/check/decls2/decls2b.go b/src/internal/types/testdata/check/decls2/decls2b.go
+index 5c55750a10..d4c5861e5e 100644
+--- a/src/internal/types/testdata/check/decls2/decls2b.go
++++ b/src/internal/types/testdata/check/decls2/decls2b.go
+@@ -38,19 +38,19 @@ func f_double /* ERROR "redeclared" */ () {}
+ 
+ // Blank methods need to be type-checked.
+ // Verify by checking that errors are reported.
+-func (T /* ERROR "undeclared" */ ) _() {}
+-func (T1) _(undeclared /* ERROR "undeclared" */ ) {}
++func (T /* ERROR "undefined" */ ) _() {}
++func (T1) _(undefined /* ERROR "undefined" */ ) {}
+ func (T1) _() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
+ 
+-// Methods with undeclared receiver type can still be checked.
++// Methods with undefined receiver type can still be checked.
+ // Verify by checking that errors are reported.
+-func (Foo /* ERROR "undeclared" */ ) m() {}
+-func (Foo /* ERROR "undeclared" */ ) m(undeclared /* ERROR "undeclared" */ ) {}
+-func (Foo /* ERROR "undeclared" */ ) m() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
++func (Foo /* ERROR "undefined" */ ) m() {}
++func (Foo /* ERROR "undefined" */ ) m(undefined /* ERROR "undefined" */ ) {}
++func (Foo /* ERROR "undefined" */ ) m() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
+ 
+-func (Foo /* ERROR "undeclared" */ ) _() {}
+-func (Foo /* ERROR "undeclared" */ ) _(undeclared /* ERROR "undeclared" */ ) {}
+-func (Foo /* ERROR "undeclared" */ ) _() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
++func (Foo /* ERROR "undefined" */ ) _() {}
++func (Foo /* ERROR "undefined" */ ) _(undefined /* ERROR "undefined" */ ) {}
++func (Foo /* ERROR "undefined" */ ) _() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
+ 
+ // Receiver declarations are regular parameter lists;
+ // receiver types may use parentheses, and the list
+diff --git a/src/internal/types/testdata/check/errors.go b/src/internal/types/testdata/check/errors.go
+index 7cdc5fb5ff..b3ab8afcac 100644
+--- a/src/internal/types/testdata/check/errors.go
++++ b/src/internal/types/testdata/check/errors.go
+@@ -53,7 +53,7 @@ func _() {
+ // Don't report spurious errors as a consequence of earlier errors.
+ // Add more tests as needed.
+ func _() {
+-	if err := foo /* ERROR undeclared */ (); err != nil /* no error here */ {}
++	if err := foo /* ERROR undefined */ (); err != nil /* no error here */ {}
+ }
+ 
+ // Use unqualified names for package-local objects.
+@@ -61,6 +61,6 @@ type T struct{}
+ var _ int = T /* ERROR value of type T */ {} // use T in error message rather then errors.T
+ 
+ // Don't report errors containing "invalid type" (issue #24182).
+-func _(x *missing /* ERROR undeclared name: missing */ ) {
++func _(x *missing /* ERROR undefined: missing */ ) {
+ 	x.m() // there shouldn't be an error here referring to *invalid type
+ }
+diff --git a/src/internal/types/testdata/check/expr3.go b/src/internal/types/testdata/check/expr3.go
+index ba6c7dd314..abe209201a 100644
+--- a/src/internal/types/testdata/check/expr3.go
++++ b/src/internal/types/testdata/check/expr3.go
+@@ -309,7 +309,7 @@ func slice_literals() {
+ 	const index1 = 1
+ 	_ = S0{index1: 1}
+ 	_ = S0{index2: 2}
+-	_ = S0{index3 /* ERROR "undeclared name" */ : 3}
++	_ = S0{index3 /* ERROR "undefined" */ : 3}
+ 
+ 	// indices must be integer constants
+ 	i := 1
+@@ -385,7 +385,7 @@ func map_literals() {
+ 	key1 := "foo"
+ 	_ = M0{key1: 1}
+ 	_ = M0{key2: 2}
+-	_ = M0{key3 /* ERROR "undeclared name" */ : 2}
++	_ = M0{key3 /* ERROR "undefined" */ : 2}
+ 
+ 	var value int
+ 	_ = M1{true: 1, false: 0}
+diff --git a/src/internal/types/testdata/check/issues0.go b/src/internal/types/testdata/check/issues0.go
+index 5d6ed2bea7..8e277a7177 100644
+--- a/src/internal/types/testdata/check/issues0.go
++++ b/src/internal/types/testdata/check/issues0.go
+@@ -31,19 +31,19 @@ func issue8066() {
+ 
+ // Check that a missing identifier doesn't lead to a spurious error cascade.
+ func issue8799a() {
+-	x, ok := missing /* ERROR undeclared */ ()
++	x, ok := missing /* ERROR undefined */ ()
+ 	_ = !ok
+ 	_ = x
+ }
+ 
+ func issue8799b(x int, ok bool) {
+-	x, ok = missing /* ERROR undeclared */ ()
++	x, ok = missing /* ERROR undefined */ ()
+ 	_ = !ok
+ 	_ = x
+ }
+ 
+ func issue9182() {
+-	type Point C /* ERROR undeclared */ .Point
++	type Point C /* ERROR undefined */ .Point
+ 	// no error for composite literal based on unknown type
+ 	_ = Point{x: 1, y: 2}
+ }
+@@ -88,13 +88,13 @@ func issue10979() {
+ 		T /* ERROR non-interface type T */
+ 	}
+ 	type _ interface {
+-		nosuchtype /* ERROR undeclared name: nosuchtype */
++		nosuchtype /* ERROR undefined: nosuchtype */
+ 	}
+ 	type _ interface {
+ 		fmt.Nosuchtype /* ERROR Nosuchtype not declared by package fmt */
+ 	}
+ 	type _ interface {
+-		nosuchpkg /* ERROR undeclared name: nosuchpkg */ .Nosuchtype
++		nosuchpkg /* ERROR undefined: nosuchpkg */ .Nosuchtype
+ 	}
+ 	type I interface {
+ 		I.m /* ERROR no field or method m */
+@@ -207,11 +207,11 @@ func issue15755() {
+ // Test that we don't get "declared but not used"
+ // errors in the context of invalid/C objects.
+ func issue20358() {
+-	var F C /* ERROR "undeclared" */ .F
+-	var A C /* ERROR "undeclared" */ .A
+-	var S C /* ERROR "undeclared" */ .S
+-	type T C /* ERROR "undeclared" */ .T
+-	type P C /* ERROR "undeclared" */ .P
++	var F C /* ERROR "undefined" */ .F
++	var A C /* ERROR "undefined" */ .A
++	var S C /* ERROR "undefined" */ .S
++	type T C /* ERROR "undefined" */ .T
++	type P C /* ERROR "undefined" */ .P
+ 
+ 	// these variables must be "used" even though
+ 	// the LHS expressions/types below in which
+@@ -240,7 +240,7 @@ func issue24026() {
+ 	// b and c must not be visible inside function literal
+ 	a := 0
+ 	a, b, c := func() (int, int, int) {
+-		return a, b /* ERROR undeclared */ , c /* ERROR undeclared */
++		return a, b /* ERROR undefined */ , c /* ERROR undefined */
+ 	}()
+ 	_, _ = b, c
+ }
+@@ -313,7 +313,7 @@ type allocator struct {
+ 
+ // Test that we don't crash when type-checking composite literals
+ // containing errors in the type.
+-var issue27346 = [][n /* ERROR undeclared */ ]int{
++var issue27346 = [][n /* ERROR undefined */ ]int{
+ 	0: {},
+ }
+ 
+diff --git a/src/internal/types/testdata/check/stmt0.go b/src/internal/types/testdata/check/stmt0.go
+index 14a37c1ed9..799f5e7ebb 100644
+--- a/src/internal/types/testdata/check/stmt0.go
++++ b/src/internal/types/testdata/check/stmt0.go
+@@ -65,7 +65,7 @@ func assignments1() {
+ 	var u64 uint64
+ 	u64 += 1<<u64
+ 
+-	undeclared /* ERROR "undeclared" */ = 991
++	undefined /* ERROR "undefined" */ = 991
+ 
+ 	// test cases for issue 5800
+ 	var (
+diff --git a/src/internal/types/testdata/check/vardecl.go b/src/internal/types/testdata/check/vardecl.go
+index 11591af385..6f059fe6ec 100644
+--- a/src/internal/types/testdata/check/vardecl.go
++++ b/src/internal/types/testdata/check/vardecl.go
+@@ -158,9 +158,9 @@ func _() {
+ // Invalid variable declarations must not lead to "declared but not used errors".
+ // TODO(gri) enable these tests once go/types follows types2 logic for declared but not used variables
+ // func _() {
+-//	var a x                        // DISABLED_ERROR undeclared name: x
+-//	var b = x                      // DISABLED_ERROR undeclared name: x
+-//	var c int = x                  // DISABLED_ERROR undeclared name: x
++//	var a x                        // DISABLED_ERROR undefined: x
++//	var b = x                      // DISABLED_ERROR undefined: x
++//	var c int = x                  // DISABLED_ERROR undefined: x
+ //	var d, e, f x                  /* DISABLED_ERROR x */ /* DISABLED_ERROR x */ /* DISABLED_ERROR x */
+ //	var g, h, i = x, x, x          /* DISABLED_ERROR x */ /* DISABLED_ERROR x */ /* DISABLED_ERROR x */
+ //	var j, k, l float32 = x, x, x  /* DISABLED_ERROR x */ /* DISABLED_ERROR x */ /* DISABLED_ERROR x */
+@@ -204,11 +204,11 @@ var A /* ERROR initialization cycle */ = func() int { return A }()
+ 
+ func _() {
+ 	// The function literal below must not see a.
+-	var a = func() int { return a /* ERROR "undeclared name" */ }()
++	var a = func() int { return a /* ERROR "undefined" */ }()
+ 	var _ = func() int { return a }()
+ 
+ 	// The function literal below must not see x, y, or z.
+-	var x, y, z = 0, 1, func() int { return x /* ERROR "undeclared name" */ + y /* ERROR "undeclared name" */ + z /* ERROR "undeclared name" */ }()
++	var x, y, z = 0, 1, func() int { return x /* ERROR "undefined" */ + y /* ERROR "undefined" */ + z /* ERROR "undefined" */ }()
+ 	_, _, _ = x, y, z
+ }
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue39634.go b/src/internal/types/testdata/fixedbugs/issue39634.go
+index 9ec208454a..f89fe37015 100644
+--- a/src/internal/types/testdata/fixedbugs/issue39634.go
++++ b/src/internal/types/testdata/fixedbugs/issue39634.go
+@@ -9,9 +9,9 @@
+ package p
+ 
+ // crash 1
+-type nt1[_ any]interface{g /* ERROR undeclared name */ }
+-type ph1[e nt1[e],g(d /* ERROR undeclared name */ )]s /* ERROR undeclared name */
+-func(*ph1[e,e /* ERROR redeclared */ ])h(d /* ERROR undeclared name */ )
++type nt1[_ any]interface{g /* ERROR undefined */ }
++type ph1[e nt1[e],g(d /* ERROR undefined */ )]s /* ERROR undefined */
++func(*ph1[e,e /* ERROR redeclared */ ])h(d /* ERROR undefined */ )
+ 
+ // crash 2
+ // Disabled: empty []'s are now syntax errors. This example leads to too many follow-on errors.
+@@ -39,11 +39,11 @@ type foo9[A any] interface { foo9 /* ERROR invalid recursive type */ [A] }
+ func _() { var _ = new(foo9[int]) }
+ 
+ // crash 12
+-var u /* ERROR cycle */ , i [func /* ERROR used as value */ /* ERROR used as value */ (u, c /* ERROR undeclared */ /* ERROR undeclared */ ) {}(0, len /* ERROR must be called */ /* ERROR must be called */ )]c /* ERROR undeclared */ /* ERROR undeclared */
++var u /* ERROR cycle */ , i [func /* ERROR used as value */ /* ERROR used as value */ (u, c /* ERROR undefined */ /* ERROR undefined */ ) {}(0, len /* ERROR must be called */ /* ERROR must be called */ )]c /* ERROR undefined */ /* ERROR undefined */
+ 
+ // crash 15
+ func y15() { var a /* ERROR declared but not used */ interface{ p() } = G15[string]{} }
+-type G15[X any] s /* ERROR undeclared name */
++type G15[X any] s /* ERROR undefined */
+ func (G15 /* ERROR generic type .* without instantiation */ ) p()
+ 
+ // crash 16
+@@ -62,7 +62,7 @@ func F17[T Z17](T) {}
+ type o18[T any] []func(_ o18[[]_ /* ERROR cannot use _ */ ])
+ 
+ // crash 19
+-type Z19 [][[]Z19{}[0][0]]c19 /* ERROR undeclared */
++type Z19 [][[]Z19{}[0][0]]c19 /* ERROR undefined */
+ 
+ // crash 20
+ type Z20 /* ERROR invalid recursive type */ interface{ Z20 }
+diff --git a/src/internal/types/testdata/fixedbugs/issue43527.go b/src/internal/types/testdata/fixedbugs/issue43527.go
+index 2955c261f9..f9ff4b0163 100644
+--- a/src/internal/types/testdata/fixedbugs/issue43527.go
++++ b/src/internal/types/testdata/fixedbugs/issue43527.go
+@@ -8,7 +8,7 @@ const L = 10
+ 
+ type (
+ 	_        [L]struct{}
+-	_        [A /* ERROR undeclared name A for array length */ ]struct{}
++	_        [A /* ERROR undefined A for array length */ ]struct{}
+ 	_        [B /* ERROR invalid array length B */ ]struct{}
+ 	_[A any] struct{}
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue45635.go b/src/internal/types/testdata/fixedbugs/issue45635.go
+index fc50797b17..af05ff019f 100644
+--- a/src/internal/types/testdata/fixedbugs/issue45635.go
++++ b/src/internal/types/testdata/fixedbugs/issue45635.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func main() {
+-	some /* ERROR "undeclared name" */ [int, int]()
++	some /* ERROR "undefined" */ [int, int]()
+ }
+ 
+ type N[T any] struct{}
+diff --git a/src/internal/types/testdata/fixedbugs/issue49005.go b/src/internal/types/testdata/fixedbugs/issue49005.go
+index 7083dc9eef..5f551b9b8c 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49005.go
++++ b/src/internal/types/testdata/fixedbugs/issue49005.go
+@@ -8,11 +8,11 @@ type T1 interface{ M() }
+ 
+ func F1() T1
+ 
+-var _ = F1().(*X1 /* ERROR undeclared name: X1 */)
++var _ = F1().(*X1 /* ERROR undefined: X1 */)
+ 
+ func _() {
+ 	switch F1().(type) {
+-	case *X1 /* ERROR undeclared name: X1 */ :
++	case *X1 /* ERROR undefined: X1 */ :
+ 	}
+ }
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue49482.go b/src/internal/types/testdata/fixedbugs/issue49482.go
+index d5c52dc288..2b9e7482c8 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49482.go
++++ b/src/internal/types/testdata/fixedbugs/issue49482.go
+@@ -9,7 +9,7 @@ type _[P *struct{}] struct{}
+ type _[P *int,] int
+ type _[P (*int),] int
+ 
+-const P = 2 // declare P to avoid noisy 'undeclared name' errors below.
++const P = 2 // declare P to avoid noisy 'undefined' errors below.
+ 
+ // The following parse as invalid array types due to parsing ambiguitiues.
+ type _ [P *int /* ERROR "int \(type\) is not an expression" */ ]int
+diff --git a/src/internal/types/testdata/fixedbugs/issue50929.go b/src/internal/types/testdata/fixedbugs/issue50929.go
+index 3629ecf104..45e075191d 100644
+--- a/src/internal/types/testdata/fixedbugs/issue50929.go
++++ b/src/internal/types/testdata/fixedbugs/issue50929.go
+@@ -52,7 +52,7 @@ func MMD[Rc RC /* ERROR got 1 arguments */ [RG], RG any, G any]() M /* ERROR got
+ 
+ 	var empty Rc
+ 	switch any(empty).(type) {
+-	case BC /* ERROR undeclared name: BC */ :
++	case BC /* ERROR undefined: BC */ :
+ 
+ 	case RSC[G]:
+ 		nFn = NSG /* ERROR cannot use NSG\[G\] */ [G]
+diff --git a/src/internal/types/testdata/fixedbugs/issue54405.go b/src/internal/types/testdata/fixedbugs/issue54405.go
+index e89d5e1b80..611d83058d 100644
+--- a/src/internal/types/testdata/fixedbugs/issue54405.go
++++ b/src/internal/types/testdata/fixedbugs/issue54405.go
+@@ -8,9 +8,9 @@
+ package p
+ 
+ var x struct {
+-	f *NotAType /* ERROR undeclared name */
++	f *NotAType /* ERROR undefined */
+ }
+ var _ = x.f == nil // no error expected here
+ 
+-var y *NotAType  /* ERROR undeclared name */
++var y *NotAType  /* ERROR undefined */
+ var _ = y == nil // no error expected here

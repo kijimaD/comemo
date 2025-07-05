@@ -14,10 +14,104 @@ Date:   Thu Nov 10 16:02:48 2022 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/build/deps_test.go                                      | 2 +-
  src/{os/signal/internal/pty => internal/testpty}/pty.go        | 5 ++---
  src/{os/signal/internal/pty => internal/testpty}/pty_cgo.go    | 2 +-
  src/{os/signal/internal/pty => internal/testpty}/pty_darwin.go | 2 +-
  src/os/signal/signal_cgo_test.go                               | 6 +++---
  5 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 39609521c3..d275822ce5 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -558,7 +558,7 @@ var depsRules = `
+ 	< internal/obscuretestdata;
+ 
+ 	CGO, OS, fmt
+-	< os/signal/internal/pty;
++	< internal/testpty;
+ 
+ 	NET, testing, math/rand
+ 	< golang.org/x/net/nettest;
+diff --git a/src/os/signal/internal/pty/pty.go b/src/internal/testpty/pty.go
+similarity index 86%
+rename from src/os/signal/internal/pty/pty.go
+rename to src/internal/testpty/pty.go
+index 4bb0391036..88a47cf85f 100644
+--- a/src/os/signal/internal/pty/pty.go
++++ b/src/internal/testpty/pty.go
+@@ -4,10 +4,9 @@
+ 
+ //go:build ((aix || dragonfly || freebsd || (linux && !android) || netbsd || openbsd) && cgo) || darwin
+ 
+-// Package pty is a simple pseudo-terminal package for Unix systems,
++// Package testpty is a simple pseudo-terminal package for Unix systems,
+ // implemented by calling C functions via cgo.
+-// This is only used for testing the os/signal package.
+-package pty
++package testpty
+ 
+ import (
+ 	"fmt"
+diff --git a/src/os/signal/internal/pty/pty_cgo.go b/src/internal/testpty/pty_cgo.go
+similarity index 98%
+rename from src/os/signal/internal/pty/pty_cgo.go
+rename to src/internal/testpty/pty_cgo.go
+index 47ca71bc65..1db6a925af 100644
+--- a/src/os/signal/internal/pty/pty_cgo.go
++++ b/src/internal/testpty/pty_cgo.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build cgo && (aix || dragonfly || freebsd || (linux && !android) || netbsd || openbsd)
+ 
+-package pty
++package testpty
+ 
+ /*
+ #define _XOPEN_SOURCE 600
+diff --git a/src/os/signal/internal/pty/pty_darwin.go b/src/internal/testpty/pty_darwin.go
+similarity index 97%
+rename from src/os/signal/internal/pty/pty_darwin.go
+rename to src/internal/testpty/pty_darwin.go
+index 6fc49f3c9a..f29517c0e2 100644
+--- a/src/os/signal/internal/pty/pty_darwin.go
++++ b/src/internal/testpty/pty_darwin.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package pty
++package testpty
+ 
+ import (
+ 	"internal/syscall/unix"
+diff --git a/src/os/signal/signal_cgo_test.go b/src/os/signal/signal_cgo_test.go
+index 5cfb00632d..ac5921591e 100644
+--- a/src/os/signal/signal_cgo_test.go
++++ b/src/os/signal/signal_cgo_test.go
+@@ -14,10 +14,10 @@ import (
+ 	"context"
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/testpty"
+ 	"os"
+ 	"os/exec"
+ 	"os/signal"
+-	ptypkg "os/signal/internal/pty"
+ 	"runtime"
+ 	"strconv"
+ 	"syscall"
+@@ -105,9 +105,9 @@ func TestTerminalSignal(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	pty, procTTYName, err := ptypkg.Open()
++	pty, procTTYName, err := testpty.Open()
+ 	if err != nil {
+-		ptyErr := err.(*ptypkg.PtyError)
++		ptyErr := err.(*testpty.PtyError)
+ 		if ptyErr.FuncName == "posix_openpt" && ptyErr.Errno == syscall.EACCES {
+ 			t.Skip("posix_openpt failed with EACCES, assuming chroot and skipping")
+ 		}

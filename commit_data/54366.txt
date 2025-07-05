@@ -11,6 +11,21 @@ Date:   Tue May 17 02:10:45 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/go/parser/parser.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 89ed0e433f..bd7b3945ea 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1307,8 +1307,7 @@ func (p *parser) tryIdentOrType() ast.Expr {
+ 	case token.MUL:
+ 		return p.parsePointerType()
+ 	case token.FUNC:
+-		typ := p.parseFuncType()
+-		return typ
++		return p.parseFuncType()
+ 	case token.INTERFACE:
+ 		return p.parseInterfaceType()
+ 	case token.MAP:

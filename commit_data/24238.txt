@@ -9,6 +9,20 @@ Date:   Fri Jul 17 09:49:33 2015 -0700
     Change-Id: I5bc7c17e737d1cabe57b88de06d7579c60ca28ff
     Reviewed-on: https://go-review.googlesource.com/12328
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/mgcsweep.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index acad55e777..800e919827 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -170,7 +170,7 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
+ 	cl := s.sizeclass
+ 	size := s.elemsize
+ 	res := false
+-	nfree := 0 // Set to -1 for large span
++	nfree := 0
+ 
+ 	var head, end gclinkptr
+ 

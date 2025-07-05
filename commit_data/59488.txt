@@ -39,7 +39,109 @@ Date:   Sun Oct 1 12:15:14 2023 -0700
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/strings/strings.go      | 38 ++++++++++++++++++++++++++++++++++++++
  src/strings/strings_test.go | 20 ++++++++++++++++++++
  2 files changed, 58 insertions(+)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index f3f0723721..f53ae1f9a7 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -530,6 +530,27 @@ func Map(mapping func(rune) rune, s string) string {
+ 	return b.String()
+ }
+ 
++// According to static analysis, spaces, dashes, zeros, equals, and tabs
++// are the most commonly repeated string literal,
++// often used for display on fixed-width terminal windows.
++// Pre-declare constants for these for O(1) repetition in the common-case.
++const (
++	repeatedSpaces = "" +
++		"                                                                " +
++		"                                                                "
++	repeatedDashes = "" +
++		"----------------------------------------------------------------" +
++		"----------------------------------------------------------------"
++	repeatedZeroes = "" +
++		"0000000000000000000000000000000000000000000000000000000000000000"
++	repeatedEquals = "" +
++		"================================================================" +
++		"================================================================"
++	repeatedTabs = "" +
++		"\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t" +
++		"\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t"
++)
++
+ // Repeat returns a new string consisting of count copies of the string s.
+ //
+ // It panics if count is negative or if the result of (len(s) * count)
+@@ -557,6 +578,23 @@ func Repeat(s string, count int) string {
+ 		return ""
+ 	}
+ 
++	// Optimize for commonly repeated strings of relatively short length.
++	switch s[0] {
++	case ' ', '-', '0', '=', '\t':
++		switch {
++		case n <= len(repeatedSpaces) && HasPrefix(repeatedSpaces, s):
++			return repeatedSpaces[:n]
++		case n <= len(repeatedDashes) && HasPrefix(repeatedDashes, s):
++			return repeatedDashes[:n]
++		case n <= len(repeatedZeroes) && HasPrefix(repeatedZeroes, s):
++			return repeatedZeroes[:n]
++		case n <= len(repeatedEquals) && HasPrefix(repeatedEquals, s):
++			return repeatedEquals[:n]
++		case n <= len(repeatedTabs) && HasPrefix(repeatedTabs, s):
++			return repeatedTabs[:n]
++		}
++	}
++
+ 	// Past a certain chunk size it is counterproductive to use
+ 	// larger chunks as the source of the write, as when the source
+ 	// is too large we are basically just thrashing the CPU D-cache.
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index f93cf6842f..ac493c7dcd 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -1111,6 +1111,13 @@ func TestCaseConsistency(t *testing.T) {
+ }
+ 
+ var longString = "a" + string(make([]byte, 1<<16)) + "z"
++var longSpaces = func() string {
++	b := make([]byte, 200)
++	for i := range b {
++		b[i] = ' '
++	}
++	return string(b)
++}()
+ 
+ var RepeatTests = []struct {
+ 	in, out string
+@@ -1123,6 +1130,12 @@ var RepeatTests = []struct {
+ 	{"-", "-", 1},
+ 	{"-", "----------", 10},
+ 	{"abc ", "abc abc abc ", 3},
++	{" ", " ", 1},
++	{"--", "----", 2},
++	{"===", "======", 2},
++	{"000", "000000000", 3},
++	{"\t\t\t\t", "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t", 4},
++	{" ", longSpaces, len(longSpaces)},
+ 	// Tests for results over the chunkLimit
+ 	{string(rune(0)), string(make([]byte, 1<<16)), 1 << 16},
+ 	{longString, longString + longString, 2},
+@@ -1925,6 +1938,13 @@ func BenchmarkRepeatLarge(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkRepeatSpaces(b *testing.B) {
++	b.ReportAllocs()
++	for i := 0; i < b.N; i++ {
++		Repeat(" ", 2)
++	}
++}
++
+ func BenchmarkIndexAnyASCII(b *testing.B) {
+ 	x := Repeat("#", 2048) // Never matches set
+ 	cs := "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"

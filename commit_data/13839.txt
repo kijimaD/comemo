@@ -10,6 +10,26 @@ Date:   Mon Sep 17 11:21:02 2012 -0700
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/6500136
-
+---
  misc/dashboard/builder/main.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 8c6b65caeb..5e30115edf 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -360,7 +360,13 @@ func (b *Builder) buildSubrepo(goRoot, pkg, hash string) (string, error) {
+ 		err = fmt.Errorf("go exited with status %d", status)
+ 	}
+ 	if err != nil {
+-		return log, err
++		// 'go get -d' will fail for a subrepo because its top-level
++		// directory does not contain a go package. No matter, just
++		// check whether an hg directory exists and proceed.
++		hgDir := filepath.Join(goRoot, "src/pkg", pkg, ".hg")
++		if fi, e := os.Stat(hgDir); e != nil || !fi.IsDir() {
++			return log, err
++		}
+ 	}
+ 
+ 	// hg update to the specified hash

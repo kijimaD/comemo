@@ -10,7 +10,42 @@ Date:   Tue Jan 10 18:30:06 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5530072
-
+---
  src/pkg/exp/types/universe.go | 1 +
  src/pkg/go/ast/scope.go       | 4 +++-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/types/universe.go b/src/pkg/exp/types/universe.go
+index 780b82625f..46cff31bce 100644
+--- a/src/pkg/exp/types/universe.go
++++ b/src/pkg/exp/types/universe.go
+@@ -20,6 +20,7 @@ func define(kind ast.ObjKind, name string) *ast.Object {
+ 	if scope.Insert(obj) != nil {
+ 		panic("types internal error: double declaration")
+ 	}
++	obj.Decl = scope
+ 	return obj
+ }
+ 
+diff --git a/src/pkg/go/ast/scope.go b/src/pkg/go/ast/scope.go
+index fbe4779671..11e6b13f16 100644
+--- a/src/pkg/go/ast/scope.go
++++ b/src/pkg/go/ast/scope.go
+@@ -80,7 +80,7 @@ func (s *Scope) String() string {
+ type Object struct {
+ 	Kind ObjKind
+ 	Name string      // declared name
+-	Decl interface{} // corresponding Field, XxxSpec, FuncDecl, LabeledStmt, or AssignStmt; or nil
++	Decl interface{} // corresponding Field, XxxSpec, FuncDecl, LabeledStmt, AssignStmt, Scope; or nil
+ 	Data interface{} // object-specific data; or nil
+ 	Type interface{} // place holder for type information; may be nil
+ }
+@@ -131,6 +131,8 @@ func (obj *Object) Pos() token.Pos {
+ 				return ident.Pos()
+ 			}
+ 		}
++	case *Scope:
++		// predeclared object - nothing to do for now
+ 	}
+ 	return token.NoPos
+ }

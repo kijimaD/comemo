@@ -12,8 +12,125 @@ Date:   Wed Aug 31 23:34:26 2022 +0800
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/load.go                | 27 +++++++-------
  src/cmd/go/internal/web/api.go                     | 14 +++++---
  .../mod_fileproxy_vcs_missing_issue51589.txt       | 42 ++++++++++++++++++++++
  3 files changed, 65 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 09572bf1b1..fcd93ba94b 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1151,22 +1151,23 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 		rs, err := tidyRoots(ctx, ld.requirements, ld.pkgs)
+ 		if err != nil {
+ 			ld.errorf("go: %v\n", err)
+-		}
+-
+-		if ld.requirements.pruning == pruned {
+-			// We continuously add tidy roots to ld.requirements during loading, so at
+-			// this point the tidy roots should be a subset of the roots of
+-			// ld.requirements, ensuring that no new dependencies are brought inside
+-			// the graph-pruning horizon.
+-			// If that is not the case, there is a bug in the loading loop above.
+-			for _, m := range rs.rootModules {
+-				if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
+-					ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading\n", m)
+-					base.ExitIfErrors()
++			base.ExitIfErrors()
++		} else {
++			if ld.requirements.pruning == pruned {
++				// We continuously add tidy roots to ld.requirements during loading, so at
++				// this point the tidy roots should be a subset of the roots of
++				// ld.requirements, ensuring that no new dependencies are brought inside
++				// the graph-pruning horizon.
++				// If that is not the case, there is a bug in the loading loop above.
++				for _, m := range rs.rootModules {
++					if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
++						ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading\n", m)
++						base.ExitIfErrors()
++					}
+ 				}
+ 			}
++			ld.requirements = rs
+ 		}
+-		ld.requirements = rs
+ 	}
+ 
+ 	// Report errors, if any.
+diff --git a/src/cmd/go/internal/web/api.go b/src/cmd/go/internal/web/api.go
+index 9053b16b62..1e2ba9c419 100644
+--- a/src/cmd/go/internal/web/api.go
++++ b/src/cmd/go/internal/web/api.go
+@@ -54,12 +54,16 @@ func (e *HTTPError) Error() string {
+ 		return fmt.Sprintf("reading %s: %v\n\tserver response:%s%s", e.URL, e.Status, detailSep, e.Detail)
+ 	}
+ 
+-	if err := e.Err; err != nil {
+-		if pErr, ok := e.Err.(*fs.PathError); ok && strings.HasSuffix(e.URL, pErr.Path) {
+-			// Remove the redundant copy of the path.
+-			err = pErr.Err
++	if eErr := e.Err; eErr != nil {
++		if pErr, ok := e.Err.(*fs.PathError); ok {
++			if u, err := url.Parse(e.URL); err == nil {
++				if fp, err := urlToFilePath(u); err == nil && pErr.Path == fp {
++					// Remove the redundant copy of the path.
++					eErr = pErr.Err
++				}
++			}
+ 		}
+-		return fmt.Sprintf("reading %s: %v", e.URL, err)
++		return fmt.Sprintf("reading %s: %v", e.URL, eErr)
+ 	}
+ 
+ 	return fmt.Sprintf("reading %s: %v", e.URL, e.Status)
+diff --git a/src/cmd/go/testdata/script/mod_fileproxy_vcs_missing_issue51589.txt b/src/cmd/go/testdata/script/mod_fileproxy_vcs_missing_issue51589.txt
+new file mode 100644
+index 0000000000..2db39783a2
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_fileproxy_vcs_missing_issue51589.txt
+@@ -0,0 +1,42 @@
++# This test checks that "go mod tidy -e" do not panic when
++# using a file goproxy that is missing some modules.
++# Verifies golang.org/issue/51589
++
++# download the modules first
++env GO111MODULE=on
++env GOPATH=$WORK/gopath
++cd $WORK/x
++go mod tidy
++
++# Use download cache as file:/// proxy.
++[windows] env GOPROXY=file:///$WORK/gopath/pkg/mod/cache/download
++[!windows] env GOPROXY=file://$WORK/gopath/pkg/mod/cache/download
++rm $WORK/gopath/pkg/mod/cache/download/golang.org/x/text/
++go mod tidy -e
++stderr '^go: rsc.io/sampler@v1.3.0 requires\n\tgolang.org/x/text@.*: reading file://.*/pkg/mod/cache/download/golang.org/x/text/.*'
++! stderr 'signal SIGSEGV: segmentation violation'
++
++-- $WORK/x/go.mod --
++module example.com/mod
++
++go 1.17
++
++require rsc.io/quote v1.5.2
++
++require (
++	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
++	rsc.io/sampler v1.3.0 // indirect
++)
++
++-- $WORK/x/x.go --
++package mod
++
++import (
++	"fmt"
++
++	"rsc.io/quote"
++)
++
++func Echo() {
++	fmt.Println(quote.Hello())
++}
+\ No newline at end of file

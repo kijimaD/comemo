@@ -7,7 +7,95 @@ Date:   Wed Aug 12 14:29:50 2015 -0700
     Change-Id: Ib79ab787fdc90a5a29b25474d91afa9bfaf51276
     Reviewed-on: https://go-review.googlesource.com/13589
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go | 21 ++++++++++++---------
  src/cmd/compile/internal/gc/go.go     |  2 +-
  2 files changed, 13 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 66ae8816c3..234af6cc31 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -31,7 +31,7 @@ func exportsym(n *Node) {
+ 	if Debug['E'] != 0 {
+ 		fmt.Printf("export symbol %v\n", n.Sym)
+ 	}
+-	exportlist = list(exportlist, n)
++	exportlist = append(exportlist, n)
+ }
+ 
+ func exportname(s string) bool {
+@@ -124,7 +124,7 @@ func reexportdep(n *Node) {
+ 				if Debug['E'] != 0 {
+ 					fmt.Printf("reexport name %v\n", n.Sym)
+ 				}
+-				exportlist = list(exportlist, n)
++				exportlist = append(exportlist, n)
+ 			}
+ 		}
+ 
+@@ -140,7 +140,7 @@ func reexportdep(n *Node) {
+ 				if Debug['E'] != 0 {
+ 					fmt.Printf("reexport type %v from declaration\n", t.Sym)
+ 				}
+-				exportlist = list(exportlist, t.Sym.Def)
++				exportlist = append(exportlist, t.Sym.Def)
+ 			}
+ 		}
+ 
+@@ -154,7 +154,7 @@ func reexportdep(n *Node) {
+ 				if Debug['E'] != 0 {
+ 					fmt.Printf("reexport literal type %v\n", t.Sym)
+ 				}
+-				exportlist = list(exportlist, t.Sym.Def)
++				exportlist = append(exportlist, t.Sym.Def)
+ 			}
+ 		}
+ 		fallthrough
+@@ -164,7 +164,7 @@ func reexportdep(n *Node) {
+ 			if Debug['E'] != 0 {
+ 				fmt.Printf("reexport literal/type %v\n", n.Sym)
+ 			}
+-			exportlist = list(exportlist, n)
++			exportlist = append(exportlist, n)
+ 		}
+ 
+ 		// for operations that need a type when rendered, put the type on the export list.
+@@ -193,7 +193,7 @@ func reexportdep(n *Node) {
+ 			if Debug['E'] != 0 {
+ 				fmt.Printf("reexport type for expression %v\n", t.Sym)
+ 			}
+-			exportlist = list(exportlist, t.Sym.Def)
++			exportlist = append(exportlist, t.Sym.Def)
+ 		}
+ 	}
+ 
+@@ -376,9 +376,12 @@ func dumpexport() {
+ 		}
+ 	}
+ 
+-	for l := exportlist; l != nil; l = l.Next {
+-		lineno = l.N.Lineno
+-		dumpsym(l.N.Sym)
++	// exportlist grows during iteration - cannot use range
++	for len(exportlist) > 0 {
++		n := exportlist[0]
++		exportlist = exportlist[1:]
++		lineno = n.Lineno
++		dumpsym(n.Sym)
+ 	}
+ 
+ 	fmt.Fprintf(bout, "\n$$\n")
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 9874ff7b60..be56b81725 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -586,7 +586,7 @@ var xtop *NodeList
+ 
+ var externdcl *NodeList
+ 
+-var exportlist *NodeList
++var exportlist []*Node
+ 
+ var importlist *NodeList // imported functions and methods with inlinable bodies
+ 

@@ -11,6 +11,20 @@ Date:   Tue Dec 15 15:46:48 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/17874
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/sigtab_linux_mips64x.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sigtab_linux_mips64x.go b/src/runtime/sigtab_linux_mips64x.go
+index 3853176a03..2c0003f72b 100644
+--- a/src/runtime/sigtab_linux_mips64x.go
++++ b/src/runtime/sigtab_linux_mips64x.go
+@@ -20,7 +20,7 @@ var sigtable = [...]sigTabT{
+ 	/* 4 */ {_SigThrow + _SigUnblock, "SIGILL: illegal instruction"},
+ 	/* 5 */ {_SigThrow + _SigUnblock, "SIGTRAP: trace trap"},
+ 	/* 6 */ {_SigNotify + _SigThrow, "SIGABRT: abort"},
+-	/* 7 */ {_SigNotify, "SIGEMT"},
++	/* 7 */ {_SigThrow, "SIGEMT"},
+ 	/* 8 */ {_SigPanic + _SigUnblock, "SIGFPE: floating-point exception"},
+ 	/* 9 */ {0, "SIGKILL: kill"},
+ 	/* 10 */ {_SigPanic + _SigUnblock, "SIGBUS: bus error"},

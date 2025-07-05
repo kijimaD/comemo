@@ -15,6 +15,22 @@ Date:   Tue Jan 31 09:45:13 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5602043
-
+---
  src/pkg/net/http/transport.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index 4de070f01f..693215edd4 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -535,7 +535,9 @@ func (pc *persistConn) readLoop() {
+ 		}
+ 		resp, err := ReadResponse(pc.br, rc.req)
+ 
+-		if err == nil {
++		if err != nil {
++			pc.close()
++		} else {
+ 			hasBody := rc.req.Method != "HEAD" && resp.ContentLength != 0
+ 			if rc.addedGzip && hasBody && resp.Header.Get("Content-Encoding") == "gzip" {
+ 				resp.Header.Del("Content-Encoding")

@@ -36,7 +36,7 @@ Date:   Mon Nov 29 11:45:17 2021 -0800
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/decl.go         |  4 ++++
  src/cmd/compile/internal/types/size.go         | 15 ++++++++++-----
  src/cmd/compile/internal/types2/stdlib_test.go |  2 ++
@@ -45,3 +45,177 @@ Date:   Mon Nov 29 11:45:17 2021 -0800
  test/fixedbugs/issue49814.go                   | 14 ++++++++++++++
  test/run.go                                    | 15 ++++++++-------
  7 files changed, 52 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index 027c8598fd..b7fd95e2e8 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -160,6 +160,8 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+ }
+ 
+ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
++	// Set the position for any error messages we might print (e.g. too large types).
++	base.Pos = g.pos(decl)
+ 	assert(g.curDecl == "")
+ 	// Set g.curDecl to the type name, as context for the type params declared
+ 	// during types2-to-types1 translation if this is a generic type.
+@@ -244,6 +246,8 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
+ 
+ func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
+ 	pos := g.pos(decl)
++	// Set the position for any error messages we might print (e.g. too large types).
++	base.Pos = pos
+ 	names := make([]*ir.Name, len(decl.NameList))
+ 	for i, name := range decl.NameList {
+ 		names[i], _ = g.def(name)
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index 0f3db06c1d..fb6accdc64 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -450,16 +450,21 @@ func CalcSize(t *Type) {
+ 
+ 		CheckSize(t.Elem())
+ 
+-		// make fake type to check later to
+-		// trigger channel argument check.
++		// Make fake type to trigger channel element size check after
++		// any top-level recursive type has been completed.
+ 		t1 := NewChanArgs(t)
+ 		CheckSize(t1)
+ 
+ 	case TCHANARGS:
+ 		t1 := t.ChanArgs()
+ 		CalcSize(t1) // just in case
++		// Make sure size of t1.Elem() is calculated at this point. We can
++		// use CalcSize() here rather than CheckSize(), because the top-level
++		// (possibly recursive) type will have been calculated before the fake
++		// chanargs is handled.
++		CalcSize(t1.Elem())
+ 		if t1.Elem().width >= 1<<16 {
+-			base.ErrorfAt(typePos(t1), "channel element type too large (>64kB)")
++			base.Errorf("channel element type too large (>64kB)")
+ 		}
+ 		w = 1 // anything will do
+ 
+@@ -492,7 +497,7 @@ func CalcSize(t *Type) {
+ 		if t.Elem().width != 0 {
+ 			cap := (uint64(MaxWidth) - 1) / uint64(t.Elem().width)
+ 			if uint64(t.NumElem()) > cap {
+-				base.ErrorfAt(typePos(t), "type %L larger than address space", t)
++				base.Errorf("type %L larger than address space", t)
+ 			}
+ 		}
+ 		w = t.NumElem() * t.Elem().width
+@@ -539,7 +544,7 @@ func CalcSize(t *Type) {
+ 	}
+ 
+ 	if PtrSize == 4 && w != int64(int32(w)) {
+-		base.ErrorfAt(typePos(t), "type %v too large", t)
++		base.Errorf("type %v too large", t)
+ 	}
+ 
+ 	t.width = w
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 9c22f01673..5ac01ac253 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -194,6 +194,8 @@ func TestStdFixed(t *testing.T) {
+ 		"issue42058b.go", // types2 does not have constraints on channel element size
+ 		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
+ 		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
++		"issue49767.go",  // go/types does not have constraints on channel element size
++		"issue49814.go",  // go/types does not have constraints on array size
+ 	)
+ }
+ 
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index b0d7fdd3d9..c56e0ba428 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -196,6 +196,8 @@ func TestStdFixed(t *testing.T) {
+ 		"issue42058b.go", // go/types does not have constraints on channel element size
+ 		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
+ 		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
++		"issue49767.go",  // go/types does not have constraints on channel element size
++		"issue49814.go",  // go/types does not have constraints on array size
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue49767.go b/test/fixedbugs/issue49767.go
+new file mode 100644
+index 0000000000..e25081dc93
+--- /dev/null
++++ b/test/fixedbugs/issue49767.go
+@@ -0,0 +1,12 @@
++// errorcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	ch := make(chan struct{ v [65536]byte }) // ERROR "channel element type too large"
++	close(ch)
++}
+diff --git a/test/fixedbugs/issue49814.go b/test/fixedbugs/issue49814.go
+new file mode 100644
+index 0000000000..fd487d8ccb
+--- /dev/null
++++ b/test/fixedbugs/issue49814.go
+@@ -0,0 +1,14 @@
++// errorcheck -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// "must be integer" error is for 32-bit architectures
++type V [1 << 50]byte // ERROR "larger than address space|must be integer"
++
++var X [1 << 50]byte // ERROR "larger than address space|must be integer"
++
++func main() {}
+diff --git a/test/run.go b/test/run.go
+index bdc2f0a277..c6e82891da 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2153,8 +2153,6 @@ var types2Failures = setOf(
+ 	"fixedbugs/issue28268.go",  // types2 reports follow-on errors
+ 	"fixedbugs/issue31053.go",  // types2 reports "unknown field" instead of "cannot refer to unexported field"
+ 	"fixedbugs/issue33460.go",  // types2 reports alternative positions in separate error
+-	"fixedbugs/issue42058a.go", // types2 doesn't report "channel element type too large"
+-	"fixedbugs/issue42058b.go", // types2 doesn't report "channel element type too large"
+ 	"fixedbugs/issue4232.go",   // types2 reports (correct) extra errors
+ 	"fixedbugs/issue4452.go",   // types2 reports (correct) extra errors
+ 	"fixedbugs/issue4510.go",   // types2 reports different (but ok) line numbers
+@@ -2171,7 +2169,6 @@ var types2Failures32Bit = setOf(
+ 	"printbig.go",             // large untyped int passed to print (32-bit)
+ 	"fixedbugs/bug114.go",     // large untyped int passed to println (32-bit)
+ 	"fixedbugs/issue23305.go", // large untyped int passed to println (32-bit)
+-	"fixedbugs/bug385_32.go",  // types2 doesn't produce missing error "type .* too large" (32-bit specific)
+ )
+ 
+ var g3Failures = setOf(
+@@ -2183,10 +2180,14 @@ var unifiedFailures = setOf(
+ 	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
+ 	"inline.go",   // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
+ 
+-	"fixedbugs/issue42284.go", // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
+-	"fixedbugs/issue7921.go",  // prints "… escapes to heap", but test expects "string(…) escapes to heap"
+-	"typeparam/issue48538.go", // assertion failure, interprets struct key as closure variable
+-	"typeparam/issue47631.go", // unified IR can handle local type declarations
++	"fixedbugs/issue42284.go",  // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
++	"fixedbugs/issue7921.go",   // prints "… escapes to heap", but test expects "string(…) escapes to heap"
++	"typeparam/issue48538.go",  // assertion failure, interprets struct key as closure variable
++	"typeparam/issue47631.go",  // unified IR can handle local type declarations
++	"fixedbugs/issue42058a.go", // unified IR doesn't report channel element too large
++	"fixedbugs/issue42058b.go", // unified IR doesn't report channel element too large
++	"fixedbugs/issue49767.go",  // unified IR doesn't report channel element too large
++	"fixedbugs/issue49814.go",  // unified IR doesn't report array type too large
+ )
+ 
+ func setOf(keys ...string) map[string]bool {

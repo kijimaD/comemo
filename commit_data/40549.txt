@@ -25,10 +25,225 @@ Date:   Fri May 17 14:48:04 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/177857
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/export_test.go | 41 ++++++++++++++++++++++++++---------------
  src/runtime/mcache.go      | 11 +++++++----
  src/runtime/mgc.go         | 33 ++++++++++++++++++++++-----------
  src/runtime/mheap.go       | 11 ++++++-----
  src/runtime/mstats.go      |  3 +++
  5 files changed, 64 insertions(+), 35 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 3c3e110f89..62b7730c44 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -545,18 +545,23 @@ type Span struct {
+ }
+ 
+ func AllocSpan(base, npages uintptr, scavenged bool) Span {
+-	lock(&mheap_.lock)
+-	s := (*mspan)(mheap_.spanalloc.alloc())
+-	unlock(&mheap_.lock)
++	var s *mspan
++	systemstack(func() {
++		lock(&mheap_.lock)
++		s = (*mspan)(mheap_.spanalloc.alloc())
++		unlock(&mheap_.lock)
++	})
+ 	s.init(base, npages)
+ 	s.scavenged = scavenged
+ 	return Span{s}
+ }
+ 
+ func (s *Span) Free() {
+-	lock(&mheap_.lock)
+-	mheap_.spanalloc.free(unsafe.Pointer(s.mspan))
+-	unlock(&mheap_.lock)
++	systemstack(func() {
++		lock(&mheap_.lock)
++		mheap_.spanalloc.free(unsafe.Pointer(s.mspan))
++		unlock(&mheap_.lock)
++	})
+ 	s.mspan = nil
+ }
+ 
+@@ -629,9 +634,11 @@ func (t *Treap) Insert(s Span) {
+ 	// allocation which requires the mheap_ lock to manipulate.
+ 	// Locking here is safe because the treap itself never allocs
+ 	// or otherwise ends up grabbing this lock.
+-	lock(&mheap_.lock)
+-	t.insert(s.mspan)
+-	unlock(&mheap_.lock)
++	systemstack(func() {
++		lock(&mheap_.lock)
++		t.insert(s.mspan)
++		unlock(&mheap_.lock)
++	})
+ 	t.CheckInvariants()
+ }
+ 
+@@ -644,17 +651,21 @@ func (t *Treap) Erase(i TreapIter) {
+ 	// freeing which requires the mheap_ lock to manipulate.
+ 	// Locking here is safe because the treap itself never allocs
+ 	// or otherwise ends up grabbing this lock.
+-	lock(&mheap_.lock)
+-	t.erase(i.treapIter)
+-	unlock(&mheap_.lock)
++	systemstack(func() {
++		lock(&mheap_.lock)
++		t.erase(i.treapIter)
++		unlock(&mheap_.lock)
++	})
+ 	t.CheckInvariants()
+ }
+ 
+ func (t *Treap) RemoveSpan(s Span) {
+ 	// See Erase about locking.
+-	lock(&mheap_.lock)
+-	t.removeSpan(s.mspan)
+-	unlock(&mheap_.lock)
++	systemstack(func() {
++		lock(&mheap_.lock)
++		t.removeSpan(s.mspan)
++		unlock(&mheap_.lock)
++	})
+ 	t.CheckInvariants()
+ }
+ 
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 7895e489bc..0cb21f7190 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -83,10 +83,13 @@ type stackfreelist struct {
+ var emptymspan mspan
+ 
+ func allocmcache() *mcache {
+-	lock(&mheap_.lock)
+-	c := (*mcache)(mheap_.cachealloc.alloc())
+-	c.flushGen = mheap_.sweepgen
+-	unlock(&mheap_.lock)
++	var c *mcache
++	systemstack(func() {
++		lock(&mheap_.lock)
++		c = (*mcache)(mheap_.cachealloc.alloc())
++		c.flushGen = mheap_.sweepgen
++		unlock(&mheap_.lock)
++	})
+ 	for i := range c.alloc {
+ 		c.alloc[i] = &emptymspan
+ 	}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 9eaacd933d..823b556e53 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -216,16 +216,19 @@ func gcenable() {
+ 
+ //go:linkname setGCPercent runtime/debug.setGCPercent
+ func setGCPercent(in int32) (out int32) {
+-	lock(&mheap_.lock)
+-	out = gcpercent
+-	if in < 0 {
+-		in = -1
+-	}
+-	gcpercent = in
+-	heapminimum = defaultHeapMinimum * uint64(gcpercent) / 100
+-	// Update pacing in response to gcpercent change.
+-	gcSetTriggerRatio(memstats.triggerRatio)
+-	unlock(&mheap_.lock)
++	// Run on the system stack since we grab the heap lock.
++	systemstack(func() {
++		lock(&mheap_.lock)
++		out = gcpercent
++		if in < 0 {
++			in = -1
++		}
++		gcpercent = in
++		heapminimum = defaultHeapMinimum * uint64(gcpercent) / 100
++		// Update pacing in response to gcpercent change.
++		gcSetTriggerRatio(memstats.triggerRatio)
++		unlock(&mheap_.lock)
++	})
+ 
+ 	// If we just disabled GC, wait for any concurrent GC mark to
+ 	// finish so we always return with no GC running.
+@@ -1261,7 +1264,7 @@ func gcStart(trigger gcTrigger) {
+ 
+ 	gcBgMarkStartWorkers()
+ 
+-	gcResetMarkState()
++	systemstack(gcResetMarkState)
+ 
+ 	work.stwprocs, work.maxprocs = gomaxprocs, gomaxprocs
+ 	if work.stwprocs > ncpu {
+@@ -2078,6 +2081,9 @@ func gcMark(start_time int64) {
+ 	}
+ }
+ 
++// gcSweep must be called on the system stack because it acquires the heap
++// lock. See mheap for details.
++//go:systemstack
+ func gcSweep(mode gcMode) {
+ 	if gcphase != _GCoff {
+ 		throw("gcSweep being done but phase is not GCoff")
+@@ -2134,6 +2140,11 @@ func gcSweep(mode gcMode) {
+ //
+ // This is safe to do without the world stopped because any Gs created
+ // during or after this will start out in the reset state.
++//
++// gcResetMarkState must be called on the system stack because it acquires
++// the heap lock. See mheap for details.
++//
++//go:systemstack
+ func gcResetMarkState() {
+ 	// This may be called during a concurrent phase, so make sure
+ 	// allgs doesn't change.
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 3297c287d4..af2818a2bd 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -29,6 +29,8 @@ const minPhysPageSize = 4096
+ //
+ //go:notinheap
+ type mheap struct {
++	// lock must only be acquired on the system stack, otherwise a g
++	// could self-deadlock if its stack grows with the lock held.
+ 	lock      mutex
+ 	free      mTreap // free spans
+ 	sweepgen  uint32 // sweep generation, see comment in mspan
+@@ -1095,9 +1097,8 @@ func (h *mheap) alloc(npage uintptr, spanclass spanClass, large bool, needzero b
+ // The memory backing the returned span may not be zeroed if
+ // span.needzero is set.
+ //
+-// allocManual must be called on the system stack to prevent stack
+-// growth. Since this is used by the stack allocator, stack growth
+-// during allocManual would self-deadlock.
++// allocManual must be called on the system stack because it acquires
++// the heap lock. See mheap for details.
+ //
+ //go:systemstack
+ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
+@@ -1303,8 +1304,8 @@ func (h *mheap) freeSpan(s *mspan, large bool) {
+ // This must only be called when gcphase == _GCoff. See mSpanState for
+ // an explanation.
+ //
+-// freeManual must be called on the system stack to prevent stack
+-// growth, just like allocManual.
++// freeManual must be called on the system stack because it acquires
++// the heap lock. See mheap for details.
+ //
+ //go:systemstack
+ func (h *mheap) freeManual(s *mspan, stat *uint64) {
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 9250865ed1..421580eec3 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -470,6 +470,9 @@ func readGCStats(pauses *[]uint64) {
+ 	})
+ }
+ 
++// readGCStats_m must be called on the system stack because it acquires the heap
++// lock. See mheap for details.
++//go:systemstack
+ func readGCStats_m(pauses *[]uint64) {
+ 	p := *pauses
+ 	// Calling code in runtime/debug should make the slice large enough.

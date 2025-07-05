@@ -13,10 +13,154 @@ Date:   Mon Apr 10 13:03:14 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go  | 18 ++----------------
  src/cmd/compile/internal/gc/dcl.go  | 15 +++++++++++++++
  src/cmd/compile/internal/gc/init.go |  7 +------
  src/cmd/compile/internal/gc/subr.go |  7 +------
  src/cmd/compile/internal/gc/walk.go | 13 ++++---------
  5 files changed, 23 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index fa09cb5b96..528748fdf7 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -194,13 +194,7 @@ func genhash(sym *types.Sym, t *types.Type) {
+ 	types.Markdcl(lineno)
+ 
+ 	// func sym(p *T, h uintptr) uintptr
+-	fn := nod(ODCLFUNC, nil, nil)
+-
+-	fn.Func.Nname = newname(sym)
+-	fn.Func.Nname.Class = PFUNC
+ 	tfn := nod(OTFUNC, nil, nil)
+-	fn.Func.Nname.Name.Param.Ntype = tfn
+-
+ 	n := namedfield("p", types.NewPtr(t))
+ 	tfn.List.Append(n)
+ 	np := n.Left
+@@ -210,8 +204,7 @@ func genhash(sym *types.Sym, t *types.Type) {
+ 	n = anonfield(types.Types[TUINTPTR]) // return value
+ 	tfn.Rlist.Append(n)
+ 
+-	funchdr(fn)
+-	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, Etype)
++	fn := dclfunc(sym, tfn)
+ 
+ 	// genhash is only called for types that have equality but
+ 	// cannot be handled by the standard algorithms,
+@@ -372,13 +365,7 @@ func geneq(sym *types.Sym, t *types.Type) {
+ 	types.Markdcl(lineno)
+ 
+ 	// func sym(p, q *T) bool
+-	fn := nod(ODCLFUNC, nil, nil)
+-
+-	fn.Func.Nname = newname(sym)
+-	fn.Func.Nname.Class = PFUNC
+ 	tfn := nod(OTFUNC, nil, nil)
+-	fn.Func.Nname.Name.Param.Ntype = tfn
+-
+ 	n := namedfield("p", types.NewPtr(t))
+ 	tfn.List.Append(n)
+ 	np := n.Left
+@@ -388,8 +375,7 @@ func geneq(sym *types.Sym, t *types.Type) {
+ 	n = anonfield(types.Types[TBOOL])
+ 	tfn.Rlist.Append(n)
+ 
+-	funchdr(fn)
+-	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, Etype)
++	fn := dclfunc(sym, tfn)
+ 
+ 	// geneq is only called for types that have equality but
+ 	// cannot be handled by the standard algorithms,
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 222881771d..7dadc6224d 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1100,6 +1100,21 @@ func makefuncsym(s *types.Sym) {
+ 	}
+ }
+ 
++func dclfunc(sym *types.Sym, tfn *Node) *Node {
++	if tfn.Op != OTFUNC {
++		Fatalf("expected OTFUNC node, got %v", tfn)
++	}
++
++	fn := nod(ODCLFUNC, nil, nil)
++	fn.Func.Nname = newname(sym)
++	fn.Func.Nname.Name.Defn = fn
++	fn.Func.Nname.Name.Param.Ntype = tfn
++	declare(fn.Func.Nname, PFUNC)
++	funchdr(fn)
++	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, Etype)
++	return fn
++}
++
+ type nowritebarrierrecChecker struct {
+ 	curfn  *Node
+ 	stable bool
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index e26718dfdc..df2d70fcaf 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -86,13 +86,8 @@ func fninit(n []*Node) {
+ 	addvar(gatevar, types.Types[TUINT8], PEXTERN)
+ 
+ 	// (2)
+-	fn := nod(ODCLFUNC, nil, nil)
+ 	initsym := lookup("init")
+-	fn.Func.Nname = newname(initsym)
+-	fn.Func.Nname.Name.Defn = fn
+-	fn.Func.Nname.Name.Param.Ntype = nod(OTFUNC, nil, nil)
+-	declare(fn.Func.Nname, PFUNC)
+-	funchdr(fn)
++	fn := dclfunc(initsym, nod(OTFUNC, nil, nil))
+ 
+ 	// (3)
+ 	a := nod(OIF, nil, nil)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index d9fdd76f23..a3be163c4e 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1710,14 +1710,9 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface
+ 	t.List.Set(append(l, in...))
+ 	t.Rlist.Set(out)
+ 
+-	fn := nod(ODCLFUNC, nil, nil)
++	fn := dclfunc(newnam, t)
+ 	fn.Func.SetDupok(true)
+-	fn.Func.Nname = newname(newnam)
+-	fn.Func.Nname.Name.Defn = fn
+-	fn.Func.Nname.Name.Param.Ntype = t
+ 	fn.Func.Nname.Sym.SetExported(true) // prevent export; see closure.go
+-	declare(fn.Func.Nname, PFUNC)
+-	funchdr(fn)
+ 
+ 	// arg list
+ 	var args []*Node
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 4c06fe5e6c..7cdc56d05c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3652,17 +3652,12 @@ func walkprintfunc(n *Node, init *Nodes) *Node {
+ 		printargs = append(printargs, a.Left)
+ 	}
+ 
+-	fn := nod(ODCLFUNC, nil, nil)
+-	walkprintfunc_prgen++
+-	buf = fmt.Sprintf("print·%d", walkprintfunc_prgen)
+-	fn.Func.Nname = newname(lookup(buf))
+-	fn.Func.Nname.Name.Defn = fn
+-	fn.Func.Nname.Name.Param.Ntype = t
+-	declare(fn.Func.Nname, PFUNC)
+-
+ 	oldfn := Curfn
+ 	Curfn = nil
+-	funchdr(fn)
++
++	walkprintfunc_prgen++
++	sym := lookupN("print·%d", walkprintfunc_prgen)
++	fn := dclfunc(sym, t)
+ 
+ 	a = nod(n.Op, nil, nil)
+ 	a.List.Set(printargs)

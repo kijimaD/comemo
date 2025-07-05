@@ -10,7 +10,144 @@ Date:   Tue Jun 14 14:38:56 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/412214
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/reflect/all_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++++
  src/reflect/type.go     | 15 ++++++++-
  2 files changed, 95 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index febbd5f5a7..56d91105a6 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -5891,6 +5891,87 @@ func TestStructOfDifferentPkgPath(t *testing.T) {
+ 	})
+ }
+ 
++func TestStructOfTooLarge(t *testing.T) {
++	t1 := TypeOf(byte(0))
++	t2 := TypeOf(int16(0))
++	t4 := TypeOf(int32(0))
++	t0 := ArrayOf(0, t1)
++
++	// 2^64-3 sized type (or 2^32-3 on 32-bit archs)
++	bigType := StructOf([]StructField{
++		{Name: "F1", Type: ArrayOf(int(^uintptr(0)>>1), t1)},
++		{Name: "F2", Type: ArrayOf(int(^uintptr(0)>>1-1), t1)},
++	})
++
++	type test struct {
++		shouldPanic bool
++		fields      []StructField
++	}
++
++	tests := [...]test{
++		{
++			shouldPanic: false, // 2^64-1, ok
++			fields: []StructField{
++				{Name: "F1", Type: bigType},
++				{Name: "F2", Type: ArrayOf(2, t1)},
++			},
++		},
++		{
++			shouldPanic: true, // overflow in total size
++			fields: []StructField{
++				{Name: "F1", Type: bigType},
++				{Name: "F2", Type: ArrayOf(3, t1)},
++			},
++		},
++		{
++			shouldPanic: true, // overflow while aligning F2
++			fields: []StructField{
++				{Name: "F1", Type: bigType},
++				{Name: "F2", Type: t4},
++			},
++		},
++		{
++			shouldPanic: true, // overflow while adding trailing byte for zero-sized fields
++			fields: []StructField{
++				{Name: "F1", Type: bigType},
++				{Name: "F2", Type: ArrayOf(2, t1)},
++				{Name: "F3", Type: t0},
++			},
++		},
++		{
++			shouldPanic: true, // overflow while aligning total size
++			fields: []StructField{
++				{Name: "F1", Type: t2},
++				{Name: "F2", Type: bigType},
++			},
++		},
++	}
++
++	for i, tt := range tests {
++		func() {
++			defer func() {
++				err := recover()
++				if !tt.shouldPanic {
++					if err != nil {
++						t.Errorf("test %d should not panic, got %s", i, err)
++					}
++					return
++				}
++				if err == nil {
++					t.Errorf("test %d expected to panic", i)
++					return
++				}
++				s := fmt.Sprintf("%s", err)
++				if s != "reflect.StructOf: struct size would exceed virtual address space" {
++					t.Errorf("test %d wrong panic message: %s", i, s)
++					return
++				}
++			}()
++			_ = StructOf(tt.fields)
++		}()
++	}
++}
++
+ func TestChanOf(t *testing.T) {
+ 	// check construction and use of type not in binary
+ 	type T string
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 7b8cf0ee62..fc591eee69 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2635,10 +2635,16 @@ func StructOf(fields []StructField) Type {
+ 		comparable = comparable && (ft.equal != nil)
+ 
+ 		offset := align(size, uintptr(ft.align))
++		if offset < size {
++			panic("reflect.StructOf: struct size would exceed virtual address space")
++		}
+ 		if ft.align > typalign {
+ 			typalign = ft.align
+ 		}
+ 		size = offset + ft.size
++		if size < offset {
++			panic("reflect.StructOf: struct size would exceed virtual address space")
++		}
+ 		f.offset = offset
+ 
+ 		if ft.size == 0 {
+@@ -2655,6 +2661,9 @@ func StructOf(fields []StructField) Type {
+ 		// zero-sized field can't manufacture a pointer to the
+ 		// next object in the heap. See issue 9401.
+ 		size++
++		if size == 0 {
++			panic("reflect.StructOf: struct size would exceed virtual address space")
++		}
+ 	}
+ 
+ 	var typ *structType
+@@ -2697,7 +2706,11 @@ func StructOf(fields []StructField) Type {
+ 	str := string(repr)
+ 
+ 	// Round the size up to be a multiple of the alignment.
+-	size = align(size, uintptr(typalign))
++	s := align(size, uintptr(typalign))
++	if s < size {
++		panic("reflect.StructOf: struct size would exceed virtual address space")
++	}
++	size = s
+ 
+ 	// Make the struct type.
+ 	var istruct any = struct{}{}

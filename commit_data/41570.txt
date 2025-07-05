@@ -9,6 +9,73 @@ Date:   Sat Oct 12 08:47:51 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/order.go | 41 ++++++++++++++++++------------------
  1 file changed, 21 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 176d7a3cce..0e28f8267f 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -513,26 +513,6 @@ func (o *Order) stmt(n *Node) {
+ 		o.mapAssign(n)
+ 		o.cleanTemp(t)
+ 
+-	case OAS2,
+-		OCLOSE,
+-		OCOPY,
+-		OPRINT,
+-		OPRINTN,
+-		ORECOVER,
+-		ORECV:
+-		t := o.markTemp()
+-		n.Left = o.expr(n.Left, nil)
+-		n.Right = o.expr(n.Right, nil)
+-		o.exprList(n.List)
+-		o.exprList(n.Rlist)
+-		switch n.Op {
+-		case OAS2:
+-			o.mapAssign(n)
+-		default:
+-			o.out = append(o.out, n)
+-		}
+-		o.cleanTemp(t)
+-
+ 	case OASOP:
+ 		t := o.markTemp()
+ 		n.Left = o.expr(n.Left, nil)
+@@ -562,6 +542,13 @@ func (o *Order) stmt(n *Node) {
+ 		o.mapAssign(n)
+ 		o.cleanTemp(t)
+ 
++	case OAS2:
++		t := o.markTemp()
++		o.exprList(n.List)
++		o.exprList(n.Rlist)
++		o.mapAssign(n)
++		o.cleanTemp(t)
++
+ 	// Special: avoid copy of func call n.Right
+ 	case OAS2FUNC:
+ 		t := o.markTemp()
+@@ -620,6 +607,20 @@ func (o *Order) stmt(n *Node) {
+ 		o.out = append(o.out, n)
+ 		o.cleanTemp(t)
+ 
++	case OCLOSE,
++		OCOPY,
++		OPRINT,
++		OPRINTN,
++		ORECOVER,
++		ORECV:
++		t := o.markTemp()
++		n.Left = o.expr(n.Left, nil)
++		n.Right = o.expr(n.Right, nil)
++		o.exprList(n.List)
++		o.exprList(n.Rlist)
++		o.out = append(o.out, n)
++		o.cleanTemp(t)
++
+ 	// Special: order arguments to inner call but not call itself.
+ 	case ODEFER, OGO:
+ 		t := o.markTemp()

@@ -14,6 +14,20 @@ Date:   Fri Nov 10 12:58:31 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/77010
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/test2json/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/test2json/main.go b/src/cmd/test2json/main.go
+index 0c8193760f..3d7c5601a3 100644
+--- a/src/cmd/test2json/main.go
++++ b/src/cmd/test2json/main.go
+@@ -24,7 +24,7 @@
+ // corresponding to the Go struct:
+ //
+ //	type TestEvent struct {
+-//		Time    time.Time
++//		Time    time.Time // encodes as an RFC3339-format string
+ //		Event   string
+ //		Package string
+ //		Test    string

@@ -13,6 +13,18 @@ Date:   Mon Mar 16 21:48:07 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=26360
     CL=26373
-
+---
  test/const2.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/const2.go b/test/const2.go
+index b3b10de8e7..2ff71ee232 100644
+--- a/test/const2.go
++++ b/test/const2.go
+@@ -8,5 +8,5 @@ package main
+ 
+ const (
+ 	A int = 1;
+-	B byte;	// ERROR "type without expr"
++	B byte;	// ERROR "type without expr|expected .=."
+ )

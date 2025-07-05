@@ -18,7 +18,7 @@ Date:   Thu Feb 6 23:29:57 2025 +1100
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s        |  16 +--
  src/cmd/internal/obj/riscv/asm_test.go             |  14 +++
  src/cmd/internal/obj/riscv/obj.go                  |  44 +++++++
@@ -26,3 +26,423 @@ Date:   Thu Feb 6 23:29:57 2025 +1100
  .../obj/riscv/testdata/testminmax/minmax_test.s    | 131 +++++++++++++++++++
  src/internal/bytealg/compare_riscv64.s             |   8 +-
  6 files changed, 339 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index df78659c83..bb75169824 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -376,14 +376,14 @@ start:
+ 	CPOPW	X23, X24				// 1b9c2b60
+ 	CTZ	X24, X25				// 931c1c60
+ 	CTZW	X25, X26				// 1b9d1c60
+-	MAX	X26, X28, X29				// b36eae0b
+-	MAX	X26, X28				// 336eae0b
+-	MAXU	X28, X29, X30				// 33ffce0b
+-	MAXU	X28, X29				// b3fece0b
+-	MIN	X29, X30, X5				// b342df0b
+-	MIN	X29, X30				// 334fdf0b
+-	MINU	X30, X5, X6				// 33d3e20b
+-	MINU	X30, X5					// b3d2e20b
++	MAX	X26, X28, X29				// b36eae0b or b32fae01b30ff041b34eae01b3fedf01b34ede01
++	MAX	X26, X28				// 336eae0b or b32fcd01b30ff041334ecd0133fecf01334ecd01
++	MAXU	X28, X29, X30				// 33ffce0b or b3bfce01b30ff04133cfce0133ffef0133cfee01
++	MAXU	X28, X29				// b3fece0b or b33fde01b30ff041b34ede01b3fedf01b34ede01
++	MIN	X29, X30, X5				// b342df0b or b3afee01b30ff041b342df01b3f25f00b3425f00
++	MIN	X29, X30				// 334fdf0b or b32fdf01b30ff04133cfee0133ffef0133cfee01
++	MINU	X30, X5, X6				// 33d3e20b or b33f5f00b30ff04133c3e20133f36f0033c36200
++	MINU	X30, X5					// b3d2e20b or b3bfe201b30ff041b3425f00b3f25f00b3425f00
+ 	ORN	X6, X7, X8				// 33e46340 or 1344f3ff33e48300
+ 	ORN	X6, X7					// b3e36340 or 934ff3ffb3e3f301
+ 	SEXTB	X16, X17				// 93184860
+diff --git a/src/cmd/internal/obj/riscv/asm_test.go b/src/cmd/internal/obj/riscv/asm_test.go
+index c2e1e12acc..f40e57fa64 100644
+--- a/src/cmd/internal/obj/riscv/asm_test.go
++++ b/src/cmd/internal/obj/riscv/asm_test.go
+@@ -264,6 +264,20 @@ func TestBranch(t *testing.T) {
+ 	}
+ }
+ 
++func TestMinMax(t *testing.T) {
++	if runtime.GOARCH != "riscv64" {
++		t.Skip("Requires riscv64 to run")
++	}
++
++	testenv.MustHaveGoBuild(t)
++
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "test")
++	cmd.Dir = "testdata/testminmax"
++	if out, err := testenv.CleanCmdEnv(cmd).CombinedOutput(); err != nil {
++		t.Errorf("Min max test failed: %v\n%s", err, out)
++	}
++}
++
+ func TestPCAlign(t *testing.T) {
+ 	dir := t.TempDir()
+ 	tmpfile := filepath.Join(dir, "x.s")
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 13f1864dea..208550c7be 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -2785,6 +2785,47 @@ func instructionsForRotate(p *obj.Prog, ins *instruction) []*instruction {
+ 	}
+ }
+ 
++// instructionsForMinMax returns the machine instructions for an integer minimum or maximum.
++func instructionsForMinMax(p *obj.Prog, ins *instruction) []*instruction {
++	if buildcfg.GORISCV64 >= 22 {
++		// Minimum and maximum instructions are supported natively.
++		return []*instruction{ins}
++	}
++
++	// Generate a move for identical inputs.
++	if ins.rs1 == ins.rs2 {
++		ins.as, ins.rs2, ins.imm = AADDI, obj.REG_NONE, 0
++		return []*instruction{ins}
++	}
++
++	// Ensure that if one of the source registers is the same as the destination,
++	// it is processed first.
++	if ins.rs1 == ins.rd {
++		ins.rs1, ins.rs2 = ins.rs2, ins.rs1
++	}
++	sltReg1, sltReg2 := ins.rs2, ins.rs1
++
++	// MIN -> SLT/SUB/XOR/AND/XOR
++	// MAX -> SLT/SUB/XOR/AND/XOR with swapped inputs to SLT
++	switch ins.as {
++	case AMIN:
++		ins.as = ASLT
++	case AMAX:
++		ins.as, sltReg1, sltReg2 = ASLT, sltReg2, sltReg1
++	case AMINU:
++		ins.as = ASLTU
++	case AMAXU:
++		ins.as, sltReg1, sltReg2 = ASLTU, sltReg2, sltReg1
++	}
++	return []*instruction{
++		&instruction{as: ins.as, rs1: sltReg1, rs2: sltReg2, rd: REG_TMP},
++		&instruction{as: ASUB, rs1: REG_ZERO, rs2: REG_TMP, rd: REG_TMP},
++		&instruction{as: AXOR, rs1: ins.rs1, rs2: ins.rs2, rd: ins.rd},
++		&instruction{as: AAND, rs1: REG_TMP, rs2: ins.rd, rd: ins.rd},
++		&instruction{as: AXOR, rs1: ins.rs1, rs2: ins.rd, rd: ins.rd},
++	}
++}
++
+ // instructionsForProg returns the machine instructions for an *obj.Prog.
+ func instructionsForProg(p *obj.Prog) []*instruction {
+ 	ins := instructionForProg(p)
+@@ -3034,6 +3075,9 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		ins.as = AXOR
+ 		inss = append(inss, &instruction{as: AXORI, rs1: ins.rd, rs2: obj.REG_NONE, rd: ins.rd, imm: -1})
+ 
++	case AMIN, AMAX, AMINU, AMAXU:
++		inss = instructionsForMinMax(p, ins)
++
+ 	case AVSETVLI, AVSETIVLI:
+ 		ins.rs1, ins.rs2 = ins.rs2, obj.REG_NONE
+ 		vtype, err := EncodeVectorType(p.RestArgs[0].Offset, p.RestArgs[1].Offset, p.RestArgs[2].Offset, p.RestArgs[3].Offset)
+diff --git a/src/cmd/internal/obj/riscv/testdata/testminmax/minmax_test.go b/src/cmd/internal/obj/riscv/testdata/testminmax/minmax_test.go
+new file mode 100644
+index 0000000000..46d321147b
+--- /dev/null
++++ b/src/cmd/internal/obj/riscv/testdata/testminmax/minmax_test.go
+@@ -0,0 +1,140 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build riscv64
++
++package testminmax
++
++import (
++	"testing"
++)
++
++func testMIN1(a int64) (r int64)
++func testMIN2(a, b int64) (r int64)
++func testMIN3(a, b int64) (r int64)
++func testMIN4(a, b int64) (r int64)
++func testMAX1(a int64) (r int64)
++func testMAX2(a, b int64) (r int64)
++func testMAX3(a, b int64) (r int64)
++func testMAX4(a, b int64) (r int64)
++func testMINU1(a int64) (r int64)
++func testMINU2(a, b int64) (r int64)
++func testMINU3(a, b int64) (r int64)
++func testMINU4(a, b int64) (r int64)
++func testMAXU1(a int64) (r int64)
++func testMAXU2(a, b int64) (r int64)
++func testMAXU3(a, b int64) (r int64)
++func testMAXU4(a, b int64) (r int64)
++
++func TestMin(t *testing.T) {
++	tests := []struct {
++		a    int64
++		b    int64
++		want int64
++	}{
++		{1, 2, 1},
++		{2, 1, 1},
++		{2, 2, 2},
++		{1, -1, -1},
++		{-1, 1, -1},
++	}
++	for _, test := range tests {
++		if got := testMIN1(test.a); got != test.a {
++			t.Errorf("Assembly testMIN1 %v = %v, want %v", test.a, got, test.a)
++		}
++		if got := testMIN2(test.a, test.b); got != test.want {
++			t.Errorf("Assembly testMIN2 %v, %v = %v, want %v", test.a, test.b, got, test.want)
++		}
++		if got := testMIN3(test.a, test.b); got != test.want {
++			t.Errorf("Assembly testMIN3 %v, %v = %v, want %v", test.a, test.b, got, test.want)
++		}
++		if got := testMIN4(test.a, test.b); got != test.want {
++			t.Errorf("Assembly testMIN4 %v, %v = %v, want %v", test.a, test.b, got, test.want)
++		}
++	}
++}
++
++func TestMax(t *testing.T) {
++	tests := []struct {
++		a    int64
++		b    int64
++		want int64
++	}{
++		{1, 2, 2},
++		{2, 1, 2},
++		{2, 2, 2},
++		{1, -1, 1},
++		{-1, 1, 1},
++	}
++	for _, test := range tests {
++		if got := testMAX1(test.a); got != test.a {
++			t.Errorf("Assembly testMAX1 %v = %v, want %v", test.a, got, test.a)
++		}
++		if got := testMAX2(test.a, test.b); got != test.want {
++			t.Errorf("Assembly testMAX2 %v, %v = %v, want %v", test.a, test.b, got, test.want)
++		}
++		if got := testMAX3(test.a, test.b); got != test.want {
++			t.Errorf("Assembly testMAX3 %v, %v = %v, want %v", test.a, test.b, got, test.want)
++		}
++		if got := testMAX4(test.a, test.b); got != test.want {
++			t.Errorf("Assembly testMAX4 %v, %v = %v, want %v", test.a, test.b, got, test.want)
++		}
++	}
++}
++
++func TestMinU(t *testing.T) {
++	tests := []struct {
++		a    int64
++		b    int64
++		want int64
++	}{
++		{1, 2, 1},
++		{2, 1, 1},
++		{2, 2, 2},
++		{1, -1, 1},
++		{-1, 1, 1},
++	}
++	for _, test := range tests {
++		if got := testMINU1(test.a); got != test.a {
++			t.Errorf("Assembly testMINU1 %v = %v, want %v", test.a, got, test.a)
++		}
++		if got := testMINU2(test.a, test.b); got != test.want {
++			t.Errorf("Assembly testMINU2 %v, %v = %v, want %v", test.a, test.b, got, test.want)
++		}
++		if got := testMINU3(test.a, test.b); got != test.want {
++			t.Errorf("Assembly testMINU3 %v, %v = %v, want %v", test.a, test.b, got, test.want)
++		}
++		if got := testMINU4(test.a, test.b); got != test.want {
++			t.Errorf("Assembly testMINU4 %v, %v = %v, want %v", test.a, test.b, got, test.want)
++		}
++	}
++}
++
++func TestMaxU(t *testing.T) {
++	tests := []struct {
++		a    int64
++		b    int64
++		want int64
++	}{
++		{1, 2, 2},
++		{2, 1, 2},
++		{2, 2, 2},
++		{1, -1, -1},
++		{-1, 1, -1},
++	}
++	for _, test := range tests {
++		if got := testMAXU1(test.a); got != test.a {
++			t.Errorf("Assembly testMAXU1 %v = %v, want %v", test.a, got, test.a)
++		}
++		if got := testMAXU2(test.a, test.b); got != test.want {
++			t.Errorf("Assembly testMAXU2 %v, %v = %v, want %v", test.a, test.b, got, test.want)
++		}
++		if got := testMAXU3(test.a, test.b); got != test.want {
++			t.Errorf("Assembly testMAXU3 %v, %v = %v, want %v", test.a, test.b, got, test.want)
++		}
++		if got := testMAXU4(test.a, test.b); got != test.want {
++			t.Errorf("Assembly testMAXU4 %v, %v = %v, want %v", test.a, test.b, got, test.want)
++		}
++	}
++}
+diff --git a/src/cmd/internal/obj/riscv/testdata/testminmax/minmax_test.s b/src/cmd/internal/obj/riscv/testdata/testminmax/minmax_test.s
+new file mode 100644
+index 0000000000..9d295791a5
+--- /dev/null
++++ b/src/cmd/internal/obj/riscv/testdata/testminmax/minmax_test.s
+@@ -0,0 +1,131 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build riscv64
++
++#include "textflag.h"
++
++// func testMIN1(a int64) (r int64)
++TEXT ·testMIN1(SB),NOSPLIT,$0-16
++	MOV	a+0(FP), X5
++	MIN	X5, X5, X6
++	MOV	X6, r+8(FP)
++	RET
++
++// func testMIN2(a, b int64) (r int64)
++TEXT ·testMIN2(SB),NOSPLIT,$0-24
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MIN	X5, X6, X6
++	MOV	X6, r+16(FP)
++	RET
++
++// func testMIN3(a, b int64) (r int64)
++TEXT ·testMIN3(SB),NOSPLIT,$0-24
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MIN	X6, X5, X5
++	MOV	X5, r+16(FP)
++	RET
++
++// func testMIN4(a, b int64) (r int64)
++TEXT ·testMIN4(SB),NOSPLIT,$0-24
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MIN	X5, X6, X7
++	MOV	X7, r+16(FP)
++	RET
++
++// func testMAX1(a int64) (r int64)
++TEXT ·testMAX1(SB),NOSPLIT,$0-16
++	MOV	a+0(FP), X5
++	MAX	X5, X5, X6
++	MOV	X6, r+8(FP)
++	RET
++
++// func testMAX2(a, b int64) (r int64)
++TEXT ·testMAX2(SB),NOSPLIT,$0-24
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MAX	X5, X6, X6
++	MOV	X6, r+16(FP)
++	RET
++
++// func testMAX3(a, b int64) (r int64)
++TEXT ·testMAX3(SB),NOSPLIT,$0-24
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MAX	X6, X5, X5
++	MOV	X5, r+16(FP)
++	RET
++
++// func testMAX4(a, b int64) (r int64)
++TEXT ·testMAX4(SB),NOSPLIT,$0-24
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MAX	X5, X6, X7
++	MOV	X7, r+16(FP)
++	RET
++
++// func testMINU1(a int64) (r int64)
++TEXT ·testMINU1(SB),NOSPLIT,$0-16
++	MOV	a+0(FP), X5
++	MINU	X5, X5, X6
++	MOV	X6, r+8(FP)
++	RET
++
++// func testMINU2(a, b int64) (r int64)
++TEXT ·testMINU2(SB),NOSPLIT,$0-24
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MINU	X5, X6, X6
++	MOV	X6, r+16(FP)
++	RET
++
++// func testMINU3(a, b int64) (r int64)
++TEXT ·testMINU3(SB),NOSPLIT,$0-24
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MINU	X6, X5, X5
++	MOV	X5, r+16(FP)
++	RET
++
++// func testMINU4(a, b int64) (r int64)
++TEXT ·testMINU4(SB),NOSPLIT,$0-24
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MINU	X5, X6, X7
++	MOV	X7, r+16(FP)
++	RET
++
++// func testMAXU1(a int64) (r int64)
++TEXT ·testMAXU1(SB),NOSPLIT,$0-16
++	MOV	a+0(FP), X5
++	MAXU	X5, X5, X6
++	MOV	X6, r+8(FP)
++	RET
++
++// func testMAXU2(a, b int64) (r int64)
++TEXT ·testMAXU2(SB),NOSPLIT,$0-24
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MAXU	X5, X6, X6
++	MOV	X6, r+16(FP)
++	RET
++
++// func testMAXU3(a, b int64) (r int64)
++TEXT ·testMAXU3(SB),NOSPLIT,$0-24
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MAXU	X6, X5, X5
++	MOV	X5, r+16(FP)
++	RET
++
++// func testMAXU4(a, b int64) (r int64)
++TEXT ·testMAXU4(SB),NOSPLIT,$0-24
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MAXU	X5, X6, X7
++	MOV	X7, r+16(FP)
++	RET
+diff --git a/src/internal/bytealg/compare_riscv64.s b/src/internal/bytealg/compare_riscv64.s
+index b1e1f7bcc7..6388fcd209 100644
+--- a/src/internal/bytealg/compare_riscv64.s
++++ b/src/internal/bytealg/compare_riscv64.s
+@@ -28,15 +28,11 @@ TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
+ // X11 length of a
+ // X12 points to start of b
+ // X13 length of b
+-// for non-regabi X14 points to the address to store the return value (-1/0/1)
+-// for regabi the return value in X10
++// return value in X10 (-1/0/1)
+ TEXT compare<>(SB),NOSPLIT|NOFRAME,$0
+ 	BEQ	X10, X12, cmp_len
+ 
+-	MOV	X11, X5
+-	BGE	X13, X5, use_a_len // X5 = min(len(a), len(b))
+-	MOV	X13, X5
+-use_a_len:
++	MIN	X11, X13, X5
+ 	BEQZ	X5, cmp_len
+ 
+ 	MOV	$32, X6

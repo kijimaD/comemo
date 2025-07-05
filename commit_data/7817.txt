@@ -7,6 +7,19 @@ Date:   Sun Mar 20 11:45:43 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4279065
-
+---
  src/pkg/flag/flag.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index 4e57e0f099..14f4d522c6 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -289,6 +289,7 @@ func failf(format string, a ...interface{}) {
+ 	os.Exit(2)
+ }
+ 
++// NFlag returns the number of flags that have been set.
+ func NFlag() int { return len(flags.actual) }
+ 
+ // Arg returns the i'th command-line argument.  Arg(0) is the first remaining argument

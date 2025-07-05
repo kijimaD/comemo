@@ -8,7 +8,63 @@ Date:   Fri Sep 5 15:01:09 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/141150043
-
+---
  src/pkg/runtime/export_test.go | 19 ++++++++++++++-----
  src/pkg/runtime/stubs.goc      | 11 -----------
  2 files changed, 14 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index fd7fd182fc..3df02626af 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -142,10 +142,19 @@ var MemclrBytes = memclrBytes
+ 
+ var HashLoad = &hashLoad
+ 
+-func gogoBytes() int32
+-
+-var GogoBytes = gogoBytes
++// For testing.
++func GogoBytes() int32 {
++	return _RuntimeGogoBytes
++}
+ 
+-func gostringW([]uint16) string
++// in string.c
++//go:noescape
++func gostringw(w *uint16) string
+ 
+-var GostringW = gostringW
++// entry point for testing
++func GostringW(w []uint16) (s string) {
++	onM(func() {
++		s = gostringw(&w[0])
++	})
++	return
++}
+diff --git a/src/pkg/runtime/stubs.goc b/src/pkg/runtime/stubs.goc
+index 34cd1b3bb9..e1b1a02101 100644
+--- a/src/pkg/runtime/stubs.goc
++++ b/src/pkg/runtime/stubs.goc
+@@ -23,12 +23,6 @@ package runtime
+ // These invariants do not hold yet but will be established once we have
+ // finished converting runtime support code from C to Go.
+ 
+-// entry point for testing
+-// TODO: mcall and run on M stack
+-func gostringW(str Slice) (s String) {
+-	s = runtime·gostringw((uint16*)str.array);
+-}
+-
+ #pragma textflag NOSPLIT
+ func runtime·getg() (ret *G) {
+ 	ret = g;
+@@ -61,8 +55,3 @@ func reflect·typelinks() (ret Slice) {
+         ret.len = runtime·etypelink - runtime·typelink;
+         ret.cap = ret.len;
+ }
+-
+-// For testing.
+-func gogoBytes() (x int32) {
+-	x = RuntimeGogoBytes;
+-}

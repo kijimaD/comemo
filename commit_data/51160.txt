@@ -21,6 +21,29 @@ Date:   Wed Dec 8 16:47:56 2021 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/verify_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 05d521c09d..f4ea08bbf5 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"encoding/pem"
+ 	"errors"
+ 	"fmt"
++	"internal/testenv"
+ 	"math/big"
+ 	"runtime"
+ 	"strings"
+@@ -469,6 +470,9 @@ func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
+ 	chains, err := leaf.Verify(opts)
+ 
+ 	if test.errorCallback == nil && err != nil {
++		if runtime.GOOS == "windows" && strings.HasSuffix(testenv.Builder(), "-2008") && err.Error() == "x509: certificate signed by unknown authority" {
++			testenv.SkipFlaky(t, 19564)
++		}
+ 		t.Fatalf("unexpected error: %v", err)
+ 	}
+ 	if test.errorCallback != nil {

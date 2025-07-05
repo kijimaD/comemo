@@ -14,7 +14,67 @@ Date:   Thu Sep 1 07:22:23 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/schedule.go |  6 +++++-
  test/fixedbugs/issue16948.go             | 34 ++++++++++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index bf3fb27f90..ffc816b00f 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -128,9 +128,13 @@ func schedule(f *Func) {
+ 		// the calculated store chain is good only for this block.
+ 		for _, v := range b.Values {
+ 			if v.Op != OpPhi && v.Type.IsMemory() {
++				mem := v
++				if v.Op == OpSelect1 {
++					v = v.Args[0]
++				}
+ 				for _, w := range v.Args {
+ 					if w.Type.IsMemory() {
+-						nextMem[w.ID] = v
++						nextMem[w.ID] = mem
+ 					}
+ 				}
+ 			}
+diff --git a/test/fixedbugs/issue16948.go b/test/fixedbugs/issue16948.go
+new file mode 100644
+index 0000000000..c986024896
+--- /dev/null
++++ b/test/fixedbugs/issue16948.go
+@@ -0,0 +1,34 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 16948: make sure intrinsified atomic ops won't
++// confuse the scheduler.
++
++package main
++
++import "sync/atomic"
++
++func main() {
++	f()
++}
++
++var x int32
++
++type T [10]int
++var sink *T
++
++func f() (t T) {
++	atomic.AddInt32(&x, 1)
++	g(42, 42, 42, 42, 42, &t) // use int values that is invalid pointer to smash the stack slot of return value of runtime.newobject
++	return
++}
++
++//go:noinline
++func g(a, b, c, d, e int, p *T) {
++	var t [10000]int // a large stack frame to trigger stack growing
++	_ = t
++	sink = p // force p (in caller) heap allocated
++}

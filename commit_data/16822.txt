@@ -7,6 +7,20 @@ Date:   Fri Jul 19 17:48:19 2013 +0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/11432046
-
+---
  test/fixedbugs/issue5493.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue5493.go b/test/fixedbugs/issue5493.go
+index 827281bdca..affc07b588 100644
+--- a/test/fixedbugs/issue5493.go
++++ b/test/fixedbugs/issue5493.go
+@@ -51,7 +51,7 @@ func main() {
+ 		runtime.GC()
+ 	}
+ 	if count != 0 {
+-		println(count, "out of", N, "finalizer are called")
++		println(count, "out of", N, "finalizer are not called")
+ 		panic("not all finalizers are called")
+ 	}
+ }

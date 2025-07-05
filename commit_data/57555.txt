@@ -18,6 +18,35 @@ Date:   Mon Aug 14 13:20:45 2023 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/os_darwin.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 105de47a1f..be29095329 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -41,7 +41,12 @@ func semasleep(ns int64) int32 {
+ 	if ns >= 0 {
+ 		start = nanotime()
+ 	}
+-	mp := getg().m
++	g := getg()
++	mp := g.m
++	if g == mp.gsignal {
++		// sema sleep/wakeup are implemented with pthreads, which are not async-signal-safe on Darwin.
++		throw("semasleep on Darwin signal stack")
++	}
+ 	pthread_mutex_lock(&mp.mutex)
+ 	for {
+ 		if mp.count > 0 {
+@@ -70,6 +75,9 @@ func semasleep(ns int64) int32 {
+ 
+ //go:nosplit
+ func semawakeup(mp *m) {
++	if g := getg(); g == g.m.gsignal {
++		throw("semawakeup on Darwin signal stack")
++	}
+ 	pthread_mutex_lock(&mp.mutex)
+ 	mp.count++
+ 	if mp.count > 0 {

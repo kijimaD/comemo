@@ -7,6 +7,30 @@ Date:   Wed May 11 11:11:25 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4523054
-
+---
  src/pkg/image/gif/reader.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/pkg/image/gif/reader.go b/src/pkg/image/gif/reader.go
+index d37f52689e..e083b87100 100644
+--- a/src/pkg/image/gif/reader.go
++++ b/src/pkg/image/gif/reader.go
+@@ -141,8 +141,6 @@ func (d *decoder) decode(r io.Reader, configOnly bool) os.Error {
+ 		}
+ 	}
+ 
+-	d.image = nil
+-
+ Loop:
+ 	for err == nil {
+ 		var c byte
+@@ -383,8 +381,7 @@ func DecodeConfig(r io.Reader) (image.Config, os.Error) {
+ 	if err := d.decode(r, true); err != nil {
+ 		return image.Config{}, err
+ 	}
+-	colorMap := d.globalColorMap
+-	return image.Config{colorMap, d.width, d.height}, nil
++	return image.Config{d.globalColorMap, d.width, d.height}, nil
+ }
+ 
+ func init() {

@@ -14,8 +14,47 @@ Date:   Tue May 21 15:16:25 2024 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/expr.go             | 1 +
  src/go/types/expr.go                                | 1 +
  src/internal/types/testdata/fixedbugs/issue67547.go | 6 ++++++
  3 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index b2ff262762..da676f47da 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -131,6 +131,7 @@ var op2str2 = [...]string{
+ // If typ is a type parameter, underIs returns the result of typ.underIs(f).
+ // Otherwise, underIs returns the result of f(under(typ)).
+ func underIs(typ Type, f func(Type) bool) bool {
++	typ = Unalias(typ)
+ 	if tpar, _ := typ.(*TypeParam); tpar != nil {
+ 		return tpar.underIs(f)
+ 	}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index ef61e2cc40..474db75cc8 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -117,6 +117,7 @@ var op2str2 = [...]string{
+ // If typ is a type parameter, underIs returns the result of typ.underIs(f).
+ // Otherwise, underIs returns the result of f(under(typ)).
+ func underIs(typ Type, f func(Type) bool) bool {
++	typ = Unalias(typ)
+ 	if tpar, _ := typ.(*TypeParam); tpar != nil {
+ 		return tpar.underIs(f)
+ 	}
+diff --git a/src/internal/types/testdata/fixedbugs/issue67547.go b/src/internal/types/testdata/fixedbugs/issue67547.go
+index b95be4faeb..930692aa57 100644
+--- a/src/internal/types/testdata/fixedbugs/issue67547.go
++++ b/src/internal/types/testdata/fixedbugs/issue67547.go
+@@ -20,3 +20,9 @@ func _[P string]() {
+ 	var s A
+ 	copy(t, s) // don't report an error for s
+ }
++
++func _[P map[int]int]() {
++	type A = P
++	var m A
++	clear(m) // don't report an error for m
++}

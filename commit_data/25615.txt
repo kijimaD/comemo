@@ -7,6 +7,19 @@ Date:   Thu Nov 12 00:08:09 2015 -0500
     Change-Id: I9161c4a7e747d35ad7643b8cf0fe8b66eaea963b
     Reviewed-on: https://go-review.googlesource.com/16842
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  doc/go1.6.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index e93269bf3a..f01138f5fe 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -9,6 +9,7 @@ cmd/link: add -msan option (https://golang.org/cl/16161)
+ 
+ Ports:
+ 
++Add new experimental ports for linux/mips64 and linux/mips64le: no cgo, external linking or disasm yet (https://golang.org/cl/14460 and others)
+ NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
+ 
+ Reflect change:

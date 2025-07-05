@@ -7,6 +7,31 @@ Date:   Fri Apr 8 09:50:20 2011 -0700
     R=rsc, brainman, rh, r2
     CC=golang-dev
     https://golang.org/cl/4366045
-
+---
  src/cmd/gotest/gotest.go | 11 +++++------
  1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index 2455aa88f4..138216e681 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -234,14 +234,13 @@ func run(args ...string) {
+ // runWithStdout is like run, but returns the text of standard output with the last newline dropped.
+ func runWithStdout(argv ...string) string {
+ 	s := doRun(argv, true)
+-	if len(s) == 0 {
+-		Fatalf("no output from command %s", strings.Join(argv, " "))
+-	}
+-	if s[len(s)-1] == '\n' {
++	if strings.HasSuffix(s, "\r\n") {
++		s = s[:len(s)-2]
++	} else if strings.HasSuffix(s, "\n") {
+ 		s = s[:len(s)-1]
+ 	}
+-	if len(s) > 0 && s[len(s)-1] == '\r' { // it is \r\n on Windows.
+-		s = s[:len(s)-1]
++	if len(s) == 0 {
++		Fatalf("no output from command %s", strings.Join(argv, " "))
+ 	}
+ 	return s
+ }

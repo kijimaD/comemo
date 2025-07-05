@@ -15,6 +15,22 @@ Date:   Mon May 14 20:34:34 2018 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/stmtlines_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/stmtlines_test.go b/src/cmd/compile/internal/ssa/stmtlines_test.go
+index ff505ae357..443b5f9f56 100644
+--- a/src/cmd/compile/internal/ssa/stmtlines_test.go
++++ b/src/cmd/compile/internal/ssa/stmtlines_test.go
+@@ -56,6 +56,10 @@ func (f *File) Get(lineno int) (string, bool) {
+ }
+ 
+ func TestStmtLines(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
+ 	lines := map[Line]bool{}
+ 	dw, err := open(testenv.GoToolPath(t))
+ 	must(err)

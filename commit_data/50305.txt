@@ -17,10 +17,149 @@ Date:   Fri Oct 15 11:57:58 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/get/get.go                        |  3 ++-
  src/cmd/go/internal/load/pkg.go                       |  7 ++++---
  src/cmd/go/internal/vcs/vcs.go                        | 11 ++++++++---
  src/cmd/go/internal/vcs/vcs_test.go                   |  2 +-
  .../go/testdata/script/version_buildvcs_nested.txt    | 19 ++++++++++---------
  5 files changed, 25 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index c96459297a..0412506b9e 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -446,7 +446,8 @@ func downloadPackage(p *load.Package) error {
+ 
+ 	if p.Internal.Build.SrcRoot != "" {
+ 		// Directory exists. Look for checkout along path to src.
+-		repoDir, vcsCmd, err = vcs.FromDir(p.Dir, p.Internal.Build.SrcRoot)
++		const allowNesting = false
++		repoDir, vcsCmd, err = vcs.FromDir(p.Dir, p.Internal.Build.SrcRoot, allowNesting)
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 58dc242383..99c4a9c62e 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2318,8 +2318,9 @@ func (p *Package) setBuildInfo() {
+ 	var repoDir string
+ 	var vcsCmd *vcs.Cmd
+ 	var err error
++	const allowNesting = true
+ 	if cfg.BuildBuildvcs && p.Module != nil && p.Module.Version == "" && !p.Standard {
+-		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "")
++		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "", allowNesting)
+ 		if err != nil && !errors.Is(err, os.ErrNotExist) {
+ 			setVCSError(err)
+ 			return
+@@ -2338,7 +2339,7 @@ func (p *Package) setBuildInfo() {
+ 		// repository. vcs.FromDir allows nested Git repositories, but nesting
+ 		// is not allowed for other VCS tools. The current directory may be outside
+ 		// p.Module.Dir when a workspace is used.
+-		pkgRepoDir, _, err := vcs.FromDir(p.Dir, "")
++		pkgRepoDir, _, err := vcs.FromDir(p.Dir, "", allowNesting)
+ 		if err != nil {
+ 			setVCSError(err)
+ 			return
+@@ -2347,7 +2348,7 @@ func (p *Package) setBuildInfo() {
+ 			setVCSError(fmt.Errorf("main package is in repository %q but current directory is in repository %q", pkgRepoDir, repoDir))
+ 			return
+ 		}
+-		modRepoDir, _, err := vcs.FromDir(p.Module.Dir, "")
++		modRepoDir, _, err := vcs.FromDir(p.Module.Dir, "", allowNesting)
+ 		if err != nil {
+ 			setVCSError(err)
+ 			return
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index ebb4850443..d1272b66e9 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -603,7 +603,7 @@ type vcsPath struct {
+ // version control system and code repository to use.
+ // If no repository is found, FromDir returns an error
+ // equivalent to os.ErrNotExist.
+-func FromDir(dir, srcRoot string) (repoDir string, vcsCmd *Cmd, err error) {
++func FromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *Cmd, err error) {
+ 	// Clean and double-check that dir is in (a subdirectory of) srcRoot.
+ 	dir = filepath.Clean(dir)
+ 	if srcRoot != "" {
+@@ -617,11 +617,16 @@ func FromDir(dir, srcRoot string) (repoDir string, vcsCmd *Cmd, err error) {
+ 	for len(dir) > len(srcRoot) {
+ 		for _, vcs := range vcsList {
+ 			if _, err := os.Stat(filepath.Join(dir, "."+vcs.Cmd)); err == nil {
+-				// Record first VCS we find, but keep looking,
+-				// to detect mistakes like one kind of VCS inside another.
++				// Record first VCS we find.
++				// If allowNesting is false (as it is in GOPATH), keep looking for
++				// repositories in parent directories and report an error if one is
++				// found to mitigate VCS injection attacks.
+ 				if vcsCmd == nil {
+ 					vcsCmd = vcs
+ 					repoDir = dir
++					if allowNesting {
++						return repoDir, vcsCmd, nil
++					}
+ 					continue
+ 				}
+ 				// Allow .git inside .git, which can arise due to submodules.
+diff --git a/src/cmd/go/internal/vcs/vcs_test.go b/src/cmd/go/internal/vcs/vcs_test.go
+index 248c541014..9ac0a56a07 100644
+--- a/src/cmd/go/internal/vcs/vcs_test.go
++++ b/src/cmd/go/internal/vcs/vcs_test.go
+@@ -233,7 +233,7 @@ func TestFromDir(t *testing.T) {
+ 		}
+ 
+ 		wantRepoDir := filepath.Dir(dir)
+-		gotRepoDir, gotVCS, err := FromDir(dir, tempDir)
++		gotRepoDir, gotVCS, err := FromDir(dir, tempDir, false)
+ 		if err != nil {
+ 			t.Errorf("FromDir(%q, %q): %v", dir, tempDir, err)
+ 			continue
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_nested.txt b/src/cmd/go/testdata/script/version_buildvcs_nested.txt
+index f904c41bf8..08d4c92baf 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_nested.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_nested.txt
+@@ -1,5 +1,6 @@
+ [!exec:git] skip
+ [!exec:hg] skip
++[short] skip
+ env GOFLAGS=-n
+ 
+ # Create a root module in a root Git repository.
+@@ -8,25 +9,25 @@ cd root
+ go mod init example.com/root
+ exec git init
+ 
+-# It's an error to build a package from a nested Mercurial repository
+-# without -buildvcs=false, even if the package is in a separate module.
++# Nesting repositories in parent directories are ignored, as the current
++# directory main package, and containing main module are in the same repository.
++# This is an error in GOPATH mode (to prevent VCS injection), but for modules,
++# we assume users have control over repositories they've checked out.
+ mkdir hgsub
+ cd hgsub
+ exec hg init
+ cp ../../main.go main.go
+ ! go build
+-stderr '^error obtaining VCS status: directory ".*hgsub" uses hg, but parent ".*root" uses git$'
+-stderr '\tUse -buildvcs=false to disable VCS stamping.$'
+-go mod init example.com/root/hgsub
+-! go build
+-stderr '^error obtaining VCS status: directory ".*hgsub" uses hg, but parent ".*root" uses git$'
++stderr '^error obtaining VCS status: main module is in repository ".*root" but current directory is in repository ".*hgsub"$'
++stderr '^\tUse -buildvcs=false to disable VCS stamping.$'
+ go build -buildvcs=false
++go mod init example.com/root/hgsub
++go build
+ cd ..
+ 
+ # It's an error to build a package from a nested Git repository if the package
+ # is in a separate repository from the current directory or from the module
+-# root directory. However, unlike with other VCS, it's okay for a Git repository
+-# to be nested within another Git repository. This happens with submodules.
++# root directory.
+ mkdir gitsub
+ cd gitsub
+ exec git init

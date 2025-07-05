@@ -9,6 +9,20 @@ Date:   Tue Aug 27 08:41:43 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12907045
-
+---
  src/pkg/sort/sort_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/sort/sort_test.go b/src/pkg/sort/sort_test.go
+index fb872c2941..3b705d7a24 100644
+--- a/src/pkg/sort/sort_test.go
++++ b/src/pkg/sort/sort_test.go
+@@ -350,7 +350,7 @@ func TestHeapsortBM(t *testing.T) {
+ }
+ 
+ func TestStableBM(t *testing.T) {
+-	testBentleyMcIlroy(t, Stable, func(n int) int { return n * lg(n) * lg(n) })
++	testBentleyMcIlroy(t, Stable, func(n int) int { return n * lg(n) * lg(n) / 3 })
+ }
+ 
+ // This is based on the "antiquicksort" implementation by M. Douglas McIlroy.

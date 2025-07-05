@@ -22,7 +22,7 @@ Date:   Wed Jan 26 16:53:50 2022 -0500
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/runtime/mfinal.go  | 14 +++++++++++++-
  src/sync/atomic/doc.go |  8 ++++++++
  src/sync/cond.go       |  8 +++++++-
@@ -33,3 +33,182 @@ Date:   Wed Jan 26 16:53:50 2022 -0500
  src/sync/rwmutex.go    |  8 ++++++++
  src/sync/waitgroup.go  |  3 +++
  9 files changed, 62 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 44174913de..f3f3a79fa5 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -321,11 +321,23 @@ func runfinq() {
+ // closing p.d, causing syscall.Write to fail because it is writing to
+ // a closed file descriptor (or, worse, to an entirely different
+ // file descriptor opened by a different goroutine). To avoid this problem,
+-// call runtime.KeepAlive(p) after the call to syscall.Write.
++// call KeepAlive(p) after the call to syscall.Write.
+ //
+ // A single goroutine runs all finalizers for a program, sequentially.
+ // If a finalizer must run for a long time, it should do so by starting
+ // a new goroutine.
++//
++// In the terminology of the Go memory model, a call
++// SetFinalizer(x, f) “synchronizes before” the finalization call f(x).
++// However, there is no guarantee that KeepAlive(x) or any other use of x
++// “synchronizes before” f(x), so in general a finalizer should use a mutex
++// or other synchronization mechanism if it needs to access mutable state in x.
++// For example, consider a finalizer that inspects a mutable field in x
++// that is modified from time to time in the main program before x
++// becomes unreachable and the finalizer is invoked.
++// The modifications in the main program and the inspection in the finalizer
++// need to use appropriate synchronization, such as mutexes or atomic updates,
++// to avoid read-write races.
+ func SetFinalizer(obj any, finalizer any) {
+ 	if debug.sbrk != 0 {
+ 		// debug.sbrk never frees memory, so no finalizers run
+diff --git a/src/sync/atomic/doc.go b/src/sync/atomic/doc.go
+index bb3b8f673e..4d426826da 100644
+--- a/src/sync/atomic/doc.go
++++ b/src/sync/atomic/doc.go
+@@ -36,6 +36,14 @@
+ // The load and store operations, implemented by the LoadT and StoreT
+ // functions, are the atomic equivalents of "return *addr" and
+ // "*addr = val".
++//
++// In the terminology of the Go memory model, if the effect of
++// an atomic operation A is observed by atomic operation B,
++// then A “synchronizes before” B.
++// Additionally, all the atomic operations executed in a program
++// behave as though executed in some sequentially consistent order.
++// This definition provides the same semantics as
++// C++'s sequentially consistent atomics and Java's volatile variables.
+ package atomic
+ 
+ import (
+diff --git a/src/sync/cond.go b/src/sync/cond.go
+index 841be96896..19f986e478 100644
+--- a/src/sync/cond.go
++++ b/src/sync/cond.go
+@@ -18,6 +18,10 @@ import (
+ // when calling the Wait method.
+ //
+ // A Cond must not be copied after first use.
++//
++// In the terminology of the Go memory model, Cond arranges that
++// a call to Broadcast or Signal “synchronizes before” any Wait call
++// that it unblocks.
+ type Cond struct {
+ 	noCopy noCopy
+ 
+@@ -85,11 +89,13 @@ func (c *copyChecker) check() {
+ 	}
+ }
+ 
+-// noCopy may be embedded into structs which must not be copied
++// noCopy may be added to structs which must not be copied
+ // after the first use.
+ //
+ // See https://golang.org/issues/8005#issuecomment-190753527
+ // for details.
++//
++// Note that it must not be embedded, due to the Lock and Unlock methods.
+ type noCopy struct{}
+ 
+ // Lock is a no-op used by -copylocks checker from `go vet`.
+diff --git a/src/sync/map.go b/src/sync/map.go
+index 2fa3253429..ec529e056b 100644
+--- a/src/sync/map.go
++++ b/src/sync/map.go
+@@ -24,6 +24,13 @@ import (
+ // contention compared to a Go map paired with a separate Mutex or RWMutex.
+ //
+ // The zero Map is empty and ready for use. A Map must not be copied after first use.
++//
++// In the terminology of the Go memory model, Map arranges that a write operation
++// “synchronizes before” any read operation that observes the effect of the write, where
++// read and write operations are defined as follows.
++// Load, LoadAndDelete, LoadOrStore are read operations;
++// Delete, LoadAndDelete, and Store are write operations;
++// and LoadOrStore is a write operation when it returns loaded set to false.
+ type Map struct {
+ 	mu Mutex
+ 
+diff --git a/src/sync/mutex.go b/src/sync/mutex.go
+index 80bb827054..2ea024e585 100644
+--- a/src/sync/mutex.go
++++ b/src/sync/mutex.go
+@@ -24,6 +24,13 @@ func fatal(string)
+ // The zero value for a Mutex is an unlocked mutex.
+ //
+ // A Mutex must not be copied after first use.
++//
++// In the terminology of the Go memory model,
++// the n'th call to Unlock “synchronizes before” the m'th call to Lock
++// for any n < m.
++// A successful call to TryLock is equivalent to a call to Lock.
++// A failed call to TryLock does not establish any “synchronizes before”
++// relation at all.
+ type Mutex struct {
+ 	state int32
+ 	sema  uint32
+diff --git a/src/sync/once.go b/src/sync/once.go
+index 38373160b9..b6399cfc3d 100644
+--- a/src/sync/once.go
++++ b/src/sync/once.go
+@@ -11,6 +11,10 @@ import (
+ // Once is an object that will perform exactly one action.
+ //
+ // A Once must not be copied after first use.
++//
++// In the terminology of the Go memory model,
++// the return from f “synchronizes before”
++// the return from any call of once.Do(f).
+ type Once struct {
+ 	// done indicates whether the action has been performed.
+ 	// It is first in the struct because it is used in the hot path.
+diff --git a/src/sync/pool.go b/src/sync/pool.go
+index ea142bb181..cf01e2e189 100644
+--- a/src/sync/pool.go
++++ b/src/sync/pool.go
+@@ -41,6 +41,11 @@ import (
+ // free list.
+ //
+ // A Pool must not be copied after first use.
++//
++// In the terminology of the Go memory model, a call to Put(x) “synchronizes before”
++// a call to Get returning that same value x.
++// Similarly, a call to New returning x “synchronizes before”
++// a call to Get returning that same value x.
+ type Pool struct {
+ 	noCopy noCopy
+ 
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index 7b10808ec4..e914f3eba0 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -25,6 +25,14 @@ import (
+ // recursive read locking. This is to ensure that the lock eventually becomes
+ // available; a blocked Lock call excludes new readers from acquiring the
+ // lock.
++//
++// In the terminology of the Go memory model,
++// the n'th call to Unlock “synchronizes before” the m'th call to Lock
++// for any n < m, just as for Mutex.
++// For any call to RLock, there exists an n such that
++// the n'th call to Unlock “synchronizes before” that call to RLock,
++// and the corresponding call to RUnlock “synchronizes before”
++// the n+1'th call to Lock.
+ type RWMutex struct {
+ 	w           Mutex  // held if there are pending writers
+ 	writerSem   uint32 // semaphore for writers to wait for completing readers
+diff --git a/src/sync/waitgroup.go b/src/sync/waitgroup.go
+index 9c6662d04b..9f26ae106c 100644
+--- a/src/sync/waitgroup.go
++++ b/src/sync/waitgroup.go
+@@ -17,6 +17,9 @@ import (
+ // Wait can be used to block until all goroutines have finished.
+ //
+ // A WaitGroup must not be copied after first use.
++//
++// In the terminology of the Go memory model, a call to Done
++// “synchronizes before” the return of any Wait call that it unblocks.
+ type WaitGroup struct {
+ 	noCopy noCopy
+ 

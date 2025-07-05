@@ -7,6 +7,20 @@ Date:   Wed Mar 7 16:57:26 2012 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5787045
-
+---
  src/pkg/go/scanner/scanner.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 2395363b0e..da508747a6 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -109,7 +109,7 @@ const (
+ func (s *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode) {
+ 	// Explicitly initialize all fields since a scanner may be reused.
+ 	if file.Size() != len(src) {
+-		panic("file size does not match src len")
++		panic(fmt.Sprintf("file size (%d) does not match src len (%d)", file.Size(), len(src)))
+ 	}
+ 	s.file = file
+ 	s.dir, _ = filepath.Split(file.Name())

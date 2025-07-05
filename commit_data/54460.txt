@@ -17,7 +17,46 @@ Date:   Mon Sep 19 18:46:36 2022 +0200
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
     Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-
+---
  src/runtime/sys_freebsd_riscv64.s   |  6 ++++++
  src/runtime/vdso_freebsd_riscv64.go | 13 ++++++++++++-
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_freebsd_riscv64.s b/src/runtime/sys_freebsd_riscv64.s
+index 4b8699e2bf..30deed2573 100644
+--- a/src/runtime/sys_freebsd_riscv64.s
++++ b/src/runtime/sys_freebsd_riscv64.s
+@@ -428,3 +428,9 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+ 	MOV	$SYS_fcntl, T0
+ 	ECALL
+ 	RET
++
++// func getCntxct() uint32
++TEXT runtime·getCntxct(SB),NOSPLIT|NOFRAME,$0
++	RDTIME	A0
++	MOVW	A0, ret+0(FP)
++	RET
+diff --git a/src/runtime/vdso_freebsd_riscv64.go b/src/runtime/vdso_freebsd_riscv64.go
+index ce2dd9c439..a4fff4b1db 100644
+--- a/src/runtime/vdso_freebsd_riscv64.go
++++ b/src/runtime/vdso_freebsd_riscv64.go
+@@ -4,7 +4,18 @@
+ 
+ package runtime
+ 
++const (
++	_VDSO_TH_ALGO_RISCV_RDTIME = 1
++)
++
++func getCntxct() uint32
++
+ //go:nosplit
+ func (th *vdsoTimehands) getTimecounter() (uint32, bool) {
+-	return 0, false
++	switch th.algo {
++	case _VDSO_TH_ALGO_RISCV_RDTIME:
++		return getCntxct(), true
++	default:
++		return 0, false
++	}
+ }

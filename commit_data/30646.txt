@@ -12,6 +12,20 @@ Date:   Fri Nov 18 09:27:18 2016 -0800
     Change-Id: I36062703c423a81ea1c5b00f4429a4faf00b3782
     Reviewed-on: https://go-review.googlesource.com/33365
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 41bac695de..1a60a9eac7 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -265,7 +265,7 @@ The following character sequences represent <a href="#Operators">operators</a>,
+ *    ^     *=    ^=     &lt;-    &gt;     &gt;=    {    }
+ /    &lt;&lt;    /=    &lt;&lt;=    ++    =     :=    ,    ;
+ %    &gt;&gt;    %=    &gt;&gt;=    --    !     ...   .    :
+-     &amp;^          &amp;^=    =&gt;
++     &amp;^          &amp;^=
+ </pre>
+ 
+ <h3 id="Integer_literals">Integer literals</h3>

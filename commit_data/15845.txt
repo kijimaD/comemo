@@ -9,6 +9,20 @@ Date:   Wed Mar 20 12:05:52 2013 +1100
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/7769047
-
+---
  src/cmd/5l/obj.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index a025db2094..1bcf436c43 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -136,7 +136,7 @@ main(int argc, char *argv[])
+ 	if(argc != 1)
+ 		usage();
+ 
+-	if(linkmode != Linkinternal) {
++	if(linkmode != LinkInternal) {
+ 		diag("only -linkmode=internal is supported");
+ 		errorexit();
+ 	}

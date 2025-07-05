@@ -11,7 +11,7 @@ Date:   Wed Aug 5 15:56:44 2009 -0700
     DELTA=336  (263 added, 47 deleted, 26 changed)
     OCL=32731
     CL=32802
-
+---
  src/pkg/datafmt/datafmt.go   |  54 +++-------------
  src/pkg/json/struct.go       |   2 +-
  src/pkg/reflect/all_test.go  | 144 +++++++++++++++++++++++++++++++++++++++++++
@@ -19,3 +19,425 @@ Date:   Wed Aug 5 15:56:44 2009 -0700
  src/pkg/reflect/value.go     |  29 +++++++++
  src/pkg/template/template.go |   2 +-
  6 files changed, 276 insertions(+), 60 deletions(-)
+
+diff --git a/src/pkg/datafmt/datafmt.go b/src/pkg/datafmt/datafmt.go
+index be5575d57c..60dde3bdbc 100644
+--- a/src/pkg/datafmt/datafmt.go
++++ b/src/pkg/datafmt/datafmt.go
+@@ -410,49 +410,6 @@ func (s *State) error(msg string) {
+ }
+ 
+ 
+-// getField searches in val, which must be a struct, for a field
+-// with the given name. It returns the value and the embedded depth
+-// where it was found.
+-//
+-func getField(val reflect.Value, fieldname string) (reflect.Value, int) {
+-	// do we have a struct in the first place?
+-	sval, ok := val.(*reflect.StructValue);
+-	if !ok {
+-		return nil, 0;
+-	}
+-	styp := sval.Type().(*reflect.StructType);
+-
+-	// look for field at the top level
+-	if field, ok := styp.FieldByName(fieldname); ok {
+-		return sval.Field(field.Index), 0;
+-	}
+-
+-	// look for field in anonymous fields
+-	var field reflect.Value;
+-	level := 1000;  // infinity (no struct has that many levels)
+-	for i := 0; i < styp.NumField(); i++ {
+-		f := styp.Field(i);
+-		if f.Anonymous {
+-			f, l := getField(sval.Field(i), fieldname);
+-			// keep the most shallow field
+-			if f != nil {
+-				switch {
+-				case l < level:
+-					field, level = f, l;
+-				case l == level:
+-					// more than one field at the same level,
+-					// possibly an error unless there is a more
+-					// shallow field found later
+-					field = nil;
+-				}
+-			}
+-		}
+-	}
+-
+-	return field, level + 1;
+-}
+-
+-
+ // TODO At the moment, unnamed types are simply mapped to the default
+ //      names below. For instance, all unnamed arrays are mapped to
+ //      'array' which is not really sufficient. Eventually one may want
+@@ -613,10 +570,13 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+ 
+ 		default:
+ 			// value is value of named field
+-			field, _ := getField(value, t.fieldName);
+-			if field == nil {
+-				// TODO consider just returning false in this case
+-				s.error(fmt.Sprintf("error: no field `%s` in `%s`", t.fieldName, value.Type()));
++			var field reflect.Value;
++			if sval, ok := value.(*reflect.StructValue); ok {
++				field = sval.FieldByName(t.fieldName);
++				if field == nil {
++					// TODO consider just returning false in this case
++					s.error(fmt.Sprintf("error: no field `%s` in `%s`", t.fieldName, value.Type()));
++				}
+ 			}
+ 			value = field;
+ 		}
+diff --git a/src/pkg/json/struct.go b/src/pkg/json/struct.go
+index ee23d1e9dd..b6cebe12dd 100644
+--- a/src/pkg/json/struct.go
++++ b/src/pkg/json/struct.go
+@@ -185,7 +185,7 @@ func (b *_StructBuilder) Key(k string) Builder {
+ 	if v, ok := reflect.Indirect(b.val).(*reflect.StructValue); ok {
+ 		t := v.Type().(*reflect.StructType);
+ 		if field, ok := t.FieldByName(k); ok {
+-			return &_StructBuilder{ v.Field(field.Index) }
++			return &_StructBuilder{ v.FieldByIndex(field.Index) }
+ 		}
+ 		// Again, case-insensitive.
+ 		for i := 0; i < t.NumField(); i++ {
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 89e429ec2e..297c95e396 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -818,3 +818,147 @@ func TestInterfaceSet(t *testing.T) {
+ 		t.Errorf("Interface Method returned %d; want 250", i);
+ 	}
+ }
++
++type T1 struct { a string; int; }
++
++func TestAnonymousFields(t *testing.T) {
++	var field StructField;
++	var ok bool;
++	var t1 T1;
++	type1 := Typeof(t1).(*StructType);
++	if field, ok = type1.FieldByName("int"); !ok {
++		t.Error("no field 'int'");
++	}
++	if field.Index[0] != 1 {
++		t.Error("field index should be 1; is", field.Index);
++	}
++}
++
++type FTest struct {
++	s interface{};
++	name string;
++	index []int;
++	value int;
++}
++
++type S0 struct {
++	a, b, c, d, d int;
++}
++
++type S1 struct {
++	b int;
++	S0;
++}
++
++type S2 struct {
++	a int;
++	*S1;
++}
++
++type S3 struct {
++	S1;
++	S2;
++	d, e int;
++	*S1;
++}
++
++type S4 struct {
++	*S4;
++	a int;
++}
++
++var fieldTests = []FTest {
++	FTest{ struct{ }{}, "", nil, 0 },
++	FTest{ struct{ }{}, "foo", nil, 0 },
++	FTest{ S0{a: 'a'}, "a", []int{0}, 'a' },
++	FTest{ S0{}, "d", nil, 0 },
++	FTest{ S1{S0: S0{a: 'a'}}, "a", []int{1, 0}, 'a' },
++	FTest{ S1{b: 'b'}, "b", []int{0}, 'b' },
++	FTest{ S1{}, "S0", []int{1}, 0 },
++	FTest{ S1{S0: S0{c: 'c'}}, "c", []int{1, 2}, 'c' },
++	FTest{ S2{a: 'a'}, "a", []int{0}, 'a' },
++	FTest{ S2{}, "S1", []int{1}, 0 },
++	FTest{ S2{S1: &S1{b: 'b'}}, "b", []int{1, 0}, 'b' },
++	FTest{ S2{S1: &S1{S0: S0{c: 'c'}}}, "c", []int{1, 1, 2}, 'c' },
++	FTest{ S2{}, "d", nil, 0 },
++	FTest{ S3{}, "S1", nil, 0 },
++	FTest{ S3{S2: S2{a: 'a'}}, "a", []int{1, 0}, 'a' },
++	FTest{ S3{}, "b", nil, 0 },
++	FTest{ S3{d: 'd'}, "d", []int{2}, 0 },
++	FTest{ S3{e: 'e'}, "e", []int{3}, 'e' },
++	FTest{ S4{a: 'a'}, "a", []int{1}, 'a' },
++	FTest{ S4{}, "b", nil, 0 },
++}
++
++func TestFieldByIndex(t *testing.T) {
++	for _, test := range fieldTests {
++		s := Typeof(test.s).(*StructType);
++		f := s.FieldByIndex(test.index);
++		if f.Name != "" {
++			if test.index != nil {
++				if f.Name != test.name {
++					t.Errorf("%s.%s found; want %s", s.Name(), f.Name, test.name);
++				}
++			} else {
++				t.Errorf("%s.%s found", s.Name(), f.Name);
++			}
++		} else if len(test.index) > 0 {
++			t.Errorf("%s.%s not found", s.Name(), test.name);
++		}
++
++		if test.value != 0 {
++			v := reflect.NewValue(test.s).(*reflect.StructValue).FieldByIndex(test.index);
++			if v != nil {
++				if x, ok := v.Interface().(int); ok {
++					if x != test.value {
++						t.Errorf("%s%v is %d; want %d", s.Name(), test.index, x, test.value);
++					}
++				} else {
++					t.Errorf("%s%v value not an int", s.Name(), test.index);
++				}
++			} else {
++				t.Errorf("%s%v value not found", s.Name(), test.index);
++			}
++		}
++	}
++}
++
++func TestFieldByName(t *testing.T) {
++	for _, test := range fieldTests {
++		s := Typeof(test.s).(*StructType);
++		f, found := s.FieldByName(test.name);
++		if found {
++			if test.index != nil {
++				// Verify field depth and index.
++				if len(f.Index) != len(test.index) {
++					t.Errorf("%s.%s depth %d; want %d", s.Name(), test.name, len(f.Index), len(test.index));
++				} else {
++					for i, x := range f.Index {
++						if x != test.index[i] {
++							t.Errorf("%s.%s.Index[%d] is %d; want %d", s.Name(), test.name, i, x, test.index[i]);
++						}
++					}
++				}
++			} else {
++				t.Errorf("%s.%s found", s.Name(), f.Name);
++			}
++		} else if len(test.index) > 0 {
++			t.Errorf("%s.%s not found", s.Name(), test.name);
++		}
++		
++		if test.value != 0 {
++			v := reflect.NewValue(test.s).(*reflect.StructValue).FieldByName(test.name);
++			if v != nil {
++				if x, ok := v.Interface().(int); ok {
++					if x != test.value {
++						t.Errorf("%s.%s is %d; want %d", s.Name(), test.name, x, test.value);
++					}
++				} else {
++					t.Errorf("%s.%s value not an int", s.Name(), test.name);
++				}
++			} else {
++				t.Errorf("%s.%s value not found", s.Name(), test.name);
++			}
++		}
++	}
++}
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index beb5b89470..9820864f03 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -463,7 +463,7 @@ type StructField struct {
+ 	Type Type;
+ 	Tag string;
+ 	Offset uintptr;
+-	Index int;
++	Index []int;
+ 	Anonymous bool;
+ }
+ 
+@@ -491,24 +491,107 @@ func (t *StructType) Field(i int) (f StructField) {
+ 		f.Tag = *p.tag;
+ 	}
+ 	f.Offset = p.offset;
+-	f.Index = i;
++	f.Index = []int{i};
+ 	return;
+ }
+ 
+-// FieldByName returns the field with the provided name and a boolean to indicate
+-// that the field was found.
+-func (t *StructType) FieldByName(name string) (f StructField, present bool) {
+-	for i, p := range t.fields {
+-		ff := t.Field(i);
+-		if ff.Name == name {
+-			f = ff;
+-			present = true;
+-			break;
++// TODO(gri): Should there be an error/bool indicator if the index
++//            is wrong for FieldByIndex?
++
++// FieldByIndex returns the nested field corresponding to index.
++func (t *StructType) FieldByIndex(index []int) (f StructField) {
++	for i, x := range index {
++		if i > 0 {
++			ft := f.Type;
++			if pt, ok := ft.(*PtrType); ok {
++				ft = pt.Elem();
++			}
++			if st, ok := ft.(*StructType); ok {
++				t = st;
++			} else {
++				var f0 StructField;
++				f = f0;
++				return;
++			}
++		}
++		f = t.Field(x);
++	}
++	return;
++}
++
++const inf = 1 << 30;	// infinity - no struct has that many nesting levels
++
++func (t *StructType) fieldByName(name string, mark map[*StructType]bool, depth int) (ff StructField, fd int) {
++	fd = inf;	// field depth
++
++	if _, marked := mark[t]; marked {
++		// Struct already seen.
++		return;
++	}
++	mark[t] = true;
++
++	var fi int;	// field index
++L:	for i, _ := range t.fields {
++		f := t.Field(i);
++		d := inf;
++		switch {
++		case f.Name == name:
++			// Matching top-level field.
++			d = depth;
++		case f.Anonymous:
++			ft := f.Type;
++			if pt, ok := ft.(*PtrType); ok {
++				ft = pt.Elem();
++			}
++			switch {
++			case ft.Name() == name:
++				// Matching anonymous top-level field.
++				d = depth;
++			case fd > 0:
++				// No top-level field yet; look inside nested structs.
++				if st, ok := ft.(*StructType); ok {
++					f, d = st.fieldByName(name, mark, depth+1);
++				}
++			}
+ 		}
++
++		switch {
++		case d < fd:
++			// Found field at shallower depth.
++			ff, fi, fd = f, i, d;
++		case d == fd:
++			// More than one matching field at the same depth (or d, fd == inf).
++			// Same as no field found.
++			fd = inf;
++			if d == depth {
++				// Impossible to find a field at lower depth.
++				break L;
++			}
++		}
++	}
++
++	if fd < inf {
++		// Found matching field.
++		if len(ff.Index) <= depth {
++			ff.Index = make([]int, depth+1);
++		}
++		ff.Index[depth] = fi;
+ 	}
++
++	mark[t] = false, false;
+ 	return;
+ }
+ 
++// FieldByName returns the struct field with the given name
++// and a boolean to indicate if the field was found.
++func (t *StructType) FieldByName(name string) (f StructField, present bool) {
++	if ff, fd := t.fieldByName(name, make(map[*StructType]bool), 0); fd < inf {
++		ff.Index = ff.Index[0 : fd+1];
++		f, present = ff, true;
++	}
++	return
++}
++
+ // NumField returns the number of struct fields.
+ func (t *StructType) NumField() int {
+ 	return len(t.fields);
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index c32574a3f0..a7de452a37 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1126,6 +1126,35 @@ func (v *StructValue) Field(i int) Value {
+ 	return newValue(f.Type, addr(uintptr(v.addr)+f.Offset), v.canSet && f.PkgPath == "");
+ }
+ 
++// FieldByIndex returns the nested field corresponding to index.
++func (t *StructValue) FieldByIndex(index []int) (v Value) {
++	v = t;
++	for i, x := range index {
++		if i > 0 {
++			if p, ok := v.(*PtrValue); ok {
++				v = p.Elem();
++			}
++			if s, ok := v.(*StructValue); ok {
++				t = s;
++			} else {
++				v = nil;
++				return;
++			}
++		}
++		v = t.Field(x);
++	}
++	return;
++}
++
++// FieldByName returns the struct field with the given name.
++// The result is nil if no field was found.
++func (t *StructValue) FieldByName(name string) Value {
++	if f, ok := t.Type().(*StructType).FieldByName(name); ok {
++		return t.FieldByIndex(f.Index);
++	}
++	return nil;
++}
++
+ // NumField returns the number of fields in the struct.
+ func (v *StructValue) NumField() int {
+ 	return v.typ.(*StructType).NumField();
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index c47a2978a7..956e452576 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -585,7 +585,7 @@ func (st *state) findVar(s string) reflect.Value {
+ 		if !ok {
+ 			return nil
+ 		}
+-		data = data.(*reflect.StructValue).Field(field.Index);
++		data = data.(*reflect.StructValue).FieldByIndex(field.Index);
+ 	}
+ 	return data
+ }

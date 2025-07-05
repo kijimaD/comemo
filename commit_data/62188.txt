@@ -17,7 +17,47 @@ Date:   Sat Feb 8 13:59:18 2025 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go | 4 +++-
  src/cmd/compile/internal/gc/obj.go    | 8 +++++++-
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index c93f008ba2..9afbeb9d3b 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -47,5 +47,7 @@ func dumpasmhdr() {
+ 		}
+ 	}
+ 
+-	b.Close()
++	if err := b.Close(); err != nil {
++		base.Fatalf("%v", err)
++	}
+ }
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 4b42c81ef8..37bbce0318 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -57,7 +57,7 @@ func dumpobj1(outfile string, mode int) {
+ 		fmt.Printf("can't create %s: %v\n", outfile, err)
+ 		base.ErrorExit()
+ 	}
+-	defer bout.Close()
++
+ 	bout.WriteString("!<arch>\n")
+ 
+ 	if mode&modeCompilerObj != 0 {
+@@ -70,6 +70,12 @@ func dumpobj1(outfile string, mode int) {
+ 		dumpLinkerObj(bout)
+ 		finishArchiveEntry(bout, start, "_go_.o")
+ 	}
++
++	if err := bout.Close(); err != nil {
++		base.FlushErrors()
++		fmt.Printf("error while writing to file %s: %v\n", outfile, err)
++		base.ErrorExit()
++	}
+ }
+ 
+ func printObjHeader(bout *bio.Writer) {

@@ -20,6 +20,36 @@ Date:   Mon Aug 1 21:18:36 2022 +0200
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/encoding/gob/decode.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index eea2924f1a..7bca13c957 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -1228,9 +1228,14 @@ func (dec *Decoder) decodeIgnoredValue(wireId typeId) {
+ 	}
+ }
+ 
++const (
++	intBits     = 32 << (^uint(0) >> 63)
++	uintptrBits = 32 << (^uintptr(0) >> 63)
++)
++
+ func init() {
+ 	var iop, uop decOp
+-	switch reflect.TypeOf(int(0)).Bits() {
++	switch intBits {
+ 	case 32:
+ 		iop = decInt32
+ 		uop = decUint32
+@@ -1244,7 +1249,7 @@ func init() {
+ 	decOpTable[reflect.Uint] = uop
+ 
+ 	// Finally uintptr
+-	switch reflect.TypeOf(uintptr(0)).Bits() {
++	switch uintptrBits {
+ 	case 32:
+ 		uop = decUint32
+ 	case 64:

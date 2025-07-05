@@ -13,9 +13,86 @@ Date:   Tue May 23 11:26:22 2023 +0200
     Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/metrics.go             | 6 ++++++
  src/runtime/metrics/description.go | 7 +++++++
  src/runtime/metrics/doc.go         | 5 +++++
  src/runtime/metrics_test.go        | 7 +++++++
  4 files changed, 25 insertions(+)
+
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 9308a784b7..4931a0ef8b 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -254,6 +254,12 @@ func initMetrics() {
+ 				out.scalar = uint64(gcController.memoryLimit.Load())
+ 			},
+ 		},
++		"/gc/gogc:percent": {
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = uint64(gcController.gcPercent.Load())
++			},
++		},
+ 		"/gc/heap/live:bytes": {
+ 			deps: makeStatDepSet(heapStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index e9c8ccc0fe..e3eb87b353 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -193,6 +193,13 @@ var allDesc = []Description{
+ 		Kind:        KindUint64,
+ 		Cumulative:  true,
+ 	},
++	{
++		Name: "/gc/gogc:percent",
++		Description: "Heap size target percentage configured by the user, otherwise 100. This " +
++			"value is set by the GOGC environment variable, and the runtime/debug.SetGCPercent " +
++			"function.",
++		Kind: KindUint64,
++	},
+ 	{
+ 		Name: "/gc/gomemlimit:bytes",
+ 		Description: "Go runtime memory limit configured by the user, otherwise " +
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 61326ed1df..f95177edc8 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -147,6 +147,11 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 	/gc/cycles/total:gc-cycles
+ 		Count of all completed GC cycles.
+ 
++	/gc/gogc:percent
++		Heap size target percentage configured by the user, otherwise
++		100. This value is set by the GOGC environment variable, and the
++		runtime/debug.SetGCPercent function.
++
+ 	/gc/gomemlimit:bytes
+ 		Go runtime memory limit configured by the user, otherwise
+ 		math.MaxInt64. This value is set by the GOMEMLIMIT environment
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index 19888376a4..4b58914032 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -37,6 +37,11 @@ func TestReadMetrics(t *testing.T) {
+ 	oldLimit := debug.SetMemoryLimit(limit)
+ 	defer debug.SetMemoryLimit(oldLimit)
+ 
++	// Set an GC percent to check the metric for it
++	gcPercent := 99
++	oldGCPercent := debug.SetGCPercent(gcPercent)
++	defer debug.SetGCPercent(oldGCPercent)
++
+ 	// Tests whether readMetrics produces values aligning
+ 	// with ReadMemStats while the world is stopped.
+ 	var mstats runtime.MemStats
+@@ -150,6 +155,8 @@ func TestReadMetrics(t *testing.T) {
+ 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapObjects)
+ 		case "/gc/heap/goal:bytes":
+ 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.NextGC)
++		case "/gc/gogc:percent":
++			checkUint64(t, name, samples[i].Value.Uint64(), uint64(gcPercent))
+ 		case "/gc/cycles/automatic:gc-cycles":
+ 			checkUint64(t, name, samples[i].Value.Uint64(), uint64(mstats.NumGC-mstats.NumForcedGC))
+ 		case "/gc/cycles/forced:gc-cycles":

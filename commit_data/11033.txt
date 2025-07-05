@@ -9,6 +9,22 @@ Date:   Thu Jan 5 11:04:14 2012 -0800
     R=rsc, golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5517045
-
+---
  src/pkg/math/all_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 101c8dd85b..2f73c06272 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -2214,8 +2214,8 @@ func TestLogb(t *testing.T) {
+ 		}
+ 	}
+ 	for i := 0; i < len(vffrexpBC); i++ {
+-		if e := Logb(vffrexpBC[i]); !alike(logbBC[i], e) {
+-			t.Errorf("Ilogb(%g) = %g, want %g", vffrexpBC[i], e, logbBC[i])
++		if f := Logb(vffrexpBC[i]); !alike(logbBC[i], f) {
++			t.Errorf("Logb(%g) = %g, want %g", vffrexpBC[i], f, logbBC[i])
+ 		}
+ 	}
+ }

@@ -15,6 +15,36 @@ Date:   Thu Dec 5 14:49:25 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/sync/waitgroup_test.go | 11 ++++++++---
  1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/sync/waitgroup_test.go b/src/sync/waitgroup_test.go
+index 4ab438cbab..c569e0faa2 100644
+--- a/src/sync/waitgroup_test.go
++++ b/src/sync/waitgroup_test.go
+@@ -147,7 +147,7 @@ func TestWaitGroupMisuse3(t *testing.T) {
+ 		}
+ 	}()
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+-	done := make(chan interface{}, 2)
++	done := make(chan interface{}, 3)
+ 	// The detection is opportunistically, so we want it to panic
+ 	// at least in one run out of a million.
+ 	for i := 0; i < 1e6; i++ {
+@@ -171,8 +171,13 @@ func TestWaitGroupMisuse3(t *testing.T) {
+ 			}()
+ 			wg.Wait()
+ 		}()
+-		wg.Wait()
+-		for j := 0; j < 2; j++ {
++		go func() {
++			defer func() {
++				done <- recover()
++			}()
++			wg.Wait()
++		}()
++		for j := 0; j < 3; j++ {
+ 			if err := <-done; err != nil {
+ 				panic(err)
+ 			}

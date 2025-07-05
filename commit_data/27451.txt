@@ -21,7 +21,175 @@ Date:   Mon Mar 28 13:52:28 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21240
     Reviewed-by: David Symonds <dsymonds@golang.org>
     Run-TryBot: David Symonds <dsymonds@golang.org>
-
+---
  src/cmd/pprof/internal/profile/proto.go      | 62 +++++++++++++++++++++++++
  src/cmd/pprof/internal/profile/proto_test.go | 67 ++++++++++++++++++++++++++++
  2 files changed, 129 insertions(+)
+
+diff --git a/src/cmd/pprof/internal/profile/proto.go b/src/cmd/pprof/internal/profile/proto.go
+index 475cf564fb..11d7f9ff9b 100644
+--- a/src/cmd/pprof/internal/profile/proto.go
++++ b/src/cmd/pprof/internal/profile/proto.go
+@@ -64,6 +64,20 @@ func encodeUint64(b *buffer, tag int, x uint64) {
+ }
+ 
+ func encodeUint64s(b *buffer, tag int, x []uint64) {
++	if len(x) > 2 {
++		// Use packed encoding
++		n1 := len(b.data)
++		for _, u := range x {
++			encodeVarint(b, u)
++		}
++		n2 := len(b.data)
++		encodeLength(b, tag, n2-n1)
++		n3 := len(b.data)
++		copy(b.tmp[:], b.data[n2:n3])
++		copy(b.data[n1+(n3-n2):], b.data[n1:n2])
++		copy(b.data[n1:], b.tmp[:n3-n2])
++		return
++	}
+ 	for _, u := range x {
+ 		encodeUint64(b, tag, u)
+ 	}
+@@ -88,6 +102,26 @@ func encodeInt64Opt(b *buffer, tag int, x int64) {
+ 	encodeInt64(b, tag, x)
+ }
+ 
++func encodeInt64s(b *buffer, tag int, x []int64) {
++	if len(x) > 2 {
++		// Use packed encoding
++		n1 := len(b.data)
++		for _, u := range x {
++			encodeVarint(b, uint64(u))
++		}
++		n2 := len(b.data)
++		encodeLength(b, tag, n2-n1)
++		n3 := len(b.data)
++		copy(b.tmp[:], b.data[n2:n3])
++		copy(b.data[n1+(n3-n2):], b.data[n1:n2])
++		copy(b.data[n1:], b.tmp[:n3-n2])
++		return
++	}
++	for _, u := range x {
++		encodeInt64(b, tag, u)
++	}
++}
++
+ func encodeString(b *buffer, tag int, x string) {
+ 	encodeLength(b, tag, len(x))
+ 	b.data = append(b.data, x...)
+@@ -243,6 +277,20 @@ func decodeInt64(b *buffer, x *int64) error {
+ }
+ 
+ func decodeInt64s(b *buffer, x *[]int64) error {
++	if b.typ == 2 {
++		// Packed encoding
++		data := b.data
++		for len(data) > 0 {
++			var u uint64
++			var err error
++
++			if u, data, err = decodeVarint(data); err != nil {
++				return err
++			}
++			*x = append(*x, int64(u))
++		}
++		return nil
++	}
+ 	var i int64
+ 	if err := decodeInt64(b, &i); err != nil {
+ 		return err
+@@ -260,6 +308,20 @@ func decodeUint64(b *buffer, x *uint64) error {
+ }
+ 
+ func decodeUint64s(b *buffer, x *[]uint64) error {
++	if b.typ == 2 {
++		data := b.data
++		// Packed encoding
++		for len(data) > 0 {
++			var u uint64
++			var err error
++
++			if u, data, err = decodeVarint(data); err != nil {
++				return err
++			}
++			*x = append(*x, u)
++		}
++		return nil
++	}
+ 	var u uint64
+ 	if err := decodeUint64(b, &u); err != nil {
+ 		return err
+diff --git a/src/cmd/pprof/internal/profile/proto_test.go b/src/cmd/pprof/internal/profile/proto_test.go
+new file mode 100644
+index 0000000000..c2613fc375
+--- /dev/null
++++ b/src/cmd/pprof/internal/profile/proto_test.go
+@@ -0,0 +1,67 @@
++package profile
++
++import (
++	"reflect"
++	"testing"
++)
++
++func TestPackedEncoding(t *testing.T) {
++
++	type testcase struct {
++		uint64s []uint64
++		int64s  []int64
++		encoded []byte
++	}
++	for i, tc := range []testcase{
++		{
++			[]uint64{0, 1, 10, 100, 1000, 10000},
++			[]int64{1000, 0, 1000},
++			[]byte{10, 8, 0, 1, 10, 100, 232, 7, 144, 78, 18, 5, 232, 7, 0, 232, 7},
++		},
++		{
++			[]uint64{10000},
++			nil,
++			[]byte{8, 144, 78},
++		},
++		{
++			nil,
++			[]int64{-10000},
++			[]byte{16, 240, 177, 255, 255, 255, 255, 255, 255, 255, 1},
++		},
++	} {
++		source := &packedInts{tc.uint64s, tc.int64s}
++		if got, want := marshal(source), tc.encoded; !reflect.DeepEqual(got, want) {
++			t.Errorf("failed encode %d, got %v, want %v", i, got, want)
++		}
++
++		dest := new(packedInts)
++		if err := unmarshal(tc.encoded, dest); err != nil {
++			t.Errorf("failed decode %d: %v", i, err)
++			continue
++		}
++		if got, want := dest.uint64s, tc.uint64s; !reflect.DeepEqual(got, want) {
++			t.Errorf("failed decode uint64s %d, got %v, want %v", i, got, want)
++		}
++		if got, want := dest.int64s, tc.int64s; !reflect.DeepEqual(got, want) {
++			t.Errorf("failed decode int64s %d, got %v, want %v", i, got, want)
++		}
++	}
++}
++
++type packedInts struct {
++	uint64s []uint64
++	int64s  []int64
++}
++
++func (u *packedInts) decoder() []decoder {
++	return []decoder{
++		nil,
++		func(b *buffer, m message) error { return decodeUint64s(b, &m.(*packedInts).uint64s) },
++		func(b *buffer, m message) error { return decodeInt64s(b, &m.(*packedInts).int64s) },
++	}
++}
++
++func (u *packedInts) encode(b *buffer) {
++	encodeUint64s(b, 1, u.uint64s)
++	encodeInt64s(b, 2, u.int64s)
++}

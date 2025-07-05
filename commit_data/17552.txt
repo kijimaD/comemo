@@ -12,9 +12,205 @@ Date:   Wed Sep 11 09:57:05 2013 -0400
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/13253049
-
+---
  src/cmd/go/main.go                  | 39 +++++++++++++++++++++
  src/cmd/go/match_test.go            | 70 ++++++++++++++++++++++++++++++++-----
  src/cmd/go/test.bash                | 16 +++++++++
  src/cmd/go/testdata/src/badpkg/x.go |  1 +
  4 files changed, 117 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 5228d0a9c2..1553c88d60 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -434,6 +434,37 @@ func matchPattern(pattern string) func(name string) bool {
+ 	}
+ }
+ 
++// hasPathPrefix reports whether the path s begins with the
++// elements in prefix.
++func hasPathPrefix(s, prefix string) bool {
++	switch {
++	default:
++		return false
++	case len(s) == len(prefix):
++		return s == prefix
++	case len(s) > len(prefix):
++		if prefix != "" && prefix[len(prefix)-1] == '/' {
++			return strings.HasPrefix(s, prefix)
++		}
++		return s[len(prefix)] == '/' && s[:len(prefix)] == prefix
++	}
++}
++
++// treeCanMatchPattern(pattern)(name) reports whether
++// name or children of name can possibly match pattern.
++// Pattern is the same limited glob accepted by matchPattern.
++func treeCanMatchPattern(pattern string) func(name string) bool {
++	wildCard := false
++	if i := strings.Index(pattern, "..."); i >= 0 {
++		wildCard = true
++		pattern = pattern[:i]
++	}
++	return func(name string) bool {
++		return len(name) <= len(pattern) && hasPathPrefix(pattern, name) ||
++			wildCard && strings.HasPrefix(name, pattern)
++	}
++}
++
+ // allPackages returns all the packages that can be found
+ // under the $GOPATH directories and $GOROOT matching pattern.
+ // The pattern is either "all" (all packages), "std" (standard packages)
+@@ -448,8 +479,10 @@ func allPackages(pattern string) []string {
+ 
+ func matchPackages(pattern string) []string {
+ 	match := func(string) bool { return true }
++	treeCanMatch := func(string) bool { return true }
+ 	if pattern != "all" && pattern != "std" {
+ 		match = matchPattern(pattern)
++		treeCanMatch = treeCanMatchPattern(pattern)
+ 	}
+ 
+ 	have := map[string]bool{
+@@ -467,6 +500,9 @@ func matchPackages(pattern string) []string {
+ 			return nil
+ 		}
+ 		name := path[len(cmd):]
++		if !treeCanMatch(name) {
++			return filepath.SkipDir
++		}
+ 		// Commands are all in cmd/, not in subdirectories.
+ 		if strings.Contains(name, string(filepath.Separator)) {
+ 			return filepath.SkipDir
+@@ -512,6 +548,9 @@ func matchPackages(pattern string) []string {
+ 			if pattern == "std" && strings.Contains(name, ".") {
+ 				return filepath.SkipDir
+ 			}
++			if !treeCanMatch(name) {
++				return filepath.SkipDir
++			}
+ 			if have[name] {
+ 				return nil
+ 			}
+diff --git a/src/cmd/go/match_test.go b/src/cmd/go/match_test.go
+index f058f235a1..38b9b115e7 100644
+--- a/src/cmd/go/match_test.go
++++ b/src/cmd/go/match_test.go
+@@ -6,11 +6,7 @@ package main
+ 
+ import "testing"
+ 
+-var matchTests = []struct {
+-	pattern string
+-	path    string
+-	match   bool
+-}{
++var matchPatternTests = []stringPairTest{
+ 	{"...", "foo", true},
+ 	{"net", "net", true},
+ 	{"net", "net/http", false},
+@@ -27,10 +23,66 @@ var matchTests = []struct {
+ }
+ 
+ func TestMatchPattern(t *testing.T) {
+-	for _, tt := range matchTests {
+-		match := matchPattern(tt.pattern)(tt.path)
+-		if match != tt.match {
+-			t.Errorf("matchPattern(%q)(%q) = %v, want %v", tt.pattern, tt.path, match, tt.match)
++	testStringPairs(t, "matchPattern", matchPatternTests, func(pattern, name string) bool {
++		return matchPattern(pattern)(name)
++	})
++}
++
++var treeCanMatchPatternTests = []stringPairTest{
++	{"...", "foo", true},
++	{"net", "net", true},
++	{"net", "net/http", false},
++	{"net/http", "net", true},
++	{"net/http", "net/http", true},
++	{"net...", "netchan", true},
++	{"net...", "net", true},
++	{"net...", "net/http", true},
++	{"net...", "not/http", false},
++	{"net/...", "netchan", false},
++	{"net/...", "net", true},
++	{"net/...", "net/http", true},
++	{"net/...", "not/http", false},
++	{"abc.../def", "abcxyz", true},
++	{"abc.../def", "xyxabc", false},
++	{"x/y/z/...", "x", true},
++	{"x/y/z/...", "x/y", true},
++	{"x/y/z/...", "x/y/z", true},
++	{"x/y/z/...", "x/y/z/w", true},
++	{"x/y/z", "x", true},
++	{"x/y/z", "x/y", true},
++	{"x/y/z", "x/y/z", true},
++	{"x/y/z", "x/y/z/w", false},
++	{"x/.../y/z", "x/a/b/c", true},
++	{"x/.../y/z", "y/x/a/b/c", false},
++}
++
++func TestChildrenCanMatchPattern(t *testing.T) {
++	testStringPairs(t, "treeCanMatchPattern", treeCanMatchPatternTests, func(pattern, name string) bool {
++		return treeCanMatchPattern(pattern)(name)
++	})
++}
++
++var hasPathPrefixTests = []stringPairTest{
++	{"abc", "a", false},
++	{"a/bc", "a", true},
++	{"a", "a", true},
++	{"a/bc", "a/", true},
++}
++
++func TestHasPathPrefix(t *testing.T) {
++	testStringPairs(t, "hasPathPrefix", hasPathPrefixTests, hasPathPrefix)
++}
++
++type stringPairTest struct {
++	in1 string
++	in2 string
++	out bool
++}
++
++func testStringPairs(t *testing.T, name string, tests []stringPairTest, f func(string, string) bool) {
++	for _, tt := range tests {
++		if out := f(tt.in1, tt.in2); out != tt.out {
++			t.Errorf("%s(%q, %q) = %v, want %v", name, tt.in1, tt.in2, out, tt.out)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 17358279c8..a2ba1ca95a 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -117,6 +117,22 @@ fi
+ rm -f ./testdata/err
+ unset GOPATH
+ 
++TEST wildcards do not look in useless directories
++export GOPATH=$(pwd)/testdata
++if ./testgo list ... >testdata/err 2>&1; then
++	echo "go list ... succeeded"
++	ok=false
++elif ! grep badpkg testdata/err >/dev/null; then
++	echo "go list ... failure does not mention badpkg"
++	cat testdata/err
++	ok=false
++elif ! ./testgo list m... >testdata/err 2>&1; then
++	echo "go list m... failed"
++	ok=false
++fi
++rm -rf ./testdata/err
++unset GOPATH
++
+ # Test tests with relative imports.
+ TEST relative imports '(go test)'
+ if ! ./testgo test ./testdata/testimport; then
+diff --git a/src/cmd/go/testdata/src/badpkg/x.go b/src/cmd/go/testdata/src/badpkg/x.go
+new file mode 100644
+index 0000000000..dda35e8ed3
+--- /dev/null
++++ b/src/cmd/go/testdata/src/badpkg/x.go
+@@ -0,0 +1 @@
++pkg badpkg

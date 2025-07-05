@@ -55,7 +55,7 @@ Date:   Thu Feb 23 14:54:47 2023 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go      |  2 +-
  src/cmd/compile/internal/types2/infer2.go          | 38 +++-------
  src/cmd/compile/internal/types2/unify.go           | 88 +++++++++++++++++-----
@@ -68,3 +68,523 @@ Date:   Thu Feb 23 14:54:47 2023 -0800
  .../types/testdata/fixedbugs/issue51139.go         | 26 +++++++
  .../types/testdata/fixedbugs/issue51472.go         |  2 +-
  11 files changed, 192 insertions(+), 98 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 5a46a1447b..98ace528e9 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -326,7 +326,7 @@ func TestCheck(t *testing.T) {
+ }
+ func TestSpec(t *testing.T) { testDirFiles(t, "../../../../internal/types/testdata/spec", 0, false) }
+ func TestExamples(t *testing.T) {
+-	testDirFiles(t, "../../../../internal/types/testdata/examples", 50, false)
++	testDirFiles(t, "../../../../internal/types/testdata/examples", 60, false)
+ } // TODO(gri) narrow column tolerance
+ func TestFixedbugs(t *testing.T) {
+ 	testDirFiles(t, "../../../../internal/types/testdata/fixedbugs", 100, false)
+diff --git a/src/cmd/compile/internal/types2/infer2.go b/src/cmd/compile/internal/types2/infer2.go
+index b322676adf..8cc96278bf 100644
+--- a/src/cmd/compile/internal/types2/infer2.go
++++ b/src/cmd/compile/internal/types2/infer2.go
+@@ -13,7 +13,7 @@ import (
+ 
+ // If compareWithInfer1, infer2 results must match infer1 results.
+ // Disable before releasing Go 1.21.
+-const compareWithInfer1 = true
++const compareWithInfer1 = false
+ 
+ // infer attempts to infer the complete set of type arguments for generic function instantiation/call
+ // based on the given type parameters tparams, type arguments targs, function parameters params, and
+@@ -76,6 +76,10 @@ func (check *Checker) infer2(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	// Rename type parameters to avoid conflicts in recursive instantiation scenarios.
+ 	tparams, params = check.renameTParams(pos, tparams, params)
+ 
++	if traceInference {
++		check.dump("after rename: %s%s ➞ %s\n", tparams, params, targs)
++	}
++
+ 	// Make sure we have a "full" list of type arguments, some of which may
+ 	// be nil (unknown). Make a copy so as to not clobber the incoming slice.
+ 	if len(targs) < n {
+@@ -222,39 +226,21 @@ func (check *Checker) infer2(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 					// In this case, if the core type has a tilde, the type argument's underlying
+ 					// type must match the core type, otherwise the type argument and the core type
+ 					// must match.
+-					// If tx is an external type parameter, don't consider its underlying type
+-					// (which is an interface). Core type unification will attempt to unify against
+-					// core.typ.
+-					// Note also that even with inexact unification we cannot leave away the under
+-					// call here because it's possible that both tx and core.typ are named types,
+-					// with under(tx) being a (named) basic type matching core.typ. Such cases do
+-					// not match with inexact unification.
++					// If tx is an (external) type parameter, don't consider its underlying type
++					// (which is an interface). The unifier will use the type parameter's core
++					// type automatically.
+ 					if core.tilde && !isTypeParam(tx) {
+ 						tx = under(tx)
+ 					}
+-					// Unification may fail because it operates with limited information (core type),
+-					// even if a given type argument satisfies the corresponding type constraint.
+-					// For instance, given [P T1|T2, ...] where the type argument for P is (named
+-					// type) T1, and T1 and T2 have the same built-in (named) type T0 as underlying
+-					// type, the core type will be the named type T0, which doesn't match T1.
+-					// Yet the instantiation of P with T1 is clearly valid (see go.dev/issue/53650).
+-					// Reporting an error if unification fails would be incorrect in this case.
+-					// On the other hand, it is safe to ignore failing unification during constraint
+-					// type inference because if the failure is true, an error will be reported when
+-					// checking instantiation.
+-					// TODO(gri) we should be able to report an error here and fix the issue in
+-					// unification
+-					u.unify(tx, core.typ)
+-
++					if !u.unify(tx, core.typ) {
++						check.errorf(pos, CannotInferTypeArgs, "%s does not match %s", tpar, core.typ)
++						return nil
++					}
+ 				case single && !core.tilde:
+ 					// The corresponding type argument tx is unknown and there's a single
+ 					// specific type and no tilde.
+ 					// In this case the type argument must be that single type; set it.
+ 					u.set(tpar, core.typ)
+-
+-				default:
+-					// Unification is not possible and no progress was made.
+-					continue
+ 				}
+ 			} else {
+ 				if traceInference {
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index c591ab9c39..365767b2e8 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -3,6 +3,31 @@
+ // license that can be found in the LICENSE file.
+ 
+ // This file implements type unification.
++//
++// Type unification attempts to make two types x and y structurally
++// identical by determining the types for a given list of (bound)
++// type parameters which may occur within x and y. If x and y are
++// are structurally different (say []T vs chan T), or conflicting
++// types are determined for type parameters, unification fails.
++// If unification succeeds, as a side-effect, the types of the
++// bound type parameters may be determined.
++//
++// Unification typically requires multiple calls u.unify(x, y) to
++// a given unifier u, with various combinations of types x and y.
++// In each call, additional type parameter types may be determined
++// as a side effect. If a call fails (returns false), unification
++// fails.
++//
++// In the unification context, structural identity ignores the
++// difference between a defined type and its underlying type.
++// It also ignores the difference between an (external, unbound)
++// type parameter and its core type.
++// If two types are not structurally identical, they cannot be Go
++// identical types. On the other hand, if they are structurally
++// identical, they may be Go identical or at least assignable, or
++// they may be in the type set of a constraint.
++// Whether they indeed are identical or assignable is determined
++// upon instantiation and function argument passing.
+ 
+ package types2
+ 
+@@ -239,7 +264,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 
+ 	// Unification is symmetric, so we can swap the operands.
+ 	// Ensure that if we have at least one
+-	// - defined type, make sure sure one is in y
++	// - defined type, make sure one is in y
+ 	// - type parameter recorded with u, make sure one is in x
+ 	if _, ok := x.(*Named); ok || u.asTypeParam(y) != nil {
+ 		if traceInference {
+@@ -248,13 +273,24 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 		x, y = y, x
+ 	}
+ 
+-	// If exact unification is known to fail because we attempt to
+-	// match a defined type against an unnamed type literal, consider
+-	// the underlying type of the defined type.
++	// Unification will fail if we match a defined type against a type literal.
++	// Per the (spec) assignment rules, assignments of values to variables with
++	// the same type structure are permitted as long as at least one of them
++	// is not a defined type. To accomodate for that possibility, we continue
++	// unification with the underlying type of a defined type if the other type
++	// is a type literal.
++	// We also continue if the other type is a basic type because basic types
++	// are valid underlying types and may appear as core types of type constraints.
++	// If we exclude them, inferred defined types for type parameters may not
++	// match against the core types of their constraints (even though they might
++	// correctly match against some of the types in the constraint's type set).
++	// Finally, if unification (incorrectly) succeeds by matching the underlying
++	// type of a defined type against a basic type (because we include basic types
++	// as type literals here), and if that leads to an incorrectly inferred type,
++	// we will fail at function instantiation or argument assignment time.
++	//
+ 	// If we have at least one defined type, there is one in y.
+-	// (We use !hasName to exclude any type with a name, including
+-	// basic types and type parameters; the rest are unamed types.)
+-	if ny, _ := y.(*Named); ny != nil && !hasName(x) {
++	if ny, _ := y.(*Named); ny != nil && isTypeLit(x) {
+ 		if traceInference {
+ 			u.tracef("%s ≡ under %s", x, ny)
+ 		}
+@@ -266,6 +302,10 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 
+ 	// Cases where at least one of x or y is a type parameter recorded with u.
+ 	// If we have at least one type parameter, there is one in x.
++	// If we have exactly one type parameter, because it is in x,
++	// isTypeLit(x) is false and y was not changed above. In other
++	// words, if y was a defined type, it is still a defined type
++	// (relevant for the logic below).
+ 	switch px, py := u.asTypeParam(x), u.asTypeParam(y); {
+ 	case px != nil && py != nil:
+ 		// both x and y are type parameters
+@@ -296,8 +336,19 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 		return true
+ 	}
+ 
+-	// If we get here and x or y is a type parameter, they are type parameters
+-	// from outside our declaration list. Try to unify their core types, if any
++	// If we get here and x or y is a type parameter, they are unbound
++	// (not recorded with the unifier).
++	// By definition, a valid type argument must be in the type set of
++	// the respective type constraint. Therefore, the type argument's
++	// underlying type must be in the set of underlying types of that
++	// constraint. If there is a single such underlying type, it's the
++	// constraint's core type. It must match the type argument's under-
++	// lying type, irrespective of whether the actual type argument,
++	// which may be a defined type, is actually in the type set (that
++	// will be determined at instantiation time).
++	// Thus, if we have the core type of an unbound type parameter,
++	// we know the structure of the possible types satisfying such
++	// parameters. Use that core type for further unification
+ 	// (see go.dev/issue/50755 for a test case).
+ 	if enableCoreTypeUnification {
+ 		// swap x and y as needed
+@@ -308,18 +359,15 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 			}
+ 			x, y = y, x
+ 		}
+-		if isTypeParam(x) && !hasName(y) {
++		if isTypeParam(x) {
+ 			// When considering the type parameter for unification
+-			// we look at the adjusted core term (adjusted core type
+-			// with tilde information).
+-			// If the adjusted core type is a named type N; the
+-			// corresponding core type is under(N).
+-			// Since y doesn't have a name, unification will end up
+-			// comparing under(N) to y, so we can just use the core
+-			// type instead. And we can ignore the tilde because we
+-			// already look at the underlying types on both sides
+-			// and we have known types on both sides.
+-			// Optimization.
++			// we look at the core type.
++			// Because the core type is always an underlying type,
++			// unification will take care of matching against a
++			// defined or literal type automatically.
++			// If y is also an unbound type parameter, we will end
++			// up here again with x and y swapped, so we don't
++			// need to take care of that case separately.
+ 			if cx := coreType(x); cx != nil {
+ 				if traceInference {
+ 					u.tracef("core %s ≡ %s", x, y)
+diff --git a/src/go/types/infer2.go b/src/go/types/infer2.go
+index d0471832e0..b41cd5ae08 100644
+--- a/src/go/types/infer2.go
++++ b/src/go/types/infer2.go
+@@ -15,7 +15,7 @@ import (
+ 
+ // If compareWithInfer1, infer2 results must match infer1 results.
+ // Disable before releasing Go 1.21.
+-const compareWithInfer1 = true
++const compareWithInfer1 = false
+ 
+ // infer attempts to infer the complete set of type arguments for generic function instantiation/call
+ // based on the given type parameters tparams, type arguments targs, function parameters params, and
+@@ -78,6 +78,10 @@ func (check *Checker) infer2(posn positioner, tparams []*TypeParam, targs []Type
+ 	// Rename type parameters to avoid conflicts in recursive instantiation scenarios.
+ 	tparams, params = check.renameTParams(posn.Pos(), tparams, params)
+ 
++	if traceInference {
++		check.dump("after rename: %s%s ➞ %s\n", tparams, params, targs)
++	}
++
+ 	// Make sure we have a "full" list of type arguments, some of which may
+ 	// be nil (unknown). Make a copy so as to not clobber the incoming slice.
+ 	if len(targs) < n {
+@@ -224,39 +228,21 @@ func (check *Checker) infer2(posn positioner, tparams []*TypeParam, targs []Type
+ 					// In this case, if the core type has a tilde, the type argument's underlying
+ 					// type must match the core type, otherwise the type argument and the core type
+ 					// must match.
+-					// If tx is an external type parameter, don't consider its underlying type
+-					// (which is an interface). Core type unification will attempt to unify against
+-					// core.typ.
+-					// Note also that even with inexact unification we cannot leave away the under
+-					// call here because it's possible that both tx and core.typ are named types,
+-					// with under(tx) being a (named) basic type matching core.typ. Such cases do
+-					// not match with inexact unification.
++					// If tx is an (external) type parameter, don't consider its underlying type
++					// (which is an interface). The unifier will use the type parameter's core
++					// type automatically.
+ 					if core.tilde && !isTypeParam(tx) {
+ 						tx = under(tx)
+ 					}
+-					// Unification may fail because it operates with limited information (core type),
+-					// even if a given type argument satisfies the corresponding type constraint.
+-					// For instance, given [P T1|T2, ...] where the type argument for P is (named
+-					// type) T1, and T1 and T2 have the same built-in (named) type T0 as underlying
+-					// type, the core type will be the named type T0, which doesn't match T1.
+-					// Yet the instantiation of P with T1 is clearly valid (see go.dev/issue/53650).
+-					// Reporting an error if unification fails would be incorrect in this case.
+-					// On the other hand, it is safe to ignore failing unification during constraint
+-					// type inference because if the failure is true, an error will be reported when
+-					// checking instantiation.
+-					// TODO(gri) we should be able to report an error here and fix the issue in
+-					// unification
+-					u.unify(tx, core.typ)
+-
++					if !u.unify(tx, core.typ) {
++						check.errorf(posn, CannotInferTypeArgs, "%s does not match %s", tpar, core.typ)
++						return nil
++					}
+ 				case single && !core.tilde:
+ 					// The corresponding type argument tx is unknown and there's a single
+ 					// specific type and no tilde.
+ 					// In this case the type argument must be that single type; set it.
+ 					u.set(tpar, core.typ)
+-
+-				default:
+-					// Unification is not possible and no progress was made.
+-					continue
+ 				}
+ 			} else {
+ 				if traceInference {
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 0bb3e3960e..dcbe26e42b 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -5,6 +5,31 @@
+ // license that can be found in the LICENSE file.
+ 
+ // This file implements type unification.
++//
++// Type unification attempts to make two types x and y structurally
++// identical by determining the types for a given list of (bound)
++// type parameters which may occur within x and y. If x and y are
++// are structurally different (say []T vs chan T), or conflicting
++// types are determined for type parameters, unification fails.
++// If unification succeeds, as a side-effect, the types of the
++// bound type parameters may be determined.
++//
++// Unification typically requires multiple calls u.unify(x, y) to
++// a given unifier u, with various combinations of types x and y.
++// In each call, additional type parameter types may be determined
++// as a side effect. If a call fails (returns false), unification
++// fails.
++//
++// In the unification context, structural identity ignores the
++// difference between a defined type and its underlying type.
++// It also ignores the difference between an (external, unbound)
++// type parameter and its core type.
++// If two types are not structurally identical, they cannot be Go
++// identical types. On the other hand, if they are structurally
++// identical, they may be Go identical or at least assignable, or
++// they may be in the type set of a constraint.
++// Whether they indeed are identical or assignable is determined
++// upon instantiation and function argument passing.
+ 
+ package types
+ 
+@@ -241,7 +266,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 
+ 	// Unification is symmetric, so we can swap the operands.
+ 	// Ensure that if we have at least one
+-	// - defined type, make sure sure one is in y
++	// - defined type, make sure one is in y
+ 	// - type parameter recorded with u, make sure one is in x
+ 	if _, ok := x.(*Named); ok || u.asTypeParam(y) != nil {
+ 		if traceInference {
+@@ -250,13 +275,24 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 		x, y = y, x
+ 	}
+ 
+-	// If exact unification is known to fail because we attempt to
+-	// match a defined type against an unnamed type literal, consider
+-	// the underlying type of the defined type.
++	// Unification will fail if we match a defined type against a type literal.
++	// Per the (spec) assignment rules, assignments of values to variables with
++	// the same type structure are permitted as long as at least one of them
++	// is not a defined type. To accomodate for that possibility, we continue
++	// unification with the underlying type of a defined type if the other type
++	// is a type literal.
++	// We also continue if the other type is a basic type because basic types
++	// are valid underlying types and may appear as core types of type constraints.
++	// If we exclude them, inferred defined types for type parameters may not
++	// match against the core types of their constraints (even though they might
++	// correctly match against some of the types in the constraint's type set).
++	// Finally, if unification (incorrectly) succeeds by matching the underlying
++	// type of a defined type against a basic type (because we include basic types
++	// as type literals here), and if that leads to an incorrectly inferred type,
++	// we will fail at function instantiation or argument assignment time.
++	//
+ 	// If we have at least one defined type, there is one in y.
+-	// (We use !hasName to exclude any type with a name, including
+-	// basic types and type parameters; the rest are unamed types.)
+-	if ny, _ := y.(*Named); ny != nil && !hasName(x) {
++	if ny, _ := y.(*Named); ny != nil && isTypeLit(x) {
+ 		if traceInference {
+ 			u.tracef("%s ≡ under %s", x, ny)
+ 		}
+@@ -268,6 +304,10 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 
+ 	// Cases where at least one of x or y is a type parameter recorded with u.
+ 	// If we have at least one type parameter, there is one in x.
++	// If we have exactly one type parameter, because it is in x,
++	// isTypeLit(x) is false and y was not changed above. In other
++	// words, if y was a defined type, it is still a defined type
++	// (relevant for the logic below).
+ 	switch px, py := u.asTypeParam(x), u.asTypeParam(y); {
+ 	case px != nil && py != nil:
+ 		// both x and y are type parameters
+@@ -298,8 +338,19 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 		return true
+ 	}
+ 
+-	// If we get here and x or y is a type parameter, they are type parameters
+-	// from outside our declaration list. Try to unify their core types, if any
++	// If we get here and x or y is a type parameter, they are unbound
++	// (not recorded with the unifier).
++	// By definition, a valid type argument must be in the type set of
++	// the respective type constraint. Therefore, the type argument's
++	// underlying type must be in the set of underlying types of that
++	// constraint. If there is a single such underlying type, it's the
++	// constraint's core type. It must match the type argument's under-
++	// lying type, irrespective of whether the actual type argument,
++	// which may be a defined type, is actually in the type set (that
++	// will be determined at instantiation time).
++	// Thus, if we have the core type of an unbound type parameter,
++	// we know the structure of the possible types satisfying such
++	// parameters. Use that core type for further unification
+ 	// (see go.dev/issue/50755 for a test case).
+ 	if enableCoreTypeUnification {
+ 		// swap x and y as needed
+@@ -310,18 +361,15 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 			}
+ 			x, y = y, x
+ 		}
+-		if isTypeParam(x) && !hasName(y) {
++		if isTypeParam(x) {
+ 			// When considering the type parameter for unification
+-			// we look at the adjusted core term (adjusted core type
+-			// with tilde information).
+-			// If the adjusted core type is a named type N; the
+-			// corresponding core type is under(N).
+-			// Since y doesn't have a name, unification will end up
+-			// comparing under(N) to y, so we can just use the core
+-			// type instead. And we can ignore the tilde because we
+-			// already look at the underlying types on both sides
+-			// and we have known types on both sides.
+-			// Optimization.
++			// we look at the core type.
++			// Because the core type is always an underlying type,
++			// unification will take care of matching against a
++			// defined or literal type automatically.
++			// If y is also an unbound type parameter, we will end
++			// up here again with x and y swapped, so we don't
++			// need to take care of that case separately.
+ 			if cx := coreType(x); cx != nil {
+ 				if traceInference {
+ 					u.tracef("core %s ≡ %s", x, y)
+diff --git a/src/internal/types/testdata/examples/functions.go b/src/internal/types/testdata/examples/functions.go
+index effb66c616..c9917ee998 100644
+--- a/src/internal/types/testdata/examples/functions.go
++++ b/src/internal/types/testdata/examples/functions.go
+@@ -182,7 +182,7 @@ func _() {
+ 	type myString string
+ 	var s1 string
+ 	g3(nil, "1", myString("2"), "3")
+-	g3(&s1, "1", myString /* ERROR `type myString of myString("2") does not match inferred type string for T` */ ("2"), "3")
++	g3(& /* ERROR "cannot use &s1 (value of type *string) as *myString value in argument to g3" */ s1, "1", myString("2"), "3")
+ 	_ = s1
+ 
+ 	type myStruct struct{x int}
+diff --git a/src/internal/types/testdata/examples/inference.go b/src/internal/types/testdata/examples/inference.go
+index 2b16193e9b..34aa5fcad8 100644
+--- a/src/internal/types/testdata/examples/inference.go
++++ b/src/internal/types/testdata/examples/inference.go
+@@ -97,7 +97,7 @@ func _() {
+ 	// last.
+ 	related2(1.2, []float64{})
+ 	related2(1.0, []int{})
+-	related2 /* ERROR "does not satisfy" */ (float64(1.0), []int{}) // TODO(gri) fix error position
++	related2 /* ERROR "Slice does not match []Elem" */ (float64(1.0), []int{}) // TODO(gri) better error message
+ }
+ 
+ type List[P any] []P
+diff --git a/src/internal/types/testdata/fixedbugs/issue45985.go b/src/internal/types/testdata/fixedbugs/issue45985.go
+index 292a6a3a77..9e321a0d8e 100644
+--- a/src/internal/types/testdata/fixedbugs/issue45985.go
++++ b/src/internal/types/testdata/fixedbugs/issue45985.go
+@@ -9,5 +9,5 @@ func app[S interface{ ~[]T }, T any](s S, e T) S {
+ }
+ 
+ func _() {
+-	_ = app /* ERROR "cannot infer T" */ [int]
++	_ = app /* ERROR "S does not match []T" */ [int] // TODO(gri) better error message
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49112.go b/src/internal/types/testdata/fixedbugs/issue49112.go
+index 2d4c3251ee..02e98ca417 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49112.go
++++ b/src/internal/types/testdata/fixedbugs/issue49112.go
+@@ -11,5 +11,5 @@ func _() {
+         _ = f[[ /* ERROR "[]int does not satisfy int" */ ]int]
+ 
+         f(0)
+-        f/* ERROR "[]int does not satisfy int" */ ([]int{})
++        f /* ERROR "P does not match int" */ ([]int{}) // TODO(gri) better error message
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue51139.go b/src/internal/types/testdata/fixedbugs/issue51139.go
+new file mode 100644
+index 0000000000..4c460d4ff8
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue51139.go
+@@ -0,0 +1,26 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f[S []T, T any](S, T) {}
++
++func _() {
++	type L chan int
++	f([]L{}, make(chan int))
++	f([]L{}, make(L))
++	f([]chan int{}, make(chan int))
++	f /* ERROR "[]chan int does not satisfy []L ([]chan int missing in []p.L)" */ ([]chan int{}, make(L))
++}
++
++// test case from issue
++
++func Append[S ~[]T, T any](s S, x ...T) S { /* implementation of append */ return s }
++
++func _() {
++        type MyPtr *int
++        var x []MyPtr
++        _ = append(x, new(int))
++        _ = Append(x, new(int))
++}
+diff --git a/src/internal/types/testdata/fixedbugs/issue51472.go b/src/internal/types/testdata/fixedbugs/issue51472.go
+index 583c5e557f..d366a3c18e 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51472.go
++++ b/src/internal/types/testdata/fixedbugs/issue51472.go
+@@ -49,6 +49,6 @@ func f[T interface{comparable; []byte|string}](x T) {
+ }
+ 
+ func _(s []byte) {
+-	f /* ERROR "[]byte does not satisfy interface{comparable; []byte | string}" */ (s)
++	f /* ERROR "T does not match string" */ (s) // TODO(gri) better error message (T's type set only contains string!)
+         _ = f[[ /* ERROR "does not satisfy" */ ]byte]
+ }

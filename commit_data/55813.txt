@@ -16,7 +16,42 @@ Date:   Wed Mar 15 19:26:33 2023 +0100
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/syscall/syscall_plan9.go   | 3 +++
  src/syscall/syscall_windows.go | 2 ++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index 92414709ef..759f8051e8 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -12,6 +12,7 @@
+ package syscall
+ 
+ import (
++	"errors"
+ 	"internal/oserror"
+ 	"runtime"
+ 	"unsafe"
+@@ -43,6 +44,8 @@ func (e ErrorString) Is(target error) bool {
+ 	case oserror.ErrNotExist:
+ 		return checkErrMessageContent(e, "does not exist", "not found",
+ 			"has been removed", "no parent")
++	case errors.ErrUnsupported:
++		return checkErrMessageContent(e, "not supported")
+ 	}
+ 	return false
+ }
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 1d8b6568c0..ae9b49a28d 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -156,6 +156,8 @@ func (e Errno) Is(target error) bool {
+ 		return e == ERROR_FILE_NOT_FOUND ||
+ 			e == _ERROR_BAD_NETPATH ||
+ 			e == ERROR_PATH_NOT_FOUND
++	case errorspkg.ErrUnsupported:
++		return e == EWINDOWS
+ 	}
+ 	return false
+ }

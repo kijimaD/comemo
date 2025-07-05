@@ -15,6 +15,15 @@ Date:   Wed Jun 5 09:19:19 2024 -0700
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  doc/next/6-stdlib/99-minor/time/67470.md | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/next/6-stdlib/99-minor/time/67470.md b/doc/next/6-stdlib/99-minor/time/67470.md
+new file mode 100644
+index 0000000000..8cfcc0aa9d
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/time/67470.md
+@@ -0,0 +1,2 @@
++[Parse] and [ParseInLocation] now return an error if the time zone
++offset is out of range.

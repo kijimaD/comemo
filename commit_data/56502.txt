@@ -22,9 +22,107 @@ Date:   Mon May 8 17:06:08 2023 +1000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
-
+---
  src/internal/syscall/unix/nonblocking_wasip1.go | 18 +++++++++++++++++-
  src/syscall/fs_wasip1.go                        | 24 ++++++++++++++++++++++++
  src/syscall/net_wasip1.go                       |  4 ----
  src/syscall/syscall_wasip1.go                   | 14 ++++++++++++++
  4 files changed, 55 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/syscall/unix/nonblocking_wasip1.go b/src/internal/syscall/unix/nonblocking_wasip1.go
+index 49a2a232ba..208db28c3e 100644
+--- a/src/internal/syscall/unix/nonblocking_wasip1.go
++++ b/src/internal/syscall/unix/nonblocking_wasip1.go
+@@ -6,6 +6,22 @@
+ 
+ package unix
+ 
++import (
++	"syscall"
++	_ "unsafe" // for go:linkname
++)
++
+ func IsNonblock(fd int) (nonblocking bool, err error) {
+-	return false, nil
++	flags, e1 := fd_fdstat_get_flags(fd)
++	if e1 != nil {
++		return false, e1
++	}
++	return flags&syscall.FDFLAG_NONBLOCK != 0, nil
+ }
++
++// This helper is implemented in the syscall package. It means we don't have
++// to redefine the fd_fdstat_get host import or the fdstat struct it
++// populates.
++//
++//go:linkname fd_fdstat_get_flags syscall.fd_fdstat_get_flags
++func fd_fdstat_get_flags(fd int) (uint32, error)
+diff --git a/src/syscall/fs_wasip1.go b/src/syscall/fs_wasip1.go
+index 84c65c070f..25cabf8234 100644
+--- a/src/syscall/fs_wasip1.go
++++ b/src/syscall/fs_wasip1.go
+@@ -255,6 +255,30 @@ func path_open(rootFD int32, dirflags lookupflags, path unsafe.Pointer, pathLen
+ //go:noescape
+ func random_get(buf unsafe.Pointer, bufLen size) Errno
+ 
++// https://github.com/WebAssembly/WASI/blob/a2b96e81c0586125cc4dc79a5be0b78d9a059925/legacy/preview1/docs.md#-fdstat-record
++// fdflags must be at offset 2, hence the uint16 type rather than the
++// fdflags (uint32) type.
++type fdstat struct {
++	filetype         filetype
++	fdflags          uint16
++	rightsBase       rights
++	rightsInheriting rights
++}
++
++//go:wasmimport wasi_snapshot_preview1 fd_fdstat_get
++//go:noescape
++func fd_fdstat_get(fd int32, buf unsafe.Pointer) Errno
++
++//go:wasmimport wasi_snapshot_preview1 fd_fdstat_set_flags
++//go:noescape
++func fd_fdstat_set_flags(fd int32, flags fdflags) Errno
++
++func fd_fdstat_get_flags(fd int) (uint32, error) {
++	var stat fdstat
++	errno := fd_fdstat_get(int32(fd), unsafe.Pointer(&stat))
++	return uint32(stat.fdflags), errnoErr(errno)
++}
++
+ type preopentype = uint8
+ 
+ const (
+diff --git a/src/syscall/net_wasip1.go b/src/syscall/net_wasip1.go
+index d41e873bed..896dd3e770 100644
+--- a/src/syscall/net_wasip1.go
++++ b/src/syscall/net_wasip1.go
+@@ -122,7 +122,3 @@ func SetWriteDeadline(fd int, t int64) error {
+ func Shutdown(fd int, how int) error {
+ 	return ENOSYS
+ }
+-
+-func SetNonblock(fd int, nonblocking bool) error {
+-	return ENOSYS
+-}
+diff --git a/src/syscall/syscall_wasip1.go b/src/syscall/syscall_wasip1.go
+index 73a461763a..5d19c000ae 100644
+--- a/src/syscall/syscall_wasip1.go
++++ b/src/syscall/syscall_wasip1.go
+@@ -464,3 +464,17 @@ const (
+ //go:wasmimport wasi_snapshot_preview1 clock_time_get
+ //go:noescape
+ func clock_time_get(id clockid, precision timestamp, time unsafe.Pointer) Errno
++
++func SetNonblock(fd int, nonblocking bool) error {
++	flags, err := fd_fdstat_get_flags(fd)
++	if err != nil {
++		return err
++	}
++	if nonblocking {
++		flags |= FDFLAG_NONBLOCK
++	} else {
++		flags &^= FDFLAG_NONBLOCK
++	}
++	errno := fd_fdstat_set_flags(int32(fd), flags)
++	return errnoErr(errno)
++}

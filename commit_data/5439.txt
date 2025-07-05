@@ -8,7 +8,56 @@ Date:   Mon May 3 22:51:30 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1094041
-
+---
  src/cmd/gc/init.c | 8 ++------
  src/cmd/gc/walk.c | 4 +++-
  2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/init.c b/src/cmd/gc/init.c
+index a89c0181fa..cdd462e55e 100644
+--- a/src/cmd/gc/init.c
++++ b/src/cmd/gc/init.c
+@@ -37,17 +37,14 @@ renameinit(Node *n)
+  *				return
+  *			throw();			(5)
+  *		}
+- *		initdone.<file> += 1;			(6)
++ *		initdone.<file> = 1;			(6)
+  *		// over all matching imported symbols
+  *			<pkg>.init·<file>()		(7)
+  *		{ <init stmts> }			(8)
+  *		init·<file>()	// if any		(9)
+- *		initdone.<file> += 1;			(10)
++ *		initdone.<file> = 2;			(10)
+  *		return					(11)
+  *	}
+- * note that this code cannot have an assignment
+- * statement or, because of the initflag,  it will
+- * be converted into a data statement.
+  */
+ int
+ anyinit(NodeList *n)
+@@ -120,7 +117,6 @@ fninit(NodeList *n)
+ 	addvar(gatevar, types[TUINT8], PEXTERN);
+ 
+ 	// (2)
+-
+ 	maxarg = 0;
+ 	snprint(namebuf, sizeof(namebuf), "Init·");
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index a79c75131f..86e45e12d3 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -701,8 +701,10 @@ walkexpr(Node **np, NodeList **init)
+ 		if(l == N || r == N)
+ 			goto ret;
+ 		r = ascompatee1(n->op, l, r, init);
+-		if(r != N)
++		if(r != N) {
++			r->dodata = n->dodata;
+ 			n = r;
++		}
+ 		goto ret;
+ 
+ 	case OAS2:

@@ -12,7 +12,36 @@ Date:   Mon Feb 1 22:07:06 2016 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go | 3 ++-
  src/cmd/go/build.go   | 3 ++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 5db4bc6bec..c81bd40864 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -93,7 +93,8 @@ and test commands:
+ 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
+ 	-msan
+ 		enable interoperation with memory sanitizer.
+-		Supported only on linux/amd64.
++		Supported only on linux/amd64,
++		and only with Clang/LLVM as the host C compiler.
+ 	-v
+ 		print the names of packages as they are compiled.
+ 	-work
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 12867004aa..a1f925ed0b 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -72,7 +72,8 @@ and test commands:
+ 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
+ 	-msan
+ 		enable interoperation with memory sanitizer.
+-		Supported only on linux/amd64.
++		Supported only on linux/amd64,
++		and only with Clang/LLVM as the host C compiler.
+ 	-v
+ 		print the names of packages as they are compiled.
+ 	-work

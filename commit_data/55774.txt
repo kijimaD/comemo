@@ -40,9 +40,139 @@ Date:   Mon Feb 6 11:37:39 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/53685.txt        |  2 ++
  src/bytes/buffer.go       |  9 +++++++++
  src/bytes/buffer_test.go  | 41 +++++++++++++++++++++++++++++++++++++++++
  src/bytes/example_test.go | 13 +++++++++++++
  4 files changed, 65 insertions(+)
+
+diff --git a/api/next/53685.txt b/api/next/53685.txt
+new file mode 100644
+index 0000000000..332c1c8723
+--- /dev/null
++++ b/api/next/53685.txt
+@@ -0,0 +1,2 @@
++pkg bytes, method (*Buffer) Available() int #53685
++pkg bytes, method (*Buffer) AvailableBuffer() []uint8 #53685
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index ee83fd8b36..5ab58c78bb 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -53,6 +53,12 @@ const maxInt = int(^uint(0) >> 1)
+ // so immediate changes to the slice will affect the result of future reads.
+ func (b *Buffer) Bytes() []byte { return b.buf[b.off:] }
+ 
++// AvailableBuffer returns an empty buffer with b.Available() capacity.
++// This buffer is intended to be appended to and
++// passed to an immediately succeeding Write call.
++// The buffer is only valid until the next write operation on b.
++func (b *Buffer) AvailableBuffer() []byte { return b.buf[len(b.buf):] }
++
+ // String returns the contents of the unread portion of the buffer
+ // as a string. If the Buffer is a nil pointer, it returns "<nil>".
+ //
+@@ -76,6 +82,9 @@ func (b *Buffer) Len() int { return len(b.buf) - b.off }
+ // total space allocated for the buffer's data.
+ func (b *Buffer) Cap() int { return cap(b.buf) }
+ 
++// Available returns how many bytes are unused in the buffer.
++func (b *Buffer) Available() int { return cap(b.buf) - len(b.buf) }
++
+ // Truncate discards all but the first n unread bytes from the buffer
+ // but continues to use the same allocated storage.
+ // It panics if n is negative or greater than the length of the buffer.
+diff --git a/src/bytes/buffer_test.go b/src/bytes/buffer_test.go
+index c0855007c1..81476fbae1 100644
+--- a/src/bytes/buffer_test.go
++++ b/src/bytes/buffer_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"math/rand"
++	"strconv"
+ 	"testing"
+ 	"unicode/utf8"
+ )
+@@ -326,6 +327,33 @@ func TestWriteTo(t *testing.T) {
+ 	}
+ }
+ 
++func TestWriteAppend(t *testing.T) {
++	var got Buffer
++	var want []byte
++	for i := 0; i < 1000; i++ {
++		b := got.AvailableBuffer()
++		b = strconv.AppendInt(b, int64(i), 10)
++		want = strconv.AppendInt(want, int64(i), 10)
++		got.Write(b)
++	}
++	if !Equal(got.Bytes(), want) {
++		t.Fatalf("Bytes() = %q, want %q", got, want)
++	}
++
++	// With a sufficiently sized buffer, there should be no allocations.
++	n := testing.AllocsPerRun(100, func() {
++		got.Reset()
++		for i := 0; i < 1000; i++ {
++			b := got.AvailableBuffer()
++			b = strconv.AppendInt(b, int64(i), 10)
++			got.Write(b)
++		}
++	})
++	if n > 0 {
++		t.Errorf("allocations occurred while appending")
++	}
++}
++
+ func TestRuneIO(t *testing.T) {
+ 	const NRune = 1000
+ 	// Built a test slice while we write the data
+@@ -687,3 +715,16 @@ func BenchmarkBufferWriteBlock(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func BenchmarkBufferAppendNoCopy(b *testing.B) {
++	var bb Buffer
++	bb.Grow(16 << 20)
++	b.SetBytes(int64(bb.Available()))
++	b.ReportAllocs()
++	for i := 0; i < b.N; i++ {
++		bb.Reset()
++		b := bb.AvailableBuffer()
++		b = b[:cap(b)] // use max capacity to simulate a large append operation
++		bb.Write(b)    // should be nearly infinitely fast
++	}
++}
+diff --git a/src/bytes/example_test.go b/src/bytes/example_test.go
+index e5b7b60dbb..41a5e2e5bf 100644
+--- a/src/bytes/example_test.go
++++ b/src/bytes/example_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"sort"
++	"strconv"
+ 	"unicode"
+ )
+ 
+@@ -37,6 +38,18 @@ func ExampleBuffer_Bytes() {
+ 	// Output: hello world
+ }
+ 
++func ExampleBuffer_AvailableBuffer() {
++	var buf bytes.Buffer
++	for i := 0; i < 4; i++ {
++		b := buf.AvailableBuffer()
++		b = strconv.AppendInt(b, int64(i), 10)
++		b = append(b, ' ')
++		buf.Write(b)
++	}
++	os.Stdout.Write(buf.Bytes())
++	// Output: 0 1 2 3
++}
++
+ func ExampleBuffer_Cap() {
+ 	buf1 := bytes.NewBuffer(make([]byte, 10))
+ 	buf2 := bytes.NewBuffer(make([]byte, 0, 10))

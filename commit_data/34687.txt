@@ -11,6 +11,21 @@ Date:   Tue Nov 7 15:03:53 2017 -0800
     Change-Id: Iad5a25c62e7d413af1648dbc5359ed78bfd61d2a
     Reviewed-on: https://go-review.googlesource.com/76398
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index ca1e392833..c2a4f517ec 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4342,7 +4342,8 @@ func TestUserOverrideFlags(t *testing.T) {
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+-	tg.parallel()
++	// Don't call tg.parallel, as creating override.h and override.a may
++	// confuse other tests.
+ 	tg.tempFile("override.go", `package main
+ 
+ import "C"

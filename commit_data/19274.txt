@@ -10,6 +10,27 @@ Date:   Sun May 4 23:00:47 2014 -0400
     R=golang-codereviews, robert.hencke, gobot, adg
     CC=golang-codereviews
     https://golang.org/cl/90810043
-
+---
  src/pkg/archive/zip/struct.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/archive/zip/struct.go b/src/pkg/archive/zip/struct.go
+index 65e5238c3b..cb28e83242 100644
+--- a/src/pkg/archive/zip/struct.go
++++ b/src/pkg/archive/zip/struct.go
+@@ -174,13 +174,13 @@ func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
+ 	return
+ }
+ 
+-// ModTime returns the modification time.
++// ModTime returns the modification time in UTC.
+ // The resolution is 2s.
+ func (h *FileHeader) ModTime() time.Time {
+ 	return msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
+ }
+ 
+-// SetModTime sets the ModifiedTime and ModifiedDate fields to the given time.
++// SetModTime sets the ModifiedTime and ModifiedDate fields to the given time in UTC.
+ // The resolution is 2s.
+ func (h *FileHeader) SetModTime(t time.Time) {
+ 	h.ModifiedDate, h.ModifiedTime = timeToMsDosTime(t)

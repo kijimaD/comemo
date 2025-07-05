@@ -16,7 +16,186 @@ Date:   Fri Jul 21 12:50:48 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Eli Bendersky <eliben@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/slices/sort.go            |   2 +
  src/sort/gen_sort_variants.go | 125 ++++++++++++++++++++++++++++++------------
  2 files changed, 92 insertions(+), 35 deletions(-)
+
+diff --git a/src/slices/sort.go b/src/slices/sort.go
+index 822f2fceb4..d5e998ce1e 100644
+--- a/src/slices/sort.go
++++ b/src/slices/sort.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:generate go run $GOROOT/src/sort/gen_sort_variants.go -generic
++
+ package slices
+ 
+ import (
+diff --git a/src/sort/gen_sort_variants.go b/src/sort/gen_sort_variants.go
+index 2c12b98db3..89500e1c10 100644
+--- a/src/sort/gen_sort_variants.go
++++ b/src/sort/gen_sort_variants.go
+@@ -68,12 +68,50 @@ type Variant struct {
+ 	Funcs template.FuncMap
+ }
+ 
+-func main() {
+-	genGeneric := flag.Bool("generic", false, "generate generic versions")
+-	flag.Parse()
++var (
++	traditionalVariants = []Variant{
++		Variant{
++			Name:       "interface",
++			Path:       "zsortinterface.go",
++			Package:    "sort",
++			Imports:    "",
++			FuncSuffix: "",
++			TypeParam:  "",
++			ExtraParam: "",
++			ExtraArg:   "",
++			DataType:   "Interface",
++			Funcs: template.FuncMap{
++				"Less": func(name, i, j string) string {
++					return fmt.Sprintf("%s.Less(%s, %s)", name, i, j)
++				},
++				"Swap": func(name, i, j string) string {
++					return fmt.Sprintf("%s.Swap(%s, %s)", name, i, j)
++				},
++			},
++		},
++		Variant{
++			Name:       "func",
++			Path:       "zsortfunc.go",
++			Package:    "sort",
++			Imports:    "",
++			FuncSuffix: "_func",
++			TypeParam:  "",
++			ExtraParam: "",
++			ExtraArg:   "",
++			DataType:   "lessSwap",
++			Funcs: template.FuncMap{
++				"Less": func(name, i, j string) string {
++					return fmt.Sprintf("%s.Less(%s, %s)", name, i, j)
++				},
++				"Swap": func(name, i, j string) string {
++					return fmt.Sprintf("%s.Swap(%s, %s)", name, i, j)
++				},
++			},
++		},
++	}
+ 
+-	if *genGeneric {
+-		generate(&Variant{
++	genericVariants = []Variant{
++		Variant{
+ 			Name:       "generic_ordered",
+ 			Path:       "zsortordered.go",
+ 			Package:    "slices",
+@@ -91,9 +129,8 @@ func main() {
+ 					return fmt.Sprintf("%s[%s], %s[%s] = %s[%s], %s[%s]", name, i, name, j, name, j, name, i)
+ 				},
+ 			},
+-		})
+-
+-		generate(&Variant{
++		},
++		Variant{
+ 			Name:       "generic_func",
+ 			Path:       "zsortanyfunc.go",
+ 			Package:    "slices",
+@@ -110,47 +147,65 @@ func main() {
+ 					return fmt.Sprintf("%s[%s], %s[%s] = %s[%s], %s[%s]", name, i, name, j, name, j, name, i)
+ 				},
+ 			},
+-		})
+-	} else {
+-		generate(&Variant{
+-			Name:       "interface",
+-			Path:       "zsortinterface.go",
+-			Package:    "sort",
+-			Imports:    "",
+-			FuncSuffix: "",
+-			TypeParam:  "",
++		},
++	}
++
++	expVariants = []Variant{
++		Variant{
++			Name:       "exp_ordered",
++			Path:       "zsortordered.go",
++			Package:    "slices",
++			Imports:    "import \"golang.org/x/exp/constraints\"\n",
++			FuncSuffix: "Ordered",
++			TypeParam:  "[E constraints.Ordered]",
+ 			ExtraParam: "",
+ 			ExtraArg:   "",
+-			DataType:   "Interface",
++			DataType:   "[]E",
+ 			Funcs: template.FuncMap{
+ 				"Less": func(name, i, j string) string {
+-					return fmt.Sprintf("%s.Less(%s, %s)", name, i, j)
++					return fmt.Sprintf("cmpLess(%s[%s], %s[%s])", name, i, name, j)
+ 				},
+ 				"Swap": func(name, i, j string) string {
+-					return fmt.Sprintf("%s.Swap(%s, %s)", name, i, j)
++					return fmt.Sprintf("%s[%s], %s[%s] = %s[%s], %s[%s]", name, i, name, j, name, j, name, i)
+ 				},
+ 			},
+-		})
+-
+-		generate(&Variant{
+-			Name:       "func",
+-			Path:       "zsortfunc.go",
+-			Package:    "sort",
+-			Imports:    "",
+-			FuncSuffix: "_func",
+-			TypeParam:  "",
+-			ExtraParam: "",
+-			ExtraArg:   "",
+-			DataType:   "lessSwap",
++		},
++		Variant{
++			Name:       "exp_func",
++			Path:       "zsortanyfunc.go",
++			Package:    "slices",
++			FuncSuffix: "CmpFunc",
++			TypeParam:  "[E any]",
++			ExtraParam: ", cmp func(a, b E) int",
++			ExtraArg:   ", cmp",
++			DataType:   "[]E",
+ 			Funcs: template.FuncMap{
+ 				"Less": func(name, i, j string) string {
+-					return fmt.Sprintf("%s.Less(%s, %s)", name, i, j)
++					return fmt.Sprintf("(cmp(%s[%s], %s[%s]) < 0)", name, i, name, j)
+ 				},
+ 				"Swap": func(name, i, j string) string {
+-					return fmt.Sprintf("%s.Swap(%s, %s)", name, i, j)
++					return fmt.Sprintf("%s[%s], %s[%s] = %s[%s], %s[%s]", name, i, name, j, name, j, name, i)
+ 				},
+ 			},
+-		})
++		},
++	}
++)
++
++func main() {
++	genGeneric := flag.Bool("generic", false, "generate generic versions")
++	genExp := flag.Bool("exp", false, "generate x/exp/slices versions")
++	flag.Parse()
++
++	var variants []Variant
++	if *genExp {
++		variants = expVariants
++	} else if *genGeneric {
++		variants = genericVariants
++	} else {
++		variants = traditionalVariants
++	}
++	for i := range variants {
++		generate(&variants[i])
+ 	}
+ }
+ 

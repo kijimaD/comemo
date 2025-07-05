@@ -19,6 +19,34 @@ Date:   Thu Aug 12 17:17:51 2021 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/proc.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ec4be31db3..764f12769e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4619,7 +4619,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 		return
+ 	}
+ 
+-	// On mips{,le}, 64bit atomics are emulated with spinlocks, in
++	// On mips{,le}/arm, 64bit atomics are emulated with spinlocks, in
+ 	// runtime/internal/atomic. If SIGPROF arrives while the program is inside
+ 	// the critical section, it creates a deadlock (when writing the sample).
+ 	// As a workaround, create a counter of SIGPROFs while in critical section
+@@ -4632,6 +4632,13 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 				return
+ 			}
+ 		}
++		if GOARCH == "arm" && goarm < 7 && GOOS == "linux" && pc&0xffff0000 == 0xffff0000 {
++			// runtime/internal/atomic functions call into kernel
++			// helpers on arm < 7. See
++			// runtime/internal/atomic/sys_linux_arm.s.
++			cpuprof.lostAtomic++
++			return
++		}
+ 	}
+ 
+ 	// Profiling runs concurrently with GC, so it must not allocate.

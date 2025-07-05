@@ -9,8 +9,21 @@ Date:   Tue Oct 14 19:22:17 2008 -0700
     DELTA=1876  (938 added, 938 deleted, 0 changed)
     OCL=17149
     CL=17166
-
+---
  {usr/r => src/lib}/regexp/Makefile  | 0
  {usr/r => src/lib}/regexp/main.go   | 0
  {usr/r => src/lib}/regexp/regexp.go | 0
  3 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/usr/r/regexp/Makefile b/src/lib/regexp/Makefile
+similarity index 100%
+rename from usr/r/regexp/Makefile
+rename to src/lib/regexp/Makefile
+diff --git a/usr/r/regexp/main.go b/src/lib/regexp/main.go
+similarity index 100%
+rename from usr/r/regexp/main.go
+rename to src/lib/regexp/main.go
+diff --git a/usr/r/regexp/regexp.go b/src/lib/regexp/regexp.go
+similarity index 100%
+rename from usr/r/regexp/regexp.go
+rename to src/lib/regexp/regexp.go

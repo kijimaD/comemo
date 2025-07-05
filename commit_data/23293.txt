@@ -9,6 +9,19 @@ Date:   Wed May 6 12:35:19 2015 +1200
     Change-Id: Ie042032ca307e1065fcf6c402a166f9ff74027e7
     Reviewed-on: https://go-review.googlesource.com/9771
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/ld/elf.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/internal/ld/elf.go
+index ab87be60ed..5c17b2da6f 100644
+--- a/src/cmd/internal/ld/elf.go
++++ b/src/cmd/internal/ld/elf.go
+@@ -1928,6 +1928,7 @@ func Asmbelf(symo int64) {
+ 			// in the intermediate object file, not the final shared
+ 			// library.
+ 			elfreserve *= 3
++			resoff = elfreserve
+ 			sh := elfshname(".note.go.pkg-list")
+ 			resoff -= int64(elfgopkgnote(sh, uint64(startva), uint64(resoff)))
+ 		}

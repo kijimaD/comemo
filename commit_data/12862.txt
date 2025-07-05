@@ -12,7 +12,7 @@ Date:   Tue Apr 10 21:57:05 2012 +1000
     R=golang-dev, rsc, devon.odell, minux.ma
     CC=golang-dev
     https://golang.org/cl/5757064
-
+---
  src/pkg/runtime/os_openbsd.h           | 15 ++++++++++-----
  src/pkg/runtime/signal_openbsd_amd64.c |  8 ++++----
  src/pkg/runtime/signals_openbsd.h      | 20 ++++++++++----------
@@ -20,3 +20,176 @@ Date:   Tue Apr 10 21:57:05 2012 +1000
  src/pkg/runtime/sys_openbsd_amd64.s    | 10 ++++++++++
  src/pkg/runtime/thread_openbsd.c       | 11 ++++++++++-
  6 files changed, 52 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/runtime/os_openbsd.h b/src/pkg/runtime/os_openbsd.h
+index 4ecf78d882..b2d79e7f99 100644
+--- a/src/pkg/runtime/os_openbsd.h
++++ b/src/pkg/runtime/os_openbsd.h
+@@ -5,17 +5,22 @@
+ #define SIG_DFL ((void*)0)
+ #define SIG_IGN ((void*)1)
+ 
++#define SIG_BLOCK 1
++#define SIG_UNBLOCK 2
++#define SIG_SETMASK 3
++
+ struct sigaction;
+ 
++void	runtime·raisesigpipe(void);
++void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+ void	runtime·sigpanic(void);
+-void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
++
++void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+-void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
++void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
+-void	runtime·setitimer(int32, Itimerval*, Itimerval*);
++Sigset	runtime·sigprocmask(int32, Sigset);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
+-void	runtime·raisesigpipe(void);
+-
+ #define	NSIG 33
+ #define	SI_USER	0
+diff --git a/src/pkg/runtime/signal_openbsd_amd64.c b/src/pkg/runtime/signal_openbsd_amd64.c
+index 8b4f624e7c..2f47ffc843 100644
+--- a/src/pkg/runtime/signal_openbsd_amd64.c
++++ b/src/pkg/runtime/signal_openbsd_amd64.c
+@@ -70,8 +70,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		gp->sigcode1 = *(uintptr*)((byte*)info + 16); /* si_addr */
+ 		gp->sigpc = r->sc_rip;
+ 
+-		// Only push runtime·sigpanic if r->mc_rip != 0.
+-		// If r->mc_rip == 0, probably panicked because of a
++		// Only push runtime·sigpanic if r->sc_rip != 0.
++		// If r->sc_rip == 0, probably panicked because of a
+ 		// call to a nil func.  Not pushing that onto sp will
+ 		// make the trace look like a call to runtime·sigpanic instead.
+ 		// (Otherwise the trace will end at runtime·sigpanic and we
+@@ -133,8 +133,8 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ 	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+ 	if(restart)
+ 		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask = ~0ULL;
+-	if (fn == runtime·sighandler)
++	sa.sa_mask = ~0U;
++	if(fn == runtime·sighandler)
+ 		fn = (void*)runtime·sigtramp;
+ 	sa.__sigaction_u.__sa_sigaction = (void*)fn;
+ 	runtime·sigaction(i, &sa, nil);
+diff --git a/src/pkg/runtime/signals_openbsd.h b/src/pkg/runtime/signals_openbsd.h
+index 4d27e050d0..7140de86fc 100644
+--- a/src/pkg/runtime/signals_openbsd.h
++++ b/src/pkg/runtime/signals_openbsd.h
+@@ -9,16 +9,16 @@
+ #define D SigDefault
+ 
+ SigTab runtime·sigtab[] = {
+-	/* 0 */	0, "SIGNONE: no trap",
+-	/* 1 */	N+K, "SIGHUP: terminal line hangup",
+-	/* 2 */	N+K, "SIGINT: interrupt",
+-	/* 3 */	N+T, "SIGQUIT: quit",
+-	/* 4 */	T, "SIGILL: illegal instruction",
+-	/* 5 */	T, "SIGTRAP: trace trap",
+-	/* 6 */	N+T, "SIGABRT: abort",
+-	/* 7 */	T, "SIGEMT: emulate instruction executed",
+-	/* 8 */	P, "SIGFPE: floating-point exception",
+-	/* 9 */	0, "SIGKILL: kill",
++	/*  0 */	0, "SIGNONE: no trap",
++	/*  1 */	N+K, "SIGHUP: terminal line hangup",
++	/*  2 */	N+K, "SIGINT: interrupt",
++	/*  3 */	N+T, "SIGQUIT: quit",
++	/*  4 */	T, "SIGILL: illegal instruction",
++	/*  5 */	T, "SIGTRAP: trace trap",
++	/*  6 */	N+T, "SIGABRT: abort",
++	/*  7 */	T, "SIGEMT: emulate instruction executed",
++	/*  8 */	P, "SIGFPE: floating-point exception",
++	/*  9 */	0, "SIGKILL: kill",
+ 	/* 10 */	P, "SIGBUS: bus error",
+ 	/* 11 */	P, "SIGSEGV: segmentation violation",
+ 	/* 12 */	T, "SIGSYS: bad system call",
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index 593b4a9df2..22505c4f02 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -135,6 +135,14 @@ TEXT runtime·sigaction(SB),7,$-4
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
++TEXT runtime·sigprocmask(SB),7,$-4
++	MOVL	$48, AX			// sys_sigprocmask
++	INT	$0x80
++	JAE	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	MOVL	AX, oset+0(FP)
++	RET
++
+ TEXT runtime·sigtramp(SB),7,$44
+ 	get_tls(CX)
+ 
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index d2d48e6b56..0c7093dd5c 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -173,6 +173,16 @@ TEXT runtime·sigaction(SB),7,$-8
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
++TEXT runtime·sigprocmask(SB),7,$0
++	MOVL	8(SP), DI		// arg 1 - how
++	MOVL	12(SP), SI		// arg 2 - set
++	MOVL	$48, AX			// sys_sigprocmask
++	SYSCALL
++	JCC	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	MOVL	AX, oset+0(FP)		// Return oset
++	RET
++
+ TEXT runtime·sigtramp(SB),7,$64
+ 	get_tls(BX)
+ 	
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/thread_openbsd.c
+index d0f9472106..d9ce6d6028 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -20,6 +20,9 @@ enum
+ 
+ extern SigTab runtime·sigtab[];
+ 
++static Sigset sigset_all = ~(Sigset)0;
++static Sigset sigset_none;
++
+ extern int64 runtime·rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+ extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock);
+ extern int32 runtime·thrwakeup(void *ident, int32 n);
+@@ -128,6 +131,7 @@ runtime·semawakeup(M *mp)
+ void
+ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ {
++	Sigset oset;
+ 	int32 flags;
+ 	int32 ret;
+ 
+@@ -141,7 +145,11 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 
+ 	m->tls[0] = m->id;	// so 386 asm can find it
+ 
+-	if((ret = runtime·rfork_thread(flags, stk, m, g, fn)) < 0) {
++	oset = runtime·sigprocmask(SIG_SETMASK, sigset_all);
++	ret = runtime·rfork_thread(flags, stk, m, g, fn);
++	runtime·sigprocmask(SIG_SETMASK, oset);
++
++	if(ret < 0) {
+ 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount() - 1, -ret);
+ 		if (ret == -ENOTSUP)
+ 			runtime·printf("runtime: is kern.rthreads disabled?\n");
+@@ -168,6 +176,7 @@ runtime·minit(void)
+ 	// Initialize signal handling
+ 	m->gsignal = runtime·malg(32*1024);
+ 	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
++	runtime·sigprocmask(SIG_SETMASK, sigset_none);
+ }
+ 
+ void

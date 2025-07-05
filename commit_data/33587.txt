@@ -9,7 +9,59 @@ Date:   Thu Aug 24 10:07:15 2017 -0700
     Run-TryBot: Francesc Campoy Flores <campoy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/structtag.go          |  3 +--
  src/cmd/vet/testdata/structtag.go | 21 ++++++++++-----------
  2 files changed, 11 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/vet/structtag.go b/src/cmd/vet/structtag.go
+index b50417b37d..eeef0ec110 100644
+--- a/src/cmd/vet/structtag.go
++++ b/src/cmd/vet/structtag.go
+@@ -13,7 +13,6 @@ import (
+ 	"reflect"
+ 	"strconv"
+ 	"strings"
+-	"unicode"
+ )
+ 
+ func init() {
+@@ -195,7 +194,7 @@ func validateStructTag(tag string) error {
+ 			value = value[comma+1:]
+ 		}
+ 
+-		if strings.IndexFunc(value, unicode.IsSpace) >= 0 {
++		if strings.IndexByte(value, ' ') >= 0 {
+ 			return errTagValueSpace
+ 		}
+ 	}
+diff --git a/src/cmd/vet/testdata/structtag.go b/src/cmd/vet/testdata/structtag.go
+index ae9a744de7..cdd29bb94a 100644
+--- a/src/cmd/vet/testdata/structtag.go
++++ b/src/cmd/vet/testdata/structtag.go
+@@ -83,15 +83,14 @@ type DuplicateJSONFields struct {
+ 
+ type UnexpectedSpacetest struct {
+ 	A int `json:"a,omitempty"`
+-	B int `json:"b, omitempty"`  // ERROR "suspicious space found in struct tag value"
+-	C int `json:"c,omitempty\t"` // ERROR "suspicious space found in struct tag value"
+-	D int `json:"d ,omitempty"`
+-	E int `json:"e,omitempty, string"` // ERROR "suspicious space found in struct tag value"
+-	F int `xml:" f"`                   // ERROR "suspicious space found in struct tag value"
+-	G int `xml:"g "`                   // ERROR "suspicious space found in struct tag value"
+-	H int `xml:"h ,omitempty"`         // ERROR "suspicious space found in struct tag value"
+-	I int `xml:" i"`                   // ERROR "suspicious space found in struct tag value"
+-	J int `xml:"j "`                   // ERROR "suspicious space found in struct tag value"
+-	K int `xml:"k ,omitempty"`         // ERROR "suspicious space found in struct tag value"
+-	L int `foo:" doesn't care "`
++	B int `json:"b, omitempty"` // ERROR "suspicious space found in struct tag value"
++	C int `json:"d ,omitempty"`
++	D int `json:"e,omitempty, string"` // ERROR "suspicious space found in struct tag value"
++	E int `xml:" f"`                   // ERROR "suspicious space found in struct tag value"
++	F int `xml:"g "`                   // ERROR "suspicious space found in struct tag value"
++	G int `xml:"h ,omitempty"`         // ERROR "suspicious space found in struct tag value"
++	H int `xml:" i"`                   // ERROR "suspicious space found in struct tag value"
++	I int `xml:"j "`                   // ERROR "suspicious space found in struct tag value"
++	J int `xml:"k ,omitempty"`         // ERROR "suspicious space found in struct tag value"
++	K int `foo:" doesn't care "`
+ }

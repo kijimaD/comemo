@@ -14,7 +14,35 @@ Date:   Mon Sep 18 11:54:03 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go | 1 +
  test/fixedbugs/issue21882.go         | 9 +++++++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index f29c587877..285d31dc6c 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -176,6 +176,7 @@ func dowidth(t *types.Type) {
+ 		}
+ 
+ 		t.Width = 0
++		t.Align = 1
+ 		return
+ 	}
+ 
+diff --git a/test/fixedbugs/issue21882.go b/test/fixedbugs/issue21882.go
+new file mode 100644
+index 0000000000..f77e046960
+--- /dev/null
++++ b/test/fixedbugs/issue21882.go
+@@ -0,0 +1,9 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T [2]T // ERROR "invalid recursive type"

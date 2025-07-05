@@ -9,8 +9,48 @@ Date:   Mon Jul 22 16:20:30 2013 -0700
     R=golang-dev, khr
     CC=golang-dev
     https://golang.org/cl/11697043
-
+---
  src/pkg/crypto/ecdsa/ecdsa.go    | 2 +-
  src/pkg/crypto/x509/pkix/pkix.go | 2 +-
  src/pkg/encoding/asn1/asn1.go    | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/crypto/ecdsa/ecdsa.go b/src/pkg/crypto/ecdsa/ecdsa.go
+index 2550002293..f642cb9ab7 100644
+--- a/src/pkg/crypto/ecdsa/ecdsa.go
++++ b/src/pkg/crypto/ecdsa/ecdsa.go
+@@ -124,7 +124,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ }
+ 
+ // Verify verifies the signature in r, s of hash using the public key, pub. It
+-// returns true iff the signature is valid.
++// returns whether the signature is valid.
+ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
+ 	// See [NSA] 3.4.2
+ 	c := pub.Curve
+diff --git a/src/pkg/crypto/x509/pkix/pkix.go b/src/pkg/crypto/x509/pkix/pkix.go
+index 738659011f..2c600aee3a 100644
+--- a/src/pkg/crypto/x509/pkix/pkix.go
++++ b/src/pkg/crypto/x509/pkix/pkix.go
+@@ -144,7 +144,7 @@ type CertificateList struct {
+ 	SignatureValue     asn1.BitString
+ }
+ 
+-// HasExpired returns true iff now is past the expiry time of certList.
++// HasExpired returns whether now is past the expiry time of certList.
+ func (certList *CertificateList) HasExpired(now time.Time) bool {
+ 	return now.After(certList.TBSCertList.NextUpdate)
+ }
+diff --git a/src/pkg/encoding/asn1/asn1.go b/src/pkg/encoding/asn1/asn1.go
+index a9d17a3c14..c53430850d 100644
+--- a/src/pkg/encoding/asn1/asn1.go
++++ b/src/pkg/encoding/asn1/asn1.go
+@@ -183,7 +183,7 @@ func parseBitString(bytes []byte) (ret BitString, err error) {
+ // An ObjectIdentifier represents an ASN.1 OBJECT IDENTIFIER.
+ type ObjectIdentifier []int
+ 
+-// Equal returns true iff oi and other represent the same identifier.
++// Equal returns whether oi and other represent the same identifier.
+ func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
+ 	if len(oi) != len(other) {
+ 		return false

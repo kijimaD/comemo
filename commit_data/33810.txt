@@ -13,7 +13,114 @@ Date:   Fri Aug 18 13:51:07 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/57211
     Reviewed-by: Adam Langley <agl@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/x509/x509.go      | 37 +++++++++++++++++++++++++------------
  src/crypto/x509/x509_test.go | 21 +++++++++++++++++++++
  2 files changed, 46 insertions(+), 12 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 9c40ae88f6..ab33994ad5 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -836,24 +836,28 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature
+ 	return checkSignature(algo, signed, signature, c.PublicKey)
+ }
+ 
++func signaturePublicKeyAlgoMismatchError(expectedPubKeyAlgo PublicKeyAlgorithm, pubKey interface{}) error {
++	return fmt.Errorf("x509: signature algorithm specifies an %s public key, but have public key of type %T", expectedPubKeyAlgo.String(), pubKey)
++}
++
+ // CheckSignature verifies that signature is a valid signature over signed from
+ // a crypto.PublicKey.
+ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey) (err error) {
+ 	var hashType crypto.Hash
++	var pubKeyAlgo PublicKeyAlgorithm
+ 
+-	switch algo {
+-	case SHA1WithRSA, DSAWithSHA1, ECDSAWithSHA1:
+-		hashType = crypto.SHA1
+-	case SHA256WithRSA, SHA256WithRSAPSS, DSAWithSHA256, ECDSAWithSHA256:
+-		hashType = crypto.SHA256
+-	case SHA384WithRSA, SHA384WithRSAPSS, ECDSAWithSHA384:
+-		hashType = crypto.SHA384
+-	case SHA512WithRSA, SHA512WithRSAPSS, ECDSAWithSHA512:
+-		hashType = crypto.SHA512
+-	case MD2WithRSA, MD5WithRSA:
+-		return InsecureAlgorithmError(algo)
+-	default:
++	for _, details := range signatureAlgorithmDetails {
++		if details.algo == algo {
++			hashType = details.hash
++			pubKeyAlgo = details.pubKeyAlgo
++		}
++	}
++
++	switch hashType {
++	case crypto.Hash(0):
+ 		return ErrUnsupportedAlgorithm
++	case crypto.MD5:
++		return InsecureAlgorithmError(algo)
+ 	}
+ 
+ 	if !hashType.Available() {
+@@ -866,12 +870,18 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
+ 
+ 	switch pub := publicKey.(type) {
+ 	case *rsa.PublicKey:
++		if pubKeyAlgo != RSA {
++			return signaturePublicKeyAlgoMismatchError(pubKeyAlgo, pub)
++		}
+ 		if algo.isRSAPSS() {
+ 			return rsa.VerifyPSS(pub, hashType, digest, signature, &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash})
+ 		} else {
+ 			return rsa.VerifyPKCS1v15(pub, hashType, digest, signature)
+ 		}
+ 	case *dsa.PublicKey:
++		if pubKeyAlgo != DSA {
++			return signaturePublicKeyAlgoMismatchError(pubKeyAlgo, pub)
++		}
+ 		dsaSig := new(dsaSignature)
+ 		if rest, err := asn1.Unmarshal(signature, dsaSig); err != nil {
+ 			return err
+@@ -886,6 +896,9 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
+ 		}
+ 		return
+ 	case *ecdsa.PublicKey:
++		if pubKeyAlgo != ECDSA {
++			return signaturePublicKeyAlgoMismatchError(pubKeyAlgo, pub)
++		}
+ 		ecdsaSig := new(ecdsaSignature)
+ 		if rest, err := asn1.Unmarshal(signature, ecdsaSig); err != nil {
+ 			return err
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 2d1acf93bf..c644692f4e 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -288,6 +288,27 @@ func TestCertificateParse(t *testing.T) {
+ 	}
+ }
+ 
++func TestMismatchedSignatureAlgorithm(t *testing.T) {
++	der, _ := pem.Decode([]byte(rsaPSSSelfSignedPEM))
++	if der == nil {
++		t.Fatal("Failed to find PEM block")
++	}
++
++	cert, err := ParseCertificate(der.Bytes)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if err = cert.CheckSignature(ECDSAWithSHA256, nil, nil); err == nil {
++		t.Fatal("CheckSignature unexpectedly return no error")
++	}
++
++	const expectedSubstring = " but have public key of type "
++	if !strings.Contains(err.Error(), expectedSubstring) {
++		t.Errorf("Expected error containing %q, but got %q", expectedSubstring, err)
++	}
++}
++
+ var certBytes = "308203223082028ba00302010202106edf0d9499fd4533dd1297fc42a93be1300d06092a864886" +
+ 	"f70d0101050500304c310b3009060355040613025a4131253023060355040a131c546861777465" +
+ 	"20436f6e73756c74696e67202850747929204c74642e311630140603550403130d546861777465" +

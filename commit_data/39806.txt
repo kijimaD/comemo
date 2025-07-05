@@ -9,9 +9,74 @@ Date:   Thu Mar 21 13:30:25 2019 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testplugin/testdata/iface/main.go      | 3 ++-
  misc/cgo/testplugin/testdata/plugin1/plugin1.go | 3 ++-
  misc/cgo/testplugin/testdata/plugin2/plugin2.go | 3 ++-
  misc/cgo/testshared/testdata/exe/exe.go         | 3 ++-
  4 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/testplugin/testdata/iface/main.go b/misc/cgo/testplugin/testdata/iface/main.go
+index 7b4ea97442..c04f28880f 100644
+--- a/misc/cgo/testplugin/testdata/iface/main.go
++++ b/misc/cgo/testplugin/testdata/iface/main.go
+@@ -5,9 +5,10 @@
+ package main
+ 
+ import (
+-	"testplugin/iface_i"
+ 	"log"
+ 	"plugin"
++
++	"testplugin/iface_i"
+ )
+ 
+ func main() {
+diff --git a/misc/cgo/testplugin/testdata/plugin1/plugin1.go b/misc/cgo/testplugin/testdata/plugin1/plugin1.go
+index 136c179b65..d29d674ade 100644
+--- a/misc/cgo/testplugin/testdata/plugin1/plugin1.go
++++ b/misc/cgo/testplugin/testdata/plugin1/plugin1.go
+@@ -8,8 +8,9 @@ package main
+ import "C"
+ 
+ import (
+-	"testplugin/common"
+ 	"reflect"
++
++	"testplugin/common"
+ )
+ 
+ func F() int {
+diff --git a/misc/cgo/testplugin/testdata/plugin2/plugin2.go b/misc/cgo/testplugin/testdata/plugin2/plugin2.go
+index 37168a13e1..31ed642ca5 100644
+--- a/misc/cgo/testplugin/testdata/plugin2/plugin2.go
++++ b/misc/cgo/testplugin/testdata/plugin2/plugin2.go
+@@ -12,9 +12,10 @@ import "C"
+ // void cfunc() {} // uses cgo_topofstack
+ 
+ import (
+-	"testplugin/common"
+ 	"reflect"
+ 	"strings"
++
++	"testplugin/common"
+ )
+ 
+ func init() {
+diff --git a/misc/cgo/testshared/testdata/exe/exe.go b/misc/cgo/testshared/testdata/exe/exe.go
+index 86582581a6..ee95f97bc9 100644
+--- a/misc/cgo/testshared/testdata/exe/exe.go
++++ b/misc/cgo/testshared/testdata/exe/exe.go
+@@ -1,10 +1,11 @@
+ package main
+ 
+ import (
+-	"testshared/depBase"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
++
++	"testshared/depBase"
+ )
+ 
+ // Having a function declared in the main package triggered

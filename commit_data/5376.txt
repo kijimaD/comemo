@@ -7,7 +7,321 @@ Date:   Wed Apr 28 10:50:44 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/1013042
-
+---
  doc/go_tutorial.html | 46 +++++++++++++++++++++++-----------------------
  doc/go_tutorial.txt  | 42 +++++++++++++++++++++---------------------
  2 files changed, 44 insertions(+), 44 deletions(-)
+
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index 9576feee7f..4641e065de 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -184,7 +184,7 @@ string variable we will use to build the output.
+ The declaration statement has the form
+ <p>
+ <pre>
+-    var s string = "";
++    var s string = ""
+ </pre>
+ <p>
+ This is the <code>var</code> keyword, followed by the name of the variable, followed by
+@@ -195,13 +195,13 @@ string constant is of type string, we don't have to tell the compiler that.
+ We could write
+ <p>
+ <pre>
+-    var s = "";
++    var s = ""
+ </pre>
+ <p>
+ or we could go even shorter and write the idiom
+ <p>
+ <pre>
+-    s := "";
++    s := ""
+ </pre>
+ <p>
+ The <code>:=</code> operator is used a lot in Go to represent an initializing declaration.
+@@ -264,8 +264,8 @@ However the following statements are illegal because they would modify
+ a <code>string</code> value:
+ <p>
+ <pre>
+-    s[0] = 'x';
+-    (*p)[1] = 'y';
++    s[0] = 'x'
++    (*p)[1] = 'y'
+ </pre>
+ <p>
+ In C++ terms, Go strings are a bit like <code>const strings</code>, while pointers
+@@ -277,7 +277,7 @@ read on.
+ Arrays are declared like this:
+ <p>
+ <pre>
+-    var arrayOfInt [10]int;
++    var arrayOfInt [10]int
+ </pre>
+ <p>
+ Arrays, like strings, are values, but they are mutable. This differs
+@@ -341,7 +341,7 @@ If you are creating a regular array but want the compiler to count the
+ elements for you, use <code>...</code> as the array size:
+ <p>
+ <pre>
+-    s := sum(&amp;[...]int{1,2,3});
++    s := sum(&amp;[...]int{1,2,3})
+ </pre>
+ <p>
+ In practice, though, unless you're meticulous about storage layout within a
+@@ -349,7 +349,7 @@ data structure, a slice itself&mdash;using empty brackets and no
+ <code>&amp;</code>&mdash;is all you need:
+ <p>
+ <pre>
+-    s := sum([]int{1,2,3});
++    s := sum([]int{1,2,3})
+ </pre>
+ <p>
+ There are also maps, which you can initialize like this:
+@@ -391,13 +391,13 @@ returns a pointer to the allocated storage.
+ <p>
+ <pre>
+     type T struct { a, b int }
+-    var t *T = new(T);
++    var t *T = new(T)
+ </pre>
+ <p>
+ or the more idiomatic
+ <p>
+ <pre>
+-    t := new(T);
++    t := new(T)
+ </pre>
+ <p>
+ Some types&mdash;maps, slices, and channels (see below)&mdash;have reference semantics.
+@@ -406,14 +406,14 @@ referencing the same underlying data will see the modification.  For these three
+ types you want to use the built-in function <code>make()</code>:
+ <p>
+ <pre>
+-    m := make(map[string]int);
++    m := make(map[string]int)
+ </pre>
+ <p>
+ This statement initializes a new map ready to store entries.
+ If you just declare the map, as in
+ <p>
+ <pre>
+-    var m map[string]int;
++    var m map[string]int
+ </pre>
+ <p>
+ it creates a <code>nil</code> reference that cannot hold anything. To use the map,
+@@ -518,9 +518,9 @@ the ones used to build maps and arrays, to construct a new heap-allocated
+ object.  We could write
+ <p>
+ <pre>
+-    n := new(File);
+-    n.fd = fd;
+-    n.name = name;
++    n := new(File)
++    n.fd = fd
++    n.name = name
+     return n
+ </pre>
+ <p>
+@@ -640,7 +640,7 @@ We can now use our new package:
+ 11    )
+ <p>
+ 13    func main() {
+-14        hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'}
++14        hello := []byte(&quot;hello, world\n&quot;)
+ 15        file.Stdout.Write(hello)
+ 16        file, err := file.Open(&quot;/does/not/exist&quot;,  0,  0)
+ 17        if file == nil {
+@@ -903,7 +903,7 @@ to test that the result is sorted.
+ 14        a := sort.IntArray(data)
+ 15        sort.Sort(a)
+ 16        if !sort.IsSorted(a) {
+-17            panic()
++17            panic(&quot;fail&quot;)
+ 18        }
+ 19    }
+ </pre>
+@@ -1050,7 +1050,7 @@ Schematically, given a value <code>v</code>, it does this:
+ </pre>
+ <p>
+ <pre>
+-    s, ok := v.(Stringer);  // Test whether v implements "String()"
++    s, ok := v.(Stringer)  // Test whether v implements "String()"
+     if ok {
+         result = s.String()
+     } else {
+@@ -1077,7 +1077,7 @@ interface type defined in the <code>io</code> library:
+ <p>
+ <pre>
+     type Writer interface {
+-        Write(p []byte) (n int, err os.Error);
++        Write(p []byte) (n int, err os.Error)
+     }
+ </pre>
+ <p>
+@@ -1162,17 +1162,17 @@ this starts the function running in parallel with the current
+ computation but in the same address space:
+ <p>
+ <pre>
+-    go sum(hugeArray); // calculate sum in the background
++    go sum(hugeArray) // calculate sum in the background
+ </pre>
+ <p>
+ If you want to know when the calculation is done, pass a channel
+ on which it can report back:
+ <p>
+ <pre>
+-    ch := make(chan int);
+-    go sum(hugeArray, ch);
++    ch := make(chan int)
++    go sum(hugeArray, ch)
+     // ... do something else for a while
+-    result := &lt;-ch;  // wait for, and retrieve, result
++    result := &lt;-ch  // wait for, and retrieve, result
+ </pre>
+ <p>
+ Back to our prime sieve.  Here's how the sieve pipeline is stitched
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index 93344257f5..21dffad4f8 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -143,7 +143,7 @@ string variable we will use to build the output.
+ 
+ The declaration statement has the form
+ 
+-	var s string = "";
++	var s string = ""
+ 
+ This is the "var" keyword, followed by the name of the variable, followed by
+ its type, followed by an equals sign and an initial value for the variable.
+@@ -152,11 +152,11 @@ Go tries to be terse, and this declaration could be shortened.  Since the
+ string constant is of type string, we don't have to tell the compiler that.
+ We could write
+ 
+-	var s = "";
++	var s = ""
+ 
+ or we could go even shorter and write the idiom
+ 
+-	s := "";
++	s := ""
+ 
+ The ":=" operator is used a lot in Go to represent an initializing declaration.
+ There's one in the "for" clause on the next line:
+@@ -208,8 +208,8 @@ reassigning it.  This snippet from "strings.go" is legal code:
+ However the following statements are illegal because they would modify
+ a "string" value:
+ 
+-	s[0] = 'x';
+-	(*p)[1] = 'y';
++	s[0] = 'x'
++	(*p)[1] = 'y'
+ 
+ In C++ terms, Go strings are a bit like "const strings", while pointers
+ to strings are analogous to "const string" references.
+@@ -219,7 +219,7 @@ read on.
+ 
+ Arrays are declared like this:
+ 
+-	var arrayOfInt [10]int;
++	var arrayOfInt [10]int
+ 
+ Arrays, like strings, are values, but they are mutable. This differs
+ from C, in which "arrayOfInt" would be usable as a pointer to "int".
+@@ -271,13 +271,13 @@ pointer to "sum()" by (implicitly) promoting it to a slice.
+ If you are creating a regular array but want the compiler to count the
+ elements for you, use "..." as the array size:
+ 
+-	s := sum(&amp;[...]int{1,2,3});
++	s := sum(&amp;[...]int{1,2,3})
+ 
+ In practice, though, unless you're meticulous about storage layout within a
+ data structure, a slice itself&mdash;using empty brackets and no
+ "&amp;"&mdash;is all you need:
+ 
+-	s := sum([]int{1,2,3});
++	s := sum([]int{1,2,3})
+ 
+ There are also maps, which you can initialize like this:
+ 
+@@ -312,23 +312,23 @@ To allocate a new variable, use "new()", which
+ returns a pointer to the allocated storage.
+ 
+ 	type T struct { a, b int }
+-	var t *T = new(T);
++	var t *T = new(T)
+ 
+ or the more idiomatic
+ 
+-	t := new(T);
++	t := new(T)
+ 
+ Some types&mdash;maps, slices, and channels (see below)&mdash;have reference semantics.
+ If you're holding a slice or a map and you modify its contents, other variables
+ referencing the same underlying data will see the modification.  For these three
+ types you want to use the built-in function "make()":
+ 
+-	m := make(map[string]int);
++	m := make(map[string]int)
+ 
+ This statement initializes a new map ready to store entries.
+ If you just declare the map, as in
+ 
+-	var m map[string]int;
++	var m map[string]int
+ 
+ it creates a "nil" reference that cannot hold anything. To use the map,
+ you must first initialize the reference using "make()" or by assignment from an
+@@ -410,9 +410,9 @@ filled in.  This code uses Go's notion of a ''composite literal'', analogous to
+ the ones used to build maps and arrays, to construct a new heap-allocated
+ object.  We could write
+ 
+-	n := new(File);
+-	n.fd = fd;
+-	n.name = name;
++	n := new(File)
++	n.fd = fd
++	n.name = name
+ 	return n
+ 
+ but for simple structures like "File" it's easier to return the address of a nonce
+@@ -696,7 +696,7 @@ Schematically, given a value "v", it does this:
+ 		String() string
+ 	}
+ 
+-	s, ok := v.(Stringer);  // Test whether v implements "String()"
++	s, ok := v.(Stringer)  // Test whether v implements "String()"
+ 	if ok {
+ 		result = s.String()
+ 	} else {
+@@ -721,7 +721,7 @@ not a file.  Instead, it is a variable of type "io.Writer", which is an
+ interface type defined in the "io" library:
+ 
+ 	type Writer interface {
+-		Write(p []byte) (n int, err os.Error);
++		Write(p []byte) (n int, err os.Error)
+ 	}
+ 
+ (This interface is another conventional name, this time for "Write"; there are also
+@@ -787,15 +787,15 @@ invoke the function, prefixing the call with the keyword "go";
+ this starts the function running in parallel with the current
+ computation but in the same address space:
+ 
+-	go sum(hugeArray); // calculate sum in the background
++	go sum(hugeArray) // calculate sum in the background
+ 
+ If you want to know when the calculation is done, pass a channel
+ on which it can report back:
+ 
+-	ch := make(chan int);
+-	go sum(hugeArray, ch);
++	ch := make(chan int)
++	go sum(hugeArray, ch)
+ 	// ... do something else for a while
+-	result := &lt;-ch;  // wait for, and retrieve, result
++	result := &lt;-ch  // wait for, and retrieve, result
+ 
+ Back to our prime sieve.  Here's how the sieve pipeline is stitched
+ together:

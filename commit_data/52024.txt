@@ -10,6 +10,21 @@ Date:   Sun Mar 27 15:12:39 2022 +0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index a214a1e8f9..883772b341 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4496,9 +4496,6 @@ func InitTables() {
+ 		sys.ARM64)
+ 	addF("math/bits", "Reverse",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-			if s.config.PtrSize == 4 {
+-				return s.newValue1(ssa.OpBitRev32, types.Types[types.TINT], args[0])
+-			}
+ 			return s.newValue1(ssa.OpBitRev64, types.Types[types.TINT], args[0])
+ 		},
+ 		sys.ARM64)

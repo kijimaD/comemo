@@ -8,7 +8,106 @@ Date:   Thu Oct 15 16:32:45 2009 -0700
     R=ken
     OCL=35801
     CL=35801
-
+---
  src/cmd/8g/cgen64.c | 12 ++++++++----
  test/64bit.go       | 46 ++++++++++++++++++++++++++++++++++++++--------
  2 files changed, 46 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/8g/cgen64.c b/src/cmd/8g/cgen64.c
+index f89cbab7dc..6b3dae65a5 100644
+--- a/src/cmd/8g/cgen64.c
++++ b/src/cmd/8g/cgen64.c
+@@ -178,8 +178,10 @@ cgen64(Node *n, Node *res)
+ 			gins(ACMPL, &hi2, ncon(0));
+ 			p1 = gbranch(AJNE, T);
+ 			gins(AMOVL, &lo2, &cx);
+-		} else
+-			gins(AMOVL, r, &cx);
++		} else {
++			cx.type = types[TUINT32];
++			gmove(r, &cx);
++		}
+ 
+ 		// if shift count is >=64, zero value
+ 		gins(ACMPL, &cx, ncon(64));
+@@ -265,8 +267,10 @@ cgen64(Node *n, Node *res)
+ 			gins(ACMPL, &hi2, ncon(0));
+ 			p1 = gbranch(AJNE, T);
+ 			gins(AMOVL, &lo2, &cx);
+-		} else
+-			gins(AMOVL, r, &cx);
++		} else {
++			cx.type = types[TUINT32];
++			gmove(r, &cx);
++		}
+ 
+ 		// if shift count is >=64, zero or sign-extend value
+ 		gins(ACMPL, &cx, ncon(64));
+diff --git a/test/64bit.go b/test/64bit.go
+index a07f6cc155..121c54d36c 100644
+--- a/test/64bit.go
++++ b/test/64bit.go
+@@ -459,12 +459,27 @@ const prolog =
+ 	"}\n"
+ 	"\n"
+ 	"func testInt64Shift(a int64, b uint64, left, right int64) {\n"
+-	"	if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, s, `=`, n, `should be`, want); }\n"
+-	"	if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, s, `=`, n, `should be`, want); }\n"
++	"	if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, `uint64`, s, `=`, n, `should be`, want); }\n"
++	"	if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, `uint64`, s, `=`, n, `should be`, want); }\n"
++	"	if uint64(uint(b)) == b {\n"
++	"		b := uint(b);\n"
++	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, `uint`, s, `=`, n, `should be`, want); }\n"
++	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, `uint`, s, `=`, n, `should be`, want); }\n"
++	"	}\n"
+ 	"	if uint64(uint32(b)) == b {\n"
+ 	"		b := uint32(b);\n"
+-	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, s, `=`, n, `should be`, want); }\n"
+-	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, s, `=`, n, `should be`, want); }\n"
++	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, `uint32`, s, `=`, n, `should be`, want); }\n"
++	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, `uint32`, s, `=`, n, `should be`, want); }\n"
++	"	}\n"
++	"	if uint64(uint16(b)) == b {\n"
++	"		b := uint16(b);\n"
++	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, `uint16`, s, `=`, n, `should be`, want); }\n"
++	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, `uint16`, s, `=`, n, `should be`, want); }\n"
++	"	}\n"
++	"	if uint64(uint8(b)) == b {\n"
++	"		b := uint8(b);\n"
++	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, `uint8`, s, `=`, n, `should be`, want); }\n"
++	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, `uint8`, s, `=`, n, `should be`, want); }\n"
+ 	"	}\n"
+ 	"}\n"
+ 	"\n"
+@@ -489,12 +504,27 @@ const prolog =
+ 	"}\n"
+ 	"\n"
+ 	"func testUint64Shift(a, b, left, right uint64) {\n"
+-	"	if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, s, `=`, n, `should be`, want); }\n"
+-	"	if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, s, `=`, n, `should be`, want); }\n"
++	"	if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, `uint64`, s, `=`, n, `should be`, want); }\n"
++	"	if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, `uint64`, s, `=`, n, `should be`, want); }\n"
++	"	if uint64(uint(b)) == b {\n"
++	"		b := uint(b);\n"
++	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, `uint`, s, `=`, n, `should be`, want); }\n"
++	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, `uint`, s, `=`, n, `should be`, want); }\n"
++	"	}\n"
+ 	"	if uint64(uint32(b)) == b {\n"
+ 	"		b := uint32(b);\n"
+-	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, s, `=`, n, `should be`, want); }\n"
+-	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, s, `=`, n, `should be`, want); }\n"
++	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, `uint32`, s, `=`, n, `should be`, want); }\n"
++	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, `uint32`, s, `=`, n, `should be`, want); }\n"
++	"	}\n"
++	"	if uint64(uint16(b)) == b {\n"
++	"		b := uint16(b);\n"
++	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, `uint16`, s, `=`, n, `should be`, want); }\n"
++	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, `uint16`, s, `=`, n, `should be`, want); }\n"
++	"	}\n"
++	"	if uint64(uint8(b)) == b {\n"
++	"		b := uint8(b);\n"
++	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, `uint8`, s, `=`, n, `should be`, want); }\n"
++	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, `uint8`, s, `=`, n, `should be`, want); }\n"
+ 	"	}\n"
+ 	"}\n"
+ 	"\n"

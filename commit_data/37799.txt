@@ -11,7 +11,45 @@ Date:   Fri Jul 27 00:05:50 2018 -0700
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/pprof/protomem.go      | 4 ++--
  src/runtime/pprof/protomem_test.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/pprof/protomem.go b/src/runtime/pprof/protomem.go
+index 82565d5245..1c88aae43a 100644
+--- a/src/runtime/pprof/protomem.go
++++ b/src/runtime/pprof/protomem.go
+@@ -56,8 +56,8 @@ func writeHeapProto(w io.Writer, p []runtime.MemProfileRecord, rate int64, defau
+ 		values[0], values[1] = scaleHeapSample(r.AllocObjects, r.AllocBytes, rate)
+ 		values[2], values[3] = scaleHeapSample(r.InUseObjects(), r.InUseBytes(), rate)
+ 		var blockSize int64
+-		if values[0] > 0 {
+-			blockSize = values[1] / values[0]
++		if r.AllocObjects > 0 {
++			blockSize = r.AllocBytes / r.AllocObjects
+ 		}
+ 		b.pbSample(values, locs, func() {
+ 			if blockSize != 0 {
+diff --git a/src/runtime/pprof/protomem_test.go b/src/runtime/pprof/protomem_test.go
+index 315d5f0b4d..471b1ae9c3 100644
+--- a/src/runtime/pprof/protomem_test.go
++++ b/src/runtime/pprof/protomem_test.go
+@@ -48,7 +48,7 @@ func TestConvertMemProfile(t *testing.T) {
+ 				{ID: 3, Mapping: map2, Address: addr2 + 1},
+ 				{ID: 4, Mapping: map2, Address: addr2 + 2},
+ 			},
+-			NumLabel: map[string][]int64{"bytes": {829411}},
++			NumLabel: map[string][]int64{"bytes": {512 * 1024}},
+ 		},
+ 		{
+ 			Value: []int64{1, 829411, 0, 0},
+@@ -57,7 +57,7 @@ func TestConvertMemProfile(t *testing.T) {
+ 				{ID: 6, Mapping: map1, Address: addr1 + 2},
+ 				{ID: 7, Mapping: map2, Address: addr2 + 3},
+ 			},
+-			NumLabel: map[string][]int64{"bytes": {829411}},
++			NumLabel: map[string][]int64{"bytes": {512 * 1024}},
+ 		},
+ 	}
+ 	for _, tc := range []struct {

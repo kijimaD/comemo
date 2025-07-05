@@ -7,6 +7,23 @@ Date:   Tue Jul 30 16:29:51 2013 +0900
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/12082045
-
+---
  src/pkg/net/tcpsock_plan9.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index 48334fed7e..4781b5986c 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -65,6 +65,11 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
+ 	return syscall.EPLAN9
+ }
+ 
++// SetKeepAlivePeriod sets period between keep alives.
++func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
++	return syscall.EPLAN9
++}
++
+ // SetNoDelay controls whether the operating system should delay
+ // packet transmission in hopes of sending fewer packets (Nagle's
+ // algorithm).  The default is true (no delay), meaning that data is

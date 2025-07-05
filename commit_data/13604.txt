@@ -21,9 +21,335 @@ Date:   Wed Aug 8 14:01:23 2012 -0700
     R=golang-dev, rsc, bsiegert
     CC=golang-dev
     https://golang.org/cl/6458099
-
+---
  src/pkg/runtime/rune.c            |  9 +++-
  src/pkg/unicode/utf8/utf8.go      | 38 ++++++++++++++-
  src/pkg/unicode/utf8/utf8_test.go | 98 +++++++++++++++++++++++++++++++++------
  test/stringrange.go               |  7 +++
  4 files changed, 136 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/runtime/rune.c b/src/pkg/runtime/rune.c
+index 86ee76ddd7..ed867269d8 100644
+--- a/src/pkg/runtime/rune.c
++++ b/src/pkg/runtime/rune.c
+@@ -47,6 +47,9 @@ enum
+ 	Runeerror	= 0xFFFD,
+ 	Runeself	= 0x80,
+ 
++	SurrogateMin = 0xD800,
++	SurrogateMax = 0xDFFF,
++
+ 	Bad	= Runeerror,
+ 
+ 	Runemax	= 0x10FFFF,	/* maximum rune value */
+@@ -128,6 +131,8 @@ runtime·charntorune(int32 *rune, uint8 *str, int32 length)
+ 		l = ((((c << Bitx) | c1) << Bitx) | c2) & Rune3;
+ 		if(l <= Rune2)
+ 			goto bad;
++		if (SurrogateMin <= l && l <= SurrogateMax)
++			goto bad;
+ 		*rune = l;
+ 		return 3;
+ 	}
+@@ -193,13 +198,15 @@ runtime·runetochar(byte *str, int32 rune)  /* note: in original, arg2 was point
+ 	}
+ 
+ 	/*
+-	 * If the Rune is out of range, convert it to the error rune.
++	 * If the Rune is out of range or a surrogate half, convert it to the error rune.
+ 	 * Do this test here because the error rune encodes to three bytes.
+ 	 * Doing it earlier would duplicate work, since an out of range
+ 	 * Rune wouldn't have fit in one or two bytes.
+ 	 */
+ 	if (c > Runemax)
+ 		c = Runeerror;
++	if (SurrogateMin <= c && c <= SurrogateMax)
++		c = Runeerror;
+ 
+ 	/*
+ 	 * three character sequence
+diff --git a/src/pkg/unicode/utf8/utf8.go b/src/pkg/unicode/utf8/utf8.go
+index cd9c80c5a5..ad23577740 100644
+--- a/src/pkg/unicode/utf8/utf8.go
++++ b/src/pkg/unicode/utf8/utf8.go
+@@ -18,6 +18,12 @@ const (
+ 	UTFMax    = 4            // maximum number of bytes of a UTF-8 encoded Unicode character.
+ )
+ 
++// Code points in the surrogate range are not valid for UTF-8.
++const (
++	surrogateMin = 0xD800
++	surrogateMax = 0xDFFF
++)
++
+ const (
+ 	t1 = 0x00 // 0000 0000
+ 	tx = 0x80 // 1000 0000
+@@ -34,7 +40,6 @@ const (
+ 	rune1Max = 1<<7 - 1
+ 	rune2Max = 1<<11 - 1
+ 	rune3Max = 1<<16 - 1
+-	rune4Max = 1<<21 - 1
+ )
+ 
+ func decodeRuneInternal(p []byte) (r rune, size int, short bool) {
+@@ -87,6 +92,9 @@ func decodeRuneInternal(p []byte) (r rune, size int, short bool) {
+ 		if r <= rune2Max {
+ 			return RuneError, 1, false
+ 		}
++		if surrogateMin <= r && r <= surrogateMax {
++			return RuneError, 1, false
++		}
+ 		return r, 3, false
+ 	}
+ 
+@@ -162,6 +170,9 @@ func decodeRuneInStringInternal(s string) (r rune, size int, short bool) {
+ 		if r <= rune2Max {
+ 			return RuneError, 1, false
+ 		}
++		if surrogateMin <= r && r <= surrogateMax {
++			return RuneError, 1, false
++		}
+ 		return r, 3, false
+ 	}
+ 
+@@ -295,15 +306,20 @@ func DecodeLastRuneInString(s string) (r rune, size int) {
+ }
+ 
+ // RuneLen returns the number of bytes required to encode the rune.
++// It returns -1 if the rune is not a valid value to encode in UTF-8.
+ func RuneLen(r rune) int {
+ 	switch {
++	case r < 0:
++		return -1
+ 	case r <= rune1Max:
+ 		return 1
+ 	case r <= rune2Max:
+ 		return 2
++	case surrogateMin <= r && r <= surrogateMax:
++		return -1
+ 	case r <= rune3Max:
+ 		return 3
+-	case r <= rune4Max:
++	case r <= MaxRune:
+ 		return 4
+ 	}
+ 	return -1
+@@ -328,6 +344,10 @@ func EncodeRune(p []byte, r rune) int {
+ 		r = RuneError
+ 	}
+ 
++	if surrogateMin <= r && r <= surrogateMax {
++		r = RuneError
++	}
++
+ 	if uint32(r) <= rune3Max {
+ 		p[0] = t3 | byte(r>>12)
+ 		p[1] = tx | byte(r>>6)&maskx
+@@ -407,3 +427,17 @@ func ValidString(s string) bool {
+ 	}
+ 	return true
+ }
++
++// ValidRune reports whether r can be legally encoded as UTF-8.
++// Code points that are out of range or a surrogate half are illegal.
++func ValidRune(r rune) bool {
++	switch {
++	case r < 0:
++		return false
++	case surrogateMin <= r && r <= surrogateMax:
++		return false
++	case r > MaxRune:
++		return false
++	}
++	return true
++}
+diff --git a/src/pkg/unicode/utf8/utf8_test.go b/src/pkg/unicode/utf8/utf8_test.go
+index 65e6c7e8b3..e9b30a20cb 100644
+--- a/src/pkg/unicode/utf8/utf8_test.go
++++ b/src/pkg/unicode/utf8/utf8_test.go
+@@ -56,6 +56,8 @@ var utf8map = []Utf8Map{
+ 	{0x07ff, "\xdf\xbf"},
+ 	{0x0800, "\xe0\xa0\x80"},
+ 	{0x0801, "\xe0\xa0\x81"},
++	{0xd7ff, "\xed\x9f\xbf"}, // last code point before surrogate half.
++	{0xe000, "\xee\x80\x80"}, // first code point after surrogate half.
+ 	{0xfffe, "\xef\xbf\xbe"},
+ 	{0xffff, "\xef\xbf\xbf"},
+ 	{0x10000, "\xf0\x90\x80\x80"},
+@@ -65,6 +67,11 @@ var utf8map = []Utf8Map{
+ 	{0xFFFD, "\xef\xbf\xbd"},
+ }
+ 
++var surrogateMap = []Utf8Map{
++	{0xd800, "\xed\xa0\x80"}, // surrogate min decodes to (RuneError, 1)
++	{0xdfff, "\xed bf bf"},   // surrogate max decodes to (RuneError, 1)
++}
++
+ var testStrings = []string{
+ 	"",
+ 	"abcd",
+@@ -75,8 +82,7 @@ var testStrings = []string{
+ }
+ 
+ func TestFullRune(t *testing.T) {
+-	for i := 0; i < len(utf8map); i++ {
+-		m := utf8map[i]
++	for _, m := range utf8map {
+ 		b := []byte(m.str)
+ 		if !FullRune(b) {
+ 			t.Errorf("FullRune(%q) (%U) = false, want true", b, m.r)
+@@ -97,8 +103,7 @@ func TestFullRune(t *testing.T) {
+ }
+ 
+ func TestEncodeRune(t *testing.T) {
+-	for i := 0; i < len(utf8map); i++ {
+-		m := utf8map[i]
++	for _, m := range utf8map {
+ 		b := []byte(m.str)
+ 		var buf [10]byte
+ 		n := EncodeRune(buf[0:], m.r)
+@@ -110,8 +115,7 @@ func TestEncodeRune(t *testing.T) {
+ }
+ 
+ func TestDecodeRune(t *testing.T) {
+-	for i := 0; i < len(utf8map); i++ {
+-		m := utf8map[i]
++	for _, m := range utf8map {
+ 		b := []byte(m.str)
+ 		r, size := DecodeRune(b)
+ 		if r != m.r || size != len(b) {
+@@ -168,6 +172,21 @@ func TestDecodeRune(t *testing.T) {
+ 	}
+ }
+ 
++func TestDecodeSurrogateRune(t *testing.T) {
++	for _, m := range surrogateMap {
++		b := []byte(m.str)
++		r, size := DecodeRune(b)
++		if r != RuneError || size != 1 {
++			t.Errorf("DecodeRune(%q) = %x, %d want %x, %d", b, r, size, RuneError, 1)
++		}
++		s := m.str
++		r, size = DecodeRuneInString(s)
++		if r != RuneError || size != 1 {
++			t.Errorf("DecodeRune(%q) = %x, %d want %x, %d", b, r, size, RuneError, 1)
++		}
++	}
++}
++
+ // Check that DecodeRune and DecodeLastRune correspond to
+ // the equivalent range loop.
+ func TestSequencing(t *testing.T) {
+@@ -284,8 +303,7 @@ var runecounttests = []RuneCountTest{
+ }
+ 
+ func TestRuneCount(t *testing.T) {
+-	for i := 0; i < len(runecounttests); i++ {
+-		tt := runecounttests[i]
++	for _, tt := range runecounttests {
+ 		if out := RuneCountInString(tt.in); out != tt.out {
+ 			t.Errorf("RuneCountInString(%q) = %d, want %d", tt.in, out, tt.out)
+ 		}
+@@ -295,6 +313,32 @@ func TestRuneCount(t *testing.T) {
+ 	}
+ }
+ 
++type RuneLenTest struct {
++	r    rune
++	size int
++}
++
++var runelentests = []RuneLenTest{
++	{0, 1},
++	{'e', 1},
++	{'é', 2},
++	{'☺', 3},
++	{RuneError, 3},
++	{MaxRune, 4},
++	{0xD800, -1},
++	{0xDFFF, -1},
++	{MaxRune + 1, -1},
++	{-1, -1},
++}
++
++func TestRuneLen(t *testing.T) {
++	for _, tt := range runelentests {
++		if size := RuneLen(tt.r); size != tt.size {
++			t.Errorf("RuneLen(%#U) = %d, want %d", tt.r, size, tt.size)
++		}
++	}
++}
++
+ type ValidTest struct {
+ 	in  string
+ 	out bool
+@@ -314,17 +358,45 @@ var validTests = []ValidTest{
+ 	{string("\xF7\xBF\xBF\xBF"), true},      // U+1FFFFF
+ 	{string("\xFB\xBF\xBF\xBF\xBF"), false}, // 0x3FFFFFF; out of range
+ 	{string("\xc0\x80"), false},             // U+0000 encoded in two bytes: incorrect
+-	// TODO {string("\xed\xa0\x80"), false },	// U+D800 high surrogate (sic)
+-	// TODO {string("\xed\xbf\xbf"), false },	// U+DFFF low surrogate (sic)
++	{string("\xed\xa0\x80"), false},         // U+D800 high surrogate (sic)
++	{string("\xed\xbf\xbf"), false},         // U+DFFF low surrogate (sic)
+ }
+ 
+ func TestValid(t *testing.T) {
+-	for i, tt := range validTests {
++	for _, tt := range validTests {
+ 		if Valid([]byte(tt.in)) != tt.out {
+-			t.Errorf("%d. Valid(%q) = %v; want %v", i, tt.in, !tt.out, tt.out)
++			t.Errorf("Valid(%q) = %v; want %v", tt.in, !tt.out, tt.out)
+ 		}
+ 		if ValidString(tt.in) != tt.out {
+-			t.Errorf("%d. ValidString(%q) = %v; want %v", i, tt.in, !tt.out, tt.out)
++			t.Errorf("ValidString(%q) = %v; want %v", tt.in, !tt.out, tt.out)
++		}
++	}
++}
++
++type ValidRuneTest struct {
++	r  rune
++	ok bool
++}
++
++var validrunetests = []ValidRuneTest{
++	{0, true},
++	{'e', true},
++	{'é', true},
++	{'☺', true},
++	{RuneError, true},
++	{MaxRune, true},
++	{0xD7FF, true},
++	{0xD800, false},
++	{0xDFFF, false},
++	{0xE000, true},
++	{MaxRune + 1, false},
++	{-1, false},
++}
++
++func TestValidRune(t *testing.T) {
++	for _, tt := range validrunetests {
++		if ok := ValidRune(tt.r); ok != tt.ok {
++			t.Errorf("ValidRune(%#U) = %t, want %t", tt.r, ok, tt.ok)
+ 		}
+ 	}
+ }
+diff --git a/test/stringrange.go b/test/stringrange.go
+index daaba91c69..99e5edb5a4 100644
+--- a/test/stringrange.go
++++ b/test/stringrange.go
+@@ -57,6 +57,13 @@ func main() {
+ 		ok = false
+ 	}
+ 
++	for _, c := range "a\xed\xa0\x80a" {
++		if c != 'a' && c != utf8.RuneError {
++			fmt.Printf("surrogate UTF-8 does not error: %U\n", c)
++			ok = false
++		}
++	}
++
+ 	if !ok {
+ 		fmt.Println("BUG: stringrange")
+ 		os.Exit(1)

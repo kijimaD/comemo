@@ -11,6 +11,20 @@ Date:   Thu Oct 10 16:30:47 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/14512045
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 052e31c264..204e22fa14 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -2402,7 +2402,7 @@ def IsRietveldSubmitted(ui, clname, hex):
+ 		return False
+ 	for msg in dict.get("messages", []):
+ 		text = msg.get("text", "")
+-		m = re.match('\*\*\* Submitted as [^*]*?([0-9a-f]+) \*\*\*', text)
++		m = re.match('\*\*\* Submitted as [^*]*?r=([0-9a-f]+)[^ ]* \*\*\*', text)
+ 		if m is not None and len(m.group(1)) >= 8 and hex.startswith(m.group(1)):
+ 			return True
+ 	return False

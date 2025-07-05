@@ -15,6 +15,24 @@ Date:   Wed Sep 1 12:42:35 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/reader.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 17ccb25e1d..204d25bce8 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -920,6 +920,12 @@ func (r *reader) addBody(fn *ir.Func) {
+ 	pri := pkgReaderIndex{r.p, r.reloc(relocBody), r.dict}
+ 	bodyReader[fn] = pri
+ 
++	if fn.Nname.Defn == nil {
++		// Don't read in function body for imported functions.
++		// See comment in funcExt.
++		return
++	}
++
+ 	if r.curfn == nil {
+ 		todoBodies = append(todoBodies, fn)
+ 		return

@@ -19,7 +19,7 @@ Date:   Mon Nov 15 21:12:33 2021 -0500
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  .../go/analysis/passes/composite/composite.go      |  21 +++-
@@ -28,3 +28,358 @@ Date:   Mon Nov 15 21:12:33 2021 -0500
  .../x/tools/internal/typeparams/normalize.go       | 132 +++++++++------------
  src/cmd/vendor/modules.txt                         |   2 +-
  7 files changed, 117 insertions(+), 101 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index facc54cee1..014c854a73 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,7 +8,7 @@ require (
+ 	golang.org/x/mod v0.6.0-dev.0.20210913215816-37dd6891021a
+ 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+ 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+-	golang.org/x/tools v0.1.8-0.20211109164901-e9000123914f
++	golang.org/x/tools v0.1.8-0.20211116011028-4adea5033c5c
+ )
+ 
+ require (
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index f248d84e24..4f50e7c6c8 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -18,7 +18,7 @@ golang.org/x/sys v0.0.0-20211109065445-02f5c0300f6e h1:i6Vklmyu+fZMFYpum+sR4ZWAB
+ golang.org/x/sys v0.0.0-20211109065445-02f5c0300f6e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 h1:JGgROgKl9N8DuW20oFS5gxc+lE67/N3FcwmBPMe7ArY=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+-golang.org/x/tools v0.1.8-0.20211109164901-e9000123914f h1:wwsTeyXackfHvwdCKtGcDlYwO78AwwW6OwUomSMB0aI=
+-golang.org/x/tools v0.1.8-0.20211109164901-e9000123914f/go.mod h1:nABZi5QlRsZVlzPpHl034qft6wpY4eDcsTt5AaioBiU=
++golang.org/x/tools v0.1.8-0.20211116011028-4adea5033c5c h1:EftGXIEk7/EwE5R+/azXJzSbzwNumuLeH9oupAN7YV0=
++golang.org/x/tools v0.1.8-0.20211116011028-4adea5033c5c/go.mod h1:nABZi5QlRsZVlzPpHl034qft6wpY4eDcsTt5AaioBiU=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+index 025952ed50..d3670aca97 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+@@ -68,17 +68,26 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			// skip whitelisted types
+ 			return
+ 		}
+-		terms, err := typeparams.StructuralTerms(typ)
+-		if err != nil {
+-			return // invalid type
++		var structuralTypes []types.Type
++		switch typ := typ.(type) {
++		case *typeparams.TypeParam:
++			terms, err := typeparams.StructuralTerms(typ)
++			if err != nil {
++				return // invalid type
++			}
++			for _, term := range terms {
++				structuralTypes = append(structuralTypes, term.Type())
++			}
++		default:
++			structuralTypes = append(structuralTypes, typ)
+ 		}
+-		for _, term := range terms {
+-			under := deref(term.Type().Underlying())
++		for _, typ := range structuralTypes {
++			under := deref(typ.Underlying())
+ 			if _, ok := under.(*types.Struct); !ok {
+ 				// skip non-struct composite literals
+ 				continue
+ 			}
+-			if isLocalType(pass, term.Type()) {
++			if isLocalType(pass, typ) {
+ 				// allow unkeyed locally defined composite literal
+ 				continue
+ 			}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
+index 640de28e05..e968f27b40 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
+@@ -14,6 +14,7 @@ import (
+ 	"go/ast"
+ 	"go/constant"
+ 	"go/token"
++	"go/types"
+ 	"math"
+ 
+ 	"golang.org/x/tools/go/analysis"
+@@ -95,13 +96,22 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
+ 	if t == nil {
+ 		return
+ 	}
+-	terms, err := typeparams.StructuralTerms(t)
+-	if err != nil {
+-		return // invalid type
++	var structuralTypes []types.Type
++	switch t := t.(type) {
++	case *typeparams.TypeParam:
++		terms, err := typeparams.StructuralTerms(t)
++		if err != nil {
++			return // invalid type
++		}
++		for _, term := range terms {
++			structuralTypes = append(structuralTypes, term.Type())
++		}
++	default:
++		structuralTypes = append(structuralTypes, t)
+ 	}
+ 	sizes := make(map[int64]struct{})
+-	for _, term := range terms {
+-		size := 8 * pass.TypesSizes.Sizeof(term.Type())
++	for _, t := range structuralTypes {
++		size := 8 * pass.TypesSizes.Sizeof(t)
+ 		sizes[size] = struct{}{}
+ 	}
+ 	minSize := int64(math.MaxInt64)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+index 92fd375f23..e41de809de 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+@@ -110,17 +110,17 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 
+ 		// First, find a type T0 in T that has an underlying type of string.
+ 		T := tname.Type()
+-		tterms, err := typeparams.StructuralTerms(T)
++		ttypes, err := structuralTypes(T)
+ 		if err != nil {
+ 			return // invalid type
+ 		}
+ 
+ 		var T0 types.Type // string type in the type set of T
+ 
+-		for _, term := range tterms {
+-			u, _ := term.Type().Underlying().(*types.Basic)
++		for _, tt := range ttypes {
++			u, _ := tt.Underlying().(*types.Basic)
+ 			if u != nil && u.Kind() == types.String {
+-				T0 = term.Type()
++				T0 = tt
+ 				break
+ 			}
+ 		}
+@@ -133,21 +133,21 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		// Next, find a type V0 in V that has an underlying integral type that is
+ 		// not byte or rune.
+ 		V := pass.TypesInfo.TypeOf(arg)
+-		vterms, err := typeparams.StructuralTerms(V)
++		vtypes, err := structuralTypes(V)
+ 		if err != nil {
+ 			return // invalid type
+ 		}
+ 
+ 		var V0 types.Type // integral type in the type set of V
+ 
+-		for _, term := range vterms {
+-			u, _ := term.Type().Underlying().(*types.Basic)
++		for _, vt := range vtypes {
++			u, _ := vt.Underlying().(*types.Basic)
+ 			if u != nil && u.Info()&types.IsInteger != 0 {
+ 				switch u.Kind() {
+ 				case types.Byte, types.Rune, types.UntypedRune:
+ 					continue
+ 				}
+-				V0 = term.Type()
++				V0 = vt
+ 				break
+ 			}
+ 		}
+@@ -158,8 +158,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		}
+ 
+ 		convertibleToRune := true // if true, we can suggest a fix
+-		for _, term := range vterms {
+-			if !types.ConvertibleTo(term.Type(), types.Typ[types.Rune]) {
++		for _, t := range vtypes {
++			if !types.ConvertibleTo(t, types.Typ[types.Rune]) {
+ 				convertibleToRune = false
+ 				break
+ 			}
+@@ -200,3 +200,20 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 	})
+ 	return nil, nil
+ }
++
++func structuralTypes(t types.Type) ([]types.Type, error) {
++	var structuralTypes []types.Type
++	switch t := t.(type) {
++	case *typeparams.TypeParam:
++		terms, err := typeparams.StructuralTerms(t)
++		if err != nil {
++			return nil, err
++		}
++		for _, term := range terms {
++			structuralTypes = append(structuralTypes, term.Type())
++		}
++	default:
++		structuralTypes = append(structuralTypes, t)
++	}
++	return structuralTypes, nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go
+index 29373508e9..f41ec6ec0b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go
+@@ -16,92 +16,72 @@ import (
+ 
+ const debug = false
+ 
+-// NormalizeInterface returns the normal form of the interface iface, or nil if iface
+-// has an empty type set (i.e. there are no types that satisfy iface). If the
+-// resulting interface is non-nil, it will be identical to iface.
++var ErrEmptyTypeSet = errors.New("empty type set")
++
++// StructuralTerms returns a slice of terms representing the normalized
++// structural type restrictions of a type parameter, if any.
++//
++// Structural type restrictions of a type parameter are created via
++// non-interface types embedded in its constraint interface (directly, or via a
++// chain of interface embeddings). For example, in the declaration `type T[P
++// interface{~int; m()}] int`, the structural restriction of the type parameter
++// P is ~int.
++//
++// With interface embedding and unions, the specification of structural type
++// restrictions may be arbitrarily complex. For example, consider the
++// following:
++//
++//  type A interface{ ~string|~[]byte }
++//
++//  type B interface{ int|string }
++//
++//  type C interface { ~string|~int }
++//
++//  type T[P interface{ A|B; C }] int
+ //
+-// An error is returned if the interface type is invalid, or too complicated to
+-// reasonably normalize (for example, contains unions with more than a hundred
+-// terms).
++// In this example, the structural type restriction of P is ~string|int: A|B
++// expands to ~string|~[]byte|int|string, which reduces to ~string|~[]byte|int,
++// which when intersected with C (~string|~int) yields ~string|int.
+ //
+-// An interface is in normal form if and only if:
+-//   - it has 0 or 1 embedded types.
+-//   - its embedded type is either a types.Union or has a concrete
+-//     (non-interface) underlying type
+-//   - if the embedded type is a union, each term of the union has a concrete
+-//     underlying type, and no terms may be removed without changing the type set
+-//     of the interface
+-func NormalizeInterface(iface *types.Interface) (*types.Interface, error) {
+-	var methods []*types.Func
+-	for i := 0; i < iface.NumMethods(); i++ {
+-		methods = append(methods, iface.Method(i))
++// StructuralTerms computes these expansions and reductions, producing a
++// "normalized" form of the embeddings. A structural restriction is normalized
++// if it is a single union containing no interface terms, and is minimal in the
++// sense that removing any term changes the set of types satisfying the
++// constraint. It is left as a proof for the reader that, modulo sorting, there
++// is exactly one such normalized form.
++//
++// Because the minimal representation always takes this form, StructuralTerms
++// returns a slice of tilde terms corresponding to the terms of the union in
++// the normalized structural restriction. An error is returned if the
++// constraint interface is invalid, exceeds complexity bounds, or has an empty
++// type set. In the latter case, StructuralTerms returns ErrEmptyTypeSet.
++//
++// StructuralTerms makes no guarantees about the order of terms, except that it
++// is deterministic.
++func StructuralTerms(tparam *TypeParam) ([]*Term, error) {
++	constraint := tparam.Constraint()
++	if constraint == nil {
++		return nil, fmt.Errorf("%s has nil constraint", tparam)
++	}
++	iface, _ := constraint.Underlying().(*types.Interface)
++	if iface == nil {
++		return nil, fmt.Errorf("constraint is %T, not *types.Interface", constraint.Underlying())
+ 	}
+-	var embeddeds []types.Type
+ 	tset, err := computeTermSet(iface, make(map[types.Type]*termSet), 0)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	switch {
+-	case tset.terms.isEmpty():
+-		// Special case: as documented
++	if tset.terms.isEmpty() {
++		return nil, ErrEmptyTypeSet
++	}
++	if tset.terms.isAll() {
+ 		return nil, nil
+-
+-	case tset.terms.isAll():
+-		// No embeddeds.
+-
+-	case len(tset.terms) == 1:
+-		if !tset.terms[0].tilde {
+-			embeddeds = append(embeddeds, tset.terms[0].typ)
+-			break
+-		}
+-		fallthrough
+-	default:
+-		var terms []*Term
+-		for _, term := range tset.terms {
+-			terms = append(terms, NewTerm(term.tilde, term.typ))
+-		}
+-		embeddeds = append(embeddeds, NewUnion(terms))
+ 	}
+-
+-	return types.NewInterfaceType(methods, embeddeds), nil
+-}
+-
+-var ErrEmptyTypeSet = errors.New("empty type set")
+-
+-// StructuralTerms returns the normalized structural type restrictions of a
+-// type, if any. For types that are not type parameters, it returns term slice
+-// containing a single non-tilde term holding the given type. For type
+-// parameters, it returns the normalized term list of the type parameter's
+-// constraint. See NormalizeInterface for more information on the normal form
+-// of a constraint interface.
+-//
+-// StructuralTerms returns an error if the structural term list cannot be
+-// computed. If the type set of typ is empty, it returns ErrEmptyTypeSet.
+-func StructuralTerms(typ types.Type) ([]*Term, error) {
+-	switch typ := typ.(type) {
+-	case *TypeParam:
+-		iface, _ := typ.Constraint().(*types.Interface)
+-		if iface == nil {
+-			return nil, fmt.Errorf("constraint is %T, not *types.Interface", typ)
+-		}
+-		tset, err := computeTermSet(iface, make(map[types.Type]*termSet), 0)
+-		if err != nil {
+-			return nil, err
+-		}
+-		if tset.terms.isEmpty() {
+-			return nil, ErrEmptyTypeSet
+-		}
+-		if tset.terms.isAll() {
+-			return nil, nil
+-		}
+-		var terms []*Term
+-		for _, term := range tset.terms {
+-			terms = append(terms, NewTerm(term.tilde, term.typ))
+-		}
+-		return terms, nil
+-	default:
+-		return []*Term{NewTerm(false, typ)}, nil
++	var terms []*Term
++	for _, term := range tset.terms {
++		terms = append(terms, NewTerm(term.tilde, term.typ))
+ 	}
++	return terms, nil
+ }
+ 
+ // A termSet holds the normalized set of terms for a given type.
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 3806f7171c..82e04c1d33 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -51,7 +51,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.1.8-0.20211109164901-e9000123914f
++# golang.org/x/tools v0.1.8-0.20211116011028-4adea5033c5c
+ ## explicit; go 1.17
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis

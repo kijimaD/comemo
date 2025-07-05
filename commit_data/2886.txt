@@ -8,10 +8,350 @@ Date:   Wed Aug 5 11:33:59 2009 -0700
     DELTA=240  (239 added, 0 deleted, 1 changed)
     OCL=32783
     CL=32785
-
+---
  test/bench/fannkuch.c   | 134 ++++++++++++++++++++++++++++++++++++++++++++++++
  test/bench/fannkuch.go  | 117 ++++++++++++++++++++++++++++++++++++++++++
  test/bench/fannkuch.txt |  31 +++++++++++
  test/bench/timing.log   |   8 +++
  test/bench/timing.sh    |  10 +++-
  5 files changed, 299 insertions(+), 1 deletion(-)
+
+diff --git a/test/bench/fannkuch.c b/test/bench/fannkuch.c
+new file mode 100644
+index 0000000000..e576b5441f
+--- /dev/null
++++ b/test/bench/fannkuch.c
+@@ -0,0 +1,134 @@
++/*
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++    * Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++
++    * Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++
++    * Neither the name of "The Computer Language Benchmarks Game" nor the
++    name of "The Computer Language Shootout Benchmarks" nor the names of
++    its contributors may be used to endorse or promote products derived
++    from this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++*/
++
++/*
++ * The Computer Language Shootout
++ * http://shootout.alioth.debian.org/
++ * Contributed by Heiner Marxen
++ *
++ * "fannkuch"	for C gcc
++ *
++ * $Id: fannkuch.1.gcc.code,v 1.15 2009-04-28 15:39:31 igouy-guest Exp $
++ */
++
++#include <stdio.h>
++#include <stdlib.h>
++
++#define Int	int
++#define Aint	int
++
++    static long
++fannkuch( int n )
++{
++    Aint*	perm;
++    Aint*	perm1;
++    Aint*	count;
++    long	flips;
++    long	flipsMax;
++    Int		r;
++    Int		i;
++    Int		k;
++    Int		didpr;
++    const Int	n1	= n - 1;
++
++    if( n < 1 ) return 0;
++
++    perm  = calloc(n, sizeof(*perm ));
++    perm1 = calloc(n, sizeof(*perm1));
++    count = calloc(n, sizeof(*count));
++
++    for( i=0 ; i<n ; ++i ) perm1[i] = i;	/* initial (trivial) permu */
++
++    r = n; didpr = 0; flipsMax = 0;
++    for(;;) {
++	if( didpr < 30 ) {
++	    for( i=0 ; i<n ; ++i ) printf("%d", (int)(1+perm1[i]));
++	    printf("\n");
++	    ++didpr;
++	}
++	for( ; r!=1 ; --r ) {
++	    count[r-1] = r;
++	}
++
++#define XCH(x,y)	{ Aint t_mp; t_mp=(x); (x)=(y); (y)=t_mp; }
++
++	if( ! (perm1[0]==0 || perm1[n1]==n1) ) {
++	    flips = 0;
++	    for( i=1 ; i<n ; ++i ) {	/* perm = perm1 */
++		perm[i] = perm1[i];
++	    }
++	    k = perm1[0];		/* cache perm[0] in k */
++	    do {			/* k!=0 ==> k>0 */
++		Int	j;
++		for( i=1, j=k-1 ; i<j ; ++i, --j ) {
++		    XCH(perm[i], perm[j])
++		}
++		++flips;
++		/*
++		 * Now exchange k (caching perm[0]) and perm[k]... with care!
++		 * XCH(k, perm[k]) does NOT work!
++		 */
++		j=perm[k]; perm[k]=k ; k=j;
++	    }while( k );
++	    if( flipsMax < flips ) {
++		flipsMax = flips;
++	    }
++	}
++
++	for(;;) {
++	    if( r == n ) {
++		return flipsMax;
++	    }
++	    /* rotate down perm[0..r] by one */
++	    {
++		Int	perm0 = perm1[0];
++		i = 0;
++		while( i < r ) {
++		    k = i+1;
++		    perm1[i] = perm1[k];
++		    i = k;
++		}
++		perm1[r] = perm0;
++	    }
++	    if( (count[r] -= 1) > 0 ) {
++		break;
++	    }
++	    ++r;
++	}
++    }
++}
++
++    int
++main( int argc, char* argv[] )
++{
++    int		n = (argc>1) ? atoi(argv[1]) : 0;
++
++    printf("Pfannkuchen(%d) = %ld\n", n, fannkuch(n));
++    return 0;
++}
+diff --git a/test/bench/fannkuch.go b/test/bench/fannkuch.go
+new file mode 100644
+index 0000000000..9092b492ea
+--- /dev/null
++++ b/test/bench/fannkuch.go
+@@ -0,0 +1,117 @@
++/*
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++    * Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++
++    * Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++
++    * Neither the name of "The Computer Language Benchmarks Game" nor the
++    name of "The Computer Language Shootout Benchmarks" nor the names of
++    its contributors may be used to endorse or promote products derived
++    from this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++*/
++
++/*
++ * The Computer Language Benchmarks Game
++ * http://shootout.alioth.debian.org/
++ *
++ * contributed by The Go Authors.
++ * Based on fannkuch.c by Heiner Marxen
++ */
++
++package main
++
++import (
++	"flag";
++	"fmt";
++)
++
++var n = flag.Int("n", 7, "count")
++
++func fannkuch(n int) int {
++	if n < 1 {
++		return 0;
++	}
++
++	n1 := n - 1;
++	perm := make([]int, n);
++	perm1 := make([]int, n);
++	count := make([]int, n);
++
++	for i := 0; i < n; i++ {
++		perm1[i] = i;	// initial (trivial) permutation
++	}
++
++	r := n;
++	didpr := 0;
++	flipsMax := 0;
++	for {
++		if didpr < 30  {
++			for i := 0; i < n; i++ {
++				fmt.Printf("%d", 1+perm1[i]);
++			}
++			fmt.Printf("\n");
++			didpr++;
++		}
++		for ; r != 1; r-- {
++			count[r-1] = r;
++		}
++
++		if perm1[0] != 0 && perm1[n1] != n1 {
++			flips := 0;
++			for i := 1; i < n; i++ {	// perm = perm1
++				perm[i] = perm1[i];
++			}
++for perm[0] != 0 {
++    for i, j := 0, perm[0]; i < j; i, j = i+1, j-1 {
++        perm[i], perm[j] = perm[j], perm[i];
++    }
++    flips++;
++}			if flipsMax < flips {
++				flipsMax = flips;
++			}
++		}
++
++		for {
++			if r == n {
++				return flipsMax;
++			}
++			// rotate down perm[0..r] by one
++			perm0 := perm1[0];
++			i := 0;
++			for i < r {
++				k := i+1;
++				perm1[i] = perm1[k];
++				i = k;
++			}
++			perm1[r] = perm0;
++			count[r]--;
++			if count[r] > 0 {
++				break;
++			}
++			r++;
++		}
++	}
++	return 0
++}
++
++func main() {
++	flag.Parse();
++	fmt.Printf("Pfannkuchen(%d) = %d\n", *n, fannkuch(*n));
++}
+diff --git a/test/bench/fannkuch.txt b/test/bench/fannkuch.txt
+new file mode 100644
+index 0000000000..e66f779ea1
+--- /dev/null
++++ b/test/bench/fannkuch.txt
+@@ -0,0 +1,31 @@
++1234567
++2134567
++2314567
++3214567
++3124567
++1324567
++2341567
++3241567
++3421567
++4321567
++4231567
++2431567
++3412567
++4312567
++4132567
++1432567
++1342567
++3142567
++4123567
++1423567
++1243567
++2143567
++2413567
++4213567
++2345167
++3245167
++3425167
++4325167
++4235167
++2435167
++Pfannkuchen(7) = 16
+diff --git a/test/bench/timing.log b/test/bench/timing.log
+index 004b5682e5..d5ea8db967 100644
+--- a/test/bench/timing.log
++++ b/test/bench/timing.log
+@@ -45,3 +45,11 @@ binary-tree 15 # too slow to use 20
+ 	gccgo -O2 binary-tree-freelist.go	8.48u 0.00s 8.48r
+ 	gc binary-tree	9.60u 0.01s 9.62r
+ 	gc binary-tree-freelist	0.48u 0.01s 0.50r
++
++August 5, 2009
++
++fannkuch 12
++	gcc -O2 fannkuch.c	60.09u 0.01s 60.32r
++	gccgo -O2 fannkuch.go	64.89u 0.00s 64.92r
++	gc fannkuch	124.59u 0.00s 124.67r
++	gc_B fannkuch	91.14u 0.00s 91.16r
+diff --git a/test/bench/timing.sh b/test/bench/timing.sh
+index 7e9d413b3f..6ebc32165b 100755
+--- a/test/bench/timing.sh
++++ b/test/bench/timing.sh
+@@ -57,9 +57,17 @@ binarytree() {
+ 	run 'gc binary-tree-freelist' $O.out -n 15
+ }
+ 
++fannkuch() {
++	echo 'fannkuch 12'
++	run 'gcc -O2 fannkuch.c' a.out 12
++	run 'gccgo -O2 fannkuch.go' a.out -n 12
++	run 'gc fannkuch' $O.out -n 12
++	run 'gc_B fannkuch' $O.out -n 12
++}
++
+ case $# in
+ 0)
+-	run="fasta revcom nbody binarytree"
++	run="fasta revcom nbody binarytree fannkuch"
+ 	;;
+ *)
+ 	run=$*

@@ -12,7 +12,61 @@ Date:   Thu Dec 19 22:36:13 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/import.go             |  7 ++++++-
  src/cmd/go/testdata/script/mod_replace_import.txt | 10 ++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 9ae2900e46..3170ffab88 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -203,7 +203,12 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 		latest := map[string]string{} // path -> version
+ 		for _, r := range modFile.Replace {
+ 			if maybeInModule(path, r.Old.Path) {
+-				latest[r.Old.Path] = semver.Max(r.Old.Version, latest[r.Old.Path])
++				// Don't use semver.Max here; need to preserve +incompatible suffix.
++				v := latest[r.Old.Path]
++				if semver.Compare(r.Old.Version, v) > 0 {
++					v = r.Old.Version
++				}
++				latest[r.Old.Path] = v
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_replace_import.txt b/src/cmd/go/testdata/script/mod_replace_import.txt
+index 941ef61d35..646b3b081d 100644
+--- a/src/cmd/go/testdata/script/mod_replace_import.txt
++++ b/src/cmd/go/testdata/script/mod_replace_import.txt
+@@ -54,6 +54,10 @@ replace (
+ 	example.com/v => ./v
+ )
+ 
++replace (
++	example.com/i v2.0.0+incompatible => ./i2
++)
++
+ -- m.go --
+ package main
+ import (
+@@ -61,6 +65,7 @@ import (
+ 	_ "example.com/x/v3"
+ 	_ "example.com/y/z/w"
+ 	_ "example.com/v"
++	_ "example.com/i"
+ )
+ func main() {}
+ 
+@@ -115,6 +120,11 @@ module v.localhost
+ -- v/v.go --
+ package v
+ 
++-- i2/go.mod --
++module example.com/i
++-- i2/i.go --
++package i
++
+ -- fail/m.go --
+ package main
+ 

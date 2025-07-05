@@ -28,8 +28,85 @@ Date:   Tue Sep 10 18:52:02 2019 +0000
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/bench_test.go  | 16 ++++++++++++++++
  src/encoding/json/encode.go      | 10 +++++-----
  src/encoding/json/stream_test.go | 10 ++++++++++
  3 files changed, 31 insertions(+), 5 deletions(-)
+
+diff --git a/src/encoding/json/bench_test.go b/src/encoding/json/bench_test.go
+index f2592e3dbd..f92d39f0c6 100644
+--- a/src/encoding/json/bench_test.go
++++ b/src/encoding/json/bench_test.go
+@@ -297,6 +297,22 @@ func BenchmarkIssue10335(b *testing.B) {
+ 	})
+ }
+ 
++func BenchmarkIssue34127(b *testing.B) {
++	b.ReportAllocs()
++	j := struct {
++		Bar string `json:"bar,string"`
++	}{
++		Bar: `foobar`,
++	}
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			if _, err := Marshal(&j); err != nil {
++				b.Fatal(err)
++			}
++		}
++	})
++}
++
+ func BenchmarkUnmapped(b *testing.B) {
+ 	b.ReportAllocs()
+ 	j := []byte(`{"s": "hello", "y": 2, "o": {"x": 0}, "a": [1, 99, {"x": 1}]}`)
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 2e1f56f882..0758b2fc9e 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -600,11 +600,11 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
+ 		return
+ 	}
+ 	if opts.quoted {
+-		sb, err := Marshal(v.String())
+-		if err != nil {
+-			e.error(err)
+-		}
+-		e.string(string(sb), opts.escapeHTML)
++		b := make([]byte, 0, v.Len()+2)
++		b = append(b, '"')
++		b = append(b, []byte(v.String())...)
++		b = append(b, '"')
++		e.stringBytes(b, opts.escapeHTML)
+ 	} else {
+ 		e.string(v.String(), opts.escapeHTML)
+ 	}
+diff --git a/src/encoding/json/stream_test.go b/src/encoding/json/stream_test.go
+index e3317ddeb0..ebb4f231d1 100644
+--- a/src/encoding/json/stream_test.go
++++ b/src/encoding/json/stream_test.go
+@@ -118,6 +118,11 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
+ 		Ptr    strPtrMarshaler
+ 	}{`"<str>"`, `"<str>"`}
+ 
++	// https://golang.org/issue/34154
++	stringOption := struct {
++		Bar string `json:"bar,string"`
++	}{`<html>foobar</html>`}
++
+ 	for _, tt := range []struct {
+ 		name       string
+ 		v          interface{}
+@@ -137,6 +142,11 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
+ 			`{"NonPtr":"\u003cstr\u003e","Ptr":"\u003cstr\u003e"}`,
+ 			`{"NonPtr":"<str>","Ptr":"<str>"}`,
+ 		},
++		{
++			"stringOption", stringOption,
++			`{"bar":"\"\u003chtml\u003efoobar\u003c/html\u003e\""}`,
++			`{"bar":"\"<html>foobar</html>\""}`,
++		},
+ 	} {
+ 		var buf bytes.Buffer
+ 		enc := NewEncoder(&buf)

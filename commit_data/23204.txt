@@ -7,6 +7,19 @@ Date:   Thu Apr 30 07:53:07 2015 +0900
     Change-Id: I6cebaf42f2596c7f8fef3a67afb1e5ccb428d09c
     Reviewed-on: https://go-review.googlesource.com/9521
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 9a7bf61892..564ac21f69 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -47,6 +47,7 @@ log: add LUTC flag (https://golang.org/cl/8761)
+ math/big: add arbitrary precision Floats (many cl's)
+ mime: add ExtensionByType (https://golang.org/cl/7444)
+ mime/quotedprintable: new package (https://golang.org/cl/5940 + others)
++net: add Source field to OpError (https://go-review.googlesource.com/9231)
+ net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
+ net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915)
+ net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)

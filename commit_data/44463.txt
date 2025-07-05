@@ -13,6 +13,21 @@ Date:   Thu Jul 9 09:55:49 2020 -0600
     Run-TryBot: Jean de Klerk <deklerk@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.15.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index ce6894d2e0..b7b422e4a1 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -956,7 +956,8 @@ Do not send CLs removing the interior tags from such phrases.
+     </p>
+ 
+     <p><!-- CL 229085 -->
+-      TODO: <a href="https://golang.org/cl/229085">https://golang.org/cl/229085</a>: reformat test chatty output
++      <code>go</code> <code>test</code> <code>-v</code> now groups output by
++      test name, rather than printing the test name on each line.
+     </p>
+   </dd>
+ </dl><!-- testing -->

@@ -8,6 +8,20 @@ Date:   Wed Sep 22 09:50:32 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/351370
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  src/io/multi_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/io/multi_test.go b/src/io/multi_test.go
+index 909b6d8be2..c3a44fd3b2 100644
+--- a/src/io/multi_test.go
++++ b/src/io/multi_test.go
+@@ -141,7 +141,7 @@ func testMultiWriter(t *testing.T, sink interface {
+ 	}
+ }
+ 
+-// writerFunc is an Writer implemented by the underlying func.
++// writerFunc is a Writer implemented by the underlying func.
+ type writerFunc func(p []byte) (int, error)
+ 
+ func (f writerFunc) Write(p []byte) (int, error) {

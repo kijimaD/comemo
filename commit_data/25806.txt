@@ -21,8 +21,83 @@ Date:   Mon Nov 23 15:26:00 2015 +1100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/export_windows_test.go  | 5 +----
  src/runtime/os1_windows.go          | 8 +-------
  src/runtime/syscall_windows_test.go | 7 -------
  3 files changed, 2 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/export_windows_test.go b/src/runtime/export_windows_test.go
+index 703b422ac2..f712c6f653 100644
+--- a/src/runtime/export_windows_test.go
++++ b/src/runtime/export_windows_test.go
+@@ -8,10 +8,7 @@ package runtime
+ 
+ import "unsafe"
+ 
+-var (
+-	TestingWER              = &testingWER
+-	TimeBeginPeriodRetValue = &timeBeginPeriodRetValue
+-)
++var TestingWER = &testingWER
+ 
+ func NumberOfProcessors() int32 {
+ 	var info systeminfo
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 551705797d..90e03674a4 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -47,7 +47,6 @@ import (
+ //go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject%2 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._WriteFile WriteFile%5 "kernel32.dll"
+-//go:cgo_import_dynamic runtime._timeBeginPeriod timeBeginPeriod%1 "winmm.dll"
+ 
+ var (
+ 	// Following syscalls are available on every Windows PC.
+@@ -90,8 +89,7 @@ var (
+ 	_WSAGetOverlappedResult,
+ 	_WaitForSingleObject,
+ 	_WriteConsoleW,
+-	_WriteFile,
+-	_timeBeginPeriod stdFunction
++	_WriteFile stdFunction
+ 
+ 	// Following syscalls are only available on some Windows PCs.
+ 	// We will load syscalls, if available, before using them.
+@@ -161,8 +159,6 @@ const (
+ // in sys_windows_386.s and sys_windows_amd64.s
+ func externalthreadhandler()
+ 
+-var timeBeginPeriodRetValue uint32
+-
+ func osinit() {
+ 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
+ 
+@@ -178,8 +174,6 @@ func osinit() {
+ 
+ 	stdcall2(_SetConsoleCtrlHandler, funcPC(ctrlhandler), 1)
+ 
+-	timeBeginPeriodRetValue = uint32(stdcall1(_timeBeginPeriod, 1))
+-
+ 	ncpu = getproccount()
+ 
+ 	// Windows dynamic priority boosting assumes that a process has different types
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 8b9945b22d..30630bc904 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -642,13 +642,6 @@ uintptr_t cfunc(callback f, uintptr_t n) {
+ 	}
+ }
+ 
+-func TestTimeBeginPeriod(t *testing.T) {
+-	const TIMERR_NOERROR = 0
+-	if *runtime.TimeBeginPeriodRetValue != TIMERR_NOERROR {
+-		t.Fatalf("timeBeginPeriod failed: it returned %d", *runtime.TimeBeginPeriodRetValue)
+-	}
+-}
+-
+ // removeOneCPU removes one (any) cpu from affinity mask.
+ // It returns new affinity mask.
+ func removeOneCPU(mask uintptr) (uintptr, error) {

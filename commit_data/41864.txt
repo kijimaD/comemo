@@ -11,7 +11,52 @@ Date:   Tue Oct 29 09:19:35 2019 +0100
     Change-Id: I6f05ba234fb09e4b44e77c1539c02d1aed49910a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204060
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/os/path.go           |  3 ---
  src/os/removeall_test.go | 12 +++++-------
  2 files changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/src/os/path.go b/src/os/path.go
+index 9d7ecad792..ba43ea3525 100644
+--- a/src/os/path.go
++++ b/src/os/path.go
+@@ -58,9 +58,6 @@ func MkdirAll(path string, perm FileMode) error {
+ 	return nil
+ }
+ 
+-// removeAllTestHook is a hook for testing.
+-var removeAllTestHook = func(err error) error { return err }
+-
+ // RemoveAll removes path and any children it contains.
+ // It removes everything it can but returns the first error
+ // it encounters. If the path does not exist, RemoveAll
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 0bf35751ce..8a71f687ed 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -449,6 +449,11 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
+ 		return
+ 	}
+ 	if err == nil {
++		if runtime.GOOS == "windows" {
++			// Marking a directory as read-only in Windows does not prevent the RemoveAll
++			// from creating or removing files within it.
++			return
++		}
+ 		t.Fatal("RemoveAll(<read-only directory>) = nil; want error")
+ 	}
+ 
+@@ -458,13 +463,6 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
+ 	}
+ 	defer dir.Close()
+ 
+-	if runtime.GOOS == "windows" {
+-		// Marking a directory in Windows does not prevent the os package from
+-		// creating or removing files within it.
+-		// (See https://golang.org/issue/35042.)
+-		return
+-	}
+-
+ 	names, _ := dir.Readdirnames(1025)
+ 	if len(names) < 1025 {
+ 		t.Fatalf("RemoveAll(<read-only directory>) unexpectedly removed %d read-only files from that directory", 1025-len(names))

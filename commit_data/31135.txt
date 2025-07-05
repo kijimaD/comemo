@@ -18,7 +18,56 @@ Date:   Sat Jul 30 01:45:27 2016 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 11 ++++++-----
  test/fixedbugs/issue15055.go       | 17 +++++++++++++++++
  2 files changed, 23 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index e76d38a64b..835d34bb7f 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1335,14 +1335,15 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
+ 		OSTRARRAYRUNE,
+ 		ORUNESTR:
+ 		if n.Type == nil || n.Type.Sym == nil {
+-			fmt.Fprintf(s, "(%v)(%v)", n.Type, n.Left)
+-			return
++			fmt.Fprintf(s, "(%v)", n.Type)
++		} else {
++			fmt.Fprintf(s, "%v", n.Type)
+ 		}
+ 		if n.Left != nil {
+-			fmt.Fprintf(s, "%v(%v)", n.Type, n.Left)
+-			return
++			fmt.Fprintf(s, "(%v)", n.Left)
++		} else {
++			fmt.Fprintf(s, "(%.v)", n.List)
+ 		}
+-		fmt.Fprintf(s, "%v(%.v)", n.Type, n.List)
+ 
+ 	case OREAL,
+ 		OIMAG,
+diff --git a/test/fixedbugs/issue15055.go b/test/fixedbugs/issue15055.go
+new file mode 100644
+index 0000000000..e58047e411
+--- /dev/null
++++ b/test/fixedbugs/issue15055.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	type name string
++	_ = []byte("abc", "def", 12)    // ERROR "too many arguments to conversion to \[\]byte: \(\[\]byte\)\(.abc., .def., 12\)"
++	_ = string("a", "b", nil)       // ERROR "too many arguments to conversion to string: string\(.a., .b., nil\)"
++	_ = []byte()                    // ERROR "missing argument to conversion to \[\]byte: \(\[\]byte\)\(\)"
++	_ = string()                    // ERROR "missing argument to conversion to string: string\(\)"
++	_ = name("a", 1, 3.3)           // ERROR "too many arguments to conversion to name: name\(.a., 1, 3.3\)"
++	_ = map[string]string(nil, nil) // ERROR "too many arguments to conversion to map\[string\]string: \(map\[string\]string\)\(nil, nil\)"
++}

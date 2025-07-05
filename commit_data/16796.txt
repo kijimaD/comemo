@@ -13,7 +13,7 @@ Date:   Wed Jul 17 12:52:37 2013 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/10792043
-
+---
  src/pkg/runtime/lock_futex.c |  3 +++
  src/pkg/runtime/lock_sema.c  |  3 +++
  src/pkg/runtime/malloc.goc   |  3 +++
@@ -22,3 +22,195 @@ Date:   Wed Jul 17 12:52:37 2013 -0400
  src/pkg/runtime/runtime.h    |  1 +
  src/pkg/runtime/stack.c      |  2 +-
  7 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index 5309a21a13..95d590bae9 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -5,6 +5,7 @@
+ // +build freebsd linux
+ 
+ #include "runtime.h"
++#include "stack.h"
+ 
+ // This implementation depends on OS-specific implementations of
+ //
+@@ -99,6 +100,8 @@ runtime·unlock(Lock *l)
+ 
+ 	if(--m->locks < 0)
+ 		runtime·throw("runtime·unlock: lock count");
++	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
++		g->stackguard0 = StackPreempt;
+ }
+ 
+ // One-time notifications.
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+index be4d306d1f..069b8c1ad3 100644
+--- a/src/pkg/runtime/lock_sema.c
++++ b/src/pkg/runtime/lock_sema.c
+@@ -5,6 +5,7 @@
+ // +build darwin netbsd openbsd plan9 windows
+ 
+ #include "runtime.h"
++#include "stack.h"
+ 
+ // This implementation depends on OS-specific implementations of
+ //
+@@ -112,6 +113,8 @@ runtime·unlock(Lock *l)
+ 
+ 	if(--m->locks < 0)
+ 		runtime·throw("runtime·unlock: lock count");
++	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
++		g->stackguard0 = StackPreempt;
+ }
+ 
+ // One-time notifications.
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 0347b90c91..78535c61f0 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -13,6 +13,7 @@ package runtime
+ #include "type.h"
+ #include "typekind.h"
+ #include "race.h"
++#include "stack.h"
+ 
+ MHeap runtime·mheap;
+ 
+@@ -94,6 +95,8 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ 		*(uintptr*)((uintptr)v+size-sizeof(uintptr)) = 0;
+ 
+ 	m->mallocing = 0;
++	if(g->preempt)  // restore the preemption request in case we've cleared it in newstack
++		g->stackguard0 = StackPreempt;
+ 
+ 	if(!(flag & FlagNoProfiling) && (rate = runtime·MemProfileRate) > 0) {
+ 		if(size >= rate)
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 1349aa7726..44262abbba 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -2014,6 +2014,7 @@ runtime·gc(int32 force)
+ 	}
+ 
+ 	// all done
++	m->gcing = 0;
+ 	runtime·semrelease(&runtime·worldsema);
+ 	runtime·starttheworld();
+ 
+@@ -2031,6 +2032,8 @@ runtime·gc(int32 force)
+ 		// give the queued finalizers, if any, a chance to run
+ 		runtime·gosched();
+ 	}
++	if(g->preempt)  // restore the preemption request in case we've cleared it in newstack
++		g->stackguard0 = StackPreempt;
+ }
+ 
+ static void
+@@ -2115,7 +2118,6 @@ gc(struct gc_args *args)
+ 
+ 	cachestats();
+ 	mstats.next_gc = mstats.heap_alloc+mstats.heap_alloc*gcpercent/100;
+-	m->gcing = 0;
+ 
+ 	t4 = runtime·nanotime();
+ 	mstats.last_gc = t4;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index fffd04b7fb..3ce281fc77 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -294,6 +294,8 @@ runtime·ready(G *gp)
+ 	if(runtime·atomicload(&runtime·sched.npidle) != 0 && runtime·atomicload(&runtime·sched.nmspinning) == 0)  // TODO: fast atomic
+ 		wakep();
+ 	m->locks--;
++	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
++		g->stackguard0 = StackPreempt;
+ }
+ 
+ int32
+@@ -475,6 +477,8 @@ runtime·starttheworld(void)
+ 		newm(mhelpgc, nil);
+ 	}
+ 	m->locks--;
++	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
++		g->stackguard0 = StackPreempt;
+ }
+ 
+ // Called to start an M.
+@@ -564,6 +568,8 @@ runtime·allocm(P *p)
+ 	if(p == m->p)
+ 		releasep();
+ 	m->locks--;
++	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
++		g->stackguard0 = StackPreempt;
+ 
+ 	return mp;
+ }
+@@ -1008,6 +1014,7 @@ execute(G *gp)
+ 		runtime·throw("execute: bad g status");
+ 	}
+ 	gp->status = Grunning;
++	gp->preempt = false;
+ 	gp->stackguard0 = gp->stackguard;
+ 	m->p->tick++;
+ 	m->curg = gp;
+@@ -1433,6 +1440,8 @@ runtime·exitsyscall(void)
+ 		// so okay to clear gcstack and gcsp.
+ 		g->gcstack = (uintptr)nil;
+ 		g->gcsp = (uintptr)nil;
++		if(g->preempt)  // restore the preemption request in case we've cleared it in newstack
++			g->stackguard0 = StackPreempt;
+ 		return;
+ 	}
+ 
+@@ -1450,6 +1459,8 @@ runtime·exitsyscall(void)
+ 			g->status = Grunning;
+ 			g->gcstack = (uintptr)nil;
+ 			g->gcsp = (uintptr)nil;
++			if(g->preempt)  // restore the preemption request in case we've cleared it in newstack
++				g->stackguard0 = StackPreempt;
+ 			return;
+ 		}
+ 	}
+@@ -1620,6 +1631,8 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
+ 	if(runtime·atomicload(&runtime·sched.npidle) != 0 && runtime·atomicload(&runtime·sched.nmspinning) == 0 && fn->fn != runtime·main)  // TODO: fast atomic
+ 		wakep();
+ 	m->locks--;
++	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
++		g->stackguard0 = StackPreempt;
+ 	return newg;
+ }
+ 
+@@ -2174,6 +2187,7 @@ if(1) return;
+ 	gp = mp->curg;
+ 	if(gp == nil || gp == mp->g0)
+ 		return;
++	gp->preempt = true;
+ 	gp->stackguard0 = StackPreempt;
+ }
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index ce451b0105..34d9541e98 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -253,6 +253,7 @@ struct	G
+ 	bool	issystem;	// do not output in stack dump
+ 	bool	isbackground;	// ignore in deadlock detector
+ 	bool	blockingsyscall;	// hint that the next syscall will block
++	bool	preempt;	// preemption signal, duplicates stackguard0 = StackPreempt
+ 	int8	raceignore;	// ignore race detection events
+ 	M*	m;		// for debuggers, but offset not hard-coded
+ 	M*	lockedm;
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 9de692bba4..2ba29956b1 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -250,7 +250,7 @@ runtime·newstack(void)
+ 		// We are interested in preempting user Go code, not runtime code.
+ 		if(oldstatus != Grunning || m->locks || m->mallocing || m->gcing) {
+ 			// Let the goroutine keep running for now.
+-			// TODO(dvyukov): remember but delay the preemption.
++			// gp->preempt is set, so it will be preempted next time.
+ 			gp->stackguard0 = gp->stackguard;
+ 			gp->status = oldstatus;
+ 			runtime·gogo(&gp->sched);	// never return

@@ -9,7 +9,87 @@ Date:   Thu Sep 24 09:48:39 2015 -0700
     Change-Id: I8f11fbcb4e30a19ec5a25df742b3e25e2ee7f846
     Reviewed-on: https://go-review.googlesource.com/14923
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/floatconv_test.go | 26 ++++++++++++++++++++------
  src/math/big/ftoa.go           |  7 ++-----
  2 files changed, 22 insertions(+), 11 deletions(-)
+
+diff --git a/src/math/big/floatconv_test.go b/src/math/big/floatconv_test.go
+index a29f8a1369..cea8f82ca9 100644
+--- a/src/math/big/floatconv_test.go
++++ b/src/math/big/floatconv_test.go
+@@ -254,11 +254,10 @@ func TestFloat64Text(t *testing.T) {
+ 		{above1e23, 'f', -1, "100000000000000010000000"},
+ 		{above1e23, 'g', -1, "1.0000000000000001e+23"},
+ 
+-		// TODO(gri) track down why these don't work yet
+-		// {5e-304/1e20, 'g', -1, "5e-324"},
+-		// {-5e-304/1e20, 'g', -1, "-5e-324"},
+-		// {fdiv(5e-304, 1e20), 'g', -1, "5e-324"},   // avoid constant arithmetic
+-		// {fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"}, // avoid constant arithmetic
++		{5e-304 / 1e20, 'g', -1, "5e-324"},
++		{-5e-304 / 1e20, 'g', -1, "-5e-324"},
++		{fdiv(5e-304, 1e20), 'g', -1, "5e-324"},   // avoid constant arithmetic
++		{fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"}, // avoid constant arithmetic
+ 
+ 		{32, 'g', -1, "32"},
+ 		{32, 'g', 0, "3e+01"},
+@@ -292,10 +291,16 @@ func TestFloat64Text(t *testing.T) {
+ 		{383260575764816448, 'f', 0, "383260575764816448"},
+ 		{383260575764816448, 'g', -1, "3.8326057576481645e+17"},
+ 	} {
+-		f := new(Float).SetFloat64(test.x)
++		// The test cases are from the strconv package which tests float64 values.
++		// When formatting values with prec = -1 (shortest representation),
++		// the actually available mantissa precision matters.
++		// For denormalized values, that precision is < 53 (SetFloat64 default).
++		// Compute and set the actual precision explicitly.
++		f := new(Float).SetPrec(actualPrec(test.x)).SetFloat64(test.x)
+ 		got := f.Text(test.format, test.prec)
+ 		if got != test.want {
+ 			t.Errorf("%v: got %s; want %s", test, got, test.want)
++			continue
+ 		}
+ 
+ 		if test.format == 'b' && test.x == 0 {
+@@ -313,6 +318,15 @@ func TestFloat64Text(t *testing.T) {
+ 	}
+ }
+ 
++// actualPrec returns the number of actually used mantissa bits.
++func actualPrec(x float64) uint {
++	if bits := math.Float64bits(x); x != 0 && bits&(0x7ff<<52) == 0 {
++		// x is denormalized
++		return 64 - nlz64(bits&(1<<52-1))
++	}
++	return 53
++}
++
+ func TestFloatText(t *testing.T) {
+ 	for _, test := range []struct {
+ 		x      string
+diff --git a/src/math/big/ftoa.go b/src/math/big/ftoa.go
+index 5c1d31ebde..506a6cb905 100644
+--- a/src/math/big/ftoa.go
++++ b/src/math/big/ftoa.go
+@@ -37,7 +37,8 @@ import (
+ // printed by the 'e', 'E', 'f', 'g', and 'G' formats. For 'e', 'E', and 'f'
+ // it is the number of digits after the decimal point. For 'g' and 'G' it is
+ // the total number of digits. A negative precision selects the smallest
+-// number of digits necessary to identify the value x uniquely.
++// number of decimal digits necessary to identify the value x uniquely using
++// x.Prec() mantissa bits.
+ // The prec value is ignored for the 'b' or 'p' format.
+ func (x *Float) Text(format byte, prec int) string {
+ 	const extra = 10 // TODO(gri) determine a good/better value here
+@@ -381,10 +382,6 @@ func min(x, y int) int {
+ // '+' and ' ' for sign control, '0' for space or zero padding,
+ // and '-' for left or right justification. See the fmt package
+ // for details.
+-//
+-// BUG(gri) A missing precision for the 'g' format, or a negative
+-//          (via '*') precision is not yet supported. Instead the
+-//          default precision (6) is used in that case (issue #10991).
+ func (x *Float) Format(s fmt.State, format rune) {
+ 	prec, hasPrec := s.Precision()
+ 	if !hasPrec {

@@ -14,6 +14,38 @@ Date:   Mon Oct 17 18:32:36 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/errors/join_test.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/src/errors/join_test.go b/src/errors/join_test.go
+index ee69314529..4828dc4d75 100644
+--- a/src/errors/join_test.go
++++ b/src/errors/join_test.go
+@@ -47,3 +47,26 @@ func TestJoin(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestJoinErrorMethod(t *testing.T) {
++	err1 := errors.New("err1")
++	err2 := errors.New("err2")
++	for _, test := range []struct {
++		errs []error
++		want string
++	}{{
++		errs: []error{err1},
++		want: "err1",
++	}, {
++		errs: []error{err1, err2},
++		want: "err1\nerr2",
++	}, {
++		errs: []error{err1, nil, err2},
++		want: "err1\nerr2",
++	}} {
++		got := errors.Join(test.errs...).Error()
++		if got != test.want {
++			t.Errorf("Join(%v).Error() = %q; want %q", test.errs, got, test.want)
++		}
++	}
++}

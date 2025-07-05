@@ -18,6 +18,17 @@ Date:   Fri May 1 22:09:54 2015 -0400
     Change-Id: Ida4f9112897cfb1e85b06538db79125955ad0f4c
     Reviewed-on: https://go-review.googlesource.com/9644
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/syslist.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/build/syslist.go b/src/go/build/syslist.go
+index e84a06666f..2c2cac94e9 100644
+--- a/src/go/build/syslist.go
++++ b/src/go/build/syslist.go
+@@ -5,4 +5,4 @@
+ package build
+ 
+ const goosList = "android darwin dragonfly freebsd linux nacl netbsd openbsd plan9 solaris windows "
+-const goarchList = "386 amd64 amd64p32 arm arm64 ppc64 ppc64le "
++const goarchList = "386 amd64 amd64p32 arm arm64 ppc64 ppc64le mips mipsle mips64 mips64le mips64p32 mips64p32le ppc s390 s390x sparc sparc64 "

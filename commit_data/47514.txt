@@ -26,6 +26,22 @@ Date:   Wed Mar 24 12:10:22 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/304449
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/internal/moddeps/moddeps_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/moddeps/moddeps_test.go b/src/cmd/internal/moddeps/moddeps_test.go
+index 78c291e203..62687403ec 100644
+--- a/src/cmd/internal/moddeps/moddeps_test.go
++++ b/src/cmd/internal/moddeps/moddeps_test.go
+@@ -163,8 +163,8 @@ func TestAllDependencies(t *testing.T) {
+ 				Env: append(os.Environ(),
+ 					// Set GOROOT.
+ 					"GOROOT="+gorootCopyDir,
+-					// Explicitly clear PWD and GOROOT_FINAL so that GOROOT=gorootCopyDir is definitely used.
+-					"PWD=",
++					// Explicitly override PWD and clear GOROOT_FINAL so that GOROOT=gorootCopyDir is definitely used.
++					"PWD="+filepath.Join(gorootCopyDir, rel),
+ 					"GOROOT_FINAL=",
+ 					// Add GOROOTcopy/bin and bundleDir to front of PATH.
+ 					"PATH="+filepath.Join(gorootCopyDir, "bin")+string(filepath.ListSeparator)+

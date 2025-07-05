@@ -15,7 +15,43 @@ Date:   Sat Oct 29 12:10:21 2016 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  1 -
  test/fixedbugs/issue17645.go             | 17 +++++++++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 6f0f4f58e3..23c60fa0d0 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3113,7 +3113,6 @@ func typecheckcomplit(n *Node) *Node {
+ 	}
+ 
+ 	if nerr != nerrors {
+-		n.Type = nil
+ 		return n
+ 	}
+ 
+diff --git a/test/fixedbugs/issue17645.go b/test/fixedbugs/issue17645.go
+new file mode 100644
+index 0000000000..ed92c54cfa
+--- /dev/null
++++ b/test/fixedbugs/issue17645.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Foo struct {
++	X int
++}
++
++func main() {
++	var s []int
++	var _ string = append(s, Foo{""})  // ERROR "cannot use .. \(type string\) as type int in field value" "cannot use Foo literal \(type Foo\) as type int in append" "cannot use append\(s\, Foo literal\) \(type \[\]int\) as type string in assignment"
++}
++

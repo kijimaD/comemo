@@ -7,6 +7,20 @@ Date:   Wed Dec 10 21:20:48 2008 -0800
     TBR=r
     OCL=20963
     CL=20963
-
+---
  src/lib/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 197e535d71..7d855e4346 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -94,7 +94,7 @@ fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
+ hash.dirinstall: os.dirinstall
+ http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall strings.install
+ io.dirinstall: os.dirinstall syscall.dirinstall
+-net.dirinstall: once.install os.dirinstall strconv.dirinstall
++net.dirinstall: fmt.dirinstall once.install os.dirinstall strconv.dirinstall
+ os.dirinstall: syscall.dirinstall
+ regexp.dirinstall: os.dirinstall
+ reflect.dirinstall: strconv.dirinstall sync.dirinstall

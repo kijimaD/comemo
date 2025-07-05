@@ -14,10 +14,203 @@ Date:   Fri Oct 14 15:06:54 2011 -0400
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5275047
-
+---
  src/pkg/asn1/marshal.go            | 12 ++++++++----
  src/pkg/crypto/x509/cert_pool.go   | 10 ++--------
  src/pkg/crypto/x509/pkix/pkix.go   |  3 +++
  src/pkg/crypto/x509/verify_test.go |  5 +++++
  src/pkg/crypto/x509/x509.go        | 35 +++++++++++++++++++++++++++++------
  5 files changed, 47 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/asn1/marshal.go b/src/pkg/asn1/marshal.go
+index d7eb63bf82..6d1f78bcc1 100644
+--- a/src/pkg/asn1/marshal.go
++++ b/src/pkg/asn1/marshal.go
+@@ -464,11 +464,15 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters)
+ 
+ 	if v.Type() == rawValueType {
+ 		rv := v.Interface().(RawValue)
+-		err = marshalTagAndLength(out, tagAndLength{rv.Class, rv.Tag, len(rv.Bytes), rv.IsCompound})
+-		if err != nil {
+-			return
++		if len(rv.FullBytes) != 0 {
++			_, err = out.Write(rv.FullBytes)
++		} else {
++			err = marshalTagAndLength(out, tagAndLength{rv.Class, rv.Tag, len(rv.Bytes), rv.IsCompound})
++			if err != nil {
++				return
++			}
++			_, err = out.Write(rv.Bytes)
+ 		}
+-		_, err = out.Write(rv.Bytes)
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/crypto/x509/cert_pool.go b/src/pkg/crypto/x509/cert_pool.go
+index 16cd92efc3..b9196ed46e 100644
+--- a/src/pkg/crypto/x509/cert_pool.go
++++ b/src/pkg/crypto/x509/cert_pool.go
+@@ -5,9 +5,7 @@
+ package x509
+ 
+ import (
+-	"crypto/x509/pkix"
+ 	"encoding/pem"
+-	"strings"
+ )
+ 
+ // Roots is a set of certificates.
+@@ -26,10 +24,6 @@ func NewCertPool() *CertPool {
+ 	}
+ }
+ 
+-func nameToKey(name *pkix.Name) string {
+-	return strings.Join(name.Country, ",") + "/" + strings.Join(name.Organization, ",") + "/" + strings.Join(name.OrganizationalUnit, ",") + "/" + name.CommonName
+-}
+-
+ // findVerifiedParents attempts to find certificates in s which have signed the
+ // given certificate. If no such certificate can be found or the signature
+ // doesn't match, it returns nil.
+@@ -40,7 +34,7 @@ func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int) {
+ 		candidates = s.bySubjectKeyId[string(cert.AuthorityKeyId)]
+ 	}
+ 	if len(candidates) == 0 {
+-		candidates = s.byName[nameToKey(&cert.Issuer)]
++		candidates = s.byName[string(cert.RawIssuer)]
+ 	}
+ 
+ 	for _, c := range candidates {
+@@ -72,7 +66,7 @@ func (s *CertPool) AddCert(cert *Certificate) {
+ 		keyId := string(cert.SubjectKeyId)
+ 		s.bySubjectKeyId[keyId] = append(s.bySubjectKeyId[keyId], n)
+ 	}
+-	name := nameToKey(&cert.Subject)
++	name := string(cert.RawSubject)
+ 	s.byName[name] = append(s.byName[name], n)
+ }
+ 
+diff --git a/src/pkg/crypto/x509/pkix/pkix.go b/src/pkg/crypto/x509/pkix/pkix.go
+index 266fd557a5..332a394621 100644
+--- a/src/pkg/crypto/x509/pkix/pkix.go
++++ b/src/pkg/crypto/x509/pkix/pkix.go
+@@ -43,6 +43,8 @@ type Name struct {
+ 	Locality, Province                        []string
+ 	StreetAddress, PostalCode                 []string
+ 	SerialNumber, CommonName                  string
++
++	Names []AttributeTypeAndValue
+ }
+ 
+ func (n *Name) FillFromRDNSequence(rdns *RDNSequence) {
+@@ -51,6 +53,7 @@ func (n *Name) FillFromRDNSequence(rdns *RDNSequence) {
+ 			continue
+ 		}
+ 		atv := rdn[0]
++		n.Names = append(n.Names, atv)
+ 		value, ok := atv.Value.(string)
+ 		if !ok {
+ 			continue
+diff --git a/src/pkg/crypto/x509/verify_test.go b/src/pkg/crypto/x509/verify_test.go
+index ecff7ffd81..eaa8169b0d 100644
+--- a/src/pkg/crypto/x509/verify_test.go
++++ b/src/pkg/crypto/x509/verify_test.go
+@@ -5,6 +5,7 @@
+ package x509
+ 
+ import (
++	"crypto/x509/pkix"
+ 	"encoding/pem"
+ 	"os"
+ 	"strings"
+@@ -211,6 +212,10 @@ func chainToDebugString(chain []*Certificate) string {
+ 	return chainStr
+ }
+ 
++func nameToKey(name *pkix.Name) string {
++	return strings.Join(name.Country, ",") + "/" + strings.Join(name.Organization, ",") + "/" + strings.Join(name.OrganizationalUnit, ",") + "/" + name.CommonName
++}
++
+ const verisignRoot = `-----BEGIN CERTIFICATE-----
+ MIICPDCCAaUCEHC65B0Q2Sk0tjjKewPMur8wDQYJKoZIhvcNAQECBQAwXzELMAkG
+ A1UEBhMCVVMxFzAVBgNVBAoTDlZlcmlTaWduLCBJbmMuMTcwNQYDVQQLEy5DbGFz
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 8fda471592..5e08df752a 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -138,9 +138,9 @@ type tbsCertificate struct {
+ 	Version            int `asn1:"optional,explicit,default:1,tag:0"`
+ 	SerialNumber       *big.Int
+ 	SignatureAlgorithm pkix.AlgorithmIdentifier
+-	Issuer             pkix.RDNSequence
++	Issuer             asn1.RawValue
+ 	Validity           validity
+-	Subject            pkix.RDNSequence
++	Subject            asn1.RawValue
+ 	PublicKey          publicKeyInfo
+ 	UniqueId           asn1.BitString   `asn1:"optional,tag:1"`
+ 	SubjectUniqueId    asn1.BitString   `asn1:"optional,tag:2"`
+@@ -339,6 +339,8 @@ type Certificate struct {
+ 	Raw                     []byte // Complete ASN.1 DER content (certificate, signature algorithm and signature).
+ 	RawTBSCertificate       []byte // Certificate part of raw ASN.1 DER content.
+ 	RawSubjectPublicKeyInfo []byte // DER encoded SubjectPublicKeyInfo.
++	RawSubject              []byte // DER encoded Subject
++	RawIssuer               []byte // DER encoded Issuer
+ 
+ 	Signature          []byte
+ 	SignatureAlgorithm SignatureAlgorithm
+@@ -556,6 +558,8 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
+ 	out.Raw = in.Raw
+ 	out.RawTBSCertificate = in.TBSCertificate.Raw
+ 	out.RawSubjectPublicKeyInfo = in.TBSCertificate.PublicKey.Raw
++	out.RawSubject = in.TBSCertificate.Subject.FullBytes
++	out.RawIssuer = in.TBSCertificate.Issuer.FullBytes
+ 
+ 	out.Signature = in.SignatureValue.RightAlign()
+ 	out.SignatureAlgorithm =
+@@ -575,8 +579,18 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
+ 
+ 	out.Version = in.TBSCertificate.Version + 1
+ 	out.SerialNumber = in.TBSCertificate.SerialNumber
+-	out.Issuer.FillFromRDNSequence(&in.TBSCertificate.Issuer)
+-	out.Subject.FillFromRDNSequence(&in.TBSCertificate.Subject)
++
++	var issuer, subject pkix.RDNSequence
++	if _, err := asn1.Unmarshal(in.TBSCertificate.Subject.FullBytes, &subject); err != nil {
++		return nil, err
++	}
++	if _, err := asn1.Unmarshal(in.TBSCertificate.Issuer.FullBytes, &issuer); err != nil {
++		return nil, err
++	}
++
++	out.Issuer.FillFromRDNSequence(&issuer)
++	out.Subject.FillFromRDNSequence(&subject)
++
+ 	out.NotBefore = in.TBSCertificate.Validity.NotBefore
+ 	out.NotAfter = in.TBSCertificate.Validity.NotAfter
+ 
+@@ -968,14 +982,23 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
+ 		return
+ 	}
+ 
++	asn1Issuer, err := asn1.Marshal(parent.Issuer.ToRDNSequence())
++	if err != nil {
++		return
++	}
++	asn1Subject, err := asn1.Marshal(parent.Subject.ToRDNSequence())
++	if err != nil {
++		return
++	}
++
+ 	encodedPublicKey := asn1.BitString{BitLength: len(asn1PublicKey) * 8, Bytes: asn1PublicKey}
+ 	c := tbsCertificate{
+ 		Version:            2,
+ 		SerialNumber:       template.SerialNumber,
+ 		SignatureAlgorithm: pkix.AlgorithmIdentifier{Algorithm: oidSHA1WithRSA},
+-		Issuer:             parent.Subject.ToRDNSequence(),
++		Issuer:             asn1.RawValue{FullBytes: asn1Issuer},
+ 		Validity:           validity{template.NotBefore, template.NotAfter},
+-		Subject:            template.Subject.ToRDNSequence(),
++		Subject:            asn1.RawValue{FullBytes: asn1Subject},
+ 		PublicKey:          publicKeyInfo{nil, pkix.AlgorithmIdentifier{Algorithm: oidRSA}, encodedPublicKey},
+ 		Extensions:         extensions,
+ 	}

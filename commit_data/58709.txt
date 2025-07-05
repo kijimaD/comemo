@@ -12,6 +12,28 @@ Date:   Mon Dec 4 10:45:50 2023 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Bypass: Robert Griesemer <gri@google.com>
-
+---
  doc/go1.22.html | 10 ++++------
  1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 4c180fd653..fdc9827bb2 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -437,12 +437,10 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+   <dd>
+-    <p><!-- https://go.dev/issue/50489 -->
+-      TODO: <a href="https://go.dev/issue/50489">https://go.dev/issue/50489</a>: Rat: add FloatPrec() (int, bool)
+-    </p>
+-
+-    <p><!-- CL 539299 -->
+-      TODO: <a href="https://go.dev/cl/539299">https://go.dev/cl/539299</a>: math/big: implement Rat.FloatPrec; modified api/next/50489.txt
++    <p><!-- https://go.dev/issue/50489, CL 539299 -->
++      The new method <a href="/pkg/math/big#Rat.FloatPrec">Rat.FloatPrec</a> computes the number of fractional decimal digits
++      required to represent a rational number accurately as a floating-point number, and whether accurate decimal representation
++      is possible in the first place.
+     </p>
+   </dd>
+ </dl><!-- math/big -->

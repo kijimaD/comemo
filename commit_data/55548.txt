@@ -14,10 +14,153 @@ Date:   Fri Nov 18 14:06:56 2022 +0800
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/exec/exec_test.go             |  2 +-
  src/os/exec/exec_windows_test.go     |  3 ++-
  src/os/exec/lp_windows_test.go       |  4 ++--
  src/os/signal/signal_test.go         | 12 ++++++------
  src/os/signal/signal_windows_test.go |  5 ++---
  5 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 67e2d256b4..c2f643a645 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -752,7 +752,7 @@ func TestExtraFiles(t *testing.T) {
+ 	tempdir := t.TempDir()
+ 	exe := filepath.Join(tempdir, "read3.exe")
+ 
+-	c := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "read3.go")
++	c := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, "read3.go")
+ 	// Build the test without cgo, so that C library functions don't
+ 	// open descriptors unexpectedly. See issue 25628.
+ 	c.Env = append(os.Environ(), "CGO_ENABLED=0")
+diff --git a/src/os/exec/exec_windows_test.go b/src/os/exec/exec_windows_test.go
+index b39790d61a..efd37107ed 100644
+--- a/src/os/exec/exec_windows_test.go
++++ b/src/os/exec/exec_windows_test.go
+@@ -8,6 +8,7 @@ package exec_test
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"os"
+ 	"os/exec"
+@@ -69,7 +70,7 @@ func TestPipePassing(t *testing.T) {
+ func TestNoInheritHandles(t *testing.T) {
+ 	t.Parallel()
+ 
+-	cmd := exec.Command("cmd", "/c exit 88")
++	cmd := testenv.Command(t, "cmd", "/c exit 88")
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{NoInheritHandles: true}
+ 	err := cmd.Run()
+ 	exitError, ok := err.(*exec.ExitError)
+diff --git a/src/os/exec/lp_windows_test.go b/src/os/exec/lp_windows_test.go
+index d797b6c53c..50d522948a 100644
+--- a/src/os/exec/lp_windows_test.go
++++ b/src/os/exec/lp_windows_test.go
+@@ -164,7 +164,7 @@ func (test lookPathTest) run(t *testing.T, tmpdir, printpathExe string) {
+ 	// Run "cmd.exe /c test.searchFor" with new environment and
+ 	// work directory set. All candidates are copies of printpath.exe.
+ 	// These will output their program paths when run.
+-	should, errCmd := test.runProg(t, env, exec.Command("cmd", "/c", test.searchFor))
++	should, errCmd := test.runProg(t, env, testenv.Command(t, "cmd", "/c", test.searchFor))
+ 	// Run the lookpath program with new environment and work directory set.
+ 	have, errLP := test.runProg(t, env, helperCommand(t, "lookpath", test.searchFor))
+ 	// Compare results.
+@@ -572,7 +572,7 @@ func buildPrintPathExe(t *testing.T, dir string) string {
+ 		t.Fatalf("failed to execute template: %v", err)
+ 	}
+ 	outname := name + ".exe"
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", outname, srcname)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", outname, srcname)
+ 	cmd.Dir = dir
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index fec6db72a9..ddbd458a6d 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -304,7 +304,7 @@ func TestDetectNohup(t *testing.T) {
+ 		// We have no intention of reading from c.
+ 		c := make(chan os.Signal, 1)
+ 		Notify(c, syscall.SIGHUP)
+-		if out, err := exec.Command(os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput(); err == nil {
++		if out, err := testenv.Command(t, os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput(); err == nil {
+ 			t.Errorf("ran test with -check_sighup_ignored and it succeeded: expected failure.\nOutput:\n%s", out)
+ 		}
+ 		Stop(c)
+@@ -315,7 +315,7 @@ func TestDetectNohup(t *testing.T) {
+ 		}
+ 		Ignore(syscall.SIGHUP)
+ 		os.Remove("nohup.out")
+-		out, err := exec.Command("/usr/bin/nohup", os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput()
++		out, err := testenv.Command(t, "/usr/bin/nohup", os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput()
+ 
+ 		data, _ := os.ReadFile("nohup.out")
+ 		os.Remove("nohup.out")
+@@ -447,7 +447,7 @@ func TestNohup(t *testing.T) {
+ 			if subTimeout != 0 {
+ 				args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
+ 			}
+-			out, err := exec.Command(os.Args[0], args...).CombinedOutput()
++			out, err := testenv.Command(t, os.Args[0], args...).CombinedOutput()
+ 
+ 			if err == nil {
+ 				t.Errorf("ran test with -send_uncaught_sighup=%d and it succeeded: expected failure.\nOutput:\n%s", i, out)
+@@ -497,7 +497,7 @@ func TestNohup(t *testing.T) {
+ 			if subTimeout != 0 {
+ 				args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
+ 			}
+-			out, err := exec.Command("nohup", args...).CombinedOutput()
++			out, err := testenv.Command(t, "nohup", args...).CombinedOutput()
+ 
+ 			if err != nil {
+ 				t.Errorf("ran test with -send_uncaught_sighup=%d under nohup and it failed: expected success.\nError: %v\nOutput:\n%s", i, err, out)
+@@ -546,7 +546,7 @@ func TestAtomicStop(t *testing.T) {
+ 		if deadline, ok := t.Deadline(); ok {
+ 			timeout = time.Until(deadline).String()
+ 		}
+-		cmd := exec.Command(os.Args[0], "-test.run=TestAtomicStop", "-test.timeout="+timeout)
++		cmd := testenv.Command(t, os.Args[0], "-test.run=TestAtomicStop", "-test.timeout="+timeout)
+ 		cmd.Env = append(os.Environ(), "GO_TEST_ATOMIC_STOP=1")
+ 		out, err := cmd.CombinedOutput()
+ 		if err == nil {
+@@ -749,7 +749,7 @@ func TestNotifyContextNotifications(t *testing.T) {
+ 			if subTimeout != 0 {
+ 				args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
+ 			}
+-			out, err := exec.Command(os.Args[0], args...).CombinedOutput()
++			out, err := testenv.Command(t, os.Args[0], args...).CombinedOutput()
+ 			if err != nil {
+ 				t.Errorf("ran test with -check_notify_ctx_notification and it failed with %v.\nOutput:\n%s", err, out)
+ 			}
+diff --git a/src/os/signal/signal_windows_test.go b/src/os/signal/signal_windows_test.go
+index 02803e5808..145a805c50 100644
+--- a/src/os/signal/signal_windows_test.go
++++ b/src/os/signal/signal_windows_test.go
+@@ -7,7 +7,6 @@ package signal
+ import (
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+ 	"syscall"
+@@ -71,13 +70,13 @@ func main() {
+ 	// compile it
+ 	exe := name + ".exe"
+ 	defer os.Remove(exe)
+-	o, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, src).CombinedOutput()
++	o, err := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, src).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("Failed to compile: %v\n%v", err, string(o))
+ 	}
+ 
+ 	// run it
+-	cmd := exec.Command(exe)
++	cmd := testenv.Command(t, exe)
+ 	var buf strings.Builder
+ 	cmd.Stdout = &buf
+ 	cmd.Stderr = &buf

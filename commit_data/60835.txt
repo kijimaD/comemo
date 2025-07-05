@@ -11,7 +11,55 @@ Date:   Wed Aug 14 21:25:08 2024 +0200
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/cmd/compile/internal/ssa/prove.go |  5 +++++
  test/prove.go                         | 20 ++++++++++++++++++++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index f76e863453..8a351545c9 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1643,6 +1643,11 @@ func (ft *factsTable) flowLimit(v *Value) bool {
+ 	case OpSignExt8to64, OpSignExt8to32, OpSignExt8to16, OpSignExt16to64, OpSignExt16to32, OpSignExt32to64:
+ 		a := ft.limits[v.Args[0].ID]
+ 		return ft.signedMinMax(v, a.min, a.max)
++	case OpTrunc64to8, OpTrunc64to16, OpTrunc64to32, OpTrunc32to8, OpTrunc32to16, OpTrunc16to8:
++		a := ft.limits[v.Args[0].ID]
++		if a.umax <= 1<<(uint64(v.Type.Size())*8)-1 {
++			return ft.unsignedMinMax(v, a.umin, a.umax)
++		}
+ 
+ 	// math/bits
+ 	case OpCtz64:
+diff --git a/test/prove.go b/test/prove.go
+index 28b950ce41..16f7b7de96 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1586,6 +1586,26 @@ func div64s(a, b int64, ensureAllBranchesCouldHappen func() bool) int64 {
+ 	return z
+ }
+ 
++func trunc64to16(a uint64, ensureAllBranchesCouldHappen func() bool) uint16 {
++	a &= 0xfff
++	a |= 0xff
++
++	z := uint16(a)
++	if ensureAllBranchesCouldHappen() && z > 0xfff { // ERROR "Disproved Less16U$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && z <= 0xfff { // ERROR "Proved Leq16U$"
++		return 1337
++	}
++	if ensureAllBranchesCouldHappen() && z < 0xff { // ERROR "Disproved Less16U$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && z >= 0xff { // ERROR "Proved Leq16U$"
++		return 1337
++	}
++	return z
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

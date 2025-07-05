@@ -8,7 +8,34 @@ Date:   Fri May 21 15:29:46 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/321955
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 48ce71f4cc..95d3158d20 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -41,7 +41,7 @@ Aeneas Rekkas (arekkas) <aeneas@ory.am>
+ Afanasev Stanislav <phpprogger@gmail.com>
+ Agis Anastasopoulos <agis.anast@gmail.com>
+ Agniva De Sarker <agnivade@yahoo.co.in>
+-Ahmed Wahed <oneofone@gmail.com>
++Ahmed W. Mones <oneofone@gmail.com>
+ Ahmet Soormally <ahmet@mangomm.co.uk>
+ Ahmy Yulrizka <yulrizka@gmail.com>
+ Aiden Scandella <ai@uber.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 6c7262adb1..ee50a4c049 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -67,7 +67,7 @@ Aeneas Rekkas (arekkas) <aeneas@ory.am>
+ Afanasev Stanislav <phpprogger@gmail.com>
+ Agis Anastasopoulos <agis.anast@gmail.com>
+ Agniva De Sarker <agnivade@yahoo.co.in>
+-Ahmed Wahed <oneofone@gmail.com>
++Ahmed W. Mones <oneofone@gmail.com>
+ Ahmet Alp Balkan <ahmetb@google.com>
+ Ahmet Soormally <ahmet@mangomm.co.uk>
+ Ahmy Yulrizka <yulrizka@gmail.com>

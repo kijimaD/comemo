@@ -19,6 +19,23 @@ Date:   Fri Jul 1 12:56:39 2022 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  misc/cgo/test/setgid2_linux.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/setgid2_linux.go b/misc/cgo/test/setgid2_linux.go
+index d239893f43..9069cff334 100644
+--- a/misc/cgo/test/setgid2_linux.go
++++ b/misc/cgo/test/setgid2_linux.go
+@@ -20,7 +20,10 @@ import (
+ )
+ 
+ func testSetgidStress(t *testing.T) {
+-	const N = 1000
++	var N = 1000
++	if testing.Short() {
++		N = 50
++	}
+ 	ch := make(chan int, N)
+ 	for i := 0; i < N; i++ {
+ 		go func() {

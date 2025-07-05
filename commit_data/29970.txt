@@ -9,7 +9,45 @@ Date:   Mon Oct 17 23:05:27 2016 -0400
     Change-Id: I1dfb71f64361b575ec461ed44b0779f2d5cf45fc
     Reviewed-on: https://go-review.googlesource.com/31352
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/cmd/go/go_test.go | 10 ++++++++++
  src/cmd/go/test.go    |  5 +++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 5ee7f04ade..96cc197e09 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1703,6 +1703,16 @@ func TestGoTestDashOWritesBinary(t *testing.T) {
+ 	tg.wantExecutable(tg.path("myerrors.test"+exeSuffix), "go test -o myerrors.test did not create myerrors.test")
+ }
+ 
++func TestGoTestDashIDashOWritesBinary(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.makeTempdir()
++	tg.run("test", "-v", "-i", "-o", tg.path("myerrors.test"+exeSuffix), "errors")
++	tg.grepBothNot("PASS|FAIL", "test should not have run")
++	tg.wantExecutable(tg.path("myerrors.test"+exeSuffix), "go test -o myerrors.test did not create myerrors.test")
++}
++
+ // Issue 4568.
+ func TestSymlinksList(t *testing.T) {
+ 	switch runtime.GOOS {
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 4b65c1ccdc..015355d3d7 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -435,6 +435,11 @@ func runTest(cmd *Command, args []string) {
+ 	testStreamOutput = len(pkgArgs) == 0 || testBench ||
+ 		(testShowPass && (len(pkgs) == 1 || buildP == 1))
+ 
++	// For 'go test -i -o x.test', we want to build x.test. Imply -c to make the logic easier.
++	if buildI && testO != "" {
++		testC = true
++	}
++
+ 	var b builder
+ 	b.init()
+ 

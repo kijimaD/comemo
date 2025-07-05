@@ -15,6 +15,30 @@ Date:   Thu Mar 30 21:33:06 2017 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/dwarf_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index aef3991aee..4c7e2e4232 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"os/exec"
+ 	"path"
+ 	"path/filepath"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+@@ -21,6 +22,10 @@ import (
+ func TestDWARF(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
+ 	out, err := exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.Stale}}", "cmd/link").CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go list: %v\n%s", err, out)

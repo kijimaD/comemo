@@ -7,6 +7,26 @@ Date:   Wed Oct 19 13:10:23 2011 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5297044
-
+---
  src/cmd/gotest/gotest.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index b03e79f00a..d5752e76ed 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -153,8 +153,12 @@ func setEnvironment() {
+ 	if gc == "" {
+ 		gc = O + "g"
+ 	}
+-	XGC = []string{gc, "-I", "_test", "-o", "_xtest_." + O}
+-	GC = []string{gc, "-I", "_test", "_testmain.go"}
++	var gcflags []string
++	if gf := strings.TrimSpace(os.Getenv("GCFLAGS")); gf != "" {
++		gcflags = strings.Fields(gf)
++	}
++	XGC = append([]string{gc, "-I", "_test", "-o", "_xtest_." + O}, gcflags...)
++	GC = append(append([]string{gc, "-I", "_test"}, gcflags...), "_testmain.go")
+ 	gl := os.Getenv("GL")
+ 	if gl == "" {
+ 		gl = O + "l"

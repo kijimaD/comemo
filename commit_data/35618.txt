@@ -12,7 +12,7 @@ Date:   Mon Feb 26 14:58:05 2018 +0000
     Change-Id: Icaf35ace2ef5e73279a70d4f1a9fbf3be9371e6c
     Reviewed-on: https://go-review.googlesource.com/97196
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/poll/hook_cloexec.go        |  2 +-
  src/internal/poll/sock_cloexec.go        |  2 +-
  src/internal/poll/sys_cloexec.go         |  2 +-
@@ -29,3 +29,243 @@ Date:   Mon Feb 26 14:58:05 2018 +0000
  src/syscall/zsysnum_openbsd_386.go       |  1 +
  src/syscall/zsysnum_openbsd_amd64.go     |  1 +
  15 files changed, 65 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/poll/hook_cloexec.go b/src/internal/poll/hook_cloexec.go
+index 4b670b9d0e..5c93bdaf6c 100644
+--- a/src/internal/poll/hook_cloexec.go
++++ b/src/internal/poll/hook_cloexec.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd linux netbsd
++// +build dragonfly freebsd linux netbsd openbsd
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/sock_cloexec.go b/src/internal/poll/sock_cloexec.go
+index e46b4d3032..691cb8e36f 100644
+--- a/src/internal/poll/sock_cloexec.go
++++ b/src/internal/poll/sock_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build dragonfly freebsd linux netbsd
++// +build dragonfly freebsd linux netbsd openbsd
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/sys_cloexec.go b/src/internal/poll/sys_cloexec.go
+index 4755dc3e53..3a25b13bb5 100644
+--- a/src/internal/poll/sys_cloexec.go
++++ b/src/internal/poll/sys_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that do not
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build darwin nacl openbsd solaris
++// +build darwin nacl solaris
+ 
+ package poll
+ 
+diff --git a/src/net/internal/socktest/sys_cloexec.go b/src/net/internal/socktest/sys_cloexec.go
+index 3d70a4f026..986d89471b 100644
+--- a/src/net/internal/socktest/sys_cloexec.go
++++ b/src/net/internal/socktest/sys_cloexec.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd linux netbsd
++// +build dragonfly freebsd linux netbsd openbsd
+ 
+ package socktest
+ 
+diff --git a/src/net/main_cloexec_test.go b/src/net/main_cloexec_test.go
+index c35c3b2673..5398f9eae1 100644
+--- a/src/net/main_cloexec_test.go
++++ b/src/net/main_cloexec_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd linux netbsd
++// +build dragonfly freebsd linux netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/net/sock_cloexec.go b/src/net/sock_cloexec.go
+index e224a5fb41..0c883dc338 100644
+--- a/src/net/sock_cloexec.go
++++ b/src/net/sock_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build dragonfly freebsd linux netbsd
++// +build dragonfly freebsd linux netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/net/sys_cloexec.go b/src/net/sys_cloexec.go
+index fe6b0cc764..7ab1407de9 100644
+--- a/src/net/sys_cloexec.go
++++ b/src/net/sys_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that do not
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build darwin nacl openbsd solaris
++// +build darwin nacl solaris
+ 
+ package net
+ 
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index d65e6a51fe..1a9b7644a9 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -74,6 +74,25 @@ func Pipe(p []int) (err error) {
+ 	return
+ }
+ 
++//sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
++func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
++	var rsa RawSockaddrAny
++	var len _Socklen = SizeofSockaddrAny
++	nfd, err = accept4(fd, &rsa, &len, flags)
++	if err != nil {
++		return
++	}
++	if len > SizeofSockaddrAny {
++		panic("RawSockaddrAny too small")
++	}
++	sa, err = anyToSockaddr(&rsa)
++	if err != nil {
++		Close(nfd)
++		nfd = 0
++	}
++	return
++}
++
+ //sys getdents(fd int, buf []byte) (n int, err error)
+ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 	return getdents(fd, buf)
+diff --git a/src/syscall/zerrors_openbsd_386.go b/src/syscall/zerrors_openbsd_386.go
+index 540d310e9f..5a7cdf2b65 100644
+--- a/src/syscall/zerrors_openbsd_386.go
++++ b/src/syscall/zerrors_openbsd_386.go
+@@ -1177,7 +1177,9 @@ const (
+ 	SIOCSSPPPPARAMS                   = 0x80206993
+ 	SIOCSVH                           = 0xc02069f5
+ 	SIOCSVNETID                       = 0x802069a6
++	SOCK_CLOEXEC                      = 0x8000
+ 	SOCK_DGRAM                        = 0x2
++	SOCK_NONBLOCK                     = 0x4000
+ 	SOCK_RAW                          = 0x3
+ 	SOCK_RDM                          = 0x4
+ 	SOCK_SEQPACKET                    = 0x5
+diff --git a/src/syscall/zerrors_openbsd_amd64.go b/src/syscall/zerrors_openbsd_amd64.go
+index ae5b8c955a..11fc1e3a16 100644
+--- a/src/syscall/zerrors_openbsd_amd64.go
++++ b/src/syscall/zerrors_openbsd_amd64.go
+@@ -1176,7 +1176,9 @@ const (
+ 	SIOCSSPPPPARAMS                   = 0x80206993
+ 	SIOCSVH                           = 0xc02069f5
+ 	SIOCSVNETID                       = 0x802069a6
++	SOCK_CLOEXEC                      = 0x8000
+ 	SOCK_DGRAM                        = 0x2
++	SOCK_NONBLOCK                     = 0x4000
+ 	SOCK_RAW                          = 0x3
+ 	SOCK_RDM                          = 0x4
+ 	SOCK_SEQPACKET                    = 0x5
+diff --git a/src/syscall/zsyscall_openbsd_386.go b/src/syscall/zsyscall_openbsd_386.go
+index 3a46b94fa2..2e619472d9 100644
+--- a/src/syscall/zsyscall_openbsd_386.go
++++ b/src/syscall/zsyscall_openbsd_386.go
+@@ -271,6 +271,17 @@ func pipe(p *[2]_C_int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error) {
++	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
++	nfd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func getdents(fd int, buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+diff --git a/src/syscall/zsyscall_openbsd_amd64.go b/src/syscall/zsyscall_openbsd_amd64.go
+index 6bca25140b..b749b88d90 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.go
++++ b/src/syscall/zsyscall_openbsd_amd64.go
+@@ -271,6 +271,17 @@ func pipe(p *[2]_C_int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error) {
++	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
++	nfd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func getdents(fd int, buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+diff --git a/src/syscall/zsyscall_openbsd_arm.go b/src/syscall/zsyscall_openbsd_arm.go
+index 4ce317c1b0..69f4823e16 100644
+--- a/src/syscall/zsyscall_openbsd_arm.go
++++ b/src/syscall/zsyscall_openbsd_arm.go
+@@ -271,6 +271,17 @@ func pipe(p *[2]_C_int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error) {
++	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
++	nfd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func getdents(fd int, buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+diff --git a/src/syscall/zsysnum_openbsd_386.go b/src/syscall/zsysnum_openbsd_386.go
+index c172534aeb..f9331fc57b 100644
+--- a/src/syscall/zsysnum_openbsd_386.go
++++ b/src/syscall/zsysnum_openbsd_386.go
+@@ -94,6 +94,7 @@ const (
+ 	SYS_DUP2           = 90  // { int sys_dup2(int from, int to); }
+ 	SYS_NANOSLEEP      = 91  // { int sys_nanosleep(const struct timespec *rqtp, \
+ 	SYS_FCNTL          = 92  // { int sys_fcntl(int fd, int cmd, ... void *arg); }
++	SYS_ACCEPT4        = 93  // { int sys_accept4(int s, struct sockaddr *name, \
+ 	SYS___THRSLEEP     = 94  // { int sys___thrsleep(const volatile void *ident, \
+ 	SYS_FSYNC          = 95  // { int sys_fsync(int fd); }
+ 	SYS_SETPRIORITY    = 96  // { int sys_setpriority(int which, id_t who, int prio); }
+diff --git a/src/syscall/zsysnum_openbsd_amd64.go b/src/syscall/zsysnum_openbsd_amd64.go
+index 356c187375..3ebb1c4e82 100644
+--- a/src/syscall/zsysnum_openbsd_amd64.go
++++ b/src/syscall/zsysnum_openbsd_amd64.go
+@@ -94,6 +94,7 @@ const (
+ 	SYS_DUP2           = 90  // { int sys_dup2(int from, int to); }
+ 	SYS_NANOSLEEP      = 91  // { int sys_nanosleep(const struct timespec *rqtp, \
+ 	SYS_FCNTL          = 92  // { int sys_fcntl(int fd, int cmd, ... void *arg); }
++	SYS_ACCEPT4        = 93  // { int sys_accept4(int s, struct sockaddr *name, \
+ 	SYS___THRSLEEP     = 94  // { int sys___thrsleep(const volatile void *ident, \
+ 	SYS_FSYNC          = 95  // { int sys_fsync(int fd); }
+ 	SYS_SETPRIORITY    = 96  // { int sys_setpriority(int which, id_t who, int prio); }

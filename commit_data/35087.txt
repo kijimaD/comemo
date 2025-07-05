@@ -14,6 +14,26 @@ Date:   Tue Dec 12 17:41:49 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/test/test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 4a9682c585..1cf1ba7351 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1265,11 +1265,12 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 		return nil
+ 	}
+ 
++	execCmd := work.FindExecCmd()
+ 	testlogArg := []string{}
+-	if !c.disableCache && cfg.Goos != "nacl" {
++	if !c.disableCache && len(execCmd) == 0 {
+ 		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
+ 	}
+-	args := str.StringList(work.FindExecCmd(), a.Deps[0].Target, testlogArg, testArgs)
++	args := str.StringList(execCmd, a.Deps[0].Target, testlogArg, testArgs)
+ 
+ 	if testCoverProfile != "" {
+ 		// Write coverage to temporary profile, for merging later.

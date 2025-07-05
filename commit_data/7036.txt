@@ -9,7 +9,66 @@ Date:   Wed Jan 5 09:28:47 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3802045
-
+---
  src/pkg/gob/decode.go | 12 +++++++++++-
  src/pkg/gob/type.go   | 17 ++++++++++++++---
  2 files changed, 25 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 5a19b78197..5791f62f30 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -861,12 +861,22 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
+ 	return true
+ }
+ 
++// typeString returns a human-readable description of the type identified by remoteId.
++func (dec *Decoder) typeString(remoteId typeId) string {
++	if t := idToType[remoteId]; t != nil {
++		// globally known type.
++		return t.string()
++	}
++	return dec.wireType[remoteId].string()
++}
++
++
+ func (dec *Decoder) compileSingle(remoteId typeId, rt reflect.Type) (engine *decEngine, err os.Error) {
+ 	engine = new(decEngine)
+ 	engine.instr = make([]decInstr, 1) // one item
+ 	name := rt.String()                // best we can do
+ 	if !dec.compatibleType(rt, remoteId) {
+-		return nil, os.ErrorString("gob: wrong type received for local value " + name)
++		return nil, os.ErrorString("gob: wrong type received for local value " + name + ": " + dec.typeString(remoteId))
+ 	}
+ 	op, indir := dec.decOpFor(remoteId, rt, name)
+ 	ovfl := os.ErrorString(`value for "` + name + `" out of range`)
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 1c2b2027ef..2ca96ce90d 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -392,11 +392,22 @@ type wireType struct {
+ 	mapT    *mapType
+ }
+ 
+-func (w *wireType) name() string {
+-	if w.structT != nil {
++func (w *wireType) string() string {
++	const unknown = "unknown type"
++	if w == nil {
++		return unknown
++	}
++	switch {
++	case w.arrayT != nil:
++		return w.arrayT.name
++	case w.sliceT != nil:
++		return w.sliceT.name
++	case w.structT != nil:
+ 		return w.structT.name
++	case w.mapT != nil:
++		return w.mapT.name
+ 	}
+-	return "unknown"
++	return unknown
+ }
+ 
+ type typeInfo struct {

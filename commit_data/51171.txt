@@ -15,6 +15,20 @@ Date:   Thu Dec 9 13:52:18 2021 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/runtime-gdb_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 4a0f489c2f..63d3160ee4 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -424,7 +424,7 @@ func TestGdbBacktrace(t *testing.T) {
+ 		"-ex", "continue",
+ 		filepath.Join(dir, "a.exe"),
+ 	}
+-	got, err := exec.Command("gdb", args...).CombinedOutput()
++	got, err := testenv.RunWithTimeout(t, exec.Command("gdb", args...))
+ 	t.Logf("gdb output:\n%s", got)
+ 	if err != nil {
+ 		t.Fatalf("gdb exited with error: %v", err)

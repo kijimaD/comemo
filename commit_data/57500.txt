@@ -13,7 +13,7 @@ Date:   Fri Aug 11 19:58:26 2023 +1000
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/cgo/gcc_amd64.S           | 8 ++++----
  src/runtime/cgo/gcc_darwin_amd64.c    | 3 ++-
  src/runtime/cgo/gcc_dragonfly_amd64.c | 3 ++-
@@ -25,3 +25,204 @@ Date:   Fri Aug 11 19:58:26 2023 +1000
  src/runtime/cgo/gcc_windows_amd64.c   | 3 ++-
  src/runtime/cgo/libcgo.h              | 5 -----
  10 files changed, 20 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_amd64.S b/src/runtime/cgo/gcc_amd64.S
+index 5a1629e28c..3ba793ac16 100644
+--- a/src/runtime/cgo/gcc_amd64.S
++++ b/src/runtime/cgo/gcc_amd64.S
+@@ -14,16 +14,16 @@
+ #endif
+ 
+ /*
+- * void crosscall_amd64(void (*fn)(void), void (*setg_gcc)(void*), void *g)
++ * void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g)
+  *
+- * Calling into the 6c tool chain, where all registers are caller save.
++ * Calling into the gc tool chain, where all registers are caller save.
+  * Called from standard x86-64 ABI, where %rbx, %rbp, %r12-%r15
+  * are callee-save so they must be saved explicitly.
+  * The standard x86-64 ABI passes the three arguments m, g, fn
+  * in %rdi, %rsi, %rdx.
+  */
+-.globl EXT(crosscall_amd64)
+-EXT(crosscall_amd64):
++.globl EXT(crosscall1)
++EXT(crosscall1):
+ 	pushq %rbx
+ 	pushq %rbp
+ 	pushq %r12
+diff --git a/src/runtime/cgo/gcc_darwin_amd64.c b/src/runtime/cgo/gcc_darwin_amd64.c
+index dda9a1e2d8..5b5e369f26 100644
+--- a/src/runtime/cgo/gcc_darwin_amd64.c
++++ b/src/runtime/cgo/gcc_darwin_amd64.c
+@@ -46,6 +46,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	}
+ }
+ 
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void*
+ threadentry(void *v)
+ {
+@@ -54,6 +55,6 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
+-	crosscall_amd64(ts.fn, setg_gcc, (void*)ts.g);
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_dragonfly_amd64.c b/src/runtime/cgo/gcc_dragonfly_amd64.c
+index b5ae411d3d..b506078395 100644
+--- a/src/runtime/cgo/gcc_dragonfly_amd64.c
++++ b/src/runtime/cgo/gcc_dragonfly_amd64.c
+@@ -47,6 +47,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	}
+ }
+ 
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void*
+ threadentry(void *v)
+ {
+@@ -55,6 +56,6 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
+-	crosscall_amd64(ts.fn, setg_gcc, (void*)ts.g);
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_freebsd_amd64.c b/src/runtime/cgo/gcc_freebsd_amd64.c
+index d3c133fc76..81943881c2 100644
+--- a/src/runtime/cgo/gcc_freebsd_amd64.c
++++ b/src/runtime/cgo/gcc_freebsd_amd64.c
+@@ -55,6 +55,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	}
+ }
+ 
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void*
+ threadentry(void *v)
+ {
+@@ -65,6 +66,6 @@ threadentry(void *v)
+ 	free(v);
+ 	_cgo_tsan_release();
+ 
+-	crosscall_amd64(ts.fn, setg_gcc, (void*)ts.g);
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_linux_amd64.c b/src/runtime/cgo/gcc_linux_amd64.c
+index 34b70e77ca..405f3e1d5e 100644
+--- a/src/runtime/cgo/gcc_linux_amd64.c
++++ b/src/runtime/cgo/gcc_linux_amd64.c
+@@ -75,6 +75,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	}
+ }
+ 
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void*
+ threadentry(void *v)
+ {
+@@ -85,6 +86,6 @@ threadentry(void *v)
+ 	free(v);
+ 	_cgo_tsan_release();
+ 
+-	crosscall_amd64(ts.fn, setg_gcc, (void*)ts.g);
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_netbsd_amd64.c b/src/runtime/cgo/gcc_netbsd_amd64.c
+index 94ff1f52bf..fbf1d75ec4 100644
+--- a/src/runtime/cgo/gcc_netbsd_amd64.c
++++ b/src/runtime/cgo/gcc_netbsd_amd64.c
+@@ -47,6 +47,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	}
+ }
+ 
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void*
+ threadentry(void *v)
+ {
+@@ -67,6 +68,6 @@ threadentry(void *v)
+ 	ss.ss_flags = SS_DISABLE;
+ 	sigaltstack(&ss, nil);
+ 
+-	crosscall_amd64(ts.fn, setg_gcc, (void*)ts.g);
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_openbsd_amd64.c b/src/runtime/cgo/gcc_openbsd_amd64.c
+index 3f0b771c74..fb1cd3368e 100644
+--- a/src/runtime/cgo/gcc_openbsd_amd64.c
++++ b/src/runtime/cgo/gcc_openbsd_amd64.c
+@@ -46,6 +46,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	}
+ }
+ 
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void*
+ threadentry(void *v)
+ {
+@@ -54,6 +55,6 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
+-	crosscall_amd64(ts.fn, setg_gcc, (void*)ts.g);
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_solaris_amd64.c b/src/runtime/cgo/gcc_solaris_amd64.c
+index ebd945b2e3..1773f3fff0 100644
+--- a/src/runtime/cgo/gcc_solaris_amd64.c
++++ b/src/runtime/cgo/gcc_solaris_amd64.c
+@@ -71,6 +71,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	}
+ }
+ 
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void*
+ threadentry(void *v)
+ {
+@@ -79,6 +80,6 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
+-	crosscall_amd64(ts.fn, setg_gcc, (void*)ts.g);
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_windows_amd64.c b/src/runtime/cgo/gcc_windows_amd64.c
+index 3ff3c64565..e26887a172 100644
+--- a/src/runtime/cgo/gcc_windows_amd64.c
++++ b/src/runtime/cgo/gcc_windows_amd64.c
+@@ -29,6 +29,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	_cgo_beginthread(threadentry, ts);
+ }
+ 
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void
+ threadentry(void *v)
+ {
+@@ -47,5 +48,5 @@ threadentry(void *v)
+ 	  :: "r"(ts.tls), "r"(*tls_g)
+ 	);
+ 
+-	crosscall_amd64(ts.fn, setg_gcc, (void*)ts.g);
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+ }
+diff --git a/src/runtime/cgo/libcgo.h b/src/runtime/cgo/libcgo.h
+index 04755f0f20..1d2da2d0df 100644
+--- a/src/runtime/cgo/libcgo.h
++++ b/src/runtime/cgo/libcgo.h
+@@ -68,11 +68,6 @@ void _cgo_sys_thread_start(ThreadStart *ts);
+  */
+ uintptr_t _cgo_wait_runtime_init_done(void);
+ 
+-/*
+- * Call fn in the 6c world.
+- */
+-void crosscall_amd64(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+-
+ /*
+  * Call fn in the 8c world.
+  */

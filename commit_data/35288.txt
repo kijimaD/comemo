@@ -21,7 +21,34 @@ Date:   Wed Jan 31 14:34:36 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/signal_linux_mips64x.go | 1 +
  src/runtime/signal_mips64x.go       | 4 +++-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/signal_linux_mips64x.go b/src/runtime/signal_linux_mips64x.go
+index 9e0cf42c70..b608197d60 100644
+--- a/src/runtime/signal_linux_mips64x.go
++++ b/src/runtime/signal_linux_mips64x.go
+@@ -66,6 +66,7 @@ func (c *sigctxt) hi() uint64   { return c.regs().sc_mdhi }
+ func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
+ func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
+ 
++func (c *sigctxt) set_r28(x uint64)  { c.regs().sc_regs[28] = x }
+ func (c *sigctxt) set_r30(x uint64)  { c.regs().sc_regs[30] = x }
+ func (c *sigctxt) set_pc(x uint64)   { c.regs().sc_pc = x }
+ func (c *sigctxt) set_sp(x uint64)   { c.regs().sc_regs[29] = x }
+diff --git a/src/runtime/signal_mips64x.go b/src/runtime/signal_mips64x.go
+index 9546a5af99..35b356c2fb 100644
+--- a/src/runtime/signal_mips64x.go
++++ b/src/runtime/signal_mips64x.go
+@@ -89,6 +89,8 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	}
+ 
+ 	// In case we are panicking from external C code
++	sigpanicPC := uint64(funcPC(sigpanic))
++	c.set_r28(sigpanicPC >> 32 << 32) // RSB register
+ 	c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
+-	c.set_pc(uint64(funcPC(sigpanic)))
++	c.set_pc(sigpanicPC)
+ }

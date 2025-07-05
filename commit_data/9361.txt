@@ -9,7 +9,73 @@ Date:   Mon Aug 15 03:51:51 2011 -0300
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/4888044
-
+---
  src/pkg/runtime/chan.c       |  3 ++-
  src/pkg/runtime/chan_test.go | 33 +++++++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 65feacb78b..ffb32616fd 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -904,7 +904,8 @@ loop:
+ 
+ 	// pass 2 - enqueue on all chans
+ 	for(i=0; i<sel->ncase; i++) {
+-		cas = &sel->scase[i];
++		o = sel->pollorder[i];
++		cas = &sel->scase[o];
+ 		c = cas->chan;
+ 		sg = &cas->sg;
+ 		sg->g = g;
+diff --git a/src/pkg/runtime/chan_test.go b/src/pkg/runtime/chan_test.go
+index 71c9e2fd78..46ddfd7e88 100644
+--- a/src/pkg/runtime/chan_test.go
++++ b/src/pkg/runtime/chan_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"runtime"
++	"sync"
+ 	"sync/atomic"
+ 	"testing"
+ )
+@@ -26,6 +27,38 @@ func TestChanSendInterface(t *testing.T) {
+ 	}
+ }
+ 
++func TestPseudoRandomSend(t *testing.T) {
++	n := 100
++	c := make(chan int)
++	l := make([]int, n)
++	var m sync.Mutex
++	m.Lock()
++	go func() {
++		for i := 0; i < n; i++ {
++			runtime.Gosched()
++			l[i] = <-c
++		}
++		m.Unlock()
++	}()
++	for i := 0; i < n; i++ {
++		select {
++		case c <- 0:
++		case c <- 1:
++		}
++	}
++	m.Lock() // wait
++	n0 := 0
++	n1 := 0
++	for _, i := range l {
++		n0 += (i + 1) % 2
++		n1 += i
++		if n0 > n/10 && n1 > n/10 {
++			return
++		}
++	}
++	t.Errorf("Want pseudo random, got %d zeros and %d ones", n0, n1)
++}
++
+ func BenchmarkSelectUncontended(b *testing.B) {
+ 	const CallsPerSched = 1000
+ 	procs := runtime.GOMAXPROCS(-1)

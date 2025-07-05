@@ -9,9 +9,94 @@ Date:   Mon Apr 30 15:55:07 2012 -0400
     R=rsc, krautz
     CC=golang-dev
     https://golang.org/cl/5966067
-
+---
  src/pkg/runtime/os_darwin.h        |  2 +-
  src/pkg/runtime/sys_darwin_386.s   |  6 ++++--
  src/pkg/runtime/sys_darwin_amd64.s |  6 ++++--
  src/pkg/runtime/thread_darwin.c    | 19 ++++++++++++++-----
  4 files changed, 23 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/runtime/os_darwin.h b/src/pkg/runtime/os_darwin.h
+index eb5d2daa38..70cfcce846 100644
+--- a/src/pkg/runtime/os_darwin.h
++++ b/src/pkg/runtime/os_darwin.h
+@@ -6,7 +6,7 @@
+ #define SIG_IGN ((void*)1)
+ 
+ int32	runtime·bsdthread_create(void*, M*, G*, void(*)(void));
+-void	runtime·bsdthread_register(void);
++int32	runtime·bsdthread_register(void);
+ int32	runtime·mach_msg_trap(MachHeader*, int32, uint32, uint32, uint32, uint32, uint32);
+ uint32	runtime·mach_reply_port(void);
+ int32	runtime·mach_semacquire(uint32, int64);
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index 3cf3506adf..5dd4d59cf6 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -268,8 +268,10 @@ TEXT runtime·bsdthread_register(SB),7,$40
+ 	MOVL	$0, 20(SP)	// targetconc_ptr
+ 	MOVL	$0, 24(SP)	// dispatchqueue_offset
+ 	INT	$0x80
+-	JAE	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	JAE	3(PC)
++	NEGL	AX
++	RET
++	MOVL	$0, AX
+ 	RET
+ 
+ // Invoke Mach system call.
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index 90571baae4..09a80c96d9 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -265,8 +265,10 @@ TEXT runtime·bsdthread_register(SB),7,$0
+ 	MOVQ	$0, R9	// dispatchqueue_offset
+ 	MOVQ	$(0x2000000+366), AX	// bsdthread_register
+ 	SYSCALL
+-	JCC 2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	JCC 3(PC)
++	NEGL	AX
++	RET
++	MOVL	$0, AX
+ 	RET
+ 
+ // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.
+diff --git a/src/pkg/runtime/thread_darwin.c b/src/pkg/runtime/thread_darwin.c
+index 6a83e48a33..a0fb5272f7 100644
+--- a/src/pkg/runtime/thread_darwin.c
++++ b/src/pkg/runtime/thread_darwin.c
+@@ -50,11 +50,8 @@ runtime·semacreate(void)
+ void
+ runtime·osinit(void)
+ {
+-	// Register our thread-creation callback (see sys_darwin_{amd64,386}.s)
+-	// but only if we're not using cgo.  If we are using cgo we need
+-	// to let the C pthread libary install its own thread-creation callback.
+-	if(!runtime·iscgo)
+-		runtime·bsdthread_register();
++	// bsdthread_register delayed until end of goenvs so that we
++	// can look at the environment first.
+ 
+ 	// Use sysctl to fetch hw.ncpu.
+ 	uint32 mib[2];
+@@ -75,6 +72,18 @@ void
+ runtime·goenvs(void)
+ {
+ 	runtime·goenvs_unix();
++
++	// Register our thread-creation callback (see sys_darwin_{amd64,386}.s)
++	// but only if we're not using cgo.  If we are using cgo we need
++	// to let the C pthread libary install its own thread-creation callback.
++	if(!runtime·iscgo) {
++		if(runtime·bsdthread_register() != 0) {
++			if(runtime·getenv("DYLD_INSERT_LIBRARIES"))
++				runtime·throw("runtime: bsdthread_register error (unset DYLD_INSERT_LIBRARIES)");
++			runtime·throw("runtime: bsdthread_register error");
++		}
++	}
++
+ }
+ 
+ void

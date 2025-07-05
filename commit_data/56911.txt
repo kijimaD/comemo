@@ -12,6 +12,24 @@ Date:   Tue May 30 15:36:16 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Bypass: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Eli Bendersky <eliben@google.com>
-
+---
  doc/go1.21.html | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index c44f425930..91f0899c81 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -455,7 +455,11 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
+   <dd>
+     <p><!-- CL 488475 -->
+-      TODO: <a href="https://go.dev/cl/488475">https://go.dev/cl/488475</a>: debug/pe: return error on reading from section with uninitialized data
++      Attempts to read from a section containing uninitialized data
++      using
++      <a href="/pkg/debug/pe/#Section.Data"><code>Section.Data</code></a>
++      or the reader returned by <a href="/pkg/debug/pe/#Section.Open"><code>Section.Open</code></a>
++      now return an error.
+     </p>
+   </dd>
+ </dl><!-- debug/pe -->

@@ -12,6 +12,21 @@ Date:   Wed Jan 30 07:56:08 2013 -0800
     R=rsc, ality, rminnich
     CC=golang-dev
     https://golang.org/cl/7232059
-
+---
  include/plan9/libc.h | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/include/plan9/libc.h b/include/plan9/libc.h
+index 0870a5b4af..e6f9839c8e 100644
+--- a/include/plan9/libc.h
++++ b/include/plan9/libc.h
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#define Runemax Plan9Runemax
+ #include "/sys/include/libc.h"
++#undef Runemax
+ #include "/sys/include/ctype.h"
+ 
+ enum

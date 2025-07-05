@@ -8,9 +8,77 @@ Date:   Thu May 21 16:31:10 2009 -0700
     R=ken
     OCL=29207
     CL=29207
-
+---
  src/cmd/gc/go.y      | 5 +++++
  test/golden.out      | 4 ++++
  test/initialize.go   | 6 +++---
  test/initializerr.go | 2 +-
  4 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 0841d5d90e..0fae90b7fa 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1363,6 +1363,11 @@ keyval:
+ 	{
+ 		$$ = nod(OKEY, $1, $3);
+ 	}
++|	LATYPE ':' expr
++	{
++		$$ = nod(OKEY, newname($1), $3);
++	}
++
+ 
+ /*
+  * function stuff
+diff --git a/test/golden.out b/test/golden.out
+index 6f0eb13400..22b46b29b6 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -26,6 +26,10 @@ panic PC=xxx
+ =========== ./helloworld.go
+ hello, world
+ 
++=========== ./initializerr.go
++BUG: errchk: ./initializerr.go:15: missing expected error: 'duplicate'
++errchk: ./initializerr.go:17: missing expected error: 'index'
++
+ =========== ./peano.go
+ 0! = 1
+ 1! = 1
+diff --git a/test/initialize.go b/test/initialize.go
+index ba04314758..5fde9dabaf 100644
+--- a/test/initialize.go
++++ b/test/initialize.go
+@@ -21,10 +21,10 @@ var a1 = S { 0, 0, 0, 1, 2, 3 }
+ var b1 = S { X: 1, Z: 3, Y: 2 }
+ 
+ var a2 = S { 0, 0, 0, 0, 0, 0, }
+-var b2 S  // = S { }  TODO(rsc): should work
++var b2 = S { }
+ 
+ var a3 = T { S { 1, 2, 3, 0, 0, 0, } }
+-var b3 = T { S { A: 1, B: 2, C: 3 } }	// TODO(rsc): s/S/S:S/
++var b3 = T { S: S{ A: 1, B: 2, C: 3 } }
+ 
+ var a4 = &[16]byte { 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, }
+ var b4 = &[16]byte { 4: 1, 1, 1, 1, 12: 1, 1, }
+@@ -33,7 +33,7 @@ var a5 = &[16]byte { 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, }
+ var b5 = &[16]byte { 1, 4: 1, 1, 1, 1, 12: 1, 1, }
+ 
+ var a6 = &[16]byte { 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, }
+-var b6 = &[...]byte { 1, 4: 1, 1, 1, 1, 12: 1, 1, 0, 0,}	// throws index out of range
++var b6 = &[...]byte { 1, 4: 1, 1, 1, 1, 12: 1, 1, 0, 0,}
+ 
+ type Same struct {
+ 	a, b interface{}
+diff --git a/test/initializerr.go b/test/initializerr.go
+index 8465dc5d7e..2700ba097b 100644
+--- a/test/initializerr.go
++++ b/test/initializerr.go
+@@ -22,4 +22,4 @@ var a4 = [5]byte{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }	// ERROR "index"
+ var a5 = []byte { x: 2 }	// ERROR "index"
+ 
+ var ok1 = S { }	// should be ok
+-var ok2 = T { S: a4 }	// should be ok
++var ok2 = T { S: ok1 }	// should be ok

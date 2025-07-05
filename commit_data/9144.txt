@@ -24,7 +24,7 @@ Date:   Wed Jul 20 12:47:02 2011 -0300
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4808043
-
+---
  src/cmd/5l/asm.c               | 52 ++++++++++++++++--------------
  src/cmd/5l/span.c              |  2 +-
  src/cmd/6l/asm.c               | 65 ++++++++++++++++++++++++--------------
@@ -35,3 +35,795 @@ Date:   Wed Jul 20 12:47:02 2011 -0300
  src/cmd/ld/pe.c                |  2 +-
  src/pkg/debug/elf/file_test.go | 29 +++++++++++++++++
  9 files changed, 185 insertions(+), 123 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index b820cc7082..8a60ff74a9 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -157,7 +157,7 @@ doelf(void)
+ 
+ 	/* predefine strings we need for section headers */
+ 	shstrtab = lookup(".shstrtab", 0);
+-	shstrtab->type = SELFDATA;
++	shstrtab->type = SELFROSECT;
+ 	shstrtab->reachable = 1;
+ 
+ 	elfstr[ElfStrEmpty] = addstring(shstrtab, "");
+@@ -186,19 +186,22 @@ doelf(void)
+ 		elfstr[ElfStrPlt] = addstring(shstrtab, ".plt");
+ 
+ 		/* interpreter string */
++		if(interpreter == nil)
++			interpreter = linuxdynld;
+ 		s = lookup(".interp", 0);
++		s->type = SELFROSECT;
+ 		s->reachable = 1;
+-		s->type = SELFDATA;	// TODO: rodata
++		addstring(s, interpreter);
+ 
+ 		/* dynamic symbol table - first entry all zeros */
+ 		s = lookup(".dynsym", 0);
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 		s->reachable = 1;
+ 		s->value += ELF32SYMSIZE;
+ 
+ 		/* dynamic string table */
+ 		s = lookup(".dynstr", 0);
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 		s->reachable = 1;
+ 		if(s->size == 0)
+ 			addstring(s, "");
+@@ -207,37 +210,37 @@ doelf(void)
+ 		/* relocation table */
+ 		s = lookup(".rel", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 
+ 		/* global offset table */
+ 		s = lookup(".got", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFSECT; // writable
+ 		
+ 		/* hash */
+ 		s = lookup(".hash", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 
+ 		/* got.plt */
+ 		s = lookup(".got.plt", 0);
+ 		s->reachable = 1;
+-		s->type = SDATA;	// writable, so not SELFDATA
++		s->type = SELFSECT; // writable
+ 		
+ 		s = lookup(".plt", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 
+ 		s = lookup(".rel.plt", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 		
+ 		elfsetupplt();
+ 
+ 		/* define dynamic elf table */
+ 		s = lookup(".dynamic", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 
+ 		/*
+ 		 * .dynamic table
+@@ -274,8 +277,11 @@ datoff(vlong addr)
+ void
+ shsym(Elf64_Shdr *sh, Sym *s)
+ {
+-	sh->addr = symaddr(s);
+-	sh->off = datoff(sh->addr);
++	vlong addr;
++	addr = symaddr(s);
++	if(sh->flags&SHF_ALLOC)
++		sh->addr = addr;
++	sh->off = datoff(addr);
+ 	sh->size = s->size;
+ }
+ 
+@@ -331,7 +337,7 @@ asmb(void)
+ 	if(iself) {
+ 		/* index of elf text section; needed by asmelfsym, double-checked below */
+ 		/* !debug['d'] causes extra sections before the .text section */
+-		elftextsh = 1;
++		elftextsh = 2;
+ 		if(!debug['d']) {
+ 			elftextsh += 10;
+ 			if(elfverneed)
+@@ -486,9 +492,7 @@ asmb(void)
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+ 			sh->addralign = 1;
+-			if(interpreter == nil)
+-				interpreter = linuxdynld;
+-			elfinterp(sh, startva, interpreter);
++			shsym(sh, lookup(".interp", 0));
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_INTERP;
+@@ -579,6 +583,11 @@ asmb(void)
+ 		ph->flags = PF_W+PF_R;
+ 		ph->align = 4;
+ 
++		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
++		sh->type = SHT_STRTAB;
++		sh->addralign = 1;
++		shsym(sh, lookup(".shstrtab", 0));
++
+ 		if(elftextsh != eh->shnum)
+ 			diag("elftextsh = %d, want %d", elftextsh, eh->shnum);
+ 		for(sect=segtext.sect; sect!=nil; sect=sect->next)
+@@ -604,11 +613,6 @@ asmb(void)
+ 			// dwarfaddelfheaders();
+ 		}
+ 
+-		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
+-		sh->type = SHT_STRTAB;
+-		sh->addralign = 1;
+-		shsym(sh, lookup(".shstrtab", 0));
+-
+ 		/* Main header */
+ 		eh->ident[EI_MAG0] = '\177';
+ 		eh->ident[EI_MAG1] = 'E';
+@@ -634,7 +638,7 @@ asmb(void)
+ 		a += elfwritephdrs();
+ 		a += elfwriteshdrs();
+ 		cflush();
+-		if(a+elfwriteinterp() > ELFRESERVE)
++		if(a > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+ 	}
+@@ -1825,7 +1829,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 			case SCONST:
+ 			case SRODATA:
+ 			case SDATA:
+-			case SELFDATA:
++			case SELFROSECT:
+ 			case STYPE:
+ 			case SSTRING:
+ 			case SGOSTRING:
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index 338c9665bf..2e1232a1a1 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -416,7 +416,7 @@ symaddr(Sym *s)
+ 		return 0;
+ 	
+ 	case STEXT:
+-	case SELFDATA:
++	case SELFROSECT:
+ 	case SRODATA:
+ 	case SDATA:
+ 	case SBSS:
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 723ac0efe3..fb088fd9ee 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -559,7 +559,7 @@ doelf(void)
+ 
+ 	/* predefine strings we need for section headers */
+ 	shstrtab = lookup(".shstrtab", 0);
+-	shstrtab->type = SELFDATA;
++	shstrtab->type = SELFROSECT;
+ 	shstrtab->reachable = 1;
+ 
+ 	elfstr[ElfStrEmpty] = addstring(shstrtab, "");
+@@ -591,15 +591,31 @@ doelf(void)
+ 		elfstr[ElfStrGnuVersion] = addstring(shstrtab, ".gnu.version");
+ 		elfstr[ElfStrGnuVersionR] = addstring(shstrtab, ".gnu.version_r");
+ 
++		/* interpreter string */
++		if(interpreter == nil) {
++			switch(HEADTYPE) {
++			case Hlinux:
++				interpreter = linuxdynld;
++				break;
++			case Hfreebsd:
++				interpreter = freebsddynld;
++				break;
++			}
++		}
++		s = lookup(".interp", 0);
++		s->type = SELFROSECT;
++		s->reachable = 1;
++		addstring(s, interpreter);
++
+ 		/* dynamic symbol table - first entry all zeros */
+ 		s = lookup(".dynsym", 0);
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 		s->reachable = 1;
+ 		s->size += ELF64SYMSIZE;
+ 
+ 		/* dynamic string table */
+ 		s = lookup(".dynstr", 0);
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 		s->reachable = 1;
+ 		if(s->size == 0)
+ 			addstring(s, "");
+@@ -608,44 +624,44 @@ doelf(void)
+ 		/* relocation table */
+ 		s = lookup(".rela", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 
+ 		/* global offset table */
+ 		s = lookup(".got", 0);
+ 		s->reachable = 1;
+-		s->type = SDATA;	// writable, so not SELFDATA
++		s->type = SELFSECT; // writable
+ 
+ 		/* hash */
+ 		s = lookup(".hash", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 
+ 		s = lookup(".got.plt", 0);
+ 		s->reachable = 1;
+-		s->type = SDATA;	// writable, not SELFDATA
++		s->type = SELFSECT; // writable
+ 
+ 		s = lookup(".plt", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 		
+ 		elfsetupplt();
+ 		
+ 		s = lookup(".rela.plt", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 		
+ 		s = lookup(".gnu.version", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 		
+ 		s = lookup(".gnu.version_r", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 
+ 		/* define dynamic elf table */
+ 		s = lookup(".dynamic", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 
+ 		/*
+ 		 * .dynamic table
+@@ -673,8 +689,11 @@ doelf(void)
+ void
+ shsym(ElfShdr *sh, Sym *s)
+ {
+-	sh->addr = symaddr(s);
+-	sh->off = datoff(sh->addr);
++	vlong addr;
++	addr = symaddr(s);
++	if(sh->flags&SHF_ALLOC)
++		sh->addr = addr;
++	sh->off = datoff(addr);
+ 	sh->size = s->size;
+ }
+ 
+@@ -746,7 +765,7 @@ asmb(void)
+ 		debug['8'] = 1;	/* 64-bit addresses */
+ 		/* index of elf text section; needed by asmelfsym, double-checked below */
+ 		/* !debug['d'] causes extra sections before the .text section */
+-		elftextsh = 1;
++		elftextsh = 2;
+ 		if(!debug['d']) {
+ 			elftextsh += 10;
+ 			if(elfverneed)
+@@ -890,7 +909,7 @@ asmb(void)
+ 					break;
+ 				}
+ 			}
+-			elfinterp(sh, startva, interpreter);
++			shsym(sh, lookup(".interp", 0));
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_INTERP;
+@@ -1014,6 +1033,11 @@ asmb(void)
+ 		ph->flags = PF_W+PF_R;
+ 		ph->align = 8;
+ 
++		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
++		sh->type = SHT_STRTAB;
++		sh->addralign = 1;
++		shsym(sh, lookup(".shstrtab", 0));
++
+ 		if(elftextsh != eh->shnum)
+ 			diag("elftextsh = %d, want %d", elftextsh, eh->shnum);
+ 		for(sect=segtext.sect; sect!=nil; sect=sect->next)
+@@ -1039,11 +1063,6 @@ asmb(void)
+ 			dwarfaddelfheaders();
+ 		}
+ 
+-		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
+-		sh->type = SHT_STRTAB;
+-		sh->addralign = 1;
+-		shsym(sh, lookup(".shstrtab", 0));
+-
+ 		/* Main header */
+ 		eh->ident[EI_MAG0] = '\177';
+ 		eh->ident[EI_MAG1] = 'E';
+@@ -1069,7 +1088,7 @@ asmb(void)
+ 		a += elfwritephdrs();
+ 		a += elfwriteshdrs();
+ 		cflush();
+-		if(a+elfwriteinterp() > ELFRESERVE)
++		if(a > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+ 	case Hwindows:
+@@ -1111,7 +1130,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 		case SCONST:
+ 		case SRODATA:
+ 		case SDATA:
+-		case SELFDATA:
++		case SELFROSECT:
+ 		case SMACHOGOT:
+ 		case STYPE:
+ 		case SSTRING:
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 1832b3767b..5d49628588 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -519,7 +519,7 @@ doelf(void)
+ 
+ 	/* predefine strings we need for section headers */
+ 	shstrtab = lookup(".shstrtab", 0);
+-	shstrtab->type = SELFDATA;
++	shstrtab->type = SELFROSECT;
+ 	shstrtab->reachable = 1;
+ 
+ 	elfstr[ElfStrEmpty] = addstring(shstrtab, "");
+@@ -552,20 +552,31 @@ doelf(void)
+ 		elfstr[ElfStrGnuVersionR] = addstring(shstrtab, ".gnu.version_r");
+ 
+ 		/* interpreter string */
++		if(interpreter == nil) {
++			switch(HEADTYPE) {
++			case Hlinux:
++				interpreter = linuxdynld;
++				break;
++			case Hfreebsd:
++				interpreter = freebsddynld;
++				break;
++			}
++		}
+ 		s = lookup(".interp", 0);
++		s->type = SELFROSECT;
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		addstring(s, interpreter);
+ 
+ 		/* dynamic symbol table - first entry all zeros */
+ 		s = lookup(".dynsym", 0);
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 		s->reachable = 1;
+ 		s->size += ELF32SYMSIZE;
+ 
+ 		/* dynamic string table */
+ 		s = lookup(".dynstr", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 		if(s->size == 0)
+ 			addstring(s, "");
+ 		dynstr = s;
+@@ -573,45 +584,45 @@ doelf(void)
+ 		/* relocation table */
+ 		s = lookup(".rel", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 
+ 		/* global offset table */
+ 		s = lookup(".got", 0);
+ 		s->reachable = 1;
+-		s->type = SDATA;	// writable, so not SELFDATA
++		s->type = SELFSECT; // writable
+ 		
+ 		/* hash */
+ 		s = lookup(".hash", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 
+ 		/* got.plt */
+ 		s = lookup(".got.plt", 0);
+ 		s->reachable = 1;
+-		s->type = SDATA;	// writable, so not SELFDATA
++		s->type = SELFSECT; // writable
+ 		
+ 		s = lookup(".plt", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 
+ 		s = lookup(".rel.plt", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 		
+ 		s = lookup(".gnu.version", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 		
+ 		s = lookup(".gnu.version_r", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 
+ 		elfsetupplt();
+ 
+ 		/* define dynamic elf table */
+ 		s = lookup(".dynamic", 0);
+ 		s->reachable = 1;
+-		s->type = SELFDATA;
++		s->type = SELFROSECT;
+ 
+ 		/*
+ 		 * .dynamic table
+@@ -638,8 +649,11 @@ doelf(void)
+ void
+ shsym(Elf64_Shdr *sh, Sym *s)
+ {
+-	sh->addr = symaddr(s);
+-	sh->off = datoff(sh->addr);
++	vlong addr;
++	addr = symaddr(s);
++	if(sh->flags&SHF_ALLOC)
++		sh->addr = addr;
++	sh->off = datoff(addr);
+ 	sh->size = s->size;
+ }
+ 
+@@ -696,7 +710,7 @@ asmb(void)
+ 	if(iself) {
+ 		/* index of elf text section; needed by asmelfsym, double-checked below */
+ 		/* !debug['d'] causes extra sections before the .text section */
+-		elftextsh = 1;
++		elftextsh = 2;
+ 		if(!debug['d']) {
+ 			elftextsh += 10;
+ 			if(elfverneed)
+@@ -950,17 +964,7 @@ asmb(void)
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+ 			sh->addralign = 1;
+-			if(interpreter == nil) {
+-				switch(HEADTYPE) {
+-				case Hlinux:
+-					interpreter = linuxdynld;
+-					break;
+-				case Hfreebsd:
+-					interpreter = freebsddynld;
+-					break;
+-				}
+-			}
+-			elfinterp(sh, startva, interpreter);
++			shsym(sh, lookup(".interp", 0));
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_INTERP;
+@@ -1084,6 +1088,11 @@ asmb(void)
+ 		ph->flags = PF_W+PF_R;
+ 		ph->align = 4;
+ 
++		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
++		sh->type = SHT_STRTAB;
++		sh->addralign = 1;
++		shsym(sh, lookup(".shstrtab", 0));
++
+ 		if(elftextsh != eh->shnum)
+ 			diag("elftextsh = %d, want %d", elftextsh, eh->shnum);
+ 		for(sect=segtext.sect; sect!=nil; sect=sect->next)
+@@ -1109,11 +1118,6 @@ asmb(void)
+ 			dwarfaddelfheaders();
+ 		}
+ 
+-		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
+-		sh->type = SHT_STRTAB;
+-		sh->addralign = 1;
+-		shsym(sh, lookup(".shstrtab", 0));
+-
+ 		/* Main header */
+ 		eh->ident[EI_MAG0] = '\177';
+ 		eh->ident[EI_MAG1] = 'E';
+@@ -1144,7 +1148,7 @@ asmb(void)
+ 		a += elfwritephdrs();
+ 		a += elfwriteshdrs();
+ 		cflush();
+-		if(a+elfwriteinterp() > ELFRESERVE)
++		if(a > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+ 
+@@ -1200,7 +1204,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 			case SCONST:
+ 			case SRODATA:
+ 			case SDATA:
+-			case SELFDATA:
++			case SELFROSECT:
+ 			case SMACHO:
+ 			case SMACHOGOT:
+ 			case STYPE:
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 9974dbc513..5cf5f4d7a0 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -821,9 +821,8 @@ dodata(void)
+ 	s = datap;
+ 	for(; s != nil && s->type < SSYMTAB; s = s->next) {
+ 		s->type = SRODATA;
+-		t = rnd(s->size, PtrSize);
+ 		s->value = datsize;
+-		datsize += t;
++		datsize += rnd(s->size, PtrSize);
+ 	}
+ 	sect->len = datsize - sect->vaddr;
+ 
+@@ -836,19 +835,41 @@ dodata(void)
+ 		datsize += s->size;
+ 	}
+ 	sect->len = datsize - sect->vaddr;
++	datsize = rnd(datsize, PtrSize);
+ 
+ 	/* gopclntab */
+ 	sect = addsection(&segtext, ".gopclntab", 04);
+ 	sect->vaddr = datsize;
+-	for(; s != nil && s->type < SDATA; s = s->next) {
++	for(; s != nil && s->type < SELFROSECT; s = s->next) {
+ 		s->type = SRODATA;
+ 		s->value = datsize;
+ 		datsize += s->size;
+ 	}
+ 	sect->len = datsize - sect->vaddr;
++	datsize = rnd(datsize, PtrSize);
+ 
+-	/* data */
++	/* read-only ELF sections */
++	for(; s != nil && s->type < SELFSECT; s = s->next) {
++		sect = addsection(&segtext, s->name, 04);
++		sect->vaddr = datsize;
++		s->type = SRODATA;
++		s->value = datsize;
++		datsize += rnd(s->size, PtrSize);
++		sect->len = datsize - sect->vaddr;
++	}
++
++	/* writable ELF sections */
+ 	datsize = 0;
++	for(; s != nil && s->type < SDATA; s = s->next) {
++		sect = addsection(&segdata, s->name, 06);
++		sect->vaddr = datsize;
++		s->type = SDATA;
++		s->value = datsize;
++		datsize += rnd(s->size, PtrSize);
++		sect->len = datsize - sect->vaddr;
++	}
++
++	/* data */
+ 	sect = addsection(&segdata, ".data", 06);
+ 	sect->vaddr = 0;
+ 	for(; s != nil && s->type < SBSS; s = s->next) {
+@@ -950,38 +971,43 @@ address(void)
+ 	segtext.fileoff = HEADR;
+ 	for(s=segtext.sect; s != nil; s=s->next) {
+ 		s->vaddr = va;
+-		va += s->len;
+-		segtext.len = va - INITTEXT;
+-		va = rnd(va, INITRND);
++		va += rnd(s->len, PtrSize);
+ 	}
++	segtext.len = va - INITTEXT;
+ 	segtext.filelen = segtext.len;
+ 
++	va = rnd(va, INITRND);
++
+ 	segdata.rwx = 06;
+ 	segdata.vaddr = va;
+ 	segdata.fileoff = va - segtext.vaddr + segtext.fileoff;
++	segdata.filelen = 0;
+ 	if(HEADTYPE == Hwindows)
+ 		segdata.fileoff = segtext.fileoff + rnd(segtext.len, PEFILEALIGN);
+ 	if(HEADTYPE == Hplan9x32)
+ 		segdata.fileoff = segtext.fileoff + segtext.filelen;
++	data = nil;
+ 	for(s=segdata.sect; s != nil; s=s->next) {
+ 		s->vaddr = va;
+ 		va += s->len;
++		segdata.filelen += s->len;
+ 		segdata.len = va - segdata.vaddr;
++		if(strcmp(s->name, ".data") == 0)
++			data = s;
+ 	}
+-	segdata.filelen = segdata.sect->len;	// assume .data is first
+-	
++	segdata.filelen -= data->next->len; // deduct .bss
++
+ 	text = segtext.sect;
+ 	rodata = text->next;
+ 	symtab = rodata->next;
+ 	pclntab = symtab->next;
+-	data = segdata.sect;
+ 
+ 	for(sym = datap; sym != nil; sym = sym->next) {
+ 		cursym = sym;
+ 		if(sym->type < SDATA)
+ 			sym->value += rodata->vaddr;
+ 		else
+-			sym->value += data->vaddr;
++			sym->value += segdata.sect->vaddr;
+ 		for(sub = sym->sub; sub != nil; sub = sub->sub)
+ 			sub->value += sym->value;
+ 	}
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 9c72890d43..3fe8ba83a6 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -19,7 +19,6 @@ static	int	elf64;
+ static	ElfEhdr	hdr;
+ static	ElfPhdr	*phdr[NSECT];
+ static	ElfShdr	*shdr[NSECT];
+-static	char	*interp;
+ 
+ typedef struct Elfstring Elfstring;
+ struct Elfstring
+@@ -304,32 +303,6 @@ elfwritedynentsymsize(Sym *s, int tag, Sym *t)
+ 	addsize(s, t);
+ }
+ 
+-int
+-elfwriteinterp(void)
+-{
+-	int n;
+-	
+-	if(interp == nil)
+-		return 0;
+-
+-	n = strlen(interp)+1;
+-	cseek(ELFRESERVE-n);
+-	cwrite(interp, n);
+-	return n;
+-}
+-
+-void
+-elfinterp(ElfShdr *sh, uint64 startva, char *p)
+-{
+-	int n;
+-	
+-	interp = p;
+-	n = strlen(interp)+1;
+-	sh->addr = startva + ELFRESERVE - n;
+-	sh->off = ELFRESERVE - n;
+-	sh->size = n;
+-}
+-
+ extern int nelfsym;
+ int elfverneed;
+ 
+@@ -393,7 +366,7 @@ elfdynhash(void)
+ 
+ 	nsym = nelfsym;
+ 	s = lookup(".hash", 0);
+-	s->type = SELFDATA;
++	s->type = SELFROSECT;
+ 	s->reachable = 1;
+ 
+ 	i = nsym;
+@@ -539,6 +512,12 @@ elfshbits(Section *sect)
+ 	return nil;
+ 
+ found:
++	for(i=0; i<hdr.shnum; i++) {
++		sh = shdr[i];
++		if(sh->name == off)
++			return sh;
++	}
++
+ 	sh = newElfShdr(off);
+ 	if(sect->vaddr < sect->seg->vaddr + sect->seg->filelen)
+ 		sh->type = SHT_PROGBITS;
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index e2b9858cb0..ee7eb87c00 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -34,7 +34,6 @@ enum
+ 	
+ 	/* order here is order in output file */
+ 	STEXT,
+-	SELFDATA,
+ 	SMACHOPLT,
+ 	STYPE,
+ 	SSTRING,
+@@ -42,6 +41,8 @@ enum
+ 	SRODATA,
+ 	SSYMTAB,
+ 	SPCLNTAB,
++	SELFROSECT,
++	SELFSECT,
+ 	SDATA,
+ 	SMACHO,	/* Mach-O __nl_symbol_ptr */
+ 	SMACHOGOT,
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index d13801ac02..d235e33c13 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -396,7 +396,7 @@ dope(void)
+ 	/* relocation table */
+ 	rel = lookup(".rel", 0);
+ 	rel->reachable = 1;
+-	rel->type = SELFDATA;
++	rel->type = SELFROSECT;
+ 
+ 	initdynimport();
+ 	initdynexport();
+diff --git a/src/pkg/debug/elf/file_test.go b/src/pkg/debug/elf/file_test.go
+index 62e2f3b2df..451d3d5147 100644
+--- a/src/pkg/debug/elf/file_test.go
++++ b/src/pkg/debug/elf/file_test.go
+@@ -7,7 +7,10 @@ package elf
+ import (
+ 	"debug/dwarf"
+ 	"encoding/binary"
++	"net"
++	"os"
+ 	"reflect"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -210,3 +213,29 @@ func TestDWARFRelocations(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestNoSectionOverlaps(t *testing.T) {
++	// Ensure 6l outputs sections without overlaps.
++	if runtime.GOOS != "linux" && runtime.GOOS != "freebsd" {
++		return // not ELF
++	}
++	_ = net.ResolveIPAddr // force dynamic linkage
++	f, err := Open(os.Args[0])
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	for i, si := range f.Sections {
++		sih := si.SectionHeader
++		for j, sj := range f.Sections {
++			sjh := sj.SectionHeader
++			if i == j || sjh.Type == SHT_NOBITS || sih.Offset == sjh.Offset && sih.Size == 0 {
++				continue
++			}
++			if sih.Offset >= sjh.Offset && sih.Offset < sjh.Offset+sjh.Size {
++				t.Errorf("ld produced ELF with section %s within %s: 0x%x <= 0x%x..0x%x < 0x%x",
++					sih.Name, sjh.Name, sjh.Offset, sih.Offset, sih.Offset+sih.Size, sjh.Offset+sjh.Size)
++			}
++		}
++	}
++}

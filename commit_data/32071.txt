@@ -14,7 +14,54 @@ Date:   Sat Apr 1 01:07:59 2017 -0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/mime/multipart/formdata.go      | 5 ++++-
  src/mime/multipart/formdata_test.go | 3 +++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/mime/multipart/formdata.go b/src/mime/multipart/formdata.go
+index c9e3188c33..26817a188b 100644
+--- a/src/mime/multipart/formdata.go
++++ b/src/mime/multipart/formdata.go
+@@ -79,7 +79,7 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
+ 			if err != nil {
+ 				return nil, err
+ 			}
+-			_, err = io.Copy(file, io.MultiReader(&b, p))
++			size, err := io.Copy(file, io.MultiReader(&b, p))
+ 			if cerr := file.Close(); err == nil {
+ 				err = cerr
+ 			}
+@@ -88,8 +88,10 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
+ 				return nil, err
+ 			}
+ 			fh.tmpfile = file.Name()
++			fh.Size = size
+ 		} else {
+ 			fh.content = b.Bytes()
++			fh.Size = int64(len(fh.content))
+ 			maxMemory -= n
+ 		}
+ 		form.File[name] = append(form.File[name], fh)
+@@ -128,6 +130,7 @@ func (f *Form) RemoveAll() error {
+ type FileHeader struct {
+ 	Filename string
+ 	Header   textproto.MIMEHeader
++	Size     int64
+ 
+ 	content []byte
+ 	tmpfile string
+diff --git a/src/mime/multipart/formdata_test.go b/src/mime/multipart/formdata_test.go
+index 1deca0b94d..ed848e1a09 100644
+--- a/src/mime/multipart/formdata_test.go
++++ b/src/mime/multipart/formdata_test.go
+@@ -44,6 +44,9 @@ func testFile(t *testing.T, fh *FileHeader, efn, econtent string) File {
+ 	if fh.Filename != efn {
+ 		t.Errorf("filename = %q, want %q", fh.Filename, efn)
+ 	}
++	if fh.Size != int64(len(econtent)) {
++		t.Errorf("size = %d, want %d", fh.Size, len(econtent))
++	}
+ 	f, err := fh.Open()
+ 	if err != nil {
+ 		t.Fatal("opening file:", err)

@@ -8,6 +8,20 @@ Date:   Thu Dec 20 22:39:01 2018 +0900
     Reviewed-on: https://go-review.googlesource.com/c/155317
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/compress/flate/inflate.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/compress/flate/inflate.go b/src/compress/flate/inflate.go
+index 685be70a3e..49921398e2 100644
+--- a/src/compress/flate/inflate.go
++++ b/src/compress/flate/inflate.go
+@@ -89,7 +89,7 @@ type Resetter interface {
+ // number of bits.
+ //
+ // See the following:
+-//	http://www.gzip.org/algorithm.txt
++//	https://github.com/madler/zlib/raw/master/doc/algorithm.txt
+ 
+ // chunk & 15 is number of bits
+ // chunk >> 4 is value, including table link

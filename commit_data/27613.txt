@@ -11,6 +11,22 @@ Date:   Tue Apr 5 09:44:00 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/dsa/dsa.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/crypto/dsa/dsa.go b/src/crypto/dsa/dsa.go
+index 96768ce2a0..e9b6a0c253 100644
+--- a/src/crypto/dsa/dsa.go
++++ b/src/crypto/dsa/dsa.go
+@@ -247,6 +247,10 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
+ 	// FIPS 186-3, section 4.7
+ 
++	if pub.P.Sign() == 0 {
++		return false
++	}
++
+ 	if r.Sign() < 1 || r.Cmp(pub.Q) >= 0 {
+ 		return false
+ 	}

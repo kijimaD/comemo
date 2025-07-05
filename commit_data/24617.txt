@@ -7,7 +7,7 @@ Date:   Wed Aug 12 11:22:16 2015 -0700
     Change-Id: I7ecf62cf399c710b4a617803c43e83fce09b8a7d
     Reviewed-on: https://go-review.googlesource.com/13585
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 31 ++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  1 +
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  3 ++-
@@ -18,3 +18,231 @@ Date:   Wed Aug 12 11:22:16 2015 -0700
  src/cmd/compile/internal/ssa/rewritegeneric.go | 24 ++++++++++++++++++++
  src/cmd/internal/obj/x86/obj6.go               |  4 ++--
  9 files changed, 88 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 0086feceab..c8ec01f5b6 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1340,6 +1340,10 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		}
+ 		a := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
+ 		return s.newValue2(ssa.OpLoad, fp.Type, a, call)
++
++	case OGETG:
++		return s.newValue0(ssa.OpGetG, n.Type)
++
+ 	default:
+ 		s.Unimplementedf("unhandled expr %s", opnames[n.Op])
+ 		return nil
+@@ -2185,6 +2189,33 @@ func genValue(v *ssa.Value) {
+ 		q.From.Reg = x86.REG_AX
+ 		q.To.Type = obj.TYPE_MEM
+ 		q.To.Reg = x86.REG_AX
++	case ssa.OpAMD64LoweredGetG:
++		r := regnum(v)
++		// See the comments in cmd/internal/obj/x86/obj6.go
++		// near CanUse1InsnTLS for a detailed explanation of these instructions.
++		if x86.CanUse1InsnTLS(Ctxt) {
++			// MOVQ (TLS), r
++			p := Prog(x86.AMOVQ)
++			p.From.Type = obj.TYPE_MEM
++			p.From.Reg = x86.REG_TLS
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = r
++		} else {
++			// MOVQ TLS, r
++			// MOVQ (r)(TLS*1), r
++			p := Prog(x86.AMOVQ)
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = x86.REG_TLS
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = r
++			q := Prog(x86.AMOVQ)
++			q.From.Type = obj.TYPE_MEM
++			q.From.Reg = r
++			q.From.Index = x86.REG_TLS
++			q.From.Scale = 1
++			q.To.Type = obj.TYPE_REG
++			q.To.Reg = r
++		}
+ 	case ssa.OpAMD64CALLstatic:
+ 		p := Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 29f60d9a6b..ab8e44a444 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -217,6 +217,7 @@
+ (IsInBounds idx len) -> (SETB (CMPQ <TypeFlags> idx len))
+ 
+ (PanicNilCheck ptr mem) -> (LoweredPanicNilCheck ptr mem)
++(GetG) -> (LoweredGetG)
+ 
+ (Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <config.Frontend().TypeUInt64()> [size]) mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 9808745e35..903eea3057 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -288,8 +288,9 @@ func init() {
+ 		// InvertFlags is a pseudo-op which can't appear in assembly output.
+ 		{name: "InvertFlags"}, // reverse direction of arg0
+ 
+-		// LoweredPanicNilCheck is a pseudo-op.
++		// Pseudo-ops
+ 		{name: "LoweredPanicNilCheck"},
++		{name: "LoweredGetG"},
+ 	}
+ 
+ 	var AMD64blocks = []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 8656b7cc4f..f4f49acb86 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -71,6 +71,8 @@
+ (StringLen (StringMake _ len)) -> len
+ (Store dst str mem) && str.Type.IsString() -> (Store (OffPtr <config.Frontend().TypeBytePtr()> [config.PtrSize] dst) (StringLen <config.Frontend().TypeUintptr()> str) (Store <TypeMem> dst (StringPtr <config.Frontend().TypeBytePtr()> str) mem))
+ 
++(If (IsNonNil (GetG)) yes no) -> (Plain nil yes)
++
+ (If (Not cond) yes no) -> (If cond no yes)
+ (If (ConstBool {c}) yes no) && c.(bool) -> (Plain nil yes)
+ (If (ConstBool {c}) yes no) && !c.(bool) -> (Plain nil no)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 6ff5d1ea1a..ec4f038f43 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -252,7 +252,9 @@ var genericOps = []opData{
+ 	{name: "IsNonNil"},   // arg0 != nil
+ 	{name: "IsInBounds"}, // 0 <= arg0 < arg1
+ 
++	// Pseudo-ops
+ 	{name: "PanicNilCheck"}, // trigger a dereference fault; arg0=nil ptr, arg1=mem
++	{name: "GetG"},          // runtime.getg() (read g pointer)
+ 
+ 	// Indexing operations
+ 	{name: "ArrayIndex"},   // arg0=array, arg1=index.  Returns a[i]
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d56a8ba81b..425c7e468c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -195,6 +195,7 @@ const (
+ 	OpAMD64REPMOVSB
+ 	OpAMD64InvertFlags
+ 	OpAMD64LoweredPanicNilCheck
++	OpAMD64LoweredGetG
+ 
+ 	OpAdd8
+ 	OpAdd16
+@@ -369,6 +370,7 @@ const (
+ 	OpIsNonNil
+ 	OpIsInBounds
+ 	OpPanicNilCheck
++	OpGetG
+ 	OpArrayIndex
+ 	OpPtrIndex
+ 	OpOffPtr
+@@ -2119,6 +2121,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "LoweredPanicNilCheck",
+ 		reg:  regInfo{},
+ 	},
++	{
++		name: "LoweredGetG",
++		reg:  regInfo{},
++	},
+ 
+ 	{
+ 		name:    "Add8",
+@@ -2812,6 +2818,10 @@ var opcodeTable = [...]opInfo{
+ 		name:    "PanicNilCheck",
+ 		generic: true,
+ 	},
++	{
++		name:    "GetG",
++		generic: true,
++	},
+ 	{
+ 		name:    "ArrayIndex",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 2668d570d1..a18097f91e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1893,6 +1893,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endd30ee67afc0284c419cef70261f61452
+ 	endd30ee67afc0284c419cef70261f61452:
+ 		;
++	case OpGetG:
++		// match: (GetG)
++		// cond:
++		// result: (LoweredGetG)
++		{
++			v.Op = OpAMD64LoweredGetG
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			return true
++		}
++		goto endb17140e71dd641aa4d89e14479160260
++	endb17140e71dd641aa4d89e14479160260:
++		;
+ 	case OpGreater16:
+ 		// match: (Greater16 x y)
+ 		// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 6371ac2b38..e39305461d 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -782,6 +782,30 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ func rewriteBlockgeneric(b *Block) bool {
+ 	switch b.Kind {
+ 	case BlockIf:
++		// match: (If (IsNonNil (GetG)) yes no)
++		// cond:
++		// result: (Plain nil yes)
++		{
++			v := b.Control
++			if v.Op != OpIsNonNil {
++				goto end0f2bb0111a86be0436b44210dbd83a90
++			}
++			if v.Args[0].Op != OpGetG {
++				goto end0f2bb0111a86be0436b44210dbd83a90
++			}
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Func.removePredecessor(b, no)
++			b.Kind = BlockPlain
++			b.Control = nil
++			b.Succs = b.Succs[:1]
++			b.Succs[0] = yes
++			b.Likely = BranchUnknown
++			return true
++		}
++		goto end0f2bb0111a86be0436b44210dbd83a90
++	end0f2bb0111a86be0436b44210dbd83a90:
++		;
+ 		// match: (If (Not cond) yes no)
+ 		// cond:
+ 		// result: (If cond no yes)
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index fa9c474adb..5249ca9581 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -38,7 +38,7 @@ import (
+ 	"math"
+ )
+ 
+-func canuse1insntls(ctxt *obj.Link) bool {
++func CanUse1InsnTLS(ctxt *obj.Link) bool {
+ 	if ctxt.Arch.Regsize == 4 {
+ 		switch ctxt.Headtype {
+ 		case obj.Hlinux,
+@@ -120,7 +120,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	// rewriting the instructions more comprehensively, and it only does because
+ 	// we only support a single TLS variable (g).
+ 
+-	if canuse1insntls(ctxt) {
++	if CanUse1InsnTLS(ctxt) {
+ 		// Reduce 2-instruction sequence to 1-instruction sequence.
+ 		// Sequences like
+ 		//	MOVQ TLS, BX

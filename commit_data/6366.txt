@@ -10,6 +10,20 @@ Date:   Fri Sep 24 11:55:16 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2216047
-
+---
  src/Make.clib | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/Make.clib b/src/Make.clib
+index 6a20e0c3a9..9f72bcb626 100644
+--- a/src/Make.clib
++++ b/src/Make.clib
+@@ -7,7 +7,7 @@
+ all: $(LIB)
+ 
+ %.$(HOST_O): %.c
+-	$(HOST_CC) $(HOST_CFLAGS) -c $*.c
++	$(HOST_CC) $(HOST_CFLAGS) -c "$(PWD)/$*.c"
+ 
+ $(OFILES): $(HFILES)
+ 

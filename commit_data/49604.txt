@@ -12,7 +12,53 @@ Date:   Tue Aug 31 14:03:33 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/expr.go                     |  2 +-
  src/go/types/testdata/examples/types.go2 | 17 ++++++++++++++++-
  2 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index b0e2a27085..61d57cc4fa 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1184,7 +1184,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			goto Error
+ 		}
+ 
+-		switch utyp := under(base).(type) {
++		switch utyp := optype(base).(type) {
+ 		case *Struct:
+ 			if len(e.Elts) == 0 {
+ 				break
+diff --git a/src/go/types/testdata/examples/types.go2 b/src/go/types/testdata/examples/types.go2
+index 82f17a3263..1aebb411c6 100644
+--- a/src/go/types/testdata/examples/types.go2
++++ b/src/go/types/testdata/examples/types.go2
+@@ -191,7 +191,7 @@ type _ struct {
+ //}
+ 
+ // It is not permitted to declare a local type whose underlying
+-// type is a type parameters not declared by that type declaration.
++// type is a type parameter not declared by that type declaration.
+ func _[T any]() {
+ 	type _ T         // ERROR cannot use function type parameter T as RHS in type declaration
+ 	type _ [_ any] T // ERROR cannot use function type parameter T as RHS in type declaration
+@@ -294,3 +294,18 @@ func _[T interface {~int|~float64}]() {
+ 	_ = T(0)
+ }
+ 
++// It is possible to create composite literals of type parameter
++// type as long as it's possible to create a composite literal
++// of the structural type of the type parameter's constraint.
++func _[P interface{ ~[]int }]() P {
++	return P{}
++	return P{1, 2, 3}
++}
++
++func _[P interface{ ~[]E }, E interface{ map[string]P } ]() P {
++	x := P{}
++	return P{{}}
++	return P{E{}}
++	return P{E{"foo": x}}
++	return P{{"foo": x}, {}}
++}

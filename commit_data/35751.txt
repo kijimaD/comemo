@@ -11,6 +11,23 @@ Date:   Mon Mar 5 07:40:26 2018 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/macho/file.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/debug/macho/file.go b/src/debug/macho/file.go
+index 7b9e83e5a8..da5d9cad4c 100644
+--- a/src/debug/macho/file.go
++++ b/src/debug/macho/file.go
+@@ -545,8 +545,9 @@ func (f *File) pushSection(sh *Section, r io.ReaderAt) error {
+ }
+ 
+ func cstring(b []byte) string {
+-	var i int
+-	for i = 0; i < len(b) && b[i] != 0; i++ {
++	i := bytes.IndexByte(b, 0)
++	if i == -1 {
++		i = len(b)
+ 	}
+ 	return string(b[0:i])
+ }

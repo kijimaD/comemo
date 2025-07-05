@@ -15,6 +15,23 @@ Date:   Thu Jan 14 13:41:35 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/walk/switch.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index 59446ef3db..0cc1830d3f 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -19,9 +19,10 @@ import (
+ // walkSwitch walks a switch statement.
+ func walkSwitch(sw *ir.SwitchStmt) {
+ 	// Guard against double walk, see #25776.
+-	if len(sw.Cases) == 0 && len(sw.Compiled) > 0 {
++	if sw.Walked() {
+ 		return // Was fatal, but eliminating every possible source of double-walking is hard
+ 	}
++	sw.SetWalked(true)
+ 
+ 	if sw.Tag != nil && sw.Tag.Op() == ir.OTYPESW {
+ 		walkSwitchType(sw)

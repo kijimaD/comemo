@@ -10,8 +10,67 @@ Date:   Thu Mar 13 17:41:08 2014 +0400
     R=rsc, aram
     CC=golang-codereviews
     https://golang.org/cl/75260043
-
+---
  src/pkg/runtime/proc.c    | 14 ++++++++++++++
  src/pkg/runtime/runtime.h |  1 +
  src/pkg/runtime/stack.c   |  2 ++
  3 files changed, 17 insertions(+)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index d3ad740136..e11f9b18ac 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1704,14 +1704,28 @@ syscall·runtime_BeforeFork(void)
+ 	m->locks++;
+ 	if(m->profilehz != 0)
+ 		runtime·resetcpuprofiler(0);
++
++	// This function is called before fork in syscall package.
++	// Code between fork and exec must not allocate memory nor even try to grow stack.
++	// Here we spoil g->stackguard to reliably detect any attempts to grow stack.
++	// runtime_AfterFork will undo this in parent process, but not in child.
++	m->forkstackguard = g->stackguard;
++	g->stackguard0 = StackPreempt-1;
++	g->stackguard = StackPreempt-1;
+ }
+ 
+ // Called from syscall package after fork in parent.
++#pragma textflag NOSPLIT
+ void
+ syscall·runtime_AfterFork(void)
+ {
+ 	int32 hz;
+ 
++	// See the comment in runtime_BeforeFork.
++	g->stackguard0 = m->forkstackguard;
++	g->stackguard = m->forkstackguard;
++	m->forkstackguard = 0;
++
+ 	hz = runtime·sched.profilehz;
+ 	if(hz != 0)
+ 		runtime·resetcpuprofiler(hz);
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index ecff533f59..8e5e9a1294 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -367,6 +367,7 @@ struct	M
+ 	bool	needextram;
+ 	bool	(*waitunlockf)(G*, void*);
+ 	void*	waitlock;
++	uintptr	forkstackguard;
+ #ifdef GOOS_windows
+ 	void*	thread;		// thread handle
+ 	// these are here because they are too large to be on the stack
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index bb7a32f8ae..d580665e2b 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -583,6 +583,8 @@ runtime·newstack(void)
+ 	Gobuf label;
+ 	bool newstackcall;
+ 
++	if(m->forkstackguard)
++		runtime·throw("split stack after fork");
+ 	if(m->morebuf.g != m->curg) {
+ 		runtime·printf("runtime: newstack called from g=%p\n"
+ 			"\tm=%p m->curg=%p m->g0=%p m->gsignal=%p\n",

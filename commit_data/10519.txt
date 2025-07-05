@@ -10,7 +10,45 @@ Date:   Mon Nov 28 11:52:16 2011 -0500
     R=rsc, dvyukov
     CC=golang-dev
     https://golang.org/cl/5441045
-
+---
  src/cmd/gc/typecheck.c   |  1 +
  test/fixedbugs/bug378.go | 19 +++++++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 5b667553fa..2ec3c72971 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2530,6 +2530,7 @@ copytype(Node *n, Type *t)
+ 	t->vargen = n->vargen;
+ 	t->siggen = 0;
+ 	t->method = nil;
++	t->xmethod = nil;
+ 	t->nod = N;
+ 	t->printed = 0;
+ 	t->deferwidth = 0;
+diff --git a/test/fixedbugs/bug378.go b/test/fixedbugs/bug378.go
+new file mode 100644
+index 0000000000..b393b3dc1e
+--- /dev/null
++++ b/test/fixedbugs/bug378.go
+@@ -0,0 +1,19 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug378
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2497
++
++package main
++
++type Header struct{}
++func (h Header) Method() {}
++
++var _ interface{} = Header{}
++
++func main() {
++  	type X Header
++  	var _ interface{} = X{}
++}

@@ -7,6 +7,20 @@ Date:   Tue Oct 18 23:51:19 2016 +0200
     Change-Id: I8111ceb6960364166aa8a445f4d6d8b0581d371e
     Reviewed-on: https://go-review.googlesource.com/31513
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/objdump/objdump_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index cf1b53c2b3..a41af9a5c6 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -129,7 +129,7 @@ func TestDisasm(t *testing.T) {
+ 	switch runtime.GOARCH {
+ 	case "arm64":
+ 		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)
+-	case "mips64", "mips64le":
++	case "mips", "mipsle", "mips64", "mips64le":
+ 		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
+ 	case "s390x":
+ 		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)

@@ -8,7 +8,54 @@ Date:   Tue Sep 16 14:15:54 2008 -0700
     DELTA=11  (8 added, 0 deleted, 3 changed)
     OCL=15405
     CL=15405
-
+---
  src/lib/bufio.go | 12 ++++++++++--
  test/bufiolib.go |  2 +-
  2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/lib/bufio.go b/src/lib/bufio.go
+index 323e39ff66..3c29b236c3 100644
+--- a/src/lib/bufio.go
++++ b/src/lib/bufio.go
+@@ -291,18 +291,26 @@ func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
+ 	return buf, err
+ }
+ 
++// BUG(bugs/bug102.go): string(empty bytes array) throws error
++func ToString(p *[]byte) string {
++	if len(p) == 0 {
++		return ""
++	}
++	return string(p)
++}
++
+ // Read until the first occurrence of delim in the input,
+ // returning a new string containing the line.
+ // If savedelim, keep delim in the result; otherwise chop it off.
+ func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err *os.Error) {
+ 	bytes, e := b.ReadLineBytes(delim)
+ 	if e != nil {
+-		return string(bytes), e
++		return ToString(bytes), e
+ 	}
+ 	if !savedelim {
+ 		bytes = bytes[0:len(bytes)-1]
+ 	}
+-	return string(bytes), nil
++	return ToString(bytes), nil
+ }
+ 
+ 
+diff --git a/test/bufiolib.go b/test/bufiolib.go
+index b5d7453c1b..a3c05036f7 100644
+--- a/test/bufiolib.go
++++ b/test/bufiolib.go
+@@ -121,7 +121,7 @@ var readmakers = []*(p *[]byte) io.Read {
+ func ReadLines(b *bufio.BufRead) string {
+ 	s := ""
+ 	for {
+-		s1, e := b.ReadLineString('\n', false)
++		s1, e := b.ReadLineString('\n', true)
+ 		if e == bufio.EndOfFile {
+ 			break
+ 		}

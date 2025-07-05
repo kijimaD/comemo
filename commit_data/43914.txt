@@ -20,8 +20,72 @@ Date:   Wed Apr 29 10:07:07 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/230857
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go |  6 ++++++
  src/cmd/link/internal/x86/asm.go | 23 -----------------------
  src/cmd/link/internal/x86/obj.go |  1 -
  3 files changed, 6 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index d895c62f39..a4e9a4c1e8 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -528,6 +528,12 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arch
+ 		case objabi.R_DWARFFILEREF:
+ 			// We don't renumber files in dwarf.go:writelines anymore.
+ 			continue
++
++		case objabi.R_CONST:
++			o = r.Add()
++
++		case objabi.R_GOTOFF:
++			o = ldr.SymValue(rs) + r.Add() - ldr.SymValue(syms.GOT2)
+ 		}
+ 
+ 		//if target.IsPPC64() || target.IsS390X() {
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 4e31c4e8ea..0cf4009c4e 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -436,29 +436,6 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, secto
+ }
+ 
+ func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r *loader.Reloc2, sym loader.Sym, val int64) (int64, bool) {
+-	if target.IsExternal() {
+-		return val, false
+-	}
+-	switch r.Type() {
+-	case objabi.R_CONST:
+-		return r.Add(), true
+-	case objabi.R_GOTOFF:
+-		return ldr.SymValue(r.Sym()) + r.Add() - ldr.SymValue(syms.GOT2), true
+-	}
+-	return val, false
+-}
+-
+-func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+-	if target.IsExternal() {
+-		return val, false
+-	}
+-	switch r.Type {
+-	case objabi.R_CONST:
+-		return r.Add, true
+-	case objabi.R_GOTOFF:
+-		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(syms.GOT), true
+-	}
+-
+ 	return val, false
+ }
+ 
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index 8686d6ec18..06a1a6a96d 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -48,7 +48,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 
+ 		Adddynrel2:       adddynrel2,
+ 		Archinit:         archinit,
+-		Archreloc:        archreloc,
+ 		Archreloc2:       archreloc2,
+ 		Archrelocvariant: archrelocvariant,
+ 		Asmb:             asmb,

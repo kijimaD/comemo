@@ -11,6 +11,24 @@ Date:   Tue Sep 27 23:06:11 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/testdata/testprog/traceback_ancestors.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/testdata/testprog/traceback_ancestors.go b/src/runtime/testdata/testprog/traceback_ancestors.go
+index 1d0d00bab7..8fc1aa7dbb 100644
+--- a/src/runtime/testdata/testprog/traceback_ancestors.go
++++ b/src/runtime/testdata/testprog/traceback_ancestors.go
+@@ -87,9 +87,10 @@ func goroutineID() string {
+ 	buf := make([]byte, 128)
+ 	runtime.Stack(buf, false)
+ 	prefix := []byte("goroutine ")
+-	if !bytes.HasPrefix(buf, prefix) {
++	var found bool
++	if buf, found = bytes.CutPrefix(buf, prefix); !found {
+ 		panic(fmt.Sprintf("expected %q at beginning of traceback:\n%s", prefix, buf))
+ 	}
+-	id, _, _ := bytes.Cut(bytes.TrimPrefix(buf, prefix), []byte(" "))
++	id, _, _ := bytes.Cut(buf, []byte(" "))
+ 	return string(id)
+ }

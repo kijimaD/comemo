@@ -11,6 +11,19 @@ Date:   Wed Jan 28 16:17:36 2015 +0300
     Change-Id: I86ff7b2e0972ed47c5ebcb9fce19e7f39d3ff530
     Reviewed-on: https://go-review.googlesource.com/3412
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 8086ef0800..6839865658 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2977,6 +2977,7 @@ func BenchmarkClient(b *testing.B) {
+ 	case <-time.After(5 * time.Second):
+ 		b.Fatalf("subprocess did not stop")
+ 	}
++	DefaultTransport.(*Transport).CloseIdleConnections()
+ }
+ 
+ func BenchmarkServerFakeConnNoKeepAlive(b *testing.B) {

@@ -8,8 +8,72 @@ Date:   Thu Sep 20 00:18:41 2012 +0800
     R=golang-dev, fullung, rsc, iant
     CC=golang-dev
     https://golang.org/cl/6445085
-
+---
  src/cmd/ld/ldelf.c   | 3 +--
  src/cmd/ld/ldmacho.c | 3 +--
  src/cmd/ld/ldpe.c    | 3 +--
  3 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index f6da33341c..01f66464a2 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -331,7 +331,6 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 
+ 	symbols = nil;
+ 
+-	USED(pkg);
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f ldelf %s\n", cputime(), pn);
+ 
+@@ -519,7 +518,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		if(sect->type != ElfSectNobits && map(obj, sect) < 0)
+ 			goto bad;
+ 		
+-		name = smprint("%s(%s)", pn, sect->name);
++		name = smprint("%s(%s)", pkg, sect->name);
+ 		s = lookup(name, version);
+ 		free(name);
+ 		switch((int)sect->flags&(ElfSectFlagAlloc|ElfSectFlagWrite|ElfSectFlagExec)) {
+diff --git a/src/cmd/ld/ldmacho.c b/src/cmd/ld/ldmacho.c
+index c02d1e7f82..3310903e18 100644
+--- a/src/cmd/ld/ldmacho.c
++++ b/src/cmd/ld/ldmacho.c
+@@ -440,7 +440,6 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	Reloc *r, *rp;
+ 	char *name;
+ 
+-	USED(pkg);
+ 	version++;
+ 	base = Boffset(f);
+ 	if(Bread(f, hdr, sizeof hdr) != sizeof hdr)
+@@ -566,7 +565,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			continue;
+ 		if(strcmp(sect->name, "__eh_frame") == 0)
+ 			continue;
+-		name = smprint("%s(%s/%s)", pn, sect->segname, sect->name);
++		name = smprint("%s(%s/%s)", pkg, sect->segname, sect->name);
+ 		s = lookup(name, version);
+ 		if(s->type != 0) {
+ 			werrstr("duplicate %s/%s", sect->segname, sect->name);
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 942f69ae1a..8923bc729c 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -145,7 +145,6 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	PeSym *sym;
+ 
+ 	USED(len);
+-	USED(pkg);
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f ldpe %s\n", cputime(), pn);
+ 	
+@@ -213,7 +212,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		if(map(obj, sect) < 0)
+ 			goto bad;
+ 		
+-		name = smprint("%s(%s)", pn, sect->name);
++		name = smprint("%s(%s)", pkg, sect->name);
+ 		s = lookup(name, version);
+ 		free(name);
+ 		switch(sect->sh.Characteristics&(IMAGE_SCN_CNT_UNINITIALIZED_DATA|IMAGE_SCN_CNT_INITIALIZED_DATA|

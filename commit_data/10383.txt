@@ -7,6 +7,27 @@ Date:   Mon Nov 14 11:16:06 2011 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5370078
-
+---
  misc/kate/go.xml | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/kate/go.xml b/misc/kate/go.xml
+index 14d88b26a7..1e00cfcbf5 100644
+--- a/misc/kate/go.xml
++++ b/misc/kate/go.xml
+@@ -47,6 +47,7 @@
+       <item> byte </item>
+       <item> complex64 </item>
+       <item> complex128 </item>
++      <item> error </item>
+       <item> float32 </item>
+       <item> float64 </item>
+       <item> int </item>
+@@ -54,6 +55,7 @@
+       <item> int16 </item>
+       <item> int32 </item>
+       <item> int64 </item>
++      <item> rune </item>
+       <item> string </item>
+       <item> uint </item>
+       <item> uintptr </item>

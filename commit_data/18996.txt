@@ -41,7 +41,7 @@ Date:   Tue Apr 1 13:30:10 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/81670043
-
+---
  src/pkg/runtime/malloc.goc |  17 +++---
  src/pkg/runtime/malloc.h   |  11 +++-
  src/pkg/runtime/mgc0.c     |  17 ++++--
@@ -49,3 +49,375 @@ Date:   Tue Apr 1 13:30:10 2014 -0400
  src/pkg/runtime/mprof.goc  | 137 ++++++++++++++++++++++++---------------------
  src/pkg/runtime/stack.c    |   2 +-
  6 files changed, 103 insertions(+), 83 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 104b0f18c7..c463abb110 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -28,7 +28,7 @@ extern MStats mstats;	// defined in zruntime_def_$GOOS_$GOARCH.go
+ extern volatile intgo runtime·MemProfileRate;
+ 
+ static MSpan* largealloc(uint32, uintptr*);
+-static void profilealloc(void *v, uintptr size, uintptr typ);
++static void profilealloc(void *v, uintptr size);
+ static void settype(MSpan *s, void *v, uintptr typ);
+ 
+ // Allocate an object of at least size bytes.
+@@ -187,15 +187,13 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 		runtime·racemalloc(v, size);
+ 
+ 	if(runtime·debug.allocfreetrace)
+-		goto profile;
++		runtime·tracealloc(v, size, typ);
+ 
+ 	if(!(flag & FlagNoProfiling) && (rate = runtime·MemProfileRate) > 0) {
+ 		if(size < rate && size < c->next_sample)
+ 			c->next_sample -= size;
+-		else {
+-		profile:
+-			profilealloc(v, size, typ);
+-		}
++		else
++			profilealloc(v, size);
+ 	}
+ 
+ 	m->locks--;
+@@ -234,7 +232,7 @@ largealloc(uint32 flag, uintptr *sizep)
+ }
+ 
+ static void
+-profilealloc(void *v, uintptr size, uintptr typ)
++profilealloc(void *v, uintptr size)
+ {
+ 	uintptr rate;
+ 	int32 next;
+@@ -256,7 +254,7 @@ profilealloc(void *v, uintptr size, uintptr typ)
+ 			next = 0;
+ 		c->next_sample = next;
+ 	}
+-	runtime·MProf_Malloc(v, size, typ);
++	runtime·MProf_Malloc(v, size);
+ }
+ 
+ void*
+@@ -295,6 +293,9 @@ runtime·free(void *v)
+ 	if(size < TinySize)
+ 		runtime·throw("freeing too small block");
+ 
++	if(runtime·debug.allocfreetrace)
++		runtime·tracefree(v, size);
++
+ 	// Ensure that the span is swept.
+ 	// If we free into an unswept span, we will corrupt GC bitmaps.
+ 	runtime·MSpan_EnsureSwept(s);
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 30eccf26f7..4b9cbc9787 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -551,6 +551,9 @@ void	runtime·unmarkspan(void *v, uintptr size);
+ void	runtime·purgecachedstats(MCache*);
+ void*	runtime·cnew(Type*);
+ void*	runtime·cnewarray(Type*, intgo);
++void	runtime·tracealloc(void*, uintptr, uintptr);
++void	runtime·tracefree(void*, uintptr);
++void	runtime·tracegc(void);
+ 
+ uintptr	runtime·gettype(void*);
+ 
+@@ -564,10 +567,9 @@ enum
+ 	FlagNoInvokeGC	= 1<<4, // don't invoke GC
+ };
+ 
+-void	runtime·MProf_Malloc(void*, uintptr, uintptr);
+-void	runtime·MProf_Free(Bucket*, void*, uintptr, bool);
++void	runtime·MProf_Malloc(void*, uintptr);
++void	runtime·MProf_Free(Bucket*, uintptr, bool);
+ void	runtime·MProf_GC(void);
+-void	runtime·MProf_TraceGC(void);
+ int32	runtime·gcprocs(void);
+ void	runtime·helpgc(int32 nproc);
+ void	runtime·gchelper(void);
+@@ -632,3 +634,6 @@ void	runtime·gc_itab_ptr(Eface*);
+ 
+ void	runtime·memorydump(void);
+ int32	runtime·setgcpercent(int32);
++
++// Value we use to mark dead pointers when GODEBUG=gcdead=1.
++#define PoisonPtr ((uintptr)0x6969696969696969LL)
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 40106534c2..26382f4142 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1467,14 +1467,14 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
+ 			switch(bits) {
+ 			case BitsDead:
+ 				if(runtime·debug.gcdead)
+-					*(uintptr*)scanp = (uintptr)0x6969696969696969LL;
++					*(uintptr*)scanp = PoisonPtr;
+ 				break;
+ 			case BitsScalar:
+ 				break;
+ 			case BitsPointer:
+ 				p = *(byte**)scanp;
+ 				if(p != nil) {
+-					if(precise && p < (byte*)PageSize) {
++					if(precise && (p < (byte*)PageSize || (uintptr)p == PoisonPtr)) {
+ 						// Looks like a junk value in a pointer slot.
+ 						// Liveness analysis wrong?
+ 						m->traceback = 2;
+@@ -1844,6 +1844,9 @@ runtime·MSpan_Sweep(MSpan *s)
+ 			continue;
+ 		}
+ 
++		if(runtime·debug.allocfreetrace)
++			runtime·tracefree(p, size);
++
+ 		// Clear mark and scan bits.
+ 		*bitp &= ~((bitScan|bitMarked)<<shift);
+ 
+@@ -2060,6 +2063,7 @@ runtime·gchelper(void)
+ {
+ 	uint32 nproc;
+ 
++	m->traceback = 2;
+ 	gchelperstart();
+ 
+ 	// parallel mark for over gc roots
+@@ -2072,6 +2076,7 @@ runtime·gchelper(void)
+ 	nproc = work.nproc;  // work.nproc can change right after we increment work.ndone
+ 	if(runtime·xadd(&work.ndone, +1) == nproc-1)
+ 		runtime·notewakeup(&work.alldone);
++	m->traceback = 0;
+ }
+ 
+ static void
+@@ -2255,9 +2260,6 @@ runtime·gc(int32 force)
+ 	m->gcing = 1;
+ 	runtime·stoptheworld();
+ 	
+-	if(runtime·debug.allocfreetrace)
+-		runtime·MProf_TraceGC();
+-
+ 	clearpools();
+ 
+ 	// Run gc on the g0 stack.  We do this so that the g stack
+@@ -2307,6 +2309,10 @@ gc(struct gc_args *args)
+ 	uint32 i;
+ 	Eface eface;
+ 
++	if(runtime·debug.allocfreetrace)
++		runtime·tracegc();
++
++	m->traceback = 2;
+ 	t0 = args->start_time;
+ 	work.tstart = args->start_time; 
+ 
+@@ -2455,6 +2461,7 @@ gc(struct gc_args *args)
+ 		runtime·shrinkstack(runtime·allg[i]);
+ 
+ 	runtime·MProf_GC();
++	m->traceback = 0;
+ }
+ 
+ extern uintptr runtime·sizeof_C_MStats;
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 0cb7043f44..43bf106592 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -795,7 +795,7 @@ runtime·freespecial(Special *s, void *p, uintptr size, bool freed)
+ 		return false; // don't free p until finalizer is done
+ 	case KindSpecialProfile:
+ 		sp = (SpecialProfile*)s;
+-		runtime·MProf_Free(sp->b, p, size, freed);
++		runtime·MProf_Free(sp->b, size, freed);
+ 		runtime·lock(&runtime·mheap.speciallock);
+ 		runtime·FixAlloc_Free(&runtime·mheap.specialprofilealloc, sp);
+ 		runtime·unlock(&runtime·mheap.speciallock);
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index a82afe9e18..a1659a7b42 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -169,75 +169,16 @@ runtime·MProf_GC(void)
+ 	runtime·unlock(&proflock);
+ }
+ 
+-static int8*
+-typeinfoname(int32 typeinfo)
+-{
+-	if(typeinfo == TypeInfo_SingleObject)
+-		return "single object";
+-	else if(typeinfo == TypeInfo_Array)
+-		return "array";
+-	else if(typeinfo == TypeInfo_Chan)
+-		return "channel";
+-	runtime·throw("typinfoname: unknown type info");
+-	return nil;
+-}
+-
+-static void
+-printstackframes(uintptr *stk, int32 nstk)
+-{
+-	String file;
+-	Func *f;
+-	int8 *name;
+-	uintptr pc;
+-	int32 frame;
+-	int32 line;
+-
+-	for(frame = 0; frame < nstk; frame++) {
+-		pc = stk[frame];
+-		f = runtime·findfunc(pc);
+-		if(f != nil) {
+-			name = runtime·funcname(f);
+-			line = runtime·funcline(f, pc, &file);
+-			runtime·printf("\t#%d %p %s %S:%d\n", frame, pc, name, file, line);
+-		} else {
+-			runtime·printf("\t#%d %p\n", frame, pc);
+-		}
+-	}
+-}
+-
+-// Called by collector to report a gc in allocfreetrace mode.
+-void
+-runtime·MProf_TraceGC(void)
+-{
+-	uintptr stk[32];
+-	int32 nstk;
+-
+-	nstk = runtime·callers(1, stk, nelem(stk));
+-	runtime·printf("MProf_TraceGC\n");
+-	printstackframes(stk, nstk);
+-}
+-
+ // Called by malloc to record a profiled block.
+ void
+-runtime·MProf_Malloc(void *p, uintptr size, uintptr typ)
++runtime·MProf_Malloc(void *p, uintptr size)
+ {
+ 	uintptr stk[32];
+ 	Bucket *b;
+-	Type *type;
+-	int8 *name;
+ 	int32 nstk;
+ 
+ 	nstk = runtime·callers(1, stk, nelem(stk));
+ 	runtime·lock(&proflock);
+-	if(runtime·debug.allocfreetrace) {
+-		type = (Type*)(typ & ~3);
+-		name = typeinfoname(typ & 3);
+-		runtime·printf("MProf_Malloc(p=%p, size=%p, type=%p <%s", p, size, type, name);
+-		if(type != nil)
+-			runtime·printf(" of %S", *type->string);
+-		runtime·printf(">)\n");
+-		printstackframes(stk, nstk);
+-	}
+ 	b = stkbucket(MProf, size, stk, nstk, true);
+ 	b->recent_allocs++;
+ 	b->recent_alloc_bytes += size;
+@@ -252,7 +193,7 @@ runtime·MProf_Malloc(void *p, uintptr size, uintptr typ)
+ 
+ // Called when freeing a profiled block.
+ void
+-runtime·MProf_Free(Bucket *b, void *p, uintptr size, bool freed)
++runtime·MProf_Free(Bucket *b, uintptr size, bool freed)
+ {
+ 	runtime·lock(&proflock);
+ 	if(freed) {
+@@ -262,10 +203,6 @@ runtime·MProf_Free(Bucket *b, void *p, uintptr size, bool freed)
+ 		b->prev_frees++;
+ 		b->prev_free_bytes += size;
+ 	}
+-	if(runtime·debug.allocfreetrace) {
+-		runtime·printf("MProf_Free(p=%p, size=%p)\n", p, size);
+-		printstackframes(b->stk, b->nstk);
+-	}
+ 	runtime·unlock(&proflock);
+ }
+ 
+@@ -506,3 +443,73 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
+ 		runtime·starttheworld();
+ 	}
+ }
++
++// Tracing of alloc/free/gc.
++
++static Lock tracelock;
++
++static int8*
++typeinfoname(int32 typeinfo)
++{
++	if(typeinfo == TypeInfo_SingleObject)
++		return "single object";
++	else if(typeinfo == TypeInfo_Array)
++		return "array";
++	else if(typeinfo == TypeInfo_Chan)
++		return "channel";
++	runtime·throw("typinfoname: unknown type info");
++	return nil;
++}
++
++void
++runtime·tracealloc(void *p, uintptr size, uintptr typ)
++{
++	int8 *name;
++	Type *type;
++
++	runtime·lock(&tracelock);
++	m->traceback = 2;
++	type = (Type*)(typ & ~3);
++	name = typeinfoname(typ & 3);
++	if(type == nil)
++		runtime·printf("tracealloc(%p, %p, %s)\n", p, size, name);
++	else	
++		runtime·printf("tracealloc(%p, %p, %s of %S)\n", p, size, name, *type->string);
++	if(m->curg == nil || g == m->curg) {
++		runtime·goroutineheader(g);
++		runtime·traceback((uintptr)runtime·getcallerpc(&p), (uintptr)runtime·getcallersp(&p), 0, g);
++	} else {
++		runtime·goroutineheader(m->curg);
++		runtime·traceback(~(uintptr)0, ~(uintptr)0, 0, m->curg);
++	}
++	runtime·printf("\n");
++	m->traceback = 0;
++	runtime·unlock(&tracelock);
++}
++
++void
++runtime·tracefree(void *p, uintptr size)
++{
++	runtime·lock(&tracelock);
++	m->traceback = 2;
++	runtime·printf("tracefree(%p, %p)\n", p, size);
++	runtime·goroutineheader(g);
++	runtime·traceback((uintptr)runtime·getcallerpc(&p), (uintptr)runtime·getcallersp(&p), 0, g);
++	runtime·printf("\n");
++	m->traceback = 0;
++	runtime·unlock(&tracelock);
++}
++
++void
++runtime·tracegc(void)
++{
++	runtime·lock(&tracelock);
++	m->traceback = 2;
++	runtime·printf("tracegc()\n");
++	// running on m->g0 stack; show all non-g0 goroutines
++	runtime·tracebackothers(g);
++	runtime·printf("end tracegc\n");
++	runtime·printf("\n");
++	m->traceback = 0;
++	runtime·unlock(&tracelock);
++}
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 27543a5778..cdd4eaf22b 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -362,7 +362,7 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
+ 			break;
+ 		case BitsPointer:
+ 			p = scanp[i];
+-			if(f != nil && (byte*)0 < p && p < (byte*)PageSize) {
++			if(f != nil && (byte*)0 < p && (p < (byte*)PageSize || (uintptr)p == PoisonPtr)) {
+ 				// Looks like a junk value in a pointer slot.
+ 				// Live analysis wrong?
+ 				m->traceback = 2;

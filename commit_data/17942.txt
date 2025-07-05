@@ -9,8 +9,51 @@ Date:   Mon Dec 9 17:51:30 2013 -0800
     R=golang-dev, r, cshapiro, iant, rsc
     CC=golang-dev
     https://golang.org/cl/38120043
-
+---
  src/pkg/runtime/print.c      |  5 ++++-
  test/fixedbugs/issue6899.go  | 13 +++++++++++++
  test/fixedbugs/issue6899.out |  1 +
  3 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index 8de3ae4fa1..edb5a1c2ee 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -236,7 +236,10 @@ runtime·printfloat(float64 v)
+ 	n = 7;	// digits printed
+ 	e = 0;	// exp
+ 	s = 0;	// sign
+-	if(v != 0) {
++	if(v == 0) {
++		if(1/v == runtime·neginf)
++			s = 1;
++	} else {
+ 		// sign
+ 		if(v < 0) {
+ 			v = -v;
+diff --git a/test/fixedbugs/issue6899.go b/test/fixedbugs/issue6899.go
+new file mode 100644
+index 0000000000..a693bf2850
+--- /dev/null
++++ b/test/fixedbugs/issue6899.go
+@@ -0,0 +1,13 @@
++// cmpout
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "math"
++
++func main() {
++	println(math.Copysign(0, -1))
++}
+diff --git a/test/fixedbugs/issue6899.out b/test/fixedbugs/issue6899.out
+new file mode 100644
+index 0000000000..e2375f0776
+--- /dev/null
++++ b/test/fixedbugs/issue6899.out
+@@ -0,0 +1 @@
++-0.000000e+000

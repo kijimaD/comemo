@@ -15,7 +15,7 @@ Date:   Thu Sep 10 15:57:39 2015 +1000
     Change-Id: Ifd73501e06e8ea5efd028b6d473b3e5d1b07a5ac
     Reviewed-on: https://go-review.googlesource.com/14570
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go     |  2 +-
  src/cmd/compile/internal/gc/go.go      |  2 +-
  src/cmd/compile/internal/gc/lex.go     |  6 +++---
@@ -23,3 +23,163 @@ Date:   Thu Sep 10 15:57:39 2015 +1000
  src/cmd/compile/internal/gc/reflect.go |  3 +--
  src/cmd/compile/internal/gc/subr.go    | 39 +++++++++++++++++-----------------
  6 files changed, 29 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 92b09e62b3..83cc3e4e20 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -182,7 +182,7 @@ func declare(n *Node, ctxt uint8) {
+ 
+ 	gen := 0
+ 	if ctxt == PEXTERN {
+-		externdcl = list(externdcl, n)
++		externdcl = append(externdcl, n)
+ 		if dflag() {
+ 			fmt.Printf("\t%v global decl %v %p\n", Ctxt.Line(int(lineno)), s, n)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 91c2d76958..5d7c3d63f1 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -584,7 +584,7 @@ var maxfltval [NTYPE]*Mpflt
+ 
+ var xtop *NodeList
+ 
+-var externdcl *NodeList
++var externdcl []*Node
+ 
+ var exportlist []*Node
+ 
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 2fe96b7980..3f27e61823 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -464,9 +464,9 @@ func Main() {
+ 	}
+ 
+ 	// Phase 9: Check external declarations.
+-	for l := externdcl; l != nil; l = l.Next {
+-		if l.N.Op == ONAME {
+-			typecheck(&l.N, Erv)
++	for i, n := range externdcl {
++		if n.Op == ONAME {
++			typecheck(&externdcl[i], Erv)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 484c776b55..699ccdea05 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -72,10 +72,7 @@ func dumpobj() {
+ 
+ 	fmt.Fprintf(bout, "\n!\n")
+ 
+-	var externs *NodeList
+-	if externdcl != nil {
+-		externs = externdcl.End
+-	}
++	externs := len(externdcl)
+ 
+ 	dumpglobls()
+ 	dumptypestructs()
+@@ -83,8 +80,8 @@ func dumpobj() {
+ 	// Dump extra globals.
+ 	tmp := externdcl
+ 
+-	if externs != nil {
+-		externdcl = externs.Next
++	if externdcl != nil {
++		externdcl = externdcl[externs:]
+ 	}
+ 	dumpglobls()
+ 	externdcl = tmp
+@@ -110,8 +107,7 @@ func dumpglobls() {
+ 	var n *Node
+ 
+ 	// add globals
+-	for l := externdcl; l != nil; l = l.Next {
+-		n = l.N
++	for _, n := range externdcl {
+ 		if n.Op != ONAME {
+ 			continue
+ 		}
+@@ -126,7 +122,6 @@ func dumpglobls() {
+ 			continue
+ 		}
+ 		dowidth(n.Type)
+-
+ 		ggloblnod(n)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 3e69056737..baac7f71cb 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1317,8 +1317,7 @@ func dumptypestructs() {
+ 	var n *Node
+ 
+ 	// copy types from externdcl list to signatlist
+-	for l := externdcl; l != nil; l = l.Next {
+-		n = l.N
++	for _, n := range externdcl {
+ 		if n.Op != OTYPE {
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 18ca5a336d..d2d51a0366 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1584,33 +1584,32 @@ func Ptrto(t *Type) *Type {
+ }
+ 
+ func frame(context int) {
+-	var l *NodeList
+-
+ 	if context != 0 {
+ 		fmt.Printf("--- external frame ---\n")
+-		l = externdcl
+-	} else if Curfn != nil {
+-		fmt.Printf("--- %v frame ---\n", Curfn.Func.Nname.Sym)
+-		l = Curfn.Func.Dcl
+-	} else {
++		for _, n := range externdcl {
++			printframenode(n)
++		}
+ 		return
+ 	}
+ 
+-	var n *Node
+-	var w int64
+-	for ; l != nil; l = l.Next {
+-		n = l.N
+-		w = -1
+-		if n.Type != nil {
+-			w = n.Type.Width
++	if Curfn != nil {
++		fmt.Printf("--- %v frame ---\n", Curfn.Func.Nname.Sym)
++		for l := Curfn.Func.Dcl; l != nil; l = l.Next {
++			printframenode(l.N)
+ 		}
+-		switch n.Op {
+-		case ONAME:
+-			fmt.Printf("%v %v G%d %v width=%d\n", Oconv(int(n.Op), 0), n.Sym, n.Name.Vargen, n.Type, w)
++	}
++}
+ 
+-		case OTYPE:
+-			fmt.Printf("%v %v width=%d\n", Oconv(int(n.Op), 0), n.Type, w)
+-		}
++func printframenode(n *Node) {
++	w := int64(-1)
++	if n.Type != nil {
++		w = n.Type.Width
++	}
++	switch n.Op {
++	case ONAME:
++		fmt.Printf("%v %v G%d %v width=%d\n", Oconv(int(n.Op), 0), n.Sym, n.Name.Vargen, n.Type, w)
++	case OTYPE:
++		fmt.Printf("%v %v width=%d\n", Oconv(int(n.Op), 0), n.Type, w)
+ 	}
+ }
+ 

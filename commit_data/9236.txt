@@ -7,6 +7,28 @@ Date:   Thu Jul 28 12:32:43 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4808057
-
+---
  test/fixedbugs/bug361.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/test/fixedbugs/bug361.go b/test/fixedbugs/bug361.go
+new file mode 100644
+index 0000000000..d2a64bcef4
+--- /dev/null
++++ b/test/fixedbugs/bug361.go
+@@ -0,0 +1,15 @@
++// $G $D/$F.go || echo BUG: bug360
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 1908
++// unreasonable width used to be internal fatal error
++
++package test
++
++func main() {
++	buf := [1<<30]byte{}
++	_ = buf[:]
++}

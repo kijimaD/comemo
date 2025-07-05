@@ -10,6 +10,19 @@ Date:   Fri May 23 12:29:29 2014 +1000
     R=golang-codereviews, iant, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/92340043
-
+---
  src/pkg/os/doc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/os/doc.go b/src/pkg/os/doc.go
+index bc700b6b45..389a8eb14c 100644
+--- a/src/pkg/os/doc.go
++++ b/src/pkg/os/doc.go
+@@ -46,6 +46,7 @@ func (p *Process) Wait() (*ProcessState, error) {
+ }
+ 
+ // Signal sends a signal to the Process.
++// Sending Interrupt on Windows is not implemented.
+ func (p *Process) Signal(sig Signal) error {
+ 	return p.signal(sig)
+ }

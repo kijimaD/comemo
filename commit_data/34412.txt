@@ -14,10 +14,207 @@ Date:   Wed Oct 18 11:15:04 2017 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/rawconn.go              | 16 +++++++++++++
  src/net/rawconn_unix_test.go    | 50 ++++++++++++++++++++++++++++++++++++++
  src/net/rawconn_windows_test.go | 53 +++++++++++++++++++++++++++++++++++++++++
  src/net/tcpsock.go              | 12 ++++++++++
  src/net/unixsock.go             | 12 ++++++++++
  5 files changed, 143 insertions(+)
+
+diff --git a/src/net/rawconn.go b/src/net/rawconn.go
+index d67be644a3..2399c9f31d 100644
+--- a/src/net/rawconn.go
++++ b/src/net/rawconn.go
+@@ -60,3 +60,19 @@ func (c *rawConn) Write(f func(uintptr) bool) error {
+ func newRawConn(fd *netFD) (*rawConn, error) {
+ 	return &rawConn{fd: fd}, nil
+ }
++
++type rawListener struct {
++	rawConn
++}
++
++func (l *rawListener) Read(func(uintptr) bool) error {
++	return syscall.EINVAL
++}
++
++func (l *rawListener) Write(func(uintptr) bool) error {
++	return syscall.EINVAL
++}
++
++func newRawListener(fd *netFD) (*rawListener, error) {
++	return &rawListener{rawConn{fd: fd}}, nil
++}
+diff --git a/src/net/rawconn_unix_test.go b/src/net/rawconn_unix_test.go
+index 294249ba5d..913ad86595 100644
+--- a/src/net/rawconn_unix_test.go
++++ b/src/net/rawconn_unix_test.go
+@@ -92,3 +92,53 @@ func TestRawConn(t *testing.T) {
+ 		t.Fatal("should fail")
+ 	}
+ }
++
++func TestRawConnListener(t *testing.T) {
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ln.Close()
++
++	cc, err := ln.(*TCPListener).SyscallConn()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	called := false
++	op := func(uintptr) bool {
++		called = true
++		return true
++	}
++
++	err = cc.Write(op)
++	if err == nil {
++		t.Error("Write should return an error")
++	}
++	if called {
++		t.Error("Write shouldn't call op")
++	}
++
++	called = false
++	err = cc.Read(op)
++	if err == nil {
++		t.Error("Read should return an error")
++	}
++	if called {
++		t.Error("Read shouldn't call op")
++	}
++
++	var operr error
++	fn := func(s uintptr) {
++		_, operr = syscall.GetsockoptInt(int(s), syscall.SOL_SOCKET, syscall.SO_REUSEADDR)
++	}
++	err = cc.Control(fn)
++	if err != nil || operr != nil {
++		t.Fatal(err, operr)
++	}
++	ln.Close()
++	err = cc.Control(fn)
++	if err == nil {
++		t.Fatal("Control after Close should fail")
++	}
++}
+diff --git a/src/net/rawconn_windows_test.go b/src/net/rawconn_windows_test.go
+index 5fb6de7539..2ee12c3596 100644
+--- a/src/net/rawconn_windows_test.go
++++ b/src/net/rawconn_windows_test.go
+@@ -7,6 +7,7 @@ package net
+ import (
+ 	"syscall"
+ 	"testing"
++	"unsafe"
+ )
+ 
+ func TestRawConn(t *testing.T) {
+@@ -34,3 +35,55 @@ func TestRawConn(t *testing.T) {
+ 		t.Fatal("should fail")
+ 	}
+ }
++
++func TestRawConnListener(t *testing.T) {
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ln.Close()
++
++	cc, err := ln.(*TCPListener).SyscallConn()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	called := false
++	op := func(uintptr) bool {
++		called = true
++		return true
++	}
++
++	err = cc.Write(op)
++	if err == nil {
++		t.Error("Write should return an error")
++	}
++	if called {
++		t.Error("Write shouldn't call op")
++	}
++
++	called = false
++	err = cc.Read(op)
++	if err == nil {
++		t.Error("Read should return an error")
++	}
++	if called {
++		t.Error("Read shouldn't call op")
++	}
++
++	var operr error
++	fn := func(s uintptr) {
++		var v, l int32
++		l = int32(unsafe.Sizeof(v))
++		operr = syscall.Getsockopt(syscall.Handle(s), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, (*byte)(unsafe.Pointer(&v)), &l)
++	}
++	err = cc.Control(fn)
++	if err != nil || operr != nil {
++		t.Fatal(err, operr)
++	}
++	ln.Close()
++	err = cc.Control(fn)
++	if err == nil {
++		t.Fatal("Control after Close should fail")
++	}
++}
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index e957aa3005..9528140b94 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -225,6 +225,18 @@ type TCPListener struct {
+ 	fd *netFD
+ }
+ 
++// SyscallConn returns a raw network connection.
++// This implements the syscall.Conn interface.
++//
++// The returned RawConn only supports calling Control. Read and
++// Write return an error.
++func (l *TCPListener) SyscallConn() (syscall.RawConn, error) {
++	if !l.ok() {
++		return nil, syscall.EINVAL
++	}
++	return newRawListener(l.fd)
++}
++
+ // AcceptTCP accepts the next incoming call and returns the new
+ // connection.
+ func (l *TCPListener) AcceptTCP() (*TCPConn, error) {
+diff --git a/src/net/unixsock.go b/src/net/unixsock.go
+index 057940acf6..20326dabea 100644
+--- a/src/net/unixsock.go
++++ b/src/net/unixsock.go
+@@ -219,6 +219,18 @@ type UnixListener struct {
+ 
+ func (ln *UnixListener) ok() bool { return ln != nil && ln.fd != nil }
+ 
++// SyscallConn returns a raw network connection.
++// This implements the syscall.Conn interface.
++//
++// The returned RawConn only supports calling Control. Read and
++// Write return an error.
++func (l *UnixListener) SyscallConn() (syscall.RawConn, error) {
++	if !l.ok() {
++		return nil, syscall.EINVAL
++	}
++	return newRawListener(l.fd)
++}
++
+ // AcceptUnix accepts the next incoming call and returns the new
+ // connection.
+ func (l *UnixListener) AcceptUnix() (*UnixConn, error) {

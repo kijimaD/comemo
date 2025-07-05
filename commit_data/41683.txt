@@ -21,7 +21,7 @@ Date:   Mon Oct 21 14:02:18 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/go.mod                                            |  2 +-
  src/go.sum                                            |  4 ++--
  src/net/interface_test.go                             |  3 ---
@@ -36,3 +36,219 @@ Date:   Mon Oct 21 14:02:18 2019 +0200
  src/vendor/golang.org/x/net/route/zsys_dragonfly.go   |  4 ++--
  src/vendor/modules.txt                                |  2 +-
  13 files changed, 28 insertions(+), 16 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index 8d8c89b5fb..984ec1e572 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.14
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
+-	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
++	golang.org/x/net v0.0.0-20191021124707-24d2ffbea1e8
+ 	golang.org/x/sys v0.0.0-20190529130038-5219a1e1c5f8 // indirect
+ 	golang.org/x/text v0.3.2 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index e358118e4c..89a846d79d 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -2,8 +2,8 @@ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACk
+ golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8 h1:1wopBVtVdWnn03fZelqdXTqk7U7zPQCb+T4rbU9ZEoU=
+ golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+-golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7 h1:fHDIZ2oxGnUZRN6WgWFCbYBjH9uqVPRCUVUDhs0wnbA=
+-golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
++golang.org/x/net v0.0.0-20191021124707-24d2ffbea1e8 h1:L4W1teiyF4Jl6VuapLNV/LYho36udiBQsfbNu7eRMeo=
++golang.org/x/net v0.0.0-20191021124707-24d2ffbea1e8/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20190529130038-5219a1e1c5f8 h1:2WjIC11WRITGlVWmyLXKjzIVj1ZwoWZ//tadeUUV6/o=
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index 4163fa9d9a..7379a8ffb3 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -8,7 +8,6 @@ package net
+ 
+ import (
+ 	"fmt"
+-	"internal/testenv"
+ 	"reflect"
+ 	"runtime"
+ 	"testing"
+@@ -58,8 +57,6 @@ func condSkipInterfaceTest(t *testing.T) {
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+ 			t.Skipf("sysctl is not supported on iOS")
+ 		}
+-	case "dragonfly":
+-		testenv.SkipFlaky(t, 34368)
+ 	}
+ }
+ 
+diff --git a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+index 13fbc0814e..82bcdcc838 100644
+--- a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
++++ b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+@@ -1660,7 +1660,7 @@ func (h *ResourceHeader) fixLen(msg []byte, lenOff int, preLen int) error {
+ 	return nil
+ }
+ 
+-// EDNS(0) wire costants.
++// EDNS(0) wire constants.
+ const (
+ 	edns0Version = 0
+ 
+diff --git a/src/vendor/golang.org/x/net/http2/hpack/encode.go b/src/vendor/golang.org/x/net/http2/hpack/encode.go
+index 1565cf2702..97f17831fc 100644
+--- a/src/vendor/golang.org/x/net/http2/hpack/encode.go
++++ b/src/vendor/golang.org/x/net/http2/hpack/encode.go
+@@ -150,7 +150,7 @@ func appendIndexed(dst []byte, i uint64) []byte {
+ // extended buffer.
+ //
+ // If f.Sensitive is true, "Never Indexed" representation is used. If
+-// f.Sensitive is false and indexing is true, "Inremental Indexing"
++// f.Sensitive is false and indexing is true, "Incremental Indexing"
+ // representation is used.
+ func appendNewName(dst []byte, f HeaderField, indexing bool) []byte {
+ 	dst = append(dst, encodeTypeByte(indexing, f.Sensitive))
+diff --git a/src/vendor/golang.org/x/net/route/address.go b/src/vendor/golang.org/x/net/route/address.go
+index e6bfa39e93..b71528191f 100644
+--- a/src/vendor/golang.org/x/net/route/address.go
++++ b/src/vendor/golang.org/x/net/route/address.go
+@@ -222,7 +222,7 @@ func parseKernelInetAddr(af int, b []byte) (int, Addr, error) {
+ 	//   the routing message boundary
+ 	l := int(b[0])
+ 	if runtime.GOOS == "darwin" {
+-		// On Darwn, an address in the kernel form is also
++		// On Darwin, an address in the kernel form is also
+ 		// used as a message filler.
+ 		if l == 0 || len(b) > roundup(l) {
+ 			l = roundup(l)
+diff --git a/src/vendor/golang.org/x/net/route/message.go b/src/vendor/golang.org/x/net/route/message.go
+index 0fa7e09f46..80c482ae94 100644
+--- a/src/vendor/golang.org/x/net/route/message.go
++++ b/src/vendor/golang.org/x/net/route/message.go
+@@ -45,7 +45,7 @@ func ParseRIB(typ RIBType, b []byte) ([]Message, error) {
+ 		if len(b) < l {
+ 			return nil, errMessageTooShort
+ 		}
+-		if b[2] != sysRTM_VERSION {
++		if b[2] != rtmVersion {
+ 			b = b[l:]
+ 			continue
+ 		}
+diff --git a/src/vendor/golang.org/x/net/route/route.go b/src/vendor/golang.org/x/net/route/route.go
+index 8cb64f789b..bba7ed7ef4 100644
+--- a/src/vendor/golang.org/x/net/route/route.go
++++ b/src/vendor/golang.org/x/net/route/route.go
+@@ -73,7 +73,7 @@ type RouteMessage struct {
+ 	Version int     // message version
+ 	Type    int     // message type
+ 	Flags   int     // route flags
+-	Index   int     // interface index when atatched
++	Index   int     // interface index when attached
+ 	ID      uintptr // sender's identifier; usually process ID
+ 	Seq     int     // sequence number
+ 	Err     error   // error on requested operation
+diff --git a/src/vendor/golang.org/x/net/route/route_classic.go b/src/vendor/golang.org/x/net/route/route_classic.go
+index 02fa688309..a7d3864646 100644
+--- a/src/vendor/golang.org/x/net/route/route_classic.go
++++ b/src/vendor/golang.org/x/net/route/route_classic.go
+@@ -25,7 +25,7 @@ func (m *RouteMessage) marshal() ([]byte, error) {
+ 	b := make([]byte, l)
+ 	nativeEndian.PutUint16(b[:2], uint16(l))
+ 	if m.Version == 0 {
+-		b[2] = sysRTM_VERSION
++		b[2] = rtmVersion
+ 	} else {
+ 		b[2] = byte(m.Version)
+ 	}
+diff --git a/src/vendor/golang.org/x/net/route/sys.go b/src/vendor/golang.org/x/net/route/sys.go
+index 13933f9af7..a0ab3e9c73 100644
+--- a/src/vendor/golang.org/x/net/route/sys.go
++++ b/src/vendor/golang.org/x/net/route/sys.go
+@@ -11,6 +11,7 @@ import "unsafe"
+ var (
+ 	nativeEndian binaryByteOrder
+ 	kernelAlign  int
++	rtmVersion   byte
+ 	wireFormats  map[int]*wireFormat
+ )
+ 
+@@ -22,6 +23,8 @@ func init() {
+ 	} else {
+ 		nativeEndian = bigEndian
+ 	}
++	// might get overridden in probeRoutingStack
++	rtmVersion = sysRTM_VERSION
+ 	kernelAlign, wireFormats = probeRoutingStack()
+ }
+ 
+diff --git a/src/vendor/golang.org/x/net/route/sys_dragonfly.go b/src/vendor/golang.org/x/net/route/sys_dragonfly.go
+index 0c14bc2b4d..a138951f94 100644
+--- a/src/vendor/golang.org/x/net/route/sys_dragonfly.go
++++ b/src/vendor/golang.org/x/net/route/sys_dragonfly.go
+@@ -4,7 +4,10 @@
+ 
+ package route
+ 
+-import "unsafe"
++import (
++	"syscall"
++	"unsafe"
++)
+ 
+ func (typ RIBType) parseable() bool { return true }
+ 
+@@ -56,6 +59,15 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
+ 	ifmam.parse = ifmam.parseInterfaceMulticastAddrMessage
+ 	ifanm := &wireFormat{extOff: sizeofIfAnnouncemsghdrDragonFlyBSD4, bodyOff: sizeofIfAnnouncemsghdrDragonFlyBSD4}
+ 	ifanm.parse = ifanm.parseInterfaceAnnounceMessage
++
++	rel, _ := syscall.SysctlUint32("kern.osreldate")
++	if rel >= 500705 {
++		// https://github.com/DragonFlyBSD/DragonFlyBSD/commit/43a373152df2d405c9940983e584e6a25e76632d
++		// but only the size of struct ifa_msghdr actually changed
++		rtmVersion = 7
++		ifam.bodyOff = sizeofIfaMsghdrDragonFlyBSD58
++	}
++
+ 	return int(unsafe.Sizeof(p)), map[int]*wireFormat{
+ 		sysRTM_ADD:        rtm,
+ 		sysRTM_DELETE:     rtm,
+diff --git a/src/vendor/golang.org/x/net/route/zsys_dragonfly.go b/src/vendor/golang.org/x/net/route/zsys_dragonfly.go
+index 8ed2d4d550..34f0eaaa42 100644
+--- a/src/vendor/golang.org/x/net/route/zsys_dragonfly.go
++++ b/src/vendor/golang.org/x/net/route/zsys_dragonfly.go
+@@ -46,8 +46,6 @@ const (
+ 	sysRTM_REDIRECT   = 0x6
+ 	sysRTM_MISS       = 0x7
+ 	sysRTM_LOCK       = 0x8
+-	sysRTM_OLDADD     = 0x9
+-	sysRTM_OLDDEL     = 0xa
+ 	sysRTM_RESOLVE    = 0xb
+ 	sysRTM_NEWADDR    = 0xc
+ 	sysRTM_DELADDR    = 0xd
+@@ -89,6 +87,8 @@ const (
+ 	sizeofIfmaMsghdrDragonFlyBSD4       = 0x10
+ 	sizeofIfAnnouncemsghdrDragonFlyBSD4 = 0x18
+ 
++	sizeofIfaMsghdrDragonFlyBSD58 = 0x18
++
+ 	sizeofRtMsghdrDragonFlyBSD4  = 0x98
+ 	sizeofRtMetricsDragonFlyBSD4 = 0x70
+ 
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index c0f37845b0..f91341daca 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -8,7 +8,7 @@ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/chacha20
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+-# golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
++# golang.org/x/net v0.0.0-20191021124707-24d2ffbea1e8
+ ## explicit
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

@@ -17,7 +17,7 @@ Date:   Tue Oct 19 09:09:55 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Koichi Shiraishi <zchee.io@gmail.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go           |   7 +-
  src/cmd/compile/internal/amd64/versions_test.go |  27 +--
  src/cmd/compile/internal/ssa/gen/AMD64.rules    |  26 ---
@@ -26,3 +26,635 @@ Date:   Tue Oct 19 09:09:55 2021 +0000
  src/cmd/compile/internal/ssa/rewriteAMD64.go    | 243 ------------------------
  test/codegen/memcombine.go                      |  36 ++--
  7 files changed, 20 insertions(+), 389 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index b0e5c34030..0e74574422 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -772,9 +772,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x
+-	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload, ssa.OpAMD64MOVOload,
+-		ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVWQSXload, ssa.OpAMD64MOVLQSXload,
+-		ssa.OpAMD64MOVBEQload, ssa.OpAMD64MOVBELload:
++	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload, ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVWQSXload, ssa.OpAMD64MOVLQSXload, ssa.OpAMD64MOVOload:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = v.Args[0].Reg()
+@@ -790,8 +788,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVSSstore, ssa.OpAMD64MOVSDstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore, ssa.OpAMD64MOVOstore,
+ 		ssa.OpAMD64ADDQmodify, ssa.OpAMD64SUBQmodify, ssa.OpAMD64ANDQmodify, ssa.OpAMD64ORQmodify, ssa.OpAMD64XORQmodify,
+-		ssa.OpAMD64ADDLmodify, ssa.OpAMD64SUBLmodify, ssa.OpAMD64ANDLmodify, ssa.OpAMD64ORLmodify, ssa.OpAMD64XORLmodify,
+-		ssa.OpAMD64MOVBEQstore, ssa.OpAMD64MOVBELstore:
++		ssa.OpAMD64ADDLmodify, ssa.OpAMD64SUBLmodify, ssa.OpAMD64ANDLmodify, ssa.OpAMD64ORLmodify, ssa.OpAMD64XORLmodify:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[1].Reg()
+diff --git a/src/cmd/compile/internal/amd64/versions_test.go b/src/cmd/compile/internal/amd64/versions_test.go
+index ee1a8ca3aa..de677f3a69 100644
+--- a/src/cmd/compile/internal/amd64/versions_test.go
++++ b/src/cmd/compile/internal/amd64/versions_test.go
+@@ -53,9 +53,7 @@ func TestGoAMD64v1(t *testing.T) {
+ 	opcodes := map[string]bool{}
+ 	var features []string
+ 	for feature, opcodeList := range featureToOpcodes {
+-		if runtimeFeatures[feature] {
+-			features = append(features, fmt.Sprintf("cpu.%s=off", feature))
+-		}
++		features = append(features, fmt.Sprintf("cpu.%s=off", feature))
+ 		for _, op := range opcodeList {
+ 			opcodes[op] = true
+ 		}
+@@ -206,28 +204,14 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
+ 	f.Close()
+ }
+ 
+-func setOf(keys ...string) map[string]bool {
+-	m := make(map[string]bool, len(keys))
+-	for _, key := range keys {
+-		m[key] = true
+-	}
+-	return m
+-}
+-
+-var runtimeFeatures = setOf(
+-	"adx", "aes", "avx", "avx2", "bmi1", "bmi2", "erms", "fma",
+-	"pclmulqdq", "popcnt", "rdtscp", "sse3", "sse41", "sse42", "ssse3",
+-)
+-
+ var featureToOpcodes = map[string][]string{
+ 	// Note: we include *q, *l, and plain opcodes here.
+ 	// go tool objdump doesn't include a [QL] on popcnt instructions, until CL 351889
+ 	// native objdump doesn't include [QL] on linux.
+-	"popcnt": {"popcntq", "popcntl", "popcnt"},
+-	"bmi1":   {"andnq", "andnl", "andn", "blsiq", "blsil", "blsi", "blsmskq", "blsmskl", "blsmsk", "blsrq", "blsrl", "blsr", "tzcntq", "tzcntl", "tzcnt"},
+-	"sse41":  {"roundsd"},
+-	"fma":    {"vfmadd231sd"},
+-	"movbe":  {"movbeqq", "movbeq", "movbell", "movbel", "movbe"},
++	"popcnt": []string{"popcntq", "popcntl", "popcnt"},
++	"bmi1":   []string{"andnq", "andnl", "andn", "blsiq", "blsil", "blsi", "blsmskq", "blsmskl", "blsmsk", "blsrq", "blsrl", "blsr", "tzcntq", "tzcntl", "tzcnt"},
++	"sse41":  []string{"roundsd"},
++	"fma":    []string{"vfmadd231sd"},
+ }
+ 
+ // Test to use POPCNT instruction, if available
+@@ -380,4 +364,5 @@ func TestFMA(t *testing.T) {
+ 			t.Errorf("FMA(%f,%f,%f) = %f, want %f", tt.x, tt.y, tt.z, got, tt.want)
+ 		}
+ 	}
++
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 507d701999..8b73ee14ea 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -2219,29 +2219,3 @@
+ (AND(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSR(Q|L) x)
+ 
+ (BSWAP(Q|L) (BSWAP(Q|L) p)) => p
+-
+-// CPUID feature: MOVBE.
+-(MOV(Q|L)store [i] {s} p x:(BSWAP(Q|L) w) mem) && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBE(Q|L)store [i] {s} p w mem)
+-(BSWAP(Q|L) x:(MOV(Q|L)load [i] {s} p mem))    && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBE(Q|L)load [i] {s} p mem)
+-(BSWAP(Q|L) (MOVBE(Q|L)load [i] {s} p m))    => (MOV(Q|L)load [i] {s} p m)
+-(MOVBE(Q|L)store [i] {s} p (BSWAP(Q|L) x) m) => (MOV(Q|L)store [i] {s} p x m)
+-
+-(ORQ                   x0:(MOVBELload [i0] {s} p mem)
+-    sh:(SHLQconst [32] x1:(MOVBELload [i1] {s} p mem)))
+-  && i0 == i1+4
+-  && x0.Uses == 1
+-  && x1.Uses == 1
+-  && sh.Uses == 1
+-  && mergePoint(b,x0,x1) != nil
+-  && clobber(x0, x1, sh)
+-  => @mergePoint(b,x0,x1) (MOVBEQload [i1] {s} p mem)
+-
+-(ORQ                   x0:(MOVBELload [i] {s} p0 mem)
+-    sh:(SHLQconst [32] x1:(MOVBELload [i] {s} p1 mem)))
+-  && x0.Uses == 1
+-  && x1.Uses == 1
+-  && sh.Uses == 1
+-  && sequentialAddresses(p1, p0, 4)
+-  && mergePoint(b,x0,x1) != nil
+-  && clobber(x0, x1, sh)
+-  => @mergePoint(b,x0,x1) (MOVBEQload [i] {s} p0 mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index e3c94e4b2e..731454c761 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -922,12 +922,6 @@ func init() {
+ 		// and BSFQ(0) is undefined. Same for TZCNTL(0)==32
+ 		{name: "TZCNTQ", argLength: 1, reg: gp11, asm: "TZCNTQ", clobberFlags: true},
+ 		{name: "TZCNTL", argLength: 1, reg: gp11, asm: "TZCNTL", clobberFlags: true},
+-
+-		// CPUID feature: MOVBE
+-		{name: "MOVBELload", argLength: 2, reg: gpload, asm: "MOVBEL", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"}, // load and swap 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVBELstore", argLength: 3, reg: gpstore, asm: "MOVBEL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // swap and store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVBEQload", argLength: 2, reg: gpload, asm: "MOVBEQ", aux: "SymOff", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"}, // load and swap 8 bytes from arg0+auxint+aux. arg1=mem
+-		{name: "MOVBEQstore", argLength: 3, reg: gpstore, asm: "MOVBEQ", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // swap and store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+ 	}
+ 
+ 	var AMD64blocks = []blockData{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 091f43f40a..640e517fe7 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1043,10 +1043,6 @@ const (
+ 	OpAMD64BLSRL
+ 	OpAMD64TZCNTQ
+ 	OpAMD64TZCNTL
+-	OpAMD64MOVBELload
+-	OpAMD64MOVBELstore
+-	OpAMD64MOVBEQload
+-	OpAMD64MOVBEQstore
+ 
+ 	OpARMADD
+ 	OpARMADDconst
+@@ -13784,66 +13780,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:           "MOVBELload",
+-		auxType:        auxSymOff,
+-		argLen:         2,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead,
+-		asm:            x86.AMOVBEL,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+-			},
+-			outputs: []outputInfo{
+-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+-			},
+-		},
+-	},
+-	{
+-		name:           "MOVBELstore",
+-		auxType:        auxSymOff,
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
+-		asm:            x86.AMOVBEL,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+-			},
+-		},
+-	},
+-	{
+-		name:           "MOVBEQload",
+-		auxType:        auxSymOff,
+-		argLen:         2,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead,
+-		asm:            x86.AMOVBEQ,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+-			},
+-			outputs: []outputInfo{
+-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+-			},
+-		},
+-	},
+-	{
+-		name:           "MOVBEQstore",
+-		auxType:        auxSymOff,
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
+-		asm:            x86.AMOVBEQ,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+-			},
+-		},
+-	},
+ 
+ 	{
+ 		name:        "ADD",
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 88b545a465..201fbf2954 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -222,10 +222,6 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAMD64LEAQ4(v)
+ 	case OpAMD64LEAQ8:
+ 		return rewriteValueAMD64_OpAMD64LEAQ8(v)
+-	case OpAMD64MOVBELstore:
+-		return rewriteValueAMD64_OpAMD64MOVBELstore(v)
+-	case OpAMD64MOVBEQstore:
+-		return rewriteValueAMD64_OpAMD64MOVBEQstore(v)
+ 	case OpAMD64MOVBQSX:
+ 		return rewriteValueAMD64_OpAMD64MOVBQSX(v)
+ 	case OpAMD64MOVBQSXload:
+@@ -3627,43 +3623,6 @@ func rewriteValueAMD64_OpAMD64BSWAPL(v *Value) bool {
+ 		v.copyOf(p)
+ 		return true
+ 	}
+-	// match: (BSWAPL x:(MOVLload [i] {s} p mem))
+-	// cond: x.Uses == 1 && buildcfg.GOAMD64 >= 3
+-	// result: (MOVBELload [i] {s} p mem)
+-	for {
+-		x := v_0
+-		if x.Op != OpAMD64MOVLload {
+-			break
+-		}
+-		i := auxIntToInt32(x.AuxInt)
+-		s := auxToSym(x.Aux)
+-		mem := x.Args[1]
+-		p := x.Args[0]
+-		if !(x.Uses == 1 && buildcfg.GOAMD64 >= 3) {
+-			break
+-		}
+-		v.reset(OpAMD64MOVBELload)
+-		v.AuxInt = int32ToAuxInt(i)
+-		v.Aux = symToAux(s)
+-		v.AddArg2(p, mem)
+-		return true
+-	}
+-	// match: (BSWAPL (MOVBELload [i] {s} p m))
+-	// result: (MOVLload [i] {s} p m)
+-	for {
+-		if v_0.Op != OpAMD64MOVBELload {
+-			break
+-		}
+-		i := auxIntToInt32(v_0.AuxInt)
+-		s := auxToSym(v_0.Aux)
+-		m := v_0.Args[1]
+-		p := v_0.Args[0]
+-		v.reset(OpAMD64MOVLload)
+-		v.AuxInt = int32ToAuxInt(i)
+-		v.Aux = symToAux(s)
+-		v.AddArg2(p, m)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64BSWAPQ(v *Value) bool {
+@@ -3678,43 +3637,6 @@ func rewriteValueAMD64_OpAMD64BSWAPQ(v *Value) bool {
+ 		v.copyOf(p)
+ 		return true
+ 	}
+-	// match: (BSWAPQ x:(MOVQload [i] {s} p mem))
+-	// cond: x.Uses == 1 && buildcfg.GOAMD64 >= 3
+-	// result: (MOVBEQload [i] {s} p mem)
+-	for {
+-		x := v_0
+-		if x.Op != OpAMD64MOVQload {
+-			break
+-		}
+-		i := auxIntToInt32(x.AuxInt)
+-		s := auxToSym(x.Aux)
+-		mem := x.Args[1]
+-		p := x.Args[0]
+-		if !(x.Uses == 1 && buildcfg.GOAMD64 >= 3) {
+-			break
+-		}
+-		v.reset(OpAMD64MOVBEQload)
+-		v.AuxInt = int32ToAuxInt(i)
+-		v.Aux = symToAux(s)
+-		v.AddArg2(p, mem)
+-		return true
+-	}
+-	// match: (BSWAPQ (MOVBEQload [i] {s} p m))
+-	// result: (MOVQload [i] {s} p m)
+-	for {
+-		if v_0.Op != OpAMD64MOVBEQload {
+-			break
+-		}
+-		i := auxIntToInt32(v_0.AuxInt)
+-		s := auxToSym(v_0.Aux)
+-		m := v_0.Args[1]
+-		p := v_0.Args[0]
+-		v.reset(OpAMD64MOVQload)
+-		v.AuxInt = int32ToAuxInt(i)
+-		v.Aux = symToAux(s)
+-		v.AddArg2(p, m)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64BTCLconst(v *Value) bool {
+@@ -9473,52 +9395,6 @@ func rewriteValueAMD64_OpAMD64LEAQ8(v *Value) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueAMD64_OpAMD64MOVBELstore(v *Value) bool {
+-	v_2 := v.Args[2]
+-	v_1 := v.Args[1]
+-	v_0 := v.Args[0]
+-	// match: (MOVBELstore [i] {s} p (BSWAPL x) m)
+-	// result: (MOVLstore [i] {s} p x m)
+-	for {
+-		i := auxIntToInt32(v.AuxInt)
+-		s := auxToSym(v.Aux)
+-		p := v_0
+-		if v_1.Op != OpAMD64BSWAPL {
+-			break
+-		}
+-		x := v_1.Args[0]
+-		m := v_2
+-		v.reset(OpAMD64MOVLstore)
+-		v.AuxInt = int32ToAuxInt(i)
+-		v.Aux = symToAux(s)
+-		v.AddArg3(p, x, m)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValueAMD64_OpAMD64MOVBEQstore(v *Value) bool {
+-	v_2 := v.Args[2]
+-	v_1 := v.Args[1]
+-	v_0 := v.Args[0]
+-	// match: (MOVBEQstore [i] {s} p (BSWAPQ x) m)
+-	// result: (MOVQstore [i] {s} p x m)
+-	for {
+-		i := auxIntToInt32(v.AuxInt)
+-		s := auxToSym(v.Aux)
+-		p := v_0
+-		if v_1.Op != OpAMD64BSWAPQ {
+-			break
+-		}
+-		x := v_1.Args[0]
+-		m := v_2
+-		v.reset(OpAMD64MOVQstore)
+-		v.AuxInt = int32ToAuxInt(i)
+-		v.Aux = symToAux(s)
+-		v.AddArg3(p, x, m)
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValueAMD64_OpAMD64MOVBQSX(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+@@ -12349,28 +12225,6 @@ func rewriteValueAMD64_OpAMD64MOVLstore(v *Value) bool {
+ 		v.AddArg3(ptr, val, mem)
+ 		return true
+ 	}
+-	// match: (MOVLstore [i] {s} p x:(BSWAPL w) mem)
+-	// cond: x.Uses == 1 && buildcfg.GOAMD64 >= 3
+-	// result: (MOVBELstore [i] {s} p w mem)
+-	for {
+-		i := auxIntToInt32(v.AuxInt)
+-		s := auxToSym(v.Aux)
+-		p := v_0
+-		x := v_1
+-		if x.Op != OpAMD64BSWAPL {
+-			break
+-		}
+-		w := x.Args[0]
+-		mem := v_2
+-		if !(x.Uses == 1 && buildcfg.GOAMD64 >= 3) {
+-			break
+-		}
+-		v.reset(OpAMD64MOVBELstore)
+-		v.AuxInt = int32ToAuxInt(i)
+-		v.Aux = symToAux(s)
+-		v.AddArg3(p, w, mem)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVLstoreconst(v *Value) bool {
+@@ -13310,28 +13164,6 @@ func rewriteValueAMD64_OpAMD64MOVQstore(v *Value) bool {
+ 		v.AddArg3(ptr, val, mem)
+ 		return true
+ 	}
+-	// match: (MOVQstore [i] {s} p x:(BSWAPQ w) mem)
+-	// cond: x.Uses == 1 && buildcfg.GOAMD64 >= 3
+-	// result: (MOVBEQstore [i] {s} p w mem)
+-	for {
+-		i := auxIntToInt32(v.AuxInt)
+-		s := auxToSym(v.Aux)
+-		p := v_0
+-		x := v_1
+-		if x.Op != OpAMD64BSWAPQ {
+-			break
+-		}
+-		w := x.Args[0]
+-		mem := v_2
+-		if !(x.Uses == 1 && buildcfg.GOAMD64 >= 3) {
+-			break
+-		}
+-		v.reset(OpAMD64MOVBEQstore)
+-		v.AuxInt = int32ToAuxInt(i)
+-		v.Aux = symToAux(s)
+-		v.AddArg3(p, w, mem)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
+@@ -18825,81 +18657,6 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (ORQ x0:(MOVBELload [i0] {s} p mem) sh:(SHLQconst [32] x1:(MOVBELload [i1] {s} p mem)))
+-	// cond: i0 == i1+4 && x0.Uses == 1 && x1.Uses == 1 && sh.Uses == 1 && mergePoint(b,x0,x1) != nil && clobber(x0, x1, sh)
+-	// result: @mergePoint(b,x0,x1) (MOVBEQload [i1] {s} p mem)
+-	for {
+-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+-			x0 := v_0
+-			if x0.Op != OpAMD64MOVBELload {
+-				continue
+-			}
+-			i0 := auxIntToInt32(x0.AuxInt)
+-			s := auxToSym(x0.Aux)
+-			mem := x0.Args[1]
+-			p := x0.Args[0]
+-			sh := v_1
+-			if sh.Op != OpAMD64SHLQconst || auxIntToInt8(sh.AuxInt) != 32 {
+-				continue
+-			}
+-			x1 := sh.Args[0]
+-			if x1.Op != OpAMD64MOVBELload {
+-				continue
+-			}
+-			i1 := auxIntToInt32(x1.AuxInt)
+-			if auxToSym(x1.Aux) != s {
+-				continue
+-			}
+-			_ = x1.Args[1]
+-			if p != x1.Args[0] || mem != x1.Args[1] || !(i0 == i1+4 && x0.Uses == 1 && x1.Uses == 1 && sh.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0, x1, sh)) {
+-				continue
+-			}
+-			b = mergePoint(b, x0, x1)
+-			v0 := b.NewValue0(x1.Pos, OpAMD64MOVBEQload, typ.UInt64)
+-			v.copyOf(v0)
+-			v0.AuxInt = int32ToAuxInt(i1)
+-			v0.Aux = symToAux(s)
+-			v0.AddArg2(p, mem)
+-			return true
+-		}
+-		break
+-	}
+-	// match: (ORQ x0:(MOVBELload [i] {s} p0 mem) sh:(SHLQconst [32] x1:(MOVBELload [i] {s} p1 mem)))
+-	// cond: x0.Uses == 1 && x1.Uses == 1 && sh.Uses == 1 && sequentialAddresses(p1, p0, 4) && mergePoint(b,x0,x1) != nil && clobber(x0, x1, sh)
+-	// result: @mergePoint(b,x0,x1) (MOVBEQload [i] {s} p0 mem)
+-	for {
+-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+-			x0 := v_0
+-			if x0.Op != OpAMD64MOVBELload {
+-				continue
+-			}
+-			i := auxIntToInt32(x0.AuxInt)
+-			s := auxToSym(x0.Aux)
+-			mem := x0.Args[1]
+-			p0 := x0.Args[0]
+-			sh := v_1
+-			if sh.Op != OpAMD64SHLQconst || auxIntToInt8(sh.AuxInt) != 32 {
+-				continue
+-			}
+-			x1 := sh.Args[0]
+-			if x1.Op != OpAMD64MOVBELload || auxIntToInt32(x1.AuxInt) != i || auxToSym(x1.Aux) != s {
+-				continue
+-			}
+-			_ = x1.Args[1]
+-			p1 := x1.Args[0]
+-			if mem != x1.Args[1] || !(x0.Uses == 1 && x1.Uses == 1 && sh.Uses == 1 && sequentialAddresses(p1, p0, 4) && mergePoint(b, x0, x1) != nil && clobber(x0, x1, sh)) {
+-				continue
+-			}
+-			b = mergePoint(b, x0, x1)
+-			v0 := b.NewValue0(x1.Pos, OpAMD64MOVBEQload, typ.UInt64)
+-			v.copyOf(v0)
+-			v0.AuxInt = int32ToAuxInt(i)
+-			v0.Aux = symToAux(s)
+-			v0.AddArg2(p0, mem)
+-			return true
+-		}
+-		break
+-	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ORQconst(v *Value) bool {
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index 97e1d4bdfb..2a0c534df0 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -70,8 +70,7 @@ func load_le16_idx(b []byte, idx int) {
+ }
+ 
+ func load_be64(b []byte) {
+-	// amd64/v1,amd64/v2:`BSWAPQ`,-`MOV[BWL]\t[^$]`,-`OR`
+-	// amd64/v3:`MOVBEQ`
++	// amd64:`BSWAPQ`,-`MOV[BWL]\t[^$]`,-`OR`
+ 	// s390x:`MOVD\s\(.*\),`
+ 	// arm64:`REV`,`MOVD\s\(R[0-9]+\),`,-`MOV[BHW]`,-`REVW`,-`REV16W`
+ 	// ppc64le:`MOVDBR`,-`MOV[BHW]Z`
+@@ -79,8 +78,7 @@ func load_be64(b []byte) {
+ }
+ 
+ func load_be64_idx(b []byte, idx int) {
+-	// amd64/v1,amd64/v2:`BSWAPQ`,-`MOV[BWL]\t[^$]`,-`OR`
+-	// amd64/v3: `MOVBEQ`
++	// amd64:`BSWAPQ`,-`MOV[BWL]\t[^$]`,-`OR`
+ 	// s390x:`MOVD\s\(.*\)\(.*\*1\),`
+ 	// arm64:`REV`,`MOVD\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[WHB]`,-`REVW`,-`REV16W`
+ 	// ppc64le:`MOVDBR`,-`MOV[BHW]Z`
+@@ -88,8 +86,7 @@ func load_be64_idx(b []byte, idx int) {
+ }
+ 
+ func load_be32(b []byte) {
+-	// amd64/v1,amd64/v2:`BSWAPL`,-`MOV[BW]`,-`OR`
+-	// amd64/v3: `MOVBEL`
++	// amd64:`BSWAPL`,-`MOV[BW]`,-`OR`
+ 	// s390x:`MOVWZ\s\(.*\),`
+ 	// arm64:`REVW`,`MOVWU\s\(R[0-9]+\),`,-`MOV[BH]`,-`REV16W`
+ 	// ppc64le:`MOVWBR`,-`MOV[BH]Z`
+@@ -97,8 +94,7 @@ func load_be32(b []byte) {
+ }
+ 
+ func load_be32_idx(b []byte, idx int) {
+-	// amd64/v1,amd64/v2:`BSWAPL`,-`MOV[BW]`,-`OR`
+-	// amd64/v3: `MOVBEL`
++	// amd64:`BSWAPL`,-`MOV[BW]`,-`OR`
+ 	// s390x:`MOVWZ\s\(.*\)\(.*\*1\),`
+ 	// arm64:`REVW`,`MOVWU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[HB]`,-`REV16W`
+ 	// ppc64le:`MOVWBR`,-`MOV[BH]Z`
+@@ -183,8 +179,7 @@ func load_be_byte4_uint32(s []byte) uint32 {
+ 
+ func load_be_byte4_uint32_inv(s []byte) uint32 {
+ 	// arm64:`MOVWU\t\(R[0-9]+\)`,`REVW`,-`ORR`,-`REV16W`,-`MOV[BH]`
+-	// amd64/v1,amd64/v2:`MOVL\s\([A-Z]+\)`,`BSWAPL`,-`MOV[BW]`,-`OR`
+-	// amd64/v3: `MOVBEL`
++	// amd64:`MOVL\s\([A-Z]+\)`,`BSWAPL`,-`MOV[BW]`,-`OR`
+ 	return uint32(s[3]) | uint32(s[2])<<8 | uint32(s[1])<<16 | uint32(s[0])<<24
+ }
+ 
+@@ -196,8 +191,7 @@ func load_be_byte8_uint64(s []byte) uint64 {
+ 
+ func load_be_byte8_uint64_inv(s []byte) uint64 {
+ 	// arm64:`MOVD\t\(R[0-9]+\)`,`REV`,-`ORR`,-`REVW`,-`REV16W`,-`MOV[BHW]`
+-	// amd64/v1,amd64/v2:`MOVQ\s\([A-Z]+\),\s[A-Z]+`,`BSWAPQ`,-`MOV[BWL]\t[^$]`,-`OR`
+-	// amd64/v3: `MOVBEQ`
++	// amd64:`MOVQ\s\([A-Z]+\),\s[A-Z]+`,`BSWAPQ`,-`MOV[BWL]\t[^$]`,-`OR`
+ 	// ppc64le:`MOVDBR\t\(R[0-9]+\)`,-`MOV[BHW]Z`
+ 	return uint64(s[7]) | uint64(s[6])<<8 | uint64(s[5])<<16 | uint64(s[4])<<24 | uint64(s[3])<<32 | uint64(s[2])<<40 | uint64(s[1])<<48 | uint64(s[0])<<56
+ }
+@@ -415,8 +409,7 @@ func store_le16_idx(b []byte, idx int) {
+ }
+ 
+ func store_be64(b []byte) {
+-	// amd64/v1,amd64/v2:`BSWAPQ`,-`SHR.`
+-	// amd64/v3: `MOVBEQ`
++	// amd64:`BSWAPQ`,-`SHR.`
+ 	// arm64:`MOVD`,`REV`,-`MOV[WBH]`,-`REVW`,-`REV16W`
+ 	// ppc64le:`MOVDBR`
+ 	// s390x:`MOVD\s.*\(.*\)$`,-`SRW\s`,-`SRD\s`
+@@ -424,8 +417,7 @@ func store_be64(b []byte) {
+ }
+ 
+ func store_be64_idx(b []byte, idx int) {
+-	// amd64/v1,amd64/v2:`BSWAPQ`,-`SHR.`
+-	// amd64/v3:`MOVBEQ`
++	// amd64:`BSWAPQ`,-`SHR.`
+ 	// arm64:`REV`,`MOVD\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOV[BHW]`,-`REV16W`,-`REVW`
+ 	// ppc64le:`MOVDBR`
+ 	// s390x:`MOVD\s.*\(.*\)\(.*\*1\)$`,-`SRW\s`,-`SRD\s`
+@@ -433,8 +425,7 @@ func store_be64_idx(b []byte, idx int) {
+ }
+ 
+ func store_be32(b []byte) {
+-	// amd64/v1,amd64/v2:`BSWAPL`,-`SHR.`
+-	// amd64/v3:`MOVBEL`
++	// amd64:`BSWAPL`,-`SHR.`
+ 	// arm64:`MOVW`,`REVW`,-`MOV[BH]`,-`REV16W`
+ 	// ppc64le:`MOVWBR`
+ 	// s390x:`MOVW\s.*\(.*\)$`,-`SRW\s`,-`SRD\s`
+@@ -454,8 +445,7 @@ func store_be32_load(b, x *[8]byte) {
+ }
+ 
+ func store_be32_idx(b []byte, idx int) {
+-	// amd64/v1,amd64/v2:`BSWAPL`,-`SHR.`
+-	// amd64/v3:`MOVBEL`
++	// amd64:`BSWAPL`,-`SHR.`
+ 	// arm64:`REVW`,`MOVW\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOV[BH]`,-`REV16W`
+ 	// ppc64le:`MOVWBR`
+ 	// s390x:`MOVW\s.*\(.*\)\(.*\*1\)$`,-`SRW\s`,-`SRD\s`
+@@ -518,16 +508,14 @@ func store_be_byte_2(b []byte, val uint16) {
+ func store_be_byte_4(b []byte, val uint32) {
+ 	_ = b[4]
+ 	// arm64:`REVW`,`MOVW\sR[0-9]+,\s1\(R[0-9]+\)`,-`MOVB`,-`MOVH`,-`REV16W`
+-	// amd64/v1,amd64/v2:`MOVL\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`,-`MOVW`
+-	// amd64/v3:`MOVBEL\s[A-Z]+,\s1\([A-Z]+\)`
++	// amd64:`MOVL\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`,-`MOVW`
+ 	b[1], b[2], b[3], b[4] = byte(val>>24), byte(val>>16), byte(val>>8), byte(val)
+ }
+ 
+ func store_be_byte_8(b []byte, val uint64) {
+ 	_ = b[8]
+ 	// arm64:`REV`,`MOVD\sR[0-9]+,\s1\(R[0-9]+\)`,-`MOVB`,-`MOVH`,-`MOVW`,-`REV16W`,-`REVW`
+-	// amd64/v1,amd64/v2:`MOVQ\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`,-`MOVW`,-`MOVL`
+-	// amd64/v3:`MOVBEQ\s[A-Z]+,\s1\([A-Z]+\)`, -`MOVBEL`
++	// amd64:`MOVQ\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`,-`MOVW`,-`MOVL`
+ 	b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8] = byte(val>>56), byte(val>>48), byte(val>>40), byte(val>>32), byte(val>>24), byte(val>>16), byte(val>>8), byte(val)
+ }
+ 

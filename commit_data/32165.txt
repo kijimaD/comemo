@@ -19,9 +19,495 @@ Date:   Mon Apr 10 07:31:23 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/arm64/asm7.go | 74 +++++++++++++++++++-------------------
  src/cmd/internal/obj/mips/asm0.go  | 24 ++++++-------
  src/cmd/internal/obj/mips/obj0.go  | 70 ++++++++++++++++++------------------
  src/cmd/internal/obj/ppc64/asm9.go | 24 ++++++-------
  4 files changed, 96 insertions(+), 96 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 05904d4b74..ddfe7bc5b8 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -541,15 +541,15 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	bflag := 1
+-	c := int64(0)
+-	p.Pc = c
++	pc := int64(0)
++	p.Pc = pc
+ 	var m int
+ 	var o *Optab
+ 	for p = p.Link; p != nil; p = p.Link {
+-		if p.As == ADWORD && (c&7) != 0 {
+-			c += 4
++		if p.As == ADWORD && (pc&7) != 0 {
++			pc += 4
+ 		}
+-		p.Pc = c
++		p.Pc = pc
+ 		o = oplook(ctxt, p)
+ 		m = int(o.size)
+ 		if m == 0 {
+@@ -571,13 +571,13 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		if p.As == AB || p.As == obj.ARET || p.As == AERET { /* TODO: other unconditional operations */
+ 			checkpool(ctxt, newprog, p, 0)
+ 		}
+-		c += int64(m)
++		pc += int64(m)
+ 		if ctxt.Blitrl != nil {
+ 			checkpool(ctxt, newprog, p, 1)
+ 		}
+ 	}
+ 
+-	cursym.Size = c
++	cursym.Size = pc
+ 
+ 	/*
+ 	 * if any procedure is large enough to
+@@ -587,17 +587,17 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	 */
+ 	for bflag != 0 {
+ 		bflag = 0
+-		c = 0
++		pc = 0
+ 		for p = cursym.Text.Link; p != nil; p = p.Link {
+-			if p.As == ADWORD && (c&7) != 0 {
+-				c += 4
++			if p.As == ADWORD && (pc&7) != 0 {
++				pc += 4
+ 			}
+-			p.Pc = c
++			p.Pc = pc
+ 			o = oplook(ctxt, p)
+ 
+ 			/* very large branches */
+ 			if (o.type_ == 7 || o.type_ == 39) && p.Pcond != nil { // 7: BEQ and like, 39: CBZ and like
+-				otxt := p.Pcond.Pc - c
++				otxt := p.Pcond.Pc - pc
+ 				if otxt <= -(1<<18)+10 || otxt >= (1<<18)-10 {
+ 					q := newprog()
+ 					q.Link = p.Link
+@@ -624,12 +624,12 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				continue
+ 			}
+ 
+-			c += int64(m)
++			pc += int64(m)
+ 		}
+ 	}
+ 
+-	c += -c & (funcAlign - 1)
+-	cursym.Size = c
++	pc += -pc & (funcAlign - 1)
++	cursym.Size = pc
+ 
+ 	/*
+ 	 * lay out the code, emitting code and data relocations.
+@@ -717,7 +717,7 @@ func flushpool(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog, skip int) {
+  * TODO: hash
+  */
+ func addpool(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog, a *obj.Addr) {
+-	c := aclass(ctxt, a)
++	cls := aclass(ctxt, a)
+ 	lit := ctxt.Instoffset
+ 	t := *newprog()
+ 	t.As = AWORD
+@@ -727,18 +727,18 @@ func addpool(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog, a *obj.Addr) {
+ 	//	MOVD addr, REGTMP
+ 	//	MOVD REGTMP, R
+ 	// where addr is the address of the DWORD containing the address of foo.
+-	if p.As == AMOVD || c == C_ADDR || c == C_VCON || int64(lit) != int64(int32(lit)) || uint64(lit) != uint64(uint32(lit)) {
++	if p.As == AMOVD || cls == C_ADDR || cls == C_VCON || int64(lit) != int64(int32(lit)) || uint64(lit) != uint64(uint32(lit)) {
+ 		// conservative: don't know if we want signed or unsigned extension.
+ 		// in case of ambiguity, store 64-bit
+ 		t.As = ADWORD
+ 		sz = 8
+ 	}
+ 
+-	switch c {
++	switch cls {
+ 	// TODO(aram): remove.
+ 	default:
+ 		if a.Name != obj.NAME_EXTERN {
+-			fmt.Printf("addpool: %v in %v shouldn't go to default case\n", DRconv(c), p)
++			fmt.Printf("addpool: %v in %v shouldn't go to default case\n", DRconv(cls), p)
+ 		}
+ 
+ 		t.To.Offset = a.Offset
+@@ -775,7 +775,7 @@ func addpool(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog, a *obj.Addr) {
+ 		C_LCON,
+ 		C_VCON:
+ 		if a.Name == obj.NAME_EXTERN {
+-			fmt.Printf("addpool: %v in %v needs reloc\n", DRconv(c), p)
++			fmt.Printf("addpool: %v in %v needs reloc\n", DRconv(cls), p)
+ 		}
+ 
+ 		t.To.Type = obj.TYPE_CONST
+@@ -1013,14 +1013,14 @@ func oregclass(l int64) int {
+  * return the offset value to use in the instruction,
+  * scaled if necessary
+  */
+-func offsetshift(ctxt *obj.Link, p *obj.Prog, v int64, c int) int64 {
++func offsetshift(ctxt *obj.Link, p *obj.Prog, v int64, cls int) int64 {
+ 	s := 0
+-	if c >= C_SEXT1 && c <= C_SEXT16 {
+-		s = c - C_SEXT1
+-	} else if c >= C_UAUTO4K && c <= C_UAUTO64K {
+-		s = c - C_UAUTO4K
+-	} else if c >= C_UOREG4K && c <= C_UOREG64K {
+-		s = c - C_UOREG4K
++	if cls >= C_SEXT1 && cls <= C_SEXT16 {
++		s = cls - C_SEXT1
++	} else if cls >= C_UAUTO4K && cls <= C_UAUTO64K {
++		s = cls - C_UAUTO4K
++	} else if cls >= C_UOREG4K && cls <= C_UOREG64K {
++		s = cls - C_UOREG4K
+ 	}
+ 	vs := v >> uint(s)
+ 	if vs<<uint(s) != v {
+@@ -4254,7 +4254,7 @@ func omovlit(ctxt *obj.Link, as obj.As, p *obj.Prog, a *obj.Addr, dr int) uint32
+ 
+ // load a constant (MOVCON or BITCON) in a into rt
+ func omovconst(ctxt *obj.Link, as obj.As, p *obj.Prog, a *obj.Addr, rt int) (o1 uint32) {
+-	if c := oclass(a); c == C_BITCON || c == C_ABCON || c == C_ABCON0 {
++	if cls := oclass(a); cls == C_BITCON || cls == C_ABCON || cls == C_ABCON0 {
+ 		// or $bitcon, REGZERO, rt
+ 		mode := 64
+ 		var as1 obj.As
+@@ -4299,18 +4299,18 @@ func omovconst(ctxt *obj.Link, as obj.As, p *obj.Prog, a *obj.Addr, rt int) (o1
+ }
+ 
+ func opbfm(ctxt *obj.Link, p *obj.Prog, a obj.As, r int, s int, rf int, rt int) uint32 {
+-	var c uint32
++	var b uint32
+ 	o := opirr(ctxt, p, a)
+ 	if (o & (1 << 31)) == 0 {
+-		c = 32
++		b = 32
+ 	} else {
+-		c = 64
++		b = 64
+ 	}
+-	if r < 0 || uint32(r) >= c {
++	if r < 0 || uint32(r) >= b {
+ 		ctxt.Diag("illegal bit number\n%v", p)
+ 	}
+ 	o |= (uint32(r) & 0x3F) << 16
+-	if s < 0 || uint32(s) >= c {
++	if s < 0 || uint32(s) >= b {
+ 		ctxt.Diag("illegal bit number\n%v", p)
+ 	}
+ 	o |= (uint32(s) & 0x3F) << 10
+@@ -4319,14 +4319,14 @@ func opbfm(ctxt *obj.Link, p *obj.Prog, a obj.As, r int, s int, rf int, rt int)
+ }
+ 
+ func opextr(ctxt *obj.Link, p *obj.Prog, a obj.As, v int32, rn int, rm int, rt int) uint32 {
+-	var c uint32
++	var b uint32
+ 	o := opirr(ctxt, p, a)
+ 	if (o & (1 << 31)) != 0 {
+-		c = 63
++		b = 63
+ 	} else {
+-		c = 31
++		b = 31
+ 	}
+-	if v < 0 || uint32(v) > c {
++	if v < 0 || uint32(v) > b {
+ 		ctxt.Diag("illegal bit number\n%v", p)
+ 	}
+ 	o |= uint32(v) << 10
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 8c4be669b7..03367ec48b 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -385,13 +385,13 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		ctxt.Diag("mips ops not initialized, call mips.buildop first")
+ 	}
+ 
+-	c := int64(0)
+-	p.Pc = c
++	pc := int64(0)
++	p.Pc = pc
+ 
+ 	var m int
+ 	var o *Optab
+ 	for p = p.Link; p != nil; p = p.Link {
+-		p.Pc = c
++		p.Pc = pc
+ 		o = oplook(ctxt, p)
+ 		m = int(o.size)
+ 		if m == 0 {
+@@ -401,10 +401,10 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			continue
+ 		}
+ 
+-		c += int64(m)
++		pc += int64(m)
+ 	}
+ 
+-	cursym.Size = c
++	cursym.Size = pc
+ 
+ 	/*
+ 	 * if any procedure is large enough to
+@@ -418,14 +418,14 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	var q *obj.Prog
+ 	for bflag != 0 {
+ 		bflag = 0
+-		c = 0
++		pc = 0
+ 		for p = cursym.Text.Link; p != nil; p = p.Link {
+-			p.Pc = c
++			p.Pc = pc
+ 			o = oplook(ctxt, p)
+ 
+ 			// very large conditional branches
+ 			if o.type_ == 6 && p.Pcond != nil {
+-				otxt = p.Pcond.Pc - c
++				otxt = p.Pcond.Pc - pc
+ 				if otxt < -(1<<17)+10 || otxt >= (1<<17)-10 {
+ 					q = newprog()
+ 					q.Link = p.Link
+@@ -457,15 +457,15 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				continue
+ 			}
+ 
+-			c += int64(m)
++			pc += int64(m)
+ 		}
+ 
+-		cursym.Size = c
++		cursym.Size = pc
+ 	}
+ 	if ctxt.Arch.Family == sys.MIPS64 {
+-		c += -c & (mips64FuncAlign - 1)
++		pc += -pc & (mips64FuncAlign - 1)
+ 	}
+-	cursym.Size = c
++	cursym.Size = pc
+ 
+ 	/*
+ 	 * lay out the code, emitting code and data relocations.
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 5ed5a7cf06..872271eae9 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -938,11 +938,11 @@ func markregused(ctxt *obj.Link, s *Sch) {
+ 		ad = 1
+ 
+ 	case AJAL:
+-		c := p.Reg
+-		if c == 0 {
+-			c = REGLINK
++		r := p.Reg
++		if r == 0 {
++			r = REGLINK
+ 		}
+-		s.set.ireg |= 1 << uint(c-REG_R0)
++		s.set.ireg |= 1 << uint(r-REG_R0)
+ 		ar = 1
+ 		ad = 1
+ 
+@@ -1061,15 +1061,15 @@ func markregused(ctxt *obj.Link, s *Sch) {
+ 	/*
+ 	 * flags based on 'to' field
+ 	 */
+-	c := int(p.To.Class)
+-	if c == 0 {
+-		c = aclass(ctxt, &p.To) + 1
+-		p.To.Class = int8(c)
++	cls := int(p.To.Class)
++	if cls == 0 {
++		cls = aclass(ctxt, &p.To) + 1
++		p.To.Class = int8(cls)
+ 	}
+-	c--
+-	switch c {
++	cls--
++	switch cls {
+ 	default:
+-		fmt.Printf("unknown class %d %v\n", c, p)
++		fmt.Printf("unknown class %d %v\n", cls, p)
+ 
+ 	case C_ZCON,
+ 		C_SCON,
+@@ -1099,8 +1099,8 @@ func markregused(ctxt *obj.Link, s *Sch) {
+ 	case C_ZOREG,
+ 		C_SOREG,
+ 		C_LOREG:
+-		c = int(p.To.Reg)
+-		s.used.ireg |= 1 << uint(c-REG_R0)
++		cls = int(p.To.Reg)
++		s.used.ireg |= 1 << uint(cls-REG_R0)
+ 		if ad != 0 {
+ 			break
+ 		}
+@@ -1108,10 +1108,10 @@ func markregused(ctxt *obj.Link, s *Sch) {
+ 		s.soffset = regoff(ctxt, &p.To)
+ 
+ 		m := uint32(ANYMEM)
+-		if c == REGSB {
++		if cls == REGSB {
+ 			m = E_MEMSB
+ 		}
+-		if c == REGSP {
++		if cls == REGSP {
+ 			m = E_MEMSP
+ 		}
+ 
+@@ -1180,15 +1180,15 @@ func markregused(ctxt *obj.Link, s *Sch) {
+ 	/*
+ 	 * flags based on 'from' field
+ 	 */
+-	c = int(p.From.Class)
+-	if c == 0 {
+-		c = aclass(ctxt, &p.From) + 1
+-		p.From.Class = int8(c)
++	cls = int(p.From.Class)
++	if cls == 0 {
++		cls = aclass(ctxt, &p.From) + 1
++		p.From.Class = int8(cls)
+ 	}
+-	c--
+-	switch c {
++	cls--
++	switch cls {
+ 	default:
+-		fmt.Printf("unknown class %d %v\n", c, p)
++		fmt.Printf("unknown class %d %v\n", cls, p)
+ 
+ 	case C_ZCON,
+ 		C_SCON,
+@@ -1218,8 +1218,8 @@ func markregused(ctxt *obj.Link, s *Sch) {
+ 	case C_ZOREG,
+ 		C_SOREG,
+ 		C_LOREG:
+-		c = int(p.From.Reg)
+-		s.used.ireg |= 1 << uint(c-REG_R0)
++		cls = int(p.From.Reg)
++		s.used.ireg |= 1 << uint(cls-REG_R0)
+ 		if ld != 0 {
+ 			p.Mark |= LOAD
+ 		}
+@@ -1227,10 +1227,10 @@ func markregused(ctxt *obj.Link, s *Sch) {
+ 		s.soffset = regoff(ctxt, &p.From)
+ 
+ 		m := uint32(ANYMEM)
+-		if c == REGSB {
++		if cls == REGSB {
+ 			m = E_MEMSB
+ 		}
+-		if c == REGSP {
++		if cls == REGSP {
+ 			m = E_MEMSP
+ 		}
+ 
+@@ -1238,11 +1238,11 @@ func markregused(ctxt *obj.Link, s *Sch) {
+ 
+ 	case C_SACON,
+ 		C_LACON:
+-		c = int(p.From.Reg)
+-		if c == 0 {
+-			c = REGSP
++		cls = int(p.From.Reg)
++		if cls == 0 {
++			cls = REGSP
+ 		}
+-		s.used.ireg |= 1 << uint(c-REG_R0)
++		s.used.ireg |= 1 << uint(cls-REG_R0)
+ 
+ 	case C_SECON,
+ 		C_LECON:
+@@ -1286,12 +1286,12 @@ func markregused(ctxt *obj.Link, s *Sch) {
+ 		s.used.cc |= E_MEMSB
+ 	}
+ 
+-	c = int(p.Reg)
+-	if c != 0 {
+-		if REG_F0 <= c && c <= REG_F31 {
+-			s.used.freg |= 1 << uint(c-REG_F0)
++	cls = int(p.Reg)
++	if cls != 0 {
++		if REG_F0 <= cls && cls <= REG_F31 {
++			s.used.freg |= 1 << uint(cls-REG_F0)
+ 		} else {
+-			s.used.ireg |= 1 << uint(c-REG_R0)
++			s.used.ireg |= 1 << uint(cls-REG_R0)
+ 		}
+ 	}
+ 	s.set.ireg &^= (1 << (REGZERO - REG_R0)) /* R0 can't be set */
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 54b6bef5ee..53c2db0930 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -564,13 +564,13 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		ctxt.Diag("ppc64 ops not initialized, call ppc64.buildop first")
+ 	}
+ 
+-	c := int64(0)
+-	p.Pc = c
++	pc := int64(0)
++	p.Pc = pc
+ 
+ 	var m int
+ 	var o *Optab
+ 	for p = p.Link; p != nil; p = p.Link {
+-		p.Pc = c
++		p.Pc = pc
+ 		o = oplook(ctxt, p)
+ 		m = int(o.size)
+ 		if m == 0 {
+@@ -580,10 +580,10 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			continue
+ 		}
+ 
+-		c += int64(m)
++		pc += int64(m)
+ 	}
+ 
+-	cursym.Size = c
++	cursym.Size = pc
+ 
+ 	/*
+ 	 * if any procedure is large enough to
+@@ -597,14 +597,14 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	var q *obj.Prog
+ 	for bflag != 0 {
+ 		bflag = 0
+-		c = 0
++		pc = 0
+ 		for p = cursym.Text.Link; p != nil; p = p.Link {
+-			p.Pc = c
++			p.Pc = pc
+ 			o = oplook(ctxt, p)
+ 
+ 			// very large conditional branches
+ 			if (o.type_ == 16 || o.type_ == 17) && p.Pcond != nil {
+-				otxt = p.Pcond.Pc - c
++				otxt = p.Pcond.Pc - pc
+ 				if otxt < -(1<<15)+10 || otxt >= (1<<15)-10 {
+ 					q = newprog()
+ 					q.Link = p.Link
+@@ -634,14 +634,14 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				continue
+ 			}
+ 
+-			c += int64(m)
++			pc += int64(m)
+ 		}
+ 
+-		cursym.Size = c
++		cursym.Size = pc
+ 	}
+ 
+-	c += -c & (funcAlign - 1)
+-	cursym.Size = c
++	pc += -pc & (funcAlign - 1)
++	cursym.Size = pc
+ 
+ 	/*
+ 	 * lay out the code, emitting code and data relocations.

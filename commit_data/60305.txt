@@ -13,7 +13,7 @@ Date:   Wed Jun 12 15:38:38 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/592255
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  .../x/telemetry/internal/counter/counter.go        |   3 +-
@@ -21,3 +21,535 @@ Date:   Wed Jun 12 15:38:38 2024 -0400
  src/cmd/vendor/golang.org/x/telemetry/start.go     | 120 ++++++----
  src/cmd/vendor/modules.txt                         |   2 +-
  6 files changed, 206 insertions(+), 169 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 0d29d12d0b..e9e742d7e3 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/mod v0.18.0
+ 	golang.org/x/sync v0.7.0
+ 	golang.org/x/sys v0.21.0
+-	golang.org/x/telemetry v0.0.0-20240603224550-f2b69109f79b
++	golang.org/x/telemetry v0.0.0-20240612191826-8cad58b3fcbb
+ 	golang.org/x/term v0.20.0
+ 	golang.org/x/tools v0.21.1-0.20240604144337-208808308b70
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 6bc13e3fda..e6f1abd80f 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -16,8 +16,8 @@ golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.21.0 h1:rF+pYz3DAGSQAxAu1CbC7catZg4ebC4UIeIhKxBZvws=
+ golang.org/x/sys v0.21.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240603224550-f2b69109f79b h1:z+G4uyTX70zDaJlqYgXBayrAxlae9kGxeM2BJH0zDu8=
+-golang.org/x/telemetry v0.0.0-20240603224550-f2b69109f79b/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
++golang.org/x/telemetry v0.0.0-20240612191826-8cad58b3fcbb h1:0Ge50tvTqbHEyuQDgCYypgL2afqNjRNdl4GHPJuN9QY=
++golang.org/x/telemetry v0.0.0-20240612191826-8cad58b3fcbb/go.mod h1:n38mvGdgc4dA684EC4NwQwoPKSw4jyKw8/DgZHDA1Dk=
+ golang.org/x/term v0.20.0 h1:VnkxpohqXaOBYJtBmEppKUG6mXpi+4O6purfc2+sMhw=
+ golang.org/x/term v0.20.0/go.mod h1:8UkIAJTvZgivsXaD6/pH6U9ecQzZ45awqEOzuCvwpFY=
+ golang.org/x/text v0.16.0 h1:a94ExnEXNtEwYLGJSIUxnWoxoRz/ZcCsV63ROupILh4=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
+index 794879c4b5..cc562bc744 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
+@@ -314,8 +314,7 @@ func readFile(f *file) (*File, error) {
+ 	}
+ 
+ 	// Note: don't call f.rotate here as this will enqueue a follow-up rotation.
+-	_, cleanup := f.rotate1()
+-	cleanup()
++	f.rotate1()
+ 
+ 	if f.err != nil {
+ 		return nil, fmt.Errorf("failed to rotate mapped file - %v", f.err)
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+index 6133ef0b17..0cb6cc22de 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+@@ -32,11 +32,11 @@ type file struct {
+ 	counters atomic.Pointer[Counter] // head of list
+ 	end      Counter                 // list ends at &end instead of nil
+ 
+-	mu         sync.Mutex
+-	namePrefix string
+-	err        error
+-	meta       string
+-	current    atomic.Pointer[mappedFile] // can be read without holding mu, but may be nil
++	mu                 sync.Mutex
++	buildInfo          *debug.BuildInfo
++	timeBegin, timeEnd time.Time
++	err                error
++	current            atomic.Pointer[mappedFile] // may be read without holding mu, but may be nil
+ }
+ 
+ var defaultFile file
+@@ -116,70 +116,11 @@ var (
+ 	errCorrupt     = errors.New("counter: corrupt counter file")
+ )
+ 
+-func (f *file) init(begin, end time.Time) {
+-	info, ok := debug.ReadBuildInfo()
+-	if !ok {
+-		f.err = errNoBuildInfo
+-		return
+-	}
+-	if mode, _ := telemetry.Default.Mode(); mode == "off" {
+-		f.err = ErrDisabled
+-		return
+-	}
+-	dir := telemetry.Default.LocalDir()
+-
+-	if err := os.MkdirAll(dir, 0777); err != nil {
+-		f.err = err
+-		return
+-	}
+-
+-	goVers, progPath, progVers := telemetry.ProgramInfo(info)
+-	f.meta = fmt.Sprintf("TimeBegin: %s\nTimeEnd: %s\nProgram: %s\nVersion: %s\nGoVersion: %s\nGOOS: %s\nGOARCH: %s\n\n",
+-		begin.Format(time.RFC3339), end.Format(time.RFC3339),
+-		progPath, progVers, goVers, runtime.GOOS, runtime.GOARCH)
+-	if len(f.meta) > maxMetaLen { // should be impossible for our use
+-		f.err = fmt.Errorf("metadata too long")
+-		return
+-	}
+-	if progVers != "" {
+-		progVers = "@" + progVers
+-	}
+-	prefix := fmt.Sprintf("%s%s-%s-%s-%s-", path.Base(progPath), progVers, goVers, runtime.GOOS, runtime.GOARCH)
+-	f.namePrefix = filepath.Join(dir, prefix)
+-}
+-
+-// filename returns the name of the file to use for f,
+-// given the current time now.
+-// It also returns the time when that name will no longer be valid
+-// and a new filename should be computed.
+-func (f *file) filename(now time.Time) (name string, expire time.Time, err error) {
+-	now = now.UTC()
+-	year, month, day := now.Date()
+-	begin := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+-	// files always begin today, but expire on the next day of the week
+-	// from the 'weekends' file.
+-	incr, err := fileValidity(now)
+-	if err != nil {
+-		return "", time.Time{}, err
+-	}
+-	end := time.Date(year, month, day+incr, 0, 0, 0, 0, time.UTC)
+-	if f.namePrefix == "" && f.err == nil {
+-		f.init(begin, end)
+-		debugPrintf("init: %#q, %v", f.namePrefix, f.err)
+-	}
+-	// f.err != nil was set in f.init and means it is impossible to
+-	// have a counter file
+-	if f.err != nil {
+-		return "", time.Time{}, f.err
+-	}
+-
+-	name = f.namePrefix + now.Format("2006-01-02") + "." + FileVersion + ".count"
+-	return name, end, nil
+-}
+-
+-// fileValidity returns the number of days that a file is valid for.
+-// It is the number of days to the next day of the week from the 'weekends' file.
+-func fileValidity(now time.Time) (int, error) {
++// weekEnd returns the day of the week on which uploads occur (and therefore
++// counters expire).
++//
++// Reads the weekends file, creating one if none exists.
++func weekEnd() (time.Weekday, error) {
+ 	// If there is no 'weekends' file create it and initialize it
+ 	// to a random day of the week. There is a short interval for
+ 	// a race.
+@@ -206,18 +147,13 @@ func fileValidity(now time.Time) (int, error) {
+ 	if len(buf) == 0 {
+ 		return 0, fmt.Errorf("empty weekends file")
+ 	}
+-	dayofweek := time.Weekday(buf[0] - '0') // 0 is Sunday
++	weekend := time.Weekday(buf[0] - '0') // 0 is Sunday
+ 	// paranoia to make sure the value is legal
+-	dayofweek %= 7
+-	if dayofweek < 0 {
+-		dayofweek += 7
+-	}
+-	today := now.Weekday()
+-	incr := dayofweek - today
+-	if incr <= 0 {
+-		incr += 7
++	weekend %= 7
++	if weekend < 0 {
++		weekend += 7
+ 	}
+-	return int(incr), nil
++	return weekend, nil
+ }
+ 
+ // rotate checks to see whether the file f needs to be rotated,
+@@ -226,11 +162,19 @@ func fileValidity(now time.Time) (int, error) {
+ // In general rotate should be called just once for each file.
+ // rotate will arrange a timer to call itself again when necessary.
+ func (f *file) rotate() {
+-	expire, cleanup := f.rotate1()
+-	cleanup()
+-	if !expire.IsZero() {
++	expiry := f.rotate1()
++	if !expiry.IsZero() {
++		delay := time.Until(expiry)
++		// Some tests set CounterTime to a time in the past, causing delay to be
++		// negative. Avoid infinite loops by delaying at least a short interval.
++		//
++		// TODO(rfindley): instead, just also mock AfterFunc.
++		const minDelay = 1 * time.Minute
++		if delay < minDelay {
++			delay = minDelay
++		}
+ 		// TODO(rsc): Does this do the right thing for laptops closing?
+-		time.AfterFunc(time.Until(expire), f.rotate)
++		time.AfterFunc(delay, f.rotate)
+ 	}
+ }
+ 
+@@ -242,60 +186,125 @@ var CounterTime = func() time.Time {
+ 	return time.Now().UTC()
+ }
+ 
+-func (f *file) rotate1() (expire time.Time, cleanup func()) {
++// counterSpan returns the current time span for a counter file, as determined
++// by [CounterTime] and the [weekEnd].
++func counterSpan() (begin, end time.Time, _ error) {
++	year, month, day := CounterTime().Date()
++	begin = time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
++	// files always begin today, but expire on the next day of the week
++	// from the 'weekends' file.
++	weekend, err := weekEnd()
++	if err != nil {
++		return time.Time{}, time.Time{}, err
++	}
++	incr := int(weekend - begin.Weekday())
++	if incr <= 0 {
++		incr += 7 // ensure that end is later than begin
++	}
++	end = time.Date(year, month, day+incr, 0, 0, 0, 0, time.UTC)
++	return begin, end, nil
++}
++
++// rotate1 rotates the current counter file, returning its expiry, or the zero
++// time if rotation failed.
++func (f *file) rotate1() time.Time {
++	// Cleanup must be performed while unlocked, since invalidateCounters may
++	// involve calls to f.lookup.
++	var previous *mappedFile // read below while holding the f.mu.
++	defer func() {
++		// Counters must be invalidated whenever the mapped file changes.
++		if next := f.current.Load(); next != previous {
++			f.invalidateCounters()
++			// Ensure that the previous counter mapped file is closed.
++			if previous != nil {
++				previous.close() // safe to call multiple times
++			}
++		}
++	}()
++
+ 	f.mu.Lock()
+ 	defer f.mu.Unlock()
+ 
+-	var previous *mappedFile
+-	// TODO(rfindley): refactor. All callers immediately invoke cleanup;
+-	// therefore the cleanup here should be deferred.
+-	cleanup = func() {
+-		// convert counters to new mapping (or nil)
+-		// from old mapping (or nil)
+-		f.invalidateCounters()
+-		if previous == nil {
+-			// no old mapping to worry about
+-			return
++	previous = f.current.Load()
++
++	if f.err != nil {
++		return time.Time{} // already in failed state; nothing to do
++	}
++
++	fail := func(err error) {
++		debugPrintf("rotate: %v", err)
++		f.err = err
++		f.current.Store(nil)
++	}
++
++	if mode, _ := telemetry.Default.Mode(); mode == "off" {
++		// TODO(rfindley): do we ever want to make ErrDisabled recoverable?
++		// Specifically, if f.err is ErrDisabled, should we check again during when
++		// rotating?
++		fail(ErrDisabled)
++		return time.Time{}
++	}
++
++	if f.buildInfo == nil {
++		bi, ok := debug.ReadBuildInfo()
++		if !ok {
++			fail(errNoBuildInfo)
++			return time.Time{}
+ 		}
+-		// now it is safe to clean up the old mapping
+-		// Quim Montel pointed out the previous cleanup was incomplete
+-		previous.close()
++		f.buildInfo = bi
+ 	}
+ 
+-	name, expire, err := f.filename(CounterTime())
++	begin, end, err := counterSpan()
+ 	if err != nil {
+-		// This could be mode == "off" (when rotate is called for the first time)
+-		ret := nop
+-		if previous = f.current.Load(); previous != nil {
+-			// or it could be some strange error
+-			f.current.Store(nil)
+-			ret = cleanup
+-		}
+-		debugPrintf("rotate: %v\n", err)
+-		return time.Time{}, ret
++		fail(err)
++		return time.Time{}
+ 	}
++	if f.timeBegin.Equal(begin) && f.timeEnd.Equal(end) {
++		return f.timeEnd // nothing to do
++	}
++	f.timeBegin, f.timeEnd = begin, end
+ 
+-	previous = f.current.Load()
+-	if previous != nil && name == previous.f.Name() {
+-		// the existing file is fine
+-		return expire, nop
++	goVers, progPath, progVers := telemetry.ProgramInfo(f.buildInfo)
++	meta := fmt.Sprintf("TimeBegin: %s\nTimeEnd: %s\nProgram: %s\nVersion: %s\nGoVersion: %s\nGOOS: %s\nGOARCH: %s\n\n",
++		f.timeBegin.Format(time.RFC3339), f.timeEnd.Format(time.RFC3339),
++		progPath, progVers, goVers, runtime.GOOS, runtime.GOARCH)
++	if len(meta) > maxMetaLen { // should be impossible for our use
++		fail(fmt.Errorf("metadata too long"))
++		return time.Time{}
+ 	}
+ 
+-	m, err := openMapped(name, f.meta, nil)
++	if progVers != "" {
++		progVers = "@" + progVers
++	}
++	baseName := fmt.Sprintf("%s%s-%s-%s-%s-%s.%s.count",
++		path.Base(progPath),
++		progVers,
++		goVers,
++		runtime.GOOS,
++		runtime.GOARCH,
++		f.timeBegin.Format("2006-01-02"),
++		FileVersion,
++	)
++	dir := telemetry.Default.LocalDir()
++	if err := os.MkdirAll(dir, 0777); err != nil {
++		fail(fmt.Errorf("making local dir: %v", err))
++		return time.Time{}
++	}
++	name := filepath.Join(dir, baseName)
++
++	m, err := openMapped(name, meta, nil)
+ 	if err != nil {
+ 		// Mapping failed:
+ 		// If there used to be a mapped file, after cleanup
+ 		// incrementing counters will only change their internal state.
+ 		// (before cleanup the existing mapped file would be updated)
+-		f.current.Store(nil) // invalidate the current mapping
+-		debugPrintf("rotate: openMapped: %v\n", err)
+-		return time.Time{}, cleanup
++		fail(fmt.Errorf("openMapped: %v", err))
++		return time.Time{}
+ 	}
+ 
+ 	debugPrintf("using %v", m.f.Name())
+ 	f.current.Store(m)
+-
+-	return expire, cleanup
++	return f.timeEnd
+ }
+ 
+ func (f *file) newCounter(name string) *atomic.Uint64 {
+@@ -325,6 +334,7 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
+ 	cleanup = nop
+ 	if newM != nil {
+ 		f.current.Store(newM)
++		// TODO(rfindley): shouldn't this close f.current?
+ 		cleanup = f.invalidateCounters
+ 	}
+ 	return v, cleanup
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/start.go b/src/cmd/vendor/golang.org/x/telemetry/start.go
+index 76fa9b6b4d..4b37a5c394 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/start.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/start.go
+@@ -86,59 +86,31 @@ type Config struct {
+ // Start returns a StartResult, which may be awaited via [StartResult.Wait] to
+ // wait for all work done by Start to complete.
+ func Start(config Config) *StartResult {
+-	if config.TelemetryDir != "" {
+-		telemetry.Default = telemetry.NewDir(config.TelemetryDir)
+-	}
+-	result := new(StartResult)
+-
+-	mode, _ := telemetry.Default.Mode()
+-	if mode == "off" {
+-		// Telemetry is turned off. Crash reporting doesn't work without telemetry
+-		// at least set to "local". The upload process runs in both "on" and "local" modes.
+-		// In local mode the upload process builds local reports but does not do the upload.
+-		return result
+-	}
+-
+-	counter.Open()
+-
+-	if _, err := os.Stat(telemetry.Default.LocalDir()); err != nil {
+-		// There was a problem statting LocalDir, which is needed for both
+-		// crash monitoring and counter uploading. Most likely, there was an
+-		// error creating telemetry.LocalDir in the counter.Open call above.
+-		// Don't start the child.
+-		return result
+-	}
+-
+-	var reportCrashes = config.ReportCrashes && crashmonitor.Supported()
+-
+ 	switch v := os.Getenv(telemetryChildVar); v {
+ 	case "":
+ 		// The subprocess started by parent has GO_TELEMETRY_CHILD=1.
+-		childShouldUpload := config.Upload && acquireUploadToken()
+-		if reportCrashes || childShouldUpload {
+-			parent(reportCrashes, childShouldUpload, result)
+-		}
++		return parent(config)
+ 	case "1":
+-		// golang/go#67211: be sure to set telemetryChildVar before running the
+-		// child, because the child itself invokes the go command to download the
+-		// upload config. If the telemetryChildVar variable is still set to "1",
+-		// that delegated go command may think that it is itself a telemetry
+-		// child.
+-		//
+-		// On the other hand, if telemetryChildVar were simply unset, then the
+-		// delegated go commands would fork themselves recursively. Short-circuit
+-		// this recursion.
+-		os.Setenv(telemetryChildVar, "2")
+-		upload := os.Getenv(telemetryUploadVar) == "1"
+-		child(reportCrashes, upload, config.UploadStartTime, config.UploadURL)
+-		os.Exit(0)
++		child(config) // child will exit the process when it's done.
+ 	case "2":
+-		// Do nothing: see note above.
++		// Do nothing: this was executed directly or indirectly by a child.
+ 	default:
+ 		log.Fatalf("unexpected value for %q: %q", telemetryChildVar, v)
+ 	}
+ 
+-	return result
++	return &StartResult{}
++}
++
++// MaybeChild executes the telemetry child logic if the calling program is
++// the telemetry child process, and does nothing otherwise. It is meant to be
++// called as the first thing in a program that uses telemetry.Start but cannot
++// call telemetry.Start immediately when it starts.
++func MaybeChild(config Config) {
++	if v := os.Getenv(telemetryChildVar); v == "1" {
++		child(config) // child will exit the process when it's done.
++	}
++	// other values of the telemetryChildVar environment variable
++	// will be handled by telemetry.Start.
+ }
+ 
+ // A StartResult is a handle to the result of a call to [Start]. Call
+@@ -169,7 +141,41 @@ const telemetryChildVar = "GO_TELEMETRY_CHILD"
+ // acquired by the parent, and the child should attempt an upload.
+ const telemetryUploadVar = "GO_TELEMETRY_CHILD_UPLOAD"
+ 
+-func parent(reportCrashes, upload bool, result *StartResult) {
++func parent(config Config) *StartResult {
++	if config.TelemetryDir != "" {
++		telemetry.Default = telemetry.NewDir(config.TelemetryDir)
++	}
++	result := new(StartResult)
++
++	mode, _ := telemetry.Default.Mode()
++	if mode == "off" {
++		// Telemetry is turned off. Crash reporting doesn't work without telemetry
++		// at least set to "local". The upload process runs in both "on" and "local" modes.
++		// In local mode the upload process builds local reports but does not do the upload.
++		return result
++	}
++
++	counter.Open()
++
++	if _, err := os.Stat(telemetry.Default.LocalDir()); err != nil {
++		// There was a problem statting LocalDir, which is needed for both
++		// crash monitoring and counter uploading. Most likely, there was an
++		// error creating telemetry.LocalDir in the counter.Open call above.
++		// Don't start the child.
++		return result
++	}
++
++	childShouldUpload := config.Upload && acquireUploadToken()
++	reportCrashes := config.ReportCrashes && crashmonitor.Supported()
++
++	if reportCrashes || childShouldUpload {
++		startChild(reportCrashes, childShouldUpload, result)
++	}
++
++	return result
++}
++
++func startChild(reportCrashes, upload bool, result *StartResult) {
+ 	// This process is the application (parent).
+ 	// Fork+exec the telemetry child.
+ 	exe, err := os.Executable()
+@@ -233,9 +239,29 @@ func parent(reportCrashes, upload bool, result *StartResult) {
+ 	}()
+ }
+ 
+-func child(reportCrashes, upload bool, uploadStartTime time.Time, uploadURL string) {
++func child(config Config) {
+ 	log.SetPrefix(fmt.Sprintf("telemetry-sidecar (pid %v): ", os.Getpid()))
+ 
++	if config.TelemetryDir != "" {
++		telemetry.Default = telemetry.NewDir(config.TelemetryDir)
++	}
++
++	// golang/go#67211: be sure to set telemetryChildVar before running the
++	// child, because the child itself invokes the go command to download the
++	// upload config. If the telemetryChildVar variable is still set to "1",
++	// that delegated go command may think that it is itself a telemetry
++	// child.
++	//
++	// On the other hand, if telemetryChildVar were simply unset, then the
++	// delegated go commands would fork themselves recursively. Short-circuit
++	// this recursion.
++	os.Setenv(telemetryChildVar, "2")
++	upload := os.Getenv(telemetryUploadVar) == "1"
++
++	reportCrashes := config.ReportCrashes && crashmonitor.Supported()
++	uploadStartTime := config.UploadStartTime
++	uploadURL := config.UploadURL
++
+ 	// Start crashmonitoring and uploading depending on what's requested
+ 	// and wait for the longer running child to complete before exiting:
+ 	// if we collected a crash before the upload finished, wait for the
+@@ -255,6 +281,8 @@ func child(reportCrashes, upload bool, uploadStartTime time.Time, uploadURL stri
+ 		})
+ 	}
+ 	g.Wait()
++
++	os.Exit(0)
+ }
+ 
+ func uploaderChild(asof time.Time, uploadURL string) {
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 95ec113904..14c7a3edb4 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240603224550-f2b69109f79b
++# golang.org/x/telemetry v0.0.0-20240612191826-8cad58b3fcbb
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter

@@ -19,7 +19,137 @@ Date:   Mon Mar 26 21:18:27 2018 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 48 ++++++++++++++++++++-----------------
  test/codegen/comparisons.go         | 15 ++++++++++++
  2 files changed, 41 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 27df285a63..69cc56da59 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
++	"encoding/binary"
+ 	"fmt"
+ 	"strings"
+ )
+@@ -1281,21 +1282,14 @@ opswitch:
+ 			maxRewriteLen := 6
+ 			// Some architectures can load unaligned byte sequence as 1 word.
+ 			// So we can cover longer strings with the same amount of code.
+-			canCombineLoads := false
++			canCombineLoads := canMergeLoads()
+ 			combine64bit := false
+-			// TODO: does this improve performance on any other architectures?
+-			switch thearch.LinkArch.Family {
+-			case sys.AMD64:
+-				// Larger compare require longer instructions, so keep this reasonably low.
+-				// Data from CL 26758 shows that longer strings are rare.
+-				// If we really want we can do 16 byte SSE comparisons in the future.
+-				maxRewriteLen = 16
+-				canCombineLoads = true
+-				combine64bit = true
+-			case sys.I386:
+-				maxRewriteLen = 8
+-				canCombineLoads = true
++			if canCombineLoads {
++				// Keep this low enough to generate less code than a function call.
++				maxRewriteLen = 2 * thearch.LinkArch.RegSize
++				combine64bit = thearch.LinkArch.RegSize >= 8
+ 			}
++
+ 			var and Op
+ 			switch cmp {
+ 			case OEQ:
+@@ -3288,15 +3282,10 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 	var inline bool
+ 
+ 	maxcmpsize := int64(4)
+-	unalignedLoad := false
+-	switch thearch.LinkArch.Family {
+-	case sys.AMD64, sys.ARM64, sys.S390X:
+-		// Keep this low enough, to generate less code than function call.
+-		maxcmpsize = 16
+-		unalignedLoad = true
+-	case sys.I386:
+-		maxcmpsize = 8
+-		unalignedLoad = true
++	unalignedLoad := canMergeLoads()
++	if unalignedLoad {
++		// Keep this low enough to generate less code than a function call.
++		maxcmpsize = 2 * int64(thearch.LinkArch.RegSize)
+ 	}
+ 
+ 	switch t.Etype {
+@@ -3913,3 +3902,18 @@ func substArgTypes(old *Node, types_ ...*types.Type) *Node {
+ 	}
+ 	return n
+ }
++
++// canMergeLoads reports whether the backend optimization passes for
++// the current architecture can combine adjacent loads into a single
++// larger, possibly unaligned, load. Note that currently the
++// optimizations must be able to handle little endian byte order.
++func canMergeLoads() bool {
++	switch thearch.LinkArch.Family {
++	case sys.ARM64, sys.AMD64, sys.I386, sys.S390X:
++		return true
++	case sys.PPC64:
++		// Load combining only supported on ppc64le.
++		return thearch.LinkArch.ByteOrder == binary.LittleEndian
++	}
++	return false
++}
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index 15a659a4e6..2f010bcbae 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -19,16 +19,25 @@ import "unsafe"
+ 
+ func CompareString1(s string) bool {
+ 	// amd64:`CMPW\t\(.*\), [$]`
++	// arm64:`MOVHU\t\(.*\), [R]`,`CMPW\t[$]`
++	// ppc64le:`MOVHZ\t\(.*\), [R]`,`CMPW\t.*, [$]`
++	// s390x:`MOVHBR\t\(.*\), [R]`,`CMPW\t.*, [$]`
+ 	return s == "xx"
+ }
+ 
+ func CompareString2(s string) bool {
+ 	// amd64:`CMPL\t\(.*\), [$]`
++	// arm64:`MOVWU\t\(.*\), [R]`,`CMPW\t.*, [R]`
++	// ppc64le:`MOVWZ\t\(.*\), [R]`,`CMPW\t.*, [R]`
++	// s390x:`MOVWBR\t\(.*\), [R]`,`CMPW\t.*, [$]`
+ 	return s == "xxxx"
+ }
+ 
+ func CompareString3(s string) bool {
+ 	// amd64:`CMPQ\t\(.*\), [A-Z]`
++	// arm64:-`CMPW\t`
++	// ppc64le:-`CMPW\t`
++	// s390x:-`CMPW\t`
+ 	return s == "xxxxxxxx"
+ }
+ 
+@@ -36,6 +45,9 @@ func CompareString3(s string) bool {
+ 
+ func CompareArray1(a, b [2]byte) bool {
+ 	// amd64:`CMPW\t""[.+_a-z0-9]+\(SP\), [A-Z]`
++	// arm64:-`MOVBU\t`
++	// ppc64le:-`MOVBZ\t`
++	// s390x:-`MOVBZ\t`
+ 	return a == b
+ }
+ 
+@@ -65,6 +77,9 @@ func CompareArray5(a, b [15]byte) bool {
+ // This was a TODO in mapaccess1_faststr
+ func CompareArray6(a, b unsafe.Pointer) bool {
+ 	// amd64:`CMPL\t\(.*\), [A-Z]`
++	// arm64:`MOVWU\t\(.*\), [R]`,`CMPW\t.*, [R]`
++	// ppc64le:`MOVWZ\t\(.*\), [R]`,`CMPW\t.*, [R]`
++	// s390x:`MOVWBR\t\(.*\), [R]`,`CMPW\t.*, [R]`
+ 	return *((*[4]byte)(a)) != *((*[4]byte)(b))
+ }
+ 

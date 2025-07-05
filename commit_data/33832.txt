@@ -19,10 +19,139 @@ Date:   Sat Sep 9 14:17:05 2017 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/armerror.s |  8 ++++++++
  src/cmd/asm/internal/asm/testdata/armv6.s    |  8 ++++++++
  src/cmd/internal/obj/arm/a.out.go            |  8 ++++++++
  src/cmd/internal/obj/arm/anames.go           |  8 ++++++++
  src/cmd/internal/obj/arm/asm5.go             | 27 ++++++++++++++++++++++++++-
  5 files changed, 58 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/armerror.s b/src/cmd/asm/internal/asm/testdata/armerror.s
+index 70e6e3471d..b41b57ca1d 100644
+--- a/src/cmd/asm/internal/asm/testdata/armerror.s
++++ b/src/cmd/asm/internal/asm/testdata/armerror.s
+@@ -43,6 +43,14 @@ TEXT errors(SB),$0
+ 	NMULAF	F0, F1             // ERROR "illegal combination"
+ 	NMULSD	F0, F1             // ERROR "illegal combination"
+ 	NMULSF	F0, F1             // ERROR "illegal combination"
++	FMULAD	F0, F1             // ERROR "illegal combination"
++	FMULAF	F0, F1             // ERROR "illegal combination"
++	FMULSD	F0, F1             // ERROR "illegal combination"
++	FMULSF	F0, F1             // ERROR "illegal combination"
++	FNMULAD	F0, F1             // ERROR "illegal combination"
++	FNMULAF	F0, F1             // ERROR "illegal combination"
++	FNMULSD	F0, F1             // ERROR "illegal combination"
++	FNMULSF	F0, F1             // ERROR "illegal combination"
+ 	NEGF	F0, F1, F2         // ERROR "illegal combination"
+ 	NEGD	F0, F1, F2         // ERROR "illegal combination"
+ 	ABSF	F0, F1, F2         // ERROR "illegal combination"
+diff --git a/src/cmd/asm/internal/asm/testdata/armv6.s b/src/cmd/asm/internal/asm/testdata/armv6.s
+index d00c4f08ac..c6649bc1fb 100644
+--- a/src/cmd/asm/internal/asm/testdata/armv6.s
++++ b/src/cmd/asm/internal/asm/testdata/armv6.s
+@@ -30,6 +30,14 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
+ 	NMULAD	F5, F6, F7    // 057b16ee
+ 	NMULSF	F5, F6, F7    // 457a16ee
+ 	NMULSD	F5, F6, F7    // 457b16ee
++	FMULAF  F5, F6, F7    // 057aa6ee
++	FMULAD  F5, F6, F7    // 057ba6ee
++	FMULSF  F5, F6, F7    // 457aa6ee
++	FMULSD  F5, F6, F7    // 457ba6ee
++	FNMULAF F5, F6, F7    // 457a96ee
++	FNMULAD F5, F6, F7    // 457b96ee
++	FNMULSF F5, F6, F7    // 057a96ee
++	FNMULSD F5, F6, F7    // 057b96ee
+ 	DIVF	F0, F1, F2    // 002a81ee
+ 	DIVD.EQ	F3, F4, F5    // 035b840e
+ 	DIVF.NE	F0, F2        // 002a821e
+diff --git a/src/cmd/internal/obj/arm/a.out.go b/src/cmd/internal/obj/arm/a.out.go
+index 336682e5ce..9053e6727b 100644
+--- a/src/cmd/internal/obj/arm/a.out.go
++++ b/src/cmd/internal/obj/arm/a.out.go
+@@ -240,6 +240,14 @@ const (
+ 	AMULSD
+ 	ANMULSF
+ 	ANMULSD
++	AFMULAF
++	AFMULAD
++	AFNMULAF
++	AFNMULAD
++	AFMULSF
++	AFMULSD
++	AFNMULSF
++	AFNMULSD
+ 	ADIVF
+ 	ADIVD
+ 	ASQRTF
+diff --git a/src/cmd/internal/obj/arm/anames.go b/src/cmd/internal/obj/arm/anames.go
+index 8e4be6a36a..a30513ed94 100644
+--- a/src/cmd/internal/obj/arm/anames.go
++++ b/src/cmd/internal/obj/arm/anames.go
+@@ -63,6 +63,14 @@ var Anames = []string{
+ 	"MULSD",
+ 	"NMULSF",
+ 	"NMULSD",
++	"FMULAF",
++	"FMULAD",
++	"FNMULAF",
++	"FNMULAD",
++	"FMULSF",
++	"FMULSD",
++	"FNMULSF",
++	"FNMULSD",
+ 	"DIVF",
+ 	"DIVD",
+ 	"SQRTF",
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 687ac2f37d..98b45feb60 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1661,6 +1661,14 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ANMULAD, r0)
+ 			opset(ANMULSF, r0)
+ 			opset(ANMULSD, r0)
++			opset(AFMULAF, r0)
++			opset(AFMULAD, r0)
++			opset(AFMULSF, r0)
++			opset(AFMULSD, r0)
++			opset(AFNMULAF, r0)
++			opset(AFNMULAD, r0)
++			opset(AFNMULSF, r0)
++			opset(AFNMULSD, r0)
+ 			opset(ADIVF, r0)
+ 			opset(ADIVD, r0)
+ 
+@@ -2270,7 +2278,8 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		r := int(p.Reg)
+ 		if r == 0 {
+ 			switch p.As {
+-			case AMULAD, AMULAF, AMULSF, AMULSD, ANMULAF, ANMULAD, ANMULSF, ANMULSD:
++			case AMULAD, AMULAF, AMULSF, AMULSD, ANMULAF, ANMULAD, ANMULSF, ANMULSD,
++				AFMULAD, AFMULAF, AFMULSF, AFMULSD, AFNMULAF, AFNMULAD, AFNMULSF, AFNMULSD:
+ 				c.ctxt.Diag("illegal combination: %v", p)
+ 			default:
+ 				r = rt
+@@ -2905,6 +2914,22 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
+ 		return o | 0xe<<24 | 0x1<<20 | 0xb<<8 | 0x4<<4
+ 	case ANMULSF:
+ 		return o | 0xe<<24 | 0x1<<20 | 0xa<<8 | 0x4<<4
++	case AFMULAD:
++		return o | 0xe<<24 | 0xa<<20 | 0xb<<8
++	case AFMULAF:
++		return o | 0xe<<24 | 0xa<<20 | 0xa<<8
++	case AFMULSD:
++		return o | 0xe<<24 | 0xa<<20 | 0xb<<8 | 0x4<<4
++	case AFMULSF:
++		return o | 0xe<<24 | 0xa<<20 | 0xa<<8 | 0x4<<4
++	case AFNMULAD:
++		return o | 0xe<<24 | 0x9<<20 | 0xb<<8 | 0x4<<4
++	case AFNMULAF:
++		return o | 0xe<<24 | 0x9<<20 | 0xa<<8 | 0x4<<4
++	case AFNMULSD:
++		return o | 0xe<<24 | 0x9<<20 | 0xb<<8
++	case AFNMULSF:
++		return o | 0xe<<24 | 0x9<<20 | 0xa<<8
+ 	case ADIVD:
+ 		return o | 0xe<<24 | 0x8<<20 | 0xb<<8 | 0<<4
+ 	case ADIVF:

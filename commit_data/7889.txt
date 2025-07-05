@@ -18,6 +18,21 @@ Date:   Sun Mar 27 17:15:48 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4289075
-
+---
  src/pkg/runtime/darwin/amd64/sys.s | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index 10d8f96df5..39398e065d 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -146,8 +146,7 @@ TEXT runtime·bsdthread_create(SB),7,$0
+ 	MOVQ	mm+16(SP), SI	// "arg"
+ 	MOVQ	stk+8(SP), DX	// stack
+ 	MOVQ	gg+24(SP), R10	// "pthread"
+-// TODO(rsc): why do we get away with 0 flags here but not on 386?
+-	MOVQ	$0, R8	// flags
++	MOVQ	$0x01000000, R8	// flags = PTHREAD_START_CUSTOM
+ 	MOVQ	$0, R9	// paranoia
+ 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
+ 	SYSCALL

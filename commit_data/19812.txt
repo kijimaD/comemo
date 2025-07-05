@@ -19,6 +19,35 @@ Date:   Thu Jul 24 23:18:54 2014 +0200
     R=golang-codereviews, aram, gobot, rsc, dave, bradfitz
     CC=golang-codereviews, rsc
     https://golang.org/cl/112490043
-
+---
  test/run.go | 13 +++++++++++--
  1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index a8d4baa3ac..a8a6dedb23 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -71,8 +71,9 @@ const maxTests = 5000
+ func main() {
+ 	flag.Parse()
+ 
+-	goos = os.Getenv("GOOS")
+-	goarch = os.Getenv("GOARCH")
++	goos = getenv("GOOS", runtime.GOOS)
++	goarch = getenv("GOARCH", runtime.GOARCH)
++
+ 	findExecCmd()
+ 
+ 	// Disable parallelism if printing or if using a simulator.
+@@ -972,3 +973,11 @@ func envForDir(dir string) []string {
+ 	env = append(env, "PWD="+dir)
+ 	return env
+ }
++
++func getenv(key, def string) string {
++	value := os.Getenv(key)
++	if value != "" {
++		return value
++	}
++	return def
++}

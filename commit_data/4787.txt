@@ -7,7 +7,32 @@ Date:   Thu Feb 4 13:08:47 2010 -0800
     R=adg, adg1
     CC=golang-dev
     https://golang.org/cl/202044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 10453f2e08..5f2a9250f4 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -35,6 +35,7 @@ Isaac Wagner <ibw@isaacwagner.me>
+ James Meneghello <rawrz0r@gmail.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
++Joe Poirier <jdpoirier@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
+ Kei Son <hey.calmdown@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 03a65a0a36..a21d564e94 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -66,6 +66,7 @@ James Aguilar <jaguilar@google.com>
+ James Meneghello <rawrz0r@gmail.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
++Joe Poirier <jdpoirier@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
+ Kai Backman <kaib@golang.org>

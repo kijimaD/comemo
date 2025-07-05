@@ -14,7 +14,40 @@ Date:   Wed Jul 12 19:07:55 2023 +0800
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/mips/ggen.go   | 6 +-----
  src/cmd/compile/internal/mips64/ggen.go | 6 +-----
  2 files changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/mips/ggen.go b/src/cmd/compile/internal/mips/ggen.go
+index a18440e7b3..e235ef9567 100644
+--- a/src/cmd/compile/internal/mips/ggen.go
++++ b/src/cmd/compile/internal/mips/ggen.go
+@@ -46,10 +46,6 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
+ }
+ 
+ func ginsnop(pp *objw.Progs) *obj.Prog {
+-	p := pp.Prog(mips.ANOR)
+-	p.From.Type = obj.TYPE_REG
+-	p.From.Reg = mips.REG_R0
+-	p.To.Type = obj.TYPE_REG
+-	p.To.Reg = mips.REG_R0
++	p := pp.Prog(mips.ANOOP)
+ 	return p
+ }
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index 37bb871958..5f3f3e64d9 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -50,10 +50,6 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
+ }
+ 
+ func ginsnop(pp *objw.Progs) *obj.Prog {
+-	p := pp.Prog(mips.ANOR)
+-	p.From.Type = obj.TYPE_REG
+-	p.From.Reg = mips.REG_R0
+-	p.To.Type = obj.TYPE_REG
+-	p.To.Reg = mips.REG_R0
++	p := pp.Prog(mips.ANOOP)
+ 	return p
+ }

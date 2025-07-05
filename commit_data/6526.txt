@@ -7,6 +7,34 @@ Date:   Thu Oct 14 17:15:45 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2520042
-
+---
  src/pkg/Makefile | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 3bde747d9d..3371fe82d0 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -220,22 +220,16 @@ NOTEST+=flag
+ NOTEST+=fmt
+ NOTEST+=go/printer
+ NOTEST+=gob
+-NOTEST+=http
+ NOTEST+=image/png
+ NOTEST+=json
+ NOTEST+=log
+ NOTEST+=math
+-NOTEST+=net
+-NOTEST+=netchan
+ NOTEST+=os
+ NOTEST+=os/signal
+-NOTEST+=rpc
+-NOTEST+=rpc/jsonrpc
+ NOTEST+=strconv
+ NOTEST+=syslog
+ NOTEST+=template
+ NOTEST+=testing/quick
+-NOTEST+=websocket
+ NOTEST+=xml
+ endif
+ 

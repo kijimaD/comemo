@@ -13,6 +13,19 @@ Date:   Mon Dec 17 00:37:07 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/example_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/os/example_test.go b/src/os/example_test.go
+index 5c96ebb417..8b6566e149 100644
+--- a/src/os/example_test.go
++++ b/src/os/example_test.go
+@@ -55,6 +55,7 @@ func ExampleFileMode() {
+ 		log.Fatal(err)
+ 	}
+ 
++	fmt.Printf("permissions: %#o\n", fi.Mode().Perm()) // 0400, 0777, etc.
+ 	switch mode := fi.Mode(); {
+ 	case mode.IsRegular():
+ 		fmt.Println("regular file")

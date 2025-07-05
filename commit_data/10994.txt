@@ -9,6 +9,20 @@ Date:   Thu Dec 22 22:24:34 2011 -0500
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5501070
-
+---
  src/pkg/runtime/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 87c18f07f5..50d0515e2a 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -137,7 +137,7 @@ $(pkgdir)/%.h: %.h
+ clean: clean-local
+ 
+ clean-local:
+-	rm -f $(AUTOHFILES) runtime_defs.go version*.go
++	rm -f $(AUTOHFILES) runtime_defs.go version*.go asm_*.h
+ 
+ arch_GOARCH.h: arch_$(GOARCH).h
+ 	cp $^ $@

@@ -11,10 +11,738 @@ Date:   Mon Nov 14 22:23:10 2016 +0000
     Change-Id: I80a1e566616f0ee8fa3529d4eeee04268f8a713b
     Reviewed-on: https://go-review.googlesource.com/33232
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/text/template/exec_test.go        |   2 +-
  src/text/template/parse/lex.go        |  36 ++---
  src/text/template/parse/lex_test.go   | 259 +++++++++++++++++-----------------
  src/text/template/parse/parse.go      |  22 ++-
  src/text/template/parse/parse_test.go |  34 -----
  5 files changed, 149 insertions(+), 204 deletions(-)
+
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 7d4af3bcba..9b4da435bc 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -1152,7 +1152,7 @@ func TestUnterminatedStringError(t *testing.T) {
+ 		t.Fatal("expected error")
+ 	}
+ 	str := err.Error()
+-	if !strings.Contains(str, "X:3: unexpected unterminated raw quoted string") {
++	if !strings.Contains(str, "X:3: unexpected unterminated raw quoted strin") {
+ 		t.Fatalf("unexpected error: %s", str)
+ 	}
+ }
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index 6fbf36d7a4..7811cc1d4f 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -13,10 +13,9 @@ import (
+ 
+ // item represents a token or text string returned from the scanner.
+ type item struct {
+-	typ  itemType // The type of this item.
+-	pos  Pos      // The starting position, in bytes, of this item in the input string.
+-	val  string   // The value of this item.
+-	line int      // The line number at the start of this item.
++	typ itemType // The type of this item.
++	pos Pos      // The starting position, in bytes, of this item in the input string.
++	val string   // The value of this item.
+ }
+ 
+ func (i item) String() string {
+@@ -117,7 +116,6 @@ type lexer struct {
+ 	lastPos    Pos       // position of most recent item returned by nextItem
+ 	items      chan item // channel of scanned items
+ 	parenDepth int       // nesting depth of ( ) exprs
+-	line       int       // 1+number of newlines seen
+ }
+ 
+ // next returns the next rune in the input.
+@@ -129,9 +127,6 @@ func (l *lexer) next() rune {
+ 	r, w := utf8.DecodeRuneInString(l.input[l.pos:])
+ 	l.width = Pos(w)
+ 	l.pos += l.width
+-	if r == '\n' {
+-		l.line++
+-	}
+ 	return r
+ }
+ 
+@@ -145,20 +140,11 @@ func (l *lexer) peek() rune {
+ // backup steps back one rune. Can only be called once per call of next.
+ func (l *lexer) backup() {
+ 	l.pos -= l.width
+-	// Correct newline count.
+-	if l.width == 1 && l.input[l.pos] == '\n' {
+-		l.line--
+-	}
+ }
+ 
+ // emit passes an item back to the client.
+ func (l *lexer) emit(t itemType) {
+-	l.items <- item{t, l.start, l.input[l.start:l.pos], l.line}
+-	// Some items contain text internally. If so, count their newlines.
+-	switch t {
+-	case itemText, itemRawString, itemLeftDelim, itemRightDelim:
+-		l.line += strings.Count(l.input[l.start:l.pos], "\n")
+-	}
++	l.items <- item{t, l.start, l.input[l.start:l.pos]}
+ 	l.start = l.pos
+ }
+ 
+@@ -183,10 +169,17 @@ func (l *lexer) acceptRun(valid string) {
+ 	l.backup()
+ }
+ 
++// lineNumber reports which line we're on, based on the position of
++// the previous item returned by nextItem. Doing it this way
++// means we don't have to worry about peek double counting.
++func (l *lexer) lineNumber() int {
++	return 1 + strings.Count(l.input[:l.lastPos], "\n")
++}
++
+ // errorf returns an error token and terminates the scan by passing
+ // back a nil pointer that will be the next state, terminating l.nextItem.
+ func (l *lexer) errorf(format string, args ...interface{}) stateFn {
+-	l.items <- item{itemError, l.start, fmt.Sprintf(format, args...), l.line}
++	l.items <- item{itemError, l.start, fmt.Sprintf(format, args...)}
+ 	return nil
+ }
+ 
+@@ -219,7 +212,6 @@ func lex(name, input, left, right string) *lexer {
+ 		leftDelim:  left,
+ 		rightDelim: right,
+ 		items:      make(chan item),
+-		line:       1,
+ 	}
+ 	go l.run()
+ 	return l
+@@ -610,14 +602,10 @@ Loop:
+ 
+ // lexRawQuote scans a raw quoted string.
+ func lexRawQuote(l *lexer) stateFn {
+-	startLine := l.line
+ Loop:
+ 	for {
+ 		switch l.next() {
+ 		case eof:
+-			// Restore line number to location of opening quote.
+-			// We will error out so it's ok just to overwrite the field.
+-			l.line = startLine
+ 			return l.errorf("unterminated raw quoted string")
+ 		case '`':
+ 			break Loop
+diff --git a/src/text/template/parse/lex_test.go b/src/text/template/parse/lex_test.go
+index d655d788b3..e35ebf1a85 100644
+--- a/src/text/template/parse/lex_test.go
++++ b/src/text/template/parse/lex_test.go
+@@ -58,46 +58,39 @@ type lexTest struct {
+ 	items []item
+ }
+ 
+-func mkItem(typ itemType, text string) item {
+-	return item{
+-		typ: typ,
+-		val: text,
+-	}
+-}
+-
+ var (
+-	tDot        = mkItem(itemDot, ".")
+-	tBlock      = mkItem(itemBlock, "block")
+-	tEOF        = mkItem(itemEOF, "")
+-	tFor        = mkItem(itemIdentifier, "for")
+-	tLeft       = mkItem(itemLeftDelim, "{{")
+-	tLpar       = mkItem(itemLeftParen, "(")
+-	tPipe       = mkItem(itemPipe, "|")
+-	tQuote      = mkItem(itemString, `"abc \n\t\" "`)
+-	tRange      = mkItem(itemRange, "range")
+-	tRight      = mkItem(itemRightDelim, "}}")
+-	tRpar       = mkItem(itemRightParen, ")")
+-	tSpace      = mkItem(itemSpace, " ")
++	tDot        = item{itemDot, 0, "."}
++	tBlock      = item{itemBlock, 0, "block"}
++	tEOF        = item{itemEOF, 0, ""}
++	tFor        = item{itemIdentifier, 0, "for"}
++	tLeft       = item{itemLeftDelim, 0, "{{"}
++	tLpar       = item{itemLeftParen, 0, "("}
++	tPipe       = item{itemPipe, 0, "|"}
++	tQuote      = item{itemString, 0, `"abc \n\t\" "`}
++	tRange      = item{itemRange, 0, "range"}
++	tRight      = item{itemRightDelim, 0, "}}"}
++	tRpar       = item{itemRightParen, 0, ")"}
++	tSpace      = item{itemSpace, 0, " "}
+ 	raw         = "`" + `abc\n\t\" ` + "`"
+ 	rawNL       = "`now is{{\n}}the time`" // Contains newline inside raw quote.
+-	tRawQuote   = mkItem(itemRawString, raw)
+-	tRawQuoteNL = mkItem(itemRawString, rawNL)
++	tRawQuote   = item{itemRawString, 0, raw}
++	tRawQuoteNL = item{itemRawString, 0, rawNL}
+ )
+ 
+ var lexTests = []lexTest{
+ 	{"empty", "", []item{tEOF}},
+-	{"spaces", " \t\n", []item{mkItem(itemText, " \t\n"), tEOF}},
+-	{"text", `now is the time`, []item{mkItem(itemText, "now is the time"), tEOF}},
++	{"spaces", " \t\n", []item{{itemText, 0, " \t\n"}, tEOF}},
++	{"text", `now is the time`, []item{{itemText, 0, "now is the time"}, tEOF}},
+ 	{"text with comment", "hello-{{/* this is a comment */}}-world", []item{
+-		mkItem(itemText, "hello-"),
+-		mkItem(itemText, "-world"),
++		{itemText, 0, "hello-"},
++		{itemText, 0, "-world"},
+ 		tEOF,
+ 	}},
+ 	{"punctuation", "{{,@% }}", []item{
+ 		tLeft,
+-		mkItem(itemChar, ","),
+-		mkItem(itemChar, "@"),
+-		mkItem(itemChar, "%"),
++		{itemChar, 0, ","},
++		{itemChar, 0, "@"},
++		{itemChar, 0, "%"},
+ 		tSpace,
+ 		tRight,
+ 		tEOF,
+@@ -106,7 +99,7 @@ var lexTests = []lexTest{
+ 		tLeft,
+ 		tLpar,
+ 		tLpar,
+-		mkItem(itemNumber, "3"),
++		{itemNumber, 0, "3"},
+ 		tRpar,
+ 		tRpar,
+ 		tRight,
+@@ -115,54 +108,54 @@ var lexTests = []lexTest{
+ 	{"empty action", `{{}}`, []item{tLeft, tRight, tEOF}},
+ 	{"for", `{{for}}`, []item{tLeft, tFor, tRight, tEOF}},
+ 	{"block", `{{block "foo" .}}`, []item{
+-		tLeft, tBlock, tSpace, mkItem(itemString, `"foo"`), tSpace, tDot, tRight, tEOF,
++		tLeft, tBlock, tSpace, {itemString, 0, `"foo"`}, tSpace, tDot, tRight, tEOF,
+ 	}},
+ 	{"quote", `{{"abc \n\t\" "}}`, []item{tLeft, tQuote, tRight, tEOF}},
+ 	{"raw quote", "{{" + raw + "}}", []item{tLeft, tRawQuote, tRight, tEOF}},
+ 	{"raw quote with newline", "{{" + rawNL + "}}", []item{tLeft, tRawQuoteNL, tRight, tEOF}},
+ 	{"numbers", "{{1 02 0x14 -7.2i 1e3 +1.2e-4 4.2i 1+2i}}", []item{
+ 		tLeft,
+-		mkItem(itemNumber, "1"),
++		{itemNumber, 0, "1"},
+ 		tSpace,
+-		mkItem(itemNumber, "02"),
++		{itemNumber, 0, "02"},
+ 		tSpace,
+-		mkItem(itemNumber, "0x14"),
++		{itemNumber, 0, "0x14"},
+ 		tSpace,
+-		mkItem(itemNumber, "-7.2i"),
++		{itemNumber, 0, "-7.2i"},
+ 		tSpace,
+-		mkItem(itemNumber, "1e3"),
++		{itemNumber, 0, "1e3"},
+ 		tSpace,
+-		mkItem(itemNumber, "+1.2e-4"),
++		{itemNumber, 0, "+1.2e-4"},
+ 		tSpace,
+-		mkItem(itemNumber, "4.2i"),
++		{itemNumber, 0, "4.2i"},
+ 		tSpace,
+-		mkItem(itemComplex, "1+2i"),
++		{itemComplex, 0, "1+2i"},
+ 		tRight,
+ 		tEOF,
+ 	}},
+ 	{"characters", `{{'a' '\n' '\'' '\\' '\u00FF' '\xFF' '本'}}`, []item{
+ 		tLeft,
+-		mkItem(itemCharConstant, `'a'`),
++		{itemCharConstant, 0, `'a'`},
+ 		tSpace,
+-		mkItem(itemCharConstant, `'\n'`),
++		{itemCharConstant, 0, `'\n'`},
+ 		tSpace,
+-		mkItem(itemCharConstant, `'\''`),
++		{itemCharConstant, 0, `'\''`},
+ 		tSpace,
+-		mkItem(itemCharConstant, `'\\'`),
++		{itemCharConstant, 0, `'\\'`},
+ 		tSpace,
+-		mkItem(itemCharConstant, `'\u00FF'`),
++		{itemCharConstant, 0, `'\u00FF'`},
+ 		tSpace,
+-		mkItem(itemCharConstant, `'\xFF'`),
++		{itemCharConstant, 0, `'\xFF'`},
+ 		tSpace,
+-		mkItem(itemCharConstant, `'本'`),
++		{itemCharConstant, 0, `'本'`},
+ 		tRight,
+ 		tEOF,
+ 	}},
+ 	{"bools", "{{true false}}", []item{
+ 		tLeft,
+-		mkItem(itemBool, "true"),
++		{itemBool, 0, "true"},
+ 		tSpace,
+-		mkItem(itemBool, "false"),
++		{itemBool, 0, "false"},
+ 		tRight,
+ 		tEOF,
+ 	}},
+@@ -174,178 +167,178 @@ var lexTests = []lexTest{
+ 	}},
+ 	{"nil", "{{nil}}", []item{
+ 		tLeft,
+-		mkItem(itemNil, "nil"),
++		{itemNil, 0, "nil"},
+ 		tRight,
+ 		tEOF,
+ 	}},
+ 	{"dots", "{{.x . .2 .x.y.z}}", []item{
+ 		tLeft,
+-		mkItem(itemField, ".x"),
++		{itemField, 0, ".x"},
+ 		tSpace,
+ 		tDot,
+ 		tSpace,
+-		mkItem(itemNumber, ".2"),
++		{itemNumber, 0, ".2"},
+ 		tSpace,
+-		mkItem(itemField, ".x"),
+-		mkItem(itemField, ".y"),
+-		mkItem(itemField, ".z"),
++		{itemField, 0, ".x"},
++		{itemField, 0, ".y"},
++		{itemField, 0, ".z"},
+ 		tRight,
+ 		tEOF,
+ 	}},
+ 	{"keywords", "{{range if else end with}}", []item{
+ 		tLeft,
+-		mkItem(itemRange, "range"),
++		{itemRange, 0, "range"},
+ 		tSpace,
+-		mkItem(itemIf, "if"),
++		{itemIf, 0, "if"},
+ 		tSpace,
+-		mkItem(itemElse, "else"),
++		{itemElse, 0, "else"},
+ 		tSpace,
+-		mkItem(itemEnd, "end"),
++		{itemEnd, 0, "end"},
+ 		tSpace,
+-		mkItem(itemWith, "with"),
++		{itemWith, 0, "with"},
+ 		tRight,
+ 		tEOF,
+ 	}},
+ 	{"variables", "{{$c := printf $ $hello $23 $ $var.Field .Method}}", []item{
+ 		tLeft,
+-		mkItem(itemVariable, "$c"),
++		{itemVariable, 0, "$c"},
+ 		tSpace,
+-		mkItem(itemColonEquals, ":="),
++		{itemColonEquals, 0, ":="},
+ 		tSpace,
+-		mkItem(itemIdentifier, "printf"),
++		{itemIdentifier, 0, "printf"},
+ 		tSpace,
+-		mkItem(itemVariable, "$"),
++		{itemVariable, 0, "$"},
+ 		tSpace,
+-		mkItem(itemVariable, "$hello"),
++		{itemVariable, 0, "$hello"},
+ 		tSpace,
+-		mkItem(itemVariable, "$23"),
++		{itemVariable, 0, "$23"},
+ 		tSpace,
+-		mkItem(itemVariable, "$"),
++		{itemVariable, 0, "$"},
+ 		tSpace,
+-		mkItem(itemVariable, "$var"),
+-		mkItem(itemField, ".Field"),
++		{itemVariable, 0, "$var"},
++		{itemField, 0, ".Field"},
+ 		tSpace,
+-		mkItem(itemField, ".Method"),
++		{itemField, 0, ".Method"},
+ 		tRight,
+ 		tEOF,
+ 	}},
+ 	{"variable invocation", "{{$x 23}}", []item{
+ 		tLeft,
+-		mkItem(itemVariable, "$x"),
++		{itemVariable, 0, "$x"},
+ 		tSpace,
+-		mkItem(itemNumber, "23"),
++		{itemNumber, 0, "23"},
+ 		tRight,
+ 		tEOF,
+ 	}},
+ 	{"pipeline", `intro {{echo hi 1.2 |noargs|args 1 "hi"}} outro`, []item{
+-		mkItem(itemText, "intro "),
++		{itemText, 0, "intro "},
+ 		tLeft,
+-		mkItem(itemIdentifier, "echo"),
++		{itemIdentifier, 0, "echo"},
+ 		tSpace,
+-		mkItem(itemIdentifier, "hi"),
++		{itemIdentifier, 0, "hi"},
+ 		tSpace,
+-		mkItem(itemNumber, "1.2"),
++		{itemNumber, 0, "1.2"},
+ 		tSpace,
+ 		tPipe,
+-		mkItem(itemIdentifier, "noargs"),
++		{itemIdentifier, 0, "noargs"},
+ 		tPipe,
+-		mkItem(itemIdentifier, "args"),
++		{itemIdentifier, 0, "args"},
+ 		tSpace,
+-		mkItem(itemNumber, "1"),
++		{itemNumber, 0, "1"},
+ 		tSpace,
+-		mkItem(itemString, `"hi"`),
++		{itemString, 0, `"hi"`},
+ 		tRight,
+-		mkItem(itemText, " outro"),
++		{itemText, 0, " outro"},
+ 		tEOF,
+ 	}},
+ 	{"declaration", "{{$v := 3}}", []item{
+ 		tLeft,
+-		mkItem(itemVariable, "$v"),
++		{itemVariable, 0, "$v"},
+ 		tSpace,
+-		mkItem(itemColonEquals, ":="),
++		{itemColonEquals, 0, ":="},
+ 		tSpace,
+-		mkItem(itemNumber, "3"),
++		{itemNumber, 0, "3"},
+ 		tRight,
+ 		tEOF,
+ 	}},
+ 	{"2 declarations", "{{$v , $w := 3}}", []item{
+ 		tLeft,
+-		mkItem(itemVariable, "$v"),
++		{itemVariable, 0, "$v"},
+ 		tSpace,
+-		mkItem(itemChar, ","),
++		{itemChar, 0, ","},
+ 		tSpace,
+-		mkItem(itemVariable, "$w"),
++		{itemVariable, 0, "$w"},
+ 		tSpace,
+-		mkItem(itemColonEquals, ":="),
++		{itemColonEquals, 0, ":="},
+ 		tSpace,
+-		mkItem(itemNumber, "3"),
++		{itemNumber, 0, "3"},
+ 		tRight,
+ 		tEOF,
+ 	}},
+ 	{"field of parenthesized expression", "{{(.X).Y}}", []item{
+ 		tLeft,
+ 		tLpar,
+-		mkItem(itemField, ".X"),
++		{itemField, 0, ".X"},
+ 		tRpar,
+-		mkItem(itemField, ".Y"),
++		{itemField, 0, ".Y"},
+ 		tRight,
+ 		tEOF,
+ 	}},
+ 	{"trimming spaces before and after", "hello- {{- 3 -}} -world", []item{
+-		mkItem(itemText, "hello-"),
++		{itemText, 0, "hello-"},
+ 		tLeft,
+-		mkItem(itemNumber, "3"),
++		{itemNumber, 0, "3"},
+ 		tRight,
+-		mkItem(itemText, "-world"),
++		{itemText, 0, "-world"},
+ 		tEOF,
+ 	}},
+ 	{"trimming spaces before and after comment", "hello- {{- /* hello */ -}} -world", []item{
+-		mkItem(itemText, "hello-"),
+-		mkItem(itemText, "-world"),
++		{itemText, 0, "hello-"},
++		{itemText, 0, "-world"},
+ 		tEOF,
+ 	}},
+ 	// errors
+ 	{"badchar", "#{{\x01}}", []item{
+-		mkItem(itemText, "#"),
++		{itemText, 0, "#"},
+ 		tLeft,
+-		mkItem(itemError, "unrecognized character in action: U+0001"),
++		{itemError, 0, "unrecognized character in action: U+0001"},
+ 	}},
+ 	{"unclosed action", "{{\n}}", []item{
+ 		tLeft,
+-		mkItem(itemError, "unclosed action"),
++		{itemError, 0, "unclosed action"},
+ 	}},
+ 	{"EOF in action", "{{range", []item{
+ 		tLeft,
+ 		tRange,
+-		mkItem(itemError, "unclosed action"),
++		{itemError, 0, "unclosed action"},
+ 	}},
+ 	{"unclosed quote", "{{\"\n\"}}", []item{
+ 		tLeft,
+-		mkItem(itemError, "unterminated quoted string"),
++		{itemError, 0, "unterminated quoted string"},
+ 	}},
+ 	{"unclosed raw quote", "{{`xx}}", []item{
+ 		tLeft,
+-		mkItem(itemError, "unterminated raw quoted string"),
++		{itemError, 0, "unterminated raw quoted string"},
+ 	}},
+ 	{"unclosed char constant", "{{'\n}}", []item{
+ 		tLeft,
+-		mkItem(itemError, "unterminated character constant"),
++		{itemError, 0, "unterminated character constant"},
+ 	}},
+ 	{"bad number", "{{3k}}", []item{
+ 		tLeft,
+-		mkItem(itemError, `bad number syntax: "3k"`),
++		{itemError, 0, `bad number syntax: "3k"`},
+ 	}},
+ 	{"unclosed paren", "{{(3}}", []item{
+ 		tLeft,
+ 		tLpar,
+-		mkItem(itemNumber, "3"),
+-		mkItem(itemError, `unclosed left paren`),
++		{itemNumber, 0, "3"},
++		{itemError, 0, `unclosed left paren`},
+ 	}},
+ 	{"extra right paren", "{{3)}}", []item{
+ 		tLeft,
+-		mkItem(itemNumber, "3"),
++		{itemNumber, 0, "3"},
+ 		tRpar,
+-		mkItem(itemError, `unexpected right paren U+0029 ')'`),
++		{itemError, 0, `unexpected right paren U+0029 ')'`},
+ 	}},
+ 
+ 	// Fixed bugs
+@@ -362,17 +355,17 @@ var lexTests = []lexTest{
+ 		tEOF,
+ 	}},
+ 	{"text with bad comment", "hello-{{/*/}}-world", []item{
+-		mkItem(itemText, "hello-"),
+-		mkItem(itemError, `unclosed comment`),
++		{itemText, 0, "hello-"},
++		{itemError, 0, `unclosed comment`},
+ 	}},
+ 	{"text with comment close separated from delim", "hello-{{/* */ }}-world", []item{
+-		mkItem(itemText, "hello-"),
+-		mkItem(itemError, `comment ends before closing delimiter`),
++		{itemText, 0, "hello-"},
++		{itemError, 0, `comment ends before closing delimiter`},
+ 	}},
+ 	// This one is an error that we can't catch because it breaks templates with
+ 	// minimized JavaScript. Should have fixed it before Go 1.1.
+ 	{"unmatched right delimiter", "hello-{.}}-world", []item{
+-		mkItem(itemText, "hello-{.}}-world"),
++		{itemText, 0, "hello-{.}}-world"},
+ 		tEOF,
+ 	}},
+ }
+@@ -421,13 +414,13 @@ func TestLex(t *testing.T) {
+ var lexDelimTests = []lexTest{
+ 	{"punctuation", "$$,@%{{}}@@", []item{
+ 		tLeftDelim,
+-		mkItem(itemChar, ","),
+-		mkItem(itemChar, "@"),
+-		mkItem(itemChar, "%"),
+-		mkItem(itemChar, "{"),
+-		mkItem(itemChar, "{"),
+-		mkItem(itemChar, "}"),
+-		mkItem(itemChar, "}"),
++		{itemChar, 0, ","},
++		{itemChar, 0, "@"},
++		{itemChar, 0, "%"},
++		{itemChar, 0, "{"},
++		{itemChar, 0, "{"},
++		{itemChar, 0, "}"},
++		{itemChar, 0, "}"},
+ 		tRightDelim,
+ 		tEOF,
+ 	}},
+@@ -438,8 +431,8 @@ var lexDelimTests = []lexTest{
+ }
+ 
+ var (
+-	tLeftDelim  = mkItem(itemLeftDelim, "$$")
+-	tRightDelim = mkItem(itemRightDelim, "@@")
++	tLeftDelim  = item{itemLeftDelim, 0, "$$"}
++	tRightDelim = item{itemRightDelim, 0, "@@"}
+ )
+ 
+ func TestDelims(t *testing.T) {
+@@ -454,21 +447,21 @@ func TestDelims(t *testing.T) {
+ var lexPosTests = []lexTest{
+ 	{"empty", "", []item{tEOF}},
+ 	{"punctuation", "{{,@%#}}", []item{
+-		{itemLeftDelim, 0, "{{", 1},
+-		{itemChar, 2, ",", 1},
+-		{itemChar, 3, "@", 1},
+-		{itemChar, 4, "%", 1},
+-		{itemChar, 5, "#", 1},
+-		{itemRightDelim, 6, "}}", 1},
+-		{itemEOF, 8, "", 1},
++		{itemLeftDelim, 0, "{{"},
++		{itemChar, 2, ","},
++		{itemChar, 3, "@"},
++		{itemChar, 4, "%"},
++		{itemChar, 5, "#"},
++		{itemRightDelim, 6, "}}"},
++		{itemEOF, 8, ""},
+ 	}},
+ 	{"sample", "0123{{hello}}xyz", []item{
+-		{itemText, 0, "0123", 1},
+-		{itemLeftDelim, 4, "{{", 1},
+-		{itemIdentifier, 6, "hello", 1},
+-		{itemRightDelim, 11, "}}", 1},
+-		{itemText, 13, "xyz", 1},
+-		{itemEOF, 16, "", 1},
++		{itemText, 0, "0123"},
++		{itemLeftDelim, 4, "{{"},
++		{itemIdentifier, 6, "hello"},
++		{itemRightDelim, 11, "}}"},
++		{itemText, 13, "xyz"},
++		{itemEOF, 16, ""},
+ 	}},
+ }
+ 
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index 5d5c017ba9..893564b983 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -157,7 +157,7 @@ func (t *Tree) ErrorContext(n Node) (location, context string) {
+ // errorf formats the error and terminates processing.
+ func (t *Tree) errorf(format string, args ...interface{}) {
+ 	t.Root = nil
+-	format = fmt.Sprintf("template: %s:%d: %s", t.ParseName, t.lex.line, format)
++	format = fmt.Sprintf("template: %s:%d: %s", t.ParseName, t.lex.lineNumber(), format)
+ 	panic(fmt.Errorf(format, args...))
+ }
+ 
+@@ -376,17 +376,15 @@ func (t *Tree) action() (n Node) {
+ 		return t.withControl()
+ 	}
+ 	t.backup()
+-	token := t.peek()
+ 	// Do not pop variables; they persist until "end".
+-	return t.newAction(token.pos, token.line, t.pipeline("command"))
++	return t.newAction(t.peek().pos, t.lex.lineNumber(), t.pipeline("command"))
+ }
+ 
+ // Pipeline:
+ //	declarations? command ('|' command)*
+ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 	var decl []*VariableNode
+-	token := t.peekNonSpace()
+-	pos := token.pos
++	pos := t.peekNonSpace().pos
+ 	// Are there declarations?
+ 	for {
+ 		if v := t.peekNonSpace(); v.typ == itemVariable {
+@@ -415,7 +413,7 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 		}
+ 		break
+ 	}
+-	pipe = t.newPipeline(pos, token.line, decl)
++	pipe = t.newPipeline(pos, t.lex.lineNumber(), decl)
+ 	for {
+ 		switch token := t.nextNonSpace(); token.typ {
+ 		case itemRightDelim, itemRightParen:
+@@ -452,6 +450,7 @@ func (t *Tree) checkPipeline(pipe *PipeNode, context string) {
+ 
+ func (t *Tree) parseControl(allowElseIf bool, context string) (pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) {
+ 	defer t.popVars(len(t.vars))
++	line = t.lex.lineNumber()
+ 	pipe = t.pipeline(context)
+ 	var next Node
+ 	list, next = t.itemList()
+@@ -480,7 +479,7 @@ func (t *Tree) parseControl(allowElseIf bool, context string) (pos Pos, line int
+ 			t.errorf("expected end; found %s", next)
+ 		}
+ 	}
+-	return pipe.Position(), pipe.Line, pipe, list, elseList
++	return pipe.Position(), line, pipe, list, elseList
+ }
+ 
+ // If:
+@@ -522,10 +521,9 @@ func (t *Tree) elseControl() Node {
+ 	peek := t.peekNonSpace()
+ 	if peek.typ == itemIf {
+ 		// We see "{{else if ... " but in effect rewrite it to {{else}}{{if ... ".
+-		return t.newElse(peek.pos, peek.line)
++		return t.newElse(peek.pos, t.lex.lineNumber())
+ 	}
+-	token := t.expect(itemRightDelim, "else")
+-	return t.newElse(token.pos, token.line)
++	return t.newElse(t.expect(itemRightDelim, "else").pos, t.lex.lineNumber())
+ }
+ 
+ // Block:
+@@ -552,7 +550,7 @@ func (t *Tree) blockControl() Node {
+ 	block.add()
+ 	block.stopParse()
+ 
+-	return t.newTemplate(token.pos, token.line, name, pipe)
++	return t.newTemplate(token.pos, t.lex.lineNumber(), name, pipe)
+ }
+ 
+ // Template:
+@@ -569,7 +567,7 @@ func (t *Tree) templateControl() Node {
+ 		// Do not pop variables; they persist until "end".
+ 		pipe = t.pipeline(context)
+ 	}
+-	return t.newTemplate(token.pos, token.line, name, pipe)
++	return t.newTemplate(token.pos, t.lex.lineNumber(), name, pipe)
+ }
+ 
+ func (t *Tree) parseTemplateName(token item, context string) (name string) {
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index 81f14aca98..9d856bcb3d 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -484,37 +484,3 @@ func TestBlock(t *testing.T) {
+ 		t.Errorf("inner template = %q, want %q", g, w)
+ 	}
+ }
+-
+-func TestLineNum(t *testing.T) {
+-	const count = 100
+-	text := strings.Repeat("{{printf 1234}}\n", count)
+-	tree, err := New("bench").Parse(text, "", "", make(map[string]*Tree), builtins)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	// Check the line numbers. Each line is an action containing a template, followed by text.
+-	// That's two nodes per line.
+-	nodes := tree.Root.Nodes
+-	for i := 0; i < len(nodes); i += 2 {
+-		line := 1 + i/2
+-		// Action first.
+-		action := nodes[i].(*ActionNode)
+-		if action.Line != line {
+-			t.Fatalf("line %d: action is line %d", line, action.Line)
+-		}
+-		pipe := action.Pipe
+-		if pipe.Line != line {
+-			t.Fatalf("line %d: pipe is line %d", line, pipe.Line)
+-		}
+-	}
+-}
+-
+-func BenchmarkParseLarge(b *testing.B) {
+-	text := strings.Repeat("{{1234}}\n", 10000)
+-	for i := 0; i < b.N; i++ {
+-		_, err := New("bench").Parse(text, "", "", make(map[string]*Tree), builtins)
+-		if err != nil {
+-			b.Fatal(err)
+-		}
+-	}
+-}

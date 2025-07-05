@@ -29,8 +29,97 @@ Date:   Sun Jan 8 23:07:43 2023 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/build/deps_test.go              |  2 +-
  src/internal/profile/legacy_profile.go | 26 +++++++++++++-------------
  src/internal/profile/profile.go        |  4 ++--
  3 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 08452c7b1d..23e0dee1d2 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -520,7 +520,7 @@ var depsRules = `
+ 	FMT, compress/gzip, encoding/binary, text/tabwriter
+ 	< runtime/pprof;
+ 
+-	OS, compress/gzip, regexp
++	OS, compress/gzip, internal/lazyregexp
+ 	< internal/profile;
+ 
+ 	html, internal/profile, net/http, runtime/pprof, runtime/trace
+diff --git a/src/internal/profile/legacy_profile.go b/src/internal/profile/legacy_profile.go
+index b102c95904..373a6c04ca 100644
+--- a/src/internal/profile/legacy_profile.go
++++ b/src/internal/profile/legacy_profile.go
+@@ -11,34 +11,34 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"fmt"
++	"internal/lazyregexp"
+ 	"io"
+ 	"math"
+-	"regexp"
+ 	"strconv"
+ 	"strings"
+ )
+ 
+ var (
+-	countStartRE = regexp.MustCompile(`\A(\w+) profile: total \d+\n\z`)
+-	countRE      = regexp.MustCompile(`\A(\d+) @(( 0x[0-9a-f]+)+)\n\z`)
++	countStartRE = lazyregexp.New(`\A(\w+) profile: total \d+\n\z`)
++	countRE      = lazyregexp.New(`\A(\d+) @(( 0x[0-9a-f]+)+)\n\z`)
+ 
+-	heapHeaderRE = regexp.MustCompile(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] *@ *(heap[_a-z0-9]*)/?(\d*)`)
+-	heapSampleRE = regexp.MustCompile(`(-?\d+): *(-?\d+) *\[ *(\d+): *(\d+) *] @([ x0-9a-f]*)`)
++	heapHeaderRE = lazyregexp.New(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] *@ *(heap[_a-z0-9]*)/?(\d*)`)
++	heapSampleRE = lazyregexp.New(`(-?\d+): *(-?\d+) *\[ *(\d+): *(\d+) *] @([ x0-9a-f]*)`)
+ 
+-	contentionSampleRE = regexp.MustCompile(`(\d+) *(\d+) @([ x0-9a-f]*)`)
++	contentionSampleRE = lazyregexp.New(`(\d+) *(\d+) @([ x0-9a-f]*)`)
+ 
+-	hexNumberRE = regexp.MustCompile(`0x[0-9a-f]+`)
++	hexNumberRE = lazyregexp.New(`0x[0-9a-f]+`)
+ 
+-	growthHeaderRE = regexp.MustCompile(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] @ growthz`)
++	growthHeaderRE = lazyregexp.New(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] @ growthz`)
+ 
+-	fragmentationHeaderRE = regexp.MustCompile(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] @ fragmentationz`)
++	fragmentationHeaderRE = lazyregexp.New(`heap profile: *(\d+): *(\d+) *\[ *(\d+): *(\d+) *\] @ fragmentationz`)
+ 
+-	threadzStartRE = regexp.MustCompile(`--- threadz \d+ ---`)
+-	threadStartRE  = regexp.MustCompile(`--- Thread ([[:xdigit:]]+) \(name: (.*)/(\d+)\) stack: ---`)
++	threadzStartRE = lazyregexp.New(`--- threadz \d+ ---`)
++	threadStartRE  = lazyregexp.New(`--- Thread ([[:xdigit:]]+) \(name: (.*)/(\d+)\) stack: ---`)
+ 
+-	procMapsRE = regexp.MustCompile(`([[:xdigit:]]+)-([[:xdigit:]]+)\s+([-rwxp]+)\s+([[:xdigit:]]+)\s+([[:xdigit:]]+):([[:xdigit:]]+)\s+([[:digit:]]+)\s*(\S+)?`)
++	procMapsRE = lazyregexp.New(`([[:xdigit:]]+)-([[:xdigit:]]+)\s+([-rwxp]+)\s+([[:xdigit:]]+)\s+([[:xdigit:]]+):([[:xdigit:]]+)\s+([[:digit:]]+)\s*(\S+)?`)
+ 
+-	briefMapsRE = regexp.MustCompile(`\s*([[:xdigit:]]+)-([[:xdigit:]]+):\s*(\S+)(\s.*@)?([[:xdigit:]]+)?`)
++	briefMapsRE = lazyregexp.New(`\s*([[:xdigit:]]+)-([[:xdigit:]]+):\s*(\S+)(\s.*@)?([[:xdigit:]]+)?`)
+ 
+ 	// LegacyHeapAllocated instructs the heapz parsers to use the
+ 	// allocated memory stats instead of the default in-use memory. Note
+diff --git a/src/internal/profile/profile.go b/src/internal/profile/profile.go
+index 29568aa4b5..c779bb2b11 100644
+--- a/src/internal/profile/profile.go
++++ b/src/internal/profile/profile.go
+@@ -11,8 +11,8 @@ import (
+ 	"bytes"
+ 	"compress/gzip"
+ 	"fmt"
++	"internal/lazyregexp"
+ 	"io"
+-	"regexp"
+ 	"strings"
+ 	"time"
+ )
+@@ -192,7 +192,7 @@ func parseUncompressed(data []byte) (*Profile, error) {
+ 	return p, nil
+ }
+ 
+-var libRx = regexp.MustCompile(`([.]so$|[.]so[._][0-9]+)`)
++var libRx = lazyregexp.New(`([.]so$|[.]so[._][0-9]+)`)
+ 
+ // setMain scans Mapping entries and guesses which entry is main
+ // because legacy profiles don't obey the convention of putting main

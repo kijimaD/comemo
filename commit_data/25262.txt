@@ -9,7 +9,7 @@ Date:   Thu Oct 15 14:33:50 2015 -0700
     Change-Id: I24d66b0f5ac888f432b874aac684b1395e7c8345
     Reviewed-on: https://go-review.googlesource.com/15903
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/heapdump.go   |  4 ++--
  src/runtime/lock_sema.go  |  2 +-
  src/runtime/malloc.go     | 16 ++++++++--------
@@ -20,3 +20,353 @@ Date:   Thu Oct 15 14:33:50 2015 -0700
  src/runtime/panic.go      |  2 +-
  src/runtime/stack1.go     | 28 ++++++++++++++--------------
  9 files changed, 39 insertions(+), 39 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 492ea92e93..48205ea163 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -70,7 +70,7 @@ func dwrite(data unsafe.Pointer, len uintptr) {
+ 		return
+ 	}
+ 
+-	write(dumpfd, (unsafe.Pointer)(&buf), int32(nbuf))
++	write(dumpfd, unsafe.Pointer(&buf), int32(nbuf))
+ 	if len >= bufSize {
+ 		write(dumpfd, data, int32(len))
+ 		nbuf = 0
+@@ -85,7 +85,7 @@ func dwritebyte(b byte) {
+ }
+ 
+ func flush() {
+-	write(dumpfd, (unsafe.Pointer)(&buf), int32(nbuf))
++	write(dumpfd, unsafe.Pointer(&buf), int32(nbuf))
+ 	nbuf = 0
+ }
+ 
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index d9d91c9155..531f1861e9 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -104,7 +104,7 @@ func unlock(l *mutex) {
+ 		} else {
+ 			// Other M's are waiting for the lock.
+ 			// Dequeue an M.
+-			mp = (*m)((unsafe.Pointer)(v &^ locked))
++			mp = (*m)(unsafe.Pointer(v &^ locked))
+ 			if casuintptr(&l.key, v, mp.nextwaitm) {
+ 				// Dequeued an M.  Wake it.
+ 				semawakeup(mp)
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 6c7db0ffff..4ce159c267 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -397,7 +397,7 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
+ 			// TODO: It would be bad if part of the arena
+ 			// is reserved and part is not.
+ 			var reserved bool
+-			p := uintptr(sysReserve((unsafe.Pointer)(h.arena_end), p_size, &reserved))
++			p := uintptr(sysReserve(unsafe.Pointer(h.arena_end), p_size, &reserved))
+ 			if p == 0 {
+ 				return nil
+ 			}
+@@ -415,7 +415,7 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
+ 				h.arena_reserved = reserved
+ 			} else {
+ 				var stat uint64
+-				sysFree((unsafe.Pointer)(p), p_size, &stat)
++				sysFree(unsafe.Pointer(p), p_size, &stat)
+ 			}
+ 		}
+ 	}
+@@ -423,18 +423,18 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
+ 	if n <= uintptr(h.arena_end)-uintptr(h.arena_used) {
+ 		// Keep taking from our reservation.
+ 		p := h.arena_used
+-		sysMap((unsafe.Pointer)(p), n, h.arena_reserved, &memstats.heap_sys)
++		sysMap(unsafe.Pointer(p), n, h.arena_reserved, &memstats.heap_sys)
+ 		mHeap_MapBits(h, p+n)
+ 		mHeap_MapSpans(h, p+n)
+ 		h.arena_used = p + n
+ 		if raceenabled {
+-			racemapshadow((unsafe.Pointer)(p), n)
++			racemapshadow(unsafe.Pointer(p), n)
+ 		}
+ 
+ 		if uintptr(p)&(_PageSize-1) != 0 {
+ 			throw("misrounded allocation in MHeap_SysAlloc")
+ 		}
+-		return (unsafe.Pointer)(p)
++		return unsafe.Pointer(p)
+ 	}
+ 
+ 	// If using 64-bit, our reservation is all we have.
+@@ -453,7 +453,7 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
+ 
+ 	if p < h.arena_start || uintptr(p)+p_size-uintptr(h.arena_start) >= _MaxArena32 {
+ 		print("runtime: memory allocated by OS (", p, ") not in usable range [", hex(h.arena_start), ",", hex(h.arena_start+_MaxArena32), ")\n")
+-		sysFree((unsafe.Pointer)(p), p_size, &memstats.heap_sys)
++		sysFree(unsafe.Pointer(p), p_size, &memstats.heap_sys)
+ 		return nil
+ 	}
+ 
+@@ -467,14 +467,14 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
+ 			h.arena_end = p_end
+ 		}
+ 		if raceenabled {
+-			racemapshadow((unsafe.Pointer)(p), n)
++			racemapshadow(unsafe.Pointer(p), n)
+ 		}
+ 	}
+ 
+ 	if uintptr(p)&(_PageSize-1) != 0 {
+ 		throw("misrounded allocation in MHeap_SysAlloc")
+ 	}
+-	return (unsafe.Pointer)(p)
++	return unsafe.Pointer(p)
+ }
+ 
+ // base address for all 0-byte allocations
+diff --git a/src/runtime/mem_darwin.go b/src/runtime/mem_darwin.go
+index 3bebd97c57..65b1b48d86 100644
+--- a/src/runtime/mem_darwin.go
++++ b/src/runtime/mem_darwin.go
+@@ -10,7 +10,7 @@ import "unsafe"
+ // which prevents us from allocating more stack.
+ //go:nosplit
+ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+-	v := (unsafe.Pointer)(mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0))
++	v := unsafe.Pointer(mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0))
+ 	if uintptr(v) < 4096 {
+ 		return nil
+ 	}
+@@ -40,7 +40,7 @@ func sysFault(v unsafe.Pointer, n uintptr) {
+ 
+ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+ 	*reserved = true
+-	p := (unsafe.Pointer)(mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0))
++	p := unsafe.Pointer(mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0))
+ 	if uintptr(p) < 4096 {
+ 		return nil
+ 	}
+@@ -53,7 +53,7 @@ const (
+ 
+ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
+ 	mSysStatInc(sysStat, n)
+-	p := (unsafe.Pointer)(mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0))
++	p := unsafe.Pointer(mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0))
+ 	if uintptr(p) == _ENOMEM {
+ 		throw("runtime: out of memory")
+ 	}
+diff --git a/src/runtime/mfixalloc.go b/src/runtime/mfixalloc.go
+index bb2f4e7e24..ec926323d8 100644
+--- a/src/runtime/mfixalloc.go
++++ b/src/runtime/mfixalloc.go
+@@ -68,7 +68,7 @@ func fixAlloc_Alloc(f *fixalloc) unsafe.Pointer {
+ 		f.nchunk = _FixAllocChunk
+ 	}
+ 
+-	v := (unsafe.Pointer)(f.chunk)
++	v := unsafe.Pointer(f.chunk)
+ 	if f.first != nil {
+ 		fn := *(*func(unsafe.Pointer, unsafe.Pointer))(unsafe.Pointer(&f.first))
+ 		fn(f.arg, v)
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 40526771c7..7c313deb5d 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -558,7 +558,7 @@ HaveSpan:
+ 		throw("still in list")
+ 	}
+ 	if s.npreleased > 0 {
+-		sysUsed((unsafe.Pointer)(s.start<<_PageShift), s.npages<<_PageShift)
++		sysUsed(unsafe.Pointer(s.start<<_PageShift), s.npages<<_PageShift)
+ 		memstats.heap_released -= uint64(s.npreleased << _PageShift)
+ 		s.npreleased = 0
+ 	}
+@@ -776,7 +776,7 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool, unusedsi
+ 			h_spans[p] = s
+ 			mSpanList_Remove(t)
+ 			t.state = _MSpanDead
+-			fixAlloc_Free(&h.spanalloc, (unsafe.Pointer)(t))
++			fixAlloc_Free(&h.spanalloc, unsafe.Pointer(t))
+ 		}
+ 	}
+ 	if (p+s.npages)*ptrSize < h.spans_mapped {
+@@ -788,7 +788,7 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool, unusedsi
+ 			h_spans[p+s.npages-1] = s
+ 			mSpanList_Remove(t)
+ 			t.state = _MSpanDead
+-			fixAlloc_Free(&h.spanalloc, (unsafe.Pointer)(t))
++			fixAlloc_Free(&h.spanalloc, unsafe.Pointer(t))
+ 		}
+ 	}
+ 
+@@ -821,7 +821,7 @@ func scavengelist(list *mspan, now, limit uint64) uintptr {
+ 			memstats.heap_released += uint64(released)
+ 			sumreleased += released
+ 			s.npreleased = s.npages
+-			sysUnused((unsafe.Pointer)(s.start<<_PageShift), s.npages<<_PageShift)
++			sysUnused(unsafe.Pointer(s.start<<_PageShift), s.npages<<_PageShift)
+ 		}
+ 	}
+ 	return sumreleased
+@@ -1064,7 +1064,7 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
+ 
+ 	// There was an old finalizer
+ 	lock(&mheap_.speciallock)
+-	fixAlloc_Free(&mheap_.specialfinalizeralloc, (unsafe.Pointer)(s))
++	fixAlloc_Free(&mheap_.specialfinalizeralloc, unsafe.Pointer(s))
+ 	unlock(&mheap_.speciallock)
+ 	return false
+ }
+@@ -1076,7 +1076,7 @@ func removefinalizer(p unsafe.Pointer) {
+ 		return // there wasn't a finalizer to remove
+ 	}
+ 	lock(&mheap_.speciallock)
+-	fixAlloc_Free(&mheap_.specialfinalizeralloc, (unsafe.Pointer)(s))
++	fixAlloc_Free(&mheap_.specialfinalizeralloc, unsafe.Pointer(s))
+ 	unlock(&mheap_.speciallock)
+ }
+ 
+@@ -1107,14 +1107,14 @@ func freespecial(s *special, p unsafe.Pointer, size uintptr, freed bool) bool {
+ 		sf := (*specialfinalizer)(unsafe.Pointer(s))
+ 		queuefinalizer(p, sf.fn, sf.nret, sf.fint, sf.ot)
+ 		lock(&mheap_.speciallock)
+-		fixAlloc_Free(&mheap_.specialfinalizeralloc, (unsafe.Pointer)(sf))
++		fixAlloc_Free(&mheap_.specialfinalizeralloc, unsafe.Pointer(sf))
+ 		unlock(&mheap_.speciallock)
+ 		return false // don't free p until finalizer is done
+ 	case _KindSpecialProfile:
+ 		sp := (*specialprofile)(unsafe.Pointer(s))
+ 		mProf_Free(sp.b, size, freed)
+ 		lock(&mheap_.speciallock)
+-		fixAlloc_Free(&mheap_.specialprofilealloc, (unsafe.Pointer)(sp))
++		fixAlloc_Free(&mheap_.specialprofilealloc, unsafe.Pointer(sp))
+ 		unlock(&mheap_.speciallock)
+ 		return true
+ 	default:
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index 9615b6d1a4..43ebfa30a4 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -164,7 +164,7 @@ func postnote(pid uint64, msg []byte) int {
+ 		return -1
+ 	}
+ 	len := findnull(&msg[0])
+-	if write(uintptr(fd), (unsafe.Pointer)(&msg[0]), int32(len)) != int64(len) {
++	if write(uintptr(fd), unsafe.Pointer(&msg[0]), int32(len)) != int64(len) {
+ 		closefd(fd)
+ 		return -1
+ 	}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index a1662812de..9a3f4bd486 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -417,7 +417,7 @@ func gopanic(e interface{}) {
+ 		// Record the panic that is running the defer.
+ 		// If there is a new panic during the deferred call, that panic
+ 		// will find d in the list and will mark d._panic (this panic) aborted.
+-		d._panic = (*_panic)(noescape((unsafe.Pointer)(&p)))
++		d._panic = (*_panic)(noescape(unsafe.Pointer(&p)))
+ 
+ 		p.argp = unsafe.Pointer(getargp(0))
+ 		reflectcall(nil, unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index 78d168bb5b..2c5922ad34 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -100,7 +100,7 @@ func stackpoolalloc(order uint8) gclinkptr {
+ 
+ // Adds stack x to the free pool.  Must be called with stackpoolmu held.
+ func stackpoolfree(x gclinkptr, order uint8) {
+-	s := mHeap_Lookup(&mheap_, (unsafe.Pointer)(x))
++	s := mHeap_Lookup(&mheap_, unsafe.Pointer(x))
+ 	if s.state != _MSpanStack {
+ 		throw("freeing stack not in a stack span")
+ 	}
+@@ -251,13 +251,13 @@ func stackalloc(n uint32) (stack, []stkbar) {
+ 			c.stackcache[order].list = x.ptr().next
+ 			c.stackcache[order].size -= uintptr(n)
+ 		}
+-		v = (unsafe.Pointer)(x)
++		v = unsafe.Pointer(x)
+ 	} else {
+ 		s := mHeap_AllocStack(&mheap_, round(uintptr(n), _PageSize)>>_PageShift)
+ 		if s == nil {
+ 			throw("out of memory")
+ 		}
+-		v = (unsafe.Pointer)(s.start << _PageShift)
++		v = unsafe.Pointer(s.start << _PageShift)
+ 	}
+ 
+ 	if raceenabled {
+@@ -273,7 +273,7 @@ func stackalloc(n uint32) (stack, []stkbar) {
+ 
+ func stackfree(stk stack, n uintptr) {
+ 	gp := getg()
+-	v := (unsafe.Pointer)(stk.lo)
++	v := unsafe.Pointer(stk.lo)
+ 	if n&(n-1) != 0 {
+ 		throw("stack not a power of 2")
+ 	}
+@@ -545,7 +545,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ }
+ 
+ func adjustctxt(gp *g, adjinfo *adjustinfo) {
+-	adjustpointer(adjinfo, (unsafe.Pointer)(&gp.sched.ctxt))
++	adjustpointer(adjinfo, unsafe.Pointer(&gp.sched.ctxt))
+ }
+ 
+ func adjustdefers(gp *g, adjinfo *adjustinfo) {
+@@ -555,30 +555,30 @@ func adjustdefers(gp *g, adjinfo *adjustinfo) {
+ 	// Adjust pointers in the Defer structs.
+ 	// Defer structs themselves are never on the stack.
+ 	for d := gp._defer; d != nil; d = d.link {
+-		adjustpointer(adjinfo, (unsafe.Pointer)(&d.fn))
+-		adjustpointer(adjinfo, (unsafe.Pointer)(&d.sp))
+-		adjustpointer(adjinfo, (unsafe.Pointer)(&d._panic))
++		adjustpointer(adjinfo, unsafe.Pointer(&d.fn))
++		adjustpointer(adjinfo, unsafe.Pointer(&d.sp))
++		adjustpointer(adjinfo, unsafe.Pointer(&d._panic))
+ 	}
+ }
+ 
+ func adjustpanics(gp *g, adjinfo *adjustinfo) {
+ 	// Panics are on stack and already adjusted.
+ 	// Update pointer to head of list in G.
+-	adjustpointer(adjinfo, (unsafe.Pointer)(&gp._panic))
++	adjustpointer(adjinfo, unsafe.Pointer(&gp._panic))
+ }
+ 
+ func adjustsudogs(gp *g, adjinfo *adjustinfo) {
+ 	// the data elements pointed to by a SudoG structure
+ 	// might be in the stack.
+ 	for s := gp.waiting; s != nil; s = s.waitlink {
+-		adjustpointer(adjinfo, (unsafe.Pointer)(&s.elem))
+-		adjustpointer(adjinfo, (unsafe.Pointer)(&s.selectdone))
++		adjustpointer(adjinfo, unsafe.Pointer(&s.elem))
++		adjustpointer(adjinfo, unsafe.Pointer(&s.selectdone))
+ 	}
+ }
+ 
+ func adjuststkbar(gp *g, adjinfo *adjustinfo) {
+ 	for i := int(gp.stkbarPos); i < len(gp.stkbar); i++ {
+-		adjustpointer(adjinfo, (unsafe.Pointer)(&gp.stkbar[i].savedLRPtr))
++		adjustpointer(adjinfo, unsafe.Pointer(&gp.stkbar[i].savedLRPtr))
+ 	}
+ }
+ 
+@@ -817,11 +817,11 @@ func nilfunc() {
+ func gostartcallfn(gobuf *gobuf, fv *funcval) {
+ 	var fn unsafe.Pointer
+ 	if fv != nil {
+-		fn = (unsafe.Pointer)(fv.fn)
++		fn = unsafe.Pointer(fv.fn)
+ 	} else {
+ 		fn = unsafe.Pointer(funcPC(nilfunc))
+ 	}
+-	gostartcall(gobuf, fn, (unsafe.Pointer)(fv))
++	gostartcall(gobuf, fn, unsafe.Pointer(fv))
+ }
+ 
+ // Maybe shrink the stack being used by gp.

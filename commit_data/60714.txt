@@ -14,6 +14,25 @@ Date:   Sun Jun 9 13:46:40 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/os_test.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 538a75f912..70f6aa1173 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1792,13 +1792,6 @@ func TestSeek(t *testing.T) {
+ 	for i, tt := range tests {
+ 		off, err := f.Seek(tt.in, tt.whence)
+ 		if off != tt.out || err != nil {
+-			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 && runtime.GOOS == "linux" {
+-				mounts, _ := ReadFile("/proc/mounts")
+-				if strings.Contains(string(mounts), "reiserfs") {
+-					// Reiserfs rejects the big seeks.
+-					t.Skipf("skipping test known to fail on reiserfs; https://golang.org/issue/91")
+-				}
+-			}
+ 			t.Errorf("#%d: Seek(%v, %v) = %v, %v want %v, nil", i, tt.in, tt.whence, off, err, tt.out)
+ 		}
+ 	}

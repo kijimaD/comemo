@@ -14,7 +14,66 @@ Date:   Fri Nov 26 12:43:06 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/testdata/fixedbugs/issue49739.go2 | 23 +++++++++++++++++++++++
  src/go/types/typeset.go                        | 16 ++++++++++------
  2 files changed, 33 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/types/testdata/fixedbugs/issue49739.go2 b/src/go/types/testdata/fixedbugs/issue49739.go2
+new file mode 100644
+index 0000000000..46b1e71a3b
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue49739.go2
+@@ -0,0 +1,23 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that we get an empty type set (not just an error)
++// when using an invalid ~A.
++
++package p
++
++type A int
++type C interface {
++	~ /* ERROR invalid use of ~ */ A
++}
++
++func f[_ C]()              {}
++func g[_ interface{ C }]() {}
++func h[_ C | int]()        {}
++
++func _() {
++	_ = f[int /* ERROR cannot implement C \(empty type set\) */]
++	_ = g[int /* ERROR cannot implement interface{C} \(empty type set\) */]
++	_ = h[int]
++}
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index d98080069c..2928368735 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -365,14 +365,18 @@ func computeUnionTypeSet(check *Checker, pos token.Pos, utyp *Union) *_TypeSet {
+ 	var allTerms termlist
+ 	for _, t := range utyp.terms {
+ 		var terms termlist
+-		switch u := under(t.typ).(type) {
+-		case *Interface:
++		u := under(t.typ)
++		if ui, _ := u.(*Interface); ui != nil {
+ 			// For now we don't permit type parameters as constraints.
+ 			assert(!isTypeParam(t.typ))
+-			terms = computeInterfaceTypeSet(check, pos, u).terms
+-		default:
+-			if t.typ == Typ[Invalid] {
+-				continue
++			terms = computeInterfaceTypeSet(check, pos, ui).terms
++		} else if t.typ == Typ[Invalid] {
++			continue
++		} else {
++			if t.tilde && !Identical(t.typ, u) {
++				// There is no underlying type which is t.typ.
++				// The corresponding type set is empty.
++				t = nil // ∅ term
+ 			}
+ 			terms = termlist{(*term)(t)}
+ 		}

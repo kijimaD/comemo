@@ -14,6 +14,52 @@ Date:   Wed Feb 7 07:45:14 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  src/log/slog/level_test.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/log/slog/level_test.go b/src/log/slog/level_test.go
+index 0b28e71e4c..19adcd8466 100644
+--- a/src/log/slog/level_test.go
++++ b/src/log/slog/level_test.go
+@@ -5,6 +5,7 @@
+ package slog
+ 
+ import (
++	"bytes"
+ 	"flag"
+ 	"strings"
+ 	"testing"
+@@ -50,12 +51,16 @@ func TestLevelVar(t *testing.T) {
+ 
+ }
+ 
+-func TestMarshalJSON(t *testing.T) {
++func TestLevelMarshalJSON(t *testing.T) {
+ 	want := LevelWarn - 3
++	wantData := []byte(`"INFO+1"`)
+ 	data, err := want.MarshalJSON()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	if !bytes.Equal(data, wantData) {
++                t.Errorf("got %s, want %s", string(data), string(wantData))
++        }
+ 	var got Level
+ 	if err := got.UnmarshalJSON(data); err != nil {
+ 		t.Fatal(err)
+@@ -67,10 +72,14 @@ func TestMarshalJSON(t *testing.T) {
+ 
+ func TestLevelMarshalText(t *testing.T) {
+ 	want := LevelWarn - 3
++	wantData := []byte("INFO+1")
+ 	data, err := want.MarshalText()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	if !bytes.Equal(data, wantData) {
++                t.Errorf("got %s, want %s", string(data), string(wantData))
++        }
+ 	var got Level
+ 	if err := got.UnmarshalText(data); err != nil {
+ 		t.Fatal(err)

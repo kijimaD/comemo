@@ -11,6 +11,23 @@ Date:   Fri Mar 27 11:26:37 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modfetch/codehost/git.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index f08df512f0..31921324a7 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -27,11 +27,6 @@ import (
+ 	"golang.org/x/mod/semver"
+ )
+ 
+-// GitRepo returns the code repository at the given Git remote reference.
+-func GitRepo(remote string) (Repo, error) {
+-	return newGitRepoCached(remote, false)
+-}
+-
+ // LocalGitRepo is like Repo but accepts both Git remote references
+ // and paths to repositories on the local file system.
+ func LocalGitRepo(remote string) (Repo, error) {

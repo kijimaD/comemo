@@ -7,6 +7,20 @@ Date:   Mon Jan 30 07:57:50 2012 -0800
     R=golang-dev
     CC=bradfitz, golang-dev
     https://golang.org/cl/5598044
-
+---
  src/pkg/net/http/client.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/client.go b/src/pkg/net/http/client.go
+index 09afd5ef1d..43161da684 100644
+--- a/src/pkg/net/http/client.go
++++ b/src/pkg/net/http/client.go
+@@ -275,7 +275,7 @@ func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response,
+ 	}
+ 	req.Header.Set("Content-Type", bodyType)
+ 	r, err = send(req, c.Transport)
+-	if c.Jar != nil {
++	if err == nil && c.Jar != nil {
+ 		c.Jar.SetCookies(req.URL, r.Cookies())
+ 	}
+ 	return r, err

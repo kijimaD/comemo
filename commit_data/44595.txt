@@ -14,6 +14,34 @@ Date:   Fri Jul 10 12:21:41 2020 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue40152.go | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/test/fixedbugs/issue40152.go b/test/fixedbugs/issue40152.go
+new file mode 100644
+index 0000000000..1cb68e9914
+--- /dev/null
++++ b/test/fixedbugs/issue40152.go
+@@ -0,0 +1,21 @@
++// run
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Gccgo mishandles converting an untyped boolean to an interface type.
++
++package main
++
++func t(args ...interface{}) bool {
++        x := true
++        return x == args[0]
++}
++
++func main() {
++	r := t("x" == "x" && "y" == "y")
++	if !r {
++		panic(r)
++	}
++}

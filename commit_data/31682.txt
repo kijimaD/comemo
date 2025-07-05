@@ -12,7 +12,59 @@ Date:   Sat Mar 4 04:55:56 2017 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/user/lookup_android.go | 13 -------------
  src/os/user/lookup_stubs.go   |  5 ++++-
  2 files changed, 4 insertions(+), 14 deletions(-)
+
+diff --git a/src/os/user/lookup_android.go b/src/os/user/lookup_android.go
+index b1be3dc193..8ca30b8c27 100644
+--- a/src/os/user/lookup_android.go
++++ b/src/os/user/lookup_android.go
+@@ -8,15 +8,6 @@ package user
+ 
+ import "errors"
+ 
+-func init() {
+-	userImplemented = false
+-	groupImplemented = false
+-}
+-
+-func current() (*User, error) {
+-	return nil, errors.New("user: Current not implemented on android")
+-}
+-
+ func lookupUser(string) (*User, error) {
+ 	return nil, errors.New("user: Lookup not implemented on android")
+ }
+@@ -32,7 +23,3 @@ func lookupGroup(string) (*Group, error) {
+ func lookupGroupId(string) (*Group, error) {
+ 	return nil, errors.New("user: LookupGroupId not implemented on android")
+ }
+-
+-func listGroups(*User) ([]string, error) {
+-	return nil, errors.New("user: GroupIds not implemented on android")
+-}
+diff --git a/src/os/user/lookup_stubs.go b/src/os/user/lookup_stubs.go
+index f203c349be..7279617248 100644
+--- a/src/os/user/lookup_stubs.go
++++ b/src/os/user/lookup_stubs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !cgo,!windows,!plan9,!android
++// +build !cgo,!windows,!plan9 android
+ 
+ package user
+ 
+@@ -46,6 +46,9 @@ func current() (*User, error) {
+ }
+ 
+ func listGroups(*User) ([]string, error) {
++	if runtime.GOOS == "android" {
++		return nil, errors.New("user: GroupIds not implemented on Android")
++	}
+ 	return nil, errors.New("user: GroupIds requires cgo")
+ }
+ 

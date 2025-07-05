@@ -8,7 +8,70 @@ Date:   Mon Nov 2 09:18:02 2009 -0800
     
     R=rsc, r
     http://go/go-review/1016019
-
+---
  src/pkg/go/parser/parser.go            | 17 ++++++++---------
  src/pkg/go/printer/testdata/comments.x |  6 +++---
  2 files changed, 11 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 723f40f011..79b99e96a1 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -485,16 +485,13 @@ func (p *parser) parseStructType() *ast.StructType {
+ 	pos := p.expect(token.STRUCT);
+ 	lbrace := p.expect(token.LBRACE);
+ 	list := vector.New(0);
+-	for p.tok != token.RBRACE && p.tok != token.EOF {
++	for p.tok == token.IDENT || p.tok == token.MUL {
+ 		f := p.parseFieldDecl();
+-		list.Push(f);
+-		if p.tok == token.SEMICOLON {
+-			p.next();
+-			f.Comment = p.lineComment;
+-		} else {
+-			f.Comment = p.lineComment;
+-			break;
++		if p.tok != token.RBRACE {
++			p.expect(token.SEMICOLON);
+ 		}
++		f.Comment = p.lineComment;
++		list.Push(f);
+ 	}
+ 	rbrace := p.expect(token.RBRACE);
+ 	p.optSemi = true;
+@@ -699,10 +696,12 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
+ 	lbrace := p.expect(token.LBRACE);
+ 	list := vector.New(0);
+ 	for p.tok == token.IDENT {
+-		list.Push(p.parseMethodSpec());
++		m := p.parseMethodSpec();
+ 		if p.tok != token.RBRACE {
+ 			p.expect(token.SEMICOLON);
+ 		}
++		m.Comment = p.lineComment;
++		list.Push(m);
+ 	}
+ 	rbrace := p.expect(token.RBRACE);
+ 	p.optSemi = true;
+diff --git a/src/pkg/go/printer/testdata/comments.x b/src/pkg/go/printer/testdata/comments.x
+index 72ac8f0eb8..d10eb2e560 100644
+--- a/src/pkg/go/printer/testdata/comments.x
++++ b/src/pkg/go/printer/testdata/comments.x
+@@ -42,7 +42,7 @@ type I0 interface {
+ // The I1 interface; some methods are not exported.
+ type I1 interface {
+ 	I0;
+-	F(x float) float;
++	F(x float) float;	// exported methods
+ 	// contains unexported methods
+ }
+ 
+@@ -50,6 +50,6 @@ type I1 interface {
+ // The I2 interface; all methods are exported.
+ type I2 interface {
+ 	I0;
+-	F(x float) float;
+-	G(x float) float;
++	F(x float) float;	// exported method
++	G(x float) float;	// exported method
+ }

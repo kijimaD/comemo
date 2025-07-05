@@ -15,6 +15,24 @@ Date:   Mon Mar 26 19:28:51 2018 +1100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/os_test.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 38cbfca272..3886739389 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1835,12 +1835,6 @@ func testDevNullFile(t *testing.T, devNullName string, ignoreCase bool) {
+ 		t.Fatalf("Stat(%s): %v", devNullName, err)
+ 	}
+ 	testDevNullFileInfo(t, "Stat", devNullName, fi, ignoreCase)
+-
+-	fi, err = Lstat(devNullName)
+-	if err != nil {
+-		t.Fatalf("Lstat(%s): %v", devNullName, err)
+-	}
+-	testDevNullFileInfo(t, "Lstat", devNullName, fi, ignoreCase)
+ }
+ 
+ func TestDevNullFile(t *testing.T) {

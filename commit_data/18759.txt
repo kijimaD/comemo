@@ -19,6 +19,20 @@ Date:   Thu Mar 6 06:52:18 2014 +1100
     R=golang-codereviews, rsc, r
     CC=golang-codereviews
     https://golang.org/cl/71590043
-
+---
  src/pkg/encoding/gob/decode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/gob/decode.go b/src/pkg/encoding/gob/decode.go
+index aa186a582e..d8513148ec 100644
+--- a/src/pkg/encoding/gob/decode.go
++++ b/src/pkg/encoding/gob/decode.go
+@@ -685,7 +685,7 @@ func (dec *Decoder) ignoreSlice(state *decoderState, elemOp decOp) {
+ // but first it checks that the assignment will succeed.
+ func setInterfaceValue(ivalue reflect.Value, value reflect.Value) {
+ 	if !value.Type().AssignableTo(ivalue.Type()) {
+-		errorf("cannot assign value of type %s to %s", value.Type(), ivalue.Type())
++		errorf("%s is not assignable to type %s", value.Type(), ivalue.Type())
+ 	}
+ 	ivalue.Set(value)
+ }

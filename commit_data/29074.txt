@@ -14,6 +14,24 @@ Date:   Tue Aug 16 11:10:36 2016 -0700
     Change-Id: I3d25f7d6e6007e3c15c2e13010869888d0181fc2
     Reviewed-on: https://go-review.googlesource.com/27170
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/type.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 891671017a..94c5d020c6 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -29,6 +29,12 @@ import (
+ // Use the Kind method to find out the kind of type before
+ // calling kind-specific methods. Calling a method
+ // inappropriate to the kind of type causes a run-time panic.
++//
++// You can use == with reflect.Type values to check whether two types
++// are the same.  If T1 and T2 are Go types, and v1 and v2 are values of
++// those types respectively, then reflect.TypeOf(v1) == reflect.TypeOf(v2)
++// if and only if both (interface{})(v2).(T1) and (interface{})(v1).(T2)
++// succeed.
+ type Type interface {
+ 	// Methods applicable to all types.
+ 

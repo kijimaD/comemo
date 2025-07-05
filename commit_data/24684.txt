@@ -11,6 +11,29 @@ Date:   Sat Aug 22 20:29:33 2015 +0900
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/lex.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 606298b6e6..d6019b36ab 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -85,7 +85,7 @@ const (
+ )
+ 
+ func usage() {
+-	fmt.Printf("usage: %cg [options] file.go...\n", Thearch.Thechar)
++	fmt.Printf("usage: compile [options] file.go...\n")
+ 	obj.Flagprint(1)
+ 	Exit(2)
+ }
+@@ -111,7 +111,7 @@ func doversion() {
+ 	if p != "" {
+ 		sep = " "
+ 	}
+-	fmt.Printf("%cg version %s%s%s\n", Thearch.Thechar, obj.Getgoversion(), sep, p)
++	fmt.Printf("compile version %s%s%s\n", obj.Getgoversion(), sep, p)
+ 	os.Exit(0)
+ }
+ 

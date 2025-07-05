@@ -16,9 +16,268 @@ Date:   Wed Mar 15 15:16:45 2023 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/testenv/testenv.go         |  6 ++++
  src/internal/testenv/testenv_notunix.go |  9 ++++-
  src/internal/testenv/testenv_unix.go    | 37 +++++++++++++++++++-
  src/syscall/exec_linux_test.go          | 61 +++++++--------------------------
  4 files changed, 63 insertions(+), 50 deletions(-)
+
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 816a1a100f..94cec0b8bd 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -422,3 +422,9 @@ func WriteImportcfg(t testing.TB, dstPath string, packageFiles map[string]string
+ 		t.Fatal(err)
+ 	}
+ }
++
++// SyscallIsNotSupported reports whether err may indicate that a system call is
++// not supported by the current platform or execution environment.
++func SyscallIsNotSupported(err error) bool {
++	return syscallIsNotSupported(err)
++}
+diff --git a/src/internal/testenv/testenv_notunix.go b/src/internal/testenv/testenv_notunix.go
+index 180206bc9b..9313c7c827 100644
+--- a/src/internal/testenv/testenv_notunix.go
++++ b/src/internal/testenv/testenv_notunix.go
+@@ -6,8 +6,15 @@
+ 
+ package testenv
+ 
+-import "os"
++import (
++	"errors"
++	"os"
++)
+ 
+ // Sigquit is the signal to send to kill a hanging subprocess.
+ // On Unix we send SIGQUIT, but on non-Unix we only have os.Kill.
+ var Sigquit = os.Kill
++
++func syscallIsNotSupported(err error) bool {
++	return errors.Is(err, errors.ErrUnsupported)
++}
+diff --git a/src/internal/testenv/testenv_unix.go b/src/internal/testenv/testenv_unix.go
+index a97e88da2f..92b5024f0b 100644
+--- a/src/internal/testenv/testenv_unix.go
++++ b/src/internal/testenv/testenv_unix.go
+@@ -6,8 +6,43 @@
+ 
+ package testenv
+ 
+-import "syscall"
++import (
++	"errors"
++	"io/fs"
++	"syscall"
++)
+ 
+ // Sigquit is the signal to send to kill a hanging subprocess.
+ // Send SIGQUIT to get a stack trace.
+ var Sigquit = syscall.SIGQUIT
++
++func syscallIsNotSupported(err error) bool {
++	if err == nil {
++		return false
++	}
++
++	var errno syscall.Errno
++	if errors.As(err, &errno) {
++		switch errno {
++		case syscall.ENOSYS, syscall.ENOTSUP:
++			// Explicitly not supported.
++			// TODO(#41198): remove these cases when errors.Is reports that they are
++			// equivalent to ErrUnsupported.
++			return true
++		case syscall.EPERM, syscall.EROFS:
++			// User lacks permission: either the call requires root permission and the
++			// user is not root, or the call is denied by a container security policy.
++			return true
++		case syscall.EINVAL:
++			// Some containers return EINVAL instead of EPERM if a system call is
++			// denied by security policy.
++			return true
++		}
++	}
++
++	if errors.Is(err, fs.ErrPermission) || errors.Is(err, errors.ErrUnsupported) {
++		return true
++	}
++
++	return false
++}
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 074a8172d7..7ec10ce3a7 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -8,12 +8,10 @@ package syscall_test
+ 
+ import (
+ 	"bytes"
+-	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+-	"io/fs"
+ 	"os"
+ 	"os/exec"
+ 	"os/user"
+@@ -27,39 +25,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-// isNotSupported reports whether err may indicate that a system call is
+-// not supported by the current platform or execution environment.
+-func isNotSupported(err error) bool {
+-	if err == nil {
+-		return false
+-	}
+-
+-	var errno syscall.Errno
+-	if errors.As(err, &errno) {
+-		switch errno {
+-		case syscall.ENOSYS, syscall.ENOTSUP:
+-			// Explicitly not supported.
+-			// TODO(#41198): remove these cases when errors.Is reports that they are
+-			// equivalent to ErrUnsupported.
+-			return true
+-		case syscall.EPERM, syscall.EROFS:
+-			// User lacks permission: either the call requires root permission and the
+-			// user is not root, or the call is denied by a container security policy.
+-			return true
+-		case syscall.EINVAL:
+-			// Some containers return EINVAL instead of EPERM if a system call is
+-			// denied by security policy.
+-			return true
+-		}
+-	}
+-
+-	if errors.Is(err, fs.ErrPermission) || errors.Is(err, errors.ErrUnsupported) {
+-		return true
+-	}
+-
+-	return false
+-}
+-
+ // whoamiNEWUSER returns a command that runs "whoami" with CLONE_NEWUSER,
+ // mapping uid and gid 0 to the actual uid and gid of the test.
+ func whoamiNEWUSER(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
+@@ -96,7 +61,7 @@ func TestCloneNEWUSERAndRemap(t *testing.T) {
+ 					if err == nil {
+ 						t.Skipf("unexpected success: probably old kernel without security fix?")
+ 					}
+-					if isNotSupported(err) {
++					if testenv.SyscallIsNotSupported(err) {
+ 						t.Skipf("skipping: CLONE_NEWUSER appears to be unsupported")
+ 					}
+ 					t.Fatalf("got non-permission error") // Already logged above.
+@@ -105,7 +70,7 @@ func TestCloneNEWUSERAndRemap(t *testing.T) {
+ 			}
+ 
+ 			if err != nil {
+-				if isNotSupported(err) {
++				if testenv.SyscallIsNotSupported(err) {
+ 					// May be inside a container that disallows CLONE_NEWUSER.
+ 					t.Skipf("skipping: CLONE_NEWUSER appears to be unsupported")
+ 				}
+@@ -125,7 +90,7 @@ func TestEmptyCredGroupsDisableSetgroups(t *testing.T) {
+ 	cmd := whoamiNEWUSER(t, os.Getuid(), os.Getgid(), false)
+ 	cmd.SysProcAttr.Credential = &syscall.Credential{}
+ 	if err := cmd.Run(); err != nil {
+-		if isNotSupported(err) {
++		if testenv.SyscallIsNotSupported(err) {
+ 			t.Skipf("skipping: %v: %v", cmd, err)
+ 		}
+ 		t.Fatal(err)
+@@ -156,7 +121,7 @@ func TestUnshare(t *testing.T) {
+ 	}
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		if isNotSupported(err) {
++		if testenv.SyscallIsNotSupported(err) {
+ 			// CLONE_NEWNET does not appear to be supported.
+ 			t.Skipf("skipping due to permission error: %v", err)
+ 		}
+@@ -186,7 +151,7 @@ func TestGroupCleanup(t *testing.T) {
+ 	}
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		if isNotSupported(err) {
++		if testenv.SyscallIsNotSupported(err) {
+ 			t.Skipf("skipping: %v: %v", cmd, err)
+ 		}
+ 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+@@ -222,7 +187,7 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
+ 	}
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		if isNotSupported(err) {
++		if testenv.SyscallIsNotSupported(err) {
+ 			t.Skipf("skipping: %v: %v", cmd, err)
+ 		}
+ 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+@@ -272,7 +237,7 @@ func TestUnshareMountNameSpace(t *testing.T) {
+ 
+ 	o, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		if isNotSupported(err) {
++		if testenv.SyscallIsNotSupported(err) {
+ 			t.Skipf("skipping: could not start process with CLONE_NEWNS: %v", err)
+ 		}
+ 		t.Fatalf("unshare failed: %v\n%s", err, o)
+@@ -324,7 +289,7 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
+ 
+ 	o, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		if isNotSupported(err) {
++		if testenv.SyscallIsNotSupported(err) {
+ 			t.Skipf("skipping: could not start process with CLONE_NEWNS and Chroot %q: %v", d, err)
+ 		}
+ 		t.Fatalf("unshare failed: %v\n%s", err, o)
+@@ -383,7 +348,7 @@ func TestUnshareUidGidMapping(t *testing.T) {
+ 	}
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		if isNotSupported(err) {
++		if testenv.SyscallIsNotSupported(err) {
+ 			t.Skipf("skipping: could not start process with CLONE_NEWNS and CLONE_NEWUSER: %v", err)
+ 		}
+ 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+@@ -423,7 +388,7 @@ func prepareCgroupFD(t *testing.T) (int, string) {
+ 			CgroupFD:    -1,
+ 		},
+ 	})
+-	if isNotSupported(err) {
++	if testenv.SyscallIsNotSupported(err) {
+ 		t.Skipf("clone3 with CLONE_INTO_CGROUP not available: %v", err)
+ 	}
+ 
+@@ -432,7 +397,7 @@ func prepareCgroupFD(t *testing.T) (int, string) {
+ 	if err != nil {
+ 		// ErrPermission or EROFS (#57262) when running in an unprivileged container.
+ 		// ErrNotExist when cgroupfs is not mounted in chroot/schroot.
+-		if os.IsNotExist(err) || isNotSupported(err) {
++		if os.IsNotExist(err) || testenv.SyscallIsNotSupported(err) {
+ 			t.Skipf("skipping: %v", err)
+ 		}
+ 		t.Fatal(err)
+@@ -512,7 +477,7 @@ func TestCloneTimeNamespace(t *testing.T) {
+ 	}
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		if isNotSupported(err) {
++		if testenv.SyscallIsNotSupported(err) {
+ 			// CLONE_NEWTIME does not appear to be supported.
+ 			t.Skipf("skipping, CLONE_NEWTIME not supported: %v", err)
+ 		}
+@@ -677,7 +642,7 @@ func testAmbientCaps(t *testing.T, userns bool) {
+ 		}
+ 	}
+ 	if err := cmd.Run(); err != nil {
+-		if isNotSupported(err) {
++		if testenv.SyscallIsNotSupported(err) {
+ 			t.Skipf("skipping: %v: %v", cmd, err)
+ 		}
+ 		t.Fatal(err.Error())

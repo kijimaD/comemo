@@ -9,7 +9,39 @@ Date:   Mon Jan 18 15:59:32 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/186211
-
+---
  src/pkg/net/sock.go    | 3 +++
  src/pkg/net/udpsock.go | 6 +-----
  2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index dbb87d36f6..be92095a66 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -35,6 +35,9 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 	// Allow reuse of recently-used addresses.
+ 	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+ 
++	// Allow broadcast.
++	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
++
+ 	if la != nil {
+ 		e = syscall.Bind(s, la)
+ 		if e != 0 {
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 1891f2f8c2..f5ad3c88f8 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -71,11 +71,7 @@ type UDPConn struct {
+ 	fd *netFD
+ }
+ 
+-func newUDPConn(fd *netFD) *UDPConn {
+-	c := &UDPConn{fd}
+-	setsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+-	return c
+-}
++func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{fd} }
+ 
+ func (c *UDPConn) ok() bool { return c != nil && c.fd != nil }
+ 

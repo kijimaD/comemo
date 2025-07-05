@@ -18,6 +18,21 @@ Date:   Wed May 11 05:45:42 2022 +0000
     Run-TryBot: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/testing/testing.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 1f701e0b21..ec2d864822 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -295,9 +295,6 @@
+ //	    }
+ //	}
+ //
+-// The race detector kills the program if it exceeds 8128 concurrent goroutines,
+-// so use care when running parallel tests with the -race flag set.
+-//
+ // Run does not return until parallel subtests have completed, providing a way
+ // to clean up after a group of parallel tests:
+ //

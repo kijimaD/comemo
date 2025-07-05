@@ -18,6 +18,22 @@ Date:   Sat Sep 17 02:21:12 2022 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/internal/sys/intrinsics_common.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/internal/sys/intrinsics_common.go b/src/runtime/internal/sys/intrinsics_common.go
+index 48d9759ca9..7d7af20906 100644
+--- a/src/runtime/internal/sys/intrinsics_common.go
++++ b/src/runtime/internal/sys/intrinsics_common.go
+@@ -45,6 +45,10 @@ var ntz8tab = [256]uint8{
+ }
+ 
+ // len64 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
++//
++// nosplit because this is used in src/runtime/histogram.go, which make run in sensitive contexts.
++//
++//go:nosplit
+ func Len64(x uint64) (n int) {
+ 	if x >= 1<<32 {
+ 		x >>= 32

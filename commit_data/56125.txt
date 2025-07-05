@@ -19,9 +19,55 @@ Date:   Mon Mar 13 17:12:40 2023 -0400
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  api/next/59033.txt         | 1 +
  src/go/ast/ast.go          | 1 +
  src/go/ast/example_test.go | 3 ++-
  src/go/ast/filter.go       | 2 +-
  4 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/59033.txt b/api/next/59033.txt
+index 4c37697462..d3b319c483 100644
+--- a/api/next/59033.txt
++++ b/api/next/59033.txt
+@@ -1,2 +1,3 @@
++pkg go/ast, type File struct, GoVersion string #59033
+ pkg go/build/constraint, func GoVersion(Expr) string #59033
+ 
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 9baf72f40f..b509ef1a70 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -1046,6 +1046,7 @@ type File struct {
+ 	Imports            []*ImportSpec   // imports in this file
+ 	Unresolved         []*Ident        // unresolved identifiers in this file
+ 	Comments           []*CommentGroup // list of all comments in the source file
++	GoVersion          string          // minimum Go version required by //go:build or // +build directives
+ }
+ 
+ // Pos returns the position of the package declaration.
+diff --git a/src/go/ast/example_test.go b/src/go/ast/example_test.go
+index c6904be6e5..4ce42fb153 100644
+--- a/src/go/ast/example_test.go
++++ b/src/go/ast/example_test.go
+@@ -136,7 +136,8 @@ func main() {
+ 	//     57  .  Unresolved: []*ast.Ident (len = 1) {
+ 	//     58  .  .  0: *(obj @ 29)
+ 	//     59  .  }
+-	//     60  }
++	//     60  .  GoVersion: ""
++	//     61  }
+ }
+ 
+ // This example illustrates how to remove a variable declaration
+diff --git a/src/go/ast/filter.go b/src/go/ast/filter.go
+index 7d2a11e475..c9e733a5a5 100644
+--- a/src/go/ast/filter.go
++++ b/src/go/ast/filter.go
+@@ -491,5 +491,5 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
+ 	}
+ 
+ 	// TODO(gri) need to compute unresolved identifiers!
+-	return &File{doc, pos, NewIdent(pkg.Name), decls, minPos, maxPos, pkg.Scope, imports, nil, comments}
++	return &File{doc, pos, NewIdent(pkg.Name), decls, minPos, maxPos, pkg.Scope, imports, nil, comments, ""}
+ }

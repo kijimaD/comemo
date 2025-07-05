@@ -13,7 +13,7 @@ Date:   Wed Oct 29 18:07:24 2014 -0400
     R=r, alex.brainman, iant
     CC=golang-codereviews
     https://golang.org/cl/149400043
-
+---
  src/cmd/internal/objfile/elf.go      |  25 ++++
  src/cmd/internal/objfile/goobj.go    |  12 ++
  src/cmd/internal/objfile/macho.go    |  24 +++
@@ -27,3 +27,911 @@ Date:   Wed Oct 29 18:07:24 2014 -0400
  src/cmd/objdump/pe.go                |  99 -------------
  src/cmd/objdump/plan9obj.go          |  70 ---------
  12 files changed, 154 insertions(+), 568 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/elf.go b/src/cmd/internal/objfile/elf.go
+index 8495fa7532..17755b84d2 100644
+--- a/src/cmd/internal/objfile/elf.go
++++ b/src/cmd/internal/objfile/elf.go
+@@ -8,6 +8,7 @@ package objfile
+ 
+ import (
+ 	"debug/elf"
++	"fmt"
+ 	"os"
+ )
+ 
+@@ -77,3 +78,27 @@ func (f *elfFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+ 	}
+ 	return textStart, symtab, pclntab, nil
+ }
++
++func (f *elfFile) text() (textStart uint64, text []byte, err error) {
++	sect := f.elf.Section(".text")
++	if sect == nil {
++		return 0, nil, fmt.Errorf("text section not found")
++	}
++	textStart = sect.Addr
++	text, err = sect.Data()
++	return
++}
++
++func (f *elfFile) goarch() string {
++	switch f.elf.Machine {
++	case elf.EM_386:
++		return "386"
++	case elf.EM_X86_64:
++		return "amd64"
++	case elf.EM_ARM:
++		return "arm"
++	case elf.EM_PPC64:
++		return "power64"
++	}
++	return ""
++}
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index a4f49ebe44..a1d773023d 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -79,3 +79,15 @@ func (f *goobjFile) symbols() ([]Sym, error) {
+ func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+ 	return 0, nil, nil, fmt.Errorf("pcln not available in go object file")
+ }
++
++// text does not make sense for Go object files, because
++// each function has a separate section.
++func (f *goobjFile) text() (textStart uint64, text []byte, err error) {
++	return 0, nil, fmt.Errorf("text not available in go object file")
++}
++
++// goarch makes sense but is not exposed in debug/goobj's API,
++// and we don't need it yet for any users of internal/objfile.
++func (f *goobjFile) goarch() string {
++	return "GOARCH unimplemented for debug/goobj files"
++}
+diff --git a/src/cmd/internal/objfile/macho.go b/src/cmd/internal/objfile/macho.go
+index f845792ffa..7dd84a339d 100644
+--- a/src/cmd/internal/objfile/macho.go
++++ b/src/cmd/internal/objfile/macho.go
+@@ -85,6 +85,30 @@ func (f *machoFile) pcln() (textStart uint64, symtab, pclntab []byte, err error)
+ 	return textStart, symtab, pclntab, nil
+ }
+ 
++func (f *machoFile) text() (textStart uint64, text []byte, err error) {
++	sect := f.macho.Section("__text")
++	if sect == nil {
++		return 0, nil, fmt.Errorf("text section not found")
++	}
++	textStart = sect.Addr
++	text, err = sect.Data()
++	return
++}
++
++func (f *machoFile) goarch() string {
++	switch f.macho.Cpu {
++	case macho.Cpu386:
++		return "386"
++	case macho.CpuAmd64:
++		return "amd64"
++	case macho.CpuArm:
++		return "arm"
++	case macho.CpuPpc64:
++		return "power64"
++	}
++	return ""
++}
++
+ type uint64s []uint64
+ 
+ func (x uint64s) Len() int           { return len(x) }
+diff --git a/src/cmd/internal/objfile/objfile.go b/src/cmd/internal/objfile/objfile.go
+index 09fa63e60b..3d4a5d27cd 100644
+--- a/src/cmd/internal/objfile/objfile.go
++++ b/src/cmd/internal/objfile/objfile.go
+@@ -14,6 +14,8 @@ import (
+ type rawFile interface {
+ 	symbols() (syms []Sym, err error)
+ 	pcln() (textStart uint64, symtab, pclntab []byte, err error)
++	text() (textStart uint64, text []byte, err error)
++	goarch() string
+ }
+ 
+ // A File is an opened executable file.
+@@ -70,3 +72,11 @@ func (f *File) PCLineTable() (*gosym.Table, error) {
+ 	}
+ 	return gosym.NewTable(symtab, gosym.NewLineTable(pclntab, textStart))
+ }
++
++func (f *File) Text() (uint64, []byte, error) {
++	return f.raw.text()
++}
++
++func (f *File) GOARCH() string {
++	return f.raw.goarch()
++}
+diff --git a/src/cmd/internal/objfile/pe.go b/src/cmd/internal/objfile/pe.go
+index 868709eaf9..67e59c226b 100644
+--- a/src/cmd/internal/objfile/pe.go
++++ b/src/cmd/internal/objfile/pe.go
+@@ -133,6 +133,25 @@ func (f *peFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+ 	return textStart, symtab, pclntab, nil
+ }
+ 
++func (f *peFile) text() (textStart uint64, text []byte, err error) {
++	var imageBase uint64
++	switch oh := f.pe.OptionalHeader.(type) {
++	case *pe.OptionalHeader32:
++		imageBase = uint64(oh.ImageBase)
++	case *pe.OptionalHeader64:
++		imageBase = oh.ImageBase
++	default:
++		return 0, nil, fmt.Errorf("pe file format not recognized")
++	}
++	sect := f.pe.Section(".text")
++	if sect == nil {
++		return 0, nil, fmt.Errorf("text section not found")
++	}
++	textStart = imageBase + uint64(sect.VirtualAddress)
++	text, err = sect.Data()
++	return
++}
++
+ func findPESymbol(f *pe.File, name string) (*pe.Symbol, error) {
+ 	for _, s := range f.Symbols {
+ 		if s.Name != name {
+@@ -168,3 +187,15 @@ func loadPETable(f *pe.File, sname, ename string) ([]byte, error) {
+ 	}
+ 	return data[ssym.Value:esym.Value], nil
+ }
++
++func (f *peFile) goarch() string {
++	// Not sure how to get the info we want from PE header.
++	// Look in symbol table for telltale rt0 symbol.
++	if _, err := findPESymbol(f.pe, "_rt0_386_windows"); err == nil {
++		return "386"
++	}
++	if _, err := findPESymbol(f.pe, "_rt0_amd64_windows"); err == nil {
++		return "amd64"
++	}
++	return ""
++}
+diff --git a/src/cmd/internal/objfile/plan9obj.go b/src/cmd/internal/objfile/plan9obj.go
+index 80744f82a8..eb6cba5eb1 100644
+--- a/src/cmd/internal/objfile/plan9obj.go
++++ b/src/cmd/internal/objfile/plan9obj.go
+@@ -88,6 +88,16 @@ func (f *plan9File) pcln() (textStart uint64, symtab, pclntab []byte, err error)
+ 	return textStart, symtab, pclntab, nil
+ }
+ 
++func (f *plan9File) text() (textStart uint64, text []byte, err error) {
++	sect := f.plan9.Section("text")
++	if sect == nil {
++		return 0, nil, fmt.Errorf("text section not found")
++	}
++	textStart = f.plan9.LoadAddress + f.plan9.HdrSize
++	text, err = sect.Data()
++	return
++}
++
+ func findPlan9Symbol(f *plan9obj.File, name string) (*plan9obj.Sym, error) {
+ 	syms, err := f.Symbols()
+ 	if err != nil {
+@@ -122,3 +132,15 @@ func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
+ 	textStart := f.LoadAddress + f.HdrSize
+ 	return data[ssym.Value-textStart : esym.Value-textStart], nil
+ }
++
++func (f *plan9File) goarch() string {
++	switch f.plan9.Magic {
++	case plan9obj.Magic386:
++		return "386"
++	case plan9obj.MagicAMD64:
++		return "amd64"
++	case plan9obj.MagicARM:
++		return "arm"
++	}
++	return ""
++}
+diff --git a/src/cmd/objdump/Makefile b/src/cmd/objdump/Makefile
+deleted file mode 100644
+index 1b66c26bab..0000000000
+--- a/src/cmd/objdump/Makefile
++++ /dev/null
+@@ -1,10 +0,0 @@
+-all: x86.go armasm.go
+-
+-x86.go: bundle
+-	./bundle -p main -x x86_ rsc.io/x86/x86asm | gofmt >x86.go
+-
+-armasm.go: bundle
+-	./bundle -p main -x arm_ rsc.io/arm/armasm | gofmt >armasm.go
+-
+-bundle:
+-	go build -o bundle code.google.com/p/rsc/cmd/bundle
+diff --git a/src/cmd/objdump/elf.go b/src/cmd/objdump/elf.go
+deleted file mode 100644
+index 906e903532..0000000000
+--- a/src/cmd/objdump/elf.go
++++ /dev/null
+@@ -1,65 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Parsing of ELF executables (Linux, FreeBSD, and so on).
+-
+-package main
+-
+-import (
+-	"debug/elf"
+-	"os"
+-)
+-
+-func elfSymbols(f *os.File) (syms []Sym, goarch string) {
+-	p, err := elf.NewFile(f)
+-	if err != nil {
+-		errorf("parsing %s: %v", f.Name(), err)
+-		return
+-	}
+-
+-	elfSyms, err := p.Symbols()
+-	if err != nil {
+-		errorf("parsing %s: %v", f.Name(), err)
+-		return
+-	}
+-
+-	switch p.Machine {
+-	case elf.EM_X86_64:
+-		goarch = "amd64"
+-	case elf.EM_386:
+-		goarch = "386"
+-	case elf.EM_ARM:
+-		goarch = "arm"
+-	}
+-
+-	for _, s := range elfSyms {
+-		sym := Sym{Addr: s.Value, Name: s.Name, Size: int64(s.Size), Code: '?'}
+-		switch s.Section {
+-		case elf.SHN_UNDEF:
+-			sym.Code = 'U'
+-		case elf.SHN_COMMON:
+-			sym.Code = 'B'
+-		default:
+-			i := int(s.Section)
+-			if i < 0 || i >= len(p.Sections) {
+-				break
+-			}
+-			sect := p.Sections[i]
+-			switch sect.Flags & (elf.SHF_WRITE | elf.SHF_ALLOC | elf.SHF_EXECINSTR) {
+-			case elf.SHF_ALLOC | elf.SHF_EXECINSTR:
+-				sym.Code = 'T'
+-			case elf.SHF_ALLOC:
+-				sym.Code = 'R'
+-			case elf.SHF_ALLOC | elf.SHF_WRITE:
+-				sym.Code = 'D'
+-			}
+-		}
+-		if elf.ST_BIND(s.Info) == elf.STB_LOCAL {
+-			sym.Code += 'a' - 'A'
+-		}
+-		syms = append(syms, sym)
+-	}
+-
+-	return
+-}
+diff --git a/src/cmd/objdump/macho.go b/src/cmd/objdump/macho.go
+deleted file mode 100644
+index 6e0ad223d4..0000000000
+--- a/src/cmd/objdump/macho.go
++++ /dev/null
+@@ -1,77 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Parsing of Mach-O executables (OS X).
+-
+-package main
+-
+-import (
+-	"debug/macho"
+-	"os"
+-	"sort"
+-)
+-
+-func machoSymbols(f *os.File) (syms []Sym, goarch string) {
+-	p, err := macho.NewFile(f)
+-	if err != nil {
+-		errorf("parsing %s: %v", f.Name(), err)
+-		return
+-	}
+-
+-	if p.Symtab == nil {
+-		errorf("%s: no symbol table", f.Name())
+-		return
+-	}
+-
+-	switch p.Cpu {
+-	case macho.Cpu386:
+-		goarch = "386"
+-	case macho.CpuAmd64:
+-		goarch = "amd64"
+-	case macho.CpuArm:
+-		goarch = "arm"
+-	}
+-
+-	// Build sorted list of addresses of all symbols.
+-	// We infer the size of a symbol by looking at where the next symbol begins.
+-	var addrs []uint64
+-	for _, s := range p.Symtab.Syms {
+-		addrs = append(addrs, s.Value)
+-	}
+-	sort.Sort(uint64s(addrs))
+-
+-	for _, s := range p.Symtab.Syms {
+-		sym := Sym{Name: s.Name, Addr: s.Value, Code: '?'}
+-		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
+-		if i < len(addrs) {
+-			sym.Size = int64(addrs[i] - s.Value)
+-		}
+-		if s.Sect == 0 {
+-			sym.Code = 'U'
+-		} else if int(s.Sect) <= len(p.Sections) {
+-			sect := p.Sections[s.Sect-1]
+-			switch sect.Seg {
+-			case "__TEXT":
+-				sym.Code = 'R'
+-			case "__DATA":
+-				sym.Code = 'D'
+-			}
+-			switch sect.Seg + " " + sect.Name {
+-			case "__TEXT __text":
+-				sym.Code = 'T'
+-			case "__DATA __bss", "__DATA __noptrbss":
+-				sym.Code = 'B'
+-			}
+-		}
+-		syms = append(syms, sym)
+-	}
+-
+-	return
+-}
+-
+-type uint64s []uint64
+-
+-func (x uint64s) Len() int           { return len(x) }
+-func (x uint64s) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x uint64s) Less(i, j int) bool { return x[i] < x[j] }
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index 0f66f20a40..0f125c98bf 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -33,12 +33,7 @@ package main
+ 
+ import (
+ 	"bufio"
+-	"bytes"
+-	"debug/elf"
+ 	"debug/gosym"
+-	"debug/macho"
+-	"debug/pe"
+-	"debug/plan9obj"
+ 	"encoding/binary"
+ 	"flag"
+ 	"fmt"
+@@ -51,6 +46,8 @@ import (
+ 	"strings"
+ 	"text/tabwriter"
+ 
++	"cmd/internal/objfile"
++
+ 	"cmd/internal/rsc.io/arm/armasm"
+ 	"cmd/internal/rsc.io/x86/x86asm"
+ )
+@@ -85,21 +82,33 @@ func main() {
+ 		symRE = re
+ 	}
+ 
+-	f, err := os.Open(flag.Arg(0))
++	f, err := objfile.Open(flag.Arg(0))
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+ 
+-	textStart, textData, symtab, pclntab, err := loadTables(f)
++	syms, err := f.Symbols()
+ 	if err != nil {
+ 		log.Fatalf("reading %s: %v", flag.Arg(0), err)
+ 	}
+ 
+-	syms, goarch, err := loadSymbols(f)
++	tab, err := f.PCLineTable()
+ 	if err != nil {
+ 		log.Fatalf("reading %s: %v", flag.Arg(0), err)
+ 	}
+ 
++	textStart, textBytes, err := f.Text()
++	if err != nil {
++		log.Fatalf("reading %s: %v", flag.Arg(0), err)
++	}
++
++	goarch := f.GOARCH()
++
++	disasm := disasms[goarch]
++	if disasm == nil {
++		log.Fatalf("reading %s: unknown architecture", flag.Arg(0))
++	}
++
+ 	// Filter out section symbols, overwriting syms in place.
+ 	keep := syms[:0]
+ 	for _, sym := range syms {
+@@ -112,37 +121,27 @@ func main() {
+ 	}
+ 	syms = keep
+ 
+-	disasm := disasms[goarch]
+-	if disasm == nil {
+-		log.Fatalf("reading %s: unknown architecture", flag.Arg(0))
+-	}
+-
++	sort.Sort(ByAddr(syms))
+ 	lookup := func(addr uint64) (string, uint64) {
+-		i := sort.Search(len(syms), func(i int) bool { return syms[i].Addr > addr })
++		i := sort.Search(len(syms), func(i int) bool { return addr < syms[i].Addr })
+ 		if i > 0 {
+ 			s := syms[i-1]
+-			if s.Addr <= addr && addr < s.Addr+uint64(s.Size) && s.Name != "runtime.etext" && s.Name != "etext" && s.Name != "_etext" {
++			if s.Addr != 0 && s.Addr <= addr && addr < s.Addr+uint64(s.Size) {
+ 				return s.Name, s.Addr
+ 			}
+ 		}
+ 		return "", 0
+ 	}
+ 
+-	pcln := gosym.NewLineTable(pclntab, textStart)
+-	tab, err := gosym.NewTable(symtab, pcln)
+-	if err != nil {
+-		log.Fatalf("reading %s: %v", flag.Arg(0), err)
+-	}
+-
+ 	if flag.NArg() == 1 {
+ 		// disassembly of entire object - our format
+-		dump(tab, lookup, disasm, goarch, syms, textData, textStart)
+-		os.Exit(exitCode)
++		dump(tab, lookup, disasm, goarch, syms, textBytes, textStart)
++		os.Exit(0)
+ 	}
+ 
+ 	// disassembly of specific piece of object - gnu objdump format for pprof
+-	gnuDump(tab, lookup, disasm, textData, textStart)
+-	os.Exit(exitCode)
++	gnuDump(tab, lookup, disasm, textBytes, textStart)
++	os.Exit(0)
+ }
+ 
+ // base returns the final element in the path.
+@@ -153,13 +152,13 @@ func base(path string) string {
+ 	return path
+ }
+ 
+-func dump(tab *gosym.Table, lookup lookupFunc, disasm disasmFunc, goarch string, syms []Sym, textData []byte, textStart uint64) {
++func dump(tab *gosym.Table, lookup lookupFunc, disasm disasmFunc, goarch string, syms []objfile.Sym, textData []byte, textStart uint64) {
+ 	stdout := bufio.NewWriter(os.Stdout)
+ 	defer stdout.Flush()
+ 
+ 	printed := false
+ 	for _, sym := range syms {
+-		if (sym.Code != 'T' && sym.Code != 't') || sym.Size == 0 || sym.Name == "_text" || sym.Name == "text" || sym.Addr < textStart || symRE != nil && !symRE.MatchString(sym.Name) {
++		if (sym.Code != 'T' && sym.Code != 't') || sym.Size == 0 || sym.Addr < textStart || symRE != nil && !symRE.MatchString(sym.Name) {
+ 			continue
+ 		}
+ 		if sym.Addr >= textStart+uint64(len(textData)) || sym.Addr+uint64(sym.Size) > textStart+uint64(len(textData)) {
+@@ -307,224 +306,8 @@ func gnuDump(tab *gosym.Table, lookup lookupFunc, disasm disasmFunc, textData []
+ 	flush(end)
+ }
+ 
+-func loadTables(f *os.File) (textStart uint64, textData, symtab, pclntab []byte, err error) {
+-	if obj, err := elf.NewFile(f); err == nil {
+-		if sect := obj.Section(".text"); sect != nil {
+-			textStart = sect.Addr
+-			textData, _ = sect.Data()
+-		}
+-		if sect := obj.Section(".gosymtab"); sect != nil {
+-			if symtab, err = sect.Data(); err != nil {
+-				return 0, nil, nil, nil, err
+-			}
+-		}
+-		if sect := obj.Section(".gopclntab"); sect != nil {
+-			if pclntab, err = sect.Data(); err != nil {
+-				return 0, nil, nil, nil, err
+-			}
+-		}
+-		return textStart, textData, symtab, pclntab, nil
+-	}
+-
+-	if obj, err := macho.NewFile(f); err == nil {
+-		if sect := obj.Section("__text"); sect != nil {
+-			textStart = sect.Addr
+-			textData, _ = sect.Data()
+-		}
+-		if sect := obj.Section("__gosymtab"); sect != nil {
+-			if symtab, err = sect.Data(); err != nil {
+-				return 0, nil, nil, nil, err
+-			}
+-		}
+-		if sect := obj.Section("__gopclntab"); sect != nil {
+-			if pclntab, err = sect.Data(); err != nil {
+-				return 0, nil, nil, nil, err
+-			}
+-		}
+-		return textStart, textData, symtab, pclntab, nil
+-	}
+-
+-	if obj, err := pe.NewFile(f); err == nil {
+-		var imageBase uint64
+-		switch oh := obj.OptionalHeader.(type) {
+-		case *pe.OptionalHeader32:
+-			imageBase = uint64(oh.ImageBase)
+-		case *pe.OptionalHeader64:
+-			imageBase = oh.ImageBase
+-		default:
+-			return 0, nil, nil, nil, fmt.Errorf("pe file format not recognized")
+-		}
+-		if sect := obj.Section(".text"); sect != nil {
+-			textStart = imageBase + uint64(sect.VirtualAddress)
+-			textData, _ = sect.Data()
+-		}
+-		if pclntab, err = loadPETable(obj, "runtime.pclntab", "runtime.epclntab"); err != nil {
+-			// We didn't find the symbols, so look for the names used in 1.3 and earlier.
+-			// TODO: Remove code looking for the old symbols when we no longer care about 1.3.
+-			var err2 error
+-			if pclntab, err2 = loadPETable(obj, "pclntab", "epclntab"); err2 != nil {
+-				return 0, nil, nil, nil, err
+-			}
+-		}
+-		if symtab, err = loadPETable(obj, "runtime.symtab", "runtime.esymtab"); err != nil {
+-			// Same as above.
+-			var err2 error
+-			if symtab, err2 = loadPETable(obj, "symtab", "esymtab"); err2 != nil {
+-				return 0, nil, nil, nil, err
+-			}
+-		}
+-		return textStart, textData, symtab, pclntab, nil
+-	}
+-
+-	if obj, err := plan9obj.NewFile(f); err == nil {
+-		textStart = obj.LoadAddress + obj.HdrSize
+-		if sect := obj.Section("text"); sect != nil {
+-			textData, _ = sect.Data()
+-		}
+-		if pclntab, err = loadPlan9Table(obj, "runtime.pclntab", "runtime.epclntab"); err != nil {
+-			// We didn't find the symbols, so look for the names used in 1.3 and earlier.
+-			// TODO: Remove code looking for the old symbols when we no longer care about 1.3.
+-			var err2 error
+-			if pclntab, err2 = loadPlan9Table(obj, "pclntab", "epclntab"); err2 != nil {
+-				return 0, nil, nil, nil, err
+-			}
+-		}
+-		if symtab, err = loadPlan9Table(obj, "runtime.symtab", "runtime.esymtab"); err != nil {
+-			// Same as above.
+-			var err2 error
+-			if symtab, err2 = loadPlan9Table(obj, "symtab", "esymtab"); err2 != nil {
+-				return 0, nil, nil, nil, err
+-			}
+-		}
+-		return textStart, textData, symtab, pclntab, nil
+-	}
+-
+-	return 0, nil, nil, nil, fmt.Errorf("unrecognized binary format")
+-}
+-
+-func findPESymbol(f *pe.File, name string) (*pe.Symbol, error) {
+-	for _, s := range f.Symbols {
+-		if s.Name != name {
+-			continue
+-		}
+-		if s.SectionNumber <= 0 {
+-			return nil, fmt.Errorf("symbol %s: invalid section number %d", name, s.SectionNumber)
+-		}
+-		if len(f.Sections) < int(s.SectionNumber) {
+-			return nil, fmt.Errorf("symbol %s: section number %d is larger than max %d", name, s.SectionNumber, len(f.Sections))
+-		}
+-		return s, nil
+-	}
+-	return nil, fmt.Errorf("no %s symbol found", name)
+-}
+-
+-func loadPETable(f *pe.File, sname, ename string) ([]byte, error) {
+-	ssym, err := findPESymbol(f, sname)
+-	if err != nil {
+-		return nil, err
+-	}
+-	esym, err := findPESymbol(f, ename)
+-	if err != nil {
+-		return nil, err
+-	}
+-	if ssym.SectionNumber != esym.SectionNumber {
+-		return nil, fmt.Errorf("%s and %s symbols must be in the same section", sname, ename)
+-	}
+-	sect := f.Sections[ssym.SectionNumber-1]
+-	data, err := sect.Data()
+-	if err != nil {
+-		return nil, err
+-	}
+-	return data[ssym.Value:esym.Value], nil
+-}
+-
+-func findPlan9Symbol(f *plan9obj.File, name string) (*plan9obj.Sym, error) {
+-	syms, err := f.Symbols()
+-	if err != nil {
+-		return nil, err
+-	}
+-	for _, s := range syms {
+-		if s.Name != name {
+-			continue
+-		}
+-		return &s, nil
+-	}
+-	return nil, fmt.Errorf("no %s symbol found", name)
+-}
+-
+-func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
+-	ssym, err := findPlan9Symbol(f, sname)
+-	if err != nil {
+-		return nil, err
+-	}
+-	esym, err := findPlan9Symbol(f, ename)
+-	if err != nil {
+-		return nil, err
+-	}
+-	sect := f.Section("text")
+-	if sect == nil {
+-		return nil, err
+-	}
+-	data, err := sect.Data()
+-	if err != nil {
+-		return nil, err
+-	}
+-	textStart := f.LoadAddress + f.HdrSize
+-	return data[ssym.Value-textStart : esym.Value-textStart], nil
+-}
+-
+-// TODO(rsc): This code is taken from cmd/nm. Arrange some way to share the code.
+-
+-var exitCode = 0
+-
+-func errorf(format string, args ...interface{}) {
+-	log.Printf(format, args...)
+-	exitCode = 1
+-}
+-
+-func loadSymbols(f *os.File) (syms []Sym, goarch string, err error) {
+-	f.Seek(0, 0)
+-	buf := make([]byte, 16)
+-	io.ReadFull(f, buf)
+-	f.Seek(0, 0)
+-
+-	for _, p := range parsers {
+-		if bytes.HasPrefix(buf, p.prefix) {
+-			syms, goarch = p.parse(f)
+-			sort.Sort(byAddr(syms))
+-			return
+-		}
+-	}
+-	err = fmt.Errorf("unknown file format")
+-	return
+-}
+-
+-type Sym struct {
+-	Addr uint64
+-	Size int64
+-	Code rune
+-	Name string
+-	Type string
+-}
+-
+-var parsers = []struct {
+-	prefix []byte
+-	parse  func(*os.File) ([]Sym, string)
+-}{
+-	{[]byte("\x7FELF"), elfSymbols},
+-	{[]byte("\xFE\xED\xFA\xCE"), machoSymbols},
+-	{[]byte("\xFE\xED\xFA\xCF"), machoSymbols},
+-	{[]byte("\xCE\xFA\xED\xFE"), machoSymbols},
+-	{[]byte("\xCF\xFA\xED\xFE"), machoSymbols},
+-	{[]byte("MZ"), peSymbols},
+-	{[]byte("\x00\x00\x01\xEB"), plan9Symbols}, // 386
+-	{[]byte("\x00\x00\x04\x07"), plan9Symbols}, // mips
+-	{[]byte("\x00\x00\x06\x47"), plan9Symbols}, // arm
+-	{[]byte("\x00\x00\x8A\x97"), plan9Symbols}, // amd64
+-}
+-
+-type byAddr []Sym
++type ByAddr []objfile.Sym
+ 
+-func (x byAddr) Len() int           { return len(x) }
+-func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
++func (x ByAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
++func (x ByAddr) Len() int           { return len(x) }
++func (x ByAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+diff --git a/src/cmd/objdump/pe.go b/src/cmd/objdump/pe.go
+deleted file mode 100644
+index 38190095a3..0000000000
+--- a/src/cmd/objdump/pe.go
++++ /dev/null
+@@ -1,99 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Parsing of PE executables (Microsoft Windows).
+-
+-package main
+-
+-import (
+-	"debug/pe"
+-	"os"
+-	"sort"
+-)
+-
+-func peSymbols(f *os.File) (syms []Sym, goarch string) {
+-	p, err := pe.NewFile(f)
+-	if err != nil {
+-		errorf("parsing %s: %v", f.Name(), err)
+-		return
+-	}
+-
+-	// Build sorted list of addresses of all symbols.
+-	// We infer the size of a symbol by looking at where the next symbol begins.
+-	var addrs []uint64
+-
+-	var imageBase uint64
+-	switch oh := p.OptionalHeader.(type) {
+-	case *pe.OptionalHeader32:
+-		imageBase = uint64(oh.ImageBase)
+-		goarch = "386"
+-	case *pe.OptionalHeader64:
+-		imageBase = oh.ImageBase
+-		goarch = "amd64"
+-	default:
+-		errorf("parsing %s: file format not recognized", f.Name())
+-		return
+-	}
+-
+-	for _, s := range p.Symbols {
+-		const (
+-			N_UNDEF = 0  // An undefined (extern) symbol
+-			N_ABS   = -1 // An absolute symbol (e_value is a constant, not an address)
+-			N_DEBUG = -2 // A debugging symbol
+-		)
+-		sym := Sym{Name: s.Name, Addr: uint64(s.Value), Code: '?'}
+-		switch s.SectionNumber {
+-		case N_UNDEF:
+-			sym.Code = 'U'
+-		case N_ABS:
+-			sym.Code = 'C'
+-		case N_DEBUG:
+-			sym.Code = '?'
+-		default:
+-			if s.SectionNumber < 0 {
+-				errorf("parsing %s: invalid section number %d", f.Name(), s.SectionNumber)
+-				return
+-			}
+-			if len(p.Sections) < int(s.SectionNumber) {
+-				errorf("parsing %s: section number %d is large then max %d", f.Name(), s.SectionNumber, len(p.Sections))
+-				return
+-			}
+-			sect := p.Sections[s.SectionNumber-1]
+-			const (
+-				text  = 0x20
+-				data  = 0x40
+-				bss   = 0x80
+-				permX = 0x20000000
+-				permR = 0x40000000
+-				permW = 0x80000000
+-			)
+-			ch := sect.Characteristics
+-			switch {
+-			case ch&text != 0:
+-				sym.Code = 'T'
+-			case ch&data != 0:
+-				if ch&permW == 0 {
+-					sym.Code = 'R'
+-				} else {
+-					sym.Code = 'D'
+-				}
+-			case ch&bss != 0:
+-				sym.Code = 'B'
+-			}
+-			sym.Addr += imageBase + uint64(sect.VirtualAddress)
+-		}
+-		syms = append(syms, sym)
+-		addrs = append(addrs, sym.Addr)
+-	}
+-
+-	sort.Sort(uint64s(addrs))
+-	for i := range syms {
+-		j := sort.Search(len(addrs), func(x int) bool { return addrs[x] > syms[i].Addr })
+-		if j < len(addrs) {
+-			syms[i].Size = int64(addrs[j] - syms[i].Addr)
+-		}
+-	}
+-
+-	return
+-}
+diff --git a/src/cmd/objdump/plan9obj.go b/src/cmd/objdump/plan9obj.go
+deleted file mode 100644
+index f851d4158c..0000000000
+--- a/src/cmd/objdump/plan9obj.go
++++ /dev/null
+@@ -1,70 +0,0 @@
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Parsing of Plan 9 a.out executables.
+-
+-package main
+-
+-import (
+-	"debug/plan9obj"
+-	"os"
+-	"sort"
+-)
+-
+-var validSymType = map[rune]bool{
+-	'T': true,
+-	't': true,
+-	'D': true,
+-	'd': true,
+-	'B': true,
+-	'b': true,
+-}
+-
+-func plan9Symbols(f *os.File) (syms []Sym, goarch string) {
+-	p, err := plan9obj.NewFile(f)
+-	if err != nil {
+-		errorf("parsing %s: %v", f.Name(), err)
+-		return
+-	}
+-
+-	plan9Syms, err := p.Symbols()
+-	if err != nil {
+-		errorf("parsing %s: %v", f.Name(), err)
+-		return
+-	}
+-
+-	switch p.Magic {
+-	case plan9obj.MagicAMD64:
+-		goarch = "amd64"
+-	case plan9obj.Magic386:
+-		goarch = "386"
+-	case plan9obj.MagicARM:
+-		goarch = "arm"
+-	}
+-
+-	// Build sorted list of addresses of all symbols.
+-	// We infer the size of a symbol by looking at where the next symbol begins.
+-	var addrs []uint64
+-	for _, s := range plan9Syms {
+-		if !validSymType[s.Type] {
+-			continue
+-		}
+-		addrs = append(addrs, s.Value)
+-	}
+-	sort.Sort(uint64s(addrs))
+-
+-	for _, s := range plan9Syms {
+-		if !validSymType[s.Type] {
+-			continue
+-		}
+-		sym := Sym{Addr: s.Value, Name: s.Name, Code: rune(s.Type)}
+-		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
+-		if i < len(addrs) {
+-			sym.Size = int64(addrs[i] - s.Value)
+-		}
+-		syms = append(syms, sym)
+-	}
+-
+-	return
+-}

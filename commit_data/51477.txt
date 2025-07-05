@@ -13,7 +13,61 @@ Date:   Thu Feb 3 09:44:21 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/subr.go |  1 +
  test/typeparam/issue50993.go               | 35 ++++++++++++++++++++++++++++++
  2 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 93812ebda5..9892471142 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1480,6 +1480,7 @@ func Shapify(t *types.Type, index int, tparam *types.Type) *types.Type {
+ 	s.SetUnderlying(u)
+ 	s.SetIsShape(true)
+ 	s.SetHasShape(true)
++	types.CalcSize(s)
+ 	name.SetType(s)
+ 	name.SetTypecheck(1)
+ 	submap[u] = s
+diff --git a/test/typeparam/issue50993.go b/test/typeparam/issue50993.go
+new file mode 100644
+index 0000000000..4d459fd04c
+--- /dev/null
++++ b/test/typeparam/issue50993.go
+@@ -0,0 +1,35 @@
++// compile -d=checkptr
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"sync/atomic"
++	"unsafe"
++)
++
++type Node[T any] struct {
++	Next *Node[T]
++	// Prev  *Node[T]
++}
++
++func LoadPointer[T any](addr **T) (val *T) {
++	return (*T)(
++		atomic.LoadPointer(
++			(*unsafe.Pointer)(unsafe.Pointer(addr)),
++		))
++}
++
++func (q *Node[T]) Pop() {
++	var tail, head *Node[T]
++	if head == LoadPointer(&tail) {
++	}
++}
++
++func main() {
++	ch := Node[uint64]{}
++	ch.Pop()
++}

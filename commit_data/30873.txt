@@ -16,7 +16,60 @@ Date:   Tue Dec 13 14:29:57 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/issue17537.go | 16 ++++++++++++++++
  src/cmd/cgo/gcc.go          |  9 +++++++++
  2 files changed, 25 insertions(+)
+
+diff --git a/misc/cgo/test/issue17537.go b/misc/cgo/test/issue17537.go
+index debdbfe4c5..777104e512 100644
+--- a/misc/cgo/test/issue17537.go
++++ b/misc/cgo/test/issue17537.go
+@@ -23,6 +23,18 @@ int I17537(S17537 *p);
+ const int F17537(const char **p) {
+ 	return **p;
+ }
++
++// Calling this function used to trigger an error from the C compiler
++// (issue 18298).
++void F18298(const void *const *p) {
++}
++
++// Test that conversions between typedefs work as they used to.
++typedef const void *T18298_1;
++struct S18298 { int i; };
++typedef const struct S18298 *T18298_2;
++void G18298(T18298_1 t) {
++}
+ */
+ import "C"
+ 
+@@ -39,4 +51,8 @@ func test17537(t *testing.T) {
+ 	if got, want := C.F17537(&p), C.int(17); got != want {
+ 		t.Errorf("got %d, want %d", got, want)
+ 	}
++
++	C.F18298(nil)
++	var v18298 C.T18298_2
++	C.G18298(C.T18298_1(v18298))
+ }
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index d6c23a70eb..5ea2d941ca 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1729,6 +1729,15 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		if _, ok := base(dt.Type).(*dwarf.VoidType); ok {
+ 			t.Go = c.goVoidPtr
+ 			t.C.Set("void*")
++			dq := dt.Type
++			for {
++				if d, ok := dq.(*dwarf.QualType); ok {
++					t.C.Set(d.Qual + " " + t.C.String())
++					dq = d.Type
++				} else {
++					break
++				}
++			}
+ 			break
+ 		}
+ 

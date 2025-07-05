@@ -7,6 +7,19 @@ Date:   Mon Dec 1 10:26:23 2008 -0800
     TBR=r
     OCL=20127
     CL=20127
-
+---
  src/lib/strconv/atof.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/lib/strconv/atof.go b/src/lib/strconv/atof.go
+index 76b5ebacd4..9345b99396 100644
+--- a/src/lib/strconv/atof.go
++++ b/src/lib/strconv/atof.go
+@@ -216,6 +216,7 @@ func DecimalToFloat64Int(neg bool, d *Decimal) float64 {
+ 	}
+ 	return f;
+ }
++
+ func DecimalToFloat32Int(neg bool, d *Decimal) float32 {
+ 	f := float32(0);
+ 	for i := 0; i < d.nd; i++ {

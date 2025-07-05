@@ -10,6 +10,14 @@ Date:   Tue Aug 25 11:27:44 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  misc/boring/VERSION | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/boring/VERSION b/misc/boring/VERSION
+index 7ed6ff82de..1e8b314962 100644
+--- a/misc/boring/VERSION
++++ b/misc/boring/VERSION
+@@ -1 +1 @@
+-5
++6

@@ -11,7 +11,66 @@ Date:   Tue Apr 3 11:44:52 2012 +1000
     R=golang-dev, dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/5900065
-
+---
  src/pkg/text/template/exec.go      | 7 ++++++-
  src/pkg/text/template/exec_test.go | 8 ++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/text/template/exec.go b/src/pkg/text/template/exec.go
+index 9a720cf43e..feb434a3be 100644
+--- a/src/pkg/text/template/exec.go
++++ b/src/pkg/text/template/exec.go
+@@ -491,7 +491,11 @@ func (s *state) evalCall(dot, fun reflect.Value, name string, args []parse.Node,
+ 	}
+ 	// Add final value if necessary.
+ 	if final.IsValid() {
+-		argv[i] = final
++		t := typ.In(typ.NumIn() - 1)
++		if typ.IsVariadic() {
++			t = t.Elem()
++		}
++		argv[i] = s.validateType(final, t)
+ 	}
+ 	result := fun.Call(argv)
+ 	// If we have an error that is not nil, stop execution and return that error to the caller.
+@@ -507,6 +511,7 @@ func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Valu
+ 		switch typ.Kind() {
+ 		case reflect.Interface, reflect.Ptr, reflect.Chan, reflect.Map, reflect.Slice, reflect.Func:
+ 			// An untyped nil interface{}. Accept as a proper nil value.
++			// TODO: Can we delete the other types in this list? Should we?
+ 			value = reflect.Zero(typ)
+ 		default:
+ 			s.errorf("invalid value; expected %s", typ)
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index 5446027ff7..37d25f470c 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -470,6 +470,9 @@ var execTests = []execTest{
+ 	{"bug7a", "{{3 2}}", "", tVal, false},
+ 	{"bug7b", "{{$x := 1}}{{$x 2}}", "", tVal, false},
+ 	{"bug7c", "{{$x := 1}}{{3 | $x}}", "", tVal, false},
++	// Pipelined arg was not being type-checked.
++	{"bug8a", "{{3|oneArg}}", "", tVal, false},
++	{"bug8b", "{{4|dddArg 3}}", "", tVal, false},
+ }
+ 
+ func zeroArgs() string {
+@@ -480,6 +483,10 @@ func oneArg(a string) string {
+ 	return "oneArg=" + a
+ }
+ 
++func dddArg(a int, b ...string) string {
++	return fmt.Sprintln(a, b)
++}
++
+ // count returns a channel that will deliver n sequential 1-letter strings starting at "a"
+ func count(n int) chan string {
+ 	if n == 0 {
+@@ -504,6 +511,7 @@ func testExecute(execTests []execTest, template *Template, t *testing.T) {
+ 	b := new(bytes.Buffer)
+ 	funcs := FuncMap{
+ 		"count":    count,
++		"dddArg":   dddArg,
+ 		"oneArg":   oneArg,
+ 		"typeOf":   typeOf,
+ 		"vfunc":    vfunc,

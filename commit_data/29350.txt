@@ -10,6 +10,27 @@ Date:   Sat Sep 10 15:21:12 2016 -0700
     Change-Id: I21c02f63f3530774c91065cfed5d9c566839ed9f
     Reviewed-on: https://go-review.googlesource.com/28959
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/all/main.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index 7aa02a2328..8440312f53 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -258,6 +258,15 @@ NextLine:
+ 			}
+ 		}
+ 
++		// Temporarily ignore unrecognized printf verbs from cmd.
++		// The compiler now has several fancy verbs (CL 28339)
++		// used with types implementing fmt.Formatters,
++		// and I believe gri has plans to add many more.
++		// TODO: remove when issue 17057 is fixed.
++		if strings.HasPrefix(file, "cmd/") && strings.HasPrefix(msg, "unrecognized printf verb") {
++			continue
++		}
++
+ 		key := file + ": " + msg
+ 		if w[key] == 0 {
+ 			// Vet error with no match in the whitelist. Print it.

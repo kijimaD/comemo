@@ -7,8 +7,73 @@ Date:   Sat May 1 13:00:01 2010 -0700
     R=gri, r, bflm
     CC=golang-dev
     https://golang.org/cl/1032043
-
+---
  src/pkg/container/vector/intvector.go    | 7 ++++---
  src/pkg/container/vector/stringvector.go | 7 ++++---
  src/pkg/container/vector/vector.go       | 3 +++
  3 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/container/vector/intvector.go b/src/pkg/container/vector/intvector.go
+index a1754a94f1..708108b183 100644
+--- a/src/pkg/container/vector/intvector.go
++++ b/src/pkg/container/vector/intvector.go
+@@ -12,6 +12,9 @@ func (p *IntVector) realloc(length, capacity int) (b []int) {
+ 	if capacity < initialSize {
+ 		capacity = initialSize
+ 	}
++	if capacity < length {
++		capacity = length
++	}
+ 	b = make(IntVector, length, capacity)
+ 	copy(b, *p)
+ 	*p = b
+@@ -186,9 +189,7 @@ func (p *IntVector) Pop() int {
+ 
+ 
+ // AppendVector appends the entire vector x to the end of this vector.
+-func (p *IntVector) AppendVector(x *IntVector) {
+-	p.InsertVector(len(*p), x)
+-}
++func (p *IntVector) AppendVector(x *IntVector) { p.InsertVector(len(*p), x) }
+ 
+ 
+ // Swap exchanges the elements at indexes i and j.
+diff --git a/src/pkg/container/vector/stringvector.go b/src/pkg/container/vector/stringvector.go
+index fad20f58a5..86563ca203 100644
+--- a/src/pkg/container/vector/stringvector.go
++++ b/src/pkg/container/vector/stringvector.go
+@@ -12,6 +12,9 @@ func (p *StringVector) realloc(length, capacity int) (b []string) {
+ 	if capacity < initialSize {
+ 		capacity = initialSize
+ 	}
++	if capacity < length {
++		capacity = length
++	}
+ 	b = make(StringVector, length, capacity)
+ 	copy(b, *p)
+ 	*p = b
+@@ -186,9 +189,7 @@ func (p *StringVector) Pop() string {
+ 
+ 
+ // AppendVector appends the entire vector x to the end of this vector.
+-func (p *StringVector) AppendVector(x *StringVector) {
+-	p.InsertVector(len(*p), x)
+-}
++func (p *StringVector) AppendVector(x *StringVector) { p.InsertVector(len(*p), x) }
+ 
+ 
+ // Swap exchanges the elements at indexes i and j.
+diff --git a/src/pkg/container/vector/vector.go b/src/pkg/container/vector/vector.go
+index 99c7753da3..0771720965 100644
+--- a/src/pkg/container/vector/vector.go
++++ b/src/pkg/container/vector/vector.go
+@@ -12,6 +12,9 @@ func (p *Vector) realloc(length, capacity int) (b []interface{}) {
+ 	if capacity < initialSize {
+ 		capacity = initialSize
+ 	}
++	if capacity < length {
++		capacity = length
++	}
+ 	b = make(Vector, length, capacity)
+ 	copy(b, *p)
+ 	*p = b

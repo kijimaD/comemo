@@ -13,8 +13,52 @@ Date:   Mon Dec 9 14:45:10 2013 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/38670043
-
+---
  src/cmd/gc/pgen.c          | 2 +-
  src/cmd/gc/plive.c         | 4 +++-
  src/pkg/runtime/funcdata.h | 2 +-
  3 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index c2942f1399..87225a4f88 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -159,7 +159,7 @@ compile(Node *fn)
+ 	// compile time.  At present, the amount of additional RSS is
+ 	// substantial enough to affect our smallest build machines.
+ 	if(0)
+-		gcdead = makefuncdatasym("gcdead·%d", FUNCDATA_DeadPointerMaps);
++		gcdead = makefuncdatasym("gcdead·%d", FUNCDATA_DeadValueMaps);
+ 	else
+ 		gcdead = nil;
+ 
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index b58eaf6ed4..25d6e89b98 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -1477,9 +1477,11 @@ liveness(Node *fn, Prog *firstp, Sym *argssym, Sym *livesym, Sym *deadsym)
+ 	if(0) livenessprintcfg(lv);
+ 	livenessepilogue(lv);
+ 
+-	// Emit the map data structures
++	// Emit the live pointer map data structures
+ 	twobitwritesymbol(lv->livepointers, livesym, nil);
+ 	twobitwritesymbol(lv->argslivepointers, argssym, nil);
++
++	// Optionally emit a dead value map data structure for locals.
+ 	if(deadsym != nil)
+ 		twobitwritesymbol(lv->deadvalues, deadsym, nil);
+ 
+diff --git a/src/pkg/runtime/funcdata.h b/src/pkg/runtime/funcdata.h
+index 04766b9da2..e20b6ae254 100644
+--- a/src/pkg/runtime/funcdata.h
++++ b/src/pkg/runtime/funcdata.h
+@@ -12,7 +12,7 @@
+ 
+ #define FUNCDATA_ArgsPointerMaps 2 /* garbage collector blocks */
+ #define FUNCDATA_LocalsPointerMaps 3
+-#define FUNCDATA_DeadPointerMaps 4
++#define FUNCDATA_DeadValueMaps 4
+ 
+ // To be used in assembly.
+ #define ARGSIZE(n) PCDATA $PCDATA_ArgSize, $n

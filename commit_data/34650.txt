@@ -16,6 +16,31 @@ Date:   Mon Oct 30 22:44:14 2017 -0700
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/fixedbugs/issue22389.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/test/fixedbugs/issue22389.go b/test/fixedbugs/issue22389.go
+new file mode 100644
+index 0000000000..706b44941c
+--- /dev/null
++++ b/test/fixedbugs/issue22389.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Foo struct{}
++
++func (f *Foo) Call(cb func(*Foo)) {
++	cb(f)
++}
++
++func main() {
++	f := &Foo{}
++	f.Call(func(f) {}) // ERROR "f is not a type"
++}

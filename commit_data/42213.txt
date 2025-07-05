@@ -22,8 +22,146 @@ Date:   Fri Nov 15 00:38:04 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/157822
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/all_test.go | 45 +++++++++++++++++++++++++++++++++++++++++----
  src/reflect/type.go     | 26 +++++++++++++++++---------
  src/reflect/value.go    |  5 +++++
  3 files changed, 63 insertions(+), 13 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index b6010f9265..7443666fa6 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -3634,6 +3634,13 @@ type MyRunes []int32
+ type MyFunc func()
+ type MyByte byte
+ 
++type IntChan chan int
++type IntChanRecv <-chan int
++type IntChanSend chan<- int
++type BytesChan chan []byte
++type BytesChanRecv <-chan []byte
++type BytesChanSend chan<- []byte
++
+ var convertTests = []struct {
+ 	in  Value
+ 	out Value
+@@ -3995,10 +4002,6 @@ var convertTests = []struct {
+ 	{V((***byte)(nil)), V((***byte)(nil))},
+ 	{V((***int32)(nil)), V((***int32)(nil))},
+ 	{V((***int64)(nil)), V((***int64)(nil))},
+-	{V((chan int)(nil)), V((<-chan int)(nil))},
+-	{V((chan int)(nil)), V((chan<- int)(nil))},
+-	{V((chan string)(nil)), V((<-chan string)(nil))},
+-	{V((chan string)(nil)), V((chan<- string)(nil))},
+ 	{V((chan byte)(nil)), V((chan byte)(nil))},
+ 	{V((chan MyByte)(nil)), V((chan MyByte)(nil))},
+ 	{V((map[int]bool)(nil)), V((map[int]bool)(nil))},
+@@ -4010,6 +4013,40 @@ var convertTests = []struct {
+ 	{V(new(io.Reader)), V(new(io.Reader))},
+ 	{V(new(io.Writer)), V(new(io.Writer))},
+ 
++	// channels
++	{V(IntChan(nil)), V((chan<- int)(nil))},
++	{V(IntChan(nil)), V((<-chan int)(nil))},
++	{V((chan int)(nil)), V(IntChanRecv(nil))},
++	{V((chan int)(nil)), V(IntChanSend(nil))},
++	{V(IntChanRecv(nil)), V((<-chan int)(nil))},
++	{V((<-chan int)(nil)), V(IntChanRecv(nil))},
++	{V(IntChanSend(nil)), V((chan<- int)(nil))},
++	{V((chan<- int)(nil)), V(IntChanSend(nil))},
++	{V(IntChan(nil)), V((chan int)(nil))},
++	{V((chan int)(nil)), V(IntChan(nil))},
++	{V((chan int)(nil)), V((<-chan int)(nil))},
++	{V((chan int)(nil)), V((chan<- int)(nil))},
++	{V(BytesChan(nil)), V((chan<- []byte)(nil))},
++	{V(BytesChan(nil)), V((<-chan []byte)(nil))},
++	{V((chan []byte)(nil)), V(BytesChanRecv(nil))},
++	{V((chan []byte)(nil)), V(BytesChanSend(nil))},
++	{V(BytesChanRecv(nil)), V((<-chan []byte)(nil))},
++	{V((<-chan []byte)(nil)), V(BytesChanRecv(nil))},
++	{V(BytesChanSend(nil)), V((chan<- []byte)(nil))},
++	{V((chan<- []byte)(nil)), V(BytesChanSend(nil))},
++	{V(BytesChan(nil)), V((chan []byte)(nil))},
++	{V((chan []byte)(nil)), V(BytesChan(nil))},
++	{V((chan []byte)(nil)), V((<-chan []byte)(nil))},
++	{V((chan []byte)(nil)), V((chan<- []byte)(nil))},
++
++	// cannot convert other instances (channels)
++	{V(IntChan(nil)), V(IntChan(nil))},
++	{V(IntChanRecv(nil)), V(IntChanRecv(nil))},
++	{V(IntChanSend(nil)), V(IntChanSend(nil))},
++	{V(BytesChan(nil)), V(BytesChan(nil))},
++	{V(BytesChanRecv(nil)), V(BytesChanRecv(nil))},
++	{V(BytesChanSend(nil)), V(BytesChanSend(nil))},
++
+ 	// interfaces
+ 	{V(int(1)), EmptyInterfaceV(int(1))},
+ 	{V(string("hello")), EmptyInterfaceV(string("hello"))},
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 06ca09576d..9040862ad2 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1542,6 +1542,18 @@ func implements(T, V *rtype) bool {
+ 	return false
+ }
+ 
++// specialChannelAssignability reports whether a value x of channel type V
++// can be directly assigned (using memmove) to another channel type T.
++// https://golang.org/doc/go_spec.html#Assignability
++// T and V must be both of Chan kind.
++func specialChannelAssignability(T, V *rtype) bool {
++	// Special case:
++	// x is a bidirectional channel value, T is a channel type,
++	// x's type V and T have identical element types,
++	// and at least one of V or T is not a defined type.
++	return V.ChanDir() == BothDir && (T.Name() == "" || V.Name() == "") && haveIdenticalType(T.Elem(), V.Elem(), true)
++}
++
+ // directlyAssignable reports whether a value x of type V can be directly
+ // assigned (using memmove) to a value of type T.
+ // https://golang.org/doc/go_spec.html#Assignability
+@@ -1559,7 +1571,11 @@ func directlyAssignable(T, V *rtype) bool {
+ 		return false
+ 	}
+ 
+-	// x's type T and V must  have identical underlying types.
++	if T.Kind() == Chan && specialChannelAssignability(T, V) {
++		return true
++	}
++
++	// x's type T and V must have identical underlying types.
+ 	return haveIdenticalUnderlyingType(T, V, true)
+ }
+ 
+@@ -1597,14 +1613,6 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
+ 		return T.Len() == V.Len() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
+ 
+ 	case Chan:
+-		// Special case:
+-		// x is a bidirectional channel value, T is a channel type,
+-		// and x's type V and T have identical element types.
+-		if V.ChanDir() == BothDir && haveIdenticalType(T.Elem(), V.Elem(), cmpTags) {
+-			return true
+-		}
+-
+-		// Otherwise continue test for identical underlying type.
+ 		return V.ChanDir() == T.ChanDir() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
+ 
+ 	case Func:
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index ab3b9643ee..2b7dd66a8c 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2476,6 +2476,11 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
+ 				return cvtRunesString
+ 			}
+ 		}
++
++	case Chan:
++		if dst.Kind() == Chan && specialChannelAssignability(dst, src) {
++			return cvtDirect
++		}
+ 	}
+ 
+ 	// dst and src have same underlying type.

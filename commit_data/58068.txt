@@ -27,7 +27,68 @@ Date:   Sun Sep 24 12:05:37 2023 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/security.go               |  4 ++++
  .../script/cgo_suspect_flag_force_external.txt     | 26 ++++++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 270a34e9c7..88504be6cd 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -59,7 +59,10 @@ var validCompilerFlags = []*lazyregexp.Regexp{
+ 	re(`-f(no-)builtin-[a-zA-Z0-9_]*`),
+ 	re(`-f(no-)?common`),
+ 	re(`-f(no-)?constant-cfstrings`),
++	re(`-fdebug-prefix-map=([^@]+)=([^@]+)`),
+ 	re(`-fdiagnostics-show-note-include-stack`),
++	re(`-ffile-prefix-map=([^@]+)=([^@]+)`),
++	re(`-fno-canonical-system-headers`),
+ 	re(`-f(no-)?eliminate-unused-debug-types`),
+ 	re(`-f(no-)?exceptions`),
+ 	re(`-f(no-)?fast-math`),
+@@ -114,6 +117,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
+ 	re(`-mthumb(-interwork)?`),
+ 	re(`-mthreads`),
+ 	re(`-mwindows`),
++	re(`-no-canonical-prefixes`),
+ 	re(`--param=ssp-buffer-size=[0-9]*`),
+ 	re(`-pedantic(-errors)?`),
+ 	re(`-pipe`),
+diff --git a/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt b/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
+index d555278865..6dc30bedb9 100644
+--- a/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
++++ b/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
+@@ -55,6 +55,32 @@ stderr preferlinkext
+ env CGO_CFLAGS=-fprofile-instr-generate
+ go build -x -n -o dummy.exe ./usesInternalCgo
+ stderr preferlinkext
++
++# The -fdebug-prefix-map=path is permitted for internal linking.
++env CGO_CFLAGS=-fdebug-prefix-map=/some/sandbox/execroot/workspace=/tmp/new
++go build -x -n -o dummy.exe ./usesInternalCgo
++! stderr preferlinkext
++env CGO_CFLAGS=-fdebug-prefix-map=/Users/someone/.cache/bazel/_bazel_someone/3fa7e4650c43657ead684537951f49e2/sandbox/linux-sandbox/10/execroot/rules_go_static=.
++go build -x -n -o dummy.exe ./usesInternalCgo
++! stderr preferlinkext
++# The -ffile-prefix-map=path is permitted for internal linking too.
++env CGO_CFLAGS=-ffile-prefix-map=/Users/someone/.cache/bazel/_bazel_someone/3fa7e4650c43657ead684537951f49e2/sandbox/linux-sandbox/10/execroot/rules_go_static/bazel-out/aarch64-fastbuild-ST-b33d65c724e6/bin/external/io_bazel_rules_go/stdlib_=.
++go build -x -n -o dummy.exe ./usesInternalCgo
++! stderr preferlinkext
++# Verifying that -fdebug-prefix-map=path, -ffile-prefix-map, -no-canonical-prefixes
++# and -fno-canonical-systemd-headers are permitted for internal linking.
++env CGO_CFLAGS=-fdebug-prefix-map=old=/tmp/new
++go build -x -n -o dummy.exe ./usesInternalCgo
++! stderr preferlinkext
++env CGO_CFLAGS=-ffile-prefix-map=/Users/someone/_11233/things=new
++go build -x -n -o dummy.exe ./usesInternalCgo
++! stderr preferlinkext
++env CGO_CFLAGS=-no-canonical-prefixes
++go build -x -n -o dummy.exe ./usesInternalCgo
++! stderr preferlinkext
++env CGO_CFLAGS=-fno-canonical-system-headers
++go build -x -n -o dummy.exe ./usesInternalCgo
++! stderr preferlinkext
+ env CGO_CFLAGS=
+ 
+ [short] skip

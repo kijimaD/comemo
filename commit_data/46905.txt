@@ -12,6 +12,20 @@ Date:   Sat Feb 13 02:45:51 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/291829
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/link/link_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 8153c0b31b..08ddd00a0c 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -583,7 +583,7 @@ TEXT	·alignPc(SB),NOSPLIT, $0-0
+ `
+ 
+ // TestFuncAlign verifies that the address of a function can be aligned
+-// with a specfic value on arm64.
++// with a specific value on arm64.
+ func TestFuncAlign(t *testing.T) {
+ 	if runtime.GOARCH != "arm64" || runtime.GOOS != "linux" {
+ 		t.Skip("skipping on non-linux/arm64 platform")

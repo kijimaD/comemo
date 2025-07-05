@@ -17,6 +17,23 @@ Date:   Sun Sep 25 20:15:12 2022 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go/internal/mmap/{mmap_plan9.go => mmap_other.go} | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/internal/mmap/mmap_plan9.go b/src/cmd/go/internal/mmap/mmap_other.go
+similarity index 92%
+rename from src/cmd/go/internal/mmap/mmap_plan9.go
+rename to src/cmd/go/internal/mmap/mmap_other.go
+index faa5d5fc66..d146a42216 100644
+--- a/src/cmd/go/internal/mmap/mmap_plan9.go
++++ b/src/cmd/go/internal/mmap/mmap_other.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build (js && wasm) || plan9
++
+ package mmap
+ 
+ import (

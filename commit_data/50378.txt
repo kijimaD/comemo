@@ -12,9 +12,68 @@ Date:   Thu Oct 21 13:23:29 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/testdata/examples/types.go2 | 8 ++++++++
  src/cmd/compile/internal/types2/type.go                     | 2 +-
  src/go/types/testdata/examples/types.go2                    | 8 ++++++++
  src/go/types/type.go                                        | 2 +-
  4 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/types.go2 b/src/cmd/compile/internal/types2/testdata/examples/types.go2
+index 55b1b0da57..f177c78d06 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/types.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/types.go2
+@@ -304,3 +304,11 @@ func _[P interface{ ~[]E }, E interface{ map[string]P } ]() P {
+ 	return P{E{"foo": x}}
+ 	return P{{"foo": x}, {}}
+ }
++
++// This is a degenerate case with a singleton type set, but we can create
++// composite literals even if the structural type is a defined type.
++type MyInts []int
++
++func _[P MyInts]() P {
++	return P{}
++}
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index 400d6f7128..3fb05e9d63 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -57,7 +57,7 @@ func optype(typ Type) Type {
+ 		// See also issue #39680.
+ 		if u := t.structuralType(); u != nil {
+ 			assert(u != typ) // "naked" type parameters cannot be embedded
+-			return u
++			return under(u)  // optype should always return an underlying type
+ 		}
+ 		return theTop
+ 	}
+diff --git a/src/go/types/testdata/examples/types.go2 b/src/go/types/testdata/examples/types.go2
+index 2e6eeb2204..807c03238f 100644
+--- a/src/go/types/testdata/examples/types.go2
++++ b/src/go/types/testdata/examples/types.go2
+@@ -310,3 +310,11 @@ func _[P interface{ ~[]E }, E interface{ map[string]P } ]() P {
+ 	return P{E{"foo": x}}
+ 	return P{{"foo": x}, {}}
+ }
++
++// This is a degenerate case with a singleton type set, but we can create
++// composite literals even if the structural type is a defined type.
++type MyInts []int
++
++func _[P MyInts]() P {
++	return P{}
++}
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 31149cfd36..502c9b2d52 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -57,7 +57,7 @@ func optype(typ Type) Type {
+ 		// See also issue #39680.
+ 		if u := t.structuralType(); u != nil {
+ 			assert(u != typ) // "naked" type parameters cannot be embedded
+-			return u
++			return under(u)  // optype should always return an underlying type
+ 		}
+ 		return theTop
+ 	}

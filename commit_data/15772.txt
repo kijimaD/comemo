@@ -7,9 +7,61 @@ Date:   Thu Mar 14 17:39:39 2013 -0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/7826044
-
+---
  src/pkg/runtime/os_netbsd.c            | 1 +
  src/pkg/runtime/signal_freebsd_386.h   | 2 +-
  src/pkg/runtime/signal_freebsd_amd64.h | 2 +-
  src/pkg/runtime/signal_freebsd_arm.h   | 2 +-
  4 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index d4b874f4c2..2e8e758999 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -30,6 +30,7 @@ extern void runtime·lwp_mcontext_init(void *mc, void *stack, M *mp, G *gp, void
+ extern int32 runtime·lwp_park(Timespec *abstime, int32 unpark, void *hint, void *unparkhint);
+ extern int32 runtime·lwp_unpark(int32 lwp, void *hint);
+ extern int32 runtime·lwp_self(void);
++extern void runtime·lwp_tramp(void);
+ 
+ // From NetBSD's <sys/sysctl.h>
+ #define	CTL_HW	6
+diff --git a/src/pkg/runtime/signal_freebsd_386.h b/src/pkg/runtime/signal_freebsd_386.h
+index 4f641fe760..a24f1ee96c 100644
+--- a/src/pkg/runtime/signal_freebsd_386.h
++++ b/src/pkg/runtime/signal_freebsd_386.h
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SIG_REGS(ctxt) (*((Ucontext*)(ctxt))->uc_mcontext)
++#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
+ 
+ #define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).mc_eax)
+ #define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).mc_ebx)
+diff --git a/src/pkg/runtime/signal_freebsd_amd64.h b/src/pkg/runtime/signal_freebsd_amd64.h
+index bde629fadd..7d35b7f856 100644
+--- a/src/pkg/runtime/signal_freebsd_amd64.h
++++ b/src/pkg/runtime/signal_freebsd_amd64.h
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SIG_REGS(ctxt) (*((Ucontext*)(ctxt))->uc_mcontext)
++#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
+ 
+ #define SIG_RAX(info, ctxt) (SIG_REGS(ctxt).mc_rax)
+ #define SIG_RBX(info, ctxt) (SIG_REGS(ctxt).mc_rbx)
+diff --git a/src/pkg/runtime/signal_freebsd_arm.h b/src/pkg/runtime/signal_freebsd_arm.h
+index 4f26da3611..231d4b753f 100644
+--- a/src/pkg/runtime/signal_freebsd_arm.h
++++ b/src/pkg/runtime/signal_freebsd_arm.h
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SIG_REGS(ctxt) (*((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
++#define SIG_REGS(ctxt) (((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
+ 
+ #define SIG_R0(info, ctxt) (SIG_REGS(ctxt).__gregs[0])
+ #define SIG_R1(info, ctxt) (SIG_REGS(ctxt).__gregs[1])

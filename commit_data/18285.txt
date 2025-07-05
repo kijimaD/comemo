@@ -22,10 +22,146 @@ Date:   Fri Jan 17 16:58:14 2014 -0500
     R=golang-codereviews, r
     CC=bradfitz, dvyukov, golang-codereviews
     https://golang.org/cl/53870043
-
+---
  src/cmd/gc/esc.c                     |  9 ++-------
  src/pkg/syscall/dll_windows.go       | 20 --------------------
  src/pkg/syscall/syscall_linux_386.go |  9 ---------
  src/pkg/syscall/syscall_plan9.go     | 15 ---------------
  src/pkg/syscall/syscall_unix.go      | 15 ---------------
  5 files changed, 2 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index c8fbae31b6..b84b66ef14 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -1135,13 +1135,8 @@ esctag(EscState *e, Node *func)
+ 	if(func->nbody == nil) {
+ 		if(func->noescape) {
+ 			for(t=getinargx(func->type)->type; t; t=t->down)
+-				// Mark all arguments, not only pointers,
+-				// to support the following use case.
+-				// Syscall package converts all pointers to uintptr
+-				// when calls asm-implemented Syscall function:
+-				// 
+-				//   Syscall(SYS_FOO, uintptr(unsafe.Pointer(p)), 0, 0)
+-				t->note = mktag(EscNone);
++				if(haspointers(t->type))
++					t->note = mktag(EscNone);
+ 		}
+ 		return;
+ 	}
+diff --git a/src/pkg/syscall/dll_windows.go b/src/pkg/syscall/dll_windows.go
+index ef91d922f6..d29e9921cf 100644
+--- a/src/pkg/syscall/dll_windows.go
++++ b/src/pkg/syscall/dll_windows.go
+@@ -20,31 +20,11 @@ type DLLError struct {
+ func (e *DLLError) Error() string { return e.Msg }
+ 
+ // Implemented in ../runtime/syscall_windows.goc.
+-
+-// Pointers passed to syscalls must not escape (be accessed by OS after the syscall returns).
+-// For heap objects this will break when/if we have moving GC.
+-// And for other objects (global, C allocated) go:noescape has no effect.
+-
+-//go:noescape
+-
+ func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+-
+-//go:noescape
+-
+ func Syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+-
+-//go:noescape
+-
+ func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+-
+-//go:noescape
+-
+ func Syscall12(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2 uintptr, err Errno)
+-
+-//go:noescape
+-
+ func Syscall15(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2 uintptr, err Errno)
+-
+ func loadlibrary(filename *uint16) (handle uintptr, err Errno)
+ func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err Errno)
+ 
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 1947acf280..a61695676f 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -169,16 +169,7 @@ const (
+ 	_SENDMMSG    = 20
+ )
+ 
+-// Pointers passed to syscalls must not escape (be accessed by OS after the syscall returns).
+-// For heap objects this will break when/if we have moving GC.
+-// And for other objects (global, C allocated) go:noescape has no effect.
+-
+-//go:noescape
+-
+ func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
+-
+-//go:noescape
+-
+ func rawsocketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
+ 
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+diff --git a/src/pkg/syscall/syscall_plan9.go b/src/pkg/syscall/syscall_plan9.go
+index 2670353759..2e1c064c46 100644
+--- a/src/pkg/syscall/syscall_plan9.go
++++ b/src/pkg/syscall/syscall_plan9.go
+@@ -51,24 +51,9 @@ var (
+ // creation of IPv6 sockets to return EAFNOSUPPORT.
+ var SocketDisableIPv6 bool
+ 
+-// Pointers passed to syscalls must not escape (be accessed by OS after the syscall returns).
+-// For heap objects this will break when/if we have moving GC.
+-// And for other objects (global, C allocated) go:noescape has no effect.
+-
+-//go:noescape
+-
+ func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err ErrorString)
+-
+-//go:noescape
+-
+ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err ErrorString)
+-
+-//go:noescape
+-
+ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+-
+-//go:noescape
+-
+ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ 
+ func atoi(b []byte) (n uint) {
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index f09051c687..6455dc29c5 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -23,24 +23,9 @@ const (
+ 	netbsd32Bit = runtime.GOOS == "netbsd" && sizeofPtr == 4
+ )
+ 
+-// Pointers passed to syscalls must not escape (be accessed by OS after the syscall returns).
+-// For heap objects this will break when/if we have moving GC.
+-// And for other objects (global, C allocated) go:noescape has no effect.
+-
+-//go:noescape
+-
+ func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+-
+-//go:noescape
+-
+ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+-
+-//go:noescape
+-
+ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+-
+-//go:noescape
+-
+ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ 
+ // Mmap manager, for use by operating system-specific implementations.

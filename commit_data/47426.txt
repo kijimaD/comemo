@@ -23,7 +23,7 @@ Date:   Mon Mar 15 12:40:34 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  doc/go1.17.html                                    |  12 +++
  src/cmd/go/internal/modload/build.go               |   8 +-
  src/cmd/go/internal/modload/init.go                | 107 ++++++++++++++-------
@@ -34,3 +34,468 @@ Date:   Mon Mar 15 12:40:34 2021 -0400
  src/cmd/go/testdata/script/mod_outside.txt         |  14 +++
  src/cmd/go/testdata/script/mod_test.txt            |   2 +
  9 files changed, 219 insertions(+), 41 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 34cfce7a06..22b2ff1156 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -55,6 +55,18 @@ Do not send CLs removing the interior tags from such phrases.
+   <code>environment</code> for details.
+ </p>
+ 
++<h4 id="missing-go-directive"><code>go.mod</code> files missing <code>go</code> directives</h4>
++
++<p><!-- golang.org/issue/44976 -->
++  If the main module's <code>go.mod</code> file does not contain
++  a <a href="/doc/modules/gomod-ref#go"><code>go</code> directive</a> and
++  the <code>go</code> command cannot update the <code>go.mod</code> file, the
++  <code>go</code> command now assumes <code>go 1.11</code> instead of the
++  current release. (<code>go</code> <code>mod</code> <code>init</code> has added
++  <code>go</code> directives automatically <a href="/doc/go1.12#modules">since
++  Go 1.12</a>.)
++</p>
++
+ <h2 id="runtime">Runtime</h2>
+ 
+ <p>
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index b32997d29e..5f18a38e93 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -147,12 +147,14 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList, listRetrac
+ 			Version: m.Version,
+ 			Main:    true,
+ 		}
++		if v, ok := rawGoVersion.Load(Target); ok {
++			info.GoVersion = v.(string)
++		} else {
++			panic("internal error: GoVersion not set for main module")
++		}
+ 		if HasModRoot() {
+ 			info.Dir = ModRoot()
+ 			info.GoMod = ModFilePath()
+-			if modFile.Go != nil {
+-				info.GoVersion = modFile.Go.Version
+-			}
+ 		}
+ 		return info
+ 	}
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 8ec1c8681a..2466a3bdfd 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -35,11 +35,30 @@ import (
+ 	"golang.org/x/mod/semver"
+ )
+ 
++// Variables set by other packages.
++//
++// TODO(#40775): See if these can be plumbed as explicit parameters.
++var (
++	// RootMode determines whether a module root is needed.
++	RootMode Root
++
++	// ForceUseModules may be set to force modules to be enabled when
++	// GO111MODULE=auto or to report an error when GO111MODULE=off.
++	ForceUseModules bool
++
++	allowMissingModuleImports bool
++)
++
++// Variables set in Init.
+ var (
+ 	initialized bool
++	modRoot     string
++	gopath      string
++)
+ 
+-	modRoot string
+-	Target  module.Version
++// Variables set in initTarget (during {Load,Create}ModFile).
++var (
++	Target module.Version
+ 
+ 	// targetPrefix is the path prefix for packages in Target, without a trailing
+ 	// slash. For most modules, targetPrefix is just Target.Path, but the
+@@ -49,17 +68,6 @@ var (
+ 	// targetInGorootSrc caches whether modRoot is within GOROOT/src.
+ 	// The "std" module is special within GOROOT/src, but not otherwise.
+ 	targetInGorootSrc bool
+-
+-	gopath string
+-
+-	// RootMode determines whether a module root is needed.
+-	RootMode Root
+-
+-	// ForceUseModules may be set to force modules to be enabled when
+-	// GO111MODULE=auto or to report an error when GO111MODULE=off.
+-	ForceUseModules bool
+-
+-	allowMissingModuleImports bool
+ )
+ 
+ type Root int
+@@ -362,6 +370,7 @@ func LoadModFile(ctx context.Context) {
+ 		Target = module.Version{Path: "command-line-arguments"}
+ 		targetPrefix = "command-line-arguments"
+ 		buildList = []module.Version{Target}
++		rawGoVersion.Store(Target, latestGoVersion())
+ 		return
+ 	}
+ 
+@@ -377,24 +386,29 @@ func LoadModFile(ctx context.Context) {
+ 		// Errors returned by modfile.Parse begin with file:line.
+ 		base.Fatalf("go: errors parsing go.mod:\n%s\n", err)
+ 	}
+-	modFile = f
+-	index = indexModFile(data, f, fixed)
+-
+ 	if f.Module == nil {
+ 		// No module declaration. Must add module path.
+ 		base.Fatalf("go: no module declaration in go.mod. To specify the module path:\n\tgo mod edit -module=example.com/mod")
+ 	}
+ 
++	modFile = f
++	initTarget(f.Module.Mod)
++	index = indexModFile(data, f, fixed)
++
+ 	if err := checkModulePathLax(f.Module.Mod.Path); err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+ 	setDefaultBuildMod() // possibly enable automatic vendoring
+-	modFileToBuildList()
++	buildList = modFileToBuildList(modFile)
+ 	if cfg.BuildMod == "vendor" {
+ 		readVendorList()
+ 		checkVendorConsistency()
+ 	}
++	if index.goVersionV == "" && cfg.BuildMod == "mod" {
++		addGoStmt()
++		WriteGoMod()
++	}
+ }
+ 
+ // CreateModFile initializes a new module by creating a go.mod file.
+@@ -427,6 +441,7 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 	fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", modPath)
+ 	modFile = new(modfile.File)
+ 	modFile.AddModuleStmt(modPath)
++	initTarget(modFile.Module.Mod)
+ 	addGoStmt() // Add the go directive before converted module requirements.
+ 
+ 	convertedFrom, err := convertLegacyConfig(modPath)
+@@ -437,7 +452,7 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+-	modFileToBuildList()
++	buildList = modFileToBuildList(modFile)
+ 	WriteGoMod()
+ 
+ 	// Suggest running 'go mod tidy' unless the project is empty. Even if we
+@@ -563,19 +578,31 @@ func AllowMissingModuleImports() {
+ 	allowMissingModuleImports = true
+ }
+ 
+-// modFileToBuildList initializes buildList from the modFile.
+-func modFileToBuildList() {
+-	Target = modFile.Module.Mod
+-	targetPrefix = Target.Path
++// initTarget sets Target and associated variables according to modFile,
++func initTarget(m module.Version) {
++	Target = m
++	targetPrefix = m.Path
++
+ 	if rel := search.InDir(base.Cwd, cfg.GOROOTsrc); rel != "" {
+ 		targetInGorootSrc = true
+-		if Target.Path == "std" {
++		if m.Path == "std" {
++			// The "std" module in GOROOT/src is the Go standard library. Unlike other
++			// modules, the packages in the "std" module have no import-path prefix.
++			//
++			// Modules named "std" outside of GOROOT/src do not receive this special
++			// treatment, so it is possible to run 'go test .' in other GOROOTs to
++			// test individual packages using a combination of the modified package
++			// and the ordinary standard library.
++			// (See https://golang.org/issue/30756.)
+ 			targetPrefix = ""
+ 		}
+ 	}
++}
+ 
++// modFileToBuildList returns the list of non-excluded requirements from f.
++func modFileToBuildList(f *modfile.File) []module.Version {
+ 	list := []module.Version{Target}
+-	for _, r := range modFile.Require {
++	for _, r := range f.Require {
+ 		if index != nil && index.exclude[r.Mod] {
+ 			if cfg.BuildMod == "mod" {
+ 				fmt.Fprintf(os.Stderr, "go: dropping requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
+@@ -586,7 +613,7 @@ func modFileToBuildList() {
+ 			list = append(list, r.Mod)
+ 		}
+ 	}
+-	buildList = list
++	return list
+ }
+ 
+ // setDefaultBuildMod sets a default value for cfg.BuildMod if the -mod flag
+@@ -650,20 +677,29 @@ func convertLegacyConfig(modPath string) (from string, err error) {
+ 	return "", nil
+ }
+ 
+-// addGoStmt adds a go directive to the go.mod file if it does not already include one.
+-// The 'go' version added, if any, is the latest version supported by this toolchain.
++// addGoStmt adds a go directive to the go.mod file if it does not already
++// include one. The 'go' version added, if any, is the latest version supported
++// by this toolchain.
+ func addGoStmt() {
+ 	if modFile.Go != nil && modFile.Go.Version != "" {
+ 		return
+ 	}
++	v := latestGoVersion()
++	if err := modFile.AddGoStmt(v); err != nil {
++		base.Fatalf("go: internal error: %v", err)
++	}
++	rawGoVersion.Store(Target, v)
++}
++
++// latestGoVersion returns the latest version of the Go language supported by
++// this toolchain.
++func latestGoVersion() string {
+ 	tags := build.Default.ReleaseTags
+ 	version := tags[len(tags)-1]
+ 	if !strings.HasPrefix(version, "go") || !modfile.GoVersionRE.MatchString(version[2:]) {
+ 		base.Fatalf("go: unrecognized default version %q", version)
+ 	}
+-	if err := modFile.AddGoStmt(version[2:]); err != nil {
+-		base.Fatalf("go: internal error: %v", err)
+-	}
++	return version[2:]
+ }
+ 
+ var altConfigs = []string{
+@@ -880,10 +916,6 @@ func WriteGoMod() {
+ 		return
+ 	}
+ 
+-	if cfg.BuildMod != "readonly" {
+-		addGoStmt()
+-	}
+-
+ 	if loaded != nil {
+ 		reqs := MinReqs()
+ 		min, err := reqs.Required(Target)
+@@ -1010,7 +1042,12 @@ func keepSums(keepBuildListZips bool) map[module.Version]bool {
+ 	}
+ 	buildList, err := mvs.BuildList(Target, reqs)
+ 	if err != nil {
+-		panic(fmt.Sprintf("unexpected error reloading build list: %v", err))
++		// This call to mvs.BuildList should not fail if we have already read the
++		// complete build list. However, the initial “build list” initialized by
++		// modFileToBuildList is not complete: it contains only the explicit
++		// dependencies of the main module. So this call can fair if this is the
++		// first time we have actually loaded the real build list.
++		base.Fatalf("go: %v", err)
+ 	}
+ 
+ 	actualMods := make(map[string]module.Version)
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index c6667d0bf7..2afa831583 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -257,10 +257,13 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
+ 	}
+ 
+ 	i.goVersionV = ""
+-	if modFile.Go != nil {
++	if modFile.Go == nil {
++		rawGoVersion.Store(Target, "")
++	} else {
+ 		// We're going to use the semver package to compare Go versions, so go ahead
+ 		// and add the "v" prefix it expects once instead of every time.
+ 		i.goVersionV = "v" + modFile.Go.Version
++		rawGoVersion.Store(Target, modFile.Go.Version)
+ 	}
+ 
+ 	i.require = make(map[module.Version]requireMeta, len(modFile.Require))
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 3cb7c5aff3..0fb6156c5a 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -63,8 +63,18 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 
+ 	pkgpath := pkgPath(a)
+ 	gcargs := []string{"-p", pkgpath}
+-	if p.Module != nil && p.Module.GoVersion != "" && allowedVersion(p.Module.GoVersion) {
+-		gcargs = append(gcargs, "-lang=go"+p.Module.GoVersion)
++	if p.Module != nil {
++		v := p.Module.GoVersion
++		if v == "" {
++			// We started adding a 'go' directive to the go.mod file unconditionally
++			// as of Go 1.12, so any module that still lacks such a directive must
++			// either have been authored before then, or have a hand-edited go.mod
++			// file that hasn't been updated by cmd/go since that edit.
++			v = "1.11"
++		}
++		if allowedVersion(v) {
++			gcargs = append(gcargs, "-lang=go"+v)
++		}
+ 	}
+ 	if p.Standard {
+ 		gcargs = append(gcargs, "-std")
+diff --git a/src/cmd/go/testdata/script/embed.txt b/src/cmd/go/testdata/script/embed.txt
+index 6ad42e9cd1..04b17cd62b 100644
+--- a/src/cmd/go/testdata/script/embed.txt
++++ b/src/cmd/go/testdata/script/embed.txt
+@@ -107,3 +107,4 @@ import _ "m"
+ -- go.mod --
+ module m
+ 
++go 1.16
+diff --git a/src/cmd/go/testdata/script/mod_go_version_missing.txt b/src/cmd/go/testdata/script/mod_go_version_missing.txt
+new file mode 100644
+index 0000000000..43ddea7954
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_go_version_missing.txt
+@@ -0,0 +1,97 @@
++cp go.mod go.mod.orig
++
++# With -mod=readonly, we should not update the go version in use.
++#
++# We started adding the go version automatically in Go 1.12, so a module without
++# one encountered in the wild (such as in the module cache) should assume Go
++# 1.11 semantics.
++
++# For Go 1.11 modules, 'all' should include dependencies of tests.
++# (They are pruned out as of Go 1.16.)
++
++go list -mod=readonly all
++stdout '^example.com/dep$'
++stdout '^example.com/testdep$'
++cp stdout list-1.txt
++cmp go.mod go.mod.orig
++
++# For Go 1.11 modules, automatic vendoring should not take effect.
++# (That behavior was added in Go 1.14.)
++
++go list all  # should default to -mod=readonly, not -mod=vendor.
++cmp stdout list-1.txt
++
++# When we set -mod=mod, the go version should be updated immediately,
++# narrowing the "all" pattern reported by that command.
++
++go list -mod=mod all
++! stdout '^example.com/testdep$'
++cp stdout list-2.txt
++cmpenv go.mod go.mod.want
++
++go list -mod=mod all
++cmp stdout list-2.txt
++
++# The updated version should have been written back to go.mod, so
++# automatic vendoring should come into effect (and fail).
++! go list all
++stderr '^go: inconsistent vendoring'
++
++cp go.mod.orig go.mod
++
++# In readonly or vendor mode (not -mod=mod), the inferred Go version is 1.11.
++# For Go 1.11 modules, Go 1.13 features should not be enabled.
++
++! go build -mod=readonly .
++stderr '^# example\.com/m\n\.[/\\]m\.go:5:11: underscores in numeric literals requires go1\.13 or later \(-lang was set to go1\.11; check go\.mod\)$'
++cmp go.mod go.mod.orig
++
++
++-- go.mod --
++module example.com/m
++
++require example.com/dep v0.1.0
++
++replace (
++	example.com/dep v0.1.0 => ./dep
++	example.com/testdep v0.1.0 => ./testdep
++)
++-- go.mod.want --
++module example.com/m
++
++go $goversion
++
++require example.com/dep v0.1.0
++
++replace (
++	example.com/dep v0.1.0 => ./dep
++	example.com/testdep v0.1.0 => ./testdep
++)
++-- vendor/example.com/dep/dep.go --
++package dep
++import _ "example.com/bananas"
++-- vendor/modules.txt --
++HAHAHA this is broken.
++
++-- m.go --
++package m
++
++import _ "example.com/dep"
++
++const x = 1_000
++
++-- dep/go.mod --
++module example.com/dep
++
++require example.com/testdep v0.1.0
++-- dep/dep.go --
++package dep
++-- dep/dep_test.go --
++package dep_test
++
++import _ "example.com/testdep"
++
++-- testdep/go.mod --
++module example.com/testdep
++-- testdep/testdep.go --
++package testdep
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index 7c57db9f7c..0b01492cde 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -169,6 +169,8 @@ go build -n -o ignore ./stdonly/stdonly.go
+ # 'go build' should succeed for standard-library packages.
+ go build -n fmt
+ 
++# 'go build' should use the latest version of the Go language.
++go build ./newgo/newgo.go
+ 
+ # 'go doc' without arguments implicitly operates on the current directory, and should fail.
+ # TODO(golang.org/issue/32027): currently, it succeeds.
+@@ -331,3 +333,15 @@ func Test(t *testing.T) {
+ 	fmt.Println("stdonly was tested")
+ }
+ 
++-- newgo/newgo.go --
++// Package newgo requires Go 1.14 or newer.
++package newgo
++
++import "io"
++
++const C = 299_792_458
++
++type ReadWriteCloser interface {
++	io.ReadCloser
++	io.WriteCloser
++}
+diff --git a/src/cmd/go/testdata/script/mod_test.txt b/src/cmd/go/testdata/script/mod_test.txt
+index 50f00355c1..76f1d7a9a4 100644
+--- a/src/cmd/go/testdata/script/mod_test.txt
++++ b/src/cmd/go/testdata/script/mod_test.txt
+@@ -60,6 +60,8 @@ go list -test
+ -- a/go.mod.empty --
+ module example.com/user/a
+ 
++go 1.11
++
+ -- a/a.go --
+ package a
+ 

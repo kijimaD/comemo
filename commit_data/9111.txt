@@ -7,8 +7,142 @@ Date:   Mon Jul 18 11:21:59 2011 -0400
     R=rsc, agl, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/4667066
-
+---
  src/pkg/syscall/Makefile          |  1 +
  src/pkg/syscall/sockcmsg_linux.go | 38 ++++++++++++++++++++++++++++
  src/pkg/syscall/sockcmsg_unix.go  | 52 +++++++++++++++++++++++++++++++++++++--
  3 files changed, 89 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/Makefile b/src/pkg/syscall/Makefile
+index 212b6f85d8..fa0fe8ba9f 100644
+--- a/src/pkg/syscall/Makefile
++++ b/src/pkg/syscall/Makefile
+@@ -36,6 +36,7 @@ GOFILES_linux=\
+ 	exec_unix.go\
+ 	lsf_linux.go\
+ 	netlink_linux.go\
++	sockcmsg_linux.go\
+ 	sockcmsg_unix.go\
+ 	syscall_unix.go\
+ 
+diff --git a/src/pkg/syscall/sockcmsg_linux.go b/src/pkg/syscall/sockcmsg_linux.go
+new file mode 100644
+index 0000000000..b025ca5210
+--- /dev/null
++++ b/src/pkg/syscall/sockcmsg_linux.go
+@@ -0,0 +1,38 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Socket control messages
++
++package syscall
++
++import (
++	"unsafe"
++)
++
++// UnixCredentials encodes credentials into a socket control message
++// for sending to another process. This can be used for
++// authentication.
++func UnixCredentials(ucred *Ucred) []byte {
++	buf := make([]byte, CmsgSpace(SizeofUcred))
++	cmsg := (*Cmsghdr)(unsafe.Pointer(&buf[0]))
++	cmsg.Level = SOL_SOCKET
++	cmsg.Type = SCM_CREDENTIALS
++	cmsg.SetLen(CmsgLen(SizeofUcred))
++	*((*Ucred)(cmsgData(cmsg))) = *ucred
++	return buf
++}
++
++// ParseUnixCredentials decodes a socket control message that contains
++// credentials in a Ucred structure. To receive such a message, the
++// SO_PASSCRED option must be enabled on the socket.
++func ParseUnixCredentials(msg *SocketControlMessage) (*Ucred, int) {
++	if msg.Header.Level != SOL_SOCKET {
++		return nil, EINVAL
++	}
++	if msg.Header.Type != SCM_CREDENTIALS {
++		return nil, EINVAL
++	}
++	ucred := *(*Ucred)(unsafe.Pointer(&msg.Data[0]))
++	return &ucred, 0
++}
+diff --git a/src/pkg/syscall/sockcmsg_unix.go b/src/pkg/syscall/sockcmsg_unix.go
+index f0c05eaf31..b437560e70 100644
+--- a/src/pkg/syscall/sockcmsg_unix.go
++++ b/src/pkg/syscall/sockcmsg_unix.go
+@@ -24,10 +24,22 @@ func cmsgAlignOf(salen int) int {
+ 	return (salen + salign - 1) & ^(salign - 1)
+ }
+ 
+-func cmsgLen(datalen int) int {
++// CmsgLen returns the value to store in the Len field of the Cmsghdr
++// structure, taking into account any necessary alignment.
++func CmsgLen(datalen int) int {
+ 	return cmsgAlignOf(SizeofCmsghdr) + datalen
+ }
+ 
++// CmsgSpace returns the number of bytes an ancillary element with
++// payload of the passed data length occupies.
++func CmsgSpace(datalen int) int {
++	return cmsgAlignOf(SizeofCmsghdr) + cmsgAlignOf(datalen)
++}
++
++func cmsgData(cmsg *Cmsghdr) unsafe.Pointer {
++	return unsafe.Pointer(uintptr(unsafe.Pointer(cmsg)) + SizeofCmsghdr)
++}
++
+ type SocketControlMessage struct {
+ 	Header Cmsghdr
+ 	Data   []byte
+@@ -41,7 +53,7 @@ func ParseSocketControlMessage(buf []byte) ([]SocketControlMessage, int) {
+ 		cmsgs []SocketControlMessage
+ 	)
+ 
+-	for len(buf) >= cmsgLen(0) {
++	for len(buf) >= CmsgLen(0) {
+ 		h, dbuf, e = socketControlMessageHeaderAndData(buf)
+ 		if e != 0 {
+ 			break
+@@ -63,3 +75,39 @@ func socketControlMessageHeaderAndData(buf []byte) (*Cmsghdr, []byte, int) {
+ 	}
+ 	return h, buf[cmsgAlignOf(SizeofCmsghdr):], 0
+ }
++
++// UnixRights encodes a set of open file descriptors into a socket
++// control message for sending to another process.
++func UnixRights(fds ...int) []byte {
++	datalen := len(fds) * 4
++	buf := make([]byte, CmsgSpace(datalen))
++	cmsg := (*Cmsghdr)(unsafe.Pointer(&buf[0]))
++	cmsg.Level = SOL_SOCKET
++	cmsg.Type = SCM_RIGHTS
++	cmsg.SetLen(CmsgLen(datalen))
++
++	data := uintptr(cmsgData(cmsg))
++	for _, fd := range fds {
++		*(*int32)(unsafe.Pointer(data)) = int32(fd)
++		data += 4
++	}
++
++	return buf
++}
++
++// ParseUnixRights decodes a socket control message that contains an
++// integer array of open file descriptors from another process.
++func ParseUnixRights(msg *SocketControlMessage) ([]int, int) {
++	if msg.Header.Level != SOL_SOCKET {
++		return nil, EINVAL
++	}
++	if msg.Header.Type != SCM_RIGHTS {
++		return nil, EINVAL
++	}
++	fds := make([]int, len(msg.Data)>>2)
++	for i, j := 0, 0; i < len(msg.Data); i += 4 {
++		fds[j] = int(*(*int32)(unsafe.Pointer(&msg.Data[i])))
++		j++
++	}
++	return fds, 0
++}

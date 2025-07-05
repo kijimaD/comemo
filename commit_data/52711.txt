@@ -15,7 +15,39 @@ Date:   Wed May 18 22:07:46 2022 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/407138
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/mgc.go      | 2 +-
  src/runtime/mgcpacer.go | 3 +--
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 8b323c5bf7..ac4f5d0335 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1118,7 +1118,7 @@ func gcMarkTermination() {
+ 		}
+ 		print(" ms cpu, ",
+ 			work.heap0>>20, "->", work.heap1>>20, "->", work.heap2>>20, " MB, ",
+-			gcController.heapGoal()>>20, " MB goal, ",
++			gcController.lastHeapGoal>>20, " MB goal, ",
+ 			atomic.Load64(&gcController.maxStackScan)>>20, " MB stacks, ",
+ 			gcController.globalsScan>>20, " MB globals, ",
+ 			work.maxprocs, " P")
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 2487f58dc5..87ad4b0a15 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -731,12 +731,11 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
+ 	}
+ 
+ 	if debug.gcpacertrace > 0 {
+-		heapGoal := c.heapGoal()
+ 		printlock()
+ 		goal := gcGoalUtilization * 100
+ 		print("pacer: ", int(utilization*100), "% CPU (", int(goal), " exp.) for ")
+ 		print(c.heapScanWork.Load(), "+", c.stackScanWork.Load(), "+", c.globalsScanWork.Load(), " B work (", c.lastHeapScan+c.lastStackScan+c.globalsScan, " B exp.) ")
+-		print("in ", c.triggered, " B -> ", c.heapLive, " B (∆goal ", int64(c.heapLive)-int64(heapGoal), ", cons/mark ", oldConsMark, ")")
++		print("in ", c.triggered, " B -> ", c.heapLive, " B (∆goal ", int64(c.heapLive)-int64(c.lastHeapGoal), ", cons/mark ", oldConsMark, ")")
+ 		if !ok {
+ 			print("[controller reset]")
+ 		}

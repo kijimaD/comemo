@@ -12,7 +12,7 @@ Date:   Thu Feb 20 16:18:05 2014 -0500
     R=r
     CC=golang-codereviews
     https://golang.org/cl/66590044
-
+---
  doc/go1.3.txt                    |  1 +
  src/pkg/runtime/debug/garbage.go | 11 +++++++++++
  src/pkg/runtime/os_darwin.c      |  4 ++--
@@ -28,3 +28,272 @@ Date:   Thu Feb 20 16:18:05 2014 -0500
  src/pkg/runtime/runtime.h        |  1 +
  src/pkg/runtime/runtime_test.go  | 18 ++++++++++++++++++
  14 files changed, 52 insertions(+), 15 deletions(-)
+
+diff --git a/doc/go1.3.txt b/doc/go1.3.txt
+index 31dfd38a10..613d261974 100644
+--- a/doc/go1.3.txt
++++ b/doc/go1.3.txt
+@@ -8,3 +8,4 @@ testing: add b.RunParallel function (CL 57270043)
+ misc/benchcmp has been replaced by go tool benchcmp (CL 47980043)
+ cmd/go, go/build: support .m files (CL 60590044)
+ unicode: upgrade from Unicode 6.2.0 to 6.3.0 (CL 65400044)
++runtime/debug: add SetPanicOnFault (CL 66590044)
+diff --git a/src/pkg/runtime/debug/garbage.go b/src/pkg/runtime/debug/garbage.go
+index a724fdf8f6..093e7e7b18 100644
+--- a/src/pkg/runtime/debug/garbage.go
++++ b/src/pkg/runtime/debug/garbage.go
+@@ -135,3 +135,14 @@ func SetMaxStack(bytes int) int {
+ func SetMaxThreads(threads int) int {
+ 	return setMaxThreads(threads)
+ }
++
++// SetPanicOnFault controls the runtime's behavior when a program faults
++// at an unexpected (non-nil) address. Such faults are typically caused by
++// bugs such as runtime memory corruption, so the default response is to crash
++// the program. Programs working with memory-mapped files or unsafe
++// manipulation of memory may cause faults at non-nil addresses in less
++// dramatic situations; SetPanicOnFault allows such programs to request
++// that the runtime trigger only a panic, not a crash.
++// SetPanicOnFault applies only to the current goroutine.
++// It returns the previous setting.
++func SetPanicOnFault(enabled bool) bool
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index 5a38a77a32..f2262618db 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -436,7 +436,7 @@ runtime·sigpanic(void)
+ {
+ 	switch(g->sig) {
+ 	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000) {
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+ 			if(g->sigpc == 0)
+ 				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+@@ -444,7 +444,7 @@ runtime·sigpanic(void)
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000) {
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
+ 			if(g->sigpc == 0)
+ 				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+diff --git a/src/pkg/runtime/os_dragonfly.c b/src/pkg/runtime/os_dragonfly.c
+index ade3adb26d..f96ea89484 100644
+--- a/src/pkg/runtime/os_dragonfly.c
++++ b/src/pkg/runtime/os_dragonfly.c
+@@ -171,7 +171,7 @@ runtime·sigpanic(void)
+ {
+ 	switch(g->sig) {
+ 	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000) {
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+ 			if(g->sigpc == 0)
+ 				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+@@ -179,7 +179,7 @@ runtime·sigpanic(void)
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000) {
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
+ 			if(g->sigpc == 0)
+ 				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 442c6d7670..8b7b0f6263 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -179,7 +179,7 @@ runtime·sigpanic(void)
+ {
+ 	switch(g->sig) {
+ 	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000) {
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+ 			if(g->sigpc == 0)
+ 				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+@@ -187,7 +187,7 @@ runtime·sigpanic(void)
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000) {
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
+ 			if(g->sigpc == 0)
+ 				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index 130e1059ec..b4be9406ec 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -220,7 +220,7 @@ runtime·sigpanic(void)
+ {
+ 	switch(g->sig) {
+ 	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000) {
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+ 			if(g->sigpc == 0)
+ 				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+@@ -228,7 +228,7 @@ runtime·sigpanic(void)
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000) {
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
+ 			if(g->sigpc == 0)
+ 				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index 745818183f..f8ae309857 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -239,7 +239,7 @@ runtime·sigpanic(void)
+ {
+ 	switch(g->sig) {
+ 	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000) {
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+ 			if(g->sigpc == 0)
+ 				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+@@ -247,7 +247,7 @@ runtime·sigpanic(void)
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000) {
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
+ 			if(g->sigpc == 0)
+ 				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 45f5040c9f..c16276aca0 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -216,7 +216,7 @@ runtime·sigpanic(void)
+ {
+ 	switch(g->sig) {
+ 	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000) {
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+ 			if(g->sigpc == 0)
+ 				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+@@ -224,7 +224,7 @@ runtime·sigpanic(void)
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000) {
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
+ 			if(g->sigpc == 0)
+ 				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+diff --git a/src/pkg/runtime/os_solaris.c b/src/pkg/runtime/os_solaris.c
+index 4e212f544d..b8cd4d90ca 100644
+--- a/src/pkg/runtime/os_solaris.c
++++ b/src/pkg/runtime/os_solaris.c
+@@ -211,7 +211,7 @@ runtime·sigpanic(void)
+ {
+ 	switch(g->sig) {
+ 	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000) {
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+ 			if(g->sigpc == 0)
+ 				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+@@ -219,7 +219,7 @@ runtime·sigpanic(void)
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000) {
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
+ 			if(g->sigpc == 0)
+ 				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index 8815aee9f9..a84b4e2830 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -348,7 +348,7 @@ runtime·sigpanic(void)
+ {
+ 	switch(g->sig) {
+ 	case EXCEPTION_ACCESS_VIOLATION:
+-		if(g->sigcode1 < 0x1000) {
++		if(g->sigcode1 < 0x1000 || g->paniconfault) {
+ 			if(g->sigpc == 0)
+ 				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 7799dc8b52..986136d7e6 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1449,6 +1449,7 @@ goexit0(G *gp)
+ 	gp->status = Gdead;
+ 	gp->m = nil;
+ 	gp->lockedm = nil;
++	gp->paniconfault = 0;
+ 	m->curg = nil;
+ 	m->lockedg = nil;
+ 	if(m->locked & ~LockExternal) {
+diff --git a/src/pkg/runtime/rdebug.goc b/src/pkg/runtime/rdebug.goc
+index e5b57c481b..042b30ace9 100644
+--- a/src/pkg/runtime/rdebug.goc
++++ b/src/pkg/runtime/rdebug.goc
+@@ -20,3 +20,8 @@ func setGCPercent(in int) (out int) {
+ func setMaxThreads(in int) (out int) {
+ 	out = runtime·setmaxthreads(in);
+ }
++
++func SetPanicOnFault(enabled bool) (old bool) {
++	old = g->paniconfault;
++	g->paniconfault = enabled;
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 3d5b6007a8..8d07294e81 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -273,6 +273,7 @@ struct	G
+ 	bool	issystem;	// do not output in stack dump
+ 	bool	isbackground;	// ignore in deadlock detector
+ 	bool	preempt;	// preemption signal, duplicates stackguard0 = StackPreempt
++	bool	paniconfault;	// panic (instead of crash) on unexpected fault address
+ 	int8	raceignore;	// ignore race detection events
+ 	M*	m;		// for debuggers, but offset not hard-coded
+ 	M*	lockedm;
+diff --git a/src/pkg/runtime/runtime_test.go b/src/pkg/runtime/runtime_test.go
+index c673275620..83489480da 100644
+--- a/src/pkg/runtime/runtime_test.go
++++ b/src/pkg/runtime/runtime_test.go
+@@ -10,9 +10,11 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	. "runtime"
++	"runtime/debug"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
++	"unsafe"
+ )
+ 
+ var errf error
+@@ -131,3 +133,19 @@ func TestRuntimeGogoBytes(t *testing.T) {
+ func TestStopCPUProfilingWithProfilerOff(t *testing.T) {
+ 	SetCPUProfileRate(0)
+ }
++
++func TestSetPanicOnFault(t *testing.T) {
++	old := debug.SetPanicOnFault(true)
++	defer debug.SetPanicOnFault(old)
++
++	defer func() {
++		if err := recover(); err == nil {
++			t.Fatalf("did not find error in recover")
++		}
++	}()
++
++	var p *int
++	p = (*int)(unsafe.Pointer(^uintptr(0)))
++	println(*p)
++	t.Fatalf("still here - should have faulted")
++}

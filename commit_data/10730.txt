@@ -7,7 +7,7 @@ Date:   Tue Dec 13 10:42:56 2011 +1100
     R=adg, r, rsc
     CC=golang-dev
     https://golang.org/cl/5475069
-
+---
  src/cmd/godoc/index.go                      |  3 ++-
  src/pkg/exp/inotify/inotify_linux_test.go   |  6 +++---
  src/pkg/exp/norm/normregtest.go             |  2 +-
@@ -23,3 +23,294 @@ Date:   Tue Dec 13 10:42:56 2011 +1100
  src/pkg/old/netchan/import.go               |  2 +-
  src/pkg/old/netchan/netchan_test.go         |  6 +++---
  14 files changed, 30 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index e07cc2b0db..3d2c3ff961 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -53,6 +53,7 @@ import (
+ 	"regexp"
+ 	"sort"
+ 	"strings"
++	"time"
+ )
+ 
+ // ----------------------------------------------------------------------------
+@@ -767,7 +768,7 @@ func canonical(w string) string { return strings.ToLower(w) }
+ //
+ func NewIndex(dirnames <-chan string, fulltextIndex bool, throttle float64) *Index {
+ 	var x Indexer
+-	th := NewThrottle(throttle, 0.1e9) // run at least 0.1s at a time
++	th := NewThrottle(throttle, 100*time.Millisecond) // run at least 0.1s at a time
+ 
+ 	// initialize Indexer
+ 	// (use some reasonably sized maps to start)
+diff --git a/src/pkg/exp/inotify/inotify_linux_test.go b/src/pkg/exp/inotify/inotify_linux_test.go
+index a6bb46fe77..92384b6937 100644
+--- a/src/pkg/exp/inotify/inotify_linux_test.go
++++ b/src/pkg/exp/inotify/inotify_linux_test.go
+@@ -57,7 +57,7 @@ func TestInotifyEvents(t *testing.T) {
+ 	}
+ 
+ 	// We expect this event to be received almost immediately, but let's wait 1 s to be sure
+-	time.Sleep(1000e6) // 1000 ms
++	time.Sleep(1 * time.Second)
+ 	if eventsReceived == 0 {
+ 		t.Fatal("inotify event hasn't been received after 1 second")
+ 	}
+@@ -69,7 +69,7 @@ func TestInotifyEvents(t *testing.T) {
+ 	select {
+ 	case <-done:
+ 		t.Log("event channel closed")
+-	case <-time.After(1e9):
++	case <-time.After(1 * time.Second):
+ 		t.Fatal("event stream was not closed after 1 second")
+ 	}
+ }
+@@ -84,7 +84,7 @@ func TestInotifyClose(t *testing.T) {
+ 		done = true
+ 	}()
+ 
+-	time.Sleep(50e6) // 50 ms
++	time.Sleep(50 * time.Millisecond)
+ 	if !done {
+ 		t.Fatal("double Close() test failed: second Close() call didn't return")
+ 	}
+diff --git a/src/pkg/exp/norm/normregtest.go b/src/pkg/exp/norm/normregtest.go
+index eb061eba23..57ba703298 100644
+--- a/src/pkg/exp/norm/normregtest.go
++++ b/src/pkg/exp/norm/normregtest.go
+@@ -285,7 +285,7 @@ func PerformanceTest() {
+ 		norm.NFC.Append(nil, buf...)
+ 		success <- true
+ 	}()
+-	timeout := time.After(1e9)
++	timeout := time.After(1 * time.Second)
+ 	select {
+ 	case <-success:
+ 		// test completed before the timeout
+diff --git a/src/pkg/exp/winfsnotify/winfsnotify_test.go b/src/pkg/exp/winfsnotify/winfsnotify_test.go
+index fb2b825e68..b9c43d9c00 100644
+--- a/src/pkg/exp/winfsnotify/winfsnotify_test.go
++++ b/src/pkg/exp/winfsnotify/winfsnotify_test.go
+@@ -21,7 +21,7 @@ func expect(t *testing.T, eventstream <-chan *Event, name string, mask uint32) {
+ 		if event.Name != name || event.Mask != mask {
+ 			t.Fatal("did not receive expected event")
+ 		}
+-	case <-time.After(1e9):
++	case <-time.After(1 * time.Second):
+ 		t.Fatal("timed out waiting for event")
+ 	}
+ }
+@@ -108,7 +108,7 @@ func TestNotifyClose(t *testing.T) {
+ 		done = true
+ 	}()
+ 
+-	time.Sleep(50e6) // 50 ms
++	time.Sleep(50 * time.Millisecond)
+ 	if !done {
+ 		t.Fatal("double Close() test failed: second Close() call didn't return")
+ 	}
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index 924d4dfdb2..45477d40f6 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -107,7 +107,7 @@ func check(t *testing.T, source, golden string, mode checkMode) {
+ 	// start a timer to produce a time-out signal
+ 	tc := make(chan int)
+ 	go func() {
+-		time.Sleep(10e9) // plenty of a safety margin, even for very slow machines
++		time.Sleep(10 * time.Second) // plenty of a safety margin, even for very slow machines
+ 		tc <- 0
+ 	}()
+ 
+diff --git a/src/pkg/io/pipe_test.go b/src/pkg/io/pipe_test.go
+index fabf79bd61..7718151b0e 100644
+--- a/src/pkg/io/pipe_test.go
++++ b/src/pkg/io/pipe_test.go
+@@ -165,7 +165,7 @@ var pipeTests = []pipeTest{
+ }
+ 
+ func delayClose(t *testing.T, cl closer, ch chan int, tt pipeTest) {
+-	time.Sleep(1e6) // 1 ms
++	time.Sleep(1 * time.Millisecond)
+ 	var err error
+ 	if tt.closeWithError {
+ 		err = cl.CloseWithError(tt.err)
+diff --git a/src/pkg/net/http/doc.go b/src/pkg/net/http/doc.go
+index 9c47ac7823..2dbcf8dc97 100644
+--- a/src/pkg/net/http/doc.go
++++ b/src/pkg/net/http/doc.go
+@@ -70,8 +70,8 @@ custom Server:
+ 	s := &http.Server{
+ 		Addr:           ":8080",
+ 		Handler:        myHandler,
+-		ReadTimeout:    10e9,
+-		WriteTimeout:   10e9,
++		ReadTimeout:    10 * time.Second,
++		WriteTimeout:   10 * time.Second,
+ 		MaxHeaderBytes: 1 << 20,
+ 	}
+ 	log.Fatal(s.ListenAndServe())
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 865f915a2b..c68e6614b1 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -538,7 +538,7 @@ func TestHeadResponses(t *testing.T) {
+ 
+ func TestTLSHandshakeTimeout(t *testing.T) {
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+-	ts.Config.ReadTimeout = 250e6
++	ts.Config.ReadTimeout = 250 * time.Millisecond
+ 	ts.StartTLS()
+ 	defer ts.Close()
+ 	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 61e8ba13fc..fa9009517d 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -952,11 +952,11 @@ func Serve(l net.Listener, handler Handler) error {
+ 
+ // A Server defines parameters for running an HTTP server.
+ type Server struct {
+-	Addr           string  // TCP address to listen on, ":http" if empty
+-	Handler        Handler // handler to invoke, http.DefaultServeMux if nil
+-	ReadTimeout    int64   // the net.Conn.SetReadTimeout value for new connections
+-	WriteTimeout   int64   // the net.Conn.SetWriteTimeout value for new connections
+-	MaxHeaderBytes int     // maximum size of request headers, DefaultMaxHeaderBytes if 0
++	Addr           string        // TCP address to listen on, ":http" if empty
++	Handler        Handler       // handler to invoke, http.DefaultServeMux if nil
++	ReadTimeout    time.Duration // the net.Conn.SetReadTimeout value for new connections
++	WriteTimeout   time.Duration // the net.Conn.SetWriteTimeout value for new connections
++	MaxHeaderBytes int           // maximum size of request headers, DefaultMaxHeaderBytes if 0
+ }
+ 
+ // ListenAndServe listens on the TCP network address srv.Addr and then
+@@ -989,10 +989,10 @@ func (srv *Server) Serve(l net.Listener) error {
+ 			return e
+ 		}
+ 		if srv.ReadTimeout != 0 {
+-			rw.SetReadTimeout(srv.ReadTimeout)
++			rw.SetReadTimeout(srv.ReadTimeout.Nanoseconds())
+ 		}
+ 		if srv.WriteTimeout != 0 {
+-			rw.SetWriteTimeout(srv.WriteTimeout)
++			rw.SetWriteTimeout(srv.WriteTimeout.Nanoseconds())
+ 		}
+ 		c, err := srv.newConn(rw)
+ 		if err != nil {
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 6f50f6f276..ff12fa2d01 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -292,7 +292,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
+ 	// it on most fast machines, causing the next fetch() call to
+ 	// succeed quickly.  But if we do get errors, fetch() will retry 5
+ 	// times with some delays between.
+-	time.Sleep(25e6)
++	time.Sleep(25 * time.Millisecond)
+ 
+ 	body3 := fetch(3, 5)
+ 
+diff --git a/src/pkg/net/rpc/server_test.go b/src/pkg/net/rpc/server_test.go
+index f2895217aa..a52a86e414 100644
+--- a/src/pkg/net/rpc/server_test.go
++++ b/src/pkg/net/rpc/server_test.go
+@@ -27,7 +27,6 @@ var (
+ )
+ 
+ const (
+-	second      = 1e9
+ 	newHttpPath = "/foo"
+ )
+ 
+@@ -388,12 +387,12 @@ func (WriteFailCodec) WriteRequest(*Request, interface{}) error {
+ }
+ 
+ func (WriteFailCodec) ReadResponseHeader(*Response) error {
+-	time.Sleep(120e9)
++	time.Sleep(120 * time.Second)
+ 	panic("unreachable")
+ }
+ 
+ func (WriteFailCodec) ReadResponseBody(interface{}) error {
+-	time.Sleep(120e9)
++	time.Sleep(120 * time.Second)
+ 	panic("unreachable")
+ }
+ 
+@@ -413,7 +412,7 @@ func TestSendDeadlock(t *testing.T) {
+ 	select {
+ 	case <-done:
+ 		return
+-	case <-time.After(5e9):
++	case <-time.After(5 * time.Second):
+ 		t.Fatal("deadlock")
+ 	}
+ }
+diff --git a/src/pkg/old/netchan/common.go b/src/pkg/old/netchan/common.go
+index 03fa8ff6c4..710b63ac50 100644
+--- a/src/pkg/old/netchan/common.go
++++ b/src/pkg/old/netchan/common.go
+@@ -155,7 +155,7 @@ func (cs *clientSet) drain(timeout time.Duration) error {
+ 		if timeout > 0 && time.Now().After(deadline) {
+ 			return errors.New("timeout")
+ 		}
+-		time.Sleep(100 * 1e6) // 100 milliseconds
++		time.Sleep(100 * time.Millisecond)
+ 	}
+ 	return nil
+ }
+@@ -188,7 +188,7 @@ func (cs *clientSet) sync(timeout time.Duration) error {
+ 		if timeout > 0 && time.Now().After(deadline) {
+ 			return errors.New("timeout")
+ 		}
+-		time.Sleep(100 * 1e6) // 100 milliseconds
++		time.Sleep(100 * time.Millisecond)
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/old/netchan/import.go b/src/pkg/old/netchan/import.go
+index a6da8210b9..50abaa9fa5 100644
+--- a/src/pkg/old/netchan/import.go
++++ b/src/pkg/old/netchan/import.go
+@@ -281,7 +281,7 @@ func (imp *Importer) Drain(timeout int64) error {
+ 		if timeout > 0 && time.Now().After(deadline) {
+ 			return errors.New("timeout")
+ 		}
+-		time.Sleep(100 * 1e6)
++		time.Sleep(100 * time.Millisecond)
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/old/netchan/netchan_test.go b/src/pkg/old/netchan/netchan_test.go
+index d11a670866..53f0f78776 100644
+--- a/src/pkg/old/netchan/netchan_test.go
++++ b/src/pkg/old/netchan/netchan_test.go
+@@ -151,7 +151,7 @@ func TestErrorForIllegalChannel(t *testing.T) {
+ 	// Expect an error now.  Start a timeout.
+ 	timeout := make(chan bool, 1) // buffered so closure will not hang around.
+ 	go func() {
+-		time.Sleep(10e9) // very long, to give even really slow machines a chance.
++		time.Sleep(10 * time.Second) // very long, to give even really slow machines a chance.
+ 		timeout <- true
+ 	}()
+ 	select {
+@@ -300,7 +300,7 @@ func TestIndependentSends(t *testing.T) {
+ 	go importReceive(imp, t, done)
+ 
+ 	// wait for export side to try to deliver some values.
+-	time.Sleep(0.25e9)
++	time.Sleep(250 * time.Millisecond)
+ 
+ 	ctlch := make(chan int)
+ 	if err := imp.ImportNValues("exportedCtl", ctlch, Send, 1, 1); err != nil {
+@@ -409,7 +409,7 @@ func TestImportFlowControl(t *testing.T) {
+ 
+ func testFlow(sendDone chan bool, ch <-chan int, N int, t *testing.T) {
+ 	go func() {
+-		time.Sleep(0.5e9)
++		time.Sleep(500 * time.Millisecond)
+ 		sendDone <- false
+ 	}()
+ 

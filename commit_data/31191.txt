@@ -14,6 +14,41 @@ Date:   Wed Nov 23 08:45:15 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/buildall.bash | 22 ++++++++++++++++++++--
  1 file changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/buildall.bash b/src/buildall.bash
+index a322fe537a..57bee8d6a5 100755
+--- a/src/buildall.bash
++++ b/src/buildall.bash
+@@ -35,9 +35,27 @@ fi
+ ./make.bash || exit 1
+ GOROOT="$(cd .. && pwd)"
+ 
++gettargets() {
++    ../bin/go tool dist list | sed -e 's|/|-|'
++    echo linux-386-387
++    echo linux-arm-arm5
++}
++
++selectedtargets() {
++    gettargets | egrep -v 'android-arm|darwin-arm' | egrep "$pattern"
++}
++
+ # put linux, nacl first in the target list to get all the architectures up front.
+-targets="$((../bin/go tool dist list | sed -n 's/^\(.*\)\/\(.*\)/\1-\2/p'; echo linux-386-387 linux-arm-arm5) | sort | egrep -v android-arm | egrep "$pattern" | egrep 'linux|nacl')
+-$(../bin/go tool dist list | sed -n 's/^\(.*\)\/\(.*\)/\1-\2/p' | egrep -v 'android-arm|darwin-arm' | egrep "$pattern" | egrep -v 'linux|nacl')"
++linux_nacl_targets() {
++    selectedtargets | egrep 'linux|nacl' | sort
++}
++
++non_linux_nacl_targets() {
++    selectedtargets | egrep -v 'linux|nacl' | sort
++}
++
++# Note words in $targets are separated by both newlines and spaces.
++targets="$(linux_nacl_targets) $(non_linux_nacl_targets)"
+ 
+ failed=false
+ for target in $targets

@@ -12,7 +12,87 @@ Date:   Mon Apr 30 16:24:07 2018 +0000
     Change-Id: Ib6550acede8dddaf184e8fa9de36377e17bbddab
     Reviewed-on: https://go-review.googlesource.com/110295
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/os_test.go   | 11 ++++++++++-
  src/os/sys_linux.go | 34 +++++++++++++++++++++++++++++++---
  2 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 3886739389..af3a2fbee6 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1544,7 +1544,16 @@ func TestHostname(t *testing.T) {
+ 	// On Plan 9 it can be taken from #c/sysname as Hostname() does.
+ 	switch runtime.GOOS {
+ 	case "android", "plan9":
+-		t.Skipf("%s doesn't have /bin/hostname", runtime.GOOS)
++		// No /bin/hostname to verify against, but at least
++		// verify we get something back from Hostname.
++		hostname, err := Hostname()
++		if err != nil {
++			t.Fatal(err)
++		}
++		if hostname == "" {
++			t.Fatal("Hostname returned empty string and no error")
++		}
++		return
+ 	case "windows":
+ 		testWindowsHostname(t)
+ 		return
+diff --git a/src/os/sys_linux.go b/src/os/sys_linux.go
+index 76cdf50432..3fbe5e9f82 100644
+--- a/src/os/sys_linux.go
++++ b/src/os/sys_linux.go
+@@ -6,15 +6,43 @@
+ 
+ package os
+ 
++import (
++	"runtime"
++	"syscall"
++)
++
+ func hostname() (name string, err error) {
++	// Try uname first, as it's only one system call and reading
++	// from /proc is not allowed on Android.
++	var un syscall.Utsname
++	err = syscall.Uname(&un)
++
++	var buf [512]byte // Enough for a DNS name.
++	for i, b := range un.Nodename[:] {
++		buf[i] = uint8(b)
++		if b == 0 {
++			name = string(buf[:i])
++		}
++	}
++	// If we got a name and it's not potentially truncated
++	// (Nodename is 65 bytes), return it.
++	if err == nil && len(name) > 0 && len(name) < 64 {
++		return name, nil
++	}
++	if runtime.GOOS == "android" {
++		if name != "" {
++			return name, nil
++		}
++		return "localhost", nil
++	}
++
+ 	f, err := Open("/proc/sys/kernel/hostname")
+ 	if err != nil {
+ 		return "", err
+ 	}
+ 	defer f.Close()
+ 
+-	var buf [512]byte // Enough for a DNS name.
+-	n, err := f.Read(buf[0:])
++	n, err := f.Read(buf[:])
+ 	if err != nil {
+ 		return "", err
+ 	}
+@@ -22,5 +50,5 @@ func hostname() (name string, err error) {
+ 	if n > 0 && buf[n-1] == '\n' {
+ 		n--
+ 	}
+-	return string(buf[0:n]), nil
++	return string(buf[:n]), nil
+ }

@@ -13,6 +13,14 @@ Date:   Wed May 21 14:41:28 2025 +0200
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  lib/fips140/inprocess.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/lib/fips140/inprocess.txt b/lib/fips140/inprocess.txt
+new file mode 100644
+index 0000000000..0ec25f7505
+--- /dev/null
++++ b/lib/fips140/inprocess.txt
+@@ -0,0 +1 @@
++v1.0.0

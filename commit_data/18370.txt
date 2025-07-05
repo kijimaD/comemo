@@ -10,6 +10,20 @@ Date:   Tue Jan 28 22:37:35 2014 +0400
     R=golang-codereviews, r
     CC=bradfitz, golang-codereviews, iant, khr
     https://golang.org/cl/50250045
-
+---
  src/pkg/runtime/chan.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index fd382f80f1..a0c285eadb 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -104,7 +104,7 @@ runtime·makechan_c(ChanType *t, int64 hint)
+ 	if((sizeof(*c)%MAXALIGN) != 0 || elem->align > MAXALIGN)
+ 		runtime·throw("makechan: bad alignment");
+ 
+-	if(hint < 0 || (intgo)hint != hint || (elem->size > 0 && hint > MaxMem / elem->size))
++	if(hint < 0 || (intgo)hint != hint || (elem->size > 0 && hint > (MaxMem - sizeof(*c)) / elem->size))
+ 		runtime·panicstring("makechan: size out of range");
+ 
+ 	// allocate memory in one call

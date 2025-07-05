@@ -9,7 +9,32 @@ Date:   Fri Jan 10 13:46:42 2014 -0500
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/50500043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 4965319ead..35720bcfd0 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -139,6 +139,7 @@ Francisco Souza <franciscossouza@gmail.com>
+ Frederick Kelly Mayle III <frederickmayle@gmail.com>
+ Frithjof Schulze <schulze@math.uni-hannover.de> <sfrithjof@gmail.com>
+ Gary Burd <gary@beagledreams.com>
++Gautham Thambidorai <gautham.dorai@gmail.com>
+ Georg Reinke <guelfey@gmail.com>
+ Gerasimos Dimitriadis <gedimitr@gmail.com>
+ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index da9b58b263..8433264ec5 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -206,6 +206,7 @@ Frithjof Schulze <schulze@math.uni-hannover.de> <sfrithjof@gmail.com>
+ Fumitoshi Ukai <ukai@google.com>
+ Gaal Yahas <gaal@google.com>
+ Gary Burd <gary@beagledreams.com> <gary.burd@gmail.com>
++Gautham Thambidorai <gautham.dorai@gmail.com>
+ Georg Reinke <guelfey@gmail.com>
+ Gerasimos Dimitriadis <gedimitr@gmail.com>
+ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>

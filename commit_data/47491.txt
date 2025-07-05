@@ -14,7 +14,34 @@ Date:   Thu Mar 18 18:35:53 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/303094
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  test/fixedbugs/bug193.go | 4 +++-
  test/run.go              | 1 -
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/test/fixedbugs/bug193.go b/test/fixedbugs/bug193.go
+index 64e06da897..36073220f9 100644
+--- a/test/fixedbugs/bug193.go
++++ b/test/fixedbugs/bug193.go
+@@ -11,6 +11,8 @@ func main() {
+ 	ss := 1 << s
+ 	y1 := float64(ss)
+ 	y2 := float64(1 << s) // ERROR "shift"
+-	y3 := string(1 << s)  // ERROR "shift"
++	// see issues #45114, #45117
++	// y3 := string(1 << s)  // DISABLED "shift"
++	y3 := 0
+ 	_, _, _, _, _ = s, ss, y1, y2, y3
+ }
+diff --git a/test/run.go b/test/run.go
+index 7d5a558f2d..d999f18790 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1939,7 +1939,6 @@ var excluded = map[string]bool{
+ 	"writebarrier.go": true, // correct diagnostics, but different lines (probably irgen's fault)
+ 
+ 	"fixedbugs/bug176.go":    true, // types2 reports all errors (pref: types2)
+-	"fixedbugs/bug193.go":    true, // types2 bug: shift error not reported (fixed in go/types)
+ 	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
+ 	"fixedbugs/bug228.go":    true, // types2 not run after syntax errors
+ 	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)

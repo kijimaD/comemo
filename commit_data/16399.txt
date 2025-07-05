@@ -7,6 +7,17 @@ Date:   Fri May 24 07:56:01 2013 -0400
     R=golang-dev, minux.ma, capnm9
     CC=golang-dev
     https://golang.org/cl/9717043
-
+---
  misc/cgo/testso/test.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testso/test.bash b/misc/cgo/testso/test.bash
+index f9fad126eb..f4061c68e6 100755
+--- a/misc/cgo/testso/test.bash
++++ b/misc/cgo/testso/test.bash
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ # Copyright 2011 The Go Authors.  All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.

@@ -11,6 +11,20 @@ Date:   Fri Sep 27 20:38:52 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/14044044
-
+---
  test/index.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/index.go b/test/index.go
+index f9360c1028..a8c471bb3b 100644
+--- a/test/index.go
++++ b/test/index.go
+@@ -164,7 +164,7 @@ func testExpr(b *bufio.Writer, expr string) {
+ 	if pass == 0 {
+ 		fmt.Fprintf(b, "\ttest(func(){use(%s)}, %q)\n", expr, expr)
+ 	} else {
+-		fmt.Fprintf(b, "\tuse(%s)  // ERROR \"index|overflow|truncated\"\n", expr)
++		fmt.Fprintf(b, "\tuse(%s)  // ERROR \"index|overflow|truncated|must be integer\"\n", expr)
+ 	}
+ }
+ 

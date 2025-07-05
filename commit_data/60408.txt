@@ -13,6 +13,21 @@ Date:   Fri Jul 12 21:03:38 2024 +0100
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/ip.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index 49124d95e7..3e0e85e168 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -491,7 +491,8 @@ func (n *IPNet) String() string {
+ // The string s can be in IPv4 dotted decimal ("192.0.2.1"), IPv6
+ // ("2001:db8::68"), or IPv4-mapped IPv6 ("::ffff:192.0.2.1") form.
+ // If s is not a valid textual representation of an IP address,
+-// ParseIP returns nil.
++// ParseIP returns nil. The returned address is always 16 bytes,
++// IPv4 addresses are returned in IPv4-mapped IPv6 form.
+ func ParseIP(s string) IP {
+ 	if addr, valid := parseIP(s); valid {
+ 		return IP(addr[:])

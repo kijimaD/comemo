@@ -10,6 +10,22 @@ Date:   Wed Apr 28 10:14:58 2010 +1000
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/1016041
-
+---
  src/pkg/template/template.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index d15db7f8b8..73789c23af 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -4,9 +4,7 @@
+ 
+ /*
+ 	Data-driven templates for generating textual output such as
+-	HTML. See
+-		http://code.google.com/p/json-template/wiki/Reference
+-	for full documentation of the template language. A summary:
++	HTML.
+ 
+ 	Templates are executed by applying them to a data structure.
+ 	Annotations in the template refer to elements of the data

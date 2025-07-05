@@ -28,8 +28,259 @@ Date:   Fri Jun 18 14:09:21 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go       |  30 +++--
  src/cmd/compile/internal/reflectdata/reflect.go |  13 +-
  test/typeparam/issue44688.go                    | 150 ++++++++++++++++++++++++
  3 files changed, 184 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 8b53671dbe..710289b76c 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -76,8 +76,10 @@ func (g *irgen) stencil() {
+ 				// generic F, not immediately called
+ 				closureRequired = true
+ 			}
+-			if n.Op() == ir.OMETHEXPR && len(n.(*ir.SelectorExpr).X.Type().RParams()) > 0 {
+-				// T.M, T a type which is generic, not immediately called
++			if n.Op() == ir.OMETHEXPR && len(n.(*ir.SelectorExpr).X.Type().RParams()) > 0 && !types.IsInterfaceMethod(n.(*ir.SelectorExpr).Selection.Type) {
++				// T.M, T a type which is generic, not immediately
++				// called. Not necessary if the method selected is
++				// actually for an embedded interface field.
+ 				closureRequired = true
+ 			}
+ 			if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OFUNCINST {
+@@ -156,7 +158,8 @@ func (g *irgen) stencil() {
+ 					// TODO: only set outer!=nil if this instantiation uses
+ 					// a type parameter from outer. See comment in buildClosure.
+ 					return g.buildClosure(outer, x)
+-				case x.Op() == ir.OMETHEXPR && len(deref(x.(*ir.SelectorExpr).X.Type()).RParams()) > 0: // TODO: test for ptr-to-method case
++				case x.Op() == ir.OMETHEXPR && len(deref(x.(*ir.SelectorExpr).X.Type()).RParams()) > 0 &&
++					!types.IsInterfaceMethod(x.(*ir.SelectorExpr).Selection.Type): // TODO: test for ptr-to-method case
+ 					return g.buildClosure(outer, x)
+ 				}
+ 				return x
+@@ -230,9 +233,14 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 				}
+ 			}
+ 		}
+-		t := se.X.Type()
+-		baseSym := t.OrigSym
+-		baseType := baseSym.Def.(*ir.Name).Type()
++
++		// se.X.Type() is the top-level type of the method expression. To
++		// correctly handle method expressions involving embedded fields,
++		// look up the generic method below using the type of the receiver
++		// of se.Selection, since that will be the type that actually has
++		// the method.
++		recv := deref(se.Selection.Type.Recv().Type)
++		baseType := recv.OrigSym.Def.Type()
+ 		var gf *ir.Name
+ 		for _, m := range baseType.Methods().Slice() {
+ 			if se.Sel == m.Sym {
+@@ -382,7 +390,15 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 	}
+ 	// Then all the other arguments (including receiver for method expressions).
+ 	for i := 0; i < typ.NumParams(); i++ {
+-		args = append(args, formalParams[i].Nname.(*ir.Name))
++		if x.Op() == ir.OMETHEXPR && i == 0 {
++			// If we are doing a method expression, we need to
++			// explicitly traverse any embedded fields in the receiver
++			// argument in order to call the method instantiation.
++			dot := typecheck.AddImplicitDots(ir.NewSelectorExpr(base.Pos, ir.OXDOT, formalParams[0].Nname.(*ir.Name), x.(*ir.SelectorExpr).Sel))
++			args = append(args, dot.X)
++		} else {
++			args = append(args, formalParams[i].Nname.(*ir.Name))
++		}
+ 	}
+ 
+ 	// Build call itself.
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 9e070895a0..52534db70d 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1786,6 +1786,11 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 	}
+ 
+ 	dot := typecheck.AddImplicitDots(ir.NewSelectorExpr(base.Pos, ir.OXDOT, nthis, method.Sym))
++	if generic && dot.X != nthis && dot.X.Type().IsInterface() {
++		// We followed some embedded fields, and the last type was
++		// actually an interface, so no need for a dictionary.
++		generic = false
++	}
+ 
+ 	// generate call
+ 	// It's not possible to use a tail call when dynamic linking on ppc64le. The
+@@ -1824,9 +1829,13 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 			}
+ 			args = append(args, getDictionary(".inst."+ir.MethodSym(orig, method.Sym).Name, targs)) // TODO: remove .inst.
+ 			if indirect {
+-				args = append(args, ir.NewStarExpr(base.Pos, nthis))
++				args = append(args, ir.NewStarExpr(base.Pos, dot.X))
++			} else if methodrcvr.IsPtr() && methodrcvr.Elem() == dot.X.Type() {
++				// Case where method call is via a non-pointer
++				// embedded field with a pointer method.
++				args = append(args, typecheck.NodAddrAt(base.Pos, dot.X))
+ 			} else {
+-				args = append(args, nthis)
++				args = append(args, dot.X)
+ 			}
+ 			args = append(args, ir.ParamNames(tfn.Type())...)
+ 
+diff --git a/test/typeparam/issue44688.go b/test/typeparam/issue44688.go
+new file mode 100644
+index 0000000000..d70f94f706
+--- /dev/null
++++ b/test/typeparam/issue44688.go
+@@ -0,0 +1,150 @@
++// run -gcflags=-G=3
++//go:build goexperiment.unified
++// +build !goexperiment.unified
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// derived & expanded from cmd/compile/internal/types2/testdata/fixedbugs/issue44688.go2
++
++package main
++
++type A1[T any] struct{
++	val T
++}
++
++func (p *A1[T]) m1(val T) {
++	p.val = val
++}
++
++type A2[T any] interface {
++	m2(T)
++}
++
++type B1[T any] struct {
++	filler int
++	*A1[T]
++	A2[T]
++}
++
++type B2[T any] interface {
++	A2[T]
++}
++
++type ImpA2[T any] struct {
++	f T
++}
++
++func (a2 *ImpA2[T]) m2(s T) {
++	a2.f = s
++}
++
++type C[T any] struct {
++	filler1 int
++	filler2 int
++	B1[T]
++}
++
++type D[T any] struct {
++	filler1 int
++	filler2 int
++	filler3 int
++	C[T]
++}
++
++func test1[T any](arg T) {
++	// calling embedded methods
++	var b1 B1[T]
++	b1.A1 = &A1[T]{}
++	b1.A2 = &ImpA2[T]{}
++
++	b1.A1.m1(arg)
++	b1.m1(arg)
++
++	b1.A2.m2(arg)
++	b1.m2(arg)
++
++	var b2 B2[T]
++	b2 = &ImpA2[T]{}
++	b2.m2(arg)
++
++	// a deeper nesting
++	var d D[T]
++	d.C.B1.A1 = &A1[T]{}
++	d.C.B1.A2 = &ImpA2[T]{}
++	d.m1(arg)
++	d.m2(arg)
++
++	// calling method expressions
++	m1x := B1[T].m1
++	m1x(b1, arg)
++	m2x := B2[T].m2
++	m2x(b2, arg)
++
++	// calling method values
++	m1v := b1.m1
++	m1v(arg)
++	m2v := b1.m2
++	m2v(arg)
++	b2v := b2.m2
++	b2v(arg)
++}
++
++func test2() {
++	// calling embedded methods
++	var b1 B1[string]
++	b1.A1 = &A1[string]{}
++	b1.A2 = &ImpA2[string]{}
++
++	b1.A1.m1("")
++	b1.m1("")
++
++	b1.A2.m2("")
++	b1.m2("")
++
++	var b2 B2[string]
++	b2 = &ImpA2[string]{}
++	b2.m2("")
++
++	// a deeper nesting
++	var d D[string]
++	d.C.B1.A1 = &A1[string]{}
++	d.C.B1.A2 = &ImpA2[string]{}
++	d.m1("")
++	d.m2("")
++
++	// calling method expressions
++	m1x := B1[string].m1
++	m1x(b1, "")
++	m2x := B2[string].m2
++	m2x(b2, "")
++
++	// calling method values
++	m1v := b1.m1
++	m1v("")
++	m2v := b1.m2
++	m2v("")
++	b2v := b2.m2
++	b2v("")
++}
++
++// actual test case from issue
++
++type A[T any] struct{}
++
++func (*A[T]) f(T) {}
++
++type B[T any] struct{ A[T] }
++
++func test3() {
++	var b B[string]
++	b.A.f("")
++	b.f("")
++}
++
++func main() {
++	test1[string]("")
++	test2()
++	test3()
++}

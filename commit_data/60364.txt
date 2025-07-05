@@ -14,7 +14,57 @@ Date:   Thu Jun 27 11:16:30 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/595475
     Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/alldocs.go               | 7 +++++++
  src/cmd/go/internal/help/helpdoc.go | 7 +++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 972f9e111f..e87e6ebe46 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1994,6 +1994,9 @@
+ //
+ //	//go:build
+ //
++// Build constraints can also be used to downgrade the language version
++// used to compile a file.
++//
+ // Constraints may appear in any kind of source file (not just Go), but
+ // they must appear near the top of the file, preceded
+ // only by blank lines and other comments. These rules mean that in Go
+@@ -2116,6 +2119,10 @@
+ // with a "// +build" prefix. The gofmt command will add an equivalent //go:build
+ // constraint when encountering the older syntax.
+ //
++// In modules with a Go version of 1.21 or later, if a file's build constraint
++// has a term for a Go major release, the language version used when compiling
++// the file will be the minimum version implied by the build constraint.
++//
+ // # Build modes
+ //
+ // The 'go build' and 'go install' commands take a -buildmode argument which
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 791013dbfe..29c0a56321 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -835,6 +835,9 @@ line comment that begins
+ 
+ 	//go:build
+ 
++Build constraints can also be used to downgrade the language version
++used to compile a file.
++
+ Constraints may appear in any kind of source file (not just Go), but
+ they must appear near the top of the file, preceded
+ only by blank lines and other comments. These rules mean that in Go
+@@ -954,5 +957,9 @@ only when building the package for 32-bit x86.
+ Go versions 1.16 and earlier used a different syntax for build constraints,
+ with a "// +build" prefix. The gofmt command will add an equivalent //go:build
+ constraint when encountering the older syntax.
++
++In modules with a Go version of 1.21 or later, if a file's build constraint
++has a term for a Go major release, the language version used when compiling
++the file will be the minimum version implied by the build constraint.
+ `,
+ }

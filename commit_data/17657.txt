@@ -8,6 +8,21 @@ Date:   Fri Sep 20 10:04:52 2013 -0400
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/13751045
-
+---
  src/cmd/ld/lib.c | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index b3c3713e2d..f9c2773280 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -2378,9 +2378,6 @@ pclntab(void)
+ 	ftab->type = SPCLNTAB;
+ 	ftab->reachable = 1;
+ 
+-	if(debug['s'])
+-		return;
+-
+ 	// See golang.org/s/go12symtab for the format. Briefly:
+ 	//	8-byte header
+ 	//	nfunc [PtrSize bytes]

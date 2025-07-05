@@ -16,7 +16,7 @@ Date:   Wed Sep 16 15:23:58 2020 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Elias Naur <mail@eliasnaur.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  misc/ios/README                                    |  31 ++-
  misc/ios/clangwrap.sh                              |  20 +-
  misc/ios/detect.go                                 |   2 +-
@@ -25,3 +25,561 @@ Date:   Wed Sep 16 15:23:58 2020 +0200
  src/iostest.bash                                   |   2 +-
  src/runtime/cgo/gcc_darwin_arm64.c                 |   2 +-
  7 files changed, 213 insertions(+), 123 deletions(-)
+
+diff --git a/misc/ios/README b/misc/ios/README
+index d7df191414..433bcdfd8f 100644
+--- a/misc/ios/README
++++ b/misc/ios/README
+@@ -1,13 +1,20 @@
+ Go on iOS
+ =========
+ 
+-For details on developing Go for iOS on macOS, see the documentation in the mobile
+-subrepository:
++To run the standard library tests, run all.bash as usual, but with the compiler
++set to the clang wrapper that invokes clang for iOS. For example, this command runs
++ all.bash on the iOS emulator:
+ 
+-    https://github.com/golang/mobile
++	GOOS=ios GOARCH=amd64 CGO_ENABLED=1 CC_FOR_TARGET=$(pwd)/../misc/ios/clangwrap.sh ./all.bash
+ 
+-It is necessary to set up the environment before running tests or programs directly on a
+-device.
++To use the go tool to run individual programs and tests, put $GOROOT/bin into PATH to ensure
++the go_ios_$GOARCH_exec wrapper is found. For example, to run the archive/tar tests:
++
++	export PATH=$GOROOT/bin:$PATH
++	GOOS=ios GOARCH=amd64 CGO_ENABLED=1 go test archive/tar
++
++The go_ios_exec wrapper uses GOARCH to select the emulator (amd64) or the device (arm64).
++However, further setup is required to run tests or programs directly on a device.
+ 
+ First make sure you have a valid developer certificate and have setup your device properly
+ to run apps signed by your developer certificate. Then install the libimobiledevice and
+@@ -29,18 +36,10 @@ which will output something similar to
+ 	export GOIOS_TEAM_ID=ZZZZZZZZ
+ 
+ If you have multiple devices connected, specify the device UDID with the GOIOS_DEVICE_ID
+-variable. Use `idevice_id -l` to list all available UDIDs.
+-
+-Finally, to run the standard library tests, run all.bash as usual, but with the compiler
+-set to the clang wrapper that invokes clang for iOS. For example,
++variable. Use `idevice_id -l` to list all available UDIDs. Then, setting GOARCH to arm64
++will select the device:
+ 
+-	GOARCH=arm64 CGO_ENABLED=1 CC_FOR_TARGET=$(pwd)/../misc/ios/clangwrap.sh ./all.bash
+-
+-To use the go tool directly to run programs and tests, put $GOROOT/bin into PATH to ensure
+-the go_darwin_$GOARCH_exec wrapper is found. For example, to run the archive/tar tests
+-
+-	export PATH=$GOROOT/bin:$PATH
+-	GOARCH=arm64 CGO_ENABLED=1 go test archive/tar
++	GOOS=ios GOARCH=arm64 CGO_ENABLED=1 CC_FOR_TARGET=$(pwd)/../misc/ios/clangwrap.sh ./all.bash
+ 
+ Note that the go_darwin_$GOARCH_exec wrapper uninstalls any existing app identified by
+ the bundle id before installing a new app. If the uninstalled app is the last app by
+diff --git a/misc/ios/clangwrap.sh b/misc/ios/clangwrap.sh
+index 1d6dee28a8..dca3fcc904 100755
+--- a/misc/ios/clangwrap.sh
++++ b/misc/ios/clangwrap.sh
+@@ -2,17 +2,19 @@
+ # This uses the latest available iOS SDK, which is recommended.
+ # To select a specific SDK, run 'xcodebuild -showsdks'
+ # to see the available SDKs and replace iphoneos with one of them.
+-SDK=iphoneos
+-SDK_PATH=`xcrun --sdk $SDK --show-sdk-path`
+-export IPHONEOS_DEPLOYMENT_TARGET=5.1
+-# cmd/cgo doesn't support llvm-gcc-4.2, so we have to use clang.
+-CLANG=`xcrun --sdk $SDK --find clang`
+-
+ if [ "$GOARCH" == "arm64" ]; then
++	SDK=iphoneos
++	PLATFORM=ios
+ 	CLANGARCH="arm64"
+ else
+-	echo "unknown GOARCH=$GOARCH" >&2
+-	exit 1
++	SDK=iphonesimulator
++	PLATFORM=ios-simulator
++	CLANGARCH="x86_64"
+ fi
+ 
+-exec "$CLANG" -arch $CLANGARCH -isysroot "$SDK_PATH" -mios-version-min=10.0 "$@"
++SDK_PATH=`xcrun --sdk $SDK --show-sdk-path`
++export IPHONEOS_DEPLOYMENT_TARGET=5.1
++# cmd/cgo doesn't support llvm-gcc-4.2, so we have to use clang.
++CLANG=`xcrun --sdk $SDK --find clang`
++
++exec "$CLANG" -arch $CLANGARCH -isysroot "$SDK_PATH" -m${PLATFORM}-version-min=10.0 "$@"
+diff --git a/misc/ios/detect.go b/misc/ios/detect.go
+index 1d47e47c86..b4651dfbb8 100644
+--- a/misc/ios/detect.go
++++ b/misc/ios/detect.go
+@@ -6,7 +6,7 @@
+ 
+ // detect attempts to autodetect the correct
+ // values of the environment variables
+-// used by go_darwin_arm_exec.
++// used by go_io_exec.
+ // detect shells out to ideviceinfo, a third party program that can
+ // be obtained by following the instructions at
+ // https://github.com/libimobiledevice/libimobiledevice.
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_ios_exec.go
+similarity index 81%
+rename from misc/ios/go_darwin_arm_exec.go
+rename to misc/ios/go_ios_exec.go
+index cdf4b07d0a..063c19ec58 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_ios_exec.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This program can be used as go_darwin_arm_exec by the Go tool.
++// This program can be used as go_ios_$GOARCH_exec by the Go tool.
+ // It executes binaries on an iOS device using the XCode toolchain
+ // and the ios-deploy program: https://github.com/phonegap/ios-deploy
+ //
+@@ -34,6 +34,7 @@ import (
+ 	"os/signal"
+ 	"path/filepath"
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ 	"syscall"
+ 	"time"
+@@ -66,26 +67,8 @@ func main() {
+ 		log.Fatal("usage: go_darwin_arm_exec a.out")
+ 	}
+ 
+-	// e.g. B393DDEB490947F5A463FD074299B6C0AXXXXXXX
+-	devID = getenv("GOIOS_DEV_ID")
+-
+-	// e.g. Z8B3JBXXXX.org.golang.sample, Z8B3JBXXXX prefix is available at
+-	// https://developer.apple.com/membercenter/index.action#accountSummary as Team ID.
+-	appID = getenv("GOIOS_APP_ID")
+-
+-	// e.g. Z8B3JBXXXX, available at
+-	// https://developer.apple.com/membercenter/index.action#accountSummary as Team ID.
+-	teamID = getenv("GOIOS_TEAM_ID")
+-
+-	// Device IDs as listed with ios-deploy -c.
+-	deviceID = os.Getenv("GOIOS_DEVICE_ID")
+-
+-	parts := strings.SplitN(appID, ".", 2)
+ 	// For compatibility with the old builders, use a fallback bundle ID
+ 	bundleID = "golang.gotest"
+-	if len(parts) == 2 {
+-		bundleID = parts[1]
+-	}
+ 
+ 	exitCode, err := runMain()
+ 	if err != nil {
+@@ -126,16 +109,65 @@ func runMain() (int, error) {
+ 		return 1, err
+ 	}
+ 
+-	if err := uninstall(bundleID); err != nil {
++	if goarch := os.Getenv("GOARCH"); goarch == "arm64" {
++		err = runOnDevice(appdir)
++	} else {
++		err = runOnSimulator(appdir)
++	}
++	if err != nil {
++		// If the lldb driver completed with an exit code, use that.
++		if err, ok := err.(*exec.ExitError); ok {
++			if ws, ok := err.Sys().(interface{ ExitStatus() int }); ok {
++				return ws.ExitStatus(), nil
++			}
++		}
+ 		return 1, err
+ 	}
++	return 0, nil
++}
++
++func runOnSimulator(appdir string) error {
++	if err := installSimulator(appdir); err != nil {
++		return err
++	}
+ 
+-	if err := install(appdir); err != nil {
+-		return 1, err
++	return runSimulator(appdir, bundleID, os.Args[2:])
++}
++
++func runOnDevice(appdir string) error {
++	// e.g. B393DDEB490947F5A463FD074299B6C0AXXXXXXX
++	devID = getenv("GOIOS_DEV_ID")
++
++	// e.g. Z8B3JBXXXX.org.golang.sample, Z8B3JBXXXX prefix is available at
++	// https://developer.apple.com/membercenter/index.action#accountSummary as Team ID.
++	appID = getenv("GOIOS_APP_ID")
++
++	// e.g. Z8B3JBXXXX, available at
++	// https://developer.apple.com/membercenter/index.action#accountSummary as Team ID.
++	teamID = getenv("GOIOS_TEAM_ID")
++
++	// Device IDs as listed with ios-deploy -c.
++	deviceID = os.Getenv("GOIOS_DEVICE_ID")
++
++	parts := strings.SplitN(appID, ".", 2)
++	if len(parts) == 2 {
++		bundleID = parts[1]
++	}
++
++	if err := signApp(appdir); err != nil {
++		return err
++	}
++
++	if err := uninstallDevice(bundleID); err != nil {
++		return err
++	}
++
++	if err := installDevice(appdir); err != nil {
++		return err
+ 	}
+ 
+ 	if err := mountDevImage(); err != nil {
+-		return 1, err
++		return err
+ 	}
+ 
+ 	// Kill any hanging debug bridges that might take up port 3222.
+@@ -143,20 +175,11 @@ func runMain() (int, error) {
+ 
+ 	closer, err := startDebugBridge()
+ 	if err != nil {
+-		return 1, err
++		return err
+ 	}
+ 	defer closer()
+ 
+-	if err := run(appdir, bundleID, os.Args[2:]); err != nil {
+-		// If the lldb driver completed with an exit code, use that.
+-		if err, ok := err.(*exec.ExitError); ok {
+-			if ws, ok := err.Sys().(interface{ ExitStatus() int }); ok {
+-				return ws.ExitStatus(), nil
+-			}
+-		}
+-		return 1, err
+-	}
+-	return 0, nil
++	return runDevice(appdir, bundleID, os.Args[2:])
+ }
+ 
+ func getenv(envvar string) string {
+@@ -191,7 +214,11 @@ func assembleApp(appdir, bin string) error {
+ 	if err := ioutil.WriteFile(filepath.Join(appdir, "ResourceRules.plist"), []byte(resourceRules), 0744); err != nil {
+ 		return err
+ 	}
++	return nil
++}
+ 
++func signApp(appdir string) error {
++	entitlementsPath := filepath.Join(tmpdir, "Entitlements.plist")
+ 	cmd := exec.Command(
+ 		"codesign",
+ 		"-f",
+@@ -421,7 +448,20 @@ func parsePlistDict(dict []byte) (map[string]string, error) {
+ 	return values, nil
+ }
+ 
+-func uninstall(bundleID string) error {
++func installSimulator(appdir string) error {
++	cmd := exec.Command(
++		"xcrun", "simctl", "install",
++		"booted", // Install to the booted simulator.
++		appdir,
++	)
++	if out, err := cmd.CombinedOutput(); err != nil {
++		os.Stderr.Write(out)
++		return fmt.Errorf("xcrun simctl install booted %q: %v", appdir, err)
++	}
++	return nil
++}
++
++func uninstallDevice(bundleID string) error {
+ 	cmd := idevCmd(exec.Command(
+ 		"ideviceinstaller",
+ 		"-U", bundleID,
+@@ -433,7 +473,7 @@ func uninstall(bundleID string) error {
+ 	return nil
+ }
+ 
+-func install(appdir string) error {
++func installDevice(appdir string) error {
+ 	attempt := 0
+ 	for {
+ 		cmd := idevCmd(exec.Command(
+@@ -464,15 +504,28 @@ func idevCmd(cmd *exec.Cmd) *exec.Cmd {
+ 	return cmd
+ }
+ 
+-func run(appdir, bundleID string, args []string) error {
+-	var env []string
+-	for _, e := range os.Environ() {
+-		// Don't override TMPDIR, HOME, GOCACHE on the device.
+-		if strings.HasPrefix(e, "TMPDIR=") || strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "GOCACHE=") {
+-			continue
+-		}
+-		env = append(env, e)
++func runSimulator(appdir, bundleID string, args []string) error {
++	cmd := exec.Command(
++		"xcrun", "simctl", "launch",
++		"--wait-for-debugger",
++		"booted",
++		bundleID,
++	)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		os.Stderr.Write(out)
++		return fmt.Errorf("xcrun simctl launch booted %q: %v", bundleID, err)
++	}
++	var processID int
++	var ignore string
++	if _, err := fmt.Sscanf(string(out), "%s %d", &ignore, &processID); err != nil {
++		return fmt.Errorf("runSimulator: couldn't find processID from `simctl launch`: %v (%q)", err, out)
+ 	}
++	_, err = runLLDB("ios-simulator", appdir, strconv.Itoa(processID), args)
++	return err
++}
++
++func runDevice(appdir, bundleID string, args []string) error {
+ 	attempt := 0
+ 	for {
+ 		// The device app path reported by the device might be stale, so retry
+@@ -487,37 +540,10 @@ func run(appdir, bundleID string, args []string) error {
+ 			time.Sleep(5 * time.Second)
+ 			continue
+ 		}
+-		lldb := exec.Command(
+-			"python",
+-			"-", // Read script from stdin.
+-			appdir,
+-			deviceapp,
+-		)
+-		lldb.Args = append(lldb.Args, args...)
+-		lldb.Env = env
+-		lldb.Stdin = strings.NewReader(lldbDriver)
+-		lldb.Stdout = os.Stdout
+-		var out bytes.Buffer
+-		lldb.Stderr = io.MultiWriter(&out, os.Stderr)
+-		err = lldb.Start()
+-		if err == nil {
+-			// Forward SIGQUIT to the lldb driver which in turn will forward
+-			// to the running program.
+-			sigs := make(chan os.Signal, 1)
+-			signal.Notify(sigs, syscall.SIGQUIT)
+-			proc := lldb.Process
+-			go func() {
+-				for sig := range sigs {
+-					proc.Signal(sig)
+-				}
+-			}()
+-			err = lldb.Wait()
+-			signal.Stop(sigs)
+-			close(sigs)
+-		}
++		out, err := runLLDB("remote-ios", appdir, deviceapp, args)
+ 		// If the program was not started it can be retried without papering over
+ 		// real test failures.
+-		started := bytes.HasPrefix(out.Bytes(), []byte("lldb: running program"))
++		started := bytes.HasPrefix(out, []byte("lldb: running program"))
+ 		if started || err == nil || attempt == 5 {
+ 			return err
+ 		}
+@@ -528,6 +554,47 @@ func run(appdir, bundleID string, args []string) error {
+ 	}
+ }
+ 
++func runLLDB(target, appdir, deviceapp string, args []string) ([]byte, error) {
++	var env []string
++	for _, e := range os.Environ() {
++		// Don't override TMPDIR, HOME, GOCACHE on the device.
++		if strings.HasPrefix(e, "TMPDIR=") || strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "GOCACHE=") {
++			continue
++		}
++		env = append(env, e)
++	}
++	lldb := exec.Command(
++		"python",
++		"-", // Read script from stdin.
++		target,
++		appdir,
++		deviceapp,
++	)
++	lldb.Args = append(lldb.Args, args...)
++	lldb.Env = env
++	lldb.Stdin = strings.NewReader(lldbDriver)
++	lldb.Stdout = os.Stdout
++	var out bytes.Buffer
++	lldb.Stderr = io.MultiWriter(&out, os.Stderr)
++	err := lldb.Start()
++	if err == nil {
++		// Forward SIGQUIT to the lldb driver which in turn will forward
++		// to the running program.
++		sigs := make(chan os.Signal, 1)
++		signal.Notify(sigs, syscall.SIGQUIT)
++		proc := lldb.Process
++		go func() {
++			for sig := range sigs {
++				proc.Signal(sig)
++			}
++		}()
++		err = lldb.Wait()
++		signal.Stop(sigs)
++		close(sigs)
++	}
++	return out.Bytes(), err
++}
++
+ func copyLocalDir(dst, src string) error {
+ 	if err := os.Mkdir(dst, 0755); err != nil {
+ 		return err
+@@ -679,6 +746,7 @@ func infoPlist(pkgpath string) string {
+ <key>CFBundleSupportedPlatforms</key><array><string>iPhoneOS</string></array>
+ <key>CFBundleExecutable</key><string>gotest</string>
+ <key>CFBundleVersion</key><string>1.0</string>
++<key>CFBundleShortVersionString</key><string>1.0</string>
+ <key>CFBundleIdentifier</key><string>` + bundleID + `</string>
+ <key>CFBundleResourceSpecification</key><string>ResourceRules.plist</string>
+ <key>LSRequiresIPhoneOS</key><true/>
+@@ -739,7 +807,7 @@ import sys
+ import os
+ import signal
+ 
+-exe, device_exe, args = sys.argv[1], sys.argv[2], sys.argv[3:]
++platform, exe, device_exe_or_pid, args = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4:]
+ 
+ env = []
+ for k, v in os.environ.items():
+@@ -754,17 +822,21 @@ debugger.SetAsync(True)
+ debugger.SkipLLDBInitFiles(True)
+ 
+ err = lldb.SBError()
+-target = debugger.CreateTarget(exe, None, 'remote-ios', True, err)
++target = debugger.CreateTarget(exe, None, platform, True, err)
+ if not target.IsValid() or not err.Success():
+ 	sys.stderr.write("lldb: failed to setup up target: %s\n" % (err))
+ 	sys.exit(1)
+ 
+-target.modules[0].SetPlatformFileSpec(lldb.SBFileSpec(device_exe))
+-
+ listener = debugger.GetListener()
+-process = target.ConnectRemote(listener, 'connect://localhost:3222', None, err)
++
++if platform == 'remote-ios':
++	target.modules[0].SetPlatformFileSpec(lldb.SBFileSpec(device_exe_or_pid))
++	process = target.ConnectRemote(listener, 'connect://localhost:3222', None, err)
++else:
++	process = target.AttachToProcessWithID(listener, int(device_exe_or_pid), err)
++
+ if not err.Success():
+-	sys.stderr.write("lldb: failed to connect to remote target: %s\n" % (err))
++	sys.stderr.write("lldb: failed to connect to remote target %s: %s\n" % (device_exe_or_pid, err))
+ 	sys.exit(1)
+ 
+ # Don't stop on signals.
+@@ -777,6 +849,25 @@ for i in range(0, sigs.GetNumSignals()):
+ event = lldb.SBEvent()
+ running = False
+ prev_handler = None
++
++def signal_handler(signal, frame):
++	process.Signal(signal)
++
++def run_program():
++	# Forward SIGQUIT to the program.
++	prev_handler = signal.signal(signal.SIGQUIT, signal_handler)
++	# Tell the Go driver that the program is running and should not be retried.
++	sys.stderr.write("lldb: running program\n")
++	running = True
++	# Process is stopped at attach/launch. Let it run.
++	process.Continue()
++
++if platform != 'remote-ios':
++	# For the local emulator the program is ready to run.
++	# For remote device runs, we need to wait for eStateConnected,
++	# below.
++	run_program()
++
+ while True:
+ 	if not listener.WaitForEvent(1, event):
+ 		continue
+@@ -800,24 +891,22 @@ while True:
+ 			signal.signal(signal.SIGQUIT, prev_handler)
+ 		break
+ 	elif state == lldb.eStateConnected:
+-		process.RemoteLaunch(args, env, None, None, None, None, 0, False, err)
+-		if not err.Success():
+-			sys.stderr.write("lldb: failed to launch remote process: %s\n" % (err))
+-			process.Kill()
+-			debugger.Terminate()
+-			sys.exit(1)
+-		# Forward SIGQUIT to the program.
+-		def signal_handler(signal, frame):
+-			process.Signal(signal)
+-		prev_handler = signal.signal(signal.SIGQUIT, signal_handler)
+-		# Tell the Go driver that the program is running and should not be retried.
+-		sys.stderr.write("lldb: running program\n")
+-		running = True
+-		# Process stops once at the beginning. Continue.
+-		process.Continue()
++		if platform == 'remote-ios':
++			process.RemoteLaunch(args, env, None, None, None, None, 0, False, err)
++			if not err.Success():
++				sys.stderr.write("lldb: failed to launch remote process: %s\n" % (err))
++				process.Kill()
++				debugger.Terminate()
++				sys.exit(1)
++		run_program()
+ 
+ exitStatus = process.GetExitStatus()
++exitDesc = process.GetExitDescription()
+ process.Kill()
+ debugger.Terminate()
++if exitStatus == 0 and exitDesc is not None:
++	# Ensure tests fail when killed by a signal.
++	exitStatus = 123
++
+ sys.exit(exitStatus)
+ `
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 5d62c1e8fa..3b3eb113b1 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1453,7 +1453,7 @@ func wrapperPathFor(goos, goarch string) string {
+ 		}
+ 	case (goos == "darwin" || goos == "ios") && goarch == "arm64":
+ 		if gohostos != "darwin" || gohostarch != "arm64" {
+-			return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
++			return pathf("%s/misc/ios/go_ios_exec.go", goroot)
+ 		}
+ 	}
+ 	return ""
+diff --git a/src/iostest.bash b/src/iostest.bash
+index 5fa6744979..33b8c101ff 100755
+--- a/src/iostest.bash
++++ b/src/iostest.bash
+@@ -38,7 +38,7 @@ if [ "$1" = "-restart" ]; then
+ 	sleep 30
+ 	# Poll until the device has restarted.
+ 	until idevicediagnostics $IDEVARGS diagnostics; do
+-		# TODO(crawshaw): replace with a test app using go_darwin_arm_exec.
++		# TODO(crawshaw): replace with a test app using go_ios_exec.
+ 		echo "waiting for idevice to come online"
+ 		sleep 10
+ 	done
+diff --git a/src/runtime/cgo/gcc_darwin_arm64.c b/src/runtime/cgo/gcc_darwin_arm64.c
+index fd7d4084c9..9ea43ae4af 100644
+--- a/src/runtime/cgo/gcc_darwin_arm64.c
++++ b/src/runtime/cgo/gcc_darwin_arm64.c
+@@ -131,7 +131,7 @@ init_working_dir()
+ 		fprintf(stderr, "runtime/cgo: chdir(%s) failed\n", dir);
+ 	}
+ 
+-	// The test harness in go_darwin_arm_exec passes the relative working directory
++	// The test harness in go_ios_exec passes the relative working directory
+ 	// in the GoExecWrapperWorkingDirectory property of the app bundle.
+ 	CFStringRef wd_ref = CFBundleGetValueForInfoDictionaryKey(bundle, CFSTR("GoExecWrapperWorkingDirectory"));
+ 	if (wd_ref != NULL) {

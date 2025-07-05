@@ -15,6 +15,10 @@ Date:   Mon Nov 30 14:43:33 2015 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  .../bzip2/testdata/Mark.Twain-Tom.Sawyer.txt.bz2   | Bin 124744 -> 118509 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/compress/bzip2/testdata/Mark.Twain-Tom.Sawyer.txt.bz2 b/src/compress/bzip2/testdata/Mark.Twain-Tom.Sawyer.txt.bz2
+index 0bd61a6d4e..eac2b0571b 100644
+Binary files a/src/compress/bzip2/testdata/Mark.Twain-Tom.Sawyer.txt.bz2 and b/src/compress/bzip2/testdata/Mark.Twain-Tom.Sawyer.txt.bz2 differ

@@ -37,7 +37,7 @@ Date:   Mon Apr 12 20:53:03 2021 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/dwarfgen/scope_test.go |  8 ++++----
  src/cmd/compile/internal/ssa/expand_calls.go    | 25 +++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/stmtlines_test.go  |  1 +
@@ -45,3 +45,180 @@ Date:   Mon Apr 12 20:53:03 2021 -0400
  test/codegen/mathbits.go                        |  5 +----
  test/codegen/rotate.go                          |  8 ++++----
  6 files changed, 40 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/scope_test.go b/src/cmd/compile/internal/dwarfgen/scope_test.go
+index fcfcf85f84..3df4c345c3 100644
+--- a/src/cmd/compile/internal/dwarfgen/scope_test.go
++++ b/src/cmd/compile/internal/dwarfgen/scope_test.go
+@@ -181,17 +181,17 @@ var testfile = []testline{
+ 	{line: "		fi(p)", scopes: []int{1}},
+ 	{line: "	}"},
+ 	{line: "}"},
+-	{line: "func TestCaptureVar(flag bool) func() int {"},
+-	{line: "	a := 1", vars: []string{"arg flag bool", "arg ~r1 func() int", "var a int"}},
++	{line: "var fglob func() int"},
++	{line: "func TestCaptureVar(flag bool) {"},
++	{line: "	a := 1", vars: []string{"arg flag bool", "var a int"}}, // TODO(register args) restore "arg ~r1 func() int",
+ 	{line: "	if flag {"},
+ 	{line: "		b := 2", scopes: []int{1}, vars: []string{"var b int", "var f func() int"}},
+ 	{line: "		f := func() int {", scopes: []int{1, 0}},
+ 	{line: "			return b + 1"},
+ 	{line: "		}"},
+-	{line: "		return f", scopes: []int{1}},
++	{line: "		fglob = f", scopes: []int{1}},
+ 	{line: "	}"},
+ 	{line: "	f1(a)"},
+-	{line: "	return nil"},
+ 	{line: "}"},
+ 	{line: "func main() {"},
+ 	{line: "	TestNestedFor()"},
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index d947443cb2..b2b2b5d877 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -1478,6 +1478,31 @@ func expandCalls(f *Func) {
+ 			}
+ 		}
+ 	}
++
++	// Rewriting can attach lines to values that are unlikely to survive code generation, so move them to a use.
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			for _, a := range v.Args {
++				if a.Pos.IsStmt() != src.PosIsStmt {
++					continue
++				}
++				if a.Type.IsMemory() {
++					continue
++				}
++				if a.Pos.Line() != v.Pos.Line() {
++					continue
++				}
++				if !a.Pos.SameFile(v.Pos) {
++					continue
++				}
++				switch a.Op {
++				case OpArgIntReg, OpArgFloatReg, OpSelectN:
++					v.Pos = v.Pos.WithIsStmt()
++					a.Pos = a.Pos.WithDefaultStmt()
++				}
++			}
++		}
++	}
+ }
+ 
+ // rewriteArgToMemOrRegs converts OpArg v in-place into the register version of v,
+diff --git a/src/cmd/compile/internal/ssa/stmtlines_test.go b/src/cmd/compile/internal/ssa/stmtlines_test.go
+index f5ff3a5927..a510d0b3d0 100644
+--- a/src/cmd/compile/internal/ssa/stmtlines_test.go
++++ b/src/cmd/compile/internal/ssa/stmtlines_test.go
+@@ -117,6 +117,7 @@ func TestStmtLines(t *testing.T) {
+ 	} else if len(nonStmtLines)*100 > 2*len(lines) { // expect 98% elsewhere.
+ 		t.Errorf("Saw too many (not amd64, > 2%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", len(lines), len(nonStmtLines))
+ 	}
++	t.Logf("Saw %d out of %d lines without statement marks", len(nonStmtLines), len(lines))
+ 	if testing.Verbose() {
+ 		sort.Slice(nonStmtLines, func(i, j int) bool {
+ 			if nonStmtLines[i].File != nonStmtLines[j].File {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 60a849db23..b970451624 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6638,15 +6638,15 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 				inlMarksByPos[pos] = append(inlMarksByPos[pos], p)
+ 
+ 			default:
++				// Special case for first line in function; move it to the start (which cannot be a register-valued instruction)
++				if firstPos != src.NoXPos && v.Op != ssa.OpArgIntReg && v.Op != ssa.OpArgFloatReg && v.Op != ssa.OpLoadReg && v.Op != ssa.OpStoreReg {
++					s.SetPos(firstPos)
++					firstPos = src.NoXPos
++				}
+ 				// Attach this safe point to the next
+ 				// instruction.
+ 				s.pp.NextLive = s.livenessMap.Get(v)
+ 
+-				// Special case for first line in function; move it to the start.
+-				if firstPos != src.NoXPos {
+-					s.SetPos(firstPos)
+-					firstPos = src.NoXPos
+-				}
+ 				// let the backend handle it
+ 				Arch.SSAGenValue(&s, v)
+ 			}
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index fff6639546..03012eff5d 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -118,7 +118,7 @@ func Len8(n uint8) int {
+ //    bits.OnesCount    //
+ // -------------------- //
+ 
+-// amd64:".*x86HasPOPCNT"
++// TODO(register args) Restore a m d 6 4 :.*x86HasPOPCNT when only one ABI is tested.
+ func OnesCount(n uint) int {
+ 	// amd64:"POPCNTQ"
+ 	// arm64:"VCNT","VUADDLV"
+@@ -129,7 +129,6 @@ func OnesCount(n uint) int {
+ 	return bits.OnesCount(n)
+ }
+ 
+-// amd64:".*x86HasPOPCNT"
+ func OnesCount64(n uint64) int {
+ 	// amd64:"POPCNTQ"
+ 	// arm64:"VCNT","VUADDLV"
+@@ -140,7 +139,6 @@ func OnesCount64(n uint64) int {
+ 	return bits.OnesCount64(n)
+ }
+ 
+-// amd64:".*x86HasPOPCNT"
+ func OnesCount32(n uint32) int {
+ 	// amd64:"POPCNTL"
+ 	// arm64:"VCNT","VUADDLV"
+@@ -151,7 +149,6 @@ func OnesCount32(n uint32) int {
+ 	return bits.OnesCount32(n)
+ }
+ 
+-// amd64:".*x86HasPOPCNT"
+ func OnesCount16(n uint16) int {
+ 	// amd64:"POPCNTL"
+ 	// arm64:"VCNT","VUADDLV"
+diff --git a/test/codegen/rotate.go b/test/codegen/rotate.go
+index bf4bcc4fc3..519cc83263 100644
+--- a/test/codegen/rotate.go
++++ b/test/codegen/rotate.go
+@@ -16,8 +16,6 @@ func rot64(x uint64) uint64 {
+ 	var a uint64
+ 
+ 	// amd64:"ROLQ\t[$]7"
+-	// arm64:"ROR\t[$]57"
+-	// s390x:"RISBGZ\t[$]0, [$]63, [$]7, "
+ 	// ppc64:"ROTL\t[$]7"
+ 	// ppc64le:"ROTL\t[$]7"
+ 	a += x<<7 | x>>57
+@@ -36,6 +34,8 @@ func rot64(x uint64) uint64 {
+ 	// ppc64le:"ROTL\t[$]9"
+ 	a += x<<9 ^ x>>55
+ 
++	// s390x:"RISBGZ\t[$]0, [$]63, [$]7, "
++	// arm64:"ROR\t[$]57" // TODO this is not great line numbering, but then again, the instruction did appear
+ 	return a
+ }
+ 
+@@ -44,8 +44,6 @@ func rot32(x uint32) uint32 {
+ 
+ 	// amd64:"ROLL\t[$]7"
+ 	// arm:"MOVW\tR\\d+@>25"
+-	// arm64:"RORW\t[$]25"
+-	// s390x:"RLL\t[$]7"
+ 	// ppc64:"ROTLW\t[$]7"
+ 	// ppc64le:"ROTLW\t[$]7"
+ 	a += x<<7 | x>>25
+@@ -66,6 +64,8 @@ func rot32(x uint32) uint32 {
+ 	// ppc64le:"ROTLW\t[$]9"
+ 	a += x<<9 ^ x>>23
+ 
++	// s390x:"RLL\t[$]7"
++	// arm64:"RORW\t[$]25" // TODO this is not great line numbering, but then again, the instruction did appear
+ 	return a
+ }
+ 

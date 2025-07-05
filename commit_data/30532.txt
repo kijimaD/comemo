@@ -18,10 +18,264 @@ Date:   Mon Oct 31 21:36:38 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/32019
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/env.go     |   2 +-
  src/cmd/go/get.go     |  12 +++++
  src/cmd/go/go_test.go | 145 ++++++++++++++++++++++++++++++++++++++++++++++++--
  src/cmd/go/main.go    |   2 +-
  src/go/build/build.go |  15 +++++-
  5 files changed, 168 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index 366b6c0fbe..cf614bb356 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -40,7 +40,7 @@ func mkEnv() []envVar {
+ 		{"GOHOSTARCH", runtime.GOARCH},
+ 		{"GOHOSTOS", runtime.GOOS},
+ 		{"GOOS", goos},
+-		{"GOPATH", os.Getenv("GOPATH")},
++		{"GOPATH", buildContext.GOPATH},
+ 		{"GORACE", os.Getenv("GORACE")},
+ 		{"GOROOT", goroot},
+ 		{"GOTOOLDIR", toolDir},
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 256800affa..82408d6a39 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -417,6 +417,10 @@ func downloadPackage(p *Package) error {
+ 		if list[0] == goroot {
+ 			return fmt.Errorf("cannot download, $GOPATH must not be set to $GOROOT. For more details see: 'go help gopath'")
+ 		}
++		if _, err := os.Stat(filepath.Join(list[0], "src/cmd/go/alldocs.go")); err == nil {
++			return fmt.Errorf("cannot download, %s is a GOROOT, not a GOPATH. For more details see: 'go help gopath'", list[0])
++		}
++		p.build.Root = list[0]
+ 		p.build.SrcRoot = filepath.Join(list[0], "src")
+ 		p.build.PkgRoot = filepath.Join(list[0], "pkg")
+ 	}
+@@ -445,11 +449,19 @@ func downloadPackage(p *Package) error {
+ 		if _, err := os.Stat(root); err == nil {
+ 			return fmt.Errorf("%s exists but %s does not - stale checkout?", root, meta)
+ 		}
++
++		_, err := os.Stat(p.build.Root)
++		gopathExisted := err == nil
++
+ 		// Some version control tools require the parent of the target to exist.
+ 		parent, _ := filepath.Split(root)
+ 		if err = os.MkdirAll(parent, 0777); err != nil {
+ 			return err
+ 		}
++		if buildV && !gopathExisted && p.build.Root == buildContext.GOPATH {
++			fmt.Fprintf(os.Stderr, "created GOPATH=%s; see 'go help gopath'\n", p.build.Root)
++		}
++
+ 		if err = vcs.create(root, repo); err != nil {
+ 			return err
+ 		}
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a5dc9a8ce8..456e1b669a 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1664,15 +1664,150 @@ func TestMentionGOPATHNotOnSecondEntry(t *testing.T) {
+ 	}
+ }
+ 
+-// Test missing GOPATH is reported.
+-func TestMissingGOPATHIsReported(t *testing.T) {
++func homeEnvName() string {
++	switch runtime.GOOS {
++	case "windows":
++		return "USERPROFILE"
++	case "plan9":
++		return "home"
++	default:
++		return "HOME"
++	}
++}
++
++// Test go env missing GOPATH shows default.
++func TestMissingGOPATHEnvShowsDefault(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()
+ 	tg.setenv("GOPATH", "")
+-	tg.runFail("install", "foo/quxx")
+-	if tg.grepCountBoth(`\(\$GOPATH not set\. For more details see: 'go help gopath'\)$`) != 1 {
+-		t.Error(`go install foo/quxx expected error: ($GOPATH not set. For more details see: 'go help gopath')`)
++	tg.run("env", "GOPATH")
++
++	want := filepath.Join(os.Getenv(homeEnvName()), "go")
++	got := strings.TrimSpace(tg.getStdout())
++	if got != want {
++		t.Errorf("got %q; want %q", got, want)
++	}
++}
++
++// Test go get missing GOPATH causes go get to warn if directory doesn't exist.
++func TestMissingGOPATHGetWarnsIfNotExists(t *testing.T) {
++	if _, err := exec.LookPath("git"); err != nil {
++		t.Skip("skipping because git binary not found")
++	}
++
++	tg := testgo(t)
++	defer tg.cleanup()
++
++	// setenv variables for test and defer deleting temporary home directory.
++	tg.setenv("GOPATH", "")
++	tmp, err := ioutil.TempDir("", "")
++	if err != nil {
++		t.Fatalf("could not create tmp home: %v", err)
++	}
++	defer os.RemoveAll(tmp)
++	tg.setenv(homeEnvName(), tmp)
++
++	tg.run("get", "-v", "github.com/golang/example/hello")
++
++	want := fmt.Sprintf("created GOPATH=%s; see 'go help gopath'", filepath.Join(tmp, "go"))
++	got := strings.TrimSpace(tg.getStderr())
++	if !strings.Contains(got, want) {
++		t.Errorf("got %q; want %q", got, want)
++	}
++}
++
++// Test go get missing GOPATH causes no warning if directory exists.
++func TestMissingGOPATHGetDoesntWarnIfExists(t *testing.T) {
++	if _, err := exec.LookPath("git"); err != nil {
++		t.Skip("skipping because git binary not found")
++	}
++
++	tg := testgo(t)
++	defer tg.cleanup()
++
++	// setenv variables for test and defer resetting them.
++	tg.setenv("GOPATH", "")
++	tmp, err := ioutil.TempDir("", "")
++	if err != nil {
++		t.Fatalf("could not create tmp home: %v", err)
++	}
++	defer os.RemoveAll(tmp)
++	if err := os.Mkdir(filepath.Join(tmp, "go"), 0777); err != nil {
++		t.Fatalf("could not create $HOME/go: %v", err)
++	}
++
++	tg.setenv(homeEnvName(), tmp)
++
++	tg.run("get", "github.com/golang/example/hello")
++
++	got := strings.TrimSpace(tg.getStderr())
++	if got != "" {
++		t.Errorf("got %q; wants empty", got)
++	}
++}
++
++// Test go get missing GOPATH fails if pointed file is not a directory.
++func TestMissingGOPATHGetFailsIfItsNotDirectory(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++
++	// setenv variables for test and defer resetting them.
++	tg.setenv("GOPATH", "")
++	tmp, err := ioutil.TempDir("", "")
++	if err != nil {
++		t.Fatalf("could not create tmp home: %v", err)
++	}
++	defer os.RemoveAll(tmp)
++
++	path := filepath.Join(tmp, "go")
++	if err := ioutil.WriteFile(path, nil, 0777); err != nil {
++		t.Fatalf("could not create GOPATH at %s: %v", path, err)
++	}
++	tg.setenv(homeEnvName(), tmp)
++
++	const pkg = "github.com/golang/example/hello"
++	tg.runFail("get", pkg)
++
++	msg := "not a directory"
++	if runtime.GOOS == "windows" {
++		msg = "The system cannot find the path specified."
++	}
++	want := fmt.Sprintf("package %s: mkdir %s: %s", pkg, filepath.Join(tmp, "go"), msg)
++	got := strings.TrimSpace(tg.getStderr())
++	if got != want {
++		t.Errorf("got %q; wants %q", got, want)
++	}
++}
++
++// Test go install of missing package when missing GOPATH fails and shows default GOPATH.
++func TestMissingGOPATHInstallMissingPackageFailsAndShowsDefault(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++
++	// setenv variables for test and defer resetting them.
++	tg.setenv("GOPATH", "")
++	tmp, err := ioutil.TempDir("", "")
++	if err != nil {
++		t.Fatalf("could not create tmp home: %v", err)
++	}
++	defer os.RemoveAll(tmp)
++	if err := os.Mkdir(filepath.Join(tmp, "go"), 0777); err != nil {
++		t.Fatalf("could not create $HOME/go: %v", err)
++	}
++	tg.setenv(homeEnvName(), tmp)
++
++	const pkg = "github.com/golang/example/hello"
++	tg.runFail("install", pkg)
++
++	pkgPath := filepath.Join(strings.Split(pkg, "/")...)
++	want := fmt.Sprintf("can't load package: package %s: cannot find package \"%s\" in any of:", pkg, pkg) +
++		fmt.Sprintf("\n\t%s (from $GOROOT)", filepath.Join(runtime.GOROOT(), "src", pkgPath)) +
++		fmt.Sprintf("\n\t%s (from $GOPATH)", filepath.Join(tmp, "go", "src", pkgPath))
++
++	got := strings.TrimSpace(tg.getStderr())
++	if got != want {
++		t.Errorf("got %q; wants %q", got, want)
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 90e1a9d02d..27d02924c0 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -135,7 +135,7 @@ func main() {
+ 	// Diagnose common mistake: GOPATH==GOROOT.
+ 	// This setting is equivalent to not setting GOPATH at all,
+ 	// which is not what most people want when they do it.
+-	if gopath := os.Getenv("GOPATH"); gopath == runtime.GOROOT() {
++	if gopath := buildContext.GOPATH; gopath == runtime.GOROOT() {
+ 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
+ 	} else {
+ 		for _, p := range filepath.SplitList(gopath) {
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 28de5596c5..0801565f02 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -256,13 +256,26 @@ func (ctxt *Context) SrcDirs() []string {
+ // if set, or else the compiled code's GOARCH, GOOS, and GOROOT.
+ var Default Context = defaultContext()
+ 
++func defaultGOPATH() string {
++	env := "HOME"
++	if runtime.GOOS == "windows" {
++		env = "USERPROFILE"
++	} else if runtime.GOOS == "plan9" {
++		env = "home"
++	}
++	if home := os.Getenv(env); home != "" {
++		return filepath.Join(home, "go")
++	}
++	return ""
++}
++
+ func defaultContext() Context {
+ 	var c Context
+ 
+ 	c.GOARCH = envOr("GOARCH", runtime.GOARCH)
+ 	c.GOOS = envOr("GOOS", runtime.GOOS)
+ 	c.GOROOT = pathpkg.Clean(runtime.GOROOT())
+-	c.GOPATH = envOr("GOPATH", "")
++	c.GOPATH = envOr("GOPATH", defaultGOPATH())
+ 	c.Compiler = runtime.Compiler
+ 
+ 	// Each major Go release in the Go 1.x series should add a tag here.

@@ -14,10 +14,114 @@ Date:   Mon Apr 8 11:30:12 2024 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/internal/syscall/unix/asm_openbsd.s        | 10 +++++++
  src/internal/syscall/unix/at_sysnum_openbsd.go | 10 ++++---
  src/internal/syscall/unix/eaccess_bsd.go       |  2 +-
  src/internal/syscall/unix/eaccess_openbsd.go   | 36 ++++++++++++++++++++++++++
  src/internal/syscall/unix/eaccess_other.go     |  2 +-
  5 files changed, 55 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/syscall/unix/asm_openbsd.s b/src/internal/syscall/unix/asm_openbsd.s
+new file mode 100644
+index 0000000000..cc54a14ca5
+--- /dev/null
++++ b/src/internal/syscall/unix/asm_openbsd.s
+@@ -0,0 +1,10 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build openbsd && !mips64
++
++#include "textflag.h"
++
++TEXT ·libc_faccessat_trampoline(SB),NOSPLIT,$0-0
++        JMP	libc_faccessat(SB)
+diff --git a/src/internal/syscall/unix/at_sysnum_openbsd.go b/src/internal/syscall/unix/at_sysnum_openbsd.go
+index fd389477ec..3b0c0dbd19 100644
+--- a/src/internal/syscall/unix/at_sysnum_openbsd.go
++++ b/src/internal/syscall/unix/at_sysnum_openbsd.go
+@@ -10,7 +10,11 @@ const unlinkatTrap uintptr = syscall.SYS_UNLINKAT
+ const openatTrap uintptr = syscall.SYS_OPENAT
+ const fstatatTrap uintptr = syscall.SYS_FSTATAT
+ 
+-const AT_REMOVEDIR = 0x08
+-const AT_SYMLINK_NOFOLLOW = 0x02
++const (
++	AT_EACCESS          = 0x1
++	AT_FDCWD            = -0x64
++	AT_REMOVEDIR        = 0x08
++	AT_SYMLINK_NOFOLLOW = 0x02
+ 
+-const UTIME_OMIT = -0x1
++	UTIME_OMIT = -0x1
++)
+diff --git a/src/internal/syscall/unix/eaccess_bsd.go b/src/internal/syscall/unix/eaccess_bsd.go
+index 3411e3ac40..7077af17b6 100644
+--- a/src/internal/syscall/unix/eaccess_bsd.go
++++ b/src/internal/syscall/unix/eaccess_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd || netbsd
++//go:build dragonfly || freebsd || netbsd || (openbsd && mips64)
+ 
+ package unix
+ 
+diff --git a/src/internal/syscall/unix/eaccess_openbsd.go b/src/internal/syscall/unix/eaccess_openbsd.go
+new file mode 100644
+index 0000000000..5e91f11f66
+--- /dev/null
++++ b/src/internal/syscall/unix/eaccess_openbsd.go
+@@ -0,0 +1,36 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build openbsd && !mips64
++
++package unix
++
++import (
++	"internal/abi"
++	"syscall"
++	"unsafe"
++)
++
++//go:linkname syscall_syscall6 syscall.syscall6
++func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno)
++
++func libc_faccessat_trampoline()
++
++//go:cgo_import_dynamic libc_faccessat faccessat "libc.so"
++
++func faccessat(dirfd int, path string, mode uint32, flags int) error {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_faccessat_trampoline), uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(mode), uintptr(flags), 0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return err
++}
++
++func Eaccess(path string, mode uint32) error {
++	return faccessat(AT_FDCWD, path, mode, AT_EACCESS)
++}
+diff --git a/src/internal/syscall/unix/eaccess_other.go b/src/internal/syscall/unix/eaccess_other.go
+index 19a2be587e..1a633ae857 100644
+--- a/src/internal/syscall/unix/eaccess_other.go
++++ b/src/internal/syscall/unix/eaccess_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix && !dragonfly && !freebsd && !linux && !netbsd
++//go:build unix && !dragonfly && !freebsd && !linux && !openbsd && !netbsd
+ 
+ package unix
+ 

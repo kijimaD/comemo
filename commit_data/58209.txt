@@ -14,7 +14,124 @@ Date:   Fri Sep 15 13:49:56 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/objabi/path.go      | 39 +++++++++++++++++++++++++++++++-
  src/cmd/internal/objabi/path_test.go | 43 ++++++++++++++++++++++++++++++------
  2 files changed, 74 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/path.go b/src/cmd/internal/objabi/path.go
+index 2a42179a36..30301b15f1 100644
+--- a/src/cmd/internal/objabi/path.go
++++ b/src/cmd/internal/objabi/path.go
+@@ -4,7 +4,11 @@
+ 
+ package objabi
+ 
+-import "strings"
++import (
++	"fmt"
++	"strconv"
++	"strings"
++)
+ 
+ // PathToPrefix converts raw string to the prefix that will be used in the
+ // symbol table. All control characters, space, '%' and '"', as well as
+@@ -39,3 +43,36 @@ func PathToPrefix(s string) string {
+ 
+ 	return string(p)
+ }
++
++// PrefixToPath is the inverse of PathToPrefix, replacing escape sequences with
++// the original character.
++func PrefixToPath(s string) (string, error) {
++	percent := strings.IndexByte(s, '%')
++	if percent == -1 {
++		return s, nil
++	}
++
++	p := make([]byte, 0, len(s))
++	for i := 0; i < len(s); {
++		if s[i] != '%' {
++			p = append(p, s[i])
++			i++
++			continue
++		}
++		if i+2 >= len(s) {
++			// Not enough characters remaining to be a valid escape
++			// sequence.
++			return "", fmt.Errorf("malformed prefix %q: escape sequence must contain two hex digits", s)
++		}
++
++		b, err := strconv.ParseUint(s[i+1:i+3], 16, 8)
++		if err != nil {
++			// Not a valid escape sequence.
++			return "", fmt.Errorf("malformed prefix %q: escape sequence %q must contain two hex digits", s, s[i:i+3])
++		}
++
++		p = append(p, byte(b))
++		i += 3
++	}
++	return string(p), nil
++}
+diff --git a/src/cmd/internal/objabi/path_test.go b/src/cmd/internal/objabi/path_test.go
+index 78b94a3266..934db3dfa0 100644
+--- a/src/cmd/internal/objabi/path_test.go
++++ b/src/cmd/internal/objabi/path_test.go
+@@ -11,11 +11,11 @@ import (
+ 	"testing"
+ )
+ 
+-func TestPathToPrefix(t *testing.T) {
+-	tests := []struct {
+-		Path     string
+-		Expected string
+-	}{{"foo/bar/v1", "foo/bar/v1"},
++var escapeTests = []struct {
++		Path    string
++		Escaped string
++	}{
++		{"foo/bar/v1", "foo/bar/v1"},
+ 		{"foo/bar/v.1", "foo/bar/v%2e1"},
+ 		{"f.o.o/b.a.r/v1", "f.o.o/b.a.r/v1"},
+ 		{"f.o.o/b.a.r/v.1", "f.o.o/b.a.r/v%2e1"},
+@@ -30,9 +30,38 @@ func TestPathToPrefix(t *testing.T) {
+ 		{"%foo%bar", "%25foo%25bar"},
+ 		{"\x01\x00\x7F☺", "%01%00%7f%e2%98%ba"},
+ 	}
++
++func TestPathToPrefix(t *testing.T) {
++	for _, tc := range escapeTests {
++		if got := PathToPrefix(tc.Path); got != tc.Escaped {
++			t.Errorf("expected PathToPrefix(%s) = %s, got %s", tc.Path, tc.Escaped, got)
++		}
++	}
++}
++
++func TestPrefixToPath(t *testing.T) {
++	for _, tc := range escapeTests {
++		got, err := PrefixToPath(tc.Escaped)
++		if err != nil {
++			t.Errorf("expected PrefixToPath(%s) err = nil, got %v", tc.Escaped, err)
++		}
++		if got != tc.Path {
++			t.Errorf("expected PrefixToPath(%s) = %s, got %s", tc.Escaped, tc.Path, got)
++		}
++	}
++}
++
++func TestPrefixToPathError(t *testing.T) {
++	tests := []string{
++		"foo%",
++		"foo%1",
++		"foo%%12",
++		"foo%1g",
++	}
+ 	for _, tc := range tests {
+-		if got := PathToPrefix(tc.Path); got != tc.Expected {
+-			t.Errorf("expected PathToPrefix(%s) = %s, got %s", tc.Path, tc.Expected, got)
++		_, err := PrefixToPath(tc)
++		if err == nil {
++			t.Errorf("expected PrefixToPath(%s) err != nil, got nil", tc)
+ 		}
+ 	}
+ }

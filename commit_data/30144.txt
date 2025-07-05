@@ -14,6 +14,25 @@ Date:   Mon Oct 3 16:18:17 2016 -0400
     Change-Id: I443ead3eac6f316a46f50b106078b524cac317f4
     Reviewed-on: https://go-review.googlesource.com/31761
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcmark.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index e47072d88c..e62e470217 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1294,6 +1294,13 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
+ 			throw("setCheckmarked and isCheckmarked disagree")
+ 		}
+ 	} else {
++		if debug.gccheckmark > 0 && span.isFree(objIndex) {
++			print("runtime: marking free object ", hex(obj), " found at *(", hex(base), "+", hex(off), ")\n")
++			gcDumpObject("base", base, off)
++			gcDumpObject("obj", obj, ^uintptr(0))
++			throw("marking free object")
++		}
++
+ 		// If marked we have nothing to do.
+ 		if mbits.isMarked() {
+ 			return

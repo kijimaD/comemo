@@ -12,6 +12,23 @@ Date:   Tue Feb 25 10:51:29 2025 -0800
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/doc.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index 49abb857ad..f76f402f38 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -60,6 +60,11 @@ Flags:
+ 		Allow references to Go symbols in shared libraries (experimental).
+ 	-e
+ 		Remove the limit on the number of errors reported (default limit is 10).
++	-embedcfg file
++		Read go:embed configuration from file.
++		This is required if any //go:embed directives are used.
++		The file is a JSON file mapping patterns to lists of filenames
++		and filenames to full path names.
+ 	-goversion string
+ 		Specify required go tool version of the runtime.
+ 		Exits when the runtime go version does not match goversion.

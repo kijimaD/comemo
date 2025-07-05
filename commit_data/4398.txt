@@ -7,6 +7,37 @@ Date:   Sun Dec 13 07:27:43 2009 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/174082
-
+---
  src/pkg/gob/decoder.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index a88c97400e..5202c82856 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -23,7 +23,7 @@ type Decoder struct {
+ 	state		*decodeState;					// reads data from in-memory buffer
+ 	countState	*decodeState;					// reads counts from wire
+ 	buf		[]byte;
+-	oneByte		[]byte;
++	countBuf	[9]byte;	// counts may be uint64s (unlikely!), require 9 bytes
+ }
+ 
+ // NewDecoder returns a new decoder that reads from the io.Reader.
+@@ -34,7 +34,6 @@ func NewDecoder(r io.Reader) *Decoder {
+ 	dec.state = newDecodeState(nil);	// buffer set in Decode(); rest is unimportant
+ 	dec.decoderCache = make(map[reflect.Type]map[typeId]**decEngine);
+ 	dec.ignorerCache = make(map[typeId]**decEngine);
+-	dec.oneByte = make([]byte, 1);
+ 
+ 	return dec;
+ }
+@@ -73,7 +72,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 	for {
+ 		// Read a count.
+ 		var nbytes uint64;
+-		nbytes, dec.state.err = decodeUintReader(dec.r, dec.oneByte);
++		nbytes, dec.state.err = decodeUintReader(dec.r, dec.countBuf[0:]);
+ 		if dec.state.err != nil {
+ 			break
+ 		}

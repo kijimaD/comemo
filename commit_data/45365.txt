@@ -10,8 +10,57 @@ Date:   Wed Oct 21 16:18:34 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/264080
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go    | 2 +-
  src/cmd/compile/internal/gc/subr.go   | 2 +-
  src/cmd/compile/internal/gc/syntax.go | 6 +++---
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index a362d1a643..b8ca0d2e03 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -283,7 +283,7 @@ func oldname(s *types.Sym) *Node {
+ 			c.Name.Defn = n
+ 
+ 			// Link into list of active closure variables.
+-			// Popped from list in func closurebody.
++			// Popped from list in func funcLit.
+ 			c.Name.Param.Outer = n.Name.Param.Innermost
+ 			n.Name.Param.Innermost = c
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index f4b0c0fae0..b6e6f3a6da 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -348,7 +348,7 @@ func newname(s *types.Sym) *Node {
+ 	return n
+ }
+ 
+-// newname returns a new ONAME Node associated with symbol s at position pos.
++// newnamel returns a new ONAME Node associated with symbol s at position pos.
+ // The caller is responsible for setting n.Name.Curfn.
+ func newnamel(pos src.XPos, s *types.Sym) *Node {
+ 	if s == nil {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 4aa2e230ce..a2ab0fa661 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -460,14 +460,14 @@ type Param struct {
+ 	//     x1 := xN.Defn
+ 	//     x1.Innermost = xN.Outer
+ 	//
+-	// We leave xN.Innermost set so that we can still get to the original
++	// We leave x1.Innermost set so that we can still get to the original
+ 	// variable quickly. Not shown here, but once we're
+ 	// done parsing a function and no longer need xN.Outer for the
+-	// lexical x reference links as described above, closurebody
++	// lexical x reference links as described above, funcLit
+ 	// recomputes xN.Outer as the semantic x reference link tree,
+ 	// even filling in x in intermediate closures that might not
+ 	// have mentioned it along the way to inner closures that did.
+-	// See closurebody for details.
++	// See funcLit for details.
+ 	//
+ 	// During the eventual compilation, then, for closure variables we have:
+ 	//

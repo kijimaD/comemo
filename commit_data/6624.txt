@@ -7,6 +7,30 @@ Date:   Mon Oct 25 17:45:26 2010 -0700
     R=rsc, r2
     CC=golang-dev
     https://golang.org/cl/2733041
-
+---
  src/pkg/tabwriter/tabwriter_test.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/tabwriter/tabwriter_test.go b/src/pkg/tabwriter/tabwriter_test.go
+index 1c1eecf31b..043d9154e1 100644
+--- a/src/pkg/tabwriter/tabwriter_test.go
++++ b/src/pkg/tabwriter/tabwriter_test.go
+@@ -99,16 +99,13 @@ func check(t *testing.T, testname string, minwidth, tabwidth, padding int, padch
+ }
+ 
+ 
+-type entry struct {
++var tests = []struct {
+ 	testname                    string
+ 	minwidth, tabwidth, padding int
+ 	padchar                     byte
+ 	flags                       uint
+ 	src, expected               string
+-}
+-
+-
+-var tests = []entry{
++}{
+ 	{
+ 		"1a",
+ 		8, 0, 1, '.', 0,

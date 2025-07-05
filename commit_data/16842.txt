@@ -10,7 +10,7 @@ Date:   Mon Jul 22 23:02:27 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/11681043
-
+---
  src/pkg/runtime/cpuprof.c    |  4 +---
  src/pkg/runtime/lock_futex.c | 13 +++++++++++++
  src/pkg/runtime/lock_sema.c  | 13 +++++++++++++
@@ -19,3 +19,137 @@ Date:   Mon Jul 22 23:02:27 2013 +0400
  src/pkg/runtime/sigqueue.goc |  4 +---
  src/pkg/runtime/time.goc     |  4 +---
  7 files changed, 35 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/runtime/cpuprof.c b/src/pkg/runtime/cpuprof.c
+index 6793e5d361..ef3077339a 100644
+--- a/src/pkg/runtime/cpuprof.c
++++ b/src/pkg/runtime/cpuprof.c
+@@ -358,9 +358,7 @@ getprofile(Profile *p)
+ 		return ret;
+ 
+ 	// Wait for new log.
+-	runtime·entersyscallblock();
+-	runtime·notesleep(&p->wait);
+-	runtime·exitsyscall();
++	runtime·notetsleepg(&p->wait, -1);
+ 	runtime·noteclear(&p->wait);
+ 
+ 	n = p->handoff;
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index 95d590bae9..2265607000 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -159,3 +159,16 @@ runtime·notetsleep(Note *n, int64 ns)
+ 		runtime·setprof(true);
+ 	return runtime·atomicload((uint32*)&n->key) != 0;
+ }
++
++bool
++runtime·notetsleepg(Note *n, int64 ns)
++{
++	bool res;
++
++	if(g == m->g0)
++		runtime·throw("notetsleepg on g0");
++	runtime·entersyscallblock();
++	res = runtime·notetsleep(n, ns);
++	runtime·exitsyscall();
++	return res;
++}
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+index 069b8c1ad3..da5d24a423 100644
+--- a/src/pkg/runtime/lock_sema.c
++++ b/src/pkg/runtime/lock_sema.c
+@@ -231,3 +231,16 @@ runtime·notetsleep(Note *n, int64 ns)
+ 		}
+ 	}
+ }
++
++bool
++runtime·notetsleepg(Note *n, int64 ns)
++{
++	bool res;
++
++	if(g == m->g0)
++		runtime·throw("notetsleepg on g0");
++	runtime·entersyscallblock();
++	res = runtime·notetsleep(n, ns);
++	runtime·exitsyscall();
++	return res;
++}
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index e076d89f13..6dd5fa9bf9 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -460,9 +460,7 @@ runtime·MHeap_Scavenger(void)
+ 	h = &runtime·mheap;
+ 	for(k=0;; k++) {
+ 		runtime·noteclear(&note);
+-		runtime·entersyscallblock();
+-		runtime·notetsleep(&note, tick);
+-		runtime·exitsyscall();
++		runtime·notetsleepg(&note, tick);
+ 
+ 		runtime·lock(h);
+ 		now = runtime·nanotime();
+@@ -474,9 +472,7 @@ runtime·MHeap_Scavenger(void)
+ 			runtime·noteclear(&note);
+ 			notep = &note;
+ 			runtime·newproc1(&forcegchelperv, (byte*)&notep, sizeof(notep), 0, runtime·MHeap_Scavenger);
+-			runtime·entersyscallblock();
+-			runtime·notesleep(&note);
+-			runtime·exitsyscall();
++			runtime·notetsleepg(&note, -1);
+ 			if(runtime·debug.gctrace > 0)
+ 				runtime·printf("scvg%d: GC forced\n", k);
+ 			runtime·lock(h);
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index f8d45ba819..244b548489 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -905,11 +905,15 @@ void	runtime·unlock(Lock*);
+  * wake up early, it must wait to call noteclear until it
+  * can be sure that no other goroutine is calling
+  * notewakeup.
++ *
++ * notesleep/notetsleep are generally called on g0,
++ * notetsleepg is similar to notetsleep but is called on user g.
+  */
+ void	runtime·noteclear(Note*);
+ void	runtime·notesleep(Note*);
+ void	runtime·notewakeup(Note*);
+ bool	runtime·notetsleep(Note*, int64);  // false - timeout
++bool	runtime·notetsleepg(Note*, int64);  // false - timeout
+ 
+ /*
+  * low-level synchronization for implementing the above
+diff --git a/src/pkg/runtime/sigqueue.goc b/src/pkg/runtime/sigqueue.goc
+index 9bfab3bfae..e430e2103d 100644
+--- a/src/pkg/runtime/sigqueue.goc
++++ b/src/pkg/runtime/sigqueue.goc
+@@ -106,9 +106,7 @@ func signal_recv() (m uint32) {
+ 				new = HASWAITER;
+ 			if(runtime·cas(&sig.state, old, new)) {
+ 				if (new == HASWAITER) {
+-					runtime·entersyscallblock();
+-					runtime·notesleep(&sig);
+-					runtime·exitsyscall();
++					runtime·notetsleepg(&sig, -1);
+ 					runtime·noteclear(&sig);
+ 				}
+ 				break;
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index be0c1f83d4..4f20300ff1 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -214,9 +214,7 @@ timerproc(void)
+ 		timers.sleeping = true;
+ 		runtime·noteclear(&timers.waitnote);
+ 		runtime·unlock(&timers);
+-		runtime·entersyscallblock();
+-		runtime·notetsleep(&timers.waitnote, delta);
+-		runtime·exitsyscall();
++		runtime·notetsleepg(&timers.waitnote, delta);
+ 	}
+ }
+ 

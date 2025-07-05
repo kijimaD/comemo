@@ -17,6 +17,31 @@ Date:   Mon Sep 26 09:17:23 2022 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index bcf2349d3b..00b29560ca 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -159,6 +159,8 @@ func TestMain(m *testing.M) {
+ 	}
+ 	if !*testWork {
+ 		defer removeAll(topTmpdir)
++	} else {
++		fmt.Fprintf(os.Stderr, "TESTWORK: preserving top level tempdir %s\n", topTmpdir)
+ 	}
+ 	os.Setenv(tempEnvName(), topTmpdir)
+ 
+@@ -826,7 +828,9 @@ var testWork = flag.Bool("testwork", false, "")
+ func (tg *testgoData) cleanup() {
+ 	tg.t.Helper()
+ 	if *testWork {
+-		tg.t.Logf("TESTWORK=%s\n", tg.path("."))
++		if tg.tempdir != "" {
++			tg.t.Logf("TESTWORK=%s\n", tg.path("."))
++		}
+ 		return
+ 	}
+ 	for _, path := range tg.temps {

@@ -13,10 +13,195 @@ Date:   Fri Jul 16 09:34:34 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check.go       | 12 +++++------
  src/go/types/interface.go   | 50 +++++++++++++++++----------------------------
  src/go/types/sizeof_test.go |  2 +-
  src/go/types/subst.go       |  1 -
  src/go/types/type.go        | 10 ++++-----
  5 files changed, 30 insertions(+), 45 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 30aa8a9f0c..4398475501 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -85,12 +85,11 @@ type Checker struct {
+ 	fset *token.FileSet
+ 	pkg  *Package
+ 	*Info
+-	version version                    // accepted language version
+-	nextID  uint64                     // unique Id for type parameters (first valid Id is 1)
+-	objMap  map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
+-	impMap  map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
+-	posMap  map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
+-	typMap  map[string]*Named          // maps an instantiated named type hash to a *Named type
++	version version                // accepted language version
++	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
++	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
++	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
++	typMap  map[string]*Named      // maps an instantiated named type hash to a *Named type
+ 
+ 	// pkgPathMap maps package names to the set of distinct import paths we've
+ 	// seen for that name, anywhere in the import graph. It is used for
+@@ -193,7 +192,6 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		version: version,
+ 		objMap:  make(map[Object]*declInfo),
+ 		impMap:  make(map[importKey]*Package),
+-		posMap:  make(map[*Interface][]token.Pos),
+ 		typMap:  make(map[string]*Named),
+ 	}
+ }
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 73fde3421a..ccc95dd841 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -16,11 +16,18 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 	var tlist []ast.Expr
+ 	var tname *ast.Ident // "type" name of first entry in a type list declaration
+ 
++	addEmbedded := func(pos token.Pos, typ Type) {
++		ityp.embeddeds = append(ityp.embeddeds, typ)
++		if ityp.embedPos == nil {
++			ityp.embedPos = new([]token.Pos)
++		}
++		*ityp.embedPos = append(*ityp.embedPos, pos)
++	}
++
+ 	for _, f := range iface.Methods.List {
+ 		if len(f.Names) == 0 {
+ 			// We have an embedded type; possibly a union of types.
+-			ityp.embeddeds = append(ityp.embeddeds, parseUnion(check, flattenUnion(nil, f.Type)))
+-			check.posMap[ityp] = append(check.posMap[ityp], f.Type.Pos())
++			addEmbedded(f.Type.Pos(), parseUnion(check, flattenUnion(nil, f.Type)))
+ 			continue
+ 		}
+ 
+@@ -92,10 +99,9 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 
+ 	// type constraints
+ 	if tlist != nil {
+-		ityp.embeddeds = append(ityp.embeddeds, parseUnion(check, tlist))
+-		// Types T in a type list are added as ~T expressions but we don't
+-		// have the position of the '~'. Use the first type position instead.
+-		check.posMap[ityp] = append(check.posMap[ityp], tlist[0].(*ast.UnaryExpr).X.Pos())
++		// TODO(rfindley): this differs from types2 due to the use of Pos() below,
++		// which should actually be on the ~. Confirm that this position is correct.
++		addEmbedded(tlist[0].Pos(), parseUnion(check, tlist))
+ 	}
+ 
+ 	// All methods and embedded elements for this interface are collected;
+@@ -110,7 +116,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 
+ 	// sort for API stability
+ 	sortMethods(ityp.methods)
+-	sortTypes(ityp.embeddeds)
++	// (don't sort embeddeds: they must correspond to *embedPos entries)
+ 
+ 	// Compute type set with a non-nil *Checker as soon as possible
+ 	// to report any errors. Subsequent uses of type sets should be
+@@ -226,14 +232,13 @@ func newTypeSet(check *Checker, pos token.Pos, ityp *Interface) *TypeSet {
+ 
+ 	// collect embedded elements
+ 	var allTypes Type
+-	var posList []token.Pos
+-	if check != nil {
+-		posList = check.posMap[ityp]
+-	}
+ 	for i, typ := range ityp.embeddeds {
++		// The embedding position is nil for imported interfaces
++		// and also for interface copies after substitution (but
++		// in that case we don't need to report errors again).
+ 		var pos token.Pos // embedding position
+-		if posList != nil {
+-			pos = posList[i]
++		if ityp.embedPos != nil {
++			pos = (*ityp.embedPos)[i]
+ 		}
+ 		var types Type
+ 		switch t := under(typ).(type) {
+@@ -268,6 +273,7 @@ func newTypeSet(check *Checker, pos token.Pos, ityp *Interface) *TypeSet {
+ 		}
+ 		allTypes = intersect(allTypes, types)
+ 	}
++	ityp.embedPos = nil // not needed anymore (errors have been reported)
+ 
+ 	// process todo's (this only happens if check == nil)
+ 	for i := 0; i < len(todo); i += 2 {
+@@ -287,24 +293,6 @@ func newTypeSet(check *Checker, pos token.Pos, ityp *Interface) *TypeSet {
+ 	return ityp.tset
+ }
+ 
+-func sortTypes(list []Type) {
+-	sort.Stable(byUniqueTypeName(list))
+-}
+-
+-// byUniqueTypeName named type lists can be sorted by their unique type names.
+-type byUniqueTypeName []Type
+-
+-func (a byUniqueTypeName) Len() int           { return len(a) }
+-func (a byUniqueTypeName) Less(i, j int) bool { return sortName(a[i]) < sortName(a[j]) }
+-func (a byUniqueTypeName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+-
+-func sortName(t Type) string {
+-	if named := asNamed(t); named != nil {
+-		return named.obj.Id()
+-	}
+-	return ""
+-}
+-
+ func sortMethods(list []*Func) {
+ 	sort.Sort(byUniqueMethodName(list))
+ }
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index 8f5f42b415..b8f191ee86 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -27,7 +27,7 @@ func TestSizeof(t *testing.T) {
+ 		{Tuple{}, 12, 24},
+ 		{Signature{}, 44, 88},
+ 		{Union{}, 24, 48},
+-		{Interface{}, 40, 80},
++		{Interface{}, 44, 88},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+ 		{Named{}, 84, 160},
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index a4852ce86f..41ffcd0d1e 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -320,7 +320,6 @@ func (subst *subster) typ(typ Type) Type {
+ 			if subst.check == nil {
+ 				panic("internal error: cannot instantiate interfaces yet")
+ 			}
+-			subst.check.posMap[iface] = subst.check.posMap[t] // satisfy completeInterface requirement
+ 			return iface
+ 		}
+ 
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 7445fa59ab..c1b307b642 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -258,10 +258,11 @@ func (s *Signature) Variadic() bool { return s.variadic }
+ 
+ // An Interface represents an interface type.
+ type Interface struct {
+-	obj       Object  // type name object defining this interface; or nil (for better error messages)
+-	methods   []*Func // ordered list of explicitly declared methods
+-	embeddeds []Type  // ordered list of explicitly embedded elements
+-	complete  bool    // indicates that obj, methods, and embeddeds are set and type set can be computed
++	obj       Object       // type name object defining this interface; or nil (for better error messages)
++	methods   []*Func      // ordered list of explicitly declared methods
++	embeddeds []Type       // ordered list of explicitly embedded elements
++	embedPos  *[]token.Pos // positions of embedded elements; or nil (for error messages) - use pointer to save space
++	complete  bool         // indicates that obj, methods, and embeddeds are set and type set can be computed
+ 
+ 	tset *TypeSet // type set described by this interface, computed lazily
+ }
+@@ -326,7 +327,6 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 
+ 	// sort for API stability
+ 	sortMethods(methods)
+-	sortTypes(embeddeds)
+ 
+ 	typ.methods = methods
+ 	typ.embeddeds = embeddeds

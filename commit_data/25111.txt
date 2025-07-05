@@ -13,7 +13,88 @@ Date:   Thu Sep 24 15:23:26 2015 +0900
     Change-Id: I4d377f64cbab1760b993fc55c719288616042bbb
     Reviewed-on: https://go-review.googlesource.com/14939
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/route_bsd.go      |  9 ++++++---
  src/syscall/route_bsd_test.go | 35 +++++++++++++++++++++++++++++++++++
  2 files changed, 41 insertions(+), 3 deletions(-)
+
+diff --git a/src/syscall/route_bsd.go b/src/syscall/route_bsd.go
+index c62fdc3c81..4434a56104 100644
+--- a/src/syscall/route_bsd.go
++++ b/src/syscall/route_bsd.go
+@@ -44,6 +44,9 @@ func rsaAlignOf(salen int) int {
+ 
+ // parseSockaddrLink parses b as a datalink socket address.
+ func parseSockaddrLink(b []byte) (*SockaddrDatalink, error) {
++	if len(b) < 8 {
++		return nil, EINVAL
++	}
+ 	sa, _, err := parseLinkLayerAddr(b[4:])
+ 	if err != nil {
+ 		return nil, err
+@@ -77,16 +80,16 @@ func parseLinkLayerAddr(b []byte) (*SockaddrDatalink, int, error) {
+ 		Slen byte
+ 	}
+ 	lla := (*linkLayerAddr)(unsafe.Pointer(&b[0]))
+-	l := rsaAlignOf(int(4 + lla.Nlen + lla.Alen + lla.Slen))
++	l := 4 + int(lla.Nlen) + int(lla.Alen) + int(lla.Slen)
+ 	if len(b) < l {
+ 		return nil, 0, EINVAL
+ 	}
+ 	b = b[4:]
+ 	sa := &SockaddrDatalink{Type: lla.Type, Nlen: lla.Nlen, Alen: lla.Alen, Slen: lla.Slen}
+-	for i := 0; len(sa.Data) > i && i < int(lla.Nlen+lla.Alen+lla.Slen); i++ {
++	for i := 0; len(sa.Data) > i && i < l-4; i++ {
+ 		sa.Data[i] = int8(b[i])
+ 	}
+-	return sa, l, nil
++	return sa, rsaAlignOf(l), nil
+ }
+ 
+ // parseSockaddrInet parses b as an internet socket address.
+diff --git a/src/syscall/route_bsd_test.go b/src/syscall/route_bsd_test.go
+index 8617663d43..74d11f9f0a 100644
+--- a/src/syscall/route_bsd_test.go
++++ b/src/syscall/route_bsd_test.go
+@@ -119,6 +119,41 @@ func TestRouteMonitor(t *testing.T) {
+ 	<-tmo
+ }
+ 
++var parseInterfaceMessageTests = []*syscall.InterfaceMessage{
++	// with link-layer address
++	{
++		Header: syscall.IfMsghdr{Version: syscall.RTM_VERSION, Addrs: syscall.RTA_IFP},
++		Data: []uint8{
++			0x11, 0x12, 0x2, 0x0, 0x6, 0x3, 0x6, 0x0,
++			0x77, 0x6d, 0x31, 0x01, 0x23, 0x45, 0xab, 0xcd,
++			0xef, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++		},
++	},
++	// without link-layer address
++	{
++		Header: syscall.IfMsghdr{Version: syscall.RTM_VERSION, Addrs: syscall.RTA_IFP},
++		Data: []uint8{
++			0xe, 0x12, 0x4, 0x0, 0xf5, 0x6, 0x0, 0x0,
++			0x70, 0x66, 0x6c, 0x6f, 0x67, 0x30, 0x0, 0x0,
++		},
++	},
++	// no data
++	{
++		Header: syscall.IfMsghdr{Version: syscall.RTM_VERSION, Addrs: syscall.RTA_IFP},
++		Data: []uint8{
++			0x8, 0xa, 0xb, 0xc, 0xd, 0x0, 0x0, 0x0,
++		},
++	},
++}
++
++func TestParseInterfaceMessage(t *testing.T) {
++	for i, tt := range parseInterfaceMessageTests {
++		if _, err := syscall.ParseRoutingSockaddr(tt); err != nil {
++			t.Errorf("#%d: %v", i, err)
++		}
++	}
++}
++
+ type addrFamily byte
+ 
+ func (f addrFamily) String() string {

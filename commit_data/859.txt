@@ -9,7 +9,252 @@ Date:   Tue Oct 14 17:45:49 2008 -0700
     DELTA=72  (27 added, 5 deleted, 40 changed)
     OCL=17147
     CL=17147
-
+---
  usr/r/regexp/main.go   | 81 +++++++++++++++++++++++++++++++-------------------
  usr/r/regexp/regexp.go | 29 +++++++++---------
  2 files changed, 66 insertions(+), 44 deletions(-)
+
+diff --git a/usr/r/regexp/main.go b/usr/r/regexp/main.go
+index 25ec07ade2..c89f9b5579 100644
+--- a/usr/r/regexp/main.go
++++ b/usr/r/regexp/main.go
+@@ -10,22 +10,22 @@ import (
+ )
+ 
+ var good_re = []string{
+-	``
+-,	`.`
+-,	`^.$`
+-,	`a`
+-,	`a*`
+-,	`a+`
+-,	`a?`
+-,	`a|b`
+-,	`a*|b*`
+-,	`(a*|b)(c*|d)`
+-,	`[a-z]`
+-,	`[a-abc-c\-\]\[]`
+-,	`[a-z]+`
+-,	`[]`
+-,	`[abc]`
+-,	`[^1234]`
++	``,
++	`.`,
++	`^.$`,
++	`a`,
++	`a*`,
++	`a+`,
++	`a?`,
++	`a|b`,
++	`a*|b*`,
++	`(a*|b)(c*|d)`,
++	`[a-z]`,
++	`[a-abc-c\-\]\[]`,
++	`[a-z]+`,
++	`[]`,
++	`[abc]`,
++	`[^1234]`,
+ }
+ 
+ // TODO: nice to do this with a map but we don't have an iterator
+@@ -45,7 +45,7 @@ var bad_re = []StringError{
+ 	StringError{ `a*+`,	regexp.ErrBadClosure },	
+ 	StringError{ `a??`,	regexp.ErrBadClosure },	
+ 	StringError{ `*`,	 	regexp.ErrBareClosure },	
+-	StringError{ `\x`,	regexp.ErrBadBackslash }
++	StringError{ `\x`,	regexp.ErrBadBackslash },
+ }
+ 
+ type Vec [20]int;
+@@ -56,17 +56,33 @@ type Tester struct {
+ 	match	Vec;
+ }
+ 
++const END = -1000
++
+ var matches = []Tester {
+-	Tester{ ``,	"",	Vec{0,0, -1,-1} },
+-	Tester{ `a`,	"a",	Vec{0,1, -1,-1} },
+-	Tester{ `b`,	"abc",	Vec{1,2, -1,-1} },
+-	Tester{ `.`,	"a",	Vec{0,1, -1,-1} },
+-	Tester{ `.*`,	"abcdef",	Vec{0,6, -1,-1} },
+-	Tester{ `^abcd$`,	"abcd",	Vec{0,4, -1,-1} },
+-	Tester{ `^bcd'`,	"abcdef",	Vec{-1,-1} },
+-	Tester{ `^abcd$`,	"abcde",	Vec{-1,-1} },
+-	Tester{ `a+`,	"baaab",	Vec{1, 4, -1,-1} },
+-	Tester{ `a*`,	"baaab",	Vec{0, 0, -1,-1} }
++	Tester{ ``,	"",	Vec{0,0, END} },
++	Tester{ `a`,	"a",	Vec{0,1, END} },
++	Tester{ `b`,	"abc",	Vec{1,2, END} },
++	Tester{ `.`,	"a",	Vec{0,1, END} },
++	Tester{ `.*`,	"abcdef",	Vec{0,6, END} },
++	Tester{ `^abcd$`,	"abcd",	Vec{0,4, END} },
++	Tester{ `^bcd'`,	"abcdef",	Vec{END} },
++	Tester{ `^abcd$`,	"abcde",	Vec{END} },
++	Tester{ `a+`,	"baaab",	Vec{1,4, END} },
++	Tester{ `a*`,	"baaab",	Vec{0,0, END} },
++	Tester{ `[a-z]+`,	"abcd",	Vec{0,4, END} },
++	Tester{ `[^a-z]+`,	"ab1234cd",	Vec{2,6, END} },
++	Tester{ `[a\-\]z]+`,	"az]-bcz",	Vec{0,4, END} },
++	Tester{ `[日本語]+`,	"日本語日本語",	Vec{0,18, END} },
++	Tester{ `()`,	"",	Vec{0,0, 0,0, END} },
++	Tester{ `(a)`,	"a",	Vec{0,1, 0,1, END} },
++	Tester{ `(.)(.)`,	"日a",	Vec{0,4, 0,3, 3,4, END} },
++	Tester{ `(.*)`,	"",	Vec{0,0, 0,0, END} },
++	Tester{ `(.*)`,	"abcd",	Vec{0,4, 0,4, END} },
++	Tester{ `(..)(..)`,	"abcd",	Vec{0,4, 0,2, 2,4, END} },
++	Tester{ `(([^xyz]*)(d))`,	"abcd",	Vec{0,4, 0,4, 0,3, 3,4, END} },
++	Tester{ `((a|b|c)*(d))`,	"abcd",	Vec{0,4, 0,4, 2,3, 3,4, END} },
++	Tester{ `(((a|b|c)*)(d))`,	"abcd",	Vec{0,4, 0,4, 0,3, 2,3, 3,4, END} },
++	Tester{ `a*(|(b))c*`,	"aacc",	Vec{0,4, 2,2, -1,-1, END} },
+ }
+ 
+ func Compile(expr string, error *os.Error) regexp.Regexp {
+@@ -83,15 +99,19 @@ func MarkedLen(m *[] int) int {
+ 		return 0
+ 	}
+ 	var i int;
+-	for i = 0; i < len(m) && m[i] >= 0; i = i+2 {
++	for i = 0; i < len(m) && m[i] != END; i = i+2 {
+ 	}
+ 	return i
+ }
+ 
+ func PrintVec(m *[] int) {
+ 	l := MarkedLen(m);
+-	for i := 0; i < l && m[i] >= 0; i = i+2 {
+-		print(m[i], ",", m[i+1], " ")
++	if l == 0 {
++		print("<no match>");
++	} else {
++		for i := 0; i < l && m[i] != END; i = i+2 {
++			print(m[i], ",", m[i+1], " ")
++		}
+ 	}
+ }
+ 
+@@ -122,6 +142,7 @@ func Match(expr string, str string, match *[]int) {
+ }
+ 
+ func main() {
++	//regexp.debug = true;
+ 	if sys.argc() > 1 {
+ 		Compile(sys.argv(1), nil);
+ 		sys.exit(0);
+diff --git a/usr/r/regexp/regexp.go b/usr/r/regexp/regexp.go
+index 0a6fd31138..6535e6ef49 100644
+--- a/usr/r/regexp/regexp.go
++++ b/usr/r/regexp/regexp.go
+@@ -287,7 +287,6 @@ func (p *Parser) nextc() int {
+ 	if p.pos >= len(p.re.expr) {
+ 		p.ch = EOF
+ 	} else {
+-		// TODO: stringotorune should take a string*
+ 		c, w := sys.stringtorune(p.re.expr, p.pos);
+ 		p.ch = c;
+ 		p.pos += w;
+@@ -433,6 +432,8 @@ func (p *Parser) Term() (start, end Inst) {
+ 	case '(':
+ 		p.nextc();
+ 		p.nlpar++;
++		p.re.nbra++;	// increment first so first subexpr is \1
++		nbra := p.re.nbra;
+ 		start, end = p.Regexp();
+ 		if p.c() != ')' {
+ 			p.re.Error(ErrUnmatchedLpar);
+@@ -443,9 +444,8 @@ func (p *Parser) Term() (start, end Inst) {
+ 		p.re.Add(bra);
+ 		ebra := new(Ebra);
+ 		p.re.Add(ebra);
+-		p.re.nbra++;	// increment first so first subexpr is \1
+-		bra.n = p.re.nbra;
+-		ebra.n = p.re.nbra;
++		bra.n = nbra;
++		ebra.n = nbra;
+ 		if start == NULL {
+ 			if end == NULL { p.re.Error(ErrInternal) }
+ 			start = ebra
+@@ -479,7 +479,7 @@ func (p *Parser) Term() (start, end Inst) {
+ func (p *Parser) Closure() (start, end Inst) {
+ 	start, end = p.Term();
+ 	if start == NULL {
+-		return start, end
++		return
+ 	}
+ 	switch p.c() {
+ 	case '*':
+@@ -509,13 +509,13 @@ func (p *Parser) Closure() (start, end Inst) {
+ 		start = alt;	// start is now alt
+ 		end = nop;	// end is nop pointed to by both branches
+ 	default:
+-		return start, end;
++		return
+ 	}
+ 	switch p.nextc() {
+ 	case '*', '+', '?':
+ 		p.re.Error(ErrBadClosure);
+ 	}
+-	return start, end;
++	return
+ }
+ 
+ func (p *Parser) Concatenation() (start, end Inst) {
+@@ -528,7 +528,7 @@ func (p *Parser) Concatenation() (start, end Inst) {
+ 				nop := p.re.Add(new(Nop));
+ 				return nop, nop;
+ 			}
+-			return start, end;
++			return;
+ 		case start == NULL:	// this is first element of concatenation
+ 			start, end = nstart, nend;
+ 		default:
+@@ -544,7 +544,7 @@ func (p *Parser) Regexp() (start, end Inst) {
+ 	for {
+ 		switch p.c() {
+ 		default:
+-			return start, end;
++			return;
+ 		case '|':
+ 			p.nextc();
+ 			nstart, nend := p.Concatenation();
+@@ -683,6 +683,9 @@ func (re *RE) DoExecute(str string, pos int) *[]int {
+ 		if !found {
+ 			// prime the pump if we haven't seen a match yet
+ 			match := new([]int, 2*(re.nbra+1));
++			for i := 0; i < len(match); i++ {
++				match[i] = -1;	// no match seen; catches cases like "a(b)?c" on "ac"
++			}
+ 			match[0]  = pos;
+ 			s[out] = AddState(s[out], re.start.Next(), match);
+ 		}
+@@ -692,14 +695,13 @@ func (re *RE) DoExecute(str string, pos int) *[]int {
+ 			// machine has completed
+ 			break;
+ 		}
++		charwidth := 1;
+ 		c := EOF;
+ 		if pos < len(str) {
+-			c = int(str[pos])
++			c, charwidth = sys.stringtorune(str, pos);
+ 		}
+-//println("position ", pos, "char", string(c), "in", in, "out", out, "len in", len(s[in]));
+ 		for i := 0; i < len(s[in]); i++ {
+ 			state := s[in][i];
+-//state.inst.Print(); print("\n");
+ 			switch s[in][i].inst.Type() {
+ 			case BOT:
+ 				if pos == 0 {
+@@ -751,12 +753,11 @@ func (re *RE) DoExecute(str string, pos int) *[]int {
+ 				panic("unknown instruction in execute");
+ 			}
+ 		}
+-		pos++;
++		pos += charwidth;
+ 	}
+ 	if !found {
+ 		return nil
+ 	}
+-//if found { println("found: from ", final.match[0], "to", final.match[1] )}
+ 	return final.match;
+ }
+ 

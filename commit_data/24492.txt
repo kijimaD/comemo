@@ -10,6 +10,20 @@ Date:   Thu Jul 30 16:30:54 2015 -0400
     Change-Id: I6231013efa0a19ee74f7ebacd1024adb368af83a
     Reviewed-on: https://go-review.googlesource.com/12951
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index cf52f2e1e9..508f0554c7 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -713,7 +713,7 @@ var Elfstrdat []byte
+  * On FreeBSD, cannot be larger than a page.
+  */
+ const (
+-	ELFRESERVE = 3072
++	ELFRESERVE = 4096
+ )
+ 
+ /*

@@ -7,6 +7,30 @@ Date:   Tue Jan 21 11:17:44 2014 +0400
     R=golang-codereviews, dvyukov, khr
     CC=golang-codereviews
     https://golang.org/cl/54060043
-
+---
  src/pkg/runtime/chan.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index d90dc78e16..81a56488ae 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -159,6 +159,9 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
+ 	G* gp;
+ 	int64 t0;
+ 
++	if(raceenabled)
++		runtime·racereadobjectpc(ep, t->elem, runtime·getcallerpc(&t), runtime·chansend);
++
+ 	if(c == nil) {
+ 		USED(t);
+ 		if(pres != nil) {
+@@ -292,6 +295,8 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
+ 	G *gp;
+ 	int64 t0;
+ 
++	// raceenabled: don't need to check ep, as it is always on the stack.
++
+ 	if(debug)
+ 		runtime·printf("chanrecv: chan=%p\n", c);
+ 

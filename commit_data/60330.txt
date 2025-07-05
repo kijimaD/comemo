@@ -28,7 +28,7 @@ Date:   Mon Jun 17 12:30:19 2024 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/593157
     Reviewed-by: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/godebug.md                               |  9 +++++
  doc/next/6-stdlib/99-minor/net/http/66343.md | 17 +++++++++-
  src/internal/godebugs/table.go               |  1 +
@@ -38,3 +38,290 @@ Date:   Mon Jun 17 12:30:19 2024 -0700
  src/net/http/server.go                       | 13 +++++---
  src/runtime/metrics/doc.go                   |  5 +++
  8 files changed, 115 insertions(+), 19 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 86e02e820c..b3a43664c4 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -200,6 +200,15 @@ This behavior is controlled by the `x509keypairleaf` setting. For Go 1.23, it
+ defaults to `x509keypairleaf=1`. Previous versions default to
+ `x509keypairleaf=0`.
+ 
++Go 1.23 changed
++[`net/http.ServeContent`](/pkg/net/http#ServeContent),
++[`net/http.ServeFile`](/pkg/net/http#ServeFile), and
++[`net/http.ServeFS`](/pkg/net/http#ServeFS) to
++remove Cache-Control, Content-Encoding, Etag, and Last-Modified headers
++when serving an error. This behavior is controlled by
++the [`httpservecontentkeepheaders` setting](/pkg/net/http#ServeContent).
++Using `httpservecontentkeepheaders=1` restores the pre-Go 1.23 behavior.
++
+ ### Go 1.22
+ 
+ Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
+diff --git a/doc/next/6-stdlib/99-minor/net/http/66343.md b/doc/next/6-stdlib/99-minor/net/http/66343.md
+index 128ce68d45..b39e8624e7 100644
+--- a/doc/next/6-stdlib/99-minor/net/http/66343.md
++++ b/doc/next/6-stdlib/99-minor/net/http/66343.md
+@@ -1 +1,16 @@
+-[Error] now removes misleading response headers.
++[ServeContent], [ServeFile], and [ServeFileFS] now remove
++the `Cache-Control`, `Content-Encoding`, `Etag`, and `Last-Modified`
++headers when serving an error. These headers usually apply to the
++non-error content, but not to the text of errors.
++
++Middleware which wraps a [ResponseWriter] and applies on-the-fly
++encoding, such as `Content-Encoding: gzip`, will not function after
++this change.  The previous behavior of [ServeContent], [ServeFile],
++and [ServeFileFS] may be restored by setting
++`GODEBUG=httpservecontentkeepheaders=1`.
++
++Note that middleware which changes the size of the served content
++(such as by compressing it) already does not function properly when
++[ServeContent] handles a Range request. On-the-fly compression
++should use the `Transfer-Encoding` header instead of `Content-Encoding`.
++
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index eb51255916..f4262b6695 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -36,6 +36,7 @@ var All = []Info{
+ 	{Name: "http2server", Package: "net/http"},
+ 	{Name: "httplaxcontentlength", Package: "net/http", Changed: 22, Old: "1"},
+ 	{Name: "httpmuxgo121", Package: "net/http", Changed: 22, Old: "1"},
++	{Name: "httpservecontentkeepheaders", Package: "net/http", Changed: 23, Old: "0"},
+ 	{Name: "installgoroot", Package: "go/build"},
+ 	{Name: "jstmpllitinterp", Package: "html/template", Opaque: true}, // bug #66217: remove Opaque
+ 	//{Name: "multipartfiles", Package: "mime/multipart"},
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index c213d8a328..70653550f0 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -9,6 +9,7 @@ package http
+ import (
+ 	"errors"
+ 	"fmt"
++	"internal/godebug"
+ 	"io"
+ 	"io/fs"
+ 	"mime"
+@@ -171,15 +172,37 @@ func dirList(w ResponseWriter, r *Request, f File) {
+ 	fmt.Fprintf(w, "</pre>\n")
+ }
+ 
++// GODEBUG=httpservecontentkeepheaders=1 restores the pre-1.23 behavior of not deleting
++// Cache-Control, Content-Encoding, Etag, or Last-Modified headers on ServeContent errors.
++var httpservecontentkeepheaders = godebug.New("httpservecontentkeepheaders")
++
+ // serveError serves an error from ServeFile, ServeFileFS, and ServeContent.
+ // Because those can all be configured by the caller by setting headers like
+ // Etag, Last-Modified, and Cache-Control to send on a successful response,
+ // the error path needs to clear them, since they may not be meant for errors.
+ func serveError(w ResponseWriter, text string, code int) {
+ 	h := w.Header()
+-	h.Del("Etag")
+-	h.Del("Last-Modified")
+-	h.Del("Cache-Control")
++
++	nonDefault := false
++	for _, k := range []string{
++		"Cache-Control",
++		"Content-Encoding",
++		"Etag",
++		"Last-Modified",
++	} {
++		if !h.has(k) {
++			continue
++		}
++		if httpservecontentkeepheaders.Value() == "1" {
++			nonDefault = true
++		} else {
++			h.Del(k)
++		}
++	}
++	if nonDefault {
++		httpservecontentkeepheaders.IncNonDefault()
++	}
++
+ 	Error(w, text, code)
+ }
+ 
+@@ -203,11 +226,17 @@ func serveError(w ResponseWriter, text string, code int) {
+ //
+ // The content's Seek method must work: ServeContent uses
+ // a seek to the end of the content to determine its size.
++// Note that [*os.File] implements the [io.ReadSeeker] interface.
+ //
+ // If the caller has set w's ETag header formatted per RFC 7232, section 2.3,
+ // ServeContent uses it to handle requests using If-Match, If-None-Match, or If-Range.
+ //
+-// Note that [*os.File] implements the [io.ReadSeeker] interface.
++// If an error occurs when serving the request (for example, when
++// handling an invalid range request), ServeContent responds with an
++// error message. By default, ServeContent strips the Cache-Control,
++// Content-Encoding, ETag, and Last-Modified headers from error responses.
++// The GODEBUG setting httpservecontentkeepheaders=1 causes ServeContent
++// to preserve these headers.
+ func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {
+ 	sizeFunc := func() (int64, error) {
+ 		size, err := content.Seek(0, io.SeekEnd)
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 2c3426f735..2ffffbf0b3 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -1223,8 +1223,20 @@ type issue12991File struct{ File }
+ func (issue12991File) Stat() (fs.FileInfo, error) { return nil, fs.ErrPermission }
+ func (issue12991File) Close() error               { return nil }
+ 
+-func TestFileServerErrorMessages(t *testing.T) { run(t, testFileServerErrorMessages) }
+-func testFileServerErrorMessages(t *testing.T, mode testMode) {
++func TestFileServerErrorMessages(t *testing.T) {
++	run(t, func(t *testing.T, mode testMode) {
++		t.Run("keepheaders=0", func(t *testing.T) {
++			testFileServerErrorMessages(t, mode, false)
++		})
++		t.Run("keepheaders=1", func(t *testing.T) {
++			testFileServerErrorMessages(t, mode, true)
++		})
++	}, testNotParallel)
++}
++func testFileServerErrorMessages(t *testing.T, mode testMode, keepHeaders bool) {
++	if keepHeaders {
++		t.Setenv("GODEBUG", "httpservecontentkeepheaders=1")
++	}
+ 	fs := fakeFS{
+ 		"/500": &fakeFileInfo{
+ 			err: errors.New("random error"),
+@@ -1254,8 +1266,12 @@ func testFileServerErrorMessages(t *testing.T, mode testMode) {
+ 			t.Errorf("GET /%d: StatusCode = %d; want %d", code, res.StatusCode, code)
+ 		}
+ 		for _, hdr := range []string{"Etag", "Last-Modified", "Cache-Control"} {
+-			if v, ok := res.Header[hdr]; ok {
+-				t.Errorf("GET /%d: Header[%q] = %q, want not present", code, hdr, v)
++			if v, got := res.Header[hdr]; got != keepHeaders {
++				want := "not present"
++				if keepHeaders {
++					want = "present"
++				}
++				t.Errorf("GET /%d: Header[%q] = %q, want %v", code, hdr, v, want)
+ 			}
+ 		}
+ 	}
+@@ -1710,6 +1726,17 @@ func testFileServerDirWithRootFile(t *testing.T, mode testMode) {
+ }
+ 
+ func TestServeContentHeadersWithError(t *testing.T) {
++	t.Run("keepheaders=0", func(t *testing.T) {
++		testServeContentHeadersWithError(t, false)
++	})
++	t.Run("keepheaders=1", func(t *testing.T) {
++		testServeContentHeadersWithError(t, true)
++	})
++}
++func testServeContentHeadersWithError(t *testing.T, keepHeaders bool) {
++	if keepHeaders {
++		t.Setenv("GODEBUG", "httpservecontentkeepheaders=1")
++	}
+ 	contents := []byte("content")
+ 	ts := newClientServerTest(t, http1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("Content-Type", "application/octet-stream")
+@@ -1738,6 +1765,12 @@ func TestServeContentHeadersWithError(t *testing.T) {
+ 	out, _ := io.ReadAll(res.Body)
+ 	res.Body.Close()
+ 
++	ifKept := func(s string) string {
++		if keepHeaders {
++			return s
++		}
++		return ""
++	}
+ 	if g, e := res.StatusCode, 416; g != e {
+ 		t.Errorf("got status = %d; want %d", g, e)
+ 	}
+@@ -1750,16 +1783,16 @@ func TestServeContentHeadersWithError(t *testing.T) {
+ 	if g, e := res.Header.Get("Content-Length"), strconv.Itoa(len(out)); g != e {
+ 		t.Errorf("got content-length = %q, want %q", g, e)
+ 	}
+-	if g, e := res.Header.Get("Content-Encoding"), ""; g != e {
++	if g, e := res.Header.Get("Content-Encoding"), ifKept("gzip"); g != e {
+ 		t.Errorf("got content-encoding = %q, want %q", g, e)
+ 	}
+-	if g, e := res.Header.Get("Etag"), ""; g != e {
++	if g, e := res.Header.Get("Etag"), ifKept(`"abcdefgh"`); g != e {
+ 		t.Errorf("got etag = %q, want %q", g, e)
+ 	}
+-	if g, e := res.Header.Get("Last-Modified"), ""; g != e {
++	if g, e := res.Header.Get("Last-Modified"), ifKept("Wed, 21 Oct 2015 07:28:00 GMT"); g != e {
+ 		t.Errorf("got last-modified = %q, want %q", g, e)
+ 	}
+-	if g, e := res.Header.Get("Cache-Control"), ""; g != e {
++	if g, e := res.Header.Get("Cache-Control"), ifKept("immutable"); g != e {
+ 		t.Errorf("got cache-control = %q, want %q", g, e)
+ 	}
+ 	if g, e := res.Header.Get("Content-Range"), "bytes */7"; g != e {
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 06bf5089d8..3ec10c2f14 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -7166,13 +7166,12 @@ func testErrorContentLength(t *testing.T, mode testMode) {
+ func TestError(t *testing.T) {
+ 	w := httptest.NewRecorder()
+ 	w.Header().Set("Content-Length", "1")
+-	w.Header().Set("Content-Encoding", "ascii")
+ 	w.Header().Set("X-Content-Type-Options", "scratch and sniff")
+ 	w.Header().Set("Other", "foo")
+ 	Error(w, "oops", 432)
+ 
+ 	h := w.Header()
+-	for _, hdr := range []string{"Content-Length", "Content-Encoding"} {
++	for _, hdr := range []string{"Content-Length"} {
+ 		if v, ok := h[hdr]; ok {
+ 			t.Errorf("%s: %q, want not present", hdr, v)
+ 		}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 190f565013..a5e98f1d95 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2226,17 +2226,22 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
+ // writes are done to w.
+ // The error message should be plain text.
+ //
+-// Error deletes the Content-Length and Content-Encoding headers,
++// Error deletes the Content-Length header,
+ // sets Content-Type to “text/plain; charset=utf-8”,
+ // and sets X-Content-Type-Options to “nosniff”.
+ // This configures the header properly for the error message,
+ // in case the caller had set it up expecting a successful output.
+ func Error(w ResponseWriter, error string, code int) {
+ 	h := w.Header()
+-	// We delete headers which might be valid for some other content,
+-	// but not anymore for the error content.
++
++	// Delete the Content-Length header, which might be for some other content.
++	// Assuming the error string fits in the writer's buffer, we'll figure
++	// out the correct Content-Length for it later.
++	//
++	// We don't delete Content-Encoding, because some middleware sets
++	// Content-Encoding: gzip and wraps the ResponseWriter to compress on-the-fly.
++	// See https://go.dev/issue/66343.
+ 	h.Del("Content-Length")
+-	h.Del("Content-Encoding")
+ 
+ 	// There might be content type already set, but we reset it to
+ 	// text/plain for the error message.
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index c1d0ca9072..b8be9f8272 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -267,6 +267,11 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the net/http
+ 		package due to a non-default GODEBUG=httpmuxgo121=... setting.
+ 
++	/godebug/non-default-behavior/httpservecontentkeepheaders:events
++		The number of non-default behaviors executed
++		by the net/http package due to a non-default
++		GODEBUG=httpservecontentkeepheaders=... setting.
++
+ 	/godebug/non-default-behavior/installgoroot:events
+ 		The number of non-default behaviors executed by the go/build
+ 		package due to a non-default GODEBUG=installgoroot=... setting.

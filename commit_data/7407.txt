@@ -7,8 +7,48 @@ Date:   Wed Feb 9 00:03:08 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4128061
-
+---
  misc/dashboard/godashboard/main.html    | 2 +-
  misc/dashboard/godashboard/package.html | 2 +-
  misc/dashboard/godashboard/project.html | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/dashboard/godashboard/main.html b/misc/dashboard/godashboard/main.html
+index 8eb27869e5..9572f181eb 100644
+--- a/misc/dashboard/godashboard/main.html
++++ b/misc/dashboard/godashboard/main.html
+@@ -12,7 +12,7 @@
+       <li>Build Status</li>
+       <li><a href="/package">Packages</a></li>
+       <li><a href="/project">Projects</a></li>
+-      <li><a href="/benchmarks">Benchmarks</a></li>
++<!--      <li><a href="/benchmarks">Benchmarks</a></li> -->
+       <li><a href="http://golang.org/">golang.org</a></li>
+     </ul>
+     
+diff --git a/misc/dashboard/godashboard/package.html b/misc/dashboard/godashboard/package.html
+index 08dd6a31d6..13640c8e77 100644
+--- a/misc/dashboard/godashboard/package.html
++++ b/misc/dashboard/godashboard/package.html
+@@ -10,7 +10,7 @@
+       <li><a href="/">Build Status</a></li>
+       <li>Packages</li>
+       <li><a href="/project">Projects</a></li>
+-      <li><a href="/benchmarks">Benchmarks</a></li>
++<!--      <li><a href="/benchmarks">Benchmarks</a></li> -->
+       <li><a href="http://golang.org/">golang.org</a></li>
+     </ul>
+ 
+diff --git a/misc/dashboard/godashboard/project.html b/misc/dashboard/godashboard/project.html
+index a9363806fb..f1cf7c0232 100644
+--- a/misc/dashboard/godashboard/project.html
++++ b/misc/dashboard/godashboard/project.html
+@@ -14,7 +14,7 @@
+       <li><a href="/">Build Status</a></li>
+       <li><a href="/package">Packages</a></li>
+       <li>Projects</li>
+-      <li><a href="/benchmarks">Benchmarks</a></li>
++<!--      <li><a href="/benchmarks">Benchmarks</a></li> -->
+       <li><a href="http://golang.org/">golang.org</a></li>
+     </ul>
+ 

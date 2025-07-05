@@ -9,6 +9,21 @@ Date:   Wed Apr 27 22:18:33 2016 -0400
     Change-Id: Ic968916383d77b7f449db8f230c928a1e81939e0
     Reviewed-on: https://go-review.googlesource.com/19807
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index ffad820aff..a4f203cf74 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -571,7 +571,8 @@ func loadlib() {
+ 
+ 	// cmd/7l doesn't support cgo internal linking
+ 	// This is https://golang.org/issue/10373.
+-	if iscgo && goarch == "arm64" {
++	// mips64x doesn't support cgo internal linking either (golang.org/issue/14449)
++	if iscgo && (goarch == "arm64" || goarch == "mips64" || goarch == "mips64le") {
+ 		Linkmode = LinkExternal
+ 	}
+ 

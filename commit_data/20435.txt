@@ -11,8 +11,219 @@ Date:   Mon Sep 8 00:22:40 2014 -0400
     TBR=r
     CC=golang-codereviews
     https://golang.org/cl/136320043
-
+---
  misc/nacl/testzip.proto           | 159 +++++++++++++++++++-------------------
  src/nacltest.bash                 |   4 +-
  src/runtime/thunk_solaris_amd64.s |   2 +-
  3 files changed, 82 insertions(+), 83 deletions(-)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 89e1e1193a..fd0c6a035b 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -21,98 +21,97 @@ go	src=..
+ 			link
+ 				testdata
+ 					+
+-		pkg
+-			archive
+-				tar
+-					testdata
+-						+
+-				zip
+-					testdata
+-						+
+-			compress
+-				bzip2
+-					testdata
+-						+
+-				flate
+-				gzip
+-					testdata
+-						+
+-				lzw
+-				testdata
+-					+
+-				zlib
+-			crypto
+-				rsa
+-					testdata
+-						+
+-				tls
+-					testdata
+-						+
+-			debug
+-				dwarf
+-					testdata
+-						+
+-				elf
+-					testdata
+-						+
+-				macho
+-					testdata
+-						+
+-				pe
+-					testdata
+-						+
+-				plan9obj
+-					testdata
+-						+
+-			go
+-				build
+-					+
+-				doc
+-					testdata
+-						+
+-				format
+-					+
+-				parser
+-					+
+-				printer
+-					+
+-			image
+-				testdata
+-					+
+-				draw
+-				gif
+-				jpeg
+-				png
+-					testdata
+-						+
+-			io
++		archive
++			tar
++				testdata
++					+
++			zip
++				testdata
++					+
++		compress
++			bzip2
++				testdata
++					+
++			flate
++			gzip
++				testdata
++					+
++			lzw
++			testdata
+ 				+
+-			mime
++			zlib
++		crypto
++			rsa
++				testdata
++					+
++			tls
++				testdata
++					+
++		debug
++			dwarf
++				testdata
++					+
++			elf
++				testdata
++					+
++			macho
+ 				testdata
+ 					+
+-				multipart
+-					testdata
+-						+
+-			net
+-				http
++			pe
++				testdata
+ 					+
++			plan9obj
+ 				testdata
+ 					+
+-			os
++		go
++			build
+ 				+
+-			path
+-				filepath
++			doc
++				testdata
+ 					+
+-			regexp
++			format
++				+
++			parser
++				+
++			printer
++				+
++		image
++			testdata
++				+
++			draw
++			gif
++			jpeg
++			png
+ 				testdata
+ 					+
+-			strconv
++		io
++			+
++		mime
++			testdata
++				+
++			multipart
++				testdata
++					+
++		net
++			http
++				+
++			testdata
++				+
++		os
++			+
++		path
++			filepath
++				+
++		regexp
++			testdata
++				+
++		strconv
++			testdata
++				+
++		text
++			template
+ 				testdata
+ 					+
+-			text
+-				template
+-					testdata
+-						+
+ 	lib
+ 		time
+ 			zoneinfo.zip
+diff --git a/src/nacltest.bash b/src/nacltest.bash
+index 154d99ae98..6220d39f13 100755
+--- a/src/nacltest.bash
++++ b/src/nacltest.bash
+@@ -72,8 +72,8 @@ export GOROOT=$(pwd)/..
+ 
+ # Build zip file embedded in package syscall.
+ gobin=${GOBIN:-$(pwd)/../bin}
+-rm -f pkg/syscall/fstest_nacl.go
+-GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH $gobin/go run ../misc/nacl/mkzip.go -p syscall -r .. ../misc/nacl/testzip.proto pkg/syscall/fstest_nacl.go
++rm -f syscall/fstest_nacl.go
++GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH $gobin/go run ../misc/nacl/mkzip.go -p syscall -r .. ../misc/nacl/testzip.proto syscall/fstest_nacl.go
+ 
+ # Run standard build and tests.
+ export PATH=$(pwd)/../misc/nacl:$PATH
+diff --git a/src/runtime/thunk_solaris_amd64.s b/src/runtime/thunk_solaris_amd64.s
+index 352011e047..f61188c140 100644
+--- a/src/runtime/thunk_solaris_amd64.s
++++ b/src/runtime/thunk_solaris_amd64.s
+@@ -5,7 +5,7 @@
+ // This file exposes various external library functions to Go code in the runtime.
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT runtime·libc_chdir(SB),NOSPLIT,$0
+ 	MOVQ	libc·chdir(SB), AX

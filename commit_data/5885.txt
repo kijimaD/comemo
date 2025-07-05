@@ -10,6 +10,29 @@ Date:   Mon Jul 26 16:21:27 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1868047
-
+---
  src/pkg/runtime/goc2c.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/goc2c.c b/src/pkg/runtime/goc2c.c
+index a4489213f6..385b885855 100644
+--- a/src/pkg/runtime/goc2c.c
++++ b/src/pkg/runtime/goc2c.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-/* Translate a .cgo file into a .c file.  A .cgo file is a combination
++/* Translate a .goc file into a .c file.  A .goc file is a combination
+    of a limited form of Go with C.  */
+ 
+ /*
+@@ -669,7 +669,7 @@ process_file(void)
+ static void
+ usage(void)
+ {
+-	fprintf(stderr, "Usage: cgo2c [--6g | --gc] [file]\n");
++	fprintf(stderr, "Usage: goc2c [--6g | --gc] [file]\n");
+ 	exit(1);
+ }
+ 

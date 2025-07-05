@@ -6,6 +6,37 @@ Date:   Sat Nov 7 18:56:29 2009 -0800
     
     R=r
     http://go/go-review/1024018
-
+---
  lib/codereview/codereview.py | 15 +++++++++++----
  1 file changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 06423963bb..f5ebc595e8 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -372,14 +372,21 @@ def LoadAllCL(ui, repo, web=True):
+ 	files = [f for f in os.listdir(dir) if f.startswith('cl.')]
+ 	if not files:
+ 		return m
+-	if web:
+-		# Authenticate now, so we can use threads below
+-		MySend(None)
+ 	active = []
++	first = True
+ 	for f in files:
+ 		t = LoadCLThread(ui, repo, dir, f, web)
+ 		t.start()
+-		active.append(t)
++		if web and first:
++			# first request: wait in case it needs to authenticate
++			# otherwise we get lots of user/password prompts
++			# running in parallel.
++			t.join()
++			if t.cl:
++				m[t.cl.name] = t.cl
++			first = False
++		else:
++			active.append(t)
+ 	for t in active:
+ 		t.join()
+ 		if t.cl:

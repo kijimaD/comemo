@@ -17,8 +17,273 @@ Date:   Sat Apr 30 21:11:42 2016 -0500
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/export_test.go    | 19 ++++++++++-----
  src/net/http/transport.go      | 51 ++++++++++++++++++++++++++++++++-------
  src/net/http/transport_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 110 insertions(+), 14 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index d1baed896a..3ebc51b19e 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -81,9 +81,6 @@ func (t *Transport) IdleConnKeysForTesting() (keys []string) {
+ 	keys = make([]string, 0)
+ 	t.idleMu.Lock()
+ 	defer t.idleMu.Unlock()
+-	if t.idleConn == nil {
+-		return
+-	}
+ 	for key := range t.idleConn {
+ 		keys = append(keys, key.String())
+ 	}
+@@ -91,12 +88,22 @@ func (t *Transport) IdleConnKeysForTesting() (keys []string) {
+ 	return
+ }
+ 
+-func (t *Transport) IdleConnCountForTesting(cacheKey string) int {
++func (t *Transport) IdleConnStrsForTesting() []string {
++	var ret []string
+ 	t.idleMu.Lock()
+ 	defer t.idleMu.Unlock()
+-	if t.idleConn == nil {
+-		return 0
++	for _, conns := range t.idleConn {
++		for _, pc := range conns {
++			ret = append(ret, pc.conn.LocalAddr().String()+"/"+pc.conn.RemoteAddr().String())
++		}
+ 	}
++	sort.Strings(ret)
++	return ret
++}
++
++func (t *Transport) IdleConnCountForTesting(cacheKey string) int {
++	t.idleMu.Lock()
++	defer t.idleMu.Unlock()
+ 	for k, conns := range t.idleConn {
+ 		if k.String() == cacheKey {
+ 			return len(conns)
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 755a807bed..f9cbd06a79 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -40,6 +40,7 @@ var DefaultTransport RoundTripper = &Transport{
+ 		KeepAlive: 30 * time.Second,
+ 	},
+ 	MaxIdleConns:          100,
++	IdleConnTimeout:       90 * time.Second,
+ 	TLSHandshakeTimeout:   10 * time.Second,
+ 	ExpectContinueTimeout: 1 * time.Second,
+ }
+@@ -68,7 +69,6 @@ const DefaultMaxIdleConnsPerHost = 2
+ type Transport struct {
+ 	idleMu     sync.Mutex
+ 	wantIdle   bool // user has requested to close all idle conns
+-	idleCount  int
+ 	idleConn   map[connectMethodKey][]*persistConn
+ 	idleConnCh map[connectMethodKey]chan *persistConn
+ 	idleLRU    connLRU
+@@ -139,6 +139,12 @@ type Transport struct {
+ 	// DefaultMaxIdleConnsPerHost is used.
+ 	MaxIdleConnsPerHost int
+ 
++	// IdleConnTimeout is the maximum amount of time an idle
++	// (keep-alive) connection will remain idle before closing
++	// itself.
++	// Zero means no limit.
++	IdleConnTimeout time.Duration
++
+ 	// ResponseHeaderTimeout, if non-zero, specifies the amount of
+ 	// time to wait for a server's response headers after fully
+ 	// writing the request (including its body, if any). This
+@@ -462,7 +468,6 @@ func (t *Transport) CloseIdleConnections() {
+ 	t.idleConn = nil
+ 	t.idleConnCh = nil
+ 	t.wantIdle = true
+-	t.idleCount = 0
+ 	t.idleLRU = connLRU{}
+ 	t.idleMu.Unlock()
+ 	for _, conns := range m {
+@@ -568,6 +573,7 @@ var (
+ 	errCloseIdleConns     = errors.New("http: CloseIdleConnections called")
+ 	errReadLoopExiting    = errors.New("http: persistConn.readLoop exiting")
+ 	errServerClosedIdle   = errors.New("http: server closed idle conn")
++	errIdleConnTimeout    = errors.New("http: idle connection timeout")
+ )
+ 
+ func (t *Transport) putOrCloseIdleConn(pconn *persistConn) {
+@@ -633,13 +639,19 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
+ 		}
+ 	}
+ 	t.idleConn[key] = append(idles, pconn)
+-	t.idleCount++
+ 	t.idleLRU.add(pconn)
+ 	if t.MaxIdleConns != 0 && t.idleLRU.len() > t.MaxIdleConns {
+ 		oldest := t.idleLRU.removeOldest()
+ 		oldest.close(errTooManyIdle)
+ 		t.removeIdleConnLocked(oldest)
+ 	}
++	if t.IdleConnTimeout > 0 {
++		if pconn.idleTimer != nil {
++			pconn.idleTimer.Reset(t.IdleConnTimeout)
++		} else {
++			pconn.idleTimer = time.AfterFunc(t.IdleConnTimeout, pconn.closeConnIfStillIdle)
++		}
++	}
+ 	pconn.idleAt = time.Now()
+ 	return nil
+ }
+@@ -684,7 +696,6 @@ func (t *Transport) getIdleConn(cm connectMethod) (pconn *persistConn, idleSince
+ 			pconn = pconns[len(pconns)-1]
+ 			t.idleConn[key] = pconns[:len(pconns)-1]
+ 		}
+-		t.idleCount--
+ 		t.idleLRU.remove(pconn)
+ 		if pconn.isBroken() {
+ 			// There is a tiny window where this is
+@@ -694,6 +705,12 @@ func (t *Transport) getIdleConn(cm connectMethod) (pconn *persistConn, idleSince
+ 			// carry on.
+ 			continue
+ 		}
++		if pconn.idleTimer != nil && !pconn.idleTimer.Stop() {
++			// We picked this conn at the ~same time it
++			// was expiring and it's trying to close
++			// itself in another goroutine. Don't use it.
++			continue
++		}
+ 		return pconn, pconn.idleAt
+ 	}
+ }
+@@ -707,6 +724,9 @@ func (t *Transport) removeIdleConn(pconn *persistConn) {
+ 
+ // t.idleMu must be held.
+ func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
++	if pconn.idleTimer != nil {
++		pconn.idleTimer.Stop()
++	}
+ 	t.idleLRU.remove(pconn)
+ 	key := pconn.cacheKey
+ 	pconns, _ := t.idleConn[key]
+@@ -715,7 +735,6 @@ func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
+ 		// Nothing
+ 	case 1:
+ 		if pconns[0] == pconn {
+-			t.idleCount--
+ 			delete(t.idleConn, key)
+ 		}
+ 	default:
+@@ -725,7 +744,6 @@ func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
+ 			}
+ 			pconns[i] = pconns[len(pconns)-1]
+ 			t.idleConn[key] = pconns[:len(pconns)-1]
+-			t.idleCount--
+ 			break
+ 		}
+ 	}
+@@ -845,7 +863,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
+ 		// But our dial is still going, so give it away
+ 		// when it finishes:
+ 		handlePendingDial()
+-		if trace != nil {
++		if trace != nil && trace.GotConn != nil {
+ 			trace.GotConn(httptrace.GotConnInfo{Conn: pc.conn, Reused: pc.isReused()})
+ 		}
+ 		return pc, nil
+@@ -1136,7 +1154,9 @@ type persistConn struct {
+ 	// whether or not a connection can be reused. Issue 7569.
+ 	writeErrCh chan error
+ 
+-	idleAt time.Time // time it last become idle; guarded by Transport.idleMu
++	// Both guarded by Transport.idleMu:
++	idleAt    time.Time   // time it last become idle
++	idleTimer *time.Timer // holding an AfterFunc to close it
+ 
+ 	mu                   sync.Mutex // guards following fields
+ 	numExpectedResponses int
+@@ -1212,6 +1232,21 @@ func (pc *persistConn) cancelRequest() {
+ 	pc.closeLocked(errRequestCanceled)
+ }
+ 
++// closeConnIfStillIdle closes the connection if it's still sitting idle.
++// This is what's called by the persistConn's idleTimer, and is run in its
++// own goroutine.
++func (pc *persistConn) closeConnIfStillIdle() {
++	t := pc.t
++	t.idleMu.Lock()
++	defer t.idleMu.Unlock()
++	if _, ok := t.idleLRU.m[pc]; !ok {
++		// Not idle.
++		return
++	}
++	t.removeIdleConnLocked(pc)
++	pc.close(errIdleConnTimeout)
++}
++
+ func (pc *persistConn) readLoop() {
+ 	closeErr := errReadLoopExiting // default value, if not changed below
+ 	defer func() {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 9f14c9649a..f8ac338445 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3359,6 +3359,60 @@ func TestTransportMaxIdleConns(t *testing.T) {
+ 	}
+ }
+ 
++func TestTransportIdleConnTimeout(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in short mode")
++	}
++	defer afterTest(t)
++
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		// No body for convenience.
++	}))
++	defer ts.Close()
++
++	const timeout = 1 * time.Second
++	tr := &Transport{
++		IdleConnTimeout: timeout,
++	}
++	defer tr.CloseIdleConnections()
++	c := &Client{Transport: tr}
++
++	var conn string
++	doReq := func(n int) {
++		req, _ := NewRequest("GET", ts.URL, nil)
++		req = req.WithContext(httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
++			PutIdleConn: func(err error) {
++				if err != nil {
++					t.Errorf("failed to keep idle conn: %v", err)
++				}
++			},
++		}))
++		res, err := c.Do(req)
++		if err != nil {
++			t.Fatal(err)
++		}
++		res.Body.Close()
++		conns := tr.IdleConnStrsForTesting()
++		if len(conns) != 1 {
++			t.Fatalf("req %v: unexpected number of idle conns: %q", n, conns)
++		}
++		if conn == "" {
++			conn = conns[0]
++		}
++		if conn != conns[0] {
++			t.Fatalf("req %v: cached connection changed; expected the same one throughout the test", n)
++		}
++	}
++	for i := 0; i < 3; i++ {
++		doReq(i)
++		time.Sleep(timeout / 2)
++	}
++	time.Sleep(timeout * 3 / 2)
++	if got := tr.IdleConnStrsForTesting(); len(got) != 0 {
++		t.Errorf("idle conns = %q; want none", got)
++	}
++}
++
+ var errFakeRoundTrip = errors.New("fake roundtrip")
+ 
+ type funcRoundTripper func()

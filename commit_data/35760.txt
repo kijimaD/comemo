@@ -15,7 +15,132 @@ Date:   Tue Mar 6 16:20:10 2018 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go  | 23 -----------------
  src/cmd/compile/internal/gc/pgen.go | 51 +++++++++++++++++++++++++++----------
  2 files changed, 37 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 2756707aef..5d1efaadaf 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1020,29 +1020,6 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.F
+ 	return f
+ }
+ 
+-func funccompile(n *Node) {
+-	if n.Type == nil {
+-		if nerrors == 0 {
+-			Fatalf("funccompile missing type")
+-		}
+-		return
+-	}
+-
+-	// assign parameter offsets
+-	checkwidth(n.Type)
+-
+-	if Curfn != nil {
+-		Fatalf("funccompile %v inside %v", n.Func.Nname.Sym, Curfn.Func.Nname.Sym)
+-	}
+-
+-	dclcontext = PAUTO
+-	funcdepth = n.Func.Depth + 1
+-	compile(n)
+-	Curfn = nil
+-	funcdepth = 0
+-	dclcontext = PEXTERN
+-}
+-
+ func funcsymname(s *types.Sym) string {
+ 	return s.Name + "·f"
+ }
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 2e404e5021..36b46a1c69 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -27,32 +27,32 @@ var (
+ 	compilequeue    []*Node // functions waiting to be compiled
+ )
+ 
+-func emitptrargsmap() {
+-	if Curfn.funcname() == "_" {
++func emitptrargsmap(fn *Node) {
++	if fn.funcname() == "_" {
+ 		return
+ 	}
+-	sym := lookup(fmt.Sprintf("%s.args_stackmap", Curfn.funcname()))
++	sym := lookup(fmt.Sprintf("%s.args_stackmap", fn.funcname()))
+ 	lsym := sym.Linksym()
+ 
+-	nptr := int(Curfn.Type.ArgWidth() / int64(Widthptr))
++	nptr := int(fn.Type.ArgWidth() / int64(Widthptr))
+ 	bv := bvalloc(int32(nptr) * 2)
+ 	nbitmap := 1
+-	if Curfn.Type.NumResults() > 0 {
++	if fn.Type.NumResults() > 0 {
+ 		nbitmap = 2
+ 	}
+ 	off := duint32(lsym, 0, uint32(nbitmap))
+ 	off = duint32(lsym, off, uint32(bv.n))
+ 
+-	if Curfn.IsMethod() {
+-		onebitwalktype1(Curfn.Type.Recvs(), 0, bv)
++	if fn.IsMethod() {
++		onebitwalktype1(fn.Type.Recvs(), 0, bv)
+ 	}
+-	if Curfn.Type.NumParams() > 0 {
+-		onebitwalktype1(Curfn.Type.Params(), 0, bv)
++	if fn.Type.NumParams() > 0 {
++		onebitwalktype1(fn.Type.Params(), 0, bv)
+ 	}
+ 	off = dbvec(lsym, off, bv)
+ 
+-	if Curfn.Type.NumResults() > 0 {
+-		onebitwalktype1(Curfn.Type.Results(), 0, bv)
++	if fn.Type.NumResults() > 0 {
++		onebitwalktype1(fn.Type.Results(), 0, bv)
+ 		off = dbvec(lsym, off, bv)
+ 	}
+ 
+@@ -183,15 +183,38 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 	s.stkptrsize = Rnd(s.stkptrsize, int64(Widthreg))
+ }
+ 
+-func compile(fn *Node) {
+-	Curfn = fn
++func funccompile(fn *Node) {
++	if Curfn != nil {
++		Fatalf("funccompile %v inside %v", fn.Func.Nname.Sym, Curfn.Func.Nname.Sym)
++	}
++
++	if fn.Type == nil {
++		if nerrors == 0 {
++			Fatalf("funccompile missing type")
++		}
++		return
++	}
++
++	// assign parameter offsets
+ 	dowidth(fn.Type)
+ 
+ 	if fn.Nbody.Len() == 0 {
+-		emitptrargsmap()
++		emitptrargsmap(fn)
+ 		return
+ 	}
+ 
++	dclcontext = PAUTO
++	funcdepth = fn.Func.Depth + 1
++	Curfn = fn
++
++	compile(fn)
++
++	Curfn = nil
++	funcdepth = 0
++	dclcontext = PEXTERN
++}
++
++func compile(fn *Node) {
+ 	saveerrors()
+ 
+ 	order(fn)

@@ -63,7 +63,7 @@ Date:   Mon Dec 6 14:23:18 2010 -0800
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/3050041
-
+---
  lib/godoc/package.html                     |  34 ++--
  lib/godoc/package.txt                      |  16 +-
  src/cmd/cgo/ast.go                         |   7 +-
@@ -116,3 +116,4617 @@ Date:   Mon Dec 6 14:23:18 2010 -0800
  src/pkg/go/typechecker/typechecker_test.go |  12 +-
  test/fixedbugs/bug206.go                   |   4 +-
  51 files changed, 782 insertions(+), 691 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 0eff78e45c..3a73a9e3ba 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -6,17 +6,19 @@
+ 
+ {.section PAst}
+ 	<pre>
+-	{@|html}
++	{@ FSet|html}
+ 	</pre>
+ {.end}
+ {.section PDoc}
+ 	<!-- PackageName is printed as title by the top-level template -->
+ 	{.section IsPkg}
++		{# ImportPath is a string - no need for FSet}
+ 		<p><code>import "{ImportPath|html-esc}"</code></p>
+ 	{.end}
+ 	{Doc|html-comment}
+ 	{.section IsPkg}
+ 		{.section Filenames}
++			{# Filenames are strings - no need for FSet}
+ 			<p>
+ 			<h4>Package files</h4>
+ 			<span style="font-size:90%">
+@@ -31,44 +33,46 @@
+ 		<h2 id="Constants">Constants</h2>
+ 		{.repeated section @}
+ 			{Doc|html-comment}
+-			<pre>{Decl|html}</pre>
++			<pre>{Decl FSet|html}</pre>
+ 		{.end}
+ 	{.end}
+ 	{.section Vars}
+ 		<h2 id="Variables">Variables</h2>
+ 		{.repeated section @}
+ 			{Doc|html-comment}
+-			<pre>{Decl|html}</pre>
++			<pre>{Decl FSet|html}</pre>
+ 		{.end}
+ 	{.end}
+ 	{.section Funcs}
+ 		{.repeated section @}
+-			<h2 id="{Name|html-esc}">func <a href="/{Decl|url-pos}">{Name|html-esc}</a></h2>
+-			<p><code>{Decl|html}</code></p>
++			{# Name is a string - no need for FSet}
++			<h2 id="{Name|html-esc}">func <a href="/{Decl FSet|url-pos}">{Name|html-esc}</a></h2>
++			<p><code>{Decl FSet|html}</code></p>
+ 			{Doc|html-comment}
+ 		{.end}
+ 	{.end}
+ 	{.section Types}
+ 		{.repeated section @}
+-			<h2 id="{Type.Name|html-esc}">type <a href="/{Decl|url-pos}">{Type.Name|html-esc}</a></h2>
++			{# Type.Name is a string - no need for FSet}
++			<h2 id="{Type.Name FSet|html-esc}">type <a href="/{Decl FSet|url-pos}">{Type.Name FSet|html-esc}</a></h2>
+ 			{Doc|html-comment}
+-			<p><pre>{Decl|html}</pre></p>
++			<p><pre>{Decl FSet|html}</pre></p>
+ 			{.repeated section Consts}
+ 				{Doc|html-comment}
+-				<pre>{Decl|html}</pre>
++				<pre>{Decl FSet|html}</pre>
+ 			{.end}
+ 			{.repeated section Vars}
+ 				{Doc|html-comment}
+-				<pre>{Decl|html}</pre>
++				<pre>{Decl FSet|html}</pre>
+ 			{.end}
+ 			{.repeated section Factories}
+-				<h3 id="{Type.Name|html-esc}.{Name|html-esc}">func <a href="/{Decl|url-pos}">{Name|html-esc}</a></h3>
+-				<p><code>{Decl|html}</code></p>
++				<h3 id="{Type.Name FSet|html-esc}.{Name|html-esc}">func <a href="/{Decl FSet|url-pos}">{Name|html-esc}</a></h3>
++				<p><code>{Decl FSet|html}</code></p>
+ 				{Doc|html-comment}
+ 			{.end}
+ 			{.repeated section Methods}
+-				<h3 id="{Type.Name|html-esc}.{Name|html-esc}">func ({Recv|html}) <a href="/{Decl|url-pos}">{Name|html-esc}</a></h3>
+-				<p><code>{Decl|html}</code></p>
++				<h3 id="{Type.Name FSet|html-esc}.{Name|html-esc}">func ({Recv FSet|html}) <a href="/{Decl FSet|url-pos}">{Name|html-esc}</a></h3>
++				<p><code>{Decl FSet|html}</code></p>
+ 				{Doc|html-comment}
+ 			{.end}
+ 		{.end}
+@@ -83,12 +87,14 @@
+ {.section PList}
+ 	<h2>Other packages</h2>
+ 	<p>
++	{# PLIst entries are strings - no need for FSet}
+ 	{.repeated section @}
+-	<a href="?p={@|html}">{@|html}</a><br />
++	<a href="?p={@|html-esc}">{@|html-esc}</a><br />
+ 	{.end}
+ 	</p>
+ {.end}
+ {.section Dirs}
++	{# DirList entries are numbers and strings - no need for FSet}
+ 	<h2 id="Subdirectories">Subdirectories</h2>
+ 	<p>
+ 	<table class="layout">
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index 124771edd1..6cad213c52 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -19,7 +19,7 @@ COMMAND DOCUMENTATION
+ CONSTANTS
+ 
+ {.repeated section @}
+-{Decl}
++{Decl FSet}
+ {Doc}
+ {.end}
+ {.end}
+@@ -28,7 +28,7 @@ CONSTANTS
+ VARIABLES
+ 
+ {.repeated section @}
+-{Decl}
++{Decl FSet}
+ {Doc}
+ {.end}
+ {.end}
+@@ -37,7 +37,7 @@ VARIABLES
+ FUNCTIONS
+ 
+ {.repeated section @}
+-{Decl}
++{Decl FSet}
+ {Doc}
+ {.end}
+ {.end}
+@@ -46,22 +46,22 @@ FUNCTIONS
+ TYPES
+ 
+ {.repeated section @}
+-{Decl}
++{Decl FSet}
+ {Doc}
+ {.repeated section Consts}
+-{Decl}
++{Decl FSet}
+ {Doc}
+ {.end}
+ {.repeated section Vars}
+-{Decl}
++{Decl FSet}
+ {Doc}
+ {.end}
+ {.repeated section Factories}
+-{Decl}
++{Decl FSet}
+ {Doc}
+ {.end}
+ {.repeated section Methods}
+-{Decl}
++{Decl FSet}
+ {Doc}
+ {.end}
+ {.end}
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 46ee129427..8cd3fd5518 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -12,12 +12,13 @@ import (
+ 	"go/doc"
+ 	"go/parser"
+ 	"go/scanner"
++	"go/token"
+ 	"os"
+ 	"strings"
+ )
+ 
+ func parse(name string, flags uint) *ast.File {
+-	ast1, err := parser.ParseFile(name, nil, flags)
++	ast1, err := parser.ParseFile(fset, name, nil, flags)
+ 	if err != nil {
+ 		if list, ok := err.(scanner.ErrorList); ok {
+ 			// If err is a scanner.ErrorList, its String will print just
+@@ -76,7 +77,7 @@ func (f *File) ReadGo(name string) {
+ 		}
+ 	}
+ 	if !sawC {
+-		error(noPos, `cannot find import "C"`)
++		error(token.NoPos, `cannot find import "C"`)
+ 	}
+ 
+ 	// In ast2, strip the import "C" line.
+@@ -209,7 +210,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
+ 
+ 	// everything else just recurs
+ 	default:
+-		error(noPos, "unexpected type %T in walk", x, visit)
++		error(token.NoPos, "unexpected type %T in walk", x, visit)
+ 		panic("unexpected type")
+ 
+ 	case nil:
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index f17ac1b934..f10229d46a 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -146,7 +146,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 			if _, err := strconv.Atoi(n.Define); err == nil {
+ 				ok = true
+ 			} else if n.Define[0] == '"' || n.Define[0] == '\'' {
+-				_, err := parser.ParseExpr("", n.Define)
++				_, err := parser.ParseExpr(fset, "", n.Define)
+ 				if err == nil {
+ 					ok = true
+ 				}
+@@ -229,7 +229,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 		case strings.Contains(line, ": statement with no effect"):
+ 			what = "not-type" // const or func or var
+ 		case strings.Contains(line, "undeclared"):
+-			error(noPos, "%s", strings.TrimSpace(line[colon+1:]))
++			error(token.NoPos, "%s", strings.TrimSpace(line[colon+1:]))
+ 		case strings.Contains(line, "is not an integer constant"):
+ 			isConst[i] = false
+ 			continue
+@@ -257,7 +257,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 		if n.Kind != "" {
+ 			continue
+ 		}
+-		error(noPos, "could not determine kind of name for C.%s", n.Go)
++		error(token.NoPos, "could not determine kind of name for C.%s", n.Go)
+ 	}
+ 	if nerrors > 0 {
+ 		fatal("unresolved names")
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index f0c64407e8..752e9a323a 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -51,7 +51,7 @@ type Ref struct {
+ 	Context string // "type", "expr", "call", or "call2"
+ }
+ 
+-func (r *Ref) Pos() token.Position {
++func (r *Ref) Pos() token.Pos {
+ 	return (*r.Expr).Pos()
+ }
+ 
+@@ -103,6 +103,8 @@ var ptrSizeMap = map[string]int64{
+ 	"arm":   4,
+ }
+ 
++var fset = token.NewFileSet()
++
+ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+@@ -180,7 +182,7 @@ func (p *Package) Record(f *File) {
+ 	if p.PackageName == "" {
+ 		p.PackageName = f.Package
+ 	} else if p.PackageName != f.Package {
+-		error(noPos, "inconsistent package names: %s, %s", p.PackageName, f.Package)
++		error(token.NoPos, "inconsistent package names: %s, %s", p.PackageName, f.Package)
+ 	}
+ 
+ 	if p.Typedef == nil {
+@@ -190,7 +192,7 @@ func (p *Package) Record(f *File) {
+ 			if p.Typedef[k] == nil {
+ 				p.Typedef[k] = v
+ 			} else if !reflect.DeepEqual(p.Typedef[k], v) {
+-				error(noPos, "inconsistent definitions for C type %s", k)
++				error(token.NoPos, "inconsistent definitions for C type %s", k)
+ 			}
+ 		}
+ 	}
+@@ -202,7 +204,7 @@ func (p *Package) Record(f *File) {
+ 			if p.Name[k] == nil {
+ 				p.Name[k] = v
+ 			} else if !reflect.DeepEqual(p.Name[k], v) {
+-				error(noPos, "inconsistent definitions for C.%s", k)
++				error(token.NoPos, "inconsistent definitions for C.%s", k)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 5eb2252fbb..3285a70bb4 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -41,7 +41,7 @@ func (p *Package) writeDefs() {
+ 
+ 	for name, def := range p.Typedef {
+ 		fmt.Fprintf(fgo2, "type %s ", name)
+-		printer.Fprint(fgo2, def)
++		printer.Fprint(fgo2, fset, def)
+ 		fmt.Fprintf(fgo2, "\n")
+ 	}
+ 	fmt.Fprintf(fgo2, "type _Ctype_void [0]byte\n")
+@@ -54,7 +54,7 @@ func (p *Package) writeDefs() {
+ 		}
+ 		fmt.Fprintf(fc, "#pragma dynimport ·%s %s \"%s%s.so\"\n", n.Mangle, n.C, soprefix, sopath)
+ 		fmt.Fprintf(fgo2, "var %s ", n.Mangle)
+-		printer.Fprint(fgo2, &ast.StarExpr{X: n.Type.Go})
++		printer.Fprint(fgo2, fset, &ast.StarExpr{X: n.Type.Go})
+ 		fmt.Fprintf(fgo2, "\n")
+ 	}
+ 	fmt.Fprintf(fc, "\n")
+@@ -155,7 +155,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name, soprefix, sopath str
+ 		Name: ast.NewIdent(n.Mangle),
+ 		Type: gtype,
+ 	}
+-	printer.Fprint(fgo2, d)
++	printer.Fprint(fgo2, fset, d)
+ 	fmt.Fprintf(fgo2, "\n")
+ 
+ 	if name == "CString" || name == "GoString" || name == "GoStringN" {
+@@ -215,7 +215,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
+ 	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
+ 	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n")
+ 	fmt.Fprintf(fgo1, "//line %s:1\n", srcfile)
+-	printer.Fprint(fgo1, f.AST)
++	printer.Fprint(fgo1, fset, f.AST)
+ 
+ 	// While we process the vars and funcs, also write 6c and gcc output.
+ 	// Gcc output starts with the preamble.
+@@ -423,11 +423,11 @@ func (p *Package) writeExports(fgo2, fc *os.File) {
+ 		// a Go wrapper function.
+ 		if fn.Recv != nil {
+ 			fmt.Fprintf(fgo2, "func %s(recv ", goname)
+-			printer.Fprint(fgo2, fn.Recv.List[0].Type)
++			printer.Fprint(fgo2, fset, fn.Recv.List[0].Type)
+ 			forFieldList(fntype.Params,
+ 				func(i int, atype ast.Expr) {
+ 					fmt.Fprintf(fgo2, ", p%d ", i)
+-					printer.Fprint(fgo2, atype)
++					printer.Fprint(fgo2, fset, atype)
+ 				})
+ 			fmt.Fprintf(fgo2, ")")
+ 			if gccResult != "void" {
+@@ -437,7 +437,7 @@ func (p *Package) writeExports(fgo2, fc *os.File) {
+ 						if i > 0 {
+ 							fmt.Fprint(fgo2, ", ")
+ 						}
+-						printer.Fprint(fgo2, atype)
++						printer.Fprint(fgo2, fset, atype)
+ 					})
+ 				fmt.Fprint(fgo2, ")")
+ 			}
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index 3ddf94d89c..09ff0a9cbc 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -72,12 +72,11 @@ func fatal(msg string, args ...interface{}) {
+ }
+ 
+ var nerrors int
+-var noPos token.Position
+ 
+-func error(pos token.Position, msg string, args ...interface{}) {
++func error(pos token.Pos, msg string, args ...interface{}) {
+ 	nerrors++
+ 	if pos.IsValid() {
+-		fmt.Fprintf(os.Stderr, "%s: ", pos)
++		fmt.Fprintf(os.Stderr, "%s: ", fset.Position(pos).String())
+ 	}
+ 	fmt.Fprintf(os.Stderr, msg, args...)
+ 	fmt.Fprintf(os.Stderr, "\n")
+diff --git a/src/cmd/ebnflint/ebnflint.go b/src/cmd/ebnflint/ebnflint.go
+index 3dfa71f078..10cb5b387a 100644
+--- a/src/cmd/ebnflint/ebnflint.go
++++ b/src/cmd/ebnflint/ebnflint.go
+@@ -10,12 +10,14 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/scanner"
++	"go/token"
+ 	"io/ioutil"
+ 	"os"
+ 	"path"
+ )
+ 
+ 
++var fset = token.NewFileSet()
+ var start = flag.String("start", "Start", "name of start production")
+ 
+ 
+@@ -92,12 +94,12 @@ func main() {
+ 		src = extractEBNF(src)
+ 	}
+ 
+-	grammar, err := ebnf.Parse(filename, src)
++	grammar, err := ebnf.Parse(fset, filename, src)
+ 	if err != nil {
+ 		scanner.PrintError(os.Stderr, err)
+ 	}
+ 
+-	if err = ebnf.Verify(grammar, *start); err != nil {
++	if err = ebnf.Verify(fset, grammar, *start); err != nil {
+ 		scanner.PrintError(os.Stderr, err)
+ 	}
+ }
+diff --git a/src/cmd/godoc/dirtrees.go b/src/cmd/godoc/dirtrees.go
+index dfc5ab2ce0..edb4a169d1 100644
+--- a/src/cmd/godoc/dirtrees.go
++++ b/src/cmd/godoc/dirtrees.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"go/doc"
+ 	"go/parser"
++	"go/token"
+ 	"io/ioutil"
+ 	"os"
+ 	pathutil "path"
+@@ -87,7 +88,7 @@ type treeBuilder struct {
+ }
+ 
+ 
+-func (b *treeBuilder) newDirTree(path, name string, depth int) *Directory {
++func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth int) *Directory {
+ 	if b.pathFilter != nil && !b.pathFilter(path) {
+ 		return nil
+ 	}
+@@ -115,7 +116,7 @@ func (b *treeBuilder) newDirTree(path, name string, depth int) *Directory {
+ 			// though the directory doesn't contain any real package files - was bug)
+ 			if synopses[0] == "" {
+ 				// no "optimal" package synopsis yet; continue to collect synopses
+-				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil,
++				file, err := parser.ParseFile(fset, pathutil.Join(path, d.Name), nil,
+ 					parser.ParseComments|parser.PackageClauseOnly)
+ 				if err == nil {
+ 					hasPkgFiles = true
+@@ -148,7 +149,7 @@ func (b *treeBuilder) newDirTree(path, name string, depth int) *Directory {
+ 		i := 0
+ 		for _, d := range list {
+ 			if isPkgDir(d) {
+-				dd := b.newDirTree(pathutil.Join(path, d.Name), d.Name, depth+1)
++				dd := b.newDirTree(fset, pathutil.Join(path, d.Name), d.Name, depth+1)
+ 				if dd != nil {
+ 					dirs[i] = dd
+ 					i++
+@@ -195,7 +196,9 @@ func newDirectory(root string, pathFilter func(string) bool, maxDepth int) *Dire
+ 		maxDepth = 1e6 // "infinity"
+ 	}
+ 	b := treeBuilder{pathFilter, maxDepth}
+-	return b.newDirTree(root, d.Name, 0)
++	// the file set provided is only for local parsing, no position
++	// information escapes and thus we don't need to save the set
++	return b.newDirTree(token.NewFileSet(), root, d.Name, 0)
+ }
+ 
+ 
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 293a7fb19e..8fce6cd213 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -21,6 +21,7 @@ import (
+ 	pathutil "path"
+ 	"regexp"
+ 	"runtime"
++	"sort"
+ 	"strings"
+ 	"template"
+ 	"time"
+@@ -104,27 +105,6 @@ func isParentOf(p, q string) bool {
+ }
+ 
+ 
+-// binarySearch returns an index i such that (a[i] <= s < a[i+1]) || (s is not in a).
+-// The slice a must not be empty and sorted in increasing order.
+-// (See "A Method of Programming", E.W. Dijkstra).
+-//
+-func binarySearch(a []string, s string) int {
+-	i, j := 0, len(a)
+-	// i < j for non-empty a
+-	for i+1 < j {
+-		// 0 <= i < j <= len(a) && (a[i] <= s < a[j] || (s is not in a))
+-		h := i + (j-i)/2 // i < h < j
+-		if a[h] <= s {
+-			i = h
+-		} else { // s < a[h]
+-			j = h
+-		}
+-	}
+-	// i+1 == j for non-empty a
+-	return i
+-}
+-
+-
+ func setPathFilter(list []string) {
+ 	if len(list) == 0 {
+ 		pathFilter.set(nil)
+@@ -134,14 +114,10 @@ func setPathFilter(list []string) {
+ 	// len(list) > 0
+ 	pathFilter.set(func(path string) bool {
+ 		// list is sorted in increasing order and for each path all its children are removed
+-		i := binarySearch(list, path)
+-		// At this point we have (list[i] <= path < list[i+1]) || (path is not in list),
+-		// thus path must be either longer (a child) of list[i], or shorter (a parent)
+-		// of list[i+1] - assuming an "infinitely extended" list. However, binarySearch
+-		// will return a 0 if path < list[0], so we must be careful in that case.
+-		return i == 0 && isParentOf(path, list[0]) ||
+-			isParentOf(list[i], path) ||
+-			i+1 < len(list) && isParentOf(path, list[i+1])
++		i := sort.Search(len(list), func(i int) bool { return list[i] > path })
++		// Now we have list[i-1] <= path < list[i].
++		// Path may be a child of list[i-1] or a parent of list[i].
++		return i > 0 && isParentOf(list[i-1], path) || i < len(list) && isParentOf(path, list[i])
+ 	})
+ }
+ 
+@@ -362,7 +338,7 @@ func (s *Styler) identId(name *ast.Ident) int {
+ 
+ // writeObjInfo writes the popup info corresponding to obj to w.
+ // The text is HTML-escaped and does not contain single quotes.
+-func writeObjInfo(w io.Writer, obj *ast.Object) {
++func writeObjInfo(w io.Writer, fset *token.FileSet, obj *ast.Object) {
+ 	// for now, show object kind and name; eventually
+ 	// do something more interesting (show declaration,
+ 	// for instance)
+@@ -373,7 +349,7 @@ func writeObjInfo(w io.Writer, obj *ast.Object) {
+ 	// show type if we know it
+ 	if obj.Type != nil && obj.Type.Expr != nil {
+ 		fmt.Fprint(w, " ")
+-		writeNode(&aposescaper{w}, obj.Type.Expr, true, &defaultStyler)
++		writeNode(&aposescaper{w}, fset, obj.Type.Expr, true, &defaultStyler)
+ 	}
+ }
+ 
+@@ -382,7 +358,7 @@ func writeObjInfo(w io.Writer, obj *ast.Object) {
+ // information: The i'th array entry is a single-quoted string with
+ // the popup information for an identifier x with s.identId(x) == i,
+ // for 0 <= i < s.idcount.
+-func (s *Styler) idList() []byte {
++func (s *Styler) idList(fset *token.FileSet) []byte {
+ 	var buf bytes.Buffer
+ 	fmt.Fprintln(&buf, "[")
+ 
+@@ -400,7 +376,7 @@ func (s *Styler) idList() []byte {
+ 				fmt.Fprintf(&buf, "/* %4d */ ", id)
+ 			}
+ 			fmt.Fprint(&buf, "'")
+-			writeObjInfo(&buf, obj)
++			writeObjInfo(&buf, fset, obj)
+ 			fmt.Fprint(&buf, "',\n")
+ 		}
+ 	}
+@@ -539,7 +515,7 @@ func (p *tconv) Write(data []byte) (n int, err os.Error) {
+ // Templates
+ 
+ // Write an AST-node to w; optionally html-escaped.
+-func writeNode(w io.Writer, node interface{}, html bool, styler printer.Styler) {
++func writeNode(w io.Writer, fset *token.FileSet, node interface{}, html bool, styler printer.Styler) {
+ 	mode := printer.TabIndent | printer.UseSpaces
+ 	if html {
+ 		mode |= printer.GenHTML
+@@ -548,7 +524,7 @@ func writeNode(w io.Writer, node interface{}, html bool, styler printer.Styler)
+ 	// to ensure a good outcome in most browsers (there may still
+ 	// be tabs in comments and strings, but converting those into
+ 	// the right number of spaces is much harder)
+-	(&printer.Config{mode, *tabwidth, styler}).Fprint(&tconv{output: w}, node)
++	(&printer.Config{mode, *tabwidth, styler}).Fprint(&tconv{output: w}, fset, node)
+ }
+ 
+ 
+@@ -563,14 +539,14 @@ func writeText(w io.Writer, text []byte, html bool) {
+ 
+ 
+ // Write anything to w; optionally html-escaped.
+-func writeAny(w io.Writer, html bool, x interface{}) {
++func writeAny(w io.Writer, fset *token.FileSet, html bool, x interface{}) {
+ 	switch v := x.(type) {
+ 	case []byte:
+ 		writeText(w, v, html)
+ 	case string:
+ 		writeText(w, []byte(v), html)
+ 	case ast.Decl, ast.Expr, ast.Stmt, *ast.File:
+-		writeNode(w, x, html, &defaultStyler)
++		writeNode(w, fset, x, html, &defaultStyler)
+ 	default:
+ 		if html {
+ 			var buf bytes.Buffer
+@@ -583,16 +559,26 @@ func writeAny(w io.Writer, html bool, x interface{}) {
+ }
+ 
+ 
++func fileset(x []interface{}) *token.FileSet {
++	if len(x) > 1 {
++		if fset, ok := x[1].(*token.FileSet); ok {
++			return fset
++		}
++	}
++	return nil
++}
++
++
+ // Template formatter for "html" format.
+ func htmlFmt(w io.Writer, format string, x ...interface{}) {
+-	writeAny(w, true, x[0])
++	writeAny(w, fileset(x), true, x[0])
+ }
+ 
+ 
+ // Template formatter for "html-esc" format.
+ func htmlEscFmt(w io.Writer, format string, x ...interface{}) {
+ 	var buf bytes.Buffer
+-	writeAny(&buf, false, x[0])
++	writeAny(&buf, fileset(x), false, x[0])
+ 	template.HTMLEscape(w, buf.Bytes())
+ }
+ 
+@@ -600,7 +586,7 @@ func htmlEscFmt(w io.Writer, format string, x ...interface{}) {
+ // Template formatter for "html-comment" format.
+ func htmlCommentFmt(w io.Writer, format string, x ...interface{}) {
+ 	var buf bytes.Buffer
+-	writeAny(&buf, false, x[0])
++	writeAny(&buf, fileset(x), false, x[0])
+ 	// TODO(gri) Provide list of words (e.g. function parameters)
+ 	//           to be emphasized by ToHTML.
+ 	doc.ToHTML(w, buf.Bytes(), nil) // does html-escaping
+@@ -609,7 +595,7 @@ func htmlCommentFmt(w io.Writer, format string, x ...interface{}) {
+ 
+ // Template formatter for "" (default) format.
+ func textFmt(w io.Writer, format string, x ...interface{}) {
+-	writeAny(w, false, x[0])
++	writeAny(w, fileset(x), false, x[0])
+ }
+ 
+ 
+@@ -620,7 +606,7 @@ func urlFmt(w io.Writer, format string, x ...interface{}) {
+ 
+ 	// determine path and position info, if any
+ 	type positioner interface {
+-		Pos() token.Position
++		Pos() token.Pos
+ 	}
+ 	switch t := x[0].(type) {
+ 	case string:
+@@ -628,9 +614,15 @@ func urlFmt(w io.Writer, format string, x ...interface{}) {
+ 	case positioner:
+ 		pos := t.Pos()
+ 		if pos.IsValid() {
++			pos := fileset(x).Position(pos)
+ 			path = pos.Filename
+ 			line = pos.Line
+ 		}
++	default:
++		// we should never reach here, but be resilient
++		// and assume the position is invalid (empty path,
++		// and line 0)
++		log.Printf("INTERNAL ERROR: urlFmt(%s) without a string or positioner", format)
+ 	}
+ 
+ 	// map path
+@@ -902,7 +894,8 @@ func applyTemplate(t *template.Template, name string, data interface{}) []byte {
+ 
+ 
+ func serveGoSource(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
+-	file, err := parser.ParseFile(abspath, nil, parser.ParseComments)
++	fset := token.NewFileSet()
++	file, err := parser.ParseFile(fset, abspath, nil, parser.ParseComments)
+ 	if err != nil {
+ 		log.Printf("parser.ParseFile: %s", err)
+ 		serveError(w, r, relpath, err)
+@@ -915,13 +908,13 @@ func serveGoSource(w http.ResponseWriter, r *http.Request, abspath, relpath stri
+ 
+ 	var buf bytes.Buffer
+ 	styler := newStyler(r.FormValue("h"))
+-	writeNode(&buf, file, true, styler)
++	writeNode(&buf, fset, file, true, styler)
+ 
+ 	type SourceInfo struct {
+ 		IdList []byte
+ 		Source []byte
+ 	}
+-	info := &SourceInfo{styler.idList(), buf.Bytes()}
++	info := &SourceInfo{styler.idList(fset), buf.Bytes()}
+ 
+ 	contents := applyTemplate(sourceHTML, "sourceHTML", info)
+ 	servePage(w, "Source file "+relpath, "", "", contents)
+@@ -1102,6 +1095,7 @@ const (
+ type PageInfo struct {
+ 	Dirname string          // directory containing the package
+ 	PList   []string        // list of package names found
++	FSet    *token.FileSet  // corresponding file set
+ 	PAst    *ast.File       // nil if no single AST with package exports
+ 	PDoc    *doc.PackageDoc // nil if no single package documentation
+ 	Dirs    *DirList        // nil if no directory information
+@@ -1135,7 +1129,8 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 	}
+ 
+ 	// get package ASTs
+-	pkgs, err := parser.ParseDir(abspath, filter, parser.ParseComments)
++	fset := token.NewFileSet()
++	pkgs, err := parser.ParseDir(fset, abspath, filter, parser.ParseComments)
+ 	if err != nil && pkgs == nil {
+ 		// only report directory read errors, ignore parse errors
+ 		// (may be able to extract partial package information)
+@@ -1252,7 +1247,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 		timestamp = time.Seconds()
+ 	}
+ 
+-	return PageInfo{abspath, plist, past, pdoc, dir.listing(true), timestamp, h.isPkg, nil}
++	return PageInfo{abspath, plist, fset, past, pdoc, dir.listing(true), timestamp, h.isPkg, nil}
+ }
+ 
+ 
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 9c3f55619c..1fb0bbf518 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -429,6 +429,7 @@ type IndexResult struct {
+ // interface for walking file trees, and the ast.Visitor interface for
+ // walking Go ASTs.
+ type Indexer struct {
++	fset     *token.FileSet          // file set for all indexed files
+ 	words    map[string]*IndexResult // RunLists of Spots
+ 	snippets vector.Vector           // vector of *Snippets, indexed by snippet indices
+ 	file     *File                   // current file
+@@ -461,11 +462,11 @@ func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
+ 
+ 		if kind == Use || x.decl == nil {
+ 			// not a declaration or no snippet required
+-			info := makeSpotInfo(kind, id.Pos().Line, false)
++			info := makeSpotInfo(kind, x.fset.Position(id.Pos()).Line, false)
+ 			lists.Others.Push(Spot{x.file, info})
+ 		} else {
+ 			// a declaration with snippet
+-			index := x.addSnippet(NewSnippet(x.decl, id))
++			index := x.addSnippet(NewSnippet(x.fset, x.decl, id))
+ 			info := makeSpotInfo(kind, index, true)
+ 			lists.Decls.Push(Spot{x.file, info})
+ 		}
+@@ -579,8 +580,8 @@ func (x *Indexer) Visit(node interface{}) ast.Visitor {
+ }
+ 
+ 
+-func pkgName(filename string) string {
+-	file, err := parser.ParseFile(filename, nil, parser.PackageClauseOnly)
++func pkgName(fset *token.FileSet, filename string) string {
++	file, err := parser.ParseFile(fset, filename, nil, parser.PackageClauseOnly)
+ 	if err != nil || file == nil {
+ 		return ""
+ 	}
+@@ -598,11 +599,11 @@ func (x *Indexer) visitFile(dirname string, f *os.FileInfo) {
+ 		return
+ 	}
+ 
+-	if excludeMainPackages && pkgName(path) == "main" {
++	if excludeMainPackages && pkgName(x.fset, path) == "main" {
+ 		return
+ 	}
+ 
+-	file, err := parser.ParseFile(path, nil, parser.ParseComments)
++	file, err := parser.ParseFile(x.fset, path, nil, parser.ParseComments)
+ 	if err != nil {
+ 		return // ignore files with (parse) errors
+ 	}
+@@ -641,6 +642,7 @@ func NewIndex(dirnames <-chan string) *Index {
+ 	var x Indexer
+ 
+ 	// initialize Indexer
++	x.fset = token.NewFileSet()
+ 	x.words = make(map[string]*IndexResult)
+ 
+ 	// index all files in the directories given by dirnames
+@@ -656,6 +658,9 @@ func NewIndex(dirnames <-chan string) *Index {
+ 		}
+ 	}
+ 
++	// the file set is not needed after indexing - help GC and clear it
++	x.fset = nil
++
+ 	// for each word, reduce the RunLists into a LookupResult;
+ 	// also collect the word with its canonical spelling in a
+ 	// word list for later computation of alternative spellings
+@@ -714,7 +719,7 @@ func (x *Index) LookupWord(w string) (match *LookupResult, alt *AltWords) {
+ 
+ func isIdentifier(s string) bool {
+ 	var S scanner.Scanner
+-	S.Init("", []byte(s), nil, 0)
++	S.Init(token.NewFileSet(), "", []byte(s), nil, 0)
+ 	if _, tok, _ := S.Scan(); tok == token.IDENT {
+ 		_, tok, _ := S.Scan()
+ 		return tok == token.EOF
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 0e8c0ed97f..938e9ac223 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -367,7 +367,7 @@ func main() {
+ 				if i > 0 {
+ 					fmt.Println()
+ 				}
+-				writeAny(os.Stdout, *html, d)
++				writeAny(os.Stdout, info.FSet, *html, d)
+ 				fmt.Println()
+ 			}
+ 			return
+diff --git a/src/cmd/godoc/snippet.go b/src/cmd/godoc/snippet.go
+index 5b5263afc5..7f896eea45 100755
+--- a/src/cmd/godoc/snippet.go
++++ b/src/cmd/godoc/snippet.go
+@@ -12,6 +12,7 @@ package main
+ import (
+ 	"bytes"
+ 	"go/ast"
++	"go/token"
+ 	"go/printer"
+ 	"fmt"
+ )
+@@ -43,10 +44,10 @@ func (s *snippetStyler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag)
+ }
+ 
+ 
+-func newSnippet(decl ast.Decl, id *ast.Ident) *Snippet {
++func newSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) *Snippet {
+ 	var buf bytes.Buffer
+-	writeNode(&buf, decl, true, &snippetStyler{highlight: id})
+-	return &Snippet{id.Pos().Line, buf.String()}
++	writeNode(&buf, fset, decl, true, &snippetStyler{highlight: id})
++	return &Snippet{fset.Position(id.Pos()).Line, buf.String()}
+ }
+ 
+ 
+@@ -73,7 +74,7 @@ func findSpec(list []ast.Spec, id *ast.Ident) ast.Spec {
+ }
+ 
+ 
+-func genSnippet(d *ast.GenDecl, id *ast.Ident) *Snippet {
++func genSnippet(fset *token.FileSet, d *ast.GenDecl, id *ast.Ident) *Snippet {
+ 	s := findSpec(d.Specs, id)
+ 	if s == nil {
+ 		return nil //  declaration doesn't contain id - exit gracefully
+@@ -82,11 +83,11 @@ func genSnippet(d *ast.GenDecl, id *ast.Ident) *Snippet {
+ 	// only use the spec containing the id for the snippet
+ 	dd := &ast.GenDecl{d.Doc, d.Pos(), d.Tok, d.Lparen, []ast.Spec{s}, d.Rparen}
+ 
+-	return newSnippet(dd, id)
++	return newSnippet(fset, dd, id)
+ }
+ 
+ 
+-func funcSnippet(d *ast.FuncDecl, id *ast.Ident) *Snippet {
++func funcSnippet(fset *token.FileSet, d *ast.FuncDecl, id *ast.Ident) *Snippet {
+ 	if d.Name != id {
+ 		return nil //  declaration doesn't contain id - exit gracefully
+ 	}
+@@ -94,7 +95,7 @@ func funcSnippet(d *ast.FuncDecl, id *ast.Ident) *Snippet {
+ 	// only use the function signature for the snippet
+ 	dd := &ast.FuncDecl{d.Doc, d.Recv, d.Name, d.Type, nil}
+ 
+-	return newSnippet(dd, id)
++	return newSnippet(fset, dd, id)
+ }
+ 
+ 
+@@ -102,18 +103,18 @@ func funcSnippet(d *ast.FuncDecl, id *ast.Ident) *Snippet {
+ // identifier id. Parts of the declaration not containing the identifier
+ // may be removed for a more compact snippet.
+ //
+-func NewSnippet(decl ast.Decl, id *ast.Ident) (s *Snippet) {
++func NewSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) (s *Snippet) {
+ 	switch d := decl.(type) {
+ 	case *ast.GenDecl:
+-		s = genSnippet(d, id)
++		s = genSnippet(fset, d, id)
+ 	case *ast.FuncDecl:
+-		s = funcSnippet(d, id)
++		s = funcSnippet(fset, d, id)
+ 	}
+ 
+ 	// handle failure gracefully
+ 	if s == nil {
+ 		s = &Snippet{
+-			id.Pos().Line,
++			fset.Position(id.Pos()).Line,
+ 			fmt.Sprintf(`could not generate a snippet for <span class="highlight">%s</span>`, id.Name),
+ 		}
+ 	}
+diff --git a/src/cmd/godoc/spec.go b/src/cmd/godoc/spec.go
+index 2298fae2ce..df36caaa72 100644
+--- a/src/cmd/godoc/spec.go
++++ b/src/cmd/godoc/spec.go
+@@ -20,19 +20,21 @@ import (
+ 
+ 
+ type ebnfParser struct {
+-	out     io.Writer // parser output
+-	src     []byte    // parser source
++	out     io.Writer   // parser output
++	src     []byte      // parser source
++	file    *token.File // for position information
+ 	scanner scanner.Scanner
+-	prev    int            // offset of previous token
+-	pos     token.Position // token position
+-	tok     token.Token    // one token look-ahead
+-	lit     []byte         // token literal
++	prev    int         // offset of previous token
++	pos     token.Pos   // token position
++	tok     token.Token // one token look-ahead
++	lit     []byte      // token literal
+ }
+ 
+ 
+ func (p *ebnfParser) flush() {
+-	p.out.Write(p.src[p.prev:p.pos.Offset])
+-	p.prev = p.pos.Offset
++	offs := p.file.Offset(p.pos)
++	p.out.Write(p.src[p.prev:offs])
++	p.prev = offs
+ }
+ 
+ 
+@@ -52,9 +54,9 @@ func (p *ebnfParser) Error(pos token.Position, msg string) {
+ }
+ 
+ 
+-func (p *ebnfParser) errorExpected(pos token.Position, msg string) {
++func (p *ebnfParser) errorExpected(pos token.Pos, msg string) {
+ 	msg = "expected " + msg
+-	if pos.Offset == p.pos.Offset {
++	if pos == p.pos {
+ 		// the error happened at the current position;
+ 		// make the error message more specific
+ 		msg += ", found '" + p.tok.String() + "'"
+@@ -62,11 +64,11 @@ func (p *ebnfParser) errorExpected(pos token.Position, msg string) {
+ 			msg += " " + string(p.lit)
+ 		}
+ 	}
+-	p.Error(pos, msg)
++	p.Error(p.file.Position(pos), msg)
+ }
+ 
+ 
+-func (p *ebnfParser) expect(tok token.Token) token.Position {
++func (p *ebnfParser) expect(tok token.Token) token.Pos {
+ 	pos := p.pos
+ 	if p.tok != tok {
+ 		p.errorExpected(pos, "'"+tok.String()+"'")
+@@ -148,11 +150,11 @@ func (p *ebnfParser) parseProduction() {
+ }
+ 
+ 
+-func (p *ebnfParser) parse(out io.Writer, src []byte) {
++func (p *ebnfParser) parse(fset *token.FileSet, out io.Writer, src []byte) {
+ 	// initialize ebnfParser
+ 	p.out = out
+ 	p.src = src
+-	p.scanner.Init("", src, p, 0)
++	p.file = p.scanner.Init(fset, "", src, p, 0)
+ 	p.next() // initializes pos, tok, lit
+ 
+ 	// process source
+@@ -171,6 +173,7 @@ var (
+ 
+ 
+ func linkify(out io.Writer, src []byte) {
++	fset := token.NewFileSet()
+ 	for len(src) > 0 {
+ 		n := len(src)
+ 
+@@ -192,7 +195,7 @@ func linkify(out io.Writer, src []byte) {
+ 		out.Write(src[0:i])
+ 		// parse and write EBNF
+ 		var p ebnfParser
+-		p.parse(out, src[i:j])
++		p.parse(fset, out, src[i:j])
+ 
+ 		// advance
+ 		src = src[j:n]
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 7bb0fb583c..d7b70c4615 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/parser"
+ 	"go/printer"
+ 	"go/scanner"
++	"go/token"
+ 	"io/ioutil"
+ 	"os"
+ 	pathutil "path"
+@@ -39,6 +40,7 @@ var (
+ 
+ 
+ var (
++	fset        = token.NewFileSet()
+ 	exitCode    = 0
+ 	rewrite     func(*ast.File) *ast.File
+ 	parserMode  uint
+@@ -93,7 +95,7 @@ func processFile(f *os.File) os.Error {
+ 		return err
+ 	}
+ 
+-	file, err := parser.ParseFile(f.Name(), src, parserMode)
++	file, err := parser.ParseFile(fset, f.Name(), src, parserMode)
+ 
+ 	if err != nil {
+ 		return err
+@@ -112,7 +114,7 @@ func processFile(f *os.File) os.Error {
+ 	}
+ 
+ 	var res bytes.Buffer
+-	_, err = (&printer.Config{printerMode, *tabWidth, nil}).Fprint(&res, file)
++	_, err = (&printer.Config{printerMode, *tabWidth, nil}).Fprint(&res, fset, file)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index 6170a64f4d..7fa8c909a9 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -37,7 +37,7 @@ func initRewrite() {
+ // but there are problems with preserving formatting and also
+ // with what a wildcard for a statement looks like.
+ func parseExpr(s string, what string) ast.Expr {
+-	x, err := parser.ParseExpr("input", s)
++	x, err := parser.ParseExpr(fset, "input", s)
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "parsing %s %s: %s\n", what, s, err)
+ 		os.Exit(2)
+@@ -66,7 +66,7 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
+ }
+ 
+ 
+-var positionType = reflect.Typeof(token.Position{})
++var positionType = reflect.Typeof(token.NoPos)
+ var identType = reflect.Typeof((*ast.Ident)(nil))
+ 
+ 
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 4e9adf5e40..9301f27b5a 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -11,6 +11,7 @@ import (
+ 	"exec"
+ 	"flag"
+ 	"fmt"
++	"go/token"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -27,6 +28,7 @@ func usage() {
+ }
+ 
+ var (
++	fset          = token.NewFileSet()
+ 	argv0         = os.Args[0]
+ 	errors        = false
+ 	parents       = make(map[string]string)
+diff --git a/src/cmd/goinstall/parse.go b/src/cmd/goinstall/parse.go
+index 183929f282..deae436e44 100644
+--- a/src/cmd/goinstall/parse.go
++++ b/src/cmd/goinstall/parse.go
+@@ -41,7 +41,7 @@ func goFiles(dir string, allowMain bool) (files []string, imports map[string]str
+ 			continue
+ 		}
+ 		filename := path.Join(dir, d.Name)
+-		pf, err := parser.ParseFile(filename, nil, parser.ImportsOnly)
++		pf, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
+ 		if err != nil {
+ 			return nil, nil, "", err
+ 		}
+diff --git a/src/pkg/ebnf/ebnf.go b/src/pkg/ebnf/ebnf.go
+index 8333f58309..e5aabd582b 100644
+--- a/src/pkg/ebnf/ebnf.go
++++ b/src/pkg/ebnf/ebnf.go
+@@ -38,7 +38,7 @@ type (
+ 	// An Expression node represents a production expression.
+ 	Expression interface {
+ 		// Pos is the position of the first character of the syntactic construct
+-		Pos() token.Position
++		Pos() token.Pos
+ 	}
+ 
+ 	// An Alternative node represents a non-empty list of alternative expressions.
+@@ -49,14 +49,14 @@ type (
+ 
+ 	// A Name node represents a production name.
+ 	Name struct {
+-		token.Position
+-		String string
++		StringPos token.Pos
++		String    string
+ 	}
+ 
+ 	// A Token node represents a literal.
+ 	Token struct {
+-		token.Position
+-		String string
++		StringPos token.Pos
++		String    string
+ 	}
+ 
+ 	// A List node represents a range of characters.
+@@ -66,20 +66,20 @@ type (
+ 
+ 	// A Group node represents a grouped expression.
+ 	Group struct {
+-		token.Position
+-		Body Expression // (body)
++		Lparen token.Pos
++		Body   Expression // (body)
+ 	}
+ 
+ 	// An Option node represents an optional expression.
+ 	Option struct {
+-		token.Position
+-		Body Expression // [body]
++		Lbrack token.Pos
++		Body   Expression // [body]
+ 	}
+ 
+ 	// A Repetition node represents a repeated expression.
+ 	Repetition struct {
+-		token.Position
+-		Body Expression // {body}
++		Lbrace token.Pos
++		Body   Expression // {body}
+ 	}
+ 
+ 	// A Production node represents an EBNF production.
+@@ -95,20 +95,15 @@ type (
+ )
+ 
+ 
+-func (x Alternative) Pos() token.Position {
+-	return x[0].Pos() // the parser always generates non-empty Alternative
+-}
+-
+-
+-func (x Sequence) Pos() token.Position {
+-	return x[0].Pos() // the parser always generates non-empty Sequences
+-}
+-
+-
+-func (x Range) Pos() token.Position { return x.Begin.Pos() }
+-
+-
+-func (p *Production) Pos() token.Position { return p.Name.Pos() }
++func (x Alternative) Pos() token.Pos { return x[0].Pos() } // the parser always generates non-empty Alternative
++func (x Sequence) Pos() token.Pos    { return x[0].Pos() } // the parser always generates non-empty Sequences
++func (x *Name) Pos() token.Pos       { return x.StringPos }
++func (x *Token) Pos() token.Pos      { return x.StringPos }
++func (x *Range) Pos() token.Pos      { return x.Begin.Pos() }
++func (x *Group) Pos() token.Pos      { return x.Lparen }
++func (x *Option) Pos() token.Pos     { return x.Lbrack }
++func (x *Repetition) Pos() token.Pos { return x.Lbrace }
++func (x *Production) Pos() token.Pos { return x.Name.Pos() }
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -121,6 +116,7 @@ func isLexical(name string) bool {
+ 
+ 
+ type verifier struct {
++	fset *token.FileSet
+ 	scanner.ErrorVector
+ 	worklist []*Production
+ 	reached  Grammar // set of productions reached from (and including) the root production
+@@ -128,6 +124,11 @@ type verifier struct {
+ }
+ 
+ 
++func (v *verifier) error(pos token.Pos, msg string) {
++	v.Error(v.fset.Position(pos), msg)
++}
++
++
+ func (v *verifier) push(prod *Production) {
+ 	name := prod.Name.String
+ 	if _, found := v.reached[name]; !found {
+@@ -140,7 +141,7 @@ func (v *verifier) push(prod *Production) {
+ func (v *verifier) verifyChar(x *Token) int {
+ 	s := x.String
+ 	if utf8.RuneCountInString(s) != 1 {
+-		v.Error(x.Pos(), "single char expected, found "+s)
++		v.error(x.Pos(), "single char expected, found "+s)
+ 		return 0
+ 	}
+ 	ch, _ := utf8.DecodeRuneInString(s)
+@@ -166,12 +167,12 @@ func (v *verifier) verifyExpr(expr Expression, lexical bool) {
+ 		if prod, found := v.grammar[x.String]; found {
+ 			v.push(prod)
+ 		} else {
+-			v.Error(x.Pos(), "missing production "+x.String)
++			v.error(x.Pos(), "missing production "+x.String)
+ 		}
+ 		// within a lexical production references
+ 		// to non-lexical productions are invalid
+ 		if lexical && !isLexical(x.String) {
+-			v.Error(x.Pos(), "reference to non-lexical production "+x.String)
++			v.error(x.Pos(), "reference to non-lexical production "+x.String)
+ 		}
+ 	case *Token:
+ 		// nothing to do for now
+@@ -179,7 +180,7 @@ func (v *verifier) verifyExpr(expr Expression, lexical bool) {
+ 		i := v.verifyChar(x.Begin)
+ 		j := v.verifyChar(x.End)
+ 		if i >= j {
+-			v.Error(x.Pos(), "decreasing character range")
++			v.error(x.Pos(), "decreasing character range")
+ 		}
+ 	case *Group:
+ 		v.verifyExpr(x.Body, lexical)
+@@ -193,16 +194,18 @@ func (v *verifier) verifyExpr(expr Expression, lexical bool) {
+ }
+ 
+ 
+-func (v *verifier) verify(grammar Grammar, start string) {
++func (v *verifier) verify(fset *token.FileSet, grammar Grammar, start string) {
+ 	// find root production
+ 	root, found := grammar[start]
+ 	if !found {
+-		var noPos token.Position
+-		v.Error(noPos, "no start production "+start)
++		// token.NoPos doesn't require a file set;
++		// ok to set v.fset only afterwards
++		v.error(token.NoPos, "no start production "+start)
+ 		return
+ 	}
+ 
+ 	// initialize verifier
++	v.fset = fset
+ 	v.ErrorVector.Reset()
+ 	v.worklist = v.worklist[0:0]
+ 	v.reached = make(Grammar)
+@@ -224,7 +227,7 @@ func (v *verifier) verify(grammar Grammar, start string) {
+ 	if len(v.reached) < len(v.grammar) {
+ 		for name, prod := range v.grammar {
+ 			if _, found := v.reached[name]; !found {
+-				v.Error(prod.Pos(), name+" is unreachable")
++				v.error(prod.Pos(), name+" is unreachable")
+ 			}
+ 		}
+ 	}
+@@ -236,8 +239,10 @@ func (v *verifier) verify(grammar Grammar, start string) {
+ //	- all productions defined are used when beginning at start
+ //	- lexical productions refer only to other lexical productions
+ //
+-func Verify(grammar Grammar, start string) os.Error {
++// Position information is interpreted relative to the file set fset.
++//
++func Verify(fset *token.FileSet, grammar Grammar, start string) os.Error {
+ 	var v verifier
+-	v.verify(grammar, start)
++	v.verify(fset, grammar, start)
+ 	return v.GetError(scanner.Sorted)
+ }
+diff --git a/src/pkg/ebnf/ebnf_test.go b/src/pkg/ebnf/ebnf_test.go
+index a88d19bed8..bbe530c278 100644
+--- a/src/pkg/ebnf/ebnf_test.go
++++ b/src/pkg/ebnf/ebnf_test.go
+@@ -5,11 +5,15 @@
+ package ebnf
+ 
+ import (
++	"go/token"
+ 	"io/ioutil"
+ 	"testing"
+ )
+ 
+ 
++var fset = token.NewFileSet()
++
++
+ var grammars = []string{
+ 	`Program = .
+ 	`,
+@@ -40,11 +44,11 @@ var grammars = []string{
+ 
+ 
+ func check(t *testing.T, filename string, src []byte) {
+-	grammar, err := Parse(filename, src)
++	grammar, err := Parse(fset, filename, src)
+ 	if err != nil {
+ 		t.Errorf("Parse(%s) failed: %v", src, err)
+ 	}
+-	if err = Verify(grammar, "Program"); err != nil {
++	if err = Verify(fset, grammar, "Program"); err != nil {
+ 		t.Errorf("Verify(%s) failed: %v", src, err)
+ 	}
+ }
+diff --git a/src/pkg/ebnf/parser.go b/src/pkg/ebnf/parser.go
+index 32edbacafe..ef72d91fdc 100644
+--- a/src/pkg/ebnf/parser.go
++++ b/src/pkg/ebnf/parser.go
+@@ -13,11 +13,12 @@ import (
+ 
+ 
+ type parser struct {
++	fset *token.FileSet
+ 	scanner.ErrorVector
+ 	scanner scanner.Scanner
+-	pos     token.Position // token position
+-	tok     token.Token    // one token look-ahead
+-	lit     []byte         // token literal
++	pos     token.Pos   // token position
++	tok     token.Token // one token look-ahead
++	lit     []byte      // token literal
+ }
+ 
+ 
+@@ -31,9 +32,14 @@ func (p *parser) next() {
+ }
+ 
+ 
+-func (p *parser) errorExpected(pos token.Position, msg string) {
++func (p *parser) error(pos token.Pos, msg string) {
++	p.Error(p.fset.Position(pos), msg)
++}
++
++
++func (p *parser) errorExpected(pos token.Pos, msg string) {
+ 	msg = "expected " + msg
+-	if pos.Offset == p.pos.Offset {
++	if pos == p.pos {
+ 		// the error happened at the current position;
+ 		// make the error message more specific
+ 		msg += ", found '" + p.tok.String() + "'"
+@@ -41,11 +47,11 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
+ 			msg += " " + string(p.lit)
+ 		}
+ 	}
+-	p.Error(pos, msg)
++	p.error(pos, msg)
+ }
+ 
+ 
+-func (p *parser) expect(tok token.Token) token.Position {
++func (p *parser) expect(tok token.Token) token.Pos {
+ 	pos := p.pos
+ 	if p.tok != tok {
+ 		p.errorExpected(pos, "'"+tok.String()+"'")
+@@ -167,10 +173,11 @@ func (p *parser) parseProduction() *Production {
+ }
+ 
+ 
+-func (p *parser) parse(filename string, src []byte) Grammar {
++func (p *parser) parse(fset *token.FileSet, filename string, src []byte) Grammar {
+ 	// initialize parser
++	p.fset = fset
+ 	p.ErrorVector.Reset()
+-	p.scanner.Init(filename, src, p, 0)
++	p.scanner.Init(fset, filename, src, p, 0)
+ 	p.next() // initializes pos, tok, lit
+ 
+ 	grammar := make(Grammar)
+@@ -180,7 +187,7 @@ func (p *parser) parse(filename string, src []byte) Grammar {
+ 		if _, found := grammar[name]; !found {
+ 			grammar[name] = prod
+ 		} else {
+-			p.Error(prod.Pos(), name+" declared already")
++			p.error(prod.Pos(), name+" declared already")
+ 		}
+ 	}
+ 
+@@ -191,10 +198,11 @@ func (p *parser) parse(filename string, src []byte) Grammar {
+ // Parse parses a set of EBNF productions from source src.
+ // It returns a set of productions. Errors are reported
+ // for incorrect syntax and if a production is declared
+-// more than once.
++// more than once. Position information is recorded relative
++// to the file set fset.
+ //
+-func Parse(filename string, src []byte) (Grammar, os.Error) {
++func Parse(fset *token.FileSet, filename string, src []byte) (Grammar, os.Error) {
+ 	var p parser
+-	grammar := p.parse(filename, src)
++	grammar := p.parse(fset, filename, src)
+ 	return grammar, p.GetError(scanner.Sorted)
+ }
+diff --git a/src/pkg/exp/datafmt/datafmt_test.go b/src/pkg/exp/datafmt/datafmt_test.go
+index 66794cfde5..f6a09f820c 100644
+--- a/src/pkg/exp/datafmt/datafmt_test.go
++++ b/src/pkg/exp/datafmt/datafmt_test.go
+@@ -7,11 +7,15 @@ package datafmt
+ import (
+ 	"fmt"
+ 	"testing"
++	"go/token"
+ )
+ 
+ 
++var fset = token.NewFileSet()
++
++
+ func parse(t *testing.T, form string, fmap FormatterMap) Format {
+-	f, err := Parse("", []byte(form), fmap)
++	f, err := Parse(fset, "", []byte(form), fmap)
+ 	if err != nil {
+ 		t.Errorf("Parse(%s): %v", form, err)
+ 		return nil
+diff --git a/src/pkg/exp/datafmt/parser.go b/src/pkg/exp/datafmt/parser.go
+index de1f1c2a6b..a01378ea5a 100644
+--- a/src/pkg/exp/datafmt/parser.go
++++ b/src/pkg/exp/datafmt/parser.go
+@@ -19,9 +19,10 @@ import (
+ type parser struct {
+ 	scanner.ErrorVector
+ 	scanner scanner.Scanner
+-	pos     token.Position // token position
+-	tok     token.Token    // one token look-ahead
+-	lit     []byte         // token literal
++	file    *token.File
++	pos     token.Pos   // token position
++	tok     token.Token // one token look-ahead
++	lit     []byte      // token literal
+ 
+ 	packs map[string]string // PackageName -> ImportPath
+ 	rules map[string]expr   // RuleName -> Expression
+@@ -39,18 +40,23 @@ func (p *parser) next() {
+ }
+ 
+ 
+-func (p *parser) init(filename string, src []byte) {
++func (p *parser) init(fset *token.FileSet, filename string, src []byte) {
+ 	p.ErrorVector.Reset()
+-	p.scanner.Init(filename, src, p, scanner.AllowIllegalChars) // return '@' as token.ILLEGAL w/o error message
+-	p.next()                                                    // initializes pos, tok, lit
++	p.file = p.scanner.Init(fset, filename, src, p, scanner.AllowIllegalChars) // return '@' as token.ILLEGAL w/o error message
++	p.next()                                                                   // initializes pos, tok, lit
+ 	p.packs = make(map[string]string)
+ 	p.rules = make(map[string]expr)
+ }
+ 
+ 
+-func (p *parser) errorExpected(pos token.Position, msg string) {
++func (p *parser) error(pos token.Pos, msg string) {
++	p.Error(p.file.Position(pos), msg)
++}
++
++
++func (p *parser) errorExpected(pos token.Pos, msg string) {
+ 	msg = "expected " + msg
+-	if pos.Offset == p.pos.Offset {
++	if pos == p.pos {
+ 		// the error happened at the current position;
+ 		// make the error message more specific
+ 		msg += ", found '" + p.tok.String() + "'"
+@@ -58,11 +64,11 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
+ 			msg += " " + string(p.lit)
+ 		}
+ 	}
+-	p.Error(pos, msg)
++	p.error(pos, msg)
+ }
+ 
+ 
+-func (p *parser) expect(tok token.Token) token.Position {
++func (p *parser) expect(tok token.Token) token.Pos {
+ 	pos := p.pos
+ 	if p.tok != tok {
+ 		p.errorExpected(pos, "'"+tok.String()+"'")
+@@ -87,7 +93,7 @@ func (p *parser) parseTypeName() (string, bool) {
+ 		if importPath, found := p.packs[name]; found {
+ 			name = importPath
+ 		} else {
+-			p.Error(pos, "package not declared: "+name)
++			p.error(pos, "package not declared: "+name)
+ 		}
+ 		p.next()
+ 		name, isIdent = name+"."+p.parseIdentifier(), false
+@@ -303,11 +309,11 @@ func (p *parser) parseFormat() {
+ 
+ 			// add package declaration
+ 			if !isIdent {
+-				p.Error(pos, "illegal package name: "+name)
++				p.error(pos, "illegal package name: "+name)
+ 			} else if _, found := p.packs[name]; !found {
+ 				p.packs[name] = importPath
+ 			} else {
+-				p.Error(pos, "package already declared: "+name)
++				p.error(pos, "package already declared: "+name)
+ 			}
+ 
+ 		case token.ASSIGN:
+@@ -319,7 +325,7 @@ func (p *parser) parseFormat() {
+ 			if _, found := p.rules[name]; !found {
+ 				p.rules[name] = x
+ 			} else {
+-				p.Error(pos, "format rule already declared: "+name)
++				p.error(pos, "format rule already declared: "+name)
+ 			}
+ 
+ 		default:
+@@ -358,10 +364,10 @@ func remap(p *parser, name string) string {
+ // there are no errors, the result is a Format and the error is nil.
+ // Otherwise the format is nil and a non-empty ErrorList is returned.
+ //
+-func Parse(filename string, src []byte, fmap FormatterMap) (Format, os.Error) {
++func Parse(fset *token.FileSet, filename string, src []byte, fmap FormatterMap) (Format, os.Error) {
+ 	// parse source
+ 	var p parser
+-	p.init(filename, src)
++	p.init(fset, filename, src)
+ 	p.parseFormat()
+ 
+ 	// add custom formatters, if any
+diff --git a/src/pkg/exp/eval/bridge.go b/src/pkg/exp/eval/bridge.go
+index 84ff518e24..3fa498d688 100644
+--- a/src/pkg/exp/eval/bridge.go
++++ b/src/pkg/exp/eval/bridge.go
+@@ -29,7 +29,7 @@ func TypeFromNative(t reflect.Type) Type {
+ 	var nt *NamedType
+ 	if t.Name() != "" {
+ 		name := t.PkgPath() + "·" + t.Name()
+-		nt = &NamedType{token.Position{}, name, nil, true, make(map[string]Method)}
++		nt = &NamedType{token.NoPos, name, nil, true, make(map[string]Method)}
+ 		evalTypes[t] = nt
+ 	}
+ 
+diff --git a/src/pkg/exp/eval/compiler.go b/src/pkg/exp/eval/compiler.go
+index 764df8e7d2..9d2923bfca 100644
+--- a/src/pkg/exp/eval/compiler.go
++++ b/src/pkg/exp/eval/compiler.go
+@@ -11,24 +11,20 @@ import (
+ )
+ 
+ 
+-type positioned interface {
+-	Pos() token.Position
+-}
+-
+-
+ // A compiler captures information used throughout an entire
+ // compilation.  Currently it includes only the error handler.
+ //
+ // TODO(austin) This might actually represent package level, in which
+ // case it should be package compiler.
+ type compiler struct {
++	fset         *token.FileSet
+ 	errors       scanner.ErrorHandler
+ 	numErrors    int
+ 	silentErrors int
+ }
+ 
+-func (a *compiler) diagAt(pos positioned, format string, args ...interface{}) {
+-	a.errors.Error(pos.Pos(), fmt.Sprintf(format, args...))
++func (a *compiler) diagAt(pos token.Pos, format string, args ...interface{}) {
++	a.errors.Error(a.fset.Position(pos), fmt.Sprintf(format, args...))
+ 	a.numErrors++
+ }
+ 
+@@ -64,9 +60,9 @@ type label struct {
+ 	continuePC *uint
+ 	// The position where this label was resolved.  If it has not
+ 	// been resolved yet, an invalid position.
+-	resolved token.Position
++	resolved token.Pos
+ 	// The position where this label was first jumped to.
+-	used token.Position
++	used token.Pos
+ }
+ 
+ // A funcCompiler captures information used throughout the compilation
+diff --git a/src/pkg/exp/eval/eval_test.go b/src/pkg/exp/eval/eval_test.go
+index d78242d8ef..6bfe9089db 100644
+--- a/src/pkg/exp/eval/eval_test.go
++++ b/src/pkg/exp/eval/eval_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"big"
+ 	"flag"
+ 	"fmt"
++	"go/token"
+ 	"log"
+ 	"os"
+ 	"reflect"
+@@ -15,6 +16,9 @@ import (
+ 	"testing"
+ )
+ 
++// All tests are done using the same file set.
++var fset = token.NewFileSet()
++
+ // Print each statement or expression before parsing it
+ var noisy = false
+ 
+@@ -49,7 +53,7 @@ func (a test) run(t *testing.T, name string) {
+ 			println("code:", src)
+ 		}
+ 
+-		code, err := w.Compile(src)
++		code, err := w.Compile(fset, src)
+ 		if err != nil {
+ 			if j.cerr == "" {
+ 				t.Errorf("%s: Compile %s: %v", name, src, err)
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index 823f240188..66adeef957 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -57,7 +57,7 @@ type expr struct {
+ // compiled from it.
+ type exprInfo struct {
+ 	*compiler
+-	pos token.Position
++	pos token.Pos
+ }
+ 
+ func (a *exprInfo) newExpr(t Type, desc string) *expr {
+@@ -65,7 +65,7 @@ func (a *exprInfo) newExpr(t Type, desc string) *expr {
+ }
+ 
+ func (a *exprInfo) diag(format string, args ...interface{}) {
+-	a.diagAt(&a.pos, format, args...)
++	a.diagAt(a.pos, format, args...)
+ }
+ 
+ func (a *exprInfo) diagOpType(op token.Token, vt Type) {
+@@ -229,7 +229,7 @@ func (a *expr) derefArray() *expr {
+ //    multi-valued type.
+ type assignCompiler struct {
+ 	*compiler
+-	pos token.Position
++	pos token.Pos
+ 	// The RHS expressions.  This may include nil's for
+ 	// expressions that failed to compile.
+ 	rs []*expr
+@@ -254,7 +254,7 @@ type assignCompiler struct {
+ // assignCompiler with rmt set, but if type checking fails, slots in
+ // the MultiType may be nil.  If rs contains nil's, type checking will
+ // fail and these expressions given a nil type.
+-func (a *compiler) checkAssign(pos token.Position, rs []*expr, errOp, errPosName string) (*assignCompiler, bool) {
++func (a *compiler) checkAssign(pos token.Pos, rs []*expr, errOp, errPosName string) (*assignCompiler, bool) {
+ 	c := &assignCompiler{
+ 		compiler:   a,
+ 		pos:        pos,
+@@ -331,7 +331,7 @@ func (a *assignCompiler) compile(b *block, lt Type) func(Value, *Thread) {
+ 				pos = a.rs[lcount-1].pos
+ 			}
+ 		}
+-		a.diagAt(&pos, "%s %ss for %s\n\t%s\n\t%s", msg, a.errPosName, a.errOp, lt, rmt)
++		a.diagAt(pos, "%s %ss for %s\n\t%s\n\t%s", msg, a.errPosName, a.errOp, lt, rmt)
+ 		return nil
+ 	}
+ 
+@@ -453,7 +453,7 @@ func (a *assignCompiler) compile(b *block, lt Type) func(Value, *Thread) {
+ // compileAssign compiles an assignment operation without the full
+ // generality of an assignCompiler.  See assignCompiler for a
+ // description of the arguments.
+-func (a *compiler) compileAssign(pos token.Position, b *block, lt Type, rs []*expr, errOp, errPosName string) func(Value, *Thread) {
++func (a *compiler) compileAssign(pos token.Pos, b *block, lt Type, rs []*expr, errOp, errPosName string) func(Value, *Thread) {
+ 	ac, ok := a.checkAssign(pos, rs, errOp, errPosName)
+ 	if !ok {
+ 		return nil
+@@ -514,7 +514,7 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 			return nil
+ 		}
+ 		if a.constant {
+-			a.diagAt(x, "function literal used in constant expression")
++			a.diagAt(x.Pos(), "function literal used in constant expression")
+ 			return nil
+ 		}
+ 		return ei.compileFuncLit(decl, fn)
+@@ -571,12 +571,12 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 			return nil
+ 		}
+ 		if a.constant {
+-			a.diagAt(x, "function call in constant context")
++			a.diagAt(x.Pos(), "function call in constant context")
+ 			return nil
+ 		}
+ 
+ 		if l.valType != nil {
+-			a.diagAt(x, "type conversions not implemented")
++			a.diagAt(x.Pos(), "type conversions not implemented")
+ 			return nil
+ 		} else if ft, ok := l.t.(*FuncType); ok && ft.builtin != "" {
+ 			return ei.compileBuiltinCallExpr(a.block, ft, args)
+@@ -654,13 +654,13 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 
+ typeexpr:
+ 	if !callCtx {
+-		a.diagAt(x, "type used as expression")
++		a.diagAt(x.Pos(), "type used as expression")
+ 		return nil
+ 	}
+ 	return ei.exprFromType(a.compileType(a.block, x))
+ 
+ notimpl:
+-	a.diagAt(x, "%T expression node not implemented", x)
++	a.diagAt(x.Pos(), "%T expression node not implemented", x)
+ 	return nil
+ }
+ 
+@@ -1920,7 +1920,7 @@ func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool) {
+ 	}
+ 
+ 	if !lenExpr.t.isInteger() {
+-		a.diagAt(expr, "array size must be an integer")
++		a.diagAt(expr.Pos(), "array size must be an integer")
+ 		return 0, false
+ 	}
+ 
+diff --git a/src/pkg/exp/eval/main.go b/src/pkg/exp/eval/main.go
+index 7e2068ab4e..d87e8f240f 100644
+--- a/src/pkg/exp/eval/main.go
++++ b/src/pkg/exp/eval/main.go
+@@ -10,10 +10,12 @@ import (
+ 	"flag"
+ 	"go/parser"
+ 	"go/scanner"
++	"go/token"
+ 	"io/ioutil"
+ 	"os"
+ )
+ 
++var fset = token.NewFileSet()
+ var filename = flag.String("f", "", "file to run")
+ 
+ func main() {
+@@ -25,12 +27,12 @@ func main() {
+ 			println(err.String())
+ 			os.Exit(1)
+ 		}
+-		file, err := parser.ParseFile(*filename, data, 0)
++		file, err := parser.ParseFile(fset, *filename, data, 0)
+ 		if err != nil {
+ 			println(err.String())
+ 			os.Exit(1)
+ 		}
+-		code, err := w.CompileDeclList(file.Decls)
++		code, err := w.CompileDeclList(fset, file.Decls)
+ 		if err != nil {
+ 			if list, ok := err.(scanner.ErrorList); ok {
+ 				for _, e := range list {
+@@ -46,7 +48,7 @@ func main() {
+ 			println(err.String())
+ 			os.Exit(1)
+ 		}
+-		code, err = w.Compile("init()")
++		code, err = w.Compile(fset, "init()")
+ 		if code != nil {
+ 			_, err := code.Run()
+ 			if err != nil {
+@@ -54,7 +56,7 @@ func main() {
+ 				os.Exit(1)
+ 			}
+ 		}
+-		code, err = w.Compile("main()")
++		code, err = w.Compile(fset, "main()")
+ 		if err != nil {
+ 			println(err.String())
+ 			os.Exit(1)
+@@ -74,7 +76,7 @@ func main() {
+ 		if err != nil {
+ 			break
+ 		}
+-		code, err := w.Compile(line)
++		code, err := w.Compile(fset, line)
+ 		if err != nil {
+ 			println(err.String())
+ 			continue
+diff --git a/src/pkg/exp/eval/scope.go b/src/pkg/exp/eval/scope.go
+index 8eee38e034..66305de25f 100644
+--- a/src/pkg/exp/eval/scope.go
++++ b/src/pkg/exp/eval/scope.go
+@@ -15,11 +15,11 @@ import (
+ 
+ // A definition can be a *Variable, *Constant, or Type.
+ type Def interface {
+-	Pos() token.Position
++	Pos() token.Pos
+ }
+ 
+ type Variable struct {
+-	token.Position
++	VarPos token.Pos
+ 	// Index of this variable in the Frame structure
+ 	Index int
+ 	// Static type of this variable
+@@ -30,10 +30,18 @@ type Variable struct {
+ 	Init Value
+ }
+ 
++func (v *Variable) Pos() token.Pos {
++	return v.VarPos
++}
++
+ type Constant struct {
+-	token.Position
+-	Type  Type
+-	Value Value
++	ConstPos token.Pos
++	Type     Type
++	Value    Value
++}
++
++func (c *Constant) Pos() token.Pos {
++	return c.ConstPos
+ }
+ 
+ // A block represents a definition block in which a name may not be
+@@ -111,12 +119,12 @@ func (b *block) ChildScope() *Scope {
+ 	return sub.scope
+ }
+ 
+-func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, Def) {
++func (b *block) DefineVar(name string, pos token.Pos, t Type) (*Variable, Def) {
+ 	if prev, ok := b.defs[name]; ok {
+ 		return nil, prev
+ 	}
+ 	v := b.defineSlot(t, false)
+-	v.Position = pos
++	v.VarPos = pos
+ 	b.defs[name] = v
+ 	return v, nil
+ }
+@@ -135,11 +143,11 @@ func (b *block) defineSlot(t Type, temp bool) *Variable {
+ 			b.scope.maxVars = index + 1
+ 		}
+ 	}
+-	v := &Variable{token.Position{}, index, t, nil}
++	v := &Variable{token.NoPos, index, t, nil}
+ 	return v
+ }
+ 
+-func (b *block) DefineConst(name string, pos token.Position, t Type, v Value) (*Constant, Def) {
++func (b *block) DefineConst(name string, pos token.Pos, t Type, v Value) (*Constant, Def) {
+ 	if prev, ok := b.defs[name]; ok {
+ 		return nil, prev
+ 	}
+@@ -148,7 +156,7 @@ func (b *block) DefineConst(name string, pos token.Position, t Type, v Value) (*
+ 	return c, nil
+ }
+ 
+-func (b *block) DefineType(name string, pos token.Position, t Type) Type {
++func (b *block) DefineType(name string, pos token.Pos, t Type) Type {
+ 	if _, ok := b.defs[name]; ok {
+ 		return nil
+ 	}
+diff --git a/src/pkg/exp/eval/stmt.go b/src/pkg/exp/eval/stmt.go
+index a665eb2844..b9ffa94fa2 100644
+--- a/src/pkg/exp/eval/stmt.go
++++ b/src/pkg/exp/eval/stmt.go
+@@ -22,13 +22,13 @@ const (
+ 
+ type stmtCompiler struct {
+ 	*blockCompiler
+-	pos token.Position
++	pos token.Pos
+ 	// This statement's label, or nil if it is not labeled.
+ 	stmtLabel *label
+ }
+ 
+ func (a *stmtCompiler) diag(format string, args ...interface{}) {
+-	a.diagAt(&a.pos, format, args...)
++	a.diagAt(a.pos, format, args...)
+ }
+ 
+ /*
+@@ -65,7 +65,7 @@ type flowBuf struct {
+ 	ents map[uint]*flowEnt
+ 	// gotos is a map from goto positions to information on the
+ 	// block at the point of the goto.
+-	gotos map[*token.Position]*flowBlock
++	gotos map[token.Pos]*flowBlock
+ 	// labels is a map from label name to information on the block
+ 	// at the point of the label.  labels are tracked by name,
+ 	// since mutliple labels at the same PC can have different
+@@ -74,7 +74,7 @@ type flowBuf struct {
+ }
+ 
+ func newFlowBuf(cb *codeBuf) *flowBuf {
+-	return &flowBuf{cb, make(map[uint]*flowEnt), make(map[*token.Position]*flowBlock), make(map[string]*flowBlock)}
++	return &flowBuf{cb, make(map[uint]*flowEnt), make(map[token.Pos]*flowBlock), make(map[string]*flowBlock)}
+ }
+ 
+ // put creates a flow control point for the next PC in the code buffer.
+@@ -123,8 +123,8 @@ func newFlowBlock(target string, b *block) *flowBlock {
+ 
+ // putGoto captures the block at a goto statement.  This should be
+ // called in addition to putting a flow control point.
+-func (f *flowBuf) putGoto(pos token.Position, target string, b *block) {
+-	f.gotos[&pos] = newFlowBlock(target, b)
++func (f *flowBuf) putGoto(pos token.Pos, target string, b *block) {
++	f.gotos[pos] = newFlowBlock(target, b)
+ }
+ 
+ // putLabel captures the block at a label.
+@@ -212,13 +212,10 @@ func (f *flowBuf) gotosObeyScopes(a *compiler) {
+ func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
+ 	v, prev := a.block.DefineVar(ident.Name, ident.Pos(), t)
+ 	if prev != nil {
+-		// TODO(austin) It's silly that we have to capture
+-		// Pos() in a variable.
+-		pos := prev.Pos()
+-		if pos.IsValid() {
+-			a.diagAt(ident, "variable %s redeclared in this block\n\tprevious declaration at %s", ident.Name, &pos)
++		if prev.Pos().IsValid() {
++			a.diagAt(ident.Pos(), "variable %s redeclared in this block\n\tprevious declaration at %s", ident.Name, a.fset.Position(prev.Pos()))
+ 		} else {
+-			a.diagAt(ident, "variable %s redeclared in this block", ident.Name)
++			a.diagAt(ident.Pos(), "variable %s redeclared in this block", ident.Name)
+ 		}
+ 		return nil
+ 	}
+@@ -385,9 +382,9 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
+ 		if prev != nil {
+ 			pos := prev.Pos()
+ 			if pos.IsValid() {
+-				a.diagAt(d.Name, "identifier %s redeclared in this block\n\tprevious declaration at %s", d.Name.Name, &pos)
++				a.diagAt(d.Name.Pos(), "identifier %s redeclared in this block\n\tprevious declaration at %s", d.Name.Name, a.fset.Position(pos))
+ 			} else {
+-				a.diagAt(d.Name, "identifier %s redeclared in this block", d.Name.Name)
++				a.diagAt(d.Name.Pos(), "identifier %s redeclared in this block", d.Name.Name)
+ 			}
+ 		}
+ 		fn := a.compileFunc(a.block, decl, d.Body)
+@@ -419,7 +416,7 @@ func (a *stmtCompiler) compileLabeledStmt(s *ast.LabeledStmt) {
+ 	l, ok := a.labels[s.Label.Name]
+ 	if ok {
+ 		if l.resolved.IsValid() {
+-			a.diag("label %s redeclared in this block\n\tprevious declaration at %s", s.Label.Name, &l.resolved)
++			a.diag("label %s redeclared in this block\n\tprevious declaration at %s", s.Label.Name, a.fset.Position(l.resolved))
+ 		}
+ 	} else {
+ 		pc := badPC
+@@ -555,7 +552,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
+ 			// Check that it's an identifier
+ 			ident, ok = le.(*ast.Ident)
+ 			if !ok {
+-				a.diagAt(le, "left side of := must be a name")
++				a.diagAt(le.Pos(), "left side of := must be a name")
+ 				// Suppress new defitions errors
+ 				nDefs++
+ 				continue
+@@ -1012,12 +1009,12 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
+ 	for _, c := range s.Body.List {
+ 		clause, ok := c.(*ast.CaseClause)
+ 		if !ok {
+-			a.diagAt(clause, "switch statement must contain case clauses")
++			a.diagAt(clause.Pos(), "switch statement must contain case clauses")
+ 			continue
+ 		}
+ 		if clause.Values == nil {
+ 			if hasDefault {
+-				a.diagAt(clause, "switch statement contains more than one default case")
++				a.diagAt(clause.Pos(), "switch statement contains more than one default case")
+ 			}
+ 			hasDefault = true
+ 		} else {
+@@ -1039,7 +1036,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
+ 			case e == nil:
+ 				// Error reported by compileExpr
+ 			case cond == nil && !e.t.isBoolean():
+-				a.diagAt(v, "'case' condition must be boolean")
++				a.diagAt(v.Pos(), "'case' condition must be boolean")
+ 			case cond == nil:
+ 				cases[i] = e.asBool()
+ 			case cond != nil:
+@@ -1104,7 +1101,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
+ 					// empty blocks to be empty
+ 					// statements.
+ 					if _, ok := s2.(*ast.EmptyStmt); !ok {
+-						a.diagAt(s, "fallthrough statement must be final statement in case")
++						a.diagAt(s.Pos(), "fallthrough statement must be final statement in case")
+ 						break
+ 					}
+ 				}
+@@ -1275,7 +1272,7 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) fu
+ 	// this if there were no errors compiling the body.
+ 	if len(decl.Type.Out) > 0 && fc.flow.reachesEnd(0) {
+ 		// XXX(Spec) Not specified.
+-		a.diagAt(&body.Rbrace, "function ends without a return statement")
++		a.diagAt(body.Rbrace, "function ends without a return statement")
+ 		return nil
+ 	}
+ 
+@@ -1290,7 +1287,7 @@ func (a *funcCompiler) checkLabels() {
+ 	nerr := a.numError()
+ 	for _, l := range a.labels {
+ 		if !l.resolved.IsValid() {
+-			a.diagAt(&l.used, "label %s not defined", l.name)
++			a.diagAt(l.used, "label %s not defined", l.name)
+ 		}
+ 	}
+ 	if nerr != a.numError() {
+diff --git a/src/pkg/exp/eval/type.go b/src/pkg/exp/eval/type.go
+index 6c465dd727..db77ab198d 100644
+--- a/src/pkg/exp/eval/type.go
++++ b/src/pkg/exp/eval/type.go
+@@ -54,7 +54,7 @@ type Type interface {
+ 	// String returns the string representation of this type.
+ 	String() string
+ 	// The position where this type was defined, if any.
+-	Pos() token.Position
++	Pos() token.Pos
+ }
+ 
+ type BoundedType interface {
+@@ -65,7 +65,7 @@ type BoundedType interface {
+ 	maxVal() *big.Rat
+ }
+ 
+-var universePos = token.Position{"<universe>", 0, 0, 0}
++var universePos = token.NoPos
+ 
+ /*
+  * Type array maps.  These are used to memoize composite types.
+@@ -140,7 +140,7 @@ func (commonType) isFloat() bool { return false }
+ 
+ func (commonType) isIdeal() bool { return false }
+ 
+-func (commonType) Pos() token.Position { return token.Position{} }
++func (commonType) Pos() token.Pos { return token.NoPos }
+ 
+ /*
+  * Bool
+@@ -1100,8 +1100,8 @@ type Method struct {
+ }
+ 
+ type NamedType struct {
+-	token.Position
+-	Name string
++	NamePos token.Pos
++	Name    string
+ 	// Underlying type.  If incomplete is true, this will be nil.
+ 	// If incomplete is false and this is still nil, then this is
+ 	// a placeholder type representing an error.
+@@ -1114,7 +1114,11 @@ type NamedType struct {
+ // TODO(austin) This is temporarily needed by the debugger's remote
+ // type parser.  This should only be possible with block.DefineType.
+ func NewNamedType(name string) *NamedType {
+-	return &NamedType{token.Position{}, name, nil, true, make(map[string]Method)}
++	return &NamedType{token.NoPos, name, nil, true, make(map[string]Method)}
++}
++
++func (t *NamedType) Pos() token.Pos {
++	return t.NamePos
+ }
+ 
+ func (t *NamedType) Complete(def Type) {
+diff --git a/src/pkg/exp/eval/typec.go b/src/pkg/exp/eval/typec.go
+index 7ee323ef14..de90cf6649 100644
+--- a/src/pkg/exp/eval/typec.go
++++ b/src/pkg/exp/eval/typec.go
+@@ -28,19 +28,19 @@ type typeCompiler struct {
+ func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
+ 	_, _, def := a.block.Lookup(x.Name)
+ 	if def == nil {
+-		a.diagAt(x, "%s: undefined", x.Name)
++		a.diagAt(x.Pos(), "%s: undefined", x.Name)
+ 		return nil
+ 	}
+ 	switch def := def.(type) {
+ 	case *Constant:
+-		a.diagAt(x, "constant %v used as type", x.Name)
++		a.diagAt(x.Pos(), "constant %v used as type", x.Name)
+ 		return nil
+ 	case *Variable:
+-		a.diagAt(x, "variable %v used as type", x.Name)
++		a.diagAt(x.Pos(), "variable %v used as type", x.Name)
+ 		return nil
+ 	case *NamedType:
+ 		if !allowRec && def.incomplete {
+-			a.diagAt(x, "illegal recursive type")
++			a.diagAt(x.Pos(), "illegal recursive type")
+ 			return nil
+ 		}
+ 		if !def.incomplete && def.Def == nil {
+@@ -68,7 +68,7 @@ func (a *typeCompiler) compileArrayType(x *ast.ArrayType, allowRec bool) Type {
+ 	}
+ 
+ 	if _, ok := x.Len.(*ast.Ellipsis); ok {
+-		a.diagAt(x.Len, "... array initailizers not implemented")
++		a.diagAt(x.Len.Pos(), "... array initailizers not implemented")
+ 		return nil
+ 	}
+ 	l, ok := a.compileArrayLen(a.block, x.Len)
+@@ -76,7 +76,7 @@ func (a *typeCompiler) compileArrayType(x *ast.ArrayType, allowRec bool) Type {
+ 		return nil
+ 	}
+ 	if l < 0 {
+-		a.diagAt(x.Len, "array length must be non-negative")
++		a.diagAt(x.Len.Pos(), "array length must be non-negative")
+ 		return nil
+ 	}
+ 	if elem == nil {
+@@ -86,11 +86,11 @@ func (a *typeCompiler) compileArrayType(x *ast.ArrayType, allowRec bool) Type {
+ 	return NewArrayType(l, elem)
+ }
+ 
+-func (a *typeCompiler) compileFields(fields *ast.FieldList, allowRec bool) ([]Type, []*ast.Ident, []token.Position, bool) {
++func (a *typeCompiler) compileFields(fields *ast.FieldList, allowRec bool) ([]Type, []*ast.Ident, []token.Pos, bool) {
+ 	n := fields.NumFields()
+ 	ts := make([]Type, n)
+ 	ns := make([]*ast.Ident, n)
+-	ps := make([]token.Position, n)
++	ps := make([]token.Pos, n)
+ 	bad := false
+ 
+ 	if fields != nil {
+@@ -132,7 +132,7 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type
+ 	// uniqueness of field names inherited from anonymous fields
+ 	// at use time.
+ 	fields := make([]StructField, len(ts))
+-	nameSet := make(map[string]token.Position, len(ts))
++	nameSet := make(map[string]token.Pos, len(ts))
+ 	for i := range fields {
+ 		// Compute field name and check anonymous fields
+ 		var name string
+@@ -162,7 +162,7 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type
+ 			// *T, and T itself, may not be a pointer or
+ 			// interface type.
+ 			if nt == nil {
+-				a.diagAt(&poss[i], "embedded type must T or *T, where T is a named type")
++				a.diagAt(poss[i], "embedded type must T or *T, where T is a named type")
+ 				bad = true
+ 				continue
+ 			}
+@@ -172,7 +172,7 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type
+ 			lateCheck := a.lateCheck
+ 			a.lateCheck = func() bool {
+ 				if _, ok := nt.lit().(*PtrType); ok {
+-					a.diagAt(&poss[i], "embedded type %v is a pointer type", nt)
++					a.diagAt(poss[i], "embedded type %v is a pointer type", nt)
+ 					return false
+ 				}
+ 				return lateCheck()
+@@ -181,7 +181,7 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type
+ 
+ 		// Check name uniqueness
+ 		if prev, ok := nameSet[name]; ok {
+-			a.diagAt(&poss[i], "field %s redeclared\n\tprevious declaration at %s", name, &prev)
++			a.diagAt(poss[i], "field %s redeclared\n\tprevious declaration at %s", name, a.fset.Position(prev))
+ 			bad = true
+ 			continue
+ 		}
+@@ -227,7 +227,7 @@ func (a *typeCompiler) compileInterfaceType(x *ast.InterfaceType, allowRec bool)
+ 	ts, names, poss, bad := a.compileFields(x.Methods, allowRec)
+ 
+ 	methods := make([]IMethod, len(ts))
+-	nameSet := make(map[string]token.Position, len(ts))
++	nameSet := make(map[string]token.Pos, len(ts))
+ 	embeds := make([]*InterfaceType, len(ts))
+ 
+ 	var nm, ne int
+@@ -242,7 +242,7 @@ func (a *typeCompiler) compileInterfaceType(x *ast.InterfaceType, allowRec bool)
+ 			methods[nm].Type = ts[i].(*FuncType)
+ 			nm++
+ 			if prev, ok := nameSet[name]; ok {
+-				a.diagAt(&poss[i], "method %s redeclared\n\tprevious declaration at %s", name, &prev)
++				a.diagAt(poss[i], "method %s redeclared\n\tprevious declaration at %s", name, a.fset.Position(prev))
+ 				bad = true
+ 				continue
+ 			}
+@@ -251,7 +251,7 @@ func (a *typeCompiler) compileInterfaceType(x *ast.InterfaceType, allowRec bool)
+ 			// Embedded interface
+ 			it, ok := ts[i].lit().(*InterfaceType)
+ 			if !ok {
+-				a.diagAt(&poss[i], "embedded type must be an interface")
++				a.diagAt(poss[i], "embedded type must be an interface")
+ 				bad = true
+ 				continue
+ 			}
+@@ -259,7 +259,7 @@ func (a *typeCompiler) compileInterfaceType(x *ast.InterfaceType, allowRec bool)
+ 			ne++
+ 			for _, m := range it.methods {
+ 				if prev, ok := nameSet[m.Name]; ok {
+-					a.diagAt(&poss[i], "method %s redeclared\n\tprevious declaration at %s", m.Name, &prev)
++					a.diagAt(poss[i], "method %s redeclared\n\tprevious declaration at %s", m.Name, a.fset.Position(prev))
+ 					bad = true
+ 					continue
+ 				}
+@@ -288,13 +288,13 @@ func (a *typeCompiler) compileMapType(x *ast.MapType) Type {
+ 	// that can be map keys except for function types.
+ 	switch key.lit().(type) {
+ 	case *StructType:
+-		a.diagAt(x, "map key cannot be a struct type")
++		a.diagAt(x.Pos(), "map key cannot be a struct type")
+ 		return nil
+ 	case *ArrayType:
+-		a.diagAt(x, "map key cannot be an array type")
++		a.diagAt(x.Pos(), "map key cannot be an array type")
+ 		return nil
+ 	case *SliceType:
+-		a.diagAt(x, "map key cannot be a slice type")
++		a.diagAt(x.Pos(), "map key cannot be a slice type")
+ 		return nil
+ 	}
+ 	return NewMapType(key, val)
+@@ -339,14 +339,14 @@ func (a *typeCompiler) compileType(x ast.Expr, allowRec bool) Type {
+ 		return a.compileType(x.X, allowRec)
+ 
+ 	case *ast.Ellipsis:
+-		a.diagAt(x, "illegal use of ellipsis")
++		a.diagAt(x.Pos(), "illegal use of ellipsis")
+ 		return nil
+ 	}
+-	a.diagAt(x, "expression used as type")
++	a.diagAt(x.Pos(), "expression used as type")
+ 	return nil
+ 
+ notimpl:
+-	a.diagAt(x, "compileType: %T not implemented", x)
++	a.diagAt(x.Pos(), "compileType: %T not implemented", x)
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/exp/eval/world.go b/src/pkg/exp/eval/world.go
+index f55051cf1d..02d18bd793 100644
+--- a/src/pkg/exp/eval/world.go
++++ b/src/pkg/exp/eval/world.go
+@@ -41,14 +41,14 @@ type stmtCode struct {
+ 	code code
+ }
+ 
+-func (w *World) CompileStmtList(stmts []ast.Stmt) (Code, os.Error) {
++func (w *World) CompileStmtList(fset *token.FileSet, stmts []ast.Stmt) (Code, os.Error) {
+ 	if len(stmts) == 1 {
+ 		if s, ok := stmts[0].(*ast.ExprStmt); ok {
+-			return w.CompileExpr(s.X)
++			return w.CompileExpr(fset, s.X)
+ 		}
+ 	}
+ 	errors := new(scanner.ErrorVector)
+-	cc := &compiler{errors, 0, 0}
++	cc := &compiler{fset, errors, 0, 0}
+ 	cb := newCodeBuf()
+ 	fc := &funcCompiler{
+ 		compiler:     cc,
+@@ -73,12 +73,12 @@ func (w *World) CompileStmtList(stmts []ast.Stmt) (Code, os.Error) {
+ 	return &stmtCode{w, fc.get()}, nil
+ }
+ 
+-func (w *World) CompileDeclList(decls []ast.Decl) (Code, os.Error) {
++func (w *World) CompileDeclList(fset *token.FileSet, decls []ast.Decl) (Code, os.Error) {
+ 	stmts := make([]ast.Stmt, len(decls))
+ 	for i, d := range decls {
+ 		stmts[i] = &ast.DeclStmt{d}
+ 	}
+-	return w.CompileStmtList(stmts)
++	return w.CompileStmtList(fset, stmts)
+ }
+ 
+ func (s *stmtCode) Type() Type { return nil }
+@@ -95,9 +95,9 @@ type exprCode struct {
+ 	eval func(Value, *Thread)
+ }
+ 
+-func (w *World) CompileExpr(e ast.Expr) (Code, os.Error) {
++func (w *World) CompileExpr(fset *token.FileSet, e ast.Expr) (Code, os.Error) {
+ 	errors := new(scanner.ErrorVector)
+-	cc := &compiler{errors, 0, 0}
++	cc := &compiler{fset, errors, 0, 0}
+ 
+ 	ec := cc.compileExpr(w.scope.block, false, e)
+ 	if ec == nil {
+@@ -135,16 +135,16 @@ func (e *exprCode) Run() (Value, os.Error) {
+ 	return v, err
+ }
+ 
+-func (w *World) Compile(text string) (Code, os.Error) {
+-	stmts, err := parser.ParseStmtList("input", text)
++func (w *World) Compile(fset *token.FileSet, text string) (Code, os.Error) {
++	stmts, err := parser.ParseStmtList(fset, "input", text)
+ 	if err == nil {
+-		return w.CompileStmtList(stmts)
++		return w.CompileStmtList(fset, stmts)
+ 	}
+ 
+ 	// Otherwise try as DeclList.
+-	decls, err1 := parser.ParseDeclList("input", text)
++	decls, err1 := parser.ParseDeclList(fset, "input", text)
+ 	if err1 == nil {
+-		return w.CompileDeclList(decls)
++		return w.CompileDeclList(fset, decls)
+ 	}
+ 
+ 	// Have to pick an error.
+@@ -162,13 +162,16 @@ func (e *RedefinitionError) String() string {
+ 	res := "identifier " + e.Name + " redeclared"
+ 	pos := e.Prev.Pos()
+ 	if pos.IsValid() {
+-		res += "; previous declaration at " + pos.String()
++		// TODO: fix this - currently this code is not reached by the tests
++		//       need to get a file set (fset) from somewhere
++		//res += "; previous declaration at " + fset.Position(pos).String()
++		panic(0)
+ 	}
+ 	return res
+ }
+ 
+ func (w *World) DefineConst(name string, t Type, val Value) os.Error {
+-	_, prev := w.scope.DefineConst(name, token.Position{}, t, val)
++	_, prev := w.scope.DefineConst(name, token.NoPos, t, val)
+ 	if prev != nil {
+ 		return &RedefinitionError{name, prev}
+ 	}
+@@ -176,7 +179,7 @@ func (w *World) DefineConst(name string, t Type, val Value) os.Error {
+ }
+ 
+ func (w *World) DefineVar(name string, t Type, val Value) os.Error {
+-	v, prev := w.scope.DefineVar(name, token.Position{}, t)
++	v, prev := w.scope.DefineVar(name, token.NoPos, t)
+ 	if prev != nil {
+ 		return &RedefinitionError{name, prev}
+ 	}
+diff --git a/src/pkg/exp/ogle/cmd.go b/src/pkg/exp/ogle/cmd.go
+index d3672c24e3..ff137b0f89 100644
+--- a/src/pkg/exp/ogle/cmd.go
++++ b/src/pkg/exp/ogle/cmd.go
+@@ -18,6 +18,7 @@ import (
+ 	"strings"
+ )
+ 
++var fset = token.NewFileSet()
+ var world *eval.World
+ var curProc *Process
+ 
+@@ -43,7 +44,7 @@ func Main() {
+ 		}
+ 
+ 		// Try line as code
+-		code, err := world.Compile(string(line))
++		code, err := world.Compile(fset, string(line))
+ 		if err != nil {
+ 			scanner.PrintError(os.Stderr, err)
+ 			continue
+@@ -63,8 +64,7 @@ func Main() {
+ func newScanner(input []byte) (*scanner.Scanner, *scanner.ErrorVector) {
+ 	sc := new(scanner.Scanner)
+ 	ev := new(scanner.ErrorVector)
+-	sc.Init("input", input, ev, 0)
+-
++	sc.Init(fset, "input", input, ev, 0)
+ 	return sc, ev
+ }
+ 
+@@ -101,7 +101,7 @@ func getCmd(line []byte) (*cmd, []byte) {
+ 	slit := string(lit)
+ 	for i := range cmds {
+ 		if cmds[i].cmd == slit {
+-			return &cmds[i], line[pos.Offset+len(lit):]
++			return &cmds[i], line[fset.Position(pos).Offset+len(lit):]
+ 		}
+ 	}
+ 	return nil, nil
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index cd66f38854..da1f428e32 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -35,7 +35,7 @@ import (
+ // All node types implement the Node interface.
+ type Node interface {
+ 	// Pos returns the (beginning) position of the node.
+-	Pos() token.Position
++	Pos() token.Pos
+ }
+ 
+ 
+@@ -65,12 +65,12 @@ type Decl interface {
+ 
+ // A Comment node represents a single //-style or /*-style comment.
+ type Comment struct {
+-	Slash token.Position // position of "/" starting the comment
+-	Text  []byte         // comment text (excluding '\n' for //-style comments)
++	Slash token.Pos // position of "/" starting the comment
++	Text  []byte    // comment text (excluding '\n' for //-style comments)
+ }
+ 
+ 
+-func (c *Comment) Pos() token.Position {
++func (c *Comment) Pos() token.Pos {
+ 	return c.Slash
+ }
+ 
+@@ -99,7 +99,7 @@ type Field struct {
+ }
+ 
+ 
+-func (f *Field) Pos() token.Position {
++func (f *Field) Pos() token.Pos {
+ 	if len(f.Names) > 0 {
+ 		return f.Names[0].Pos()
+ 	}
+@@ -109,9 +109,9 @@ func (f *Field) Pos() token.Position {
+ 
+ // A FieldList represents a list of Fields, enclosed by parentheses or braces.
+ type FieldList struct {
+-	Opening token.Position // position of opening parenthesis/brace
+-	List    []*Field       // field list
+-	Closing token.Position // position of closing parenthesis/brace
++	Opening token.Pos // position of opening parenthesis/brace
++	List    []*Field  // field list
++	Closing token.Pos // position of closing parenthesis/brace
+ }
+ 
+ 
+@@ -140,29 +140,29 @@ type (
+ 	// created.
+ 	//
+ 	BadExpr struct {
+-		Begin token.Position // beginning position of bad expression
++		Begin token.Pos // beginning position of bad expression
+ 	}
+ 
+ 	// An Ident node represents an identifier.
+ 	Ident struct {
+-		NamePos token.Position // identifier position
+-		Name    string         // identifier name
+-		Obj     *Object        // denoted object; or nil
++		NamePos token.Pos // identifier position
++		Name    string    // identifier name
++		Obj     *Object   // denoted object; or nil
+ 	}
+ 
+ 	// An Ellipsis node stands for the "..." type in a
+ 	// parameter list or the "..." length in an array type.
+ 	//
+ 	Ellipsis struct {
+-		Ellipsis token.Position // position of "..."
+-		Elt      Expr           // ellipsis element type (parameter lists only)
++		Ellipsis token.Pos // position of "..."
++		Elt      Expr      // ellipsis element type (parameter lists only)
+ 	}
+ 
+ 	// A BasicLit node represents a literal of basic type.
+ 	BasicLit struct {
+-		ValuePos token.Position // literal position
+-		Kind     token.Token    // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING
+-		Value    []byte         // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 2.4i, 'a', '\x7f', "foo" or `\m\n\o`
++		ValuePos token.Pos   // literal position
++		Kind     token.Token // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING
++		Value    []byte      // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 2.4i, 'a', '\x7f', "foo" or `\m\n\o`
+ 	}
+ 
+ 	// A FuncLit node represents a function literal.
+@@ -173,17 +173,17 @@ type (
+ 
+ 	// A CompositeLit node represents a composite literal.
+ 	CompositeLit struct {
+-		Type   Expr           // literal type; or nil
+-		Lbrace token.Position // position of "{"
+-		Elts   []Expr         // list of composite elements
+-		Rbrace token.Position // position of "}"
++		Type   Expr      // literal type; or nil
++		Lbrace token.Pos // position of "{"
++		Elts   []Expr    // list of composite elements
++		Rbrace token.Pos // position of "}"
+ 	}
+ 
+ 	// A ParenExpr node represents a parenthesized expression.
+ 	ParenExpr struct {
+-		Lparen token.Position // position of "("
+-		X      Expr           // parenthesized expression
+-		Rparen token.Position // position of ")"
++		Lparen token.Pos // position of "("
++		X      Expr      // parenthesized expression
++		Rparen token.Pos // position of ")"
+ 	}
+ 
+ 	// A SelectorExpr node represents an expression followed by a selector.
+@@ -215,36 +215,36 @@ type (
+ 
+ 	// A CallExpr node represents an expression followed by an argument list.
+ 	CallExpr struct {
+-		Fun      Expr           // function expression
+-		Lparen   token.Position // position of "("
+-		Args     []Expr         // function arguments
+-		Ellipsis token.Position // position of "...", if any
+-		Rparen   token.Position // position of ")"
++		Fun      Expr      // function expression
++		Lparen   token.Pos // position of "("
++		Args     []Expr    // function arguments
++		Ellipsis token.Pos // position of "...", if any
++		Rparen   token.Pos // position of ")"
+ 	}
+ 
+ 	// A StarExpr node represents an expression of the form "*" Expression.
+ 	// Semantically it could be a unary "*" expression, or a pointer type.
+ 	//
+ 	StarExpr struct {
+-		Star token.Position // position of "*"
+-		X    Expr           // operand
++		Star token.Pos // position of "*"
++		X    Expr      // operand
+ 	}
+ 
+ 	// A UnaryExpr node represents a unary expression.
+ 	// Unary "*" expressions are represented via StarExpr nodes.
+ 	//
+ 	UnaryExpr struct {
+-		OpPos token.Position // position of Op
+-		Op    token.Token    // operator
+-		X     Expr           // operand
++		OpPos token.Pos   // position of Op
++		Op    token.Token // operator
++		X     Expr        // operand
+ 	}
+ 
+ 	// A BinaryExpr node represents a binary expression.
+ 	BinaryExpr struct {
+-		X     Expr           // left operand
+-		OpPos token.Position // position of Op
+-		Op    token.Token    // operator
+-		Y     Expr           // right operand
++		X     Expr        // left operand
++		OpPos token.Pos   // position of Op
++		Op    token.Token // operator
++		Y     Expr        // right operand
+ 	}
+ 
+ 	// A KeyValueExpr node represents (key : value) pairs
+@@ -252,7 +252,7 @@ type (
+ 	//
+ 	KeyValueExpr struct {
+ 		Key   Expr
+-		Colon token.Position // position of ":"
++		Colon token.Pos // position of ":"
+ 		Value Expr
+ 	}
+ )
+@@ -276,79 +276,79 @@ const (
+ type (
+ 	// An ArrayType node represents an array or slice type.
+ 	ArrayType struct {
+-		Lbrack token.Position // position of "["
+-		Len    Expr           // Ellipsis node for [...]T array types, nil for slice types
+-		Elt    Expr           // element type
++		Lbrack token.Pos // position of "["
++		Len    Expr      // Ellipsis node for [...]T array types, nil for slice types
++		Elt    Expr      // element type
+ 	}
+ 
+ 	// A StructType node represents a struct type.
+ 	StructType struct {
+-		Struct     token.Position // position of "struct" keyword
+-		Fields     *FieldList     // list of field declarations
+-		Incomplete bool           // true if (source) fields are missing in the Fields list
++		Struct     token.Pos  // position of "struct" keyword
++		Fields     *FieldList // list of field declarations
++		Incomplete bool       // true if (source) fields are missing in the Fields list
+ 	}
+ 
+ 	// Pointer types are represented via StarExpr nodes.
+ 
+ 	// A FuncType node represents a function type.
+ 	FuncType struct {
+-		Func    token.Position // position of "func" keyword
+-		Params  *FieldList     // (incoming) parameters
+-		Results *FieldList     // (outgoing) results
++		Func    token.Pos  // position of "func" keyword
++		Params  *FieldList // (incoming) parameters
++		Results *FieldList // (outgoing) results
+ 	}
+ 
+ 	// An InterfaceType node represents an interface type.
+ 	InterfaceType struct {
+-		Interface  token.Position // position of "interface" keyword
+-		Methods    *FieldList     // list of methods
+-		Incomplete bool           // true if (source) methods are missing in the Methods list
++		Interface  token.Pos  // position of "interface" keyword
++		Methods    *FieldList // list of methods
++		Incomplete bool       // true if (source) methods are missing in the Methods list
+ 	}
+ 
+ 	// A MapType node represents a map type.
+ 	MapType struct {
+-		Map   token.Position // position of "map" keyword
++		Map   token.Pos // position of "map" keyword
+ 		Key   Expr
+ 		Value Expr
+ 	}
+ 
+ 	// A ChanType node represents a channel type.
+ 	ChanType struct {
+-		Begin token.Position // position of "chan" keyword or "<-" (whichever comes first)
+-		Dir   ChanDir        // channel direction
+-		Value Expr           // value type
++		Begin token.Pos // position of "chan" keyword or "<-" (whichever comes first)
++		Dir   ChanDir   // channel direction
++		Value Expr      // value type
+ 	}
+ )
+ 
+ 
+ // Pos() implementations for expression/type nodes.
+ //
+-func (x *BadExpr) Pos() token.Position  { return x.Begin }
+-func (x *Ident) Pos() token.Position    { return x.NamePos }
+-func (x *Ellipsis) Pos() token.Position { return x.Ellipsis }
+-func (x *BasicLit) Pos() token.Position { return x.ValuePos }
+-func (x *FuncLit) Pos() token.Position  { return x.Type.Pos() }
+-func (x *CompositeLit) Pos() token.Position {
++func (x *BadExpr) Pos() token.Pos  { return x.Begin }
++func (x *Ident) Pos() token.Pos    { return x.NamePos }
++func (x *Ellipsis) Pos() token.Pos { return x.Ellipsis }
++func (x *BasicLit) Pos() token.Pos { return x.ValuePos }
++func (x *FuncLit) Pos() token.Pos  { return x.Type.Pos() }
++func (x *CompositeLit) Pos() token.Pos {
+ 	if x.Type != nil {
+ 		return x.Type.Pos()
+ 	}
+ 	return x.Lbrace
+ }
+-func (x *ParenExpr) Pos() token.Position      { return x.Lparen }
+-func (x *SelectorExpr) Pos() token.Position   { return x.X.Pos() }
+-func (x *IndexExpr) Pos() token.Position      { return x.X.Pos() }
+-func (x *SliceExpr) Pos() token.Position      { return x.X.Pos() }
+-func (x *TypeAssertExpr) Pos() token.Position { return x.X.Pos() }
+-func (x *CallExpr) Pos() token.Position       { return x.Fun.Pos() }
+-func (x *StarExpr) Pos() token.Position       { return x.Star }
+-func (x *UnaryExpr) Pos() token.Position      { return x.OpPos }
+-func (x *BinaryExpr) Pos() token.Position     { return x.X.Pos() }
+-func (x *KeyValueExpr) Pos() token.Position   { return x.Key.Pos() }
+-func (x *ArrayType) Pos() token.Position      { return x.Lbrack }
+-func (x *StructType) Pos() token.Position     { return x.Struct }
+-func (x *FuncType) Pos() token.Position       { return x.Func }
+-func (x *InterfaceType) Pos() token.Position  { return x.Interface }
+-func (x *MapType) Pos() token.Position        { return x.Map }
+-func (x *ChanType) Pos() token.Position       { return x.Begin }
++func (x *ParenExpr) Pos() token.Pos      { return x.Lparen }
++func (x *SelectorExpr) Pos() token.Pos   { return x.X.Pos() }
++func (x *IndexExpr) Pos() token.Pos      { return x.X.Pos() }
++func (x *SliceExpr) Pos() token.Pos      { return x.X.Pos() }
++func (x *TypeAssertExpr) Pos() token.Pos { return x.X.Pos() }
++func (x *CallExpr) Pos() token.Pos       { return x.Fun.Pos() }
++func (x *StarExpr) Pos() token.Pos       { return x.Star }
++func (x *UnaryExpr) Pos() token.Pos      { return x.OpPos }
++func (x *BinaryExpr) Pos() token.Pos     { return x.X.Pos() }
++func (x *KeyValueExpr) Pos() token.Pos   { return x.Key.Pos() }
++func (x *ArrayType) Pos() token.Pos      { return x.Lbrack }
++func (x *StructType) Pos() token.Pos     { return x.Struct }
++func (x *FuncType) Pos() token.Pos       { return x.Func }
++func (x *InterfaceType) Pos() token.Pos  { return x.Interface }
++func (x *MapType) Pos() token.Pos        { return x.Map }
++func (x *ChanType) Pos() token.Pos       { return x.Begin }
+ 
+ 
+ // exprNode() ensures that only expression/type nodes can be
+@@ -382,7 +382,7 @@ func (x *ChanType) exprNode()      {}
+ // ----------------------------------------------------------------------------
+ // Convenience functions for Idents
+ 
+-var noPos token.Position
++var noPos token.Pos
+ 
+ // NewIdent creates a new Ident without position.
+ // Useful for ASTs generated by code other than the Go parser.
+@@ -425,7 +425,7 @@ type (
+ 	// created.
+ 	//
+ 	BadStmt struct {
+-		Begin token.Position // beginning position of bad statement
++		Begin token.Pos // beginning position of bad statement
+ 	}
+ 
+ 	// A DeclStmt node represents a declaration in a statement list.
+@@ -438,7 +438,7 @@ type (
+ 	// of the immediately preceeding semicolon.
+ 	//
+ 	EmptyStmt struct {
+-		Semicolon token.Position // position of preceeding ";"
++		Semicolon token.Pos // position of preceeding ";"
+ 	}
+ 
+ 	// A LabeledStmt node represents a labeled statement.
+@@ -465,26 +465,26 @@ type (
+ 	//
+ 	AssignStmt struct {
+ 		Lhs    []Expr
+-		TokPos token.Position // position of Tok
+-		Tok    token.Token    // assignment token, DEFINE
++		TokPos token.Pos   // position of Tok
++		Tok    token.Token // assignment token, DEFINE
+ 		Rhs    []Expr
+ 	}
+ 
+ 	// A GoStmt node represents a go statement.
+ 	GoStmt struct {
+-		Go   token.Position // position of "go" keyword
++		Go   token.Pos // position of "go" keyword
+ 		Call *CallExpr
+ 	}
+ 
+ 	// A DeferStmt node represents a defer statement.
+ 	DeferStmt struct {
+-		Defer token.Position // position of "defer" keyword
++		Defer token.Pos // position of "defer" keyword
+ 		Call  *CallExpr
+ 	}
+ 
+ 	// A ReturnStmt node represents a return statement.
+ 	ReturnStmt struct {
+-		Return  token.Position // position of "return" keyword
++		Return  token.Pos // position of "return" keyword
+ 		Results []Expr
+ 	}
+ 
+@@ -492,21 +492,21 @@ type (
+ 	// or fallthrough statement.
+ 	//
+ 	BranchStmt struct {
+-		TokPos token.Position // position of Tok
+-		Tok    token.Token    // keyword token (BREAK, CONTINUE, GOTO, FALLTHROUGH)
++		TokPos token.Pos   // position of Tok
++		Tok    token.Token // keyword token (BREAK, CONTINUE, GOTO, FALLTHROUGH)
+ 		Label  *Ident
+ 	}
+ 
+ 	// A BlockStmt node represents a braced statement list.
+ 	BlockStmt struct {
+-		Lbrace token.Position // position of "{"
++		Lbrace token.Pos // position of "{"
+ 		List   []Stmt
+-		Rbrace token.Position // position of "}"
++		Rbrace token.Pos // position of "}"
+ 	}
+ 
+ 	// An IfStmt node represents an if statement.
+ 	IfStmt struct {
+-		If   token.Position // position of "if" keyword
++		If   token.Pos // position of "if" keyword
+ 		Init Stmt
+ 		Cond Expr
+ 		Body *BlockStmt
+@@ -515,15 +515,15 @@ type (
+ 
+ 	// A CaseClause represents a case of an expression switch statement.
+ 	CaseClause struct {
+-		Case   token.Position // position of "case" or "default" keyword
+-		Values []Expr         // nil means default case
+-		Colon  token.Position // position of ":"
+-		Body   []Stmt         // statement list; or nil
++		Case   token.Pos // position of "case" or "default" keyword
++		Values []Expr    // nil means default case
++		Colon  token.Pos // position of ":"
++		Body   []Stmt    // statement list; or nil
+ 	}
+ 
+ 	// A SwitchStmt node represents an expression switch statement.
+ 	SwitchStmt struct {
+-		Switch token.Position // position of "switch" keyword
++		Switch token.Pos // position of "switch" keyword
+ 		Init   Stmt
+ 		Tag    Expr
+ 		Body   *BlockStmt // CaseClauses only
+@@ -531,15 +531,15 @@ type (
+ 
+ 	// A TypeCaseClause represents a case of a type switch statement.
+ 	TypeCaseClause struct {
+-		Case  token.Position // position of "case" or "default" keyword
+-		Types []Expr         // nil means default case
+-		Colon token.Position // position of ":"
+-		Body  []Stmt         // statement list; or nil
++		Case  token.Pos // position of "case" or "default" keyword
++		Types []Expr    // nil means default case
++		Colon token.Pos // position of ":"
++		Body  []Stmt    // statement list; or nil
+ 	}
+ 
+ 	// An TypeSwitchStmt node represents a type switch statement.
+ 	TypeSwitchStmt struct {
+-		Switch token.Position // position of "switch" keyword
++		Switch token.Pos // position of "switch" keyword
+ 		Init   Stmt
+ 		Assign Stmt       // x := y.(type)
+ 		Body   *BlockStmt // TypeCaseClauses only
+@@ -547,22 +547,22 @@ type (
+ 
+ 	// A CommClause node represents a case of a select statement.
+ 	CommClause struct {
+-		Case     token.Position // position of "case" or "default" keyword
+-		Tok      token.Token    // ASSIGN or DEFINE (valid only if Lhs != nil)
+-		Lhs, Rhs Expr           // Rhs == nil means default case
+-		Colon    token.Position // position of ":"
+-		Body     []Stmt         // statement list; or nil
++		Case     token.Pos   // position of "case" or "default" keyword
++		Tok      token.Token // ASSIGN or DEFINE (valid only if Lhs != nil)
++		Lhs, Rhs Expr        // Rhs == nil means default case
++		Colon    token.Pos   // position of ":"
++		Body     []Stmt      // statement list; or nil
+ 	}
+ 
+ 	// An SelectStmt node represents a select statement.
+ 	SelectStmt struct {
+-		Select token.Position // position of "select" keyword
+-		Body   *BlockStmt     // CommClauses only
++		Select token.Pos  // position of "select" keyword
++		Body   *BlockStmt // CommClauses only
+ 	}
+ 
+ 	// A ForStmt represents a for statement.
+ 	ForStmt struct {
+-		For  token.Position // position of "for" keyword
++		For  token.Pos // position of "for" keyword
+ 		Init Stmt
+ 		Cond Expr
+ 		Post Stmt
+@@ -571,11 +571,11 @@ type (
+ 
+ 	// A RangeStmt represents a for statement with a range clause.
+ 	RangeStmt struct {
+-		For        token.Position // position of "for" keyword
+-		Key, Value Expr           // Value may be nil
+-		TokPos     token.Position // position of Tok
+-		Tok        token.Token    // ASSIGN, DEFINE
+-		X          Expr           // value to range over
++		For        token.Pos   // position of "for" keyword
++		Key, Value Expr        // Value may be nil
++		TokPos     token.Pos   // position of Tok
++		Tok        token.Token // ASSIGN, DEFINE
++		X          Expr        // value to range over
+ 		Body       *BlockStmt
+ 	}
+ )
+@@ -583,27 +583,27 @@ type (
+ 
+ // Pos() implementations for statement nodes.
+ //
+-func (s *BadStmt) Pos() token.Position        { return s.Begin }
+-func (s *DeclStmt) Pos() token.Position       { return s.Decl.Pos() }
+-func (s *EmptyStmt) Pos() token.Position      { return s.Semicolon }
+-func (s *LabeledStmt) Pos() token.Position    { return s.Label.Pos() }
+-func (s *ExprStmt) Pos() token.Position       { return s.X.Pos() }
+-func (s *IncDecStmt) Pos() token.Position     { return s.X.Pos() }
+-func (s *AssignStmt) Pos() token.Position     { return s.Lhs[0].Pos() }
+-func (s *GoStmt) Pos() token.Position         { return s.Go }
+-func (s *DeferStmt) Pos() token.Position      { return s.Defer }
+-func (s *ReturnStmt) Pos() token.Position     { return s.Return }
+-func (s *BranchStmt) Pos() token.Position     { return s.TokPos }
+-func (s *BlockStmt) Pos() token.Position      { return s.Lbrace }
+-func (s *IfStmt) Pos() token.Position         { return s.If }
+-func (s *CaseClause) Pos() token.Position     { return s.Case }
+-func (s *SwitchStmt) Pos() token.Position     { return s.Switch }
+-func (s *TypeCaseClause) Pos() token.Position { return s.Case }
+-func (s *TypeSwitchStmt) Pos() token.Position { return s.Switch }
+-func (s *CommClause) Pos() token.Position     { return s.Case }
+-func (s *SelectStmt) Pos() token.Position     { return s.Select }
+-func (s *ForStmt) Pos() token.Position        { return s.For }
+-func (s *RangeStmt) Pos() token.Position      { return s.For }
++func (s *BadStmt) Pos() token.Pos        { return s.Begin }
++func (s *DeclStmt) Pos() token.Pos       { return s.Decl.Pos() }
++func (s *EmptyStmt) Pos() token.Pos      { return s.Semicolon }
++func (s *LabeledStmt) Pos() token.Pos    { return s.Label.Pos() }
++func (s *ExprStmt) Pos() token.Pos       { return s.X.Pos() }
++func (s *IncDecStmt) Pos() token.Pos     { return s.X.Pos() }
++func (s *AssignStmt) Pos() token.Pos     { return s.Lhs[0].Pos() }
++func (s *GoStmt) Pos() token.Pos         { return s.Go }
++func (s *DeferStmt) Pos() token.Pos      { return s.Defer }
++func (s *ReturnStmt) Pos() token.Pos     { return s.Return }
++func (s *BranchStmt) Pos() token.Pos     { return s.TokPos }
++func (s *BlockStmt) Pos() token.Pos      { return s.Lbrace }
++func (s *IfStmt) Pos() token.Pos         { return s.If }
++func (s *CaseClause) Pos() token.Pos     { return s.Case }
++func (s *SwitchStmt) Pos() token.Pos     { return s.Switch }
++func (s *TypeCaseClause) Pos() token.Pos { return s.Case }
++func (s *TypeSwitchStmt) Pos() token.Pos { return s.Switch }
++func (s *CommClause) Pos() token.Pos     { return s.Case }
++func (s *SelectStmt) Pos() token.Pos     { return s.Select }
++func (s *ForStmt) Pos() token.Pos        { return s.For }
++func (s *RangeStmt) Pos() token.Pos      { return s.For }
+ 
+ 
+ // stmtNode() ensures that only statement nodes can be
+@@ -676,14 +676,14 @@ type (
+ 
+ // Pos() implementations for spec nodes.
+ //
+-func (s *ImportSpec) Pos() token.Position {
++func (s *ImportSpec) Pos() token.Pos {
+ 	if s.Name != nil {
+ 		return s.Name.Pos()
+ 	}
+ 	return s.Path.Pos()
+ }
+-func (s *ValueSpec) Pos() token.Position { return s.Names[0].Pos() }
+-func (s *TypeSpec) Pos() token.Position  { return s.Name.Pos() }
++func (s *ValueSpec) Pos() token.Pos { return s.Names[0].Pos() }
++func (s *TypeSpec) Pos() token.Pos  { return s.Name.Pos() }
+ 
+ 
+ // specNode() ensures that only spec nodes can be
+@@ -702,7 +702,7 @@ type (
+ 	// created.
+ 	//
+ 	BadDecl struct {
+-		Begin token.Position // beginning position of bad declaration
++		Begin token.Pos // beginning position of bad declaration
+ 	}
+ 
+ 	// A GenDecl node (generic declaration node) represents an import,
+@@ -717,12 +717,12 @@ type (
+ 	//	token.VAR     *ValueSpec
+ 	//
+ 	GenDecl struct {
+-		Doc    *CommentGroup  // associated documentation; or nil
+-		TokPos token.Position // position of Tok
+-		Tok    token.Token    // IMPORT, CONST, TYPE, VAR
+-		Lparen token.Position // position of '(', if any
++		Doc    *CommentGroup // associated documentation; or nil
++		TokPos token.Pos     // position of Tok
++		Tok    token.Token   // IMPORT, CONST, TYPE, VAR
++		Lparen token.Pos     // position of '(', if any
+ 		Specs  []Spec
+-		Rparen token.Position // position of ')', if any
++		Rparen token.Pos // position of ')', if any
+ 	}
+ 
+ 	// A FuncDecl node represents a function declaration.
+@@ -738,9 +738,9 @@ type (
+ 
+ // Pos implementations for declaration nodes.
+ //
+-func (d *BadDecl) Pos() token.Position  { return d.Begin }
+-func (d *GenDecl) Pos() token.Position  { return d.TokPos }
+-func (d *FuncDecl) Pos() token.Position { return d.Type.Pos() }
++func (d *BadDecl) Pos() token.Pos  { return d.Begin }
++func (d *GenDecl) Pos() token.Pos  { return d.TokPos }
++func (d *FuncDecl) Pos() token.Pos { return d.Type.Pos() }
+ 
+ 
+ // declNode() ensures that only declaration nodes can be
+@@ -762,14 +762,14 @@ func (d *FuncDecl) declNode() {}
+ //
+ type File struct {
+ 	Doc      *CommentGroup   // associated documentation; or nil
+-	Package  token.Position  // position of "package" keyword
++	Package  token.Pos       // position of "package" keyword
+ 	Name     *Ident          // package name
+ 	Decls    []Decl          // top-level declarations
+ 	Comments []*CommentGroup // list of all comments in the source file
+ }
+ 
+ 
+-func (f *File) Pos() token.Position { return f.Package }
++func (f *File) Pos() token.Pos { return f.Package }
+ 
+ 
+ // A Package node represents a set of source files
+diff --git a/src/pkg/go/ast/filter.go b/src/pkg/go/ast/filter.go
+index c46a1e0f96..0c3cef4b27 100644
+--- a/src/pkg/go/ast/filter.go
++++ b/src/pkg/go/ast/filter.go
+@@ -307,27 +307,6 @@ const (
+ var separator = &Comment{noPos, []byte("//")}
+ 
+ 
+-// lineAfterComment computes the position of the beginning
+-// of the line immediately following a comment.
+-func lineAfterComment(c *Comment) token.Position {
+-	pos := c.Pos()
+-	line := pos.Line
+-	text := c.Text
+-	if text[1] == '*' {
+-		/*-style comment - determine endline */
+-		for _, ch := range text {
+-			if ch == '\n' {
+-				line++
+-			}
+-		}
+-	}
+-	pos.Offset += len(text) + 1 // +1 for newline
+-	pos.Line = line + 1         // line after comment
+-	pos.Column = 1              // beginning of line
+-	return pos
+-}
+-
+-
+ // MergePackageFiles creates a file AST by merging the ASTs of the
+ // files belonging to a package. The mode flags control merging behavior.
+ //
+@@ -351,7 +330,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
+ 	// a package comment; but it's better to collect extra comments
+ 	// than drop them on the floor.
+ 	var doc *CommentGroup
+-	var pos token.Position
++	var pos token.Pos
+ 	if ndocs > 0 {
+ 		list := make([]*Comment, ndocs-1) // -1: no separator before first group
+ 		i := 0
+@@ -366,11 +345,11 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
+ 					list[i] = c
+ 					i++
+ 				}
+-				end := lineAfterComment(f.Doc.List[len(f.Doc.List)-1])
+-				if end.Offset > pos.Offset {
+-					// Keep the maximum end position as
+-					// position for the package clause.
+-					pos = end
++				if f.Package > pos {
++					// Keep the maximum package clause position as
++					// position for the package clause of the merged
++					// files.
++					pos = f.Package
+ 				}
+ 			}
+ 		}
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index b4322d5b03..dfa2360272 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -66,7 +66,7 @@ func (doc *docReader) addDoc(comments *ast.CommentGroup) {
+ 	n2 := len(comments.List)
+ 	list := make([]*ast.Comment, n1+1+n2) // + 1 for separator line
+ 	copy(list, doc.doc.List)
+-	list[n1] = &ast.Comment{token.Position{}, []byte("//")} // separator line
++	list[n1] = &ast.Comment{token.NoPos, []byte("//")} // separator line
+ 	copy(list[n1+1:], comments.List)
+ 	doc.doc = &ast.CommentGroup{list}
+ }
+@@ -249,7 +249,6 @@ func (doc *docReader) addDecl(decl ast.Decl) {
+ 				doc.addValue(d)
+ 			case token.TYPE:
+ 				// types are handled individually
+-				var noPos token.Position
+ 				for _, spec := range d.Specs {
+ 					// make a (fake) GenDecl node for this TypeSpec
+ 					// (we need to do this here - as opposed to just
+@@ -262,7 +261,7 @@ func (doc *docReader) addDecl(decl ast.Decl) {
+ 					// makeTypeDocs below). Simpler data structures, but
+ 					// would lose GenDecl documentation if the TypeSpec
+ 					// has documentation as well.
+-					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{spec}, noPos})
++					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, token.NoPos, []ast.Spec{spec}, token.NoPos})
+ 					// A new GenDecl node is created, no need to nil out d.Doc.
+ 				}
+ 			}
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index e451a4fe3d..916efc6c1b 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -57,18 +57,18 @@ func (p *parser) parseEOF() os.Error {
+ 
+ 
+ // ParseExpr parses a Go expression and returns the corresponding
+-// AST node. The filename and src arguments have the same interpretation
++// AST node. The fset, filename, and src arguments have the same interpretation
+ // as for ParseFile. If there is an error, the result expression
+ // may be nil or contain a partial AST.
+ //
+-func ParseExpr(filename string, src interface{}) (ast.Expr, os.Error) {
++func ParseExpr(fset *token.FileSet, filename string, src interface{}) (ast.Expr, os.Error) {
+ 	data, err := readSource(filename, src)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	var p parser
+-	p.init(filename, data, 0)
++	p.init(fset, filename, data, 0)
+ 	x := p.parseExpr()
+ 	if p.tok == token.SEMICOLON {
+ 		p.next() // consume automatically inserted semicolon, if any
+@@ -78,39 +78,41 @@ func ParseExpr(filename string, src interface{}) (ast.Expr, os.Error) {
+ 
+ 
+ // ParseStmtList parses a list of Go statements and returns the list
+-// of corresponding AST nodes. The filename and src arguments have the same
++// of corresponding AST nodes. The fset, filename, and src arguments have the same
+ // interpretation as for ParseFile. If there is an error, the node
+ // list may be nil or contain partial ASTs.
+ //
+-func ParseStmtList(filename string, src interface{}) ([]ast.Stmt, os.Error) {
++func ParseStmtList(fset *token.FileSet, filename string, src interface{}) ([]ast.Stmt, os.Error) {
+ 	data, err := readSource(filename, src)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	var p parser
+-	p.init(filename, data, 0)
++	p.init(fset, filename, data, 0)
+ 	return p.parseStmtList(), p.parseEOF()
+ }
+ 
+ 
+ // ParseDeclList parses a list of Go declarations and returns the list
+-// of corresponding AST nodes.  The filename and src arguments have the same
++// of corresponding AST nodes. The fset, filename, and src arguments have the same
+ // interpretation as for ParseFile. If there is an error, the node
+ // list may be nil or contain partial ASTs.
+ //
+-func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
++func ParseDeclList(fset *token.FileSet, filename string, src interface{}) ([]ast.Decl, os.Error) {
+ 	data, err := readSource(filename, src)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	var p parser
+-	p.init(filename, data, 0)
++	p.init(fset, filename, data, 0)
+ 	return p.parseDeclList(), p.parseEOF()
+ }
+ 
+ 
++// TODO(gri) Change ParseFile to Parse and improve documentation (issue 1311).
++
+ // ParseFile parses a Go source file and returns a File node.
+ //
+ // If src != nil, ParseFile parses the file source from src. src may
+@@ -121,7 +123,8 @@ func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
+ // If src == nil, ParseFile parses the file specified by filename.
+ //
+ // The mode parameter controls the amount of source text parsed and other
+-// optional parser functionality.
++// optional parser functionality. Position information is recorded in the
++// file set fset.
+ //
+ // If the source couldn't be read, the returned AST is nil and the error
+ // indicates the specific failure. If the source was read but syntax
+@@ -129,30 +132,31 @@ func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
+ // representing the fragments of erroneous source code). Multiple errors
+ // are returned via a scanner.ErrorList which is sorted by file position.
+ //
+-func ParseFile(filename string, src interface{}, mode uint) (*ast.File, os.Error) {
++func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint) (*ast.File, os.Error) {
+ 	data, err := readSource(filename, src)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	var p parser
+-	p.init(filename, data, mode)
++	p.init(fset, filename, data, mode)
+ 	return p.parseFile(), p.GetError(scanner.NoMultiples) // parseFile() reads to EOF
+ }
+ 
+ 
+ // ParseFiles calls ParseFile for each file in the filenames list and returns
+ // a map of package name -> package AST with all the packages found. The mode
+-// bits are passed to ParseFile unchanged.
++// bits are passed to ParseFile unchanged. Position information is recorded
++// in the file set fset.
+ //
+ // Files with parse errors are ignored. In this case the map of packages may
+ // be incomplete (missing packages and/or incomplete packages) and the first
+ // error encountered is returned.
+ //
+-func ParseFiles(filenames []string, mode uint) (pkgs map[string]*ast.Package, first os.Error) {
++func ParseFiles(fset *token.FileSet, filenames []string, mode uint) (pkgs map[string]*ast.Package, first os.Error) {
+ 	pkgs = make(map[string]*ast.Package)
+ 	for _, filename := range filenames {
+-		if src, err := ParseFile(filename, nil, mode); err == nil {
++		if src, err := ParseFile(fset, filename, nil, mode); err == nil {
+ 			name := src.Name.Name
+ 			pkg, found := pkgs[name]
+ 			if !found {
+@@ -171,13 +175,14 @@ func ParseFiles(filenames []string, mode uint) (pkgs map[string]*ast.Package, fi
+ // ParseDir calls ParseFile for the files in the directory specified by path and
+ // returns a map of package name -> package AST with all the packages found. If
+ // filter != nil, only the files with os.FileInfo entries passing through the filter
+-// are considered. The mode bits are passed to ParseFile unchanged.
++// are considered. The mode bits are passed to ParseFile unchanged. Position
++// information is recorded in the file set fset.
+ //
+ // If the directory couldn't be read, a nil map and the respective error are
+ // returned. If a parse error occured, a non-nil but incomplete map and the
+ // error are returned.
+ //
+-func ParseDir(path string, filter func(*os.FileInfo) bool, mode uint) (map[string]*ast.Package, os.Error) {
++func ParseDir(fset *token.FileSet, path string, filter func(*os.FileInfo) bool, mode uint) (map[string]*ast.Package, os.Error) {
+ 	fd, err := os.Open(path, os.O_RDONLY, 0)
+ 	if err != nil {
+ 		return nil, err
+@@ -200,5 +205,5 @@ func ParseDir(path string, filter func(*os.FileInfo) bool, mode uint) (map[strin
+ 	}
+ 	filenames = filenames[0:n]
+ 
+-	return ParseFiles(filenames, mode)
++	return ParseFiles(fset, filenames, mode)
+ }
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 390f693f77..87655c0b2a 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -35,6 +35,7 @@ const (
+ 
+ // The parser structure holds the parser's internal state.
+ type parser struct {
++	file *token.File
+ 	scanner.ErrorVector
+ 	scanner scanner.Scanner
+ 
+@@ -49,9 +50,9 @@ type parser struct {
+ 	lineComment *ast.CommentGroup // the last line comment
+ 
+ 	// Next token
+-	pos token.Position // token position
+-	tok token.Token    // one token look-ahead
+-	lit []byte         // token literal
++	pos token.Pos   // token position
++	tok token.Token // one token look-ahead
++	lit []byte      // token literal
+ 
+ 	// Non-syntactic parser control
+ 	exprLev int // < 0: in control clause, >= 0: in expression
+@@ -68,8 +69,8 @@ func scannerMode(mode uint) uint {
+ }
+ 
+ 
+-func (p *parser) init(filename string, src []byte, mode uint) {
+-	p.scanner.Init(filename, src, p, scannerMode(mode))
++func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode uint) {
++	p.file = p.scanner.Init(fset, filename, src, p, scannerMode(mode))
+ 	p.mode = mode
+ 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
+ 	p.next()
+@@ -83,7 +84,8 @@ func (p *parser) printTrace(a ...interface{}) {
+ 	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . " +
+ 		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
+ 	const n = uint(len(dots))
+-	fmt.Printf("%5d:%3d: ", p.pos.Line, p.pos.Column)
++	pos := p.file.Position(p.pos)
++	fmt.Printf("%5d:%3d: ", pos.Line, pos.Column)
+ 	i := 2 * p.indent
+ 	for ; i > n; i -= n {
+ 		fmt.Print(dots)
+@@ -111,9 +113,9 @@ func un(p *parser) {
+ func (p *parser) next0() {
+ 	// Because of one-token look-ahead, print the previous token
+ 	// when tracing as it provides a more readable output. The
+-	// very first token (p.pos.Line == 0) is not initialized (it
+-	// is token.ILLEGAL), so don't print it .
+-	if p.trace && p.pos.Line > 0 {
++	// very first token (!p.pos.IsValid()) is not initialized
++	// (it is token.ILLEGAL), so don't print it .
++	if p.trace && p.pos.IsValid() {
+ 		s := p.tok.String()
+ 		switch {
+ 		case p.tok.IsLiteral():
+@@ -132,7 +134,7 @@ func (p *parser) next0() {
+ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
+ 	// /*-style comments may end on a different line than where they start.
+ 	// Scan the comment for '\n' chars and adjust endline accordingly.
+-	endline = p.pos.Line
++	endline = p.file.Line(p.pos)
+ 	if p.lit[1] == '*' {
+ 		for _, b := range p.lit {
+ 			if b == '\n' {
+@@ -155,8 +157,8 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
+ //
+ func (p *parser) consumeCommentGroup() (comments *ast.CommentGroup, endline int) {
+ 	var list []*ast.Comment
+-	endline = p.pos.Line
+-	for p.tok == token.COMMENT && endline+1 >= p.pos.Line {
++	endline = p.file.Line(p.pos)
++	for p.tok == token.COMMENT && endline+1 >= p.file.Line(p.pos) {
+ 		var comment *ast.Comment
+ 		comment, endline = p.consumeComment()
+ 		list = append(list, comment)
+@@ -188,18 +190,18 @@ func (p *parser) consumeCommentGroup() (comments *ast.CommentGroup, endline int)
+ func (p *parser) next() {
+ 	p.leadComment = nil
+ 	p.lineComment = nil
+-	line := p.pos.Line // current line
++	line := p.file.Line(p.pos) // current line
+ 	p.next0()
+ 
+ 	if p.tok == token.COMMENT {
+ 		var comment *ast.CommentGroup
+ 		var endline int
+ 
+-		if p.pos.Line == line {
++		if p.file.Line(p.pos) == line {
+ 			// The comment is on same line as previous token; it
+ 			// cannot be a lead comment but may be a line comment.
+ 			comment, endline = p.consumeCommentGroup()
+-			if p.pos.Line != endline {
++			if p.file.Line(p.pos) != endline {
+ 				// The next token is on a different line, thus
+ 				// the last comment group is a line comment.
+ 				p.lineComment = comment
+@@ -212,7 +214,7 @@ func (p *parser) next() {
+ 			comment, endline = p.consumeCommentGroup()
+ 		}
+ 
+-		if endline+1 == p.pos.Line {
++		if endline+1 == p.file.Line(p.pos) {
+ 			// The next token is following on the line immediately after the
+ 			// comment group, thus the last comment group is a lead comment.
+ 			p.leadComment = comment
+@@ -221,9 +223,14 @@ func (p *parser) next() {
+ }
+ 
+ 
+-func (p *parser) errorExpected(pos token.Position, msg string) {
++func (p *parser) error(pos token.Pos, msg string) {
++	p.Error(p.file.Position(pos), msg)
++}
++
++
++func (p *parser) errorExpected(pos token.Pos, msg string) {
+ 	msg = "expected " + msg
+-	if pos.Offset == p.pos.Offset {
++	if pos == p.pos {
+ 		// the error happened at the current position;
+ 		// make the error message more specific
+ 		if p.tok == token.SEMICOLON && p.lit[0] == '\n' {
+@@ -235,11 +242,11 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
+ 			}
+ 		}
+ 	}
+-	p.Error(pos, msg)
++	p.error(pos, msg)
+ }
+ 
+ 
+-func (p *parser) expect(tok token.Token) token.Position {
++func (p *parser) expect(tok token.Token) token.Pos {
+ 	pos := p.pos
+ 	if p.tok != tok {
+ 		p.errorExpected(pos, "'"+tok.String()+"'")
+@@ -461,11 +468,11 @@ func (p *parser) tryVarType(isParam bool) ast.Expr {
+ 		p.next()
+ 		typ := p.tryType() // don't use parseType so we can provide better error message
+ 		if typ == nil {
+-			p.Error(pos, "'...' parameter is missing type")
++			p.error(pos, "'...' parameter is missing type")
+ 			typ = &ast.BadExpr{pos}
+ 		}
+ 		if p.tok != token.RPAREN {
+-			p.Error(pos, "can use '...' with last parameter type only")
++			p.error(pos, "can use '...' with last parameter type only")
+ 		}
+ 		return &ast.Ellipsis{pos, typ}
+ 	}
+@@ -618,7 +625,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
+ 		// method
+ 		idents = []*ast.Ident{ident}
+ 		params, results := p.parseSignature()
+-		typ = &ast.FuncType{noPos, params, results}
++		typ = &ast.FuncType{token.NoPos, params, results}
+ 	} else {
+ 		// embedded interface
+ 		typ = x
+@@ -888,7 +895,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
+ 	lparen := p.expect(token.LPAREN)
+ 	p.exprLev++
+ 	var list []ast.Expr
+-	var ellipsis token.Position
++	var ellipsis token.Pos
+ 	for p.tok != token.RPAREN && p.tok != token.EOF && !ellipsis.IsValid() {
+ 		list = append(list, p.parseExpr())
+ 		if p.tok == token.ELLIPSIS {
+@@ -1063,7 +1070,7 @@ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
+ 		}
+ 	case *ast.ArrayType:
+ 		if len, isEllipsis := t.Len.(*ast.Ellipsis); isEllipsis {
+-			p.Error(len.Pos(), "expected array length, found '...'")
++			p.error(len.Pos(), "expected array length, found '...'")
+ 			x = &ast.BadExpr{x.Pos()}
+ 		}
+ 	}
+@@ -1189,7 +1196,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ 				return &ast.LabeledStmt{label, p.parseStmt()}
+ 			}
+ 		}
+-		p.Error(x[0].Pos(), "illegal label declaration")
++		p.error(x[0].Pos(), "illegal label declaration")
+ 		return &ast.BadStmt{x[0].Pos()}
+ 
+ 	case
+@@ -1205,7 +1212,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ 	}
+ 
+ 	if len(x) > 1 {
+-		p.Error(x[0].Pos(), "only one expression allowed")
++		p.error(x[0].Pos(), "only one expression allowed")
+ 		// continue with first expression
+ 	}
+ 
+@@ -1303,7 +1310,7 @@ func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
+ 	if es, isExpr := s.(*ast.ExprStmt); isExpr {
+ 		return p.checkExpr(es.X)
+ 	}
+-	p.Error(s.Pos(), "expected condition, found simple statement")
++	p.error(s.Pos(), "expected condition, found simple statement")
+ 	return &ast.BadExpr{s.Pos()}
+ }
+ 
+@@ -1718,7 +1725,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
+ 
+ 	doc := p.leadComment
+ 	pos := p.expect(keyword)
+-	var lparen, rparen token.Position
++	var lparen, rparen token.Pos
+ 	var list []ast.Spec
+ 	if p.tok == token.LPAREN {
+ 		lparen = p.pos
+@@ -1747,7 +1754,7 @@ func (p *parser) parseReceiver() *ast.FieldList {
+ 	// must have exactly one receiver
+ 	if par.NumFields() != 1 {
+ 		p.errorExpected(pos, "exactly one receiver")
+-		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{noPos}}}
++		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{token.NoPos}}}
+ 		return par
+ 	}
+ 
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 5882145903..9c9a428b87 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -5,11 +5,14 @@
+ package parser
+ 
+ import (
++	"go/token"
+ 	"os"
+ 	"testing"
+ )
+ 
+ 
++var fset = token.NewFileSet()
++
+ var illegalInputs = []interface{}{
+ 	nil,
+ 	3.14,
+@@ -20,7 +23,7 @@ var illegalInputs = []interface{}{
+ 
+ func TestParseIllegalInputs(t *testing.T) {
+ 	for _, src := range illegalInputs {
+-		_, err := ParseFile("", src, 0)
++		_, err := ParseFile(fset, "", src, 0)
+ 		if err == nil {
+ 			t.Errorf("ParseFile(%v) should have failed", src)
+ 		}
+@@ -48,7 +51,7 @@ var validPrograms = []interface{}{
+ 
+ func TestParseValidPrograms(t *testing.T) {
+ 	for _, src := range validPrograms {
+-		_, err := ParseFile("", src, 0)
++		_, err := ParseFile(fset, "", src, 0)
+ 		if err != nil {
+ 			t.Errorf("ParseFile(%q): %v", src, err)
+ 		}
+@@ -64,7 +67,7 @@ var validFiles = []string{
+ 
+ func TestParse3(t *testing.T) {
+ 	for _, filename := range validFiles {
+-		_, err := ParseFile(filename, nil, 0)
++		_, err := ParseFile(fset, filename, nil, 0)
+ 		if err != nil {
+ 			t.Errorf("ParseFile(%s): %v", filename, err)
+ 		}
+@@ -89,7 +92,7 @@ func dirFilter(f *os.FileInfo) bool { return nameFilter(f.Name) }
+ 
+ func TestParse4(t *testing.T) {
+ 	path := "."
+-	pkgs, err := ParseDir(path, dirFilter, 0)
++	pkgs, err := ParseDir(fset, path, dirFilter, 0)
+ 	if err != nil {
+ 		t.Fatalf("ParseDir(%s): %v", path, err)
+ 	}
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index e21caf6add..7ae7b54b5e 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -72,7 +72,7 @@ func (p *printer) setComment(g *ast.CommentGroup) {
+ 		// for some reason there are pending comments; this
+ 		// should never happen - handle gracefully and flush
+ 		// all comments up to g, ignore anything after that
+-		p.flush(g.List[0].Pos(), token.ILLEGAL)
++		p.flush(p.fset.Position(g.List[0].Pos()), token.ILLEGAL)
+ 	}
+ 	p.comments[0] = g
+ 	p.cindex = 0
+@@ -104,7 +104,7 @@ func (p *printer) identList(list []*ast.Ident, indent bool, multiLine *bool) {
+ 	if !indent {
+ 		mode |= noIndent
+ 	}
+-	p.exprList(noPos, xlist, 1, mode, multiLine, noPos)
++	p.exprList(token.NoPos, xlist, 1, mode, multiLine, token.NoPos)
+ }
+ 
+ 
+@@ -127,7 +127,7 @@ func (p *printer) keySize(pair *ast.KeyValueExpr) int {
+ // TODO(gri) Consider rewriting this to be independent of []ast.Expr
+ //           so that we can use the algorithm for any kind of list
+ //           (e.g., pass list via a channel over which to range).
+-func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode exprListMode, multiLine *bool, next token.Position) {
++func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exprListMode, multiLine *bool, next0 token.Pos) {
+ 	if len(list) == 0 {
+ 		return
+ 	}
+@@ -136,13 +136,15 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
+ 		p.print(blank)
+ 	}
+ 
+-	line := list[0].Pos().Line
++	prev := p.fset.Position(prev0)
++	next := p.fset.Position(next0)
++	line := p.fset.Position(list[0].Pos()).Line
+ 	endLine := next.Line
+ 	if endLine == 0 {
+ 		// TODO(gri): endLine may be incorrect as it is really the beginning
+ 		//            of the last list entry. There may be only one, very long
+ 		//            entry in which case line == endLine.
+-		endLine = list[len(list)-1].Pos().Line
++		endLine = p.fset.Position(list[len(list)-1].Pos()).Line
+ 	}
+ 
+ 	if prev.IsValid() && prev.Line == line && line == endLine {
+@@ -199,7 +201,7 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
+ 	// print all list elements
+ 	for i, x := range list {
+ 		prevLine := line
+-		line = x.Pos().Line
++		line = p.fset.Position(x.Pos()).Line
+ 
+ 		// determine if the next linebreak, if any, needs to use formfeed:
+ 		// in general, use the entire node size to make the decision; for
+@@ -303,9 +305,9 @@ func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
+ 			if i > 0 {
+ 				p.print(token.COMMA)
+ 				if len(par.Names) > 0 {
+-					line = par.Names[0].Pos().Line
++					line = p.fset.Position(par.Names[0].Pos()).Line
+ 				} else {
+-					line = par.Type.Pos().Line
++					line = p.fset.Position(par.Type.Pos()).Line
+ 				}
+ 				if 0 < prevLine && prevLine < line && p.linebreak(line, 0, ignore, true) {
+ 					*multiLine = true
+@@ -318,7 +320,7 @@ func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
+ 				p.print(blank)
+ 			}
+ 			p.expr(par.Type, multiLine)
+-			prevLine = par.Type.Pos().Line
++			prevLine = p.fset.Position(par.Type.Pos()).Line
+ 		}
+ 	}
+ 	p.print(fields.Closing, token.RPAREN)
+@@ -375,7 +377,7 @@ func (p *printer) isOneLineFieldList(list []*ast.Field) bool {
+ 
+ 
+ func (p *printer) setLineComment(text string) {
+-	p.setComment(&ast.CommentGroup{[]*ast.Comment{&ast.Comment{noPos, []byte(text)}}})
++	p.setComment(&ast.CommentGroup{[]*ast.Comment{&ast.Comment{token.NoPos, []byte(text)}}})
+ }
+ 
+ 
+@@ -389,7 +391,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
+ 	list := fields.List
+ 	rbrace := fields.Closing
+ 
+-	if !isIncomplete && !p.commentBefore(rbrace) {
++	if !isIncomplete && !p.commentBefore(p.fset.Position(rbrace)) {
+ 		// possibly a one-line struct/interface
+ 		if len(list) == 0 {
+ 			// no blank between keyword and {} in this case
+@@ -427,7 +429,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
+ 		var ml bool
+ 		for i, f := range list {
+ 			if i > 0 {
+-				p.linebreak(f.Pos().Line, 1, ignore, ml)
++				p.linebreak(p.fset.Position(f.Pos()).Line, 1, ignore, ml)
+ 			}
+ 			ml = false
+ 			extraTabs := 0
+@@ -462,7 +464,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
+ 			if len(list) > 0 {
+ 				p.print(formfeed)
+ 			}
+-			p.flush(rbrace, token.RBRACE) // make sure we don't loose the last line comment
++			p.flush(p.fset.Position(rbrace), token.RBRACE) // make sure we don't loose the last line comment
+ 			p.setLineComment("// contains unexported fields")
+ 		}
+ 
+@@ -471,7 +473,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
+ 		var ml bool
+ 		for i, f := range list {
+ 			if i > 0 {
+-				p.linebreak(f.Pos().Line, 1, ignore, ml)
++				p.linebreak(p.fset.Position(f.Pos()).Line, 1, ignore, ml)
+ 			}
+ 			ml = false
+ 			p.setComment(f.Doc)
+@@ -489,7 +491,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
+ 			if len(list) > 0 {
+ 				p.print(formfeed)
+ 			}
+-			p.flush(rbrace, token.RBRACE) // make sure we don't loose the last line comment
++			p.flush(p.fset.Position(rbrace), token.RBRACE) // make sure we don't loose the last line comment
+ 			p.setLineComment("// contains unexported methods")
+ 		}
+ 
+@@ -660,7 +662,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int, multiL
+ 		p.print(blank)
+ 	}
+ 	xline := p.pos.Line // before the operator (it may be on the next line!)
+-	yline := x.Y.Pos().Line
++	yline := p.fset.Position(x.Y.Pos()).Line
+ 	p.print(x.OpPos, x.Op)
+ 	if xline != yline && xline > 0 && yline > 0 {
+ 		// at least one line break, but respect an extra empty line
+@@ -805,7 +807,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 
+ 	case *ast.FuncLit:
+ 		p.expr(x.Type, multiLine)
+-		p.funcBody(x.Body, distance(x.Type.Pos(), p.pos), true, multiLine)
++		p.funcBody(x.Body, p.distance(x.Type.Pos(), p.pos), true, multiLine)
+ 
+ 	case *ast.ParenExpr:
+ 		if _, hasParens := x.X.(*ast.ParenExpr); hasParens {
+@@ -820,7 +822,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 
+ 	case *ast.SelectorExpr:
+ 		parts := selectorExprList(expr)
+-		p.exprList(noPos, parts, depth, periodSep, multiLine, noPos)
++		p.exprList(token.NoPos, parts, depth, periodSep, multiLine, token.NoPos)
+ 
+ 	case *ast.TypeAssertExpr:
+ 		p.expr1(x.X, token.HighestPrec, depth, 0, multiLine)
+@@ -957,7 +959,7 @@ func (p *printer) stmtList(list []ast.Stmt, _indent int, nextIsRBrace bool) {
+ 	for i, s := range list {
+ 		// _indent == 0 only for lists of switch/select case clauses;
+ 		// in those cases each clause is a new section
+-		p.linebreak(s.Pos().Line, 1, ignore, i == 0 || _indent == 0 || multiLine)
++		p.linebreak(p.fset.Position(s.Pos()).Line, 1, ignore, i == 0 || _indent == 0 || multiLine)
+ 		multiLine = false
+ 		p.stmt(s, nextIsRBrace && i == len(list)-1, &multiLine)
+ 	}
+@@ -971,7 +973,7 @@ func (p *printer) stmtList(list []ast.Stmt, _indent int, nextIsRBrace bool) {
+ func (p *printer) block(s *ast.BlockStmt, indent int) {
+ 	p.print(s.Pos(), token.LBRACE)
+ 	p.stmtList(s.List, indent, true)
+-	p.linebreak(s.Rbrace.Line, 1, ignore, true)
++	p.linebreak(p.fset.Position(s.Rbrace).Line, 1, ignore, true)
+ 	p.print(s.Rbrace, token.RBRACE)
+ }
+ 
+@@ -1076,7 +1078,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
+ 				break
+ 			}
+ 		} else {
+-			p.linebreak(s.Stmt.Pos().Line, 1, ignore, true)
++			p.linebreak(p.fset.Position(s.Stmt.Pos()).Line, 1, ignore, true)
+ 		}
+ 		p.stmt(s.Stmt, nextIsRBrace, multiLine)
+ 
+@@ -1096,7 +1098,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
+ 		}
+ 		p.exprList(s.Pos(), s.Lhs, depth, commaSep, multiLine, s.TokPos)
+ 		p.print(blank, s.TokPos, s.Tok)
+-		p.exprList(s.TokPos, s.Rhs, depth, blankStart|commaSep, multiLine, noPos)
++		p.exprList(s.TokPos, s.Rhs, depth, blankStart|commaSep, multiLine, token.NoPos)
+ 
+ 	case *ast.GoStmt:
+ 		p.print(token.GO, blank)
+@@ -1109,7 +1111,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
+ 	case *ast.ReturnStmt:
+ 		p.print(token.RETURN)
+ 		if s.Results != nil {
+-			p.exprList(s.Pos(), s.Results, 1, blankStart|commaSep, multiLine, noPos)
++			p.exprList(s.Pos(), s.Results, 1, blankStart|commaSep, multiLine, token.NoPos)
+ 		}
+ 
+ 	case *ast.BranchStmt:
+@@ -1254,7 +1256,7 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool, multiLine *bool) {
+ 			}
+ 			if s.Values != nil {
+ 				p.print(blank, token.ASSIGN)
+-				p.exprList(noPos, s.Values, 1, blankStart|commaSep, multiLine, noPos)
++				p.exprList(token.NoPos, s.Values, 1, blankStart|commaSep, multiLine, token.NoPos)
+ 			}
+ 			p.setComment(s.Comment)
+ 
+@@ -1267,7 +1269,7 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool, multiLine *bool) {
+ 			}
+ 			if s.Values != nil {
+ 				p.print(vtab, token.ASSIGN)
+-				p.exprList(noPos, s.Values, 1, blankStart|commaSep, multiLine, noPos)
++				p.exprList(token.NoPos, s.Values, 1, blankStart|commaSep, multiLine, token.NoPos)
+ 				extraTabs--
+ 			}
+ 			if s.Comment != nil {
+@@ -1308,7 +1310,7 @@ func (p *printer) genDecl(d *ast.GenDecl, multiLine *bool) {
+ 			var ml bool
+ 			for i, s := range d.Specs {
+ 				if i > 0 {
+-					p.linebreak(s.Pos().Line, 1, ignore, ml)
++					p.linebreak(p.fset.Position(s.Pos()).Line, 1, ignore, ml)
+ 				}
+ 				ml = false
+ 				p.spec(s, len(d.Specs), false, &ml)
+@@ -1337,7 +1339,7 @@ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
+ 	// in RawFormat
+ 	cfg := Config{Mode: RawFormat}
+ 	var buf bytes.Buffer
+-	if _, err := cfg.Fprint(&buf, n); err != nil {
++	if _, err := cfg.Fprint(&buf, p.fset, n); err != nil {
+ 		return
+ 	}
+ 	if buf.Len() <= maxSize {
+@@ -1355,11 +1357,11 @@ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
+ func (p *printer) isOneLineFunc(b *ast.BlockStmt, headerSize int) bool {
+ 	pos1 := b.Pos()
+ 	pos2 := b.Rbrace
+-	if pos1.IsValid() && pos2.IsValid() && pos1.Line != pos2.Line {
++	if pos1.IsValid() && pos2.IsValid() && p.fset.Position(pos1).Line != p.fset.Position(pos2).Line {
+ 		// opening and closing brace are on different lines - don't make it a one-liner
+ 		return false
+ 	}
+-	if len(b.List) > 5 || p.commentBefore(pos2) {
++	if len(b.List) > 5 || p.commentBefore(p.fset.Position(pos2)) {
+ 		// too many statements or there is a comment inside - don't make it a one-liner
+ 		return false
+ 	}
+@@ -1416,7 +1418,8 @@ func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool, multiLi
+ // distance returns the column difference between from and to if both
+ // are on the same line; if they are on different lines (or unknown)
+ // the result is infinity.
+-func distance(from, to token.Position) int {
++func (p *printer) distance(from0 token.Pos, to token.Position) int {
++	from := p.fset.Position(from0)
+ 	if from.IsValid() && to.IsValid() && from.Line == to.Line {
+ 		return to.Column - from.Column
+ 	}
+@@ -1434,7 +1437,7 @@ func (p *printer) funcDecl(d *ast.FuncDecl, multiLine *bool) {
+ 	}
+ 	p.expr(d.Name, multiLine)
+ 	p.signature(d.Type.Params, d.Type.Results, multiLine)
+-	p.funcBody(d.Body, distance(d.Pos(), p.pos), false, multiLine)
++	p.funcBody(d.Body, p.distance(d.Pos(), p.pos), false, multiLine)
+ }
+ 
+ 
+@@ -1484,7 +1487,7 @@ func (p *printer) file(src *ast.File) {
+ 			if prev != tok {
+ 				min = 2
+ 			}
+-			p.linebreak(d.Pos().Line, min, ignore, false)
++			p.linebreak(p.fset.Position(d.Pos()).Line, min, ignore, false)
+ 			p.decl(d, ignoreMultiLine)
+ 		}
+ 	}
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index f8b5871d09..c0f7344f31 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -62,6 +62,7 @@ type printer struct {
+ 	// Configuration (does not change after initialization)
+ 	output io.Writer
+ 	Config
++	fset   *token.FileSet
+ 	errors chan os.Error
+ 
+ 	// Current state
+@@ -94,9 +95,10 @@ type printer struct {
+ }
+ 
+ 
+-func (p *printer) init(output io.Writer, cfg *Config) {
++func (p *printer) init(output io.Writer, cfg *Config, fset *token.FileSet) {
+ 	p.output = output
+ 	p.Config = *cfg
++	p.fset = fset
+ 	p.errors = make(chan os.Error)
+ 	p.buffer = make([]whiteSpace, 0, 16) // whitespace sequences are short
+ }
+@@ -596,7 +598,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
+ 
+ 	// shortcut common case of //-style comments
+ 	if text[1] == '/' {
+-		p.writeCommentLine(comment, comment.Pos(), text)
++		p.writeCommentLine(comment, p.fset.Position(comment.Pos()), text)
+ 		return
+ 	}
+ 
+@@ -608,7 +610,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
+ 	// write comment lines, separated by formfeed,
+ 	// without a line break after the last line
+ 	linebreak := formfeeds[0:1]
+-	pos := comment.Pos()
++	pos := p.fset.Position(comment.Pos())
+ 	for i, line := range lines {
+ 		if i > 0 {
+ 			p.write(linebreak)
+@@ -669,14 +671,14 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (dro
+ 	var last *ast.Comment
+ 	for ; p.commentBefore(next); p.cindex++ {
+ 		for _, c := range p.comments[p.cindex].List {
+-			p.writeCommentPrefix(c.Pos(), next, last == nil, tok.IsKeyword())
++			p.writeCommentPrefix(p.fset.Position(c.Pos()), next, last == nil, tok.IsKeyword())
+ 			p.writeComment(c)
+ 			last = c
+ 		}
+ 	}
+ 
+ 	if last != nil {
+-		if last.Text[1] == '*' && last.Pos().Line == next.Line {
++		if last.Text[1] == '*' && p.fset.Position(last.Pos()).Line == next.Line {
+ 			// the last comment is a /*-style comment and the next item
+ 			// follows on the same line: separate with an extra blank
+ 			p.write([]byte{' '})
+@@ -842,9 +844,9 @@ func (p *printer) print(args ...interface{}) {
+ 				data = []byte(s)
+ 			}
+ 			tok = x
+-		case token.Position:
++		case token.Pos:
+ 			if x.IsValid() {
+-				next = x // accurate position of next item
++				next = p.fset.Position(x) // accurate position of next item
+ 			}
+ 			tok = p.lastTok
+ 		default:
+@@ -873,7 +875,7 @@ func (p *printer) print(args ...interface{}) {
+ // before the next position in the source code.
+ //
+ func (p *printer) commentBefore(next token.Position) bool {
+-	return p.cindex < len(p.comments) && p.comments[p.cindex].List[0].Pos().Offset < next.Offset
++	return p.cindex < len(p.comments) && p.fset.Position(p.comments[p.cindex].List[0].Pos()).Offset < next.Offset
+ }
+ 
+ 
+@@ -1026,10 +1028,11 @@ type Config struct {
+ 
+ // Fprint "pretty-prints" an AST node to output and returns the number
+ // of bytes written and an error (if any) for a given configuration cfg.
++// Position information is interpreted relative to the file set fset.
+ // The node type must be *ast.File, or assignment-compatible to ast.Expr,
+ // ast.Decl, ast.Spec, or ast.Stmt.
+ //
+-func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
++func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) (int, os.Error) {
+ 	// redirect output through a trimmer to eliminate trailing whitespace
+ 	// (Input to a tabwriter must be untrimmed since trailing tabs provide
+ 	// formatting information. The tabwriter could provide trimming
+@@ -1061,7 +1064,7 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
+ 
+ 	// setup printer and print node
+ 	var p printer
+-	p.init(output, cfg)
++	p.init(output, cfg, fset)
+ 	go func() {
+ 		switch n := node.(type) {
+ 		case ast.Expr:
+@@ -1111,7 +1114,7 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
+ // Fprint "pretty-prints" an AST node to output.
+ // It calls Config.Fprint with default settings.
+ //
+-func Fprint(output io.Writer, node interface{}) os.Error {
+-	_, err := (&Config{Tabwidth: 8}).Fprint(output, node) // don't care about number of bytes written
++func Fprint(output io.Writer, fset *token.FileSet, node interface{}) os.Error {
++	_, err := (&Config{Tabwidth: 8}).Fprint(output, fset, node) // don't care about number of bytes written
+ 	return err
+ }
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index b5d7b81d8f..c66471b926 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"io/ioutil"
+ 	"go/ast"
+ 	"go/parser"
++	"go/token"
+ 	"path"
+ 	"testing"
+ )
+@@ -24,6 +25,9 @@ const (
+ var update = flag.Bool("update", false, "update golden files")
+ 
+ 
++var fset = token.NewFileSet()
++
++
+ func lineString(text []byte, i int) string {
+ 	i0 := i
+ 	for i < len(text) && text[i] != '\n' {
+@@ -43,7 +47,7 @@ const (
+ 
+ func check(t *testing.T, source, golden string, mode checkMode) {
+ 	// parse source
+-	prog, err := parser.ParseFile(source, nil, parser.ParseComments)
++	prog, err := parser.ParseFile(fset, source, nil, parser.ParseComments)
+ 	if err != nil {
+ 		t.Error(err)
+ 		return
+@@ -63,7 +67,7 @@ func check(t *testing.T, source, golden string, mode checkMode) {
+ 
+ 	// format source
+ 	var buf bytes.Buffer
+-	if _, err := cfg.Fprint(&buf, prog); err != nil {
++	if _, err := cfg.Fprint(&buf, fset, prog); err != nil {
+ 		t.Error(err)
+ 	}
+ 	res := buf.Bytes()
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 64ff127750..b2d9d7c25d 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -24,18 +24,16 @@ import (
+ //
+ type Scanner struct {
+ 	// immutable state
++	file *token.File  // source file handle
+ 	src  []byte       // source
+ 	err  ErrorHandler // error reporting; or nil
+ 	mode uint         // scanning mode
+ 
+ 	// scanning state
+-	filename string // current filename; may change via //line filename:line comment
+-	line     int    // current line
+-	column   int    // current column
+-
+ 	ch         int  // current character
+ 	offset     int  // character offset
+ 	rdOffset   int  // reading offset (position after current character)
++	lineOffset int  // current line offset
+ 	insertSemi bool // insert a semicolon before next newline
+ 
+ 	// public state - ok to modify
+@@ -47,22 +45,21 @@ type Scanner struct {
+ // S.ch < 0 means end-of-file.
+ //
+ func (S *Scanner) next() {
+-	S.column++
+ 	if S.rdOffset < len(S.src) {
+ 		S.offset = S.rdOffset
+ 		if S.ch == '\n' {
+-			S.line++
+-			S.column = 1
++			S.lineOffset = S.offset
++			S.file.AddLine(S.offset)
+ 		}
+ 		r, w := int(S.src[S.rdOffset]), 1
+ 		switch {
+ 		case r == 0:
+-			S.error("illegal character NUL")
++			S.error(S.offset, "illegal character NUL")
+ 		case r >= 0x80:
+ 			// not ASCII
+ 			r, w = utf8.DecodeRune(S.src[S.rdOffset:])
+ 			if r == utf8.RuneError && w == 1 {
+-				S.error("illegal UTF-8 encoding")
++				S.error(S.offset, "illegal UTF-8 encoding")
+ 			}
+ 		}
+ 		S.rdOffset += w
+@@ -70,7 +67,8 @@ func (S *Scanner) next() {
+ 	} else {
+ 		S.offset = len(S.src)
+ 		if S.ch == '\n' {
+-			S.column = 1
++			S.lineOffset = S.offset
++			S.file.AddLine(S.offset)
+ 		}
+ 		S.ch = -1 // eof
+ 	}
+@@ -86,32 +84,37 @@ const (
+ 	InsertSemis                   // automatically insert semicolons
+ )
+ 
++// TODO(gri) Would it be better to simply provide *token.File to Init
++//           instead of fset, and filename, and then return the file?
++//           It could cause an error/panic if the provided file.Size()
++//           doesn't match len(src).
+ 
+-// Init prepares the scanner S to tokenize the text src. Calls to Scan
+-// will use the error handler err if they encounter a syntax error and
+-// err is not nil. Also, for each error encountered, the Scanner field
+-// ErrorCount is incremented by one. The filename parameter is used as
+-// filename in the token.Position returned by Scan for each token. The
+-// mode parameter determines how comments and illegal characters are
+-// handled.
++// Init prepares the scanner S to tokenize the text src. It sets the
++// scanner at the beginning of the source text, adds a new file with
++// the given filename to the file set fset, and returns that file.
++//
++// Calls to Scan will use the error handler err if they encounter a
++// syntax error and err is not nil. Also, for each error encountered,
++// the Scanner field ErrorCount is incremented by one. The mode parameter
++// determines how comments, illegal characters, and semicolons are handled.
+ //
+-func (S *Scanner) Init(filename string, src []byte, err ErrorHandler, mode uint) {
++func (S *Scanner) Init(fset *token.FileSet, filename string, src []byte, err ErrorHandler, mode uint) *token.File {
+ 	// Explicitly initialize all fields since a scanner may be reused.
++	S.file = fset.AddFile(filename, fset.Base(), len(src))
+ 	S.src = src
+ 	S.err = err
+ 	S.mode = mode
+ 
+-	S.filename = filename
+-	S.line = 1
+-	S.column = 0
+-
+ 	S.ch = ' '
+ 	S.offset = 0
+ 	S.rdOffset = 0
++	S.lineOffset = 0
+ 	S.insertSemi = false
+ 	S.ErrorCount = 0
+ 
+ 	S.next()
++
++	return S.file
+ }
+ 
+ 
+@@ -145,14 +148,9 @@ func charString(ch int) string {
+ }
+ 
+ 
+-func (S *Scanner) error(msg string) {
+-	S.errorAt(token.Position{S.filename, S.offset, S.line, S.column}, msg)
+-}
+-
+-
+-func (S *Scanner) errorAt(pos token.Position, msg string) {
++func (S *Scanner) error(offs int, msg string) {
+ 	if S.err != nil {
+-		S.err.Error(pos, msg)
++		S.err.Error(S.file.Position(S.file.Pos(offs)), msg)
+ 	}
+ 	S.ErrorCount++
+ }
+@@ -167,8 +165,7 @@ func (S *Scanner) interpretLineComment(text []byte) {
+ 			if line, err := strconv.Atoi(string(text[i+1:])); err == nil && line > 0 {
+ 				// valid //line filename:line comment;
+ 				// update scanner position
+-				S.filename = string(text[len(prefix):i])
+-				S.line = line - 1 // -1 since the '\n' has not been consumed yet
++				S.file.AddLineInfo(S.lineOffset, string(text[len(prefix):i]), line-1) // -1 since comment applies to next line
+ 			}
+ 		}
+ 	}
+@@ -178,8 +175,6 @@ func (S *Scanner) interpretLineComment(text []byte) {
+ func (S *Scanner) scanComment() {
+ 	// initial '/' already consumed; S.ch == '/' || S.ch == '*'
+ 	offs := S.offset - 1 // position of initial '/'
+-	col := S.column - 1
+-	pos := token.Position{S.filename, S.offset - 1, S.line, S.column - 1}
+ 
+ 	if S.ch == '/' {
+ 		//-style comment
+@@ -187,7 +182,7 @@ func (S *Scanner) scanComment() {
+ 		for S.ch != '\n' && S.ch >= 0 {
+ 			S.next()
+ 		}
+-		if col == 1 {
++		if offs == S.lineOffset {
+ 			// comment starts at the beginning of the current line
+ 			S.interpretLineComment(S.src[offs:S.offset])
+ 		}
+@@ -205,24 +200,20 @@ func (S *Scanner) scanComment() {
+ 		}
+ 	}
+ 
+-	S.errorAt(pos, "comment not terminated")
++	S.error(offs, "comment not terminated")
+ }
+ 
+ 
+ func (S *Scanner) findLineEnd() bool {
+ 	// initial '/' already consumed
+ 
+-	defer func(line, col, offs int) {
++	defer func(offs int) {
+ 		// reset scanner state to where it was upon calling findLineEnd
+-		// (we don't scan //line comments and ignore errors thus
+-		// S.filename and S.ErrorCount don't change)
+-		S.line = line
+-		S.column = col
+ 		S.ch = '/'
+ 		S.offset = offs
+ 		S.rdOffset = offs + 1
+ 		S.next() // consume initial '/' again
+-	}(S.line, S.column-1, S.offset-1)
++	}(S.offset - 1)
+ 
+ 	// read ahead until a newline, EOF, or non-comment token is found
+ 	for S.ch == '/' || S.ch == '*' {
+@@ -309,7 +300,7 @@ func (S *Scanner) scanNumber(seenDecimalPoint bool) token.Token {
+ 
+ 	if S.ch == '0' {
+ 		// int or float
+-		pos := token.Position{S.filename, S.offset, S.line, S.column}
++		offs := S.offset
+ 		S.next()
+ 		if S.ch == 'x' || S.ch == 'X' {
+ 			// hexadecimal int
+@@ -329,7 +320,7 @@ func (S *Scanner) scanNumber(seenDecimalPoint bool) token.Token {
+ 			}
+ 			// octal int
+ 			if seenDecimalDigit {
+-				S.errorAt(pos, "illegal octal number")
++				S.error(offs, "illegal octal number")
+ 			}
+ 		}
+ 		goto exit
+@@ -366,7 +357,7 @@ exit:
+ 
+ 
+ func (S *Scanner) scanEscape(quote int) {
+-	pos := token.Position{S.filename, S.offset, S.line, S.column}
++	offs := S.offset
+ 
+ 	var i, base, max uint32
+ 	switch S.ch {
+@@ -386,7 +377,7 @@ func (S *Scanner) scanEscape(quote int) {
+ 		i, base, max = 8, 16, unicode.MaxRune
+ 	default:
+ 		S.next() // always make progress
+-		S.errorAt(pos, "unknown escape sequence")
++		S.error(offs, "unknown escape sequence")
+ 		return
+ 	}
+ 
+@@ -394,7 +385,7 @@ func (S *Scanner) scanEscape(quote int) {
+ 	for ; i > 0 && S.ch != quote && S.ch >= 0; i-- {
+ 		d := uint32(digitVal(S.ch))
+ 		if d >= base {
+-			S.error("illegal character in escape sequence")
++			S.error(S.offset, "illegal character in escape sequence")
+ 			break
+ 		}
+ 		x = x*base + d
+@@ -405,14 +396,14 @@ func (S *Scanner) scanEscape(quote int) {
+ 		S.next()
+ 	}
+ 	if x > max || 0xd800 <= x && x < 0xe000 {
+-		S.errorAt(pos, "escape sequence is invalid Unicode code point")
++		S.error(offs, "escape sequence is invalid Unicode code point")
+ 	}
+ }
+ 
+ 
+ func (S *Scanner) scanChar() {
+ 	// '\'' opening already consumed
+-	pos := token.Position{S.filename, S.offset - 1, S.line, S.column - 1}
++	offs := S.offset - 1
+ 
+ 	n := 0
+ 	for S.ch != '\'' {
+@@ -420,7 +411,7 @@ func (S *Scanner) scanChar() {
+ 		n++
+ 		S.next()
+ 		if ch == '\n' || ch < 0 {
+-			S.errorAt(pos, "character literal not terminated")
++			S.error(offs, "character literal not terminated")
+ 			n = 1
+ 			break
+ 		}
+@@ -432,20 +423,20 @@ func (S *Scanner) scanChar() {
+ 	S.next()
+ 
+ 	if n != 1 {
+-		S.errorAt(pos, "illegal character literal")
++		S.error(offs, "illegal character literal")
+ 	}
+ }
+ 
+ 
+ func (S *Scanner) scanString() {
+ 	// '"' opening already consumed
+-	pos := token.Position{S.filename, S.offset - 1, S.line, S.column - 1}
++	offs := S.offset - 1
+ 
+ 	for S.ch != '"' {
+ 		ch := S.ch
+ 		S.next()
+ 		if ch == '\n' || ch < 0 {
+-			S.errorAt(pos, "string not terminated")
++			S.error(offs, "string not terminated")
+ 			break
+ 		}
+ 		if ch == '\\' {
+@@ -459,13 +450,13 @@ func (S *Scanner) scanString() {
+ 
+ func (S *Scanner) scanRawString() {
+ 	// '`' opening already consumed
+-	pos := token.Position{S.filename, S.offset - 1, S.line, S.column - 1}
++	offs := S.offset - 1
+ 
+ 	for S.ch != '`' {
+ 		ch := S.ch
+ 		S.next()
+ 		if ch < 0 {
+-			S.errorAt(pos, "string not terminated")
++			S.error(offs, "string not terminated")
+ 			break
+ 		}
+ 	}
+@@ -544,14 +535,18 @@ var newline = []byte{'\n'}
+ // must check the scanner's ErrorCount or the number of calls
+ // of the error handler, if there was one installed.
+ //
+-func (S *Scanner) Scan() (pos token.Position, tok token.Token, lit []byte) {
++// Scan adds line information to the file added to the file
++// set with Init. Token positions are relative to that file
++// and thus relative to the file set.
++//
++func (S *Scanner) Scan() (token.Pos, token.Token, []byte) {
+ scanAgain:
+ 	S.skipWhitespace()
+ 
+ 	// current token start
+ 	insertSemi := false
+-	pos, tok = token.Position{S.filename, S.offset, S.line, S.column}, token.ILLEGAL
+ 	offs := S.offset
++	tok := token.ILLEGAL
+ 
+ 	// determine token value
+ 	switch ch := S.ch; {
+@@ -570,7 +565,7 @@ scanAgain:
+ 		case -1:
+ 			if S.insertSemi {
+ 				S.insertSemi = false // EOF consumed
+-				return pos, token.SEMICOLON, newline
++				return S.file.Pos(offs), token.SEMICOLON, newline
+ 			}
+ 			tok = token.EOF
+ 		case '\n':
+@@ -578,7 +573,7 @@ scanAgain:
+ 			// set in the first place and exited early
+ 			// from S.skipWhitespace()
+ 			S.insertSemi = false // newline consumed
+-			return pos, token.SEMICOLON, newline
++			return S.file.Pos(offs), token.SEMICOLON, newline
+ 		case '"':
+ 			insertSemi = true
+ 			tok = token.STRING
+@@ -640,17 +635,13 @@ scanAgain:
+ 		case '/':
+ 			if S.ch == '/' || S.ch == '*' {
+ 				// comment
+-				line := S.line
+-				col := S.column - 1 // beginning of comment
+ 				if S.insertSemi && S.findLineEnd() {
+ 					// reset position to the beginning of the comment
+-					S.line = line
+-					S.column = col
+ 					S.ch = '/'
+ 					S.offset = offs
+ 					S.rdOffset = offs + 1
+ 					S.insertSemi = false // newline consumed
+-					return pos, token.SEMICOLON, newline
++					return S.file.Pos(offs), token.SEMICOLON, newline
+ 				}
+ 				S.scanComment()
+ 				if S.mode&ScanComments == 0 {
+@@ -690,7 +681,7 @@ scanAgain:
+ 			tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
+ 		default:
+ 			if S.mode&AllowIllegalChars == 0 {
+-				S.errorAt(pos, "illegal character "+charString(ch))
++				S.error(offs, "illegal character "+charString(ch))
+ 			}
+ 			insertSemi = S.insertSemi // preserve insertSemi info
+ 		}
+@@ -699,7 +690,7 @@ scanAgain:
+ 	if S.mode&InsertSemis != 0 {
+ 		S.insertSemi = insertSemi
+ 	}
+-	return pos, tok, S.src[offs:S.offset]
++	return S.file.Pos(offs), tok, S.src[offs:S.offset]
+ }
+ 
+ 
+@@ -709,9 +700,9 @@ scanAgain:
+ // false (usually when the token value is token.EOF). The result is the number
+ // of errors encountered.
+ //
+-func Tokenize(filename string, src []byte, err ErrorHandler, mode uint, f func(pos token.Position, tok token.Token, lit []byte) bool) int {
++func Tokenize(set *token.FileSet, filename string, src []byte, err ErrorHandler, mode uint, f func(pos token.Pos, tok token.Token, lit []byte) bool) int {
+ 	var s Scanner
+-	s.Init(filename, src, err, mode)
++	s.Init(set, filename, src, err, mode)
+ 	for f(s.Scan()) {
+ 		// action happens in f
+ 	}
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index dbec8f7147..845dd73f77 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -11,6 +11,9 @@ import (
+ )
+ 
+ 
++var fset = token.NewFileSet()
++
++
+ const /* class */ (
+ 	special = iota
+ 	literal
+@@ -196,7 +199,8 @@ func newlineCount(s string) int {
+ }
+ 
+ 
+-func checkPos(t *testing.T, lit string, pos, expected token.Position) {
++func checkPos(t *testing.T, lit string, p token.Pos, expected token.Position) {
++	pos := fset.Position(p)
+ 	if pos.Filename != expected.Filename {
+ 		t.Errorf("bad filename for %q: got %s, expected %s", lit, pos.Filename, expected.Filename)
+ 	}
+@@ -219,14 +223,14 @@ func TestScan(t *testing.T) {
+ 	for _, e := range tokens {
+ 		src += e.lit + whitespace
+ 	}
+-	src_linecount := newlineCount(src)
++	src_linecount := newlineCount(src) + 1
+ 	whitespace_linecount := newlineCount(whitespace)
+ 
+ 	// verify scan
+ 	index := 0
+ 	epos := token.Position{"", 0, 1, 1} // expected position
+-	nerrors := Tokenize("", []byte(src), &testErrorHandler{t}, ScanComments,
+-		func(pos token.Position, tok token.Token, litb []byte) bool {
++	nerrors := Tokenize(fset, "", []byte(src), &testErrorHandler{t}, ScanComments,
++		func(pos token.Pos, tok token.Token, litb []byte) bool {
+ 			e := elt{token.EOF, "", special}
+ 			if index < len(tokens) {
+ 				e = tokens[index]
+@@ -265,7 +269,7 @@ func TestScan(t *testing.T) {
+ 
+ func checkSemi(t *testing.T, line string, mode uint) {
+ 	var S Scanner
+-	S.Init("TestSemis", []byte(line), nil, mode)
++	file := S.Init(fset, "TestSemis", []byte(line), nil, mode)
+ 	pos, tok, lit := S.Scan()
+ 	for tok != token.EOF {
+ 		if tok == token.ILLEGAL {
+@@ -276,7 +280,7 @@ func checkSemi(t *testing.T, line string, mode uint) {
+ 				semiLit = ";"
+ 			}
+ 			// next token must be a semicolon
+-			semiPos := pos
++			semiPos := file.Position(pos)
+ 			semiPos.Offset++
+ 			semiPos.Column++
+ 			pos, tok, lit = S.Scan()
+@@ -468,10 +472,11 @@ func TestLineComments(t *testing.T) {
+ 
+ 	// verify scan
+ 	var S Scanner
+-	S.Init("TestLineComments", []byte(src), nil, 0)
++	file := S.Init(fset, "TestLineComments", []byte(src), nil, 0)
+ 	for _, s := range segments {
+-		pos, _, lit := S.Scan()
+-		checkPos(t, string(lit), pos, token.Position{s.filename, pos.Offset, s.line, pos.Column})
++		p, _, lit := S.Scan()
++		pos := file.Position(p)
++		checkPos(t, string(lit), p, token.Position{s.filename, pos.Offset, s.line, pos.Column})
+ 	}
+ 
+ 	if S.ErrorCount != 0 {
+@@ -485,7 +490,11 @@ func TestInit(t *testing.T) {
+ 	var s Scanner
+ 
+ 	// 1st init
+-	s.Init("", []byte("if true { }"), nil, 0)
++	src1 := "if true { }"
++	f1 := s.Init(fset, "", []byte(src1), nil, 0)
++	if f1.Size() != len(src1) {
++		t.Errorf("bad file size: got %d, expected %d", f1.Size(), len(src1))
++	}
+ 	s.Scan()              // if
+ 	s.Scan()              // true
+ 	_, tok, _ := s.Scan() // {
+@@ -494,7 +503,11 @@ func TestInit(t *testing.T) {
+ 	}
+ 
+ 	// 2nd init
+-	s.Init("", []byte("go true { ]"), nil, 0)
++	src2 := "go true { ]"
++	f2 := s.Init(fset, "", []byte(src2), nil, 0)
++	if f2.Size() != len(src2) {
++		t.Errorf("bad file size: got %d, expected %d", f2.Size(), len(src2))
++	}
+ 	_, tok, _ = s.Scan() // go
+ 	if tok != token.GO {
+ 		t.Errorf("bad token: got %s, expected %s", tok.String(), token.GO)
+@@ -510,11 +523,11 @@ func TestIllegalChars(t *testing.T) {
+ 	var s Scanner
+ 
+ 	const src = "*?*$*@*"
+-	s.Init("", []byte(src), &testErrorHandler{t}, AllowIllegalChars)
++	file := s.Init(fset, "", []byte(src), &testErrorHandler{t}, AllowIllegalChars)
+ 	for offs, ch := range src {
+ 		pos, tok, lit := s.Scan()
+-		if pos.Offset != offs {
+-			t.Errorf("bad position for %s: got %d, expected %d", string(lit), pos.Offset, offs)
++		if poffs := file.Offset(pos); poffs != offs {
++			t.Errorf("bad position for %s: got %d, expected %d", string(lit), poffs, offs)
+ 		}
+ 		if tok == token.ILLEGAL && string(lit) != string(ch) {
+ 			t.Errorf("bad token: got %s, expected %s", string(lit), string(ch))
+@@ -538,8 +551,8 @@ func TestStdErrorHander(t *testing.T) {
+ 		"@ @ @" // original file, line 1 again
+ 
+ 	v := new(ErrorVector)
+-	nerrors := Tokenize("File1", []byte(src), v, 0,
+-		func(pos token.Position, tok token.Token, litb []byte) bool {
++	nerrors := Tokenize(fset, "File1", []byte(src), v, 0,
++		func(pos token.Pos, tok token.Token, litb []byte) bool {
+ 			return tok != token.EOF
+ 		})
+ 
+@@ -584,7 +597,7 @@ func (h *errorCollector) Error(pos token.Position, msg string) {
+ func checkError(t *testing.T, src string, tok token.Token, pos int, err string) {
+ 	var s Scanner
+ 	var h errorCollector
+-	s.Init("", []byte(src), &h, ScanComments)
++	s.Init(fset, "", []byte(src), &h, ScanComments)
+ 	_, tok0, _ := s.Scan()
+ 	_, tok1, _ := s.Scan()
+ 	if tok0 != tok {
+diff --git a/src/pkg/go/token/position.go b/src/pkg/go/token/position.go
+index 657b77bb5f..64a89c2814 100644
+--- a/src/pkg/go/token/position.go
++++ b/src/pkg/go/token/position.go
+@@ -116,6 +116,10 @@ func (s *FileSet) file(p Pos) *File {
+ // Position converts a Pos in the fileset into a general Position.
+ func (s *FileSet) Position(p Pos) (pos Position) {
+ 	if p != NoPos {
++		// TODO(gri) consider optimizing the case where p
++		//           is in the last file addded, or perhaps
++		//           looked at - will eliminate one level
++		//           of search
+ 		s.mutex.RLock()
+ 		if f := s.file(p); f != nil {
+ 			offset := int(p) - f.base
+@@ -242,7 +246,7 @@ func (f *File) Pos(offset int) Pos {
+ 
+ 
+ // Offset returns the offset for the given file position p;
+-// p must be a Pos value in that file.
++// p must be a valid Pos value in that file.
+ // f.Offset(f.Pos(offset)) == offset.
+ //
+ func (f *File) Offset(p Pos) int {
+@@ -253,14 +257,27 @@ func (f *File) Offset(p Pos) int {
+ }
+ 
+ 
+-// Position returns the Position value for the given file offset;
+-// the offset must be <= f.Size().
++// Line returns the line number for the given file position p;
++// p must be a Pos value in that file or NoPos.
+ //
+-func (f *File) Position(offset int) Position {
+-	if offset > f.size {
+-		panic("illegal file offset")
++func (f *File) Line(p Pos) int {
++	// TODO(gri) this can be implemented much more efficiently
++	return f.Position(p).Line
++}
++
++
++// Position returns the Position value for the given file position p;
++// p must be a Pos value in that file or NoPos.
++//
++func (f *File) Position(p Pos) (pos Position) {
++	if p != NoPos {
++		if int(p) < f.base || int(p) > f.base+f.size {
++			panic("illegal Pos value")
++		}
++		// TODO(gri) compute Position directly instead of going via the fset!
++		pos = f.set.Position(p)
+ 	}
+-	return f.set.Position(Pos(offset + f.base))
++	return
+ }
+ 
+ 
+diff --git a/src/pkg/go/token/position_test.go b/src/pkg/go/token/position_test.go
+index bf4e67c136..7e5f3d3dfa 100644
+--- a/src/pkg/go/token/position_test.go
++++ b/src/pkg/go/token/position_test.go
+@@ -71,7 +71,7 @@ func verifyPositions(t *testing.T, fset *FileSet, f *File, lines []int) {
+ 		}
+ 		line, col := linecol(lines, offs)
+ 		msg := fmt.Sprintf("%s (offs = %d, p = %d)", f.Name(), offs, p)
+-		checkPos(t, msg, f.Position(offs), Position{f.Name(), offs, line, col})
++		checkPos(t, msg, f.Position(f.Pos(offs)), Position{f.Name(), offs, line, col})
+ 		checkPos(t, msg, fset.Position(p), Position{f.Name(), offs, line, col})
+ 	}
+ }
+@@ -131,7 +131,7 @@ func TestLineInfo(t *testing.T) {
+ 		p := f.Pos(offs)
+ 		_, col := linecol(lines, offs)
+ 		msg := fmt.Sprintf("%s (offs = %d, p = %d)", f.Name(), offs, p)
+-		checkPos(t, msg, f.Position(offs), Position{"bar", offs, 42, col})
++		checkPos(t, msg, f.Position(f.Pos(offs)), Position{"bar", offs, 42, col})
+ 		checkPos(t, msg, fset.Position(p), Position{"bar", offs, 42, col})
+ 	}
+ }
+diff --git a/src/pkg/go/typechecker/scope.go b/src/pkg/go/typechecker/scope.go
+index c2ec759050..114c93ea86 100644
+--- a/src/pkg/go/typechecker/scope.go
++++ b/src/pkg/go/typechecker/scope.go
+@@ -26,7 +26,7 @@ func (tc *typechecker) closeScope() {
+ 
+ // objPos computes the source position of the declaration of an object name.
+ // Only required for error reporting, so doesn't have to be fast.
+-func objPos(obj *ast.Object) (pos token.Position) {
++func objPos(obj *ast.Object) (pos token.Pos) {
+ 	switch d := obj.Decl.(type) {
+ 	case *ast.Field:
+ 		for _, n := range d.Names {
+diff --git a/src/pkg/go/typechecker/typechecker.go b/src/pkg/go/typechecker/typechecker.go
+index 81f6bb4a4d..e9aefa2402 100644
+--- a/src/pkg/go/typechecker/typechecker.go
++++ b/src/pkg/go/typechecker/typechecker.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// INCOMPLETE PACKAGE.
+ // This package implements typechecking of a Go AST.
+ // The result of the typecheck is an augmented AST
+ // with object and type information for each identifier.
+@@ -37,8 +38,9 @@ type Importer func(path string) ([]byte, os.Error)
+ // If errors are reported, the AST may be incompletely augmented (fields
+ // may be nil) or contain incomplete object, type, or scope information.
+ //
+-func CheckPackage(pkg *ast.Package, importer Importer) os.Error {
++func CheckPackage(fset *token.FileSet, pkg *ast.Package, importer Importer) os.Error {
+ 	var tc typechecker
++	tc.fset = fset
+ 	tc.importer = importer
+ 	tc.checkPackage(pkg)
+ 	return tc.GetError(scanner.Sorted)
+@@ -49,10 +51,10 @@ func CheckPackage(pkg *ast.Package, importer Importer) os.Error {
+ // CheckPackage. If the complete package consists of more than just
+ // one file, the file may not typecheck without errors.
+ //
+-func CheckFile(file *ast.File, importer Importer) os.Error {
++func CheckFile(fset *token.FileSet, file *ast.File, importer Importer) os.Error {
+ 	// create a single-file dummy package
+-	pkg := &ast.Package{file.Name.Name, nil, map[string]*ast.File{file.Name.NamePos.Filename: file}}
+-	return CheckPackage(pkg, importer)
++	pkg := &ast.Package{file.Name.Name, nil, map[string]*ast.File{fset.Position(file.Name.NamePos).Filename: file}}
++	return CheckPackage(fset, pkg, importer)
+ }
+ 
+ 
+@@ -60,6 +62,7 @@ func CheckFile(file *ast.File, importer Importer) os.Error {
+ // Typechecker state
+ 
+ type typechecker struct {
++	fset *token.FileSet
+ 	scanner.ErrorVector
+ 	importer Importer
+ 	topScope *ast.Scope           // current top-most scope
+@@ -68,8 +71,8 @@ type typechecker struct {
+ }
+ 
+ 
+-func (tc *typechecker) Errorf(pos token.Position, format string, args ...interface{}) {
+-	tc.Error(pos, fmt.Sprintf(format, args...))
++func (tc *typechecker) Errorf(pos token.Pos, format string, args ...interface{}) {
++	tc.Error(tc.fset.Position(pos), fmt.Sprintf(format, args...))
+ }
+ 
+ 
+diff --git a/src/pkg/go/typechecker/typechecker_test.go b/src/pkg/go/typechecker/typechecker_test.go
+index c9bfea0c86..9c5b52e415 100644
+--- a/src/pkg/go/typechecker/typechecker_test.go
++++ b/src/pkg/go/typechecker/typechecker_test.go
+@@ -44,6 +44,8 @@ import (
+ 
+ const testDir = "./testdata" // location of test packages
+ 
++var fset = token.NewFileSet()
++
+ var (
+ 	pkgPat = flag.String("pkg", ".*", "regular expression to select test packages by package name")
+ 	trace  = flag.Bool("trace", false, "print package names")
+@@ -66,8 +68,8 @@ func expectedErrors(t *testing.T, pkg *ast.Package) (list scanner.ErrorList) {
+ 		}
+ 
+ 		var s scanner.Scanner
+-		s.Init(filename, src, nil, scanner.ScanComments)
+-		var prev token.Position // position of last non-comment token
++		s.Init(fset, filename, src, nil, scanner.ScanComments)
++		var prev token.Pos // position of last non-comment token
+ 	loop:
+ 		for {
+ 			pos, tok, lit := s.Scan()
+@@ -77,7 +79,7 @@ func expectedErrors(t *testing.T, pkg *ast.Package) (list scanner.ErrorList) {
+ 			case token.COMMENT:
+ 				s := errRx.FindSubmatch(lit)
+ 				if len(s) == 2 {
+-					list = append(list, &scanner.Error{prev, string(s[1])})
++					list = append(list, &scanner.Error{fset.Position(prev), string(s[1])})
+ 				}
+ 			default:
+ 				prev = pos
+@@ -125,7 +127,7 @@ func TestTypeCheck(t *testing.T) {
+ 		t.Fatalf("illegal flag value %q: %s", *pkgPat, err)
+ 	}
+ 
+-	pkgs, err := parser.ParseDir(testDir, testFilter, 0)
++	pkgs, err := parser.ParseDir(fset, testDir, testFilter, 0)
+ 	if err != nil {
+ 		scanner.PrintError(os.Stderr, err)
+ 		t.Fatalf("packages in %s contain syntax errors", testDir)
+@@ -141,7 +143,7 @@ func TestTypeCheck(t *testing.T) {
+ 		}
+ 
+ 		xlist := expectedErrors(t, pkg)
+-		err := CheckPackage(pkg, nil)
++		err := CheckPackage(fset, pkg, nil)
+ 		if err != nil {
+ 			if elist, ok := err.(scanner.ErrorList); ok {
+ 				// verify that errors match
+diff --git a/test/fixedbugs/bug206.go b/test/fixedbugs/bug206.go
+index 3879e8cbd5..7efc0b14af 100644
+--- a/test/fixedbugs/bug206.go
++++ b/test/fixedbugs/bug206.go
+@@ -10,14 +10,14 @@ import "go/ast";
+ 
+ func g(list []ast.Expr) {
+ 	n := len(list)-1;
+-	println(list[n].Pos().Line);
++	println(list[n].Pos());
+ }
+ 
+ 
+ // f is the same as g except that the expression assigned to n is inlined.
+ func f(list []ast.Expr) {
+ 	// n := len(list)-1;
+-	println(list[len(list)-1 /* n */].Pos().Line);
++	println(list[len(list)-1 /* n */].Pos());
+ }
+ 
+ 

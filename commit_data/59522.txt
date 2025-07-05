@@ -27,9 +27,147 @@ Date:   Fri Mar 8 15:40:34 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/internal/syscall/windows/version_windows.go | 53 ++++++++++++++++++++++---
  src/net/tcpconn_keepalive_conf_windows_test.go  |  2 +-
  src/net/tcpsock_windows.go                      |  2 +-
  src/net/tcpsockopt_windows.go                   | 13 +-----
  4 files changed, 51 insertions(+), 19 deletions(-)
+
+diff --git a/src/internal/syscall/windows/version_windows.go b/src/internal/syscall/windows/version_windows.go
+index 6ff9d523df..6da2d58549 100644
+--- a/src/internal/syscall/windows/version_windows.go
++++ b/src/internal/syscall/windows/version_windows.go
+@@ -5,6 +5,7 @@
+ package windows
+ 
+ import (
++	"errors"
+ 	"sync"
+ 	"syscall"
+ 	"unsafe"
+@@ -23,14 +24,54 @@ func version() (major, minor, build uint32) {
+ //go:noescape
+ func rtlGetNtVersionNumbers(majorVersion *uint32, minorVersion *uint32, buildNumber *uint32)
+ 
+-// SupportFullTCPKeepAlive indicates whether the current Windows version
+-// supports the full TCP keep-alive configurations.
+-// The minimal requirement is Windows 10.0.16299.
+-var SupportFullTCPKeepAlive = sync.OnceValue(func() bool {
+-	major, _, build := version()
+-	return major >= 10 && build >= 16299
++var (
++	supportTCPKeepAliveIdle     bool
++	supportTCPKeepAliveInterval bool
++	supportTCPKeepAliveCount    bool
++)
++
++var initTCPKeepAlive = sync.OnceFunc(func() {
++	s, err := WSASocket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP, nil, 0, WSA_FLAG_NO_HANDLE_INHERIT)
++	if err != nil {
++		// Fallback to checking the Windows version.
++		major, _, build := version()
++		supportTCPKeepAliveIdle = major >= 10 && build >= 16299
++		supportTCPKeepAliveInterval = major >= 10 && build >= 16299
++		supportTCPKeepAliveCount = major >= 10 && build >= 15063
++		return
++	}
++	defer syscall.Closesocket(s)
++	var optSupported = func(opt int) bool {
++		err := syscall.SetsockoptInt(s, syscall.IPPROTO_TCP, opt, 1)
++		return !errors.Is(err, syscall.WSAENOPROTOOPT)
++	}
++	supportTCPKeepAliveIdle = optSupported(TCP_KEEPIDLE)
++	supportTCPKeepAliveInterval = optSupported(TCP_KEEPINTVL)
++	supportTCPKeepAliveCount = optSupported(TCP_KEEPCNT)
+ })
+ 
++// SupportTCPKeepAliveInterval indicates whether TCP_KEEPIDLE is supported.
++// The minimal requirement is Windows 10.0.16299.
++func SupportTCPKeepAliveIdle() bool {
++	initTCPKeepAlive()
++	return supportTCPKeepAliveIdle
++}
++
++// SupportTCPKeepAliveInterval indicates whether TCP_KEEPINTVL is supported.
++// The minimal requirement is Windows 10.0.16299.
++func SupportTCPKeepAliveInterval() bool {
++	initTCPKeepAlive()
++	return supportTCPKeepAliveInterval
++}
++
++// SupportTCPKeepAliveCount indicates whether TCP_KEEPCNT is supported.
++// supports TCP_KEEPCNT.
++// The minimal requirement is Windows 10.0.15063.
++func SupportTCPKeepAliveCount() bool {
++	initTCPKeepAlive()
++	return supportTCPKeepAliveCount
++}
++
+ // SupportTCPInitialRTONoSYNRetransmissions indicates whether the current
+ // Windows version supports the TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS.
+ // The minimal requirement is Windows 10.0.16299.
+diff --git a/src/net/tcpconn_keepalive_conf_windows_test.go b/src/net/tcpconn_keepalive_conf_windows_test.go
+index 72ebdc8567..20e9f9267c 100644
+--- a/src/net/tcpconn_keepalive_conf_windows_test.go
++++ b/src/net/tcpconn_keepalive_conf_windows_test.go
+@@ -25,7 +25,7 @@ func maybeSkipKeepAliveTest(t *testing.T) {
+ 	// 	doesn't provide any ways to retrieve the current TCP keep-alive settings, therefore
+ 	// 	we're not able to run the test suite similar to Unix-like OS's on Windows.
+ 	//  Try to find another proper approach to test the keep-alive settings on old Windows.
+-	if !windows.SupportFullTCPKeepAlive() {
++	if !windows.SupportTCPKeepAliveIdle() || !windows.SupportTCPKeepAliveInterval() || !windows.SupportTCPKeepAliveCount() {
+ 		t.Skip("skipping on windows")
+ 	}
+ }
+diff --git a/src/net/tcpsock_windows.go b/src/net/tcpsock_windows.go
+index 2a4429579b..70e8ea23e5 100644
+--- a/src/net/tcpsock_windows.go
++++ b/src/net/tcpsock_windows.go
+@@ -18,7 +18,7 @@ func (c *TCPConn) SetKeepAliveConfig(config KeepAliveConfig) error {
+ 	if err := setKeepAlive(c.fd, config.Enable); err != nil {
+ 		return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+ 	}
+-	if windows.SupportFullTCPKeepAlive() {
++	if windows.SupportTCPKeepAliveIdle() && windows.SupportTCPKeepAliveInterval() {
+ 		if err := setKeepAliveIdle(c.fd, config.Idle); err != nil {
+ 			return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+ 		}
+diff --git a/src/net/tcpsockopt_windows.go b/src/net/tcpsockopt_windows.go
+index d15e0a7c28..f635d47999 100644
+--- a/src/net/tcpsockopt_windows.go
++++ b/src/net/tcpsockopt_windows.go
+@@ -21,7 +21,7 @@ const (
+ )
+ 
+ func setKeepAliveIdle(fd *netFD, d time.Duration) error {
+-	if !windows.SupportFullTCPKeepAlive() {
++	if !windows.SupportTCPKeepAliveIdle() {
+ 		return setKeepAliveIdleAndInterval(fd, d, -1)
+ 	}
+ 
+@@ -38,7 +38,7 @@ func setKeepAliveIdle(fd *netFD, d time.Duration) error {
+ }
+ 
+ func setKeepAliveInterval(fd *netFD, d time.Duration) error {
+-	if !windows.SupportFullTCPKeepAlive() {
++	if !windows.SupportTCPKeepAliveInterval() {
+ 		return setKeepAliveIdleAndInterval(fd, -1, d)
+ 	}
+ 
+@@ -61,15 +61,6 @@ func setKeepAliveCount(fd *netFD, n int) error {
+ 		return nil
+ 	}
+ 
+-	// This value is not capable to be changed on old versions of Windows.
+-	if !windows.SupportFullTCPKeepAlive() {
+-		return syscall.WSAENOPROTOOPT
+-	}
+-	// It is illegal to set TCP_KEEPCNT to a value greater than 255.
+-	if n > 255 {
+-		return syscall.EINVAL
+-	}
+-
+ 	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, windows.TCP_KEEPCNT, n)
+ 	runtime.KeepAlive(fd)
+ 	return os.NewSyscallError("setsockopt", err)

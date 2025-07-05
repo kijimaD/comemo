@@ -10,6 +10,20 @@ Date:   Tue Dec 20 17:35:27 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/34656
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dial_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 6ba8e950b8..9919d72ce3 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -142,6 +142,8 @@ func TestDialerDualStackFDLeak(t *testing.T) {
+ 		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
+ 	case "windows":
+ 		t.Skipf("not implemented a way to cancel dial racers in TCP SYN-SENT state on %s", runtime.GOOS)
++	case "openbsd":
++		testenv.SkipFlaky(t, 15157)
+ 	}
+ 	if !supportsIPv4 || !supportsIPv6 {
+ 		t.Skip("both IPv4 and IPv6 are required")

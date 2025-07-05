@@ -10,7 +10,7 @@ Date:   Tue Jan 31 00:06:33 2012 -0500
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/5598055
-
+---
  src/buildscript.sh               | 3 ++-
  src/buildscript/darwin_386.sh    | 4 ++--
  src/buildscript/freebsd_386.sh   | 4 ++--
@@ -26,3 +26,177 @@ Date:   Tue Jan 31 00:06:33 2012 -0500
  src/buildscript/windows_386.sh   | 4 ++--
  src/buildscript/windows_amd64.sh | 4 ++--
  14 files changed, 28 insertions(+), 27 deletions(-)
+
+diff --git a/src/buildscript.sh b/src/buildscript.sh
+index c95ce78c2c..541fdccec5 100755
+--- a/src/buildscript.sh
++++ b/src/buildscript.sh
+@@ -30,10 +30,11 @@ set -e
+ 	# as a shell escape but also makes sure that we generate the
+ 	# same scripts on Unix and Windows systems.
+ 	go install -a -n -t cmd_go_bootstrap cmd/go | sed '
++		s;\\;/;g
++		s;\$GOBIN/[a-z0-9]*_[a-z0-9]*/;\$GOBIN/;g
+ 		s/\$GOBIN/"$GOBIN"/g
+ 		s/\$GOROOT/"$GOROOT"/g
+ 		s/\$WORK/"$WORK"/g
+-		s;\\;/;g
+ 		s;"\$GOBIN"/go;&_bootstrap;g
+ 		s/go_bootstrap-tool/go-tool/g
+ 		s;"\$GOBIN"/go-tool;"$GOROOT"/bin/go-tool;g
+diff --git a/src/buildscript/darwin_386.sh b/src/buildscript/darwin_386.sh
+index d434ef500a..91e0d2c385 100755
+--- a/src/buildscript/darwin_386.sh
++++ b/src/buildscript/darwin_386.sh
+@@ -494,5 +494,5 @@ cd "$GOROOT"/src/cmd/go
+ "$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ "$GOROOT"/bin/go-tool/8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/darwin_386/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/darwin_386/go
++mkdir -p "$GOBIN"/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/freebsd_386.sh b/src/buildscript/freebsd_386.sh
+index f8cdb394d8..ebac228ce3 100755
+--- a/src/buildscript/freebsd_386.sh
++++ b/src/buildscript/freebsd_386.sh
+@@ -494,5 +494,5 @@ cd "$GOROOT"/src/cmd/go
+ "$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ "$GOROOT"/bin/go-tool/8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/freebsd_386/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/freebsd_386/go
++mkdir -p "$GOBIN"/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/freebsd_amd64.sh b/src/buildscript/freebsd_amd64.sh
+index 22e944eec0..9adbd9f768 100755
+--- a/src/buildscript/freebsd_amd64.sh
++++ b/src/buildscript/freebsd_amd64.sh
+@@ -493,5 +493,5 @@ cd "$GOROOT"/src/cmd/go
+ "$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ "$GOROOT"/bin/go-tool/6l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/freebsd_amd64/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/freebsd_amd64/go
++mkdir -p "$GOBIN"/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/linux_386.sh b/src/buildscript/linux_386.sh
+index 18e0051f55..a342b6f7fc 100755
+--- a/src/buildscript/linux_386.sh
++++ b/src/buildscript/linux_386.sh
+@@ -494,5 +494,5 @@ cd "$GOROOT"/src/cmd/go
+ "$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ "$GOROOT"/bin/go-tool/8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/linux_386/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/linux_386/go
++mkdir -p "$GOBIN"/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/linux_amd64.sh b/src/buildscript/linux_amd64.sh
+index 93c846d9c7..201b0067e6 100755
+--- a/src/buildscript/linux_amd64.sh
++++ b/src/buildscript/linux_amd64.sh
+@@ -493,5 +493,5 @@ cd "$GOROOT"/src/cmd/go
+ "$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ "$GOROOT"/bin/go-tool/6l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/linux_amd64/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/linux_amd64/go
++mkdir -p "$GOBIN"/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/linux_arm.sh b/src/buildscript/linux_arm.sh
+index 78ba5bf774..3caf8af328 100755
+--- a/src/buildscript/linux_arm.sh
++++ b/src/buildscript/linux_arm.sh
+@@ -497,5 +497,5 @@ cd "$GOROOT"/src/cmd/go
+ "$GOROOT"/bin/go-tool/5g -o "$WORK"/cmd/go/_obj/_go_.5 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.5
+ "$GOROOT"/bin/go-tool/5l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/linux_arm/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/linux_arm/go
++mkdir -p "$GOBIN"/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/netbsd_386.sh b/src/buildscript/netbsd_386.sh
+index 1712898c49..fec31de366 100755
+--- a/src/buildscript/netbsd_386.sh
++++ b/src/buildscript/netbsd_386.sh
+@@ -494,5 +494,5 @@ cd "$GOROOT"/src/cmd/go
+ "$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ "$GOROOT"/bin/go-tool/8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/netbsd_386/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/netbsd_386/go
++mkdir -p "$GOBIN"/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/netbsd_amd64.sh b/src/buildscript/netbsd_amd64.sh
+index b00ea35d81..f47e5cca64 100755
+--- a/src/buildscript/netbsd_amd64.sh
++++ b/src/buildscript/netbsd_amd64.sh
+@@ -493,5 +493,5 @@ cd "$GOROOT"/src/cmd/go
+ "$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ "$GOROOT"/bin/go-tool/6l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/netbsd_amd64/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/netbsd_amd64/go
++mkdir -p "$GOBIN"/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/openbsd_386.sh b/src/buildscript/openbsd_386.sh
+index 52e53730a8..b3a0a61365 100755
+--- a/src/buildscript/openbsd_386.sh
++++ b/src/buildscript/openbsd_386.sh
+@@ -494,5 +494,5 @@ cd "$GOROOT"/src/cmd/go
+ "$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ "$GOROOT"/bin/go-tool/8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/openbsd_386/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/openbsd_386/go
++mkdir -p "$GOBIN"/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/openbsd_amd64.sh b/src/buildscript/openbsd_amd64.sh
+index 9c353202a5..c61f08ae66 100755
+--- a/src/buildscript/openbsd_amd64.sh
++++ b/src/buildscript/openbsd_amd64.sh
+@@ -493,5 +493,5 @@ cd "$GOROOT"/src/cmd/go
+ "$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ "$GOROOT"/bin/go-tool/6l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/openbsd_amd64/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/openbsd_amd64/go
++mkdir -p "$GOBIN"/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/plan9_386.sh b/src/buildscript/plan9_386.sh
+index 725a2a431b..c9548b0a94 100755
+--- a/src/buildscript/plan9_386.sh
++++ b/src/buildscript/plan9_386.sh
+@@ -494,5 +494,5 @@ cd "$GOROOT"/src/cmd/go
+ "$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ "$GOROOT"/bin/go-tool/8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/plan9_386/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/plan9_386/go
++mkdir -p "$GOBIN"/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+diff --git a/src/buildscript/windows_386.sh b/src/buildscript/windows_386.sh
+index 3c21c32322..5b85a1c1e4 100755
+--- a/src/buildscript/windows_386.sh
++++ b/src/buildscript/windows_386.sh
+@@ -496,5 +496,5 @@ cd "$GOROOT"/src/cmd/go
+ "$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ "$GOROOT"/bin/go-tool/8l -o "$WORK"/cmd/go/_obj/a.out.exe -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/windows_386/
+-cp "$WORK"/cmd/go/_obj/a.out.exe "$GOBIN"/windows_386/go.exe
++mkdir -p "$GOBIN"/
++cp "$WORK"/cmd/go/_obj/a.out.exe "$GOBIN"/go_bootstrap.exe
+diff --git a/src/buildscript/windows_amd64.sh b/src/buildscript/windows_amd64.sh
+index d316242667..43617205d9 100755
+--- a/src/buildscript/windows_amd64.sh
++++ b/src/buildscript/windows_amd64.sh
+@@ -495,5 +495,5 @@ cd "$GOROOT"/src/cmd/go
+ "$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ "$GOROOT"/bin/go-tool/6l -o "$WORK"/cmd/go/_obj/a.out.exe -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/windows_amd64/
+-cp "$WORK"/cmd/go/_obj/a.out.exe "$GOBIN"/windows_amd64/go.exe
++mkdir -p "$GOBIN"/
++cp "$WORK"/cmd/go/_obj/a.out.exe "$GOBIN"/go_bootstrap.exe

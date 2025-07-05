@@ -5,9 +5,60 @@ Date:   Wed Jun 11 18:01:45 2008 -0700
     tweaks in clean rules and dependencies
     
     SVN=122274
-
+---
  src/cmd/6c/Makefile | 2 +-
  src/cmd/6g/Makefile | 2 +-
  src/cmd/cc/Makefile | 2 +-
  src/cmd/gc/Makefile | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6c/Makefile b/src/cmd/6c/Makefile
+index 6f88ad319e..d12b850c85 100644
+--- a/src/cmd/6c/Makefile
++++ b/src/cmd/6c/Makefile
+@@ -31,7 +31,7 @@ OFILES=\
+ LIB=\
+ 	../cc/cc.a$O
+ 
+-$(TARG): $(OFILES)
++$(TARG): $(OFILES) $(LIB)
+ 	cc -o $(TARG) -L/home/r/plan9/lib $(OFILES) $(LIB) -lbio -l9
+ 
+ $(OFILES): $(HFILES)
+diff --git a/src/cmd/6g/Makefile b/src/cmd/6g/Makefile
+index 590ace8b64..cff0036481 100644
+--- a/src/cmd/6g/Makefile
++++ b/src/cmd/6g/Makefile
+@@ -26,7 +26,7 @@ OFILES=\
+ LIB=\
+ 	../gc/gc.a$O
+ 
+-$(TARG): $(OFILES)
++$(TARG): $(OFILES) $(LIB)
+ 	cc -o $(TARG) -L/home/r/plan9/lib $(OFILES) $(LIB) -lbio -l9
+ 
+ $(OFILES): $(HFILES)
+diff --git a/src/cmd/cc/Makefile b/src/cmd/cc/Makefile
+index 9121d13900..21cf17d092 100644
+--- a/src/cmd/cc/Makefile
++++ b/src/cmd/cc/Makefile
+@@ -45,6 +45,6 @@ y.tab.c: $(YFILES)
+ 	yacc $(YFLAGS) $(YFILES)
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
++	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
+ 
+ install: $(LIB)
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 1141d132f3..73860811e5 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -40,6 +40,6 @@ sysimport.c:	sys.go mksys.bash
+ 	bash mksys.bash
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
++	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
+ 
+ install: $(LIB)

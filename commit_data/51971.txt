@@ -21,7 +21,59 @@ Date:   Mon Mar 28 11:40:02 2022 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s | 13 +++++++++++++
  src/cmd/internal/obj/riscv/obj.go           |  9 +++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index fe911a74f5..79d6054869 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -145,6 +145,19 @@ start:
+ 	SRLW	X5, X6, X7				// bb535300
+ 	SUBW	X5, X6, X7				// bb035340
+ 	SRAW	X5, X6, X7				// bb535340
++	ADDIW	$1, X6					// 1b031300
++	SLLIW	$1, X6					// 1b131300
++	SRLIW	$1, X6					// 1b531300
++	SRAIW	$1, X6					// 1b531340
++	ADDW	X5, X7					// bb835300
++	SLLW	X5, X7					// bb935300
++	SRLW	X5, X7					// bbd35300
++	SUBW	X5, X7					// bb835340
++	SRAW	X5, X7					// bbd35340
++	ADDW	$1, X6					// 1b031300
++	SLLW	$1, X6					// 1b131300
++	SRLW	$1, X6					// 1b531300
++	SRAW	$1, X6					// 1b531340
+ 
+ 	// 5.3: Load and Store Instructions (RV64I)
+ 	LD	(X5), X6				// 03b30200
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 9f16de0c8c..47dbfc0fed 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -53,6 +53,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	if p.Reg == obj.REG_NONE {
+ 		switch p.As {
+ 		case AADDI, ASLTI, ASLTIU, AANDI, AORI, AXORI, ASLLI, ASRLI, ASRAI,
++			AADDIW, ASLLIW, ASRLIW, ASRAIW, AADDW, ASUBW, ASLLW, ASRLW, ASRAW,
+ 			AADD, AAND, AOR, AXOR, ASLL, ASRL, ASUB, ASRA,
+ 			AMUL, AMULH, AMULHU, AMULHSU, AMULW, ADIV, ADIVU, ADIVW, ADIVUW,
+ 			AREM, AREMU, AREMW, AREMUW:
+@@ -82,6 +83,14 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			p.As = ASRLI
+ 		case ASRA:
+ 			p.As = ASRAI
++		case AADDW:
++			p.As = AADDIW
++		case ASLLW:
++			p.As = ASLLIW
++		case ASRLW:
++			p.As = ASRLIW
++		case ASRAW:
++			p.As = ASRAIW
+ 		}
+ 	}
+ 

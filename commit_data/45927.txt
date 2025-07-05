@@ -20,10 +20,309 @@ Date:   Sun Nov 29 09:38:52 2020 -0500
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go |   2 +-
  src/cmd/compile/internal/gc/order.go |   8 ++-
  src/cmd/compile/internal/gc/subr.go  |  44 ------------
  src/cmd/compile/internal/ir/copy.go  | 127 +++++++++++++++++++++++++++++++++++
  src/cmd/compile/internal/ir/node.go  |  53 ---------------
  5 files changed, 133 insertions(+), 101 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 8ae5874d3b..1c433b5d30 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -451,7 +451,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
+ 		}
+ 		v := values[i]
+ 		if decl.Values == nil {
+-			v = treecopy(v, n.Pos())
++			v = ir.DeepCopy(n.Pos(), v)
+ 		}
+ 
+ 		n.SetOp(ir.OLITERAL)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 6a91b8c91b..d4db7be911 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -609,7 +609,10 @@ func (o *Order) stmt(n ir.Node) {
+ 
+ 			n.SetLeft(o.safeExpr(n.Left()))
+ 
+-			l := treecopy(n.Left(), src.NoXPos)
++			// TODO(rsc): Why is this DeepCopy?
++			// We should know enough about the form here
++			// to do something more provably shallower.
++			l := ir.DeepCopy(src.NoXPos, n.Left())
+ 			if l.Op() == ir.OINDEXMAP {
+ 				l.SetIndexMapLValue(false)
+ 			}
+@@ -1123,8 +1126,7 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
+ 			needCopy = mapKeyReplaceStrConv(n.Right())
+ 
+ 			if instrumenting {
+-				// Race detector needs the copy so it can
+-				// call treecopy on the result.
++				// Race detector needs the copy.
+ 				needCopy = true
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 336465db98..25490246e6 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -181,42 +181,6 @@ func nodstr(s string) ir.Node {
+ 	return ir.NewLiteral(constant.MakeString(s))
+ }
+ 
+-// treecopy recursively copies n, with the exception of
+-// ONAME, OLITERAL, OTYPE, and ONONAME leaves.
+-// If pos.IsKnown(), it sets the source position of newly
+-// allocated nodes to pos.
+-func treecopy(n ir.Node, pos src.XPos) ir.Node {
+-	if n == nil {
+-		return nil
+-	}
+-
+-	switch n.Op() {
+-	default:
+-		m := ir.SepCopy(n)
+-		m.SetLeft(treecopy(n.Left(), pos))
+-		m.SetRight(treecopy(n.Right(), pos))
+-		m.PtrList().Set(listtreecopy(n.List().Slice(), pos))
+-		if pos.IsKnown() {
+-			m.SetPos(pos)
+-		}
+-		if m.Name() != nil && n.Op() != ir.ODCLFIELD {
+-			ir.Dump("treecopy", n)
+-			base.Fatalf("treecopy Name")
+-		}
+-		return m
+-
+-	case ir.OPACK:
+-		// OPACK nodes are never valid in const value declarations,
+-		// but allow them like any other declared symbol to avoid
+-		// crashing (golang.org/issue/11361).
+-		fallthrough
+-
+-	case ir.ONAME, ir.ONONAME, ir.OLITERAL, ir.ONIL, ir.OTYPE:
+-		return n
+-
+-	}
+-}
+-
+ func isptrto(t *types.Type, et types.EType) bool {
+ 	if t == nil {
+ 		return false
+@@ -1375,14 +1339,6 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool
+ 	return true
+ }
+ 
+-func listtreecopy(l []ir.Node, pos src.XPos) []ir.Node {
+-	var out []ir.Node
+-	for _, n := range l {
+-		out = append(out, treecopy(n, pos))
+-	}
+-	return out
+-}
+-
+ func liststmt(l []ir.Node) ir.Node {
+ 	n := ir.Nod(ir.OBLOCK, nil, nil)
+ 	n.PtrList().Set(l)
+diff --git a/src/cmd/compile/internal/ir/copy.go b/src/cmd/compile/internal/ir/copy.go
+new file mode 100644
+index 0000000000..7a1611d0d6
+--- /dev/null
++++ b/src/cmd/compile/internal/ir/copy.go
+@@ -0,0 +1,127 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ir
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/internal/src"
++)
++
++// A Node may implement the Orig and SetOrig method to
++// maintain a pointer to the "unrewritten" form of a Node.
++// If a Node does not implement OrigNode, it is its own Orig.
++//
++// Note that both SepCopy and Copy have definitions compatible
++// with a Node that does not implement OrigNode: such a Node
++// is its own Orig, and in that case, that's what both want to return
++// anyway (SepCopy unconditionally, and Copy only when the input
++// is its own Orig as well, but if the output does not implement
++// OrigNode, then neither does the input, making the condition true).
++type OrigNode interface {
++	Node
++	Orig() Node
++	SetOrig(Node)
++}
++
++// Orig returns the “original” node for n.
++// If n implements OrigNode, Orig returns n.Orig().
++// Otherwise Orig returns n itself.
++func Orig(n Node) Node {
++	if n, ok := n.(OrigNode); ok {
++		o := n.Orig()
++		if o == nil {
++			Dump("Orig nil", n)
++			base.Fatalf("Orig returned nil")
++		}
++		return o
++	}
++	return n
++}
++
++// SepCopy returns a separate shallow copy of n,
++// breaking any Orig link to any other nodes.
++func SepCopy(n Node) Node {
++	n = n.RawCopy()
++	if n, ok := n.(OrigNode); ok {
++		n.SetOrig(n)
++	}
++	return n
++}
++
++// Copy returns a shallow copy of n.
++// If Orig(n) == n, then Orig(Copy(n)) == the copy.
++// Otherwise the Orig link is preserved as well.
++//
++// The specific semantics surrounding Orig are subtle but right for most uses.
++// See issues #26855 and #27765 for pitfalls.
++func Copy(n Node) Node {
++	copy := n.RawCopy()
++	if n, ok := n.(OrigNode); ok && n.Orig() == n {
++		copy.(OrigNode).SetOrig(copy)
++	}
++	return copy
++}
++
++// A Node can implement DeepCopyNode to provide a custom implementation
++// of DeepCopy. If the compiler only needs access to a Node's structure during
++// DeepCopy, then a Node can implement DeepCopyNode instead of providing
++// fine-grained mutable access with Left, SetLeft, Right, SetRight, and so on.
++type DeepCopyNode interface {
++	Node
++	DeepCopy(pos src.XPos) Node
++}
++
++// DeepCopy returns a “deep” copy of n, with its entire structure copied
++// (except for shared nodes like ONAME, ONONAME, OLITERAL, and OTYPE).
++// If pos.IsKnown(), it sets the source position of newly allocated Nodes to pos.
++//
++// The default implementation is to traverse the Node graph, making
++// a shallow copy of each node and then updating each field to point
++// at shallow copies of children, recursively, using Left, SetLeft, and so on.
++//
++// If a Node wishes to provide an alternate implementation, it can
++// implement a DeepCopy method: see the DeepCopyNode interface.
++func DeepCopy(pos src.XPos, n Node) Node {
++	if n == nil {
++		return nil
++	}
++
++	if n, ok := n.(DeepCopyNode); ok {
++		return n.DeepCopy(pos)
++	}
++
++	switch n.Op() {
++	default:
++		m := SepCopy(n)
++		m.SetLeft(DeepCopy(pos, n.Left()))
++		m.SetRight(DeepCopy(pos, n.Right()))
++		m.PtrList().Set(deepCopyList(pos, n.List().Slice()))
++		if pos.IsKnown() {
++			m.SetPos(pos)
++		}
++		if m.Name() != nil {
++			Dump("DeepCopy", n)
++			base.Fatalf("DeepCopy Name")
++		}
++		return m
++
++	case OPACK:
++		// OPACK nodes are never valid in const value declarations,
++		// but allow them like any other declared symbol to avoid
++		// crashing (golang.org/issue/11361).
++		fallthrough
++
++	case ONAME, ONONAME, OLITERAL, ONIL, OTYPE:
++		return n
++	}
++}
++
++func deepCopyList(pos src.XPos, list []Node) []Node {
++	var out []Node
++	for _, n := range list {
++		out = append(out, DeepCopy(pos, n))
++	}
++	return out
++}
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 47c38c2ab5..653410d175 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -1021,59 +1021,6 @@ func (n *node) RawCopy() Node {
+ 	return &copy
+ }
+ 
+-// A Node may implement the Orig and SetOrig method to
+-// maintain a pointer to the "unrewritten" form of a Node.
+-// If a Node does not implement OrigNode, it is its own Orig.
+-//
+-// Note that both SepCopy and Copy have definitions compatible
+-// with a Node that does not implement OrigNode: such a Node
+-// is its own Orig, and in that case, that's what both want to return
+-// anyway (SepCopy unconditionally, and Copy only when the input
+-// is its own Orig as well, but if the output does not implement
+-// OrigNode, then neither does the input, making the condition true).
+-type OrigNode interface {
+-	Node
+-	Orig() Node
+-	SetOrig(Node)
+-}
+-
+-func Orig(n Node) Node {
+-	if n, ok := n.(OrigNode); ok {
+-		o := n.Orig()
+-		if o == nil {
+-			Dump("Orig nil", n)
+-			base.Fatalf("Orig returned nil")
+-		}
+-		return o
+-	}
+-	return n
+-}
+-
+-// sepcopy returns a separate shallow copy of n, with the copy's
+-// Orig pointing to itself.
+-func SepCopy(n Node) Node {
+-	n = n.RawCopy()
+-	if n, ok := n.(OrigNode); ok {
+-		n.SetOrig(n)
+-	}
+-	return n
+-}
+-
+-// copy returns shallow copy of n and adjusts the copy's Orig if
+-// necessary: In general, if n.Orig points to itself, the copy's
+-// Orig should point to itself as well. Otherwise, if n is modified,
+-// the copy's Orig node appears modified, too, and then doesn't
+-// represent the original node anymore.
+-// (This caused the wrong complit Op to be used when printing error
+-// messages; see issues #26855, #27765).
+-func Copy(n Node) Node {
+-	copy := n.RawCopy()
+-	if n, ok := n.(OrigNode); ok && n.Orig() == n {
+-		copy.(OrigNode).SetOrig(copy)
+-	}
+-	return copy
+-}
+-
+ // isNil reports whether n represents the universal untyped zero value "nil".
+ func IsNil(n Node) bool {
+ 	// Check n.Orig because constant propagation may produce typed nil constants,

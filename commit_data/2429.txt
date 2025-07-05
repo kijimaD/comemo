@@ -8,6 +8,38 @@ Date:   Mon Jun 8 17:22:28 2009 -0700
     DELTA=14  (6 added, 4 deleted, 4 changed)
     OCL=30072
     CL=30074
-
+---
  src/lib/io/utils.go | 16 +++++++++-------
  1 file changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/lib/io/utils.go b/src/lib/io/utils.go
+index 736097946e..a4cbb2d9aa 100644
+--- a/src/lib/io/utils.go
++++ b/src/lib/io/utils.go
+@@ -11,17 +11,19 @@ import (
+ 	"os";
+ )
+ 
++// ReadAll reads from r until an error or EOF and returns the data it read.
++func ReadAll(r Reader) ([]byte, os.Error) {
++	var buf ByteBuffer;
++	n, err := io.Copy(r, &buf);
++	return buf.Data(), err;
++}
+ 
+-// ReadFile reads the file named by filename and returns
+-// its contents if successful.
+-//
++// ReadFile reads the file named by filename and returns the contents.
+ func ReadFile(filename string) ([]byte, os.Error) {
+ 	f, err := os.Open(filename, os.O_RDONLY, 0);
+ 	if err != nil {
+ 		return nil, err;
+ 	}
+-	var b io.ByteBuffer;
+-	_, err := io.Copy(f, &b);
+-	f.Close();
+-	return b.Data(), err;
++	defer f.Close();
++	return ReadAll(f);
+ }

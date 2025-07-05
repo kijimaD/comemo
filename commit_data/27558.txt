@@ -11,7 +11,40 @@ Date:   Fri Apr 1 15:06:25 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/cgocall.go | 5 -----
  src/runtime/proc.go    | 5 +++++
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 7cffa83617..d5248803a4 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -113,11 +113,6 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
+ 	mp.ncgo++
+ 	defer endcgo(mp)
+ 
+-	// Allocate memory to hold a cgo traceback if the cgo call crashes.
+-	if mp.cgoCallers == nil {
+-		mp.cgoCallers = new(cgoCallers)
+-	}
+-
+ 	// Reset traceback.
+ 	mp.cgoCallers[0] = 0
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 27e61bd3e2..1e1987ff9e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -510,6 +510,11 @@ func mcommoninit(mp *m) {
+ 	// so we need to publish it safely.
+ 	atomicstorep(unsafe.Pointer(&allm), unsafe.Pointer(mp))
+ 	unlock(&sched.lock)
++
++	// Allocate memory to hold a cgo traceback if the cgo call crashes.
++	if iscgo || GOOS == "solaris" || GOOS == "windows" {
++		mp.cgoCallers = new(cgoCallers)
++	}
+ }
+ 
+ // Mark gp ready to run.

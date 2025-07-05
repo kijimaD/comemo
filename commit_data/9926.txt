@@ -8,7 +8,7 @@ Date:   Tue Oct 11 16:17:21 2011 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5246054
-
+---
  src/cmd/Makefile        |   1 -
  src/cmd/gotry/Makefile  |  18 -----
  src/cmd/gotry/gotry     | 168 ----------------------------------------------
@@ -17,3 +17,497 @@ Date:   Tue Oct 11 16:17:21 2011 -0700
  src/pkg/try/try.go      | 174 ------------------------------------------------
  src/pkg/try/try_test.go |  60 -----------------
  7 files changed, 434 deletions(-)
+
+diff --git a/src/cmd/Makefile b/src/cmd/Makefile
+index 5a37733de9..de1410b4f2 100644
+--- a/src/cmd/Makefile
++++ b/src/cmd/Makefile
+@@ -18,7 +18,6 @@ DIRS=\
+ 	gc\
+ 	godefs\
+ 	gopack\
+-	gotry\
+ 	nm\
+ 	prof\
+ 	
+diff --git a/src/cmd/gotry/Makefile b/src/cmd/gotry/Makefile
+deleted file mode 100644
+index 6a32bbf2d6..0000000000
+--- a/src/cmd/gotry/Makefile
++++ /dev/null
+@@ -1,18 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=install
+-
+-clean:
+-	@true
+-
+-install: install-gotry
+-
+-install-%: %
+-	! test -f "$(GOBIN)"/$* || chmod u+w "$(GOBIN)"/$*
+-	sed 's`@@GOROOT@@`$(GOROOT_FINAL)`' $* >"$(GOBIN)"/$*
+-	chmod +x "$(GOBIN)"/$*
+-
+diff --git a/src/cmd/gotry/gotry b/src/cmd/gotry/gotry
+deleted file mode 100755
+index c81b6c7d05..0000000000
+--- a/src/cmd/gotry/gotry
++++ /dev/null
+@@ -1,168 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# Using all the non-test *.go files in the named directory, write
+-# out a file /tmp/$USER.try.go to evaluate the expressions on the
+-# command line, perhaps to discover a function or method that
+-# gives the desired results.  See usage message.
+-# Compile the program and run it.
+-
+-# Makes egrep,grep work better in general if we put them
+-# in ordinary C mode instead of what the current language is.
+-unset LANG
+-export LC_ALL=C
+-export LC_CTYPE=C
+-
+-export GOROOT=${GOROOT:-"@@GOROOT@@"}
+-eval $(gomake -j1 --no-print-directory -f "$GOROOT"/src/Make.inc go-env)
+-if [ -z "$O" ]; then
+-	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+-	exit 2
+-fi
+-
+-# Allow overrides
+-GC="${_GC:-$GC} -I _test"
+-GL="${GL:-$LD} -L _test"
+-AS="$AS"
+-CC="$CC"
+-LD="$LD"
+-export GC GL O AS CC LD
+-
+-# Macros for tab and quotes for easier readability.
+-T='	'
+-BQ='`'
+-SQ="'"
+-DQ='"'
+-SD="$SQ$DQ"
+-DS="$DQ$SQ"
+-
+-usage="usage: gotry [packagedirectory] expression ...
+-Given one expression, gotry attempts to evaluate that expression.
+-Given multiple expressions, gotry treats them as a list of arguments
+-and result values and attempts to find a function in the package
+-that, given the first few expressions as arguments, evaluates to
+-the remaining expressions as results.  If the first expression has
+-methods, it will also search for applicable methods.
+-
+-If there are multiple expressions, a package directory must be
+-specified. If there is a package argument, the expressions are
+-evaluated in an environment that includes
+-	import . ${DQ}packagedirectory${DQ}
+-
+-Examples:
+-	gotry 3+4
+-		# evaluates to 7
+-	gotry strings ${SD}abc${DS} ${SD}c${DS} 7-5
+-		# finds strings.Index etc.
+-	gotry regexp ${SQ}MustCompile(${DQ}^[0-9]+${DQ})${SQ} ${SD}12345${DS} true
+-		# finds Regexp.MatchString
+-
+-"
+-
+-function fail() {
+-	echo 2>&1 "$@"
+-	exit 2
+-}
+-
+-case $# in
+-	0)
+-		fail "$usage"
+-		;;
+-	*)
+-		case "$1" in
+-		-*help|-*'?'|'?')
+-			fail "$usage"
+-		esac
+-		if test -d "$GOROOT/src/pkg/$1"
+-		then
+-			pkg=$(basename $1)
+-			dir=$GOROOT/src/pkg/$1
+-			importdir=$1
+-			shift
+-			case "$pkg" in
+-			os|syscall)
+-				fail "gotry: cannot try packages os or syscall; they are too dangerous"
+-			esac
+-		fi
+-		;;
+-esac
+-
+-spaces='[ 	][ 	]*'
+-
+-function getFunctions() {
+-	if [ "$pkg" = "" ]
+-	then
+-		return
+-	fi
+-	for file in $dir/*.go
+-	do
+-		case $file in
+-		*_test*)
+-			continue
+-		esac
+-		grep "func$spaces[A-Z]" $file | # TODO: should be Unicode upper case
+-			sed "s/func$spaces//;s/(.*//"
+-	done | sort -u
+-}
+-
+-# Generate list of public functions.
+-functions=$(getFunctions)
+-
+-# Write file to compile
+-file="/tmp/$USER.try"
+-rm -f "$file.go"
+-(
+-cat <<'!'
+-package main
+-
+-import (
+-	"os"
+-	"try"
+-!
+-
+-if [ "$pkg" != "" ]
+-then
+-	echo "$T" . '"'$importdir'"'
+-fi
+-
+-cat <<!
+-)
+-func main() {
+-	try.Main("$pkg", firstArg, functions, args)
+-}
+-var functions = map[string] interface{}{
+-!
+-
+-for i in $functions
+-do
+-	echo "$T"'"'$i'": '$i','
+-done
+-echo "}"
+-
+-echo 'var args = []interface{}{'
+-
+-if [ $# = 1 ]
+-then
+-	echo "${T}toSlice($1)",
+-else
+-for i
+-	do
+-		echo "$T$i",
+-	done
+-fi
+-echo "}"
+-
+-cat <<!
+-var firstArg = $BQ$1$BQ
+-var _ os.Error
+-func toSlice(a ...interface{}) []interface{} { return a }
+-!
+-
+-)>"$file.go"
+-
+-$GC -o "$file.$O" "$file.go" &&
+-$GL -o "$file" "$file.$O" &&
+-"$file" "_$@"
+-rm -f "$file" "$file.go" "$file.$O"
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index e6b5d785b6..a5640e0f36 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -167,7 +167,6 @@ DIRS=\
+ 	testing/quick\
+ 	testing/script\
+ 	time\
+-	try\
+ 	unicode\
+ 	url\
+ 	utf16\
+@@ -221,7 +220,6 @@ NOTEST+=\
+ 	syscall\
+ 	testing\
+ 	testing/iotest\
+-	try\
+ 	../cmd/cgo\
+ 	../cmd/ebnflint\
+ 	../cmd/godoc\
+diff --git a/src/pkg/try/Makefile b/src/pkg/try/Makefile
+deleted file mode 100644
+index 06981a6fc8..0000000000
+--- a/src/pkg/try/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=try
+-GOFILES=\
+-	try.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/try/try.go b/src/pkg/try/try.go
+deleted file mode 100644
+index 2a3dbf9870..0000000000
+--- a/src/pkg/try/try.go
++++ /dev/null
+@@ -1,174 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package try contains the executable part of the gotry command.
+-// It is not intended for general use.
+-package try
+-
+-import (
+-	"fmt"
+-	"io"
+-	"os"
+-	"reflect"
+-	"unicode"
+-)
+-
+-var output io.Writer = os.Stdout // redirected when testing
+-
+-// Main is called directly from the gotry-generated Go source file to perform
+-// the evaluations.
+-func Main(pkg, firstArg string, functions map[string]interface{}, args []interface{}) {
+-	switch len(args) {
+-	case 0:
+-		// Nothing to do.
+-	case 1:
+-		// Compiler has already evaluated the expression; just print the result.
+-		printSlice(firstArg, args)
+-	default:
+-		// See if methods satisfy the expressions.
+-		tryMethods(pkg, firstArg, args)
+-		// See if functions satisfy the expressions.
+-		for name, fn := range functions {
+-			tryFunction(pkg, name, fn, args)
+-		}
+-	}
+-}
+-
+-// printSlice prints the zeroth element of the args slice, which should (by construction)
+-// itself be a slice of interface{}.
+-func printSlice(firstArg string, args []interface{}) {
+-	// Args should be length 1 and a slice.
+-	if len(args) != 1 {
+-		return
+-	}
+-	arg, ok := args[0].([]interface{})
+-	if !ok {
+-		return
+-	}
+-	fmt.Fprintf(output, "%s = ", firstArg)
+-	if len(arg) > 1 {
+-		fmt.Fprint(output, "(")
+-	}
+-	for i, a := range arg {
+-		if i > 0 {
+-			fmt.Fprint(output, ", ")
+-		}
+-		fmt.Fprintf(output, "%#v", a)
+-	}
+-	if len(arg) > 1 {
+-		fmt.Fprint(output, ")")
+-	}
+-	fmt.Fprint(output, "\n")
+-}
+-
+-// tryMethods sees if the zeroth arg has methods, and if so treats them as potential
+-// functions to satisfy the remaining arguments.
+-func tryMethods(pkg, firstArg string, args []interface{}) {
+-	defer func() { recover() }()
+-	// Is the first argument something with methods?
+-	v := reflect.ValueOf(args[0])
+-	typ := v.Type()
+-	if typ.NumMethod() == 0 {
+-		return
+-	}
+-	for i := 0; i < typ.NumMethod(); i++ {
+-		if unicode.IsUpper(int(typ.Method(i).Name[0])) {
+-			tryMethod(pkg, firstArg, typ.Method(i), args)
+-		}
+-	}
+-}
+-
+-// tryMethod converts a method to a function for tryOneFunction.
+-func tryMethod(pkg, firstArg string, method reflect.Method, args []interface{}) {
+-	rfn := method.Func
+-	typ := method.Type
+-	name := method.Name
+-	tryOneFunction(pkg, firstArg, name, typ, rfn, args)
+-}
+-
+-// tryFunction sees if fn satisfies the arguments.
+-func tryFunction(pkg, name string, fn interface{}, args []interface{}) {
+-	defer func() { recover() }()
+-	rfn := reflect.ValueOf(fn)
+-	typ := rfn.Type()
+-	tryOneFunction(pkg, "", name, typ, rfn, args)
+-}
+-
+-// tryOneFunction is the common code for tryMethod and tryFunction.
+-func tryOneFunction(pkg, firstArg, name string, typ reflect.Type, rfn reflect.Value, args []interface{}) {
+-	// Any results?
+-	if typ.NumOut() == 0 {
+-		return // Nothing to do.
+-	}
+-	// Right number of arguments + results?
+-	if typ.NumIn()+typ.NumOut() != len(args) {
+-		return
+-	}
+-	// Right argument and result types?
+-	for i, a := range args {
+-		if i < typ.NumIn() {
+-			if !compatible(a, typ.In(i)) {
+-				return
+-			}
+-		} else {
+-			if !compatible(a, typ.Out(i-typ.NumIn())) {
+-				return
+-			}
+-		}
+-	}
+-	// Build the call args.
+-	argsVal := make([]reflect.Value, typ.NumIn()+typ.NumOut())
+-	for i, a := range args {
+-		argsVal[i] = reflect.ValueOf(a)
+-	}
+-	// Call the function and see if the results are as expected.
+-	resultVal := rfn.Call(argsVal[:typ.NumIn()])
+-	for i, v := range resultVal {
+-		if !reflect.DeepEqual(v.Interface(), args[i+typ.NumIn()]) {
+-			return
+-		}
+-	}
+-	// Present the result including a godoc command to get more information.
+-	firstIndex := 0
+-	if firstArg != "" {
+-		fmt.Fprintf(output, "%s.%s(", firstArg, name)
+-		firstIndex = 1
+-	} else {
+-		fmt.Fprintf(output, "%s.%s(", pkg, name)
+-	}
+-	for i := firstIndex; i < typ.NumIn(); i++ {
+-		if i > firstIndex {
+-			fmt.Fprint(output, ", ")
+-		}
+-		fmt.Fprintf(output, "%#v", args[i])
+-	}
+-	fmt.Fprint(output, ") = ")
+-	if typ.NumOut() > 1 {
+-		fmt.Fprint(output, "(")
+-	}
+-	for i := 0; i < typ.NumOut(); i++ {
+-		if i > 0 {
+-			fmt.Fprint(output, ", ")
+-		}
+-		fmt.Fprintf(output, "%#v", resultVal[i].Interface())
+-	}
+-	if typ.NumOut() > 1 {
+-		fmt.Fprint(output, ")")
+-	}
+-	fmt.Fprintf(output, "  // godoc %s %s\n", pkg, name)
+-}
+-
+-// compatible reports whether the argument is compatible with the type.
+-func compatible(arg interface{}, typ reflect.Type) bool {
+-	if reflect.TypeOf(arg) == typ {
+-		return true
+-	}
+-	if arg == nil {
+-		// nil is OK if the type is an interface.
+-		if typ.Kind() == reflect.Interface {
+-			return true
+-		}
+-	}
+-	return false
+-}
+diff --git a/src/pkg/try/try_test.go b/src/pkg/try/try_test.go
+deleted file mode 100644
+index 617b2c7c3f..0000000000
+--- a/src/pkg/try/try_test.go
++++ /dev/null
+@@ -1,60 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package try
+-
+-import (
+-	"bytes"
+-	"regexp" // Used as the package to try.
+-	"testing"
+-)
+-
+-// The global functions in package regexp at time of writing.
+-// Doesn't need to be updated unless the entries in this list become invalid.
+-var functions = map[string]interface{}{
+-	"Compile":     regexp.Compile,
+-	"Match":       regexp.Match,
+-	"MatchString": regexp.MatchString,
+-	"MustCompile": regexp.MustCompile,
+-	"QuoteMeta":   regexp.QuoteMeta,
+-}
+-
+-// A wraps arguments to make the test cases nicer to read.
+-func A(args ...interface{}) []interface{} {
+-	return args
+-}
+-
+-type Test struct {
+-	firstArg string // only needed if there is exactly one argument
+-	result   string // minus final newline; might be just the godoc string
+-	args     []interface{}
+-}
+-
+-var testRE = regexp.MustCompile("a(.)(.)d")
+-
+-var tests = []Test{
+-	// A simple expression.  The final value is a slice in case the expression is multivalue.
+-	{"3+4", "3+4 = 7", A([]interface{}{7})},
+-	// A search for a function.
+-	{"", "regexp QuoteMeta", A("([])", `\(\[\]\)`)},
+-	// A search for a function with multiple return values.
+-	{"", "regexp MatchString", A("abc", "xabcd", true, nil)},
+-	// Searches for methods.
+-	{"", "regexp MatchString", A(testRE, "xabcde", true)},
+-	{"", "regexp NumSubexp", A(testRE, 2)},
+-}
+-
+-func TestAll(t *testing.T) {
+-	re := regexp.MustCompile(".*// godoc ")
+-	for _, test := range tests {
+-		b := new(bytes.Buffer)
+-		output = b
+-		Main("regexp", test.firstArg, functions, test.args)
+-		expect := test.result + "\n"
+-		got := re.ReplaceAllString(b.String(), "")
+-		if got != expect {
+-			t.Errorf("expected %q; got %q", expect, got)
+-		}
+-	}
+-}

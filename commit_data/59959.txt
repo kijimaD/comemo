@@ -16,9 +16,148 @@ Date:   Thu May 9 15:19:38 2024 -0700
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/cgo/doc.go                          |  3 ++
  src/cmd/cgo/main.go                         | 10 ++++---
  src/cmd/go/internal/work/exec.go            | 13 ++++++--
  src/cmd/go/testdata/script/cgo_long_cmd.txt | 46 +++++++++++++++++++++++++++++
  4 files changed, 65 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 1c5d4b060d..3d4789fafb 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -529,6 +529,9 @@ The following options are available when running cgo directly:
+ 		Write out input file in Go syntax replacing C package
+ 		names with real values. Used to generate files in the
+ 		syscall package when bootstrapping a new target.
++	-ldflags flags
++		Flags to pass to the C linker. The cmd/go tool uses
++		this to pass in the flags in the CGO_LDFLAGS variable.
+ 	-objdir directory
+ 		Put all generated files in directory.
+ 	-srcdir directory
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index a9095dee3d..a19743fe61 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -242,6 +242,8 @@ var objDir = flag.String("objdir", "", "object directory")
+ var importPath = flag.String("importpath", "", "import path of package being built (for comments in generated files)")
+ var exportHeader = flag.String("exportheader", "", "where to write export header if any exported functions")
+ 
++var ldflags = flag.String("ldflags", "", "flags to pass to C linker")
++
+ var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
+ var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
+ var gccgopkgpath = flag.String("gccgopkgpath", "", "-fgo-pkgpath option used with gccgo")
+@@ -328,11 +330,11 @@ func main() {
+ 		os.Exit(2)
+ 	}
+ 
+-	// Record CGO_LDFLAGS from the environment for external linking.
+-	if ldflags := os.Getenv("CGO_LDFLAGS"); ldflags != "" {
+-		args, err := splitQuoted(ldflags)
++	// Record linker flags for external linking.
++	if *ldflags != "" {
++		args, err := splitQuoted(*ldflags)
+ 		if err != nil {
+-			fatalf("bad CGO_LDFLAGS: %q (%s)", ldflags, err)
++			fatalf("bad -ldflags option: %q (%s)", *ldflags, err)
+ 		}
+ 		p.addToFlag("LDFLAGS", args)
+ 	}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index a3d1533899..29cce25132 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2812,7 +2812,10 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 		cgoflags = append(cgoflags, "-import_syscall=false")
+ 	}
+ 
+-	// Update $CGO_LDFLAGS with p.CgoLDFLAGS.
++	// cgoLDFLAGS, which includes p.CgoLDFLAGS, can be very long.
++	// Pass it to cgo on the command line, so that we use a
++	// response file if necessary.
++	//
+ 	// These flags are recorded in the generated _cgo_gotypes.go file
+ 	// using //go:cgo_ldflag directives, the compiler records them in the
+ 	// object file for the package, and then the Go linker passes them
+@@ -2820,12 +2823,16 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 	// consists of the original $CGO_LDFLAGS (unchecked) and all the
+ 	// flags put together from source code (checked).
+ 	cgoenv := b.cCompilerEnv()
++	var ldflagsOption []string
+ 	if len(cgoLDFLAGS) > 0 {
+ 		flags := make([]string, len(cgoLDFLAGS))
+ 		for i, f := range cgoLDFLAGS {
+ 			flags[i] = strconv.Quote(f)
+ 		}
+-		cgoenv = append(cgoenv, "CGO_LDFLAGS="+strings.Join(flags, " "))
++		ldflagsOption = []string{"-ldflags=" + strings.Join(flags, " ")}
++
++		// Remove CGO_LDFLAGS from the environment.
++		cgoenv = append(cgoenv, "CGO_LDFLAGS=")
+ 	}
+ 
+ 	if cfg.BuildToolchainName == "gccgo" {
+@@ -2863,7 +2870,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 		cgoflags = append(cgoflags, "-trimpath", strings.Join(trimpath, ";"))
+ 	}
+ 
+-	if err := sh.run(p.Dir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
++	if err := sh.run(p.Dir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, ldflagsOption, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
+ 		return nil, nil, err
+ 	}
+ 	outGo = append(outGo, gofiles...)
+diff --git a/src/cmd/go/testdata/script/cgo_long_cmd.txt b/src/cmd/go/testdata/script/cgo_long_cmd.txt
+new file mode 100644
+index 0000000000..36b9133715
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cgo_long_cmd.txt
+@@ -0,0 +1,46 @@
++# Issue #66456
++
++[!cgo] skip
++[GOOS:windows] skip
++[GOOS:plan9] skip
++
++# Generate a file with a very long #cgo LDFLAGS line.
++# This used to cause "go build" to fail with "argument list too long".
++go generate
++
++# Build with the generated file.
++go build
++
++-- go.mod --
++module cgolongcmd
++
++go 1.22
++-- generate.go --
++//go:build ignore
++
++package main
++
++import (
++	"fmt"
++	"log"
++	"os"
++	"bytes"
++)
++
++func main() {
++	var buf bytes.Buffer
++	buf.WriteString("package p\n")
++	buf.WriteString("// #cgo LDFLAGS:")
++	for i := range 10000 {
++		fmt.Fprintf(&buf, " -Wl,-rpath,/nonexistentpath/%d", i)
++	}
++	buf.WriteString("\n")
++	buf.WriteString(`import "C"`+"\n")
++	if err := os.WriteFile("generated.go", buf.Bytes(), 0o644); err != nil {
++		log.Fatal(err)
++	}
++}
++-- gen.go --
++package p
++
++//go:generate go run generate.go

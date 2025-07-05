@@ -16,7 +16,84 @@ Date:   Mon Dec 7 16:36:11 2015 +0000
     Change-Id: I9584ef9dbe98ce97d536d897326914653f8d9ddf
     Reviewed-on: https://go-review.googlesource.com/17497
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/multipart/writer.go      | 13 +++++++++----
  src/mime/multipart/writer_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 4 deletions(-)
+
+diff --git a/src/mime/multipart/writer.go b/src/mime/multipart/writer.go
+index 80960939d6..f82756d551 100644
+--- a/src/mime/multipart/writer.go
++++ b/src/mime/multipart/writer.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"net/textproto"
++	"sort"
+ 	"strings"
+ )
+ 
+@@ -94,10 +95,14 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
+ 	} else {
+ 		fmt.Fprintf(&b, "--%s\r\n", w.boundary)
+ 	}
+-	// TODO(bradfitz): move this to textproto.MimeHeader.Write(w), have it sort
+-	// and clean, like http.Header.Write(w) does.
+-	for k, vv := range header {
+-		for _, v := range vv {
++
++	keys := make([]string, 0, len(header))
++	for k := range header {
++		keys = append(keys, k)
++	}
++	sort.Strings(keys)
++	for _, k := range keys {
++		for _, v := range header[k] {
+ 			fmt.Fprintf(&b, "%s: %s\r\n", k, v)
+ 		}
+ 	}
+diff --git a/src/mime/multipart/writer_test.go b/src/mime/multipart/writer_test.go
+index ba00c97ece..9670c660a4 100644
+--- a/src/mime/multipart/writer_test.go
++++ b/src/mime/multipart/writer_test.go
+@@ -7,6 +7,7 @@ package multipart
+ import (
+ 	"bytes"
+ 	"io/ioutil"
++	"net/textproto"
+ 	"strings"
+ 	"testing"
+ )
+@@ -126,3 +127,32 @@ func TestWriterBoundaryGoroutines(t *testing.T) {
+ 	w.Boundary()
+ 	<-done
+ }
++
++func TestSortedHeader(t *testing.T) {
++	var buf bytes.Buffer
++	w := NewWriter(&buf)
++	if err := w.SetBoundary("MIMEBOUNDARY"); err != nil {
++		t.Fatalf("Error setting mime boundary: %v", err)
++	}
++
++	header := textproto.MIMEHeader{
++		"A": {"2"},
++		"B": {"5", "7", "6"},
++		"C": {"4"},
++		"M": {"3"},
++		"Z": {"1"},
++	}
++
++	part, err := w.CreatePart(header)
++	if err != nil {
++		t.Fatalf("Unable to create part: %v", err)
++	}
++	part.Write([]byte("foo"))
++
++	w.Close()
++
++	want := "--MIMEBOUNDARY\r\nA: 2\r\nB: 5\r\nB: 7\r\nB: 6\r\nC: 4\r\nM: 3\r\nZ: 1\r\n\r\nfoo\r\n--MIMEBOUNDARY--\r\n"
++	if want != buf.String() {
++		t.Fatalf("\n got: %q\nwant: %q\n", buf.String(), want)
++	}
++}

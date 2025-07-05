@@ -7,6 +7,45 @@ Date:   Sun Aug 30 21:39:25 2015 -0500
     Change-Id: Ice206f7e94af4a148d9dd9a7570f5ed21722bedc
     Reviewed-on: https://go-review.googlesource.com/14075
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index b098ea1a19..92b7b6c829 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -105,6 +105,7 @@ import (
+ )
+ 
+ const regDebug = false
++const logSpills = false
+ 
+ // regalloc performs register allocation on f.  It sets f.RegAlloc
+ // to the resulting allocation.
+@@ -402,6 +403,9 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
+ 		// Instead, we regenerate the flags register by issuing the same instruction again.
+ 		// This requires (possibly) spilling and reloading that instruction's args.
+ 		case v.Type.IsFlags():
++			if logSpills {
++				fmt.Println("regalloc: regenerating flags")
++			}
+ 			ns := s.nospill
+ 			// Place v's arguments in registers, spilling and loading as needed
+ 			args := make([]*Value, 0, len(v.Args))
+@@ -429,9 +433,15 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
+ 		// Load v from its spill location.
+ 		// TODO: rematerialize if we can.
+ 		case vi.spill2 != nil:
++			if logSpills {
++				fmt.Println("regallog: load spill2")
++			}
+ 			c = s.curBlock.NewValue1(v.Line, OpLoadReg, v.Type, vi.spill2)
+ 			vi.spill2used = true
+ 		case vi.spill != nil:
++			if logSpills {
++				fmt.Println("regalloc: load spill")
++			}
+ 			c = s.curBlock.NewValue1(v.Line, OpLoadReg, v.Type, vi.spill)
+ 			vi.spillUsed = true
+ 		default:

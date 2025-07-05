@@ -14,7 +14,7 @@ Date:   Mon Nov 11 11:36:36 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/life/overlaydir_test.go         | 2 +-
  misc/cgo/stdio/overlaydir_test.go        | 2 +-
  misc/cgo/test/overlaydir_test.go         | 2 +-
@@ -26,3 +26,134 @@ Date:   Mon Nov 11 11:36:36 2019 -0500
  misc/cgo/testsovar/overlaydir_test.go    | 2 +-
  misc/reboot/overlaydir_test.go           | 2 +-
  10 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/misc/cgo/life/overlaydir_test.go b/misc/cgo/life/overlaydir_test.go
+index f381ea62f3..a25b125c7c 100644
+--- a/misc/cgo/life/overlaydir_test.go
++++ b/misc/cgo/life/overlaydir_test.go
+@@ -52,7 +52,7 @@ func overlayDir(dstRoot, srcRoot string) error {
+ 		// Always copy directories (don't symlink them).
+ 		// If we add a file in the overlay, we don't want to add it in the original.
+ 		if info.IsDir() {
+-			return os.Mkdir(dstPath, perm)
++			return os.Mkdir(dstPath, perm|0200)
+ 		}
+ 
+ 		// If the OS supports symlinks, use them instead of copying bytes.
+diff --git a/misc/cgo/stdio/overlaydir_test.go b/misc/cgo/stdio/overlaydir_test.go
+index 8a8dcdb3a5..5d6858f960 100644
+--- a/misc/cgo/stdio/overlaydir_test.go
++++ b/misc/cgo/stdio/overlaydir_test.go
+@@ -52,7 +52,7 @@ func overlayDir(dstRoot, srcRoot string) error {
+ 		// Always copy directories (don't symlink them).
+ 		// If we add a file in the overlay, we don't want to add it in the original.
+ 		if info.IsDir() {
+-			return os.Mkdir(dstPath, perm)
++			return os.Mkdir(dstPath, perm|0200)
+ 		}
+ 
+ 		// If the OS supports symlinks, use them instead of copying bytes.
+diff --git a/misc/cgo/test/overlaydir_test.go b/misc/cgo/test/overlaydir_test.go
+index 1b5c67de70..cad9577ca1 100644
+--- a/misc/cgo/test/overlaydir_test.go
++++ b/misc/cgo/test/overlaydir_test.go
+@@ -52,7 +52,7 @@ func overlayDir(dstRoot, srcRoot string) error {
+ 		// Always copy directories (don't symlink them).
+ 		// If we add a file in the overlay, we don't want to add it in the original.
+ 		if info.IsDir() {
+-			return os.Mkdir(dstPath, perm)
++			return os.Mkdir(dstPath, perm|0200)
+ 		}
+ 
+ 		// If the OS supports symlinks, use them instead of copying bytes.
+diff --git a/misc/cgo/testcarchive/overlaydir_test.go b/misc/cgo/testcarchive/overlaydir_test.go
+index 68878e4c66..ee35dd50f7 100644
+--- a/misc/cgo/testcarchive/overlaydir_test.go
++++ b/misc/cgo/testcarchive/overlaydir_test.go
+@@ -52,7 +52,7 @@ func overlayDir(dstRoot, srcRoot string) error {
+ 		// Always copy directories (don't symlink them).
+ 		// If we add a file in the overlay, we don't want to add it in the original.
+ 		if info.IsDir() {
+-			return os.Mkdir(dstPath, perm)
++			return os.Mkdir(dstPath, perm|0200)
+ 		}
+ 
+ 		// If the OS supports symlinks, use them instead of copying bytes.
+diff --git a/misc/cgo/testcshared/overlaydir_test.go b/misc/cgo/testcshared/overlaydir_test.go
+index 1eaabf6fe2..0c23ec0c15 100644
+--- a/misc/cgo/testcshared/overlaydir_test.go
++++ b/misc/cgo/testcshared/overlaydir_test.go
+@@ -52,7 +52,7 @@ func overlayDir(dstRoot, srcRoot string) error {
+ 		// Always copy directories (don't symlink them).
+ 		// If we add a file in the overlay, we don't want to add it in the original.
+ 		if info.IsDir() {
+-			return os.Mkdir(dstPath, perm)
++			return os.Mkdir(dstPath, perm|0200)
+ 		}
+ 
+ 		// If the OS supports symlinks, use them instead of copying bytes.
+diff --git a/misc/cgo/testplugin/overlaydir_test.go b/misc/cgo/testplugin/overlaydir_test.go
+index b68436ac03..ffb107cf8b 100644
+--- a/misc/cgo/testplugin/overlaydir_test.go
++++ b/misc/cgo/testplugin/overlaydir_test.go
+@@ -52,7 +52,7 @@ func overlayDir(dstRoot, srcRoot string) error {
+ 		// Always copy directories (don't symlink them).
+ 		// If we add a file in the overlay, we don't want to add it in the original.
+ 		if info.IsDir() {
+-			return os.Mkdir(dstPath, perm)
++			return os.Mkdir(dstPath, perm|0200)
+ 		}
+ 
+ 		// If the OS supports symlinks, use them instead of copying bytes.
+diff --git a/misc/cgo/testshared/overlaydir_test.go b/misc/cgo/testshared/overlaydir_test.go
+index 68be056256..3a7c9b04a0 100644
+--- a/misc/cgo/testshared/overlaydir_test.go
++++ b/misc/cgo/testshared/overlaydir_test.go
+@@ -52,7 +52,7 @@ func overlayDir(dstRoot, srcRoot string) error {
+ 		// Always copy directories (don't symlink them).
+ 		// If we add a file in the overlay, we don't want to add it in the original.
+ 		if info.IsDir() {
+-			return os.Mkdir(dstPath, perm)
++			return os.Mkdir(dstPath, perm|0200)
+ 		}
+ 
+ 		// If the OS supports symlinks, use them instead of copying bytes.
+diff --git a/misc/cgo/testso/overlaydir_test.go b/misc/cgo/testso/overlaydir_test.go
+index 10c874d925..91732d123d 100644
+--- a/misc/cgo/testso/overlaydir_test.go
++++ b/misc/cgo/testso/overlaydir_test.go
+@@ -52,7 +52,7 @@ func overlayDir(dstRoot, srcRoot string) error {
+ 		// Always copy directories (don't symlink them).
+ 		// If we add a file in the overlay, we don't want to add it in the original.
+ 		if info.IsDir() {
+-			return os.Mkdir(dstPath, perm)
++			return os.Mkdir(dstPath, perm|0200)
+ 		}
+ 
+ 		// If the OS supports symlinks, use them instead of copying bytes.
+diff --git a/misc/cgo/testsovar/overlaydir_test.go b/misc/cgo/testsovar/overlaydir_test.go
+index 10c874d925..91732d123d 100644
+--- a/misc/cgo/testsovar/overlaydir_test.go
++++ b/misc/cgo/testsovar/overlaydir_test.go
+@@ -52,7 +52,7 @@ func overlayDir(dstRoot, srcRoot string) error {
+ 		// Always copy directories (don't symlink them).
+ 		// If we add a file in the overlay, we don't want to add it in the original.
+ 		if info.IsDir() {
+-			return os.Mkdir(dstPath, perm)
++			return os.Mkdir(dstPath, perm|0200)
+ 		}
+ 
+ 		// If the OS supports symlinks, use them instead of copying bytes.
+diff --git a/misc/reboot/overlaydir_test.go b/misc/reboot/overlaydir_test.go
+index b38a8efbb9..6e77b2e97b 100644
+--- a/misc/reboot/overlaydir_test.go
++++ b/misc/reboot/overlaydir_test.go
+@@ -51,7 +51,7 @@ func overlayDir(dstRoot, srcRoot string) error {
+ 		// Always copy directories (don't symlink them).
+ 		// If we add a file in the overlay, we don't want to add it in the original.
+ 		if info.IsDir() {
+-			return os.Mkdir(dstPath, perm)
++			return os.Mkdir(dstPath, perm|0200)
+ 		}
+ 
+ 		// If the OS supports symlinks, use them instead of copying bytes.

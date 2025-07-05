@@ -7,7 +7,7 @@ Date:   Thu Feb 4 02:06:08 2010 -0800
     R=r, cw
     CC=golang-dev
     https://golang.org/cl/201043
-
+---
  src/pkg/syscall/syscall_darwin.go         | 5 ++++-
  src/pkg/syscall/syscall_freebsd.go        | 5 ++++-
  src/pkg/syscall/zsyscall_darwin_386.go    | 2 +-
@@ -15,3 +15,102 @@ Date:   Thu Feb 4 02:06:08 2010 -0800
  src/pkg/syscall/zsyscall_freebsd_386.go   | 2 +-
  src/pkg/syscall/zsyscall_freebsd_amd64.go | 2 +-
  6 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index 20f9fa24e4..1946ecd78c 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -454,6 +454,10 @@ func SysctlUint32(name string) (value uint32, errno int) {
+ 	return *(*uint32)(unsafe.Pointer(&buf[0])), 0
+ }
+ 
++//sys	kill(pid int, signum int, posix int) (errno int)
++
++func Kill(pid int, signum int) (errno int) { return kill(pid, signum, 1) }
++
+ // TODO: wrap
+ //	Acct(name nil-string) (errno int)
+ //	Futimes(fd int, timeval *Timeval) (errno int)	// Pointer to 2 timevals!
+@@ -511,7 +515,6 @@ func SysctlUint32(name string) (value uint32, errno int) {
+ //sys	Getsid(pid int) (sid int, errno int)
+ //sys	Getuid() (uid int)
+ //sys	Issetugid() (tainted bool)
+-//sys	Kill(pid int, signum int, posix int) (errno int)
+ //sys	Kqueue() (fd int, errno int)
+ //sys	Lchown(path string, uid int, gid int) (errno int)
+ //sys	Link(path string, link string) (errno int)
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index 4a187dd89d..c2528a520d 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -454,6 +454,10 @@ func SysctlUint32(name string) (value uint32, errno int) {
+ 	return *(*uint32)(unsafe.Pointer(&buf[0])), 0
+ }
+ 
++//sys	kill(pid int, signum int, posix int) (errno int)
++
++func Kill(pid int, signum int) (errno int) { return kill(pid, signum, 1) }
++
+ // TODO: wrap
+ //	Acct(name nil-string) (errno int)
+ //	Futimes(fd int, timeval *Timeval) (errno int)	// Pointer to 2 timevals!
+@@ -511,7 +515,6 @@ func SysctlUint32(name string) (value uint32, errno int) {
+ //sys	Gettimeofday(tv *Timeval) (errno int)
+ //sys	Getuid() (uid int)
+ //sys	Issetugid() (tainted bool)
+-//sys	Kill(pid int, signum int, posix int) (errno int)
+ //sys	Kqueue() (fd int, errno int)
+ //sys	Lchown(path string, uid int, gid int) (errno int)
+ //sys	Link(path string, link string) (errno int)
+diff --git a/src/pkg/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+index 303919ce45..6442f078b3 100644
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -370,7 +370,7 @@ func Issetugid() (tainted bool) {
+ 	return
+ }
+ 
+-func Kill(pid int, signum int, posix int) (errno int) {
++func kill(pid int, signum int, posix int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix))
+ 	errno = int(e1)
+ 	return
+diff --git a/src/pkg/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+index 6e25cf3813..5f4f9ee1d2 100644
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -370,7 +370,7 @@ func Issetugid() (tainted bool) {
+ 	return
+ }
+ 
+-func Kill(pid int, signum int, posix int) (errno int) {
++func kill(pid int, signum int, posix int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix))
+ 	errno = int(e1)
+ 	return
+diff --git a/src/pkg/syscall/zsyscall_freebsd_386.go b/src/pkg/syscall/zsyscall_freebsd_386.go
+index 8216dc7600..f493738290 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_386.go
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -370,7 +370,7 @@ func Issetugid() (tainted bool) {
+ 	return
+ }
+ 
+-func Kill(pid int, signum int, posix int) (errno int) {
++func kill(pid int, signum int, posix int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix))
+ 	errno = int(e1)
+ 	return
+diff --git a/src/pkg/syscall/zsyscall_freebsd_amd64.go b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+index ccae89b3bc..b85ef8223b 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -370,7 +370,7 @@ func Issetugid() (tainted bool) {
+ 	return
+ }
+ 
+-func Kill(pid int, signum int, posix int) (errno int) {
++func kill(pid int, signum int, posix int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix))
+ 	errno = int(e1)
+ 	return

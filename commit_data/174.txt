@@ -7,7 +7,7 @@ Date:   Sun Jun 15 17:22:57 2008 -0700
     db now works on mac and linux
     
     SVN=122807
-
+---
  src/cmd/6l/asm.c               |  31 ++++++++-
  src/cmd/6l/l.h                 |   1 +
  src/cmd/6l/obj.c               |   1 +
@@ -16,3 +16,409 @@ Date:   Sun Jun 15 17:22:57 2008 -0700
  src/libmach_amd64/macho.h      |  69 +++++++++++++++++++
  src/libmach_amd64/sym.c        |   1 -
  7 files changed, 249 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 44c70b4d37..3ae914afe4 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -179,6 +179,7 @@ asmb(void)
+ 		seek(cout, HEADR+textsize, 0);
+ 		break;
+ 	case 6:
++		debug['8'] = 1;	/* 64-bit addresses */
+ 		v = HEADR+textsize;
+ 		myseek(cout, v);
+ 		v = rnd(v, 4096) - v;
+@@ -232,7 +233,7 @@ asmb(void)
+ 			seek(cout, HEADR+textsize+datsize, 0);
+ 			break;
+ 		case 6:
+-			debug['s'] = 1;
++			seek(cout, rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND), 0);
+ 			break;
+ 		case 7:
+ 			seek(cout, rnd(HEADR+textsize, INITRND)+datsize+strtabsize, 0);
+@@ -348,7 +349,10 @@ asmb(void)
+ 		lputl((1<<24)|7);		/* cputype - x86/ABI64 */
+ 		lputl(3);			/* subtype - x86 */
+ 		lputl(2);			/* file type - mach executable */
+-		lputl(4);			/* number of loads */
++		if (debug['s'])
++			lputl(4);			/* number of loads */
++		else
++			lputl(6);			/* number of loads */
+ 		lputl(machheadr()-32);		/* size of loads */
+ 		lputl(1);			/* flags - no undefines */
+ 		lputl(0);			/* reserved */
+@@ -386,7 +390,15 @@ asmb(void)
+ 			va+v+datsize,bsssize,	/* addr size */
+ 			0,0,0,0,		/* offset align reloc nreloc */
+ 			1);			/* flag - zero fill */
++
+ 		machstack(va+HEADR);
++
++		if (!debug['s']) {
++			v += rnd(datsize, INITRND);
++			machsymseg(v,symsize);	/* fileoffset,filesize */
++			v += symsize;
++			machsymseg(v,lcsize);	/* fileoffset,filesize */
++		}
+ 		break;
+ 	case 7:
+ 		/* elf amd-64 */
+@@ -737,7 +749,7 @@ void
+ machseg(char *name, vlong vaddr, vlong vsize, vlong foff, vlong fsize,
+ 	ulong prot1, ulong prot2, ulong nsect, ulong flag)
+ {
+-	lputl(25);	// section
++	lputl(25);	/* segment 64 */
+ 	lputl(72 + 80*nsect);
+ 	strnput(name, 16);
+ 	vputl(vaddr);
+@@ -750,6 +762,15 @@ machseg(char *name, vlong vaddr, vlong vsize, vlong foff, vlong fsize,
+ 	lputl(flag);
+ }
+ 
++void
++machsymseg(ulong foffset, ulong fsize)
++{
++	lputl(3);	/* obsolete gdb debug info */
++	lputl(16);	/* size of symseg command */
++	lputl(foffset);
++	lputl(fsize);
++}
++
+ void
+ machsect(char *name, char *seg, vlong addr, vlong size, ulong off,
+ 	ulong align, ulong reloc, ulong nreloc, ulong flag)
+@@ -799,6 +820,10 @@ machheadr(void)
+ 	a += 20;	/* data sect */
+ 	a += 20;	/* bss sect */
+ 	a += 46;	/* stack sect */
++	if (!debug['s']) {
++		a += 4;	/* symtab seg */
++		a += 4;	/* lctab seg */
++	}
+ 
+ 	return a*4;
+ }
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 17fb35d293..bb5c0a850d 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -421,6 +421,7 @@ int	zaddr(uchar*, Adr*, Sym*[]);
+ void	zerosig(char*);
+ 
+ void	machseg(char*, vlong, vlong, vlong, vlong, ulong, ulong, ulong, ulong);
++void	machsymseg(ulong, ulong);
+ void	machsect(char*, char*, vlong, vlong, ulong, ulong, ulong, ulong, ulong);
+ void	machstack(vlong);
+ ulong	machheadr(void);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index b39ba6e4f3..fb84209504 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -43,6 +43,7 @@ char*	paramspace	= "FP";
+  *	-H3 -T4128 -R4096		is plan9 32-bit format
+  *	-H5 -T0x80110000 -R4096		is ELF32
+  *	-H6 -Tx -Rx			is apple MH-exec
++ *	-H7 -Tx -Rx			is linux elf-exec
+  *
+  *	options used: 189BLQSWabcjlnpsvz
+  */
+diff --git a/src/libmach_amd64/Makefile b/src/libmach_amd64/Makefile
+index 00cd72ce7f..26220948e7 100644
+--- a/src/libmach_amd64/Makefile
++++ b/src/libmach_amd64/Makefile
+@@ -70,7 +70,7 @@ OFILES=\
+ #	qobj.$O\
+ #	vcodas.$O\
+ 
+-HFILES=$(GOROOT)/include/mach_amd64.h elf.h obj.h
++HFILES=$(GOROOT)/include/mach_amd64.h elf.h macho.h obj.h
+ 
+ install: $(LIB)
+ 	cp $(LIB) $(GOROOT)/lib
+diff --git a/src/libmach_amd64/executable.c b/src/libmach_amd64/executable.c
+index d00dc2ffa7..4f0356ebce 100644
+--- a/src/libmach_amd64/executable.c
++++ b/src/libmach_amd64/executable.c
+@@ -32,6 +32,7 @@
+ #include	<bootexec.h>
+ #include	<mach_amd64.h>
+ #include	"elf.h"
++#include	"macho.h"
+ 
+ /*
+  *	All a.out header types.  The dummy entry allows canonical
+@@ -50,6 +51,7 @@ typedef struct {
+ 		struct mips4kexec mipsk4;	/* bootexec.h */
+ 		struct sparcexec sparc;	/* bootexec.h */
+ 		struct nextexec next;	/* bootexec.h */
++		Machhdr machhdr;	/* macho.h */
+ 	} e;
+ 	long dummy;			/* padding to ensure extra long */
+ } ExecHdr;
+@@ -62,6 +64,7 @@ static	int	common(int, Fhdr*, ExecHdr*);
+ static	int	commonllp64(int, Fhdr*, ExecHdr*);
+ static	int	adotout(int, Fhdr*, ExecHdr*);
+ static	int	elfdotout(int, Fhdr*, ExecHdr*);
++static	int	machdotout(int, Fhdr*, ExecHdr*);
+ static	int	armdotout(int, Fhdr*, ExecHdr*);
+ static	void	setsym(Fhdr*, long, long, long, vlong);
+ static	void	setdata(Fhdr*, uvlong, long, vlong, long);
+@@ -256,6 +259,15 @@ ExecTable exectab[] =
+ 		sizeof(Ehdr64),
+ 		nil,
+ 		elfdotout },
++	{ MACH_MAG,			/* 64-bit MACH (apple mac) */
++		"mach executable",
++		nil,
++		FAMD64,
++		0,
++		&mi386,
++		sizeof(Ehdr64),
++		nil,
++		machdotout },
+ 	{ E_MAGIC,			/* Arm 5.out and boot image */
+ 		"arm plan 9 executable",
+ 		"arm plan 9 dlm",
+@@ -652,7 +664,6 @@ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 	ep->machine = swab(ep->machine);
+ 	ep->version = swal(ep->version);
+ 	ep->elfentry = swal(ep->elfentry);
+-print("entry: 0x%x\n", ep->elfentry);
+ 	ep->phoff = swav(ep->phoff);
+ 	ep->shoff = swav(ep->shoff);
+ 	ep->flags = swav(ep->flags);
+@@ -945,6 +956,143 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 	return 1;
+ }
+ 
++static int
++machdotout(int fd, Fhdr *fp, ExecHdr *hp)
++{
++	uvlong (*swav)(uvlong);
++	ulong (*swal)(ulong);
++	ushort (*swab)(ushort);
++	Machhdr *mp;
++	MachCmd **cmd;
++	MachSeg64 *text;
++	MachSeg64 *data;
++	MachSymSeg *symtab;
++	MachSymSeg *pclntab;
++	MachSeg64 *seg;
++	MachSect64 *sect;
++	uvlong textsize, datasize, bsssize;
++	uchar *cmdbuf;
++	uchar *cmdp;
++	int i;
++
++	/* bitswap the header according to the DATA format */
++	mp = &hp->e.machhdr;
++	if (mp->cputype != leswal(MACH_CPU_TYPE_X86_64)) {
++		werrstr("bad MACH cpu type - not amd64");
++		return 0;
++	}
++	swab = leswab;
++	swal = leswal;
++	swav = leswav;
++
++	mp->magic = swal(mp->magic);
++	mp->cputype = swal(mp->cputype);
++	mp->cpusubtype = swal(mp->cpusubtype);
++	mp->filetype = swal(mp->filetype);
++	mp->ncmds = swal(mp->ncmds);
++	mp->sizeofcmds = swal(mp->sizeofcmds);
++	mp->flags = swal(mp->flags);
++	mp->reserved = swal(mp->reserved);
++	if (mp->cpusubtype != MACH_CPU_SUBTYPE_X86) {
++		werrstr("bad MACH cpu subtype - not amd64");
++		return 0;
++	}
++	if (mp->filetype != MACH_EXECUTABLE_TYPE) {
++		werrstr("bad MACH cpu subtype - not amd64");
++		return 0;
++	}
++	mach = &mamd64;
++	fp->type = FAMD64;
++
++	cmdbuf = malloc(mp->sizeofcmds);
++	seek(fd, sizeof(Machhdr), 0);
++	if(read(fd, cmdbuf, mp->sizeofcmds) != mp->sizeofcmds) {
++		free(cmdbuf);
++		return 0;
++	}
++	cmd = malloc(mp->ncmds * sizeof(MachCmd*));
++	cmdp = cmdbuf;
++	text = 0;
++	data = 0;
++	symtab = 0;
++	pclntab = 0;
++	textsize = datasize = bsssize = 0;
++	for (i = 0; i < mp->ncmds; i++) {
++		MachCmd *c;
++
++		cmd[i] = (MachCmd*)cmdp;
++		c = cmd[i];
++		c->type = swal(c->type);
++		c->size = swal(c->size);
++		switch(c->type) {
++		case MACH_SEGMENT_64:
++			seg = (MachSeg64*)c;
++			seg->vmaddr = swav(seg->vmaddr);
++			seg->vmsize = swav(seg->vmsize);
++			seg->fileoff = swav(seg->fileoff);
++			seg->filesize = swav(seg->filesize);
++			seg->maxprot = swal(seg->maxprot);
++			seg->initprot = swal(seg->initprot);
++			seg->nsects = swal(seg->nsects);
++			seg->flags = swal(seg->flags);
++			if (strcmp(seg->segname, "__TEXT") == 0) {
++				text = seg;
++				sect = (MachSect64*)(cmdp + sizeof(MachSeg64));
++				if (strcmp(sect->sectname, "__text") == 0) {
++					textsize = swav(sect->size);
++				} else {
++					werrstr("no text section");
++					goto bad;
++				}
++			}
++			if (strcmp(seg->segname, "__DATA") == 0) {
++				data = seg;
++				sect = (MachSect64*)(cmdp + sizeof(MachSeg64));
++				if (strcmp(sect->sectname, "__data") == 0) {
++					datasize = swav(sect->size);
++				} else {
++					werrstr("no data section");
++					goto bad;
++				}
++				sect++;
++				if (strcmp(sect->sectname, "__bss") == 0) {
++					bsssize = swav(sect->size);
++				} else {
++					werrstr("no bss section");
++					goto bad;
++				}
++			}
++			break;
++		case MACH_UNIXTHREAD:
++			break;
++		case MACH_SYMSEG:
++			if (symtab == 0)
++				symtab = (MachSymSeg*)c;
++			else if (pclntab == 0)
++				pclntab = (MachSymSeg*)c;
++			break;
++		}
++		cmdp += c->size;
++	}
++	if (text == 0 || data == 0) {
++		free(cmd);
++		free(cmdbuf);
++		return 0;
++	}
++	/* compute entry by taking address after header - weird - BUG? */
++	settext(fp, text->vmaddr+sizeof(Machhdr) + mp->sizeofcmds, text->vmaddr, textsize, text->fileoff);
++	setdata(fp, data->vmaddr, datasize, data->fileoff, bsssize);
++	if(symtab != 0)
++		setsym(fp, symtab->filesize, 0, pclntab? pclntab->filesize : 0, symtab->fileoff);
++	free(cmd);
++	free(cmdbuf);
++	return 1;
++bad:
++	free(cmd);
++	free(cmdbuf);
++	return 0;
++}
++
+ /*
+  * (Free|Net)BSD ARM header.
+  */
+diff --git a/src/libmach_amd64/macho.h b/src/libmach_amd64/macho.h
+new file mode 100644
+index 0000000000..26ce48b363
+--- /dev/null
++++ b/src/libmach_amd64/macho.h
+@@ -0,0 +1,69 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ *	Definitions needed for  accessing MACH object headers.
++ */
++
++typedef struct {
++	ulong	magic;		/* mach magic number identifier */
++	ulong	cputype;	/* cpu specifier */
++	ulong	cpusubtype;	/* machine specifier */
++	ulong	filetype;	/* type of file */
++	ulong	ncmds;		/* number of load commands */
++	ulong	sizeofcmds;	/* the size of all the load commands */
++	ulong	flags;		/* flags */
++	ulong	reserved;	/* reserved */
++} Machhdr;
++
++typedef struct {
++	ulong	type;	/* type of load command */
++	ulong	size;	/* total size in bytes */
++} MachCmd;
++
++typedef struct  {
++	MachCmd	cmd;
++	char		segname[16];	/* segment name */
++	uvlong	vmaddr;		/* memory address of this segment */
++	uvlong	vmsize;		/* memory size of this segment */
++	uvlong	fileoff;	/* file offset of this segment */
++	uvlong	filesize;	/* amount to map from the file */
++	ulong	maxprot;	/* maximum VM protection */
++	ulong	initprot;	/* initial VM protection */
++	ulong	nsects;		/* number of sections in segment */
++	ulong	flags;		/* flags */
++} MachSeg64; /* for 64-bit architectures */
++
++typedef struct  {
++	MachCmd	cmd;
++	ulong	fileoff;	/* file offset of this segment */
++	ulong	filesize;	/* amount to map from the file */
++} MachSymSeg;
++
++typedef struct  {
++	char		sectname[16];	/* name of this section */
++	char		segname[16];	/* segment this section goes in */
++	uvlong	addr;		/* memory address of this section */
++	uvlong	size;		/* size in bytes of this section */
++	ulong	offset;		/* file offset of this section */
++	ulong	align;		/* section alignment (power of 2) */
++	ulong	reloff;		/* file offset of relocation entries */
++	ulong	nreloc;		/* number of relocation entries */
++	ulong	flags;		/* flags (section type and attributes)*/
++	ulong	reserved1;	/* reserved (for offset or index) */
++	ulong	reserved2;	/* reserved (for count or sizeof) */
++	ulong	reserved3;	/* reserved */
++} MachSect64; /* for 64-bit architectures */
++
++enum {
++	MACH_CPU_TYPE_X86_64 = (1<<24)|7,
++	MACH_CPU_SUBTYPE_X86 = 3,
++	MACH_EXECUTABLE_TYPE = 2,
++	MACH_SEGMENT_64 = 0x19,	/* 64-bit mapped segment */
++	MACH_SYMSEG = 3,	/* obsolete gdb symtab, reused by go */
++	MACH_UNIXTHREAD = 0x5,	/* thread (for stack) */
++};
++
++
++#define	MACH_MAG		((0xcf<<24) | (0xfa<<16) | (0xed<<8) | 0xfe)
+diff --git a/src/libmach_amd64/sym.c b/src/libmach_amd64/sym.c
+index 9468e19576..6d501a3b6d 100644
+--- a/src/libmach_amd64/sym.c
++++ b/src/libmach_amd64/sym.c
+@@ -1050,7 +1050,6 @@ fileline(char *str, int n, uvlong dot)
+ 			bot = mid;
+ 		else {
+ 			line = pc2line(dot);
+-			print("line %d\n", line);
+ 			if(line > 0 && fline(str, n, line, f->hist, 0) >= 0)
+ 				return 1;
+ 			break;

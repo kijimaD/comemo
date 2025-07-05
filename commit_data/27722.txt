@@ -12,8 +12,69 @@ Date:   Sun Apr 10 15:45:34 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/context/context.go      |  8 +++++++-
  src/context/context_test.go | 13 +++++++++++++
  src/go/build/deps_test.go   |  2 +-
  3 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 21dc8676bf..c332e1f443 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -39,6 +39,7 @@ package context
+ import (
+ 	"errors"
+ 	"fmt"
++	"reflect"
+ 	"sync"
+ 	"time"
+ )
+@@ -424,7 +425,12 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
+ //
+ // Use context Values only for request-scoped data that transits processes and
+ // APIs, not for passing optional parameters to functions.
+-func WithValue(parent Context, key interface{}, val interface{}) Context {
++//
++// The provided key must be comparable.
++func WithValue(parent Context, key, val interface{}) Context {
++	if !reflect.TypeOf(key).Comparable() {
++		panic("key is not comparable")
++	}
+ 	return &valueCtx{parent, key, val}
+ }
+ 
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index 573470e084..0616704dd8 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -586,3 +586,16 @@ func TestCancelRemoves(t *testing.T) {
+ 	cancel()
+ 	checkChildren("after cancelling WithTimeout child", ctx, 0)
+ }
++
++func TestWithValueChecksKey(t *testing.T) {
++	panicVal := recoveredValue(func() { WithValue(Background(), []byte("foo"), "bar") })
++	if panicVal == nil {
++		t.Error("expected panic")
++	}
++}
++
++func recoveredValue(fn func()) (v interface{}) {
++	defer func() { v = recover() }()
++	fn()
++	return
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 8e2fd6e584..f1d19bb50c 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -215,7 +215,7 @@ var pkgDeps = map[string][]string{
+ 	"compress/gzip":            {"L4", "compress/flate"},
+ 	"compress/lzw":             {"L4"},
+ 	"compress/zlib":            {"L4", "compress/flate"},
+-	"context":                  {"errors", "fmt", "sync", "time"},
++	"context":                  {"errors", "fmt", "reflect", "sync", "time"},
+ 	"database/sql":             {"L4", "container/list", "database/sql/driver"},
+ 	"database/sql/driver":      {"L4", "time"},
+ 	"debug/dwarf":              {"L4"},

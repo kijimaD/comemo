@@ -9,6 +9,24 @@ Date:   Fri Feb 10 14:21:36 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5650051
-
+---
  src/pkg/text/template/doc.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/text/template/doc.go b/src/pkg/text/template/doc.go
+index 3be1ec44e6..35c4c68118 100644
+--- a/src/pkg/text/template/doc.go
++++ b/src/pkg/text/template/doc.go
+@@ -3,8 +3,10 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-Package template implements data-driven templates for generating textual output
+-such as HTML.
++Package template implements data-driven templates for generating textual output.
++
++To generate HTML output, see package html/template, which has the same interface
++as this package but automatically secures HTML output against certain attacks.
+ 
+ Templates are executed by applying them to a data structure. Annotations in the
+ template refer to elements of the data structure (typically a field of a struct

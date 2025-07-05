@@ -18,8 +18,155 @@ Date:   Thu Mar 12 12:08:47 2015 -0400
     Change-Id: Iac0364c466ee35fab781dbbbe7970a5f3c4e1fc1
     Reviewed-on: https://go-review.googlesource.com/8832
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go     | 27 +++++++++++++++++++++++++++
  src/runtime/mgcmark.go | 18 ++++++++++++++++++
  src/runtime/mgcwork.go | 12 ++++++++++++
  3 files changed, 57 insertions(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 126b95a475..f6787ab5f8 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -170,6 +170,31 @@ func setGCPercent(in int32) (out int32) {
+ 	return out
+ }
+ 
++// gcController implements the GC pacing controller that determines
++// when to trigger concurrent garbage collection and how much marking
++// work to do in mutator assists and background marking.
++//
++// It uses a feedback control algorithm to adjust the memstats.next_gc
++// trigger based on the heap growth and GC CPU utilization each cycle.
++// This algorithm optimizes for heap growth to match GOGC and for CPU
++// utilization between assist and background marking to be 25% of
++// GOMAXPROCS. The high-level design of this algorithm is documented
++// at http://golang.org/s/go15gcpacing.
++var gcController gcControllerState
++
++type gcControllerState struct {
++	// scanWork is the total scan work performed this cycle. This
++	// is updated atomically during the cycle. Updates may be
++	// batched arbitrarily, since the value is only read at the
++	// end of the cycle.
++	scanWork int64
++}
++
++// startCycle resets the GC controller's state.
++func (c *gcControllerState) startCycle() {
++	c.scanWork = 0
++}
++
+ // Determine whether to initiate a GC.
+ // If the GC is already working no need to trigger another one.
+ // This should establish a feedback loop where if the GC does not
+@@ -346,6 +371,8 @@ func gc(mode int) {
+ 	work.bytesMarked = 0
+ 
+ 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
++		gcController.startCycle()
++
+ 		systemstack(func() {
+ 			gcphase = _GCscan
+ 
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index d20473cdb2..660a7d4033 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -163,6 +163,7 @@ func markroot(desc *parfor, i uint32) {
+ 	// Root aren't part of the heap, so don't count them toward
+ 	// marked heap bytes.
+ 	gcw.bytesMarked = 0
++	gcw.scanWork = 0
+ 	gcw.dispose()
+ }
+ 
+@@ -191,6 +192,10 @@ func gchelpwork() {
+ 		gcw.initFromCache()
+ 		const n = len(workbuf{}.obj)
+ 		gcDrainN(&gcw, n) // drain upto one buffer's worth of objects
++		// TODO(austin): This is the vast majority of our
++		// disposes. Instead of constantly disposing, keep a
++		// per-P gcWork cache (probably combined with the
++		// write barrier wbuf cache).
+ 		gcw.dispose()
+ 	case _GCmarktermination:
+ 		// We should never be here since the world is stopped.
+@@ -267,6 +272,7 @@ func scanstack(gp *g) {
+ 	// Stacks aren't part of the heap, so don't count them toward
+ 	// marked heap bytes.
+ 	gcw.bytesMarked = 0
++	gcw.scanWork = 0
+ 	gcw.disposeToCache()
+ 	gp.gcscanvalid = true
+ }
+@@ -425,6 +431,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
+ 	arena_start := mheap_.arena_start
+ 	arena_used := mheap_.arena_used
++	scanWork := int64(0)
+ 
+ 	// Find bits of the beginning of the object.
+ 	var hbits heapBits
+@@ -465,6 +472,16 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
+ 
+ 		obj := *(*uintptr)(unsafe.Pointer(b + i))
+ 
++		// Track the scan work performed as a way to estimate
++		// GC time. We use the number of pointers scanned
++		// because pointer scanning dominates the cost of
++		// scanning.
++		//
++		// TODO(austin): Consider counting only pointers into
++		// the heap, since nil and non-heap pointers are
++		// probably cheap to scan.
++		scanWork++
++
+ 		// At this point we have extracted the next potential pointer.
+ 		// Check if it points into heap.
+ 		if obj == 0 || obj < arena_start || obj >= arena_used {
+@@ -481,6 +498,7 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
+ 		}
+ 	}
+ 	gcw.bytesMarked += uint64(n)
++	gcw.scanWork += scanWork
+ }
+ 
+ // Shade the object if it isn't already.
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index acd8e48309..fbe4d03adf 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -57,6 +57,10 @@ type gcWork struct {
+ 	// Bytes marked (blackened) on this gcWork. This is aggregated
+ 	// into work.bytesMarked by dispose.
+ 	bytesMarked uint64
++
++	// Scan work performed on this gcWork. This is aggregated into
++	// gcController by dispose.
++	scanWork int64
+ }
+ 
+ // initFromCache fetches work from this M's currentwbuf cache.
+@@ -164,6 +168,10 @@ func (w *gcWork) dispose() {
+ 		xadd64(&work.bytesMarked, int64(w.bytesMarked))
+ 		w.bytesMarked = 0
+ 	}
++	if w.scanWork != 0 {
++		xaddint64(&gcController.scanWork, w.scanWork)
++		w.scanWork = 0
++	}
+ }
+ 
+ // disposeToCache returns any cached pointers to this M's currentwbuf.
+@@ -181,6 +189,10 @@ func (w *gcWork) disposeToCache() {
+ 		xadd64(&work.bytesMarked, int64(w.bytesMarked))
+ 		w.bytesMarked = 0
+ 	}
++	if w.scanWork != 0 {
++		xaddint64(&gcController.scanWork, w.scanWork)
++		w.scanWork = 0
++	}
+ }
+ 
+ // balance moves some work that's cached in this gcWork back on the

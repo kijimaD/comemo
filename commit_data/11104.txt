@@ -10,6 +10,43 @@ Date:   Tue Jan 10 21:01:58 2012 -0800
     R=golang-dev, dsymonds, adg
     CC=golang-dev
     https://golang.org/cl/5533066
-
+---
  src/cmd/go/test.go | 24 +++++++++++++++++++++++-
  1 file changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index b707cab1dc..a0a33335cd 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -463,8 +463,30 @@ func (b *builder) runTest(a *action) error {
+ 
+ 	cmd := exec.Command(args[0], args[1:]...)
+ 	cmd.Dir = a.p.Dir
++	var buf bytes.Buffer
++	cmd.Stdout = &buf
++	cmd.Stderr = &buf
++
+ 	t0 := time.Now()
+-	out, err := cmd.CombinedOutput()
++	err := cmd.Start()
++	const deadline = 1 * time.Minute
++	tick := time.NewTimer(deadline)
++	if err == nil {
++		done := make(chan error)
++		go func() {
++			done <- cmd.Wait()
++		}()
++		select {
++		case err = <-done:
++			// ok
++		case <-tick.C:
++			cmd.Process.Kill()
++			err = <-done
++			fmt.Fprintf(&buf, "*** Test killed: ran too long.\n")
++		}
++		tick.Stop()
++	}
++	out := buf.Bytes()
+ 	t1 := time.Now()
+ 	t := fmt.Sprintf("%.3fs", t1.Sub(t0).Seconds())
+ 	if err == nil {

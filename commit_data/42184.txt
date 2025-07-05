@@ -11,6 +11,23 @@ Date:   Tue Nov 12 11:24:17 2019 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/issue35518.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/test/fixedbugs/issue35518.go b/test/fixedbugs/issue35518.go
+index 18a02d4a82..52a0ae7e62 100644
+--- a/test/fixedbugs/issue35518.go
++++ b/test/fixedbugs/issue35518.go
+@@ -34,3 +34,11 @@ func f2() {
+ 	m := n2 // ERROR "."
+ 	sink = &m
+ }
++
++func f3() {
++	var n1, n2 Node // ERROR "."
++	n1.Orig = &n1
++	n1.Orig = &n2
++
++	sink = n1.Orig.Orig
++}

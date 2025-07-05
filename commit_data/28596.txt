@@ -17,6 +17,20 @@ Date:   Sat May 21 17:19:22 2016 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/time/genzabbrs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/genzabbrs.go b/src/time/genzabbrs.go
+index 9eb0728a42..6281f73ce4 100644
+--- a/src/time/genzabbrs.go
++++ b/src/time/genzabbrs.go
+@@ -30,7 +30,7 @@ var filename = flag.String("output", "zoneinfo_abbrs_windows.go", "output file n
+ // getAbbrs finds timezone abbreviations (standard and daylight saving time)
+ // for location l.
+ func getAbbrs(l *time.Location) (st, dt string) {
+-	t := time.Date(time.Now().Year(), 0, 0, 0, 0, 0, 0, l)
++	t := time.Date(time.Now().Year(), 0, 1, 0, 0, 0, 0, l)
+ 	abbr1, off1 := t.Zone()
+ 	for i := 0; i < 12; i++ {
+ 		t = t.AddDate(0, 1, 0)

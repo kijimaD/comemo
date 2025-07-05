@@ -20,8 +20,120 @@ Date:   Thu Nov 11 19:58:23 2021 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/abi/abi.go | 18 ++++++++++++++++++
  src/reflect/all_test.go | 23 +++++++++++++++++++++++
  src/reflect/value.go    | 19 ++++++++++++++++---
  3 files changed, 57 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/abi/abi.go b/src/internal/abi/abi.go
+index 46dc593bd7..b266a7ff78 100644
+--- a/src/internal/abi/abi.go
++++ b/src/internal/abi/abi.go
+@@ -44,6 +44,24 @@ type RegArgs struct {
+ 	ReturnIsPtr IntArgRegBitmap
+ }
+ 
++func (r *RegArgs) Dump() {
++	print("Ints:")
++	for _, x := range r.Ints {
++		print(" ", x)
++	}
++	println()
++	print("Floats:")
++	for _, x := range r.Floats {
++		print(" ", x)
++	}
++	println()
++	print("Ptrs:")
++	for _, x := range r.Ptrs {
++		print(" ", x)
++	}
++	println()
++}
++
+ // IntRegArgAddr returns a pointer inside of r.Ints[reg] that is appropriately
+ // offset for an argument of size argSize.
+ //
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index acc09962a0..8c51d8ec26 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -6478,6 +6478,29 @@ func TestCallMethodJump(t *testing.T) {
+ 	*CallGC = false
+ }
+ 
++func TestCallArgLive(t *testing.T) {
++	type T struct{ X, Y *string } // pointerful aggregate
++
++	F := func(t T) { *t.X = "ok" }
++
++	// In reflect.Value.Call, trigger a garbage collection in reflect.call
++	// between marshaling argument and the actual call.
++	*CallGC = true
++
++	x := new(string)
++	runtime.SetFinalizer(x, func(p *string) {
++		if *p != "ok" {
++			t.Errorf("x dead prematurely")
++		}
++	})
++	v := T{x, nil}
++
++	ValueOf(F).Call([]Value{ValueOf(v)})
++
++	// Stop garbage collecting during reflect.call.
++	*CallGC = false
++}
++
+ func TestMakeFuncStackCopy(t *testing.T) {
+ 	target := func(in []Value) []Value {
+ 		runtime.GC()
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index ecf9dd7bc8..02354f2736 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -352,7 +352,7 @@ func (v Value) CallSlice(in []Value) []Value {
+ 	return v.call("CallSlice", in)
+ }
+ 
+-var callGC bool // for testing; see TestCallMethodJump
++var callGC bool // for testing; see TestCallMethodJump and TestCallArgLive
+ 
+ const debugReflectCall = false
+ 
+@@ -509,12 +509,16 @@ func (v Value) call(op string, in []Value) []Value {
+ 				// Copy values to "integer registers."
+ 				if v.flag&flagIndir != 0 {
+ 					offset := add(v.ptr, st.offset, "precomputed value offset")
+-					intToReg(&regArgs, st.ireg, st.size, offset)
+-				} else {
+ 					if st.kind == abiStepPointer {
+ 						// Duplicate this pointer in the pointer area of the
+ 						// register space. Otherwise, there's the potential for
+ 						// this to be the last reference to v.ptr.
++						regArgs.Ptrs[st.ireg] = *(*unsafe.Pointer)(offset)
++					}
++					intToReg(&regArgs, st.ireg, st.size, offset)
++				} else {
++					if st.kind == abiStepPointer {
++						// See the comment in abiStepPointer case above.
+ 						regArgs.Ptrs[st.ireg] = v.ptr
+ 					}
+ 					regArgs.Ints[st.ireg] = uintptr(v.ptr)
+@@ -539,6 +543,15 @@ func (v Value) call(op string, in []Value) []Value {
+ 	// Mark pointers in registers for the return path.
+ 	regArgs.ReturnIsPtr = abi.outRegPtrs
+ 
++	if debugReflectCall {
++		regArgs.Dump()
++	}
++
++	// For testing; see TestCallArgLive.
++	if callGC {
++		runtime.GC()
++	}
++
+ 	// Call.
+ 	call(frametype, fn, stackArgs, uint32(frametype.size), uint32(abi.retOffset), uint32(frameSize), &regArgs)
+ 

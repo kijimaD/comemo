@@ -13,7 +13,7 @@ Date:   Fri Mar 1 05:49:48 2019 +0000
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/esc.go       |   7 +
  src/cmd/compile/internal/gc/fmt.go       |  13 +-
  src/cmd/compile/internal/gc/iexport.go   |   3 +-
@@ -28,3 +28,715 @@ Date:   Fri Mar 1 05:49:48 2019 +0000
  test/fixedbugs/issue17038.go             |   2 +-
  test/fixedbugs/issue9521.go              |   4 +-
  13 files changed, 267 insertions(+), 157 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index c533439cc8..bd0fb82554 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1604,6 +1604,13 @@ func (e *EscState) esccall(call *Node, parent *Node) {
+ 	}
+ 
+ 	argList := call.List
++	if argList.Len() == 1 {
++		arg := argList.First()
++		if arg.Type.IsFuncArgStruct() { // f(g())
++			argList = e.nodeEscState(arg).Retval
++		}
++	}
++
+ 	args := argList.Slice()
+ 
+ 	if indirect {
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 12f341b660..fc1af603a2 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1404,11 +1404,14 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 		}
+ 		mode.Fprintf(s, "sliceheader{%v,%v,%v}", n.Left, n.List.First(), n.List.Second())
+ 
+-	case OCOMPLEX, OCOPY:
+-		if n.Left != nil {
+-			mode.Fprintf(s, "%#v(%v, %v)", n.Op, n.Left, n.Right)
++	case OCOPY:
++		mode.Fprintf(s, "%#v(%v, %v)", n.Op, n.Left, n.Right)
++
++	case OCOMPLEX:
++		if n.List.Len() == 1 {
++			mode.Fprintf(s, "%#v(%v)", n.Op, n.List.First())
+ 		} else {
+-			mode.Fprintf(s, "%#v(%.v)", n.Op, n.List)
++			mode.Fprintf(s, "%#v(%v, %v)", n.Op, n.Left, n.Right)
+ 		}
+ 
+ 	case OCONV,
+@@ -1537,8 +1540,6 @@ func (n *Node) nodefmt(s fmt.State, flag FmtFlag, mode fmtMode) {
+ 	if flag&FmtLong != 0 && t != nil {
+ 		if t.Etype == TNIL {
+ 			fmt.Fprint(s, "nil")
+-		} else if n.Op == ONAME && n.Name.AutoTemp() {
+-			mode.Fprintf(s, "%v value", t)
+ 		} else {
+ 			mode.Fprintf(s, "%v (type %v)", n, t)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 7fbf7cc6e2..2a34e2ea77 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1387,8 +1387,7 @@ func (w *exportWriter) localIdent(s *types.Sym, v int32) {
+ 		return
+ 	}
+ 
+-	// TODO(mdempsky): Fix autotmp hack.
+-	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, ".autotmp_") {
++	if i := strings.LastIndex(name, "."); i >= 0 {
+ 		Fatalf("unexpected dot in identifier: %v", name)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index bd70ad600f..e981f83653 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -14,9 +14,6 @@ import (
+ // the name, normally "pkg.init", is altered to "pkg.init.0".
+ var renameinitgen int
+ 
+-// Dummy function for autotmps generated during typechecking.
+-var dummyInitFn = nod(ODCLFUNC, nil, nil)
+-
+ func renameinit() *types.Sym {
+ 	s := lookupN("init.", renameinitgen)
+ 	renameinitgen++
+@@ -117,12 +114,6 @@ func fninit(n []*Node) {
+ 	initsym := lookup("init")
+ 	fn := dclfunc(initsym, nod(OTFUNC, nil, nil))
+ 
+-	for _, dcl := range dummyInitFn.Func.Dcl {
+-		dcl.Name.Curfn = fn
+-	}
+-	fn.Func.Dcl = append(fn.Func.Dcl, dummyInitFn.Func.Dcl...)
+-	dummyInitFn = nil
+-
+ 	// (3)
+ 	a := nod(OIF, nil, nil)
+ 	a.Left = nod(OGT, gatevar, nodintconst(1))
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 88c294173b..81cad31a13 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -589,13 +589,24 @@ func inlnode(n *Node, maxCost int32) *Node {
+ 	}
+ 
+ 	inlnodelist(n.List, maxCost)
+-	if n.Op == OBLOCK {
++	switch n.Op {
++	case OBLOCK:
+ 		for _, n2 := range n.List.Slice() {
+ 			if n2.Op == OINLCALL {
+ 				inlconv2stmt(n2)
+ 			}
+ 		}
+-	} else {
++
++	case ORETURN, OCALLFUNC, OCALLMETH, OCALLINTER, OAPPEND, OCOMPLEX:
++		// if we just replaced arg in f(arg()) or return arg with an inlined call
++		// and arg returns multiple values, glue as list
++		if n.List.Len() == 1 && n.List.First().Op == OINLCALL && n.List.First().Rlist.Len() > 1 {
++			n.List.Set(inlconv2list(n.List.First()))
++			break
++		}
++		fallthrough
++
++	default:
+ 		s := n.List.Slice()
+ 		for i1, n1 := range s {
+ 			if n1 != nil && n1.Op == OINLCALL {
+@@ -1005,6 +1016,9 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
+ 		// to pass as a slice.
+ 
+ 		numvals := n.List.Len()
++		if numvals == 1 && n.List.First().Type.IsFuncArgStruct() {
++			numvals = n.List.First().Type.NumFields()
++		}
+ 
+ 		x := as.List.Len()
+ 		for as.List.Len() < numvals {
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 3e5d9eb82b..4848a02bb6 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -380,12 +380,66 @@ func (o *Order) init(n *Node) {
+ 	n.Ninit.Set(nil)
+ }
+ 
++// Ismulticall reports whether the list l is f() for a multi-value function.
++// Such an f() could appear as the lone argument to a multi-arg function.
++func ismulticall(l Nodes) bool {
++	// one arg only
++	if l.Len() != 1 {
++		return false
++	}
++	n := l.First()
++
++	// must be call
++	switch n.Op {
++	default:
++		return false
++	case OCALLFUNC, OCALLMETH, OCALLINTER:
++		// call must return multiple values
++		return n.Left.Type.NumResults() > 1
++	}
++}
++
++// copyRet emits t1, t2, ... = n, where n is a function call,
++// and then returns the list t1, t2, ....
++func (o *Order) copyRet(n *Node) []*Node {
++	if !n.Type.IsFuncArgStruct() {
++		Fatalf("copyret %v %d", n.Type, n.Left.Type.NumResults())
++	}
++
++	slice := n.Type.Fields().Slice()
++	l1 := make([]*Node, len(slice))
++	l2 := make([]*Node, len(slice))
++	for i, t := range slice {
++		tmp := temp(t.Type)
++		l1[i] = tmp
++		l2[i] = tmp
++	}
++
++	as := nod(OAS2, nil, nil)
++	as.List.Set(l1)
++	as.Rlist.Set1(n)
++	as = typecheck(as, ctxStmt)
++	o.stmt(as)
++
++	return l2
++}
++
++// callArgs orders the list of call arguments *l.
++func (o *Order) callArgs(l *Nodes) {
++	if ismulticall(*l) {
++		// return f() where f() is multiple values.
++		l.Set(o.copyRet(l.First()))
++	} else {
++		o.exprList(*l)
++	}
++}
++
+ // call orders the call expression n.
+ // n.Op is OCALLMETH/OCALLFUNC/OCALLINTER or a builtin like OCOPY.
+ func (o *Order) call(n *Node) {
+ 	n.Left = o.expr(n.Left, nil)
+ 	n.Right = o.expr(n.Right, nil) // ODDDARG temp
+-	o.exprList(n.List)
++	o.callArgs(&n.List)
+ 
+ 	if n.Op != OCALLFUNC {
+ 		return
+@@ -757,7 +811,7 @@ func (o *Order) stmt(n *Node) {
+ 		o.cleanTemp(t)
+ 
+ 	case ORETURN:
+-		o.exprList(n.List)
++		o.callArgs(&n.List)
+ 		o.out = append(o.out, n)
+ 
+ 	// Special: clean case temporaries in each block entry.
+@@ -1120,7 +1174,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 			n.List.SetFirst(o.expr(n.List.First(), nil))             // order x
+ 			n.List.Second().Left = o.expr(n.List.Second().Left, nil) // order y
+ 		} else {
+-			o.exprList(n.List)
++			o.callArgs(&n.List)
+ 		}
+ 
+ 		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.List.First()) {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index d5d1ced0e1..69ba9ef52a 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1318,7 +1318,11 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 			return n
+ 		}
+ 
+-		typecheckargs(n)
++		if n.List.Len() == 1 && !n.IsDDD() {
++			n.List.SetFirst(typecheck(n.List.First(), ctxExpr|ctxMultiOK))
++		} else {
++			typecheckslice(n.List.Slice(), ctxExpr)
++		}
+ 		t := l.Type
+ 		if t == nil {
+ 			n.Type = nil
+@@ -1512,24 +1516,51 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 
+ 	case OCOMPLEX:
+ 		ok |= ctxExpr
+-		typecheckargs(n)
+-		if !twoarg(n) {
+-			n.Type = nil
+-			return n
+-		}
+-		l := n.Left
+-		r := n.Right
+-		if l.Type == nil || r.Type == nil {
+-			n.Type = nil
+-			return n
+-		}
+-		l, r = defaultlit2(l, r, false)
+-		if l.Type == nil || r.Type == nil {
+-			n.Type = nil
+-			return n
++		var r *Node
++		var l *Node
++		if n.List.Len() == 1 {
++			typecheckslice(n.List.Slice(), ctxMultiOK)
++			if n.List.First().Op != OCALLFUNC && n.List.First().Op != OCALLMETH {
++				yyerror("invalid operation: complex expects two arguments")
++				n.Type = nil
++				return n
++			}
++
++			t := n.List.First().Left.Type
++			if !t.IsKind(TFUNC) {
++				// Bail. This error will be reported elsewhere.
++				return n
++			}
++			if t.NumResults() != 2 {
++				yyerror("invalid operation: complex expects two arguments, %v returns %d results", n.List.First(), t.NumResults())
++				n.Type = nil
++				return n
++			}
++
++			t = n.List.First().Type
++			l = asNode(t.Field(0).Nname)
++			r = asNode(t.Field(1).Nname)
++		} else {
++			if !twoarg(n) {
++				n.Type = nil
++				return n
++			}
++			n.Left = typecheck(n.Left, ctxExpr)
++			n.Right = typecheck(n.Right, ctxExpr)
++			l = n.Left
++			r = n.Right
++			if l.Type == nil || r.Type == nil {
++				n.Type = nil
++				return n
++			}
++			l, r = defaultlit2(l, r, false)
++			if l.Type == nil || r.Type == nil {
++				n.Type = nil
++				return n
++			}
++			n.Left = l
++			n.Right = r
+ 		}
+-		n.Left = l
+-		n.Right = r
+ 
+ 		if !types.Identical(l.Type, r.Type) {
+ 			yyerror("invalid operation: %v (mismatched types %v and %v)", n, l.Type, r.Type)
+@@ -1591,8 +1622,6 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 		ok |= ctxStmt
+ 
+ 	case ODELETE:
+-		ok |= ctxStmt
+-		typecheckargs(n)
+ 		args := n.List
+ 		if args.Len() == 0 {
+ 			yyerror("missing arguments to delete")
+@@ -1612,6 +1641,8 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 			return n
+ 		}
+ 
++		ok |= ctxStmt
++		typecheckslice(args.Slice(), ctxExpr)
+ 		l := args.First()
+ 		r := args.Second()
+ 		if l.Type != nil && !l.Type.IsMap() {
+@@ -1624,7 +1655,6 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 
+ 	case OAPPEND:
+ 		ok |= ctxExpr
+-		typecheckargs(n)
+ 		args := n.List
+ 		if args.Len() == 0 {
+ 			yyerror("missing arguments to append")
+@@ -1632,12 +1662,25 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 			return n
+ 		}
+ 
++		if args.Len() == 1 && !n.IsDDD() {
++			args.SetFirst(typecheck(args.First(), ctxExpr|ctxMultiOK))
++		} else {
++			typecheckslice(args.Slice(), ctxExpr)
++		}
++
+ 		t := args.First().Type
+ 		if t == nil {
+ 			n.Type = nil
+ 			return n
+ 		}
+ 
++		// Unpack multiple-return result before type-checking.
++		var funarg *types.Type
++		if t.IsFuncArgStruct() {
++			funarg = t
++			t = t.Field(0).Type
++		}
++
+ 		n.Type = t
+ 		if !t.IsSlice() {
+ 			if Isconst(args.First(), CTNIL) {
+@@ -1673,23 +1716,44 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 			break
+ 		}
+ 
+-		as := args.Slice()[1:]
+-		for i, n := range as {
+-			if n.Type == nil {
+-				continue
++		if funarg != nil {
++			for _, t := range funarg.FieldSlice()[1:] {
++				if assignop(t.Type, n.Type.Elem(), nil) == 0 {
++					yyerror("cannot append %v value to []%v", t.Type, n.Type.Elem())
++				}
++			}
++		} else {
++			as := args.Slice()[1:]
++			for i, n := range as {
++				if n.Type == nil {
++					continue
++				}
++				as[i] = assignconv(n, t.Elem(), "append")
++				checkwidth(as[i].Type) // ensure width is calculated for backend
+ 			}
+-			as[i] = assignconv(n, t.Elem(), "append")
+-			checkwidth(as[i].Type) // ensure width is calculated for backend
+ 		}
+ 
+ 	case OCOPY:
+ 		ok |= ctxStmt | ctxExpr
+-		typecheckargs(n)
+-		if !twoarg(n) {
++		args := n.List
++		if args.Len() < 2 {
++			yyerror("missing arguments to copy")
+ 			n.Type = nil
+ 			return n
+ 		}
++
++		if args.Len() > 2 {
++			yyerror("too many arguments to copy")
++			n.Type = nil
++			return n
++		}
++
++		n.Left = args.First()
++		n.Right = args.Second()
++		n.List.Set(nil)
+ 		n.Type = types.Types[TINT]
++		n.Left = typecheck(n.Left, ctxExpr)
++		n.Right = typecheck(n.Right, ctxExpr)
+ 		if n.Left.Type == nil || n.Right.Type == nil {
+ 			n.Type = nil
+ 			return n
+@@ -2085,7 +2149,11 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 
+ 	case ORETURN:
+ 		ok |= ctxStmt
+-		typecheckargs(n)
++		if n.List.Len() == 1 {
++			typecheckslice(n.List.Slice(), ctxExpr|ctxMultiOK)
++		} else {
++			typecheckslice(n.List.Slice(), ctxExpr)
++		}
+ 		if Curfn == nil {
+ 			yyerror("return outside function")
+ 			n.Type = nil
+@@ -2189,51 +2257,6 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 	return n
+ }
+ 
+-func typecheckargs(n *Node) {
+-	if n.List.Len() != 1 || n.IsDDD() {
+-		typecheckslice(n.List.Slice(), ctxExpr)
+-		return
+-	}
+-
+-	typecheckslice(n.List.Slice(), ctxExpr|ctxMultiOK)
+-	t := n.List.First().Type
+-	if t == nil || !t.IsFuncArgStruct() {
+-		return
+-	}
+-
+-	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
+-
+-	// Save n as n.Orig for fmt.go.
+-	if n.Orig == n {
+-		n.Orig = n.sepcopy()
+-	}
+-
+-	as := nod(OAS2, nil, nil)
+-	as.Rlist.AppendNodes(&n.List)
+-
+-	// If we're outside of function context, then this call will
+-	// be executed during the generated init function. However,
+-	// init.go hasn't yet created it. Instead, associate the
+-	// temporary variables with dummyInitFn for now, and init.go
+-	// will reassociate them later when it's appropriate.
+-	static := Curfn == nil
+-	if static {
+-		Curfn = dummyInitFn
+-	}
+-	for _, f := range t.FieldSlice() {
+-		t := temp(f.Type)
+-		as.Ninit.Append(nod(ODCL, t, nil))
+-		as.List.Append(t)
+-		n.List.Append(t)
+-	}
+-	if static {
+-		Curfn = nil
+-	}
+-
+-	as = typecheck(as, ctxStmt)
+-	n.Ninit.Append(as)
+-}
+-
+ func checksliceindex(l *Node, r *Node, tp *types.Type) bool {
+ 	t := r.Type
+ 	if t == nil {
+@@ -2373,15 +2396,24 @@ func twoarg(n *Node) bool {
+ 	if n.Left != nil {
+ 		return true
+ 	}
+-	if n.List.Len() != 2 {
+-		if n.List.Len() < 2 {
+-			yyerror("not enough arguments in call to %v", n)
+-		} else {
+-			yyerror("too many arguments in call to %v", n)
+-		}
++	if n.List.Len() == 0 {
++		yyerror("missing argument to %v - %v", n.Op, n)
+ 		return false
+ 	}
++
+ 	n.Left = n.List.First()
++	if n.List.Len() == 1 {
++		yyerror("missing argument to %v - %v", n.Op, n)
++		n.List.Set(nil)
++		return false
++	}
++
++	if n.List.Len() > 2 {
++		yyerror("too many arguments to %v - %v", n.Op, n)
++		n.List.Set(nil)
++		return false
++	}
++
+ 	n.Right = n.List.Second()
+ 	n.List.Set(nil)
+ 	return true
+@@ -2641,6 +2673,8 @@ func hasddd(t *types.Type) bool {
+ // typecheck assignment: type list = expression list
+ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes, desc func() string) {
+ 	var t *types.Type
++	var n1 int
++	var n2 int
+ 	var i int
+ 
+ 	lno := lineno
+@@ -2653,10 +2687,57 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
+ 	var n *Node
+ 	if nl.Len() == 1 {
+ 		n = nl.First()
++		if n.Type != nil && n.Type.IsFuncArgStruct() {
++			if !hasddd(tstruct) {
++				n1 := tstruct.NumFields()
++				n2 := n.Type.NumFields()
++				if n2 > n1 {
++					goto toomany
++				}
++				if n2 < n1 {
++					goto notenough
++				}
++			}
++
++			lfs := tstruct.FieldSlice()
++			rfs := n.Type.FieldSlice()
++			var why string
++			for i, tl := range lfs {
++				if tl.IsDDD() {
++					for _, tn := range rfs[i:] {
++						if assignop(tn.Type, tl.Type.Elem(), &why) == 0 {
++							if call != nil {
++								yyerror("cannot use %v as type %v in argument to %v%s", tn.Type, tl.Type.Elem(), call, why)
++							} else {
++								yyerror("cannot use %v as type %v in %s%s", tn.Type, tl.Type.Elem(), desc(), why)
++							}
++						}
++					}
++					return
++				}
++
++				if i >= len(rfs) {
++					goto notenough
++				}
++				tn := rfs[i]
++				if assignop(tn.Type, tl.Type, &why) == 0 {
++					if call != nil {
++						yyerror("cannot use %v as type %v in argument to %v%s", tn.Type, tl.Type, call, why)
++					} else {
++						yyerror("cannot use %v as type %v in %s%s", tn.Type, tl.Type, desc(), why)
++					}
++				}
++			}
++
++			if len(rfs) > len(lfs) {
++				goto toomany
++			}
++			return
++		}
+ 	}
+ 
+-	n1 := tstruct.NumFields()
+-	n2 := nl.Len()
++	n1 = tstruct.NumFields()
++	n2 = nl.Len()
+ 	if !hasddd(tstruct) {
+ 		if n2 > n1 {
+ 			goto toomany
+@@ -2698,7 +2779,6 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
+ 				return
+ 			}
+ 
+-			// TODO(mdempsky): Make into ... call with implicit slice.
+ 			for ; i < nl.Len(); i++ {
+ 				n = nl.Index(i)
+ 				setlineno(n)
+@@ -2806,8 +2886,14 @@ func (nl Nodes) retsigerr(isddd bool) string {
+ 	}
+ 
+ 	var typeStrings []string
+-	for _, n := range nl.Slice() {
+-		typeStrings = append(typeStrings, sigrepr(n.Type))
++	if nl.Len() == 1 && nl.First().Type != nil && nl.First().Type.IsFuncArgStruct() {
++		for _, f := range nl.First().Type.Fields().Slice() {
++			typeStrings = append(typeStrings, sigrepr(f.Type))
++		}
++	} else {
++		for _, n := range nl.Slice() {
++			typeStrings = append(typeStrings, sigrepr(n.Type))
++		}
+ 	}
+ 
+ 	ddd := ""
+diff --git a/test/cmplx.go b/test/cmplx.go
+index d63c7ebc7e..dedf2bd8d3 100644
+--- a/test/cmplx.go
++++ b/test/cmplx.go
+@@ -49,10 +49,10 @@ func main() {
+ 	_ = complex(f64, F64) // ERROR "complex"
+ 	_ = complex(F64, f64) // ERROR "complex"
+ 
+-	_ = complex(F1()) // ERROR "not enough arguments"
+-	_ = complex(F3()) // ERROR "too many arguments"
++	_ = complex(F1()) // ERROR "expects two arguments.*returns 1"
++	_ = complex(F3()) // ERROR "expects two arguments.*returns 3"
+ 
+-	_ = complex() // ERROR "not enough arguments"
++	_ = complex() // ERROR "missing argument"
+ 
+ 	c128 = complex(f32, f32) // ERROR "cannot use"
+ 	c64 = complex(f64, f64)  // ERROR "cannot use"
+diff --git a/test/copy1.go b/test/copy1.go
+index e1fa105584..14285498f8 100644
+--- a/test/copy1.go
++++ b/test/copy1.go
+@@ -14,7 +14,7 @@ func main() {
+ 	si := make([]int, 8)
+ 	sf := make([]float64, 8)
+ 
+-	_ = copy()        // ERROR "not enough arguments"
++	_ = copy()        // ERROR "missing arguments"
+ 	_ = copy(1, 2, 3) // ERROR "too many arguments"
+ 
+ 	_ = copy(si, "hi") // ERROR "have different element types.*int.*string"
+diff --git a/test/fixedbugs/issue15992.go b/test/fixedbugs/issue15992.go
+deleted file mode 100644
+index 957bb89fac..0000000000
+--- a/test/fixedbugs/issue15992.go
++++ /dev/null
+@@ -1,38 +0,0 @@
+-// run
+-
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"fmt"
+-)
+-
+-func f(a []byte) ([]byte, []byte) {
+-	return a, []byte("abc")
+-}
+-
+-func g(a []byte) ([]byte, string) {
+-	return a, "abc"
+-}
+-
+-func h(m map[int]int) (map[int]int, int) {
+-	return m, 0
+-}
+-
+-func main() {
+-	a := []byte{1, 2, 3}
+-	n := copy(f(a))
+-	fmt.Println(n, a)
+-
+-	b := []byte{1, 2, 3}
+-	n = copy(f(b))
+-	fmt.Println(n, b)
+-
+-	m := map[int]int{0: 0}
+-	fmt.Println(len(m))
+-	delete(h(m))
+-	fmt.Println(len(m))
+-}
+diff --git a/test/fixedbugs/issue15992.out b/test/fixedbugs/issue15992.out
+deleted file mode 100644
+index e0011e3edb..0000000000
+--- a/test/fixedbugs/issue15992.out
++++ /dev/null
+@@ -1,4 +0,0 @@
+-3 [97 98 99]
+-3 [97 98 99]
+-1
+-0
+diff --git a/test/fixedbugs/issue17038.go b/test/fixedbugs/issue17038.go
+index 0de31c8e7b..e07a4b22ce 100644
+--- a/test/fixedbugs/issue17038.go
++++ b/test/fixedbugs/issue17038.go
+@@ -6,4 +6,4 @@
+ 
+ package main
+ 
+-const A = complex(0()) // ERROR "cannot call non-function" "const initializer .* is not a constant" "not enough arguments"
++const A = complex(0()) // ERROR "cannot call non-function" "const initializer .* is not a constant"
+diff --git a/test/fixedbugs/issue9521.go b/test/fixedbugs/issue9521.go
+index 4e4a55f1e1..ef0a5a6547 100644
+--- a/test/fixedbugs/issue9521.go
++++ b/test/fixedbugs/issue9521.go
+@@ -13,6 +13,6 @@ func f() (_, _ []int)         { return }
+ func g() (x []int, y float64) { return }
+ 
+ func main() {
+-	_ = append(f()) // ERROR "cannot use \[\]int value as type int in append"
+-	_ = append(g()) // ERROR "cannot use float64 value as type int in append"
++	_ = append(f()) // ERROR "cannot append \[\]int value to \[\]int"
++	_ = append(g()) // ERROR "cannot append float64 value to \[\]int"
+ }

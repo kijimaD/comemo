@@ -9,6 +9,20 @@ Date:   Mon Apr 11 11:15:00 2016 -0300
     Change-Id: Ia650806756758ca8ed2272b1696e59b809b16c61
     Reviewed-on: https://go-review.googlesource.com/21836
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index e37df99deb..7a6950aee4 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1652,6 +1652,8 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
+ // Helper handlers
+ 
+ // Error replies to the request with the specified error message and HTTP code.
++// It does not otherwise end the request; the caller should ensure no further
++// writes are done to w.
+ // The error message should be plain text.
+ func Error(w ResponseWriter, error string, code int) {
+ 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")

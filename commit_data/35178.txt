@@ -12,6 +12,25 @@ Date:   Sat Jan 6 01:16:09 2018 +0000
     Change-Id: I78e9e29a923dc03dea89ff3a5bf60f2e0bd0c0aa
     Reviewed-on: https://go-review.googlesource.com/86476
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.10.html | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index ad53ee54d8..6c0ce989d2 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -1180,13 +1180,6 @@ if passed an invalid (non-3-digit) status code.
+ </p>
+ </dl>
+ 
+-<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
+-<dd>
+-<p>
+-TODO: ReverseProxy and back end errors and ModifyResponse.
+-</p>
+-</dl>
+-
+ <dl id="net/mail"><dt><a href="/pkg/net/mail/">net/mail</a></dt>
+ <dd>
+ <p>

@@ -21,6 +21,19 @@ Date:   Sun Oct 16 21:22:02 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/proc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 937135961a..f68a189997 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1449,6 +1449,7 @@ func oneNewExtraM() {
+ 	gp.syscallsp = gp.sched.sp
+ 	gp.stktopsp = gp.sched.sp
+ 	gp.gcscanvalid = true // fresh G, so no dequeueRescan necessary
++	gp.gcscandone = true
+ 	gp.gcRescan = -1
+ 	// malg returns status as Gidle, change to Gsyscall before adding to allg
+ 	// where GC will see it.

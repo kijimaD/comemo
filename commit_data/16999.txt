@@ -9,6 +9,41 @@ Date:   Fri Aug 2 13:51:45 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12261044
-
+---
  src/pkg/testing/testing.go | 23 +++++++++++++----------
  1 file changed, 13 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 85e751048e..852f4e7a62 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -575,16 +575,19 @@ func stopAlarm() {
+ }
+ 
+ func parseCpuList() {
+-	if len(*cpuListStr) == 0 {
+-		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
+-	} else {
+-		for _, val := range strings.Split(*cpuListStr, ",") {
+-			cpu, err := strconv.Atoi(val)
+-			if err != nil || cpu <= 0 {
+-				fmt.Fprintf(os.Stderr, "testing: invalid value %q for -test.cpu", val)
+-				os.Exit(1)
+-			}
+-			cpuList = append(cpuList, cpu)
++	for _, val := range strings.Split(*cpuListStr, ",") {
++		val = strings.TrimSpace(val)
++		if val == "" {
++			continue
+ 		}
++		cpu, err := strconv.Atoi(val)
++		if err != nil || cpu <= 0 {
++			fmt.Fprintf(os.Stderr, "testing: invalid value %q for -test.cpu\n", val)
++			os.Exit(1)
++		}
++		cpuList = append(cpuList, cpu)
++	}
++	if cpuList == nil {
++		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
+ 	}
+ }

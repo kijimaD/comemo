@@ -16,9 +16,89 @@ Date:   Sun Oct 13 18:51:49 2019 +0800
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go            |  4 ++--
  src/cmd/compile/internal/ssa/gen/MIPS64.rules |  1 +
  src/cmd/compile/internal/ssa/rewriteMIPS64.go | 14 ++++++++++++++
  test/codegen/mathbits.go                      |  2 ++
  4 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c833d8eff2..c7805a7419 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3600,8 +3600,8 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X)
+-	alias("math/bits", "Mul", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64, sys.ArchS390X)
++		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.MIPS64)
++	alias("math/bits", "Mul", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64, sys.ArchS390X, sys.ArchMIPS64, sys.ArchMIPS64LE)
+ 	addF("math/bits", "Add64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index a39241d160..f3d0a08e28 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -10,6 +10,7 @@
+ 
+ (Mul(64|32|16|8) x y) -> (Select1 (MULVU x y))
+ (Mul(32|64)F x y) -> (MUL(F|D) x y)
++(Mul64uhilo x y) -> (MULVU x y)
+ 
+ (Hmul64 x y) -> (Select0 (MULV x y))
+ (Hmul64u x y) -> (Select0 (MULVU x y))
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index c9cc5ce4f9..08b1f43841 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -415,6 +415,8 @@ func rewriteValueMIPS64(v *Value) bool {
+ 		return rewriteValueMIPS64_OpMul64_0(v)
+ 	case OpMul64F:
+ 		return rewriteValueMIPS64_OpMul64F_0(v)
++	case OpMul64uhilo:
++		return rewriteValueMIPS64_OpMul64uhilo_0(v)
+ 	case OpMul8:
+ 		return rewriteValueMIPS64_OpMul8_0(v)
+ 	case OpNeg16:
+@@ -6796,6 +6798,18 @@ func rewriteValueMIPS64_OpMul64F_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueMIPS64_OpMul64uhilo_0(v *Value) bool {
++	// match: (Mul64uhilo x y)
++	// result: (MULVU x y)
++	for {
++		y := v.Args[1]
++		x := v.Args[0]
++		v.reset(OpMIPS64MULVU)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueMIPS64_OpMul8_0(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 5adf7f5fcd..e405d6b1d2 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -558,6 +558,7 @@ func Mul(x, y uint) (hi, lo uint) {
+ 	// ppc64:"MULHDU","MULLD"
+ 	// ppc64le:"MULHDU","MULLD"
+ 	// s390x:"MLGR"
++	// mips64: "MULVU"
+ 	return bits.Mul(x, y)
+ }
+ 
+@@ -567,6 +568,7 @@ func Mul64(x, y uint64) (hi, lo uint64) {
+ 	// ppc64:"MULHDU","MULLD"
+ 	// ppc64le:"MULHDU","MULLD"
+ 	// s390x:"MLGR"
++	// mips64: "MULVU"
+ 	return bits.Mul64(x, y)
+ }
+ 

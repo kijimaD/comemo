@@ -27,7 +27,7 @@ Date:   Wed Mar 7 13:12:35 2012 -0500
     R=agl, golang-dev, alex.brainman, rsc, mikkel
     CC=golang-dev
     https://golang.org/cl/5700087
-
+---
  src/pkg/crypto/tls/common.go                |  30 +--
  src/pkg/crypto/tls/handshake_client.go      |   2 +-
  src/pkg/crypto/tls/root_test.go             |  37 +++-
@@ -45,3 +45,1581 @@ Date:   Wed Mar 7 13:12:35 2012 -0500
  src/pkg/syscall/zsyscall_windows_amd64.go   | 316 ++++++++++++++++++----------
  src/pkg/syscall/ztypes_windows.go           | 142 +++++++++++++
  16 files changed, 875 insertions(+), 349 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 25f7a920cd..4ba0bf8748 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -198,14 +198,6 @@ func (c *Config) time() time.Time {
+ 	return t()
+ }
+ 
+-func (c *Config) rootCAs() *x509.CertPool {
+-	s := c.RootCAs
+-	if s == nil {
+-		s = defaultRoots()
+-	}
+-	return s
+-}
+-
+ func (c *Config) cipherSuites() []uint16 {
+ 	s := c.CipherSuites
+ 	if s == nil {
+@@ -311,28 +303,16 @@ func defaultConfig() *Config {
+ 	return &emptyConfig
+ }
+ 
+-var once sync.Once
+-
+-func defaultRoots() *x509.CertPool {
+-	once.Do(initDefaults)
+-	return varDefaultRoots
+-}
++var (
++	once                   sync.Once
++	varDefaultCipherSuites []uint16
++)
+ 
+ func defaultCipherSuites() []uint16 {
+-	once.Do(initDefaults)
++	once.Do(initDefaultCipherSuites)
+ 	return varDefaultCipherSuites
+ }
+ 
+-func initDefaults() {
+-	initDefaultRoots()
+-	initDefaultCipherSuites()
+-}
+-
+-var (
+-	varDefaultRoots        *x509.CertPool
+-	varDefaultCipherSuites []uint16
+-)
+-
+ func initDefaultCipherSuites() {
+ 	varDefaultCipherSuites = make([]uint16, len(cipherSuites))
+ 	for i, suite := range cipherSuites {
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index 0d7b806ff5..266eb8f578 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -102,7 +102,7 @@ func (c *Conn) clientHandshake() error {
+ 
+ 	if !c.config.InsecureSkipVerify {
+ 		opts := x509.VerifyOptions{
+-			Roots:         c.config.rootCAs(),
++			Roots:         c.config.RootCAs,
+ 			CurrentTime:   c.config.time(),
+ 			DNSName:       c.config.ServerName,
+ 			Intermediates: x509.NewCertPool(),
+diff --git a/src/pkg/crypto/tls/root_test.go b/src/pkg/crypto/tls/root_test.go
+index 95a89d843c..8dcf74ea72 100644
+--- a/src/pkg/crypto/tls/root_test.go
++++ b/src/pkg/crypto/tls/root_test.go
+@@ -5,25 +5,25 @@
+ package tls
+ 
+ import (
++	"crypto/x509"
++	"runtime"
+ 	"testing"
+ )
+ 
+ var tlsServers = []string{
+-	"google.com:443",
+-	"github.com:443",
+-	"twitter.com:443",
++	"google.com",
++	"github.com",
++	"twitter.com",
+ }
+ 
+ func TestOSCertBundles(t *testing.T) {
+-	defaultRoots()
+-
+ 	if testing.Short() {
+ 		t.Logf("skipping certificate tests in short mode")
+ 		return
+ 	}
+ 
+ 	for _, addr := range tlsServers {
+-		conn, err := Dial("tcp", addr, nil)
++		conn, err := Dial("tcp", addr+":443", &Config{ServerName: addr})
+ 		if err != nil {
+ 			t.Errorf("unable to verify %v: %v", addr, err)
+ 			continue
+@@ -34,3 +34,28 @@ func TestOSCertBundles(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestCertHostnameVerifyWindows(t *testing.T) {
++	if runtime.GOOS != "windows" {
++		return
++	}
++
++	if testing.Short() {
++		t.Logf("skipping certificate tests in short mode")
++		return
++	}
++
++	for _, addr := range tlsServers {
++		cfg := &Config{ServerName: "example.com"}
++		conn, err := Dial("tcp", addr+":443", cfg)
++		if err == nil {
++			conn.Close()
++			t.Errorf("should fail to verify for example.com: %v", addr, err)
++			continue
++		}
++		_, ok := err.(x509.HostnameError)
++		if !ok {
++			t.Errorf("error type mismatch, got: %v", err)
++		}
++	}
++}
+diff --git a/src/pkg/crypto/tls/root_windows.go b/src/pkg/crypto/tls/root_windows.go
+deleted file mode 100644
+index 319309ae6e..0000000000
+--- a/src/pkg/crypto/tls/root_windows.go
++++ /dev/null
+@@ -1,47 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package tls
+-
+-import (
+-	"crypto/x509"
+-	"syscall"
+-	"unsafe"
+-)
+-
+-func loadStore(roots *x509.CertPool, name string) {
+-	store, err := syscall.CertOpenSystemStore(syscall.InvalidHandle, syscall.StringToUTF16Ptr(name))
+-	if err != nil {
+-		return
+-	}
+-	defer syscall.CertCloseStore(store, 0)
+-
+-	var cert *syscall.CertContext
+-	for {
+-		cert, err = syscall.CertEnumCertificatesInStore(store, cert)
+-		if err != nil {
+-			return
+-		}
+-
+-		buf := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:]
+-		// ParseCertificate requires its own copy of certificate data to keep.
+-		buf2 := make([]byte, cert.Length)
+-		copy(buf2, buf)
+-		if c, err := x509.ParseCertificate(buf2); err == nil {
+-			roots.AddCert(c)
+-		}
+-	}
+-}
+-
+-func initDefaultRoots() {
+-	roots := x509.NewCertPool()
+-
+-	// Roots
+-	loadStore(roots, "ROOT")
+-
+-	// Intermediates
+-	loadStore(roots, "CA")
+-
+-	varDefaultRoots = roots
+-}
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index 7cb57627ab..09df5ad445 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -97,7 +97,9 @@ func Dial(network, addr string, config *Config) (*Conn, error) {
+ 	if config == nil {
+ 		config = defaultConfig()
+ 	}
+-	if config.ServerName != "" {
++	// If no ServerName is set, infer the ServerName
++	// from the hostname we're connecting to.
++	if config.ServerName == "" {
+ 		// Make a copy to avoid polluting argument or default.
+ 		c := *config
+ 		c.ServerName = hostname
+diff --git a/src/pkg/crypto/x509/root.go b/src/pkg/crypto/x509/root.go
+new file mode 100644
+index 0000000000..8aae14e09e
+--- /dev/null
++++ b/src/pkg/crypto/x509/root.go
+@@ -0,0 +1,17 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x509
++
++import "sync"
++
++var (
++	once        sync.Once
++	systemRoots *CertPool
++)
++
++func systemRootsPool() *CertPool {
++	once.Do(initSystemRoots)
++	return systemRoots
++}
+diff --git a/src/pkg/crypto/tls/root_darwin.go b/src/pkg/crypto/x509/root_darwin.go
+similarity index 90%
+rename from src/pkg/crypto/tls/root_darwin.go
+rename to src/pkg/crypto/x509/root_darwin.go
+index 911a9a62e3..0f99581e8a 100644
+--- a/src/pkg/crypto/tls/root_darwin.go
++++ b/src/pkg/crypto/x509/root_darwin.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package tls
++package x509
+ 
+ /*
+ #cgo CFLAGS: -mmacosx-version-min=10.6 -D__MAC_OS_X_VERSION_MAX_ALLOWED=1060
+@@ -59,13 +59,14 @@ int FetchPEMRoots(CFDataRef *pemRoots) {
+ }
+ */
+ import "C"
+-import (
+-	"crypto/x509"
+-	"unsafe"
+-)
++import "unsafe"
+ 
+-func initDefaultRoots() {
+-	roots := x509.NewCertPool()
++func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
++	return nil, nil
++}
++
++func initSystemRoots() {
++	roots := NewCertPool()
+ 
+ 	var data C.CFDataRef = nil
+ 	err := C.FetchPEMRoots(&data)
+@@ -75,5 +76,5 @@ func initDefaultRoots() {
+ 		roots.AppendCertsFromPEM(buf)
+ 	}
+ 
+-	varDefaultRoots = roots
++	systemRoots = roots
+ }
+diff --git a/src/pkg/crypto/tls/root_stub.go b/src/pkg/crypto/x509/root_stub.go
+similarity index 51%
+rename from src/pkg/crypto/tls/root_stub.go
+rename to src/pkg/crypto/x509/root_stub.go
+index ee2c3e0179..568004108b 100644
+--- a/src/pkg/crypto/tls/root_stub.go
++++ b/src/pkg/crypto/x509/root_stub.go
+@@ -4,7 +4,12 @@
+ 
+ // +build plan9 darwin,!cgo
+ 
+-package tls
++package x509
+ 
+-func initDefaultRoots() {
++func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
++	return nil, nil
++}
++
++func initSystemRoots() {
++	systemRoots = NewCertPool()
+ }
+diff --git a/src/pkg/crypto/tls/root_unix.go b/src/pkg/crypto/x509/root_unix.go
+similarity index 76%
+rename from src/pkg/crypto/tls/root_unix.go
+rename to src/pkg/crypto/x509/root_unix.go
+index acaf3dd9d6..76e79f494f 100644
+--- a/src/pkg/crypto/tls/root_unix.go
++++ b/src/pkg/crypto/x509/root_unix.go
+@@ -4,12 +4,9 @@
+ 
+ // +build freebsd linux openbsd netbsd
+ 
+-package tls
++package x509
+ 
+-import (
+-	"crypto/x509"
+-	"io/ioutil"
+-)
++import "io/ioutil"
+ 
+ // Possible certificate files; stop after finding one.
+ var certFiles = []string{
+@@ -20,8 +17,12 @@ var certFiles = []string{
+ 	"/usr/local/share/certs/ca-root-nss.crt", // FreeBSD
+ }
+ 
+-func initDefaultRoots() {
+-	roots := x509.NewCertPool()
++func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
++	return nil, nil
++}
++
++func initSystemRoots() {
++	roots := NewCertPool()
+ 	for _, file := range certFiles {
+ 		data, err := ioutil.ReadFile(file)
+ 		if err == nil {
+@@ -29,5 +30,6 @@ func initDefaultRoots() {
+ 			break
+ 		}
+ 	}
+-	varDefaultRoots = roots
++
++	systemRoots = roots
+ }
+diff --git a/src/pkg/crypto/x509/root_windows.go b/src/pkg/crypto/x509/root_windows.go
+new file mode 100644
+index 0000000000..627d0592a3
+--- /dev/null
++++ b/src/pkg/crypto/x509/root_windows.go
+@@ -0,0 +1,193 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x509
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++// Creates a new *syscall.CertContext representing the leaf certificate in an in-memory
++// certificate store containing itself and all of the intermediate certificates specified
++// in the opts.Intermediates CertPool.
++//
++// A pointer to the in-memory store is available in the returned CertContext's Store field.
++// The store is automatically freed when the CertContext is freed using
++// syscall.CertFreeCertificateContext.
++func createStoreContext(leaf *Certificate, opts *VerifyOptions) (*syscall.CertContext, error) {
++	var storeCtx *syscall.CertContext
++
++	leafCtx, err := syscall.CertCreateCertificateContext(syscall.X509_ASN_ENCODING|syscall.PKCS_7_ASN_ENCODING, &leaf.Raw[0], uint32(len(leaf.Raw)))
++	if err != nil {
++		return nil, err
++	}
++	defer syscall.CertFreeCertificateContext(leafCtx)
++
++	handle, err := syscall.CertOpenStore(syscall.CERT_STORE_PROV_MEMORY, 0, 0, syscall.CERT_STORE_DEFER_CLOSE_UNTIL_LAST_FREE_FLAG, 0)
++	if err != nil {
++		return nil, err
++	}
++	defer syscall.CertCloseStore(handle, 0)
++
++	err = syscall.CertAddCertificateContextToStore(handle, leafCtx, syscall.CERT_STORE_ADD_ALWAYS, &storeCtx)
++	if err != nil {
++		return nil, err
++	}
++
++	if opts.Intermediates != nil {
++		for _, intermediate := range opts.Intermediates.certs {
++			ctx, err := syscall.CertCreateCertificateContext(syscall.X509_ASN_ENCODING|syscall.PKCS_7_ASN_ENCODING, &intermediate.Raw[0], uint32(len(intermediate.Raw)))
++			if err != nil {
++				return nil, err
++			}
++
++			err = syscall.CertAddCertificateContextToStore(handle, ctx, syscall.CERT_STORE_ADD_ALWAYS, nil)
++			if err != nil {
++				return nil, err
++			}
++
++			err = syscall.CertFreeCertificateContext(ctx)
++			if err != nil {
++				return nil, err
++			}
++		}
++	}
++
++	return storeCtx, nil
++}
++
++func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
++	hasDNSName := opts != nil && len(opts.DNSName) > 0
++
++	storeCtx, err := createStoreContext(c, opts)
++	if err != nil {
++		return nil, err
++	}
++	defer syscall.CertFreeCertificateContext(storeCtx)
++
++	para := new(syscall.CertChainPara)
++	para.Size = uint32(unsafe.Sizeof(*para))
++	para.RequestedUsage.Type = syscall.USAGE_MATCH_TYPE_AND
++
++	// If there's a DNSName set in opts, assume we're verifying
++	// a certificate from a TLS server.
++	if hasDNSName {
++		oids := []*byte{&syscall.OID_PKIX_KP_SERVER_AUTH[0]}
++		para.RequestedUsage.Usage.Length = uint32(len(oids))
++		para.RequestedUsage.Usage.UsageIdentifiers = &oids[0]
++	} else {
++		para.RequestedUsage.Usage.Length = 0
++		para.RequestedUsage.Usage.UsageIdentifiers = nil
++	}
++
++	var verifyTime *syscall.Filetime
++	if opts != nil && !opts.CurrentTime.IsZero() {
++		ft := syscall.NsecToFiletime(opts.CurrentTime.UnixNano())
++		verifyTime = &ft
++	}
++
++	// CertGetCertificateChain will traverse Windows's root stores
++	// in an attempt to build a verified certificate chain.  Once
++	// it has found a verified chain, it stops. MSDN docs on
++	// CERT_CHAIN_CONTEXT:
++	//
++	//   When a CERT_CHAIN_CONTEXT is built, the first simple chain
++	//   begins with an end certificate and ends with a self-signed
++	//   certificate. If that self-signed certificate is not a root
++	//   or otherwise trusted certificate, an attempt is made to
++	//   build a new chain. CTLs are used to create the new chain
++	//   beginning with the self-signed certificate from the original
++	//   chain as the end certificate of the new chain. This process
++	//   continues building additional simple chains until the first
++	//   self-signed certificate is a trusted certificate or until
++	//   an additional simple chain cannot be built.
++	//
++	// The result is that we'll only get a single trusted chain to
++	// return to our caller.
++	var chainCtx *syscall.CertChainContext
++	err = syscall.CertGetCertificateChain(syscall.Handle(0), storeCtx, verifyTime, storeCtx.Store, para, 0, 0, &chainCtx)
++	if err != nil {
++		return nil, err
++	}
++	defer syscall.CertFreeCertificateChain(chainCtx)
++
++	if chainCtx.TrustStatus.ErrorStatus != syscall.CERT_TRUST_NO_ERROR {
++		status := chainCtx.TrustStatus.ErrorStatus
++		switch status {
++		case syscall.CERT_TRUST_IS_NOT_TIME_VALID:
++			return nil, CertificateInvalidError{c, Expired}
++		default:
++			return nil, UnknownAuthorityError{c}
++		}
++	}
++
++	simpleChains := (*[1 << 20]*syscall.CertSimpleChain)(unsafe.Pointer(chainCtx.Chains))[:]
++	if chainCtx.ChainCount == 0 {
++		return nil, UnknownAuthorityError{c}
++	}
++	verifiedChain := simpleChains[int(chainCtx.ChainCount)-1]
++
++	elements := (*[1 << 20]*syscall.CertChainElement)(unsafe.Pointer(verifiedChain.Elements))[:]
++	if verifiedChain.NumElements == 0 {
++		return nil, UnknownAuthorityError{c}
++	}
++
++	var chain []*Certificate
++	for i := 0; i < int(verifiedChain.NumElements); i++ {
++		// Copy the buf, since ParseCertificate does not create its own copy.
++		cert := elements[i].CertContext
++		encodedCert := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:]
++		buf := make([]byte, cert.Length)
++		copy(buf, encodedCert[:])
++		parsedCert, err := ParseCertificate(buf)
++		if err != nil {
++			return nil, err
++		}
++		chain = append(chain, parsedCert)
++	}
++
++	// Apply the system SSL policy if VerifyOptions dictates that we
++	// must check for a DNS name.
++	if hasDNSName {
++		sslPara := &syscall.SSLExtraCertChainPolicyPara{
++			AuthType:   syscall.AUTHTYPE_SERVER,
++			ServerName: syscall.StringToUTF16Ptr(opts.DNSName),
++		}
++		sslPara.Size = uint32(unsafe.Sizeof(*sslPara))
++
++		para := &syscall.CertChainPolicyPara{
++			ExtraPolicyPara: uintptr(unsafe.Pointer(sslPara)),
++		}
++		para.Size = uint32(unsafe.Sizeof(*para))
++
++		status := syscall.CertChainPolicyStatus{}
++		err = syscall.CertVerifyCertificateChainPolicy(syscall.CERT_CHAIN_POLICY_SSL, chainCtx, para, &status)
++		if err != nil {
++			return nil, err
++		}
++
++		if status.Error != 0 {
++			switch status.Error {
++			case syscall.CERT_E_EXPIRED:
++				return nil, CertificateInvalidError{c, Expired}
++			case syscall.CERT_E_CN_NO_MATCH:
++				return nil, HostnameError{c, opts.DNSName}
++			case syscall.CERT_E_UNTRUSTEDROOT:
++				return nil, UnknownAuthorityError{c}
++			default:
++				return nil, UnknownAuthorityError{c}
++			}
++		}
++	}
++
++	chains = make([][]*Certificate, 1)
++	chains[0] = chain
++
++	return chains, nil
++}
++
++func initSystemRoots() {
++	systemRoots = NewCertPool()
++}
+diff --git a/src/pkg/crypto/x509/verify.go b/src/pkg/crypto/x509/verify.go
+index 3497f34dd1..307c5ef033 100644
+--- a/src/pkg/crypto/x509/verify.go
++++ b/src/pkg/crypto/x509/verify.go
+@@ -5,6 +5,7 @@
+ package x509
+ 
+ import (
++	"runtime"
+ 	"strings"
+ 	"time"
+ 	"unicode/utf8"
+@@ -81,7 +82,7 @@ func (e UnknownAuthorityError) Error() string {
+ type VerifyOptions struct {
+ 	DNSName       string
+ 	Intermediates *CertPool
+-	Roots         *CertPool
++	Roots         *CertPool // if nil, the system roots are used
+ 	CurrentTime   time.Time // if zero, the current time is used
+ }
+ 
+@@ -146,22 +147,33 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ }
+ 
+ // Verify attempts to verify c by building one or more chains from c to a
+-// certificate in opts.roots, using certificates in opts.Intermediates if
++// certificate in opts.Roots, using certificates in opts.Intermediates if
+ // needed. If successful, it returns one or more chains where the first
+ // element of the chain is c and the last element is from opts.Roots.
+ //
+ // WARNING: this doesn't do any revocation checking.
+ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
++	// Use Windows's own verification and chain building.
++	if opts.Roots == nil && runtime.GOOS == "windows" {
++		return c.systemVerify(&opts)
++	}
++
++	if opts.Roots == nil {
++		opts.Roots = systemRootsPool()
++	}
++
+ 	err = c.isValid(leafCertificate, nil, &opts)
+ 	if err != nil {
+ 		return
+ 	}
++
+ 	if len(opts.DNSName) > 0 {
+ 		err = c.VerifyHostname(opts.DNSName)
+ 		if err != nil {
+ 			return
+ 		}
+ 	}
++
+ 	return c.buildChains(make(map[int][][]*Certificate), []*Certificate{c}, &opts)
+ }
+ 
+diff --git a/src/pkg/crypto/x509/verify_test.go b/src/pkg/crypto/x509/verify_test.go
+index 2cdd66a558..7b171b291a 100644
+--- a/src/pkg/crypto/x509/verify_test.go
++++ b/src/pkg/crypto/x509/verify_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"crypto/x509/pkix"
+ 	"encoding/pem"
+ 	"errors"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -19,7 +20,7 @@ type verifyTest struct {
+ 	roots         []string
+ 	currentTime   int64
+ 	dnsName       string
+-	nilRoots      bool
++	systemSkip    bool
+ 
+ 	errorCallback  func(*testing.T, int, error) bool
+ 	expectedChains [][]string
+@@ -57,14 +58,6 @@ var verifyTests = []verifyTest{
+ 
+ 		errorCallback: expectHostnameError,
+ 	},
+-	{
+-		leaf:          googleLeaf,
+-		intermediates: []string{thawteIntermediate},
+-		nilRoots:      true, // verifies that we don't crash
+-		currentTime:   1302726541,
+-		dnsName:       "www.google.com",
+-		errorCallback: expectAuthorityUnknown,
+-	},
+ 	{
+ 		leaf:          googleLeaf,
+ 		intermediates: []string{thawteIntermediate},
+@@ -80,6 +73,9 @@ var verifyTests = []verifyTest{
+ 		currentTime: 1302726541,
+ 		dnsName:     "www.google.com",
+ 
++		// Skip when using systemVerify, since Windows
++		// *will* find the missing intermediate cert.
++		systemSkip:    true,
+ 		errorCallback: expectAuthorityUnknown,
+ 	},
+ 	{
+@@ -109,6 +105,9 @@ var verifyTests = []verifyTest{
+ 		roots:         []string{startComRoot},
+ 		currentTime:   1302726541,
+ 
++		// Skip when using systemVerify, since Windows
++		// can only return a single chain to us (for now).
++		systemSkip: true,
+ 		expectedChains: [][]string{
+ 			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
+ 			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority", "StartCom Certification Authority"},
+@@ -148,23 +147,26 @@ func certificateFromPEM(pemBytes string) (*Certificate, error) {
+ 	return ParseCertificate(block.Bytes)
+ }
+ 
+-func TestVerify(t *testing.T) {
++func testVerify(t *testing.T, useSystemRoots bool) {
+ 	for i, test := range verifyTests {
++		if useSystemRoots && test.systemSkip {
++			continue
++		}
++
+ 		opts := VerifyOptions{
+-			Roots:         NewCertPool(),
+ 			Intermediates: NewCertPool(),
+ 			DNSName:       test.dnsName,
+ 			CurrentTime:   time.Unix(test.currentTime, 0),
+ 		}
+-		if test.nilRoots {
+-			opts.Roots = nil
+-		}
+ 
+-		for j, root := range test.roots {
+-			ok := opts.Roots.AppendCertsFromPEM([]byte(root))
+-			if !ok {
+-				t.Errorf("#%d: failed to parse root #%d", i, j)
+-				return
++		if !useSystemRoots {
++			opts.Roots = NewCertPool()
++			for j, root := range test.roots {
++				ok := opts.Roots.AppendCertsFromPEM([]byte(root))
++				if !ok {
++					t.Errorf("#%d: failed to parse root #%d", i, j)
++					return
++				}
+ 			}
+ 		}
+ 
+@@ -225,6 +227,19 @@ func TestVerify(t *testing.T) {
+ 	}
+ }
+ 
++func TestGoVerify(t *testing.T) {
++	testVerify(t, false)
++}
++
++func TestSystemVerify(t *testing.T) {
++	if runtime.GOOS != "windows" {
++		t.Logf("skipping verify test using system APIs on %q", runtime.GOOS)
++		return
++	}
++
++	testVerify(t, true)
++}
++
+ func chainToDebugString(chain []*Certificate) string {
+ 	var chainStr string
+ 	for _, cert := range chain {
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 7c82932d0b..6ac98ceacb 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -183,8 +183,15 @@ func NewCallback(fn interface{}) uintptr
+ //sys	TransmitFile(s Handle, handle Handle, bytesToWrite uint32, bytsPerSend uint32, overlapped *Overlapped, transmitFileBuf *TransmitFileBuffers, flags uint32) (err error) = mswsock.TransmitFile
+ //sys	ReadDirectoryChanges(handle Handle, buf *byte, buflen uint32, watchSubTree bool, mask uint32, retlen *uint32, overlapped *Overlapped, completionRoutine uintptr) (err error) = kernel32.ReadDirectoryChangesW
+ //sys	CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, err error) = crypt32.CertOpenSystemStoreW
++//sys   CertOpenStore(storeProvider uintptr, msgAndCertEncodingType uint32, cryptProv uintptr, flags uint32, para uintptr) (handle Handle, err error) [failretval==InvalidHandle] = crypt32.CertOpenStore
+ //sys	CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext, err error) [failretval==nil] = crypt32.CertEnumCertificatesInStore
++//sys   CertAddCertificateContextToStore(store Handle, certContext *CertContext, addDisposition uint32, storeContext **CertContext) (err error) = crypt32.CertAddCertificateContextToStore
+ //sys	CertCloseStore(store Handle, flags uint32) (err error) = crypt32.CertCloseStore
++//sys   CertGetCertificateChain(engine Handle, leaf *CertContext, time *Filetime, additionalStore Handle, para *CertChainPara, flags uint32, reserved uintptr, chainCtx **CertChainContext) (err error) = crypt32.CertGetCertificateChain
++//sys   CertFreeCertificateChain(ctx *CertChainContext) = crypt32.CertFreeCertificateChain
++//sys   CertCreateCertificateContext(certEncodingType uint32, certEncoded *byte, encodedLen uint32) (context *CertContext, err error) [failretval==nil] = crypt32.CertCreateCertificateContext
++//sys   CertFreeCertificateContext(ctx *CertContext) (err error) = crypt32.CertFreeCertificateContext
++//sys   CertVerifyCertificateChainPolicy(policyOID uintptr, chain *CertChainContext, para *CertChainPolicyPara, status *CertChainPolicyStatus) (err error) = crypt32.CertVerifyCertificateChainPolicy
+ //sys	RegOpenKeyEx(key Handle, subkey *uint16, options uint32, desiredAccess uint32, result *Handle) (regerrno error) = advapi32.RegOpenKeyExW
+ //sys	RegCloseKey(key Handle) (regerrno error) = advapi32.RegCloseKey
+ //sys	RegQueryInfoKey(key Handle, class *uint16, classLen *uint32, reserved *uint32, subkeysLen *uint32, maxSubkeyLen *uint32, maxClassLen *uint32, valuesLen *uint32, maxValueNameLen *uint32, maxValueLen *uint32, saLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegQueryInfoKeyW
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 8b1a6db90a..ac3da3f61e 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -18,121 +18,128 @@ var (
+ 	modnetapi32 = NewLazyDLL("netapi32.dll")
+ 	moduserenv  = NewLazyDLL("userenv.dll")
+ 
+-	procGetLastError                = modkernel32.NewProc("GetLastError")
+-	procLoadLibraryW                = modkernel32.NewProc("LoadLibraryW")
+-	procFreeLibrary                 = modkernel32.NewProc("FreeLibrary")
+-	procGetProcAddress              = modkernel32.NewProc("GetProcAddress")
+-	procGetVersion                  = modkernel32.NewProc("GetVersion")
+-	procFormatMessageW              = modkernel32.NewProc("FormatMessageW")
+-	procExitProcess                 = modkernel32.NewProc("ExitProcess")
+-	procCreateFileW                 = modkernel32.NewProc("CreateFileW")
+-	procReadFile                    = modkernel32.NewProc("ReadFile")
+-	procWriteFile                   = modkernel32.NewProc("WriteFile")
+-	procSetFilePointer              = modkernel32.NewProc("SetFilePointer")
+-	procCloseHandle                 = modkernel32.NewProc("CloseHandle")
+-	procGetStdHandle                = modkernel32.NewProc("GetStdHandle")
+-	procFindFirstFileW              = modkernel32.NewProc("FindFirstFileW")
+-	procFindNextFileW               = modkernel32.NewProc("FindNextFileW")
+-	procFindClose                   = modkernel32.NewProc("FindClose")
+-	procGetFileInformationByHandle  = modkernel32.NewProc("GetFileInformationByHandle")
+-	procGetCurrentDirectoryW        = modkernel32.NewProc("GetCurrentDirectoryW")
+-	procSetCurrentDirectoryW        = modkernel32.NewProc("SetCurrentDirectoryW")
+-	procCreateDirectoryW            = modkernel32.NewProc("CreateDirectoryW")
+-	procRemoveDirectoryW            = modkernel32.NewProc("RemoveDirectoryW")
+-	procDeleteFileW                 = modkernel32.NewProc("DeleteFileW")
+-	procMoveFileW                   = modkernel32.NewProc("MoveFileW")
+-	procGetComputerNameW            = modkernel32.NewProc("GetComputerNameW")
+-	procSetEndOfFile                = modkernel32.NewProc("SetEndOfFile")
+-	procGetSystemTimeAsFileTime     = modkernel32.NewProc("GetSystemTimeAsFileTime")
+-	procGetTimeZoneInformation      = modkernel32.NewProc("GetTimeZoneInformation")
+-	procCreateIoCompletionPort      = modkernel32.NewProc("CreateIoCompletionPort")
+-	procGetQueuedCompletionStatus   = modkernel32.NewProc("GetQueuedCompletionStatus")
+-	procPostQueuedCompletionStatus  = modkernel32.NewProc("PostQueuedCompletionStatus")
+-	procCancelIo                    = modkernel32.NewProc("CancelIo")
+-	procCreateProcessW              = modkernel32.NewProc("CreateProcessW")
+-	procOpenProcess                 = modkernel32.NewProc("OpenProcess")
+-	procTerminateProcess            = modkernel32.NewProc("TerminateProcess")
+-	procGetExitCodeProcess          = modkernel32.NewProc("GetExitCodeProcess")
+-	procGetStartupInfoW             = modkernel32.NewProc("GetStartupInfoW")
+-	procGetCurrentProcess           = modkernel32.NewProc("GetCurrentProcess")
+-	procGetProcessTimes             = modkernel32.NewProc("GetProcessTimes")
+-	procDuplicateHandle             = modkernel32.NewProc("DuplicateHandle")
+-	procWaitForSingleObject         = modkernel32.NewProc("WaitForSingleObject")
+-	procGetTempPathW                = modkernel32.NewProc("GetTempPathW")
+-	procCreatePipe                  = modkernel32.NewProc("CreatePipe")
+-	procGetFileType                 = modkernel32.NewProc("GetFileType")
+-	procCryptAcquireContextW        = modadvapi32.NewProc("CryptAcquireContextW")
+-	procCryptReleaseContext         = modadvapi32.NewProc("CryptReleaseContext")
+-	procCryptGenRandom              = modadvapi32.NewProc("CryptGenRandom")
+-	procGetEnvironmentStringsW      = modkernel32.NewProc("GetEnvironmentStringsW")
+-	procFreeEnvironmentStringsW     = modkernel32.NewProc("FreeEnvironmentStringsW")
+-	procGetEnvironmentVariableW     = modkernel32.NewProc("GetEnvironmentVariableW")
+-	procSetEnvironmentVariableW     = modkernel32.NewProc("SetEnvironmentVariableW")
+-	procSetFileTime                 = modkernel32.NewProc("SetFileTime")
+-	procGetFileAttributesW          = modkernel32.NewProc("GetFileAttributesW")
+-	procSetFileAttributesW          = modkernel32.NewProc("SetFileAttributesW")
+-	procGetFileAttributesExW        = modkernel32.NewProc("GetFileAttributesExW")
+-	procGetCommandLineW             = modkernel32.NewProc("GetCommandLineW")
+-	procCommandLineToArgvW          = modshell32.NewProc("CommandLineToArgvW")
+-	procLocalFree                   = modkernel32.NewProc("LocalFree")
+-	procSetHandleInformation        = modkernel32.NewProc("SetHandleInformation")
+-	procFlushFileBuffers            = modkernel32.NewProc("FlushFileBuffers")
+-	procGetFullPathNameW            = modkernel32.NewProc("GetFullPathNameW")
+-	procCreateFileMappingW          = modkernel32.NewProc("CreateFileMappingW")
+-	procMapViewOfFile               = modkernel32.NewProc("MapViewOfFile")
+-	procUnmapViewOfFile             = modkernel32.NewProc("UnmapViewOfFile")
+-	procFlushViewOfFile             = modkernel32.NewProc("FlushViewOfFile")
+-	procVirtualLock                 = modkernel32.NewProc("VirtualLock")
+-	procVirtualUnlock               = modkernel32.NewProc("VirtualUnlock")
+-	procTransmitFile                = modmswsock.NewProc("TransmitFile")
+-	procReadDirectoryChangesW       = modkernel32.NewProc("ReadDirectoryChangesW")
+-	procCertOpenSystemStoreW        = modcrypt32.NewProc("CertOpenSystemStoreW")
+-	procCertEnumCertificatesInStore = modcrypt32.NewProc("CertEnumCertificatesInStore")
+-	procCertCloseStore              = modcrypt32.NewProc("CertCloseStore")
+-	procRegOpenKeyExW               = modadvapi32.NewProc("RegOpenKeyExW")
+-	procRegCloseKey                 = modadvapi32.NewProc("RegCloseKey")
+-	procRegQueryInfoKeyW            = modadvapi32.NewProc("RegQueryInfoKeyW")
+-	procRegEnumKeyExW               = modadvapi32.NewProc("RegEnumKeyExW")
+-	procRegQueryValueExW            = modadvapi32.NewProc("RegQueryValueExW")
+-	procWSAStartup                  = modws2_32.NewProc("WSAStartup")
+-	procWSACleanup                  = modws2_32.NewProc("WSACleanup")
+-	procWSAIoctl                    = modws2_32.NewProc("WSAIoctl")
+-	procsocket                      = modws2_32.NewProc("socket")
+-	procsetsockopt                  = modws2_32.NewProc("setsockopt")
+-	procbind                        = modws2_32.NewProc("bind")
+-	procconnect                     = modws2_32.NewProc("connect")
+-	procgetsockname                 = modws2_32.NewProc("getsockname")
+-	procgetpeername                 = modws2_32.NewProc("getpeername")
+-	proclisten                      = modws2_32.NewProc("listen")
+-	procshutdown                    = modws2_32.NewProc("shutdown")
+-	procclosesocket                 = modws2_32.NewProc("closesocket")
+-	procAcceptEx                    = modmswsock.NewProc("AcceptEx")
+-	procGetAcceptExSockaddrs        = modmswsock.NewProc("GetAcceptExSockaddrs")
+-	procWSARecv                     = modws2_32.NewProc("WSARecv")
+-	procWSASend                     = modws2_32.NewProc("WSASend")
+-	procWSARecvFrom                 = modws2_32.NewProc("WSARecvFrom")
+-	procWSASendTo                   = modws2_32.NewProc("WSASendTo")
+-	procgethostbyname               = modws2_32.NewProc("gethostbyname")
+-	procgetservbyname               = modws2_32.NewProc("getservbyname")
+-	procntohs                       = modws2_32.NewProc("ntohs")
+-	procgetprotobyname              = modws2_32.NewProc("getprotobyname")
+-	procDnsQuery_W                  = moddnsapi.NewProc("DnsQuery_W")
+-	procDnsRecordListFree           = moddnsapi.NewProc("DnsRecordListFree")
+-	procGetIfEntry                  = modiphlpapi.NewProc("GetIfEntry")
+-	procGetAdaptersInfo             = modiphlpapi.NewProc("GetAdaptersInfo")
+-	procTranslateNameW              = modsecur32.NewProc("TranslateNameW")
+-	procGetUserNameExW              = modsecur32.NewProc("GetUserNameExW")
+-	procNetUserGetInfo              = modnetapi32.NewProc("NetUserGetInfo")
+-	procNetApiBufferFree            = modnetapi32.NewProc("NetApiBufferFree")
+-	procLookupAccountSidW           = modadvapi32.NewProc("LookupAccountSidW")
+-	procLookupAccountNameW          = modadvapi32.NewProc("LookupAccountNameW")
+-	procConvertSidToStringSidW      = modadvapi32.NewProc("ConvertSidToStringSidW")
+-	procConvertStringSidToSidW      = modadvapi32.NewProc("ConvertStringSidToSidW")
+-	procGetLengthSid                = modadvapi32.NewProc("GetLengthSid")
+-	procCopySid                     = modadvapi32.NewProc("CopySid")
+-	procOpenProcessToken            = modadvapi32.NewProc("OpenProcessToken")
+-	procGetTokenInformation         = modadvapi32.NewProc("GetTokenInformation")
+-	procGetUserProfileDirectoryW    = moduserenv.NewProc("GetUserProfileDirectoryW")
++	procGetLastError                     = modkernel32.NewProc("GetLastError")
++	procLoadLibraryW                     = modkernel32.NewProc("LoadLibraryW")
++	procFreeLibrary                      = modkernel32.NewProc("FreeLibrary")
++	procGetProcAddress                   = modkernel32.NewProc("GetProcAddress")
++	procGetVersion                       = modkernel32.NewProc("GetVersion")
++	procFormatMessageW                   = modkernel32.NewProc("FormatMessageW")
++	procExitProcess                      = modkernel32.NewProc("ExitProcess")
++	procCreateFileW                      = modkernel32.NewProc("CreateFileW")
++	procReadFile                         = modkernel32.NewProc("ReadFile")
++	procWriteFile                        = modkernel32.NewProc("WriteFile")
++	procSetFilePointer                   = modkernel32.NewProc("SetFilePointer")
++	procCloseHandle                      = modkernel32.NewProc("CloseHandle")
++	procGetStdHandle                     = modkernel32.NewProc("GetStdHandle")
++	procFindFirstFileW                   = modkernel32.NewProc("FindFirstFileW")
++	procFindNextFileW                    = modkernel32.NewProc("FindNextFileW")
++	procFindClose                        = modkernel32.NewProc("FindClose")
++	procGetFileInformationByHandle       = modkernel32.NewProc("GetFileInformationByHandle")
++	procGetCurrentDirectoryW             = modkernel32.NewProc("GetCurrentDirectoryW")
++	procSetCurrentDirectoryW             = modkernel32.NewProc("SetCurrentDirectoryW")
++	procCreateDirectoryW                 = modkernel32.NewProc("CreateDirectoryW")
++	procRemoveDirectoryW                 = modkernel32.NewProc("RemoveDirectoryW")
++	procDeleteFileW                      = modkernel32.NewProc("DeleteFileW")
++	procMoveFileW                        = modkernel32.NewProc("MoveFileW")
++	procGetComputerNameW                 = modkernel32.NewProc("GetComputerNameW")
++	procSetEndOfFile                     = modkernel32.NewProc("SetEndOfFile")
++	procGetSystemTimeAsFileTime          = modkernel32.NewProc("GetSystemTimeAsFileTime")
++	procGetTimeZoneInformation           = modkernel32.NewProc("GetTimeZoneInformation")
++	procCreateIoCompletionPort           = modkernel32.NewProc("CreateIoCompletionPort")
++	procGetQueuedCompletionStatus        = modkernel32.NewProc("GetQueuedCompletionStatus")
++	procPostQueuedCompletionStatus       = modkernel32.NewProc("PostQueuedCompletionStatus")
++	procCancelIo                         = modkernel32.NewProc("CancelIo")
++	procCreateProcessW                   = modkernel32.NewProc("CreateProcessW")
++	procOpenProcess                      = modkernel32.NewProc("OpenProcess")
++	procTerminateProcess                 = modkernel32.NewProc("TerminateProcess")
++	procGetExitCodeProcess               = modkernel32.NewProc("GetExitCodeProcess")
++	procGetStartupInfoW                  = modkernel32.NewProc("GetStartupInfoW")
++	procGetCurrentProcess                = modkernel32.NewProc("GetCurrentProcess")
++	procGetProcessTimes                  = modkernel32.NewProc("GetProcessTimes")
++	procDuplicateHandle                  = modkernel32.NewProc("DuplicateHandle")
++	procWaitForSingleObject              = modkernel32.NewProc("WaitForSingleObject")
++	procGetTempPathW                     = modkernel32.NewProc("GetTempPathW")
++	procCreatePipe                       = modkernel32.NewProc("CreatePipe")
++	procGetFileType                      = modkernel32.NewProc("GetFileType")
++	procCryptAcquireContextW             = modadvapi32.NewProc("CryptAcquireContextW")
++	procCryptReleaseContext              = modadvapi32.NewProc("CryptReleaseContext")
++	procCryptGenRandom                   = modadvapi32.NewProc("CryptGenRandom")
++	procGetEnvironmentStringsW           = modkernel32.NewProc("GetEnvironmentStringsW")
++	procFreeEnvironmentStringsW          = modkernel32.NewProc("FreeEnvironmentStringsW")
++	procGetEnvironmentVariableW          = modkernel32.NewProc("GetEnvironmentVariableW")
++	procSetEnvironmentVariableW          = modkernel32.NewProc("SetEnvironmentVariableW")
++	procSetFileTime                      = modkernel32.NewProc("SetFileTime")
++	procGetFileAttributesW               = modkernel32.NewProc("GetFileAttributesW")
++	procSetFileAttributesW               = modkernel32.NewProc("SetFileAttributesW")
++	procGetFileAttributesExW             = modkernel32.NewProc("GetFileAttributesExW")
++	procGetCommandLineW                  = modkernel32.NewProc("GetCommandLineW")
++	procCommandLineToArgvW               = modshell32.NewProc("CommandLineToArgvW")
++	procLocalFree                        = modkernel32.NewProc("LocalFree")
++	procSetHandleInformation             = modkernel32.NewProc("SetHandleInformation")
++	procFlushFileBuffers                 = modkernel32.NewProc("FlushFileBuffers")
++	procGetFullPathNameW                 = modkernel32.NewProc("GetFullPathNameW")
++	procCreateFileMappingW               = modkernel32.NewProc("CreateFileMappingW")
++	procMapViewOfFile                    = modkernel32.NewProc("MapViewOfFile")
++	procUnmapViewOfFile                  = modkernel32.NewProc("UnmapViewOfFile")
++	procFlushViewOfFile                  = modkernel32.NewProc("FlushViewOfFile")
++	procVirtualLock                      = modkernel32.NewProc("VirtualLock")
++	procVirtualUnlock                    = modkernel32.NewProc("VirtualUnlock")
++	procTransmitFile                     = modmswsock.NewProc("TransmitFile")
++	procReadDirectoryChangesW            = modkernel32.NewProc("ReadDirectoryChangesW")
++	procCertOpenSystemStoreW             = modcrypt32.NewProc("CertOpenSystemStoreW")
++	procCertOpenStore                    = modcrypt32.NewProc("CertOpenStore")
++	procCertEnumCertificatesInStore      = modcrypt32.NewProc("CertEnumCertificatesInStore")
++	procCertAddCertificateContextToStore = modcrypt32.NewProc("CertAddCertificateContextToStore")
++	procCertCloseStore                   = modcrypt32.NewProc("CertCloseStore")
++	procCertGetCertificateChain          = modcrypt32.NewProc("CertGetCertificateChain")
++	procCertFreeCertificateChain         = modcrypt32.NewProc("CertFreeCertificateChain")
++	procCertCreateCertificateContext     = modcrypt32.NewProc("CertCreateCertificateContext")
++	procCertFreeCertificateContext       = modcrypt32.NewProc("CertFreeCertificateContext")
++	procCertVerifyCertificateChainPolicy = modcrypt32.NewProc("CertVerifyCertificateChainPolicy")
++	procRegOpenKeyExW                    = modadvapi32.NewProc("RegOpenKeyExW")
++	procRegCloseKey                      = modadvapi32.NewProc("RegCloseKey")
++	procRegQueryInfoKeyW                 = modadvapi32.NewProc("RegQueryInfoKeyW")
++	procRegEnumKeyExW                    = modadvapi32.NewProc("RegEnumKeyExW")
++	procRegQueryValueExW                 = modadvapi32.NewProc("RegQueryValueExW")
++	procWSAStartup                       = modws2_32.NewProc("WSAStartup")
++	procWSACleanup                       = modws2_32.NewProc("WSACleanup")
++	procWSAIoctl                         = modws2_32.NewProc("WSAIoctl")
++	procsocket                           = modws2_32.NewProc("socket")
++	procsetsockopt                       = modws2_32.NewProc("setsockopt")
++	procbind                             = modws2_32.NewProc("bind")
++	procconnect                          = modws2_32.NewProc("connect")
++	procgetsockname                      = modws2_32.NewProc("getsockname")
++	procgetpeername                      = modws2_32.NewProc("getpeername")
++	proclisten                           = modws2_32.NewProc("listen")
++	procshutdown                         = modws2_32.NewProc("shutdown")
++	procclosesocket                      = modws2_32.NewProc("closesocket")
++	procAcceptEx                         = modmswsock.NewProc("AcceptEx")
++	procGetAcceptExSockaddrs             = modmswsock.NewProc("GetAcceptExSockaddrs")
++	procWSARecv                          = modws2_32.NewProc("WSARecv")
++	procWSASend                          = modws2_32.NewProc("WSASend")
++	procWSARecvFrom                      = modws2_32.NewProc("WSARecvFrom")
++	procWSASendTo                        = modws2_32.NewProc("WSASendTo")
++	procgethostbyname                    = modws2_32.NewProc("gethostbyname")
++	procgetservbyname                    = modws2_32.NewProc("getservbyname")
++	procntohs                            = modws2_32.NewProc("ntohs")
++	procgetprotobyname                   = modws2_32.NewProc("getprotobyname")
++	procDnsQuery_W                       = moddnsapi.NewProc("DnsQuery_W")
++	procDnsRecordListFree                = moddnsapi.NewProc("DnsRecordListFree")
++	procGetIfEntry                       = modiphlpapi.NewProc("GetIfEntry")
++	procGetAdaptersInfo                  = modiphlpapi.NewProc("GetAdaptersInfo")
++	procTranslateNameW                   = modsecur32.NewProc("TranslateNameW")
++	procGetUserNameExW                   = modsecur32.NewProc("GetUserNameExW")
++	procNetUserGetInfo                   = modnetapi32.NewProc("NetUserGetInfo")
++	procNetApiBufferFree                 = modnetapi32.NewProc("NetApiBufferFree")
++	procLookupAccountSidW                = modadvapi32.NewProc("LookupAccountSidW")
++	procLookupAccountNameW               = modadvapi32.NewProc("LookupAccountNameW")
++	procConvertSidToStringSidW           = modadvapi32.NewProc("ConvertSidToStringSidW")
++	procConvertStringSidToSidW           = modadvapi32.NewProc("ConvertStringSidToSidW")
++	procGetLengthSid                     = modadvapi32.NewProc("GetLengthSid")
++	procCopySid                          = modadvapi32.NewProc("CopySid")
++	procOpenProcessToken                 = modadvapi32.NewProc("OpenProcessToken")
++	procGetTokenInformation              = modadvapi32.NewProc("GetTokenInformation")
++	procGetUserProfileDirectoryW         = moduserenv.NewProc("GetUserProfileDirectoryW")
+ )
+ 
+ func GetLastError() (lasterr error) {
+@@ -1000,6 +1007,19 @@ func CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, err error) {
+ 	return
+ }
+ 
++func CertOpenStore(storeProvider uintptr, msgAndCertEncodingType uint32, cryptProv uintptr, flags uint32, para uintptr) (handle Handle, err error) {
++	r0, _, e1 := Syscall6(procCertOpenStore.Addr(), 5, uintptr(storeProvider), uintptr(msgAndCertEncodingType), uintptr(cryptProv), uintptr(flags), uintptr(para), 0)
++	handle = Handle(r0)
++	if handle == InvalidHandle {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext, err error) {
+ 	r0, _, e1 := Syscall(procCertEnumCertificatesInStore.Addr(), 2, uintptr(store), uintptr(unsafe.Pointer(prevContext)), 0)
+ 	context = (*CertContext)(unsafe.Pointer(r0))
+@@ -1013,6 +1033,18 @@ func CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (contex
+ 	return
+ }
+ 
++func CertAddCertificateContextToStore(store Handle, certContext *CertContext, addDisposition uint32, storeContext **CertContext) (err error) {
++	r1, _, e1 := Syscall6(procCertAddCertificateContextToStore.Addr(), 4, uintptr(store), uintptr(unsafe.Pointer(certContext)), uintptr(addDisposition), uintptr(unsafe.Pointer(storeContext)), 0, 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func CertCloseStore(store Handle, flags uint32) (err error) {
+ 	r1, _, e1 := Syscall(procCertCloseStore.Addr(), 2, uintptr(store), uintptr(flags), 0)
+ 	if int(r1) == 0 {
+@@ -1025,6 +1057,60 @@ func CertCloseStore(store Handle, flags uint32) (err error) {
+ 	return
+ }
+ 
++func CertGetCertificateChain(engine Handle, leaf *CertContext, time *Filetime, additionalStore Handle, para *CertChainPara, flags uint32, reserved uintptr, chainCtx **CertChainContext) (err error) {
++	r1, _, e1 := Syscall9(procCertGetCertificateChain.Addr(), 8, uintptr(engine), uintptr(unsafe.Pointer(leaf)), uintptr(unsafe.Pointer(time)), uintptr(additionalStore), uintptr(unsafe.Pointer(para)), uintptr(flags), uintptr(reserved), uintptr(unsafe.Pointer(chainCtx)), 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func CertFreeCertificateChain(ctx *CertChainContext) {
++	Syscall(procCertFreeCertificateChain.Addr(), 1, uintptr(unsafe.Pointer(ctx)), 0, 0)
++	return
++}
++
++func CertCreateCertificateContext(certEncodingType uint32, certEncoded *byte, encodedLen uint32) (context *CertContext, err error) {
++	r0, _, e1 := Syscall(procCertCreateCertificateContext.Addr(), 3, uintptr(certEncodingType), uintptr(unsafe.Pointer(certEncoded)), uintptr(encodedLen))
++	context = (*CertContext)(unsafe.Pointer(r0))
++	if context == nil {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func CertFreeCertificateContext(ctx *CertContext) (err error) {
++	r1, _, e1 := Syscall(procCertFreeCertificateContext.Addr(), 1, uintptr(unsafe.Pointer(ctx)), 0, 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func CertVerifyCertificateChainPolicy(policyOID uintptr, chain *CertChainContext, para *CertChainPolicyPara, status *CertChainPolicyStatus) (err error) {
++	r1, _, e1 := Syscall6(procCertVerifyCertificateChainPolicy.Addr(), 4, uintptr(policyOID), uintptr(unsafe.Pointer(chain)), uintptr(unsafe.Pointer(para)), uintptr(unsafe.Pointer(status)), 0, 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func RegOpenKeyEx(key Handle, subkey *uint16, options uint32, desiredAccess uint32, result *Handle) (regerrno error) {
+ 	r0, _, _ := Syscall6(procRegOpenKeyExW.Addr(), 5, uintptr(key), uintptr(unsafe.Pointer(subkey)), uintptr(options), uintptr(desiredAccess), uintptr(unsafe.Pointer(result)), 0)
+ 	if r0 != 0 {
+diff --git a/src/pkg/syscall/zsyscall_windows_amd64.go b/src/pkg/syscall/zsyscall_windows_amd64.go
+index 9d9990d101..1ffa1c7ff9 100644
+--- a/src/pkg/syscall/zsyscall_windows_amd64.go
++++ b/src/pkg/syscall/zsyscall_windows_amd64.go
+@@ -18,121 +18,128 @@ var (
+ 	modnetapi32 = NewLazyDLL("netapi32.dll")
+ 	moduserenv  = NewLazyDLL("userenv.dll")
+ 
+-	procGetLastError                = modkernel32.NewProc("GetLastError")
+-	procLoadLibraryW                = modkernel32.NewProc("LoadLibraryW")
+-	procFreeLibrary                 = modkernel32.NewProc("FreeLibrary")
+-	procGetProcAddress              = modkernel32.NewProc("GetProcAddress")
+-	procGetVersion                  = modkernel32.NewProc("GetVersion")
+-	procFormatMessageW              = modkernel32.NewProc("FormatMessageW")
+-	procExitProcess                 = modkernel32.NewProc("ExitProcess")
+-	procCreateFileW                 = modkernel32.NewProc("CreateFileW")
+-	procReadFile                    = modkernel32.NewProc("ReadFile")
+-	procWriteFile                   = modkernel32.NewProc("WriteFile")
+-	procSetFilePointer              = modkernel32.NewProc("SetFilePointer")
+-	procCloseHandle                 = modkernel32.NewProc("CloseHandle")
+-	procGetStdHandle                = modkernel32.NewProc("GetStdHandle")
+-	procFindFirstFileW              = modkernel32.NewProc("FindFirstFileW")
+-	procFindNextFileW               = modkernel32.NewProc("FindNextFileW")
+-	procFindClose                   = modkernel32.NewProc("FindClose")
+-	procGetFileInformationByHandle  = modkernel32.NewProc("GetFileInformationByHandle")
+-	procGetCurrentDirectoryW        = modkernel32.NewProc("GetCurrentDirectoryW")
+-	procSetCurrentDirectoryW        = modkernel32.NewProc("SetCurrentDirectoryW")
+-	procCreateDirectoryW            = modkernel32.NewProc("CreateDirectoryW")
+-	procRemoveDirectoryW            = modkernel32.NewProc("RemoveDirectoryW")
+-	procDeleteFileW                 = modkernel32.NewProc("DeleteFileW")
+-	procMoveFileW                   = modkernel32.NewProc("MoveFileW")
+-	procGetComputerNameW            = modkernel32.NewProc("GetComputerNameW")
+-	procSetEndOfFile                = modkernel32.NewProc("SetEndOfFile")
+-	procGetSystemTimeAsFileTime     = modkernel32.NewProc("GetSystemTimeAsFileTime")
+-	procGetTimeZoneInformation      = modkernel32.NewProc("GetTimeZoneInformation")
+-	procCreateIoCompletionPort      = modkernel32.NewProc("CreateIoCompletionPort")
+-	procGetQueuedCompletionStatus   = modkernel32.NewProc("GetQueuedCompletionStatus")
+-	procPostQueuedCompletionStatus  = modkernel32.NewProc("PostQueuedCompletionStatus")
+-	procCancelIo                    = modkernel32.NewProc("CancelIo")
+-	procCreateProcessW              = modkernel32.NewProc("CreateProcessW")
+-	procOpenProcess                 = modkernel32.NewProc("OpenProcess")
+-	procTerminateProcess            = modkernel32.NewProc("TerminateProcess")
+-	procGetExitCodeProcess          = modkernel32.NewProc("GetExitCodeProcess")
+-	procGetStartupInfoW             = modkernel32.NewProc("GetStartupInfoW")
+-	procGetCurrentProcess           = modkernel32.NewProc("GetCurrentProcess")
+-	procGetProcessTimes             = modkernel32.NewProc("GetProcessTimes")
+-	procDuplicateHandle             = modkernel32.NewProc("DuplicateHandle")
+-	procWaitForSingleObject         = modkernel32.NewProc("WaitForSingleObject")
+-	procGetTempPathW                = modkernel32.NewProc("GetTempPathW")
+-	procCreatePipe                  = modkernel32.NewProc("CreatePipe")
+-	procGetFileType                 = modkernel32.NewProc("GetFileType")
+-	procCryptAcquireContextW        = modadvapi32.NewProc("CryptAcquireContextW")
+-	procCryptReleaseContext         = modadvapi32.NewProc("CryptReleaseContext")
+-	procCryptGenRandom              = modadvapi32.NewProc("CryptGenRandom")
+-	procGetEnvironmentStringsW      = modkernel32.NewProc("GetEnvironmentStringsW")
+-	procFreeEnvironmentStringsW     = modkernel32.NewProc("FreeEnvironmentStringsW")
+-	procGetEnvironmentVariableW     = modkernel32.NewProc("GetEnvironmentVariableW")
+-	procSetEnvironmentVariableW     = modkernel32.NewProc("SetEnvironmentVariableW")
+-	procSetFileTime                 = modkernel32.NewProc("SetFileTime")
+-	procGetFileAttributesW          = modkernel32.NewProc("GetFileAttributesW")
+-	procSetFileAttributesW          = modkernel32.NewProc("SetFileAttributesW")
+-	procGetFileAttributesExW        = modkernel32.NewProc("GetFileAttributesExW")
+-	procGetCommandLineW             = modkernel32.NewProc("GetCommandLineW")
+-	procCommandLineToArgvW          = modshell32.NewProc("CommandLineToArgvW")
+-	procLocalFree                   = modkernel32.NewProc("LocalFree")
+-	procSetHandleInformation        = modkernel32.NewProc("SetHandleInformation")
+-	procFlushFileBuffers            = modkernel32.NewProc("FlushFileBuffers")
+-	procGetFullPathNameW            = modkernel32.NewProc("GetFullPathNameW")
+-	procCreateFileMappingW          = modkernel32.NewProc("CreateFileMappingW")
+-	procMapViewOfFile               = modkernel32.NewProc("MapViewOfFile")
+-	procUnmapViewOfFile             = modkernel32.NewProc("UnmapViewOfFile")
+-	procFlushViewOfFile             = modkernel32.NewProc("FlushViewOfFile")
+-	procVirtualLock                 = modkernel32.NewProc("VirtualLock")
+-	procVirtualUnlock               = modkernel32.NewProc("VirtualUnlock")
+-	procTransmitFile                = modmswsock.NewProc("TransmitFile")
+-	procReadDirectoryChangesW       = modkernel32.NewProc("ReadDirectoryChangesW")
+-	procCertOpenSystemStoreW        = modcrypt32.NewProc("CertOpenSystemStoreW")
+-	procCertEnumCertificatesInStore = modcrypt32.NewProc("CertEnumCertificatesInStore")
+-	procCertCloseStore              = modcrypt32.NewProc("CertCloseStore")
+-	procRegOpenKeyExW               = modadvapi32.NewProc("RegOpenKeyExW")
+-	procRegCloseKey                 = modadvapi32.NewProc("RegCloseKey")
+-	procRegQueryInfoKeyW            = modadvapi32.NewProc("RegQueryInfoKeyW")
+-	procRegEnumKeyExW               = modadvapi32.NewProc("RegEnumKeyExW")
+-	procRegQueryValueExW            = modadvapi32.NewProc("RegQueryValueExW")
+-	procWSAStartup                  = modws2_32.NewProc("WSAStartup")
+-	procWSACleanup                  = modws2_32.NewProc("WSACleanup")
+-	procWSAIoctl                    = modws2_32.NewProc("WSAIoctl")
+-	procsocket                      = modws2_32.NewProc("socket")
+-	procsetsockopt                  = modws2_32.NewProc("setsockopt")
+-	procbind                        = modws2_32.NewProc("bind")
+-	procconnect                     = modws2_32.NewProc("connect")
+-	procgetsockname                 = modws2_32.NewProc("getsockname")
+-	procgetpeername                 = modws2_32.NewProc("getpeername")
+-	proclisten                      = modws2_32.NewProc("listen")
+-	procshutdown                    = modws2_32.NewProc("shutdown")
+-	procclosesocket                 = modws2_32.NewProc("closesocket")
+-	procAcceptEx                    = modmswsock.NewProc("AcceptEx")
+-	procGetAcceptExSockaddrs        = modmswsock.NewProc("GetAcceptExSockaddrs")
+-	procWSARecv                     = modws2_32.NewProc("WSARecv")
+-	procWSASend                     = modws2_32.NewProc("WSASend")
+-	procWSARecvFrom                 = modws2_32.NewProc("WSARecvFrom")
+-	procWSASendTo                   = modws2_32.NewProc("WSASendTo")
+-	procgethostbyname               = modws2_32.NewProc("gethostbyname")
+-	procgetservbyname               = modws2_32.NewProc("getservbyname")
+-	procntohs                       = modws2_32.NewProc("ntohs")
+-	procgetprotobyname              = modws2_32.NewProc("getprotobyname")
+-	procDnsQuery_W                  = moddnsapi.NewProc("DnsQuery_W")
+-	procDnsRecordListFree           = moddnsapi.NewProc("DnsRecordListFree")
+-	procGetIfEntry                  = modiphlpapi.NewProc("GetIfEntry")
+-	procGetAdaptersInfo             = modiphlpapi.NewProc("GetAdaptersInfo")
+-	procTranslateNameW              = modsecur32.NewProc("TranslateNameW")
+-	procGetUserNameExW              = modsecur32.NewProc("GetUserNameExW")
+-	procNetUserGetInfo              = modnetapi32.NewProc("NetUserGetInfo")
+-	procNetApiBufferFree            = modnetapi32.NewProc("NetApiBufferFree")
+-	procLookupAccountSidW           = modadvapi32.NewProc("LookupAccountSidW")
+-	procLookupAccountNameW          = modadvapi32.NewProc("LookupAccountNameW")
+-	procConvertSidToStringSidW      = modadvapi32.NewProc("ConvertSidToStringSidW")
+-	procConvertStringSidToSidW      = modadvapi32.NewProc("ConvertStringSidToSidW")
+-	procGetLengthSid                = modadvapi32.NewProc("GetLengthSid")
+-	procCopySid                     = modadvapi32.NewProc("CopySid")
+-	procOpenProcessToken            = modadvapi32.NewProc("OpenProcessToken")
+-	procGetTokenInformation         = modadvapi32.NewProc("GetTokenInformation")
+-	procGetUserProfileDirectoryW    = moduserenv.NewProc("GetUserProfileDirectoryW")
++	procGetLastError                     = modkernel32.NewProc("GetLastError")
++	procLoadLibraryW                     = modkernel32.NewProc("LoadLibraryW")
++	procFreeLibrary                      = modkernel32.NewProc("FreeLibrary")
++	procGetProcAddress                   = modkernel32.NewProc("GetProcAddress")
++	procGetVersion                       = modkernel32.NewProc("GetVersion")
++	procFormatMessageW                   = modkernel32.NewProc("FormatMessageW")
++	procExitProcess                      = modkernel32.NewProc("ExitProcess")
++	procCreateFileW                      = modkernel32.NewProc("CreateFileW")
++	procReadFile                         = modkernel32.NewProc("ReadFile")
++	procWriteFile                        = modkernel32.NewProc("WriteFile")
++	procSetFilePointer                   = modkernel32.NewProc("SetFilePointer")
++	procCloseHandle                      = modkernel32.NewProc("CloseHandle")
++	procGetStdHandle                     = modkernel32.NewProc("GetStdHandle")
++	procFindFirstFileW                   = modkernel32.NewProc("FindFirstFileW")
++	procFindNextFileW                    = modkernel32.NewProc("FindNextFileW")
++	procFindClose                        = modkernel32.NewProc("FindClose")
++	procGetFileInformationByHandle       = modkernel32.NewProc("GetFileInformationByHandle")
++	procGetCurrentDirectoryW             = modkernel32.NewProc("GetCurrentDirectoryW")
++	procSetCurrentDirectoryW             = modkernel32.NewProc("SetCurrentDirectoryW")
++	procCreateDirectoryW                 = modkernel32.NewProc("CreateDirectoryW")
++	procRemoveDirectoryW                 = modkernel32.NewProc("RemoveDirectoryW")
++	procDeleteFileW                      = modkernel32.NewProc("DeleteFileW")
++	procMoveFileW                        = modkernel32.NewProc("MoveFileW")
++	procGetComputerNameW                 = modkernel32.NewProc("GetComputerNameW")
++	procSetEndOfFile                     = modkernel32.NewProc("SetEndOfFile")
++	procGetSystemTimeAsFileTime          = modkernel32.NewProc("GetSystemTimeAsFileTime")
++	procGetTimeZoneInformation           = modkernel32.NewProc("GetTimeZoneInformation")
++	procCreateIoCompletionPort           = modkernel32.NewProc("CreateIoCompletionPort")
++	procGetQueuedCompletionStatus        = modkernel32.NewProc("GetQueuedCompletionStatus")
++	procPostQueuedCompletionStatus       = modkernel32.NewProc("PostQueuedCompletionStatus")
++	procCancelIo                         = modkernel32.NewProc("CancelIo")
++	procCreateProcessW                   = modkernel32.NewProc("CreateProcessW")
++	procOpenProcess                      = modkernel32.NewProc("OpenProcess")
++	procTerminateProcess                 = modkernel32.NewProc("TerminateProcess")
++	procGetExitCodeProcess               = modkernel32.NewProc("GetExitCodeProcess")
++	procGetStartupInfoW                  = modkernel32.NewProc("GetStartupInfoW")
++	procGetCurrentProcess                = modkernel32.NewProc("GetCurrentProcess")
++	procGetProcessTimes                  = modkernel32.NewProc("GetProcessTimes")
++	procDuplicateHandle                  = modkernel32.NewProc("DuplicateHandle")
++	procWaitForSingleObject              = modkernel32.NewProc("WaitForSingleObject")
++	procGetTempPathW                     = modkernel32.NewProc("GetTempPathW")
++	procCreatePipe                       = modkernel32.NewProc("CreatePipe")
++	procGetFileType                      = modkernel32.NewProc("GetFileType")
++	procCryptAcquireContextW             = modadvapi32.NewProc("CryptAcquireContextW")
++	procCryptReleaseContext              = modadvapi32.NewProc("CryptReleaseContext")
++	procCryptGenRandom                   = modadvapi32.NewProc("CryptGenRandom")
++	procGetEnvironmentStringsW           = modkernel32.NewProc("GetEnvironmentStringsW")
++	procFreeEnvironmentStringsW          = modkernel32.NewProc("FreeEnvironmentStringsW")
++	procGetEnvironmentVariableW          = modkernel32.NewProc("GetEnvironmentVariableW")
++	procSetEnvironmentVariableW          = modkernel32.NewProc("SetEnvironmentVariableW")
++	procSetFileTime                      = modkernel32.NewProc("SetFileTime")
++	procGetFileAttributesW               = modkernel32.NewProc("GetFileAttributesW")
++	procSetFileAttributesW               = modkernel32.NewProc("SetFileAttributesW")
++	procGetFileAttributesExW             = modkernel32.NewProc("GetFileAttributesExW")
++	procGetCommandLineW                  = modkernel32.NewProc("GetCommandLineW")
++	procCommandLineToArgvW               = modshell32.NewProc("CommandLineToArgvW")
++	procLocalFree                        = modkernel32.NewProc("LocalFree")
++	procSetHandleInformation             = modkernel32.NewProc("SetHandleInformation")
++	procFlushFileBuffers                 = modkernel32.NewProc("FlushFileBuffers")
++	procGetFullPathNameW                 = modkernel32.NewProc("GetFullPathNameW")
++	procCreateFileMappingW               = modkernel32.NewProc("CreateFileMappingW")
++	procMapViewOfFile                    = modkernel32.NewProc("MapViewOfFile")
++	procUnmapViewOfFile                  = modkernel32.NewProc("UnmapViewOfFile")
++	procFlushViewOfFile                  = modkernel32.NewProc("FlushViewOfFile")
++	procVirtualLock                      = modkernel32.NewProc("VirtualLock")
++	procVirtualUnlock                    = modkernel32.NewProc("VirtualUnlock")
++	procTransmitFile                     = modmswsock.NewProc("TransmitFile")
++	procReadDirectoryChangesW            = modkernel32.NewProc("ReadDirectoryChangesW")
++	procCertOpenSystemStoreW             = modcrypt32.NewProc("CertOpenSystemStoreW")
++	procCertOpenStore                    = modcrypt32.NewProc("CertOpenStore")
++	procCertEnumCertificatesInStore      = modcrypt32.NewProc("CertEnumCertificatesInStore")
++	procCertAddCertificateContextToStore = modcrypt32.NewProc("CertAddCertificateContextToStore")
++	procCertCloseStore                   = modcrypt32.NewProc("CertCloseStore")
++	procCertGetCertificateChain          = modcrypt32.NewProc("CertGetCertificateChain")
++	procCertFreeCertificateChain         = modcrypt32.NewProc("CertFreeCertificateChain")
++	procCertCreateCertificateContext     = modcrypt32.NewProc("CertCreateCertificateContext")
++	procCertFreeCertificateContext       = modcrypt32.NewProc("CertFreeCertificateContext")
++	procCertVerifyCertificateChainPolicy = modcrypt32.NewProc("CertVerifyCertificateChainPolicy")
++	procRegOpenKeyExW                    = modadvapi32.NewProc("RegOpenKeyExW")
++	procRegCloseKey                      = modadvapi32.NewProc("RegCloseKey")
++	procRegQueryInfoKeyW                 = modadvapi32.NewProc("RegQueryInfoKeyW")
++	procRegEnumKeyExW                    = modadvapi32.NewProc("RegEnumKeyExW")
++	procRegQueryValueExW                 = modadvapi32.NewProc("RegQueryValueExW")
++	procWSAStartup                       = modws2_32.NewProc("WSAStartup")
++	procWSACleanup                       = modws2_32.NewProc("WSACleanup")
++	procWSAIoctl                         = modws2_32.NewProc("WSAIoctl")
++	procsocket                           = modws2_32.NewProc("socket")
++	procsetsockopt                       = modws2_32.NewProc("setsockopt")
++	procbind                             = modws2_32.NewProc("bind")
++	procconnect                          = modws2_32.NewProc("connect")
++	procgetsockname                      = modws2_32.NewProc("getsockname")
++	procgetpeername                      = modws2_32.NewProc("getpeername")
++	proclisten                           = modws2_32.NewProc("listen")
++	procshutdown                         = modws2_32.NewProc("shutdown")
++	procclosesocket                      = modws2_32.NewProc("closesocket")
++	procAcceptEx                         = modmswsock.NewProc("AcceptEx")
++	procGetAcceptExSockaddrs             = modmswsock.NewProc("GetAcceptExSockaddrs")
++	procWSARecv                          = modws2_32.NewProc("WSARecv")
++	procWSASend                          = modws2_32.NewProc("WSASend")
++	procWSARecvFrom                      = modws2_32.NewProc("WSARecvFrom")
++	procWSASendTo                        = modws2_32.NewProc("WSASendTo")
++	procgethostbyname                    = modws2_32.NewProc("gethostbyname")
++	procgetservbyname                    = modws2_32.NewProc("getservbyname")
++	procntohs                            = modws2_32.NewProc("ntohs")
++	procgetprotobyname                   = modws2_32.NewProc("getprotobyname")
++	procDnsQuery_W                       = moddnsapi.NewProc("DnsQuery_W")
++	procDnsRecordListFree                = moddnsapi.NewProc("DnsRecordListFree")
++	procGetIfEntry                       = modiphlpapi.NewProc("GetIfEntry")
++	procGetAdaptersInfo                  = modiphlpapi.NewProc("GetAdaptersInfo")
++	procTranslateNameW                   = modsecur32.NewProc("TranslateNameW")
++	procGetUserNameExW                   = modsecur32.NewProc("GetUserNameExW")
++	procNetUserGetInfo                   = modnetapi32.NewProc("NetUserGetInfo")
++	procNetApiBufferFree                 = modnetapi32.NewProc("NetApiBufferFree")
++	procLookupAccountSidW                = modadvapi32.NewProc("LookupAccountSidW")
++	procLookupAccountNameW               = modadvapi32.NewProc("LookupAccountNameW")
++	procConvertSidToStringSidW           = modadvapi32.NewProc("ConvertSidToStringSidW")
++	procConvertStringSidToSidW           = modadvapi32.NewProc("ConvertStringSidToSidW")
++	procGetLengthSid                     = modadvapi32.NewProc("GetLengthSid")
++	procCopySid                          = modadvapi32.NewProc("CopySid")
++	procOpenProcessToken                 = modadvapi32.NewProc("OpenProcessToken")
++	procGetTokenInformation              = modadvapi32.NewProc("GetTokenInformation")
++	procGetUserProfileDirectoryW         = moduserenv.NewProc("GetUserProfileDirectoryW")
+ )
+ 
+ func GetLastError() (lasterr error) {
+@@ -1000,6 +1007,19 @@ func CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, err error) {
+ 	return
+ }
+ 
++func CertOpenStore(storeProvider uintptr, msgAndCertEncodingType uint32, cryptProv uintptr, flags uint32, para uintptr) (handle Handle, err error) {
++	r0, _, e1 := Syscall6(procCertOpenStore.Addr(), 5, uintptr(storeProvider), uintptr(msgAndCertEncodingType), uintptr(cryptProv), uintptr(flags), uintptr(para), 0)
++	handle = Handle(r0)
++	if handle == InvalidHandle {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext, err error) {
+ 	r0, _, e1 := Syscall(procCertEnumCertificatesInStore.Addr(), 2, uintptr(store), uintptr(unsafe.Pointer(prevContext)), 0)
+ 	context = (*CertContext)(unsafe.Pointer(r0))
+@@ -1013,6 +1033,18 @@ func CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (contex
+ 	return
+ }
+ 
++func CertAddCertificateContextToStore(store Handle, certContext *CertContext, addDisposition uint32, storeContext **CertContext) (err error) {
++	r1, _, e1 := Syscall6(procCertAddCertificateContextToStore.Addr(), 4, uintptr(store), uintptr(unsafe.Pointer(certContext)), uintptr(addDisposition), uintptr(unsafe.Pointer(storeContext)), 0, 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func CertCloseStore(store Handle, flags uint32) (err error) {
+ 	r1, _, e1 := Syscall(procCertCloseStore.Addr(), 2, uintptr(store), uintptr(flags), 0)
+ 	if int(r1) == 0 {
+@@ -1025,6 +1057,60 @@ func CertCloseStore(store Handle, flags uint32) (err error) {
+ 	return
+ }
+ 
++func CertGetCertificateChain(engine Handle, leaf *CertContext, time *Filetime, additionalStore Handle, para *CertChainPara, flags uint32, reserved uintptr, chainCtx **CertChainContext) (err error) {
++	r1, _, e1 := Syscall9(procCertGetCertificateChain.Addr(), 8, uintptr(engine), uintptr(unsafe.Pointer(leaf)), uintptr(unsafe.Pointer(time)), uintptr(additionalStore), uintptr(unsafe.Pointer(para)), uintptr(flags), uintptr(reserved), uintptr(unsafe.Pointer(chainCtx)), 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func CertFreeCertificateChain(ctx *CertChainContext) {
++	Syscall(procCertFreeCertificateChain.Addr(), 1, uintptr(unsafe.Pointer(ctx)), 0, 0)
++	return
++}
++
++func CertCreateCertificateContext(certEncodingType uint32, certEncoded *byte, encodedLen uint32) (context *CertContext, err error) {
++	r0, _, e1 := Syscall(procCertCreateCertificateContext.Addr(), 3, uintptr(certEncodingType), uintptr(unsafe.Pointer(certEncoded)), uintptr(encodedLen))
++	context = (*CertContext)(unsafe.Pointer(r0))
++	if context == nil {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func CertFreeCertificateContext(ctx *CertContext) (err error) {
++	r1, _, e1 := Syscall(procCertFreeCertificateContext.Addr(), 1, uintptr(unsafe.Pointer(ctx)), 0, 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func CertVerifyCertificateChainPolicy(policyOID uintptr, chain *CertChainContext, para *CertChainPolicyPara, status *CertChainPolicyStatus) (err error) {
++	r1, _, e1 := Syscall6(procCertVerifyCertificateChainPolicy.Addr(), 4, uintptr(policyOID), uintptr(unsafe.Pointer(chain)), uintptr(unsafe.Pointer(para)), uintptr(unsafe.Pointer(status)), 0, 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func RegOpenKeyEx(key Handle, subkey *uint16, options uint32, desiredAccess uint32, result *Handle) (regerrno error) {
+ 	r0, _, _ := Syscall6(procRegOpenKeyExW.Addr(), 5, uintptr(key), uintptr(unsafe.Pointer(subkey)), uintptr(options), uintptr(desiredAccess), uintptr(unsafe.Pointer(result)), 0)
+ 	if r0 != 0 {
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index e4881e561f..0b65293edb 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -208,6 +208,61 @@ const (
+ 	CRYPT_MACHINE_KEYSET             = 0x00000020
+ 	CRYPT_SILENT                     = 0x00000040
+ 	CRYPT_DEFAULT_CONTAINER_OPTIONAL = 0x00000080
++
++	USAGE_MATCH_TYPE_AND = 0
++	USAGE_MATCH_TYPE_OR  = 1
++
++	X509_ASN_ENCODING   = 0x00000001
++	PKCS_7_ASN_ENCODING = 0x00010000
++
++	CERT_STORE_PROV_MEMORY = 2
++
++	CERT_STORE_ADD_ALWAYS = 4
++
++	CERT_STORE_DEFER_CLOSE_UNTIL_LAST_FREE_FLAG = 0x00000004
++
++	CERT_TRUST_NO_ERROR                          = 0x00000000
++	CERT_TRUST_IS_NOT_TIME_VALID                 = 0x00000001
++	CERT_TRUST_IS_REVOKED                        = 0x00000004
++	CERT_TRUST_IS_NOT_SIGNATURE_VALID            = 0x00000008
++	CERT_TRUST_IS_NOT_VALID_FOR_USAGE            = 0x00000010
++	CERT_TRUST_IS_UNTRUSTED_ROOT                 = 0x00000020
++	CERT_TRUST_REVOCATION_STATUS_UNKNOWN         = 0x00000040
++	CERT_TRUST_IS_CYCLIC                         = 0x00000080
++	CERT_TRUST_INVALID_EXTENSION                 = 0x00000100
++	CERT_TRUST_INVALID_POLICY_CONSTRAINTS        = 0x00000200
++	CERT_TRUST_INVALID_BASIC_CONSTRAINTS         = 0x00000400
++	CERT_TRUST_INVALID_NAME_CONSTRAINTS          = 0x00000800
++	CERT_TRUST_HAS_NOT_SUPPORTED_NAME_CONSTRAINT = 0x00001000
++	CERT_TRUST_HAS_NOT_DEFINED_NAME_CONSTRAINT   = 0x00002000
++	CERT_TRUST_HAS_NOT_PERMITTED_NAME_CONSTRAINT = 0x00004000
++	CERT_TRUST_HAS_EXCLUDED_NAME_CONSTRAINT      = 0x00008000
++	CERT_TRUST_IS_OFFLINE_REVOCATION             = 0x01000000
++	CERT_TRUST_NO_ISSUANCE_CHAIN_POLICY          = 0x02000000
++	CERT_TRUST_IS_EXPLICIT_DISTRUST              = 0x04000000
++	CERT_TRUST_HAS_NOT_SUPPORTED_CRITICAL_EXT    = 0x08000000
++
++	CERT_CHAIN_POLICY_BASE              = 1
++	CERT_CHAIN_POLICY_AUTHENTICODE      = 2
++	CERT_CHAIN_POLICY_AUTHENTICODE_TS   = 3
++	CERT_CHAIN_POLICY_SSL               = 4
++	CERT_CHAIN_POLICY_BASIC_CONSTRAINTS = 5
++	CERT_CHAIN_POLICY_NT_AUTH           = 6
++	CERT_CHAIN_POLICY_MICROSOFT_ROOT    = 7
++	CERT_CHAIN_POLICY_EV                = 8
++
++	CERT_E_EXPIRED       = 0x800B0101
++	CERT_E_ROLE          = 0x800B0103
++	CERT_E_PURPOSE       = 0x800B0106
++	CERT_E_UNTRUSTEDROOT = 0x800B0109
++	CERT_E_CN_NO_MATCH   = 0x800B010F
++
++	AUTHTYPE_CLIENT = 1
++	AUTHTYPE_SERVER = 2
++)
++
++var (
++	OID_PKIX_KP_SERVER_AUTH = []byte("1.3.6.1.5.5.7.3.1" + string([]byte{0}))
+ )
+ 
+ // Invented values to support what package os expects.
+@@ -702,6 +757,93 @@ type CertContext struct {
+ 	Store        Handle
+ }
+ 
++type CertChainContext struct {
++	Size                       uint32
++	TrustStatus                CertTrustStatus
++	ChainCount                 uint32
++	Chains                     **CertSimpleChain
++	LowerQualityChainCount     uint32
++	LowerQualityChains         **CertChainContext
++	HasRevocationFreshnessTime uint32
++	RevocationFreshnessTime    uint32
++}
++
++type CertSimpleChain struct {
++	Size                       uint32
++	TrustStatus                CertTrustStatus
++	NumElements                uint32
++	Elements                   **CertChainElement
++	TrustListInfo              uintptr
++	HasRevocationFreshnessTime uint32
++	RevocationFreshnessTime    uint32
++}
++
++type CertChainElement struct {
++	Size              uint32
++	CertContext       *CertContext
++	TrustStatus       CertTrustStatus
++	RevocationInfo    *CertRevocationInfo
++	IssuanceUsage     *CertEnhKeyUsage
++	ApplicationUsage  *CertEnhKeyUsage
++	ExtendedErrorInfo *uint16
++}
++
++type CertRevocationInfo struct {
++	Size             uint32
++	RevocationResult uint32
++	RevocationOid    *byte
++	OidSpecificInfo  uintptr
++	HasFreshnessTime uint32
++	FreshnessTime    uint32
++	CrlInfo          uintptr // *CertRevocationCrlInfo
++}
++
++type CertTrustStatus struct {
++	ErrorStatus uint32
++	InfoStatus  uint32
++}
++
++type CertUsageMatch struct {
++	Type  uint32
++	Usage CertEnhKeyUsage
++}
++
++type CertEnhKeyUsage struct {
++	Length           uint32
++	UsageIdentifiers **byte
++}
++
++type CertChainPara struct {
++	Size                         uint32
++	RequestedUsage               CertUsageMatch
++	RequstedIssuancePolicy       CertUsageMatch
++	URLRetrievalTimeout          uint32
++	CheckRevocationFreshnessTime uint32
++	RevocationFreshnessTime      uint32
++	CacheResync                  *Filetime
++}
++
++type CertChainPolicyPara struct {
++	Size            uint32
++	Flags           uint32
++	ExtraPolicyPara uintptr
++}
++
++type SSLExtraCertChainPolicyPara struct {
++	Size       uint32
++	AuthType   uint32
++	Checks     uint32
++	ServerName *uint16
++}
++
++type CertChainPolicyStatus struct {
++	Size              uint32
++	Error             uint32
++	ChainIndex        uint32
++	ElementIndex      uint32
++	ExtraPolicyStatus uintptr
++}
++
+ const (
+ 	// do not reorder
+ 	HKEY_CLASSES_ROOT = 0x80000000 + iota

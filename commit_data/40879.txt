@@ -13,7 +13,41 @@ Date:   Wed Jul 31 03:46:15 2019 +0000
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/version/exe.go     | 5 +++++
  src/cmd/go/testdata/script/version.txt | 7 +++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/go/internal/version/exe.go b/src/cmd/go/internal/version/exe.go
+index 55da960c02..528433e325 100644
+--- a/src/cmd/go/internal/version/exe.go
++++ b/src/cmd/go/internal/version/exe.go
+@@ -103,6 +103,11 @@ func (x *elfExe) ReadData(addr, size uint64) ([]byte, error) {
+ }
+ 
+ func (x *elfExe) DataStart() uint64 {
++	for _, s := range x.f.Sections {
++		if s.Name == ".go.buildinfo" {
++			return s.Addr
++		}
++	}
+ 	for _, p := range x.f.Progs {
+ 		if p.Type == elf.PT_LOAD && p.Flags&(elf.PF_X|elf.PF_W) == elf.PF_W {
+ 			return p.Vaddr
+diff --git a/src/cmd/go/testdata/script/version.txt b/src/cmd/go/testdata/script/version.txt
+index cb4881f7a7..9086f047e4 100644
+--- a/src/cmd/go/testdata/script/version.txt
++++ b/src/cmd/go/testdata/script/version.txt
+@@ -8,5 +8,12 @@ go version -m fortune.exe
+ stdout '^\tpath\trsc.io/fortune'
+ stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+ 
++go build -buildmode=pie -o external.exe rsc.io/fortune
++go version external.exe
++stdout '^external.exe: .+'
++go version -m external.exe
++stdout '^\tpath\trsc.io/fortune'
++stdout '^\tmod\trsc.io/fortune\tv1.0.0'
++
+ -- go.mod --
+ module m

@@ -12,8 +12,159 @@ Date:   Fri Nov 11 15:01:58 2016 -0500
     Reviewed-on: https://go-review.googlesource.com/33148
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/go/build/deps_test.go       |  2 +-
  src/runtime/pprof/pprof.go      | 46 ++++++++++++++++++++++++++---------------
  src/runtime/pprof/pprof_test.go | 40 ++++++++++++++++++++++++++++++++++-
  3 files changed, 69 insertions(+), 19 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 4036e3b705..e6f228852b 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -175,7 +175,7 @@ var pkgDeps = map[string][]string{
+ 	"regexp/syntax":                     {"L2"},
+ 	"runtime/debug":                     {"L2", "fmt", "io/ioutil", "os", "time"},
+ 	"runtime/pprof/internal/protopprof": {"L2", "fmt", "internal/pprof/profile", "os", "time"},
+-	"runtime/pprof":                     {"L2", "fmt", "os", "runtime/pprof/internal/protopprof", "text/tabwriter", "time"},
++	"runtime/pprof":                     {"L2", "fmt", "internal/pprof/profile", "os", "runtime/pprof/internal/protopprof", "text/tabwriter", "time"},
+ 	"runtime/trace":                     {"L0"},
+ 	"text/tabwriter":                    {"L2"},
+ 
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 70544acde1..8efa19434b 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -73,6 +73,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"fmt"
++	"internal/pprof/profile"
+ 	"io"
+ 	"runtime"
+ 	"runtime/pprof/internal/protopprof"
+@@ -340,17 +341,8 @@ type countProfile interface {
+ }
+ 
+ // printCountProfile prints a countProfile at the specified debug level.
++// The profile will be in compressed proto format unless debug is nonzero.
+ func printCountProfile(w io.Writer, debug int, name string, p countProfile) error {
+-	b := bufio.NewWriter(w)
+-	var tw *tabwriter.Writer
+-	w = b
+-	if debug > 0 {
+-		tw = tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
+-		w = tw
+-	}
+-
+-	fmt.Fprintf(w, "%s profile: total %d\n", name, p.Len())
+-
+ 	// Build count of each stack.
+ 	var buf bytes.Buffer
+ 	key := func(stk []uintptr) string {
+@@ -376,17 +368,37 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
+ 
+ 	sort.Sort(&keysByCount{keys, count})
+ 
+-	for _, k := range keys {
+-		fmt.Fprintf(w, "%d %s\n", count[k], k)
+-		if debug > 0 {
+-			printStackRecord(w, p.Stack(index[k]), false)
++	if debug > 0 {
++		// Print debug profile in legacy format
++		tw := tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
++		fmt.Fprintf(tw, "%s profile: total %d\n", name, p.Len())
++		for _, k := range keys {
++			fmt.Fprintf(tw, "%d %s\n", count[k], k)
++			printStackRecord(tw, p.Stack(index[k]), false)
+ 		}
++		return tw.Flush()
+ 	}
+ 
+-	if tw != nil {
+-		tw.Flush()
++	// Output profile in protobuf form.
++	prof := &profile.Profile{
++		PeriodType: &profile.ValueType{Type: name, Unit: "count"},
++		Period:     1,
++		Sample:     make([]*profile.Sample, 0, len(keys)),
++		SampleType: []*profile.ValueType{{Type: name, Unit: "count"}},
+ 	}
+-	return b.Flush()
++	for _, k := range keys {
++		stk := p.Stack(index[k])
++		c := count[k]
++		locs := make([]*profile.Location, len(stk))
++		for i, addr := range stk {
++			locs[i] = &profile.Location{Address: uint64(addr) - 1}
++		}
++		prof.Sample = append(prof.Sample, &profile.Sample{
++			Location: locs,
++			Value:    []int64{int64(c)},
++		})
++	}
++	return prof.Write(w)
+ }
+ 
+ // keysByCount sorts keys with higher counts first, breaking ties by key string order.
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 47c29d0688..fd06607805 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -679,13 +679,31 @@ func TestGoroutineCounts(t *testing.T) {
+ 	time.Sleep(10 * time.Millisecond) // let goroutines block on channel
+ 
+ 	var w bytes.Buffer
+-	Lookup("goroutine").WriteTo(&w, 1)
++	goroutineProf := Lookup("goroutine")
++
++	// Check debug profile
++	goroutineProf.WriteTo(&w, 1)
+ 	prof := w.String()
+ 
+ 	if !containsInOrder(prof, "\n50 @ ", "\n40 @", "\n10 @", "\n1 @") {
+ 		t.Errorf("expected sorted goroutine counts:\n%s", prof)
+ 	}
+ 
++	// Check proto profile
++	w.Reset()
++	goroutineProf.WriteTo(&w, 0)
++	p, err := profile.Parse(&w)
++	if err != nil {
++		t.Errorf("error parsing protobuf profile: %v", err)
++	}
++	if err := p.CheckValid(); err != nil {
++		t.Errorf("protobuf profile is invalid: %v", err)
++	}
++	if !containsCounts(p, []int64{50, 40, 10, 1}) {
++		t.Errorf("expected count profile to contain goroutines with counts %v, got %v",
++			[]int64{50, 40, 10, 1}, p)
++	}
++
+ 	close(c)
+ 
+ 	time.Sleep(10 * time.Millisecond) // let goroutines exit
+@@ -701,3 +719,23 @@ func containsInOrder(s string, all ...string) bool {
+ 	}
+ 	return true
+ }
++
++func containsCounts(prof *profile.Profile, counts []int64) bool {
++	m := make(map[int64]int)
++	for _, c := range counts {
++		m[c]++
++	}
++	for _, s := range prof.Sample {
++		// The count is the single value in the sample
++		if len(s.Value) != 1 {
++			return false
++		}
++		m[s.Value[0]]--
++	}
++	for _, n := range m {
++		if n > 0 {
++			return false
++		}
++	}
++	return true
++}

@@ -21,7 +21,7 @@ Date:   Wed Oct 26 17:01:24 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go         |   1 +
  src/cmd/compile/internal/noder/irgen.go        | 108 +++++++++++++++++++++++++
  src/cmd/compile/internal/types2/stdlib_test.go |   1 +
@@ -30,3 +30,235 @@ Date:   Wed Oct 26 17:01:24 2022 -0700
  test/fixedbugs/issue16369.go                   |   2 +-
  test/fixedbugs/issue56103.go                   |  46 +++++++++++
  7 files changed, 159 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 7acebb466e..2a0aa2f5c8 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -31,6 +31,7 @@ type DebugFlags struct {
+ 	GCProg                int    `help:"print dump of GC programs"`
+ 	Gossahash             string `help:"hash value for use in debugging the compiler"`
+ 	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
++	InterfaceCycles       int    `help:"allow anonymous interface cycles"`
+ 	Libfuzzer             int    `help:"enable coverage instrumentation for libfuzzer"`
+ 	LocationLists         int    `help:"print information about DWARF location list creation"`
+ 	Nil                   int    `help:"print information about nil checks"`
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 4a15c626b9..c5e2a1f2d1 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -72,6 +72,26 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+ 
+ 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
+ 
++	// Check for anonymous interface cycles (#56103).
++	if base.Debug.InterfaceCycles == 0 {
++		var f cycleFinder
++		for _, file := range files {
++			syntax.Inspect(file, func(n syntax.Node) bool {
++				if n, ok := n.(*syntax.InterfaceType); ok {
++					if f.hasCycle(n.GetTypeInfo().Type.(*types2.Interface)) {
++						base.ErrorfAt(m.makeXPos(n.Pos()), "invalid recursive type: anonymous interface refers to itself (see https://go.dev/issue/56103)")
++
++						for typ := range f.cyclic {
++							f.cyclic[typ] = false // suppress duplicate errors
++						}
++					}
++					return false
++				}
++				return true
++			})
++		}
++	}
++
+ 	// Implementation restriction: we don't allow not-in-heap types to
+ 	// be used as type arguments (#54765).
+ 	{
+@@ -406,3 +426,91 @@ func (g *irgen) type2(x syntax.Expr) syntax.Type {
+ 	}
+ 	return tv.Type
+ }
++
++// A cycleFinder detects anonymous interface cycles (go.dev/issue/56103).
++type cycleFinder struct {
++	cyclic map[*types2.Interface]bool
++}
++
++// hasCycle reports whether typ is part of an anonymous interface cycle.
++func (f *cycleFinder) hasCycle(typ *types2.Interface) bool {
++	// We use Method instead of ExplicitMethod to implicitly expand any
++	// embedded interfaces. Then we just need to walk any anonymous
++	// types, keeping track of *types2.Interface types we visit along
++	// the way.
++	for i := 0; i < typ.NumMethods(); i++ {
++		if f.visit(typ.Method(i).Type()) {
++			return true
++		}
++	}
++	return false
++}
++
++// visit recursively walks typ0 to check any referenced interface types.
++func (f *cycleFinder) visit(typ0 types2.Type) bool {
++	for { // loop for tail recursion
++		switch typ := typ0.(type) {
++		default:
++			base.Fatalf("unexpected type: %T", typ)
++
++		case *types2.Basic, *types2.Named, *types2.TypeParam:
++			return false // named types cannot be part of an anonymous cycle
++		case *types2.Pointer:
++			typ0 = typ.Elem()
++		case *types2.Array:
++			typ0 = typ.Elem()
++		case *types2.Chan:
++			typ0 = typ.Elem()
++		case *types2.Map:
++			if f.visit(typ.Key()) {
++				return true
++			}
++			typ0 = typ.Elem()
++		case *types2.Slice:
++			typ0 = typ.Elem()
++
++		case *types2.Struct:
++			for i := 0; i < typ.NumFields(); i++ {
++				if f.visit(typ.Field(i).Type()) {
++					return true
++				}
++			}
++			return false
++
++		case *types2.Interface:
++			// The empty interface (e.g., "any") cannot be part of a cycle.
++			if typ.NumExplicitMethods() == 0 && typ.NumEmbeddeds() == 0 {
++				return false
++			}
++
++			// As an optimization, we wait to allocate cyclic here, after
++			// we've found at least one other (non-empty) anonymous
++			// interface. This means when a cycle is present, we need to
++			// make an extra recursive call to actually detect it. But for
++			// most packages, it allows skipping the map allocation
++			// entirely.
++			if x, ok := f.cyclic[typ]; ok {
++				return x
++			}
++			if f.cyclic == nil {
++				f.cyclic = make(map[*types2.Interface]bool)
++			}
++			f.cyclic[typ] = true
++			if f.hasCycle(typ) {
++				return true
++			}
++			f.cyclic[typ] = false
++			return false
++
++		case *types2.Signature:
++			return f.visit(typ.Params()) || f.visit(typ.Results())
++		case *types2.Tuple:
++			for i := 0; i < typ.Len(); i++ {
++				if f.visit(typ.At(i).Type()) {
++					return true
++				}
++			}
++			return false
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 855474d60d..28df06c989 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -197,6 +197,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
+ 		"issue49767.go",  // go/types does not have constraints on channel element size
+ 		"issue49814.go",  // go/types does not have constraints on array size
++		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
+ 
+ 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
+ 		// However, types2 does not know about build constraints.
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 0fb6061aa4..c0c9fcf7dc 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -199,6 +199,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
+ 		"issue49767.go",  // go/types does not have constraints on channel element size
+ 		"issue49814.go",  // go/types does not have constraints on array size
++		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
+ 
+ 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
+ 		// However, go/types does not know about build constraints.
+diff --git a/test/fixedbugs/bug398.go b/test/fixedbugs/bug398.go
+index a1583bd774..db3e43c7f9 100644
+--- a/test/fixedbugs/bug398.go
++++ b/test/fixedbugs/bug398.go
+@@ -1,4 +1,4 @@
+-// compile
++// compile -d=interfacecycles
+ 
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue16369.go b/test/fixedbugs/issue16369.go
+index e97f4a0e11..3a7bb7eaed 100644
+--- a/test/fixedbugs/issue16369.go
++++ b/test/fixedbugs/issue16369.go
+@@ -1,4 +1,4 @@
+-// compile
++// compile -d=interfacecycles
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue56103.go b/test/fixedbugs/issue56103.go
+new file mode 100644
+index 0000000000..54c28bfb55
+--- /dev/null
++++ b/test/fixedbugs/issue56103.go
+@@ -0,0 +1,46 @@
++// errorcheck
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// Self recursion.
++type i interface{ m() interface{ i } } // ERROR "invalid recursive type"
++type _ interface{ i }                  // no redundant error
++
++// Mutual recursion.
++type j interface{ m() interface{ k } } // ERROR "invalid recursive type"
++type k interface{ m() interface{ j } }
++
++// Both self and mutual recursion.
++type (
++	a interface { // ERROR "invalid recursive type"
++		m() interface {
++			a
++			b
++		}
++	}
++	b interface {
++		m() interface {
++			a
++			b
++		}
++	}
++)
++
++// Self recursion through other types.
++func _() { type i interface{ m() *interface{ i } } }        // ERROR "invalid recursive type"
++func _() { type i interface{ m() []interface{ i } } }       // ERROR "invalid recursive type"
++func _() { type i interface{ m() [0]interface{ i } } }      // ERROR "invalid recursive type"
++func _() { type i interface{ m() chan interface{ i } } }    // ERROR "invalid recursive type"
++func _() { type i interface{ m() map[interface{ i }]int } } // ERROR "invalid recursive type"
++func _() { type i interface{ m() map[int]interface{ i } } } // ERROR "invalid recursive type"
++func _() { type i interface{ m() func(interface{ i }) } }   // ERROR "invalid recursive type"
++func _() { type i interface{ m() func() interface{ i } } }  // ERROR "invalid recursive type"
++func _() {
++	type i interface { // ERROR "invalid recursive type"
++		m() struct{ i interface{ i } }
++	}
++}

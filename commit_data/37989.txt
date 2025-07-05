@@ -11,7 +11,61 @@ Date:   Wed Sep 19 15:55:36 2018 -0700
     Change-Id: I7867f948490fc0873b1bd849048cda6acbc36e76
     Reviewed-on: https://go-review.googlesource.com/136395
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  8 ++++++++
  test/fixedbugs/issue26855.go             | 28 ++++++++++++++++++++++++++++
  2 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 69dced00ac..6b4673dbdc 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2923,6 +2923,14 @@ func typecheckcomplit(n *Node) *Node {
+ 
+ 	// Save original node (including n.Right)
+ 	norig := n.copy()
++	// If n.Orig points to itself, norig.Orig must point to itself, too.
++	// Otherwise, because n.Op is changed below, n.Orig's Op is changed
++	// as well because it (and the copy norig) still point to the original
++	// node n. This caused the wrong complit Op to be used when printing
++	// error messages (issue #26855).
++	if n.Orig == n {
++		norig.Orig = norig
++	}
+ 
+ 	setlineno(n.Right)
+ 	n.Right = typecheck(n.Right, Etype|Ecomplit)
+diff --git a/test/fixedbugs/issue26855.go b/test/fixedbugs/issue26855.go
+new file mode 100644
+index 0000000000..d5b95ddbf1
+--- /dev/null
++++ b/test/fixedbugs/issue26855.go
+@@ -0,0 +1,28 @@
++// errorcheck
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that we get the correct (T vs &T) literal specification
++// in the error message.
++
++package p
++
++type S struct {
++	f T
++}
++
++type P struct {
++	f *T
++}
++
++type T struct{}
++
++var _ = S{
++	f: &T{}, // ERROR "cannot use &T literal"
++}
++
++var _ = P{
++	f: T{}, // ERROR "cannot use T literal"
++}

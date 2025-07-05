@@ -12,8 +12,48 @@ Date:   Thu Jul 11 22:49:15 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/11199043
-
+---
  src/cmd/5l/list.c | 2 +-
  src/cmd/6l/list.c | 2 +-
  src/cmd/8l/list.c | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5l/list.c b/src/cmd/5l/list.c
+index a051774b41..7502a3b818 100644
+--- a/src/cmd/5l/list.c
++++ b/src/cmd/5l/list.c
+@@ -473,7 +473,7 @@ Oconv(Fmt *fp)
+ void
+ diag(char *fmt, ...)
+ {
+-	char buf[STRINGSZ], *tn, *sep;
++	char buf[1024], *tn, *sep;
+ 	va_list arg;
+ 
+ 	tn = "";
+diff --git a/src/cmd/6l/list.c b/src/cmd/6l/list.c
+index f39efa2e83..05b23049a0 100644
+--- a/src/cmd/6l/list.c
++++ b/src/cmd/6l/list.c
+@@ -423,7 +423,7 @@ Iconv(Fmt *fp)
+ void
+ diag(char *fmt, ...)
+ {
+-	char buf[STRINGSZ], *tn, *sep;
++	char buf[1024], *tn, *sep;
+ 	va_list arg;
+ 
+ 	tn = "";
+diff --git a/src/cmd/8l/list.c b/src/cmd/8l/list.c
+index 0b544fbce0..e2a2ec5edc 100644
+--- a/src/cmd/8l/list.c
++++ b/src/cmd/8l/list.c
+@@ -356,7 +356,7 @@ Iconv(Fmt *fp)
+ void
+ diag(char *fmt, ...)
+ {
+-	char buf[STRINGSZ], *tn, *sep;
++	char buf[1024], *tn, *sep;
+ 	va_list arg;
+ 
+ 	tn = "";

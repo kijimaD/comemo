@@ -15,7 +15,93 @@ Date:   Sun Oct 25 03:42:20 2020 +0000
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/log/syslog/syslog.go      |  5 ++++-
  src/log/syslog/syslog_test.go | 33 ++++++++++++++++++++++++---------
  2 files changed, 28 insertions(+), 10 deletions(-)
+
+diff --git a/src/log/syslog/syslog.go b/src/log/syslog/syslog.go
+index 82dd4e7dd6..97c10f31df 100644
+--- a/src/log/syslog/syslog.go
++++ b/src/log/syslog/syslog.go
+@@ -161,7 +161,10 @@ func (w *Writer) connect() (err error) {
+ 		var c net.Conn
+ 		c, err = net.Dial(w.network, w.raddr)
+ 		if err == nil {
+-			w.conn = &netConn{conn: c}
++			w.conn = &netConn{
++				conn:  c,
++				local: w.network == "unixgram" || w.network == "unix",
++			}
+ 			if w.hostname == "" {
+ 				w.hostname = c.LocalAddr().String()
+ 			}
+diff --git a/src/log/syslog/syslog_test.go b/src/log/syslog/syslog_test.go
+index 30abfae550..8f472a56b7 100644
+--- a/src/log/syslog/syslog_test.go
++++ b/src/log/syslog/syslog_test.go
+@@ -154,7 +154,7 @@ func TestWithSimulated(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("log failed: %v", err)
+ 		}
+-		check(t, msg, <-done)
++		check(t, msg, <-done, tr)
+ 		s.Close()
+ 	}
+ }
+@@ -180,7 +180,7 @@ func TestFlap(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("log failed: %v", err)
+ 	}
+-	check(t, msg, <-done)
++	check(t, msg, <-done, net)
+ 
+ 	// restart the server
+ 	_, sock2, srvWG2 := startServer(net, addr, done)
+@@ -193,7 +193,7 @@ func TestFlap(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("log failed: %v", err)
+ 	}
+-	check(t, msg, <-done)
++	check(t, msg, <-done, net)
+ 
+ 	s.Close()
+ }
+@@ -253,16 +253,31 @@ func TestDial(t *testing.T) {
+ 	l.Close()
+ }
+ 
+-func check(t *testing.T, in, out string) {
+-	tmpl := fmt.Sprintf("<%d>%%s %%s syslog_test[%%d]: %s\n", LOG_USER+LOG_INFO, in)
+-	if hostname, err := os.Hostname(); err != nil {
++func check(t *testing.T, in, out, transport string) {
++	hostname, err := os.Hostname()
++	if err != nil {
+ 		t.Error("Error retrieving hostname")
+-	} else {
+-		var parsedHostname, timestamp string
++		return
++	}
++
++	if transport == "unixgram" || transport == "unix" {
++		var month, date, ts string
+ 		var pid int
+-		if n, err := fmt.Sscanf(out, tmpl, &timestamp, &parsedHostname, &pid); n != 3 || err != nil || hostname != parsedHostname {
++		tmpl := fmt.Sprintf("<%d>%%s %%s %%s syslog_test[%%d]: %s\n", LOG_USER+LOG_INFO, in)
++		n, err := fmt.Sscanf(out, tmpl, &month, &date, &ts, &pid)
++		if n != 4 || err != nil {
+ 			t.Errorf("Got %q, does not match template %q (%d %s)", out, tmpl, n, err)
+ 		}
++		return
++	}
++
++	// Non-UNIX domain transports.
++	var parsedHostname, timestamp string
++	var pid int
++	tmpl := fmt.Sprintf("<%d>%%s %%s syslog_test[%%d]: %s\n", LOG_USER+LOG_INFO, in)
++	n, err := fmt.Sscanf(out, tmpl, &timestamp, &parsedHostname, &pid)
++	if n != 3 || err != nil || hostname != parsedHostname {
++		t.Errorf("Got %q, does not match template %q (%d %s)", out, tmpl, n, err)
+ 	}
+ }
+ 

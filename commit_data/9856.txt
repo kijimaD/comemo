@@ -9,6 +9,20 @@ Date:   Tue Oct 4 15:07:28 2011 +1100
     R=alex.brainman, go.peter.90, golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5154042
-
+---
  src/cmd/cgo/gcc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 04d95f0b9b..90f4032b25 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -236,7 +236,7 @@ func splitQuoted(s string) (r []string, err os.Error) {
+ 	return args, err
+ }
+ 
+-var safeBytes = []byte("+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz")
++var safeBytes = []byte(`+-.,/0123456789:=ABCDEFGHIJKLMNOPQRSTUVWXYZ\_abcdefghijklmnopqrstuvwxyz`)
+ 
+ func safeName(s string) bool {
+ 	if s == "" {

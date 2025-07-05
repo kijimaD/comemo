@@ -11,7 +11,7 @@ Date:   Mon May 11 12:52:37 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go  |  8 +---
  src/cmd/link/internal/arm/asm.go    | 10 +----
  src/cmd/link/internal/arm64/asm.go  | 10 +----
@@ -22,3 +22,306 @@ Date:   Mon May 11 12:52:37 2020 -0400
  src/cmd/link/internal/ppc64/asm.go  | 10 +----
  src/cmd/link/internal/x86/asm.go    | 14 ++----
  9 files changed, 79 insertions(+), 75 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index c05767022c..c8b4a1f261 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -795,12 +795,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		case objabi.Hplan9:
+ 			ld.Asmplan9sym(ctxt)
+ 
+-			sym := ctxt.Syms.Lookup("pclntab", 0)
+-			if sym != nil {
+-				ld.Lcsize = int32(len(sym.P))
+-				ctxt.Out.Write(sym.P)
+-			}
+-
+ 		case objabi.Hwindows:
+ 			// Do nothing
+ 
+@@ -823,7 +817,7 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		ctxt.Out.Write32b(uint32(ld.Segdata.Filelen))
+ 		ctxt.Out.Write32b(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+ 		ctxt.Out.Write32b(uint32(ld.Symsize)) /* nsyms */
+-		vl := ld.Entryvalue(ctxt)
++		vl := ld.Entryvalue2(ctxt)
+ 		ctxt.Out.Write32b(PADDR(uint32(vl))) /* va of entry */
+ 		ctxt.Out.Write32b(uint32(ld.Spsize)) /* sp offsets */
+ 		ctxt.Out.Write32b(uint32(ld.Lcsize)) /* line offsets */
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 5990179fe7..e268c15565 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -734,12 +734,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		case objabi.Hplan9:
+ 			ld.Asmplan9sym(ctxt)
+ 
+-			sym := ctxt.Syms.Lookup("pclntab", 0)
+-			if sym != nil {
+-				ld.Lcsize = int32(len(sym.P))
+-				ctxt.Out.Write(sym.P)
+-			}
+-
+ 		case objabi.Hwindows:
+ 			// Do nothing
+ 		}
+@@ -753,8 +747,8 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		ctxt.Out.Write32b(uint32(ld.Segtext.Filelen)) /* sizes */
+ 		ctxt.Out.Write32b(uint32(ld.Segdata.Filelen))
+ 		ctxt.Out.Write32b(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+-		ctxt.Out.Write32b(uint32(ld.Symsize))          /* nsyms */
+-		ctxt.Out.Write32b(uint32(ld.Entryvalue(ctxt))) /* va of entry */
++		ctxt.Out.Write32b(uint32(ld.Symsize))           /* nsyms */
++		ctxt.Out.Write32b(uint32(ld.Entryvalue2(ctxt))) /* va of entry */
+ 		ctxt.Out.Write32b(0)
+ 		ctxt.Out.Write32b(uint32(ld.Lcsize))
+ 
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 306eb7d46c..787851bbd2 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -867,12 +867,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		case objabi.Hplan9:
+ 			ld.Asmplan9sym(ctxt)
+ 
+-			sym := ctxt.Syms.Lookup("pclntab", 0)
+-			if sym != nil {
+-				ld.Lcsize = int32(len(sym.P))
+-				ctxt.Out.Write(sym.P)
+-			}
+-
+ 		case objabi.Hdarwin:
+ 			if ctxt.LinkMode == ld.LinkExternal {
+ 				ld.Machoemitreloc(ctxt)
+@@ -888,8 +882,8 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		ctxt.Out.Write32(uint32(ld.Segtext.Filelen)) /* sizes */
+ 		ctxt.Out.Write32(uint32(ld.Segdata.Filelen))
+ 		ctxt.Out.Write32(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+-		ctxt.Out.Write32(uint32(ld.Symsize))          /* nsyms */
+-		ctxt.Out.Write32(uint32(ld.Entryvalue(ctxt))) /* va of entry */
++		ctxt.Out.Write32(uint32(ld.Symsize))           /* nsyms */
++		ctxt.Out.Write32(uint32(ld.Entryvalue2(ctxt))) /* va of entry */
+ 		ctxt.Out.Write32(0)
+ 		ctxt.Out.Write32(uint32(ld.Lcsize))
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 20c483ea44..229ed12f26 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2477,7 +2477,7 @@ func usage() {
+ 	Exit(2)
+ }
+ 
+-type SymbolType int8
++type SymbolType int8 // TODO: after genasmsym is gone, maybe rename to plan9typeChar or something
+ 
+ const (
+ 	// see also https://9p.io/magic/man2html/1/nm
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 3c28a8b6da..bcb1e888a0 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -320,7 +320,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	thearch.Asmb(ctxt, ctxt.loader)
+ 	bench.Start("reloc")
+ 	ctxt.reloc()
+-	newasmb2 := ctxt.IsDarwin() || ctxt.IsWindows() || ctxt.IsWasm()
++	newasmb2 := ctxt.IsDarwin() || ctxt.IsWindows() || ctxt.IsWasm() || ctxt.IsPlan9()
+ 	if !newasmb2 {
+ 		bench.Start("loadlibfull")
+ 		// We don't need relocations at this point.
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 7ddd3eb6f6..9748de96d1 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -224,37 +224,77 @@ func Asmelfsym(ctxt *Link) {
+ 	genasmsym(ctxt, putelfsym)
+ }
+ 
+-func putplan9sym(ctxt *Link, x *sym.Symbol, s string, typ SymbolType, addr int64) {
+-	t := int(typ)
+-	switch typ {
+-	case TextSym, DataSym, BSSSym:
+-		if x.IsFileLocal() {
+-			t += 'a' - 'A'
+-		}
+-		fallthrough
++func putplan9sym(ctxt *Link, ldr *loader.Loader, s loader.Sym, char SymbolType) {
++	t := int(char)
++	if ldr.IsFileLocal(s) {
++		t += 'a' - 'A'
++	}
++	l := 4
++	addr := ldr.SymValue(s)
++	if ctxt.IsAMD64() && !Flag8 {
++		ctxt.Out.Write32b(uint32(addr >> 32))
++		l = 8
++	}
+ 
+-	case AutoSym, ParamSym, FrameSym:
+-		l := 4
+-		if ctxt.HeadType == objabi.Hplan9 && ctxt.Arch.Family == sys.AMD64 && !Flag8 {
+-			ctxt.Out.Write32b(uint32(addr >> 32))
+-			l = 8
+-		}
++	ctxt.Out.Write32b(uint32(addr))
++	ctxt.Out.Write8(uint8(t + 0x80)) /* 0x80 is variable length */
+ 
+-		ctxt.Out.Write32b(uint32(addr))
+-		ctxt.Out.Write8(uint8(t + 0x80)) /* 0x80 is variable length */
++	name := ldr.SymName(s)
++	ctxt.Out.WriteString(name)
++	ctxt.Out.Write8(0)
+ 
+-		ctxt.Out.WriteString(s)
+-		ctxt.Out.Write8(0)
++	Symsize += int32(l) + 1 + int32(len(name)) + 1
++}
+ 
+-		Symsize += int32(l) + 1 + int32(len(s)) + 1
++func Asmplan9sym(ctxt *Link) {
++	ldr := ctxt.loader
+ 
+-	default:
+-		return
++	// Add special runtime.text and runtime.etext symbols.
++	s := ldr.Lookup("runtime.text", 0)
++	if ldr.SymType(s) == sym.STEXT {
++		putplan9sym(ctxt, ldr, s, TextSym)
++	}
++	s = ldr.Lookup("runtime.etext", 0)
++	if ldr.SymType(s) == sym.STEXT {
++		putplan9sym(ctxt, ldr, s, TextSym)
+ 	}
+-}
+ 
+-func Asmplan9sym(ctxt *Link) {
+-	genasmsym(ctxt, putplan9sym)
++	// Add text symbols.
++	for _, s := range ctxt.Textp2 {
++		putplan9sym(ctxt, ldr, s, TextSym)
++	}
++
++	shouldBeInSymbolTable := func(s loader.Sym) bool {
++		if ldr.AttrNotInSymbolTable(s) {
++			return false
++		}
++		name := ldr.RawSymName(s) // TODO: try not to read the name
++		if name == "" || name[0] == '.' {
++			return false
++		}
++		return true
++	}
++
++	// Add data symbols and external references.
++	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
++		if !ldr.AttrReachable(s) {
++			continue
++		}
++		t := ldr.SymType(s)
++		if t >= sym.SELFRXSECT && t < sym.SXREF { // data sections handled in dodata
++			if t == sym.STLSBSS {
++				continue
++			}
++			if !shouldBeInSymbolTable(s) {
++				continue
++			}
++			char := DataSym
++			if t == sym.SBSS || t == sym.SNOPTRBSS {
++				char = BSSSym
++			}
++			putplan9sym(ctxt, ldr, s, char)
++		}
++	}
+ }
+ 
+ type byPkg []*sym.Library
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index c67753c290..479157cb50 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -226,12 +226,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 
+ 		case objabi.Hplan9:
+ 			ld.Asmplan9sym(ctxt)
+-
+-			sym := ctxt.Syms.Lookup("pclntab", 0)
+-			if sym != nil {
+-				ld.Lcsize = int32(len(sym.P))
+-				ctxt.Out.Write(sym.P)
+-			}
+ 		}
+ 	}
+ 
+@@ -247,8 +241,8 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		ctxt.Out.Write32(uint32(ld.Segtext.Filelen)) /* sizes */
+ 		ctxt.Out.Write32(uint32(ld.Segdata.Filelen))
+ 		ctxt.Out.Write32(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+-		ctxt.Out.Write32(uint32(ld.Symsize))          /* nsyms */
+-		ctxt.Out.Write32(uint32(ld.Entryvalue(ctxt))) /* va of entry */
++		ctxt.Out.Write32(uint32(ld.Symsize))           /* nsyms */
++		ctxt.Out.Write32(uint32(ld.Entryvalue2(ctxt))) /* va of entry */
+ 		ctxt.Out.Write32(0)
+ 		ctxt.Out.Write32(uint32(ld.Lcsize))
+ 
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index c6ee3d6033..7e08e534b3 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -1143,12 +1143,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		case objabi.Hplan9:
+ 			ld.Asmplan9sym(ctxt)
+ 
+-			sym := ctxt.Syms.Lookup("pclntab", 0)
+-			if sym != nil {
+-				ld.Lcsize = int32(len(sym.P))
+-				ctxt.Out.Write(sym.P)
+-			}
+-
+ 		case objabi.Haix:
+ 			// symtab must be added once sections have been created in ld.Asmbxcoff
+ 		}
+@@ -1162,8 +1156,8 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		ctxt.Out.Write32(uint32(ld.Segtext.Filelen)) /* sizes */
+ 		ctxt.Out.Write32(uint32(ld.Segdata.Filelen))
+ 		ctxt.Out.Write32(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+-		ctxt.Out.Write32(uint32(ld.Symsize))          /* nsyms */
+-		ctxt.Out.Write32(uint32(ld.Entryvalue(ctxt))) /* va of entry */
++		ctxt.Out.Write32(uint32(ld.Symsize))           /* nsyms */
++		ctxt.Out.Write32(uint32(ld.Entryvalue2(ctxt))) /* va of entry */
+ 		ctxt.Out.Write32(0)
+ 		ctxt.Out.Write32(uint32(ld.Lcsize))
+ 
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 824e20b828..5858845475 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -632,12 +632,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		case objabi.Hplan9:
+ 			ld.Asmplan9sym(ctxt)
+ 
+-			sym := ctxt.Syms.Lookup("pclntab", 0)
+-			if sym != nil {
+-				ld.Lcsize = int32(len(sym.P))
+-				ctxt.Out.Write(sym.P)
+-			}
+-
+ 		case objabi.Hwindows:
+ 			// Do nothing
+ 
+@@ -658,10 +652,10 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		ctxt.Out.Write32b(uint32(ld.Segtext.Filelen)) /* sizes */
+ 		ctxt.Out.Write32b(uint32(ld.Segdata.Filelen))
+ 		ctxt.Out.Write32b(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+-		ctxt.Out.Write32b(uint32(ld.Symsize))          /* nsyms */
+-		ctxt.Out.Write32b(uint32(ld.Entryvalue(ctxt))) /* va of entry */
+-		ctxt.Out.Write32b(uint32(ld.Spsize))           /* sp offsets */
+-		ctxt.Out.Write32b(uint32(ld.Lcsize))           /* line offsets */
++		ctxt.Out.Write32b(uint32(ld.Symsize))           /* nsyms */
++		ctxt.Out.Write32b(uint32(ld.Entryvalue2(ctxt))) /* va of entry */
++		ctxt.Out.Write32b(uint32(ld.Spsize))            /* sp offsets */
++		ctxt.Out.Write32b(uint32(ld.Lcsize))            /* line offsets */
+ 
+ 	case objabi.Hdarwin:
+ 		ld.Asmbmacho(ctxt)

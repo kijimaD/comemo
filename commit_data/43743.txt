@@ -14,7 +14,61 @@ Date:   Wed Apr 22 12:45:44 2020 -0700
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/database/sql/sql.go      | 7 +++++++
  src/database/sql/sql_test.go | 6 +++++-
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 6e31714445..374dd98b00 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2793,10 +2793,17 @@ func (rs *Rows) lasterrOrErrLocked(err error) error {
+ 	return err
+ }
+ 
++// bypassRowsAwaitDone is only used for testing.
++// If true, it will not close the Rows automatically from the context.
++var bypassRowsAwaitDone = false
++
+ func (rs *Rows) initContextClose(ctx, txctx context.Context) {
+ 	if ctx.Done() == nil && (txctx == nil || txctx.Done() == nil) {
+ 		return
+ 	}
++	if bypassRowsAwaitDone {
++		return
++	}
+ 	ctx, rs.cancel = context.WithCancel(ctx)
+ 	go rs.awaitDone(ctx, txctx)
+ }
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 00a67c79ee..5727f0d8aa 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -2742,7 +2742,7 @@ func TestManyErrBadConn(t *testing.T) {
+ 	}
+ }
+ 
+-// Issue 34755: Ensure that a Tx cannot commit after a rollback.
++// Issue 34775: Ensure that a Tx cannot commit after a rollback.
+ func TestTxCannotCommitAfterRollback(t *testing.T) {
+ 	db := newTestDB(t, "tx_status")
+ 	defer closeDB(t, db)
+@@ -2784,6 +2784,9 @@ func TestTxCannotCommitAfterRollback(t *testing.T) {
+ 	// 2. (A) Start a query, (B) begin Tx rollback through a ctx cancel.
+ 	// 3. Check if 2.A has committed in Tx (pass) or outside of Tx (fail).
+ 	sendQuery := make(chan struct{})
++	// The Tx status is returned through the row results, ensure
++	// that the rows results are not cancelled.
++	bypassRowsAwaitDone = true
+ 	hookTxGrabConn = func() {
+ 		cancel()
+ 		<-sendQuery
+@@ -2794,6 +2797,7 @@ func TestTxCannotCommitAfterRollback(t *testing.T) {
+ 	defer func() {
+ 		hookTxGrabConn = nil
+ 		rollbackHook = nil
++		bypassRowsAwaitDone = false
+ 	}()
+ 
+ 	err = tx.QueryRow("SELECT|tx_status|tx_status|").Scan(&txStatus)

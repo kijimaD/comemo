@@ -20,7 +20,7 @@ Date:   Wed Feb 17 17:56:34 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/293470
     Reviewed-by: Robert Findley <rfindley@google.com>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/importer/support.go   |   1 -
  src/cmd/compile/internal/types2/builtins.go    |   8 +-
  src/cmd/compile/internal/types2/conversions.go |   8 +-
@@ -39,3 +39,856 @@ Date:   Wed Feb 17 17:56:34 2021 -0800
  src/cmd/compile/internal/types2/unify.go       |   4 +-
  src/cmd/compile/internal/types2/universe.go    |  60 +++++++-------
  17 files changed, 113 insertions(+), 150 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/support.go b/src/cmd/compile/internal/importer/support.go
+index b143913583..40b9c7c958 100644
+--- a/src/cmd/compile/internal/importer/support.go
++++ b/src/cmd/compile/internal/importer/support.go
+@@ -125,5 +125,4 @@ var predeclared = []types2.Type{
+ type anyType struct{}
+ 
+ func (t anyType) Underlying() types2.Type { return t }
+-func (t anyType) Under() types2.Type      { return t }
+ func (t anyType) String() string          { return "any" }
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 16e294d226..a6a9b51dd1 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -142,7 +142,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		mode := invalid
+ 		var typ Type
+ 		var val constant.Value
+-		switch typ = implicitArrayDeref(optype(x.typ.Under())); t := typ.(type) {
++		switch typ = implicitArrayDeref(optype(x.typ)); t := typ.(type) {
+ 		case *Basic:
+ 			if isString(t) && id == _Len {
+ 				if x.mode == constant_ {
+@@ -178,7 +178,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		case *Sum:
+ 			if t.is(func(t Type) bool {
+-				switch t := t.Under().(type) {
++				switch t := under(t).(type) {
+ 				case *Basic:
+ 					if isString(t) && id == _Len {
+ 						return true
+@@ -330,7 +330,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			return
+ 		}
+ 		var src Type
+-		switch t := optype(y.typ.Under()).(type) {
++		switch t := optype(y.typ).(type) {
+ 		case *Basic:
+ 			if isString(y.typ) {
+ 				src = universeByte
+@@ -453,7 +453,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		var valid func(t Type) bool
+ 		valid = func(t Type) bool {
+ 			var m int
+-			switch t := optype(t.Under()).(type) {
++			switch t := optype(t).(type) {
+ 			case *Slice:
+ 				m = 2
+ 			case *Map, *Chan:
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index c9603b263c..dc0621919e 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -90,8 +90,8 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
+ 
+ 	// "x's type and T have identical underlying types if tags are ignored"
+ 	V := x.typ
+-	Vu := V.Under()
+-	Tu := T.Under()
++	Vu := under(V)
++	Tu := under(T)
+ 	if check.identicalIgnoreTags(Vu, Tu) {
+ 		return true
+ 	}
+@@ -100,7 +100,7 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
+ 	// have identical underlying types if tags are ignored"
+ 	if V, ok := V.(*Pointer); ok {
+ 		if T, ok := T.(*Pointer); ok {
+-			if check.identicalIgnoreTags(V.base.Under(), T.base.Under()) {
++			if check.identicalIgnoreTags(under(V.base), under(T.base)) {
+ 				return true
+ 			}
+ 		}
+@@ -146,7 +146,7 @@ func isUintptr(typ Type) bool {
+ 
+ func isUnsafePointer(typ Type) bool {
+ 	// TODO(gri): Is this asBasic(typ) instead of typ.(*Basic) correct?
+-	//            (The former calls typ.Under(), while the latter doesn't.)
++	//            (The former calls under(), while the latter doesn't.)
+ 	//            The spec does not say so, but gc claims it is. See also
+ 	//            issue 6326.
+ 	t := asBasic(typ)
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index e9fc08df37..677172d40f 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -445,7 +445,7 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr, inherited boo
+ 		if !isConstType(t) {
+ 			// don't report an error if the type is an invalid C (defined) type
+ 			// (issue #22090)
+-			if t.Under() != Typ[Invalid] {
++			if under(t) != Typ[Invalid] {
+ 				check.errorf(typ, "invalid constant type %s", t)
+ 			}
+ 			obj.typ = Typ[Invalid]
+@@ -545,13 +545,13 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
+ 	check.initVars(lhs, []syntax.Expr{init}, nopos)
+ }
+ 
+-// Under returns the expanded underlying type of n0; possibly by following
++// under returns the expanded underlying type of n0; possibly by following
+ // forward chains of named types. If an underlying type is found, resolve
+ // the chain by setting the underlying type for each defined type in the
+ // chain before returning it. If no underlying type is found or a cycle
+ // is detected, the result is Typ[Invalid]. If a cycle is detected and
+ // n0.check != nil, the cycle is reported.
+-func (n0 *Named) Under() Type {
++func (n0 *Named) under() Type {
+ 	u := n0.underlying
+ 	if u == nil {
+ 		return Typ[Invalid]
+@@ -584,6 +584,8 @@ func (n0 *Named) Under() Type {
+ 
+ 		if i, ok := seen[n]; ok {
+ 			// cycle
++			// TODO(gri) revert this to a method on Checker. Having a possibly
++			// nil Checker on Named and TypeParam is too subtle.
+ 			if n0.check != nil {
+ 				n0.check.cycleError(path[i:])
+ 			}
+@@ -667,7 +669,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 		// any forward chain.
+ 		// TODO(gri) Investigate if we can just use named.origin here
+ 		//           and rely on lazy computation of the underlying type.
+-		named.underlying = named.Under()
++		named.underlying = under(named)
+ 	}
+ 
+ }
+@@ -716,7 +718,7 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
+ 		//           we may not have a complete interface yet:
+ 		//           type C(type T C) interface {}
+ 		//           (issue #39724).
+-		if _, ok := bound.Under().(*Interface); ok {
++		if _, ok := under(bound).(*Interface); ok {
+ 			// set the type bounds
+ 			for i < j {
+ 				tparams[i].typ.(*TypeParam).bound = bound
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 57c8896e0d..a284c8c8b6 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -656,7 +656,7 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
+ 	}
+ 
+ 	// typed target
+-	switch t := optype(target.Under()).(type) {
++	switch t := optype(target).(type) {
+ 	case *Basic:
+ 		if x.mode == constant_ {
+ 			check.representable(x, t)
+@@ -1258,7 +1258,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		case hint != nil:
+ 			// no composite literal type present - use hint (element type of enclosing type)
+ 			typ = hint
+-			base, _ = deref(typ.Under()) // *T implies &T{}
++			base, _ = deref(under(typ)) // *T implies &T{}
+ 
+ 		default:
+ 			// TODO(gri) provide better error messages depending on context
+@@ -1266,7 +1266,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			goto Error
+ 		}
+ 
+-		switch utyp := optype(base.Under()).(type) {
++		switch utyp := optype(base).(type) {
+ 		case *Struct:
+ 			if len(e.ElemList) == 0 {
+ 				break
+@@ -1475,7 +1475,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		// ordinary index expression
+ 		valid := false
+ 		length := int64(-1) // valid if >= 0
+-		switch typ := optype(x.typ.Under()).(type) {
++		switch typ := optype(x.typ).(type) {
+ 		case *Basic:
+ 			if isString(typ) {
+ 				valid = true
+@@ -1528,7 +1528,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			nmaps := 0           // number of map types in sum type
+ 			if typ.is(func(t Type) bool {
+ 				var e Type
+-				switch t := t.Under().(type) {
++				switch t := under(t).(type) {
+ 				case *Basic:
+ 					if isString(t) {
+ 						e = universeByte
+@@ -1637,7 +1637,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 
+ 		valid := false
+ 		length := int64(-1) // valid if >= 0
+-		switch typ := optype(x.typ.Under()).(type) {
++		switch typ := optype(x.typ).(type) {
+ 		case *Basic:
+ 			if isString(typ) {
+ 				if e.Full {
+@@ -1738,7 +1738,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
+-		xtyp, _ := x.typ.Under().(*Interface)
++		xtyp, _ := under(x.typ).(*Interface)
+ 		if xtyp == nil {
+ 			check.errorf(x, "%s is not an interface type", x)
+ 			goto Error
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 09d099e625..061b919239 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -289,7 +289,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type) (types []Type, i
+ 	// Unify type parameters with their structural constraints, if any.
+ 	for _, tpar := range tparams {
+ 		typ := tpar.typ.(*TypeParam)
+-		sbound := check.structuralType(typ.bound.Under())
++		sbound := check.structuralType(typ.bound)
+ 		if sbound != nil {
+ 			if !u.unify(typ, sbound) {
+ 				check.errorf(tpar.pos, "%s does not match %s", tpar, sbound)
+@@ -344,7 +344,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type) (types []Type, i
+ 
+ // structuralType returns the structural type of a constraint, if any.
+ func (check *Checker) structuralType(constraint Type) Type {
+-	if iface, _ := constraint.(*Interface); iface != nil {
++	if iface, _ := under(constraint).(*Interface); iface != nil {
+ 		check.completeInterface(nopos, iface)
+ 		types := unpack(iface.allTypes)
+ 		if len(types) == 1 {
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index e210850ba0..34d18acdfc 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -141,7 +141,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
+ 
+ 				// continue with underlying type, but only if it's not a type parameter
+ 				// TODO(gri) is this what we want to do for type parameters? (spec question)
+-				typ = named.Under()
++				typ = under(named)
+ 				if asTypeParam(typ) != nil {
+ 					continue
+ 				}
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index 956646499a..844bc34b6a 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -461,7 +461,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 		if tname.IsAlias() {
+ 			buf.WriteString(" =")
+ 		} else {
+-			typ = typ.Under()
++			typ = under(typ)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 238c9b8ee0..001e905a7b 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -257,8 +257,8 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
+ 		return true
+ 	}
+ 
+-	Vu := optype(V.Under())
+-	Tu := optype(T.Under())
++	Vu := optype(V)
++	Tu := optype(T)
+ 
+ 	// x is an untyped value representable by a value of type T
+ 	// TODO(gri) This is borrowing from checker.convertUntyped and
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index a48e72b9c4..ae186a0b5d 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -25,7 +25,7 @@ func isGeneric(typ Type) bool {
+ }
+ 
+ func is(typ Type, what BasicInfo) bool {
+-	switch t := optype(typ.Under()).(type) {
++	switch t := optype(typ).(type) {
+ 	case *Basic:
+ 		return t.info&what != 0
+ 	case *Sum:
+@@ -73,7 +73,7 @@ func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
+ 
+ func isConstType(typ Type) bool {
+ 	// Type parameters are never const types.
+-	t, _ := typ.Under().(*Basic)
++	t, _ := under(typ).(*Basic)
+ 	return t != nil && t.info&IsConstType != 0
+ }
+ 
+@@ -108,7 +108,7 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 		return t.Bound().IsComparable()
+ 	}
+ 
+-	switch t := optype(T.Under()).(type) {
++	switch t := optype(T).(type) {
+ 	case *Basic:
+ 		// assume invalid types to be comparable
+ 		// to avoid follow-up errors
+@@ -137,7 +137,7 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 
+ // hasNil reports whether a type includes the nil value.
+ func hasNil(typ Type) bool {
+-	switch t := optype(typ.Under()).(type) {
++	switch t := optype(typ).(type) {
+ 	case *Basic:
+ 		return t.kind == UnsafePointer
+ 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
+diff --git a/src/cmd/compile/internal/types2/sizes.go b/src/cmd/compile/internal/types2/sizes.go
+index 9d8f3ae5ad..aa0fbf40fc 100644
+--- a/src/cmd/compile/internal/types2/sizes.go
++++ b/src/cmd/compile/internal/types2/sizes.go
+@@ -48,7 +48,7 @@ type StdSizes struct {
+ func (s *StdSizes) Alignof(T Type) int64 {
+ 	// For arrays and structs, alignment is defined in terms
+ 	// of alignment of the elements and fields, respectively.
+-	switch t := optype(T.Under()).(type) {
++	switch t := optype(T).(type) {
+ 	case *Array:
+ 		// spec: "For a variable x of array type: unsafe.Alignof(x)
+ 		// is the same as unsafe.Alignof(x[0]), but at least 1."
+@@ -118,7 +118,7 @@ var basicSizes = [...]byte{
+ }
+ 
+ func (s *StdSizes) Sizeof(T Type) int64 {
+-	switch t := optype(T.Under()).(type) {
++	switch t := optype(T).(type) {
+ 	case *Basic:
+ 		assert(isTyped(T))
+ 		k := t.kind
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 9d74e0e588..490cd0fc19 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -680,7 +680,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 	if x.mode == invalid {
+ 		return
+ 	}
+-	xtyp, _ := x.typ.Under().(*Interface)
++	xtyp, _ := under(x.typ).(*Interface)
+ 	if xtyp == nil {
+ 		check.errorf(&x, "%s is not an interface type", &x)
+ 		return
+@@ -769,7 +769,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 	// determine key/value types
+ 	var key, val Type
+ 	if x.mode != invalid {
+-		typ := optype(x.typ.Under())
++		typ := optype(x.typ)
+ 		if _, ok := typ.(*Chan); ok && sValue != nil {
+ 			// TODO(gri) this also needs to happen for channels in generic variables
+ 			check.softErrorf(sValue, "range over %s permits only one iteration variable", &x)
+@@ -906,7 +906,7 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
+ 		var key, val Type
+ 		var msg string
+ 		typ.is(func(t Type) bool {
+-			k, v, m := rangeKeyVal(t.Under(), wantKey, wantVal)
++			k, v, m := rangeKeyVal(under(t), wantKey, wantVal)
+ 			if k == nil || m != "" {
+ 				key, val, msg = k, v, m
+ 				return false
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index fc4b228e33..d730642831 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -61,7 +61,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
+ 			check.indent--
+ 			var under Type
+ 			if res != nil {
+-				// Calling Under() here may lead to endless instantiations.
++				// Calling under() here may lead to endless instantiations.
+ 				// Test case: type T[P any] T[P]
+ 				// TODO(gri) investigate if that's a bug or to be expected.
+ 				under = res.Underlying()
+@@ -186,7 +186,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
+ 				break
+ 			}
+ 			for _, t := range unpack(targBound.allTypes) {
+-				if !iface.isSatisfiedBy(t.Under()) {
++				if !iface.isSatisfiedBy(t) {
+ 					// TODO(gri) match this error message with the one below (or vice versa)
+ 					check.softErrorf(pos, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface.allTypes)
+ 					break
+@@ -197,7 +197,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
+ 
+ 		// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
+ 		if !iface.isSatisfiedBy(targ) {
+-			check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ.Under(), iface.allTypes)
++			check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, under(targ), iface.allTypes)
+ 			break
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index 4b6f507393..c1c3a4629e 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -18,24 +18,10 @@ type Type interface {
+ 	// client packages (here for backward-compatibility).
+ 	Underlying() Type
+ 
+-	// Under returns the true expanded underlying type.
+-	// If it doesn't exist, the result is Typ[Invalid].
+-	// Under must only be called when a type is known
+-	// to be fully set up.
+-	Under() Type
+-
+ 	// String returns a string representation of a type.
+ 	String() string
+ }
+ 
+-// aType implements default type behavior
+-type aType struct{}
+-
+-// These methods must be implemented by each type.
+-func (aType) Underlying() Type { panic("unreachable") }
+-func (aType) Under() Type      { panic("unreachable") }
+-func (aType) String() string   { panic("unreachable") }
+-
+ // BasicKind describes the kind of basic type.
+ type BasicKind int
+ 
+@@ -99,7 +85,6 @@ type Basic struct {
+ 	kind BasicKind
+ 	info BasicInfo
+ 	name string
+-	aType
+ }
+ 
+ // Kind returns the kind of basic type b.
+@@ -115,7 +100,6 @@ func (b *Basic) Name() string { return b.name }
+ type Array struct {
+ 	len  int64
+ 	elem Type
+-	aType
+ }
+ 
+ // NewArray returns a new array type for the given element type and length.
+@@ -132,7 +116,6 @@ func (a *Array) Elem() Type { return a.elem }
+ // A Slice represents a slice type.
+ type Slice struct {
+ 	elem Type
+-	aType
+ }
+ 
+ // NewSlice returns a new slice type for the given element type.
+@@ -145,7 +128,6 @@ func (s *Slice) Elem() Type { return s.elem }
+ type Struct struct {
+ 	fields []*Var
+ 	tags   []string // field tags; nil if there are no tags
+-	aType
+ }
+ 
+ // NewStruct returns a new struct with the given fields and corresponding field tags.
+@@ -182,7 +164,6 @@ func (s *Struct) Tag(i int) string {
+ // A Pointer represents a pointer type.
+ type Pointer struct {
+ 	base Type // element type
+-	aType
+ }
+ 
+ // NewPointer returns a new pointer type for the given element (base) type.
+@@ -196,17 +177,15 @@ func (p *Pointer) Elem() Type { return p.base }
+ // assignments; they are not first class types of Go.
+ type Tuple struct {
+ 	vars []*Var
+-	aType
+ }
+ 
+-// TODO(gri) Don't represent empty tuples with a (*Tuple)(nil) pointer;
+-//           it's too subtle and causes problems. Use a singleton instead.
+-
+ // NewTuple returns a new tuple for the given variables.
+ func NewTuple(x ...*Var) *Tuple {
+ 	if len(x) > 0 {
+ 		return &Tuple{vars: x}
+ 	}
++	// TODO(gri) Don't represent empty tuples with a (*Tuple)(nil) pointer;
++	//           it's too subtle and causes problems.
+ 	return nil
+ }
+ 
+@@ -235,7 +214,6 @@ type Signature struct {
+ 	params   *Tuple      // (incoming) parameters from left to right; or nil
+ 	results  *Tuple      // (outgoing) results from left to right; or nil
+ 	variadic bool        // true if the last parameter's type is of the form ...T (or string, for append built-in only)
+-	aType
+ }
+ 
+ // NewSignature returns a new function type for the given receiver, parameters,
+@@ -284,7 +262,6 @@ func (s *Signature) Variadic() bool { return s.variadic }
+ // first class types of Go.
+ type Sum struct {
+ 	types []Type // types are unique
+-	aType
+ }
+ 
+ // NewSum returns a new Sum type consisting of the provided
+@@ -336,8 +313,6 @@ type Interface struct {
+ 	allTypes   Type    // intersection of all embedded and locally declared types  (TODO(gri) need better field name)
+ 
+ 	obj Object // type declaration defining this interface; or nil (for better error messages)
+-
+-	aType
+ }
+ 
+ // unpack unpacks a type into a list of types.
+@@ -468,10 +443,7 @@ func (t *Interface) Empty() bool {
+ 		return len(t.allMethods) == 0 && t.allTypes == nil
+ 	}
+ 	return !t.iterate(func(t *Interface) bool {
+-		if len(t.methods) > 0 || t.types != nil {
+-			return true
+-		}
+-		return false
++		return len(t.methods) > 0 || t.types != nil
+ 	}, nil)
+ }
+ 
+@@ -483,10 +455,7 @@ func (t *Interface) HasTypeList() bool {
+ 	}
+ 
+ 	return t.iterate(func(t *Interface) bool {
+-		if t.types != nil {
+-			return true
+-		}
+-		return false
++		return t.types != nil
+ 	}, nil)
+ }
+ 
+@@ -560,7 +529,7 @@ func (t *Interface) isSatisfiedBy(typ Type) bool {
+ 		return true
+ 	}
+ 	types := unpack(t.allTypes)
+-	return includes(types, typ) || includes(types, typ.Under())
++	return includes(types, typ) || includes(types, under(typ))
+ }
+ 
+ // Complete computes the interface's method set. It must be called by users of
+@@ -598,7 +567,7 @@ func (t *Interface) Complete() *Interface {
+ 	allTypes := t.types
+ 
+ 	for _, typ := range t.embeddeds {
+-		utyp := typ.Under()
++		utyp := under(typ)
+ 		etyp := asInterface(utyp)
+ 		if etyp == nil {
+ 			if utyp != Typ[Invalid] {
+@@ -633,7 +602,6 @@ func (t *Interface) Complete() *Interface {
+ // A Map represents a map type.
+ type Map struct {
+ 	key, elem Type
+-	aType
+ }
+ 
+ // NewMap returns a new map for the given key and element types.
+@@ -651,7 +619,6 @@ func (m *Map) Elem() Type { return m.elem }
+ type Chan struct {
+ 	dir  ChanDir
+ 	elem Type
+-	aType
+ }
+ 
+ // A ChanDir value indicates a channel direction.
+@@ -677,7 +644,7 @@ func (c *Chan) Elem() Type { return c.elem }
+ 
+ // A Named represents a named (defined) type.
+ type Named struct {
+-	check      *Checker    // for Named.Under implementation
++	check      *Checker    // for Named.under implementation
+ 	info       typeInfo    // for cycle detection
+ 	obj        *TypeName   // corresponding declared object
+ 	orig       Type        // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
+@@ -685,7 +652,6 @@ type Named struct {
+ 	tparams    []*TypeName // type parameters, or nil
+ 	targs      []Type      // type arguments (after instantiation), or nil
+ 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
+-	aType
+ }
+ 
+ // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
+@@ -757,7 +723,6 @@ type TypeParam struct {
+ 	obj   *TypeName // corresponding type name
+ 	index int       // parameter index
+ 	bound Type      // *Named or *Interface; underlying type is always *Interface
+-	aType
+ }
+ 
+ func (t *TypeParam) Obj() *TypeName {
+@@ -788,7 +753,7 @@ func (t *TypeParam) Bound() *Interface {
+ 
+ // optype returns a type's operational type. Except for
+ // type parameters, the operational type is the same
+-// as the underlying type (as returned by Under). For
++// as the underlying type (as returned by under). For
+ // Type parameters, the operational type is determined
+ // by the corresponding type bound's type list. The
+ // result may be the bottom or top type, but it is never
+@@ -802,12 +767,12 @@ func optype(typ Type) Type {
+ 		// (type T interface { type T }).
+ 		// See also issue #39680.
+ 		if u := t.Bound().allTypes; u != nil && u != typ {
+-			// u != typ and u is a type parameter => u.Under() != typ, so this is ok
+-			return u.Under()
++			// u != typ and u is a type parameter => under(u) != typ, so this is ok
++			return under(u)
+ 		}
+ 		return theTop
+ 	}
+-	return typ.Under()
++	return under(typ)
+ }
+ 
+ // An instance represents an instantiated generic type syntactically
+@@ -821,7 +786,6 @@ type instance struct {
+ 	targs   []Type       // type arguments
+ 	poslist []syntax.Pos // position of each targ; for error reporting only
+ 	value   Type         // base(targs...) after instantiation or Typ[Invalid]; nil if not yet set
+-	aType
+ }
+ 
+ // expand returns the instantiated (= expanded) type of t.
+@@ -863,9 +827,7 @@ func init() { expandf = expand }
+ // It is the underlying type of a type parameter that
+ // cannot be satisfied by any type, usually because
+ // the intersection of type constraints left nothing).
+-type bottom struct {
+-	aType
+-}
++type bottom struct{}
+ 
+ // theBottom is the singleton bottom type.
+ var theBottom = &bottom{}
+@@ -875,9 +837,7 @@ var theBottom = &bottom{}
+ // can be satisfied by any type (ignoring methods),
+ // usually because the type constraint has no type
+ // list.
+-type top struct {
+-	aType
+-}
++type top struct{}
+ 
+ // theTop is the singleton top type.
+ var theTop = &top{}
+@@ -900,25 +860,6 @@ func (t *instance) Underlying() Type  { return t }
+ func (t *bottom) Underlying() Type    { return t }
+ func (t *top) Underlying() Type       { return t }
+ 
+-// Type-specific implementations of Under.
+-func (t *Basic) Under() Type     { return t }
+-func (t *Array) Under() Type     { return t }
+-func (t *Slice) Under() Type     { return t }
+-func (t *Struct) Under() Type    { return t }
+-func (t *Pointer) Under() Type   { return t }
+-func (t *Tuple) Under() Type     { return t }
+-func (t *Signature) Under() Type { return t }
+-func (t *Sum) Under() Type       { return t } // TODO(gri) is this correct?
+-func (t *Interface) Under() Type { return t }
+-func (t *Map) Under() Type       { return t }
+-func (t *Chan) Under() Type      { return t }
+-
+-// see decl.go for implementation of Named.Under
+-func (t *TypeParam) Under() Type { return t }
+-func (t *instance) Under() Type  { return t.expand().Under() }
+-func (t *bottom) Under() Type    { return t }
+-func (t *top) Under() Type       { return t }
+-
+ // Type-specific implementations of String.
+ func (t *Basic) String() string     { return TypeString(t, nil) }
+ func (t *Array) String() string     { return TypeString(t, nil) }
+@@ -937,6 +878,27 @@ func (t *instance) String() string  { return TypeString(t, nil) }
+ func (t *bottom) String() string    { return TypeString(t, nil) }
+ func (t *top) String() string       { return TypeString(t, nil) }
+ 
++// under returns the true expanded underlying type.
++// If it doesn't exist, the result is Typ[Invalid].
++// under must only be called when a type is known
++// to be fully set up.
++//
++// under is set to underf to avoid an initialization cycle.
++// TODO(gri) this doesn't happen in go/types - investigate
++var under func(Type) Type
++
++func init() {
++	under = underf
++}
++
++func underf(t Type) Type {
++	// TODO(gri) is this correct for *Sum?
++	if n := asNamed(t); n != nil {
++		return n.under()
++	}
++	return t
++}
++
+ // Converters
+ //
+ // A converter must only be called when a type is
+@@ -1007,6 +969,6 @@ func asNamed(t Type) *Named {
+ }
+ 
+ func asTypeParam(t Type) *TypeParam {
+-	u, _ := t.Under().(*TypeParam)
++	u, _ := under(t).(*TypeParam)
+ 	return u
+ }
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index cf9d7c0a40..87eabbe28d 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -138,7 +138,7 @@ func (check *Checker) varType(e syntax.Expr) Type {
+ // ordinaryType reports an error if typ is an interface type containing
+ // type lists or is (or embeds) the predeclared type comparable.
+ func (check *Checker) ordinaryType(pos syntax.Pos, typ Type) {
+-	// We don't want to call Under() (via Interface) or complete interfaces while we
++	// We don't want to call under() (via Interface) or complete interfaces while we
+ 	// are in the middle of type-checking parameter declarations that might belong to
+ 	// interface methods. Delay this check to the end of type-checking.
+ 	check.atEnd(func() {
+@@ -393,7 +393,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 						err = ""
+ 					}
+ 				} else {
+-					switch u := optype(T.Under()).(type) {
++					switch u := optype(T).(type) {
+ 					case *Basic:
+ 						// unsafe.Pointer is treated like a regular pointer
+ 						if u.kind == UnsafePointer {
+@@ -442,7 +442,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 			check.indent--
+ 			var under Type
+ 			if T != nil {
+-				// Calling Under() here may lead to endless instantiations.
++				// Calling under() here may lead to endless instantiations.
+ 				// Test case: type T[P any] *T[P]
+ 				// TODO(gri) investigate if that's a bug or to be expected
+ 				// (see also analogous comment in Checker.instantiate).
+@@ -967,7 +967,7 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
+ 	posList := check.posMap[ityp]
+ 	for i, typ := range ityp.embeddeds {
+ 		pos := posList[i] // embedding position
+-		utyp := typ.Under()
++		utyp := under(typ)
+ 		etyp := asInterface(utyp)
+ 		if etyp == nil {
+ 			if utyp != Typ[Invalid] {
+@@ -1159,12 +1159,12 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
+ 			// Because we have a name, typ must be of the form T or *T, where T is the name
+ 			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
+ 			// We must delay this check to the end because we don't want to instantiate
+-			// (via t.Under()) a possibly incomplete type.
++			// (via under(t)) a possibly incomplete type.
+ 			embeddedTyp := typ // for closure below
+ 			embeddedPos := pos
+ 			check.atEnd(func() {
+ 				t, isPtr := deref(embeddedTyp)
+-				switch t := optype(t.Under()).(type) {
++				switch t := optype(t).(type) {
+ 				case *Basic:
+ 					if t == Typ[Invalid] {
+ 						// error was reported before
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 153df9d622..d2ea2b952b 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -215,9 +215,9 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		// want *Named types.)
+ 		switch {
+ 		case !isNamed(x) && y != nil && asNamed(y) != nil:
+-			return u.nify(x, y.Under(), p)
++			return u.nify(x, under(y), p)
+ 		case x != nil && asNamed(x) != nil && !isNamed(y):
+-			return u.nify(x.Under(), y, p)
++			return u.nify(under(x), y, p)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index 994e298a6c..3654ab4945 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -34,39 +34,39 @@ var (
+ // Use Universe.Lookup("byte").Type() to obtain the specific
+ // alias basic type named "byte" (and analogous for "rune").
+ var Typ = [...]*Basic{
+-	Invalid: {Invalid, 0, "invalid type", aType{}},
+-
+-	Bool:          {Bool, IsBoolean, "bool", aType{}},
+-	Int:           {Int, IsInteger, "int", aType{}},
+-	Int8:          {Int8, IsInteger, "int8", aType{}},
+-	Int16:         {Int16, IsInteger, "int16", aType{}},
+-	Int32:         {Int32, IsInteger, "int32", aType{}},
+-	Int64:         {Int64, IsInteger, "int64", aType{}},
+-	Uint:          {Uint, IsInteger | IsUnsigned, "uint", aType{}},
+-	Uint8:         {Uint8, IsInteger | IsUnsigned, "uint8", aType{}},
+-	Uint16:        {Uint16, IsInteger | IsUnsigned, "uint16", aType{}},
+-	Uint32:        {Uint32, IsInteger | IsUnsigned, "uint32", aType{}},
+-	Uint64:        {Uint64, IsInteger | IsUnsigned, "uint64", aType{}},
+-	Uintptr:       {Uintptr, IsInteger | IsUnsigned, "uintptr", aType{}},
+-	Float32:       {Float32, IsFloat, "float32", aType{}},
+-	Float64:       {Float64, IsFloat, "float64", aType{}},
+-	Complex64:     {Complex64, IsComplex, "complex64", aType{}},
+-	Complex128:    {Complex128, IsComplex, "complex128", aType{}},
+-	String:        {String, IsString, "string", aType{}},
+-	UnsafePointer: {UnsafePointer, 0, "Pointer", aType{}},
+-
+-	UntypedBool:    {UntypedBool, IsBoolean | IsUntyped, "untyped bool", aType{}},
+-	UntypedInt:     {UntypedInt, IsInteger | IsUntyped, "untyped int", aType{}},
+-	UntypedRune:    {UntypedRune, IsInteger | IsUntyped, "untyped rune", aType{}},
+-	UntypedFloat:   {UntypedFloat, IsFloat | IsUntyped, "untyped float", aType{}},
+-	UntypedComplex: {UntypedComplex, IsComplex | IsUntyped, "untyped complex", aType{}},
+-	UntypedString:  {UntypedString, IsString | IsUntyped, "untyped string", aType{}},
+-	UntypedNil:     {UntypedNil, IsUntyped, "untyped nil", aType{}},
++	Invalid: {Invalid, 0, "invalid type"},
++
++	Bool:          {Bool, IsBoolean, "bool"},
++	Int:           {Int, IsInteger, "int"},
++	Int8:          {Int8, IsInteger, "int8"},
++	Int16:         {Int16, IsInteger, "int16"},
++	Int32:         {Int32, IsInteger, "int32"},
++	Int64:         {Int64, IsInteger, "int64"},
++	Uint:          {Uint, IsInteger | IsUnsigned, "uint"},
++	Uint8:         {Uint8, IsInteger | IsUnsigned, "uint8"},
++	Uint16:        {Uint16, IsInteger | IsUnsigned, "uint16"},
++	Uint32:        {Uint32, IsInteger | IsUnsigned, "uint32"},
++	Uint64:        {Uint64, IsInteger | IsUnsigned, "uint64"},
++	Uintptr:       {Uintptr, IsInteger | IsUnsigned, "uintptr"},
++	Float32:       {Float32, IsFloat, "float32"},
++	Float64:       {Float64, IsFloat, "float64"},
++	Complex64:     {Complex64, IsComplex, "complex64"},
++	Complex128:    {Complex128, IsComplex, "complex128"},
++	String:        {String, IsString, "string"},
++	UnsafePointer: {UnsafePointer, 0, "Pointer"},
++
++	UntypedBool:    {UntypedBool, IsBoolean | IsUntyped, "untyped bool"},
++	UntypedInt:     {UntypedInt, IsInteger | IsUntyped, "untyped int"},
++	UntypedRune:    {UntypedRune, IsInteger | IsUntyped, "untyped rune"},
++	UntypedFloat:   {UntypedFloat, IsFloat | IsUntyped, "untyped float"},
++	UntypedComplex: {UntypedComplex, IsComplex | IsUntyped, "untyped complex"},
++	UntypedString:  {UntypedString, IsString | IsUntyped, "untyped string"},
++	UntypedNil:     {UntypedNil, IsUntyped, "untyped nil"},
+ }
+ 
+ var aliases = [...]*Basic{
+-	{Byte, IsInteger | IsUnsigned, "byte", aType{}},
+-	{Rune, IsInteger, "rune", aType{}},
++	{Byte, IsInteger | IsUnsigned, "byte"},
++	{Rune, IsInteger, "rune"},
+ }
+ 
+ func defPredeclaredTypes() {

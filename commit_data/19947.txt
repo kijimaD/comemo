@@ -9,9 +9,67 @@ Date:   Thu Aug 7 13:28:10 2014 +0400
     R=golang-codereviews
     CC=dave, golang-codereviews
     https://golang.org/cl/124850043
-
+---
  src/pkg/runtime/callback_windows.c | 2 +-
  src/pkg/runtime/env_plan9.c        | 2 +-
  src/pkg/runtime/os_plan9.c         | 4 ++--
  src/pkg/runtime/os_windows.c       | 2 +-
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/callback_windows.c b/src/pkg/runtime/callback_windows.c
+index 285678fbac..97b75e1d2c 100644
+--- a/src/pkg/runtime/callback_windows.c
++++ b/src/pkg/runtime/callback_windows.c
+@@ -60,7 +60,7 @@ runtime·compilecallback(Eface fn, bool cleanstack)
+ 	}
+ 	if(n >= cb_max)
+ 		runtime·throw("too many callback functions");
+-	c = runtime·mal(sizeof *c);
++	c = runtime·mallocgc(sizeof *c, nil, 0);
+ 	c->gobody = fn.data;
+ 	c->argsize = argsize;
+ 	c->cleanstack = cleanstack;
+diff --git a/src/pkg/runtime/env_plan9.c b/src/pkg/runtime/env_plan9.c
+index f732c9f294..b6e98514f3 100644
+--- a/src/pkg/runtime/env_plan9.c
++++ b/src/pkg/runtime/env_plan9.c
+@@ -33,7 +33,7 @@ runtime·getenv(int8 *s)
+ 		runtime·memclr(b, sizeof b);
+ 		p = b;
+ 	}else
+-		p = runtime·malloc(n+1);
++		p = runtime·mallocgc(n+1, nil, 0);
+ 	r = runtime·pread(fd, p, n, 0);
+ 	runtime·close(fd);
+ 	if(r < 0)
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index 02723fd9e4..98e449251a 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -20,11 +20,11 @@ runtime·mpreinit(M *mp)
+ 	// Initialize stack and goroutine for note handling.
+ 	mp->gsignal = runtime·malg(32*1024);
+ 	mp->gsignal->m = mp;
+-	mp->notesig = (int8*)runtime·malloc(ERRMAX*sizeof(int8));
++	mp->notesig = (int8*)runtime·mallocgc(ERRMAX*sizeof(int8), nil, 0);
+ 
+ 	// Initialize stack for handling strings from the
+ 	// errstr system call, as used in package syscall.
+-	mp->errstr = (byte*)runtime·malloc(ERRMAX*sizeof(byte));
++	mp->errstr = (byte*)runtime·mallocgc(ERRMAX*sizeof(byte), nil, 0);
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index 1dc0780ba9..79dc2960f9 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -143,7 +143,7 @@ runtime·goenvs(void)
+ 	for(p=env; *p; n++)
+ 		p += runtime·findnullw(p)+1;
+ 
+-	s = runtime·malloc(n*sizeof s[0]);
++	s = runtime·mallocgc(n*sizeof s[0], nil, 0);
+ 
+ 	p = env;
+ 	for(i=0; i<n; i++) {

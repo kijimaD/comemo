@@ -14,7 +14,7 @@ Date:   Wed May 27 12:04:25 2015 +1200
     Reviewed-on: https://go-review.googlesource.com/10410
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go | 4 ++--
  src/cmd/link/internal/arm/asm.go   | 4 ++--
  src/cmd/link/internal/arm64/asm.go | 4 ++--
@@ -26,3 +26,179 @@ Date:   Wed May 27 12:04:25 2015 +1200
  src/cmd/link/internal/ld/symtab.go | 6 +++---
  src/cmd/link/internal/x86/asm.go   | 4 ++--
  10 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index a4883f1a33..74ec9dd3ea 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -405,9 +405,9 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
+ 		v = uint32(rs.Dynid)
+ 		v |= 1 << 27 // external relocation
+ 	} else {
+-		v = uint32((rs.Sect.(*ld.Section)).Extnum)
++		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ld.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, (rs.Sect.(*ld.Section)).Name, rs.Type)
++			ld.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
+ 			return -1
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index e310d29e9a..39d4550917 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -279,9 +279,9 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
+ 		v = uint32(rs.Dynid)
+ 		v |= 1 << 27 // external relocation
+ 	} else {
+-		v = uint32((rs.Sect.(*ld.Section)).Extnum)
++		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ld.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, (rs.Sect.(*ld.Section)).Name, rs.Type)
++			ld.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
+ 			return -1
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 9d76f0e0c3..3aebd8a223 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -107,9 +107,9 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
+ 		v = uint32(rs.Dynid)
+ 		v |= 1 << 27 // external relocation
+ 	} else {
+-		v = uint32((rs.Sect.(*ld.Section)).Extnum)
++		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ld.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, (rs.Sect.(*ld.Section)).Name, rs.Type)
++			ld.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
+ 			return -1
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index f9aacf0e19..cf28e7b384 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -522,7 +522,7 @@ func relocsym(s *LSym) {
+ 				} else if HEADTYPE == obj.Hdarwin {
+ 					if r.Type == obj.R_CALL {
+ 						if rs.Type != obj.SHOSTOBJ {
+-							o += int64(uint64(Symaddr(rs)) - (rs.Sect.(*Section)).Vaddr)
++							o += int64(uint64(Symaddr(rs)) - rs.Sect.Vaddr)
+ 						}
+ 						o -= int64(r.Off) // relative to section offset, not symbol
+ 					} else {
+@@ -534,7 +534,7 @@ func relocsym(s *LSym) {
+ 					o += int64(r.Siz)
+ 					// GNU ld always add VirtualAddress of the .text section to the
+ 					// relocated address, compensate that.
+-					o -= int64(s.Sect.(*Section).Vaddr - PEBASE)
++					o -= int64(s.Sect.Vaddr - PEBASE)
+ 				} else {
+ 					Diag("unhandled pcrel relocation for %s", headstring)
+ 				}
+@@ -1681,7 +1681,7 @@ func address() {
+ 	for sym := datap; sym != nil; sym = sym.Next {
+ 		Ctxt.Cursym = sym
+ 		if sym.Sect != nil {
+-			sym.Value += int64((sym.Sect.(*Section)).Vaddr)
++			sym.Value += int64(sym.Sect.Vaddr)
+ 		}
+ 		for sub = sym.Sub; sub != nil; sub = sub.Sub {
+ 			sub.Value += sym.Value
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index b73a75b59b..d26a82e64a 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1517,7 +1517,7 @@ func elfshreloc(sect *Section) *ElfShdr {
+ 		sh.entsize += uint64(Thearch.Regsize)
+ 	}
+ 	sh.link = uint32(elfshname(".symtab").shnum)
+-	sh.info = uint32((sect.Elfsect.(*ElfShdr)).shnum)
++	sh.info = uint32(sect.Elfsect.shnum)
+ 	sh.off = sect.Reloff
+ 	sh.size = sect.Rellen
+ 	sh.addralign = uint64(Thearch.Regsize)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 80c01538ac..ea82ea5995 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -162,7 +162,7 @@ type Section struct {
+ 	Length  uint64
+ 	Next    *Section
+ 	Seg     *Segment
+-	Elfsect interface{}
++	Elfsect *ElfShdr
+ 	Reloff  uint64
+ 	Rellen  uint64
+ }
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 3098147819..4b034a4e81 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -78,7 +78,7 @@ type LSym struct {
+ 	File        string
+ 	Dynimplib   string
+ 	Dynimpvers  string
+-	Sect        interface{}
++	Sect        *Section
+ 	Autom       *Auto
+ 	Pcln        *Pcln
+ 	P           []byte
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 0258aff104..3a8a881d97 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -706,7 +706,7 @@ func machosymtab() {
+ 				Diag("missing section for %s", s.Name)
+ 				Adduint8(Ctxt, symtab, 0)
+ 			} else {
+-				Adduint8(Ctxt, symtab, uint8((o.Sect.(*Section)).Extnum))
++				Adduint8(Ctxt, symtab, uint8(o.Sect.Extnum))
+ 			}
+ 			Adduint16(Ctxt, symtab, 0) // desc
+ 			adduintxx(Ctxt, symtab, uint64(Symaddr(s)), Thearch.Ptrsize)
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index ca66541935..12476f79a2 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -132,12 +132,12 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
+ 			Diag("missing section in putelfsym")
+ 			return
+ 		}
+-		if xo.Sect.(*Section).Elfsect == nil {
++		if xo.Sect.Elfsect == nil {
+ 			Ctxt.Cursym = x
+ 			Diag("missing ELF section in putelfsym")
+ 			return
+ 		}
+-		elfshnum = xo.Sect.(*Section).Elfsect.(*ElfShdr).shnum
++		elfshnum = xo.Sect.Elfsect.shnum
+ 	}
+ 
+ 	// One pass for each binding: STB_LOCAL, STB_GLOBAL,
+@@ -163,7 +163,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
+ 
+ 	off := putelfstr(s)
+ 	if Linkmode == LinkExternal && elfshnum != SHN_UNDEF {
+-		addr -= int64(xo.Sect.(*Section).Vaddr)
++		addr -= int64(xo.Sect.Vaddr)
+ 	}
+ 	other := STV_DEFAULT
+ 	if x.Type&obj.SHIDDEN != 0 {
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 7bb99ca8b5..d30bd48b4e 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -276,9 +276,9 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
+ 		v = uint32(rs.Dynid)
+ 		v |= 1 << 27 // external relocation
+ 	} else {
+-		v = uint32((rs.Sect.(*ld.Section)).Extnum)
++		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ld.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, (rs.Sect.(*ld.Section)).Name, rs.Type)
++			ld.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
+ 			return -1
+ 		}
+ 	}

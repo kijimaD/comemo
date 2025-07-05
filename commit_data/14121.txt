@@ -7,6 +7,20 @@ Date:   Thu Oct 11 09:24:15 2012 +1100
     R=adg
     CC=golang-dev
     https://golang.org/cl/6604062
-
+---
  doc/godocs.js | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/godocs.js b/doc/godocs.js
+index 8d4a8aab82..7449efc228 100644
+--- a/doc/godocs.js
++++ b/doc/godocs.js
+@@ -58,6 +58,8 @@ function generateTOC() {
+   var toc_items = [];
+   $(nav).nextAll('h2, h3').each(function() {
+     var node = this;
++    if (node.id == '')
++      node.id = 'tmp_' + toc_items.length;
+     var link = $('<a/>').attr('href', '#' + node.id).text($(node).text());
+     var item;
+     if ($(node).is('h2')) {

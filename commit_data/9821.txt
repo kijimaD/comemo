@@ -9,7 +9,64 @@ Date:   Wed Sep 28 09:27:11 2011 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5143049
-
+---
  src/pkg/http/serve_test.go | 32 ++++++++++++++++++++++++++++++++
  src/pkg/http/server.go     |  2 ++
  2 files changed, 34 insertions(+)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 1bb748c3c9..dfe4278ca3 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -987,6 +987,38 @@ func TestRequestBodyLimit(t *testing.T) {
+ 	}
+ }
+ 
++// TestClientWriteShutdown tests that if the client shuts down the write
++// side of their TCP connection, the server doesn't send a 400 Bad Request.
++func TestClientWriteShutdown(t *testing.T) {
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
++	defer ts.Close()
++	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
++	if err != nil {
++		t.Fatalf("Dial: %v", err)
++	}
++	err = conn.(*net.TCPConn).CloseWrite()
++	if err != nil {
++		t.Fatalf("Dial: %v", err)
++	}
++	donec := make(chan bool)
++	go func() {
++		defer close(donec)
++		bs, err := ioutil.ReadAll(conn)
++		if err != nil {
++			t.Fatalf("ReadAll: %v", err)
++		}
++		got := string(bs)
++		if got != "" {
++			t.Errorf("read %q from server; want nothing", got)
++		}
++	}()
++	select {
++	case <-donec:
++	case <-time.After(10e9):
++		t.Fatalf("timeout")
++	}
++}
++
+ type errorListener struct {
+ 	errs []os.Error
+ }
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 6be3611f0f..8326ff8be1 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -572,6 +572,8 @@ func (c *conn) serve() {
+ 				// while they're still writing their
+ 				// request.  Undefined behavior.
+ 				msg = "413 Request Entity Too Large"
++			} else if err == io.ErrUnexpectedEOF {
++				break // Don't reply
+ 			} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+ 				break // Don't reply
+ 			}

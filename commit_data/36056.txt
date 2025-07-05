@@ -7,6 +7,20 @@ Date:   Sun Apr 1 16:01:52 2018 +0000
     Change-Id: I56a4d25bdf886d0c0cc9723c197a014dfc9da3d3
     Reviewed-on: https://go-review.googlesource.com/103995
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/run.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 1fde5f4610..5679f99557 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -35,7 +35,7 @@ ulimit -c 0
+ # non-root process is allowed to set the high limit.
+ # This is a system misconfiguration and should be fixed on the
+ # broken system, not "fixed" by ignoring the failure here.
+-# See longer discussion on golang.org/issue/7381. 
++# See longer discussion on golang.org/issue/7381.
+ [ "$(ulimit -H -n)" = "unlimited" ] || ulimit -S -n $(ulimit -H -n)
+ [ "$(ulimit -H -d)" = "unlimited" ] || ulimit -S -d $(ulimit -H -d)
+ 

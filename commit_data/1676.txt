@@ -7,6 +7,29 @@ Date:   Sun Feb 15 13:15:46 2009 -0800
     R=ken
     OCL=25044
     CL=25044
-
+---
  src/cmd/gc/walk.c | 11 +++++++----
  1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 1d20633487..f3a3bd6e55 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -3745,10 +3745,13 @@ addrescapes(Node *n)
+ 
+ 	case ODOT:
+ 	case OINDEX:
+-		// ODOTPTR has already been
+-		// introduced, so these are the non-pointer
+-		// ODOT and OINDEX.
+-		addrescapes(n->left);
++		// ODOTPTR has already been introduced,
++		// so these are the non-pointer ODOT and OINDEX.
++		// In &x[0], if x is a slice, then x does not
++		// escape--the pointer inside x does, but that
++		// is always a heap pointer anyway.
++		if(!isslice(n->left->type))
++			addrescapes(n->left);
+ 		break;
+ 	}
+ }

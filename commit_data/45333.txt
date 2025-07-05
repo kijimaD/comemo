@@ -14,10 +14,232 @@ Date:   Mon Jul 6 11:26:26 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/243912
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/go/build/deps_test.go    |  4 ++-
  src/io/fs/readfile.go        | 63 ++++++++++++++++++++++++++++++++++++++++++++
  src/io/fs/readfile_test.go   | 43 ++++++++++++++++++++++++++++++
  src/testing/fstest/mapfs.go  | 12 +++++++++
  src/testing/fstest/testfs.go | 39 ++++++++++++++++++++++++---
  5 files changed, 156 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 4867a5031a..ccee539086 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -165,7 +165,9 @@ var depsRules = `
+ 
+ 	os/signal, STR
+ 	< path/filepath
+-	< io/ioutil, os/exec
++	< io/ioutil, os/exec;
++
++	io/ioutil, os/exec, os/signal
+ 	< OS;
+ 
+ 	reflect !< OS;
+diff --git a/src/io/fs/readfile.go b/src/io/fs/readfile.go
+new file mode 100644
+index 0000000000..7ee9eadac4
+--- /dev/null
++++ b/src/io/fs/readfile.go
+@@ -0,0 +1,63 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fs
++
++import "io"
++
++// ReadFileFS is the interface implemented by a file system
++// that provides an optimized implementation of ReadFile.
++type ReadFileFS interface {
++	FS
++
++	// ReadFile reads the named file and returns its contents.
++	// A successful call returns a nil error, not io.EOF.
++	// (Because ReadFile reads the whole file, the expected EOF
++	// from the final Read is not treated as an error to be reported.)
++	ReadFile(name string) ([]byte, error)
++}
++
++// ReadFile reads the named file from the file system fs and returns its contents.
++// A successful call returns a nil error, not io.EOF.
++// (Because ReadFile reads the whole file, the expected EOF
++// from the final Read is not treated as an error to be reported.)
++//
++// If fs implements ReadFileFS, ReadFile calls fs.ReadFile.
++// Otherwise ReadFile calls fs.Open and uses Read and Close
++// on the returned file.
++func ReadFile(fsys FS, name string) ([]byte, error) {
++	if fsys, ok := fsys.(ReadFileFS); ok {
++		return fsys.ReadFile(name)
++	}
++
++	file, err := fsys.Open(name)
++	if err != nil {
++		return nil, err
++	}
++	defer file.Close()
++
++	var size int
++	if info, err := file.Stat(); err == nil {
++		size64 := info.Size()
++		if int64(int(size64)) == size64 {
++			size = int(size64)
++		}
++	}
++
++	data := make([]byte, 0, size+1)
++	for {
++		if len(data) >= cap(data) {
++			d := append(data[:cap(data)], 0)
++			data = d[:len(data)]
++		}
++		n, err := file.Read(data[len(data):cap(data)])
++		data = data[:len(data)+n]
++		if err != nil {
++			if err == io.EOF {
++				err = nil
++			}
++			return data, err
++		}
++	}
++}
+diff --git a/src/io/fs/readfile_test.go b/src/io/fs/readfile_test.go
+new file mode 100644
+index 0000000000..0afa334ace
+--- /dev/null
++++ b/src/io/fs/readfile_test.go
+@@ -0,0 +1,43 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fs_test
++
++import (
++	. "io/fs"
++	"testing"
++	"testing/fstest"
++	"time"
++)
++
++var testFsys = fstest.MapFS{
++	"hello.txt": {
++		Data:    []byte("hello, world"),
++		Mode:    0456,
++		ModTime: time.Now(),
++		Sys:     &sysValue,
++	},
++}
++
++var sysValue int
++
++type readFileOnly struct{ ReadFileFS }
++
++func (readFileOnly) Open(name string) (File, error) { return nil, ErrNotExist }
++
++type openOnly struct{ FS }
++
++func TestReadFile(t *testing.T) {
++	// Test that ReadFile uses the method when present.
++	data, err := ReadFile(readFileOnly{testFsys}, "hello.txt")
++	if string(data) != "hello, world" || err != nil {
++		t.Fatalf(`ReadFile(readFileOnly, "hello.txt") = %q, %v, want %q, nil`, data, err, "hello, world")
++	}
++
++	// Test that ReadFile uses Open when the method is not present.
++	data, err = ReadFile(openOnly{testFsys}, "hello.txt")
++	if string(data) != "hello, world" || err != nil {
++		t.Fatalf(`ReadFile(openOnly, "hello.txt") = %q, %v, want %q, nil`, data, err, "hello, world")
++	}
++}
+diff --git a/src/testing/fstest/mapfs.go b/src/testing/fstest/mapfs.go
+index 84a943f409..e969ac2bd1 100644
+--- a/src/testing/fstest/mapfs.go
++++ b/src/testing/fstest/mapfs.go
+@@ -108,6 +108,18 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
+ 	return &mapDir{name, mapFileInfo{elem, file}, list, 0}, nil
+ }
+ 
++// fsOnly is a wrapper that hides all but the fs.FS methods,
++// to avoid an infinite recursion when implementing special
++// methods in terms of helpers that would use them.
++// (In general, implementing these methods using the package fs helpers
++// is redundant and unnecessary, but having the methods may make
++// MapFS exercise more code paths when used in tests.)
++type fsOnly struct{ fs.FS }
++
++func (fsys MapFS) ReadFile(name string) ([]byte, error) {
++	return fs.ReadFile(fsOnly{fsys}, name)
++}
++
+ // A mapFileInfo implements fs.FileInfo and fs.DirEntry for a given map file.
+ type mapFileInfo struct {
+ 	name string
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index 2bb2120c19..66725ca2a4 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -310,6 +310,27 @@ func (t *fsTester) checkFile(file string) {
+ 	// The return value doesn't matter.
+ 	f.Close()
+ 
++	// Check that ReadFile works if present.
++	if fsys, ok := t.fsys.(fs.ReadFileFS); ok {
++		data2, err := fsys.ReadFile(file)
++		if err != nil {
++			t.errorf("%s: fsys.ReadFile: %v", file, err)
++			return
++		}
++		t.checkFileRead(file, "ReadAll vs fsys.ReadFile", data, data2)
++
++		t.checkBadPath(file, "ReadFile",
++			func(name string) error { _, err := fsys.ReadFile(name); return err })
++	}
++
++	// Check that fs.ReadFile works with t.fsys.
++	data2, err := fs.ReadFile(t.fsys, file)
++	if err != nil {
++		t.errorf("%s: fs.ReadFile: %v", file, err)
++		return
++	}
++	t.checkFileRead(file, "ReadAll vs fs.ReadFile", data, data2)
++
+ 	// Use iotest.TestReader to check small reads, Seek, ReadAt.
+ 	f, err = t.fsys.Open(file)
+ 	if err != nil {
+@@ -329,8 +350,19 @@ func (t *fsTester) checkFileRead(file, desc string, data1, data2 []byte) {
+ 	}
+ }
+ 
+-// checkOpen checks that various invalid forms of file's name cannot be opened.
++// checkBadPath checks that various invalid forms of file's name cannot be opened using t.fsys.Open.
+ func (t *fsTester) checkOpen(file string) {
++	t.checkBadPath(file, "Open", func(file string) error {
++		f, err := t.fsys.Open(file)
++		if err == nil {
++			f.Close()
++		}
++		return err
++	})
++}
++
++// checkBadPath checks that various invalid forms of file's name cannot be opened using open.
++func (t *fsTester) checkBadPath(file string, desc string, open func(string) error) {
+ 	bad := []string{
+ 		"/" + file,
+ 		file + "/.",
+@@ -356,9 +388,8 @@ func (t *fsTester) checkOpen(file string) {
+ 	}
+ 
+ 	for _, b := range bad {
+-		if f, err := t.fsys.Open(b); err == nil {
+-			f.Close()
+-			t.errorf("%s: Open(%s) succeeded, want error", file, b)
++		if err := open(b); err == nil {
++			t.errorf("%s: %s(%s) succeeded, want error", file, desc, b)
+ 		}
+ 	}
+ }

@@ -9,6 +9,21 @@ Date:   Sun Aug 23 19:51:16 2015 -0700
     Reviewed-by: Adam Langley <agl@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/x509/x509.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index be6c013464..0431f87cd0 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -56,6 +56,9 @@ func marshalPublicKey(pub interface{}) (publicKeyBytes []byte, publicKeyAlgorith
+ 			N: pub.N,
+ 			E: pub.E,
+ 		})
++		if err != nil {
++			return nil, pkix.AlgorithmIdentifier{}, err
++		}
+ 		publicKeyAlgorithm.Algorithm = oidPublicKeyRSA
+ 		// This is a NULL parameters value which is technically
+ 		// superfluous, but most other code includes it and, by

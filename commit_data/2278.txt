@@ -8,6 +8,29 @@ Date:   Thu May 21 17:31:13 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=29210
     CL=29215
-
+---
  src/lib/exvar/exvar.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/exvar/exvar.go b/src/lib/exvar/exvar.go
+index b2c1ad1a0e..fea5683374 100644
+--- a/src/lib/exvar/exvar.go
++++ b/src/lib/exvar/exvar.go
+@@ -102,7 +102,7 @@ func (v *Map) Add(key string, delta int64) {
+ }
+ 
+ // TODO(rsc): Make sure map access in separate thread is safe.
+-func (v *Map) iterate(c <-chan KeyValue) {
++func (v *Map) iterate(c chan<- KeyValue) {
+ 	for k, v := range v.m {
+ 		c <- KeyValue{ k, v };
+ 	}
+@@ -174,7 +174,7 @@ func NewString(name string) *String {
+ }
+ 
+ // TODO(rsc): Make sure map access in separate thread is safe.
+-func iterate(c <-chan KeyValue) {
++func iterate(c chan<- KeyValue) {
+ 	for k, v := range vars {
+ 		c <- KeyValue{ k, v };
+ 	}

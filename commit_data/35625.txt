@@ -20,7 +20,7 @@ Date:   Thu Feb 22 17:24:19 2018 -0800
     Change-Id: I5b1451cb88fff3f149920c2eec08b6167955ce27
     Reviewed-on: https://go-review.googlesource.com/96535
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/asm/internal/lex/input.go    |  4 +--
  src/cmd/compile/internal/gc/noder.go | 13 ++-------
  src/cmd/internal/obj/line_test.go    |  2 +-
@@ -29,3 +29,303 @@ Date:   Thu Feb 22 17:24:19 2018 -0800
  src/cmd/internal/src/xpos_test.go    |  2 +-
  test/fixedbugs/issue22662.go         | 46 ++++++++++++++++++++++++++++++++
  7 files changed, 117 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index 666611e179..5186635fe7 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -454,8 +454,8 @@ func (in *Input) line() {
+ 	if tok != '\n' {
+ 		in.Error("unexpected token at end of #line: ", tok)
+ 	}
+-	pos := src.MakePos(in.Base(), uint(in.Line()), uint(in.Col()))
+-	in.Stack.SetBase(src.NewLinePragmaBase(pos, file, objabi.AbsFile(objabi.WorkingDir(), file, *flags.TrimPath), uint(line)))
++	pos := src.MakePos(in.Base(), uint(in.Line())+1, 1) // +1 because #line nnn means line nnn starts on next line
++	in.Stack.SetBase(src.NewLinePragmaBase(pos, file, objabi.AbsFile(objabi.WorkingDir(), file, *flags.TrimPath), uint(line), 1))
+ }
+ 
+ // #undef processing
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 9418bc5c2f..7865550293 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -80,17 +80,8 @@ func (p *noder) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
+ 		fn := b0.Filename()
+ 		if p0 := b0.Pos(); p0.IsKnown() {
+ 			// line directive base
+-			//
+-			// (A syntax.PosBase position is the position at which the PosBase's
+-			// new line and column are starting. For //line directives, that is
+-			// the position of the line following the directive. src.PosBases
+-			// on the other hand use the position of the line directive instead.
+-			// Hence the `p0.Line()-1` below.)
+-			//
+-			// TODO(gri) Once we implement /*line directives, we need to adjust
+-			//           src.MakePos accordingly.
+-			p1 := src.MakePos(p.makeSrcPosBase(p0.Base()), p0.Line()-1, p0.Col())
+-			b1 = src.NewLinePragmaBase(p1, fn, fileh(fn), b0.Line())
++			p1 := src.MakePos(p.makeSrcPosBase(p0.Base()), p0.Line(), p0.Col())
++			b1 = src.NewLinePragmaBase(p1, fn, fileh(fn), b0.Line(), b0.Col())
+ 		} else {
+ 			// file base
+ 			b1 = src.NewFileBase(fn, absFilename(fn))
+diff --git a/src/cmd/internal/obj/line_test.go b/src/cmd/internal/obj/line_test.go
+index f159a65e2b..e0db7f3420 100644
+--- a/src/cmd/internal/obj/line_test.go
++++ b/src/cmd/internal/obj/line_test.go
+@@ -17,7 +17,7 @@ func TestLinkgetlineFromPos(t *testing.T) {
+ 
+ 	afile := src.NewFileBase("a.go", "a.go")
+ 	bfile := src.NewFileBase("b.go", "/foo/bar/b.go")
+-	lfile := src.NewLinePragmaBase(src.MakePos(afile, 7, 0), "linedir", "linedir", 100)
++	lfile := src.NewLinePragmaBase(src.MakePos(afile, 8, 1), "linedir", "linedir", 100, 1)
+ 
+ 	var tests = []struct {
+ 		pos  src.Pos
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index 10fa924c0b..ca7a10e955 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -18,8 +18,8 @@ import "strconv"
+ // The position base is used to determine the "relative" position, that is the
+ // filename and line number relative to the position base. If the base refers
+ // to the current file, there is no difference between absolute and relative
+-// positions. If it refers to a //line pragma, a relative position is relative
+-// to that pragma. A position base in turn contains the position at which it
++// positions. If it refers to a //line directive, a relative position is relative
++// to that directive. A position base in turn contains the position at which it
+ // was introduced in the current file.
+ type Pos struct {
+ 	base *PosBase
+@@ -68,9 +68,19 @@ func (p *Pos) SetBase(base *PosBase) { p.base = base }
+ // RelFilename returns the filename recorded with the position's base.
+ func (p Pos) RelFilename() string { return p.base.Filename() }
+ 
+-// RelLine returns the line number relative to the positions's base.
++// RelLine returns the line number relative to the position's base.
+ func (p Pos) RelLine() uint { b := p.base; return b.Line() + p.Line() - b.Pos().Line() }
+ 
++// RelCol returns the column number relative to the position's base.
++func (p Pos) RelCol() uint {
++	b := p.Base()
++	if p.Line() == b.Pos().Line() {
++		// p on same line as p's base => column is relative to p's base
++		return b.Col() + p.Col() - b.Pos().Col()
++	}
++	return p.Col()
++}
++
+ // AbsFilename() returns the absolute filename recorded with the position's base.
+ func (p Pos) AbsFilename() string { return p.base.AbsFilename() }
+ 
+@@ -97,6 +107,9 @@ func (p Pos) Format(showCol, showOrig bool) string {
+ 		return format(p.Filename(), p.Line(), p.Col(), showCol)
+ 	}
+ 
++	// TODO(gri): Column information should be printed if a line
++	// directive explicitly specified a column, per issue #22662.
++
+ 	// base is relative
+ 	// Print the column only for the original position since the
+ 	// relative position's column information may be bogus (it's
+@@ -126,16 +139,16 @@ func format(filename string, line, col uint, showCol bool) string {
+ // ----------------------------------------------------------------------------
+ // PosBase
+ 
+-// A PosBase encodes a filename and base line number.
+-// Typically, each file and line pragma introduce a PosBase.
++// A PosBase encodes a filename and base position.
++// Typically, each file and line directive introduce a PosBase.
+ // A nil *PosBase is a ready to use file PosBase for an unnamed
+ // file with line numbers starting at 1.
+ type PosBase struct {
+-	pos         Pos
++	pos         Pos    // position at which the relative position is (line, col)
+ 	filename    string // file name used to open source file, for error messages
+ 	absFilename string // absolute file name, for PC-Line tables
+ 	symFilename string // cached symbol file name, to avoid repeated string concatenation
+-	line        uint   // relative line number at pos
++	line, col   uint   // relative line, column number at pos
+ 	inl         int    // inlining index (see cmd/internal/obj/inl.go)
+ }
+ 
+@@ -155,11 +168,12 @@ func NewFileBase(filename, absFilename string) *PosBase {
+ 	return nil
+ }
+ 
+-// NewLinePragmaBase returns a new *PosBase for a line pragma of the form
+-//      //line filename:line
++// NewLinePragmaBase returns a new *PosBase for a line directive of the form
++//      //line filename:line:col
++//      /*line filename:line:col*/
+ // at position pos.
+-func NewLinePragmaBase(pos Pos, filename, absFilename string, line uint) *PosBase {
+-	return &PosBase{pos, filename, absFilename, FileSymPrefix + absFilename, line - 1, -1}
++func NewLinePragmaBase(pos Pos, filename, absFilename string, line, col uint) *PosBase {
++	return &PosBase{pos, filename, absFilename, FileSymPrefix + absFilename, line, col, -1}
+ }
+ 
+ // NewInliningBase returns a copy of the old PosBase with the given inlining
+@@ -229,6 +243,15 @@ func (b *PosBase) Line() uint {
+ 	return 0
+ }
+ 
++// Col returns the column number recorded with the base.
++// If b == nil, the result is 0.
++func (b *PosBase) Col() uint {
++	if b != nil {
++		return b.col
++	}
++	return 0
++}
++
+ // InliningIndex returns the index into the global inlining
+ // tree recorded with the base. If b == nil or the base has
+ // not been inlined, the result is < 0.
+diff --git a/src/cmd/internal/src/pos_test.go b/src/cmd/internal/src/pos_test.go
+index b06d382536..1cebf6f0f6 100644
+--- a/src/cmd/internal/src/pos_test.go
++++ b/src/cmd/internal/src/pos_test.go
+@@ -12,16 +12,19 @@ import (
+ func TestPos(t *testing.T) {
+ 	f0 := NewFileBase("", "")
+ 	f1 := NewFileBase("f1", "f1")
+-	f2 := NewLinePragmaBase(Pos{}, "f2", "f2", 10)
+-	f3 := NewLinePragmaBase(MakePos(f1, 10, 1), "f3", "f3", 100)
+-	f4 := NewLinePragmaBase(MakePos(f3, 10, 1), "f4", "f4", 100)
++	f2 := NewLinePragmaBase(Pos{}, "f2", "f2", 10, 0)
++	f3 := NewLinePragmaBase(MakePos(f1, 10, 1), "f3", "f3", 100, 1)
++	f4 := NewLinePragmaBase(MakePos(f3, 10, 1), "f4", "f4", 100, 1)
++
++	// line directives with non-1 columns
++	f5 := NewLinePragmaBase(MakePos(f1, 5, 5), "f5", "f5", 10, 1)
+ 
+ 	// line directives from issue #19392
+ 	fp := NewFileBase("p.go", "p.go")
+-	fc := NewLinePragmaBase(MakePos(fp, 3, 0), "c.go", "c.go", 10)
+-	ft := NewLinePragmaBase(MakePos(fp, 6, 0), "t.go", "t.go", 20)
+-	fv := NewLinePragmaBase(MakePos(fp, 9, 0), "v.go", "v.go", 30)
+-	ff := NewLinePragmaBase(MakePos(fp, 12, 0), "f.go", "f.go", 40)
++	fc := NewLinePragmaBase(MakePos(fp, 4, 1), "c.go", "c.go", 10, 1)
++	ft := NewLinePragmaBase(MakePos(fp, 7, 1), "t.go", "t.go", 20, 1)
++	fv := NewLinePragmaBase(MakePos(fp, 10, 1), "v.go", "v.go", 30, 1)
++	ff := NewLinePragmaBase(MakePos(fp, 13, 1), "f.go", "f.go", 40, 1)
+ 
+ 	for _, test := range []struct {
+ 		pos    Pos
+@@ -32,22 +35,27 @@ func TestPos(t *testing.T) {
+ 		line, col uint
+ 
+ 		// relative info
+-		relFilename string
+-		relLine     uint
++		relFilename     string
++		relLine, relCol uint
+ 	}{
+-		{Pos{}, "<unknown line number>", "", 0, 0, "", 0},
+-		{MakePos(nil, 2, 3), ":2:3", "", 2, 3, "", 2},
+-		{MakePos(f0, 2, 3), ":2:3", "", 2, 3, "", 2},
+-		{MakePos(f1, 1, 1), "f1:1:1", "f1", 1, 1, "f1", 1},
+-		{MakePos(f2, 7, 10), "f2:16[:7:10]", "", 7, 10, "f2", 16},
+-		{MakePos(f3, 12, 7), "f3:101[f1:12:7]", "f1", 12, 7, "f3", 101},
+-		{MakePos(f4, 25, 1), "f4:114[f3:25:1]", "f3", 25, 1, "f4", 114},
++		{Pos{}, "<unknown line number>", "", 0, 0, "", 0, 0},
++		{MakePos(nil, 2, 3), ":2:3", "", 2, 3, "", 2, 3},
++		{MakePos(f0, 2, 3), ":2:3", "", 2, 3, "", 2, 3},
++		{MakePos(f1, 1, 1), "f1:1:1", "f1", 1, 1, "f1", 1, 1},
++		{MakePos(f2, 7, 10), "f2:17[:7:10]", "", 7, 10, "f2", 17, 10},
++		{MakePos(f3, 12, 7), "f3:102[f1:12:7]", "f1", 12, 7, "f3", 102, 7},
++		{MakePos(f4, 25, 1), "f4:115[f3:25:1]", "f3", 25, 1, "f4", 115, 1},
++
++		// line directives with non-1 columns
++		{MakePos(f5, 5, 5), "f5:10[f1:5:5]", "f1", 5, 5, "f5", 10, 1},
++		{MakePos(f5, 5, 10), "f5:10[f1:5:10]", "f1", 5, 10, "f5", 10, 6},
++		{MakePos(f5, 6, 10), "f5:11[f1:6:10]", "f1", 6, 10, "f5", 11, 10},
+ 
+ 		// positions from issue #19392
+-		{MakePos(fc, 4, 0), "c.go:10[p.go:4:0]", "p.go", 4, 0, "c.go", 10},
+-		{MakePos(ft, 7, 0), "t.go:20[p.go:7:0]", "p.go", 7, 0, "t.go", 20},
+-		{MakePos(fv, 10, 0), "v.go:30[p.go:10:0]", "p.go", 10, 0, "v.go", 30},
+-		{MakePos(ff, 13, 0), "f.go:40[p.go:13:0]", "p.go", 13, 0, "f.go", 40},
++		{MakePos(fc, 4, 1), "c.go:10[p.go:4:1]", "p.go", 4, 1, "c.go", 10, 1},
++		{MakePos(ft, 7, 1), "t.go:20[p.go:7:1]", "p.go", 7, 1, "t.go", 20, 1},
++		{MakePos(fv, 10, 1), "v.go:30[p.go:10:1]", "p.go", 10, 1, "v.go", 30, 1},
++		{MakePos(ff, 13, 1), "f.go:40[p.go:13:1]", "p.go", 13, 1, "f.go", 40, 1},
+ 	} {
+ 		pos := test.pos
+ 		if got := pos.String(); got != test.string {
+@@ -72,6 +80,9 @@ func TestPos(t *testing.T) {
+ 		if got := pos.RelLine(); got != test.relLine {
+ 			t.Errorf("%s: got relLine %d; want %d", test.string, got, test.relLine)
+ 		}
++		if got := pos.RelCol(); got != test.relCol {
++			t.Errorf("%s: got relCol %d; want %d", test.string, got, test.relCol)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/src/xpos_test.go b/src/cmd/internal/src/xpos_test.go
+index 8ac9c9dc4e..e5bfe57484 100644
+--- a/src/cmd/internal/src/xpos_test.go
++++ b/src/cmd/internal/src/xpos_test.go
+@@ -19,7 +19,7 @@ func TestNoXPos(t *testing.T) {
+ func TestConversion(t *testing.T) {
+ 	b1 := NewFileBase("b1", "b1")
+ 	b2 := NewFileBase("b2", "b2")
+-	b3 := NewLinePragmaBase(MakePos(b1, 10, 0), "b3", "b3", 123)
++	b3 := NewLinePragmaBase(MakePos(b1, 10, 0), "b3", "b3", 123, 0)
+ 
+ 	var tab PosTable
+ 	for _, want := range []Pos{
+diff --git a/test/fixedbugs/issue22662.go b/test/fixedbugs/issue22662.go
+new file mode 100644
+index 0000000000..a1f00bfac3
+--- /dev/null
++++ b/test/fixedbugs/issue22662.go
+@@ -0,0 +1,46 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify effect of various line directives.
++// TODO: check columns
++
++package main
++
++import (
++	"fmt"
++	"runtime"
++)
++
++func check(file string, line int) {
++	_, f, l, ok := runtime.Caller(1)
++	if !ok {
++		panic("runtime.Caller(1) failed")
++	}
++	if f != file || l != line {
++		panic(fmt.Sprintf("got %s:%d; want %s:%d", f, l, file, line))
++	}
++}
++
++func main() {
++//-style line directives
++//line :1
++	check("??", 1) // no file specified
++//line foo.go:1
++	check("foo.go", 1)
++//line bar.go:10:20
++	check("bar.go", 10)
++//line :11:22
++	check("bar.go", 11) // no file, but column specified => keep old filename
++
++/*-style line directives */
++/*line :1*/ check("??", 1) // no file specified
++/*line foo.go:1*/ check("foo.go", 1)
++/*line bar.go:10:20*/ check("bar.go", 10)
++/*line :11:22*/ check("bar.go", 11) // no file, but column specified => keep old filename
++
++	/*line :10*/ check("??", 10); /*line foo.go:20*/ check("foo.go", 20); /*line :30:1*/ check("foo.go", 30)
++	check("foo.go", 31)
++}

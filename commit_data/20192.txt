@@ -17,10 +17,257 @@ Date:   Sun Aug 24 20:28:29 2014 -0400
     R=golang-codereviews, dvyukov, josharian
     CC=dave, golang-codereviews
     https://golang.org/cl/135730043
-
+---
  src/pkg/runtime/error.go  |  2 +-
  src/pkg/runtime/string.go |  4 +--
  src/pkg/runtime/stubs.go  |  3 +-
  src/pkg/runtime/symtab.c  | 26 +++++++++++------
  src/pkg/runtime/symtab.go | 71 +++++++++++++++++++++--------------------------
  5 files changed, 55 insertions(+), 51 deletions(-)
+
+diff --git a/src/pkg/runtime/error.go b/src/pkg/runtime/error.go
+index f379fc443a..0fe882d0fa 100644
+--- a/src/pkg/runtime/error.go
++++ b/src/pkg/runtime/error.go
+@@ -85,7 +85,7 @@ type errorCString struct{ cstr unsafe.Pointer }
+ func (e errorCString) RuntimeError() {}
+ 
+ func (e errorCString) Error() string {
+-	return "runtime error: " + cstringToGo(uintptr(e.cstr))
++	return "runtime error: " + cstringToGo(e.cstr)
+ }
+ 
+ // For calling from C.
+diff --git a/src/pkg/runtime/string.go b/src/pkg/runtime/string.go
+index c5b0917482..983125f0ce 100644
+--- a/src/pkg/runtime/string.go
++++ b/src/pkg/runtime/string.go
+@@ -148,10 +148,10 @@ type stringStruct struct {
+ 	len int
+ }
+ 
+-func cstringToGo(str uintptr) (s string) {
++func cstringToGo(str unsafe.Pointer) (s string) {
+ 	i := 0
+ 	for ; ; i++ {
+-		if *(*byte)(unsafe.Pointer(str + uintptr(i))) == 0 {
++		if *(*byte)(unsafe.Pointer(uintptr(str) + uintptr(i))) == 0 {
+ 			break
+ 		}
+ 	}
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index e7d7c38bf1..76f6faf53a 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -49,7 +49,8 @@ func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
+ 
+ // n must be a power of 2
+ func roundup(p unsafe.Pointer, n uintptr) unsafe.Pointer {
+-	return unsafe.Pointer((uintptr(p) + n - 1) &^ (n - 1))
++	delta := -uintptr(p) & (n - 1)
++	return unsafe.Pointer(uintptr(p) + delta)
+ }
+ 
+ // in stubs.goc
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index fd0d3c1928..613aa942ed 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -20,15 +20,16 @@ struct Ftab
+ };
+ 
+ extern byte pclntab[];
++extern byte epclntab[];
+ 
+ static Ftab *ftab;
+-extern uintptr runtime·nftab;
++static uintptr runtime·nftab;
+ static uint32 *filetab;
+-extern uint32 runtime·nfiletab;
++static uint32 runtime·nfiletab;
+ 
+-extern uintptr runtime·pclntab;
+-extern uintptr runtime·ftab0;
+-extern uintptr runtime·filetab0;
++extern Slice runtime·pclntab;
++extern Slice runtime·ftabs;
++extern Slice runtime·filetab;
+ extern uint32 runtime·pcquantum;
+ 
+ static String end = { (uint8*)"end", 3 };
+@@ -65,9 +66,18 @@ runtime·symtabinit(void)
+ 	runtime·nfiletab = filetab[0];
+ 
+ 	runtime·pcquantum = PCQuantum;
+-	runtime·pclntab = (uintptr)pclntab;
+-	runtime·ftab0 = (uintptr)ftab;
+-	runtime·filetab0 = (uintptr)filetab;
++
++	runtime·pclntab.array = (byte*)pclntab;
++	runtime·pclntab.len = (byte*)epclntab - (byte*)pclntab;
++	runtime·pclntab.cap = runtime·pclntab.len;
++
++	runtime·ftabs.array = (byte*)ftab;
++	runtime·ftabs.len = runtime·nftab+1;
++	runtime·ftabs.cap = runtime·ftabs.len;
++
++	runtime·filetab.array = (byte*)filetab;
++	runtime·filetab.len = filetab[0];
++	runtime·filetab.cap = runtime·filetab.len;
+ }
+ 
+ static uint32
+diff --git a/src/pkg/runtime/symtab.go b/src/pkg/runtime/symtab.go
+index 1d2033f10f..e8f45cfc01 100644
+--- a/src/pkg/runtime/symtab.go
++++ b/src/pkg/runtime/symtab.go
+@@ -9,22 +9,22 @@ import "unsafe"
+ // FuncForPC returns a *Func describing the function that contains the
+ // given program counter address, or else nil.
+ func FuncForPC(pc uintptr) *Func {
+-	if nftab == 0 {
++	if len(ftabs) == 0 {
+ 		return nil
+ 	}
+ 
+-	if pc < ftabi(0).entry || pc >= ftabi(nftab).entry {
++	if pc < ftabs[0].entry || pc >= ftabs[len(ftabs)-1].entry {
+ 		return nil
+ 	}
+ 
+ 	// binary search to find func with entry <= pc.
+-	lo := uintptr(0)
+-	nf := nftab
++	lo := 0
++	nf := len(ftabs) - 1 // last entry is sentinel
+ 	for nf > 0 {
+ 		n := nf / 2
+-		f := ftabi(lo + n)
+-		if f.entry <= pc && pc < ftabi(lo+n+1).entry {
+-			return (*Func)(unsafe.Pointer(pclntab + f.funcoff))
++		f := &ftabs[lo+n]
++		if f.entry <= pc && pc < ftabs[lo+n+1].entry {
++			return (*Func)(unsafe.Pointer(&pclntab[f.funcoff]))
+ 		} else if pc < f.entry {
+ 			nf = n
+ 		} else {
+@@ -39,7 +39,7 @@ func FuncForPC(pc uintptr) *Func {
+ 
+ // Name returns the name of the function.
+ func (f *Func) Name() string {
+-	return cstringToGo(pclntab + uintptr(f.nameoff))
++	return cstringToGo(unsafe.Pointer(&pclntab[f.nameoff]))
+ }
+ 
+ // Entry returns the entry address of the function.
+@@ -52,15 +52,15 @@ func (f *Func) Entry() uintptr {
+ // The result will not be accurate if pc is not a program
+ // counter within f.
+ func (f *Func) FileLine(pc uintptr) (file string, line int) {
+-	fileno := f.pcvalue(f.pcfile, pc)
+-	if fileno == -1 || fileno >= int32(nfiletab) {
++	fileno := int(f.pcvalue(f.pcfile, pc))
++	if fileno == -1 || fileno >= len(filetab) {
+ 		return "?", 0
+ 	}
+ 	line = int(f.pcvalue(f.pcln, pc))
+ 	if line == -1 {
+ 		return "?", 0
+ 	}
+-	file = cstringToGo(pclntab + uintptr(filetabi(uintptr(fileno))))
++	file = cstringToGo(unsafe.Pointer(&pclntab[filetab[fileno]]))
+ 	return file, line
+ }
+ 
+@@ -69,10 +69,15 @@ func (f *Func) pcvalue(off int32, targetpc uintptr) int32 {
+ 	if off == 0 {
+ 		return -1
+ 	}
+-	p := pclntab + uintptr(off)
++	p := pclntab[off:]
+ 	pc := f.entry
+ 	val := int32(-1)
+-	for step(&p, &pc, &val, pc == f.entry) {
++	for {
++		var ok bool
++		p, ok = step(p, &pc, &val, pc == f.entry)
++		if !ok {
++			break
++		}
+ 		if targetpc < pc {
+ 			return val
+ 		}
+@@ -81,10 +86,10 @@ func (f *Func) pcvalue(off int32, targetpc uintptr) int32 {
+ }
+ 
+ // step advances to the next pc, value pair in the encoded table.
+-func step(p *uintptr, pc *uintptr, val *int32, first bool) bool {
+-	uvdelta := readvarint(p)
++func step(p []byte, pc *uintptr, val *int32, first bool) (newp []byte, ok bool) {
++	p, uvdelta := readvarint(p)
+ 	if uvdelta == 0 && !first {
+-		return false
++		return nil, false
+ 	}
+ 	if uvdelta&1 != 0 {
+ 		uvdelta = ^(uvdelta >> 1)
+@@ -92,36 +97,32 @@ func step(p *uintptr, pc *uintptr, val *int32, first bool) bool {
+ 		uvdelta >>= 1
+ 	}
+ 	vdelta := int32(uvdelta)
+-	pcdelta := readvarint(p) * pcquantum
+-	*pc += uintptr(pcdelta)
++	p, pcdelta := readvarint(p)
++	*pc += uintptr(pcdelta * pcquantum)
+ 	*val += vdelta
+-	return true
++	return p, true
+ }
+ 
+-// readvarint reads a varint from *p and advances *p.
+-func readvarint(pp *uintptr) uint32 {
++// readvarint reads a varint from p.
++func readvarint(p []byte) (newp []byte, val uint32) {
+ 	var v, shift uint32
+-	p := *pp
+ 	for {
+-		b := *(*byte)(unsafe.Pointer(p))
+-		p++
++		b := p[0]
++		p = p[1:]
+ 		v |= (uint32(b) & 0x7F) << shift
+ 		if b&0x80 == 0 {
+ 			break
+ 		}
+ 		shift += 7
+ 	}
+-	*pp = p
+-	return v
++	return p, v
+ }
+ 
+ // Populated by runtime·symtabinit during bootstrapping. Treat as immutable.
+ var (
+-	pclntab   uintptr // address of pclntab
+-	ftab0     uintptr // address of first ftab entry
+-	nftab     uintptr
+-	filetab0  uintptr // address of first filetab entry
+-	nfiletab  uint32
++	pclntab   []byte
++	ftabs     []ftab
++	filetab   []uint32
+ 	pcquantum uint32
+ )
+ 
+@@ -143,11 +144,3 @@ type ftab struct {
+ 	entry   uintptr
+ 	funcoff uintptr
+ }
+-
+-func ftabi(i uintptr) (f ftab) {
+-	return *(*ftab)(unsafe.Pointer(ftab0 + i*unsafe.Sizeof(f)))
+-}
+-
+-func filetabi(i uintptr) (f uint32) {
+-	return *(*uint32)(unsafe.Pointer(filetab0 + i*unsafe.Sizeof(f)))
+-}

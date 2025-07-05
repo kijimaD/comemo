@@ -7,6 +7,36 @@ Date:   Thu May 31 06:12:24 2012 +0900
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6248065
-
+---
  src/pkg/net/unicast_test.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/unicast_test.go b/src/pkg/net/unicast_test.go
+index 12ec4e4ef6..326e36195e 100644
+--- a/src/pkg/net/unicast_test.go
++++ b/src/pkg/net/unicast_test.go
+@@ -555,19 +555,19 @@ func TestWildWildcardListener(t *testing.T) {
+ 		}
+ 	}()
+ 
+-	if ln, err := Listen("tcp", ""); err != nil {
++	if ln, err := Listen("tcp", ""); err == nil {
+ 		ln.Close()
+ 	}
+-	if ln, err := ListenPacket("udp", ""); err != nil {
++	if ln, err := ListenPacket("udp", ""); err == nil {
+ 		ln.Close()
+ 	}
+-	if ln, err := ListenTCP("tcp", nil); err != nil {
++	if ln, err := ListenTCP("tcp", nil); err == nil {
+ 		ln.Close()
+ 	}
+-	if ln, err := ListenUDP("udp", nil); err != nil {
++	if ln, err := ListenUDP("udp", nil); err == nil {
+ 		ln.Close()
+ 	}
+-	if ln, err := ListenIP("ip:icmp", nil); err != nil {
++	if ln, err := ListenIP("ip:icmp", nil); err == nil {
+ 		ln.Close()
+ 	}
+ }

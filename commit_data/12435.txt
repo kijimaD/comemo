@@ -7,7 +7,36 @@ Date:   Wed Mar 7 11:01:23 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5756064
-
+---
  src/pkg/os/stat_windows.go         | 2 +-
  src/pkg/path/filepath/path_test.go | 4 ----
  2 files changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/pkg/os/stat_windows.go b/src/pkg/os/stat_windows.go
+index 19e215e935..6841748345 100644
+--- a/src/pkg/os/stat_windows.go
++++ b/src/pkg/os/stat_windows.go
+@@ -199,7 +199,7 @@ func (s *winSys) loadFileId() error {
+ 	}
+ 	s.Lock()
+ 	defer s.Unlock()
+-	h, e := syscall.CreateFile(syscall.StringToUTF16Ptr(s.path), syscall.GENERIC_READ, syscall.FILE_SHARE_READ, nil, syscall.OPEN_EXISTING, 0, 0)
++	h, e := syscall.CreateFile(syscall.StringToUTF16Ptr(s.path), 0, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
+ 	if e != nil {
+ 		return e
+ 	}
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 6bc631596e..ad053177f5 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -666,10 +666,6 @@ var absTests = []string{
+ }
+ 
+ func TestAbs(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		t.Log("TestAbs disabled on windows")
+-		return
+-	}
+ 	oldwd, err := os.Getwd()
+ 	if err != nil {
+ 		t.Fatal("Getwd failed: ", err)

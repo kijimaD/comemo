@@ -11,7 +11,7 @@ Date:   Tue Aug 16 17:26:51 2011 -0400
     R=mikioh.mikioh, golang-dev
     CC=golang-dev
     https://golang.org/cl/4809074
-
+---
  src/pkg/net/interface_bsd.go     | 31 -------------------------------
  src/pkg/net/interface_darwin.go  | 31 +++++++++++++++++++++++++++++++
  src/pkg/net/interface_freebsd.go | 31 +++++++++++++++++++++++++++++++
@@ -19,3 +19,235 @@ Date:   Tue Aug 16 17:26:51 2011 -0400
  src/pkg/syscall/route_darwin.go  | 29 +++++++++++++++++++++++++++++
  src/pkg/syscall/route_freebsd.go | 29 +++++++++++++++++++++++++++++
  6 files changed, 120 insertions(+), 60 deletions(-)
+
+diff --git a/src/pkg/net/interface_bsd.go b/src/pkg/net/interface_bsd.go
+index 130820d4a4..2675f94b97 100644
+--- a/src/pkg/net/interface_bsd.go
++++ b/src/pkg/net/interface_bsd.go
+@@ -169,34 +169,3 @@ func newAddr(m *syscall.InterfaceAddrMessage) ([]Addr, os.Error) {
+ 
+ 	return ifat, nil
+ }
+-
+-func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, os.Error) {
+-	var ifmat []Addr
+-
+-	sas, e := syscall.ParseRoutingSockaddr(m)
+-	if e != 0 {
+-		return nil, os.NewSyscallError("route sockaddr", e)
+-	}
+-
+-	for _, s := range sas {
+-		switch v := s.(type) {
+-		case *syscall.SockaddrInet4:
+-			ifma := &IPAddr{IP: IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])}
+-			ifmat = append(ifmat, ifma.toAddr())
+-		case *syscall.SockaddrInet6:
+-			ifma := &IPAddr{IP: make(IP, IPv6len)}
+-			copy(ifma.IP, v.Addr[:])
+-			// NOTE: KAME based IPv6 protcol stack usually embeds
+-			// the interface index in the interface-local or link-
+-			// local address as the kernel-internal form.
+-			if ifma.IP.IsInterfaceLocalMulticast() ||
+-				ifma.IP.IsLinkLocalMulticast() {
+-				// remove embedded scope zone ID
+-				ifma.IP[2], ifma.IP[3] = 0, 0
+-			}
+-			ifmat = append(ifmat, ifma.toAddr())
+-		}
+-	}
+-
+-	return ifmat, nil
+-}
+diff --git a/src/pkg/net/interface_darwin.go b/src/pkg/net/interface_darwin.go
+index 6fbcd37230..a7b68ad7f7 100644
+--- a/src/pkg/net/interface_darwin.go
++++ b/src/pkg/net/interface_darwin.go
+@@ -47,3 +47,34 @@ func interfaceMulticastAddrTable(ifindex int) ([]Addr, os.Error) {
+ 
+ 	return ifmat, nil
+ }
++
++func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, os.Error) {
++	var ifmat []Addr
++
++	sas, e := syscall.ParseRoutingSockaddr(m)
++	if e != 0 {
++		return nil, os.NewSyscallError("route sockaddr", e)
++	}
++
++	for _, s := range sas {
++		switch v := s.(type) {
++		case *syscall.SockaddrInet4:
++			ifma := &IPAddr{IP: IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])}
++			ifmat = append(ifmat, ifma.toAddr())
++		case *syscall.SockaddrInet6:
++			ifma := &IPAddr{IP: make(IP, IPv6len)}
++			copy(ifma.IP, v.Addr[:])
++			// NOTE: KAME based IPv6 protcol stack usually embeds
++			// the interface index in the interface-local or link-
++			// local address as the kernel-internal form.
++			if ifma.IP.IsInterfaceLocalMulticast() ||
++				ifma.IP.IsLinkLocalMulticast() {
++				// remove embedded scope zone ID
++				ifma.IP[2], ifma.IP[3] = 0, 0
++			}
++			ifmat = append(ifmat, ifma.toAddr())
++		}
++	}
++
++	return ifmat, nil
++}
+diff --git a/src/pkg/net/interface_freebsd.go b/src/pkg/net/interface_freebsd.go
+index e0ff6caf00..20f506b08b 100644
+--- a/src/pkg/net/interface_freebsd.go
++++ b/src/pkg/net/interface_freebsd.go
+@@ -47,3 +47,34 @@ func interfaceMulticastAddrTable(ifindex int) ([]Addr, os.Error) {
+ 
+ 	return ifmat, nil
+ }
++
++func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, os.Error) {
++	var ifmat []Addr
++
++	sas, e := syscall.ParseRoutingSockaddr(m)
++	if e != 0 {
++		return nil, os.NewSyscallError("route sockaddr", e)
++	}
++
++	for _, s := range sas {
++		switch v := s.(type) {
++		case *syscall.SockaddrInet4:
++			ifma := &IPAddr{IP: IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])}
++			ifmat = append(ifmat, ifma.toAddr())
++		case *syscall.SockaddrInet6:
++			ifma := &IPAddr{IP: make(IP, IPv6len)}
++			copy(ifma.IP, v.Addr[:])
++			// NOTE: KAME based IPv6 protcol stack usually embeds
++			// the interface index in the interface-local or link-
++			// local address as the kernel-internal form.
++			if ifma.IP.IsInterfaceLocalMulticast() ||
++				ifma.IP.IsLinkLocalMulticast() {
++				// remove embedded scope zone ID
++				ifma.IP[2], ifma.IP[3] = 0, 0
++			}
++			ifmat = append(ifmat, ifma.toAddr())
++		}
++	}
++
++	return ifmat, nil
++}
+diff --git a/src/pkg/syscall/route_bsd.go b/src/pkg/syscall/route_bsd.go
+index e41667c140..93e345d717 100644
+--- a/src/pkg/syscall/route_bsd.go
++++ b/src/pkg/syscall/route_bsd.go
+@@ -131,35 +131,6 @@ func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
+ 	return sas
+ }
+ 
+-const rtaIfmaMask = RTA_GATEWAY | RTA_IFP | RTA_IFA
+-
+-func (m *InterfaceMulticastAddrMessage) sockaddr() (sas []Sockaddr) {
+-	if m.Header.Addrs&rtaIfmaMask == 0 {
+-		return nil
+-	}
+-
+-	buf := m.Data[:]
+-	for i := uint(0); i < RTAX_MAX; i++ {
+-		if m.Header.Addrs&rtaIfmaMask&(1<<i) == 0 {
+-			continue
+-		}
+-		rsa := (*RawSockaddr)(unsafe.Pointer(&buf[0]))
+-		switch i {
+-		case RTAX_IFA:
+-			sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+-			if e != 0 {
+-				return nil
+-			}
+-			sas = append(sas, sa)
+-		case RTAX_GATEWAY, RTAX_IFP:
+-			// nothing to do
+-		}
+-		buf = buf[rsaAlignOf(int(rsa.Len)):]
+-	}
+-
+-	return sas
+-}
+-
+ // ParseRoutingMessage parses buf as routing messages and returns
+ // the slice containing the RoutingMessage interfaces.
+ func ParseRoutingMessage(buf []byte) (msgs []RoutingMessage, errno int) {
+diff --git a/src/pkg/syscall/route_darwin.go b/src/pkg/syscall/route_darwin.go
+index 8f79b708d6..9d3a701dab 100644
+--- a/src/pkg/syscall/route_darwin.go
++++ b/src/pkg/syscall/route_darwin.go
+@@ -46,3 +46,32 @@ type InterfaceMulticastAddrMessage struct {
+ 	Header IfmaMsghdr2
+ 	Data   []byte
+ }
++
++const rtaIfmaMask = RTA_GATEWAY | RTA_IFP | RTA_IFA
++
++func (m *InterfaceMulticastAddrMessage) sockaddr() (sas []Sockaddr) {
++	if m.Header.Addrs&rtaIfmaMask == 0 {
++		return nil
++	}
++
++	buf := m.Data[:]
++	for i := uint(0); i < RTAX_MAX; i++ {
++		if m.Header.Addrs&rtaIfmaMask&(1<<i) == 0 {
++			continue
++		}
++		rsa := (*RawSockaddr)(unsafe.Pointer(&buf[0]))
++		switch i {
++		case RTAX_IFA:
++			sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
++			if e != 0 {
++				return nil
++			}
++			sas = append(sas, sa)
++		case RTAX_GATEWAY, RTAX_IFP:
++			// nothing to do
++		}
++		buf = buf[rsaAlignOf(int(rsa.Len)):]
++	}
++
++	return sas
++}
+diff --git a/src/pkg/syscall/route_freebsd.go b/src/pkg/syscall/route_freebsd.go
+index 128e93cf90..0d61d08b08 100644
+--- a/src/pkg/syscall/route_freebsd.go
++++ b/src/pkg/syscall/route_freebsd.go
+@@ -46,3 +46,32 @@ type InterfaceMulticastAddrMessage struct {
+ 	Header IfmaMsghdr
+ 	Data   []byte
+ }
++
++const rtaIfmaMask = RTA_GATEWAY | RTA_IFP | RTA_IFA
++
++func (m *InterfaceMulticastAddrMessage) sockaddr() (sas []Sockaddr) {
++	if m.Header.Addrs&rtaIfmaMask == 0 {
++		return nil
++	}
++
++	buf := m.Data[:]
++	for i := uint(0); i < RTAX_MAX; i++ {
++		if m.Header.Addrs&rtaIfmaMask&(1<<i) == 0 {
++			continue
++		}
++		rsa := (*RawSockaddr)(unsafe.Pointer(&buf[0]))
++		switch i {
++		case RTAX_IFA:
++			sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
++			if e != 0 {
++				return nil
++			}
++			sas = append(sas, sa)
++		case RTAX_GATEWAY, RTAX_IFP:
++			// nothing to do
++		}
++		buf = buf[rsaAlignOf(int(rsa.Len)):]
++	}
++
++	return sas
++}

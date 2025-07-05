@@ -14,7 +14,7 @@ Date:   Mon Sep 7 10:37:26 2015 +1000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Håvard Haugen <havard.haugen@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go     | 12 +++++------
  src/cmd/compile/internal/gc/const.go     |  2 +-
  src/cmd/compile/internal/gc/dcl.go       | 34 ++++++++++++++++----------------
@@ -23,3 +23,294 @@ Date:   Mon Sep 7 10:37:26 2015 +1000
  src/cmd/compile/internal/gc/swt.go       |  4 ++--
  src/cmd/compile/internal/gc/typecheck.go | 14 ++++++-------
  7 files changed, 38 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 10a497a4b3..ff0adb3fe2 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -129,8 +129,8 @@ func dowidth(t *Type) {
+ 	if t.Width == -2 {
+ 		lno := int(lineno)
+ 		lineno = int32(t.Lineno)
+-		if t.Broke == 0 {
+-			t.Broke = 1
++		if !t.Broke {
++			t.Broke = true
+ 			Yyerror("invalid recursive type %v", t)
+ 		}
+ 
+@@ -141,7 +141,7 @@ func dowidth(t *Type) {
+ 
+ 	// break infinite recursion if the broken recursive type
+ 	// is referenced again
+-	if t.Broke != 0 && t.Width == 0 {
++	if t.Broke && t.Width == 0 {
+ 		return
+ 	}
+ 
+@@ -233,7 +233,7 @@ func dowidth(t *Type) {
+ 		checkwidth(t.Down)
+ 
+ 	case TFORW: // should have been filled in
+-		if t.Broke == 0 {
++		if !t.Broke {
+ 			Yyerror("invalid recursive type %v", t)
+ 		}
+ 		w = 1 // anything will do
+@@ -272,9 +272,9 @@ func dowidth(t *Type) {
+ 			checkwidth(t.Type)
+ 			t.Align = uint8(Widthptr)
+ 		} else if t.Bound == -100 {
+-			if t.Broke == 0 {
++			if !t.Broke {
+ 				Yyerror("use of [...] array outside of array literal")
+-				t.Broke = 1
++				t.Broke = true
+ 			}
+ 		} else {
+ 			Fatalf("dowidth %v", t) // probably [...]T
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 201a583319..de23190678 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -292,7 +292,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 
+ bad:
+ 	if n.Diag == 0 {
+-		if t.Broke == 0 {
++		if !t.Broke {
+ 			Yyerror("cannot convert %v to type %v", n, t)
+ 		}
+ 		n.Diag = 1
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 157f525b19..62aca0b277 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -834,7 +834,7 @@ func structfield(n *Node) *Type {
+ 
+ 	f.Type = n.Type
+ 	if f.Type == nil {
+-		f.Broke = 1
++		f.Broke = true
+ 	}
+ 
+ 	switch n.Val().Ctype() {
+@@ -894,16 +894,16 @@ func tostruct(l *NodeList) *Type {
+ 		tp = &f.Down
+ 	}
+ 
+-	for f := t.Type; f != nil && t.Broke == 0; f = f.Down {
+-		if f.Broke != 0 {
+-			t.Broke = 1
++	for f := t.Type; f != nil && !t.Broke; f = f.Down {
++		if f.Broke {
++			t.Broke = true
+ 		}
+ 	}
+ 
+ 	uniqgen++
+ 	checkdupfields(t.Type, "field")
+ 
+-	if t.Broke == 0 {
++	if !t.Broke {
+ 		checkwidth(t)
+ 	}
+ 
+@@ -929,9 +929,9 @@ func tofunargs(l *NodeList) *Type {
+ 		tp = &f.Down
+ 	}
+ 
+-	for f := t.Type; f != nil && t.Broke == 0; f = f.Down {
+-		if f.Broke != 0 {
+-			t.Broke = 1
++	for f := t.Type; f != nil && !t.Broke; f = f.Down {
++		if f.Broke {
++			t.Broke = true
+ 		}
+ 	}
+ 
+@@ -984,11 +984,11 @@ func interfacefield(n *Node) *Type {
+ 
+ 				case TFORW:
+ 					Yyerror("interface type loop involving %v", n.Type)
+-					f.Broke = 1
++					f.Broke = true
+ 
+ 				default:
+ 					Yyerror("interface contains embedded non-interface %v", n.Type)
+-					f.Broke = 1
++					f.Broke = true
+ 				}
+ 			}
+ 		}
+@@ -998,7 +998,7 @@ func interfacefield(n *Node) *Type {
+ 
+ 	f.Type = n.Type
+ 	if f.Type == nil {
+-		f.Broke = 1
++		f.Broke = true
+ 	}
+ 
+ 	lineno = int32(lno)
+@@ -1034,9 +1034,9 @@ func tointerface(l *NodeList) *Type {
+ 		}
+ 	}
+ 
+-	for f := t.Type; f != nil && t.Broke == 0; f = f.Down {
+-		if f.Broke != 0 {
+-			t.Broke = 1
++	for f := t.Type; f != nil && !t.Broke; f = f.Down {
++		if f.Broke {
++			t.Broke = true
+ 		}
+ 	}
+ 
+@@ -1224,8 +1224,8 @@ func functype(this *Node, in *NodeList, out *NodeList) *Type {
+ 	checkdupfields(t.Type.Down.Type, "argument")
+ 	checkdupfields(t.Type.Down.Down.Type, "argument")
+ 
+-	if t.Type.Broke != 0 || t.Type.Down.Broke != 0 || t.Type.Down.Down.Broke != 0 {
+-		t.Broke = 1
++	if t.Type.Broke || t.Type.Down.Broke || t.Type.Down.Down.Broke {
++		t.Broke = true
+ 	}
+ 
+ 	if this != nil {
+@@ -1383,7 +1383,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 				t = t.Type
+ 			}
+ 
+-			if t.Broke != 0 { // rely on typecheck having complained before
++			if t.Broke { // rely on typecheck having complained before
+ 				return
+ 			}
+ 			if t.Sym == nil {
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 91838ffdda..f87f7bb2a4 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -165,8 +165,8 @@ type Type struct {
+ 	Copyany     uint8
+ 	Local       bool // created in this file
+ 	Deferwidth  uint8
+-	Broke       uint8 // broken type definition.
+-	Isddd       bool  // TFIELD is ... argument
++	Broke       bool // broken type definition.
++	Isddd       bool // TFIELD is ... argument
+ 	Align       uint8
+ 	Haspointers uint8 // 0 unknown, 1 no, 2 yes
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 605597fb69..5cb75479d1 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -426,7 +426,7 @@ func algtype1(t *Type, bad **Type) int {
+ 	if bad != nil {
+ 		*bad = nil
+ 	}
+-	if t.Broke != 0 {
++	if t.Broke {
+ 		return AMEM
+ 	}
+ 	if t.Noalg != 0 {
+@@ -1133,7 +1133,7 @@ func assignop(src *Type, dst *Type, why *string) int {
+ 		}
+ 
+ 		// we'll have complained about this method anyway, suppress spurious messages.
+-		if have != nil && have.Sym == missing.Sym && (have.Type.Broke != 0 || missing.Type.Broke != 0) {
++		if have != nil && have.Sym == missing.Sym && (have.Type.Broke || missing.Type.Broke) {
+ 			return OCONVIFACE
+ 		}
+ 
+@@ -1317,7 +1317,7 @@ func assignconv(n *Node, t *Type, context string) *Node {
+ 
+ // Convert node n for assignment to type t.
+ func assignconvfn(n *Node, t *Type, context func() string) *Node {
+-	if n == nil || n.Type == nil || n.Type.Broke != 0 {
++	if n == nil || n.Type == nil || n.Type.Broke {
+ 		return n
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index c1a5a6dfb5..a0e0c4158d 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -153,9 +153,9 @@ func typecheckswitch(n *Node) {
+ 						// reset to original type
+ 						ll.N = n.Left.Right
+ 					case ll.N.Type.Etype != TINTER && t.Etype == TINTER && !implements(ll.N.Type, t, &missing, &have, &ptr):
+-						if have != nil && missing.Broke == 0 && have.Broke == 0 {
++						if have != nil && !missing.Broke && !have.Broke {
+ 							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, obj.FmtLong), ll.N.Type, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort), missing.Sym, Tconv(missing.Type, obj.FmtShort))
+-						} else if missing.Broke == 0 {
++						} else if !missing.Broke {
+ 							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Left.Right, obj.FmtLong), ll.N.Type, missing.Sym)
+ 						}
+ 					}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index fdeaa5bccc..b3d49b0962 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -348,7 +348,7 @@ OpSwitch:
+ 		} else if l.Op == ODDD {
+ 			t.Bound = -100 // to be filled in
+ 			if top&Ecomplit == 0 && n.Diag == 0 {
+-				t.Broke = 1
++				t.Broke = true
+ 				n.Diag = 1
+ 				Yyerror("use of [...] array outside of array literal")
+ 			}
+@@ -430,7 +430,7 @@ OpSwitch:
+ 		ok |= Etype
+ 		n.Op = OTYPE
+ 		n.Type = tostruct(n.List)
+-		if n.Type == nil || n.Type.Broke != 0 {
++		if n.Type == nil || n.Type.Broke {
+ 			n.Type = nil
+ 			return
+ 		}
+@@ -1286,7 +1286,7 @@ OpSwitch:
+ 		l = n.Left
+ 		if l.Op == OTYPE {
+ 			if n.Isddd || l.Type.Bound == -100 {
+-				if l.Type.Broke == 0 {
++				if !l.Type.Broke {
+ 					Yyerror("invalid use of ... in type conversion to %v", l.Type)
+ 				}
+ 				n.Diag = 1
+@@ -1753,7 +1753,7 @@ OpSwitch:
+ 		var why string
+ 		n.Op = uint8(convertop(t, n.Type, &why))
+ 		if (n.Op) == 0 {
+-			if n.Diag == 0 && n.Type.Broke == 0 {
++			if n.Diag == 0 && !n.Type.Broke {
+ 				Yyerror("cannot convert %v to type %v%s", Nconv(n.Left, obj.FmtLong), n.Type, why)
+ 				n.Diag = 1
+ 			}
+@@ -2307,7 +2307,7 @@ func checkdefergo(n *Node) {
+ 
+ 	// type is broken or missing, most likely a method call on a broken type
+ 	// we will warn about the broken type elsewhere. no need to emit a potentially confusing error
+-	if n.Left.Type == nil || n.Left.Type.Broke != 0 {
++	if n.Left.Type == nil || n.Left.Type.Broke {
+ 		return
+ 	}
+ 
+@@ -2627,7 +2627,7 @@ func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList,
+ 
+ 	lno := int(lineno)
+ 
+-	if tstruct.Broke != 0 {
++	if tstruct.Broke {
+ 		goto out
+ 	}
+ 
+@@ -3804,7 +3804,7 @@ func typecheckdef(n *Node) *Node {
+ 		if n.Type.Etype == TFORW && nerrors > nerrors0 {
+ 			// Something went wrong during type-checking,
+ 			// but it was reported. Silence future errors.
+-			n.Type.Broke = 1
++			n.Type.Broke = true
+ 		}
+ 
+ 		if Curfn != nil {

@@ -9,10 +9,101 @@ Date:   Tue Apr 1 02:57:51 2014 -0400
     R=nigeltao
     CC=golang-codereviews
     https://golang.org/cl/81190044
-
+---
  src/pkg/html/template/attr.go    | 4 ++--
  src/pkg/html/template/content.go | 3 ++-
  src/pkg/html/template/context.go | 4 ++--
  src/pkg/html/template/escape.go  | 2 +-
  src/pkg/html/template/html.go    | 4 ++--
  5 files changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/html/template/attr.go b/src/pkg/html/template/attr.go
+index 3ea02880d4..d65d340073 100644
+--- a/src/pkg/html/template/attr.go
++++ b/src/pkg/html/template/attr.go
+@@ -90,7 +90,7 @@ var attrTypeMap = map[string]contentType{
+ 	"name":            contentTypePlain,
+ 	"novalidate":      contentTypeUnsafe,
+ 	// Skip handler names from
+-	// http://www.w3.org/TR/html5/Overview.html#event-handlers-on-elements-document-objects-and-window-objects
++	// http://www.w3.org/TR/html5/webappapis.html#event-handlers-on-elements,-document-objects,-and-window-objects
+ 	// since we have special handling in attrType.
+ 	"open":        contentTypePlain,
+ 	"optimum":     contentTypePlain,
+@@ -160,7 +160,7 @@ func attrType(name string) contentType {
+ 
+ 	// Heuristics to prevent "javascript:..." injection in custom
+ 	// data attributes and custom attributes like g:tweetUrl.
+-	// http://www.w3.org/TR/html5/elements.html#embedding-custom-non-visible-data-with-the-data-attributes:
++	// http://www.w3.org/TR/html5/dom.html#embedding-custom-non-visible-data-with-the-data-*-attributes
+ 	// "Custom data attributes are intended to store custom data
+ 	//  private to the page or application, for which there are no
+ 	//  more appropriate attributes or elements."
+diff --git a/src/pkg/html/template/content.go b/src/pkg/html/template/content.go
+index 41b1116a66..3715ed5c93 100644
+--- a/src/pkg/html/template/content.go
++++ b/src/pkg/html/template/content.go
+@@ -16,7 +16,8 @@ type (
+ 	//   2. The CSS3 rule production, such as `a[href=~"https:"].foo#bar`.
+ 	//   3. CSS3 declaration productions, such as `color: red; margin: 2px`.
+ 	//   4. The CSS3 value production, such as `rgba(0, 0, 255, 127)`.
+-	// See http://www.w3.org/TR/css3-syntax/#style
++	// See http://www.w3.org/TR/css3-syntax/#parsing and
++	// https://web.archive.org/web/20090211114933/http://w3.org/TR/css3-syntax#style
+ 	CSS string
+ 
+ 	// HTML encapsulates a known safe HTML document fragment.
+diff --git a/src/pkg/html/template/context.go b/src/pkg/html/template/context.go
+index eb47e2be3c..59e794d686 100644
+--- a/src/pkg/html/template/context.go
++++ b/src/pkg/html/template/context.go
+@@ -13,7 +13,7 @@ import (
+ //
+ // The zero value of type context is the start context for a template that
+ // produces an HTML fragment as defined at
+-// http://www.w3.org/TR/html5/the-end.html#parsing-html-fragments
++// http://www.w3.org/TR/html5/syntax.html#the-end
+ // where the context element is null.
+ type context struct {
+ 	state   state
+@@ -96,7 +96,7 @@ const (
+ 	// stateHTMLCmt occurs inside an <!-- HTML comment -->.
+ 	stateHTMLCmt
+ 	// stateRCDATA occurs inside an RCDATA element (<textarea> or <title>)
+-	// as described at http://dev.w3.org/html5/spec/syntax.html#elements-0
++	// as described at http://www.w3.org/TR/html5/syntax.html#elements-0
+ 	stateRCDATA
+ 	// stateAttr occurs inside an HTML attribute whose content is text.
+ 	stateAttr
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index 9ae9749db0..273bc1f190 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -664,7 +664,7 @@ func contextAfterText(c context, s []byte) (context, int) {
+ 		i = len(s)
+ 	}
+ 	if c.delim == delimSpaceOrTagEnd {
+-		// http://www.w3.org/TR/html5/tokenization.html#attribute-value-unquoted-state
++		// http://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
+ 		// lists the runes below as error characters.
+ 		// Error out because HTML parsers may differ on whether
+ 		// "<a id= onclick=f("     ends inside id's or onclick's value,
+diff --git a/src/pkg/html/template/html.go b/src/pkg/html/template/html.go
+index f25f1074c7..9c069efd1d 100644
+--- a/src/pkg/html/template/html.go
++++ b/src/pkg/html/template/html.go
+@@ -50,12 +50,12 @@ func htmlEscaper(args ...interface{}) string {
+ // htmlReplacementTable contains the runes that need to be escaped
+ // inside a quoted attribute value or in a text node.
+ var htmlReplacementTable = []string{
+-	// http://www.w3.org/TR/html5/tokenization.html#attribute-value-unquoted-state: "
++	// http://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
+ 	// U+0000 NULL Parse error. Append a U+FFFD REPLACEMENT
+ 	// CHARACTER character to the current attribute's value.
+ 	// "
+ 	// and similarly
+-	// http://www.w3.org/TR/html5/tokenization.html#before-attribute-value-state
++	// http://www.w3.org/TR/html5/syntax.html#before-attribute-value-state
+ 	0:    "\uFFFD",
+ 	'"':  "&#34;",
+ 	'&':  "&amp;",

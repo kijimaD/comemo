@@ -12,7 +12,76 @@ Date:   Tue Nov 17 13:23:25 2015 -0800
     Change-Id: I02e08ce2e7471f855bfafbbecee98ffdb7096995
     Reviewed-on: https://go-review.googlesource.com/16997
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/doc.go                  | 48 +++++++++++++++++++++++++++++++++++++
  src/cmd/asm/internal/flags/flags.go |  3 +++
  2 files changed, 51 insertions(+)
+
+diff --git a/src/cmd/asm/doc.go b/src/cmd/asm/doc.go
+new file mode 100644
+index 0000000000..a9c8bfb7db
+--- /dev/null
++++ b/src/cmd/asm/doc.go
+@@ -0,0 +1,48 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Asm, typically invoked as ``go tool asm'', assembles the source file into an object
++file named for the basename of the argument source file with a .o suffix. The
++object file can then be combined with other objects into a package archive.
++
++Command Line
++
++Usage:
++
++	go tool asm [flags] file
++
++The specified file must be a Go assembly file.
++The same assembler is used for all target operating systems and architectures.
++The GOOS and GOARCH environment variables set the desired target.
++
++Flags:
++
++	-D value
++		predefined symbol with optional simple value -D=identifer=value;
++		can be set multiple times
++	-I value
++		include directory; can be set multiple times
++	-S	print assembly and machine code
++	-debug
++		dump instructions as they are parsed
++	-dynlink
++		support references to Go symbols defined in other shared libraries
++	-o string
++		output file; default foo.o for /a/b/c/foo.s
++	-shared
++		generate code that can be linked into a shared library
++	-trimpath string
++		remove prefix from recorded source file paths
++
++Input language:
++
++The assembler uses mostly the same syntax for all architectures,
++the main variation having to do with addressing modes. Input is
++run through a simplified C preprocessor that implements #include,
++#define, #ifdef/endif, but not #if or ##.
++
++For more information, see https://golang.org/doc/asm.
++*/
++package main
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index bf5cb1eef3..89bc6f3a8c 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -36,6 +36,9 @@ func init() {
+ type MultiFlag []string
+ 
+ func (m *MultiFlag) String() string {
++	if len(*m) == 0 {
++		return ""
++	}
+ 	return fmt.Sprint(*m)
+ }
+ 

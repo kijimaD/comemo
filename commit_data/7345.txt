@@ -9,7 +9,45 @@ Date:   Wed Feb 2 22:53:10 2011 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/4126054
-
+---
  src/pkg/runtime/386/asm.s       | 8 ++++++++
  src/pkg/runtime/linux/386/rt0.s | 8 --------
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 63d5826067..74e1df0da4 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -5,6 +5,14 @@
+ #include "386/asm.h"
+ 
+ TEXT _rt0_386(SB),7,$0
++	// Linux, Windows start the FPU in extended double precision.
++	// Other operating systems use double precision.
++	// Change to double precision to match them,
++	// and to match other hardware that only has double.
++	PUSHL $0x27F
++	FLDCW	0(SP)
++	POPL AX
++
+ 	// copy arguments forward on an even stack
+ 	MOVL	0(SP), AX		// argc
+ 	LEAL	4(SP), BX		// argv
+diff --git a/src/pkg/runtime/linux/386/rt0.s b/src/pkg/runtime/linux/386/rt0.s
+index 0f82d6a1c7..223e6d2ea4 100644
+--- a/src/pkg/runtime/linux/386/rt0.s
++++ b/src/pkg/runtime/linux/386/rt0.s
+@@ -5,13 +5,5 @@
+ // Darwin and Linux use the same linkage to main
+ 
+ TEXT _rt0_386_linux(SB),7,$0
+-	// Linux starts the FPU in extended double precision.
+-	// Other operating systems use double precision.
+-	// Change to double precision to match them,
+-	// and to match other hardware that only has double.
+-	PUSHL $0x27F
+-	FLDCW	0(SP)
+-	POPL AX
+-
+ 	JMP	_rt0_386(SB)
+ 

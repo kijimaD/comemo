@@ -9,8 +9,77 @@ Date:   Mon Jun 6 09:25:30 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4550118
-
+---
  .hgignore                      | 1 +
  src/pkg/go/build/build.go      | 6 +++++-
  src/pkg/go/build/build_test.go | 5 +++++
  3 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/.hgignore b/.hgignore
+index dd4fb5a045..f920966eb2 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -42,6 +42,7 @@ src/cmd/gc/yerr.h
+ src/cmd/goinstall/syslist.go
+ src/pkg/Make.deps
+ src/pkg/exp/ogle/ogle
++src/pkg/go/build/syslist.go
+ src/pkg/os/signal/unix.go
+ src/pkg/runtime/*/asm.h
+ src/pkg/runtime/goc2c
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 2d17952768..3cb8efe479 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -6,6 +6,7 @@
+ package build
+ 
+ import (
++	"bytes"
+ 	"exec"
+ 	"fmt"
+ 	"os"
+@@ -79,8 +80,11 @@ func (c *Cmd) String() string {
+ }
+ 
+ func (c *Cmd) Run(dir string) os.Error {
++	out := new(bytes.Buffer)
+ 	cmd := exec.Command(c.Args[0], c.Args[1:]...)
+ 	cmd.Dir = dir
++	cmd.Stdout = out
++	cmd.Stderr = out
+ 	if c.Stdout != "" {
+ 		f, err := os.Create(filepath.Join(dir, c.Stdout))
+ 		if err != nil {
+@@ -90,7 +94,7 @@ func (c *Cmd) Run(dir string) os.Error {
+ 		cmd.Stdout = f
+ 	}
+ 	if err := cmd.Run(); err != nil {
+-		return fmt.Errorf("command %q: %v", c, err)
++		return fmt.Errorf("command %q: %v\n%v", c, err, out)
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index 790cdac3da..c543eddbda 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -24,6 +25,10 @@ func TestBuild(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	for _, d := range buildDirs {
++		if runtime.GOARCH == "arm" && strings.Contains(d, "/cgo") {
++			// no cgo for arm, yet.
++			continue
++		}
+ 		dir := filepath.Join(runtime.GOROOT(), "src", d)
+ 		testBuild(t, dir, out)
+ 	}

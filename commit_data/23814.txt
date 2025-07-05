@@ -7,6 +7,20 @@ Date:   Mon Jun 15 12:46:04 2015 -0700
     Change-Id: I171a1125e25b13c934c2cd545bd03f49f642910d
     Reviewed-on: https://go-review.googlesource.com/11113
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/pkg.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 4648916643..d04f5bc97b 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -816,7 +816,7 @@ var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
+ //
+ // Another problem is that binary distributions often set the mtime on
+ // all files to the same time. If the distribution includes both inputs
+-// and cached build outputs, tthe conservative solution to the previous
++// and cached build outputs, the conservative solution to the previous
+ // problem will cause unnecessary rebuilds. Worse, in such a binary
+ // distribution, those rebuilds might not even have permission to update
+ // the cached build output. To avoid these write errors, if an input and

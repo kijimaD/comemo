@@ -20,7 +20,273 @@ Date:   Mon Feb 18 11:27:41 2013 +1100
     R=nigeltao, alex.brainman, dave
     CC=golang-dev
     https://golang.org/cl/7323063
-
+---
  src/pkg/exp/cookiejar/jar.go      | 42 +++++++++++++++++++++++--------
  src/pkg/exp/cookiejar/jar_test.go | 53 +++++++++++++++++++++------------------
  2 files changed, 59 insertions(+), 36 deletions(-)
+
+diff --git a/src/pkg/exp/cookiejar/jar.go b/src/pkg/exp/cookiejar/jar.go
+index da318fe4b3..73036e0d65 100644
+--- a/src/pkg/exp/cookiejar/jar.go
++++ b/src/pkg/exp/cookiejar/jar.go
+@@ -63,6 +63,10 @@ type Jar struct {
+ 	// entries is a set of entries, keyed by their eTLD+1 and subkeyed by
+ 	// their name/domain/path.
+ 	entries map[string]map[string]entry
++
++	// nextSeqNum is the next sequence number assigned to a new cookie
++	// created SetCookies.
++	nextSeqNum uint64
+ }
+ 
+ // New returns a new cookie jar. A nil *Options is equivalent to a zero
+@@ -78,7 +82,9 @@ func New(o *Options) (*Jar, error) {
+ }
+ 
+ // entry is the internal representation of a cookie.
+-// The fields are those of RFC 6265.
++//
++// This struct type is not used outside of this package per se, but the exported
++// fields are those of RFC 6265.
+ type entry struct {
+ 	Name       string
+ 	Value      string
+@@ -91,6 +97,11 @@ type entry struct {
+ 	Expires    time.Time
+ 	Creation   time.Time
+ 	LastAccess time.Time
++
++	// seqNum is a sequence number so that Cookies returns cookies in a
++	// deterministic order, even for cookies that have equal Path length and
++	// equal Creation time. This simplifies testing.
++	seqNum uint64
+ }
+ 
+ // Id returns the domain;path;name triple of e as an id.
+@@ -135,11 +146,13 @@ type byPathLength []entry
+ func (s byPathLength) Len() int { return len(s) }
+ 
+ func (s byPathLength) Less(i, j int) bool {
+-	in, jn := len(s[i].Path), len(s[j].Path)
+-	if in == jn {
++	if len(s[i].Path) != len(s[j].Path) {
++		return len(s[i].Path) > len(s[j].Path)
++	}
++	if !s[i].Creation.Equal(s[j].Creation) {
+ 		return s[i].Creation.Before(s[j].Creation)
+ 	}
+-	return in > jn
++	return s[i].seqNum < s[j].seqNum
+ }
+ 
+ func (s byPathLength) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+@@ -148,6 +161,11 @@ func (s byPathLength) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+ //
+ // It returns an empty slice if the URL's scheme is not HTTP or HTTPS.
+ func (j *Jar) Cookies(u *url.URL) (cookies []*http.Cookie) {
++	return j.cookies(u, time.Now())
++}
++
++// cookies is like Cookies but takes the current time as a parameter.
++func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
+ 	if u.Scheme != "http" && u.Scheme != "https" {
+ 		return cookies
+ 	}
+@@ -165,7 +183,6 @@ func (j *Jar) Cookies(u *url.URL) (cookies []*http.Cookie) {
+ 		return cookies
+ 	}
+ 
+-	now := time.Now()
+ 	https := u.Scheme == "https"
+ 	path := u.Path
+ 	if path == "" {
+@@ -208,6 +225,11 @@ func (j *Jar) Cookies(u *url.URL) (cookies []*http.Cookie) {
+ //
+ // It does nothing if the URL's scheme is not HTTP or HTTPS.
+ func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
++	j.setCookies(u, cookies, time.Now())
++}
++
++// setCookies is like SetCookies but takes the current time as parameter.
++func (j *Jar) setCookies(u *url.URL, cookies []*http.Cookie, now time.Time) {
+ 	if len(cookies) == 0 {
+ 		return
+ 	}
+@@ -225,7 +247,6 @@ func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
+ 	defer j.mu.Unlock()
+ 
+ 	submap := j.entries[key]
+-	now := time.Now()
+ 
+ 	modified := false
+ 	for _, cookie := range cookies {
+@@ -249,16 +270,15 @@ func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
+ 
+ 		if old, ok := submap[id]; ok {
+ 			e.Creation = old.Creation
++			e.seqNum = old.seqNum
+ 		} else {
+ 			e.Creation = now
++			e.seqNum = j.nextSeqNum
++			j.nextSeqNum++
+ 		}
+ 		e.LastAccess = now
+ 		submap[id] = e
+ 		modified = true
+-		// Make Creation and LastAccess strictly monotonic forcing
+-		// deterministic behaviour during sorting.
+-		// TODO: check if this is conforming to RFC 6265.
+-		now = now.Add(1 * time.Nanosecond)
+ 	}
+ 
+ 	if modified {
+@@ -384,7 +404,7 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
+ 			e.Expires = endOfTime
+ 			e.Persistent = false
+ 		} else {
+-			if c.Expires.Before(now) {
++			if !c.Expires.After(now) {
+ 				return e, true, nil
+ 			}
+ 			e.Expires = c.Expires
+diff --git a/src/pkg/exp/cookiejar/jar_test.go b/src/pkg/exp/cookiejar/jar_test.go
+index 74f550a6a9..f17b0d44a5 100644
+--- a/src/pkg/exp/cookiejar/jar_test.go
++++ b/src/pkg/exp/cookiejar/jar_test.go
+@@ -14,6 +14,9 @@ import (
+ 	"time"
+ )
+ 
++// tNow is the synthetic current time used as now during testing.
++var tNow = time.Date(2013, 1, 1, 12, 0, 0, 0, time.UTC)
++
+ // testPSL implements PublicSuffixList with just two rules: "co.uk"
+ // and the default rule "*".
+ type testPSL struct{}
+@@ -199,9 +202,9 @@ func TestDomainAndType(t *testing.T) {
+ 	}
+ }
+ 
+-// expiresIn creates an expires attribute delta seconds from now.
++// expiresIn creates an expires attribute delta seconds from tNow.
+ func expiresIn(delta int) string {
+-	t := time.Now().Round(time.Second).Add(time.Duration(delta) * time.Second)
++	t := tNow.Add(time.Duration(delta) * time.Second)
+ 	return "expires=" + t.Format(time.RFC1123)
+ }
+ 
+@@ -216,9 +219,12 @@ func mustParseURL(s string) *url.URL {
+ 
+ // jarTest encapsulates the following actions on a jar:
+ //   1. Perform SetCookies with fromURL and the cookies from setCookies.
++//      (Done at time tNow + 0 ms.)
+ //   2. Check that the entries in the jar matches content.
++//      (Done at time tNow + 1001 ms.)
+ //   3. For each query in tests: Check that Cookies with toURL yields the
+ //      cookies in want.
++//      (Query n done at tNow + (n+2)*1001 ms.)
+ type jarTest struct {
+ 	description string   // The description of what this test is supposed to test
+ 	fromURL     string   // The full URL of the request from which Set-Cookie headers where received
+@@ -235,6 +241,8 @@ type query struct {
+ 
+ // run runs the jarTest.
+ func (test jarTest) run(t *testing.T, jar *Jar) {
++	now := tNow
++
+ 	// Populate jar with cookies.
+ 	setCookies := make([]*http.Cookie, len(test.setCookies))
+ 	for i, cs := range test.setCookies {
+@@ -244,11 +252,11 @@ func (test jarTest) run(t *testing.T, jar *Jar) {
+ 		}
+ 		setCookies[i] = cookies[0]
+ 	}
+-	jar.SetCookies(mustParseURL(test.fromURL), setCookies)
++	jar.setCookies(mustParseURL(test.fromURL), setCookies, now)
++	now = now.Add(1001 * time.Millisecond)
+ 
+ 	// Serialize non-expired entries in the form "name1=val1 name2=val2".
+ 	var cs []string
+-	now := time.Now().UTC()
+ 	for _, submap := range jar.entries {
+ 		for _, cookie := range submap {
+ 			if !cookie.Expires.After(now) {
+@@ -268,8 +276,9 @@ func (test jarTest) run(t *testing.T, jar *Jar) {
+ 
+ 	// Test different calls to Cookies.
+ 	for i, query := range test.queries {
++		now = now.Add(1001 * time.Millisecond)
+ 		var s []string
+-		for _, c := range jar.Cookies(mustParseURL(query.toURL)) {
++		for _, c := range jar.cookies(mustParseURL(query.toURL), now) {
+ 			s = append(s, c.Name+"="+c.Value)
+ 		}
+ 		if got := strings.Join(s, " "); got != query.want {
+@@ -588,7 +597,6 @@ var updateAndDeleteTests = [...]jarTest{
+ }
+ 
+ func TestUpdateAndDelete(t *testing.T) {
+-	t.Skip("test is broken on windows/386") // issue 4823
+ 	jar := newTestJar()
+ 	for _, test := range updateAndDeleteTests {
+ 		test.run(t, jar)
+@@ -596,29 +604,26 @@ func TestUpdateAndDelete(t *testing.T) {
+ }
+ 
+ func TestExpiration(t *testing.T) {
+-	t.Skip("test is broken on windows/386") // issue 4823
+ 	jar := newTestJar()
+ 	jarTest{
+-		"Fill jar.",
++		"Expiration.",
+ 		"http://www.host.test",
+ 		[]string{
+ 			"a=1",
+-			"b=2; max-age=1",       // should expire in 1 second
+-			"c=3; " + expiresIn(1), // should expire in 1 second
+-			"d=4; max-age=100",
++			"b=2; max-age=3",
++			"c=3; " + expiresIn(3),
++			"d=4; max-age=5",
++			"e=5; " + expiresIn(5),
++			"f=6; max-age=100",
++		},
++		"a=1 b=2 c=3 d=4 e=5 f=6", // executed at t0 + 1001 ms
++		[]query{
++			{"http://www.host.test", "a=1 b=2 c=3 d=4 e=5 f=6"}, // t0 + 2002 ms
++			{"http://www.host.test", "a=1 d=4 e=5 f=6"},         // t0 + 3003 ms
++			{"http://www.host.test", "a=1 d=4 e=5 f=6"},         // t0 + 4004 ms
++			{"http://www.host.test", "a=1 f=6"},                 // t0 + 5005 ms
++			{"http://www.host.test", "a=1 f=6"},                 // t0 + 6006 ms
+ 		},
+-		"a=1 b=2 c=3 d=4",
+-		[]query{{"http://www.host.test", "a=1 b=2 c=3 d=4"}},
+-	}.run(t, jar)
+-
+-	time.Sleep(1500 * time.Millisecond)
+-
+-	jarTest{
+-		"Check jar.",
+-		"http://www.host.test",
+-		[]string{},
+-		"a=1 d=4",
+-		[]query{{"http://www.host.test", "a=1 d=4"}},
+ 	}.run(t, jar)
+ }
+ 
+@@ -885,7 +890,6 @@ var chromiumDomainTests = [...]jarTest{
+ }
+ 
+ func TestChromiumDomain(t *testing.T) {
+-	t.Skip("test is broken on windows/amd64") // issue 4823
+ 	jar := newTestJar()
+ 	for _, test := range chromiumDomainTests {
+ 		test.run(t, jar)
+@@ -954,7 +958,6 @@ var chromiumDeletionTests = [...]jarTest{
+ }
+ 
+ func TestChromiumDeletion(t *testing.T) {
+-	t.Skip("test is broken on windows/386") // issue 4823
+ 	jar := newTestJar()
+ 	for _, test := range chromiumDeletionTests {
+ 		test.run(t, jar)

@@ -7,7 +7,52 @@ Date:   Thu Aug 15 23:22:55 2013 +0900
     R=golang-dev, jsing
     CC=golang-dev
     https://golang.org/cl/12876044
-
+---
  src/pkg/runtime/sys_freebsd_386.s | 4 ++--
  src/pkg/runtime/sys_openbsd_386.s | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index 26ccb845f0..8b4d2317dc 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -350,7 +350,7 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$16
+ 
+ // int32 runtime·kqueue(void);
+ TEXT runtime·kqueue(SB),NOSPLIT,$0
+-	MOVL	$269, AX
++	MOVL	$362, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX
+@@ -358,7 +358,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+ TEXT runtime·kevent(SB),NOSPLIT,$0
+-	MOVL	$270, AX
++	MOVL	$363, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index 54d368fd70..e1ec5337ae 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -354,7 +354,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$28
+ 
+ // int32 runtime·kqueue(void);
+ TEXT runtime·kqueue(SB),NOSPLIT,$0
+-	MOVL	$362, AX
++	MOVL	$269, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX
+@@ -362,7 +362,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+ TEXT runtime·kevent(SB),NOSPLIT,$0
+-	MOVL	$363, AX
++	MOVL	$270, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX

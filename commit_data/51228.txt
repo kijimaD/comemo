@@ -12,7 +12,55 @@ Date:   Wed Dec 15 19:50:33 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  .../internal/types2/testdata/fixedbugs/issue49602.go2 | 19 +++++++++++++++++++
  src/cmd/compile/internal/types2/union.go              | 11 ++++++++++-
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49602.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49602.go2
+new file mode 100644
+index 0000000000..9edbf14a55
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49602.go2
+@@ -0,0 +1,19 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type M interface {
++        m()
++}
++
++type C interface {
++        comparable
++}
++
++type _ interface{
++        int | M // ERROR cannot use p\.M in union \(p\.M contains methods\)
++        int | comparable // ERROR cannot use comparable in union
++        int | C // ERROR cannot use p\.C in union \(p\.C embeds comparable\)
++}
+diff --git a/src/cmd/compile/internal/types2/union.go b/src/cmd/compile/internal/types2/union.go
+index 6f66260af4..3c0df04ccd 100644
+--- a/src/cmd/compile/internal/types2/union.go
++++ b/src/cmd/compile/internal/types2/union.go
+@@ -108,7 +108,16 @@ func parseUnion(check *Checker, uexpr syntax.Expr) Type {
+ 			// in the beginning. Embedded interfaces with tilde are excluded above. If we reach
+ 			// here, we must have at least two terms in the union.
+ 			if f != nil && !f.typeSet().IsTypeSet() {
+-				check.errorf(tlist[i], "cannot use %s in union (interface contains methods)", t)
++				switch {
++				case f.typeSet().NumMethods() != 0:
++					check.errorf(tlist[i], "cannot use %s in union (%s contains methods)", t, t)
++				case t.typ == universeComparable.Type():
++					check.error(tlist[i], "cannot use comparable in union")
++				case f.typeSet().comparable:
++					check.errorf(tlist[i], "cannot use %s in union (%s embeds comparable)", t, t)
++				default:
++					panic("not a type set but no methods and not comparable")
++				}
+ 				continue // don't report another error for t
+ 			}
+ 

@@ -34,7 +34,7 @@ Date:   Fri Feb 3 19:26:13 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/heapdump.go         |   2 +-
  src/runtime/mgc.go              |   7 ++-
  src/runtime/mstats.go           |   7 +--
@@ -51,3 +51,671 @@ Date:   Fri Feb 3 19:26:13 2017 -0500
  src/time/mono_test.go           |   3 ++
  src/time/time.go                |  10 ++--
  15 files changed, 284 insertions(+), 137 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 60394173ed..780aeb5b68 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -548,7 +548,7 @@ func dumpmemstats() {
+ 	dumpint(memstats.gc_sys)
+ 	dumpint(memstats.other_sys)
+ 	dumpint(memstats.next_gc)
+-	dumpint(memstats.last_gc)
++	dumpint(memstats.last_gc_unix)
+ 	dumpint(memstats.pause_total_ns)
+ 	for i := 0; i < 256; i++ {
+ 		dumpint(memstats.pause_ns[i])
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 0b996d8950..527df1750a 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1291,10 +1291,13 @@ func gcMarkTermination() {
+ 	}
+ 
+ 	// Update timing memstats
+-	now, unixNow := nanotime(), unixnanotime()
++	now := nanotime()
++	sec, nsec, _ := time_now()
++	unixNow := sec*1e9 + int64(nsec)
+ 	work.pauseNS += now - work.pauseStart
+ 	work.tEnd = now
+-	atomic.Store64(&memstats.last_gc, uint64(unixNow)) // must be Unix time to make sense to user
++	atomic.Store64(&memstats.last_gc_unix, uint64(unixNow)) // must be Unix time to make sense to user
++	atomic.Store64(&memstats.last_gc_nanotime, uint64(now)) // monotonic time for us
+ 	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(work.pauseNS)
+ 	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(unixNow)
+ 	memstats.pause_total_ns += uint64(work.pauseNS)
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 41b9005731..8fb34f724f 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -72,7 +72,7 @@ type mstats struct {
+ 	// Statistics about garbage collector.
+ 	// Protected by mheap or stopping the world during GC.
+ 	next_gc         uint64 // goal heap_live for when next GC ends; ^0 if disabled
+-	last_gc         uint64 // last gc (in absolute time)
++	last_gc_unix    uint64 // last gc (in unix time)
+ 	pause_total_ns  uint64
+ 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
+ 	pause_end       [256]uint64 // circular buffer of recent gc end times (nanoseconds since 1970)
+@@ -92,7 +92,8 @@ type mstats struct {
+ 
+ 	// Statistics below here are not exported to MemStats directly.
+ 
+-	tinyallocs uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
++	last_gc_nanotime uint64 // last gc (monotonic time)
++	tinyallocs       uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
+ 
+ 	// gc_trigger is the heap size that triggers marking.
+ 	//
+@@ -497,7 +498,7 @@ func readGCStats_m(pauses *[]uint64) {
+ 		p[n+i] = memstats.pause_end[j]
+ 	}
+ 
+-	p[n+n] = memstats.last_gc
++	p[n+n] = memstats.last_gc_unix
+ 	p[n+n+1] = uint64(memstats.numgc)
+ 	p[n+n+2] = memstats.pause_total_ns
+ 	unlock(&mheap_.lock)
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 75b8acdceb..8b76c2bf09 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -578,50 +578,7 @@ func unminit() {
+ 	*tp = 0
+ }
+ 
+-// Described in http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
+-type _KSYSTEM_TIME struct {
+-	LowPart   uint32
+-	High1Time int32
+-	High2Time int32
+-}
+-
+-const (
+-	_INTERRUPT_TIME = 0x7ffe0008
+-	_SYSTEM_TIME    = 0x7ffe0014
+-)
+-
+-//go:nosplit
+-func systime(addr uintptr) int64 {
+-	timeaddr := (*_KSYSTEM_TIME)(unsafe.Pointer(addr))
+-
+-	var t _KSYSTEM_TIME
+-	for i := 1; i < 10000; i++ {
+-		// these fields must be read in that order (see URL above)
+-		t.High1Time = timeaddr.High1Time
+-		t.LowPart = timeaddr.LowPart
+-		t.High2Time = timeaddr.High2Time
+-		if t.High1Time == t.High2Time {
+-			return int64(t.High1Time)<<32 | int64(t.LowPart)
+-		}
+-		if (i % 100) == 0 {
+-			osyield()
+-		}
+-	}
+-	systemstack(func() {
+-		throw("interrupt/system time is changing too fast")
+-	})
+-	return 0
+-}
+-
+-//go:nosplit
+-func unixnano() int64 {
+-	return (systime(_SYSTEM_TIME) - 116444736000000000) * 100
+-}
+-
+-//go:nosplit
+-func nanotime() int64 {
+-	return systime(_INTERRUPT_TIME) * 100
+-}
++func nanotime() int64
+ 
+ // Calling stdcall on os stack.
+ // May run during STW, so write barriers are not allowed.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 9168083a39..a7b12531fc 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3818,7 +3818,6 @@ func sysmon() {
+ 		// poll network if not polled for more than 10ms
+ 		lastpoll := int64(atomic.Load64(&sched.lastpoll))
+ 		now := nanotime()
+-		unixnow := unixnanotime()
+ 		if lastpoll != 0 && lastpoll+10*1000*1000 < now {
+ 			atomic.Cas64(&sched.lastpoll, uint64(lastpoll), uint64(now))
+ 			gp := netpoll(false) // non-blocking - returns list of goroutines
+@@ -3843,8 +3842,8 @@ func sysmon() {
+ 			idle++
+ 		}
+ 		// check if we need to force a GC
+-		lastgc := int64(atomic.Load64(&memstats.last_gc))
+-		if gcphase == _GCoff && lastgc != 0 && unixnow-lastgc > forcegcperiod && atomic.Load(&forcegc.idle) != 0 {
++		lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
++		if gcphase == _GCoff && lastgc != 0 && now-lastgc > forcegcperiod && atomic.Load(&forcegc.idle) != 0 {
+ 			lock(&forcegc.lock)
+ 			forcegc.idle = 0
+ 			forcegc.g.schedlink = 0
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 616b7167ef..e431b441b2 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -241,8 +241,6 @@ func stackBarrier()
+ // in asm_*.s
+ func return0()
+ 
+-func walltime() (sec int64, nsec int32)
+-
+ // in asm_*.s
+ // not called directly; definitions here supply type information for traceback.
+ func call32(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
+@@ -279,11 +277,6 @@ func prefetcht1(addr uintptr)
+ func prefetcht2(addr uintptr)
+ func prefetchnta(addr uintptr)
+ 
+-func unixnanotime() int64 {
+-	sec, nsec := walltime()
+-	return sec*1e9 + int64(nsec)
+-}
+-
+ // round n up to a multiple of a.  a must be a power of 2.
+ func round(n, a uintptr) uintptr {
+ 	return (n + a - 1) &^ (a - 1)
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index e911339c84..5c62bfd20e 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -114,6 +114,16 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
+ // 64-bit unix nanoseconds returned in DX:AX.
+ // I'd much rather write this in C but we need
+ // assembly for the 96-bit multiply and RDTSC.
++//
++// Note that we could arrange to return monotonic time here
++// as well, but we don't bother, for two reasons:
++// 1. macOS only supports 64-bit systems, so no one should
++// be using the 32-bit code in production.
++// This code is only maintained to make it easier for developers
++// using Macs to test the 32-bit compiler.
++// 2. On some (probably now unsupported) CPUs,
++// the code falls back to the system call always,
++// so it can't even use the comm page at all. 
+ TEXT runtime·now(SB),NOSPLIT,$40
+ 	MOVL	$0xffff0000, BP /* comm page base */
+ 	
+@@ -217,9 +227,15 @@ inreg:
+ 	ADCL	$0, DX
+ 	RET
+ 
+-// func walltime() (sec int64, nsec int32)
+-TEXT runtime·walltime(SB),NOSPLIT,$0
++// func now() (sec int64, nsec int32, mono uint64)
++TEXT time·now(SB),NOSPLIT,$0-20
+ 	CALL	runtime·now(SB)
++	MOVL	AX, BX
++	MOVL	DX, BP
++	SUBL	runtime·startNano(SB), BX
++	SBBL	runtime·startNano+4(SB), BP
++	MOVL	BX, mono+12(FP)
++	MOVL	BP, mono+16(FP)
+ 	MOVL	$1000000000, CX
+ 	DIVL	CX
+ 	MOVL	AX, sec+0(FP)
+@@ -230,6 +246,8 @@ TEXT runtime·walltime(SB),NOSPLIT,$0
+ // func nanotime() int64
+ TEXT runtime·nanotime(SB),NOSPLIT,$0
+ 	CALL	runtime·now(SB)
++	SUBL	runtime·startNano(SB), AX
++	SBBL	runtime·startNano+4(SB), DX
+ 	MOVL	AX, ret_lo+0(FP)
+ 	MOVL	DX, ret_hi+4(FP)
+ 	RET
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index de8e9e37c9..a8dc700d60 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -117,35 +117,44 @@ TEXT runtime·madvise(SB), NOSPLIT, $0
+ #define	gtod_ns_base	0x70
+ #define	gtod_sec_base	0x78
+ 
+-TEXT monotonictime<>(SB), NOSPLIT, $32
+-	MOVQ $0x7fffffe00000, SI // comm page base
+-
++TEXT runtime·nanotime(SB),NOSPLIT,$0-8
++	MOVQ	$0x7fffffe00000, BP	/* comm page base */
++	// Loop trying to take a consistent snapshot
++	// of the time parameters.
+ timeloop:
+-	MOVL  nt_generation(SI), R8
+-	TESTL R8, R8
+-	JZ    timeloop
++	MOVL	nt_generation(BP), R9
++	TESTL	R9, R9
++	JZ	timeloop
+ 	RDTSC
+-	SHLQ  $32, DX
+-	ORQ   DX, AX
+-	MOVL nt_shift(SI), CX
+-	SUBQ nt_tsc_base(SI), AX
+-	SHLQ CX, AX
+-	MOVL nt_scale(SI), CX
+-	MULQ CX
+-	SHRQ $32, AX:DX
+-	ADDQ nt_ns_base(SI), AX
+-	CMPL nt_generation(SI), R8
+-	JNE  timeloop
+-	RET
+-
+-TEXT nanotime<>(SB), NOSPLIT, $32
++	MOVQ	nt_tsc_base(BP), R10
++	MOVL	nt_scale(BP), R11
++	MOVQ	nt_ns_base(BP), R12
++	CMPL	nt_generation(BP), R9
++	JNE	timeloop
++
++	// Gathered all the data we need. Compute monotonic time:
++	//	((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base
++	// The multiply and shift extracts the top 64 bits of the 96-bit product.
++	SHLQ	$32, DX
++	ADDQ	DX, AX
++	SUBQ	R10, AX
++	MULQ	R11
++	SHRQ	$32, AX:DX
++	ADDQ	R12, AX
++	MOVQ	runtime·startNano(SB), CX
++	SUBQ	CX, AX
++	MOVQ	AX, ret+0(FP)
++	RET
++
++TEXT time·now(SB), NOSPLIT, $32-24
++	// Note: The 32 bytes of stack frame requested on the TEXT line
++	// are used in the systime fallback, as the timeval address
++	// filled in by the system call.
+ 	MOVQ	$0x7fffffe00000, BP	/* comm page base */
+ 	// Loop trying to take a consistent snapshot
+ 	// of the time parameters.
+ timeloop:
+ 	MOVL	gtod_generation(BP), R8
+-	TESTL	R8, R8
+-	JZ	systime
+ 	MOVL	nt_generation(BP), R9
+ 	TESTL	R9, R9
+ 	JZ	timeloop
+@@ -160,8 +169,8 @@ timeloop:
+ 	CMPL	gtod_generation(BP), R8
+ 	JNE	timeloop
+ 
+-	// Gathered all the data we need. Compute time.
+-	//	((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base - gtod_ns_base + gtod_sec_base*1e9
++	// Gathered all the data we need. Compute:
++	//	monotonic_time = ((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base
+ 	// The multiply and shift extracts the top 64 bits of the 96-bit product.
+ 	SHLQ	$32, DX
+ 	ADDQ	DX, AX
+@@ -169,9 +178,33 @@ timeloop:
+ 	MULQ	R11
+ 	SHRQ	$32, AX:DX
+ 	ADDQ	R12, AX
++	MOVQ	AX, BX
++	MOVQ	runtime·startNano(SB), CX
++	SUBQ	CX, BX
++	MOVQ	BX, monotonic+16(FP)
++
++	// Compute:
++	//	wall_time = monotonic time - gtod_ns_base + gtod_sec_base*1e9
++	// or, if gtod_generation==0, invoke the system call.
++	TESTL	R8, R8
++	JZ	systime
+ 	SUBQ	R13, AX
+ 	IMULQ	$1000000000, R14
+ 	ADDQ	R14, AX
++
++	// Split wall time into sec, nsec.
++	// generated code for
++	//	func f(x uint64) (uint64, uint64) { return x/1e9, x%1e9 }
++	// adapted to reduce duplication
++	MOVQ	AX, CX
++	SHRQ	$9, AX
++	MOVQ	$19342813113834067, DX
++	MULQ	DX
++	SHRQ	$11, DX
++	MOVQ	DX, sec+0(FP)
++	IMULQ	$1000000000, DX
++	SUBQ	DX, CX
++	MOVL	CX, nsec+8(FP)
+ 	RET
+ 
+ systime:
+@@ -187,34 +220,9 @@ systime:
+ 	MOVL	8(SP), DX
+ inreg:
+ 	// sec is in AX, usec in DX
+-	// return nsec in AX
+-	IMULQ	$1000000000, AX
+ 	IMULQ	$1000, DX
+-	ADDQ	DX, AX
+-	RET
+-
+-TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+-	CALL	monotonictime<>(SB)
+-	MOVQ	AX, ret+0(FP)
+-	RET
+-
+-// func walltime() (sec int64, nsec int32)
+-TEXT runtime·walltime(SB),NOSPLIT,$0-12
+-	CALL	nanotime<>(SB)
+-
+-	// generated code for
+-	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
+-	// adapted to reduce duplication
+-	MOVQ	AX, CX
+-	MOVQ	$1360296554856532783, AX
+-	MULQ	CX
+-	ADDQ	CX, DX
+-	RCRQ	$1, DX
+-	SHRQ	$29, DX
+-	MOVQ	DX, sec+0(FP)
+-	IMULQ	$1000000000, DX
+-	SUBQ	DX, CX
+-	MOVL	CX, nsec+8(FP)
++	MOVQ	AX, sec+0(FP)
++	MOVL	DX, nsec+8(FP)
+ 	RET
+ 
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 42583dd106..9d53fbf319 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -152,7 +152,7 @@ done:
+ 	// RET 4 (return and pop 4 bytes parameters)
+ 	BYTE $0xC2; WORD $4
+ 	RET // unreached; make assembler happy
+- 
++
+ TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
+ 	MOVL	$runtime·exceptionhandler(SB), AX
+ 	JMP	runtime·sigtramp(SB)
+@@ -432,15 +432,103 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$0
+ 	MOVL	BP, SP
+ 	RET
+ 
+-// func walltime() (sec int64, nsec int32)
+-TEXT runtime·walltime(SB),NOSPLIT,$8-12
+-	CALL	runtime·unixnano(SB)
+-	MOVL	0(SP), AX
+-	MOVL	4(SP), DX
++// See http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
++// Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
++#define _INTERRUPT_TIME 0x7ffe0008
++#define _SYSTEM_TIME 0x7ffe0014
++#define time_lo 0
++#define time_hi1 4
++#define time_hi2 8
++
++TEXT runtime·nanotime(SB),NOSPLIT,$0-8
++loop:
++	MOVL	(_INTERRUPT_TIME+time_hi1), AX
++	MOVL	(_INTERRUPT_TIME+time_lo), CX
++	MOVL	(_INTERRUPT_TIME+time_hi2), DI
++	CMPL	AX, DI
++	JNE	loop
++
++	// wintime = DI:CX, multiply by 100
++	MOVL	$100, AX
++	MULL	CX
++	IMULL	$100, DI
++	ADDL	DI, DX
++	// wintime*100 = DX:AX, subtract startNano and return
++	SUBL	runtime·startNano+0(SB), AX
++	SBBL runtime·startNano+4(SB), DX
++	MOVL	AX, ret+0(FP)
++	MOVL	DX, ret+4(FP)
++	RET
+ 
++TEXT time·now(SB),NOSPLIT,$0-20
++loop:
++	MOVL	(_INTERRUPT_TIME+time_hi1), AX
++	MOVL	(_INTERRUPT_TIME+time_lo), CX
++	MOVL	(_INTERRUPT_TIME+time_hi2), DI
++	CMPL	AX, DI
++	JNE	loop
++
++	// w = DI:CX
++	// multiply by 100
++	MOVL	$100, AX
++	MULL	CX
++	IMULL	$100, DI
++	ADDL	DI, DX
++	// w*100 = DX:AX
++	// subtract startNano and save for return
++	SUBL	runtime·startNano+0(SB), AX
++	SBBL runtime·startNano+4(SB), DX
++	MOVL	AX, mono+12(FP)
++	MOVL	DX, mono+16(FP)
++
++wall:
++	MOVL	(_SYSTEM_TIME+time_hi1), CX
++	MOVL	(_SYSTEM_TIME+time_lo), AX
++	MOVL	(_SYSTEM_TIME+time_hi2), DX
++	CMPL	CX, DX
++	JNE	wall
++	
++	// w = DX:AX
++	// convert to Unix epoch (but still 100ns units)
++	#define delta 116444736000000000
++	SUBL	$(delta & 0xFFFFFFFF), AX
++	SBBL $(delta >> 32), DX
++	
++	// nano/100 = DX:AX
++	// split into two decimal halves by div 1e9.
++	// (decimal point is two spots over from correct place,
++	// but we avoid overflow in the high word.)
+ 	MOVL	$1000000000, CX
+ 	DIVL	CX
++	MOVL	AX, DI
++	MOVL	DX, SI
++	
++	// DI = nano/100/1e9 = nano/1e11 = sec/100, DX = SI = nano/100%1e9
++	// split DX into seconds and nanoseconds by div 1e7 magic multiply.
++	MOVL	DX, AX
++	MOVL	$1801439851, CX
++	MULL	CX
++	SHRL	$22, DX
++	MOVL	DX, BX
++	IMULL	$10000000, DX
++	MOVL	SI, CX
++	SUBL	DX, CX
++	
++	// DI = sec/100 (still)
++	// BX = (nano/100%1e9)/1e7 = (nano/1e9)%100 = sec%100
++	// CX = (nano/100%1e9)%1e7 = (nano%1e9)/100 = nsec/100
++	// store nsec for return
++	IMULL	$100, CX
++	MOVL	CX, nsec+8(FP)
++
++	// DI = sec/100 (still)
++	// BX = sec%100
++	// construct DX:AX = 64-bit sec and store for return
++	MOVL	$0, DX
++	MOVL	$100, AX
++	MULL	DI
++	ADDL	BX, AX
++	ADCL	$0, DX
+ 	MOVL	AX, sec+0(FP)
+-	MOVL	$0, sec+4(FP)
+-	MOVL	DX, nsec+8(FP)
++	MOVL	DX, sec+4(FP)
+ 	RET
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 56079f6aa3..898aadfcf4 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -465,10 +465,55 @@ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
+ 	MOVQ	32(SP), SP
+ 	RET
+ 
+-// func walltime() (sec int64, nsec int32)
+-TEXT runtime·walltime(SB),NOSPLIT,$8-12
+-	CALL	runtime·unixnano(SB)
+-	MOVQ	0(SP), AX
++// See http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
++// Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
++#define _INTERRUPT_TIME 0x7ffe0008
++#define _SYSTEM_TIME 0x7ffe0014
++#define time_lo 0
++#define time_hi1 4
++#define time_hi2 8
++
++TEXT runtime·nanotime(SB),NOSPLIT,$0-8
++	MOVQ	$_INTERRUPT_TIME, DI
++loop:
++	MOVL	time_hi1(DI), AX
++	MOVL	time_lo(DI), BX
++	MOVL	time_hi2(DI), CX
++	CMPL	AX, CX
++	JNE	loop
++	SHLQ	$32, CX
++	ORQ	BX, CX
++	IMULQ	$100, CX
++	SUBQ	runtime·startNano(SB), CX
++	MOVQ	CX, ret+0(FP)
++	RET
++
++TEXT time·now(SB),NOSPLIT,$0-24
++	MOVQ	$_INTERRUPT_TIME, DI
++loop:
++	MOVL	time_hi1(DI), AX
++	MOVL	time_lo(DI), BX
++	MOVL	time_hi2(DI), CX
++	CMPL	AX, CX
++	JNE	loop
++	SHLQ	$32, AX
++	ORQ	BX, AX
++	IMULQ	$100, AX
++	SUBQ	runtime·startNano(SB), AX
++	MOVQ	AX, mono+16(FP)
++
++	MOVQ	$_SYSTEM_TIME, DI
++wall:
++	MOVL	time_hi1(DI), AX
++	MOVL	time_lo(DI), BX
++	MOVL	time_hi2(DI), CX
++	CMPL	AX, CX
++	JNE	wall
++	SHLQ	$32, AX
++	ORQ	BX, AX
++	MOVQ	$116444736000000000, DI
++	SUBQ	DI, AX
++	IMULQ	$100, AX
+ 
+ 	// generated code for
+ 	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
+@@ -484,4 +529,3 @@ TEXT runtime·walltime(SB),NOSPLIT,$8-12
+ 	SUBQ	DX, CX
+ 	MOVL	CX, nsec+8(FP)
+ 	RET
+-
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 98057534c0..a095ec04fd 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -302,10 +302,4 @@ func time_runtimeNano() int64 {
+ 	return nanotime()
+ }
+ 
+-var startNano = nanotime()
+-
+-//go:linkname time_now time.now
+-func time_now() (sec int64, nsec int32, mono uint64) {
+-	sec, nsec = walltime()
+-	return sec, nsec, uint64(nanotime() - startNano + 1)
+-}
++var startNano int64 = nanotime()
+diff --git a/src/runtime/timeasm.go b/src/runtime/timeasm.go
+new file mode 100644
+index 0000000000..7474bec556
+--- /dev/null
++++ b/src/runtime/timeasm.go
+@@ -0,0 +1,16 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Declarations for operating systems implementing time.now directly in assembly.
++// Those systems are also expected to have nanotime subtract startNano,
++// so that time.now and nanotime return the same monotonic clock readings.
++
++// +build darwin,amd64 darwin,386 windows
++
++package runtime
++
++import _ "unsafe"
++
++//go:linkname time_now time.now
++func time_now() (sec int64, nsec int32, mono int64)
+diff --git a/src/runtime/timestub.go b/src/runtime/timestub.go
+new file mode 100644
+index 0000000000..adc3a86d20
+--- /dev/null
++++ b/src/runtime/timestub.go
+@@ -0,0 +1,21 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Declarations for operating systems implementing time.now
++// indirectly, in terms of walltime and nanotime assembly.
++
++// +build !darwin !amd64,!386
++// +build !windows
++
++package runtime
++
++import _ "unsafe" // for go:linkname
++
++func walltime() (sec int64, nsec int32)
++
++//go:linkname time_now time.now
++func time_now() (sec int64, nsec int32, mono int64) {
++	sec, nsec = walltime()
++	return sec, nsec, nanotime() - startNano
++}
+diff --git a/src/time/mono_test.go b/src/time/mono_test.go
+index b5ae24f0ab..dfb88e792b 100644
+--- a/src/time/mono_test.go
++++ b/src/time/mono_test.go
+@@ -246,6 +246,9 @@ var monotonicStringTests = []struct {
+ }
+ 
+ func TestMonotonicString(t *testing.T) {
++	t1 := Now()
++	t.Logf("Now() = %v", t1)
++
+ 	for _, tt := range monotonicStringTests {
+ 		t1 := Now()
+ 		SetMono(&t1, tt.mono)
+diff --git a/src/time/time.go b/src/time/time.go
+index 8a0e1695f4..bbe650a9b4 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -981,14 +981,16 @@ func daysIn(m Month, year int) int {
+ }
+ 
+ // Provided by package runtime.
+-func now() (sec int64, nsec int32, mono uint64)
++func now() (sec int64, nsec int32, mono int64)
+ 
+ // Now returns the current local time.
+ func Now() Time {
+ 	sec, nsec, mono := now()
+-	t := unixTime(sec, nsec)
+-	t.setMono(int64(mono))
+-	return t
++	sec += unixToInternal - minWall
++	if uint64(sec)>>33 != 0 {
++		return Time{uint64(nsec), sec + minWall, Local}
++	}
++	return Time{hasMonotonic | uint64(sec)<<nsecShift | uint64(nsec), mono, Local}
+ }
+ 
+ func unixTime(sec int64, nsec int32) Time {

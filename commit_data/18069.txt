@@ -9,8 +9,57 @@ Date:   Thu Dec 19 10:34:33 2013 +1100
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/43050043
-
+---
  src/cmd/gc/bv.c       | 2 +-
  src/liblink/objfile.c | 4 ++--
  src/liblink/pcln.c    | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/bv.c b/src/cmd/gc/bv.c
+index 847e777eea..8c0e7a908e 100644
+--- a/src/cmd/gc/bv.c
++++ b/src/cmd/gc/bv.c
+@@ -98,7 +98,7 @@ bvget(Bvec *bv, int32 i)
+ 
+ 	if(i < 0 || i >= bv->n)
+ 		fatal("bvget: index %d is out of bounds with length %d\n", i, bv->n);
+-	mask = 1 << (i % WORDBITS);
++	mask = 1U << (i % WORDBITS);
+ 	word = bv->b[i / WORDBITS] & mask;
+ 	return word ? 1 : 0;
+ }
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index 6fdd8a9682..ba4087f075 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -371,7 +371,7 @@ wrint(Biobuf *b, int64 sval)
+ 	uint64 uv, v;
+ 	uchar buf[10], *p;
+ 
+-	uv = (uint64)(sval<<1) ^ (uint64)(int64)(sval>>63);
++	uv = ((uint64)sval<<1) ^ (uint64)(int64)(sval>>63);
+ 
+ 	p = buf;
+ 	for(v = uv; v >= 0x80; v >>= 7)
+@@ -634,7 +634,7 @@ rdint(Biobuf *f)
+ 			break;
+ 	}
+ 
+-	return (int64)(uv>>1) ^ ((int64)uv<<63>>63);
++	return (int64)(uv>>1) ^ ((int64)((uint64)uv<<63)>>63);
+ }
+ 
+ static char*
+diff --git a/src/liblink/pcln.c b/src/liblink/pcln.c
+index 28cff90326..62c0e8501f 100644
+--- a/src/liblink/pcln.c
++++ b/src/liblink/pcln.c
+@@ -313,7 +313,7 @@ getvarint(uchar **pp)
+ 	v = 0;
+ 	p = *pp;
+ 	for(shift = 0;; shift += 7) {
+-		v |= (*p & 0x7F) << shift;
++		v |= (uint32)(*p & 0x7F) << shift;
+ 		if(!(*p++ & 0x80))
+ 			break;
+ 	}

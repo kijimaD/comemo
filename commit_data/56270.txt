@@ -15,6 +15,20 @@ Date:   Fri Apr 21 10:47:52 2023 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/crash_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 3a64c30e2b..cd978cc34b 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -782,7 +782,7 @@ func TestG0StackOverflow(t *testing.T) {
+ 	testenv.MustHaveExec(t)
+ 
+ 	switch runtime.GOOS {
+-	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "android":
++	case "android", "darwin", "dragonfly", "freebsd", "ios", "linux", "netbsd", "openbsd":
+ 		t.Skipf("g0 stack is wrong on pthread platforms (see golang.org/issue/26061)")
+ 	}
+ 

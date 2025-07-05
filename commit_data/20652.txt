@@ -13,6 +13,20 @@ Date:   Fri Sep 26 13:50:53 2014 -0400
     R=golang-codereviews, r
     CC=bradfitz, golang-codereviews, iant
     https://golang.org/cl/145420043
-
+---
  src/liblink/objfile.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index 15d602df92..b2478ec178 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -589,6 +589,8 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
+ 	typ = rdsym(ctxt, f, pkg);
+ 	if(typ != nil) // if bss sym defined multiple times, take type from any one def
+ 		s->gotype = typ;
++	if(dup != nil && typ != nil)
++		dup->gotype = typ;
+ 	rddata(f, &s->p, &s->np);
+ 	s->maxp = s->np;
+ 	n = rdint(f);

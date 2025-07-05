@@ -7,7 +7,33 @@ Date:   Sat May 8 17:34:05 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1173041
-
+---
  src/pkg/json/decode_test.go | 1 +
  src/pkg/json/scanner.go     | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index 9e7d810cee..edbd9c8862 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -24,6 +24,7 @@ var unmarshalTests = []unmarshalTest{
+ 	unmarshalTest{`1.2`, new(float), 1.2},
+ 	unmarshalTest{`-5`, new(int16), int16(-5)},
+ 	unmarshalTest{`"a\u1234"`, new(string), "a\u1234"},
++	unmarshalTest{`"http:\/\/"`, new(string), "http://"},
+ 	unmarshalTest{`"g-clef: \uD834\uDD1E"`, new(string), "g-clef: \U0001D11E"},
+ 	unmarshalTest{`"invalid: \uD834x\uDD1E"`, new(string), "invalid: \uFFFDx\uFFFD"},
+ 	unmarshalTest{"null", new(interface{}), nil},
+diff --git a/src/pkg/json/scanner.go b/src/pkg/json/scanner.go
+index c1934c8d99..27c5ffb7a4 100644
+--- a/src/pkg/json/scanner.go
++++ b/src/pkg/json/scanner.go
+@@ -349,7 +349,7 @@ func stateInString(s *scanner, c int) int {
+ // stateInStringEsc is the state after reading `"\` during a quoted string.
+ func stateInStringEsc(s *scanner, c int) int {
+ 	switch c {
+-	case 'b', 'f', 'n', 'r', 't', '\\', '"':
++	case 'b', 'f', 'n', 'r', 't', '\\', '/', '"':
+ 		s.step = stateInString
+ 		return scanContinue
+ 	}

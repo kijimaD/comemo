@@ -27,8 +27,272 @@ Date:   Wed Aug 13 11:16:30 2014 -0700
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/127980043
-
+---
  misc/cgo/test/issue8428.go  | 48 +++++++++++++++++++++++++++++++++
  src/cmd/cgo/gcc.go          | 65 +++++++++++++++++++++------------------------
  src/pkg/debug/dwarf/type.go | 52 ++++++++++++++++++++----------------
  3 files changed, 108 insertions(+), 57 deletions(-)
+
+diff --git a/misc/cgo/test/issue8428.go b/misc/cgo/test/issue8428.go
+new file mode 100644
+index 0000000000..f5b0ee4974
+--- /dev/null
++++ b/misc/cgo/test/issue8428.go
+@@ -0,0 +1,48 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++// Issue 8428.  Cgo inconsistently translated zero size arrays.
++
++/*
++struct issue8428one {
++	char b;
++	char rest[];
++};
++
++struct issue8428two {
++	void *p;
++	char b;
++	char rest[0];
++};
++
++struct issue8428three {
++	char w[1][2][3][0];
++	char x[2][3][0][1];
++	char y[3][0][1][2];
++	char z[0][1][2][3];
++};
++*/
++import "C"
++
++import "unsafe"
++
++var _ = C.struct_issue8428one{
++	b:    C.char(0),
++	rest: [0]C.char{},
++}
++
++var _ = C.struct_issue8428two{
++	p:    unsafe.Pointer(nil),
++	b:    C.char(0),
++	rest: [0]C.char{},
++}
++
++var _ = C.struct_issue8428three{
++	w: [1][2][3][0]C.char{},
++	x: [2][3][0][1]C.char{},
++	y: [3][0][1][2]C.char{},
++	z: [0][1][2][3]C.char{},
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 26def654d0..482b35197c 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1075,12 +1075,6 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		return t
+ 	}
+ 
+-	// clang won't generate DW_AT_byte_size for pointer types,
+-	// so we have to fix it here.
+-	if dt, ok := base(dtype).(*dwarf.PtrType); ok && dt.ByteSize == -1 {
+-		dt.ByteSize = c.ptrSize
+-	}
+-
+ 	t := new(Type)
+ 	t.Size = dtype.Size() // note: wrong for array of pointers, corrected below
+ 	t.Align = -1
+@@ -1104,12 +1098,20 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 			t.Go = c.Opaque(t.Size)
+ 			break
+ 		}
++		count := dt.Count
++		if count == -1 {
++			// Indicates flexible array member, which Go doesn't support.
++			// Translate to zero-length array instead.
++			count = 0
++		}
+ 		sub := c.Type(dt.Type, pos)
+ 		t.Align = sub.Align
+ 		t.Go = &ast.ArrayType{
+-			Len: c.intExpr(dt.Count),
++			Len: c.intExpr(count),
+ 			Elt: sub.Go,
+ 		}
++		// Recalculate t.Size now that we know sub.Size.
++		t.Size = count * sub.Size
+ 		t.C.Set("__typeof__(%s[%d])", sub.C, dt.Count)
+ 
+ 	case *dwarf.BoolType:
+@@ -1210,6 +1212,11 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		}
+ 
+ 	case *dwarf.PtrType:
++		// Clang doesn't emit DW_AT_byte_size for pointer types.
++		if t.Size != c.ptrSize && t.Size != -1 {
++			fatalf("%s: unexpected: %d-byte pointer type - %s", lineno(pos), t.Size, dtype)
++		}
++		t.Size = c.ptrSize
+ 		t.Align = c.ptrSize
+ 
+ 		if _, ok := base(dt.Type).(*dwarf.VoidType); ok {
+@@ -1381,34 +1388,24 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		}
+ 	}
+ 
+-	if t.Size <= 0 {
+-		// Clang does not record the size of a pointer in its DWARF entry,
+-		// so if dtype is an array, the call to dtype.Size at the top of the function
+-		// computed the size as the array length * 0 = 0.
+-		// The type switch called Type (this function) recursively on the pointer
+-		// entry, and the code near the top of the function updated the size to
+-		// be correct, so calling dtype.Size again will produce the correct value.
+-		t.Size = dtype.Size()
+-		if t.Size < 0 {
+-			// Unsized types are [0]byte, unless they're typedefs of other types
+-			// or structs with tags.
+-			// if so, use the name we've already defined.
+-			t.Size = 0
+-			switch dt := dtype.(type) {
+-			case *dwarf.TypedefType:
+-				// ok
+-			case *dwarf.StructType:
+-				if dt.StructName != "" {
+-					break
+-				}
+-				t.Go = c.Opaque(0)
+-			default:
+-				t.Go = c.Opaque(0)
+-			}
+-			if t.C.Empty() {
+-				t.C.Set("void")
++	if t.Size < 0 {
++		// Unsized types are [0]byte, unless they're typedefs of other types
++		// or structs with tags.
++		// if so, use the name we've already defined.
++		t.Size = 0
++		switch dt := dtype.(type) {
++		case *dwarf.TypedefType:
++			// ok
++		case *dwarf.StructType:
++			if dt.StructName != "" {
++				break
+ 			}
+-			return t
++			t.Go = c.Opaque(0)
++		default:
++			t.Go = c.Opaque(0)
++		}
++		if t.C.Empty() {
++			t.C.Set("void")
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/debug/dwarf/type.go b/src/pkg/debug/dwarf/type.go
+index b64333ecc5..fa40b2bef1 100644
+--- a/src/pkg/debug/dwarf/type.go
++++ b/src/pkg/debug/dwarf/type.go
+@@ -118,7 +118,12 @@ func (t *ArrayType) String() string {
+ 	return "[" + strconv.FormatInt(t.Count, 10) + "]" + t.Type.String()
+ }
+ 
+-func (t *ArrayType) Size() int64 { return t.Count * t.Type.Size() }
++func (t *ArrayType) Size() int64 {
++	if t.Count == -1 {
++		return 0
++	}
++	return t.Count * t.Type.Size()
++}
+ 
+ // A VoidType represents the C void type.
+ type VoidType struct {
+@@ -369,7 +374,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
+ 		t.StrideBitSize, _ = e.Val(AttrStrideSize).(int64)
+ 
+ 		// Accumulate dimensions,
+-		ndim := 0
++		var dims []int64
+ 		for kid := next(); kid != nil; kid = next() {
+ 			// TODO(rsc): Can also be TagEnumerationType
+ 			// but haven't seen that in the wild yet.
+@@ -381,26 +386,24 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
+ 					count, ok = kid.Val(AttrUpperBound).(int64)
+ 					if ok {
+ 						count++ // Length is one more than upper bound.
+-					} else {
++					} else if len(dims) == 0 {
+ 						count = -1 // As in x[].
+ 					}
+ 				}
+-				if ndim == 0 {
+-					t.Count = count
+-				} else {
+-					// Multidimensional array.
+-					// Create new array type underneath this one.
+-					t.Type = &ArrayType{Type: t.Type, Count: count}
+-				}
+-				ndim++
++				dims = append(dims, count)
+ 			case TagEnumerationType:
+ 				err = DecodeError{name, kid.Offset, "cannot handle enumeration type as array bound"}
+ 				goto Error
+ 			}
+ 		}
+-		if ndim == 0 {
++		if len(dims) == 0 {
+ 			// LLVM generates this for x[].
+-			t.Count = -1
++			dims = []int64{-1}
++		}
++
++		t.Count = dims[0]
++		for i := len(dims) - 1; i >= 1; i-- {
++			t.Type = &ArrayType{Type: t.Type, Count: dims[i]}
+ 		}
+ 
+ 	case TagBaseType:
+@@ -476,7 +479,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
+ 		t.StructName, _ = e.Val(AttrName).(string)
+ 		t.Incomplete = e.Val(AttrDeclaration) != nil
+ 		t.Field = make([]*StructField, 0, 8)
+-		var lastFieldType Type
++		var lastFieldType *Type
+ 		var lastFieldBitOffset int64
+ 		for kid := next(); kid != nil; kid = next() {
+ 			if kid.Tag == TagMember {
+@@ -518,7 +521,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
+ 					// (DWARF writes out 0-length arrays as if they were 1-length arrays.)
+ 					zeroArray(lastFieldType)
+ 				}
+-				lastFieldType = f.Type
++				lastFieldType = &f.Type
+ 				lastFieldBitOffset = bito
+ 			}
+ 		}
+@@ -667,13 +670,16 @@ Error:
+ 	return nil, err
+ }
+ 
+-func zeroArray(t Type) {
+-	for {
+-		at, ok := t.(*ArrayType)
+-		if !ok {
+-			break
+-		}
+-		at.Count = 0
+-		t = at.Type
++func zeroArray(t *Type) {
++	if t == nil {
++		return
++	}
++	at, ok := (*t).(*ArrayType)
++	if !ok || at.Type.Size() == 0 {
++		return
+ 	}
++	// Make a copy to avoid invalidating typeCache.
++	tt := *at
++	tt.Count = 0
++	*t = &tt
+ }

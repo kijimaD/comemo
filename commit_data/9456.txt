@@ -19,9 +19,244 @@ Date:   Tue Aug 23 12:17:21 2011 +0400
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4921049
-
+---
  src/pkg/http/request.go    | 61 +++++++++++++++++++++++++++++++++++++++++-----
  src/pkg/http/serve_test.go | 54 ++++++++++++++++++++++++++++++++++++++++
  src/pkg/http/server.go     | 27 ++++++++++++++++++--
  src/pkg/http/transfer.go   | 11 +++++++++
  4 files changed, 145 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index d45de8e2e4..6102231392 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -608,19 +608,63 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 	return req, nil
+ }
+ 
+-// ParseForm parses the raw query.
+-// For POST requests, it also parses the request body as a form.
++// MaxBytesReader is similar to io.LimitReader, but is intended for
++// limiting the size of incoming request bodies. In contrast to
++// io.LimitReader, MaxBytesReader is a ReadCloser, returns a non-EOF
++// error if the body is too large, and also takes care of closing the
++// underlying io.ReadCloser connection (if applicable, usually a TCP
++// connection) when the limit is hit.  This prevents clients from
++// accidentally or maliciously sending a large request and wasting
++// server resources.
++func MaxBytesReader(w ResponseWriter, r io.ReadCloser, n int64) io.ReadCloser {
++	return &maxBytesReader{w: w, r: r, n: n}
++}
++
++type maxBytesReader struct {
++	w       ResponseWriter
++	r       io.ReadCloser // underlying reader
++	n       int64         // max bytes remaining
++	stopped bool
++}
++
++func (l *maxBytesReader) Read(p []byte) (n int, err os.Error) {
++	if l.n <= 0 {
++		if !l.stopped {
++			l.stopped = true
++			if res, ok := l.w.(*response); ok {
++				res.requestTooLarge()
++			}
++		}
++		return 0, os.NewError("http: request body too large")
++	}
++	if int64(len(p)) > l.n {
++		p = p[:l.n]
++	}
++	n, err = l.r.Read(p)
++	l.n -= int64(n)
++	return
++}
++
++func (l *maxBytesReader) Close() os.Error {
++	return l.r.Close()
++}
++
++// ParseForm parses the raw query from the URL.
++//
++// For POST or PUT requests, it also parses the request body as a form.
++// If the request Body's size has not already been limited by MaxBytesReader,
++// the size is capped at 10MB.
++//
+ // ParseMultipartForm calls ParseForm automatically.
+ // It is idempotent.
+ func (r *Request) ParseForm() (err os.Error) {
+ 	if r.Form != nil {
+ 		return
+ 	}
+-
+ 	if r.URL != nil {
+ 		r.Form, err = url.ParseQuery(r.URL.RawQuery)
+ 	}
+-	if r.Method == "POST" {
++	if r.Method == "POST" || r.Method == "PUT" {
+ 		if r.Body == nil {
+ 			return os.NewError("missing form body")
+ 		}
+@@ -628,8 +672,13 @@ func (r *Request) ParseForm() (err os.Error) {
+ 		ct, _, err := mime.ParseMediaType(ct)
+ 		switch {
+ 		case ct == "text/plain" || ct == "application/x-www-form-urlencoded" || ct == "":
+-			const maxFormSize = int64(10 << 20) // 10 MB is a lot of text.
+-			b, e := ioutil.ReadAll(io.LimitReader(r.Body, maxFormSize+1))
++			var reader io.Reader = r.Body
++			maxFormSize := int64((1 << 63) - 1)
++			if _, ok := r.Body.(*maxBytesReader); !ok {
++				maxFormSize = int64(10 << 20) // 10 MB is a lot of text.
++				reader = io.LimitReader(r.Body, maxFormSize+1)
++			}
++			b, e := ioutil.ReadAll(reader)
+ 			if e != nil {
+ 				if err == nil {
+ 					err = e
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index ac04033459..cfd71d4b4a 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -896,6 +896,60 @@ func TestRequestLimit(t *testing.T) {
+ 	}
+ }
+ 
++type neverEnding byte
++
++func (b neverEnding) Read(p []byte) (n int, err os.Error) {
++	for i := range p {
++		p[i] = byte(b)
++	}
++	return len(p), nil
++}
++
++type countReader struct {
++	r io.Reader
++	n *int64
++}
++
++func (cr countReader) Read(p []byte) (n int, err os.Error) {
++	n, err = cr.r.Read(p)
++	*cr.n += int64(n)
++	return
++}
++
++func TestRequestBodyLimit(t *testing.T) {
++	const limit = 1 << 20
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		r.Body = MaxBytesReader(w, r.Body, limit)
++		n, err := io.Copy(ioutil.Discard, r.Body)
++		if err == nil {
++			t.Errorf("expected error from io.Copy")
++		}
++		if n != limit {
++			t.Errorf("io.Copy = %d, want %d", n, limit)
++		}
++	}))
++	defer ts.Close()
++
++	nWritten := int64(0)
++	req, _ := NewRequest("POST", ts.URL, io.LimitReader(countReader{neverEnding('a'), &nWritten}, limit*200))
++
++	// Send the POST, but don't care it succeeds or not.  The
++	// remote side is going to reply and then close the TCP
++	// connection, and HTTP doesn't really define if that's
++	// allowed or not.  Some HTTP clients will get the response
++	// and some (like ours, currently) will complain that the
++	// request write failed, without reading the response.
++	//
++	// But that's okay, since what we're really testing is that
++	// the remote side hung up on us before we wrote too much.
++	_, _ = DefaultClient.Do(req)
++
++	if nWritten > limit*2 {
++		t.Errorf("handler restricted the request body to %d bytes, but client managed to write %d",
++			limit, nWritten)
++	}
++}
++
+ type errorListener struct {
+ 	errs []os.Error
+ }
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index b634e27d6d..b8eb716c09 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -122,6 +122,25 @@ type response struct {
+ 	// "Connection: keep-alive" response header and a
+ 	// Content-Length.
+ 	closeAfterReply bool
++
++	// requestBodyLimitHit is set by requestTooLarge when
++	// maxBytesReader hits its max size. It is checked in
++	// WriteHeader, to make sure we don't consume the the
++	// remaining request body to try to advance to the next HTTP
++	// request. Instead, when this is set, we stop doing
++	// subsequent requests on this connection and stop reading
++	// input from it.
++	requestBodyLimitHit bool
++}
++
++// requestTooLarge is called by maxBytesReader when too much input has
++// been read from the client.
++func (r *response) requestTooLarge() {
++	r.closeAfterReply = true
++	r.requestBodyLimitHit = true
++	if !r.wroteHeader {
++		r.Header().Set("Connection", "close")
++	}
+ }
+ 
+ type writerOnly struct {
+@@ -257,7 +276,7 @@ func (w *response) WriteHeader(code int) {
+ 
+ 	// Per RFC 2616, we should consume the request body before
+ 	// replying, if the handler hasn't already done so.
+-	if w.req.ContentLength != 0 {
++	if w.req.ContentLength != 0 && !w.requestBodyLimitHit {
+ 		ecr, isExpecter := w.req.Body.(*expectContinueReader)
+ 		if !isExpecter || ecr.resp.wroteContinue {
+ 			w.req.Body.Close()
+@@ -543,7 +562,11 @@ func (w *response) finishRequest() {
+ 		io.WriteString(w.conn.buf, "\r\n")
+ 	}
+ 	w.conn.buf.Flush()
+-	w.req.Body.Close()
++	// Close the body, unless we're about to close the whole TCP connection
++	// anyway.
++	if !w.closeAfterReply {
++		w.req.Body.Close()
++	}
+ 	if w.req.MultipartForm != nil {
+ 		w.req.MultipartForm.RemoveAll()
+ 	}
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index b65d99a6fd..0a754d20a3 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -478,6 +478,8 @@ type body struct {
+ 	r       *bufio.Reader // underlying wire-format reader for the trailer
+ 	closing bool          // is the connection to be closed after reading body?
+ 	closed  bool
++
++	res *response // response writer for server requests, else nil
+ }
+ 
+ // ErrBodyReadAfterClose is returned when reading a Request Body after
+@@ -506,6 +508,15 @@ func (b *body) Close() os.Error {
+ 		return nil
+ 	}
+ 
++	// In a server request, don't continue reading from the client
++	// if we've already hit the maximum body size set by the
++	// handler. If this is set, that also means the TCP connection
++	// is about to be closed, so getting to the next HTTP request
++	// in the stream is not necessary.
++	if b.res != nil && b.res.requestBodyLimitHit {
++		return nil
++	}
++
+ 	if _, err := io.Copy(ioutil.Discard, b); err != nil {
+ 		return err
+ 	}

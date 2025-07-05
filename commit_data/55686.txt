@@ -17,8 +17,457 @@ Date:   Wed Mar 1 17:08:15 2023 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/lookup.go         | 169 ++++++++++++----------
  src/go/types/lookup.go                            | 169 ++++++++++++----------
  src/internal/types/testdata/examples/inference.go |   3 +-
  3 files changed, 179 insertions(+), 162 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 216bed9734..cc58b53cbd 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -297,7 +297,7 @@ func (l *instanceLookup) add(inst *Named) {
+ 
+ // MissingMethod returns (nil, false) if V implements T, otherwise it
+ // returns a missing method required by T and whether it is missing or
+-// just has the wrong type.
++// just has the wrong type: either a pointer receiver or wrong signature.
+ //
+ // For non-interface types V, or if static is set, V implements T if all
+ // methods of T are present in V. Otherwise (V is an interface and static
+@@ -323,9 +323,18 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 		return
+ 	}
+ 
+-	var alt *Func // alternative method (pointer receiver or similar spelling)
++	const (
++		ok = iota
++		notFound
++		wrongName
++		wrongSig
++		ptrRecv
++		field
++	)
++
++	state := ok
++	var alt *Func // alternative method, valid if state is wrongName or wrongSig
+ 
+-	// V is an interface
+ 	if u, _ := under(V).(*Interface); u != nil {
+ 		tset := u.typeSet()
+ 		for _, m := range methods {
+@@ -335,105 +344,105 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 				if !static {
+ 					continue
+ 				}
++				state = notFound
+ 				method = m
+-				goto Error
++				break
+ 			}
+ 
+ 			if !equivalent(f.typ, m.typ) {
++				state = wrongSig
+ 				method, alt = m, f
+-				wrongType = true
+-				goto Error
++				break
+ 			}
+ 		}
++	} else {
++		for _, m := range methods {
++			// TODO(gri) should this be calling LookupFieldOrMethod instead (and why not)?
++			obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name, false)
+ 
+-		return nil, false
+-	}
+-
+-	// V is not an interface
+-	for _, m := range methods {
+-		// TODO(gri) should this be calling LookupFieldOrMethod instead (and why not)?
+-		obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name, false)
+-
+-		// check if m is on *V, or on V with case-folding
+-		found := obj != nil
+-		if !found {
+-			// TODO(gri) Instead of NewPointer(V) below, can we just set the "addressable" argument?
+-			obj, _, _ = lookupFieldOrMethod(NewPointer(V), false, m.pkg, m.name, false)
++			// check if m is on *V, or on V with case-folding
+ 			if obj == nil {
++				state = notFound
++				method = m
++				// TODO(gri) Instead of NewPointer(V) below, can we just set the "addressable" argument?
++				obj, _, _ = lookupFieldOrMethod(NewPointer(V), false, m.pkg, m.name, false)
++				if obj != nil {
++					alt, _ = obj.(*Func)
++					if alt != nil {
++						state = ptrRecv
++					}
++					// otherwise we found a field, keep state == notFound
++					break
++				}
+ 				obj, _, _ = lookupFieldOrMethod(V, false, m.pkg, m.name, true /* fold case */)
++				if obj != nil {
++					alt, _ = obj.(*Func)
++					if alt != nil {
++						state = wrongName
++					}
++					// otherwise we found a (differently spelled) field, keep state == notFound
++				}
++				break
+ 			}
+-		}
+ 
+-		// we must have a method (not a struct field)
+-		f, _ := obj.(*Func)
+-		if f == nil {
+-			method = m
+-			goto Error
+-		}
++			// we must have a method (not a struct field)
++			f, _ := obj.(*Func)
++			if f == nil {
++				state = field
++				method = m
++				break
++			}
+ 
+-		// methods may not have a fully set up signature yet
+-		if check != nil {
+-			check.objDecl(f, nil)
+-		}
++			// methods may not have a fully set up signature yet
++			if check != nil {
++				check.objDecl(f, nil)
++			}
+ 
+-		if !found || !equivalent(f.typ, m.typ) {
+-			method, alt = m, f
+-			wrongType = f.name == m.name
+-			goto Error
++			if !equivalent(f.typ, m.typ) {
++				state = wrongSig
++				method, alt = m, f
++				break
++			}
+ 		}
+ 	}
+ 
+-	return nil, false
+-
+-Error:
+-	if cause == nil {
+-		return
++	if state == ok {
++		return nil, false
+ 	}
+ 
+-	mname := "method " + method.Name()
+-
+-	if alt != nil {
+-		if method.Name() != alt.Name() {
+-			*cause = check.sprintf("(missing %s)\n\t\thave %s\n\t\twant %s",
+-				mname, check.funcString(alt, false), check.funcString(method, false))
+-			return
+-		}
+-
+-		if Identical(method.typ, alt.typ) {
+-			*cause = check.sprintf("(%s has pointer receiver)", mname)
+-			return
+-		}
+-
+-		altS, methodS := check.funcString(alt, false), check.funcString(method, false)
+-		if altS == methodS {
+-			// Would tell the user that Foo isn't a Foo, add package information to disambiguate.
+-			// See go.dev/issue/54258.
+-			altS, methodS = check.funcString(alt, true), check.funcString(method, true)
++	if cause != nil {
++		switch state {
++		case notFound:
++			switch {
++			case isInterfacePtr(V):
++				*cause = "(" + check.interfacePtrError(V) + ")"
++			case isInterfacePtr(T):
++				*cause = "(" + check.interfacePtrError(T) + ")"
++			default:
++				*cause = check.sprintf("(missing method %s)", method.Name())
++			}
++		case wrongName:
++			*cause = check.sprintf("(missing method %s)\n\t\thave %s\n\t\twant %s",
++				method.Name(), check.funcString(alt, false), check.funcString(method, false))
++		case wrongSig:
++			altS, methodS := check.funcString(alt, false), check.funcString(method, false)
++			if altS == methodS {
++				// Would tell the user that Foo isn't a Foo, add package information to disambiguate.
++				// See go.dev/issue/54258.
++				altS, methodS = check.funcString(alt, true), check.funcString(method, true)
++			}
++			*cause = check.sprintf("(wrong type for method %s)\n\t\thave %s\n\t\twant %s",
++				method.Name(), altS, methodS)
++		case ptrRecv:
++			*cause = check.sprintf("(method %s has pointer receiver)", method.Name())
++		case field:
++			*cause = check.sprintf("(%s.%s is a field, not a method)", V, method.Name())
++		default:
++			unreachable()
+ 		}
+-
+-		*cause = check.sprintf("(wrong type for %s)\n\t\thave %s\n\t\twant %s",
+-			mname, altS, methodS)
+-		return
+-	}
+-
+-	if isInterfacePtr(V) {
+-		*cause = "(" + check.interfacePtrError(V) + ")"
+-		return
+ 	}
+ 
+-	if isInterfacePtr(T) {
+-		*cause = "(" + check.interfacePtrError(T) + ")"
+-		return
+-	}
+-
+-	obj, _, _ := lookupFieldOrMethod(V, true /* auto-deref */, method.pkg, method.name, false)
+-	if fld, _ := obj.(*Var); fld != nil {
+-		*cause = check.sprintf("(%s.%s is a field, not a method)", V, fld.Name())
+-		return
+-	}
+-
+-	*cause = check.sprintf("(missing %s)", mname)
+-	return
++	return method, state == wrongSig || state == ptrRecv
+ }
+ 
+ func isInterfacePtr(T Type) bool {
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 66e28ee6cb..eb609441c3 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -299,7 +299,7 @@ func (l *instanceLookup) add(inst *Named) {
+ 
+ // MissingMethod returns (nil, false) if V implements T, otherwise it
+ // returns a missing method required by T and whether it is missing or
+-// just has the wrong type.
++// just has the wrong type: either a pointer receiver or wrong signature.
+ //
+ // For non-interface types V, or if static is set, V implements T if all
+ // methods of T are present in V. Otherwise (V is an interface and static
+@@ -325,9 +325,18 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 		return
+ 	}
+ 
+-	var alt *Func // alternative method (pointer receiver or similar spelling)
++	const (
++		ok = iota
++		notFound
++		wrongName
++		wrongSig
++		ptrRecv
++		field
++	)
++
++	state := ok
++	var alt *Func // alternative method, valid if state is wrongName or wrongSig
+ 
+-	// V is an interface
+ 	if u, _ := under(V).(*Interface); u != nil {
+ 		tset := u.typeSet()
+ 		for _, m := range methods {
+@@ -337,105 +346,105 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 				if !static {
+ 					continue
+ 				}
++				state = notFound
+ 				method = m
+-				goto Error
++				break
+ 			}
+ 
+ 			if !equivalent(f.typ, m.typ) {
++				state = wrongSig
+ 				method, alt = m, f
+-				wrongType = true
+-				goto Error
++				break
+ 			}
+ 		}
++	} else {
++		for _, m := range methods {
++			// TODO(gri) should this be calling LookupFieldOrMethod instead (and why not)?
++			obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name, false)
+ 
+-		return nil, false
+-	}
+-
+-	// V is not an interface
+-	for _, m := range methods {
+-		// TODO(gri) should this be calling LookupFieldOrMethod instead (and why not)?
+-		obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name, false)
+-
+-		// check if m is on *V, or on V with case-folding
+-		found := obj != nil
+-		if !found {
+-			// TODO(gri) Instead of NewPointer(V) below, can we just set the "addressable" argument?
+-			obj, _, _ = lookupFieldOrMethod(NewPointer(V), false, m.pkg, m.name, false)
++			// check if m is on *V, or on V with case-folding
+ 			if obj == nil {
++				state = notFound
++				method = m
++				// TODO(gri) Instead of NewPointer(V) below, can we just set the "addressable" argument?
++				obj, _, _ = lookupFieldOrMethod(NewPointer(V), false, m.pkg, m.name, false)
++				if obj != nil {
++					alt, _ = obj.(*Func)
++					if alt != nil {
++						state = ptrRecv
++					}
++					// otherwise we found a field, keep state == notFound
++					break
++				}
+ 				obj, _, _ = lookupFieldOrMethod(V, false, m.pkg, m.name, true /* fold case */)
++				if obj != nil {
++					alt, _ = obj.(*Func)
++					if alt != nil {
++						state = wrongName
++					}
++					// otherwise we found a (differently spelled) field, keep state == notFound
++				}
++				break
+ 			}
+-		}
+ 
+-		// we must have a method (not a struct field)
+-		f, _ := obj.(*Func)
+-		if f == nil {
+-			method = m
+-			goto Error
+-		}
++			// we must have a method (not a struct field)
++			f, _ := obj.(*Func)
++			if f == nil {
++				state = field
++				method = m
++				break
++			}
+ 
+-		// methods may not have a fully set up signature yet
+-		if check != nil {
+-			check.objDecl(f, nil)
+-		}
++			// methods may not have a fully set up signature yet
++			if check != nil {
++				check.objDecl(f, nil)
++			}
+ 
+-		if !found || !equivalent(f.typ, m.typ) {
+-			method, alt = m, f
+-			wrongType = f.name == m.name
+-			goto Error
++			if !equivalent(f.typ, m.typ) {
++				state = wrongSig
++				method, alt = m, f
++				break
++			}
+ 		}
+ 	}
+ 
+-	return nil, false
+-
+-Error:
+-	if cause == nil {
+-		return
++	if state == ok {
++		return nil, false
+ 	}
+ 
+-	mname := "method " + method.Name()
+-
+-	if alt != nil {
+-		if method.Name() != alt.Name() {
+-			*cause = check.sprintf("(missing %s)\n\t\thave %s\n\t\twant %s",
+-				mname, check.funcString(alt, false), check.funcString(method, false))
+-			return
+-		}
+-
+-		if Identical(method.typ, alt.typ) {
+-			*cause = check.sprintf("(%s has pointer receiver)", mname)
+-			return
+-		}
+-
+-		altS, methodS := check.funcString(alt, false), check.funcString(method, false)
+-		if altS == methodS {
+-			// Would tell the user that Foo isn't a Foo, add package information to disambiguate.
+-			// See go.dev/issue/54258.
+-			altS, methodS = check.funcString(alt, true), check.funcString(method, true)
++	if cause != nil {
++		switch state {
++		case notFound:
++			switch {
++			case isInterfacePtr(V):
++				*cause = "(" + check.interfacePtrError(V) + ")"
++			case isInterfacePtr(T):
++				*cause = "(" + check.interfacePtrError(T) + ")"
++			default:
++				*cause = check.sprintf("(missing method %s)", method.Name())
++			}
++		case wrongName:
++			*cause = check.sprintf("(missing method %s)\n\t\thave %s\n\t\twant %s",
++				method.Name(), check.funcString(alt, false), check.funcString(method, false))
++		case wrongSig:
++			altS, methodS := check.funcString(alt, false), check.funcString(method, false)
++			if altS == methodS {
++				// Would tell the user that Foo isn't a Foo, add package information to disambiguate.
++				// See go.dev/issue/54258.
++				altS, methodS = check.funcString(alt, true), check.funcString(method, true)
++			}
++			*cause = check.sprintf("(wrong type for method %s)\n\t\thave %s\n\t\twant %s",
++				method.Name(), altS, methodS)
++		case ptrRecv:
++			*cause = check.sprintf("(method %s has pointer receiver)", method.Name())
++		case field:
++			*cause = check.sprintf("(%s.%s is a field, not a method)", V, method.Name())
++		default:
++			unreachable()
+ 		}
+-
+-		*cause = check.sprintf("(wrong type for %s)\n\t\thave %s\n\t\twant %s",
+-			mname, altS, methodS)
+-		return
+-	}
+-
+-	if isInterfacePtr(V) {
+-		*cause = "(" + check.interfacePtrError(V) + ")"
+-		return
+ 	}
+ 
+-	if isInterfacePtr(T) {
+-		*cause = "(" + check.interfacePtrError(T) + ")"
+-		return
+-	}
+-
+-	obj, _, _ := lookupFieldOrMethod(V, true /* auto-deref */, method.pkg, method.name, false)
+-	if fld, _ := obj.(*Var); fld != nil {
+-		*cause = check.sprintf("(%s.%s is a field, not a method)", V, fld.Name())
+-		return
+-	}
+-
+-	*cause = check.sprintf("(missing %s)", mname)
+-	return
++	return method, state == wrongSig || state == ptrRecv
+ }
+ 
+ func isInterfacePtr(T Type) bool {
+diff --git a/src/internal/types/testdata/examples/inference.go b/src/internal/types/testdata/examples/inference.go
+index 2e88041df0..c9e3605c9e 100644
+--- a/src/internal/types/testdata/examples/inference.go
++++ b/src/internal/types/testdata/examples/inference.go
+@@ -142,8 +142,7 @@ func _() {
+ 	// signatures.
+ 	wantsMethods(hasMethods1{})
+ 	wantsMethods(&hasMethods1{})
+-	// TODO(gri) improve error message (the cause is ptr vs non-pointer receiver)
+-	wantsMethods /* ERROR "hasMethods2 does not satisfy interface{m1(Q); m2() R} (wrong type for method m1)" */ (hasMethods2{})
++	wantsMethods /* ERROR "hasMethods2 does not satisfy interface{m1(Q); m2() R} (method m1 has pointer receiver)" */ (hasMethods2{})
+ 	wantsMethods(&hasMethods2{})
+ 	wantsMethods(hasMethods3(nil))
+ 	wantsMethods /* ERROR "any does not satisfy interface{m1(Q); m2() R} (missing method m1)" */ (any(nil))

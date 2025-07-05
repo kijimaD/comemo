@@ -12,7 +12,35 @@ Date:   Tue Sep 30 16:08:04 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/144650045
-
+---
  misc/cgo/test/basic.go | 5 +++++
  src/cmd/cgo/ast.go     | 3 +++
  2 files changed, 8 insertions(+)
+
+diff --git a/misc/cgo/test/basic.go b/misc/cgo/test/basic.go
+index 79cbf2b9cf..019139d010 100644
+--- a/misc/cgo/test/basic.go
++++ b/misc/cgo/test/basic.go
+@@ -157,3 +157,8 @@ func testUnsignedInt(t *testing.T) {
+ 		t.Errorf("Incorrect unsigned int - got %x, want %x", a, b)
+ 	}
+ }
++
++// Static (build-time) test that syntax traversal visits all operands of s[i:j:k].
++func sliceOperands(array [2000]int) {
++	_ = array[C.KILO:C.KILO:C.KILO] // no type error
++}
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 6c5a160866..10e2278a1d 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -308,6 +308,9 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
+ 		if n.High != nil {
+ 			f.walk(&n.High, "expr", visit)
+ 		}
++		if n.Max != nil {
++			f.walk(&n.Max, "expr", visit)
++		}
+ 	case *ast.TypeAssertExpr:
+ 		f.walk(&n.X, "expr", visit)
+ 		f.walk(&n.Type, "type", visit)

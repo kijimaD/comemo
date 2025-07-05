@@ -13,9 +13,108 @@ Date:   Wed Aug 17 17:36:12 2022 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/runtime/os_windows.go  | 8 ++++----
  src/runtime/preempt.go     | 5 ++---
  src/runtime/runtime2.go    | 4 ++--
  src/runtime/signal_unix.go | 2 +-
  4 files changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 2f6ec75cf8..54261d6fc0 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -1326,7 +1326,7 @@ func preemptM(mp *m) {
+ 	if !atomic.Cas(&mp.preemptExtLock, 0, 1) {
+ 		// External code is running. Fail the preemption
+ 		// attempt.
+-		atomic.Xadd(&mp.preemptGen, 1)
++		mp.preemptGen.Add(1)
+ 		return
+ 	}
+ 
+@@ -1336,7 +1336,7 @@ func preemptM(mp *m) {
+ 		// The M hasn't been minit'd yet (or was just unminit'd).
+ 		unlock(&mp.threadLock)
+ 		atomic.Store(&mp.preemptExtLock, 0)
+-		atomic.Xadd(&mp.preemptGen, 1)
++		mp.preemptGen.Add(1)
+ 		return
+ 	}
+ 	var thread uintptr
+@@ -1366,7 +1366,7 @@ func preemptM(mp *m) {
+ 		atomic.Store(&mp.preemptExtLock, 0)
+ 		// The thread no longer exists. This shouldn't be
+ 		// possible, but just acknowledge the request.
+-		atomic.Xadd(&mp.preemptGen, 1)
++		mp.preemptGen.Add(1)
+ 		return
+ 	}
+ 
+@@ -1431,7 +1431,7 @@ func preemptM(mp *m) {
+ 	atomic.Store(&mp.preemptExtLock, 0)
+ 
+ 	// Acknowledge the preemption.
+-	atomic.Xadd(&mp.preemptGen, 1)
++	mp.preemptGen.Add(1)
+ 
+ 	stdcall1(_ResumeThread, thread)
+ 	stdcall1(_CloseHandle, thread)
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index da24f5042c..dae417215f 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -55,7 +55,6 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
+ )
+ 
+ type suspendGState struct {
+@@ -192,7 +191,7 @@ func suspendG(gp *g) suspendGState {
+ 		case _Grunning:
+ 			// Optimization: if there is already a pending preemption request
+ 			// (from the previous loop iteration), don't bother with the atomics.
+-			if gp.preemptStop && gp.preempt && gp.stackguard0 == stackPreempt && asyncM == gp.m && atomic.Load(&asyncM.preemptGen) == asyncGen {
++			if gp.preemptStop && gp.preempt && gp.stackguard0 == stackPreempt && asyncM == gp.m && asyncM.preemptGen.Load() == asyncGen {
+ 				break
+ 			}
+ 
+@@ -208,7 +207,7 @@ func suspendG(gp *g) suspendGState {
+ 
+ 			// Prepare for asynchronous preemption.
+ 			asyncM2 := gp.m
+-			asyncGen2 := atomic.Load(&asyncM2.preemptGen)
++			asyncGen2 := asyncM2.preemptGen.Load()
+ 			needAsync := asyncM != asyncM2 || asyncGen != asyncGen2
+ 			asyncM = asyncM2
+ 			asyncGen = asyncGen2
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 3cf0e8e98b..63ba534815 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -583,8 +583,8 @@ type m struct {
+ 
+ 	// preemptGen counts the number of completed preemption
+ 	// signals. This is used to detect when a preemption is
+-	// requested, but fails. Accessed atomically.
+-	preemptGen uint32
++	// requested, but fails.
++	preemptGen atomic.Uint32
+ 
+ 	// Whether this is a pending preemption signal on this M.
+ 	signalPending atomic.Uint32
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 4c3f43a819..545094c640 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -349,7 +349,7 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
+ 	}
+ 
+ 	// Acknowledge the preemption.
+-	atomic.Xadd(&gp.m.preemptGen, 1)
++	gp.m.preemptGen.Add(1)
+ 	gp.m.signalPending.Store(0)
+ 
+ 	if GOOS == "darwin" || GOOS == "ios" {

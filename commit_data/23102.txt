@@ -15,7 +15,7 @@ Date:   Thu Apr 16 14:32:18 2015 -0700
     Change-Id: I250252079357ea2e4360e1235958b1c22051498f
     Reviewed-on: https://go-review.googlesource.com/9002
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/asm_amd64.s      |  3 ++
  src/runtime/asm_amd64p32.s   |  3 ++
  src/runtime/atomic_386.go    |  4 +++
@@ -35,3 +35,535 @@ Date:   Thu Apr 16 14:32:18 2015 -0700
  src/runtime/os1_darwin.go    |  3 +-
  src/runtime/os1_linux.go     |  3 +-
  18 files changed, 189 insertions(+), 39 deletions(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 468763f095..02e25f7402 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -530,6 +530,9 @@ TEXT runtime·xadd64(SB), NOSPLIT, $0-24
+ 	MOVQ	AX, ret+16(FP)
+ 	RET
+ 
++TEXT runtime·xadduintptr(SB), NOSPLIT, $0-24
++	JMP	runtime·xadd64(SB)
++
+ TEXT runtime·xchg(SB), NOSPLIT, $0-20
+ 	MOVQ	ptr+0(FP), BX
+ 	MOVL	new+8(FP), AX
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 23e2cb9662..5e9210fca9 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -483,6 +483,9 @@ TEXT runtime·xadd64(SB), NOSPLIT, $0-24
+ 	MOVQ	AX, ret+16(FP)
+ 	RET
+ 
++TEXT runtime·xadduintptr(SB), NOSPLIT, $0-12
++	JMP	runtime·xadd(SB)
++
+ TEXT runtime·xchg(SB), NOSPLIT, $0-12
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	new+4(FP), AX
+diff --git a/src/runtime/atomic_386.go b/src/runtime/atomic_386.go
+index 7828c66c98..f8d589e33b 100644
+--- a/src/runtime/atomic_386.go
++++ b/src/runtime/atomic_386.go
+@@ -32,6 +32,10 @@ func xadd64(ptr *uint64, delta int64) uint64 {
+ 	}
+ }
+ 
++//go:noescape
++//go:linkname xadduintptr runtime.xadd
++func xadduintptr(ptr *uintptr, delta uintptr) uintptr
++
+ //go:nosplit
+ func xchg64(ptr *uint64, new uint64) uint64 {
+ 	for {
+diff --git a/src/runtime/atomic_amd64x.go b/src/runtime/atomic_amd64x.go
+index e539387bc7..edcc6d665e 100644
+--- a/src/runtime/atomic_amd64x.go
++++ b/src/runtime/atomic_amd64x.go
+@@ -36,6 +36,9 @@ func xadd(ptr *uint32, delta int32) uint32
+ //go:noescape
+ func xadd64(ptr *uint64, delta int64) uint64
+ 
++//go:noescape
++func xadduintptr(ptr *uintptr, delta uintptr) uintptr
++
+ //go:noescape
+ func xchg(ptr *uint32, new uint32) uint32
+ 
+diff --git a/src/runtime/atomic_arm.go b/src/runtime/atomic_arm.go
+index 75206ab94a..02a1f35ffa 100644
+--- a/src/runtime/atomic_arm.go
++++ b/src/runtime/atomic_arm.go
+@@ -27,6 +27,10 @@ func xadd(val *uint32, delta int32) uint32 {
+ 	}
+ }
+ 
++//go:noescape
++//go:linkname xadduintptr runtime.xadd
++func xadduintptr(ptr *uintptr, delta uintptr) uintptr
++
+ //go:nosplit
+ func xchg(addr *uint32, v uint32) uint32 {
+ 	for {
+diff --git a/src/runtime/atomic_arm64.go b/src/runtime/atomic_arm64.go
+index 6a78a8dc6e..a377e3e4b3 100644
+--- a/src/runtime/atomic_arm64.go
++++ b/src/runtime/atomic_arm64.go
+@@ -12,6 +12,10 @@ func xadd(ptr *uint32, delta int32) uint32
+ //go:noescape
+ func xadd64(ptr *uint64, delta int64) uint64
+ 
++//go:noescape
++//go:linkname xadduintptr runtime.xadd64
++func xadduintptr(ptr *uintptr, delta uintptr) uintptr
++
+ //go:noescape
+ func xchg(ptr *uint32, new uint32) uint32
+ 
+diff --git a/src/runtime/atomic_ppc64x.go b/src/runtime/atomic_ppc64x.go
+index 17c642d815..b58ee5ae33 100644
+--- a/src/runtime/atomic_ppc64x.go
++++ b/src/runtime/atomic_ppc64x.go
+@@ -14,6 +14,10 @@ func xadd(ptr *uint32, delta int32) uint32
+ //go:noescape
+ func xadd64(ptr *uint64, delta int64) uint64
+ 
++//go:noescape
++//go:linkname xadduintptr runtime.xadd64
++func xadduintptr(ptr *uintptr, delta uintptr) uintptr
++
+ //go:noescape
+ func xchg(ptr *uint32, new uint32) uint32
+ 
+diff --git a/src/runtime/atomic_test.go b/src/runtime/atomic_test.go
+new file mode 100644
+index 0000000000..26991037f6
+--- /dev/null
++++ b/src/runtime/atomic_test.go
+@@ -0,0 +1,66 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"runtime"
++	"testing"
++	"unsafe"
++)
++
++func runParallel(N, iter int, f func()) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(int(N)))
++	done := make(chan bool)
++	for i := 0; i < N; i++ {
++		go func() {
++			for j := 0; j < iter; j++ {
++				f()
++			}
++			done <- true
++		}()
++	}
++	for i := 0; i < N; i++ {
++		<-done
++	}
++}
++
++func TestXadduintptr(t *testing.T) {
++	const N = 20
++	const iter = 100000
++	inc := uintptr(100)
++	total := uintptr(0)
++	runParallel(N, iter, func() {
++		runtime.Xadduintptr(&total, inc)
++	})
++	if want := uintptr(N * iter * inc); want != total {
++		t.Fatalf("xadduintpr error, want %d, got %d", want, total)
++	}
++	total = 0
++	runParallel(N, iter, func() {
++		runtime.Xadduintptr(&total, inc)
++		runtime.Xadduintptr(&total, uintptr(-int64(inc)))
++	})
++	if total != 0 {
++		t.Fatalf("xadduintpr total error, want %d, got %d", 0, total)
++	}
++}
++
++// Tests that xadduintptr correctly updates 64-bit values.  The place where
++// we actually do so is mstats.go, functions mSysStat{Inc,Dec}.
++func TestXadduintptrOnUint64(t *testing.T) {
++	if runtime.BigEndian != 0 {
++		// On big endian architectures, we never use xadduintptr to update
++		// 64-bit values and hence we skip the test.  (Note that functions
++		// mSysStat{Inc,Dec} in mstats.go have explicit checks for
++		// big-endianness.)
++		return
++	}
++	const inc = 100
++	val := uint64(0)
++	runtime.Xadduintptr((*uintptr)(unsafe.Pointer(&val)), inc)
++	if inc != val {
++		t.Fatalf("xadduintptr should increase lower-order bits, want %d, got %d", inc, val)
++	}
++}
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index a2b098d51e..1b5f267b8b 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -21,6 +21,7 @@ var F64toint = f64toint
+ var Entersyscall = entersyscall
+ var Exitsyscall = exitsyscall
+ var LockedOSThread = lockedOSThread
++var Xadduintptr = xadduintptr
+ 
+ var FuncPC = funcPC
+ 
+@@ -129,3 +130,5 @@ var Write = write
+ 
+ func Envs() []string     { return envs }
+ func SetEnvs(e []string) { envs = e }
++
++var BigEndian = _BigEndian
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 4a2d3e3cac..5896e74e91 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -790,7 +790,7 @@ var globalAlloc struct {
+ // There is no associated free operation.
+ // Intended for things like function/type/debug-related persistent data.
+ // If align is 0, uses default align (currently 8).
+-func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
++func persistentalloc(size, align uintptr, sysStat *uint64) unsafe.Pointer {
+ 	const (
+ 		chunk    = 256 << 10
+ 		maxBlock = 64 << 10 // VM reservation granularity is 64K on windows
+@@ -811,7 +811,7 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
+ 	}
+ 
+ 	if size >= maxBlock {
+-		return sysAlloc(size, stat)
++		return sysAlloc(size, sysStat)
+ 	}
+ 
+ 	mp := acquirem()
+@@ -840,9 +840,9 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
+ 		unlock(&globalAlloc.mutex)
+ 	}
+ 
+-	if stat != &memstats.other_sys {
+-		xadd64(stat, int64(size))
+-		xadd64(&memstats.other_sys, -int64(size))
++	if sysStat != &memstats.other_sys {
++		mSysStatInc(sysStat, size)
++		mSysStatDec(&memstats.other_sys, size)
+ 	}
+ 	return p
+ }
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index c868977f86..ecab584d04 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -8,13 +8,15 @@ package runtime
+ 
+ import "unsafe"
+ 
++// Don't split the stack as this function may be invoked without a valid G,
++// which prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
++func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+ 	v := unsafe.Pointer(mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0))
+ 	if uintptr(v) < 4096 {
+ 		return nil
+ 	}
+-	xadd64(stat, int64(n))
++	mSysStatInc(sysStat, n)
+ 	return v
+ }
+ 
+@@ -25,8 +27,11 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ func sysUsed(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
+-	xadd64(stat, -int64(n))
++// Don't split the stack as this function may be invoked without a valid G,
++// which prevents us from allocating more stack.
++//go:nosplit
++func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
++	mSysStatDec(sysStat, n)
+ 	munmap(v, n)
+ }
+ 
+@@ -51,10 +56,10 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+ 	return p
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
++func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
+ 	const _ENOMEM = 12
+ 
+-	xadd64(stat, int64(n))
++	mSysStatInc(sysStat, n)
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+ 	if !reserved {
+diff --git a/src/runtime/mem_darwin.go b/src/runtime/mem_darwin.go
+index e3b8845549..3bebd97c57 100644
+--- a/src/runtime/mem_darwin.go
++++ b/src/runtime/mem_darwin.go
+@@ -6,13 +6,15 @@ package runtime
+ 
+ import "unsafe"
+ 
++// Don't split the stack as this function may be invoked without a valid G,
++// which prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
++func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+ 	v := (unsafe.Pointer)(mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0))
+ 	if uintptr(v) < 4096 {
+ 		return nil
+ 	}
+-	xadd64(stat, int64(n))
++	mSysStatInc(sysStat, n)
+ 	return v
+ }
+ 
+@@ -24,8 +26,11 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ func sysUsed(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
+-	xadd64(stat, -int64(n))
++// Don't split the stack as this function may be invoked without a valid G,
++// which prevents us from allocating more stack.
++//go:nosplit
++func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
++	mSysStatDec(sysStat, n)
+ 	munmap(v, n)
+ }
+ 
+@@ -46,8 +51,8 @@ const (
+ 	_ENOMEM = 12
+ )
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
+-	xadd64(stat, int64(n))
++func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
++	mSysStatInc(sysStat, n)
+ 	p := (unsafe.Pointer)(mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0))
+ 	if uintptr(p) == _ENOMEM {
+ 		throw("runtime: out of memory")
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index a78a03ee5c..f988e75a17 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -48,8 +48,10 @@ func mmap_fixed(v unsafe.Pointer, n uintptr, prot, flags, fd int32, offset uint3
+ 	return p
+ }
+ 
++// Don't split the stack as this method may be invoked without a valid G, which
++// prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
++func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+ 	p := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if uintptr(p) < 4096 {
+ 		if uintptr(p) == _EACCES {
+@@ -62,7 +64,7 @@ func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
+ 		}
+ 		return nil
+ 	}
+-	xadd64(stat, int64(n))
++	mSysStatInc(sysStat, n)
+ 	return p
+ }
+ 
+@@ -93,8 +95,11 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
+ 	}
+ }
+ 
+-func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
+-	xadd64(stat, -int64(n))
++// Don't split the stack as this function may be invoked without a valid G,
++// which prevents us from allocating more stack.
++//go:nosplit
++func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
++	mSysStatDec(sysStat, n)
+ 	munmap(v, n)
+ }
+ 
+@@ -128,8 +133,8 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+ 	return p
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
+-	xadd64(stat, int64(n))
++func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
++	mSysStatInc(sysStat, n)
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+ 	if !reserved {
+diff --git a/src/runtime/mem_plan9.go b/src/runtime/mem_plan9.go
+index 4dc8a6119a..755887f50e 100644
+--- a/src/runtime/mem_plan9.go
++++ b/src/runtime/mem_plan9.go
+@@ -130,19 +130,19 @@ func sbrk(n uintptr) unsafe.Pointer {
+ 	return unsafe.Pointer(bl)
+ }
+ 
+-func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
++func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+ 	lock(&memlock)
+ 	p := memAlloc(n)
+ 	memCheck()
+ 	unlock(&memlock)
+ 	if p != nil {
+-		xadd64(stat, int64(n))
++		mSysStatInc(sysStat, n)
+ 	}
+ 	return p
+ }
+ 
+-func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
+-	xadd64(stat, -int64(n))
++func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
++	mSysStatDec(sysStat, n)
+ 	lock(&memlock)
+ 	memFree(v, n)
+ 	memCheck()
+@@ -155,10 +155,10 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ func sysUsed(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
++func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
+ 	// sysReserve has already allocated all heap memory,
+ 	// but has not adjusted stats.
+-	xadd64(stat, int64(n))
++	mSysStatInc(sysStat, n)
+ }
+ 
+ func sysFault(v unsafe.Pointer, n uintptr) {
+diff --git a/src/runtime/mem_windows.go b/src/runtime/mem_windows.go
+index a800ccae1d..42aa7fb4eb 100644
+--- a/src/runtime/mem_windows.go
++++ b/src/runtime/mem_windows.go
+@@ -18,9 +18,11 @@ const (
+ 	_PAGE_NOACCESS  = 0x0001
+ )
+ 
++// Don't split the stack as this function may be invoked without a valid G,
++// which prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
+-	xadd64(stat, int64(n))
++func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
++	mSysStatInc(sysStat, n)
+ 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_COMMIT|_MEM_RESERVE, _PAGE_READWRITE))
+ }
+ 
+@@ -74,8 +76,11 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
+ 	}
+ }
+ 
+-func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
+-	xadd64(stat, -int64(n))
++// Don't split the stack as this function may be invoked without a valid G,
++// which prevents us from allocating more stack.
++//go:nosplit
++func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
++	mSysStatDec(sysStat, n)
+ 	r := stdcall3(_VirtualFree, uintptr(v), 0, _MEM_RELEASE)
+ 	if r == 0 {
+ 		throw("runtime: failed to release pages")
+@@ -100,8 +105,8 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+ 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_RESERVE, _PAGE_READWRITE))
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
+-	xadd64(stat, int64(n))
++func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
++	mSysStatInc(sysStat, n)
+ 	p := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
+ 	if p != uintptr(v) {
+ 		throw("runtime: cannot map pages in arena address space")
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 3711c397cc..270449d0fd 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -353,3 +353,41 @@ func purgecachedstats(c *mcache) {
+ 		c.local_nsmallfree[i] = 0
+ 	}
+ }
++
++// Atomically increases a given *system* memory stat.  We are counting on this
++// stat never overflowing a uintptr, so this function must only be used for
++// system memory stats.
++//
++// The current implementation for little endian architectures is based on
++// xadduintptr(), which is less than ideal: xadd64() should really be used.
++// Using xadduintptr() is a stop-gap solution until arm supports xadd64() that
++// doesn't use locks.  (Locks are a problem as they require a valid G, which
++// restricts their useability.)
++//
++// A side-effect of using xadduintptr() is that we need to check for
++// overflow errors.
++//go:nosplit
++func mSysStatInc(sysStat *uint64, n uintptr) {
++	if _BigEndian != 0 {
++		xadd64(sysStat, int64(n))
++		return
++	}
++	if val := xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), n); val < n {
++		print("runtime: stat overflow: val ", val, ", n ", n, "\n")
++		exit(2)
++	}
++}
++
++// Atomically decreases a given *system* memory stat.  Same comments as
++// mSysStatInc apply.
++//go:nosplit
++func mSysStatDec(sysStat *uint64, n uintptr) {
++	if _BigEndian != 0 {
++		xadd64(sysStat, -int64(n))
++		return
++	}
++	if val := xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), uintptr(-int64(n))); val+n < n {
++		print("runtime: stat underflow: val ", val, ", n ", n, "\n")
++		exit(2)
++	}
++}
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index a4c9874700..10cf460f7f 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -98,8 +98,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ //
+ //go:nosplit
+ func newosproc0(stacksize uintptr, fn unsafe.Pointer, fnarg uintptr) {
+-	var dummy uint64
+-	stack := sysAlloc(stacksize, &dummy)
++	stack := sysAlloc(stacksize, &memstats.stacks_sys)
+ 	if stack == nil {
+ 		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
+ 		exit(1)
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index a286dcd960..e4b18c79b3 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -146,8 +146,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ // Version of newosproc that doesn't require a valid G.
+ //go:nosplit
+ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+-	var dummy uint64
+-	stack := sysAlloc(stacksize, &dummy)
++	stack := sysAlloc(stacksize, &memstats.stacks_sys)
+ 	if stack == nil {
+ 		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
+ 		exit(1)

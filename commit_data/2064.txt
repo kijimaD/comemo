@@ -9,6 +9,43 @@ Date:   Mon Apr 20 21:03:38 2009 -0700
     DELTA=26  (26 added, 0 deleted, 0 changed)
     OCL=27651
     CL=27651
-
+---
  test/bugs/bug143.go | 30 ++++++++++++++++++++++++++++++
  1 file changed, 30 insertions(+)
+
+diff --git a/test/bugs/bug143.go b/test/bugs/bug143.go
+new file mode 100644
+index 0000000000..07f3cdc544
+--- /dev/null
++++ b/test/bugs/bug143.go
+@@ -0,0 +1,30 @@
++// $G $D/$F.go || echo BUG should compile
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type myMap map[string] int;
++
++func main() {
++	m := make(myMap);
++	mp := &m;
++
++	{
++		x, ok := m["key"];
++	}
++	{
++		x, ok := (*mp)["key"]
++	}
++	{
++		x, ok := mp["key"]
++	}
++}
++
++/*
++ * bug143.go:19: assignment count mismatch: 2 = 1
++ * bug143.go:18: x: undefined
++ * bug143.go:18: ok: undefined
++ */

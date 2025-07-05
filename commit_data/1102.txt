@@ -9,6 +9,21 @@ Date:   Tue Nov 11 10:01:51 2008 -0800
     DELTA=2  (1 added, 0 deleted, 1 changed)
     OCL=18973
     CL=18976
-
+---
  test/run | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/run b/test/run
+index 3617301c29..de4222e116 100755
+--- a/test/run
++++ b/test/run
+@@ -59,7 +59,8 @@ done | # clean up some stack noise
+ 		s/ PC=0x[0-9a-f]*/ PC=xxx/
+ 		s/^pc: 0x[0-9a-f]*/pc: xxx/
+ 		/^Trace\/breakpoint trap/d
+-		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/' > run.out
++		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
++		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d' > run.out
+ 
+ case $failed in
+ 1)

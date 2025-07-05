@@ -11,6 +11,20 @@ Date:   Fri Jul 29 13:47:54 2011 -0400
     R=gri
     CC=golang-dev
     https://golang.org/cl/4801061
-
+---
  src/cmd/godoc/utils.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/utils.go b/src/cmd/godoc/utils.go
+index 5b3ec41b6b..11e46aee50 100644
+--- a/src/cmd/godoc/utils.go
++++ b/src/cmd/godoc/utils.go
+@@ -123,7 +123,7 @@ func isText(s []byte) bool {
+ 			// last char may be incomplete - ignore
+ 			break
+ 		}
+-		if c == 0xFFFD || c < ' ' && c != '\n' && c != '\t' {
++		if c == 0xFFFD || c < ' ' && c != '\n' && c != '\t' && c != '\f' {
+ 			// decoding error or control character - not a text file
+ 			return false
+ 		}

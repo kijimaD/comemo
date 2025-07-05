@@ -9,6 +9,32 @@ Date:   Tue Feb 21 15:21:34 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5687057
-
+---
  src/pkg/net/tcpsock_posix.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index 28d1707308..1280f7bb08 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -9,6 +9,7 @@
+ package net
+ 
+ import (
++	"fmt"
+ 	"io"
+ 	"os"
+ 	"syscall"
+@@ -26,6 +27,12 @@ func sockaddrToTCP(sa syscall.Sockaddr) Addr {
+ 		return &TCPAddr{sa.Addr[0:], sa.Port}
+ 	case *syscall.SockaddrInet6:
+ 		return &TCPAddr{sa.Addr[0:], sa.Port}
++	default:
++		if sa != nil {
++			// TODO(r): Diagnose when we will turn a non-nil sockaddr into a nil.
++			// Part of diagnosing the selfConnect bug.
++			panic(fmt.Sprintf("unexpected type in sockaddrToTCP: %T", sa))
++		}
+ 	}
+ 	return nil
+ }

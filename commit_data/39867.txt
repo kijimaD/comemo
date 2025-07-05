@@ -8,8 +8,66 @@ Date:   Mon Mar 25 10:33:49 2019 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169119
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/config.go | 2 +-
  src/cmd/link/internal/ld/data.go   | 9 ++++++++-
  src/cmd/link/internal/ld/lib.go    | 6 +++++-
  3 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 5d59d4067b..85842f2fa2 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -51,7 +51,7 @@ func (mode *BuildMode) Set(s string) error {
+ 		*mode = BuildModePIE
+ 	case "c-archive":
+ 		switch objabi.GOOS {
+-		case "darwin", "linux":
++		case "aix", "darwin", "linux":
+ 		case "freebsd":
+ 			switch objabi.GOARCH {
+ 			case "amd64":
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 717597dfd5..da75ce8dc4 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1000,7 +1000,7 @@ func dosymtype(ctxt *Link) {
+ 		for _, s := range ctxt.Syms.Allsym {
+ 			// Create a new entry in the .init_array section that points to the
+ 			// library initializer function.
+-			if s.Name == *flagEntrySymbol {
++			if s.Name == *flagEntrySymbol && ctxt.HeadType != objabi.Haix {
+ 				addinitarrdata(ctxt, s)
+ 			}
+ 		}
+@@ -1380,6 +1380,13 @@ func (ctxt *Link) dodata() {
+ 	case BuildModeCArchive, BuildModeCShared, BuildModeShared, BuildModePlugin:
+ 		hasinitarr = true
+ 	}
++
++	if ctxt.HeadType == objabi.Haix {
++		if len(data[sym.SINITARR]) > 0 {
++			Errorf(nil, "XCOFF format doesn't allow .init_array section")
++		}
++	}
++
+ 	if hasinitarr && len(data[sym.SINITARR]) > 0 {
+ 		sect := addsection(ctxt.Arch, &Segdata, ".init_array", 06)
+ 		sect.Align = dataMaxAlign[sym.SINITARR]
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index b331e39fe3..f53e0273c6 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1102,7 +1102,11 @@ func (ctxt *Link) archive() {
+ 	}
+ 	ctxt.Out.f = nil
+ 
+-	argv := []string{*flagExtar, "-q", "-c", "-s", *flagOutfile}
++	argv := []string{*flagExtar, "-q", "-c", "-s"}
++	if ctxt.HeadType == objabi.Haix {
++		argv = append(argv, "-X64")
++	}
++	argv = append(argv, *flagOutfile)
+ 	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
+ 	argv = append(argv, hostobjCopy()...)
+ 

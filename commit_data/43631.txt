@@ -14,7 +14,51 @@ Date:   Wed Apr 15 15:39:53 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/malloc.go    | 11 ++++++++++-
  src/runtime/proc_test.go | 13 +++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 5a0d85f645..e1ec5e6496 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1207,7 +1207,16 @@ func reflect_unsafe_NewArray(typ *_type, n int) unsafe.Pointer {
+ }
+ 
+ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
+-	mp.p.ptr().mcache.next_sample = nextSample()
++	var c *mcache
++	if mp.p != 0 {
++		c = mp.p.ptr().mcache
++	} else {
++		c = mcache0
++		if c == nil {
++			throw("profilealloc called with no P")
++		}
++	}
++	c.next_sample = nextSample()
+ 	mProf_Malloc(x, size)
+ }
+ 
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 81bcb98aeb..27dba95eff 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -1037,3 +1037,16 @@ loop:
+ 		t.Errorf("netpollBreak did not interrupt netpoll: slept for: %v", dur)
+ 	}
+ }
++
++// TestBigGOMAXPROCS tests that setting GOMAXPROCS to a large value
++// doesn't cause a crash at startup. See issue 38474.
++func TestBigGOMAXPROCS(t *testing.T) {
++	t.Parallel()
++	output := runTestProg(t, "testprog", "NonexistentTest", "GOMAXPROCS=1024")
++	if strings.Contains(output, "failed to create new OS thread") {
++		t.Skipf("failed to create 1024 threads")
++	}
++	if !strings.Contains(output, "unknown function: NonexistentTest") {
++		t.Errorf("output:\n%s\nwanted:\nunknown function: NonexistentTest", output)
++	}
++}

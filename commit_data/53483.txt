@@ -64,7 +64,7 @@ Date:   Fri Oct 15 11:35:25 2021 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go                            | 41 ++++++++--------
  src/cmd/go/internal/base/tool.go                 | 16 +-----
  src/cmd/go/internal/cfg/cfg.go                   | 62 ++++++++++++++++++++----
@@ -83,3 +83,559 @@ Date:   Fri Oct 15 11:35:25 2021 -0400
  src/cmd/go/testdata/script/mod_outside.txt       |  4 +-
  src/cmd/go/testdata/script/vendor_complex.txt    |  2 +-
  17 files changed, 120 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a96ff1e322..c3e248a49f 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -55,6 +55,11 @@ var (
+ 	fuzzInstrumented = false // whether fuzzing uses instrumentation
+ )
+ 
++var (
++	goHostOS, goHostArch string
++	cgoEnabled           string // raw value from 'go env CGO_ENABLED'
++)
++
+ var exeSuffix string = func() string {
+ 	if runtime.GOOS == "windows" {
+ 		return ".exe"
+@@ -96,6 +101,8 @@ func TestMain(m *testing.M) {
+ 	// run the main func exported via export_test.go, and exit.
+ 	// We set CMDGO_TEST_RUN_MAIN via os.Setenv and testScript.setup.
+ 	if os.Getenv("CMDGO_TEST_RUN_MAIN") != "" {
++		cfg.SetGOROOT(cfg.GOROOT, true)
++
+ 		if v := os.Getenv("TESTGO_VERSION"); v != "" {
+ 			work.RuntimeVersion = v
+ 		}
+@@ -204,13 +211,16 @@ func TestMain(m *testing.M) {
+ 		// which will cause many tests to do unnecessary rebuilds and some
+ 		// tests to attempt to overwrite the installed standard library.
+ 		// Bail out entirely in this case.
+-		hostGOOS := goEnv("GOHOSTOS")
+-		hostGOARCH := goEnv("GOHOSTARCH")
+-		if hostGOOS != runtime.GOOS || hostGOARCH != runtime.GOARCH {
+-			fmt.Fprintf(os.Stderr, "testing: warning: no tests to run\n") // magic string for cmd/go
+-			fmt.Printf("cmd/go test is not compatible with GOOS/GOARCH != GOHOSTOS/GOHOSTARCH (%s/%s != %s/%s)\n", runtime.GOOS, runtime.GOARCH, hostGOOS, hostGOARCH)
+-			fmt.Printf("SKIP\n")
+-			return
++		goHostOS = goEnv("GOHOSTOS")
++		os.Setenv("TESTGO_GOHOSTOS", goHostOS)
++		goHostArch = goEnv("GOHOSTARCH")
++		os.Setenv("TESTGO_GOHOSTARCH", goHostArch)
++
++		cgoEnabled = goEnv("CGO_ENABLED")
++		canCgo, err = strconv.ParseBool(cgoEnabled)
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "can't parse go env CGO_ENABLED output: %q\n", strings.TrimSpace(cgoEnabled))
++			os.Exit(2)
+ 		}
+ 
+ 		// Duplicate the test executable into the path at testGo, for $PATH.
+@@ -241,18 +251,6 @@ func TestMain(m *testing.M) {
+ 			}
+ 		}
+ 
+-		cmd := exec.Command(testGo, "env", "CGO_ENABLED")
+-		cmd.Stderr = new(strings.Builder)
+-		if out, err := cmd.Output(); err != nil {
+-			fmt.Fprintf(os.Stderr, "running testgo failed: %v\n%s", err, cmd.Stderr)
+-			os.Exit(2)
+-		} else {
+-			canCgo, err = strconv.ParseBool(strings.TrimSpace(string(out)))
+-			if err != nil {
+-				fmt.Fprintf(os.Stderr, "can't parse go env CGO_ENABLED output: %v\n", strings.TrimSpace(string(out)))
+-			}
+-		}
+-
+ 		out, err := exec.Command(gotool, "env", "GOCACHE").CombinedOutput()
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "could not find testing GOCACHE: %v\n%s", err, out)
+@@ -272,6 +270,7 @@ func TestMain(m *testing.M) {
+ 		canFuzz = sys.FuzzSupported(runtime.GOOS, runtime.GOARCH)
+ 		fuzzInstrumented = sys.FuzzInstrumented(runtime.GOOS, runtime.GOARCH)
+ 	}
++
+ 	// Don't let these environment variables confuse the test.
+ 	os.Setenv("GOENV", "off")
+ 	os.Unsetenv("GOFLAGS")
+@@ -886,7 +885,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 		"src/math/bits",
+ 		"src/unsafe",
+ 		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),
+-		filepath.Join("pkg/tool", runtime.GOOS+"_"+runtime.GOARCH),
++		filepath.Join("pkg/tool", goHostOS+"_"+goHostArch),
+ 		"pkg/include",
+ 	} {
+ 		srcdir := filepath.Join(testGOROOT, copydir)
+@@ -2377,6 +2376,8 @@ func TestIssue22588(t *testing.T) {
+ 	defer tg.cleanup()
+ 	tg.parallel()
+ 
++	tg.wantNotStale("runtime", "", "must be non-stale to compare staleness under -toolexec")
++
+ 	if _, err := os.Stat("/usr/bin/time"); err != nil {
+ 		t.Skip(err)
+ 	}
+diff --git a/src/cmd/go/internal/base/tool.go b/src/cmd/go/internal/base/tool.go
+index f927016965..202e314b94 100644
+--- a/src/cmd/go/internal/base/tool.go
++++ b/src/cmd/go/internal/base/tool.go
+@@ -9,28 +9,14 @@ import (
+ 	"go/build"
+ 	"os"
+ 	"path/filepath"
+-	"runtime"
+ 
+ 	"cmd/go/internal/cfg"
+ )
+ 
+-// Configuration for finding tool binaries.
+-var (
+-	ToolGOOS      = runtime.GOOS
+-	ToolGOARCH    = runtime.GOARCH
+-	ToolIsWindows = ToolGOOS == "windows"
+-	ToolDir       = build.ToolDir
+-)
+-
+-const ToolWindowsExtension = ".exe"
+-
+ // Tool returns the path to the named tool (for example, "vet").
+ // If the tool cannot be found, Tool exits the process.
+ func Tool(toolName string) string {
+-	toolPath := filepath.Join(ToolDir, toolName)
+-	if ToolIsWindows {
+-		toolPath += ToolWindowsExtension
+-	}
++	toolPath := filepath.Join(build.ToolDir, toolName) + cfg.ToolExeSuffix()
+ 	if len(cfg.BuildToolexec) > 0 {
+ 		return toolPath
+ 	}
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 84abb27606..7fb75db5f7 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -42,6 +42,25 @@ func exeSuffix() string {
+ 	return ""
+ }
+ 
++// Configuration for tools installed to GOROOT/bin.
++// Normally these match runtime.GOOS and runtime.GOARCH,
++// but when testing a cross-compiled cmd/go they will
++// indicate the GOOS and GOARCH of the installed cmd/go
++// rather than the test binary.
++var (
++	installedGOOS   string
++	installedGOARCH string
++)
++
++// ToolExeSuffix returns the suffix for executables installed
++// in build.ToolDir.
++func ToolExeSuffix() string {
++	if installedGOOS == "windows" {
++		return ".exe"
++	}
++	return ""
++}
++
+ // These are general "build flags" used by build and other commands.
+ var (
+ 	BuildA                 bool     // -a flag
+@@ -141,12 +160,17 @@ func defaultContext() build.Context {
+ }
+ 
+ func init() {
+-	SetGOROOT(findGOROOT())
++	SetGOROOT(findGOROOT(), false)
+ 	BuildToolchainCompiler = func() string { return "missing-compiler" }
+ 	BuildToolchainLinker = func() string { return "missing-linker" }
+ }
+ 
+-func SetGOROOT(goroot string) {
++// SetGOROOT sets GOROOT and associated variables to the given values.
++//
++// If isTestGo is true, build.ToolDir is set based on the TESTGO_GOHOSTOS and
++// TESTGO_GOHOSTARCH environment variables instead of runtime.GOOS and
++// runtime.GOARCH.
++func SetGOROOT(goroot string, isTestGo bool) {
+ 	BuildContext.GOROOT = goroot
+ 
+ 	GOROOT = goroot
+@@ -161,13 +185,33 @@ func SetGOROOT(goroot string) {
+ 	}
+ 	GOROOT_FINAL = findGOROOT_FINAL(goroot)
+ 
+-	if runtime.Compiler != "gccgo" && goroot != "" {
+-		// Note that we must use runtime.GOOS and runtime.GOARCH here,
+-		// as the tool directory does not move based on environment
+-		// variables. This matches the initialization of ToolDir in
+-		// go/build, except for using BuildContext.GOROOT rather than
+-		// runtime.GOROOT.
+-		build.ToolDir = filepath.Join(goroot, "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
++	installedGOOS = runtime.GOOS
++	installedGOARCH = runtime.GOARCH
++	if isTestGo {
++		if testOS := os.Getenv("TESTGO_GOHOSTOS"); testOS != "" {
++			installedGOOS = testOS
++		}
++		if testArch := os.Getenv("TESTGO_GOHOSTARCH"); testArch != "" {
++			installedGOARCH = testArch
++		}
++	}
++
++	if runtime.Compiler != "gccgo" {
++		if goroot == "" {
++			build.ToolDir = ""
++		} else {
++			// Note that we must use the installed OS and arch here: the tool
++			// directory does not move based on environment variables, and even if we
++			// are testing a cross-compiled cmd/go all of the installed packages and
++			// tools would have been built using the native compiler and linker (and
++			// would spuriously appear stale if we used a cross-compiled compiler and
++			// linker).
++			//
++			// This matches the initialization of ToolDir in go/build, except for
++			// using ctxt.GOROOT and the installed GOOS and GOARCH rather than the
++			// GOROOT, GOOS, and GOARCH reported by the runtime package.
++			build.ToolDir = filepath.Join(GOROOTpkg, "tool", installedGOOS+"_"+installedGOARCH)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 019d36490f..37e126ac8b 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -11,6 +11,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"path/filepath"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -395,7 +396,7 @@ func removeFile(f string) {
+ 		return
+ 	}
+ 	// Windows does not allow deletion of a binary file while it is executing.
+-	if base.ToolIsWindows {
++	if runtime.GOOS == "windows" {
+ 		// Remove lingering ~ file from last attempt.
+ 		if _, err2 := os.Stat(f + "~"); err2 == nil {
+ 			os.Remove(f + "~")
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 529351dfbd..012ea4abaf 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -96,7 +96,7 @@ func MkEnv() []cfg.EnvVar {
+ 		{Name: "GOROOT", Value: cfg.GOROOT},
+ 		{Name: "GOSUMDB", Value: cfg.GOSUMDB},
+ 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
+-		{Name: "GOTOOLDIR", Value: base.ToolDir},
++		{Name: "GOTOOLDIR", Value: build.ToolDir},
+ 		{Name: "GOVCS", Value: cfg.GOVCS},
+ 		{Name: "GOVERSION", Value: runtime.Version()},
+ 	}
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index 3dc29d40b2..f6a8d207cd 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -97,10 +97,7 @@ func runFmt(ctx context.Context, cmd *base.Command, args []string) {
+ }
+ 
+ func gofmtPath() string {
+-	gofmt := "gofmt"
+-	if base.ToolIsWindows {
+-		gofmt += base.ToolWindowsExtension
+-	}
++	gofmt := "gofmt" + cfg.ToolExeSuffix()
+ 
+ 	gofmtPath := filepath.Join(cfg.GOBIN, gofmt)
+ 	if _, err := os.Stat(gofmtPath); err == nil {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 19d02e8bd9..79219d3f8d 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -17,7 +17,6 @@ import (
+ 	"io/fs"
+ 	"os"
+ 	"os/exec"
+-	"path"
+ 	pathpkg "path"
+ 	"path/filepath"
+ 	"runtime"
+@@ -1776,9 +1775,9 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 			setError(e)
+ 			return
+ 		}
+-		elem := p.DefaultExecName()
+-		full := cfg.BuildContext.GOOS + "_" + cfg.BuildContext.GOARCH + "/" + elem
+-		if cfg.BuildContext.GOOS != base.ToolGOOS || cfg.BuildContext.GOARCH != base.ToolGOARCH {
++		elem := p.DefaultExecName() + cfg.ExeSuffix
++		full := cfg.BuildContext.GOOS + "_" + cfg.BuildContext.GOARCH + string(filepath.Separator) + elem
++		if cfg.BuildContext.GOOS != runtime.GOOS || cfg.BuildContext.GOARCH != runtime.GOARCH {
+ 			// Install cross-compiled binaries to subdirectories of bin.
+ 			elem = full
+ 		}
+@@ -1788,7 +1787,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 		if p.Internal.Build.BinDir != "" {
+ 			// Install to GOBIN or bin of GOPATH entry.
+ 			p.Target = filepath.Join(p.Internal.Build.BinDir, elem)
+-			if !p.Goroot && strings.Contains(elem, "/") && cfg.GOBIN != "" {
++			if !p.Goroot && strings.Contains(elem, string(filepath.Separator)) && cfg.GOBIN != "" {
+ 				// Do not create $GOBIN/goos_goarch/elem.
+ 				p.Target = ""
+ 				p.Internal.GobinSubdir = true
+@@ -1798,14 +1797,11 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 			// This is for 'go tool'.
+ 			// Override all the usual logic and force it into the tool directory.
+ 			if cfg.BuildToolchainName == "gccgo" {
+-				p.Target = filepath.Join(base.ToolDir, elem)
++				p.Target = filepath.Join(build.ToolDir, elem)
+ 			} else {
+ 				p.Target = filepath.Join(cfg.GOROOTpkg, "tool", full)
+ 			}
+ 		}
+-		if p.Target != "" && cfg.BuildContext.GOOS == "windows" {
+-			p.Target += ".exe"
+-		}
+ 	} else if p.Internal.Local {
+ 		// Local import turned into absolute path.
+ 		// No permanent install target.
+@@ -2071,7 +2067,7 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
+ 			glob = pattern[len("all:"):]
+ 		}
+ 		// Check pattern is valid for //go:embed.
+-		if _, err := path.Match(glob, ""); err != nil || !validEmbedPattern(glob) {
++		if _, err := pathpkg.Match(glob, ""); err != nil || !validEmbedPattern(glob) {
+ 			return nil, nil, fmt.Errorf("invalid pattern syntax")
+ 		}
+ 
+@@ -3112,7 +3108,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args
+ 			return nil, fmt.Errorf("%s: argument must be a package path, not an absolute path", arg)
+ 		case search.IsMetaPackage(p):
+ 			return nil, fmt.Errorf("%s: argument must be a package path, not a meta-package", arg)
+-		case path.Clean(p) != p:
++		case pathpkg.Clean(p) != p:
+ 			return nil, fmt.Errorf("%s: argument must be a clean package path", arg)
+ 		case !strings.Contains(p, "...") && search.IsStandardImportPath(p) && modindex.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, p):
+ 			return nil, fmt.Errorf("%s: argument must not be a package in the standard library", arg)
+diff --git a/src/cmd/go/internal/test/flagdefs_test.go b/src/cmd/go/internal/test/flagdefs_test.go
+index f74f3c18f7..64317fd04e 100644
+--- a/src/cmd/go/internal/test/flagdefs_test.go
++++ b/src/cmd/go/internal/test/flagdefs_test.go
+@@ -15,7 +15,7 @@ import (
+ )
+ 
+ func TestMain(m *testing.M) {
+-	cfg.SetGOROOT(testenv.GOROOT(nil))
++	cfg.SetGOROOT(testenv.GOROOT(nil), false)
+ }
+ 
+ func TestPassFlagToTestIncludesAllTestFlags(t *testing.T) {
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index d61b524863..afa3ac404f 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -8,6 +8,7 @@ package tool
+ import (
+ 	"context"
+ 	"fmt"
++	"go/build"
+ 	"os"
+ 	"os/exec"
+ 	"os/signal"
+@@ -115,7 +116,7 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ // listTools prints a list of the available tools in the tools directory.
+ func listTools() {
+-	f, err := os.Open(base.ToolDir)
++	f, err := os.Open(build.ToolDir)
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "go: no tool directory: %s\n", err)
+ 		base.SetExitStatus(2)
+@@ -132,11 +133,9 @@ func listTools() {
+ 	sort.Strings(names)
+ 	for _, name := range names {
+ 		// Unify presentation by going to lower case.
+-		name = strings.ToLower(name)
+ 		// If it's windows, don't show the .exe suffix.
+-		if base.ToolIsWindows && strings.HasSuffix(name, base.ToolWindowsExtension) {
+-			name = name[:len(name)-len(base.ToolWindowsExtension)]
+-		}
++		name = strings.TrimSuffix(strings.ToLower(name), cfg.ToolExeSuffix())
++
+ 		// The tool directory used by gccgo will have other binaries
+ 		// in addition to go tools. Only display go tools here.
+ 		if cfg.BuildToolchainName == "gccgo" && !isGccgoTool(name) {
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index c88b315d2c..497d7fda3a 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1813,7 +1813,7 @@ func (b *Builder) copyFile(dst, src string, perm fs.FileMode, force bool) error
+ 	}
+ 
+ 	// On Windows, remove lingering ~ file from last attempt.
+-	if base.ToolIsWindows {
++	if runtime.GOOS == "windows" {
+ 		if _, err := os.Stat(dst + "~"); err == nil {
+ 			os.Remove(dst + "~")
+ 		}
+@@ -1821,7 +1821,7 @@ func (b *Builder) copyFile(dst, src string, perm fs.FileMode, force bool) error
+ 
+ 	mayberemovefile(dst)
+ 	df, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+-	if err != nil && base.ToolIsWindows {
++	if err != nil && runtime.GOOS == "windows" {
+ 		// Windows does not allow deletion of a binary file
+ 		// while it is executing. Try to move it out of the way.
+ 		// If the move fails, which is likely, we'll try again the
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 809dfb452f..e37a7b192b 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -167,11 +167,13 @@ func (ts *testScript) setup() {
+ 		homeEnvName() + "=/no-home",
+ 		"CCACHE_DISABLE=1", // ccache breaks with non-existent HOME
+ 		"GOARCH=" + runtime.GOARCH,
++		"TESTGO_GOHOSTARCH=" + goHostArch,
+ 		"GOCACHE=" + testGOCACHE,
+ 		"GODEBUG=" + os.Getenv("GODEBUG"),
+ 		"GOEXE=" + cfg.ExeSuffix,
+ 		"GOEXPERIMENT=" + os.Getenv("GOEXPERIMENT"),
+ 		"GOOS=" + runtime.GOOS,
++		"TESTGO_GOHOSTOS=" + goHostOS,
+ 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
+ 		"GOPROXY=" + proxyURL,
+ 		"GOPRIVATE=",
+@@ -200,6 +202,12 @@ func (ts *testScript) setup() {
+ 	if !testenv.HasExternalNetwork() {
+ 		ts.env = append(ts.env, "TESTGONETWORK=panic", "TESTGOVCS=panic")
+ 	}
++	if os.Getenv("CGO_ENABLED") != "" || runtime.GOOS != goHostOS || runtime.GOARCH != goHostArch {
++		// If the actual CGO_ENABLED might not match the cmd/go default, set it
++		// explicitly in the environment. Otherwise, leave it unset so that we also
++		// cover the default behaviors.
++		ts.env = append(ts.env, "CGO_ENABLED="+cgoEnabled)
++	}
+ 
+ 	for _, key := range extraEnvKeys {
+ 		if val := os.Getenv(key); val != "" {
+@@ -360,6 +368,8 @@ Script:
+ 			switch cond.tag {
+ 			case runtime.GOOS, runtime.GOARCH, runtime.Compiler:
+ 				ok = true
++			case "cross":
++				ok = goHostOS != runtime.GOOS || goHostArch != runtime.GOARCH
+ 			case "short":
+ 				ok = testing.Short()
+ 			case "cgo":
+@@ -943,9 +953,9 @@ func (ts *testScript) cmdStale(want simpleStatus, args []string) {
+ 	tmpl := "{{if .Error}}{{.ImportPath}}: {{.Error.Err}}{{else}}"
+ 	switch want {
+ 	case failure:
+-		tmpl += "{{if .Stale}}{{.ImportPath}} is unexpectedly stale: {{.StaleReason}}{{end}}"
++		tmpl += `{{if .Stale}}{{.ImportPath}} ({{.Target}}) is unexpectedly stale:{{"\n\t"}}{{.StaleReason}}{{end}}`
+ 	case success:
+-		tmpl += "{{if not .Stale}}{{.ImportPath}} is unexpectedly NOT stale{{end}}"
++		tmpl += "{{if not .Stale}}{{.ImportPath}} ({{.Target}}) is unexpectedly NOT stale{{end}}"
+ 	default:
+ 		ts.fatalf("unsupported: %v stale", want)
+ 	}
+@@ -953,10 +963,15 @@ func (ts *testScript) cmdStale(want simpleStatus, args []string) {
+ 	goArgs := append([]string{"list", "-e", "-f=" + tmpl}, args...)
+ 	stdout, stderr, err := ts.exec(testGo, goArgs...)
+ 	if err != nil {
++		// Print stdout before stderr, because stderr may explain the error
++		// independent of whatever we may have printed to stdout.
+ 		ts.fatalf("go list: %v\n%s%s", err, stdout, stderr)
+ 	}
+ 	if stdout != "" {
+-		ts.fatalf("%s", stdout)
++		// Print stderr before stdout, because stderr may contain verbose
++		// debugging info (for example, if GODEBUG=gocachehash=1 is set)
++		// and we know that stdout contains a useful summary.
++		ts.fatalf("%s%s", stderr, stdout)
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/build_overlay.txt b/src/cmd/go/testdata/script/build_overlay.txt
+index 70cd7f8c7a..b64bc02614 100644
+--- a/src/cmd/go/testdata/script/build_overlay.txt
++++ b/src/cmd/go/testdata/script/build_overlay.txt
+@@ -68,6 +68,7 @@ env CACHE=$OLD_GOCACHE
+ # Run same tests but with gccgo.
+ env GO111MODULE=off
+ [!exec:gccgo] stop
++[cross] stop  # gccgo can't necessarily cross-compile
+ 
+ ! go build -compiler=gccgo .
+ go build -compiler=gccgo -overlay overlay.json -o main_gccgo$GOEXE .
+diff --git a/src/cmd/go/testdata/script/build_trimpath.txt b/src/cmd/go/testdata/script/build_trimpath.txt
+index f36b1237dc..2a2aa2080a 100644
+--- a/src/cmd/go/testdata/script/build_trimpath.txt
++++ b/src/cmd/go/testdata/script/build_trimpath.txt
+@@ -95,6 +95,7 @@ cmp -q paths-a.exe paths-b.exe
+ # Same sequence of tests but with gccgo.
+ # gccgo does not support builds in module mode.
+ [!exec:gccgo] stop
++[cross] stop  # gccgo can't necessarily cross-compile
+ env GOPATH=$WORK/a
+ 
+ # A binary built with gccgo without -trimpath should contain the current
+diff --git a/src/cmd/go/testdata/script/gccgo_m.txt b/src/cmd/go/testdata/script/gccgo_m.txt
+index b63ba46ced..beb9c50368 100644
+--- a/src/cmd/go/testdata/script/gccgo_m.txt
++++ b/src/cmd/go/testdata/script/gccgo_m.txt
+@@ -4,6 +4,7 @@
+ env GO111MODULE=off
+ 
+ [short] skip
++[cross] skip # gccgo can't necessarily cross-compile
+ 
+ cd m
+ go build
+diff --git a/src/cmd/go/testdata/script/install_cmd_gobin.txt b/src/cmd/go/testdata/script/install_cmd_gobin.txt
+index 38fd66c0e8..049bf415b8 100644
+--- a/src/cmd/go/testdata/script/install_cmd_gobin.txt
++++ b/src/cmd/go/testdata/script/install_cmd_gobin.txt
+@@ -3,8 +3,8 @@
+ env GOBIN=gobin
+ mkdir gobin
+ go list -f '{{.Target}}' cmd/go
+-stdout $GOROOT[/\\]bin[/\\]go$GOEXE
++stdout $GOROOT${/}bin${/}go$GOEXE
+ 
+ # Check that tools are installed to $GOTOOLDIR, not $GOBIN.
+ go list -f '{{.Target}}' cmd/compile
+-stdout $GOROOT[/\\]pkg[/\\]tool[/\\]${GOOS}_${GOARCH}[/\\]compile$GOEXE
++stdout $GOROOT${/}pkg${/}tool${/}${GOOS}_${GOARCH}${/}compile$GOEXE
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index f88e2ae7ef..65808244e8 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -203,7 +203,9 @@ stderr '^go: ''go install'' requires a version when current directory is not in
+ ! go install ./needmod/needmod.go
+ stderr 'needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+-# 'go install' should succeed with a package in GOROOT.
++# 'go install' for a package in GOROOT should succeed.
++# (It must be non-stale here so that the test does not write to GOROOT).
++! stale cmd/addr2line
+ go install cmd/addr2line
+ ! stderr .
+ 
+diff --git a/src/cmd/go/testdata/script/vendor_complex.txt b/src/cmd/go/testdata/script/vendor_complex.txt
+index 9ca94e72c5..290efdbd33 100644
+--- a/src/cmd/go/testdata/script/vendor_complex.txt
++++ b/src/cmd/go/testdata/script/vendor_complex.txt
+@@ -2,7 +2,7 @@ env GO111MODULE=off
+ 
+ # smoke test for complex build configuration
+ go build -o complex.exe complex
+-[exec:gccgo] go build -compiler=gccgo -o complex.exe complex
++[!cross] [exec:gccgo] go build -compiler=gccgo -o complex.exe complex
+ 
+ -- complex/main.go --
+ package main

@@ -12,7 +12,7 @@ Date:   Wed Oct 21 11:04:42 2015 -0700
     Change-Id: I2d66073f713fe67e33a6720460d2bb8f72f31394
     Reviewed-on: https://go-review.googlesource.com/16164
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/chan.go            |  3 +++
  src/runtime/hashmap.go         | 13 +++++++++++++
  src/runtime/iface.go           |  6 ++++++
@@ -29,3 +29,396 @@ Date:   Wed Oct 21 11:04:42 2015 -0700
  src/syscall/syscall_unix.go    |  6 ++++++
  src/syscall/syscall_windows.go |  6 ++++++
  15 files changed, 132 insertions(+)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index cfee12a551..96ac306624 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -108,6 +108,9 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 	if raceenabled {
+ 		raceReadObjectPC(t.elem, ep, callerpc, funcPC(chansend))
+ 	}
++	if msanenabled {
++		msanread(ep, t.elem.size)
++	}
+ 
+ 	if c == nil {
+ 		if !block {
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 2db73bc845..d59ad297f5 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -276,6 +276,9 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 		racereadpc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
++	if msanenabled && h != nil {
++		msanread(key, t.key.size)
++	}
+ 	if h == nil || h.count == 0 {
+ 		return atomicloadp(unsafe.Pointer(&zeroptr))
+ 	}
+@@ -324,6 +327,9 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 		racereadpc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
++	if msanenabled && h != nil {
++		msanread(key, t.key.size)
++	}
+ 	if h == nil || h.count == 0 {
+ 		return atomicloadp(unsafe.Pointer(&zeroptr)), false
+ 	}
+@@ -419,6 +425,10 @@ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 		raceReadObjectPC(t.elem, val, callerpc, pc)
+ 	}
++	if msanenabled {
++		msanread(key, t.key.size)
++		msanread(val, t.elem.size)
++	}
+ 
+ 	alg := t.key.alg
+ 	hash := alg.hash(key, uintptr(h.hash0))
+@@ -517,6 +527,9 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 		racewritepc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
++	if msanenabled && h != nil {
++		msanread(key, t.key.size)
++	}
+ 	if h == nil || h.count == 0 {
+ 		return
+ 	}
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 646f8789eb..f04cec0076 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -132,6 +132,9 @@ func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e interface{}) {
+ 	if raceenabled {
+ 		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E))
+ 	}
++	if msanenabled {
++		msanread(elem, t.size)
++	}
+ 	ep := (*eface)(unsafe.Pointer(&e))
+ 	if isDirectIface(t) {
+ 		ep._type = t
+@@ -153,6 +156,9 @@ func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer,
+ 	if raceenabled {
+ 		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2I))
+ 	}
++	if msanenabled {
++		msanread(elem, t.size)
++	}
+ 	tab := (*itab)(atomicloadp(unsafe.Pointer(cache)))
+ 	if tab == nil {
+ 		tab = getitab(inter, t, false)
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 4ce159c267..564e2296a2 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -707,6 +707,9 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 	if raceenabled {
+ 		racemalloc(x, size)
+ 	}
++	if msanenabled {
++		msanmalloc(x, size)
++	}
+ 
+ 	mp.mallocing = 0
+ 	releasem(mp)
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 0dbe1ffc9d..6ca2672b8d 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -241,6 +241,10 @@ func typedslicecopy(typ *_type, dst, src slice) int {
+ 		racewriterangepc(dstp, uintptr(n)*typ.size, callerpc, pc)
+ 		racereadrangepc(srcp, uintptr(n)*typ.size, callerpc, pc)
+ 	}
++	if msanenabled {
++		msanwrite(dstp, uintptr(n)*typ.size)
++		msanread(srcp, uintptr(n)*typ.size)
++	}
+ 
+ 	// Note: No point in checking typ.kind&kindNoPointers here:
+ 	// compiler only emits calls to typedslicecopy for types with pointers,
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 9468af941a..7c7f1e858b 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -233,6 +233,9 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
+ 		if debug.allocfreetrace != 0 {
+ 			tracefree(unsafe.Pointer(p), size)
+ 		}
++		if msanenabled {
++			msanfree(unsafe.Pointer(p), size)
++		}
+ 
+ 		// Reset to allocated+noscan.
+ 		if cl == 0 {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 24776375ca..e4ca9407f6 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2695,6 +2695,9 @@ retry:
+ 			if raceenabled {
+ 				racemalloc(unsafe.Pointer(gp.stack.lo), gp.stackAlloc)
+ 			}
++			if msanenabled {
++				msanmalloc(unsafe.Pointer(gp.stack.lo), gp.stackAlloc)
++			}
+ 		}
+ 	}
+ 	return gp
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index b18b44ce61..8b6c3ed4c0 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -459,6 +459,13 @@ loop:
+ 			raceReadObjectPC(c.elemtype, cas.elem, cas.pc, chansendpc)
+ 		}
+ 	}
++	if msanenabled {
++		if cas.kind == caseRecv && cas.elem != nil {
++			msanwrite(cas.elem, c.elemtype.size)
++		} else if cas.kind == caseSend {
++			msanread(cas.elem, c.elemtype.size)
++		}
++	}
+ 
+ 	selunlock(sel)
+ 	goto retc
+@@ -472,6 +479,9 @@ asyncrecv:
+ 		raceacquire(chanbuf(c, c.recvx))
+ 		racerelease(chanbuf(c, c.recvx))
+ 	}
++	if msanenabled && cas.elem != nil {
++		msanwrite(cas.elem, c.elemtype.size)
++	}
+ 	if cas.receivedp != nil {
+ 		*cas.receivedp = true
+ 	}
+@@ -504,6 +514,9 @@ asyncsend:
+ 		racerelease(chanbuf(c, c.sendx))
+ 		raceReadObjectPC(c.elemtype, cas.elem, cas.pc, chansendpc)
+ 	}
++	if msanenabled {
++		msanread(cas.elem, c.elemtype.size)
++	}
+ 	typedmemmove(c.elemtype, chanbuf(c, c.sendx), cas.elem)
+ 	c.sendx++
+ 	if c.sendx == c.dataqsiz {
+@@ -531,6 +544,9 @@ syncrecv:
+ 		}
+ 		racesync(c, sg)
+ 	}
++	if msanenabled && cas.elem != nil {
++		msanwrite(cas.elem, c.elemtype.size)
++	}
+ 	selunlock(sel)
+ 	if debugSelect {
+ 		print("syncrecv: sel=", sel, " c=", c, "\n")
+@@ -570,6 +586,9 @@ syncsend:
+ 		raceReadObjectPC(c.elemtype, cas.elem, cas.pc, chansendpc)
+ 		racesync(c, sg)
+ 	}
++	if msanenabled {
++		msanread(cas.elem, c.elemtype.size)
++	}
+ 	selunlock(sel)
+ 	if debugSelect {
+ 		print("syncsend: sel=", sel, " c=", c, "\n")
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index b316cdd7b3..a0b0a7c91b 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -57,6 +57,9 @@ func growslice(t *slicetype, old slice, cap int) slice {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+ 		racereadrangepc(old.array, uintptr(old.len*int(t.elem.size)), callerpc, funcPC(growslice))
+ 	}
++	if msanenabled {
++		msanread(old.array, uintptr(old.len*int(t.elem.size)))
++	}
+ 
+ 	et := t.elem
+ 	if et.size == 0 {
+@@ -127,6 +130,10 @@ func slicecopy(to, fm slice, width uintptr) int {
+ 		racewriterangepc(to.array, uintptr(n*int(width)), callerpc, pc)
+ 		racereadrangepc(fm.array, uintptr(n*int(width)), callerpc, pc)
+ 	}
++	if msanenabled {
++		msanwrite(to.array, uintptr(n*int(width)))
++		msanread(fm.array, uintptr(n*int(width)))
++	}
+ 
+ 	size := uintptr(n) * width
+ 	if size == 1 { // common case worth about 2x to do here
+@@ -153,6 +160,9 @@ func slicestringcopy(to []byte, fm string) int {
+ 		pc := funcPC(slicestringcopy)
+ 		racewriterangepc(unsafe.Pointer(&to[0]), uintptr(n), callerpc, pc)
+ 	}
++	if msanenabled {
++		msanwrite(unsafe.Pointer(&to[0]), uintptr(n))
++	}
+ 
+ 	memmove(unsafe.Pointer(&to[0]), unsafe.Pointer(stringStructOf(&fm).str), uintptr(n))
+ 	return n
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 1809a4d9ac..e5cd09498c 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -364,6 +364,9 @@ func stackalloc(n uint32) (stack, []stkbar) {
+ 	if raceenabled {
+ 		racemalloc(v, uintptr(n))
+ 	}
++	if msanenabled {
++		msanmalloc(v, uintptr(n))
++	}
+ 	if stackDebug >= 1 {
+ 		print("  allocated ", v, "\n")
+ 	}
+@@ -393,6 +396,9 @@ func stackfree(stk stack, n uintptr) {
+ 		}
+ 		return
+ 	}
++	if msanenabled {
++		msanfree(v, n)
++	}
+ 	if stackCache != 0 && n < _FixedStack<<_NumStackOrders && n < _StackCacheSize {
+ 		order := uint8(0)
+ 		n2 := n
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 680001d8df..03230a8b3e 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -86,6 +86,9 @@ func slicebytetostring(buf *tmpBuf, b []byte) string {
+ 			getcallerpc(unsafe.Pointer(&b)),
+ 			funcPC(slicebytetostring))
+ 	}
++	if msanenabled && l > 0 {
++		msanread(unsafe.Pointer(&b[0]), uintptr(l))
++	}
+ 	s, c := rawstringtmp(buf, l)
+ 	copy(c, b)
+ 	return s
+@@ -126,6 +129,9 @@ func slicebytetostringtmp(b []byte) string {
+ 			getcallerpc(unsafe.Pointer(&b)),
+ 			funcPC(slicebytetostringtmp))
+ 	}
++	if msanenabled && len(b) > 0 {
++		msanread(unsafe.Pointer(&b[0]), uintptr(len(b)))
++	}
+ 	return *(*string)(unsafe.Pointer(&b))
+ }
+ 
+@@ -185,6 +191,9 @@ func slicerunetostring(buf *tmpBuf, a []rune) string {
+ 			getcallerpc(unsafe.Pointer(&a)),
+ 			funcPC(slicerunetostring))
+ 	}
++	if msanenabled && len(a) > 0 {
++		msanread(unsafe.Pointer(&a[0]), uintptr(len(a))*unsafe.Sizeof(a[0]))
++	}
+ 	var dum [4]byte
+ 	size1 := 0
+ 	for _, r := range a {
+diff --git a/src/syscall/msan.go b/src/syscall/msan.go
+new file mode 100644
+index 0000000000..edd8d1ebd5
+--- /dev/null
++++ b/src/syscall/msan.go
+@@ -0,0 +1,22 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build msan
++
++package syscall
++
++import (
++	"runtime"
++	"unsafe"
++)
++
++const msanenabled = true
++
++func msanRead(addr unsafe.Pointer, len int) {
++	runtime.MSanRead(addr, len)
++}
++
++func msanWrite(addr unsafe.Pointer, len int) {
++	runtime.MSanWrite(addr, len)
++}
+diff --git a/src/syscall/msan0.go b/src/syscall/msan0.go
+new file mode 100644
+index 0000000000..7617494e86
+--- /dev/null
++++ b/src/syscall/msan0.go
+@@ -0,0 +1,19 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !msan
++
++package syscall
++
++import (
++	"unsafe"
++)
++
++const msanenabled = false
++
++func msanRead(addr unsafe.Pointer, len int) {
++}
++
++func msanWrite(addr unsafe.Pointer, len int) {
++}
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index b133ea70ab..1db1193ac4 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -166,6 +166,9 @@ func Read(fd int, p []byte) (n int, err error) {
+ 			raceAcquire(unsafe.Pointer(&ioSync))
+ 		}
+ 	}
++	if msanenabled && n > 0 {
++		msanWrite(unsafe.Pointer(&p[0]), n)
++	}
+ 	return
+ }
+ 
+@@ -177,6 +180,9 @@ func Write(fd int, p []byte) (n int, err error) {
+ 	if raceenabled && n > 0 {
+ 		raceReadRange(unsafe.Pointer(&p[0]), n)
+ 	}
++	if msanenabled && n > 0 {
++		msanRead(unsafe.Pointer(&p[0]), n)
++	}
+ 	return
+ }
+ 
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 1006a9b72a..71fdf29e2d 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -310,6 +310,9 @@ func Read(fd Handle, p []byte) (n int, err error) {
+ 		}
+ 		raceAcquire(unsafe.Pointer(&ioSync))
+ 	}
++	if msanenabled && done > 0 {
++		msanWrite(unsafe.Pointer(&p[0]), int(done))
++	}
+ 	return int(done), nil
+ }
+ 
+@@ -325,6 +328,9 @@ func Write(fd Handle, p []byte) (n int, err error) {
+ 	if raceenabled && done > 0 {
+ 		raceReadRange(unsafe.Pointer(&p[0]), int(done))
+ 	}
++	if msanenabled && done > 0 {
++		msanRead(unsafe.Pointer(&p[0]), int(done))
++	}
+ 	return int(done), nil
+ }
+ 

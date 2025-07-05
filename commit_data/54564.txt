@@ -18,6 +18,39 @@ Date:   Fri Oct 28 13:21:36 2022 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 4909650ae4..75f3a4b907 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -412,7 +412,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 			// failures (a good example is the TestAllocations in
+ 			// crypto/ed25519).
+ 			if isAtomicCoverageCounterUpdate(n) {
+-				break
++				return false
+ 			}
+ 		}
+ 		if n.X.Op() == ir.OMETHEXPR {
+@@ -629,7 +629,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 		// then result in test failures (a good example is the
+ 		// TestAllocations in crypto/ed25519).
+ 		n := n.(*ir.AssignStmt)
+-		if n.X.Op() == ir.OINDEX && isIndexingCoverageCounter(n) {
++		if n.X.Op() == ir.OINDEX && isIndexingCoverageCounter(n.X) {
+ 			return false
+ 		}
+ 	}
+@@ -1729,7 +1729,8 @@ func isAtomicCoverageCounterUpdate(cn *ir.CallExpr) bool {
+ 		return false
+ 	}
+ 	fn := name.Sym().Name
+-	if name.Sym().Pkg.Path != "sync/atomic" || fn != "AddUint32" {
++	if name.Sym().Pkg.Path != "sync/atomic" ||
++		(fn != "AddUint32" && fn != "StoreUint32") {
+ 		return false
+ 	}
+ 	if len(cn.Args) != 2 || cn.Args[0].Op() != ir.OADDR {

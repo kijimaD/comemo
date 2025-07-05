@@ -7,6 +7,26 @@ Date:   Tue Nov 1 22:18:16 2011 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/5303091
-
+---
  src/pkg/net/fd_linux.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/fd_linux.go b/src/pkg/net/fd_linux.go
+index 56c6a2890e..cce74cd676 100644
+--- a/src/pkg/net/fd_linux.go
++++ b/src/pkg/net/fd_linux.go
+@@ -98,12 +98,12 @@ func (p *pollster) StopWaiting(fd int, bits uint) {
+ 		p.ctlEvent.Fd = int32(fd)
+ 		p.ctlEvent.Events = events
+ 		if e := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_MOD, fd, &p.ctlEvent); e != 0 {
+-			print("Epoll modify fd=", fd, ": ", os.Errno(e).String(), "\n")
++			print("Epoll modify fd=", fd, ": ", os.Errno(e).Error(), "\n")
+ 		}
+ 		p.events[fd] = events
+ 	} else {
+ 		if e := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_DEL, fd, nil); e != 0 {
+-			print("Epoll delete fd=", fd, ": ", os.Errno(e).String(), "\n")
++			print("Epoll delete fd=", fd, ": ", os.Errno(e).Error(), "\n")
+ 		}
+ 		delete(p.events, fd)
+ 	}

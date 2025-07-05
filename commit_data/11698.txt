@@ -7,7 +7,32 @@ Date:   Wed Feb 8 16:12:21 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5646049
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index a0cc69432b..4ef7bd30f6 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -19,6 +19,7 @@ Alexey Borzenkov <snaury@gmail.com>
+ Amrut Joshi <amrut.joshi@gmail.com>
+ Andrei Vieru <euvieru@gmail.com>
+ Andrew Balholm <andybalholm@gmail.com>
++Andrew Pritchard <awpritchard@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>
+ Andy Davis <andy@bigandian.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index ebf2309183..be8da8abe7 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -46,6 +46,7 @@ Andrea Spadaccini <spadaccio@google.com>
+ Andrei Vieru <euvieru@gmail.com>
+ Andrew Balholm <andybalholm@gmail.com>
+ Andrew Gerrand <adg@golang.org>
++Andrew Pritchard <awpritchard@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>
+ Andy Davis <andy@bigandian.com>

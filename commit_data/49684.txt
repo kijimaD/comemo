@@ -12,6 +12,22 @@ Date:   Mon Aug 2 16:53:25 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/338970
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/database/sql/sql.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 68fb392e0d..b40b5c8fe4 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2002,8 +2002,8 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error)
+ // Raw executes f exposing the underlying driver connection for the
+ // duration of f. The driverConn must not be used outside of f.
+ //
+-// Once f returns and err is nil, the Conn will continue to be usable
+-// until Conn.Close is called.
++// Once f returns and err is not equal to driver.ErrBadConn, the Conn will
++// continue to be usable until Conn.Close is called.
+ func (c *Conn) Raw(f func(driverConn interface{}) error) (err error) {
+ 	var dc *driverConn
+ 	var release releaseConn

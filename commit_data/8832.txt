@@ -147,7 +147,84 @@ Date:   Wed Jun 22 23:22:36 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4650053
-
+---
  src/cmd/5c/txt.c         | 28 +++++-----------------------
  src/pkg/runtime/Makefile |  3 ---
  2 files changed, 5 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/5c/txt.c b/src/cmd/5c/txt.c
+index 4be1f6f620..a32387bc1e 100644
+--- a/src/cmd/5c/txt.c
++++ b/src/cmd/5c/txt.c
+@@ -292,8 +292,7 @@ tmpreg(void)
+ void
+ regalloc(Node *n, Node *tn, Node *o)
+ {
+-	int i, j;
+-	static int lasti;
++	int i;
+ 
+ 	switch(tn->type->etype) {
+ 	case TCHAR:
+@@ -310,16 +309,9 @@ regalloc(Node *n, Node *tn, Node *o)
+ 			if(i >= 0 && i < NREG)
+ 				goto out;
+ 		}
+-		j = lasti + REGRET+1;
+-		for(i=REGRET+1; i<NREG; i++) {
+-			if(j >= NREG)
+-				j = REGRET+1;
+-			if(reg[j] == 0) {
+-				i = j;
++		for(i=REGRET+1; i<=REGEXT-2; i++)
++			if(reg[i] == 0)
+ 				goto out;
+-			}
+-			j++;
+-		}
+ 		diag(tn, "out of fixed registers");
+ 		goto err;
+ 
+@@ -331,16 +323,9 @@ regalloc(Node *n, Node *tn, Node *o)
+ 			if(i >= NREG && i < NREG+NFREG)
+ 				goto out;
+ 		}
+-		j = 0*2 + NREG;
+-		for(i=NREG; i<NREG+NFREG; i++) {
+-			if(j >= NREG+NFREG)
+-				j = NREG;
+-			if(reg[j] == 0) {
+-				i = j;
++		for(i=NREG; i<NREG+NFREG; i++)
++			if(reg[i] == 0)
+ 				goto out;
+-			}
+-			j++;
+-		}
+ 		diag(tn, "out of float registers");
+ 		goto err;
+ 	}
+@@ -350,9 +335,6 @@ err:
+ 	return;
+ out:
+ 	reg[i]++;
+-/* 	lasti++;	*** StrongARM does register forwarding */
+-	if(lasti >= 5)
+-		lasti = 0;
+ 	nodreg(n, tn, i);
+ }
+ 
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index b122e05999..79f847e64a 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -12,9 +12,6 @@ SIZE_amd64=64
+ SIZE_arm=32
+ SIZE=$(SIZE_$(GOARCH))
+ 
+-# TODO(kaib): fix register allocation to honor extern register so we
+-# can enable optimizations again.
+-CFLAGS_arm=-N
+ CFLAGS_windows=-D__WINDOWS__
+ CFLAGS=-I$(GOOS) -I$(GOARCH) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
+ 

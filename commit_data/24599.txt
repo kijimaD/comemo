@@ -11,7 +11,120 @@ Date:   Thu Aug 6 20:13:27 2015 -0500
     Change-Id: I4d5b840042de9eb181f2cb918f36913fb5d517a2
     Reviewed-on: https://go-review.googlesource.com/13441
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/nilcheck.go      | 37 +++++++++++++--------
  src/cmd/compile/internal/ssa/nilcheck_test.go | 46 ++++++++++++++++++++++++++-
  2 files changed, 69 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index ac7af5c60d..4833ac472d 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -45,6 +45,30 @@ func nilcheckelim(f *Func) {
+ 	// walkStates to maintain the known non-nil values.
+ 	nonNilValues := make([]bool, f.NumValues())
+ 
++	// make an initial pass identifying any non-nil values
++	for _, b := range f.Blocks {
++		// a value resulting from taking the address of a
++		// value, or a value constructed from an offset of a
++		// non-nil ptr (OpAddPtr) implies it is non-nil
++		for _, v := range b.Values {
++			if v.Op == OpAddr || v.Op == OpAddPtr {
++				nonNilValues[v.ID] = true
++			} else if v.Op == OpPhi {
++				// phis whose arguments are all non-nil
++				// are non-nil
++				argsNonNil := true
++				for _, a := range v.Args {
++					if !nonNilValues[a.ID] {
++						argsNonNil = false
++					}
++				}
++				if argsNonNil {
++					nonNilValues[v.ID] = true
++				}
++			}
++		}
++	}
++
+ 	// perform a depth first walk of the dominee tree
+ 	for len(work) > 0 {
+ 		node := work[len(work)-1]
+@@ -53,19 +77,6 @@ func nilcheckelim(f *Func) {
+ 		var pushRecPtr bool
+ 		switch node.op {
+ 		case Work:
+-			// a value resulting from taking the address of a
+-			// value, or a value constructed from an offset of a
+-			// non-nil ptr (OpAddPtr) implies it is non-nil
+-			for _, v := range node.block.Values {
+-				if v.Op == OpAddr || v.Op == OpAddPtr {
+-					// set this immediately instead of
+-					// using SetPtr so we can potentially
+-					// remove an OpIsNonNil check in the
+-					// current work block
+-					nonNilValues[v.ID] = true
+-				}
+-			}
+-
+ 			if node.ptr != nil {
+ 				// already have a nilcheck in the dominator path
+ 				if nonNilValues[node.ptr.ID] {
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index e542df25c4..c54f86a7b4 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -200,7 +200,51 @@ func TestNilcheckAddPtr(t *testing.T) {
+ 	}
+ }
+ 
+-// TestNilcheckKeepRemove verifies that dupliate checks of the same pointer
++// TestNilcheckPhi tests that nil checks of phis, for which all values are known to be
++// non-nil are removed.
++func TestNilcheckPhi(t *testing.T) {
++	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
++	c := NewConfig("amd64", DummyFrontend{t})
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("mem", OpArg, TypeMem, 0, ".mem"),
++			Valu("sb", OpSB, TypeInvalid, 0, nil),
++			Valu("sp", OpSP, TypeInvalid, 0, nil),
++			Valu("baddr", OpAddr, TypeBool, 0, "b", "sp"),
++			Valu("bool1", OpLoad, TypeBool, 0, nil, "baddr", "mem"),
++			If("bool1", "b1", "b2")),
++		Bloc("b1",
++			Valu("ptr1", OpAddr, ptrType, 0, nil, "sb"),
++			Goto("checkPtr")),
++		Bloc("b2",
++			Valu("ptr2", OpAddr, ptrType, 0, nil, "sb"),
++			Goto("checkPtr")),
++		// both ptr1 and ptr2 are guaranteed non-nil here
++		Bloc("checkPtr",
++			Valu("phi", OpPhi, ptrType, 0, nil, "ptr1", "ptr2"),
++			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "phi"),
++			If("bool2", "extra", "exit")),
++		Bloc("extra",
++			Goto("exit")),
++		Bloc("exit",
++			Exit("mem")))
++
++	CheckFunc(fun.f)
++	nilcheckelim(fun.f)
++
++	// clean up the removed nil check
++	fuse(fun.f)
++	deadcode(fun.f)
++
++	CheckFunc(fun.f)
++	for _, b := range fun.f.Blocks {
++		if b == fun.blocks["checkPtr"] && isNilCheck(b) {
++			t.Errorf("checkPtr was not eliminated")
++		}
++	}
++}
++
++// TestNilcheckKeepRemove verifies that duplicate checks of the same pointer
+ // are removed, but checks of different pointers are not.
+ func TestNilcheckKeepRemove(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing

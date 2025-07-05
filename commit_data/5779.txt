@@ -7,6 +7,39 @@ Date:   Mon Jul 12 06:34:36 2010 -0700
     R=rsc
     CC=Raj_, golang-dev
     https://golang.org/cl/1740044
-
+---
  test/fixedbugs/bug289.go | 26 ++++++++++++++++++++++++++
  1 file changed, 26 insertions(+)
+
+diff --git a/test/fixedbugs/bug289.go b/test/fixedbugs/bug289.go
+new file mode 100644
+index 0000000000..f7180ff04c
+--- /dev/null
++++ b/test/fixedbugs/bug289.go
+@@ -0,0 +1,26 @@
++// errchk $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// https://code.google.com/p/gofrontend/issues/detail?id=1
++
++package main
++
++func f1() {
++	a, b := f()	// ERROR "mismatch|does not match"
++	_ = a
++	_ = b
++}
++
++func f2() {
++	var a, b int
++	a, b = f()	// ERROR "mismatch|does not match"
++	_ = a
++	_ = b
++}
++
++func f() int {
++	return 1;
++}

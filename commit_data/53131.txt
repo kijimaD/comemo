@@ -15,9 +15,65 @@ Date:   Mon Jul 18 17:03:30 2022 +0000
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/doc.go                   | 3 +++
  src/cmd/compile/internal/base/flag.go    | 1 +
  src/cmd/compile/internal/noder/import.go | 4 +++-
  src/cmd/go/internal/work/gc.go           | 3 +++
  4 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index f4cfcda807..60e12630c5 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -68,6 +68,9 @@ Flags:
+ 	-importcfg file
+ 		Read import configuration from file.
+ 		In the file, set importmap, packagefile to specify import resolution.
++	-installsuffix suffix
++		Look for packages in $GOROOT/pkg/$GOOS_$GOARCH_suffix
++		instead of $GOROOT/pkg/$GOOS_$GOARCH.
+ 	-l
+ 		Disable inlining.
+ 	-lang version
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index e8b3f55ba4..a363b83984 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -100,6 +100,7 @@ type CmdFlags struct {
+ 	GenDwarfInl        int          "help:\"generate DWARF inline info records\"" // 0=disabled, 1=funcs, 2=funcs+formals/locals
+ 	GoVersion          string       "help:\"required version of the runtime\""
+ 	ImportCfg          func(string) "help:\"read import configuration from `file`\""
++	InstallSuffix      string       "help:\"set pkg directory `suffix`\""
+ 	JSON               string       "help:\"version,file for JSON compiler/optimizer detail output\""
+ 	Lang               string       "help:\"Go language version source code expects\""
+ 	LinkObj            string       "help:\"write linker-specific object to `file`\""
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index f718c8db5d..2cef9f75e8 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -102,7 +102,9 @@ func openPackage(path string) (*os.File, error) {
+ 
+ 	if buildcfg.GOROOT != "" {
+ 		suffix := ""
+-		if base.Flag.Race {
++		if base.Flag.InstallSuffix != "" {
++			suffix = "_" + base.Flag.InstallSuffix
++		} else if base.Flag.Race {
+ 			suffix = "_race"
+ 		} else if base.Flag.MSan {
+ 			suffix = "_msan"
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 4fa1126ade..8429529115 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -128,6 +128,9 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 	if extFiles == 0 {
+ 		defaultGcFlags = append(defaultGcFlags, "-complete")
+ 	}
++	if cfg.BuildContext.InstallSuffix != "" {
++		defaultGcFlags = append(defaultGcFlags, "-installsuffix", cfg.BuildContext.InstallSuffix)
++	}
+ 	if a.buildID != "" {
+ 		defaultGcFlags = append(defaultGcFlags, "-buildid", a.buildID)
+ 	}

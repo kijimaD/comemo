@@ -17,8 +17,127 @@ Date:   Mon Jan 4 18:27:51 2016 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/main_test.go      |  9 +++++++++
  src/net/http/serve_test.go     |  4 ++--
  src/net/http/transport_test.go | 16 ++++++++--------
  3 files changed, 19 insertions(+), 10 deletions(-)
+
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index 12eea6f0e1..1163874ac2 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -79,6 +79,15 @@ func goroutineLeaked() bool {
+ 	return true
+ }
+ 
++// setParallel marks t as a parallel test if we're in short mode
++// (all.bash), but as a serial test otherwise. Using t.Parallel isn't
++// compatible with the afterTest func in non-short mode.
++func setParallel(t *testing.T) {
++	if testing.Short() {
++		t.Parallel()
++	}
++}
++
+ func afterTest(t testing.TB) {
+ 	http.DefaultTransport.(*http.Transport).CloseIdleConnections()
+ 	if testing.Short() {
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 0c2fc48499..cf5eae813a 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -455,7 +455,7 @@ func TestServerTimeouts(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping test; see https://golang.org/issue/7237")
+ 	}
+-	t.Parallel()
++	setParallel(t)
+ 	defer afterTest(t)
+ 	reqNum := 0
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(res ResponseWriter, req *Request) {
+@@ -939,7 +939,7 @@ func TestTLSHandshakeTimeout(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping test; see https://golang.org/issue/7237")
+ 	}
+-	t.Parallel()
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+ 	errc := make(chanWriter, 10) // but only expecting 1
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index e1e83803cc..faac72085d 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -436,7 +436,7 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
+ }
+ 
+ func TestTransportServerClosingUnexpectedly(t *testing.T) {
+-	t.Parallel()
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(hostPortHandler)
+ 	defer ts.Close()
+@@ -969,7 +969,7 @@ func TestTransportGzipShort(t *testing.T) {
+ 
+ // tests that persistent goroutine connections shut down when no longer desired.
+ func TestTransportPersistConnLeak(t *testing.T) {
+-	t.Parallel()
++	setParallel(t)
+ 	defer afterTest(t)
+ 	gotReqCh := make(chan bool)
+ 	unblockCh := make(chan bool)
+@@ -1036,7 +1036,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
+ // golang.org/issue/4531: Transport leaks goroutines when
+ // request.ContentLength is explicitly short
+ func TestTransportPersistConnLeakShortBody(t *testing.T) {
+-	t.Parallel()
++	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 	}))
+@@ -1377,7 +1377,7 @@ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
+ }
+ 
+ func TestTransportResponseHeaderTimeout(t *testing.T) {
+-	t.Parallel()
++	setParallel(t)
+ 	defer afterTest(t)
+ 	if testing.Short() {
+ 		t.Skip("skipping timeout test in -short mode")
+@@ -1449,7 +1449,7 @@ func TestTransportResponseHeaderTimeout(t *testing.T) {
+ }
+ 
+ func TestTransportCancelRequest(t *testing.T) {
+-	t.Parallel()
++	setParallel(t)
+ 	defer afterTest(t)
+ 	if testing.Short() {
+ 		t.Skip("skipping test in -short mode")
+@@ -1559,7 +1559,7 @@ Get = Get http://something.no-network.tld/: net/http: request canceled while wai
+ }
+ 
+ func TestCancelRequestWithChannel(t *testing.T) {
+-	t.Parallel()
++	setParallel(t)
+ 	defer afterTest(t)
+ 	if testing.Short() {
+ 		t.Skip("skipping test in -short mode")
+@@ -1617,7 +1617,7 @@ func TestCancelRequestWithChannel(t *testing.T) {
+ }
+ 
+ func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
+-	t.Parallel()
++	setParallel(t)
+ 	defer afterTest(t)
+ 	unblockc := make(chan bool)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -2495,7 +2495,7 @@ func TestRetryIdempotentRequestsOnError(t *testing.T) {
+ 
+ // Issue 6981
+ func TestTransportClosesBodyOnError(t *testing.T) {
+-	t.Parallel()
++	setParallel(t)
+ 	defer afterTest(t)
+ 	readBody := make(chan error, 1)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {

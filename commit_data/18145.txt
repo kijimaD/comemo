@@ -13,6 +13,20 @@ Date:   Tue Dec 31 14:36:13 2013 -0800
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/46780043
-
+---
  src/pkg/debug/elf/testdata/hello.c | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/pkg/debug/elf/testdata/hello.c b/src/pkg/debug/elf/testdata/hello.c
+new file mode 100644
+index 0000000000..34d9ee7923
+--- /dev/null
++++ b/src/pkg/debug/elf/testdata/hello.c
+@@ -0,0 +1,7 @@
++#include <stdio.h>
++
++void
++main(int argc, char *argv[])
++{
++	printf("hello, world\n");
++}

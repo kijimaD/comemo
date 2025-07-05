@@ -71,7 +71,7 @@ Date:   Fri Oct 28 11:37:45 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/32313
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/builtin.go         | 130 ++++++++--------
  src/cmd/compile/internal/gc/builtin/runtime.go |  17 +--
  src/cmd/compile/internal/gc/go.go              |  30 ++--
@@ -87,3 +87,1243 @@ Date:   Fri Oct 28 11:37:45 2016 -0700
  src/runtime/mfinal.go                          |   4 +-
  test/interface/assertinline.go                 |  33 ++--
  14 files changed, 375 insertions(+), 464 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index adde1bd8c2..e02e2feb01 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -49,19 +49,12 @@ var runtimeDecls = [...]struct {
+ 	{"convI2I", funcTag, 53},
+ 	{"convT2E", funcTag, 54},
+ 	{"convT2I", funcTag, 54},
+-	{"assertE2E", funcTag, 55},
+-	{"assertE2E2", funcTag, 56},
+-	{"assertE2I", funcTag, 55},
+-	{"assertE2I2", funcTag, 56},
+-	{"assertE2T", funcTag, 55},
+-	{"assertE2T2", funcTag, 56},
+-	{"assertI2E", funcTag, 55},
+-	{"assertI2E2", funcTag, 56},
+-	{"assertI2I", funcTag, 55},
+-	{"assertI2I2", funcTag, 56},
+-	{"assertI2T", funcTag, 55},
+-	{"assertI2T2", funcTag, 56},
+-	{"panicdottype", funcTag, 57},
++	{"assertE2I", funcTag, 53},
++	{"assertE2I2", funcTag, 55},
++	{"assertI2I", funcTag, 53},
++	{"assertI2I2", funcTag, 55},
++	{"panicdottype", funcTag, 56},
++	{"panicnildottype", funcTag, 57},
+ 	{"ifaceeq", funcTag, 58},
+ 	{"efaceeq", funcTag, 58},
+ 	{"makemap", funcTag, 60},
+@@ -97,43 +90,43 @@ var runtimeDecls = [...]struct {
+ 	{"selectrecv", funcTag, 73},
+ 	{"selectrecv2", funcTag, 86},
+ 	{"selectdefault", funcTag, 87},
+-	{"selectgo", funcTag, 88},
++	{"selectgo", funcTag, 57},
+ 	{"block", funcTag, 5},
+-	{"makeslice", funcTag, 90},
+-	{"makeslice64", funcTag, 91},
+-	{"growslice", funcTag, 92},
+-	{"memmove", funcTag, 93},
+-	{"memclrNoHeapPointers", funcTag, 94},
+-	{"memclrHasPointers", funcTag, 94},
+-	{"memequal", funcTag, 95},
+-	{"memequal8", funcTag, 96},
+-	{"memequal16", funcTag, 96},
+-	{"memequal32", funcTag, 96},
+-	{"memequal64", funcTag, 96},
+-	{"memequal128", funcTag, 96},
+-	{"int64div", funcTag, 97},
+-	{"uint64div", funcTag, 98},
+-	{"int64mod", funcTag, 97},
+-	{"uint64mod", funcTag, 98},
+-	{"float64toint64", funcTag, 99},
+-	{"float64touint64", funcTag, 100},
+-	{"float64touint32", funcTag, 102},
+-	{"int64tofloat64", funcTag, 103},
+-	{"uint64tofloat64", funcTag, 104},
+-	{"uint32tofloat64", funcTag, 105},
+-	{"complex128div", funcTag, 106},
+-	{"racefuncenter", funcTag, 107},
++	{"makeslice", funcTag, 89},
++	{"makeslice64", funcTag, 90},
++	{"growslice", funcTag, 91},
++	{"memmove", funcTag, 92},
++	{"memclrNoHeapPointers", funcTag, 93},
++	{"memclrHasPointers", funcTag, 93},
++	{"memequal", funcTag, 94},
++	{"memequal8", funcTag, 95},
++	{"memequal16", funcTag, 95},
++	{"memequal32", funcTag, 95},
++	{"memequal64", funcTag, 95},
++	{"memequal128", funcTag, 95},
++	{"int64div", funcTag, 96},
++	{"uint64div", funcTag, 97},
++	{"int64mod", funcTag, 96},
++	{"uint64mod", funcTag, 97},
++	{"float64toint64", funcTag, 98},
++	{"float64touint64", funcTag, 99},
++	{"float64touint32", funcTag, 101},
++	{"int64tofloat64", funcTag, 102},
++	{"uint64tofloat64", funcTag, 103},
++	{"uint32tofloat64", funcTag, 104},
++	{"complex128div", funcTag, 105},
++	{"racefuncenter", funcTag, 106},
+ 	{"racefuncexit", funcTag, 5},
+-	{"raceread", funcTag, 107},
+-	{"racewrite", funcTag, 107},
+-	{"racereadrange", funcTag, 108},
+-	{"racewriterange", funcTag, 108},
+-	{"msanread", funcTag, 108},
+-	{"msanwrite", funcTag, 108},
++	{"raceread", funcTag, 106},
++	{"racewrite", funcTag, 106},
++	{"racereadrange", funcTag, 107},
++	{"racewriterange", funcTag, 107},
++	{"msanread", funcTag, 107},
++	{"msanwrite", funcTag, 107},
+ }
+ 
+ func runtimeTypes() []*Type {
+-	var typs [109]*Type
++	var typs [108]*Type
+ 	typs[0] = bytetype
+ 	typs[1] = typPtr(typs[0])
+ 	typs[2] = Types[TANY]
+@@ -189,9 +182,9 @@ func runtimeTypes() []*Type {
+ 	typs[52] = functype(nil, []*Node{anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[33])})
+ 	typs[53] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2])}, []*Node{anonfield(typs[2])})
+ 	typs[54] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3])}, []*Node{anonfield(typs[2])})
+-	typs[55] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2]), anonfield(typs[3])}, nil)
+-	typs[56] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2]), anonfield(typs[3])}, []*Node{anonfield(typs[13])})
+-	typs[57] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[1]), anonfield(typs[1])}, nil)
++	typs[55] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2])}, []*Node{anonfield(typs[2]), anonfield(typs[13])})
++	typs[56] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[1]), anonfield(typs[1])}, nil)
++	typs[57] = functype(nil, []*Node{anonfield(typs[1])}, nil)
+ 	typs[58] = functype(nil, []*Node{anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[13])})
+ 	typs[59] = typMap(typs[2], typs[2])
+ 	typs[60] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[17]), anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[59])})
+@@ -222,26 +215,25 @@ func runtimeTypes() []*Type {
+ 	typs[85] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[17]), anonfield(typs[10])}, nil)
+ 	typs[86] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[71]), anonfield(typs[3]), anonfield(typs[83])}, []*Node{anonfield(typs[13])})
+ 	typs[87] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[13])})
+-	typs[88] = functype(nil, []*Node{anonfield(typs[1])}, nil)
+-	typs[89] = typSlice(typs[2])
+-	typs[90] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[33]), anonfield(typs[33])}, []*Node{anonfield(typs[89])})
+-	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[89])})
+-	typs[92] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[89]), anonfield(typs[33])}, []*Node{anonfield(typs[89])})
+-	typs[93] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[50])}, nil)
+-	typs[94] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[50])}, nil)
+-	typs[95] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[50])}, []*Node{anonfield(typs[13])})
+-	typs[96] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[13])})
+-	typs[97] = functype(nil, []*Node{anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[17])})
+-	typs[98] = functype(nil, []*Node{anonfield(typs[19]), anonfield(typs[19])}, []*Node{anonfield(typs[19])})
+-	typs[99] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[17])})
+-	typs[100] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[19])})
+-	typs[101] = Types[TUINT32]
+-	typs[102] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[101])})
+-	typs[103] = functype(nil, []*Node{anonfield(typs[17])}, []*Node{anonfield(typs[15])})
+-	typs[104] = functype(nil, []*Node{anonfield(typs[19])}, []*Node{anonfield(typs[15])})
+-	typs[105] = functype(nil, []*Node{anonfield(typs[101])}, []*Node{anonfield(typs[15])})
+-	typs[106] = functype(nil, []*Node{anonfield(typs[21]), anonfield(typs[21])}, []*Node{anonfield(typs[21])})
+-	typs[107] = functype(nil, []*Node{anonfield(typs[50])}, nil)
+-	typs[108] = functype(nil, []*Node{anonfield(typs[50]), anonfield(typs[50])}, nil)
++	typs[88] = typSlice(typs[2])
++	typs[89] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[33]), anonfield(typs[33])}, []*Node{anonfield(typs[88])})
++	typs[90] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[88])})
++	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[88]), anonfield(typs[33])}, []*Node{anonfield(typs[88])})
++	typs[92] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[50])}, nil)
++	typs[93] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[50])}, nil)
++	typs[94] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[50])}, []*Node{anonfield(typs[13])})
++	typs[95] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[13])})
++	typs[96] = functype(nil, []*Node{anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[17])})
++	typs[97] = functype(nil, []*Node{anonfield(typs[19]), anonfield(typs[19])}, []*Node{anonfield(typs[19])})
++	typs[98] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[17])})
++	typs[99] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[19])})
++	typs[100] = Types[TUINT32]
++	typs[101] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[100])})
++	typs[102] = functype(nil, []*Node{anonfield(typs[17])}, []*Node{anonfield(typs[15])})
++	typs[103] = functype(nil, []*Node{anonfield(typs[19])}, []*Node{anonfield(typs[15])})
++	typs[104] = functype(nil, []*Node{anonfield(typs[100])}, []*Node{anonfield(typs[15])})
++	typs[105] = functype(nil, []*Node{anonfield(typs[21]), anonfield(typs[21])}, []*Node{anonfield(typs[21])})
++	typs[106] = functype(nil, []*Node{anonfield(typs[50])}, nil)
++	typs[107] = functype(nil, []*Node{anonfield(typs[50]), anonfield(typs[50])}, nil)
+ 	return typs[:]
+ }
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index ff2da79e81..98e25fefb8 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -62,19 +62,12 @@ func convT2E(typ *byte, elem *any) (ret any)
+ func convT2I(tab *byte, elem *any) (ret any)
+ 
+ // interface type assertions  x.(T)
+-func assertE2E(typ *byte, iface any, ret *any)
+-func assertE2E2(typ *byte, iface any, ret *any) bool
+-func assertE2I(typ *byte, iface any, ret *any)
+-func assertE2I2(typ *byte, iface any, ret *any) bool
+-func assertE2T(typ *byte, iface any, ret *any)
+-func assertE2T2(typ *byte, iface any, ret *any) bool
+-func assertI2E(typ *byte, iface any, ret *any)
+-func assertI2E2(typ *byte, iface any, ret *any) bool
+-func assertI2I(typ *byte, iface any, ret *any)
+-func assertI2I2(typ *byte, iface any, ret *any) bool
+-func assertI2T(typ *byte, iface any, ret *any)
+-func assertI2T2(typ *byte, iface any, ret *any) bool
++func assertE2I(typ *byte, iface any) (ret any)
++func assertE2I2(typ *byte, iface any) (ret any, b bool)
++func assertI2I(typ *byte, iface any) (ret any)
++func assertI2I2(typ *byte, iface any) (ret any, b bool)
+ func panicdottype(have, want, iface *byte)
++func panicnildottype(want *byte)
+ 
+ func ifaceeq(i1 any, i2 any) (ret bool)
+ func efaceeq(i1 any, i2 any) (ret bool)
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 089b6668b9..d427755386 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -363,18 +363,18 @@ var pcloc int32
+ 
+ var Thearch Arch
+ 
+-var Newproc *Node
+-
+-var Deferproc *Node
+-
+-var Deferreturn *Node
+-
+-var panicindex *Node
+-
+-var panicslice *Node
+-
+-var panicdivide *Node
+-
+-var growslice *Node
+-
+-var panicdottype *Node
++var (
++	Newproc,
++	Deferproc,
++	Deferreturn,
++	panicindex,
++	panicslice,
++	panicdivide,
++	growslice,
++	panicdottype,
++	panicnildottype,
++	assertE2I,
++	assertE2I2,
++	assertI2I,
++	assertI2I2 *Node
++)
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 25611e9e60..5ae493bc82 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -304,6 +304,11 @@ func compile(fn *Node) {
+ 		panicdivide = Sysfunc("panicdivide")
+ 		growslice = Sysfunc("growslice")
+ 		panicdottype = Sysfunc("panicdottype")
++		panicnildottype = Sysfunc("panicnildottype")
++		assertE2I = Sysfunc("assertE2I")
++		assertE2I2 = Sysfunc("assertE2I2")
++		assertI2I = Sysfunc("assertI2I")
++		assertI2I2 = Sysfunc("assertI2I2")
+ 	}
+ 
+ 	defer func(lno int32) {
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 29ccbd18cc..bfb82b91b2 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -318,6 +318,15 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		instrumentnode(&n.Left, init, 0, 0)
+ 		goto ret
+ 
++	case OAS2DOTTYPE:
++		instrumentnode(&n.Left, init, 1, 0)
++		instrumentnode(&n.Right, init, 0, 0)
++		goto ret
++
++	case ODOTTYPE, ODOTTYPE2:
++		instrumentnode(&n.Left, init, 0, 0)
++		goto ret
++
+ 		// should not appear in AST by now
+ 	case OSEND,
+ 		ORECV,
+@@ -345,9 +354,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		// lowered to call
+ 		OCMPSTR,
+ 		OADDSTR,
+-		ODOTTYPE,
+-		ODOTTYPE2,
+-		OAS2DOTTYPE,
+ 		OCALLPART,
+ 		// lowered to PTRLIT
+ 		OCLOSURE,  // lowered to PTRLIT
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b77dafd345..fce08a11af 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -292,7 +292,6 @@ var (
+ 	newlenVar = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "newlen"}}
+ 	capVar    = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "cap"}}
+ 	typVar    = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "typ"}}
+-	idataVar  = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "idata"}}
+ 	okVar     = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "ok"}}
+ )
+ 
+@@ -539,7 +538,22 @@ func (s *state) stmt(n *Node) {
+ 
+ 	case OAS2DOTTYPE:
+ 		res, resok := s.dottype(n.Rlist.First(), true)
+-		s.assign(n.List.First(), res, needwritebarrier(n.List.First(), n.Rlist.First()), false, n.Lineno, 0, false)
++		deref := false
++		if !canSSAType(n.Rlist.First().Type) {
++			if res.Op != ssa.OpLoad {
++				s.Fatalf("dottype of non-load")
++			}
++			mem := s.mem()
++			if mem.Op == ssa.OpVarKill {
++				mem = mem.Args[0]
++			}
++			if res.Args[1] != mem {
++				s.Fatalf("memory no longer live from 2-result dottype load")
++			}
++			deref = true
++			res = res.Args[0]
++		}
++		s.assign(n.List.First(), res, needwritebarrier(n.List.First(), n.Rlist.First()), deref, n.Lineno, 0, false)
+ 		s.assign(n.List.Second(), resok, false, false, n.Lineno, 0, false)
+ 		return
+ 
+@@ -3078,7 +3092,15 @@ func (s *state) addr(n *Node, bounded bool) (*ssa.Value, bool) {
+ 		return s.newValue1(ssa.OpCopy, t, addr), isVolatile // ensure that addr has the right type
+ 	case OCALLFUNC, OCALLINTER, OCALLMETH:
+ 		return s.call(n, callNormal), true
+-
++	case ODOTTYPE:
++		v, _ := s.dottype(n, false)
++		if v.Op != ssa.OpLoad {
++			s.Fatalf("dottype of non-load")
++		}
++		if v.Args[1] != s.mem() {
++			s.Fatalf("memory no longer live from dottype load")
++		}
++		return v.Args[0], false
+ 	default:
+ 		s.Fatalf("unhandled addr %v", n.Op)
+ 		return nil, false
+@@ -3822,20 +3844,20 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
+ }
+ 
+ // ifaceType returns the value for the word containing the type.
+-// n is the node for the interface expression.
++// t is the type of the interface expression.
+ // v is the corresponding value.
+-func (s *state) ifaceType(n *Node, v *ssa.Value) *ssa.Value {
++func (s *state) ifaceType(t *Type, v *ssa.Value) *ssa.Value {
+ 	byteptr := ptrto(Types[TUINT8]) // type used in runtime prototypes for runtime type (*byte)
+ 
+-	if n.Type.IsEmptyInterface() {
+-		// Have *eface. The type is the first word in the struct.
++	if t.IsEmptyInterface() {
++		// Have eface. The type is the first word in the struct.
+ 		return s.newValue1(ssa.OpITab, byteptr, v)
+ 	}
+ 
+-	// Have *iface.
+-	// The first word in the struct is the *itab.
+-	// If the *itab is nil, return 0.
+-	// Otherwise, the second word in the *itab is the type.
++	// Have iface.
++	// The first word in the struct is the itab.
++	// If the itab is nil, return 0.
++	// Otherwise, the second word in the itab is the type.
+ 
+ 	tab := s.newValue1(ssa.OpITab, byteptr, v)
+ 	s.vars[&typVar] = tab
+@@ -3867,18 +3889,120 @@ func (s *state) ifaceType(n *Node, v *ssa.Value) *ssa.Value {
+ // commaok indicates whether to panic or return a bool.
+ // If commaok is false, resok will be nil.
+ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+-	iface := s.expr(n.Left)
+-	typ := s.ifaceType(n.Left, iface)  // actual concrete type
++	iface := s.expr(n.Left)            // input interface
+ 	target := s.expr(typename(n.Type)) // target type
+-	if !isdirectiface(n.Type) {
+-		// walk rewrites ODOTTYPE/OAS2DOTTYPE into runtime calls except for this case.
+-		Fatalf("dottype needs a direct iface type %v", n.Type)
++	byteptr := ptrto(Types[TUINT8])
++
++	if n.Type.IsInterface() {
++		if n.Type.IsEmptyInterface() {
++			// Converting to an empty interface.
++			// Input could be an empty or nonempty interface.
++			if Debug_typeassert > 0 {
++				Warnl(n.Lineno, "type assertion inlined")
++			}
++
++			// Get itab/type field from input.
++			itab := s.newValue1(ssa.OpITab, byteptr, iface)
++			// Conversion succeeds iff that field is not nil.
++			cond := s.newValue2(ssa.OpNeqPtr, Types[TBOOL], itab, s.constNil(byteptr))
++
++			if n.Left.Type.IsEmptyInterface() && commaok {
++				// Converting empty interface to empty interface with ,ok is just a nil check.
++				return iface, cond
++			}
++
++			// Branch on nilness.
++			b := s.endBlock()
++			b.Kind = ssa.BlockIf
++			b.SetControl(cond)
++			b.Likely = ssa.BranchLikely
++			bOk := s.f.NewBlock(ssa.BlockPlain)
++			bFail := s.f.NewBlock(ssa.BlockPlain)
++			b.AddEdgeTo(bOk)
++			b.AddEdgeTo(bFail)
++
++			if !commaok {
++				// On failure, panic by calling panicnildottype.
++				s.startBlock(bFail)
++				s.rtcall(panicnildottype, false, nil, target)
++
++				// On success, return (perhaps modified) input interface.
++				s.startBlock(bOk)
++				if n.Left.Type.IsEmptyInterface() {
++					res = iface // Use input interface unchanged.
++					return
++				}
++				// Load type out of itab, build interface with existing idata.
++				off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(Widthptr), itab)
++				typ := s.newValue2(ssa.OpLoad, byteptr, off, s.mem())
++				idata := s.newValue1(ssa.OpIData, n.Type, iface)
++				res = s.newValue2(ssa.OpIMake, n.Type, typ, idata)
++				return
++			}
++
++			s.startBlock(bOk)
++			// nonempty -> empty
++			// Need to load type from itab
++			off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(Widthptr), itab)
++			s.vars[&typVar] = s.newValue2(ssa.OpLoad, byteptr, off, s.mem())
++			s.endBlock()
++
++			// itab is nil, might as well use that as the nil result.
++			s.startBlock(bFail)
++			s.vars[&typVar] = itab
++			s.endBlock()
++
++			// Merge point.
++			bEnd := s.f.NewBlock(ssa.BlockPlain)
++			bOk.AddEdgeTo(bEnd)
++			bFail.AddEdgeTo(bEnd)
++			s.startBlock(bEnd)
++			idata := s.newValue1(ssa.OpIData, n.Type, iface)
++			res = s.newValue2(ssa.OpIMake, n.Type, s.variable(&typVar, byteptr), idata)
++			resok = cond
++			delete(s.vars, &typVar)
++			return
++		}
++		// converting to a nonempty interface needs a runtime call.
++		if Debug_typeassert > 0 {
++			Warnl(n.Lineno, "type assertion not inlined")
++		}
++		if n.Left.Type.IsEmptyInterface() {
++			if commaok {
++				call := s.rtcall(assertE2I2, true, []*Type{n.Type, Types[TBOOL]}, target, iface)
++				return call[0], call[1]
++			}
++			return s.rtcall(assertE2I, true, []*Type{n.Type}, target, iface)[0], nil
++		}
++		if commaok {
++			call := s.rtcall(assertI2I2, true, []*Type{n.Type, Types[TBOOL]}, target, iface)
++			return call[0], call[1]
++		}
++		return s.rtcall(assertI2I, true, []*Type{n.Type}, target, iface)[0], nil
+ 	}
+ 
+ 	if Debug_typeassert > 0 {
+ 		Warnl(n.Lineno, "type assertion inlined")
+ 	}
+ 
++	// Converting to a concrete type.
++	direct := isdirectiface(n.Type)
++	typ := s.ifaceType(n.Left.Type, iface) // actual concrete type of input interface
++
++	if Debug_typeassert > 0 {
++		Warnl(n.Lineno, "type assertion inlined")
++	}
++
++	var tmp *Node       // temporary for use with large types
++	var addr *ssa.Value // address of tmp
++	if commaok && !canSSAType(n.Type) {
++		// unSSAable type, use temporary.
++		// TODO: get rid of some of these temporaries.
++		tmp = temp(n.Type)
++		addr, _ = s.addr(tmp, false)
++		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, tmp, s.mem())
++	}
++
+ 	// TODO:  If we have a nonempty interface and its itab field is nil,
+ 	// then this test is redundant and ifaceType should just branch directly to bFail.
+ 	cond := s.newValue2(ssa.OpEqPtr, Types[TBOOL], typ, target)
+@@ -3887,8 +4011,6 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 	b.SetControl(cond)
+ 	b.Likely = ssa.BranchLikely
+ 
+-	byteptr := ptrto(Types[TUINT8])
+-
+ 	bOk := s.f.NewBlock(ssa.BlockPlain)
+ 	bFail := s.f.NewBlock(ssa.BlockPlain)
+ 	b.AddEdgeTo(bOk)
+@@ -3900,34 +4022,60 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 		taddr := s.newValue1A(ssa.OpAddr, byteptr, &ssa.ExternSymbol{Typ: byteptr, Sym: typenamesym(n.Left.Type)}, s.sb)
+ 		s.rtcall(panicdottype, false, nil, typ, target, taddr)
+ 
+-		// on success, return idata field
++		// on success, return data from interface
+ 		s.startBlock(bOk)
+-		return s.newValue1(ssa.OpIData, n.Type, iface), nil
++		if direct {
++			return s.newValue1(ssa.OpIData, n.Type, iface), nil
++		}
++		p := s.newValue1(ssa.OpIData, ptrto(n.Type), iface)
++		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem()), nil
+ 	}
+ 
+ 	// commaok is the more complicated case because we have
+ 	// a control flow merge point.
+ 	bEnd := s.f.NewBlock(ssa.BlockPlain)
++	// Note that we need a new valVar each time (unlike okVar where we can
++	// reuse the variable) because it might have a different type every time.
++	valVar := &Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "val"}}
+ 
+ 	// type assertion succeeded
+ 	s.startBlock(bOk)
+-	s.vars[&idataVar] = s.newValue1(ssa.OpIData, n.Type, iface)
++	if tmp == nil {
++		if direct {
++			s.vars[valVar] = s.newValue1(ssa.OpIData, n.Type, iface)
++		} else {
++			p := s.newValue1(ssa.OpIData, ptrto(n.Type), iface)
++			s.vars[valVar] = s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
++		}
++	} else {
++		p := s.newValue1(ssa.OpIData, ptrto(n.Type), iface)
++		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(n.Type), addr, p, s.mem())
++	}
+ 	s.vars[&okVar] = s.constBool(true)
+ 	s.endBlock()
+ 	bOk.AddEdgeTo(bEnd)
+ 
+ 	// type assertion failed
+ 	s.startBlock(bFail)
+-	s.vars[&idataVar] = s.constNil(byteptr)
++	if tmp == nil {
++		s.vars[valVar] = s.zeroVal(n.Type)
++	} else {
++		s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(n.Type), addr, s.mem())
++	}
+ 	s.vars[&okVar] = s.constBool(false)
+ 	s.endBlock()
+ 	bFail.AddEdgeTo(bEnd)
+ 
+ 	// merge point
+ 	s.startBlock(bEnd)
+-	res = s.variable(&idataVar, byteptr)
++	if tmp == nil {
++		res = s.variable(valVar, n.Type)
++		delete(s.vars, valVar)
++	} else {
++		res = s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
++		s.vars[&memVar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, tmp, s.mem())
++	}
+ 	resok = s.variable(&okVar, Types[TBOOL])
+-	delete(s.vars, &idataVar)
+ 	delete(s.vars, &okVar)
+ 	return res, resok
+ }
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index a3d55916e5..cfb65ebb40 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -730,34 +730,6 @@ opswitch:
+ 		default:
+ 			n.Right = walkexpr(n.Right, init)
+ 
+-		case ODOTTYPE:
+-			// TODO(rsc): The isfat is for consistency with componentgen and orderexpr.
+-			// It needs to be removed in all three places.
+-			// That would allow inlining x.(struct{*int}) the same as x.(*int).
+-			if isdirectiface(n.Right.Type) && !isfat(n.Right.Type) && !instrumenting {
+-				// handled directly during cgen
+-				n.Right = walkexpr(n.Right, init)
+-				break
+-			}
+-
+-			// x = i.(T); n.Left is x, n.Right.Left is i.
+-			// orderstmt made sure x is addressable.
+-			n.Right.Left = walkexpr(n.Right.Left, init)
+-
+-			n1 := nod(OADDR, n.Left, nil)
+-			r := n.Right // i.(T)
+-
+-			if Debug_typeassert > 0 {
+-				Warn("type assertion not inlined")
+-			}
+-
+-			fn := syslook(assertFuncName(r.Left.Type, r.Type, false))
+-			fn = substArgTypes(fn, r.Left.Type, r.Type)
+-
+-			n = mkcall1(fn, nil, init, typename(r.Type), r.Left, n1)
+-			n = walkexpr(n, init)
+-			break opswitch
+-
+ 		case ORECV:
+ 			// x = <-c; n.Left is x, n.Right.Left is c.
+ 			// orderstmt made sure x is addressable.
+@@ -935,112 +907,11 @@ opswitch:
+ 		n = mkcall1(mapfndel("mapdelete", t), nil, init, typename(t), map_, key)
+ 
+ 	case OAS2DOTTYPE:
+-		e := n.Rlist.First() // i.(T)
+-
+-		// TODO(rsc): The isfat is for consistency with componentgen and orderexpr.
+-		// It needs to be removed in all three places.
+-		// That would allow inlining x.(struct{*int}) the same as x.(*int).
+-		if isdirectiface(e.Type) && !isfat(e.Type) && !instrumenting {
+-			// handled directly during gen.
+-			walkexprlistsafe(n.List.Slice(), init)
+-			e.Left = walkexpr(e.Left, init)
+-			break
+-		}
+-
+-		// res, ok = i.(T)
+-		// orderstmt made sure a is addressable.
+-		init.AppendNodes(&n.Ninit)
+-
+ 		walkexprlistsafe(n.List.Slice(), init)
++		e := n.Rlist.First() // i.(T)
+ 		e.Left = walkexpr(e.Left, init)
+-		t := e.Type    // T
+-		from := e.Left // i
+-
+-		oktype := Types[TBOOL]
+-		ok := n.List.Second()
+-		if !isblank(ok) {
+-			oktype = ok.Type
+-		}
+-		if !oktype.IsBoolean() {
+-			Fatalf("orderstmt broken: got %L, want boolean", oktype)
+-		}
+-
+-		fromKind := from.Type.iet()
+-		toKind := t.iet()
+-
+-		res := n.List.First()
+-		scalar := !haspointers(res.Type)
+-
+-		// Avoid runtime calls in a few cases of the form _, ok := i.(T).
+-		// This is faster and shorter and allows the corresponding assertX2X2
+-		// routines to skip nil checks on their last argument.
+-		// Also avoid runtime calls for converting interfaces to scalar concrete types.
+-		if isblank(res) || (scalar && toKind == 'T') {
+-			var fast *Node
+-			switch toKind {
+-			case 'T':
+-				tab := nod(OITAB, from, nil)
+-				if fromKind == 'E' {
+-					typ := nod(OCONVNOP, typename(t), nil)
+-					typ.Type = ptrto(Types[TUINTPTR])
+-					fast = nod(OEQ, tab, typ)
+-					break
+-				}
+-				fast = nod(OANDAND,
+-					nod(ONE, nodnil(), tab),
+-					nod(OEQ, itabType(tab), typename(t)),
+-				)
+-			case 'E':
+-				tab := nod(OITAB, from, nil)
+-				fast = nod(ONE, nodnil(), tab)
+-			}
+-			if fast != nil {
+-				if isblank(res) {
+-					if Debug_typeassert > 0 {
+-						Warn("type assertion (ok only) inlined")
+-					}
+-					n = nod(OAS, ok, fast)
+-					n = typecheck(n, Etop)
+-				} else {
+-					if Debug_typeassert > 0 {
+-						Warn("type assertion (scalar result) inlined")
+-					}
+-					n = nod(OIF, ok, nil)
+-					n.Likely = 1
+-					if isblank(ok) {
+-						n.Left = fast
+-					} else {
+-						n.Ninit.Set1(nod(OAS, ok, fast))
+-					}
+-					n.Nbody.Set1(nod(OAS, res, ifaceData(from, res.Type)))
+-					n.Rlist.Set1(nod(OAS, res, nil))
+-					n = typecheck(n, Etop)
+-				}
+-				break
+-			}
+-		}
+-
+-		var resptr *Node // &res
+-		if isblank(res) {
+-			resptr = nodnil()
+-		} else {
+-			resptr = nod(OADDR, res, nil)
+-		}
+-		resptr.Etype = 1 // addr does not escape
+-
+-		if Debug_typeassert > 0 {
+-			Warn("type assertion not inlined")
+-		}
+-		fn := syslook(assertFuncName(from.Type, t, true))
+-		fn = substArgTypes(fn, from.Type, t)
+-		call := mkcall1(fn, oktype, init, typename(t), from, resptr)
+-		n = nod(OAS, ok, call)
+-		n = typecheck(n, Etop)
+ 
+ 	case ODOTTYPE, ODOTTYPE2:
+-		if !isdirectiface(n.Type) || isfat(n.Type) {
+-			Fatalf("walkexpr ODOTTYPE") // should see inside OAS only
+-		}
+ 		n.Left = walkexpr(n.Left, init)
+ 
+ 	case OCONVIFACE:
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index ca491c33d8..0137b109bd 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -735,7 +735,9 @@
+         f1
+         (Store [t.FieldType(0).Size()] dst f0 mem))))
+ 
++// Putting struct{*byte} and similar into direct interfaces.
+ (IMake typ (StructMake1 val)) -> (IMake typ val)
++(StructSelect [0] x:(IData _)) -> x
+ 
+ // un-SSAable values use mem->mem copies
+ (Store [size] dst (Load <t> src mem) mem) && !config.fe.CanSSA(t) ->
+@@ -757,7 +759,9 @@
+ 
+ (ArraySelect [0] (Load ptr mem)) -> (Load ptr mem)
+ 
++// Putting [1]{*byte} and similar into direct interfaces.
+ (IMake typ (ArrayMake1 val)) -> (IMake typ val)
++(ArraySelect [0] x:(IData _)) -> x
+ 
+ // string ops
+ // Decomposing StringMake and lowering of StringPtr and StringLen
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 818e08b7e0..1a2eacccf8 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -1674,6 +1674,22 @@ func rewriteValuegeneric_OpArraySelect(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (ArraySelect [0] x:(IData _))
++	// cond:
++	// result: x
++	for {
++		if v.AuxInt != 0 {
++			break
++		}
++		x := v.Args[0]
++		if x.Op != OpIData {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpCom16(v *Value, config *Config) bool {
+@@ -10673,6 +10689,22 @@ func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
++	// match: (StructSelect [0] x:(IData _))
++	// cond:
++	// result: x
++	for {
++		if v.AuxInt != 0 {
++			break
++		}
++		x := v.Args[0]
++		if x.Op != OpIData {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpSub16(v *Value, config *Config) bool {
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index f4a65fec18..9b765550ca 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -217,9 +217,6 @@ func BenchSetType(n int, x interface{}) {
+ 
+ const PtrSize = sys.PtrSize
+ 
+-var TestingAssertE2I2GC = &testingAssertE2I2GC
+-var TestingAssertE2T2GC = &testingAssertE2T2GC
+-
+ var ForceGCPeriod = &forcegcperiod
+ 
+ // SetTracebackEnv is like runtime/debug.SetTraceback, but it raises
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index d53d3ee000..4a32f15167 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -5,7 +5,6 @@
+ package runtime_test
+ 
+ import (
+-	"io"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+@@ -399,37 +398,6 @@ func TestPrintGC(t *testing.T) {
+ 	close(done)
+ }
+ 
+-// The implicit y, ok := x.(error) for the case error
+-// in testTypeSwitch used to not initialize the result y
+-// before passing &y to assertE2I2GC.
+-// Catch this by making assertE2I2 call runtime.GC,
+-// which will force a stack scan and failure if there are
+-// bad pointers, and then fill the stack with bad pointers
+-// and run the type switch.
+-func TestAssertE2I2Liveness(t *testing.T) {
+-	// Note that this flag is defined in export_test.go
+-	// and is not available to ordinary imports of runtime.
+-	*runtime.TestingAssertE2I2GC = true
+-	defer func() {
+-		*runtime.TestingAssertE2I2GC = false
+-	}()
+-
+-	poisonStack()
+-	testTypeSwitch(io.EOF)
+-	poisonStack()
+-	testAssert(io.EOF)
+-	poisonStack()
+-	testAssertVar(io.EOF)
+-}
+-
+-func poisonStack() uintptr {
+-	var x [1000]uintptr
+-	for i := range x {
+-		x[i] = 0xff
+-	}
+-	return x[123]
+-}
+-
+ func testTypeSwitch(x interface{}) error {
+ 	switch y := x.(type) {
+ 	case nil:
+@@ -455,16 +423,6 @@ func testAssertVar(x interface{}) error {
+ 	return nil
+ }
+ 
+-func TestAssertE2T2Liveness(t *testing.T) {
+-	*runtime.TestingAssertE2T2GC = true
+-	defer func() {
+-		*runtime.TestingAssertE2T2GC = false
+-	}()
+-
+-	poisonStack()
+-	testIfaceEqual(io.EOF)
+-}
+-
+ var a bool
+ 
+ //go:noinline
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 26e2956eea..c932e149dd 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -156,6 +156,34 @@ func itabsinit() {
+ 	unlock(&ifaceLock)
+ }
+ 
++// panicdottype is called when doing an i.(T) conversion and the conversion fails.
++// have = the dynamic type we have.
++// want = the static type we're trying to convert to.
++// iface = the static type we're converting from.
++func panicdottype(have, want, iface *_type) {
++	haveString := ""
++	if have != nil {
++		haveString = have.string()
++	}
++	panic(&TypeAssertionError{iface.string(), haveString, want.string(), ""})
++}
++
++// panicnildottype is called when doing a i.(T) conversion and the interface i is nil.
++// want = the static type we're trying to convert to.
++func panicnildottype(want *_type) {
++	panic(&TypeAssertionError{"", "", want.string(), ""})
++	// TODO: Add the static type we're converting from as well.
++	// It might generate a better error message.
++	// Just to match other nil conversion errors, we don't for now.
++}
++
++// The conv and assert functions below do very similar things.
++// The convXXX functions are guaranteed by the compiler to succeed.
++// The assertXXX functions may fail (either panicing or returning false,
++// depending on whether they are 1-result or 2-result).
++// The convXXX functions succeed on a nil input, whereas the assertXXX
++// functions fail on a nil input.
++
+ func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
+ 	if raceenabled {
+ 		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E))
+@@ -164,6 +192,7 @@ func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
+ 		msanread(elem, t.size)
+ 	}
+ 	if isDirectIface(t) {
++		// This case is implemented directly by the compiler.
+ 		throw("direct convT2E")
+ 	}
+ 	x := newobject(t)
+@@ -184,6 +213,7 @@ func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
+ 		msanread(elem, t.size)
+ 	}
+ 	if isDirectIface(t) {
++		// This case is implemented directly by the compiler.
+ 		throw("direct convT2I")
+ 	}
+ 	x := newobject(t)
+@@ -193,103 +223,6 @@ func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
+ 	return
+ }
+ 
+-func panicdottype(have, want, iface *_type) {
+-	haveString := ""
+-	if have != nil {
+-		haveString = have.string()
+-	}
+-	panic(&TypeAssertionError{iface.string(), haveString, want.string(), ""})
+-}
+-
+-func assertI2T(t *_type, i iface, r unsafe.Pointer) {
+-	tab := i.tab
+-	if tab == nil {
+-		panic(&TypeAssertionError{"", "", t.string(), ""})
+-	}
+-	if tab._type != t {
+-		panic(&TypeAssertionError{tab.inter.typ.string(), tab._type.string(), t.string(), ""})
+-	}
+-	if r != nil {
+-		if isDirectIface(t) {
+-			writebarrierptr((*uintptr)(r), uintptr(i.data))
+-		} else {
+-			typedmemmove(t, r, i.data)
+-		}
+-	}
+-}
+-
+-// The compiler ensures that r is non-nil.
+-func assertI2T2(t *_type, i iface, r unsafe.Pointer) bool {
+-	tab := i.tab
+-	if tab == nil || tab._type != t {
+-		typedmemclr(t, r)
+-		return false
+-	}
+-	if isDirectIface(t) {
+-		writebarrierptr((*uintptr)(r), uintptr(i.data))
+-	} else {
+-		typedmemmove(t, r, i.data)
+-	}
+-	return true
+-}
+-
+-func assertE2T(t *_type, e eface, r unsafe.Pointer) {
+-	if e._type == nil {
+-		panic(&TypeAssertionError{"", "", t.string(), ""})
+-	}
+-	if e._type != t {
+-		panic(&TypeAssertionError{"", e._type.string(), t.string(), ""})
+-	}
+-	if r != nil {
+-		if isDirectIface(t) {
+-			writebarrierptr((*uintptr)(r), uintptr(e.data))
+-		} else {
+-			typedmemmove(t, r, e.data)
+-		}
+-	}
+-}
+-
+-var testingAssertE2T2GC bool
+-
+-// The compiler ensures that r is non-nil.
+-func assertE2T2(t *_type, e eface, r unsafe.Pointer) bool {
+-	if testingAssertE2T2GC {
+-		GC()
+-	}
+-	if e._type != t {
+-		typedmemclr(t, r)
+-		return false
+-	}
+-	if isDirectIface(t) {
+-		writebarrierptr((*uintptr)(r), uintptr(e.data))
+-	} else {
+-		typedmemmove(t, r, e.data)
+-	}
+-	return true
+-}
+-
+-func assertI2E(inter *interfacetype, i iface, r *eface) {
+-	tab := i.tab
+-	if tab == nil {
+-		// explicit conversions require non-nil interface value.
+-		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
+-	}
+-	r._type = tab._type
+-	r.data = i.data
+-	return
+-}
+-
+-// The compiler ensures that r is non-nil.
+-func assertI2E2(inter *interfacetype, i iface, r *eface) bool {
+-	tab := i.tab
+-	if tab == nil {
+-		return false
+-	}
+-	r._type = tab._type
+-	r.data = i.data
+-	return true
+-}
+-
+ func convI2I(inter *interfacetype, i iface) (r iface) {
+ 	tab := i.tab
+ 	if tab == nil {
+@@ -305,7 +238,7 @@ func convI2I(inter *interfacetype, i iface) (r iface) {
+ 	return
+ }
+ 
+-func assertI2I(inter *interfacetype, i iface, r *iface) {
++func assertI2I(inter *interfacetype, i iface) (r iface) {
+ 	tab := i.tab
+ 	if tab == nil {
+ 		// explicit conversions require non-nil interface value.
+@@ -318,33 +251,27 @@ func assertI2I(inter *interfacetype, i iface, r *iface) {
+ 	}
+ 	r.tab = getitab(inter, tab._type, false)
+ 	r.data = i.data
++	return
+ }
+ 
+-func assertI2I2(inter *interfacetype, i iface, r *iface) bool {
++func assertI2I2(inter *interfacetype, i iface) (r iface, b bool) {
+ 	tab := i.tab
+ 	if tab == nil {
+-		if r != nil {
+-			*r = iface{}
+-		}
+-		return false
++		return
+ 	}
+ 	if tab.inter != inter {
+ 		tab = getitab(inter, tab._type, true)
+ 		if tab == nil {
+-			if r != nil {
+-				*r = iface{}
+-			}
+-			return false
++			return
+ 		}
+ 	}
+-	if r != nil {
+-		r.tab = tab
+-		r.data = i.data
+-	}
+-	return true
++	r.tab = tab
++	r.data = i.data
++	b = true
++	return
+ }
+ 
+-func assertE2I(inter *interfacetype, e eface, r *iface) {
++func assertE2I(inter *interfacetype, e eface) (r iface) {
+ 	t := e._type
+ 	if t == nil {
+ 		// explicit conversions require non-nil interface value.
+@@ -352,56 +279,27 @@ func assertE2I(inter *interfacetype, e eface, r *iface) {
+ 	}
+ 	r.tab = getitab(inter, t, false)
+ 	r.data = e.data
++	return
+ }
+ 
+-var testingAssertE2I2GC bool
+-
+-func assertE2I2(inter *interfacetype, e eface, r *iface) bool {
+-	if testingAssertE2I2GC {
+-		GC()
+-	}
++func assertE2I2(inter *interfacetype, e eface) (r iface, b bool) {
+ 	t := e._type
+ 	if t == nil {
+-		if r != nil {
+-			*r = iface{}
+-		}
+-		return false
++		return
+ 	}
+ 	tab := getitab(inter, t, true)
+ 	if tab == nil {
+-		if r != nil {
+-			*r = iface{}
+-		}
+-		return false
+-	}
+-	if r != nil {
+-		r.tab = tab
+-		r.data = e.data
++		return
+ 	}
+-	return true
++	r.tab = tab
++	r.data = e.data
++	b = true
++	return
+ }
+ 
+ //go:linkname reflect_ifaceE2I reflect.ifaceE2I
+ func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
+-	assertE2I(inter, e, dst)
+-}
+-
+-func assertE2E(inter *interfacetype, e eface, r *eface) {
+-	if e._type == nil {
+-		// explicit conversions require non-nil interface value.
+-		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
+-	}
+-	*r = e
+-}
+-
+-// The compiler ensures that r is non-nil.
+-func assertE2E2(inter *interfacetype, e eface, r *eface) bool {
+-	if e._type == nil {
+-		*r = eface{}
+-		return false
+-	}
+-	*r = e
+-	return true
++	*dst = assertE2I(inter, e)
+ }
+ 
+ func iterate_itabs(fn func(*itab)) {
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index e0da4a3ac0..7e191d4e7b 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -199,7 +199,7 @@ func runfinq() {
+ 					if len(ityp.mhdr) != 0 {
+ 						// convert to interface with methods
+ 						// this conversion is guaranteed to succeed - we checked in SetFinalizer
+-						assertE2I(ityp, *(*eface)(frame), (*iface)(frame))
++						*(*iface)(frame) = assertE2I(ityp, *(*eface)(frame))
+ 					}
+ 				default:
+ 					throw("bad kind in runfinq")
+@@ -384,7 +384,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 			// ok - satisfies empty interface
+ 			goto okarg
+ 		}
+-		if assertE2I2(ityp, *efaceOf(&obj), nil) {
++		if _, ok := assertE2I2(ityp, *efaceOf(&obj)); ok {
+ 			goto okarg
+ 		}
+ 	}
+diff --git a/test/interface/assertinline.go b/test/interface/assertinline.go
+index c3f3624570..324316b79d 100644
+--- a/test/interface/assertinline.go
++++ b/test/interface/assertinline.go
+@@ -24,44 +24,51 @@ func assertfunc2(x interface{}) (func(), bool) {
+ 	return z, ok
+ }
+ 
+-// TODO(rsc): struct{*int} is stored directly in the interface
+-// and should be possible to fetch back out of the interface,
+-// but more of the general data movement code needs to
+-// realize that before we can inline the assertion.
+-
+ func assertstruct(x interface{}) struct{ *int } {
+-	return x.(struct{ *int }) // ERROR "type assertion not inlined"
++	return x.(struct{ *int }) // ERROR "type assertion inlined"
+ }
+ 
+ func assertstruct2(x interface{}) (struct{ *int }, bool) {
+-	z, ok := x.(struct{ *int }) // ERROR "type assertion not inlined"
++	z, ok := x.(struct{ *int }) // ERROR "type assertion inlined"
+ 	return z, ok
+ }
+ 
+ func assertbig(x interface{}) complex128 {
+-	return x.(complex128) // ERROR "type assertion not inlined"
++	return x.(complex128) // ERROR "type assertion inlined"
+ }
+ 
+ func assertbig2(x interface{}) (complex128, bool) {
+-	z, ok := x.(complex128) // ERROR "type assertion .scalar result. inlined"
++	z, ok := x.(complex128) // ERROR "type assertion inlined"
+ 	return z, ok
+ }
+ 
+ func assertbig2ok(x interface{}) (complex128, bool) {
+-	_, ok := x.(complex128) // ERROR "type assertion [(]ok only[)] inlined"
++	_, ok := x.(complex128) // ERROR "type assertion inlined"
+ 	return 0, ok
+ }
+ 
+ func assertslice(x interface{}) []int {
+-	return x.([]int) // ERROR "type assertion not inlined"
++	return x.([]int) // ERROR "type assertion inlined"
+ }
+ 
+ func assertslice2(x interface{}) ([]int, bool) {
+-	z, ok := x.([]int) // ERROR "type assertion not inlined"
++	z, ok := x.([]int) // ERROR "type assertion inlined"
+ 	return z, ok
+ }
+ 
+ func assertslice2ok(x interface{}) ([]int, bool) {
+-	_, ok := x.([]int) // ERROR "type assertion [(]ok only[)] inlined"
++	_, ok := x.([]int) // ERROR "type assertion inlined"
+ 	return nil, ok
+ }
++
++type I interface {
++	foo()
++}
++
++func assertInter(x interface{}) I {
++	return x.(I) // ERROR "type assertion not inlined"
++}
++func assertInter2(x interface{}) (I, bool) {
++	z, ok := x.(I) // ERROR "type assertion not inlined"
++	return z, ok
++}

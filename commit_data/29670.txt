@@ -26,7 +26,7 @@ Date:   Wed Aug 17 14:29:00 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/deps.go      |  12 +--
  src/go/build/deps_test.go |   2 +-
  src/sort/genzfunc.go      | 122 +++++++++++++++++++++
@@ -34,3 +34,680 @@ Date:   Wed Aug 17 14:29:00 2016 +0000
  src/sort/sort_test.go     |  74 ++++++++++---
  src/sort/zfuncversion.go  | 265 ++++++++++++++++++++++++++++++++++++++++++++++
  6 files changed, 518 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index e8dd6cf3d9..817484fe26 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -7,7 +7,7 @@ var builddeps = map[string][]string{
+ 	"bytes":                             {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+ 	"compress/flate":                    {"bufio", "bytes", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"compress/zlib":                     {"bufio", "bytes", "compress/flate", "errors", "fmt", "hash", "hash/adler32", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"container/heap":                    {"runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort"},
++	"container/heap":                    {"errors", "internal/race", "math", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+ 	"context":                           {"errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+ 	"crypto":                            {"errors", "hash", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+ 	"crypto/sha1":                       {"crypto", "errors", "hash", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+@@ -35,7 +35,7 @@ var builddeps = map[string][]string{
+ 	"internal/syscall/windows/registry": {"errors", "internal/race", "internal/syscall/windows/sysdll", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "unicode/utf16"},
+ 	"internal/syscall/windows/sysdll":   {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"io":                      {"errors", "internal/race", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
+-	"io/ioutil":               {"bytes", "errors", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path/filepath", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"io/ioutil":               {"bytes", "errors", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"log":                     {"errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+ 	"math":                    {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"net/url":                 {"bytes", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+@@ -43,14 +43,14 @@ var builddeps = map[string][]string{
+ 	"os/exec":                 {"bytes", "context", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"os/signal":               {"errors", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "os", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+ 	"path":                    {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+-	"path/filepath":           {"errors", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "os", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"path/filepath":           {"errors", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"reflect":                 {"errors", "internal/race", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+-	"regexp":                  {"bytes", "errors", "internal/race", "io", "math", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+-	"regexp/syntax":           {"bytes", "errors", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
++	"regexp":                  {"bytes", "errors", "internal/race", "io", "math", "reflect", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
++	"regexp/syntax":           {"bytes", "errors", "internal/race", "io", "math", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+ 	"runtime":                 {"runtime/internal/atomic", "runtime/internal/sys"},
+ 	"runtime/internal/atomic": {"runtime/internal/sys"},
+ 	"runtime/internal/sys":    {},
+-	"sort":                    {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
++	"sort":                    {"errors", "internal/race", "math", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+ 	"strconv":                 {"errors", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "unicode/utf8"},
+ 	"strings":                 {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+ 	"sync":                    {"internal/race", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync/atomic"},
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 48e258e087..bcd599af85 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -59,7 +59,6 @@ var pkgDeps = map[string][]string{
+ 	"math":          {"unsafe"},
+ 	"math/cmplx":    {"math"},
+ 	"math/rand":     {"L0", "math"},
+-	"sort":          {},
+ 	"strconv":       {"L0", "unicode/utf8", "math"},
+ 	"unicode/utf16": {},
+ 	"unicode/utf8":  {},
+@@ -109,6 +108,7 @@ var pkgDeps = map[string][]string{
+ 	"image/color":         {"L2"},                // interfaces
+ 	"image/color/palette": {"L2", "image/color"},
+ 	"reflect":             {"L2"},
++	"sort":                {"reflect"},
+ 
+ 	"L3": {
+ 		"L2",
+diff --git a/src/sort/genzfunc.go b/src/sort/genzfunc.go
+new file mode 100644
+index 0000000000..6d2b471b62
+--- /dev/null
++++ b/src/sort/genzfunc.go
+@@ -0,0 +1,122 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++// This program is run via "go generate" (via a directive in sort.go)
++// to generate zfuncversion.go.
++//
++// It copies sort.go to zfuncversion.go, only retaining funcs which
++// take a "data Interface" parameter, and renaming each to have a
++// "_func" suffix and taking a "data lessSwap" instead. It then rewrites
++// each internal function call to the appropriate _func variants.
++
++package main
++
++import (
++	"bytes"
++	"go/ast"
++	"go/format"
++	"go/parser"
++	"go/token"
++	"io/ioutil"
++	"log"
++	"regexp"
++)
++
++var fset = token.NewFileSet()
++
++func main() {
++	af, err := parser.ParseFile(fset, "sort.go", nil, 0)
++	if err != nil {
++		log.Fatal(err)
++	}
++	af.Doc = nil
++	af.Imports = nil
++	af.Comments = nil
++
++	var newDecl []ast.Decl
++	for _, d := range af.Decls {
++		fd, ok := d.(*ast.FuncDecl)
++		if !ok {
++			continue
++		}
++		if fd.Recv != nil || fd.Name.IsExported() {
++			continue
++		}
++		typ := fd.Type
++		if len(typ.Params.List) < 1 {
++			continue
++		}
++		arg0 := typ.Params.List[0]
++		arg0Name := arg0.Names[0].Name
++		arg0Type := arg0.Type.(*ast.Ident)
++		if arg0Name != "data" || arg0Type.Name != "Interface" {
++			continue
++		}
++		arg0Type.Name = "lessSwap"
++
++		newDecl = append(newDecl, fd)
++	}
++	af.Decls = newDecl
++	ast.Walk(visitFunc(rewriteCalls), af)
++
++	var out bytes.Buffer
++	if err := format.Node(&out, fset, af); err != nil {
++		log.Fatalf("format.Node: %v", err)
++	}
++
++	// Get rid of blank lines after removal of comments.
++	src := regexp.MustCompile(`\n{2,}`).ReplaceAll(out.Bytes(), []byte("\n"))
++
++	// Add comments to each func, for the lost reader.
++	// This is so much easier than adding comments via the AST
++	// and trying to get position info correct.
++	src = regexp.MustCompile(`(?m)^func (\w+)`).ReplaceAll(src, []byte("\n// Auto-generated variant of sort.go:$1\nfunc ${1}_func"))
++
++	// Final gofmt.
++	src, err = format.Source(src)
++	if err != nil {
++		log.Fatalf("format.Source: %v on\n%s", err, src)
++	}
++
++	out.Reset()
++	out.WriteString(`// DO NOT EDIT; AUTO-GENERATED from sort.go using genzfunc.go
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++`)
++	out.Write(src)
++
++	const target = "zfuncversion.go"
++	if err := ioutil.WriteFile(target, out.Bytes(), 0644); err != nil {
++		log.Fatal(err)
++	}
++}
++
++type visitFunc func(ast.Node) ast.Visitor
++
++func (f visitFunc) Visit(n ast.Node) ast.Visitor { return f(n) }
++
++func rewriteCalls(n ast.Node) ast.Visitor {
++	ce, ok := n.(*ast.CallExpr)
++	if ok {
++		rewriteCall(ce)
++	}
++	return visitFunc(rewriteCalls)
++}
++
++func rewriteCall(ce *ast.CallExpr) {
++	ident, ok := ce.Fun.(*ast.Ident)
++	if !ok {
++		// e.g. skip SelectorExpr (data.Less(..) calls)
++		return
++	}
++	if len(ce.Args) < 1 {
++		return
++	}
++	ident.Name += "_func"
++}
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index d07a0c27b8..72d24efcea 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -2,10 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:generate go run genzfunc.go
++
+ // Package sort provides primitives for sorting slices and user-defined
+ // collections.
+ package sort
+ 
++import "reflect"
++
+ // A type, typically a collection, that satisfies sort.Interface can be
+ // sorted by the routines in this package. The methods require that the
+ // elements of the collection be enumerated by an integer index.
+@@ -212,14 +216,63 @@ func quickSort(data Interface, a, b, maxDepth int) {
+ // It makes one call to data.Len to determine n, and O(n*log(n)) calls to
+ // data.Less and data.Swap. The sort is not guaranteed to be stable.
+ func Sort(data Interface) {
+-	// Switch to heapsort if depth of 2*ceil(lg(n+1)) is reached.
+ 	n := data.Len()
+-	maxDepth := 0
++	quickSort(data, 0, n, maxDepth(n))
++}
++
++// maxDepth returns a threshold at which quicksort should switch
++// to heapsort. It returns 2*ceil(lg(n+1)).
++func maxDepth(n int) int {
++	var depth int
+ 	for i := n; i > 0; i >>= 1 {
+-		maxDepth++
++		depth++
++	}
++	return depth * 2
++}
++
++// lessSwap is a pair of Less and Swap function for use with the
++// auto-generated func-optimized variant of sort.go in
++// zfuncversion.go.
++type lessSwap struct {
++	Less func(i, j int) bool
++	Swap func(i, j int)
++}
++
++// Slice sorts the provided slice given the provided less function.
++//
++// The sort is not guaranteed to be stable. For a stable sort, use
++// SliceStable.
++//
++// The function panics if the provided interface is not a slice.
++func Slice(slice interface{}, less func(i, j int) bool) {
++	rv := reflect.ValueOf(slice)
++	swap := reflect.Swapper(slice)
++	length := rv.Len()
++	quickSort_func(lessSwap{less, swap}, 0, length, maxDepth(length))
++}
++
++// SliceStable sorts the provided slice given the provided less
++// function while keeping the original order of equal elements.
++//
++// The function panics if the provided interface is not a slice.
++func SliceStable(slice interface{}, less func(i, j int) bool) {
++	rv := reflect.ValueOf(slice)
++	swap := reflect.Swapper(slice)
++	stable_func(lessSwap{less, swap}, rv.Len())
++}
++
++// SliceIsSorted tests whether a slice is sorted.
++//
++// The function panics if the provided interface is not a slice.
++func SliceIsSorted(slice interface{}, less func(i, j int) bool) bool {
++	rv := reflect.ValueOf(slice)
++	n := rv.Len()
++	for i := n - 1; i > 0; i-- {
++		if less(i, i-1) {
++			return false
++		}
+ 	}
+-	maxDepth *= 2
+-	quickSort(data, 0, n, maxDepth)
++	return true
+ }
+ 
+ type reverse struct {
+@@ -337,7 +390,10 @@ func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
+ // It makes one call to data.Len to determine n, O(n*log(n)) calls to
+ // data.Less and O(n*log(n)*log(n)) calls to data.Swap.
+ func Stable(data Interface) {
+-	n := data.Len()
++	stable(data, data.Len())
++}
++
++func stable(data Interface, n int) {
+ 	blockSize := 20 // must be > 0
+ 	a, b := 0, blockSize
+ 	for b <= n {
+diff --git a/src/sort/sort_test.go b/src/sort/sort_test.go
+index 10a2c19684..08a9bf6144 100644
+--- a/src/sort/sort_test.go
++++ b/src/sort/sort_test.go
+@@ -76,6 +76,17 @@ func TestStrings(t *testing.T) {
+ 	}
+ }
+ 
++func TestSlice(t *testing.T) {
++	data := strings
++	Slice(data[:], func(i, j int) bool {
++		return data[i] < data[j]
++	})
++	if !SliceIsSorted(data[:], func(i, j int) bool { return data[i] < data[j] }) {
++		t.Errorf("sorted %v", strings)
++		t.Errorf("   got %v", data)
++	}
++}
++
+ func TestSortLarge_Random(t *testing.T) {
+ 	n := 1000000
+ 	if testing.Short() {
+@@ -150,24 +161,46 @@ func TestNonDeterministicComparison(t *testing.T) {
+ 
+ func BenchmarkSortString1K(b *testing.B) {
+ 	b.StopTimer()
++	unsorted := make([]string, 1<<10)
++	for i := range unsorted {
++		unsorted[i] = strconv.Itoa(i ^ 0x2cc)
++	}
++	data := make([]string, len(unsorted))
++
+ 	for i := 0; i < b.N; i++ {
+-		data := make([]string, 1<<10)
+-		for i := 0; i < len(data); i++ {
+-			data[i] = strconv.Itoa(i ^ 0x2cc)
+-		}
++		copy(data, unsorted)
+ 		b.StartTimer()
+ 		Strings(data)
+ 		b.StopTimer()
+ 	}
+ }
+ 
++func BenchmarkSortString1K_Slice(b *testing.B) {
++	b.StopTimer()
++	unsorted := make([]string, 1<<10)
++	for i := range unsorted {
++		unsorted[i] = strconv.Itoa(i ^ 0x2cc)
++	}
++	data := make([]string, len(unsorted))
++
++	for i := 0; i < b.N; i++ {
++		copy(data, unsorted)
++		b.StartTimer()
++		Slice(data, func(i, j int) bool { return data[i] < data[j] })
++		b.StopTimer()
++	}
++}
++
+ func BenchmarkStableString1K(b *testing.B) {
+ 	b.StopTimer()
++	unsorted := make([]string, 1<<10)
++	for i := 0; i < len(data); i++ {
++		unsorted[i] = strconv.Itoa(i ^ 0x2cc)
++	}
++	data := make([]string, len(unsorted))
++
+ 	for i := 0; i < b.N; i++ {
+-		data := make([]string, 1<<10)
+-		for i := 0; i < len(data); i++ {
+-			data[i] = strconv.Itoa(i ^ 0x2cc)
+-		}
++		copy(data, unsorted)
+ 		b.StartTimer()
+ 		Stable(StringSlice(data))
+ 		b.StopTimer()
+@@ -189,17 +222,34 @@ func BenchmarkSortInt1K(b *testing.B) {
+ 
+ func BenchmarkStableInt1K(b *testing.B) {
+ 	b.StopTimer()
++	unsorted := make([]int, 1<<10)
++	for i := range unsorted {
++		unsorted[i] = i ^ 0x2cc
++	}
++	data := make([]int, len(unsorted))
+ 	for i := 0; i < b.N; i++ {
+-		data := make([]int, 1<<10)
+-		for i := 0; i < len(data); i++ {
+-			data[i] = i ^ 0x2cc
+-		}
++		copy(data, unsorted)
+ 		b.StartTimer()
+ 		Stable(IntSlice(data))
+ 		b.StopTimer()
+ 	}
+ }
+ 
++func BenchmarkStableInt1K_Slice(b *testing.B) {
++	b.StopTimer()
++	unsorted := make([]int, 1<<10)
++	for i := range unsorted {
++		unsorted[i] = i ^ 0x2cc
++	}
++	data := make([]int, len(unsorted))
++	for i := 0; i < b.N; i++ {
++		copy(data, unsorted)
++		b.StartTimer()
++		Slice(data, func(i, j int) bool { return data[i] < data[j] })
++		b.StopTimer()
++	}
++}
++
+ func BenchmarkSortInt64K(b *testing.B) {
+ 	b.StopTimer()
+ 	for i := 0; i < b.N; i++ {
+diff --git a/src/sort/zfuncversion.go b/src/sort/zfuncversion.go
+new file mode 100644
+index 0000000000..7abb18a24d
+--- /dev/null
++++ b/src/sort/zfuncversion.go
+@@ -0,0 +1,265 @@
++// DO NOT EDIT; AUTO-GENERATED from sort.go using genzfunc.go
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sort
++
++// Auto-generated variant of sort.go:insertionSort
++func insertionSort_func(data lessSwap, a, b int) {
++	for i := a + 1; i < b; i++ {
++		for j := i; j > a && data.Less(j, j-1); j-- {
++			data.Swap(j, j-1)
++		}
++	}
++}
++
++// Auto-generated variant of sort.go:siftDown
++func siftDown_func(data lessSwap, lo, hi, first int) {
++	root := lo
++	for {
++		child := 2*root + 1
++		if child >= hi {
++			break
++		}
++		if child+1 < hi && data.Less(first+child, first+child+1) {
++			child++
++		}
++		if !data.Less(first+root, first+child) {
++			return
++		}
++		data.Swap(first+root, first+child)
++		root = child
++	}
++}
++
++// Auto-generated variant of sort.go:heapSort
++func heapSort_func(data lessSwap, a, b int) {
++	first := a
++	lo := 0
++	hi := b - a
++	for i := (hi - 1) / 2; i >= 0; i-- {
++		siftDown_func(data, i, hi, first)
++	}
++	for i := hi - 1; i >= 0; i-- {
++		data.Swap(first, first+i)
++		siftDown_func(data, lo, i, first)
++	}
++}
++
++// Auto-generated variant of sort.go:medianOfThree
++func medianOfThree_func(data lessSwap, m1, m0, m2 int) {
++	if data.Less(m1, m0) {
++		data.Swap(m1, m0)
++	}
++	if data.Less(m2, m1) {
++		data.Swap(m2, m1)
++		if data.Less(m1, m0) {
++			data.Swap(m1, m0)
++		}
++	}
++}
++
++// Auto-generated variant of sort.go:swapRange
++func swapRange_func(data lessSwap, a, b, n int) {
++	for i := 0; i < n; i++ {
++		data.Swap(a+i, b+i)
++	}
++}
++
++// Auto-generated variant of sort.go:doPivot
++func doPivot_func(data lessSwap, lo, hi int) (midlo, midhi int) {
++	m := lo + (hi-lo)/2
++	if hi-lo > 40 {
++		s := (hi - lo) / 8
++		medianOfThree_func(data, lo, lo+s, lo+2*s)
++		medianOfThree_func(data, m, m-s, m+s)
++		medianOfThree_func(data, hi-1, hi-1-s, hi-1-2*s)
++	}
++	medianOfThree_func(data, lo, m, hi-1)
++	pivot := lo
++	a, c := lo+1, hi-1
++	for ; a < c && data.Less(a, pivot); a++ {
++	}
++	b := a
++	for {
++		for ; b < c && !data.Less(pivot, b); b++ {
++		}
++		for ; b < c && data.Less(pivot, c-1); c-- {
++		}
++		if b >= c {
++			break
++		}
++		data.Swap(b, c-1)
++		b++
++		c--
++	}
++	protect := hi-c < 5
++	if !protect && hi-c < (hi-lo)/4 {
++		dups := 0
++		if !data.Less(pivot, hi-1) {
++			data.Swap(c, hi-1)
++			c++
++			dups++
++		}
++		if !data.Less(b-1, pivot) {
++			b--
++			dups++
++		}
++		if !data.Less(m, pivot) {
++			data.Swap(m, b-1)
++			b--
++			dups++
++		}
++		protect = dups > 1
++	}
++	if protect {
++		for {
++			for ; a < b && !data.Less(b-1, pivot); b-- {
++			}
++			for ; a < b && data.Less(a, pivot); a++ {
++			}
++			if a >= b {
++				break
++			}
++			data.Swap(a, b-1)
++			a++
++			b--
++		}
++	}
++	data.Swap(pivot, b-1)
++	return b - 1, c
++}
++
++// Auto-generated variant of sort.go:quickSort
++func quickSort_func(data lessSwap, a, b, maxDepth int) {
++	for b-a > 12 {
++		if maxDepth == 0 {
++			heapSort_func(data, a, b)
++			return
++		}
++		maxDepth--
++		mlo, mhi := doPivot_func(data, a, b)
++		if mlo-a < b-mhi {
++			quickSort_func(data, a, mlo, maxDepth)
++			a = mhi
++		} else {
++			quickSort_func(data, mhi, b, maxDepth)
++			b = mlo
++		}
++	}
++	if b-a > 1 {
++		for i := a + 6; i < b; i++ {
++			if data.Less(i, i-6) {
++				data.Swap(i, i-6)
++			}
++		}
++		insertionSort_func(data, a, b)
++	}
++}
++
++// Auto-generated variant of sort.go:stable
++func stable_func(data lessSwap, n int) {
++	blockSize := 20
++	a, b := 0, blockSize
++	for b <= n {
++		insertionSort_func(data, a, b)
++		a = b
++		b += blockSize
++	}
++	insertionSort_func(data, a, n)
++	for blockSize < n {
++		a, b = 0, 2*blockSize
++		for b <= n {
++			symMerge_func(data, a, a+blockSize, b)
++			a = b
++			b += 2 * blockSize
++		}
++		if m := a + blockSize; m < n {
++			symMerge_func(data, a, m, n)
++		}
++		blockSize *= 2
++	}
++}
++
++// Auto-generated variant of sort.go:symMerge
++func symMerge_func(data lessSwap, a, m, b int) {
++	if m-a == 1 {
++		i := m
++		j := b
++		for i < j {
++			h := i + (j-i)/2
++			if data.Less(h, a) {
++				i = h + 1
++			} else {
++				j = h
++			}
++		}
++		for k := a; k < i-1; k++ {
++			data.Swap(k, k+1)
++		}
++		return
++	}
++	if b-m == 1 {
++		i := a
++		j := m
++		for i < j {
++			h := i + (j-i)/2
++			if !data.Less(m, h) {
++				i = h + 1
++			} else {
++				j = h
++			}
++		}
++		for k := m; k > i; k-- {
++			data.Swap(k, k-1)
++		}
++		return
++	}
++	mid := a + (b-a)/2
++	n := mid + m
++	var start, r int
++	if m > mid {
++		start = n - b
++		r = mid
++	} else {
++		start = a
++		r = m
++	}
++	p := n - 1
++	for start < r {
++		c := start + (r-start)/2
++		if !data.Less(p-c, c) {
++			start = c + 1
++		} else {
++			r = c
++		}
++	}
++	end := n - start
++	if start < m && m < end {
++		rotate_func(data, start, m, end)
++	}
++	if a < start && start < mid {
++		symMerge_func(data, a, start, mid)
++	}
++	if mid < end && end < b {
++		symMerge_func(data, mid, end, b)
++	}
++}
++
++// Auto-generated variant of sort.go:rotate
++func rotate_func(data lessSwap, a, m, b int) {
++	i := m - a
++	j := b - m
++	for i != j {
++		if i > j {
++			swapRange_func(data, m-i, m, j)
++			i -= j
++		} else {
++			swapRange_func(data, m-i, m+j-i, i)
++			j -= i
++		}
++	}
++	swapRange_func(data, m-i, m, i)
++}

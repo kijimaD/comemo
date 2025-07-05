@@ -15,6 +15,21 @@ Date:   Mon Jun 21 21:50:09 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/fifo_test.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/os/fifo_test.go b/src/os/fifo_test.go
+index 9b262f8205..007ed29129 100644
+--- a/src/os/fifo_test.go
++++ b/src/os/fifo_test.go
+@@ -26,9 +26,6 @@ func TestFifoEOF(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "android":
+ 		t.Skip("skipping on Android; mkfifo syscall not available")
+-	case "openbsd":
+-		// On OpenBSD 6.2 this test just hangs for some reason.
+-		t.Skip("skipping on OpenBSD; issue 25877")
+ 	}
+ 
+ 	dir := t.TempDir()

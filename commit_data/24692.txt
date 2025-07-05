@@ -12,7 +12,44 @@ Date:   Wed Aug 19 20:28:18 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/13667
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/unicode/maketables.go | 3 ---
  src/unicode/tables.go     | 4 ++--
  2 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/unicode/maketables.go b/src/unicode/maketables.go
+index 9fccdecafa..e0110c9536 100644
+--- a/src/unicode/maketables.go
++++ b/src/unicode/maketables.go
+@@ -261,9 +261,6 @@ func parseCategory(line string) (state State) {
+ 		logger.Fatalf("%.5s...: %s", line, err)
+ 	}
+ 	lastChar = rune(point)
+-	if point == 0 {
+-		return // not interesting and we use 0 as unset
+-	}
+ 	if point > MaxChar {
+ 		return
+ 	}
+diff --git a/src/unicode/tables.go b/src/unicode/tables.go
+index 370a9d1174..8bb42062f9 100644
+--- a/src/unicode/tables.go
++++ b/src/unicode/tables.go
+@@ -53,7 +53,7 @@ var Categories = map[string]*RangeTable{
+ 
+ var _C = &RangeTable{
+ 	R16: []Range16{
+-		{0x0001, 0x001f, 1},
++		{0x0000, 0x001f, 1},
+ 		{0x007f, 0x009f, 1},
+ 		{0x00ad, 0x0600, 1363},
+ 		{0x0601, 0x0605, 1},
+@@ -81,7 +81,7 @@ var _C = &RangeTable{
+ 
+ var _Cc = &RangeTable{
+ 	R16: []Range16{
+-		{0x0001, 0x001f, 1},
++		{0x0000, 0x001f, 1},
+ 		{0x007f, 0x009f, 1},
+ 	},
+ 	LatinOffset: 2,

@@ -13,6 +13,20 @@ Date:   Sat Apr 25 05:42:10 2020 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/cache/cache.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index 8797398765..15545ac31f 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -108,7 +108,7 @@ const (
+ // GODEBUG=gocacheverify=1.
+ var verify = false
+ 
+-var errVerifyMode = errors.New("gocachverify=1")
++var errVerifyMode = errors.New("gocacheverify=1")
+ 
+ // DebugTest is set when GODEBUG=gocachetest=1 is in the environment.
+ var DebugTest = false

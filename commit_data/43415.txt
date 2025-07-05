@@ -11,10 +11,120 @@ Date:   Tue Mar 31 10:49:31 2020 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/226540
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/os/signal/signal.go       | 14 ++++++++------
  src/os/signal/signal_plan9.go |  4 +---
  src/os/signal/signal_unix.go  |  2 --
  src/runtime/sigqueue.go       |  9 +++------
  src/runtime/sigqueue_plan9.go |  5 +----
  5 files changed, 13 insertions(+), 21 deletions(-)
+
+diff --git a/src/os/signal/signal.go b/src/os/signal/signal.go
+index 136dd9cc97..8e31aa2627 100644
+--- a/src/os/signal/signal.go
++++ b/src/os/signal/signal.go
+@@ -122,12 +122,6 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
+ 		panic("os/signal: Notify using nil channel")
+ 	}
+ 
+-	watchSignalLoopOnce.Do(func() {
+-		if watchSignalLoop != nil {
+-			go watchSignalLoop()
+-		}
+-	})
+-
+ 	handlers.Lock()
+ 	defer handlers.Unlock()
+ 
+@@ -148,6 +142,14 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
+ 			h.set(n)
+ 			if handlers.ref[n] == 0 {
+ 				enableSignal(n)
++
++				// The runtime requires that we enable a
++				// signal before starting the watcher.
++				watchSignalLoopOnce.Do(func() {
++					if watchSignalLoop != nil {
++						go watchSignalLoop()
++					}
++				})
+ 			}
+ 			handlers.ref[n]++
+ 		}
+diff --git a/src/os/signal/signal_plan9.go b/src/os/signal/signal_plan9.go
+index 8408607c7f..7d4871518a 100644
+--- a/src/os/signal/signal_plan9.go
++++ b/src/os/signal/signal_plan9.go
+@@ -11,7 +11,7 @@ import (
+ 
+ var sigtab = make(map[os.Signal]int)
+ 
+-// In sig.s; jumps to runtime.
++// Defined by the runtime package.
+ func signal_disable(uint32)
+ func signal_enable(uint32)
+ func signal_ignore(uint32)
+@@ -19,8 +19,6 @@ func signal_ignored(uint32) bool
+ func signal_recv() string
+ 
+ func init() {
+-	signal_enable(0) // first call - initialize
+-
+ 	watchSignalLoop = loop
+ }
+ 
+diff --git a/src/os/signal/signal_unix.go b/src/os/signal/signal_unix.go
+index 89ee2d9e18..90a1eca156 100644
+--- a/src/os/signal/signal_unix.go
++++ b/src/os/signal/signal_unix.go
+@@ -25,8 +25,6 @@ func loop() {
+ }
+ 
+ func init() {
+-	signal_enable(0) // first call - initialize
+-
+ 	watchSignalLoop = loop
+ }
+ 
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index b2ebb2b457..3bf07cb5a6 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -192,16 +192,13 @@ func signalWaitUntilIdle() {
+ //go:linkname signal_enable os/signal.signal_enable
+ func signal_enable(s uint32) {
+ 	if !sig.inuse {
+-		// The first call to signal_enable is for us
+-		// to use for initialization. It does not pass
+-		// signal information in m.
++		// This is the first call to signal_enable. Initialize.
+ 		sig.inuse = true // enable reception of signals; cannot disable
+ 		if GOOS == "darwin" {
+ 			sigNoteSetup(&sig.note)
+-			return
++		} else {
++			noteclear(&sig.note)
+ 		}
+-		noteclear(&sig.note)
+-		return
+ 	}
+ 
+ 	if s >= uint32(len(sig.wanted)*32) {
+diff --git a/src/runtime/sigqueue_plan9.go b/src/runtime/sigqueue_plan9.go
+index 934742a1f4..d5fe8f8b35 100644
+--- a/src/runtime/sigqueue_plan9.go
++++ b/src/runtime/sigqueue_plan9.go
+@@ -134,12 +134,9 @@ func signalWaitUntilIdle() {
+ //go:linkname signal_enable os/signal.signal_enable
+ func signal_enable(s uint32) {
+ 	if !sig.inuse {
+-		// The first call to signal_enable is for us
+-		// to use for initialization. It does not pass
+-		// signal information in m.
++		// This is the first call to signal_enable. Initialize.
+ 		sig.inuse = true // enable reception of signals; cannot disable
+ 		noteclear(&sig.note)
+-		return
+ 	}
+ }
+ 

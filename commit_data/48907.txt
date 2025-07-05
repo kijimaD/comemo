@@ -80,3 +80,147 @@ Date:   Fri Jun 25 11:17:04 2021 +0700
  src/time/time_test.go                              |   5 +
  test/fixedbugs/issue46907.go                       |  11 +++
  38 files changed, 505 insertions(+), 122 deletions(-)
+
+diff --cc src/go/types/check_test.go
+index 0926ac7431,c85a8e46fb..a5720f992e
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@@ -202,7 -202,7 +202,7 @@@ func asGoVersion(s string) string 
+  	return ""
+  }
+  
+- func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, manual bool) {
+ -func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string, srcs [][]byte, manual bool, imp Importer) {
+++func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, manual bool, imp Importer) {
+  	if len(filenames) == 0 {
+  		t.Fatal("no source files")
+  	}
+@@@ -339,7 -325,7 +345,7 @@@ func TestManual(t *testing.T) 
+  func TestLongConstants(t *testing.T) {
+  	format := "package longconst\n\nconst _ = %s\nconst _ = %s // ERROR excessively long constant"
+  	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
+- 	testFiles(t, nil, []string{"longconst.go"}, [][]byte{[]byte(src)}, false)
+ -	checkFiles(t, nil, "", []string{"longconst.go"}, [][]byte{[]byte(src)}, false, nil)
+++	testFiles(t, nil, []string{"longconst.go"}, [][]byte{[]byte(src)}, false, nil)
+  }
+  
+  // TestIndexRepresentability tests that constant index operands must
+@@@ -347,7 -333,7 +353,7 @@@
+  // represent larger values.
+  func TestIndexRepresentability(t *testing.T) {
+  	const src = "package index\n\nvar s []byte\nvar _ = s[int64 /* ERROR \"int64\\(1\\) << 40 \\(.*\\) overflows int\" */ (1) << 40]"
+- 	testFiles(t, &StdSizes{4, 4}, []string{"index.go"}, [][]byte{[]byte(src)}, false)
+ -	checkFiles(t, &StdSizes{4, 4}, "", []string{"index.go"}, [][]byte{[]byte(src)}, false, nil)
+++	testFiles(t, &StdSizes{4, 4}, []string{"index.go"}, [][]byte{[]byte(src)}, false, nil)
+  }
+  
+  func TestIssue46453(t *testing.T) {
+@@@ -355,17 -341,17 +361,17 @@@
+  		t.Skip("type params are enabled")
+  	}
+  	const src = "package p\ntype _ comparable // ERROR \"undeclared name: comparable\""
+- 	testFiles(t, nil, []string{"issue46453.go"}, [][]byte{[]byte(src)}, false)
+ -	checkFiles(t, nil, "", []string{"issue46453.go"}, [][]byte{[]byte(src)}, false, nil)
+++	testFiles(t, nil, []string{"issue46453.go"}, [][]byte{[]byte(src)}, false, nil)
+  }
+  
+ -func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDir(t, "check") }
+ -func TestExamples(t *testing.T)  { testDir(t, "examples") }
+ -func TestFixedbugs(t *testing.T) { testDir(t, "fixedbugs") }
+ +func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", false) }
+ +func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", false) }
+ +func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", false) }
+  
+ -func testDir(t *testing.T, dir string) {
+ +func testDirFiles(t *testing.T, dir string, manual bool) {
+  	testenv.MustHaveGoBuild(t)
+ +	dir = filepath.FromSlash(dir)
+  
+ -	dir = filepath.Join("testdata", dir)
+  	fis, err := os.ReadDir(dir)
+  	if err != nil {
+  		t.Error(err)
+@@@ -415,5 -391,5 +421,5 @@@ func testPkg(t *testing.T, filenames []
+  		}
+  		srcs[i] = src
+  	}
+- 	testFiles(t, nil, filenames, srcs, manual)
+ -	checkFiles(t, nil, goVersion, filenames, srcs, manual, nil)
+++	testFiles(t, nil, filenames, srcs, manual, nil)
+  }
+diff --cc src/go/types/issues_test.go
+index 44926919ef,519e199536..51995af30a
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@@ -593,26 -632,9 +632,9 @@@ var _ T = template /* ERROR cannot use.
+  	if err != nil {
+  		t.Fatalf("package a failed to typecheck: %v", err)
+  	}
+- 	conf := Config{Importer: importHelper{pkg: a, fallback: importer.Default()}}
+- 
+- 	// Packages should be fully qualified when there is ambiguity within the
+- 	// error string itself.
+- 	bast := mustParse(t, bsrc)
+- 	_, err = conf.Check(bast.Name.Name, fset, []*ast.File{bast}, nil)
+- 	if err == nil {
+- 		t.Fatal("package b had no errors")
+- 	}
+- 	if !strings.Contains(err.Error(), "text/template") || !strings.Contains(err.Error(), "html/template") {
+- 		t.Errorf("type checking error for b does not disambiguate package template: %q", err)
+- 	}
++ 	imp := importHelper{pkg: a, fallback: importer.Default()}
+  
+- 	// ...and also when there is any ambiguity in reachable packages.
+- 	cast := mustParse(t, csrc)
+- 	_, err = conf.Check(cast.Name.Name, fset, []*ast.File{cast}, nil)
+- 	if err == nil {
+- 		t.Fatal("package c had no errors")
+- 	}
+- 	if !strings.Contains(err.Error(), "html/template") {
+- 		t.Errorf("type checking error for c does not disambiguate package template: %q", err)
+- 	}
+ -	checkFiles(t, nil, "", []string{"b.go"}, [][]byte{[]byte(bsrc)}, false, imp)
+ -	checkFiles(t, nil, "", []string{"c.go"}, [][]byte{[]byte(csrc)}, false, imp)
+ -	checkFiles(t, nil, "", []string{"t.go"}, [][]byte{[]byte(tsrc)}, false, imp)
+++	testFiles(t, nil, []string{"b.go"}, [][]byte{[]byte(bsrc)}, false, imp)
+++	testFiles(t, nil, []string{"c.go"}, [][]byte{[]byte(csrc)}, false, imp)
+++	testFiles(t, nil, []string{"t.go"}, [][]byte{[]byte(tsrc)}, false, imp)
+  }
+diff --cc src/internal/buildcfg/exp.go
+index e78f987999,640aa1934d..e87b6221f1
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@@ -18,10 -18,9 +18,10 @@@ import 
+  //
+  // (This is not necessarily the set of experiments the compiler itself
+  // was built with.)
+- var Experiment goexperiment.Flags = parseExperiments()
++ var Experiment goexperiment.Flags = parseExperiments(GOARCH)
+  
+ -var regabiSupported = GOARCH == "amd64" && (GOOS == "android" || GOOS == "linux" || GOOS == "darwin" || GOOS == "windows")
+ +var regabiSupported = GOARCH == "amd64" || GOARCH == "arm64"
+ +var regabiDeveloping = false
+  
+  // experimentBaseline specifies the experiment flags that are enabled by
+  // default in the current toolchain. This is, in effect, the "control"
+@@@ -95,14 -98,12 +95,14 @@@ func parseExperiments(goarch string) go
+  		}
+  	}
+  
+ -	// regabi is only supported on amd64.
+ -	if goarch != "amd64" {
+ +	// regabiwrappers is always enabled on amd64.
+- 	if GOARCH == "amd64" {
+++	if goarch == "amd64" {
+ +		flags.RegabiWrappers = true
+ +	}
+ +	// regabi is only supported on amd64 and arm64.
+- 	if GOARCH != "amd64" && GOARCH != "arm64" {
+++	if goarch != "amd64" && goarch != "arm64" {
+  		flags.RegabiWrappers = false
+ -		flags.RegabiG = false
+  		flags.RegabiReflect = false
+ -		flags.RegabiDefer = false
+  		flags.RegabiArgs = false
+  	}
+  	// Check regabi dependencies.

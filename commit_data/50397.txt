@@ -8,7 +8,49 @@ Date:   Thu Oct 21 20:01:51 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/357915
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go            |  2 +-
  .../types2/testdata/check/compliterals.go2         | 22 ++++++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 1001554739..3a39de7406 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1253,7 +1253,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			goto Error
+ 		}
+ 
+-		switch utyp := optype(base).(type) {
++		switch utyp := singleUnder(base).(type) {
+ 		case *Struct:
+ 			if len(e.ElemList) == 0 {
+ 				break
+diff --git a/src/cmd/compile/internal/types2/testdata/check/compliterals.go2 b/src/cmd/compile/internal/types2/testdata/check/compliterals.go2
+new file mode 100644
+index 0000000000..60eac97a3f
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/check/compliterals.go2
+@@ -0,0 +1,22 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Composite literals with parameterized types
++
++package comp_literals
++
++type myStruct struct {
++	f int
++}
++
++type slice[E any] []E
++
++func struct_literals[S struct{f int}|myStruct]() {
++	_ = S{}
++	_ = S{0}
++	_ = S{f: 0}
++
++        _ = slice[int]{1, 2, 3}
++        _ = slice[S]{{}, {0}, {f:0}}
++}

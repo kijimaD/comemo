@@ -9,7 +9,37 @@ Date:   Wed Oct 26 15:52:56 2016 -0700
     Change-Id: Id3e75c9b7fba2cf8e791c8817f890556ca238e9d
     Reviewed-on: https://go-review.googlesource.com/32096
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/go/scanner/scanner.go      | 6 +++++-
  src/go/scanner/scanner_test.go | 1 +
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/scanner/scanner.go b/src/go/scanner/scanner.go
+index bf63e814aa..866744df03 100644
+--- a/src/go/scanner/scanner.go
++++ b/src/go/scanner/scanner.go
+@@ -349,7 +349,11 @@ exponent:
+ 		if s.ch == '-' || s.ch == '+' {
+ 			s.next()
+ 		}
+-		s.scanMantissa(10)
++		if digitVal(s.ch) < 10 {
++			s.scanMantissa(10)
++		} else {
++			s.error(offs, "illegal floating-point exponent")
++		}
+ 	}
+ 
+ 	if s.ch == 'i' {
+diff --git a/src/go/scanner/scanner_test.go b/src/go/scanner/scanner_test.go
+index d1f2158898..c07ef1109e 100644
+--- a/src/go/scanner/scanner_test.go
++++ b/src/go/scanner/scanner_test.go
+@@ -717,6 +717,7 @@ var errors = []struct {
+ 	{"078.", token.FLOAT, 0, "078.", ""},
+ 	{"07801234567.", token.FLOAT, 0, "07801234567.", ""},
+ 	{"078e0", token.FLOAT, 0, "078e0", ""},
++	{"0E", token.FLOAT, 0, "0E", "illegal floating-point exponent"}, // issue 17621
+ 	{"078", token.INT, 0, "078", "illegal octal number"},
+ 	{"07800000009", token.INT, 0, "07800000009", "illegal octal number"},
+ 	{"0x", token.INT, 0, "0x", "illegal hexadecimal number"},

@@ -9,6 +9,20 @@ Date:   Wed Oct 2 13:21:15 2013 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/14231045
-
+---
  src/pkg/net/http/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/doc.go b/src/pkg/net/http/doc.go
+index b6ae8b87a2..b1216e8daf 100644
+--- a/src/pkg/net/http/doc.go
++++ b/src/pkg/net/http/doc.go
+@@ -5,7 +5,7 @@
+ /*
+ Package http provides HTTP client and server implementations.
+ 
+-Get, Head, Post, and PostForm make HTTP requests:
++Get, Head, Post, and PostForm make HTTP (or HTTPS) requests:
+ 
+ 	resp, err := http.Get("http://example.com/")
+ 	...

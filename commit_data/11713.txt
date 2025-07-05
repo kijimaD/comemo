@@ -7,6 +7,20 @@ Date:   Wed Feb 8 14:36:38 2012 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5643061
-
+---
  src/cmd/dist/build.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index d229fe65c8..fff4d62eac 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -796,7 +796,7 @@ install(char *dir)
+ 			vadd(&compile, "-I");
+ 			vadd(&compile, workdir);
+ 			vadd(&compile, bprintf(&b, "-DGOOS_%s", goos));
+-			vadd(&compile, bprintf(&b, "-DGOARCH_%s", goos));
++			vadd(&compile, bprintf(&b, "-DGOARCH_%s", goarch));
+ 		}	
+ 
+ 		bpathf(&b, "%s/%s", workdir, lastelem(files.p[i]));

@@ -12,9 +12,62 @@ Date:   Wed Jan 25 08:56:17 2023 +0100
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/sys_windows_386.s   | 2 --
  src/runtime/sys_windows_amd64.s | 2 --
  src/runtime/sys_windows_arm.s   | 2 --
  src/runtime/sys_windows_arm64.s | 2 --
  4 files changed, 8 deletions(-)
+
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index d120746bb6..d29049899e 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -111,8 +111,6 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
+ 	MOVL	$const_callbackLastVCH, CX
+ 	JMP	sigtramp<>(SB)
+ 
+-GLOBL runtime·cbctxts(SB), NOPTR, $4
+-
+ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+   	MOVL	0(SP), AX	// will use to find our callback context
+ 
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 5734a3a555..8780c45b1a 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -140,8 +140,6 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVQ	$const_callbackLastVCH, DX
+ 	JMP	sigtramp<>(SB)
+ 
+-GLOBL runtime·cbctxts(SB), NOPTR, $8
+-
+ TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
+ 	// Construct args vector for cgocallback().
+ 	// By windows/amd64 calling convention first 4 args are in CX, DX, R8, R9
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 78cc3333c7..f6496b8d05 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -131,8 +131,6 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$const_callbackLastVCH, R1
+ 	B	sigtramp<>(SB)
+ 
+-GLOBL runtime·cbctxts(SB), NOPTR, $4
+-
+ TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
+ 	// On entry, the trampoline in zcallback_windows_arm.s left
+ 	// the callback index in R12 (which is volatile in the C ABI).
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index ab6944c9ea..c78d37314a 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -155,8 +155,6 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	$const_callbackLastVCH, R1
+ 	B	sigtramp<>(SB)
+ 
+-GLOBL runtime·cbctxts(SB), NOPTR, $4
+-
+ TEXT runtime·callbackasm1(SB),NOSPLIT,$208-0
+ 	NO_LOCAL_POINTERS
+ 

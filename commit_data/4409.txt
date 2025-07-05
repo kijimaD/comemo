@@ -6,6 +6,20 @@ Date:   Mon Dec 14 09:14:00 2009 -0800
     
     R=rsc
     https://golang.org/cl/174078
-
+---
  src/cmd/godoc/godoc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index ec89d69a8a..62258ba65c 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -458,7 +458,7 @@ func (s *Styler) Token(tok token.Token) (text []byte, tag printer.HTMLTag) {
+ 
+ // Write an AST-node to w; optionally html-escaped.
+ func writeNode(w io.Writer, node interface{}, html bool, styler printer.Styler) {
+-	mode := printer.UseSpaces;
++	mode := printer.UseSpaces | printer.NoSemis;
+ 	if html {
+ 		mode |= printer.GenHTML
+ 	}

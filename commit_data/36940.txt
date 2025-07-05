@@ -9,6 +9,21 @@ Date:   Tue Jun 12 11:10:49 2018 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/rt0_darwin_arm64.s | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/runtime/rt0_darwin_arm64.s b/src/runtime/rt0_darwin_arm64.s
+index 960de06044..719944e626 100644
+--- a/src/runtime/rt0_darwin_arm64.s
++++ b/src/runtime/rt0_darwin_arm64.s
+@@ -8,8 +8,7 @@
+ // supports external linking.
+ TEXT _rt0_arm64_darwin(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	$42, R0
+-	MOVD	$1, R16	// SYS_exit
+-	SVC	$0x80
++	BL  libc_exit(SB)
+ 
+ // When linking with -buildmode=c-archive or -buildmode=c-shared,
+ // this symbol is called from a global initialization function.

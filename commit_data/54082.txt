@@ -12,6 +12,58 @@ Date:   Sat Aug 27 11:49:49 2022 +0800
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/crypto/tls/conn.go | 17 ++++++++---------
  1 file changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index b1a7dcc42f..21f693995e 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -109,10 +109,9 @@ type Conn struct {
+ 	// handshake, nor deliver application data. Protected by in.Mutex.
+ 	retryCount int
+ 
+-	// activeCall is an atomic int32; the low bit is whether Close has
+-	// been called. the rest of the bits are the number of goroutines
+-	// in Conn.Write.
+-	activeCall int32
++	// activeCall indicates whether Close has been call in the low bit.
++	// the rest of the bits are the number of goroutines in Conn.Write.
++	activeCall atomic.Int32
+ 
+ 	tmp [16]byte
+ }
+@@ -1108,15 +1107,15 @@ var (
+ func (c *Conn) Write(b []byte) (int, error) {
+ 	// interlock with Close below
+ 	for {
+-		x := atomic.LoadInt32(&c.activeCall)
++		x := c.activeCall.Load()
+ 		if x&1 != 0 {
+ 			return 0, net.ErrClosed
+ 		}
+-		if atomic.CompareAndSwapInt32(&c.activeCall, x, x+2) {
++		if c.activeCall.CompareAndSwap(x, x+2) {
+ 			break
+ 		}
+ 	}
+-	defer atomic.AddInt32(&c.activeCall, -2)
++	defer c.activeCall.Add(-2)
+ 
+ 	if err := c.Handshake(); err != nil {
+ 		return 0, err
+@@ -1317,11 +1316,11 @@ func (c *Conn) Close() error {
+ 	// Interlock with Conn.Write above.
+ 	var x int32
+ 	for {
+-		x = atomic.LoadInt32(&c.activeCall)
++		x = c.activeCall.Load()
+ 		if x&1 != 0 {
+ 			return net.ErrClosed
+ 		}
+-		if atomic.CompareAndSwapInt32(&c.activeCall, x, x|1) {
++		if c.activeCall.CompareAndSwap(x, x|1) {
+ 			break
+ 		}
+ 	}

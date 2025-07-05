@@ -14,7 +14,49 @@ Date:   Tue Nov 15 03:31:47 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/serve_test.go |  3 ---
  src/net/net_test.go        | 19 +++++++++++++++++++
  2 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 54b02a8b28..9715003be9 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -4907,9 +4907,6 @@ func get(t *testing.T, c *Client, url string) string {
+ // Tests that calls to Server.SetKeepAlivesEnabled(false) closes any
+ // currently-open connections.
+ func TestServerSetKeepAlivesEnabledClosesConns(t *testing.T) {
+-	if runtime.GOOS == "nacl" {
+-		t.Skip("skipping on nacl; see golang.org/issue/17695")
+-	}
+ 	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 640bcac808..9a9a7e552c 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -497,3 +497,22 @@ func TestReadTimeoutUnblocksRead(t *testing.T) {
+ 	}
+ 	withTCPConnPair(t, client, server)
+ }
++
++// Issue 17695: verify that a blocked Read is woken up by a Close.
++func TestCloseUnblocksRead(t *testing.T) {
++	t.Parallel()
++	server := func(cs *TCPConn) error {
++		// Give the client time to get stuck in a Read:
++		time.Sleep(20 * time.Millisecond)
++		cs.Close()
++		return nil
++	}
++	client := func(ss *TCPConn) error {
++		n, err := ss.Read([]byte{0})
++		if n != 0 || err != io.EOF {
++			return fmt.Errorf("Read = %v, %v; want 0, EOF", n, err)
++		}
++		return nil
++	}
++	withTCPConnPair(t, client, server)
++}

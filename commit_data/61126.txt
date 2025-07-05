@@ -13,8 +13,77 @@ Date:   Fri Aug 30 15:44:02 2024 -0700
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/cgo/internal/testerrors/errors_test.go         |  1 +
  src/cmd/cgo/internal/testerrors/testdata/issue69176.go | 12 ++++++++++++
  src/cmd/cgo/out.go                                     | 18 ++++++++++++++++--
  3 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testerrors/errors_test.go b/src/cmd/cgo/internal/testerrors/errors_test.go
+index 0780870fe0..941c7eff20 100644
+--- a/src/cmd/cgo/internal/testerrors/errors_test.go
++++ b/src/cmd/cgo/internal/testerrors/errors_test.go
+@@ -132,6 +132,7 @@ func TestReportsTypeErrors(t *testing.T) {
+ 		"issue50710.go",
+ 		"issue67517.go",
+ 		"issue67707.go",
++		"issue69176.go",
+ 	} {
+ 		check(t, file)
+ 	}
+diff --git a/src/cmd/cgo/internal/testerrors/testdata/issue69176.go b/src/cmd/cgo/internal/testerrors/testdata/issue69176.go
+new file mode 100644
+index 0000000000..e52b1f84c6
+--- /dev/null
++++ b/src/cmd/cgo/internal/testerrors/testdata/issue69176.go
+@@ -0,0 +1,12 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "C"
++
++type T = T // ERROR HERE
++
++//export F
++func F(p *T) {}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 0f58528c59..954c4b70c9 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1418,9 +1418,18 @@ var goTypes = map[string]*Type{
+ 
+ // Map an ast type to a Type.
+ func (p *Package) cgoType(e ast.Expr) *Type {
++	return p.doCgoType(e, make(map[ast.Expr]bool))
++}
++
++// Map an ast type to a Type, avoiding cycles.
++func (p *Package) doCgoType(e ast.Expr, m map[ast.Expr]bool) *Type {
++	if m[e] {
++		fatalf("%s: invalid recursive type", fset.Position(e.Pos()))
++	}
++	m[e] = true
+ 	switch t := e.(type) {
+ 	case *ast.StarExpr:
+-		x := p.cgoType(t.X)
++		x := p.doCgoType(t.X, m)
+ 		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("%s*", x.C)}
+ 	case *ast.ArrayType:
+ 		if t.Len == nil {
+@@ -1465,7 +1474,12 @@ func (p *Package) cgoType(e ast.Expr) *Type {
+ 					continue
+ 				}
+ 				if ts.Name.Name == t.Name {
+-					return p.cgoType(ts.Type)
++					// Give a better error than the one
++					// above if we detect a recursive type.
++					if m[ts.Type] {
++						fatalf("%s: invalid recursive type: %s refers to itself", fset.Position(e.Pos()), t.Name)
++					}
++					return p.doCgoType(ts.Type, m)
+ 				}
+ 			}
+ 		}

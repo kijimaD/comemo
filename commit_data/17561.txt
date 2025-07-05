@@ -18,6 +18,20 @@ Date:   Wed Sep 11 14:34:11 2013 -0400
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/13632053
-
+---
  src/cmd/api/goapi.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 7102e9d409..320474368f 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -110,6 +110,8 @@ func setContexts() {
+ func main() {
+ 	flag.Parse()
+ 
++	panic("yes, the api checks are really running")
++
+ 	if !strings.Contains(runtime.Version(), "weekly") && !strings.Contains(runtime.Version(), "devel") {
+ 		if *nextFile != "" {
+ 			fmt.Printf("Go version is %q, ignoring -next %s\n", runtime.Version(), *nextFile)

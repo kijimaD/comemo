@@ -13,6 +13,22 @@ Date:   Fri Feb 3 21:45:50 2017 +0100
     Change-Id: I3b6f1d17738a1759d7b62ab7b3ecef5b248d30ca
     Reviewed-on: https://go-review.googlesource.com/36330
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/rpc/jsonrpc/client.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/rpc/jsonrpc/client.go b/src/net/rpc/jsonrpc/client.go
+index da1b8165fc..e6359bed59 100644
+--- a/src/net/rpc/jsonrpc/client.go
++++ b/src/net/rpc/jsonrpc/client.go
+@@ -2,8 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package jsonrpc implements a JSON-RPC ClientCodec and ServerCodec
++// Package jsonrpc implements a JSON-RPC 1.0 ClientCodec and ServerCodec
+ // for the rpc package.
++// For JSON-RPC 2.0 support, see https://godoc.org/?q=json-rpc+2.0
+ package jsonrpc
+ 
+ import (

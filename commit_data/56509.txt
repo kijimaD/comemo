@@ -24,6 +24,20 @@ Date:   Fri May 5 21:38:02 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  misc/cgo/test/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index 9d9b14ee74..1529ca5928 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -2116,7 +2116,7 @@ func test27660(t *testing.T) {
+ // issue 28540
+ 
+ func twoargsF() {
+-	v := []string{}
++	var v struct{ p *byte }
+ 	C.twoargs1(C.twoargs2(), C.twoargs3(unsafe.Pointer(&v)))
+ }
+ 

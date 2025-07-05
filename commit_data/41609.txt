@@ -16,7 +16,7 @@ Date:   Tue Oct 8 17:22:20 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/goobj/readnew.go         | 11 +++++++
  src/cmd/internal/goobj2/funcinfo.go       | 52 ++++++++++++++++++++++++++++---
  src/cmd/internal/obj/objfile2.go          | 12 +++++++
@@ -26,3 +26,218 @@ Date:   Tue Oct 8 17:22:20 2019 -0400
  src/cmd/link/internal/objfile/objfile2.go | 11 +++++++
  src/cmd/link/internal/sym/symbol.go       |  2 +-
  8 files changed, 90 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/readnew.go b/src/cmd/internal/goobj/readnew.go
+index 9a9123a584..3074f8131e 100644
+--- a/src/cmd/internal/goobj/readnew.go
++++ b/src/cmd/internal/goobj/readnew.go
+@@ -154,6 +154,7 @@ func (r *objReader) readNew() {
+ 			PCData:   make([]Data, len(info.Pcdata)-1), // -1 as we appended one above
+ 			FuncData: make([]FuncData, len(info.Funcdataoff)),
+ 			File:     make([]string, len(info.File)),
++			InlTree:  make([]InlinedCall, len(info.InlTree)),
+ 		}
+ 		sym.Func = f
+ 		for k := range f.PCData {
+@@ -167,5 +168,15 @@ func (r *objReader) readNew() {
+ 			symID := resolveSymRef(info.File[k])
+ 			f.File[k] = symID.Name
+ 		}
++		for k := range f.InlTree {
++			inl := &info.InlTree[k]
++			f.InlTree[k] = InlinedCall{
++				Parent:   int64(inl.Parent),
++				File:     resolveSymRef(inl.File).Name,
++				Line:     int64(inl.Line),
++				Func:     resolveSymRef(inl.Func),
++				ParentPC: int64(inl.ParentPC),
++			}
++		}
+ 	}
+ }
+diff --git a/src/cmd/internal/goobj2/funcinfo.go b/src/cmd/internal/goobj2/funcinfo.go
+index 4de9b93a03..8620931970 100644
+--- a/src/cmd/internal/goobj2/funcinfo.go
++++ b/src/cmd/internal/goobj2/funcinfo.go
+@@ -28,7 +28,7 @@ type FuncInfo struct {
+ 	Funcdataoff []uint32
+ 	File        []SymRef // TODO: just use string?
+ 
+-	// TODO: InlTree
++	InlTree []InlTreeNode
+ }
+ 
+ func (a *FuncInfo) Write(w *bytes.Buffer) {
+@@ -61,8 +61,10 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
+ 		writeUint32(f.PkgIdx)
+ 		writeUint32(f.SymIdx)
+ 	}
+-
+-	// TODO: InlTree
++	writeUint32(uint32(len(a.InlTree)))
++	for i := range a.InlTree {
++		a.InlTree[i].Write(w)
++	}
+ }
+ 
+ func (a *FuncInfo) Read(b []byte) {
+@@ -98,6 +100,48 @@ func (a *FuncInfo) Read(b []byte) {
+ 	for i := range a.File {
+ 		a.File[i] = SymRef{readUint32(), readUint32()}
+ 	}
++	inltreelen := readUint32()
++	a.InlTree = make([]InlTreeNode, inltreelen)
++	for i := range a.InlTree {
++		b = a.InlTree[i].Read(b)
++	}
++}
++
++// InlTreeNode is the serialized form of FileInfo.InlTree.
++type InlTreeNode struct {
++	Parent   int32
++	File     SymRef
++	Line     int32
++	Func     SymRef
++	ParentPC int32
++}
++
++func (inl *InlTreeNode) Write(w *bytes.Buffer) {
++	var b [4]byte
++	writeUint32 := func(x uint32) {
++		binary.LittleEndian.PutUint32(b[:], x)
++		w.Write(b[:])
++	}
++	writeUint32(uint32(inl.Parent))
++	writeUint32(inl.File.PkgIdx)
++	writeUint32(inl.File.SymIdx)
++	writeUint32(uint32(inl.Line))
++	writeUint32(inl.Func.PkgIdx)
++	writeUint32(inl.Func.SymIdx)
++	writeUint32(uint32(inl.ParentPC))
++}
+ 
+-	// TODO: InlTree
++// Read an InlTreeNode from b, return the remaining bytes.
++func (inl *InlTreeNode) Read(b []byte) []byte {
++	readUint32 := func() uint32 {
++		x := binary.LittleEndian.Uint32(b)
++		b = b[4:]
++		return x
++	}
++	inl.Parent = int32(readUint32())
++	inl.File = SymRef{readUint32(), readUint32()}
++	inl.Line = int32(readUint32())
++	inl.Func = SymRef{readUint32(), readUint32()}
++	inl.ParentPC = int32(readUint32())
++	return b
+ }
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index f7d87fd9a3..843f6fb5ea 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -395,6 +395,18 @@ func genFuncInfoSyms(ctxt *Link) {
+ 			fsym := ctxt.Lookup(f)
+ 			o.File[i] = makeSymRef(fsym)
+ 		}
++		o.InlTree = make([]goobj2.InlTreeNode, len(pc.InlTree.nodes))
++		for i, inl := range pc.InlTree.nodes {
++			f, l := linkgetlineFromPos(ctxt, inl.Pos)
++			fsym := ctxt.Lookup(f)
++			o.InlTree[i] = goobj2.InlTreeNode{
++				Parent:   int32(inl.Parent),
++				File:     makeSymRef(fsym),
++				Line:     l,
++				Func:     makeSymRef(inl.Func),
++				ParentPC: inl.ParentPC,
++			}
++		}
+ 
+ 		o.Write(&b)
+ 		isym := &LSym{
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 39d294183d..de415695f3 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -277,6 +277,10 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
+ 						if call.Func != nil {
+ 							fn(call.Func)
+ 						}
++						f, _ := linkgetlineFromPos(ctxt, call.Pos)
++						if fsym := ctxt.Lookup(f); fsym != nil {
++							fn(fsym)
++						}
+ 					}
+ 				}
+ 			}
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index d9904f9093..5cfd1006fe 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -294,10 +294,10 @@ func (ctxt *Link) pclntab() {
+ 				// appears in the Pcfile table. In that case, this assigns
+ 				// the outer file a number.
+ 				numberfile(ctxt, call.File)
+-				nameoff := nameToOffset(call.Func.Name)
++				nameoff := nameToOffset(call.Func)
+ 
+ 				inlTreeSym.SetUint16(ctxt.Arch, int64(i*20+0), uint16(call.Parent))
+-				inlTreeSym.SetUint8(ctxt.Arch, int64(i*20+2), uint8(objabi.GetFuncID(call.Func.Name, call.Func.File)))
++				inlTreeSym.SetUint8(ctxt.Arch, int64(i*20+2), uint8(objabi.GetFuncID(call.Func, "")))
+ 				// byte 3 is unused
+ 				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+4), uint32(call.File.Value))
+ 				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+8), uint32(call.Line))
+diff --git a/src/cmd/link/internal/objfile/objfile.go b/src/cmd/link/internal/objfile/objfile.go
+index 3a4ba8224c..a15d3c3e07 100644
+--- a/src/cmd/link/internal/objfile/objfile.go
++++ b/src/cmd/link/internal/objfile/objfile.go
+@@ -369,7 +369,7 @@ overwrite:
+ 			pc.InlTree[i].Parent = r.readInt32()
+ 			pc.InlTree[i].File = r.readSymIndex()
+ 			pc.InlTree[i].Line = r.readInt32()
+-			pc.InlTree[i].Func = r.readSymIndex()
++			pc.InlTree[i].Func = r.readSymIndex().Name
+ 			pc.InlTree[i].ParentPC = r.readInt32()
+ 		}
+ 
+diff --git a/src/cmd/link/internal/objfile/objfile2.go b/src/cmd/link/internal/objfile/objfile2.go
+index b37a665f43..21454cf247 100644
+--- a/src/cmd/link/internal/objfile/objfile2.go
++++ b/src/cmd/link/internal/objfile/objfile2.go
+@@ -699,6 +699,7 @@ func loadObjFull(l *Loader, r *oReader) {
+ 		pc.Pcdata = make([]sym.Pcdata, len(info.Pcdata)-1) // -1 as we appended one above
+ 		pc.Funcdataoff = make([]int64, len(info.Funcdataoff))
+ 		pc.File = make([]*sym.Symbol, len(info.File))
++		pc.InlTree = make([]sym.InlinedCall, len(info.InlTree))
+ 		pc.Pcsp.P = r.BytesAt(pcdataBase+info.Pcsp, int(info.Pcfile-info.Pcsp))
+ 		pc.Pcfile.P = r.BytesAt(pcdataBase+info.Pcfile, int(info.Pcline-info.Pcfile))
+ 		pc.Pcline.P = r.BytesAt(pcdataBase+info.Pcline, int(info.Pcinline-info.Pcline))
+@@ -712,6 +713,16 @@ func loadObjFull(l *Loader, r *oReader) {
+ 		for k := range pc.File {
+ 			pc.File[k] = resolveSymRef(info.File[k])
+ 		}
++		for k := range pc.InlTree {
++			inl := &info.InlTree[k]
++			pc.InlTree[k] = sym.InlinedCall{
++				Parent:   inl.Parent,
++				File:     resolveSymRef(inl.File),
++				Line:     inl.Line,
++				Func:     l.SymName(l.Resolve(r, inl.Func)),
++				ParentPC: inl.ParentPC,
++			}
++		}
+ 
+ 		if !dupok {
+ 			if s.Attr.OnList() {
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index 698f8ee653..e9819a064f 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -534,7 +534,7 @@ type InlinedCall struct {
+ 	Parent   int32   // index of parent in InlTree
+ 	File     *Symbol // file of the inlined call
+ 	Line     int32   // line number of the inlined call
+-	Func     *Symbol // function that was inlined
++	Func     string  // name of the function that was inlined
+ 	ParentPC int32   // PC of the instruction just before the inlined body (offset from function start)
+ }
+ 

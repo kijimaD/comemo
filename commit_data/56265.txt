@@ -12,7 +12,7 @@ Date:   Wed Apr 19 13:21:02 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/obj/arm/obj5.go     |  8 ++++----
  src/cmd/internal/obj/arm64/obj7.go   | 10 +++++-----
  src/cmd/internal/obj/loong64/obj.go  |  7 +++----
@@ -26,3 +26,432 @@ Date:   Wed Apr 19 13:21:02 2023 -0400
  src/internal/abi/stack.go            | 25 +++++++++++++++++++++++++
  src/runtime/stack.go                 | 14 +-------------
  12 files changed, 66 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 285fb885cb..fb7c260f89 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -709,7 +709,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	// unnecessarily. See issue #35470.
+ 	p = c.ctxt.StartUnsafePoint(p, c.newprog)
+ 
+-	if framesize <= objabi.StackSmall {
++	if framesize <= abi.StackSmall {
+ 		// small stack: SP < stackguard
+ 		//	CMP	stackguard, SP
+ 		p = obj.Appendp(p, c.newprog)
+@@ -718,7 +718,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = REG_R1
+ 		p.Reg = REGSP
+-	} else if framesize <= objabi.StackBig {
++	} else if framesize <= abi.StackBig {
+ 		// large stack: SP-framesize < stackguard-StackSmall
+ 		//	MOVW $-(framesize-StackSmall)(SP), R2
+ 		//	CMP stackguard, R2
+@@ -727,7 +727,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.As = AMOVW
+ 		p.From.Type = obj.TYPE_ADDR
+ 		p.From.Reg = REGSP
+-		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
++		p.From.Offset = -(int64(framesize) - abi.StackSmall)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REG_R2
+ 
+@@ -754,7 +754,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.As = ASUB
+ 		p.Scond = C_SBIT
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(framesize) - objabi.StackSmall
++		p.From.Offset = int64(framesize) - abi.StackSmall
+ 		p.Reg = REGSP
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REG_R2
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index fca064a85b..f963f62dcd 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -170,7 +170,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	p = c.ctxt.StartUnsafePoint(p, c.newprog)
+ 
+ 	q := (*obj.Prog)(nil)
+-	if framesize <= objabi.StackSmall {
++	if framesize <= abi.StackSmall {
+ 		// small stack: SP < stackguard
+ 		//	CMP	stackguard, SP
+ 
+@@ -179,7 +179,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = REGRT1
+ 		p.Reg = REGSP
+-	} else if framesize <= objabi.StackBig {
++	} else if framesize <= abi.StackBig {
+ 		// large stack: SP-framesize < stackguard-StackSmall
+ 		//	SUB	$(framesize-StackSmall), SP, RT2
+ 		//	CMP	stackguard, RT2
+@@ -187,7 +187,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 
+ 		p.As = ASUB
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(framesize) - objabi.StackSmall
++		p.From.Offset = int64(framesize) - abi.StackSmall
+ 		p.Reg = REGSP
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REGRT2
+@@ -213,7 +213,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		p = obj.Appendp(p, c.newprog)
+ 		p.As = ASUBS
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(framesize) - objabi.StackSmall
++		p.From.Offset = int64(framesize) - abi.StackSmall
+ 		p.Reg = REGSP
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REGRT2
+@@ -583,7 +583,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				}
+ 			}
+ 
+-			if p.Mark&LEAF != 0 && c.autosize < objabi.StackSmall {
++			if p.Mark&LEAF != 0 && c.autosize < abi.StackSmall {
+ 				// A leaf function with a small stack can be marked
+ 				// NOSPLIT, avoiding a stack check.
+ 				p.From.Sym.Set(obj.AttrNoSplit, true)
+diff --git a/src/cmd/internal/obj/loong64/obj.go b/src/cmd/internal/obj/loong64/obj.go
+index 86a0bdd015..1eedd46c69 100644
+--- a/src/cmd/internal/obj/loong64/obj.go
++++ b/src/cmd/internal/obj/loong64/obj.go
+@@ -6,7 +6,6 @@ package loong64
+ 
+ import (
+ 	"cmd/internal/obj"
+-	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"internal/abi"
+ 	"log"
+@@ -594,7 +593,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	p = c.ctxt.StartUnsafePoint(p, c.newprog)
+ 
+ 	var q *obj.Prog
+-	if framesize <= objabi.StackSmall {
++	if framesize <= abi.StackSmall {
+ 		// small stack: SP < stackguard
+ 		//	AGTU	SP, stackguard, R19
+ 		p = obj.Appendp(p, c.newprog)
+@@ -607,8 +606,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.To.Reg = REG_R19
+ 	} else {
+ 		// large stack: SP-framesize < stackguard-StackSmall
+-		offset := int64(framesize) - objabi.StackSmall
+-		if framesize > objabi.StackBig {
++		offset := int64(framesize) - abi.StackSmall
++		if framesize > abi.StackBig {
+ 			// Such a large stack we need to protect against underflow.
+ 			// The runtime guarantees SP > objabi.StackBig, but
+ 			// framesize is large enough that SP-framesize may
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index e8b9c31c60..d3a8566958 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -31,7 +31,6 @@ package mips
+ 
+ import (
+ 	"cmd/internal/obj"
+-	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"encoding/binary"
+ 	"fmt"
+@@ -775,7 +774,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	p = c.ctxt.StartUnsafePoint(p, c.newprog)
+ 
+ 	var q *obj.Prog
+-	if framesize <= objabi.StackSmall {
++	if framesize <= abi.StackSmall {
+ 		// small stack: SP < stackguard
+ 		//	AGTU	SP, stackguard, R1
+ 		p = obj.Appendp(p, c.newprog)
+@@ -788,8 +787,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.To.Reg = REG_R1
+ 	} else {
+ 		// large stack: SP-framesize < stackguard-StackSmall
+-		offset := int64(framesize) - objabi.StackSmall
+-		if framesize > objabi.StackBig {
++		offset := int64(framesize) - abi.StackSmall
++		if framesize > abi.StackBig {
+ 			// Such a large stack we need to protect against underflow.
+ 			// The runtime guarantees SP > objabi.StackBig, but
+ 			// framesize is large enough that SP-framesize may
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index a0ef526855..e10cd56e04 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -633,7 +633,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				autosize += int32(c.ctxt.Arch.FixedFrameSize)
+ 			}
+ 
+-			if p.Mark&LEAF != 0 && autosize < objabi.StackSmall {
++			if p.Mark&LEAF != 0 && autosize < abi.StackSmall {
+ 				// A leaf function with a small stack can be marked
+ 				// NOSPLIT, avoiding a stack check.
+ 				p.From.Sym.Set(obj.AttrNoSplit, true)
+@@ -1178,7 +1178,7 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	p = c.ctxt.StartUnsafePoint(p, c.newprog)
+ 
+ 	var q *obj.Prog
+-	if framesize <= objabi.StackSmall {
++	if framesize <= abi.StackSmall {
+ 		// small stack: SP < stackguard
+ 		//	CMP	stackguard, SP
+ 		p = obj.Appendp(p, c.newprog)
+@@ -1190,8 +1190,8 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.To.Reg = REGSP
+ 	} else {
+ 		// large stack: SP-framesize < stackguard-StackSmall
+-		offset := int64(framesize) - objabi.StackSmall
+-		if framesize > objabi.StackBig {
++		offset := int64(framesize) - abi.StackSmall
++		if framesize > abi.StackBig {
+ 			// Such a large stack we need to protect against underflow.
+ 			// The runtime guarantees SP > objabi.StackBig, but
+ 			// framesize is large enough that SP-framesize may
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 38ea19531d..68a25c7f15 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -829,7 +829,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
+ 
+ 	var to_done, to_more *obj.Prog
+ 
+-	if framesize <= objabi.StackSmall {
++	if framesize <= abi.StackSmall {
+ 		// small stack
+ 		//	// if SP > stackguard { goto done }
+ 		//	BLTU	stackguard, SP, done
+@@ -842,8 +842,8 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
+ 		to_done = p
+ 	} else {
+ 		// large stack: SP-framesize < stackguard-StackSmall
+-		offset := int64(framesize) - objabi.StackSmall
+-		if framesize > objabi.StackBig {
++		offset := int64(framesize) - abi.StackSmall
++		if framesize > abi.StackBig {
+ 			// Such a large stack we need to protect against underflow.
+ 			// The runtime guarantees SP > objabi.StackBig, but
+ 			// framesize is large enough that SP-framesize may
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 3bab614af6..80b233d832 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -314,7 +314,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				autosize += int32(c.ctxt.Arch.FixedFrameSize)
+ 			}
+ 
+-			if p.Mark&LEAF != 0 && autosize < objabi.StackSmall {
++			if p.Mark&LEAF != 0 && autosize < abi.StackSmall {
+ 				// A leaf function with a small stack can be marked
+ 				// NOSPLIT, avoiding a stack check.
+ 				p.From.Sym.Set(obj.AttrNoSplit, true)
+@@ -663,7 +663,7 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (pPre, pPreempt, pCh
+ 	// unnecessarily. See issue #35470.
+ 	p = c.ctxt.StartUnsafePoint(p, c.newprog)
+ 
+-	if framesize <= objabi.StackSmall {
++	if framesize <= abi.StackSmall {
+ 		// small stack: SP < stackguard
+ 		//	CMPUBGE	stackguard, SP, label-of-call-to-morestack
+ 
+@@ -679,8 +679,8 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (pPre, pPreempt, pCh
+ 
+ 	// large stack: SP-framesize < stackguard-StackSmall
+ 
+-	offset := int64(framesize) - objabi.StackSmall
+-	if framesize > objabi.StackBig {
++	offset := int64(framesize) - abi.StackSmall
++	if framesize > abi.StackBig {
+ 		// Such a large stack we need to protect against underflow.
+ 		// The runtime guarantees SP > objabi.StackBig, but
+ 		// framesize is large enough that SP-framesize may
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index 6bf49c602d..83b9329f12 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/internal/sys"
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/abi"
+ 	"io"
+ 	"math"
+ )
+@@ -472,7 +473,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	if needMoreStack {
+ 		p := pMorestack
+ 
+-		if framesize <= objabi.StackSmall {
++		if framesize <= abi.StackSmall {
+ 			// small stack: SP <= stackguard
+ 			// Get SP
+ 			// Get g
+@@ -500,7 +501,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 			p = appendp(p, AGet, regAddr(REGG))
+ 			p = appendp(p, AI32WrapI64)
+ 			p = appendp(p, AI32Load, constAddr(2*int64(ctxt.Arch.PtrSize))) // G.stackguard0
+-			p = appendp(p, AI32Const, constAddr(framesize-objabi.StackSmall))
++			p = appendp(p, AI32Const, constAddr(framesize-abi.StackSmall))
+ 			p = appendp(p, AI32Add)
+ 			p = appendp(p, AI32LeU)
+ 		}
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 7f202dadca..46a136d481 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -642,7 +642,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	// TODO(rsc): Remove 'ctxt.Arch.Family == sys.AMD64 &&'.
+-	if ctxt.Arch.Family == sys.AMD64 && autoffset < objabi.StackSmall && !p.From.Sym.NoSplit() {
++	if ctxt.Arch.Family == sys.AMD64 && autoffset < abi.StackSmall && !p.From.Sym.NoSplit() {
+ 		leaf := true
+ 	LeafSearch:
+ 		for q := p; q != nil; q = q.Link {
+@@ -656,7 +656,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				}
+ 				fallthrough
+ 			case obj.ADUFFCOPY, obj.ADUFFZERO:
+-				if autoffset >= objabi.StackSmall-8 {
++				if autoffset >= abi.StackSmall-8 {
+ 					leaf = false
+ 					break LeafSearch
+ 				}
+@@ -1088,7 +1088,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 	p, rg = loadG(ctxt, cursym, p, newprog)
+ 
+ 	var q1 *obj.Prog
+-	if framesize <= objabi.StackSmall {
++	if framesize <= abi.StackSmall {
+ 		// small stack: SP <= stackguard
+ 		//	CMPQ SP, stackguard
+ 		p = obj.Appendp(p, newprog)
+@@ -1108,7 +1108,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 		// cleared, but we'll still call morestack, which will double the stack
+ 		// unnecessarily. See issue #35470.
+ 		p = ctxt.StartUnsafePoint(p, newprog)
+-	} else if framesize <= objabi.StackBig {
++	} else if framesize <= abi.StackBig {
+ 		// large stack: SP-framesize <= stackguard-StackSmall
+ 		//	LEAQ -xxx(SP), tmp
+ 		//	CMPQ tmp, stackguard
+@@ -1117,7 +1117,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 		p.As = lea
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = REG_SP
+-		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
++		p.From.Offset = -(int64(framesize) - abi.StackSmall)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = tmp
+ 
+@@ -1160,7 +1160,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 		p = obj.Appendp(p, newprog)
+ 		p.As = sub
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(framesize) - objabi.StackSmall
++		p.From.Offset = int64(framesize) - abi.StackSmall
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = tmp
+ 
+diff --git a/src/cmd/internal/objabi/stack.go b/src/cmd/internal/objabi/stack.go
+index 88b4990d5e..5a2f641a75 100644
+--- a/src/cmd/internal/objabi/stack.go
++++ b/src/cmd/internal/objabi/stack.go
+@@ -4,21 +4,22 @@
+ 
+ package objabi
+ 
+-import "internal/buildcfg"
++import (
++	"internal/abi"
++	"internal/buildcfg"
++)
+ 
+ // For the linkers. Must match Go definitions.
+ 
+ const (
+ 	STACKSYSTEM = 0
+ 	StackSystem = STACKSYSTEM
+-	StackBig    = 4096
+-	StackSmall  = 128
+ )
+ 
+ func StackLimit(race bool) int {
+ 	// This arithmetic must match that in runtime/stack.go:{_StackGuard,_StackLimit}.
+ 	stackGuard := 928*stackGuardMultiplier(race) + StackSystem
+-	stackLimit := stackGuard - StackSystem - StackSmall
++	stackLimit := stackGuard - StackSystem - abi.StackSmall
+ 	return stackLimit
+ }
+ 
+diff --git a/src/internal/abi/stack.go b/src/internal/abi/stack.go
+new file mode 100644
+index 0000000000..9efd21b167
+--- /dev/null
++++ b/src/internal/abi/stack.go
+@@ -0,0 +1,25 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package abi
++
++const (
++	// We have three different sequences for stack bounds checks, depending on
++	// whether the stack frame of a function is small, big, or huge.
++
++	// After a stack split check the SP is allowed to be StackSmall bytes below
++	// the stack guard.
++	//
++	// Functions that need frames <= StackSmall can perform the stack check
++	// using a single comparison directly between the stack guard and the SP
++	// because we ensure that StackSmall bytes of stack space are available
++	// beyond the stack guard.
++	StackSmall = 128
++
++	// Functions that need frames <= StackBig can assume that neither
++	// SP-framesize nor stackGuard-StackSmall will underflow, and thus use a
++	// more efficient check. In order to ensure this, StackBig must be <= the
++	// size of the unmapped space at zero.
++	StackBig = 4096
++)
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index a1095382d3..6d75301556 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -85,13 +85,6 @@ const (
+ 	_FixedStack6 = _FixedStack5 | (_FixedStack5 >> 16)
+ 	_FixedStack  = _FixedStack6 + 1
+ 
+-	// Functions that need frames bigger than this use an extra
+-	// instruction to do the stack split check, to avoid overflow
+-	// in case SP - framesize wraps below zero.
+-	// This value can be no bigger than the size of the unmapped
+-	// space at zero.
+-	_StackBig = 4096
+-
+ 	// The stack guard is a pointer this many bytes above the
+ 	// bottom of the stack.
+ 	//
+@@ -101,15 +94,10 @@ const (
+ 	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackLimit.
+ 	_StackGuard = 928*sys.StackGuardMultiplier + _StackSystem
+ 
+-	// After a stack split check the SP is allowed to be this
+-	// many bytes below the stack guard. This saves an instruction
+-	// in the checking sequence for tiny frames.
+-	_StackSmall = 128
+-
+ 	// The maximum number of bytes that a chain of NOSPLIT
+ 	// functions can use.
+ 	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackLimit.
+-	_StackLimit = _StackGuard - _StackSystem - _StackSmall
++	_StackLimit = _StackGuard - _StackSystem - abi.StackSmall
+ )
+ 
+ const (

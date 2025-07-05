@@ -12,7 +12,44 @@ Date:   Wed Feb 19 11:29:36 2014 -0800
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/65850043
-
+---
  src/cmd/gc/typecheck.c      |  2 +-
  test/fixedbugs/issue7150.go | 17 +++++++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 0ef497f62d..6b5ad81886 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2503,7 +2503,7 @@ typecheckcomplit(Node **np)
+ 				len = i;
+ 				if(t->bound >= 0 && len > t->bound) {
+ 					setlineno(l);
+-					yyerror("array index %d out of bounds [0:%d]", len, t->bound);
++					yyerror("array index %d out of bounds [0:%d]", len-1, t->bound);
+ 					t->bound = -1;	// no more errors
+ 				}
+ 			}
+diff --git a/test/fixedbugs/issue7150.go b/test/fixedbugs/issue7150.go
+new file mode 100644
+index 0000000000..264958a089
+--- /dev/null
++++ b/test/fixedbugs/issue7150.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 7150: array index out of bounds error off by one
++
++package main
++
++func main() {
++	_ = [0]int{-1: 50}              // ERROR "array index must be non-negative integer constant"
++	_ = [0]int{0: 0}                // ERROR "array index 0 out of bounds \[0:0\]"
++	_ = [0]int{5: 25}               // ERROR "array index 5 out of bounds \[0:0\]"
++	_ = [10]int{2: 10, 15: 30}      // ERROR "array index 15 out of bounds \[0:10\]"
++	_ = [10]int{5: 5, 1: 1, 12: 12} // ERROR "array index 12 out of bounds \[0:10\]"
++}

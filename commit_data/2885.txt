@@ -7,7 +7,7 @@ Date:   Wed Aug 5 02:33:30 2009 -0700
     R=ken
     OCL=32780
     CL=32780
-
+---
  src/cmd/gc/Makefile    |   1 +
  src/cmd/gc/dcl.c       |  61 +++++------
  src/cmd/gc/go.h        |   9 +-
@@ -18,3 +18,892 @@ Date:   Wed Aug 5 02:33:30 2009 -0700
  src/cmd/gc/typecheck.c |  12 ++-
  src/cmd/gc/walk.c      | 267 ++-----------------------------------------------
  9 files changed, 286 insertions(+), 363 deletions(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 55b61ce8b3..217c5c45ff 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -30,6 +30,7 @@ OFILES=\
+ 	mparith3.$O\
+ 	obj.$O\
+ 	print.$O\
++	range.$O\
+ 	reflect.$O\
+ 	select.$O\
+ 	sinit.$O\
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index fadf7fa231..4bbbae14c7 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -594,39 +594,12 @@ colasname(Node *n)
+ 	return 0;
+ }
+ 
+-Node*
+-old2new(Node *n, Type *t, NodeList **init)
+-{
+-	Node *l;
+-
+-	if(!colasname(n)) {
+-		yyerror("left side of := must be a name");
+-		return n;
+-	}
+-	if(t != T && t->funarg) {
+-		yyerror("use of multi func value as single value in :=");
+-		return n;
+-	}
+-	l = newname(n->sym);
+-	dodclvar(l, t, init);
+-	return l;
+-}
+-
+-Node*
+-colas(NodeList *left, NodeList *right)
++void
++colasdefn(NodeList *left, Node *defn)
+ {
+ 	int nnew;
+-	Node *n, *as;
+ 	NodeList *l;
+-
+-	if(count(left) == 1 && count(right) == 1)
+-		as = nod(OAS, left->n, right->n);
+-	else {
+-		as = nod(OAS2, N, N);
+-		as->list = left;
+-		as->rlist = right;
+-	}
+-	as->colas = 1;
++	Node *n;
+ 
+ 	nnew = 0;
+ 	for(l=left; l; l=l->next) {
+@@ -640,14 +613,34 @@ colas(NodeList *left, NodeList *right)
+ 		nnew++;
+ 		n = newname(n->sym);
+ 		declare(n, dclcontext);
+-		if(as->op == OAS)
+-			as->left = n;
+-		n->defn = as;
+-		as->ninit = list(as->ninit, nod(ODCL, n, N));
++		n->defn = defn;
++		defn->ninit = list(defn->ninit, nod(ODCL, n, N));
+ 		l->n = n;
+ 	}
+ 	if(nnew == 0)
+ 		yyerror("no new variables on left side of :=");
++}
++
++Node*
++colas(NodeList *left, NodeList *right)
++{
++	Node *as;
++
++	as = nod(OAS2, N, N);
++	as->list = left;
++	as->rlist = right;
++	as->colas = 1;
++	colasdefn(left, as);
++
++	// make the tree prettier; not necessary
++	if(count(left) == 1 && count(right) == 1) {
++		as->left = as->list->n;
++		as->right = as->rlist->n;
++		as->list = nil;
++		as->rlist = nil;
++		as->op = OAS;
++	}
++
+ 	return as;
+ }
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index c55e94f5fd..d77b11f84d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -332,7 +332,7 @@ enum
+ 	OCOMPSLICE, OCOMPMAP,
+ 	OCONV, OCONVNOP, OCONVA2S, OCONVIFACE, OCONVSLICE,
+ 	ODCL, ODCLFUNC, ODCLFIELD, ODCLARG,
+-	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
++	ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT,
+ 	ODOTTYPE,
+ 	OEQ, ONE, OLT, OLE, OGE, OGT,
+ 	OFUNC,
+@@ -948,6 +948,7 @@ void	walkconv(Node**, NodeList**);
+ void	walkdottype(Node*, NodeList**);
+ void	walkas(Node*);
+ void	walkswitch(Node*);
++void	walkrange(Node*);
+ void	walkselect(Node*);
+ void	walkdot(Node*, NodeList**);
+ void	walkexpr(Node**, NodeList**);
+@@ -967,22 +968,22 @@ void	ifacecheck(Type*, Type*, int, int);
+ void	runifacechecks(void);
+ Node*	convas(Node*, NodeList**);
+ Node*	colas(NodeList*, NodeList*);
+-Node*	dorange(Node*);
++void	colasdefn(NodeList*, Node*);
+ NodeList*	reorder1(NodeList*);
+ NodeList*	reorder3(NodeList*);
+ NodeList*	reorder4(NodeList*);
+ Node*	structlit(Node*, Node*, NodeList**);
+ Node*	arraylit(Node*, Node*, NodeList**);
+ Node*	maplit(Node*, Node*, NodeList**);
+-Node*	selectas(Node*, Node*, NodeList**);
+-Node*	old2new(Node*, Type*, NodeList**);
+ void	heapmoves(void);
+ void	walkdeflist(NodeList*);
+ void	walkdef(Node*);
+ void	typechecklist(NodeList*, int);
+ void	typecheckswitch(Node*);
+ void	typecheckselect(Node*);
++void	typecheckrange(Node*);
+ Node*	typecheckconv(Node*, Node*, Type*, int);
++int	checkconv(Type*, Type*, int, int*, int*);
+ Node*	typecheck(Node**, int);
+ 
+ /*
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 0525cf8f2a..bdb45f4042 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -464,8 +464,7 @@ simple_stmt:
+ case:
+ 	LCASE expr_or_type_list ':'
+ 	{
+-		int e;
+-		Node *n;
++		Node *n, *ntype;
+ 
+ 		// will be converted to OCASE
+ 		// right will point to next case
+@@ -474,29 +473,18 @@ case:
+ 		$$ = nod(OXCASE, N, N);
+ 		if(typeswvar != N && typeswvar->right != N) {
+ 			// type switch
+-			n = $2->n;
++			ntype = $2->n;
+ 			if($2->next != nil)
+ 				yyerror("type switch case cannot be list");
+-			if(n->op == OLITERAL && n->val.ctype == CTNIL) {
++			if(ntype->op == OLITERAL && ntype->val.ctype == CTNIL) {
+ 				// case nil
+ 				$$->list = list1(nod(OTYPECASE, N, N));
+ 				break;
+ 			}
+-
+-			// TODO: move
+-			e = nerrors;
+-			typecheck(&n, Etype | Erv);
+-			if(n->op == OTYPE) {
+-				n = old2new(typeswvar->right, n->type, &$$->ninit);
+-				$$->list = list1(nod(OTYPECASE, n, N));
+-				break;
+-			}
+-			// maybe typecheck found problems that keep
+-			// e from being valid even outside a type switch.
+-			// only complain if typecheck didn't print new errors.
+-			if(nerrors == e)
+-				yyerror("non-type case in type switch");
+-			$$->diag = 1;
++			n = newname(typeswvar->right->sym);
++			declare(n, dclcontext);
++			n->ntype = ntype;
++			$$->list = list1(nod(OTYPECASE, n, N));
+ 		} else {
+ 			// expr switch
+ 			$$->list = $2;
+@@ -519,7 +507,6 @@ case:
+ 		// done in casebody()
+ 		poptodcl();
+ 		$$ = nod(OXCASE, N, N);
+-//		$$->list = list1(nod(OAS, selectas($2, $4, &$$->ninit), $4));
+ 		$$->list = list1(colas(list1($2), list1($4)));
+ 	}
+ |	LDEFAULT ':'
+@@ -590,7 +577,8 @@ range_stmt:
+ 	{
+ 		$$ = nod(ORANGE, N, $4);
+ 		$$->list = $1;
+-		$$->etype = 1;
++		$$->colas = 1;
++		colasdefn($1, $$);
+ 	}
+ 
+ for_header:
+@@ -612,9 +600,6 @@ for_header:
+ 		$$->ntest = $1;
+ 	}
+ |	range_stmt
+-	{
+-		$$ = dorange($1);
+-	}
+ 
+ for_body:
+ 	for_header loop_body
+@@ -850,8 +835,7 @@ pexpr:
+ 			$$ = oldname(s);
+ 			break;
+ 		}
+-		$$ = nod(ODOT, $1, newname($3));
+-		$$ = adddot($$);
++		$$ = nod(OXDOT, $1, newname($3));
+ 	}
+ |	'(' expr_or_type ')'
+ 	{
+@@ -1041,8 +1025,7 @@ dotname:
+ 			$$ = oldname(s);
+ 			break;
+ 		}
+-		$$ = nod(ODOT, $1, newname($3));
+-		$$ = adddot($$);
++		$$ = nod(OXDOT, $1, newname($3));
+ 	}
+ 
+ othertype:
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+new file mode 100644
+index 0000000000..bc51ee6ac4
+--- /dev/null
++++ b/src/cmd/gc/range.c
+@@ -0,0 +1,216 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * range
++ */
++
++#include "go.h"
++
++void
++typecheckrange(Node *n)
++{
++	int op, et;
++	Type *t, *t1, *t2;
++	Node *v1, *v2;
++	NodeList *ll;
++
++	// delicate little dance.  see typecheckas2
++	for(ll=n->list; ll; ll=ll->next)
++		if(ll->n->defn != n)
++			typecheck(&ll->n, Erv);
++
++	typecheck(&n->right, Erv);
++	if((t = n->right->type) == T)
++		goto out;
++	n->type = t;
++
++	switch(t->etype) {
++	default:
++		yyerror("cannot range over %+N", n->right);
++		goto out;
++
++	case TARRAY:
++		t1 = types[TINT];
++		t2 = t->type;
++		break;
++
++	case TMAP:
++		t1 = t->down;
++		t2 = t->type;
++		break;
++
++	case TCHAN:
++		t1 = t->type;
++		t2 = nil;
++		if(count(n->list) == 2)
++			goto toomany;
++		break;
++
++	case TSTRING:
++		t1 = types[TINT];
++		t2 = types[TINT];
++		break;
++	}
++
++	if(count(n->list) > 2) {
++	toomany:
++		yyerror("too many variables in range");
++	}
++
++	v1 = n->list->n;
++	v2 = N;
++	if(n->list->next)
++		v2 = n->list->next->n;
++
++	if(v1->defn == n)
++		v1->type = t1;
++	else if(v1->type != T && checkconv(t1, v1->type, 0, &op, &et) < 0)
++		yyerror("cannot assign type %T to %+N", t1, v1);
++	if(v2) {
++		if(v2->defn == n)
++			v2->type = t2;
++		else if(v2->type != T && checkconv(t2, v2->type, 0, &op, &et) < 0)
++			yyerror("cannot assign type %T to %+N", t1, v1);
++	}
++
++out:
++	typechecklist(n->nbody, Etop);
++
++	// second half of dance
++	n->typecheck = 1;
++	for(ll=n->list; ll; ll=ll->next)
++		if(ll->n->typecheck == 0)
++			typecheck(&ll->n, Erv);
++}
++
++void
++walkrange(Node *n)
++{
++	Node *ohv1, *hv1, *hv2;	// hidden (old) val 1, 2
++	Node *ha, *hit;	// hidden aggregate, iterator
++	Node *a, *v1, *v2;	// not hidden aggregate, val 1, 2
++	Node *fn;
++	NodeList *body, *init;
++	Type *th, *t;
++
++	t = n->type;
++	init = nil;
++
++	a = n->right;
++	if(t->etype == TSTRING && !eqtype(t, types[TSTRING])) {
++		a = nod(OCONV, n->right, N);
++		a->type = types[TSTRING];
++	}
++	ha = nod(OXXX, N, N);
++	tempname(ha, a->type);
++	init = list(init, nod(OAS, ha, a));
++
++	v1 = n->list->n;
++	hv1 = N;
++
++	v2 = N;
++	if(n->list->next)
++		v2 = n->list->next->n;
++	hv2 = N;
++
++	switch(t->etype) {
++	default:
++		fatal("walkrange");
++
++	case TARRAY:
++		hv1 = nod(OXXX, N, n);
++		tempname(hv1, v1->type);
++
++		init = list(init, nod(OAS, hv1, N));
++		n->ntest = nod(OLT, hv1, nod(OLEN, ha, N));
++		n->nincr = nod(OASOP, hv1, nodintconst(1));
++		n->nincr->etype = OADD;
++		body = list1(nod(OAS, v1, hv1));
++		if(v2)
++			body = list(body, nod(OAS, v2, nod(OINDEX, ha, hv1)));
++		break;
++
++	case TMAP:
++		th = typ(TARRAY);
++		th->type = ptrto(types[TUINT8]);
++		th->bound = (sizeof(struct Hiter) + widthptr - 1) / widthptr;
++		hit = nod(OXXX, N, N);
++		tempname(hit, th);
++
++		fn = syslook("mapiterinit", 1);
++		argtype(fn, t->down);
++		argtype(fn, t->type);
++		argtype(fn, th);
++		init = list(init, mkcall1(fn, T, nil, ha, nod(OADDR, hit, N)));
++		n->ntest = nod(ONE, nod(OINDEX, hit, nodintconst(0)), nodnil());
++
++		fn = syslook("mapiternext", 1);
++		argtype(fn, th);
++		n->nincr = mkcall1(fn, T, nil, nod(OADDR, hit, N));
++
++		if(v2 == N) {
++			fn = syslook("mapiter1", 1);
++			argtype(fn, th);
++			argtype(fn, t->down);
++			a = nod(OAS, v1, mkcall1(fn, t->down, nil, nod(OADDR, hit, N)));
++		} else {
++			fn = syslook("mapiter2", 1);
++			argtype(fn, th);
++			argtype(fn, t->down);
++			argtype(fn, t->type);
++			a = nod(OAS2, N, N);
++			a->list = list(list1(v1), v2);
++			a->rlist = list1(mkcall1(fn, getoutargx(fn->type), nil, nod(OADDR, hit, N)));
++		}
++		body = list1(a);
++		break;
++
++	case TCHAN:
++		hv1 = nod(OXXX, N, n);
++		tempname(hv1, v1->type);
++
++		n->ntest = nod(ONOT, nod(OCLOSED, ha, N), N);
++		n->ntest->ninit = list1(nod(OAS, hv1, nod(ORECV, ha, N)));
++		body = list1(nod(OAS, v1, hv1));
++		break;
++
++	case TSTRING:
++		ohv1 = nod(OXXX, N, N);
++		tempname(ohv1, types[TINT]);
++
++		hv1 = nod(OXXX, N, N);
++		tempname(hv1, types[TINT]);
++		init = list(init, nod(OAS, hv1, N));
++
++		if(v2 == N)
++			a = nod(OAS, hv1, mkcall("stringiter", types[TINT], nil, ha, hv1));
++		else {
++			hv2 = nod(OXXX, N, N);
++			tempname(hv2, types[TINT]);
++			a = nod(OAS2, N, N);
++			a->list = list(list1(hv1), hv2);
++			fn = syslook("stringiter2", 0);
++			a->rlist = list1(mkcall1(fn, getoutargx(fn->type), nil, ha, hv1));
++		}
++		n->ntest = nod(ONE, hv1, nodintconst(0));
++		n->ntest->ninit = list(list1(nod(OAS, ohv1, hv1)), a);
++
++		body = list1(nod(OAS, v1, ohv1));
++		if(v2 != N)
++			body = list(body, nod(OAS, v2, hv2));
++		break;
++	}
++
++	n->op = OFOR;
++	typechecklist(init, Etop);
++	n->ninit = concat(n->ninit, init);
++	typechecklist(n->ntest->ninit, Etop);
++	typecheck(&n->ntest, Erv);
++	typecheck(&n->nincr, Etop);
++	typechecklist(body, Etop);
++	n->nbody = concat(body, n->nbody);
++	walkstmt(&n);
++}
++
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 7a90ae2c96..3f28b1c563 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -8,32 +8,6 @@
+ 
+ #include "go.h"
+ 
+-/*
+- * declare v in
+- *	case v := <-chan		// select and switch
+- * called during parse
+- */
+-Node*
+-selectas(Node *name, Node *expr, NodeList **init)
+-{
+-	Type *t;
+-
+-	if(expr == N || expr->op != ORECV)
+-		goto bad;
+-
+-	walkexpr(&expr->left, init);
+-	t = expr->left->type;
+-	if(t == T)
+-		goto bad;
+-	if(t->etype != TCHAN)
+-		goto bad;
+-	t = t->type;
+-	return old2new(name, t, init);
+-
+-bad:
+-	return name;
+-}
+-
+ void
+ typecheckselect(Node *sel)
+ {
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 71217d8af1..cf0811901c 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -582,11 +582,6 @@ dodump(Node *n, int dep)
+ 		print("%O-ntype\n", n->op);
+ 		dodump(n->ntype, dep+1);
+ 	}
+-	if(n->defn != nil && n->defn->op != OAS && n->defn->op != OAS2) {
+-		indent(dep);
+-		print("%O-defn\n", n->op);
+-		dodump(n->defn, dep+1);
+-	}
+ 	if(n->list != nil) {
+ 		indent(dep);
+ 		print("%O-list\n", n->op);
+@@ -597,6 +592,11 @@ dodump(Node *n, int dep)
+ 		print("%O-rlist\n", n->op);
+ 		dodumplist(n->rlist, dep+1);
+ 	}
++	if(n->nbody != nil) {
++		indent(dep);
++		print("%O-nbody\n", n->op);
++		dodumplist(n->nbody, dep+1);
++	}
+ }
+ 
+ void
+@@ -2466,10 +2466,8 @@ out:
+ 		yyerror("ambiguous DOT reference %T.%S", t, s);
+ 
+ 	// rebuild elided dots
+-	for(c=d-1; c>=0; c--) {
+-		n = nod(ODOT, n, n->right);
+-		n->left->right = newname(dotlist[c].field->sym);
+-	}
++	for(c=d-1; c>=0; c--)
++		n->left = nod(ODOT, n->left, newname(dotlist[c].field->sym));
+ ret:
+ 	return n;
+ }
+@@ -2705,7 +2703,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
+ 		args = list(args, l->n->left);
+ 
+ 	// generate call
+-	call = nod(OCALL, adddot(nod(ODOT, this->left, newname(method->sym))), N);
++	call = nod(OCALL, adddot(nod(OXDOT, this->left, newname(method->sym))), N);
+ 	call->list = args;
+ 	fn->nbody = list1(call);
+ 	if(method->type->outtuple > 0) {
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 177c2b589a..1deb60582d 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -12,7 +12,6 @@
+  *
+  * TODO:
+  *	trailing ... section of function calls
+- *	range
+  */
+ 
+ #include "go.h"
+@@ -376,6 +375,10 @@ reswitch:
+ 			goto error;
+ 		goto ret;
+ 
++	case OXDOT:
++		n = adddot(n);
++		n->op = ODOT;
++		// fall through
+ 	case ODOT:
+ 		l = typecheck(&n->left, Erv);
+ 		if((t = l->type) == T)
+@@ -882,6 +885,11 @@ reswitch:
+ 		typecheckswitch(n);
+ 		goto ret;
+ 
++	case ORANGE:
++		ok |= Etop;
++		typecheckrange(n);
++		goto ret;
++
+ 	case OTYPECASE:
+ 		ok |= Etop | Erv;
+ 		typecheck(&n->left, Erv);
+@@ -1069,7 +1077,7 @@ nokeys(NodeList *l)
+ 	return 1;
+ }
+ 
+-static int
++int
+ checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
+ {
+ 	*op = OCONV;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index e1f2d1bf8f..1121915b5f 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -285,7 +285,10 @@ walkstmt(Node **np)
+ 
+ 	case OFOR:
+ 		walkstmtlist(n->ninit);
+-		walkexpr(&n->ntest, &n->ntest->ninit);
++		if(n->ntest != N) {
++			walkstmtlist(n->ntest->ninit);
++			walkexpr(&n->ntest, &n->ntest->ninit);
++		}
+ 		walkstmt(&n->nincr);
+ 		walkstmtlist(n->nbody);
+ 		break;
+@@ -319,6 +322,10 @@ walkstmt(Node **np)
+ 		walkswitch(n);
+ 		break;
+ 
++	case ORANGE:
++		walkrange(n);
++		break;
++
+ 	case OXFALL:
+ 		yyerror("fallthrough statement out of place");
+ 		n->op = OFALL;
+@@ -1702,264 +1709,6 @@ out:
+ 	return n;
+ }
+ 
+-/*
+- * rewrite a range statement
+- * k and v are names/new_names
+- * m is an array or map
+- * local is 0 (meaning =) or 1 (meaning :=)
+- */
+-Node*
+-dorange(Node *nn)
+-{
+-	Node *k, *v, *m;
+-	Node *n, *hv, *hc, *ha, *hk, *ohk, *on, *r, *a, *as;
+-	NodeList *init, *args;
+-	Type *t, *th;
+-	int local;
+-	NodeList *nl;
+-
+-	if(nn->op != ORANGE)
+-		fatal("dorange not ORANGE");
+-
+-	nl = nn->list;
+-	k = nl->n;
+-	if((nl = nl->next) != nil) {
+-		v = nl->n;
+-		nl = nl->next;
+-	} else
+-		v = N;
+-	if(nl != nil)
+-		yyerror("too many variables in range");
+-
+-	n = nod(OFOR, N, N);
+-	init = nil;
+-
+-	typecheck(&nn->right, Erv);
+-	m = nn->right;
+-	local = nn->etype;
+-
+-	t = m->type;
+-	if(t == T)
+-		goto out;
+-	if(t->etype == TARRAY)
+-		goto ary;
+-	if(t->etype == TMAP)
+-		goto map;
+-	if(t->etype == TCHAN)
+-		goto chan;
+-	if(t->etype == TSTRING)
+-		goto strng;
+-
+-	yyerror("range must be over map/array/chan/string");
+-	goto out;
+-
+-ary:
+-	hk = nod(OXXX, N, N);		// hidden key
+-	tempname(hk, types[TINT]);
+-
+-	ha = nod(OXXX, N, N);		// hidden array
+-	tempname(ha, t);
+-
+-	a = nod(OAS, hk, nodintconst(0));
+-	init = list(init, a);
+-
+-	a = nod(OAS, ha, m);
+-	init = list(init, a);
+-
+-	n->ntest = nod(OLT, hk, nod(OLEN, ha, N));
+-	n->nincr = nod(OASOP, hk, nodintconst(1));
+-	n->nincr->etype = OADD;
+-
+-	if(local)
+-		k = old2new(k, hk->type, &init);
+-	n->nbody = list1(nod(OAS, k, hk));
+-
+-	if(v != N) {
+-		if(local)
+-			v = old2new(v, t->type, &init);
+-		n->nbody = list(n->nbody,
+-			nod(OAS, v, nod(OINDEX, ha, hk)) );
+-	}
+-	goto out;
+-
+-map:
+-	th = typ(TARRAY);
+-	th->type = ptrto(types[TUINT8]);
+-	th->bound = (sizeof(struct Hiter) + types[tptr]->width - 1) /
+-			types[tptr]->width;
+-	hk = nod(OXXX, N, N);		// hidden iterator
+-	tempname(hk, th);		// hashmap hash_iter
+-
+-	on = syslook("mapiterinit", 1);
+-	argtype(on, t->down);
+-	argtype(on, t->type);
+-	argtype(on, th);
+-	a = nod(OADDR, hk, N);
+-	r = nod(OCALL, on, N);
+-	r->list = list(list1(m), a);
+-
+-	init = list(init, r);
+-
+-	r = nod(OINDEX, hk, nodintconst(0));
+-	a = nod(OLITERAL, N, N);
+-	a->val.ctype = CTNIL;
+-	a->type = types[TNIL];
+-	r = nod(ONE, r, a);
+-	n->ntest = r;
+-
+-	on = syslook("mapiternext", 1);
+-	argtype(on, th);
+-	r = nod(OADDR, hk, N);
+-	args = list1(r);
+-	r = nod(OCALL, on, N);
+-	r->list = args;
+-	n->nincr = r;
+-
+-	if(local)
+-		k = old2new(k, t->down, &init);
+-	if(v == N) {
+-		on = syslook("mapiter1", 1);
+-		argtype(on, th);
+-		argtype(on, t->down);
+-		r = nod(OADDR, hk, N);
+-		args = list1(r);
+-		r = nod(OCALL, on, N);
+-		r->list = args;
+-		n->nbody = list1(nod(OAS, k, r));
+-		goto out;
+-	}
+-	if(local)
+-		v = old2new(v, t->type, &init);
+-	on = syslook("mapiter2", 1);
+-	argtype(on, th);
+-	argtype(on, t->down);
+-	argtype(on, t->type);
+-	r = nod(OADDR, hk, N);
+-	args = list1(r);
+-	r = nod(OCALL, on, N);
+-	r->list = args;
+-	as = nod(OAS2, N, N);
+-	as->list = list(list1(k), v);
+-	as->rlist = list1(r);
+-	n->nbody = list1(as);
+-	goto out;
+-
+-chan:
+-	if(v != N)
+-		yyerror("chan range can only have one variable");
+-
+-	hc = nod(OXXX, N, N);	// hidden chan
+-	tempname(hc, t);
+-
+-	hv = nod(OXXX, N, N);	// hidden value
+-	tempname(hv, t->type);
+-
+-	a = nod(OAS, hc, m);
+-	init = list(init, a);
+-
+-	a = nod(ORECV, hc, N);
+-	a = nod(OAS, hv, a);
+-	init = list(init, a);
+-
+-	a = nod(OCLOSED, N, N);
+-	a->list = list1(hc);
+-	n->ntest = nod(ONOT, a, N);
+-	n->nincr = nod(OAS, hv, nod(ORECV, hc, N));
+-
+-	if(local)
+-		k = old2new(k, hv->type, &init);
+-	n->nbody = list1(nod(OAS, k, hv));
+-
+-	goto out;
+-
+-strng:
+-	hk = nod(OXXX, N, N);		// hidden key
+-	tempname(hk, types[TINT]);
+-
+-	ohk = nod(OXXX, N, N);		// old hidden key
+-	tempname(ohk, types[TINT]);
+-
+-	ha = nod(OXXX, N, N);		// hidden string
+-	tempname(ha, types[TSTRING]);
+-
+-	hv = N;
+-	if(v != N) {
+-		hv = nod(OXXX, N, N);		// hidden value
+-		tempname(hv, types[TINT]);
+-	}
+-
+-	if(local) {
+-		k = old2new(k, types[TINT], &init);
+-		if(v != N)
+-			v = old2new(v, types[TINT], &init);
+-	}
+-
+-	// ha = s
+-	a = nod(OCONV, m, N);
+-	a->type = ha->type;
+-	a = nod(OAS, ha, a);
+-	init = list(init, a);
+-
+-	// ohk = 0
+-	a = nod(OAS, ohk, nodintconst(0));
+-	init = list(init, a);
+-
+-	// hk[,hv] = stringiter(ha,hk)
+-	if(v != N) {
+-		// hk,v = stringiter2(ha, hk)
+-		on = syslook("stringiter2", 0);
+-		a = nod(OCALL, on, N);
+-		a->list = list(list1(ha), nodintconst(0));
+-		as = nod(OAS2, N, N);
+-		as->list = list(list1(hk), hv);
+-		as->rlist = list1(a);
+-		a = as;
+-	} else {
+-		// hk = stringiter(ha, hk)
+-		on = syslook("stringiter", 0);
+-		a = nod(OCALL, on, N);
+-		a->list = list(list1(ha), nodintconst(0));
+-		a = nod(OAS, hk, a);
+-	}
+-	init = list(init, a);
+-
+-	// while(hk != 0)
+-	n->ntest = nod(ONE, hk, nodintconst(0));
+-
+-	// hk[,hv] = stringiter(ha,hk)
+-	if(v != N) {
+-		// hk,hv = stringiter2(ha, hk)
+-		on = syslook("stringiter2", 0);
+-		a = nod(OCALL, on, N);
+-		a->list = list(list1(ha), hk);
+-		as = nod(OAS2, N, N);
+-		as->list = list(list1(hk), hv);
+-		as->rlist = list1(a);
+-		a = as;
+-	} else {
+-		// hk = stringiter(ha, hk)
+-		on = syslook("stringiter", 0);
+-		a = nod(OCALL, on, N);
+-		a->list = list(list1(ha), hk);
+-		a = nod(OAS, hk, a);
+-	}
+-	n->nincr = a;
+-
+-	// k,ohk[,v] = ohk,hk,[,hv]
+-	a = nod(OAS, k, ohk);
+-	n->nbody = list1(a);
+-	a = nod(OAS, ohk, hk);
+-	n->nbody = list(n->nbody, a);
+-	if(v != N) {
+-		a = nod(OAS, v, hv);
+-		n->nbody = list(n->nbody, a);
+-	}
+-
+-out:
+-	n->ninit = concat(n->ninit, init);
+-	return n;
+-}
+-
+ /*
+  * from ascompat[te]
+  * evaluating actual function arguments.

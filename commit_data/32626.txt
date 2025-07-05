@@ -14,6 +14,20 @@ Date:   Wed Apr 26 14:05:06 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/go/internal/work/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 0419eb29c2..1cd2138087 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -144,7 +144,7 @@ See also: go install, go get, go clean.
+ 	`,
+ }
+ 
+-const concurrentGCBackendCompilationEnabledByDefault = false
++const concurrentGCBackendCompilationEnabledByDefault = true
+ 
+ func init() {
+ 	// break init cycle

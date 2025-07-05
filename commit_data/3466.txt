@@ -9,7 +9,159 @@ Date:   Tue Oct 6 19:00:30 2009 -0700
     DELTA=58  (52 added, 3 deleted, 3 changed)
     OCL=35417
     CL=35417
-
+---
  src/cmd/5l/obj.c           | 37 +++++++++++++++++++++++++++++++------
  src/pkg/runtime/arm/vlrt.c | 24 ++++++++++++++++++++++++
  2 files changed, 55 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index ff9e667708..f1747fc930 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -41,6 +41,8 @@ char	*noname		= "<none>";
+ char	symname[]	= SYMDEF;
+ char	thechar		= '5';
+ char	*thestring 	= "arm";
++char*	libdir[16];	// contains "." first, goroot last
++int	nlibdir		= 0;
+ 
+ /*
+  *	-H1 -T0x10005000 -R4		is aif for risc os
+@@ -89,6 +91,7 @@ main(int argc, char *argv[])
+ 	INITDAT = -1;
+ 	INITRND = -1;
+ 	INITENTRY = 0;
++	libdir[nlibdir++] = ".";	// look in dot first
+ 
+ 	ARGBEGIN {
+ 	default:
+@@ -104,6 +107,12 @@ main(int argc, char *argv[])
+ 		if(a)
+ 			INITENTRY = a;
+ 		break;
++	case 'L':
++		if(nlibdir >= nelem(libdir)-1) {
++			print("too many -L's: %d\n", nlibdir);
++		}
++		libdir[nlibdir++] = ARGF();
++		break;
+ 	case 'T':
+ 		a = ARGF();
+ 		if(a)
+@@ -148,6 +157,9 @@ main(int argc, char *argv[])
+ 	if(strcmp(goarch, thestring) != 0)
+ 		print("goarch is not known: %s\n", goarch);
+ 
++	// put goroot in the libdir list.
++	libdir[nlibdir++] = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
++
+ 	if(!debug['9'] && !debug['U'] && !debug['B'])
+ 		debug[DEFAULT] = 1;
+ 	if(HEADTYPE == -1) {
+@@ -593,12 +605,13 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ void
+ addlib(char *obj)
+ {
+-	char name[1024], comp[256], *p;
+-	int i;
++	char name[1024], pname[1024], comp[256], *p;
++	int i, search;
+ 
+ 	if(histfrogp <= 0)
+ 		return;
+ 
++	search = 0;
+ 	if(histfrog[0]->name[1] == '/') {
+ 		sprint(name, "");
+ 		i = 1;
+@@ -607,11 +620,9 @@ addlib(char *obj)
+ 		sprint(name, ".");
+ 		i = 0;
+ 	} else {
+-		if(debug['9'])
+-			sprint(name, "/%s/lib", thestring);
+-		else
+-			sprint(name, "/usr/%clib", thechar);
++		sprint(name, "");
+ 		i = 0;
++		search = 1;
+ 	}
+ 
+ 	for(; i<histfrogp; i++) {
+@@ -641,6 +652,20 @@ addlib(char *obj)
+ 		strcat(name, "/");
+ 		strcat(name, comp);
+ 	}
++
++	if(search) {
++		// try dot, -L "libdir", and then goroot.
++		for(i=0; i<nlibdir; i++) {
++			snprint(pname, sizeof pname, "%s/%s", libdir[i], name);
++			if(access(pname, AEXIST) >= 0)
++				break;
++		}
++		strcpy(name, pname);
++	}
++	cleanname(name);
++	if(debug['v'])
++		Bprint(&bso, "%5.2f addlib: %s pulls in %s\n", cputime(), obj, name);
++
+ 	for(i=0; i<libraryp; i++)
+ 		if(strcmp(name, library[i]) == 0)
+ 			return;
+diff --git a/src/pkg/runtime/arm/vlrt.c b/src/pkg/runtime/arm/vlrt.c
+index 6f695b3ebd..03840f1f62 100755
+--- a/src/pkg/runtime/arm/vlrt.c
++++ b/src/pkg/runtime/arm/vlrt.c
+@@ -236,6 +236,12 @@ _divvu(Vlong *q, Vlong n, Vlong d)
+         dodiv(n, d, q, 0);
+ }
+ 
++void
++sys·uint64div(Vlong n, Vlong d, Vlong q)
++{
++	_divvu(&q, n, d);
++}
++
+ void
+ _modvu(Vlong *r, Vlong n, Vlong d)
+ {
+@@ -248,6 +254,12 @@ _modvu(Vlong *r, Vlong n, Vlong d)
+         dodiv(n, d, 0, r);
+ }
+ 
++void
++sys·uint64mod(Vlong n, Vlong d, Vlong q)
++{
++	_modvu(&q, n, d);
++}
++
+ static void
+ vneg(Vlong *v)
+ {
+@@ -281,6 +293,12 @@ _divv(Vlong *q, Vlong n, Vlong d)
+                 vneg(q);
+ }
+ 
++void
++sys·int64div(Vlong n, Vlong d, Vlong q)
++{
++	_divv(&q, n, d);
++}
++
+ void
+ _modv(Vlong *r, Vlong n, Vlong d)
+ {
+@@ -302,6 +320,12 @@ _modv(Vlong *r, Vlong n, Vlong d)
+                 vneg(r);
+ }
+ 
++void
++sys·int64mod(Vlong n, Vlong d, Vlong q)
++{
++	_modv(&q, n, d);
++}
++
+ void
+ _rshav(Vlong *r, Vlong a, int b)
+ {

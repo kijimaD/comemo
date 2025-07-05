@@ -19,6 +19,28 @@ Date:   Tue Jul 25 15:14:03 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/fds_unix.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/runtime/fds_unix.go b/src/runtime/fds_unix.go
+index 3004e6fd8b..f39e6a49e9 100644
+--- a/src/runtime/fds_unix.go
++++ b/src/runtime/fds_unix.go
+@@ -28,6 +28,16 @@ func checkfds() {
+ 		if ret >= 0 {
+ 			continue
+ 		}
++
++		// On AIX and Solaris we can't get the right errno
++		// value this early in program startup,
++		// because we haven't yet called minit
++		// which sets m.mOS.perrno.
++		// Just assume that the error is EBADF.
++		if GOOS == "aix" || GOOS == "solaris" {
++			errno = EBADF
++		}
++
+ 		if errno != EBADF {
+ 			print("runtime: unexpected error while checking standard file descriptor ", i, ", errno=", errno, "\n")
+ 			throw("cannot open standard fds")

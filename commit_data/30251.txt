@@ -13,6 +13,24 @@ Date:   Wed Oct 26 22:18:02 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/32103
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/trace/trace_stack_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/trace/trace_stack_test.go b/src/runtime/trace/trace_stack_test.go
+index 52a71bfb94..b143341f59 100644
+--- a/src/runtime/trace/trace_stack_test.go
++++ b/src/runtime/trace/trace_stack_test.go
+@@ -102,10 +102,10 @@ func TestTraceSymbolize(t *testing.T) {
+ 		pipeReadDone <- true
+ 	}()
+ 
+-	time.Sleep(time.Millisecond)
++	time.Sleep(100 * time.Millisecond)
+ 	runtime.GC()
+ 	runtime.Gosched()
+-	time.Sleep(time.Millisecond) // the last chance for the goroutines above to block
++	time.Sleep(100 * time.Millisecond) // the last chance for the goroutines above to block
+ 	done1 <- true
+ 	<-done2
+ 	select {

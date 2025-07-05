@@ -8,6 +8,19 @@ Date:   Mon Mar 30 17:07:30 2009 -0700
     R=ken
     OCL=26911
     CL=26913
-
+---
  src/cmd/gc/dcl.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 1f72442f58..f1291dbdba 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1591,6 +1591,7 @@ no:
+ 	return N;
+ 
+ yes:
++	addtop = N;	// any side effects disappear
+ 	val.ctype = CTINT;
+ 	val.u.xval = mal(sizeof(*n->val.u.xval));
+ 	mpmovecfix(val.u.xval, v);

@@ -10,8 +10,53 @@ Date:   Fri Sep 30 16:39:10 2011 -0700
     TBR=r
     CC=golang-dev
     https://golang.org/cl/5154048
-
+---
  src/pkg/runtime/freebsd/386/sys.s   | 4 ++++
  src/pkg/runtime/freebsd/amd64/sys.s | 4 ++++
  src/pkg/runtime/freebsd/thread.c    | 6 ++++++
  3 files changed, 14 insertions(+)
+
+diff --git a/src/pkg/runtime/freebsd/386/sys.s b/src/pkg/runtime/freebsd/386/sys.s
+index 765e2fcc40..4c0b4e41a1 100644
+--- a/src/pkg/runtime/freebsd/386/sys.s
++++ b/src/pkg/runtime/freebsd/386/sys.s
+@@ -174,6 +174,10 @@ TEXT runtime·sigaltstack(SB),7,$0
+ 	CALL	runtime·notok(SB)
+ 	RET
+ 
++// TODO: Implement usleep
++TEXT runtime·usleep(SB),7,$0
++	RET
++
+ /*
+ descriptor entry format for system call
+ is the native machine format, ugly as it is:
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+index c5cc082e4d..e973b520cf 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -169,6 +169,10 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	CALL	runtime·notok(SB)
+ 	RET
+ 
++// TODO: Implement usleep
++TEXT runtime·usleep(SB),7,$0
++	RET
++
+ // set tls base to DI
+ TEXT runtime·settls(SB),7,$8
+ 	ADDQ	$16, DI	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
+diff --git a/src/pkg/runtime/freebsd/thread.c b/src/pkg/runtime/freebsd/thread.c
+index f8c550f578..3c7d7bc393 100644
+--- a/src/pkg/runtime/freebsd/thread.c
++++ b/src/pkg/runtime/freebsd/thread.c
+@@ -199,3 +199,9 @@ runtime·sigpanic(void)
+ 	}
+ 	runtime·panicstring(runtime·sigtab[g->sig].name);
+ }
++
++// TODO: fill this in properly.
++void
++runtime·osyield(void)
++{
++}

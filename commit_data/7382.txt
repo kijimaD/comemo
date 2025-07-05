@@ -10,6 +10,28 @@ Date:   Sat Feb 5 13:56:36 2011 -0500
     R=golang-dev, r2
     CC=golang-dev
     https://golang.org/cl/4029056
-
+---
  src/pkg/crypto/tls/handshake_server.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index af46ea5113..809c8c15e5 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -57,6 +57,7 @@ Curves:
+ 
+ 	var suite *cipherSuite
+ 	var suiteId uint16
++FindCipherSuite:
+ 	for _, id := range clientHello.cipherSuites {
+ 		for _, supported := range config.cipherSuites() {
+ 			if id == supported {
+@@ -67,7 +68,7 @@ Curves:
+ 					continue
+ 				}
+ 				suiteId = id
+-				break
++				break FindCipherSuite
+ 			}
+ 		}
+ 	}

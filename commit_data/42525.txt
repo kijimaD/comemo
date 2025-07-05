@@ -19,7 +19,37 @@ Date:   Thu Jan 9 09:39:48 2020 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/query.go        | 2 +-
  src/cmd/go/testdata/script/mod_readonly.txt | 5 +++++
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 53278b9100..031e45938a 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -79,7 +79,7 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
+ 	if current != "" && !semver.IsValid(current) {
+ 		return nil, fmt.Errorf("invalid previous version %q", current)
+ 	}
+-	if cfg.BuildMod != "" && cfg.BuildMod != "mod" {
++	if cfg.BuildMod == "vendor" {
+ 		return nil, errQueryDisabled
+ 	}
+ 	if allowed == nil {
+diff --git a/src/cmd/go/testdata/script/mod_readonly.txt b/src/cmd/go/testdata/script/mod_readonly.txt
+index 1d1771e9cc..77fc735d57 100644
+--- a/src/cmd/go/testdata/script/mod_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_readonly.txt
+@@ -34,6 +34,11 @@ go list all
+ go clean -modcache
+ go list all
+ 
++# -mod=readonly must not cause 'go list -m' to fail.
++# (golang.org/issue/36478)
++go list -m all
++! stderr 'cannot query module'
++
+ # -mod=readonly should reject inconsistent go.mod files
+ # (ones that would be rewritten).
+ go mod edit -require rsc.io/sampler@v1.2.0

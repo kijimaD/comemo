@@ -10,6 +10,19 @@ Date:   Sun Jan 25 19:01:58 2015 -0500
     Change-Id: Ie489c2891c335d32270b18f37b0e32ecdca536a6
     Reviewed-on: https://go-review.googlesource.com/3271
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/tar/example_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/archive/tar/example_test.go b/src/archive/tar/example_test.go
+index 351eaa0e6c..2317f44e96 100644
+--- a/src/archive/tar/example_test.go
++++ b/src/archive/tar/example_test.go
+@@ -31,6 +31,7 @@ func Example() {
+ 	for _, file := range files {
+ 		hdr := &tar.Header{
+ 			Name: file.Name,
++			Mode: 0600,
+ 			Size: int64(len(file.Body)),
+ 		}
+ 		if err := tw.WriteHeader(hdr); err != nil {

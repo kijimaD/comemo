@@ -15,6 +15,20 @@ Date:   Fri Mar 10 14:21:01 2023 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/executable_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/executable_test.go b/src/os/executable_test.go
+index 8d1794d340..c835bb436b 100644
+--- a/src/os/executable_test.go
++++ b/src/os/executable_test.go
+@@ -89,7 +89,7 @@ func init() {
+ }
+ 
+ func TestExecutableDeleted(t *testing.T) {
+-	testenv.MustHaveExec(t)
++	testenv.MustHaveGoBuild(t)
+ 	switch runtime.GOOS {
+ 	case "windows", "plan9":
+ 		t.Skipf("%v does not support deleting running binary", runtime.GOOS)

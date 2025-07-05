@@ -9,6 +9,27 @@ Date:   Sun Apr 17 09:43:27 2011 -0700
     R=bradfitzgo
     CC=golang-dev
     https://golang.org/cl/4427049
-
+---
  src/pkg/websocket/websocket_test.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index 8b3cf8925a..10f88dfd1a 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -186,11 +186,12 @@ func TestTrailingSpaces(t *testing.T) {
+ 	once.Do(startServer)
+ 	for i := 0; i < 30; i++ {
+ 		// body
+-		_, err := Dial(fmt.Sprintf("ws://%s/echo", serverAddr), "",
+-			"http://localhost/")
++		ws, err := Dial(fmt.Sprintf("ws://%s/echo", serverAddr), "", "http://localhost/")
+ 		if err != nil {
+-			panic("Dial failed: " + err.String())
++			t.Error("Dial failed:", err.String())
++			break
+ 		}
++		ws.Close()
+ 	}
+ }
+ 

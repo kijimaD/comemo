@@ -14,6 +14,28 @@ Date:   Wed Mar 16 13:28:32 2016 +1100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/path/path_test.go | 8 +-------
  1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/path/path_test.go b/src/path/path_test.go
+index 13b585223f..85b2450a62 100644
+--- a/src/path/path_test.go
++++ b/src/path/path_test.go
+@@ -135,15 +135,9 @@ var jointests = []JoinTest{
+ 	{[]string{"", ""}, ""},
+ }
+ 
+-// join takes a []string and passes it to Join.
+-func join(elem []string, args ...string) string {
+-	args = elem
+-	return Join(args...)
+-}
+-
+ func TestJoin(t *testing.T) {
+ 	for _, test := range jointests {
+-		if p := join(test.elem); p != test.path {
++		if p := Join(test.elem...); p != test.path {
+ 			t.Errorf("join(%q) = %q, want %q", test.elem, p, test.path)
+ 		}
+ 	}

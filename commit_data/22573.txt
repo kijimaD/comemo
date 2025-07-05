@@ -13,6 +13,20 @@ Date:   Tue Mar 24 02:56:07 2015 -0400
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/7g/gsubr.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/7g/gsubr.go b/src/cmd/7g/gsubr.go
+index 0828daf9dd..2d2bdb7ca4 100644
+--- a/src/cmd/7g/gsubr.go
++++ b/src/cmd/7g/gsubr.go
+@@ -45,6 +45,8 @@ var unmappedzero int64 = 4096
+ var resvd = []int{
+ 	arm64.REGTMP,
+ 	arm64.REGG,
++	arm64.REGRT1,
++	arm64.REGRT2,
+ 	arm64.REG_R31, // REGZERO and REGSP
+ 	arm64.FREGZERO,
+ 	arm64.FREGHALF,

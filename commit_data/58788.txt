@@ -18,7 +18,46 @@ Date:   Mon Dec 11 00:22:50 2023 +0000
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go | 3 +++
  src/cmd/cgo/internal/testsanitizers/msan_test.go      | 3 +++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go b/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go
+index f84c9f37ae..3f5b1d91c7 100644
+--- a/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go
+@@ -7,11 +7,14 @@
+ package sanitizers_test
+ 
+ import (
++	"internal/testenv"
+ 	"strings"
+ 	"testing"
+ )
+ 
+ func TestLibFuzzer(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
+ 	goos, err := goEnv("GOOS")
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/cmd/cgo/internal/testsanitizers/msan_test.go b/src/cmd/cgo/internal/testsanitizers/msan_test.go
+index 1a22b5246c..83d66f6660 100644
+--- a/src/cmd/cgo/internal/testsanitizers/msan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/msan_test.go
+@@ -8,11 +8,14 @@ package sanitizers_test
+ 
+ import (
+ 	"internal/platform"
++	"internal/testenv"
+ 	"strings"
+ 	"testing"
+ )
+ 
+ func TestMSAN(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
+ 	goos, err := goEnv("GOOS")
+ 	if err != nil {
+ 		t.Fatal(err)

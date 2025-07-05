@@ -19,6 +19,29 @@ Date:   Thu May 23 20:34:17 2019 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/strings/example_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/strings/example_test.go b/src/strings/example_test.go
+index e31054a4e0..4f3a1ce8c6 100644
+--- a/src/strings/example_test.go
++++ b/src/strings/example_test.go
+@@ -47,12 +47,16 @@ func ExampleContains() {
+ 
+ func ExampleContainsAny() {
+ 	fmt.Println(strings.ContainsAny("team", "i"))
+-	fmt.Println(strings.ContainsAny("failure", "u & i"))
++	fmt.Println(strings.ContainsAny("fail", "ui"))
++	fmt.Println(strings.ContainsAny("ure", "ui"))
++	fmt.Println(strings.ContainsAny("failure", "ui"))
+ 	fmt.Println(strings.ContainsAny("foo", ""))
+ 	fmt.Println(strings.ContainsAny("", ""))
+ 	// Output:
+ 	// false
+ 	// true
++	// true
++	// true
+ 	// false
+ 	// false
+ }

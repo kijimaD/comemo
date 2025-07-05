@@ -9,6 +9,24 @@ Date:   Wed Aug 17 16:23:40 2016 -0700
     Change-Id: I4f1cfced2dced9c9fc8a05bbc00ec4229e85c5c9
     Reviewed-on: https://go-review.googlesource.com/27314
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/unsafe/unsafe.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/unsafe/unsafe.go b/src/unsafe/unsafe.go
+index 8f43e72775..0b59ff204b 100644
+--- a/src/unsafe/unsafe.go
++++ b/src/unsafe/unsafe.go
+@@ -76,8 +76,10 @@ type ArbitraryType int
+ //	// equivalent to e := unsafe.Pointer(&x[i])
+ //	e := unsafe.Pointer(uintptr(unsafe.Pointer(&x[0])) + i*unsafe.Sizeof(x[0]))
+ //
+-// It is valid both to add and to subtract offsets from a pointer in this way,
+-// but the result must continue to point into the original allocated object.
++// It is valid both to add and to subtract offsets from a pointer in this way.
++// It is also valid to use &^ to round pointers, usually for alignment.
++// In all cases, the result must continue to point into the original allocated object.
++//
+ // Unlike in C, it is not valid to advance a pointer just beyond the end of
+ // its original allocation:
+ //

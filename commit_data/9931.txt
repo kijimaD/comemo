@@ -7,10 +7,1467 @@ Date:   Tue Oct 11 17:52:37 2011 -0700
     R=r, bradfitz
     CC=golang-dev
     https://golang.org/cl/5249055
-
+---
  src/pkg/Makefile                    |   1 -
  src/pkg/exp/datafmt/Makefile        |  12 -
  src/pkg/exp/datafmt/datafmt.go      | 710 ------------------------------------
  src/pkg/exp/datafmt/datafmt_test.go | 330 -----------------
  src/pkg/exp/datafmt/parser.go       | 368 -------------------
  5 files changed, 1421 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 321b463b13..dafc2048d9 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -76,7 +76,6 @@ DIRS=\
+ 	encoding/hex\
+ 	encoding/pem\
+ 	exec\
+-	exp/datafmt\
+ 	exp/ebnf\
+ 	exp/ebnflint\
+ 	exp/gui\
+diff --git a/src/pkg/exp/datafmt/Makefile b/src/pkg/exp/datafmt/Makefile
+deleted file mode 100644
+index aa94538975..0000000000
+--- a/src/pkg/exp/datafmt/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=exp/datafmt
+-GOFILES=\
+-	datafmt.go\
+-	parser.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/exp/datafmt/datafmt.go b/src/pkg/exp/datafmt/datafmt.go
+deleted file mode 100644
+index 6d7e764427..0000000000
+--- a/src/pkg/exp/datafmt/datafmt.go
++++ /dev/null
+@@ -1,710 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*	Package datafmt implements syntax-directed, type-driven formatting
+-	of arbitrary data structures. Formatting a data structure consists of
+-	two phases: first, a parser reads a format specification and builds a
+-	"compiled" format. Then, the format can be applied repeatedly to
+-	arbitrary values. Applying a format to a value evaluates to a []byte
+-	containing the formatted value bytes, or nil.
+-
+-	A format specification is a set of package declarations and format rules:
+-
+-		Format      = [ Entry { ";" Entry } [ ";" ] ] .
+-		Entry       = PackageDecl | FormatRule .
+-
+-	(The syntax of a format specification is presented in the same EBNF
+-	notation as used in the Go language specification. The syntax of white
+-	space, comments, identifiers, and string literals is the same as in Go.)
+-
+-	A package declaration binds a package name (such as 'ast') to a
+-	package import path (such as '"go/ast"'). Each package used (in
+-	a type name, see below) must be declared once before use.
+-
+-		PackageDecl = PackageName ImportPath .
+-		PackageName = identifier .
+-		ImportPath  = string .
+-
+-	A format rule binds a rule name to a format expression. A rule name
+-	may be a type name or one of the special names 'default' or '/'.
+-	A type name may be the name of a predeclared type (for example, 'int',
+-	'float32', etc.), the package-qualified name of a user-defined type
+-	(for example, 'ast.MapType'), or an identifier indicating the structure
+-	of unnamed composite types ('array', 'chan', 'func', 'interface', 'map',
+-	or 'ptr'). Each rule must have a unique name; rules can be declared in
+-	any order.
+-
+-		FormatRule  = RuleName "=" Expression .
+-		RuleName    = TypeName | "default" | "/" .
+-		TypeName    = [ PackageName "." ] identifier .
+-
+-	To format a value, the value's type name is used to select the format rule
+-	(there is an override mechanism, see below). The format expression of the
+-	selected rule specifies how the value is formatted. Each format expression,
+-	when applied to a value, evaluates to a byte sequence or nil.
+-
+-	In its most general form, a format expression is a list of alternatives,
+-	each of which is a sequence of operands:
+-
+-		Expression  = [ Sequence ] { "|" [ Sequence ] } .
+-		Sequence    = Operand { Operand } .
+-
+-	The formatted result produced by an expression is the result of the first
+-	alternative sequence that evaluates to a non-nil result; if there is no
+-	such alternative, the expression evaluates to nil. The result produced by
+-	an operand sequence is the concatenation of the results of its operands.
+-	If any operand in the sequence evaluates to nil, the entire sequence
+-	evaluates to nil.
+-
+-	There are five kinds of operands:
+-
+-		Operand     = Literal | Field | Group | Option | Repetition .
+-
+-	Literals evaluate to themselves, with two substitutions. First,
+-	%-formats expand in the manner of fmt.Printf, with the current value
+-	passed as the parameter. Second, the current indentation (see below)
+-	is inserted after every newline or form feed character.
+-
+-		Literal     = string .
+-
+-	This table shows string literals applied to the value 42 and the
+-	corresponding formatted result:
+-
+-		"foo"       foo
+-		"%x"        2a
+-		"x = %d"    x = 42
+-		"%#x = %d"  0x2a = 42
+-
+-	A field operand is a field name optionally followed by an alternate
+-	rule name. The field name may be an identifier or one of the special
+-	names @ or *.
+-
+-		Field       = FieldName [ ":" RuleName ] .
+-		FieldName   = identifier | "@" | "*" .
+-
+-	If the field name is an identifier, the current value must be a struct,
+-	and there must be a field with that name in the struct. The same lookup
+-	rules apply as in the Go language (for instance, the name of an anonymous
+-	field is the unqualified type name). The field name denotes the field
+-	value in the struct. If the field is not found, formatting is aborted
+-	and an error message is returned. (TODO consider changing the semantics
+-	such that if a field is not found, it evaluates to nil).
+-
+-	The special name '@' denotes the current value.
+-
+-	The meaning of the special name '*' depends on the type of the current
+-	value:
+-
+-		array, slice types   array, slice element (inside {} only, see below)
+-		interfaces           value stored in interface
+-		pointers             value pointed to by pointer
+-
+-	(Implementation restriction: channel, function and map types are not
+-	supported due to missing reflection support).
+-
+-	Fields are evaluated as follows: If the field value is nil, or an array
+-	or slice element does not exist, the result is nil (see below for details
+-	on array/slice elements). If the value is not nil the field value is
+-	formatted (recursively) using the rule corresponding to its type name,
+-	or the alternate rule name, if given.
+-
+-	The following example shows a complete format specification for a
+-	struct 'myPackage.Point'. Assume the package
+-
+-		package myPackage  // in directory myDir/myPackage
+-		type Point struct {
+-			name string;
+-			x, y int;
+-		}
+-
+-	Applying the format specification
+-
+-		myPackage "myDir/myPackage";
+-		int = "%d";
+-		hexInt = "0x%x";
+-		string = "---%s---";
+-		myPackage.Point = name "{" x ", " y:hexInt "}";
+-
+-	to the value myPackage.Point{"foo", 3, 15} results in
+-
+-		---foo---{3, 0xf}
+-
+-	Finally, an operand may be a grouped, optional, or repeated expression.
+-	A grouped expression ("group") groups a more complex expression (body)
+-	so that it can be used in place of a single operand:
+-
+-		Group       = "(" [ Indentation ">>" ] Body ")" .
+-		Indentation = Expression .
+-		Body        = Expression .
+-
+-	A group body may be prefixed by an indentation expression followed by '>>'.
+-	The indentation expression is applied to the current value like any other
+-	expression and the result, if not nil, is appended to the current indentation
+-	during the evaluation of the body (see also formatting state, below).
+-
+-	An optional expression ("option") is enclosed in '[]' brackets.
+-
+-		Option      = "[" Body "]" .
+-
+-	An option evaluates to its body, except that if the body evaluates to nil,
+-	the option expression evaluates to an empty []byte. Thus an option's purpose
+-	is to protect the expression containing the option from a nil operand.
+-
+-	A repeated expression ("repetition") is enclosed in '{}' braces.
+-
+-		Repetition  = "{" Body [ "/" Separator ] "}" .
+-		Separator   = Expression .
+-
+-	A repeated expression is evaluated as follows: The body is evaluated
+-	repeatedly and its results are concatenated until the body evaluates
+-	to nil. The result of the repetition is the (possibly empty) concatenation,
+-	but it is never nil. An implicit index is supplied for the evaluation of
+-	the body: that index is used to address elements of arrays or slices. If
+-	the corresponding elements do not exist, the field denoting the element
+-	evaluates to nil (which in turn may terminate the repetition).
+-
+-	The body of a repetition may be followed by a '/' and a "separator"
+-	expression. If the separator is present, it is invoked between repetitions
+-	of the body.
+-
+-	The following example shows a complete format specification for formatting
+-	a slice of unnamed type. Applying the specification
+-
+-		int = "%b";
+-		array = { * / ", " };  // array is the type name for an unnamed slice
+-
+-	to the value '[]int{2, 3, 5, 7}' results in
+-
+-		10, 11, 101, 111
+-
+-	Default rule: If a format rule named 'default' is present, it is used for
+-	formatting a value if no other rule was found. A common default rule is
+-
+-		default = "%v"
+-
+-	to provide default formatting for basic types without having to specify
+-	a specific rule for each basic type.
+-
+-	Global separator rule: If a format rule named '/' is present, it is
+-	invoked with the current value between literals. If the separator
+-	expression evaluates to nil, it is ignored.
+-
+-	For instance, a global separator rule may be used to punctuate a sequence
+-	of values with commas. The rules:
+-
+-		default = "%v";
+-		/ = ", ";
+-
+-	will format an argument list by printing each one in its default format,
+-	separated by a comma and a space.
+-*/
+-package datafmt
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"go/token"
+-	"io"
+-	"os"
+-	"reflect"
+-	"runtime"
+-)
+-
+-// ----------------------------------------------------------------------------
+-// Format representation
+-
+-// Custom formatters implement the Formatter function type.
+-// A formatter is invoked with the current formatting state, the
+-// value to format, and the rule name under which the formatter
+-// was installed (the same formatter function may be installed
+-// under different names). The formatter may access the current state
+-// to guide formatting and use State.Write to append to the state's
+-// output.
+-//
+-// A formatter must return a boolean value indicating if it evaluated
+-// to a non-nil value (true), or a nil value (false).
+-//
+-type Formatter func(state *State, value interface{}, ruleName string) bool
+-
+-// A FormatterMap is a set of custom formatters.
+-// It maps a rule name to a formatter function.
+-//
+-type FormatterMap map[string]Formatter
+-
+-// A parsed format expression is built from the following nodes.
+-//
+-type (
+-	expr interface{}
+-
+-	alternatives []expr // x | y | z
+-
+-	sequence []expr // x y z
+-
+-	literal [][]byte // a list of string segments, possibly starting with '%'
+-
+-	field struct {
+-		fieldName string // including "@", "*"
+-		ruleName  string // "" if no rule name specified
+-	}
+-
+-	group struct {
+-		indent, body expr // (indent >> body)
+-	}
+-
+-	option struct {
+-		body expr // [body]
+-	}
+-
+-	repetition struct {
+-		body, separator expr // {body / separator}
+-	}
+-
+-	custom struct {
+-		ruleName string
+-		fun      Formatter
+-	}
+-)
+-
+-// A Format is the result of parsing a format specification.
+-// The format may be applied repeatedly to format values.
+-//
+-type Format map[string]expr
+-
+-// ----------------------------------------------------------------------------
+-// Formatting
+-
+-// An application-specific environment may be provided to Format.Apply;
+-// the environment is available inside custom formatters via State.Env().
+-// Environments must implement copying; the Copy method must return an
+-// complete copy of the receiver. This is necessary so that the formatter
+-// can save and restore an environment (in case of an absent expression).
+-//
+-// If the Environment doesn't change during formatting (this is under
+-// control of the custom formatters), the Copy function can simply return
+-// the receiver, and thus can be very light-weight.
+-//
+-type Environment interface {
+-	Copy() Environment
+-}
+-
+-// State represents the current formatting state.
+-// It is provided as argument to custom formatters.
+-//
+-type State struct {
+-	fmt       Format         // format in use
+-	env       Environment    // user-supplied environment
+-	errors    chan os.Error  // not chan *Error (errors <- nil would be wrong!)
+-	hasOutput bool           // true after the first literal has been written
+-	indent    bytes.Buffer   // current indentation
+-	output    bytes.Buffer   // format output
+-	linePos   token.Position // position of line beginning (Column == 0)
+-	default_  expr           // possibly nil
+-	separator expr           // possibly nil
+-}
+-
+-func newState(fmt Format, env Environment, errors chan os.Error) *State {
+-	s := new(State)
+-	s.fmt = fmt
+-	s.env = env
+-	s.errors = errors
+-	s.linePos = token.Position{Line: 1}
+-
+-	// if we have a default rule, cache its expression for fast access
+-	if x, found := fmt["default"]; found {
+-		s.default_ = x
+-	}
+-
+-	// if we have a global separator rule, cache its expression for fast access
+-	if x, found := fmt["/"]; found {
+-		s.separator = x
+-	}
+-
+-	return s
+-}
+-
+-// Env returns the environment passed to Format.Apply.
+-func (s *State) Env() interface{} { return s.env }
+-
+-// LinePos returns the position of the current line beginning
+-// in the state's output buffer. Line numbers start at 1.
+-//
+-func (s *State) LinePos() token.Position { return s.linePos }
+-
+-// Pos returns the position of the next byte to be written to the
+-// output buffer. Line numbers start at 1.
+-//
+-func (s *State) Pos() token.Position {
+-	offs := s.output.Len()
+-	return token.Position{Line: s.linePos.Line, Column: offs - s.linePos.Offset, Offset: offs}
+-}
+-
+-// Write writes data to the output buffer, inserting the indentation
+-// string after each newline or form feed character. It cannot return an error.
+-//
+-func (s *State) Write(data []byte) (int, os.Error) {
+-	n := 0
+-	i0 := 0
+-	for i, ch := range data {
+-		if ch == '\n' || ch == '\f' {
+-			// write text segment and indentation
+-			n1, _ := s.output.Write(data[i0 : i+1])
+-			n2, _ := s.output.Write(s.indent.Bytes())
+-			n += n1 + n2
+-			i0 = i + 1
+-			s.linePos.Offset = s.output.Len()
+-			s.linePos.Line++
+-		}
+-	}
+-	n3, _ := s.output.Write(data[i0:])
+-	return n + n3, nil
+-}
+-
+-type checkpoint struct {
+-	env       Environment
+-	hasOutput bool
+-	outputLen int
+-	linePos   token.Position
+-}
+-
+-func (s *State) save() checkpoint {
+-	saved := checkpoint{nil, s.hasOutput, s.output.Len(), s.linePos}
+-	if s.env != nil {
+-		saved.env = s.env.Copy()
+-	}
+-	return saved
+-}
+-
+-func (s *State) restore(m checkpoint) {
+-	s.env = m.env
+-	s.output.Truncate(m.outputLen)
+-}
+-
+-func (s *State) error(msg string) {
+-	s.errors <- os.NewError(msg)
+-	runtime.Goexit()
+-}
+-
+-// TODO At the moment, unnamed types are simply mapped to the default
+-//      names below. For instance, all unnamed arrays are mapped to
+-//      'array' which is not really sufficient. Eventually one may want
+-//      to be able to specify rules for say an unnamed slice of T.
+-//
+-
+-func typename(typ reflect.Type) string {
+-	switch typ.Kind() {
+-	case reflect.Array:
+-		return "array"
+-	case reflect.Slice:
+-		return "array"
+-	case reflect.Chan:
+-		return "chan"
+-	case reflect.Func:
+-		return "func"
+-	case reflect.Interface:
+-		return "interface"
+-	case reflect.Map:
+-		return "map"
+-	case reflect.Ptr:
+-		return "ptr"
+-	}
+-	return typ.String()
+-}
+-
+-func (s *State) getFormat(name string) expr {
+-	if fexpr, found := s.fmt[name]; found {
+-		return fexpr
+-	}
+-
+-	if s.default_ != nil {
+-		return s.default_
+-	}
+-
+-	s.error(fmt.Sprintf("no format rule for type: '%s'", name))
+-	return nil
+-}
+-
+-// eval applies a format expression fexpr to a value. If the expression
+-// evaluates internally to a non-nil []byte, that slice is appended to
+-// the state's output buffer and eval returns true. Otherwise, eval
+-// returns false and the state remains unchanged.
+-//
+-func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+-	// an empty format expression always evaluates
+-	// to a non-nil (but empty) []byte
+-	if fexpr == nil {
+-		return true
+-	}
+-
+-	switch t := fexpr.(type) {
+-	case alternatives:
+-		// append the result of the first alternative that evaluates to
+-		// a non-nil []byte to the state's output
+-		mark := s.save()
+-		for _, x := range t {
+-			if s.eval(x, value, index) {
+-				return true
+-			}
+-			s.restore(mark)
+-		}
+-		return false
+-
+-	case sequence:
+-		// append the result of all operands to the state's output
+-		// unless a nil result is encountered
+-		mark := s.save()
+-		for _, x := range t {
+-			if !s.eval(x, value, index) {
+-				s.restore(mark)
+-				return false
+-			}
+-		}
+-		return true
+-
+-	case literal:
+-		// write separator, if any
+-		if s.hasOutput {
+-			// not the first literal
+-			if s.separator != nil {
+-				sep := s.separator // save current separator
+-				s.separator = nil  // and disable it (avoid recursion)
+-				mark := s.save()
+-				if !s.eval(sep, value, index) {
+-					s.restore(mark)
+-				}
+-				s.separator = sep // enable it again
+-			}
+-		}
+-		s.hasOutput = true
+-		// write literal segments
+-		for _, lit := range t {
+-			if len(lit) > 1 && lit[0] == '%' {
+-				// segment contains a %-format at the beginning
+-				if lit[1] == '%' {
+-					// "%%" is printed as a single "%"
+-					s.Write(lit[1:])
+-				} else {
+-					// use s instead of s.output to get indentation right
+-					fmt.Fprintf(s, string(lit), value.Interface())
+-				}
+-			} else {
+-				// segment contains no %-formats
+-				s.Write(lit)
+-			}
+-		}
+-		return true // a literal never evaluates to nil
+-
+-	case *field:
+-		// determine field value
+-		switch t.fieldName {
+-		case "@":
+-			// field value is current value
+-
+-		case "*":
+-			// indirection: operation is type-specific
+-			switch v := value; v.Kind() {
+-			case reflect.Array:
+-				if v.Len() <= index {
+-					return false
+-				}
+-				value = v.Index(index)
+-
+-			case reflect.Slice:
+-				if v.IsNil() || v.Len() <= index {
+-					return false
+-				}
+-				value = v.Index(index)
+-
+-			case reflect.Map:
+-				s.error("reflection support for maps incomplete")
+-
+-			case reflect.Ptr:
+-				if v.IsNil() {
+-					return false
+-				}
+-				value = v.Elem()
+-
+-			case reflect.Interface:
+-				if v.IsNil() {
+-					return false
+-				}
+-				value = v.Elem()
+-
+-			case reflect.Chan:
+-				s.error("reflection support for chans incomplete")
+-
+-			case reflect.Func:
+-				s.error("reflection support for funcs incomplete")
+-
+-			default:
+-				s.error(fmt.Sprintf("error: * does not apply to `%s`", value.Type()))
+-			}
+-
+-		default:
+-			// value is value of named field
+-			var field reflect.Value
+-			if sval := value; sval.Kind() == reflect.Struct {
+-				field = sval.FieldByName(t.fieldName)
+-				if !field.IsValid() {
+-					// TODO consider just returning false in this case
+-					s.error(fmt.Sprintf("error: no field `%s` in `%s`", t.fieldName, value.Type()))
+-				}
+-			}
+-			value = field
+-		}
+-
+-		// determine rule
+-		ruleName := t.ruleName
+-		if ruleName == "" {
+-			// no alternate rule name, value type determines rule
+-			ruleName = typename(value.Type())
+-		}
+-		fexpr = s.getFormat(ruleName)
+-
+-		mark := s.save()
+-		if !s.eval(fexpr, value, index) {
+-			s.restore(mark)
+-			return false
+-		}
+-		return true
+-
+-	case *group:
+-		// remember current indentation
+-		indentLen := s.indent.Len()
+-
+-		// update current indentation
+-		mark := s.save()
+-		s.eval(t.indent, value, index)
+-		// if the indentation evaluates to nil, the state's output buffer
+-		// didn't change - either way it's ok to append the difference to
+-		// the current indentation
+-		s.indent.Write(s.output.Bytes()[mark.outputLen:s.output.Len()])
+-		s.restore(mark)
+-
+-		// format group body
+-		mark = s.save()
+-		b := true
+-		if !s.eval(t.body, value, index) {
+-			s.restore(mark)
+-			b = false
+-		}
+-
+-		// reset indentation
+-		s.indent.Truncate(indentLen)
+-		return b
+-
+-	case *option:
+-		// evaluate the body and append the result to the state's output
+-		// buffer unless the result is nil
+-		mark := s.save()
+-		if !s.eval(t.body, value, 0) { // TODO is 0 index correct?
+-			s.restore(mark)
+-		}
+-		return true // an option never evaluates to nil
+-
+-	case *repetition:
+-		// evaluate the body and append the result to the state's output
+-		// buffer until a result is nil
+-		for i := 0; ; i++ {
+-			mark := s.save()
+-			// write separator, if any
+-			if i > 0 && t.separator != nil {
+-				// nil result from separator is ignored
+-				mark := s.save()
+-				if !s.eval(t.separator, value, i) {
+-					s.restore(mark)
+-				}
+-			}
+-			if !s.eval(t.body, value, i) {
+-				s.restore(mark)
+-				break
+-			}
+-		}
+-		return true // a repetition never evaluates to nil
+-
+-	case *custom:
+-		// invoke the custom formatter to obtain the result
+-		mark := s.save()
+-		if !t.fun(s, value.Interface(), t.ruleName) {
+-			s.restore(mark)
+-			return false
+-		}
+-		return true
+-	}
+-
+-	panic("unreachable")
+-	return false
+-}
+-
+-// Eval formats each argument according to the format
+-// f and returns the resulting []byte and os.Error. If
+-// an error occurred, the []byte contains the partially
+-// formatted result. An environment env may be passed
+-// in which is available in custom formatters through
+-// the state parameter.
+-//
+-func (f Format) Eval(env Environment, args ...interface{}) ([]byte, os.Error) {
+-	if f == nil {
+-		return nil, os.NewError("format is nil")
+-	}
+-
+-	errors := make(chan os.Error)
+-	s := newState(f, env, errors)
+-
+-	go func() {
+-		for _, v := range args {
+-			fld := reflect.ValueOf(v)
+-			if !fld.IsValid() {
+-				errors <- os.NewError("nil argument")
+-				return
+-			}
+-			mark := s.save()
+-			if !s.eval(s.getFormat(typename(fld.Type())), fld, 0) { // TODO is 0 index correct?
+-				s.restore(mark)
+-			}
+-		}
+-		errors <- nil // no errors
+-	}()
+-
+-	err := <-errors
+-	return s.output.Bytes(), err
+-}
+-
+-// ----------------------------------------------------------------------------
+-// Convenience functions
+-
+-// Fprint formats each argument according to the format f
+-// and writes to w. The result is the total number of bytes
+-// written and an os.Error, if any.
+-//
+-func (f Format) Fprint(w io.Writer, env Environment, args ...interface{}) (int, os.Error) {
+-	data, err := f.Eval(env, args...)
+-	if err != nil {
+-		// TODO should we print partial result in case of error?
+-		return 0, err
+-	}
+-	return w.Write(data)
+-}
+-
+-// Print formats each argument according to the format f
+-// and writes to standard output. The result is the total
+-// number of bytes written and an os.Error, if any.
+-//
+-func (f Format) Print(args ...interface{}) (int, os.Error) {
+-	return f.Fprint(os.Stdout, nil, args...)
+-}
+-
+-// Sprint formats each argument according to the format f
+-// and returns the resulting string. If an error occurs
+-// during formatting, the result string contains the
+-// partially formatted result followed by an error message.
+-//
+-func (f Format) Sprint(args ...interface{}) string {
+-	var buf bytes.Buffer
+-	_, err := f.Fprint(&buf, nil, args...)
+-	if err != nil {
+-		var i interface{} = args
+-		fmt.Fprintf(&buf, "--- Sprint(%s) failed: %v", fmt.Sprint(i), err)
+-	}
+-	return buf.String()
+-}
+diff --git a/src/pkg/exp/datafmt/datafmt_test.go b/src/pkg/exp/datafmt/datafmt_test.go
+deleted file mode 100644
+index 87d0716593..0000000000
+--- a/src/pkg/exp/datafmt/datafmt_test.go
++++ /dev/null
+@@ -1,330 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package datafmt
+-
+-import (
+-	"fmt"
+-	"testing"
+-	"go/token"
+-)
+-
+-var fset = token.NewFileSet()
+-
+-func parse(t *testing.T, form string, fmap FormatterMap) Format {
+-	f, err := Parse(fset, "", []byte(form), fmap)
+-	if err != nil {
+-		t.Errorf("Parse(%s): %v", form, err)
+-		return nil
+-	}
+-	return f
+-}
+-
+-func verify(t *testing.T, f Format, expected string, args ...interface{}) {
+-	if f == nil {
+-		return // allow other tests to run
+-	}
+-	result := f.Sprint(args...)
+-	if result != expected {
+-		t.Errorf(
+-			"result  : `%s`\nexpected: `%s`\n\n",
+-			result, expected)
+-	}
+-}
+-
+-func formatter(s *State, value interface{}, rule_name string) bool {
+-	switch rule_name {
+-	case "/":
+-		fmt.Fprintf(s, "%d %d %d", s.Pos().Line, s.LinePos().Column, s.Pos().Column)
+-		return true
+-	case "blank":
+-		s.Write([]byte{' '})
+-		return true
+-	case "int":
+-		if value.(int)&1 == 0 {
+-			fmt.Fprint(s, "even ")
+-		} else {
+-			fmt.Fprint(s, "odd ")
+-		}
+-		return true
+-	case "nil":
+-		return false
+-	case "testing.T":
+-		s.Write([]byte("testing.T"))
+-		return true
+-	}
+-	panic("unreachable")
+-	return false
+-}
+-
+-func TestCustomFormatters(t *testing.T) {
+-	fmap0 := FormatterMap{"/": formatter}
+-	fmap1 := FormatterMap{"int": formatter, "blank": formatter, "nil": formatter}
+-	fmap2 := FormatterMap{"testing.T": formatter}
+-
+-	f := parse(t, `int=`, fmap0)
+-	verify(t, f, ``, 1, 2, 3)
+-
+-	f = parse(t, `int="#"`, nil)
+-	verify(t, f, `###`, 1, 2, 3)
+-
+-	f = parse(t, `int="#";string="%s"`, fmap0)
+-	verify(t, f, "#1 0 1#1 0 7#1 0 13\n2 0 0foo2 0 8\n", 1, 2, 3, "\n", "foo", "\n")
+-
+-	f = parse(t, ``, fmap1)
+-	verify(t, f, `even odd even odd `, 0, 1, 2, 3)
+-
+-	f = parse(t, `/ =@:blank; float64="#"`, fmap1)
+-	verify(t, f, `# # #`, 0.0, 1.0, 2.0)
+-
+-	f = parse(t, `float64=@:nil`, fmap1)
+-	verify(t, f, ``, 0.0, 1.0, 2.0)
+-
+-	f = parse(t, `testing "testing"; ptr=*`, fmap2)
+-	verify(t, f, `testing.T`, t)
+-
+-	// TODO needs more tests
+-}
+-
+-// ----------------------------------------------------------------------------
+-// Formatting of basic and simple composite types
+-
+-func check(t *testing.T, form, expected string, args ...interface{}) {
+-	f := parse(t, form, nil)
+-	if f == nil {
+-		return // allow other tests to run
+-	}
+-	result := f.Sprint(args...)
+-	if result != expected {
+-		t.Errorf(
+-			"format  : %s\nresult  : `%s`\nexpected: `%s`\n\n",
+-			form, result, expected)
+-	}
+-}
+-
+-func TestBasicTypes(t *testing.T) {
+-	check(t, ``, ``)
+-	check(t, `bool=":%v"`, `:true:false`, true, false)
+-	check(t, `int="%b %d %o 0x%x"`, `101010 42 52 0x2a`, 42)
+-
+-	check(t, `int="%"`, `%`, 42)
+-	check(t, `int="%%"`, `%`, 42)
+-	check(t, `int="**%%**"`, `**%**`, 42)
+-	check(t, `int="%%%%%%"`, `%%%`, 42)
+-	check(t, `int="%%%d%%"`, `%42%`, 42)
+-
+-	const i = -42
+-	const is = `-42`
+-	check(t, `int  ="%d"`, is, i)
+-	check(t, `int8 ="%d"`, is, int8(i))
+-	check(t, `int16="%d"`, is, int16(i))
+-	check(t, `int32="%d"`, is, int32(i))
+-	check(t, `int64="%d"`, is, int64(i))
+-
+-	const u = 42
+-	const us = `42`
+-	check(t, `uint  ="%d"`, us, uint(u))
+-	check(t, `uint8 ="%d"`, us, uint8(u))
+-	check(t, `uint16="%d"`, us, uint16(u))
+-	check(t, `uint32="%d"`, us, uint32(u))
+-	check(t, `uint64="%d"`, us, uint64(u))
+-
+-	const f = 3.141592
+-	const fs = `3.141592`
+-	check(t, `float64="%g"`, fs, f)
+-	check(t, `float32="%g"`, fs, float32(f))
+-	check(t, `float64="%g"`, fs, float64(f))
+-}
+-
+-func TestArrayTypes(t *testing.T) {
+-	var a0 [10]int
+-	check(t, `array="array";`, `array`, a0)
+-
+-	a1 := [...]int{1, 2, 3}
+-	check(t, `array="array";`, `array`, a1)
+-	check(t, `array={*}; int="%d";`, `123`, a1)
+-	check(t, `array={* / ", "}; int="%d";`, `1, 2, 3`, a1)
+-	check(t, `array={* / *}; int="%d";`, `12233`, a1)
+-
+-	a2 := []interface{}{42, "foo", 3.14}
+-	check(t, `array={* / ", "}; interface=*; string="bar"; default="%v";`, `42, bar, 3.14`, a2)
+-}
+-
+-func TestChanTypes(t *testing.T) {
+-	var c0 chan int
+-	check(t, `chan="chan"`, `chan`, c0)
+-
+-	c1 := make(chan int)
+-	go func() { c1 <- 42 }()
+-	check(t, `chan="chan"`, `chan`, c1)
+-	// check(t, `chan=*`, `42`, c1);  // reflection support for chans incomplete
+-}
+-
+-func TestFuncTypes(t *testing.T) {
+-	var f0 func() int
+-	check(t, `func="func"`, `func`, f0)
+-
+-	f1 := func() int { return 42 }
+-	check(t, `func="func"`, `func`, f1)
+-	// check(t, `func=*`, `42`, f1);  // reflection support for funcs incomplete
+-}
+-
+-func TestMapTypes(t *testing.T) {
+-	var m0 map[string]int
+-	check(t, `map="map"`, `map`, m0)
+-
+-	m1 := map[string]int{}
+-	check(t, `map="map"`, `map`, m1)
+-	// check(t, `map=*`, ``, m1);  // reflection support for maps incomplete
+-}
+-
+-func TestPointerTypes(t *testing.T) {
+-	var p0 *int
+-	check(t, `ptr="ptr"`, `ptr`, p0)
+-	check(t, `ptr=*`, ``, p0)
+-	check(t, `ptr=*|"nil"`, `nil`, p0)
+-
+-	x := 99991
+-	p1 := &x
+-	check(t, `ptr="ptr"`, `ptr`, p1)
+-	check(t, `ptr=*; int="%d"`, `99991`, p1)
+-}
+-
+-func TestDefaultRule(t *testing.T) {
+-	check(t, `default="%v"`, `42foo3.14`, 42, "foo", 3.14)
+-	check(t, `default="%v"; int="%x"`, `abcdef`, 10, 11, 12, 13, 14, 15)
+-	check(t, `default="%v"; int="%x"`, `ab**ef`, 10, 11, "**", 14, 15)
+-	check(t, `default="%x"; int=@:default`, `abcdef`, 10, 11, 12, 13, 14, 15)
+-}
+-
+-func TestGlobalSeparatorRule(t *testing.T) {
+-	check(t, `int="%d"; / ="-"`, `1-2-3-4`, 1, 2, 3, 4)
+-	check(t, `int="%x%x"; / ="*"`, `aa*aa`, 10, 10)
+-}
+-
+-// ----------------------------------------------------------------------------
+-// Formatting of a struct
+-
+-type T1 struct {
+-	a int
+-}
+-
+-const F1 = `datafmt "datafmt";` +
+-	`int = "%d";` +
+-	`datafmt.T1 = "<" a ">";`
+-
+-func TestStruct1(t *testing.T) { check(t, F1, "<42>", T1{42}) }
+-
+-// ----------------------------------------------------------------------------
+-// Formatting of a struct with an optional field (ptr)
+-
+-type T2 struct {
+-	s string
+-	p *T1
+-}
+-
+-const F2a = F1 +
+-	`string = "%s";` +
+-	`ptr = *;` +
+-	`datafmt.T2 = s ["-" p "-"];`
+-
+-const F2b = F1 +
+-	`string = "%s";` +
+-	`ptr = *;` +
+-	`datafmt.T2 = s ("-" p "-" | "empty");`
+-
+-func TestStruct2(t *testing.T) {
+-	check(t, F2a, "foo", T2{"foo", nil})
+-	check(t, F2a, "bar-<17>-", T2{"bar", &T1{17}})
+-	check(t, F2b, "fooempty", T2{"foo", nil})
+-}
+-
+-// ----------------------------------------------------------------------------
+-// Formatting of a struct with a repetitive field (slice)
+-
+-type T3 struct {
+-	s string
+-	a []int
+-}
+-
+-const F3a = `datafmt "datafmt";` +
+-	`default = "%v";` +
+-	`array = *;` +
+-	`datafmt.T3 = s  {" " a a / ","};`
+-
+-const F3b = `datafmt "datafmt";` +
+-	`int = "%d";` +
+-	`string = "%s";` +
+-	`array = *;` +
+-	`nil = ;` +
+-	`empty = *:nil;` +
+-	`datafmt.T3 = s [a:empty ": " {a / "-"}]`
+-
+-func TestStruct3(t *testing.T) {
+-	check(t, F3a, "foo", T3{"foo", nil})
+-	check(t, F3a, "foo 00, 11, 22", T3{"foo", []int{0, 1, 2}})
+-	check(t, F3b, "bar", T3{"bar", nil})
+-	check(t, F3b, "bal: 2-3-5", T3{"bal", []int{2, 3, 5}})
+-}
+-
+-// ----------------------------------------------------------------------------
+-// Formatting of a struct with alternative field
+-
+-type T4 struct {
+-	x *int
+-	a []int
+-}
+-
+-const F4a = `datafmt "datafmt";` +
+-	`int = "%d";` +
+-	`ptr = *;` +
+-	`array = *;` +
+-	`nil = ;` +
+-	`empty = *:nil;` +
+-	`datafmt.T4 = "<" (x:empty x | "-") ">" `
+-
+-const F4b = `datafmt "datafmt";` +
+-	`int = "%d";` +
+-	`ptr = *;` +
+-	`array = *;` +
+-	`nil = ;` +
+-	`empty = *:nil;` +
+-	`datafmt.T4 = "<" (a:empty {a / ", "} | "-") ">" `
+-
+-func TestStruct4(t *testing.T) {
+-	x := 7
+-	check(t, F4a, "<->", T4{nil, nil})
+-	check(t, F4a, "<7>", T4{&x, nil})
+-	check(t, F4b, "<->", T4{nil, nil})
+-	check(t, F4b, "<2, 3, 7>", T4{nil, []int{2, 3, 7}})
+-}
+-
+-// ----------------------------------------------------------------------------
+-// Formatting a struct (documentation example)
+-
+-type Point struct {
+-	name string
+-	x, y int
+-}
+-
+-const FPoint = `datafmt "datafmt";` +
+-	`int = "%d";` +
+-	`hexInt = "0x%x";` +
+-	`string = "---%s---";` +
+-	`datafmt.Point = name "{" x ", " y:hexInt "}";`
+-
+-func TestStructPoint(t *testing.T) {
+-	p := Point{"foo", 3, 15}
+-	check(t, FPoint, "---foo---{3, 0xf}", p)
+-}
+-
+-// ----------------------------------------------------------------------------
+-// Formatting a slice (documentation example)
+-
+-const FSlice = `int = "%b";` +
+-	`array = { * / ", " }`
+-
+-func TestSlice(t *testing.T) { check(t, FSlice, "10, 11, 101, 111", []int{2, 3, 5, 7}) }
+-
+-// TODO add more tests
+diff --git a/src/pkg/exp/datafmt/parser.go b/src/pkg/exp/datafmt/parser.go
+deleted file mode 100644
+index a2ddd38972..0000000000
+--- a/src/pkg/exp/datafmt/parser.go
++++ /dev/null
+@@ -1,368 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package datafmt
+-
+-import (
+-	"go/scanner"
+-	"go/token"
+-	"os"
+-	"strconv"
+-	"strings"
+-)
+-
+-// ----------------------------------------------------------------------------
+-// Parsing
+-
+-type parser struct {
+-	scanner.ErrorVector
+-	scanner scanner.Scanner
+-	file    *token.File
+-	pos     token.Pos   // token position
+-	tok     token.Token // one token look-ahead
+-	lit     string      // token literal
+-
+-	packs map[string]string // PackageName -> ImportPath
+-	rules map[string]expr   // RuleName -> Expression
+-}
+-
+-func (p *parser) next() {
+-	p.pos, p.tok, p.lit = p.scanner.Scan()
+-	switch p.tok {
+-	case token.CHAN, token.FUNC, token.INTERFACE, token.MAP, token.STRUCT:
+-		// Go keywords for composite types are type names
+-		// returned by reflect. Accept them as identifiers.
+-		p.tok = token.IDENT // p.lit is already set correctly
+-	}
+-}
+-
+-func (p *parser) init(fset *token.FileSet, filename string, src []byte) {
+-	p.ErrorVector.Reset()
+-	p.file = fset.AddFile(filename, fset.Base(), len(src))
+-	p.scanner.Init(p.file, src, p, scanner.AllowIllegalChars) // return '@' as token.ILLEGAL w/o error message
+-	p.next()                                                  // initializes pos, tok, lit
+-	p.packs = make(map[string]string)
+-	p.rules = make(map[string]expr)
+-}
+-
+-func (p *parser) error(pos token.Pos, msg string) {
+-	p.Error(p.file.Position(pos), msg)
+-}
+-
+-func (p *parser) errorExpected(pos token.Pos, msg string) {
+-	msg = "expected " + msg
+-	if pos == p.pos {
+-		// the error happened at the current position;
+-		// make the error message more specific
+-		msg += ", found '" + p.tok.String() + "'"
+-		if p.tok.IsLiteral() {
+-			msg += " " + p.lit
+-		}
+-	}
+-	p.error(pos, msg)
+-}
+-
+-func (p *parser) expect(tok token.Token) token.Pos {
+-	pos := p.pos
+-	if p.tok != tok {
+-		p.errorExpected(pos, "'"+tok.String()+"'")
+-	}
+-	p.next() // make progress in any case
+-	return pos
+-}
+-
+-func (p *parser) parseIdentifier() string {
+-	name := p.lit
+-	p.expect(token.IDENT)
+-	return name
+-}
+-
+-func (p *parser) parseTypeName() (string, bool) {
+-	pos := p.pos
+-	name, isIdent := p.parseIdentifier(), true
+-	if p.tok == token.PERIOD {
+-		// got a package name, lookup package
+-		if importPath, found := p.packs[name]; found {
+-			name = importPath
+-		} else {
+-			p.error(pos, "package not declared: "+name)
+-		}
+-		p.next()
+-		name, isIdent = name+"."+p.parseIdentifier(), false
+-	}
+-	return name, isIdent
+-}
+-
+-// Parses a rule name and returns it. If the rule name is
+-// a package-qualified type name, the package name is resolved.
+-// The 2nd result value is true iff the rule name consists of a
+-// single identifier only (and thus could be a package name).
+-//
+-func (p *parser) parseRuleName() (string, bool) {
+-	name, isIdent := "", false
+-	switch p.tok {
+-	case token.IDENT:
+-		name, isIdent = p.parseTypeName()
+-	case token.DEFAULT:
+-		name = "default"
+-		p.next()
+-	case token.QUO:
+-		name = "/"
+-		p.next()
+-	default:
+-		p.errorExpected(p.pos, "rule name")
+-		p.next() // make progress in any case
+-	}
+-	return name, isIdent
+-}
+-
+-func (p *parser) parseString() string {
+-	s := ""
+-	if p.tok == token.STRING {
+-		s, _ = strconv.Unquote(p.lit)
+-		// Unquote may fail with an error, but only if the scanner found
+-		// an illegal string in the first place. In this case the error
+-		// has already been reported.
+-		p.next()
+-		return s
+-	} else {
+-		p.expect(token.STRING)
+-	}
+-	return s
+-}
+-
+-func (p *parser) parseLiteral() literal {
+-	s := []byte(p.parseString())
+-
+-	// A string literal may contain %-format specifiers. To simplify
+-	// and speed up printing of the literal, split it into segments
+-	// that start with "%" possibly followed by a last segment that
+-	// starts with some other character.
+-	var list []interface{}
+-	i0 := 0
+-	for i := 0; i < len(s); i++ {
+-		if s[i] == '%' && i+1 < len(s) {
+-			// the next segment starts with a % format
+-			if i0 < i {
+-				// the current segment is not empty, split it off
+-				list = append(list, s[i0:i])
+-				i0 = i
+-			}
+-			i++ // skip %; let loop skip over char after %
+-		}
+-	}
+-	// the final segment may start with any character
+-	// (it is empty iff the string is empty)
+-	list = append(list, s[i0:])
+-
+-	// convert list into a literal
+-	lit := make(literal, len(list))
+-	for i := 0; i < len(list); i++ {
+-		lit[i] = list[i].([]byte)
+-	}
+-
+-	return lit
+-}
+-
+-func (p *parser) parseField() expr {
+-	var fname string
+-	switch p.tok {
+-	case token.ILLEGAL:
+-		if p.lit != "@" {
+-			return nil
+-		}
+-		fname = "@"
+-		p.next()
+-	case token.MUL:
+-		fname = "*"
+-		p.next()
+-	case token.IDENT:
+-		fname = p.parseIdentifier()
+-	default:
+-		return nil
+-	}
+-
+-	var ruleName string
+-	if p.tok == token.COLON {
+-		p.next()
+-		ruleName, _ = p.parseRuleName()
+-	}
+-
+-	return &field{fname, ruleName}
+-}
+-
+-func (p *parser) parseOperand() (x expr) {
+-	switch p.tok {
+-	case token.STRING:
+-		x = p.parseLiteral()
+-
+-	case token.LPAREN:
+-		p.next()
+-		x = p.parseExpression()
+-		if p.tok == token.SHR {
+-			p.next()
+-			x = &group{x, p.parseExpression()}
+-		}
+-		p.expect(token.RPAREN)
+-
+-	case token.LBRACK:
+-		p.next()
+-		x = &option{p.parseExpression()}
+-		p.expect(token.RBRACK)
+-
+-	case token.LBRACE:
+-		p.next()
+-		x = p.parseExpression()
+-		var div expr
+-		if p.tok == token.QUO {
+-			p.next()
+-			div = p.parseExpression()
+-		}
+-		x = &repetition{x, div}
+-		p.expect(token.RBRACE)
+-
+-	default:
+-		x = p.parseField() // may be nil
+-	}
+-
+-	return x
+-}
+-
+-func (p *parser) parseSequence() expr {
+-	var list []interface{}
+-
+-	for x := p.parseOperand(); x != nil; x = p.parseOperand() {
+-		list = append(list, x)
+-	}
+-
+-	// no need for a sequence if list.Len() < 2
+-	switch len(list) {
+-	case 0:
+-		return nil
+-	case 1:
+-		return list[0].(expr)
+-	}
+-
+-	// convert list into a sequence
+-	seq := make(sequence, len(list))
+-	for i := 0; i < len(list); i++ {
+-		seq[i] = list[i].(expr)
+-	}
+-	return seq
+-}
+-
+-func (p *parser) parseExpression() expr {
+-	var list []interface{}
+-
+-	for {
+-		x := p.parseSequence()
+-		if x != nil {
+-			list = append(list, x)
+-		}
+-		if p.tok != token.OR {
+-			break
+-		}
+-		p.next()
+-	}
+-
+-	// no need for an alternatives if list.Len() < 2
+-	switch len(list) {
+-	case 0:
+-		return nil
+-	case 1:
+-		return list[0].(expr)
+-	}
+-
+-	// convert list into a alternatives
+-	alt := make(alternatives, len(list))
+-	for i := 0; i < len(list); i++ {
+-		alt[i] = list[i].(expr)
+-	}
+-	return alt
+-}
+-
+-func (p *parser) parseFormat() {
+-	for p.tok != token.EOF {
+-		pos := p.pos
+-
+-		name, isIdent := p.parseRuleName()
+-		switch p.tok {
+-		case token.STRING:
+-			// package declaration
+-			importPath := p.parseString()
+-
+-			// add package declaration
+-			if !isIdent {
+-				p.error(pos, "illegal package name: "+name)
+-			} else if _, found := p.packs[name]; !found {
+-				p.packs[name] = importPath
+-			} else {
+-				p.error(pos, "package already declared: "+name)
+-			}
+-
+-		case token.ASSIGN:
+-			// format rule
+-			p.next()
+-			x := p.parseExpression()
+-
+-			// add rule
+-			if _, found := p.rules[name]; !found {
+-				p.rules[name] = x
+-			} else {
+-				p.error(pos, "format rule already declared: "+name)
+-			}
+-
+-		default:
+-			p.errorExpected(p.pos, "package declaration or format rule")
+-			p.next() // make progress in any case
+-		}
+-
+-		if p.tok == token.SEMICOLON {
+-			p.next()
+-		} else {
+-			break
+-		}
+-	}
+-	p.expect(token.EOF)
+-}
+-
+-func remap(p *parser, name string) string {
+-	i := strings.Index(name, ".")
+-	if i >= 0 {
+-		packageName, suffix := name[0:i], name[i:]
+-		// lookup package
+-		if importPath, found := p.packs[packageName]; found {
+-			name = importPath + suffix
+-		} else {
+-			var invalidPos token.Position
+-			p.Error(invalidPos, "package not declared: "+packageName)
+-		}
+-	}
+-	return name
+-}
+-
+-// Parse parses a set of format productions from source src. Custom
+-// formatters may be provided via a map of formatter functions. If
+-// there are no errors, the result is a Format and the error is nil.
+-// Otherwise the format is nil and a non-empty ErrorList is returned.
+-//
+-func Parse(fset *token.FileSet, filename string, src []byte, fmap FormatterMap) (Format, os.Error) {
+-	// parse source
+-	var p parser
+-	p.init(fset, filename, src)
+-	p.parseFormat()
+-
+-	// add custom formatters, if any
+-	for name, form := range fmap {
+-		name = remap(&p, name)
+-		if _, found := p.rules[name]; !found {
+-			p.rules[name] = &custom{name, form}
+-		} else {
+-			var invalidPos token.Position
+-			p.Error(invalidPos, "formatter already declared: "+name)
+-		}
+-	}
+-
+-	return p.rules, p.GetError(scanner.NoMultiples)
+-}

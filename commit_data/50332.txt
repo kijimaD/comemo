@@ -12,6 +12,48 @@ Date:   Thu Sep 9 00:32:03 2021 +0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Daniel Martí <mvdan@mvdan.cc>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/encoding/base64/example_test.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/src/encoding/base64/example_test.go b/src/encoding/base64/example_test.go
+index 73f119ac5e..61a3adc5ad 100644
+--- a/src/encoding/base64/example_test.go
++++ b/src/encoding/base64/example_test.go
+@@ -35,6 +35,15 @@ func ExampleEncoding_EncodeToString() {
+ 	// YW55ICsgb2xkICYgZGF0YQ==
+ }
+ 
++func ExampleEncoding_Encode() {
++	data := []byte("Hello, world!")
++	dst := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
++	base64.StdEncoding.Encode(dst, data)
++	fmt.Println(string(dst))
++	// Output:
++	// SGVsbG8sIHdvcmxkIQ==
++}
++
+ func ExampleEncoding_DecodeString() {
+ 	str := "c29tZSBkYXRhIHdpdGggACBhbmQg77u/"
+ 	data, err := base64.StdEncoding.DecodeString(str)
+@@ -47,6 +56,20 @@ func ExampleEncoding_DecodeString() {
+ 	// "some data with \x00 and \ufeff"
+ }
+ 
++func ExampleEncoding_Decode() {
++	str := "SGVsbG8sIHdvcmxkIQ=="
++	dst := make([]byte, base64.StdEncoding.DecodedLen(len(str)))
++	n, err := base64.StdEncoding.Decode(dst, []byte(str))
++	if err != nil {
++		fmt.Println("decode error:", err)
++		return
++	}
++	dst = dst[:n]
++	fmt.Printf("%q\n", dst)
++	// Output:
++	// "Hello, world!"
++}
++
+ func ExampleNewEncoder() {
+ 	input := []byte("foo\x00bar")
+ 	encoder := base64.NewEncoder(base64.StdEncoding, os.Stdout)

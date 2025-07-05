@@ -8,6 +8,19 @@ Date:   Fri Dec 11 13:54:00 2009 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/174063
-
+---
  misc/bash/go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/misc/bash/go b/misc/bash/go
+new file mode 100644
+index 0000000000..711020ac91
+--- /dev/null
++++ b/misc/bash/go
+@@ -0,0 +1,6 @@
++# install in /etc/bash_completion.d/ or your personal directory
++
++complete -f -X '!*.8' 8l
++complete -f -X '!*.6' 6l
++complete -f -X '!*.5' 5l
++complete -f -X '!*.go' 8g 6g 5g

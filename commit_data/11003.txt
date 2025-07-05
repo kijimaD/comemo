@@ -16,9 +16,242 @@ Date:   Fri Dec 23 18:21:26 2011 +0100
     R=r
     CC=golang-dev
     https://golang.org/cl/5502069
-
+---
  src/pkg/exp/norm/input.go          |  8 +++---
  src/pkg/exp/norm/normalize.go      | 53 ++++++++++++++++++++++----------------
  src/pkg/exp/norm/normalize_test.go | 17 +++++++++++-
  src/pkg/exp/norm/readwriter.go     |  4 +--
  4 files changed, 52 insertions(+), 30 deletions(-)
+
+diff --git a/src/pkg/exp/norm/input.go b/src/pkg/exp/norm/input.go
+index ce159e9050..42e6f1b794 100644
+--- a/src/pkg/exp/norm/input.go
++++ b/src/pkg/exp/norm/input.go
+@@ -8,7 +8,7 @@ import "unicode/utf8"
+ 
+ type input interface {
+ 	skipASCII(p int) int
+-	skipNonStarter() int
++	skipNonStarter(p int) int
+ 	appendSlice(buf []byte, s, e int) []byte
+ 	copySlice(buf []byte, s, e int)
+ 	charinfo(p int) (uint16, int)
+@@ -25,8 +25,7 @@ func (s inputString) skipASCII(p int) int {
+ 	return p
+ }
+ 
+-func (s inputString) skipNonStarter() int {
+-	p := 0
++func (s inputString) skipNonStarter(p int) int {
+ 	for ; p < len(s) && !utf8.RuneStart(s[p]); p++ {
+ 	}
+ 	return p
+@@ -71,8 +70,7 @@ func (s inputBytes) skipASCII(p int) int {
+ 	return p
+ }
+ 
+-func (s inputBytes) skipNonStarter() int {
+-	p := 0
++func (s inputBytes) skipNonStarter(p int) int {
+ 	for ; p < len(s) && !utf8.RuneStart(s[p]); p++ {
+ 	}
+ 	return p
+diff --git a/src/pkg/exp/norm/normalize.go b/src/pkg/exp/norm/normalize.go
+index 25bb28d517..3bd40470d5 100644
+--- a/src/pkg/exp/norm/normalize.go
++++ b/src/pkg/exp/norm/normalize.go
+@@ -34,24 +34,28 @@ const (
+ 
+ // Bytes returns f(b). May return b if f(b) = b.
+ func (f Form) Bytes(b []byte) []byte {
+-	n := f.QuickSpan(b)
++	rb := reorderBuffer{}
++	rb.init(f, b)
++	n := quickSpan(&rb, 0)
+ 	if n == len(b) {
+ 		return b
+ 	}
+ 	out := make([]byte, n, len(b))
+ 	copy(out, b[0:n])
+-	return f.Append(out, b[n:]...)
++	return doAppend(&rb, out, n)
+ }
+ 
+ // String returns f(s).
+ func (f Form) String(s string) string {
+-	n := f.QuickSpanString(s)
++	rb := reorderBuffer{}
++	rb.initString(f, s)
++	n := quickSpan(&rb, 0)
+ 	if n == len(s) {
+ 		return s
+ 	}
+-	out := make([]byte, 0, len(s))
++	out := make([]byte, n, len(s))
+ 	copy(out, s[0:n])
+-	return string(f.AppendString(out, s[n:]))
++	return string(doAppend(&rb, out, n))
+ }
+ 
+ // IsNormal returns true if b == f(b).
+@@ -122,23 +126,27 @@ func (f Form) IsNormalString(s string) bool {
+ 
+ // patchTail fixes a case where a rune may be incorrectly normalized
+ // if it is followed by illegal continuation bytes. It returns the
+-// patched buffer and the number of trailing continuation bytes that
+-// have been dropped.
+-func patchTail(rb *reorderBuffer, buf []byte) ([]byte, int) {
++// patched buffer and whether there were trailing continuation bytes.
++func patchTail(rb *reorderBuffer, buf []byte) ([]byte, bool) {
+ 	info, p := lastRuneStart(&rb.f, buf)
+ 	if p == -1 || info.size == 0 {
+-		return buf, 0
++		return buf, false
+ 	}
+ 	end := p + int(info.size)
+ 	extra := len(buf) - end
+ 	if extra > 0 {
++		// Potentially allocating memory. However, this only
++		// happens with ill-formed UTF-8.
++		x := make([]byte, 0)
++		x = append(x, buf[len(buf)-extra:]...)
+ 		buf = decomposeToLastBoundary(rb, buf[:end])
+ 		if rb.f.composing {
+ 			rb.compose()
+ 		}
+-		return rb.flush(buf), extra
++		buf = rb.flush(buf)
++		return append(buf, x...), true
+ 	}
+-	return buf, 0
++	return buf, false
+ }
+ 
+ func appendQuick(rb *reorderBuffer, dst []byte, i int) ([]byte, int) {
+@@ -157,23 +165,23 @@ func (f Form) Append(out []byte, src ...byte) []byte {
+ 	}
+ 	rb := reorderBuffer{}
+ 	rb.init(f, src)
+-	return doAppend(&rb, out)
++	return doAppend(&rb, out, 0)
+ }
+ 
+-func doAppend(rb *reorderBuffer, out []byte) []byte {
++func doAppend(rb *reorderBuffer, out []byte, p int) []byte {
+ 	src, n := rb.src, rb.nsrc
+ 	doMerge := len(out) > 0
+-	p := 0
+-	if p = src.skipNonStarter(); p > 0 {
++	if q := src.skipNonStarter(p); q > p {
+ 		// Move leading non-starters to destination.
+-		out = src.appendSlice(out, 0, p)
+-		buf, ndropped := patchTail(rb, out)
+-		if ndropped > 0 {
+-			out = src.appendSlice(buf, p-ndropped, p)
++		out = src.appendSlice(out, p, q)
++		buf, endsInError := patchTail(rb, out)
++		if endsInError {
++			out = buf
+ 			doMerge = false // no need to merge, ends with illegal UTF-8
+ 		} else {
+ 			out = decomposeToLastBoundary(rb, buf) // force decomposition
+ 		}
++		p = q
+ 	}
+ 	fd := &rb.f
+ 	if doMerge {
+@@ -217,7 +225,7 @@ func (f Form) AppendString(out []byte, src string) []byte {
+ 	}
+ 	rb := reorderBuffer{}
+ 	rb.initString(f, src)
+-	return doAppend(&rb, out)
++	return doAppend(&rb, out, 0)
+ }
+ 
+ // QuickSpan returns a boundary n such that b[0:n] == f(b[0:n]).
+@@ -225,7 +233,8 @@ func (f Form) AppendString(out []byte, src string) []byte {
+ func (f Form) QuickSpan(b []byte) int {
+ 	rb := reorderBuffer{}
+ 	rb.init(f, b)
+-	return quickSpan(&rb, 0)
++	n := quickSpan(&rb, 0)
++	return n
+ }
+ 
+ func quickSpan(rb *reorderBuffer, i int) int {
+@@ -301,7 +310,7 @@ func (f Form) FirstBoundary(b []byte) int {
+ 
+ func firstBoundary(rb *reorderBuffer) int {
+ 	src, nsrc := rb.src, rb.nsrc
+-	i := src.skipNonStarter()
++	i := src.skipNonStarter(0)
+ 	if i >= nsrc {
+ 		return -1
+ 	}
+diff --git a/src/pkg/exp/norm/normalize_test.go b/src/pkg/exp/norm/normalize_test.go
+index 6bd5292d3f..2e0c1f1712 100644
+--- a/src/pkg/exp/norm/normalize_test.go
++++ b/src/pkg/exp/norm/normalize_test.go
+@@ -253,7 +253,7 @@ var quickSpanNFDTests = []PositionTest{
+ 	{"\u0316\u0300cd", 6, ""},
+ 	{"\u043E\u0308b", 5, ""},
+ 	// incorrectly ordered combining characters
+-	{"ab\u0300\u0316", 1, ""}, // TODO(mpvl): we could skip 'b' as well.
++	{"ab\u0300\u0316", 1, ""}, // TODO: we could skip 'b' as well.
+ 	{"ab\u0300\u0316cd", 1, ""},
+ 	// Hangul
+ 	{"같은", 0, ""},
+@@ -465,6 +465,7 @@ var appendTests = []AppendTest{
+ 	{"\u0300", "\xFC\x80\x80\x80\x80\x80\u0300", "\u0300\xFC\x80\x80\x80\x80\x80\u0300"},
+ 	{"\xF8\x80\x80\x80\x80\u0300", "\u0300", "\xF8\x80\x80\x80\x80\u0300\u0300"},
+ 	{"\xFC\x80\x80\x80\x80\x80\u0300", "\u0300", "\xFC\x80\x80\x80\x80\x80\u0300\u0300"},
++	{"\xF8\x80\x80\x80", "\x80\u0300\u0300", "\xF8\x80\x80\x80\x80\u0300\u0300"},
+ }
+ 
+ func appendF(f Form, out []byte, s string) []byte {
+@@ -475,9 +476,23 @@ func appendStringF(f Form, out []byte, s string) []byte {
+ 	return f.AppendString(out, s)
+ }
+ 
++func bytesF(f Form, out []byte, s string) []byte {
++	buf := []byte{}
++	buf = append(buf, out...)
++	buf = append(buf, s...)
++	return f.Bytes(buf)
++}
++
++func stringF(f Form, out []byte, s string) []byte {
++	outs := string(out) + s
++	return []byte(f.String(outs))
++}
++
+ func TestAppend(t *testing.T) {
+ 	runAppendTests(t, "TestAppend", NFKC, appendF, appendTests)
+ 	runAppendTests(t, "TestAppendString", NFKC, appendStringF, appendTests)
++	runAppendTests(t, "TestBytes", NFKC, bytesF, appendTests)
++	runAppendTests(t, "TestString", NFKC, stringF, appendTests)
+ }
+ 
+ func doFormBenchmark(b *testing.B, f Form, s string) {
+diff --git a/src/pkg/exp/norm/readwriter.go b/src/pkg/exp/norm/readwriter.go
+index ee58abd22d..2682894de0 100644
+--- a/src/pkg/exp/norm/readwriter.go
++++ b/src/pkg/exp/norm/readwriter.go
+@@ -27,7 +27,7 @@ func (w *normWriter) Write(data []byte) (n int, err error) {
+ 		}
+ 		w.rb.src = inputBytes(data[:m])
+ 		w.rb.nsrc = m
+-		w.buf = doAppend(&w.rb, w.buf)
++		w.buf = doAppend(&w.rb, w.buf, 0)
+ 		data = data[m:]
+ 		n += m
+ 
+@@ -101,7 +101,7 @@ func (r *normReader) Read(p []byte) (int, error) {
+ 		r.rb.src = inputBytes(r.inbuf[0:n])
+ 		r.rb.nsrc, r.err = n, err
+ 		if n > 0 {
+-			r.outbuf = doAppend(&r.rb, r.outbuf)
++			r.outbuf = doAppend(&r.rb, r.outbuf, 0)
+ 		}
+ 		if err == io.EOF {
+ 			r.lastBoundary = len(r.outbuf)

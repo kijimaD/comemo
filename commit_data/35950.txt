@@ -26,6 +26,19 @@ Date:   Fri Mar 23 21:56:21 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c6ecc263d8..91944357df 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -110,6 +110,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
+ 
+ 	s.f = ssa.NewFunc(&fe)
+ 	s.config = ssaConfig
++	s.f.Type = fn.Type
+ 	s.f.Config = ssaConfig
+ 	s.f.Cache = &ssaCaches[worker]
+ 	s.f.Cache.Reset()

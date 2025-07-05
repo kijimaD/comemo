@@ -15,6 +15,19 @@ Date:   Tue Nov 16 13:01:57 2021 -0800
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/defer_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/defer_test.go b/src/runtime/defer_test.go
+index 1d5745d60b..821db0ca12 100644
+--- a/src/runtime/defer_test.go
++++ b/src/runtime/defer_test.go
+@@ -467,7 +467,6 @@ func TestIssue43920(t *testing.T) {
+ }
+ 
+ func step(t *testing.T, steps *int, want int) {
+-	println("step", want)
+ 	*steps++
+ 	if *steps != want {
+ 		t.Fatalf("have %v, want %v", *steps, want)

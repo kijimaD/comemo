@@ -7,6 +7,20 @@ Date:   Mon Sep 17 01:26:57 2012 +0800
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/6506121
-
+---
  src/run.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 01560fa371..f379ff5a70 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -18,7 +18,7 @@ ulimit -c 0
+ # We need at least 256 files and ~300 MB of bss.
+ # On OS X ulimit -S -n rejects 'unlimited'.
+ [ "$(ulimit -H -n)" == "unlimited" ] || ulimit -S -n $(ulimit -H -n)
+-[ "$(ulimit -H -d)" == "unlimited" ] || ulimit -S -n $(ulimit -H -d)
++[ "$(ulimit -H -d)" == "unlimited" ] || ulimit -S -d $(ulimit -H -d)
+ 
+ # allow all.bash to avoid double-build of everything
+ rebuild=true

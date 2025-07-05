@@ -19,7 +19,7 @@ Date:   Thu Apr 18 12:39:24 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dnsclient_unix.go                  | 18 +++++++++++++---
  src/net/dnsclient_unix_test.go             | 33 +++++++++++++++++++++++++++---
  src/net/dnsconfig_unix.go                  |  9 ++++++++
@@ -28,3 +28,209 @@ Date:   Thu Apr 18 12:39:24 2019 +0000
  src/net/testdata/linux-use-vc-resolv.conf  |  1 +
  src/net/testdata/openbsd-tcp-resolv.conf   |  1 +
  7 files changed, 90 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 4e7462b66f..7ed4ea8708 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -26,6 +26,12 @@ import (
+ 	"golang.org/x/net/dns/dnsmessage"
+ )
+ 
++const (
++	// to be used as a useTCP parameter to exchange
++	useTCPOnly  = true
++	useUDPOrTCP = false
++)
++
+ var (
+ 	errLameReferral              = errors.New("lame referral")
+ 	errCannotUnmarshalDNSMessage = errors.New("cannot unmarshal DNS message")
+@@ -131,13 +137,19 @@ func dnsStreamRoundTrip(c Conn, id uint16, query dnsmessage.Question, b []byte)
+ }
+ 
+ // exchange sends a query on the connection and hopes for a response.
+-func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Question, timeout time.Duration) (dnsmessage.Parser, dnsmessage.Header, error) {
++func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Question, timeout time.Duration, useTCP bool) (dnsmessage.Parser, dnsmessage.Header, error) {
+ 	q.Class = dnsmessage.ClassINET
+ 	id, udpReq, tcpReq, err := newRequest(q)
+ 	if err != nil {
+ 		return dnsmessage.Parser{}, dnsmessage.Header{}, errCannotMarshalDNSMessage
+ 	}
+-	for _, network := range []string{"udp", "tcp"} {
++	var networks []string
++	if useTCP {
++		networks = []string{"tcp"}
++	} else {
++		networks = []string{"udp", "tcp"}
++	}
++	for _, network := range networks {
+ 		ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
+ 		defer cancel()
+ 
+@@ -241,7 +253,7 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string,
+ 		for j := uint32(0); j < sLen; j++ {
+ 			server := cfg.servers[(serverOffset+j)%sLen]
+ 
+-			p, h, err := r.exchange(ctx, server, q, cfg.timeout)
++			p, h, err := r.exchange(ctx, server, q, cfg.timeout, cfg.useTCP)
+ 			if err != nil {
+ 				dnsErr := &DNSError{
+ 					Err:    err.Error(),
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 51d54a4cca..f1ed58c837 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -81,7 +81,7 @@ func TestDNSTransportFallback(t *testing.T) {
+ 	for _, tt := range dnsTransportFallbackTests {
+ 		ctx, cancel := context.WithCancel(context.Background())
+ 		defer cancel()
+-		_, h, err := r.exchange(ctx, tt.server, tt.question, time.Second)
++		_, h, err := r.exchange(ctx, tt.server, tt.question, time.Second, useUDPOrTCP)
+ 		if err != nil {
+ 			t.Error(err)
+ 			continue
+@@ -137,7 +137,7 @@ func TestSpecialDomainName(t *testing.T) {
+ 	for _, tt := range specialDomainNameTests {
+ 		ctx, cancel := context.WithCancel(context.Background())
+ 		defer cancel()
+-		_, h, err := r.exchange(ctx, server, tt.question, 3*time.Second)
++		_, h, err := r.exchange(ctx, server, tt.question, 3*time.Second, useUDPOrTCP)
+ 		if err != nil {
+ 			t.Error(err)
+ 			continue
+@@ -1564,7 +1564,7 @@ func TestDNSDialTCP(t *testing.T) {
+ 	}
+ 	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+ 	ctx := context.Background()
+-	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second)
++	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, useUDPOrTCP)
+ 	if err != nil {
+ 		t.Fatal("exhange failed:", err)
+ 	}
+@@ -1695,3 +1695,30 @@ func TestSingleRequestLookup(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Issue 29358. Add configuration knob to force TCP-only DNS requests in the pure Go resolver.
++func TestDNSUseTCP(t *testing.T) {
++	fake := fakeDNSServer{
++		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
++			r := dnsmessage.Message{
++				Header: dnsmessage.Header{
++					ID:       q.Header.ID,
++					Response: true,
++					RCode:    dnsmessage.RCodeSuccess,
++				},
++				Questions: q.Questions,
++			}
++			if n == "udp" {
++				t.Fatal("udp protocol was used instead of tcp")
++			}
++			return r, nil
++		},
++	}
++	r := Resolver{PreferGo: true, Dial: fake.DialContext}
++	ctx, cancel := context.WithCancel(context.Background())
++	defer cancel()
++	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, useTCPOnly)
++	if err != nil {
++		t.Fatal("exchange failed:", err)
++	}
++}
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index 3ca8d71f5f..877e77c049 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -33,6 +33,7 @@ type dnsConfig struct {
+ 	mtime         time.Time     // time of resolv.conf modification
+ 	soffset       uint32        // used by serverOffset
+ 	singleRequest bool          // use sequential A and AAAA queries instead of parallel queries
++	useTCP        bool          // force usage of TCP for DNS resolutions
+ }
+ 
+ // See resolv.conf(5) on a Linux machine.
+@@ -123,6 +124,14 @@ func dnsReadConfig(filename string) *dnsConfig {
+ 					//  This option disables the behavior and makes glibc
+ 					//  perform the IPv6 and IPv4 requests sequentially."
+ 					conf.singleRequest = true
++				case s == "use-vc" || s == "usevc" || s == "tcp":
++					// Linux (use-vc), FreeBSD (usevc) and OpenBSD (tcp) option:
++					// http://man7.org/linux/man-pages/man5/resolv.conf.5.html
++					// "Sets RES_USEVC in _res.options.
++					//  This option forces the use of TCP for DNS resolutions."
++					// https://www.freebsd.org/cgi/man.cgi?query=resolv.conf&sektion=5&manpath=freebsd-release-ports
++					// https://man.openbsd.org/resolv.conf.5
++					conf.useTCP = true
+ 				default:
+ 					conf.unknownOpt = true
+ 				}
+diff --git a/src/net/dnsconfig_unix_test.go b/src/net/dnsconfig_unix_test.go
+index f16f90ad50..42880123c5 100644
+--- a/src/net/dnsconfig_unix_test.go
++++ b/src/net/dnsconfig_unix_test.go
+@@ -124,6 +124,39 @@ var dnsReadConfigTests = []struct {
+ 			search:        []string{"domain.local."},
+ 		},
+ 	},
++	{
++		name: "testdata/linux-use-vc-resolv.conf",
++		want: &dnsConfig{
++			servers:  defaultNS,
++			ndots:    1,
++			useTCP:   true,
++			timeout:  5 * time.Second,
++			attempts: 2,
++			search:   []string{"domain.local."},
++		},
++	},
++	{
++		name: "testdata/freebsd-usevc-resolv.conf",
++		want: &dnsConfig{
++			servers:  defaultNS,
++			ndots:    1,
++			useTCP:   true,
++			timeout:  5 * time.Second,
++			attempts: 2,
++			search:   []string{"domain.local."},
++		},
++	},
++	{
++		name: "testdata/openbsd-tcp-resolv.conf",
++		want: &dnsConfig{
++			servers:  defaultNS,
++			ndots:    1,
++			useTCP:   true,
++			timeout:  5 * time.Second,
++			attempts: 2,
++			search:   []string{"domain.local."},
++		},
++	},
+ }
+ 
+ func TestDNSReadConfig(t *testing.T) {
+diff --git a/src/net/testdata/freebsd-usevc-resolv.conf b/src/net/testdata/freebsd-usevc-resolv.conf
+new file mode 100644
+index 0000000000..4afb281c5b
+--- /dev/null
++++ b/src/net/testdata/freebsd-usevc-resolv.conf
+@@ -0,0 +1 @@
++options usevc
+\ No newline at end of file
+diff --git a/src/net/testdata/linux-use-vc-resolv.conf b/src/net/testdata/linux-use-vc-resolv.conf
+new file mode 100644
+index 0000000000..4e4a58b7a7
+--- /dev/null
++++ b/src/net/testdata/linux-use-vc-resolv.conf
+@@ -0,0 +1 @@
++options use-vc
+\ No newline at end of file
+diff --git a/src/net/testdata/openbsd-tcp-resolv.conf b/src/net/testdata/openbsd-tcp-resolv.conf
+new file mode 100644
+index 0000000000..7929e50e8d
+--- /dev/null
++++ b/src/net/testdata/openbsd-tcp-resolv.conf
+@@ -0,0 +1 @@
++options tcp
+\ No newline at end of file

@@ -9,8 +9,171 @@ Date:   Fri Dec 26 14:42:20 2008 -0800
     R=r
     OCL=21827
     CL=21827
-
+---
  src/cmd/gc/walk.c      |  8 +++++++-
  src/lib/bignum.go      |  8 ++++++--
  src/lib/bignum_test.go | 52 +++++++++++++++++++++++++++++++++++++-------------
  3 files changed, 52 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 58d24bca0b..6e04973009 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1575,6 +1575,7 @@ lookdot(Node *n, Type *t)
+ 
+ 	if(f2 != T) {
+ 		if(needaddr(n->left->type)) {
++			walktype(n->left, Elv);
+ 			n->left = nod(OADDR, n->left, N);
+ 			n->left->type = ptrto(n->left->left->type);
+ 		}
+@@ -2621,6 +2622,8 @@ arrayop(Node *n, int top)
+ 		// arrays2d(old *any, nel int) (ary []any)
+ 		t = fixarray(n->right->type);
+ 		tl = fixarray(n->left->type);
++		if(t == T || tl == T)
++			break;
+ 
+ 		a = nodintconst(t->bound);		// nel
+ 		a = nod(OCONV, a, N);
+@@ -2642,6 +2645,8 @@ arrayop(Node *n, int top)
+ 	case ONEW:
+ 		// newarray(nel int, max int, width int) (ary []any)
+ 		t = fixarray(n->type);
++		if(t == T)
++			break;
+ 
+ 		a = nodintconst(t->type->width);	// width
+ 		a = nod(OCONV, a, N);
+@@ -2679,6 +2684,8 @@ arrayop(Node *n, int top)
+ 		// arraysliced(old []any, lb int, hb int, width int) (ary []any)
+ 
+ 		t = fixarray(n->left->type);
++		if(t == T)
++			break;
+ 
+ 		a = nodintconst(t->type->width);	// width
+ 		a = nod(OCONV, a, N);
+@@ -2693,7 +2700,6 @@ arrayop(Node *n, int top)
+ 		a->type = types[TINT];
+ 		r = list(a, r);
+ 
+-		t = fixarray(n->left->type);
+ 		if(t->bound >= 0) {
+ 			// static slice
+ 			a = nodintconst(t->bound);		// nel
+diff --git a/src/lib/bignum.go b/src/lib/bignum.go
+index a4ea8c9732..cc4d4df89a 100755
+--- a/src/lib/bignum.go
++++ b/src/lib/bignum.go
+@@ -1261,8 +1261,12 @@ export func RatFromString(s string, base uint, slen *int) (*Rational, uint) {
+ 			alen++;
+ 			b, base = NatFromString(s[alen : len(s)], abase, &blen);
+ 			assert(base == abase);
+-			f := Nat(base).Pow(uint(blen));
+-			a = MakeInt(a.sign, a.mant.Mul(f).Add(b));
++			//BUG f := Nat(base).Pow(uint(blen));
++			na := Nat(base);
++			f := na.Pow(uint(blen));
++			//BUG a = MakeInt(a.sign, a.mant.Mul(f).Add(b));
++			nb := a.mant.Mul(f);
++			a = MakeInt(a.sign, nb.Add(b));
+ 			b = f;
+ 		}
+ 	}
+diff --git a/src/lib/bignum_test.go b/src/lib/bignum_test.go
+index af9538028e..510096c5ef 100644
+--- a/src/lib/bignum_test.go
++++ b/src/lib/bignum_test.go
+@@ -204,11 +204,19 @@ func Mul(x, y bignum.Natural) bignum.Natural {
+ 	if z1.Cmp(z2) != 0 {
+ 		tester.Fatalf("multiplication not symmetric:\n\tx = %v\n\ty = %t", x, y);
+ 	}
+-	if !x.IsZero() && z1.Div(x).Cmp(y) != 0 {
+-		tester.Fatalf("multiplication/division not inverse (A):\n\tx = %v\n\ty = %t", x, y);
++	// BUG if !x.IsZero() && z1.Div(x).Cmp(y) != 0 {
++	if !x.IsZero()  {
++		na := z1.Div(x);
++		if na.Cmp(y) != 0 {
++			tester.Fatalf("multiplication/division not inverse (A):\n\tx = %v\n\ty = %t", x, y);
++		}
+ 	}
+-	if !y.IsZero() && z1.Div(y).Cmp(x) != 0 {
+-		tester.Fatalf("multiplication/division not inverse (B):\n\tx = %v\n\ty = %t", x, y);
++	// BUG if !y.IsZero() && z1.Div(y).Cmp(x) != 0 {
++	if !y.IsZero() {
++		nb := z1.Div(y);
++		if nb.Cmp(x) != 0 {
++			tester.Fatalf("multiplication/division not inverse (B):\n\tx = %v\n\ty = %t", x, y);
++		}
+ 	}
+ 	return z1;
+ }
+@@ -243,7 +251,9 @@ export func TestNatMul(t *testing.T) {
+ 
+ 	test_msg = "NatMulC";
+ 	const n = 100;
+-	p := b.Mul(c).Shl(n);
++	// BUG p := b.Mul(c).Shl(n);
++	na := b.Mul(c);
++	p := na.Shl(n);
+ 	for i := uint(0); i < n; i++ {
+ 		NAT_EQ(i, Mul(b.Shl(i), c.Shl(n-i)), p);
+ 	}
+@@ -331,10 +341,16 @@ export func TestNatMod(t *testing.T) {
+ 	for i := uint(0); ; i++ {
+ 		d := nat_one.Shl(i);
+ 		if d.Cmp(c) < 0 {
+-			NAT_EQ(i, c.Add(d).Mod(c), d);
++			//BUG NAT_EQ(i, c.Add(d).Mod(c), d);
++			na := c.Add(d);
++			NAT_EQ(i, na.Mod(c), d);
+ 		} else {
+-			NAT_EQ(i, c.Add(d).Div(c), nat_two);
+-			NAT_EQ(i, c.Add(d).Mod(c), d.Sub(c));
++			//BUG NAT_EQ(i, c.Add(d).Div(c), nat_two);
++			na := c.Add(d);
++			NAT_EQ(i, na.Div(c), nat_two);
++			//BUG NAT_EQ(i, c.Add(d).Mod(c), d.Sub(c));
++			nb := c.Add(d);
++			NAT_EQ(i, nb.Mod(c), d.Sub(c));
+ 			break;
+ 		}
+ 	}
+@@ -444,12 +460,18 @@ export func TestNatLog2(t *testing.T) {
+ 	test_msg = "NatLog2A";
+ 	TEST(0, nat_one.Log2() == 0);
+ 	TEST(1, nat_two.Log2() == 1);
+-	TEST(2, bignum.Nat(3).Log2() == 1);
+-	TEST(3, bignum.Nat(4).Log2() == 2);
++	//BUG TEST(2, bignum.Nat(3).Log2() == 1);
++	na := bignum.Nat(3);
++	TEST(2, na.Log2() == 1);
++	//BUG TEST(3, bignum.Nat(4).Log2() == 2);
++	nb := bignum.Nat(4);
++	TEST(3, nb.Log2() == 2);
+ 	
+ 	test_msg = "NatLog2B";
+ 	for i := uint(0); i < 100; i++ {
+-		TEST(i, nat_one.Shl(i).Log2() == i);
++		//BUG TEST(i, nat_one.Shl(i).Log2() == i);
++		nc := nat_one.Shl(i);
++		TEST(i, nc.Log2() == i);
+ 	}
+ }
+ 
+@@ -484,8 +506,12 @@ export func TestNatPop(t *testing.T) {
+ 	test_msg = "NatPopA";
+ 	TEST(0, nat_zero.Pop() == 0);
+ 	TEST(1, nat_one.Pop() == 1);
+-	TEST(2, bignum.Nat(10).Pop() == 2);
+-	TEST(3, bignum.Nat(30).Pop() == 4);
++	//BUG TEST(2, bignum.Nat(10).Pop() == 2);
++	na := bignum.Nat(10);
++	TEST(2, na.Pop() == 2);
++	//BUG TEST(3, bignum.Nat(30).Pop() == 4);
++	nb := bignum.Nat(30);
++	TEST(3, nb.Pop() == 4);
+ 	// BUG TEST(4, bignum.Nat(0x1248f).Shl(33).Pop() == 8);
+ 	g := bignum.Nat(0x1248f);
+ 	g = g.Shl(33);

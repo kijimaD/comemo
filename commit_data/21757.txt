@@ -12,7 +12,100 @@ Date:   Mon Feb 2 21:09:23 2015 +0900
     Change-Id: Ia752fe71866a3bfa3ea08371985b799d419ddea3
     Reviewed-on: https://go-review.googlesource.com/3685
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dnsclient.go   | 22 +++++++++++++++++++++-
  src/net/dnsmsg_test.go | 26 ++++++++++++++++----------
  2 files changed, 37 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/dnsclient.go b/src/net/dnsclient.go
+index 56e2a94965..099ea45eba 100644
+--- a/src/net/dnsclient.go
++++ b/src/net/dnsclient.go
+@@ -94,7 +94,7 @@ Cname:
+ 				continue
+ 			}
+ 			h := rr.Header()
+-			if h.Class == dnsClassINET && h.Name == name {
++			if h.Class == dnsClassINET && equalASCIILabel(h.Name, name) {
+ 				switch h.Rrtype {
+ 				case qtype:
+ 					addrs = append(addrs, rr)
+@@ -114,6 +114,26 @@ Cname:
+ 	return "", nil, &DNSError{Err: "too many redirects", Name: name, Server: server}
+ }
+ 
++func equalASCIILabel(x, y string) bool {
++	if len(x) != len(y) {
++		return false
++	}
++	for i := 0; i < len(x); i++ {
++		a := x[i]
++		b := y[i]
++		if 'A' <= a && a <= 'Z' {
++			a += 0x20
++		}
++		if 'A' <= b && b <= 'Z' {
++			b += 0x20
++		}
++		if a != b {
++			return false
++		}
++	}
++	return true
++}
++
+ func isDomainName(s string) bool {
+ 	// See RFC 1035, RFC 3696.
+ 	if len(s) == 0 {
+diff --git a/src/net/dnsmsg_test.go b/src/net/dnsmsg_test.go
+index c39dbdb049..159a03e525 100644
+--- a/src/net/dnsmsg_test.go
++++ b/src/net/dnsmsg_test.go
+@@ -18,7 +18,7 @@ func TestDNSParseSRVReply(t *testing.T) {
+ 	msg := new(dnsMsg)
+ 	ok := msg.Unpack(data)
+ 	if !ok {
+-		t.Fatalf("unpacking packet failed")
++		t.Fatal("unpacking packet failed")
+ 	}
+ 	msg.String() // exercise this code path
+ 	if g, e := len(msg.answer), 5; g != e {
+@@ -32,13 +32,19 @@ func TestDNSParseSRVReply(t *testing.T) {
+ 			t.Errorf("answer[%d] = %T; want *dnsRR_SRV", idx, rr)
+ 		}
+ 	}
+-	_, addrs, err := answer("_xmpp-server._tcp.google.com.", "foo:53", msg, uint16(dnsTypeSRV))
+-	if err != nil {
+-		t.Fatalf("answer: %v", err)
+-	}
+-	if g, e := len(addrs), 5; g != e {
+-		t.Errorf("len(addrs) = %d; want %d", g, e)
+-		t.Logf("addrs = %#v", addrs)
++	for _, name := range [...]string{
++		"_xmpp-server._tcp.google.com.",
++		"_XMPP-Server._TCP.Google.COM.",
++		"_XMPP-SERVER._TCP.GOOGLE.COM.",
++	} {
++		_, addrs, err := answer(name, "foo:53", msg, uint16(dnsTypeSRV))
++		if err != nil {
++			t.Error(err)
++		}
++		if g, e := len(addrs), 5; g != e {
++			t.Errorf("len(addrs) = %d; want %d", g, e)
++			t.Logf("addrs = %#v", addrs)
++		}
+ 	}
+ 	// repack and unpack.
+ 	data2, ok := msg.Pack()
+@@ -46,9 +52,9 @@ func TestDNSParseSRVReply(t *testing.T) {
+ 	msg2.Unpack(data2)
+ 	switch {
+ 	case !ok:
+-		t.Errorf("failed to repack message")
++		t.Error("failed to repack message")
+ 	case !reflect.DeepEqual(msg, msg2):
+-		t.Errorf("repacked message differs from original")
++		t.Error("repacked message differs from original")
+ 	}
+ }
+ 

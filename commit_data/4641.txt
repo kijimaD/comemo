@@ -7,7 +7,34 @@ Date:   Tue Jan 19 15:25:44 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/186232
-
+---
  src/cmd/gc/walk.c        | 2 +-
  test/fixedbugs/bug238.go | 3 +++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 211efaec94..acccbec2c9 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -182,7 +182,7 @@ walkdef(Node *n)
+ 		t = n->type;
+ 		if(t != T) {
+ 			convlit(&e, t);
+-			if(!isint[t->etype] && !isfloat[t->etype] && t->etype != TSTRING)
++			if(!isint[t->etype] && !isfloat[t->etype] && t->etype != TSTRING && t->etype != TBOOL)
+ 				yyerror("invalid constant type %T", t);
+ 		}
+ 		n->val = e->val;
+diff --git a/test/fixedbugs/bug238.go b/test/fixedbugs/bug238.go
+index 3ceacf51d7..83054fbc0c 100644
+--- a/test/fixedbugs/bug238.go
++++ b/test/fixedbugs/bug238.go
+@@ -15,5 +15,8 @@ const d chan int = 4    // ERROR "convert|wrong|incompatible"
+ const e func() = 5      // ERROR "convert|wrong|incompatible"
+ const f struct{} = 6    // ERROR "convert|wrong|incompatible"
+ const g interface{} = 7 // ERROR "constant|wrong|incompatible"
++const h bool = false
++const i int = 2
++const j float = 5
+ 
+ func main() { println(a, b, c, d, e, f, g) }

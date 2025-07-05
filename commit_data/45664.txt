@@ -21,7 +21,51 @@ Date:   Wed Oct 21 18:45:03 2020 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Trust: Alex Brainman <alex.brainman@gmail.com>
-
+---
  doc/go1.16.html             | 8 ++++++++
  src/syscall/exec_windows.go | 5 +++--
  2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 5d29307886..5ae85e6c29 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -378,6 +378,14 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- runtime/debug -->
+ 
++<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
++  <dd>
++    <p><!-- CL 261917 -->
++      <a href="/pkg/syscall/#SysProcAttr"><code>SysProcAttr</code></a> on Windows has a new NoInheritHandles field that disables inheriting handles when creating a new process.
++    </p>
++  </dd>
++</dl><!-- syscall -->
++
+ <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+   <dd>
+     <p><!-- CL 260858 -->
+diff --git a/src/syscall/exec_windows.go b/src/syscall/exec_windows.go
+index 4a1d74ba3f..46cbd7567d 100644
+--- a/src/syscall/exec_windows.go
++++ b/src/syscall/exec_windows.go
+@@ -241,6 +241,7 @@ type SysProcAttr struct {
+ 	Token             Token               // if set, runs new process in the security context represented by the token
+ 	ProcessAttributes *SecurityAttributes // if set, applies these security attributes as the descriptor for the new process
+ 	ThreadAttributes  *SecurityAttributes // if set, applies these security attributes as the descriptor for the main thread of the new process
++	NoInheritHandles  bool                // if set, each inheritable handle in the calling process is not inherited by the new process
+ }
+ 
+ var zeroProcAttr ProcAttr
+@@ -341,9 +342,9 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle
+ 
+ 	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT
+ 	if sys.Token != 0 {
+-		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
++		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, si, pi)
+ 	} else {
+-		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
++		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, si, pi)
+ 	}
+ 	if err != nil {
+ 		return 0, 0, err

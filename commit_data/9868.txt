@@ -11,7 +11,62 @@ Date:   Wed Oct 5 09:47:09 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5165048
-
+---
  src/pkg/gob/decoder.go      |  8 +++++++-
  src/pkg/gob/encoder_test.go | 25 +++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index c2a1e0c3a8..5efcea8bc1 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -29,9 +29,15 @@ type Decoder struct {
+ }
+ 
+ // NewDecoder returns a new decoder that reads from the io.Reader.
++// If r does not also implement io.ByteReader, it will be wrapped in a
++// bufio.Reader.
+ func NewDecoder(r io.Reader) *Decoder {
+ 	dec := new(Decoder)
+-	dec.r = bufio.NewReader(r)
++	// We use the ability to read bytes as a plausible surrogate for buffering.
++	if _, ok := r.(io.ByteReader); !ok {
++		r = bufio.NewReader(r)
++	}
++	dec.r = r
+ 	dec.wireType = make(map[typeId]*wireType)
+ 	dec.decoderCache = make(map[reflect.Type]map[typeId]**decEngine)
+ 	dec.ignorerCache = make(map[typeId]**decEngine)
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index 4263666393..a774438d38 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -638,3 +638,28 @@ func TestBadCount(t *testing.T) {
+ 		t.Error("expected bad count error; got", err)
+ 	}
+ }
++
++// Verify that sequential Decoders built on a single input will
++// succeed if the input implements ReadByte and there is no
++// type information in the stream.
++func TestSequentialDecoder(t *testing.T) {
++	b := new(bytes.Buffer)
++	enc := NewEncoder(b)
++	const count = 10
++	for i := 0; i < count; i++ {
++		s := fmt.Sprintf("%d", i)
++		if err := enc.Encode(s); err != nil {
++			t.Error("encoder fail:", err)
++		}
++	}
++	for i := 0; i < count; i++ {
++		dec := NewDecoder(b)
++		var s string
++		if err := dec.Decode(&s); err != nil {
++			t.Fatal("decoder fail:", err)
++		}
++		if s != fmt.Sprintf("%d", i) {
++			t.Fatalf("decode expected %d got %s", i, s)
++		}
++	}
++}

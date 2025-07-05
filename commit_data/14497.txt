@@ -9,6 +9,25 @@ Date:   Mon Nov 26 14:20:05 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6844091
-
+---
  src/pkg/go/printer/nodes.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index f6dc62dd52..cd5b67b82d 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -1431,11 +1431,11 @@ func (p *printer) bodySize(b *ast.BlockStmt, maxSize int) int {
+ 	pos2 := b.Rbrace
+ 	if pos1.IsValid() && pos2.IsValid() && p.lineFor(pos1) != p.lineFor(pos2) {
+ 		// opening and closing brace are on different lines - don't make it a one-liner
+-		return infinity
++		return maxSize + 1
+ 	}
+ 	if len(b.List) > 5 || p.commentBefore(p.posFor(pos2)) {
+ 		// too many statements or there is a comment inside - don't make it a one-liner
+-		return infinity
++		return maxSize + 1
+ 	}
+ 	// otherwise, estimate body size
+ 	bodySize := 0

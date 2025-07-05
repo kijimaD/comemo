@@ -13,9 +13,265 @@ Date:   Wed Dec 10 10:45:59 2014 -0500
     Reviewed-on: https://go-review.googlesource.com/1286
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/make.bash |  8 ++++----
  src/make.bat  |  8 ++++----
  src/run.bash  | 14 +++++++-------
  src/run.bat   | 26 +++++++++++++-------------
  4 files changed, 28 insertions(+), 28 deletions(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index fbc6f5d89d..a90937a77e 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -110,7 +110,7 @@ rm -f ./runtime/runtime_defs.go
+ 
+ # Finally!  Run the build.
+ 
+-echo '# Building C bootstrap tool.'
++echo '##### Building C bootstrap tool.'
+ echo cmd/dist
+ export GOROOT="$(cd .. && pwd)"
+ GOROOT_FINAL="${GOROOT_FINAL:-$GOROOT}"
+@@ -149,7 +149,7 @@ if [ "$1" = "--dist-tool" ]; then
+ 	exit 0
+ fi
+ 
+-echo "# Building compilers and Go bootstrap tool for host, $GOHOSTOS/$GOHOSTARCH."
++echo "##### Building compilers and Go bootstrap tool for host, $GOHOSTOS/$GOHOSTARCH."
+ buildall="-a"
+ if [ "$1" = "--no-clean" ]; then
+ 	buildall=""
+@@ -162,7 +162,7 @@ mv cmd/dist/dist "$GOTOOLDIR"/dist
+ echo
+ 
+ if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
+-	echo "# Building packages and commands for host, $GOHOSTOS/$GOHOSTARCH."
++	echo "##### Building packages and commands for host, $GOHOSTOS/$GOHOSTARCH."
+ 	# CC_FOR_TARGET is recorded as the default compiler for the go tool. When building for the host, however,
+ 	# use the host compiler, CC, from `cmd/dist/dist env` instead.
+ 	CC=$CC GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
+@@ -170,7 +170,7 @@ if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
+ 	echo
+ fi
+ 
+-echo "# Building packages and commands for $GOOS/$GOARCH."
++echo "##### Building packages and commands for $GOOS/$GOARCH."
+ CC=$CC_FOR_TARGET "$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -ccflags "$GO_CCFLAGS" -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
+ echo
+ 
+diff --git a/src/make.bat b/src/make.bat
+index fff1eb6011..8d035b0d22 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -56,7 +56,7 @@ cd src
+ if "x%GOROOT_FINAL%"=="x" set GOROOT_FINAL=%GOROOT%
+ set DEFGOROOT=-DGOROOT_FINAL="\"%GOROOT_FINAL:\=\\%\""
+ 
+-echo # Building C bootstrap tool.
++echo ##### Building C bootstrap tool.
+ echo cmd/dist
+ if not exist ..\bin\tool mkdir ..\bin\tool
+ :: Windows has no glob expansion, so spell out cmd/dist/*.c.
+@@ -71,7 +71,7 @@ echo.
+ if x%1==x--dist-tool goto copydist
+ if x%2==x--dist-tool goto copydist
+ 
+-echo # Building compilers and Go bootstrap tool.
++echo ##### Building compilers and Go bootstrap tool.
+ set buildall=-a
+ if x%1==x--no-clean set buildall=
+ .\cmd\dist\dist bootstrap %buildall% -v
+@@ -86,7 +86,7 @@ if not %GOHOSTOS% == %GOOS% goto localbuild
+ goto mainbuild
+ 
+ :localbuild
+-echo # Building tools for local system. %GOHOSTOS%/%GOHOSTARCH%
++echo ##### Building tools for local system. %GOHOSTOS%/%GOHOSTARCH%
+ setlocal
+ set GOOS=%GOHOSTOS%
+ set GOARCH=%GOHOSTARCH%
+@@ -96,7 +96,7 @@ if errorlevel 1 goto fail
+ echo.
+ 
+ :mainbuild
+-echo # Building packages and commands.
++echo ##### Building packages and commands.
+ "%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -a -v std
+ if errorlevel 1 goto fail
+ del "%GOTOOLDIR%\go_bootstrap.exe"
+diff --git a/src/run.bash b/src/run.bash
+index bb9e706033..8da06d6803 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -37,7 +37,7 @@ rebuild=true
+ if [ "$1" == "--no-rebuild" ]; then
+ 	shift
+ else
+-	echo '# Building packages and commands.'
++	echo '##### Building packages and commands.'
+ 	time go install -a -v std
+ 	echo
+ fi
+@@ -51,22 +51,22 @@ unset GOROOT_FINAL
+ timeout_scale=1
+ [ "$GOARCH" == "arm" ] && timeout_scale=3
+ 
+-echo '# Testing packages.'
++echo '##### Testing packages.'
+ time go test std -short -timeout=$(expr 120 \* $timeout_scale)s -gcflags "$GO_GCFLAGS"
+ echo
+ 
+ # We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+ # creation of first goroutines and first garbage collections in the parallel setting.
+-echo '# GOMAXPROCS=2 runtime -cpu=1,2,4'
++echo '##### GOMAXPROCS=2 runtime -cpu=1,2,4'
+ GOMAXPROCS=2 go test runtime -short -timeout=$(expr 300 \* $timeout_scale)s -cpu=1,2,4
+ echo
+ 
+-echo '# sync -cpu=10'
++echo '##### sync -cpu=10'
+ go test sync -short -timeout=$(expr 120 \* $timeout_scale)s -cpu=10
+ 
+ xcd() {
+ 	echo
+-	echo '#' $1
++	echo '#####' $1
+ 	builtin cd "$GOROOT"/src/$1 || exit 1
+ }
+ 
+@@ -165,7 +165,7 @@ esac
+ case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
+ linux-linux-amd64-1 | freebsd-freebsd-amd64-1 | darwin-darwin-amd64-1)
+ 	echo
+-	echo '# Testing race detector.'
++	echo '##### Testing race detector.'
+ 	go test -race -i runtime/race flag os/exec
+ 	go test -race -run=Output runtime/race
+ 	go test -race -short flag os/exec
+@@ -239,7 +239,7 @@ time ./timing.sh -test || exit 1
+ [ "$GOOS" == openbsd ] || # golang.org/issue/5057
+ (
+ echo
+-echo '#' ../test/bench/go1
++echo '#####' ../test/bench/go1
+ go test ../test/bench/go1 || exit 1
+ ) || exit $?
+ 
+diff --git a/src/run.bat b/src/run.bat
+index 31bb88c3da..7586ab5f18 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -19,7 +19,7 @@ set GOPATH=
+ rem TODO avoid rebuild if possible
+ 
+ if x%1==x--no-rebuild goto norebuild
+-echo # Building packages and commands.
++echo ##### Building packages and commands.
+ go install -a -v std
+ if errorlevel 1 goto fail
+ echo.
+@@ -37,7 +37,7 @@ call env.bat
+ del env.bat
+ echo.
+ 
+-echo # Testing packages.
++echo ##### Testing packages.
+ go test std -short -timeout=120s
+ if errorlevel 1 goto fail
+ echo.
+@@ -46,7 +46,7 @@ set OLDGOMAXPROCS=%GOMAXPROCS%
+ 
+ :: We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+ :: creation of first goroutines and first garbage collections in the parallel setting.
+-echo # GOMAXPROCS=2 runtime -cpu=1,2,4
++echo ##### GOMAXPROCS=2 runtime -cpu=1,2,4
+ set GOMAXPROCS=2
+ go test runtime -short -timeout=300s -cpu=1,2,4
+ if errorlevel 1 goto fail
+@@ -55,7 +55,7 @@ echo.
+ set GOMAXPROCS=%OLDGOMAXPROCS%
+ set OLDGOMAXPROCS=
+ 
+-echo # sync -cpu=10
++echo ##### sync -cpu=10
+ go test sync -short -timeout=120s -cpu=10
+ if errorlevel 1 goto fail
+ echo.
+@@ -63,7 +63,7 @@ echo.
+ :: Race detector only supported on Linux and OS X,
+ :: and only on amd64, and only when cgo is enabled.
+ if not "%GOHOSTOS%-%GOOS%-%GOARCH%-%CGO_ENABLED%" == "windows-windows-amd64-1" goto norace
+-echo # Testing race detector.
++echo ##### Testing race detector.
+ go test -race -i runtime/race flag
+ if errorlevel 1 goto fail
+ go test -race -run=Output runtime/race
+@@ -73,19 +73,19 @@ if errorlevel 1 goto fail
+ echo.
+ :norace
+ 
+-echo # ..\test\bench\go1
++echo ##### ..\test\bench\go1
+ go test ..\test\bench\go1
+ if errorlevel 1 goto fail
+ echo.
+ 
+ :: cgo tests
+ if x%CGO_ENABLED% == x0 goto nocgo
+-echo # ..\misc\cgo\life
++echo ##### ..\misc\cgo\life
+ go run "%GOROOT%\test\run.go" - ..\misc\cgo\life
+ if errorlevel 1 goto fail
+ echo.
+ 
+-echo # ..\misc\cgo\stdio
++echo ##### ..\misc\cgo\stdio
+ go run "%GOROOT%\test\run.go" - ..\misc\cgo\stdio
+ if errorlevel 1 goto fail
+ echo.
+@@ -94,7 +94,7 @@ echo.
+ set OLDGOTRACEBACK=%GOTRACEBACK%
+ set GOTRACEBACK=2
+ 
+-echo # ..\misc\cgo\test
++echo ##### ..\misc\cgo\test
+ go test ..\misc\cgo\test
+ if errorlevel 1 goto fail
+ echo.
+@@ -102,7 +102,7 @@ echo.
+ set GOTRACEBACK=%OLDGOTRACEBACK%
+ set OLDGOTRACEBACK=
+ 
+-echo # ..\misc\cgo\testso
++echo ##### ..\misc\cgo\testso
+ cd ..\misc\cgo\testso
+ set FAIL=0
+ call test.bat
+@@ -111,7 +111,7 @@ if %FAIL%==1 goto fail
+ echo.
+ :nocgo
+ 
+-echo # ..\doc\progs
++echo ##### ..\doc\progs
+ go run "%GOROOT%\test\run.go" - ..\doc\progs
+ if errorlevel 1 goto fail
+ echo.
+@@ -121,7 +121,7 @@ echo.
+ 
+ set OLDGOMAXPROCS=%GOMAXPROCS%
+ 
+-echo # ..\test
++echo ##### ..\test
+ cd ..\test
+ set FAIL=0
+ set GOMAXPROCS=
+@@ -134,7 +134,7 @@ if %FAIL%==1 goto fail
+ set GOMAXPROCS=%OLDGOMAXPROCS%
+ set OLDGOMAXPROCS=
+ 
+-:: echo # Checking API compatibility.
++:: echo ##### Checking API compatibility.
+ go run "%GOROOT%\src\cmd\api\run.go"
+ if errorlevel 1 goto fail
+ echo.

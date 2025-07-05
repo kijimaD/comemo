@@ -7,6 +7,20 @@ Date:   Mon Mar 28 23:39:39 2011 -0400
     TBR=adg
     CC=golang-dev
     https://golang.org/cl/4322041
-
+---
  src/pkg/net/file_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/file_test.go b/src/pkg/net/file_test.go
+index 1824d04eeb..1ec05fdeea 100644
+--- a/src/pkg/net/file_test.go
++++ b/src/pkg/net/file_test.go
+@@ -105,7 +105,7 @@ func testFilePacketConnListen(t *testing.T, net, laddr string) {
+ }
+ 
+ func testFilePacketConnDial(t *testing.T, net, raddr string) {
+-	c, err := Dial(net, "", raddr)
++	c, err := Dial(net, raddr)
+ 	if err != nil {
+ 		t.Fatalf("Dial failed: %v", err)
+ 	}

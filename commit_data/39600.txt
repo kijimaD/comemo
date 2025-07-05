@@ -19,7 +19,114 @@ Date:   Thu Mar 7 12:52:16 2019 -0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/lookup.go      |  5 ++--
  src/net/lookup_test.go | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 67 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index e10889331e..08e8d01385 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -262,8 +262,9 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
+ 	// only the values in context. See Issue 28600.
+ 	lookupGroupCtx, lookupGroupCancel := context.WithCancel(withUnexpiredValuesPreserved(ctx))
+ 
++	lookupKey := network + "\000" + host
+ 	dnsWaitGroup.Add(1)
+-	ch, called := r.getLookupGroup().DoChan(host, func() (interface{}, error) {
++	ch, called := r.getLookupGroup().DoChan(lookupKey, func() (interface{}, error) {
+ 		defer dnsWaitGroup.Done()
+ 		return testHookLookupIP(lookupGroupCtx, resolverFunc, network, host)
+ 	})
+@@ -280,7 +281,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
+ 		// let the lookup continue uncanceled, and let later
+ 		// lookups with the same key share the result.
+ 		// See issues 8602, 20703, 22724.
+-		if r.getLookupGroup().ForgetUnshared(host) {
++		if r.getLookupGroup().ForgetUnshared(lookupKey) {
+ 			lookupGroupCancel()
+ 		} else {
+ 			go func() {
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 85bcb2b896..1c0a4509c8 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"sort"
+ 	"strings"
+ 	"sync"
++	"sync/atomic"
+ 	"testing"
+ 	"time"
+ )
+@@ -1096,6 +1097,69 @@ func TestLookupIPAddrPreservesContextValues(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 30521: The lookup group should call the resolver for each network.
++func TestLookupIPAddrConcurrentCallsForNetworks(t *testing.T) {
++	origTestHookLookupIP := testHookLookupIP
++	defer func() { testHookLookupIP = origTestHookLookupIP }()
++
++	queries := [][]string{
++		{"udp", "golang.org"},
++		{"udp4", "golang.org"},
++		{"udp6", "golang.org"},
++		{"udp", "golang.org"},
++		{"udp", "golang.org"},
++	}
++	results := map[[2]string][]IPAddr{
++		{"udp", "golang.org"}: {
++			{IP: IPv4(127, 0, 0, 1)},
++			{IP: IPv6loopback},
++		},
++		{"udp4", "golang.org"}: {
++			{IP: IPv4(127, 0, 0, 1)},
++		},
++		{"udp6", "golang.org"}: {
++			{IP: IPv6loopback},
++		},
++	}
++	calls := int32(0)
++	waitCh := make(chan struct{})
++	testHookLookupIP = func(ctx context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
++		// We'll block until this is called one time for each different
++		// expected result. This will ensure that the lookup group would wait
++		// for the existing call if it was to be reused.
++		if atomic.AddInt32(&calls, 1) == int32(len(results)) {
++			close(waitCh)
++		}
++		select {
++		case <-waitCh:
++		case <-ctx.Done():
++			return nil, ctx.Err()
++		}
++		return results[[2]string{network, host}], nil
++	}
++
++	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
++	defer cancel()
++	wg := sync.WaitGroup{}
++	for _, q := range queries {
++		network := q[0]
++		host := q[1]
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			gotIPs, err := DefaultResolver.lookupIPAddr(ctx, network, host)
++			if err != nil {
++				t.Errorf("lookupIPAddr(%v, %v): unexpected error: %v", network, host, err)
++			}
++			wantIPs := results[[2]string{network, host}]
++			if !reflect.DeepEqual(gotIPs, wantIPs) {
++				t.Errorf("lookupIPAddr(%v, %v): mismatched IPAddr results\n\tGot: %v\n\tWant: %v", network, host, gotIPs, wantIPs)
++			}
++		}()
++	}
++	wg.Wait()
++}
++
+ func TestWithUnexpiredValuesPreserved(t *testing.T) {
+ 	ctx, cancel := context.WithCancel(context.Background())
+ 

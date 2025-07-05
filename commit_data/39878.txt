@@ -19,7 +19,64 @@ Date:   Wed Mar 27 12:39:45 2019 +0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/file.go              |  4 +++-
  src/os/user/lookup_stubs.go | 10 +++-------
  2 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 258a3e6109..86af707865 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -468,8 +468,10 @@ func UserHomeDir() (string, error) {
+ 	}
+ 	// On some geese the home directory is not always defined.
+ 	switch runtime.GOOS {
+-	case "nacl", "android":
++	case "nacl":
+ 		return "/", nil
++	case "android":
++		return "/sdcard", nil
+ 	case "darwin":
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+ 			return "/", nil
+diff --git a/src/os/user/lookup_stubs.go b/src/os/user/lookup_stubs.go
+index 61bf1dc7a6..6a20d78781 100644
+--- a/src/os/user/lookup_stubs.go
++++ b/src/os/user/lookup_stubs.go
+@@ -26,12 +26,14 @@ func current() (*User, error) {
+ 	if err == nil {
+ 		return u, nil
+ 	}
++
++	homeDir, _ := os.UserHomeDir()
+ 	u = &User{
+ 		Uid:      uid,
+ 		Gid:      currentGID(),
+ 		Username: os.Getenv("USER"),
+ 		Name:     "", // ignored
+-		HomeDir:  os.Getenv("HOME"),
++		HomeDir:  homeDir,
+ 	}
+ 	// On NaCL and Android, return a dummy user instead of failing.
+ 	switch runtime.GOOS {
+@@ -42,9 +44,6 @@ func current() (*User, error) {
+ 		if u.Username == "" {
+ 			u.Username = "nacl"
+ 		}
+-		if u.HomeDir == "" {
+-			u.HomeDir = "/"
+-		}
+ 	case "android":
+ 		if u.Uid == "" {
+ 			u.Uid = "1"
+@@ -52,9 +51,6 @@ func current() (*User, error) {
+ 		if u.Username == "" {
+ 			u.Username = "android"
+ 		}
+-		if u.HomeDir == "" {
+-			u.HomeDir = "/sdcard"
+-		}
+ 	}
+ 	// cgo isn't available, but if we found the minimum information
+ 	// without it, use it:

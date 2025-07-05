@@ -5,7 +5,7 @@ Date:   Fri Jun 27 13:03:19 2008 -0700
     segmented stack
     
     SVN=125151
-
+---
  src/cmd/6a/a.y                 | 35 ++++++++++++++++---
  src/cmd/6l/6.out.h             |  1 +
  src/cmd/6l/l.h                 |  4 +++
@@ -14,3 +14,415 @@ Date:   Fri Jun 27 13:03:19 2008 -0700
  src/runtime/rt0_amd64_darwin.s |  4 +--
  src/runtime/rt0_amd64_linux.s  | 77 +++++++++++++++++++++++-------------------
  7 files changed, 199 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/6a/a.y b/src/cmd/6a/a.y
+index 698e73e567..3f0493130a 100644
+--- a/src/cmd/6a/a.y
++++ b/src/cmd/6a/a.y
+@@ -52,8 +52,8 @@
+ %token	<dval>	LFCONST
+ %token	<sval>	LSCONST LSP
+ %token	<sym>	LNAME LLAB LVAR
+-%type	<lval>	con expr pointer offset
+-%type	<gen>	mem imm reg nam rel rem rim rom omem nmem
++%type	<lval>	con con3 expr pointer offset
++%type	<gen>	mem imm imm3 reg nam rel rem rim rom omem nmem
+ %type	<gen2>	nonnon nonrel nonrem rimnon rimrem remrim spec10
+ %type	<gen2>	spec1 spec2 spec3 spec4 spec5 spec6 spec7 spec8 spec9
+ %%
+@@ -177,12 +177,12 @@ spec1:	/* DATA */
+ 	}
+ 
+ spec2:	/* TEXT */
+-	mem ',' imm
++	mem ',' imm3
+ 	{
+ 		$$.from = $1;
+ 		$$.to = $3;
+ 	}
+-|	mem ',' con ',' imm
++|	mem ',' con ',' imm3
+ 	{
+ 		$$.from = $1;
+ 		$$.from.scale = $3;
+@@ -364,6 +364,14 @@ reg:
+ 		$$.type = $1;
+ 	}
+ 
++imm3:
++	'$' con3
++	{
++		$$ = nullgen;
++		$$.type = D_CONST;
++		$$.offset = $2;
++	}
++
+ imm:
+ 	'$' con
+ 	{
+@@ -548,6 +556,25 @@ con:
+ 		$$ = $2;
+ 	}
+ 
++con3:
++	LCONST
++|	'-' LCONST
++	{
++		$$ = -$2;
++	}
++|	LCONST '-' LCONST '-' LCONST
++	{
++		$$ = ($1 & 0xffffffffLL) +
++			(($3 & 0xffffLL) << 32) +
++			(($5 & 0xffffLL) << 48);
++	}
++|	'-' LCONST '-' LCONST '-' LCONST
++	{
++		$$ = (-$2 & 0xffffffffLL) +
++			(($4 & 0xffffLL) << 32) +
++			(($6 & 0xffffLL) << 48);
++	}
++
+ expr:
+ 	con
+ |	expr '+' expr
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index ae67854a18..8cce77f0b4 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -32,6 +32,7 @@
+ #define	NSNAME	8
+ #define NOPROF	(1<<0)
+ #define DUPOK	(1<<1)
++#define NOSPLIT	(1<<2)
+ #define SOFmark	"\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe"
+ 
+ /*
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index ae1bec5c02..20bac85d0f 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -345,6 +345,9 @@ EXTERN	int	exports, nexports;
+ EXTERN	char*	EXPTAB;
+ EXTERN	Prog	undefp;
+ EXTERN	ulong	stroffset;
++EXTERN	vlong	textstksiz;
++EXTERN	vlong	textinarg;
++EXTERN	vlong	textoutarg;
+ 
+ #define	UP	(&undefp)
+ 
+@@ -407,6 +410,7 @@ void	objfile(char*);
+ int	opsize(Prog*);
+ void	patch(void);
+ Prog*	prg(void);
++void	parsetextconst(vlong);
+ void	readundefs(char*, int);
+ int	relinv(int);
+ long	reuse(Prog*, Sym*);
+diff --git a/src/cmd/6l/list.c b/src/cmd/6l/list.c
+index 3af0192809..98321565b9 100644
+--- a/src/cmd/6l/list.c
++++ b/src/cmd/6l/list.c
+@@ -56,10 +56,13 @@ Pconv(Fmt *fp)
+ 	switch(p->as) {
+ 	case ATEXT:
+ 		if(p->from.scale) {
+-			sprint(str, "%-7s %-7A %D,%d,%D",
++			sprint(str, "%-7s %-7A %D,%d,%lD",
+ 				str1, p->as, &p->from, p->from.scale, &p->to);
+ 			break;
+ 		}
++		sprint(str, "%-7s %-7A %D,%lD",
++			str1, p->as, &p->from, &p->to);
++		break;
+ 
+ 	default:
+ 		sprint(str, "%-7s %-7A %D,%D",
+@@ -95,6 +98,22 @@ Dconv(Fmt *fp)
+ 
+ 	a = va_arg(fp->args, Adr*);
+ 	i = a->type;
++
++	if(fp->flags & FmtLong) {
++		if(i != D_CONST) {
++			// ATEXT dst is not constant
++			sprint(str, "!!%D", a);
++			goto brk;
++		}
++		parsetextconst(a->offset);
++		if(textinarg == 0 && textoutarg == 0) {
++			sprint(str, "$%lld", textstksiz);
++			goto brk;
++		}
++		sprint(str, "$%lld-%lld-%lld", textstksiz, textinarg, textoutarg);
++		goto brk;
++	}
++
+ 	if(i >= D_INDIR) {
+ 		if(a->offset)
+ 			sprint(str, "%lld(%R)", a->offset, i-D_INDIR);
+@@ -395,3 +414,26 @@ diag(char *fmt, ...)
+ 		errorexit();
+ 	}
+ }
++
++void
++parsetextconst(vlong arg)
++{
++	textstksiz = arg & 0xffffffffLL;
++	if(textstksiz & 0x80000000LL)
++		textstksiz = -(-textstksiz & 0xffffffffLL);
++		
++
++	// the following throws away one bit
++	// of precision, but maintains compat
++	textinarg = (arg >> 32) & 0xffffLL;
++	if(textinarg & 0x8000LL)
++		textinarg = -(-textinarg & 0xffffLL);
++	if(textinarg <= 0)
++		textinarg = 100;
++
++	textoutarg = (arg >> 48) & 0xffffLL;
++	if(textoutarg & 0x8000LL)
++		textoutarg = -(-textoutarg & 0xffffLL);
++	if(textoutarg <= 0)
++		textoutarg = 0;
++}
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index db81bf163e..468318aec0 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -568,6 +568,23 @@ dostkoff(void)
+ 	Prog *p, *q;
+ 	long autoffset, deltasp;
+ 	int a, f, curframe, curbecome, maxbecome, pcsize;
++	Prog *pmorestack;
++	Sym *symmorestack;
++
++	pmorestack = P;
++	symmorestack = lookup("_morestack", 0);
++
++	if(symmorestack->type == STEXT)
++	for(p = firstp; p != P; p = p->link) {
++		if(p->as == ATEXT) {
++			if(p->from.sym == symmorestack) {
++				pmorestack = p;
++				break;
++			}
++		}
++	}
++	if(pmorestack == P)
++		diag("_morestack not defined");
+ 
+ 	curframe = 0;
+ 	curbecome = 0;
+@@ -643,15 +660,72 @@ dostkoff(void)
+ 	for(p = firstp; p != P; p = p->link) {
+ 		if(p->as == ATEXT) {
+ 			curtext = p;
+-			autoffset = p->to.offset;
++			parsetextconst(p->to.offset);
++			autoffset = textstksiz;
+ 			if(autoffset < 0)
+ 				autoffset = 0;
++
++			q = P;
++			if(pmorestack != P)
++			if(!(p->from.scale & NOSPLIT)) {
++				if(autoffset <= 50) {
++					// small stack
++					p = appendp(p);
++					p->as = ACMPQ;
++					p->from.type = D_SP;
++					p->to.type = D_INDIR+D_R15;
++					
++				} else {
++					// large stack
++					p = appendp(p);
++					p->as = AMOVQ;
++					p->from.type = D_SP;
++					p->to.type = D_AX;
++
++					p = appendp(p);
++					p->as = ASUBQ;
++					p->from.type = D_CONST;
++					p->from.offset = autoffset-50;
++					p->to.type = D_AX;
++
++					p = appendp(p);
++					p->as = ACMPQ;
++					p->from.type = D_AX;
++					p->to.type = D_INDIR+D_R15;
++				}
++				// common
++				p = appendp(p);
++				p->as = AJHI;
++				p->to.type = D_BRANCH;
++				p->to.offset = 3;
++				q = p;
++
++				p = appendp(p);
++				p->as = AMOVQ;
++				p->from.type = D_CONST;
++				p->from.offset = curtext->to.offset;
++				p->to.type = D_AX;
++
++				p = appendp(p);
++				p->as = ACALL;
++				p->to.type = D_BRANCH;
++				p->pcond = pmorestack;
++				p->to.sym = symmorestack;
++
++			}
++
++			if(q != P)
++				q->pcond = p->link;
++
+ 			if(autoffset) {
+ 				p = appendp(p);
+ 				p->as = AADJSP;
+ 				p->from.type = D_CONST;
+ 				p->from.offset = autoffset;
++				if(q != P)
++					q->pcond = p;
+ 			}
++
+ 			deltasp = autoffset;
+ 		}
+ 		pcsize = p->mode/8;
+diff --git a/src/runtime/rt0_amd64_darwin.s b/src/runtime/rt0_amd64_darwin.s
+index fda8ce7d70..c7d77c49d7 100644
+--- a/src/runtime/rt0_amd64_darwin.s
++++ b/src/runtime/rt0_amd64_darwin.s
+@@ -36,10 +36,10 @@ done:
+ 	POPQ	AX
+ 	RET
+ 
+-TEXT	FLUSH(SB),1,$-8
++TEXT	FLUSH(SB),7,$-8
+ 	RET
+ 
+-TEXT	sys·exit(SB),1,$-8
++TEXT	sys·exit(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 exit status
+ 	MOVL	$(0x2000000+1), AX
+ 	SYSCALL
+diff --git a/src/runtime/rt0_amd64_linux.s b/src/runtime/rt0_amd64_linux.s
+index d89dc927ef..6e2c42fba6 100644
+--- a/src/runtime/rt0_amd64_linux.s
++++ b/src/runtime/rt0_amd64_linux.s
+@@ -3,48 +3,59 @@
+ // license that can be found in the LICENSE file.
+ 
+ 
+-TEXT	_rt0_amd64_linux(SB),1,$-8
+-	PUSHQ	$0
+-	MOVQ	SP, BP
+-	ANDQ	$~15, SP
+-	MOVQ	8(BP), DI	// argc
+-	LEAQ	16(BP), SI	// argv
+-	MOVL	DI, DX
+-	ADDL	$1, DX
+-	SHLL	$3, DX
+-	ADDQ	SI, DX
+-	MOVQ	DX, CX
+-	CMPQ	(CX), $0
+-	JEQ	done
+-
+-loop:
+-	ADDQ	$8, CX
+-	CMPQ	(CX), $0
+-	JNE	loop
+-
+-done:
+-	ADDQ	$8, CX
+-	SUBQ	$16, SP
+-	MOVL	DI, 0(SP)
+-	MOVQ	SI, 8(SP)
+-	CALL	args(SB)
+-	ADDQ	$16, SP
++TEXT	_rt0_amd64_linux(SB),7,$-8
++
++// copy arguments forward on an even stack
++
++
++	MOVQ	0(SP), AX		// argc
++	LEAQ	8(SP), BX		// argv
++	ANDQ	$~7, SP
++	SUBQ	$32, SP
++	MOVQ	AX, 16(SP)
++	MOVQ	BX, 24(SP)
++
++// allocate the per-user block
++
++	LEAQ	peruser<>(SB), R15	// dedicated u. register
++	MOVQ	SP, AX
++	SUBQ	$4096, AX
++	MOVQ	AX, 0(R15)
++
+ 	CALL	check(SB)
++
++// process the arguments
++
++	MOVL	16(SP), AX
++	MOVL	AX, 0(SP)
++	MOVQ	24(SP), AX
++	MOVQ	AX, 8(SP)
++	CALL	args(SB)
++
+ 	CALL	main·main(SB)
++
++	MOVQ	$0, AX
++	MOVQ	AX, 0(SP)		// exit status
+ 	CALL	sys·exit(SB)
++
+ 	CALL	notok(SB)
+-	POPQ	AX
++
++	ADDQ	$32, SP
++	RET
++
++TEXT	_morestack(SB), 7, $0
++	MOVQ	SP, AX
++	SUBQ	$1024, AX
++	MOVQ	AX, 0(R15)
+ 	RET
+ 
+-TEXT	FLUSH(SB),1,$-8
++TEXT	FLUSH(SB),7,$-8
+ 	RET
+ 
+ TEXT	sys·exit(SB),1,$-8
+ 	MOVL	8(SP), DI
+ 	MOVL	$60, AX
+ 	SYSCALL
+-	JCC	2(PC)
+-	CALL	notok(SB)
+ 	RET
+ 
+ TEXT	sys·write(SB),1,$-8
+@@ -53,8 +64,6 @@ TEXT	sys·write(SB),1,$-8
+ 	MOVL	24(SP), DX
+ 	MOVL	$1, AX			// syscall entry
+ 	SYSCALL
+-	JCC	2(PC)
+-	CALL	notok(SB)
+ 	RET
+ 
+ TEXT	open(SB),1,$-8
+@@ -93,8 +102,6 @@ TEXT	sys·rt_sigaction(SB),1,$-8
+ 	MOVL	CX, R10
+ 	MOVL	$13, AX			// syscall entry
+ 	SYSCALL
+-	JCC	2(PC)
+-	CALL	notok(SB)
+ 	RET
+ 
+ TEXT	sigtramp(SB),1,$24
+@@ -151,3 +158,5 @@ TEXT	sys·getcallerpc+0(SB),0,$0
+ 	MOVQ	x+0(FP),AX
+ 	MOVQ	-8(AX),AX
+ 	RET
++
++GLOBL	peruser<>(SB),$64

@@ -14,9 +14,88 @@ Date:   Tue Dec 12 12:53:32 2023 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/testdata/script/darwin_no_cgo.txt                |  9 +++++++++
  src/go/build/deps_test.go                                   |  7 ++++++-
  src/net/internal/cgotest/empty_test.go                      | 13 +++++++++++++
  .../cgotest/resstate.go}                                    |  4 ++--
  4 files changed, 30 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/darwin_no_cgo.txt b/src/cmd/go/testdata/script/darwin_no_cgo.txt
+new file mode 100644
+index 0000000000..fa445925b7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/darwin_no_cgo.txt
+@@ -0,0 +1,9 @@
++# For reproducibility and easier cross-compilation,
++# nothing in std is supposed to use cgo on macOS.
++# Check that cgo does not appear as a dependency
++# of cmd/go, which imports approximately everything
++# in std (certainly everything relevant).
++[!GOOS:darwin] skip
++go list -deps cmd/go
++! stdout runtime/cgo
++
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 7ce8d346b4..47a0f3a0b4 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -672,7 +672,7 @@ var depsRules = `
+ 	internal/coverage, crypto/sha256, FMT
+ 	< cmd/internal/cov/covcmd;
+ 
+-    encoding/json,
++	encoding/json,
+ 	runtime/debug,
+ 	internal/coverage/calloc,
+ 	internal/coverage/cformat,
+@@ -680,6 +680,11 @@ var depsRules = `
+ 	internal/coverage/encodecounter, internal/coverage/encodemeta,
+ 	internal/coverage/pods
+ 	< runtime/coverage;
++
++	# Test-only packages can have anything they want
++	CGO, internal/syscall/unix < net/internal/cgotest;
++
++
+ `
+ 
+ // listStdPkgs returns the same list of packages as "go list std".
+diff --git a/src/net/internal/cgotest/empty_test.go b/src/net/internal/cgotest/empty_test.go
+new file mode 100644
+index 0000000000..c4f601d571
+--- /dev/null
++++ b/src/net/internal/cgotest/empty_test.go
+@@ -0,0 +1,13 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import "testing"
++
++// Nothing to test here.
++// The test is that the package compiles at all.
++// See resstate.go.
++func Test(t *testing.T) {
++}
+diff --git a/src/net/cgo_unix_cgo_darwin.go b/src/net/internal/cgotest/resstate.go
+similarity index 89%
+rename from src/net/cgo_unix_cgo_darwin.go
+rename to src/net/internal/cgotest/resstate.go
+index 40d5e426f2..1b4871109e 100644
+--- a/src/net/cgo_unix_cgo_darwin.go
++++ b/src/net/internal/cgotest/resstate.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !netgo && cgo && darwin
++//go:build cgo && darwin
+ 
+-package net
++package cgotest
+ 
+ /*
+ #include <resolv.h>

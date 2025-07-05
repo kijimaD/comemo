@@ -9,7 +9,49 @@ Date:   Tue Jul 23 14:09:53 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/11620046
-
+---
  src/pkg/database/sql/sql.go      |  2 +-
  src/pkg/database/sql/sql_test.go | 14 ++++++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index ebb7f440e0..35d5338c56 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -759,10 +759,10 @@ func (db *DB) queryConn(dc *driverConn, releaseConn func(error), query string, a
+ 	ds := driverStmt{dc, si}
+ 	rowsi, err := rowsiFromStatement(ds, args...)
+ 	if err != nil {
+-		releaseConn(err)
+ 		dc.Lock()
+ 		si.Close()
+ 		dc.Unlock()
++		releaseConn(err)
+ 		return nil, err
+ 	}
+ 
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index e6cc667fa9..fc620bd6dc 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -1046,6 +1046,20 @@ func TestRowsCloseOrder(t *testing.T) {
+ 	}
+ }
+ 
++func TestStmtCloseOrder(t *testing.T) {
++	db := newTestDB(t, "people")
++	defer closeDB(t, db)
++
++	db.SetMaxIdleConns(0)
++	setStrictFakeConnClose(t)
++	defer setStrictFakeConnClose(nil)
++
++	_, err := db.Query("SELECT|non_existent|name|")
++	if err == nil {
++		t.Fatal("Quering non-existent table should fail")
++	}
++}
++
+ func manyConcurrentQueries(t testOrBench) {
+ 	maxProcs, numReqs := 16, 500
+ 	if testing.Short() {

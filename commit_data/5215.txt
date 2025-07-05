@@ -7,6 +7,19 @@ Date:   Mon Apr 5 10:53:38 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/881044
-
+---
  src/run.bash | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 85dd59a55e..4eb4a476b5 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -6,7 +6,6 @@
+ set -e
+ . ./env.bash
+ 
+-export MAKEFLAGS=-j4
+ unset CDPATH	# in case user has it set
+ 
+ # no core files, please

@@ -7,7 +7,32 @@ Date:   Wed Jan 6 13:55:47 2010 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/181153
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index f295fba0f8..6a2efe123e 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -30,6 +30,7 @@ Google Inc.
+ Hector Chu <hectorchu@gmail.com>
+ Isaac Wagner <ibw@isaacwagner.me>
+ James Meneghello <rawrz0r@gmail.com>
++Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 77c6c84f02..d021c64161 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -60,6 +60,7 @@ Ivan Krasin <krasin@golang.org>
+ Jacob Baskin <jbaskin@google.com>
+ James Aguilar <jaguilar@google.com>
+ James Meneghello <rawrz0r@gmail.com>
++Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>

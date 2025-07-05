@@ -11,6 +11,26 @@ Date:   Sat Feb 7 06:51:44 2015 -0500
     Change-Id: I10ff7a51a567ad7c8440418ac034be9e4b2d6bc1
     Reviewed-on: https://go-review.googlesource.com/4592
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/gc/reflect.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index ec102dbeb5..ee00ff059b 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -833,12 +833,12 @@ dcommontype(Sym *s, int ot, Type *t)
+ 		for(i=0; i<8; i++)
+ 			x1 = x1<<8 | gcmask[i];
+ 		if(widthptr == 4) {
+-			p = smprint("gcbits.%#016llux", x1);
++			p = smprint("gcbits.0x%016llux", x1);
+ 		} else {
+ 			x2 = 0;
+ 			for(i=0; i<8; i++)
+ 				x2 = x2<<8 | gcmask[i+8];
+-			p = smprint("gcbits.%#016llux%016llux", x1, x2);
++			p = smprint("gcbits.0x%016llux%016llux", x1, x2);
+ 		}
+ 		sbits = pkglookup(p, runtimepkg);
+ 		if((sbits->flags & SymUniq) == 0) {

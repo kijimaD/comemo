@@ -29,7 +29,7 @@ Date:   Thu Feb 6 16:11:50 2025 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Matloob <matloob@google.com>
-
+---
  src/cmd/go/internal/base/tool.go                   |   4 +-
  src/cmd/go/internal/cfg/cfg.go                     |  30 +++++
  src/cmd/go/internal/tool/tool.go                   | 133 ++++++++++++---------
@@ -38,3 +38,451 @@ Date:   Thu Feb 6 16:11:50 2025 -0500
  src/cmd/go/internal/work/init.go                   |  26 ++++
  .../go/testdata/script/tool_build_as_needed.txt    |  52 ++++++++
  7 files changed, 193 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/tool.go b/src/cmd/go/internal/base/tool.go
+index 1d864aa2cc..f2fc0ff743 100644
+--- a/src/cmd/go/internal/base/tool.go
++++ b/src/cmd/go/internal/base/tool.go
+@@ -30,7 +30,7 @@ func Tool(toolName string) string {
+ // ToolPath returns the path at which we expect to find the named tool
+ // (for example, "vet"), and the error (if any) from statting that path.
+ func ToolPath(toolName string) (string, error) {
+-	if !validToolName(toolName) {
++	if !ValidToolName(toolName) {
+ 		return "", fmt.Errorf("bad tool name: %q", toolName)
+ 	}
+ 	toolPath := filepath.Join(build.ToolDir, toolName) + cfg.ToolExeSuffix()
+@@ -41,7 +41,7 @@ func ToolPath(toolName string) (string, error) {
+ 	return toolPath, err
+ }
+ 
+-func validToolName(toolName string) bool {
++func ValidToolName(toolName string) bool {
+ 	for _, c := range toolName {
+ 		switch {
+ 		case 'a' <= c && c <= 'z', '0' <= c && c <= '9', c == '_':
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 49d87839f4..d583447cf6 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -207,6 +207,32 @@ func init() {
+ 	SetGOROOT(Getenv("GOROOT"), false)
+ }
+ 
++// ForceHost forces GOOS and GOARCH to runtime.GOOS and runtime.GOARCH.
++// This is used by go tool to build tools for the go command's own
++// GOOS and GOARCH.
++func ForceHost() {
++	Goos = runtime.GOOS
++	Goarch = runtime.GOARCH
++	ExeSuffix = exeSuffix()
++	GO386 = buildcfg.DefaultGO386
++	GOAMD64 = buildcfg.DefaultGOAMD64
++	GOARM = buildcfg.DefaultGOARM
++	GOARM64 = buildcfg.DefaultGOARM64
++	GOMIPS = buildcfg.DefaultGOMIPS
++	GOMIPS64 = buildcfg.DefaultGOMIPS64
++	GOPPC64 = buildcfg.DefaultGOPPC64
++	GORISCV64 = buildcfg.DefaultGORISCV64
++	GOWASM = ""
++
++	// Recompute the build context using Goos and Goarch to
++	// set the correct value for ctx.CgoEnabled.
++	BuildContext = defaultContext()
++	// Recompute experiments: the settings determined depend on GOOS and GOARCH.
++	// This will also update the BuildContext's tool tags to include the new
++	// experiment tags.
++	computeExperiment()
++}
++
+ // SetGOROOT sets GOROOT and associated variables to the given values.
+ //
+ // If isTestGo is true, build.ToolDir is set based on the TESTGO_GOHOSTOS and
+@@ -269,6 +295,10 @@ var (
+ )
+ 
+ func init() {
++	computeExperiment()
++}
++
++func computeExperiment() {
+ 	Experiment, ExperimentErr = buildcfg.ParseGOEXPERIMENT(Goos, Goarch, RawGOEXPERIMENT)
+ 	if ExperimentErr != nil {
+ 		return
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index 7033eb1d9c..16e1a4f47f 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -18,7 +18,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"os/signal"
+-	"path/filepath"
++	"path"
+ 	"slices"
+ 	"sort"
+ 	"strings"
+@@ -26,6 +26,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
++	"cmd/go/internal/modindex"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/work"
+@@ -101,9 +102,20 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
+ 			}
+ 		}
+ 
++		// See if tool can be a builtin tool. If so, try to build and run it.
++		// buildAndRunBuiltinTool will fail if the install target of the loaded package is not
++		// the tool directory.
++		if tool := loadBuiltinTool(toolName); tool != "" {
++			// Increment a counter for the tool subcommand with the tool name.
++			counter.Inc("go/subcommand:tool-" + toolName)
++			buildAndRunBuiltinTool(ctx, toolName, tool, args[1:])
++			return
++		}
++
++		// Try to build and run mod tool.
+ 		tool := loadModTool(ctx, toolName)
+ 		if tool != "" {
+-			buildAndRunModtool(ctx, tool, args[1:])
++			buildAndRunModtool(ctx, toolName, tool, args[1:])
+ 			return
+ 		}
+ 
+@@ -116,47 +128,7 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
+ 		counter.Inc("go/subcommand:tool-" + toolName)
+ 	}
+ 
+-	if toolN {
+-		cmd := toolPath
+-		if len(args) > 1 {
+-			cmd += " " + strings.Join(args[1:], " ")
+-		}
+-		fmt.Printf("%s\n", cmd)
+-		return
+-	}
+-	args[0] = toolPath // in case the tool wants to re-exec itself, e.g. cmd/dist
+-	toolCmd := &exec.Cmd{
+-		Path:   toolPath,
+-		Args:   args,
+-		Stdin:  os.Stdin,
+-		Stdout: os.Stdout,
+-		Stderr: os.Stderr,
+-	}
+-	err = toolCmd.Start()
+-	if err == nil {
+-		c := make(chan os.Signal, 100)
+-		signal.Notify(c)
+-		go func() {
+-			for sig := range c {
+-				toolCmd.Process.Signal(sig)
+-			}
+-		}()
+-		err = toolCmd.Wait()
+-		signal.Stop(c)
+-		close(c)
+-	}
+-	if err != nil {
+-		// Only print about the exit status if the command
+-		// didn't even run (not an ExitError) or it didn't exit cleanly
+-		// or we're printing command lines too (-x mode).
+-		// Assume if command exited cleanly (even with non-zero status)
+-		// it printed any messages it wanted to print.
+-		if e, ok := err.(*exec.ExitError); !ok || !e.Exited() || cfg.BuildX {
+-			fmt.Fprintf(os.Stderr, "go tool %s: %s\n", toolName, err)
+-		}
+-		base.SetExitStatus(1)
+-		return
+-	}
++	runBuiltTool(toolName, nil, append([]string{toolPath}, args[1:]...))
+ }
+ 
+ // listTools prints a list of the available tools in the tools directory.
+@@ -262,6 +234,23 @@ func defaultExecName(importPath string) string {
+ 	return p.DefaultExecName()
+ }
+ 
++func loadBuiltinTool(toolName string) string {
++	if !base.ValidToolName(toolName) {
++		return ""
++	}
++	cmdTool := path.Join("cmd", toolName)
++	if !modindex.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, cmdTool) {
++		return ""
++	}
++	// Create a fake package and check to see if it would be installed to the tool directory.
++	// If not, it's not a builtin tool.
++	p := &load.Package{PackagePublic: load.PackagePublic{Name: "main", ImportPath: cmdTool, Goroot: true}}
++	if load.InstallTargetDir(p) != load.ToTool {
++		return ""
++	}
++	return cmdTool
++}
++
+ func loadModTool(ctx context.Context, name string) string {
+ 	modload.InitWorkfile()
+ 	modload.LoadModFile(ctx)
+@@ -288,7 +277,42 @@ func loadModTool(ctx context.Context, name string) string {
+ 	return ""
+ }
+ 
+-func buildAndRunModtool(ctx context.Context, tool string, args []string) {
++func buildAndRunBuiltinTool(ctx context.Context, toolName, tool string, args []string) {
++	// Override GOOS and GOARCH for the build to build the tool using
++	// the same GOOS and GOARCH as this go command.
++	cfg.ForceHost()
++
++	// Ignore go.mod and go.work: we don't need them, and we want to be able
++	// to run the tool even if there's an issue with the module or workspace the
++	// user happens to be in.
++	modload.RootMode = modload.NoRoot
++
++	runFunc := func(b *work.Builder, ctx context.Context, a *work.Action) error {
++		cmdline := str.StringList(a.Deps[0].BuiltTarget(), a.Args)
++		return runBuiltTool(toolName, nil, cmdline)
++	}
++
++	buildAndRunTool(ctx, tool, args, runFunc)
++}
++
++func buildAndRunModtool(ctx context.Context, toolName, tool string, args []string) {
++	runFunc := func(b *work.Builder, ctx context.Context, a *work.Action) error {
++		// Use the ExecCmd to run the binary, as go run does. ExecCmd allows users
++		// to provide a runner to run the binary, for example a simulator for binaries
++		// that are cross-compiled to a different platform.
++		cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].BuiltTarget(), a.Args)
++		// Use same environment go run uses to start the executable:
++		// the original environment with cfg.GOROOTbin added to the path.
++		env := slices.Clip(cfg.OrigEnv)
++		env = base.AppendPATH(env)
++
++		return runBuiltTool(toolName, env, cmdline)
++	}
++
++	buildAndRunTool(ctx, tool, args, runFunc)
++}
++
++func buildAndRunTool(ctx context.Context, tool string, args []string, runTool work.ActorFunc) {
+ 	work.BuildInit()
+ 	b := work.NewBuilder("")
+ 	defer func() {
+@@ -304,23 +328,16 @@ func buildAndRunModtool(ctx context.Context, tool string, args []string) {
+ 
+ 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
+ 	a1.CacheExecutable = true
+-	a := &work.Action{Mode: "go tool", Actor: work.ActorFunc(runBuiltTool), Args: args, Deps: []*work.Action{a1}}
++	a := &work.Action{Mode: "go tool", Actor: runTool, Args: args, Deps: []*work.Action{a1}}
+ 	b.Do(ctx, a)
+ }
+ 
+-func runBuiltTool(b *work.Builder, ctx context.Context, a *work.Action) error {
+-	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].BuiltTarget(), a.Args)
+-
++func runBuiltTool(toolName string, env, cmdline []string) error {
+ 	if toolN {
+ 		fmt.Println(strings.Join(cmdline, " "))
+ 		return nil
+ 	}
+ 
+-	// Use same environment go run uses to start the executable:
+-	// the original environment with cfg.GOROOTbin added to the path.
+-	env := slices.Clip(cfg.OrigEnv)
+-	env = base.AppendPATH(env)
+-
+ 	toolCmd := &exec.Cmd{
+ 		Path:   cmdline[0],
+ 		Args:   cmdline,
+@@ -344,13 +361,17 @@ func runBuiltTool(b *work.Builder, ctx context.Context, a *work.Action) error {
+ 	}
+ 	if err != nil {
+ 		// Only print about the exit status if the command
+-		// didn't even run (not an ExitError)
++		// didn't even run (not an ExitError) or if it didn't exit cleanly
++		// or we're printing command lines too (-x mode).
+ 		// Assume if command exited cleanly (even with non-zero status)
+ 		// it printed any messages it wanted to print.
+-		if e, ok := err.(*exec.ExitError); ok {
++		e, ok := err.(*exec.ExitError)
++		if !ok || !e.Exited() || cfg.BuildX {
++			fmt.Fprintf(os.Stderr, "go tool %s: %s\n", toolName, err)
++		}
++		if ok {
+ 			base.SetExitStatus(e.ExitCode())
+ 		} else {
+-			fmt.Fprintf(os.Stderr, "go tool %s: %s\n", filepath.Base(a.Deps[0].Target), err)
+ 			base.SetExitStatus(1)
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 8d47b8d5cf..6fc865421d 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2758,6 +2758,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 	// consists of the original $CGO_LDFLAGS (unchecked) and all the
+ 	// flags put together from source code (checked).
+ 	cgoenv := b.cCompilerEnv()
++	cgoenv = append(cgoenv, cfgChangedEnv...)
+ 	var ldflagsOption []string
+ 	if len(cgoLDFLAGS) > 0 {
+ 		flags := make([]string, len(cgoLDFLAGS))
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 3a173efee8..70d22580a3 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -174,8 +174,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 		// code that uses those values to expect absolute paths.
+ 		args = append(args, fsys.Actual(f))
+ 	}
+-
+-	output, err = sh.runOut(base.Cwd(), nil, args...)
++	output, err = sh.runOut(base.Cwd(), cfgChangedEnv, args...)
+ 	return ofile, output, err
+ }
+ 
+@@ -397,7 +396,7 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
+ 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
+ 		ofiles = append(ofiles, ofile)
+ 		args1 := append(args, "-o", ofile, fsys.Actual(mkAbs(p.Dir, sfile)))
+-		if err := b.Shell(a).run(p.Dir, p.ImportPath, nil, args1...); err != nil {
++		if err := b.Shell(a).run(p.Dir, p.ImportPath, cfgChangedEnv, args1...); err != nil {
+ 			return nil, err
+ 		}
+ 	}
+@@ -424,7 +423,7 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
+ 			return err
+ 		}
+ 
+-		return sh.run(p.Dir, p.ImportPath, nil, args...)
++		return sh.run(p.Dir, p.ImportPath, cfgChangedEnv, args...)
+ 	}
+ 
+ 	var symabis string // Only set if we actually create the file
+@@ -673,7 +672,7 @@ func (gcToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg s
+ 		dir, targetPath = filepath.Split(targetPath)
+ 	}
+ 
+-	env := []string{}
++	env := cfgChangedEnv
+ 	// When -trimpath is used, GOROOT is cleared
+ 	if cfg.BuildTrimpath {
+ 		env = append(env, "GOROOT=")
+@@ -728,7 +727,7 @@ func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action,
+ 	// the output file path is recorded in the .gnu.version_d section.
+ 	dir, targetPath := filepath.Split(targetPath)
+ 
+-	return b.Shell(root).run(dir, targetPath, nil, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags)
++	return b.Shell(root).run(dir, targetPath, cfgChangedEnv, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags)
+ }
+ 
+ func (gcToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index adee7c0274..e4e83dc8f9 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -20,12 +20,36 @@ import (
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
++	"slices"
+ 	"strconv"
+ 	"sync"
+ )
+ 
+ var buildInitStarted = false
+ 
++// makeCfgChangedEnv is the environment to set to
++// override the current environment for GOOS, GOARCH, and the GOARCH-specific
++// architecture environment variable to the configuration used by
++// the go command. They may be different because go tool <tool> for builtin
++// tools need to be built using the host configuration, so the configuration
++// used will be changed from that set in the environment. It is clipped
++// so its can append to it without changing it.
++var cfgChangedEnv []string
++
++func makeCfgChangedEnv() []string {
++	var env []string
++	if cfg.Getenv("GOOS") != cfg.Goos {
++		env = append(env, "GOOS="+cfg.Goos)
++	}
++	if cfg.Getenv("GOARCH") != cfg.Goarch {
++		env = append(env, "GOARCH="+cfg.Goarch)
++	}
++	if archenv, val, changed := cfg.GetArchEnv(); changed {
++		env = append(env, archenv+"="+val)
++	}
++	return slices.Clip(env)
++}
++
+ func BuildInit() {
+ 	if buildInitStarted {
+ 		base.Fatalf("go: internal error: work.BuildInit called more than once")
+@@ -36,6 +60,8 @@ func BuildInit() {
+ 	modload.Init()
+ 	instrumentInit()
+ 	buildModeInit()
++	cfgChangedEnv = makeCfgChangedEnv()
++
+ 	if err := fsys.Init(); err != nil {
+ 		base.Fatal(err)
+ 	}
+diff --git a/src/cmd/go/testdata/script/tool_build_as_needed.txt b/src/cmd/go/testdata/script/tool_build_as_needed.txt
+new file mode 100644
+index 0000000000..8868ed3085
+--- /dev/null
++++ b/src/cmd/go/testdata/script/tool_build_as_needed.txt
+@@ -0,0 +1,52 @@
++[short] skip 'builds and runs go programs'
++[!symlink] skip 'uses symlinks to construct a GOROOT'
++
++env NEWGOROOT=$WORK${/}goroot
++env TOOLDIR=$GOROOT/pkg/tool/${GOOS}_${GOARCH}
++# Use ${/} in paths we'll check for in stdout below, so they contain '\' on Windows
++env NEWTOOLDIR=$NEWGOROOT${/}pkg${/}tool${/}${GOOS}_${GOARCH}
++mkdir $NEWGOROOT $NEWGOROOT/bin $NEWTOOLDIR
++[symlink] symlink $NEWGOROOT/src -> $GOROOT/src
++[symlink] symlink $NEWGOROOT/pkg/include -> $GOROOT/pkg/include
++[symlink] symlink $NEWGOROOT/bin/go -> $GOROOT/bin/go
++[symlink] symlink $NEWTOOLDIR/compile$GOEXE -> $TOOLDIR/compile$GOEXE
++[symlink] symlink $NEWTOOLDIR/cgo$GOEXE -> $TOOLDIR/cgo$GOEXE
++[symlink] symlink $NEWTOOLDIR/link$GOEXE -> $TOOLDIR/link$GOEXE
++[symlink] symlink $NEWTOOLDIR/asm$GOEXE -> $TOOLDIR/asm$GOEXE
++[symlink] symlink $NEWTOOLDIR/pack$GOEXE -> $TOOLDIR/pack$GOEXE
++env GOROOT=$NEWGOROOT
++env TOOLDIR=$NEWTOOLDIR
++
++# GOROOT without test2json tool builds and runs it as needed
++go env GOROOT
++! exists $TOOLDIR/test2json
++go tool test2json
++stdout '{"Action":"start"}'
++! exists $TOOLDIR/test2json$GOEXE
++go tool -n test2json
++! stdout $NEWTOOLDIR${/}test2json$GOEXE
++
++# GOROOT with test2json uses the test2json in the GOROOT
++go install cmd/test2json
++exists $TOOLDIR/test2json$GOEXE
++go tool test2json
++stdout '{"Action":"start"}'
++go tool -n test2json
++stdout $NEWTOOLDIR${/}test2json$GOEXE
++
++# Tool still runs properly even with wrong GOOS/GOARCH
++# Remove test2json from tooldir
++rm $TOOLDIR/test2json$GOEXE
++go tool -n test2json
++! stdout $NEWTOOLDIR${/}test2json$GOEXE
++# Set GOOS/GOARCH to different values than host GOOS/GOARCH.
++env GOOS=windows
++[GOOS:windows] env GOOS=linux
++env GOARCH=arm64
++[GOARCH:arm64] env GOARCH=amd64
++# Control case: go run shouldn't work because it respects
++# GOOS/GOARCH, and we can't execute non-native binary.
++! go run cmd/test2json -exec=''
++# But go tool should because it doesn't respect GOOS/GOARCH.
++go tool test2json
++stdout '{"Action":"start"}'

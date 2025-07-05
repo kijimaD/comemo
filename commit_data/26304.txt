@@ -14,8 +14,87 @@ Date:   Fri Jan 8 12:38:41 2016 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/go/pkg.go          |  8 +++-----
  src/go/build/build.go      | 10 ++++++----
  src/go/build/build_test.go |  4 ++--
  3 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 3361fc3200..7d2779e01f 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -348,11 +348,9 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
+ 	// TODO: After Go 1, decide when to pass build.AllowBinary here.
+ 	// See issue 3268 for mistakes to avoid.
+ 	buildMode := build.ImportComment
+-	if go15VendorExperiment && mode&useVendor != 0 && path == origPath {
+-		// We've already searched the vendor directories and didn't find anything.
+-		// Let Import search them again so that, if the package is not found anywhere,
+-		// the error includes the vendor directories in the list of places considered.
+-		buildMode |= build.AllowVendor
++	if !go15VendorExperiment || mode&useVendor == 0 || path != origPath {
++		// Not vendoring, or we already found the vendored path.
++		buildMode |= build.IgnoreVendor
+ 	}
+ 	bp, err := buildContext.Import(path, srcDir, buildMode)
+ 	bp.ImportPath = importPath
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index c942670775..9539413aad 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -344,18 +344,20 @@ const (
+ 	// See golang.org/s/go14customimport for more information.
+ 	ImportComment
+ 
+-	// If AllowVendor is set, Import searches vendor directories
++	// By default, Import searches vendor directories
+ 	// that apply in the given source directory before searching
+ 	// the GOROOT and GOPATH roots.
+ 	// If an Import finds and returns a package using a vendor
+ 	// directory, the resulting ImportPath is the complete path
+ 	// to the package, including the path elements leading up
+ 	// to and including "vendor".
+-	// For example, if Import("y", "x/subdir", AllowVendor) finds
++	// For example, if Import("y", "x/subdir", 0) finds
+ 	// "x/vendor/y", the returned package's ImportPath is "x/vendor/y",
+ 	// not plain "y".
+ 	// See golang.org/s/go15vendor for more information.
+-	AllowVendor
++	//
++	// Setting IgnoreVendor ignores vendor directories.
++	IgnoreVendor
+ )
+ 
+ // A Package describes the Go package found in a directory.
+@@ -571,7 +573,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 		gopath := ctxt.gopath()
+ 
+ 		// Vendor directories get first chance to satisfy import.
+-		if mode&AllowVendor != 0 && srcDir != "" {
++		if mode&IgnoreVendor == 0 && srcDir != "" {
+ 			searchVendor := func(root string, isGoroot bool) bool {
+ 				sub, ok := ctxt.hasSubdir(root, srcDir)
+ 				if !ok || !strings.HasPrefix(sub, "src/") || strings.Contains(sub, "/testdata/") {
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 07efc14292..f70389780d 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -303,7 +303,7 @@ func TestImportVendor(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // really must just have source
+ 	ctxt := Default
+ 	ctxt.GOPATH = ""
+-	p, err := ctxt.Import("golang.org/x/net/http2/hpack", filepath.Join(ctxt.GOROOT, "src/net/http"), AllowVendor)
++	p, err := ctxt.Import("golang.org/x/net/http2/hpack", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
+ 	if err != nil {
+ 		t.Fatalf("cannot find vendored golang.org/x/net/http2/hpack from net/http directory: %v", err)
+ 	}
+@@ -317,7 +317,7 @@ func TestImportVendorFailure(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // really must just have source
+ 	ctxt := Default
+ 	ctxt.GOPATH = ""
+-	p, err := ctxt.Import("x.com/y/z", filepath.Join(ctxt.GOROOT, "src/net/http"), AllowVendor)
++	p, err := ctxt.Import("x.com/y/z", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
+ 	if err == nil {
+ 		t.Fatalf("found made-up package x.com/y/z in %s", p.Dir)
+ 	}

@@ -7,6 +7,20 @@ Date:   Tue Dec 7 12:05:00 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3268042
-
+---
  src/pkg/sync/asm_arm5.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/sync/asm_arm5.s b/src/pkg/sync/asm_arm5.s
+index 3cdca0b870..2cb496887f 100644
+--- a/src/pkg/sync/asm_arm5.s
++++ b/src/pkg/sync/asm_arm5.s
+@@ -16,7 +16,7 @@ TEXT    ·cas(SB),7,$0
+ 	MOVW	4(FP), R1	// old
+ 	MOVW	8(FP), R2	// new
+ 	MOVW	$1, R3
+-	MOVW	$cas_mutex(SB), R4
++	MOVW	$runtime·cas_mutex(SB), R4
+ l:
+ 	SWPW	(R4), R3	// acquire mutex
+ 	CMP		$0, R3

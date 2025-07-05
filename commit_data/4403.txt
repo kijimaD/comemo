@@ -12,6 +12,25 @@ Date:   Sun Dec 13 12:27:19 2009 -0800
     R=dho, rsc
     CC=golang-dev
     https://golang.org/cl/176056
-
+---
  src/clean.bash | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 3687244b20..90bad1f5ff 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -3,6 +3,13 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++set -e
++
++if [ -z "$GOROOT" ] ; then
++	echo '$GOROOT not set'
++	exit 1
++fi
++
+ GOBIN="${GOBIN:-$HOME/bin}"
+ 
+ rm -rf "$GOROOT"/pkg/${GOOS}_$GOARCH

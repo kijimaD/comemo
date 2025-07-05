@@ -15,7 +15,7 @@ Date:   Tue Dec 22 17:12:49 2020 -0500
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/api_test.go        | 2 ++
  src/cmd/compile/internal/types2/builtins_test.go   | 2 ++
  src/cmd/compile/internal/types2/check_test.go      | 2 ++
@@ -30,3 +30,134 @@ Date:   Tue Dec 22 17:12:49 2020 -0500
  src/cmd/compile/internal/types2/stdlib_test.go     | 2 ++
  src/cmd/compile/internal/types2/typestring_test.go | 2 ++
  13 files changed, 26 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 58d7df2f1d..bda34fef1d 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -1,3 +1,5 @@
++// +build TODO_RSC_REMOVE_THIS
++
+ // UNREVIEWED
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/src/cmd/compile/internal/types2/builtins_test.go b/src/cmd/compile/internal/types2/builtins_test.go
+index 9f737bc9bb..b988b0d509 100644
+--- a/src/cmd/compile/internal/types2/builtins_test.go
++++ b/src/cmd/compile/internal/types2/builtins_test.go
+@@ -1,3 +1,5 @@
++// +build TODO_RSC_REMOVE_THIS
++
+ // UNREVIEWED
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 85bf0728c0..26144441e6 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -1,3 +1,5 @@
++// +build TODO_RSC_REMOVE_THIS
++
+ // UNREVIEWED
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/src/cmd/compile/internal/types2/example_test.go b/src/cmd/compile/internal/types2/example_test.go
+index dcdeaca0c0..9ff3536746 100644
+--- a/src/cmd/compile/internal/types2/example_test.go
++++ b/src/cmd/compile/internal/types2/example_test.go
+@@ -1,3 +1,5 @@
++// +build TODO_RSC_REMOVE_THIS
++
+ // UNREVIEWED
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/src/cmd/compile/internal/types2/exprstring_test.go b/src/cmd/compile/internal/types2/exprstring_test.go
+index efb7c308b7..bccaa84f32 100644
+--- a/src/cmd/compile/internal/types2/exprstring_test.go
++++ b/src/cmd/compile/internal/types2/exprstring_test.go
+@@ -1,3 +1,5 @@
++// +build TODO_RSC_REMOVE_THIS
++
+ // UNREVIEWED
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/src/cmd/compile/internal/types2/hilbert_test.go b/src/cmd/compile/internal/types2/hilbert_test.go
+index 9f9dad6b64..b2b8257487 100644
+--- a/src/cmd/compile/internal/types2/hilbert_test.go
++++ b/src/cmd/compile/internal/types2/hilbert_test.go
+@@ -1,3 +1,5 @@
++// +build TODO_RSC_REMOVE_THIS
++
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/compile/internal/types2/importer_test.go b/src/cmd/compile/internal/types2/importer_test.go
+index 90476c4269..0d6c2f1d46 100644
+--- a/src/cmd/compile/internal/types2/importer_test.go
++++ b/src/cmd/compile/internal/types2/importer_test.go
+@@ -1,3 +1,5 @@
++// +build TODO_RSC_REMOVE_THIS
++
+ // UNREVIEWED
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index f33b7c4396..e184200a1a 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -1,3 +1,5 @@
++// +build TODO_RSC_REMOVE_THIS
++
+ // UNREVIEWED
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/src/cmd/compile/internal/types2/resolver_test.go b/src/cmd/compile/internal/types2/resolver_test.go
+index cdfdba6b43..e939c677ee 100644
+--- a/src/cmd/compile/internal/types2/resolver_test.go
++++ b/src/cmd/compile/internal/types2/resolver_test.go
+@@ -1,3 +1,5 @@
++// +build TODO_RSC_REMOVE_THIS
++
+ // UNREVIEWED
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/src/cmd/compile/internal/types2/self_test.go b/src/cmd/compile/internal/types2/self_test.go
+index 6d7971e50f..b03dc7f33a 100644
+--- a/src/cmd/compile/internal/types2/self_test.go
++++ b/src/cmd/compile/internal/types2/self_test.go
+@@ -1,3 +1,5 @@
++// +build TODO_RSC_REMOVE_THIS
++
+ // UNREVIEWED
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/src/cmd/compile/internal/types2/sizes_test.go b/src/cmd/compile/internal/types2/sizes_test.go
+index b246909d2a..f6d37a31ab 100644
+--- a/src/cmd/compile/internal/types2/sizes_test.go
++++ b/src/cmd/compile/internal/types2/sizes_test.go
+@@ -1,3 +1,5 @@
++// +build TODO_RSC_REMOVE_THIS
++
+ // UNREVIEWED
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index ae573a4ec8..5ab24df776 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -1,3 +1,5 @@
++// +build TODO_RSC_REMOVE_THIS
++
+ // UNREVIEWED
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/src/cmd/compile/internal/types2/typestring_test.go b/src/cmd/compile/internal/types2/typestring_test.go
+index f1f7e34bf8..b9e593be72 100644
+--- a/src/cmd/compile/internal/types2/typestring_test.go
++++ b/src/cmd/compile/internal/types2/typestring_test.go
+@@ -1,3 +1,5 @@
++// +build TODO_RSC_REMOVE_THIS
++
+ // UNREVIEWED
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

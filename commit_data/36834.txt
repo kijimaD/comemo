@@ -9,6 +9,20 @@ Date:   Thu May 31 06:52:19 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/reflect/deepequal.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/deepequal.go b/src/reflect/deepequal.go
+index 2fdd6a3d82..5b6694d3f0 100644
+--- a/src/reflect/deepequal.go
++++ b/src/reflect/deepequal.go
+@@ -116,7 +116,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
+ 		for _, k := range v1.MapKeys() {
+ 			val1 := v1.MapIndex(k)
+ 			val2 := v2.MapIndex(k)
+-			if !val1.IsValid() || !val2.IsValid() || !deepValueEqual(v1.MapIndex(k), v2.MapIndex(k), visited, depth+1) {
++			if !val1.IsValid() || !val2.IsValid() || !deepValueEqual(val1, val2, visited, depth+1) {
+ 				return false
+ 			}
+ 		}

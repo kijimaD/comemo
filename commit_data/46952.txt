@@ -10,6 +10,16 @@ Date:   Thu Feb 18 16:16:29 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/293909
     Trust: Katie Hockman <katie@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  codereview.cfg | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/codereview.cfg b/codereview.cfg
+new file mode 100644
+index 0000000000..bed9bcf7ee
+--- /dev/null
++++ b/codereview.cfg
+@@ -0,0 +1,2 @@
++branch: dev.fuzz
++parent-branch: master
+\ No newline at end of file

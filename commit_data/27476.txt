@@ -11,7 +11,37 @@ Date:   Sun Mar 20 18:12:32 2016 +0100
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 1 +
  src/fmt/format.go   | 5 ++++-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index ff975b0aac..3c5142c0f8 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -345,6 +345,7 @@ var fmtTests = []struct {
+ 	{"%x", ^uint32(0), "ffffffff"},
+ 	{"%X", ^uint64(0), "FFFFFFFFFFFFFFFF"},
+ 	{"%.20b", 7, "00000000000000000111"},
++	{"%6.0d", 0, "      "},
+ 	{"%10d", 12345, "     12345"},
+ 	{"%10d", -12345, "    -12345"},
+ 	{"%+10d", 12345, "    +12345"},
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index 6539c0b1c1..b7e4f51639 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -192,8 +192,11 @@ func (f *fmt) fmt_unicode(u uint64) {
+ 
+ // fmt_integer formats signed and unsigned integers.
+ func (f *fmt) fmt_integer(u uint64, base int, isSigned bool, digits string) {
+-	// precision of 0 and value of 0 means "print nothing"
++	// Precision of 0 and value of 0 means "print nothing" but padding.
+ 	if f.precPresent && f.prec == 0 && u == 0 {
++		if f.widPresent {
++			f.writePadding(f.wid)
++		}
+ 		return
+ 	}
+ 

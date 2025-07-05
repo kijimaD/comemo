@@ -14,6 +14,19 @@ Date:   Sun Jul 22 20:23:29 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/fetch.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 110312bbe0..375c3f1478 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -90,7 +90,6 @@ func downloadZip(mod module.Version, target string) error {
+ 	// Double-check zip file looks OK.
+ 	z, err := zip.OpenReader(tmpfile)
+ 	if err != nil {
+-		z.Close()
+ 		return err
+ 	}
+ 	prefix := mod.Path + "@" + mod.Version

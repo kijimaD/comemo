@@ -18,7 +18,72 @@ Date:   Tue Jul 30 22:48:03 2013 -0400
     R=golang-dev, khr, khr
     CC=bradfitz, dvyukov, golang-dev
     https://golang.org/cl/12034047
-
+---
  src/pkg/runtime/hashmap.c   |  2 +-
  src/pkg/runtime/map_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 898404cba8..b4f940e335 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -96,12 +96,12 @@ struct Hmap
+ {
+ 	uintgo  count;        // # live cells == size of map.  Must be first (used by len() builtin)
+ 	uint32  flags;
++	uint32 hash0;        // hash seed
+ 	uint8   B;            // log_2 of # of buckets (can hold up to LOAD * 2^B items)
+ 	uint8   keysize;      // key size in bytes
+ 	uint8   valuesize;    // value size in bytes
+ 	uint16  bucketsize;   // bucket size in bytes
+ 
+-	uintptr hash0;        // hash seed
+ 	byte    *buckets;     // array of 2^B Buckets. may be nil if count==0.
+ 	byte    *oldbuckets;  // previous bucket array of half the size, non-nil only when growing
+ 	uintptr nevacuate;    // progress counter for evacuation (buckets less than this have been evacuated)
+diff --git a/src/pkg/runtime/map_test.go b/src/pkg/runtime/map_test.go
+index 9f9c40d156..8fd6dc6463 100644
+--- a/src/pkg/runtime/map_test.go
++++ b/src/pkg/runtime/map_test.go
+@@ -371,3 +371,41 @@ func testMapLookups(t *testing.T, m map[string]string) {
+ 		}
+ 	}
+ }
++
++func TestMapSize(t *testing.T) {
++	var m map[struct{}]struct{}
++	size := bytesPerRun(100, func() {
++		m = make(map[struct{}]struct{})
++	})
++	if size > 48 {
++		t.Errorf("size = %v; want <= 48", size)
++	}
++}
++
++// like testing.AllocsPerRun, but for bytes of memory, not number of allocations.
++func bytesPerRun(runs int, f func()) (avg float64) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
++
++	// Warm up the function
++	f()
++
++	// Measure the starting statistics
++	var memstats runtime.MemStats
++	runtime.ReadMemStats(&memstats)
++	sum := 0 - memstats.Alloc
++
++	// Run the function the specified number of times
++	for i := 0; i < runs; i++ {
++		f()
++	}
++
++	// Read the final statistics
++	runtime.ReadMemStats(&memstats)
++	sum += memstats.Alloc
++
++	// Average the mallocs over the runs (not counting the warm-up).
++	// We are forced to return a float64 because the API is silly, but do
++	// the division as integers so we can ask if AllocsPerRun()==1
++	// instead of AllocsPerRun()<2.
++	return float64(sum / uint64(runs))
++}

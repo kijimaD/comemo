@@ -10,6 +10,21 @@ Date:   Sat Nov 21 14:48:26 2020 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/271908
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/net/udpsock.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/udpsock.go b/src/net/udpsock.go
+index ec2bcfa607..571e099abd 100644
+--- a/src/net/udpsock.go
++++ b/src/net/udpsock.go
+@@ -259,6 +259,9 @@ func ListenUDP(network string, laddr *UDPAddr) (*UDPConn, error) {
+ // ListenMulticastUDP is just for convenience of simple, small
+ // applications. There are golang.org/x/net/ipv4 and
+ // golang.org/x/net/ipv6 packages for general purpose uses.
++//
++// Note that ListenMulticastUDP will set the IP_MULTICAST_LOOP socket option
++// to 0 under IPPROTO_IP, to disable loopback of multicast packets.
+ func ListenMulticastUDP(network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
+ 	switch network {
+ 	case "udp", "udp4", "udp6":

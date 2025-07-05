@@ -11,7 +11,358 @@ Date:   Fri Dec 17 14:00:46 2010 -0800
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/3720042
-
+---
  src/pkg/index/suffixarray/suffixarray.go      | 116 +++++++++++++++++++++--
  src/pkg/index/suffixarray/suffixarray_test.go | 129 ++++++++++++++++++--------
  2 files changed, 201 insertions(+), 44 deletions(-)
+
+diff --git a/src/pkg/index/suffixarray/suffixarray.go b/src/pkg/index/suffixarray/suffixarray.go
+index 9dec943d57..88cf925fc2 100644
+--- a/src/pkg/index/suffixarray/suffixarray.go
++++ b/src/pkg/index/suffixarray/suffixarray.go
+@@ -18,7 +18,7 @@ package suffixarray
+ 
+ import (
+ 	"bytes"
+-	"container/vector"
++	"regexp"
+ 	"sort"
+ )
+ 
+@@ -73,22 +73,124 @@ func (x *Index) search(s []byte) int {
+ // Lookup time is O((log(N) + len(result))*len(s)) where N is the
+ // size of the indexed data.
+ //
+-func (x *Index) Lookup(s []byte, n int) []int {
+-	var res vector.IntVector
+-
++func (x *Index) Lookup(s []byte, n int) (result []int) {
+ 	if len(s) > 0 && n != 0 {
+ 		// find matching suffix index i
+ 		i := x.search(s)
+ 		// x.at(i-1) < s <= x.at(i)
+ 
+ 		// collect the following suffixes with matching prefixes
+-		for (n < 0 || len(res) < n) && i < len(x.sa) && bytes.HasPrefix(x.at(i), s) {
+-			res.Push(x.sa[i])
++		for (n < 0 || len(result) < n) && i < len(x.sa) && bytes.HasPrefix(x.at(i), s) {
++			result = append(result, x.sa[i])
+ 			i++
+ 		}
+ 	}
++	return
++}
++
++
++// FindAllIndex returns a sorted list of non-overlapping matches of the
++// regular expression r, where a match is a pair of indices specifying
++// the matched slice of x.Bytes(). If n < 0, all matches are returned
++// in successive order. Otherwise, at most n matches are returned and
++// they may not be successive. The result is nil if there are no matches,
++// or if n == 0.
++//
++func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
++	// a non-empty literal prefix is used to determine possible
++	// match start indices with Lookup
++	prefix, complete := r.LiteralPrefix()
++	lit := []byte(prefix)
++
++	// worst-case scenario: no literal prefix
++	if prefix == "" {
++		return r.FindAllIndex(x.data, n)
++	}
+ 
+-	return res
++	// if regexp is a literal just use Lookup and convert its
++	// result into match pairs
++	if complete {
++		// Lookup returns indices that may belong to overlapping matches.
++		// After eliminating them, we may end up with fewer than n matches.
++		// If we don't have enough at the end, redo the search with an
++		// increased value n1, but only if Lookup returned all the requested
++		// indices in the first place (if it returned fewer than that then
++		// there cannot be more).
++		for n1 := n; ; n1 += 2 * (n - len(result)) /* overflow ok */ {
++			indices := x.Lookup(lit, n1)
++			if len(indices) == 0 {
++				return
++			}
++			sort.SortInts(indices)
++			pairs := make([]int, 2*len(indices))
++			result = make([][]int, len(indices))
++			count := 0
++			prev := 0
++			for _, i := range indices {
++				if count == n {
++					break
++				}
++				// ignore indices leading to overlapping matches
++				if prev <= i {
++					j := 2 * count
++					pairs[j+0] = i
++					pairs[j+1] = i + len(lit)
++					result[count] = pairs[j : j+2]
++					count++
++					prev = i + len(lit)
++				}
++			}
++			result = result[0:count]
++			if len(result) >= n || len(indices) != n1 {
++				// found all matches or there's no chance to find more
++				// (n and n1 can be negative)
++				break
++			}
++		}
++		if len(result) == 0 {
++			result = nil
++		}
++		return
++	}
++
++	// regexp has a non-empty literal prefix; Lookup(lit) computes
++	// the indices of possible complete matches; use these as starting
++	// points for anchored searches
++	// (regexp "^" matches beginning of input, not beginning of line)
++	r = regexp.MustCompile("^" + r.String()) // compiles because r compiled
++
++	// same comment about Lookup applies here as in the loop above
++	for n1 := n; ; n1 += 2 * (n - len(result)) /* overflow ok */ {
++		indices := x.Lookup(lit, n1)
++		if len(indices) == 0 {
++			return
++		}
++		sort.SortInts(indices)
++		result = result[0:0]
++		prev := 0
++		for _, i := range indices {
++			if len(result) == n {
++				break
++			}
++			m := r.FindIndex(x.data[i:]) // anchored search - will not run off
++			// ignore indices leading to overlapping matches
++			if m != nil && prev <= i {
++				m[0] = i // correct m
++				m[1] += i
++				result = append(result, m)
++				prev = m[1]
++			}
++		}
++		if len(result) >= n || len(indices) != n1 {
++			// found all matches or there's no chance to find more
++			// (n and n1 can be negative)
++			break
++		}
++	}
++	if len(result) == 0 {
++		result = nil
++	}
++	return
+ }
+ 
+ 
+diff --git a/src/pkg/index/suffixarray/suffixarray_test.go b/src/pkg/index/suffixarray/suffixarray_test.go
+index 8280750edd..cc252a9299 100644
+--- a/src/pkg/index/suffixarray/suffixarray_test.go
++++ b/src/pkg/index/suffixarray/suffixarray_test.go
+@@ -6,6 +6,7 @@ package suffixarray
+ 
+ import (
+ 	"container/vector"
++	"regexp"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+@@ -13,9 +14,9 @@ import (
+ 
+ 
+ type testCase struct {
+-	name    string   // name of test case
+-	source  string   // source to index
+-	lookups []string // strings to lookup
++	name     string   // name of test case
++	source   string   // source to index
++	patterns []string // patterns to lookup
+ }
+ 
+ 
+@@ -26,6 +27,9 @@ var testCases = []testCase{
+ 		[]string{
+ 			"",
+ 			"foo",
++			"(foo)",
++			".*",
++			"a*",
+ 		},
+ 	},
+ 
+@@ -45,6 +49,12 @@ var testCases = []testCase{
+ 			"aaaaaaaaa",
+ 			"aaaaaaaaaa",
+ 			"aaaaaaaaaaa", // 11 a's
++			".",
++			".*",
++			"a+",
++			"aa+",
++			"aaaa[b]?",
++			"aaa*",
+ 		},
+ 	},
+ 
+@@ -58,6 +68,9 @@ var testCases = []testCase{
+ 			"ab",
+ 			"bc",
+ 			"abc",
++			"a.c",
++			"a(b|c)",
++			"abc?",
+ 		},
+ 	},
+ 
+@@ -70,6 +83,7 @@ var testCases = []testCase{
+ 			"rab",
+ 			"arab",
+ 			"barbar",
++			"bara?bar",
+ 		},
+ 	},
+ 
+@@ -81,6 +95,7 @@ var testCases = []testCase{
+ 			"the time",
+ 			"to come the aid",
+ 			"is the time for all good men to come to the aid of their",
++			"to (come|the)?",
+ 		},
+ 	},
+ }
+@@ -104,47 +119,86 @@ func find(src, s string, n int) []int {
+ }
+ 
+ 
+-func testLookups(t *testing.T, src string, x *Index, tc *testCase, n int) {
+-	for _, s := range tc.lookups {
+-		res := x.Lookup([]byte(s), n)
+-		exp := find(tc.source, s, n)
++func testLookup(t *testing.T, tc *testCase, x *Index, s string, n int) {
++	res := x.Lookup([]byte(s), n)
++	exp := find(tc.source, s, n)
+ 
+-		// check that the lengths match
+-		if len(res) != len(exp) {
+-			t.Errorf("test %q, lookup %q (n = %d): expected %d results; got %d", tc.name, s, n, len(exp), len(res))
+-		}
++	// check that the lengths match
++	if len(res) != len(exp) {
++		t.Errorf("test %q, lookup %q (n = %d): expected %d results; got %d", tc.name, s, n, len(exp), len(res))
++	}
+ 
+-		// if n >= 0 the number of results is limited --- unless n >= all results,
+-		// we may obtain different positions from the Index and from find (because
+-		// Index may not find the results in the same order as find) => in general
+-		// we cannot simply check that the res and exp lists are equal
++	// if n >= 0 the number of results is limited --- unless n >= all results,
++	// we may obtain different positions from the Index and from find (because
++	// Index may not find the results in the same order as find) => in general
++	// we cannot simply check that the res and exp lists are equal
++
++	// check that each result is in fact a correct match and there are no duplicates
++	sort.SortInts(res)
++	for i, r := range res {
++		if r < 0 || len(tc.source) <= r {
++			t.Errorf("test %q, lookup %q, result %d (n = %d): index %d out of range [0, %d[", tc.name, s, i, n, r, len(tc.source))
++		} else if !strings.HasPrefix(tc.source[r:], s) {
++			t.Errorf("test %q, lookup %q, result %d (n = %d): index %d not a match", tc.name, s, i, n, r)
++		}
++		if i > 0 && res[i-1] == r {
++			t.Errorf("test %q, lookup %q, result %d (n = %d): found duplicate index %d", tc.name, s, i, n, r)
++		}
++	}
+ 
+-		// check that there are no duplicates
+-		sort.SortInts(res)
++	if n < 0 {
++		// all results computed - sorted res and exp must be equal
+ 		for i, r := range res {
+-			if i > 0 && res[i-1] == r {
+-				t.Errorf("test %q, lookup %q, result %d (n = %d): found duplicate index %d", tc.name, s, i, n, r)
++			e := exp[i]
++			if r != e {
++				t.Errorf("test %q, lookup %q, result %d: expected index %d; got %d", tc.name, s, i, e, r)
+ 			}
+ 		}
++	}
++}
++
++
++func testFindAllIndex(t *testing.T, tc *testCase, x *Index, rx *regexp.Regexp, n int) {
++	res := x.FindAllIndex(rx, n)
++	exp := rx.FindAllStringIndex(tc.source, n)
++
++	// check that the lengths match
++	if len(res) != len(exp) {
++		t.Errorf("test %q, FindAllIndex %q (n = %d): expected %d results; got %d", tc.name, rx, n, len(exp), len(res))
++	}
++
++	// if n >= 0 the number of results is limited --- unless n >= all results,
++	// we may obtain different positions from the Index and from regexp (because
++	// Index may not find the results in the same order as regexp) => in general
++	// we cannot simply check that the res and exp lists are equal
++
++	// check that each result is in fact a correct match and the result is sorted
++	for i, r := range res {
++		if r[0] < 0 || r[0] > r[1] || len(tc.source) < r[1] {
++			t.Errorf("test %q, FindAllIndex %q, result %d (n == %d): illegal match [%d, %d]", tc.name, rx, i, n, r[0], r[1])
++		} else if !rx.MatchString(tc.source[r[0]:r[1]]) {
++			t.Errorf("test %q, FindAllIndex %q, result %d (n = %d): [%d, %d] not a match", tc.name, rx, i, n, r[0], r[1])
++		}
++	}
+ 
+-		// check that each result is in fact a correct match
++	if n < 0 {
++		// all results computed - sorted res and exp must be equal
+ 		for i, r := range res {
+-			if r < 0 || len(src) <= r {
+-				t.Errorf("test %q, lookup %q, result %d (n = %d): index %d out of range [0, %d[", tc.name, s, i, n, r, len(src))
+-			} else if !strings.HasPrefix(src[r:], s) {
+-				t.Errorf("test %q, lookup %q, result %d (n = %d): index %d not a match", tc.name, s, i, n, r)
++			e := exp[i]
++			if r[0] != e[0] || r[1] != e[1] {
++				t.Errorf("test %q, FindAllIndex %q, result %d: expected match [%d, %d]; got [%d, %d]",
++					tc.name, rx, i, e[0], e[1], r[0], r[1])
+ 			}
+ 		}
++	}
++}
+ 
+-		if n < 0 {
+-			// all results computed - sorted res and exp must be equal
+-			for i, r := range res {
+-				e := exp[i]
+-				if r != e {
+-					t.Errorf("test %q, lookup %q, result %d: expected index %d; got %d", tc.name, s, i, e, r)
+-					continue
+-				}
+-			}
++
++func testLookups(t *testing.T, tc *testCase, x *Index, n int) {
++	for _, pat := range tc.patterns {
++		testLookup(t, tc, x, pat, n)
++		if rx, err := regexp.Compile(pat); err == nil {
++			testFindAllIndex(t, tc, x, rx, n)
+ 		}
+ 	}
+ }
+@@ -153,9 +207,10 @@ func testLookups(t *testing.T, src string, x *Index, tc *testCase, n int) {
+ func TestIndex(t *testing.T) {
+ 	for _, tc := range testCases {
+ 		x := New([]byte(tc.source))
+-		testLookups(t, tc.source, x, &tc, 0)
+-		testLookups(t, tc.source, x, &tc, 1)
+-		testLookups(t, tc.source, x, &tc, 10)
+-		testLookups(t, tc.source, x, &tc, -1)
++		testLookups(t, &tc, x, 0)
++		testLookups(t, &tc, x, 1)
++		testLookups(t, &tc, x, 10)
++		testLookups(t, &tc, x, 2e9)
++		testLookups(t, &tc, x, -1)
+ 	}
+ }

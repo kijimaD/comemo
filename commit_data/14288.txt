@@ -26,9 +26,88 @@ Date:   Thu Nov 1 19:43:29 2012 +0100
     R=dvyukov, golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6815066
-
+---
  src/cmd/gc/builtin.c   |  2 +-
  src/cmd/gc/racewalk.c  | 13 +++++++++----
  src/cmd/gc/runtime.go  |  2 +-
  src/pkg/runtime/race.c |  8 +++++---
  4 files changed, 16 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index 197255be4e..d993bc7fc8 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -102,7 +102,7 @@ char *runtimeimport =
+ 	"func @\"\".int64tofloat64(? int64) (? float64)\n"
+ 	"func @\"\".uint64tofloat64(? uint64) (? float64)\n"
+ 	"func @\"\".complex128div(@\"\".num complex128, @\"\".den complex128) (@\"\".quo complex128)\n"
+-	"func @\"\".racefuncenter()\n"
++	"func @\"\".racefuncenter(? uintptr)\n"
+ 	"func @\"\".racefuncexit()\n"
+ 	"func @\"\".raceread(? uintptr)\n"
+ 	"func @\"\".racewrite(? uintptr)\n"
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 3e0feffd5a..034a5a5a34 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -33,6 +33,7 @@ racewalk(Node *fn)
+ {
+ 	int i;
+ 	Node *nd;
++	Node *nodpc;
+ 	char s[1024];
+ 
+ 	if(myimportpath) {
+@@ -42,10 +43,14 @@ racewalk(Node *fn)
+ 		}
+ 	}
+ 
+-	// TODO(dvyukov): ideally this should be:
+-	// racefuncenter(getreturnaddress())
+-	// because it's much more costly to obtain from runtime library.
+-	nd = mkcall("racefuncenter", T, nil);
++	// nodpc is the PC of the caller as extracted by
++	// getcallerpc. We use -widthptr(FP) for x86.
++	// BUG: this will not work on arm.
++	nodpc = nod(OXXX, nil, nil);
++	*nodpc = *nodfp;
++	nodpc->type = types[TUINTPTR];
++	nodpc->xoffset = -widthptr;
++	nd = mkcall("racefuncenter", T, nil, nodpc);
+ 	fn->enter = list(fn->enter, nd);
+ 	nd = mkcall("racefuncexit", T, nil);
+ 	fn->exit = list(fn->exit, nd); // works fine if (!fn->exit)
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index cfabbb174b..b8204ebcf3 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -140,7 +140,7 @@ func uint64tofloat64(uint64) float64
+ func complex128div(num complex128, den complex128) (quo complex128)
+ 
+ // race detection
+-func racefuncenter()
++func racefuncenter(uintptr)
+ func racefuncexit()
+ func raceread(uintptr)
+ func racewrite(uintptr)
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index 97bfe6864e..bea16cc832 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -70,11 +70,13 @@ runtime·raceread(uintptr addr)
+ 
+ // Called from instrumented code.
+ void
+-runtime·racefuncenter(void)
++runtime·racefuncenter(uintptr pc)
+ {
+-	uintptr pc;
++	// If the caller PC is lessstack, use slower runtime·callers
++	// to walk across the stack split to find the real caller.
++	if(pc == (uintptr)runtime·lessstack)
++		runtime·callers(2, &pc, 1);
+ 
+-	runtime·callers(2, &pc, 1);
+ 	m->racecall = true;
+ 	runtime∕race·FuncEnter(g->goid-1, (void*)pc);
+ 	m->racecall = false;

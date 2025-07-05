@@ -22,9 +22,261 @@ Date:   Mon Dec 16 10:24:17 2024 +0800
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/asm/internal/asm/testdata/loong64enc1.s | 34 +++++++++
  src/cmd/internal/obj/loong64/a.out.go           | 34 +++++++++
  src/cmd/internal/obj/loong64/anames.go          | 32 +++++++++
  src/cmd/internal/obj/loong64/asm.go             | 96 +++++++++++++++++++++++++
  4 files changed, 196 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 1369266473..f85939afbc 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -801,3 +801,37 @@ lable2:
+ 	XVMUHHU		X3, X2, X1	// 418c8874
+ 	XVMUHWU		X3, X2, X1	// 410c8974
+ 	XVMUHVU		X3, X2, X1	// 418c8974
++
++	// [X]VDIV{B/H/W/V}[U] and [X]VMOD{B/H/W/V}[U] instructions
++	VDIVB		V1, V2, V3	// 4304e070
++	VDIVH		V1, V2, V3	// 4384e070
++	VDIVW		V1, V2, V3	// 4304e170
++	VDIVV		V1, V2, V3	// 4384e170
++	VDIVBU		V1, V2, V3	// 4304e470
++	VDIVHU		V1, V2, V3	// 4384e470
++	VDIVWU		V1, V2, V3	// 4304e570
++	VDIVVU		V1, V2, V3	// 4384e570
++	VMODB		V1, V2, V3	// 4304e270
++	VMODH		V1, V2, V3	// 4384e270
++	VMODW		V1, V2, V3	// 4304e370
++	VMODV		V1, V2, V3	// 4384e370
++	VMODBU		V1, V2, V3	// 4304e670
++	VMODHU		V1, V2, V3	// 4384e670
++	VMODWU		V1, V2, V3	// 4304e770
++	VMODVU		V1, V2, V3	// 4384e770
++	XVDIVB		X3, X2, X1	// 410ce074
++	XVDIVH		X3, X2, X1	// 418ce074
++	XVDIVW		X3, X2, X1	// 410ce174
++	XVDIVV		X3, X2, X1	// 418ce174
++	XVDIVBU		X3, X2, X1	// 410ce474
++	XVDIVHU		X3, X2, X1	// 418ce474
++	XVDIVWU		X3, X2, X1	// 410ce574
++	XVDIVVU		X3, X2, X1	// 418ce574
++	XVMODB		X3, X2, X1	// 410ce274
++	XVMODH		X3, X2, X1	// 418ce274
++	XVMODW		X3, X2, X1	// 410ce374
++	XVMODV		X3, X2, X1	// 418ce374
++	XVMODBU		X3, X2, X1	// 410ce674
++	XVMODHU		X3, X2, X1	// 418ce674
++	XVMODWU		X3, X2, X1	// 410ce774
++	XVMODVU		X3, X2, X1	// 418ce774
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 39f617fa16..55ca273455 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -824,6 +824,40 @@ const (
+ 	AVSEQV
+ 	AXVSEQV
+ 
++	// LSX and LASX integer div and mod instructions
++	AVDIVB
++	AVDIVH
++	AVDIVW
++	AVDIVV
++	AVDIVBU
++	AVDIVHU
++	AVDIVWU
++	AVDIVVU
++	AVMODB
++	AVMODH
++	AVMODW
++	AVMODV
++	AVMODBU
++	AVMODHU
++	AVMODWU
++	AVMODVU
++	AXVDIVB
++	AXVDIVH
++	AXVDIVW
++	AXVDIVV
++	AXVDIVBU
++	AXVDIVHU
++	AXVDIVWU
++	AXVDIVVU
++	AXVMODB
++	AXVMODH
++	AXVMODW
++	AXVMODV
++	AXVMODBU
++	AXVMODHU
++	AXVMODWU
++	AXVMODVU
++
+ 	// LSX and LASX shift operation instructions
+ 	AVSLLB
+ 	AVSLLH
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index fa616a5d54..b91bb93d0a 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -333,6 +333,38 @@ var Anames = []string{
+ 	"XVSEQW",
+ 	"VSEQV",
+ 	"XVSEQV",
++	"VDIVB",
++	"VDIVH",
++	"VDIVW",
++	"VDIVV",
++	"VDIVBU",
++	"VDIVHU",
++	"VDIVWU",
++	"VDIVVU",
++	"VMODB",
++	"VMODH",
++	"VMODW",
++	"VMODV",
++	"VMODBU",
++	"VMODHU",
++	"VMODWU",
++	"VMODVU",
++	"XVDIVB",
++	"XVDIVH",
++	"XVDIVW",
++	"XVDIVV",
++	"XVDIVBU",
++	"XVDIVHU",
++	"XVDIVWU",
++	"XVDIVVU",
++	"XVMODB",
++	"XVMODH",
++	"XVMODW",
++	"XVMODV",
++	"XVMODBU",
++	"XVMODHU",
++	"XVMODWU",
++	"XVMODVU",
+ 	"VSLLB",
+ 	"VSLLH",
+ 	"VSLLW",
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index b92b9b60ef..306a309cac 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1567,6 +1567,22 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AVMUHHU, r0)
+ 			opset(AVMUHWU, r0)
+ 			opset(AVMUHVU, r0)
++			opset(AVDIVB, r0)
++			opset(AVDIVH, r0)
++			opset(AVDIVW, r0)
++			opset(AVDIVV, r0)
++			opset(AVMODB, r0)
++			opset(AVMODH, r0)
++			opset(AVMODW, r0)
++			opset(AVMODV, r0)
++			opset(AVDIVBU, r0)
++			opset(AVDIVHU, r0)
++			opset(AVDIVWU, r0)
++			opset(AVDIVVU, r0)
++			opset(AVMODBU, r0)
++			opset(AVMODHU, r0)
++			opset(AVMODWU, r0)
++			opset(AVMODVU, r0)
+ 
+ 		case AXVSEQB:
+ 			opset(AXVSEQH, r0)
+@@ -1592,6 +1608,22 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AXVMUHHU, r0)
+ 			opset(AXVMUHWU, r0)
+ 			opset(AXVMUHVU, r0)
++			opset(AXVDIVB, r0)
++			opset(AXVDIVH, r0)
++			opset(AXVDIVW, r0)
++			opset(AXVDIVV, r0)
++			opset(AXVMODB, r0)
++			opset(AXVMODH, r0)
++			opset(AXVMODW, r0)
++			opset(AXVMODV, r0)
++			opset(AXVDIVBU, r0)
++			opset(AXVDIVHU, r0)
++			opset(AXVDIVWU, r0)
++			opset(AXVDIVVU, r0)
++			opset(AXVMODBU, r0)
++			opset(AXVMODHU, r0)
++			opset(AXVMODWU, r0)
++			opset(AXVMODVU, r0)
+ 
+ 		case AVANDB:
+ 			opset(AVORB, r0)
+@@ -2874,6 +2906,70 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 		return 0x0EA50 << 15 // xvandn.v
+ 	case AXVORNV:
+ 		return 0x0EA51 << 15 // xvorn.v
++	case AVDIVB:
++		return 0xe1c0 << 15 // vdiv.b
++	case AVDIVH:
++		return 0xe1c1 << 15 // vdiv.h
++	case AVDIVW:
++		return 0xe1c2 << 15 // vdiv.w
++	case AVDIVV:
++		return 0xe1c3 << 15 // vdiv.d
++	case AVMODB:
++		return 0xe1c4 << 15 // vmod.b
++	case AVMODH:
++		return 0xe1c5 << 15 // vmod.h
++	case AVMODW:
++		return 0xe1c6 << 15 // vmod.w
++	case AVMODV:
++		return 0xe1c7 << 15 // vmod.d
++	case AVDIVBU:
++		return 0xe1c8 << 15 // vdiv.bu
++	case AVDIVHU:
++		return 0xe1c9 << 15 // vdiv.hu
++	case AVDIVWU:
++		return 0xe1ca << 15 // vdiv.wu
++	case AVDIVVU:
++		return 0xe1cb << 15 // vdiv.du
++	case AVMODBU:
++		return 0xe1cc << 15 // vmod.bu
++	case AVMODHU:
++		return 0xe1cd << 15 // vmod.hu
++	case AVMODWU:
++		return 0xe1ce << 15 // vmod.wu
++	case AVMODVU:
++		return 0xe1cf << 15 // vmod.du
++	case AXVDIVB:
++		return 0xe9c0 << 15 // xvdiv.b
++	case AXVDIVH:
++		return 0xe9c1 << 15 // xvdiv.h
++	case AXVDIVW:
++		return 0xe9c2 << 15 // xvdiv.w
++	case AXVDIVV:
++		return 0xe9c3 << 15 // xvdiv.d
++	case AXVMODB:
++		return 0xe9c4 << 15 // xvmod.b
++	case AXVMODH:
++		return 0xe9c5 << 15 // xvmod.h
++	case AXVMODW:
++		return 0xe9c6 << 15 // xvmod.w
++	case AXVMODV:
++		return 0xe9c7 << 15 // xvmod.d
++	case AXVDIVBU:
++		return 0xe9c8 << 15 // xvdiv.bu
++	case AXVDIVHU:
++		return 0xe9c9 << 15 // xvdiv.hu
++	case AXVDIVWU:
++		return 0xe9ca << 15 // xvdiv.wu
++	case AXVDIVVU:
++		return 0xe9cb << 15 // xvdiv.du
++	case AXVMODBU:
++		return 0xe9cc << 15 // xvmod.bu
++	case AXVMODHU:
++		return 0xe9cd << 15 // xvmod.hu
++	case AXVMODWU:
++		return 0xe9ce << 15 // xvmod.wu
++	case AXVMODVU:
++		return 0xe9cf << 15 // xvmod.du
+ 	case AVSLLB:
+ 		return 0xe1d0 << 15 // vsll.b
+ 	case AVSLLH:

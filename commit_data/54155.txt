@@ -16,7 +16,7 @@ Date:   Mon Sep 26 12:47:41 2022 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go | 6 +-----
  src/go/types/expr.go                    | 2 +-
  test/fixedbugs/issue17631.go            | 2 +-
@@ -24,3 +24,97 @@ Date:   Mon Sep 26 12:47:41 2022 -0700
  test/fixedbugs/issue24339.go            | 2 +-
  test/fixedbugs/issue25727.go            | 6 +++---
  6 files changed, 11 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 3e82e4bcca..c700667034 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1418,11 +1418,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 					}
+ 					i := fieldIndex(utyp.fields, check.pkg, key.Value)
+ 					if i < 0 {
+-						if check.conf.CompilerErrorMessages {
+-							check.errorf(kv.Key, _MissingLitField, "unknown field '%s' in struct literal of type %s", key.Value, base)
+-						} else {
+-							check.errorf(kv.Key, _MissingLitField, "unknown field %s in struct literal", key.Value)
+-						}
++						check.errorf(kv.Key, _MissingLitField, "unknown field %s in struct literal of type %s", key.Value, base)
+ 						continue
+ 					}
+ 					fld := fields[i]
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 12f73947fd..ebb107b8c0 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1397,7 +1397,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 					}
+ 					i := fieldIndex(utyp.fields, check.pkg, key.Name)
+ 					if i < 0 {
+-						check.errorf(kv, _MissingLitField, "unknown field %s in struct literal", key.Name)
++						check.errorf(kv, _MissingLitField, "unknown field %s in struct literal of type %s", key.Name, base)
+ 						continue
+ 					}
+ 					fld := fields[i]
+diff --git a/test/fixedbugs/issue17631.go b/test/fixedbugs/issue17631.go
+index b820b2d5a7..742b054b34 100644
+--- a/test/fixedbugs/issue17631.go
++++ b/test/fixedbugs/issue17631.go
+@@ -17,6 +17,6 @@ func main() {
+ 		expect     map[string]int
+ 	}{
+ 		about:   "this one",
+-		updates: map[string]int{"gopher": 10}, // ERROR "unknown field 'updates' in struct literal of type|unknown field .*updates.* in .*unnamed struct.*"
++		updates: map[string]int{"gopher": 10}, // ERROR "unknown field updates in struct literal of type|unknown field .*updates.* in .*unnamed struct.*"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue19482.go b/test/fixedbugs/issue19482.go
+index ee0d340aa3..b67dda5a1f 100644
+--- a/test/fixedbugs/issue19482.go
++++ b/test/fixedbugs/issue19482.go
+@@ -22,13 +22,13 @@ func ok() {
+ 
+ var (
+ 	y = T{"stare"}
+-	w = T{_: "look"} // ERROR "invalid field name _ in struct initializer|expected struct field name|unknown field '_' in struct literal of type T"
++	w = T{_: "look"} // ERROR "invalid field name _ in struct initializer|expected struct field name|unknown field _ in struct literal of type T"
+ 	_ = T{"page"}
+-	_ = T{_: "out"} // ERROR "invalid field name _ in struct initializer|expected struct field name|unknown field '_' in struct literal of type T"
++	_ = T{_: "out"} // ERROR "invalid field name _ in struct initializer|expected struct field name|unknown field _ in struct literal of type T"
+ )
+ 
+ func bad() {
+-	var z = T{_: "verse"} // ERROR "invalid field name _ in struct initializer|expected struct field name|unknown field '_' in struct literal of type T"
++	var z = T{_: "verse"} // ERROR "invalid field name _ in struct initializer|expected struct field name|unknown field _ in struct literal of type T"
+ 	_ = z
+-	_ = T{_: "itinerary"} // ERROR "invalid field name _ in struct initializer|expected struct field name|unknown field '_' in struct literal of type T"
++	_ = T{_: "itinerary"} // ERROR "invalid field name _ in struct initializer|expected struct field name|unknown field _ in struct literal of type T"
+ }
+diff --git a/test/fixedbugs/issue24339.go b/test/fixedbugs/issue24339.go
+index 2cca7f8bda..4d54e3877f 100644
+--- a/test/fixedbugs/issue24339.go
++++ b/test/fixedbugs/issue24339.go
+@@ -17,4 +17,4 @@ var _ = struct{}{ /*line :20:1*/foo /*line :21:1*/: /*line :22:1*/0 }
+ 
+ 
+ 
+-// ERROR "unknown field 'foo'"
++// ERROR "unknown field foo"
+diff --git a/test/fixedbugs/issue25727.go b/test/fixedbugs/issue25727.go
+index 5599a83dd0..06b2e2cac7 100644
+--- a/test/fixedbugs/issue25727.go
++++ b/test/fixedbugs/issue25727.go
+@@ -11,11 +11,11 @@ import "net/http"
+ var s = http.Server{}
+ var _ = s.doneChan                  // ERROR "s.doneChan undefined .cannot refer to unexported field or method doneChan.$|unexported field or method|s.doneChan undefined"
+ var _ = s.DoneChan                  // ERROR "s.DoneChan undefined .type http.Server has no field or method DoneChan.$|undefined field or method"
+-var _ = http.Server{tlsConfig: nil} // ERROR "unknown field 'tlsConfig' in struct literal.+ .but does have TLSConfig.$|unknown field .?tlsConfig.? in .?http.Server|unknown field"
+-var _ = http.Server{DoneChan: nil}  // ERROR "unknown field 'DoneChan' in struct literal of type http.Server$|unknown field .?DoneChan.? in .?http.Server"
++var _ = http.Server{tlsConfig: nil} // ERROR "unknown field tlsConfig in struct literal.+ .but does have TLSConfig.$|unknown field .?tlsConfig.? in .?http.Server|unknown field"
++var _ = http.Server{DoneChan: nil}  // ERROR "unknown field DoneChan in struct literal of type http.Server$|unknown field .?DoneChan.? in .?http.Server"
+ 
+ type foo struct {
+ 	bar int
+ }
+ 
+-var _ = &foo{bAr: 10} // ERROR "unknown field 'bAr' in struct literal.+ .but does have bar.$|unknown field .?bAr.? in .?foo|unknown field"
++var _ = &foo{bAr: 10} // ERROR "unknown field bAr in struct literal.+ .but does have bar.$|unknown field .?bAr.? in .?foo|unknown field"

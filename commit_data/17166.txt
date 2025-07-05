@@ -8,8 +8,161 @@ Date:   Mon Aug 12 22:04:10 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12699051
-
+---
  src/pkg/runtime/crash_test.go       |   6 +-
  src/pkg/runtime/race/output_test.go | 109 ++++++++++++++++++++++++++++++++++++
  src/run.bash                        |   3 +-
  3 files changed, 115 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index af19274702..31697beb59 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -44,14 +44,16 @@ func executeTest(t *testing.T, templ string, data interface{}) string {
+ 	src := filepath.Join(dir, "main.go")
+ 	f, err := os.Create(src)
+ 	if err != nil {
+-		t.Fatalf("failed to create %v: %v", src, err)
++		t.Fatalf("failed to create file: %v", err)
+ 	}
+ 	err = st.Execute(f, data)
+ 	if err != nil {
+ 		f.Close()
+ 		t.Fatalf("failed to execute template: %v", err)
+ 	}
+-	f.Close()
++	if err := f.Close(); err != nil {
++		t.Fatalf("failed to close file: %v", err)
++	}
+ 
+ 	got, _ := testEnv(exec.Command("go", "run", src)).CombinedOutput()
+ 	return string(got)
+diff --git a/src/pkg/runtime/race/output_test.go b/src/pkg/runtime/race/output_test.go
+new file mode 100644
+index 0000000000..3604aec3c6
+--- /dev/null
++++ b/src/pkg/runtime/race/output_test.go
+@@ -0,0 +1,109 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race
++
++package race_test
++
++import (
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"regexp"
++	"strings"
++	"testing"
++)
++
++func TestOutput(t *testing.T) {
++	for _, test := range tests {
++		dir, err := ioutil.TempDir("", "go-build")
++		if err != nil {
++			t.Fatalf("failed to create temp directory: %v", err)
++		}
++		defer os.RemoveAll(dir)
++		src := filepath.Join(dir, "main.go")
++		f, err := os.Create(src)
++		if err != nil {
++			t.Fatalf("failed to create file: %v", err)
++		}
++		_, err = f.WriteString(test.source)
++		if err != nil {
++			f.Close()
++			t.Fatalf("failed to write: %v", err)
++		}
++		if err := f.Close(); err != nil {
++			t.Fatalf("failed to close file: %v", err)
++		}
++		// Pass -l to the compiler to test stack traces.
++		cmd := exec.Command("go", "run", "-race", "-gcflags=-l", src)
++		// GODEBUG spoils program output, GOMAXPROCS makes it flaky.
++		for _, env := range os.Environ() {
++			if strings.HasPrefix(env, "GODEBUG=") ||
++				strings.HasPrefix(env, "GOMAXPROCS=") {
++				continue
++			}
++			cmd.Env = append(cmd.Env, env)
++		}
++		got, _ := cmd.CombinedOutput()
++		if !regexp.MustCompile(test.re).MatchString(string(got)) {
++			t.Fatalf("failed test case %v, expect:\n%v\ngot:\n%s",
++				test.name, test.re, got)
++		}
++	}
++}
++
++var tests = []struct {
++	name   string
++	source string
++	re     string
++}{
++	{"simple", `
++package main
++func main() {
++	done := make(chan bool)
++	x := 0
++	startRacer(&x, done)
++	store(&x, 43)
++	<-done
++}
++func store(x *int, v int) {
++	*x = v
++}
++func startRacer(x *int, done chan bool) {
++	go racer(x, done)
++}
++func racer(x *int, done chan bool) {
++	store(x, 42)
++	done <- true
++}
++`, `==================
++WARNING: DATA RACE
++Write by goroutine [0-9]:
++  main\.store\(\)
++      .*/main\.go:11 \+0x[0-9,a-f]+
++  main\.racer\(\)
++      .*/main\.go:17 \+0x[0-9,a-f]+
++
++Previous write by goroutine 1:
++  main\.store\(\)
++      .*/main\.go:11 \+0x[0-9,a-f]+
++  main\.main\(\)
++      .*/main\.go:7 \+0x[0-9,a-f]+
++
++Goroutine 3 \(running\) created at:
++  main\.startRacer\(\)
++      .*/main\.go:14 \+0x[0-9,a-f]+
++  main\.main\(\)
++      .*/main\.go:6 \+0x[0-9,a-f]+
++
++Goroutine 1 \(running\) created at:
++  _rt0_go\(\)
++      .*/src/pkg/runtime/asm_amd64\.s:[0-9]+ \+0x[0-9,a-f]+
++
++==================
++Found 1 data race\(s\)
++exit status 66
++`},
++}
+diff --git a/src/run.bash b/src/run.bash
+index 258a4d2f94..018648e592 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -61,7 +61,8 @@ case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
+ linux-linux-amd64-1 | darwin-darwin-amd64-1)
+ 	echo
+ 	echo '# Testing race detector.'
+-	go test -race -i flag
++	go test -race -i runtime/race flag
++	go test -race -run=Output runtime/race
+ 	go test -race -short flag
+ esac
+ 

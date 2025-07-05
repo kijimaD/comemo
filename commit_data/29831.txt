@@ -7,10 +7,101 @@ Date:   Fri Oct 7 18:11:06 2016 -0400
     Change-Id: Ibcf5e0ba694b280744a00c2c6fda300f0a653455
     Reviewed-on: https://go-review.googlesource.com/30715
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/assignments.go | 4 ++--
  src/go/types/builtins.go    | 2 +-
  src/go/types/conversions.go | 2 +-
  src/go/types/expr.go        | 6 +++---
  src/go/types/predicates.go  | 4 ++--
  5 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 6ebf3b5eab..18f893d478 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -41,7 +41,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 				x.mode = invalid
+ 				return
+ 			}
+-			target = defaultType(x.typ)
++			target = Default(x.typ)
+ 		}
+ 		check.convertUntyped(x, target)
+ 		if x.mode == invalid {
+@@ -116,7 +116,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
+ 				lhs.typ = Typ[Invalid]
+ 				return nil
+ 			}
+-			typ = defaultType(typ)
++			typ = Default(typ)
+ 		}
+ 		lhs.typ = typ
+ 	}
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index fc4db4513b..596a989a2d 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -632,7 +632,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ func makeSig(res Type, args ...Type) *Signature {
+ 	list := make([]*Var, len(args))
+ 	for i, param := range args {
+-		list[i] = NewVar(token.NoPos, nil, "", defaultType(param))
++		list[i] = NewVar(token.NoPos, nil, "", Default(param))
+ 	}
+ 	params := NewTuple(list...)
+ 	var result *Tuple
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 9b6869c668..2bf1e2d5e3 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -55,7 +55,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 		//   not []byte as type for the constant "foo").
+ 		// - Keep untyped nil for untyped nil arguments.
+ 		if IsInterface(T) || constArg && !isConstType(T) {
+-			final = defaultType(x.typ)
++			final = Default(x.typ)
+ 		}
+ 		check.updateExprType(x.expr, final, true)
+ 	}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 634c568e2c..e1d92ee5ef 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -541,7 +541,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
+ 			if !t.Empty() {
+ 				goto Error
+ 			}
+-			target = defaultType(x.typ)
++			target = Default(x.typ)
+ 		}
+ 	case *Pointer, *Signature, *Slice, *Map, *Chan:
+ 		if !x.isNil() {
+@@ -605,8 +605,8 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
+ 		// time will be materialized. Update the expression trees.
+ 		// If the current types are untyped, the materialized type
+ 		// is the respective default type.
+-		check.updateExprType(x.expr, defaultType(x.typ), true)
+-		check.updateExprType(y.expr, defaultType(y.typ), true)
++		check.updateExprType(x.expr, Default(x.typ), true)
++		check.updateExprType(y.expr, Default(y.typ), true)
+ 	}
+ 
+ 	// spec: "Comparison operators compare two operands and yield
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index c7e7660bd1..21fd81e3c2 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -291,11 +291,11 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	return false
+ }
+ 
+-// defaultType returns the default "typed" type for an "untyped" type;
++// Default returns the default "typed" type for an "untyped" type;
+ // it returns the incoming type for all other types. The default type
+ // for untyped nil is untyped nil.
+ //
+-func defaultType(typ Type) Type {
++func Default(typ Type) Type {
+ 	if t, ok := typ.(*Basic); ok {
+ 		switch t.kind {
+ 		case UntypedBool:

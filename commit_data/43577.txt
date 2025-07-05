@@ -23,6 +23,39 @@ Date:   Fri Apr 10 22:11:51 2020 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     (cherry picked from commit 636fa3148fe149923839a86e648dd87dc4d1537a)
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228138
-
+---
  src/cmd/link/internal/ld/data.go | 14 +++++++++++++-
  1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 7c4b08a805..f98cbcc285 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -812,6 +812,10 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
+ 		// Find the last symbol we'd write.
+ 		idx := -1
+ 		for i, s := range syms {
++			if s.Attr.SubSymbol() {
++				continue
++			}
++
+ 			// If the next symbol's size would put us out of bounds on the total length,
+ 			// stop looking.
+ 			if s.Value+s.Size > lastAddr {
+@@ -839,7 +843,15 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
+ 		// blocks or at the end.
+ 		length := int64(0)
+ 		if idx+1 < len(syms) {
+-			length = syms[idx+1].Value - addr
++			// Find the next top-level symbol.
++			// Skip over sub symbols so we won't split a containter symbol
++			// into two blocks.
++			next := syms[idx+1]
++			for next.Attr.SubSymbol() {
++				idx++
++				next = syms[idx+1]
++			}
++			length = next.Value - addr
+ 		}
+ 		if length == 0 || length > lastAddr-addr {
+ 			length = lastAddr - addr

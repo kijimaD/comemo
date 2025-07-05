@@ -12,7 +12,48 @@ Date:   Tue Nov 28 13:42:04 2017 -0800
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go |  4 ++++
  test/fixedbugs/issue22904.go        | 19 +++++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 81441ba700..0735a0c408 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2022,6 +2022,10 @@ func checknil(x *Node, init *Nodes) {
+ // Can this type be stored directly in an interface word?
+ // Yes, if the representation is a single pointer.
+ func isdirectiface(t *types.Type) bool {
++	if t.Broke() {
++		return false
++	}
++
+ 	switch t.Etype {
+ 	case TPTR32,
+ 		TPTR64,
+diff --git a/test/fixedbugs/issue22904.go b/test/fixedbugs/issue22904.go
+new file mode 100644
+index 0000000000..46cb7c048a
+--- /dev/null
++++ b/test/fixedbugs/issue22904.go
+@@ -0,0 +1,19 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 22904: Make sure the compiler emits a proper error message about
++// invalid recursive types rather than crashing.
++
++package p
++
++type a struct{ b }
++type b struct{ a } // ERROR "invalid recursive type"
++
++var x interface{}
++
++func f() {
++	x = a{}
++}

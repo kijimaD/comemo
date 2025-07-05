@@ -11,7 +11,34 @@ Date:   Wed Nov 2 19:02:43 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Munday <munday@ca.ibm.com>
-
+---
  src/runtime/asm_s390x.s                 | 2 +-
  src/runtime/internal/atomic/asm_s390x.s | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 9e469c45fb..026c18c59c 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -1008,7 +1008,7 @@ TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
+ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+ 	RET
+ 
+-TEXT runtime·sigreturn(SB),NOSPLIT,$0-8
++TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+ 	RET
+ 
+ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+diff --git a/src/runtime/internal/atomic/asm_s390x.s b/src/runtime/internal/atomic/asm_s390x.s
+index 4884d1c620..e25703e077 100644
+--- a/src/runtime/internal/atomic/asm_s390x.s
++++ b/src/runtime/internal/atomic/asm_s390x.s
+@@ -69,7 +69,7 @@ TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
+ 	BR	·Xadd64(SB)
+ 
+ // func Xaddint64(ptr *int64, delta int64) int64
+-TEXT ·Xaddint64(SB), NOSPLIT, $0-16
++TEXT ·Xaddint64(SB), NOSPLIT, $0-24
+ 	BR	·Xadd64(SB)
+ 
+ // func Casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool

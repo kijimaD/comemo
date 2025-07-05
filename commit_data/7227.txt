@@ -10,6 +10,20 @@ Date:   Mon Jan 24 14:16:24 2011 -0500
     R=rsc, mattn, Joe Poirier
     CC=golang-dev
     https://golang.org/cl/4025046
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 44279d77a8..8b9dc81c29 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -911,7 +911,7 @@ def CheckGofmt(ui, repo, files, just_warn):
+ 	if not files:
+ 		return
+ 	try:
+-		cmd = subprocess.Popen(["gofmt", "-l"] + files, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
++		cmd = subprocess.Popen(["gofmt", "-l"] + files, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=sys.platform != "win32")
+ 		cmd.stdin.close()
+ 	except:
+ 		raise util.Abort("gofmt: " + ExceptionDetail())

@@ -7,7 +7,50 @@ Date:   Fri Mar 2 11:52:46 2012 +1100
     R=golang-dev, rsc, r
     CC=golang-dev
     https://golang.org/cl/5713054
-
+---
  doc/go1.html | 6 ++++++
  doc/go1.tmpl | 6 ++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 0ec097499a..d3eff21e37 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -650,10 +650,16 @@ Several packages have moved under <code>exp</code> at the time of Go 1's release
+ 
+ <ul>
+ <li><code>ebnf</code></li>
++<li><code>html</code>&#8224;</li>
+ <li><code>go/types</code></li>
+ <li><code>os/signal</code></li>
+ </ul>
+ 
++<p>
++(&#8224;The <code>EscapeString</code> and <code>UnescapeString</code> types remain
++in package <code>html</code>.)
++</p>
++
+ <p>
+ All these packages are available under the same names, with the prefix <code>exp/</code>: <code>exp/ebnf</code> etc.
+ </p>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index c1dd9a8f06..da6163a5df 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -574,10 +574,16 @@ Several packages have moved under <code>exp</code> at the time of Go 1's release
+ 
+ <ul>
+ <li><code>ebnf</code></li>
++<li><code>html</code>&#8224;</li>
+ <li><code>go/types</code></li>
+ <li><code>os/signal</code></li>
+ </ul>
+ 
++<p>
++(&#8224;The <code>EscapeString</code> and <code>UnescapeString</code> types remain
++in package <code>html</code>.)
++</p>
++
+ <p>
+ All these packages are available under the same names, with the prefix <code>exp/</code>: <code>exp/ebnf</code> etc.
+ </p>

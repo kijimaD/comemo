@@ -7,7 +7,42 @@ Date:   Sun Sep 9 20:07:09 2012 -0400
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/6496099
-
+---
  src/pkg/crypto/rand/rand_test.go    | 11 +++++++++++
  src/pkg/crypto/rand/rand_windows.go |  4 ++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/pkg/crypto/rand/rand_test.go b/src/pkg/crypto/rand/rand_test.go
+index da091ba8c7..394fd450fe 100644
+--- a/src/pkg/crypto/rand/rand_test.go
++++ b/src/pkg/crypto/rand/rand_test.go
+@@ -30,3 +30,14 @@ func TestRead(t *testing.T) {
+ 		t.Fatalf("Compressed %d -> %d", len(b), z.Len())
+ 	}
+ }
++
++func TestReadEmpty(t *testing.T) {
++	n, err := Reader.Read(make([]byte, 0))
++	if n != 0 || err != nil {
++		t.Fatalf("Read(make([]byte, 0)) = %d, %v", n, err)
++	}
++	n, err = Reader.Read(nil)
++	if n != 0 || err != nil {
++		t.Fatalf("Read(make(nil) = %d, %v", n, err)
++	}
++}
+diff --git a/src/pkg/crypto/rand/rand_windows.go b/src/pkg/crypto/rand/rand_windows.go
+index 2b2bd4bba6..82b39b64a3 100644
+--- a/src/pkg/crypto/rand/rand_windows.go
++++ b/src/pkg/crypto/rand/rand_windows.go
+@@ -35,6 +35,10 @@ func (r *rngReader) Read(b []byte) (n int, err error) {
+ 		}
+ 	}
+ 	r.mu.Unlock()
++
++	if len(b) == 0 {
++		return 0, nil
++	}
+ 	err = syscall.CryptGenRandom(r.prov, uint32(len(b)), &b[0])
+ 	if err != nil {
+ 		return 0, os.NewSyscallError("CryptGenRandom", err)

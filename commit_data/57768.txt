@@ -13,7 +13,7 @@ Date:   Sun Aug 27 13:55:47 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go      |  4 +---
  src/cmd/compile/internal/noder/import.go        |  5 ++++-
  src/cmd/compile/internal/noder/noder.go         |  3 +--
@@ -21,3 +21,124 @@ Date:   Sun Aug 27 13:55:47 2023 -0700
  src/cmd/compile/internal/types/size.go          |  6 ++++--
  src/cmd/compile/internal/walk/order.go          |  2 +-
  6 files changed, 16 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 24f7ea237f..dfb1cfc0d3 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -524,9 +524,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var
+ // in the DWARF info.
+ func RecordFlags(flags ...string) {
+ 	if base.Ctxt.Pkgpath == "" {
+-		// We can't record the flags if we don't know what the
+-		// package name is.
+-		return
++		panic("missing pkgpath")
+ 	}
+ 
+ 	type BoolFlag interface {
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index b7008ac5e8..e9bb1e313b 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -133,7 +133,10 @@ func resolveImportPath(path string) (string, error) {
+ 		return "", errors.New("cannot import \"main\"")
+ 	}
+ 
+-	if base.Ctxt.Pkgpath != "" && path == base.Ctxt.Pkgpath {
++	if base.Ctxt.Pkgpath == "" {
++		panic("missing pkgpath")
++	}
++	if path == base.Ctxt.Pkgpath {
+ 		return "", fmt.Errorf("import %q while compiling that package (import cycle)", path)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 25a6ba7c88..4ffc3715be 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -265,8 +265,7 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
+ 			// user didn't provide one.
+ 			target = objabi.PathToPrefix(base.Ctxt.Pkgpath) + "." + f[1]
+ 		} else {
+-			p.error(syntax.Error{Pos: pos, Msg: "//go:linkname requires linkname argument or -p compiler flag"})
+-			break
++			panic("missing pkgpath")
+ 		}
+ 		p.linknames = append(p.linknames, linkname{pos, f[1], target})
+ 
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 223ba1b7ba..add708c03f 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -432,13 +432,7 @@ func dgopkgpath(s *obj.LSym, ot int, pkg *types.Pkg) int {
+ 	}
+ 
+ 	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
+-		// If we don't know the full import path of the package being compiled
+-		// (i.e. -p was not passed on the compiler command line), emit a reference to
+-		// type:.importpath.""., which the linker will rewrite using the correct import path.
+-		// Every package that imports this one directly defines the symbol.
+-		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
+-		ns := base.Ctxt.Lookup(`type:.importpath."".`)
+-		return objw.SymPtr(s, ot, ns, 0)
++		panic("missing pkgpath")
+ 	}
+ 
+ 	dimportpath(pkg)
+@@ -451,13 +445,7 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
+ 		return objw.Uint32(s, ot, 0)
+ 	}
+ 	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
+-		// If we don't know the full import path of the package being compiled
+-		// (i.e. -p was not passed on the compiler command line), emit a reference to
+-		// type:.importpath.""., which the linker will rewrite using the correct import path.
+-		// Every package that imports this one directly defines the symbol.
+-		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
+-		ns := base.Ctxt.Lookup(`type:.importpath."".`)
+-		return objw.SymPtrOff(s, ot, ns)
++		panic("missing pkgpath")
+ 	}
+ 
+ 	dimportpath(pkg)
+@@ -546,7 +534,9 @@ func dname(name, tag string, pkg *types.Pkg, exported, embedded bool) *obj.LSym
+ 			}
+ 		}
+ 	} else {
+-		sname = fmt.Sprintf(`%s"".%d`, sname, dnameCount)
++		// TODO(mdempsky): We should be able to share these too (except
++		// maybe when dynamic linking).
++		sname = fmt.Sprintf("%s%s.%d", sname, types.LocalPkg.Prefix, dnameCount)
+ 		dnameCount++
+ 	}
+ 	if embedded {
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index 59cf970795..9e38b8c0d1 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -195,8 +195,10 @@ func calcStructOffset(t *Type, fields []*Field, offset int64) int64 {
+ }
+ 
+ func isAtomicStdPkg(p *Pkg) bool {
+-	return (p.Prefix == "sync/atomic" || p.Prefix == `""` && base.Ctxt.Pkgpath == "sync/atomic") ||
+-		(p.Prefix == "runtime/internal/atomic" || p.Prefix == `""` && base.Ctxt.Pkgpath == "runtime/internal/atomic")
++	if p.Prefix == `""` {
++		panic("bad package prefix")
++	}
++	return p.Prefix == "sync/atomic" || p.Prefix == "runtime/internal/atomic"
+ }
+ 
+ // CalcSize calculates and stores the size and alignment for t.
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index f8b755c946..11c1e21e17 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -1507,7 +1507,7 @@ func isFuncPCIntrinsic(n *ir.CallExpr) bool {
+ 	}
+ 	fn := n.X.(*ir.Name).Sym()
+ 	return (fn.Name == "FuncPCABI0" || fn.Name == "FuncPCABIInternal") &&
+-		(fn.Pkg.Path == "internal/abi" || fn.Pkg == types.LocalPkg && base.Ctxt.Pkgpath == "internal/abi")
++		fn.Pkg.Path == "internal/abi"
+ }
+ 
+ // isIfaceOfFunc returns whether n is an interface conversion from a direct reference of a func.

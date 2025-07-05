@@ -10,7 +10,7 @@ Date:   Fri Jun 10 00:02:34 2011 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4568068
-
+---
  src/cmd/5g/gg.h    |   1 +
  src/cmd/5g/gsubr.c |   3 ++
  src/cmd/5g/reg.c   |   4 +-
@@ -25,3 +25,538 @@ Date:   Fri Jun 10 00:02:34 2011 +0200
  src/cmd/gc/pgen.c  | 114 +++++++++++++++++++++++++++++++++++++++++++++++++++--
  src/cmd/gc/subr.c  |  88 ++++++++++++++++++++++++++++++++++++++---
  13 files changed, 231 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index fe404ed79e..ce4558e21b 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -23,6 +23,7 @@ struct	Addr
+ 	char	sval[NSNAME];
+ 
+ 	Sym*	sym;
++	Node*	node;
+ 	int	width;
+ 	uchar	type;
+ 	char	name;
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 83a9949d6c..bc39912ea3 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1101,6 +1101,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	a->type = D_NONE;
+ 	a->name = D_NONE;
+ 	a->reg = NREG;
++	a->node = N;
+ 	if(n == N)
+ 		return;
+ 
+@@ -1189,6 +1190,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			break;
+ 		case PAUTO:
+ 			a->name = D_AUTO;
++			if (n->sym)
++				a->node = n->orig;
+ 			break;
+ 		case PPARAM:
+ 		case PPARAMOUT:
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 68d40f00c3..5fba02c9e0 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -745,6 +745,7 @@ addmove(Reg *r, int bn, int rn, int f)
+ 	a = &p1->to;
+ 	a->sym = v->sym;
+ 	a->name = v->name;
++	a->node = v->node;
+ 	a->offset = v->offset;
+ 	a->etype = v->etype;
+ 	a->type = D_OREG;
+@@ -953,7 +954,8 @@ mkvar(Reg *r, Adr *a)
+ 	v->etype = et;
+ 	v->width = w;
+ 	v->addr = flag;		// funny punning
+-
++	v->node = a->node;
++	
+ 	if(debug['R'])
+ 		print("bit=%2d et=%E pun=%d %D\n", i, et, flag, a);
+ 
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 7efb2c2528..2493771a0d 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -23,6 +23,7 @@ struct	Addr
+ 
+ 	Sym*	gotype;
+ 	Sym*	sym;
++	Node*	node;
+ 	int	width;
+ 	uchar	type;
+ 	uchar	index;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index ed98d1bc95..ae6ae57651 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -988,7 +988,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	a->index = D_NONE;
+ 	a->type = D_NONE;
+ 	a->gotype = S;
+-
++	a->node = N;
+ 	if(n == N)
+ 		return;
+ 
+@@ -1067,6 +1067,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			break;
+ 		case PAUTO:
+ 			a->type = D_AUTO;
++			if (n->sym)
++				a->node = n->orig;
+ 			break;
+ 		case PPARAM:
+ 		case PPARAMOUT:
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index a3a33b43f1..af9b29cbcd 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -837,6 +837,7 @@ addmove(Reg *r, int bn, int rn, int f)
+ 	a->etype = v->etype;
+ 	a->type = v->name;
+ 	a->gotype = v->gotype;
++	a->node = v->node;
+ 
+ 	// need to clean this up with wptr and
+ 	// some of the defaults
+@@ -1021,6 +1022,7 @@ mkvar(Reg *r, Adr *a)
+ 	v->etype = et;
+ 	v->width = w;
+ 	v->addr = flag;		// funny punning
++	v->node = a->node;
+ 
+ 	if(debug['R'])
+ 		print("bit=%2d et=%2d w=%d %S %D\n", i, et, w, s, a);
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 57cd1b56b5..7da60d7677 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -25,6 +25,7 @@ struct	Addr
+ 
+ 	Sym*	gotype;
+ 	Sym*	sym;
++	Node*	node;
+ 	int	width;
+ 	uchar	type;
+ 	uchar	index;
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 5ad35fdce7..6bcc3eed84 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -1720,6 +1720,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	a->index = D_NONE;
+ 	a->type = D_NONE;
+ 	a->gotype = S;
++	a->node = N;
+ 	if(n == N)
+ 		return;
+ 
+@@ -1777,6 +1778,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			break;
+ 		case PAUTO:
+ 			a->type = D_AUTO;
++			if (n->sym)
++				a->node = n->orig;
+ 			break;
+ 		case PPARAM:
+ 		case PPARAMOUT:
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 062ce58bbd..a2f3def373 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -730,6 +730,7 @@ addmove(Reg *r, int bn, int rn, int f)
+ 	a->etype = v->etype;
+ 	a->type = v->name;
+ 	a->gotype = v->gotype;
++	a->node = v->node;
+ 
+ 	// need to clean this up with wptr and
+ 	// some of the defaults
+@@ -898,6 +899,7 @@ mkvar(Reg *r, Adr *a)
+ 	v->etype = et;
+ 	v->width = w;
+ 	v->addr = flag;		// funny punning
++	v->node = a->node;
+ 
+ 	if(debug['R'])
+ 		print("bit=%2d et=%2d w=%d %S %D flag=%d\n", i, et, w, s, a, v->addr);
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index a4b96abc52..feb55e9051 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -51,6 +51,8 @@ allocparams(void)
+ 		}
+ 		if(n->op != ONAME || n->class != PAUTO)
+ 			continue;
++		if (n->xoffset != BADWIDTH)
++			continue;
+ 		if(n->type == T)
+ 			continue;
+ 		dowidth(n->type);
+@@ -669,14 +671,18 @@ dotoffset(Node *n, int *oary, Node **nn)
+  * make a new off the books
+  */
+ void
+-tempname(Node *n, Type *t)
++tempname(Node *nn, Type *t)
+ {
++	Node *n;
+ 	Sym *s;
+ 	uint32 w;
+ 
+ 	if(stksize < 0)
+ 		fatal("tempname not during code generation");
+ 
++	if (curfn == N)
++		fatal("no curfn for tempname");
++
+ 	if(t == T) {
+ 		yyerror("tempname called with nil type");
+ 		t = types[TINT32];
+@@ -687,14 +693,15 @@ tempname(Node *n, Type *t)
+ 	snprint(namebuf, sizeof(namebuf), "autotmp_%.4d", statuniqgen);
+ 	statuniqgen++;
+ 	s = lookup(namebuf);
+-	memset(n, 0, sizeof(*n));
+-	n->op = ONAME;
++	n = nod(ONAME, N, N);
+ 	n->sym = s;
+ 	n->type = t;
+ 	n->class = PAUTO;
+ 	n->addable = 1;
+ 	n->ullman = 1;
+ 	n->noescape = 1;
++	n->curfn = curfn;
++	curfn->dcl = list(curfn->dcl, n);
+ 
+ 	dowidth(t);
+ 	w = t->width;
+@@ -703,4 +710,8 @@ tempname(Node *n, Type *t)
+ 	if(thechar == '5')
+ 		stksize = rnd(stksize, widthptr);
+ 	n->xoffset = -stksize;
++
++	//	print("\ttmpname (%d): %N\n", stksize, n);
++
++	*nn = *n;
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index d379a0d88a..86db48391f 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -225,7 +225,7 @@ struct	Node
+ 	Type*	realtype;	// as determined by typecheck
+ 	NodeList*	list;
+ 	NodeList*	rlist;
+-	Node*	orig;		// original form, for printing
++	Node*	orig;		// original form, for printing, and tracking copies of ONAMEs
+ 
+ 	// for-body
+ 	NodeList*	ninit;
+@@ -273,6 +273,7 @@ struct	Node
+ 	int32	lineno;
+ 	int32	endlineno;
+ 	vlong	xoffset;
++	int32	stkdelta;	// offset added by stack frame compaction phase.
+ 	int32	ostk;
+ 	int32	iota;
+ };
+@@ -547,6 +548,7 @@ struct	Var
+ 	vlong	offset;
+ 	Sym*	sym;
+ 	Sym*	gotype;
++	Node*	node;
+ 	int	width;
+ 	char	name;
+ 	char	etype;
+@@ -1107,6 +1109,7 @@ int	istype(Type *t, int et);
+ void	linehist(char *file, int32 off, int relative);
+ NodeList*	list(NodeList *l, Node *n);
+ NodeList*	list1(Node *n);
++void	listsort(NodeList**, int(*f)(Node*, Node*));
+ Node*	liststmt(NodeList *l);
+ NodeList*	listtreecopy(NodeList *l);
+ Sym*	lookup(char *name);
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 7917ea29cc..d04587e74c 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -2,8 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include	"gg.h"
+-#include	"opt.h"
++#undef	EXTERN
++#define	EXTERN
++#include "gg.h"
++#include "opt.h"
++
++static void compactframe(Prog* p);
+ 
+ void
+ compile(Node *fn)
+@@ -14,6 +18,7 @@ compile(Node *fn)
+ 	int32 lno;
+ 	Type *t;
+ 	Iter save;
++	vlong oldstksize;
+ 
+ 	if(newproc == N) {
+ 		newproc = sysfunc("newproc");
+@@ -107,11 +112,114 @@ compile(Node *fn)
+ 		regopt(ptxt);
+ 	}
+ 
++	oldstksize = stksize;
++	compactframe(ptxt);
++	if(0)
++		print("compactframe: %ld to %ld\n", oldstksize, stksize);
++
+ 	defframe(ptxt);
+ 
+-	if(debug['f'])
++	if(0)
+ 		frame(0);
+ 
+ ret:
+ 	lineno = lno;
+ }
++
++
++// Sort the list of stack variables.  autos after anything else,
++// within autos, unused after used, and within used on reverse alignment.
++// non-autos sort on offset.
++static int
++cmpstackvar(Node *a, Node *b)
++{
++	if (a->class != b->class)
++		return (a->class == PAUTO) ? 1 : -1;
++	if (a->class != PAUTO)
++		return a->xoffset - b->xoffset;
++	if ((a->used == 0) != (b->used == 0))
++		return b->used - a->used;
++	return b->type->align - a->type->align;
++
++}
++
++static void
++compactframe(Prog* ptxt)
++{
++	NodeList *ll;
++	Node* n;
++	Prog *p;
++	uint32 w;
++
++	if (stksize == 0)
++		return;
++
++	// Mark the PAUTO's unused.
++	for(ll=curfn->dcl; ll != nil; ll=ll->next)
++		if (ll->n->class == PAUTO && ll->n->op == ONAME)
++			ll->n->used = 0;
++
++	// Sweep the prog list to mark any used nodes.
++	for (p = ptxt; p; p = p->link) {
++		if (p->from.type == D_AUTO && p->from.node)
++			p->from.node->used++;
++
++		if (p->to.type == D_AUTO && p->to.node)
++			p->to.node->used++;
++	}
++
++	listsort(&curfn->dcl, cmpstackvar);
++
++	// Unused autos are at the end, chop 'em off.
++	ll = curfn->dcl;
++	n = ll->n;
++	if (n->class == PAUTO && n->op == ONAME && !n->used) {
++		curfn->dcl = nil;
++		stksize = 0;
++		return;
++	}
++
++	for(ll = curfn->dcl; ll->next != nil; ll=ll->next) {
++		n = ll->next->n;
++		if (n->class == PAUTO && n->op == ONAME && !n->used) {
++			ll->next = nil;
++			curfn->dcl->end = ll;
++			break;
++		}
++	}
++
++	// Reassign stack offsets of the locals that are still there.
++	stksize = 0;
++	for(ll = curfn->dcl; ll != nil; ll=ll->next) {
++		n = ll->n;
++		// TODO find out where the literal autos come from
++		if (n->class != PAUTO || n->op != ONAME)
++			continue;
++
++		w = n->type->width;
++		if((w >= MAXWIDTH) || (w < 1))
++			fatal("bad width");
++		stksize += w;
++		stksize = rnd(stksize, n->type->align);
++		if(thechar == '5')
++			stksize = rnd(stksize, widthptr);
++		n->stkdelta = -stksize - n->xoffset;
++	}
++
++	// Fixup instructions.
++	for (p = ptxt; p; p = p->link) {
++		if (p->from.type == D_AUTO && p->from.node)
++			p->from.offset += p->from.node->stkdelta;
++
++		if (p->to.type == D_AUTO && p->to.node)
++			p->to.offset += p->to.node->stkdelta;
++	}
++
++	// The debug information needs accurate offsets on the symbols.
++	for(ll = curfn->dcl ;ll != nil; ll=ll->next) {
++		if (ll->n->class != PAUTO || ll->n->op != ONAME)
++			continue;
++		ll->n->xoffset += ll->n->stkdelta;
++		ll->n->stkdelta = 0;
++	}
++}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 1dd357950a..49797f9df6 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -480,6 +480,7 @@ nod(int op, Node *nleft, Node *nright)
+ 	n->right = nright;
+ 	n->lineno = parserline();
+ 	n->xoffset = BADWIDTH;
++	n->orig = n;
+ 	return n;
+ }
+ 
+@@ -1031,10 +1032,21 @@ Econv(Fmt *fp)
+ 	return fmtstrcpy(fp, etnames[et]);
+ }
+ 
++static const char* classnames[] = {
++	"Pxxx",
++	"PEXTERN",
++	"PAUTO",
++	"PPARAM",
++	"PPARAMOUT",
++	"PPARAMREF",
++	"PFUNC",
++};
++
+ int
+ Jconv(Fmt *fp)
+ {
+ 	Node *n;
++	char *s;
+ 
+ 	n = va_arg(fp->args, Node*);
+ 	if(n->ullman != 0)
+@@ -1049,12 +1061,18 @@ Jconv(Fmt *fp)
+ 	if(n->lineno != 0)
+ 		fmtprint(fp, " l(%d)", n->lineno);
+ 
+-	if(n->xoffset != 0)
+-		fmtprint(fp, " x(%lld)", n->xoffset);
+-
+-	if(n->class != 0)
+-		fmtprint(fp, " class(%d)", n->class);
++	if(n->xoffset != BADWIDTH)
++		fmtprint(fp, " x(%lld%+d)", n->xoffset, n->stkdelta);
+ 
++	if(n->class != 0) {
++		s = "";
++		if (n->class & PHEAP) s = ",heap";
++		if ((n->class & ~PHEAP) < nelem(classnames))
++			fmtprint(fp, " class(%s%s)", classnames[n->class&~PHEAP], s);
++		else
++			fmtprint(fp, " class(%d?%s)", n->class&~PHEAP, s);
++	}
++ 
+ 	if(n->colas != 0)
+ 		fmtprint(fp, " colas(%d)", n->colas);
+ 
+@@ -1076,6 +1094,8 @@ Jconv(Fmt *fp)
+ 	if(n->pun != 0)
+ 		fmtprint(fp, " pun(%d)", n->pun);
+ 
++	if(n->used != 0)
++		fmtprint(fp, " used(%d)", n->used);
+ 	return 0;
+ }
+ 
+@@ -3339,6 +3359,64 @@ list(NodeList *l, Node *n)
+ 	return concat(l, list1(n));
+ }
+ 
++void
++listsort(NodeList** l, int(*f)(Node*, Node*))
++{
++	NodeList *l1, *l2, *le;
++
++	if(*l == nil || (*l)->next == nil)
++		return;
++
++	l1 = *l;
++	l2 = *l;
++	for(;;) {
++		l2 = l2->next;
++		if(l2 == nil)
++			break;
++		l2 = l2->next;
++		if(l2 == nil)
++			break;
++		l1 = l1->next;
++	}
++
++	l2 = l1->next;
++	l1->next = nil;
++	l2->end = (*l)->end;
++	(*l)->end = l1;
++
++	l1 = *l;
++	listsort(&l1, f);
++	listsort(&l2, f);
++
++	if ((*f)(l1->n, l2->n) < 0) {
++		*l = l1;
++	} else {
++		*l = l2;
++		l2 = l1;
++		l1 = *l;
++	}
++
++	// now l1 == *l; and l1 < l2
++
++	while ((l1 != nil) && (l2 != nil)) {
++		while ((l1->next != nil) && (*f)(l1->next->n, l2->n) < 0)
++			l1 = l1->next;
++		
++		// l1 is last one from l1 that is < l2
++		le = l1->next;		// le is the rest of l1, first one that is >= l2
++		if (le != nil)
++			le->end = (*l)->end;
++
++		(*l)->end = l1;		// cut *l at l1
++		*l = concat(*l, l2);	// glue l2 to *l's tail
++
++		l1 = l2;		// l1 is the first element of *l that is < the new l2
++		l2 = le;		// ... because l2 now is the old tail of l1
++	}
++
++	*l = concat(*l, l2);		// any remainder 
++}
++
+ NodeList*
+ listtreecopy(NodeList *l)
+ {

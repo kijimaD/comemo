@@ -11,7 +11,34 @@ Date:   Sat Apr 1 16:19:52 2023 +0100
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/database/sql/convert.go | 2 +-
  src/testing/quick/quick.go  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index 32941cb4c2..ffc4e497b4 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -422,7 +422,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
+ 	switch dv.Kind() {
+ 	case reflect.Pointer:
+ 		if src == nil {
+-			dv.Set(reflect.Zero(dv.Type()))
++			dv.SetZero()
+ 			return nil
+ 		}
+ 		dv.Set(reflect.New(dv.Type().Elem()))
+diff --git a/src/testing/quick/quick.go b/src/testing/quick/quick.go
+index 95a635bade..d7117420a3 100644
+--- a/src/testing/quick/quick.go
++++ b/src/testing/quick/quick.go
+@@ -115,7 +115,7 @@ func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value,
+ 		}
+ 	case reflect.Pointer:
+ 		if rand.Intn(size) == 0 {
+-			v.Set(reflect.Zero(concrete)) // Generate nil pointer.
++			v.SetZero() // Generate nil pointer.
+ 		} else {
+ 			elem, ok := sizedValue(concrete.Elem(), rand, size)
+ 			if !ok {

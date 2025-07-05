@@ -9,7 +9,82 @@ Date:   Sat Apr 23 10:54:19 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4445055
-
+---
  src/cmd/gc/dcl.c         |  7 +++++++
  test/fixedbugs/bug331.go | 36 ++++++++++++++++++++++++++++++++++++
  2 files changed, 43 insertions(+)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 50cd047867..bf164b3f43 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -560,6 +560,7 @@ funcargs(Node *nt)
+ {
+ 	Node *n;
+ 	NodeList *l;
++	int gen;
+ 
+ 	if(nt->op != OTFUNC)
+ 		fatal("funcargs %O", nt->op);
+@@ -589,6 +590,7 @@ funcargs(Node *nt)
+ 	}
+ 
+ 	// declare the out arguments.
++	gen = 0;
+ 	for(l=nt->rlist; l; l=l->next) {
+ 		n = l->n;
+ 		if(n->op != ODCLFIELD)
+@@ -596,6 +598,11 @@ funcargs(Node *nt)
+ 		if(n->left != N) {
+ 			n->left->op = ONAME;
+ 			n->left->ntype = n->right;
++			if(isblank(n->left)) {
++				// Give it a name so we can assign to it during return.
++				snprint(namebuf, sizeof(namebuf), ".anon%d", gen++);
++				n->left->sym = lookup(namebuf);
++			}
+ 			declare(n->left, PPARAMOUT);
+ 		}
+ 	}
+diff --git a/test/fixedbugs/bug331.go b/test/fixedbugs/bug331.go
+new file mode 100644
+index 0000000000..28aee1da07
+--- /dev/null
++++ b/test/fixedbugs/bug331.go
+@@ -0,0 +1,36 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug331
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "os"
++
++func f() (_ string, x float64, err os.Error) {
++	return
++}
++
++func g() (_ string, x float64, err os.Error) {
++	return "hello", 3.14, os.EOF
++}
++
++var _ func() (string, float64, os.Error) = f
++var _ func() (string, float64, os.Error) = g
++
++func main() {
++	x, y, z := g()
++	if x != "hello" || y != 3.14 || z != os.EOF {
++		println("wrong", x, len(x), y, z)
++	}
++}
++
++/*
++issue 1712
++
++bug331.go:12: cannot use "hello" (type string) as type float64 in assignment
++bug331.go:12: cannot use 0 (type float64) as type os.Error in assignment:
++	float64 does not implement os.Error (missing String method)
++bug331.go:12: error in shape across RETURN
++*/

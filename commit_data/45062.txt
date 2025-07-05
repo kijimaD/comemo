@@ -22,7 +22,52 @@ Date:   Thu Sep 24 16:54:31 2020 -0400
     Trust: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/data.go | 6 ++++++
  src/runtime/type.go              | 9 ++++++++-
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 0a3418bfc9..ed948d51b1 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -390,6 +390,12 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 			o = ldr.SymValue(rs) + r.Add() - int64(ldr.SymSect(rs).Vaddr)
+ 		case objabi.R_WEAKADDROFF, objabi.R_METHODOFF:
+ 			if !ldr.AttrReachable(rs) {
++				if rt == objabi.R_METHODOFF {
++					// Set it to a sentinel value. The runtime knows this is not pointing to
++					// anything valid.
++					o = -1
++					break
++				}
+ 				continue
+ 			}
+ 			fallthrough
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 52b6cb30b4..81455f3532 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -217,7 +217,9 @@ func (t *_type) nameOff(off nameOff) name {
+ }
+ 
+ func resolveTypeOff(ptrInModule unsafe.Pointer, off typeOff) *_type {
+-	if off == 0 {
++	if off == 0 || off == -1 {
++		// -1 is the sentinel value for unreachable code.
++		// See cmd/link/internal/ld/data.go:relocsym.
+ 		return nil
+ 	}
+ 	base := uintptr(ptrInModule)
+@@ -257,6 +259,11 @@ func (t *_type) typeOff(off typeOff) *_type {
+ }
+ 
+ func (t *_type) textOff(off textOff) unsafe.Pointer {
++	if off == -1 {
++		// -1 is the sentinel value for unreachable code.
++		// See cmd/link/internal/ld/data.go:relocsym.
++		return unsafe.Pointer(^uintptr(0))
++	}
+ 	base := uintptr(unsafe.Pointer(t))
+ 	var md *moduledata
+ 	for next := &firstmoduledata; next != nil; next = next.next {

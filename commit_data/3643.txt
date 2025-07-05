@@ -6,6 +6,22 @@ Date:   Fri Oct 23 12:43:01 2009 -0700
     
     R=rsc
     http://go/go-review/1013012
-
+---
  src/make-arm.bash | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/make-arm.bash b/src/make-arm.bash
+index 40e9dbcde8..10e0091e6e 100755
+--- a/src/make-arm.bash
++++ b/src/make-arm.bash
+@@ -20,8 +20,8 @@ cp quietgcc.bash $GOBIN/quietgcc
+ chmod +x $GOBIN/quietgcc
+ 
+ # TODO(kaib): converge with normal build
+-#for i in lib9 libbio libmach libregexp cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
+-for i in lib9 libbio libmach libregexp cmd pkg cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
++#for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
++for i in lib9 libbio libmach cmd pkg cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
+ do
+ 	# The ( ) here are to preserve the current directory
+ 	# for the next round despite the cd $i below.

@@ -55,7 +55,7 @@ Date:   Wed Jan 21 17:37:59 2015 +0300
     Reviewed-on: https://go-review.googlesource.com/3120
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/builtin.c       | 12 ++++----
  src/cmd/gc/esc.c           | 19 ++++++++++++
  src/cmd/gc/runtime.go      | 12 ++++----
@@ -66,3 +66,517 @@ Date:   Wed Jan 21 17:37:59 2015 +0300
  test/escape2.go            | 74 ++++++++++++++++++++++++++++++++++++++++++++++
  test/escape2n.go           | 74 ++++++++++++++++++++++++++++++++++++++++++++++
  9 files changed, 291 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index e2e14f03d2..6682bfb66d 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -26,15 +26,15 @@ char *runtimeimport =
+ 	"func @\"\".printsp ()\n"
+ 	"func @\"\".printlock ()\n"
+ 	"func @\"\".printunlock ()\n"
+-	"func @\"\".concatstring2 (? string, ? string) (? string)\n"
+-	"func @\"\".concatstring3 (? string, ? string, ? string) (? string)\n"
+-	"func @\"\".concatstring4 (? string, ? string, ? string, ? string) (? string)\n"
+-	"func @\"\".concatstring5 (? string, ? string, ? string, ? string, ? string) (? string)\n"
+-	"func @\"\".concatstrings (? []string) (? string)\n"
++	"func @\"\".concatstring2 (? *[32]byte, ? string, ? string) (? string)\n"
++	"func @\"\".concatstring3 (? *[32]byte, ? string, ? string, ? string) (? string)\n"
++	"func @\"\".concatstring4 (? *[32]byte, ? string, ? string, ? string, ? string) (? string)\n"
++	"func @\"\".concatstring5 (? *[32]byte, ? string, ? string, ? string, ? string, ? string) (? string)\n"
++	"func @\"\".concatstrings (? *[32]byte, ? []string) (? string)\n"
+ 	"func @\"\".cmpstring (? string, ? string) (? int)\n"
+ 	"func @\"\".eqstring (? string, ? string) (? bool)\n"
+ 	"func @\"\".intstring (? int64) (? string)\n"
+-	"func @\"\".slicebytetostring (? []byte) (? string)\n"
++	"func @\"\".slicebytetostring (? *[32]byte, ? []byte) (? string)\n"
+ 	"func @\"\".slicebytetostringtmp (? []byte) (? string)\n"
+ 	"func @\"\".slicerunetostring (? []rune) (? string)\n"
+ 	"func @\"\".stringtoslicebyte (? string) (? []byte)\n"
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 59b00bfa52..b636059749 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -694,6 +694,19 @@ esc(EscState *e, Node *n, Node *up)
+ 		e->noesc = list(e->noesc, n);
+ 		break;
+ 
++	case OARRAYBYTESTR:
++		n->escloopdepth = e->loopdepth;
++		n->esc = EscNone;  // until proven otherwise
++		e->noesc = list(e->noesc, n);
++		break;
++
++	case OADDSTR:
++		n->escloopdepth = e->loopdepth;
++		n->esc = EscNone;  // until proven otherwise
++		e->noesc = list(e->noesc, n);
++		// Arguments of OADDSTR do not escape.
++		break;
++
+ 	case OADDR:
+ 		n->esc = EscNone;  // until proven otherwise
+ 		e->noesc = list(e->noesc, n);
+@@ -806,6 +819,8 @@ escassign(EscState *e, Node *dst, Node *src)
+ 	case OMAKECHAN:
+ 	case OMAKEMAP:
+ 	case OMAKESLICE:
++	case OARRAYBYTESTR:
++	case OADDSTR:
+ 	case ONEW:
+ 	case OCLOSURE:
+ 	case OCALLPART:
+@@ -837,6 +852,7 @@ escassign(EscState *e, Node *dst, Node *src)
+ 	case OSLICE3:
+ 	case OSLICEARR:
+ 	case OSLICE3ARR:
++	case OSLICESTR:
+ 		// Conversions, field access, slice all preserve the input value.
+ 		escassign(e, dst, src->left);
+ 		break;
+@@ -1227,6 +1243,8 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
+ 	case OMAKECHAN:
+ 	case OMAKEMAP:
+ 	case OMAKESLICE:
++	case OARRAYBYTESTR:
++	case OADDSTR:
+ 	case OMAPLIT:
+ 	case ONEW:
+ 	case OCLOSURE:
+@@ -1243,6 +1261,7 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
+ 	case OSLICEARR:
+ 	case OSLICE3:
+ 	case OSLICE3ARR:
++	case OSLICESTR:
+ 		escwalk(e, level, dst, src->left);
+ 		break;
+ 
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 463bb3a76d..13b19ca5e2 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -39,16 +39,16 @@ func printsp()
+ func printlock()
+ func printunlock()
+ 
+-func concatstring2(string, string) string
+-func concatstring3(string, string, string) string
+-func concatstring4(string, string, string, string) string
+-func concatstring5(string, string, string, string, string) string
+-func concatstrings([]string) string
++func concatstring2(*[32]byte, string, string) string
++func concatstring3(*[32]byte, string, string, string) string
++func concatstring4(*[32]byte, string, string, string, string) string
++func concatstring5(*[32]byte, string, string, string, string, string) string
++func concatstrings(*[32]byte, []string) string
+ 
+ func cmpstring(string, string) int
+ func eqstring(string, string) bool
+ func intstring(int64) string
+-func slicebytetostring([]byte) string
++func slicebytetostring(*[32]byte, []byte) string
+ func slicebytetostringtmp([]byte) string
+ func slicerunetostring([]rune) string
+ func stringtoslicebyte(string) []byte
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index b1622ae177..513aadf4ba 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -35,6 +35,12 @@ static	int	bounded(Node*, int64);
+ static	Mpint	mpzero;
+ static	void	walkprintfunc(Node**, NodeList**);
+ 
++// The constant is known to runtime.
++enum
++{
++	tmpstringbufsize = 32,
++};
++
+ void
+ walk(Node *fn)
+ {
+@@ -1370,8 +1376,14 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OARRAYBYTESTR:
+-		// slicebytetostring([]byte) string;
+-		n = mkcall("slicebytetostring", n->type, init, n->left);
++		a = nodnil();
++		if(n->esc == EscNone) {
++			// Create temporary buffer for string on stack.
++			t = aindex(nodintconst(tmpstringbufsize), types[TUINT8]);
++			a = nod(OADDR, temp(t), N);
++		}
++		// slicebytetostring(*[32]byte, []byte) string;
++		n = mkcall("slicebytetostring", n->type, init, a, n->left);
+ 		goto ret;
+ 
+ 	case OARRAYBYTESTRTMP:
+@@ -2720,9 +2732,10 @@ writebarrierfn(char *name, Type *l, Type *r)
+ static Node*
+ addstr(Node *n, NodeList **init)
+ {
+-	Node *r, *cat, *slice;
++	Node *r, *cat, *slice, *buf;
+ 	NodeList *args, *l;
+ 	int c;
++	vlong sz;
+ 	Type *t;
+ 
+ 	// orderexpr rewrote OADDSTR to have a list of strings.
+@@ -2730,8 +2743,23 @@ addstr(Node *n, NodeList **init)
+ 	if(c < 2)
+ 		yyerror("addstr count %d too small", c);
+ 
++	buf = nodnil();
++	if(n->esc == EscNone) {
++		sz = 0;
++		for(l=n->list; l != nil; l=l->next) {
++			if(n->op == OLITERAL)
++				sz += n->val.u.sval->len;
++		}
++		// Don't allocate the buffer if the result won't fit.
++		if(sz < tmpstringbufsize) {
++			// Create temporary buffer for result string on stack.
++			t = aindex(nodintconst(tmpstringbufsize), types[TUINT8]);
++			buf = nod(OADDR, temp(t), N);
++		}
++	}
++
+ 	// build list of string arguments
+-	args = nil;
++	args = list1(buf);
+ 	for(l=n->list; l != nil; l=l->next)
+ 		args = list(args, conv(l->n, types[TSTRING]));
+ 
+@@ -2747,9 +2775,10 @@ addstr(Node *n, NodeList **init)
+ 		t->bound = -1;
+ 		slice = nod(OCOMPLIT, N, typenod(t));
+ 		slice->alloc = n->alloc;
+-		slice->list = args;
++		slice->list = args->next; // skip buf arg
++		args = list1(buf);
++		args = list(args, slice);
+ 		slice->esc = EscNone;
+-		args = list1(slice);
+ 	}
+ 	cat = syslook(namebuf, 1);
+ 	r = nod(OCALL, cat, N);
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index c933e849fe..d7161c291d 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -869,6 +869,15 @@ func BenchmarkFprintInt(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkFprintfBytes(b *testing.B) {
++	data := []byte(string("0123456789"))
++	var buf bytes.Buffer
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		Fprintf(&buf, "%s", data)
++	}
++}
++
+ func BenchmarkFprintIntNoAlloc(b *testing.B) {
+ 	var x interface{} = 123456
+ 	var buf bytes.Buffer
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 6f7de4de1e..9ec6f320eb 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -8,7 +8,18 @@ import (
+ 	"unsafe"
+ )
+ 
+-func concatstrings(a []string) string {
++// The constant is known to the compiler.
++// There is no fundamental theory behind this number.
++const tmpStringBufSize = 32
++
++type tmpBuf [tmpStringBufSize]byte
++
++// concatstrings implements a Go string concatenation x+y+z+...
++// The operands are passed in the slice a.
++// If buf != nil, the compiler has determined that the result does not
++// escape the calling function, so the string data can be stored in buf
++// if small enough.
++func concatstrings(buf *tmpBuf, a []string) string {
+ 	idx := 0
+ 	l := 0
+ 	count := 0
+@@ -27,10 +38,14 @@ func concatstrings(a []string) string {
+ 	if count == 0 {
+ 		return ""
+ 	}
+-	if count == 1 {
++
++	// If there is just one string and either it is not on the stack
++	// or our result does not escape the calling frame (buf != nil),
++	// then we can return that string directly.
++	if count == 1 && (buf != nil || !stringDataOnStack(a[idx])) {
+ 		return a[idx]
+ 	}
+-	s, b := rawstring(l)
++	s, b := rawstringtmp(buf, l)
+ 	l = 0
+ 	for _, x := range a {
+ 		copy(b[l:], x)
+@@ -39,34 +54,61 @@ func concatstrings(a []string) string {
+ 	return s
+ }
+ 
+-func concatstring2(a [2]string) string {
+-	return concatstrings(a[:])
++func concatstring2(buf *tmpBuf, a [2]string) string {
++	return concatstrings(buf, a[:])
+ }
+ 
+-func concatstring3(a [3]string) string {
+-	return concatstrings(a[:])
++func concatstring3(buf *tmpBuf, a [3]string) string {
++	return concatstrings(buf, a[:])
+ }
+ 
+-func concatstring4(a [4]string) string {
+-	return concatstrings(a[:])
++func concatstring4(buf *tmpBuf, a [4]string) string {
++	return concatstrings(buf, a[:])
+ }
+ 
+-func concatstring5(a [5]string) string {
+-	return concatstrings(a[:])
++func concatstring5(buf *tmpBuf, a [5]string) string {
++	return concatstrings(buf, a[:])
+ }
+ 
+-func slicebytetostring(b []byte) string {
+-	if raceenabled && len(b) > 0 {
++// Buf is a fixed-size buffer for the result,
++// it is not nil if the result does not escape.
++func slicebytetostring(buf *tmpBuf, b []byte) string {
++	l := len(b)
++	if l == 0 {
++		// Turns out to be a relatively common case.
++		// Consider that you want to parse out data between parens in "foo()bar",
++		// you find the indices and convert the subslice to string.
++		return ""
++	}
++	if raceenabled && l > 0 {
+ 		racereadrangepc(unsafe.Pointer(&b[0]),
+-			uintptr(len(b)),
++			uintptr(l),
+ 			getcallerpc(unsafe.Pointer(&b)),
+ 			funcPC(slicebytetostring))
+ 	}
+-	s, c := rawstring(len(b))
++	s, c := rawstringtmp(buf, l)
+ 	copy(c, b)
+ 	return s
+ }
+ 
++// stringDataOnStack reports whether the string's data is
++// stored on the current goroutine's stack.
++func stringDataOnStack(s string) bool {
++	ptr := uintptr((*stringStruct)(unsafe.Pointer(&s)).str)
++	stk := getg().stack
++	return stk.lo <= ptr && ptr < stk.hi
++}
++
++func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
++	if buf != nil && l <= len(buf) {
++		b = buf[:l]
++		s = slicebytetostringtmp(b)
++	} else {
++		s, b = rawstring(l)
++	}
++	return
++}
++
+ func slicebytetostringtmp(b []byte) string {
+ 	// Return a "string" referring to the actual []byte bytes.
+ 	// This is only for use by internal compiler optimizations
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index 03c8948467..249f431e18 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -175,3 +175,14 @@ func TestCompareTempString(t *testing.T) {
+ 		t.Fatalf("want 0 allocs, got %v", n)
+ 	}
+ }
++
++func TestStringOnStack(t *testing.T) {
++	s := ""
++	for i := 0; i < 3; i++ {
++		s = "a" + s + "b" + s + "c"
++	}
++
++	if want := "aaabcbabccbaabcbabccc"; s != want {
++		t.Fatalf("want: '%v', got '%v'", want, s)
++	}
++}
+diff --git a/test/escape2.go b/test/escape2.go
+index 507a815044..57352a152c 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1556,3 +1556,77 @@ func quux(sp *string, bp *[]byte) { // ERROR "sp does not escape" "bp does not e
+ 	*sp = (*sp)[1:2] // ERROR "quux ignoring self-assignment to \*sp"
+ 	*bp = (*bp)[1:2] // ERROR "quux ignoring self-assignment to \*bp"
+ }
++
++type StructWithString struct {
++	p *int
++	s string
++}
++
++// This is escape analysis false negative.
++// We assign the pointer to x.p but leak x.s. Escape analysis coarsens flows
++// to just x, and thus &i looks escaping.
++func fieldFlowTracking() {
++	var x StructWithString
++	i := 0 // ERROR "moved to heap: i"
++	x.p = &i // ERROR "&i escapes to heap"
++	sink = x.s
++}
++
++// String operations.
++
++func slicebytetostring0() {
++	b := make([]byte, 20) // ERROR "does not escape"
++	s := string(b)        // ERROR "string\(b\) does not escape"
++	_ = s
++}
++
++func slicebytetostring1() {
++	b := make([]byte, 20) // ERROR "does not escape"
++	s := string(b)        // ERROR "string\(b\) does not escape"
++	s1 := s[0:1]
++	_ = s1
++}
++
++func slicebytetostring2() {
++	b := make([]byte, 20) // ERROR "does not escape"
++	s := string(b)        // ERROR "string\(b\) escapes to heap"
++	s1 := s[0:1]          // ERROR "moved to heap: s1"
++	sink = &s1            // ERROR "&s1 escapes to heap"
++}
++
++func slicebytetostring3() {
++	b := make([]byte, 20) // ERROR "does not escape"
++	s := string(b)        // ERROR "string\(b\) escapes to heap"
++	s1 := s[0:1]
++	sink = s1
++}
++
++func addstr0() {
++	s0 := "a"
++	s1 := "b"
++	s := s0 + s1 // ERROR "s0 \+ s1 does not escape"
++	_ = s
++}
++
++func addstr1() {
++	s0 := "a"
++	s1 := "b"
++	s := "c"
++	s += s0 + s1 // ERROR "s0 \+ s1 does not escape"
++	_ = s
++}
++
++func addstr2() {
++	b := make([]byte, 20) // ERROR "does not escape"
++	s0 := "a"
++	s := string(b) + s0 // ERROR "string\(b\) does not escape" "string\(b\) \+ s0 does not escape"
++	_ = s
++}
++
++func addstr3() {
++	s0 := "a"
++	s1 := "b"
++	s := s0 + s1 // ERROR "s0 \+ s1 escapes to heap"
++	s2 := s[0:1]
++	sink = s2
++}
+diff --git a/test/escape2n.go b/test/escape2n.go
+index e514bde59e..6769906e30 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -1556,3 +1556,77 @@ func quux(sp *string, bp *[]byte) { // ERROR "sp does not escape" "bp does not e
+ 	*sp = (*sp)[1:2] // ERROR "quux ignoring self-assignment to \*sp"
+ 	*bp = (*bp)[1:2] // ERROR "quux ignoring self-assignment to \*bp"
+ }
++
++type StructWithString struct {
++	p *int
++	s string
++}
++
++// This is escape analysis false negative.
++// We assign the pointer to x.p but leak x.s. Escape analysis coarsens flows
++// to just x, and thus &i looks escaping.
++func fieldFlowTracking() {
++	var x StructWithString
++	i := 0 // ERROR "moved to heap: i"
++	x.p = &i // ERROR "&i escapes to heap"
++	sink = x.s
++}
++
++// String operations.
++
++func slicebytetostring0() {
++	b := make([]byte, 20) // ERROR "does not escape"
++	s := string(b)        // ERROR "string\(b\) does not escape"
++	_ = s
++}
++
++func slicebytetostring1() {
++	b := make([]byte, 20) // ERROR "does not escape"
++	s := string(b)        // ERROR "string\(b\) does not escape"
++	s1 := s[0:1]
++	_ = s1
++}
++
++func slicebytetostring2() {
++	b := make([]byte, 20) // ERROR "does not escape"
++	s := string(b)        // ERROR "string\(b\) escapes to heap"
++	s1 := s[0:1]          // ERROR "moved to heap: s1"
++	sink = &s1            // ERROR "&s1 escapes to heap"
++}
++
++func slicebytetostring3() {
++	b := make([]byte, 20) // ERROR "does not escape"
++	s := string(b)        // ERROR "string\(b\) escapes to heap"
++	s1 := s[0:1]
++	sink = s1
++}
++
++func addstr0() {
++	s0 := "a"
++	s1 := "b"
++	s := s0 + s1 // ERROR "s0 \+ s1 does not escape"
++	_ = s
++}
++
++func addstr1() {
++	s0 := "a"
++	s1 := "b"
++	s := "c"
++	s += s0 + s1 // ERROR "s0 \+ s1 does not escape"
++	_ = s
++}
++
++func addstr2() {
++	b := make([]byte, 20) // ERROR "does not escape"
++	s0 := "a"
++	s := string(b) + s0 // ERROR "string\(b\) does not escape" "string\(b\) \+ s0 does not escape"
++	_ = s
++}
++
++func addstr3() {
++	s0 := "a"
++	s1 := "b"
++	s := s0 + s1 // ERROR "s0 \+ s1 escapes to heap"
++	s2 := s[0:1]
++	sink = s2
++}

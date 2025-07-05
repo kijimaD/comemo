@@ -25,7 +25,64 @@ Date:   Tue Apr 28 18:59:57 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/pe.go         |  2 +-
  src/cmd/link/internal/loader/loader.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 547200fbee..362d2fd0a5 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -1130,7 +1130,7 @@ func addimports(ctxt *Link, datsect *peSection) {
+ 		for m := d.ms; m != nil; m = m.next {
+ 			m.off = uint64(pefile.nextSectOffset) + uint64(ctxt.Out.Offset()) - uint64(startoff)
+ 			ctxt.Out.Write16(0) // hint
+-			strput(ctxt.Out, ldr.SymExtname(m.s))
++			strput(ctxt.Out, ldr.Syms[m.s].Extname())
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index e3dec5feee..a6d9417c00 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2124,6 +2124,38 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
+ 			}
+ 		}
+ 	}
++
++	// Free some memory.
++	// At this point we still need basic index mapping, and some fields of
++	// external symbol payloads, but not much else.
++	l.values = nil
++	l.symSects = nil
++	l.outdata = nil
++	l.itablink = nil
++	l.attrOnList = nil
++	l.attrLocal = nil
++	l.attrNotInSymbolTable = nil
++	l.attrVisibilityHidden = nil
++	l.attrDuplicateOK = nil
++	l.attrShared = nil
++	l.attrExternal = nil
++	l.attrReadOnly = nil
++	l.attrTopFrame = nil
++	l.attrSpecial = nil
++	l.attrCgoExportDynamic = nil
++	l.attrCgoExportStatic = nil
++	l.outer = nil
++	l.align = nil
++	l.dynimplib = nil
++	l.dynimpvers = nil
++	l.localentry = nil
++	l.extname = nil
++	l.elfType = nil
++	l.plt = nil
++	l.got = nil
++	l.dynid = nil
++	l.relocVariant = nil
++	l.extRelocs = nil
+ }
+ 
+ // ResolveABIAlias given a symbol returns the ABI alias target of that

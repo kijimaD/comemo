@@ -9,6 +9,32 @@ Date:   Thu Dec 15 09:00:21 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/gcc78763.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/test/fixedbugs/gcc78763.go b/test/fixedbugs/gcc78763.go
+new file mode 100644
+index 0000000000..3e3412753e
+--- /dev/null
++++ b/test/fixedbugs/gcc78763.go
+@@ -0,0 +1,19 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The gccgo compiler crashed while compiling this code.
++// https://gcc.gnu.org/PR78763.
++
++package p
++
++import "unsafe"
++
++func F() int {
++	if unsafe.Sizeof(0) == 8 {
++		return 8
++	}
++	return 0
++}

@@ -20,8 +20,67 @@ Date:   Wed Apr 27 09:02:53 2022 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/395884
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  misc/boring/VERSION                             |  2 +-
  src/cmd/compile/internal/amd64/versions_test.go |  2 ++
  src/cmd/compile/internal/reflectdata/reflect.go | 27 -------------------------
  3 files changed, 3 insertions(+), 28 deletions(-)
+
+diff --git a/misc/boring/VERSION b/misc/boring/VERSION
+index 7f8f011eb7..45a4fb75db 100644
+--- a/misc/boring/VERSION
++++ b/misc/boring/VERSION
+@@ -1 +1 @@
+-7
++8
+diff --git a/src/cmd/compile/internal/amd64/versions_test.go b/src/cmd/compile/internal/amd64/versions_test.go
+index 1ef06f7e58..2ac6e95c91 100644
+--- a/src/cmd/compile/internal/amd64/versions_test.go
++++ b/src/cmd/compile/internal/amd64/versions_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// When using GOEXPERIMENT=boringcrypto, the test program links in the boringcrypto syso,
++// which does not respect GOAMD64, so we skip the test if boringcrypto is enabled.
+ //go:build !boringcrypto
+ 
+ package amd64_test
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 9553b0d759..a9f87baee2 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1156,33 +1156,6 @@ func writeType(t *types.Type) *obj.LSym {
+ 	// for security, only the exported fields.
+ 	case types.TSTRUCT:
+ 		fields := t.Fields().Slice()
+-
+-		// omitFieldForAwfulBoringCryptoKludge reports whether
+-		// the field t should be omitted from the reflect data.
+-		// In the crypto/... packages we omit an unexported field
+-		// named "boring", to keep from breaking client code that
+-		// expects rsa.PublicKey etc to have only public fields.
+-		// As the name suggests, this is an awful kludge, but it is
+-		// limited to the dev.boringcrypto branch and avoids
+-		// much more invasive effects elsewhere.
+-		omitFieldForAwfulBoringCryptoKludge := func(t *types.Field) bool {
+-			if t.Sym == nil || t.Sym.Name != "boring" || t.Sym.Pkg == nil {
+-				return false
+-			}
+-			path := t.Sym.Pkg.Path
+-			if t.Sym.Pkg == types.LocalPkg {
+-				path = base.Ctxt.Pkgpath
+-			}
+-			return strings.HasPrefix(path, "crypto/")
+-		}
+-		newFields := fields[:0:0]
+-		for _, t1 := range fields {
+-			if !omitFieldForAwfulBoringCryptoKludge(t1) {
+-				newFields = append(newFields, t1)
+-			}
+-		}
+-		fields = newFields
+-
+ 		for _, t1 := range fields {
+ 			writeType(t1.Type)
+ 		}

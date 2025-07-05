@@ -7,7 +7,67 @@ Date:   Fri Jan 15 13:49:31 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/186169
-
+---
  src/pkg/template/template.go      |  3 +++
  src/pkg/template/template_test.go | 20 ++++++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index f1257b0915..b507c3c9ec 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -723,6 +723,9 @@ func (t *Template) varValue(name string, st *state) reflect.Value {
+ 		}
+ 		return t.varValue(name, st.parent)
+ 	}
++	if iface, ok := field.(*reflect.InterfaceValue); ok && !iface.IsNil() {
++		field = iface.Elem()
++	}
+ 	return field
+ }
+ 
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 0ae581c593..fe279a4d16 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -44,6 +44,7 @@ type S struct {
+ 	innermap      U
+ 	stringmap     map[string]string
+ 	bytes         []byte
++	iface         interface{}
+ }
+ 
+ func (s *S) pointerMethod() string { return "ptrmethod!" }
+@@ -353,6 +354,24 @@ var tests = []*Test{
+ 		out: "stringresult\n" +
+ 			"stringresult\n",
+ 	},
++
++	// Interface values
++
++	&Test{
++		in: "{iface}",
++
++		out: "[1 2 3]",
++	},
++	&Test{
++		in: "{.repeated section iface}{@}{.alternates with} {.end}",
++
++		out: "1 2 3",
++	},
++	&Test{
++		in: "{.section iface}{@}{.end}",
++
++		out: "[1 2 3]",
++	},
+ }
+ 
+ func TestAll(t *testing.T) {
+@@ -379,6 +398,7 @@ func TestAll(t *testing.T) {
+ 	s.stringmap["stringkey1"] = "stringresult" // the same value so repeated section is order-independent
+ 	s.stringmap["stringkey2"] = "stringresult"
+ 	s.bytes = strings.Bytes("hello")
++	s.iface = []int{1, 2, 3}
+ 
+ 	var buf bytes.Buffer
+ 	for _, test := range tests {

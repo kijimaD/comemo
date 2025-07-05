@@ -15,7 +15,85 @@ Date:   Mon Apr 25 14:12:26 2016 -0700
     Change-Id: I7fe5a4a57e08682967052bf77c54e0ec47fcb53e
     Reviewed-on: https://go-review.googlesource.com/22440
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/runtime/softfloat_arm.go | 11 ++++++-----
  src/runtime/vlop_arm_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 50 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/softfloat_arm.go b/src/runtime/softfloat_arm.go
+index b1f1a72925..648b2e1169 100644
+--- a/src/runtime/softfloat_arm.go
++++ b/src/runtime/softfloat_arm.go
+@@ -168,14 +168,15 @@ execute:
+ 		}
+ 		return 1
+ 	}
+-	if i == 0xe08bb00d {
+-		// add sp to r11.
+-		// might be part of a large stack offset address
++	if i&0xfffffff0 == 0xe08bb000 {
++		r := i & 0xf
++		// add r to r11.
++		// might be part of a large offset address calculation
+ 		// (or might not, but again no harm done).
+-		regs[11] += regs[13]
++		regs[11] += regs[r]
+ 
+ 		if fptrace > 0 {
+-			print("*** cpu R[11] += R[13] ", hex(regs[11]), "\n")
++			print("*** cpu R[11] += R[", r, "] ", hex(regs[11]), "\n")
+ 		}
+ 		return 1
+ 	}
+diff --git a/src/runtime/vlop_arm_test.go b/src/runtime/vlop_arm_test.go
+index 1a211196f2..85cea923a9 100644
+--- a/src/runtime/vlop_arm_test.go
++++ b/src/runtime/vlop_arm_test.go
+@@ -82,3 +82,47 @@ func TestUsplit(t *testing.T) {
+ 		}
+ 	}
+ }
++
++//go:noinline
++func armFloatWrite(a *[129]float64) {
++	// This used to miscompile on arm5.
++	// The offset is too big to fit in a load.
++	// So the code does:
++	//   ldr     r0, [sp, #8]
++	//   bl      6f690 <_sfloat>
++	//   ldr     fp, [pc, #32]   ; (address of 128.0)
++	//   vldr    d0, [fp]
++	//   ldr     fp, [pc, #28]   ; (1024)
++	//   add     fp, fp, r0
++	//   vstr    d0, [fp]
++	// The software floating-point emulator gives up on the add.
++	// This causes the store to not work.
++	// See issue 15440.
++	a[128] = 128.0
++}
++func TestArmFloatBigOffsetWrite(t *testing.T) {
++	var a [129]float64
++	for i := 0; i < 128; i++ {
++		a[i] = float64(i)
++	}
++	armFloatWrite(&a)
++	for i, x := range a {
++		if x != float64(i) {
++			t.Errorf("bad entry %d:%f\n", i, x)
++		}
++	}
++}
++
++//go:noinline
++func armFloatRead(a *[129]float64) float64 {
++	return a[128]
++}
++func TestArmFloatBigOffsetRead(t *testing.T) {
++	var a [129]float64
++	for i := 0; i < 129; i++ {
++		a[i] = float64(i)
++	}
++	if x := armFloatRead(&a); x != 128.0 {
++		t.Errorf("bad value %f\n", x)
++	}
++}

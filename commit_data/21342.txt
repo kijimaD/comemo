@@ -20,7 +20,7 @@ Date:   Mon Dec 8 14:18:58 2014 -0800
     Change-Id: I835ec2f42f0392c5dec7cb0fe6bba6f2aed1dad8
     Reviewed-on: https://go-review.googlesource.com/1601
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/5g/ggen.c        | 39 ++++++++++++--------------------
  src/cmd/6g/ggen.c        | 58 ++++++++++++++++++++++++++++++------------------
  src/cmd/8g/ggen.c        | 37 +++++++++++++++++++++---------
@@ -36,3 +36,708 @@ Date:   Mon Dec 8 14:18:58 2014 -0800
  src/runtime/stack1.go    |  2 +-
  src/runtime/traceback.go | 42 +++++------------------------------
  14 files changed, 149 insertions(+), 151 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 53cddb7605..55ede69e4a 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -181,9 +181,14 @@ ginscall(Node *f, int proc)
+ {
+ 	Prog *p;
+ 	Node n1, r, r1, con;
++	int32 extra;
+ 
+-	if(f->type != T)
+-		setmaxarg(f->type);
++	if(f->type != T) {
++		extra = 0;
++		if(proc == 1 || proc == 2)
++			extra = 2 * widthptr;
++		setmaxarg(f->type, extra);
++	}
+ 
+ 	switch(proc) {
+ 	default:
+@@ -230,32 +235,22 @@ ginscall(Node *f, int proc)
+ 	case 1:	// call in new proc (go)
+ 	case 2:	// deferred call (defer)
+ 		regalloc(&r, types[tptr], N);
+-		p = gins(AMOVW, N, &r);
+-		p->from.type = D_OREG;
+-		p->from.reg = REGSP;
+-		
++		nodconst(&con, types[TINT32], argsize(f->type));
++		gins(AMOVW, &con, &r);
+ 		p = gins(AMOVW, &r, N);
+ 		p->to.type = D_OREG;
+ 		p->to.reg = REGSP;
+-		p->to.offset = -12;
+-		p->scond |= C_WBIT;
++		p->to.offset = 4;
+ 
+ 		memset(&n1, 0, sizeof n1);
+ 		n1.op = OADDR;
+ 		n1.left = f;
+ 		gins(AMOVW, &n1, &r);
+-
+ 		p = gins(AMOVW, &r, N);
+ 		p->to.type = D_OREG;
+ 		p->to.reg = REGSP;
+ 		p->to.offset = 8;
+ 
+-		nodconst(&con, types[TINT32], argsize(f->type));
+-		gins(AMOVW, &con, &r);
+-		p = gins(AMOVW, &r, N);
+-		p->to.type = D_OREG;
+-		p->to.reg = REGSP;
+-		p->to.offset = 4;
+ 		regfree(&r);
+ 
+ 		if(proc == 1)
+@@ -263,14 +258,6 @@ ginscall(Node *f, int proc)
+ 		else
+ 			ginscall(deferproc, 0);
+ 
+-		nodreg(&r, types[tptr], 1);
+-		p = gins(AMOVW, N, N);
+-		p->from.type = D_CONST;
+-		p->from.reg = REGSP;
+-		p->from.offset = 12;
+-		p->to.reg = REGSP;
+-		p->to.type = D_REG;
+-
+ 		if(proc == 2) {
+ 			nodconst(&con, types[TINT32], 0);
+ 			p = gins(ACMP, &con, N);
+@@ -330,9 +317,11 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	agen(i, &nodr);		// REG = &inter
+ 
+ 	nodindreg(&nodsp, types[tptr], REGSP);
+-	nodsp.xoffset = 4;
++	nodsp.xoffset = widthptr;
++	if(proc != 0)
++		nodsp.xoffset += 2 * widthptr; // leave room for size & fn
+ 	nodo.xoffset += widthptr;
+-	cgen(&nodo, &nodsp);	// 4(SP) = 4(REG) -- i.data
++	cgen(&nodo, &nodsp);	// {4 or 12}(SP) = 4(REG) -- i.data
+ 
+ 	nodo.xoffset -= widthptr;
+ 	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.tab
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 363620769d..02e6dc2af5 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -176,11 +176,16 @@ void
+ ginscall(Node *f, int proc)
+ {
+ 	Prog *p;
+-	Node reg, con;
++	Node reg, stk;
+ 	Node r1;
++	int32 extra;
+ 
+-	if(f->type != T)
+-		setmaxarg(f->type);
++	if(f->type != T) {
++		extra = 0;
++		if(proc == 1 || proc == 2)
++			extra = 2 * widthptr;
++		setmaxarg(f->type, extra);
++	}
+ 
+ 	switch(proc) {
+ 	default:
+@@ -224,21 +229,31 @@ ginscall(Node *f, int proc)
+ 
+ 	case 1:	// call in new proc (go)
+ 	case 2:	// deferred call (defer)
+-		nodconst(&con, types[TINT64], argsize(f->type));
+-		if(widthptr == 4) {
+-			nodreg(&r1, types[TINT32], D_CX);
+-			gmove(f, &r1);
+-			nodreg(&reg, types[TINT64], D_CX);
+-			nodconst(&r1, types[TINT64], 32);
+-			gins(ASHLQ, &r1, &reg);
+-			gins(AORQ, &con, &reg);
+-			gins(APUSHQ, &reg, N);
++		memset(&stk, 0, sizeof(stk));
++		stk.op = OINDREG;
++		stk.val.u.reg = D_SP;
++		stk.xoffset = 0;
++
++		if(widthptr == 8) {
++			// size of arguments at 0(SP)
++			ginscon(AMOVQ, argsize(f->type), &stk);
++
++			// FuncVal* at 8(SP)
++			stk.xoffset = widthptr;
++			nodreg(&reg, types[TINT64], D_AX);
++			gmove(f, &reg);
++			gins(AMOVQ, &reg, &stk);
+ 		} else {
+-			nodreg(&reg, types[TINT64], D_CX);
++			// size of arguments at 0(SP)
++			ginscon(AMOVL, argsize(f->type), &stk);
++
++			// FuncVal* at 4(SP)
++			stk.xoffset = widthptr;
++			nodreg(&reg, types[TINT32], D_AX);
+ 			gmove(f, &reg);
+-			gins(APUSHQ, &reg, N);
+-			gins(APUSHQ, &con, N);
++			gins(AMOVL, &reg, &stk);
+ 		}
++
+ 		if(proc == 1)
+ 			ginscall(newproc, 0);
+ 		else {
+@@ -246,13 +261,9 @@ ginscall(Node *f, int proc)
+ 				fatal("hasdefer=0 but has defer");
+ 			ginscall(deferproc, 0);
+ 		}
+-		nodreg(&reg, types[TINT64], D_CX);
+-		gins(APOPQ, N, &reg);
+-		if(widthptr == 8)
+-			gins(APOPQ, N, &reg);
+ 		if(proc == 2) {
+-			nodreg(&reg, types[TINT64], D_AX);
+-			gins(ATESTQ, &reg, &reg);
++			nodreg(&reg, types[TINT32], D_AX);
++			gins(ATESTL, &reg, &reg);
+ 			p = gbranch(AJEQ, T, +1);
+ 			cgen_ret(N);
+ 			patch(p, pc);
+@@ -294,9 +305,12 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	igen(i, &nodi, res);		// REG = &inter
+ 
+ 	nodindreg(&nodsp, types[tptr], D_SP);
++        nodsp.xoffset = 0;
++	if(proc != 0)
++		nodsp.xoffset += 2 * widthptr; // leave room for size & fn
+ 	nodi.type = types[tptr];
+ 	nodi.xoffset += widthptr;
+-	cgen(&nodi, &nodsp);	// 0(SP) = 8(REG) -- i.data
++	cgen(&nodi, &nodsp);	// {0, 8(nacl), or 16}(SP) = 8(REG) -- i.data
+ 
+ 	regalloc(&nodo, types[tptr], res);
+ 	nodi.type = types[tptr];
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 6333a60bb8..d2597b40fc 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -237,10 +237,15 @@ void
+ ginscall(Node *f, int proc)
+ {
+ 	Prog *p;
+-	Node reg, r1, con;
+-
+-	if(f->type != T)
+-		setmaxarg(f->type);
++	Node reg, r1, con, stk;
++	int32 extra;
++
++	if(f->type != T) {
++		extra = 0;
++		if(proc == 1 || proc == 2)
++			extra = 2 * widthptr;
++		setmaxarg(f->type, extra);
++	}
+ 
+ 	switch(proc) {
+ 	default:
+@@ -284,18 +289,25 @@ ginscall(Node *f, int proc)
+ 
+ 	case 1:	// call in new proc (go)
+ 	case 2:	// deferred call (defer)
+-		nodreg(&reg, types[TINT32], D_CX);
+-		gins(APUSHL, f, N);
++		memset(&stk, 0, sizeof(stk));
++		stk.op = OINDREG;
++		stk.val.u.reg = D_SP;
++		stk.xoffset = 0;
++
++		// size of arguments at 0(SP)
+ 		nodconst(&con, types[TINT32], argsize(f->type));
+-		gins(APUSHL, &con, N);
++		gins(AMOVL, &con, &stk);
++
++		// FuncVal* at 4(SP)
++		stk.xoffset = widthptr;
++		gins(AMOVL, f, &stk);
++
+ 		if(proc == 1)
+ 			ginscall(newproc, 0);
+ 		else
+ 			ginscall(deferproc, 0);
+-		gins(APOPL, N, &reg);
+-		gins(APOPL, N, &reg);
+ 		if(proc == 2) {
+-			nodreg(&reg, types[TINT64], D_AX);
++			nodreg(&reg, types[TINT32], D_AX);
+ 			gins(ATESTL, &reg, &reg);
+ 			p = gbranch(AJEQ, T, +1);
+ 			cgen_ret(N);
+@@ -338,9 +350,12 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	igen(i, &nodi, res);		// REG = &inter
+ 
+ 	nodindreg(&nodsp, types[tptr], D_SP);
++	nodsp.xoffset = 0;
++	if(proc != 0)
++		nodsp.xoffset += 2 * widthptr; // leave room for size & fn
+ 	nodi.type = types[tptr];
+ 	nodi.xoffset += widthptr;
+-	cgen(&nodi, &nodsp);	// 0(SP) = 4(REG) -- i.data
++	cgen(&nodi, &nodsp);	// {0 or 8}(SP) = 4(REG) -- i.data
+ 
+ 	regalloc(&nodo, types[tptr], res);
+ 	nodi.type = types[tptr];
+diff --git a/src/cmd/9g/ggen.c b/src/cmd/9g/ggen.c
+index f08c263c22..89348bf2b0 100644
+--- a/src/cmd/9g/ggen.c
++++ b/src/cmd/9g/ggen.c
+@@ -194,9 +194,14 @@ ginscall(Node *f, int proc)
+ 	Prog *p;
+ 	Node reg, con, reg2;
+ 	Node r1;
++	int32 extra;
+ 
+-	if(f->type != T)
+-		setmaxarg(f->type);
++	if(f->type != T) {
++		extra = 0;
++		if(proc == 1 || proc == 2)
++			extra = 2 * widthptr;
++		setmaxarg(f->type, extra);
++	}
+ 
+ 	switch(proc) {
+ 	default:
+@@ -245,12 +250,6 @@ ginscall(Node *f, int proc)
+ 		nodreg(&reg2, types[TINT64], D_R0+4);
+ 		gmove(f, &reg);
+ 
+-		p = gins(ASUB, N, N);
+-		p->from.type = D_CONST;
+-		p->from.offset = 3 * 8;
+-		p->to.type = D_REG;
+-		p->to.reg = REGSP;
+-
+ 		gmove(&con, &reg2);
+ 		p = gins(AMOVW, &reg2, N);
+ 		p->to.type = D_OREG;
+@@ -270,12 +269,6 @@ ginscall(Node *f, int proc)
+ 			ginscall(deferproc, 0);
+ 		}
+ 
+-		p = gins(AADD, N, N);
+-		p->from.type = D_CONST;
+-		p->from.offset = 3 * 8;
+-		p->to.type = D_REG;
+-		p->to.reg = REGSP;
+-
+ 		if(proc == 2) {
+ 			nodreg(&reg, types[TINT64], D_R0+3);
+ 			p = gins(ACMP, &reg, N);
+@@ -324,9 +317,11 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 
+ 	nodindreg(&nodsp, types[tptr], D_R0+REGSP);
+ 	nodsp.xoffset = widthptr;
++	if(proc != 0)
++		nodsp.xoffset += 2 * widthptr; // leave room for size & fn
+ 	nodi.type = types[tptr];
+ 	nodi.xoffset += widthptr;
+-	cgen(&nodi, &nodsp);	// 0(SP) = 8(REG) -- i.data
++	cgen(&nodi, &nodsp);	// {8 or 24}(SP) = 8(REG) -- i.data
+ 
+ 	regalloc(&nodo, types[tptr], res);
+ 	nodi.type = types[tptr];
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 624a6f59e8..166650333b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1418,7 +1418,7 @@ Node*	cheapexpr(Node *n, NodeList **init);
+ Node*	localexpr(Node *n, Type *t, NodeList **init);
+ void	saveorignode(Node *n);
+ int32	setlineno(Node *n);
+-void	setmaxarg(Type *t);
++void	setmaxarg(Type *t, int32 extra);
+ Type*	shallow(Type *t);
+ int	simsimtype(Type *t);
+ void	smagic(Magic *m);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 5e369b6957..f01e9c57f5 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2115,14 +2115,17 @@ localexpr(Node *n, Type *t, NodeList **init)
+ }
+ 
+ void
+-setmaxarg(Type *t)
++setmaxarg(Type *t, int32 extra)
+ {
+ 	int64 w;
+ 
+ 	dowidth(t);
+ 	w = t->argwid;
+-	if(t->argwid >= MAXWIDTH)
++	if(w >= MAXWIDTH)
+ 		fatal("bad argwid %T", t);
++	w += extra;
++	if(w >= MAXWIDTH)
++		fatal("bad argwid %d + %T", extra, t);
+ 	if(w > maxarg)
+ 		maxarg = w;
+ }
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 60b68e9432..1025361cf8 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -128,6 +128,35 @@ paramoutheap(Node *fn)
+ 	return 0;
+ }
+ 
++// adds "adjust" to all the argument locations for the call n.
++// n must be a defer or go node that has already been walked.
++static void
++adjustargs(Node *n, int adjust)
++{
++	Node *callfunc, *arg, *lhs;
++	NodeList *args;
++
++	callfunc = n->left;
++	for(args = callfunc->list; args != 0; args = args->next) {
++		arg = args->n;
++		if(arg->op != OAS)
++			yyerror("call arg not assignment");
++		lhs = arg->left;
++		if(lhs->op == ONAME) {
++			// This is a temporary introduced by reorder1.
++			// The real store to the stack appears later in the arg list.
++			continue;
++		}
++		if(lhs->op != OINDREG) {
++			yyerror("call argument store does not use OINDREG");
++		}
++		// can't really check this in machine-indep code.
++		//if(lhs->val.u.reg != D_SP)
++		//      yyerror("call arg assign not indreg(SP)");
++		lhs->xoffset += adjust;
++	}
++}
++
+ void
+ walkstmt(Node **np)
+ {
+@@ -237,6 +266,8 @@ walkstmt(Node **np)
+ 			walkexpr(&n->left, &n->ninit);
+ 			break;
+ 		}
++		// make room for size & fn arguments.
++		adjustargs(n, 2 * widthptr);
+ 		break;
+ 
+ 	case OFOR:
+@@ -270,6 +301,8 @@ walkstmt(Node **np)
+ 			walkexpr(&n->left, &n->ninit);
+ 			break;
+ 		}
++		// make room for size & fn arguments.
++		adjustargs(n, 2 * widthptr);
+ 		break;
+ 
+ 	case ORETURN:
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index e1693d40f1..3983670456 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -366,7 +366,7 @@ func dumpgoroutine(gp *g) {
+ 		dumpint(tagDefer)
+ 		dumpint(uint64(uintptr(unsafe.Pointer(d))))
+ 		dumpint(uint64(uintptr(unsafe.Pointer(gp))))
+-		dumpint(uint64(d.argp))
++		dumpint(uint64(d.sp))
+ 		dumpint(uint64(d.pc))
+ 		dumpint(uint64(uintptr(unsafe.Pointer(d.fn))))
+ 		dumpint(uint64(uintptr(unsafe.Pointer(d.fn.fn))))
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 7ec084acfc..07cdd4e1d6 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -62,13 +62,10 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
+ 	// the arguments of fn are in a perilous state.  The stack map
+ 	// for deferproc does not describe them.  So we can't let garbage
+ 	// collection or stack copying trigger until we've copied them out
+-	// to somewhere safe.  deferproc_m does that.  Until deferproc_m,
+-	// we can only call nosplit routines.
+-	argp := uintptr(unsafe.Pointer(&fn))
+-	argp += unsafe.Sizeof(fn)
+-	if GOARCH == "arm" || GOARCH == "ppc64" || GOARCH == "ppc64le" {
+-		argp += ptrSize // skip caller's saved link register
+-	}
++	// to somewhere safe.  The memmove below does that.
++	// Until the copy completes, we can only call nosplit routines.
++	sp := getcallersp(unsafe.Pointer(&siz))
++	argp := uintptr(unsafe.Pointer(&fn)) + unsafe.Sizeof(fn)
+ 	callerpc := getcallerpc(unsafe.Pointer(&siz))
+ 
+ 	systemstack(func() {
+@@ -78,7 +75,7 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
+ 		}
+ 		d.fn = fn
+ 		d.pc = callerpc
+-		d.argp = argp
++		d.sp = sp
+ 		memmove(add(unsafe.Pointer(d), unsafe.Sizeof(*d)), unsafe.Pointer(argp), uintptr(siz))
+ 	})
+ 
+@@ -240,8 +237,8 @@ func deferreturn(arg0 uintptr) {
+ 	if d == nil {
+ 		return
+ 	}
+-	argp := uintptr(unsafe.Pointer(&arg0))
+-	if d.argp != argp {
++	sp := getcallersp(unsafe.Pointer(&arg0))
++	if d.sp != sp {
+ 		return
+ 	}
+ 
+@@ -250,13 +247,13 @@ func deferreturn(arg0 uintptr) {
+ 	// won't know the form of the arguments until the jmpdefer can
+ 	// flip the PC over to fn.
+ 	mp := acquirem()
+-	memmove(unsafe.Pointer(argp), deferArgs(d), uintptr(d.siz))
++	memmove(unsafe.Pointer(&arg0), deferArgs(d), uintptr(d.siz))
+ 	fn := d.fn
+ 	d.fn = nil
+ 	gp._defer = d.link
+ 	freedefer(d)
+ 	releasem(mp)
+-	jmpdefer(fn, argp)
++	jmpdefer(fn, uintptr(unsafe.Pointer(&arg0)))
+ }
+ 
+ // Goexit terminates the goroutine that calls it.  No other goroutine is affected.
+@@ -403,7 +400,7 @@ func gopanic(e interface{}) {
+ 		//GC()
+ 
+ 		pc := d.pc
+-		argp := unsafe.Pointer(d.argp) // must be pointer so it gets adjusted during stack copy
++		sp := unsafe.Pointer(d.sp) // must be pointer so it gets adjusted during stack copy
+ 		freedefer(d)
+ 		if p.recovered {
+ 			gp._panic = p.link
+@@ -416,7 +413,7 @@ func gopanic(e interface{}) {
+ 				gp.sig = 0
+ 			}
+ 			// Pass information about recovering frame to recovery.
+-			gp.sigcode0 = uintptr(argp)
++			gp.sigcode0 = uintptr(sp)
+ 			gp.sigcode1 = pc
+ 			mcall(recovery)
+ 			gothrow("recovery failed") // mcall should not return
+diff --git a/src/runtime/panic1.go b/src/runtime/panic1.go
+index 96f07a0ca0..9756fab46e 100644
+--- a/src/runtime/panic1.go
++++ b/src/runtime/panic1.go
+@@ -4,8 +4,6 @@
+ 
+ package runtime
+ 
+-import "unsafe"
+-
+ // Code related to defer, panic and recover.
+ // TODO: Merge into panic.go.
+ 
+@@ -19,29 +17,19 @@ const hasLinkRegister = GOARCH == "arm" || GOARCH == "ppc64" || GOARCH == "ppc64
+ // the caller of the deferred function returned normally.
+ func recovery(gp *g) {
+ 	// Info about defer passed in G struct.
+-	argp := (unsafe.Pointer)(gp.sigcode0)
+-	pc := uintptr(gp.sigcode1)
++	sp := gp.sigcode0
++	pc := gp.sigcode1
+ 
+ 	// d's arguments need to be in the stack.
+-	if argp != nil && (uintptr(argp) < gp.stack.lo || gp.stack.hi < uintptr(argp)) {
+-		print("recover: ", argp, " not in [", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
++	if sp != 0 && (sp < gp.stack.lo || gp.stack.hi < sp) {
++		print("recover: ", hex(sp), " not in [", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
+ 		gothrow("bad recovery")
+ 	}
+ 
+ 	// Make the deferproc for this d return again,
+ 	// this time returning 1.  The calling function will
+ 	// jump to the standard return epilogue.
+-	// The -2*sizeof(uintptr) makes up for the
+-	// two extra words that are on the stack at
+-	// each call to deferproc.
+-	// (The pc we're returning to does pop pop
+-	// before it tests the return value.)
+-	// On the arm and power there are 2 saved LRs mixed in too.
+-	if hasLinkRegister {
+-		gp.sched.sp = uintptr(argp) - 4*ptrSize
+-	} else {
+-		gp.sched.sp = uintptr(argp) - 2*ptrSize
+-	}
++	gp.sched.sp = sp
+ 	gp.sched.pc = pc
+ 	gp.sched.lr = 0
+ 	gp.sched.ret = 1
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index be69d0855f..a3aae8f221 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -1931,10 +1931,6 @@ func malg(stacksize int32) *g {
+ //go:nosplit
+ func newproc(siz int32, fn *funcval) {
+ 	argp := add(unsafe.Pointer(&fn), ptrSize)
+-	if hasLinkRegister {
+-		argp = add(argp, ptrSize) // skip caller's saved LR
+-	}
+-
+ 	pc := getcallerpc(unsafe.Pointer(&siz))
+ 	systemstack(func() {
+ 		newproc1(fn, (*uint8)(argp), siz, 0, pc)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index e0d23e722f..4d42153abb 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -508,7 +508,7 @@ var invalidptr int32
+ type _defer struct {
+ 	siz     int32
+ 	started bool
+-	argp    uintptr // where args were copied from
++	sp      uintptr // sp at time of defer
+ 	pc      uintptr
+ 	fn      *funcval
+ 	_panic  *_panic // panic that is running defer
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index 28000864d6..0ffba0dd85 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -499,7 +499,7 @@ func adjustdefers(gp *g, adjinfo *adjustinfo) {
+ 	// Defer structs themselves are never on the stack.
+ 	for d := gp._defer; d != nil; d = d.link {
+ 		adjustpointer(adjinfo, (unsafe.Pointer)(&d.fn))
+-		adjustpointer(adjinfo, (unsafe.Pointer)(&d.argp))
++		adjustpointer(adjinfo, (unsafe.Pointer)(&d.sp))
+ 		adjustpointer(adjinfo, (unsafe.Pointer)(&d._panic))
+ 	}
+ }
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index e1cc9123f2..a45507fc7c 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -32,13 +32,11 @@ const usesLR = GOARCH != "amd64" && GOARCH != "amd64p32" && GOARCH != "386"
+ 
+ var (
+ 	// initialized in tracebackinit
+-	deferprocPC          uintptr
+ 	goexitPC             uintptr
+ 	jmpdeferPC           uintptr
+ 	mcallPC              uintptr
+ 	morestackPC          uintptr
+ 	mstartPC             uintptr
+-	newprocPC            uintptr
+ 	rt0_goPC             uintptr
+ 	sigpanicPC           uintptr
+ 	systemstack_switchPC uintptr
+@@ -51,13 +49,11 @@ func tracebackinit() {
+ 	// Instead of initializing the variables above in the declarations,
+ 	// schedinit calls this function so that the variables are
+ 	// initialized and available earlier in the startup sequence.
+-	deferprocPC = funcPC(deferproc)
+ 	goexitPC = funcPC(goexit)
+ 	jmpdeferPC = funcPC(jmpdefer)
+ 	mcallPC = funcPC(mcall)
+ 	morestackPC = funcPC(morestack)
+ 	mstartPC = funcPC(mstart)
+-	newprocPC = funcPC(newproc)
+ 	rt0_goPC = funcPC(rt0_go)
+ 	sigpanicPC = funcPC(sigpanic)
+ 	systemstack_switchPC = funcPC(systemstack_switch)
+@@ -144,11 +140,10 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 		frame.lr = lr0
+ 	}
+ 	waspanic := false
+-	wasnewproc := false
+ 	printing := pcbuf == nil && callback == nil
+ 	_defer := gp._defer
+ 
+-	for _defer != nil && uintptr(_defer.argp) == _NoArgs {
++	for _defer != nil && uintptr(_defer.sp) == _NoArgs {
+ 		_defer = _defer.link
+ 	}
+ 
+@@ -251,32 +246,6 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 			setArgInfo(&frame, f, callback != nil)
+ 		}
+ 
+-		// Determine function SP where deferproc would find its arguments.
+-		var sparg uintptr
+-		if usesLR {
+-			// On link register architectures, that's the standard bottom-of-stack plus 1 word
+-			// for the saved LR. If the previous frame was a direct call to newproc/deferproc,
+-			// however, the SP is three words lower than normal.
+-			// If the function has no frame at all - perhaps it just started, or perhaps
+-			// it is a leaf with no local variables - then we cannot possibly find its
+-			// SP in a defer, and we might confuse its SP for its caller's SP, so
+-			// leave sparg=0 in that case.
+-			if frame.fp != frame.sp {
+-				sparg = frame.sp + regSize
+-				if wasnewproc {
+-					sparg += 3 * regSize
+-				}
+-			}
+-		} else {
+-			// On x86 that's the standard bottom-of-stack, so SP exactly.
+-			// If the previous frame was a direct call to newproc/deferproc, however,
+-			// the SP is two words lower than normal.
+-			sparg = frame.sp
+-			if wasnewproc {
+-				sparg += 2 * ptrSize
+-			}
+-		}
+-
+ 		// Determine frame's 'continuation PC', where it can continue.
+ 		// Normally this is the return address on the stack, but if sigpanic
+ 		// is immediately below this function on the stack, then the frame
+@@ -289,7 +258,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 		// returns; everything live at earlier deferprocs is still live at that one.
+ 		frame.continpc = frame.pc
+ 		if waspanic {
+-			if _defer != nil && _defer.argp == sparg {
++			if _defer != nil && _defer.sp == frame.sp {
+ 				frame.continpc = _defer.pc
+ 			} else {
+ 				frame.continpc = 0
+@@ -297,7 +266,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 		}
+ 
+ 		// Unwind our local defer stack past this frame.
+-		for _defer != nil && (_defer.argp == sparg || _defer.argp == _NoArgs) {
++		for _defer != nil && (_defer.sp == frame.sp || _defer.sp == _NoArgs) {
+ 			_defer = _defer.link
+ 		}
+ 
+@@ -353,7 +322,6 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 
+ 	skipped:
+ 		waspanic = f.entry == sigpanicPC
+-		wasnewproc = f.entry == newprocPC || f.entry == deferprocPC
+ 
+ 		// Do not unwind past the bottom of the stack.
+ 		if flr == nil {
+@@ -438,10 +406,10 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 	// incomplete information then is still better than nothing.
+ 	if callback != nil && n < max && _defer != nil {
+ 		if _defer != nil {
+-			print("runtime: g", gp.goid, ": leftover defer argp=", hex(_defer.argp), " pc=", hex(_defer.pc), "\n")
++			print("runtime: g", gp.goid, ": leftover defer sp=", hex(_defer.sp), " pc=", hex(_defer.pc), "\n")
+ 		}
+ 		for _defer = gp._defer; _defer != nil; _defer = _defer.link {
+-			print("\tdefer ", _defer, " argp=", hex(_defer.argp), " pc=", hex(_defer.pc), "\n")
++			print("\tdefer ", _defer, " sp=", hex(_defer.sp), " pc=", hex(_defer.pc), "\n")
+ 		}
+ 		gothrow("traceback has leftover defers")
+ 	}

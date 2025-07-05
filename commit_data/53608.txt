@@ -16,6 +16,53 @@ Date:   Sun Aug 14 00:29:20 2022 +0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/net/lookup.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index 7f3d20126c..3cc53f1db6 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -316,14 +316,15 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
+ 
+ 	lookupKey := network + "\000" + host
+ 	dnsWaitGroup.Add(1)
+-	ch, called := r.getLookupGroup().DoChan(lookupKey, func() (any, error) {
+-		defer dnsWaitGroup.Done()
++	ch, _ := r.getLookupGroup().DoChan(lookupKey, func() (any, error) {
+ 		return testHookLookupIP(lookupGroupCtx, resolverFunc, network, host)
+ 	})
+-	if !called {
++
++	dnsWaitGroupDone := func(ch <-chan singleflight.Result, cancelFn context.CancelFunc) {
++		<-ch
+ 		dnsWaitGroup.Done()
++		cancelFn()
+ 	}
+-
+ 	select {
+ 	case <-ctx.Done():
+ 		// Our context was canceled. If we are the only
+@@ -335,11 +336,9 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
+ 		// See issues 8602, 20703, 22724.
+ 		if r.getLookupGroup().ForgetUnshared(lookupKey) {
+ 			lookupGroupCancel()
++			go dnsWaitGroupDone(ch, func() {})
+ 		} else {
+-			go func() {
+-				<-ch
+-				lookupGroupCancel()
+-			}()
++			go dnsWaitGroupDone(ch, lookupGroupCancel)
+ 		}
+ 		ctxErr := ctx.Err()
+ 		err := &DNSError{
+@@ -352,6 +351,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
+ 		}
+ 		return nil, err
+ 	case r := <-ch:
++		dnsWaitGroup.Done()
+ 		lookupGroupCancel()
+ 		err := r.Err
+ 		if err != nil {

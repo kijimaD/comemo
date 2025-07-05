@@ -7,6 +7,22 @@ Date:   Mon Aug 4 09:47:52 2008 -0700
     TBR=rsc
     OCL=13804
     CL=13804
-
+---
  src/Make.conf | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/Make.conf b/src/Make.conf
+index e6d8628aea..ddf4b97220 100644
+--- a/src/Make.conf
++++ b/src/Make.conf
+@@ -2,8 +2,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-CC=cc64
+-LD=cc64
++CC=cc
++LD=cc
+ CFLAGS=-ggdb -I$(GOROOT)/include
+ BIN=$(HOME)/bin
+ O=o

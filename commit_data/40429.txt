@@ -11,6 +11,21 @@ Date:   Fri May 10 15:34:17 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/git.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 55627cb72a..272eadcb23 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -678,7 +678,8 @@ func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
+ 			}
+ 
+ 			semtag := line[len(prefix):]
+-			if semver.IsValid(semtag) {
++			// Consider only tags that are valid and complete (not just major.minor prefixes).
++			if c := semver.Canonical(semtag); c != "" && strings.HasPrefix(semtag, c) {
+ 				highest = semver.Max(highest, semtag)
+ 			}
+ 		}

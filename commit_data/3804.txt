@@ -7,10 +7,132 @@ Date:   Thu Nov 5 12:18:54 2009 -0800
     R=r, rsc
     CC=go-dev
     http://go/go-review/1017051
-
+---
  doc/go-logo-black.png | Bin 0 -> 8855 bytes
  doc/root.html         |  13 +++++++++++--
  doc/style.css         |  12 ++++++++----
  doc/video-snap.jpg    | Bin 0 -> 3269 bytes
  lib/godoc/godoc.html  |   9 +++++----
  5 files changed, 24 insertions(+), 10 deletions(-)
+
+diff --git a/doc/go-logo-black.png b/doc/go-logo-black.png
+new file mode 100644
+index 0000000000..29be31943a
+Binary files /dev/null and b/doc/go-logo-black.png differ
+diff --git a/doc/root.html b/doc/root.html
+index ed951a0658..b727f7f8a5 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -25,7 +25,16 @@
+   </ol>
+ 
+   <h1>Watch and Learn</h1>
+-  <p>(No video yet.)</p>
++  <table>
++    <tr>
++      <td>
++        <a href="http://www.youtube.com/FIXME"><img src="/doc/video-snap.jpg"></a>
++      </td>
++      <td>
++        Programming with Go. <a href="http://www.youtube.com/FIXME">Watch now</a>.
++      </td>
++    </tr>
++  </table>
+ </div>
+ 
+ <div id="frontpage">
+@@ -33,7 +42,7 @@
+ <table style="padding-top: 1em; padding-bottom: 2em;">
+   <tr>
+     <td>
+-      <img style="padding-right: 1em;" src="/doc/go-logo-blue.png">
++      <img style="padding-right: 1em;" src="/doc/go-logo-black.png">
+     </td>
+     <td>
+       <div><span style="font-size: 2em; font-weight: bold;">an experimental programming language.</span><br><span style="font-size: 1.5em;">Imperative, concurrent, garbage-collected.</span></div>
+diff --git a/doc/style.css b/doc/style.css
+index 8109a75032..ea74aad8d3 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -88,14 +88,12 @@ div#content {
+   padding: 0 1em 2em 1em;
+   margin-top: -2px;
+   border-left: 2px solid #e5ecf9;
++  border-right: 2px solid #e5ecf9;
++  border-bottom: 2px solid #e5ecf9;
+ }
+ 
+ #topnav {
+-}
+-
+-#headerDocSetTitle {
+   margin: 0px;
+-  padding-left: 0.2em;
+   padding-top: 0.2em;
+   width: 100%;
+   white-space: nowrap;
+@@ -237,16 +235,22 @@ a.use {
+   padding-left: 1em;
+   -moz-border-radius: 7px;
+   -webkit-border-radius: 7px;
++  padding-bottom: 0.75em;
+ }
+ 
+ #gettingStarted h1 {
+   padding-top: 0.3em;
++  margin-bottom: 0.2em;
+   font-size: 1.5em;
+ }
+ 
+ #gettingStarted ol {
+ }
+ 
++#gettingStarted a img {
++  border: 1px solid blue;
++}
++
+ #frontpage {
+   width: 70%;
+ }
+diff --git a/doc/video-snap.jpg b/doc/video-snap.jpg
+new file mode 100644
+index 0000000000..ae66c558ea
+Binary files /dev/null and b/doc/video-snap.jpg differ
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index d3c66104d2..22242caa55 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -40,11 +40,14 @@
+       <td id="headerImage">
+         <a href="/"><img src="/doc/logo-153x55.png" height="55" width="153" alt="Go Home Page" style="border:0" /></a>
+       </td>
++      <td>
++        <div id="headerDocSetTitle">The Go Programming Language</div>
++      </td>
+       <td>
+         <!-- <table>
+           <tr>
+             <td>
+-              <!-- The input box is outside of the form because we want to add
++              <! The input box is outside of the form because we want to add
+               a couple of restricts to the query before submitting. If we just
+               add the restricts to the text box before submitting, then they
+               appear in the box when the user presses 'back'. Thus we use a
+@@ -70,8 +73,6 @@
+   </table>
+ </div>
+ 
+-<div id="headerDocSetTitle">The Go Programming Language</div>
+-
+ <div id="linkList">
+   <ul>
+     <li class="navhead"><a href="/" class="noline">Home</a></li>
+@@ -99,7 +100,7 @@
+     <li class="blank">&nbsp;</li>	
+     <li class="navhead">Go code search</li>	
+     <form method="GET" action="/search" class="search">	
+-    <input name="q" value="{Query|html}" size="25" />	
++    <input type="search" name="q" value="{Query|html}" size="25" />
+     <input type="submit" value="Go" />
+ 
+     <li class="blank">&nbsp;</li>

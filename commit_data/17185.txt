@@ -10,7 +10,7 @@ Date:   Tue Aug 13 20:00:58 2013 +0900
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/8656044
-
+---
  src/pkg/net/fd_plan9.go        |  6 +++---
  src/pkg/net/fd_poll_runtime.go | 12 ++++++------
  src/pkg/net/fd_poll_unix.go    | 14 +++++++-------
@@ -20,3 +20,175 @@ Date:   Tue Aug 13 20:00:58 2013 +0900
  src/pkg/net/tcpsock_posix.go   |  2 +-
  src/pkg/net/unixsock_posix.go  |  2 +-
  8 files changed, 24 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/net/fd_plan9.go b/src/pkg/net/fd_plan9.go
+index e9527a3743..84987c3a9e 100644
+--- a/src/pkg/net/fd_plan9.go
++++ b/src/pkg/net/fd_plan9.go
+@@ -108,15 +108,15 @@ func (fd *netFD) file(f *os.File, s string) (*os.File, error) {
+ 	return os.NewFile(uintptr(dfd), s), nil
+ }
+ 
+-func setDeadline(fd *netFD, t time.Time) error {
++func (fd *netFD) setDeadline(t time.Time) error {
+ 	return syscall.EPLAN9
+ }
+ 
+-func setReadDeadline(fd *netFD, t time.Time) error {
++func (fd *netFD) setReadDeadline(t time.Time) error {
+ 	return syscall.EPLAN9
+ }
+ 
+-func setWriteDeadline(fd *netFD, t time.Time) error {
++func (fd *netFD) setWriteDeadline(t time.Time) error {
+ 	return syscall.EPLAN9
+ }
+ 
+diff --git a/src/pkg/net/fd_poll_runtime.go b/src/pkg/net/fd_poll_runtime.go
+index 03474cf2c3..1675110bf0 100644
+--- a/src/pkg/net/fd_poll_runtime.go
++++ b/src/pkg/net/fd_poll_runtime.go
+@@ -115,16 +115,16 @@ func convertErr(res int) error {
+ 	panic("unreachable")
+ }
+ 
+-func setReadDeadline(fd *netFD, t time.Time) error {
+-	return setDeadlineImpl(fd, t, 'r')
++func (fd *netFD) setDeadline(t time.Time) error {
++	return setDeadlineImpl(fd, t, 'r'+'w')
+ }
+ 
+-func setWriteDeadline(fd *netFD, t time.Time) error {
+-	return setDeadlineImpl(fd, t, 'w')
++func (fd *netFD) setReadDeadline(t time.Time) error {
++	return setDeadlineImpl(fd, t, 'r')
+ }
+ 
+-func setDeadline(fd *netFD, t time.Time) error {
+-	return setDeadlineImpl(fd, t, 'r'+'w')
++func (fd *netFD) setWriteDeadline(t time.Time) error {
++	return setDeadlineImpl(fd, t, 'w')
+ }
+ 
+ func setDeadlineImpl(fd *netFD, t time.Time, mode int) error {
+diff --git a/src/pkg/net/fd_poll_unix.go b/src/pkg/net/fd_poll_unix.go
+index bbe827a5bf..e763c7e4d3 100644
+--- a/src/pkg/net/fd_poll_unix.go
++++ b/src/pkg/net/fd_poll_unix.go
+@@ -353,18 +353,18 @@ func (pd *pollDesc) Init(fd *netFD) error {
+ 
+ // TODO(dfc) these unused error returns could be removed
+ 
+-func setReadDeadline(fd *netFD, t time.Time) error {
+-	fd.pd.rdeadline.setTime(t)
++func (fd *netFD) setDeadline(t time.Time) error {
++	fd.setReadDeadline(t)
++	fd.setWriteDeadline(t)
+ 	return nil
+ }
+ 
+-func setWriteDeadline(fd *netFD, t time.Time) error {
+-	fd.pd.wdeadline.setTime(t)
++func (fd *netFD) setReadDeadline(t time.Time) error {
++	fd.pd.rdeadline.setTime(t)
+ 	return nil
+ }
+ 
+-func setDeadline(fd *netFD, t time.Time) error {
+-	setReadDeadline(fd, t)
+-	setWriteDeadline(fd, t)
++func (fd *netFD) setWriteDeadline(t time.Time) error {
++	fd.pd.wdeadline.setTime(t)
+ 	return nil
+ }
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index fbf207c5f8..2cbd5d854a 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -160,7 +160,7 @@ func (c *conn) SetDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return setDeadline(c.fd, t)
++	return c.fd.setDeadline(t)
+ }
+ 
+ // SetReadDeadline implements the Conn SetReadDeadline method.
+@@ -168,7 +168,7 @@ func (c *conn) SetReadDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return setReadDeadline(c.fd, t)
++	return c.fd.setReadDeadline(t)
+ }
+ 
+ // SetWriteDeadline implements the Conn SetWriteDeadline method.
+@@ -176,7 +176,7 @@ func (c *conn) SetWriteDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return setWriteDeadline(c.fd, t)
++	return c.fd.setWriteDeadline(t)
+ }
+ 
+ // SetReadBuffer sets the size of the operating system's
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index 4683bbb058..339bf4c58c 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -113,14 +113,14 @@ func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time, toAddr func(sys
+ 			return err
+ 		} else if rsa != nil {
+ 			if !deadline.IsZero() {
+-				setWriteDeadline(fd, deadline)
++				fd.setWriteDeadline(deadline)
+ 			}
+ 			if err := fd.connect(lsa, rsa); err != nil {
+ 				return err
+ 			}
+ 			fd.isConnected = true
+ 			if !deadline.IsZero() {
+-				setWriteDeadline(fd, noDeadline)
++				fd.setWriteDeadline(noDeadline)
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index 4781b5986c..d155d0736a 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -158,7 +158,7 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
+ 	if l == nil || l.fd == nil || l.fd.ctl == nil {
+ 		return syscall.EINVAL
+ 	}
+-	return setDeadline(l.fd, t)
++	return l.fd.setDeadline(t)
+ }
+ 
+ // File returns a copy of the underlying os.File, set to blocking
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index 54c3d42ed7..e7af86bebd 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -272,7 +272,7 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
+ 	if l == nil || l.fd == nil {
+ 		return syscall.EINVAL
+ 	}
+-	return setDeadline(l.fd, t)
++	return l.fd.setDeadline(t)
+ }
+ 
+ // File returns a copy of the underlying os.File, set to blocking
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 24002aa3bf..fcc3641945 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -347,7 +347,7 @@ func (l *UnixListener) SetDeadline(t time.Time) (err error) {
+ 	if l == nil || l.fd == nil {
+ 		return syscall.EINVAL
+ 	}
+-	return setDeadline(l.fd, t)
++	return l.fd.setDeadline(t)
+ }
+ 
+ // File returns a copy of the underlying os.File, set to blocking

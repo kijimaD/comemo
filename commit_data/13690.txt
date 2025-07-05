@@ -8,6 +8,15 @@ Date:   Fri Aug 24 13:01:50 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6478061
-
+---
  VERSION | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/VERSION b/VERSION
+new file mode 100644
+index 0000000000..626e97d71d
+--- /dev/null
++++ b/VERSION
+@@ -0,0 +1 @@
++devel
+\ No newline at end of file

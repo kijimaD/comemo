@@ -19,6 +19,23 @@ Date:   Fri Jan 27 15:33:48 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/dist/build.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 1b6a2ceae0..d388058d9e 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1296,10 +1296,7 @@ func toolenv() []string {
+ 		// Do not include local development, so that people working in the
+ 		// main branch for day-to-day work on the Go toolchain itself can
+ 		// still have full paths for stack traces for compiler crashes and the like.
+-		//
+-		// TODO(bcmills): This was added but commented out in CL 454836.
+-		// Uncomment or delete it.
+-		// env = append(env, "GOFLAGS=-trimpath")
++		env = append(env, "GOFLAGS=-trimpath")
+ 	}
+ 	return env
+ }

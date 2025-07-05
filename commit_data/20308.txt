@@ -14,7 +14,7 @@ Date:   Sat Aug 30 08:40:56 2014 +0400
     R=golang-codereviews, crawshaw, khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/139930044
-
+---
  src/cmd/gc/reflect.c           |  19 +--
  src/pkg/runtime/alg.go         | 160 ++++++++++++++++-------
  src/pkg/runtime/alg.goc        | 289 -----------------------------------------
@@ -28,3 +28,953 @@ Date:   Sat Aug 30 08:40:56 2014 +0400
  src/pkg/runtime/stubs.go       |  17 ---
  src/pkg/runtime/type.h         |   2 +-
  12 files changed, 130 insertions(+), 481 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 05bf2d6521..f227054caf 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -724,7 +724,7 @@ dcommontype(Sym *s, int ot, Type *t)
+ 	if(ot != 0)
+ 		fatal("dcommontype %d", ot);
+ 
+-	sizeofAlg = 4*widthptr;
++	sizeofAlg = 2*widthptr;
+ 	if(algarray == nil)
+ 		algarray = pkglookup("algarray", runtimepkg);
+ 	alg = algtype(t);
+@@ -1242,7 +1242,6 @@ dalgsym(Type *t)
+ {
+ 	int ot;
+ 	Sym *s, *hash, *hashfunc, *eq, *eqfunc;
+-	char buf[100];
+ 
+ 	// dalgsym is only called for a type that needs an algorithm table,
+ 	// which implies that the type is comparable (or else it would use ANOEQ).
+@@ -1261,24 +1260,10 @@ dalgsym(Type *t)
+ 	dsymptr(eqfunc, 0, eq, 0);
+ 	ggloblsym(eqfunc, widthptr, DUPOK|RODATA);
+ 
+-	// ../../pkg/runtime/runtime.h:/Alg
++	// ../../pkg/runtime/alg.go:/typeAlg
+ 	ot = 0;
+ 	ot = dsymptr(s, ot, hashfunc, 0);
+ 	ot = dsymptr(s, ot, eqfunc, 0);
+-	ot = dsymptr(s, ot, pkglookup("memprint", runtimepkg), 0);
+-	switch(t->width) {
+-	default:
+-		ot = dsymptr(s, ot, pkglookup("memcopy", runtimepkg), 0);
+-		break;
+-	case 1:
+-	case 2:
+-	case 4:
+-	case 8:
+-	case 16:
+-		snprint(buf, sizeof buf, "memcopy%d", (int)t->width*8);
+-		ot = dsymptr(s, ot, pkglookup(buf, runtimepkg), 0);
+-		break;
+-	}
+ 
+ 	ggloblsym(s, ot, DUPOK|RODATA);
+ 	return s;
+diff --git a/src/pkg/runtime/alg.go b/src/pkg/runtime/alg.go
+index 909612454d..01fbc931e5 100644
+--- a/src/pkg/runtime/alg.go
++++ b/src/pkg/runtime/alg.go
+@@ -11,6 +11,7 @@ const (
+ 	c1 = uintptr((8-ptrSize)/4*3267000013 + (ptrSize-4)/4*23344194077549503)
+ )
+ 
++// type algorithms - known to compiler
+ const (
+ 	alg_MEM = iota
+ 	alg_MEM0
+@@ -37,9 +38,43 @@ const (
+ 	alg_max
+ )
+ 
++type typeAlg struct {
++	// function for hashing objects of this type
++	// (ptr to object, size, seed) -> hash
++	hash func(unsafe.Pointer, uintptr, uintptr) uintptr
++	// function for comparing objects of this type
++	// (ptr to object A, ptr to object B, size) -> ==?
++	equal func(unsafe.Pointer, unsafe.Pointer, uintptr) bool
++}
++
++var algarray = [alg_max]typeAlg{
++	alg_MEM:      {memhash, memequal},
++	alg_MEM0:     {memhash, memequal0},
++	alg_MEM8:     {memhash, memequal8},
++	alg_MEM16:    {memhash, memequal16},
++	alg_MEM32:    {memhash, memequal32},
++	alg_MEM64:    {memhash, memequal64},
++	alg_MEM128:   {memhash, memequal128},
++	alg_NOEQ:     {nil, nil},
++	alg_NOEQ0:    {nil, nil},
++	alg_NOEQ8:    {nil, nil},
++	alg_NOEQ16:   {nil, nil},
++	alg_NOEQ32:   {nil, nil},
++	alg_NOEQ64:   {nil, nil},
++	alg_NOEQ128:  {nil, nil},
++	alg_STRING:   {strhash, strequal},
++	alg_INTER:    {interhash, interequal},
++	alg_NILINTER: {nilinterhash, nilinterequal},
++	alg_SLICE:    {nil, nil},
++	alg_FLOAT32:  {f32hash, f32equal},
++	alg_FLOAT64:  {f64hash, f64equal},
++	alg_CPLX64:   {c64hash, c64equal},
++	alg_CPLX128:  {c128hash, c128equal},
++}
++
+ const nacl = GOOS == "nacl"
+ 
+-var use_aeshash bool
++var useAeshash bool
+ 
+ // in asm_*.s
+ func aeshash(p unsafe.Pointer, s, h uintptr) uintptr
+@@ -48,7 +83,7 @@ func aeshash64(p unsafe.Pointer, s, h uintptr) uintptr
+ func aeshashstr(p unsafe.Pointer, s, h uintptr) uintptr
+ 
+ func memhash(p unsafe.Pointer, s, h uintptr) uintptr {
+-	if !nacl && use_aeshash {
++	if !nacl && useAeshash {
+ 		return aeshash(p, s, h)
+ 	}
+ 
+@@ -61,8 +96,8 @@ func memhash(p unsafe.Pointer, s, h uintptr) uintptr {
+ 	return h
+ }
+ 
+-func strhash(a *string, s, h uintptr) uintptr {
+-	return memhash((*stringStruct)(unsafe.Pointer(a)).str, uintptr(len(*a)), h)
++func strhash(a unsafe.Pointer, s, h uintptr) uintptr {
++	return memhash((*stringStruct)(a).str, uintptr(len(*(*string)(a))), h)
+ }
+ 
+ // NOTE: Because NaN != NaN, a map can contain any
+@@ -70,54 +105,49 @@ func strhash(a *string, s, h uintptr) uintptr {
+ // To avoid long hash chains, we assign a random number
+ // as the hash value for a NaN.
+ 
+-func f32hash(a *float32, s, h uintptr) uintptr {
+-	f := *a
++func f32hash(p unsafe.Pointer, s, h uintptr) uintptr {
++	f := *(*float32)(p)
+ 	switch {
+ 	case f == 0:
+ 		return c1 * (c0 ^ h) // +0, -0
+ 	case f != f:
+ 		return c1 * (c0 ^ h ^ uintptr(fastrand2())) // any kind of NaN
+ 	default:
+-		return memhash(unsafe.Pointer(a), 4, h)
++		return memhash(p, 4, h)
+ 	}
+ }
+ 
+-func f64hash(a *float64, s, h uintptr) uintptr {
+-	f := *a
++func f64hash(p unsafe.Pointer, s, h uintptr) uintptr {
++	f := *(*float64)(p)
+ 	switch {
+ 	case f == 0:
+ 		return c1 * (c0 ^ h) // +0, -0
+ 	case f != f:
+ 		return c1 * (c0 ^ h ^ uintptr(fastrand2())) // any kind of NaN
+ 	default:
+-		return memhash(unsafe.Pointer(a), 8, h)
++		return memhash(p, 8, h)
+ 	}
+ }
+ 
+-func c64hash(a *complex64, s, h uintptr) uintptr {
+-	x := (*[2]float32)(unsafe.Pointer(a))
+-	return f32hash(&x[1], 4, f32hash(&x[0], 4, h))
+-}
+-
+-func c128hash(a *complex128, s, h uintptr) uintptr {
+-	x := (*[2]float64)(unsafe.Pointer(a))
+-	return f64hash(&x[1], 4, f64hash(&x[0], 4, h))
++func c64hash(p unsafe.Pointer, s, h uintptr) uintptr {
++	x := (*[2]float32)(p)
++	return f32hash(unsafe.Pointer(&x[1]), 4, f32hash(unsafe.Pointer(&x[0]), 4, h))
+ }
+ 
+-func nohash(a unsafe.Pointer, s, h uintptr) uintptr {
+-	panic(errorString("hash of unhashable type"))
++func c128hash(p unsafe.Pointer, s, h uintptr) uintptr {
++	x := (*[2]float64)(p)
++	return f64hash(unsafe.Pointer(&x[1]), 8, f64hash(unsafe.Pointer(&x[0]), 8, h))
+ }
+ 
+-func interhash(a *iface, s, h uintptr) uintptr {
++func interhash(p unsafe.Pointer, s, h uintptr) uintptr {
++	a := (*iface)(p)
+ 	tab := a.tab
+ 	if tab == nil {
+ 		return h
+ 	}
+ 	t := tab._type
+ 	fn := goalg(t.alg).hash
+-	if **(**uintptr)(unsafe.Pointer(&fn)) == nohashcode {
+-		// calling nohash will panic too,
+-		// but we can print a better error.
++	if fn == nil {
+ 		panic(errorString("hash of unhashable type " + *t._string))
+ 	}
+ 	if isDirectIface(t) {
+@@ -127,15 +157,14 @@ func interhash(a *iface, s, h uintptr) uintptr {
+ 	}
+ }
+ 
+-func nilinterhash(a *eface, s, h uintptr) uintptr {
++func nilinterhash(p unsafe.Pointer, s, h uintptr) uintptr {
++	a := (*eface)(p)
+ 	t := a._type
+ 	if t == nil {
+ 		return h
+ 	}
+ 	fn := goalg(t.alg).hash
+-	if **(**uintptr)(unsafe.Pointer(&fn)) == nohashcode {
+-		// calling nohash will panic too,
+-		// but we can print a better error.
++	if fn == nil {
+ 		panic(errorString("hash of unhashable type " + *t._string))
+ 	}
+ 	if isDirectIface(t) {
+@@ -206,9 +235,7 @@ func efaceeq(p, q interface{}) bool {
+ 		return true
+ 	}
+ 	eq := goalg(t.alg).equal
+-	if **(**uintptr)(unsafe.Pointer(&eq)) == noequalcode {
+-		// calling noequal will panic too,
+-		// but we can print a better error.
++	if eq == nil {
+ 		panic(errorString("comparing uncomparable type " + *t._string))
+ 	}
+ 	if isDirectIface(t) {
+@@ -230,9 +257,7 @@ func ifaceeq(p, q interface {
+ 	}
+ 	t := xtab._type
+ 	eq := goalg(t.alg).equal
+-	if **(**uintptr)(unsafe.Pointer(&eq)) == noequalcode {
+-		// calling noequal will panic too,
+-		// but we can print a better error.
++	if eq == nil {
+ 		panic(errorString("comparing uncomparable type " + *t._string))
+ 	}
+ 	if isDirectIface(t) {
+@@ -241,40 +266,36 @@ func ifaceeq(p, q interface {
+ 	return eq(x.data, y.data, uintptr(t.size))
+ }
+ 
+-func noequal(p, q unsafe.Pointer, size uintptr) bool {
+-	panic(errorString("comparing uncomparable types"))
+-}
+-
+ // Testing adapters for hash quality tests (see hash_test.go)
+ func haveGoodHash() bool {
+-	return use_aeshash
++	return useAeshash
+ }
+ 
+ func stringHash(s string, seed uintptr) uintptr {
+-	return goalg(&algarray[alg_STRING]).hash(noescape(unsafe.Pointer(&s)), unsafe.Sizeof(s), seed)
++	return algarray[alg_STRING].hash(noescape(unsafe.Pointer(&s)), unsafe.Sizeof(s), seed)
+ }
+ 
+ func bytesHash(b []byte, seed uintptr) uintptr {
+-	// TODO: use sliceStruct
+-	return goalg(&algarray[alg_MEM]).hash(*(*unsafe.Pointer)(unsafe.Pointer(&b)), uintptr(len(b)), seed)
++	s := (*sliceStruct)(unsafe.Pointer(&b))
++	return algarray[alg_MEM].hash(s.array, uintptr(s.len), seed)
+ }
+ 
+ func int32Hash(i uint32, seed uintptr) uintptr {
+-	return goalg(&algarray[alg_MEM32]).hash(noescape(unsafe.Pointer(&i)), 4, seed)
++	return algarray[alg_MEM32].hash(noescape(unsafe.Pointer(&i)), 4, seed)
+ }
+ 
+ func int64Hash(i uint64, seed uintptr) uintptr {
+-	return goalg(&algarray[alg_MEM64]).hash(noescape(unsafe.Pointer(&i)), 8, seed)
++	return algarray[alg_MEM64].hash(noescape(unsafe.Pointer(&i)), 8, seed)
+ }
+ 
+ func efaceHash(i interface{}, seed uintptr) uintptr {
+-	return goalg(&algarray[alg_NILINTER]).hash(noescape(unsafe.Pointer(&i)), unsafe.Sizeof(i), seed)
++	return algarray[alg_NILINTER].hash(noescape(unsafe.Pointer(&i)), unsafe.Sizeof(i), seed)
+ }
+ 
+ func ifaceHash(i interface {
+ 	F()
+ }, seed uintptr) uintptr {
+-	return goalg(&algarray[alg_INTER]).hash(noescape(unsafe.Pointer(&i)), unsafe.Sizeof(i), seed)
++	return algarray[alg_INTER].hash(noescape(unsafe.Pointer(&i)), unsafe.Sizeof(i), seed)
+ }
+ 
+ // Testing adapter for memclr
+@@ -282,3 +303,50 @@ func memclrBytes(b []byte) {
+ 	s := (*sliceStruct)(unsafe.Pointer(&b))
+ 	memclr(s.array, uintptr(s.len))
+ }
++
++// TODO(dvyukov): remove when Type is converted to Go and contains *typeAlg.
++func goalg(a unsafe.Pointer) *typeAlg {
++	return (*typeAlg)(a)
++}
++
++// used in asm_{386,amd64}.s
++const hashRandomBytes = 32
++
++var aeskeysched [hashRandomBytes]byte
++
++//go:noescape
++func get_random_data(rnd *unsafe.Pointer, n *int32)
++
++func init() {
++	if theGoos == "nacl" {
++		return
++	}
++
++	// Install aes hash algorithm if we have the instructions we need
++	if (cpuid_ecx&(1<<25)) != 0 && // aes (aesenc)
++		(cpuid_ecx&(1<<9)) != 0 && // sse3 (pshufb)
++		(cpuid_ecx&(1<<19)) != 0 { // sse4.1 (pinsr{d,q})
++		useAeshash = true
++		algarray[alg_MEM].hash = aeshash
++		algarray[alg_MEM8].hash = aeshash
++		algarray[alg_MEM16].hash = aeshash
++		algarray[alg_MEM32].hash = aeshash32
++		algarray[alg_MEM64].hash = aeshash64
++		algarray[alg_MEM128].hash = aeshash
++		algarray[alg_STRING].hash = aeshashstr
++		// Initialize with random data so hash collisions will be hard to engineer.
++		var rnd unsafe.Pointer
++		var n int32
++		get_random_data(&rnd, &n)
++		if n > hashRandomBytes {
++			n = hashRandomBytes
++		}
++		memmove(unsafe.Pointer(&aeskeysched[0]), rnd, uintptr(n))
++		if n < hashRandomBytes {
++			// Not very random, but better than nothing.
++			for t := nanotime(); n < hashRandomBytes; n++ {
++				aeskeysched[n] = byte(t >> uint(8*(n%8)))
++			}
++		}
++	}
++}
+diff --git a/src/pkg/runtime/alg.goc b/src/pkg/runtime/alg.goc
+deleted file mode 100644
+index 0c3b3cd4ff..0000000000
+--- a/src/pkg/runtime/alg.goc
++++ /dev/null
+@@ -1,289 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-#include "runtime.h"
+-#include "type.h"
+-#include "../../cmd/ld/textflag.h"
+-
+-bool runtime·use_aeshash;
+-
+-void
+-runtime·memprint(uintptr s, void *a)
+-{
+-	uint64 v;
+-
+-	v = 0xbadb00b;
+-	switch(s) {
+-	case 1:
+-		v = *(uint8*)a;
+-		break;
+-	case 2:
+-		v = *(uint16*)a;
+-		break;
+-	case 4:
+-		v = *(uint32*)a;
+-		break;
+-	case 8:
+-		v = *(uint64*)a;
+-		break;
+-	}
+-	runtime·printint(v);
+-}
+-
+-void
+-runtime·memcopy(uintptr s, void *a, void *b)
+-{
+-	if(b == nil) {
+-		runtime·memclr(a, s);
+-		return;
+-	}
+-	runtime·memmove(a, b, s);
+-}
+-
+-void
+-runtime·memcopy0(uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	USED(a);
+-	USED(b);
+-}
+-
+-void
+-runtime·memcopy8(uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	if(b == nil) {
+-		*(uint8*)a = 0;
+-		return;
+-	}
+-	*(uint8*)a = *(uint8*)b;
+-}
+-
+-void
+-runtime·memcopy16(uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	if(b == nil) {
+-		*(uint16*)a = 0;
+-		return;
+-	}
+-	*(uint16*)a = *(uint16*)b;
+-}
+-
+-void
+-runtime·memcopy32(uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	if(b == nil) {
+-		*(uint32*)a = 0;
+-		return;
+-	}
+-	*(uint32*)a = *(uint32*)b;
+-}
+-
+-void
+-runtime·memcopy64(uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	if(b == nil) {
+-		*(uint64*)a = 0;
+-		return;
+-	}
+-	*(uint64*)a = *(uint64*)b;
+-}
+-
+-void
+-runtime·memcopy128(uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	if(b == nil) {
+-		((uint64*)a)[0] = 0;
+-		((uint64*)a)[1] = 0;
+-		return;
+-	}
+-	((uint64*)a)[0] = ((uint64*)b)[0];
+-	((uint64*)a)[1] = ((uint64*)b)[1];
+-}
+-
+-void
+-runtime·algslicecopy(uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	if(b == nil) {
+-		((Slice*)a)->array = 0;
+-		((Slice*)a)->len = 0;
+-		((Slice*)a)->cap = 0;
+-		return;
+-	}
+-	((Slice*)a)->array = ((Slice*)b)->array;
+-	((Slice*)a)->len = ((Slice*)b)->len;
+-	((Slice*)a)->cap = ((Slice*)b)->cap;
+-}
+-
+-void
+-runtime·strprint(uintptr s, void *a)
+-{
+-	USED(s);
+-	runtime·printstring(*(String*)a);
+-}
+-
+-void
+-runtime·strcopy(uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	if(b == nil) {
+-		((String*)a)->str = 0;
+-		((String*)a)->len = 0;
+-		return;
+-	}
+-	((String*)a)->str = ((String*)b)->str;
+-	((String*)a)->len = ((String*)b)->len;
+-}
+-
+-void
+-runtime·interprint(uintptr s, void *a)
+-{
+-	USED(s);
+-	runtime·printiface(*(Iface*)a);
+-}
+-
+-void
+-runtime·intercopy(uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	if(b == nil) {
+-		((Iface*)a)->tab = 0;
+-		((Iface*)a)->data = 0;
+-		return;
+-	}
+-	((Iface*)a)->tab = ((Iface*)b)->tab;
+-	((Iface*)a)->data = ((Iface*)b)->data;
+-}
+-
+-void
+-runtime·nilinterprint(uintptr s, void *a)
+-{
+-	USED(s);
+-	runtime·printeface(*(Eface*)a);
+-}
+-
+-void
+-runtime·nilintercopy(uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	if(b == nil) {
+-		((Eface*)a)->type = 0;
+-		((Eface*)a)->data = 0;
+-		return;
+-	}
+-	((Eface*)a)->type = ((Eface*)b)->type;
+-	((Eface*)a)->data = ((Eface*)b)->data;
+-}
+-
+-extern uintptr runtime·nohashcode;
+-extern uintptr runtime·noequalcode;
+-
+-static FuncVal memhashfunc = {(void*)runtime·memhash};
+-static FuncVal nohashfunc = {(void*)runtime·nohash};
+-static FuncVal strhashfunc = {(void*)runtime·strhash};
+-static FuncVal interhashfunc = {(void*)runtime·interhash};
+-static FuncVal nilinterhashfunc = {(void*)runtime·nilinterhash};
+-static FuncVal f32hashfunc = {(void*)runtime·f32hash};
+-static FuncVal f64hashfunc = {(void*)runtime·f64hash};
+-static FuncVal c64hashfunc = {(void*)runtime·c64hash};
+-static FuncVal c128hashfunc = {(void*)runtime·c128hash};
+-
+-static FuncVal aeshashfunc = {(void*)runtime·aeshash};
+-static FuncVal aeshash32func = {(void*)runtime·aeshash32};
+-static FuncVal aeshash64func = {(void*)runtime·aeshash64};
+-static FuncVal aeshashstrfunc = {(void*)runtime·aeshashstr};
+-
+-static FuncVal memequalfunc = {(void*)runtime·memequal};
+-static FuncVal noequalfunc = {(void*)runtime·noequal};
+-static FuncVal strequalfunc = {(void*)runtime·strequal};
+-static FuncVal interequalfunc = {(void*)runtime·interequal};
+-static FuncVal nilinterequalfunc = {(void*)runtime·nilinterequal};
+-static FuncVal f32equalfunc = {(void*)runtime·f32equal};
+-static FuncVal f64equalfunc = {(void*)runtime·f64equal};
+-static FuncVal c64equalfunc = {(void*)runtime·c64equal};
+-static FuncVal c128equalfunc = {(void*)runtime·c128equal};
+-static FuncVal memequal0func = {(void*)runtime·memequal0};
+-static FuncVal memequal8func = {(void*)runtime·memequal8};
+-static FuncVal memequal16func = {(void*)runtime·memequal16};
+-static FuncVal memequal32func = {(void*)runtime·memequal32};
+-static FuncVal memequal64func = {(void*)runtime·memequal64};
+-static FuncVal memequal128func = {(void*)runtime·memequal128};
+-
+-
+-Alg
+-runtime·algarray[] =
+-{
+-[AMEM]		{ &memhashfunc, &memequalfunc, runtime·memprint, runtime·memcopy },
+-[ANOEQ]		{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy },
+-[ASTRING]	{ &strhashfunc, &strequalfunc, runtime·strprint, runtime·strcopy },
+-[AINTER]	{ &interhashfunc, &interequalfunc, runtime·interprint, runtime·intercopy },
+-[ANILINTER]	{ &nilinterhashfunc, &nilinterequalfunc, runtime·nilinterprint, runtime·nilintercopy },
+-[ASLICE]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·algslicecopy },
+-[AFLOAT32]	{ &f32hashfunc, &f32equalfunc, runtime·memprint, runtime·memcopy },
+-[AFLOAT64]	{ &f64hashfunc, &f64equalfunc, runtime·memprint, runtime·memcopy },
+-[ACPLX64]	{ &c64hashfunc, &c64equalfunc, runtime·memprint, runtime·memcopy },
+-[ACPLX128]	{ &c128hashfunc, &c128equalfunc, runtime·memprint, runtime·memcopy },
+-[AMEM0]		{ &memhashfunc, &memequal0func, runtime·memprint, runtime·memcopy0 },
+-[AMEM8]		{ &memhashfunc, &memequal8func, runtime·memprint, runtime·memcopy8 },
+-[AMEM16]	{ &memhashfunc, &memequal16func, runtime·memprint, runtime·memcopy16 },
+-[AMEM32]	{ &memhashfunc, &memequal32func, runtime·memprint, runtime·memcopy32 },
+-[AMEM64]	{ &memhashfunc, &memequal64func, runtime·memprint, runtime·memcopy64 },
+-[AMEM128]	{ &memhashfunc, &memequal128func, runtime·memprint, runtime·memcopy128 },
+-[ANOEQ0]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy0 },
+-[ANOEQ8]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy8 },
+-[ANOEQ16]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy16 },
+-[ANOEQ32]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy32 },
+-[ANOEQ64]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy64 },
+-[ANOEQ128]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy128 },
+-};
+-
+-// Runtime helpers.
+-
+-// used in asm_{386,amd64}.s
+-#pragma dataflag NOPTR
+-byte runtime·aeskeysched[HashRandomBytes];
+-
+-void
+-runtime·hashinit(void)
+-{
+-	runtime·nohashcode = (uintptr)runtime·nohash;
+-	runtime·noequalcode = (uintptr)runtime·noequal;
+-
+-        if(NaCl)
+-                return;
+-
+-	// Install aes hash algorithm if we have the instructions we need
+-	if((runtime·cpuid_ecx & (1 << 25)) != 0 &&  // aes (aesenc)
+-	   (runtime·cpuid_ecx & (1 << 9)) != 0 &&   // sse3 (pshufb)
+-	   (runtime·cpuid_ecx & (1 << 19)) != 0) {  // sse4.1 (pinsr{d,q})
+-		byte *rnd;
+-		int32 n;
+-		runtime·use_aeshash = true;
+-		runtime·algarray[AMEM].hash = &aeshashfunc;
+-		runtime·algarray[AMEM8].hash = &aeshashfunc;
+-		runtime·algarray[AMEM16].hash = &aeshashfunc;
+-		runtime·algarray[AMEM32].hash = &aeshash32func;
+-		runtime·algarray[AMEM64].hash = &aeshash64func;
+-		runtime·algarray[AMEM128].hash = &aeshashfunc;
+-		runtime·algarray[ASTRING].hash = &aeshashstrfunc;
+-		// Initialize with random data so hash collisions will be hard to engineer.
+-		runtime·get_random_data(&rnd, &n);
+-		if(n > HashRandomBytes)
+-			n = HashRandomBytes;
+-		runtime·memmove(runtime·aeskeysched, rnd, n);
+-		if(n < HashRandomBytes) {
+-			// Not very random, but better than nothing.
+-			int64 t = runtime·nanotime();
+-			while (n < HashRandomBytes) {
+-				runtime·aeskeysched[n++] = (int8)(t >> (8 * (n % 8)));
+-			}
+-		}
+-	}
+-}
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index b40b75521a..d80020ccd6 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -92,7 +92,6 @@ ok:
+ 	MOVL	AX, 4(SP)
+ 	CALL	runtime·args(SB)
+ 	CALL	runtime·osinit(SB)
+-	CALL	runtime·hashinit(SB)
+ 	CALL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 01ec391153..bc17c68f3d 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -88,7 +88,6 @@ ok:
+ 	MOVQ	AX, 8(SP)
+ 	CALL	runtime·args(SB)
+ 	CALL	runtime·osinit(SB)
+-	CALL	runtime·hashinit(SB)
+ 	CALL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 9073144cff..82c0d77cdd 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -68,7 +68,6 @@ ok:
+ 	MOVL	AX, 4(SP)
+ 	CALL	runtime·args(SB)
+ 	CALL	runtime·osinit(SB)
+-	CALL	runtime·hashinit(SB)
+ 	CALL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 702eda61bd..f8447d7940 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -64,7 +64,6 @@ nocgo:
+ 	MOVW	R1, 8(R13)
+ 	BL	runtime·args(SB)
+ 	BL	runtime·osinit(SB)
+-	BL	runtime·hashinit(SB)
+ 	BL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+diff --git a/src/pkg/runtime/chan.goc b/src/pkg/runtime/chan.goc
+index a4a0d1d9ba..383351179d 100644
+--- a/src/pkg/runtime/chan.goc
++++ b/src/pkg/runtime/chan.goc
+@@ -51,12 +51,6 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
+ 		return false;  // not reached
+ 	}
+ 
+-	if(debug) {
+-		runtime·printf("chansend: chan=%p; elem=", c);
+-		c->elemtype->alg->print(c->elemsize, ep);
+-		runtime·prints("\n");
+-	}
+-
+ 	if(raceenabled)
+ 		runtime·racereadpc(c, pc, chansend);
+ 
+@@ -101,7 +95,7 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
+ 		gp = sg->g;
+ 		gp->param = sg;
+ 		if(sg->elem != nil)
+-			c->elemtype->alg->copy(c->elemsize, sg->elem, ep);
++			runtime·memmove(sg->elem, ep, c->elemsize);
+ 		if(sg->releasetime)
+ 			sg->releasetime = runtime·cputicks();
+ 		runtime·ready(gp);
+@@ -156,7 +150,7 @@ asynch:
+ 		runtime·racerelease(chanbuf(c, c->sendx));
+ 	}
+ 
+-	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->sendx), ep);
++	runtime·memmove(chanbuf(c, c->sendx), ep, c->elemsize);
+ 	if(++c->sendx == c->dataqsiz)
+ 		c->sendx = 0;
+ 	c->qcount++;
+@@ -240,7 +234,7 @@ chanrecv(ChanType *t, Hchan* c, byte *ep, bool block, bool *received)
+ 		runtime·unlock(&c->lock);
+ 
+ 		if(ep != nil)
+-			c->elemtype->alg->copy(c->elemsize, ep, sg->elem);
++			runtime·memmove(ep, sg->elem, c->elemsize);
+ 		gp = sg->g;
+ 		gp->param = sg;
+ 		if(sg->releasetime)
+@@ -304,8 +298,8 @@ asynch:
+ 	}
+ 
+ 	if(ep != nil)
+-		c->elemtype->alg->copy(c->elemsize, ep, chanbuf(c, c->recvx));
+-	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
++		runtime·memmove(ep, chanbuf(c, c->recvx), c->elemsize);
++	runtime·memclr(chanbuf(c, c->recvx), c->elemsize);
+ 	if(++c->recvx == c->dataqsiz)
+ 		c->recvx = 0;
+ 	c->qcount--;
+@@ -328,7 +322,7 @@ asynch:
+ 
+ closed:
+ 	if(ep != nil)
+-		c->elemtype->alg->copy(c->elemsize, ep, nil);
++		runtime·memclr(ep, c->elemsize);
+ 	if(received != nil)
+ 		*received = false;
+ 	if(raceenabled)
+@@ -842,8 +836,8 @@ asyncrecv:
+ 	if(cas->receivedp != nil)
+ 		*cas->receivedp = true;
+ 	if(cas->sg.elem != nil)
+-		c->elemtype->alg->copy(c->elemsize, cas->sg.elem, chanbuf(c, c->recvx));
+-	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
++		runtime·memmove(cas->sg.elem, chanbuf(c, c->recvx), c->elemsize);
++	runtime·memclr(chanbuf(c, c->recvx), c->elemsize);
+ 	if(++c->recvx == c->dataqsiz)
+ 		c->recvx = 0;
+ 	c->qcount--;
+@@ -866,7 +860,7 @@ asyncsend:
+ 		runtime·racerelease(chanbuf(c, c->sendx));
+ 		runtime·racereadobjectpc(cas->sg.elem, c->elemtype, cas->pc, chansend);
+ 	}
+-	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->sendx), cas->sg.elem);
++	runtime·memmove(chanbuf(c, c->sendx), cas->sg.elem, c->elemsize);
+ 	if(++c->sendx == c->dataqsiz)
+ 		c->sendx = 0;
+ 	c->qcount++;
+@@ -895,7 +889,7 @@ syncrecv:
+ 	if(cas->receivedp != nil)
+ 		*cas->receivedp = true;
+ 	if(cas->sg.elem != nil)
+-		c->elemtype->alg->copy(c->elemsize, cas->sg.elem, sg->elem);
++		runtime·memmove(cas->sg.elem, sg->elem, c->elemsize);
+ 	gp = sg->g;
+ 	gp->param = sg;
+ 	if(sg->releasetime)
+@@ -909,7 +903,7 @@ rclose:
+ 	if(cas->receivedp != nil)
+ 		*cas->receivedp = false;
+ 	if(cas->sg.elem != nil)
+-		c->elemtype->alg->copy(c->elemsize, cas->sg.elem, nil);
++		runtime·memclr(cas->sg.elem, c->elemsize);
+ 	if(raceenabled)
+ 		runtime·raceacquire(c);
+ 	goto retc;
+@@ -924,7 +918,7 @@ syncsend:
+ 	if(debug)
+ 		runtime·printf("syncsend: sel=%p c=%p o=%d\n", sel, c, o);
+ 	if(sg->elem != nil)
+-		c->elemtype->alg->copy(c->elemsize, sg->elem, cas->sg.elem);
++		runtime·memmove(sg->elem, cas->sg.elem, c->elemsize);
+ 	gp = sg->g;
+ 	gp->param = sg;
+ 	if(sg->releasetime)
+diff --git a/src/pkg/runtime/hashmap.go b/src/pkg/runtime/hashmap.go
+index 1d1e708487..309e26db96 100644
+--- a/src/pkg/runtime/hashmap.go
++++ b/src/pkg/runtime/hashmap.go
+@@ -896,7 +896,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ }
+ 
+ func ismapkey(t *_type) bool {
+-	return **(**uintptr)(unsafe.Pointer(&t.alg.hash)) != nohashcode
++	return goalg(t.alg).hash != nil
+ }
+ 
+ // Reflect stubs.  Called from ../reflect/asm_*.s
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 3f03a4da06..80366a549d 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -606,101 +606,13 @@ enum {
+ 	Structrnd = sizeof(uintreg),
+ };
+ 
+-/*
+- * type algorithms - known to compiler
+- */
+-enum
+-{
+-	AMEM,
+-	AMEM0,
+-	AMEM8,
+-	AMEM16,
+-	AMEM32,
+-	AMEM64,
+-	AMEM128,
+-	ANOEQ,
+-	ANOEQ0,
+-	ANOEQ8,
+-	ANOEQ16,
+-	ANOEQ32,
+-	ANOEQ64,
+-	ANOEQ128,
+-	ASTRING,
+-	AINTER,
+-	ANILINTER,
+-	ASLICE,
+-	AFLOAT32,
+-	AFLOAT64,
+-	ACPLX64,
+-	ACPLX128,
+-	Amax
+-};
+-typedef	struct	Alg		Alg;
+-struct	Alg
+-{
+-	FuncVal* hash;
+-	FuncVal* equal;
+-	void	(*print)(uintptr, void*);
+-	void	(*copy)(uintptr, void*, void*);
+-};
+-
+-extern	Alg	runtime·algarray[Amax];
+-
+ byte*	runtime·startup_random_data;
+ uint32	runtime·startup_random_data_len;
+-void	runtime·get_random_data(byte**, int32*);
+ 
+ enum {
+ 	// hashinit wants this many random bytes
+ 	HashRandomBytes = 32
+ };
+-void	runtime·hashinit(void);
+-
+-void	runtime·memhash(void*, uintptr, uintptr, uintptr);
+-void	runtime·nohash(void*, uintptr, uintptr, uintptr);
+-void	runtime·strhash(void*, uintptr, uintptr, uintptr);
+-void	runtime·interhash(void*, uintptr, uintptr, uintptr);
+-void	runtime·nilinterhash(void*, uintptr, uintptr, uintptr);
+-void	runtime·f32hash(void*, uintptr, uintptr, uintptr);
+-void	runtime·f64hash(void*, uintptr, uintptr, uintptr);
+-void	runtime·c64hash(void*, uintptr, uintptr, uintptr);
+-void	runtime·c128hash(void*, uintptr, uintptr, uintptr);
+-void	runtime·aeshash(void*, uintptr, uintptr, uintptr);
+-void	runtime·aeshash32(void*, uintptr, uintptr, uintptr);
+-void	runtime·aeshash64(void*, uintptr, uintptr, uintptr);
+-void	runtime·aeshashstr(void*, uintptr, uintptr, uintptr);
+-
+-void	runtime·memequal(void*, void*, uintptr, bool);
+-void	runtime·noequal(void*, void*, uintptr, bool);
+-void	runtime·strequal(void*, void*, uintptr, bool);
+-void	runtime·interequal(void*, void*, uintptr, bool);
+-void	runtime·nilinterequal(void*, void*, uintptr, bool);
+-void	runtime·f32equal(void*, void*, uintptr, bool);
+-void	runtime·f64equal(void*, void*, uintptr, bool);
+-void	runtime·c64equal(void*, void*, uintptr, bool);
+-void	runtime·c128equal(void*, void*, uintptr, bool);
+-void	runtime·memequal0(void*, void*, uintptr, bool);
+-void	runtime·memequal8(void*, void*, uintptr, bool);
+-void	runtime·memequal16(void*, void*, uintptr, bool);
+-void	runtime·memequal32(void*, void*, uintptr, bool);
+-void	runtime·memequal64(void*, void*, uintptr, bool);
+-void	runtime·memequal128(void*, void*, uintptr, bool);
+-
+-void	runtime·memprint(uintptr, void*);
+-void	runtime·strprint(uintptr, void*);
+-void	runtime·interprint(uintptr, void*);
+-void	runtime·nilinterprint(uintptr, void*);
+-
+-void	runtime·memcopy(uintptr, void*, void*);
+-void	runtime·memcopy8(uintptr, void*, void*);
+-void	runtime·memcopy16(uintptr, void*, void*);
+-void	runtime·memcopy32(uintptr, void*, void*);
+-void	runtime·memcopy64(uintptr, void*, void*);
+-void	runtime·memcopy128(uintptr, void*, void*);
+-void	runtime·strcopy(uintptr, void*, void*);
+-void	runtime·algslicecopy(uintptr, void*, void*);
+-void	runtime·intercopy(uintptr, void*, void*);
+-void	runtime·nilintercopy(uintptr, void*, void*);
+ 
+ uint32  runtime·readgstatus(G *gp);
+ void    runtime·casgstatus(G*, uint32, uint32);
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 90d43ea713..9ad400639d 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -131,23 +131,6 @@ var noequalcode uintptr
+ // in panic.c
+ func gothrow(s string)
+ 
+-// Return the Go equivalent of the C Alg structure.
+-// TODO: at some point Go will hold the truth for the layout
+-// of runtime structures and C will be derived from it (if
+-// needed at all).  At that point this function can go away.
+-type goalgtype struct {
+-	// function for hashing objects of this type
+-	// (ptr to object, size, seed) -> hash
+-	hash func(unsafe.Pointer, uintptr, uintptr) uintptr
+-	// function for comparing objects of this type
+-	// (ptr to object A, ptr to object B, size) -> ==?
+-	equal func(unsafe.Pointer, unsafe.Pointer, uintptr) bool
+-}
+-
+-func goalg(a *alg) *goalgtype {
+-	return (*goalgtype)(unsafe.Pointer(a))
+-}
+-
+ // noescape hides a pointer from escape analysis.  noescape is
+ // the identity function but escape analysis doesn't think the
+ // output depends on the input.  noescape is inlined and currently
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index 1da37323eb..de82e886f2 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -21,7 +21,7 @@ struct Type
+ 	uint8 align;
+ 	uint8 fieldAlign;
+ 	uint8 kind;
+-	Alg *alg;
++	void* alg;
+ 	// gc stores type info required for garbage collector.
+ 	// If (kind&KindGCProg)==0, then gc directly contains sparse GC bitmap
+ 	// (no indirection), 4 bits per word.

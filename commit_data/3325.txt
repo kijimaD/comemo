@@ -7,6 +7,20 @@ Date:   Fri Sep 18 21:17:16 2009 -0700
     R=kaib
     OCL=34823
     CL=34823
-
+---
  test/run | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/run b/test/run
+index f3bc85bc5c..56de68aa3a 100755
+--- a/test/run
++++ b/test/run
+@@ -44,7 +44,7 @@ do
+ 	do
+ 		export F=$(basename $i .go)
+ 		export D=$dir
+-		sed '/^\/\//!q; s|//||g; s|./\$A.out|$E &|' $i >$RUNFILE
++		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|' >$RUNFILE		
+ 		if ! sh $RUNFILE >$TMP1FILE 2>$TMP2FILE
+ 		then
+ 			echo

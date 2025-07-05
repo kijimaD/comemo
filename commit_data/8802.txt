@@ -9,8 +9,56 @@ Date:   Mon Jun 20 15:42:17 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4628045
-
+---
  src/pkg/os/exec_plan9.go | 5 ++++-
  src/pkg/os/exec_posix.go | 5 ++++-
  src/pkg/os/os_test.go    | 8 ++++++++
  3 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index 0598adc0fa..2590dd67de 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -123,6 +123,9 @@ func FindProcess(pid int) (p *Process, err Error) {
+ 	return newProcess(pid, 0), nil
+ }
+ 
+-func (w Waitmsg) String() string {
++func (w *Waitmsg) String() string {
++	if w == nil {
++		return "<nil>"
++	}
+ 	return "exit status: " + w.Msg
+ }
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index 734bf887b3..7dfcdd4861 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -128,7 +128,10 @@ func itod(i int) string {
+ 	return string(b[bp:])
+ }
+ 
+-func (w Waitmsg) String() string {
++func (w *Waitmsg) String() string {
++	if w == nil {
++		return "<nil>"
++	}
+ 	// TODO(austin) Use signal names when possible?
+ 	res := ""
+ 	switch {
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index e442e7c28a..c22b536d55 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -1042,3 +1042,11 @@ func TestStatDirWithTrailingSlash(t *testing.T) {
+ 		t.Fatal("stat failed:", err)
+ 	}
+ }
++
++func TestNilWaitmsgString(t *testing.T) {
++	var w *Waitmsg
++	s := w.String()
++	if s != "<nil>" {
++		t.Errorf("(*Waitmsg)(nil).String() = %q, want %q", s, "<nil>")
++	}
++}

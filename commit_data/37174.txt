@@ -23,7 +23,55 @@ Date:   Fri Jul 6 09:50:05 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/crash_test.go     | 15 +++++++++------
  src/runtime/signal_windows.go |  4 +++-
  2 files changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 9f11aea4e9..b266d7b77e 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -640,18 +640,21 @@ func TestTimePprof(t *testing.T) {
+ 
+ // Test that runtime.abort does so.
+ func TestAbort(t *testing.T) {
+-	output := runTestProg(t, "testprog", "Abort")
++	// Pass GOTRACEBACK to ensure we get runtime frames.
++	output := runTestProg(t, "testprog", "Abort", "GOTRACEBACK=system")
+ 	if want := "runtime.abort"; !strings.Contains(output, want) {
+ 		t.Errorf("output does not contain %q:\n%s", want, output)
+ 	}
+ 	if strings.Contains(output, "BAD") {
+ 		t.Errorf("output contains BAD:\n%s", output)
+ 	}
+-	// Check that it's a signal-style traceback.
+-	if runtime.GOOS != "windows" {
+-		if want := "PC="; !strings.Contains(output, want) {
+-			t.Errorf("output does not contain %q:\n%s", want, output)
+-		}
++	// Check that it's a breakpoint traceback.
++	want := "SIGTRAP"
++	if runtime.GOOS == "windows" {
++		want = "Exception 0x80000003"
++	}
++	if !strings.Contains(output, want) {
++		t.Errorf("output does not contain %q:\n%s", want, output)
+ 	}
+ }
+ 
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 500b02880d..fe5ff87cd6 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -46,7 +46,9 @@ func isgoexception(info *exceptionrecord, r *context) bool {
+ 		return false
+ 	}
+ 
+-	if isAbortPC(r.ip()) {
++	// In the case of an abort, the exception IP is one byte after
++	// the INT3 (this differs from UNIX OSes).
++	if isAbortPC(r.ip() - 1) {
+ 		// Never turn abort into a panic.
+ 		return false
+ 	}

@@ -14,8 +14,157 @@ Date:   Wed Dec 5 17:27:24 2018 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/build/deps_test.go                 |  2 +-
  src/go/internal/gccgoimporter/ar.go       | 27 ++++++++++++++++++++++++--
  src/go/internal/gccgoimporter/importer.go | 32 ++++++++++++++++++++++---------
  3 files changed, 49 insertions(+), 12 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index dd38cc0a6a..3a70991639 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -230,7 +230,7 @@ var pkgDeps = map[string][]string{
+ 	"go/constant":               {"L4", "go/token", "math/big"},
+ 	"go/importer":               {"L4", "go/build", "go/internal/gccgoimporter", "go/internal/gcimporter", "go/internal/srcimporter", "go/token", "go/types"},
+ 	"go/internal/gcimporter":    {"L4", "OS", "go/build", "go/constant", "go/token", "go/types", "text/scanner"},
+-	"go/internal/gccgoimporter": {"L4", "OS", "debug/elf", "go/constant", "go/token", "go/types", "text/scanner"},
++	"go/internal/gccgoimporter": {"L4", "OS", "debug/elf", "go/constant", "go/token", "go/types", "internal/xcoff", "text/scanner"},
+ 	"go/internal/srcimporter":   {"L4", "OS", "fmt", "go/ast", "go/build", "go/parser", "go/token", "go/types", "path/filepath"},
+ 	"go/types":                  {"L4", "GOPARSER", "container/heap", "go/constant"},
+ 
+diff --git a/src/go/internal/gccgoimporter/ar.go b/src/go/internal/gccgoimporter/ar.go
+index ebd08b8f35..443aa26a0c 100644
+--- a/src/go/internal/gccgoimporter/ar.go
++++ b/src/go/internal/gccgoimporter/ar.go
+@@ -9,6 +9,7 @@ import (
+ 	"debug/elf"
+ 	"errors"
+ 	"fmt"
++	"internal/xcoff"
+ 	"io"
+ 	"strconv"
+ 	"strings"
+@@ -65,13 +66,13 @@ func arExportData(archive io.ReadSeeker) (io.ReadSeeker, error) {
+ 	case armagt:
+ 		return nil, errors.New("unsupported thin archive")
+ 	case armagb:
+-		return nil, errors.New("unsupported AIX big archive")
++		return aixBigArExportData(archive)
+ 	default:
+ 		return nil, fmt.Errorf("unrecognized archive file format %q", buf[:])
+ 	}
+ }
+ 
+-// standardArExportData returns export data form a standard archive.
++// standardArExportData returns export data from a standard archive.
+ func standardArExportData(archive io.ReadSeeker) (io.ReadSeeker, error) {
+ 	off := int64(len(armag))
+ 	for {
+@@ -126,6 +127,28 @@ func elfFromAr(member *io.SectionReader) (io.ReadSeeker, error) {
+ 	return sec.Open(), nil
+ }
+ 
++// aixBigArExportData returns export data from an AIX big archive.
++func aixBigArExportData(archive io.ReadSeeker) (io.ReadSeeker, error) {
++	archiveAt := readerAtFromSeeker(archive)
++	arch, err := xcoff.NewArchive(archiveAt)
++	if err != nil {
++		return nil, err
++	}
++
++	for _, mem := range arch.Members {
++		f, err := arch.GetFile(mem.Name)
++		if err != nil {
++			return nil, err
++		}
++		sdat := f.CSect(".go_export")
++		if sdat != nil {
++			return bytes.NewReader(sdat), nil
++		}
++	}
++
++	return nil, fmt.Errorf(".go_export not found in this archive")
++}
++
+ // readerAtFromSeeker turns an io.ReadSeeker into an io.ReaderAt.
+ // This is only safe because there won't be any concurrent seeks
+ // while this code is executing.
+diff --git a/src/go/internal/gccgoimporter/importer.go b/src/go/internal/gccgoimporter/importer.go
+index ea111136cd..6856611026 100644
+--- a/src/go/internal/gccgoimporter/importer.go
++++ b/src/go/internal/gccgoimporter/importer.go
+@@ -6,9 +6,11 @@
+ package gccgoimporter // import "go/internal/gccgoimporter"
+ 
+ import (
++	"bytes"
+ 	"debug/elf"
+ 	"fmt"
+ 	"go/types"
++	"internal/xcoff"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+@@ -65,6 +67,7 @@ const (
+ 	gccgov3Magic    = "v3;\n"
+ 	goimporterMagic = "\n$$ "
+ 	archiveMagic    = "!<ar"
++	aixbigafMagic   = "<big"
+ )
+ 
+ // Opens the export data file at the given path. If this is an ELF file,
+@@ -89,33 +92,44 @@ func openExportFile(fpath string) (reader io.ReadSeeker, closer io.Closer, err e
+ 		return
+ 	}
+ 
+-	var elfreader io.ReaderAt
++	var objreader io.ReaderAt
+ 	switch string(magic[:]) {
+ 	case gccgov1Magic, gccgov2Magic, gccgov3Magic, goimporterMagic:
+ 		// Raw export data.
+ 		reader = f
+ 		return
+ 
+-	case archiveMagic:
++	case archiveMagic, aixbigafMagic:
+ 		reader, err = arExportData(f)
+ 		return
+ 
+ 	default:
+-		elfreader = f
++		objreader = f
+ 	}
+ 
+-	ef, err := elf.NewFile(elfreader)
+-	if err != nil {
++	ef, err := elf.NewFile(objreader)
++	if err == nil {
++		sec := ef.Section(".go_export")
++		if sec == nil {
++			err = fmt.Errorf("%s: .go_export section not found", fpath)
++			return
++		}
++		reader = sec.Open()
+ 		return
+ 	}
+ 
+-	sec := ef.Section(".go_export")
+-	if sec == nil {
+-		err = fmt.Errorf("%s: .go_export section not found", fpath)
++	xf, err := xcoff.NewFile(objreader)
++	if err == nil {
++		sdat := xf.CSect(".go_export")
++		if sdat == nil {
++			err = fmt.Errorf("%s: .go_export section not found", fpath)
++			return
++		}
++		reader = bytes.NewReader(sdat)
+ 		return
+ 	}
+ 
+-	reader = sec.Open()
++	err = fmt.Errorf("%s: unrecognized file format", fpath)
+ 	return
+ }
+ 

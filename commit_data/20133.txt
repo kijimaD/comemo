@@ -9,6 +9,30 @@ Date:   Tue Aug 19 11:49:36 2014 +0400
     R=rsc, r, iant, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/128230045
-
+---
  src/cmd/gc/bv.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/bv.c b/src/cmd/gc/bv.c
+index 0e8f8d4739..cfd1cd2811 100644
+--- a/src/cmd/gc/bv.c
++++ b/src/cmd/gc/bv.c
+@@ -108,6 +108,9 @@ bvnext(Bvec *bv, int32 i)
+ {
+ 	uint32 w;
+ 
++	if(i >= bv->n)
++		return -1;
++
+ 	// Jump i ahead to next word with bits.
+ 	if((bv->b[i>>WORDSHIFT]>>(i&WORDMASK)) == 0) {
+ 		i &= ~WORDMASK;
+@@ -117,7 +120,7 @@ bvnext(Bvec *bv, int32 i)
+ 	}
+ 	if(i >= bv->n)
+ 		return -1;
+-	
++
+ 	// Find 1 bit.
+ 	w = bv->b[i>>WORDSHIFT]>>(i&WORDMASK);
+ 	while((w&1) == 0) {

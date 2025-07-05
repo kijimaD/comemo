@@ -7,7 +7,41 @@ Date:   Mon Jun 20 07:41:18 2011 -0700
     R=golang-dev, bradfitz
     CC=brad fitzpatrick <bradfitz, golang-dev
     https://golang.org/cl/4634063
-
+---
  src/pkg/mime/grammar.go   | 4 ++--
  src/pkg/mime/mediatype.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/mime/grammar.go b/src/pkg/mime/grammar.go
+index e60cbb8df7..6e319ff8be 100644
+--- a/src/pkg/mime/grammar.go
++++ b/src/pkg/mime/grammar.go
+@@ -9,13 +9,13 @@ import (
+ )
+ 
+ // isTSpecial returns true if rune is in 'tspecials' as defined by RFC
+-// 1531 and RFC 2045.
++// 1521 and RFC 2045.
+ func isTSpecial(rune int) bool {
+ 	return strings.IndexRune(`()<>@,;:\"/[]?=`, rune) != -1
+ }
+ 
+ // IsTokenChar returns true if rune is in 'token' as defined by RFC
+-// 1531 and RFC 2045.
++// 1521 and RFC 2045.
+ func IsTokenChar(rune int) bool {
+ 	// token := 1*<any (US-ASCII) CHAR except SPACE, CTLs,
+ 	//             or tspecials>
+diff --git a/src/pkg/mime/mediatype.go b/src/pkg/mime/mediatype.go
+index f28ff3e968..a270cb9370 100644
+--- a/src/pkg/mime/mediatype.go
++++ b/src/pkg/mime/mediatype.go
+@@ -31,7 +31,7 @@ func validMediaTypeOrDisposition(s string) bool {
+ }
+ 
+ // ParseMediaType parses a media type value and any optional
+-// parameters, per RFC 1531.  Media types are the values in
++// parameters, per RFC 1521.  Media types are the values in
+ // Content-Type and Content-Disposition headers (RFC 2183).  On
+ // success, ParseMediaType returns the media type converted to
+ // lowercase and trimmed of white space and a non-nil params.  On

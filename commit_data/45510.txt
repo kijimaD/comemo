@@ -17,9 +17,70 @@ Date:   Thu Oct 22 16:30:26 2020 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.16.html                  | 10 ++++++++++
  src/cmd/go/alldocs.go            |  2 +-
  src/cmd/go/internal/list/list.go |  2 +-
  src/cmd/go/internal/load/pkg.go  |  2 +-
  4 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 9e7ae1da27..ba2f80f95e 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -131,6 +131,16 @@ Do not send CLs removing the interior tags from such phrases.
+   being built.
+ </p>
+ 
++<h4 id="list-buildid">The <code>list</code> command</h4>
++
++<p><!-- golang.org/cl/263542 -->
++  When the <code>-export</code> flag is specified, the <code>BuildID</code>
++  field is now set to the build ID of the compiled package. This is equivalent
++  to running <code>go</code> <code>tool</code> <code>buildid</code> on
++  <code>go</code> <code>list</code> <code>-exported</code> <code>-f</code> <code>{{.Export}</code>,
++  but without the extra step.
++</p>
++
+ <h3 id="cgo">Cgo</h3>
+ 
+ <p> <!-- CL 252378 -->
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 0827f0c609..23d44ddc70 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -796,7 +796,7 @@
+ //         BinaryOnly    bool     // binary-only package (no longer supported)
+ //         ForTest       string   // package is only for use in named test
+ //         Export        string   // file containing export data (when using -export)
+-//         BuildID       string   // build ID of the export data (when using -export)
++//         BuildID       string   // build ID of the compiled package (when using -export)
+ //         Module        *Module  // info about package's containing module, if any (can be nil)
+ //         Match         []string // command-line patterns matching this package
+ //         DepOnly       bool     // package is only a dependency, not explicitly listed
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 1c77e4d478..89088f5def 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -66,7 +66,7 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
+         BinaryOnly    bool     // binary-only package (no longer supported)
+         ForTest       string   // package is only for use in named test
+         Export        string   // file containing export data (when using -export)
+-        BuildID       string   // build ID of the export data (when using -export)
++        BuildID       string   // build ID of the compiled package (when using -export)
+         Module        *Module  // info about package's containing module, if any (can be nil)
+         Match         []string // command-line patterns matching this package
+         DepOnly       bool     // package is only a dependency, not explicitly listed
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 615b5ef769..4c541b9017 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -61,7 +61,7 @@ type PackagePublic struct {
+ 	ConflictDir   string                `json:",omitempty"` // Dir is hidden by this other directory
+ 	ForTest       string                `json:",omitempty"` // package is only for use in named test
+ 	Export        string                `json:",omitempty"` // file containing export data (set by go list -export)
+-	BuildID       string                `json:",omitempty"` // build ID of the export data (set by go list -export)
++	BuildID       string                `json:",omitempty"` // build ID of the compiled package (set by go list -export)
+ 	Module        *modinfo.ModulePublic `json:",omitempty"` // info about package's module, if any
+ 	Match         []string              `json:",omitempty"` // command-line patterns matching this package
+ 	Goroot        bool                  `json:",omitempty"` // is this package found in the Go root?

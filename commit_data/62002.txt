@@ -21,6 +21,20 @@ Date:   Wed Jan 8 11:19:05 2025 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go/testdata/script/env_gocacheprog.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/env_gocacheprog.txt b/src/cmd/go/testdata/script/env_gocacheprog.txt
+index f5f15ed078..1547bf058c 100644
+--- a/src/cmd/go/testdata/script/env_gocacheprog.txt
++++ b/src/cmd/go/testdata/script/env_gocacheprog.txt
+@@ -24,7 +24,7 @@ go env -changed
+ stdout 'GOCACHEPROG=''?'$GOCACHEPROG'''?'
+ 
+ go env -changed -json
+-stdout '"GOCACHEPROG": "'$GOCACHEPROG'"'
++stdout '"GOCACHEPROG": ".*cacheprog'$GOEXE'"'
+ 
+ -- cacheprog.go --
+ // This is a minimal GOCACHEPROG program that can't actually do anything but exit.

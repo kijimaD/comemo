@@ -10,7 +10,47 @@ Date:   Wed Nov 5 22:50:24 2014 -0500
     R=r, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/170030043
-
+---
  src/bufio/scan.go      |  3 ++-
  src/bufio/scan_test.go | 12 ++++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/bufio/scan.go b/src/bufio/scan.go
+index 73ad763b8f..364d159613 100644
+--- a/src/bufio/scan.go
++++ b/src/bufio/scan.go
+@@ -128,9 +128,10 @@ func (s *Scanner) Scan() bool {
+ 			}
+ 			s.token = token
+ 			if token != nil {
+-				if len(token) > 0 {
++				if s.err == nil || advance > 0 {
+ 					s.empties = 0
+ 				} else {
++					// Returning tokens not advancing input at EOF.
+ 					s.empties++
+ 					if s.empties > 100 {
+ 						panic("bufio.Scan: 100 empty tokens without progressing")
+diff --git a/src/bufio/scan_test.go b/src/bufio/scan_test.go
+index a1cf90ddbf..bf888dafb5 100644
+--- a/src/bufio/scan_test.go
++++ b/src/bufio/scan_test.go
+@@ -489,6 +489,18 @@ func TestDontLoopForever(t *testing.T) {
+ 	}
+ }
+ 
++func TestBlankLines(t *testing.T) {
++	s := NewScanner(strings.NewReader(strings.Repeat("\n", 1000)))
++	for count := 0; s.Scan(); count++ {
++		if count > 2000 {
++			t.Fatal("looping")
++		}
++	}
++	if s.Err() != nil {
++		t.Fatal("after scan:", s.Err())
++	}
++}
++
+ type countdown int
+ 
+ func (c *countdown) split(data []byte, atEOF bool) (advance int, token []byte, err error) {

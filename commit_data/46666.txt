@@ -24,7 +24,7 @@ Date:   Wed Jan 13 20:58:00 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/list/list.go                |   2 -
  src/cmd/go/internal/load/pkg.go                 |  26 ++--
  src/cmd/go/internal/load/test.go                |   4 +-
@@ -32,3 +32,510 @@ Date:   Wed Jan 13 20:58:00 2021 -0500
  src/cmd/go/testdata/script/embed.txt            |  26 ++++
  src/cmd/go/testdata/script/mod_vendor_embed.txt | 179 ++++++++++++++++++++++++
  6 files changed, 292 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 8a67335b3e..975b02252e 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -581,8 +581,6 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 		// Show vendor-expanded paths in listing
+ 		p.TestImports = p.Resolve(p.TestImports)
+ 		p.XTestImports = p.Resolve(p.XTestImports)
+-		p.TestEmbedFiles = p.ResolveEmbed(p.TestEmbedPatterns)
+-		p.XTestEmbedFiles = p.ResolveEmbed(p.XTestEmbedPatterns)
+ 		p.DepOnly = !cmdline[p]
+ 
+ 		if *listCompiled {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index a1be074f6a..92dd794871 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1807,7 +1807,7 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
+ 	stk.Push(path)
+ 	defer stk.Pop()
+ 
+-	p.EmbedFiles, p.Internal.Embed, err = p.resolveEmbed(p.EmbedPatterns)
++	p.EmbedFiles, p.Internal.Embed, err = resolveEmbed(p.Dir, p.EmbedPatterns)
+ 	if err != nil {
+ 		setError(err)
+ 		embedErr := err.(*EmbedError)
+@@ -1932,17 +1932,20 @@ func (e *EmbedError) Unwrap() error {
+ }
+ 
+ // ResolveEmbed resolves //go:embed patterns and returns only the file list.
+-// For use by go list to compute p.TestEmbedFiles and p.XTestEmbedFiles.
+-func (p *Package) ResolveEmbed(patterns []string) []string {
+-	files, _, _ := p.resolveEmbed(patterns)
+-	return files
++// For use by go mod vendor to find embedded files it should copy into the
++// vendor directory.
++// TODO(#42504): Once go mod vendor uses load.PackagesAndErrors, just
++// call (*Package).ResolveEmbed
++func ResolveEmbed(dir string, patterns []string) ([]string, error) {
++	files, _, err := resolveEmbed(dir, patterns)
++	return files, err
+ }
+ 
+ // resolveEmbed resolves //go:embed patterns to precise file lists.
+ // It sets files to the list of unique files matched (for go list),
+ // and it sets pmap to the more precise mapping from
+ // patterns to files.
+-func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[string][]string, err error) {
++func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[string][]string, err error) {
+ 	var pattern string
+ 	defer func() {
+ 		if err != nil {
+@@ -1953,6 +1956,7 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
+ 		}
+ 	}()
+ 
++	// TODO(rsc): All these messages need position information for better error reports.
+ 	pmap = make(map[string][]string)
+ 	have := make(map[string]int)
+ 	dirOK := make(map[string]bool)
+@@ -1966,7 +1970,7 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
+ 		}
+ 
+ 		// Glob to find matches.
+-		match, err := fsys.Glob(p.Dir + string(filepath.Separator) + filepath.FromSlash(pattern))
++		match, err := fsys.Glob(pkgdir + string(filepath.Separator) + filepath.FromSlash(pattern))
+ 		if err != nil {
+ 			return nil, nil, err
+ 		}
+@@ -1977,7 +1981,7 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
+ 		// then there may be other things lying around, like symbolic links or .git directories.)
+ 		var list []string
+ 		for _, file := range match {
+-			rel := filepath.ToSlash(file[len(p.Dir)+1:]) // file, relative to p.Dir
++			rel := filepath.ToSlash(file[len(pkgdir)+1:]) // file, relative to p.Dir
+ 
+ 			what := "file"
+ 			info, err := fsys.Lstat(file)
+@@ -1990,13 +1994,13 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
+ 
+ 			// Check that directories along path do not begin a new module
+ 			// (do not contain a go.mod).
+-			for dir := file; len(dir) > len(p.Dir)+1 && !dirOK[dir]; dir = filepath.Dir(dir) {
++			for dir := file; len(dir) > len(pkgdir)+1 && !dirOK[dir]; dir = filepath.Dir(dir) {
+ 				if _, err := fsys.Stat(filepath.Join(dir, "go.mod")); err == nil {
+ 					return nil, nil, fmt.Errorf("cannot embed %s %s: in different module", what, rel)
+ 				}
+ 				if dir != file {
+ 					if info, err := fsys.Lstat(dir); err == nil && !info.IsDir() {
+-						return nil, nil, fmt.Errorf("cannot embed %s %s: in non-directory %s", what, rel, dir[len(p.Dir)+1:])
++						return nil, nil, fmt.Errorf("cannot embed %s %s: in non-directory %s", what, rel, dir[len(pkgdir)+1:])
+ 					}
+ 				}
+ 				dirOK[dir] = true
+@@ -2027,7 +2031,7 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
+ 					if err != nil {
+ 						return err
+ 					}
+-					rel := filepath.ToSlash(path[len(p.Dir)+1:])
++					rel := filepath.ToSlash(path[len(pkgdir)+1:])
+ 					name := info.Name()
+ 					if path != file && (isBadEmbedName(name) || name[0] == '.' || name[0] == '_') {
+ 						// Ignore bad names, assuming they won't go into modules.
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 178f257f4b..eb8aef3ee2 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -124,7 +124,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
+ 		imports = append(imports, p1)
+ 	}
+ 	var err error
+-	p.TestEmbedFiles, testEmbed, err = p.resolveEmbed(p.TestEmbedPatterns)
++	p.TestEmbedFiles, testEmbed, err = resolveEmbed(p.Dir, p.TestEmbedPatterns)
+ 	if err != nil && ptestErr == nil {
+ 		ptestErr = &PackageError{
+ 			ImportStack: stk.Copy(),
+@@ -147,7 +147,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
+ 		}
+ 		p.XTestImports[i] = p1.ImportPath
+ 	}
+-	p.XTestEmbedFiles, xtestEmbed, err = p.resolveEmbed(p.XTestEmbedPatterns)
++	p.XTestEmbedFiles, xtestEmbed, err = resolveEmbed(p.Dir, p.XTestEmbedPatterns)
+ 	if err != nil && pxtestErr == nil {
+ 		pxtestErr = &PackageError{
+ 			ImportStack: stk.Copy(),
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index e42ff42fbd..d3ed9e00e2 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -7,7 +7,9 @@ package modcmd
+ import (
+ 	"bytes"
+ 	"context"
++	"errors"
+ 	"fmt"
++	"go/build"
+ 	"io"
+ 	"io/fs"
+ 	"os"
+@@ -19,7 +21,9 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/imports"
++	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
++	"cmd/go/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+@@ -182,19 +186,76 @@ func moduleLine(m, r module.Version) string {
+ }
+ 
+ func vendorPkg(vdir, pkg string) {
++	// TODO(#42504): Instead of calling modload.ImportMap then build.ImportDir,
++	// just call load.PackagesAndErrors. To do that, we need to add a good way
++	// to ignore build constraints.
+ 	realPath := modload.ImportMap(pkg)
+ 	if realPath != pkg && modload.ImportMap(realPath) != "" {
+ 		fmt.Fprintf(os.Stderr, "warning: %s imported as both %s and %s; making two copies.\n", realPath, realPath, pkg)
+ 	}
+ 
++	copiedFiles := make(map[string]bool)
+ 	dst := filepath.Join(vdir, pkg)
+ 	src := modload.PackageDir(realPath)
+ 	if src == "" {
+ 		fmt.Fprintf(os.Stderr, "internal error: no pkg for %s -> %s\n", pkg, realPath)
+ 	}
+-	copyDir(dst, src, matchPotentialSourceFile)
++	copyDir(dst, src, matchPotentialSourceFile, copiedFiles)
+ 	if m := modload.PackageModule(realPath); m.Path != "" {
+-		copyMetadata(m.Path, realPath, dst, src)
++		copyMetadata(m.Path, realPath, dst, src, copiedFiles)
++	}
++
++	ctx := build.Default
++	ctx.UseAllFiles = true
++	bp, err := ctx.ImportDir(src, build.IgnoreVendor)
++	// Because UseAllFiles is set on the build.Context, it's possible ta get
++	// a MultiplePackageError on an otherwise valid package: the package could
++	// have different names for GOOS=windows and GOOS=mac for example. On the
++	// other hand if there's a NoGoError, the package might have source files
++	// specifying "// +build ignore" those packages should be skipped because
++	// embeds from ignored files can't be used.
++	// TODO(#42504): Find a better way to avoid errors from ImportDir. We'll
++	// need to figure this out when we switch to PackagesAndErrors as per the
++	// TODO above.
++	var multiplePackageError *build.MultiplePackageError
++	var noGoError *build.NoGoError
++	if err != nil {
++		if errors.As(err, &noGoError) {
++			return // No source files in this package are built. Skip embeds in ignored files.
++		} else if !errors.As(err, &multiplePackageError) { // multiplePackgeErrors are okay, but others are not.
++			base.Fatalf("internal error: failed to find embedded files of %s: %v\n", pkg, err)
++		}
++	}
++	embedPatterns := str.StringList(bp.EmbedPatterns, bp.TestEmbedPatterns, bp.XTestEmbedPatterns)
++	embeds, err := load.ResolveEmbed(bp.Dir, embedPatterns)
++	if err != nil {
++		base.Fatalf("go mod vendor: %v", err)
++	}
++	for _, embed := range embeds {
++		embedDst := filepath.Join(dst, embed)
++		if copiedFiles[embedDst] {
++			continue
++		}
++
++		// Copy the file as is done by copyDir below.
++		r, err := os.Open(filepath.Join(src, embed))
++		if err != nil {
++			base.Fatalf("go mod vendor: %v", err)
++		}
++		if err := os.MkdirAll(filepath.Dir(embedDst), 0777); err != nil {
++			base.Fatalf("go mod vendor: %v", err)
++		}
++		w, err := os.Create(embedDst)
++		if err != nil {
++			base.Fatalf("go mod vendor: %v", err)
++		}
++		if _, err := io.Copy(w, r); err != nil {
++			base.Fatalf("go mod vendor: %v", err)
++		}
++		r.Close()
++		if err := w.Close(); err != nil {
++			base.Fatalf("go mod vendor: %v", err)
++		}
+ 	}
+ }
+ 
+@@ -207,14 +268,14 @@ var copiedMetadata = make(map[metakey]bool)
+ 
+ // copyMetadata copies metadata files from parents of src to parents of dst,
+ // stopping after processing the src parent for modPath.
+-func copyMetadata(modPath, pkg, dst, src string) {
++func copyMetadata(modPath, pkg, dst, src string, copiedFiles map[string]bool) {
+ 	for parent := 0; ; parent++ {
+ 		if copiedMetadata[metakey{modPath, dst}] {
+ 			break
+ 		}
+ 		copiedMetadata[metakey{modPath, dst}] = true
+ 		if parent > 0 {
+-			copyDir(dst, src, matchMetadata)
++			copyDir(dst, src, matchMetadata, copiedFiles)
+ 		}
+ 		if modPath == pkg {
+ 			break
+@@ -282,7 +343,7 @@ func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
+ }
+ 
+ // copyDir copies all regular files satisfying match(info) from src to dst.
+-func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool) {
++func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, copiedFiles map[string]bool) {
+ 	files, err := os.ReadDir(src)
+ 	if err != nil {
+ 		base.Fatalf("go mod vendor: %v", err)
+@@ -294,11 +355,14 @@ func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool) {
+ 		if file.IsDir() || !file.Type().IsRegular() || !match(src, file) {
+ 			continue
+ 		}
++		copiedFiles[file.Name()] = true
+ 		r, err := os.Open(filepath.Join(src, file.Name()))
+ 		if err != nil {
+ 			base.Fatalf("go mod vendor: %v", err)
+ 		}
+-		w, err := os.Create(filepath.Join(dst, file.Name()))
++		dstPath := filepath.Join(dst, file.Name())
++		copiedFiles[dstPath] = true
++		w, err := os.Create(dstPath)
+ 		if err != nil {
+ 			base.Fatalf("go mod vendor: %v", err)
+ 		}
+diff --git a/src/cmd/go/testdata/script/embed.txt b/src/cmd/go/testdata/script/embed.txt
+index 710968feca..2ad799b7a7 100644
+--- a/src/cmd/go/testdata/script/embed.txt
++++ b/src/cmd/go/testdata/script/embed.txt
+@@ -3,6 +3,14 @@ go list -f '{{.EmbedPatterns}}'
+ stdout '\[x\*t\*t\]'
+ go list -f '{{.EmbedFiles}}'
+ stdout '\[x.txt\]'
++go list -test -f '{{.TestEmbedPatterns}}'
++stdout '\[y\*t\*t\]'
++go list -test -f '{{.TestEmbedFiles}}'
++stdout '\[y.txt\]'
++go list -test -f '{{.XTestEmbedPatterns}}'
++stdout '\[z\*t\*t\]'
++go list -test -f '{{.XTestEmbedFiles}}'
++stdout '\[z.txt\]'
+ 
+ # build embeds x.txt
+ go build -x
+@@ -58,6 +66,22 @@ import "embed"
+ //go:embed x*t*t
+ var X embed.FS
+ 
++-- x_test.go --
++package p
++
++import "embed"
++
++//go:embed y*t*t
++var Y string
++
++-- x_x_test.go --
++package p_test
++
++import "embed"
++
++//go:embed z*t*t
++var Z string
++
+ -- x.go2 --
+ package p
+ 
+@@ -69,6 +93,8 @@ var X embed.FS
+ -- x.txt --
+ hello
+ 
++-- y.txt --
++-- z.txt --
+ -- x.txt2 --
+ not hello
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor_embed.txt b/src/cmd/go/testdata/script/mod_vendor_embed.txt
+new file mode 100644
+index 0000000000..be114159a1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_vendor_embed.txt
+@@ -0,0 +1,179 @@
++go mod vendor
++cmp vendor/example.com/a/samedir_embed.txt a/samedir_embed.txt
++cmp vendor/example.com/a/subdir/embed.txt a/subdir/embed.txt
++cmp vendor/example.com/a/subdir/test/embed.txt a/subdir/test/embed.txt
++cmp vendor/example.com/a/subdir/test/xtest/embed.txt a/subdir/test/xtest/embed.txt
++
++cd broken_no_matching_files
++! go mod vendor
++stderr 'go mod vendor: pattern foo.txt: no matching files found'
++
++cd ../broken_bad_pattern
++! go mod vendor
++stderr 'go mod vendor: pattern ../foo.txt: invalid pattern syntax'
++
++# matchPotentialSourceFile prunes out tests and unbuilt code.
++# Make sure that they are vendored if they are embedded files.
++cd ../embed_unbuilt
++go mod vendor
++cmp vendor/example.com/dep/unbuilt.go dep/unbuilt.go
++cmp vendor/example.com/dep/dep_test.go dep/dep_test.go
++! exists vendor/example.com/dep/not_embedded_unbuilt.go
++! exists vendor/example.com/dep/not_embedded_dep_test.go
++-- go.mod --
++module example.com/foo
++go 1.16
++
++require (
++	example.com/a v0.1.0
++)
++
++replace (
++	example.com/a v0.1.0 => ./a
++)
++-- foo.go --
++package main
++
++import (
++	"fmt"
++
++	"example.com/a"
++)
++
++func main() {
++    fmt.Println(a.Str())
++}
++-- a/go.mod --
++module example.com/a
++-- a/a.go --
++package a
++
++import _ "embed"
++
++//go:embed samedir_embed.txt
++var sameDir string
++
++//go:embed subdir/embed.txt
++var subDir string
++
++func Str() string {
++	return sameDir + subDir
++}
++-- a/a_test.go --
++package a
++
++import _ "embed"
++
++//go:embed subdir/test/embed.txt
++var subderTest string
++-- a/a_x_test.go --
++package a_test
++
++import _ "embed"
++
++//go:embed subdir/test/xtest/embed.txt
++var subdirXtest string
++-- a/samedir_embed.txt --
++embedded file in same directory as package
++-- a/subdir/embed.txt --
++embedded file in subdirectory of package
++-- a/subdir/test/embed.txt --
++embedded file of test in subdirectory of package
++-- a/subdir/test/xtest/embed.txt --
++embedded file of xtest in subdirectory of package
++-- broken_no_matching_files/go.mod --
++module example.com/broken
++go 1.16
++
++require (
++	example.com/brokendep v0.1.0
++)
++
++replace (
++	example.com/brokendep v0.1.0 => ./brokendep
++)
++-- broken_no_matching_files/f.go --
++package broken
++
++import _ "example.com/brokendep"
++
++func F() {}
++-- broken_no_matching_files/brokendep/go.mod --
++module example.com/brokendep
++go 1.16
++-- broken_no_matching_files/brokendep/f.go --
++package brokendep
++
++import _ "embed"
++
++//go:embed foo.txt
++var foo string
++-- broken_bad_pattern/go.mod --
++module example.com/broken
++go 1.16
++
++require (
++	example.com/brokendep v0.1.0
++)
++
++replace (
++	example.com/brokendep v0.1.0 => ./brokendep
++)
++-- broken_bad_pattern/f.go --
++package broken
++
++import _ "example.com/brokendep"
++
++func F() {}
++-- broken_bad_pattern/brokendep/go.mod --
++module example.com/brokendep
++go 1.16
++-- broken_bad_pattern/brokendep/f.go --
++package brokendep
++
++import _ "embed"
++
++//go:embed ../foo.txt
++var foo string
++-- embed_unbuilt/go.mod --
++module example.com/foo
++go 1.16
++
++require (
++	example.com/dep v0.1.0
++)
++
++replace (
++	example.com/dep v0.1.0 => ./dep
++)
++-- embed_unbuilt/foo.go --
++package a
++
++import _ "example.com/dep"
++
++func F() {}
++-- embed_unbuilt/dep/go.mod --
++module example.com/dep
++go 1.16
++-- embed_unbuilt/dep/dep.go --
++package dep
++
++import _ "embed"
++
++//go:embed unbuilt.go
++var unbuilt string
++
++//go:embed dep_test.go
++var depTest string
++-- embed_unbuilt/dep/unbuilt.go --
++// +build ignore
++
++package dep
++-- embed_unbuilt/dep/not_embedded_unbuilt.go --
++// +build ignore
++
++package dep
++-- embed_unbuilt/dep/dep_test.go --
++package dep
++-- embed_unbuilt/dep/not_embedded_dep_test.go --
++package dep

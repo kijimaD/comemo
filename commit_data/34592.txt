@@ -30,7 +30,7 @@ Date:   Sat Sep 2 18:46:59 2017 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         | 250 +++++++++++++------------
  src/cmd/compile/internal/gc/builtin/runtime.go |   3 +
  src/cmd/compile/internal/gc/reflect.go         |   4 +-
@@ -44,3 +44,706 @@ Date:   Sat Sep 2 18:46:59 2017 +0200
  test/live.go                                   |   4 +-
  test/live2.go                                  |   4 +-
  12 files changed, 343 insertions(+), 172 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index a72b36b1fd..b865d2f3ba 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -72,85 +72,87 @@ var runtimeDecls = [...]struct {
+ 	{"panicnildottype", funcTag, 55},
+ 	{"ifaceeq", funcTag, 58},
+ 	{"efaceeq", funcTag, 58},
+-	{"makemap64", funcTag, 60},
+-	{"makemap", funcTag, 61},
+-	{"mapaccess1", funcTag, 62},
+-	{"mapaccess1_fast32", funcTag, 63},
+-	{"mapaccess1_fast64", funcTag, 63},
+-	{"mapaccess1_faststr", funcTag, 63},
+-	{"mapaccess1_fat", funcTag, 64},
+-	{"mapaccess2", funcTag, 65},
+-	{"mapaccess2_fast32", funcTag, 66},
+-	{"mapaccess2_fast64", funcTag, 66},
+-	{"mapaccess2_faststr", funcTag, 66},
+-	{"mapaccess2_fat", funcTag, 67},
+-	{"mapassign", funcTag, 62},
+-	{"mapassign_fast32", funcTag, 63},
+-	{"mapassign_fast64", funcTag, 63},
+-	{"mapassign_faststr", funcTag, 63},
+-	{"mapiterinit", funcTag, 68},
+-	{"mapdelete", funcTag, 68},
+-	{"mapdelete_fast32", funcTag, 69},
+-	{"mapdelete_fast64", funcTag, 69},
+-	{"mapdelete_faststr", funcTag, 69},
+-	{"mapiternext", funcTag, 70},
+-	{"makechan64", funcTag, 72},
+-	{"makechan", funcTag, 73},
+-	{"chanrecv1", funcTag, 75},
+-	{"chanrecv2", funcTag, 76},
+-	{"chansend1", funcTag, 78},
++	{"fastrand", funcTag, 60},
++	{"makemap64", funcTag, 62},
++	{"makemap", funcTag, 63},
++	{"makemap_small", funcTag, 64},
++	{"mapaccess1", funcTag, 65},
++	{"mapaccess1_fast32", funcTag, 66},
++	{"mapaccess1_fast64", funcTag, 66},
++	{"mapaccess1_faststr", funcTag, 66},
++	{"mapaccess1_fat", funcTag, 67},
++	{"mapaccess2", funcTag, 68},
++	{"mapaccess2_fast32", funcTag, 69},
++	{"mapaccess2_fast64", funcTag, 69},
++	{"mapaccess2_faststr", funcTag, 69},
++	{"mapaccess2_fat", funcTag, 70},
++	{"mapassign", funcTag, 65},
++	{"mapassign_fast32", funcTag, 66},
++	{"mapassign_fast64", funcTag, 66},
++	{"mapassign_faststr", funcTag, 66},
++	{"mapiterinit", funcTag, 71},
++	{"mapdelete", funcTag, 71},
++	{"mapdelete_fast32", funcTag, 72},
++	{"mapdelete_fast64", funcTag, 72},
++	{"mapdelete_faststr", funcTag, 72},
++	{"mapiternext", funcTag, 73},
++	{"makechan64", funcTag, 75},
++	{"makechan", funcTag, 76},
++	{"chanrecv1", funcTag, 78},
++	{"chanrecv2", funcTag, 79},
++	{"chansend1", funcTag, 81},
+ 	{"closechan", funcTag, 23},
+-	{"writeBarrier", varTag, 80},
+-	{"writebarrierptr", funcTag, 81},
+-	{"typedmemmove", funcTag, 82},
+-	{"typedmemclr", funcTag, 83},
+-	{"typedslicecopy", funcTag, 84},
+-	{"selectnbsend", funcTag, 85},
+-	{"selectnbrecv", funcTag, 86},
+-	{"selectnbrecv2", funcTag, 88},
+-	{"newselect", funcTag, 89},
+-	{"selectsend", funcTag, 90},
+-	{"selectrecv", funcTag, 91},
++	{"writeBarrier", varTag, 83},
++	{"writebarrierptr", funcTag, 84},
++	{"typedmemmove", funcTag, 85},
++	{"typedmemclr", funcTag, 86},
++	{"typedslicecopy", funcTag, 87},
++	{"selectnbsend", funcTag, 88},
++	{"selectnbrecv", funcTag, 89},
++	{"selectnbrecv2", funcTag, 91},
++	{"newselect", funcTag, 92},
++	{"selectsend", funcTag, 93},
++	{"selectrecv", funcTag, 94},
+ 	{"selectdefault", funcTag, 55},
+-	{"selectgo", funcTag, 92},
++	{"selectgo", funcTag, 95},
+ 	{"block", funcTag, 5},
+-	{"makeslice", funcTag, 94},
+-	{"makeslice64", funcTag, 95},
+-	{"growslice", funcTag, 96},
+-	{"memmove", funcTag, 97},
+-	{"memclrNoHeapPointers", funcTag, 98},
+-	{"memclrHasPointers", funcTag, 98},
+-	{"memequal", funcTag, 99},
+-	{"memequal8", funcTag, 100},
+-	{"memequal16", funcTag, 100},
+-	{"memequal32", funcTag, 100},
+-	{"memequal64", funcTag, 100},
+-	{"memequal128", funcTag, 100},
+-	{"int64div", funcTag, 101},
+-	{"uint64div", funcTag, 102},
+-	{"int64mod", funcTag, 101},
+-	{"uint64mod", funcTag, 102},
+-	{"float64toint64", funcTag, 103},
+-	{"float64touint64", funcTag, 104},
+-	{"float64touint32", funcTag, 106},
+-	{"int64tofloat64", funcTag, 107},
+-	{"uint64tofloat64", funcTag, 108},
+-	{"uint32tofloat64", funcTag, 109},
+-	{"complex128div", funcTag, 110},
+-	{"racefuncenter", funcTag, 111},
++	{"makeslice", funcTag, 97},
++	{"makeslice64", funcTag, 98},
++	{"growslice", funcTag, 99},
++	{"memmove", funcTag, 100},
++	{"memclrNoHeapPointers", funcTag, 101},
++	{"memclrHasPointers", funcTag, 101},
++	{"memequal", funcTag, 102},
++	{"memequal8", funcTag, 103},
++	{"memequal16", funcTag, 103},
++	{"memequal32", funcTag, 103},
++	{"memequal64", funcTag, 103},
++	{"memequal128", funcTag, 103},
++	{"int64div", funcTag, 104},
++	{"uint64div", funcTag, 105},
++	{"int64mod", funcTag, 104},
++	{"uint64mod", funcTag, 105},
++	{"float64toint64", funcTag, 106},
++	{"float64touint64", funcTag, 107},
++	{"float64touint32", funcTag, 108},
++	{"int64tofloat64", funcTag, 109},
++	{"uint64tofloat64", funcTag, 110},
++	{"uint32tofloat64", funcTag, 111},
++	{"complex128div", funcTag, 112},
++	{"racefuncenter", funcTag, 113},
+ 	{"racefuncexit", funcTag, 5},
+-	{"raceread", funcTag, 111},
+-	{"racewrite", funcTag, 111},
+-	{"racereadrange", funcTag, 112},
+-	{"racewriterange", funcTag, 112},
+-	{"msanread", funcTag, 112},
+-	{"msanwrite", funcTag, 112},
++	{"raceread", funcTag, 113},
++	{"racewrite", funcTag, 113},
++	{"racereadrange", funcTag, 114},
++	{"racewriterange", funcTag, 114},
++	{"msanread", funcTag, 114},
++	{"msanwrite", funcTag, 114},
+ 	{"support_popcnt", varTag, 11},
+ 	{"support_sse41", varTag, 11},
+ }
+ 
+ func runtimeTypes() []*types.Type {
+-	var typs [113]*types.Type
++	var typs [115]*types.Type
+ 	typs[0] = types.Bytetype
+ 	typs[1] = types.NewPtr(typs[0])
+ 	typs[2] = types.Types[TANY]
+@@ -210,59 +212,61 @@ func runtimeTypes() []*types.Type {
+ 	typs[56] = types.NewPtr(typs[48])
+ 	typs[57] = types.Types[TUNSAFEPTR]
+ 	typs[58] = functype(nil, []*Node{anonfield(typs[56]), anonfield(typs[57]), anonfield(typs[57])}, []*Node{anonfield(typs[11])})
+-	typs[59] = types.NewMap(typs[2], typs[2])
+-	typs[60] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[3])}, []*Node{anonfield(typs[59])})
+-	typs[61] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[3])}, []*Node{anonfield(typs[59])})
+-	typs[62] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[59]), anonfield(typs[3])}, []*Node{anonfield(typs[3])})
+-	typs[63] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[59]), anonfield(typs[2])}, []*Node{anonfield(typs[3])})
+-	typs[64] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[59]), anonfield(typs[3]), anonfield(typs[1])}, []*Node{anonfield(typs[3])})
+-	typs[65] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[59]), anonfield(typs[3])}, []*Node{anonfield(typs[3]), anonfield(typs[11])})
+-	typs[66] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[59]), anonfield(typs[2])}, []*Node{anonfield(typs[3]), anonfield(typs[11])})
+-	typs[67] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[59]), anonfield(typs[3]), anonfield(typs[1])}, []*Node{anonfield(typs[3]), anonfield(typs[11])})
+-	typs[68] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[59]), anonfield(typs[3])}, nil)
+-	typs[69] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[59]), anonfield(typs[2])}, nil)
+-	typs[70] = functype(nil, []*Node{anonfield(typs[3])}, nil)
+-	typs[71] = types.NewChan(typs[2], types.Cboth)
+-	typs[72] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15])}, []*Node{anonfield(typs[71])})
+-	typs[73] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32])}, []*Node{anonfield(typs[71])})
+-	typs[74] = types.NewChan(typs[2], types.Crecv)
+-	typs[75] = functype(nil, []*Node{anonfield(typs[74]), anonfield(typs[3])}, nil)
+-	typs[76] = functype(nil, []*Node{anonfield(typs[74]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
+-	typs[77] = types.NewChan(typs[2], types.Csend)
++	typs[59] = types.Types[TUINT32]
++	typs[60] = functype(nil, nil, []*Node{anonfield(typs[59])})
++	typs[61] = types.NewMap(typs[2], typs[2])
++	typs[62] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[3])}, []*Node{anonfield(typs[61])})
++	typs[63] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[3])}, []*Node{anonfield(typs[61])})
++	typs[64] = functype(nil, nil, []*Node{anonfield(typs[61])})
++	typs[65] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[61]), anonfield(typs[3])}, []*Node{anonfield(typs[3])})
++	typs[66] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[61]), anonfield(typs[2])}, []*Node{anonfield(typs[3])})
++	typs[67] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[61]), anonfield(typs[3]), anonfield(typs[1])}, []*Node{anonfield(typs[3])})
++	typs[68] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[61]), anonfield(typs[3])}, []*Node{anonfield(typs[3]), anonfield(typs[11])})
++	typs[69] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[61]), anonfield(typs[2])}, []*Node{anonfield(typs[3]), anonfield(typs[11])})
++	typs[70] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[61]), anonfield(typs[3]), anonfield(typs[1])}, []*Node{anonfield(typs[3]), anonfield(typs[11])})
++	typs[71] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[61]), anonfield(typs[3])}, nil)
++	typs[72] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[61]), anonfield(typs[2])}, nil)
++	typs[73] = functype(nil, []*Node{anonfield(typs[3])}, nil)
++	typs[74] = types.NewChan(typs[2], types.Cboth)
++	typs[75] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15])}, []*Node{anonfield(typs[74])})
++	typs[76] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32])}, []*Node{anonfield(typs[74])})
++	typs[77] = types.NewChan(typs[2], types.Crecv)
+ 	typs[78] = functype(nil, []*Node{anonfield(typs[77]), anonfield(typs[3])}, nil)
+-	typs[79] = types.NewArray(typs[0], 3)
+-	typs[80] = tostruct([]*Node{namedfield("enabled", typs[11]), namedfield("pad", typs[79]), namedfield("needed", typs[11]), namedfield("cgo", typs[11]), namedfield("alignme", typs[17])})
+-	typs[81] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[2])}, nil)
+-	typs[82] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[3])}, nil)
+-	typs[83] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3])}, nil)
+-	typs[84] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[32])})
+-	typs[85] = functype(nil, []*Node{anonfield(typs[77]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
+-	typs[86] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[74])}, []*Node{anonfield(typs[11])})
+-	typs[87] = types.NewPtr(typs[11])
+-	typs[88] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[87]), anonfield(typs[74])}, []*Node{anonfield(typs[11])})
+-	typs[89] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[8])}, nil)
+-	typs[90] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[77]), anonfield(typs[3])}, nil)
+-	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[74]), anonfield(typs[3]), anonfield(typs[87])}, nil)
+-	typs[92] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[32])})
+-	typs[93] = types.NewSlice(typs[2])
+-	typs[94] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[93])})
+-	typs[95] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[93])})
+-	typs[96] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[93]), anonfield(typs[32])}, []*Node{anonfield(typs[93])})
+-	typs[97] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[48])}, nil)
+-	typs[98] = functype(nil, []*Node{anonfield(typs[57]), anonfield(typs[48])}, nil)
+-	typs[99] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[48])}, []*Node{anonfield(typs[11])})
+-	typs[100] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
+-	typs[101] = functype(nil, []*Node{anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[15])})
+-	typs[102] = functype(nil, []*Node{anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[17])})
+-	typs[103] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[15])})
+-	typs[104] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[17])})
+-	typs[105] = types.Types[TUINT32]
+-	typs[106] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[105])})
+-	typs[107] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[13])})
+-	typs[108] = functype(nil, []*Node{anonfield(typs[17])}, []*Node{anonfield(typs[13])})
+-	typs[109] = functype(nil, []*Node{anonfield(typs[105])}, []*Node{anonfield(typs[13])})
+-	typs[110] = functype(nil, []*Node{anonfield(typs[19]), anonfield(typs[19])}, []*Node{anonfield(typs[19])})
+-	typs[111] = functype(nil, []*Node{anonfield(typs[48])}, nil)
+-	typs[112] = functype(nil, []*Node{anonfield(typs[48]), anonfield(typs[48])}, nil)
++	typs[79] = functype(nil, []*Node{anonfield(typs[77]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
++	typs[80] = types.NewChan(typs[2], types.Csend)
++	typs[81] = functype(nil, []*Node{anonfield(typs[80]), anonfield(typs[3])}, nil)
++	typs[82] = types.NewArray(typs[0], 3)
++	typs[83] = tostruct([]*Node{namedfield("enabled", typs[11]), namedfield("pad", typs[82]), namedfield("needed", typs[11]), namedfield("cgo", typs[11]), namedfield("alignme", typs[17])})
++	typs[84] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[2])}, nil)
++	typs[85] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[3])}, nil)
++	typs[86] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3])}, nil)
++	typs[87] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[32])})
++	typs[88] = functype(nil, []*Node{anonfield(typs[80]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
++	typs[89] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[77])}, []*Node{anonfield(typs[11])})
++	typs[90] = types.NewPtr(typs[11])
++	typs[91] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[90]), anonfield(typs[77])}, []*Node{anonfield(typs[11])})
++	typs[92] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[8])}, nil)
++	typs[93] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[80]), anonfield(typs[3])}, nil)
++	typs[94] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[77]), anonfield(typs[3]), anonfield(typs[90])}, nil)
++	typs[95] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[32])})
++	typs[96] = types.NewSlice(typs[2])
++	typs[97] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[96])})
++	typs[98] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[96])})
++	typs[99] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[96]), anonfield(typs[32])}, []*Node{anonfield(typs[96])})
++	typs[100] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[48])}, nil)
++	typs[101] = functype(nil, []*Node{anonfield(typs[57]), anonfield(typs[48])}, nil)
++	typs[102] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[48])}, []*Node{anonfield(typs[11])})
++	typs[103] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
++	typs[104] = functype(nil, []*Node{anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[15])})
++	typs[105] = functype(nil, []*Node{anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[17])})
++	typs[106] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[15])})
++	typs[107] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[17])})
++	typs[108] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[59])})
++	typs[109] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[13])})
++	typs[110] = functype(nil, []*Node{anonfield(typs[17])}, []*Node{anonfield(typs[13])})
++	typs[111] = functype(nil, []*Node{anonfield(typs[59])}, []*Node{anonfield(typs[13])})
++	typs[112] = functype(nil, []*Node{anonfield(typs[19]), anonfield(typs[19])}, []*Node{anonfield(typs[19])})
++	typs[113] = functype(nil, []*Node{anonfield(typs[48])}, nil)
++	typs[114] = functype(nil, []*Node{anonfield(typs[48]), anonfield(typs[48])}, nil)
+ 	return typs[:]
+ }
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 5220e251fa..a27abcafa2 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -91,9 +91,12 @@ func panicnildottype(want *byte)
+ func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
+ func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
+ 
++func fastrand() uint32
++
+ // *byte is really *runtime.Type
+ func makemap64(mapType *byte, hint int64, mapbuf *any) (hmap map[any]any)
+ func makemap(mapType *byte, hint int, mapbuf *any) (hmap map[any]any)
++func makemap_small() (hmap map[any]any)
+ func mapaccess1(mapType *byte, hmap map[any]any, key *any) (val *any)
+ func mapaccess1_fast32(mapType *byte, hmap map[any]any, key any) (val *any)
+ func mapaccess1_fast64(mapType *byte, hmap map[any]any, key any) (val *any)
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 41dcfe994a..faed5bd9a5 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -252,8 +252,8 @@ func hmap(t *types.Type) *types.Type {
+ 		makefield("flags", types.Types[TUINT8]),
+ 		makefield("B", types.Types[TUINT8]),
+ 		makefield("noverflow", types.Types[TUINT16]),
+-		makefield("hash0", types.Types[TUINT32]),
+-		makefield("buckets", types.NewPtr(bmap)), // Used in walk.go for makemap.
++		makefield("hash0", types.Types[TUINT32]), // Used in walk.go for OMAKEMAP.
++		makefield("buckets", types.NewPtr(bmap)), // Used in walk.go for OMAKEMAP.
+ 		makefield("oldbuckets", types.NewPtr(bmap)),
+ 		makefield("nevacuate", types.Types[TUINTPTR]),
+ 		makefield("extra", types.Types[TUNSAFEPTR]),
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 34c74a281b..4bb88b62ef 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1574,6 +1574,12 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			return v
+ 		}
+ 
++		// map <--> *hmap
++		if to.Etype == TMAP && from.IsPtr() &&
++			to.MapType().Hmap == from.Elem() {
++			return v
++		}
++
+ 		dowidth(from)
+ 		dowidth(to)
+ 		if from.Width != to.Width {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index a3d8df8ffc..4eb2dae556 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -927,6 +927,14 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
+ 		return OCONVNOP
+ 	}
+ 
++	// src is map and dst is a pointer to corresponding hmap.
++	// This rule is needed for the implementation detail that
++	// go gc maps are implemented as a pointer to a hmap struct.
++	if src.Etype == TMAP && dst.IsPtr() &&
++		src.MapType().Hmap == dst.Elem() {
++		return OCONVNOP
++	}
++
+ 	return 0
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 0f75473b3f..11825d9eac 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1467,28 +1467,63 @@ opswitch:
+ 				na = typecheck(na, Etop)
+ 				init.Append(na)
+ 			}
+-		} else {
+-			// h = nil
+-			h = nodnil()
+ 		}
+ 
+-		// When hint fits into int, use makemap instead of
+-		// makemap64, which is faster and shorter on 32 bit platforms.
+-		fnname := "makemap64"
+-		argtype := types.Types[TINT64]
++		if Isconst(hint, CTINT) && hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
++			// Handling make(map[any]any) and
++			// make(map[any]any, hint) where hint <= BUCKETSIZE
++			// special allows for faster map initialization and
++			// improves binary size by using calls with fewer arguments.
++			// For hint <= BUCKETSIZE overLoadFactor(hint, 0) is false
++			// and no buckets will be allocated by makemap. Therefore,
++			// no buckets need to be allocated in this code path.
++			if n.Esc == EscNone {
++				// Only need to initialize h.hash0 since
++				// hmap h has been allocated on the stack already.
++				// h.hash0 = fastrand()
++				rand := mkcall("fastrand", types.Types[TUINT32], init)
++				hashsym := hmapType.Field(4).Sym // hmap.hash0 see reflect.go:hmap
++				a := nod(OAS, nodSym(ODOT, h, hashsym), rand)
++				a = typecheck(a, Etop)
++				a = walkexpr(a, init)
++				init.Append(a)
++				n = nod(OCONVNOP, h, nil)
++				n.Type = t
++				n = typecheck(n, Erv)
++			} else {
++				// Call runtime.makehmap to allocate an
++				// hmap on the heap and initialize hmap's hash0 field.
++				fn := syslook("makemap_small")
++				fn = substArgTypes(fn, t.Key(), t.Val())
++				n = mkcall1(fn, n.Type, init)
++			}
++		} else {
++			if n.Esc != EscNone {
++				h = nodnil()
++			}
++			// Map initialization with a variable or large hint is
++			// more complicated. We therefore generate a call to
++			// runtime.makemap to intialize hmap and allocate the
++			// map buckets.
+ 
+-		// Type checking guarantees that TIDEAL hint is positive and fits in an int.
+-		// See checkmake call in TMAP case of OMAKE case in OpSwitch in typecheck1 function.
+-		// The case of hint overflow when converting TUINT or TUINTPTR to TINT
+-		// will be handled by the negative range checks in makemap during runtime.
+-		if hint.Type.IsKind(TIDEAL) || maxintval[hint.Type.Etype].Cmp(maxintval[TUINT]) <= 0 {
+-			fnname = "makemap"
+-			argtype = types.Types[TINT]
+-		}
++			// When hint fits into int, use makemap instead of
++			// makemap64, which is faster and shorter on 32 bit platforms.
++			fnname := "makemap64"
++			argtype := types.Types[TINT64]
+ 
+-		fn := syslook(fnname)
+-		fn = substArgTypes(fn, hmapType, t.Key(), t.Val())
+-		n = mkcall1(fn, n.Type, init, typename(n.Type), conv(hint, argtype), h)
++			// Type checking guarantees that TIDEAL hint is positive and fits in an int.
++			// See checkmake call in TMAP case of OMAKE case in OpSwitch in typecheck1 function.
++			// The case of hint overflow when converting TUINT or TUINTPTR to TINT
++			// will be handled by the negative range checks in makemap during runtime.
++			if hint.Type.IsKind(TIDEAL) || maxintval[hint.Type.Etype].Cmp(maxintval[TUINT]) <= 0 {
++				fnname = "makemap"
++				argtype = types.Types[TINT]
++			}
++
++			fn := syslook(fnname)
++			fn = substArgTypes(fn, hmapType, t.Key(), t.Val())
++			n = mkcall1(fn, n.Type, init, typename(n.Type), conv(hint, argtype), h)
++		}
+ 
+ 	case OMAKESLICE:
+ 		l := n.Left
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 599ac2d84a..385c569ed8 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -377,11 +377,16 @@ func (rw *RWMutex) Unlock() {
+ 	rw.rw.unlock()
+ }
+ 
+-func MapBuckets(m map[int]int) int {
++func MapBucketsCount(m map[int]int) int {
+ 	h := *(**hmap)(unsafe.Pointer(&m))
+ 	return 1 << h.B
+ }
+ 
++func MapBucketsPointerIsNil(m map[int]int) bool {
++	h := *(**hmap)(unsafe.Pointer(&m))
++	return h.buckets == nil
++}
++
+ func LockOSCounts() (external, internal uint32) {
+ 	g := getg()
+ 	if g.m.lockedExt+g.m.lockedInt == 0 {
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index f537098854..dee5dd5816 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -281,7 +281,16 @@ func makemap64(t *maptype, hint int64, h *hmap) *hmap {
+ 	return makemap(t, int(hint), h)
+ }
+ 
+-// makemap implements a Go map creation make(map[k]v, hint)
++// makehmap_small implements Go map creation for make(map[k]v) and
++// make(map[k]v, hint) when hint is known to be at most bucketCnt
++// at compile time and the map needs to be allocated on the heap.
++func makemap_small() *hmap {
++	h := new(hmap)
++	h.hash0 = fastrand()
++	return h
++}
++
++// makemap implements Go map creation for make(map[k]v, hint).
+ // If the compiler has determined that the map or the first bucket
+ // can be created on the stack, h and/or bucket may be non-nil.
+ // If h != nil, the map can be created directly in h.
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 0529cb8e86..6ed655de0a 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -596,33 +596,132 @@ func TestIgnoreBogusMapHint(t *testing.T) {
+ 	}
+ }
+ 
++var mapSink map[int]int
++
++var mapBucketTests = [...]struct {
++	n        int // n is the number of map elements
++	noescape int // number of expected buckets for non-escaping map
++	escape   int // number of expected buckets for escaping map
++}{
++	{-(1 << 30), 1, 1},
++	{-1, 1, 1},
++	{0, 1, 1},
++	{1, 1, 1},
++	{8, 1, 1},
++	{9, 2, 2},
++	{13, 2, 2},
++	{14, 4, 4},
++	{26, 4, 4},
++}
++
+ func TestMapBuckets(t *testing.T) {
+ 	// Test that maps of different sizes have the right number of buckets.
++	// Non-escaping maps with small buckets (like map[int]int) never
++	// have a nil bucket pointer due to starting with preallocated buckets
++	// on the stack. Escaping maps start with a non-nil bucket pointer if
++	// hint size is above bucketCnt and thereby have more than one bucket.
+ 	// These tests depend on bucketCnt and loadFactor* in hashmap.go.
+-	for _, tt := range [...]struct {
+-		n, b int
+-	}{
+-		{8, 1},
+-		{9, 2},
+-		{13, 2},
+-		{14, 4},
+-		{26, 4},
+-	} {
+-		m := map[int]int{}
+-		for i := 0; i < tt.n; i++ {
+-			m[i] = i
++	t.Run("mapliteral", func(t *testing.T) {
++		for _, tt := range mapBucketTests {
++			localMap := map[int]int{}
++			if runtime.MapBucketsPointerIsNil(localMap) {
++				t.Errorf("no escape: buckets pointer is nil for non-escaping map")
++			}
++			for i := 0; i < tt.n; i++ {
++				localMap[i] = i
++			}
++			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
++				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
++			}
++			escapingMap := map[int]int{}
++			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
++				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
++			}
++			for i := 0; i < tt.n; i++ {
++				escapingMap[i] = i
++			}
++			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
++				t.Errorf("escape n=%d want %d buckets, got %d", tt.n, tt.escape, got)
++			}
++			mapSink = escapingMap
+ 		}
+-		if got := runtime.MapBuckets(m); got != tt.b {
+-			t.Errorf("no hint n=%d want %d buckets, got %d", tt.n, tt.b, got)
++	})
++	t.Run("nohint", func(t *testing.T) {
++		for _, tt := range mapBucketTests {
++			localMap := make(map[int]int)
++			if runtime.MapBucketsPointerIsNil(localMap) {
++				t.Errorf("no escape: buckets pointer is nil for non-escaping map")
++			}
++			for i := 0; i < tt.n; i++ {
++				localMap[i] = i
++			}
++			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
++				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
++			}
++			escapingMap := make(map[int]int)
++			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
++				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
++			}
++			for i := 0; i < tt.n; i++ {
++				escapingMap[i] = i
++			}
++			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
++				t.Errorf("escape: n=%d want %d buckets, got %d", tt.n, tt.escape, got)
++			}
++			mapSink = escapingMap
+ 		}
+-		m = make(map[int]int, tt.n)
+-		for i := 0; i < tt.n; i++ {
+-			m[i] = i
++	})
++	t.Run("makemap", func(t *testing.T) {
++		for _, tt := range mapBucketTests {
++			localMap := make(map[int]int, tt.n)
++			if runtime.MapBucketsPointerIsNil(localMap) {
++				t.Errorf("no escape: buckets pointer is nil for non-escaping map")
++			}
++			for i := 0; i < tt.n; i++ {
++				localMap[i] = i
++			}
++			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
++				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
++			}
++			escapingMap := make(map[int]int, tt.n)
++			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
++				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
++			}
++			for i := 0; i < tt.n; i++ {
++				escapingMap[i] = i
++			}
++			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
++				t.Errorf("escape: n=%d want %d buckets, got %d", tt.n, tt.escape, got)
++			}
++			mapSink = escapingMap
+ 		}
+-		if got := runtime.MapBuckets(m); got != tt.b {
+-			t.Errorf("hint n=%d want %d buckets, got %d", tt.n, tt.b, got)
++	})
++	t.Run("makemap64", func(t *testing.T) {
++		for _, tt := range mapBucketTests {
++			localMap := make(map[int]int, int64(tt.n))
++			if runtime.MapBucketsPointerIsNil(localMap) {
++				t.Errorf("no escape: buckets pointer is nil for non-escaping map")
++			}
++			for i := 0; i < tt.n; i++ {
++				localMap[i] = i
++			}
++			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
++				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
++			}
++			escapingMap := make(map[int]int, tt.n)
++			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
++				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
++			}
++			for i := 0; i < tt.n; i++ {
++				escapingMap[i] = i
++			}
++			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
++				t.Errorf("escape: n=%d want %d buckets, got %d", tt.n, tt.escape, got)
++			}
++			mapSink = escapingMap
+ 		}
+-	}
++	})
++
+ }
+ 
+ func benchmarkMapPop(b *testing.B, n int) {
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 03194bcd58..476f9a791f 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -76,7 +76,7 @@ import "fmt"
+ import "runtime"
+ var gslice []string
+ func main() {
+-	mapvar := make(map[string]string,5)
++	mapvar := make(map[string]string, 13)
+ 	mapvar["abc"] = "def"
+ 	mapvar["ghi"] = "jkl"
+ 	strvar := "abc"
+@@ -198,8 +198,10 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		t.Fatalf("info goroutines failed: %s", bl)
+ 	}
+ 
+-	printMapvarRe := regexp.MustCompile(`\Q = map[string]string = {["abc"] = "def", ["ghi"] = "jkl"}\E$`)
+-	if bl := blocks["print mapvar"]; !printMapvarRe.MatchString(bl) {
++	printMapvarRe1 := regexp.MustCompile(`\Q = map[string]string = {["abc"] = "def", ["ghi"] = "jkl"}\E$`)
++	printMapvarRe2 := regexp.MustCompile(`\Q = map[string]string = {["ghi"] = "jkl", ["abc"] = "def"}\E$`)
++	if bl := blocks["print mapvar"]; !printMapvarRe1.MatchString(bl) &&
++		!printMapvarRe2.MatchString(bl) {
+ 		t.Fatalf("print mapvar failed: %s", bl)
+ 	}
+ 
+diff --git a/test/live.go b/test/live.go
+index dd45e38025..e54336ead7 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -644,7 +644,7 @@ func useT40(*T40)
+ 
+ func newT40() *T40 {
+ 	ret := T40{}
+-	ret.m = make(map[int]int) // ERROR "live at call to makemap: &ret$"
++	ret.m = make(map[int]int, 42) // ERROR "live at call to makemap: &ret$"
+ 	return &ret
+ }
+ 
+@@ -656,7 +656,7 @@ func bad40() {
+ 
+ func good40() {
+ 	ret := T40{}
+-	ret.m = make(map[int]int) // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
++	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+ ret$"
+ 	t := &ret
+ 	printnl() // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
+ 	useT40(t) // ERROR "live at call to useT40: .autotmp_[0-9]+ ret$"
+diff --git a/test/live2.go b/test/live2.go
+index 5c5706d225..cc1b0b7acf 100644
+--- a/test/live2.go
++++ b/test/live2.go
+@@ -23,7 +23,7 @@ type T40 struct {
+ 
+ func newT40() *T40 {
+ 	ret := T40{}
+-	ret.m = make(map[int]int) // ERROR "live at call to makemap: &ret$"
++	ret.m = make(map[int]int, 42) // ERROR "live at call to makemap: &ret$"
+ 	return &ret
+ }
+ 
+@@ -35,7 +35,7 @@ func bad40() {
+ 
+ func good40() {
+ 	ret := T40{}
+-	ret.m = make(map[int]int) // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
++	ret.m = make(map[int]int, 42) // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
+ 	t := &ret
+ 	printnl() // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
+ 	useT40(t) // ERROR "live at call to useT40: .autotmp_[0-9]+ ret$"

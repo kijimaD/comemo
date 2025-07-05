@@ -9,7 +9,53 @@ Date:   Wed Aug 24 09:52:16 2011 -0700
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/4922050
-
+---
  src/cmd/godoc/dirtrees.go |  2 +-
  src/cmd/godoc/parser.go   | 18 +++++++++---------
  2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/godoc/dirtrees.go b/src/cmd/godoc/dirtrees.go
+index aa590b363d..7595ef96fb 100644
+--- a/src/cmd/godoc/dirtrees.go
++++ b/src/cmd/godoc/dirtrees.go
+@@ -117,7 +117,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
+ 			// though the directory doesn't contain any real package files - was bug)
+ 			if synopses[0] == "" {
+ 				// no "optimal" package synopsis yet; continue to collect synopses
+-				file, err := parser.ParseFile(fset, filepath.Join(path, d.Name()), nil,
++				file, err := parseFile(fset, filepath.Join(path, d.Name()),
+ 					parser.ParseComments|parser.PackageClauseOnly)
+ 				if err == nil {
+ 					hasPkgFiles = true
+diff --git a/src/cmd/godoc/parser.go b/src/cmd/godoc/parser.go
+index da4b3853c5..cc1780a4b5 100644
+--- a/src/cmd/godoc/parser.go
++++ b/src/cmd/godoc/parser.go
+@@ -17,18 +17,18 @@ import (
+ 	"path/filepath"
+ )
+ 
++func parseFile(fset *token.FileSet, filename string, mode uint) (*ast.File, os.Error) {
++	src, err := fs.ReadFile(filename)
++	if err != nil {
++		return nil, err
++	}
++	return parser.ParseFile(fset, filename, src, mode)
++}
++
+ func parseFiles(fset *token.FileSet, filenames []string) (pkgs map[string]*ast.Package, first os.Error) {
+ 	pkgs = make(map[string]*ast.Package)
+ 	for _, filename := range filenames {
+-		src, err := fs.ReadFile(filename)
+-		if err != nil {
+-			if first == nil {
+-				first = err
+-			}
+-			continue
+-		}
+-
+-		file, err := parser.ParseFile(fset, filename, src, parser.ParseComments)
++		file, err := parseFile(fset, filename, parser.ParseComments)
+ 		if err != nil {
+ 			if first == nil {
+ 				first = err

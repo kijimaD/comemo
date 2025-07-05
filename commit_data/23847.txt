@@ -7,6 +7,20 @@ Date:   Tue Jun 16 21:33:03 2015 -0700
     Change-Id: I750900e0aed9ec528fea3f442c35196773e3ba5e
     Reviewed-on: https://go-review.googlesource.com/11163
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/os_linux_arm.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_linux_arm.go b/src/runtime/os_linux_arm.go
+index c5abedbd98..6c74c81859 100644
+--- a/src/runtime/os_linux_arm.go
++++ b/src/runtime/os_linux_arm.go
+@@ -47,7 +47,7 @@ func sysargs(argc int32, argv **byte) {
+ 		switch auxv[i] {
+ 		case _AT_RANDOM: // kernel provides a pointer to 16-bytes worth of random data
+ 			startupRandomData = (*[16]byte)(unsafe.Pointer(uintptr(auxv[i+1])))[:]
+-			// the pointer provided may not be word alined, so we must to treat it
++			// the pointer provided may not be word aligned, so we must treat it
+ 			// as a byte array.
+ 			randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
+ 				uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24

@@ -11,7 +11,52 @@ Date:   Tue Dec 6 22:05:41 2016 +0000
     Change-Id: I1b65e790525d339a4cb7f17afe7e3a02c4587302
     Reviewed-on: https://go-review.googlesource.com/34014
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/lookup_unix.go | 12 +++++++-----
  src/net/port_unix.go   |  5 ++---
  2 files changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index 35f253c1da..609adbfd9b 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -76,13 +76,15 @@ func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, e
+ }
+ 
+ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
+-	// TODO: use the context if there ever becomes a need. Related
+-	// is issue 15321. But port lookup generally just involves
+-	// local files, and the os package has no context support. The
+-	// files might be on a remote filesystem, though. This should
+-	// probably race goroutines if ctx != context.Background().
+ 	if !r.PreferGo && systemConf().canUseCgo() {
+ 		if port, err, ok := cgoLookupPort(ctx, network, service); ok {
++			if err != nil {
++				// Issue 18213: if cgo fails, first check to see whether we
++				// have the answer baked-in to the net package.
++				if port, err := goLookupPort(network, service); err == nil {
++					return port, nil
++				}
++			}
+ 			return port, err
+ 		}
+ 	}
+diff --git a/src/net/port_unix.go b/src/net/port_unix.go
+index 4e0478194e..868d1e4784 100644
+--- a/src/net/port_unix.go
++++ b/src/net/port_unix.go
+@@ -10,12 +10,11 @@ package net
+ 
+ import "sync"
+ 
+-var servicesError error
+ var onceReadServices sync.Once
+ 
+ func readServices() {
+-	var file *file
+-	if file, servicesError = open("/etc/services"); servicesError != nil {
++	file, err := open("/etc/services")
++	if err != nil {
+ 		return
+ 	}
+ 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {

@@ -9,7 +9,32 @@ Date:   Sun Mar 13 21:51:07 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/obj.go   | 1 -
  src/cmd/compile/internal/gc/sinit.go | 1 +
  2 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 3c79212528..3014a927ed 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -328,7 +328,6 @@ func gdata(nam *Node, nr *Node, wid int) {
+ 			}
+ 
+ 		default:
+-			// CTNILs don't reach gdata; search for CTNIL in sinit.go. Probably they should, eventually.
+ 			Fatalf("gdata unhandled OLITERAL %v", nr)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index b1b774a7f1..8b3ea538f1 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -514,6 +514,7 @@ func staticname(t *Type, ctxt int) *Node {
+ }
+ 
+ func isliteral(n *Node) bool {
++	// Treat nils as zeros rather than literals.
+ 	if n.Op == OLITERAL {
+ 		if n.Val().Ctype() != CTNIL {
+ 			return true

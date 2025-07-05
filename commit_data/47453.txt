@@ -17,7 +17,7 @@ Date:   Tue Mar 16 17:06:25 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go     |  9 +--------
  src/cmd/compile/internal/base/flag.go      |  2 +-
  src/cmd/compile/internal/dwarfgen/dwarf.go |  2 +-
@@ -32,3 +32,257 @@ Date:   Tue Mar 16 17:06:25 2021 -0400
  src/cmd/link/internal/ld/main.go           |  2 +-
  src/runtime/runtime2.go                    |  2 +-
  13 files changed, 29 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index b9fa3d882e..7590dc1bfa 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -13,14 +13,10 @@ import (
+ 	"reflect"
+ 	"strconv"
+ 	"strings"
+-
+-	"cmd/internal/objabi"
+ )
+ 
+ // Debug holds the parsed debugging configuration values.
+-var Debug = DebugFlags{
+-	Fieldtrack: &objabi.Fieldtrack_enabled,
+-}
++var Debug DebugFlags
+ 
+ // DebugFlags defines the debugging configuration values (see var Debug).
+ // Each struct field is a different value, named for the lower-case of the field name.
+@@ -38,7 +34,6 @@ type DebugFlags struct {
+ 	DumpPtrs             int    `help:"show Node pointers values in dump output"`
+ 	DwarfInl             int    `help:"print information about DWARF inlined function creation"`
+ 	Export               int    `help:"print export data"`
+-	Fieldtrack           *int   `help:"enable field tracking"`
+ 	GCProg               int    `help:"print dump of GC programs"`
+ 	InlFuncsWithClosures int    `help:"allow functions with closures to be inlined"`
+ 	Libfuzzer            int    `help:"enable coverage instrumentation for libfuzzer"`
+@@ -86,8 +81,6 @@ func init() {
+ 			panic(fmt.Sprintf("base.Debug.%s has invalid type %v (must be int or string)", f.Name, f.Type))
+ 		case *int, *string:
+ 			// ok
+-		case **int:
+-			ptr = *ptr.(**int) // record the *int itself
+ 		}
+ 		debugTab = append(debugTab, debugField{name, help, ptr})
+ 	}
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 959fededa9..751ab1b5c7 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -339,7 +339,7 @@ func concurrentBackendAllowed() bool {
+ 		return false
+ 	}
+ 	// TODO: Test and delete this condition.
+-	if objabi.Fieldtrack_enabled != 0 {
++	if objabi.Experiment.FieldTrack {
+ 		return false
+ 	}
+ 	// TODO: fix races and enable the following flags
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 53752097ed..7b5863bbc6 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -278,7 +278,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 		if base.Ctxt.FixedFrameSize() == 0 {
+ 			offs -= int64(types.PtrSize)
+ 		}
+-		if objabi.Framepointer_enabled {
++		if objabi.FramePointerEnabled {
+ 			offs -= int64(types.PtrSize)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/noder/lex.go b/src/cmd/compile/internal/noder/lex.go
+index 36cfb9bc23..60b724d154 100644
+--- a/src/cmd/compile/internal/noder/lex.go
++++ b/src/cmd/compile/internal/noder/lex.go
+@@ -44,7 +44,7 @@ func pragmaFlag(verb string) ir.PragmaFlag {
+ 	case "go:build":
+ 		return ir.GoBuildPragma
+ 	case "go:nointerface":
+-		if objabi.Fieldtrack_enabled != 0 {
++		if objabi.Experiment.FieldTrack {
+ 			return ir.Nointerface
+ 		}
+ 	case "go:noescape":
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index c267274366..b1bcd4566e 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -454,7 +454,7 @@ var passes = [...]pass{
+ 	{name: "dse", fn: dse},
+ 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
+ 	{name: "insert resched checks", fn: insertLoopReschedChecks,
+-		disabled: objabi.Preemptibleloops_enabled == 0}, // insert resched checks in loops.
++		disabled: !objabi.Experiment.PreemptibleLoops}, // insert resched checks in loops.
+ 	{name: "lower", fn: lower, required: true},
+ 	{name: "addressing modes", fn: addressingModes, required: false},
+ 	{name: "lowered deadcode for cse", fn: deadcode}, // deadcode immediately before CSE avoids CSE making dead values live again
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 18908681df..42df8387e4 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -594,7 +594,7 @@ func (s *regAllocState) init(f *Func) {
+ 	if s.f.Config.hasGReg {
+ 		s.allocatable &^= 1 << s.GReg
+ 	}
+-	if objabi.Framepointer_enabled && s.f.Config.FPReg >= 0 {
++	if objabi.FramePointerEnabled && s.f.Config.FPReg >= 0 {
+ 		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
+ 	}
+ 	if s.f.Config.LinkReg != -1 {
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 0088f10fa8..0cb506fb74 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -202,7 +202,7 @@ func StackOffset(slot ssa.LocalSlot) int32 {
+ 		if base.Ctxt.FixedFrameSize() == 0 {
+ 			off -= int64(types.PtrSize)
+ 		}
+-		if objabi.Framepointer_enabled {
++		if objabi.FramePointerEnabled {
+ 			off -= int64(types.PtrSize)
+ 		}
+ 	}
+@@ -215,7 +215,7 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*obj.LSym]struct{}) {
+ 	if fnsym == nil {
+ 		return
+ 	}
+-	if objabi.Fieldtrack_enabled == 0 || len(tracked) == 0 {
++	if !objabi.Experiment.FieldTrack || len(tracked) == 0 {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 1d90029298..4cc5b65d3e 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -931,7 +931,7 @@ func usemethod(n *ir.CallExpr) {
+ }
+ 
+ func usefield(n *ir.SelectorExpr) {
+-	if objabi.Fieldtrack_enabled == 0 {
++	if !objabi.Experiment.FieldTrack {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 0fb6156c5a..95fffeabd6 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -223,7 +223,7 @@ CheckFlags:
+ 	}
+ 
+ 	// TODO: Test and delete these conditions.
+-	if objabi.Fieldtrack_enabled != 0 || objabi.Preemptibleloops_enabled != 0 {
++	if objabi.Experiment.FieldTrack || objabi.Experiment.PreemptibleLoops {
+ 		canDashC = false
+ 	}
+ 
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index 548e9d0a30..9fbe6490e0 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -174,8 +174,14 @@ func init() {
+ 	GOEXPERIMENT = expList()
+ }
+ 
++// FramePointerEnabled enables the use of platform conventions for
++// saving frame pointers.
++//
++// This used to be an experiment, but now it's always enabled on
++// platforms that support it.
++//
+ // Note: must agree with runtime.framepointer_enabled.
+-var Framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"
++var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
+ 
+ func addexp(s string) {
+ 	// Could do general integer parsing here, but the runtime.haveexperiment doesn't yet.
+@@ -203,18 +209,14 @@ func addexp(s string) {
+ 	os.Exit(2)
+ }
+ 
+-var (
+-	Fieldtrack_enabled        int
+-	Preemptibleloops_enabled  int
+-	Staticlockranking_enabled int
+-)
+-
+ // Experiment contains flags for GOEXPERIMENTs.
+-//
+-// TODO(austin): Move the package-level experiment flags into this.
+-var Experiment ExpFlags
++var Experiment = ExpFlags{}
+ 
+ type ExpFlags struct {
++	FieldTrack        bool
++	PreemptibleLoops  bool
++	StaticLockRanking bool
++
+ 	// regabi is split into several sub-experiments that can be
+ 	// enabled individually. GOEXPERIMENT=regabi implies the
+ 	// subset that are currently "working". Not all combinations work.
+@@ -250,9 +252,9 @@ var exper = []struct {
+ 	name string
+ 	val  interface{} // Must be *int or *bool
+ }{
+-	{"fieldtrack", &Fieldtrack_enabled},
+-	{"preemptibleloops", &Preemptibleloops_enabled},
+-	{"staticlockranking", &Staticlockranking_enabled},
++	{"fieldtrack", &Experiment.FieldTrack},
++	{"preemptibleloops", &Experiment.PreemptibleLoops},
++	{"staticlockranking", &Experiment.StaticLockRanking},
+ 	{"regabi", &Experiment.regabi},
+ 	{"regabiwrappers", &Experiment.RegabiWrappers},
+ 	{"regabig", &Experiment.RegabiG},
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index a52652566b..33468b429c 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -32,7 +32,7 @@ type deadcodePass struct {
+ func (d *deadcodePass) init() {
+ 	d.ldr.InitReachable()
+ 	d.ifaceMethod = make(map[methodsig]bool)
+-	if objabi.Fieldtrack_enabled != 0 {
++	if objabi.Experiment.FieldTrack {
+ 		d.ldr.Reachparent = make([]loader.Sym, d.ldr.NSym())
+ 	}
+ 	d.dynlink = d.ctxt.DynlinkingGo()
+@@ -255,7 +255,7 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
+ 	if symIdx != 0 && !d.ldr.AttrReachable(symIdx) {
+ 		d.wq.push(symIdx)
+ 		d.ldr.SetAttrReachable(symIdx, true)
+-		if objabi.Fieldtrack_enabled != 0 && d.ldr.Reachparent[symIdx] == 0 {
++		if objabi.Experiment.FieldTrack && d.ldr.Reachparent[symIdx] == 0 {
+ 			d.ldr.Reachparent[symIdx] = parent
+ 		}
+ 		if *flagDumpDep {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 3c5355df9c..78df50ee2d 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -251,7 +251,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	bench.Start("dostrdata")
+ 	ctxt.dostrdata()
+-	if objabi.Fieldtrack_enabled != 0 {
++	if objabi.Experiment.FieldTrack {
+ 		bench.Start("fieldtrack")
+ 		fieldtrack(ctxt.Arch, ctxt.loader)
+ 	}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index f5318e6f11..e5f948ec86 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1105,5 +1105,5 @@ var (
+ 	isarchive bool // -buildmode=c-archive
+ )
+ 
+-// Must agree with cmd/internal/objabi.Framepointer_enabled.
++// Must agree with cmd/internal/objabi.Experiment.FramePointer.
+ const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"

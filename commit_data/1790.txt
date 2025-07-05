@@ -8,10 +8,150 @@ Date:   Mon Mar 9 18:00:41 2009 -0700
     DELTA=40  (0 added, 38 deleted, 2 changed)
     OCL=25969
     CL=25969
-
+---
  src/lib/fmt/print.go        |  4 +---
  src/lib/reflect/all_test.go |  1 -
  src/lib/reflect/tostring.go |  4 +---
  src/lib/reflect/type.go     |  4 ----
  src/lib/reflect/value.go    | 29 -----------------------------
  5 files changed, 2 insertions(+), 40 deletions(-)
+
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index b5b1fed452..ca5bec9341 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -315,8 +315,6 @@ func getFloat64(v reflect.Value) (val float64, ok bool) {
+ 		}
+ 	case reflect.Float64Kind:
+ 		return float64(v.(reflect.Float64Value).Get()), true;
+-	case reflect.Float80Kind:
+-		break;	// TODO: what to do here?
+ 	}
+ 	return 0.0, false;
+ }
+@@ -388,7 +386,7 @@ func (p *pp) printField(field reflect.Value) (was_string bool) {
+ 	case reflect.Float32Kind:
+ 		v, ok := getFloat32(field);
+ 		s = p.fmt.Fmt_g32(v).Str();
+-	case reflect.Float64Kind, reflect.Float80Kind:
++	case reflect.Float64Kind:
+ 		v, ok := getFloat64(field);
+ 		s = p.fmt.Fmt_g64(v).Str();
+ 	case reflect.FloatKind:
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index 7636f09501..2ce669721d 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -108,7 +108,6 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
+ 	typedump("float", "float");
+ 	typedump("float32", "float32");
+ 	typedump("float64", "float64");
+-	typedump("float80", "float80");
+ 	typedump("int8", "int8");
+ 	typedump("whoknows.whatsthis", "$missing$");
+ 	typedump("**int8", "**int8");
+diff --git a/src/lib/reflect/tostring.go b/src/lib/reflect/tostring.go
+index 202d0ecbc3..bb673fc224 100644
+--- a/src/lib/reflect/tostring.go
++++ b/src/lib/reflect/tostring.go
+@@ -78,7 +78,7 @@ func typeToString(typ Type, expand bool) string {
+ 		return "$missing$";
+ 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
+ 	     UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
+-	     FloatKind, Float32Kind, Float64Kind, Float80Kind,
++	     FloatKind, Float32Kind, Float64Kind,
+ 	     StringKind,
+ 	     DotDotDotKind:
+ 		return typ.Name();
+@@ -170,8 +170,6 @@ func valueToString(val Value) string {
+ 		return strconv.Ftoa32(val.(Float32Value).Get(), 'g', -1);
+ 	case Float64Kind:
+ 		return strconv.Ftoa64(val.(Float64Value).Get(), 'g', -1);
+-	case Float80Kind:
+-		return "float80";
+ 	case StringKind:
+ 		return val.(StringValue).Get();
+ 	case BoolKind:
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index fcc33e442d..9b3bd35d4d 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -33,7 +33,6 @@ const (
+ 	FloatKind;
+ 	Float32Kind;
+ 	Float64Kind;
+-	Float80Kind;
+ 	FuncKind;
+ 	IntKind;
+ 	Int16Kind;
+@@ -140,7 +139,6 @@ var (
+ 	Float = newBasicType("float", FloatKind, unsafe.Sizeof(float(0)));
+ 	Float32 = newBasicType("float32", Float32Kind, 4);
+ 	Float64 = newBasicType("float64", Float64Kind, 8);
+-	Float80 = newBasicType("float80", Float80Kind, 10);	// TODO: strange size?
+ 	String = newBasicType("string", StringKind, unsafe.Sizeof(""));
+ )
+ 
+@@ -467,7 +465,6 @@ func init() {
+ 	types["float"] = Float;
+ 	types["float32"] = Float32;
+ 	types["float64"] = Float64;
+-	types["float80"] = Float80;
+ 	types["string"] = String;
+ 	types["bool"] = Bool;
+ 
+@@ -490,7 +487,6 @@ func init() {
+ 	basicstub["float"] = newStubType("float", Float);
+ 	basicstub["float32"] = newStubType("float32", Float32);
+ 	basicstub["float64"] = newStubType("float64", Float64);
+-	basicstub["float80"] = newStubType("float80", Float80);
+ 	basicstub["string"] = newStubType("string", String);
+ 	basicstub["bool"] = newStubType("bool", Bool);
+ 
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index f4e63407ad..7bd6f3b153 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -438,34 +438,6 @@ func (v *float64ValueStruct) Set(f float64) {
+ 	*(*float64)(v.addr) = f
+ }
+ 
+-// -- Float80
+-
+-// Float80Value represents a float80 value.
+-type Float80Value interface {
+-	Value;
+-	Get()	float80;	// Get the underlying float80.
+-	Set(float80);	// Get the underlying float80.
+-}
+-
+-type float80ValueStruct struct {
+-	commonValue
+-}
+-
+-func float80Creator(typ Type, addr Addr) Value {
+-	return &float80ValueStruct{ commonValue{Float80Kind, typ, addr} }
+-}
+-
+-/*
+-BUG: can't gen code for float80s
+-func (v *Float80ValueStruct) Get() float80 {
+-	return *(*float80)(v.addr)
+-}
+-
+-func (v *Float80ValueStruct) Set(f float80) {
+-	*(*float80)(v.addr) = f
+-}
+-*/
+-
+ // -- String
+ 
+ // StringValue represents a string value.
+@@ -819,7 +791,6 @@ var creator = map[int] creatorFn {
+ 	FloatKind : floatCreator,
+ 	Float32Kind : float32Creator,
+ 	Float64Kind : float64Creator,
+-	Float80Kind : float80Creator,
+ 	StringKind : stringCreator,
+ 	BoolKind : boolCreator,
+ 	PtrKind : ptrCreator,

@@ -8,7 +8,69 @@ Date:   Wed Jun 3 17:26:53 2009 -0700
     DELTA=40  (40 added, 0 deleted, 0 changed)
     OCL=29850
     CL=29855
-
+---
  test/bugs/bug159.go | 39 +++++++++++++++++++++++++++++++++++++++
  test/golden.out     |  5 +++++
  2 files changed, 44 insertions(+)
+
+diff --git a/test/bugs/bug159.go b/test/bugs/bug159.go
+new file mode 100644
+index 0000000000..1aa64433a7
+--- /dev/null
++++ b/test/bugs/bug159.go
+@@ -0,0 +1,39 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug159
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "os"
++
++func main() {
++	ok := true;
++	var a, b, c, x, y, z int;
++	f := func() int { b--; return -b };
++
++	// this fails on 6g: apparently it rewrites
++	// the list into
++	//	z = f();
++	//	y = f();
++	//	x = f();
++	// so that the values come out backward.
++	x, y, z = f(), f(), f();
++	if x != 1 || y != 2 || z != 3 {
++		println("xyz: expected 1 2 3 got", x, y, z);
++		ok = false;
++	}
++
++	// this fails on 6g too.  one of the function calls
++	// happens after assigning to b.
++	a, b, c = f(), f(), f();
++	if a != 4 || b != 5 || c != 6 {
++		println("abc: expected 4 5 6 got", a, b, c);
++		ok = false;
++	}
++
++	if !ok {
++		os.Exit(1);
++	}
++}
+diff --git a/test/golden.out b/test/golden.out
+index 34f2d75ad7..275fb7eb57 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -101,6 +101,11 @@ BUG should compile
+ 5 7
+ BUG: should crash
+ 
++=========== bugs/bug159.go
++xyz: expected 1 2 3 got 3 2 1
++abc: expected 4 5 6 got -4 4 4
++BUG: bug159
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

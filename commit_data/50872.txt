@@ -10,7 +10,34 @@ Date:   Sun Nov 14 11:31:47 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/subst.go | 2 +-
  src/go/types/subst.go                    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 5deb868a79..ed1fbbf941 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -137,7 +137,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		methods, mcopied := subst.funcList(t.methods)
+ 		embeddeds, ecopied := subst.typeList(t.embeddeds)
+ 		if mcopied || ecopied {
+-			iface := &Interface{methods: methods, embeddeds: embeddeds, complete: t.complete}
++			iface := &Interface{methods: methods, embeddeds: embeddeds, implicit: t.implicit, complete: t.complete}
+ 			return iface
+ 		}
+ 
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 3ff81a06b6..04eb3a6215 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -137,7 +137,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		methods, mcopied := subst.funcList(t.methods)
+ 		embeddeds, ecopied := subst.typeList(t.embeddeds)
+ 		if mcopied || ecopied {
+-			iface := &Interface{methods: methods, embeddeds: embeddeds, complete: t.complete}
++			iface := &Interface{methods: methods, embeddeds: embeddeds, implicit: t.implicit, complete: t.complete}
+ 			return iface
+ 		}
+ 

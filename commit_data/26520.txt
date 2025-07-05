@@ -11,9 +11,123 @@ Date:   Sat Jan 30 14:29:02 2016 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go | 18 ++++++++++++++
  test/fixedbugs/issue14164.dir/a.go    | 47 +++++++++++++++++++++++++++++++++++
  test/fixedbugs/issue14164.dir/main.go | 12 +++++++++
  test/fixedbugs/issue14164.go          |  7 ++++++
  4 files changed, 84 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 282e855b37..054cf73656 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -2501,6 +2501,24 @@ func (p *parser) interfacedcl() *Node {
+ 		ifacedcl(meth)
+ 		return meth
+ 
++	case '@', '?':
++		// newname indcl
++		// We arrive here when parsing an interface type declared inside
++		// an exported and inlineable function and the interface declares
++		// unexported methods (which are then package-qualified).
++		//
++		// Since the compiler always flattens embedded interfaces, we
++		// will never see an embedded package-qualified interface in export
++		// data; i.e., when we reach here we know it must be a method.
++		//
++		// See also issue 14164.
++		mname := newname(p.sym())
++		sig := p.indcl()
++
++		meth := Nod(ODCLFIELD, mname, sig)
++		ifacedcl(meth)
++		return meth
++
+ 	case '(':
+ 		p.next()
+ 		pname := p.packname(nil)
+diff --git a/test/fixedbugs/issue14164.dir/a.go b/test/fixedbugs/issue14164.dir/a.go
+new file mode 100644
+index 0000000000..bf03051619
+--- /dev/null
++++ b/test/fixedbugs/issue14164.dir/a.go
+@@ -0,0 +1,47 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++// F is an exported function, small enough to be inlined.
++// It defines a local interface with an unexported method
++// f, which will appear with a package-qualified method
++// name in the export data.
++func F(x interface{}) bool {
++	_, ok := x.(interface {
++		f()
++	})
++	return ok
++}
++
++// Like F but with the unexported interface method f
++// defined via an embedded interface t. The compiler
++// always flattens embedded interfaces so there should
++// be no difference between F and G. Alas, currently
++// G is not inlineable (at least via export data), so
++// the issue is moot, here.
++func G(x interface{}) bool {
++	type t0 interface {
++		f()
++	}
++	_, ok := x.(interface {
++		t0
++	})
++	return ok
++}
++
++// Like G but now the embedded interface is declared
++// at package level. This function is inlineable via
++// export data. The export data representation is like
++// for F.
++func H(x interface{}) bool {
++	_, ok := x.(interface {
++		t1
++	})
++	return ok
++}
++
++type t1 interface {
++	f()
++}
+diff --git a/test/fixedbugs/issue14164.dir/main.go b/test/fixedbugs/issue14164.dir/main.go
+new file mode 100644
+index 0000000000..bcc6a63c20
+--- /dev/null
++++ b/test/fixedbugs/issue14164.dir/main.go
+@@ -0,0 +1,12 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Verify that we can import package "a" containing an inlineable
++// function F that declares a local interface with a non-exported
++// method f.
++import _ "./a"
++
++func main() {}
+diff --git a/test/fixedbugs/issue14164.go b/test/fixedbugs/issue14164.go
+new file mode 100644
+index 0000000000..5247599d49
+--- /dev/null
++++ b/test/fixedbugs/issue14164.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++ignored

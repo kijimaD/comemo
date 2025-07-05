@@ -12,6 +12,24 @@ Date:   Tue Apr 18 10:48:16 2017 +0200
     Change-Id: Icd9663a2e4bb94d922a2417cfe4537861d2ccc97
     Reviewed-on: https://go-review.googlesource.com/40917
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/reflect/type.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index c182d8c7da..13d63489f7 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -289,9 +289,11 @@ const (
+ // It is embedded in other, public struct types, but always
+ // with a unique tag like `reflect:"array"` or `reflect:"ptr"`
+ // so that code cannot convert from, say, *arrayType to *ptrType.
++//
++// rtype must be kept in sync with ../runtime/type.go:/^type._type.
+ type rtype struct {
+ 	size       uintptr
+-	ptrdata    uintptr
++	ptrdata    uintptr  // number of bytes in the type that can contain pointers
+ 	hash       uint32   // hash of type; avoids computation in hash tables
+ 	tflag      tflag    // extra type information flags
+ 	align      uint8    // alignment of variable with this type

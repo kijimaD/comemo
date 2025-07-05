@@ -21,6 +21,24 @@ Date:   Tue May 31 14:24:21 2011 -0400
     R=iant
     CC=golang-dev
     https://golang.org/cl/4515168
-
+---
  src/pkg/runtime/Makefile | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index fa9fa91734..b122e05999 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -122,10 +122,10 @@ $(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
+ 	mv -f $@.x $@
+ 
+ goc2c: goc2c.c
+-	$(HOST_CC) -o $@ $<
++	quietgcc -o $@ $<
+ 
+ mkversion: mkversion.c
+-	$(HOST_CC) -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
++	quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
+ 
+ version.go: mkversion
+ 	GOROOT="$(GOROOT_FINAL)" ./mkversion >version.go

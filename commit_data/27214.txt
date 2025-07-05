@@ -29,7 +29,95 @@ Date:   Wed Mar 16 18:26:43 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/http_test.go | 43 ++++++++++++++++++++++++++++++++++++++++++-
  src/net/http/request.go   | 13 ++++++++++++-
  2 files changed, 54 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/http_test.go b/src/net/http/http_test.go
+index dead3b0454..3267d478ee 100644
+--- a/src/net/http/http_test.go
++++ b/src/net/http/http_test.go
+@@ -2,12 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Tests of internal functions with no better homes.
++// Tests of internal functions and things with no better homes.
+ 
+ package http
+ 
+ import (
++	"bytes"
++	"internal/testenv"
++	"os/exec"
++	"path/filepath"
+ 	"reflect"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -56,3 +61,39 @@ func TestCleanHost(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Test that cmd/go doesn't link in the HTTP server.
++//
++// This catches accidental dependencies between the HTTP transport and
++// server code.
++func TestCmdGoNoHTTPServer(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	var exeSuffix string
++	if runtime.GOOS == "windows" {
++		exeSuffix = ".exe"
++	}
++
++	goBin := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
++	out, err := exec.Command("go", "tool", "nm", goBin).Output()
++	if err != nil {
++		t.Fatalf("go tool nm: %v", err)
++	}
++	wantSym := map[string]bool{
++		// Verify these exist: (sanity checking this test)
++		"net/http.(*Client).Get":          true,
++		"net/http.(*Transport).RoundTrip": true,
++
++		// Verify these don't exist:
++		"net/http.http2Server":     false,
++		"net/http.(*Server).Serve": false,
++	}
++	for sym, want := range wantSym {
++		got := bytes.Contains(out, []byte(sym))
++		if !want && got {
++			t.Errorf("cmd/go unexpectedly links in HTTP server code; found symbol %q in cmd/go", sym)
++		}
++		if want && !got {
++			t.Errorf("expected to find symbol %q in cmd/go; not found", sym)
++		}
++	}
++}
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 9dba0c33b5..ba487cfa31 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -820,7 +820,18 @@ type maxBytesReader struct {
+ func (l *maxBytesReader) tooLarge() (n int, err error) {
+ 	if !l.stopped {
+ 		l.stopped = true
+-		if res, ok := l.w.(*response); ok {
++
++		// The server code and client code both use
++		// maxBytesReader. This "requestTooLarge" check is
++		// only used by the server code. To prevent binaries
++		// which only using the HTTP Client code (such as
++		// cmd/go) from also linking in the HTTP server, don't
++		// use a static type assertion to the server
++		// "*response" type. Check this interface instead:
++		type requestTooLarger interface {
++			requestTooLarge()
++		}
++		if res, ok := l.w.(requestTooLarger); ok {
+ 			res.requestTooLarge()
+ 		}
+ 	}

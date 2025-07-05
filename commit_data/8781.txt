@@ -11,6 +11,20 @@ Date:   Sun Jun 19 15:30:54 2011 +1000
     R=jdpoirier
     CC=golang-dev
     https://golang.org/cl/4646047
-
+---
  src/Make.ccmd | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/Make.ccmd b/src/Make.ccmd
+index 0caca04853..f04864ab65 100644
+--- a/src/Make.ccmd
++++ b/src/Make.ccmd
+@@ -9,7 +9,7 @@ TARG:=$(TARG).exe
+ endif
+ 
+ $(TARG): $(OFILES) $(LIB)
+-	$(HOST_LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lmach -lbio -l9 $(HOST_LDFLAGS)
++	$(HOST_LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lmach -lbio -l9 -lm $(HOST_LDFLAGS)
+ 
+ $(OFILES): $(HFILES)
+ 

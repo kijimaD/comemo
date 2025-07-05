@@ -27,7 +27,119 @@ Date:   Tue Dec 31 20:39:14 2019 +0000
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/encoding/asn1/asn1.go         | 50 +++++++++++++--------------------------
  src/encoding/asn1/marshal_test.go | 28 ++++++++++++++++++++++
  2 files changed, 45 insertions(+), 33 deletions(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 068594e2a1..7c260b49d9 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -851,53 +851,37 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 	offset += t.length
+ 
+ 	// We deal with the structures defined in this package first.
+-	switch fieldType {
+-	case rawValueType:
+-		result := RawValue{t.class, t.tag, t.isCompound, innerBytes, bytes[initOffset:offset]}
+-		v.Set(reflect.ValueOf(result))
++	switch v := v.Addr().Interface().(type) {
++	case *RawValue:
++		*v = RawValue{t.class, t.tag, t.isCompound, innerBytes, bytes[initOffset:offset]}
+ 		return
+-	case objectIdentifierType:
+-		newSlice, err1 := parseObjectIdentifier(innerBytes)
+-		v.Set(reflect.MakeSlice(v.Type(), len(newSlice), len(newSlice)))
+-		if err1 == nil {
+-			reflect.Copy(v, reflect.ValueOf(newSlice))
+-		}
+-		err = err1
++	case *ObjectIdentifier:
++		*v, err = parseObjectIdentifier(innerBytes)
+ 		return
+-	case bitStringType:
+-		bs, err1 := parseBitString(innerBytes)
+-		if err1 == nil {
+-			v.Set(reflect.ValueOf(bs))
+-		}
+-		err = err1
++	case *BitString:
++		*v, err = parseBitString(innerBytes)
+ 		return
+-	case timeType:
+-		var time time.Time
+-		var err1 error
++	case *time.Time:
+ 		if universalTag == TagUTCTime {
+-			time, err1 = parseUTCTime(innerBytes)
+-		} else {
+-			time, err1 = parseGeneralizedTime(innerBytes)
+-		}
+-		if err1 == nil {
+-			v.Set(reflect.ValueOf(time))
++			*v, err = parseUTCTime(innerBytes)
++			return
+ 		}
+-		err = err1
++		*v, err = parseGeneralizedTime(innerBytes)
+ 		return
+-	case enumeratedType:
++	case *Enumerated:
+ 		parsedInt, err1 := parseInt32(innerBytes)
+ 		if err1 == nil {
+-			v.SetInt(int64(parsedInt))
++			*v = Enumerated(parsedInt)
+ 		}
+ 		err = err1
+ 		return
+-	case flagType:
+-		v.SetBool(true)
++	case *Flag:
++		*v = true
+ 		return
+-	case bigIntType:
++	case **big.Int:
+ 		parsedInt, err1 := parseBigInt(innerBytes)
+ 		if err1 == nil {
+-			v.Set(reflect.ValueOf(parsedInt))
++			*v = parsedInt
+ 		}
+ 		err = err1
+ 		return
+diff --git a/src/encoding/asn1/marshal_test.go b/src/encoding/asn1/marshal_test.go
+index 529052285f..e3a7d8ff00 100644
+--- a/src/encoding/asn1/marshal_test.go
++++ b/src/encoding/asn1/marshal_test.go
+@@ -376,3 +376,31 @@ func TestSetEncoderSETSliceSuffix(t *testing.T) {
+ 		t.Errorf("Unexpected SET content. got: %s, want: %s", resultSet, expectedOrder)
+ 	}
+ }
++
++func BenchmarkUnmarshal(b *testing.B) {
++	b.ReportAllocs()
++
++	type testCase struct {
++		in  []byte
++		out interface{}
++	}
++	var testData []testCase
++	for _, test := range unmarshalTestData {
++		pv := reflect.New(reflect.TypeOf(test.out).Elem())
++		inCopy := make([]byte, len(test.in))
++		copy(inCopy, test.in)
++		outCopy := pv.Interface()
++
++		testData = append(testData, testCase{
++			in:  inCopy,
++			out: outCopy,
++		})
++	}
++
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		for _, testCase := range testData {
++			_, _ = Unmarshal(testCase.in, testCase.out)
++		}
++	}
++}

@@ -11,8 +11,57 @@ Date:   Mon May 28 10:40:54 2018 +0000
     GitHub-Pull-Request: golang/go#25606
     Reviewed-on: https://go-review.googlesource.com/114803
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/elliptic/p256_asm_s390x.s  | 2 +-
  src/crypto/sha1/sha1block_amd64.s     | 4 ++--
  src/crypto/sha256/sha256block_amd64.s | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/elliptic/p256_asm_s390x.s b/src/crypto/elliptic/p256_asm_s390x.s
+index d0e6d09e2e..8a17e81062 100644
+--- a/src/crypto/elliptic/p256_asm_s390x.s
++++ b/src/crypto/elliptic/p256_asm_s390x.s
+@@ -991,7 +991,7 @@ TEXT ·p256OrdMul(SB), NOSPLIT, $0
+  *                                                                *Mi obra de arte de siglo XXI @vpaprots
+  *
+  *
+- * First group is special, doesnt get the two inputs:
++ * First group is special, doesn't get the two inputs:
+  *                                             +--------+--------+<-+
+  *                                     +-------|  ADD2  |  ADD1  |--|-----+
+  *                                     |       +--------+--------+  |     |
+diff --git a/src/crypto/sha1/sha1block_amd64.s b/src/crypto/sha1/sha1block_amd64.s
+index a0032c4544..135f113898 100644
+--- a/src/crypto/sha1/sha1block_amd64.s
++++ b/src/crypto/sha1/sha1block_amd64.s
+@@ -395,7 +395,7 @@ end:
+ 	PRECALC_32_79(Y13,Y14,Y15,Y5,Y12,0x60,0x240) \
+ 	PRECALC_32_79(Y12,Y13,Y14,Y3,Y8,0x60,0x260)
+ 
+-// Macros calculating individual rounds have general forn
++// Macros calculating individual rounds have general form
+ // CALC_ROUND_PRE + PRECALC_ROUND + CALC_ROUND_POST
+ // CALC_ROUND_{PRE,POST} macros follow
+ 
+@@ -413,7 +413,7 @@ end:
+ 	LEAL (REG_E)(R12*1), REG_E     // E += A >>> 5
+ 
+ 
+-// Registers are cycleickly rotated DX -> AX -> DI -> SI -> BX -> CX
++// Registers are cyclically rotated DX -> AX -> DI -> SI -> BX -> CX
+ #define CALC_0 \
+ 	MOVL SI, BX \ // Precalculating first round
+ 	RORXL $2, SI, SI \
+diff --git a/src/crypto/sha256/sha256block_amd64.s b/src/crypto/sha256/sha256block_amd64.s
+index f30f4829a6..f533f64260 100644
+--- a/src/crypto/sha256/sha256block_amd64.s
++++ b/src/crypto/sha256/sha256block_amd64.s
+@@ -755,7 +755,7 @@ avx2_loop1: // for w0 - w47
+ 	JB   avx2_loop1
+ 
+ avx2_loop2:
+-	// w48 - w63 processed with no scheduliung (last 16 rounds)
++	// w48 - w63 processed with no scheduling (last 16 rounds)
+ 	VPADDD  0*32(TBL)(SRND*1), XDWORD0, XFER
+ 	VMOVDQU XFER, (_XFER + 0*32)(SP)(SRND*1)
+ 	DO_ROUND_N_0(_XFER + 0*32, a, b, c, d, e, f, g, h, h)

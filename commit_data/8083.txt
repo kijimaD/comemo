@@ -9,7 +9,44 @@ Date:   Wed Apr 13 22:48:21 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4414042
-
+---
  src/cmd/gc/go.y |  3 ++-
  test/func6.go   | 14 ++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index ba2b2a6343..89899ae1e9 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1239,9 +1239,10 @@ fnlitdcl:
+ 	}
+ 
+ fnliteral:
+-	fnlitdcl '{' stmt_list '}'
++	fnlitdcl lbrace stmt_list '}'
+ 	{
+ 		$$ = closurebody($3);
++		fixlbrace($2);
+ 	}
+ 
+ 
+diff --git a/test/func6.go b/test/func6.go
+new file mode 100644
+index 0000000000..1356b6aa8b
+--- /dev/null
++++ b/test/func6.go
+@@ -0,0 +1,14 @@
++// $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	if func() bool { return true }() {}  // 6g used to say this was a syntax error
++	if (func() bool { return true })() {}
++	if (func() bool { return true }()) {}
++}
++

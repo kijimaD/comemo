@@ -12,7 +12,53 @@ Date:   Wed Apr 8 04:27:58 2015 -0400
     Change-Id: I8f40daa1838b8acd26adac8848762d95315053b0
     Reviewed-on: https://go-review.googlesource.com/8622
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/api/goapi.go      | 7 ++++---
  src/cmd/api/goapi_test.go | 2 +-
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index c42416db9e..7b2c643e11 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -202,7 +202,8 @@ func main() {
+ 	}
+ 	optional := fileFeatures(*nextFile)
+ 	exception := fileFeatures(*exceptFile)
+-	fail = !compareAPI(bw, features, required, optional, exception)
++	fail = !compareAPI(bw, features, required, optional, exception,
++		*allowNew && strings.Contains(runtime.Version(), "devel"))
+ }
+ 
+ // export emits the exported package features.
+@@ -238,7 +239,7 @@ func featureWithoutContext(f string) string {
+ 	return spaceParensRx.ReplaceAllString(f, "")
+ }
+ 
+-func compareAPI(w io.Writer, features, required, optional, exception []string) (ok bool) {
++func compareAPI(w io.Writer, features, required, optional, exception []string, allowAdd bool) (ok bool) {
+ 	ok = true
+ 
+ 	optionalSet := set(optional)
+@@ -280,7 +281,7 @@ func compareAPI(w io.Writer, features, required, optional, exception []string) (
+ 				delete(optionalSet, newFeature)
+ 			} else {
+ 				fmt.Fprintf(w, "+%s\n", newFeature)
+-				if !*allowNew || !strings.Contains(runtime.Version(), "devel") {
++				if !allowAdd {
+ 					ok = false // we're in lock-down mode for next release
+ 				}
+ 			}
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index 9f5b0c8bb4..00c45c3bcd 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -131,7 +131,7 @@ func TestCompareAPI(t *testing.T) {
+ 	}
+ 	for _, tt := range tests {
+ 		buf := new(bytes.Buffer)
+-		gotok := compareAPI(buf, tt.features, tt.required, tt.optional, tt.exception)
++		gotok := compareAPI(buf, tt.features, tt.required, tt.optional, tt.exception, true)
+ 		if gotok != tt.ok {
+ 			t.Errorf("%s: ok = %v; want %v", tt.name, gotok, tt.ok)
+ 		}

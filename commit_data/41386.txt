@@ -13,7 +13,7 @@ Date:   Fri Sep 27 15:59:03 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go    | 10 +++++-----
  src/cmd/compile/internal/gc/fmt.go       |  3 +--
  src/cmd/compile/internal/gc/iexport.go   |  8 +++++++-
@@ -27,3 +27,351 @@ Date:   Fri Sep 27 15:59:03 2019 -0700
  src/cmd/compile/internal/gc/typecheck.go |  7 ++++---
  src/cmd/compile/internal/gc/walk.go      | 12 ++++++------
  12 files changed, 55 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index d04303134a..ebe5403186 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -361,18 +361,18 @@ func (e *Escape) stmt(n *Node) {
+ 		}
+ 
+ 	case OAS2DOTTYPE: // v, ok = x.(type)
+-		e.assign(n.List.First(), n.Rlist.First(), "assign-pair-dot-type", n)
++		e.assign(n.List.First(), n.Right, "assign-pair-dot-type", n)
+ 		e.assign(n.List.Second(), nil, "assign-pair-dot-type", n)
+ 	case OAS2MAPR: // v, ok = m[k]
+-		e.assign(n.List.First(), n.Rlist.First(), "assign-pair-mapr", n)
++		e.assign(n.List.First(), n.Right, "assign-pair-mapr", n)
+ 		e.assign(n.List.Second(), nil, "assign-pair-mapr", n)
+ 	case OAS2RECV: // v, ok = <-ch
+-		e.assign(n.List.First(), n.Rlist.First(), "assign-pair-receive", n)
++		e.assign(n.List.First(), n.Right, "assign-pair-receive", n)
+ 		e.assign(n.List.Second(), nil, "assign-pair-receive", n)
+ 
+ 	case OAS2FUNC:
+-		e.stmts(n.Rlist.First().Ninit)
+-		e.call(e.addrs(n.List), n.Rlist.First(), nil)
++		e.stmts(n.Right.Ninit)
++		e.call(e.addrs(n.List), n.Right, nil)
+ 	case ORETURN:
+ 		results := e.curfn.Type.Results().FieldSlice()
+ 		for i, v := range n.List.Slice() {
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 7b974cc866..b401215898 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -945,8 +945,7 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
+ 		fallthrough
+ 
+ 	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+-		mode.Fprintf(s, "%.v = %.v", n.List, n.Rlist)
+-
++		mode.Fprintf(s, "%.v = %.v", n.List, n.Right)
+ 	case ORETURN:
+ 		mode.Fprintf(s, "return %.v", n.List)
+ 
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index a5acd26c7f..54b87ab1e4 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1044,12 +1044,18 @@ func (w *exportWriter) stmt(n *Node) {
+ 			w.expr(n.Right)
+ 		}
+ 
+-	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
++	case OAS2:
+ 		w.op(OAS2)
+ 		w.pos(n.Pos)
+ 		w.exprList(n.List)
+ 		w.exprList(n.Rlist)
+ 
++	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
++		w.op(OAS2)
++		w.pos(n.Pos)
++		w.exprList(n.List)
++		w.exprList(asNodes([]*Node{n.Right}))
++
+ 	case ORETURN:
+ 		w.op(ORETURN)
+ 		w.pos(n.Pos)
+diff --git a/src/cmd/compile/internal/gc/initorder.go b/src/cmd/compile/internal/gc/initorder.go
+index be1e671d17..41f1349bbe 100644
+--- a/src/cmd/compile/internal/gc/initorder.go
++++ b/src/cmd/compile/internal/gc/initorder.go
+@@ -254,7 +254,7 @@ func collectDeps(n *Node, transitive bool) NodeSet {
+ 	case OAS:
+ 		d.inspect(n.Right)
+ 	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+-		d.inspect(n.Rlist.First())
++		d.inspect(n.Right)
+ 	case ODCLFUNC:
+ 		d.inspectList(n.Nbody)
+ 	default:
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index b41b8cb1a4..4a376305bb 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -580,6 +580,12 @@ func inlnode(n *Node, maxCost int32) *Node {
+ 	if n.Right != nil && n.Right.Op == OINLCALL {
+ 		if n.Op == OFOR || n.Op == OFORUNTIL {
+ 			inlconv2stmt(n.Right)
++		} else if n.Op == OAS2FUNC {
++			n.Rlist.Set(inlconv2list(n.Right))
++			n.Right = nil
++			n.Op = OAS2
++			n.SetTypecheck(0)
++			n = typecheck(n, ctxStmt)
+ 		} else {
+ 			n.Right = inlconv2expr(n.Right)
+ 		}
+@@ -602,20 +608,13 @@ func inlnode(n *Node, maxCost int32) *Node {
+ 	}
+ 
+ 	inlnodelist(n.Rlist, maxCost)
+-	if n.Op == OAS2FUNC && n.Rlist.First().Op == OINLCALL {
+-		n.Rlist.Set(inlconv2list(n.Rlist.First()))
+-		n.Op = OAS2
+-		n.SetTypecheck(0)
+-		n = typecheck(n, ctxStmt)
+-	} else {
+-		s := n.Rlist.Slice()
+-		for i1, n1 := range s {
+-			if n1.Op == OINLCALL {
+-				if n.Op == OIF {
+-					inlconv2stmt(n1)
+-				} else {
+-					s[i1] = inlconv2expr(s[i1])
+-				}
++	s := n.Rlist.Slice()
++	for i1, n1 := range s {
++		if n1.Op == OINLCALL {
++			if n.Op == OIF {
++				inlconv2stmt(n1)
++			} else {
++				s[i1] = inlconv2expr(s[i1])
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index e6350ef721..786067c49c 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -567,7 +567,7 @@ func (o *Order) stmt(n *Node) {
+ 	case OAS2MAPR:
+ 		t := o.markTemp()
+ 		o.exprList(n.List)
+-		r := n.Rlist.First()
++		r := n.Right
+ 		r.Left = o.expr(r.Left, nil)
+ 		r.Right = o.expr(r.Right, nil)
+ 
+@@ -582,8 +582,8 @@ func (o *Order) stmt(n *Node) {
+ 	case OAS2FUNC:
+ 		t := o.markTemp()
+ 		o.exprList(n.List)
+-		o.init(n.Rlist.First())
+-		o.call(n.Rlist.First())
++		o.init(n.Right)
++		o.call(n.Right)
+ 		o.as2(n)
+ 		o.cleanTemp(t)
+ 
+@@ -593,7 +593,7 @@ func (o *Order) stmt(n *Node) {
+ 	case OAS2DOTTYPE:
+ 		t := o.markTemp()
+ 		o.exprList(n.List)
+-		n.Rlist.First().Left = o.expr(n.Rlist.First().Left, nil) // i in i.(T)
++		n.Right.Left = o.expr(n.Right.Left, nil) // i in i.(T)
+ 		o.okAs2(n)
+ 		o.cleanTemp(t)
+ 
+@@ -602,8 +602,8 @@ func (o *Order) stmt(n *Node) {
+ 	case OAS2RECV:
+ 		t := o.markTemp()
+ 		o.exprList(n.List)
+-		n.Rlist.First().Left = o.expr(n.Rlist.First().Left, nil) // arg to recv
+-		ch := n.Rlist.First().Left.Type
++		n.Right.Left = o.expr(n.Right.Left, nil) // arg to recv
++		ch := n.Right.Left.Type
+ 		tmp1 := o.newTemp(ch.Elem(), types.Haspointers(ch.Elem()))
+ 		tmp2 := o.newTemp(types.Types[TBOOL], false)
+ 		o.out = append(o.out, n)
+@@ -1343,7 +1343,7 @@ func (o *Order) as2(n *Node) {
+ func (o *Order) okAs2(n *Node) {
+ 	var tmp1, tmp2 *Node
+ 	if !n.List.First().isBlank() {
+-		typ := n.Rlist.First().Type
++		typ := n.Right.Type
+ 		tmp1 = o.newTemp(typ, types.Haspointers(typ))
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 4d354f23cf..4744324a7c 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -343,7 +343,7 @@ func walkrange(n *Node) *Node {
+ 		a := nod(OAS2RECV, nil, nil)
+ 		a.SetTypecheck(1)
+ 		a.List.Set2(hv1, hb)
+-		a.Rlist.Set1(nod(ORECV, ha, nil))
++		a.Right = nod(ORECV, ha, nil)
+ 		n.Left.Ninit.Set1(a)
+ 		if v1 == nil {
+ 			body = nil
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 07c5c5a2a9..49cc23cd3d 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -60,7 +60,7 @@ func typecheckselect(sel *Node) {
+ 
+ 				// convert x, ok = <-c into OSELRECV2(x, <-c) with ntest=ok
+ 			case OAS2RECV:
+-				if n.Rlist.First().Op != ORECV {
++				if n.Right.Op != ORECV {
+ 					yyerrorl(n.Pos, "select assignment must have receive on right hand side")
+ 					break
+ 				}
+@@ -68,8 +68,6 @@ func typecheckselect(sel *Node) {
+ 				n.Op = OSELRECV2
+ 				n.Left = n.List.First()
+ 				n.List.Set1(n.List.Second())
+-				n.Right = n.Rlist.First()
+-				n.Rlist.Set(nil)
+ 
+ 				// convert <-c into OSELRECV(N, <-c)
+ 			case ORECV:
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7b0c7e5c43..efc7d1eb51 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -874,9 +874,9 @@ func (s *state) stmt(n *Node) {
+ 		s.call(n.Left, callGo)
+ 
+ 	case OAS2DOTTYPE:
+-		res, resok := s.dottype(n.Rlist.First(), true)
++		res, resok := s.dottype(n.Right, true)
+ 		deref := false
+-		if !canSSAType(n.Rlist.First().Type) {
++		if !canSSAType(n.Right.Type) {
+ 			if res.Op != ssa.OpLoad {
+ 				s.Fatalf("dottype of non-load")
+ 			}
+@@ -896,10 +896,10 @@ func (s *state) stmt(n *Node) {
+ 
+ 	case OAS2FUNC:
+ 		// We come here only when it is an intrinsic call returning two values.
+-		if !isIntrinsicCall(n.Rlist.First()) {
+-			s.Fatalf("non-intrinsic AS2FUNC not expanded %v", n.Rlist.First())
++		if !isIntrinsicCall(n.Right) {
++			s.Fatalf("non-intrinsic AS2FUNC not expanded %v", n.Right)
+ 		}
+-		v := s.intrinsicCall(n.Rlist.First())
++		v := s.intrinsicCall(n.Right)
+ 		v1 := s.newValue1(ssa.OpSelect0, n.List.First().Type, v)
+ 		v2 := s.newValue1(ssa.OpSelect1, n.List.Second().Type, v)
+ 		s.assign(n.List.First(), v1, false, 0)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index c26ed6251b..c1df046654 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -600,10 +600,10 @@ const (
+ 	OSTR2RUNES    // Type(Left) (Type is []rune, Left is a string)
+ 	OAS           // Left = Right or (if Colas=true) Left := Right
+ 	OAS2          // List = Rlist (x, y, z = a, b, c)
+-	OAS2DOTTYPE   // List = Rlist (x, ok = I.(int))
+-	OAS2FUNC      // List = Rlist (x, y = f())
+-	OAS2MAPR      // List = Rlist (x, ok = m["foo"])
+-	OAS2RECV      // List = Rlist (x, ok = <-c)
++	OAS2DOTTYPE   // List = Right (x, ok = I.(int))
++	OAS2FUNC      // List = Right (x, y = f())
++	OAS2MAPR      // List = Right (x, ok = m["foo"])
++	OAS2RECV      // List = Right (x, ok = <-c)
+ 	OASOP         // Left Etype= Right (x += y)
+ 	OCALL         // Left(List) (function call, method call or type conversion)
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index ab45fb5a2d..c9b7e3b1e8 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3275,6 +3275,8 @@ func typecheckas2(n *Node) {
+ 				goto mismatch
+ 			}
+ 			n.Op = OAS2FUNC
++			n.Right = r
++			n.Rlist.Set(nil)
+ 			for i, l := range n.List.Slice() {
+ 				f := r.Type.Field(i)
+ 				if f.Type != nil && l.Type != nil {
+@@ -3298,15 +3300,14 @@ func typecheckas2(n *Node) {
+ 			switch r.Op {
+ 			case OINDEXMAP:
+ 				n.Op = OAS2MAPR
+-
+ 			case ORECV:
+ 				n.Op = OAS2RECV
+-
+ 			case ODOTTYPE:
+ 				n.Op = OAS2DOTTYPE
+ 				r.Op = ODOTTYPE2
+ 			}
+-
++			n.Right = r
++			n.Rlist.Set(nil)
+ 			if l.Type != nil {
+ 				checkassignto(r.Type, l)
+ 			}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index ceec1b4dc1..7f73d416e8 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -691,12 +691,12 @@ opswitch:
+ 	case OAS2FUNC:
+ 		init.AppendNodes(&n.Ninit)
+ 
+-		r := n.Rlist.First()
++		r := n.Right
+ 		walkexprlistsafe(n.List.Slice(), init)
+ 		r = walkexpr(r, init)
+ 
+ 		if isIntrinsicCall(r) {
+-			n.Rlist.Set1(r)
++			n.Right = r
+ 			break
+ 		}
+ 		init.Append(r)
+@@ -709,7 +709,7 @@ opswitch:
+ 	case OAS2RECV:
+ 		init.AppendNodes(&n.Ninit)
+ 
+-		r := n.Rlist.First()
++		r := n.Right
+ 		walkexprlistsafe(n.List.Slice(), init)
+ 		r.Left = walkexpr(r.Left, init)
+ 		var n1 *Node
+@@ -728,7 +728,7 @@ opswitch:
+ 	case OAS2MAPR:
+ 		init.AppendNodes(&n.Ninit)
+ 
+-		r := n.Rlist.First()
++		r := n.Right
+ 		walkexprlistsafe(n.List.Slice(), init)
+ 		r.Left = walkexpr(r.Left, init)
+ 		r.Right = walkexpr(r.Right, init)
+@@ -767,7 +767,7 @@ opswitch:
+ 		if ok := n.List.Second(); !ok.isBlank() && ok.Type.IsBoolean() {
+ 			r.Type.Field(1).Type = ok.Type
+ 		}
+-		n.Rlist.Set1(r)
++		n.Right = r
+ 		n.Op = OAS2FUNC
+ 
+ 		// don't generate a = *var if a is _
+@@ -801,7 +801,7 @@ opswitch:
+ 
+ 	case OAS2DOTTYPE:
+ 		walkexprlistsafe(n.List.Slice(), init)
+-		n.Rlist.SetFirst(walkexpr(n.Rlist.First(), init))
++		n.Right = walkexpr(n.Right, init)
+ 
+ 	case OCONVIFACE:
+ 		n.Left = walkexpr(n.Left, init)

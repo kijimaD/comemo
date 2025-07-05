@@ -10,10 +10,641 @@ Date:   Fri Aug 21 18:13:35 2009 -0700
     DELTA=458  (434 added, 15 deleted, 9 changed)
     OCL=33677
     CL=33702
-
+---
  src/cmd/gotest/gotest       |   2 +-
  usr/austin/sym/gosymtab.go  | 166 ++++++++++++++++++++++++++++++-----
  usr/austin/sym/pclinetest.h |   7 ++
  usr/austin/sym/pclinetest.s |  89 +++++++++++++++++++
  usr/austin/sym/sym_test.go  | 207 ++++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 447 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 3f154a0ccb..e07932b520 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -21,7 +21,7 @@ GC=${_GC:-$GC}
+ GL=${GL:-$LD}
+ GC="$GC -I _test"
+ GL="$GL -L _test"
+-export GC GL
++export GC GL O AS CC LD
+ 
+ gofiles=""
+ loop=true
+diff --git a/usr/austin/sym/gosymtab.go b/usr/austin/sym/gosymtab.go
+index 096d3478ea..1ecfb42099 100644
+--- a/usr/austin/sym/gosymtab.go
++++ b/usr/austin/sym/gosymtab.go
+@@ -15,6 +15,7 @@ import (
+ 	"io";
+ 	"os";
+ 	"sort";
++	"strconv";
+ 	"strings";
+ )
+ 
+@@ -82,6 +83,8 @@ type TextSym struct {
+ 	CommonSym;
+ 	obj *object;
+ 	lt *lineTable;
++	// The value of the next text sym, or the end of the text segment.
++	End uint64;
+ 	// Ths size of this function's frame.
+ 	FrameSize int;
+ 	// The value of each parameter symbol is its positive offset
+@@ -147,6 +150,7 @@ type GoSymTable struct {
+ 	textEnd uint64;
+ 	Syms []GoSym;
+ 	funcs []*TextSym;
++	files map[string] *object;
+ }
+ 
+ func growGoSyms(s *[]GoSym) (*GoSym) {
+@@ -274,6 +278,7 @@ func (t *GoSymTable) processTextSyms() {
+ 	count := 0;
+ 	var obj *object;
+ 	var objCount int;
++	var prevTextSym *TextSym;
+ 	for i := 0; i < len(t.Syms); i++ {
+ 		switch sym := t.Syms[i].(type) {
+ 		case *PathSym:
+@@ -297,6 +302,19 @@ func (t *GoSymTable) processTextSyms() {
+ 				obj.paths[j] = s.(*PathSym);
+ 			}
+ 
++			// Record file names
++			depth := 0;
++			for _, s := range obj.paths {
++				if s.Name == "" {
++					depth--;
++				} else {
++					if depth == 0 {
++						t.files[s.Name] = obj;
++					}
++					depth++;
++				}
++			}
++
+ 			objCount = 0;
+ 			i = end-1;
+ 
+@@ -305,6 +323,11 @@ func (t *GoSymTable) processTextSyms() {
+ 				continue;
+ 			}
+ 
++			if prevTextSym != nil {
++				prevTextSym.End = sym.Value;
++			}
++			prevTextSym = sym;
++
+ 			// Count parameter and local syms
+ 			var np, nl int;
+ 			end := i+1;
+@@ -350,6 +373,9 @@ func (t *GoSymTable) processTextSyms() {
+ 	if obj != nil {
+ 		obj.funcs = make([]*TextSym, 0, objCount);
+ 	}
++	if prevTextSym != nil {
++		prevTextSym.End = t.textEnd;
++	}
+ 
+ 	// Extract text symbols into function array and individual
+ 	// object function arrys.
+@@ -426,6 +452,29 @@ func (t *GoSymTable) LineFromPC(pc uint64) (string, int, *TextSym) {
+ 	return path, line, sym;
+ }
+ 
++// PCFromLine looks up the first program counter on the given line in
++// the named file.  Returns UnknownPathError or UnknownLineError if
++// there is an error looking up this line.
++func (t *GoSymTable) PCFromLine(file string, line int) (uint64, *TextSym, os.Error) {
++	obj, ok := t.files[file];
++	if !ok {
++		return 0, nil, UnknownFileError(file);
++	}
++
++	aline, err := obj.alineFromLine(file, line);
++	if err != nil {
++		return 0, nil, err;
++	}
++
++	for _, f := range obj.funcs {
++		pc := f.lt.pcFromAline(aline, f.End);
++		if pc != 0 {
++			return pc, f, nil;
++		}
++	}
++	return 0, nil, &UnknownLineError{file, line};
++}
++
+ // SymFromName looks up a symbol by name.  The name must refer to a
+ // global text, data, or BSS symbol.
+ func (t *GoSymTable) SymFromName(name string) GoSym {
+@@ -459,20 +508,6 @@ func (t *GoSymTable) SymFromAddr(addr uint64) GoSym {
+ 	return nil;
+ }
+ 
+-// TODO(austin) Implement PCFromLine.  This is more difficult because
+-// we first have to figure out which object file PC is in, and which
+-// segment of the line table that corresponds to.
+-//
+-// For each place path appears (either from push or pop),
+-// 1. Turn line into an absolute line number using the history stack
+-// 2. minpc = Entry of the first text sym in the object
+-// 3. maxpc = Entry of the first text sym in the next object
+-// 4. lt = lt.slice(minpc);
+-// 5. Find PC of first occurrence of absolute line number between minpc and maxpc
+-//
+-// I'm not sure if this guarantees a PC at the begining of an
+-// instruction.
+-
+ /*
+  * Object files
+  */
+@@ -485,16 +520,17 @@ func (o *object) lineFromAline(aline int) (string, int) {
+ 		prev *stackEnt;
+ 	};
+ 
+-	noPath := &stackEnt{"<malformed absolute line>", 0, 0, nil};
++	noPath := &stackEnt{"", 0, 0, nil};
+ 	tos := noPath;
+ 
+ 	// TODO(austin) I have no idea how 'Z' symbols work, except
+ 	// that they pop the stack.
++pathloop:
+ 	for _, s := range o.paths {
+ 		val := int(s.Value);
+ 		switch {
+ 		case val > aline:
+-			break;
++			break pathloop;
+ 
+ 		case val == 1:
+ 			// Start a new stack
+@@ -514,14 +550,61 @@ func (o *object) lineFromAline(aline int) (string, int) {
+ 		}
+ 	}
+ 
++	if tos == noPath {
++		return "", 0;
++	}
+ 	return tos.path, aline - tos.start - tos.offset + 1;
+ }
+ 
++func (o *object) alineFromLine(path string, line int) (int, os.Error) {
++	if line < 1 {
++		return 0, &UnknownLineError{path, line};
++	}
++
++	for i, s := range o.paths {
++		// Find this path
++		if s.Name != path {
++			continue;
++		}
++
++		// Find this line at this stack level
++		depth := 0;
++		var incstart int;
++		line += int(s.Value);
++	pathloop:
++		for _, s := range o.paths[i:len(o.paths)] {
++			val := int(s.Value);
++			switch {
++			case depth == 1 && val >= line:
++				return line - 1, nil;
++
++			case s.Name == "":
++				depth--;
++				if depth == 0 {
++					break pathloop;
++				} else if depth == 1 {
++					line += val - incstart;
++				}
++
++			default:
++				if depth == 1 {
++					incstart = val;
++				}
++				depth++;
++			}
++		}
++		return 0, &UnknownLineError{path, line};
++	}
++	return 0, UnknownFileError(path);
++}
++
+ /*
+  * Line tables
+  */
+ 
+-func (lt *lineTable) parse(targetPC uint64) ([]byte, uint64, int) {
++const quantum = 1;
++
++func (lt *lineTable) parse(targetPC uint64, targetLine int) ([]byte, uint64, int) {
+ 	// The PC/line table can be thought of as a sequence of
+ 	//  <pc update>* <line update>
+ 	// batches.  Each update batch results in a (pc, line) pair,
+@@ -531,15 +614,14 @@ func (lt *lineTable) parse(targetPC uint64) ([]byte, uint64, int) {
+ 	// Here we process each update individually, which simplifies
+ 	// the code, but makes the corner cases more confusing.
+ 
+-	const quantum = 1;
+ 	b, pc, line := lt.blob, lt.pc, lt.line;
+-	for pc <= targetPC && len(b) != 0 {
++	for pc <= targetPC && line != targetLine && len(b) != 0 {
+ 		code := b[0];
+ 		b = b[1:len(b)];
+ 		switch {
+ 		case code == 0:
+ 			if len(b) < 4 {
+-				b = b[0:1];
++				b = b[0:0];
+ 				break;
+ 			}
+ 			val := msb.Uint32(b);
+@@ -559,15 +641,50 @@ func (lt *lineTable) parse(targetPC uint64) ([]byte, uint64, int) {
+ }
+ 
+ func (lt *lineTable) slice(pc uint64) *lineTable {
+-	blob, pc, line := lt.parse(pc);
++	blob, pc, line := lt.parse(pc, -1);
+ 	return &lineTable{blob, pc, line};
+ }
+ 
+ func (lt *lineTable) alineFromPC(targetPC uint64) int {
+-	_1, _2, aline := lt.parse(targetPC);
++	_1, _2, aline := lt.parse(targetPC, -1);
+ 	return aline;
+ }
+ 
++func (lt *lineTable) pcFromAline(aline int, maxPC uint64) uint64 {
++	_1, pc, line := lt.parse(maxPC, aline);
++	if line != aline {
++		// Never found aline
++		return 0;
++	}
++	// Subtract quantum from PC to account for post-line increment
++	return pc - quantum;
++}
++
++/*
++ * Errors
++ */
++
++// UnknownFileError represents a failure to find the specific file in
++// the symbol table.
++type UnknownFileError string
++
++func (e UnknownFileError) String() string {
++	// TODO(austin) string conversion required because of 6g bug
++	return "unknown file " + string(e);
++}
++
++// UnknownLineError represents a failure to map a line to a program
++// counter, either because the line is beyond the bounds of the file
++// or because there is no code on the given line.
++type UnknownLineError struct {
++	File string;
++	Line int;
++}
++
++func (e *UnknownLineError) String() string {
++	return "no code on line " + e.File + ":" + strconv.Itoa(e.Line);
++}
++
+ /*
+  * ELF
+  */
+@@ -578,7 +695,10 @@ func ElfGoSyms(elf *Elf) (*GoSymTable, os.Error) {
+ 		return nil, nil;
+ 	}
+ 
+-	tab := &GoSymTable{textEnd: text.Addr + text.Size};
++	tab := &GoSymTable{
++		textEnd: text.Addr + text.Size,
++		files: make(map[string] *object),
++	};
+ 
+ 	// Symbol table
+ 	sec := elf.Section(".gosymtab");
+diff --git a/usr/austin/sym/pclinetest.h b/usr/austin/sym/pclinetest.h
+new file mode 100644
+index 0000000000..a6c40e76cd
+--- /dev/null
++++ b/usr/austin/sym/pclinetest.h
+@@ -0,0 +1,7 @@
++// Empty include file to generate z symbols
++
++
++
++
++
++// EOF
+diff --git a/usr/austin/sym/pclinetest.s b/usr/austin/sym/pclinetest.s
+new file mode 100644
+index 0000000000..5a410c8b84
+--- /dev/null
++++ b/usr/austin/sym/pclinetest.s
+@@ -0,0 +1,89 @@
++TEXT linefrompc(SB),7,$0	// Each byte stores its line delta
++BYTE $2;
++BYTE $1;
++BYTE $1; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1;
++BYTE $1;
++BYTE $1; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++#include "pclinetest.h"
++BYTE $2;
++#include "pclinetest.h"
++BYTE $2;
++
++TEXT pcfromline(SB),7,$0	// Each record stores its line delta, then n, then n more bytes
++BYTE $31; BYTE $0;
++BYTE $1; BYTE $1; BYTE $0;
++BYTE $1; BYTE $0;
++
++BYTE $2; BYTE $4; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++
++
++#include "pclinetest.h"
++BYTE $4; BYTE $0;
++
++
++BYTE $3; BYTE $3; BYTE $0; BYTE $0; BYTE $0;
++#include "pclinetest.h"
++
++
++BYTE $4; BYTE $3; BYTE $0; BYTE $0; BYTE $0;
++
++TEXT main(SB),7,$0
++	// Prevent GC of our test symbols
++	CALL linefrompc(SB)
++	CALL pcfromline(SB)
++
++// Keep the linker happy
++TEXT sys·morestack(SB),7,$0
++	RET
++
++TEXT sys·morestack00(SB),7,$0
++	RET
++
++TEXT sys·morestack10(SB),7,$0
++	RET
++
++TEXT sys·morestack01(SB),7,$0
++	RET
++
++TEXT sys·morestack11(SB),7,$0
++	RET
++
++TEXT sys·morestack8(SB),7,$0
++	RET
++
++TEXT sys·morestack16(SB),7,$0
++	RET
++
++TEXT sys·morestack24(SB),7,$0
++	RET
++
++TEXT sys·morestack32(SB),7,$0
++	RET
++
++TEXT sys·morestack40(SB),7,$0
++	RET
++
++TEXT sys·morestack48(SB),7,$0
++	RET
++
++TEXT sys·morestack8(SB),7,$0
++	RET
++
+diff --git a/usr/austin/sym/sym_test.go b/usr/austin/sym/sym_test.go
+new file mode 100644
+index 0000000000..50ac25ec96
+--- /dev/null
++++ b/usr/austin/sym/sym_test.go
+@@ -0,0 +1,207 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sym
++
++import (
++	"exec";
++	"io";
++	"os";
++	"testing";
++	"syscall";
++)
++
++var goarch = os.Getenv("O")
++// No ELF binaries on OS X
++var darwin = syscall.OS == "darwin";
++
++func TestLineFromAline(t *testing.T) {
++	if darwin {
++		return;
++	}
++
++	// Use myself for this test
++	f, err := os.Open(goarch + ".out", os.O_RDONLY, 0);
++	if err != nil {
++		t.Fatalf("failed to open %s.out: %s", goarch, err);
++	}
++
++	elf, err := NewElf(f);
++	if err != nil {
++		t.Fatalf("failed to read ELF: %s", err);
++	}
++
++	syms, err := ElfGoSyms(elf);
++	if err != nil {
++		t.Fatalf("failed to load syms: %s", err);
++	}
++
++	// Find the sym package
++	pkg := syms.SymFromName("sym·ElfGoSyms").(*TextSym).obj;
++
++	// Walk every absolute line and ensure that we hit every
++	// source line monotonically
++	lastline := make(map[string] int);
++	final := -1;
++	for i := 0; i < 10000; i++ {
++		path, line := pkg.lineFromAline(i);
++		// Check for end of object
++		if path == "" {
++			if final == -1 {
++				final = i - 1;
++			}
++			continue;
++		} else if final != -1 {
++			t.Fatalf("reached end of package at absolute line %d, but absolute line %d mapped to %s:%d", final, i, path, line);
++		}
++		// It's okay to see files multiple times (e.g., sys.a)
++		if line == 1 {
++			lastline[path] = 1;
++			continue;
++		}
++		// Check that the is the next line in path
++		ll, ok := lastline[path];
++		if !ok {
++			t.Errorf("file %s starts on line %d", path, line);
++		} else if line != ll + 1 {
++			t.Errorf("expected next line of file %s to be %d, got %d", path, ll + 1, line);
++		}
++		lastline[path] = line;
++	}
++	if final == -1 {
++		t.Errorf("never reached end of object");
++	}
++}
++
++func TestLineAline(t *testing.T) {
++	if darwin {
++		return;
++	}
++
++	// Use myself for this test
++	f, err := os.Open(goarch + ".out", os.O_RDONLY, 0);
++	if err != nil {
++		t.Fatalf("failed to open %s.out: %s", goarch, err);
++	}
++
++	elf, err := NewElf(f);
++	if err != nil {
++		t.Fatalf("failed to read ELF: %s", err);
++	}
++
++	syms, err := ElfGoSyms(elf);
++	if err != nil {
++		t.Fatalf("failed to load syms: %s", err);
++	}
++
++	for _, o := range syms.files {
++		// A source file can appear multiple times in a
++		// object.  alineFromLine will always return alines in
++		// the first file, so track which lines we've seen.
++		found := make(map[string] int);
++		for i := 0; i < 1000; i++ {
++			path, line := o.lineFromAline(i);
++			if path == "" {
++				break;
++			}
++
++			// cgo files are full of 'Z' symbols, which we don't handle
++			if len(path) > 4 && path[len(path)-4:len(path)] == ".cgo" {
++				continue;
++			}
++
++			if minline, ok := found[path]; path != "" && ok {
++				if minline >= line {
++					// We've already covered this file
++					continue;
++				}
++			}
++			found[path] = line;
++
++			a, err := o.alineFromLine(path, line);
++			if err != nil {
++				t.Errorf("absolute line %d in object %s maps to %s:%d, but mapping that back gives error %s", i, o.paths[0].Name, path, line, err);
++			} else if a != i {
++				t.Errorf("absolute line %d in object %s maps to %s:%d, which maps back to absolute line %d\n", i, o.paths[0].Name, path, line, a);
++			}
++		}
++	}
++}
++
++// gotest: if [ "`uname`" != "Darwin" ]; then
++// gotest:    mkdir -p _test && $AS pclinetest.s && $LD -E main -l -o _test/pclinetest pclinetest.$O
++// gotest: fi
++func TestPCLine(t *testing.T) {
++	if darwin {
++		return;
++	}
++
++	f, err := os.Open("_test/pclinetest", os.O_RDONLY, 0);
++	if err != nil {
++		t.Fatalf("failed to open pclinetest.6: %s", err);
++	}
++	defer f.Close();
++
++	elf, err := NewElf(f);
++	if err != nil {
++		t.Fatalf("failed to read ELF: %s", err);
++	}
++
++	syms, err := ElfGoSyms(elf);
++	if err != nil {
++		t.Fatalf("failed to load syms: %s", err);
++	}
++
++	textSec := elf.Section(".text");
++	sf, err := textSec.Open();
++	if err != nil {
++		t.Fatalf("failed to open .text section: %s", err);
++	}
++	text, err := io.ReadAll(sf);
++	if err != nil {
++		t.Fatalf("failed to read .text section: %s", err);
++	}
++
++	// Test LineFromPC
++	sym := syms.SymFromName("linefrompc").(*TextSym);
++	wantLine := 0;
++	for pc := sym.Value; pc < sym.End; pc++ {
++		file, line, fn := syms.LineFromPC(pc);
++		wantLine += int(text[pc-textSec.Addr]);
++		if fn == nil {
++			t.Errorf("failed to get line of PC %#x", pc);
++		} else if len(file) < 12 || file[len(file)-12:len(file)] != "pclinetest.s" || line != wantLine || fn != sym {
++			t.Errorf("expected %s:%d (%s) at PC %#x, got %s:%d (%s)", "pclinetest.s", wantLine, sym.Name, pc, file, line, fn.Name);
++		}
++	}
++
++	// Test PCFromLine
++	sym = syms.SymFromName("pcfromline").(*TextSym);
++	lookupline := -1;
++	wantLine = 0;
++	for pc := sym.Value; pc < sym.End; pc += 2 + uint64(text[pc+1-textSec.Addr]) {
++		file, line, fn := syms.LineFromPC(pc);
++		wantLine += int(text[pc-textSec.Addr]);
++		if line != wantLine {
++			t.Errorf("expected line %d at PC %#x in pcfromline, got %d", wantLine, pc, line);
++			continue;
++		}
++		if lookupline == -1 {
++			lookupline = line;
++		}
++		for ; lookupline <= line; lookupline++ {
++			pc2, fn2, err := syms.PCFromLine(file, lookupline);
++			if lookupline != line {
++				// Should be nothing on this line
++				if err == nil {
++					t.Errorf("expected no PC at line %d, got %#x (%s)", lookupline, pc2, fn2.Name);
++				}
++			} else if err != nil {
++				t.Errorf("failed to get PC of line %d: %s", lookupline, err);
++			} else if pc != pc2 {
++				t.Errorf("expected PC %#x (%s) at line %d, got PC %#x (%s)", pc, fn.Name, line, pc2, fn2.Name);
++			}
++		}
++	}
++}

@@ -7,6 +7,20 @@ Date:   Wed Oct 6 23:56:13 2010 +0200
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/2370043
-
+---
  doc/playground.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/playground.html b/doc/playground.html
+index a1cdb70c37..01d3adc9cd 100644
+--- a/doc/playground.html
++++ b/doc/playground.html
+@@ -13,7 +13,7 @@ There are limitations to the programs that can be run in the Playground.
+ They must be single-threaded (but they may use many goroutines).
+ There are also limits on execution time, and CPU and memory usage.
+ The Playground can access only a subset of the standard library
+-(notably absent are network and filesystem access).
++(notably absent are network and file system access).
+ Therefore, the only communication a Playground program has to the outside world
+ is via standard output.
+ </div>

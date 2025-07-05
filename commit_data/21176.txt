@@ -8,8 +8,204 @@ Date:   Tue Nov 25 03:15:11 2014 +1100
     R=rsc, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/178210043
-
+---
  src/runtime/defs_dragonfly_386.go   | 80 ++++++++++++++++++++-----------------
  src/runtime/signal_dragonfly_386.go | 34 ++++++++++++++++
  src/runtime/signal_dragonfly_386.h  | 23 -----------
  3 files changed, 78 insertions(+), 59 deletions(-)
+
+diff --git a/src/runtime/defs_dragonfly_386.go b/src/runtime/defs_dragonfly_386.go
+index 1768dbac41..e9c6353152 100644
+--- a/src/runtime/defs_dragonfly_386.go
++++ b/src/runtime/defs_dragonfly_386.go
+@@ -92,16 +92,16 @@ type rtprio struct {
+ }
+ 
+ type lwpparams struct {
+-	_type unsafe.Pointer
+-	arg   *byte
+-	stack *byte
+-	tid1  *int32
+-	tid2  *int32
++	start_func uintptr
++	arg        unsafe.Pointer
++	stack      uintptr
++	tid1       unsafe.Pointer // *int32
++	tid2       unsafe.Pointer // *int32
+ }
+ 
+ type sigaltstackt struct {
+-	ss_sp    *int8
+-	ss_size  uint32
++	ss_sp    uintptr
++	ss_size  uintptr
+ 	ss_flags int32
+ }
+ 
+@@ -110,8 +110,8 @@ type sigset struct {
+ }
+ 
+ type stackt struct {
+-	ss_sp    *int8
+-	ss_size  uint32
++	ss_sp    uintptr
++	ss_size  uintptr
+ 	ss_flags int32
+ }
+ 
+@@ -122,39 +122,39 @@ type siginfo struct {
+ 	si_pid    int32
+ 	si_uid    uint32
+ 	si_status int32
+-	si_addr   *byte
++	si_addr   uintptr
+ 	si_value  [4]byte
+ 	si_band   int32
+ 	__spare__ [7]int32
+ }
+ 
+ type mcontext struct {
+-	mc_onstack  int32
+-	mc_gs       int32
+-	mc_fs       int32
+-	mc_es       int32
+-	mc_ds       int32
+-	mc_edi      int32
+-	mc_esi      int32
+-	mc_ebp      int32
+-	mc_isp      int32
+-	mc_ebx      int32
+-	mc_edx      int32
+-	mc_ecx      int32
+-	mc_eax      int32
+-	mc_xflags   int32
+-	mc_trapno   int32
+-	mc_err      int32
+-	mc_eip      int32
+-	mc_cs       int32
+-	mc_eflags   int32
+-	mc_esp      int32
+-	mc_ss       int32
+-	mc_len      int32
+-	mc_fpformat int32
+-	mc_ownedfp  int32
+-	mc_fpregs   [128]int32
+-	__spare__   [16]int32
++	mc_onstack  uint32
++	mc_gs       uint32
++	mc_fs       uint32
++	mc_es       uint32
++	mc_ds       uint32
++	mc_edi      uint32
++	mc_esi      uint32
++	mc_ebp      uint32
++	mc_isp      uint32
++	mc_ebx      uint32
++	mc_edx      uint32
++	mc_ecx      uint32
++	mc_eax      uint32
++	mc_xflags   uint32
++	mc_trapno   uint32
++	mc_err      uint32
++	mc_eip      uint32
++	mc_cs       uint32
++	mc_eflags   uint32
++	mc_esp      uint32
++	mc_ss       uint32
++	mc_len      uint32
++	mc_fpformat uint32
++	mc_ownedfp  uint32
++	mc_fpregs   [128]uint32
++	__spare__   [16]uint32
+ }
+ 
+ type ucontext struct {
+@@ -170,11 +170,19 @@ type timespec struct {
+ 	tv_nsec int32
+ }
+ 
++func (ts *timespec) set_sec(x int64) {
++	ts.tv_sec = int32(x)
++}
++
+ type timeval struct {
+ 	tv_sec  int32
+ 	tv_usec int32
+ }
+ 
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = x
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+diff --git a/src/runtime/signal_dragonfly_386.go b/src/runtime/signal_dragonfly_386.go
+new file mode 100644
+index 0000000000..a0fec1309c
+--- /dev/null
++++ b/src/runtime/signal_dragonfly_386.go
+@@ -0,0 +1,34 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *mcontext { return &(*ucontext)(c.ctxt).uc_mcontext }
++func (c *sigctxt) eax() uint32     { return c.regs().mc_eax }
++func (c *sigctxt) ebx() uint32     { return c.regs().mc_ebx }
++func (c *sigctxt) ecx() uint32     { return c.regs().mc_ecx }
++func (c *sigctxt) edx() uint32     { return c.regs().mc_edx }
++func (c *sigctxt) edi() uint32     { return c.regs().mc_edi }
++func (c *sigctxt) esi() uint32     { return c.regs().mc_esi }
++func (c *sigctxt) ebp() uint32     { return c.regs().mc_ebp }
++func (c *sigctxt) esp() uint32     { return c.regs().mc_esp }
++func (c *sigctxt) eip() uint32     { return c.regs().mc_eip }
++func (c *sigctxt) eflags() uint32  { return c.regs().mc_eflags }
++func (c *sigctxt) cs() uint32      { return uint32(c.regs().mc_cs) }
++func (c *sigctxt) fs() uint32      { return uint32(c.regs().mc_fs) }
++func (c *sigctxt) gs() uint32      { return uint32(c.regs().mc_gs) }
++func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint32 { return uint32(c.info.si_addr) }
++
++func (c *sigctxt) set_eip(x uint32)     { c.regs().mc_eip = x }
++func (c *sigctxt) set_esp(x uint32)     { c.regs().mc_esp = x }
++func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint32) { c.info.si_addr = uintptr(x) }
+diff --git a/src/runtime/signal_dragonfly_386.h b/src/runtime/signal_dragonfly_386.h
+deleted file mode 100644
+index a24f1ee96c..0000000000
+--- a/src/runtime/signal_dragonfly_386.h
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
+-
+-#define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).mc_eax)
+-#define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).mc_ebx)
+-#define SIG_ECX(info, ctxt) (SIG_REGS(ctxt).mc_ecx)
+-#define SIG_EDX(info, ctxt) (SIG_REGS(ctxt).mc_edx)
+-#define SIG_EDI(info, ctxt) (SIG_REGS(ctxt).mc_edi)
+-#define SIG_ESI(info, ctxt) (SIG_REGS(ctxt).mc_esi)
+-#define SIG_EBP(info, ctxt) (SIG_REGS(ctxt).mc_ebp)
+-#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).mc_esp)
+-#define SIG_EIP(info, ctxt) (SIG_REGS(ctxt).mc_eip)
+-#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).mc_eflags)
+-
+-#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).mc_cs)
+-#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).mc_fs)
+-#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).mc_gs)
+-
+-#define SIG_CODE0(info, ctxt) ((info)->si_code)
+-#define SIG_CODE1(info, ctxt) ((uintptr)(info)->si_addr)

@@ -10,9 +10,89 @@ Date:   Sat Mar 10 03:42:23 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5792055
-
+---
  src/cmd/dist/build.c | 18 ------------------
  src/cmd/go/env.go    |  6 ++++++
  src/run.bash         |  2 +-
  src/sudo.bash        |  2 +-
  4 files changed, 8 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index d5fcfbedb3..acd7347aa8 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -52,19 +52,6 @@ static char *okgoos[] = {
+ 	"windows",
+ };
+ 
+-// The known cgo-enabled combinations.
+-// This list is also known to ../../pkg/go/build/build.go.
+-static char *okcgo[] = {
+-	"darwin/386",
+-	"darwin/amd64",
+-	"linux/386",
+-	"linux/amd64",
+-	"freebsd/386",
+-	"freebsd/amd64",
+-	"windows/386",
+-	"windows/amd64",
+-};
+-
+ static void rmworkdir(void);
+ 
+ // find reports the first index of p in l[0:n], or else -1.
+@@ -1321,11 +1308,6 @@ cmdenv(int argc, char **argv)
+ 	xprintf(format, "GOTOOLDIR", tooldir);
+ 	xprintf(format, "GOCHAR", gochar);
+ 
+-	if(find(bprintf(&b, "%s/%s", goos, goarch), okcgo, nelem(okcgo)) >= 0)
+-		xprintf(format, "CGO_ENABLED", "1");
+-	else
+-		xprintf(format, "CGO_ENABLED", "0");
+-
+ 	if(pflag) {
+ 		sep = ":";
+ 		if(streq(gohostos, "windows"))
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index 804dc8e63f..d5b0348096 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -45,6 +45,12 @@ func mkEnv() []envVar {
+ 		{"GOGCCFLAGS", strings.Join(b.gccCmd(".")[3:], " ")},
+ 	}
+ 
++	if buildContext.CgoEnabled {
++		env = append(env, envVar{"CGO_ENABLED", "1"})
++	} else {
++		env = append(env, envVar{"CGO_ENABLED", "0"})
++	}
++
+ 	return env
+ }
+ 
+diff --git a/src/run.bash b/src/run.bash
+index 0e4600b0ad..430ee76dba 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -5,7 +5,7 @@
+ 
+ set -e
+ 
+-eval $(go tool dist env)
++eval $(go env)
+ 
+ unset CDPATH	# in case user has it set
+ 
+diff --git a/src/sudo.bash b/src/sudo.bash
+index 78cdb0b8a7..cccebd3427 100755
+--- a/src/sudo.bash
++++ b/src/sudo.bash
+@@ -17,7 +17,7 @@ if [[ ! -d /usr/local/bin ]]; then
+ 	exit 2
+ fi
+ 
+-eval $(go tool dist env)
++eval $(go env)
+ cd $(dirname $0)
+ for i in prof cov
+ do

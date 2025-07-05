@@ -7,6 +7,19 @@ Date:   Thu Apr 14 08:16:40 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4416042
-
+---
  src/pkg/runtime/chan.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 8c45b076d0..2fab9e2161 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -121,7 +121,6 @@ runtime·makechan_c(Type *elem, int64 hint)
+ 	by = runtime·mal(n + hint*elem->size);
+ 
+ 	c = (Hchan*)by;
+-	by += n;
+ 	runtime·addfinalizer(c, destroychan, 0);
+ 
+ 	c->elemsize = elem->size;

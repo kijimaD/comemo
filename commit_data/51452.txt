@@ -20,7 +20,119 @@ Date:   Sun Jan 30 11:21:28 2022 -0800
     Trust: Roland Shoemaker <roland@golang.org>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_dup_cache.txt | 52 ++++++++++++++++++++++
  src/internal/fuzz/fuzz.go                          | 20 ++++++---
  2 files changed, 67 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_dup_cache.txt b/src/cmd/go/testdata/script/test_fuzz_dup_cache.txt
+new file mode 100644
+index 0000000000..52d44a26ff
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_dup_cache.txt
+@@ -0,0 +1,52 @@
++[!fuzz] skip
++[short] skip
++
++# This test checks that cached corpus loading properly handles duplicate entries (this can
++# happen when a f.Add value has a duplicate entry in the cached corpus.) Duplicate entries
++# should be discarded, and the rest of the cache should be loaded as normal.
++
++env GOCACHE=$WORK/cache
++env GODEBUG=fuzzdebug=1
++
++mkdir -p $GOCACHE/fuzz/fuzztest/FuzzTarget
++go run ./populate $GOCACHE/fuzz/fuzztest/FuzzTarget
++
++go test -fuzz=FuzzTarget -fuzztime=10x .
++stdout 'entries: 5'
++
++-- go.mod --
++module fuzztest
++
++go 1.17
++
++-- fuzz_test.go --
++package fuzz
++
++import "testing"
++
++func FuzzTarget(f *testing.F) {
++    f.Add(int(0))
++    f.Fuzz(func(t *testing.T, _ int) {})
++}
++
++-- populate/main.go --
++package main
++
++import (
++    "path/filepath"
++	"fmt"
++	"os"
++)
++
++func main() {
++	for i := 0; i < 10; i++ {
++		b := byte(0)
++		if i > 5 {
++			b = byte(i)
++		}
++        tmpl := "go test fuzz v1\nint(%d)\n"
++		if err := os.WriteFile(filepath.Join(os.Args[1], fmt.Sprint(i)), []byte(fmt.Sprintf(tmpl, b)), 0777); err != nil {
++			panic(err)
++		}
++	}
++}
+\ No newline at end of file
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 73f32dd4c7..f2ff3a1390 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -316,12 +316,12 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 					} else {
+ 						// Update the coordinator's coverage mask and save the value.
+ 						inputSize := len(result.entry.Data)
+-						duplicate, err := c.addCorpusEntries(true, result.entry)
++						entryNew, err := c.addCorpusEntries(true, result.entry)
+ 						if err != nil {
+ 							stop(err)
+ 							break
+ 						}
+-						if duplicate {
++						if !entryNew {
+ 							continue
+ 						}
+ 						c.updateCoverage(keepCoverage)
+@@ -419,11 +419,21 @@ type corpus struct {
+ 	hashes  map[[sha256.Size]byte]bool
+ }
+ 
++// addCorpusEntries adds entries to the corpus, and optional also writes the entries
++// to the cache directory. If an entry is already in the corpus it is skipped. If
++// all of the entries are unique, addCorpusEntries returns true and a nil error,
++// if at least one of the entries was a duplicate, it returns false and a nil error.
+ func (c *coordinator) addCorpusEntries(addToCache bool, entries ...CorpusEntry) (bool, error) {
++	noDupes := true
+ 	for _, e := range entries {
+-		h := sha256.Sum256(e.Data)
++		data, err := CorpusEntryData(e)
++		if err != nil {
++			return false, err
++		}
++		h := sha256.Sum256(data)
+ 		if c.corpus.hashes[h] {
+-			return true, nil
++			noDupes = false
++			continue
+ 		}
+ 		if addToCache {
+ 			if err := writeToCorpus(&e, c.opts.CacheDir); err != nil {
+@@ -437,7 +447,7 @@ func (c *coordinator) addCorpusEntries(addToCache bool, entries ...CorpusEntry)
+ 		c.corpus.hashes[h] = true
+ 		c.corpus.entries = append(c.corpus.entries, e)
+ 	}
+-	return false, nil
++	return noDupes, nil
+ }
+ 
+ // CorpusEntry represents an individual input for fuzzing.

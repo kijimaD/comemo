@@ -15,7 +15,7 @@ Date:   Tue Aug 23 16:02:19 2016 -0700
     Change-Id: I421aaca22b542fcd0d66b2d2db777249cad78df6
     Reviewed-on: https://go-review.googlesource.com/27639
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go |  7 ++-----
  src/cmd/compile/internal/gc/bimport.go |  7 +------
  src/go/internal/gcimporter/bimport.go  | 10 +++-------
@@ -24,3 +24,131 @@ Date:   Tue Aug 23 16:02:19 2016 -0700
  test/fixedbugs/issue15514.dir/c.go     | 10 ++++++++++
  test/fixedbugs/issue15514.go           |  7 +++++++
  7 files changed, 37 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 9c1ccd87a1..a43158d14b 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -858,11 +858,9 @@ func (p *exporter) method(m *Field) {
+ 	p.paramList(m.Type.Results(), false)
+ }
+ 
+-// fieldName is like qualifiedName but it doesn't record the package
+-// for blank (_) or exported names.
++// fieldName is like qualifiedName but it doesn't record the package for exported names.
+ func (p *exporter) fieldName(t *Field) {
+ 	name := t.Sym.Name
+-
+ 	if t.Embedded != 0 {
+ 		name = "" // anonymous field
+ 		if bname := basetypeName(t.Type); bname != "" && !exportname(bname) {
+@@ -871,8 +869,7 @@ func (p *exporter) fieldName(t *Field) {
+ 		}
+ 	}
+ 	p.string(name)
+-
+-	if name != "_" && name != "" && !exportname(name) {
++	if name != "" && !exportname(name) {
+ 		p.pkg(t.Sym.Pkg)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 0e30031f07..65c845c93a 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -590,12 +590,7 @@ func (p *importer) method() *Node {
+ func (p *importer) fieldName() *Sym {
+ 	name := p.string()
+ 	pkg := localpkg
+-	if name == "_" {
+-		// During imports, unqualified non-exported identifiers are from builtinpkg
+-		// (see parser.go:sym). The binary exporter only exports blank as a non-exported
+-		// identifier without qualification.
+-		pkg = builtinpkg
+-	} else if name != "" && !exportname(name) {
++	if name != "" && !exportname(name) {
+ 		if name == "?" {
+ 			name = ""
+ 		}
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index 87701f99de..b657cc79ba 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -492,19 +492,15 @@ func (p *importer) method(parent *types.Package) *types.Func {
+ }
+ 
+ func (p *importer) fieldName(parent *types.Package) (*types.Package, string) {
++	name := p.string()
+ 	pkg := parent
+ 	if pkg == nil {
+ 		// use the imported package instead
+ 		pkg = p.pkgList[0]
+ 	}
+-	name := p.string()
+-	if name == "" {
+-		return pkg, "" // anonymous
+-	}
+-	if name == "?" || name != "_" && !exported(name) {
+-		// explicitly qualified field
++	if name != "" && !exported(name) {
+ 		if name == "?" {
+-			name = "" // anonymous
++			name = ""
+ 		}
+ 		pkg = p.pkg()
+ 	}
+diff --git a/test/fixedbugs/issue15514.dir/a.go b/test/fixedbugs/issue15514.dir/a.go
+new file mode 100644
+index 0000000000..663303b863
+--- /dev/null
++++ b/test/fixedbugs/issue15514.dir/a.go
+@@ -0,0 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type A struct{ _ int32 }
+diff --git a/test/fixedbugs/issue15514.dir/b.go b/test/fixedbugs/issue15514.dir/b.go
+new file mode 100644
+index 0000000000..f0750d3a44
+--- /dev/null
++++ b/test/fixedbugs/issue15514.dir/b.go
+@@ -0,0 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++func B() (_ struct{ _ int32 }) { return }
+diff --git a/test/fixedbugs/issue15514.dir/c.go b/test/fixedbugs/issue15514.dir/c.go
+new file mode 100644
+index 0000000000..11624f9256
+--- /dev/null
++++ b/test/fixedbugs/issue15514.dir/c.go
+@@ -0,0 +1,10 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package c
++
++import "./a"
++import "./b"
++
++var _ a.A = b.B() // ERROR "cannot use b\.B"
+diff --git a/test/fixedbugs/issue15514.go b/test/fixedbugs/issue15514.go
+new file mode 100644
+index 0000000000..626f7ad699
+--- /dev/null
++++ b/test/fixedbugs/issue15514.go
+@@ -0,0 +1,7 @@
++// errorcheckdir
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

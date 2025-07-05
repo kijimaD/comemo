@@ -15,7 +15,58 @@ Date:   Thu Mar 10 11:51:00 2022 -0600
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/dist/build.go          | 13 +++++++++++++
  src/cmd/go/internal/work/gc.go | 15 +++++++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index dfa67290fa..47b25bc943 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -831,6 +831,19 @@ func runInstall(pkg string, ch chan struct{}) {
+ 		// Define GOMIPS64_value from gomips64.
+ 		asmArgs = append(asmArgs, "-D", "GOMIPS64_"+gomips64)
+ 	}
++	if goarch == "ppc64" || goarch == "ppc64le" {
++		// We treat each powerpc version as a superset of functionality.
++		switch goppc64 {
++		case "power10":
++			asmArgs = append(asmArgs, "-D", "GOPPC64_power10")
++			fallthrough
++		case "power9":
++			asmArgs = append(asmArgs, "-D", "GOPPC64_power9")
++			fallthrough
++		default: // This should always be power8.
++			asmArgs = append(asmArgs, "-D", "GOPPC64_power8")
++		}
++	}
+ 	goasmh := pathf("%s/go_asm.h", workdir)
+ 	if IsRuntimePackagePath(pkg) {
+ 		asmArgs = append(asmArgs, "-compiling-runtime")
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 036a188027..494da022e9 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -392,6 +392,21 @@ func asmArgs(a *Action, p *load.Package) []any {
+ 		args = append(args, "-D", "GOMIPS64_"+cfg.GOMIPS64)
+ 	}
+ 
++	if cfg.Goarch == "ppc64" || cfg.Goarch == "ppc64le" {
++		// Define GOPPC64_power8..N from cfg.PPC64.
++		// We treat each powerpc version as a superset of functionality.
++		switch cfg.GOPPC64 {
++		case "power10":
++			args = append(args, "-D", "GOPPC64_power10")
++			fallthrough
++		case "power9":
++			args = append(args, "-D", "GOPPC64_power9")
++			fallthrough
++		default: // This should always be power8.
++			args = append(args, "-D", "GOPPC64_power8")
++		}
++	}
++
+ 	return args
+ }
+ 

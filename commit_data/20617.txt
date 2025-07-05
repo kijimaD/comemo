@@ -10,10 +10,145 @@ Date:   Wed Sep 24 14:45:11 2014 -0700
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/148050044
-
+---
  include/link.h                 |  2 +-
  src/cmd/ld/data.c              | 13 ++++++++++---
  src/cmd/ld/lib.c               |  4 +++-
  src/run.bash                   | 11 +++++++----
  src/runtime/vdso_linux_amd64.c |  9 +++++++--
  5 files changed, 28 insertions(+), 11 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 292b077394..845f9338d9 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -204,10 +204,10 @@ enum
+ 	SELFSECT,
+ 	SMACHO,	/* Mach-O __nl_symbol_ptr */
+ 	SMACHOGOT,
++	SWINDOWS,
+ 	SNOPTRDATA,
+ 	SINITARR,
+ 	SDATA,
+-	SWINDOWS,
+ 	SBSS,
+ 	SNOPTRBSS,
+ 	STLSBSS,
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 9d224d9eb9..89226bfe28 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -625,6 +625,7 @@ addstrdata(char *name, char *value)
+ 	sp = linklookup(ctxt, p, 0);
+ 	free(p);
+ 	addstring(sp, value);
++	sp->type = SRODATA;
+ 
+ 	s = linklookup(ctxt, name, 0);
+ 	s->size = 0;
+@@ -816,9 +817,15 @@ proggenaddsym(ProgGen *g, LSym *s)
+ 	proggenskip(g, g->pos, s->value - g->pos);
+ 	g->pos += s->value - g->pos;
+ 
+-	if(s->gotype == nil && s->size >= PtrSize) {
++	// The test for names beginning with . here is meant
++	// to keep .dynamic and .dynsym from turning up as
++	// conservative symbols. They should be marked SELFSECT
++	// and not SDATA, but sometimes that doesn't happen.
++	// Leave debugging the SDATA issue for the Go rewrite.
++
++	if(s->gotype == nil && s->size >= PtrSize && s->name[0] != '.') {
+ 		// conservative scan
+-		diag("missing Go type information for global symbol: %s", s->name);
++		diag("missing Go type information for global symbol: %s size %d", s->name, (int)s->size);
+ 		if((s->size%PtrSize) || (g->pos%PtrSize))
+ 			diag("proggenaddsym: unaligned conservative symbol %s: size=%lld pos=%lld",
+ 				s->name, s->size, g->pos);
+@@ -834,7 +841,7 @@ proggenaddsym(ProgGen *g, LSym *s)
+ 			proggenarrayend(g);
+ 		}
+ 		g->pos = s->value + size;
+-	} else if(s->gotype == nil || decodetype_noptr(s->gotype) || s->size < PtrSize) {
++	} else if(s->gotype == nil || decodetype_noptr(s->gotype) || s->size < PtrSize || s->name[0] == '.') {
+ 		// no scan
+ 		if(s->size < 32*PtrSize) {
+ 			// Emit small symbols as data.
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 36f0f99de2..3edf7253d4 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -221,8 +221,10 @@ loadlib(void)
+ 		// Provided by the code that imports the package.
+ 		// Since we are simulating the import, we have to provide this string.
+ 		cgostrsym = "go.string.\"runtime/cgo\"";
+-		if(linkrlookup(ctxt, cgostrsym, 0) == nil)
++		if(linkrlookup(ctxt, cgostrsym, 0) == nil) {
+ 			addstrdata(cgostrsym, "runtime/cgo");
++			linklookup(ctxt, cgostrsym, 0)->type = SRODATA;
++		}
+ 	}
+ 
+ 	if(linkmode == LinkAuto) {
+diff --git a/src/run.bash b/src/run.bash
+index 4966cf1aa6..3c9430c87e 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -167,10 +167,13 @@ esac
+ # This tests cgo -cdefs. That mode is not supported,
+ # so it's okay if it doesn't work on some systems.
+ # In particular, it works badly with clang on OS X.
+-[ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
+-(xcd ../misc/cgo/testcdefs
+-./test.bash || exit 1
+-) || exit $?
++# It doesn't work at all now that we disallow C code
++# outside runtime. Once runtime has no C code it won't
++# even be necessary.
++# [ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
++# (xcd ../misc/cgo/testcdefs
++# ./test.bash || exit 1
++# ) || exit $?
+ 
+ [ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
+ (xcd ../misc/cgo/testgodefs
+diff --git a/src/runtime/vdso_linux_amd64.c b/src/runtime/vdso_linux_amd64.c
+index 38e1152438..41a41fdd6a 100644
+--- a/src/runtime/vdso_linux_amd64.c
++++ b/src/runtime/vdso_linux_amd64.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "textflag.h"
+ 
+ // Look up symbols in the Linux vDSO.
+ 
+@@ -171,14 +172,18 @@ struct vdso_info {
+ 	Elf64_Verdef *verdef;
+ };
+ 
++#pragma dataflag NOPTR
+ static version_key linux26 = { (byte*)"LINUX_2.6", 0x3ae75f6 };
+ 
+ // initialize with vsyscall fallbacks
++#pragma dataflag NOPTR
+ void* runtime·__vdso_time_sym = (void*)0xffffffffff600400ULL;
++#pragma dataflag NOPTR
+ void* runtime·__vdso_gettimeofday_sym = (void*)0xffffffffff600000ULL;
++#pragma dataflag NOPTR
+ void* runtime·__vdso_clock_gettime_sym = (void*)0;
+ 
+-#define SYM_KEYS_COUNT 3
++#pragma dataflag NOPTR
+ static symbol_key sym_keys[] = {
+ 	{ (byte*)"__vdso_time", 0xa33c485, &runtime·__vdso_time_sym },
+ 	{ (byte*)"__vdso_gettimeofday", 0x315ca59, &runtime·__vdso_gettimeofday_sym },
+@@ -301,7 +306,7 @@ vdso_parse_symbols(struct vdso_info *vdso_info, int32 version)
+ 	if(vdso_info->valid == false)
+ 		return;
+ 
+-	for(i=0; i<SYM_KEYS_COUNT; i++) {
++	for(i=0; i<nelem(sym_keys); i++) {
+ 		for(chain = vdso_info->bucket[sym_keys[i].sym_hash % vdso_info->nbucket];
+ 			chain != 0; chain = vdso_info->chain[chain]) {
+ 

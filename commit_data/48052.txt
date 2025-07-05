@@ -18,6 +18,19 @@ Date:   Wed Apr 14 12:30:36 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/pcln.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 79ad9d73e9..05fd302369 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -590,6 +590,7 @@ func (state *pclntab) generateFunctab(ctxt *Link, funcs []loader.Sym, inlSyms ma
+ 	if !useSymValue {
+ 		// Generate relocations for funcdata when externally linking.
+ 		state.writeFuncData(ctxt, sb, funcs, inlSyms, startLocations, setAddr, setUintNOP)
++		sb.SortRelocs()
+ 	}
+ }
+ 

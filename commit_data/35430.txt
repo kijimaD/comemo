@@ -11,7 +11,7 @@ Date:   Mon Feb 12 14:27:46 2018 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/internal/atomic/sys_darwin_arm.s        | 11 -----------
  src/runtime/internal/atomic/sys_nacl_arm.s          | 13 -------------
  src/runtime/internal/atomic/sys_netbsd_arm.s        | 21 ---------------------
@@ -19,3 +19,130 @@ Date:   Mon Feb 12 14:27:46 2018 -0500
  src/runtime/internal/atomic/sys_openbsd_arm.s       | 11 -----------
  src/runtime/internal/atomic/sys_plan9_arm.s         | 11 -----------
  6 files changed, 6 insertions(+), 71 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/sys_darwin_arm.s b/src/runtime/internal/atomic/sys_darwin_arm.s
+deleted file mode 100644
+index 01b7aefd1c..0000000000
+--- a/src/runtime/internal/atomic/sys_darwin_arm.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0
+-	B	runtime∕internal∕atomic·armcas(SB)
+-
+-TEXT runtime∕internal∕atomic·Casp1(SB),NOSPLIT,$0
+-	B	runtime∕internal∕atomic·Cas(SB)
+diff --git a/src/runtime/internal/atomic/sys_nacl_arm.s b/src/runtime/internal/atomic/sys_nacl_arm.s
+deleted file mode 100644
+index bdc1dd6bcd..0000000000
+--- a/src/runtime/internal/atomic/sys_nacl_arm.s
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// This is only valid for ARMv6+, however, NaCl/ARM is only defined
+-// for ARMv7A anyway.
+-TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0
+-	B	runtime∕internal∕atomic·armcas(SB)
+-
+-TEXT runtime∕internal∕atomic·Casp1(SB),NOSPLIT,$0
+-	B	runtime∕internal∕atomic·Cas(SB)
+diff --git a/src/runtime/internal/atomic/sys_netbsd_arm.s b/src/runtime/internal/atomic/sys_netbsd_arm.s
+deleted file mode 100644
+index 3277d94af6..0000000000
+--- a/src/runtime/internal/atomic/sys_netbsd_arm.s
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// TODO(minux): this is only valid for ARMv6+
+-// bool Armcas(int32 *val, int32 old, int32 new)
+-// Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	}else
+-//		return 0;
+-TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0
+-	B	runtime∕internal∕atomic·armcas(SB)
+-
+-TEXT runtime∕internal∕atomic·Casp1(SB),NOSPLIT,$0
+-	B	runtime∕internal∕atomic·Cas(SB)
+-
+-
+diff --git a/src/runtime/internal/atomic/sys_freebsd_arm.s b/src/runtime/internal/atomic/sys_nonlinux_arm.s
+similarity index 65%
+rename from src/runtime/internal/atomic/sys_freebsd_arm.s
+rename to src/runtime/internal/atomic/sys_nonlinux_arm.s
+index 30d49b8d39..ec839c0986 100644
+--- a/src/runtime/internal/atomic/sys_freebsd_arm.s
++++ b/src/runtime/internal/atomic/sys_nonlinux_arm.s
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !linux,arm
++
+ #include "textflag.h"
+ 
+ // TODO(minux): this is only valid for ARMv6+
+@@ -12,8 +14,8 @@
+ //		return 1;
+ //	}else
+ //		return 0;
+-TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0
+-	B	runtime∕internal∕atomic·armcas(SB)
++TEXT	·Cas(SB),NOSPLIT,$0
++	JMP	·armcas(SB)
+ 
+-TEXT runtime∕internal∕atomic·Casp1(SB),NOSPLIT,$0
+-	B	runtime∕internal∕atomic·Cas(SB)
++TEXT	·Casp1(SB),NOSPLIT,$0
++	JMP	·Cas(SB)
+diff --git a/src/runtime/internal/atomic/sys_openbsd_arm.s b/src/runtime/internal/atomic/sys_openbsd_arm.s
+deleted file mode 100644
+index 01b7aefd1c..0000000000
+--- a/src/runtime/internal/atomic/sys_openbsd_arm.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0
+-	B	runtime∕internal∕atomic·armcas(SB)
+-
+-TEXT runtime∕internal∕atomic·Casp1(SB),NOSPLIT,$0
+-	B	runtime∕internal∕atomic·Cas(SB)
+diff --git a/src/runtime/internal/atomic/sys_plan9_arm.s b/src/runtime/internal/atomic/sys_plan9_arm.s
+deleted file mode 100644
+index 01b7aefd1c..0000000000
+--- a/src/runtime/internal/atomic/sys_plan9_arm.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0
+-	B	runtime∕internal∕atomic·armcas(SB)
+-
+-TEXT runtime∕internal∕atomic·Casp1(SB),NOSPLIT,$0
+-	B	runtime∕internal∕atomic·Cas(SB)

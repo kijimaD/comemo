@@ -29,7 +29,7 @@ Date:   Mon Dec 11 13:28:25 2023 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/assignments.go     | 15 ++++++-
  src/cmd/compile/internal/types2/call.go            | 14 +++---
  src/cmd/compile/internal/types2/decl.go            |  2 +-
@@ -44,3 +44,566 @@ Date:   Mon Dec 11 13:28:25 2023 -0800
  .../types/testdata/fixedbugs/issue60688.go         |  2 +-
  .../types/testdata/fixedbugs/issue60747.go         | 13 ++++++
  13 files changed, 138 insertions(+), 77 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 079802b0b0..338a114ff9 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -244,8 +244,15 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand) {
+ 	}
+ 
+ 	if x == nil {
++		var target *target
++		// avoid calling syntax.String if not needed
++		if T != nil {
++			if _, ok := under(T).(*Signature); ok {
++				target = newTarget(T, syntax.String(lhs))
++			}
++		}
+ 		x = new(operand)
+-		check.expr(T, x, rhs)
++		check.expr(target, x, rhs)
+ 	}
+ 
+ 	context := "assignment"
+@@ -369,7 +376,11 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
+ 	if l == r && !isCall {
+ 		var x operand
+ 		for i, lhs := range lhs {
+-			check.expr(lhs.typ, &x, orig_rhs[i])
++			desc := lhs.name
++			if returnStmt != nil && desc == "" {
++				desc = "result variable"
++			}
++			check.expr(newTarget(lhs.typ, desc), &x, orig_rhs[i])
+ 			check.initVar(lhs, &x, context)
+ 		}
+ 		return
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 439f515265..7d9b80f661 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -16,8 +16,8 @@ import (
+ // funcInst type-checks a function instantiation.
+ // The incoming x must be a generic function.
+ // If inst != nil, it provides some or all of the type arguments (inst.Index).
+-// If target type tsig != nil, the signature may be used to infer missing type
+-// arguments of x, if any. At least one of tsig or inst must be provided.
++// If target != nil, it may be used to infer missing type arguments of x, if any.
++// At least one of T or inst must be provided.
+ //
+ // There are two modes of operation:
+ //
+@@ -32,8 +32,8 @@ import (
+ //
+ // If an error (other than a version error) occurs in any case, it is reported
+ // and x.mode is set to invalid.
+-func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst *syntax.IndexExpr, infer bool) ([]Type, []syntax.Expr) {
+-	assert(tsig != nil || inst != nil)
++func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *syntax.IndexExpr, infer bool) ([]Type, []syntax.Expr) {
++	assert(T != nil || inst != nil)
+ 
+ 	var instErrPos poser
+ 	if inst != nil {
+@@ -87,7 +87,7 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
+ 		//
+ 		var args []*operand
+ 		var params []*Var
+-		if tsig != nil && sig.tparams != nil {
++		if T != nil && sig.tparams != nil {
+ 			if !versionErr && !check.allowVersion(check.pkg, instErrPos, go1_21) {
+ 				if inst != nil {
+ 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
+@@ -100,8 +100,8 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
+ 			// The type of the argument operand is tsig, which is the type of the LHS in an assignment
+ 			// or the result type in a return statement. Create a pseudo-expression for that operand
+ 			// that makes sense when reported in error messages from infer, below.
+-			expr := syntax.NewName(x.Pos(), "variable in assignment")
+-			args = []*operand{{mode: value, expr: expr, typ: tsig}}
++			expr := syntax.NewName(x.Pos(), T.desc)
++			args = []*operand{{mode: value, expr: expr, typ: T.sig}}
+ 		}
+ 
+ 		// Rename type parameters to avoid problems with recursive instantiations.
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 3ffa9431e4..f3e3418f4f 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -449,7 +449,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
+ 	if lhs == nil || len(lhs) == 1 {
+ 		assert(lhs == nil || lhs[0] == obj)
+ 		var x operand
+-		check.expr(obj.typ, &x, init)
++		check.expr(newTarget(obj.typ, obj.name), &x, init)
+ 		check.initVar(obj, &x, "variable declaration")
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index e1c2c8ff2a..124d9701d6 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -956,18 +956,32 @@ const (
+ 	statement
+ )
+ 
+-// TODO(gri) In rawExpr below, consider using T instead of hint and
+-//           some sort of "operation mode" instead of allowGeneric.
+-//           May be clearer and less error-prone.
++// target represent the (signature) type and description of the LHS
++// variable of an assignment, or of a function result variable.
++type target struct {
++	sig  *Signature
++	desc string
++}
++
++// newTarget creates a new target for the given type and description.
++// The result is nil if typ is not a signature.
++func newTarget(typ Type, desc string) *target {
++	if typ != nil {
++		if sig, _ := under(typ).(*Signature); sig != nil {
++			return &target{sig, desc}
++		}
++	}
++	return nil
++}
+ 
+ // rawExpr typechecks expression e and initializes x with the expression
+ // value or type. If an error occurred, x.mode is set to invalid.
+-// If a non-nil target type T is given and e is a generic function
+-// or function call, T is used to infer the type arguments for e.
++// If a non-nil target T is given and e is a generic function,
++// T is used to infer the type arguments for e.
+ // If hint != nil, it is the type of a composite literal element.
+ // If allowGeneric is set, the operand type may be an uninstantiated
+ // parameterized type or function value.
+-func (check *Checker) rawExpr(T Type, x *operand, e syntax.Expr, hint Type, allowGeneric bool) exprKind {
++func (check *Checker) rawExpr(T *target, x *operand, e syntax.Expr, hint Type, allowGeneric bool) exprKind {
+ 	if check.conf.Trace {
+ 		check.trace(e.Pos(), "-- expr %s", e)
+ 		check.indent++
+@@ -989,9 +1003,9 @@ func (check *Checker) rawExpr(T Type, x *operand, e syntax.Expr, hint Type, allo
+ }
+ 
+ // If x is a generic type, or a generic function whose type arguments cannot be inferred
+-// from a non-nil target type T, nonGeneric reports an error and invalidates x.mode and x.typ.
++// from a non-nil target T, nonGeneric reports an error and invalidates x.mode and x.typ.
+ // Otherwise it leaves x alone.
+-func (check *Checker) nonGeneric(T Type, x *operand) {
++func (check *Checker) nonGeneric(T *target, x *operand) {
+ 	if x.mode == invalid || x.mode == novalue {
+ 		return
+ 	}
+@@ -1004,10 +1018,8 @@ func (check *Checker) nonGeneric(T Type, x *operand) {
+ 	case *Signature:
+ 		if t.tparams != nil {
+ 			if enableReverseTypeInference && T != nil {
+-				if tsig, _ := under(T).(*Signature); tsig != nil {
+-					check.funcInst(tsig, x.Pos(), x, nil, true)
+-					return
+-				}
++				check.funcInst(T, x.Pos(), x, nil, true)
++				return
+ 			}
+ 			what = "function"
+ 		}
+@@ -1022,7 +1034,7 @@ func (check *Checker) nonGeneric(T Type, x *operand) {
+ // exprInternal contains the core of type checking of expressions.
+ // Must only be called by rawExpr.
+ // (See rawExpr for an explanation of the parameters.)
+-func (check *Checker) exprInternal(T Type, x *operand, e syntax.Expr, hint Type) exprKind {
++func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Type) exprKind {
+ 	// make sure x has a valid state in case of bailout
+ 	// (was go.dev/issue/5770)
+ 	x.mode = invalid
+@@ -1332,11 +1344,10 @@ func (check *Checker) exprInternal(T Type, x *operand, e syntax.Expr, hint Type)
+ 
+ 	case *syntax.IndexExpr:
+ 		if check.indexExpr(x, e) {
+-			var tsig *Signature
+-			if enableReverseTypeInference && T != nil {
+-				tsig, _ = under(T).(*Signature)
++			if !enableReverseTypeInference {
++				T = nil
+ 			}
+-			check.funcInst(tsig, e.Pos(), x, e, true)
++			check.funcInst(T, e.Pos(), x, e, true)
+ 		}
+ 		if x.mode == invalid {
+ 			goto Error
+@@ -1547,11 +1558,11 @@ func (check *Checker) typeAssertion(e syntax.Expr, x *operand, T Type, typeSwitc
+ }
+ 
+ // expr typechecks expression e and initializes x with the expression value.
+-// If a non-nil target type T is given and e is a generic function
+-// or function call, T is used to infer the type arguments for e.
++// If a non-nil target T is given and e is a generic function or
++// a function call, T is used to infer the type arguments for e.
+ // The result must be a single value.
+ // If an error occurred, x.mode is set to invalid.
+-func (check *Checker) expr(T Type, x *operand, e syntax.Expr) {
++func (check *Checker) expr(T *target, x *operand, e syntax.Expr) {
+ 	check.rawExpr(T, x, e, nil, false)
+ 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
+ 	check.singleValue(x)
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 3a7c74dc82..94f2de7b3c 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -110,7 +110,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	// Terminology: generic parameter = function parameter with a type-parameterized type
+ 	u := newUnifier(tparams, targs, check.allowVersion(check.pkg, pos, go1_21))
+ 
+-	errorf := func(kind string, tpar, targ Type, arg *operand) {
++	errorf := func(tpar, targ Type, arg *operand) {
+ 		// provide a better error message if we can
+ 		targs := u.inferred(tparams)
+ 		if targs[0] == nil {
+@@ -125,7 +125,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 				}
+ 			}
+ 			if allFailed {
+-				check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
++				check.errorf(arg, CannotInferTypeArgs, "type %s of %s does not match %s (cannot infer %s)", targ, arg.expr, tpar, typeParamsString(tparams))
+ 				return
+ 			}
+ 		}
+@@ -137,9 +137,9 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 		// InvalidTypeArg). We can't differentiate these cases, so fall back on
+ 		// the more general CannotInferTypeArgs.
+ 		if inferred != tpar {
+-			check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
++			check.errorf(arg, CannotInferTypeArgs, "type %s of %s does not match inferred type %s for %s", targ, arg.expr, inferred, tpar)
+ 		} else {
+-			check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
++			check.errorf(arg, CannotInferTypeArgs, "type %s of %s does not match %s", targ, arg.expr, tpar)
+ 		}
+ 	}
+ 
+@@ -168,7 +168,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 			// Collect the indices of untyped arguments and handle them later.
+ 			if isTyped(arg.typ) {
+ 				if !u.unify(par.typ, arg.typ, assign) {
+-					errorf("type", par.typ, arg.typ, arg)
++					errorf(par.typ, arg.typ, arg)
+ 					return nil
+ 				}
+ 			} else if _, ok := par.typ.(*TypeParam); ok && !arg.isNil() {
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index f9f0e8f20a..3ea45699b1 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -243,8 +243,15 @@ func (check *Checker) assignVar(lhs, rhs ast.Expr, x *operand) {
+ 	}
+ 
+ 	if x == nil {
++		var target *target
++		// avoid calling ExprString if not needed
++		if T != nil {
++			if _, ok := under(T).(*Signature); ok {
++				target = newTarget(T, ExprString(lhs))
++			}
++		}
+ 		x = new(operand)
+-		check.expr(T, x, rhs)
++		check.expr(target, x, rhs)
+ 	}
+ 
+ 	context := "assignment"
+@@ -368,7 +375,11 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnStmt ast.S
+ 	if l == r && !isCall {
+ 		var x operand
+ 		for i, lhs := range lhs {
+-			check.expr(lhs.typ, &x, orig_rhs[i])
++			desc := lhs.name
++			if returnStmt != nil && desc == "" {
++				desc = "result variable"
++			}
++			check.expr(newTarget(lhs.typ, desc), &x, orig_rhs[i])
+ 			check.initVar(lhs, &x, context)
+ 		}
+ 		return
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 12f547ea38..5ac556c511 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -18,8 +18,8 @@ import (
+ // funcInst type-checks a function instantiation.
+ // The incoming x must be a generic function.
+ // If ix != nil, it provides some or all of the type arguments (ix.Indices).
+-// If target type tsig != nil, the signature may be used to infer missing type
+-// arguments of x, if any. At least one of tsig or inst must be provided.
++// If target != nil, it may be used to infer missing type arguments of x, if any.
++// At least one of T or ix must be provided.
+ //
+ // There are two modes of operation:
+ //
+@@ -34,8 +34,8 @@ import (
+ //
+ // If an error (other than a version error) occurs in any case, it is reported
+ // and x.mode is set to invalid.
+-func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *typeparams.IndexExpr, infer bool) ([]Type, []ast.Expr) {
+-	assert(tsig != nil || ix != nil)
++func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typeparams.IndexExpr, infer bool) ([]Type, []ast.Expr) {
++	assert(T != nil || ix != nil)
+ 
+ 	var instErrPos positioner
+ 	if ix != nil {
+@@ -89,7 +89,7 @@ func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *t
+ 		//
+ 		var args []*operand
+ 		var params []*Var
+-		if tsig != nil && sig.tparams != nil {
++		if T != nil && sig.tparams != nil {
+ 			if !versionErr && !check.allowVersion(check.pkg, instErrPos, go1_21) {
+ 				if ix != nil {
+ 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
+@@ -102,9 +102,9 @@ func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *t
+ 			// The type of the argument operand is tsig, which is the type of the LHS in an assignment
+ 			// or the result type in a return statement. Create a pseudo-expression for that operand
+ 			// that makes sense when reported in error messages from infer, below.
+-			expr := ast.NewIdent("variable in assignment")
++			expr := ast.NewIdent(T.desc)
+ 			expr.NamePos = x.Pos() // correct position
+-			args = []*operand{{mode: value, expr: expr, typ: tsig}}
++			args = []*operand{{mode: value, expr: expr, typ: T.sig}}
+ 		}
+ 
+ 		// Rename type parameters to avoid problems with recursive instantiations.
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 0795cb5fce..9f8c44ab50 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -518,7 +518,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
+ 	if lhs == nil || len(lhs) == 1 {
+ 		assert(lhs == nil || lhs[0] == obj)
+ 		var x operand
+-		check.expr(obj.typ, &x, init)
++		check.expr(newTarget(obj.typ, obj.name), &x, init)
+ 		check.initVar(obj, &x, "variable declaration")
+ 		return
+ 	}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index ecd0d56908..8651ddad93 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -941,18 +941,32 @@ const (
+ 	statement
+ )
+ 
+-// TODO(gri) In rawExpr below, consider using T instead of hint and
+-//           some sort of "operation mode" instead of allowGeneric.
+-//           May be clearer and less error-prone.
++// target represent the (signature) type and description of the LHS
++// variable of an assignment, or of a function result variable.
++type target struct {
++	sig  *Signature
++	desc string
++}
++
++// newTarget creates a new target for the given type and description.
++// The result is nil if typ is not a signature.
++func newTarget(typ Type, desc string) *target {
++	if typ != nil {
++		if sig, _ := under(typ).(*Signature); sig != nil {
++			return &target{sig, desc}
++		}
++	}
++	return nil
++}
+ 
+ // rawExpr typechecks expression e and initializes x with the expression
+ // value or type. If an error occurred, x.mode is set to invalid.
+-// If a non-nil target type T is given and e is a generic function
+-// or function call, T is used to infer the type arguments for e.
++// If a non-nil target T is given and e is a generic function,
++// T is used to infer the type arguments for e.
+ // If hint != nil, it is the type of a composite literal element.
+ // If allowGeneric is set, the operand type may be an uninstantiated
+ // parameterized type or function value.
+-func (check *Checker) rawExpr(T Type, x *operand, e ast.Expr, hint Type, allowGeneric bool) exprKind {
++func (check *Checker) rawExpr(T *target, x *operand, e ast.Expr, hint Type, allowGeneric bool) exprKind {
+ 	if check.conf._Trace {
+ 		check.trace(e.Pos(), "-- expr %s", e)
+ 		check.indent++
+@@ -974,9 +988,9 @@ func (check *Checker) rawExpr(T Type, x *operand, e ast.Expr, hint Type, allowGe
+ }
+ 
+ // If x is a generic type, or a generic function whose type arguments cannot be inferred
+-// from a non-nil target type T, nonGeneric reports an error and invalidates x.mode and x.typ.
++// from a non-nil target T, nonGeneric reports an error and invalidates x.mode and x.typ.
+ // Otherwise it leaves x alone.
+-func (check *Checker) nonGeneric(T Type, x *operand) {
++func (check *Checker) nonGeneric(T *target, x *operand) {
+ 	if x.mode == invalid || x.mode == novalue {
+ 		return
+ 	}
+@@ -989,10 +1003,8 @@ func (check *Checker) nonGeneric(T Type, x *operand) {
+ 	case *Signature:
+ 		if t.tparams != nil {
+ 			if enableReverseTypeInference && T != nil {
+-				if tsig, _ := under(T).(*Signature); tsig != nil {
+-					check.funcInst(tsig, x.Pos(), x, nil, true)
+-					return
+-				}
++				check.funcInst(T, x.Pos(), x, nil, true)
++				return
+ 			}
+ 			what = "function"
+ 		}
+@@ -1007,7 +1019,7 @@ func (check *Checker) nonGeneric(T Type, x *operand) {
+ // exprInternal contains the core of type checking of expressions.
+ // Must only be called by rawExpr.
+ // (See rawExpr for an explanation of the parameters.)
+-func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) exprKind {
++func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type) exprKind {
+ 	// make sure x has a valid state in case of bailout
+ 	// (was go.dev/issue/5770)
+ 	x.mode = invalid
+@@ -1315,11 +1327,10 @@ func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) ex
+ 	case *ast.IndexExpr, *ast.IndexListExpr:
+ 		ix := typeparams.UnpackIndexExpr(e)
+ 		if check.indexExpr(x, ix) {
+-			var tsig *Signature
+-			if enableReverseTypeInference && T != nil {
+-				tsig, _ = under(T).(*Signature)
++			if !enableReverseTypeInference {
++				T = nil
+ 			}
+-			check.funcInst(tsig, e.Pos(), x, ix, true)
++			check.funcInst(T, e.Pos(), x, ix, true)
+ 		}
+ 		if x.mode == invalid {
+ 			goto Error
+@@ -1494,11 +1505,11 @@ func (check *Checker) typeAssertion(e ast.Expr, x *operand, T Type, typeSwitch b
+ }
+ 
+ // expr typechecks expression e and initializes x with the expression value.
+-// If a non-nil target type T is given and e is a generic function
+-// or function call, T is used to infer the type arguments for e.
++// If a non-nil target T is given and e is a generic function or
++// a function call, T is used to infer the type arguments for e.
+ // The result must be a single value.
+ // If an error occurred, x.mode is set to invalid.
+-func (check *Checker) expr(T Type, x *operand, e ast.Expr) {
++func (check *Checker) expr(T *target, x *operand, e ast.Expr) {
+ 	check.rawExpr(T, x, e, nil, false)
+ 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
+ 	check.singleValue(x)
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 244f311281..ed9841f06e 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -112,7 +112,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	// Terminology: generic parameter = function parameter with a type-parameterized type
+ 	u := newUnifier(tparams, targs, check.allowVersion(check.pkg, posn, go1_21))
+ 
+-	errorf := func(kind string, tpar, targ Type, arg *operand) {
++	errorf := func(tpar, targ Type, arg *operand) {
+ 		// provide a better error message if we can
+ 		targs := u.inferred(tparams)
+ 		if targs[0] == nil {
+@@ -127,7 +127,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 				}
+ 			}
+ 			if allFailed {
+-				check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
++				check.errorf(arg, CannotInferTypeArgs, "type %s of %s does not match %s (cannot infer %s)", targ, arg.expr, tpar, typeParamsString(tparams))
+ 				return
+ 			}
+ 		}
+@@ -139,9 +139,9 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 		// InvalidTypeArg). We can't differentiate these cases, so fall back on
+ 		// the more general CannotInferTypeArgs.
+ 		if inferred != tpar {
+-			check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
++			check.errorf(arg, CannotInferTypeArgs, "type %s of %s does not match inferred type %s for %s", targ, arg.expr, inferred, tpar)
+ 		} else {
+-			check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
++			check.errorf(arg, CannotInferTypeArgs, "type %s of %s does not match %s", targ, arg.expr, tpar)
+ 		}
+ 	}
+ 
+@@ -170,7 +170,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 			// Collect the indices of untyped arguments and handle them later.
+ 			if isTyped(arg.typ) {
+ 				if !u.unify(par.typ, arg.typ, assign) {
+-					errorf("type", par.typ, arg.typ, arg)
++					errorf(par.typ, arg.typ, arg)
+ 					return nil
+ 				}
+ 			} else if _, ok := par.typ.(*TypeParam); ok && !arg.isNil() {
+diff --git a/src/internal/types/testdata/examples/inference2.go b/src/internal/types/testdata/examples/inference2.go
+index 6097c2b5eb..a4cfa3b413 100644
+--- a/src/internal/types/testdata/examples/inference2.go
++++ b/src/internal/types/testdata/examples/inference2.go
+@@ -27,9 +27,9 @@ var (
+ 	_  func(int) int = f3[int]
+ 
+ 	v6 func(int, int)     = f4
+-	v7 func(int, string)  = f4 // ERROR "type func(int, string) of variable in assignment does not match inferred type func(int, int) for func(P, P)"
++	v7 func(int, string)  = f4 // ERROR "type func(int, string) of v7 does not match inferred type func(int, int) for func(P, P)"
+ 	v8 func(int) []int    = f5
+-	v9 func(string) []int = f5 // ERROR "type func(string) []int of variable in assignment does not match inferred type func(string) []string for func(P) []P"
++	v9 func(string) []int = f5 // ERROR "type func(string) []int of v9 does not match inferred type func(string) []string for func(P) []P"
+ 
+ 	_, _ func(int) = f1, f1
+ 	_, _ func(int) = f1, f2 // ERROR "cannot infer P"
+@@ -49,9 +49,13 @@ func _() {
+ 	v5 = f3[int]
+ 
+ 	v6 = f4
+-	v7 = f4 // ERROR "type func(int, string) of variable in assignment does not match inferred type func(int, int) for func(P, P)"
++	v7 = f4 // ERROR "type func(int, string) of v7 does not match inferred type func(int, int) for func(P, P)"
+ 	v8 = f5
+-	v9 = f5 // ERROR "type func(string) []int of variable in assignment does not match inferred type func(string) []string for func(P) []P"
++	v9 = f5 // ERROR "type func(string) []int of v9 does not match inferred type func(string) []string for func(P) []P"
++
++	// non-trivial LHS
++	var a [2]func(string) []int
++	a[0] = f5 // ERROR "type func(string) []int of a[0] does not match inferred type func(string) []string for func(P) []P"
+ }
+ 
+ // Return statements
+@@ -62,11 +66,11 @@ func _() func(int) int { return f3[int] }
+ 
+ func _() func(int, int) { return f4 }
+ func _() func(int, string) {
+-	return f4 /* ERROR "type func(int, string) of variable in assignment does not match inferred type func(int, int) for func(P, P)" */
++	return f4 /* ERROR "type func(int, string) of result variable does not match inferred type func(int, int) for func(P, P)" */
+ }
+ func _() func(int) []int { return f5 }
+ func _() func(string) []int {
+-	return f5 /* ERROR "type func(string) []int of variable in assignment does not match inferred type func(string) []string for func(P) []P" */
++	return f5 /* ERROR "type func(string) []int of result variable does not match inferred type func(string) []string for func(P) []P" */
+ }
+ 
+ func _() (_, _ func(int)) { return f1, f1 }
+diff --git a/src/internal/types/testdata/fixedbugs/issue60688.go b/src/internal/types/testdata/fixedbugs/issue60688.go
+index 38d90ee8cc..ba27f28851 100644
+--- a/src/internal/types/testdata/fixedbugs/issue60688.go
++++ b/src/internal/types/testdata/fixedbugs/issue60688.go
+@@ -13,4 +13,4 @@ func g[P any](P, string) {}
+ // be identical to match).
+ // The result is an error from type inference, rather than an
+ // error from an assignment mismatch.
+-var f func(int, String) = g // ERROR "type func(int, String) of variable in assignment does not match inferred type func(int, string) for func(P, string)"
++var f func(int, String) = g // ERROR "type func(int, String) of f does not match inferred type func(int, string) for func(P, string)"
+diff --git a/src/internal/types/testdata/fixedbugs/issue60747.go b/src/internal/types/testdata/fixedbugs/issue60747.go
+new file mode 100644
+index 0000000000..c76e3d008c
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue60747.go
+@@ -0,0 +1,13 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f[P any](P) P { panic(0) }
++
++var v func(string) int = f // ERROR "type func(string) int of v does not match inferred type func(string) string for func(P) P"
++
++func _() func(string) int {
++	return f // ERROR "type func(string) int of result variable does not match inferred type func(string) string for func(P) P"
++}

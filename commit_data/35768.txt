@@ -7,6 +7,20 @@ Date:   Wed Mar 7 10:20:19 2018 +0100
     Change-Id: Ie2966bae1dc2e542c42fb32d8059a4b2d4690014
     Reviewed-on: https://go-review.googlesource.com/99115
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/database/sql/sql.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 24e906938e..05d15455c0 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -1940,7 +1940,7 @@ func (tx *Tx) closePrepared() {
+ // Commit commits the transaction.
+ func (tx *Tx) Commit() error {
+ 	// Check context first to avoid transaction leak.
+-	// If put it behind tx.done CompareAndSwap statement, we cant't ensure
++	// If put it behind tx.done CompareAndSwap statement, we can't ensure
+ 	// the consistency between tx.done and the real COMMIT operation.
+ 	select {
+ 	default:

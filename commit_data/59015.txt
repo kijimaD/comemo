@@ -15,6 +15,64 @@ Date:   Thu Feb 1 04:47:22 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/560215
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/trace2.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/src/runtime/trace2.go b/src/runtime/trace2.go
+index 3639adaa15..d40596f39b 100644
+--- a/src/runtime/trace2.go
++++ b/src/runtime/trace2.go
+@@ -932,7 +932,13 @@ func newWakeableSleep() *wakeableSleep {
+ func (s *wakeableSleep) sleep(ns int64) {
+ 	resetTimer(s.timer, nanotime()+ns)
+ 	lock(&s.lock)
++	if raceenabled {
++		raceacquire(unsafe.Pointer(&s.lock))
++	}
+ 	wakeup := s.wakeup
++	if raceenabled {
++		racerelease(unsafe.Pointer(&s.lock))
++	}
+ 	unlock(&s.lock)
+ 	<-wakeup
+ 	stopTimer(s.timer)
+@@ -945,6 +951,9 @@ func (s *wakeableSleep) wake() {
+ 	// Grab the wakeup channel, which may be nil if we're
+ 	// racing with close.
+ 	lock(&s.lock)
++	if raceenabled {
++		raceacquire(unsafe.Pointer(&s.lock))
++	}
+ 	if s.wakeup != nil {
+ 		// Non-blocking send.
+ 		//
+@@ -956,6 +965,9 @@ func (s *wakeableSleep) wake() {
+ 		default:
+ 		}
+ 	}
++	if raceenabled {
++		racerelease(unsafe.Pointer(&s.lock))
++	}
+ 	unlock(&s.lock)
+ }
+ 
+@@ -969,11 +981,18 @@ func (s *wakeableSleep) wake() {
+ func (s *wakeableSleep) close() {
+ 	// Set wakeup to nil so that a late timer ends up being a no-op.
+ 	lock(&s.lock)
++	if raceenabled {
++		raceacquire(unsafe.Pointer(&s.lock))
++	}
+ 	wakeup := s.wakeup
+ 	s.wakeup = nil
+ 
+ 	// Close the channel.
+ 	close(wakeup)
++
++	if raceenabled {
++		racerelease(unsafe.Pointer(&s.lock))
++	}
+ 	unlock(&s.lock)
+ 	return
+ }

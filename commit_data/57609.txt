@@ -16,9 +16,124 @@ Date:   Thu Aug 17 23:23:40 2023 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/mknode.go    |  4 ++--
  src/cmd/compile/internal/ir/node_gen.go  | 24 ------------------------
  src/cmd/compile/internal/ir/type.go      | 19 +++----------------
  src/cmd/compile/internal/noder/reader.go |  5 +----
  4 files changed, 6 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/mknode.go b/src/cmd/compile/internal/ir/mknode.go
+index 716e84389f..ca78a03d04 100644
+--- a/src/cmd/compile/internal/ir/mknode.go
++++ b/src/cmd/compile/internal/ir/mknode.go
+@@ -335,9 +335,9 @@ func processType(t *ast.TypeSpec) {
+ }
+ 
+ func generateHelpers() {
+-	for _, typ := range []string{"CaseClause", "CommClause", "Name", "Node", "Ntype"} {
++	for _, typ := range []string{"CaseClause", "CommClause", "Name", "Node"} {
+ 		ptr := "*"
+-		if typ == "Node" || typ == "Ntype" {
++		if typ == "Node" {
+ 			ptr = "" // interfaces don't need *
+ 		}
+ 		fmt.Fprintf(&buf, "\n")
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index debaeefc3d..cde7ab0ca8 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -1799,27 +1799,3 @@ func editNodes(list []Node, edit func(Node) Node) {
+ 		}
+ 	}
+ }
+-
+-func copyNtypes(list []Ntype) []Ntype {
+-	if list == nil {
+-		return nil
+-	}
+-	c := make([]Ntype, len(list))
+-	copy(c, list)
+-	return c
+-}
+-func doNtypes(list []Ntype, do func(Node) bool) bool {
+-	for _, x := range list {
+-		if x != nil && do(x) {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-func editNtypes(list []Ntype, edit func(Node) Node) {
+-	for i, x := range list {
+-		if x != nil {
+-			list[i] = edit(x).(Ntype)
+-		}
+-	}
+-}
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+index 033d1eed4a..00d0a1d634 100644
+--- a/src/cmd/compile/internal/ir/type.go
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -11,21 +11,8 @@ import (
+ 	"fmt"
+ )
+ 
+-// Nodes that represent the syntax of a type before type-checking.
+-// After type-checking, they serve only as shells around a *types.Type.
+ // Calling TypeNode converts a *types.Type to a Node shell.
+ 
+-// An Ntype is a Node that syntactically looks like a type.
+-// It can be the raw syntax for a type before typechecking,
+-// or it can be an OTYPE with Type() set to a *types.Type.
+-// Note that syntax doesn't guarantee it's a type: an expression
+-// like *fmt is an Ntype (we don't know whether names are types yet),
+-// but at least 1+1 is not an Ntype.
+-type Ntype interface {
+-	Node
+-	CanBeNtype()
+-}
+-
+ // A Field is a declared function parameter.
+ // It is not a Node.
+ type Field struct {
+@@ -56,20 +43,20 @@ func newTypeNode(typ *types.Type) *typeNode {
+ 	n := &typeNode{typ: typ}
+ 	n.pos = src.NoXPos
+ 	n.op = OTYPE
++	n.SetTypecheck(1)
+ 	return n
+ }
+ 
+ func (n *typeNode) Type() *types.Type { return n.typ }
+ func (n *typeNode) Sym() *types.Sym   { return n.typ.Sym() }
+-func (n *typeNode) CanBeNtype()       {}
+ 
+ // TypeNode returns the Node representing the type t.
+-func TypeNode(t *types.Type) Ntype {
++func TypeNode(t *types.Type) Node {
+ 	if n := t.Obj(); n != nil {
+ 		if n.Type() != t {
+ 			base.Fatalf("type skew: %v has type %v, but expected %v", n, n.Type(), t)
+ 		}
+-		return n.(Ntype)
++		return n.(*Name)
+ 	}
+ 	return newTypeNode(t)
+ }
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 99755a976b..08d731637f 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -3287,10 +3287,7 @@ func (r *reader) exprType() ir.Node {
+ 		typ, rtype = r.rtype0(pos)
+ 
+ 		if !r.Bool() { // not derived
+-			// TODO(mdempsky): ir.TypeNode should probably return a typecheck'd node.
+-			n := ir.TypeNode(typ)
+-			n.SetTypecheck(1)
+-			return n
++			return ir.TypeNode(typ)
+ 		}
+ 	}
+ 

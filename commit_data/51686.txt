@@ -13,8 +13,62 @@ Date:   Thu Mar 3 15:13:11 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go                          |  2 +-
  src/cmd/go/internal/workcmd/use.go             |  5 ++++-
  src/cmd/go/testdata/script/work_use_noargs.txt | 11 +++++++++++
  3 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 2bd2fb6fbc..b4fb282303 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1538,7 +1538,7 @@
+ //
+ // Usage:
+ //
+-// 	go work use [-r] [moddirs]
++// 	go work use [-r] moddirs
+ //
+ // Use provides a command-line interface for adding
+ // directories, optionally recursively, to a go.work file.
+diff --git a/src/cmd/go/internal/workcmd/use.go b/src/cmd/go/internal/workcmd/use.go
+index 9e3bb4ae97..e4666ac26d 100644
+--- a/src/cmd/go/internal/workcmd/use.go
++++ b/src/cmd/go/internal/workcmd/use.go
+@@ -20,7 +20,7 @@ import (
+ )
+ 
+ var cmdUse = &base.Command{
+-	UsageLine: "go work use [-r] [moddirs]",
++	UsageLine: "go work use [-r] moddirs",
+ 	Short:     "add modules to workspace file",
+ 	Long: `Use provides a command-line interface for adding
+ directories, optionally recursively, to a go.work file.
+@@ -101,6 +101,9 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 		keepDirs[absDir] = dir
+ 	}
+ 
++	if len(args) == 0 {
++		base.Fatalf("go: 'go work use' requires one or more directory arguments")
++	}
+ 	for _, useDir := range args {
+ 		if !*useR {
+ 			lookDir(useDir)
+diff --git a/src/cmd/go/testdata/script/work_use_noargs.txt b/src/cmd/go/testdata/script/work_use_noargs.txt
+new file mode 100644
+index 0000000000..ca054344c6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_use_noargs.txt
+@@ -0,0 +1,11 @@
++# For now, 'go work use' requires arguments.
++# (Eventually, we may may it implicitly behave like 'go work use .'.
++
++! go work use
++stderr '^go: ''go work use'' requires one or more directory arguments'
++
++! go work use -r
++stderr '^go: ''go work use'' requires one or more directory arguments'
++
++-- go.work --
++go 1.18

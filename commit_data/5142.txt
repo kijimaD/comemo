@@ -7,7 +7,106 @@ Date:   Fri Mar 26 09:21:09 2010 -0700
     R=nigeltao_golang, rsc
     CC=golang-dev
     https://golang.org/cl/759041
-
+---
  src/pkg/xgb/go_client.py | 17 ++++++++++-------
  src/pkg/xgb/xproto.go    | 16 ++++++++--------
  2 files changed, 18 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/xgb/go_client.py b/src/pkg/xgb/go_client.py
+index 4d6d919efb..f26548000a 100644
+--- a/src/pkg/xgb/go_client.py
++++ b/src/pkg/xgb/go_client.py
+@@ -8,6 +8,7 @@ from os.path import basename, exists
+ import getopt
+ import sys
+ import re
++import math
+ 
+ _ns = None
+ 
+@@ -345,20 +346,22 @@ def go_complex_writer(self, name, void):
+ 		go('func (c *Conn) %sRequest(', func_name)
+ 		go_complex_writer_arguments(param_fields, "Cookie {")
+ 	
+-	fixedtotal = structsize(self.fields)
+-	if fixedtotal <= 32:
+-		go('	b := c.scratch[0:%d]', fixedtotal)
++	fixedlength = math.ceil(float(structsize(self.fields)) / float(4))
++	fixedsize = fixedlength * 4
++	
++	if fixedsize <= 32:
++		go('	b := c.scratch[0:%d]', fixedsize)
+ 	else:
+-		go('	b := make([]byte, %d)', fixedtotal)
++		go('	b := make([]byte, %d)', fixedsize)
+ 	firstvar = 0
+ 	for field in wire_fields:
+ 		if not field.type.fixed_size():
+ 			if not firstvar:
+ 				firstvar = 1
+-				go('	n := %d', fixedtotal)
++				go('	n := %d', fixedsize)
+ 			go('	n += pad(%s * %d)', go_accessor_expr(field.type.expr, '', True), field.type.size)
+ 	if not firstvar:
+-		go('	put16(b[2:], %d)', fixedtotal / 4)
++		go('	put16(b[2:], %d)', fixedlength)
+ 	else:
+ 		go('	put16(b[2:], uint16(n / 4))')
+ 	go('	b[0] = %s', self.opcode)
+@@ -662,7 +665,7 @@ output = {'open'	: go_open,
+ 		  'enum'	: go_enum,
+ 		  'struct'	: go_struct,
+ 		  'union'	: go_union,
+-		  'request' : go_request,
++		  'request'	: go_request,
+ 		  'event'	: go_event,
+ 		  'error'	: go_error
+ 		  }
+diff --git a/src/pkg/xgb/xproto.go b/src/pkg/xgb/xproto.go
+index 194bce3337..821b883040 100644
+--- a/src/pkg/xgb/xproto.go
++++ b/src/pkg/xgb/xproto.go
+@@ -2427,8 +2427,8 @@ func (c *Conn) ListFontsWithInfoReply(cookie Cookie) (*ListFontsWithInfoReply, o
+ }
+ 
+ func (c *Conn) SetFontPath(FontQty uint16, Path []byte) {
+-	b := c.scratch[0:6]
+-	n := 6
++	b := c.scratch[0:8]
++	n := 8
+ 	n += pad(len(Path) * 1)
+ 	put16(b[2:], uint16(n/4))
+ 	b[0] = 51
+@@ -3553,8 +3553,8 @@ func (c *Conn) ListExtensionsReply(cookie Cookie) (*ListExtensionsReply, os.Erro
+ }
+ 
+ func (c *Conn) ChangeKeyboardMapping(KeycodeCount byte, FirstKeycode byte, KeysymsPerKeycode byte, Keysyms []Keysym) {
+-	b := c.scratch[0:6]
+-	n := 6
++	b := c.scratch[0:8]
++	n := 8
+ 	n += pad((int(KeycodeCount) * int(KeysymsPerKeycode)) * 4)
+ 	put16(b[2:], uint16(n/4))
+ 	b[0] = 100
+@@ -3566,8 +3566,8 @@ func (c *Conn) ChangeKeyboardMapping(KeycodeCount byte, FirstKeycode byte, Keysy
+ }
+ 
+ func (c *Conn) GetKeyboardMappingRequest(FirstKeycode byte, Count byte) Cookie {
+-	b := c.scratch[0:6]
+-	put16(b[2:], 1)
++	b := c.scratch[0:8]
++	put16(b[2:], 2)
+ 	b[0] = 101
+ 	b[4] = FirstKeycode
+ 	b[5] = Count
+@@ -3733,8 +3733,8 @@ const (
+ )
+ 
+ func (c *Conn) SetScreenSaver(Timeout int16, Interval int16, PreferBlanking byte, AllowExposures byte) {
+-	b := c.scratch[0:10]
+-	put16(b[2:], 2)
++	b := c.scratch[0:12]
++	put16(b[2:], 3)
+ 	b[0] = 107
+ 	put16(b[4:], uint16(Timeout))
+ 	put16(b[6:], uint16(Interval))

@@ -29,8 +29,152 @@ Date:   Thu Jan 28 09:10:57 2021 -0500
     Trust: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/mvs/mvs.go                   | 27 +++++++++++++++++++-----
  src/cmd/go/internal/mvs/mvs_test.go              | 19 ++++++-----------
  src/cmd/go/testdata/script/mod_load_badchain.txt |  3 +--
  3 files changed, 29 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index f016d8ff15..bed4d5c1ba 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -375,10 +375,19 @@ func Upgrade(target module.Version, reqs Reqs, upgrade ...module.Version) ([]mod
+ // reqs.Previous, but the methods of reqs must otherwise handle such versions
+ // correctly.
+ func Downgrade(target module.Version, reqs Reqs, downgrade ...module.Version) ([]module.Version, error) {
+-	list, err := reqs.Required(target)
++	// Per https://research.swtch.com/vgo-mvs#algorithm_4:
++	// “To avoid an unnecessary downgrade to E 1.1, we must also add a new
++	// requirement on E 1.2. We can apply Algorithm R to find the minimal set of
++	// new requirements to write to go.mod.”
++	//
++	// In order to generate those new requirements, we need to identify versions
++	// for every module in the build list — not just reqs.Required(target).
++	list, err := BuildList(target, reqs)
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	list = list[1:] // remove target
++
+ 	max := make(map[string]string)
+ 	for _, r := range list {
+ 		max[r.Path] = r.Version
+@@ -411,6 +420,9 @@ func Downgrade(target module.Version, reqs Reqs, downgrade ...module.Version) ([
+ 		}
+ 		added[m] = true
+ 		if v, ok := max[m.Path]; ok && reqs.Max(m.Version, v) != v {
++			// m would upgrade an existing dependency — it is not a strict downgrade,
++			// and because it was already present as a dependency, it could affect the
++			// behavior of other relevant packages.
+ 			exclude(m)
+ 			return
+ 		}
+@@ -427,6 +439,7 @@ func Downgrade(target module.Version, reqs Reqs, downgrade ...module.Version) ([
+ 			// is transient (we couldn't download go.mod), return the error from
+ 			// Downgrade. Currently, we can't tell what kind of error it is.
+ 			exclude(m)
++			return
+ 		}
+ 		for _, r := range list {
+ 			add(r)
+@@ -438,8 +451,8 @@ func Downgrade(target module.Version, reqs Reqs, downgrade ...module.Version) ([
+ 		}
+ 	}
+ 
+-	var out []module.Version
+-	out = append(out, target)
++	downgraded := make([]module.Version, 0, len(list)+1)
++	downgraded = append(downgraded, target)
+ List:
+ 	for _, r := range list {
+ 		add(r)
+@@ -466,10 +479,14 @@ List:
+ 			add(p)
+ 			r = p
+ 		}
+-		out = append(out, r)
++		downgraded = append(downgraded, r)
+ 	}
+ 
+-	return out, nil
++	return BuildList(target, &override{
++		target: target,
++		list:   downgraded,
++		Reqs:   reqs,
++	})
+ }
+ 
+ type override struct {
+diff --git a/src/cmd/go/internal/mvs/mvs_test.go b/src/cmd/go/internal/mvs/mvs_test.go
+index b8ff3bd8c2..742e396e0d 100644
+--- a/src/cmd/go/internal/mvs/mvs_test.go
++++ b/src/cmd/go/internal/mvs/mvs_test.go
+@@ -32,8 +32,7 @@ build A:       A B1 C2 D4 E2 F1
+ upgrade* A:    A B1 C4 D5 E2 F1 G1
+ upgrade A C4:  A B1 C4 D4 E2 F1 G1
+ build A2:     A2 B1 C4 D4 E2 F1 G1
+-# BUG: selected versions E2 and F1 are not preserved.
+-downgrade A2 D2: A2 C4 D2
++downgrade A2 D2: A2 C4 D2 E2 F1 G1
+ 
+ name: trim
+ A: B1 C2
+@@ -216,8 +215,7 @@ A: B2
+ B1: C1
+ B2: C2
+ build A:        A B2 C2
+-# BUG: build list from downgrade omits selected version C1.
+-downgrade A C1: A B1
++downgrade A C1: A B1 C1
+ 
+ name: down2
+ A: B2 E2
+@@ -231,9 +229,7 @@ E2: D2
+ E1:
+ F1:
+ build A:        A B2 C2 D2 E2 F2
+-# BUG: selected versions C1 and D1 are not preserved, and
+-# requested version F1 is not selected.
+-downgrade A F1: A B1 E1
++downgrade A F1: A B1 C1 D1 E1 F1
+ 
+ # https://research.swtch.com/vgo-mvs#algorithm_4:
+ # “[D]owngrades are constrained to only downgrade packages, not also upgrade
+@@ -252,8 +248,7 @@ C2:
+ D1:
+ D2:
+ build A:        A B2 C1 D2
+-# BUG: requested version D1 is not selected.
+-downgrade A D1: A
++downgrade A D1: A       D1
+ 
+ # https://research.swtch.com/vgo-mvs#algorithm_4:
+ # “Unlike upgrades, downgrades must work by removing requirements, not adding
+@@ -270,10 +265,8 @@ B2: D2
+ C1:
+ D1:
+ D2:
+-build A:        A B2 D2
+-# BUG: requested version D1 is not selected,
+-# and selected version C1 is omitted from the returned build list.
+-downgrade A D1: A B1
++build A:        A B2    D2
++downgrade A D1: A B1 C1 D1
+ 
+ name: downcycle
+ A: A B2
+diff --git a/src/cmd/go/testdata/script/mod_load_badchain.txt b/src/cmd/go/testdata/script/mod_load_badchain.txt
+index c0c382bfa6..32d9fb24d1 100644
+--- a/src/cmd/go/testdata/script/mod_load_badchain.txt
++++ b/src/cmd/go/testdata/script/mod_load_badchain.txt
+@@ -74,8 +74,7 @@ go get: example.com/badchain/c@v1.0.0 updating to
+ 	module declares its path as: badchain.example.com/c
+ 	        but was required as: example.com/badchain/c
+ -- update-a-expected --
+-go get: example.com/badchain/a@v1.0.0 updating to
+-	example.com/badchain/a@v1.1.0 requires
++go get: example.com/badchain/a@v1.1.0 requires
+ 	example.com/badchain/b@v1.1.0 requires
+ 	example.com/badchain/c@v1.1.0: parsing go.mod:
+ 	module declares its path as: badchain.example.com/c

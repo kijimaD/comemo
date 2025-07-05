@@ -12,7 +12,37 @@ Date:   Fri Oct 31 09:49:42 2014 -0700
     R=adg, iant
     CC=golang-codereviews
     https://golang.org/cl/169860043
-
+---
  src/database/sql/fakedb_test.go | 2 ++
  src/database/sql/sql.go         | 5 +++++
  2 files changed, 7 insertions(+)
+
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index 171c322d49..a993fd46ed 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -141,6 +141,8 @@ type Dummy struct {
+ }
+ 
+ func TestDrivers(t *testing.T) {
++	unregisterAllDrivers()
++	Register("test", fdriver)
+ 	Register("invalid", Dummy{})
+ 	all := Drivers()
+ 	if len(all) < 2 || !sort.StringsAreSorted(all) || !contains(all, "test") || !contains(all, "invalid") {
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index ad9179cf7d..6e6f246aee 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -37,6 +37,11 @@ func Register(name string, driver driver.Driver) {
+ 	drivers[name] = driver
+ }
+ 
++func unregisterAllDrivers() {
++	// For tests.
++	drivers = make(map[string]driver.Driver)
++}
++
+ // Drivers returns a sorted list of the names of the registered drivers.
+ func Drivers() []string {
+ 	var list []string

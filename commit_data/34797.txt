@@ -7,7 +7,55 @@ Date:   Wed Nov 15 10:24:21 2017 +0000
     Change-Id: I491c5ddd1a5d8e55f8e6bb9377bc3811e42773f8
     Reviewed-on: https://go-review.googlesource.com/77870
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/zip/struct.go | 10 +++++++---
  src/archive/zip/writer.go |  1 +
  2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 00c15e4931..63fa0b3b4d 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -27,8 +27,8 @@ import (
+ 
+ // Compression methods.
+ const (
+-	Store   uint16 = 0
+-	Deflate uint16 = 8
++	Store   uint16 = 0 // no compression
++	Deflate uint16 = 8 // DEFLATE compressed
+ )
+ 
+ const (
+@@ -102,7 +102,9 @@ type FileHeader struct {
+ 	CreatorVersion uint16
+ 	ReaderVersion  uint16
+ 	Flags          uint16
+-	Method         uint16
++
++	// Method is the compression method. If zero, Store is used.
++	Method uint16
+ 
+ 	// Modified is the modified time of the file.
+ 	//
+@@ -153,6 +155,8 @@ func (fi headerFileInfo) Sys() interface{}   { return fi.fh }
+ // Because os.FileInfo's Name method returns only the base name of
+ // the file it describes, it may be necessary to modify the Name field
+ // of the returned header to provide the full path name of the file.
++// If compression is desired, callers should set the FileHeader.Method
++// field; it is unset by default.
+ func FileInfoHeader(fi os.FileInfo) (*FileHeader, error) {
+ 	size := fi.Size()
+ 	fh := &FileHeader{
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index ad8457c95a..ebb2a2edd0 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -202,6 +202,7 @@ func (w *Writer) Close() error {
+ 
+ // Create adds a file to the zip file using the provided name.
+ // It returns a Writer to which the file contents should be written.
++// The file contents will be compressed using the Deflate method.
+ // The name must be a relative path: it must not start with a drive
+ // letter (e.g. C:) or leading slash, and only forward slashes are
+ // allowed.

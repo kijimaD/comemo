@@ -7,6 +7,20 @@ Date:   Wed Oct 23 10:34:14 2013 +0400
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/15450047
-
+---
  misc/dist/bindist.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index a98f040e62..223d2dc177 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -49,7 +49,7 @@ const (
+ 	blogPath       = "code.google.com/p/go.blog"
+ 	toolPath       = "code.google.com/p/go.tools"
+ 	tourPath       = "code.google.com/p/go-tour"
+-	defaultToolTag = "9e246fa49449" // go.tools as of 2013-10-18, for go1.2
++	defaultToolTag = "release-branch.go1.2"
+ )
+ 
+ // Import paths for tool commands.

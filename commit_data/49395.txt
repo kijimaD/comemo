@@ -14,7 +14,38 @@ Date:   Mon Aug 16 06:07:39 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/alldocs.go            | 4 ++++
  src/cmd/go/internal/test/test.go | 4 ++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 7f88d3216c..f919699627 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2658,6 +2658,10 @@
+ // 	-failfast
+ // 	    Do not start new tests after the first test failure.
+ //
++// 	-json
++// 	    Log verbose output and test results in JSON. This presents the
++// 	    same information as the -v flag in a machine-readable format.
++//
+ // 	-list regexp
+ // 	    List tests, benchmarks, or examples matching the regular expression.
+ // 	    No tests, benchmarks or examples will be run. This will only
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index aeba80eb68..ce8f226a96 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -242,6 +242,10 @@ control the execution of any test:
+ 	-failfast
+ 	    Do not start new tests after the first test failure.
+ 
++	-json
++	    Log verbose output and test results in JSON. This presents the
++	    same information as the -v flag in a machine-readable format.
++
+ 	-list regexp
+ 	    List tests, benchmarks, or examples matching the regular expression.
+ 	    No tests, benchmarks or examples will be run. This will only

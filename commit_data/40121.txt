@@ -15,6 +15,28 @@ Date:   Fri Apr 19 09:50:01 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/elf_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/elf_test.go b/src/cmd/link/elf_test.go
+index 9eb8d1a14b..3df9869284 100644
+--- a/src/cmd/link/elf_test.go
++++ b/src/cmd/link/elf_test.go
+@@ -34,6 +34,7 @@ func main() {}
+ // with the same name.
+ func TestSectionsWithSameName(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
+ 	t.Parallel()
+ 
+ 	objcopy, err := exec.LookPath("objcopy")
+@@ -77,7 +78,7 @@ func TestSectionsWithSameName(t *testing.T) {
+ 	cflags := strings.Fields(string(cflagsb))
+ 
+ 	asmObj := filepath.Join(dir, "x.o")
+-	t.Logf("%s %v -o %s %s", cc, cflags, asmObj, asmFile)
++	t.Logf("%s %v -c -o %s %s", cc, cflags, asmObj, asmFile)
+ 	if out, err := exec.Command(cc, append(cflags, "-c", "-o", asmObj, asmFile)...).CombinedOutput(); err != nil {
+ 		t.Logf("%s", out)
+ 		t.Fatal(err)

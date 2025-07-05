@@ -22,9 +22,330 @@ Date:   Tue Jun 19 15:41:45 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/debug/elf/file.go     | 41 ++++++++++++---------
  src/debug/macho/file.go   | 82 ++++++++++++++++++++++++++++++++++++------
  src/debug/pe/file.go      | 91 ++++++++++++++++++++++++++++++++++++++++-------
  src/go/build/deps_test.go |  4 +--
  4 files changed, 176 insertions(+), 42 deletions(-)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 25b72642d8..b2adc2834f 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -1112,6 +1112,17 @@ func (f *File) applyRelocationsSPARC64(dst []byte, rels []byte) error {
+ }
+ 
+ func (f *File) DWARF() (*dwarf.Data, error) {
++	dwarfSuffix := func(s *Section) string {
++		switch {
++		case strings.HasPrefix(s.Name, ".debug_"):
++			return s.Name[7:]
++		case strings.HasPrefix(s.Name, ".zdebug_"):
++			return s.Name[8:]
++		default:
++			return ""
++		}
++
++	}
+ 	// sectionData gets the data for s, checks its size, and
+ 	// applies any applicable relations.
+ 	sectionData := func(i int, s *Section) ([]byte, error) {
+@@ -1160,13 +1171,8 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 	// Don't bother loading others.
+ 	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil, "line": nil, "ranges": nil}
+ 	for i, s := range f.Sections {
+-		suffix := ""
+-		switch {
+-		case strings.HasPrefix(s.Name, ".debug_"):
+-			suffix = s.Name[7:]
+-		case strings.HasPrefix(s.Name, ".zdebug_"):
+-			suffix = s.Name[8:]
+-		default:
++		suffix := dwarfSuffix(s)
++		if suffix == "" {
+ 			continue
+ 		}
+ 		if _, ok := dat[suffix]; !ok {
+@@ -1186,16 +1192,19 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 
+ 	// Look for DWARF4 .debug_types sections.
+ 	for i, s := range f.Sections {
+-		if s.Name == ".debug_types" {
+-			b, err := sectionData(i, s)
+-			if err != nil {
+-				return nil, err
+-			}
++		suffix := dwarfSuffix(s)
++		if suffix != "types" {
++			continue
++		}
+ 
+-			err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
+-			if err != nil {
+-				return nil, err
+-			}
++		b, err := sectionData(i, s)
++		if err != nil {
++			return nil, err
++		}
++
++		err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
++		if err != nil {
++			return nil, err
+ 		}
+ 	}
+ 
+diff --git a/src/debug/macho/file.go b/src/debug/macho/file.go
+index da5d9cad4c..16708e5247 100644
+--- a/src/debug/macho/file.go
++++ b/src/debug/macho/file.go
+@@ -9,11 +9,13 @@ package macho
+ 
+ import (
+ 	"bytes"
++	"compress/zlib"
+ 	"debug/dwarf"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"io"
+ 	"os"
++	"strings"
+ )
+ 
+ // A File represents an open Mach-O file.
+@@ -575,26 +577,84 @@ func (f *File) Section(name string) *Section {
+ 
+ // DWARF returns the DWARF debug information for the Mach-O file.
+ func (f *File) DWARF() (*dwarf.Data, error) {
++	dwarfSuffix := func(s *Section) string {
++		switch {
++		case strings.HasPrefix(s.Name, "__debug_"):
++			return s.Name[8:]
++		case strings.HasPrefix(s.Name, "__zdebug_"):
++			return s.Name[9:]
++		default:
++			return ""
++		}
++
++	}
++	sectionData := func(s *Section) ([]byte, error) {
++		b, err := s.Data()
++		if err != nil && uint64(len(b)) < s.Size {
++			return nil, err
++		}
++
++		if len(b) >= 12 && string(b[:4]) == "ZLIB" {
++			dlen := binary.BigEndian.Uint64(b[4:12])
++			dbuf := make([]byte, dlen)
++			r, err := zlib.NewReader(bytes.NewBuffer(b[12:]))
++			if err != nil {
++				return nil, err
++			}
++			if _, err := io.ReadFull(r, dbuf); err != nil {
++				return nil, err
++			}
++			if err := r.Close(); err != nil {
++				return nil, err
++			}
++			b = dbuf
++		}
++		return b, nil
++	}
++
+ 	// There are many other DWARF sections, but these
+ 	// are the ones the debug/dwarf package uses.
+ 	// Don't bother loading others.
+-	var names = [...]string{"abbrev", "info", "line", "ranges", "str"}
+-	var dat [len(names)][]byte
+-	for i, name := range names {
+-		name = "__debug_" + name
+-		s := f.Section(name)
+-		if s == nil {
++	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil, "line": nil, "ranges": nil}
++	for _, s := range f.Sections {
++		suffix := dwarfSuffix(s)
++		if suffix == "" {
+ 			continue
+ 		}
+-		b, err := s.Data()
+-		if err != nil && uint64(len(b)) < s.Size {
++		if _, ok := dat[suffix]; !ok {
++			continue
++		}
++		b, err := sectionData(s)
++		if err != nil {
++			return nil, err
++		}
++		dat[suffix] = b
++	}
++
++	d, err := dwarf.New(dat["abbrev"], nil, nil, dat["info"], dat["line"], nil, dat["ranges"], dat["str"])
++	if err != nil {
++		return nil, err
++	}
++
++	// Look for DWARF4 .debug_types sections.
++	for i, s := range f.Sections {
++		suffix := dwarfSuffix(s)
++		if suffix != "types" {
++			continue
++		}
++
++		b, err := sectionData(s)
++		if err != nil {
++			return nil, err
++		}
++
++		err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
++		if err != nil {
+ 			return nil, err
+ 		}
+-		dat[i] = b
+ 	}
+ 
+-	abbrev, info, line, ranges, str := dat[0], dat[1], dat[2], dat[3], dat[4]
+-	return dwarf.New(abbrev, nil, nil, info, line, nil, ranges, str)
++	return d, nil
+ }
+ 
+ // ImportedSymbols returns the names of all symbols
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index 6fc1f3a60f..2f5efae4e6 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -6,11 +6,14 @@
+ package pe
+ 
+ import (
++	"bytes"
++	"compress/zlib"
+ 	"debug/dwarf"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"io"
+ 	"os"
++	"strings"
+ )
+ 
+ // Avoid use of post-Go 1.4 io features, to make safe for toolchain bootstrap.
+@@ -217,29 +220,91 @@ func (f *File) Section(name string) *Section {
+ }
+ 
+ func (f *File) DWARF() (*dwarf.Data, error) {
+-	// There are many other DWARF sections, but these
+-	// are the ones the debug/dwarf package uses.
+-	// Don't bother loading others.
+-	var names = [...]string{"abbrev", "info", "line", "ranges", "str"}
+-	var dat [len(names)][]byte
+-	for i, name := range names {
+-		name = ".debug_" + name
+-		s := f.Section(name)
+-		if s == nil {
+-			continue
++	dwarfSuffix := func(s *Section) string {
++		switch {
++		case strings.HasPrefix(s.Name, ".debug_"):
++			return s.Name[7:]
++		case strings.HasPrefix(s.Name, ".zdebug_"):
++			return s.Name[8:]
++		default:
++			return ""
+ 		}
++
++	}
++
++	// sectionData gets the data for s and checks its size.
++	sectionData := func(s *Section) ([]byte, error) {
+ 		b, err := s.Data()
+ 		if err != nil && uint32(len(b)) < s.Size {
+ 			return nil, err
+ 		}
++
+ 		if 0 < s.VirtualSize && s.VirtualSize < s.Size {
+ 			b = b[:s.VirtualSize]
+ 		}
+-		dat[i] = b
++
++		if len(b) >= 12 && string(b[:4]) == "ZLIB" {
++			dlen := binary.BigEndian.Uint64(b[4:12])
++			dbuf := make([]byte, dlen)
++			r, err := zlib.NewReader(bytes.NewBuffer(b[12:]))
++			if err != nil {
++				return nil, err
++			}
++			if _, err := io.ReadFull(r, dbuf); err != nil {
++				return nil, err
++			}
++			if err := r.Close(); err != nil {
++				return nil, err
++			}
++			b = dbuf
++		}
++		return b, nil
++	}
++
++	// There are many other DWARF sections, but these
++	// are the ones the debug/dwarf package uses.
++	// Don't bother loading others.
++	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil, "line": nil, "ranges": nil}
++	for _, s := range f.Sections {
++		suffix := dwarfSuffix(s)
++		if suffix == "" {
++			continue
++		}
++		if _, ok := dat[suffix]; !ok {
++			continue
++		}
++
++		b, err := sectionData(s)
++		if err != nil {
++			return nil, err
++		}
++		dat[suffix] = b
++	}
++
++	d, err := dwarf.New(dat["abbrev"], nil, nil, dat["info"], dat["line"], nil, dat["ranges"], dat["str"])
++	if err != nil {
++		return nil, err
++	}
++
++	// Look for DWARF4 .debug_types sections.
++	for i, s := range f.Sections {
++		suffix := dwarfSuffix(s)
++		if suffix != "types" {
++			continue
++		}
++
++		b, err := sectionData(s)
++		if err != nil {
++			return nil, err
++		}
++
++		err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
++		if err != nil {
++			return nil, err
++		}
+ 	}
+ 
+-	abbrev, info, line, ranges, str := dat[0], dat[1], dat[2], dat[3], dat[4]
+-	return dwarf.New(abbrev, nil, nil, info, line, nil, ranges, str)
++	return d, nil
+ }
+ 
+ // TODO(brainman): document ImportDirectory once we decide what to do with it.
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 508ed8ac30..29dbe47d29 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -245,8 +245,8 @@ var pkgDeps = map[string][]string{
+ 	"debug/dwarf":              {"L4"},
+ 	"debug/elf":                {"L4", "OS", "debug/dwarf", "compress/zlib"},
+ 	"debug/gosym":              {"L4"},
+-	"debug/macho":              {"L4", "OS", "debug/dwarf"},
+-	"debug/pe":                 {"L4", "OS", "debug/dwarf"},
++	"debug/macho":              {"L4", "OS", "debug/dwarf", "compress/zlib"},
++	"debug/pe":                 {"L4", "OS", "debug/dwarf", "compress/zlib"},
+ 	"debug/plan9obj":           {"L4", "OS"},
+ 	"encoding":                 {"L4"},
+ 	"encoding/ascii85":         {"L4"},

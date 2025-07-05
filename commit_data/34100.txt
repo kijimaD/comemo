@@ -9,6 +9,19 @@ Date:   Mon Jul 17 12:16:42 2017 -0400
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/go/internal/load/pkg.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 57048d076c..63e58c6247 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -93,7 +93,6 @@ type PackagePublic struct {
+ type PackageInternal struct {
+ 	// Unexported fields are not part of the public API.
+ 	Build        *build.Package
+-	Pkgdir       string               // overrides build.PkgDir
+ 	Imports      []*Package           // this package's direct imports
+ 	Target       string               // installed file for this package (may be executable)
+ 	Pkgfile      string               // where package will be (or is already) built or installed

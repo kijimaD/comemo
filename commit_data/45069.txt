@@ -26,8 +26,140 @@ Date:   Tue Sep 29 04:45:55 2020 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Trust: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/sys_linux_amd64.s   | 31 +++++++++++--------------------
  src/runtime/vdso_linux_amd64.go |  5 ++---
  src/syscall/asm_linux_amd64.s   | 10 +++++++++-
  3 files changed, 22 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 8d90813589..681cd20274 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -40,6 +40,7 @@
+ #define SYS_futex		202
+ #define SYS_sched_getaffinity	204
+ #define SYS_epoll_create	213
++#define SYS_clock_gettime	228
+ #define SYS_exit_group		231
+ #define SYS_epoll_ctl		233
+ #define SYS_tgkill		234
+@@ -241,15 +242,15 @@ noswitch:
+ 	SUBQ	$16, SP		// Space for results
+ 	ANDQ	$~15, SP	// Align for C code
+ 
++	MOVL	$0, DI // CLOCK_REALTIME
++	LEAQ	0(SP), SI
+ 	MOVQ	runtime·vdsoClockgettimeSym(SB), AX
+ 	CMPQ	AX, $0
+ 	JEQ	fallback
+-	MOVL	$0, DI // CLOCK_REALTIME
+-	LEAQ	0(SP), SI
+ 	CALL	AX
++ret:
+ 	MOVQ	0(SP), AX	// sec
+ 	MOVQ	8(SP), DX	// nsec
+-ret:
+ 	MOVQ	R12, SP		// Restore real SP
+ 	// Restore vdsoPC, vdsoSP
+ 	// We don't worry about being signaled between the two stores.
+@@ -264,13 +265,8 @@ ret:
+ 	MOVL	DX, nsec+8(FP)
+ 	RET
+ fallback:
+-	LEAQ	0(SP), DI
+-	MOVQ	$0, SI
+-	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX
+-	CALL	AX
+-	MOVQ	0(SP), AX	// sec
+-	MOVL	8(SP), DX	// usec
+-	IMULQ	$1000, DX
++	MOVQ	$SYS_clock_gettime, AX
++	SYSCALL
+ 	JMP ret
+ 
+ // func nanotime1() int64
+@@ -306,15 +302,15 @@ noswitch:
+ 	SUBQ	$16, SP		// Space for results
+ 	ANDQ	$~15, SP	// Align for C code
+ 
++	MOVL	$1, DI // CLOCK_MONOTONIC
++	LEAQ	0(SP), SI
+ 	MOVQ	runtime·vdsoClockgettimeSym(SB), AX
+ 	CMPQ	AX, $0
+ 	JEQ	fallback
+-	MOVL	$1, DI // CLOCK_MONOTONIC
+-	LEAQ	0(SP), SI
+ 	CALL	AX
++ret:
+ 	MOVQ	0(SP), AX	// sec
+ 	MOVQ	8(SP), DX	// nsec
+-ret:
+ 	MOVQ	R12, SP		// Restore real SP
+ 	// Restore vdsoPC, vdsoSP
+ 	// We don't worry about being signaled between the two stores.
+@@ -332,13 +328,8 @@ ret:
+ 	MOVQ	AX, ret+0(FP)
+ 	RET
+ fallback:
+-	LEAQ	0(SP), DI
+-	MOVQ	$0, SI
+-	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX
+-	CALL	AX
+-	MOVQ	0(SP), AX	// sec
+-	MOVL	8(SP), DX	// usec
+-	IMULQ	$1000, DX
++	MOVQ	$SYS_clock_gettime, AX
++	SYSCALL
+ 	JMP	ret
+ 
+ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-28
+diff --git a/src/runtime/vdso_linux_amd64.go b/src/runtime/vdso_linux_amd64.go
+index d9ab4ab3c6..4e9f748f4a 100644
+--- a/src/runtime/vdso_linux_amd64.go
++++ b/src/runtime/vdso_linux_amd64.go
+@@ -17,8 +17,7 @@ var vdsoSymbolKeys = []vdsoSymbolKey{
+ 	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
+ }
+ 
+-// initialize with vsyscall fallbacks
+ var (
+-	vdsoGettimeofdaySym uintptr = 0xffffffffff600000
+-	vdsoClockgettimeSym uintptr = 0
++	vdsoGettimeofdaySym uintptr
++	vdsoClockgettimeSym uintptr
+ )
+diff --git a/src/syscall/asm_linux_amd64.s b/src/syscall/asm_linux_amd64.s
+index 2c3374338f..ba22179dc2 100644
+--- a/src/syscall/asm_linux_amd64.s
++++ b/src/syscall/asm_linux_amd64.s
+@@ -9,6 +9,8 @@
+ // System calls for AMD64, Linux
+ //
+ 
++#define SYS_gettimeofday 96
++
+ // func Syscall(trap int64, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+ // Trap # in AX, args in DI SI DX R10 R8 R9, return in AX DX
+ // Note that this differs from "standard" ABI convention, which
+@@ -144,13 +146,19 @@ TEXT ·gettimeofday(SB),NOSPLIT,$0-16
+ 	MOVQ	tv+0(FP), DI
+ 	MOVQ	$0, SI
+ 	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX
++	TESTQ   AX, AX
++	JZ fallback
+ 	CALL	AX
+-
++ret:
+ 	CMPQ	AX, $0xfffffffffffff001
+ 	JLS	ok7
+ 	NEGQ	AX
+ 	MOVQ	AX, err+8(FP)
+ 	RET
++fallback:
++	MOVL	$SYS_gettimeofday, AX
++	SYSCALL
++	JMP ret
+ ok7:
+ 	MOVQ	$0, err+8(FP)
+ 	RET

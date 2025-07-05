@@ -18,7 +18,7 @@ Date:   Fri Feb 13 16:55:33 2015 -0800
     Change-Id: I2cad22f5f1e11d8dad40ad13955793d178afb3ae
     Reviewed-on: https://go-review.googlesource.com/4872
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/lex/input.go     | 11 ++++++++++-
  src/cmd/asm/internal/lex/lex.go       |  7 +++++++
  src/cmd/asm/internal/lex/lex_test.go  | 10 ++++++++++
@@ -26,3 +26,123 @@ Date:   Fri Feb 13 16:55:33 2015 -0800
  src/cmd/asm/internal/lex/stack.go     |  4 ++++
  src/cmd/asm/internal/lex/tokenizer.go |  4 ++++
  6 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index 8768b4f648..737b12e134 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -203,12 +203,21 @@ func (in *Input) defineMacro(name string, args []string, tokens []Token) {
+ // The argument list is nil for no parens on the definition; otherwise a list of
+ // formal argument names.
+ func (in *Input) macroDefinition(name string) ([]string, []Token) {
++	prevCol := in.Stack.Col()
+ 	tok := in.Stack.Next()
+ 	if tok == '\n' || tok == scanner.EOF {
+ 		in.Error("no definition for macro:", name)
+ 	}
+ 	var args []string
+-	if tok == '(' {
++	// The C preprocessor treats
++	//	#define A(x)
++	// and
++	//	#define A (x)
++	// distinctly: the first is a macro with arguments, the second without.
++	// Distinguish these cases using the column number, since we don't
++	// see the space itself. Note that text/scanner reports the position at the
++	// end of the token. It's where you are now, and you just read this token.
++	if tok == '(' && in.Stack.Col() == prevCol+1 {
+ 		// Macro has arguments. Scan list of formals.
+ 		acceptArg := true
+ 		args = []string{} // Zero length but not nil.
+diff --git a/src/cmd/asm/internal/lex/lex.go b/src/cmd/asm/internal/lex/lex.go
+index 3bd832db86..c48b74a101 100644
+--- a/src/cmd/asm/internal/lex/lex.go
++++ b/src/cmd/asm/internal/lex/lex.go
+@@ -29,6 +29,11 @@ const (
+ 	macroName                          // name of macro that should not be expanded
+ )
+ 
++// IsRegisterShift reports whether the token is one of the ARM register shift operators.
++func IsRegisterShift(r ScanToken) bool {
++	return ROT <= r && r <= LSH // Order looks backwards because these are negative.
++}
++
+ func (t ScanToken) String() string {
+ 	switch t {
+ 	case scanner.EOF:
+@@ -94,6 +99,8 @@ type TokenReader interface {
+ 	File() string
+ 	// Line reports the source line number of the token.
+ 	Line() int
++	// Col reports the source column number of the token.
++	Col() int
+ 	// SetPos sets the file and line number.
+ 	SetPos(line int, file string)
+ 	// Close does any teardown required.
+diff --git a/src/cmd/asm/internal/lex/lex_test.go b/src/cmd/asm/internal/lex/lex_test.go
+index 64f6784495..59e01c6699 100644
+--- a/src/cmd/asm/internal/lex/lex_test.go
++++ b/src/cmd/asm/internal/lex/lex_test.go
+@@ -41,6 +41,16 @@ var lexTests = []lexTest{
+ 		"#define A() 1234\n" + "A()\n",
+ 		"1234.\n",
+ 	},
++	{
++		"macro with just parens as body",
++		"#define A () \n" + "A\n",
++		"(.).\n",
++	},
++	{
++		"macro with parens but no arguments",
++		"#define A (x) \n" + "A\n",
++		"(.x.).\n",
++	},
+ 	{
+ 		"macro with arguments",
+ 		"#define A(x, y, z) x+z+y\n" + "A(1, 2, 3)\n",
+diff --git a/src/cmd/asm/internal/lex/slice.go b/src/cmd/asm/internal/lex/slice.go
+index 6ac72f469e..e94106b0af 100644
+--- a/src/cmd/asm/internal/lex/slice.go
++++ b/src/cmd/asm/internal/lex/slice.go
+@@ -43,6 +43,11 @@ func (s *Slice) Line() int {
+ 	return s.line
+ }
+ 
++func (s *Slice) Col() int {
++	// Col is only called when defining a macro, which can't reach here.
++	panic("cannot happen: slice col")
++}
++
+ func (s *Slice) SetPos(line int, file string) {
+ 	// Cannot happen because we only have slices of already-scanned
+ 	// text, but be prepared.
+diff --git a/src/cmd/asm/internal/lex/stack.go b/src/cmd/asm/internal/lex/stack.go
+index 9766af51de..72d7f8a165 100644
+--- a/src/cmd/asm/internal/lex/stack.go
++++ b/src/cmd/asm/internal/lex/stack.go
+@@ -41,6 +41,10 @@ func (s *Stack) Line() int {
+ 	return s.tr[len(s.tr)-1].Line()
+ }
+ 
++func (s *Stack) Col() int {
++	return s.tr[len(s.tr)-1].Col()
++}
++
+ func (s *Stack) SetPos(line int, file string) {
+ 	s.tr[len(s.tr)-1].SetPos(line, file)
+ }
+diff --git a/src/cmd/asm/internal/lex/tokenizer.go b/src/cmd/asm/internal/lex/tokenizer.go
+index 24a72479db..28a4b85253 100644
+--- a/src/cmd/asm/internal/lex/tokenizer.go
++++ b/src/cmd/asm/internal/lex/tokenizer.go
+@@ -89,6 +89,10 @@ func (t *Tokenizer) Line() int {
+ 	return t.line
+ }
+ 
++func (t *Tokenizer) Col() int {
++	return t.s.Pos().Column
++}
++
+ func (t *Tokenizer) SetPos(line int, file string) {
+ 	t.line = line
+ 	t.fileName = file

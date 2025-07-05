@@ -9,6 +9,20 @@ Date:   Tue Nov 8 10:09:17 2011 +1100
     R=dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/5352046
-
+---
  src/pkg/html/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/doc.go b/src/pkg/html/doc.go
+index 0620679bd6..1bea690c2c 100644
+--- a/src/pkg/html/doc.go
++++ b/src/pkg/html/doc.go
+@@ -61,7 +61,7 @@ call to Next. For example, to extract an HTML page's anchor text:
+ 		case StartTagToken, EndTagToken:
+ 			tn, _ := z.TagName()
+ 			if len(tn) == 1 && tn[0] == 'a' {
+-				if tt == StartTag {
++				if tt == StartTagToken {
+ 					depth++
+ 				} else {
+ 					depth--

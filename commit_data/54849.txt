@@ -9,7 +9,36 @@ Date:   Tue Oct 18 08:25:51 2022 -0400
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/package.go | 3 +++
  src/go/types/package.go                    | 3 +++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/package.go b/src/cmd/compile/internal/types2/package.go
+index 26f10645d2..61670f6718 100644
+--- a/src/cmd/compile/internal/types2/package.go
++++ b/src/cmd/compile/internal/types2/package.go
+@@ -59,6 +59,9 @@ func (pkg *Package) MarkComplete() { pkg.complete = true }
+ // If pkg was loaded from export data, Imports includes packages that
+ // provide package-level objects referenced by pkg. This may be more or
+ // less than the set of packages directly imported by pkg's source code.
++//
++// If pkg uses cgo and the FakeImportC configuration option
++// was enabled, the imports list may contain a fake "C" package.
+ func (pkg *Package) Imports() []*Package { return pkg.imports }
+ 
+ // SetImports sets the list of explicitly imported packages to list.
+diff --git a/src/go/types/package.go b/src/go/types/package.go
+index 26385dc39b..2b72ff1509 100644
+--- a/src/go/types/package.go
++++ b/src/go/types/package.go
+@@ -60,6 +60,9 @@ func (pkg *Package) MarkComplete() { pkg.complete = true }
+ // If pkg was loaded from export data, Imports includes packages that
+ // provide package-level objects referenced by pkg. This may be more or
+ // less than the set of packages directly imported by pkg's source code.
++//
++// If pkg uses cgo and the FakeImportC configuration option
++// was enabled, the imports list may contain a fake "C" package.
+ func (pkg *Package) Imports() []*Package { return pkg.imports }
+ 
+ // SetImports sets the list of explicitly imported packages to list.

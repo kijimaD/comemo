@@ -15,6 +15,20 @@ Date:   Fri Feb 14 12:03:06 2025 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/runtime/maps/group.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/runtime/maps/group.go b/src/internal/runtime/maps/group.go
+index f3e9d4d12b..6414ee5b9b 100644
+--- a/src/internal/runtime/maps/group.go
++++ b/src/internal/runtime/maps/group.go
+@@ -111,7 +111,7 @@ func bitsetShiftOutLowest(b bitset) bitset {
+ //
+ //	  empty: 1 0 0 0 0 0 0 0
+ //	deleted: 1 1 1 1 1 1 1 0
+-//	   full: 0 h h h h h h h  // h represents the H1 hash bits
++//	   full: 0 h h h h h h h  // h represents the H2 hash bits
+ //
+ // TODO(prattmic): Consider inverting the top bit so that the zero value is empty.
+ type ctrl uint8

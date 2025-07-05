@@ -12,7 +12,43 @@ Date:   Wed Dec 30 14:52:50 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/name.go        | 4 +---
  src/cmd/compile/internal/ir/sizeof_test.go | 2 +-
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 697b04f541..c79b7e52e5 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -44,8 +44,7 @@ type Name struct {
+ 	Offset_   int64
+ 	val       constant.Value
+ 	Opt       interface{} // for use by escape analysis
+-	orig      Node
+-	Embed     *[]Embed // list of embedded files, for ONAME var
++	Embed     *[]Embed    // list of embedded files, for ONAME var
+ 
+ 	PkgName *PkgName // real package for import . names
+ 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
+@@ -219,7 +218,6 @@ func newNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
+ 	n := new(Name)
+ 	n.op = op
+ 	n.pos = pos
+-	n.orig = n
+ 	n.sym = sym
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 61f207af20..8f5fae8a12 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Func{}, 196, 344},
+-		{Name{}, 132, 232},
++		{Name{}, 124, 216},
+ 	}
+ 
+ 	for _, tt := range tests {

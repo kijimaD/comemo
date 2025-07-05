@@ -16,7 +16,7 @@ Date:   Thu Mar 7 15:37:14 2024 -0600
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Paul Murphy <murp@ibm.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go         |  7 +++++++
  src/cmd/compile/internal/ssa/_gen/PPC64.rules |  1 +
  src/cmd/compile/internal/ssa/_gen/PPC64Ops.go |  2 ++
@@ -24,3 +24,143 @@ Date:   Thu Mar 7 15:37:14 2024 -0600
  src/cmd/compile/internal/ssa/rewritePPC64.go  | 15 +++++++++++++++
  test/codegen/mathbits.go                      | 10 ++++++++++
  6 files changed, 52 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index d20a31e38a..cb030ed2b0 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -710,6 +710,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+ 
++	case ssa.OpPPC64ADDZE:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[0].Reg()
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg0()
++
+ 	case ssa.OpPPC64ADDZEzero, ssa.OpPPC64SUBZEzero:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64.rules b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+index c9cd34b9a6..0b69f5cda9 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+@@ -107,6 +107,7 @@
+ (ADDE x y (Select1 <typ.UInt64> (ADDCconst (MOVDconst [0]) [-1]))) => (ADDC x y)
+ // Fold transfer of CA -> GPR -> CA. Note 2 uses when feeding into a chained Add64carry.
+ (Select1 (ADDCconst n:(ADDZEzero x) [-1])) && n.Uses <= 2 => x
++(ADDE (MOVDconst [0]) y c) => (ADDZE y c)
+ 
+ // Borrowing subtraction.
+ (Select0 (Sub64borrow x y c)) =>                 (Select0 <typ.UInt64> (SUBE x y (Select1 <typ.UInt64> (SUBCconst c [0]))))
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+index 7aa2e6c351..c66413bb0a 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+@@ -139,6 +139,7 @@ func init() {
+ 		xergp       = regInfo{inputs: []regMask{xer}, outputs: []regMask{gp}, clobbers: xer}
+ 		gp11cxer    = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}, clobbers: xer}
+ 		gp11xer     = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp, xer}}
++		gp1xer1xer  = regInfo{inputs: []regMask{gp | sp | sb, xer}, outputs: []regMask{gp, xer}, clobbers: xer}
+ 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
+ 		gp21a0      = regInfo{inputs: []regMask{gp, gp | sp | sb}, outputs: []regMask{gp}}
+ 		gp21cxer    = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}, clobbers: xer}
+@@ -227,6 +228,7 @@ func init() {
+ 		{name: "ADDCconst", argLength: 1, reg: gp11xer, asm: "ADDC", typ: "(UInt64, UInt64)", aux: "Int64"},    // arg0 + imm16 -> out, CA
+ 		{name: "SUBCconst", argLength: 1, reg: gp11xer, asm: "SUBC", typ: "(UInt64, UInt64)", aux: "Int64"},    // imm16 - arg0 -> out, CA
+ 		{name: "ADDE", argLength: 3, reg: gp2xer1xer, asm: "ADDE", typ: "(UInt64, UInt64)", commutative: true}, // arg0 + arg1 + CA (arg2) -> out, CA
++		{name: "ADDZE", argLength: 2, reg: gp1xer1xer, asm: "ADDZE", typ: "(UInt64, UInt64)"},                  // arg0 + CA (arg1) -> out, CA
+ 		{name: "SUBE", argLength: 3, reg: gp2xer1xer, asm: "SUBE", typ: "(UInt64, UInt64)"},                    // arg0 - arg1 - CA (arg2) -> out, CA
+ 		{name: "ADDZEzero", argLength: 1, reg: xergp, asm: "ADDZE", typ: "UInt64"},                             // CA (arg0) + $0 -> out
+ 		{name: "SUBZEzero", argLength: 1, reg: xergp, asm: "SUBZE", typ: "UInt64"},                             // $0 - CA (arg0) -> out
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index aa896784f3..ab106f2c6d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2146,6 +2146,7 @@ const (
+ 	OpPPC64ADDCconst
+ 	OpPPC64SUBCconst
+ 	OpPPC64ADDE
++	OpPPC64ADDZE
+ 	OpPPC64SUBE
+ 	OpPPC64ADDZEzero
+ 	OpPPC64SUBZEzero
+@@ -28842,6 +28843,22 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "ADDZE",
++		argLen: 2,
++		asm:    ppc64.AADDZE,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 9223372036854775808}, // XER
++				{0, 1073733630},          // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			clobbers: 9223372036854775808, // XER
++			outputs: []outputInfo{
++				{1, 9223372036854775808}, // XER
++				{0, 1073733624},          // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:   "SUBE",
+ 		argLen: 3,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 473a8ff9d9..d530837ab7 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -4003,6 +4003,21 @@ func rewriteValuePPC64_OpPPC64ADDE(v *Value) bool {
+ 		v.AddArg2(x, y)
+ 		return true
+ 	}
++	// match: (ADDE (MOVDconst [0]) y c)
++	// result: (ADDZE y c)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpPPC64MOVDconst || auxIntToInt64(v_0.AuxInt) != 0 {
++				continue
++			}
++			y := v_1
++			c := v_2
++			v.reset(OpPPC64ADDZE)
++			v.AddArg2(y, c)
++			return true
++		}
++		break
++	}
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64ADDconst(v *Value) bool {
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 184d608424..82a139acab 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -516,6 +516,7 @@ func Add64R(x, y, ci uint64) uint64 {
+ 	r, _ := bits.Add64(x, y, ci)
+ 	return r
+ }
++
+ func Add64M(p, q, r *[3]uint64) {
+ 	var c uint64
+ 	r[0], c = bits.Add64(p[0], q[0], c)
+@@ -527,6 +528,15 @@ func Add64M(p, q, r *[3]uint64) {
+ 	r[2], c = bits.Add64(p[2], q[2], c)
+ }
+ 
++func Add64M0(p, q, r *[3]uint64) {
++	var c uint64
++	r[0], c = bits.Add64(p[0], q[0], 0)
++	// ppc64x: -"ADDC", -"ADDE", "ADDZE\tR[1-9]"
++	r[1], c = bits.Add64(p[1], 0, c)
++	// ppc64x: -"ADDC", "ADDE", -"ADDZE"
++	r[2], c = bits.Add64(p[2], p[2], c)
++}
++
+ func Add64MSaveC(p, q, r, c *[2]uint64) {
+ 	// ppc64x: "ADDC\tR", "ADDZE"
+ 	r[0], c[0] = bits.Add64(p[0], q[0], 0)

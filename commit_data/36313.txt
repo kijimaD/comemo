@@ -18,7 +18,7 @@ Date:   Mon Feb 5 17:11:27 2018 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/defs_freebsd.go       |  13 +++++
  src/runtime/defs_freebsd_386.go   |  32 +++++++++++
  src/runtime/defs_freebsd_amd64.go |  33 ++++++++++++
@@ -35,3 +35,566 @@ Date:   Mon Feb 5 17:11:27 2018 +0200
  src/runtime/vdso_freebsd_arm.go   |  21 ++++++++
  src/runtime/vdso_freebsd_x86.go   |  31 +++++++++++
  15 files changed, 338 insertions(+), 26 deletions(-)
+
+diff --git a/src/runtime/defs_freebsd.go b/src/runtime/defs_freebsd.go
+index 9d55111786..f8eaf4167c 100644
+--- a/src/runtime/defs_freebsd.go
++++ b/src/runtime/defs_freebsd.go
+@@ -31,6 +31,7 @@ package runtime
+ #include <sys/sysctl.h>
+ #include <sys/cpuset.h>
+ #include <sys/param.h>
++#include <sys/vdso.h>
+ */
+ import "C"
+ 
+@@ -62,6 +63,7 @@ const (
+ 	SA_ONSTACK = C.SA_ONSTACK
+ 
+ 	CLOCK_MONOTONIC = C.CLOCK_MONOTONIC
++	CLOCK_REALTIME  = C.CLOCK_REALTIME
+ 
+ 	UMTX_OP_WAIT_UINT         = C.UMTX_OP_WAIT_UINT
+ 	UMTX_OP_WAIT_UINT_PRIVATE = C.UMTX_OP_WAIT_UINT_PRIVATE
+@@ -147,3 +149,14 @@ type Itimerval C.struct_itimerval
+ type Umtx_time C.struct__umtx_time
+ 
+ type Kevent C.struct_kevent
++
++type bintime C.struct_bintime
++type vdsoTimehands C.struct_vdso_timehands
++type vdsoTimekeep C.struct_vdso_timekeep
++
++const (
++	_VDSO_TK_VER_CURR = C.VDSO_TK_VER_CURR
++
++	vdsoTimehandsSize = C.sizeof_struct_vdso_timehands
++	vdsoTimekeepSize  = C.sizeof_struct_vdso_timekeep
++)
+diff --git a/src/runtime/defs_freebsd_386.go b/src/runtime/defs_freebsd_386.go
+index 49bcbb12a2..3e56a9f4d6 100644
+--- a/src/runtime/defs_freebsd_386.go
++++ b/src/runtime/defs_freebsd_386.go
+@@ -32,6 +32,7 @@ const (
+ 	_SA_ONSTACK = 0x1
+ 
+ 	_CLOCK_MONOTONIC = 0x4
++	_CLOCK_REALTIME  = 0x0
+ 
+ 	_UMTX_OP_WAIT_UINT         = 0xb
+ 	_UMTX_OP_WAIT_UINT_PRIVATE = 0xf
+@@ -221,3 +222,34 @@ type keventt struct {
+ 	data   int32
+ 	udata  *byte
+ }
++
++type bintime struct {
++	sec  int32
++	frac uint64
++}
++
++type vdsoTimehands struct {
++	algo         uint32
++	gen          uint32
++	scale        uint64
++	offset_count uint32
++	counter_mask uint32
++	offset       bintime
++	boottime     bintime
++	x86_shift    uint32
++	x86_hpet_idx uint32
++	res          [6]uint32
++}
++
++type vdsoTimekeep struct {
++	ver     uint32
++	enabled uint32
++	current uint32
++}
++
++const (
++	_VDSO_TK_VER_CURR = 0x1
++
++	vdsoTimehandsSize = 0x50
++	vdsoTimekeepSize  = 0xc
++)
+diff --git a/src/runtime/defs_freebsd_amd64.go b/src/runtime/defs_freebsd_amd64.go
+index 0e1c6752d6..4f470fcc38 100644
+--- a/src/runtime/defs_freebsd_amd64.go
++++ b/src/runtime/defs_freebsd_amd64.go
+@@ -32,6 +32,7 @@ const (
+ 	_SA_ONSTACK = 0x1
+ 
+ 	_CLOCK_MONOTONIC = 0x4
++	_CLOCK_REALTIME  = 0x0
+ 
+ 	_UMTX_OP_WAIT_UINT         = 0xb
+ 	_UMTX_OP_WAIT_UINT_PRIVATE = 0xf
+@@ -231,3 +232,35 @@ type keventt struct {
+ 	data   int64
+ 	udata  *byte
+ }
++
++type bintime struct {
++	sec  int64
++	frac uint64
++}
++
++type vdsoTimehands struct {
++	algo         uint32
++	gen          uint32
++	scale        uint64
++	offset_count uint32
++	counter_mask uint32
++	offset       bintime
++	boottime     bintime
++	x86_shift    uint32
++	x86_hpet_idx uint32
++	res          [6]uint32
++}
++
++type vdsoTimekeep struct {
++	ver       uint32
++	enabled   uint32
++	current   uint32
++	pad_cgo_0 [4]byte
++}
++
++const (
++	_VDSO_TK_VER_CURR = 0x1
++
++	vdsoTimehandsSize = 0x58
++	vdsoTimekeepSize  = 0x10
++)
+diff --git a/src/runtime/defs_freebsd_arm.go b/src/runtime/defs_freebsd_arm.go
+index 71684fe9f8..7b8f0d997d 100644
+--- a/src/runtime/defs_freebsd_arm.go
++++ b/src/runtime/defs_freebsd_arm.go
+@@ -32,6 +32,7 @@ const (
+ 	_SA_ONSTACK = 0x1
+ 
+ 	_CLOCK_MONOTONIC = 0x4
++	_CLOCK_REALTIME  = 0x0
+ 
+ 	_UMTX_OP_WAIT_UINT         = 0xb
+ 	_UMTX_OP_WAIT_UINT_PRIVATE = 0xf
+@@ -194,3 +195,34 @@ type keventt struct {
+ 	data   int32
+ 	udata  *byte
+ }
++
++type bintime struct {
++	sec  int64
++	frac uint64
++}
++
++type vdsoTimehands struct {
++	algo         uint32
++	gen          uint32
++	scale        uint64
++	offset_count uint32
++	counter_mask uint32
++	offset       bintime
++	boottime     bintime
++	physical     uint32
++	res          [7]uint32
++}
++
++type vdsoTimekeep struct {
++	ver       uint32
++	enabled   uint32
++	current   uint32
++	pad_cgo_0 [4]byte
++}
++
++const (
++	_VDSO_TK_VER_CURR = 0x1
++
++	vdsoTimehandsSize = 0x58
++	vdsoTimekeepSize  = 0x10
++)
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index fafe7f470b..ef2a4652f4 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -378,9 +378,10 @@ func sysargs(argc int32, argv **byte) {
+ }
+ 
+ const (
+-	_AT_NULL   = 0  // Terminates the vector
+-	_AT_PAGESZ = 6  // Page size in bytes
+-	_AT_HWCAP  = 26 // CPU feature flags
++	_AT_NULL     = 0  // Terminates the vector
++	_AT_PAGESZ   = 6  // Page size in bytes
++	_AT_TIMEKEEP = 22 // Pointer to timehands.
++	_AT_HWCAP    = 26 // CPU feature flags
+ )
+ 
+ func sysauxv(auxv []uintptr) {
+@@ -390,6 +391,8 @@ func sysauxv(auxv []uintptr) {
+ 		// _AT_NCPUS from auxv shouldn't be used due to golang.org/issue/15206
+ 		case _AT_PAGESZ:
+ 			physPageSize = val
++		case _AT_TIMEKEEP:
++			timekeepSharedPage = (*vdsoTimekeep)(unsafe.Pointer(val))
+ 		}
+ 
+ 		archauxv(tag, val)
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index ae5ccd3fee..5382d36c20 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -15,7 +15,6 @@ func read(fd int32, p unsafe.Pointer, n int32) int32
+ func closefd(fd int32) int32
+ 
+ func exit(code int32)
+-func nanotime() int64
+ func usleep(usec uint32)
+ 
+ //go:noescape
+diff --git a/src/runtime/stubs3.go b/src/runtime/stubs3.go
+new file mode 100644
+index 0000000000..7570dcaeb2
+--- /dev/null
++++ b/src/runtime/stubs3.go
+@@ -0,0 +1,13 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9
++// +build !solaris
++// +build !windows
++// +build !nacl
++// +build !freebsd
++
++package runtime
++
++func nanotime() int64
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index dba2f206db..b8f685a323 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -171,8 +171,8 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-4
+ 	INT	$0x80
+ 	RET
+ 
+-// func walltime() (sec int64, nsec int32)
+-TEXT runtime·walltime(SB), NOSPLIT, $32
++// func fallback_walltime() (sec int64, nsec int32)
++TEXT runtime·fallback_walltime(SB), NOSPLIT, $32-12
+ 	MOVL	$232, AX // clock_gettime
+ 	LEAL	12(SP), BX
+ 	MOVL	$0, 4(SP)	// CLOCK_REALTIME
+@@ -187,13 +187,10 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVL	BX, nsec+8(FP)
+ 	RET
+ 
+-// int64 nanotime(void) so really
+-// void nanotime(int64 *nsec)
+-TEXT runtime·nanotime(SB), NOSPLIT, $32
++// func fallback_nanotime() int64
++TEXT runtime·fallback_nanotime(SB), NOSPLIT, $32-8
+ 	MOVL	$232, AX
+ 	LEAL	12(SP), BX
+-	// We can use CLOCK_MONOTONIC_FAST here when we drop
+-	// support for FreeBSD 8-STABLE.
+ 	MOVL	$4, 4(SP)	// CLOCK_MONOTONIC
+ 	MOVL	BX, 8(SP)
+ 	INT	$0x80
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 4d3e88b482..be191a0784 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -139,9 +139,9 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-8
+ 	SYSCALL
+ 	RET
+ 
+-// func walltime() (sec int64, nsec int32)
+-TEXT runtime·walltime(SB), NOSPLIT, $32
+-	MOVL	$232, AX // clock_gettime
++// func fallback_walltime() (sec int64, nsec int32)
++TEXT runtime·fallback_walltime(SB), NOSPLIT, $32-12
++	MOVL	$232, AX	// clock_gettime
+ 	MOVQ	$0, DI		// CLOCK_REALTIME
+ 	LEAQ	8(SP), SI
+ 	SYSCALL
+@@ -153,10 +153,8 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVL	DX, nsec+8(FP)
+ 	RET
+ 
+-TEXT runtime·nanotime(SB), NOSPLIT, $32
++TEXT runtime·fallback_nanotime(SB), NOSPLIT, $32-8
+ 	MOVL	$232, AX
+-	// We can use CLOCK_MONOTONIC_FAST here when we drop
+-	// support for FreeBSD 8-STABLE.
+ 	MOVQ	$4, DI		// CLOCK_MONOTONIC
+ 	LEAQ	8(SP), SI
+ 	SYSCALL
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 1a76f1767f..93bf569367 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -168,8 +168,8 @@ TEXT runtime·setitimer(SB), NOSPLIT|NOFRAME, $0
+ 	SWI $0
+ 	RET
+ 
+-// func walltime() (sec int64, nsec int32)
+-TEXT runtime·walltime(SB), NOSPLIT, $32
++// func fallback_walltime() (sec int64, nsec int32)
++TEXT runtime·fallback_walltime(SB), NOSPLIT, $32-12
+ 	MOVW $0, R0 // CLOCK_REALTIME
+ 	MOVW $8(R13), R1
+ 	MOVW $SYS_clock_gettime, R7
+@@ -184,11 +184,8 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVW R2, nsec+8(FP)
+ 	RET
+ 
+-// int64 nanotime(void) so really
+-// void nanotime(int64 *nsec)
+-TEXT runtime·nanotime(SB), NOSPLIT, $32
+-	// We can use CLOCK_MONOTONIC_FAST here when we drop
+-	// support for FreeBSD 8-STABLE.
++// func fallback_nanotime() int64
++TEXT runtime·fallback_nanotime(SB), NOSPLIT, $32
+ 	MOVW $4, R0 // CLOCK_MONOTONIC
+ 	MOVW $8(R13), R1
+ 	MOVW $SYS_clock_gettime, R7
+@@ -395,3 +392,26 @@ TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0-28
+ 	SUB	$20, R13
+ 	MOVW	R0, ret+24(FP)
+ 	RET
++
++// func getCntxct(physical bool) uint32
++TEXT runtime·getCntxct(SB),NOSPLIT|NOFRAME,$0-8
++	MOVB	runtime·goarm(SB), R11
++	CMP	$7, R11
++	BLT	2(PC)
++	DMB
++
++	MOVB	physical+0(FP), R0
++	CMP	$1, R0
++	B.NE	3(PC)
++
++	// get CNTPCT (Physical Count Register) into R0(low) R1(high)
++	// mrrc    15, 0, r0, r1, cr14
++	WORD	$0xec510f0e
++	B	2(PC)
++
++	// get CNTVCT (Virtual Count Register) into R0(low) R1(high)
++	// mrrc    15, 1, r0, r1, cr14
++	WORD	$0xec510f1e
++
++	MOVW	R0, ret+4(FP)
++	RET
+diff --git a/src/runtime/timestub.go b/src/runtime/timestub.go
+index adc3a86d20..a76a761936 100644
+--- a/src/runtime/timestub.go
++++ b/src/runtime/timestub.go
+@@ -12,8 +12,6 @@ package runtime
+ 
+ import _ "unsafe" // for go:linkname
+ 
+-func walltime() (sec int64, nsec int32)
+-
+ //go:linkname time_now time.now
+ func time_now() (sec int64, nsec int32, mono int64) {
+ 	sec, nsec = walltime()
+diff --git a/src/runtime/timestub2.go b/src/runtime/timestub2.go
+new file mode 100644
+index 0000000000..8e15085d21
+--- /dev/null
++++ b/src/runtime/timestub2.go
+@@ -0,0 +1,11 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !darwin !amd64,!386
++// +build !windows
++// +build !freebsd
++
++package runtime
++
++func walltime() (sec int64, nsec int32)
+diff --git a/src/runtime/vdso_freebsd.go b/src/runtime/vdso_freebsd.go
+new file mode 100644
+index 0000000000..cefbb5df1c
+--- /dev/null
++++ b/src/runtime/vdso_freebsd.go
+@@ -0,0 +1,111 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd
++
++package runtime
++
++import (
++	"runtime/internal/atomic"
++	"unsafe"
++)
++
++const _VDSO_TH_NUM = 4 // defined in <sys/vdso.h> #ifdef _KERNEL
++
++var timekeepSharedPage *vdsoTimekeep
++
++//go:nosplit
++func (bt bintime) Add(bt2 bintime) bintime {
++	u := bt.frac
++	bt.frac += bt2.frac
++	if u > bt.frac {
++		bt.sec++
++	}
++	bt.sec += bt2.sec
++	return bt
++}
++
++//go:nosplit
++func (bt bintime) AddX(x uint64) bintime {
++	u := bt.frac
++	bt.frac += x
++	if u > bt.frac {
++		bt.sec++
++	}
++	return bt
++}
++
++var binuptimeDummy uint32
++
++// based on /usr/src/lib/libc/sys/__vdso_gettimeofday.c
++//
++//go:nosplit
++func binuptime(abs bool) (bintime, bool) {
++	var bt bintime
++	timehands := (*[_VDSO_TH_NUM]vdsoTimehands)(add(unsafe.Pointer(timekeepSharedPage), vdsoTimekeepSize))
++	for {
++		if timekeepSharedPage.enabled == 0 {
++			return bt, false
++		}
++
++		curr := atomic.Load(&timekeepSharedPage.current) // atomic_load_acq_32
++		th := &timehands[curr]
++		gen := atomic.Load(&th.gen) // atomic_load_acq_32
++		bt = th.offset
++
++		if tc, ok := th.getTimecounter(); !ok {
++			return bt, false
++		} else {
++			delta := (tc - th.offset_count) & th.counter_mask
++			bt = bt.AddX(th.scale * uint64(delta))
++		}
++		if abs {
++			bt = bt.Add(th.boottime)
++		}
++
++		atomic.Load(&binuptimeDummy) // atomic_thread_fence_acq()
++		if curr == timekeepSharedPage.current && gen != 0 && gen == th.gen {
++			break
++		}
++	}
++	return bt, true
++}
++
++//go:nosplit
++func vdsoClockGettime(clockID int32) (bintime, bool) {
++	if timekeepSharedPage == nil || timekeepSharedPage.ver != _VDSO_TK_VER_CURR {
++		return bintime{}, false
++	}
++	abs := false
++	switch clockID {
++	case _CLOCK_MONOTONIC:
++		/* ok */
++	case _CLOCK_REALTIME:
++		abs = true
++	default:
++		return bintime{}, false
++	}
++
++	return binuptime(abs)
++}
++
++func fallback_nanotime() int64
++func fallback_walltime() (sec int64, nsec int32)
++
++//go:nosplit
++func nanotime() int64 {
++	bt, ok := vdsoClockGettime(_CLOCK_MONOTONIC)
++	if !ok {
++		return fallback_nanotime()
++	}
++	return int64((1e9 * uint64(bt.sec)) + ((1e9 * uint64(bt.frac>>32)) >> 32))
++}
++
++func walltime() (sec int64, nsec int32) {
++	bt, ok := vdsoClockGettime(_CLOCK_REALTIME)
++	if !ok {
++		return fallback_walltime()
++	}
++	return int64(bt.sec), int32((1e9 * uint64(bt.frac>>32)) >> 32)
++}
+diff --git a/src/runtime/vdso_freebsd_arm.go b/src/runtime/vdso_freebsd_arm.go
+new file mode 100644
+index 0000000000..669fed0edf
+--- /dev/null
++++ b/src/runtime/vdso_freebsd_arm.go
+@@ -0,0 +1,21 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++const (
++	_VDSO_TH_ALGO_ARM_GENTIM = 1
++)
++
++func getCntxct(physical bool) uint32
++
++//go:nosplit
++func (th *vdsoTimehands) getTimecounter() (uint32, bool) {
++	switch th.algo {
++	case _VDSO_TH_ALGO_ARM_GENTIM:
++		return getCntxct(th.physical != 0), true
++	default:
++		return 0, false
++	}
++}
+diff --git a/src/runtime/vdso_freebsd_x86.go b/src/runtime/vdso_freebsd_x86.go
+new file mode 100644
+index 0000000000..e3cff68c6b
+--- /dev/null
++++ b/src/runtime/vdso_freebsd_x86.go
+@@ -0,0 +1,31 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd
++// +build 386 amd64
++
++package runtime
++
++const (
++	_VDSO_TH_ALGO_X86_TSC = 1
++)
++
++//go:nosplit
++func (th *vdsoTimehands) getTSCTimecounter() uint32 {
++	tsc := cputicks()
++	if th.x86_shift > 0 {
++		tsc >>= th.x86_shift
++	}
++	return uint32(tsc)
++}
++
++//go:nosplit
++func (th *vdsoTimehands) getTimecounter() (uint32, bool) {
++	switch th.algo {
++	case _VDSO_TH_ALGO_X86_TSC:
++		return th.getTSCTimecounter(), true
++	default:
++		return 0, false
++	}
++}

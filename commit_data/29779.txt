@@ -19,7 +19,7 @@ Date:   Tue May 3 00:28:23 2016 +0100
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/x86/asm6.go           |  6 +++++-
  test/fixedbugs/issue15609.dir/call.go      |  7 +++++++
  test/fixedbugs/issue15609.dir/call_386.s   |  8 ++++++++
@@ -27,3 +27,93 @@ Date:   Tue May 3 00:28:23 2016 +0100
  test/fixedbugs/issue15609.dir/call_decl.go |  5 +++++
  test/fixedbugs/issue15609.dir/main.go      | 14 ++++++++++++++
  6 files changed, 47 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index c023775f90..7efc30e03c 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3691,7 +3691,11 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				ctxt.AsmBuf.Put2(byte(op), o.op[z+1])
+ 				r = obj.Addrel(ctxt.Cursym)
+ 				r.Off = int32(p.Pc + int64(ctxt.AsmBuf.Len()))
+-				r.Type = obj.R_ADDR
++				if p.Mode == 64 {
++					r.Type = obj.R_PCREL
++				} else {
++					r.Type = obj.R_ADDR
++				}
+ 				r.Siz = 4
+ 				r.Add = p.To.Offset
+ 				r.Sym = p.To.Sym
+diff --git a/test/fixedbugs/issue15609.dir/call.go b/test/fixedbugs/issue15609.dir/call.go
+new file mode 100644
+index 0000000000..41a489cebd
+--- /dev/null
++++ b/test/fixedbugs/issue15609.dir/call.go
+@@ -0,0 +1,7 @@
++// +build !amd64,!386
++
++package main
++
++func jump() {
++	target()
++}
+diff --git a/test/fixedbugs/issue15609.dir/call_386.s b/test/fixedbugs/issue15609.dir/call_386.s
+new file mode 100644
+index 0000000000..751084c485
+--- /dev/null
++++ b/test/fixedbugs/issue15609.dir/call_386.s
+@@ -0,0 +1,8 @@
++#include "textflag.h"
++
++DATA ·pointer(SB)/4, $·target(SB)
++GLOBL ·pointer(SB),RODATA,$4
++
++TEXT ·jump(SB),NOSPLIT,$4
++        CALL *·pointer(SB)
++        RET
+diff --git a/test/fixedbugs/issue15609.dir/call_amd64.s b/test/fixedbugs/issue15609.dir/call_amd64.s
+new file mode 100644
+index 0000000000..09fbe5dfc4
+--- /dev/null
++++ b/test/fixedbugs/issue15609.dir/call_amd64.s
+@@ -0,0 +1,8 @@
++#include "textflag.h"
++
++DATA ·pointer(SB)/8, $·target(SB)
++GLOBL ·pointer(SB),RODATA,$8
++
++TEXT ·jump(SB),NOSPLIT,$8
++        CALL *·pointer(SB)
++        RET
+diff --git a/test/fixedbugs/issue15609.dir/call_decl.go b/test/fixedbugs/issue15609.dir/call_decl.go
+new file mode 100644
+index 0000000000..d9c5a4e9f0
+--- /dev/null
++++ b/test/fixedbugs/issue15609.dir/call_decl.go
+@@ -0,0 +1,5 @@
++// +build amd64 386
++
++package main
++
++func jump()
+diff --git a/test/fixedbugs/issue15609.dir/main.go b/test/fixedbugs/issue15609.dir/main.go
+new file mode 100644
+index 0000000000..4855e31e5e
+--- /dev/null
++++ b/test/fixedbugs/issue15609.dir/main.go
+@@ -0,0 +1,14 @@
++package main
++
++var called bool
++
++func target() {
++	called = true
++}
++
++func main() {
++	jump()
++	if !called {
++		panic("target not called")
++	}
++}

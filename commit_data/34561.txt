@@ -24,7 +24,7 @@ Date:   Tue Oct 31 12:59:47 2017 -0400
     Change-Id: I932626ee7da649b302cd269b82eb6fe5d7b9f0f2
     Reviewed-on: https://go-review.googlesource.com/74750
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/deps.go               |   3 --
  src/cmd/go/go_test.go              |   4 +-
  src/cmd/go/internal/load/pkg.go    |   2 +
@@ -33,3 +33,354 @@ Date:   Tue Oct 31 12:59:47 2017 -0400
  src/cmd/go/internal/work/exec.go   | 108 ++++++++++++++++++++++++++++++++++++-
  src/cmd/vet/all/whitelist/all.txt  |   4 --
  7 files changed, 177 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index 5bdb45dc4e..44681f9995 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -311,15 +311,12 @@ var builddeps = map[string][]string{
+ 
+ 	"cmd/go/internal/vet": {
+ 		"cmd/go/internal/base",    // cmd/go/internal/vet
+-		"cmd/go/internal/cfg",     // cmd/go/internal/vet
+ 		"cmd/go/internal/cmdflag", // cmd/go/internal/vet
+ 		"cmd/go/internal/load",    // cmd/go/internal/vet
+-		"cmd/go/internal/str",     // cmd/go/internal/vet
+ 		"cmd/go/internal/work",    // cmd/go/internal/vet
+ 		"flag",                    // cmd/go/internal/vet
+ 		"fmt",                     // cmd/go/internal/vet
+ 		"os",                      // cmd/go/internal/vet
+-		"path/filepath",           // cmd/go/internal/vet
+ 		"strings",                 // cmd/go/internal/vet
+ 	},
+ 
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 56a3c9c02b..a4f6452de5 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3763,9 +3763,11 @@ func TestBinaryOnlyPackages(t *testing.T) {
+ 	tg.grepStdout("hello from p1", "did not see message from p1")
+ 
+ 	tg.tempFile("src/p4/p4.go", `package main`)
++	// The odd string split below avoids vet complaining about
++	// a // +build line appearing too late in this source file.
+ 	tg.tempFile("src/p4/p4not.go", `//go:binary-only-package
+ 
+-		// +build asdf
++		/`+`/ +build asdf
+ 
+ 		package main
+ 	`)
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 0f76975f56..a2c3d8e893 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -95,6 +95,7 @@ type PackageInternal struct {
+ 	// Unexported fields are not part of the public API.
+ 	Build        *build.Package
+ 	Imports      []*Package           // this package's direct imports
++	RawImports   []string             // this package's original imports as they appear in the text of the program
+ 	ForceLibrary bool                 // this package is a library (even if named "main")
+ 	Cmdline      bool                 // defined by files listed on command line
+ 	Local        bool                 // imported via local path (./ or ../)
+@@ -208,6 +209,7 @@ func (p *Package) copyBuild(pp *build.Package) {
+ 	// We modify p.Imports in place, so make copy now.
+ 	p.Imports = make([]string, len(pp.Imports))
+ 	copy(p.Imports, pp.Imports)
++	p.Internal.RawImports = pp.Imports
+ 	p.TestGoFiles = pp.TestGoFiles
+ 	p.TestImports = pp.TestImports
+ 	p.XTestGoFiles = pp.XTestGoFiles
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index f22dd29286..ff129a62f0 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -6,12 +6,9 @@
+ package vet
+ 
+ import (
+-	"path/filepath"
+-
+ 	"cmd/go/internal/base"
+-	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+-	"cmd/go/internal/str"
++	"cmd/go/internal/work"
+ )
+ 
+ var CmdVet = &base.Command{
+@@ -37,22 +34,23 @@ See also: go fmt, go fix.
+ }
+ 
+ func runVet(cmd *base.Command, args []string) {
+-	vetFlags, packages := vetFlags(args)
+-	for _, p := range load.Packages(packages) {
+-		// Vet expects to be given a set of files all from the same package.
+-		// Run once for package p and once for package p_test.
+-		if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles) > 0 {
+-			runVetFiles(p, vetFlags, str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.SFiles))
+-		}
+-		if len(p.XTestGoFiles) > 0 {
+-			runVetFiles(p, vetFlags, str.StringList(p.XTestGoFiles))
+-		}
++	vetFlags, pkgArgs := vetFlags(args)
++
++	work.InstrumentInit()
++	work.BuildModeInit()
++	work.VetFlags = vetFlags
++
++	pkgs := load.PackagesForBuild(pkgArgs)
++	if len(pkgs) == 0 {
++		base.Fatalf("no packages to vet")
+ 	}
+-}
+ 
+-func runVetFiles(p *load.Package, flags, files []string) {
+-	for i := range files {
+-		files[i] = filepath.Join(p.Dir, files[i])
++	var b work.Builder
++	b.Init()
++
++	root := &work.Action{Mode: "go vet"}
++	for _, p := range pkgs {
++		root.Deps = append(root.Deps, b.VetAction(work.ModeBuild, work.ModeBuild, p))
+ 	}
+-	base.Run(cfg.BuildToolexec, base.Tool("vet"), flags, base.RelPaths(files))
++	b.Do(root)
+ }
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index c01e266e97..413e950d6e 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -74,6 +74,9 @@ type Action struct {
+ 	built   string // the actual created package or executable
+ 	buildID string // build ID of action output
+ 
++	needVet bool       // Mode=="build": need to fill in vet config
++	vetCfg  *vetConfig // vet config
++
+ 	// Execution state.
+ 	pending  int  // number of deps yet to complete
+ 	priority int  // relative execution priority
+@@ -349,6 +352,51 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
+ 	return a
+ }
+ 
++// VetAction returns the action for running go vet on package p.
++// It depends on the action for compiling p.
++// If the caller may be causing p to be installed, it is up to the caller
++// to make sure that the install depends on (runs after) vet.
++func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
++	// Construct vet action.
++	a := b.cacheAction("vet", p, func() *Action {
++		a1 := b.CompileAction(mode, depMode, p)
++
++		// vet expects to be able to import "fmt".
++		var stk load.ImportStack
++		stk.Push("vet")
++		p1 := load.LoadPackage("fmt", &stk)
++		stk.Pop()
++		aFmt := b.CompileAction(ModeBuild, depMode, p1)
++
++		a := &Action{
++			Mode:    "vet",
++			Package: p,
++			Deps:    []*Action{a1, aFmt},
++			Objdir:  a1.Objdir,
++		}
++		if a1.Func == nil {
++			// Built-in packages like unsafe.
++			return a
++		}
++		a1.needVet = true
++		a.Func = (*Builder).vet
++
++		// If there might be an install action, make it depend on vet,
++		// so that the temporary files generated by the build step
++		// are not deleted before vet can use them.
++		// If nothing was going to install p, calling b.CompileAction with
++		// ModeInstall here creates the action, but nothing links it into the
++		// graph, so it will still not be installed.
++		install := b.CompileAction(ModeInstall, depMode, p)
++		if install != a1 {
++			install.Deps = append(install.Deps, a)
++		}
++
++		return a
++	})
++	return a
++}
++
+ // LinkAction returns the action for linking p into an executable
+ // and possibly installing the result (according to mode).
+ // depMode is the action (build or install) to use when compiling dependencies.
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 3ca26881d0..680a756bb6 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -8,6 +8,7 @@ package work
+ 
+ import (
+ 	"bytes"
++	"encoding/json"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+@@ -254,9 +255,13 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ // Note that any new influence on this logic must be reported in b.buildActionID above as well.
+ func (b *Builder) build(a *Action) (err error) {
+ 	p := a.Package
++	cached := false
+ 	if !p.BinaryOnly {
+ 		if b.useCache(a, p, b.buildActionID(a), p.Target) {
+-			return nil
++			if !a.needVet {
++				return nil
++			}
++			cached = true
+ 		}
+ 	}
+ 
+@@ -417,6 +422,34 @@ func (b *Builder) build(a *Action) (err error) {
+ 		}
+ 	}
+ 
++	// Prepare Go vet config if needed.
++	var vcfg *vetConfig
++	if a.needVet {
++		// Pass list of absolute paths to vet,
++		// so that vet's error messages will use absolute paths,
++		// so that we can reformat them relative to the directory
++		// in which the go command is invoked.
++		absfiles := make([]string, len(gofiles))
++		for i, f := range gofiles {
++			if !filepath.IsAbs(f) {
++				f = filepath.Join(a.Package.Dir, f)
++			}
++			absfiles[i] = f
++		}
++		vcfg = &vetConfig{
++			Compiler:    cfg.BuildToolchainName,
++			Dir:         a.Package.Dir,
++			GoFiles:     absfiles,
++			ImportMap:   make(map[string]string),
++			PackageFile: make(map[string]string),
++		}
++		a.vetCfg = vcfg
++		for i, raw := range a.Package.Internal.RawImports {
++			final := a.Package.Imports[i]
++			vcfg.ImportMap[raw] = final
++		}
++	}
++
+ 	// Prepare Go import config.
+ 	var icfg bytes.Buffer
+ 	for _, a1 := range a.Deps {
+@@ -434,13 +467,42 @@ func (b *Builder) build(a *Action) (err error) {
+ 			continue
+ 		}
+ 		fmt.Fprintf(&icfg, "importmap %s=%s\n", path[i:], path)
++		if vcfg != nil {
++			vcfg.ImportMap[path[i:]] = path
++		}
+ 	}
++
++	// Compute the list of mapped imports in the vet config
++	// so that we can add any missing mappings below.
++	var vcfgMapped map[string]bool
++	if vcfg != nil {
++		vcfgMapped = make(map[string]bool)
++		for _, p := range vcfg.ImportMap {
++			vcfgMapped[p] = true
++		}
++	}
++
+ 	for _, a1 := range a.Deps {
+ 		p1 := a1.Package
+ 		if p1 == nil || p1.ImportPath == "" || a1.built == "" {
+ 			continue
+ 		}
+ 		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, a1.built)
++		if vcfg != nil {
++			// Add import mapping if needed
++			// (for imports like "runtime/cgo" that appear only in generated code).
++			if !vcfgMapped[p1.ImportPath] {
++				vcfg.ImportMap[p1.ImportPath] = p1.ImportPath
++			}
++			vcfg.PackageFile[p1.ImportPath] = a1.built
++		}
++	}
++
++	if cached {
++		// The cached package file is OK, so we don't need to run the compile.
++		// We've only going through the motions to prepare the vet configuration,
++		// which is now complete.
++		return nil
+ 	}
+ 
+ 	// Compile Go.
+@@ -532,6 +594,50 @@ func (b *Builder) build(a *Action) (err error) {
+ 	return nil
+ }
+ 
++type vetConfig struct {
++	Compiler    string
++	Dir         string
++	GoFiles     []string
++	ImportMap   map[string]string
++	PackageFile map[string]string
++}
++
++// VetFlags are the flags to pass to vet.
++// The caller is expected to set them before executing any vet actions.
++var VetFlags []string
++
++func (b *Builder) vet(a *Action) error {
++	// a.Deps[0] is the build of the package being vetted.
++	// a.Deps[1] is the build of the "fmt" package.
++
++	vcfg := a.Deps[0].vetCfg
++	if vcfg == nil {
++		// Vet config should only be missing if the build failed.
++		if !a.Deps[0].Failed {
++			return fmt.Errorf("vet config not found")
++		}
++		return nil
++	}
++
++	if vcfg.ImportMap["fmt"] == "" {
++		a1 := a.Deps[1]
++		vcfg.ImportMap["fmt"] = "fmt"
++		vcfg.PackageFile["fmt"] = a1.built
++	}
++
++	js, err := json.MarshalIndent(vcfg, "", "\t")
++	if err != nil {
++		return fmt.Errorf("internal error marshaling vet config: %v", err)
++	}
++	js = append(js, '\n')
++	if err := b.writeFile(a.Objdir+"vet.cfg", js); err != nil {
++		return err
++	}
++
++	p := a.Package
++	return b.run(p.Dir, p.ImportPath, nil, cfg.BuildToolexec, base.Tool("vet"), VetFlags, a.Objdir+"vet.cfg")
++}
++
+ // linkActionID computes the action ID for a link action.
+ func (b *Builder) linkActionID(a *Action) cache.ActionID {
+ 	h := cache.NewHash("link")
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index 98415ef056..6792d263a5 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -1,9 +1,5 @@
+ // Non-platform-specific vet whitelist. See readme.txt for details.
+ 
+-// Issue 17580 (remove when fixed)
+-cmd/go/go_test.go: +build comment must appear before package clause and be followed by a blank line
+-
+-
+ // Real problems that we can't fix.
+ 
+ // This is a bad WriteTo signature. Errors are being ignored!

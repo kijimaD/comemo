@@ -13,7 +13,7 @@ Date:   Tue Jan 10 19:49:11 2012 -0800
     R=golang-dev, r, adg
     CC=golang-dev
     https://golang.org/cl/5530074
-
+---
  src/pkg/runtime/malloc.h     |  7 ++--
  src/pkg/runtime/mgc0.c       | 56 ++--------------------------
  test/bench/garbage/Makefile  |  1 +
@@ -23,3 +23,484 @@ Date:   Tue Jan 10 19:49:11 2012 -0800
  test/bench/garbage/tree.go   |  6 +--
  test/bench/garbage/tree2.go  | 88 ++++++++++++++++++++++++++++++++++++++++++++
  8 files changed, 134 insertions(+), 99 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 7731e66a15..a85e1af8c7 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -123,10 +123,9 @@ enum
+ 
+ 	// Max number of threads to run garbage collection.
+ 	// 2, 3, and 4 are all plausible maximums depending
+-	// on the hardware details of the machine.  The second
+-	// proc is the one that helps the most (after the first),
+-	// so start with just 2 for now.
+-	MaxGcproc = 2,
++	// on the hardware details of the machine.  The garbage
++	// collector scales well to 4 cpus.
++	MaxGcproc = 4,
+ };
+ 
+ // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index b2f22866de..78daa78362 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -53,9 +53,6 @@ enum {
+ #define bitMask (bitBlockBoundary | bitAllocated | bitMarked | bitSpecial)
+ 
+ // TODO: Make these per-M.
+-static uint64 nlookup;
+-static uint64 nsizelookup;
+-static uint64 naddrlookup;
+ static uint64 nhandoff;
+ 
+ static int32 gctrace;
+@@ -212,8 +209,6 @@ scanblock(byte *b, int64 n)
+ 
+ 			// Otherwise consult span table to find beginning.
+ 			// (Manually inlined copy of MHeap_LookupMaybe.)
+-			nlookup++;
+-			naddrlookup++;
+ 			k = (uintptr)obj>>PageShift;
+ 			x = k;
+ 			if(sizeof(void*) == 8)
+@@ -301,49 +296,8 @@ scanblock(byte *b, int64 n)
+ 		b = *--wp;
+ 		nobj--;
+ 
+-		// Figure out n = size of b.  Start by loading bits for b.
+-		off = (uintptr*)b - (uintptr*)arena_start;
+-		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+-		shift = off % wordsPerBitmapWord;
+-		xbits = *bitp;
+-		bits = xbits >> shift;
+-
+-		// Might be small; look for nearby block boundary.
+-		// A block boundary is marked by either bitBlockBoundary
+-		// or bitAllocated being set (see notes near their definition).
+-		enum {
+-			boundary = bitBlockBoundary|bitAllocated
+-		};
+-		// Look for a block boundary both after and before b
+-		// in the same bitmap word.
+-		//
+-		// A block boundary j words after b is indicated by
+-		//	bits>>j & boundary
+-		// assuming shift+j < bitShift.  (If shift+j >= bitShift then
+-		// we'll be bleeding other bit types like bitMarked into our test.)
+-		// Instead of inserting the conditional shift+j < bitShift into the loop,
+-		// we can let j range from 1 to bitShift as long as we first
+-		// apply a mask to keep only the bits corresponding
+-		// to shift+j < bitShift aka j < bitShift-shift.
+-		bits &= (boundary<<(bitShift-shift)) - boundary;
+-
+-		// A block boundary j words before b is indicated by
+-		//	xbits>>(shift-j) & boundary
+-		// (assuming shift >= j).  There is no cleverness here
+-		// avoid the test, because when j gets too large the shift
+-		// turns negative, which is undefined in C.
+-
+-		for(j=1; j<bitShift; j++) {
+-			if(((bits>>j)&boundary) != 0 || shift>=j && ((xbits>>(shift-j))&boundary) != 0) {
+-				n = j*PtrSize;
+-				goto scan;
+-			}
+-		}
+-
+-		// Fall back to asking span about size class.
++		// Ask span about size class.
+ 		// (Manually inlined copy of MHeap_Lookup.)
+-		nlookup++;
+-		nsizelookup++;
+ 		x = (uintptr)b>>PageShift;
+ 		if(sizeof(void*) == 8)
+ 			x -= (uintptr)arena_start>>PageShift;
+@@ -352,7 +306,6 @@ scanblock(byte *b, int64 n)
+ 			n = s->npages<<PageShift;
+ 		else
+ 			n = runtime·class_to_size[s->sizeclass];
+-	scan:;
+ 	}
+ }
+ 
+@@ -953,9 +906,6 @@ runtime·gc(int32 force)
+ 	}
+ 
+ 	t0 = runtime·nanotime();
+-	nlookup = 0;
+-	nsizelookup = 0;
+-	naddrlookup = 0;
+ 	nhandoff = 0;
+ 
+ 	m->gcing = 1;
+@@ -1020,11 +970,11 @@ runtime·gc(int32 force)
+ 		runtime·printf("pause %D\n", t3-t0);
+ 
+ 	if(gctrace) {
+-		runtime·printf("gc%d(%d): %D+%D+%D ms %D -> %D MB %D -> %D (%D-%D) objects %D pointer lookups (%D size, %D addr) %D handoff\n",
++		runtime·printf("gc%d(%d): %D+%D+%D ms %D -> %D MB %D -> %D (%D-%D) objects %D handoff\n",
+ 			mstats.numgc, work.nproc, (t1-t0)/1000000, (t2-t1)/1000000, (t3-t2)/1000000,
+ 			heap0>>20, heap1>>20, obj0, obj1,
+ 			mstats.nmalloc, mstats.nfree,
+-			nlookup, nsizelookup, naddrlookup, nhandoff);
++			nhandoff);
+ 	}
+ 
+ 	runtime·semrelease(&gcsema);
+diff --git a/test/bench/garbage/Makefile b/test/bench/garbage/Makefile
+index cf6568f9ee..8002a2017b 100644
+--- a/test/bench/garbage/Makefile
++++ b/test/bench/garbage/Makefile
+@@ -8,6 +8,7 @@ ALL=\
+ 	parser\
+ 	peano\
+ 	tree\
++	tree2\
+ 
+ all: $(addsuffix .out, $(ALL))
+ 
+diff --git a/test/bench/garbage/parser.go b/test/bench/garbage/parser.go
+index d0f4e09ba9..9e15f6c0f4 100644
+--- a/test/bench/garbage/parser.go
++++ b/test/bench/garbage/parser.go
+@@ -24,15 +24,15 @@ import (
+ 
+ var serve = flag.String("serve", "", "serve http on this address at end")
+ 
+-func isGoFile(dir *os.FileInfo) bool {
+-	return dir.IsRegular() &&
+-		!strings.HasPrefix(dir.Name, ".") && // ignore .files
+-		path.Ext(dir.Name) == ".go"
++func isGoFile(dir os.FileInfo) bool {
++	return !dir.IsDir() &&
++		!strings.HasPrefix(dir.Name(), ".") && // ignore .files
++		path.Ext(dir.Name()) == ".go"
+ }
+ 
+-func isPkgFile(dir *os.FileInfo) bool {
++func isPkgFile(dir os.FileInfo) bool {
+ 	return isGoFile(dir) &&
+-		!strings.HasSuffix(dir.Name, "_test.go") // ignore test files
++		!strings.HasSuffix(dir.Name(), "_test.go") // ignore test files
+ }
+ 
+ func pkgName(filename string) string {
+@@ -49,7 +49,7 @@ func parseDir(dirpath string) map[string]*ast.Package {
+ 	_, pkgname := path.Split(dirpath)
+ 
+ 	// filter function to select the desired .go files
+-	filter := func(d *os.FileInfo) bool {
++	filter := func(d os.FileInfo) bool {
+ 		if isPkgFile(d) {
+ 			// Some directories contain main packages: Only accept
+ 			// files that belong to the expected package so that
+@@ -57,7 +57,7 @@ func parseDir(dirpath string) map[string]*ast.Package {
+ 			// found" errors.
+ 			// Additionally, accept the special package name
+ 			// fakePkgName if we are looking at cmd documentation.
+-			name := pkgName(dirpath + "/" + d.Name)
++			name := pkgName(dirpath + "/" + d.Name())
+ 			return name == pkgname
+ 		}
+ 		return false
+@@ -82,7 +82,7 @@ func main() {
+ 	flag.Parse()
+ 
+ 	var lastParsed []map[string]*ast.Package
+-	var t0 int64
++	var t0 time.Time
+ 	pkgroot := runtime.GOROOT() + "/src/pkg/"
+ 	for pass := 0; pass < 2; pass++ {
+ 		// Once the heap is grown to full size, reset counters.
+@@ -91,7 +91,7 @@ func main() {
+ 		// the average look much better than it actually is.
+ 		st.NumGC = 0
+ 		st.PauseTotalNs = 0
+-		t0 = time.Nanoseconds()
++		t0 = time.Now()
+ 
+ 		for i := 0; i < *n; i++ {
+ 			parsed := make([]map[string]*ast.Package, *p)
+@@ -105,7 +105,7 @@ func main() {
+ 		runtime.GC()
+ 		runtime.GC()
+ 	}
+-	t1 := time.Nanoseconds()
++	t1 := time.Now()
+ 
+ 	fmt.Printf("Alloc=%d/%d Heap=%d Mallocs=%d PauseTime=%.3f/%d = %.3f\n",
+ 		st.Alloc, st.TotalAlloc,
+@@ -120,7 +120,7 @@ func main() {
+ 		}
+ 	*/
+ 	// Standard gotest benchmark output, collected by build dashboard.
+-	gcstats("BenchmarkParser", *n, t1-t0)
++	gcstats("BenchmarkParser", *n, t1.Sub(t0))
+ 
+ 	if *serve != "" {
+ 		log.Fatal(http.ListenAndServe(*serve, nil))
+@@ -130,18 +130,17 @@ func main() {
+ 
+ var packages = []string{
+ 	"archive/tar",
+-	"asn1",
+-	"big",
++	"encoding/asn1",
++	"math/big",
+ 	"bufio",
+ 	"bytes",
+-	"cmath",
++	"math/cmplx",
+ 	"compress/flate",
+ 	"compress/gzip",
+ 	"compress/zlib",
+ 	"container/heap",
+ 	"container/list",
+ 	"container/ring",
+-	"container/vector",
+ 	"crypto/aes",
+ 	"crypto/blowfish",
+ 	"crypto/hmac",
+@@ -161,16 +160,14 @@ var packages = []string{
+ 	"debug/macho",
+ 	"debug/elf",
+ 	"debug/gosym",
+-	"ebnf",
++	"exp/ebnf",
+ 	"encoding/ascii85",
+ 	"encoding/base64",
+ 	"encoding/binary",
+ 	"encoding/git85",
+ 	"encoding/hex",
+ 	"encoding/pem",
+-	"exec",
+-	"exp/datafmt",
+-	"expvar",
++	"os/exec",
+ 	"flag",
+ 	"fmt",
+ 	"go/ast",
+@@ -179,18 +176,18 @@ var packages = []string{
+ 	"go/printer",
+ 	"go/scanner",
+ 	"go/token",
+-	"gob",
++	"encoding/gob",
+ 	"hash",
+ 	"hash/adler32",
+ 	"hash/crc32",
+ 	"hash/crc64",
+-	"http",
++	"net/http",
+ 	"image",
+ 	"image/jpeg",
+ 	"image/png",
+ 	"io",
+ 	"io/ioutil",
+-	"json",
++	"encoding/json",
+ 	"log",
+ 	"math",
+ 	"mime",
+@@ -199,29 +196,29 @@ var packages = []string{
+ 	"os/signal",
+ 	"patch",
+ 	"path",
+-	"rand",
++	"math/rand",
+ 	"reflect",
+ 	"regexp",
+-	"rpc",
++	"net/rpc",
+ 	"runtime",
+-	"scanner",
++	"text/scanner",
+ 	"sort",
+-	"smtp",
++	"net/smtp",
+ 	"strconv",
+ 	"strings",
+ 	"sync",
+ 	"syscall",
+-	"syslog",
+-	"tabwriter",
+-	"template",
++	"log/syslog",
++	"text/tabwriter",
++	"text/template",
+ 	"testing",
+ 	"testing/iotest",
+ 	"testing/quick",
+ 	"testing/script",
+ 	"time",
+ 	"unicode",
+-	"utf8",
+-	"utf16",
++	"unicode/utf8",
++	"unicode/utf16",
+ 	"websocket",
+-	"xml",
++	"encoding/xml",
+ }
+diff --git a/test/bench/garbage/peano.go b/test/bench/garbage/peano.go
+index 231359688b..f1ad6ed699 100644
+--- a/test/bench/garbage/peano.go
++++ b/test/bench/garbage/peano.go
+@@ -108,15 +108,14 @@ func verify() {
+ // -------------------------------------
+ // Factorial
+ 
+-
+ func main() {
+-	t0 := time.Nanoseconds()
++	t0 := time.Now()
+ 	verify()
+ 	for i := 0; i <= 9; i++ {
+ 		print(i, "! = ", count(fact(gen(i))), "\n")
+ 	}
+ 	runtime.GC()
+-	t1 := time.Nanoseconds()
++	t1 := time.Now()
+ 
+-	gcstats("BenchmarkPeano", 1, t1-t0)
++	gcstats("BenchmarkPeano", 1, t1.Sub(t0))
+ }
+diff --git a/test/bench/garbage/stats.go b/test/bench/garbage/stats.go
+index aa9db1dbc3..985e7eaf5d 100644
+--- a/test/bench/garbage/stats.go
++++ b/test/bench/garbage/stats.go
+@@ -8,12 +8,13 @@ import (
+ 	"fmt"
+ 	"runtime"
+ 	"sort"
++	"time"
+ )
+ 
+-func gcstats(name string, n int, t int64) {
++func gcstats(name string, n int, t time.Duration) {
+ 	st := &runtime.MemStats
+ 	fmt.Printf("garbage.%sMem Alloc=%d/%d Heap=%d NextGC=%d Mallocs=%d\n", name, st.Alloc, st.TotalAlloc, st.Sys, st.NextGC, st.Mallocs)
+-	fmt.Printf("garbage.%s %d %d ns/op\n", name, n, t/int64(n))
++	fmt.Printf("garbage.%s %d %d ns/op\n", name, n, t.Nanoseconds()/int64(n))
+ 	fmt.Printf("garbage.%sLastPause 1 %d ns/op\n", name, st.PauseNs[(st.NumGC-1)%uint32(len(st.PauseNs))])
+ 	fmt.Printf("garbage.%sPause %d %d ns/op\n", name, st.NumGC, int64(st.PauseTotalNs)/int64(st.NumGC))
+ 	nn := int(st.NumGC)
+diff --git a/test/bench/garbage/tree.go b/test/bench/garbage/tree.go
+index c5eae9760f..0a3ec234db 100644
+--- a/test/bench/garbage/tree.go
++++ b/test/bench/garbage/tree.go
+@@ -68,7 +68,7 @@ const minDepth = 4
+ func main() {
+ 	flag.Parse()
+ 
+-	t0 := time.Nanoseconds()
++	t0 := time.Now()
+ 
+ 	maxDepth := *n
+ 	if minDepth+2 > *n {
+@@ -93,8 +93,8 @@ func main() {
+ 	}
+ 	fmt.Printf("long lived tree of depth %d\t check: %d\n", maxDepth, longLivedTree.itemCheck())
+ 
+-	t1 := time.Nanoseconds()
++	t1 := time.Now()
+ 
+ 	// Standard gotest benchmark output, collected by build dashboard.
+-	gcstats("BenchmarkTree", *n, t1-t0)
++	gcstats("BenchmarkTree", *n, t1.Sub(t0))
+ }
+diff --git a/test/bench/garbage/tree2.go b/test/bench/garbage/tree2.go
+new file mode 100644
+index 0000000000..6d78f72c5b
+--- /dev/null
++++ b/test/bench/garbage/tree2.go
+@@ -0,0 +1,88 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"flag"
++	"fmt"
++	"log"
++	"os"
++	"runtime"
++	"runtime/pprof"
++	"unsafe"
++)
++
++const BranchingFactor = 4
++
++type Object struct {
++	child [BranchingFactor]*Object
++}
++
++var (
++	cpus       = flag.Int("cpus", 1, "number of cpus to use")
++	heapsize   = flag.Int64("heapsize", 100*1024*1024, "size of the heap in bytes")
++	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
++
++	lastPauseNs uint64 = 0
++	lastFree    uint64 = 0
++	heap        *Object
++	calls       [20]int
++	numobjects  int64
++)
++
++func buildHeap() {
++	objsize := int64(unsafe.Sizeof(Object{}))
++	heap, _ = buildTree(float64(objsize), float64(*heapsize), 0)
++	fmt.Printf("*** built heap: %.0f MB; (%d objects * %d bytes)\n",
++		float64(*heapsize)/1048576, numobjects, objsize)
++}
++
++func buildTree(objsize, size float64, depth int) (*Object, float64) {
++	calls[depth]++
++	x := &Object{}
++	numobjects++
++	subtreeSize := (size - objsize) / BranchingFactor
++	alloc := objsize
++	for i := 0; i < BranchingFactor && alloc < size; i++ {
++		c, n := buildTree(objsize, subtreeSize, depth+1)
++		x.child[i] = c
++		alloc += n
++	}
++	return x, alloc
++}
++
++func gc() {
++	runtime.GC()
++	runtime.UpdateMemStats()
++	pause := runtime.MemStats.PauseTotalNs
++	inuse := runtime.MemStats.Alloc
++	free := runtime.MemStats.TotalAlloc - inuse
++	fmt.Printf("gc pause: %8.3f ms; collect: %8.0f MB; heapsize: %8.0f MB\n",
++		float64(pause-lastPauseNs)/1e6,
++		float64(free-lastFree)/1048576,
++		float64(inuse)/1048576)
++	lastPauseNs = pause
++	lastFree = free
++}
++
++func main() {
++	flag.Parse()
++	buildHeap()
++	runtime.GOMAXPROCS(*cpus)
++	runtime.UpdateMemStats()
++	lastPauseNs = runtime.MemStats.PauseTotalNs
++	lastFree = runtime.MemStats.TotalAlloc - runtime.MemStats.Alloc
++	if *cpuprofile != "" {
++		f, err := os.Create(*cpuprofile)
++		if err != nil {
++			log.Fatal(err)
++		}
++		pprof.StartCPUProfile(f)
++		defer pprof.StopCPUProfile()
++	}
++	for i := 0; i < 10; i++ {
++		gc()
++	}
++}

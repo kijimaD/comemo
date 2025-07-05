@@ -20,7 +20,7 @@ Date:   Tue Dec 1 13:07:35 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go            | 182 +++++++++-----------------
  src/cmd/compile/internal/gc/iimport.go        |   8 +-
  src/cmd/compile/internal/gc/pgen_test.go      |  15 +--
@@ -31,3 +31,505 @@ Date:   Tue Dec 1 13:07:35 2020 -0800
  src/cmd/compile/internal/types/sizeof_test.go |   2 +-
  src/cmd/compile/internal/types/type.go        |  59 ++++++++-
  9 files changed, 137 insertions(+), 155 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index dd59d829fe..e0c87d4517 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -369,7 +369,7 @@ func funchdr(fn *ir.Func) {
+ 
+ 	types.Markdcl()
+ 
+-	if fn.Nname != nil && fn.Nname.Ntype != nil {
++	if fn.Nname.Ntype != nil {
+ 		funcargs(fn.Nname.Ntype.(*ir.FuncType))
+ 	} else {
+ 		funcargs2(fn.Type())
+@@ -510,27 +510,6 @@ func checkembeddedtype(t *types.Type) {
+ 	}
+ }
+ 
+-func structfield(n *ir.Field) *types.Field {
+-	lno := base.Pos
+-	base.Pos = n.Pos
+-
+-	if n.Ntype != nil {
+-		n.Ntype = typecheckNtype(n.Ntype)
+-		n.Type = n.Ntype.Type()
+-		n.Ntype = nil
+-	}
+-
+-	f := types.NewField(n.Pos, n.Sym, n.Type)
+-	if n.Embedded {
+-		checkembeddedtype(n.Type)
+-		f.Embedded = 1
+-	}
+-	f.Note = n.Note
+-
+-	base.Pos = lno
+-	return f
+-}
+-
+ // checkdupfields emits errors for duplicately named fields or methods in
+ // a list of struct or interface types.
+ func checkdupfields(what string, fss ...[]*types.Field) {
+@@ -552,95 +531,49 @@ func checkdupfields(what string, fss ...[]*types.Field) {
+ // convert a parsed id/type list into
+ // a type for struct/interface/arglist
+ func tostruct(l []*ir.Field) *types.Type {
+-	t := types.New(types.TSTRUCT)
++	lno := base.Pos
+ 
+ 	fields := make([]*types.Field, len(l))
+ 	for i, n := range l {
+-		f := structfield(n)
+-		if f.Broke() {
+-			t.SetBroke(true)
+-		}
+-		fields[i] = f
+-	}
+-	t.SetFields(fields)
+-
+-	checkdupfields("field", t.FieldSlice())
+-
+-	if !t.Broke() {
+-		checkwidth(t)
+-	}
++		base.Pos = n.Pos
+ 
+-	return t
+-}
+-
+-func tofunargs(l []*ir.Field, funarg types.Funarg) *types.Type {
+-	t := types.New(types.TSTRUCT)
+-	t.StructType().Funarg = funarg
+-
+-	fields := make([]*types.Field, len(l))
+-	for i, n := range l {
+-		f := structfield(n)
+-		f.SetIsDDD(n.IsDDD)
+-		if n.Decl != nil {
+-			n.Decl.SetType(f.Type)
+-			f.Nname = n.Decl
++		if n.Ntype != nil {
++			n.Type = typecheckNtype(n.Ntype).Type()
++			n.Ntype = nil
+ 		}
+-		if f.Broke() {
+-			t.SetBroke(true)
++		f := types.NewField(n.Pos, n.Sym, n.Type)
++		if n.Embedded {
++			checkembeddedtype(n.Type)
++			f.Embedded = 1
+ 		}
++		f.Note = n.Note
+ 		fields[i] = f
+ 	}
+-	t.SetFields(fields)
+-	return t
+-}
++	checkdupfields("field", fields)
+ 
+-func tofunargsfield(fields []*types.Field, funarg types.Funarg) *types.Type {
+-	t := types.New(types.TSTRUCT)
+-	t.StructType().Funarg = funarg
+-	t.SetFields(fields)
+-	return t
++	base.Pos = lno
++	return types.NewStruct(fields)
+ }
+ 
+-func interfacefield(n *ir.Field) *types.Field {
+-	lno := base.Pos
+-	base.Pos = n.Pos
+-
+-	if n.Note != "" {
+-		base.Errorf("interface method cannot have annotation")
++func tointerface(nmethods []*ir.Field) *types.Type {
++	if len(nmethods) == 0 {
++		return types.Types[types.TINTER]
+ 	}
+ 
+-	// MethodSpec = MethodName Signature | InterfaceTypeName .
+-	//
+-	// If Sym != nil, then Sym is MethodName and Left is Signature.
+-	// Otherwise, Left is InterfaceTypeName.
++	lno := base.Pos
+ 
+-	if n.Ntype != nil {
+-		n.Ntype = typecheckNtype(n.Ntype)
+-		n.Type = n.Ntype.Type()
+-		n.Ntype = nil
++	methods := make([]*types.Field, len(nmethods))
++	for i, n := range nmethods {
++		base.Pos = n.Pos
++		if n.Ntype != nil {
++			n.Type = typecheckNtype(n.Ntype).Type()
++			n.Ntype = nil
++		}
++		methods[i] = types.NewField(n.Pos, n.Sym, n.Type)
+ 	}
+ 
+-	f := types.NewField(n.Pos, n.Sym, n.Type)
+-
+ 	base.Pos = lno
+-	return f
+-}
+-
+-func tointerface(l []*ir.Field) *types.Type {
+-	if len(l) == 0 {
+-		return types.Types[types.TINTER]
+-	}
+-	t := types.New(types.TINTER)
+-	var fields []*types.Field
+-	for _, n := range l {
+-		f := interfacefield(n)
+-		if f.Broke() {
+-			t.SetBroke(true)
+-		}
+-		fields = append(fields, f)
+-	}
+-	t.SetInterface(fields)
+-	return t
++	return types.NewInterface(methods)
+ }
+ 
+ func fakeRecv() *ir.Field {
+@@ -659,42 +592,47 @@ func isifacemethod(f *types.Type) bool {
+ }
+ 
+ // turn a parsed function declaration into a type
+-func functype(this *ir.Field, in, out []*ir.Field) *types.Type {
+-	t := types.New(types.TFUNC)
+-
+-	var rcvr []*ir.Field
+-	if this != nil {
+-		rcvr = []*ir.Field{this}
+-	}
+-	t.FuncType().Receiver = tofunargs(rcvr, types.FunargRcvr)
+-	t.FuncType().Params = tofunargs(in, types.FunargParams)
+-	t.FuncType().Results = tofunargs(out, types.FunargResults)
++func functype(nrecv *ir.Field, nparams, nresults []*ir.Field) *types.Type {
++	funarg := func(n *ir.Field) *types.Field {
++		lno := base.Pos
++		base.Pos = n.Pos
++
++		if n.Ntype != nil {
++			n.Type = typecheckNtype(n.Ntype).Type()
++			n.Ntype = nil
++		}
+ 
+-	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
++		f := types.NewField(n.Pos, n.Sym, n.Type)
++		f.SetIsDDD(n.IsDDD)
++		if n.Decl != nil {
++			n.Decl.SetType(f.Type)
++			f.Nname = n.Decl
++		}
+ 
+-	if t.Recvs().Broke() || t.Results().Broke() || t.Params().Broke() {
+-		t.SetBroke(true)
++		base.Pos = lno
++		return f
++	}
++	funargs := func(nn []*ir.Field) []*types.Field {
++		res := make([]*types.Field, len(nn))
++		for i, n := range nn {
++			res[i] = funarg(n)
++		}
++		return res
+ 	}
+ 
+-	t.FuncType().Outnamed = t.NumResults() > 0 && ir.OrigSym(t.Results().Field(0).Sym) != nil
++	var recv *types.Field
++	if nrecv != nil {
++		recv = funarg(nrecv)
++	}
+ 
++	t := types.NewSignature(recv, funargs(nparams), funargs(nresults))
++	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
+ 	return t
+ }
+ 
+-func functypefield(this *types.Field, in, out []*types.Field) *types.Type {
+-	t := types.New(types.TFUNC)
+-
+-	var rcvr []*types.Field
+-	if this != nil {
+-		rcvr = []*types.Field{this}
+-	}
+-	t.FuncType().Receiver = tofunargsfield(rcvr, types.FunargRcvr)
+-	t.FuncType().Params = tofunargsfield(in, types.FunargParams)
+-	t.FuncType().Results = tofunargsfield(out, types.FunargResults)
+-
+-	t.FuncType().Outnamed = t.NumResults() > 0 && ir.OrigSym(t.Results().Field(0).Sym) != nil
+-
+-	return t
++func hasNamedResults(fn *ir.Func) bool {
++	typ := fn.Type()
++	return typ.NumResults() > 0 && ir.OrigSym(typ.Results().Field(0).Sym) != nil
+ }
+ 
+ // methodSym returns the method symbol representing a method name
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 15f1b646f7..1bb9841564 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -545,9 +545,8 @@ func (r *importReader) typ1() *types.Type {
+ 			fs[i] = f
+ 		}
+ 
+-		t := types.New(types.TSTRUCT)
++		t := types.NewStruct(fs)
+ 		t.SetPkg(r.currPkg)
+-		t.SetFields(fs)
+ 		return t
+ 
+ 	case interfaceType:
+@@ -570,9 +569,8 @@ func (r *importReader) typ1() *types.Type {
+ 			methods[i] = types.NewField(pos, sym, typ)
+ 		}
+ 
+-		t := types.New(types.TINTER)
++		t := types.NewInterface(append(embeddeds, methods...))
+ 		t.SetPkg(r.currPkg)
+-		t.SetInterface(append(embeddeds, methods...))
+ 
+ 		// Ensure we expand the interface in the frontend (#25055).
+ 		checkwidth(t)
+@@ -590,7 +588,7 @@ func (r *importReader) signature(recv *types.Field) *types.Type {
+ 	if n := len(params); n > 0 {
+ 		params[n-1].SetIsDDD(r.bool())
+ 	}
+-	t := functypefield(recv, params, results)
++	t := types.NewSignature(recv, params, results)
+ 	t.SetPkg(r.currPkg)
+ 	return t
+ }
+diff --git a/src/cmd/compile/internal/gc/pgen_test.go b/src/cmd/compile/internal/gc/pgen_test.go
+index 35ce087af6..710bc32534 100644
+--- a/src/cmd/compile/internal/gc/pgen_test.go
++++ b/src/cmd/compile/internal/gc/pgen_test.go
+@@ -7,23 +7,22 @@ package gc
+ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/src"
+ 	"reflect"
+ 	"sort"
+ 	"testing"
+ )
+ 
+ func typeWithoutPointers() *types.Type {
+-	t := types.New(types.TSTRUCT)
+-	f := &types.Field{Type: types.New(types.TINT)}
+-	t.SetFields([]*types.Field{f})
+-	return t
++	return types.NewStruct([]*types.Field{
++		types.NewField(src.NoXPos, nil, types.New(types.TINT)),
++	})
+ }
+ 
+ func typeWithPointers() *types.Type {
+-	t := types.New(types.TSTRUCT)
+-	f := &types.Field{Type: types.NewPtr(types.New(types.TINT))}
+-	t.SetFields([]*types.Field{f})
+-	return t
++	return types.NewStruct([]*types.Field{
++		types.NewField(src.NoXPos, nil, types.NewPtr(types.New(types.TINT))),
++	})
+ }
+ 
+ func markUsed(n *ir.Name) *ir.Name {
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 0b860b5f7a..b249310df0 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -126,9 +126,8 @@ func bmap(t *types.Type) *types.Type {
+ 	field = append(field, overflow)
+ 
+ 	// link up fields
+-	bucket := types.New(types.TSTRUCT)
++	bucket := types.NewStruct(field[:])
+ 	bucket.SetNoalg(true)
+-	bucket.SetFields(field[:])
+ 	dowidth(bucket)
+ 
+ 	// Check invariants that map code depends on.
+@@ -221,9 +220,8 @@ func hmap(t *types.Type) *types.Type {
+ 		makefield("extra", types.Types[types.TUNSAFEPTR]),
+ 	}
+ 
+-	hmap := types.New(types.TSTRUCT)
++	hmap := types.NewStruct(fields)
+ 	hmap.SetNoalg(true)
+-	hmap.SetFields(fields)
+ 	dowidth(hmap)
+ 
+ 	// The size of hmap should be 48 bytes on 64 bit
+@@ -285,9 +283,8 @@ func hiter(t *types.Type) *types.Type {
+ 	}
+ 
+ 	// build iterator struct holding the above fields
+-	hiter := types.New(types.TSTRUCT)
++	hiter := types.NewStruct(fields)
+ 	hiter.SetNoalg(true)
+-	hiter.SetFields(fields)
+ 	dowidth(hiter)
+ 	if hiter.Width != int64(12*Widthptr) {
+ 		base.Fatalf("hash_iter size not correct %d %d", hiter.Width, 12*Widthptr)
+@@ -332,9 +329,8 @@ func deferstruct(stksize int64) *types.Type {
+ 	}
+ 
+ 	// build struct holding the above fields
+-	s := types.New(types.TSTRUCT)
++	s := types.NewStruct(fields)
+ 	s.SetNoalg(true)
+-	s.SetFields(fields)
+ 	s.Width = widstruct(s, s, 0, 1)
+ 	s.Align = uint8(Widthptr)
+ 	return s
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 20ef3fc70a..2a0caad469 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2021,7 +2021,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 			return n
+ 		}
+ 
+-		if Curfn.Type().FuncType().Outnamed && n.List().Len() == 0 {
++		if hasNamedResults(Curfn) && n.List().Len() == 0 {
+ 			break
+ 		}
+ 		typecheckaste(ir.ORETURN, nil, false, Curfn.Type().Results(), n.List(), func() string { return "return argument" })
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index b554674fbc..1c744dc367 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -104,7 +104,7 @@ func initUniverse() {
+ 	}
+ 
+ 	types.Types[types.TANY] = types.New(types.TANY)
+-	types.Types[types.TINTER] = types.New(types.TINTER) // empty interface
++	types.Types[types.TINTER] = types.NewInterface(nil)
+ 
+ 	defBasic := func(kind types.Kind, pkg *types.Pkg, name string) *types.Type {
+ 		sym := pkg.Lookup(name)
+@@ -325,15 +325,11 @@ func initUniverse() {
+ }
+ 
+ func makeErrorInterface() *types.Type {
+-	sig := functypefield(fakeRecvField(), nil, []*types.Field{
++	sig := types.NewSignature(fakeRecvField(), nil, []*types.Field{
+ 		types.NewField(src.NoXPos, nil, types.Types[types.TSTRING]),
+ 	})
+-
+ 	method := types.NewField(src.NoXPos, lookup("Error"), sig)
+-
+-	t := types.New(types.TINTER)
+-	t.SetInterface([]*types.Field{method})
+-	return t
++	return types.NewInterface([]*types.Field{method})
+ }
+ 
+ // finishUniverse makes the universe block visible within the current package.
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index be6f1539b9..183a7acc1b 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -274,7 +274,7 @@ func walkstmt(n ir.Node) ir.Node {
+ 		if n.List().Len() == 0 {
+ 			break
+ 		}
+-		if (Curfn.Type().FuncType().Outnamed && n.List().Len() > 1) || paramoutheap(Curfn) {
++		if (hasNamedResults(Curfn) && n.List().Len() > 1) || paramoutheap(Curfn) {
+ 			// assign to the function out parameters,
+ 			// so that reorder3 can fix up conflicts
+ 			var rl []ir.Node
+diff --git a/src/cmd/compile/internal/types/sizeof_test.go b/src/cmd/compile/internal/types/sizeof_test.go
+index 88a2fbba2f..72a35bc7da 100644
+--- a/src/cmd/compile/internal/types/sizeof_test.go
++++ b/src/cmd/compile/internal/types/sizeof_test.go
+@@ -24,7 +24,7 @@ func TestSizeof(t *testing.T) {
+ 		{Type{}, 56, 96},
+ 		{Map{}, 20, 40},
+ 		{Forward{}, 20, 32},
+-		{Func{}, 28, 48},
++		{Func{}, 24, 40},
+ 		{Struct{}, 16, 32},
+ 		{Interface{}, 8, 16},
+ 		{Chan{}, 8, 16},
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 36aac53124..2eff8e3ba4 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -285,8 +285,6 @@ type Func struct {
+ 	// It gets calculated via a temporary TFUNCARGS type.
+ 	// Note that TFUNC's Width is Widthptr.
+ 	Argwid int64
+-
+-	Outnamed bool
+ }
+ 
+ // FuncType returns t's extra func-specific fields.
+@@ -1618,3 +1616,60 @@ func NewBasic(kind Kind, obj Object) *Type {
+ 	t.nod = obj
+ 	return t
+ }
++
++// NewInterface returns a new interface for the given methods and
++// embedded types. Embedded types are specified as fields with no Sym.
++func NewInterface(methods []*Field) *Type {
++	t := New(TINTER)
++	t.SetInterface(methods)
++	if anyBroke(methods) {
++		t.SetBroke(true)
++	}
++	return t
++}
++
++//  NewSignature returns a new function type for the given receiver,
++//  parameters, and results, any of which may be nil.
++func NewSignature(recv *Field, params, results []*Field) *Type {
++	var recvs []*Field
++	if recv != nil {
++		recvs = []*Field{recv}
++	}
++
++	t := New(TFUNC)
++	ft := t.FuncType()
++
++	funargs := func(fields []*Field, funarg Funarg) *Type {
++		s := NewStruct(fields)
++		s.StructType().Funarg = funarg
++		if s.Broke() {
++			t.SetBroke(true)
++		}
++		return s
++	}
++
++	ft.Receiver = funargs(recvs, FunargRcvr)
++	ft.Params = funargs(params, FunargParams)
++	ft.Results = funargs(results, FunargResults)
++
++	return t
++}
++
++// NewStruct returns a new struct with the given fields.
++func NewStruct(fields []*Field) *Type {
++	t := New(TSTRUCT)
++	t.SetFields(fields)
++	if anyBroke(fields) {
++		t.SetBroke(true)
++	}
++	return t
++}
++
++func anyBroke(fields []*Field) bool {
++	for _, f := range fields {
++		if f.Broke() {
++			return true
++		}
++	}
++	return false
++}

@@ -13,7 +13,7 @@ Date:   Fri Nov 14 13:58:31 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/175780043
-
+---
  src/cmd/5l/5.out.h     |  2 ++
  src/cmd/6l/6.out.h     |  2 ++
  src/cmd/8l/8.out.h     |  2 ++
@@ -22,3 +22,191 @@ Date:   Fri Nov 14 13:58:31 2014 -0500
  src/liblink/list6.c    | 38 ++++++++++++++++++++++++++++++++++++++
  src/liblink/list9.c    | 41 +++++++++++++++++++++++++++++++++++++++++
  7 files changed, 90 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 7b16ac4468..38a33db642 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -338,6 +338,8 @@ enum
+ 	D_STATIC = (D_NONE+4),
+ 	D_AUTO = (D_NONE+5),
+ 	D_PARAM = (D_NONE+6),
++
++	D_LAST = (D_NONE+26),
+ };
+ 
+ /*
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index af72784e84..c09ac28242 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -865,6 +865,8 @@ enum
+ 
+ 	D_INDIR,	/* additive */
+ 
++	D_LAST,
++
+ 	T_TYPE		= 1<<0,
+ 	T_INDEX		= 1<<1,
+ 	T_OFFSET	= 1<<2,
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index ed54f6744a..596c5f61a8 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -654,6 +654,8 @@ enum
+ 
+ 	D_CONST2 = D_INDIR+D_INDIR,
+ 
++	D_LAST,
++
+ 	T_TYPE		= 1<<0,
+ 	T_INDEX		= 1<<1,
+ 	T_OFFSET	= 1<<2,
+diff --git a/src/cmd/9l/9.out.h b/src/cmd/9l/9.out.h
+index 08a339318d..87917f88ac 100644
+--- a/src/cmd/9l/9.out.h
++++ b/src/cmd/9l/9.out.h
+@@ -497,6 +497,8 @@ enum
+ 	D_DCONST,
+ 	D_ADDR, // not used, use D_CONST with non-empty sym.
+ 
++	D_LAST,
++
+ /* reg names for 9g OREGISTER */
+ 	D_R0 = 0, // type is D_REG
+ 	D_F0 = D_R0+NREG, // type is D_FREG
+diff --git a/src/cmd/dist/buildgc.c b/src/cmd/dist/buildgc.c
+index 39679fb724..64434d51e1 100644
+--- a/src/cmd/dist/buildgc.c
++++ b/src/cmd/dist/buildgc.c
+@@ -184,12 +184,14 @@ mkanames(char *dir, char *file)
+ 				continue;
+ 
+ 			p = lines.p[i] + 3;
++			if(xstrcmp(p, "LAST") == 0)
++				continue;
+ 			vadd(&dnames[n], p);
+ 			j++;
+ 		}
+ 	}
+ 	if(j>0){
+-		bwritestr(&out, bprintf(&b, "char*	dnames%c[] = {\n", ch));
++		bwritestr(&out, bprintf(&b, "char*	dnames%c[D_LAST] = {\n", ch));
+ 		for(i=0; i<nelem(dnames); i++) {
+ 			if(dnames[i].len == 0)
+ 				continue;
+diff --git a/src/liblink/list6.c b/src/liblink/list6.c
+index 0635fdf1fe..d6b91c72b0 100644
+--- a/src/liblink/list6.c
++++ b/src/liblink/list6.c
+@@ -82,6 +82,19 @@ Pconv(Fmt *fp)
+ 
+ 	p = va_arg(fp->args, Prog*);
+ 	bigP = p;
++
++	if(fp->flags & FmtSharp) {
++		char *s = str;
++		s += sprint(s, "%.5lld (%L) %A", p->pc, p->lineno, p->as);
++		if(p->from.type != D_NONE)
++			s += sprint(s, " from={%#D}", &p->from);
++		if(p->reg)
++			s += sprint(s, " reg=%d", p->reg);
++		if(p->to.type != D_NONE)
++			s += sprint(s, " to={%#D}", &p->to);
++		return fmtstrcpy(fp, str);
++	}
++
+ 	switch(p->as) {
+ 	case ADATA:
+ 		sprint(str, "%.5lld (%L)	%A	%D/%d,%D",
+@@ -126,6 +139,31 @@ Dconv(Fmt *fp)
+ 	a = va_arg(fp->args, Addr*);
+ 	i = a->type;
+ 
++	if(fp->flags & FmtSharp) {
++		char *s = str;
++		s += sprint(s, "type=");
++		if(i == D_NONE) {
++			sprint(s, "NONE");
++			goto brk;
++		}
++		if(i >= D_INDIR) {
++			i -= D_INDIR;
++			s += sprint(s, "INDIR+");
++		}
++		if(i >= 0 && i < D_LAST && dnames6[i] != nil)
++			s += sprint(s, "%s ", dnames6[i]);
++		else
++			s += sprint(s, "%d ", i);
++		s += sprint(s, "offset=%ld etype=%E width=%d", a->offset, a->etype, a->width);
++		if(a->class != 0)
++			s += sprint(s, " class=%s", cnames9[a->class]);
++		if(a->sym != nil)
++			s += sprint(s, " sym=%s", a->sym->name);
++		if(a->type == D_BRANCH && a->u.branch != nil)
++			s += sprint(s, " branch=%.5lld", a->u.branch->pc);
++		goto brk;
++	}
++
+ 	if(fp->flags & FmtLong) {
+ 		if(i == D_CONST)
+ 			sprint(str, "$%lld-%lld", a->offset&0xffffffffLL, a->offset>>32);
+diff --git a/src/liblink/list9.c b/src/liblink/list9.c
+index c9190d8940..2bf86d85be 100644
+--- a/src/liblink/list9.c
++++ b/src/liblink/list9.c
+@@ -91,6 +91,21 @@ Pconv(Fmt *fp)
+ 	p = va_arg(fp->args, Prog*);
+ 	bigP = p;
+ 	a = p->as;
++
++	if(fp->flags & FmtSharp) {
++		s = str;
++		s += sprint(s, "%.5lld (%L) %A", p->pc, p->lineno, a);
++		if(p->from.type != D_NONE)
++			s += sprint(s, " from={%#D}", &p->from);
++		if(p->reg)
++			s += sprint(s, " reg=%d", p->reg);
++		if(p->from3.type != D_NONE)
++			s += sprint(s, " from3={%#D}", &p->from3);
++		if(p->to.type != D_NONE)
++			s += sprint(s, " to={%#D}", &p->to);
++		return fmtstrcpy(fp, str);
++	}
++
+ 	if(a == ADATA || a == AINIT || a == ADYNT)
+ 		sprint(str, "%.5lld (%L)	%A	%D/%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
+ 	else if(a == ATEXT) {
+@@ -153,6 +168,32 @@ Dconv(Fmt *fp)
+ 
+ 	a = va_arg(fp->args, Addr*);
+ 
++	if(fp->flags & FmtSharp) {
++		char *s = str;
++		if(a->type == D_NONE) {
++			sprint(s, "type=NONE");
++			goto ret;
++		}
++		if(a->type >= 0 && a->type < D_LAST && dnames9[a->type] != nil)
++			s += sprint(s, "type=%s ", dnames9[a->type]);
++		else
++			s += sprint(s, "type=%d ", a->type);
++		if(a->name >= 0 && a->name < D_LAST && dnames9[a->name] != nil)
++			s += sprint(s, "name=%s ", dnames9[a->name]);
++		else
++			s += sprint(s, "name=%d ", a->name);
++		s += sprint(s, "offset=%ld etype=%E width=%d", a->offset, a->etype, a->width);
++		if(a->class != 0)
++			s += sprint(s, " class=%s", cnames9[a->class]);
++		if(a->reg != NREG)
++			s += sprint(s, " reg=%d", a->reg);
++		if(a->sym != nil)
++			s += sprint(s, " sym=%s", a->sym->name);
++		if(a->type == D_BRANCH && a->u.branch != nil)
++			s += sprint(s, " branch=%.5lld", a->u.branch->pc);
++		goto ret;
++	}
++
+ 	if(fp->flags & FmtLong) {
+ 		if(a->type == D_CONST)
+ 			sprint(str, "$%d-%d", (int32)a->offset, (int32)(a->offset>>32));

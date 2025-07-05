@@ -13,7 +13,49 @@ Date:   Tue Jun 20 13:14:11 2023 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go               | 6 +++++-
  src/cmd/go/testdata/script/build_pgo_auto.txt | 3 +++
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 4ea1ebaa25..0abc09186d 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2387,10 +2387,10 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
+ 			appendSetting("-ldflags", ldflags)
+ 		}
+ 	}
+-	// N.B. -pgo added later by setPGOProfilePath.
+ 	if cfg.BuildMSan {
+ 		appendSetting("-msan", "true")
+ 	}
++	// N.B. -pgo added later by setPGOProfilePath.
+ 	if cfg.BuildRace {
+ 		appendSetting("-race", "true")
+ 	}
+@@ -2928,6 +2928,10 @@ func setPGOProfilePath(pkgs []*Package) {
+ 		} else {
+ 			appendBuildSetting(p.Internal.BuildInfo, "-pgo", file)
+ 		}
++		// Adding -pgo breaks the sort order in BuildInfo.Settings. Restore it.
++		slices.SortFunc(p.Internal.BuildInfo.Settings, func(x, y debug.BuildSetting) int {
++			return strings.Compare(x.Key, y.Key)
++		})
+ 	}
+ 
+ 	switch cfg.BuildPGO {
+diff --git a/src/cmd/go/testdata/script/build_pgo_auto.txt b/src/cmd/go/testdata/script/build_pgo_auto.txt
+index 5dd799a77f..509be0d5c6 100644
+--- a/src/cmd/go/testdata/script/build_pgo_auto.txt
++++ b/src/cmd/go/testdata/script/build_pgo_auto.txt
+@@ -14,6 +14,9 @@ stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
+ # if the first arg starts with - it is a grep flag.
+ stderr 'build\\t-pgo=.*default\.pgo'
+ 
++# check also that -pgo appears with the other flags, before non-flag settings
++! stderr 'build\\t[A-Za-z].*build\\t-pgo'
++
+ # use default.pgo for ... with a single main package
+ go build -n -pgo=auto ./a/...
+ stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'

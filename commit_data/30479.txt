@@ -29,7 +29,7 @@ Date:   Sun Nov 1 04:18:58 2015 -0500
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/executable.go         | 23 ++++++++++++
  src/os/executable_darwin.go  | 24 ++++++++++++
  src/os/executable_freebsd.go | 33 +++++++++++++++++
@@ -39,3 +39,333 @@ Date:   Sun Nov 1 04:18:58 2015 -0500
  src/os/executable_test.go    | 87 ++++++++++++++++++++++++++++++++++++++++++++
  src/os/executable_windows.go | 32 ++++++++++++++++
  8 files changed, 281 insertions(+)
+
+diff --git a/src/os/executable.go b/src/os/executable.go
+new file mode 100644
+index 0000000000..8c21246f5a
+--- /dev/null
++++ b/src/os/executable.go
+@@ -0,0 +1,23 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++// Executable returns the path name for the executable that started
++// the current process. There is no guarantee that the path is still
++// pointing to the correct executable. If a symlink was used to start
++// the process, depending on the operating system, the result might
++// be the symlink or the path it pointed to. If a stable result is
++// needed, path/filepath.EvalSymlinks might help.
++//
++// Executable returns an absolute path unless an error occurred.
++//
++// The main use case is finding resources located relative to an
++// executable.
++//
++// Executable is not supported on nacl or OpenBSD (unless procfs is
++// mounted.)
++func Executable() (string, error) {
++	return executable()
++}
+diff --git a/src/os/executable_darwin.go b/src/os/executable_darwin.go
+new file mode 100644
+index 0000000000..ce5b8140a4
+--- /dev/null
++++ b/src/os/executable_darwin.go
+@@ -0,0 +1,24 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++var executablePath string // set by ../runtime/os_darwin.go
++
++var initCwd, initCwdErr = Getwd()
++
++func executable() (string, error) {
++	ep := executablePath
++	if ep[0] != '/' {
++		if initCwdErr != nil {
++			return ep, initCwdErr
++		}
++		if len(ep) > 2 && ep[0:2] == "./" {
++			// skip "./"
++			ep = ep[2:]
++		}
++		ep = initCwd + "/" + ep
++	}
++	return ep, nil
++}
+diff --git a/src/os/executable_freebsd.go b/src/os/executable_freebsd.go
+new file mode 100644
+index 0000000000..ccaf8e6dd4
+--- /dev/null
++++ b/src/os/executable_freebsd.go
+@@ -0,0 +1,33 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func executable() (string, error) {
++	mib := [4]int32{1 /* CTL_KERN */, 14 /* KERN_PROC */, 12 /* KERN_PROC_PATHNAME */, -1}
++
++	n := uintptr(0)
++	// get length
++	_, _, err := syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(unsafe.Pointer(&mib[0])), 4, 0, uintptr(unsafe.Pointer(&n)), 0, 0)
++	if err != 0 {
++		return "", err
++	}
++	if n == 0 { // shouldn't happen
++		return "", nil
++	}
++	buf := make([]byte, n)
++	_, _, err = syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(unsafe.Pointer(&mib[0])), 4, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&n)), 0, 0)
++	if err != 0 {
++		return "", err
++	}
++	if n == 0 { // shouldn't happen
++		return "", nil
++	}
++	return string(buf[:n-1]), nil
++}
+diff --git a/src/os/executable_plan9.go b/src/os/executable_plan9.go
+new file mode 100644
+index 0000000000..a5947eaae1
+--- /dev/null
++++ b/src/os/executable_plan9.go
+@@ -0,0 +1,19 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build plan9
++
++package os
++
++import "syscall"
++
++func executable() (string, error) {
++	fn := "/proc/" + itoa(Getpid()) + "/text"
++	f, err := Open(fn)
++	if err != nil {
++		return "", err
++	}
++	defer f.Close()
++	return syscall.Fd2path(int(f.Fd()))
++}
+diff --git a/src/os/executable_procfs.go b/src/os/executable_procfs.go
+new file mode 100644
+index 0000000000..597ab7dd54
+--- /dev/null
++++ b/src/os/executable_procfs.go
+@@ -0,0 +1,36 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux netbsd openbsd dragonfly nacl
++
++package os
++
++import (
++	"errors"
++	"runtime"
++)
++
++// We query the executable path at init time to avoid the problem of
++// readlink returns a path appended with " (deleted)" when the original
++// binary gets deleted.
++var executablePath, executablePathErr = func () (string, error) {
++	var procfn string
++	switch runtime.GOOS {
++	default:
++		return "", errors.New("Executable not implemented for " + runtime.GOOS)
++	case "linux":
++		procfn = "/proc/self/exe"
++	case "netbsd":
++		procfn = "/proc/curproc/exe"
++	case "openbsd":
++		procfn = "/proc/curproc/file"
++	case "dragonfly":
++		procfn = "/proc/curproc/file"
++	}
++	return Readlink(procfn)
++}()
++
++func executable() (string, error) {
++	return executablePath, executablePathErr
++}
+diff --git a/src/os/executable_solaris.go b/src/os/executable_solaris.go
+new file mode 100644
+index 0000000000..80f937201a
+--- /dev/null
++++ b/src/os/executable_solaris.go
+@@ -0,0 +1,27 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import "syscall"
++
++var initCwd, initCwdErr = Getwd()
++
++func executable() (string, error) {
++	path, err := syscall.Getexecname()
++	if err != nil {
++		return path, err
++	}
++	if len(path) > 0 && path[0] != '/' {
++		if initCwdErr != nil {
++			return path, initCwdErr
++		}
++		if len(path) > 2 && path[0:2] == "./" {
++			// skip "./"
++			path = path[2:]
++		}
++		return initCwd + "/" + path, nil
++	}
++	return path, nil
++}
+diff --git a/src/os/executable_test.go b/src/os/executable_test.go
+new file mode 100644
+index 0000000000..a4d89092ac
+--- /dev/null
++++ b/src/os/executable_test.go
+@@ -0,0 +1,87 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os_test
++
++import (
++	"fmt"
++	"internal/testenv"
++	"os"
++	osexec "os/exec"
++	"path/filepath"
++	"runtime"
++	"testing"
++)
++
++const executable_EnvVar = "OSTEST_OUTPUT_EXECPATH"
++
++func TestExecutable(t *testing.T) {
++	testenv.MustHaveExec(t) // will also execlude nacl, which doesn't support Executable anyway
++	ep, err := os.Executable()
++	if err != nil {
++		switch goos := runtime.GOOS; goos {
++		case "openbsd": // procfs is not mounted by default
++			t.Skipf("Executable failed on %s: %v, expected", goos, err)
++		}
++		t.Fatalf("Executable failed: %v", err)
++	}
++	// we want fn to be of the form "dir/prog"
++	dir := filepath.Dir(filepath.Dir(ep))
++	fn, err := filepath.Rel(dir, ep)
++	if err != nil {
++		t.Fatalf("filepath.Rel: %v", err)
++	}
++	cmd := &osexec.Cmd{}
++	// make child start with a relative program path
++	cmd.Dir = dir
++	cmd.Path = fn
++	// forge argv[0] for child, so that we can verify we could correctly
++	// get real path of the executable without influenced by argv[0].
++	cmd.Args = []string{"-", "-test.run=XXXX"}
++	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=1", executable_EnvVar))
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("exec(self) failed: %v", err)
++	}
++	outs := string(out)
++	if !filepath.IsAbs(outs) {
++		t.Fatalf("Child returned %q, want an absolute path", out)
++	}
++	if !sameFile(outs, ep) {
++		t.Fatalf("Child returned %q, not the same file as %q", out, ep)
++	}
++}
++
++func sameFile(fn1, fn2 string) bool {
++	fi1, err := os.Stat(fn1)
++	if err != nil {
++		return false
++	}
++	fi2, err := os.Stat(fn2)
++	if err != nil {
++		return false
++	}
++	return os.SameFile(fi1, fi2)
++}
++
++func init() {
++	if e := os.Getenv(executable_EnvVar); e != "" {
++		// first chdir to another path
++		dir := "/"
++		if runtime.GOOS == "windows" {
++			cwd, err := os.Getwd()
++			if err != nil {
++				panic(err)
++			}
++			dir = filepath.VolumeName(cwd)
++		}
++		os.Chdir(dir)
++		if ep, err := os.Executable(); err != nil {
++			fmt.Fprint(os.Stderr, "ERROR: ", err)
++		} else {
++			fmt.Fprint(os.Stderr, ep)
++		}
++		os.Exit(0)
++	}
++}
+diff --git a/src/os/executable_windows.go b/src/os/executable_windows.go
+new file mode 100644
+index 0000000000..fc5cf86005
+--- /dev/null
++++ b/src/os/executable_windows.go
+@@ -0,0 +1,32 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"internal/syscall/windows"
++	"syscall"
++)
++
++func getModuleFileName(handle syscall.Handle) (string, error) {
++	n := uint32(1024)
++	var buf []uint16
++	for {
++		buf = make([]uint16, n)
++		r, err := windows.GetModuleFileName(handle, &buf[0], n)
++		if err != nil {
++			return "", err
++		}
++		if r < n {
++			break
++		}
++		// r == n means n not big enough
++		n += 1024
++	}
++	return syscall.UTF16ToString(buf), nil
++}
++
++func executable() (string, error) {
++	return getModuleFileName(0)
++}

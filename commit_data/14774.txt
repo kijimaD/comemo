@@ -9,8 +9,242 @@ Date:   Wed Jan 2 15:31:49 2013 -0500
     R=golang-dev, iant, dave
     CC=golang-dev
     https://golang.org/cl/7005053
-
+---
  test/fixedbugs/issue4326.dir/z.go |  2 +-
  test/run.go                       | 74 +++++++++++++++++++++++++++++++--------
  test/testlib                      | 43 +++++++++++++++--------
  3 files changed, 89 insertions(+), 30 deletions(-)
+
+diff --git a/test/fixedbugs/issue4326.dir/z.go b/test/fixedbugs/issue4326.dir/z.go
+index cd97ff0f7f..9b222e8b40 100644
+--- a/test/fixedbugs/issue4326.dir/z.go
++++ b/test/fixedbugs/issue4326.dir/z.go
+@@ -1,4 +1,4 @@
+-package main
++package z
+ 
+ import "./p2"
+ 
+diff --git a/test/run.go b/test/run.go
+index 3b99211bc8..3bc22e8cde 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -171,8 +171,12 @@ func compileFile(runcmd runCmd, longname string) (out []byte, err error) {
+ 	return runcmd("go", "tool", gc, "-e", longname)
+ }
+ 
+-func compileInDir(runcmd runCmd, dir, name string) (out []byte, err error) {
+-	return runcmd("go", "tool", gc, "-e", "-D.", "-I.", filepath.Join(dir, name))
++func compileInDir(runcmd runCmd, dir string, names ...string) (out []byte, err error) {
++	cmd := []string{"go", "tool", gc, "-e", "-D", ".", "-I", "."}
++	for _, name := range names {
++		cmd = append(cmd, filepath.Join(dir, name))
++	}
++	return runcmd(cmd...)
+ }
+ 
+ func linkFile(runcmd runCmd, goname string) (err error) {
+@@ -259,6 +263,36 @@ func goDirFiles(longdir string) (filter []os.FileInfo, err error) {
+ 	return
+ }
+ 
++var packageRE = regexp.MustCompile(`(?m)^package (\w+)`)
++
++func goDirPackages(longdir string) ([][]string, error) {
++	files, err := goDirFiles(longdir)
++	if err != nil {
++		return nil, err
++	}
++	var pkgs [][]string
++	m := make(map[string]int)
++	for _, file := range files {
++		name := file.Name()
++		data, err := ioutil.ReadFile(filepath.Join(longdir, name))
++		if err != nil {
++			return nil, err
++		}
++		pkgname := packageRE.FindStringSubmatch(string(data))
++		if pkgname == nil {
++			return nil, fmt.Errorf("cannot find package name in %s", name)
++		}
++		i, ok := m[pkgname[1]]
++		if !ok {
++			i = len(pkgs)
++			pkgs = append(pkgs, nil)
++			m[pkgname[1]] = i
++		}
++		pkgs[i] = append(pkgs[i], name)
++	}
++	return pkgs, nil
++}
++		
+ // run runs a test.
+ func (t *test) run() {
+ 	defer close(t.donec)
+@@ -376,13 +410,13 @@ func (t *test) run() {
+ 	case "compiledir":
+ 		// Compile all files in the directory in lexicographic order.
+ 		longdir := filepath.Join(cwd, t.goDirName())
+-		files, err := goDirFiles(longdir)
++		pkgs, err := goDirPackages(longdir)
+ 		if err != nil {
+ 			t.err = err
+ 			return
+ 		}
+-		for _, gofile := range files {
+-			_, t.err = compileInDir(runcmd, longdir, gofile.Name())
++		for _, gofiles := range pkgs {
++			_, t.err = compileInDir(runcmd, longdir, gofiles...)
+ 			if t.err != nil {
+ 				return
+ 			}
+@@ -392,14 +426,14 @@ func (t *test) run() {
+ 		// errorcheck all files in lexicographic order
+ 		// useful for finding importing errors
+ 		longdir := filepath.Join(cwd, t.goDirName())
+-		files, err := goDirFiles(longdir)
++		pkgs, err := goDirPackages(longdir)
+ 		if err != nil {
+ 			t.err = err
+ 			return
+ 		}
+-		for i, gofile := range files {
+-			out, err := compileInDir(runcmd, longdir, gofile.Name())
+-			if i == len(files)-1 {
++		for i, gofiles := range pkgs {
++			out, err := compileInDir(runcmd, longdir, gofiles...)
++			if i == len(pkgs)-1 {
+ 				if wantError && err == nil {
+ 					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
+ 					return
+@@ -411,8 +445,11 @@ func (t *test) run() {
+ 				t.err = err
+ 				return
+ 			}
+-			longname := filepath.Join(longdir, gofile.Name())
+-			t.err = t.errorCheck(string(out), longname, gofile.Name())
++			var fullshort []string
++			for _, name := range gofiles {
++				fullshort = append(fullshort, filepath.Join(longdir, name), name)
++			}
++			t.err = t.errorCheck(string(out), fullshort...)
+ 			if t.err != nil {
+ 				break
+ 			}
+@@ -535,7 +572,7 @@ func (t *test) expectedOutput() string {
+ 	return string(b)
+ }
+ 
+-func (t *test) errorCheck(outStr string, full, short string) (err error) {
++func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
+ 	defer func() {
+ 		if *verbose && err != nil {
+ 			log.Printf("%s gc output:\n%s", t, outStr)
+@@ -561,10 +598,19 @@ func (t *test) errorCheck(outStr string, full, short string) (err error) {
+ 
+ 	// Cut directory name.
+ 	for i := range out {
+-		out[i] = strings.Replace(out[i], full, short, -1)
++		for j := 0; j < len(fullshort); j += 2 {
++			full, short := fullshort[j], fullshort[j+1]
++			out[i] = strings.Replace(out[i], full, short, -1)
++		}
++	}
++	
++	var want []wantedError
++	for j := 0; j < len(fullshort); j += 2 {
++		full, short := fullshort[j], fullshort[j+1]
++		want = append(want, t.wantedErrors(full, short)...)
+ 	}
+ 
+-	for _, we := range t.wantedErrors(full, short) {
++	for _, we := range want {
+ 		var errmsgs []string
+ 		errmsgs, out = partitionStrings(we.filterRe, out)
+ 		if len(errmsgs) == 0 {
+diff --git a/test/testlib b/test/testlib
+index 5bb5669b78..b58e8831c3 100644
+--- a/test/testlib
++++ b/test/testlib
+@@ -5,14 +5,25 @@
+ # These function names are also known to
+ # (and are the plan for transitioning to) run.go.
+ 
++# helper (not known to run.go)
++# group file list by packages and return list of packages
++# each package is a comma-separated list of go files.
++pkgs() {
++	pkglist=$(grep -h '^package ' $* | awk '{print $2}' | sort -u)
++	for p in $pkglist
++	do
++		echo $(grep -l "^package $p\$" $*) | tr ' ' ,
++	done | sort
++}
++
+ compile() {
+ 	$G $D/$F.go
+ }
+ 
+ compiledir() {
+-	for gofile in $D/$F.dir/*.go
++	for pkg in $(pkgs $D/$F.dir/*.go)
+ 	do
+-		$G -I. "$gofile" || return 1
++		$G -I . $(echo $pkg | tr , ' ') || return 1
+ 	done
+ }
+ 
+@@ -21,38 +32,40 @@ errorcheckdir() {
+ 	if [ "$1" = "-0" ]; then
+ 		lastzero="-0"
+ 	fi
+-	files=($D/$F.dir/*.go)
+-	for gofile in ${files[@]}
++	pkgs=$(pkgs $D/$F.dir/*.go)
++	for pkg in $pkgs.last
+ 	do
+ 		zero="-0"
+-		if [ ${files[${#files[@]}-1]} = $gofile ]; then
++		case $pkg in
++		*.last)
++			pkg=$(echo $pkg |sed 's/\.last$//')
+ 			zero=$lastzero
+-		fi
+-		errchk $zero $G -D. -I. -e $gofile
++		esac
++		errchk $zero $G -D . -I . -e $(echo $pkg | tr , ' ')
+ 	done
+ }
+ 
+ rundir() {
+ 	lastfile=""
+-	for gofile in $D/$F.dir/*.go
++	for pkg in $(pkgs $D/$F.dir/*.go)
+ 	do
+-		name=$(basename ${gofile/\.go/} )
+-		$G -D. -I. -e "$gofile" || return 1
++		name=$(echo $pkg | sed 's/\.go.*//; s/.*\///')
++		$G -D . -I . -e $(echo $pkg | tr , ' ') || return 1
+ 		lastfile=$name
+ 	done
+-	$L -o $A.out -L. $lastfile.$A
++	$L -o $A.out -L . $lastfile.$A
+ 	./$A.out
+ }
+ 
+ rundircmpout() {
+ 	lastfile=""
+-	for gofile in $D/$F.dir/*.go
++	for pkg in $(pkgs $D/$F.dir/*.go)
+ 	do
+-		name=$(basename ${gofile/\.go/} )
+-		$G -D. -I. -e "$gofile" || return 1
++		name=$(echo $pkg | sed 's/\.go.*//; s/.*\///')
++		$G -D . -I . -e $(echo $pkg | tr , ' ') || return 1
+ 		lastfile=$name
+ 	done
+-	$L -o $A.out -L. $lastfile.$A
++	$L -o $A.out -L . $lastfile.$A
+ 	./$A.out 2>&1 | cmp - $D/$F.out
+ }
+ 

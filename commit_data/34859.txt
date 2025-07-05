@@ -49,7 +49,173 @@ Date:   Wed Nov 15 12:47:22 2017 -0800
     Change-Id: I58edd8ce01075859d871e2348fc0833e9c01f70f
     Reviewed-on: https://go-review.googlesource.com/78538
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/proc.go      |  35 ++++++++-------
  src/runtime/proc_test.go | 108 +++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 127 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 02c092711c..2120d64745 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4773,22 +4773,25 @@ func runqgrab(_p_ *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool
+ 			if stealRunNextG {
+ 				// Try to steal from _p_.runnext.
+ 				if next := _p_.runnext; next != 0 {
+-					// Sleep to ensure that _p_ isn't about to run the g we
+-					// are about to steal.
+-					// The important use case here is when the g running on _p_
+-					// ready()s another g and then almost immediately blocks.
+-					// Instead of stealing runnext in this window, back off
+-					// to give _p_ a chance to schedule runnext. This will avoid
+-					// thrashing gs between different Ps.
+-					// A sync chan send/recv takes ~50ns as of time of writing,
+-					// so 3us gives ~50x overshoot.
+-					if GOOS != "windows" {
+-						usleep(3)
+-					} else {
+-						// On windows system timer granularity is 1-15ms,
+-						// which is way too much for this optimization.
+-						// So just yield.
+-						osyield()
++					if _p_.status == _Prunning {
++						// Sleep to ensure that _p_ isn't about to run the g
++						// we are about to steal.
++						// The important use case here is when the g running
++						// on _p_ ready()s another g and then almost
++						// immediately blocks. Instead of stealing runnext
++						// in this window, back off to give _p_ a chance to
++						// schedule runnext. This will avoid thrashing gs
++						// between different Ps.
++						// A sync chan send/recv takes ~50ns as of time of
++						// writing, so 3us gives ~50x overshoot.
++						if GOOS != "windows" {
++							usleep(3)
++						} else {
++							// On windows system timer granularity is
++							// 1-15ms, which is way too much for this
++							// optimization. So just yield.
++							osyield()
++						}
+ 					}
+ 					if !_p_.runnext.cas(next, 0) {
+ 						continue
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index c6ecc2a472..a0112f2fac 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -655,6 +655,114 @@ func BenchmarkClosureCall(b *testing.B) {
+ 	_ = sum
+ }
+ 
++func benchmarkWakeupParallel(b *testing.B, spin func(time.Duration)) {
++	if runtime.GOMAXPROCS(0) == 1 {
++		b.Skip("skipping: GOMAXPROCS=1")
++	}
++
++	wakeDelay := 5 * time.Microsecond
++	for _, delay := range []time.Duration{
++		0,
++		1 * time.Microsecond,
++		2 * time.Microsecond,
++		5 * time.Microsecond,
++		10 * time.Microsecond,
++		20 * time.Microsecond,
++		50 * time.Microsecond,
++		100 * time.Microsecond,
++	} {
++		b.Run(delay.String(), func(b *testing.B) {
++			if b.N == 0 {
++				return
++			}
++			// Start two goroutines, which alternate between being
++			// sender and receiver in the following protocol:
++			//
++			// - The receiver spins for `delay` and then does a
++			// blocking receive on a channel.
++			//
++			// - The sender spins for `delay+wakeDelay` and then
++			// sends to the same channel. (The addition of
++			// `wakeDelay` improves the probability that the
++			// receiver will be blocking when the send occurs when
++			// the goroutines execute in parallel.)
++			//
++			// In each iteration of the benchmark, each goroutine
++			// acts once as sender and once as receiver, so each
++			// goroutine spins for delay twice.
++			//
++			// BenchmarkWakeupParallel is used to estimate how
++			// efficiently the scheduler parallelizes goroutines in
++			// the presence of blocking:
++			//
++			// - If both goroutines are executed on the same core,
++			// an increase in delay by N will increase the time per
++			// iteration by 4*N, because all 4 delays are
++			// serialized.
++			//
++			// - Otherwise, an increase in delay by N will increase
++			// the time per iteration by 2*N, and the time per
++			// iteration is 2 * (runtime overhead + chan
++			// send/receive pair + delay + wakeDelay). This allows
++			// the runtime overhead, including the time it takes
++			// for the unblocked goroutine to be scheduled, to be
++			// estimated.
++			ping, pong := make(chan struct{}), make(chan struct{})
++			start := make(chan struct{})
++			done := make(chan struct{})
++			go func() {
++				<-start
++				for i := 0; i < b.N; i++ {
++					// sender
++					spin(delay + wakeDelay)
++					ping <- struct{}{}
++					// receiver
++					spin(delay)
++					<-pong
++				}
++				done <- struct{}{}
++			}()
++			go func() {
++				for i := 0; i < b.N; i++ {
++					// receiver
++					spin(delay)
++					<-ping
++					// sender
++					spin(delay + wakeDelay)
++					pong <- struct{}{}
++				}
++				done <- struct{}{}
++			}()
++			b.ResetTimer()
++			start <- struct{}{}
++			<-done
++			<-done
++		})
++	}
++}
++
++func BenchmarkWakeupParallelSpinning(b *testing.B) {
++	benchmarkWakeupParallel(b, func(d time.Duration) {
++		end := time.Now().Add(d)
++		for time.Now().Before(end) {
++			// do nothing
++		}
++	})
++}
++
++func BenchmarkWakeupParallelSyscall(b *testing.B) {
++	benchmarkWakeupParallel(b, func(d time.Duration) {
++		// Invoke a blocking syscall directly; calling time.Sleep()
++		// would deschedule the goroutine instead.
++		ts := syscall.NsecToTimespec(d.Nanoseconds())
++		for {
++			if err := syscall.Nanosleep(&ts, &ts); err != syscall.EINTR {
++				return
++			}
++		}
++	})
++}
++
+ type Matrix [][]float64
+ 
+ func BenchmarkMatmult(b *testing.B) {

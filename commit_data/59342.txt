@@ -11,6 +11,19 @@ Date:   Sat Mar 2 18:48:26 2024 -0800
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/slices/slices.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index 49a76dac7a..326584064c 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -342,6 +342,7 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
+ 
+ // Clone returns a copy of the slice.
+ // The elements are copied using assignment, so this is a shallow clone.
++// The result may have additional unused capacity.
+ func Clone[S ~[]E, E any](s S) S {
+ 	// The s[:0:0] preserves nil in case it matters.
+ 	return append(s[:0:0], s...)

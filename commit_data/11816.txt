@@ -8,7 +8,34 @@ Date:   Mon Feb 13 08:05:53 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5651080
-
+---
  doc/go1.html | 2 +-
  doc/go1.tmpl | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 6e63882f09..c681eff3b6 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1461,7 +1461,7 @@ the i-number expression could be contracted to
+ </p>
+ 
+ <pre>
+-    fi.(*os.FileStat).Sys.(*syscall.Stat_t).Ino
++    fi.Sys().(*syscall.Stat_t).Ino
+ </pre>
+ 
+ <p>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 862fe0ed43..9cdbf4bad6 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1364,7 +1364,7 @@ the i-number expression could be contracted to
+ </p>
+ 
+ <pre>
+-    fi.(*os.FileStat).Sys.(*syscall.Stat_t).Ino
++    fi.Sys().(*syscall.Stat_t).Ino
+ </pre>
+ 
+ <p>

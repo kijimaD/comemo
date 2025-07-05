@@ -25,10 +25,201 @@ Date:   Tue May 23 12:09:09 2023 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modload/init.go                |  6 +++
  src/cmd/go/internal/modload/vendor.go              |  6 ++-
  src/cmd/go/testdata/script/mod_goline_too_new.txt  | 47 +++++++++++++++++
  .../go/testdata/script/mod_load_missing_std.txt    | 18 -------
  src/cmd/go/testdata/script/mod_tidy_too_new.txt    | 59 ----------------------
  5 files changed, 58 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 58baf654bf..1bf2904fb8 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -698,6 +698,9 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 		if err != nil {
+ 			base.Fatalf("reading go.work: %v", err)
+ 		}
++		if gover.Compare(workFileGoVersion, gover.Local()) > 0 {
++			base.Fatalf("go: %s requires go %v (running go %v)", base.ShortPath(workFilePath), workFileGoVersion, gover.Local())
++		}
+ 		for _, modRoot := range modRoots {
+ 			sumFile := strings.TrimSuffix(modFilePath(modRoot), ".mod") + ".sum"
+ 			modfetch.WorkspaceGoSumFiles = append(modfetch.WorkspaceGoSumFiles, sumFile)
+@@ -760,6 +763,9 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 				base.Fatalf("go: %v", err)
+ 			}
+ 		}
++		if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
++			base.Fatalf("go: %s requires go %v (running go %v)", base.ShortPath(gomod), f.Go.Version, gover.Local())
++		}
+ 
+ 		modFiles = append(modFiles, f)
+ 		mainModule := f.Module.Mod
+diff --git a/src/cmd/go/internal/modload/vendor.go b/src/cmd/go/internal/modload/vendor.go
+index 6a8617286f..ba7c83b2f5 100644
+--- a/src/cmd/go/internal/modload/vendor.go
++++ b/src/cmd/go/internal/modload/vendor.go
+@@ -43,7 +43,8 @@ func readVendorList(mainModule module.Version) {
+ 		vendorPkgModule = make(map[string]module.Version)
+ 		vendorVersion = make(map[string]string)
+ 		vendorMeta = make(map[module.Version]vendorMetadata)
+-		data, err := os.ReadFile(filepath.Join(MainModules.ModRoot(mainModule), "vendor/modules.txt"))
++		vendorFile := filepath.Join(MainModules.ModRoot(mainModule), "vendor/modules.txt")
++		data, err := os.ReadFile(vendorFile)
+ 		if err != nil {
+ 			if !errors.Is(err, fs.ErrNotExist) {
+ 				base.Fatalf("go: %s", err)
+@@ -110,6 +111,9 @@ func readVendorList(mainModule module.Version) {
+ 					if goVersion, ok := strings.CutPrefix(entry, "go "); ok {
+ 						meta.GoVersion = goVersion
+ 						rawGoVersion.Store(mod, meta.GoVersion)
++						if gover.Compare(goVersion, gover.Local()) > 0 {
++							base.Fatalf("go: %s in %s requires go %v (running go %v)", mod.Path, base.ShortPath(vendorFile), goVersion, gover.Local())
++						}
+ 					}
+ 					// All other tokens are reserved for future use.
+ 				}
+diff --git a/src/cmd/go/testdata/script/mod_goline_too_new.txt b/src/cmd/go/testdata/script/mod_goline_too_new.txt
+new file mode 100644
+index 0000000000..d34efb5bd3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_goline_too_new.txt
+@@ -0,0 +1,47 @@
++# Go should refuse to build code that is too new according to go.mod.
++
++# go.mod too new
++env GOTOOLCHAIN=local
++! go build .
++stderr '^go: go.mod requires go 1.99999 \(running go 1\..+\)$'
++
++# go.mod referenced from go.work too new
++cp go.work.old go.work
++! go build .
++stderr '^go: go.mod requires go 1.99999 \(running go 1\..+\)$'
++
++# go.work too new
++cp go.work.new go.work
++cp go.mod.old go.mod
++! go build .
++stderr '^go: go.work requires go 1.99999 \(running go 1\..+\)$'
++
++# vendor too new
++rm go.work
++mv notvendor vendor
++! go build -mod=vendor .
++stderr '^go: golang.org/x/text in vendor'${/}'modules.txt requires go 1.99999 \(running go 1\..+\)$'
++
++-- go.mod --
++module example
++go 1.99999
++
++-- p.go --
++package p
++
++-- go.mod.old --
++module example
++go 1.10
++
++-- go.work.new --
++go 1.99999
++use .
++
++-- go.work.old --
++go 1.10
++use .
++
++-- notvendor/modules.txt --
++# golang.org/x/text v0.9.0
++## explicit; go 1.99999
++golang.org/x/text/internal/language
+diff --git a/src/cmd/go/testdata/script/mod_load_missing_std.txt b/src/cmd/go/testdata/script/mod_load_missing_std.txt
+deleted file mode 100644
+index 1784ea82f1..0000000000
+--- a/src/cmd/go/testdata/script/mod_load_missing_std.txt
++++ /dev/null
+@@ -1,18 +0,0 @@
+-# Go should indicate the version the module requires when a standard library
+-# import is missing. See golang.org/issue/48966.
+-
+-env GOTOOLCHAIN=local
+-! go build .
+-stderr '^main.go:3:8: package nonexistent is not in std \(.*\)$'
+-stderr '^note: imported by a module that requires go 1.99999$'
+-
+--- go.mod --
+-module example
+-
+-go 1.99999
+--- main.go --
+-package main
+-
+-import _ "nonexistent"
+-
+-func main() {}
+diff --git a/src/cmd/go/testdata/script/mod_tidy_too_new.txt b/src/cmd/go/testdata/script/mod_tidy_too_new.txt
+deleted file mode 100644
+index 875cb7f9af..0000000000
+--- a/src/cmd/go/testdata/script/mod_tidy_too_new.txt
++++ /dev/null
+@@ -1,59 +0,0 @@
+-# https://golang.org/issue/46142: 'go mod tidy' should error out if the version
+-# in the go.mod file is newer than the most recent supported version.
+-
+-env GOTOOLCHAIN=local
+-
+-cp go.mod go.mod.orig
+-
+-
+-# If the go.mod file specifies an unsupported Go version, 'go mod tidy' should
+-# refuse to edit it: we don't know what a tidy go.mod file for that version
+-# would look like.
+-
+-! go mod tidy
+-stderr 'go: go.mod file indicates go 2000.0, but maximum version supported by tidy is '$goversion'$'
+-cmp go.mod go.mod.orig
+-
+-
+-# The -e flag should push past the error and edit the file anyway,
+-# but preserve the too-high version.
+-
+-cp go.mod.orig go.mod
+-go mod tidy -e
+-stderr 'go: go.mod file indicates go 2000.0, but maximum version supported by tidy is '$goversion'$'
+-cmp go.mod go.mod.tidy
+-
+-
+-# Explicitly switching to a supported version should suppress the error completely.
+-
+-cp go.mod.orig go.mod
+-go mod tidy -go=1.17
+-! stderr 'maximum supported version'
+-go mod edit -go=1.17 go.mod.tidy
+-cmp go.mod go.mod.tidy
+-
+-
+--- go.mod --
+-module example.net/from/the/future
+-
+-go 2000.0
+-
+-replace example.net/m v0.0.0 => ./m
+--- go.mod.tidy --
+-module example.net/from/the/future
+-
+-go 2000.0
+-
+-replace example.net/m v0.0.0 => ./m
+-
+-require example.net/m v0.0.0
+--- x.go --
+-package x
+-
+-import "example.net/m"
+--- m/go.mod --
+-module example.net/m
+-
+-go 1.17
+--- m/m.go --
+-package m

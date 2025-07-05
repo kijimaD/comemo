@@ -17,7 +17,7 @@ Date:   Tue Apr 14 12:15:52 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228226
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 ++--
  .../golang.org/x/crypto/ssh/terminal/terminal.go   |  8 +++++++
@@ -46,3 +46,403 @@ Date:   Tue Apr 14 12:15:52 2020 -0400
  .../golang.org/x/crypto/poly1305/sum_vmsl_s390x.s  |  2 +-
  src/vendor/modules.txt                             |  2 +-
  27 files changed, 62 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index e1e5b34e6e..db9daa5242 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,7 +5,7 @@ go 1.14
+ require (
+ 	github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3
+ 	golang.org/x/arch v0.0.0-20191126211547-368ea8f32fff
+-	golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6
++	golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992
+ 	golang.org/x/mod v0.2.0
+ 	golang.org/x/sys v0.0.0-20200219091948-cb0a6d8edb6c // indirect
+ 	golang.org/x/tools v0.0.0-20200309180859-aa4048aca1ca
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 73eff83010..69da57df4f 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -11,8 +11,8 @@ golang.org/x/arch v0.0.0-20191126211547-368ea8f32fff/go.mod h1:flIaEI6LNU6xOCD5P
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550 h1:ObdrDkeb4kJdCP557AjRjq69pTHfNouLtWZG7j9rPN8=
+ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
+-golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6 h1:Sy5bstxEqwwbYs6n0/pBuxKENqOeZUgD45Gp3Q3pqLg=
+-golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
++golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992 h1:B4Wjn2mWOWzjcWfyRYlf00lQ1/9h5vRKmQnhIKhMFR0=
++golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/mod v0.2.0 h1:KU7oHjnv3XNWfa5COkzUifxZmxp1TyI7ImMXqFxLwvQ=
+ golang.org/x/mod v0.2.0/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+diff --git a/src/cmd/vendor/golang.org/x/crypto/ssh/terminal/terminal.go b/src/cmd/vendor/golang.org/x/crypto/ssh/terminal/terminal.go
+index d1b4fca3a9..2ffb97bfb8 100644
+--- a/src/cmd/vendor/golang.org/x/crypto/ssh/terminal/terminal.go
++++ b/src/cmd/vendor/golang.org/x/crypto/ssh/terminal/terminal.go
+@@ -113,6 +113,7 @@ func NewTerminal(c io.ReadWriter, prompt string) *Terminal {
+ }
+ 
+ const (
++	keyCtrlC     = 3
+ 	keyCtrlD     = 4
+ 	keyCtrlU     = 21
+ 	keyEnter     = '\r'
+@@ -151,8 +152,12 @@ func bytesToKey(b []byte, pasteActive bool) (rune, []byte) {
+ 		switch b[0] {
+ 		case 1: // ^A
+ 			return keyHome, b[1:]
++		case 2: // ^B
++			return keyLeft, b[1:]
+ 		case 5: // ^E
+ 			return keyEnd, b[1:]
++		case 6: // ^F
++			return keyRight, b[1:]
+ 		case 8: // ^H
+ 			return keyBackspace, b[1:]
+ 		case 11: // ^K
+@@ -738,6 +743,9 @@ func (t *Terminal) readLine() (line string, err error) {
+ 						return "", io.EOF
+ 					}
+ 				}
++				if key == keyCtrlC {
++					return "", io.EOF
++				}
+ 				if key == keyPasteStart {
+ 					t.pasteActive = true
+ 					if len(t.line) == 0 {
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 9f4c9985c6..3b2e6485e6 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -23,7 +23,7 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6
++# golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992
+ ## explicit
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+diff --git a/src/go.mod b/src/go.mod
+index ab79164278..7ec8941743 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,7 +3,7 @@ module std
+ go 1.14
+ 
+ require (
+-	golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6
++	golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992
+ 	golang.org/x/net v0.0.0-20200301022130-244492dfa37a
+ 	golang.org/x/sys v0.0.0-20200219091948-cb0a6d8edb6c // indirect
+ 	golang.org/x/text v0.3.3-0.20191031172631-4b67af870c6f // indirect
+diff --git a/src/go.sum b/src/go.sum
+index 3f8e5d40b9..0e256193f5 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,6 +1,6 @@
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+-golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6 h1:Sy5bstxEqwwbYs6n0/pBuxKENqOeZUgD45Gp3Q3pqLg=
+-golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
++golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992 h1:B4Wjn2mWOWzjcWfyRYlf00lQ1/9h5vRKmQnhIKhMFR0=
++golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20200301022130-244492dfa37a h1:GuSPYbZzB5/dcLNCwLQLsg3obCJtX9IJhpXkvY7kzk0=
+ golang.org/x/net v0.0.0-20200301022130-244492dfa37a/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.go b/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.go
+index 87f1e369cc..b799e440b4 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.go
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build go1.11
+-// +build !gccgo,!appengine
++// +build go1.11,!gccgo,!purego
+ 
+ package chacha20
+ 
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.s b/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.s
+index b3a16ef751..891481539a 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.s
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.s
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build go1.11
+-// +build !gccgo,!appengine
++// +build go1.11,!gccgo,!purego
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_generic.go b/src/vendor/golang.org/x/crypto/chacha20/chacha_generic.go
+index 098ec9f6be..7c498e90d9 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20/chacha_generic.go
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_generic.go
+@@ -136,6 +136,33 @@ func quarterRound(a, b, c, d uint32) (uint32, uint32, uint32, uint32) {
+ 	return a, b, c, d
+ }
+ 
++// SetCounter sets the Cipher counter. The next invocation of XORKeyStream will
++// behave as if (64 * counter) bytes had been encrypted so far.
++//
++// To prevent accidental counter reuse, SetCounter panics if counter is
++// less than the current value.
++func (s *Cipher) SetCounter(counter uint32) {
++	// Internally, s may buffer multiple blocks, which complicates this
++	// implementation slightly. When checking whether the counter has rolled
++	// back, we must use both s.counter and s.len to determine how many blocks
++	// we have already output.
++	outputCounter := s.counter - uint32(s.len)/blockSize
++	if counter < outputCounter {
++		panic("chacha20: SetCounter attempted to rollback counter")
++	}
++
++	// In the general case, we set the new counter value and reset s.len to 0,
++	// causing the next call to XORKeyStream to refill the buffer. However, if
++	// we're advancing within the existing buffer, we can save work by simply
++	// setting s.len.
++	if counter < s.counter {
++		s.len = int(s.counter-counter) * blockSize
++	} else {
++		s.counter = counter
++		s.len = 0
++	}
++}
++
+ // XORKeyStream XORs each byte in the given slice with a byte from the
+ // cipher's key stream. Dst and src must overlap entirely or not at all.
+ //
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_noasm.go b/src/vendor/golang.org/x/crypto/chacha20/chacha_noasm.go
+index ec609ed868..4635307b8f 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20/chacha_noasm.go
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_noasm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !arm64,!s390x,!ppc64le arm64,!go1.11 gccgo appengine
++// +build !arm64,!s390x,!ppc64le arm64,!go1.11 gccgo purego
+ 
+ package chacha20
+ 
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.go b/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.go
+index d0ec61f08d..b799330341 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.go
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !gccgo,!appengine
++// +build !gccgo,!purego
+ 
+ package chacha20
+ 
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.s b/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.s
+index 533014ea3e..23c6021643 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.s
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.s
+@@ -19,7 +19,7 @@
+ // The differences in this and the original implementation are
+ // due to the calling conventions and initialization of constants.
+ 
+-// +build !gccgo,!appengine
++// +build !gccgo,!purego
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.go b/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.go
+index cd55f45a33..a9244bdf4d 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.go
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !gccgo,!appengine
++// +build !gccgo,!purego
+ 
+ package chacha20
+ 
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.s b/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.s
+index de52a2ea8d..89c658c410 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.s
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !gccgo,!appengine
++// +build !gccgo,!purego
+ 
+ #include "go_asm.h"
+ #include "textflag.h"
+diff --git a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.go b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.go
+index 737e46aa5a..cda77819b8 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.go
++++ b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build go1.7,amd64,!gccgo,!appengine
++// +build !gccgo,!purego
+ 
+ package chacha20poly1305
+ 
+diff --git a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s
+index 9dd5d7a979..3469c87288 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s
++++ b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s
+@@ -4,7 +4,7 @@
+ 
+ // This file was originally from https://golang.org/cl/24717 by Vlad Krasnov of CloudFlare.
+ 
+-// +build go1.7,amd64,!gccgo,!appengine
++// +build !gccgo,!purego
+ 
+ #include "textflag.h"
+ // General register allocation
+diff --git a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_noasm.go b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_noasm.go
+index 4c2eb703c3..9ce4aa9fe6 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_noasm.go
++++ b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_noasm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64 !go1.7 gccgo appengine
++// +build !amd64 gccgo purego
+ 
+ package chacha20poly1305
+ 
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/mac_noasm.go b/src/vendor/golang.org/x/crypto/poly1305/mac_noasm.go
+index a8dd589ae3..b0c2cd0561 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/mac_noasm.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/mac_noasm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!ppc64le gccgo appengine
++// +build !amd64,!ppc64le gccgo purego
+ 
+ package poly1305
+ 
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.go b/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.go
+index df56a652ff..35b9e38c90 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64,!gccgo,!appengine
++// +build !gccgo,!purego
+ 
+ package poly1305
+ 
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.s b/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.s
+index 8c0cefbb3c..8d394a212e 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.s
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64,!gccgo,!appengine
++// +build !gccgo,!purego
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_noasm.go b/src/vendor/golang.org/x/crypto/poly1305/sum_noasm.go
+index 32a9cef6bb..2e3ae34c7d 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_noasm.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_noasm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build s390x,!go1.11 !amd64,!s390x,!ppc64le gccgo appengine nacl
++// +build s390x,!go1.11 !amd64,!s390x,!ppc64le gccgo purego
+ 
+ package poly1305
+ 
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.go b/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.go
+index 3233616935..92597bb8c2 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ppc64le,!gccgo,!appengine
++// +build !gccgo,!purego
+ 
+ package poly1305
+ 
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s b/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s
+index 4e20bf299a..4e02813879 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ppc64le,!gccgo,!appengine
++// +build !gccgo,!purego
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.go b/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.go
+index a8920ee9d2..5f91ff84a9 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build s390x,go1.11,!gccgo,!appengine
++// +build go1.11,!gccgo,!purego
+ 
+ package poly1305
+ 
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.s b/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.s
+index ca5a309d86..806d1694b0 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.s
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build s390x,go1.11,!gccgo,!appengine
++// +build go1.11,!gccgo,!purego
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_vmsl_s390x.s b/src/vendor/golang.org/x/crypto/poly1305/sum_vmsl_s390x.s
+index e60bbc1d7f..b439af9369 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_vmsl_s390x.s
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_vmsl_s390x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build s390x,go1.11,!gccgo,!appengine
++// +build go1.11,!gccgo,!purego
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 6feb23d65d..f269787204 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6
++# golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992
+ ## explicit
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305

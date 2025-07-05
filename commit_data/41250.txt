@@ -66,7 +66,131 @@ Date:   Fri Sep 13 16:02:23 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/swt.go | 70 +++++++++++++++++++++++++-------------
  test/codegen/switch.go             | 22 ++++++++++++
  2 files changed, 68 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index d53efefa72..a97e9735da 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -349,24 +349,52 @@ func (s *exprSwitch) flush() {
+ 	// (e.g., sort.Slice doesn't need to invoke the less function
+ 	// when there's only a single slice element).
+ 
+-	// Sort strings by length and then by value.
+-	// It is much cheaper to compare lengths than values,
+-	// and all we need here is consistency.
+-	// We respect this sorting below.
+-	sort.Slice(cc, func(i, j int) bool {
+-		vi := cc[i].lo.Val()
+-		vj := cc[j].lo.Val()
+-
+-		if s.exprname.Type.IsString() {
+-			si := vi.U.(string)
+-			sj := vj.U.(string)
++	if s.exprname.Type.IsString() && len(cc) >= 2 {
++		// Sort strings by length and then by value. It is
++		// much cheaper to compare lengths than values, and
++		// all we need here is consistency. We respect this
++		// sorting below.
++		sort.Slice(cc, func(i, j int) bool {
++			si := strlit(cc[i].lo)
++			sj := strlit(cc[j].lo)
+ 			if len(si) != len(sj) {
+ 				return len(si) < len(sj)
+ 			}
+ 			return si < sj
++		})
++
++		// runLen returns the string length associated with a
++		// particular run of exprClauses.
++		runLen := func(run []exprClause) int64 { return int64(len(strlit(run[0].lo))) }
++
++		// Collapse runs of consecutive strings with the same length.
++		var runs [][]exprClause
++		start := 0
++		for i := 1; i < len(cc); i++ {
++			if runLen(cc[start:]) != runLen(cc[i:]) {
++				runs = append(runs, cc[start:i])
++				start = i
++			}
+ 		}
++		runs = append(runs, cc[start:])
++
++		// Perform two-level binary search.
++		nlen := nod(OLEN, s.exprname, nil)
++		binarySearch(len(runs), &s.done,
++			func(i int) *Node {
++				return nod(OLE, nlen, nodintconst(runLen(runs[i-1])))
++			},
++			func(i int, nif *Node) {
++				run := runs[i]
++				nif.Left = nod(OEQ, nlen, nodintconst(runLen(run)))
++				s.search(run, &nif.Nbody)
++			},
++		)
++		return
++	}
+ 
+-		return compareOp(vi, OLT, vj)
++	sort.Slice(cc, func(i, j int) bool {
++		return compareOp(cc[i].lo.Val(), OLT, cc[j].lo.Val())
+ 	})
+ 
+ 	// Merge consecutive integer cases.
+@@ -383,19 +411,13 @@ func (s *exprSwitch) flush() {
+ 		cc = merged
+ 	}
+ 
+-	binarySearch(len(cc), &s.done,
++	s.search(cc, &s.done)
++}
++
++func (s *exprSwitch) search(cc []exprClause, out *Nodes) {
++	binarySearch(len(cc), out,
+ 		func(i int) *Node {
+-			mid := cc[i-1].hi
+-
+-			le := nod(OLE, s.exprname, mid)
+-			if s.exprname.Type.IsString() {
+-				// Compare strings by length and then
+-				// by value; see sort.Slice above.
+-				lenlt := nod(OLT, nod(OLEN, s.exprname, nil), nod(OLEN, mid, nil))
+-				leneq := nod(OEQ, nod(OLEN, s.exprname, nil), nod(OLEN, mid, nil))
+-				le = nod(OOROR, lenlt, nod(OANDAND, leneq, le))
+-			}
+-			return le
++			return nod(OLE, s.exprname, cc[i-1].hi)
+ 		},
+ 		func(i int, nif *Node) {
+ 			c := &cc[i]
+diff --git a/test/codegen/switch.go b/test/codegen/switch.go
+new file mode 100644
+index 0000000000..2ac817d14c
+--- /dev/null
++++ b/test/codegen/switch.go
+@@ -0,0 +1,22 @@
++// asmcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// These tests check code generation of switch statements.
++
++package codegen
++
++// see issue 33934
++func f(x string) int {
++	// amd64:-`cmpstring`
++	switch x {
++	case "":
++		return -1
++	case "1", "2", "3":
++		return -2
++	default:
++		return -3
++	}
++}

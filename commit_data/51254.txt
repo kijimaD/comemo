@@ -11,6 +11,24 @@ Date:   Tue Dec 21 14:33:47 2021 -0800
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
     Trust: Katie Hockman <katie@golang.org>
-
+---
  doc/go1.18.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index cea45542db..a1d1a72552 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -913,6 +913,12 @@ Do not send CLs removing the interior tags from such phrases.
+       existing tests in the unlikely case that a test changes the set of subtests
+       that are run each time the test function itself is run.
+     </p>
++
++    <p><!-- CL 251441 -->
++      The new <a href="/pkg/testing#F"><code>testing.F</code></a> type
++      is used by the new <a href="#fuzzing">fuzzing support described
++      above</a>.
++    </p>
+   </dd>
+ </dl><!-- testing -->
+ 

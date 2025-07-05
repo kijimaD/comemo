@@ -9,6 +9,29 @@ Date:   Fri Feb 13 20:15:40 2015 -0800
     Change-Id: I1a38e2d724bf1147c7307a7e5ae855c42c60428c
     Reviewed-on: https://go-review.googlesource.com/4875
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/float.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index dd6700137b..314fd689ed 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -967,12 +967,16 @@ func (z *Float) uquo(x, y *Float) {
+ 	// to shorten x for faster division. But we must be extra careful
+ 	// with rounding in that case.
+ 
++	// Compute d before division since there may be aliasing of x.mant
++	// (via xadj) or y.mant with z.mant.
++	d := len(xadj) - len(y.mant)
++
+ 	// divide
+ 	var r nat
+ 	z.mant, r = z.mant.div(nil, xadj, y.mant)
+ 
+ 	// determine exponent
+-	e := int64(x.exp) - int64(y.exp) - int64(len(xadj)-len(y.mant)-len(z.mant))*_W
++	e := int64(x.exp) - int64(y.exp) - int64(d-len(z.mant))*_W
+ 
+ 	// normalize mantissa
+ 	z.setExp(e - int64(fnorm(z.mant)))

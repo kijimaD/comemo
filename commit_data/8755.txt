@@ -12,7 +12,82 @@ Date:   Thu Jun 16 12:56:49 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4601053
-
+---
  src/pkg/xml/xml.go      | 23 ++++++++++++++---------
  src/pkg/xml/xml_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 41 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index 2cebbce75a..e5d73dd020 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -659,17 +659,22 @@ func (p *Parser) RawToken() (Token, os.Error) {
+ 			return nil, p.err
+ 		}
+ 		if b != '=' {
+-			p.err = p.syntaxError("attribute name without = in element")
+-			return nil, p.err
+-		}
+-		p.space()
+-		data := p.attrval()
+-		if data == nil {
+-			return nil, p.err
++			if p.Strict {
++				p.err = p.syntaxError("attribute name without = in element")
++				return nil, p.err
++			} else {
++				p.ungetc(b)
++				a.Value = a.Name.Local
++			}
++		} else {
++			p.space()
++			data := p.attrval()
++			if data == nil {
++				return nil, p.err
++			}
++			a.Value = string(data)
+ 		}
+-		a.Value = string(data)
+ 	}
+-
+ 	if empty {
+ 		p.needClose = true
+ 		p.toClose = name
+diff --git a/src/pkg/xml/xml_test.go b/src/pkg/xml/xml_test.go
+index 4e51cd53af..aba21a2b44 100644
+--- a/src/pkg/xml/xml_test.go
++++ b/src/pkg/xml/xml_test.go
+@@ -445,6 +445,33 @@ func TestUnquotedAttrs(t *testing.T) {
+ 	}
+ }
+ 
++func TestValuelessAttrs(t *testing.T) {
++	tests := [][3]string{
++		{"<p nowrap>", "p", "nowrap"},
++		{"<p nowrap >", "p", "nowrap"},
++		{"<input checked/>", "input", "checked"},
++		{"<input checked />", "input", "checked"},
++	}
++	for _, test := range tests {
++		p := NewParser(StringReader(test[0]))
++		p.Strict = false
++		token, err := p.Token()
++		if _, ok := err.(*SyntaxError); ok {
++			t.Errorf("Unexpected error: %v", err)
++		}
++		if token.(StartElement).Name.Local != test[1] {
++			t.Errorf("Unexpected tag name: %v", token.(StartElement).Name.Local)
++		}
++		attr := token.(StartElement).Attr[0]
++		if attr.Value != test[2] {
++			t.Errorf("Unexpected attribute value: %v", attr.Value)
++		}
++		if attr.Name.Local != test[2] {
++			t.Errorf("Unexpected attribute name: %v", attr.Name.Local)
++		}
++	}
++}
++
+ func TestCopyTokenCharData(t *testing.T) {
+ 	data := []byte("same data")
+ 	var tok1 Token = CharData(data)

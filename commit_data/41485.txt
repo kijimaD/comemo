@@ -8,6 +8,19 @@ Date:   Mon Oct 7 22:04:06 2019 +0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/199599
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/internal/reflectlite/reflect_mirror_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/internal/reflectlite/reflect_mirror_test.go b/src/internal/reflectlite/reflect_mirror_test.go
+index 16d59632c0..59d3ec407e 100644
+--- a/src/internal/reflectlite/reflect_mirror_test.go
++++ b/src/internal/reflectlite/reflect_mirror_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package reflectlite_test
+ 
+ import (

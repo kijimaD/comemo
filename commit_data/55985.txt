@@ -104,7 +104,7 @@ Date:   Mon Mar 13 10:18:36 2023 +0100
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-
+---
  src/runtime/proc.go                              |   4 +
  src/runtime/testdata/testprogcgo/trace.go        |  60 +++++++++++++
  src/runtime/testdata/testprogcgo/trace_unix.c    |  27 ++++++
@@ -112,3 +112,284 @@ Date:   Mon Mar 13 10:18:36 2023 +0100
  src/runtime/trace.go                             |   8 +-
  src/runtime/trace_cgo_test.go                    | 105 +++++++++++++++++++++++
  6 files changed, 231 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index f4bf650e3b..fd7760a571 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -862,6 +862,10 @@ func (mp *m) becomeSpinning() {
+ 	sched.needspinning.Store(0)
+ }
+ 
++func (mp *m) incgocallback() bool {
++	return (!mp.incgo && mp.ncgo > 0) || mp.isextra
++}
++
+ var fastrandseed uintptr
+ 
+ func fastrandinit() {
+diff --git a/src/runtime/testdata/testprogcgo/trace.go b/src/runtime/testdata/testprogcgo/trace.go
+new file mode 100644
+index 0000000000..875434b1f1
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/trace.go
+@@ -0,0 +1,60 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++// Defined in trace_*.c.
++void cCalledFromGo(void);
++*/
++import "C"
++import (
++	"context"
++	"fmt"
++	"log"
++	"os"
++	"runtime/trace"
++)
++
++func init() {
++	register("Trace", Trace)
++}
++
++// Trace is used by TestTraceUnwindCGO.
++func Trace() {
++	file, err := os.CreateTemp("", "testprogcgo_trace")
++	if err != nil {
++		log.Fatalf("failed to create temp file: %s", err)
++	}
++	defer file.Close()
++
++	if err := trace.Start(file); err != nil {
++		log.Fatal(err)
++	}
++	defer trace.Stop()
++
++	goCalledFromGo()
++	<-goCalledFromCThreadChan
++
++	fmt.Printf("trace path:%s", file.Name())
++}
++
++// goCalledFromGo calls cCalledFromGo which calls back into goCalledFromC and
++// goCalledFromCThread.
++func goCalledFromGo() {
++	C.cCalledFromGo()
++}
++
++//export goCalledFromC
++func goCalledFromC() {
++	trace.Log(context.Background(), "goCalledFromC", "")
++}
++
++var goCalledFromCThreadChan = make(chan struct{})
++
++//export goCalledFromCThread
++func goCalledFromCThread() {
++	trace.Log(context.Background(), "goCalledFromCThread", "")
++	close(goCalledFromCThreadChan)
++}
+diff --git a/src/runtime/testdata/testprogcgo/trace_unix.c b/src/runtime/testdata/testprogcgo/trace_unix.c
+new file mode 100644
+index 0000000000..0fa55c7215
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/trace_unix.c
+@@ -0,0 +1,27 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix
++
++// The unix C definitions for trace.go. That file uses //export so
++// it can't put function definitions in the "C" import comment.
++
++#include <pthread.h>
++#include <assert.h>
++
++extern void goCalledFromC(void);
++extern void goCalledFromCThread(void);
++
++static void* cCalledFromCThread(void *p) {
++	goCalledFromCThread();
++	return NULL;
++}
++
++void cCalledFromGo(void) {
++	goCalledFromC();
++
++	pthread_t thread;
++	assert(pthread_create(&thread, NULL, cCalledFromCThread, NULL) == 0);
++	assert(pthread_join(thread, NULL) == 0);
++}
+diff --git a/src/runtime/testdata/testprogcgo/trace_windows.c b/src/runtime/testdata/testprogcgo/trace_windows.c
+new file mode 100644
+index 0000000000..77580547ab
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/trace_windows.c
+@@ -0,0 +1,29 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The windows C definitions for trace.go. That file uses //export so
++// it can't put function definitions in the "C" import comment.
++
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++#include <process.h>
++#include "_cgo_export.h"
++
++extern void goCalledFromC(void);
++extern void goCalledFromCThread(void);
++
++__stdcall
++static unsigned int cCalledFromCThread(void *p) {
++	goCalledFromCThread();
++	return 0;
++}
++
++void cCalledFromGo(void) {
++	goCalledFromC();
++
++	uintptr_t thread;
++	thread = _beginthreadex(NULL, 0, cCalledFromCThread, NULL, 0, NULL);
++	WaitForSingleObject((HANDLE)thread, INFINITE);
++	CloseHandle((HANDLE)thread);
++}
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index c152b10336..81093cc9b9 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -888,9 +888,13 @@ func traceStackID(mp *m, pcBuf []uintptr, skip int) uint64 {
+ 	gp := getg()
+ 	curgp := mp.curg
+ 	nstk := 1
+-	if tracefpunwindoff() {
++	if tracefpunwindoff() || mp.incgocallback() {
+ 		// Slow path: Unwind using default unwinder. Used when frame pointer
+-		// unwinding is unavailable or disabled.
++		// unwinding is unavailable or disabled (tracefpunwindoff), or might
++		// produce incomplete results or crashes (incgocallback). Note that no
++		// cgo callback related crashes have been observed yet. The main
++		// motivation is to take advantage of a potentially registered cgo
++		// symbolizer.
+ 		pcBuf[0] = logicalStackSentinel
+ 		if curgp == gp {
+ 			nstk += callers(skip+1, pcBuf[1:])
+diff --git a/src/runtime/trace_cgo_test.go b/src/runtime/trace_cgo_test.go
+new file mode 100644
+index 0000000000..3f207aabc8
+--- /dev/null
++++ b/src/runtime/trace_cgo_test.go
+@@ -0,0 +1,105 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build cgo
++
++package runtime_test
++
++import (
++	"bytes"
++	"fmt"
++	"internal/testenv"
++	"internal/trace"
++	"io"
++	"os"
++	"runtime"
++	"strings"
++	"testing"
++)
++
++// TestTraceUnwindCGO verifies that trace events emitted in cgo callbacks
++// produce the same stack traces and don't cause any crashes regardless of
++// tracefpunwindoff being set to 0 or 1.
++func TestTraceUnwindCGO(t *testing.T) {
++	if *flagQuick {
++		t.Skip("-quick")
++	}
++	testenv.MustHaveGoBuild(t)
++	t.Parallel()
++
++	exe, err := buildTestProg(t, "testprogcgo")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	logs := map[string]*trace.Event{
++		"goCalledFromC":       nil,
++		"goCalledFromCThread": nil,
++	}
++	for _, tracefpunwindoff := range []int{1, 0} {
++		env := fmt.Sprintf("GODEBUG=tracefpunwindoff=%d", tracefpunwindoff)
++		got := runBuiltTestProg(t, exe, "Trace", env)
++		prefix, tracePath, found := strings.Cut(got, ":")
++		if !found || prefix != "trace path" {
++			t.Fatalf("unexpected output:\n%s\n", got)
++		}
++		defer os.Remove(tracePath)
++
++		traceData, err := os.ReadFile(tracePath)
++		if err != nil {
++			t.Fatalf("failed to read trace: %s", err)
++		}
++		events := parseTrace(t, bytes.NewReader(traceData))
++
++		for category := range logs {
++			event := mustFindLog(t, events, category)
++			if wantEvent := logs[category]; wantEvent == nil {
++				logs[category] = event
++			} else if got, want := dumpStack(event), dumpStack(wantEvent); got != want {
++				t.Errorf("%q: got stack:\n%s\nwant stack:\n%s\n", category, got, want)
++			}
++		}
++	}
++}
++
++// mustFindLog returns the EvUserLog event with the given category in events. It
++// fails if no event or multiple events match the category.
++func mustFindLog(t *testing.T, events []*trace.Event, category string) *trace.Event {
++	t.Helper()
++	var candidates []*trace.Event
++	for _, e := range events {
++		if e.Type == trace.EvUserLog && len(e.SArgs) >= 1 && e.SArgs[0] == category {
++			candidates = append(candidates, e)
++		}
++	}
++	if len(candidates) == 0 {
++		t.Errorf("could not find log with category: %q", category)
++	} else if len(candidates) > 1 {
++		t.Errorf("found more than one log with category: %q", category)
++	}
++	return candidates[0]
++}
++
++// dumpStack returns e.Stk as a string.
++func dumpStack(e *trace.Event) string {
++	var buf bytes.Buffer
++	for _, f := range e.Stk {
++		file := strings.TrimPrefix(f.File, runtime.GOROOT())
++		fmt.Fprintf(&buf, "%s\n\t%s:%d\n", f.Fn, file, f.Line)
++	}
++	return buf.String()
++}
++
++// parseTrace parses the given trace or skips the test if the trace is broken
++// due to known issues. Partially copied from runtime/trace/trace_test.go.
++func parseTrace(t *testing.T, r io.Reader) []*trace.Event {
++	res, err := trace.Parse(r, "")
++	if err == trace.ErrTimeOrder {
++		t.Skipf("skipping trace: %v", err)
++	}
++	if err != nil {
++		t.Fatalf("failed to parse trace: %v", err)
++	}
++	return res.Events
++}

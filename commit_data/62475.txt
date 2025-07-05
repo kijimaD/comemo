@@ -38,9 +38,290 @@ Date:   Tue Feb 25 15:51:56 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@golang.org>
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
-
+---
  src/cmd/go/alldocs.go                            |  5 +-
  src/cmd/go/internal/test/cover.go                |  9 ++--
  src/cmd/go/internal/test/test.go                 | 64 +++++++++++++++++++-----
  src/cmd/go/testdata/script/test_cache_inputs.txt | 64 ++++++++++++++++++++++++
  4 files changed, 124 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index dba37e891d..7063a9f216 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1890,8 +1890,9 @@
+ //
+ // The rule for a match in the cache is that the run involves the same
+ // test binary and the flags on the command line come entirely from a
+-// restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
+-// -list, -parallel, -run, -short, -skip, -timeout, -failfast, -fullpath and -v.
++// restricted set of 'cacheable' test flags, defined as -benchtime,
++// -coverprofile, -cpu, -failfast, -fullpath, -list, -outputdir, -parallel,
++// -run, -short, -skip, -timeout and -v.
+ // If a run of go test has any test or non-test flags outside this set,
+ // the result is not cached. To disable test caching, use any test flag
+ // or argument other than the cacheable flags. The idiomatic way to disable
+diff --git a/src/cmd/go/internal/test/cover.go b/src/cmd/go/internal/test/cover.go
+index f614458dc4..e295c2d90f 100644
+--- a/src/cmd/go/internal/test/cover.go
++++ b/src/cmd/go/internal/test/cover.go
+@@ -44,8 +44,8 @@ func initCoverProfile() {
+ }
+ 
+ // mergeCoverProfile merges file into the profile stored in testCoverProfile.
+-// It prints any errors it encounters to ew.
+-func mergeCoverProfile(ew io.Writer, file string) {
++// Errors encountered are logged and cause a non-zero exit status.
++func mergeCoverProfile(file string) {
+ 	if coverMerge.f == nil {
+ 		return
+ 	}
+@@ -66,12 +66,13 @@ func mergeCoverProfile(ew io.Writer, file string) {
+ 		return
+ 	}
+ 	if err != nil || string(buf) != expect {
+-		fmt.Fprintf(ew, "error: test wrote malformed coverage profile %s.\n", file)
++		base.Errorf("test wrote malformed coverage profile %s: header %q, expected %q: %v", file, string(buf), expect, err)
+ 		return
+ 	}
+ 	_, err = io.Copy(coverMerge.f, r)
+ 	if err != nil {
+-		fmt.Fprintf(ew, "error: saving coverage profile: %v\n", err)
++		base.Errorf("saving coverage profile: %v", err)
++		return
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 2ee2aa6f41..b842c2f48e 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -126,8 +126,9 @@ elapsed time in the summary line.
+ 
+ The rule for a match in the cache is that the run involves the same
+ test binary and the flags on the command line come entirely from a
+-restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
+--list, -parallel, -run, -short, -skip, -timeout, -failfast, -fullpath and -v.
++restricted set of 'cacheable' test flags, defined as -benchtime,
++-coverprofile, -cpu, -failfast, -fullpath, -list, -outputdir, -parallel,
++-run, -short, -skip, -timeout and -v.
+ If a run of go test has any test or non-test flags outside this set,
+ the result is not cached. To disable test caching, use any test flag
+ or argument other than the cacheable flags. The idiomatic way to disable
+@@ -1375,6 +1376,13 @@ type runCache struct {
+ 	id2 cache.ActionID
+ }
+ 
++func coverProfTempFile(a *work.Action) string {
++	if a.Objdir == "" {
++		panic("internal error: objdir not set in coverProfTempFile")
++	}
++	return a.Objdir + "_cover_.out"
++}
++
+ // stdoutMu and lockedStdout provide a locked standard output
+ // that guarantees never to interlace writes from multiple
+ // goroutines, so that we can have multiple JSON streams writing
+@@ -1476,13 +1484,6 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 		return nil
+ 	}
+ 
+-	coverProfTempFile := func(a *work.Action) string {
+-		if a.Objdir == "" {
+-			panic("internal error: objdir not set in coverProfTempFile")
+-		}
+-		return a.Objdir + "_cover_.out"
+-	}
+-
+ 	if p := a.Package; len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+ 		reportNoTestFiles := true
+ 		if cfg.BuildCover && p.Internal.Cover.GenMeta {
+@@ -1506,7 +1507,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 					if err := work.WriteCoverageProfile(b, a, mf, cp, stdout); err != nil {
+ 						return err
+ 					}
+-					mergeCoverProfile(stdout, cp)
++					mergeCoverProfile(cp)
+ 				}
+ 			}
+ 		}
+@@ -1669,7 +1670,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 	a.TestOutput = &buf
+ 	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
+ 
+-	mergeCoverProfile(cmd.Stdout, a.Objdir+"_cover_.out")
++	mergeCoverProfile(coverProfTempFile(a))
+ 
+ 	if err == nil {
+ 		norun := ""
+@@ -1790,7 +1791,11 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
+ 			// Note that this list is documented above,
+ 			// so if you add to this list, update the docs too.
+ 			cacheArgs = append(cacheArgs, arg)
+-
++		case "-test.coverprofile",
++			"-test.outputdir":
++			// These are cacheable and do not invalidate the cache when they change.
++			// Note that this list is documented above,
++			// so if you add to this list, update the docs too.
+ 		default:
+ 			// nothing else is cacheable
+ 			if cache.DebugTest {
+@@ -1862,6 +1867,20 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
+ 	// Parse cached result in preparation for changing run time to "(cached)".
+ 	// If we can't parse the cached result, don't use it.
+ 	data, entry, err = cache.GetBytes(cache.Default(), testAndInputKey(testID, testInputsID))
++
++	// Merge cached cover profile data to cover profile.
++	if testCoverProfile != "" {
++		// Specifically ignore entry as it will be the same as above.
++		cpData, _, err := cache.GetFile(cache.Default(), coverProfileAndInputKey(testID, testInputsID))
++		if err != nil {
++			if cache.DebugTest {
++				fmt.Fprintf(os.Stderr, "testcache: %s: cached cover profile missing: %v\n", a.Package.ImportPath, err)
++			}
++			return false
++		}
++		mergeCoverProfile(cpData)
++	}
++
+ 	if len(data) == 0 || data[len(data)-1] != '\n' {
+ 		if cache.DebugTest {
+ 			if err != nil {
+@@ -2050,6 +2069,11 @@ func testAndInputKey(testID, testInputsID cache.ActionID) cache.ActionID {
+ 	return cache.Subkey(testID, fmt.Sprintf("inputs:%x", testInputsID))
+ }
+ 
++// coverProfileAndInputKey returns the "coverprofile" cache key for the pair (testID, testInputsID).
++func coverProfileAndInputKey(testID, testInputsID cache.ActionID) cache.ActionID {
++	return cache.Subkey(testAndInputKey(testID, testInputsID), "coverprofile")
++}
++
+ func (c *runCache) saveOutput(a *work.Action) {
+ 	if c.id1 == (cache.ActionID{}) && c.id2 == (cache.ActionID{}) {
+ 		return
+@@ -2071,12 +2095,25 @@ func (c *runCache) saveOutput(a *work.Action) {
+ 	if err != nil {
+ 		return
+ 	}
++	var coverProfile []byte
++	if testCoverProfile != "" {
++		coverProfile, err = os.ReadFile(coverProfTempFile(a))
++		if err != nil {
++			if cache.DebugTest {
++				fmt.Fprintf(os.Stderr, "testcache: %s: reading cover profile: %v\n", a.Package.ImportPath, err)
++			}
++			return
++		}
++	}
+ 	if c.id1 != (cache.ActionID{}) {
+ 		if cache.DebugTest {
+ 			fmt.Fprintf(os.Stderr, "testcache: %s: save test ID %x => input ID %x => %x\n", a.Package.ImportPath, c.id1, testInputsID, testAndInputKey(c.id1, testInputsID))
+ 		}
+ 		cache.PutNoVerify(cache.Default(), c.id1, bytes.NewReader(testlog))
+ 		cache.PutNoVerify(cache.Default(), testAndInputKey(c.id1, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
++		if coverProfile != nil {
++			cache.PutNoVerify(cache.Default(), coverProfileAndInputKey(c.id1, testInputsID), bytes.NewReader(coverProfile))
++		}
+ 	}
+ 	if c.id2 != (cache.ActionID{}) {
+ 		if cache.DebugTest {
+@@ -2084,6 +2121,9 @@ func (c *runCache) saveOutput(a *work.Action) {
+ 		}
+ 		cache.PutNoVerify(cache.Default(), c.id2, bytes.NewReader(testlog))
+ 		cache.PutNoVerify(cache.Default(), testAndInputKey(c.id2, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
++		if coverProfile != nil {
++			cache.PutNoVerify(cache.Default(), coverProfileAndInputKey(c.id2, testInputsID), bytes.NewReader(coverProfile))
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/test_cache_inputs.txt b/src/cmd/go/testdata/script/test_cache_inputs.txt
+index 796a5880eb..29e538c11e 100644
+--- a/src/cmd/go/testdata/script/test_cache_inputs.txt
++++ b/src/cmd/go/testdata/script/test_cache_inputs.txt
+@@ -134,6 +134,46 @@ go test testcache -run=TestOdd -skip=TestOddFile
+ go test testcache -run=TestOdd -skip=TestOddFile
+ stdout '\(cached\)'
+ 
++# Ensure that coverage profiles are being cached.
++go test testcache -run=TestCoverageCache -coverprofile=coverage.out
++go test testcache -run=TestCoverageCache -coverprofile=coverage.out
++stdout '\(cached\)'
++exists coverage.out
++grep -q 'mode: set' coverage.out
++grep -q 'testcache/hello.go:' coverage.out
++
++# A new -coverprofile file should use the cached coverage profile contents.
++go test testcache -run=TestCoverageCache -coverprofile=coverage2.out
++stdout '\(cached\)'
++cmp coverage.out coverage2.out
++
++# Explicitly setting the default covermode should still use cache.
++go test testcache -run=TestCoverageCache -coverprofile=coverage_set.out -covermode=set
++stdout '\(cached\)'
++cmp coverage.out coverage_set.out
++
++# A new -covermode should not use the cached coverage profile.
++go test testcache -run=TestCoverageCache -coverprofile=coverage_atomic.out -covermode=atomic
++! stdout '\(cached\)'
++! cmp coverage.out coverage_atomic.out
++grep -q 'mode: atomic' coverage_atomic.out
++grep -q 'testcache/hello.go:' coverage_atomic.out
++
++# A new -coverpkg should not use the cached coverage profile.
++go test testcache -run=TestCoverageCache -coverprofile=coverage_pkg.out -coverpkg=all
++! stdout '\(cached\)'
++! cmp coverage.out coverage_pkg.out
++
++# Test that -v doesn't prevent caching.
++go test testcache -v -run=TestCoverageCache -coverprofile=coverage_v.out
++go test testcache -v -run=TestCoverageCache -coverprofile=coverage_v2.out
++stdout '\(cached\)'
++cmp coverage_v.out coverage_v2.out
++
++# Test that -count affects caching.
++go test testcache -run=TestCoverageCache -coverprofile=coverage_count.out -count=2
++! stdout '\(cached\)'
++
+ # Executables within GOROOT and GOPATH should affect caching,
+ # even if the test does not stat them explicitly.
+ 
+@@ -164,6 +204,18 @@ This file is outside of GOPATH.
+ -- testcache/script.sh --
+ #!/bin/sh
+ exit 0
++-- testcache/hello.go --
++package testcache
++
++import "fmt"
++
++func HelloWorld(name string) string {
++    if name == "" {
++        return "Hello, World!"
++    }
++    return fmt.Sprintf("Hello, %s!", name)
++}
++
+ -- testcache/testcache_test.go --
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -267,6 +319,18 @@ func TestOSArgs(t *testing.T) {
+ func TestBenchtime(t *testing.T) {
+ }
+ 
++func TestCoverageCache(t *testing.T) {
++    result := HelloWorld("")
++    if result != "Hello, World!" {
++        t.Errorf("Expected 'Hello, World!', got '%s'", result)
++    }
++
++    result = HelloWorld("Go")
++    if result != "Hello, Go!" {
++        t.Errorf("Expected 'Hello, Go!', got '%s'", result)
++    }
++}
++
+ -- mkold.go --
+ package main
+ 

@@ -101,6 +101,36 @@ Date:   Sat Apr 15 11:55:09 2017 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/regexp/onepass.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/regexp/onepass.go b/src/regexp/onepass.go
+index 4440419225..f6cd5ac7c1 100644
+--- a/src/regexp/onepass.go
++++ b/src/regexp/onepass.go
+@@ -305,13 +305,13 @@ func makeOnePass(p *onePassProg) *onePassProg {
+ 	var (
+ 		instQueue    = newQueue(len(p.Inst))
+ 		visitQueue   = newQueue(len(p.Inst))
+-		check        func(uint32, map[uint32]bool) bool
++		check        func(uint32, []bool) bool
+ 		onePassRunes = make([][]rune, len(p.Inst))
+ 	)
+ 
+ 	// check that paths from Alt instructions are unambiguous, and rebuild the new
+ 	// program as a onepass program
+-	check = func(pc uint32, m map[uint32]bool) (ok bool) {
++	check = func(pc uint32, m []bool) (ok bool) {
+ 		ok = true
+ 		inst := &p.Inst[pc]
+ 		if visitQueue.contains(pc) {
+@@ -442,7 +442,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
+ 
+ 	instQueue.clear()
+ 	instQueue.insert(uint32(p.Start))
+-	m := make(map[uint32]bool, len(p.Inst))
++	m := make([]bool, len(p.Inst))
+ 	for !instQueue.empty() {
+ 		visitQueue.clear()
+ 		pc := instQueue.next()

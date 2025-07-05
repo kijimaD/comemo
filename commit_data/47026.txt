@@ -18,7 +18,7 @@ Date:   Fri Feb 19 09:01:32 2021 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   6 +-
  .../tools/go/analysis/passes/buildtag/buildtag.go  | 318 +++++++++++++++++----
@@ -39,3 +39,957 @@ Date:   Fri Feb 19 09:01:32 2021 -0500
  src/cmd/vet/testdata/tagtest/file2.go              |   1 +
  src/cmd/vet/vet_test.go                            |   9 +-
  19 files changed, 582 insertions(+), 87 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 5414e5e688..24ad6c2432 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,5 +8,5 @@ require (
+ 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
+ 	golang.org/x/mod v0.4.1
+ 	golang.org/x/sys v0.0.0-20210218145245-beda7e5e158e // indirect
+-	golang.org/x/tools v0.0.0-20210107193943-4ed967dd8eff
++	golang.org/x/tools v0.1.1-0.20210220032852-2363391a5b2f
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 3dc0565f65..e9b62f46e1 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -13,7 +13,6 @@ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8U
+ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897 h1:pLI5jrR7OSLijeIDcmRxNmw2api+jEfxLoykJVice/E=
+ golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+-golang.org/x/mod v0.3.0/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/mod v0.4.1 h1:Kvvh58BN8Y9/lBi7hTekvtMpm07eUZ0ck5pRHpsMWrY=
+ golang.org/x/mod v0.4.1/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+@@ -25,14 +24,15 @@ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5h
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20210218145245-beda7e5e158e h1:f5mksnk+hgXHnImpZoWj64ja99j9zV7YUgrVG95uFE4=
+ golang.org/x/sys v0.0.0-20210218145245-beda7e5e158e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+ golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
+ golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+-golang.org/x/tools v0.0.0-20210107193943-4ed967dd8eff h1:6EkB024TP1fu6cmQqeCNw685zYDVt5g8N1BXh755SQM=
+-golang.org/x/tools v0.0.0-20210107193943-4ed967dd8eff/go.mod h1:emZCQorbCU4vsT4fOWvOPXz4eW1wZW4PmDk9uLelYpA=
++golang.org/x/tools v0.1.1-0.20210220032852-2363391a5b2f h1:R8L2zr6nSvQoIIw/EiaPP6HfmxeiArf+Nh/CWTC60wQ=
++golang.org/x/tools v0.1.1-0.20210220032852-2363391a5b2f/go.mod h1:9bzcO0MWcOuT0tm1iBGzDVPshzfwoVvREIui8C+MHqU=
+ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+index 841b928578..c4407ad91f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+@@ -2,14 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build go1.16
++// +build go1.16
++
+ // Package buildtag defines an Analyzer that checks build tags.
+ package buildtag
+ 
+ import (
+-	"bytes"
+-	"fmt"
+ 	"go/ast"
++	"go/build/constraint"
+ 	"go/parser"
++	"go/token"
+ 	"strings"
+ 	"unicode"
+ 
+@@ -52,118 +55,313 @@ func runBuildTag(pass *analysis.Pass) (interface{}, error) {
+ }
+ 
+ func checkGoFile(pass *analysis.Pass, f *ast.File) {
+-	pastCutoff := false
++	var check checker
++	check.init(pass)
++	defer check.finish()
++
+ 	for _, group := range f.Comments {
+ 		// A +build comment is ignored after or adjoining the package declaration.
+ 		if group.End()+1 >= f.Package {
+-			pastCutoff = true
++			check.plusBuildOK = false
+ 		}
+-
+-		// "+build" is ignored within or after a /*...*/ comment.
+-		if !strings.HasPrefix(group.List[0].Text, "//") {
+-			pastCutoff = true
+-			continue
++		// A //go:build comment is ignored after the package declaration
++		// (but adjoining it is OK, in contrast to +build comments).
++		if group.Pos() >= f.Package {
++			check.goBuildOK = false
+ 		}
+ 
+ 		// Check each line of a //-comment.
+ 		for _, c := range group.List {
+-			if !strings.Contains(c.Text, "+build") {
+-				continue
+-			}
+-			if err := checkLine(c.Text, pastCutoff); err != nil {
+-				pass.Reportf(c.Pos(), "%s", err)
++			// "+build" is ignored within or after a /*...*/ comment.
++			if !strings.HasPrefix(c.Text, "//") {
++				check.plusBuildOK = false
+ 			}
++			check.comment(c.Slash, c.Text)
+ 		}
+ 	}
+ }
+ 
+ func checkOtherFile(pass *analysis.Pass, filename string) error {
++	var check checker
++	check.init(pass)
++	defer check.finish()
++
++	// We cannot use the Go parser, since this may not be a Go source file.
++	// Read the raw bytes instead.
+ 	content, tf, err := analysisutil.ReadFile(pass.Fset, filename)
+ 	if err != nil {
+ 		return err
+ 	}
+ 
+-	// We must look at the raw lines, as build tags may appear in non-Go
+-	// files such as assembly files.
+-	lines := bytes.SplitAfter(content, nl)
++	check.file(token.Pos(tf.Base()), string(content))
++	return nil
++}
++
++type checker struct {
++	pass         *analysis.Pass
++	plusBuildOK  bool            // "+build" lines still OK
++	goBuildOK    bool            // "go:build" lines still OK
++	crossCheck   bool            // cross-check go:build and +build lines when done reading file
++	inStar       bool            // currently in a /* */ comment
++	goBuildPos   token.Pos       // position of first go:build line found
++	plusBuildPos token.Pos       // position of first "+build" line found
++	goBuild      constraint.Expr // go:build constraint found
++	plusBuild    constraint.Expr // AND of +build constraints found
++}
++
++func (check *checker) init(pass *analysis.Pass) {
++	check.pass = pass
++	check.goBuildOK = true
++	check.plusBuildOK = true
++	check.crossCheck = true
++}
+ 
++func (check *checker) file(pos token.Pos, text string) {
+ 	// Determine cutpoint where +build comments are no longer valid.
+ 	// They are valid in leading // comments in the file followed by
+ 	// a blank line.
+ 	//
+ 	// This must be done as a separate pass because of the
+ 	// requirement that the comment be followed by a blank line.
+-	var cutoff int
+-	for i, line := range lines {
+-		line = bytes.TrimSpace(line)
+-		if !bytes.HasPrefix(line, slashSlash) {
+-			if len(line) > 0 {
+-				break
+-			}
+-			cutoff = i
++	var plusBuildCutoff int
++	fullText := text
++	for text != "" {
++		i := strings.Index(text, "\n")
++		if i < 0 {
++			i = len(text)
++		} else {
++			i++
++		}
++		offset := len(fullText) - len(text)
++		line := text[:i]
++		text = text[i:]
++		line = strings.TrimSpace(line)
++		if !strings.HasPrefix(line, "//") && line != "" {
++			break
++		}
++		if line == "" {
++			plusBuildCutoff = offset
+ 		}
+ 	}
+ 
+-	for i, line := range lines {
+-		line = bytes.TrimSpace(line)
+-		if !bytes.HasPrefix(line, slashSlash) {
+-			continue
++	// Process each line.
++	// Must stop once we hit goBuildOK == false
++	text = fullText
++	check.inStar = false
++	for text != "" {
++		i := strings.Index(text, "\n")
++		if i < 0 {
++			i = len(text)
++		} else {
++			i++
+ 		}
+-		if !bytes.Contains(line, []byte("+build")) {
++		offset := len(fullText) - len(text)
++		line := text[:i]
++		text = text[i:]
++		check.plusBuildOK = offset < plusBuildCutoff
++
++		if strings.HasPrefix(line, "//") {
++			check.comment(pos+token.Pos(offset), line)
+ 			continue
+ 		}
+-		if err := checkLine(string(line), i >= cutoff); err != nil {
+-			pass.Reportf(analysisutil.LineStart(tf, i+1), "%s", err)
+-			continue
++
++		// Keep looking for the point at which //go:build comments
++		// stop being allowed. Skip over, cut out any /* */ comments.
++		for {
++			line = strings.TrimSpace(line)
++			if check.inStar {
++				i := strings.Index(line, "*/")
++				if i < 0 {
++					line = ""
++					break
++				}
++				line = line[i+len("*/"):]
++				check.inStar = false
++				continue
++			}
++			if strings.HasPrefix(line, "/*") {
++				check.inStar = true
++				line = line[len("/*"):]
++				continue
++			}
++			break
++		}
++		if line != "" {
++			// Found non-comment non-blank line.
++			// Ends space for valid //go:build comments,
++			// but also ends the fraction of the file we can
++			// reliably parse. From this point on we might
++			// incorrectly flag "comments" inside multiline
++			// string constants or anything else (this might
++			// not even be a Go program). So stop.
++			break
+ 		}
+ 	}
+-	return nil
+ }
+ 
+-// checkLine checks a line that starts with "//" and contains "+build".
+-func checkLine(line string, pastCutoff bool) error {
+-	line = strings.TrimPrefix(line, "//")
+-	line = strings.TrimSpace(line)
+-
+-	if strings.HasPrefix(line, "+build") {
+-		fields := strings.Fields(line)
+-		if fields[0] != "+build" {
+-			// Comment is something like +buildasdf not +build.
+-			return fmt.Errorf("possible malformed +build comment")
++func (check *checker) comment(pos token.Pos, text string) {
++	if strings.HasPrefix(text, "//") {
++		if strings.Contains(text, "+build") {
++			check.plusBuildLine(pos, text)
+ 		}
+-		if pastCutoff {
+-			return fmt.Errorf("+build comment must appear before package clause and be followed by a blank line")
++		if strings.Contains(text, "//go:build") {
++			check.goBuildLine(pos, text)
+ 		}
+-		if err := checkArguments(fields); err != nil {
+-			return err
++	}
++	if strings.HasPrefix(text, "/*") {
++		if i := strings.Index(text, "\n"); i >= 0 {
++			// multiline /* */ comment - process interior lines
++			check.inStar = true
++			i++
++			pos += token.Pos(i)
++			text = text[i:]
++			for text != "" {
++				i := strings.Index(text, "\n")
++				if i < 0 {
++					i = len(text)
++				} else {
++					i++
++				}
++				line := text[:i]
++				if strings.HasPrefix(line, "//") {
++					check.comment(pos, line)
++				}
++				pos += token.Pos(i)
++				text = text[i:]
++			}
++			check.inStar = false
++		}
++	}
++}
++
++func (check *checker) goBuildLine(pos token.Pos, line string) {
++	if !constraint.IsGoBuild(line) {
++		if !strings.HasPrefix(line, "//go:build") && constraint.IsGoBuild("//"+strings.TrimSpace(line[len("//"):])) {
++			check.pass.Reportf(pos, "malformed //go:build line (space between // and go:build)")
+ 		}
++		return
++	}
++	if !check.goBuildOK || check.inStar {
++		check.pass.Reportf(pos, "misplaced //go:build comment")
++		check.crossCheck = false
++		return
++	}
++
++	if check.goBuildPos == token.NoPos {
++		check.goBuildPos = pos
+ 	} else {
++		check.pass.Reportf(pos, "unexpected extra //go:build line")
++		check.crossCheck = false
++	}
++
++	// testing hack: stop at // ERROR
++	if i := strings.Index(line, " // ERROR "); i >= 0 {
++		line = line[:i]
++	}
++
++	x, err := constraint.Parse(line)
++	if err != nil {
++		check.pass.Reportf(pos, "%v", err)
++		check.crossCheck = false
++		return
++	}
++
++	if check.goBuild == nil {
++		check.goBuild = x
++	}
++}
++
++func (check *checker) plusBuildLine(pos token.Pos, line string) {
++	line = strings.TrimSpace(line)
++	if !constraint.IsPlusBuild(line) {
+ 		// Comment with +build but not at beginning.
+-		if !pastCutoff {
+-			return fmt.Errorf("possible malformed +build comment")
++		// Only report early in file.
++		if check.plusBuildOK && !strings.HasPrefix(line, "// want") {
++			check.pass.Reportf(pos, "possible malformed +build comment")
+ 		}
++		return
++	}
++	if !check.plusBuildOK { // inStar implies !plusBuildOK
++		check.pass.Reportf(pos, "misplaced +build comment")
++		check.crossCheck = false
+ 	}
+-	return nil
+-}
+ 
+-func checkArguments(fields []string) error {
++	if check.plusBuildPos == token.NoPos {
++		check.plusBuildPos = pos
++	}
++
++	// testing hack: stop at // ERROR
++	if i := strings.Index(line, " // ERROR "); i >= 0 {
++		line = line[:i]
++	}
++
++	fields := strings.Fields(line[len("//"):])
++	// IsPlusBuildConstraint check above implies fields[0] == "+build"
+ 	for _, arg := range fields[1:] {
+ 		for _, elem := range strings.Split(arg, ",") {
+ 			if strings.HasPrefix(elem, "!!") {
+-				return fmt.Errorf("invalid double negative in build constraint: %s", arg)
++				check.pass.Reportf(pos, "invalid double negative in build constraint: %s", arg)
++				check.crossCheck = false
++				continue
+ 			}
+ 			elem = strings.TrimPrefix(elem, "!")
+ 			for _, c := range elem {
+ 				if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' && c != '.' {
+-					return fmt.Errorf("invalid non-alphanumeric build constraint: %s", arg)
++					check.pass.Reportf(pos, "invalid non-alphanumeric build constraint: %s", arg)
++					check.crossCheck = false
++					break
+ 				}
+ 			}
+ 		}
+ 	}
+-	return nil
++
++	if check.crossCheck {
++		y, err := constraint.Parse(line)
++		if err != nil {
++			// Should never happen - constraint.Parse never rejects a // +build line.
++			// Also, we just checked the syntax above.
++			// Even so, report.
++			check.pass.Reportf(pos, "%v", err)
++			check.crossCheck = false
++			return
++		}
++		if check.plusBuild == nil {
++			check.plusBuild = y
++		} else {
++			check.plusBuild = &constraint.AndExpr{X: check.plusBuild, Y: y}
++		}
++	}
+ }
+ 
+-var (
+-	nl         = []byte("\n")
+-	slashSlash = []byte("//")
+-)
++func (check *checker) finish() {
++	if !check.crossCheck || check.plusBuildPos == token.NoPos || check.goBuildPos == token.NoPos {
++		return
++	}
++
++	// Have both //go:build and // +build,
++	// with no errors found (crossCheck still true).
++	// Check they match.
++	var want constraint.Expr
++	lines, err := constraint.PlusBuildLines(check.goBuild)
++	if err != nil {
++		check.pass.Reportf(check.goBuildPos, "%v", err)
++		return
++	}
++	for _, line := range lines {
++		y, err := constraint.Parse(line)
++		if err != nil {
++			// Definitely should not happen, but not the user's fault.
++			// Do not report.
++			return
++		}
++		if want == nil {
++			want = y
++		} else {
++			want = &constraint.AndExpr{X: want, Y: y}
++		}
++	}
++	if want.String() != check.plusBuild.String() {
++		check.pass.Reportf(check.plusBuildPos, "+build lines do not match //go:build condition")
++		return
++	}
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag_old.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag_old.go
+new file mode 100644
+index 0000000000..e9234925f9
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag_old.go
+@@ -0,0 +1,174 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO(rsc): Delete this file once Go 1.17 comes out and we can retire Go 1.15 support.
++
++//go:build !go1.16
++// +build !go1.16
++
++// Package buildtag defines an Analyzer that checks build tags.
++package buildtag
++
++import (
++	"bytes"
++	"fmt"
++	"go/ast"
++	"go/parser"
++	"strings"
++	"unicode"
++
++	"golang.org/x/tools/go/analysis"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
++)
++
++const Doc = "check that +build tags are well-formed and correctly located"
++
++var Analyzer = &analysis.Analyzer{
++	Name: "buildtag",
++	Doc:  Doc,
++	Run:  runBuildTag,
++}
++
++func runBuildTag(pass *analysis.Pass) (interface{}, error) {
++	for _, f := range pass.Files {
++		checkGoFile(pass, f)
++	}
++	for _, name := range pass.OtherFiles {
++		if err := checkOtherFile(pass, name); err != nil {
++			return nil, err
++		}
++	}
++	for _, name := range pass.IgnoredFiles {
++		if strings.HasSuffix(name, ".go") {
++			f, err := parser.ParseFile(pass.Fset, name, nil, parser.ParseComments)
++			if err != nil {
++				// Not valid Go source code - not our job to diagnose, so ignore.
++				return nil, nil
++			}
++			checkGoFile(pass, f)
++		} else {
++			if err := checkOtherFile(pass, name); err != nil {
++				return nil, err
++			}
++		}
++	}
++	return nil, nil
++}
++
++func checkGoFile(pass *analysis.Pass, f *ast.File) {
++	pastCutoff := false
++	for _, group := range f.Comments {
++		// A +build comment is ignored after or adjoining the package declaration.
++		if group.End()+1 >= f.Package {
++			pastCutoff = true
++		}
++
++		// "+build" is ignored within or after a /*...*/ comment.
++		if !strings.HasPrefix(group.List[0].Text, "//") {
++			pastCutoff = true
++			continue
++		}
++
++		// Check each line of a //-comment.
++		for _, c := range group.List {
++			if !strings.Contains(c.Text, "+build") {
++				continue
++			}
++			if err := checkLine(c.Text, pastCutoff); err != nil {
++				pass.Reportf(c.Pos(), "%s", err)
++			}
++		}
++	}
++}
++
++func checkOtherFile(pass *analysis.Pass, filename string) error {
++	content, tf, err := analysisutil.ReadFile(pass.Fset, filename)
++	if err != nil {
++		return err
++	}
++
++	// We must look at the raw lines, as build tags may appear in non-Go
++	// files such as assembly files.
++	lines := bytes.SplitAfter(content, nl)
++
++	// Determine cutpoint where +build comments are no longer valid.
++	// They are valid in leading // comments in the file followed by
++	// a blank line.
++	//
++	// This must be done as a separate pass because of the
++	// requirement that the comment be followed by a blank line.
++	var cutoff int
++	for i, line := range lines {
++		line = bytes.TrimSpace(line)
++		if !bytes.HasPrefix(line, slashSlash) {
++			if len(line) > 0 {
++				break
++			}
++			cutoff = i
++		}
++	}
++
++	for i, line := range lines {
++		line = bytes.TrimSpace(line)
++		if !bytes.HasPrefix(line, slashSlash) {
++			continue
++		}
++		if !bytes.Contains(line, []byte("+build")) {
++			continue
++		}
++		if err := checkLine(string(line), i >= cutoff); err != nil {
++			pass.Reportf(analysisutil.LineStart(tf, i+1), "%s", err)
++			continue
++		}
++	}
++	return nil
++}
++
++// checkLine checks a line that starts with "//" and contains "+build".
++func checkLine(line string, pastCutoff bool) error {
++	line = strings.TrimPrefix(line, "//")
++	line = strings.TrimSpace(line)
++
++	if strings.HasPrefix(line, "+build") {
++		fields := strings.Fields(line)
++		if fields[0] != "+build" {
++			// Comment is something like +buildasdf not +build.
++			return fmt.Errorf("possible malformed +build comment")
++		}
++		if pastCutoff {
++			return fmt.Errorf("+build comment must appear before package clause and be followed by a blank line")
++		}
++		if err := checkArguments(fields); err != nil {
++			return err
++		}
++	} else {
++		// Comment with +build but not at beginning.
++		if !pastCutoff {
++			return fmt.Errorf("possible malformed +build comment")
++		}
++	}
++	return nil
++}
++
++func checkArguments(fields []string) error {
++	for _, arg := range fields[1:] {
++		for _, elem := range strings.Split(arg, ",") {
++			if strings.HasPrefix(elem, "!!") {
++				return fmt.Errorf("invalid double negative in build constraint: %s", arg)
++			}
++			elem = strings.TrimPrefix(elem, "!")
++			for _, c := range elem {
++				if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' && c != '.' {
++					return fmt.Errorf("invalid non-alphanumeric build constraint: %s", arg)
++				}
++			}
++		}
++	}
++	return nil
++}
++
++var (
++	nl         = []byte("\n")
++	slashSlash = []byte("//")
++)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+index a14e7eb55d..3ea91574dc 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+@@ -8,22 +8,14 @@ package loopclosure
+ 
+ import (
+ 	"go/ast"
++	"go/types"
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
+ 	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/go/types/typeutil"
+ )
+ 
+-// TODO(adonovan): also report an error for the following structure,
+-// which is often used to ensure that deferred calls do not accumulate
+-// in a loop:
+-//
+-//	for i, x := range c {
+-//		func() {
+-//			...reference to i or x...
+-//		}()
+-//	}
+-
+ const Doc = `check references to loop variables from within nested functions
+ 
+ This analyzer checks for references to loop variables from within a
+@@ -95,16 +87,19 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		if len(body.List) == 0 {
+ 			return
+ 		}
+-		var last *ast.CallExpr
++		// The function invoked in the last return statement.
++		var fun ast.Expr
+ 		switch s := body.List[len(body.List)-1].(type) {
+ 		case *ast.GoStmt:
+-			last = s.Call
++			fun = s.Call.Fun
+ 		case *ast.DeferStmt:
+-			last = s.Call
+-		default:
+-			return
++			fun = s.Call.Fun
++		case *ast.ExprStmt: // check for errgroup.Group.Go()
++			if call, ok := s.X.(*ast.CallExpr); ok {
++				fun = goInvokes(pass.TypesInfo, call)
++			}
+ 		}
+-		lit, ok := last.Fun.(*ast.FuncLit)
++		lit, ok := fun.(*ast.FuncLit)
+ 		if !ok {
+ 			return
+ 		}
+@@ -128,3 +123,43 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 	})
+ 	return nil, nil
+ }
++
++// goInvokes returns a function expression that would be called asynchronously
++// (but not awaited) in another goroutine as a consequence of the call.
++// For example, given the g.Go call below, it returns the function literal expression.
++//
++//   import "sync/errgroup"
++//   var g errgroup.Group
++//   g.Go(func() error { ... })
++//
++// Currently only "golang.org/x/sync/errgroup.Group()" is considered.
++func goInvokes(info *types.Info, call *ast.CallExpr) ast.Expr {
++	f := typeutil.StaticCallee(info, call)
++	// Note: Currently only supports: golang.org/x/sync/errgroup.Go.
++	if f == nil || f.Name() != "Go" {
++		return nil
++	}
++	recv := f.Type().(*types.Signature).Recv()
++	if recv == nil {
++		return nil
++	}
++	rtype, ok := recv.Type().(*types.Pointer)
++	if !ok {
++		return nil
++	}
++	named, ok := rtype.Elem().(*types.Named)
++	if !ok {
++		return nil
++	}
++	if named.Obj().Name() != "Group" {
++		return nil
++	}
++	pkg := f.Pkg()
++	if pkg == nil {
++		return nil
++	}
++	if pkg.Path() != "golang.org/x/sync/errgroup" {
++		return nil
++	}
++	return call.Args[0]
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index 713e1380ef..5424489f8b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -97,7 +97,7 @@ func Main(analyzers ...*analysis.Analyzer) {
+ 
+ Usage of %[1]s:
+ 	%.16[1]s unit.cfg	# execute analysis specified by config file
+-	%.16[1]s help    	# general help
++	%.16[1]s help    	# general help, including listing analyzers and flags
+ 	%.16[1]s help name	# help on specific analyzer and its flags
+ `, progname)
+ 		os.Exit(1)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker112.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker112.go
+index 9051456e39..3180f4abe1 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker112.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker112.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build go1.12
+ // +build go1.12
+ 
+ package unitchecker
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 616fb6c1e6..abe70ae87e 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -44,7 +44,7 @@ golang.org/x/mod/zip
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20210107193943-4ed967dd8eff
++# golang.org/x/tools v0.1.1-0.20210220032852-2363391a5b2f
+ ## explicit
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
+diff --git a/src/cmd/vet/testdata/asm/asm1.s b/src/cmd/vet/testdata/asm/asm1.s
+index a5bb6dd0af..050c498d12 100644
+--- a/src/cmd/vet/testdata/asm/asm1.s
++++ b/src/cmd/vet/testdata/asm/asm1.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build amd64
+ // +build amd64
+ 
+ TEXT ·arg1(SB),0,$0-2
+diff --git a/src/cmd/vet/testdata/buildtag/buildtag.go b/src/cmd/vet/testdata/buildtag/buildtag.go
+index c2fd6aaaf2..7371e6ef6f 100644
+--- a/src/cmd/vet/testdata/buildtag/buildtag.go
++++ b/src/cmd/vet/testdata/buildtag/buildtag.go
+@@ -4,12 +4,14 @@
+ 
+ // This file contains tests for the buildtag checker.
+ 
+-// +builder // ERROR "possible malformed \+build comment"
++// ERRORNEXT "possible malformed [+]build comment"
++// +builder
+ // +build !ignore
+ 
+ package testdata
+ 
+-// +build toolate // ERROR "build comment must appear before package clause and be followed by a blank line$"
++// ERRORNEXT "misplaced \+build comment"
++// +build toolate
+ 
+ var _ = 3
+ 
+diff --git a/src/cmd/vet/testdata/buildtag/buildtag2.go b/src/cmd/vet/testdata/buildtag/buildtag2.go
+new file mode 100644
+index 0000000000..d8808dd6a2
+--- /dev/null
++++ b/src/cmd/vet/testdata/buildtag/buildtag2.go
+@@ -0,0 +1,22 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains tests for the buildtag checker.
++
++// ERRORNEXT "possible malformed [+]build comment"
++// +builder
++// +build !ignore
++
++package testdata
++
++// ERRORNEXT "misplaced \+build comment"
++// +build toolate
++// ERRORNEXT "misplaced //go:build comment"
++//go:build toolate
++
++var _ = 3
++
++var _ = `
++// +build notacomment
++`
+diff --git a/src/cmd/vet/testdata/buildtag/buildtag3.go b/src/cmd/vet/testdata/buildtag/buildtag3.go
+new file mode 100644
+index 0000000000..241a7dbaac
+--- /dev/null
++++ b/src/cmd/vet/testdata/buildtag/buildtag3.go
+@@ -0,0 +1,15 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains tests for the buildtag checker.
++
++//go:build good
++// ERRORNEXT "[+]build lines do not match //go:build condition"
++// +build bad
++
++package testdata
++
++var _ = `
++// +build notacomment
++`
+diff --git a/src/cmd/vet/testdata/buildtag/buildtag4.go b/src/cmd/vet/testdata/buildtag/buildtag4.go
+new file mode 100644
+index 0000000000..5b40d6951b
+--- /dev/null
++++ b/src/cmd/vet/testdata/buildtag/buildtag4.go
+@@ -0,0 +1,11 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains tests for the buildtag checker.
++
++//go:build !(bad || worse)
++// +build !bad
++// +build !worse
++
++package testdata
+diff --git a/src/cmd/vet/testdata/buildtag/buildtag5.go b/src/cmd/vet/testdata/buildtag/buildtag5.go
+new file mode 100644
+index 0000000000..12aeb82b9b
+--- /dev/null
++++ b/src/cmd/vet/testdata/buildtag/buildtag5.go
+@@ -0,0 +1,11 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains tests for the buildtag checker.
++
++//go:build !(bad || worse)
++
++package testdata
++
++// +build other // ERROR "misplaced \+build comment"
+diff --git a/src/cmd/vet/testdata/buildtag/buildtag6.s b/src/cmd/vet/testdata/buildtag/buildtag6.s
+new file mode 100644
+index 0000000000..40fe14c5d6
+--- /dev/null
++++ b/src/cmd/vet/testdata/buildtag/buildtag6.s
+@@ -0,0 +1,9 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++
++// ok because we cannot parse assembly files.
++// +build no
++
+diff --git a/src/cmd/vet/testdata/buildtag/buildtag7.s b/src/cmd/vet/testdata/buildtag/buildtag7.s
+new file mode 100644
+index 0000000000..b622d48f1b
+--- /dev/null
++++ b/src/cmd/vet/testdata/buildtag/buildtag7.s
+@@ -0,0 +1,11 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++#include "go_asm.h"
++
++// ok because we cannot parse assembly files
++// the assembler would complain if we did assemble this file.
++//go:build no
+diff --git a/src/cmd/vet/testdata/tagtest/file1.go b/src/cmd/vet/testdata/tagtest/file1.go
+index 47fe3c80af..2204524821 100644
+--- a/src/cmd/vet/testdata/tagtest/file1.go
++++ b/src/cmd/vet/testdata/tagtest/file1.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build testtag
+ // +build testtag
+ 
+ package main
+diff --git a/src/cmd/vet/testdata/tagtest/file2.go b/src/cmd/vet/testdata/tagtest/file2.go
+index 1f45efcbf2..979b0d451d 100644
+--- a/src/cmd/vet/testdata/tagtest/file2.go
++++ b/src/cmd/vet/testdata/tagtest/file2.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !testtag
+ // +build !testtag
+ 
+ package main
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index d15d1ce377..50dd0735fa 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -334,8 +334,8 @@ type wantedError struct {
+ }
+ 
+ var (
+-	errRx       = regexp.MustCompile(`// (?:GC_)?ERROR (.*)`)
+-	errAutoRx   = regexp.MustCompile(`// (?:GC_)?ERRORAUTO (.*)`)
++	errRx       = regexp.MustCompile(`// (?:GC_)?ERROR(NEXT)? (.*)`)
++	errAutoRx   = regexp.MustCompile(`// (?:GC_)?ERRORAUTO(NEXT)? (.*)`)
+ 	errQuotesRx = regexp.MustCompile(`"([^"]*)"`)
+ 	lineRx      = regexp.MustCompile(`LINE(([+-])([0-9]+))?`)
+ )
+@@ -364,7 +364,10 @@ func wantedErrors(file, short string) (errs []wantedError) {
+ 		if m == nil {
+ 			continue
+ 		}
+-		all := m[1]
++		if m[1] == "NEXT" {
++			lineNum++
++		}
++		all := m[2]
+ 		mm := errQuotesRx.FindAllStringSubmatch(all, -1)
+ 		if mm == nil {
+ 			log.Fatalf("%s:%d: invalid errchk line: %s", file, lineNum, line)

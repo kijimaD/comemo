@@ -6,6 +6,35 @@ Date:   Sun Nov 1 05:20:30 2009 -0800
     
     R=r
     http://go/go-review/1016014
-
+---
  .hgignore | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index 3a66c74f0d..df0333b980 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -2,6 +2,9 @@ syntax:glob
+ *.[568ao]
+ *.ao
+ *.so
++*.pyc
++._*
++.nfs.*
+ [568a].out
+ _obj
+ _test
+@@ -13,11 +16,11 @@ src/cmd/gc/mkbuiltin1
+ src/cmd/gc/opnames.h
+ src/pkg/exp/ogle/ogle
+ src/pkg/runtime/cgo2c
+-src/pkg/runtime/amd64/asm.h
++src/pkg/runtime/*/asm.h
++src/pkg/runtime/runtime.acid
+ test/pass.out
+ test/run.out
+ test/times.out
+-*.pyc
+ 
+ syntax:regexp
+ ^pkg/

@@ -14,9 +14,38 @@ Date:   Sat Sep 6 15:27:52 2014 -0400
     R=iant, r
     CC=golang-codereviews
     https://golang.org/cl/134560043
-
+---
  src/cmd/yacc/doc.go                      | 5 +++--
  src/cmd/yacc/{ => testdata}/expr/README  | 0
  src/cmd/yacc/{ => testdata}/expr/expr.y  | 0
  src/cmd/yacc/{ => testdata}/expr/main.go | 0
  4 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/yacc/doc.go b/src/cmd/yacc/doc.go
+index ceaaf2448d..702c9f0d25 100644
+--- a/src/cmd/yacc/doc.go
++++ b/src/cmd/yacc/doc.go
+@@ -20,8 +20,9 @@ written in C and documented at
+ Adepts of the original yacc will have no trouble adapting to this
+ form of the tool.
+ 
+-The file expr.y in this directory is a yacc grammar for a very simple
+-expression parser.  It needs the flag "-p expr" (see below).
++The directory $GOROOT/cmd/yacc/testdata/expr is a yacc program
++for a very simple expression parser. See expr.y and main.go in that
++directory for examples of how to write and build yacc programs.
+ 
+ The generated parser is reentrant. Parse expects to be given an
+ argument that conforms to the following interface:
+diff --git a/src/cmd/yacc/expr/README b/src/cmd/yacc/testdata/expr/README
+similarity index 100%
+rename from src/cmd/yacc/expr/README
+rename to src/cmd/yacc/testdata/expr/README
+diff --git a/src/cmd/yacc/expr/expr.y b/src/cmd/yacc/testdata/expr/expr.y
+similarity index 100%
+rename from src/cmd/yacc/expr/expr.y
+rename to src/cmd/yacc/testdata/expr/expr.y
+diff --git a/src/cmd/yacc/expr/main.go b/src/cmd/yacc/testdata/expr/main.go
+similarity index 100%
+rename from src/cmd/yacc/expr/main.go
+rename to src/cmd/yacc/testdata/expr/main.go

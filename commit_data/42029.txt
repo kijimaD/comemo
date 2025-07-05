@@ -9,6 +9,24 @@ Date:   Wed Nov 6 20:36:43 2019 +0000
     GitHub-Pull-Request: golang/go#35404
     Reviewed-on: https://go-review.googlesource.com/c/go/+/205610
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/progs/eff_qr.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/progs/eff_qr.go b/doc/progs/eff_qr.go
+index 89de459f7d..f2055f08c3 100644
+--- a/doc/progs/eff_qr.go
++++ b/doc/progs/eff_qr.go
+@@ -41,9 +41,9 @@ const templateStr = `
+ <br>
+ <br>
+ {{end}}
+-<form action="/" name=f method="GET"><input maxLength=1024 size=70
+-name=s value="" title="Text to QR Encode"><input type=submit
+-value="Show QR" name=qr>
++<form action="/" name=f method="GET">
++	<input maxLength=1024 size=70 name=s value="" title="Text to QR Encode">
++	<input type=submit value="Show QR" name=qr>
+ </form>
+ </body>
+ </html>

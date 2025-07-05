@@ -17,9 +17,330 @@ Date:   Mon Nov 19 19:50:42 2012 -0800
     R=dsymonds
     CC=dave, gobot, golang-dev
     https://golang.org/cl/6850067
-
+---
  src/pkg/net/http/chunked.go               | 46 +++++++++++++++++----------
  src/pkg/net/http/chunked_test.go          | 52 +++++++++++++++++++++++++++++++
  src/pkg/net/http/httputil/chunked.go      | 46 +++++++++++++++++----------
  src/pkg/net/http/httputil/chunked_test.go | 52 +++++++++++++++++++++++++++++++
  4 files changed, 164 insertions(+), 32 deletions(-)
+
+diff --git a/src/pkg/net/http/chunked.go b/src/pkg/net/http/chunked.go
+index 7cf39cfa5f..91db017245 100644
+--- a/src/pkg/net/http/chunked.go
++++ b/src/pkg/net/http/chunked.go
+@@ -11,11 +11,9 @@ package http
+ 
+ import (
+ 	"bufio"
+-	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"strconv"
+ )
+ 
+ const maxLineLength = 4096 // assumed <= bufio.defaultBufSize
+@@ -45,12 +43,12 @@ type chunkedReader struct {
+ 
+ func (cr *chunkedReader) beginChunk() {
+ 	// chunk-size CRLF
+-	var line string
++	var line []byte
+ 	line, cr.err = readLine(cr.r)
+ 	if cr.err != nil {
+ 		return
+ 	}
+-	cr.n, cr.err = strconv.ParseUint(line, 16, 64)
++	cr.n, cr.err = parseHexUint(line)
+ 	if cr.err != nil {
+ 		return
+ 	}
+@@ -89,7 +87,7 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
+ // Give up if the line exceeds maxLineLength.
+ // The returned bytes are a pointer into storage in
+ // the bufio, so they are only valid until the next bufio read.
+-func readLineBytes(b *bufio.Reader) (p []byte, err error) {
++func readLine(b *bufio.Reader) (p []byte, err error) {
+ 	if p, err = b.ReadSlice('\n'); err != nil {
+ 		// We always know when EOF is coming.
+ 		// If the caller asked for a line, there should be a line.
+@@ -103,20 +101,18 @@ func readLineBytes(b *bufio.Reader) (p []byte, err error) {
+ 	if len(p) >= maxLineLength {
+ 		return nil, ErrLineTooLong
+ 	}
+-
+-	// Chop off trailing white space.
+-	p = bytes.TrimRight(p, " \r\t\n")
+-
+-	return p, nil
++	return trimTrailingWhitespace(p), nil
+ }
+ 
+-// readLineBytes, but convert the bytes into a string.
+-func readLine(b *bufio.Reader) (s string, err error) {
+-	p, e := readLineBytes(b)
+-	if e != nil {
+-		return "", e
++func trimTrailingWhitespace(b []byte) []byte {
++	for len(b) > 0 && isASCIISpace(b[len(b)-1]) {
++		b = b[:len(b)-1]
+ 	}
+-	return string(p), nil
++	return b
++}
++
++func isASCIISpace(b byte) bool {
++	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+ }
+ 
+ // newChunkedWriter returns a new chunkedWriter that translates writes into HTTP
+@@ -167,3 +163,21 @@ func (cw *chunkedWriter) Close() error {
+ 	_, err := io.WriteString(cw.Wire, "0\r\n")
+ 	return err
+ }
++
++func parseHexUint(v []byte) (n uint64, err error) {
++	for _, b := range v {
++		n <<= 4
++		switch {
++		case '0' <= b && b <= '9':
++			b = b - '0'
++		case 'a' <= b && b <= 'f':
++			b = b - 'a' + 10
++		case 'A' <= b && b <= 'F':
++			b = b - 'A' + 10
++		default:
++			return 0, errors.New("invalid byte in chunk length")
++		}
++		n |= uint64(b)
++	}
++	return
++}
+diff --git a/src/pkg/net/http/chunked_test.go b/src/pkg/net/http/chunked_test.go
+index b77ee2ff26..ad88eb1673 100644
+--- a/src/pkg/net/http/chunked_test.go
++++ b/src/pkg/net/http/chunked_test.go
+@@ -9,7 +9,10 @@ package http
+ 
+ import (
+ 	"bytes"
++	"fmt"
++	"io"
+ 	"io/ioutil"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -37,3 +40,52 @@ func TestChunk(t *testing.T) {
+ 		t.Errorf("chunk reader read %q; want %q", g, e)
+ 	}
+ }
++
++func TestChunkReaderAllocs(t *testing.T) {
++	var buf bytes.Buffer
++	w := newChunkedWriter(&buf)
++	a, b, c := []byte("aaaaaa"), []byte("bbbbbbbbbbbb"), []byte("cccccccccccccccccccccccc")
++	w.Write(a)
++	w.Write(b)
++	w.Write(c)
++	w.Close()
++
++	r := newChunkedReader(&buf)
++	readBuf := make([]byte, len(a)+len(b)+len(c)+1)
++
++	var ms runtime.MemStats
++	runtime.ReadMemStats(&ms)
++	m0 := ms.Mallocs
++
++	n, err := io.ReadFull(r, readBuf)
++
++	runtime.ReadMemStats(&ms)
++	mallocs := ms.Mallocs - m0
++	if mallocs > 1 {
++		t.Errorf("%d mallocs; want <= 1", mallocs)
++	}
++
++	if n != len(readBuf)-1 {
++		t.Errorf("read %d bytes; want %d", n, len(readBuf)-1)
++	}
++	if err != io.ErrUnexpectedEOF {
++		t.Errorf("read error = %v; want ErrUnexpectedEOF", err)
++	}
++}
++
++func TestParseHexUint(t *testing.T) {
++	for i := uint64(0); i <= 1234; i++ {
++		line := []byte(fmt.Sprintf("%x", i))
++		got, err := parseHexUint(line)
++		if err != nil {
++			t.Fatalf("on %d: %v", i, err)
++		}
++		if got != i {
++			t.Errorf("for input %q = %d; want %d", line, got, i)
++		}
++	}
++	_, err := parseHexUint([]byte("bogus"))
++	if err == nil {
++		t.Error("expected error on bogus input")
++	}
++}
+diff --git a/src/pkg/net/http/httputil/chunked.go b/src/pkg/net/http/httputil/chunked.go
+index 26daee5f2c..b66d409515 100644
+--- a/src/pkg/net/http/httputil/chunked.go
++++ b/src/pkg/net/http/httputil/chunked.go
+@@ -13,11 +13,9 @@ package httputil
+ 
+ import (
+ 	"bufio"
+-	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"strconv"
+ )
+ 
+ const maxLineLength = 4096 // assumed <= bufio.defaultBufSize
+@@ -47,12 +45,12 @@ type chunkedReader struct {
+ 
+ func (cr *chunkedReader) beginChunk() {
+ 	// chunk-size CRLF
+-	var line string
++	var line []byte
+ 	line, cr.err = readLine(cr.r)
+ 	if cr.err != nil {
+ 		return
+ 	}
+-	cr.n, cr.err = strconv.ParseUint(line, 16, 64)
++	cr.n, cr.err = parseHexUint(line)
+ 	if cr.err != nil {
+ 		return
+ 	}
+@@ -91,7 +89,7 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
+ // Give up if the line exceeds maxLineLength.
+ // The returned bytes are a pointer into storage in
+ // the bufio, so they are only valid until the next bufio read.
+-func readLineBytes(b *bufio.Reader) (p []byte, err error) {
++func readLine(b *bufio.Reader) (p []byte, err error) {
+ 	if p, err = b.ReadSlice('\n'); err != nil {
+ 		// We always know when EOF is coming.
+ 		// If the caller asked for a line, there should be a line.
+@@ -105,20 +103,18 @@ func readLineBytes(b *bufio.Reader) (p []byte, err error) {
+ 	if len(p) >= maxLineLength {
+ 		return nil, ErrLineTooLong
+ 	}
+-
+-	// Chop off trailing white space.
+-	p = bytes.TrimRight(p, " \r\t\n")
+-
+-	return p, nil
++	return trimTrailingWhitespace(p), nil
+ }
+ 
+-// readLineBytes, but convert the bytes into a string.
+-func readLine(b *bufio.Reader) (s string, err error) {
+-	p, e := readLineBytes(b)
+-	if e != nil {
+-		return "", e
++func trimTrailingWhitespace(b []byte) []byte {
++	for len(b) > 0 && isASCIISpace(b[len(b)-1]) {
++		b = b[:len(b)-1]
+ 	}
+-	return string(p), nil
++	return b
++}
++
++func isASCIISpace(b byte) bool {
++	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+ }
+ 
+ // NewChunkedWriter returns a new chunkedWriter that translates writes into HTTP
+@@ -169,3 +165,21 @@ func (cw *chunkedWriter) Close() error {
+ 	_, err := io.WriteString(cw.Wire, "0\r\n")
+ 	return err
+ }
++
++func parseHexUint(v []byte) (n uint64, err error) {
++	for _, b := range v {
++		n <<= 4
++		switch {
++		case '0' <= b && b <= '9':
++			b = b - '0'
++		case 'a' <= b && b <= 'f':
++			b = b - 'a' + 10
++		case 'A' <= b && b <= 'F':
++			b = b - 'A' + 10
++		default:
++			return 0, errors.New("invalid byte in chunk length")
++		}
++		n |= uint64(b)
++	}
++	return
++}
+diff --git a/src/pkg/net/http/httputil/chunked_test.go b/src/pkg/net/http/httputil/chunked_test.go
+index 155a32bdf9..22c1bb7548 100644
+--- a/src/pkg/net/http/httputil/chunked_test.go
++++ b/src/pkg/net/http/httputil/chunked_test.go
+@@ -11,7 +11,10 @@ package httputil
+ 
+ import (
+ 	"bytes"
++	"fmt"
++	"io"
+ 	"io/ioutil"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -39,3 +42,52 @@ func TestChunk(t *testing.T) {
+ 		t.Errorf("chunk reader read %q; want %q", g, e)
+ 	}
+ }
++
++func TestChunkReaderAllocs(t *testing.T) {
++	var buf bytes.Buffer
++	w := NewChunkedWriter(&buf)
++	a, b, c := []byte("aaaaaa"), []byte("bbbbbbbbbbbb"), []byte("cccccccccccccccccccccccc")
++	w.Write(a)
++	w.Write(b)
++	w.Write(c)
++	w.Close()
++
++	r := NewChunkedReader(&buf)
++	readBuf := make([]byte, len(a)+len(b)+len(c)+1)
++
++	var ms runtime.MemStats
++	runtime.ReadMemStats(&ms)
++	m0 := ms.Mallocs
++
++	n, err := io.ReadFull(r, readBuf)
++
++	runtime.ReadMemStats(&ms)
++	mallocs := ms.Mallocs - m0
++	if mallocs > 1 {
++		t.Errorf("%d mallocs; want <= 1", mallocs)
++	}
++
++	if n != len(readBuf)-1 {
++		t.Errorf("read %d bytes; want %d", n, len(readBuf)-1)
++	}
++	if err != io.ErrUnexpectedEOF {
++		t.Errorf("read error = %v; want ErrUnexpectedEOF", err)
++	}
++}
++
++func TestParseHexUint(t *testing.T) {
++	for i := uint64(0); i <= 1234; i++ {
++		line := []byte(fmt.Sprintf("%x", i))
++		got, err := parseHexUint(line)
++		if err != nil {
++			t.Fatalf("on %d: %v", i, err)
++		}
++		if got != i {
++			t.Errorf("for input %q = %d; want %d", line, got, i)
++		}
++	}
++	_, err := parseHexUint([]byte("bogus"))
++	if err == nil {
++		t.Error("expected error on bogus input")
++	}
++}

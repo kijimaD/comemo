@@ -12,6 +12,20 @@ Date:   Thu Nov 16 17:28:46 2023 +0800
     Reviewed-by: Meidan Li <limeidan@loongson.cn>
     Auto-Submit: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/internal/obj/loong64/a.out.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index d46d6ce962..193993ec4d 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -225,8 +225,6 @@ const (
+ 	REGZERO = REG_R0 // set to zero
+ 	REGLINK = REG_R1
+ 	REGSP   = REG_R3
+-	REGRET  = REG_R20 // not use
+-	REGARG  = -1      // -1 disables passing the first argument in register
+ 	REGRT1  = REG_R20 // reserved for runtime, duffzero and duffcopy
+ 	REGRT2  = REG_R21 // reserved for runtime, duffcopy
+ 	REGCTXT = REG_R29 // context for closures

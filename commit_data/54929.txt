@@ -14,6 +14,37 @@ Date:   Mon Nov 21 23:24:58 2022 +0100
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/internal/boring/ecdsa.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/internal/boring/ecdsa.go b/src/crypto/internal/boring/ecdsa.go
+index 284e7e9b69..e15f3682c7 100644
+--- a/src/crypto/internal/boring/ecdsa.go
++++ b/src/crypto/internal/boring/ecdsa.go
+@@ -11,7 +11,6 @@ import "C"
+ import (
+ 	"errors"
+ 	"runtime"
+-	"unsafe"
+ )
+ 
+ type ecdsaSignature struct {
+@@ -124,7 +123,7 @@ func SignMarshalECDSA(priv *PrivateKeyECDSA, hash []byte) ([]byte, error) {
+ 	size := C._goboringcrypto_ECDSA_size(priv.key)
+ 	sig := make([]byte, size)
+ 	var sigLen C.uint
+-	if C._goboringcrypto_ECDSA_sign(0, base(hash), C.size_t(len(hash)), (*C.uint8_t)(unsafe.Pointer(&sig[0])), &sigLen, priv.key) == 0 {
++	if C._goboringcrypto_ECDSA_sign(0, base(hash), C.size_t(len(hash)), base(sig), &sigLen, priv.key) == 0 {
+ 		return nil, fail("ECDSA_sign")
+ 	}
+ 	runtime.KeepAlive(priv)
+@@ -132,7 +131,7 @@ func SignMarshalECDSA(priv *PrivateKeyECDSA, hash []byte) ([]byte, error) {
+ }
+ 
+ func VerifyECDSA(pub *PublicKeyECDSA, hash []byte, sig []byte) bool {
+-	ok := C._goboringcrypto_ECDSA_verify(0, base(hash), C.size_t(len(hash)), (*C.uint8_t)(unsafe.Pointer(&sig[0])), C.size_t(len(sig)), pub.key) != 0
++	ok := C._goboringcrypto_ECDSA_verify(0, base(hash), C.size_t(len(hash)), base(sig), C.size_t(len(sig)), pub.key) != 0
+ 	runtime.KeepAlive(pub)
+ 	return ok
+ }

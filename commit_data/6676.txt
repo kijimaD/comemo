@@ -10,6 +10,20 @@ Date:   Mon Nov 1 16:14:43 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2781042
-
+---
  src/cmd/6l/optab.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index c729f0e233..378db6d375 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -783,7 +783,7 @@ Optab optab[] =
+ 	{ AMOVBWSX,	ymb_rl,	Pq, 0xbe },
+ 	{ AMOVBWZX,	ymb_rl,	Pq, 0xb6 },
+ 	{ AMOVO,	yxmov,	Pe, 0x6f,0x7f },
+-	{ AMOVOU,	yxmov,	Pf2, 0x6f,0x7f },
++	{ AMOVOU,	yxmov,	Pf3, 0x6f,0x7f },
+ 	{ AMOVHLPS,	yxr,	Pm, 0x12 },
+ 	{ AMOVHPD,	yxmov,	Pe, 0x16,0x17 },
+ 	{ AMOVHPS,	yxmov,	Pm, 0x16,0x17 },

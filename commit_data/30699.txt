@@ -11,6 +11,22 @@ Date:   Sat Nov 26 10:18:39 2016 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/fs.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 1ff36d2d99..bf63bb5441 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -116,8 +116,8 @@ func dirList(w ResponseWriter, f File) {
+ // The content's Seek method must work: ServeContent uses
+ // a seek to the end of the content to determine its size.
+ //
+-// If the caller has set w's ETag header, ServeContent uses it to
+-// handle requests using If-Match, If-None-Match, or If-Range.
++// If the caller has set w's ETag header formatted per RFC 7232, section 2.3,
++// ServeContent uses it to handle requests using If-Match, If-None-Match, or If-Range.
+ //
+ // Note that *os.File implements the io.ReadSeeker interface.
+ func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {

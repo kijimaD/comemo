@@ -24,7 +24,7 @@ Date:   Thu Oct 9 17:24:34 2014 +1100
     R=golang-codereviews
     CC=golang-codereviews
     https://golang.org/cl/154180043
-
+---
  src/runtime/defs_windows.go         |  3 --
  src/runtime/defs_windows_386.h      |  3 --
  src/runtime/defs_windows_amd64.h    |  3 --
@@ -35,3 +35,517 @@ Date:   Thu Oct 9 17:24:34 2014 +1100
  src/runtime/sys_windows_amd64.s     | 18 +------
  src/runtime/syscall_windows_test.go | 39 ---------------
  9 files changed, 76 insertions(+), 224 deletions(-)
+
+diff --git a/src/runtime/defs_windows.go b/src/runtime/defs_windows.go
+index c27cc41dc0..cb0f54d8ab 100644
+--- a/src/runtime/defs_windows.go
++++ b/src/runtime/defs_windows.go
+@@ -59,9 +59,6 @@ const (
+ 
+ 	INFINITE     = C.INFINITE
+ 	WAIT_TIMEOUT = C.WAIT_TIMEOUT
+-
+-	EXCEPTION_CONTINUE_EXECUTION = C.EXCEPTION_CONTINUE_EXECUTION
+-	EXCEPTION_CONTINUE_SEARCH    = C.EXCEPTION_CONTINUE_SEARCH
+ )
+ 
+ type SystemInfo C.SYSTEM_INFO
+diff --git a/src/runtime/defs_windows_386.h b/src/runtime/defs_windows_386.h
+index 67cac0f01e..295e422c6b 100644
+--- a/src/runtime/defs_windows_386.h
++++ b/src/runtime/defs_windows_386.h
+@@ -32,9 +32,6 @@ enum {
+ 
+ 	INFINITE	= 0xffffffff,
+ 	WAIT_TIMEOUT	= 0x102,
+-
+-	EXCEPTION_CONTINUE_EXECUTION	= -0x1,
+-	EXCEPTION_CONTINUE_SEARCH	= 0x0,
+ };
+ 
+ typedef struct SystemInfo SystemInfo;
+diff --git a/src/runtime/defs_windows_amd64.h b/src/runtime/defs_windows_amd64.h
+index 97cdb9ed15..2516c84128 100644
+--- a/src/runtime/defs_windows_amd64.h
++++ b/src/runtime/defs_windows_amd64.h
+@@ -32,9 +32,6 @@ enum {
+ 
+ 	INFINITE	= 0xffffffff,
+ 	WAIT_TIMEOUT	= 0x102,
+-
+-	EXCEPTION_CONTINUE_EXECUTION	= -0x1,
+-	EXCEPTION_CONTINUE_SEARCH	= 0x0,
+ };
+ 
+ typedef struct SystemInfo SystemInfo;
+diff --git a/src/runtime/os_windows.c b/src/runtime/os_windows.c
+index 7210835503..6337dde2af 100644
+--- a/src/runtime/os_windows.c
++++ b/src/runtime/os_windows.c
+@@ -34,7 +34,6 @@
+ #pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
+ #pragma dynimport runtime·SetProcessPriorityBoost SetProcessPriorityBoost "kernel32.dll"
+ #pragma dynimport runtime·SetThreadPriority SetThreadPriority "kernel32.dll"
+-#pragma dynimport runtime·SetUnhandledExceptionFilter SetUnhandledExceptionFilter "kernel32.dll"
+ #pragma dynimport runtime·SetWaitableTimer SetWaitableTimer "kernel32.dll"
+ #pragma dynimport runtime·Sleep Sleep "kernel32.dll"
+ #pragma dynimport runtime·SuspendThread SuspendThread "kernel32.dll"
+@@ -66,7 +65,6 @@ extern void *runtime·SetConsoleCtrlHandler;
+ extern void *runtime·SetEvent;
+ extern void *runtime·SetProcessPriorityBoost;
+ extern void *runtime·SetThreadPriority;
+-extern void *runtime·SetUnhandledExceptionFilter;
+ extern void *runtime·SetWaitableTimer;
+ extern void *runtime·Sleep;
+ extern void *runtime·SuspendThread;
+@@ -79,9 +77,7 @@ void *runtime·GetQueuedCompletionStatusEx;
+ 
+ extern uintptr runtime·externalthreadhandlerp;
+ void runtime·externalthreadhandler(void);
+-void runtime·exceptiontramp(void);
+-void runtime·firstcontinuetramp(void);
+-void runtime·lastcontinuetramp(void);
++void runtime·sigtramp(void);
+ 
+ #pragma textflag NOSPLIT
+ uintptr
+@@ -110,28 +106,12 @@ void
+ runtime·osinit(void)
+ {
+ 	void *kernel32;
+-	void *addVectoredContinueHandler = nil;
+-
+-	kernel32 = runtime·stdcall1(runtime·LoadLibraryA, (uintptr)"kernel32.dll");
+ 
+ 	runtime·externalthreadhandlerp = (uintptr)runtime·externalthreadhandler;
+ 
+-	runtime·stdcall2(runtime·AddVectoredExceptionHandler, 1, (uintptr)runtime·exceptiontramp);
+-	if(kernel32 != nil)
+-		addVectoredContinueHandler = runtime·stdcall2(runtime·GetProcAddress, (uintptr)kernel32, (uintptr)"AddVectoredContinueHandler");
+-	if(addVectoredContinueHandler == nil)
+-		// use SetUnhandledExceptionFilter if VectoredContinueHandler is unavailable.
+-		// note: SetUnhandledExceptionFilter handler won't be called, if debugging.
+-		runtime·stdcall1(runtime·SetUnhandledExceptionFilter, (uintptr)runtime·lastcontinuetramp);
+-	else {
+-		runtime·stdcall2(addVectoredContinueHandler, 1, (uintptr)runtime·firstcontinuetramp);
+-		runtime·stdcall2(addVectoredContinueHandler, 0, (uintptr)runtime·lastcontinuetramp);
+-	}
+-
++	runtime·stdcall2(runtime·AddVectoredExceptionHandler, 1, (uintptr)runtime·sigtramp);
+ 	runtime·stdcall2(runtime·SetConsoleCtrlHandler, (uintptr)runtime·ctrlhandler, 1);
+-
+ 	runtime·stdcall1(runtime·timeBeginPeriod, 1);
+-
+ 	runtime·ncpu = getproccount();
+ 	
+ 	// Windows dynamic priority boosting assumes that a process has different types
+@@ -140,6 +120,7 @@ runtime·osinit(void)
+ 	// In such context dynamic priority boosting does nothing but harm, so we turn it off.
+ 	runtime·stdcall2(runtime·SetProcessPriorityBoost, -1, 1);
+ 
++	kernel32 = runtime·stdcall1(runtime·LoadLibraryA, (uintptr)"kernel32.dll");
+ 	if(kernel32 != nil) {
+ 		runtime·GetQueuedCompletionStatusEx = runtime·stdcall2(runtime·GetProcAddress, (uintptr)kernel32, (uintptr)"GetQueuedCompletionStatusEx");
+ 	}
+@@ -494,14 +475,10 @@ runtime·issigpanic(uint32 code)
+ void
+ runtime·initsig(void)
+ {
+-	// following line keeps these functions alive at link stage
++	// following line keeps sigtramp alive at link stage
+ 	// if there's a better way please write it here
+-	void *e = runtime·exceptiontramp;
+-	void *f = runtime·firstcontinuetramp;
+-	void *l = runtime·lastcontinuetramp;
+-	USED(e);
+-	USED(f);
+-	USED(l);
++	void *p = runtime·sigtramp;
++	USED(p);
+ }
+ 
+ uint32
+diff --git a/src/runtime/os_windows_386.c b/src/runtime/os_windows_386.c
+index 213582799b..e2ae8db277 100644
+--- a/src/runtime/os_windows_386.c
++++ b/src/runtime/os_windows_386.c
+@@ -24,63 +24,45 @@ runtime·dumpregs(Context *r)
+ 	runtime·printf("gs      %x\n", r->SegGs);
+ }
+ 
+-bool
+-runtime·isgoexception(ExceptionRecord *info, Context *r)
++// Called by sigtramp from Windows VEH handler.
++// Return value signals whether the exception has been handled (-1)
++// or should be made available to other handlers in the chain (0).
++uint32
++runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ {
++	bool crash;
++	uintptr *sp;
+ 	extern byte runtime·text[], runtime·etext[];
+ 
+ 	// Only handle exception if executing instructions in Go binary
+ 	// (not Windows library code). 
+ 	if(r->Eip < (uint32)runtime·text || (uint32)runtime·etext < r->Eip)
+-		return false;
+-
+-	if(!runtime·issigpanic(info->ExceptionCode))
+-		return false;
+-
+-	return true;
+-}
+-
+-// Called by sigtramp from Windows VEH handler.
+-// Return value signals whether the exception has been handled (EXCEPTION_CONTINUE_EXECUTION)
+-// or should be made available to other handlers in the chain (EXCEPTION_CONTINUE_SEARCH).
+-uint32
+-runtime·exceptionhandler(ExceptionRecord *info, Context *r, G *gp)
+-{
+-	uintptr *sp;
+-
+-	if(!runtime·isgoexception(info, r))
+-		return EXCEPTION_CONTINUE_SEARCH;
+-
+-	// Make it look like a call to the signal func.
+-	// Have to pass arguments out of band since
+-	// augmenting the stack frame would break
+-	// the unwinding code.
+-	gp->sig = info->ExceptionCode;
+-	gp->sigcode0 = info->ExceptionInformation[0];
+-	gp->sigcode1 = info->ExceptionInformation[1];
+-	gp->sigpc = r->Eip;
+-
+-	// Only push runtime·sigpanic if r->eip != 0.
+-	// If r->eip == 0, probably panicked because of a
+-	// call to a nil func.  Not pushing that onto sp will
+-	// make the trace look like a call to runtime·sigpanic instead.
+-	// (Otherwise the trace will end at runtime·sigpanic and we
+-	// won't get to see who faulted.)
+-	if(r->Eip != 0) {
+-		sp = (uintptr*)r->Esp;
+-		*--sp = r->Eip;
+-		r->Esp = (uintptr)sp;
++		return 0;
++
++	if(gp != nil && runtime·issigpanic(info->ExceptionCode)) {
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp->sig = info->ExceptionCode;
++		gp->sigcode0 = info->ExceptionInformation[0];
++		gp->sigcode1 = info->ExceptionInformation[1];
++		gp->sigpc = r->Eip;
++
++		// Only push runtime·sigpanic if r->eip != 0.
++		// If r->eip == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to runtime·sigpanic instead.
++		// (Otherwise the trace will end at runtime·sigpanic and we
++		// won't get to see who faulted.)
++		if(r->Eip != 0) {
++			sp = (uintptr*)r->Esp;
++			*--sp = r->Eip;
++			r->Esp = (uintptr)sp;
++		}
++		r->Eip = (uintptr)runtime·sigpanic;
++		return -1;
+ 	}
+-	r->Eip = (uintptr)runtime·sigpanic;
+-	return EXCEPTION_CONTINUE_EXECUTION;
+-}
+-
+-// lastcontinuehandler is reached, because runtime cannot handle
+-// current exception. lastcontinuehandler will print crash info and exit.
+-uint32
+-runtime·lastcontinuehandler(ExceptionRecord *info, Context *r, G *gp)
+-{
+-	bool crash;
+ 
+ 	if(runtime·panicking)	// traceback already printed
+ 		runtime·exit(2);
+@@ -106,7 +88,7 @@ runtime·lastcontinuehandler(ExceptionRecord *info, Context *r, G *gp)
+ 		runtime·crash();
+ 
+ 	runtime·exit(2);
+-	return 0; // not reached
++	return -1; // not reached
+ }
+ 
+ void
+diff --git a/src/runtime/os_windows_amd64.c b/src/runtime/os_windows_amd64.c
+index b96cf70d1e..261880d450 100644
+--- a/src/runtime/os_windows_amd64.c
++++ b/src/runtime/os_windows_amd64.c
+@@ -32,76 +32,45 @@ runtime·dumpregs(Context *r)
+ 	runtime·printf("gs      %X\n", (uint64)r->SegGs);
+ }
+ 
+-bool
+-runtime·isgoexception(ExceptionRecord *info, Context *r)
++// Called by sigtramp from Windows VEH handler.
++// Return value signals whether the exception has been handled (-1)
++// or should be made available to other handlers in the chain (0).
++uint32
++runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ {
++	bool crash;
++	uintptr *sp;
+ 	extern byte runtime·text[], runtime·etext[];
+ 
+ 	// Only handle exception if executing instructions in Go binary
+ 	// (not Windows library code). 
+ 	if(r->Rip < (uint64)runtime·text || (uint64)runtime·etext < r->Rip)
+-		return false;
+-
+-	if(!runtime·issigpanic(info->ExceptionCode))
+-		return false;
+-
+-	return true;
+-}
+-
+-// Called by sigtramp from Windows VEH handler.
+-// Return value signals whether the exception has been handled (EXCEPTION_CONTINUE_EXECUTION)
+-// or should be made available to other handlers in the chain (EXCEPTION_CONTINUE_SEARCH).
+-uint32
+-runtime·exceptionhandler(ExceptionRecord *info, Context *r, G *gp)
+-{
+-	uintptr *sp;
+-
+-	if(!runtime·isgoexception(info, r))
+-		return EXCEPTION_CONTINUE_SEARCH;
+-
+-	// Make it look like a call to the signal func.
+-	// Have to pass arguments out of band since
+-	// augmenting the stack frame would break
+-	// the unwinding code.
+-	gp->sig = info->ExceptionCode;
+-	gp->sigcode0 = info->ExceptionInformation[0];
+-	gp->sigcode1 = info->ExceptionInformation[1];
+-	gp->sigpc = r->Rip;
+-
+-	// Only push runtime·sigpanic if r->rip != 0.
+-	// If r->rip == 0, probably panicked because of a
+-	// call to a nil func.  Not pushing that onto sp will
+-	// make the trace look like a call to runtime·sigpanic instead.
+-	// (Otherwise the trace will end at runtime·sigpanic and we
+-	// won't get to see who faulted.)
+-	if(r->Rip != 0) {
+-		sp = (uintptr*)r->Rsp;
+-		*--sp = r->Rip;
+-		r->Rsp = (uintptr)sp;
++		return 0;
++
++	if(gp != nil && runtime·issigpanic(info->ExceptionCode)) {
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp->sig = info->ExceptionCode;
++		gp->sigcode0 = info->ExceptionInformation[0];
++		gp->sigcode1 = info->ExceptionInformation[1];
++		gp->sigpc = r->Rip;
++
++		// Only push runtime·sigpanic if r->rip != 0.
++		// If r->rip == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to runtime·sigpanic instead.
++		// (Otherwise the trace will end at runtime·sigpanic and we
++		// won't get to see who faulted.)
++		if(r->Rip != 0) {
++			sp = (uintptr*)r->Rsp;
++			*--sp = r->Rip;
++			r->Rsp = (uintptr)sp;
++		}
++		r->Rip = (uintptr)runtime·sigpanic;
++		return -1;
+ 	}
+-	r->Rip = (uintptr)runtime·sigpanic;
+-	return EXCEPTION_CONTINUE_EXECUTION;
+-}
+-
+-// It seems Windows searches ContinueHandler's list even
+-// if ExceptionHandler returns EXCEPTION_CONTINUE_EXECUTION.
+-// firstcontinuehandler will stop that search,
+-// if exceptionhandler did the same earlier.
+-uint32
+-runtime·firstcontinuehandler(ExceptionRecord *info, Context *r, G *gp)
+-{
+-	USED(gp);
+-	if(!runtime·isgoexception(info, r))
+-		return EXCEPTION_CONTINUE_SEARCH;
+-	return EXCEPTION_CONTINUE_EXECUTION;
+-}
+-
+-// lastcontinuehandler is reached, because runtime cannot handle
+-// current exception. lastcontinuehandler will print crash info and exit.
+-uint32
+-runtime·lastcontinuehandler(ExceptionRecord *info, Context *r, G *gp)
+-{
+-	bool crash;
+ 
+ 	if(runtime·panicking)	// traceback already printed
+ 		runtime·exit(2);
+@@ -128,7 +97,7 @@ runtime·lastcontinuehandler(ExceptionRecord *info, Context *r, G *gp)
+ 		runtime·crash();
+ 
+ 	runtime·exit(2);
+-	return 0; // not reached
++	return -1; // not reached
+ }
+ 
+ void
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 932fe9dd24..1bf4d062ac 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -73,7 +73,6 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
+ // Called by Windows as a Vectored Exception Handler (VEH).
+ // First argument is pointer to struct containing
+ // exception record and context pointers.
+-// Handler function is stored in AX.
+ // Return 0 for 'not handled', -1 for handled.
+ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+ 	MOVL	ptrs+0(FP), CX
+@@ -85,8 +84,6 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+ 	MOVL	SI, 20(SP)
+ 	MOVL	DI, 24(SP)
+ 
+-	MOVL	AX, SI	// save handler address
+-
+ 	// find g
+ 	get_tls(DX)
+ 	CMPL	DX, $0
+@@ -126,10 +123,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+ sigtramp_g0:
+ 	MOVL	0(CX), BX // ExceptionRecord*
+ 	MOVL	4(CX), CX // Context*
++	// call sighandler(ExceptionRecord*, Context*, G*)
+ 	MOVL	BX, 0(SP)
+ 	MOVL	CX, 4(SP)
+ 	MOVL	DX, 8(SP)
+-	CALL	SI	// call handler
++	CALL	runtime·sighandler(SB)
+ 	// AX is set to report result back to Windows
+ 	MOVL	12(SP), AX
+ 
+@@ -151,18 +149,6 @@ done:
+ 	// RET 4 (return and pop 4 bytes parameters)
+ 	BYTE $0xC2; WORD $4
+ 	RET // unreached; make assembler happy
+- 
+-TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
+-	MOVL	$runtime·exceptionhandler(SB), AX
+-	JMP	runtime·sigtramp(SB)
+-
+-TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
+-	// is never called
+-	INT	$3
+-
+-TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
+-	MOVL	$runtime·lastcontinuehandler(SB), AX
+-	JMP	runtime·sigtramp(SB)
+ 
+ TEXT runtime·ctrlhandler(SB),NOSPLIT,$0
+ 	PUSHL	$runtime·ctrlhandler1(SB)
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index e6190ce684..05750398ea 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -99,7 +99,6 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
+ // Called by Windows as a Vectored Exception Handler (VEH).
+ // First argument is pointer to struct containing
+ // exception record and context pointers.
+-// Handler function is stored in AX.
+ // Return 0 for 'not handled', -1 for handled.
+ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+ 	// CX: PEXCEPTION_POINTERS ExceptionInfo
+@@ -117,8 +116,6 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+ 	MOVQ	R14, 32(SP)
+ 	MOVQ	R15, 88(SP)
+ 
+-	MOVQ	AX, R15	// save handler address
+-
+ 	// find g
+ 	get_tls(DX)
+ 	CMPQ	DX, $0
+@@ -160,10 +157,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+ sigtramp_g0:
+ 	MOVQ	0(CX), BX // ExceptionRecord*
+ 	MOVQ	8(CX), CX // Context*
++	// call sighandler(ExceptionRecord*, Context*, G*)
+ 	MOVQ	BX, 0(SP)
+ 	MOVQ	CX, 8(SP)
+ 	MOVQ	DX, 16(SP)
+-	CALL	R15	// call handler
++	CALL	runtime·sighandler(SB)
+ 	// AX is set to report result back to Windows
+ 	MOVL	24(SP), AX
+ 
+@@ -189,18 +187,6 @@ done:
+ 
+ 	RET
+ 
+-TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
+-	MOVQ	$runtime·exceptionhandler(SB), AX
+-	JMP	runtime·sigtramp(SB)
+-
+-TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
+-	MOVQ	$runtime·firstcontinuehandler(SB), AX
+-	JMP	runtime·sigtramp(SB)
+-
+-TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
+-	MOVQ	$runtime·lastcontinuehandler(SB), AX
+-	JMP	runtime·sigtramp(SB)
+-
+ TEXT runtime·ctrlhandler(SB),NOSPLIT,$8
+ 	MOVQ	CX, 16(SP)		// spill
+ 	MOVQ	$runtime·ctrlhandler1(SB), CX
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index ce8a9ec1ba..9ed016ccc8 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -494,42 +494,3 @@ func TestOutputDebugString(t *testing.T) {
+ 	p := syscall.StringToUTF16Ptr("testing OutputDebugString")
+ 	d.Proc("OutputDebugStringW").Call(uintptr(unsafe.Pointer(p)))
+ }
+-
+-func TestRaiseException(t *testing.T) {
+-	o := executeTest(t, raiseExceptionSource, nil)
+-	if strings.Contains(o, "RaiseException should not return") {
+-		t.Fatalf("RaiseException did not crash program: %v", o)
+-	}
+-	if !strings.Contains(o, "Exception 0xbad") {
+-		t.Fatalf("No stack trace: %v", o)
+-	}
+-}
+-
+-const raiseExceptionSource = `
+-package main
+-import "syscall"
+-func main() {
+-	const EXCEPTION_NONCONTINUABLE = 1
+-	mod := syscall.MustLoadDLL("kernel32.dll")
+-	proc := mod.MustFindProc("RaiseException")
+-	proc.Call(0xbad, EXCEPTION_NONCONTINUABLE, 0, 0)
+-	println("RaiseException should not return")
+-}
+-`
+-
+-func TestZeroDivisionException(t *testing.T) {
+-	o := executeTest(t, zeroDivisionExceptionSource, nil)
+-	if !strings.Contains(o, "panic: runtime error: integer divide by zero") {
+-		t.Fatalf("No stack trace: %v", o)
+-	}
+-}
+-
+-const zeroDivisionExceptionSource = `
+-package main
+-func main() {
+-	x := 1
+-	y := 0
+-	z := x / y
+-	println(z)
+-}
+-`

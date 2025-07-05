@@ -7,6 +7,47 @@ Date:   Mon Jun 27 16:02:13 2011 -0400
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/4650054
-
+---
  src/pkg/sync/once_test.go | 25 +++++++++++++++++++++++++
  1 file changed, 25 insertions(+)
+
+diff --git a/src/pkg/sync/once_test.go b/src/pkg/sync/once_test.go
+index 155954a49b..157a3667a6 100644
+--- a/src/pkg/sync/once_test.go
++++ b/src/pkg/sync/once_test.go
+@@ -6,6 +6,8 @@ package sync_test
+ 
+ import (
+ 	. "sync"
++	"sync/atomic"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -35,3 +37,26 @@ func TestOnce(t *testing.T) {
+ 		t.Errorf("once failed: %d is not 1", *o)
+ 	}
+ }
++
++func BenchmarkOnce(b *testing.B) {
++	const CallsPerSched = 1000
++	procs := runtime.GOMAXPROCS(-1)
++	N := int32(b.N / CallsPerSched)
++	var once Once
++	f := func() {}
++	c := make(chan bool, procs)
++	for p := 0; p < procs; p++ {
++		go func() {
++			for atomic.AddInt32(&N, -1) >= 0 {
++				runtime.Gosched()
++				for g := 0; g < CallsPerSched; g++ {
++					once.Do(f)
++				}
++			}
++			c <- true
++		}()
++	}
++	for p := 0; p < procs; p++ {
++		<-c
++	}
++}

@@ -9,8 +9,39 @@ Date:   Sat Apr 25 16:48:00 2009 -0700
     TBR=rsc
     OCL=27860
     CL=27860
-
+---
  usr/gri/pretty/Makefile                  | 2 +-
  usr/gri/pretty/{docprinter.go => doc.go} | 0
  usr/gri/pretty/godoc.go                  | 2 +-
  3 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index b455f35e5d..1bb91641be 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -30,7 +30,7 @@ install: pretty godoc untab
+ clean:
+ 	rm -f pretty untab godoc *.6 *.a 6.out *~
+ 
+-godoc.6:	astprinter.6 comment.6 docprinter.6
++godoc.6:	astprinter.6 comment.6 doc.6
+ 
+ pretty.6:	 astprinter.6 format.6
+ 
+diff --git a/usr/gri/pretty/docprinter.go b/usr/gri/pretty/doc.go
+similarity index 100%
+rename from usr/gri/pretty/docprinter.go
+rename to usr/gri/pretty/doc.go
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index a1490ed5f4..0e39c8ad51 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -48,7 +48,7 @@ import (
+ 
+ 	"astprinter";
+ 	"comment";
+-	"docprinter";	// TODO: "doc"
++	"doc";
+ )
+ 
+ 

@@ -16,7 +16,49 @@ Date:   Fri Jan 5 16:10:33 2024 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  src/net/http/serve_test.go | 21 +++++++++++++++++++++
  src/net/http/server.go     |  1 +
  2 files changed, 22 insertions(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 69d105ec63..9df6ab426c 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -7052,3 +7052,24 @@ func testDisableContentLength(t *testing.T, mode testMode) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++func TestErrorContentLength(t *testing.T) { run(t, testErrorContentLength) }
++func testErrorContentLength(t *testing.T, mode testMode) {
++	const errorBody = "an error occurred"
++	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Header().Set("Content-Length", "1000")
++		Error(w, errorBody, 400)
++	}))
++	res, err := cst.c.Get(cst.ts.URL)
++	if err != nil {
++		t.Fatalf("Get(%q) = %v", cst.ts.URL, err)
++	}
++	defer res.Body.Close()
++	body, err := io.ReadAll(res.Body)
++	if err != nil {
++		t.Fatalf("io.ReadAll(res.Body) = %v", err)
++	}
++	if string(body) != errorBody+"\n" {
++		t.Fatalf("read body: %q, want %q", string(body), errorBody)
++	}
++}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 7d73cca43f..bd7cce6793 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2173,6 +2173,7 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
+ // writes are done to w.
+ // The error message should be plain text.
+ func Error(w ResponseWriter, error string, code int) {
++	w.Header().Del("Content-Length")
+ 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+ 	w.Header().Set("X-Content-Type-Options", "nosniff")
+ 	w.WriteHeader(code)

@@ -12,7 +12,58 @@ Date:   Fri Feb 7 12:30:30 2014 +1100
     R=golang-codereviews, iant, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/59740050
-
+---
  src/pkg/go/build/deps_test.go |  2 +-
  src/pkg/os/exec/exec.go       | 12 ++----------
  2 files changed, 3 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index ab56b6554c..3e7ae22a82 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -125,7 +125,7 @@ var pkgDeps = map[string][]string{
+ 	"os":            {"L1", "os", "syscall", "time"},
+ 	"path/filepath": {"L2", "os", "syscall"},
+ 	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
+-	"os/exec":       {"L2", "os", "syscall"},
++	"os/exec":       {"L2", "os", "path/filepath", "syscall"},
+ 	"os/signal":     {"L2", "os", "syscall"},
+ 
+ 	// OS enables basic operating system functionality,
+diff --git a/src/pkg/os/exec/exec.go b/src/pkg/os/exec/exec.go
+index ea4f692a31..4680036fdd 100644
+--- a/src/pkg/os/exec/exec.go
++++ b/src/pkg/os/exec/exec.go
+@@ -12,6 +12,7 @@ import (
+ 	"errors"
+ 	"io"
+ 	"os"
++	"path/filepath"
+ 	"strconv"
+ 	"sync"
+ 	"syscall"
+@@ -111,7 +112,7 @@ func Command(name string, arg ...string) *Cmd {
+ 		Path: name,
+ 		Args: append([]string{name}, arg...),
+ 	}
+-	if !containsPathSeparator(name) {
++	if filepath.Base(name) == name {
+ 		if lp, err := LookPath(name); err != nil {
+ 			cmd.lookPathErr = err
+ 		} else {
+@@ -121,15 +122,6 @@ func Command(name string, arg ...string) *Cmd {
+ 	return cmd
+ }
+ 
+-func containsPathSeparator(s string) bool {
+-	for i := 0; i < len(s); i++ {
+-		if os.IsPathSeparator(s[i]) {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ // interfaceEqual protects against panics from doing equality tests on
+ // two interfaces with non-comparable underlying types.
+ func interfaceEqual(a, b interface{}) bool {

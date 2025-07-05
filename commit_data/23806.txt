@@ -7,6 +7,29 @@ Date:   Mon Jun 15 13:35:56 2015 -0400
     Change-Id: I539bdc438f694610a7cd373f7e1451171737cfb3
     Reviewed-on: https://go-review.googlesource.com/11084
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/malloc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index d182ed62dc..3a0588216e 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -420,7 +420,7 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
+ 		sysMap((unsafe.Pointer)(p), n, h.arena_reserved, &memstats.heap_sys)
+ 		mHeap_MapBits(h, p+n)
+ 		mHeap_MapSpans(h, p+n)
+-		h.arena_used = p+n
++		h.arena_used = p + n
+ 		if raceenabled {
+ 			racemapshadow((unsafe.Pointer)(p), n)
+ 		}
+@@ -456,7 +456,7 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
+ 	if uintptr(p)+n > uintptr(h.arena_used) {
+ 		mHeap_MapBits(h, p+n)
+ 		mHeap_MapSpans(h, p+n)
+-		h.arena_used = p+n
++		h.arena_used = p + n
+ 		if p_end > h.arena_end {
+ 			h.arena_end = p_end
+ 		}

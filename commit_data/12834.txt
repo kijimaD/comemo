@@ -7,6 +7,23 @@ Date:   Thu Apr 5 11:16:37 2012 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5986043
-
+---
  misc/dist/bindist.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index ce50a591f9..b533956279 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -394,9 +394,9 @@ func (b *Build) Upload(version string, filename string) error {
+ 	os_, arch := b.OS, b.Arch
+ 	switch b.Arch {
+ 	case "386":
+-		arch = "32-bit"
++		arch = "x86 32-bit"
+ 	case "amd64":
+-		arch = "64-bit"
++		arch = "x86 64-bit"
+ 	}
+ 	if arch != "" {
+ 		labels = append(labels, "Arch-"+b.Arch)

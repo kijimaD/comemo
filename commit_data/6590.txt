@@ -28,6 +28,25 @@ Date:   Thu Oct 21 11:25:14 2010 -0400
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2427042
-
+---
  src/pkg/encoding/binary/binary.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index 2343e0398b..ebc2ae8b7c 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -29,8 +29,11 @@ type ByteOrder interface {
+ // allowing, e.g., order == binary.LittleEndian.
+ type unused byte
+ 
+-var LittleEndian ByteOrder = littleEndian(0)
+-var BigEndian ByteOrder = bigEndian(0)
++// LittleEndian is the little-endian implementation of ByteOrder.
++var LittleEndian littleEndian
++
++// BigEndian is the big-endian implementation of ByteOrder.
++var BigEndian bigEndian
+ 
+ type littleEndian unused
+ 

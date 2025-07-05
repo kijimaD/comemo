@@ -7,7 +7,70 @@ Date:   Wed Apr 26 09:24:50 2017 -0700
     Change-Id: I72bea1450386100482b4681b20eb9a9af12c7522
     Reviewed-on: https://go-review.googlesource.com/41816
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/runtime/pprof/proto.go      | 11 +++++++++--
  src/runtime/pprof/proto_test.go | 13 ++++++++++++-
  2 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index 9115655941..5a14dab197 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -442,12 +442,19 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
+ 		if err != nil {
+ 			continue
+ 		}
+-		next() // dev
+-		next() // inode
++		next()          // dev
++		inode := next() // inode
+ 		if line == nil {
+ 			continue
+ 		}
+ 		file := string(line)
++		if len(inode) == 1 && inode[0] == '0' && file == "" {
++			// Huge-page text mappings list the initial fragment of
++			// mapped but unpopulated memory as being inode 0.
++			// Don't report that part.
++			// But [vdso] and [vsyscall] are inode 0, so let non-empty file names through.
++			continue
++		}
+ 
+ 		// TODO: pprof's remapMappingIDs makes two adjustments:
+ 		// 1. If there is an /anon_hugepage mapping first and it is
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index 53aff97798..dab929c8c3 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -191,6 +191,14 @@ ffffffffff600000-ffffffffff601000 r-xp 00000090 00:00 0                  [vsysca
+ 7f7d77d41000 7f7d77d64000 00000000 /lib/x86_64-linux-gnu/ld-2.19.so
+ 7ffc34343000 7ffc34345000 00000000 [vdso]
+ ffffffffff600000 ffffffffff601000 00000090 [vsyscall]
++
++00400000-07000000 r-xp 00000000 00:00 0 
++07000000-07093000 r-xp 06c00000 00:2e 536754                             /path/to/gobench_server_main
++07093000-0722d000 rw-p 06c92000 00:2e 536754                             /path/to/gobench_server_main
++0722d000-07b21000 rw-p 00000000 00:00 0 
++c000000000-c000036000 rw-p 00000000 00:00 0 
++->
++07000000 07093000 06c00000 /path/to/gobench_server_main
+ `
+ 
+ func TestProcSelfMaps(t *testing.T) {
+@@ -200,12 +208,15 @@ func TestProcSelfMaps(t *testing.T) {
+ 			t.Fatal("malformed test case")
+ 		}
+ 		in, out := tt[:i], tt[i+len("->\n"):]
++		if len(out) > 0 && out[len(out)-1] != '\n' {
++			out += "\n"
++		}
+ 		var buf bytes.Buffer
+ 		parseProcSelfMaps([]byte(in), func(lo, hi, offset uint64, file, buildID string) {
+ 			fmt.Fprintf(&buf, "%08x %08x %08x %s\n", lo, hi, offset, file)
+ 		})
+ 		if buf.String() != out {
+-			t.Errorf("#%d: have:\n%s\nwant:\n%s", tx, buf.String(), out)
++			t.Errorf("#%d: have:\n%s\nwant:\n%s\n%q\n%q", tx, buf.String(), out, buf.String(), out)
+ 		}
+ 	}
+ }

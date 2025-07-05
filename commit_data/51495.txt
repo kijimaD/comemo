@@ -27,7 +27,7 @@ Date:   Thu Feb 3 16:07:28 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/383054
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/errors.go          |  7 +++-
  src/cmd/compile/internal/types2/instantiate.go     | 29 +++-----------
  src/cmd/compile/internal/types2/lookup.go          | 13 +++++--
@@ -39,3 +39,421 @@ Date:   Thu Feb 3 16:07:28 2022 -0800
  src/go/types/testdata/check/issues.src             | 44 +++++++++++-----------
  src/go/types/testdata/fixedbugs/issue49579.go2     |  2 +-
  10 files changed, 90 insertions(+), 107 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 2318b95f3d..77ae75a0a2 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -167,8 +167,13 @@ func (check *Checker) markImports(pkg *Package) {
+ 	}
+ }
+ 
++// check may be nil.
+ func (check *Checker) sprintf(format string, args ...interface{}) string {
+-	return sprintf(check.qualifier, false, format, args...)
++	var qf Qualifier
++	if check != nil {
++		qf = check.qualifier
++	}
++	return sprintf(qf, false, format, args...)
+ }
+ 
+ func (check *Checker) report(err *error_) {
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index e0f2d8abe1..90a669f754 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -160,21 +160,17 @@ func (check *Checker) implements(V, T Type) error {
+ 		return nil // avoid follow-on errors (see issue #49541 for an example)
+ 	}
+ 
+-	var qf Qualifier
+-	if check != nil {
+-		qf = check.qualifier
+-	}
+ 	errorf := func(format string, args ...interface{}) error {
+-		return errors.New(sprintf(qf, false, format, args...))
++		return errors.New(check.sprintf(format, args...))
+ 	}
+ 
+ 	Ti, _ := Tu.(*Interface)
+ 	if Ti == nil {
+ 		var cause string
+ 		if isInterfacePtr(Tu) {
+-			cause = sprintf(qf, false, "type %s is pointer to interface, not interface", T)
++			cause = check.sprintf("type %s is pointer to interface, not interface", T)
+ 		} else {
+-			cause = sprintf(qf, false, "%s is not an interface", T)
++			cause = check.sprintf("%s is not an interface", T)
+ 		}
+ 		return errorf("%s does not implement %s (%s)", V, T, cause)
+ 	}
+@@ -199,23 +195,8 @@ func (check *Checker) implements(V, T Type) error {
+ 	}
+ 
+ 	// V must implement T's methods, if any.
+-	if Ti.NumMethods() > 0 {
+-		if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
+-			if check != nil && check.conf.CompilerErrorMessages {
+-				return errorf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
+-			}
+-			var cause string
+-			if wrong != nil {
+-				if Identical(m.typ, wrong.typ) {
+-					cause = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
+-				} else {
+-					cause = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrong.typ, m.typ)
+-				}
+-			} else {
+-				cause = "missing method " + m.Name()
+-			}
+-			return errorf("%s does not implement %s: %s", V, T, cause)
+-		}
++	if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
++		return errorf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
+ 	}
+ 
+ 	// If T is comparable, V must be comparable.
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 1aeb2beaa0..7e528fb1aa 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -297,7 +297,7 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
+ // as the second result.
+ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, alt *Func) {
+ 	// fast path for common case
+-	if T.Empty() {
++	if T.NumMethods() == 0 {
+ 		return
+ 	}
+ 
+@@ -368,9 +368,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ // and may include more have/want info after that. If non-nil, alt is a relevant
+ // method that matches in some way. It may have the correct name, but wrong type, or
+ // it may have a pointer receiver, or it may have the correct name except wrong case.
++// check may be nil.
+ func (check *Checker) missingMethodReason(V, T Type, m, alt *Func) string {
+ 	var mname string
+-	if check.conf.CompilerErrorMessages {
++	if check != nil && check.conf.CompilerErrorMessages {
+ 		mname = m.Name() + " method"
+ 	} else {
+ 		mname = "method " + m.Name()
+@@ -406,6 +407,7 @@ func isInterfacePtr(T Type) bool {
+ 	return p != nil && IsInterface(p.base)
+ }
+ 
++// check may be nil.
+ func (check *Checker) interfacePtrError(T Type) string {
+ 	assert(isInterfacePtr(T))
+ 	if p, _ := under(T).(*Pointer); isTypeParam(p.base) {
+@@ -415,9 +417,14 @@ func (check *Checker) interfacePtrError(T Type) string {
+ }
+ 
+ // funcString returns a string of the form name + signature for f.
++// check may be nil.
+ func (check *Checker) funcString(f *Func) string {
+ 	buf := bytes.NewBufferString(f.name)
+-	WriteSignature(buf, f.typ.(*Signature), check.qualifier)
++	var qf Qualifier
++	if check != nil {
++		qf = check.qualifier
++	}
++	WriteSignature(buf, f.typ.(*Signature), qf)
+ 	return buf.String()
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.src b/src/cmd/compile/internal/types2/testdata/check/issues.src
+index 3b27e03585..42c5bc8f12 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.src
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.src
+@@ -131,7 +131,7 @@ func issue10260() {
+ 	)
+ 
+ 	var x I1
+-	x = T1 /* ERROR cannot use .*: missing method foo \(foo has pointer receiver\) */ {}
++	x = T1 /* ERROR cannot use T1{} .* as I1 value in assignment: T1 does not implement I1 \(method foo has pointer receiver\) */ {}
+ 	_ = x /* ERROR impossible type assertion: x\.\(T1\)\n\tT1 does not implement I1 \(method foo has pointer receiver\) */ .(T1)
+ 
+ 	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
+@@ -139,34 +139,34 @@ func issue10260() {
+ 
+ 	_ = i2 /* ERROR impossible type assertion: i2\.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */ .(*T1)
+ 
+-	i1 = i0 /* ERROR cannot use .* missing method foo */
+-	i1 = t0 /* ERROR cannot use .* missing method foo */
+-	i1 = i2 /* ERROR cannot use .* wrong type for method foo */
+-	i1 = t2 /* ERROR cannot use .* wrong type for method foo */
+-	i2 = i1 /* ERROR cannot use .* wrong type for method foo */
+-	i2 = t1 /* ERROR cannot use .* wrong type for method foo */
++	i1 = i0 /* ERROR cannot use i0 .* as I1 value in assignment: I0 does not implement I1 \(missing method foo\) */
++	i1 = t0 /* ERROR .* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\) */
++	i1 = i2 /* ERROR .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */
++	i1 = t2 /* ERROR .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */
++	i2 = i1 /* ERROR .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */
++	i2 = t1 /* ERROR .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */
+ 
+-	_ = func() I1 { return i0 /* ERROR cannot use .* missing method foo */ }
+-	_ = func() I1 { return t0 /* ERROR cannot use .* missing method foo */ }
+-	_ = func() I1 { return i2 /* ERROR cannot use .* wrong type for method foo */ }
+-	_ = func() I1 { return t2 /* ERROR cannot use .* wrong type for method foo */ }
+-	_ = func() I2 { return i1 /* ERROR cannot use .* wrong type for method foo */ }
+-	_ = func() I2 { return t1 /* ERROR cannot use .* wrong type for method foo */ }
++	_ = func() I1 { return i0 /* ERROR cannot use i0 .* as I1 value in return statement: I0 does not implement I1 \(missing method foo\) */ }
++	_ = func() I1 { return t0 /* ERROR .* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\) */ }
++	_ = func() I1 { return i2 /* ERROR .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */ }
++	_ = func() I1 { return t2 /* ERROR .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */ }
++	_ = func() I2 { return i1 /* ERROR .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */ }
++	_ = func() I2 { return t1 /* ERROR .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */ }
+ 
+ 	// a few more - less exhaustive now
+ 
+ 	f := func(I1, I2){}
+-	f(i0 /* ERROR cannot use .* missing method foo */ , i1 /* ERROR cannot use .* wrong type for method foo \(have func\(\), want func\(x int\)\) */ )
++	f(i0 /* ERROR missing method foo */ , i1 /* ERROR wrong type for method foo */ )
+ 
+-	_ = [...]I1{i0 /* ERROR cannot use .* missing method foo */ }
+-	_ = [...]I1{i2 /* ERROR cannot use .* wrong type for method foo */ }
+-	_ = []I1{i0 /* ERROR cannot use .* missing method foo */ }
+-	_ = []I1{i2 /* ERROR cannot use .* wrong type for method foo */ }
+-	_ = map[int]I1{0: i0 /* ERROR cannot use .* missing method foo */ }
+-	_ = map[int]I1{0: i2 /* ERROR cannot use .* wrong type for method foo */ }
++	_ = [...]I1{i0 /* ERROR cannot use i0 .* as I1 value in array or slice literal: I0 does not implement I1 \(missing method foo\) */ }
++	_ = [...]I1{i2 /* ERROR cannot use i2 .* as I1 value in array or slice literal: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */ }
++	_ = []I1{i0 /* ERROR missing method foo */ }
++	_ = []I1{i2 /* ERROR wrong type for method foo */ }
++	_ = map[int]I1{0: i0 /* ERROR missing method foo */ }
++	_ = map[int]I1{0: i2 /* ERROR wrong type for method foo */ }
+ 
+-	make(chan I1) <- i0 /* ERROR I0 does not implement I1: missing method foo */
+-	make(chan I1) <- i2 /* ERROR wrong type for method foo \(have func\(x int\), want func\(\)\) */
++	make(chan I1) <- i0 /* ERROR missing method foo */
++	make(chan I1) <- i2 /* ERROR wrong type for method foo */
+ }
+ 
+ // Check that constants representable as integers are in integer form
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49579.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49579.go2
+index 9e20ae5468..ee2d94ab89 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49579.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49579.go2
+@@ -9,7 +9,7 @@ type I[F any] interface {
+ }
+ 
+ func G[F any]() I[any] {
+-	return g /* ERROR "missing method Q \(Q has pointer receiver\)" */ [F]{}
++	return g /* ERROR cannot use g\[F\]{} .* as I\[any\] value in return statement: g\[F\] does not implement I\[any\] \(method Q has pointer receiver\) */ [F]{}
+ }
+ 
+ type g[F any] struct{}
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index ce62a8cbdd..a1786ec0ff 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -63,8 +63,15 @@ func (check *Checker) markImports(pkg *Package) {
+ 	}
+ }
+ 
++// check may be nil.
+ func (check *Checker) sprintf(format string, args ...any) string {
+-	return sprintf(check.fset, check.qualifier, false, format, args...)
++	var fset *token.FileSet
++	var qf Qualifier
++	if check != nil {
++		fset = check.fset
++		qf = check.qualifier
++	}
++	return sprintf(fset, qf, false, format, args...)
+ }
+ 
+ func sprintf(fset *token.FileSet, qf Qualifier, debug bool, format string, args ...any) string {
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 347815f9dd..aeb30fa412 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -160,25 +160,17 @@ func (check *Checker) implements(V, T Type) error {
+ 		return nil // avoid follow-on errors (see issue #49541 for an example)
+ 	}
+ 
+-	var qf Qualifier
+-	if check != nil {
+-		qf = check.qualifier
+-	}
+ 	errorf := func(format string, args ...any) error {
+-		return errors.New(sprintf(nil, qf, false, format, args...))
++		return errors.New(check.sprintf(format, args...))
+ 	}
+ 
+ 	Ti, _ := Tu.(*Interface)
+ 	if Ti == nil {
+-		var fset *token.FileSet
+-		if check != nil {
+-			fset = check.fset
+-		}
+ 		var cause string
+ 		if isInterfacePtr(Tu) {
+-			cause = sprintf(fset, qf, false, "type %s is pointer to interface, not interface", T)
++			cause = check.sprintf("type %s is pointer to interface, not interface", T)
+ 		} else {
+-			cause = sprintf(fset, qf, false, "%s is not an interface", T)
++			cause = check.sprintf("%s is not an interface", T)
+ 		}
+ 		return errorf("%s does not implement %s (%s)", V, T, cause)
+ 	}
+@@ -203,23 +195,8 @@ func (check *Checker) implements(V, T Type) error {
+ 	}
+ 
+ 	// V must implement T's methods, if any.
+-	if Ti.NumMethods() > 0 {
+-		if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
+-			if check != nil && compilerErrorMessages {
+-				return errorf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
+-			}
+-			var cause string
+-			if wrong != nil {
+-				if Identical(m.typ, wrong.typ) {
+-					cause = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
+-				} else {
+-					cause = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrong.typ, m.typ)
+-				}
+-			} else {
+-				cause = "missing method " + m.Name()
+-			}
+-			return errorf("%s does not implement %s: %s", V, T, cause)
+-		}
++	if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
++		return errorf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
+ 	}
+ 
+ 	// If T is comparable, V must be comparable.
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 1b4f953803..ad5438aefb 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -298,7 +298,7 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
+ // Note: case-folding lookup is currently disabled
+ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, alt *Func) {
+ 	// fast path for common case
+-	if T.Empty() {
++	if T.NumMethods() == 0 {
+ 		return
+ 	}
+ 
+@@ -370,9 +370,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ // and may include more have/want info after that. If non-nil, alt is a relevant
+ // method that matches in some way. It may have the correct name, but wrong type, or
+ // it may have a pointer receiver, or it may have the correct name except wrong case.
++// check may be nil.
+ func (check *Checker) missingMethodReason(V, T Type, m, alt *Func) string {
+ 	var mname string
+-	if compilerErrorMessages {
++	if check != nil && compilerErrorMessages {
+ 		mname = m.Name() + " method"
+ 	} else {
+ 		mname = "method " + m.Name()
+@@ -408,6 +409,7 @@ func isInterfacePtr(T Type) bool {
+ 	return p != nil && IsInterface(p.base)
+ }
+ 
++// check may be nil.
+ func (check *Checker) interfacePtrError(T Type) string {
+ 	assert(isInterfacePtr(T))
+ 	if p, _ := under(T).(*Pointer); isTypeParam(p.base) {
+@@ -416,10 +418,14 @@ func (check *Checker) interfacePtrError(T Type) string {
+ 	return check.sprintf("type %s is pointer to interface, not interface", T)
+ }
+ 
+-// funcString returns a string of the form name + signature for f.
++// check may be nil.
+ func (check *Checker) funcString(f *Func) string {
+ 	buf := bytes.NewBufferString(f.name)
+-	WriteSignature(buf, f.typ.(*Signature), check.qualifier)
++	var qf Qualifier
++	if check != nil {
++		qf = check.qualifier
++	}
++	WriteSignature(buf, f.typ.(*Signature), qf)
+ 	return buf.String()
+ }
+ 
+diff --git a/src/go/types/testdata/check/issues.src b/src/go/types/testdata/check/issues.src
+index ce27ac3cfb..8bb4c8c5ca 100644
+--- a/src/go/types/testdata/check/issues.src
++++ b/src/go/types/testdata/check/issues.src
+@@ -131,7 +131,7 @@ func issue10260() {
+ 	)
+ 
+ 	var x I1
+-	x = T1 /* ERROR cannot use .*: missing method foo \(foo has pointer receiver\) */ {}
++	x = T1 /* ERROR cannot use \(T1 literal\) .* as I1 value in assignment: T1 does not implement I1 \(method foo has pointer receiver\) */ {}
+ 	_ = x /* ERROR impossible type assertion: x\.\(T1\)\n\tT1 does not implement I1 \(method foo has pointer receiver\) */ .(T1)
+ 
+ 	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
+@@ -139,34 +139,34 @@ func issue10260() {
+ 
+ 	_ = i2 /* ERROR impossible type assertion: i2\.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */ .(*T1)
+ 
+-	i1 = i0 /* ERROR cannot use .* missing method foo */
+-	i1 = t0 /* ERROR cannot use .* missing method foo */
+-	i1 = i2 /* ERROR cannot use .* wrong type for method foo */
+-	i1 = t2 /* ERROR cannot use .* wrong type for method foo */
+-	i2 = i1 /* ERROR cannot use .* wrong type for method foo */
+-	i2 = t1 /* ERROR cannot use .* wrong type for method foo */
++	i1 = i0 /* ERROR cannot use i0 .* as I1 value in assignment: I0 does not implement I1 \(missing method foo\) */
++	i1 = t0 /* ERROR .* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\) */
++	i1 = i2 /* ERROR .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */
++	i1 = t2 /* ERROR .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */
++	i2 = i1 /* ERROR .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */
++	i2 = t1 /* ERROR .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */
+ 
+-	_ = func() I1 { return i0 /* ERROR cannot use .* missing method foo */ }
+-	_ = func() I1 { return t0 /* ERROR cannot use .* missing method foo */ }
+-	_ = func() I1 { return i2 /* ERROR cannot use .* wrong type for method foo */ }
+-	_ = func() I1 { return t2 /* ERROR cannot use .* wrong type for method foo */ }
+-	_ = func() I2 { return i1 /* ERROR cannot use .* wrong type for method foo */ }
+-	_ = func() I2 { return t1 /* ERROR cannot use .* wrong type for method foo */ }
++	_ = func() I1 { return i0 /* ERROR cannot use i0 .* as I1 value in return statement: I0 does not implement I1 \(missing method foo\) */ }
++	_ = func() I1 { return t0 /* ERROR .* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\) */ }
++	_ = func() I1 { return i2 /* ERROR .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */ }
++	_ = func() I1 { return t2 /* ERROR .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */ }
++	_ = func() I2 { return i1 /* ERROR .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */ }
++	_ = func() I2 { return t1 /* ERROR .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */ }
+ 
+ 	// a few more - less exhaustive now
+ 
+ 	f := func(I1, I2){}
+-	f(i0 /* ERROR cannot use .* missing method foo */ , i1 /* ERROR cannot use .* wrong type for method foo \(have func\(\), want func\(x int\)\) */ )
++	f(i0 /* ERROR missing method foo */ , i1 /* ERROR wrong type for method foo */ )
+ 
+-	_ = [...]I1{i0 /* ERROR cannot use .* missing method foo */ }
+-	_ = [...]I1{i2 /* ERROR cannot use .* wrong type for method foo */ }
+-	_ = []I1{i0 /* ERROR cannot use .* missing method foo */ }
+-	_ = []I1{i2 /* ERROR cannot use .* wrong type for method foo */ }
+-	_ = map[int]I1{0: i0 /* ERROR cannot use .* missing method foo */ }
+-	_ = map[int]I1{0: i2 /* ERROR cannot use .* wrong type for method foo */ }
++	_ = [...]I1{i0 /* ERROR cannot use i0 .* as I1 value in array or slice literal: I0 does not implement I1 \(missing method foo\) */ }
++	_ = [...]I1{i2 /* ERROR cannot use i2 .* as I1 value in array or slice literal: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */ }
++	_ = []I1{i0 /* ERROR missing method foo */ }
++	_ = []I1{i2 /* ERROR wrong type for method foo */ }
++	_ = map[int]I1{0: i0 /* ERROR missing method foo */ }
++	_ = map[int]I1{0: i2 /* ERROR wrong type for method foo */ }
+ 
+-	make(chan I1) <- i0 /* ERROR I0 does not implement I1: missing method foo */
+-	make(chan I1) <- i2 /* ERROR wrong type for method foo \(have func\(x int\), want func\(\)\) */
++	make(chan I1) <- i0 /* ERROR missing method foo */
++	make(chan I1) <- i2 /* ERROR wrong type for method foo */
+ }
+ 
+ // Check that constants representable as integers are in integer form
+diff --git a/src/go/types/testdata/fixedbugs/issue49579.go2 b/src/go/types/testdata/fixedbugs/issue49579.go2
+index 9e20ae5468..07748bd0dc 100644
+--- a/src/go/types/testdata/fixedbugs/issue49579.go2
++++ b/src/go/types/testdata/fixedbugs/issue49579.go2
+@@ -9,7 +9,7 @@ type I[F any] interface {
+ }
+ 
+ func G[F any]() I[any] {
+-	return g /* ERROR "missing method Q \(Q has pointer receiver\)" */ [F]{}
++	return g /* ERROR cannot use \(g\[F\] literal\) .* as I\[any\] value in return statement: g\[F\] does not implement I\[any\] \(method Q has pointer receiver\) */ [F]{}
+ }
+ 
+ type g[F any] struct{}

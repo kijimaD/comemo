@@ -23,7 +23,54 @@ Date:   Fri Apr 21 12:02:30 2023 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/stackcheck.go | 2 +-
  src/cmd/link/internal/loader/loader.go | 8 +++++++-
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/stackcheck.go b/src/cmd/link/internal/ld/stackcheck.go
+index 24a96fb996..98e7edaeb1 100644
+--- a/src/cmd/link/internal/ld/stackcheck.go
++++ b/src/cmd/link/internal/ld/stackcheck.go
+@@ -42,7 +42,7 @@ const stackCheckCycle int16 = 1<<15 - 1
+ 
+ // stackCheckIndirect is a sentinel Sym value used to represent the
+ // target of an indirect/closure call.
+-const stackCheckIndirect loader.Sym = -1
++const stackCheckIndirect loader.Sym = ^loader.Sym(0)
+ 
+ // doStackCheck walks the call tree to check that there is always
+ // enough stack space for call frames, especially for a chain of
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 1dea66393d..455ef587d1 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -27,7 +27,7 @@ var _ = fmt.Print
+ 
+ // Sym encapsulates a global symbol index, used to identify a specific
+ // Go symbol. The 0-valued Sym is corresponds to an invalid symbol.
+-type Sym int
++type Sym uint32
+ 
+ // Relocs encapsulates the set of relocations on a given symbol; an
+ // instance of this type is returned by the Loader Relocs() method.
+@@ -364,6 +364,9 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
+ 		panic("addSym called after external symbol is created")
+ 	}
+ 	i := Sym(len(l.objSyms))
++	if int(i) != len(l.objSyms) { // overflow
++		panic("too many symbols")
++	}
+ 	addToGlobal := func() {
+ 		l.objSyms = append(l.objSyms, objSym{r.objidx, li})
+ 	}
+@@ -485,6 +488,9 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
+ // name/version.
+ func (l *Loader) newExtSym(name string, ver int) Sym {
+ 	i := Sym(len(l.objSyms))
++	if int(i) != len(l.objSyms) { // overflow
++		panic("too many symbols")
++	}
+ 	if l.extStart == 0 {
+ 		l.extStart = i
+ 	}

@@ -13,9 +13,79 @@ Date:   Mon Dec 19 10:39:30 2011 -0500
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/5489073
-
+---
  src/pkg/crypto/crypto.go               | 3 +++
  src/pkg/crypto/tls/common.go           | 4 ++--
  src/pkg/crypto/tls/handshake_client.go | 2 +-
  src/pkg/crypto/tls/key_agreement.go    | 4 ++--
  4 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/crypto/crypto.go b/src/pkg/crypto/crypto.go
+index 53672a4da3..c913494f61 100644
+--- a/src/pkg/crypto/crypto.go
++++ b/src/pkg/crypto/crypto.go
+@@ -71,3 +71,6 @@ func RegisterHash(h Hash, f func() hash.Hash) {
+ 	}
+ 	hashes[h] = f
+ }
++
++// PrivateKey represents a private key using an unspecified algorithm.
++type PrivateKey interface{}
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index f57d932a98..a461ad951b 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -5,8 +5,8 @@
+ package tls
+ 
+ import (
++	"crypto"
+ 	"crypto/rand"
+-	"crypto/rsa"
+ 	"crypto/x509"
+ 	"io"
+ 	"strings"
+@@ -255,7 +255,7 @@ func (c *Config) BuildNameToCertificate() {
+ // A Certificate is a chain of one or more certificates, leaf first.
+ type Certificate struct {
+ 	Certificate [][]byte
+-	PrivateKey  *rsa.PrivateKey
++	PrivateKey  crypto.PrivateKey // supported types: *rsa.PrivateKey
+ 	// OCSPStaple contains an optional OCSP response which will be served
+ 	// to clients that request it.
+ 	OCSPStaple []byte
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index e39e59cd5a..73648002bd 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -234,7 +234,7 @@ func (c *Conn) clientHandshake() error {
+ 		digest := make([]byte, 0, 36)
+ 		digest = finishedHash.serverMD5.Sum(digest)
+ 		digest = finishedHash.serverSHA1.Sum(digest)
+-		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey, crypto.MD5SHA1, digest)
++		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey.(*rsa.PrivateKey), crypto.MD5SHA1, digest)
+ 		if err != nil {
+ 			return c.sendAlert(alertInternalError)
+ 		}
+diff --git a/src/pkg/crypto/tls/key_agreement.go b/src/pkg/crypto/tls/key_agreement.go
+index b531717d84..c3c1664785 100644
+--- a/src/pkg/crypto/tls/key_agreement.go
++++ b/src/pkg/crypto/tls/key_agreement.go
+@@ -44,7 +44,7 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKe
+ 		ciphertext = ckx.ciphertext[2:]
+ 	}
+ 
+-	err = rsa.DecryptPKCS1v15SessionKey(config.rand(), config.Certificates[0].PrivateKey, ciphertext, preMasterSecret)
++	err = rsa.DecryptPKCS1v15SessionKey(config.rand(), config.Certificates[0].PrivateKey.(*rsa.PrivateKey), ciphertext, preMasterSecret)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -147,7 +147,7 @@ Curve:
+ 	copy(serverECDHParams[4:], ecdhePublic)
+ 
+ 	md5sha1 := md5SHA1Hash(clientHello.random, hello.random, serverECDHParams)
+-	sig, err := rsa.SignPKCS1v15(config.rand(), config.Certificates[0].PrivateKey, crypto.MD5SHA1, md5sha1)
++	sig, err := rsa.SignPKCS1v15(config.rand(), config.Certificates[0].PrivateKey.(*rsa.PrivateKey), crypto.MD5SHA1, md5sha1)
+ 	if err != nil {
+ 		return nil, errors.New("failed to sign ECDHE parameters: " + err.Error())
+ 	}

@@ -21,7 +21,7 @@ Date:   Wed Feb 14 05:33:15 2018 +0900
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_windows_test.go                     |  14 ---
  src/internal/syscall/windows/exec_windows_test.go |  13 ---
  src/internal/testenv/testenv_notwin.go            |   4 -
@@ -34,3 +34,507 @@ Date:   Wed Feb 14 05:33:15 2018 +0900
  src/os/exec/exec_test.go                          |   3 -
  src/os/file_windows.go                            |   5 -
  11 files changed, 7 insertions(+), 307 deletions(-)
+
+diff --git a/src/cmd/go/go_windows_test.go b/src/cmd/go/go_windows_test.go
+index aa68a19580..f278741c8b 100644
+--- a/src/cmd/go/go_windows_test.go
++++ b/src/cmd/go/go_windows_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+-	"syscall"
+ 	"testing"
+ )
+ 
+@@ -57,15 +56,6 @@ func TestAbsolutePath(t *testing.T) {
+ 	}
+ }
+ 
+-func isWindowsXP(t *testing.T) bool {
+-	v, err := syscall.GetVersion()
+-	if err != nil {
+-		t.Fatalf("GetVersion failed: %v", err)
+-	}
+-	major := byte(v)
+-	return major < 6
+-}
+-
+ func runIcacls(t *testing.T, args ...string) string {
+ 	t.Helper()
+ 	out, err := exec.Command("icacls", args...).CombinedOutput()
+@@ -89,10 +79,6 @@ func runGetACL(t *testing.T, path string) string {
+ // has discretionary access control list (DACL) set as if the file
+ // was created in the destination directory.
+ func TestACL(t *testing.T) {
+-	if isWindowsXP(t) {
+-		t.Skip("Windows XP does not have powershell command")
+-	}
+-
+ 	tmpdir, err := ioutil.TempDir("", "TestACL")
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/internal/syscall/windows/exec_windows_test.go b/src/internal/syscall/windows/exec_windows_test.go
+index 94fd95b2bc..283d7cea94 100644
+--- a/src/internal/syscall/windows/exec_windows_test.go
++++ b/src/internal/syscall/windows/exec_windows_test.go
+@@ -17,10 +17,6 @@ import (
+ )
+ 
+ func TestRunAtLowIntegrity(t *testing.T) {
+-	if isWindowsXP(t) {
+-		t.Skip("Windows XP does not support windows integrity levels")
+-	}
+-
+ 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+ 		wil, err := getProcessIntegrityLevel()
+ 		if err != nil {
+@@ -56,15 +52,6 @@ func TestRunAtLowIntegrity(t *testing.T) {
+ 	}
+ }
+ 
+-func isWindowsXP(t *testing.T) bool {
+-	v, err := syscall.GetVersion()
+-	if err != nil {
+-		t.Fatalf("GetVersion failed: %v", err)
+-	}
+-	major := byte(v)
+-	return major < 6
+-}
+-
+ const (
+ 	sidWilLow = `S-1-16-4096`
+ )
+diff --git a/src/internal/testenv/testenv_notwin.go b/src/internal/testenv/testenv_notwin.go
+index 385397378d..d8ce6cd385 100644
+--- a/src/internal/testenv/testenv_notwin.go
++++ b/src/internal/testenv/testenv_notwin.go
+@@ -18,7 +18,3 @@ func hasSymlink() (ok bool, reason string) {
+ 
+ 	return true, ""
+ }
+-
+-func IsWindowsXP() bool {
+-	return false
+-}
+diff --git a/src/internal/testenv/testenv_windows.go b/src/internal/testenv/testenv_windows.go
+index 4a7da5fcb6..eb8d6ac165 100644
+--- a/src/internal/testenv/testenv_windows.go
++++ b/src/internal/testenv/testenv_windows.go
+@@ -46,12 +46,3 @@ func hasSymlink() (ok bool, reason string) {
+ 
+ 	return false, ""
+ }
+-
+-func IsWindowsXP() bool {
+-	v, err := syscall.GetVersion()
+-	if err != nil {
+-		panic("GetVersion failed: " + err.Error())
+-	}
+-	major := byte(v)
+-	return major < 6
+-}
+diff --git a/src/net/interface_windows.go b/src/net/interface_windows.go
+index b08d1582d8..be96c586c7 100644
+--- a/src/net/interface_windows.go
++++ b/src/net/interface_windows.go
+@@ -11,22 +11,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-// supportsVistaIP reports whether the platform implements new IP
+-// stack and ABIs supported on Windows Vista and above.
+-var supportsVistaIP bool
+-
+-func init() {
+-	supportsVistaIP = probeWindowsIPStack()
+-}
+-
+-func probeWindowsIPStack() (supportsVistaIP bool) {
+-	v, err := syscall.GetVersion()
+-	if err != nil {
+-		return true // Windows 10 and above will deprecate this API
+-	}
+-	return byte(v) >= 6 // major version of Windows Vista is 6
+-}
+-
+ // adapterAddresses returns a list of IP adapter and address
+ // structures. The structure contains an IP adapter and flattened
+ // multiple IP addresses including unicast, anycast and multicast
+@@ -126,35 +110,17 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 		if index == 0 { // ipv6IfIndex is a substitute for ifIndex
+ 			index = aa.Ipv6IfIndex
+ 		}
+-		var pfx4, pfx6 []IPNet
+-		if !supportsVistaIP {
+-			pfx4, pfx6, err = addrPrefixTable(aa)
+-			if err != nil {
+-				return nil, err
+-			}
+-		}
+ 		if ifi == nil || ifi.Index == int(index) {
+ 			for puni := aa.FirstUnicastAddress; puni != nil; puni = puni.Next {
+ 				sa, err := puni.Address.Sockaddr.Sockaddr()
+ 				if err != nil {
+ 					return nil, os.NewSyscallError("sockaddr", err)
+ 				}
+-				var l int
+ 				switch sa := sa.(type) {
+ 				case *syscall.SockaddrInet4:
+-					if supportsVistaIP {
+-						l = int(puni.OnLinkPrefixLength)
+-					} else {
+-						l = addrPrefixLen(pfx4, IP(sa.Addr[:]))
+-					}
+-					ifat = append(ifat, &IPNet{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3]), Mask: CIDRMask(l, 8*IPv4len)})
++					ifat = append(ifat, &IPNet{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3]), Mask: CIDRMask(int(puni.OnLinkPrefixLength), 8*IPv4len)})
+ 				case *syscall.SockaddrInet6:
+-					if supportsVistaIP {
+-						l = int(puni.OnLinkPrefixLength)
+-					} else {
+-						l = addrPrefixLen(pfx6, IP(sa.Addr[:]))
+-					}
+-					ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(l, 8*IPv6len)}
++					ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(int(puni.OnLinkPrefixLength), 8*IPv6len)}
+ 					copy(ifa.IP, sa.Addr[:])
+ 					ifat = append(ifat, ifa)
+ 				}
+@@ -178,59 +144,6 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 	return ifat, nil
+ }
+ 
+-func addrPrefixTable(aa *windows.IpAdapterAddresses) (pfx4, pfx6 []IPNet, err error) {
+-	for p := aa.FirstPrefix; p != nil; p = p.Next {
+-		sa, err := p.Address.Sockaddr.Sockaddr()
+-		if err != nil {
+-			return nil, nil, os.NewSyscallError("sockaddr", err)
+-		}
+-		switch sa := sa.(type) {
+-		case *syscall.SockaddrInet4:
+-			pfx := IPNet{IP: IP(sa.Addr[:]), Mask: CIDRMask(int(p.PrefixLength), 8*IPv4len)}
+-			pfx4 = append(pfx4, pfx)
+-		case *syscall.SockaddrInet6:
+-			pfx := IPNet{IP: IP(sa.Addr[:]), Mask: CIDRMask(int(p.PrefixLength), 8*IPv6len)}
+-			pfx6 = append(pfx6, pfx)
+-		}
+-	}
+-	return
+-}
+-
+-// addrPrefixLen returns an appropriate prefix length in bits for ip
+-// from pfxs. It returns 32 or 128 when no appropriate on-link address
+-// prefix found.
+-//
+-// NOTE: This is pretty naive implementation that contains many
+-// allocations and non-effective linear search, and should not be used
+-// freely.
+-func addrPrefixLen(pfxs []IPNet, ip IP) int {
+-	var l int
+-	var cand *IPNet
+-	for i := range pfxs {
+-		if !pfxs[i].Contains(ip) {
+-			continue
+-		}
+-		if cand == nil {
+-			l, _ = pfxs[i].Mask.Size()
+-			cand = &pfxs[i]
+-			continue
+-		}
+-		m, _ := pfxs[i].Mask.Size()
+-		if m > l {
+-			l = m
+-			cand = &pfxs[i]
+-			continue
+-		}
+-	}
+-	if l > 0 {
+-		return l
+-	}
+-	if ip.To4() != nil {
+-		return 8 * IPv4len
+-	}
+-	return 8 * IPv6len
+-}
+-
+ // interfaceMulticastAddrTable returns addresses for a specific
+ // interface.
+ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+diff --git a/src/net/interface_windows_test.go b/src/net/interface_windows_test.go
+deleted file mode 100644
+index 03f9168b48..0000000000
+--- a/src/net/interface_windows_test.go
++++ /dev/null
+@@ -1,132 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package net
+-
+-import (
+-	"bytes"
+-	"internal/syscall/windows"
+-	"sort"
+-	"testing"
+-)
+-
+-func TestWindowsInterfaces(t *testing.T) {
+-	aas, err := adapterAddresses()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	ift, err := Interfaces()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	for i, ifi := range ift {
+-		aa := aas[i]
+-		if len(ifi.HardwareAddr) != int(aa.PhysicalAddressLength) {
+-			t.Errorf("got %d; want %d", len(ifi.HardwareAddr), aa.PhysicalAddressLength)
+-		}
+-		if ifi.MTU > 0x7fffffff {
+-			t.Errorf("%s: got %d; want less than or equal to 1<<31 - 1", ifi.Name, ifi.MTU)
+-		}
+-		if ifi.Flags&FlagUp != 0 && aa.OperStatus != windows.IfOperStatusUp {
+-			t.Errorf("%s: got %v; should not include FlagUp", ifi.Name, ifi.Flags)
+-		}
+-		if ifi.Flags&FlagLoopback != 0 && aa.IfType != windows.IF_TYPE_SOFTWARE_LOOPBACK {
+-			t.Errorf("%s: got %v; should not include FlagLoopback", ifi.Name, ifi.Flags)
+-		}
+-		if _, _, err := addrPrefixTable(aa); err != nil {
+-			t.Errorf("%s: %v", ifi.Name, err)
+-		}
+-	}
+-}
+-
+-type byAddrLen []IPNet
+-
+-func (ps byAddrLen) Len() int { return len(ps) }
+-
+-func (ps byAddrLen) Less(i, j int) bool {
+-	if n := bytes.Compare(ps[i].IP, ps[j].IP); n != 0 {
+-		return n < 0
+-	}
+-	if n := bytes.Compare(ps[i].Mask, ps[j].Mask); n != 0 {
+-		return n < 0
+-	}
+-	return false
+-}
+-
+-func (ps byAddrLen) Swap(i, j int) { ps[i], ps[j] = ps[j], ps[i] }
+-
+-var windowsAddrPrefixLenTests = []struct {
+-	pfxs []IPNet
+-	ip   IP
+-	out  int
+-}{
+-	{
+-		[]IPNet{
+-			{IP: IPv4(172, 16, 0, 0), Mask: IPv4Mask(255, 255, 0, 0)},
+-			{IP: IPv4(192, 168, 0, 0), Mask: IPv4Mask(255, 255, 255, 0)},
+-			{IP: IPv4(192, 168, 0, 0), Mask: IPv4Mask(255, 255, 255, 128)},
+-			{IP: IPv4(192, 168, 0, 0), Mask: IPv4Mask(255, 255, 255, 192)},
+-		},
+-		IPv4(192, 168, 0, 1),
+-		26,
+-	},
+-	{
+-		[]IPNet{
+-			{IP: ParseIP("2001:db8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fff0"))},
+-			{IP: ParseIP("2001:db8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fff8"))},
+-			{IP: ParseIP("2001:db8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffc"))},
+-		},
+-		ParseIP("2001:db8::1"),
+-		126,
+-	},
+-
+-	// Fallback cases. It may happen on Windows XP or 2003 server.
+-	{
+-		[]IPNet{
+-			{IP: IPv4(127, 0, 0, 0).To4(), Mask: IPv4Mask(255, 0, 0, 0)},
+-			{IP: IPv4(10, 0, 0, 0).To4(), Mask: IPv4Mask(255, 0, 0, 0)},
+-			{IP: IPv4(172, 16, 0, 0).To4(), Mask: IPv4Mask(255, 255, 0, 0)},
+-			{IP: IPv4(192, 168, 255, 0), Mask: IPv4Mask(255, 255, 255, 0)},
+-			{IP: IPv4zero, Mask: IPv4Mask(0, 0, 0, 0)},
+-		},
+-		IPv4(192, 168, 0, 1),
+-		8 * IPv4len,
+-	},
+-	{
+-		nil,
+-		IPv4(192, 168, 0, 1),
+-		8 * IPv4len,
+-	},
+-	{
+-		[]IPNet{
+-			{IP: IPv6loopback, Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"))},
+-			{IP: ParseIP("2001:db8:1::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fff0"))},
+-			{IP: ParseIP("2001:db8:2::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fff8"))},
+-			{IP: ParseIP("2001:db8:3::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffc"))},
+-			{IP: IPv6unspecified, Mask: IPMask(ParseIP("::"))},
+-		},
+-		ParseIP("2001:db8::1"),
+-		8 * IPv6len,
+-	},
+-	{
+-		nil,
+-		ParseIP("2001:db8::1"),
+-		8 * IPv6len,
+-	},
+-}
+-
+-func TestWindowsAddrPrefixLen(t *testing.T) {
+-	for i, tt := range windowsAddrPrefixLenTests {
+-		sort.Sort(byAddrLen(tt.pfxs))
+-		l := addrPrefixLen(tt.pfxs, tt.ip)
+-		if l != tt.out {
+-			t.Errorf("#%d: got %d; want %d", i, l, tt.out)
+-		}
+-		sort.Sort(sort.Reverse(byAddrLen(tt.pfxs)))
+-		l = addrPrefixLen(tt.pfxs, tt.ip)
+-		if l != tt.out {
+-			t.Errorf("#%d: got %d; want %d", i, l, tt.out)
+-		}
+-	}
+-}
+diff --git a/src/net/net_windows_test.go b/src/net/net_windows_test.go
+index db211e9d6e..8dfd312980 100644
+--- a/src/net/net_windows_test.go
++++ b/src/net/net_windows_test.go
+@@ -169,15 +169,6 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
+ 	}
+ }
+ 
+-func isWindowsXP(t *testing.T) bool {
+-	v, err := syscall.GetVersion()
+-	if err != nil {
+-		t.Fatalf("GetVersion failed: %v", err)
+-	}
+-	major := byte(v)
+-	return major < 6
+-}
+-
+ func runCmd(args ...string) ([]byte, error) {
+ 	removeUTF8BOM := func(b []byte) []byte {
+ 		if len(b) >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF {
+@@ -266,9 +257,6 @@ func netshInterfaceIPShowInterface(ipver string, ifaces map[string]bool) error {
+ }
+ 
+ func TestInterfacesWithNetsh(t *testing.T) {
+-	if isWindowsXP(t) {
+-		t.Skip("Windows XP netsh command does not provide required functionality")
+-	}
+ 	if !netshSpeaksEnglish(t) {
+ 		t.Skip("English version of netsh required for this test")
+ 	}
+@@ -440,9 +428,6 @@ func netshInterfaceIPv6ShowAddress(name string, netshOutput []byte) []string {
+ }
+ 
+ func TestInterfaceAddrsWithNetsh(t *testing.T) {
+-	if isWindowsXP(t) {
+-		t.Skip("Windows XP netsh command does not provide required functionality")
+-	}
+ 	if !netshSpeaksEnglish(t) {
+ 		t.Skip("English version of netsh required for this test")
+ 	}
+@@ -519,9 +504,6 @@ func checkGetmac(t *testing.T) {
+ }
+ 
+ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
+-	if isWindowsXP(t) {
+-		t.Skip("Windows XP does not have powershell command")
+-	}
+ 	checkGetmac(t)
+ 
+ 	ift, err := Interfaces()
+diff --git a/src/net/protoconn_test.go b/src/net/protoconn_test.go
+index def8d657f1..05c45d02b9 100644
+--- a/src/net/protoconn_test.go
++++ b/src/net/protoconn_test.go
+@@ -8,7 +8,6 @@
+ package net
+ 
+ import (
+-	"internal/testenv"
+ 	"os"
+ 	"runtime"
+ 	"testing"
+@@ -139,15 +138,11 @@ func TestUDPConnSpecificMethods(t *testing.T) {
+ 	if _, _, err := c.ReadFromUDP(rb); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if testenv.IsWindowsXP() {
+-		t.Log("skipping broken test on Windows XP (see golang.org/issue/23072)")
+-	} else {
+-		if _, _, err := c.WriteMsgUDP(wb, nil, c.LocalAddr().(*UDPAddr)); err != nil {
+-			condFatalf(t, c.LocalAddr().Network(), "%v", err)
+-		}
+-		if _, _, _, _, err := c.ReadMsgUDP(rb, nil); err != nil {
+-			condFatalf(t, c.LocalAddr().Network(), "%v", err)
+-		}
++	if _, _, err := c.WriteMsgUDP(wb, nil, c.LocalAddr().(*UDPAddr)); err != nil {
++		condFatalf(t, c.LocalAddr().Network(), "%v", err)
++	}
++	if _, _, _, _, err := c.ReadMsgUDP(rb, nil); err != nil {
++		condFatalf(t, c.LocalAddr().Network(), "%v", err)
+ 	}
+ 
+ 	if f, err := c.File(); err != nil {
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 769576cd97..4ae014c01d 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -163,11 +163,6 @@ func testWriteToConn(t *testing.T, raddr string) {
+ 	switch runtime.GOOS {
+ 	case "nacl": // see golang.org/issue/9252
+ 		t.Skipf("not implemented yet on %s", runtime.GOOS)
+-	case "windows":
+-		if testenv.IsWindowsXP() {
+-			t.Log("skipping broken test on Windows XP (see golang.org/issue/23072)")
+-			return
+-		}
+ 	default:
+ 		if err != nil {
+ 			t.Fatal(err)
+@@ -211,11 +206,6 @@ func testWriteToPacketConn(t *testing.T, raddr string) {
+ 	switch runtime.GOOS {
+ 	case "nacl": // see golang.org/issue/9252
+ 		t.Skipf("not implemented yet on %s", runtime.GOOS)
+-	case "windows":
+-		if testenv.IsWindowsXP() {
+-			t.Log("skipping broken test on Windows XP (see golang.org/issue/23072)")
+-			return
+-		}
+ 	default:
+ 		if err != nil {
+ 			t.Fatal(err)
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index d29ae697f9..ed2a55557d 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -1005,9 +1005,6 @@ func TestContext(t *testing.T) {
+ }
+ 
+ func TestContextCancel(t *testing.T) {
+-	if testenv.Builder() == "windows-386-xp" {
+-		t.Skipf("known to fail on Windows XP. Issue 17245")
+-	}
+ 	ctx, cancel := context.WithCancel(context.Background())
+ 	defer cancel()
+ 	c := helperCommandContext(t, ctx, "cat")
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index be19fe273e..9191830144 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -350,11 +350,6 @@ func Link(oldname, newname string) error {
+ // Symlink creates newname as a symbolic link to oldname.
+ // If there is an error, it will be of type *LinkError.
+ func Symlink(oldname, newname string) error {
+-	// CreateSymbolicLink is not supported before Windows Vista
+-	if syscall.LoadCreateSymbolicLink() != nil {
+-		return &LinkError{"symlink", oldname, newname, syscall.EWINDOWS}
+-	}
+-
+ 	// '/' does not work in link's content
+ 	oldname = fromSlash(oldname)
+ 

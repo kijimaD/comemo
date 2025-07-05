@@ -9,6 +9,20 @@ Date:   Wed Feb 29 15:20:11 2012 -0500
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5705053
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 96bf8b721f..f0aac6b141 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4894,7 +4894,7 @@ a no-op. Calling <code>delete</code> with a nil map causes a
+ </p>
+ 
+ 
+-<h3 id="Complex_numbers">Assembling and disassembling complex numbers</h3>
++<h3 id="Complex_numbers">Manipulating complex numbers</h3>
+ 
+ <p>
+ Three functions assemble and disassemble complex numbers.

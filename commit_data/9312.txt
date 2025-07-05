@@ -7,7 +7,192 @@ Date:   Mon Aug 8 11:27:09 2011 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/4810078
-
+---
  src/pkg/exp/datafmt/parser.go | 41 ++++++++++++++++++++---------------------
  src/pkg/go/scanner/errors.go  | 23 +++++++++++++----------
  2 files changed, 33 insertions(+), 31 deletions(-)
+
+diff --git a/src/pkg/exp/datafmt/parser.go b/src/pkg/exp/datafmt/parser.go
+index 45d7d50a8f..a2ddd38972 100644
+--- a/src/pkg/exp/datafmt/parser.go
++++ b/src/pkg/exp/datafmt/parser.go
+@@ -5,7 +5,6 @@
+ package datafmt
+ 
+ import (
+-	"container/vector"
+ 	"go/scanner"
+ 	"go/token"
+ 	"os"
+@@ -140,14 +139,14 @@ func (p *parser) parseLiteral() literal {
+ 	// and speed up printing of the literal, split it into segments
+ 	// that start with "%" possibly followed by a last segment that
+ 	// starts with some other character.
+-	var list vector.Vector
++	var list []interface{}
+ 	i0 := 0
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] == '%' && i+1 < len(s) {
+ 			// the next segment starts with a % format
+ 			if i0 < i {
+ 				// the current segment is not empty, split it off
+-				list.Push(s[i0:i])
++				list = append(list, s[i0:i])
+ 				i0 = i
+ 			}
+ 			i++ // skip %; let loop skip over char after %
+@@ -155,12 +154,12 @@ func (p *parser) parseLiteral() literal {
+ 	}
+ 	// the final segment may start with any character
+ 	// (it is empty iff the string is empty)
+-	list.Push(s[i0:])
++	list = append(list, s[i0:])
+ 
+ 	// convert list into a literal
+-	lit := make(literal, list.Len())
+-	for i := 0; i < list.Len(); i++ {
+-		lit[i] = list.At(i).([]byte)
++	lit := make(literal, len(list))
++	for i := 0; i < len(list); i++ {
++		lit[i] = list[i].([]byte)
+ 	}
+ 
+ 	return lit
+@@ -231,35 +230,35 @@ func (p *parser) parseOperand() (x expr) {
+ }
+ 
+ func (p *parser) parseSequence() expr {
+-	var list vector.Vector
++	var list []interface{}
+ 
+ 	for x := p.parseOperand(); x != nil; x = p.parseOperand() {
+-		list.Push(x)
++		list = append(list, x)
+ 	}
+ 
+ 	// no need for a sequence if list.Len() < 2
+-	switch list.Len() {
++	switch len(list) {
+ 	case 0:
+ 		return nil
+ 	case 1:
+-		return list.At(0).(expr)
++		return list[0].(expr)
+ 	}
+ 
+ 	// convert list into a sequence
+-	seq := make(sequence, list.Len())
+-	for i := 0; i < list.Len(); i++ {
+-		seq[i] = list.At(i).(expr)
++	seq := make(sequence, len(list))
++	for i := 0; i < len(list); i++ {
++		seq[i] = list[i].(expr)
+ 	}
+ 	return seq
+ }
+ 
+ func (p *parser) parseExpression() expr {
+-	var list vector.Vector
++	var list []interface{}
+ 
+ 	for {
+ 		x := p.parseSequence()
+ 		if x != nil {
+-			list.Push(x)
++			list = append(list, x)
+ 		}
+ 		if p.tok != token.OR {
+ 			break
+@@ -268,17 +267,17 @@ func (p *parser) parseExpression() expr {
+ 	}
+ 
+ 	// no need for an alternatives if list.Len() < 2
+-	switch list.Len() {
++	switch len(list) {
+ 	case 0:
+ 		return nil
+ 	case 1:
+-		return list.At(0).(expr)
++		return list[0].(expr)
+ 	}
+ 
+ 	// convert list into a alternatives
+-	alt := make(alternatives, list.Len())
+-	for i := 0; i < list.Len(); i++ {
+-		alt[i] = list.At(i).(expr)
++	alt := make(alternatives, len(list))
++	for i := 0; i < len(list); i++ {
++		alt[i] = list[i].(expr)
+ 	}
+ 	return alt
+ }
+diff --git a/src/pkg/go/scanner/errors.go b/src/pkg/go/scanner/errors.go
+index f8e9ffa6fb..78dbc39192 100644
+--- a/src/pkg/go/scanner/errors.go
++++ b/src/pkg/go/scanner/errors.go
+@@ -5,7 +5,6 @@
+ package scanner
+ 
+ import (
+-	"container/vector"
+ 	"fmt"
+ 	"go/token"
+ 	"io"
+@@ -32,14 +31,18 @@ type ErrorHandler interface {
+ // error handling is obtained.
+ //
+ type ErrorVector struct {
+-	errors vector.Vector
++	errors []interface{}
+ }
+ 
+ // Reset resets an ErrorVector to no errors.
+-func (h *ErrorVector) Reset() { h.errors.Resize(0, 0) }
++func (h *ErrorVector) Reset() {
++	h.errors = h.errors[:0]
++}
+ 
+ // ErrorCount returns the number of errors collected.
+-func (h *ErrorVector) ErrorCount() int { return h.errors.Len() }
++func (h *ErrorVector) ErrorCount() int {
++	return len(h.errors)
++}
+ 
+ // Within ErrorVector, an error is represented by an Error node. The
+ // position Pos, if valid, points to the beginning of the offending
+@@ -110,13 +113,13 @@ const (
+ // parameter. If there are no errors, the result is nil.
+ //
+ func (h *ErrorVector) GetErrorList(mode int) ErrorList {
+-	if h.errors.Len() == 0 {
++	if len(h.errors) == 0 {
+ 		return nil
+ 	}
+ 
+-	list := make(ErrorList, h.errors.Len())
+-	for i := 0; i < h.errors.Len(); i++ {
+-		list[i] = h.errors.At(i).(*Error)
++	list := make(ErrorList, len(h.errors))
++	for i := 0; i < len(h.errors); i++ {
++		list[i] = h.errors[i].(*Error)
+ 	}
+ 
+ 	if mode >= Sorted {
+@@ -144,7 +147,7 @@ func (h *ErrorVector) GetErrorList(mode int) ErrorList {
+ // remains nil.
+ //
+ func (h *ErrorVector) GetError(mode int) os.Error {
+-	if h.errors.Len() == 0 {
++	if len(h.errors) == 0 {
+ 		return nil
+ 	}
+ 
+@@ -153,7 +156,7 @@ func (h *ErrorVector) GetError(mode int) os.Error {
+ 
+ // ErrorVector implements the ErrorHandler interface.
+ func (h *ErrorVector) Error(pos token.Position, msg string) {
+-	h.errors.Push(&Error{pos, msg})
++	h.errors = append(h.errors, &Error{pos, msg})
+ }
+ 
+ // PrintError is a utility function that prints a list of errors to w,

@@ -21,8 +21,103 @@ Date:   Wed Aug 16 14:01:48 2017 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go      |  4 ++--
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  7 ++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 36 ++++++++++++++++++++++++++++
  3 files changed, 45 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 23b70ae41d..d3e56230bb 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -362,7 +362,7 @@ var linuxAMD64Tests = []*asmTest{
+ 			*t = T1{}
+ 		}
+ 		`,
+-		[]string{"\tMOVQ\t\\$0, \\(.*\\)", "\tMOVQ\t\\$0, 8\\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)"},
++		[]string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)"},
+ 	},
+ 	// SSA-able composite literal initialization. Issue 18872.
+ 	{
+@@ -387,7 +387,7 @@ var linuxAMD64Tests = []*asmTest{
+ 			*t = T2{}
+ 		}
+ 		`,
+-		[]string{"\tMOVQ\t\\$0, \\(.*\\)", "\tMOVQ\t\\$0, 8\\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.writebarrierptr\\(SB\\)"},
++		[]string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.writebarrierptr\\(SB\\)"},
+ 	},
+ 	// Rotate tests
+ 	{
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 2f38a7d5cc..c31c7ced02 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -2204,6 +2204,13 @@
+   && ValAndOff(a).Off() + 4 == ValAndOff(c).Off()
+   && clobber(x)
+   -> (MOVQstore [ValAndOff(a).Off()] {s} p (MOVQconst [ValAndOff(a).Val()&0xffffffff | ValAndOff(c).Val()<<32]) mem)
++(MOVQstoreconst [c] {s} p x:(MOVQstoreconst [c2] {s} p mem))
++  && x.Uses == 1
++  && ValAndOff(c2).Off() + 8 == ValAndOff(c).Off()
++  && ValAndOff(c).Val() == 0
++  && ValAndOff(c2).Val() == 0
++  && clobber(x)
++  -> (MOVOstore [ValAndOff(c2).Off()] {s} p (MOVOconst [0]) mem)
+ 
+ (MOVBstoreconstidx1 [c] {s} p i x:(MOVBstoreconstidx1 [a] {s} p i mem))
+   && x.Uses == 1
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 437ca36064..4ce6415ba5 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -9009,6 +9009,8 @@ func rewriteValueAMD64_OpAMD64MOVQstore_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVQstoreconst_0(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (MOVQstoreconst [sc] {s} (ADDQconst [off] ptr) mem)
+ 	// cond: ValAndOff(sc).canAdd(off)
+ 	// result: (MOVQstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+@@ -9137,6 +9139,40 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVQstoreconst [c] {s} p x:(MOVQstoreconst [c2] {s} p mem))
++	// cond: x.Uses == 1   && ValAndOff(c2).Off() + 8 == ValAndOff(c).Off()   && ValAndOff(c).Val() == 0   && ValAndOff(c2).Val() == 0   && clobber(x)
++	// result: (MOVOstore [ValAndOff(c2).Off()] {s} p (MOVOconst [0]) mem)
++	for {
++		c := v.AuxInt
++		s := v.Aux
++		_ = v.Args[1]
++		p := v.Args[0]
++		x := v.Args[1]
++		if x.Op != OpAMD64MOVQstoreconst {
++			break
++		}
++		c2 := x.AuxInt
++		if x.Aux != s {
++			break
++		}
++		_ = x.Args[1]
++		if p != x.Args[0] {
++			break
++		}
++		mem := x.Args[1]
++		if !(x.Uses == 1 && ValAndOff(c2).Off()+8 == ValAndOff(c).Off() && ValAndOff(c).Val() == 0 && ValAndOff(c2).Val() == 0 && clobber(x)) {
++			break
++		}
++		v.reset(OpAMD64MOVOstore)
++		v.AuxInt = ValAndOff(c2).Off()
++		v.Aux = s
++		v.AddArg(p)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVQstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem)
+ 	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
+ 	// result: (MOVQstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)

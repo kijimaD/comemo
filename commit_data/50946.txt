@@ -12,7 +12,67 @@ Date:   Wed Nov 17 20:22:32 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check_test.go                     | 17 +++++++++++++++++
  src/go/types/testdata/fixedbugs/issue47818.go2 |  4 +++-
  2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 75b26e34bd..2f80d9b7b6 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -31,6 +31,7 @@ import (
+ 	"go/parser"
+ 	"go/scanner"
+ 	"go/token"
++	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+@@ -199,11 +200,27 @@ func asGoVersion(s string) string {
+ 	return ""
+ }
+ 
++// excludedForUnifiedBuild lists files that cannot be tested
++// when using the unified build's export data.
++// TODO(gri) enable as soon as the unified build supports this.
++var excludedForUnifiedBuild = map[string]bool{
++	"issue47818.go2": true,
++}
++
+ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, manual bool, imp Importer) {
+ 	if len(filenames) == 0 {
+ 		t.Fatal("no source files")
+ 	}
+ 
++	if buildcfg.Experiment.Unified {
++		for _, f := range filenames {
++			if excludedForUnifiedBuild[filepath.Base(f)] {
++				t.Logf("%s cannot be tested with unified build - skipped", f)
++				return
++			}
++		}
++	}
++
+ 	if strings.HasSuffix(filenames[0], ".go1") {
+ 		// TODO(rfindley): re-enable this test by using GoVersion.
+ 		t.Skip("type params are enabled")
+diff --git a/src/go/types/testdata/fixedbugs/issue47818.go2 b/src/go/types/testdata/fixedbugs/issue47818.go2
+index e3e5a99637..2631118bae 100644
+--- a/src/go/types/testdata/fixedbugs/issue47818.go2
++++ b/src/go/types/testdata/fixedbugs/issue47818.go2
+@@ -8,6 +8,8 @@
+ 
+ package go1_17
+ 
++import "constraints"
++
+ type T[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ] struct{}
+ 
+ // for init (and main, but we're not in package main) we should only get one error
+@@ -56,4 +58,4 @@ type (
+ 	_ = C2
+ )
+ 
+-// TODO(gri) need test cases for imported constraint types (see also issue #47967)
++type Ordered constraints /* ERROR using type constraint constraints\.Ordered requires go1\.18 or later */ .Ordered

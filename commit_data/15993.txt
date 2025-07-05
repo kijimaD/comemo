@@ -7,9 +7,102 @@ Date:   Thu Mar 28 14:40:59 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8122043
-
+---
  lib/godoc/package.html   |  4 ++--
  src/cmd/godoc/godoc.go   | 32 +++++++++++++++++++++++---------
  src/pkg/go/doc/doc.go    |  6 +++---
  src/pkg/go/doc/reader.go |  1 +
  4 files changed, 29 insertions(+), 14 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 5dcc9f9a20..a7d47298a5 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -169,9 +169,9 @@
+ 	{{with $.Notes}}
+ 		{{range $marker, $content := .}}
+ 			<h2 id="pkg-note-{{$marker}}">{{noteTitle $marker | html}}s</h2>
+-			<ul>
++			<ul style="list-style: none; padding: 0;">
+ 			{{range .}}
+-			<li>{{html .Body}}</li>
++			<li><a href="{{posLink_url $ .}}">&#x261e;</a> {{html .Body}}</li>
+ 			{{end}}
+ 			</ul>
+ 		{{end}}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 2e05c50598..6f585fee88 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -481,19 +481,33 @@ func pkgLinkFunc(path string) string {
+ 	return pkgHandler.pattern[1:] + relpath // remove trailing '/' for relative URL
+ }
+ 
+-func posLink_urlFunc(info *PageInfo, node ast.Node) string {
++// n must be an ast.Node or a *doc.Note
++func posLink_urlFunc(info *PageInfo, n interface{}) string {
++	var pos, end token.Pos
++
++	switch n := n.(type) {
++	case ast.Node:
++		pos = n.Pos()
++		end = n.End()
++	case *doc.Note:
++		pos = n.Pos
++		end = n.End
++	default:
++		panic(fmt.Sprintf("wrong type for posLink_url template formatter: %T", n))
++	}
++
+ 	var relpath string
+ 	var line int
+-	var low, high int // selection
++	var low, high int // selection offset range
+ 
+-	if p := node.Pos(); p.IsValid() {
+-		pos := info.FSet.Position(p)
+-		relpath = pos.Filename
+-		line = pos.Line
+-		low = pos.Offset
++	if pos.IsValid() {
++		p := info.FSet.Position(pos)
++		relpath = p.Filename
++		line = p.Line
++		low = p.Offset
+ 	}
+-	if p := node.End(); p.IsValid() {
+-		high = info.FSet.Position(p).Offset
++	if end.IsValid() {
++		high = info.FSet.Position(end).Offset
+ 	}
+ 
+ 	var buf bytes.Buffer
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 1f11417932..4264940a0c 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -69,9 +69,9 @@ type Func struct {
+ // at least one character is recognized. The ":" following the uid is optional.
+ // Notes are collected in the Package.Notes map indexed by the notes marker.
+ type Note struct {
+-	Pos  token.Pos // position of the comment containing the marker
+-	UID  string    // uid found with the marker
+-	Body string    // note body text
++	Pos, End token.Pos // position range of the comment containing the marker
++	UID      string    // uid found with the marker
++	Body     string    // note body text
+ }
+ 
+ // Mode values control the operation of New.
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index 7e1422d0c4..4fa6fd9d59 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -419,6 +419,7 @@ func (r *reader) readNote(list []*ast.Comment) {
+ 			marker := text[m[2]:m[3]]
+ 			r.notes[marker] = append(r.notes[marker], &Note{
+ 				Pos:  list[0].Pos(),
++				End:  list[len(list)-1].End(),
+ 				UID:  text[m[4]:m[5]],
+ 				Body: body,
+ 			})

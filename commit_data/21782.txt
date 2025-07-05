@@ -7,6 +7,34 @@ Date:   Tue Feb 3 12:01:29 2015 -0800
     Change-Id: Ic8a01d06ffc6c80beaf6dee9e7242dcbb7425e71
     Reviewed-on: https://go-review.googlesource.com/3822
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 10 ++--------
  1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 8cdaf14989..c68aa2c985 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -191,20 +191,14 @@ func (c *conn) noteClientGone() {
+ 	c.clientGone = true
+ }
+ 
+-// A switchReader can have its Reader changed at runtime.
+-// It's not safe for concurrent Reads and switches.
+-type switchReader struct {
+-	io.Reader
+-}
+-
+ // A switchWriter can have its Writer changed at runtime.
+ // It's not safe for concurrent Writes and switches.
+ type switchWriter struct {
+ 	io.Writer
+ }
+ 
+-// A liveSwitchReader is a switchReader that's safe for concurrent
+-// reads and switches, if its mutex is held.
++// A liveSwitchReader can have its Reader changed at runtime. It's
++// safe for concurrent reads and switches, if its mutex is held.
+ type liveSwitchReader struct {
+ 	sync.Mutex
+ 	r io.Reader

@@ -20,7 +20,135 @@ Date:   Mon Mar 29 16:07:18 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go | 32 +++++++++++--------
  test/typeparam/typelist.go             | 58 ++++++++++++++++++++++++++++++++++
  2 files changed, 77 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index ecdc7c74b1..eee39ecadb 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -94,16 +94,12 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 	case *syntax.CallExpr:
+ 		fun := g.expr(expr.Fun)
+ 
+-		// The key for the Inferred map is usually the expr.
+-		key := syntax.Expr(expr)
+-		if _, ok := expr.Fun.(*syntax.IndexExpr); ok {
+-			// If the Fun is an IndexExpr, then this may be a
+-			// partial type inference case. In this case, we look up
+-			// the IndexExpr in the Inferred map.
+-			// TODO(gri): should types2 always record the callExpr as the key?
+-			key = syntax.Expr(expr.Fun)
+-		}
+-		if inferred, ok := g.info.Inferred[key]; ok && len(inferred.Targs) > 0 {
++		// The key for the Inferred map is the CallExpr (if inferring
++		// types required the function arguments) or the IndexExpr below
++		// (if types could be inferred without the function arguments).
++		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.Targs) > 0 {
++			// This is the case where inferring types required the
++			// types of the function arguments.
+ 			targs := make([]ir.Node, len(inferred.Targs))
+ 			for i, targ := range inferred.Targs {
+ 				targs[i] = ir.TypeNode(g.typ(targ))
+@@ -126,7 +122,16 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 
+ 	case *syntax.IndexExpr:
+ 		var targs []ir.Node
+-		if _, ok := expr.Index.(*syntax.ListExpr); ok {
++
++		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.Targs) > 0 {
++			// This is the partial type inference case where the types
++			// can be inferred from other type arguments without using
++			// the types of the function arguments.
++			targs = make([]ir.Node, len(inferred.Targs))
++			for i, targ := range inferred.Targs {
++				targs[i] = ir.TypeNode(g.typ(targ))
++			}
++		} else if _, ok := expr.Index.(*syntax.ListExpr); ok {
+ 			targs = g.exprList(expr.Index)
+ 		} else {
+ 			index := g.expr(expr.Index)
+@@ -137,12 +142,13 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 			// This is generic function instantiation with a single type
+ 			targs = []ir.Node{index}
+ 		}
+-		// This is a generic function instantiation (e.g. min[int])
++		// This is a generic function instantiation (e.g. min[int]).
++		// Generic type instantiation is handled in the type
++		// section of expr() above (using g.typ).
+ 		x := g.expr(expr.X)
+ 		if x.Op() != ir.ONAME || x.Type().Kind() != types.TFUNC {
+ 			panic("Incorrect argument for generic func instantiation")
+ 		}
+-		// This could also be an OTYPEINST once we can handle those examples.
+ 		n := ir.NewInstExpr(pos, ir.OFUNCINST, x, targs)
+ 		typed(g.typ(typ), n)
+ 		return n
+diff --git a/test/typeparam/typelist.go b/test/typeparam/typelist.go
+index 4ff3ce2f34..dd674cc889 100644
+--- a/test/typeparam/typelist.go
++++ b/test/typeparam/typelist.go
+@@ -62,3 +62,61 @@ func _[T interface{ type func(string) int }](f T) int {
+ func _[V any, T interface { type map[string]V }](p T) V {
+ 	return p["test"]
+ }
++
++
++// Testing partial and full type inference, including the case where the types can
++// be inferred without needing the types of the function arguments.
++
++func f0[A any, B interface{type C}, C interface{type D}, D interface{type A}](a A, b B, c C, d D)
++func _() {
++        f := f0[string]
++        f("a", "b", "c", "d")
++        f0("a", "b", "c", "d")
++}
++
++func f1[A any, B interface{type A}](a A, b B)
++func _() {
++        f := f1[int]
++        f(int(0), int(0))
++        f1(int(0), int(0))
++        f(0, 0)
++        f1(0, 0)
++}
++
++func f2[A any, B interface{type []A}](a A, b B)
++func _() {
++	f := f2[byte]
++	f(byte(0), []byte{})
++	f2(byte(0), []byte{})
++	f(0, []byte{})
++	// f2(0, []byte{}) - this one doesn't work
++}
++
++func f3[A any, B interface{type C}, C interface{type *A}](a A, b B, c C)
++func _() {
++	f := f3[int]
++	var x int
++	f(x, &x, &x)
++	f3(x, &x, &x)
++}
++
++func f4[A any, B interface{type []C}, C interface{type *A}](a A, b B, c C)
++func _() {
++	f := f4[int]
++	var x int
++	f(x, []*int{}, &x)
++	f4(x, []*int{}, &x)
++}
++
++func f5[A interface{type struct{b B; c C}}, B any, C interface{type *B}](x B) A
++func _() {
++	x := f5(1.2)
++	var _ float64 = x.b
++	var _ float64 = *x.c
++}
++
++func f6[A any, B interface{type struct{f []A}}](B) A
++func _() {
++	x := f6(struct{f []string}{})
++	var _ string = x
++}

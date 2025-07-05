@@ -7,6 +7,24 @@ Date:   Mon Apr 11 13:05:08 2011 -0700
     R=golang-dev, bradfitzgo
     CC=golang-dev
     https://golang.org/cl/4370053
-
+---
  src/pkg/http/transport_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/http/transport_test.go b/src/pkg/http/transport_test.go
+index e46f830c82..05328fe5b0 100644
+--- a/src/pkg/http/transport_test.go
++++ b/src/pkg/http/transport_test.go
+@@ -288,10 +288,10 @@ func TestTransportHeadResponses(t *testing.T) {
+ 			t.Errorf("error on loop %d: %v", i, err)
+ 		}
+ 		if e, g := "123", res.Header.Get("Content-Length"); e != g {
+-			t.Errorf("loop %d: expected Content-Length header of %q, got %q", e, g)
++			t.Errorf("loop %d: expected Content-Length header of %q, got %q", i, e, g)
+ 		}
+ 		if e, g := int64(0), res.ContentLength; e != g {
+-			t.Errorf("loop %d: expected res.ContentLength of %v, got %v", e, g)
++			t.Errorf("loop %d: expected res.ContentLength of %v, got %v", i, e, g)
+ 		}
+ 	}
+ }

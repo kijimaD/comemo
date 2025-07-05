@@ -18,7 +18,7 @@ Date:   Thu Mar 26 08:02:16 2015 -0700
     Change-Id: If6490a8f9b3c9cfed6acbfb4bfd1eaeac62ced17
     Reviewed-on: https://go-review.googlesource.com/8095
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/syscall/syscall_darwin.go           | 4 ++--
  src/syscall/syscall_dragonfly.go        | 4 ++--
  src/syscall/syscall_freebsd.go          | 4 ++--
@@ -49,3 +49,609 @@ Date:   Thu Mar 26 08:02:16 2015 -0700
  src/syscall/zsyscall_openbsd_amd64.go   | 4 ++--
  src/syscall/zsyscall_openbsd_arm.go     | 4 ++--
  29 files changed, 59 insertions(+), 59 deletions(-)
+
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index f026a56d8b..52fd4e7094 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -222,8 +222,8 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
+ //sys	Chown(path string, uid int, gid int) (err error)
+ //sys	Chroot(path string) (err error)
+ //sys	Close(fd int) (err error)
+-//sysnb	Dup(fd int) (nfd int, err error)
+-//sysnb	Dup2(from int, to int) (err error)
++//sys	Dup(fd int) (nfd int, err error)
++//sys	Dup2(from int, to int) (err error)
+ //sys	Exchangedata(path1 string, path2 string, options int) (err error)
+ //sys	Exit(code int)
+ //sys	Fchdir(fd int) (err error)
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index 50068dec6c..c25963c437 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -127,8 +127,8 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ //sys	Chown(path string, uid int, gid int) (err error)
+ //sys	Chroot(path string) (err error)
+ //sys	Close(fd int) (err error)
+-//sysnb	Dup(fd int) (nfd int, err error)
+-//sysnb	Dup2(from int, to int) (err error)
++//sys	Dup(fd int) (nfd int, err error)
++//sys	Dup2(from int, to int) (err error)
+ //sys	Exit(code int)
+ //sys	Fchdir(fd int) (err error)
+ //sys	Fchflags(fd int, flags int) (err error)
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index 3d834f52b5..257d41960f 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -147,8 +147,8 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ //sys	Chown(path string, uid int, gid int) (err error)
+ //sys	Chroot(path string) (err error)
+ //sys	Close(fd int) (err error)
+-//sysnb	Dup(fd int) (nfd int, err error)
+-//sysnb	Dup2(from int, to int) (err error)
++//sys	Dup(fd int) (nfd int, err error)
++//sys	Dup2(from int, to int) (err error)
+ //sys	Exit(code int)
+ //sys	Fchdir(fd int) (err error)
+ //sys	Fchflags(fd int, flags int) (err error)
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 0a80560645..05d4044635 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -820,8 +820,8 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
+ //sys	Chdir(path string) (err error)
+ //sys	Chroot(path string) (err error)
+ //sys	Close(fd int) (err error)
+-//sysnb	Dup(oldfd int) (fd int, err error)
+-//sysnb	Dup3(oldfd int, newfd int, flags int) (err error)
++//sys	Dup(oldfd int) (fd int, err error)
++//sys	Dup3(oldfd int, newfd int, flags int) (err error)
+ //sysnb	EpollCreate(size int) (fd int, err error)
+ //sysnb	EpollCreate1(flag int) (fd int, err error)
+ //sysnb	EpollCtl(epfd int, op int, fd int, event *EpollEvent) (err error)
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index 61ff233ddc..98636a53ad 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -58,7 +58,7 @@ func Pipe2(p []int, flags int) (err error) {
+ 
+ // 64-bit file system and 32-bit uid calls
+ // (386 default is 32-bit file system and 16-bit uid).
+-//sysnb	Dup2(oldfd int, newfd int) (err error)
++//sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
+ //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
+ //sys	Ftruncate(fd int, length int64) (err error) = SYS_FTRUNCATE64
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index ff00ed549a..4111c075e8 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -6,7 +6,7 @@ package syscall
+ 
+ const _SYS_dup = SYS_DUP2
+ 
+-//sysnb	Dup2(oldfd int, newfd int) (err error)
++//sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+ //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index 862c01c24d..f0cc25ebed 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -80,7 +80,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ 
+ // 64-bit file system and 32-bit uid calls
+ // (16-bit uid calls are not always supported in newer kernels)
+-//sysnb	Dup2(oldfd int, newfd int) (err error)
++//sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
+ //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
+ //sysnb	Getegid() (egid int) = SYS_GETEGID32
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index fcf1d7b178..5318c6128c 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -9,7 +9,7 @@ package syscall
+ 
+ const _SYS_dup = SYS_DUP2
+ 
+-//sysnb	Dup2(oldfd int, newfd int) (err error)
++//sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+ //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index 97812717f5..7fd6e2bf46 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -148,8 +148,8 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ //sys	Chown(path string, uid int, gid int) (err error)
+ //sys	Chroot(path string) (err error)
+ //sys	Close(fd int) (err error)
+-//sysnb	Dup(fd int) (nfd int, err error)
+-//sysnb	Dup2(from int, to int) (err error)
++//sys	Dup(fd int) (nfd int, err error)
++//sys	Dup2(from int, to int) (err error)
+ //sys	Exit(code int)
+ //sys	Fchdir(fd int) (err error)
+ //sys	Fchflags(fd int, flags int) (err error)
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index 8d3f825f8f..e196e5966c 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -126,8 +126,8 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ //sys	Chown(path string, uid int, gid int) (err error)
+ //sys	Chroot(path string) (err error)
+ //sys	Close(fd int) (err error)
+-//sysnb	Dup(fd int) (nfd int, err error)
+-//sysnb	Dup2(from int, to int) (err error)
++//sys	Dup(fd int) (nfd int, err error)
++//sys	Dup2(from int, to int) (err error)
+ //sys	Exit(code int)
+ //sys	Fchdir(fd int) (err error)
+ //sys	Fchflags(fd int, flags int) (err error)
+diff --git a/src/syscall/zsyscall_darwin_386.go b/src/syscall/zsyscall_darwin_386.go
+index 934565fc31..fa25eb83a2 100644
+--- a/src/syscall/zsyscall_darwin_386.go
++++ b/src/syscall/zsyscall_darwin_386.go
+@@ -409,7 +409,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -420,7 +420,7 @@ func Dup(fd int) (nfd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_darwin_amd64.go b/src/syscall/zsyscall_darwin_amd64.go
+index 75cf2513b5..8293901933 100644
+--- a/src/syscall/zsyscall_darwin_amd64.go
++++ b/src/syscall/zsyscall_darwin_amd64.go
+@@ -409,7 +409,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -420,7 +420,7 @@ func Dup(fd int) (nfd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_darwin_arm.go b/src/syscall/zsyscall_darwin_arm.go
+index 83b25a6ae4..5ae0a5ee14 100644
+--- a/src/syscall/zsyscall_darwin_arm.go
++++ b/src/syscall/zsyscall_darwin_arm.go
+@@ -409,7 +409,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -420,7 +420,7 @@ func Dup(fd int) (nfd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_dragonfly_amd64.go b/src/syscall/zsyscall_dragonfly_amd64.go
+index 0121374692..bbf9a84afc 100644
+--- a/src/syscall/zsyscall_dragonfly_amd64.go
++++ b/src/syscall/zsyscall_dragonfly_amd64.go
+@@ -423,7 +423,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -434,7 +434,7 @@ func Dup(fd int) (nfd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_freebsd_386.go b/src/syscall/zsyscall_freebsd_386.go
+index c8c636fa11..8264305fcb 100644
+--- a/src/syscall/zsyscall_freebsd_386.go
++++ b/src/syscall/zsyscall_freebsd_386.go
+@@ -389,7 +389,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -400,7 +400,7 @@ func Dup(fd int) (nfd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_freebsd_amd64.go b/src/syscall/zsyscall_freebsd_amd64.go
+index 026b560ca0..ff8ae5ed8c 100644
+--- a/src/syscall/zsyscall_freebsd_amd64.go
++++ b/src/syscall/zsyscall_freebsd_amd64.go
+@@ -389,7 +389,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -400,7 +400,7 @@ func Dup(fd int) (nfd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_freebsd_arm.go b/src/syscall/zsyscall_freebsd_arm.go
+index 0c349cb61d..ea99bf83ba 100644
+--- a/src/syscall/zsyscall_freebsd_arm.go
++++ b/src/syscall/zsyscall_freebsd_arm.go
+@@ -389,7 +389,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -400,7 +400,7 @@ func Dup(fd int) (nfd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index 587918f834..6bff9bd394 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -301,7 +301,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(oldfd int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(oldfd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(oldfd), 0, 0)
+ 	fd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -312,7 +312,7 @@ func Dup(oldfd int) (fd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup3(oldfd int, newfd int, flags int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP3, uintptr(oldfd), uintptr(newfd), uintptr(flags))
++	_, _, e1 := Syscall(SYS_DUP3, uintptr(oldfd), uintptr(newfd), uintptr(flags))
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+@@ -1227,7 +1227,7 @@ func pipe2(p *[2]_C_int, flags int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(oldfd int, newfd int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index 17b7d929e0..f81cd4d4aa 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -301,7 +301,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(oldfd int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(oldfd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(oldfd), 0, 0)
+ 	fd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -312,7 +312,7 @@ func Dup(oldfd int) (fd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup3(oldfd int, newfd int, flags int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP3, uintptr(oldfd), uintptr(newfd), uintptr(flags))
++	_, _, e1 := Syscall(SYS_DUP3, uintptr(oldfd), uintptr(newfd), uintptr(flags))
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+@@ -1207,7 +1207,7 @@ func Munlockall() (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(oldfd int, newfd int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index 74bf02db3e..6e493793e5 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -301,7 +301,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(oldfd int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(oldfd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(oldfd), 0, 0)
+ 	fd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -312,7 +312,7 @@ func Dup(oldfd int) (fd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup3(oldfd int, newfd int, flags int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP3, uintptr(oldfd), uintptr(newfd), uintptr(flags))
++	_, _, e1 := Syscall(SYS_DUP3, uintptr(oldfd), uintptr(newfd), uintptr(flags))
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+@@ -1396,7 +1396,7 @@ func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(oldfd int, newfd int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_linux_arm64.go b/src/syscall/zsyscall_linux_arm64.go
+index a7dfc81fee..c0b22463e9 100644
+--- a/src/syscall/zsyscall_linux_arm64.go
++++ b/src/syscall/zsyscall_linux_arm64.go
+@@ -301,7 +301,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(oldfd int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(oldfd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(oldfd), 0, 0)
+ 	fd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -312,7 +312,7 @@ func Dup(oldfd int) (fd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup3(oldfd int, newfd int, flags int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP3, uintptr(oldfd), uintptr(newfd), uintptr(flags))
++	_, _, e1 := Syscall(SYS_DUP3, uintptr(oldfd), uintptr(newfd), uintptr(flags))
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index 2de0de80db..505b7bf73b 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -301,7 +301,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(oldfd int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(oldfd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(oldfd), 0, 0)
+ 	fd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -312,7 +312,7 @@ func Dup(oldfd int) (fd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup3(oldfd int, newfd int, flags int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP3, uintptr(oldfd), uintptr(newfd), uintptr(flags))
++	_, _, e1 := Syscall(SYS_DUP3, uintptr(oldfd), uintptr(newfd), uintptr(flags))
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+@@ -1207,7 +1207,7 @@ func Munlockall() (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(oldfd int, newfd int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index 2de0de80db..505b7bf73b 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -301,7 +301,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(oldfd int) (fd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(oldfd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(oldfd), 0, 0)
+ 	fd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -312,7 +312,7 @@ func Dup(oldfd int) (fd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup3(oldfd int, newfd int, flags int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP3, uintptr(oldfd), uintptr(newfd), uintptr(flags))
++	_, _, e1 := Syscall(SYS_DUP3, uintptr(oldfd), uintptr(newfd), uintptr(flags))
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+@@ -1207,7 +1207,7 @@ func Munlockall() (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(oldfd int, newfd int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_netbsd_386.go b/src/syscall/zsyscall_netbsd_386.go
+index e9bd3d0f67..1874d72f49 100644
+--- a/src/syscall/zsyscall_netbsd_386.go
++++ b/src/syscall/zsyscall_netbsd_386.go
+@@ -406,7 +406,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -417,7 +417,7 @@ func Dup(fd int) (nfd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_netbsd_amd64.go b/src/syscall/zsyscall_netbsd_amd64.go
+index 1acd7c2736..f294585449 100644
+--- a/src/syscall/zsyscall_netbsd_amd64.go
++++ b/src/syscall/zsyscall_netbsd_amd64.go
+@@ -406,7 +406,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -417,7 +417,7 @@ func Dup(fd int) (nfd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_netbsd_arm.go b/src/syscall/zsyscall_netbsd_arm.go
+index 898e0ce809..289201ffcb 100644
+--- a/src/syscall/zsyscall_netbsd_arm.go
++++ b/src/syscall/zsyscall_netbsd_arm.go
+@@ -406,7 +406,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -417,7 +417,7 @@ func Dup(fd int) (nfd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_openbsd_386.go b/src/syscall/zsyscall_openbsd_386.go
+index 5b005d2dc3..614344693d 100644
+--- a/src/syscall/zsyscall_openbsd_386.go
++++ b/src/syscall/zsyscall_openbsd_386.go
+@@ -404,7 +404,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -415,7 +415,7 @@ func Dup(fd int) (nfd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_openbsd_amd64.go b/src/syscall/zsyscall_openbsd_amd64.go
+index ce9397bcae..f1d2fa5769 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.go
++++ b/src/syscall/zsyscall_openbsd_amd64.go
+@@ -404,7 +404,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -415,7 +415,7 @@ func Dup(fd int) (nfd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/syscall/zsyscall_openbsd_arm.go b/src/syscall/zsyscall_openbsd_arm.go
+index bf53d16835..21f84d83c3 100644
+--- a/src/syscall/zsyscall_openbsd_arm.go
++++ b/src/syscall/zsyscall_openbsd_arm.go
+@@ -404,7 +404,7 @@ func Close(fd int) (err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup(fd int) (nfd int, err error) {
+-	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(fd), 0, 0)
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -415,7 +415,7 @@ func Dup(fd int) (nfd int, err error) {
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Dup2(from int, to int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}

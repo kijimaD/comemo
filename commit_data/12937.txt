@@ -34,8 +34,170 @@ Date:   Mon Apr 23 14:56:03 2012 -0700
     R=adg, golang-dev
     CC=golang-dev
     https://golang.org/cl/5987044
-
+---
  misc/dist/bindist.go                 | 67 +++++++++++-------------------------
  misc/dist/darwin/Distribution        | 25 ++++++++++++++
  misc/dist/darwin/scripts/postinstall |  7 +---
  3 files changed, 46 insertions(+), 53 deletions(-)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index 77b7218ba0..a2cfdd6a54 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -13,7 +13,6 @@ import (
+ 	"bytes"
+ 	"compress/gzip"
+ 	"encoding/base64"
+-	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"io"
+@@ -41,8 +40,7 @@ var (
+ )
+ 
+ const (
+-	packageMaker = "/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker"
+-	uploadURL    = "https://go.googlecode.com/files"
++	uploadURL = "https://go.googlecode.com/files"
+ )
+ 
+ var preBuildCleanFiles = []string{
+@@ -231,7 +229,7 @@ func (b *Build) Do() error {
+ 			return err
+ 		}
+ 		localDir := filepath.Join(work, "usr/local")
+-		err = os.MkdirAll(localDir, 0744)
++		err = os.MkdirAll(localDir, 0755)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -240,27 +238,29 @@ func (b *Build) Do() error {
+ 			return err
+ 		}
+ 		// build package
+-		pkginfo, err := createPackageInfo(work)
++		pkgdest, err := ioutil.TempDir("", "pkgdest")
+ 		if err != nil {
+ 			return err
+ 		}
+-		defer os.Remove(pkginfo)
+-		pm := packageMaker
+-		if !exists(pm) {
+-			pm = "/Developer" + pm
+-			if !exists(pm) {
+-				return errors.New("couldn't find PackageMaker")
+-			}
++		defer os.RemoveAll(pkgdest)
++		dist := filepath.Join(runtime.GOROOT(), "misc/dist")
++		_, err = b.run("", "pkgbuild",
++			"--identifier", "com.googlecode.go",
++			"--version", "1.0",
++			"--scripts", filepath.Join(dist, "darwin/scripts"),
++			"--root", work,
++			filepath.Join(pkgdest, "com.googlecode.go.pkg"))
++		if err != nil {
++			return err
+ 		}
+ 		targ := base + ".pkg"
+-		scripts := filepath.Join(work, "usr/local/go/misc/dist/darwin/scripts")
+-		_, err = b.run("", pm, "-v",
+-			"-r", work,
+-			"-o", targ,
+-			"--info", pkginfo,
+-			"--scripts", scripts,
+-			"--title", "Go",
+-			"--target", "10.5")
++		_, err = b.run("", "productbuild",
++			"--distribution", filepath.Join(dist, "darwin/Distribution"),
++			"--package-path", pkgdest,
++			targ)
++		if err != nil {
++			return err
++		}
+ 		targs = append(targs, targ)
+ 	case "windows":
+ 		// Create ZIP file.
+@@ -806,30 +806,3 @@ func tarFileInfoHeader(fi os.FileInfo, filename string) (*tar.Header, error) {
+ 	}
+ 	return h, nil
+ }
+-
+-// createPackageInfo creates a PackageInfo template file for use with PackageMaker.
+-// The returned filename points to a file in a temporary directory on the filesystem,
+-// and should be removed after use.
+-func createPackageInfo(work string) (filename string, err error) {
+-	var size, nfiles int64
+-	err = filepath.Walk(work, func(path string, info os.FileInfo, err error) error {
+-		nfiles++
+-		size += info.Size()
+-		return nil
+-	})
+-	if err != nil {
+-		return "", err
+-	}
+-	pi, err := ioutil.TempFile("", "PackageInfo")
+-	if err != nil {
+-		return "", err
+-	}
+-	defer pi.Close()
+-	_, err = fmt.Fprintf(pi, "<pkg-info identifier=\"com.googlecode.go\" version=\"1.0\" followSymLinks=\"true\">\n"+
+-		"\t<payload installKBytes=\"%v\" numberOfFiles=\"%v\"/>\n"+
+-		"</pkg-info>\n", size/1024, nfiles)
+-	if err != nil {
+-		return "", err
+-	}
+-	return pi.Name(), nil
+-}
+diff --git a/misc/dist/darwin/Distribution b/misc/dist/darwin/Distribution
+new file mode 100644
+index 0000000000..915d72da3d
+--- /dev/null
++++ b/misc/dist/darwin/Distribution
+@@ -0,0 +1,25 @@
++<?xml version="1.0" encoding="utf-8" standalone="no"?>
++<installer-script minSpecVersion="1.000000">
++    <title>Go</title>
++    <options customize="never" allow-external-scripts="no"/>
++    <domains enable_localSystem="true" />
++    <installation-check script="installCheck();"/>
++    <script>
++function installCheck() {
++    if(!(system.compareVersions(system.version.ProductVersion, '10.6.0') >= 0)) {
++        my.result.title = 'Unable to install';
++        my.result.message = 'Go requires Mac OS X 10.6 or later.';
++        my.result.type = 'Fatal';
++        return false;
++    }
++    return true;
++}
++    </script>
++    <choices-outline>
++        <line choice="com.googlecode.go.choice"/>
++    </choices-outline>
++    <choice id="com.googlecode.go.choice" title="Go">
++        <pkg-ref id="com.googlecode.go.pkg"/>
++    </choice>
++    <pkg-ref id="com.googlecode.go.pkg" auth="Root">com.googlecode.go.pkg</pkg-ref>
++</installer-script>
+diff --git a/misc/dist/darwin/scripts/postinstall b/misc/dist/darwin/scripts/postinstall
+old mode 100644
+new mode 100755
+index 3748721c74..4410a3004e
+--- a/misc/dist/darwin/scripts/postinstall
++++ b/misc/dist/darwin/scripts/postinstall
+@@ -9,14 +9,9 @@ find bin -exec chmod ugo+rx \{\} \;
+ find . -type d -exec chmod ugo+rx \{\} \;
+ chmod o-w .
+ 
+-echo "Fixing debuggers via sudo.bash"
+-# setgrp procmod the debuggers (sudo.bash)
+-cd $GOROOT/src
+-./sudo.bash
+-
+ echo "Installing miscellaneous files:"
+ XCODE_MISC_DIR="/Library/Application Support/Developer/Shared/Xcode/Specifications/"
+-if [ -f $XCODE_MISC_DIR ]; then
++if [ -d "$XCODE_MISC_DIR" ]; then
+ 	echo "  XCode"
+ 	cp $GOROOT/misc/xcode/* $XCODE_MISC_DIR
+ fi

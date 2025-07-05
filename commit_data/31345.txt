@@ -11,7 +11,34 @@ Date:   Mon Feb 13 14:59:45 2017 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/build.go | 2 +-
  src/syscall/asm.s                 | 7 -------
  2 files changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 463206354b..e02b5f9025 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -2189,7 +2189,7 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, obj string, asmhdr b
+ 	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.CXXFiles) + len(p.MFiles) + len(p.FFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
+ 	if p.Standard {
+ 		switch p.ImportPath {
+-		case "bytes", "internal/poll", "net", "os", "runtime/pprof", "sync", "time":
++		case "bytes", "internal/poll", "net", "os", "runtime/pprof", "sync", "syscall", "time":
+ 			extFiles++
+ 		}
+ 	}
+diff --git a/src/syscall/asm.s b/src/syscall/asm.s
+deleted file mode 100644
+index c3bc40a594..0000000000
+--- a/src/syscall/asm.s
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Dummy asm file to keep Windows building.
+-// TODO(sameer): delete this after updating go tool
+-// per Ian's comment in golang.org/cl/36716

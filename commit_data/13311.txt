@@ -9,7 +9,63 @@ Date:   Thu Jun 7 02:05:08 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6296052
-
+---
  src/cmd/gc/subr.c        |  4 ++--
  test/fixedbugs/bug442.go | 27 +++++++++++++++++++++++++++
  2 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index dfab86864a..1bb83272c9 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2684,7 +2684,7 @@ genhash(Sym *sym, Type *t)
+ 		first = T;
+ 		for(t1=t->type;; t1=t1->down) {
+ 			if(t1 != T && (isblanksym(t1->sym) || algtype1(t1->type, nil) == AMEM)) {
+-				if(first == T)
++				if(first == T && !isblanksym(t1->sym))
+ 					first = t1;
+ 				continue;
+ 			}
+@@ -2901,7 +2901,7 @@ geneq(Sym *sym, Type *t)
+ 		first = T;
+ 		for(t1=t->type;; t1=t1->down) {
+ 			if(t1 != T && (isblanksym(t1->sym) || algtype1(t1->type, nil) == AMEM)) {
+-				if(first == T)
++				if(first == T && !isblanksym(t1->sym))
+ 					first = t1;
+ 				continue;
+ 			}
+diff --git a/test/fixedbugs/bug442.go b/test/fixedbugs/bug442.go
+new file mode 100644
+index 0000000000..1d1a948161
+--- /dev/null
++++ b/test/fixedbugs/bug442.go
+@@ -0,0 +1,27 @@
++// run
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used to crash generating hash and == functions for struct
++// with leading _ field.  Issue 3607.
++
++package main
++
++type T struct {
++	_ int
++	X interface{}
++	_ string
++	Y float64
++}
++
++func main() {
++	m := map[T]int{}
++	m[T{X: 1, Y: 2}] = 1
++	m[T{X: 2, Y: 3}] = 2
++	m[T{X: 1, Y: 2}] = 3  // overwrites first entry
++	if len(m) != 2 {
++		println("BUG")
++	}
++}

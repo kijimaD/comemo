@@ -9,10 +9,94 @@ Date:   Sun Oct 9 01:09:52 2016 +0900
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ssa/func.go          | 9 +++------
  src/cmd/compile/internal/ssa/lca.go           | 2 +-
  src/cmd/compile/internal/ssa/prove.go         | 2 +-
  src/cmd/compile/internal/ssa/sparsetreemap.go | 2 +-
  src/cmd/compile/internal/ssa/tighten.go       | 2 +-
  5 files changed, 7 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 6ba5448998..dbdc42d1f8 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -451,23 +451,20 @@ func (f *Func) postorder() []*Block {
+ 	return f.cachedPostorder
+ }
+ 
+-// idom returns a map from block ID to the immediate dominator of that block.
++// Idom returns a map from block ID to the immediate dominator of that block.
+ // f.Entry.ID maps to nil. Unreachable blocks map to nil as well.
+-func (f *Func) idom() []*Block {
++func (f *Func) Idom() []*Block {
+ 	if f.cachedIdom == nil {
+ 		f.cachedIdom = dominators(f)
+ 	}
+ 	return f.cachedIdom
+ }
+-func (f *Func) Idom() []*Block {
+-	return f.idom()
+-}
+ 
+ // sdom returns a sparse tree representing the dominator relationships
+ // among the blocks of f.
+ func (f *Func) sdom() SparseTree {
+ 	if f.cachedSdom == nil {
+-		f.cachedSdom = newSparseTree(f, f.idom())
++		f.cachedSdom = newSparseTree(f, f.Idom())
+ 	}
+ 	return f.cachedSdom
+ }
+diff --git a/src/cmd/compile/internal/ssa/lca.go b/src/cmd/compile/internal/ssa/lca.go
+index ca9470302b..b9731fa7c2 100644
+--- a/src/cmd/compile/internal/ssa/lca.go
++++ b/src/cmd/compile/internal/ssa/lca.go
+@@ -30,7 +30,7 @@ type lcaRangeBlock struct {
+ }
+ 
+ func makeLCArange(f *Func) *lcaRange {
+-	dom := f.idom()
++	dom := f.Idom()
+ 
+ 	// Build tree
+ 	blocks := make([]lcaRangeBlock, f.NumBlocks())
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 659d38ede8..2b6244c209 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -463,7 +463,7 @@ func prove(f *Func) {
+ 	})
+ 
+ 	ft := newFactsTable()
+-	idom := f.idom()
++	idom := f.Idom()
+ 	sdom := f.sdom()
+ 
+ 	// DFS on the dominator tree.
+diff --git a/src/cmd/compile/internal/ssa/sparsetreemap.go b/src/cmd/compile/internal/ssa/sparsetreemap.go
+index b7624ada55..d26467517e 100644
+--- a/src/cmd/compile/internal/ssa/sparsetreemap.go
++++ b/src/cmd/compile/internal/ssa/sparsetreemap.go
+@@ -57,7 +57,7 @@ type SparseTreeHelper struct {
+ // NewSparseTreeHelper returns a SparseTreeHelper for use
+ // in the gc package, for example in phi-function placement.
+ func NewSparseTreeHelper(f *Func) *SparseTreeHelper {
+-	dom := f.idom()
++	dom := f.Idom()
+ 	ponums := make([]int32, f.NumBlocks())
+ 	po := postorderWithNumbering(f, ponums)
+ 	return makeSparseTreeHelper(newSparseTree(f, dom), dom, po, ponums)
+diff --git a/src/cmd/compile/internal/ssa/tighten.go b/src/cmd/compile/internal/ssa/tighten.go
+index bed1704dc3..6f19263055 100644
+--- a/src/cmd/compile/internal/ssa/tighten.go
++++ b/src/cmd/compile/internal/ssa/tighten.go
+@@ -56,7 +56,7 @@ func tighten(f *Func) {
+ 
+ 	// Grab loop information.
+ 	// We use this to make sure we don't tighten a value into a (deeper) loop.
+-	idom := f.idom()
++	idom := f.Idom()
+ 	loops := f.loopnest()
+ 	loops.calculateDepths()
+ 

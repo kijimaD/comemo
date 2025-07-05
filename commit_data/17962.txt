@@ -9,6 +9,20 @@ Date:   Wed Dec 11 17:27:29 2013 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/40720046
-
+---
  src/pkg/crypto/x509/x509.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 57f68ba7ed..4a5e7e86e5 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -1355,7 +1355,7 @@ func subjectBytes(cert *Certificate) ([]byte, error) {
+ // The returned slice is the certificate in DER encoding.
+ //
+ // The only supported key types are RSA and ECDSA (*rsa.PublicKey or
+-// *ecdsa.PublicKey for pub, *rsa.PrivateKey or *ecdsa.PublicKey for priv).
++// *ecdsa.PublicKey for pub, *rsa.PrivateKey or *ecdsa.PrivateKey for priv).
+ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub interface{}, priv interface{}) (cert []byte, err error) {
+ 	var publicKeyBytes []byte
+ 	var publicKeyAlgorithm pkix.AlgorithmIdentifier

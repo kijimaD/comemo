@@ -9,6 +9,22 @@ Date:   Tue Feb 28 11:34:56 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/internal/obj/util.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 5880577655..f1cfc96a6f 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -181,10 +181,6 @@ func (ctxt *Link) freeProgs() {
+ 	ctxt.allocIdx = 0
+ }
+ 
+-func Getcallerpc(interface{}) uintptr {
+-	return 1
+-}
+-
+ func (ctxt *Link) Dconv(a *Addr) string {
+ 	return Dconv(nil, a)
+ }

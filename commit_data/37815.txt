@@ -9,6 +9,26 @@ Date:   Thu Aug 30 18:27:07 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bytes/example_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/bytes/example_test.go b/src/bytes/example_test.go
+index 5b7a46058f..4d5cdfa280 100644
+--- a/src/bytes/example_test.go
++++ b/src/bytes/example_test.go
+@@ -39,6 +39,14 @@ func ExampleBuffer_Grow() {
+ 	// Output: "64 bytes or fewer"
+ }
+ 
++func ExampleBuffer_Len() {
++	var b bytes.Buffer
++	b.Grow(64)
++	b.Write([]byte("abcde"))
++	fmt.Printf("%d", b.Len())
++	// Output: 5
++}
++
+ func ExampleCompare() {
+ 	// Interpret Compare's result by comparing it to zero.
+ 	var a, b []byte

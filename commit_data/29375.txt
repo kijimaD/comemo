@@ -13,6 +13,20 @@ Date:   Mon Sep 12 13:27:31 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 093a6f1b3d..9c95d478b5 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -455,7 +455,7 @@ func (ctxt *Link) loadlib() {
+ 
+ 		// Force external linking for PIE binaries on systems
+ 		// that do not support internal PIE linking.
+-		if Buildmode == BuildmodePIE && (obj.GOOS != "linux" || SysArch.Family != sys.AMD64) {
++		if Buildmode == BuildmodePIE {
+ 			Linkmode = LinkExternal
+ 		}
+ 

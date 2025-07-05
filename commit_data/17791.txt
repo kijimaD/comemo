@@ -7,6 +7,32 @@ Date:   Mon Oct 14 10:53:55 2013 -0700
     R=golang-dev, r, minux.ma
     CC=golang-dev
     https://golang.org/cl/14669045
-
+---
  src/pkg/debug/dwarf/entry.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/debug/dwarf/entry.go b/src/pkg/debug/dwarf/entry.go
+index 13d8d5ecf9..6e6fa0f590 100644
+--- a/src/pkg/debug/dwarf/entry.go
++++ b/src/pkg/debug/dwarf/entry.go
+@@ -10,7 +10,10 @@
+ 
+ package dwarf
+ 
+-import "errors"
++import (
++	"errors"
++	"strconv"
++)
+ 
+ // a single entry's description: a sequence of attributes
+ type abbrev struct {
+@@ -152,7 +155,7 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
+ 		var val interface{}
+ 		switch fmt {
+ 		default:
+-			b.error("unknown entry attr format")
++			b.error("unknown entry attr format 0x" + strconv.FormatInt(int64(fmt), 16))
+ 
+ 		// address
+ 		case formAddr:

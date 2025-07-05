@@ -11,6 +11,27 @@ Date:   Wed Oct 17 08:10:28 2018 +0000
     GitHub-Pull-Request: golang/go#28246
     Reviewed-on: https://go-review.googlesource.com/c/142877
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 7c8d46b100..1ffe252ee3 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -567,7 +567,6 @@ type finalCloser interface {
+ // addDep notes that x now depends on dep, and x's finalClose won't be
+ // called until all of x's dependencies are removed with removeDep.
+ func (db *DB) addDep(x finalCloser, dep interface{}) {
+-	//println(fmt.Sprintf("addDep(%T %p, %T %p)", x, x, dep, dep))
+ 	db.mu.Lock()
+ 	defer db.mu.Unlock()
+ 	db.addDepLocked(x, dep)
+@@ -597,7 +596,6 @@ func (db *DB) removeDep(x finalCloser, dep interface{}) error {
+ }
+ 
+ func (db *DB) removeDepLocked(x finalCloser, dep interface{}) func() error {
+-	//println(fmt.Sprintf("removeDep(%T %p, %T %p)", x, x, dep, dep))
+ 
+ 	xdep, ok := db.dep[x]
+ 	if !ok {

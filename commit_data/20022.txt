@@ -10,6 +10,21 @@ Date:   Tue Aug 12 15:45:35 2014 -0700
     R=golang-codereviews, minux
     CC=golang-codereviews
     https://golang.org/cl/124260043
-
+---
  doc/go1compat.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1compat.html b/doc/go1compat.html
+index 2c8d214840..8ceaf32f97 100644
+--- a/doc/go1compat.html
++++ b/doc/go1compat.html
+@@ -161,7 +161,8 @@ The <a href="/pkg/syscall/"><code>syscall</code></a> package
+ is therefore outside the purview of the guarantees made here.
+ As of Go version 1.4, the <code>syscall</code> package is frozen.
+ Any evolution of the system call interface must be supported elsewhere,
+-such as in the <code>go.sys</code> subrepository.
++such as in the
++<a href="http://godoc.org/code.google.com/p/go.sys">go.sys</a> subrepository.
+ For details and background, see
+ <a href="https://golang.org/s/go1.4-syscall">this document</a>.
+ </p>

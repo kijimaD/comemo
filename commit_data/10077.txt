@@ -9,6 +9,21 @@ Date:   Mon Oct 24 09:11:01 2011 +1100
     R=golang-dev, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/5306049
-
+---
  src/pkg/net/sock_windows.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/pkg/net/sock_windows.go b/src/pkg/net/sock_windows.go
+index c6dbd04656..5169d1e6a2 100644
+--- a/src/pkg/net/sock_windows.go
++++ b/src/pkg/net/sock_windows.go
+@@ -11,9 +11,6 @@ import (
+ )
+ 
+ func setKernelSpecificSockopt(s syscall.Handle, f int) {
+-	// Allow reuse of recently-used addresses and ports.
+-	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+-
+ 	// Allow broadcast.
+ 	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+ 

@@ -20,7 +20,43 @@ Date:   Sat Aug 5 22:51:49 2023 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/walk/builtin.go |  5 ++++-
  test/fixedbugs/issue61778.go             | 13 +++++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 786c31313c..0bb5018250 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -255,7 +255,10 @@ func walkLenCap(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
+ 		return mkcall("countrunes", n.Type(), init, typecheck.Conv(n.X.(*ir.ConvExpr).X, types.Types[types.TSTRING]))
+ 	}
+ 	if isByteCount(n) {
+-		_, len := backingArrayPtrLen(cheapExpr(n.X.(*ir.ConvExpr).X, init))
++		conv := n.X.(*ir.ConvExpr)
++		walkStmtList(conv.Init())
++		init.Append(ir.TakeInit(conv)...)
++		_, len := backingArrayPtrLen(cheapExpr(conv.X, init))
+ 		return len
+ 	}
+ 
+diff --git a/test/fixedbugs/issue61778.go b/test/fixedbugs/issue61778.go
+new file mode 100644
+index 0000000000..5055c9e6a2
+--- /dev/null
++++ b/test/fixedbugs/issue61778.go
+@@ -0,0 +1,13 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(s []byte) {
++	switch "" {
++	case string(append(s, 'a')):
++	}
++}

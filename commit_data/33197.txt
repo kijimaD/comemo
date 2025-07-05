@@ -118,7 +118,7 @@ Date:   Fri Jul 21 18:30:19 2017 -0400
     Change-Id: I991fc553ef175db46bb23b2128317bbd48de70d8
     Reviewed-on: https://go-review.googlesource.com/41770
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/fmt_test.go                    |  15 +
  src/cmd/compile/internal/gc/main.go            |   8 +-
  src/cmd/compile/internal/gc/pgen.go            | 353 ++++++++++++++--
@@ -147,3 +147,2287 @@ Date:   Fri Jul 21 18:30:19 2017 -0400
  src/cmd/link/internal/ld/symkind.go            |   2 +
  src/cmd/link/internal/ld/symkind_string.go     |   4 +-
  27 files changed, 1391 insertions(+), 158 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 59de326a91..2052a4200e 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -571,9 +571,16 @@ var knownFormats = map[string]string{
+ 	"*cmd/compile/internal/ssa.Block %s":              "",
+ 	"*cmd/compile/internal/ssa.Block %v":              "",
+ 	"*cmd/compile/internal/ssa.Func %s":               "",
++	"*cmd/compile/internal/ssa.Func %v":               "",
++	"*cmd/compile/internal/ssa.FuncDebug %v":          "",
++	"*cmd/compile/internal/ssa.LocalSlot %+v":         "",
++	"*cmd/compile/internal/ssa.LocalSlot %v":          "",
++	"*cmd/compile/internal/ssa.Register %v":           "",
+ 	"*cmd/compile/internal/ssa.SparseTreeNode %v":     "",
+ 	"*cmd/compile/internal/ssa.Value %s":              "",
+ 	"*cmd/compile/internal/ssa.Value %v":              "",
++	"*cmd/compile/internal/ssa.VarLoc %+v":            "",
++	"*cmd/compile/internal/ssa.VarLoc %v":             "",
+ 	"*cmd/compile/internal/ssa.sparseTreeMapEntry %v": "",
+ 	"*cmd/compile/internal/types.Field %p":            "",
+ 	"*cmd/compile/internal/types.Field %v":            "",
+@@ -592,6 +599,7 @@ var knownFormats = map[string]string{
+ 	"*cmd/compile/internal/types.Type %p":             "",
+ 	"*cmd/compile/internal/types.Type %s":             "",
+ 	"*cmd/compile/internal/types.Type %v":             "",
++	"*cmd/internal/dwarf.Location %#v":                "",
+ 	"*cmd/internal/obj.Addr %v":                       "",
+ 	"*cmd/internal/obj.LSym %v":                       "",
+ 	"*cmd/internal/obj.Prog %s":                       "",
+@@ -600,17 +608,21 @@ var knownFormats = map[string]string{
+ 	"[16]byte %x":                                     "",
+ 	"[]*cmd/compile/internal/gc.Node %v":              "",
+ 	"[]*cmd/compile/internal/gc.Sig %#v":              "",
++	"[]*cmd/compile/internal/ssa.Block %+v":           "",
+ 	"[]*cmd/compile/internal/ssa.Value %v":            "",
++	"[][]cmd/compile/internal/ssa.SlotID %v":          "",
+ 	"[]byte %s":                                       "",
+ 	"[]byte %x":                                       "",
+ 	"[]cmd/compile/internal/ssa.Edge %v":              "",
+ 	"[]cmd/compile/internal/ssa.ID %v":                "",
++	"[]cmd/compile/internal/ssa.VarLocList %v":        "",
+ 	"[]string %v":                                     "",
+ 	"bool %v":                                         "",
+ 	"byte %08b":                                       "",
+ 	"byte %c":                                         "",
+ 	"cmd/compile/internal/arm.shift %d":               "",
+ 	"cmd/compile/internal/gc.Class %d":                "",
++	"cmd/compile/internal/gc.Class %v":                "",
+ 	"cmd/compile/internal/gc.Ctype %d":                "",
+ 	"cmd/compile/internal/gc.Ctype %v":                "",
+ 	"cmd/compile/internal/gc.Level %d":                "",
+@@ -630,11 +642,13 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/ssa.Edge %v":                "",
+ 	"cmd/compile/internal/ssa.GCNode %v":              "",
+ 	"cmd/compile/internal/ssa.ID %d":                  "",
++	"cmd/compile/internal/ssa.ID %v":                  "",
+ 	"cmd/compile/internal/ssa.LocalSlot %v":           "",
+ 	"cmd/compile/internal/ssa.Location %v":            "",
+ 	"cmd/compile/internal/ssa.Op %s":                  "",
+ 	"cmd/compile/internal/ssa.Op %v":                  "",
+ 	"cmd/compile/internal/ssa.ValAndOff %s":           "",
++	"cmd/compile/internal/ssa.VarLocList %v":          "",
+ 	"cmd/compile/internal/ssa.rbrank %d":              "",
+ 	"cmd/compile/internal/ssa.regMask %d":             "",
+ 	"cmd/compile/internal/ssa.register %d":            "",
+@@ -648,6 +662,7 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/types.EType %d":             "",
+ 	"cmd/compile/internal/types.EType %s":             "",
+ 	"cmd/compile/internal/types.EType %v":             "",
++	"cmd/internal/dwarf.Location %#v":                 "",
+ 	"cmd/internal/src.Pos %s":                         "",
+ 	"cmd/internal/src.Pos %v":                         "",
+ 	"error %v":                                        "",
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 2b61564ad8..a1f4767c8f 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -44,6 +44,7 @@ var (
+ 	Debug_vlog         bool
+ 	Debug_wb           int
+ 	Debug_pctab        string
++	Debug_locationlist int
+ )
+ 
+ // Debug arguments.
+@@ -69,6 +70,7 @@ var debugtab = []struct {
+ 	{"wb", "print information about write barriers", &Debug_wb},
+ 	{"export", "print export data", &Debug_export},
+ 	{"pctab", "print named pc-value table", &Debug_pctab},
++	{"locationlists", "print information about DWARF location list creation", &Debug_locationlist},
+ }
+ 
+ const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
+@@ -192,6 +194,7 @@ func Main(archInit func(*Arch)) {
+ 	flag.BoolVar(&pure_go, "complete", false, "compiling complete package (no C or assembly)")
+ 	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`; try -d help")
+ 	flag.BoolVar(&flagDWARF, "dwarf", true, "generate DWARF symbols")
++	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", false, "add location lists to DWARF in optimized mode")
+ 	objabi.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
+ 	objabi.Flagcount("f", "debug stack frames", &Debug['f'])
+ 	objabi.Flagcount("h", "halt on error", &Debug['h'])
+@@ -298,6 +301,9 @@ func Main(archInit func(*Arch)) {
+ 	if nBackendWorkers > 1 && !concurrentBackendAllowed() {
+ 		log.Fatalf("cannot use concurrent backend compilation with provided flags; invoked as %v", os.Args)
+ 	}
++	if Ctxt.Flag_locationlists && len(Ctxt.Arch.DWARFRegisters) == 0 {
++		log.Fatalf("location lists requested but register mapping not available on %v", Ctxt.Arch.Name)
++	}
+ 
+ 	// parse -d argument
+ 	if debugstr != "" {
+@@ -383,7 +389,7 @@ func Main(archInit func(*Arch)) {
+ 		Debug['l'] = 1 - Debug['l']
+ 	}
+ 
+-	trackScopes = flagDWARF && Debug['l'] == 0 && Debug['N'] != 0
++	trackScopes = flagDWARF && ((Debug['l'] == 0 && Debug['N'] != 0) || Ctxt.Flag_locationlists)
+ 
+ 	Widthptr = thearch.LinkArch.PtrSize
+ 	Widthreg = thearch.LinkArch.RegSize
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index d301ae19c8..542fd43b63 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -13,6 +13,7 @@ import (
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 	"fmt"
++	"math"
+ 	"math/rand"
+ 	"sort"
+ 	"sync"
+@@ -303,47 +304,31 @@ func compileFunctions() {
+ 
+ func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
+ 	fn := curfn.(*Node)
++	debugInfo := fn.Func.DebugInfo
++	fn.Func.DebugInfo = nil
+ 	if expect := fn.Func.Nname.Sym.Linksym(); fnsym != expect {
+ 		Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
+ 	}
+ 
+-	var dwarfVars []*dwarf.Var
+-	var varScopes []ScopeID
+-
++	var automDecls []*Node
++	// Populate Automs for fn.
+ 	for _, n := range fn.Func.Dcl {
+ 		if n.Op != ONAME { // might be OTYPE or OLITERAL
+ 			continue
+ 		}
+-
+ 		var name obj.AddrName
+-		var abbrev int
+-		offs := n.Xoffset
+-
+ 		switch n.Class() {
+ 		case PAUTO:
+ 			if !n.Name.Used() {
+ 				Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
+ 			}
+ 			name = obj.NAME_AUTO
+-
+-			abbrev = dwarf.DW_ABRV_AUTO
+-			if Ctxt.FixedFrameSize() == 0 {
+-				offs -= int64(Widthptr)
+-			}
+-			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+-				offs -= int64(Widthptr)
+-			}
+-
+ 		case PPARAM, PPARAMOUT:
+ 			name = obj.NAME_PARAM
+-
+-			abbrev = dwarf.DW_ABRV_PARAM
+-			offs += Ctxt.FixedFrameSize()
+-
+ 		default:
+ 			continue
+ 		}
+-
++		automDecls = append(automDecls, n)
+ 		gotype := ngotype(n).Linksym()
+ 		fnsym.Func.Autom = append(fnsym.Func.Autom, &obj.Auto{
+ 			Asym:    Ctxt.Lookup(n.Sym.Name),
+@@ -351,32 +336,336 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
+ 			Name:    name,
+ 			Gotype:  gotype,
+ 		})
++	}
++
++	var dwarfVars []*dwarf.Var
++	var decls []*Node
++	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize {
++		decls, dwarfVars = createComplexVars(fn, debugInfo)
++	} else {
++		decls, dwarfVars = createSimpleVars(automDecls)
++	}
++
++	var varScopes []ScopeID
++	for _, decl := range decls {
++		var scope ScopeID
++		if !decl.Name.Captured() && !decl.Name.Byval() {
++			// n.Pos of captured variables is their first
++			// use in the closure but they should always
++			// be assigned to scope 0 instead.
++			// TODO(mdempsky): Verify this.
++			scope = findScope(fn.Func.Marks, decl.Pos)
++		}
++		varScopes = append(varScopes, scope)
++	}
++	return assembleScopes(fnsym, fn, dwarfVars, varScopes)
++}
+ 
++// createSimpleVars creates a DWARF entry for every variable declared in the
++// function, claiming that they are permanently on the stack.
++func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var) {
++	var vars []*dwarf.Var
++	var decls []*Node
++	for _, n := range automDecls {
+ 		if n.IsAutoTmp() {
+ 			continue
+ 		}
++		var abbrev int
++		offs := n.Xoffset
++
++		switch n.Class() {
++		case PAUTO:
++			abbrev = dwarf.DW_ABRV_AUTO
++			if Ctxt.FixedFrameSize() == 0 {
++				offs -= int64(Widthptr)
++			}
++			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
++				offs -= int64(Widthptr)
++			}
++
++		case PPARAM, PPARAMOUT:
++			abbrev = dwarf.DW_ABRV_PARAM
++			offs += Ctxt.FixedFrameSize()
++		default:
++			Fatalf("createSimpleVars unexpected type %v for node %v", n.Class(), n)
++		}
+ 
+-		typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
+-		dwarfVars = append(dwarfVars, &dwarf.Var{
++		typename := dwarf.InfoPrefix + typesymname(n.Type)
++		decls = append(decls, n)
++		vars = append(vars, &dwarf.Var{
+ 			Name:        n.Sym.Name,
+ 			Abbrev:      abbrev,
+ 			StackOffset: int32(offs),
+ 			Type:        Ctxt.Lookup(typename),
+ 		})
++	}
++	return decls, vars
++}
+ 
+-		var scope ScopeID
+-		if !n.Name.Captured() && !n.Name.Byval() {
+-			// n.Pos of captured variables is their first
+-			// use in the closure but they should always
+-			// be assigned to scope 0 instead.
+-			// TODO(mdempsky): Verify this.
+-			scope = findScope(fn.Func.Marks, n.Pos)
++type varPart struct {
++	varOffset int64
++	slot      ssa.SlotID
++	locs      ssa.VarLocList
++}
++
++func createComplexVars(fn *Node, debugInfo *ssa.FuncDebug) ([]*Node, []*dwarf.Var) {
++	for _, locList := range debugInfo.Variables {
++		for _, loc := range locList.Locations {
++			if loc.StartProg != nil {
++				loc.StartPC = loc.StartProg.Pc
++			}
++			if loc.EndProg != nil {
++				loc.EndPC = loc.EndProg.Pc
++			}
++			if Debug_locationlist == 0 {
++				loc.EndProg = nil
++				loc.StartProg = nil
++			}
+ 		}
++	}
+ 
+-		varScopes = append(varScopes, scope)
++	// Group SSA variables by the user variable they were decomposed from.
++	varParts := map[*Node][]varPart{}
++	for slotID, locList := range debugInfo.Variables {
++		if len(locList.Locations) == 0 {
++			continue
++		}
++		slot := debugInfo.Slots[slotID]
++		for slot.SplitOf != nil {
++			slot = slot.SplitOf
++		}
++		n := slot.N.(*Node)
++		varParts[n] = append(varParts[n], varPart{varOffset(slot), ssa.SlotID(slotID), locList})
+ 	}
+ 
+-	return assembleScopes(fnsym, fn, dwarfVars, varScopes)
++	// Produce a DWARF variable entry for each user variable.
++	// Don't iterate over the map -- that's nondeterministic, and
++	// createComplexVar has side effects. Instead, go by slot.
++	var decls []*Node
++	var vars []*dwarf.Var
++	for _, slot := range debugInfo.Slots {
++		for slot.SplitOf != nil {
++			slot = slot.SplitOf
++		}
++		n := slot.N.(*Node)
++		parts := varParts[n]
++		if parts == nil {
++			continue
++		}
++
++		// Get the order the parts need to be in to represent the memory
++		// of the decomposed user variable.
++		sort.Sort(partsByVarOffset(parts))
++
++		if dvar := createComplexVar(debugInfo, n, parts); dvar != nil {
++			decls = append(decls, n)
++			vars = append(vars, dvar)
++		}
++	}
++	return decls, vars
++}
++
++// varOffset returns the offset of slot within the user variable it was
++// decomposed from. This has nothing to do with its stack offset.
++func varOffset(slot *ssa.LocalSlot) int64 {
++	offset := slot.Off
++	for ; slot.SplitOf != nil; slot = slot.SplitOf {
++		offset += slot.SplitOffset
++	}
++	return offset
++}
++
++type partsByVarOffset []varPart
++
++func (a partsByVarOffset) Len() int           { return len(a) }
++func (a partsByVarOffset) Less(i, j int) bool { return a[i].varOffset < a[j].varOffset }
++func (a partsByVarOffset) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
++
++// createComplexVar builds a DWARF variable entry and location list representing n.
++func createComplexVar(debugInfo *ssa.FuncDebug, n *Node, parts []varPart) *dwarf.Var {
++	slots := debugInfo.Slots
++	var offs int64 // base stack offset for this kind of variable
++	var abbrev int
++	switch n.Class() {
++	case PAUTO:
++		abbrev = dwarf.DW_ABRV_AUTO_LOCLIST
++		if Ctxt.FixedFrameSize() == 0 {
++			offs -= int64(Widthptr)
++		}
++		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
++			offs -= int64(Widthptr)
++		}
++
++	case PPARAM, PPARAMOUT:
++		abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
++		offs += Ctxt.FixedFrameSize()
++	default:
++		return nil
++	}
++
++	gotype := ngotype(n).Linksym()
++	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
++	// The stack offset is used as a sorting key, so for decomposed
++	// variables just give it the lowest one. It's not used otherwise.
++	stackOffset := debugInfo.Slots[parts[0].slot].N.(*Node).Xoffset + offs
++	dvar := &dwarf.Var{
++		Name:        n.Sym.Name,
++		Abbrev:      abbrev,
++		Type:        Ctxt.Lookup(typename),
++		StackOffset: int32(stackOffset),
++	}
++
++	if Debug_locationlist != 0 {
++		Ctxt.Logf("Building location list for %+v. Parts:\n", n)
++		for _, part := range parts {
++			Ctxt.Logf("\t%v => %v\n", debugInfo.Slots[part.slot], part.locs)
++		}
++	}
++
++	// Given a variable that's been decomposed into multiple parts,
++	// its location list may need a new entry after the beginning or
++	// end of every location entry for each of its parts. For example:
++	//
++	// [variable]    [pc range]
++	// string.ptr    |----|-----|    |----|
++	// string.len    |------------|  |--|
++	// ... needs a location list like:
++	// string        |----|-----|-|  |--|-|
++	//
++	// Note that location entries may or may not line up with each other,
++	// and some of the result will only have one or the other part.
++	//
++	// To build the resulting list:
++	// - keep a "current" pointer for each part
++	// - find the next transition point
++	// - advance the current pointer for each part up to that transition point
++	// - build the piece for the range between that transition point and the next
++	// - repeat
++
++	curLoc := make([]int, len(slots))
++
++	// findBoundaryAfter finds the next beginning or end of a piece after currentPC.
++	findBoundaryAfter := func(currentPC int64) int64 {
++		min := int64(math.MaxInt64)
++		for slot, part := range parts {
++			// For each part, find the first PC greater than current. Doesn't
++			// matter if it's a start or an end, since we're looking for any boundary.
++			// If it's the new winner, save it.
++		onePart:
++			for i := curLoc[slot]; i < len(part.locs.Locations); i++ {
++				for _, pc := range [2]int64{part.locs.Locations[i].StartPC, part.locs.Locations[i].EndPC} {
++					if pc > currentPC {
++						if pc < min {
++							min = pc
++						}
++						break onePart
++					}
++				}
++			}
++		}
++		return min
++	}
++	var start int64
++	end := findBoundaryAfter(0)
++	for {
++		// Advance to the next chunk.
++		start = end
++		end = findBoundaryAfter(start)
++		if end == math.MaxInt64 {
++			break
++		}
++
++		dloc := dwarf.Location{StartPC: start, EndPC: end}
++		if Debug_locationlist != 0 {
++			Ctxt.Logf("Processing range %x -> %x\n", start, end)
++		}
++
++		// Advance curLoc to the last location that starts before/at start.
++		// After this loop, if there's a location that covers [start, end), it will be current.
++		// Otherwise the current piece will be too early.
++		for _, part := range parts {
++			choice := -1
++			for i := curLoc[part.slot]; i < len(part.locs.Locations); i++ {
++				if part.locs.Locations[i].StartPC > start {
++					break //overshot
++				}
++				choice = i // best yet
++			}
++			if choice != -1 {
++				curLoc[part.slot] = choice
++			}
++			if Debug_locationlist != 0 {
++				Ctxt.Logf("\t %v => %v", slots[part.slot], curLoc[part.slot])
++			}
++		}
++		if Debug_locationlist != 0 {
++			Ctxt.Logf("\n")
++		}
++		// Assemble the location list entry for this chunk.
++		present := 0
++		for _, part := range parts {
++			dpiece := dwarf.Piece{
++				Length: slots[part.slot].Type.Size(),
++			}
++			locIdx := curLoc[part.slot]
++			if locIdx >= len(part.locs.Locations) ||
++				start >= part.locs.Locations[locIdx].EndPC ||
++				end <= part.locs.Locations[locIdx].StartPC {
++				if Debug_locationlist != 0 {
++					Ctxt.Logf("\t%v: missing", slots[part.slot])
++				}
++				dpiece.Missing = true
++				dloc.Pieces = append(dloc.Pieces, dpiece)
++				continue
++			}
++			present++
++			loc := part.locs.Locations[locIdx]
++			if Debug_locationlist != 0 {
++				Ctxt.Logf("\t%v: %v", slots[part.slot], loc)
++			}
++			if loc.OnStack {
++				dpiece.OnStack = true
++				dpiece.StackOffset = int32(offs + slots[part.slot].Off + slots[part.slot].N.(*Node).Xoffset)
++			} else {
++				for reg := 0; reg < len(debugInfo.Registers); reg++ {
++					if loc.Registers&(1<<uint8(reg)) != 0 {
++						dpiece.RegNum = Ctxt.Arch.DWARFRegisters[debugInfo.Registers[reg].ObjNum()]
++					}
++				}
++			}
++			dloc.Pieces = append(dloc.Pieces, dpiece)
++		}
++		if present == 0 {
++			if Debug_locationlist != 0 {
++				Ctxt.Logf(" -> totally missing\n")
++			}
++			continue
++		}
++		// Extend the previous entry if possible.
++		if len(dvar.LocationList) > 0 {
++			prev := &dvar.LocationList[len(dvar.LocationList)-1]
++			if prev.EndPC == dloc.StartPC && len(prev.Pieces) == len(dloc.Pieces) {
++				equal := true
++				for i := range prev.Pieces {
++					if prev.Pieces[i] != dloc.Pieces[i] {
++						equal = false
++					}
++				}
++				if equal {
++					prev.EndPC = end
++					if Debug_locationlist != 0 {
++						Ctxt.Logf("-> merged with previous, now %#v\n", prev)
++					}
++					continue
++				}
++			}
++		}
++		dvar.LocationList = append(dvar.LocationList, dloc)
++		if Debug_locationlist != 0 {
++			Ctxt.Logf("-> added: %#v\n", dloc)
++		}
++	}
++	return dvar
+ }
+ 
+ // fieldtrack adds R_USEFIELD relocations to fnsym to record any
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index 1ca0a61535..bd4453fa84 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -22,7 +22,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 124, 216},
++		{Func{}, 128, 224},
+ 		{Name{}, 36, 56},
+ 		{Param{}, 28, 56},
+ 		{Node{}, 76, 128},
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f8aefaae5e..c769efe8cd 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4384,6 +4384,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 	s.pp = pp
+ 	var progToValue map[*obj.Prog]*ssa.Value
+ 	var progToBlock map[*obj.Prog]*ssa.Block
++	var valueToProg []*obj.Prog
+ 	var logProgs = e.log
+ 	if logProgs {
+ 		progToValue = make(map[*obj.Prog]*ssa.Value, f.NumValues())
+@@ -4398,6 +4399,11 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 
+ 	s.ScratchFpMem = e.scratchFpMem
+ 
++	logLocationLists := Debug_locationlist != 0
++	if Ctxt.Flag_locationlists {
++		e.curfn.Func.DebugInfo = ssa.BuildFuncDebug(f, logLocationLists)
++		valueToProg = make([]*obj.Prog, f.NumValues())
++	}
+ 	// Emit basic blocks
+ 	for i, b := range f.Blocks {
+ 		s.bstart[b.ID] = s.pp.next
+@@ -4438,12 +4444,16 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				}
+ 			case ssa.OpPhi:
+ 				CheckLoweredPhi(v)
+-
++			case ssa.OpRegKill:
++				// nothing to do
+ 			default:
+ 				// let the backend handle it
+ 				thearch.SSAGenValue(&s, v)
+ 			}
+ 
++			if Ctxt.Flag_locationlists {
++				valueToProg[v.ID] = x
++			}
+ 			if logProgs {
+ 				for ; x != s.pp.next; x = x.Link {
+ 					progToValue[x] = v
+@@ -4469,6 +4479,22 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		}
+ 	}
+ 
++	if Ctxt.Flag_locationlists {
++		for _, locList := range e.curfn.Func.DebugInfo.Variables {
++			for _, loc := range locList.Locations {
++				loc.StartProg = valueToProg[loc.Start.ID]
++				if loc.End == nil {
++					Fatalf("empty loc %v compiling %v", loc, f.Name)
++				}
++				loc.EndProg = valueToProg[loc.End.ID]
++				if !logLocationLists {
++					loc.Start = nil
++					loc.End = nil
++				}
++			}
++		}
++	}
++
+ 	// Resolve branches
+ 	for _, br := range s.Branches {
+ 		br.P.To.Val = s.bstart[br.B.ID]
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 0fd146bca2..32ae6f2f28 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -7,6 +7,7 @@
+ package gc
+ 
+ import (
++	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -369,6 +370,7 @@ type Func struct {
+ 	Closgen    int
+ 	Outerfunc  *Node // outer function (for closure)
+ 	FieldTrack map[*types.Sym]struct{}
++	DebugInfo  *ssa.FuncDebug
+ 	Ntype      *Node // signature
+ 	Top        int   // top context (Ecall, Eproc, etc)
+ 	Closure    *Node // OCLOSURE <-> ODCLFUNC
+diff --git a/src/cmd/compile/internal/ssa/cache.go b/src/cmd/compile/internal/ssa/cache.go
+index f1018da497..8434084bde 100644
+--- a/src/cmd/compile/internal/ssa/cache.go
++++ b/src/cmd/compile/internal/ssa/cache.go
+@@ -14,6 +14,11 @@ type Cache struct {
+ 	blocks [200]Block
+ 	locs   [2000]Location
+ 
++	// Storage for DWARF variable locations. Lazily allocated
++	// since location lists are off by default.
++	varLocs   []VarLoc
++	curVarLoc int
++
+ 	// Reusable stackAllocState.
+ 	// See stackalloc.go's {new,put}StackAllocState.
+ 	stackAllocState *stackAllocState
+@@ -38,4 +43,21 @@ func (c *Cache) Reset() {
+ 	for i := range xl {
+ 		xl[i] = nil
+ 	}
++	xvl := c.varLocs[:c.curVarLoc]
++	for i := range xvl {
++		xvl[i] = VarLoc{}
++	}
++	c.curVarLoc = 0
++}
++
++func (c *Cache) NewVarLoc() *VarLoc {
++	if c.varLocs == nil {
++		c.varLocs = make([]VarLoc, 4000)
++	}
++	if c.curVarLoc == len(c.varLocs) {
++		return &VarLoc{}
++	}
++	vl := &c.varLocs[c.curVarLoc]
++	c.curVarLoc++
++	return vl
+ }
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+new file mode 100644
+index 0000000000..55db45b642
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -0,0 +1,559 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package ssa
++
++import (
++	"cmd/internal/obj"
++	"fmt"
++	"strings"
++)
++
++type SlotID int32
++
++// A FuncDebug contains all the debug information for the variables in a
++// function. Variables are identified by their LocalSlot, which may be the
++// result of decomposing a larger variable.
++type FuncDebug struct {
++	Slots     []*LocalSlot
++	Variables []VarLocList
++	Registers []Register
++}
++
++// append adds a location to the location list for slot.
++func (f *FuncDebug) append(slot SlotID, loc *VarLoc) {
++	f.Variables[slot].append(loc)
++}
++
++// lastLoc returns the last VarLoc for slot, or nil if it has none.
++func (f *FuncDebug) lastLoc(slot SlotID) *VarLoc {
++	return f.Variables[slot].last()
++}
++
++func (f *FuncDebug) String() string {
++	var vars []string
++	for slot, list := range f.Variables {
++		if len(list.Locations) == 0 {
++			continue
++		}
++		vars = append(vars, fmt.Sprintf("%v = %v", f.Slots[slot], list))
++	}
++	return fmt.Sprintf("{%v}", strings.Join(vars, ", "))
++}
++
++// A VarLocList contains the locations for a variable, in program text order.
++// It will often have gaps.
++type VarLocList struct {
++	Locations []*VarLoc
++}
++
++func (l *VarLocList) append(loc *VarLoc) {
++	l.Locations = append(l.Locations, loc)
++}
++
++// last returns the last location in the list.
++func (l *VarLocList) last() *VarLoc {
++	if l == nil || len(l.Locations) == 0 {
++		return nil
++	}
++	return l.Locations[len(l.Locations)-1]
++}
++
++// A VarLoc describes a variable's location in a single contiguous range
++// of program text. It is generated from the SSA representation, but it
++// refers to the generated machine code, so the Values referenced are better
++// understood as PCs than actual Values, and the ranges can cross blocks.
++// The range is defined first by Values, which are then mapped to Progs
++// during genssa and finally to function PCs after assembly.
++// A variable can be on the stack and in any number of registers.
++type VarLoc struct {
++	// Inclusive -- the first SSA value that the range covers. The value
++	// doesn't necessarily have anything to do with the variable; it just
++	// identifies a point in the program text.
++	Start *Value
++	// Exclusive -- the first SSA value after start that the range doesn't
++	// cover. A location with start == end is empty.
++	End *Value
++	// The prog/PCs corresponding to Start and End above. These are for the
++	// convenience of later passes, since code generation isn't done when
++	// BuildFuncDebug runs.
++	StartProg, EndProg *obj.Prog
++	StartPC, EndPC     int64
++
++	// The registers this variable is available in. There can be more than
++	// one in various situations, e.g. it's being moved between registers.
++	Registers RegisterSet
++	// Indicates whether the variable is on the stack. The stack position is
++	// stored in the associated gc.Node.
++	OnStack bool
++
++	// Used only during generation. Indicates whether this location lasts
++	// past the block's end. Without this, there would be no way to distinguish
++	// between a range that ended on the last Value of a block and one that
++	// didn't end at all.
++	survivedBlock bool
++}
++
++// RegisterSet is a bitmap of registers, indexed by Register.num.
++type RegisterSet uint64
++
++func (v *VarLoc) String() string {
++	var registers []Register
++	if v.Start != nil {
++		registers = v.Start.Block.Func.Config.registers
++	}
++	loc := ""
++	if !v.OnStack && v.Registers == 0 {
++		loc = "!!!no location!!!"
++	}
++	if v.OnStack {
++		loc += "stack,"
++	}
++	var regnames []string
++	for reg := 0; reg < 64; reg++ {
++		if v.Registers&(1<<uint8(reg)) == 0 {
++			continue
++		}
++		if registers != nil {
++			regnames = append(regnames, registers[reg].Name())
++		} else {
++			regnames = append(regnames, fmt.Sprintf("reg%v", reg))
++		}
++	}
++	loc += strings.Join(regnames, ",")
++	pos := func(v *Value, p *obj.Prog, pc int64) string {
++		if v == nil {
++			return "?"
++		}
++		if p == nil {
++			return fmt.Sprintf("v%v", v.ID)
++		}
++		return fmt.Sprintf("v%v/%x", v.ID, pc)
++	}
++	surv := ""
++	if v.survivedBlock {
++		surv = "+"
++	}
++	return fmt.Sprintf("%v-%v%s@%s", pos(v.Start, v.StartProg, v.StartPC), pos(v.End, v.EndProg, v.EndPC), surv, loc)
++}
++
++// unexpected is used to indicate an inconsistency or bug in the debug info
++// generation process. These are not fixable by users. At time of writing,
++// changing this to a Fprintf(os.Stderr) and running make.bash generates
++// thousands of warnings.
++func (s *debugState) unexpected(v *Value, msg string, args ...interface{}) {
++	s.f.Logf("unexpected at "+fmt.Sprint(v.ID)+":"+msg, args...)
++}
++
++func (s *debugState) logf(msg string, args ...interface{}) {
++	s.f.Logf(msg, args...)
++}
++
++type debugState struct {
++	loggingEnabled bool
++	slots          []*LocalSlot
++	f              *Func
++	cache          *Cache
++	numRegisters   int
++
++	// working storage for BuildFuncDebug, reused between blocks.
++	registerContents [][]SlotID
++}
++
++// BuildFuncDebug returns debug information for f.
++// f must be fully processed, so that each Value is where it will be when
++// machine code is emitted.
++func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
++	if f.RegAlloc == nil {
++		f.Fatalf("BuildFuncDebug on func %v that has not been fully processed", f)
++	}
++	state := &debugState{
++		loggingEnabled:   loggingEnabled,
++		slots:            make([]*LocalSlot, len(f.Names)),
++		cache:            f.Cache,
++		f:                f,
++		numRegisters:     len(f.Config.registers),
++		registerContents: make([][]SlotID, len(f.Config.registers)),
++	}
++	// TODO: consider storing this in Cache and reusing across functions.
++	valueNames := make([][]SlotID, f.NumValues())
++
++	for i, slot := range f.Names {
++		slot := slot
++		state.slots[i] = &slot
++
++		if isSynthetic(&slot) {
++			continue
++		}
++		for _, value := range f.NamedValues[slot] {
++			valueNames[value.ID] = append(valueNames[value.ID], SlotID(i))
++		}
++	}
++
++	if state.loggingEnabled {
++		var names []string
++		for i, name := range f.Names {
++			names = append(names, fmt.Sprintf("%v = %v", i, name))
++		}
++		state.logf("Name table: %v\n", strings.Join(names, ", "))
++	}
++
++	// Build up block states, starting with the first block, then
++	// processing blocks once their predecessors have been processed.
++
++	// TODO: use a reverse post-order traversal instead of the work queue.
++
++	// Location list entries for each block.
++	blockLocs := make([]*FuncDebug, f.NumBlocks())
++
++	// Work queue of blocks to visit. Some of them may already be processed.
++	work := []*Block{f.Entry}
++
++	for len(work) > 0 {
++		b := work[0]
++		work = work[1:]
++		if blockLocs[b.ID] != nil {
++			continue // already processed
++		}
++		if !state.predecessorsDone(b, blockLocs) {
++			continue // not ready yet
++		}
++
++		for _, edge := range b.Succs {
++			if blockLocs[edge.Block().ID] != nil {
++				continue
++			}
++			work = append(work, edge.Block())
++		}
++
++		// Build the starting state for the block from the final
++		// state of its predecessors.
++		locs := state.mergePredecessors(b, blockLocs)
++		if state.loggingEnabled {
++			state.logf("Processing %v, initial locs %v, regs %v\n", b, locs, state.registerContents)
++		}
++		// Update locs/registers with the effects of each Value.
++		for _, v := range b.Values {
++			slots := valueNames[v.ID]
++
++			// Loads and stores inherit the names of their sources.
++			var source *Value
++			switch v.Op {
++			case OpStoreReg:
++				source = v.Args[0]
++			case OpLoadReg:
++				switch a := v.Args[0]; a.Op {
++				case OpArg:
++					source = a
++				case OpStoreReg:
++					source = a.Args[0]
++				default:
++					state.unexpected(v, "load with unexpected source op %v", a)
++				}
++			}
++			if source != nil {
++				slots = append(slots, valueNames[source.ID]...)
++				// As of writing, the compiler never uses a load/store as a
++				// source of another load/store, so there's no reason this should
++				// ever be consulted. Update just in case, and so that when
++				// valueNames is cached, we can reuse the memory.
++				valueNames[v.ID] = slots
++			}
++
++			if len(slots) == 0 {
++				continue
++			}
++
++			reg, _ := f.getHome(v.ID).(*Register)
++			state.processValue(locs, v, slots, reg)
++
++		}
++
++		// The block is done; end the locations for all its slots.
++		for _, locList := range locs.Variables {
++			last := locList.last()
++			if last == nil || last.End != nil {
++				continue
++			}
++			if len(b.Values) != 0 {
++				last.End = b.Values[len(b.Values)-1]
++			} else {
++				// This happens when a value survives into an empty block from its predecessor.
++				// Just carry it forward for liveness's sake.
++				last.End = last.Start
++			}
++			last.survivedBlock = true
++		}
++		if state.loggingEnabled {
++			f.Logf("Block done: locs %v, regs %v. work = %+v\n", locs, state.registerContents, work)
++		}
++		blockLocs[b.ID] = locs
++	}
++
++	// Build the complete debug info by concatenating each of the blocks'
++	// locations together.
++	info := &FuncDebug{
++		Variables: make([]VarLocList, len(state.slots)),
++		Slots:     state.slots,
++		Registers: f.Config.registers,
++	}
++	for _, b := range f.Blocks {
++		// Ignore empty blocks; there will be some records for liveness
++		// but they're all useless.
++		if len(b.Values) == 0 {
++			continue
++		}
++		if blockLocs[b.ID] == nil {
++			state.unexpected(b.Values[0], "Never processed block %v\n", b)
++			continue
++		}
++		for slot, blockLocList := range blockLocs[b.ID].Variables {
++			for _, loc := range blockLocList.Locations {
++				if !loc.OnStack && loc.Registers == 0 {
++					state.unexpected(loc.Start, "Location for %v with no storage: %+v\n", state.slots[slot], loc)
++					continue // don't confuse downstream with our bugs
++				}
++				if loc.Start == nil || loc.End == nil {
++					state.unexpected(b.Values[0], "Location for %v missing start or end: %v\n", state.slots[slot], loc)
++					continue
++				}
++				info.append(SlotID(slot), loc)
++			}
++		}
++	}
++	if state.loggingEnabled {
++		f.Logf("Final result:\n")
++		for slot, locList := range info.Variables {
++			f.Logf("\t%v => %v\n", state.slots[slot], locList)
++		}
++	}
++	return info
++}
++
++// isSynthetic reports whether if slot represents a compiler-inserted variable,
++// e.g. an autotmp or an anonymous return value that needed a stack slot.
++func isSynthetic(slot *LocalSlot) bool {
++	c := slot.Name()[0]
++	return c == '.' || c == '~'
++}
++
++// predecessorsDone reports whether block is ready to be processed.
++func (state *debugState) predecessorsDone(b *Block, blockLocs []*FuncDebug) bool {
++	f := b.Func
++	for _, edge := range b.Preds {
++		// Ignore back branches, e.g. the continuation of a for loop.
++		// This may not work for functions with mutual gotos, which are not
++		// reducible, in which case debug information will be missing for any
++		// code after that point in the control flow.
++		if f.sdom().isAncestorEq(b, edge.b) {
++			if state.loggingEnabled {
++				f.Logf("ignoring back branch from %v to %v\n", edge.b, b)
++			}
++			continue // back branch
++		}
++		if blockLocs[edge.b.ID] == nil {
++			if state.loggingEnabled {
++				f.Logf("%v is not ready because %v isn't done\n", b, edge.b)
++			}
++			return false
++		}
++	}
++	return true
++}
++
++// mergePredecessors takes the end state of each of b's predecessors and
++// intersects them to form the starting state for b.
++// The registers slice (the second return value) will be reused for each call to mergePredecessors.
++func (state *debugState) mergePredecessors(b *Block, blockLocs []*FuncDebug) *FuncDebug {
++	live := make([]VarLocList, len(state.slots))
++
++	// Filter out back branches.
++	var preds []*Block
++	for _, pred := range b.Preds {
++		if blockLocs[pred.b.ID] != nil {
++			preds = append(preds, pred.b)
++		}
++	}
++
++	if len(preds) > 0 {
++		p := preds[0]
++		for slot, locList := range blockLocs[p.ID].Variables {
++			last := locList.last()
++			if last == nil || !last.survivedBlock {
++				continue
++			}
++			// If this block is empty, carry forward the end value for liveness.
++			// It'll be ignored later.
++			start := last.End
++			if len(b.Values) != 0 {
++				start = b.Values[0]
++			}
++			loc := state.cache.NewVarLoc()
++			loc.Start = start
++			loc.OnStack = last.OnStack
++			loc.Registers = last.Registers
++			live[slot].append(loc)
++		}
++	}
++	if state.loggingEnabled && len(b.Preds) > 1 {
++		state.logf("Starting merge with state from %v: %v\n", b.Preds[0].b, blockLocs[b.Preds[0].b.ID])
++	}
++	for i := 1; i < len(preds); i++ {
++		p := preds[i]
++		if state.loggingEnabled {
++			state.logf("Merging in state from %v: %v &= %v\n", p, live, blockLocs[p.ID])
++		}
++
++		for slot, liveVar := range live {
++			liveLoc := liveVar.last()
++			if liveLoc == nil {
++				continue
++			}
++
++			predLoc := blockLocs[p.ID].lastLoc(SlotID(slot))
++			// Clear out slots missing/dead in p.
++			if predLoc == nil || !predLoc.survivedBlock {
++				live[slot].Locations = nil
++				continue
++			}
++
++			// Unify storage locations.
++			liveLoc.OnStack = liveLoc.OnStack && predLoc.OnStack
++			liveLoc.Registers &= predLoc.Registers
++		}
++	}
++
++	// Create final result.
++	locs := &FuncDebug{Variables: live, Slots: state.slots}
++	for reg := range state.registerContents {
++		state.registerContents[reg] = state.registerContents[reg][:0]
++	}
++	for slot, locList := range live {
++		loc := locList.last()
++		if loc == nil {
++			continue
++		}
++		for reg := 0; reg < state.numRegisters; reg++ {
++			if loc.Registers&(1<<uint8(reg)) != 0 {
++				state.registerContents[reg] = append(state.registerContents[reg], SlotID(slot))
++			}
++		}
++	}
++	return locs
++}
++
++// processValue updates locs and state.registerContents to reflect v, a value with
++// the names in vSlots and homed in vReg.
++func (state *debugState) processValue(locs *FuncDebug, v *Value, vSlots []SlotID, vReg *Register) {
++	switch {
++	case v.Op == OpRegKill:
++		if state.loggingEnabled {
++			existingSlots := make([]bool, len(state.slots))
++			for _, slot := range state.registerContents[vReg.num] {
++				existingSlots[slot] = true
++			}
++			for _, slot := range vSlots {
++				if existingSlots[slot] {
++					existingSlots[slot] = false
++				} else {
++					state.unexpected(v, "regkill of unassociated name %v\n", state.slots[slot])
++				}
++			}
++			for slot, live := range existingSlots {
++				if live {
++					state.unexpected(v, "leftover register name: %v\n", state.slots[slot])
++				}
++			}
++		}
++		state.registerContents[vReg.num] = nil
++
++		for _, slot := range vSlots {
++			last := locs.lastLoc(slot)
++			if last == nil {
++				state.unexpected(v, "regkill of already dead %v, %+v\n", vReg, state.slots[slot])
++				continue
++			}
++			if state.loggingEnabled {
++				state.logf("at %v: %v regkilled out of %v\n", v.ID, state.slots[slot], vReg.Name())
++			}
++			if last.End != nil {
++				state.unexpected(v, "regkill of dead slot, died at %v\n", last.End)
++			}
++			last.End = v
++
++			regs := last.Registers &^ (1 << uint8(vReg.num))
++			if !last.OnStack && regs == 0 {
++				continue
++			}
++			loc := state.cache.NewVarLoc()
++			loc.Start = v
++			loc.OnStack = last.OnStack
++			loc.Registers = regs
++			locs.append(slot, loc)
++		}
++	case v.Op == OpArg:
++		for _, slot := range vSlots {
++			if state.loggingEnabled {
++				state.logf("at %v: %v now on stack from arg\n", v.ID, state.slots[slot])
++			}
++			loc := state.cache.NewVarLoc()
++			loc.Start = v
++			loc.OnStack = true
++			locs.append(slot, loc)
++		}
++
++	case v.Op == OpStoreReg:
++		for _, slot := range vSlots {
++			if state.loggingEnabled {
++				state.logf("at %v: %v spilled to stack\n", v.ID, state.slots[slot])
++			}
++			last := locs.lastLoc(slot)
++			if last == nil {
++				state.unexpected(v, "spill of unnamed register %v\n", vReg)
++				break
++			}
++			last.End = v
++			loc := state.cache.NewVarLoc()
++			loc.Start = v
++			loc.OnStack = true
++			loc.Registers = last.Registers
++			locs.append(slot, loc)
++		}
++
++	case vReg != nil:
++		if state.loggingEnabled {
++			newSlots := make([]bool, len(state.slots))
++			for _, slot := range vSlots {
++				newSlots[slot] = true
++			}
++
++			for _, slot := range state.registerContents[vReg.num] {
++				if !newSlots[slot] {
++					state.unexpected(v, "%v clobbered\n", state.slots[slot])
++				}
++			}
++		}
++
++		for _, slot := range vSlots {
++			if state.loggingEnabled {
++				state.logf("at %v: %v now in %v\n", v.ID, state.slots[slot], vReg.Name())
++			}
++			last := locs.lastLoc(slot)
++			if last != nil && last.End == nil {
++				last.End = v
++			}
++			state.registerContents[vReg.num] = append(state.registerContents[vReg.num], slot)
++			loc := state.cache.NewVarLoc()
++			loc.Start = v
++			if last != nil {
++				loc.OnStack = last.OnStack
++				loc.Registers = last.Registers
++			}
++			loc.Registers |= 1 << uint8(vReg.num)
++			locs.append(slot, loc)
++		}
++	default:
++		state.unexpected(v, "named value with no reg\n")
++	}
++
++}
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index d962e4a193..63bb9a8b61 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -417,6 +417,7 @@ var genericOps = []opData{
+ 	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+ 	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "None"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+ 	{name: "KeepAlive", argLength: 2, typ: "Mem"},                             // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
++	{name: "RegKill"},                                                         // regalloc has determined that the value in this register is dead
+ 
+ 	// Ops for breaking 64-bit operations on 32-bit architectures
+ 	{name: "Int64Make", argLength: 2, typ: "UInt64"}, // arg0=hi, arg1=lo
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index d554907beb..6efe93e74f 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -11,6 +11,7 @@ import (
+ 	"html"
+ 	"io"
+ 	"os"
++	"strings"
+ )
+ 
+ type HTMLWriter struct {
+@@ -362,6 +363,18 @@ func (v *Value) LongHTML() string {
+ 	if int(v.ID) < len(r) && r[v.ID] != nil {
+ 		s += " : " + html.EscapeString(r[v.ID].Name())
+ 	}
++	var names []string
++	for name, values := range v.Block.Func.NamedValues {
++		for _, value := range values {
++			if value == v {
++				names = append(names, name.Name())
++				break // drop duplicates.
++			}
++		}
++	}
++	if len(names) != 0 {
++		s += " (" + strings.Join(names, ", ") + ")"
++	}
+ 	s += "</span>"
+ 	return s
+ }
+diff --git a/src/cmd/compile/internal/ssa/location.go b/src/cmd/compile/internal/ssa/location.go
+index 70afa47e9d..dc01bd4235 100644
+--- a/src/cmd/compile/internal/ssa/location.go
++++ b/src/cmd/compile/internal/ssa/location.go
+@@ -26,6 +26,12 @@ func (r *Register) Name() string {
+ 	return r.name
+ }
+ 
++// ObjNum returns the register number from cmd/internal/obj/$ARCH that
++// corresponds to this register.
++func (r *Register) ObjNum() int16 {
++	return r.objNum
++}
++
+ // A LocalSlot is a location in the stack frame, which identifies and stores
+ // part or all of a PPARAM, PPARAMOUT, or PAUTO ONAME node.
+ // It can represent a whole variable, part of a larger stack slot, or part of a
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index ae2dd5f550..87a2ea0656 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1897,6 +1897,7 @@ const (
+ 	OpVarKill
+ 	OpVarLive
+ 	OpKeepAlive
++	OpRegKill
+ 	OpInt64Make
+ 	OpInt64Hi
+ 	OpInt64Lo
+@@ -22497,6 +22498,11 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  2,
+ 		generic: true,
+ 	},
++	{
++		name:    "RegKill",
++		argLen:  0,
++		generic: true,
++	},
+ 	{
+ 		name:    "Int64Make",
+ 		argLen:  2,
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index e297e6bce7..0abaeaeeb5 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -242,6 +242,9 @@ type regAllocState struct {
+ 	// current state of each (preregalloc) Value
+ 	values []valState
+ 
++	// names associated with each Value
++	valueNames [][]LocalSlot
++
+ 	// ID of SP, SB values
+ 	sp, sb ID
+ 
+@@ -300,6 +303,13 @@ type startReg struct {
+ 
+ // freeReg frees up register r. Any current user of r is kicked out.
+ func (s *regAllocState) freeReg(r register) {
++	s.freeOrResetReg(r, false)
++}
++
++// freeOrResetReg frees up register r. Any current user of r is kicked out.
++// resetting indicates that the operation is only for bookkeeping,
++// e.g. when clearing out state upon entry to a new block.
++func (s *regAllocState) freeOrResetReg(r register, resetting bool) {
+ 	v := s.regs[r].v
+ 	if v == nil {
+ 		s.f.Fatalf("tried to free an already free register %d\n", r)
+@@ -309,6 +319,16 @@ func (s *regAllocState) freeReg(r register) {
+ 	if s.f.pass.debug > regDebug {
+ 		fmt.Printf("freeReg %s (dump %s/%s)\n", s.registers[r].Name(), v, s.regs[r].c)
+ 	}
++	if !resetting && s.f.Config.ctxt.Flag_locationlists && len(s.valueNames[v.ID]) != 0 {
++		kill := s.curBlock.NewValue0(src.NoXPos, OpRegKill, types.TypeVoid)
++		for int(kill.ID) >= len(s.orig) {
++			s.orig = append(s.orig, nil)
++		}
++		for _, name := range s.valueNames[v.ID] {
++			s.f.NamedValues[name] = append(s.f.NamedValues[name], kill)
++		}
++		s.f.setHome(kill, &s.registers[r])
++	}
+ 	s.regs[r] = regState{}
+ 	s.values[v.ID].regs &^= regMask(1) << r
+ 	s.used &^= regMask(1) << r
+@@ -599,6 +619,17 @@ func (s *regAllocState) init(f *Func) {
+ 	s.values = make([]valState, f.NumValues())
+ 	s.orig = make([]*Value, f.NumValues())
+ 	s.copies = make(map[*Value]bool)
++	if s.f.Config.ctxt.Flag_locationlists {
++		s.valueNames = make([][]LocalSlot, f.NumValues())
++		for slot, values := range f.NamedValues {
++			if isSynthetic(&slot) {
++				continue
++			}
++			for _, value := range values {
++				s.valueNames[value.ID] = append(s.valueNames[value.ID], slot)
++			}
++		}
++	}
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			if !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && !v.Type.IsTuple() {
+@@ -692,7 +723,9 @@ func (s *regAllocState) liveAfterCurrentInstruction(v *Value) bool {
+ 
+ // Sets the state of the registers to that encoded in regs.
+ func (s *regAllocState) setState(regs []endReg) {
+-	s.freeRegs(s.used)
++	for s.used != 0 {
++		s.freeOrResetReg(pickReg(s.used), true)
++	}
+ 	for _, x := range regs {
+ 		s.assignReg(x.r, x.v, x.c)
+ 	}
+@@ -735,6 +768,9 @@ func (s *regAllocState) regalloc(f *Func) {
+ 	}
+ 
+ 	for _, b := range f.Blocks {
++		if s.f.pass.debug > regDebug {
++			fmt.Printf("Begin processing block %v\n", b)
++		}
+ 		s.curBlock = b
+ 
+ 		// Initialize regValLiveSet and uses fields for this block.
+@@ -830,9 +866,6 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			// This is the complicated case. We have more than one predecessor,
+ 			// which means we may have Phi ops.
+ 
+-			// Copy phi ops into new schedule.
+-			b.Values = append(b.Values, phis...)
+-
+ 			// Start with the final register state of the primary predecessor
+ 			idx := s.primary[b.ID]
+ 			if idx < 0 {
+@@ -910,6 +943,9 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				}
+ 			}
+ 
++			// Copy phi ops into new schedule.
++			b.Values = append(b.Values, phis...)
++
+ 			// Third pass - pick registers for phis whose inputs
+ 			// were not in a register.
+ 			for i, v := range phis {
+@@ -1005,7 +1041,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			pidx := e.i
+ 			for _, v := range succ.Values {
+ 				if v.Op != OpPhi {
+-					break
++					continue
+ 				}
+ 				if !s.values[v.ID].needReg {
+ 					continue
+@@ -1565,6 +1601,9 @@ func (s *regAllocState) placeSpills() {
+ 	for _, b := range f.Blocks {
+ 		var m regMask
+ 		for _, v := range b.Values {
++			if v.Op == OpRegKill {
++				continue
++			}
+ 			if v.Op != OpPhi {
+ 				break
+ 			}
+@@ -1675,7 +1714,7 @@ func (s *regAllocState) placeSpills() {
+ 	for _, b := range f.Blocks {
+ 		nphi := 0
+ 		for _, v := range b.Values {
+-			if v.Op != OpPhi {
++			if v.Op != OpRegKill && v.Op != OpPhi {
+ 				break
+ 			}
+ 			nphi++
+@@ -1800,6 +1839,9 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
+ 	}
+ 	// Phis need their args to end up in a specific location.
+ 	for _, v := range e.b.Values {
++		if v.Op == OpRegKill {
++			continue
++		}
+ 		if v.Op != OpPhi {
+ 			break
+ 		}
+@@ -1878,6 +1920,7 @@ func (e *edgeState) process() {
+ 		if e.s.f.pass.debug > regDebug {
+ 			fmt.Printf("breaking cycle with v%d in %s:%s\n", vid, loc.Name(), c)
+ 		}
++		e.erase(r)
+ 		if _, isReg := loc.(*Register); isReg {
+ 			c = e.p.NewValue1(d.pos, OpCopy, c.Type, c)
+ 		} else {
+@@ -1943,6 +1986,18 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
+ 		}
+ 	}
+ 	_, dstReg := loc.(*Register)
++
++	// Pre-clobber destination. This avoids the
++	// following situation:
++	//   - v is currently held in R0 and stacktmp0.
++	//   - We want to copy stacktmp1 to stacktmp0.
++	//   - We choose R0 as the temporary register.
++	// During the copy, both R0 and stacktmp0 are
++	// clobbered, losing both copies of v. Oops!
++	// Erasing the destination early means R0 will not
++	// be chosen as the temp register, as it will then
++	// be the last copy of v.
++	e.erase(loc)
+ 	var x *Value
+ 	if c == nil {
+ 		if !e.s.values[vid].rematerializeable {
+@@ -1953,8 +2008,8 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
+ 		} else {
+ 			// Rematerialize into stack slot. Need a free
+ 			// register to accomplish this.
+-			e.erase(loc) // see pre-clobber comment below
+ 			r := e.findRegFor(v.Type)
++			e.erase(r)
+ 			x = v.copyIntoNoXPos(e.p)
+ 			e.set(r, vid, x, false, pos)
+ 			// Make sure we spill with the size of the slot, not the
+@@ -1976,20 +2031,8 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
+ 				x = e.p.NewValue1(pos, OpLoadReg, c.Type, c)
+ 			} else {
+ 				// mem->mem. Use temp register.
+-
+-				// Pre-clobber destination. This avoids the
+-				// following situation:
+-				//   - v is currently held in R0 and stacktmp0.
+-				//   - We want to copy stacktmp1 to stacktmp0.
+-				//   - We choose R0 as the temporary register.
+-				// During the copy, both R0 and stacktmp0 are
+-				// clobbered, losing both copies of v. Oops!
+-				// Erasing the destination early means R0 will not
+-				// be chosen as the temp register, as it will then
+-				// be the last copy of v.
+-				e.erase(loc)
+-
+ 				r := e.findRegFor(c.Type)
++				e.erase(r)
+ 				t := e.p.NewValue1(pos, OpLoadReg, c.Type, c)
+ 				e.set(r, vid, t, false, pos)
+ 				x = e.p.NewValue1(pos, OpStoreReg, loc.(LocalSlot).Type, t)
+@@ -2008,7 +2051,6 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
+ // set changes the contents of location loc to hold the given value and its cached representative.
+ func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, pos src.XPos) {
+ 	e.s.f.setHome(c, loc)
+-	e.erase(loc)
+ 	e.contents[loc] = contentRecord{vid, c, final, pos}
+ 	a := e.cache[vid]
+ 	if len(a) == 0 {
+@@ -2059,6 +2101,16 @@ func (e *edgeState) erase(loc Location) {
+ 				fmt.Printf("v%d no longer available in %s:%s\n", vid, loc.Name(), c)
+ 			}
+ 			a[i], a = a[len(a)-1], a[:len(a)-1]
++			if e.s.f.Config.ctxt.Flag_locationlists {
++				if _, isReg := loc.(*Register); isReg && int(c.ID) < len(e.s.valueNames) && len(e.s.valueNames[c.ID]) != 0 {
++					kill := e.p.NewValue0(src.NoXPos, OpRegKill, types.TypeVoid)
++					e.s.f.setHome(kill, loc)
++					for _, name := range e.s.valueNames[c.ID] {
++						e.s.f.NamedValues[name] = append(e.s.f.NamedValues[name], kill)
++					}
++				}
++			}
++
+ 			break
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 7edc71be52..6df535153a 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"math"
++	"strings"
+ )
+ 
+ // A Value represents a value in the SSA representation of the program.
+@@ -98,7 +99,7 @@ func (v *Value) AuxValAndOff() ValAndOff {
+ 	return ValAndOff(v.AuxInt)
+ }
+ 
+-// long form print.  v# = opcode <type> [aux] args [: reg]
++// long form print.  v# = opcode <type> [aux] args [: reg] (names)
+ func (v *Value) LongString() string {
+ 	s := fmt.Sprintf("v%d = %s", v.ID, v.Op)
+ 	s += " <" + v.Type.String() + ">"
+@@ -110,6 +111,18 @@ func (v *Value) LongString() string {
+ 	if int(v.ID) < len(r) && r[v.ID] != nil {
+ 		s += " : " + r[v.ID].Name()
+ 	}
++	var names []string
++	for name, values := range v.Block.Func.NamedValues {
++		for _, value := range values {
++			if value == v {
++				names = append(names, name.Name())
++				break // drop duplicates.
++			}
++		}
++	}
++	if len(names) != 0 {
++		s += " (" + strings.Join(names, ", ") + ")"
++	}
+ 	return s
+ }
+ 
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index b58052beb3..2b034257a6 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -15,6 +15,9 @@ import (
+ // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
+ const InfoPrefix = "go.info."
+ 
++// RangePrefix is the prefix for all the symbols containing DWARF location lists.
++const LocPrefix = "go.loc."
++
+ // RangePrefix is the prefix for all the symbols containing DWARF range lists.
+ const RangePrefix = "go.range."
+ 
+@@ -23,13 +26,31 @@ type Sym interface {
+ 	Len() int64
+ }
+ 
++// A Location represents a variable's location at a particular PC range.
++// It becomes a location list entry in the DWARF.
++type Location struct {
++	StartPC, EndPC int64
++	Pieces         []Piece
++}
++
++// A Piece represents the location of a particular part of a variable.
++// It becomes part of a location list entry (a DW_OP_piece) in the DWARF.
++type Piece struct {
++	Length      int64
++	StackOffset int32
++	RegNum      int16
++	Missing     bool
++	OnStack     bool // if true, RegNum is unset.
++}
++
+ // A Var represents a local variable or a function parameter.
+ type Var struct {
+-	Name        string
+-	Abbrev      int // Either DW_ABRV_AUTO or DW_ABRV_PARAM
+-	StackOffset int32
+-	Scope       int32
+-	Type        Sym
++	Name         string
++	Abbrev       int // Either DW_ABRV_AUTO or DW_ABRV_PARAM
++	StackOffset  int32
++	LocationList []Location
++	Scope        int32
++	Type         Sym
+ }
+ 
+ // A Scope represents a lexical scope. All variables declared within a
+@@ -205,7 +226,7 @@ const (
+ )
+ 
+ // Index into the abbrevs table below.
+-// Keep in sync with ispubname() and ispubtype() below.
++// Keep in sync with ispubname() and ispubtype() in ld/dwarf.go.
+ // ispubtype considers >= NULLTYPE public
+ const (
+ 	DW_ABRV_NULL = iota
+@@ -709,31 +730,30 @@ func HasChildren(die *DWDie) bool {
+ 
+ // PutFunc writes a DIE for a function to s.
+ // It also writes child DIEs for each variable in vars.
+-func PutFunc(ctxt Context, s, ranges Sym, name string, external bool, startPC Sym, size int64, scopes []Scope) error {
+-	Uleb128put(ctxt, s, DW_ABRV_FUNCTION)
+-	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
+-	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, 0, startPC)
+-	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, size, startPC)
+-	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_block1, DW_CLS_BLOCK, 1, []byte{DW_OP_call_frame_cfa})
++func PutFunc(ctxt Context, info, loc, ranges Sym, name string, external bool, startPC Sym, size int64, scopes []Scope) error {
++	Uleb128put(ctxt, info, DW_ABRV_FUNCTION)
++	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
++	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, 0, startPC)
++	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, size, startPC)
++	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_block1, DW_CLS_BLOCK, 1, []byte{DW_OP_call_frame_cfa})
+ 	var ev int64
+ 	if external {
+ 		ev = 1
+ 	}
+-	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_flag, DW_CLS_FLAG, ev, 0)
++	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_flag, DW_CLS_FLAG, ev, 0)
+ 	if len(scopes) > 0 {
+ 		var encbuf [20]byte
+-		if putscope(ctxt, s, ranges, startPC, 0, scopes, encbuf[:0]) < int32(len(scopes)) {
++		if putscope(ctxt, info, loc, ranges, startPC, 0, scopes, encbuf[:0]) < int32(len(scopes)) {
+ 			return errors.New("multiple toplevel scopes")
+ 		}
+ 	}
+-
+-	Uleb128put(ctxt, s, 0)
++	Uleb128put(ctxt, info, 0)
+ 	return nil
+ }
+ 
+-func putscope(ctxt Context, s, ranges Sym, startPC Sym, curscope int32, scopes []Scope, encbuf []byte) int32 {
++func putscope(ctxt Context, info, loc, ranges, startPC Sym, curscope int32, scopes []Scope, encbuf []byte) int32 {
+ 	for _, v := range scopes[curscope].Vars {
+-		putvar(ctxt, s, v, encbuf)
++		putvar(ctxt, info, loc, v, startPC, encbuf)
+ 	}
+ 	this := curscope
+ 	curscope++
+@@ -744,12 +764,12 @@ func putscope(ctxt Context, s, ranges Sym, startPC Sym, curscope int32, scopes [
+ 		}
+ 
+ 		if len(scope.Ranges) == 1 {
+-			Uleb128put(ctxt, s, DW_ABRV_LEXICAL_BLOCK_SIMPLE)
+-			putattr(ctxt, s, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].Start, startPC)
+-			putattr(ctxt, s, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].End, startPC)
++			Uleb128put(ctxt, info, DW_ABRV_LEXICAL_BLOCK_SIMPLE)
++			putattr(ctxt, info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].Start, startPC)
++			putattr(ctxt, info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].End, startPC)
+ 		} else {
+-			Uleb128put(ctxt, s, DW_ABRV_LEXICAL_BLOCK_RANGES)
+-			putattr(ctxt, s, DW_ABRV_LEXICAL_BLOCK_RANGES, DW_FORM_sec_offset, DW_CLS_PTR, ranges.Len(), ranges)
++			Uleb128put(ctxt, info, DW_ABRV_LEXICAL_BLOCK_RANGES)
++			putattr(ctxt, info, DW_ABRV_LEXICAL_BLOCK_RANGES, DW_FORM_sec_offset, DW_CLS_PTR, ranges.Len(), ranges)
+ 
+ 			ctxt.AddAddress(ranges, nil, -1)
+ 			ctxt.AddAddress(ranges, startPC, 0)
+@@ -761,26 +781,66 @@ func putscope(ctxt Context, s, ranges Sym, startPC Sym, curscope int32, scopes [
+ 			ctxt.AddAddress(ranges, nil, 0)
+ 		}
+ 
+-		curscope = putscope(ctxt, s, ranges, startPC, curscope, scopes, encbuf)
++		curscope = putscope(ctxt, info, loc, ranges, startPC, curscope, scopes, encbuf)
+ 
+-		Uleb128put(ctxt, s, 0)
++		Uleb128put(ctxt, info, 0)
+ 	}
+ 	return curscope
+ }
+ 
+-func putvar(ctxt Context, s Sym, v *Var, encbuf []byte) {
++func putvar(ctxt Context, info, loc Sym, v *Var, startPC Sym, encbuf []byte) {
+ 	n := v.Name
+ 
+-	Uleb128put(ctxt, s, int64(v.Abbrev))
+-	putattr(ctxt, s, v.Abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
+-	loc := append(encbuf[:0], DW_OP_call_frame_cfa)
+-	if v.StackOffset != 0 {
+-		loc = append(loc, DW_OP_consts)
+-		loc = AppendSleb128(loc, int64(v.StackOffset))
+-		loc = append(loc, DW_OP_plus)
++	Uleb128put(ctxt, info, int64(v.Abbrev))
++	putattr(ctxt, info, v.Abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
++	if v.Abbrev == DW_ABRV_AUTO_LOCLIST || v.Abbrev == DW_ABRV_PARAM_LOCLIST {
++		putattr(ctxt, info, v.Abbrev, DW_FORM_sec_offset, DW_CLS_PTR, int64(loc.Len()), loc)
++		addLocList(ctxt, loc, startPC, v, encbuf)
++	} else {
++		loc := append(encbuf[:0], DW_OP_call_frame_cfa)
++		if v.StackOffset != 0 {
++			loc = append(loc, DW_OP_consts)
++			loc = AppendSleb128(loc, int64(v.StackOffset))
++			loc = append(loc, DW_OP_plus)
++		}
++		putattr(ctxt, info, v.Abbrev, DW_FORM_block1, DW_CLS_BLOCK, int64(len(loc)), loc)
++	}
++	putattr(ctxt, info, v.Abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
++}
++
++func addLocList(ctxt Context, listSym, startPC Sym, v *Var, encbuf []byte) {
++	// Base address entry: max ptr followed by the base address.
++	ctxt.AddInt(listSym, ctxt.PtrSize(), ^0)
++	ctxt.AddAddress(listSym, startPC, 0)
++	for _, entry := range v.LocationList {
++		ctxt.AddInt(listSym, ctxt.PtrSize(), entry.StartPC)
++		ctxt.AddInt(listSym, ctxt.PtrSize(), entry.EndPC)
++		locBuf := encbuf[:0]
++		for _, piece := range entry.Pieces {
++			if !piece.Missing {
++				if piece.OnStack {
++					locBuf = append(locBuf, DW_OP_fbreg)
++					locBuf = AppendSleb128(locBuf, int64(piece.StackOffset))
++				} else {
++					if piece.RegNum < 32 {
++						locBuf = append(locBuf, DW_OP_reg0+byte(piece.RegNum))
++					} else {
++						locBuf = append(locBuf, DW_OP_regx)
++						locBuf = AppendUleb128(locBuf, uint64(piece.RegNum))
++					}
++				}
++			}
++			if len(entry.Pieces) > 1 {
++				locBuf = append(locBuf, DW_OP_piece)
++				locBuf = AppendUleb128(locBuf, uint64(piece.Length))
++			}
++		}
++		ctxt.AddInt(listSym, 2, int64(len(locBuf)))
++		ctxt.AddBytes(listSym, locBuf)
+ 	}
+-	putattr(ctxt, s, v.Abbrev, DW_FORM_block1, DW_CLS_BLOCK, int64(len(loc)), loc)
+-	putattr(ctxt, s, v.Abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
++	// End list
++	ctxt.AddInt(listSym, ctxt.PtrSize(), 0)
++	ctxt.AddInt(listSym, ctxt.PtrSize(), 0)
+ }
+ 
+ // VarsByOffset attaches the methods of sort.Interface to []*Var,
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index d49bc8c564..68e1b70ac0 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -330,7 +330,8 @@ type FuncInfo struct {
+ 	Autom  []*Auto
+ 	Pcln   Pcln
+ 
+-	dwarfSym       *LSym
++	dwarfInfoSym   *LSym
++	dwarfLocSym    *LSym
+ 	dwarfRangesSym *LSym
+ 
+ 	GCArgs   LSym
+@@ -476,25 +477,26 @@ type Pcdata struct {
+ // Link holds the context for writing object code from a compiler
+ // to be linker input or for reading that input into the linker.
+ type Link struct {
+-	Headtype      objabi.HeadType
+-	Arch          *LinkArch
+-	Debugasm      bool
+-	Debugvlog     bool
+-	Debugpcln     string
+-	Flag_shared   bool
+-	Flag_dynlink  bool
+-	Flag_optimize bool
+-	Bso           *bufio.Writer
+-	Pathname      string
+-	hashmu        sync.Mutex       // protects hash
+-	hash          map[string]*LSym // name -> sym mapping
+-	statichash    map[string]*LSym // name -> sym mapping for static syms
+-	PosTable      src.PosTable
+-	InlTree       InlTree // global inlining tree used by gc/inl.go
+-	Imports       []string
+-	DiagFunc      func(string, ...interface{})
+-	DebugInfo     func(fn *LSym, curfn interface{}) []dwarf.Scope // if non-nil, curfn is a *gc.Node
+-	Errors        int
++	Headtype           objabi.HeadType
++	Arch               *LinkArch
++	Debugasm           bool
++	Debugvlog          bool
++	Debugpcln          string
++	Flag_shared        bool
++	Flag_dynlink       bool
++	Flag_optimize      bool
++	Flag_locationlists bool
++	Bso                *bufio.Writer
++	Pathname           string
++	hashmu             sync.Mutex       // protects hash
++	hash               map[string]*LSym // name -> sym mapping
++	statichash         map[string]*LSym // name -> sym mapping for static syms
++	PosTable           src.PosTable
++	InlTree            InlTree // global inlining tree used by gc/inl.go
++	Imports            []string
++	DiagFunc           func(string, ...interface{})
++	DebugInfo          func(fn *LSym, curfn interface{}) []dwarf.Scope // if non-nil, curfn is a *gc.Node
++	Errors             int
+ 
+ 	Framepointer_enabled bool
+ 
+@@ -533,9 +535,10 @@ func (ctxt *Link) FixedFrameSize() int64 {
+ // LinkArch is the definition of a single architecture.
+ type LinkArch struct {
+ 	*sys.Arch
+-	Init       func(*Link)
+-	Preprocess func(*Link, *LSym, ProgAlloc)
+-	Assemble   func(*Link, *LSym, ProgAlloc)
+-	Progedit   func(*Link, *Prog, ProgAlloc)
+-	UnaryDst   map[As]bool // Instruction takes one operand, a destination.
++	Init           func(*Link)
++	Preprocess     func(*Link, *LSym, ProgAlloc)
++	Assemble       func(*Link, *LSym, ProgAlloc)
++	Progedit       func(*Link, *Prog, ProgAlloc)
++	UnaryDst       map[As]bool // Instruction takes one operand, a destination.
++	DWARFRegisters map[int16]int16
+ }
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index e309c5f7e7..539d013037 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -465,15 +465,18 @@ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
+ }
+ 
+ // dwarfSym returns the DWARF symbols for TEXT symbol.
+-func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfRangesSym *LSym) {
++func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym *LSym) {
+ 	if s.Type != objabi.STEXT {
+ 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
+ 	}
+-	if s.Func.dwarfSym == nil {
+-		s.Func.dwarfSym = ctxt.LookupDerived(s, dwarf.InfoPrefix+s.Name)
++	if s.Func.dwarfInfoSym == nil {
++		s.Func.dwarfInfoSym = ctxt.LookupDerived(s, dwarf.InfoPrefix+s.Name)
++		if ctxt.Flag_locationlists {
++			s.Func.dwarfLocSym = ctxt.LookupDerived(s, dwarf.LocPrefix+s.Name)
++		}
+ 		s.Func.dwarfRangesSym = ctxt.LookupDerived(s, dwarf.RangePrefix+s.Name)
+ 	}
+-	return s.Func.dwarfSym, s.Func.dwarfRangesSym
++	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym
+ }
+ 
+ func (s *LSym) Len() int64 {
+@@ -483,15 +486,15 @@ func (s *LSym) Len() int64 {
+ // populateDWARF fills in the DWARF Debugging Information Entries for TEXT symbol s.
+ // The DWARFs symbol must already have been initialized in InitTextSym.
+ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym) {
+-	dsym, drsym := ctxt.dwarfSym(s)
+-	if dsym.Size != 0 {
++	info, loc, ranges := ctxt.dwarfSym(s)
++	if info.Size != 0 {
+ 		ctxt.Diag("makeFuncDebugEntry double process %v", s)
+ 	}
+ 	var scopes []dwarf.Scope
+ 	if ctxt.DebugInfo != nil {
+ 		scopes = ctxt.DebugInfo(s, curfn)
+ 	}
+-	err := dwarf.PutFunc(dwCtxt{ctxt}, dsym, drsym, s.Name, !s.Static(), s, s.Size, scopes)
++	err := dwarf.PutFunc(dwCtxt{ctxt}, info, loc, ranges, s.Name, !s.Static(), s, s.Size, scopes)
+ 	if err != nil {
+ 		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
+ 	}
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 861da88703..1bb05aedfa 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -136,13 +136,17 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	ctxt.Text = append(ctxt.Text, s)
+ 
+ 	// Set up DWARF entries for s.
+-	dsym, drsym := ctxt.dwarfSym(s)
+-	dsym.Type = objabi.SDWARFINFO
+-	dsym.Set(AttrDuplicateOK, s.DuplicateOK())
+-	drsym.Type = objabi.SDWARFRANGE
+-	drsym.Set(AttrDuplicateOK, s.DuplicateOK())
+-	ctxt.Data = append(ctxt.Data, dsym)
+-	ctxt.Data = append(ctxt.Data, drsym)
++	info, loc, ranges := ctxt.dwarfSym(s)
++	info.Type = objabi.SDWARFINFO
++	info.Set(AttrDuplicateOK, s.DuplicateOK())
++	if loc != nil {
++		loc.Type = objabi.SDWARFLOC
++		loc.Set(AttrDuplicateOK, s.DuplicateOK())
++		ctxt.Data = append(ctxt.Data, loc)
++	}
++	ranges.Type = objabi.SDWARFRANGE
++	ranges.Set(AttrDuplicateOK, s.DuplicateOK())
++	ctxt.Data = append(ctxt.Data, info, ranges)
+ 
+ 	// Set up the function's gcargs and gclocals.
+ 	// They will be filled in later if needed.
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index 04f9ef68a4..92d358ba4e 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -1006,3 +1006,120 @@ const (
+ 	T_64     = 1 << 6
+ 	T_GOTYPE = 1 << 7
+ )
++
++// https://www.uclibc.org/docs/psABI-x86_64.pdf, figure 3.36
++var AMD64DWARFRegisters = map[int16]int16{
++	REG_AX:  0,
++	REG_DX:  1,
++	REG_CX:  2,
++	REG_BX:  3,
++	REG_SI:  4,
++	REG_DI:  5,
++	REG_BP:  6,
++	REG_SP:  7,
++	REG_R8:  8,
++	REG_R9:  9,
++	REG_R10: 10,
++	REG_R11: 11,
++	REG_R12: 12,
++	REG_R13: 13,
++	REG_R14: 14,
++	REG_R15: 15,
++	// 16 is "Return Address RA", whatever that is.
++	// XMM registers. %xmmN => XN.
++	REG_X0:  17,
++	REG_X1:  18,
++	REG_X2:  19,
++	REG_X3:  20,
++	REG_X4:  21,
++	REG_X5:  22,
++	REG_X6:  23,
++	REG_X7:  24,
++	REG_X8:  25,
++	REG_X9:  26,
++	REG_X10: 27,
++	REG_X11: 28,
++	REG_X12: 29,
++	REG_X13: 30,
++	REG_X14: 31,
++	REG_X15: 32,
++	// ST registers. %stN => FN.
++	REG_F0: 33,
++	REG_F1: 34,
++	REG_F2: 35,
++	REG_F3: 36,
++	REG_F4: 37,
++	REG_F5: 38,
++	REG_F6: 39,
++	REG_F7: 40,
++	// MMX registers. %mmN => MN.
++	REG_M0: 41,
++	REG_M1: 42,
++	REG_M2: 43,
++	REG_M3: 44,
++	REG_M4: 45,
++	REG_M5: 46,
++	REG_M6: 47,
++	REG_M7: 48,
++	// 48 is flags, which doesn't have a name.
++	REG_ES: 50,
++	REG_CS: 51,
++	REG_SS: 52,
++	REG_DS: 53,
++	REG_FS: 54,
++	REG_GS: 55,
++	// 58 and 59 are {fs,gs}base, which don't have names.
++	REG_TR:   62,
++	REG_LDTR: 63,
++	// 64-66 are mxcsr, fcw, fsw, which don't have names.
++}
++
++// https://www.uclibc.org/docs/psABI-i386.pdf, table 2.14
++var X86DWARFRegisters = map[int16]int16{
++	REG_AX: 0,
++	REG_CX: 1,
++	REG_DX: 2,
++	REG_BX: 3,
++	REG_SP: 4,
++	REG_BP: 5,
++	REG_SI: 6,
++	REG_DI: 7,
++	// 8 is "Return Address RA", whatever that is.
++	// 9 is flags, which doesn't have a name.
++	// ST registers. %stN => FN.
++	REG_F0: 11,
++	REG_F1: 12,
++	REG_F2: 13,
++	REG_F3: 14,
++	REG_F4: 15,
++	REG_F5: 16,
++	REG_F6: 17,
++	REG_F7: 18,
++	// XMM registers. %xmmN => XN.
++	REG_X0: 21,
++	REG_X1: 22,
++	REG_X2: 23,
++	REG_X3: 24,
++	REG_X4: 25,
++	REG_X5: 26,
++	REG_X6: 27,
++	REG_X7: 28,
++	// MMX registers. %mmN => MN.
++	REG_M0: 29,
++	REG_M1: 30,
++	REG_M2: 31,
++	REG_M3: 32,
++	REG_M4: 33,
++	REG_M5: 34,
++	REG_M6: 35,
++	REG_M7: 36,
++	// 39 is mxcsr, which doesn't have a name.
++	REG_ES:   40,
++	REG_CS:   41,
++	REG_SS:   42,
++	REG_DS:   43,
++	REG_FS:   44,
++	REG_GS:   45,
++	REG_TR:   48,
++	REG_LDTR: 49,
++}
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index d34f0aeaa6..27873e0824 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1231,28 +1231,31 @@ var unaryDst = map[obj.As]bool{
+ }
+ 
+ var Linkamd64 = obj.LinkArch{
+-	Arch:       sys.ArchAMD64,
+-	Init:       instinit,
+-	Preprocess: preprocess,
+-	Assemble:   span6,
+-	Progedit:   progedit,
+-	UnaryDst:   unaryDst,
++	Arch:           sys.ArchAMD64,
++	Init:           instinit,
++	Preprocess:     preprocess,
++	Assemble:       span6,
++	Progedit:       progedit,
++	UnaryDst:       unaryDst,
++	DWARFRegisters: AMD64DWARFRegisters,
+ }
+ 
+ var Linkamd64p32 = obj.LinkArch{
+-	Arch:       sys.ArchAMD64P32,
+-	Init:       instinit,
+-	Preprocess: preprocess,
+-	Assemble:   span6,
+-	Progedit:   progedit,
+-	UnaryDst:   unaryDst,
++	Arch:           sys.ArchAMD64P32,
++	Init:           instinit,
++	Preprocess:     preprocess,
++	Assemble:       span6,
++	Progedit:       progedit,
++	UnaryDst:       unaryDst,
++	DWARFRegisters: AMD64DWARFRegisters,
+ }
+ 
+ var Link386 = obj.LinkArch{
+-	Arch:       sys.Arch386,
+-	Init:       instinit,
+-	Preprocess: preprocess,
+-	Assemble:   span6,
+-	Progedit:   progedit,
+-	UnaryDst:   unaryDst,
++	Arch:           sys.Arch386,
++	Init:           instinit,
++	Preprocess:     preprocess,
++	Assemble:       span6,
++	Progedit:       progedit,
++	UnaryDst:       unaryDst,
++	DWARFRegisters: AMD64DWARFRegisters,
+ }
+diff --git a/src/cmd/internal/objabi/symkind.go b/src/cmd/internal/objabi/symkind.go
+index b037e9e4ed..ac91824d17 100644
+--- a/src/cmd/internal/objabi/symkind.go
++++ b/src/cmd/internal/objabi/symkind.go
+@@ -57,4 +57,5 @@ const (
+ 	// Debugging data
+ 	SDWARFINFO
+ 	SDWARFRANGE
++	SDWARFLOC
+ )
+diff --git a/src/cmd/internal/objabi/symkind_string.go b/src/cmd/internal/objabi/symkind_string.go
+index 5123dc7097..3064c8ee05 100644
+--- a/src/cmd/internal/objabi/symkind_string.go
++++ b/src/cmd/internal/objabi/symkind_string.go
+@@ -4,9 +4,9 @@ package objabi
+ 
+ import "fmt"
+ 
+-const _SymKind_name = "SxxxSTEXTSRODATASNOPTRDATASDATASBSSSNOPTRBSSSTLSBSSSDWARFINFOSDWARFRANGE"
++const _SymKind_name = "SxxxSTEXTSRODATASNOPTRDATASDATASBSSSNOPTRBSSSTLSBSSSDWARFINFOSDWARFRANGESDWARFLOC"
+ 
+-var _SymKind_index = [...]uint8{0, 4, 9, 16, 26, 31, 35, 44, 51, 61, 72}
++var _SymKind_index = [...]uint8{0, 4, 9, 16, 26, 31, 35, 44, 51, 61, 72, 81}
+ 
+ func (i SymKind) String() string {
+ 	if i >= SymKind(len(_SymKind_index)-1) {
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index bf219f7b62..1d053d23b7 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1862,6 +1862,8 @@ func (ctxt *Link) dodata() {
+ 			sect = addsection(&Segdwarf, ".debug_info", 04)
+ 		case SDWARFRANGE:
+ 			sect = addsection(&Segdwarf, ".debug_ranges", 04)
++		case SDWARFLOC:
++			sect = addsection(&Segdwarf, ".debug_loc", 04)
+ 		default:
+ 			Errorf(dwarfp[i], "unknown DWARF section %v", curType)
+ 		}
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 9b11fdcff6..b6fb1bb5c1 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1579,10 +1579,35 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
+ 	syms = writearanges(ctxt, syms)
+ 	syms = writegdbscript(ctxt, syms)
+ 	syms = append(syms, infosyms...)
++	syms = collectlocs(ctxt, syms, funcs)
+ 	syms = writeranges(ctxt, syms)
+ 	dwarfp = syms
+ }
+ 
++func collectlocs(ctxt *Link, syms []*Symbol, funcs []*Symbol) []*Symbol {
++	empty := true
++	for _, fn := range funcs {
++		for _, reloc := range fn.R {
++			if reloc.Type == objabi.R_DWARFREF && strings.HasPrefix(reloc.Sym.Name, dwarf.LocPrefix) {
++				reloc.Sym.Attr |= AttrReachable | AttrNotInSymbolTable
++				syms = append(syms, reloc.Sym)
++				empty = false
++				// One location list entry per function, but many relocations to it. Don't duplicate.
++				break
++			}
++		}
++	}
++	// Don't emit .debug_loc if it's empty -- it makes the ARM linker mad.
++	if !empty {
++		locsym := ctxt.Syms.Lookup(".debug_loc", 0)
++		locsym.R = locsym.R[:0]
++		locsym.Type = SDWARFLOC
++		locsym.Attr |= AttrReachable
++		syms = append(syms, locsym)
++	}
++	return syms
++}
++
+ /*
+  *  Elf.
+  */
+@@ -1595,6 +1620,7 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *Symbol) {
+ 	Addstring(shstrtab, ".debug_aranges")
+ 	Addstring(shstrtab, ".debug_frame")
+ 	Addstring(shstrtab, ".debug_info")
++	Addstring(shstrtab, ".debug_loc")
+ 	Addstring(shstrtab, ".debug_line")
+ 	Addstring(shstrtab, ".debug_pubnames")
+ 	Addstring(shstrtab, ".debug_pubtypes")
+@@ -1602,6 +1628,7 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *Symbol) {
+ 	Addstring(shstrtab, ".debug_ranges")
+ 	if Linkmode == LinkExternal {
+ 		Addstring(shstrtab, elfRelType+".debug_info")
++		Addstring(shstrtab, elfRelType+".debug_loc")
+ 		Addstring(shstrtab, elfRelType+".debug_aranges")
+ 		Addstring(shstrtab, elfRelType+".debug_line")
+ 		Addstring(shstrtab, elfRelType+".debug_frame")
+@@ -1628,6 +1655,10 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
+ 	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+ 	sym = ctxt.Syms.Lookup(".debug_frame", 0)
+ 	putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
++	sym = ctxt.Syms.Lookup(".debug_loc", 0)
++	if sym.Sect != nil {
++		putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
++	}
+ 	sym = ctxt.Syms.Lookup(".debug_ranges", 0)
+ 	if sym.Sect != nil {
+ 		putelfsectionsym(sym, sym.Sect.Elfsect.shnum)
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 0fc947fec2..78f8d6e70e 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1808,7 +1808,7 @@ func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
+ 				continue
+ 			}
+ 			if r.Xsym == nil {
+-				Errorf(sym, "missing xsym in relocation")
++				Errorf(sym, "missing xsym in relocation %#v %#v", r.Sym.Name, sym)
+ 				continue
+ 			}
+ 			if r.Xsym.ElfsymForReloc() == 0 {
+@@ -2596,12 +2596,9 @@ elfobj:
+ 			elfshreloc(sect)
+ 		}
+ 		for _, s := range dwarfp {
+-			if len(s.R) > 0 || s.Type == SDWARFINFO {
++			if len(s.R) > 0 || s.Type == SDWARFINFO || s.Type == SDWARFLOC {
+ 				elfshreloc(s.Sect)
+ 			}
+-			if s.Type == SDWARFINFO {
+-				break
+-			}
+ 		}
+ 		// add a .note.GNU-stack section to mark the stack as non-executable
+ 		sh := elfshname(".note.GNU-stack")
+diff --git a/src/cmd/link/internal/ld/symkind.go b/src/cmd/link/internal/ld/symkind.go
+index c057f6cd0c..5ac04cf45a 100644
+--- a/src/cmd/link/internal/ld/symkind.go
++++ b/src/cmd/link/internal/ld/symkind.go
+@@ -105,6 +105,7 @@ const (
+ 	SDWARFSECT
+ 	SDWARFINFO
+ 	SDWARFRANGE
++	SDWARFLOC
+ 	SSUB       = SymKind(1 << 8)
+ 	SMASK      = SymKind(SSUB - 1)
+ 	SHIDDEN    = SymKind(1 << 9)
+@@ -124,6 +125,7 @@ var abiSymKindToSymKind = [...]SymKind{
+ 	STLSBSS,
+ 	SDWARFINFO,
+ 	SDWARFRANGE,
++	SDWARFLOC,
+ }
+ 
+ // readOnly are the symbol kinds that form read-only sections. In some
+diff --git a/src/cmd/link/internal/ld/symkind_string.go b/src/cmd/link/internal/ld/symkind_string.go
+index 2178b50c36..87da3c40bb 100644
+--- a/src/cmd/link/internal/ld/symkind_string.go
++++ b/src/cmd/link/internal/ld/symkind_string.go
+@@ -4,9 +4,9 @@ package ld
+ 
+ import "fmt"
+ 
+-const _SymKind_name = "SxxxSTEXTSELFRXSECTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSMACHOPLTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASBSSSNOPTRBSSSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILESFILEPATHSCONSTSDYNIMPORTSHOSTOBJSDWARFSECTSDWARFINFOSDWARFRANGE"
++const _SymKind_name = "SxxxSTEXTSELFRXSECTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSMACHOPLTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASBSSSNOPTRBSSSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILESFILEPATHSCONSTSDYNIMPORTSHOSTOBJSDWARFSECTSDWARFINFOSDWARFRANGESDWARFLOC"
+ 
+-var _SymKind_index = [...]uint16{0, 4, 9, 19, 24, 31, 40, 47, 54, 61, 69, 79, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 214, 220, 229, 237, 244, 254, 262, 267, 271, 280, 287, 292, 304, 316, 333, 350, 355, 364, 370, 380, 388, 398, 408, 419}
++var _SymKind_index = [...]uint16{0, 4, 9, 19, 24, 31, 40, 47, 54, 61, 69, 79, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 214, 220, 229, 237, 244, 254, 262, 267, 271, 280, 287, 292, 304, 316, 333, 350, 355, 364, 370, 380, 388, 398, 408, 419, 428}
+ 
+ func (i SymKind) String() string {
+ 	if i < 0 || i >= SymKind(len(_SymKind_index)-1) {

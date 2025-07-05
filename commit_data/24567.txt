@@ -11,9 +11,171 @@ Date:   Wed Aug 5 12:09:05 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/13230
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/list.go        | 14 +++-----------
  src/cmd/go/pkg.go         | 27 ++++++++++++++++++++++++++
  src/cmd/go/test.go        | 14 +++++++-------
  src/cmd/go/vendor_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 86 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index b24444026b..f59c82eadf 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -175,17 +175,9 @@ func runList(cmd *Command, args []string) {
+ 	}
+ 
+ 	for _, pkg := range load(args) {
+-		// We apply vendoredImportPath here for test imports.
+-		// It's not needed for regular imports, because it was
+-		// done while loading the package.
+-		for i, path := range pkg.TestImports {
+-			path, _ = vendoredImportPath(pkg, path)
+-			pkg.TestImports[i] = path
+-		}
+-		for i, path := range pkg.XTestImports {
+-			path, _ = vendoredImportPath(pkg, path)
+-			pkg.XTestImports[i] = path
+-		}
++		// Show vendor-expanded paths in listing
++		pkg.TestImports = pkg.vendored(pkg.TestImports)
++		pkg.XTestImports = pkg.vendored(pkg.XTestImports)
+ 
+ 		do(pkg)
+ 	}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 0b61b0eeb4..6b78a47939 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -101,6 +101,33 @@ type Package struct {
+ 	gobinSubdir  bool                 // install target would be subdir of GOBIN
+ }
+ 
++// vendored returns the vendor-resolved version of imports,
++// which should be p.TestImports or p.XTestImports, NOT p.Imports.
++// The imports in p.TestImports and p.XTestImports are not recursively
++// loaded during the initial load of p, so they list the imports found in
++// the source file, but most processing should be over the vendor-resolved
++// import paths. We do this resolution lazily both to avoid file system work
++// and because the eventual real load of the test imports (during 'go test')
++// can produce better error messages if it starts with the original paths.
++// The initial load of p loads all the non-test imports and rewrites
++// the vendored paths, so nothing should ever call p.vendored(p.Imports).
++func (p *Package) vendored(imports []string) []string {
++	if len(imports) > 0 && len(p.Imports) > 0 && &imports[0] == &p.Imports[0] {
++		panic("internal error: p.vendored(p.Imports) called")
++	}
++	seen := make(map[string]bool)
++	var all []string
++	for _, path := range imports {
++		path, _ = vendoredImportPath(p, path)
++		if !seen[path] {
++			seen[path] = true
++			all = append(all, path)
++		}
++	}
++	sort.Strings(all)
++	return all
++}
++
+ // CoverVar holds the name of the generated coverage variables targeting the named file.
+ type CoverVar struct {
+ 	File string // local file name
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 4e7b551ed8..0ba1883714 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -384,10 +384,10 @@ func runTest(cmd *Command, args []string) {
+ 			for _, path := range p.Imports {
+ 				deps[path] = true
+ 			}
+-			for _, path := range p.TestImports {
++			for _, path := range p.vendored(p.TestImports) {
+ 				deps[path] = true
+ 			}
+-			for _, path := range p.XTestImports {
++			for _, path := range p.vendored(p.XTestImports) {
+ 				deps[path] = true
+ 			}
+ 		}
+@@ -611,10 +611,6 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	stk.push(p.ImportPath + "_test")
+ 	pxtestNeedsPtest := false
+ 	for i, path := range p.XTestImports {
+-		if path == p.ImportPath {
+-			pxtestNeedsPtest = true
+-			continue
+-		}
+ 		p1 := loadImport(path, p.Dir, p, &stk, p.build.XTestImportPos[path], useVendor)
+ 		if p1.Error != nil {
+ 			return nil, nil, nil, p1.Error
+@@ -624,7 +620,11 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 			err.Pos = "" // show full import stack
+ 			return nil, nil, nil, err
+ 		}
+-		ximports = append(ximports, p1)
++		if p1.ImportPath == p.ImportPath {
++			pxtestNeedsPtest = true
++		} else {
++			ximports = append(ximports, p1)
++		}
+ 		p.XTestImports[i] = p1.ImportPath
+ 	}
+ 	stk.pop()
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+index 3b27bdec0e..611aceb999 100644
+--- a/src/cmd/go/vendor_test.go
++++ b/src/cmd/go/vendor_test.go
+@@ -195,3 +195,52 @@ func TestVendorCache(t *testing.T) {
+ 	tg.runFail("build", "p")
+ 	tg.grepStderr("must be imported as x", "did not fail to build p")
+ }
++
++func TestVendorTest2(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++	tg.setenv("GO15VENDOREXPERIMENT", "1")
++	tg.run("get", "github.com/rsc/go-get-issue-11864")
++
++	// build -i should work
++	tg.run("build", "-i", "github.com/rsc/go-get-issue-11864")
++	tg.run("build", "-i", "github.com/rsc/go-get-issue-11864/t")
++
++	// test -i should work like build -i (golang.org/issue/11988)
++	tg.run("test", "-i", "github.com/rsc/go-get-issue-11864")
++	tg.run("test", "-i", "github.com/rsc/go-get-issue-11864/t")
++
++	// test should work too
++	tg.run("test", "github.com/rsc/go-get-issue-11864")
++	tg.run("test", "github.com/rsc/go-get-issue-11864/t")
++
++	// external tests should observe internal test exports (golang.org/issue/11977)
++	tg.run("test", "github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx2")
++}
++
++func TestVendorList(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++	tg.setenv("GO15VENDOREXPERIMENT", "1")
++	tg.run("get", "github.com/rsc/go-get-issue-11864")
++
++	tg.run("list", "-f", `{{join .TestImports "\n"}}`, "github.com/rsc/go-get-issue-11864/t")
++	tg.grepStdout("go-get-issue-11864/vendor/vendor.org/p", "did not find vendor-expanded p")
++
++	tg.run("list", "-f", `{{join .XTestImports "\n"}}`, "github.com/rsc/go-get-issue-11864/tx")
++	tg.grepStdout("go-get-issue-11864/vendor/vendor.org/p", "did not find vendor-expanded p")
++
++	tg.run("list", "-f", `{{join .XTestImports "\n"}}`, "github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx2")
++	tg.grepStdout("go-get-issue-11864/vendor/vendor.org/tx2", "did not find vendor-expanded tx2")
++
++	tg.run("list", "-f", `{{join .XTestImports "\n"}}`, "github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx3")
++	tg.grepStdout("go-get-issue-11864/vendor/vendor.org/tx3", "did not find vendor-expanded tx3")
++}

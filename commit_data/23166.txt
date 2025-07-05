@@ -12,7 +12,53 @@ Date:   Mon Apr 27 19:32:00 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9412
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 14 +++++++++-----
  src/net/http/server.go     |  1 +
  2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 6e1b3ed025..be54487441 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1452,19 +1452,23 @@ func testHandlerPanic(t *testing.T, withHijack bool, panicValue interface{}) {
+ 	}
+ }
+ 
+-func TestNoDate(t *testing.T) {
++func TestServerNoDate(t *testing.T)        { testServerNoHeader(t, "Date") }
++func TestServerNoContentType(t *testing.T) { testServerNoHeader(t, "Content-Type") }
++
++func testServerNoHeader(t *testing.T, header string) {
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+-		w.Header()["Date"] = nil
++		w.Header()[header] = nil
++		io.WriteString(w, "<html>foo</html>") // non-empty
+ 	}))
+ 	defer ts.Close()
+ 	res, err := Get(ts.URL)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	_, present := res.Header["Date"]
+-	if present {
+-		t.Fatalf("Expected no Date header; got %v", res.Header["Date"])
++	res.Body.Close()
++	if got, ok := res.Header[header]; ok {
++		t.Fatalf("Expected no %s header; got %q", header, got)
+ 	}
+ }
+ 
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 565c87d392..1bde413a38 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -61,6 +61,7 @@ type ResponseWriter interface {
+ 	// WriteHeader (or Write) has no effect unless the modified
+ 	// headers were declared as trailers by setting the
+ 	// "Trailer" header before the call to WriteHeader.
++	// To suppress implicit response headers, set their value to nil.
+ 	Header() Header
+ 
+ 	// Write writes the data to the connection as part of an HTTP reply.

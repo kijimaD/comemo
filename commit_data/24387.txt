@@ -14,6 +14,39 @@ Date:   Mon Jul 27 10:30:26 2015 -0700
     Change-Id: I4cdd27a8ec8713620e0135780a03f63cfcc538d0
     Reviewed-on: https://go-review.googlesource.com/12702
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/test.go | 21 +++++++--------------
  1 file changed, 7 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 9f6e06e014..d0e634640c 100755
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -418,20 +418,13 @@ func (t *tester) registerTests() {
+ 					return t.cgoTestSO("misc/cgo/testso")
+ 				},
+ 			})
+-			switch t.goos {
+-			case "darwin":
+-				// Skipping misc/cgo/testsovar test. See issue 10360 for details.
+-			case "netbsd":
+-				// Skipping misc/cgo/testsovar test. See issue 11654 for details.
+-			default:
+-				t.tests = append(t.tests, distTest{
+-					name:    "testsovar",
+-					heading: "../misc/cgo/testsovar",
+-					fn: func() error {
+-						return t.cgoTestSO("misc/cgo/testsovar")
+-					},
+-				})
+-			}
++			t.tests = append(t.tests, distTest{
++				name:    "testsovar",
++				heading: "../misc/cgo/testsovar",
++				fn: func() error {
++					return t.cgoTestSO("misc/cgo/testsovar")
++				},
++			})
+ 		}
+ 		if t.supportedBuildmode("c-archive") {
+ 			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "./test.bash")

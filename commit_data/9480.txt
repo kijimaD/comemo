@@ -9,7 +9,35 @@ Date:   Wed Aug 24 14:55:03 2011 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/4923050
-
+---
  src/pkg/big/int_test.go | 3 +++
  src/pkg/big/nat.go      | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index 03446d6ae2..b2e1692179 100755
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -301,6 +301,9 @@ func TestGetString(t *testing.T) {
+ func TestSetString(t *testing.T) {
+ 	tmp := new(Int)
+ 	for i, test := range stringTests {
++		// initialize to a non-zero value so that issues with parsing
++		// 0 are detected
++		tmp.SetInt64(1234567890)
+ 		n1, ok1 := new(Int).SetString(test.in, test.base)
+ 		n2, ok2 := tmp.SetString(test.in, test.base)
+ 		expected := NewInt(test.val)
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index be3aff29d1..33d6bb16ff 100755
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -646,7 +646,7 @@ func (z nat) scan(r io.RuneScanner, base int) (nat, int, os.Error) {
+ 					}
+ 				}
+ 			case os.EOF:
+-				return z, 10, nil
++				return z.make(0), 10, nil
+ 			default:
+ 				return z, 10, err
+ 			}

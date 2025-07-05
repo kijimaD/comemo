@@ -12,6 +12,20 @@ Date:   Wed Jul 14 13:21:11 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/internal_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/internal_test.go b/src/time/internal_test.go
+index 87a4208b05..2c75e449d3 100644
+--- a/src/time/internal_test.go
++++ b/src/time/internal_test.go
+@@ -12,7 +12,7 @@ func init() {
+ func initTestingZone() {
+ 	z, err := loadLocation("America/Los_Angeles", zoneSources[len(zoneSources)-1:])
+ 	if err != nil {
+-		panic("cannot load America/Los_Angeles for testing: " + err.Error())
++		panic("cannot load America/Los_Angeles for testing: " + err.Error() + "; you may want to use -tags=timetzdata")
+ 	}
+ 	z.name = "Local"
+ 	localLoc = *z

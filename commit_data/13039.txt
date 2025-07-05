@@ -10,9 +10,99 @@ Date:   Mon May 7 11:51:40 2012 +0200
     R=r
     CC=golang-dev
     https://golang.org/cl/6160044
-
+---
  src/pkg/exp/locale/collate/build/builder_test.go |  2 +-
  src/pkg/exp/locale/collate/build/colelem.go      | 20 ++++++++++----------
  src/pkg/exp/locale/collate/colelem.go            | 21 ++++++++++-----------
  src/pkg/exp/locale/collate/colelem_test.go       |  2 +-
  4 files changed, 22 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/exp/locale/collate/build/builder_test.go b/src/pkg/exp/locale/collate/build/builder_test.go
+index 343c7afbfd..6f627e478f 100644
+--- a/src/pkg/exp/locale/collate/build/builder_test.go
++++ b/src/pkg/exp/locale/collate/build/builder_test.go
+@@ -63,7 +63,7 @@ type convertTest struct {
+ 
+ var convLargeTests = []convertTest{
+ 	{pCE(0xFB39), pCE(0xFB39), false},
+-	{cjk(0x2F9B2), pqCE(0x7F4F2, 0x2F9B2), false},
++	{cjk(0x2F9B2), pqCE(0x4F4F2, 0x2F9B2), false},
+ 	{pCE(0xFB40), pCE(0), true},
+ 	{append(pCE(0xFB40), pCE(0)[0]), pCE(0), true},
+ 	{pCE(0xFFFE), pCE(illegalOffset), false},
+diff --git a/src/pkg/exp/locale/collate/build/colelem.go b/src/pkg/exp/locale/collate/build/colelem.go
+index 3d5e27c67d..c78d42ec7f 100644
+--- a/src/pkg/exp/locale/collate/build/colelem.go
++++ b/src/pkg/exp/locale/collate/build/colelem.go
+@@ -162,16 +162,16 @@ const (
+ // http://unicode.org/reports/tr10/#Implicit_Weights,
+ // but preserve the resulting relative ordering of the runes.
+ func implicitPrimary(r rune) int {
+-	if r >= minUnified && r <= maxUnified {
+-		// The most common case for CJK.
+-		return int(r) + commonUnifiedOffset
+-	}
+-	if r >= minCompatibility && r <= maxCompatibility {
+-		// This will never hit as long as we don't remove the characters
+-		// that would match from the table.
+-		return int(r) + commonUnifiedOffset
+-	}
+-	if unicode.Is(unicode.Unified_Ideograph, r) {
++	if unicode.Is(unicode.Ideographic, r) {
++		if r >= minUnified && r <= maxUnified {
++			// The most common case for CJK.
++			return int(r) + commonUnifiedOffset
++		}
++		if r >= minCompatibility && r <= maxCompatibility {
++			// This will typically not hit. The DUCET explicitly specifies mappings
++			// for all characters that do not decompose.
++			return int(r) + commonUnifiedOffset
++		}
+ 		return int(r) + rareUnifiedOffset
+ 	}
+ 	return int(r) + otherOffset
+diff --git a/src/pkg/exp/locale/collate/colelem.go b/src/pkg/exp/locale/collate/colelem.go
+index 2cd6201737..1888674b54 100644
+--- a/src/pkg/exp/locale/collate/colelem.go
++++ b/src/pkg/exp/locale/collate/colelem.go
+@@ -154,17 +154,16 @@ const (
+ // http://unicode.org/reports/tr10/#Implicit_Weights,
+ // but preserve the resulting relative ordering of the runes.
+ func implicitPrimary(r rune) int {
+-
+-	if r >= minUnified && r <= maxUnified {
+-		// The most common case for CJK.
+-		return int(r) + commonUnifiedOffset
+-	}
+-	if r >= minCompatibility && r <= maxCompatibility {
+-		// This will never hit as long as we don't remove the characters
+-		// that would match from the table.
+-		return int(r) + commonUnifiedOffset
+-	}
+-	if unicode.Is(unicode.Unified_Ideograph, r) {
++	if unicode.Is(unicode.Ideographic, r) {
++		if r >= minUnified && r <= maxUnified {
++			// The most common case for CJK.
++			return int(r) + commonUnifiedOffset
++		}
++		if r >= minCompatibility && r <= maxCompatibility {
++			// This will typically not hit. The DUCET explicitly specifies mappings
++			// for all characters that do not decompose.
++			return int(r) + commonUnifiedOffset
++		}
+ 		return int(r) + rareUnifiedOffset
+ 	}
+ 	return int(r) + otherOffset
+diff --git a/src/pkg/exp/locale/collate/colelem_test.go b/src/pkg/exp/locale/collate/colelem_test.go
+index dfc6bd9518..9971151e6d 100644
+--- a/src/pkg/exp/locale/collate/colelem_test.go
++++ b/src/pkg/exp/locale/collate/colelem_test.go
+@@ -141,7 +141,7 @@ var implicitTests = []implicitTest{
+ 	{0xF8FF, 0x5F43F},
+ 	{0xF900, 0x1F440},
+ 	{0xFA23, 0x1F563},
+-	{0xFAFF, 0x1F63F},
++	{0xFAD9, 0x1F619},
+ 	{0xFB00, 0x5F640},
+ 	{0x20000, 0x3FB40},
+ 	{0x2B81C, 0x4B35C},

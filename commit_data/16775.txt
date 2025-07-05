@@ -7,6 +7,20 @@ Date:   Tue Jul 16 17:41:31 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/11334043
-
+---
  src/cmd/gc/reflect.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index ccbed50302..e74df2a8eb 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -474,6 +474,8 @@ haspointers(Type *t)
+ 	case TUINTPTR:
+ 	case TFLOAT32:
+ 	case TFLOAT64:
++	case TCOMPLEX64:
++	case TCOMPLEX128:
+ 	case TBOOL:
+ 		return 0;
+ 	case TARRAY:

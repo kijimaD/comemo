@@ -7,6 +7,19 @@ Date:   Thu Sep 9 14:42:49 2010 -0700
     R=rsc, ken2
     CC=golang-dev
     https://golang.org/cl/2118050
-
+---
  src/cmd/gc/go.h | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index e87c4c9804..12541029f5 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -262,6 +262,7 @@ struct	Node
+ 	Sym*	sym;		// various
+ 	int32	vargen;		// unique name for OTYPE/ONAME
+ 	int32	lineno;
++	int32   endlineno;
+ 	vlong	xoffset;
+ 	int32	ostk;
+ 	int32	iota;

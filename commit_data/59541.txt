@@ -21,7 +21,50 @@ Date:   Thu Mar 21 11:33:24 2024 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/time.go    |  5 +++++
  src/time/sleep_test.go | 18 ++++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 31c83ca4e3..06a56bf7ae 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -778,6 +778,11 @@ func (ts *timers) adjust(now int64, force bool) {
+ 			throw("bad ts")
+ 		}
+ 
++		if t.astate.Load()&(timerModified|timerZombie) == 0 {
++			// Does not need adjustment.
++			continue
++		}
++
+ 		t.lock()
+ 		if t.state&timerHeaped == 0 {
+ 			badTimer()
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index 634a5c7a13..29f56ef752 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -971,3 +971,21 @@ func doWork(dur Duration) {
+ 	for Since(start) < dur {
+ 	}
+ }
++
++func BenchmarkAdjustTimers10000(b *testing.B) {
++	benchmark(b, func(pb *testing.PB) {
++		for pb.Next() {
++			const n = 10000
++			timers := make([]*Timer, 0, n)
++			for range n {
++				t := AfterFunc(Hour, func() {})
++				timers = append(timers, t)
++			}
++			timers[n-1].Reset(Nanosecond)
++			Sleep(Microsecond)
++			for _, t := range timers {
++				t.Stop()
++			}
++		}
++	})
++}

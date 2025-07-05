@@ -16,6 +16,26 @@ Date:   Tue Feb 16 18:24:48 2021 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Dan Scales <danscales@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/dist/test.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 365a77a156..2b1f82246a 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -444,8 +444,12 @@ func (t *tester) registerTests() {
+ 			fatalf("Error running go list std cmd: %v:\n%s", err, cmd.Stderr)
+ 		}
+ 		pkgs := strings.Fields(string(all))
+-		for _, pkg := range pkgs {
+-			t.registerStdTest(pkg, true)
++		if false {
++			// Disable -G=3 option for standard tests for now, since
++			// they are flaky on the builder.
++			for _, pkg := range pkgs {
++				t.registerStdTest(pkg, true /* -G=3 flag */)
++			}
+ 		}
+ 		for _, pkg := range pkgs {
+ 			t.registerStdTest(pkg, false)

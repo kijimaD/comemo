@@ -13,6 +13,21 @@ Date:   Tue Apr 13 15:51:58 2021 +0300
     Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/archive/zip/reader_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index 5faf1f49b5..fbaf9d4388 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -776,8 +776,8 @@ func returnRecursiveZip() (r io.ReaderAt, size int64) {
+ //		"archive/zip"
+ //		"bytes"
+ //		"io"
+-//		"io/ioutil"
+ //		"log"
++//		"os"
+ //	)
+ //
+ //	type zeros struct{}

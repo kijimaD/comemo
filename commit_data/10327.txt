@@ -7,9 +7,80 @@ Date:   Wed Nov 9 14:22:44 2011 -0800
     R=gri, rsc, r
     CC=golang-dev
     https://golang.org/cl/5372050
-
+---
  doc/go_spec.html                  | 8 ++++----
  src/pkg/crypto/aes/cipher.go      | 2 +-
  src/pkg/crypto/blowfish/cipher.go | 2 +-
  src/pkg/crypto/xtea/cipher.go     | 2 +-
  4 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index ce03a49c91..4426ea206f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of November 1, 2011 -->
++<!-- subtitle Version of November 9, 2011 -->
+ 
+ <!--
+ TODO
+@@ -1688,7 +1688,7 @@ type TreeNode struct {
+ 	value *Comparable
+ }
+ 
+-type Cipher interface {
++type Block interface {
+ 	BlockSize() int
+ 	Encrypt(src, dst []byte)
+ 	Decrypt(src, dst []byte)
+@@ -1720,8 +1720,8 @@ type PrintableMutex struct {
+ 	Mutex
+ }
+ 
+-// MyCipher is an interface type that has the same method set as Cipher.
+-type MyCipher Cipher
++// MyBlock is an interface type that has the same method set as Block.
++type MyBlock Block
+ </pre>
+ 
+ <p>
+diff --git a/src/pkg/crypto/aes/cipher.go b/src/pkg/crypto/aes/cipher.go
+index 5ad75eccb5..28752e7361 100644
+--- a/src/pkg/crypto/aes/cipher.go
++++ b/src/pkg/crypto/aes/cipher.go
+@@ -41,7 +41,7 @@ func NewCipher(key []byte) (*Cipher, error) {
+ }
+ 
+ // BlockSize returns the AES block size, 16 bytes.
+-// It is necessary to satisfy the Cipher interface in the
++// It is necessary to satisfy the Block interface in the
+ // package "crypto/cipher".
+ func (c *Cipher) BlockSize() int { return BlockSize }
+ 
+diff --git a/src/pkg/crypto/blowfish/cipher.go b/src/pkg/crypto/blowfish/cipher.go
+index a5d56d2eba..94e10f0e26 100644
+--- a/src/pkg/crypto/blowfish/cipher.go
++++ b/src/pkg/crypto/blowfish/cipher.go
+@@ -54,7 +54,7 @@ func NewSaltedCipher(key, salt []byte) (*Cipher, error) {
+ }
+ 
+ // BlockSize returns the Blowfish block size, 8 bytes.
+-// It is necessary to satisfy the Cipher interface in the
++// It is necessary to satisfy the Block interface in the
+ // package "crypto/cipher".
+ func (c *Cipher) BlockSize() int { return BlockSize }
+ 
+diff --git a/src/pkg/crypto/xtea/cipher.go b/src/pkg/crypto/xtea/cipher.go
+index 64d933c2b6..3ed05814a3 100644
+--- a/src/pkg/crypto/xtea/cipher.go
++++ b/src/pkg/crypto/xtea/cipher.go
+@@ -44,7 +44,7 @@ func NewCipher(key []byte) (*Cipher, error) {
+ }
+ 
+ // BlockSize returns the XTEA block size, 8 bytes.
+-// It is necessary to satisfy the Cipher interface in the
++// It is necessary to satisfy the Block interface in the
+ // package "crypto/cipher".
+ func (c *Cipher) BlockSize() int { return BlockSize }
+ 

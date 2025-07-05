@@ -8,6 +8,20 @@ Date:   Tue Jan 21 10:35:27 2014 +0400
     R=alex.brainman, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/54880043
-
+---
  src/pkg/net/net_windows_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/net_windows_test.go b/src/pkg/net/net_windows_test.go
+index 8b1c9cdc57..894f517745 100644
+--- a/src/pkg/net/net_windows_test.go
++++ b/src/pkg/net/net_windows_test.go
+@@ -107,7 +107,7 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
+ 	result := make(chan error)
+ 	go func() {
+ 		time.Sleep(alittle)
+-		err = send(ln.Addr().String(), "abc")
++		err := send(ln.Addr().String(), "abc")
+ 		if err != nil {
+ 			result <- err
+ 		}

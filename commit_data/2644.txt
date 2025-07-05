@@ -7,6 +7,22 @@ Date:   Wed Jul 8 14:56:20 2009 -0700
     R=r
     OCL=31359
     CL=31359
-
+---
  src/pkg/io/utils.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/io/utils.go b/src/pkg/io/utils.go
+index f3331a20c5..23acfb4ef1 100644
+--- a/src/pkg/io/utils.go
++++ b/src/pkg/io/utils.go
+@@ -30,8 +30,8 @@ func ReadFile(filename string) ([]byte, os.Error) {
+ }
+ 
+ // WriteFile writes data to a file named by filename.
+-// If the file does not exist, WriteFile creates it with permissions perm.
+-//
++// If the file does not exist, WriteFile creates it with permissions perm;
++// otherwise WriteFile truncates it before writing.
+ func WriteFile(filename string, data []byte, perm int) os.Error {
+ 	f, err := os.Open(filename, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, perm);
+ 	if err != nil {

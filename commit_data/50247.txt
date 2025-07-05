@@ -18,7 +18,85 @@ Date:   Sat Oct 9 16:52:19 2021 +1100
     Run-TryBot: Nigel Tao <nigeltao@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/compress/lzw/writer.go      | 20 +++++++++++++++++++-
  src/compress/lzw/writer_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 47 insertions(+), 1 deletion(-)
+
+diff --git a/src/compress/lzw/writer.go b/src/compress/lzw/writer.go
+index 552bdc2ce1..cf06ea80c7 100644
+--- a/src/compress/lzw/writer.go
++++ b/src/compress/lzw/writer.go
+@@ -137,7 +137,19 @@ func (w *Writer) Write(p []byte) (n int, err error) {
+ 	n = len(p)
+ 	code := w.savedCode
+ 	if code == invalidCode {
+-		// The first code sent is always a literal code.
++		// This is the first write; send a clear code.
++		// https://www.w3.org/Graphics/GIF/spec-gif89a.txt Appendix F
++		// "Variable-Length-Code LZW Compression" says that "Encoders should
++		// output a Clear code as the first code of each image data stream".
++		//
++		// LZW compression isn't only used by GIF, but it's cheap to follow
++		// that directive unconditionally.
++		clear := uint32(1) << w.litWidth
++		if err := w.write(w, clear); err != nil {
++			return 0, err
++		}
++		// After the starting clear code, the next code sent (for non-empty
++		// input) is always a literal code.
+ 		code, p = uint32(p[0]), p[1:]
+ 	}
+ loop:
+@@ -202,6 +214,12 @@ func (w *Writer) Close() error {
+ 		if err := w.incHi(); err != nil && err != errOutOfCodes {
+ 			return err
+ 		}
++	} else {
++		// Write the starting clear code, as w.Write did not.
++		clear := uint32(1) << w.litWidth
++		if err := w.write(w, clear); err != nil {
++			return err
++		}
+ 	}
+ 	// Write the eof code.
+ 	eof := uint32(1)<<w.litWidth + 1
+diff --git a/src/compress/lzw/writer_test.go b/src/compress/lzw/writer_test.go
+index 9f59c8bb18..edf683a512 100644
+--- a/src/compress/lzw/writer_test.go
++++ b/src/compress/lzw/writer_test.go
+@@ -168,6 +168,34 @@ func TestSmallLitWidth(t *testing.T) {
+ 	}
+ }
+ 
++func TestStartsWithClearCode(t *testing.T) {
++	// A literal width of 7 bits means that the code width starts at 8 bits,
++	// which makes it easier to visually inspect the output (provided that the
++	// output is short so codes don't get longer). Each byte is a code:
++	//  - ASCII bytes are literal codes,
++	//  - 0x80 is the clear code,
++	//  - 0x81 is the end code.
++	//  - 0x82 and above are copy codes (unused in this test case).
++	for _, empty := range []bool{false, true} {
++		var buf bytes.Buffer
++		w := NewWriter(&buf, LSB, 7)
++		if !empty {
++			w.Write([]byte("Hi"))
++		}
++		w.Close()
++		got := buf.String()
++
++		want := "\x80\x81"
++		if !empty {
++			want = "\x80Hi\x81"
++		}
++
++		if got != want {
++			t.Errorf("empty=%t: got %q, want %q", empty, got, want)
++		}
++	}
++}
++
+ func BenchmarkEncoder(b *testing.B) {
+ 	buf, err := os.ReadFile("../testdata/e.txt")
+ 	if err != nil {

@@ -10,8 +10,153 @@ Date:   Thu Sep 4 21:56:11 2014 -0400
     TBR=r
     CC=golang-codereviews
     https://golang.org/cl/138100043
-
+---
  src/cmd/dist/a.h            |  1 +
  src/cmd/dist/build.c        | 25 ++++++++++++-------------
  src/cmd/dist/buildruntime.c | 11 ++++++++++-
  3 files changed, 23 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+index 2500f038c8..6f7a2d1b95 100644
+--- a/src/cmd/dist/a.h
++++ b/src/cmd/dist/a.h
+@@ -129,6 +129,7 @@ bool	isfile(char *p);
+ char*	lastelem(char*);
+ Time	mtime(char*);
+ void	readfile(Buf*, char*);
++void	copyfile(char*, char*, int);
+ void	run(Buf *b, char *dir, int mode, char *cmd, ...);
+ void	runv(Buf *b, char *dir, int mode, Vec *argv);
+ void	bgrunv(char *dir, int mode, Vec *argv);
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 70c2da432b..2e9c6b6e6a 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -35,7 +35,6 @@ bool	rebuildall;
+ bool defaultclang;
+ 
+ static bool shouldbuild(char*, char*);
+-static void copy(char*, char*, int);
+ static void dopack(char*, char*, char**, int);
+ static char *findgoversion(void);
+ 
+@@ -674,7 +673,7 @@ install(char *dir)
+ 
+ 	// For misc/prof, copy into the tool directory and we're done.
+ 	if(hasprefix(dir, "misc/")) {
+-		copy(bpathf(&b, "%s/%s", tooldir, name),
++		copyfile(bpathf(&b, "%s/%s", tooldir, name),
+ 			bpathf(&b1, "%s/misc/%s", goroot, name), 1);
+ 		goto out;
+ 	}
+@@ -886,18 +885,18 @@ install(char *dir)
+ 
+ 	// For package runtime, copy some files into the work space.
+ 	if(streq(dir, "pkg/runtime")) {
+-		copy(bpathf(&b, "%s/arch_GOARCH.h", workdir),
++		copyfile(bpathf(&b, "%s/arch_GOARCH.h", workdir),
+ 			bpathf(&b1, "%s/arch_%s.h", bstr(&path), goarch), 0);
+-		copy(bpathf(&b, "%s/defs_GOOS_GOARCH.h", workdir),
++		copyfile(bpathf(&b, "%s/defs_GOOS_GOARCH.h", workdir),
+ 			bpathf(&b1, "%s/defs_%s_%s.h", bstr(&path), goos, goarch), 0);
+ 		p = bpathf(&b1, "%s/signal_%s_%s.h", bstr(&path), goos, goarch);
+ 		if(isfile(p))
+-			copy(bpathf(&b, "%s/signal_GOOS_GOARCH.h", workdir), p, 0);
+-		copy(bpathf(&b, "%s/os_GOOS.h", workdir),
++			copyfile(bpathf(&b, "%s/signal_GOOS_GOARCH.h", workdir), p, 0);
++		copyfile(bpathf(&b, "%s/os_GOOS.h", workdir),
+ 			bpathf(&b1, "%s/os_%s.h", bstr(&path), goos), 0);
+-		copy(bpathf(&b, "%s/signals_GOOS.h", workdir),
++		copyfile(bpathf(&b, "%s/signals_GOOS.h", workdir),
+ 			bpathf(&b1, "%s/signals_%s.h", bstr(&path), goos), 0);
+-		copy(bpathf(&b, "%s/pkg/%s_%s/textflag.h", goroot, goos, goarch),
++		copyfile(bpathf(&b, "%s/pkg/%s_%s/textflag.h", goroot, goos, goarch),
+ 			bpathf(&b1, "%s/src/cmd/ld/textflag.h", goroot), 0);
+ 	}
+ 
+@@ -932,7 +931,7 @@ install(char *dir)
+ 	// The last batch was required for the generators.
+ 	// This one is generated.
+ 	if(streq(dir, "pkg/runtime")) {
+-		copy(bpathf(&b, "%s/zasm_GOOS_GOARCH.h", workdir),
++		copyfile(bpathf(&b, "%s/zasm_GOOS_GOARCH.h", workdir),
+ 			bpathf(&b1, "%s/zasm_%s_%s.h", bstr(&path), goos, goarch), 0);
+ 	}
+ 
+@@ -1123,9 +1122,9 @@ nobuild:
+ 	// In package runtime, we install runtime.h and cgocall.h too,
+ 	// for use by cgo compilation.
+ 	if(streq(dir, "pkg/runtime")) {
+-		copy(bpathf(&b, "%s/pkg/%s_%s/cgocall.h", goroot, goos, goarch),
++		copyfile(bpathf(&b, "%s/pkg/%s_%s/cgocall.h", goroot, goos, goarch),
+ 			bpathf(&b1, "%s/src/pkg/runtime/cgocall.h", goroot), 0);
+-		copy(bpathf(&b, "%s/pkg/%s_%s/runtime.h", goroot, goos, goarch),
++		copyfile(bpathf(&b, "%s/pkg/%s_%s/runtime.h", goroot, goos, goarch),
+ 			bpathf(&b1, "%s/src/pkg/runtime/runtime.h", goroot), 0);
+ 	}
+ 
+@@ -1248,8 +1247,8 @@ out:
+ }
+ 
+ // copy copies the file src to dst, via memory (so only good for small files).
+-static void
+-copy(char *dst, char *src, int exec)
++void
++copyfile(char *dst, char *src, int exec)
+ {
+ 	Buf b;
+ 
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index 751a83f5ac..3a274e05cc 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -162,11 +162,12 @@ mkzasm(char *dir, char *file)
+ {
+ 	int i, n;
+ 	char *aggr, *p;
+-	Buf in, b, out, exp;
++	Buf in, b, b1, out, exp;
+ 	Vec argv, lines, fields;
+ 
+ 	binit(&in);
+ 	binit(&b);
++	binit(&b1);
+ 	binit(&out);
+ 	binit(&exp);
+ 	vinit(&argv);
+@@ -187,6 +188,9 @@ mkzasm(char *dir, char *file)
+ 	fatal("unknown $GOOS/$GOARCH in mkzasm");
+ ok:
+ 
++	copyfile(bpathf(&b, "%s/pkg/%s_%s/textflag.h", goroot, goos, goarch),
++		bpathf(&b1, "%s/src/cmd/ld/textflag.h", goroot), 0);
++
+ 	// Run 6c -D GOOS_goos -D GOARCH_goarch -I workdir -a -n -o workdir/proc.acid proc.c
+ 	// to get acid [sic] output. Run once without the -a -o workdir/proc.acid in order to
+ 	// report compilation failures (the -o redirects all messages, unfortunately).
+@@ -198,6 +202,8 @@ ok:
+ 	vadd(&argv, bprintf(&b, "GOARCH_%s", goarch));
+ 	vadd(&argv, "-I");
+ 	vadd(&argv, bprintf(&b, "%s", workdir));
++	vadd(&argv, "-I");
++	vadd(&argv, bprintf(&b, "%s/pkg/%s_%s", goroot, goos, goarch));
+ 	vadd(&argv, "-n");
+ 	vadd(&argv, "-a");
+ 	vadd(&argv, "-o");
+@@ -270,6 +276,7 @@ ok:
+ 
+ 	bfree(&in);
+ 	bfree(&b);
++	bfree(&b1);
+ 	bfree(&out);
+ 	bfree(&exp);
+ 	vfree(&argv);
+@@ -375,6 +382,8 @@ mkzruntimedefs(char *dir, char *file)
+ 	vadd(&argv, bprintf(&b, "GOARCH_%s", goarch));
+ 	vadd(&argv, "-I");
+ 	vadd(&argv, bprintf(&b, "%s", workdir));
++	vadd(&argv, "-I");
++	vadd(&argv, bprintf(&b, "%s/pkg/%s_%s", goroot, goos, goarch));
+ 	vadd(&argv, "-q");
+ 	vadd(&argv, "-n");
+ 	vadd(&argv, "-o");

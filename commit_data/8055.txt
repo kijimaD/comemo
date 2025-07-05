@@ -9,6 +9,24 @@ Date:   Tue Apr 12 11:00:09 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4381056
-
+---
  src/cmd/ld/elf.h | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index df15cb1158..b27ae679b6 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -946,10 +946,10 @@ typedef Elf64_Shdr ElfShdr;
+ typedef Elf64_Phdr ElfPhdr;
+ 
+ void	elfinit(void);
+-ElfEhdr	*getElfEhdr();
++ElfEhdr	*getElfEhdr(void);
+ ElfShdr	*newElfShstrtab(vlong);
+ ElfShdr	*newElfShdr(vlong);
+-ElfPhdr	*newElfPhdr();
++ElfPhdr	*newElfPhdr(void);
+ uint32	elfwritehdr(void);
+ uint32	elfwritephdrs(void);
+ uint32	elfwriteshdrs(void);

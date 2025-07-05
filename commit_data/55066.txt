@@ -18,6 +18,20 @@ Date:   Tue Dec 13 10:43:23 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/syscall/exec_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/exec_plan9.go b/src/syscall/exec_plan9.go
+index d6b7890f55..8f28b5aa22 100644
+--- a/src/syscall/exec_plan9.go
++++ b/src/syscall/exec_plan9.go
+@@ -276,7 +276,7 @@ dirloop:
+ 
+ 	// Pass 3: close fd[i] if it was moved in the previous pass.
+ 	for i = 0; i < len(fd); i++ {
+-		if fd[i] >= 0 && fd[i] != int(i) {
++		if fd[i] >= len(fd) {
+ 			RawSyscall(SYS_CLOSE, uintptr(fd[i]), 0, 0)
+ 		}
+ 	}

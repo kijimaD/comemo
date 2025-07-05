@@ -9,7 +9,7 @@ Date:   Tue Jan 24 14:48:15 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5570053
-
+---
  misc/cgo/test/align.go                | 4 ++++
  misc/cgo/test/callback.go             | 4 ++++
  src/cmd/gofix/netdial_test.go         | 4 ++++
@@ -28,3 +28,213 @@ Date:   Tue Jan 24 14:48:15 2012 -0500
  test/fixedbugs/bug377.dir/two.go      | 4 ++++
  test/fixedbugs/bug382.go              | 4 ++++
  17 files changed, 68 insertions(+)
+
+diff --git a/misc/cgo/test/align.go b/misc/cgo/test/align.go
+index 07ab9ef503..a23b44fc38 100644
+--- a/misc/cgo/test/align.go
++++ b/misc/cgo/test/align.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package cgotest
+ 
+ /*
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index d20790e875..ef852561b7 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package cgotest
+ 
+ /*
+diff --git a/src/cmd/gofix/netdial_test.go b/src/cmd/gofix/netdial_test.go
+index 43ca387475..fff00b4ada 100644
+--- a/src/cmd/gofix/netdial_test.go
++++ b/src/cmd/gofix/netdial_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ func init() {
+diff --git a/src/cmd/gofix/reflect_test.go b/src/cmd/gofix/reflect_test.go
+index b0e2fc20c3..032cbc7450 100644
+--- a/src/cmd/gofix/reflect_test.go
++++ b/src/cmd/gofix/reflect_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file
++
+ package main
+ 
+ import (
+diff --git a/test/chan/select4.go b/test/chan/select4.go
+index 46618ac881..26a55e6d43 100644
+--- a/test/chan/select4.go
++++ b/test/chan/select4.go
+@@ -1,5 +1,9 @@
+ // $G $D/$F.go && $L $F.$A && ./$A.out
+ 
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file
++
+ package main
+ 
+ func f() *int {
+diff --git a/test/fixedbugs/bug222.dir/chanbug.go b/test/fixedbugs/bug222.dir/chanbug.go
+index 9194927b57..16920246e0 100644
+--- a/test/fixedbugs/bug222.dir/chanbug.go
++++ b/test/fixedbugs/bug222.dir/chanbug.go
+@@ -1,3 +1,7 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file
++
+ package chanbug
+ var C chan<- (chan int)
+ var D chan<- func()
+diff --git a/test/fixedbugs/bug222.dir/chanbug2.go b/test/fixedbugs/bug222.dir/chanbug2.go
+index 73e16678e9..109581dc30 100644
+--- a/test/fixedbugs/bug222.dir/chanbug2.go
++++ b/test/fixedbugs/bug222.dir/chanbug2.go
+@@ -1,2 +1,6 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file
++
+ package Bar
+ import _ "chanbug"
+diff --git a/test/fixedbugs/bug248.dir/bug0.go b/test/fixedbugs/bug248.dir/bug0.go
+index 7fc7401c5a..78433f504d 100644
+--- a/test/fixedbugs/bug248.dir/bug0.go
++++ b/test/fixedbugs/bug248.dir/bug0.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file
++
+ package p
+ 
+ type T struct {
+diff --git a/test/fixedbugs/bug248.dir/bug1.go b/test/fixedbugs/bug248.dir/bug1.go
+index 7fc7401c5a..78433f504d 100644
+--- a/test/fixedbugs/bug248.dir/bug1.go
++++ b/test/fixedbugs/bug248.dir/bug1.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file
++
+ package p
+ 
+ type T struct {
+diff --git a/test/fixedbugs/bug248.dir/bug2.go b/test/fixedbugs/bug248.dir/bug2.go
+index adce366770..ba547d64a1 100644
+--- a/test/fixedbugs/bug248.dir/bug2.go
++++ b/test/fixedbugs/bug248.dir/bug2.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file
++
+ package main
+ 
+ import (
+diff --git a/test/fixedbugs/bug248.dir/bug3.go b/test/fixedbugs/bug248.dir/bug3.go
+index e5a2449557..4a56c5cc81 100644
+--- a/test/fixedbugs/bug248.dir/bug3.go
++++ b/test/fixedbugs/bug248.dir/bug3.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file
++
+ package main
+ 
+ import (
+diff --git a/test/fixedbugs/bug260.go b/test/fixedbugs/bug260.go
+index 91dc89f77a..39d29b430c 100644
+--- a/test/fixedbugs/bug260.go
++++ b/test/fixedbugs/bug260.go
+@@ -1,5 +1,9 @@
+ // $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug260 failed
+ 
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file
++
+ // Test that structures pack densely, according to the alignment of the largest field.
+ 
+ package main
+diff --git a/test/fixedbugs/bug367.dir/main.go b/test/fixedbugs/bug367.dir/main.go
+index 21e9a5002c..c278e4dd95 100644
+--- a/test/fixedbugs/bug367.dir/main.go
++++ b/test/fixedbugs/bug367.dir/main.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file
++
+ package main
+ 
+ import (
+diff --git a/test/fixedbugs/bug367.dir/p.go b/test/fixedbugs/bug367.dir/p.go
+index c8772d2d05..2028f740cc 100644
+--- a/test/fixedbugs/bug367.dir/p.go
++++ b/test/fixedbugs/bug367.dir/p.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file
++
+ package p
+ 
+ type T struct{ x int }
+diff --git a/test/fixedbugs/bug377.dir/one.go b/test/fixedbugs/bug377.dir/one.go
+index c9060756b1..e29b813a48 100644
+--- a/test/fixedbugs/bug377.dir/one.go
++++ b/test/fixedbugs/bug377.dir/one.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file
++
+ package one
+ 
+ func Foo() (n int64, _ *int) {
+diff --git a/test/fixedbugs/bug377.dir/two.go b/test/fixedbugs/bug377.dir/two.go
+index 8a5346ab72..2a10812d56 100644
+--- a/test/fixedbugs/bug377.dir/two.go
++++ b/test/fixedbugs/bug377.dir/two.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file
++
+ package two
+ 
+ import _ "./one"
+diff --git a/test/fixedbugs/bug382.go b/test/fixedbugs/bug382.go
+index 6212fbf507..3f5d05cd5f 100644
+--- a/test/fixedbugs/bug382.go
++++ b/test/fixedbugs/bug382.go
+@@ -1,5 +1,9 @@
+ // $G $D/$F.dir/pkg.go && $G $D/$F.go || echo "Bug 382"
+ 
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file
++
+ // Issue 2529
+ 
+ package main

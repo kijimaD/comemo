@@ -20,7 +20,34 @@ Date:   Wed Nov 8 23:29:50 2023 +1100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/dist/test.go               | 2 +-
  src/internal/platform/supported.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 6f4d23182a..a87c2a1aae 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1585,7 +1585,7 @@ func raceDetectorSupported(goos, goarch string) bool {
+ 		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64" || goarch == "s390x"
+ 	case "darwin":
+ 		return goarch == "amd64" || goarch == "arm64"
+-	case "freebsd", "netbsd", "openbsd", "windows":
++	case "freebsd", "netbsd", "windows":
+ 		return goarch == "amd64"
+ 	default:
+ 		return false
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index 8f43cbf25f..a774247e6b 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -26,7 +26,7 @@ func RaceDetectorSupported(goos, goarch string) bool {
+ 		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64" || goarch == "s390x"
+ 	case "darwin":
+ 		return goarch == "amd64" || goarch == "arm64"
+-	case "freebsd", "netbsd", "openbsd", "windows":
++	case "freebsd", "netbsd", "windows":
+ 		return goarch == "amd64"
+ 	default:
+ 		return false

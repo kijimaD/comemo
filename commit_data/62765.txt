@@ -15,7 +15,97 @@ Date:   Tue Apr 8 06:43:33 2025 +0000
     Commit-Queue: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/go/ast/import.go      | 12 ++++++++----
  src/go/ast/import_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 49 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/ast/import.go b/src/go/ast/import.go
+index 00f44ee338..3e53f10677 100644
+--- a/src/go/ast/import.go
++++ b/src/go/ast/import.go
+@@ -33,11 +33,11 @@ func SortImports(fset *token.FileSet, f *File) {
+ 		for j, s := range d.Specs {
+ 			if j > i && lineAt(fset, s.Pos()) > 1+lineAt(fset, d.Specs[j-1].End()) {
+ 				// j begins a new run. End this one.
+-				specs = append(specs, sortSpecs(fset, f, d.Specs[i:j])...)
++				specs = append(specs, sortSpecs(fset, f, d, d.Specs[i:j])...)
+ 				i = j
+ 			}
+ 		}
+-		specs = append(specs, sortSpecs(fset, f, d.Specs[i:])...)
++		specs = append(specs, sortSpecs(fset, f, d, d.Specs[i:])...)
+ 		d.Specs = specs
+ 
+ 		// Deduping can leave a blank line before the rparen; clean that up.
+@@ -109,7 +109,7 @@ type cgPos struct {
+ 	cg   *CommentGroup
+ }
+ 
+-func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
++func sortSpecs(fset *token.FileSet, f *File, d *GenDecl, specs []Spec) []Spec {
+ 	// Can't short-circuit here even if specs are already sorted,
+ 	// since they might yet need deduplication.
+ 	// A lone import, however, may be safely ignored.
+@@ -207,7 +207,11 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
+ 			deduped = append(deduped, s)
+ 		} else {
+ 			p := s.Pos()
+-			fset.File(p).MergeLine(lineAt(fset, p))
++			// This function is exited early when len(specs) <= 1,
++			// so d.Rparen must be populated (d.Rparen.IsValid() == true).
++			if l := lineAt(fset, p); l != lineAt(fset, d.Rparen) {
++				fset.File(p).MergeLine(l)
++			}
+ 		}
+ 	}
+ 	specs = deduped
+diff --git a/src/go/ast/import_test.go b/src/go/ast/import_test.go
+index 02fde4efb9..8f0d9e2c33 100644
+--- a/src/go/ast/import_test.go
++++ b/src/go/ast/import_test.go
+@@ -79,3 +79,44 @@ import (
+ 		}
+ 	})
+ }
++
++func TestIssue69183(t *testing.T) {
++	const src = `package A
++import (
++"a"//a
++"a")
++`
++	fset := token.NewFileSet()
++	f, err := parser.ParseFile(fset, "test.go", src, parser.ParseComments|parser.SkipObjectResolution)
++	if err != nil {
++		t.Fatal(err)
++	}
++	ast.SortImports(fset, f) // should not panic
++}
++
++func TestSortImportsSameLastLine(t *testing.T) {
++	const src = `package A
++import (
++"a"//a
++"a")
++func a() {}
++`
++
++	fset := token.NewFileSet()
++	f, err := parser.ParseFile(fset, "test.go", src, parser.ParseComments|parser.SkipObjectResolution)
++	if err != nil {
++		t.Fatal(err)
++	}
++	ast.SortImports(fset, f)
++	fd := f.Decls[1].(*ast.FuncDecl)
++	fdPos := fset.Position(fd.Pos())
++	// After SortImports, the Position of the func, should still be at Column == 1.
++	// This is related to the issue: https://go.dev/issue/69183, we were merging lines
++	// incorrectly, which caused the position to be Column = 6, Line = 4.
++	if fdPos.Column != 1 {
++		t.Errorf("invalid fdPos.Column = %v; want = 1", fdPos.Column)
++	}
++	if fdPos.Line != 5 {
++		t.Errorf("invalid fdPos.Line = %v; want = 5", fdPos.Line)
++	}
++}

@@ -19,7 +19,46 @@ Date:   Wed Nov 15 15:07:44 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/78127
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/database/sql/driver/driver.go | 4 ++--
  src/database/sql/sql.go           | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/database/sql/driver/driver.go b/src/database/sql/driver/driver.go
+index 6113af79c5..6bea8f9de9 100644
+--- a/src/database/sql/driver/driver.go
++++ b/src/database/sql/driver/driver.go
+@@ -222,9 +222,9 @@ type ConnBeginTx interface {
+ 	BeginTx(ctx context.Context, opts TxOptions) (Tx, error)
+ }
+ 
+-// ResetSessioner may be implemented by Conn to allow drivers to reset the
++// SessionResetter may be implemented by Conn to allow drivers to reset the
+ // session state associated with the connection and to signal a bad connection.
+-type ResetSessioner interface {
++type SessionResetter interface {
+ 	// ResetSession is called while a connection is in the connection
+ 	// pool. No queries will run on this connection until this method returns.
+ 	//
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 252a0f6713..30b4ad3609 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -431,7 +431,7 @@ func (dc *driverConn) resetSession(ctx context.Context) {
+ 	if dc.closed {    // Check if the database has been closed.
+ 		return
+ 	}
+-	dc.lastErr = dc.ci.(driver.ResetSessioner).ResetSession(ctx)
++	dc.lastErr = dc.ci.(driver.SessionResetter).ResetSession(ctx)
+ }
+ 
+ // the dc.db's Mutex is held.
+@@ -1178,7 +1178,7 @@ func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
+ 		resetSession = false
+ 	}
+ 	if resetSession {
+-		if _, resetSession = dc.ci.(driver.ResetSessioner); resetSession {
++		if _, resetSession = dc.ci.(driver.SessionResetter); resetSession {
+ 			// Lock the driverConn here so it isn't released until
+ 			// the connection is reset.
+ 			// The lock must be taken before the connection is put into

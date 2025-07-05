@@ -14,7 +14,7 @@ Date:   Mon Apr 13 10:28:57 2015 -0700
     Change-Id: Ic1de769a1f92bb02e09a4428d998b716f307e2f6
     Reviewed-on: https://go-review.googlesource.com/8912
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/5g/cgen.go            |  6 +++---
  src/cmd/5g/cgen64.go          | 24 ++++++++++++------------
  src/cmd/5g/ggen.go            | 10 +++++-----
@@ -32,3 +32,498 @@ Date:   Mon Apr 13 10:28:57 2015 -0700
  src/cmd/internal/gc/gsubr.go  | 18 +++++++++---------
  src/cmd/internal/gc/syntax.go |  5 ++++-
  16 files changed, 61 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.go b/src/cmd/5g/cgen.go
+index 07ced87446..a2e81f1f6b 100644
+--- a/src/cmd/5g/cgen.go
++++ b/src/cmd/5g/cgen.go
+@@ -116,13 +116,13 @@ func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	if op == arm.AMOVW && !gc.Nacl && dir > 0 && c >= 4 && c <= 128 {
+ 		var r0 gc.Node
+ 		r0.Op = gc.OREGISTER
+-		r0.Val.U.Reg = arm.REG_R0
++		r0.Reg = arm.REG_R0
+ 		var r1 gc.Node
+ 		r1.Op = gc.OREGISTER
+-		r1.Val.U.Reg = arm.REG_R0 + 1
++		r1.Reg = arm.REG_R0 + 1
+ 		var r2 gc.Node
+ 		r2.Op = gc.OREGISTER
+-		r2.Val.U.Reg = arm.REG_R0 + 2
++		r2.Reg = arm.REG_R0 + 2
+ 
+ 		var src gc.Node
+ 		gc.Regalloc(&src, gc.Types[gc.Tptr], &r1)
+diff --git a/src/cmd/5g/cgen64.go b/src/cmd/5g/cgen64.go
+index f7b52b683d..414ff0a164 100644
+--- a/src/cmd/5g/cgen64.go
++++ b/src/cmd/5g/cgen64.go
+@@ -188,11 +188,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 		p1 := gins(arm.AMULLU, nil, nil)
+ 
+ 		p1.From.Type = obj.TYPE_REG
+-		p1.From.Reg = bl.Val.U.Reg
+-		p1.Reg = cl.Val.U.Reg
++		p1.From.Reg = bl.Reg
++		p1.Reg = cl.Reg
+ 		p1.To.Type = obj.TYPE_REGREG
+-		p1.To.Reg = ah.Val.U.Reg
+-		p1.To.Offset = int64(al.Val.U.Reg)
++		p1.To.Reg = ah.Reg
++		p1.To.Offset = int64(al.Reg)
+ 
+ 		//print("%P\n", p1);
+ 
+@@ -200,11 +200,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 		p1 = gins(arm.AMULA, nil, nil)
+ 
+ 		p1.From.Type = obj.TYPE_REG
+-		p1.From.Reg = bl.Val.U.Reg
+-		p1.Reg = ch.Val.U.Reg
++		p1.From.Reg = bl.Reg
++		p1.Reg = ch.Reg
+ 		p1.To.Type = obj.TYPE_REGREG2
+-		p1.To.Reg = ah.Val.U.Reg
+-		p1.To.Offset = int64(ah.Val.U.Reg)
++		p1.To.Reg = ah.Reg
++		p1.To.Offset = int64(ah.Reg)
+ 
+ 		//print("%P\n", p1);
+ 
+@@ -212,11 +212,11 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 		p1 = gins(arm.AMULA, nil, nil)
+ 
+ 		p1.From.Type = obj.TYPE_REG
+-		p1.From.Reg = bh.Val.U.Reg
+-		p1.Reg = cl.Val.U.Reg
++		p1.From.Reg = bh.Reg
++		p1.Reg = cl.Reg
+ 		p1.To.Type = obj.TYPE_REGREG2
+-		p1.To.Reg = ah.Val.U.Reg
+-		p1.To.Offset = int64(ah.Val.U.Reg)
++		p1.To.Reg = ah.Reg
++		p1.To.Offset = int64(ah.Reg)
+ 
+ 		//print("%P\n", p1);
+ 
+diff --git a/src/cmd/5g/ggen.go b/src/cmd/5g/ggen.go
+index edad7af32d..65b0a2022d 100644
+--- a/src/cmd/5g/ggen.go
++++ b/src/cmd/5g/ggen.go
+@@ -155,11 +155,11 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		}
+ 
+ 		// n2 * n1 -> (n1 n2)
+-		p.Reg = n1.Val.U.Reg
++		p.Reg = n1.Reg
+ 
+ 		p.To.Type = obj.TYPE_REGREG
+-		p.To.Reg = n1.Val.U.Reg
+-		p.To.Offset = int64(n2.Val.U.Reg)
++		p.To.Reg = n1.Reg
++		p.To.Offset = int64(n2.Reg)
+ 
+ 	default:
+ 		gc.Fatal("cgen_hmul %v", gc.Tconv(t, 0))
+@@ -349,10 +349,10 @@ func clearfat(nl *gc.Node) {
+ 	var r0 gc.Node
+ 	r0.Op = gc.OREGISTER
+ 
+-	r0.Val.U.Reg = arm.REG_R0
++	r0.Reg = arm.REG_R0
+ 	var r1 gc.Node
+ 	r1.Op = gc.OREGISTER
+-	r1.Val.U.Reg = arm.REG_R1
++	r1.Reg = arm.REG_R1
+ 	var dst gc.Node
+ 	gc.Regalloc(&dst, gc.Types[gc.Tptr], &r1)
+ 	gc.Agen(nl, &dst)
+diff --git a/src/cmd/5g/gsubr.go b/src/cmd/5g/gsubr.go
+index c274097997..533b7bf0ee 100644
+--- a/src/cmd/5g/gsubr.go
++++ b/src/cmd/5g/gsubr.go
+@@ -399,7 +399,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gmove(f, &r1)
+ 		p1 := gins(arm.AMOVW, &r1, &r2)
+ 		p1.From.Type = obj.TYPE_SHIFT
+-		p1.From.Offset = 2<<5 | 31<<7 | int64(r1.Val.U.Reg)&15 // r1->31
++		p1.From.Offset = 2<<5 | 31<<7 | int64(r1.Reg)&15 // r1->31
+ 		p1.From.Reg = 0
+ 
+ 		//print("gmove: %P\n", p1);
+@@ -623,7 +623,7 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
+ 
+ 	switch f.Op {
+ 	case gc.OREGISTER:
+-		if f.Val.U.Reg != t.Val.U.Reg {
++		if f.Reg != t.Reg {
+ 			break
+ 		}
+ 		return true
+@@ -741,7 +741,7 @@ func gshift(as int, lhs *gc.Node, stype int32, sval int32, rhs *gc.Node) *obj.Pr
+ 
+ 	p := gins(as, nil, rhs)
+ 	p.From.Type = obj.TYPE_SHIFT
+-	p.From.Offset = int64(stype) | int64(sval)<<7 | int64(lhs.Val.U.Reg)&15
++	p.From.Offset = int64(stype) | int64(sval)<<7 | int64(lhs.Reg)&15
+ 	return p
+ }
+ 
+@@ -750,7 +750,7 @@ func gshift(as int, lhs *gc.Node, stype int32, sval int32, rhs *gc.Node) *obj.Pr
+ func gregshift(as int, lhs *gc.Node, stype int32, reg *gc.Node, rhs *gc.Node) *obj.Prog {
+ 	p := gins(as, nil, rhs)
+ 	p.From.Type = obj.TYPE_SHIFT
+-	p.From.Offset = int64(stype) | (int64(reg.Val.U.Reg)&15)<<8 | 1<<4 | int64(lhs.Val.U.Reg)&15
++	p.From.Offset = int64(stype) | (int64(reg.Reg)&15)<<8 | 1<<4 | int64(lhs.Reg)&15
+ 	return p
+ }
+ 
+diff --git a/src/cmd/6g/cgen.go b/src/cmd/6g/cgen.go
+index 41ed36399c..4ed97fa589 100644
+--- a/src/cmd/6g/cgen.go
++++ b/src/cmd/6g/cgen.go
+@@ -32,10 +32,10 @@ func stackcopy(n, ns *gc.Node, osrc, odst, w int64) {
+ 		gc.Agenr(n, &nodr, &nodsi)
+ 	}
+ 
+-	if nodl.Val.U.Reg != x86.REG_DI {
++	if nodl.Reg != x86.REG_DI {
+ 		gmove(&nodl, &noddi)
+ 	}
+-	if nodr.Val.U.Reg != x86.REG_SI {
++	if nodr.Reg != x86.REG_SI {
+ 		gmove(&nodr, &nodsi)
+ 	}
+ 	gc.Regfree(&nodl)
+diff --git a/src/cmd/6g/ggen.go b/src/cmd/6g/ggen.go
+index ceeec251c1..9034469814 100644
+--- a/src/cmd/6g/ggen.go
++++ b/src/cmd/6g/ggen.go
+@@ -274,7 +274,7 @@ func savex(dr int, x *gc.Node, oldx *gc.Node, res *gc.Node, t *gc.Type) {
+ func restx(x *gc.Node, oldx *gc.Node) {
+ 	if oldx.Op != 0 {
+ 		x.Type = gc.Types[gc.TINT64]
+-		reg[x.Val.U.Reg] = uint8(oldx.Ostk)
++		reg[x.Reg] = uint8(oldx.Ostk)
+ 		gmove(oldx, x)
+ 		gc.Regfree(oldx)
+ 	}
+@@ -469,9 +469,9 @@ func cgen_bmul(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
+ 		t = gc.Types[gc.TINT64]
+ 	}
+ 	var n1 gc.Node
+-	gc.Nodreg(&n1, t, int(n1b.Val.U.Reg))
++	gc.Nodreg(&n1, t, int(n1b.Reg))
+ 	var n2 gc.Node
+-	gc.Nodreg(&n2, t, int(n2b.Val.U.Reg))
++	gc.Nodreg(&n2, t, int(n2b.Reg))
+ 	a := optoas(op, t)
+ 	gins(a, &n2, &n1)
+ 
+diff --git a/src/cmd/6g/gsubr.go b/src/cmd/6g/gsubr.go
+index c10519890d..824da47c1a 100644
+--- a/src/cmd/6g/gsubr.go
++++ b/src/cmd/6g/gsubr.go
+@@ -526,7 +526,7 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
+ 
+ 	switch f.Op {
+ 	case gc.OREGISTER:
+-		if f.Val.U.Reg != t.Val.U.Reg {
++		if f.Reg != t.Reg {
+ 			break
+ 		}
+ 		return true
+diff --git a/src/cmd/7g/ggen.go b/src/cmd/7g/ggen.go
+index 86772d73ab..da5215ab20 100644
+--- a/src/cmd/7g/ggen.go
++++ b/src/cmd/7g/ggen.go
+@@ -230,7 +230,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		// TODO(minux): add gins3?
+ 		p1.Reg = p1.To.Reg
+ 
+-		p1.To.Reg = tm.Val.U.Reg
++		p1.To.Reg = tm.Reg
+ 		gins(optoas(gc.OMUL, t), &tr, &tm)
+ 		gc.Regfree(&tr)
+ 		gins(optoas(gc.OSUB, t), &tm, &tl)
+diff --git a/src/cmd/8g/gsubr.go b/src/cmd/8g/gsubr.go
+index 76c67af23b..334e99ea9d 100644
+--- a/src/cmd/8g/gsubr.go
++++ b/src/cmd/8g/gsubr.go
+@@ -1421,7 +1421,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
+ 			goto hard
+ 		}
+ 		if f.Op == gc.OREGISTER && t.Op == gc.OREGISTER {
+-			if f.Val.U.Reg != x86.REG_F0 || t.Val.U.Reg != x86.REG_F0 {
++			if f.Reg != x86.REG_F0 || t.Reg != x86.REG_F0 {
+ 				goto fatal
+ 			}
+ 			return
+@@ -1432,7 +1432,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
+ 			a = x86.AFMOVD
+ 		}
+ 		if gc.Ismem(t) {
+-			if f.Op != gc.OREGISTER || f.Val.U.Reg != x86.REG_F0 {
++			if f.Op != gc.OREGISTER || f.Reg != x86.REG_F0 {
+ 				gc.Fatal("gmove %v", gc.Nconv(f, 0))
+ 			}
+ 			a = x86.AFMOVFP
+@@ -1446,7 +1446,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
+ 			goto hard
+ 		}
+ 		if f.Op == gc.OREGISTER && t.Op == gc.OREGISTER {
+-			if f.Val.U.Reg != x86.REG_F0 || t.Val.U.Reg != x86.REG_F0 {
++			if f.Reg != x86.REG_F0 || t.Reg != x86.REG_F0 {
+ 				goto fatal
+ 			}
+ 			return
+@@ -1638,7 +1638,7 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
+ 
+ 	switch f.Op {
+ 	case gc.OREGISTER:
+-		if f.Val.U.Reg != t.Val.U.Reg {
++		if f.Reg != t.Reg {
+ 			break
+ 		}
+ 		return true
+@@ -1658,7 +1658,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	if as == x86.ACVTSD2SS && f != nil && f.Op == gc.OLITERAL {
+ 		gc.Fatal("gins CVTSD2SS const")
+ 	}
+-	if as == x86.AMOVSD && t != nil && t.Op == gc.OREGISTER && t.Val.U.Reg == x86.REG_F0 {
++	if as == x86.AMOVSD && t != nil && t.Op == gc.OREGISTER && t.Reg == x86.REG_F0 {
+ 		gc.Fatal("gins MOVSD into F0")
+ 	}
+ 
+diff --git a/src/cmd/9g/ggen.go b/src/cmd/9g/ggen.go
+index 9af36a158b..769cab3fcf 100644
+--- a/src/cmd/9g/ggen.go
++++ b/src/cmd/9g/ggen.go
+@@ -230,7 +230,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		// TODO(minux): add gins3?
+ 		p1.Reg = p1.To.Reg
+ 
+-		p1.To.Reg = tm.Val.U.Reg
++		p1.To.Reg = tm.Reg
+ 		gins(optoas(gc.OMUL, t), &tr, &tm)
+ 		gc.Regfree(&tr)
+ 		gins(optoas(gc.OSUB, t), &tm, &tl)
+diff --git a/src/cmd/9g/gsubr.go b/src/cmd/9g/gsubr.go
+index 5ad528185e..df2b4aac9a 100644
+--- a/src/cmd/9g/gsubr.go
++++ b/src/cmd/9g/gsubr.go
+@@ -645,7 +645,7 @@ func fixlargeoffset(n *gc.Node) {
+ 	if n.Op != gc.OINDREG {
+ 		return
+ 	}
+-	if n.Val.U.Reg == ppc64.REGSP { // stack offset cannot be large
++	if n.Reg == ppc64.REGSP { // stack offset cannot be large
+ 		return
+ 	}
+ 	if n.Xoffset != int64(int32(n.Xoffset)) {
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index 9c73300f46..2ceddc986f 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -802,7 +802,7 @@ func Mgen(n *Node, n1 *Node, rg *Node) {
+ 	if n.Addable {
+ 		*n1 = *n
+ 		if n1.Op == OREGISTER || n1.Op == OINDREG {
+-			reg[n.Val.U.Reg-int16(Thearch.REGMIN)]++
++			reg[n.Reg-int16(Thearch.REGMIN)]++
+ 		}
+ 		return
+ 	}
+@@ -1557,8 +1557,8 @@ func Igen(n *Node, a *Node, res *Node) {
+ 	case OINDREG:
+ 		// Increase the refcount of the register so that igen's caller
+ 		// has to call Regfree.
+-		if n.Val.U.Reg != int16(Thearch.REGSP) {
+-			reg[n.Val.U.Reg-int16(Thearch.REGMIN)]++
++		if n.Reg != int16(Thearch.REGSP) {
++			reg[n.Reg-int16(Thearch.REGMIN)]++
+ 		}
+ 		*a = *n
+ 		return
+@@ -1595,7 +1595,7 @@ func Igen(n *Node, a *Node, res *Node) {
+ 		fp := Structfirst(&flist, Getoutarg(n.Left.Type))
+ 		*a = Node{}
+ 		a.Op = OINDREG
+-		a.Val.U.Reg = int16(Thearch.REGSP)
++		a.Reg = int16(Thearch.REGSP)
+ 		a.Addable = true
+ 		a.Xoffset = fp.Width
+ 		if HasLinkRegister() {
+@@ -2149,7 +2149,7 @@ func Ginscall(f *Node, proc int) {
+ 
+ 		// size of arguments at 0(SP)
+ 		stk.Op = OINDREG
+-		stk.Val.U.Reg = int16(Thearch.REGSP)
++		stk.Reg = int16(Thearch.REGSP)
+ 		stk.Xoffset = 0
+ 		if HasLinkRegister() {
+ 			stk.Xoffset += int64(Ctxt.Arch.Ptrsize)
+@@ -2337,7 +2337,7 @@ func cgen_callret(n *Node, res *Node) {
+ 
+ 	var nod Node
+ 	nod.Op = OINDREG
+-	nod.Val.U.Reg = int16(Thearch.REGSP)
++	nod.Reg = int16(Thearch.REGSP)
+ 	nod.Addable = true
+ 
+ 	nod.Xoffset = fp.Width
+@@ -2367,7 +2367,7 @@ func cgen_aret(n *Node, res *Node) {
+ 
+ 	var nod1 Node
+ 	nod1.Op = OINDREG
+-	nod1.Val.U.Reg = int16(Thearch.REGSP)
++	nod1.Reg = int16(Thearch.REGSP)
+ 	nod1.Addable = true
+ 	nod1.Xoffset = fp.Width
+ 	if HasLinkRegister() {
+@@ -2560,7 +2560,7 @@ func Fixlargeoffset(n *Node) {
+ 	if n.Op != OINDREG {
+ 		return
+ 	}
+-	if n.Val.U.Reg == int16(Thearch.REGSP) { // stack offset cannot be large
++	if n.Reg == int16(Thearch.REGSP) { // stack offset cannot be large
+ 		return
+ 	}
+ 	if n.Xoffset != int64(int32(n.Xoffset)) {
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index 6720d5cef5..d79ceb4c97 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -1100,7 +1100,7 @@ func exprfmt(n *Node, prec int) string {
+ 		return "... argument"
+ 
+ 	case OREGISTER:
+-		return obj.Rconv(int(n.Val.U.Reg))
++		return obj.Rconv(int(n.Reg))
+ 
+ 	case OLITERAL: // this is a bit of a mess
+ 		if fmtmode == FErr {
+@@ -1515,7 +1515,7 @@ func nodedump(n *Node, flag int) string {
+ 		fmt.Fprintf(&buf, "%v%v", Oconv(int(n.Op), 0), Jconv(n, 0))
+ 
+ 	case OREGISTER, OINDREG:
+-		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), obj.Rconv(int(n.Val.U.Reg)), Jconv(n, 0))
++		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), obj.Rconv(int(n.Reg)), Jconv(n, 0))
+ 
+ 	case OLITERAL:
+ 		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), Vconv(&n.Val, 0), Jconv(n, 0))
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 25ada5524d..b63f4e8090 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -84,7 +84,6 @@ type Mpcplx struct {
+ type Val struct {
+ 	Ctype int16
+ 	U     struct {
+-		Reg  int16   // OREGISTER
+ 		Bval bool    // bool value CTBOOL
+ 		Xval *Mpint  // int CTINT, rune CTRUNE
+ 		Fval *Mpflt  // float CTFLT
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index 36a4a95d83..4483d4e4f5 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -75,7 +75,7 @@ func Samereg(a *Node, b *Node) bool {
+ 	if b.Op != OREGISTER {
+ 		return false
+ 	}
+-	if a.Val.U.Reg != b.Val.U.Reg {
++	if a.Reg != b.Reg {
+ 		return false
+ 	}
+ 	return true
+@@ -135,7 +135,7 @@ func Nodreg(n *Node, t *Type, r int) {
+ 	n.Op = OREGISTER
+ 	n.Addable = true
+ 	ullmancalc(n)
+-	n.Val.U.Reg = int16(r)
++	n.Reg = int16(r)
+ 	n.Type = t
+ }
+ 
+@@ -304,7 +304,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 
+ 	case OREGISTER:
+ 		a.Type = obj.TYPE_REG
+-		a.Reg = n.Val.U.Reg
++		a.Reg = n.Reg
+ 		a.Sym = nil
+ 		if Thearch.Thechar == '8' { // TODO(rsc): Never clear a->width.
+ 			a.Width = 0
+@@ -312,7 +312,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 
+ 	case OINDREG:
+ 		a.Type = obj.TYPE_MEM
+-		a.Reg = n.Val.U.Reg
++		a.Reg = n.Reg
+ 		a.Sym = Linksym(n.Sym)
+ 		a.Offset = n.Xoffset
+ 		if a.Offset != int64(int32(a.Offset)) {
+@@ -561,7 +561,7 @@ fp:
+ 	case 0: // output arg
+ 		n.Op = OINDREG
+ 
+-		n.Val.U.Reg = int16(Thearch.REGSP)
++		n.Reg = int16(Thearch.REGSP)
+ 		if HasLinkRegister() {
+ 			n.Xoffset += int64(Ctxt.Arch.Ptrsize)
+ 		}
+@@ -673,7 +673,7 @@ Switch:
+ 
+ 	case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TPTR32, TPTR64, TBOOL:
+ 		if o != nil && o.Op == OREGISTER {
+-			i = int(o.Val.U.Reg)
++			i = int(o.Reg)
+ 			if Thearch.REGMIN <= i && i <= Thearch.REGMAX {
+ 				break Switch
+ 			}
+@@ -693,7 +693,7 @@ Switch:
+ 			break Switch
+ 		}
+ 		if o != nil && o.Op == OREGISTER {
+-			i = int(o.Val.U.Reg)
++			i = int(o.Reg)
+ 			if Thearch.FREGMIN <= i && i <= Thearch.FREGMAX {
+ 				break Switch
+ 			}
+@@ -732,7 +732,7 @@ func Regfree(n *Node) {
+ 	if n.Op != OREGISTER && n.Op != OINDREG {
+ 		Fatal("regfree: not a register")
+ 	}
+-	i := int(n.Val.U.Reg)
++	i := int(n.Reg)
+ 	if i == Thearch.REGSP {
+ 		return
+ 	}
+@@ -773,7 +773,7 @@ func Regrealloc(n *Node) {
+ 	if n.Op != OREGISTER && n.Op != OINDREG {
+ 		Fatal("regrealloc: not a register")
+ 	}
+-	i := int(n.Val.U.Reg)
++	i := int(n.Reg)
+ 	if i == Thearch.REGSP {
+ 		return
+ 	}
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/internal/gc/syntax.go
+index 11cdf298f7..1012c66c45 100644
+--- a/src/cmd/internal/gc/syntax.go
++++ b/src/cmd/internal/gc/syntax.go
+@@ -63,9 +63,12 @@ type Node struct {
+ 	// func
+ 	Func *Func
+ 
+-	// OLITERAL/OREGISTER
++	// OLITERAL
+ 	Val Val
+ 
++	// OREGISTER, OINDREG
++	Reg int16
++
+ 	// ONAME
+ 	Ntype     *Node
+ 	Defn      *Node // ONAME: initializing assignment; OLABEL: labeled statement

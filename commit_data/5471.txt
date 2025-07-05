@@ -7,6 +7,24 @@ Date:   Thu May 13 12:49:48 2010 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/1195041
-
+---
  src/pkg/fmt/print.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index fb1c3f707d..15b7c51452 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -1053,8 +1053,10 @@ func (p *pp) doprintf(format string, a []interface{}) {
+ 		p.buf.Write(extraBytes)
+ 		for ; fieldnum < len(a); fieldnum++ {
+ 			field := a[fieldnum]
+-			p.buf.WriteString(reflect.Typeof(field).String())
+-			p.buf.WriteByte('=')
++			if field != nil {
++				p.buf.WriteString(reflect.Typeof(field).String())
++				p.buf.WriteByte('=')
++			}
+ 			p.printField(field, false, false, 0)
+ 			if fieldnum+1 < len(a) {
+ 				p.buf.Write(commaSpaceBytes)

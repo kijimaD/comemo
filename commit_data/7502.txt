@@ -14,8 +14,84 @@ Date:   Thu Feb 17 16:17:33 2011 -0800
     R=r, rsc, r2
     CC=golang-dev
     https://golang.org/cl/4167055
-
+---
  src/cmd/gotest/doc.go        | 18 +++++++++---------
  src/pkg/testing/benchmark.go |  4 ++--
  src/pkg/testing/testing.go   |  6 +++---
  3 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/gotest/doc.go b/src/cmd/gotest/doc.go
+index 40c40fc1fe..8618e80459 100644
+--- a/src/cmd/gotest/doc.go
++++ b/src/cmd/gotest/doc.go
+@@ -42,15 +42,15 @@ The resulting binary, called (for amd64) 6.out, has a couple of
+ arguments.
+ 
+ Usage:
+-	6.out [-v] [-match pattern] [-benchmarks pattern]
+-
+-The -v flag causes the tests to be logged as they run.  The -match
+-flag causes only those tests whose names match the regular expression
+-pattern to be run. By default all tests are run silently.  If all
+-the specified test pass, 6.out prints PASS and exits with a 0 exit
+-code.  If any tests fail, it prints FAIL and exits with a non-zero
+-code.  The -benchmarks flag is analogous to the -match flag, but
+-applies to benchmarks.  No benchmarks run by default.
++	6.out [-test.v] [-test.run pattern] [-test.bench pattern]
++
++The -test.v flag causes the tests to be logged as they run.  The
++-test.run flag causes only those tests whose names match the regular
++expression pattern to be run. By default all tests are run silently.
++If all the specified test pass, 6.out prints PASS and exits with a 0
++exit code.  If any tests fail, it prints FAIL and exits with a
++non-zero code.  The -test.bench flag is analogous to the -test.run
++flag, but applies to benchmarks.  No benchmarks run by default.
+ 
+ */
+ package documentation
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index ad938027d3..8c226c4d41 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -11,7 +11,7 @@ import (
+ 	"time"
+ )
+ 
+-var matchBenchmarks = flag.String("benchmarks", "", "regular expression to select benchmarks to run")
++var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")
+ 
+ // An internal type but exported because it is cross-package; part of the implementation
+ // of gotest.
+@@ -175,7 +175,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
+ 	for _, Benchmark := range benchmarks {
+ 		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
+ 		if err != nil {
+-			println("invalid regexp for -benchmarks:", err.String())
++			println("invalid regexp for -test.bench:", err.String())
+ 			os.Exit(1)
+ 		}
+ 		if !matched {
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index edbf0847cc..977252baea 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -47,8 +47,8 @@ import (
+ )
+ 
+ // Report as tests are run; default is silent for success.
+-var chatty = flag.Bool("v", false, "verbose: print additional output")
+-var match = flag.String("match", "", "regular expression to select tests to run")
++var chatty = flag.Bool("test.v", false, "verbose: print additional output")
++var match = flag.String("test.run", "", "regular expression to select tests to run")
+ 
+ 
+ // Insert final newline if needed and tabs after internal newlines.
+@@ -145,7 +145,7 @@ func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTe
+ 	for i := 0; i < len(tests); i++ {
+ 		matched, err := matchString(*match, tests[i].Name)
+ 		if err != nil {
+-			println("invalid regexp for -match:", err.String())
++			println("invalid regexp for -test.run:", err.String())
+ 			os.Exit(1)
+ 		}
+ 		if !matched {

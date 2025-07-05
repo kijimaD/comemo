@@ -7,6 +7,23 @@ Date:   Sat May 25 20:53:55 2013 +1000
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/9574043
-
+---
  src/cmd/cgo/godefs.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/cgo/godefs.go b/src/cmd/cgo/godefs.go
+index 20376170da..3dfedcb282 100644
+--- a/src/cmd/cgo/godefs.go
++++ b/src/cmd/cgo/godefs.go
+@@ -204,6 +204,11 @@ func (p *Package) cdefs(f *File, srcfile string) string {
+ 		//		byte Z[4];
+ 		//	}
+ 		if strings.HasPrefix(line, "type ") && strings.HasSuffix(line, " struct {") {
++			if len(lines) > i+1 && lines[i+1] == "}" {
++				// do not output empty struct
++				i++
++				continue
++			}
+ 			s := line[len("type ") : len(line)-len(" struct {")]
+ 			printf("struct %s {\n", s)
+ 			for i++; i < len(lines) && lines[i] != "}"; i++ {

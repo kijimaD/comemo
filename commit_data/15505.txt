@@ -7,6 +7,17 @@ Date:   Thu Feb 28 13:30:59 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7423046
-
+---
  src/pkg/encoding/gob/gobencdec_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/gob/gobencdec_test.go b/src/pkg/encoding/gob/gobencdec_test.go
+index 8f54e37994..ddcd80b1a7 100644
+--- a/src/pkg/encoding/gob/gobencdec_test.go
++++ b/src/pkg/encoding/gob/gobencdec_test.go
+@@ -1,4 +1,4 @@
+-// Copyright 20011 The Go Authors. All rights reserved.
++// Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 

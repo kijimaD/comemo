@@ -7,9 +7,747 @@ Date:   Tue Sep 18 14:22:41 2012 -0400
     R=r, iant, rogpeppe, bradfitz
     CC=golang-dev
     https://golang.org/cl/6498078
-
+---
  src/pkg/reflect/all_test.go | 424 ++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/reflect/type.go     |  11 +-
  src/pkg/reflect/value.go    | 134 ++++++++++++++
  src/pkg/runtime/chan.c      |  93 +++++++++-
  4 files changed, 654 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index ad7e1343d1..fe16087ea4 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -9,10 +9,13 @@ import (
+ 	"encoding/base64"
+ 	"fmt"
+ 	"io"
++	"math/rand"
+ 	"os"
+ 	. "reflect"
+ 	"runtime"
++	"sync"
+ 	"testing"
++	"time"
+ 	"unsafe"
+ )
+ 
+@@ -1055,6 +1058,336 @@ func TestChan(t *testing.T) {
+ 	}
+ }
+ 
++// caseInfo describes a single case in a select test.
++type caseInfo struct {
++	desc      string
++	canSelect bool
++	recv      Value
++	closed    bool
++	helper    func()
++	panic     bool
++}
++
++func TestSelect(t *testing.T) {
++	selectWatch.once.Do(func() { go selectWatcher() })
++
++	var x exhaustive
++	nch := 0
++	newop := func(n int, cap int) (ch, val Value) {
++		nch++
++		if nch%101%2 == 1 {
++			c := make(chan int, cap)
++			ch = ValueOf(c)
++			val = ValueOf(n)
++		} else {
++			c := make(chan string, cap)
++			ch = ValueOf(c)
++			val = ValueOf(fmt.Sprint(n))
++		}
++		return
++	}
++
++	for n := 0; x.Next(); n++ {
++		if testing.Short() && n >= 1000 {
++			break
++		}
++		if n%100000 == 0 && testing.Verbose() {
++			println("TestSelect", n)
++		}
++		var cases []SelectCase
++		var info []caseInfo
++
++		// Ready send.
++		if x.Maybe() {
++			ch, val := newop(len(cases), 1)
++			cases = append(cases, SelectCase{
++				Dir:  SelectSend,
++				Chan: ch,
++				Send: val,
++			})
++			info = append(info, caseInfo{desc: "ready send", canSelect: true})
++		}
++
++		// Ready recv.
++		if x.Maybe() {
++			ch, val := newop(len(cases), 1)
++			ch.Send(val)
++			cases = append(cases, SelectCase{
++				Dir:  SelectRecv,
++				Chan: ch,
++			})
++			info = append(info, caseInfo{desc: "ready recv", canSelect: true, recv: val})
++		}
++
++		// Blocking send.
++		if x.Maybe() {
++			ch, val := newop(len(cases), 0)
++			cases = append(cases, SelectCase{
++				Dir:  SelectSend,
++				Chan: ch,
++				Send: val,
++			})
++			// Let it execute?
++			if x.Maybe() {
++				f := func() { ch.Recv() }
++				info = append(info, caseInfo{desc: "blocking send", helper: f})
++			} else {
++				info = append(info, caseInfo{desc: "blocking send"})
++			}
++		}
++
++		// Blocking recv.
++		if x.Maybe() {
++			ch, val := newop(len(cases), 0)
++			cases = append(cases, SelectCase{
++				Dir:  SelectRecv,
++				Chan: ch,
++			})
++			// Let it execute?
++			if x.Maybe() {
++				f := func() { ch.Send(val) }
++				info = append(info, caseInfo{desc: "blocking recv", recv: val, helper: f})
++			} else {
++				info = append(info, caseInfo{desc: "blocking recv"})
++			}
++		}
++
++		// Zero Chan send.
++		if x.Maybe() {
++			// Maybe include value to send.
++			var val Value
++			if x.Maybe() {
++				val = ValueOf(100)
++			}
++			cases = append(cases, SelectCase{
++				Dir:  SelectSend,
++				Send: val,
++			})
++			info = append(info, caseInfo{desc: "zero Chan send"})
++		}
++
++		// Zero Chan receive.
++		if x.Maybe() {
++			cases = append(cases, SelectCase{
++				Dir: SelectRecv,
++			})
++			info = append(info, caseInfo{desc: "zero Chan recv"})
++		}
++
++		// nil Chan send.
++		if x.Maybe() {
++			cases = append(cases, SelectCase{
++				Dir:  SelectSend,
++				Chan: ValueOf((chan int)(nil)),
++				Send: ValueOf(101),
++			})
++			info = append(info, caseInfo{desc: "nil Chan send"})
++		}
++
++		// nil Chan recv.
++		if x.Maybe() {
++			cases = append(cases, SelectCase{
++				Dir:  SelectRecv,
++				Chan: ValueOf((chan int)(nil)),
++			})
++			info = append(info, caseInfo{desc: "nil Chan recv"})
++		}
++
++		// closed Chan send.
++		if x.Maybe() {
++			ch := make(chan int)
++			close(ch)
++			cases = append(cases, SelectCase{
++				Dir:  SelectSend,
++				Chan: ValueOf(ch),
++				Send: ValueOf(101),
++			})
++			info = append(info, caseInfo{desc: "closed Chan send", canSelect: true, panic: true})
++		}
++
++		// closed Chan recv.
++		if x.Maybe() {
++			ch, val := newop(len(cases), 0)
++			ch.Close()
++			val = Zero(val.Type())
++			cases = append(cases, SelectCase{
++				Dir:  SelectRecv,
++				Chan: ch,
++			})
++			info = append(info, caseInfo{desc: "closed Chan recv", canSelect: true, closed: true, recv: val})
++		}
++
++		var helper func() // goroutine to help the select complete
++
++		// Add default? Must be last case here, but will permute.
++		// Add the default if the select would otherwise
++		// block forever, and maybe add it anyway.
++		numCanSelect := 0
++		canProceed := false
++		canBlock := true
++		canPanic := false
++		helpers := []int{}
++		for i, c := range info {
++			if c.canSelect {
++				canProceed = true
++				canBlock = false
++				numCanSelect++
++				if c.panic {
++					canPanic = true
++				}
++			} else if c.helper != nil {
++				canProceed = true
++				helpers = append(helpers, i)
++			}
++		}
++		if !canProceed || x.Maybe() {
++			cases = append(cases, SelectCase{
++				Dir: SelectDefault,
++			})
++			info = append(info, caseInfo{desc: "default", canSelect: canBlock})
++			numCanSelect++
++		} else if canBlock {
++			// Select needs to communicate with another goroutine.
++			cas := &info[helpers[x.Choose(len(helpers))]]
++			helper = cas.helper
++			cas.canSelect = true
++			numCanSelect++
++		}
++
++		// Permute cases and case info.
++		// Doing too much here makes the exhaustive loop
++		// too exhausting, so just do two swaps.
++		for loop := 0; loop < 2; loop++ {
++			i := x.Choose(len(cases))
++			j := x.Choose(len(cases))
++			cases[i], cases[j] = cases[j], cases[i]
++			info[i], info[j] = info[j], info[i]
++		}
++
++		if helper != nil {
++			// We wait before kicking off a goroutine to satisfy a blocked select.
++			// The pause needs to be big enough to let the select block before
++			// we run the helper, but if we lose that race once in a while it's okay: the
++			// select will just proceed immediately. Not a big deal.
++			// For short tests we can grow [sic] the timeout a bit without fear of taking too long
++			pause := 10 * time.Microsecond
++			if testing.Short() {
++				pause = 100 * time.Microsecond
++			}
++			time.AfterFunc(pause, helper)
++		}
++
++		// Run select.
++		i, recv, recvOK, panicErr := runSelect(cases, info)
++		if panicErr != nil && !canPanic {
++			t.Fatalf("%s\npanicked unexpectedly: %v", fmtSelect(info), panicErr)
++		}
++		if panicErr == nil && canPanic && numCanSelect == 1 {
++			t.Fatalf("%s\nselected #%d incorrectly (should panic)", fmtSelect(info), i)
++		}
++		if panicErr != nil {
++			continue
++		}
++
++		cas := info[i]
++		if !cas.canSelect {
++			recvStr := ""
++			if recv.IsValid() {
++				recvStr = fmt.Sprintf(", received %v, %v", recv.Interface(), recvOK)
++			}
++			t.Fatalf("%s\nselected #%d incorrectly%s", fmtSelect(info), i, recvStr)
++			continue
++		}
++		if cas.panic {
++			t.Fatalf("%s\nselected #%d incorrectly (case should panic)", fmtSelect(info), i)
++			continue
++		}
++
++		if cases[i].Dir == SelectRecv {
++			if !recv.IsValid() {
++				t.Fatalf("%s\nselected #%d but got %v, %v, want %v, %v", fmtSelect(info), i, recv, recvOK, cas.recv.Interface(), !cas.closed)
++			}
++			if !cas.recv.IsValid() {
++				t.Fatalf("%s\nselected #%d but internal error: missing recv value", fmtSelect(info), i)
++			}
++			if recv.Interface() != cas.recv.Interface() || recvOK != !cas.closed {
++				if recv.Interface() == cas.recv.Interface() && recvOK == !cas.closed {
++					t.Fatalf("%s\nselected #%d, got %#v, %v, and DeepEqual is broken on %T", fmtSelect(info), i, recv.Interface(), recvOK, recv.Interface())
++				}
++				t.Fatalf("%s\nselected #%d but got %#v, %v, want %#v, %v", fmtSelect(info), i, recv.Interface(), recvOK, cas.recv.Interface(), !cas.closed)
++			}
++		} else {
++			if recv.IsValid() || recvOK {
++				t.Fatalf("%s\nselected #%d but got %v, %v, want %v, %v", fmtSelect(info), i, recv, recvOK, Value{}, false)
++			}
++		}
++	}
++}
++
++// selectWatch and the selectWatcher are a watchdog mechanism for running Select.
++// If the selectWatcher notices that the select has been blocked for >1 second, it prints
++// an error describing the select and panics the entire test binary. 
++var selectWatch struct {
++	sync.Mutex
++	once sync.Once
++	now  time.Time
++	info []caseInfo
++}
++
++func selectWatcher() {
++	for {
++		time.Sleep(1 * time.Second)
++		selectWatch.Lock()
++		if selectWatch.info != nil && time.Since(selectWatch.now) > 1*time.Second {
++			fmt.Fprintf(os.Stderr, "TestSelect:\n%s blocked indefinitely\n", fmtSelect(selectWatch.info))
++			panic("select stuck")
++		}
++		selectWatch.Unlock()
++	}
++}
++
++// runSelect runs a single select test.
++// It returns the values returned by Select but also returns
++// a panic value if the Select panics.
++func runSelect(cases []SelectCase, info []caseInfo) (chosen int, recv Value, recvOK bool, panicErr interface{}) {
++	defer func() {
++		panicErr = recover()
++
++		selectWatch.Lock()
++		selectWatch.info = nil
++		selectWatch.Unlock()
++	}()
++
++	selectWatch.Lock()
++	selectWatch.now = time.Now()
++	selectWatch.info = info
++	selectWatch.Unlock()
++
++	chosen, recv, recvOK = Select(cases)
++	return
++}
++
++// fmtSelect formats the information about a single select test.
++func fmtSelect(info []caseInfo) string {
++	var buf bytes.Buffer
++	fmt.Fprintf(&buf, "\nselect {\n")
++	for i, cas := range info {
++		fmt.Fprintf(&buf, "%d: %s", i, cas.desc)
++		if cas.recv.IsValid() {
++			fmt.Fprintf(&buf, " val=%#v", cas.recv.Interface())
++		}
++		if cas.canSelect {
++			fmt.Fprintf(&buf, " canselect")
++		}
++		if cas.panic {
++			fmt.Fprintf(&buf, " panic")
++		}
++		fmt.Fprintf(&buf, "\n")
++	}
++	fmt.Fprintf(&buf, "}")
++	return buf.String()
++}
++
+ // Difficult test for function call because of
+ // implicit padding between arguments.
+ func dummy(b byte, c int, d byte) (i byte, j int, k byte) {
+@@ -1933,3 +2266,94 @@ func BenchmarkFieldByName3(b *testing.B) {
+ 		t.FieldByName("X")
+ 	}
+ }
++
++// An exhaustive is a mechanism for writing exhaustive or stochastic tests.
++// The basic usage is:
++//
++//	for x.Next() {
++//		... code using x.Maybe() or x.Choice(n) to create test cases ...
++//	}
++//
++// Each iteration of the loop returns a different set of results, until all
++// possible result sets have been explored. It is okay for different code paths
++// to make different method call sequences on x, but there must be no
++// other source of non-determinism in the call sequences.
++//
++// When faced with a new decision, x chooses randomly. Future explorations
++// of that path will choose successive values for the result. Thus, stopping
++// the loop after a fixed number of iterations gives somewhat stochastic
++// testing.
++//
++// Example:
++//
++//	for x.Next() {
++//		v := make([]bool, x.Choose(4))
++//		for i := range v {
++//			v[i] = x.Maybe()
++//		}
++//		fmt.Println(v)
++//	}
++//
++// prints (in some order):
++//
++//	[]
++//	[false]
++//	[true]
++//	[false false]
++//	[false true]
++//	...
++//	[true true]
++//	[false false false]
++//	...
++//	[true true true]
++//	[false false false false]
++//	...
++//	[true true true true]
++//
++type exhaustive struct {
++	r    *rand.Rand
++	pos  int
++	last []choice
++}
++
++type choice struct {
++	off int
++	n   int
++	max int
++}
++
++func (x *exhaustive) Next() bool {
++	if x.r == nil {
++		x.r = rand.New(rand.NewSource(time.Now().UnixNano()))
++	}
++	x.pos = 0
++	if x.last == nil {
++		x.last = []choice{}
++		return true
++	}
++	for i := len(x.last) - 1; i >= 0; i-- {
++		c := &x.last[i]
++		if c.n+1 < c.max {
++			c.n++
++			x.last = x.last[:i+1]
++			return true
++		}
++	}
++	return false
++}
++
++func (x *exhaustive) Choose(max int) int {
++	if x.pos >= len(x.last) {
++		x.last = append(x.last, choice{x.r.Intn(max), 0, max})
++	}
++	c := &x.last[x.pos]
++	x.pos++
++	if c.max != max {
++		panic("inconsistent use of exhaustive tester")
++	}
++	return (c.n + c.off) % max
++}
++
++func (x *exhaustive) Maybe() bool {
++	return x.Choose(2) == 1
++}
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 52eac2299a..dfbd859a7a 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -186,6 +186,12 @@ type Type interface {
+ 	uncommon() *uncommonType
+ }
+ 
++/*
++ * These data structures are known to the compiler (../../cmd/gc/reflect.c).
++ * A few are known to ../runtime/type.go to convey to debuggers.
++ * They are also known to ../runtime/type.h.
++ */
++
+ // A Kind represents the specific kind of type that a Type represents.
+ // The zero Kind is not a valid kind.
+ type Kind uint
+@@ -220,11 +226,6 @@ const (
+ 	UnsafePointer
+ )
+ 
+-/*
+- * These data structures are known to the compiler (../../cmd/gc/reflect.c).
+- * A few are known to ../runtime/type.go to convey to debuggers.
+- */
+-
+ // The compiler can only construct empty interface values at
+ // compile time; non-empty interface values get created
+ // during initialization.  Type is an empty interface
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index c44d408c6b..9b016465cd 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1618,6 +1618,140 @@ func Copy(dst, src Value) int {
+ 	return n
+ }
+ 
++// A runtimeSelect is a single case passed to rselect.
++// This must match ../runtime/chan.c:/runtimeSelect
++type runtimeSelect struct {
++	dir uintptr      // 0, SendDir, or RecvDir
++	typ *runtimeType // channel type
++	ch  iword        // interface word for channel
++	val iword        // interface word for value (for SendDir)
++}
++
++// rselect runs a select. It returns the index of the chosen case,
++// and if the case was a receive, the interface word of the received
++// value and the conventional OK bool to indicate whether the receive
++// corresponds to a sent value.
++func rselect([]runtimeSelect) (chosen int, recv iword, recvOK bool)
++
++// A SelectDir describes the communication direction of a select case.
++type SelectDir int
++
++// NOTE: These values must match ../runtime/chan.c:/SelectDir.
++
++const (
++	_             SelectDir = iota
++	SelectSend              // case Chan <- Send
++	SelectRecv              // case <-Chan:
++	SelectDefault           // default
++)
++
++// A SelectCase describes a single case in a select operation.
++// The kind of case depends on Dir, the communication direction.
++//
++// If Dir is SelectDefault, the case represents a default case.
++// Chan and Send must be zero Values.
++//
++// If Dir is SelectSend, the case represents a send operation.
++// Normally Chan's underlying value must be a channel, and Send's underlying value must be
++// assignable to the channel's element type. As a special case, if Chan is a zero Value,
++// then the case is ignored, and the field Send will also be ignored and may be either zero
++// or non-zero.
++//
++// If Dir is SelectRecv, the case represents a receive operation.
++// Normally Chan's underlying value must be a channel and Send must be a zero Value.
++// If Chan is a zero Value, then the case is ignored, but Send must still be a zero Value.
++// When a receive operation is selected, the received Value is returned by Select.
++//
++type SelectCase struct {
++	Dir  SelectDir // direction of case
++	Chan Value     // channel to use (for send or receive)
++	Send Value     // value to send (for send)
++}
++
++// Select executes a select operation described by the list of cases.
++// Like the Go select statement, it blocks until one of the cases can
++// proceed and then executes that case. It returns the index of the chosen case
++// and, if that case was a receive operation, the value received and a
++// boolean indicating whether the value corresponds to a send on the channel
++// (as opposed to a zero value received because the channel is closed).
++func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
++	// NOTE: Do not trust that caller is not modifying cases data underfoot.
++	// The range is safe because the caller cannot modify our copy of the len
++	// and each iteration makes its own copy of the value c.
++	runcases := make([]runtimeSelect, len(cases))
++	haveDefault := false
++	for i, c := range cases {
++		rc := &runcases[i]
++		rc.dir = uintptr(c.Dir)
++		switch c.Dir {
++		default:
++			panic("reflect.Select: invalid Dir")
++
++		case SelectDefault: // default	
++			if haveDefault {
++				panic("reflect.Select: multiple default cases")
++			}
++			haveDefault = true
++			if c.Chan.IsValid() {
++				panic("reflect.Select: default case has Chan value")
++			}
++			if c.Send.IsValid() {
++				panic("reflect.Select: default case has Send value")
++			}
++
++		case SelectSend:
++			ch := c.Chan
++			if !ch.IsValid() {
++				break
++			}
++			ch.mustBe(Chan)
++			ch.mustBeExported()
++			tt := (*chanType)(unsafe.Pointer(ch.typ))
++			if ChanDir(tt.dir)&SendDir == 0 {
++				panic("reflect.Select: SendDir case using recv-only channel")
++			}
++			rc.ch = ch.iword()
++			rc.typ = tt.runtimeType()
++			v := c.Send
++			if !v.IsValid() {
++				panic("reflect.Select: SendDir case missing Send value")
++			}
++			v.mustBeExported()
++			v = v.assignTo("reflect.Select", toCommonType(tt.elem), nil)
++			rc.val = v.iword()
++
++		case SelectRecv:
++			if c.Send.IsValid() {
++				panic("reflect.Select: RecvDir case has Send value")
++			}
++			ch := c.Chan
++			if !ch.IsValid() {
++				break
++			}
++			ch.mustBe(Chan)
++			ch.mustBeExported()
++			tt := (*chanType)(unsafe.Pointer(ch.typ))
++			rc.typ = tt.runtimeType()
++			if ChanDir(tt.dir)&RecvDir == 0 {
++				panic("reflect.Select: RecvDir case using send-only channel")
++			}
++			rc.ch = ch.iword()
++		}
++	}
++
++	chosen, word, recvOK := rselect(runcases)
++	if runcases[chosen].dir == uintptr(SelectRecv) {
++		tt := (*chanType)(unsafe.Pointer(toCommonType(runcases[chosen].typ)))
++		typ := toCommonType(tt.elem)
++		fl := flag(typ.Kind()) << flagKindShift
++		if typ.size > ptrSize {
++			fl |= flagIndir
++		}
++		recv = Value{typ, unsafe.Pointer(word), fl}
++	}
++	return chosen, recv, recvOK
++}
++
+ /*
+  * constructors
+  */
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 93408c22f6..f2e49c62e8 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -999,11 +999,17 @@ syncsend:
+ 	runtime·ready(gp);
+ 
+ retc:
+-	// return to pc corresponding to chosen case
++	// return pc corresponding to chosen case.
++	// Set boolean passed during select creation
++	// (at offset selp + cas->so) to true.
++	// If cas->so == 0, this is a reflect-driven select and we
++	// don't need to update the boolean.
+ 	pc = cas->pc;
+-	as = (byte*)selp + cas->so;
++	if(cas->so > 0) {
++		as = (byte*)selp + cas->so;
++		*as = true;
++	}
+ 	runtime·free(sel);
+-	*as = true;
+ 	return pc;
+ 
+ sclose:
+@@ -1013,6 +1019,87 @@ sclose:
+ 	return nil;  // not reached
+ }
+ 
++// This struct must match ../reflect/value.go:/runtimeSelect.
++typedef struct runtimeSelect runtimeSelect;
++struct runtimeSelect
++{
++	uintptr dir;
++	ChanType *typ;
++	Hchan *ch;
++	uintptr val;
++};
++
++// This enum must match ../reflect/value.go:/SelectDir.
++enum SelectDir {
++	SelectSend = 1,
++	SelectRecv,
++	SelectDefault,
++};
++
++// func rselect(cases []runtimeSelect) (chosen int, word uintptr, recvOK bool)
++void
++reflect·rselect(Slice cases, int32 chosen, uintptr word, bool recvOK)
++{
++	int32 i;
++	Select *sel;
++	runtimeSelect* rcase, *rc;
++	void *elem;
++	void *recvptr;
++	uintptr maxsize;
++
++	chosen = -1;
++	word = 0;
++	recvOK = false;
++
++	maxsize = 0;
++	rcase = (runtimeSelect*)cases.array;
++	for(i=0; i<cases.len; i++) {
++		rc = &rcase[i];
++		if(rc->dir == SelectRecv && rc->ch != nil && maxsize < rc->typ->elem->size)
++			maxsize = rc->typ->elem->size;
++	}
++
++	recvptr = nil;
++	if(maxsize > sizeof(void*))
++		recvptr = runtime·mal(maxsize);
++
++	newselect(cases.len, &sel);
++	for(i=0; i<cases.len; i++) {
++		rc = &rcase[i];
++		switch(rc->dir) {
++		case SelectDefault:
++			selectdefault(sel, (void*)i, 0);
++			break;
++		case SelectSend:
++			if(rc->ch == nil)
++				break;
++			if(rc->typ->elem->size > sizeof(void*))
++				elem = (void*)rc->val;
++			else
++				elem = (void*)&rc->val;
++			selectsend(sel, rc->ch, (void*)i, elem, 0);
++			break;
++		case SelectRecv:
++			if(rc->ch == nil)
++				break;
++			if(rc->typ->elem->size > sizeof(void*))
++				elem = recvptr;
++			else
++				elem = &word;
++			selectrecv(sel, rc->ch, (void*)i, elem, &recvOK, 0);
++			break;
++		}
++	}
++
++	chosen = (int32)(uintptr)selectgo(&sel);
++	if(rcase[chosen].dir == SelectRecv && rcase[chosen].typ->elem->size > sizeof(void*))
++		word = (uintptr)recvptr;
++
++	FLUSH(&chosen);
++	FLUSH(&word);
++	FLUSH(&recvOK);
++}
++
+ // closechan(sel *byte);
+ void
+ runtime·closechan(Hchan *c)

@@ -11,10 +11,209 @@ Date:   Wed Apr 2 17:06:51 2014 -0700
     R=golang-codereviews, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/83730044
-
+---
  src/pkg/net/fd_unix.go         |  8 ++++----
  src/pkg/net/fd_windows.go      |  8 ++++----
  src/pkg/net/iprawsock_posix.go |  8 ++++----
  src/pkg/net/udpsock_posix.go   |  8 ++++----
  src/pkg/net/unixsock_posix.go  | 10 +++++-----
  5 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index 3b67b796f3..7a8d7d3da7 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -243,7 +243,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
+ 	return
+ }
+ 
+-func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
++func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
+ 	if err := fd.readLock(); err != nil {
+ 		return 0, nil, err
+ 	}
+@@ -270,7 +270,7 @@ func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
+ 	return
+ }
+ 
+-func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
++func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
+ 	if err := fd.readLock(); err != nil {
+ 		return 0, 0, 0, nil, err
+ 	}
+@@ -341,7 +341,7 @@ func (fd *netFD) Write(p []byte) (nn int, err error) {
+ 	return nn, err
+ }
+ 
+-func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
++func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
+ 	if err := fd.writeLock(); err != nil {
+ 		return 0, err
+ 	}
+@@ -366,7 +366,7 @@ func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
+ 	return
+ }
+ 
+-func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
++func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
+ 	if err := fd.writeLock(); err != nil {
+ 		return 0, 0, err
+ 	}
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 0f8d6de5b5..b64410c477 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -458,7 +458,7 @@ func (fd *netFD) Read(buf []byte) (int, error) {
+ 	return n, err
+ }
+ 
+-func (fd *netFD) ReadFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
++func (fd *netFD) readFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
+ 	if len(buf) == 0 {
+ 		return 0, nil, nil
+ 	}
+@@ -497,7 +497,7 @@ func (fd *netFD) Write(buf []byte) (int, error) {
+ 	})
+ }
+ 
+-func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
++func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+ 	if len(buf) == 0 {
+ 		return 0, nil
+ 	}
+@@ -628,10 +628,10 @@ func (fd *netFD) dup() (*os.File, error) {
+ 
+ var errNoSupport = errors.New("address family not supported")
+ 
+-func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
++func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
+ 	return 0, 0, 0, nil, errNoSupport
+ }
+ 
+-func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
++func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
+ 	return 0, 0, errNoSupport
+ }
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index ff6c768481..26fc06e1b6 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -79,7 +79,7 @@ func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
+ 	// TODO(cw,rsc): consider using readv if we know the family
+ 	// type to avoid the header trim/copy
+ 	var addr *IPAddr
+-	n, sa, err := c.fd.ReadFrom(b)
++	n, sa, err := c.fd.readFrom(b)
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+ 		addr = &IPAddr{IP: sa.Addr[0:]}
+@@ -112,7 +112,7 @@ func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err
+ 		return 0, 0, 0, nil, syscall.EINVAL
+ 	}
+ 	var sa syscall.Sockaddr
+-	n, oobn, flags, sa, err = c.fd.ReadMsg(b, oob)
++	n, oobn, flags, sa, err = c.fd.readMsg(b, oob)
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+ 		addr = &IPAddr{IP: sa.Addr[0:]}
+@@ -140,7 +140,7 @@ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
+ 	if err != nil {
+ 		return 0, &OpError{"write", c.fd.net, addr, err}
+ 	}
+-	return c.fd.WriteTo(b, sa)
++	return c.fd.writeTo(b, sa)
+ }
+ 
+ // WriteTo implements the PacketConn WriteTo method.
+@@ -169,7 +169,7 @@ func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error
+ 	if err != nil {
+ 		return 0, 0, &OpError{"write", c.fd.net, addr, err}
+ 	}
+-	return c.fd.WriteMsg(b, oob, sa)
++	return c.fd.writeMsg(b, oob, sa)
+ }
+ 
+ // DialIP connects to the remote address raddr on the network protocol
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index d81c253568..5dfba94e9a 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -64,7 +64,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+ 	if !c.ok() {
+ 		return 0, nil, syscall.EINVAL
+ 	}
+-	n, sa, err := c.fd.ReadFrom(b)
++	n, sa, err := c.fd.readFrom(b)
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+ 		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
+@@ -93,7 +93,7 @@ func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr,
+ 		return 0, 0, 0, nil, syscall.EINVAL
+ 	}
+ 	var sa syscall.Sockaddr
+-	n, oobn, flags, sa, err = c.fd.ReadMsg(b, oob)
++	n, oobn, flags, sa, err = c.fd.readMsg(b, oob)
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+ 		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
+@@ -124,7 +124,7 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
+ 	if err != nil {
+ 		return 0, &OpError{"write", c.fd.net, addr, err}
+ 	}
+-	return c.fd.WriteTo(b, sa)
++	return c.fd.writeTo(b, sa)
+ }
+ 
+ // WriteTo implements the PacketConn WriteTo method.
+@@ -156,7 +156,7 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
+ 	if err != nil {
+ 		return 0, 0, &OpError{"write", c.fd.net, addr, err}
+ 	}
+-	return c.fd.WriteMsg(b, oob, sa)
++	return c.fd.writeMsg(b, oob, sa)
+ }
+ 
+ // DialUDP connects to the remote address raddr on the network net,
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index a5f8d0c762..c75c0b01a2 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -124,7 +124,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
+ 	if !c.ok() {
+ 		return 0, nil, syscall.EINVAL
+ 	}
+-	n, sa, err := c.fd.ReadFrom(b)
++	n, sa, err := c.fd.readFrom(b)
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrUnix:
+ 		if sa.Name != "" {
+@@ -151,7 +151,7 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
+ 	if !c.ok() {
+ 		return 0, 0, 0, nil, syscall.EINVAL
+ 	}
+-	n, oobn, flags, sa, err := c.fd.ReadMsg(b, oob)
++	n, oobn, flags, sa, err := c.fd.readMsg(b, oob)
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrUnix:
+ 		if sa.Name != "" {
+@@ -181,7 +181,7 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
+ 		return 0, syscall.EAFNOSUPPORT
+ 	}
+ 	sa := &syscall.SockaddrUnix{Name: addr.Name}
+-	return c.fd.WriteTo(b, sa)
++	return c.fd.writeTo(b, sa)
+ }
+ 
+ // WriteTo implements the PacketConn WriteTo method.
+@@ -211,9 +211,9 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
+ 			return 0, 0, syscall.EAFNOSUPPORT
+ 		}
+ 		sa := &syscall.SockaddrUnix{Name: addr.Name}
+-		return c.fd.WriteMsg(b, oob, sa)
++		return c.fd.writeMsg(b, oob, sa)
+ 	}
+-	return c.fd.WriteMsg(b, oob, nil)
++	return c.fd.writeMsg(b, oob, nil)
+ }
+ 
+ // CloseRead shuts down the reading side of the Unix domain connection.

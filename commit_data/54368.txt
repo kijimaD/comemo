@@ -14,7 +14,47 @@ Date:   Tue Oct 11 11:21:13 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/math/big/ratmarsh.go      | 9 +++++++--
  src/math/big/ratmarsh_test.go | 1 +
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/big/ratmarsh.go b/src/math/big/ratmarsh.go
+index 56102e845b..b69c59dfb6 100644
+--- a/src/math/big/ratmarsh.go
++++ b/src/math/big/ratmarsh.go
+@@ -10,6 +10,7 @@ import (
+ 	"encoding/binary"
+ 	"errors"
+ 	"fmt"
++	"math"
+ )
+ 
+ // Gob codec version. Permits backward-compatible changes to the encoding.
+@@ -53,8 +54,12 @@ func (z *Rat) GobDecode(buf []byte) error {
+ 		return fmt.Errorf("Rat.GobDecode: encoding version %d not supported", b>>1)
+ 	}
+ 	const j = 1 + 4
+-	i := j + binary.BigEndian.Uint32(buf[j-4:j])
+-	if len(buf) < int(i) {
++	ln := binary.BigEndian.Uint32(buf[j-4 : j])
++	if uint64(ln) > math.MaxInt-j {
++		return errors.New("Rat.GobDecode: invalid length")
++	}
++	i := j + int(ln)
++	if len(buf) < i {
+ 		return errors.New("Rat.GobDecode: buffer too small")
+ 	}
+ 	z.a.neg = b&1 != 0
+diff --git a/src/math/big/ratmarsh_test.go b/src/math/big/ratmarsh_test.go
+index 55a9878bb8..15c933efa6 100644
+--- a/src/math/big/ratmarsh_test.go
++++ b/src/math/big/ratmarsh_test.go
+@@ -128,6 +128,7 @@ func TestRatGobDecodeShortBuffer(t *testing.T) {
+ 	for _, tc := range [][]byte{
+ 		[]byte{0x2},
+ 		[]byte{0x2, 0x0, 0x0, 0x0, 0xff},
++		[]byte{0x2, 0xff, 0xff, 0xff, 0xff},
+ 	} {
+ 		err := NewRat(1, 2).GobDecode(tc)
+ 		if err == nil {

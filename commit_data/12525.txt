@@ -21,7 +21,7 @@ Date:   Thu Mar 8 12:12:40 2012 -0500
     R=golang-dev, rogpeppe, gri
     CC=golang-dev
     https://golang.org/cl/5781047
-
+---
  src/cmd/cgo/out.go               |  5 +++--
  src/pkg/runtime/asm_386.s        |  8 ++++++++
  src/pkg/runtime/asm_amd64.s      |  8 ++++++++
@@ -33,3 +33,193 @@ Date:   Thu Mar 8 12:12:40 2012 -0500
  src/pkg/runtime/thread_plan9.c   | 10 ++++++++++
  src/pkg/runtime/thread_windows.c | 19 +++++++++++++++++++
  10 files changed, 98 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index d6447caff6..bbadad1bed 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -573,8 +573,9 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
+ 			goname = "_cgoexpwrap" + cPrefix + "_" + fn.Recv.List[0].Names[0].Name + "_" + goname
+ 		}
+ 		fmt.Fprintf(fc, "#pragma dynexport %s %s\n", goname, goname)
+-		fmt.Fprintf(fc, "extern void ·%s();\n", goname)
+-		fmt.Fprintf(fc, "\nvoid\n")
++		fmt.Fprintf(fc, "extern void ·%s();\n\n", goname)
++		fmt.Fprintf(fc, "#pragma textflag 7\n") // no split stack, so no use of m or g
++		fmt.Fprintf(fc, "void\n")
+ 		fmt.Fprintf(fc, "_cgoexp%s_%s(void *a, int32 n)\n", cPrefix, exp.ExpName)
+ 		fmt.Fprintf(fc, "{\n")
+ 		fmt.Fprintf(fc, "\truntime·cgocallback(·%s, a, n);\n", goname)
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 6bbec30638..da2290210a 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -425,6 +425,14 @@ TEXT runtime·cgocallback(SB),7,$12
+ 	// Save current m->g0->sched.sp on stack and then set it to SP.
+ 	get_tls(CX)
+ 	MOVL	m(CX), BP
++
++	// If m is nil, it is almost certainly because we have been called
++	// on a thread that Go did not create.  We're going to crash as
++	// soon as we try to use m; instead, try to print a nice error and exit.
++	CMPL	BP, $0
++	JNE 2(PC)
++	CALL	runtime·badcallback(SB)
++
+ 	MOVL	m_g0(BP), SI
+ 	PUSHL	(g_sched+gobuf_sp)(SI)
+ 	MOVL	SP, (g_sched+gobuf_sp)(SI)
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 2ea87a779f..392ad8c87f 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -471,6 +471,14 @@ TEXT runtime·cgocallback(SB),7,$24
+ 	// Save current m->g0->sched.sp on stack and then set it to SP.
+ 	get_tls(CX)
+ 	MOVQ	m(CX), BP
++	
++	// If m is nil, it is almost certainly because we have been called
++	// on a thread that Go did not create.  We're going to crash as
++	// soon as we try to use m; instead, try to print a nice error and exit.
++	CMPQ	BP, $0
++	JNE 2(PC)
++	CALL	runtime·badcallback(SB)
++
+ 	MOVQ	m_g0(BP), SI
+ 	PUSHQ	(g_sched+gobuf_sp)(SI)
+ 	MOVQ	SP, (g_sched+gobuf_sp)(SI)
+diff --git a/src/pkg/runtime/thread_darwin.c b/src/pkg/runtime/thread_darwin.c
+index 556fb67e84..bbcdf05ef0 100644
+--- a/src/pkg/runtime/thread_darwin.c
++++ b/src/pkg/runtime/thread_darwin.c
+@@ -477,3 +477,13 @@ runtime·setprof(bool on)
+ 	else
+ 		runtime·sigprocmask(SIG_BLOCK, &sigset_prof, nil);
+ }
++
++static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
++
++// This runs on a foreign stack, without an m or a g.  No stack split.
++#pragma textflag 7
++void
++runtime·badcallback(void)
++{
++	runtime·write(2, badcallback, sizeof badcallback - 1);
++}
+diff --git a/src/pkg/runtime/thread_freebsd.c b/src/pkg/runtime/thread_freebsd.c
+index 77e8bb3dac..b848cbadd4 100644
+--- a/src/pkg/runtime/thread_freebsd.c
++++ b/src/pkg/runtime/thread_freebsd.c
+@@ -195,3 +195,13 @@ runtime·setprof(bool on)
+ {
+ 	USED(on);
+ }
++
++static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
++
++// This runs on a foreign stack, without an m or a g.  No stack split.
++#pragma textflag 7
++void
++runtime·badcallback(void)
++{
++	runtime·write(2, badcallback, sizeof badcallback - 1);
++}
+diff --git a/src/pkg/runtime/thread_linux.c b/src/pkg/runtime/thread_linux.c
+index 6b428440e0..af765d53b9 100644
+--- a/src/pkg/runtime/thread_linux.c
++++ b/src/pkg/runtime/thread_linux.c
+@@ -255,3 +255,13 @@ runtime·setprof(bool on)
+ {
+ 	USED(on);
+ }
++
++static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
++
++// This runs on a foreign stack, without an m or a g.  No stack split.
++#pragma textflag 7
++void
++runtime·badcallback(void)
++{
++	runtime·write(2, badcallback, sizeof badcallback - 1);
++}
+diff --git a/src/pkg/runtime/thread_netbsd.c b/src/pkg/runtime/thread_netbsd.c
+index 62e133c449..40e4f6ce1c 100644
+--- a/src/pkg/runtime/thread_netbsd.c
++++ b/src/pkg/runtime/thread_netbsd.c
+@@ -213,3 +213,13 @@ runtime·setprof(bool on)
+ {
+ 	USED(on);
+ }
++
++static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
++
++// This runs on a foreign stack, without an m or a g.  No stack split.
++#pragma textflag 7
++void
++runtime·badcallback(void)
++{
++	runtime·write(2, badcallback, sizeof badcallback - 1);
++}
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/thread_openbsd.c
+index bee0c5755f..e4f95988b0 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -213,3 +213,13 @@ runtime·setprof(bool on)
+ {
+ 	USED(on);
+ }
++
++static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
++
++// This runs on a foreign stack, without an m or a g.  No stack split.
++#pragma textflag 7
++void
++runtime·badcallback(void)
++{
++	runtime·write(2, badcallback, sizeof badcallback - 1);
++}
+diff --git a/src/pkg/runtime/thread_plan9.c b/src/pkg/runtime/thread_plan9.c
+index aaed5050bb..4ca01b0e66 100644
+--- a/src/pkg/runtime/thread_plan9.c
++++ b/src/pkg/runtime/thread_plan9.c
+@@ -247,3 +247,13 @@ runtime·setprof(bool on)
+ {
+ 	USED(on);
+ }
++
++static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
++
++// This runs on a foreign stack, without an m or a g.  No stack split.
++#pragma textflag 7
++void
++runtime·badcallback(void)
++{
++	runtime·pwrite(2, badcallback, sizeof badcallback - 1, -1LL);
++}
+diff --git a/src/pkg/runtime/thread_windows.c b/src/pkg/runtime/thread_windows.c
+index 1147a05e6a..e75e0c1569 100644
+--- a/src/pkg/runtime/thread_windows.c
++++ b/src/pkg/runtime/thread_windows.c
+@@ -422,3 +422,22 @@ runtime·setprof(bool on)
+ {
+ 	USED(on);
+ }
++
++static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
++
++// This runs on a foreign stack, without an m or a g.  No stack split.
++#pragma textflag 7
++void
++runtime·badcallback(void)
++{
++	uint32 written;
++
++	runtime·stdcall(
++		runtime·WriteFile, 5,
++		runtime·stdcall(runtime·GetStdHandle, 1, (uintptr)-12), // stderr
++		badcallback,
++		(uintptr)(sizeof badcallback - 1),
++		&written,
++		nil
++	);
++}

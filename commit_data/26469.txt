@@ -18,8 +18,305 @@ Date:   Sun Jan 10 18:30:27 2016 -0800
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/rsa/example_test.go | 169 +++++++++++++++++++++++++++++++++++++++++
  src/crypto/rsa/pkcs1v15.go     |  23 ++++++
  src/crypto/rsa/rsa.go          |  41 +++++++++-
  3 files changed, 232 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/rsa/example_test.go b/src/crypto/rsa/example_test.go
+new file mode 100644
+index 0000000000..1435b70146
+--- /dev/null
++++ b/src/crypto/rsa/example_test.go
+@@ -0,0 +1,169 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rsa
++
++import (
++	"crypto"
++	"crypto/aes"
++	"crypto/cipher"
++	"crypto/rand"
++	"crypto/sha256"
++	"encoding/hex"
++	"fmt"
++	"io"
++	"os"
++)
++
++// RSA is able to encrypt only a very limited amount of data. In order
++// to encrypt reasonable amounts of data a hybrid scheme is commonly
++// used: RSA is used to encrypt a key for a symmetric primitive like
++// AES-GCM.
++//
++// Before encrypting, data is “padded” by embedding it in a known
++// structure. This is done for a number of reasons, but the most
++// obvious is to ensure that the value is large enough that the
++// exponentiation is larger than the modulus. (Otherwise it could be
++// decrypted with a square-root.)
++//
++// In these designs, when using PKCS#1 v1.5, it's vitally important to
++// avoid disclosing whether the received RSA message was well-formed
++// (that is, whether the result of decrypting is a correctly padded
++// message) because this leaks secret information.
++// DecryptPKCS1v15SessionKey is designed for this situation and copies
++// the decrypted, symmetric key (if well-formed) in constant-time over
++// a buffer that contains a random key. Thus, if the RSA result isn't
++// well-formed, the implementation uses a random key in constant time.
++func ExampleDecryptPKCS1v15SessionKey() {
++	// crypto/rand.Reader is a good source of entropy for blinding the RSA
++	// operation.
++	rng := rand.Reader
++
++	// The hybrid scheme should use at least a 16-byte symmetric key. Here
++	// we read the random key that will be used if the RSA decryption isn't
++	// well-formed.
++	key := make([]byte, 32)
++	if _, err := io.ReadFull(rng, key); err != nil {
++		panic("RNG failure")
++	}
++
++	rsaCiphertext, _ := hex.DecodeString("aabbccddeeff")
++
++	if err := DecryptPKCS1v15SessionKey(rng, rsaPrivateKey, rsaCiphertext, key); err != nil {
++		// Any errors that result will be “public” – meaning that they
++		// can be determined without any secret information. (For
++		// instance, if the length of key is impossible given the RSA
++		// public key.)
++		fmt.Fprintf(os.Stderr, "Error from RSA decryption: %s\n", err)
++		return
++	}
++
++	// Given the resulting key, a symmetric scheme can be used to decrypt a
++	// larger ciphertext.
++	block, err := aes.NewCipher(key)
++	if err != nil {
++		panic("aes.NewCipher failed: " + err.Error())
++	}
++
++	// Since the key is random, using a fixed nonce is acceptable as the
++	// (key, nonce) pair will still be unique, as required.
++	var zeroNonce [12]byte
++	aead, err := cipher.NewGCM(block)
++	if err != nil {
++		panic("cipher.NewGCM failed: " + err.Error())
++	}
++	ciphertext, _ := hex.DecodeString("00112233445566")
++	plaintext, err := aead.Open(nil, zeroNonce[:], ciphertext, nil)
++	if err != nil {
++		// The RSA ciphertext was badly formed; the decryption will
++		// fail here because the AES-GCM key will be incorrect.
++		fmt.Fprintf(os.Stderr, "Error decrypting: %s\n", err)
++		return
++	}
++
++	fmt.Printf("Plaintext: %s\n", string(plaintext))
++}
++
++func ExampleSignPKCS1v15() {
++	// crypto/rand.Reader is a good source of entropy for blinding the RSA
++	// operation.
++	rng := rand.Reader
++
++	message := []byte("message to be signed")
++
++	// Only small messages can be signed directly; thus the hash of a
++	// message, rather than the message itself, is signed. This requires
++	// that the hash function be collision resistant. SHA-256 is the
++	// least-strong hash function that should be used for this at the time
++	// of writing (2016).
++	hashed := sha256.Sum256(message)
++
++	signature, err := SignPKCS1v15(rng, rsaPrivateKey, crypto.SHA256, hashed[:])
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "Error from signing: %s\n", err)
++		return
++	}
++
++	fmt.Printf("Signature: %x\n", signature)
++}
++
++func ExampleVerifyPKCS1v15() {
++	message := []byte("message to be signed")
++	signature, _ := hex.DecodeString("ad2766728615cc7a746cc553916380ca7bfa4f8983b990913bc69eb0556539a350ff0f8fe65ddfd3ebe91fe1c299c2fac135bc8c61e26be44ee259f2f80c1530")
++
++	// Only small messages can be signed directly; thus the hash of a
++	// message, rather than the message itself, is signed. This requires
++	// that the hash function be collision resistant. SHA-256 is the
++	// least-strong hash function that should be used for this at the time
++	// of writing (2016).
++	hashed := sha256.Sum256(message)
++
++	err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, crypto.SHA256, hashed[:], signature)
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "Error from verification: %s\n", err)
++		return
++	}
++
++	// signature is a valid signature of message from the public key.
++}
++
++func ExampleEncryptOAEP() {
++	secretMessage := []byte("send reinforcements, we're going to advance")
++	label := []byte("orders")
++
++	// crypto/rand.Reader is a good source of entropy for randomizing the
++	// encryption function.
++	rng := rand.Reader
++
++	ciphertext, err := EncryptOAEP(sha256.New(), rng, &test2048Key.PublicKey, secretMessage, label)
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "Error from encryption: %s\n", err)
++		return
++	}
++
++	// Since encryption is a randomized function, ciphertext will be
++	// different each time.
++	fmt.Printf("Ciphertext: %x\n", ciphertext)
++}
++
++func ExampleDecryptOAEP() {
++	ciphertext, _ := hex.DecodeString("4d1ee10e8f286390258c51a5e80802844c3e6358ad6690b7285218a7c7ed7fc3a4c7b950fbd04d4b0239cc060dcc7065ca6f84c1756deb71ca5685cadbb82be025e16449b905c568a19c088a1abfad54bf7ecc67a7df39943ec511091a34c0f2348d04e058fcff4d55644de3cd1d580791d4524b92f3e91695582e6e340a1c50b6c6d78e80b4e42c5b4d45e479b492de42bbd39cc642ebb80226bb5200020d501b24a37bcc2ec7f34e596b4fd6b063de4858dbf5a4e3dd18e262eda0ec2d19dbd8e890d672b63d368768360b20c0b6b8592a438fa275e5fa7f60bef0dd39673fd3989cc54d2cb80c08fcd19dacbc265ee1c6014616b0e04ea0328c2a04e73460")
++	label := []byte("orders")
++
++	// crypto/rand.Reader is a good source of entropy for blinding the RSA
++	// operation.
++	rng := rand.Reader
++
++	plaintext, err := DecryptOAEP(sha256.New(), rng, test2048Key, ciphertext, label)
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "Error from decryption: %s\n", err)
++		return
++	}
++
++	fmt.Printf("Plaintext: %s\n", string(plaintext))
++
++	// Remember that encryption only provides confidentiality. The
++	// ciphertext should be signed before authenticity is assumed and, even
++	// then, consider that messages might be reordered.
++}
+diff --git a/src/crypto/rsa/pkcs1v15.go b/src/crypto/rsa/pkcs1v15.go
+index 37eaf1ab3e..5c5f415c88 100644
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@ -26,6 +26,10 @@ type PKCS1v15DecryptOptions struct {
+ 
+ // EncryptPKCS1v15 encrypts the given message with RSA and the padding scheme from PKCS#1 v1.5.
+ // The message must be no longer than the length of the public modulus minus 11 bytes.
++//
++// The rand parameter is used as a source of entropy to ensure that encrypting
++// the same message twice doesn't result in the same ciphertext.
++//
+ // WARNING: use of this function to encrypt plaintexts other than session keys
+ // is dangerous. Use RSA OAEP in new protocols.
+ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, err error) {
+@@ -59,6 +63,12 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
+ 
+ // DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS#1 v1.5.
+ // If rand != nil, it uses RSA blinding to avoid timing side-channel attacks.
++//
++// Note that whether this function returns an error or not discloses secret
++// information. If an attacker can cause this function to run repeatedly and
++// learn whether each instance returned an error then they can decrypt and
++// forge signatures as if they had the private key. See
++// DecryptPKCS1v15SessionKey for a way of solving this problem.
+ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out []byte, err error) {
+ 	if err := checkPub(&priv.PublicKey); err != nil {
+ 		return nil, err
+@@ -87,6 +97,12 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out [
+ // See ``Chosen Ciphertext Attacks Against Protocols Based on the RSA
+ // Encryption Standard PKCS #1'', Daniel Bleichenbacher, Advances in Cryptology
+ // (Crypto '98).
++//
++// Note that if the session key is too small then it may be possible for an
++// attacker to brute-force it. If they can do that then they can learn whether
++// a random value was used (because it'll be different for the same ciphertext)
++// and thus whether the padding was correct. This defeats the point of this
++// function. Using at least a 16-byte key will protect against this attack.
+ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) (err error) {
+ 	if err := checkPub(&priv.PublicKey); err != nil {
+ 		return err
+@@ -201,6 +217,13 @@ var hashPrefixes = map[crypto.Hash][]byte{
+ // Note that hashed must be the result of hashing the input message using the
+ // given hash function. If hash is zero, hashed is signed directly. This isn't
+ // advisable except for interoperability.
++//
++// If rand is not nil then RSA blinding will be used to avoid timing side-channel attacks.
++//
++// This function is deterministic. Thus, if the set of possible messages is
++// small, an attacker may be able to build a map from messages to signatures
++// and identify the signed messages. As ever, signatures provide authenticity,
++// not confidentiality.
+ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) (s []byte, err error) {
+ 	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
+ 	if err != nil {
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 0a3e6acee9..ee022b803a 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -3,6 +3,21 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package rsa implements RSA encryption as specified in PKCS#1.
++//
++// RSA is a single, fundamental operation that is used in this package to
++// implement either public-key encryption or public-key signatures.
++//
++// The original specification for encryption and signatures with RSA is PKCS#1
++// and the terms "RSA encryption" and "RSA signatures" by default refer to
++// PKCS#1 version 1.5. However, that specification has flaws and new designs
++// should use version two, usually called by just OAEP and PSS, where
++// possible.
++//
++// Two sets of interfaces are included in this package. When a more abstract
++// interface isn't neccessary, there are functions for encrypting/decrypting
++// with v1.5/OAEP and signing/verifying with v1.5/PSS. If one needs to abstract
++// over the public-key primitive, the PrivateKey struct implements the
++// Decrypter and Signer interfaces from the crypto package.
+ package rsa
+ 
+ import (
+@@ -317,6 +332,20 @@ func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
+ }
+ 
+ // EncryptOAEP encrypts the given message with RSA-OAEP.
++//
++// OAEP is parameterised by a hash function that is used as a random oracle.
++// Encryption and decryption of a given message must use the same hash function
++// and sha256.New() is a reasonable choice.
++//
++// The random parameter is used as a source of entropy to ensure that
++// encrypting the same message twice doesn't result in the same ciphertext.
++//
++// The label parameter may contain arbitrary data that will not be encrypted,
++// but which gives important context to the message. For example, if a given
++// public key is used to decrypt two types of messages then distinct label
++// values could be used to ensure that a ciphertext for one purpose cannot be
++// used for another by an attacker. If not required it can be empty.
++//
+ // The message must be no longer than the length of the public modulus less
+ // twice the hash length plus 2.
+ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) (out []byte, err error) {
+@@ -522,7 +551,17 @@ func decryptAndCheck(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int
+ }
+ 
+ // DecryptOAEP decrypts ciphertext using RSA-OAEP.
+-// If random != nil, DecryptOAEP uses RSA blinding to avoid timing side-channel attacks.
++
++// OAEP is parameterised by a hash function that is used as a random oracle.
++// Encryption and decryption of a given message must use the same hash function
++// and sha256.New() is a reasonable choice.
++//
++// The random parameter, if not nil, is used to blind the private-key operation
++// and avoid timing side-channel attacks. Blinding is purely internal to this
++// function – the random data need not match that used when encrypting.
++//
++// The label parameter must match the value given when encrypting. See
++// EncryptOAEP for details.
+ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) (msg []byte, err error) {
+ 	if err := checkPub(&priv.PublicKey); err != nil {
+ 		return nil, err

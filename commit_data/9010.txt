@@ -7,9 +7,91 @@ Date:   Mon Jul 11 15:47:42 2011 -0700
     R=dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/4689043
-
+---
  src/pkg/os/exec.go         | 3 ++-
  src/pkg/os/exec_unix.go    | 6 ++++++
  src/pkg/os/exec_windows.go | 4 ++++
  src/pkg/os/os_test.go      | 9 ++++++++-
  4 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index e2234f14a0..40e6c1774e 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -13,10 +13,11 @@ import (
+ type Process struct {
+ 	Pid    int
+ 	handle int
++	done   bool // process has been successfuly waited on
+ }
+ 
+ func newProcess(pid, handle int) *Process {
+-	p := &Process{pid, handle}
++	p := &Process{Pid: pid, handle: handle}
+ 	runtime.SetFinalizer(p, (*Process).Release)
+ 	return p
+ }
+diff --git a/src/pkg/os/exec_unix.go b/src/pkg/os/exec_unix.go
+index cf5ea9b617..8a4b2e1b80 100644
+--- a/src/pkg/os/exec_unix.go
++++ b/src/pkg/os/exec_unix.go
+@@ -38,6 +38,9 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
+ 	if e != 0 {
+ 		return nil, NewSyscallError("wait", e)
+ 	}
++	if options&WSTOPPED == 0 {
++		p.done = true
++	}
+ 	w = new(Waitmsg)
+ 	w.Pid = pid1
+ 	w.WaitStatus = status
+@@ -47,6 +50,9 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
+ 
+ // Signal sends a signal to the Process.
+ func (p *Process) Signal(sig Signal) Error {
++	if p.done {
++		return NewError("os: process already finished")
++	}
+ 	if e := syscall.Kill(p.Pid, int(sig.(UnixSignal))); e != 0 {
+ 		return Errno(e)
+ 	}
+diff --git a/src/pkg/os/exec_windows.go b/src/pkg/os/exec_windows.go
+index 5b432d3988..65e94ac4ac 100644
+--- a/src/pkg/os/exec_windows.go
++++ b/src/pkg/os/exec_windows.go
+@@ -24,11 +24,15 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
+ 	if e != 0 {
+ 		return nil, NewSyscallError("GetExitCodeProcess", e)
+ 	}
++	p.done = true
+ 	return &Waitmsg{p.Pid, syscall.WaitStatus{s, ec}, new(syscall.Rusage)}, nil
+ }
+ 
+ // Signal sends a signal to the Process.
+ func (p *Process) Signal(sig Signal) Error {
++	if p.done {
++		return NewError("os: process already finished")
++	}
+ 	switch sig.(UnixSignal) {
+ 	case SIGKILL:
+ 		e := syscall.TerminateProcess(syscall.Handle(p.handle), 1)
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index c22b536d55..dadae03e8c 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -895,7 +895,14 @@ func run(t *testing.T, cmd []string) string {
+ 
+ 	var b bytes.Buffer
+ 	io.Copy(&b, r)
+-	p.Wait(0)
++	_, err = p.Wait(0)
++	if err != nil {
++		t.Fatalf("run hostname Wait: %v", err)
++	}
++	err = p.Kill()
++	if err == nil {
++		t.Errorf("expected an error from Kill running 'hostname'")
++	}
+ 	output := b.String()
+ 	if n := len(output); n > 0 && output[n-1] == '\n' {
+ 		output = output[0 : n-1]

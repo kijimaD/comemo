@@ -17,7 +17,48 @@ Date:   Wed Aug 23 22:31:34 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/encoding/xml/marshal.go  | 3 ++-
  src/encoding/xml/xml_test.go | 7 ++++++-
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index e641148011..c93e35222d 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -543,8 +543,9 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
+ 		}
+ 	}
+ 
+-	// If a name was found, namespace is overridden with an empty space
++	// If a empty name was found, namespace is overridden with an empty space
+ 	if tinfo.xmlname != nil && start.Name.Space == "" &&
++		tinfo.xmlname.xmlns == "" && tinfo.xmlname.name == "" &&
+ 		len(p.tags) != 0 && p.tags[len(p.tags)-1].Space != "" {
+ 		start.Attr = append(start.Attr, Attr{Name{"", xmlnsPrefix}, ""})
+ 	}
+diff --git a/src/encoding/xml/xml_test.go b/src/encoding/xml/xml_test.go
+index f5c7259cfb..42f5f5f8a6 100644
+--- a/src/encoding/xml/xml_test.go
++++ b/src/encoding/xml/xml_test.go
+@@ -1064,14 +1064,19 @@ func TestIssue7113(t *testing.T) {
+ 		XMLName Name `xml:""` // Sets empty namespace
+ 	}
+ 
++	type D struct {
++		XMLName Name `xml:"d"`
++	}
++
+ 	type A struct {
+ 		XMLName Name `xml:""`
+ 		C       C    `xml:""`
++		D       D
+ 	}
+ 
+ 	var a A
+ 	structSpace := "b"
+-	xmlTest := `<A xmlns="` + structSpace + `"><C xmlns=""></C></A>`
++	xmlTest := `<A xmlns="` + structSpace + `"><C xmlns=""></C><d></d></A>`
+ 	t.Log(xmlTest)
+ 	err := Unmarshal([]byte(xmlTest), &a)
+ 	if err != nil {

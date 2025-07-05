@@ -8,9 +8,206 @@ Date:   Wed Jun 5 13:59:00 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/180840
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/lookup_darwin_386.s   | 74 +++++++++++++++++++--------------------
  src/runtime/lookup_darwin_amd64.s | 54 ++++++++++++++--------------
  src/runtime/lookup_darwin_arm.s   | 12 +++----
  src/runtime/lookup_darwin_arm64.s | 12 +++----
  4 files changed, 76 insertions(+), 76 deletions(-)
+
+diff --git a/src/runtime/lookup_darwin_386.s b/src/runtime/lookup_darwin_386.s
+index 4995e51df5..e185532231 100644
+--- a/src/runtime/lookup_darwin_386.s
++++ b/src/runtime/lookup_darwin_386.s
+@@ -7,44 +7,44 @@
+ #include "textflag.h"
+ 
+ TEXT runtime·res_init_trampoline(SB),NOSPLIT,$0
+-    PUSHL   BP
+-    MOVL    SP, BP
+-    SUBL    $8, SP
+-    CALL    libc_res_init(SB)
+-    CMPL    AX, $-1
+-    JNE ok
+-    CALL    libc_error(SB)
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$8, SP
++	CALL	libc_res_init(SB)
++	CMPL	AX, $-1
++	JNE ok
++	CALL	libc_error(SB)
+ ok:
+-    MOVL    BP, SP
+-    POPL    BP
+-    RET
++	MOVL	BP, SP
++	POPL	BP
++	RET
+ 
+ TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
+-    PUSHL   BP
+-    MOVL    SP, BP
+-    SUBL    $24, SP
+-    MOVL    32(SP), CX
+-    MOVL    16(CX), AX      // arg 5 anslen
+-    MOVL    AX, 16(SP)
+-    MOVL    12(CX), AX      // arg 4 answer
+-    MOVL    AX, 12(SP)
+-    MOVL    8(CX), AX       // arg 3 type
+-    MOVL    AX, 8(SP)
+-    MOVL    4(CX), AX       // arg 2 class
+-    MOVL    AX, 4(SP)
+-    MOVL    0(CX), AX       // arg 1 name
+-    MOVL    AX, 0(SP)
+-    CALL    libc_res_search(SB)
+-    XORL    DX, DX
+-    CMPL    AX, $-1
+-    JNE ok
+-    CALL    libc_error(SB)
+-    MOVL    (AX), DX
+-    XORL    AX, AX
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$24, SP
++	MOVL	32(SP), CX
++	MOVL	16(CX), AX	// arg 5 anslen
++	MOVL	AX, 16(SP)
++	MOVL	12(CX), AX	// arg 4 answer
++	MOVL	AX, 12(SP)
++	MOVL	8(CX), AX	// arg 3 type
++	MOVL	AX, 8(SP)
++	MOVL	4(CX), AX	// arg 2 class
++	MOVL	AX, 4(SP)
++	MOVL	0(CX), AX	// arg 1 name
++	MOVL	AX, 0(SP)
++	CALL	libc_res_search(SB)
++	XORL	DX, DX
++	CMPL	AX, $-1
++	JNE ok
++	CALL	libc_error(SB)
++	MOVL	(AX), DX
++	XORL	AX, AX
+ ok:
+-    MOVL    32(SP), CX
+-    MOVL    AX, 20(CX)
+-    MOVL    DX, 24(CX)
+-    MOVL    BP, SP
+-    POPL    BP
+-    RET
++	MOVL	32(SP), CX
++	MOVL	AX, 20(CX)
++	MOVL	DX, 24(CX)
++	MOVL	BP, SP
++	POPL	BP
++	RET
+diff --git a/src/runtime/lookup_darwin_amd64.s b/src/runtime/lookup_darwin_amd64.s
+index 3534a4fbc7..2e3068649a 100644
+--- a/src/runtime/lookup_darwin_amd64.s
++++ b/src/runtime/lookup_darwin_amd64.s
+@@ -7,34 +7,34 @@
+ #include "textflag.h"
+ 
+ TEXT runtime·res_init_trampoline(SB),NOSPLIT,$0
+-    PUSHQ    BP
+-    MOVQ     SP, BP
+-    CALL     libc_res_init(SB)
+-    CMPQ     AX, $-1
+-    JNE ok
+-    CALL     libc_error(SB)
++	PUSHQ	BP
++	MOVQ	SP, BP
++	CALL	libc_res_init(SB)
++	CMPQ	AX, $-1
++	JNE ok
++	CALL	libc_error(SB)
+ ok:
+-    POPQ    BP
+-    RET
++	POPQ	BP
++	RET
+ 
+ TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
+-    PUSHQ    BP
+-    MOVQ     SP, BP
+-    MOVQ     DI, BX   // move DI into BX to preserve struct addr
+-    MOVL     24(BX), R8  // arg 5 anslen
+-    MOVQ     16(BX), CX  // arg 4 answer
+-    MOVL     12(BX), DX  // arg 3 type
+-    MOVL     8(BX), SI   // arg 2 class
+-    MOVQ     0(BX), DI   // arg 1 name
+-    CALL     libc_res_search(SB)
+-    XORL     DX, DX
+-    CMPQ     AX, $-1
+-    JNE ok
+-    CALL     libc_error(SB)
+-    MOVLQSX  (AX), DX             // move return from libc_error into DX
+-    XORL     AX, AX               // size on error is 0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	DI, BX	// move DI into BX to preserve struct addr
++	MOVL	24(BX), R8	// arg 5 anslen
++	MOVQ	16(BX), CX	// arg 4 answer
++	MOVL	12(BX), DX	// arg 3 type
++	MOVL	8(BX), SI	// arg 2 class
++	MOVQ	0(BX), DI	// arg 1 name
++	CALL	libc_res_search(SB)
++	XORL	DX, DX
++	CMPQ	AX, $-1
++	JNE ok
++	CALL	libc_error(SB)
++	MOVLQSX	(AX), DX	// move return from libc_error into DX
++	XORL	AX, AX	// size on error is 0
+ ok:
+-    MOVL    AX, 28(BX) // size
+-    MOVL    DX, 32(BX) // error code
+-    POPQ    BP
+-    RET
++	MOVL	AX, 28(BX) // size
++	MOVL	DX, 32(BX) // error code
++	POPQ	BP
++	RET
+diff --git a/src/runtime/lookup_darwin_arm.s b/src/runtime/lookup_darwin_arm.s
+index bf69d21213..c74419f58b 100644
+--- a/src/runtime/lookup_darwin_arm.s
++++ b/src/runtime/lookup_darwin_arm.s
+@@ -15,11 +15,11 @@
+ // exit code.
+ 
+ TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
+-    MOVW    $90, R0
+-    BL    libc_exit(SB)
+-    RET
++	MOVW	$90, R0
++	BL	libc_exit(SB)
++	RET
+ 
+ TEXT runtime·res_init_trampoline(SB),NOSPLIT,$0
+-    MOVW    $91, R0
+-    BL    libc_exit(SB)
+-    RET
++	MOVW	$91, R0
++	BL	libc_exit(SB)
++	RET
+diff --git a/src/runtime/lookup_darwin_arm64.s b/src/runtime/lookup_darwin_arm64.s
+index 31061e15c0..e13662b037 100644
+--- a/src/runtime/lookup_darwin_arm64.s
++++ b/src/runtime/lookup_darwin_arm64.s
+@@ -11,11 +11,11 @@
+ // exit code.
+ 
+ TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
+-    MOVW    $90, R0
+-    BL    libc_exit(SB)
+-    RET
++	MOVW	$90, R0
++	BL	libc_exit(SB)
++	RET
+ 
+ TEXT runtime·res_init_trampoline(SB),NOSPLIT,$0
+-    MOVW    $91, R0
+-    BL    libc_exit(SB)
+-    RET
++	MOVW	$91, R0
++	BL	libc_exit(SB)
++	RET

@@ -12,9 +12,315 @@ Date:   Mon Oct 23 21:57:54 2017 -0400
     Change-Id: I545dc215e408289e4d0b28f7c2ffcd849d89ad3b
     Reviewed-on: https://go-review.googlesource.com/72870
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/build.go | 83 ++++++++++++++++++++++++++++++++++++++++++++++-----
  src/make.bash         | 48 ++++++++---------------------
  src/make.bat          | 48 +++++++++--------------------
  src/make.rc           | 37 ++++++++---------------
  4 files changed, 113 insertions(+), 103 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index c395205c55..2d4b575a83 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -32,6 +32,7 @@ var (
+ 	goroot_final           string
+ 	goextlinkenabled       string
+ 	gogcflags              string // For running built compiler
++	goldflags              string
+ 	workdir                string
+ 	tooldir                string
+ 	oldgoos                string
+@@ -984,8 +985,22 @@ func cmdenv() {
+ 
+ // The bootstrap command runs a build from scratch,
+ // stopping at having installed the go_bootstrap command.
++//
++// WARNING: This command runs after cmd/dist is built with Go 1.4.
++// It rebuilds and installs cmd/dist with the new toolchain, so other
++// commands (like "go tool dist test" in run.bash) can rely on bug fixes
++// made since Go 1.4, but this function cannot. In particular, the uses
++// of os/exec in this function cannot assume that
++//	cmd.Env = append(os.Environ(), "X=Y")
++// sets $X to Y in the command's environment. That guarantee was
++// added after Go 1.4, and in fact in Go 1.4 it was typically the opposite:
++// if $X was already present in os.Environ(), most systems preferred
++// that setting, not the new one.
+ func cmdbootstrap() {
++	var noBanner bool
+ 	flag.BoolVar(&rebuildall, "a", rebuildall, "rebuild all")
++	flag.BoolVar(&noBanner, "no-banner", noBanner, "do not print banner")
++
+ 	xflagparse(0)
+ 
+ 	if isdir(pathf("%s/src/pkg", goroot)) {
+@@ -1007,6 +1022,9 @@ func cmdbootstrap() {
+ 	checkCC()
+ 	bootstrapBuildTools()
+ 
++	// Remember old content of $GOROOT/bin for comparison below.
++	oldBinFiles, _ := filepath.Glob(pathf("%s/bin/*", goroot))
++
+ 	// For the main bootstrap, building for host os/arch.
+ 	oldgoos = goos
+ 	oldgoarch = goarch
+@@ -1049,19 +1067,65 @@ func cmdbootstrap() {
+ 		go install(dir)
+ 	}
+ 	<-installed["cmd/go"]
++	xprintf("\n")
+ 
+-	goos = oldgoos
+-	goarch = oldgoarch
+-	os.Setenv("GOARCH", goarch)
+-	os.Setenv("GOOS", goos)
++	gogcflags = os.Getenv("GO_GCFLAGS") // we were using $BOOT_GO_GCFLAGS until now
++	goldflags = os.Getenv("GO_LDFLAGS")
+ 
+-	// Build runtime for actual goos/goarch too.
+-	if goos != gohostos || goarch != gohostarch {
+-		installed["runtime"] = make(chan struct{})
+-		install("runtime")
++	// Build full toolchain for host and (if different) for target.
++	if goos != oldgoos || goarch != oldgoarch {
++		os.Setenv("CC", defaultcc)
++		buildAll()
++		xprintf("\n")
++		goos = oldgoos
++		goarch = oldgoarch
++		os.Setenv("GOOS", goos)
++		os.Setenv("GOARCH", goarch)
++	}
++
++	os.Setenv("CC", defaultcctarget)
++	buildAll()
++
++	// Check that there are no new files in $GOROOT/bin other than
++	// go and gofmt and $GOOS_$GOARCH (target bin when cross-compiling).
++	binFiles, _ := filepath.Glob(pathf("%s/bin/*", goroot))
++	ok := map[string]bool{}
++	for _, f := range oldBinFiles {
++		ok[f] = true
++	}
++	for _, f := range binFiles {
++		elem := strings.TrimSuffix(filepath.Base(f), ".exe")
++		if !ok[f] && elem != "go" && elem != "gofmt" && elem != goos+"_"+goarch {
++			fatalf("unexpected new file in $GOROOT/bin: %s", elem)
++		}
++	}
++
++	// Remove go_bootstrap now that we're done.
++	xremove(pathf("%s/go_bootstrap", tooldir))
++
++	// Print trailing banner unless instructed otherwise.
++	if !noBanner {
++		banner()
+ 	}
+ }
+ 
++func buildAll() {
++	desc := ""
++	if oldgoos != goos || oldgoarch != goarch {
++		desc = " host,"
++	}
++	xprintf("##### Building packages and commands for%s %s/%s.\n", desc, goos, goarch)
++	go_bootstrap := pathf("%s/go_bootstrap", tooldir)
++	go_install := []string{go_bootstrap, "install", "-v", "-gcflags=" + gogcflags, "-ldflags=" + goldflags}
++
++	// Force only one process at a time on vx32 emulation.
++	if gohostos == "plan9" && os.Getenv("sysname") == "vx32" {
++		go_install = append(go_install, "-p=1")
++	}
++
++	run(pathf("%s/src", goroot), ShowOutput|CheckExit, append(go_install, "std", "cmd")...)
++}
++
+ // Cannot use go/build directly because cmd/dist for a new release
+ // builds against an old release's go/build, which may be out of sync.
+ // To reduce duplication, we generate the list for go/build from this.
+@@ -1176,7 +1240,10 @@ func cmdclean() {
+ // Banner prints the 'now you've installed Go' banner.
+ func cmdbanner() {
+ 	xflagparse(0)
++	banner()
++}
+ 
++func banner() {
+ 	xprintf("\n")
+ 	xprintf("---\n")
+ 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot)
+diff --git a/src/make.bash b/src/make.bash
+index 3804b46b03..4e1b7b6bd8 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -50,6 +50,7 @@
+ # PKG_CONFIG: Path to pkg-config tool. Default is "pkg-config".
+ #
+ # GO_DISTFLAGS: extra flags to provide to "dist bootstrap".
++# (Or just pass them to the make.bash command line.)
+ 
+ set -e
+ 
+@@ -164,40 +165,15 @@ if [ "$1" = "--no-clean" ]; then
+ 	buildall=""
+ 	shift
+ fi
+-./cmd/dist/dist bootstrap $buildall $GO_DISTFLAGS -v # builds go_bootstrap
+ 
+-# Delay move of dist tool to now, because bootstrap may clear tool directory.
+-mv cmd/dist/dist "$GOTOOLDIR"/dist
+-echo
+-
+-if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
+-	echo "##### Building packages and commands for host, $GOHOSTOS/$GOHOSTARCH."
+-	# CC_FOR_TARGET is recorded as the default compiler for the go tool. When building for the host, however,
+-	# use the host compiler, CC, from `cmd/dist/dist env` instead.
+-	CC=$CC GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
+-		"$GOTOOLDIR"/go_bootstrap install -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std cmd
+-	echo
+-fi
+-
+-echo "##### Building packages and commands for $GOOS/$GOARCH."
+-
+-old_bin_files=$(cd $GOROOT/bin && echo *)
+-
+-CC=$CC_FOR_TARGET "$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std cmd
+-
+-# Check that there are no new files in $GOROOT/bin other than go and gofmt
+-# and $GOOS_$GOARCH (a directory used when cross-compiling).
+-(cd $GOROOT/bin && for f in *; do
+-	if ! expr " $old_bin_files go gofmt ${GOOS}_${GOARCH} " : ".* $f " >/dev/null 2>/dev/null; then
+-		echo 1>&2 "ERROR: unexpected new file in $GOROOT/bin: $f"
+-		exit 1
+-	fi
+-done)
+-
+-echo
+-
+-rm -f "$GOTOOLDIR"/go_bootstrap
+-
+-if [ "$1" != "--no-banner" ]; then
+-	"$GOTOOLDIR"/dist banner
+-fi
++# Run dist bootstrap to complete make.bash.
++# Bootstrap installs a proper cmd/dist, built with the new toolchain.
++# Throw ours, built with Go 1.4, away after bootstrap.
++./cmd/dist/dist bootstrap $buildall -v $GO_DISTFLAGS "$@"
++rm -f ./cmd/dist/dist
++
++# DO NOT ADD ANY NEW CODE HERE.
++# The bootstrap+rm above are the final step of make.bash.
++# If something must be added, add it to cmd/dist's cmdbootstrap,
++# to avoid needing three copies in three different shell languages
++# (make.bash, make.bat, make.rc).
+diff --git a/src/make.bat b/src/make.bat
+index bf25b95ca5..101fc4bb1a 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -83,44 +83,24 @@ if x%2==x--dist-tool goto copydist
+ 
+ set buildall=-a
+ if x%1==x--no-clean set buildall=
+-.\cmd\dist\dist bootstrap %buildall% -v
+-if errorlevel 1 goto fail
+-:: Delay move of dist tool to now, because bootstrap cleared tool directory.
+-move .\cmd\dist\dist.exe "%GOTOOLDIR%\dist.exe"
+-echo.
+-
+-if not %GOHOSTARCH% == %GOARCH% goto localbuild
+-if not %GOHOSTOS% == %GOOS% goto localbuild
+-goto mainbuild
+-
+-:localbuild
+-echo ##### Building packages and commands for host, %GOHOSTOS%/%GOHOSTARCH%.
+-:: CC_FOR_TARGET is recorded as the default compiler for the go tool. When building for the
+-:: host, however, use the host compiler, CC, from `cmd/dist/dist env` instead.
+-setlocal
+-set GOOS=%GOHOSTOS%
+-set GOARCH=%GOHOSTARCH%
+-"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -v std cmd
+-endlocal
+-if errorlevel 1 goto fail
+-echo.
++if x%2==x--no-clean set buildall=
++if x%1==x--no-banner set buildall=%buildall% --no-banner
++if x%2==x--no-banner set buildall=%buildall% --no-banner
+ 
+-:mainbuild
+-echo ##### Building packages and commands for %GOOS%/%GOARCH%.
+-setlocal
+-set CC=%CC_FOR_TARGET%
+-"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -a -v std cmd
+-endlocal
++:: Run dist bootstrap to complete make.bash.
++:: Bootstrap installs a proper cmd/dist, built with the new toolchain.
++:: Throw ours, built with Go 1.4, away after bootstrap.
++.\cmd\dist\dist bootstrap %buildall% -v
+ if errorlevel 1 goto fail
+-del "%GOTOOLDIR%\go_bootstrap.exe"
+-echo.
+-
+-if x%1==x--no-banner goto nobanner
+-"%GOTOOLDIR%\dist" banner
+-:nobanner
+-
++del .\cmd\dist\dist.exe
+ goto end
+ 
++:: DO NOT ADD ANY NEW CODE HERE.
++:: The bootstrap+del above are the final step of make.bat.
++:: If something must be added, add it to cmd/dist's cmdbootstrap,
++:: to avoid needing three copies in three different shell languages
++:: (make.bash, make.bat, make.rc).
++
+ :copydist
+ mkdir "%GOTOOLDIR%" 2>NUL
+ copy cmd\dist\dist.exe "%GOTOOLDIR%\"
+diff --git a/src/make.rc b/src/make.rc
+index 604e4a89c9..7704b12417 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -82,31 +82,18 @@ if(~ $1 --dist-tool){
+ }
+ 
+ buildall = -a
+-if(~ $1 --no-clean)
++if(~ $1 --no-clean) {
+ 	buildall = ()
+-./cmd/dist/dist bootstrap $buildall -v # builds go_bootstrap
+-# Delay move of dist tool to now, because bootstrap may clear tool directory.
+-mv cmd/dist/dist $GOTOOLDIR/dist
+-echo
+-
+-# Run only one process at a time on 9vx.
+-if(~ $sysname vx32)
+-	pflag = (-p 1)
+-
+-if(! ~ $GOHOSTARCH $GOARCH || ! ~ $GOHOSTOS $GOOS){
+-	echo '##### Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
+-	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN=() \
+-		$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
+-	echo
++	shift
+ }
++# Run dist bootstrap to complete make.bash.
++# Bootstrap installs a proper cmd/dist, built with the new toolchain.
++# Throw ours, built with Go 1.4, away after bootstrap.
++./cmd/dist/dist bootstrap -v $buildall $*
++rm -f ./cmd/dist/dist
+ 
+-echo '##### Building packages and commands for' $GOOS/$GOARCH^.
+-$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
+-echo
+-
+-rm -f $GOTOOLDIR/go_bootstrap
+-
+-if(! ~ $1 --no-banner)
+-	$GOTOOLDIR/dist banner
+-
+-status=''
++# DO NOT ADD ANY NEW CODE HERE.
++# The bootstrap+rm above are the final step of make.rc.
++# If something must be added, add it to cmd/dist's cmdbootstrap,
++# to avoid needing three copies in three different shell languages
++# (make.bash, make.bat, make.rc).

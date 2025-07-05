@@ -9,7 +9,40 @@ Date:   Sat Apr 11 19:30:37 2015 -0400
     Change-Id: Ib0438021bfe9eb105222b93e5bb375c282cc7b8c
     Reviewed-on: https://go-review.googlesource.com/8822
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/crypto/x509/root_darwin_test.go | 5 +++--
  src/crypto/x509/x509_test.go        | 5 +++--
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/x509/root_darwin_test.go b/src/crypto/x509/root_darwin_test.go
+index e4718d0e33..cc6d23c505 100644
+--- a/src/crypto/x509/root_darwin_test.go
++++ b/src/crypto/x509/root_darwin_test.go
+@@ -10,8 +10,9 @@ import (
+ )
+ 
+ func TestSystemRoots(t *testing.T) {
+-	if runtime.GOARCH == "arm" {
+-		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++	switch runtime.GOARCH {
++	case "arm", "arm64":
++		t.Skipf("skipping on %s/%s, no system root", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+ 	sysRoots := systemRootsPool()         // actual system roots
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 7373157e41..75207fe619 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -830,8 +830,9 @@ func TestImports(t *testing.T) {
+ 	case "android", "nacl":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+ 	case "darwin":
+-		if runtime.GOARCH == "arm" {
+-			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++		switch runtime.GOARCH {
++		case "arm", "arm64":
++			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
+ 		}
+ 	}
+ 

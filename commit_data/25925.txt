@@ -9,6 +9,41 @@ Date:   Thu Dec 3 16:47:22 2015 -0800
     Change-Id: Ic86e54f6bc67db46504f7d43a0666647af308177
     Reviewed-on: https://go-review.googlesource.com/17404
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 56da4d0237..4857e07e3e 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -21,14 +21,6 @@ Read the <a href="/doc/go1.5">Go 1.5 Release Notes</a> for more information.
+ 
+ <h3 id="go1.5.minor">Minor revisions</h3>
+ 
+-<p>
+-go1.5.2 (released 2015/12/02) includes bug fixes to the compiler, linker, and
+-the <code>mime/multipart</code>, <code>net</code>, and <code>runtime</code>
+-packages.
+-See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.5.2">Go
+-1.5.2 milestone</a> on our issue tracker for details.
+-</p>
+-
+ <p>
+ go1.5.1 (released 2015/09/08) includes bug fixes to the compiler, assembler, and
+ the <code>fmt</code>, <code>net/textproto</code>, <code>net/http</code>, and
+@@ -37,6 +29,14 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.5.1">Go
+ 1.5.1 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.5.2 (released 2015/12/02) includes bug fixes to the compiler, linker, and
++the <code>mime/multipart</code>, <code>net</code>, and <code>runtime</code>
++packages.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.5.2">Go
++1.5.2 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.4">go1.4 (released 2014/12/10)</h2>
+ 
+ <p>

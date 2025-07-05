@@ -10,6 +10,21 @@ Date:   Fri Mar 15 16:50:54 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7863043
-
+---
  src/pkg/net/http/z_last_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/net/http/z_last_test.go b/src/pkg/net/http/z_last_test.go
+index c000c537e4..a80fb01d0a 100644
+--- a/src/pkg/net/http/z_last_test.go
++++ b/src/pkg/net/http/z_last_test.go
+@@ -39,6 +39,9 @@ func interestingGoroutines() (gs []string) {
+ // Verify the other tests didn't leave any goroutines running.
+ // This is in a file named z_last_test.go so it sorts at the end.
+ func TestGoroutinesRunning(t *testing.T) {
++	if testing.Short() {
++		t.Skip("not counting goroutines for leakage in -short mode")
++	}
+ 	gs := interestingGoroutines()
+ 
+ 	n := 0

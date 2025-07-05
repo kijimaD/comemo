@@ -10,6 +10,21 @@ Date:   Fri Oct 28 15:12:18 2016 -0400
     Change-Id: I364eea5ca072281245c7ab3afb0bf69adc3a8eae
     Reviewed-on: https://go-review.googlesource.com/32258
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/mprof.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index b3452f2c87..fc06d8dbe7 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -346,6 +346,9 @@ func SetMutexProfileFraction(rate int) int {
+ 
+ //go:linkname mutexevent sync.event
+ func mutexevent(cycles int64, skip int) {
++	if cycles < 0 {
++		cycles = 0
++	}
+ 	rate := int64(atomic.Load64(&mutexprofilerate))
+ 	// TODO(pjw): measure impact of always calling fastrand vs using something
+ 	// like malloc.go:nextSample()

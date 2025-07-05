@@ -15,6 +15,38 @@ Date:   Wed Jul 22 20:40:18 2015 -0700
     Change-Id: I741119e0c8310051d7185459f78be8b89237b85b
     Reviewed-on: https://go-review.googlesource.com/12564
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 15 +++++++++++++--
  1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 27e4f754d1..f46fe25be4 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -419,13 +419,24 @@ func live(f *Func) [][]ID {
+ 
+ 	s := newSparseSet(f.NumValues())
+ 	t := newSparseSet(f.NumValues())
++
++	// Instead of iterating over f.Blocks, iterate over their postordering.
++	// Liveness information flows backward, so starting at the end
++	// increases the probability that we will stabilize quickly.
++	// TODO: Do a better job yet. Here's one possibility:
++	// Calculate the dominator tree and locate all strongly connected components.
++	// If a value is live in one block of an SCC, it is live in all.
++	// Walk the dominator tree from end to beginning, just once, treating SCC
++	// components as single blocks, duplicated calculated liveness information
++	// out to all of them.
++	po := postorder(f)
+ 	for {
+-		for _, b := range f.Blocks {
++		for _, b := range po {
+ 			f.Logf("live %s %v\n", b, live[b.ID])
+ 		}
+ 		changed := false
+ 
+-		for _, b := range f.Blocks {
++		for _, b := range po {
+ 			// Start with known live values at the end of the block
+ 			s.clear()
+ 			s.addAll(live[b.ID])

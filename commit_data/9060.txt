@@ -7,6 +7,22 @@ Date:   Wed Jul 13 15:10:50 2011 -0700
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4704047
-
+---
  src/pkg/path/filepath/path.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index b181483ed6..a5e6a22ae9 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -140,8 +140,8 @@ func SplitList(path string) []string {
+ }
+ 
+ // Split splits path immediately following the final Separator,
+-// partitioning it into a directory and a file name components.
+-// If there are no separators in path, Split returns an empty base
++// separating it into a directory and file name component.
++// If there is no Separator in path, Split returns an empty dir
+ // and file set to path.
+ func Split(path string) (dir, file string) {
+ 	i := len(path) - 1

@@ -17,7 +17,7 @@ Date:   Wed Jul 12 14:01:26 2023 -0700
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/fds_nonunix.go           | 11 +++++
  src/runtime/fds_test.go              | 78 ++++++++++++++++++++++++++++++++++++
  src/runtime/fds_unix.go              | 44 ++++++++++++++++++++
@@ -25,3 +25,261 @@ Date:   Wed Jul 12 14:01:26 2023 -0700
  src/runtime/security_unix.go         | 40 +-----------------
  src/runtime/testdata/testfds/main.go | 29 ++++++++++++++
  6 files changed, 165 insertions(+), 38 deletions(-)
+
+diff --git a/src/runtime/fds_nonunix.go b/src/runtime/fds_nonunix.go
+new file mode 100644
+index 0000000000..81e59f33b5
+--- /dev/null
++++ b/src/runtime/fds_nonunix.go
+@@ -0,0 +1,11 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !unix
++
++package runtime
++
++func checkfds() {
++	// Nothing to do on non-Unix platforms.
++}
+diff --git a/src/runtime/fds_test.go b/src/runtime/fds_test.go
+new file mode 100644
+index 0000000000..8d349ec7eb
+--- /dev/null
++++ b/src/runtime/fds_test.go
+@@ -0,0 +1,78 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix
++
++package runtime_test
++
++import (
++	"internal/testenv"
++	"os"
++	"strings"
++	"testing"
++)
++
++func TestCheckFDs(t *testing.T) {
++	if *flagQuick {
++		t.Skip("-quick")
++	}
++
++	testenv.MustHaveGoBuild(t)
++
++	fdsBin, err := buildTestProg(t, "testfds")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	i, err := os.CreateTemp(t.TempDir(), "fds-input")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if _, err := i.Write([]byte("stdin")); err != nil {
++		t.Fatal(err)
++	}
++	if err := i.Close(); err != nil {
++		t.Fatal(err)
++	}
++
++	o, err := os.CreateTemp(t.TempDir(), "fds-output")
++	if err != nil {
++		t.Fatal(err)
++	}
++	outputPath := o.Name()
++	if err := o.Close(); err != nil {
++		t.Fatal(err)
++	}
++
++	env := []string{"TEST_OUTPUT=" + outputPath}
++	for _, e := range os.Environ() {
++		if strings.HasPrefix(e, "GODEBUG=") || strings.HasPrefix(e, "GOTRACEBACK=") {
++			continue
++		}
++		env = append(env, e)
++	}
++
++	proc, err := os.StartProcess(fdsBin, []string{fdsBin}, &os.ProcAttr{
++		Env:   env,
++		Files: []*os.File{},
++	})
++	if err != nil {
++		t.Fatal(err)
++	}
++	ps, err := proc.Wait()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if ps.ExitCode() != 0 {
++		t.Fatalf("testfds failed: %d", ps.ExitCode())
++	}
++
++	fc, err := os.ReadFile(outputPath)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if string(fc) != "" {
++		t.Errorf("unexpected file content, got: %q", string(fc))
++	}
++}
+diff --git a/src/runtime/fds_unix.go b/src/runtime/fds_unix.go
+new file mode 100644
+index 0000000000..3004e6fd8b
+--- /dev/null
++++ b/src/runtime/fds_unix.go
+@@ -0,0 +1,44 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix
++
++package runtime
++
++func checkfds() {
++	if islibrary || isarchive {
++		// If the program is actually a library, presumably being consumed by
++		// another program, we don't want to mess around with the file
++		// descriptors.
++		return
++	}
++
++	const (
++		// F_GETFD, EBADF, O_RDWR are standard across all unixes we support, so
++		// we define them here rather than in each of the OS specific files.
++		F_GETFD = 0x01
++		EBADF   = 0x09
++		O_RDWR  = 0x02
++	)
++
++	devNull := []byte("/dev/null\x00")
++	for i := 0; i < 3; i++ {
++		ret, errno := fcntl(int32(i), F_GETFD, 0)
++		if ret >= 0 {
++			continue
++		}
++		if errno != EBADF {
++			print("runtime: unexpected error while checking standard file descriptor ", i, ", errno=", errno, "\n")
++			throw("cannot open standard fds")
++		}
++
++		if ret := open(&devNull[0], O_RDWR, 0); ret < 0 {
++			print("runtime: standard file descriptor ", i, " closed, unable to open /dev/null, errno=", errno, "\n")
++			throw("cannot open standard fds")
++		} else if ret != int32(i) {
++			print("runtime: opened unexpected file descriptor ", ret, " when attempting to open ", i, "\n")
++			throw("cannot open standard fds")
++		}
++	}
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index a0167d333f..047b359d3d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -741,6 +741,7 @@ func schedinit() {
+ 	goargs()
+ 	goenvs()
+ 	secure()
++	checkfds()
+ 	parsedebugvars()
+ 	gcinit()
+ 
+diff --git a/src/runtime/security_unix.go b/src/runtime/security_unix.go
+index 16fc87eece..fa54090df2 100644
+--- a/src/runtime/security_unix.go
++++ b/src/runtime/security_unix.go
+@@ -13,19 +13,12 @@ func secure() {
+ 		return
+ 	}
+ 
+-	// When secure mode is enabled, we do two things:
+-	//   1. ensure the file descriptors 0, 1, and 2 are open, and if not open them,
+-	//      pointing at /dev/null (or fail)
+-	//   2. enforce specific environment variable values (currently we only force
+-	//		GOTRACEBACK=none)
++	// When secure mode is enabled, we do one thing: enforce specific
++	// environment variable values (currently we only force GOTRACEBACK=none)
+ 	//
+ 	// Other packages may also disable specific functionality when secure mode
+ 	// is enabled (determined by using linkname to call isSecureMode).
+-	//
+-	// NOTE: we may eventually want to enforce (1) regardless of whether secure
+-	// mode is enabled or not.
+ 
+-	secureFDs()
+ 	secureEnv()
+ }
+ 
+@@ -41,32 +34,3 @@ func secureEnv() {
+ 		envs = append(envs, "GOTRACEBACK=none")
+ 	}
+ }
+-
+-func secureFDs() {
+-	const (
+-		// F_GETFD and EBADF are standard across all unixes, define
+-		// them here rather than in each of the OS specific files
+-		F_GETFD = 0x01
+-		EBADF   = 0x09
+-	)
+-
+-	devNull := []byte("/dev/null\x00")
+-	for i := 0; i < 3; i++ {
+-		ret, errno := fcntl(int32(i), F_GETFD, 0)
+-		if ret >= 0 {
+-			continue
+-		}
+-		if errno != EBADF {
+-			print("runtime: unexpected error while checking standard file descriptor ", i, ", errno=", errno, "\n")
+-			throw("cannot secure fds")
+-		}
+-
+-		if ret := open(&devNull[0], 2 /* O_RDWR */, 0); ret < 0 {
+-			print("runtime: standard file descriptor ", i, " closed, unable to open /dev/null, errno=", errno, "\n")
+-			throw("cannot secure fds")
+-		} else if ret != int32(i) {
+-			print("runtime: opened unexpected file descriptor ", ret, " when attempting to open ", i, "\n")
+-			throw("cannot secure fds")
+-		}
+-	}
+-}
+diff --git a/src/runtime/testdata/testfds/main.go b/src/runtime/testdata/testfds/main.go
+new file mode 100644
+index 0000000000..238ba469a3
+--- /dev/null
++++ b/src/runtime/testdata/testfds/main.go
+@@ -0,0 +1,29 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"io"
++	"log"
++	"os"
++)
++
++func main() {
++	f, err := os.OpenFile(os.Getenv("TEST_OUTPUT"), os.O_CREATE|os.O_RDWR, 0600)
++	if err != nil {
++		log.Fatalf("os.Open failed: %s", err)
++	}
++	defer f.Close()
++	b, err := io.ReadAll(os.Stdin)
++	if err != nil {
++		log.Fatalf("io.ReadAll(os.Stdin) failed: %s", err)
++	}
++	if len(b) != 0 {
++		log.Fatalf("io.ReadAll(os.Stdin) returned non-nil: %x", b)
++	}
++	fmt.Fprintf(os.Stdout, "stdout\n")
++	fmt.Fprintf(os.Stderr, "stderr\n")
++}

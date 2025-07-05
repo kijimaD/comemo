@@ -32,7 +32,7 @@ Date:   Thu Apr 7 17:25:23 2022 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go                              | 12 +--
  src/cmd/go/internal/cfg/cfg.go                     |  6 +-
  src/cmd/go/internal/list/list.go                   |  2 +-
@@ -42,3 +42,350 @@ Date:   Thu Apr 7 17:25:23 2022 -0400
  src/cmd/go/testdata/script/test_buildvcs.txt       |  2 +
  .../go/testdata/script/version_buildvcs_nested.txt |  2 +-
  8 files changed, 159 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 586bc1a7ca..6fdb4f93a3 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -136,11 +136,13 @@
+ //	-buildmode mode
+ //		build mode to use. See 'go help buildmode' for more.
+ //	-buildvcs
+-//		Whether to stamp binaries with version control information. By default,
+-//		version control information is stamped into a binary if the main package
+-//		and the main module containing it are in the repository containing the
+-//		current directory (if there is a repository). Use -buildvcs=false to
+-//		omit version control information.
++//		Whether to stamp binaries with version control information
++//		("true", "false", or "auto"). By default ("auto"), version control
++//		information is stamped into a binary if the main package, the main module
++//		containing it, and the current directory are all in the same repository.
++//		Use -buildvcs=false to always omit version control information, or
++//		-buildvcs=true to error out if version control information is available but
++//		cannot be included due to a missing tool or ambiguous directory structure.
+ //	-compiler name
+ //		name of compiler to use, as in runtime.Compiler (gccgo or gc).
+ //	-gccgoflags '[pattern=]arg list'
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index a11a1a7655..c6ddfe55d5 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -44,9 +44,9 @@ func exeSuffix() string {
+ 
+ // These are general "build flags" used by build and other commands.
+ var (
+-	BuildA                 bool   // -a flag
+-	BuildBuildmode         string // -buildmode flag
+-	BuildBuildvcs          bool   // -buildvcs flag
++	BuildA                 bool     // -a flag
++	BuildBuildmode         string   // -buildmode flag
++	BuildBuildvcs          = "auto" // -buildvcs flag: "true", "false", or "auto"
+ 	BuildContext           = defaultContext()
+ 	BuildMod               string                  // -mod flag
+ 	BuildModExplicit       bool                    // whether -mod was set explicitly
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index e039b9faa1..17864e1da7 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -567,7 +567,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 	pkgOpts := load.PackageOpts{
+ 		IgnoreImports:   *listFind,
+ 		ModResolveTests: *listTest,
+-		LoadVCS:         cfg.BuildBuildvcs,
++		LoadVCS:         true,
+ 	}
+ 	pkgs := load.PackagesAndErrors(ctx, pkgOpts, args)
+ 	if !*listE {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 10a980fc65..e43117f3d3 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -17,6 +17,7 @@ import (
+ 	"internal/goroot"
+ 	"io/fs"
+ 	"os"
++	"os/exec"
+ 	"path"
+ 	pathpkg "path"
+ 	"path/filepath"
+@@ -196,9 +197,9 @@ func (p *Package) Desc() string {
+ // IsTestOnly reports whether p is a test-only package.
+ //
+ // A “test-only” package is one that:
+-// 	- is a test-only variant of an ordinary package, or
+-// 	- is a synthesized "main" package for a test binary, or
+-// 	- contains only _test.go files.
++//   - is a test-only variant of an ordinary package, or
++//   - is a synthesized "main" package for a test binary, or
++//   - contains only _test.go files.
+ func (p *Package) IsTestOnly() bool {
+ 	return p.ForTest != "" ||
+ 		p.Internal.TestmainGo != nil ||
+@@ -2372,7 +2373,7 @@ func (p *Package) setBuildInfo(includeVCS bool) {
+ 	var vcsCmd *vcs.Cmd
+ 	var err error
+ 	const allowNesting = true
+-	if includeVCS && p.Module != nil && p.Module.Version == "" && !p.Standard && !p.IsTestOnly() {
++	if includeVCS && cfg.BuildBuildvcs != "false" && p.Module != nil && p.Module.Version == "" && !p.Standard && !p.IsTestOnly() {
+ 		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "", allowNesting)
+ 		if err != nil && !errors.Is(err, os.ErrNotExist) {
+ 			setVCSError(err)
+@@ -2384,7 +2385,14 @@ func (p *Package) setBuildInfo(includeVCS bool) {
+ 			// repository containing the working directory. Don't include VCS info.
+ 			// If the repo contains the module or vice versa, but they are not
+ 			// the same directory, it's likely an error (see below).
+-			repoDir, vcsCmd = "", nil
++			goto omitVCS
++		}
++		if cfg.BuildBuildvcs == "auto" && vcsCmd != nil && vcsCmd.Cmd != "" {
++			if _, err := exec.LookPath(vcsCmd.Cmd); err != nil {
++				// We fould a repository, but the required VCS tool is not present.
++				// "-buildvcs=auto" means that we should silently drop the VCS metadata.
++				goto omitVCS
++			}
+ 		}
+ 	}
+ 	if repoDir != "" && vcsCmd.Status != nil {
+@@ -2398,8 +2406,11 @@ func (p *Package) setBuildInfo(includeVCS bool) {
+ 			return
+ 		}
+ 		if pkgRepoDir != repoDir {
+-			setVCSError(fmt.Errorf("main package is in repository %q but current directory is in repository %q", pkgRepoDir, repoDir))
+-			return
++			if cfg.BuildBuildvcs != "auto" {
++				setVCSError(fmt.Errorf("main package is in repository %q but current directory is in repository %q", pkgRepoDir, repoDir))
++				return
++			}
++			goto omitVCS
+ 		}
+ 		modRepoDir, _, err := vcs.FromDir(p.Module.Dir, "", allowNesting)
+ 		if err != nil {
+@@ -2407,8 +2418,11 @@ func (p *Package) setBuildInfo(includeVCS bool) {
+ 			return
+ 		}
+ 		if modRepoDir != repoDir {
+-			setVCSError(fmt.Errorf("main module is in repository %q but current directory is in repository %q", modRepoDir, repoDir))
+-			return
++			if cfg.BuildBuildvcs != "auto" {
++				setVCSError(fmt.Errorf("main module is in repository %q but current directory is in repository %q", modRepoDir, repoDir))
++				return
++			}
++			goto omitVCS
+ 		}
+ 
+ 		type vcsStatusError struct {
+@@ -2435,6 +2449,7 @@ func (p *Package) setBuildInfo(includeVCS bool) {
+ 		}
+ 		appendSetting("vcs.modified", strconv.FormatBool(st.Uncommitted))
+ 	}
++omitVCS:
+ 
+ 	p.Internal.BuildInfo = info.String()
+ }
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index e63e209a14..e9a8ee6cb3 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -13,6 +13,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
+@@ -91,11 +92,13 @@ and test commands:
+ 	-buildmode mode
+ 		build mode to use. See 'go help buildmode' for more.
+ 	-buildvcs
+-		Whether to stamp binaries with version control information. By default,
+-		version control information is stamped into a binary if the main package
+-		and the main module containing it are in the repository containing the
+-		current directory (if there is a repository). Use -buildvcs=false to
+-		omit version control information.
++		Whether to stamp binaries with version control information
++		("true", "false", or "auto"). By default ("auto"), version control
++		information is stamped into a binary if the main package, the main module
++		containing it, and the current directory are all in the same repository.
++		Use -buildvcs=false to always omit version control information, or
++		-buildvcs=true to error out if version control information is available but
++		cannot be included due to a missing tool or ambiguous directory structure.
+ 	-compiler name
+ 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
+ 	-gccgoflags '[pattern=]arg list'
+@@ -302,7 +305,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
+ 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
+-	cmd.Flag.BoolVar(&cfg.BuildBuildvcs, "buildvcs", true, "")
++	cmd.Flag.Var((*buildvcsFlag)(&cfg.BuildBuildvcs), "buildvcs", "")
+ 
+ 	// Undocumented, unstable debugging flags.
+ 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
+@@ -332,6 +335,29 @@ func (v *tagsFlag) String() string {
+ 	return "<TagsFlag>"
+ }
+ 
++// buildvcsFlag is the implementation of the -buildvcs flag.
++type buildvcsFlag string
++
++func (f *buildvcsFlag) IsBoolFlag() bool { return true } // allow -buildvcs (without arguments)
++
++func (f *buildvcsFlag) Set(s string) error {
++	// https://go.dev/issue/51748: allow "-buildvcs=auto",
++	// in addition to the usual "true" and "false".
++	if s == "" || s == "auto" {
++		*f = "auto"
++		return nil
++	}
++
++	b, err := strconv.ParseBool(s)
++	if err != nil {
++		return errors.New("value is neither 'auto' nor a valid bool")
++	}
++	*f = (buildvcsFlag)(strconv.FormatBool(b)) // convert to canonical "true" or "false"
++	return nil
++}
++
++func (f *buildvcsFlag) String() string { return string(*f) }
++
+ // fileExtSplit expects a filename and returns the name
+ // and ext (without the dot). If the file has no
+ // extension, ext will be empty.
+@@ -379,7 +405,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 	var b Builder
+ 	b.Init()
+ 
+-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: cfg.BuildBuildvcs}, args)
++	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: true}, args)
+ 	load.CheckPackageErrors(pkgs)
+ 
+ 	explicitO := len(cfg.BuildO) > 0
+@@ -609,7 +635,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	modload.InitWorkfile()
+ 	BuildInit()
+-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: cfg.BuildBuildvcs}, args)
++	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: true}, args)
+ 	if cfg.ModulesEnabled && !modload.HasModRoot() {
+ 		haveErrors := false
+ 		allMissingErrors := true
+diff --git a/src/cmd/go/testdata/script/build_buildvcs_auto.txt b/src/cmd/go/testdata/script/build_buildvcs_auto.txt
+new file mode 100644
+index 0000000000..9eac568045
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_buildvcs_auto.txt
+@@ -0,0 +1,87 @@
++# Regression test for https://go.dev/issue/51748: by default, 'go build' should
++# not attempt to stamp VCS information when the VCS tool is not present.
++
++[short] skip
++[!exec:git] skip
++
++cd sub
++exec git init .
++exec git add sub.go
++exec git commit -m 'initial state'
++cd ..
++
++exec git init
++exec git submodule add ./sub
++exec git add go.mod example.go
++exec git commit -m 'initial state'
++
++
++# Control case: with a git binary in $PATH,
++# 'go build' on a package in the same git repo
++# succeeds and stamps VCS metadata by default.
++
++go build -o example.exe .
++go version -m example.exe
++stdout '^\tbuild\tvcs=git$'
++stdout '^\tbuild\tvcs.modified=false$'
++
++
++# Building a binary from a different (nested) VCS repo should not stamp VCS
++# info. It should be an error if VCS stamps are requested explicitly with
++# '-buildvcs' (since we know the VCS metadata exists), but not an error
++# with '-buildvcs=auto'.
++
++go build -o sub.exe ./sub
++go version -m sub.exe
++! stdout '^\tbuild\tvcs'
++
++! go build -buildvcs -o sub.exe ./sub
++stderr '\Aerror obtaining VCS status: main package is in repository ".*" but current directory is in repository ".*"\n\tUse -buildvcs=false to disable VCS stamping.\n\z'
++
++cd ./sub
++go build -o sub.exe .
++go version -m sub.exe
++! stdout '^\tbuild\tvcs'
++
++! go build -buildvcs -o sub.exe .
++stderr '\Aerror obtaining VCS status: main module is in repository ".*" but current directory is in repository ".*"\n\tUse -buildvcs=false to disable VCS stamping.\n\z'
++cd ..
++
++
++# After removing 'git' from $PATH, 'go build -buildvcs' should fail...
++
++env PATH=
++env path=
++! go build -buildvcs -o example.exe .
++stderr 'go: missing Git command\. See https://golang\.org/s/gogetcmd$'
++
++# ...but by default we should omit VCS metadata when the tool is missing.
++
++go build -o example.exe .
++go version -m example.exe
++! stdout '^\tbuild\tvcs'
++
++# The default behavior can be explicitly set with '-buildvcs=auto'.
++
++go build -buildvcs=auto -o example.exe .
++go version -m example.exe
++! stdout '^\tbuild\tvcs'
++
++# Other flag values should be rejected with a useful error message.
++
++! go build -buildvcs=hg -o example.exe .
++stderr '\Ainvalid boolean value "hg" for -buildvcs: value is neither ''auto'' nor a valid bool\nusage: go build .*\nRun ''go help build'' for details.\n\z'
++
++
++-- go.mod --
++module example
++
++go 1.18
++-- example.go --
++package main
++
++func main() {}
++-- sub/sub.go --
++package main
++
++func main() {}
+diff --git a/src/cmd/go/testdata/script/test_buildvcs.txt b/src/cmd/go/testdata/script/test_buildvcs.txt
+index a0689195e8..a669966036 100644
+--- a/src/cmd/go/testdata/script/test_buildvcs.txt
++++ b/src/cmd/go/testdata/script/test_buildvcs.txt
+@@ -5,6 +5,8 @@
+ [short] skip
+ [!exec:git] skip
+ 
++env GOFLAGS=-buildvcs  # override default -buildvcs=auto in GOFLAGS, as a user might
++
+ exec git init
+ 
+ # The test binaries should not have VCS settings stamped.
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_nested.txt b/src/cmd/go/testdata/script/version_buildvcs_nested.txt
+index 08d4c92baf..a0c69f9c12 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_nested.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_nested.txt
+@@ -1,7 +1,7 @@
+ [!exec:git] skip
+ [!exec:hg] skip
+ [short] skip
+-env GOFLAGS=-n
++env GOFLAGS='-n -buildvcs'
+ 
+ # Create a root module in a root Git repository.
+ mkdir root

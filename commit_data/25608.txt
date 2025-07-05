@@ -7,10 +7,260 @@ Date:   Thu Sep 10 09:15:19 2015 -0400
     Change-Id: I05352749a852095baae2f67fd71ffcf5f727538d
     Reviewed-on: https://go-review.googlesource.com/14453
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/debug/elf/elf.go                               | 109 +++++++++++++++++++++
  src/debug/elf/file.go                              |  54 ++++++++++
  src/debug/elf/file_test.go                         |  38 +++++++
  .../testdata/go-relocation-test-gcc492-mips64.obj  | Bin 0 -> 4120 bytes
  .../go-relocation-test-gcc493-mips64le.obj         | Bin 0 -> 4160 bytes
  5 files changed, 201 insertions(+)
+
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index 70daeecd6d..1c9dd7bc4a 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -1246,6 +1246,115 @@ var r386Strings = []intName{
+ func (i R_386) String() string   { return stringName(uint32(i), r386Strings, false) }
+ func (i R_386) GoString() string { return stringName(uint32(i), r386Strings, true) }
+ 
++// Relocation types for MIPS.
++type R_MIPS int
++
++const (
++	R_MIPS_NONE          R_MIPS = 0
++	R_MIPS_16            R_MIPS = 1
++	R_MIPS_32            R_MIPS = 2
++	R_MIPS_REL32         R_MIPS = 3
++	R_MIPS_26            R_MIPS = 4
++	R_MIPS_HI16          R_MIPS = 5  /* high 16 bits of symbol value */
++	R_MIPS_LO16          R_MIPS = 6  /* low 16 bits of symbol value */
++	R_MIPS_GPREL16       R_MIPS = 7  /* GP-relative reference  */
++	R_MIPS_LITERAL       R_MIPS = 8  /* Reference to literal section  */
++	R_MIPS_GOT16         R_MIPS = 9  /* Reference to global offset table */
++	R_MIPS_PC16          R_MIPS = 10 /* 16 bit PC relative reference */
++	R_MIPS_CALL16        R_MIPS = 11 /* 16 bit call thru glbl offset tbl */
++	R_MIPS_GPREL32       R_MIPS = 12
++	R_MIPS_SHIFT5        R_MIPS = 16
++	R_MIPS_SHIFT6        R_MIPS = 17
++	R_MIPS_64            R_MIPS = 18
++	R_MIPS_GOT_DISP      R_MIPS = 19
++	R_MIPS_GOT_PAGE      R_MIPS = 20
++	R_MIPS_GOT_OFST      R_MIPS = 21
++	R_MIPS_GOT_HI16      R_MIPS = 22
++	R_MIPS_GOT_LO16      R_MIPS = 23
++	R_MIPS_SUB           R_MIPS = 24
++	R_MIPS_INSERT_A      R_MIPS = 25
++	R_MIPS_INSERT_B      R_MIPS = 26
++	R_MIPS_DELETE        R_MIPS = 27
++	R_MIPS_HIGHER        R_MIPS = 28
++	R_MIPS_HIGHEST       R_MIPS = 29
++	R_MIPS_CALL_HI16     R_MIPS = 30
++	R_MIPS_CALL_LO16     R_MIPS = 31
++	R_MIPS_SCN_DISP      R_MIPS = 32
++	R_MIPS_REL16         R_MIPS = 33
++	R_MIPS_ADD_IMMEDIATE R_MIPS = 34
++	R_MIPS_PJUMP         R_MIPS = 35
++	R_MIPS_RELGOT        R_MIPS = 36
++	R_MIPS_JALR          R_MIPS = 37
++
++	R_MIPS_TLS_DTPMOD32    R_MIPS = 38 /* Module number 32 bit */
++	R_MIPS_TLS_DTPREL32    R_MIPS = 39 /* Module-relative offset 32 bit */
++	R_MIPS_TLS_DTPMOD64    R_MIPS = 40 /* Module number 64 bit */
++	R_MIPS_TLS_DTPREL64    R_MIPS = 41 /* Module-relative offset 64 bit */
++	R_MIPS_TLS_GD          R_MIPS = 42 /* 16 bit GOT offset for GD */
++	R_MIPS_TLS_LDM         R_MIPS = 43 /* 16 bit GOT offset for LDM */
++	R_MIPS_TLS_DTPREL_HI16 R_MIPS = 44 /* Module-relative offset, high 16 bits */
++	R_MIPS_TLS_DTPREL_LO16 R_MIPS = 45 /* Module-relative offset, low 16 bits */
++	R_MIPS_TLS_GOTTPREL    R_MIPS = 46 /* 16 bit GOT offset for IE */
++	R_MIPS_TLS_TPREL32     R_MIPS = 47 /* TP-relative offset, 32 bit */
++	R_MIPS_TLS_TPREL64     R_MIPS = 48 /* TP-relative offset, 64 bit */
++	R_MIPS_TLS_TPREL_HI16  R_MIPS = 49 /* TP-relative offset, high 16 bits */
++	R_MIPS_TLS_TPREL_LO16  R_MIPS = 50 /* TP-relative offset, low 16 bits */
++)
++
++var rmipsStrings = []intName{
++	{0, "R_MIPS_NONE"},
++	{1, "R_MIPS_16"},
++	{2, "R_MIPS_32"},
++	{3, "R_MIPS_REL32"},
++	{4, "R_MIPS_26"},
++	{5, "R_MIPS_HI16"},
++	{6, "R_MIPS_LO16"},
++	{7, "R_MIPS_GPREL16"},
++	{8, "R_MIPS_LITERAL"},
++	{9, "R_MIPS_GOT16"},
++	{10, "R_MIPS_PC16"},
++	{11, "R_MIPS_CALL16"},
++	{12, "R_MIPS_GPREL32"},
++	{16, "R_MIPS_SHIFT5"},
++	{17, "R_MIPS_SHIFT6"},
++	{18, "R_MIPS_64"},
++	{19, "R_MIPS_GOT_DISP"},
++	{20, "R_MIPS_GOT_PAGE"},
++	{21, "R_MIPS_GOT_OFST"},
++	{22, "R_MIPS_GOT_HI16"},
++	{23, "R_MIPS_GOT_LO16"},
++	{24, "R_MIPS_SUB"},
++	{25, "R_MIPS_INSERT_A"},
++	{26, "R_MIPS_INSERT_B"},
++	{27, "R_MIPS_DELETE"},
++	{28, "R_MIPS_HIGHER"},
++	{29, "R_MIPS_HIGHEST"},
++	{30, "R_MIPS_CALL_HI16"},
++	{31, "R_MIPS_CALL_LO16"},
++	{32, "R_MIPS_SCN_DISP"},
++	{33, "R_MIPS_REL16"},
++	{34, "R_MIPS_ADD_IMMEDIATE"},
++	{35, "R_MIPS_PJUMP"},
++	{36, "R_MIPS_RELGOT"},
++	{37, "R_MIPS_JALR"},
++	{38, "R_MIPS_TLS_DTPMOD32"},
++	{39, "R_MIPS_TLS_DTPREL32"},
++	{40, "R_MIPS_TLS_DTPMOD64"},
++	{41, "R_MIPS_TLS_DTPREL64"},
++	{42, "R_MIPS_TLS_GD"},
++	{43, "R_MIPS_TLS_LDM"},
++	{44, "R_MIPS_TLS_DTPREL_HI16"},
++	{45, "R_MIPS_TLS_DTPREL_LO16"},
++	{46, "R_MIPS_TLS_GOTTPREL"},
++	{47, "R_MIPS_TLS_TPREL32"},
++	{48, "R_MIPS_TLS_TPREL64"},
++	{49, "R_MIPS_TLS_TPREL_HI16"},
++	{50, "R_MIPS_TLS_TPREL_LO16"},
++}
++
++func (i R_MIPS) String() string   { return stringName(uint32(i), rmipsStrings, false) }
++func (i R_MIPS) GoString() string { return stringName(uint32(i), rmipsStrings, true) }
++
+ // Relocation types for PowerPC.
+ type R_PPC int
+ 
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 40625435fd..3e766afe15 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -537,6 +537,8 @@ func (f *File) applyRelocations(dst []byte, rels []byte) error {
+ 		return f.applyRelocationsPPC(dst, rels)
+ 	case f.Class == ELFCLASS64 && f.Machine == EM_PPC64:
+ 		return f.applyRelocationsPPC64(dst, rels)
++	case f.Class == ELFCLASS64 && f.Machine == EM_MIPS:
++		return f.applyRelocationsMIPS64(dst, rels)
+ 	default:
+ 		return errors.New("applyRelocations: not implemented")
+ 	}
+@@ -800,6 +802,58 @@ func (f *File) applyRelocationsPPC64(dst []byte, rels []byte) error {
+ 	return nil
+ }
+ 
++func (f *File) applyRelocationsMIPS64(dst []byte, rels []byte) error {
++	// 24 is the size of Rela64.
++	if len(rels)%24 != 0 {
++		return errors.New("length of relocation section is not a multiple of 24")
++	}
++
++	symbols, _, err := f.getSymbols(SHT_SYMTAB)
++	if err != nil {
++		return err
++	}
++
++	b := bytes.NewReader(rels)
++	var rela Rela64
++
++	for b.Len() > 0 {
++		binary.Read(b, f.ByteOrder, &rela)
++		var symNo uint64
++		var t R_MIPS
++		if f.ByteOrder == binary.BigEndian {
++			symNo = rela.Info >> 32
++			t = R_MIPS(rela.Info & 0xff)
++		} else {
++			symNo = rela.Info & 0xffffffff
++			t = R_MIPS(rela.Info >> 56)
++		}
++
++		if symNo == 0 || symNo > uint64(len(symbols)) {
++			continue
++		}
++		sym := &symbols[symNo-1]
++		if SymType(sym.Info&0xf) != STT_SECTION {
++			// We don't handle non-section relocations for now.
++			continue
++		}
++
++		switch t {
++		case R_MIPS_64:
++			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
++				continue
++			}
++			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], uint64(rela.Addend))
++		case R_MIPS_32:
++			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
++				continue
++			}
++			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], uint32(rela.Addend))
++		}
++	}
++
++	return nil
++}
++
+ func (f *File) DWARF() (*dwarf.Data, error) {
+ 	// sectionData gets the data for s, checks its size, and
+ 	// applies any applicable relations.
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index 0abe09ced0..cd1a4577af 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -394,6 +394,44 @@ var relocationTests = []relocationTest{
+ 			}},
+ 		},
+ 	},
++	{
++		"testdata/go-relocation-test-gcc492-mips64.obj",
++		[]relocationTestEntry{
++			{0, &dwarf.Entry{
++				Offset:   0xb,
++				Tag:      dwarf.TagCompileUnit,
++				Children: true,
++				Field: []dwarf.Field{
++					{Attr: dwarf.AttrProducer, Val: "GNU C 4.9.2 -meb -mabi=64 -march=mips3 -mtune=mips64 -mllsc -mno-shared -g", Class: dwarf.ClassString},
++					{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
++					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
++					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
++					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
++					{Attr: dwarf.AttrHighpc, Val: int64(100), Class: dwarf.ClassConstant},
++					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
++				},
++			}},
++		},
++	},
++	{
++		"testdata/go-relocation-test-gcc493-mips64le.obj",
++		[]relocationTestEntry{
++			{0, &dwarf.Entry{
++				Offset:   0xb,
++				Tag:      dwarf.TagCompileUnit,
++				Children: true,
++				Field: []dwarf.Field{
++					{Attr: dwarf.AttrProducer, Val: "GNU C 4.9.3 -mel -mabi=64 -mllsc -mno-shared -g -fstack-protector-strong", Class: dwarf.ClassString},
++					{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
++					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
++					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
++					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
++					{Attr: dwarf.AttrHighpc, Val: int64(100), Class: dwarf.ClassConstant},
++					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
++				},
++			}},
++		},
++	},
+ 	{
+ 		"testdata/go-relocation-test-clang-x86.obj",
+ 		[]relocationTestEntry{
+diff --git a/src/debug/elf/testdata/go-relocation-test-gcc492-mips64.obj b/src/debug/elf/testdata/go-relocation-test-gcc492-mips64.obj
+new file mode 100644
+index 0000000000..68febe18fe
+Binary files /dev/null and b/src/debug/elf/testdata/go-relocation-test-gcc492-mips64.obj differ
+diff --git a/src/debug/elf/testdata/go-relocation-test-gcc493-mips64le.obj b/src/debug/elf/testdata/go-relocation-test-gcc493-mips64le.obj
+new file mode 100644
+index 0000000000..20bbd6c4e8
+Binary files /dev/null and b/src/debug/elf/testdata/go-relocation-test-gcc493-mips64le.obj differ

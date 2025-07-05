@@ -16,9 +16,58 @@ Date:   Wed Mar 7 15:07:31 2018 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os_linux_be64.go   | 1 +
  src/runtime/os_linux_noauxv.go | 1 +
  src/runtime/os_linux_novdso.go | 1 +
  src/runtime/os_linux_ppc64x.go | 1 +
  4 files changed, 4 insertions(+)
+
+diff --git a/src/runtime/os_linux_be64.go b/src/runtime/os_linux_be64.go
+index 85466d704b..14fbad5d5f 100644
+--- a/src/runtime/os_linux_be64.go
++++ b/src/runtime/os_linux_be64.go
+@@ -4,6 +4,7 @@
+ 
+ // The standard GNU/Linux sigset type on big-endian 64-bit machines.
+ 
++// +build linux
+ // +build ppc64 s390x
+ 
+ package runtime
+diff --git a/src/runtime/os_linux_noauxv.go b/src/runtime/os_linux_noauxv.go
+index d6174c33fe..895b4cd5f4 100644
+--- a/src/runtime/os_linux_noauxv.go
++++ b/src/runtime/os_linux_noauxv.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build linux
+ // +build !arm,!arm64,!mips,!mipsle,!mips64,!mips64le,!s390x,!ppc64,!ppc64le
+ 
+ package runtime
+diff --git a/src/runtime/os_linux_novdso.go b/src/runtime/os_linux_novdso.go
+index 41acd957cf..b5a6b0e947 100644
+--- a/src/runtime/os_linux_novdso.go
++++ b/src/runtime/os_linux_novdso.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build linux
+ // +build !386,!amd64,!arm
+ 
+ package runtime
+diff --git a/src/runtime/os_linux_ppc64x.go b/src/runtime/os_linux_ppc64x.go
+index e37bfc453a..3d2a3a198c 100644
+--- a/src/runtime/os_linux_ppc64x.go
++++ b/src/runtime/os_linux_ppc64x.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build linux
+ // +build ppc64 ppc64le
+ 
+ package runtime

@@ -14,6 +14,28 @@ Date:   Mon Oct 16 17:34:35 2017 -0700
     Reviewed-by: Tom Bergan <tombergan@google.com>
     Run-TryBot: Sam Whited <sam@samwhited.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/pprof/pprof.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index 12c7599ab0..21992d62da 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -69,11 +69,11 @@ import (
+ )
+ 
+ func init() {
+-	http.Handle("/debug/pprof/", http.HandlerFunc(Index))
+-	http.Handle("/debug/pprof/cmdline", http.HandlerFunc(Cmdline))
+-	http.Handle("/debug/pprof/profile", http.HandlerFunc(Profile))
+-	http.Handle("/debug/pprof/symbol", http.HandlerFunc(Symbol))
+-	http.Handle("/debug/pprof/trace", http.HandlerFunc(Trace))
++	http.HandleFunc("/debug/pprof/", Index)
++	http.HandleFunc("/debug/pprof/cmdline", Cmdline)
++	http.HandleFunc("/debug/pprof/profile", Profile)
++	http.HandleFunc("/debug/pprof/symbol", Symbol)
++	http.HandleFunc("/debug/pprof/trace", Trace)
+ }
+ 
+ // Cmdline responds with the running program's

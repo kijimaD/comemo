@@ -20,10 +20,297 @@ Date:   Wed Jan 13 15:45:28 2021 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go          |  14 ++-
  .../asm/internal/asm/testdata/amd64dynlinkerror.s  |  68 ++++++++++++
  src/cmd/internal/obj/link.go                       |   1 +
  src/cmd/internal/obj/plist.go                      |   3 +
  src/cmd/internal/obj/x86/obj6.go                   | 115 +++++++++++++++++++++
  5 files changed, 200 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 92cf64575b..ee2982df39 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -270,7 +270,7 @@ var (
+ 	errQuotesRE = regexp.MustCompile(`"([^"]*)"`)
+ )
+ 
+-func testErrors(t *testing.T, goarch, file string) {
++func testErrors(t *testing.T, goarch, file string, flags ...string) {
+ 	input := filepath.Join("testdata", file+".s")
+ 	architecture, ctxt := setArch(goarch)
+ 	lexer := lex.NewLexer(input)
+@@ -292,6 +292,14 @@ func testErrors(t *testing.T, goarch, file string) {
+ 		}
+ 		errBuf.WriteString(s)
+ 	}
++	for _, flag := range flags {
++		switch flag {
++		case "dynlink":
++			ctxt.Flag_dynlink = true
++		default:
++			t.Errorf("unknown flag %s", flag)
++		}
++	}
+ 	pList.Firstpc, ok = parser.Parse()
+ 	obj.Flushplist(ctxt, pList, nil, "")
+ 	if ok && !failed {
+@@ -430,6 +438,10 @@ func TestAMD64Errors(t *testing.T) {
+ 	testErrors(t, "amd64", "amd64error")
+ }
+ 
++func TestAMD64DynLinkErrors(t *testing.T) {
++	testErrors(t, "amd64", "amd64dynlinkerror", "dynlink")
++}
++
+ func TestMIPSEndToEnd(t *testing.T) {
+ 	testEndToEnd(t, "mips", "mips")
+ 	testEndToEnd(t, "mips64", "mips64")
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64dynlinkerror.s b/src/cmd/asm/internal/asm/testdata/amd64dynlinkerror.s
+new file mode 100644
+index 0000000000..1eee1a17db
+--- /dev/null
++++ b/src/cmd/asm/internal/asm/testdata/amd64dynlinkerror.s
+@@ -0,0 +1,68 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test to make sure that if we use R15 after it is clobbered by
++// a global variable access while dynamic linking, we get an error.
++// See issue 43661.
++
++TEXT ·a1(SB), 0, $0-0
++	CMPL runtime·writeBarrier(SB), $0
++	MOVL $0, R15
++	RET
++TEXT ·a2(SB), 0, $0-0
++	CMPL runtime·writeBarrier(SB), $0
++	MOVQ $0, R15
++	RET
++TEXT ·a3(SB), 0, $0-0
++	CMPL runtime·writeBarrier(SB), $0
++	XORL R15, R15
++	RET
++TEXT ·a4(SB), 0, $0-0
++	CMPL runtime·writeBarrier(SB), $0
++	XORQ R15, R15
++	RET
++TEXT ·a5(SB), 0, $0-0
++	CMPL runtime·writeBarrier(SB), $0
++	XORL R15, R15
++	RET
++TEXT ·a6(SB), 0, $0-0
++	CMPL runtime·writeBarrier(SB), $0
++	POPQ R15
++	PUSHQ R15
++	RET
++TEXT ·a7(SB), 0, $0-0
++	CMPL runtime·writeBarrier(SB), $0
++	MOVQ R15, AX // ERROR "when dynamic linking, R15 is clobbered by a global variable access and is used here"
++	RET
++TEXT ·a8(SB), 0, $0-0
++	CMPL runtime·writeBarrier(SB), $0
++	ADDQ AX, R15 // ERROR "when dynamic linking, R15 is clobbered by a global variable access and is used here"
++	RET
++TEXT ·a9(SB), 0, $0-0
++	CMPL runtime·writeBarrier(SB), $0
++	ORQ R15, R15 // ERROR "when dynamic linking, R15 is clobbered by a global variable access and is used here"
++	RET
++TEXT ·a10(SB), 0, $0-0
++	CMPL runtime·writeBarrier(SB), $0
++	JEQ one
++	ORQ R15, R15 // ERROR "when dynamic linking, R15 is clobbered by a global variable access and is used here"
++one:
++	RET
++TEXT ·a11(SB), 0, $0-0
++	CMPL runtime·writeBarrier(SB), $0
++	JEQ one
++	JMP two
++one:
++	ORQ R15, R15 // ERROR "when dynamic linking, R15 is clobbered by a global variable access and is used here"
++two:
++	RET
++TEXT ·a12(SB), 0, $0-0
++	CMPL runtime·writeBarrier(SB), $0
++	JMP one
++two:
++	ORQ R15, R15
++	RET
++one:
++	MOVL $0, R15
++	JMP two
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 448f45b47b..c34a769a82 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -949,6 +949,7 @@ func (ctxt *Link) FixedFrameSize() int64 {
+ type LinkArch struct {
+ 	*sys.Arch
+ 	Init           func(*Link)
++	ErrorCheck     func(*Link, *LSym)
+ 	Preprocess     func(*Link, *LSym, ProgAlloc)
+ 	Assemble       func(*Link, *LSym, ProgAlloc)
+ 	Progedit       func(*Link, *Prog, ProgAlloc)
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 177083261c..b2f2bdcaed 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -107,6 +107,9 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
+ 	// Turn functions into machine code images.
+ 	for _, s := range text {
+ 		mkfwd(s)
++		if ctxt.Arch.ErrorCheck != nil {
++			ctxt.Arch.ErrorCheck(ctxt, s)
++		}
+ 		linkpatch(ctxt, s, newprog)
+ 		ctxt.Arch.Preprocess(ctxt, s, newprog)
+ 		ctxt.Arch.Assemble(ctxt, s, newprog)
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index d70cbebc5e..02af8eaa82 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -37,6 +37,7 @@ import (
+ 	"cmd/internal/sys"
+ 	"log"
+ 	"math"
++	"path"
+ 	"strings"
+ )
+ 
+@@ -563,6 +564,11 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	obj.Nopout(p)
+ }
+ 
++// Prog.mark
++const (
++	markBit = 1 << 0 // used in errorCheck to avoid duplicate work
++)
++
+ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	if cursym.Func().Text == nil || cursym.Func().Text.Link == nil {
+ 		return
+@@ -1196,6 +1202,114 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 	return end
+ }
+ 
++func isR15(r int16) bool {
++	return r == REG_R15 || r == REG_R15B
++}
++func addrMentionsR15(a *obj.Addr) bool {
++	if a == nil {
++		return false
++	}
++	return isR15(a.Reg) || isR15(a.Index)
++}
++func progMentionsR15(p *obj.Prog) bool {
++	return addrMentionsR15(&p.From) || addrMentionsR15(&p.To) || isR15(p.Reg) || addrMentionsR15(p.GetFrom3())
++}
++
++// progOverwritesR15 reports whether p writes to R15 and does not depend on
++// the previous value of R15.
++func progOverwritesR15(p *obj.Prog) bool {
++	if !(p.To.Type == obj.TYPE_REG && isR15(p.To.Reg)) {
++		// Not writing to R15.
++		return false
++	}
++	if (p.As == AXORL || p.As == AXORQ) && p.From.Type == obj.TYPE_REG && isR15(p.From.Reg) {
++		// These look like uses of R15, but aren't, so we must detect these
++		// before the use check below.
++		return true
++	}
++	if addrMentionsR15(&p.From) || isR15(p.Reg) || addrMentionsR15(p.GetFrom3()) {
++		// use before overwrite
++		return false
++	}
++	if p.As == AMOVL || p.As == AMOVQ || p.As == APOPQ {
++		return true
++		// TODO: MOVB might be ok if we only ever use R15B.
++	}
++	return false
++}
++
++func addrUsesGlobal(a *obj.Addr) bool {
++	if a == nil {
++		return false
++	}
++	return a.Name == obj.NAME_EXTERN && !a.Sym.Local()
++}
++func progUsesGlobal(p *obj.Prog) bool {
++	if p.As == obj.ACALL || p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ARET || p.As == obj.AJMP {
++		// These opcodes don't use a GOT to access their argument (see rewriteToUseGot),
++		// or R15 would be dead at them anyway.
++		return false
++	}
++	if p.As == ALEAQ {
++		// The GOT entry is placed directly in the destination register; R15 is not used.
++		return false
++	}
++	return addrUsesGlobal(&p.From) || addrUsesGlobal(&p.To) || addrUsesGlobal(p.GetFrom3())
++}
++
++func errorCheck(ctxt *obj.Link, s *obj.LSym) {
++	// When dynamic linking, R15 is used to access globals. Reject code that
++	// uses R15 after a global variable access.
++	if !ctxt.Flag_dynlink {
++		return
++	}
++
++	// Flood fill all the instructions where R15's value is junk.
++	// If there are any uses of R15 in that set, report an error.
++	var work []*obj.Prog
++	var mentionsR15 bool
++	for p := s.Func().Text; p != nil; p = p.Link {
++		if progUsesGlobal(p) {
++			work = append(work, p)
++			p.Mark |= markBit
++		}
++		if progMentionsR15(p) {
++			mentionsR15 = true
++		}
++	}
++	if mentionsR15 {
++		for len(work) > 0 {
++			p := work[len(work)-1]
++			work = work[:len(work)-1]
++			if q := p.To.Target(); q != nil && q.Mark&markBit == 0 {
++				q.Mark |= markBit
++				work = append(work, q)
++			}
++			if p.As == obj.AJMP || p.As == obj.ARET {
++				continue // no fallthrough
++			}
++			if progMentionsR15(p) {
++				if progOverwritesR15(p) {
++					// R15 is overwritten by this instruction. Its value is not junk any more.
++					continue
++				}
++				pos := ctxt.PosTable.Pos(p.Pos)
++				ctxt.Diag("%s:%s: when dynamic linking, R15 is clobbered by a global variable access and is used here: %v", path.Base(pos.Filename()), pos.LineNumber(), p)
++				break // only report one error
++			}
++			if q := p.Link; q != nil && q.Mark&markBit == 0 {
++				q.Mark |= markBit
++				work = append(work, q)
++			}
++		}
++	}
++
++	// Clean up.
++	for p := s.Func().Text; p != nil; p = p.Link {
++		p.Mark &^= markBit
++	}
++}
++
+ var unaryDst = map[obj.As]bool{
+ 	ABSWAPL:     true,
+ 	ABSWAPQ:     true,
+@@ -1284,6 +1398,7 @@ var unaryDst = map[obj.As]bool{
+ var Linkamd64 = obj.LinkArch{
+ 	Arch:           sys.ArchAMD64,
+ 	Init:           instinit,
++	ErrorCheck:     errorCheck,
+ 	Preprocess:     preprocess,
+ 	Assemble:       span6,
+ 	Progedit:       progedit,

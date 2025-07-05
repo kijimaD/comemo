@@ -7,6 +7,20 @@ Date:   Tue Nov 1 09:45:04 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5334044
-
+---
  doc/Makefile | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/Makefile b/doc/Makefile
+index 7957a0d0aa..4d1f4ee064 100644
+--- a/doc/Makefile
++++ b/doc/Makefile
+@@ -8,6 +8,8 @@ TARG=tmpltohtml
+ GOFILES=\
+ 	tmpltohtml.go\
+ 
++all: tmpltohtml go_tutorial.html effective_go.html
++
+ go_tutorial.html: go_tutorial.tmpl tmpltohtml
+ 	./makehtml go_tutorial.tmpl
+ 

@@ -15,7 +15,37 @@ Date:   Fri Feb 8 17:50:36 2019 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/clientserver_test.go | 2 +-
  src/net/http/transport.go         | 5 ++++-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 465bae1478..d61d77839d 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -560,7 +560,7 @@ func testCancelRequestMidBody(t *testing.T, h2 bool) {
+ 	if all != "Hello" {
+ 		t.Errorf("Read %q (%q + %q); want Hello", all, firstRead, rest)
+ 	}
+-	if !reflect.DeepEqual(err, ExportErrRequestCanceled) {
++	if err != ExportErrRequestCanceled {
+ 		t.Errorf("ReadAll error = %v; want %v", err, ExportErrRequestCanceled)
+ 	}
+ }
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index a8c5efe6aa..bb9657f4ee 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -2073,7 +2073,10 @@ func (e *httpError) Timeout() bool   { return e.timeout }
+ func (e *httpError) Temporary() bool { return true }
+ 
+ var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
+-var errRequestCanceled = errors.New("net/http: request canceled")
++
++// errRequestCanceled is set to be identical to the one from h2 to facilitate
++// testing.
++var errRequestCanceled = http2errRequestCanceled
+ var errRequestCanceledConn = errors.New("net/http: request canceled while waiting for connection") // TODO: unify?
+ 
+ func nop() {}

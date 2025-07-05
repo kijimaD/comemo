@@ -14,6 +14,20 @@ Date:   Wed Nov 7 04:59:21 2012 +0800
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/6817075
-
+---
  src/cmd/godoc/main.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index b124b10ca9..02891444b0 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -225,6 +225,8 @@ func main() {
+ 	// Print content that would be served at the URL *urlFlag.
+ 	if *urlFlag != "" {
+ 		registerPublicHandlers(http.DefaultServeMux)
++		initFSTree()
++		updateMetadata()
+ 		// Try up to 10 fetches, following redirects.
+ 		urlstr := *urlFlag
+ 		for i := 0; i < 10; i++ {

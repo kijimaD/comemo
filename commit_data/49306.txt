@@ -17,9 +17,185 @@ Date:   Mon Aug 9 16:00:29 2021 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/importer/iimport.go  | 13 +++++++------
  src/cmd/compile/internal/typecheck/iexport.go | 23 +++++++++++++----------
  src/cmd/compile/internal/typecheck/iimport.go | 10 +++++-----
  src/go/internal/gcimporter/iimport.go         | 19 ++++++-------------
  4 files changed, 31 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 99eb964415..6051cdaf23 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -308,19 +308,18 @@ func (r *importReader) obj(name string) {
+ 
+ 		r.declare(types2.NewConst(pos, r.currPkg, name, typ, val))
+ 
+-	case 'F':
++	case 'F', 'G':
+ 		var tparams []*types2.TypeName
+-		if r.p.exportVersion >= iexportVersionGenerics {
++		if tag == 'G' {
+ 			tparams = r.tparamList()
+ 		}
+ 		sig := r.signature(nil)
+ 		sig.SetTParams(tparams)
+-
+ 		r.declare(types2.NewFunc(pos, r.currPkg, name, sig))
+ 
+-	case 'T':
++	case 'T', 'U':
+ 		var tparams []*types2.TypeName
+-		if r.p.exportVersion >= iexportVersionGenerics {
++		if tag == 'U' {
+ 			tparams = r.tparamList()
+ 		}
+ 
+@@ -328,7 +327,9 @@ func (r *importReader) obj(name string) {
+ 		// declaration before recursing.
+ 		obj := types2.NewTypeName(pos, r.currPkg, name, nil)
+ 		named := types2.NewNamed(obj, nil, nil)
+-		named.SetTParams(tparams)
++		if tag == 'U' {
++			named.SetTParams(tparams)
++		}
+ 		r.declare(obj)
+ 
+ 		underlying := r.p.typAt(r.uint64(), named).Underlying()
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 2944908bcb..5f510a0a25 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -314,12 +314,7 @@ func WriteExports(out io.Writer, extensions bool) {
+ 	// Assemble header.
+ 	var hdr intWriter
+ 	hdr.WriteByte('i')
+-	if base.Flag.G > 0 {
+-		hdr.uint64(iexportVersionCurrent)
+-	} else {
+-		// Use old export format if doing -G=0 (no generics)
+-		hdr.uint64(iexportVersionPosCol)
+-	}
++	hdr.uint64(iexportVersionCurrent)
+ 	hdr.uint64(uint64(p.strings.Len()))
+ 	hdr.uint64(dataLen)
+ 
+@@ -487,7 +482,11 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 			}
+ 
+ 			// Function.
+-			w.tag('F')
++			if n.Type().TParams().NumFields() == 0 {
++				w.tag('F')
++			} else {
++				w.tag('G')
++			}
+ 			w.pos(n.Pos())
+ 			// The tparam list of the function type is the
+ 			// declaration of the type params. So, write out the type
+@@ -495,7 +494,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 			// referenced via their type offset (via typOff) in all
+ 			// other places in the signature and function that they
+ 			// are used.
+-			if base.Flag.G > 0 {
++			if n.Type().TParams().NumFields() > 0 {
+ 				w.tparamList(n.Type().TParams().FieldSlice())
+ 			}
+ 			w.signature(n.Type())
+@@ -544,10 +543,14 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 		}
+ 
+ 		// Defined type.
+-		w.tag('T')
++		if len(n.Type().RParams()) == 0 {
++			w.tag('T')
++		} else {
++			w.tag('U')
++		}
+ 		w.pos(n.Pos())
+ 
+-		if base.Flag.G > 0 {
++		if len(n.Type().RParams()) > 0 {
+ 			// Export type parameters, if any, needed for this type
+ 			w.typeList(n.Type().RParams())
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index d5f4bba98b..83974b6d56 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -305,9 +305,9 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 		r.constExt(n)
+ 		return n
+ 
+-	case 'F':
++	case 'F', 'G':
+ 		var tparams []*types.Field
+-		if r.p.exportVersion >= iexportVersionGenerics {
++		if tag == 'G' {
+ 			tparams = r.tparamList()
+ 		}
+ 		typ := r.signature(nil, tparams)
+@@ -316,9 +316,9 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 		r.funcExt(n)
+ 		return n
+ 
+-	case 'T':
++	case 'T', 'U':
+ 		var rparams []*types.Type
+-		if r.p.exportVersion >= iexportVersionGenerics {
++		if tag == 'U' {
+ 			rparams = r.typeList()
+ 		}
+ 
+@@ -326,7 +326,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 		// declaration before recursing.
+ 		n := importtype(pos, sym)
+ 		t := n.Type()
+-		if rparams != nil {
++		if tag == 'U' {
+ 			t.SetRParams(rparams)
+ 		}
+ 
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index b300860e94..d4778d3a74 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -290,24 +290,14 @@ func (r *importReader) obj(name string) {
+ 		r.declare(types.NewConst(pos, r.currPkg, name, typ, val))
+ 
+ 	case 'F':
+-		if r.p.exportVersion >= iexportVersionGenerics {
+-			numTparams := r.uint64()
+-			if numTparams > 0 {
+-				errorf("unexpected tparam")
+-			}
+-		}
+ 		sig := r.signature(nil)
+ 
+ 		r.declare(types.NewFunc(pos, r.currPkg, name, sig))
+ 
+-	case 'T':
+-		if r.p.exportVersion >= iexportVersionGenerics {
+-			numTparams := r.uint64()
+-			if numTparams > 0 {
+-				errorf("unexpected tparam")
+-			}
+-		}
++	case 'G':
++		errorf("unexpected parameterized function/method")
+ 
++	case 'T':
+ 		// Types can be recursive. We need to setup a stub
+ 		// declaration before recursing.
+ 		obj := types.NewTypeName(pos, r.currPkg, name, nil)
+@@ -328,6 +318,9 @@ func (r *importReader) obj(name string) {
+ 			}
+ 		}
+ 
++	case 'U':
++		errorf("unexpected parameterized type")
++
+ 	case 'V':
+ 		typ := r.typ()
+ 

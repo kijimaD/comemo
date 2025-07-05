@@ -9,6 +9,20 @@ Date:   Mon Jul 2 15:30:00 2012 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/6350051
-
+---
  src/pkg/math/big/nat.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/math/big/nat.go b/src/pkg/math/big/nat.go
+index f132507dfd..66f14b4ee7 100644
+--- a/src/pkg/math/big/nat.go
++++ b/src/pkg/math/big/nat.go
+@@ -396,7 +396,7 @@ func (z nat) mul(x, y nat) nat {
+ 	}
+ 
+ 	// use basic multiplication if the numbers are small
+-	if n < karatsubaThreshold || n < 2 {
++	if n < karatsubaThreshold {
+ 		z = z.make(m + n)
+ 		basicMul(z, x, y)
+ 		return z.norm()

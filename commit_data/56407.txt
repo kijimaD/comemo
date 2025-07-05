@@ -97,7 +97,7 @@ Date:   Mon Apr 3 15:26:54 2023 +0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Rong Zhang <rongrong@oss.cipunited.com>
-
+---
  src/cmd/compile/internal/mips64/ssa.go         |  1 +
  src/cmd/compile/internal/ssa/_gen/MIPS64.rules |  3 +++
  src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go |  1 +
@@ -106,3 +106,113 @@ Date:   Mon Apr 3 15:26:54 2023 +0800
  src/cmd/compile/internal/ssagen/ssa.go         |  2 +-
  test/codegen/math.go                           |  1 +
  7 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 7ce4005e6d..dda7c4fdd6 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -358,6 +358,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpMIPS64MOVDF,
+ 		ssa.OpMIPS64NEGF,
+ 		ssa.OpMIPS64NEGD,
++		ssa.OpMIPS64ABSD,
+ 		ssa.OpMIPS64SQRTF,
+ 		ssa.OpMIPS64SQRTD:
+ 		p := s.Prog(v.Op.Asm())
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS64.rules b/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+index 2144a21352..3aa6a1b420 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+@@ -38,6 +38,9 @@
+ (Mod8 x y) => (Select0 (DIVV (SignExt8to64 x) (SignExt8to64 y)))
+ (Mod8u x y) => (Select0 (DIVVU (ZeroExt8to64 x) (ZeroExt8to64 y)))
+ 
++// math package intrinsics
++(Abs ...) => (ABSD ...)
++
+ // (x + y) / 2 with x>=y => (x - y) / 2 + y
+ (Avg64u <t> x y) => (ADDV (SRLVconst <t> (SUBV <t> x y) [1]) y)
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
+index cc8b4ae155..2b3dd487cd 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
+@@ -196,6 +196,7 @@ func init() {
+ 		{name: "NEGV", argLength: 1, reg: gp11},                // -arg0
+ 		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"},   // -arg0, float32
+ 		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"},   // -arg0, float64
++		{name: "ABSD", argLength: 1, reg: fp11, asm: "ABSD"},   // abs(arg0), float64
+ 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
+ 		{name: "SQRTF", argLength: 1, reg: fp11, asm: "SQRTF"}, // sqrt(arg0), float32
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 5e04805ba7..2507e60f31 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1984,6 +1984,7 @@ const (
+ 	OpMIPS64NEGV
+ 	OpMIPS64NEGF
+ 	OpMIPS64NEGD
++	OpMIPS64ABSD
+ 	OpMIPS64SQRTD
+ 	OpMIPS64SQRTF
+ 	OpMIPS64SLLV
+@@ -26554,6 +26555,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "ABSD",
++		argLen: 1,
++		asm:    mips.AABSD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1152921504338411520}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 1152921504338411520}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "SQRTD",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 095d93a033..16426c300f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -6,6 +6,9 @@ import "cmd/compile/internal/types"
+ 
+ func rewriteValueMIPS64(v *Value) bool {
+ 	switch v.Op {
++	case OpAbs:
++		v.Op = OpMIPS64ABSD
++		return true
+ 	case OpAdd16:
+ 		v.Op = OpMIPS64ADDV
+ 		return true
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 4907113b06..5d15ffbdf1 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4369,7 +4369,7 @@ func InitTables() {
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpAbs, types.Types[types.TFLOAT64], args[0])
+ 		},
+-		sys.ARM64, sys.ARM, sys.PPC64, sys.RISCV64, sys.Wasm)
++		sys.ARM64, sys.ARM, sys.PPC64, sys.RISCV64, sys.Wasm, sys.MIPS64)
+ 	addF("math", "Copysign",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpCopysign, types.Types[types.TFLOAT64], args[0], args[1])
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index f172af435d..79b11ca228 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -81,6 +81,7 @@ func abs(x, y float64) {
+ 	// riscv64:"FABSD\t"
+ 	// wasm:"F64Abs"
+ 	// arm/6:"ABSD\t"
++	// mips64/hardfloat:"ABSD\t"
+ 	sink64[0] = math.Abs(x)
+ 
+ 	// amd64:"BTRQ\t[$]63","PXOR"    (TODO: this should be BTSQ)

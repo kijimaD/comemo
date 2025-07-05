@@ -7,6 +7,20 @@ Date:   Thu Feb 24 10:17:45 2011 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4210041
-
+---
  src/pkg/net/fd_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index e62f551cc0..63a8fbc448 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -318,7 +318,7 @@ func (fd *netFD) Read(buf []byte) (n int, err os.Error) {
+ 	o.Init(fd, buf)
+ 	n, err = iosrv.ExecIO(&o, fd.rdeadline_delta)
+ 	if err == nil && n == 0 {
+-		err = &OpError{o.Name(), o.fd.net, o.fd.laddr, os.EOF}
++		err = os.EOF
+ 	}
+ 	return
+ }

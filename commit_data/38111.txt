@@ -17,8 +17,102 @@ Date:   Wed Oct 3 10:56:23 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go | 10 ++--------
  src/cmd/compile/internal/gc/inl.go    |  4 +---
  src/cmd/compile/internal/gc/main.go   | 24 ++++++------------------
  3 files changed, 9 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 3aa7c39067..6ee660988a 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -12,8 +12,6 @@ import (
+ )
+ 
+ var (
+-	flagiexport bool // if set, use indexed export data format
+-
+ 	Debug_export int // if set, print debugging information about export data
+ )
+ 
+@@ -75,11 +73,7 @@ func dumpexport(bout *bio.Writer) {
+ 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
+ 	exportf(bout, "\n$$B\n") // indicate binary export format
+ 	off := bout.Offset()
+-	if flagiexport {
+-		iexport(bout.Writer)
+-	} else {
+-		export(bout.Writer, Debug_export != 0)
+-	}
++	iexport(bout.Writer)
+ 	size := bout.Offset() - off
+ 	exportf(bout, "\n$$\n")
+ 
+@@ -95,7 +89,7 @@ func importsym(ipkg *types.Pkg, s *types.Sym, op Op) *Node {
+ 		// declaration for all imported symbols. The exception
+ 		// is declarations for Runtimepkg, which are populated
+ 		// by loadsys instead.
+-		if flagiexport && s.Pkg != Runtimepkg {
++		if s.Pkg != Runtimepkg {
+ 			Fatalf("missing ONONAME for %v\n", s)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index fb5a413b84..f188c9a9cd 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -71,9 +71,7 @@ func fnpkg(fn *Node) *types.Pkg {
+ func typecheckinl(fn *Node) {
+ 	lno := setlineno(fn)
+ 
+-	if flagiexport {
+-		expandInline(fn)
+-	}
++	expandInline(fn)
+ 
+ 	// typecheckinl is only for imported functions;
+ 	// their bodies may refer to unsafe as long as the package
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 44cf75e7c9..68f6294724 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -249,7 +249,6 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
+ 	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
+ 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
+-	flag.BoolVar(&flagiexport, "iexport", true, "export indexed package data")
+ 	objabi.Flagparse(usage)
+ 
+ 	// Record flags that affect the build result. (And don't
+@@ -1129,24 +1128,13 @@ func importfile(f *Val) *types.Pkg {
+ 			errorexit()
+ 		}
+ 
+-		// New indexed format is distinguished by an 'i' byte,
+-		// whereas old export format always starts with 'c', 'd', or 'v'.
+-		if c == 'i' {
+-			if !flagiexport {
+-				yyerror("import %s: cannot import package compiled with -iexport=true", file)
+-				errorexit()
+-			}
+-
+-			iimport(importpkg, imp)
+-		} else {
+-			if flagiexport {
+-				yyerror("import %s: cannot import package compiled with -iexport=false", file)
+-				errorexit()
+-			}
+-
+-			imp.UnreadByte()
+-			Import(importpkg, imp.Reader)
++		// Indexed format is distinguished by an 'i' byte,
++		// whereas previous export formats started with 'c', 'd', or 'v'.
++		if c != 'i' {
++			yyerror("import %s: unexpected package format byte: %v", file, c)
++			errorexit()
+ 		}
++		iimport(importpkg, imp)
+ 
+ 	default:
+ 		yyerror("no import in %q", path_)

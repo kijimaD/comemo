@@ -14,7 +14,52 @@ Date:   Tue Apr 20 21:07:23 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go | 18 ++++++++----------
  test/live_regabi.go                          |  5 +----
  2 files changed, 9 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 48e40bb00a..4d5376b344 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -1452,17 +1452,15 @@ func expandCalls(f *Func) {
+ 
+ 	// Step 6: elide any copies introduced.
+ 	// Update named values.
+-	if false { // TODO: reeanable. It caused compiler OOMing on large input.
+-		for _, name := range f.Names {
+-			values := f.NamedValues[name]
+-			for i, v := range values {
+-				if v.Op == OpCopy {
+-					a := v.Args[0]
+-					for a.Op == OpCopy {
+-						a = a.Args[0]
+-					}
+-					values[i] = a
++	for _, name := range f.Names {
++		values := f.NamedValues[name]
++		for i, v := range values {
++			if v.Op == OpCopy {
++				a := v.Args[0]
++				for a.Op == OpCopy {
++					a = a.Args[0]
+ 				}
++				values[i] = a
+ 			}
+ 		}
+ 	}
+diff --git a/test/live_regabi.go b/test/live_regabi.go
+index af14ede73f..2b0278ecb8 100644
+--- a/test/live_regabi.go
++++ b/test/live_regabi.go
+@@ -1,8 +1,5 @@
+ // errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
+-// +build amd64,goexperiment.regabidefer,goexperiment.regabiargs,ignore
+-
+-// Disabled for now. The compiler sometimes has bad name-value association
+-// for args, causing args appears as autotmps.
++// +build amd64,goexperiment.regabidefer,goexperiment.regabiargs
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

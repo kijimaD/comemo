@@ -7,6 +7,22 @@ Date:   Sat Feb 14 21:29:37 2015 -0800
     Change-Id: Ib82500e198b86e9fade278c7eea7a4b0c6b0b2e1
     Reviewed-on: https://go-review.googlesource.com/4921
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/math/big/float.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 739d30f7ad..877379c901 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -582,7 +582,9 @@ func (z *Float) SetInt(x *Int) *Float {
+ // If z's precision is 0, it is changed to the largest of a.BitLen(),
+ // b.BitLen(), or 64; with x = a/b.
+ func (z *Float) SetRat(x *Rat) *Float {
+-	// TODO(gri) can be more efficient if x is an integer
++	if x.IsInt() {
++		return z.SetInt(x.Num())
++	}
+ 	var a, b Float
+ 	a.SetInt(x.Num())
+ 	b.SetInt(x.Denom())

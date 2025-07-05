@@ -10,6 +10,23 @@ Date:   Sat Aug 27 12:49:25 2022 +0930
     Auto-Submit: Dan Kortschak <dan@kortschak.io>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/debug/pe/file.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index 7adf3e122e..84bc300d92 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -353,7 +353,10 @@ func (f *File) ImportedSymbols() ([]string, error) {
+ 	var ds *Section
+ 	ds = nil
+ 	for _, s := range f.Sections {
+-		if s.VirtualAddress <= idd.VirtualAddress && idd.VirtualAddress < s.VirtualAddress+s.VirtualSize {
++		// We are using distance between s.VirtualAddress and idd.VirtualAddress
++		// to avoid potential overflow of uint32 caused by addition of s.VirtualSize
++		// to s.VirtualAddress.
++		if s.VirtualAddress <= idd.VirtualAddress && idd.VirtualAddress-s.VirtualAddress < s.VirtualSize {
+ 			ds = s
+ 			break
+ 		}

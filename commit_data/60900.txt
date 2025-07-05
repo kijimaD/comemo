@@ -14,7 +14,7 @@ Date:   Wed Sep 4 11:55:52 2024 +0800
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/alg.go                 |  1 -
  src/runtime/map_fast32_noswiss.go  |  1 -
  src/runtime/map_fast64_noswiss.go  |  2 --
@@ -27,3 +27,335 @@ Date:   Wed Sep 4 11:55:52 2024 +0800
  src/runtime/symtab.go              | 51 +-------------------------------------
  src/runtime/type.go                | 18 --------------
  11 files changed, 1 insertion(+), 111 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index bfb9fa1d29..1c373b7f25 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -97,7 +97,6 @@ func memhash64(p unsafe.Pointer, h uintptr) uintptr
+ //   - github.com/aristanetworks/goarista
+ //   - github.com/bytedance/sonic
+ //   - github.com/bytedance/go-tagexpr/v2
+-//   - github.com/cloudwego/frugal
+ //   - github.com/cloudwego/dynamicgo
+ //   - github.com/v2fly/v2ray-core/v5
+ //
+diff --git a/src/runtime/map_fast32_noswiss.go b/src/runtime/map_fast32_noswiss.go
+index 05e2ee54db..6d48cdd756 100644
+--- a/src/runtime/map_fast32_noswiss.go
++++ b/src/runtime/map_fast32_noswiss.go
+@@ -105,7 +105,6 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+-//   - github.com/cloudwego/frugal
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+diff --git a/src/runtime/map_fast64_noswiss.go b/src/runtime/map_fast64_noswiss.go
+index 1d56e5c029..9c1e8f4eca 100644
+--- a/src/runtime/map_fast64_noswiss.go
++++ b/src/runtime/map_fast64_noswiss.go
+@@ -105,7 +105,6 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+-//   - github.com/cloudwego/frugal
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+@@ -206,7 +205,6 @@ done:
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+-//   - github.com/cloudwego/frugal
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+diff --git a/src/runtime/map_faststr_noswiss.go b/src/runtime/map_faststr_noswiss.go
+index bacc6071e7..3c5509fc8e 100644
+--- a/src/runtime/map_faststr_noswiss.go
++++ b/src/runtime/map_faststr_noswiss.go
+@@ -215,7 +215,6 @@ dohash:
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+-//   - github.com/cloudwego/frugal
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+diff --git a/src/runtime/map_noswiss.go b/src/runtime/map_noswiss.go
+index 95c4f049b1..418fd434f7 100644
+--- a/src/runtime/map_noswiss.go
++++ b/src/runtime/map_noswiss.go
+@@ -312,7 +312,6 @@ func makemap_small() *hmap {
+ // makemap should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+-//   - github.com/cloudwego/frugal
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+@@ -607,7 +606,6 @@ func mapaccess2_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) (unsafe.Point
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+-//   - github.com/cloudwego/frugal
+ //   - github.com/RomiChan/protobuf
+ //   - github.com/segmentio/encoding
+ //   - github.com/ugorji/go/codec
+@@ -867,7 +865,6 @@ search:
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+-//   - github.com/cloudwego/frugal
+ //   - github.com/goccy/go-json
+ //   - github.com/RomiChan/protobuf
+ //   - github.com/segmentio/encoding
+@@ -928,7 +925,6 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+-//   - github.com/cloudwego/frugal
+ //   - github.com/RomiChan/protobuf
+ //   - github.com/segmentio/encoding
+ //   - github.com/ugorji/go/codec
+@@ -1066,16 +1062,6 @@ next:
+ 
+ // mapclear deletes all keys from a map.
+ // It is called by the compiler.
+-//
+-// mapclear should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/cloudwego/frugal
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname mapclear
+ func mapclear(t *maptype, h *hmap) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc()
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 2654c69658..a2b6b979c1 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -220,7 +220,6 @@ var gcphase uint32
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+-//   - github.com/cloudwego/frugal
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 03ef74b8dc..2f87b8b967 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -680,7 +680,6 @@ func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+ // reflect_resolveTextOff is for package reflect,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+-//   - github.com/cloudwego/frugal
+ //   - github.com/agiledragon/gomonkey/v2
+ //
+ // Do not remove or change the type signature.
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 5bdb25b9db..d45888b7a8 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -78,16 +78,6 @@ func concatstring5(buf *tmpBuf, a0, a1, a2, a3, a4 string) string {
+ // n is the length of the slice.
+ // Buf is a fixed-size buffer for the result,
+ // it is not nil if the result does not escape.
+-//
+-// slicebytetostring should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/cloudwego/frugal
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname slicebytetostring
+ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) string {
+ 	if n == 0 {
+ 		// Turns out to be a relatively common case.
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 2aeb4774b9..2c3c5e3541 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -97,7 +97,6 @@ func badsystemstack() {
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+ //   - github.com/chenzhuoyu/iasm
+-//   - github.com/cloudwego/frugal
+ //   - github.com/dgraph-io/ristretto
+ //   - github.com/outcaste-io/ristretto
+ //
+@@ -132,7 +131,6 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+ //   - github.com/cloudwego/dynamicgo
+-//   - github.com/cloudwego/frugal
+ //   - github.com/ebitengine/purego
+ //   - github.com/tetratelabs/wazero
+ //   - github.com/ugorji/go/codec
+@@ -365,15 +363,6 @@ func asmcgocall(fn, arg unsafe.Pointer) int32
+ 
+ func morestack()
+ 
+-// morestack_noctxt should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/cloudwego/frugal
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname morestack_noctxt
+ func morestack_noctxt()
+ 
+ func rt0_go()
+@@ -465,7 +454,6 @@ func gcWriteBarrier1()
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+-//   - github.com/cloudwego/frugal
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index f889d66992..88780b8cbf 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -462,17 +462,7 @@ type modulehash struct {
+ // To make sure the map isn't collected, we keep a second reference here.
+ var pinnedTypemaps []map[typeOff]*_type
+ 
+-var firstmoduledata moduledata // linker symbol
+-
+-// lastmoduledatap should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/cloudwego/frugal
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname lastmoduledatap
++var firstmoduledata moduledata  // linker symbol
+ var lastmoduledatap *moduledata // linker symbol
+ 
+ var modulesSlice *[]*moduledata // see activeModules
+@@ -583,15 +573,6 @@ func moduledataverify() {
+ 
+ const debugPcln = false
+ 
+-// moduledataverify1 should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/cloudwego/frugal
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname moduledataverify1
+ func moduledataverify1(datap *moduledata) {
+ 	// Check that the pclntab's format is valid.
+ 	hdr := datap.pcHeader
+@@ -862,7 +843,6 @@ func badFuncInfoEntry(funcInfo) uintptr
+ // findfunc should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+-//   - github.com/cloudwego/frugal
+ //   - github.com/phuslu/log
+ //
+ // Do not remove or change the type signature.
+@@ -1196,16 +1176,6 @@ func pcdatavalue1(f funcInfo, table uint32, targetpc uintptr, strict bool) int32
+ }
+ 
+ // Like pcdatavalue, but also return the start PC of this PCData value.
+-//
+-// pcdatavalue2 should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/cloudwego/frugal
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname pcdatavalue2
+ func pcdatavalue2(f funcInfo, table uint32, targetpc uintptr) (int32, uintptr) {
+ 	if table >= f.npcdata {
+ 		return -1, 0
+@@ -1234,16 +1204,6 @@ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
+ }
+ 
+ // step advances to the next pc, value pair in the encoded table.
+-//
+-// step should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/cloudwego/frugal
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname step
+ func step(p []byte, pc *uintptr, val *int32, first bool) (newp []byte, ok bool) {
+ 	// For both uvdelta and pcdelta, the common case (~70%)
+ 	// is that they are a single byte. If so, avoid calling readvarint.
+@@ -1289,15 +1249,6 @@ type stackmap struct {
+ 	bytedata [1]byte // bitmaps, each starting on a byte boundary
+ }
+ 
+-// stackmapdata should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/cloudwego/frugal
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname stackmapdata
+ //go:nowritebarrier
+ func stackmapdata(stkmap *stackmap, n int32) bitvector {
+ 	// Check this invariant only when stackDebug is on at all.
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 5e5c99276c..dbca2d9dfa 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -107,15 +107,6 @@ func reflectOffsUnlock() {
+ 	unlock(&reflectOffs.lock)
+ }
+ 
+-// resolveNameOff should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/cloudwego/frugal
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname resolveNameOff
+ func resolveNameOff(ptrInModule unsafe.Pointer, off nameOff) name {
+ 	if off == 0 {
+ 		return name{}
+@@ -150,15 +141,6 @@ func (t rtype) nameOff(off nameOff) name {
+ 	return resolveNameOff(unsafe.Pointer(t.Type), off)
+ }
+ 
+-// resolveTypeOff should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/cloudwego/frugal
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname resolveTypeOff
+ func resolveTypeOff(ptrInModule unsafe.Pointer, off typeOff) *_type {
+ 	if off == 0 || off == -1 {
+ 		// -1 is the sentinel value for unreachable code.

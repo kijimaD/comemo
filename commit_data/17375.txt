@@ -9,7 +9,7 @@ Date:   Sat Aug 24 02:15:50 2013 +1000
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/13183044
-
+---
  src/pkg/os/dir_unix.go           |  2 +-
  src/pkg/os/env_unix_test.go      |  2 +-
  src/pkg/os/error_unix.go         |  2 +-
@@ -29,3 +29,312 @@ Date:   Sat Aug 24 02:15:50 2013 +1000
  src/pkg/os/stat_dragonfly.go     | 61 ++++++++++++++++++++++++++++++++++++++++
  src/pkg/os/sys_bsd.go            |  2 +-
  18 files changed, 89 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/os/dir_unix.go b/src/pkg/os/dir_unix.go
+index f41f939a97..9fa7ad664f 100644
+--- a/src/pkg/os/dir_unix.go
++++ b/src/pkg/os/dir_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package os
+ 
+diff --git a/src/pkg/os/env_unix_test.go b/src/pkg/os/env_unix_test.go
+index 7eb4dc0ff4..e16d71a649 100644
+--- a/src/pkg/os/env_unix_test.go
++++ b/src/pkg/os/env_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package os_test
+ 
+diff --git a/src/pkg/os/error_unix.go b/src/pkg/os/error_unix.go
+index 81b626aecb..6250349e5b 100644
+--- a/src/pkg/os/error_unix.go
++++ b/src/pkg/os/error_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package os
+ 
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index ec26e298c8..8448a67d0a 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -445,7 +445,7 @@ func TestHelperProcess(*testing.T) {
+ 	// Determine which command to use to display open files.
+ 	ofcmd := "lsof"
+ 	switch runtime.GOOS {
+-	case "freebsd", "netbsd", "openbsd":
++	case "dragonfly", "freebsd", "netbsd", "openbsd":
+ 		ofcmd = "fstat"
+ 	}
+ 
+@@ -514,6 +514,9 @@ func TestHelperProcess(*testing.T) {
+ 			os.Exit(1)
+ 		}
+ 		switch runtime.GOOS {
++		case "dragonfly":
++			// TODO(jsing): Determine why DragonFly is leaking
++			// file descriptors...
+ 		case "darwin":
+ 			// TODO(bradfitz): broken? Sometimes.
+ 			// http://golang.org/issue/2603
+diff --git a/src/pkg/os/exec/lp_unix.go b/src/pkg/os/exec/lp_unix.go
+index 7aee50cb78..7ff2d201bc 100644
+--- a/src/pkg/os/exec/lp_unix.go
++++ b/src/pkg/os/exec/lp_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package exec
+ 
+diff --git a/src/pkg/os/exec/lp_unix_test.go b/src/pkg/os/exec/lp_unix_test.go
+index 625d784864..f1ab6deffd 100644
+--- a/src/pkg/os/exec/lp_unix_test.go
++++ b/src/pkg/os/exec/lp_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package exec
+ 
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index f7b10f3c69..fb123aefbc 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ package os
+ 
+diff --git a/src/pkg/os/exec_unix.go b/src/pkg/os/exec_unix.go
+index fa3ba8a19e..5572e628e6 100644
+--- a/src/pkg/os/exec_unix.go
++++ b/src/pkg/os/exec_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package os
+ 
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index b64d9edd14..a8bef359b9 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ package os
+ 
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index e0013ac640..376e380bc9 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package os
+ 
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 09daa3f018..9462ebd42c 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -825,9 +825,16 @@ func TestOpenError(t *testing.T) {
+ 				if !strings.HasSuffix(syscallErrStr, expectedErrStr) {
+ 					t.Errorf("Open(%q, %d) = _, %q; want suffix %q", tt.path, tt.mode, syscallErrStr, expectedErrStr)
+ 				}
+-			} else {
+-				t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, perr.Err.Error(), tt.error.Error())
++				continue
++			}
++			if runtime.GOOS == "dragonfly" {
++				// DragonFly incorrectly returns EACCES rather
++				// EISDIR when a directory is opened for write.
++				if tt.error == syscall.EISDIR && perr.Err == syscall.EACCES {
++					continue
++				}
+ 			}
++			t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, perr.Err.Error(), tt.error.Error())
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/os/os_unix_test.go b/src/pkg/os/os_unix_test.go
+index 90bbdab789..80d57aa422 100644
+--- a/src/pkg/os/os_unix_test.go
++++ b/src/pkg/os/os_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package os_test
+ 
+diff --git a/src/pkg/os/path_unix.go b/src/pkg/os/path_unix.go
+index 30a167b1ad..3bf63bf804 100644
+--- a/src/pkg/os/path_unix.go
++++ b/src/pkg/os/path_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package os
+ 
+diff --git a/src/pkg/os/pipe_bsd.go b/src/pkg/os/pipe_bsd.go
+index a2ce9a39f5..73d35b4d5e 100644
+--- a/src/pkg/os/pipe_bsd.go
++++ b/src/pkg/os/pipe_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ package os
+ 
+diff --git a/src/pkg/os/signal/signal_test.go b/src/pkg/os/signal/signal_test.go
+index d13833306f..5fc8065fe8 100644
+--- a/src/pkg/os/signal/signal_test.go
++++ b/src/pkg/os/signal/signal_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package signal
+ 
+diff --git a/src/pkg/os/signal/signal_unix.go b/src/pkg/os/signal/signal_unix.go
+index 6b4c8ab662..318488dc04 100644
+--- a/src/pkg/os/signal/signal_unix.go
++++ b/src/pkg/os/signal/signal_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ package signal
+ 
+diff --git a/src/pkg/os/stat_dragonfly.go b/src/pkg/os/stat_dragonfly.go
+new file mode 100644
+index 0000000000..605c1d9b64
+--- /dev/null
++++ b/src/pkg/os/stat_dragonfly.go
+@@ -0,0 +1,61 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++	"time"
++)
++
++func sameFile(fs1, fs2 *fileStat) bool {
++	stat1 := fs1.sys.(*syscall.Stat_t)
++	stat2 := fs2.sys.(*syscall.Stat_t)
++	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
++}
++
++func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
++	fs := &fileStat{
++		name:    basename(name),
++		size:    int64(st.Size),
++		modTime: timespecToTime(st.Mtim),
++		sys:     st,
++	}
++	fs.mode = FileMode(st.Mode & 0777)
++	switch st.Mode & syscall.S_IFMT {
++	case syscall.S_IFBLK:
++		fs.mode |= ModeDevice
++	case syscall.S_IFCHR:
++		fs.mode |= ModeDevice | ModeCharDevice
++	case syscall.S_IFDIR:
++		fs.mode |= ModeDir
++	case syscall.S_IFIFO:
++		fs.mode |= ModeNamedPipe
++	case syscall.S_IFLNK:
++		fs.mode |= ModeSymlink
++	case syscall.S_IFREG:
++		// nothing to do
++	case syscall.S_IFSOCK:
++		fs.mode |= ModeSocket
++	}
++	if st.Mode&syscall.S_ISGID != 0 {
++		fs.mode |= ModeSetgid
++	}
++	if st.Mode&syscall.S_ISUID != 0 {
++		fs.mode |= ModeSetuid
++	}
++	if st.Mode&syscall.S_ISVTX != 0 {
++		fs.mode |= ModeSticky
++	}
++	return fs
++}
++
++func timespecToTime(ts syscall.Timespec) time.Time {
++	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
++}
++
++// For testing.
++func atime(fi FileInfo) time.Time {
++	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atim)
++}
+diff --git a/src/pkg/os/sys_bsd.go b/src/pkg/os/sys_bsd.go
+index 0f263f1c12..9ad2f8546b 100644
+--- a/src/pkg/os/sys_bsd.go
++++ b/src/pkg/os/sys_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ // os code shared between *BSD systems including OS X (Darwin)
+ // and FreeBSD.

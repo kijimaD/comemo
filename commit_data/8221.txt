@@ -9,7 +9,7 @@ Date:   Mon Apr 25 16:58:00 2011 -0400
     R=r, iant
     CC=golang-dev
     https://golang.org/cl/4452046
-
+---
  src/pkg/os/file_posix.go               |  4 +++-
  src/pkg/runtime/darwin/386/signal.c    |  7 +++++++
  src/pkg/runtime/darwin/386/sys.s       | 10 ++++++++++
@@ -31,3 +31,342 @@ Date:   Mon Apr 25 16:58:00 2011 -0400
  src/pkg/runtime/plan9/thread.c         |  5 +++++
  src/pkg/runtime/windows/thread.c       |  6 ++++++
  20 files changed, 142 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index 7d96818b7f..f1191d61fe 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -10,11 +10,13 @@ import (
+ 	"syscall"
+ )
+ 
++func sigpipe() // implemented in package runtime
++
+ func epipecheck(file *File, e int) {
+ 	if e == syscall.EPIPE {
+ 		file.nepipe++
+ 		if file.nepipe >= 10 {
+-			panic("os.File Write: caller keeps writing after too many EPIPE errors")
++			sigpipe()
+ 		}
+ 	} else {
+ 		file.nepipe = 0
+diff --git a/src/pkg/runtime/darwin/386/signal.c b/src/pkg/runtime/darwin/386/signal.c
+index 35bbb178b1..29170b6691 100644
+--- a/src/pkg/runtime/darwin/386/signal.c
++++ b/src/pkg/runtime/darwin/386/signal.c
+@@ -185,3 +185,10 @@ runtime·resetcpuprofiler(int32 hz)
+ 	}
+ 	m->profilehz = hz;
+ }
++
++void
++os·sigpipe(void)
++{
++	sigaction(SIGPIPE, SIG_DFL, false);
++	runtime·raisesigpipe();
++}
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index 08eca9d5a8..87fbdbb79e 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -33,6 +33,16 @@ TEXT runtime·write(SB),7,$0
+ 	INT	$0x80
+ 	RET
+ 
++TEXT runtime·raisesigpipe(SB),7,$8
++	get_tls(CX)
++	MOVL	m(CX), DX
++	MOVL	m_procid(DX), DX
++	MOVL	DX, 0(SP)	// thread_port
++	MOVL	$13, 4(SP)	// signal: SIGPIPE
++	MOVL	$328, AX	// __pthread_kill
++	INT	$0x80
++	RET
++
+ TEXT runtime·mmap(SB),7,$0
+ 	MOVL	$197, AX
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/darwin/amd64/signal.c b/src/pkg/runtime/darwin/amd64/signal.c
+index 3a99d2308f..036a3aca73 100644
+--- a/src/pkg/runtime/darwin/amd64/signal.c
++++ b/src/pkg/runtime/darwin/amd64/signal.c
+@@ -195,3 +195,10 @@ runtime·resetcpuprofiler(int32 hz)
+ 	}
+ 	m->profilehz = hz;
+ }
++
++void
++os·sigpipe(void)
++{
++	sigaction(SIGPIPE, SIG_DFL, false);
++	runtime·raisesigpipe();
++}
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index 39398e065d..8d1b20f118 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -38,6 +38,15 @@ TEXT runtime·write(SB),7,$0
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·raisesigpipe(SB),7,$24
++	get_tls(CX)
++	MOVQ	m(CX), DX
++	MOVL	$13, DI	// arg 1 SIGPIPE
++	MOVQ	m_procid(DX), SI	// arg 2 thread_port
++	MOVL	$(0x2000000+328), AX	// syscall entry __pthread_kill
++	SYSCALL
++	RET
++
+ TEXT runtime·setitimer(SB), 7, $0
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+diff --git a/src/pkg/runtime/darwin/os.h b/src/pkg/runtime/darwin/os.h
+index 339768e516..db3c2e8a7c 100644
+--- a/src/pkg/runtime/darwin/os.h
++++ b/src/pkg/runtime/darwin/os.h
+@@ -27,3 +27,5 @@ void	runtime·sigaltstack(struct StackT*, struct StackT*);
+ void	runtime·sigtramp(void);
+ void	runtime·sigpanic(void);
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
++
++void	runtime·raisesigpipe(void);
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index 1ae2554eb4..3600f0762a 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -182,3 +182,10 @@ runtime·resetcpuprofiler(int32 hz)
+ 	}
+ 	m->profilehz = hz;
+ }
++
++void
++os·sigpipe(void)
++{
++	sigaction(SIGPIPE, SIG_DFL, false);
++	runtime·raisesigpipe();
++}
+diff --git a/src/pkg/runtime/freebsd/386/sys.s b/src/pkg/runtime/freebsd/386/sys.s
+index c4715b668b..765e2fcc40 100644
+--- a/src/pkg/runtime/freebsd/386/sys.s
++++ b/src/pkg/runtime/freebsd/386/sys.s
+@@ -60,6 +60,20 @@ TEXT runtime·write(SB),7,$-4
+ 	INT	$0x80
+ 	RET
+ 
++TEXT runtime·raisesigpipe(SB),7,$12
++	// thr_self(&8(SP))
++	LEAL	8(SP), AX
++	MOVL	AX, 0(SP)
++	MOVL	$432, AX
++	INT	$0x80
++	// thr_kill(self, SIGPIPE)
++	MOVL	8(SP), AX
++	MOVL	AX, 0(SP)
++	MOVL	$13, 4(SP)
++	MOVL	$433, AX
++	INT	$0x80
++	RET
++
+ TEXT runtime·notok(SB),7,$0
+ 	MOVL	$0xf1, 0xf1
+ 	RET
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+index 9d8e5e6929..85cb1d8552 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -190,3 +190,10 @@ runtime·resetcpuprofiler(int32 hz)
+ 	}
+ 	m->profilehz = hz;
+ }
++
++void
++os·sigpipe(void)
++{
++	sigaction(SIGPIPE, SIG_DFL, false);
++	runtime·raisesigpipe();
++}
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+index 9a6fdf1ac6..c5cc082e4d 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -65,6 +65,18 @@ TEXT runtime·write(SB),7,$-8
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·raisesigpipe(SB),7,$16
++	// thr_self(&8(SP))
++	LEAQ	8(SP), DI	// arg 1 &8(SP)
++	MOVL	$432, AX
++	SYSCALL
++	// thr_kill(self, SIGPIPE)
++	MOVQ	8(SP), DI	// arg 1 id
++	MOVQ	$13, SI	// arg 2 SIGPIPE
++	MOVL	$433, AX
++	SYSCALL
++	RET
++
+ TEXT runtime·setitimer(SB), 7, $-8
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+diff --git a/src/pkg/runtime/freebsd/os.h b/src/pkg/runtime/freebsd/os.h
+index 13754688b4..007856c6bc 100644
+--- a/src/pkg/runtime/freebsd/os.h
++++ b/src/pkg/runtime/freebsd/os.h
+@@ -8,3 +8,5 @@ struct sigaction;
+ void runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtiem·setitimerval(int32, Itimerval*, Itimerval*);
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
++
++void	runtime·raisesigpipe(void);
+diff --git a/src/pkg/runtime/linux/386/signal.c b/src/pkg/runtime/linux/386/signal.c
+index 9b72ecbaee..8916e10bd1 100644
+--- a/src/pkg/runtime/linux/386/signal.c
++++ b/src/pkg/runtime/linux/386/signal.c
+@@ -175,3 +175,10 @@ runtime·resetcpuprofiler(int32 hz)
+ 	}
+ 	m->profilehz = hz;
+ }
++
++void
++os·sigpipe(void)
++{
++	sigaction(SIGPIPE, SIG_DFL, false);
++	runtime·raisesigpipe();
++}
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index c39ce253f0..868a0d901a 100644
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -30,6 +30,14 @@ TEXT runtime·write(SB),7,$0
+ 	INT	$0x80
+ 	RET
+ 
++TEXT runtime·raisesigpipe(SB),7,$12
++	MOVL	$224, AX	// syscall - gettid
++	INT	$0x80
++	MOVL	AX, 0(SP)	// arg 1 tid
++	MOVL	$13, 4(SP)	// arg 2 SIGPIPE
++	MOVL	$238, AX	// syscall - tkill
++	INT	$0x80
++	RET
+ 
+ TEXT runtime·setitimer(SB),7,$0-24
+ 	MOVL	$104, AX			// syscall - setitimer
+diff --git a/src/pkg/runtime/linux/amd64/signal.c b/src/pkg/runtime/linux/amd64/signal.c
+index 1db9c95e50..ee90271ed2 100644
+--- a/src/pkg/runtime/linux/amd64/signal.c
++++ b/src/pkg/runtime/linux/amd64/signal.c
+@@ -185,3 +185,10 @@ runtime·resetcpuprofiler(int32 hz)
+ 	}
+ 	m->profilehz = hz;
+ }
++
++void
++os·sigpipe(void)
++{
++	sigaction(SIGPIPE, SIG_DFL, false);
++	runtime·raisesigpipe();
++}
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index 11df1f894b..eadd300058 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -36,6 +36,15 @@ TEXT runtime·write(SB),7,$0-24
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·raisesigpipe(SB),7,$12
++	MOVL	$186, AX	// syscall - gettid
++	SYSCALL
++	MOVL	AX, DI	// arg 1 tid
++	MOVL	$13, SI	// arg 2 SIGPIPE
++	MOVL	$200, AX	// syscall - tkill
++	SYSCALL
++	RET
++
+ TEXT runtime·setitimer(SB),7,$0-24
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+diff --git a/src/pkg/runtime/linux/arm/signal.c b/src/pkg/runtime/linux/arm/signal.c
+index 05c6b02612..88a84d1120 100644
+--- a/src/pkg/runtime/linux/arm/signal.c
++++ b/src/pkg/runtime/linux/arm/signal.c
+@@ -180,3 +180,10 @@ runtime·resetcpuprofiler(int32 hz)
+ 	}
+ 	m->profilehz = hz;
+ }
++
++void
++os·sigpipe(void)
++{
++	sigaction(SIGPIPE, SIG_DFL, false);
++	runtime·raisesigpipe();
++}
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index b9767a0284..3fe7d4a828 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -27,6 +27,8 @@
+ #define SYS_exit_group (SYS_BASE + 248)
+ #define SYS_munmap (SYS_BASE + 91)
+ #define SYS_setitimer (SYS_BASE + 104)
++#define SYS_gettid (SYS_BASE + 224)
++#define SYS_tkill (SYS_BASE + 238)
+ 
+ #define ARM_BASE (SYS_BASE + 0x0f0000)
+ #define SYS_ARM_cacheflush (ARM_BASE + 2)
+@@ -55,6 +57,15 @@ TEXT runtime·exit1(SB),7,$-4
+ 	MOVW	$1003, R1
+ 	MOVW	R0, (R1)	// fail hard
+ 
++TEXT	runtime·raisesigpipe(SB),7,$-4
++	MOVW	$SYS_gettid, R7
++	SWI	$0
++	// arg 1 tid already in R0 from gettid
++	MOVW	$13, R1	// arg 2 SIGPIPE
++	MOVW	$SYS_tkill, R7
++	SWI	$0
++	RET
++
+ TEXT runtime·mmap(SB),7,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+diff --git a/src/pkg/runtime/linux/os.h b/src/pkg/runtime/linux/os.h
+index 6ae0889777..0bb8d03392 100644
+--- a/src/pkg/runtime/linux/os.h
++++ b/src/pkg/runtime/linux/os.h
+@@ -15,3 +15,5 @@ void	runtime·rt_sigaction(uintptr, struct Sigaction*, void*, uintptr);
+ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ void	runtime·sigpanic(void);
+ void runtime·setitimer(int32, Itimerval*, Itimerval*);
++
++void	runtime·raisesigpipe(void);
+diff --git a/src/pkg/runtime/plan9/thread.c b/src/pkg/runtime/plan9/thread.c
+index fa96552a91..7c6ca45a3d 100644
+--- a/src/pkg/runtime/plan9/thread.c
++++ b/src/pkg/runtime/plan9/thread.c
+@@ -138,3 +138,8 @@ runtime·notewakeup(Note *n)
+ 	runtime·usemrelease(&n->sema);
+ }
+ 
++void
++os·sigpipe(void)
++{
++	runtime·throw("too many writes on closed pipe");
++}
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index aedd24200a..2ce92dcfbf 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -378,3 +378,9 @@ runtime·compilecallback(Eface fn, bool cleanstack)
+ 
+ 	return ret;
+ }
++
++void
++os·sigpipe(void)
++{
++	runtime·throw("too many writes on closed pipe");
++}

@@ -12,10 +12,120 @@ Date:   Tue Aug 8 12:58:33 2023 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  api/next/61308.txt                          |  1 +
  doc/next/6-stdlib/99-minor/reflect/61308.md |  3 +++
  src/reflect/all_test.go                     | 41 +++++++++++++++++++++++++++++
  src/reflect/value.go                        | 13 +++++++++
  src/runtime/unsafe.go                       |  5 ++++
  5 files changed, 63 insertions(+)
+
+diff --git a/api/next/61308.txt b/api/next/61308.txt
+new file mode 100644
+index 0000000000..73a6035480
+--- /dev/null
++++ b/api/next/61308.txt
+@@ -0,0 +1 @@
++pkg reflect, func SliceAt(Type, unsafe.Pointer, int) Value #61308
+diff --git a/doc/next/6-stdlib/99-minor/reflect/61308.md b/doc/next/6-stdlib/99-minor/reflect/61308.md
+new file mode 100644
+index 0000000000..e512e8ffb6
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/reflect/61308.md
+@@ -0,0 +1,3 @@
++The [`SliceAt(typ Type, p unsafe.Pointer, len int)`](/pkg/reflect#SliceAt) function
++returns a Value representing a slice whose underlying array starts at p and whose
++length and capacity are len.
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index daeabae933..f9b2ffd4f1 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -8548,3 +8548,44 @@ func TestValuePointerAndUnsafePointer(t *testing.T) {
+ 		})
+ 	}
+ }
++
++// Test cases copied from ../../test/unsafebuiltins.go
++func TestSliceAt(t *testing.T) {
++	const maxUintptr = 1 << (8 * unsafe.Sizeof(uintptr(0)))
++	var p [10]byte
++
++	typ := TypeOf(p[0])
++
++	s := SliceAt(typ, unsafe.Pointer(&p[0]), len(p))
++	if s.Pointer() != uintptr(unsafe.Pointer(&p[0])) {
++		t.Fatalf("unexpected underlying array: %d, want: %d", s.Pointer(), uintptr(unsafe.Pointer(&p[0])))
++	}
++	if s.Len() != len(p) || s.Cap() != len(p) {
++		t.Fatalf("unexpected len or cap, len: %d, cap: %d, want: %d", s.Len(), s.Cap(), len(p))
++	}
++
++	typ = TypeOf(0)
++	if !SliceAt(typ, unsafe.Pointer((*int)(nil)), 0).IsNil() {
++		t.Fatal("nil pointer with zero length must return nil")
++	}
++
++	// nil pointer with positive length panics
++	shouldPanic("", func() { _ = SliceAt(typ, unsafe.Pointer((*int)(nil)), 1) })
++
++	// negative length
++	var neg int = -1
++	shouldPanic("", func() { _ = SliceAt(TypeOf(byte(0)), unsafe.Pointer(&p[0]), neg) })
++
++	// size overflows address space
++	n := uint64(0)
++	shouldPanic("", func() { _ = SliceAt(TypeOf(n), unsafe.Pointer(&n), maxUintptr/8) })
++	shouldPanic("", func() { _ = SliceAt(TypeOf(n), unsafe.Pointer(&n), maxUintptr/8+1) })
++
++	// sliced memory overflows address space
++	last := (*byte)(unsafe.Pointer(^uintptr(0)))
++	// This panics here, but won't panic in ../../test/unsafebuiltins.go,
++	// because unsafe.Slice(last, 1) does not escape.
++	//
++	// _ = SliceAt(typ, unsafe.Pointer(last), 1)
++	shouldPanic("", func() { _ = SliceAt(typ, unsafe.Pointer(last), 2) })
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index dd7021b104..d14e01ae0c 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -3211,6 +3211,16 @@ func MakeSlice(typ Type, len, cap int) Value {
+ 	return Value{&typ.(*rtype).t, unsafe.Pointer(&s), flagIndir | flag(Slice)}
+ }
+ 
++// SliceAt returns a [Value] representing a slice whose underlying
++// data starts at p, with length and capacity equal to n.
++//
++// This is like [unsafe.Slice].
++func SliceAt(typ Type, p unsafe.Pointer, n int) Value {
++	unsafeslice(typ.common(), p, n)
++	s := unsafeheader.Slice{Data: p, Len: n, Cap: n}
++	return Value{SliceOf(typ).common(), unsafe.Pointer(&s), flagIndir | flag(Slice)}
++}
++
+ // MakeChan creates a new channel with the specified type and buffer size.
+ func MakeChan(typ Type, buffer int) Value {
+ 	if typ.Kind() != Chan {
+@@ -3978,6 +3988,9 @@ func verifyNotInHeapPtr(p uintptr) bool
+ //go:noescape
+ func growslice(t *abi.Type, old unsafeheader.Slice, num int) unsafeheader.Slice
+ 
++//go:noescape
++func unsafeslice(t *abi.Type, ptr unsafe.Pointer, len int)
++
+ // Dummy annotation marking that the value x escapes,
+ // for use in cases where the reflect code is so clever that
+ // the compiler cannot follow.
+diff --git a/src/runtime/unsafe.go b/src/runtime/unsafe.go
+index 6675264f59..ca428b56e0 100644
+--- a/src/runtime/unsafe.go
++++ b/src/runtime/unsafe.go
+@@ -112,3 +112,8 @@ func panicunsafeslicenilptr1(pc uintptr) {
+ 	panicCheck1(pc, "unsafe.Slice: ptr is nil and len is not zero")
+ 	panic(errorString("unsafe.Slice: ptr is nil and len is not zero"))
+ }
++
++//go:linkname reflect_unsafeslice reflect.unsafeslice
++func reflect_unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
++	unsafeslice(et, ptr, len)
++}

@@ -11,7 +11,45 @@ Date:   Mon Jun 6 10:41:47 2016 +1000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/serve_test.go | 14 ++++++++++++++
  src/net/http/server.go     |  1 +
  2 files changed, 15 insertions(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index c32ff29902..26aefec7de 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -4166,6 +4166,20 @@ func testServerContext_ServerContextKey(t *testing.T, h2 bool) {
+ 	res.Body.Close()
+ }
+ 
++// https://golang.org/issue/15960
++func TestHandlerSetTransferEncodingChunked(t *testing.T) {
++	defer afterTest(t)
++	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Header().Set("Transfer-Encoding", "chunked")
++		w.Write([]byte("hello"))
++	}))
++	resp := ht.rawResponse("GET / HTTP/1.1\nHost: foo")
++	const hdr = "Transfer-Encoding: chunked"
++	if n := strings.Count(resp, hdr); n != 1 {
++		t.Errorf("want 1 occurrence of %q in response, got %v\nresponse: %v", hdr, n, resp)
++	}
++}
++
+ func BenchmarkClientServer(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.StopTimer()
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 1a8c0fc6cc..4286d719ec 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1147,6 +1147,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 			// to avoid closing the connection at EOF.
+ 			cw.chunking = true
+ 			setHeader.transferEncoding = "chunked"
++			delHeader("Transfer-Encoding")
+ 		}
+ 	} else {
+ 		// HTTP version < 1.1: cannot do chunked transfer

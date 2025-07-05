@@ -12,6 +12,28 @@ Date:   Thu Apr 24 16:46:44 2025 +0200
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/os/signal/doc.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/signal/doc.go b/src/os/signal/doc.go
+index 1d3e6eb573..df942b8428 100644
+--- a/src/os/signal/doc.go
++++ b/src/os/signal/doc.go
+@@ -98,12 +98,13 @@ the behavior depends on the file descriptor number. A write to a
+ broken pipe on file descriptors 1 or 2 (standard output or standard
+ error) will cause the program to exit with a SIGPIPE signal. A write
+ to a broken pipe on some other file descriptor will take no action on
+-the SIGPIPE signal, and the write will fail with an EPIPE error.
++the SIGPIPE signal, and the write will fail with a [syscall.EPIPE]
++error.
+ 
+ If the program has called Notify to receive SIGPIPE signals, the file
+ descriptor number does not matter. The SIGPIPE signal will be
+-delivered to the Notify channel, and the write will fail with an EPIPE
+-error.
++delivered to the Notify channel, and the write will fail with a
++[syscall.EPIPE] error.
+ 
+ This means that, by default, command line programs will behave like
+ typical Unix command line programs, while other programs will not

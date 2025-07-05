@@ -7,6 +7,20 @@ Date:   Tue Nov 17 18:41:00 2015 -0800
     Change-Id: Ieba62c0cb668daeb343f72fdd568e46b0b21b7d6
     Reviewed-on: https://go-review.googlesource.com/16998
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/sort/search.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sort/search.go b/src/sort/search.go
+index 8a2c1c33b1..de8178ff48 100644
+--- a/src/sort/search.go
++++ b/src/sort/search.go
+@@ -13,7 +13,7 @@ package sort
+ // and then true for the (possibly empty) remainder; Search returns
+ // the first true index.  If there is no such index, Search returns n.
+ // (Note that the "not found" return value is not -1 as in, for instance,
+-// strings.Index).
++// strings.Index.)
+ // Search calls f(i) only for i in the range [0, n).
+ //
+ // A common use of Search is to find the index i for a value x in

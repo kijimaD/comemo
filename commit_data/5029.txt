@@ -7,7 +7,94 @@ Date:   Wed Mar 10 20:19:20 2010 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/391041
-
+---
  src/pkg/template/template.go      | 24 ++++++++++++++++++++++++
  src/pkg/template/template_test.go | 14 +++++++++++++-
  2 files changed, 37 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index cbe21f5e2e..e2f70c1a53 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -66,6 +66,7 @@ import (
+ 	"container/vector"
+ 	"fmt"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+@@ -965,6 +966,19 @@ func Parse(s string, fmap FormatterMap) (t *Template, err os.Error) {
+ 	return
+ }
+ 
++// ParseFile is a wrapper function that creates a Template with default
++// parameters (such as {} for // metacharacters).  The filename identfies
++// a file containing the template text, while the formatter map fmap, which
++// may be nil, defines auxiliary functions for formatting variables.
++// The template is returned. If any errors occur, err will be non-nil.
++func ParseFile(filename string, fmap FormatterMap) (t *Template, err os.Error) {
++	b, err := ioutil.ReadFile(filename)
++	if err != nil {
++		return nil, err
++	}
++	return Parse(string(b), fmap)
++}
++
+ // MustParse is like Parse but panics if the template cannot be parsed.
+ func MustParse(s string, fmap FormatterMap) *Template {
+ 	t, err := Parse(s, fmap)
+@@ -973,3 +987,13 @@ func MustParse(s string, fmap FormatterMap) *Template {
+ 	}
+ 	return t
+ }
++
++// MustParseFile is like ParseFile but panics if the file cannot be read
++// or the template cannot be parsed.
++func MustParseFile(filename string, fmap FormatterMap) *Template {
++	b, err := ioutil.ReadFile(filename)
++	if err != nil {
++		panic("template parse error: ", err.String())
++	}
++	return MustParse(string(b), fmap)
++}
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index a1163d1596..aaf7f2ec32 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -9,7 +9,9 @@ import (
+ 	"container/vector"
+ 	"fmt"
+ 	"io"
++	"io/ioutil"
+ 	"json"
++	"os"
+ 	"testing"
+ )
+ 
+@@ -386,6 +388,16 @@ var tests = []*Test{
+ }
+ 
+ func TestAll(t *testing.T) {
++	// Parse
++	testAll(t, func(test *Test) (*Template, os.Error) { return Parse(test.in, formatters) })
++	// ParseFile
++	testAll(t, func(test *Test) (*Template, os.Error) {
++		ioutil.WriteFile("_test/test.tmpl", []byte(test.in), 0600)
++		return ParseFile("_test/test.tmpl", formatters)
++	})
++}
++
++func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
+ 	s := new(S)
+ 	// initialized by hand for clarity.
+ 	s.header = "Header"
+@@ -415,7 +427,7 @@ func TestAll(t *testing.T) {
+ 	var buf bytes.Buffer
+ 	for _, test := range tests {
+ 		buf.Reset()
+-		tmpl, err := Parse(test.in, formatters)
++		tmpl, err := parseFunc(test)
+ 		if err != nil {
+ 			t.Error("unexpected parse error:", err)
+ 			continue

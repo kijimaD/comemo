@@ -9,8 +9,300 @@ Date:   Fri Mar 22 00:38:23 2013 +0100
     R=golang-dev, daniel.morsing, rsc
     CC=golang-dev
     https://golang.org/cl/7625050
-
+---
  src/cmd/gc/typecheck.c      | 33 ++++++++++++++++++----
  test/fixedbugs/issue4813.go | 52 ++++++++++++++++++++++++++++++++++
  test/index.go               | 69 ++++++++++++++++++++++++++++++++-------------
  3 files changed, 130 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 2711656a16..938716e215 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -276,6 +276,29 @@ callrecvlist(NodeList *l)
+ 	return 0;
+ }
+ 
++// indexlit implements typechecking of untyped values as
++// array/slice indexes. It is equivalent to defaultlit
++// except for constants of numerical kind, which are acceptable
++// whenever they can be represented by a value of type int.
++static void
++indexlit(Node **np)
++{
++	Node *n;
++
++	n = *np;
++	if(n == N || !isideal(n->type))
++		return;
++	switch(consttype(n)) {
++	case CTINT:
++	case CTRUNE:
++	case CTFLT:
++	case CTCPLX:
++		defaultlit(np, types[TINT]);
++		break;
++	}
++	defaultlit(np, T);
++}
++
+ static void
+ typecheck1(Node **np, int top)
+ {
+@@ -845,7 +868,7 @@ reswitch:
+ 
+ 		case TSTRING:
+ 		case TARRAY:
+-			defaultlit(&n->right, T);
++			indexlit(&n->right);
+ 			if(t->etype == TSTRING)
+ 				n->type = types[TUINT8];
+ 			else
+@@ -861,8 +884,8 @@ reswitch:
+ 				yyerror("non-integer %s index %N", why, n->right);
+ 				break;
+ 			}
+-			if(n->right->op == OLITERAL) {
+-			       	if(mpgetfix(n->right->val.u.xval) < 0)
++			if(isconst(n->right, CTINT)) {
++				if(mpgetfix(n->right->val.u.xval) < 0)
+ 					yyerror("invalid %s index %N (index must be non-negative)", why, n->right);
+ 				else if(isfixedarray(t) && t->bound > 0 && mpgetfix(n->right->val.u.xval) >= t->bound)
+ 					yyerror("invalid array index %N (out of bounds for %d-element array)", n->right, t->bound);
+@@ -938,8 +961,8 @@ reswitch:
+ 		typecheck(&n->right->left, Erv);
+ 		typecheck(&n->right->right, Erv);
+ 		defaultlit(&n->left, T);
+-		defaultlit(&n->right->left, T);
+-		defaultlit(&n->right->right, T);
++		indexlit(&n->right->left);
++		indexlit(&n->right->right);
+ 		l = n->left;
+ 		if(isfixedarray(l->type)) {
+ 			if(!islvalue(n->left)) {
+diff --git a/test/fixedbugs/issue4813.go b/test/fixedbugs/issue4813.go
+new file mode 100644
+index 0000000000..0ca9d3f72d
+--- /dev/null
++++ b/test/fixedbugs/issue4813.go
+@@ -0,0 +1,52 @@
++// errorcheck
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4813: use of constant floats as indices.
++
++package main
++
++var A [3]int
++var S []int
++var T string
++
++const (
++	i  = 1
++	f  = 2.0
++	f2 = 2.1
++	c  = complex(2, 0)
++	c2 = complex(2, 1)
++)
++
++var (
++	vf = f
++	vc = c
++)
++
++var (
++	a1 = A[i]
++	a2 = A[f]
++	a3 = A[f2] // ERROR "truncated"
++	a4 = A[c]
++	a5 = A[c2] // ERROR "truncated"
++	a6 = A[vf] // ERROR "non-integer"
++	a7 = A[vc] // ERROR "non-integer"
++
++	s1 = S[i]
++	s2 = S[f]
++	s3 = S[f2] // ERROR "truncated"
++	s4 = S[c]
++	s5 = S[c2] // ERROR "truncated"
++	s6 = S[vf] // ERROR "non-integer"
++	s7 = S[vc] // ERROR "non-integer"
++
++	t1 = T[i]
++	t2 = T[f]
++	t3 = T[f2] // ERROR "truncated"
++	t4 = T[c]
++	t5 = T[c2] // ERROR "truncated"
++	t6 = T[vf] // ERROR "non-integer"
++	t7 = T[vc] // ERROR "non-integer"
++)
+diff --git a/test/index.go b/test/index.go
+index daab45f7a1..f9360c1028 100644
+--- a/test/index.go
++++ b/test/index.go
+@@ -36,6 +36,8 @@ const (
+ 	ci64big int64 = 1<<31
+ 	ci64bigger int64 = 1<<32
+ 	chuge = 1<<100
++	cfgood = 2.0
++	cfbad = 2.1
+ 
+ 	cnj = -2
+ 	cni int = -3
+@@ -46,6 +48,8 @@ const (
+ 	cni64big int64 = -1<<31
+ 	cni64bigger int64 = -1<<32
+ 	cnhuge = -1<<100
++	cnfgood = -2.0
++	cnfbad = -2.1
+ )
+ 
+ var j int = 100020
+@@ -57,6 +61,8 @@ var i64 int64 = 100023
+ var i64big int64 = 1<<31
+ var i64bigger int64 = 1<<32
+ var huge uint64 = 1<<64 - 1
++var fgood float64 = 2.0
++var fbad float64 = 2.1
+ 
+ var nj int = -10
+ var ni int = -11
+@@ -67,6 +73,8 @@ var ni64 int64 = -13
+ var ni64big int64 = -1<<31
+ var ni64bigger int64 = -1<<32
+ var nhuge int64 = -1<<63
++var nfgood float64 = -2.0
++var nfbad float64 = -2.1
+ 
+ var si []int = make([]int, 10)
+ var ai [10]int
+@@ -156,7 +164,7 @@ func testExpr(b *bufio.Writer, expr string) {
+ 	if pass == 0 {
+ 		fmt.Fprintf(b, "\ttest(func(){use(%s)}, %q)\n", expr, expr)
+ 	} else {
+-		fmt.Fprintf(b, "\tuse(%s)  // ERROR \"index|overflow\"\n", expr)
++		fmt.Fprintf(b, "\tuse(%s)  // ERROR \"index|overflow|truncated\"\n", expr)
+ 	}
+ }
+ 
+@@ -169,15 +177,15 @@ func main() {
+ 		fmt.Fprint(b, "// errorcheck\n\n")
+ 	}
+ 	fmt.Fprint(b, prolog)
+-	
++
+ 	var choices = [][]string{
+ 		// Direct value, fetch from struct, fetch from struct pointer.
+ 		// The last two cases get us to oindex_const_sudo in gsubr.c.
+ 		[]string{"", "t.", "pt."},
+-		
++
+ 		// Array, pointer to array, slice.
+ 		[]string{"a", "pa", "s"},
+-		
++
+ 		// Element is int, element is quad (struct).
+ 		// This controls whether we end up in gsubr.c (i) or cgen.c (q).
+ 		[]string{"i", "q"},
+@@ -192,9 +200,9 @@ func main() {
+ 		[]string{"", "n"},
+ 
+ 		// Size of index.
+-		[]string{"j", "i", "i8", "i16", "i32", "i64", "i64big", "i64bigger", "huge"},
++		[]string{"j", "i", "i8", "i16", "i32", "i64", "i64big", "i64bigger", "huge", "fgood", "fbad"},
+ 	}
+-	
++
+ 	forall(choices, func(x []string) {
+ 		p, a, e, big, c, n, i := x[0], x[1], x[2], x[3], x[4], x[5], x[6]
+ 
+@@ -206,7 +214,7 @@ func main() {
+ 		//	negative constant
+ 		//	large constant
+ 		thisPass := 0
+-		if c == "c" && (a == "a" || a == "pa" || n == "n" || i == "i64big" || i == "i64bigger" || i == "huge") {
++		if c == "c" && (a == "a" || a == "pa" || n == "n" || i == "i64big" || i == "i64bigger" || i == "huge" || i == "fbad") {
+ 			if i == "huge" {
+ 				// Due to a detail of 6g's internals,
+ 				// the huge constant errors happen in an
+@@ -223,27 +231,50 @@ func main() {
+ 				thisPass = 2
+ 			}
+ 		}
+-		
++
++		pae := p + a + e + big
++		cni := c + n + i
++
+ 		// If we're using the big-len data, positive int8 and int16 cannot overflow.
+ 		if big == "b" && n == "" && (i == "i8" || i == "i16") {
++			if pass == 0 {
++				fmt.Fprintf(b, "\tuse(%s[%s])\n", pae, cni)
++				fmt.Fprintf(b, "\tuse(%s[0:%s])\n", pae, cni)
++				fmt.Fprintf(b, "\tuse(%s[1:%s])\n", pae, cni)
++				fmt.Fprintf(b, "\tuse(%s[%s:])\n", pae, cni)
++				fmt.Fprintf(b, "\tuse(%s[%s:%s])\n", pae, cni, cni)
++			}
++			return
++		}
++
++		// Float variables cannot be used as indices.
++		if c == "" && (i == "fgood" || i == "fbad") {
++			return
++		}
++		// Integral float constat is ok.
++		if c == "c" && n == "" && i == "fgood" {
++			if pass == 0 {
++				fmt.Fprintf(b, "\tuse(%s[%s])\n", pae, cni)
++				fmt.Fprintf(b, "\tuse(%s[0:%s])\n", pae, cni)
++				fmt.Fprintf(b, "\tuse(%s[1:%s])\n", pae, cni)
++				fmt.Fprintf(b, "\tuse(%s[%s:])\n", pae, cni)
++				fmt.Fprintf(b, "\tuse(%s[%s:%s])\n", pae, cni, cni)
++			}
+ 			return
+ 		}
+ 
+ 		// Only print the test case if it is appropriate for this pass.
+ 		if thisPass == pass {
+-			pae := p+a+e+big
+-			cni := c+n+i
+-			
+ 			// Index operation
+-			testExpr(b, pae + "[" + cni + "]")
+-			
++			testExpr(b, pae+"["+cni+"]")
++
+ 			// Slice operation.
+ 			// Low index 0 is a special case in ggen.c
+ 			// so test both 0 and 1.
+-			testExpr(b, pae + "[0:" + cni + "]")
+-			testExpr(b, pae + "[1:" + cni + "]")
+-			testExpr(b, pae + "[" + cni + ":]")
+-			testExpr(b, pae + "[" + cni + ":" + cni + "]")
++			testExpr(b, pae+"[0:"+cni+"]")
++			testExpr(b, pae+"[1:"+cni+"]")
++			testExpr(b, pae+"["+cni+":]")
++			testExpr(b, pae+"["+cni+":"+cni+"]")
+ 		}
+ 	})
+ 
+@@ -253,7 +284,7 @@ func main() {
+ 
+ func forall(choices [][]string, f func([]string)) {
+ 	x := make([]string, len(choices))
+-	
++
+ 	var recurse func(d int)
+ 	recurse = func(d int) {
+ 		if d >= len(choices) {
+@@ -261,7 +292,7 @@ func forall(choices [][]string, f func([]string)) {
+ 			return
+ 		}
+ 		for _, x[d] = range choices[d] {
+-			recurse(d+1)
++			recurse(d + 1)
+ 		}
+ 	}
+ 	recurse(0)

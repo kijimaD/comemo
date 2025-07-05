@@ -18,9 +18,81 @@ Date:   Thu Aug 26 14:52:32 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/345476
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/dumper_test.go                    | 6 +-----
  src/cmd/compile/internal/syntax/parser.go                         | 5 +----
  src/cmd/compile/internal/syntax/printer_test.go                   | 6 +-----
  src/cmd/compile/internal/types2/testdata/fixedbugs/issue47996.go2 | 8 ++++++++
  4 files changed, 11 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/dumper_test.go b/src/cmd/compile/internal/syntax/dumper_test.go
+index 22680dce78..033283a352 100644
+--- a/src/cmd/compile/internal/syntax/dumper_test.go
++++ b/src/cmd/compile/internal/syntax/dumper_test.go
+@@ -13,11 +13,7 @@ func TestDump(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 
+-	// provide a no-op error handler so parsing doesn't stop after first error
+-	ast, err := ParseFile(*src_, func(error) {}, nil, CheckBranches)
+-	if err != nil {
+-		t.Error(err)
+-	}
++	ast, _ := ParseFile(*src_, func(err error) { t.Error(err) }, nil, CheckBranches|AllowGenerics)
+ 
+ 	if ast != nil {
+ 		Fdump(testOut(), ast)
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index fd97279f9d..3d1ca9d6d4 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1924,7 +1924,7 @@ func (p *parser) paramList(name *Name, close token, requireNames bool) (list []*
+ 	}
+ 
+ 	// distribute parameter types (len(list) > 0)
+-	if named == 0 {
++	if named == 0 && !requireNames {
+ 		// all unnamed => found names are named types
+ 		for _, par := range list {
+ 			if typ := par.Name; typ != nil {
+@@ -1932,9 +1932,6 @@ func (p *parser) paramList(name *Name, close token, requireNames bool) (list []*
+ 				par.Name = nil
+ 			}
+ 		}
+-		if requireNames {
+-			p.syntaxErrorAt(list[0].Type.Pos(), "type parameters must be named")
+-		}
+ 	} else if named != len(list) {
+ 		// some named => all must have names and types
+ 		var pos Pos // left-most error position (or unknown)
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index ec4b1de573..638e6d4a9d 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -18,11 +18,7 @@ func TestPrint(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 
+-	// provide a no-op error handler so parsing doesn't stop after first error
+-	ast, err := ParseFile(*src_, func(error) {}, nil, 0)
+-	if err != nil {
+-		t.Error(err)
+-	}
++	ast, _ := ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
+ 
+ 	if ast != nil {
+ 		Fprint(testOut(), ast, LineForm)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47996.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47996.go2
+new file mode 100644
+index 0000000000..56e90942ab
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47996.go2
+@@ -0,0 +1,8 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// don't crash
++func T /* ERROR missing */ [P /* ERROR named */ ] m /* ERROR m */ () /* ERROR \) */ { /* ERROR { */ } /* ERROR } */

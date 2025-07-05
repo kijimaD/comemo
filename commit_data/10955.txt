@@ -7,6 +7,19 @@ Date:   Wed Dec 21 17:17:28 2011 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5504063
-
+---
  src/pkg/os/exec/exec_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index a015cbe96c..d7e61e7379 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -262,6 +262,7 @@ func TestHelperProcess(*testing.T) {
+ 			f, err := os.Open(os.Args[0])
+ 			if err != nil {
+ 				fmt.Printf("error opening file with expected fd %d: %v", wantfd, err)
++				fmt.Println(Command("lsof", "-p", fmt.Sprint(os.Getpid())).CombinedOutput())
+ 				os.Exit(1)
+ 			}
+ 			if got := f.Fd(); got != wantfd {

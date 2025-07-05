@@ -17,7 +17,7 @@ Date:   Fri Feb 19 17:11:40 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/294410
     Trust: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go   |  4 +++
  src/cmd/compile/internal/amd64/ssa.go      | 11 ++++++
  src/cmd/compile/internal/ssa/debug.go      |  4 +--
@@ -30,3 +30,578 @@ Date:   Fri Feb 19 17:11:40 2021 -0500
  test/abi/many_int_input.out                |  1 +
  test/abi/regabipragma.go                   |  1 +
  11 files changed, 175 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 3eab4b8d8b..f84f8f8e01 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -5,6 +5,7 @@
+ package abi
+ 
+ import (
++	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ 	"fmt"
+@@ -337,6 +338,9 @@ func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field
+ 		if fOffset == types.BOGUS_FUNARG_OFFSET {
+ 			// Set the Offset the first time. After that, we may recompute it, but it should never change.
+ 			f.Offset = off
++			if f.Nname != nil {
++				f.Nname.(*ir.Name).SetFrameOffset(off)
++			}
+ 		} else if fOffset != off {
+ 			panic(fmt.Errorf("Offset changed from %d to %d", fOffset, off))
+ 		}
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index d83d78f080..60baa4270f 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -980,6 +980,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssagen.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
++		// The assembler needs to wrap the entry safepoint/stack growth code with spill/unspill
++		// The loop only runs once.
++		for _, ap := range v.Block.Func.RegArgs {
++			// Pass the spill/unspill information along to the assembler, offset by size of return PC pushed on stack.
++			addr := ssagen.SpillSlotAddr(ap.Mem(), x86.REG_SP, v.Block.Func.Config.PtrSize)
++			s.FuncInfo().AddSpill(
++				obj.RegSpill{Reg: ap.Reg(), Addr: addr, Unspill: loadByType(ap.Type()), Spill: storeByType(ap.Type())})
++		}
++		v.Block.Func.RegArgs = nil
++		ssagen.CheckArgReg(v)
+ 	case ssa.OpAMD64LoweredGetClosurePtr:
+ 		// Closure pointer is DX.
+ 		ssagen.CheckLoweredGetClosurePtr(v)
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 68b6ab5fe9..d725fc526e 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -901,10 +901,10 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
+ 
+ 			if opcodeTable[v.Op].zeroWidth {
+ 				if changed {
+-					if v.Op == OpArg || v.Op == OpPhi || v.Op.isLoweredGetClosurePtr() {
++					if hasAnyArgOp(v) || v.Op == OpPhi || v.Op.isLoweredGetClosurePtr() {
+ 						// These ranges begin at true beginning of block, not after first instruction
+ 						if zeroWidthPending {
+-							b.Func.Fatalf("Unexpected op mixed with OpArg/OpPhi/OpLoweredGetClosurePtr at beginning of block %s in %s\n%s", b, b.Func.Name, b.Func)
++							panic(fmt.Errorf("Unexpected op '%s' mixed with OpArg/OpPhi/OpLoweredGetClosurePtr at beginning of block %s in %s\n%s", v.LongString(), b, b.Func.Name, b.Func))
+ 						}
+ 						apcChangedSize = len(state.changedVars.contents())
+ 						continue
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 041e7855f6..45058d4e72 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -112,7 +112,7 @@ func (s *stackAllocState) init(f *Func, spillLive [][]ID) {
+ 		for _, v := range b.Values {
+ 			s.values[v.ID].typ = v.Type
+ 			s.values[v.ID].needSlot = !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && f.getHome(v.ID) == nil && !v.rematerializeable() && !v.OnWasmStack
+-			s.values[v.ID].isArg = v.Op == OpArg
++			s.values[v.ID].isArg = hasAnyArgOp(v)
+ 			if f.pass.debug > stackDebug && s.values[v.ID].needSlot {
+ 				fmt.Printf("%s needs a stack slot\n", v)
+ 			}
+@@ -151,28 +151,29 @@ func (s *stackAllocState) stackalloc() {
+ 
+ 	// Allocate args to their assigned locations.
+ 	for _, v := range f.Entry.Values {
+-		if v.Op != OpArg { // && v.Op != OpArgFReg && v.Op != OpArgIReg  {
++		if !hasAnyArgOp(v) {
+ 			continue
+ 		}
+ 		if v.Aux == nil {
+ 			f.Fatalf("%s has nil Aux\n", v.LongString())
+ 		}
+-		var loc LocalSlot
+-		var name *ir.Name
+-		var offset int64
+ 		if v.Op == OpArg {
+-			name = v.Aux.(*ir.Name)
+-			offset = v.AuxInt
+-		} else {
+-			nameOff := v.Aux.(*AuxNameOffset)
+-			name = nameOff.Name
+-			offset = nameOff.Offset
++			loc := LocalSlot{N: v.Aux.(*ir.Name), Type: v.Type, Off: v.AuxInt}
++			if f.pass.debug > stackDebug {
++				fmt.Printf("stackalloc OpArg %s to %s\n", v, loc)
++			}
++			f.setHome(v, loc)
++			continue
+ 		}
+-		loc = LocalSlot{N: name, Type: v.Type, Off: offset}
++
++		nameOff := v.Aux.(*AuxNameOffset)
++		loc := LocalSlot{N: nameOff.Name, Type: v.Type, Off: nameOff.Offset}
+ 		if f.pass.debug > stackDebug {
+-			fmt.Printf("stackalloc %s to %s\n", v, loc)
++			fmt.Printf("stackalloc Op%s %s to %s\n", v.Op, v, loc)
+ 		}
+-		f.setHome(v, loc)
++		// register args already allocated to registers, but need to know the stack allocation for later
++		reg := f.getHome(v.ID).(*Register)
++		f.RegArgs = append(f.RegArgs, ArgPair{reg: reg, mem: loc})
+ 	}
+ 
+ 	// For each type, we keep track of all the stack slots we
+@@ -209,7 +210,7 @@ func (s *stackAllocState) stackalloc() {
+ 				s.nNotNeed++
+ 				continue
+ 			}
+-			if v.Op == OpArg {
++			if hasAnyArgOp(v) {
+ 				s.nArgSlot++
+ 				continue // already picked
+ 			}
+@@ -396,7 +397,7 @@ func (s *stackAllocState) buildInterferenceGraph() {
+ 				for _, id := range live.contents() {
+ 					// Note: args can have different types and still interfere
+ 					// (with each other or with other values). See issue 23522.
+-					if s.values[v.ID].typ.Compare(s.values[id].typ) == types.CMPeq || v.Op == OpArg || s.values[id].isArg {
++					if s.values[v.ID].typ.Compare(s.values[id].typ) == types.CMPeq || hasAnyArgOp(v) || s.values[id].isArg {
+ 						s.interfere[v.ID] = append(s.interfere[v.ID], id)
+ 						s.interfere[id] = append(s.interfere[id], v.ID)
+ 					}
+@@ -407,13 +408,15 @@ func (s *stackAllocState) buildInterferenceGraph() {
+ 					live.add(a.ID)
+ 				}
+ 			}
+-			if v.Op == OpArg && s.values[v.ID].needSlot {
++			if hasAnyArgOp(v) && s.values[v.ID].needSlot {
+ 				// OpArg is an input argument which is pre-spilled.
+ 				// We add back v.ID here because we want this value
+ 				// to appear live even before this point. Being live
+ 				// all the way to the start of the entry block prevents other
+ 				// values from being allocated to the same slot and clobbering
+ 				// the input value before we have a chance to load it.
++
++				// TODO(register args) this is apparently not wrong for register args -- is it necessary?
+ 				live.add(v.ID)
+ 			}
+ 		}
+@@ -430,3 +433,7 @@ func (s *stackAllocState) buildInterferenceGraph() {
+ 		}
+ 	}
+ }
++
++func hasAnyArgOp(v *Value) bool {
++	return v.Op == OpArg || v.Op == OpArgIntReg || v.Op == OpArgFloatReg
++}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 05dd0c62a9..9ee855343f 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -221,7 +221,7 @@ func AbiForFunc(fn *ir.Func) *abi.ABIConfig {
+ // Passing a nil function returns ABIInternal.
+ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
+ 	a := abi1
+-	if true || objabi.Regabi_enabled == 0 {
++	if !regabiEnabledForAllCompilation() {
+ 		a = abi0
+ 	}
+ 	if fn != nil && fn.Pragma&ir.RegisterParams != 0 { // TODO(register args) remove after register abi is working
+@@ -235,6 +235,11 @@ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
+ 	return a
+ }
+ 
++func regabiEnabledForAllCompilation() bool {
++	// TODO compiler does not yet change behavior for GOEXPERIMENT=regabi
++	return false && objabi.Regabi_enabled != 0
++}
++
+ // getParam returns the Field of ith param of node n (which is a
+ // function/method/interface call), where the receiver of a method call is
+ // considered as the 0th parameter. This does not include the receiver of an
+@@ -6404,6 +6409,10 @@ type State struct {
+ 	OnWasmStackSkipped int
+ }
+ 
++func (s *State) FuncInfo() *obj.FuncInfo {
++	return s.pp.CurFunc.LSym.Func()
++}
++
+ // Prog appends a new Prog.
+ func (s *State) Prog(as obj.As) *obj.Prog {
+ 	p := s.pp.Prog(as)
+@@ -6561,11 +6570,9 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 				// memory arg needs no code
+ 			case ssa.OpArg:
+ 				// input args need no code
+-			case ssa.OpArgIntReg, ssa.OpArgFloatReg:
+-				CheckArgReg(v)
+ 			case ssa.OpSP, ssa.OpSB:
+ 				// nothing to do
+-			case ssa.OpSelect0, ssa.OpSelect1, ssa.OpSelectN:
++			case ssa.OpSelect0, ssa.OpSelect1, ssa.OpSelectN, ssa.OpMakeResult:
+ 				// nothing to do
+ 			case ssa.OpGetG:
+ 				// nothing to do when there's a g register,
+@@ -7470,6 +7477,39 @@ func deferstruct(stksize int64) *types.Type {
+ 	return s
+ }
+ 
++// SlotAddr uses LocalSlot information to initialize an obj.Addr
++// The resulting addr is used in a non-standard context -- in the prologue
++// of a function, before the frame has been constructed, so the standard
++// addressing for the parameters will be wrong.
++func SpillSlotAddr(slot *ssa.LocalSlot, baseReg int16, extraOffset int64) obj.Addr {
++	n, off := slot.N, slot.Off
++	if n.Class != ir.PPARAM && n.Class != ir.PPARAMOUT {
++		panic("Only expected to see param and returns here")
++	}
++	return obj.Addr{
++		Name:   obj.NAME_NONE,
++		Type:   obj.TYPE_MEM,
++		Reg:    baseReg,
++		Offset: off + extraOffset + n.FrameOffset(),
++	}
++}
++
++// AddrForParamSlot fills in an Addr appropriately for a Spill,
++// Restore, or VARLIVE.
++func AddrForParamSlot(slot *ssa.LocalSlot, addr *obj.Addr) {
++	// TODO replace this boilerplate in a couple of places.
++	n, off := slot.N, slot.Off
++	addr.Type = obj.TYPE_MEM
++	addr.Sym = n.Linksym()
++	addr.Offset = off
++	if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
++		addr.Name = obj.NAME_PARAM
++		addr.Offset += n.FrameOffset()
++	} else {
++		addr.Name = obj.NAME_AUTO
++	}
++}
++
+ var (
+ 	BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym
+ 	ExtendCheckFunc [ssa.BoundsKindCount]*obj.LSym
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index c74de779d2..448f45b47b 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -473,6 +473,7 @@ type FuncInfo struct {
+ 	Autot    map[*LSym]struct{}
+ 	Pcln     Pcln
+ 	InlMarks []InlMark
++	spills   []RegSpill
+ 
+ 	dwarfInfoSym       *LSym
+ 	dwarfLocSym        *LSym
+@@ -552,6 +553,11 @@ func (fi *FuncInfo) AddInlMark(p *Prog, id int32) {
+ 	fi.InlMarks = append(fi.InlMarks, InlMark{p: p, id: id})
+ }
+ 
++// AddSpill appends a spill record to the list for FuncInfo fi
++func (fi *FuncInfo) AddSpill(s RegSpill) {
++	fi.spills = append(fi.spills, s)
++}
++
+ // Record the type symbol for an auto variable so that the linker
+ // an emit DWARF type information for the type.
+ func (fi *FuncInfo) RecordAutoType(gotype *LSym) {
+@@ -803,12 +809,12 @@ type Auto struct {
+ 	Gotype  *LSym
+ }
+ 
+-// RegArg provides spill/fill information for a register-resident argument
++// RegSpill provides spill/fill information for a register-resident argument
+ // to a function.  These need spilling/filling in the safepoint/stackgrowth case.
+ // At the time of fill/spill, the offset must be adjusted by the architecture-dependent
+ // adjustment to hardware SP that occurs in a call instruction.  E.g., for AMD64,
+ // at Offset+8 because the return address was pushed.
+-type RegArg struct {
++type RegSpill struct {
+ 	Addr           Addr
+ 	Reg            int16
+ 	Spill, Unspill As
+@@ -844,7 +850,6 @@ type Link struct {
+ 	DebugInfo          func(fn *LSym, info *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
+ 	GenAbstractFunc    func(fn *LSym)
+ 	Errors             int
+-	RegArgs            []RegArg
+ 
+ 	InParallel    bool // parallel backend phase in effect
+ 	UseBASEntries bool // use Base Address Selection Entries in location lists and PC ranges
+@@ -893,9 +898,11 @@ func (ctxt *Link) Logf(format string, args ...interface{}) {
+ 	ctxt.Bso.Flush()
+ }
+ 
+-func (ctxt *Link) SpillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
++// SpillRegisterArgs emits the code to spill register args into whatever
++// locations the spill records specify.
++func (fi *FuncInfo) SpillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
+ 	// Spill register args.
+-	for _, ra := range ctxt.RegArgs {
++	for _, ra := range fi.spills {
+ 		spill := Appendp(last, pa)
+ 		spill.As = ra.Spill
+ 		spill.From.Type = TYPE_REG
+@@ -906,9 +913,11 @@ func (ctxt *Link) SpillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
+ 	return last
+ }
+ 
+-func (ctxt *Link) UnspillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
++// UnspillRegisterArgs emits the code to restore register args from whatever
++// locations the spill records specify.
++func (fi *FuncInfo) UnspillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
+ 	// Unspill any spilled register args
+-	for _, ra := range ctxt.RegArgs {
++	for _, ra := range fi.spills {
+ 		unspill := Appendp(last, pa)
+ 		unspill.As = ra.Unspill
+ 		unspill.From = ra.Addr
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index bc3a3b4bbe..d70cbebc5e 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -135,7 +135,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			p.To.Index = REG_NONE
+ 		}
+ 	} else {
+-		// load_g_cx, below, always inserts the 1-instruction sequence. Rewrite it
++		// load_g, below, always inserts the 1-instruction sequence. Rewrite it
+ 		// as the 2-instruction sequence if necessary.
+ 		//	MOVQ 0(TLS), BX
+ 		// becomes
+@@ -644,8 +644,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			regg = REGG // use the g register directly in ABIInternal
+ 		} else {
+ 			p = obj.Appendp(p, newprog)
+-			p = load_g_cx(ctxt, p, newprog) // load g into CX
+ 			regg = REG_CX
++			if ctxt.Arch.Family == sys.AMD64 {
++				// Using this register means that stacksplit works w/ //go:registerparams even when objabi.Regabi_enabled == 0
++				regg = REGG // == REG_R14
++			}
++			p = load_g(ctxt, p, newprog, regg) // load g into regg
+ 		}
+ 	}
+ 
+@@ -963,7 +967,7 @@ func indir_cx(ctxt *obj.Link, a *obj.Addr) {
+ // Overwriting p is unusual but it lets use this in both the
+ // prologue (caller must call appendp first) and in the epilogue.
+ // Returns last new instruction.
+-func load_g_cx(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) *obj.Prog {
++func load_g(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, rg int16) *obj.Prog {
+ 	p.As = AMOVQ
+ 	if ctxt.Arch.PtrSize == 4 {
+ 		p.As = AMOVL
+@@ -972,7 +976,7 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) *obj.Prog {
+ 	p.From.Reg = REG_TLS
+ 	p.From.Offset = 0
+ 	p.To.Type = obj.TYPE_REG
+-	p.To.Reg = REG_CX
++	p.To.Reg = rg
+ 
+ 	next := p.Link
+ 	progedit(ctxt, p, newprog)
+@@ -1027,9 +1031,14 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 		// unnecessarily. See issue #35470.
+ 		p = ctxt.StartUnsafePoint(p, newprog)
+ 	} else if framesize <= objabi.StackBig {
++		tmp := int16(REG_AX) // use AX for 32-bit
++		if ctxt.Arch.Family == sys.AMD64 {
++			// for 64-bit, stay away from register ABI parameter registers, even w/o GOEXPERIMENT=regabi
++			tmp = int16(REG_R13)
++		}
+ 		// large stack: SP-framesize <= stackguard-StackSmall
+-		//	LEAQ -xxx(SP), AX
+-		//	CMPQ AX, stackguard
++		//	LEAQ -xxx(SP), tmp
++		//	CMPQ tmp, stackguard
+ 		p = obj.Appendp(p, newprog)
+ 
+ 		p.As = lea
+@@ -1037,12 +1046,12 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 		p.From.Reg = REG_SP
+ 		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_AX
++		p.To.Reg = tmp
+ 
+ 		p = obj.Appendp(p, newprog)
+ 		p.As = cmp
+ 		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = REG_AX
++		p.From.Reg = tmp
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = rg
+ 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
+@@ -1052,6 +1061,12 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 
+ 		p = ctxt.StartUnsafePoint(p, newprog) // see the comment above
+ 	} else {
++		tmp1 := int16(REG_SI)
++		tmp2 := int16(REG_AX)
++		if ctxt.Arch.Family == sys.AMD64 {
++			tmp1 = int16(REG_R13) // register ABI uses REG_SI and REG_AX for parameters.
++			tmp2 = int16(REG_R12)
++		}
+ 		// Such a large stack we need to protect against wraparound.
+ 		// If SP is close to zero:
+ 		//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
+@@ -1060,12 +1075,12 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 		//
+ 		// Preemption sets stackguard to StackPreempt, a very large value.
+ 		// That breaks the math above, so we have to check for that explicitly.
+-		//	MOVQ	stackguard, SI
++		//	MOVQ	stackguard, tmp1
+ 		//	CMPQ	SI, $StackPreempt
+ 		//	JEQ	label-of-call-to-morestack
+-		//	LEAQ	StackGuard(SP), AX
+-		//	SUBQ	SI, AX
+-		//	CMPQ	AX, $(framesize+(StackGuard-StackSmall))
++		//	LEAQ	StackGuard(SP), tmp2
++		//	SUBQ	tmp1, tmp2
++		//	CMPQ	tmp2, $(framesize+(StackGuard-StackSmall))
+ 
+ 		p = obj.Appendp(p, newprog)
+ 
+@@ -1077,14 +1092,14 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 			p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
+ 		}
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_SI
++		p.To.Reg = tmp1
+ 
+ 		p = ctxt.StartUnsafePoint(p, newprog) // see the comment above
+ 
+ 		p = obj.Appendp(p, newprog)
+ 		p.As = cmp
+ 		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = REG_SI
++		p.From.Reg = tmp1
+ 		p.To.Type = obj.TYPE_CONST
+ 		p.To.Offset = objabi.StackPreempt
+ 		if ctxt.Arch.Family == sys.I386 {
+@@ -1102,19 +1117,19 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 		p.From.Reg = REG_SP
+ 		p.From.Offset = int64(objabi.StackGuard)
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_AX
++		p.To.Reg = tmp2
+ 
+ 		p = obj.Appendp(p, newprog)
+ 		p.As = sub
+ 		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = REG_SI
++		p.From.Reg = tmp1
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_AX
++		p.To.Reg = tmp2
+ 
+ 		p = obj.Appendp(p, newprog)
+ 		p.As = cmp
+ 		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = REG_AX
++		p.From.Reg = tmp2
+ 		p.To.Type = obj.TYPE_CONST
+ 		p.To.Offset = int64(framesize) + (int64(objabi.StackGuard) - objabi.StackSmall)
+ 	}
+@@ -1139,7 +1154,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 
+ 	pcdata := ctxt.EmitEntryStackMap(cursym, spfix, newprog)
+ 	spill := ctxt.StartUnsafePoint(pcdata, newprog)
+-	pcdata = ctxt.SpillRegisterArgs(spill, newprog)
++	pcdata = cursym.Func().SpillRegisterArgs(spill, newprog)
+ 
+ 	call := obj.Appendp(pcdata, newprog)
+ 	call.Pos = cursym.Func().Text.Pos
+@@ -1164,7 +1179,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 		progedit(ctxt, callend.Link, newprog)
+ 	}
+ 
+-	pcdata = ctxt.UnspillRegisterArgs(callend, newprog)
++	pcdata = cursym.Func().UnspillRegisterArgs(callend, newprog)
+ 	pcdata = ctxt.EndUnsafePoint(pcdata, newprog, -1)
+ 
+ 	jmp := obj.Appendp(pcdata, newprog)
+diff --git a/test/abi/f_ret_z_not.go b/test/abi/f_ret_z_not.go
+index b072aea75e..d890223ff7 100644
+--- a/test/abi/f_ret_z_not.go
++++ b/test/abi/f_ret_z_not.go
+@@ -16,18 +16,18 @@ type NZ struct {
+ }
+ 
+ //go:noinline
+-func f(x,y int) (Z,NZ,Z) {
++func f(x, y int) (Z, NZ, Z) {
+ 	var z Z
+-	return z,NZ{x,y},z
++	return z, NZ{x, y}, z
+ }
+ 
+ //go:noinline
+-func g() (Z,NZ,Z) {
+-	a,b,c := f(3,4)
+-	return c,b,a
++func g() (Z, NZ, Z) {
++	a, b, c := f(3, 4)
++	return c, b, a
+ }
+ 
+ func main() {
+-	_,b,_ := g()
+-	fmt.Println(b.x+b.y)
++	_, b, _ := g()
++	fmt.Println(b.x + b.y)
+ }
+diff --git a/test/abi/many_int_input.go b/test/abi/many_int_input.go
+new file mode 100644
+index 0000000000..6c3332f842
+--- /dev/null
++++ b/test/abi/many_int_input.go
+@@ -0,0 +1,30 @@
++// run
++
++//go:build !wasm
++// +build !wasm
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++)
++
++//go:registerparams
++//go:noinline
++func F(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z int64) {
++	G(z, y, x, w, v, u, t, s, r, q, p, o, n, m, l, k, j, i, h, g, f, e, d, c, b, a)
++}
++
++//go:registerparams
++//go:noinline
++func G(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z int64) {
++	fmt.Println(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z)
++}
++
++func main() {
++	F(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26)
++}
+diff --git a/test/abi/many_int_input.out b/test/abi/many_int_input.out
+new file mode 100644
+index 0000000000..fecfa82581
+--- /dev/null
++++ b/test/abi/many_int_input.out
+@@ -0,0 +1 @@
++26 25 24 23 22 21 20 19 18 17 16 15 14 13 12 11 10 9 8 7 6 5 4 3 2 1
+diff --git a/test/abi/regabipragma.go b/test/abi/regabipragma.go
+index 86f42f9779..070b3110d6 100644
+--- a/test/abi/regabipragma.go
++++ b/test/abi/regabipragma.go
+@@ -1,5 +1,6 @@
+ // skip
+ // runindir -gcflags=-c=1
++//go:build !windows
+ // +build !windows
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.

@@ -8,6 +8,20 @@ Date:   Fri Jul 31 12:42:21 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=32591
     CL=32593
-
+---
  src/pkg/fmt/print.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index bd55de6825..3b27e0a159 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -434,7 +434,7 @@ func (p *pp) printField(field reflect.Value) (was_string bool) {
+ 			break;
+ 		}
+ 		p.fmt.sharp = !p.fmt.sharp;  // turn 0x on by default
+-		s = p.fmt.Fmt_uX64(uint64(v)).Str();
++		s = p.fmt.Fmt_ux64(uint64(v)).Str();
+ 	case reflect.ArrayOrSliceValue:
+ 		p.addstr("[");
+ 		for i := 0; i < f.Len(); i++ {

@@ -21,9 +21,85 @@ Date:   Mon May 1 12:54:27 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/goobj/objfile.go      |  9 +++++++++
  src/cmd/link/internal/ld/deadcode.go   |  2 +-
  src/cmd/link/internal/ld/decodesym.go  | 10 +++++++---
  src/cmd/link/internal/loader/loader.go | 10 ++++++++++
  4 files changed, 27 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index 64d453abdc..c9d7ca434c 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -853,6 +853,15 @@ func (r *Reader) Data(i uint32) []byte {
+ 	return r.BytesAt(base+off, int(end-off))
+ }
+ 
++// DataString returns the i-th symbol's data as a string.
++func (r *Reader) DataString(i uint32) string {
++	dataIdxOff := r.h.Offsets[BlkDataIdx] + i*4
++	base := r.h.Offsets[BlkData]
++	off := r.uint32At(dataIdxOff)
++	end := r.uint32At(dataIdxOff + 4)
++	return r.StringAt(base+off, end-off)
++}
++
+ // NRefName returns the number of referenced symbol names.
+ func (r *Reader) NRefName() int {
+ 	return int(r.h.Offsets[BlkRefName+1]-r.h.Offsets[BlkRefName]) / RefNameSize
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index c80bacd92c..e7028d3b54 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -487,7 +487,7 @@ func (d *deadcodePass) decodeIfaceMethod(ldr *loader.Loader, arch *sys.Arch, sym
+ 
+ // Decode the method name stored in symbol symIdx. The symbol should contain just the bytes of a method name.
+ func (d *deadcodePass) decodeGenericIfaceMethod(ldr *loader.Loader, symIdx loader.Sym) string {
+-	return string(ldr.Data(symIdx))
++	return ldr.DataString(symIdx)
+ }
+ 
+ func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs) []methodsig {
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index b0f4b87563..53ed6ccc86 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -127,9 +127,13 @@ func decodetypeName(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs
+ 		return ""
+ 	}
+ 
+-	data := ldr.Data(r)
+-	nameLen, nameLenLen := binary.Uvarint(data[1:])
+-	return string(data[1+nameLenLen : 1+nameLenLen+int(nameLen)])
++	data := ldr.DataString(r)
++	n := 1 + binary.MaxVarintLen64
++	if len(data) < n {
++		n = len(data)
++	}
++	nameLen, nameLenLen := binary.Uvarint([]byte(data[1:n]))
++	return data[1+nameLenLen : 1+nameLenLen+int(nameLen)]
+ }
+ 
+ func decodetypeNameEmbedded(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs, off int) bool {
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 5fcbf160e0..fa74dcede4 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1247,6 +1247,16 @@ func (l *Loader) Data(i Sym) []byte {
+ 	return r.Data(li)
+ }
+ 
++// Returns the symbol content of the i-th symbol as a string. i is global index.
++func (l *Loader) DataString(i Sym) string {
++	if l.IsExternal(i) {
++		pp := l.getPayload(i)
++		return string(pp.data)
++	}
++	r, li := l.toLocal(i)
++	return r.DataString(li)
++}
++
+ // FreeData clears the symbol data of an external symbol, allowing the memory
+ // to be freed earlier. No-op for non-external symbols.
+ // i is global index.

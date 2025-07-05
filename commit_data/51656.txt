@@ -27,6 +27,26 @@ Date:   Mon Feb 21 08:51:05 2022 +0000
     Trust: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/token/token.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/token/token.go b/src/go/token/token.go
+index d22e575661..dd0f4f8234 100644
+--- a/src/go/token/token.go
++++ b/src/go/token/token.go
+@@ -340,10 +340,13 @@ func IsKeyword(name string) bool {
+ // is not a digit. Keywords are not identifiers.
+ //
+ func IsIdentifier(name string) bool {
++	if name == "" || IsKeyword(name) {
++		return false
++	}
+ 	for i, c := range name {
+ 		if !unicode.IsLetter(c) && c != '_' && (i == 0 || !unicode.IsDigit(c)) {
+ 			return false
+ 		}
+ 	}
+-	return name != "" && !IsKeyword(name)
++	return true
+ }

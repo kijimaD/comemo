@@ -32,7 +32,64 @@ Date:   Sat Jun 3 13:36:54 2017 -0700
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/bench_test.go | 15 +++++++++++++++
  src/encoding/json/decode.go     | 18 ++++++++++++++----
  2 files changed, 29 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/json/bench_test.go b/src/encoding/json/bench_test.go
+index 85d7ae043b..42439eb705 100644
+--- a/src/encoding/json/bench_test.go
++++ b/src/encoding/json/bench_test.go
+@@ -133,6 +133,21 @@ func BenchmarkCodeDecoder(b *testing.B) {
+ 	b.SetBytes(int64(len(codeJSON)))
+ }
+ 
++func BenchmarkUnicodeDecoder(b *testing.B) {
++	j := []byte(`"\uD83D\uDE01"`)
++	b.SetBytes(int64(len(j)))
++	r := bytes.NewReader(j)
++	dec := NewDecoder(r)
++	var out string
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		if err := dec.Decode(&out); err != nil {
++			b.Fatal("Decode:", err)
++		}
++		r.Seek(0, 0)
++	}
++}
++
+ func BenchmarkDecoderStream(b *testing.B) {
+ 	b.StopTimer()
+ 	var buf bytes.Buffer
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 70179e60ac..4f98916105 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -1148,11 +1148,21 @@ func getu4(s []byte) rune {
+ 	if len(s) < 6 || s[0] != '\\' || s[1] != 'u' {
+ 		return -1
+ 	}
+-	r, err := strconv.ParseUint(string(s[2:6]), 16, 64)
+-	if err != nil {
+-		return -1
++	var r rune
++	for _, c := range s[2:6] {
++		switch {
++		case '0' <= c && c <= '9':
++			c = c - '0'
++		case 'a' <= c && c <= 'f':
++			c = c - 'a' + 10
++		case 'A' <= c && c <= 'F':
++			c = c - 'A' + 10
++		default:
++			return -1
++		}
++		r = r*16 + rune(c)
+ 	}
+-	return rune(r)
++	return r
+ }
+ 
+ // unquote converts a quoted JSON string literal s into an actual string t.

@@ -16,10 +16,184 @@ Date:   Mon Jul 6 16:03:33 2020 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/stack.go                               | 26 +++++++++++--
  src/runtime/stack_test.go                          | 12 ++++++
  src/runtime/testdata/testprog/framepointer.go      | 44 ++++++++++++++++++++++
  src/runtime/testdata/testprog/framepointer_amd64.s |  9 +++++
  src/runtime/testdata/testprog/framepointer_arm64.s |  9 +++++
  5 files changed, 96 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 14e1a75ccd..e1e6c7e82a 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -537,7 +537,7 @@ var ptrnames = []string{
+ // +------------------+ <- frame->argp
+ // |  return address  |
+ // +------------------+
+-// |  caller's BP (*) | (*) if framepointer_enabled && varp < sp
++// |  caller's BP (*) | (*) if framepointer_enabled && varp > sp
+ // +------------------+ <- frame->varp
+ // |     locals       |
+ // +------------------+
+@@ -549,6 +549,8 @@ var ptrnames = []string{
+ // | args from caller |
+ // +------------------+ <- frame->argp
+ // | caller's retaddr |
++// +------------------+
++// |  caller's FP (*) | (*) on ARM64, if framepointer_enabled && varp > sp
+ // +------------------+ <- frame->varp
+ // |     locals       |
+ // +------------------+
+@@ -556,6 +558,9 @@ var ptrnames = []string{
+ // +------------------+
+ // |  return address  |
+ // +------------------+ <- frame->sp
++//
++// varp > sp means that the function has a frame;
++// varp == sp means frameless function.
+ 
+ type adjustinfo struct {
+ 	old   stack
+@@ -673,9 +678,8 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
+ 		adjustpointers(unsafe.Pointer(frame.varp-size), &locals, adjinfo, f)
+ 	}
+ 
+-	// Adjust saved base pointer if there is one.
+-	// TODO what about arm64 frame pointer adjustment?
+-	if goarch.ArchFamily == goarch.AMD64 && frame.argp-frame.varp == 2*goarch.PtrSize {
++	// Adjust saved frame pointer if there is one.
++	if (goarch.ArchFamily == goarch.AMD64 || goarch.ArchFamily == goarch.ARM64) && frame.argp-frame.varp == 2*goarch.PtrSize {
+ 		if stackDebug >= 3 {
+ 			print("      saved bp\n")
+ 		}
+@@ -689,6 +693,10 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
+ 				throw("bad frame pointer")
+ 			}
+ 		}
++		// On AMD64, this is the caller's frame pointer saved in the current
++		// frame.
++		// On ARM64, this is the frame pointer of the caller's caller saved
++		// by the caller in its frame (one word below its SP).
+ 		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
+ 	}
+ 
+@@ -750,7 +758,17 @@ func adjustctxt(gp *g, adjinfo *adjustinfo) {
+ 			throw("bad top frame pointer")
+ 		}
+ 	}
++	oldfp := gp.sched.bp
+ 	adjustpointer(adjinfo, unsafe.Pointer(&gp.sched.bp))
++	if GOARCH == "arm64" {
++		// On ARM64, the frame pointer is saved one word *below* the SP,
++		// which is not copied or adjusted in any frame. Do it explicitly
++		// here.
++		if oldfp == gp.sched.sp-goarch.PtrSize {
++			memmove(unsafe.Pointer(gp.sched.bp), unsafe.Pointer(oldfp), goarch.PtrSize)
++			adjustpointer(adjinfo, unsafe.Pointer(gp.sched.bp))
++		}
++	}
+ }
+ 
+ func adjustdefers(gp *g, adjinfo *adjustinfo) {
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index 9a096f5538..4e3f369f2f 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -927,3 +927,15 @@ func deferHeapAndStack(n int) (r int) {
+ 
+ // Pass a value to escapeMe to force it to escape.
+ var escapeMe = func(x any) {}
++
++func TestFramePointerAdjust(t *testing.T) {
++	switch GOARCH {
++	case "amd64", "arm64":
++	default:
++		t.Skipf("frame pointer is not supported on %s", GOARCH)
++	}
++	output := runTestProg(t, "testprog", "FramePointerAdjust")
++	if output != "" {
++		t.Errorf("output:\n%s\n\nwant no output", output)
++	}
++}
+diff --git a/src/runtime/testdata/testprog/framepointer.go b/src/runtime/testdata/testprog/framepointer.go
+new file mode 100644
+index 0000000000..cee6f7da29
+--- /dev/null
++++ b/src/runtime/testdata/testprog/framepointer.go
+@@ -0,0 +1,44 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build amd64 || arm64
++
++package main
++
++import "unsafe"
++
++func init() {
++	register("FramePointerAdjust", FramePointerAdjust)
++}
++
++func FramePointerAdjust() { framePointerAdjust1(0) }
++
++//go:noinline
++func framePointerAdjust1(x int) {
++	argp := uintptr(unsafe.Pointer(&x))
++	fp := *getFP()
++	if !(argp-0x100 <= fp && fp <= argp+0x100) {
++		print("saved FP=", fp, " &x=", argp, "\n")
++		panic("FAIL")
++	}
++
++	// grow the stack
++	grow(10000)
++
++	// check again
++	argp = uintptr(unsafe.Pointer(&x))
++	fp = *getFP()
++	if !(argp-0x100 <= fp && fp <= argp+0x100) {
++		print("saved FP=", fp, " &x=", argp, "\n")
++		panic("FAIL")
++	}
++}
++
++func grow(n int) {
++	if n > 0 {
++		grow(n - 1)
++	}
++}
++
++func getFP() *uintptr
+diff --git a/src/runtime/testdata/testprog/framepointer_amd64.s b/src/runtime/testdata/testprog/framepointer_amd64.s
+new file mode 100644
+index 0000000000..2cd12991d6
+--- /dev/null
++++ b/src/runtime/testdata/testprog/framepointer_amd64.s
+@@ -0,0 +1,9 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT	·getFP(SB), NOSPLIT|NOFRAME, $0-8
++	MOVQ	BP, ret+0(FP)
++	RET
+diff --git a/src/runtime/testdata/testprog/framepointer_arm64.s b/src/runtime/testdata/testprog/framepointer_arm64.s
+new file mode 100644
+index 0000000000..cbaa286043
+--- /dev/null
++++ b/src/runtime/testdata/testprog/framepointer_arm64.s
+@@ -0,0 +1,9 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT	·getFP(SB), NOSPLIT|NOFRAME, $0-8
++	MOVD	R29, ret+0(FP)
++	RET

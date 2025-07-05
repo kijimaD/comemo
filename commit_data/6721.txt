@@ -7,7 +7,32 @@ Date:   Fri Nov 5 14:01:52 2010 -0400
     R=r, r2
     CC=golang-dev, kr
     https://golang.org/cl/2894042
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 1c50dde59d..c8061ca94c 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -65,6 +65,7 @@ Josh Goebel <dreamer3@gmail.com>
+ Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+ Kai Backman <kaib@golang.org>
+ Kei Son <hey.calmdown@gmail.com>
++Keith Rarick <kr@xph.us>
+ Ken Friedenbach <kenliz@cruzio.com>
+ Kevin Ballard <kevin@sb.org>
+ Kyle Consalus <consalus@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 61f45a0c6a..91469251e0 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -103,6 +103,7 @@ Josh Goebel <dreamer3@gmail.com>
+ Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+ Kai Backman <kaib@golang.org>
+ Kei Son <hey.calmdown@gmail.com>
++Keith Rarick <kr@xph.us>
+ Ken Friedenbach <kenliz@cruzio.com>
+ Ken Thompson <ken@golang.org>
+ Kevin Ballard <kevin@sb.org>

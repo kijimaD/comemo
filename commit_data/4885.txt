@@ -7,10 +7,218 @@ Date:   Thu Feb 18 17:40:50 2010 -0800
     R=rsc
     CC=adg, golang-dev
     https://golang.org/cl/215050
-
+---
  doc/style.css          | 13 +++++++++++++
  lib/godoc/godoc.html   |  7 +++++++
  src/cmd/godoc/doc.go   |  6 ------
  src/cmd/godoc/godoc.go | 41 ++++++++++++++---------------------------
  src/cmd/godoc/main.go  |  9 ++++++---
  5 files changed, 40 insertions(+), 36 deletions(-)
+
+diff --git a/doc/style.css b/doc/style.css
+index fb90185070..25ea6c3450 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -198,6 +198,19 @@ span.highlight {
+   background-color: #ffffa0;
+ }
+ 
++/* same style as for gettingStarted */
++#menu {
++  margin-top: 1.5em;
++  margin-left: 1.75em;
++  margin-right: 0em;
++  float: right;
++  background-color: #fffff0;
++  padding-left: 1em;
++  padding-right: 1em;
++  padding-bottom: 0.75em;
++  border: 2px solid #ba9836;
++}
++
+ 
+ /* ------------------------------------------------------------------------- */
+ /* Styles for the frontpage */
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 944643a34f..b404857ebc 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -120,6 +120,13 @@
+ </div>
+ 
+ <div id="content">
++  <!-- Menu is HTML-escaped elsewhere -->
++  {.section Menu}
++    <div id="menu">
++      {@}
++    </div>
++  {.end}
++
+   <h1 id="generatedHeader">{Title|html}</h1>
+ 
+   <!-- The Table of Contents is automatically inserted in this <div>.
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index 1c40ebdd91..701b0e177c 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -27,12 +27,6 @@ The flags are:
+ 		width of tabs in units of spaces
+ 	-path=""
+ 		additional package directories (colon-separated)
+-	-cmdroot="/goroot/src/cmd"
+-		command source directory under -goroot (if unrooted, relative to cwd)
+-	-tmplroot="/goroot/lib/godoc"
+-		template directory under -goroot (if unrooted, relative to cwd)
+-	-pkgroot="/goroot/src/pkg"
+-		package source directory under -goroot (if unrooted, relative to cwd)
+ 	-html
+ 		print HTML in command-line mode
+ 	-goroot=$GOROOT
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index e8b3d6987b..08a9902969 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -77,14 +77,9 @@ func (dt *delayTime) backoff(max int) {
+ var (
+ 	verbose = flag.Bool("v", false, "verbose mode")
+ 
+-	// "fixed" file system roots
+-	goroot   string
+-	cmdroot  string
+-	pkgroot  string
+-	tmplroot string
+-
+-	// additional file system roots to consider
+-	path = flag.String("path", "", "additional package directories (colon-separated)")
++	// file system roots
++	goroot string
++	path   = flag.String("path", "", "additional package directories (colon-separated)")
+ 
+ 	// layout control
+ 	tabwidth = flag.Int("tabwidth", 4, "tab width")
+@@ -106,19 +101,14 @@ func init() {
+ 		goroot = pathutil.Join(os.Getenv("HOME"), "go")
+ 	}
+ 	flag.StringVar(&goroot, "goroot", goroot, "Go root directory")
+-
+-	// other flags/variables that depend on goroot
+-	flag.StringVar(&cmdroot, "cmdroot", pathutil.Join(goroot, "src/cmd"), "command source directory")
+-	flag.StringVar(&pkgroot, "pkgroot", pathutil.Join(goroot, "src/pkg"), "package source directory")
+-	flag.StringVar(&tmplroot, "tmplroot", pathutil.Join(goroot, "lib/godoc"), "template directory")
+ }
+ 
+ 
+ func initHandlers() {
+ 	fsMap.Init(*path)
+ 	fileServer = http.FileServer(goroot, "")
+-	cmdHandler = httpHandler{"/cmd/", cmdroot, false}
+-	pkgHandler = httpHandler{"/pkg/", pkgroot, true}
++	cmdHandler = httpHandler{"/cmd/", pathutil.Join(goroot, "src/cmd"), false}
++	pkgHandler = httpHandler{"/pkg/", pathutil.Join(goroot, "src/pkg"), true}
+ }
+ 
+ 
+@@ -790,7 +780,7 @@ var fmap = template.FormatterMap{
+ 
+ 
+ func readTemplate(name string) *template.Template {
+-	path := pathutil.Join(tmplroot, name)
++	path := pathutil.Join(goroot, "lib/godoc/"+name)
+ 	data, err := ioutil.ReadFile(path)
+ 	if err != nil {
+ 		log.Exitf("ReadFile %s: %v", path, err)
+@@ -813,7 +803,7 @@ var (
+ )
+ 
+ func readTemplates() {
+-	// have to delay until after flags processing, so that tmplroot is known
++	// have to delay until after flags processing since paths depend on goroot
+ 	dirlistHTML = readTemplate("dirlist.html")
+ 	errorHTML = readTemplate("error.html")
+ 	godocHTML = readTemplate("godoc.html")
+@@ -832,6 +822,7 @@ func servePage(c *http.Conn, title, query string, content []byte) {
+ 		PkgRoots  []string
+ 		Timestamp uint64 // int64 to be compatible with os.Dir.Mtime_ns
+ 		Query     string
++		Menu      []byte
+ 		Content   []byte
+ 	}
+ 
+@@ -841,6 +832,7 @@ func servePage(c *http.Conn, title, query string, content []byte) {
+ 		PkgRoots: fsMap.PrefixList(),
+ 		Timestamp: uint64(ts) * 1e9, // timestamp in ns
+ 		Query: query,
++		Menu: nil,
+ 		Content: content,
+ 	}
+ 
+@@ -875,12 +867,6 @@ func commentText(src []byte) (text string) {
+ }
+ 
+ 
+-func serveError(c *http.Conn, r *http.Request, relpath string, err os.Error) {
+-	contents := applyTemplate(errorHTML, "errorHTML", err)
+-	servePage(c, "File "+relpath, "", contents)
+-}
+-
+-
+ func serveHTMLDoc(c *http.Conn, r *http.Request, abspath, relpath string) {
+ 	// get HTML body contents
+ 	src, err := ioutil.ReadFile(abspath)
+@@ -1066,7 +1052,7 @@ func serveFile(c *http.Conn, r *http.Request) {
+ 	dir, err := os.Lstat(abspath)
+ 	if err != nil {
+ 		log.Stderr(err)
+-		serveError(c, r, abspath, err)
++		serveError(c, r, relpath, err)
+ 		return
+ 	}
+ 
+@@ -1136,8 +1122,9 @@ func (h *httpHandler) getPageInfo(relpath string, try bool) PageInfo {
+ 		log.Stderrf("parser.parseDir: %s", err)
+ 	}
+ 	if len(pkgs) != 1 && !try {
+-		// TODO: should handle multiple packages
+-		log.Stderrf("parser.parseDir: found %d packages", len(pkgs))
++		// TODO: should handle multiple packages,
++		//       error reporting disabled for now
++		// log.Stderrf("parser.parseDir: found %d packages", len(pkgs))
+ 	}
+ 
+ 	// Get the best matching package: either the first one, or the
+@@ -1166,7 +1153,7 @@ func (h *httpHandler) getPageInfo(relpath string, try bool) PageInfo {
+ 
+ 	// get directory information
+ 	var dir *Directory
+-	if tree, _ := fsTree.get(); tree != nil {
++	if tree, _ := fsTree.get(); tree != nil && tree.(*Directory) != nil {
+ 		// directory tree is present; lookup respective directory
+ 		// (may still fail if the file system was updated and the
+ 		// new directory tree has not yet been computed)
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 9a7a13abab..0074a22dee 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -50,6 +50,12 @@ var (
+ )
+ 
+ 
++func serveError(c *http.Conn, r *http.Request, relpath string, err os.Error) {
++	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
++	servePage(c, "File "+relpath, "", contents)
++}
++
++
+ func exec(c *http.Conn, args []string) (status int) {
+ 	r, w, err := os.Pipe()
+ 	if err != nil {
+@@ -162,9 +168,6 @@ func main() {
+ 			log.Stderrf("Go Documentation Server\n")
+ 			log.Stderrf("address = %s\n", *httpaddr)
+ 			log.Stderrf("goroot = %s\n", goroot)
+-			log.Stderrf("cmdroot = %s\n", cmdroot)
+-			log.Stderrf("pkgroot = %s\n", pkgroot)
+-			log.Stderrf("tmplroot = %s\n", tmplroot)
+ 			log.Stderrf("tabwidth = %d\n", *tabwidth)
+ 			if !fsMap.IsEmpty() {
+ 				log.Stderr("user-defined mapping:")

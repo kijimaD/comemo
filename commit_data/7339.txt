@@ -9,6 +9,20 @@ Date:   Wed Feb 2 18:53:03 2011 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/4023060
-
+---
  src/cmd/cgo/gcc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index cadc6fae90..9754c1d565 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -288,7 +288,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 	var b bytes.Buffer
+ 	b.WriteString(builtinProlog)
+ 	b.WriteString(f.Preamble)
+-	b.WriteString("void f(void) {\n")
++	b.WriteString("void __cgo__f__(void) {\n")
+ 	b.WriteString("#line 0 \"cgo-test\"\n")
+ 	for i, n := range toSniff {
+ 		fmt.Fprintf(&b, "%s; enum { _cgo_enum_%d = %s }; /* cgo-test:%d */\n", n.C, i, n.C, i)

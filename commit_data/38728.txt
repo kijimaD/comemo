@@ -20,8 +20,61 @@ Date:   Sat Nov 17 14:09:24 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: roger peppe <rogpeppe@gmail.com>
-
+---
  src/os/removeall_at.go   | 8 +++++++-
  src/os/removeall_noat.go | 6 ++++++
  src/os/removeall_test.go | 4 ++++
  3 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index eb220bd103..5aa1b46117 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -13,8 +13,14 @@ import (
+ )
+ 
+ func RemoveAll(path string) error {
++	if path == "" {
++		// fail silently to retain compatibility with previous behavior
++		// of RemoveAll. See issue 28830.
++		return nil
++	}
++
+ 	// Not allowed in unix
+-	if path == "" || endsWithDot(path) {
++	if endsWithDot(path) {
+ 		return syscall.EINVAL
+ 	}
+ 
+diff --git a/src/os/removeall_noat.go b/src/os/removeall_noat.go
+index d1dd43ff6a..d382b42af3 100644
+--- a/src/os/removeall_noat.go
++++ b/src/os/removeall_noat.go
+@@ -16,6 +16,12 @@ import (
+ // it encounters. If the path does not exist, RemoveAll
+ // returns nil (no error).
+ func RemoveAll(path string) error {
++	if path == "" {
++		// fail silently to retain compatibility with previous behavior
++		// of RemoveAll. See issue 28830.
++		return nil
++	}
++
+ 	// Simple case: if Remove works, we're done.
+ 	err := Remove(path)
+ 	if err == nil || IsNotExist(err) {
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 5eec8cd154..fd3b8d22f9 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -21,6 +21,10 @@ func TestRemoveAll(t *testing.T) {
+ 	}
+ 	defer RemoveAll(tmpDir)
+ 
++	if err := RemoveAll(""); err != nil {
++		t.Errorf("RemoveAll(\"\"): %v; want nil", err)
++	}
++
+ 	file := filepath.Join(tmpDir, "file")
+ 	path := filepath.Join(tmpDir, "_TestRemoveAll_")
+ 	fpath := filepath.Join(path, "file")

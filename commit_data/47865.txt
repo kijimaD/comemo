@@ -18,7 +18,102 @@ Date:   Tue Apr 13 13:46:52 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go         |  8 ++++++
  src/cmd/asm/internal/asm/pseudo_test.go | 47 ++++++++++++++++++++++++---------
  2 files changed, 43 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 340f188924..cf0d1550f9 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -134,6 +134,14 @@ func (p *Parser) asmText(operands [][]lex.Token) {
+ 		next++
+ 	}
+ 
++	// Issue an error if we see a function defined as ABIInternal
++	// without NOSPLIT. In ABIInternal, obj needs to know the function
++	// signature in order to construct the morestack path, so this
++	// currently isn't supported for asm functions.
++	if nameAddr.Sym.ABI() == obj.ABIInternal && flag&obj.NOSPLIT == 0 {
++		p.errorf("TEXT %q: ABIInternal requires NOSPLIT", name)
++	}
++
+ 	// Next operand is the frame and arg size.
+ 	// Bizarre syntax: $frameSize-argSize is two words, not subtraction.
+ 	// Both frameSize and argSize must be simple integers; only frameSize
+diff --git a/src/cmd/asm/internal/asm/pseudo_test.go b/src/cmd/asm/internal/asm/pseudo_test.go
+index 622ee25ce7..fe6ffa6074 100644
+--- a/src/cmd/asm/internal/asm/pseudo_test.go
++++ b/src/cmd/asm/internal/asm/pseudo_test.go
+@@ -25,11 +25,13 @@ func tokenize(s string) [][]lex.Token {
+ 
+ func TestErroneous(t *testing.T) {
+ 
+-	tests := []struct {
++	type errtest struct {
+ 		pseudo   string
+ 		operands string
+ 		expected string
+-	}{
++	}
++
++	nonRuntimeTests := []errtest{
+ 		{"TEXT", "", "expect two or three operands for TEXT"},
+ 		{"TEXT", "%", "expect two or three operands for TEXT"},
+ 		{"TEXT", "1, 1", "TEXT symbol \"<erroneous symbol>\" must be a symbol(SB)"},
+@@ -58,23 +60,44 @@ func TestErroneous(t *testing.T) {
+ 		{"PCDATA", "1", "expect two operands for PCDATA"},
+ 	}
+ 
++	runtimeTests := []errtest{
++		{"TEXT", "foo<ABIInternal>(SB),0", "TEXT \"foo\": ABIInternal requires NOSPLIT"},
++	}
++
++	testcats := []struct {
++		compilingRuntime bool
++		tests            []errtest
++	}{
++		{
++			compilingRuntime: false,
++			tests:            nonRuntimeTests,
++		},
++		{
++			compilingRuntime: true,
++			tests:            runtimeTests,
++		},
++	}
++
+ 	// Note these errors should be independent of the architecture.
+ 	// Just run the test with amd64.
+ 	parser := newParser("amd64")
+ 	var buf bytes.Buffer
+ 	parser.errorWriter = &buf
+ 
+-	for _, test := range tests {
+-		parser.errorCount = 0
+-		parser.lineNum++
+-		if !parser.pseudo(test.pseudo, tokenize(test.operands)) {
+-			t.Fatalf("Wrong pseudo-instruction: %s", test.pseudo)
+-		}
+-		errorLine := buf.String()
+-		if test.expected != errorLine {
+-			t.Errorf("Unexpected error %q; expected %q", errorLine, test.expected)
++	for _, cat := range testcats {
++		for _, test := range cat.tests {
++			parser.compilingRuntime = cat.compilingRuntime
++			parser.errorCount = 0
++			parser.lineNum++
++			if !parser.pseudo(test.pseudo, tokenize(test.operands)) {
++				t.Fatalf("Wrong pseudo-instruction: %s", test.pseudo)
++			}
++			errorLine := buf.String()
++			if test.expected != errorLine {
++				t.Errorf("Unexpected error %q; expected %q", errorLine, test.expected)
++			}
++			buf.Reset()
+ 		}
+-		buf.Reset()
+ 	}
+ 
+ }

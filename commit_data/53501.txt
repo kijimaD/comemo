@@ -10,7 +10,7 @@ Date:   Fri Jul 22 15:08:07 2022 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/liveness/arg.go       |  2 +-
  src/cmd/compile/internal/liveness/plive.go     | 13 ++-----------
  src/cmd/compile/internal/ssa/deadstore.go      |  4 ++--
@@ -24,3 +24,252 @@ Date:   Fri Jul 22 15:08:07 2022 -0700
  src/cmd/compile/internal/ssa/writebarrier.go   |  8 ++++----
  src/cmd/compile/internal/ssagen/ssa.go         |  5 +----
  12 files changed, 16 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/compile/internal/liveness/arg.go b/src/cmd/compile/internal/liveness/arg.go
+index 2ca5d095aa..abbc8c9771 100644
+--- a/src/cmd/compile/internal/liveness/arg.go
++++ b/src/cmd/compile/internal/liveness/arg.go
+@@ -249,7 +249,7 @@ func (lv *argLiveness) valueEffect(v *ssa.Value, live bitvec.BitVec) bool {
+ func mayFault(v *ssa.Value) bool {
+ 	switch v.Op {
+ 	case ssa.OpLoadReg, ssa.OpStoreReg, ssa.OpCopy, ssa.OpPhi,
+-		ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive,
++		ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive,
+ 		ssa.OpSelect0, ssa.OpSelect1, ssa.OpSelectN, ssa.OpMakeResult,
+ 		ssa.OpConvert, ssa.OpInlMark, ssa.OpGetG:
+ 		return false
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 93f49fad45..1a2d3a45c9 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -80,15 +80,6 @@ import (
+ // the liveness analysis work on single-word values as well, although
+ // there are complications around interface values, slices, and strings,
+ // all of which cannot be treated as individual words.
+-//
+-// OpVarKill is the opposite of OpVarDef: it marks a value as no longer needed,
+-// even if its address has been taken. That is, an OpVarKill annotation asserts
+-// that its argument is certainly dead, for use when the liveness analysis
+-// would not otherwise be able to deduce that fact.
+-
+-// TODO: get rid of OpVarKill here. It's useful for stack frame allocation
+-// so the compiler can allocate two temps to the same location. Here it's now
+-// useless, since the implementation of stack objects.
+ 
+ // blockEffects summarizes the liveness effects on an SSA block.
+ type blockEffects struct {
+@@ -269,7 +260,7 @@ func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
+ 	// OpVarFoo pseudo-ops. Ignore them to prevent "lost track of
+ 	// variable" ICEs (issue 19632).
+ 	switch v.Op {
+-	case ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive:
++	case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive:
+ 		if !n.Used() {
+ 			return -1, 0
+ 		}
+@@ -334,7 +325,7 @@ func affectedVar(v *ssa.Value) (*ir.Name, ssa.SymEffect) {
+ 
+ 	case ssa.OpVarLive:
+ 		return v.Aux.(*ir.Name), ssa.SymRead
+-	case ssa.OpVarDef, ssa.OpVarKill:
++	case ssa.OpVarDef:
+ 		return v.Aux.(*ir.Name), ssa.SymWrite
+ 	case ssa.OpKeepAlive:
+ 		n, _ := ssa.AutoVar(v.Args[0])
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index d694133ec3..b0e4e2bb09 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -39,7 +39,7 @@ func dse(f *Func) {
+ 				for _, a := range v.Args {
+ 					if a.Block == b && a.Type.IsMemory() {
+ 						storeUse.add(a.ID)
+-						if v.Op != OpStore && v.Op != OpZero && v.Op != OpVarDef && v.Op != OpVarKill {
++						if v.Op != OpStore && v.Op != OpZero && v.Op != OpVarDef {
+ 							// CALL, DUFFCOPY, etc. are both
+ 							// reads and writes.
+ 							loadUse.add(a.ID)
+@@ -156,7 +156,7 @@ func elimDeadAutosGeneric(f *Func) {
+ 				changed = true
+ 			}
+ 			return
+-		case OpVarDef, OpVarKill:
++		case OpVarDef:
+ 			// v should be eliminated if we eliminate the auto.
+ 			n, ok := v.Aux.(*ir.Name)
+ 			if !ok || n.Class != ir.PAUTO {
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 4ed016f4ad..3eaba3a238 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -613,7 +613,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
+ 	// This would probably be better as an output from stackframe.
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+-			if v.Op == OpVarDef || v.Op == OpVarKill {
++			if v.Op == OpVarDef {
+ 				n := v.Aux.(*ir.Name)
+ 				if ir.IsSynthetic(n) {
+ 					continue
+@@ -1080,7 +1080,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
+ 	}
+ 
+ 	switch {
+-	case v.Op == OpVarDef, v.Op == OpVarKill:
++	case v.Op == OpVarDef:
+ 		n := v.Aux.(*ir.Name)
+ 		if ir.IsSynthetic(n) {
+ 			break
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index e04b7db6e7..da386b9dff 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -528,7 +528,6 @@ var genericOps = []opData{
+ 	{name: "Unknown"},
+ 
+ 	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None", zeroWidth: true}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
+-	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},                             // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+ 	// TODO: what's the difference between VarLive and KeepAlive?
+ 	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true}, // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+ 	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                  // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+diff --git a/src/cmd/compile/internal/ssa/lower.go b/src/cmd/compile/internal/ssa/lower.go
+index 5760c35601..fb4b748413 100644
+--- a/src/cmd/compile/internal/ssa/lower.go
++++ b/src/cmd/compile/internal/ssa/lower.go
+@@ -21,7 +21,7 @@ func checkLower(f *Func) {
+ 				continue // lowered
+ 			}
+ 			switch v.Op {
+-			case OpSP, OpSB, OpInitMem, OpArg, OpArgIntReg, OpArgFloatReg, OpPhi, OpVarDef, OpVarKill, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpSelectN, OpConvert, OpInlMark:
++			case OpSP, OpSB, OpInitMem, OpArg, OpArgIntReg, OpArgFloatReg, OpPhi, OpVarDef, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpSelectN, OpConvert, OpInlMark:
+ 				continue // ok not to lower
+ 			case OpMakeResult:
+ 				if b.Controls[0] == v {
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 14f511a5f1..521cdfd7ae 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -236,7 +236,7 @@ func nilcheckelim2(f *Func) {
+ 				continue
+ 			}
+ 			if v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
+-				if v.Op == OpVarKill || v.Op == OpVarLive || (v.Op == OpVarDef && !v.Aux.(*ir.Name).Type().HasPointers()) {
++				if v.Op == OpVarLive || (v.Op == OpVarDef && !v.Aux.(*ir.Name).Type().HasPointers()) {
+ 					// These ops don't really change memory.
+ 					continue
+ 					// Note: OpVarDef requires that the defined variable not have pointers.
+diff --git a/src/cmd/compile/internal/ssa/numberlines.go b/src/cmd/compile/internal/ssa/numberlines.go
+index 9d6aeca9c0..4cbc4919f4 100644
+--- a/src/cmd/compile/internal/ssa/numberlines.go
++++ b/src/cmd/compile/internal/ssa/numberlines.go
+@@ -62,7 +62,7 @@ func nextGoodStatementIndex(v *Value, i int, b *Block) int {
+ // statement boundary.
+ func notStmtBoundary(op Op) bool {
+ 	switch op {
+-	case OpCopy, OpPhi, OpVarKill, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg, OpArgIntReg, OpArgFloatReg:
++	case OpCopy, OpPhi, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg, OpArgIntReg, OpArgFloatReg:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index efda41f69c..84b4763ff5 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -3088,7 +3088,6 @@ const (
+ 	OpFwdRef
+ 	OpUnknown
+ 	OpVarDef
+-	OpVarKill
+ 	OpVarLive
+ 	OpKeepAlive
+ 	OpInlMark
+@@ -39144,13 +39143,6 @@ var opcodeTable = [...]opInfo{
+ 		symEffect: SymNone,
+ 		generic:   true,
+ 	},
+-	{
+-		name:      "VarKill",
+-		auxType:   auxSym,
+-		argLen:    1,
+-		symEffect: SymNone,
+-		generic:   true,
+-	},
+ 	{
+ 		name:      "VarLive",
+ 		auxType:   auxSym,
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 8f125cef99..9f2f4689e7 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -520,7 +520,7 @@ func (v *Value) LackingPos() bool {
+ 	// The exact definition of LackingPos is somewhat heuristically defined and may change
+ 	// in the future, for example if some of these operations are generated more carefully
+ 	// with respect to their source position.
+-	return v.Op == OpVarDef || v.Op == OpVarKill || v.Op == OpVarLive || v.Op == OpPhi ||
++	return v.Op == OpVarDef || v.Op == OpVarLive || v.Op == OpPhi ||
+ 		(v.Op == OpFwdRef || v.Op == OpCopy) && v.Type == types.TypeMem
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index d32669bdbc..cb8c0a5e0e 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -163,7 +163,7 @@ func writebarrier(f *Func) {
+ 					last = w
+ 					end = i + 1
+ 				}
+-			case OpVarDef, OpVarLive, OpVarKill:
++			case OpVarDef, OpVarLive:
+ 				continue
+ 			default:
+ 				if last == nil {
+@@ -279,7 +279,7 @@ func writebarrier(f *Func) {
+ 				fn = typedmemclr
+ 				typ = reflectdata.TypeLinksym(w.Aux.(*types.Type))
+ 				nWBops--
+-			case OpVarDef, OpVarLive, OpVarKill:
++			case OpVarDef, OpVarLive:
+ 			}
+ 
+ 			// then block: emit write barrier call
+@@ -301,7 +301,7 @@ func writebarrier(f *Func) {
+ 				}
+ 				// Note that we set up a writebarrier function call.
+ 				f.fe.SetWBPos(pos)
+-			case OpVarDef, OpVarLive, OpVarKill:
++			case OpVarDef, OpVarLive:
+ 				memThen = bThen.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, memThen)
+ 			}
+ 
+@@ -315,7 +315,7 @@ func writebarrier(f *Func) {
+ 			case OpZeroWB:
+ 				memElse = bElse.NewValue2I(pos, OpZero, types.TypeMem, w.AuxInt, ptr, memElse)
+ 				memElse.Aux = w.Aux
+-			case OpVarDef, OpVarLive, OpVarKill:
++			case OpVarDef, OpVarLive:
+ 				memElse = bElse.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, memElse)
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 847a5133c9..e5fe646eaf 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1470,9 +1470,6 @@ func (s *state) stmt(n ir.Node) {
+ 				s.Fatalf("dottype of non-load")
+ 			}
+ 			mem := s.mem()
+-			if mem.Op == ssa.OpVarKill {
+-				mem = mem.Args[0]
+-			}
+ 			if res.Args[1] != mem {
+ 				s.Fatalf("memory no longer live from 2-result dottype load")
+ 			}
+@@ -6947,7 +6944,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 			case ssa.OpGetG:
+ 				// nothing to do when there's a g register,
+ 				// and checkLower complains if there's not
+-			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive, ssa.OpVarKill:
++			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive:
+ 				// nothing to do; already used by liveness
+ 			case ssa.OpPhi:
+ 				CheckLoweredPhi(v)

@@ -19,7 +19,67 @@ Date:   Fri May 20 19:40:23 2011 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4539075
-
+---
  src/pkg/http/request.go           | 4 +---
  src/pkg/http/requestwrite_test.go | 5 +++++
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 353b1c62c9..05d4892110 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -276,9 +276,7 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
+ 	fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri)
+ 
+ 	// Header lines
+-	if !usingProxy {
+-		fmt.Fprintf(w, "Host: %s\r\n", host)
+-	}
++	fmt.Fprintf(w, "Host: %s\r\n", host)
+ 	fmt.Fprintf(w, "User-Agent: %s\r\n", valueOrDefault(req.UserAgent, defaultUserAgent))
+ 	if req.Referer != "" {
+ 		fmt.Fprintf(w, "Referer: %s\r\n", req.Referer)
+diff --git a/src/pkg/http/requestwrite_test.go b/src/pkg/http/requestwrite_test.go
+index bb000c701f..beb51fb8d7 100644
+--- a/src/pkg/http/requestwrite_test.go
++++ b/src/pkg/http/requestwrite_test.go
+@@ -69,6 +69,7 @@ var reqWriteTests = []reqWriteTest{
+ 			"Proxy-Connection: keep-alive\r\n\r\n",
+ 
+ 		"GET http://www.techcrunch.com/ HTTP/1.1\r\n" +
++			"Host: www.techcrunch.com\r\n" +
+ 			"User-Agent: Fake\r\n" +
+ 			"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n" +
+ 			"Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7\r\n" +
+@@ -101,6 +102,7 @@ var reqWriteTests = []reqWriteTest{
+ 			"6\r\nabcdef\r\n0\r\n\r\n",
+ 
+ 		"GET http://www.google.com/search HTTP/1.1\r\n" +
++			"Host: www.google.com\r\n" +
+ 			"User-Agent: Go http package\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			"6\r\nabcdef\r\n0\r\n\r\n",
+@@ -131,6 +133,7 @@ var reqWriteTests = []reqWriteTest{
+ 			"6\r\nabcdef\r\n0\r\n\r\n",
+ 
+ 		"POST http://www.google.com/search HTTP/1.1\r\n" +
++			"Host: www.google.com\r\n" +
+ 			"User-Agent: Go http package\r\n" +
+ 			"Connection: close\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+@@ -164,6 +167,7 @@ var reqWriteTests = []reqWriteTest{
+ 			"abcdef",
+ 
+ 		"POST http://www.google.com/search HTTP/1.1\r\n" +
++			"Host: www.google.com\r\n" +
+ 			"User-Agent: Go http package\r\n" +
+ 			"Connection: close\r\n" +
+ 			"Content-Length: 6\r\n" +
+@@ -188,6 +192,7 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		// Looks weird but RawURL overrides what WriteProxy would choose.
+ 		"GET /search HTTP/1.1\r\n" +
++			"Host: www.google.com\r\n" +
+ 			"User-Agent: Go http package\r\n" +
+ 			"\r\n",
+ 	},

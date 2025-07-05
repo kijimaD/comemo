@@ -9,6 +9,29 @@ Date:   Wed Dec 21 01:24:57 2011 -0500
     R=adg
     CC=golang-dev
     https://golang.org/cl/5500058
-
+---
  src/run.bash | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 7d8b9bce06..b3cf7862c5 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -34,7 +34,7 @@ if $rebuild; then
+ 	if $USE_GO_TOOL; then
+ 		echo
+ 		echo '# Package builds'
+-		GOPATH="" time go install -a all
++		time GOPATH="" go install -a all
+ 	else
+ 		(xcd pkg
+ 			gomake clean
+@@ -46,7 +46,7 @@ fi
+ if $USE_GO_TOOL; then
+ 	echo
+ 	echo '# Package tests'
+-	GOPATH="" time go test all -short
++	time GOPATH="" go test all -short
+ else
+ 	(xcd pkg
+ 	gomake testshort

@@ -9,6 +9,21 @@ Date:   Thu Jul 10 15:36:48 2014 -0400
     R=golang-codereviews
     CC=golang-codereviews
     https://golang.org/cl/112100043
-
+---
  src/nacltest.bash | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/nacltest.bash b/src/nacltest.bash
+index 2b62830a88..154d99ae98 100755
+--- a/src/nacltest.bash
++++ b/src/nacltest.bash
+@@ -67,6 +67,9 @@ if [ ! -f make.bash ]; then
+ fi
+ GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH ./make.bash
+ 
++# the builder might have set GOROOT_FINAL.
++export GOROOT=$(pwd)/..
++
+ # Build zip file embedded in package syscall.
+ gobin=${GOBIN:-$(pwd)/../bin}
+ rm -f pkg/syscall/fstest_nacl.go

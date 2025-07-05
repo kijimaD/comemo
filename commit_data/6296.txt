@@ -7,6 +7,20 @@ Date:   Thu Sep 16 15:50:46 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2214042
-
+---
  src/cmd/gc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index a01da962c6..5d4230041c 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -356,7 +356,7 @@ findpkg(Strlit *name)
+ 	char *q;
+ 
+ 	if(islocalname(name)) {
+-		if(debug['u'])
++		if(safemode)
+ 			return 0;
+ 		// try .a before .6.  important for building libraries:
+ 		// if there is an array.6 in the array.a library,

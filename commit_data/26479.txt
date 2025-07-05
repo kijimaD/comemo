@@ -11,6 +11,23 @@ Date:   Tue Jan 26 23:00:41 2016 -0500
     Change-Id: I553349504bb1789e4b66c888dbe4034568918ad6
     Reviewed-on: https://go-review.googlesource.com/18977
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mprof.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index e45bc7a770..fc73bbfbe1 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -554,6 +554,11 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ 		// Save other goroutines.
+ 		for _, gp1 := range allgs {
+ 			if isOK(gp1) {
++				if len(r) == 0 {
++					// Should be impossible, but better to return a
++					// truncated profile than to crash the entire process.
++					break
++				}
+ 				saveg(^uintptr(0), ^uintptr(0), gp1, &r[0])
+ 				r = r[1:]
+ 			}

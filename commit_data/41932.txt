@@ -13,6 +13,29 @@ Date:   Fri Nov 1 11:15:44 2019 -0400
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/dsa/dsa.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/dsa/dsa.go b/src/crypto/dsa/dsa.go
+index 575314b1b4..bc8e2f99bd 100644
+--- a/src/crypto/dsa/dsa.go
++++ b/src/crypto/dsa/dsa.go
+@@ -202,7 +202,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ 	// FIPS 186-3, section 4.6
+ 
+ 	n := priv.Q.BitLen()
+-	if priv.Q.Sign() <= 0 || priv.P.Sign() <= 0 || priv.G.Sign() <= 0 || priv.X.Sign() <= 0 || n&7 != 0 {
++	if priv.Q.Sign() <= 0 || priv.P.Sign() <= 0 || priv.G.Sign() <= 0 || priv.X.Sign() <= 0 || n%8 != 0 {
+ 		err = ErrInvalidPublicKey
+ 		return
+ 	}
+@@ -281,7 +281,7 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
+ 	w := new(big.Int).ModInverse(s, pub.Q)
+ 
+ 	n := pub.Q.BitLen()
+-	if n&7 != 0 {
++	if n%8 != 0 {
+ 		return false
+ 	}
+ 	z := new(big.Int).SetBytes(hash)

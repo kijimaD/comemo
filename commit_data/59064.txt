@@ -15,7 +15,65 @@ Date:   Wed Feb 7 04:56:26 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/encoding/xml/xml.go      | 25 ++++++++++++++++++-------
  src/encoding/xml/xml_test.go |  7 +++++++
  2 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 73eedad290..6b8f2e7978 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -2045,16 +2045,27 @@ func procInst(param, s string) string {
+ 	// TODO: this parsing is somewhat lame and not exact.
+ 	// It works for all actual cases, though.
+ 	param = param + "="
+-	_, v, _ := strings.Cut(s, param)
+-	if v == "" {
+-		return ""
++	lenp := len(param)
++	i := 0
++	var sep byte
++	for i < len(s) {
++		sub := s[i:]
++		k := strings.Index(sub, param)
++		if k < 0 || lenp+k >= len(sub) {
++			return ""
++		}
++		i += lenp + k + 1
++		if c := sub[lenp+k]; c == '\'' || c == '"' {
++			sep = c
++			break
++		}
+ 	}
+-	if v[0] != '\'' && v[0] != '"' {
++	if sep == 0 {
+ 		return ""
+ 	}
+-	unquote, _, ok := strings.Cut(v[1:], v[:1])
+-	if !ok {
++	j := strings.IndexByte(s[i:], sep)
++	if j < 0 {
+ 		return ""
+ 	}
+-	return unquote
++	return s[i : i+j]
+ }
+diff --git a/src/encoding/xml/xml_test.go b/src/encoding/xml/xml_test.go
+index 42f5f5f8a6..4bec4e7f1e 100644
+--- a/src/encoding/xml/xml_test.go
++++ b/src/encoding/xml/xml_test.go
+@@ -830,6 +830,13 @@ var procInstTests = []struct {
+ 	{`version="1.0" encoding='utf-8' `, [2]string{"1.0", "utf-8"}},
+ 	{`version="1.0" encoding=utf-8`, [2]string{"1.0", ""}},
+ 	{`encoding="FOO" `, [2]string{"", "FOO"}},
++	{`version=2.0 version="1.0" encoding=utf-7 encoding='utf-8'`, [2]string{"1.0", "utf-8"}},
++	{`version= encoding=`, [2]string{"", ""}},
++	{`encoding="version=1.0"`, [2]string{"", "version=1.0"}},
++	{``, [2]string{"", ""}},
++	// TODO: what's the right approach to handle these nested cases?
++	{`encoding="version='1.0'"`, [2]string{"1.0", "version='1.0'"}},
++	{`version="encoding='utf-8'"`, [2]string{"encoding='utf-8'", "utf-8"}},
+ }
+ 
+ func TestProcInstEncoding(t *testing.T) {

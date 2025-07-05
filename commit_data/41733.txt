@@ -11,9 +11,205 @@ Date:   Tue Jul 31 18:10:42 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go    | 44 ++++++++++++++++++++------------------------
  src/testing/benchmark.go | 22 +++++++++++++++++++++-
  src/testing/sub_test.go  | 32 +++++++++++++++++++++++++-------
  src/testing/testing.go   | 13 ++++++++++---
  4 files changed, 76 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index e4cf953b9e..a6bb8d69b0 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4938,35 +4938,31 @@ func TestTestRegexps(t *testing.T) {
+ 	//	BenchmarkXX is run but only with N=1, once
+ 	//	BenchmarkX/Y is run in full, twice
+ 	want := `=== RUN   TestX
++    TestX: x_test.go:6: LOG: X running
+ === RUN   TestX/Y
+-    x_test.go:6: LOG: X running
+-        x_test.go:8: LOG: Y running
++    TestX/Y: x_test.go:8: LOG: Y running
+ === RUN   TestXX
+-    z_test.go:10: LOG: XX running
++    TestXX: z_test.go:10: LOG: XX running
+ === RUN   TestX
++    TestX: x_test.go:6: LOG: X running
+ === RUN   TestX/Y
+-    x_test.go:6: LOG: X running
+-        x_test.go:8: LOG: Y running
++    TestX/Y: x_test.go:8: LOG: Y running
+ === RUN   TestXX
+-    z_test.go:10: LOG: XX running
+---- BENCH: BenchmarkX/Y
+-    x_test.go:15: LOG: Y running N=1
+-    x_test.go:15: LOG: Y running N=100
+-    x_test.go:15: LOG: Y running N=10000
+-    x_test.go:15: LOG: Y running N=1000000
+-    x_test.go:15: LOG: Y running N=100000000
+-    x_test.go:15: LOG: Y running N=1000000000
+---- BENCH: BenchmarkX/Y
+-    x_test.go:15: LOG: Y running N=1
+-    x_test.go:15: LOG: Y running N=100
+-    x_test.go:15: LOG: Y running N=10000
+-    x_test.go:15: LOG: Y running N=1000000
+-    x_test.go:15: LOG: Y running N=100000000
+-    x_test.go:15: LOG: Y running N=1000000000
+---- BENCH: BenchmarkX
+-    x_test.go:13: LOG: X running N=1
+---- BENCH: BenchmarkXX
+-    z_test.go:18: LOG: XX running N=1
++    TestXX: z_test.go:10: LOG: XX running
++    BenchmarkX: x_test.go:13: LOG: X running N=1
++    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1
++    BenchmarkX/Y: x_test.go:15: LOG: Y running N=100
++    BenchmarkX/Y: x_test.go:15: LOG: Y running N=10000
++    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000
++    BenchmarkX/Y: x_test.go:15: LOG: Y running N=100000000
++    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000000
++    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1
++    BenchmarkX/Y: x_test.go:15: LOG: Y running N=100
++    BenchmarkX/Y: x_test.go:15: LOG: Y running N=10000
++    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000
++    BenchmarkX/Y: x_test.go:15: LOG: Y running N=100000000
++    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000000
++    BenchmarkXX: z_test.go:18: LOG: XX running N=1
+ `
+ 
+ 	have := strings.Join(lines, "")
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 0e348be358..e954fc6ccb 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -545,7 +545,11 @@ func (ctx *benchContext) processBench(b *B) {
+ 		for j := uint(0); j < *count; j++ {
+ 			runtime.GOMAXPROCS(procs)
+ 			benchName := benchmarkName(b.name, procs)
+-			fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
++
++			// If it's chatty, we've already printed this information.
++			if !b.chatty {
++				fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
++			}
+ 			// Recompute the running time for all but the first iteration.
+ 			if i > 0 || j > 0 {
+ 				b = &B{
+@@ -569,6 +573,9 @@ func (ctx *benchContext) processBench(b *B) {
+ 				continue
+ 			}
+ 			results := r.String()
++			if b.chatty {
++				fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
++			}
+ 			if *benchmarkMemory || b.showAllocResult {
+ 				results += "\t" + r.MemString()
+ 			}
+@@ -627,6 +634,19 @@ func (b *B) Run(name string, f func(b *B)) bool {
+ 		// Only process sub-benchmarks, if any.
+ 		atomic.StoreInt32(&sub.hasSub, 1)
+ 	}
++
++	if b.chatty {
++		labelsOnce.Do(func() {
++			fmt.Printf("goos: %s\n", runtime.GOOS)
++			fmt.Printf("goarch: %s\n", runtime.GOARCH)
++			if b.importPath != "" {
++				fmt.Printf("pkg: %s\n", b.importPath)
++			}
++		})
++
++		fmt.Println(benchName)
++	}
++
+ 	if sub.run1() {
+ 		sub.run()
+ 	}
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index cc5dd2f3cf..abaedefde7 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -434,6 +434,31 @@ func TestTRun(t *T) {
+ 			<-ch
+ 			t.Errorf("error")
+ 		},
++	}, {
++		// A chatty test should always log with fmt.Print, even if the
++		// parent test has completed.
++		// TODO(deklerk) Capture the log of fmt.Print and assert that the
++		// subtest message is not lost.
++		desc:   "log in finished sub test with chatty",
++		ok:     false,
++		chatty: true,
++		output: `
++		--- FAIL: log in finished sub test with chatty (N.NNs)`,
++		maxPar: 1,
++		f: func(t *T) {
++			ch := make(chan bool)
++			t.Run("sub", func(t2 *T) {
++				go func() {
++					<-ch
++					t2.Log("message1")
++					ch <- true
++				}()
++			})
++			t.Log("message2")
++			ch <- true
++			<-ch
++			t.Errorf("error")
++		},
+ 	}}
+ 	for _, tc := range testCases {
+ 		ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
+@@ -521,13 +546,6 @@ func TestBRun(t *T) {
+ 		chatty: true,
+ 		output: "--- SKIP: root",
+ 		f:      func(b *B) { b.SkipNow() },
+-	}, {
+-		desc:   "skipping with message, chatty",
+-		chatty: true,
+-		output: `
+---- SKIP: root
+-    sub_test.go:NNN: skipping`,
+-		f: func(b *B) { b.Skip("skipping") },
+ 	}, {
+ 		desc:   "chatty with recursion",
+ 		chatty: true,
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 6ab9b79196..bbb10263c3 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -479,6 +479,9 @@ func (c *common) decorate(s string, skip int) string {
+ 	buf := new(strings.Builder)
+ 	// Every line is indented at least 4 spaces.
+ 	buf.WriteString("    ")
++	if c.chatty {
++		fmt.Fprintf(buf, "%s: ", c.name)
++	}
+ 	fmt.Fprintf(buf, "%s:%d: ", file, line)
+ 	lines := strings.Split(s, "\n")
+ 	if l := len(lines); l > 1 && lines[l-1] == "" {
+@@ -662,9 +665,7 @@ func (c *common) log(s string) {
+ func (c *common) logDepth(s string, depth int) {
+ 	c.mu.Lock()
+ 	defer c.mu.Unlock()
+-	if !c.done {
+-		c.output = append(c.output, c.decorate(s, depth+1)...)
+-	} else {
++	if c.done {
+ 		// This test has already finished. Try and log this message
+ 		// with our parent. If we don't have a parent, panic.
+ 		for parent := c.parent; parent != nil; parent = parent.parent {
+@@ -676,6 +677,12 @@ func (c *common) logDepth(s string, depth int) {
+ 			}
+ 		}
+ 		panic("Log in goroutine after " + c.name + " has completed")
++	} else {
++		if c.chatty {
++			fmt.Print(c.decorate(s, depth+1))
++			return
++		}
++		c.output = append(c.output, c.decorate(s, depth+1)...)
+ 	}
+ }
+ 

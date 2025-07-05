@@ -22,10 +22,147 @@ Date:   Wed Jun 21 13:49:42 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Alan Donovan <adonovan@google.com>
-
+---
  api/go1.21.txt             |  5 +++++
  src/go/ast/ast.go          |  8 +++++---
  src/go/ast/resolve.go      |  4 ++++
  src/go/ast/scope.go        | 15 +++++++++++++++
  src/go/parser/interface.go | 12 +++++++-----
  5 files changed, 36 insertions(+), 8 deletions(-)
+
+diff --git a/api/go1.21.txt b/api/go1.21.txt
+index 50b6a5c219..1dc5fda56b 100644
+--- a/api/go1.21.txt
++++ b/api/go1.21.txt
+@@ -167,7 +167,12 @@ pkg errors, var ErrUnsupported error #41198
+ pkg flag, func BoolFunc(string, string, func(string) error) #53747
+ pkg flag, method (*FlagSet) BoolFunc(string, string, func(string) error) #53747
+ pkg go/ast, func IsGenerated(*File) bool #28089
++pkg go/ast, func NewPackage //deprecated #52463
+ pkg go/ast, type File struct, GoVersion string #59033
++pkg go/ast, type Importer //deprecated #52463
++pkg go/ast, type Object //deprecated #52463
++pkg go/ast, type Package //deprecated #52463
++pkg go/ast, type Scope //deprecated #52463
+ pkg go/build/constraint, func GoVersion(Expr) string #59033
+ pkg go/build, type Directive struct #56986
+ pkg go/build, type Directive struct, Pos token.Position #56986
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index be7c72d13a..e65ff880ba 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -287,7 +287,7 @@ type (
+ 	Ident struct {
+ 		NamePos token.Pos // identifier position
+ 		Name    string    // identifier name
+-		Obj     *Object   // denoted object; or nil
++		Obj     *Object   // denoted object, or nil. Deprecated: see Object.
+ 	}
+ 
+ 	// An Ellipsis node stands for the "..." type in a
+@@ -1042,9 +1042,9 @@ type File struct {
+ 	Decls   []Decl        // top-level declarations; or nil
+ 
+ 	FileStart, FileEnd token.Pos       // start and end of entire file
+-	Scope              *Scope          // package scope (this file only)
++	Scope              *Scope          // package scope (this file only). Deprecated: see Object
+ 	Imports            []*ImportSpec   // imports in this file
+-	Unresolved         []*Ident        // unresolved identifiers in this file
++	Unresolved         []*Ident        // unresolved identifiers in this file. Deprecated: see Object
+ 	Comments           []*CommentGroup // list of all comments in the source file
+ 	GoVersion          string          // minimum Go version required by //go:build or // +build directives
+ }
+@@ -1064,6 +1064,8 @@ func (f *File) End() token.Pos {
+ 
+ // A Package node represents a set of source files
+ // collectively building a Go package.
++//
++// Deprecated: use the type checker [go/types] instead; see [Object].
+ type Package struct {
+ 	Name    string             // package name
+ 	Scope   *Scope             // package scope across all files
+diff --git a/src/go/ast/resolve.go b/src/go/ast/resolve.go
+index 970aa88ad6..8d543b450a 100644
+--- a/src/go/ast/resolve.go
++++ b/src/go/ast/resolve.go
+@@ -60,6 +60,8 @@ func resolve(scope *Scope, ident *Ident) bool {
+ // Importer should load the package data for the given path into
+ // a new *Object (pkg), record pkg in the imports map, and then
+ // return pkg.
++//
++// Deprecated: use the type checker [go/types] instead; see [Object].
+ type Importer func(imports map[string]*Object, path string) (pkg *Object, err error)
+ 
+ // NewPackage creates a new Package node from a set of File nodes. It resolves
+@@ -70,6 +72,8 @@ type Importer func(imports map[string]*Object, path string) (pkg *Object, err er
+ // belong to different packages, one package name is selected and files with
+ // different package names are reported and then ignored.
+ // The result is a package node and a scanner.ErrorList if there were errors.
++//
++// Deprecated: use the type checker [go/types] instead; see [Object].
+ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer, universe *Scope) (*Package, error) {
+ 	var p pkgBuilder
+ 	p.fset = fset
+diff --git a/src/go/ast/scope.go b/src/go/ast/scope.go
+index 8882212007..039ca58bc0 100644
+--- a/src/go/ast/scope.go
++++ b/src/go/ast/scope.go
+@@ -15,6 +15,8 @@ import (
+ // A Scope maintains the set of named language entities declared
+ // in the scope and a link to the immediately surrounding (outer)
+ // scope.
++//
++// Deprecated: use the type checker [go/types] instead; see [Object].
+ type Scope struct {
+ 	Outer   *Scope
+ 	Objects map[string]*Object
+@@ -69,6 +71,19 @@ func (s *Scope) String() string {
+ //	Kind    Data type         Data value
+ //	Pkg     *Scope            package scope
+ //	Con     int               iota for the respective declaration
++//
++// Deprecated: The relationship between Idents and Objects cannot be
++// correctly computed without type information. For example, the
++// expression T{K: 0} may denote a struct, map, slice, or array
++// literal, depending on the type of T. If T is a struct, then K
++// refers to a field of T, whereas for the other types it refers to a
++// value in the environment.
++//
++// New programs should set the [parser.SkipObjectResolution] parser
++// flag to disable syntactic object resolution (which also saves CPU
++// and memory), and instead use the type checker [go/types] if object
++// resolution is desired. See the Defs, Uses, and Implicits fields of
++// the [types.Info] struct for details.
+ type Object struct {
+ 	Kind ObjKind
+ 	Name string // declared name
+diff --git a/src/go/parser/interface.go b/src/go/parser/interface.go
+index 73cb16272e..d695162f2c 100644
+--- a/src/go/parser/interface.go
++++ b/src/go/parser/interface.go
+@@ -53,7 +53,7 @@ const (
+ 	Trace                                             // print a trace of parsed productions
+ 	DeclarationErrors                                 // report declaration errors
+ 	SpuriousErrors                                    // same as AllErrors, for backward-compatibility
+-	SkipObjectResolution                              // don't resolve identifiers to objects - see ParseFile
++	SkipObjectResolution                              // skip deprecated identifier resolution; see ParseFile
+ 	AllErrors            = SpuriousErrors             // report all errors (not just the first 10 on different lines)
+ )
+ 
+@@ -66,10 +66,12 @@ const (
+ // for the src parameter must be string, []byte, or io.Reader.
+ // If src == nil, ParseFile parses the file specified by filename.
+ //
+-// The mode parameter controls the amount of source text parsed and other
+-// optional parser functionality. If the SkipObjectResolution mode bit is set,
+-// the object resolution phase of parsing will be skipped, causing File.Scope,
+-// File.Unresolved, and all Ident.Obj fields to be nil.
++// The mode parameter controls the amount of source text parsed and
++// other optional parser functionality. If the SkipObjectResolution
++// mode bit is set (recommended), the object resolution phase of
++// parsing will be skipped, causing File.Scope, File.Unresolved, and
++// all Ident.Obj fields to be nil. Those fields are deprecated; see
++// [ast.Object] for details.
+ //
+ // Position information is recorded in the file set fset, which must not be
+ // nil.

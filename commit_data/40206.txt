@@ -12,7 +12,39 @@ Date:   Thu Apr 25 11:43:52 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/url.go      | 4 ++--
  src/net/url/url_test.go | 5 +++++
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index b7e8beec75..5f40555bdc 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -276,8 +276,8 @@ func QueryEscape(s string) string {
+ 	return escape(s, encodeQueryComponent)
+ }
+ 
+-// PathEscape escapes the string so it can be safely placed
+-// inside a URL path segment.
++// PathEscape escapes the string so it can be safely placed inside a URL path segment,
++// replacing special characters (including /) with %XX sequences as needed.
+ func PathEscape(s string) string {
+ 	return escape(s, encodePathSegment)
+ }
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index c5fc90d515..27e132b1cd 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -929,6 +929,11 @@ var pathEscapeTests = []EscapeTest{
+ 		"abc+def",
+ 		nil,
+ 	},
++	{
++		"a/b",
++		"a%2Fb",
++		nil,
++	},
+ 	{
+ 		"one two",
+ 		"one%20two",

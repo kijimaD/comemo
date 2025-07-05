@@ -9,7 +9,7 @@ Date:   Wed Aug 12 17:24:05 2009 -0700
     DELTA=334  (110 added, 211 deleted, 13 changed)
     OCL=33135
     CL=33137
-
+---
  usr/austin/eval/Makefile    |  20 ++++++++
  usr/austin/eval/compiler.go |  24 ---------
  usr/austin/eval/decls.go    |  19 -------
@@ -22,3 +22,720 @@ Date:   Wed Aug 12 17:24:05 2009 -0700
  usr/austin/eval/util.go     |   1 -
  usr/austin/eval/value.go    | 119 --------------------------------------------
  11 files changed, 127 insertions(+), 224 deletions(-)
+
+diff --git a/usr/austin/eval/Makefile b/usr/austin/eval/Makefile
+new file mode 100644
+index 0000000000..3a477710bf
+--- /dev/null
++++ b/usr/austin/eval/Makefile
+@@ -0,0 +1,20 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=eval
++GOFILES=\
++	compiler.go\
++	decls.go\
++	expr.go\
++	func.go\
++	scope.go\
++	stmt.go\
++	type.go\
++	typec.go\
++	util.go\
++	value.go\
++
++include $(GOROOT)/src/Make.pkg
+diff --git a/usr/austin/eval/compiler.go b/usr/austin/eval/compiler.go
+index 82f9120a22..9aa04cbfe2 100644
+--- a/usr/austin/eval/compiler.go
++++ b/usr/austin/eval/compiler.go
+@@ -5,7 +5,6 @@
+ package eval
+ 
+ import (
+-	"eval";
+ 	"fmt";
+ 	"go/ast";
+ 	"go/scanner";
+@@ -31,19 +30,6 @@ func (a *compiler) diagAt(pos positioned, format string, args ...) {
+ 	a.errors.Error(pos.Pos(), fmt.Sprintf(format, args));
+ }
+ 
+-type FuncDecl struct
+-func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (func (f *Frame) Func)
+-type exprCompiler struct
+-func (a *compiler) compileExpr(b *block, expr ast.Expr, constant bool) *exprCompiler
+-type assignCompiler struct
+-func (a *compiler) checkAssign(pos token.Position, rs []*exprCompiler, errOp, errPosName string) (*assignCompiler, bool)
+-func (a *compiler) compileAssign(pos token.Position, lt Type, rs []*exprCompiler, errOp, errPosName string) (func(lv Value, f *Frame))
+-func (a *compiler) compileType(b *block, typ ast.Expr) Type
+-func (a *compiler) compileTypeDecl(b *block, decl *ast.GenDecl) bool
+-func (a *compiler) compileFuncType(b *block, typ *ast.FuncType) *FuncDecl
+-
+-func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool)
+-
+ 
+ type label struct {
+ 	name string;
+@@ -64,9 +50,6 @@ type label struct {
+ 	used token.Position;
+ }
+ 
+-type codeBuf struct
+-type flowBuf struct
+-type FuncType struct
+ // A funcCompiler captures information used throughout the compilation
+ // of a single function body.
+ type funcCompiler struct {
+@@ -81,8 +64,6 @@ type funcCompiler struct {
+ 	err bool;
+ }
+ 
+-func (a *funcCompiler) checkLabels()
+-
+ // A blockCompiler captures information used throughout the compilation
+ // of a single block within a function.
+ type blockCompiler struct {
+@@ -96,11 +77,6 @@ type blockCompiler struct {
+ 	parent *blockCompiler;
+ }
+ 
+-func (a *blockCompiler) compileStmt(s ast.Stmt)
+-func (a *blockCompiler) compileStmts(body *ast.BlockStmt)
+-func (a *blockCompiler) enterChild() *blockCompiler
+-func (a *blockCompiler) exit()
+-
+ // An exprContext stores information used throughout the compilation
+ // of a single expression.  It does not embed funcCompiler because
+ // expressions can appear at top level.
+diff --git a/usr/austin/eval/decls.go b/usr/austin/eval/decls.go
+index c34baed875..44a7e0402f 100644
+--- a/usr/austin/eval/decls.go
++++ b/usr/austin/eval/decls.go
+@@ -13,8 +13,6 @@ import (
+  * Types
+  */
+ 
+-type Value interface
+-
+ type Type interface {
+ 	// compat returns whether this type is compatible with another
+ 	// type.  If conv is false, this is normal compatibility,
+@@ -128,7 +126,6 @@ type PtrValue interface {
+ 	Set(Value);
+ }
+ 
+-type Func interface
+ type FuncValue interface {
+ 	Value;
+ 	Get() Func;
+@@ -158,8 +155,6 @@ type Constant struct {
+ 	Value Value;
+ }
+ 
+-type Scope struct
+-
+ // A block represents a definition block in which a name may not be
+ // defined more than once.
+ type block struct {
+@@ -192,15 +187,6 @@ type Scope struct {
+ 	maxVars int;
+ }
+ 
+-func (b *block) enterChild() *block
+-func (b *block) exit()
+-func (b *block) ChildScope() *Scope
+-func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, Def)
+-func (b *block) DefineSlot(t Type) *Variable
+-func (b *block) DefineConst(name string, pos token.Position, t Type, v Value) *Constant
+-func (b *block) DefineType(name string, pos token.Position, t Type) Type
+-func (b *block) Lookup(name string) (level int, def Def)
+-
+ // The universal scope
+ func newUniverse() *Scope {
+ 	sc := &Scope{nil, 0};
+@@ -221,11 +207,6 @@ type Frame struct {
+ 	Vars []Value;
+ }
+ 
+-func (f *Frame) Get(level int, index int) Value
+-func (f *Frame) child(numVars int) *Frame
+-
+-func (s *Scope) NewFrame(outer *Frame) *Frame
+-
+ /*
+  * Functions
+  */
+diff --git a/usr/austin/eval/expr.go b/usr/austin/eval/expr.go
+index 6168dfc417..64243cfc03 100644
+--- a/usr/austin/eval/expr.go
++++ b/usr/austin/eval/expr.go
+@@ -6,7 +6,6 @@ package eval
+ 
+ import (
+ 	"bignum";
+-	"eval";
+ 	"go/ast";
+ 	"go/scanner";
+ 	"go/token";
+@@ -59,35 +58,6 @@ func newExprCompiler(c *exprContext, pos token.Position) *exprCompiler {
+ 	};
+ }
+ 
+-// Operator generators
+-// TODO(austin) Remove these forward declarations
+-func (a *exprCompiler) genConstant(v Value)
+-func (a *exprCompiler) genIdentOp(level int, index int)
+-func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value)
+-func (a *exprCompiler) genValue(vf func(*Frame) Value)
+-func (a *exprCompiler) genUnaryOpNeg(v *exprCompiler)
+-func (a *exprCompiler) genUnaryOpNot(v *exprCompiler)
+-func (a *exprCompiler) genUnaryOpXor(v *exprCompiler)
+-func (a *exprCompiler) genBinOpAdd(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpSub(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpMul(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpQuo(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpRem(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpAnd(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpOr(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpXor(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpAndNot(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpShl(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpLss(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpGtr(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpLeq(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpGeq(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpEql(l *exprCompiler, r *exprCompiler)
+-func (a *exprCompiler) genBinOpNeq(l *exprCompiler, r *exprCompiler)
+-func genAssign(lt Type, r *exprCompiler) (func(lv Value, f *Frame))
+-
+ func (a *exprCompiler) copy() *exprCompiler {
+ 	ec := newExprCompiler(a.exprContext, a.pos);
+ 	ec.desc = a.desc;
+diff --git a/usr/austin/eval/func.go b/usr/austin/eval/func.go
+index 3fc5e71afe..2281b644d4 100644
+--- a/usr/austin/eval/func.go
++++ b/usr/austin/eval/func.go
+@@ -4,11 +4,6 @@
+ 
+ package eval
+ 
+-import (
+-	"container/vector";
+-	"eval";
+-)
+-
+ /*
+  * Virtual machine
+  */
+diff --git a/usr/austin/eval/scope.go b/usr/austin/eval/scope.go
+index 3ddc55e48a..7ab4f36a29 100644
+--- a/usr/austin/eval/scope.go
++++ b/usr/austin/eval/scope.go
+@@ -5,7 +5,6 @@
+ package eval
+ 
+ import (
+-	"eval";
+ 	"fmt";
+ 	"go/token";
+ 	"log";
+diff --git a/usr/austin/eval/stmt.go b/usr/austin/eval/stmt.go
+index 2b401a1ba5..08c0c6d6d9 100644
+--- a/usr/austin/eval/stmt.go
++++ b/usr/austin/eval/stmt.go
+@@ -6,7 +6,6 @@ package eval
+ 
+ import (
+ 	"bignum";
+-	"eval";
+ 	"log";
+ 	"os";
+ 	"go/ast";
+@@ -244,8 +243,7 @@ func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
+ 	return v;
+ }
+ 
+-// TODO(austin) Move the real definition
+-func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token, declTypeExpr ast.Expr)
++// TODO(austin) Move doAssign to here
+ 
+ /*
+  * Statement visitors
+diff --git a/usr/austin/eval/type.go b/usr/austin/eval/type.go
+index 0a595e265b..ea87287d66 100644
+--- a/usr/austin/eval/type.go
++++ b/usr/austin/eval/type.go
+@@ -6,7 +6,6 @@ package eval
+ 
+ import (
+ 	"bignum";
+-	"eval";
+ 	"go/ast";
+ 	"go/token";
+ 	"log";
+@@ -147,7 +146,10 @@ func (boolType) String() string {
+ 	return "<bool>";
+ }
+ 
+-func (t *boolType) Zero() Value
++func (t *boolType) Zero() Value {
++	res := boolV(false);
++	return &res;
++}
+ 
+ /*
+  * Uint
+@@ -199,7 +201,31 @@ func (t *uintType) String() string {
+ 	return "<" + t.name + ">";
+ }
+ 
+-func (t *uintType) Zero() Value
++func (t *uintType) Zero() Value {
++	switch t.Bits {
++	case 0:
++		if t.Ptr {
++			res := uintptrV(0);
++			return &res;
++		} else {
++			res := uintV(0);
++			return &res;
++		}
++	case 8:
++		res := uint8V(0);
++		return &res;
++	case 16:
++		res := uint16V(0);
++		return &res;
++	case 32:
++		res := uint32V(0);
++		return &res;
++	case 64:
++		res := uint64V(0);
++		return &res;
++	}
++	panic("unexpected uint bit count: ", t.Bits);
++}
+ 
+ func (t *uintType) minVal() *bignum.Rational {
+ 	return bignum.Rat(0, 1);
+@@ -260,7 +286,27 @@ func (t *intType) String() string {
+ 	return "<" + t.name + ">";
+ }
+ 
+-func (t *intType) Zero() Value
++func (t *intType) Zero() Value {
++	switch t.Bits {
++	case 8:
++		res := int8V(0);
++		return &res;
++	case 16:
++		res := int16V(0);
++		return &res;
++	case 32:
++		res := int32V(0);
++		return &res;
++	case 64:
++		res := int64V(0);
++		return &res;
++
++	case 0:
++		res := intV(0);
++		return &res;
++	}
++	panic("unexpected int bit count: ", t.Bits);
++}
+ 
+ func (t *intType) minVal() *bignum.Rational {
+ 	bits := t.Bits;
+@@ -309,7 +355,9 @@ func (t *idealIntType) String() string {
+ 	return "ideal integer";
+ }
+ 
+-func (t *idealIntType) Zero() Value
++func (t *idealIntType) Zero() Value {
++	return &idealIntV{bignum.Int(0)};
++}
+ 
+ /*
+  * Float
+@@ -347,7 +395,20 @@ func (t *floatType) String() string {
+ 	return "<" + t.name + ">";
+ }
+ 
+-func (t *floatType) Zero() Value
++func (t *floatType) Zero() Value {
++	switch t.Bits {
++	case 32:
++		res := float32V(0);
++		return &res;
++	case 64:
++		res := float64V(0);
++		return &res;
++	case 0:
++		res := floatV(0);
++		return &res;
++	}
++	panic("unexpected float bit count: ", t.Bits);
++}
+ 
+ var maxFloat32Val = bignum.MakeRat(bignum.Int(0xffffff).Shl(127-23), bignum.Nat(1));
+ var maxFloat64Val = bignum.MakeRat(bignum.Int(0x1fffffffffffff).Shl(1023-52), bignum.Nat(1));
+@@ -415,7 +476,9 @@ func (t *idealFloatType) String() string {
+ 	return "ideal float";
+ }
+ 
+-func (t *idealFloatType) Zero() Value
++func (t *idealFloatType) Zero() Value {
++	return &idealFloatV{bignum.Rat(1, 0)};
++}
+ 
+ /*
+  * String
+@@ -440,7 +503,10 @@ func (t *stringType) String() string {
+ 	return "<string>";
+ }
+ 
+-func (t *stringType) Zero() Value
++func (t *stringType) Zero() Value {
++	res := stringV("");
++	return &res;
++}
+ 
+ /*
+  * Array
+@@ -487,7 +553,18 @@ func (t *ArrayType) String() string {
+ 	return "[]" + t.Elem.String();
+ }
+ 
+-func (t *ArrayType) Zero() Value
++func (t *ArrayType) Zero() Value {
++	res := arrayV(make([]Value, t.Len));
++	// TODO(austin) It's unfortunate that each element is
++	// separately heap allocated.  We could add ZeroArray to
++	// everything, though that doesn't help with multidimensional
++	// arrays.  Or we could do something unsafe.  We'll have this
++	// same problem with structs.
++	for i := int64(0); i < t.Len; i++ {
++		res[i] = t.Elem.Zero();
++	}
++	return &res;
++}
+ 
+ /*
+  * Struct
+@@ -606,7 +683,13 @@ func (t *StructType) String() string {
+ 	return s + "}";
+ }
+ 
+-func (t *StructType) Zero() Value
++func (t *StructType) Zero() Value {
++	res := structV(make([]Value, len(t.Elems)));
++	for i, f := range t.Elems {
++		res[i] = f.Type.Zero();
++	}
++	return &res;
++}
+ 
+ /*
+  * Pointer
+@@ -646,7 +729,9 @@ func (t *PtrType) String() string {
+ 	return "*" + t.Elem.String();
+ }
+ 
+-func (t *PtrType) Zero() Value
++func (t *PtrType) Zero() Value {
++	return &ptrV{nil};
++}
+ 
+ /*
+  * Function
+@@ -749,7 +834,9 @@ func (t *FuncType) String() string {
+ 	return s;
+ }
+ 
+-func (t *FuncType) Zero() Value
++func (t *FuncType) Zero() Value {
++	return &funcV{nil};
++}
+ 
+ type FuncDecl struct {
+ 	Type *FuncType;
+@@ -919,4 +1006,10 @@ func (t *MultiType) String() string {
+ 	return typeListString(t.Elems, nil);
+ }
+ 
+-func (t *MultiType) Zero() Value
++func (t *MultiType) Zero() Value {
++	res := make([]Value, len(t.Elems));
++	for i, t := range t.Elems {
++		res[i] = t.Zero();
++	}
++	return multiV(res);
++}
+diff --git a/usr/austin/eval/typec.go b/usr/austin/eval/typec.go
+index 1457ddbd3a..32461833cb 100644
+--- a/usr/austin/eval/typec.go
++++ b/usr/austin/eval/typec.go
+@@ -5,7 +5,6 @@
+ package eval
+ 
+ import (
+-	"eval";
+ 	"go/ast";
+ 	"go/token";
+ 	"log";
+@@ -16,12 +15,6 @@ import (
+  * Type compiler
+  */
+ 
+-// TODO(austin) Without this, I get a "conflicting definitions for
+-// eval.compiler" when gopack'ing typec.6 from gobuild.
+-// Interestingly, if I create the Makefile with this line, then
+-// comment it out and use the Makefile, things work.
+-type exprCompiler struct
+-
+ type typeCompiler struct {
+ 	*compiler;
+ 	block *block;
+@@ -32,8 +25,6 @@ type typeCompiler struct {
+ 	lateCheck func() bool
+ }
+ 
+-func (a *typeCompiler) compileType(x ast.Expr, allowRec bool) Type
+-
+ func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
+ 	_, def := a.block.Lookup(x.Value);
+ 	if def == nil {
+diff --git a/usr/austin/eval/util.go b/usr/austin/eval/util.go
+index e08c8ee5a2..68f58842d4 100644
+--- a/usr/austin/eval/util.go
++++ b/usr/austin/eval/util.go
+@@ -6,7 +6,6 @@ package eval
+ 
+ import (
+ 	"bignum";
+-	"eval";
+ 	"fmt";
+ 	"go/token";
+ )
+diff --git a/usr/austin/eval/value.go b/usr/austin/eval/value.go
+index b3fd138762..79c0a0e3e6 100644
+--- a/usr/austin/eval/value.go
++++ b/usr/austin/eval/value.go
+@@ -6,7 +6,6 @@ package eval
+ 
+ import (
+ 	"bignum";
+-	"eval";
+ 	"fmt";
+ )
+ 
+@@ -32,11 +31,6 @@ func (v *boolV) Set(x bool) {
+ 	*v = boolV(x);
+ }
+ 
+-func (t *boolType) Zero() Value {
+-	res := boolV(false);
+-	return &res;
+-}
+-
+ /*
+  * Uint
+  */
+@@ -149,32 +143,6 @@ func (v *uintptrV) Set(x uint64) {
+ 	*v = uintptrV(x);
+ }
+ 
+-func (t *uintType) Zero() Value {
+-	switch t.Bits {
+-	case 0:
+-		if t.Ptr {
+-			res := uintptrV(0);
+-			return &res;
+-		} else {
+-			res := uintV(0);
+-			return &res;
+-		}
+-	case 8:
+-		res := uint8V(0);
+-		return &res;
+-	case 16:
+-		res := uint16V(0);
+-		return &res;
+-	case 32:
+-		res := uint32V(0);
+-		return &res;
+-	case 64:
+-		res := uint64V(0);
+-		return &res;
+-	}
+-	panic("unexpected uint bit count: ", t.Bits);
+-}
+-
+ /*
+  * Int
+  */
+@@ -269,28 +237,6 @@ func (v *intV) Set(x int64) {
+ 	*v = intV(x);
+ }
+ 
+-func (t *intType) Zero() Value {
+-	switch t.Bits {
+-	case 8:
+-		res := int8V(0);
+-		return &res;
+-	case 16:
+-		res := int16V(0);
+-		return &res;
+-	case 32:
+-		res := int32V(0);
+-		return &res;
+-	case 64:
+-		res := int64V(0);
+-		return &res;
+-
+-	case 0:
+-		res := intV(0);
+-		return &res;
+-	}
+-	panic("unexpected int bit count: ", t.Bits);
+-}
+-
+ /*
+  * Ideal int
+  */
+@@ -311,10 +257,6 @@ func (v *idealIntV) Get() *bignum.Integer {
+ 	return v.V;
+ }
+ 
+-func (t *idealIntType) Zero() Value {
+-	return &idealIntV{bignum.Int(0)};
+-}
+-
+ /*
+  * Float
+  */
+@@ -373,21 +315,6 @@ func (v *floatV) Set(x float64) {
+ 	*v = floatV(x);
+ }
+ 
+-func (t *floatType) Zero() Value {
+-	switch t.Bits {
+-	case 32:
+-		res := float32V(0);
+-		return &res;
+-	case 64:
+-		res := float64V(0);
+-		return &res;
+-	case 0:
+-		res := floatV(0);
+-		return &res;
+-	}
+-	panic("unexpected float bit count: ", t.Bits);
+-}
+-
+ /*
+  * Ideal float
+  */
+@@ -408,10 +335,6 @@ func (v *idealFloatV) Get() *bignum.Rational {
+ 	return v.V;
+ }
+ 
+-func (t *idealFloatType) Zero() Value {
+-	return &idealFloatV{bignum.Rat(1, 0)};
+-}
+-
+ /*
+  * String
+  */
+@@ -434,11 +357,6 @@ func (v *stringV) Set(x string) {
+ 	*v = stringV(x);
+ }
+ 
+-func (t *stringType) Zero() Value {
+-	res := stringV("");
+-	return &res;
+-}
+-
+ /*
+  * Array
+  */
+@@ -465,19 +383,6 @@ func (v *arrayV) Elem(i int64) Value {
+ 	return (*v)[i];
+ }
+ 
+-func (t *ArrayType) Zero() Value {
+-	res := arrayV(make([]Value, t.Len));
+-	// TODO(austin) It's unfortunate that each element is
+-	// separately heap allocated.  We could add ZeroArray to
+-	// everything, though that doesn't help with multidimensional
+-	// arrays.  Or we could do something unsafe.  We'll have this
+-	// same problem with structs.
+-	for i := int64(0); i < t.Len; i++ {
+-		res[i] = t.Elem.Zero();
+-	}
+-	return &res;
+-}
+-
+ /*
+  * Struct
+  */
+@@ -513,14 +418,6 @@ func (v *structV) Field(i int) Value {
+ 	return (*v)[i];
+ }
+ 
+-func (t *StructType) Zero() Value {
+-	res := structV(make([]Value, len(t.Elems)));
+-	for i, f := range t.Elems {
+-		res[i] = f.Type.Zero();
+-	}
+-	return &res;
+-}
+-
+ /*
+  * Pointer
+  */
+@@ -546,10 +443,6 @@ func (v *ptrV) Set(x Value) {
+ 	v.target = x;
+ }
+ 
+-func (t *PtrType) Zero() Value {
+-	return &ptrV{nil};
+-}
+-
+ /*
+  * Functions
+  */
+@@ -575,10 +468,6 @@ func (v *funcV) Set(x Func) {
+ 	v.target = x;
+ }
+ 
+-func (t *FuncType) Zero() Value {
+-	return &funcV{nil};
+-}
+-
+ /*
+  * Multi-values
+  */
+@@ -603,14 +492,6 @@ func (v multiV) Assign(o Value) {
+ 	}
+ }
+ 
+-func (t *MultiType) Zero() Value {
+-	res := make([]Value, len(t.Elems));
+-	for i, t := range t.Elems {
+-		res[i] = t.Zero();
+-	}
+-	return multiV(res);
+-}
+-
+ /*
+  * Universal constants
+  */

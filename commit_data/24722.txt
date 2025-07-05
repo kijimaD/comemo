@@ -22,7 +22,7 @@ Date:   Fri Aug 21 14:54:55 2015 +1200
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go      |  2 -
  src/cmd/compile/internal/gc/obj.go     |  3 --
  src/cmd/compile/internal/gc/reflect.go |  9 +---
@@ -32,3 +32,391 @@ Date:   Fri Aug 21 14:54:55 2015 +1200
  src/runtime/hashmap_fast.go            | 32 +++++++-------
  src/runtime/type.go                    |  2 +-
  8 files changed, 47 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 67d27bbc02..9874ff7b60 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -685,8 +685,6 @@ var nodfp *Node
+ 
+ var Disable_checknil int
+ 
+-var zerosize int64
+-
+ type Flow struct {
+ 	Prog   *obj.Prog // actual instruction
+ 	P1     *Flow     // predecessors of this instruction: p1,
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index d2ac813a88..a36786e0bb 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -89,9 +89,6 @@ func dumpobj() {
+ 	dumpglobls()
+ 	externdcl = tmp
+ 
+-	zero := Pkglookup("zerovalue", Runtimepkg)
+-	ggloblsym(zero, int32(zerosize), obj.DUPOK|obj.RODATA)
+-
+ 	dumpdata()
+ 	obj.Writeobjdirect(Ctxt, bout)
+ 
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 1ac4a03d32..16f0c5b722 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -794,13 +794,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 		sptr = weaktypesym(tptr)
+ 	}
+ 
+-	// All (non-reflect-allocated) Types share the same zero object.
+-	// Each place in the compiler where a pointer to the zero object
+-	// might be returned by a runtime call (map access return value,
+-	// 2-arg type cast) declares the size of the zerovalue it needs.
+-	// The linker magically takes the max of all the sizes.
+-	zero := Pkglookup("zerovalue", Runtimepkg)
+-
+ 	gcsym, useGCProg, ptrdata := dgcsym(t)
+ 
+ 	// We use size 0 here so we get the pointer to the zero value,
+@@ -876,7 +869,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	ot += Widthptr
+ 
+ 	ot = dsymptr(s, ot, sptr, 0) // ptrto type
+-	ot = dsymptr(s, ot, zero, 0) // ptr to zero value
++	ot = duintptr(s, ot, 0)      // ptr to zero value (unused)
+ 	return ot
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index af3e1ccbe4..9b60e2c2a2 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -872,11 +872,6 @@ func walkexpr(np **Node, init **NodeList) {
+ 		typecheck(&n, Etop)
+ 		walkexpr(&n, init)
+ 
+-		// mapaccess needs a zero value to be at least this big.
+-		if zerosize < t.Type.Width {
+-			zerosize = t.Type.Width
+-		}
+-
+ 		// TODO: ptr is always non-nil, so disable nil check for this OIND op.
+ 		goto ret
+ 
+@@ -1285,10 +1280,6 @@ func walkexpr(np **Node, init **NodeList) {
+ 		n.Type = t.Type
+ 		n.Typecheck = 1
+ 
+-		// mapaccess needs a zero value to be at least this big.
+-		if zerosize < t.Type.Width {
+-			zerosize = t.Type.Width
+-		}
+ 		goto ret
+ 
+ 	case ORECV:
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index e20e5cfc1e..d10c2169b0 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -257,7 +257,7 @@ type rtype struct {
+ 	string        *string        // string form; unnecessary but undeniably useful
+ 	*uncommonType                // (relatively) uncommon fields
+ 	ptrToThis     *rtype         // type for pointer to this type, if used in binary or has methods
+-	zero          unsafe.Pointer // pointer to zero value
++	zero          unsafe.Pointer // unused
+ }
+ 
+ // a copy of runtime.typeAlg
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 917ed21590..9eca9cf5bf 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -233,7 +233,7 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
+ 		throw("need padding in bucket (value)")
+ 	}
+ 
+-	// make sure zero of element type is available.
++	// make sure zeroptr is large enough
+ 	mapzero(t.elem)
+ 
+ 	// find size parameter which will hold the requested # of elements
+@@ -277,7 +277,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return unsafe.Pointer(t.elem.zero)
++		return atomicloadp(unsafe.Pointer(&zeroptr))
+ 	}
+ 	alg := t.key.alg
+ 	hash := alg.hash(key, uintptr(h.hash0))
+@@ -312,7 +312,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return unsafe.Pointer(t.elem.zero)
++			return atomicloadp(unsafe.Pointer(&zeroptr))
+ 		}
+ 	}
+ }
+@@ -325,7 +325,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return unsafe.Pointer(t.elem.zero), false
++		return atomicloadp(unsafe.Pointer(&zeroptr)), false
+ 	}
+ 	alg := t.key.alg
+ 	hash := alg.hash(key, uintptr(h.hash0))
+@@ -360,7 +360,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return unsafe.Pointer(t.elem.zero), false
++			return atomicloadp(unsafe.Pointer(&zeroptr)), false
+ 		}
+ 	}
+ }
+@@ -994,59 +994,39 @@ func reflect_ismapkey(t *_type) bool {
+ 	return ismapkey(t)
+ }
+ 
+-var zerobuf struct {
+-	lock mutex
+-	p    *byte
+-	size uintptr
+-}
++var zerolock mutex
+ 
+-var zerotiny [1024]byte
++const initialZeroSize = 1024
+ 
+-// mapzero ensures that t.zero points at a zero value for type t.
+-// Types known to the compiler are in read-only memory and all point
+-// to a single zero in the bss of a large enough size.
+-// Types allocated by package reflect are in writable memory and
+-// start out with zero set to nil; we initialize those on demand.
+-func mapzero(t *_type) {
+-	// On ARM, atomicloadp is implemented as xadd(p, 0),
+-	// so we cannot use atomicloadp on read-only memory.
+-	// Check whether the pointer is in the heap; if not, it's not writable
+-	// so the zero value must already be set.
+-	if GOARCH == "arm" && !inheap(uintptr(unsafe.Pointer(t))) {
+-		if t.zero == nil {
+-			print("runtime: map element ", *t._string, " missing zero value\n")
+-			throw("mapzero")
+-		}
+-		return
+-	}
++var zeroinitial [initialZeroSize]byte
+ 
+-	// Already done?
+-	// Check without lock, so must use atomicload to sync with atomicstore in allocation case below.
+-	if atomicloadp(unsafe.Pointer(&t.zero)) != nil {
+-		return
+-	}
++// All accesses to zeroptr and zerosize must be atomic so that they
++// can be accessed without locks in the common case.
++var zeroptr unsafe.Pointer = unsafe.Pointer(&zeroinitial)
++var zerosize uintptr = initialZeroSize
+ 
+-	// Small enough for static buffer?
+-	if t.size <= uintptr(len(zerotiny)) {
+-		atomicstorep(unsafe.Pointer(&t.zero), unsafe.Pointer(&zerotiny[0]))
++// mapzero ensures that zeroptr points to a buffer large enough to
++// serve as the zero value for t.
++func mapzero(t *_type) {
++	// Is the type small enough for existing buffer?
++	cursize := uintptr(atomicloadp(unsafe.Pointer(&zerosize)))
++	if t.size <= cursize {
+ 		return
+ 	}
+ 
+-	// Use allocated buffer.
+-	lock(&zerobuf.lock)
+-	if zerobuf.size < t.size {
+-		if zerobuf.size == 0 {
+-			zerobuf.size = 4 * 1024
+-		}
+-		for zerobuf.size < t.size {
+-			zerobuf.size *= 2
+-			if zerobuf.size == 0 {
++	// Allocate a new buffer.
++	lock(&zerolock)
++	cursize = uintptr(atomicloadp(unsafe.Pointer(&zerosize)))
++	if cursize < t.size {
++		for cursize < t.size {
++			cursize *= 2
++			if cursize == 0 {
+ 				// need >2GB zero on 32-bit machine
+ 				throw("map element too large")
+ 			}
+ 		}
+-		zerobuf.p = (*byte)(persistentalloc(zerobuf.size, 64, &memstats.other_sys))
++		atomicstorep1(unsafe.Pointer(&zeroptr), persistentalloc(cursize, 64, &memstats.other_sys))
++		atomicstorep1(unsafe.Pointer(&zerosize), unsafe.Pointer(zerosize))
+ 	}
+-	atomicstorep(unsafe.Pointer(&t.zero), unsafe.Pointer(zerobuf.p))
+-	unlock(&zerobuf.lock)
++	unlock(&zerolock)
+ }
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/hashmap_fast.go
+index 02c51a24d7..f9d7846d7e 100644
+--- a/src/runtime/hashmap_fast.go
++++ b/src/runtime/hashmap_fast.go
+@@ -14,7 +14,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_fast32))
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return unsafe.Pointer(t.elem.zero)
++		return atomicloadp(unsafe.Pointer(&zeroptr))
+ 	}
+ 	var b *bmap
+ 	if h.B == 0 {
+@@ -45,7 +45,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return unsafe.Pointer(t.elem.zero)
++			return atomicloadp(unsafe.Pointer(&zeroptr))
+ 		}
+ 	}
+ }
+@@ -56,7 +56,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
+ 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_fast32))
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return unsafe.Pointer(t.elem.zero), false
++		return atomicloadp(unsafe.Pointer(&zeroptr)), false
+ 	}
+ 	var b *bmap
+ 	if h.B == 0 {
+@@ -87,7 +87,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return unsafe.Pointer(t.elem.zero), false
++			return atomicloadp(unsafe.Pointer(&zeroptr)), false
+ 		}
+ 	}
+ }
+@@ -98,7 +98,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_fast64))
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return unsafe.Pointer(t.elem.zero)
++		return atomicloadp(unsafe.Pointer(&zeroptr))
+ 	}
+ 	var b *bmap
+ 	if h.B == 0 {
+@@ -129,7 +129,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return unsafe.Pointer(t.elem.zero)
++			return atomicloadp(unsafe.Pointer(&zeroptr))
+ 		}
+ 	}
+ }
+@@ -140,7 +140,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
+ 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_fast64))
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return unsafe.Pointer(t.elem.zero), false
++		return atomicloadp(unsafe.Pointer(&zeroptr)), false
+ 	}
+ 	var b *bmap
+ 	if h.B == 0 {
+@@ -171,7 +171,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return unsafe.Pointer(t.elem.zero), false
++			return atomicloadp(unsafe.Pointer(&zeroptr)), false
+ 		}
+ 	}
+ }
+@@ -182,7 +182,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_faststr))
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return unsafe.Pointer(t.elem.zero)
++		return atomicloadp(unsafe.Pointer(&zeroptr))
+ 	}
+ 	key := (*stringStruct)(unsafe.Pointer(&ky))
+ 	if h.B == 0 {
+@@ -203,7 +203,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize))
+ 				}
+ 			}
+-			return unsafe.Pointer(t.elem.zero)
++			return atomicloadp(unsafe.Pointer(&zeroptr))
+ 		}
+ 		// long key, try not to do more comparisons than necessary
+ 		keymaybe := uintptr(bucketCnt)
+@@ -241,7 +241,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+keymaybe*uintptr(t.valuesize))
+ 			}
+ 		}
+-		return unsafe.Pointer(t.elem.zero)
++		return atomicloadp(unsafe.Pointer(&zeroptr))
+ 	}
+ dohash:
+ 	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
+@@ -273,7 +273,7 @@ dohash:
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return unsafe.Pointer(t.elem.zero)
++			return atomicloadp(unsafe.Pointer(&zeroptr))
+ 		}
+ 	}
+ }
+@@ -284,7 +284,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_faststr))
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return unsafe.Pointer(t.elem.zero), false
++		return atomicloadp(unsafe.Pointer(&zeroptr)), false
+ 	}
+ 	key := (*stringStruct)(unsafe.Pointer(&ky))
+ 	if h.B == 0 {
+@@ -305,7 +305,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize)), true
+ 				}
+ 			}
+-			return unsafe.Pointer(t.elem.zero), false
++			return atomicloadp(unsafe.Pointer(&zeroptr)), false
+ 		}
+ 		// long key, try not to do more comparisons than necessary
+ 		keymaybe := uintptr(bucketCnt)
+@@ -341,7 +341,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+keymaybe*uintptr(t.valuesize)), true
+ 			}
+ 		}
+-		return unsafe.Pointer(t.elem.zero), false
++		return atomicloadp(unsafe.Pointer(&zeroptr)), false
+ 	}
+ dohash:
+ 	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
+@@ -373,7 +373,7 @@ dohash:
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return unsafe.Pointer(t.elem.zero), false
++			return atomicloadp(unsafe.Pointer(&zeroptr)), false
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 45bdac8b91..4b5631aab4 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -27,7 +27,7 @@ type _type struct {
+ 	_string *string
+ 	x       *uncommontype
+ 	ptrto   *_type
+-	zero    *byte // ptr to the zero value for this type
++	zero    *byte // unused
+ }
+ 
+ type method struct {

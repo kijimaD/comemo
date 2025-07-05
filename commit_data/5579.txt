@@ -7,6 +7,20 @@ Date:   Tue Jun 1 16:50:16 2010 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1444041
-
+---
  doc/code.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 9072d0506b..14bb6f9fea 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -248,7 +248,7 @@ func TestDouble(t *testing.T) {
+ 	for _, dt := range doubleTests {
+ 		v := Double(dt.in)
+ 		if v != dt.out {
+-			t.Errorf("Double(%d) returns %d; should be %d.", dt.in, v, dt.out)
++			t.Errorf("Double(%d) = %d, want %d.", dt.in, v, dt.out)
+ 		}
+ 	}
+ }

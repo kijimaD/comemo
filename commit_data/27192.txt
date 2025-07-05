@@ -16,7 +16,7 @@ Date:   Tue Mar 15 13:06:58 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ggen.go   |   2 +-
  src/cmd/compile/internal/amd64/gsubr.go  |   4 +-
  src/cmd/compile/internal/arm/ggen.go     |   2 +-
@@ -56,3 +56,2275 @@ Date:   Tue Mar 15 13:06:58 2016 -0700
  src/cmd/compile/internal/x86/gsubr.go    |   2 +-
  src/cmd/internal/obj/fmt.go              |  28 -----
  38 files changed, 284 insertions(+), 307 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 9721616d4e..1105a68dbf 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -40,7 +40,7 @@ func defframe(ptxt *obj.Prog) {
+ 			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, gc.FmtLong), int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 
+ 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+diff --git a/src/cmd/compile/internal/amd64/gsubr.go b/src/cmd/compile/internal/amd64/gsubr.go
+index aeea7c85f9..788a9bc156 100644
+--- a/src/cmd/compile/internal/amd64/gsubr.go
++++ b/src/cmd/compile/internal/amd64/gsubr.go
+@@ -178,7 +178,7 @@ func bignodes() {
+  */
+ func gmove(f *gc.Node, t *gc.Node) {
+ 	if gc.Debug['M'] != 0 {
+-		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
++		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
+ 	}
+ 
+ 	ft := gc.Simsimtype(f.Type)
+@@ -229,7 +229,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
+-		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
++		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, gc.FmtLong), gc.Tconv(t.Type, gc.FmtLong))
+ 
+ 		/*
+ 		 * integer copy and truncate
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index 4d063547dc..beab0bb6fb 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -34,7 +34,7 @@ func defframe(ptxt *obj.Prog) {
+ 			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, gc.FmtLong), int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthptr) {
+ 			// merge with range we already have
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index 6e7490509a..be5b53e5ca 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -43,7 +43,7 @@ func defframe(ptxt *obj.Prog) {
+ 			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, gc.FmtLong), int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 
+ 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+diff --git a/src/cmd/compile/internal/arm64/gsubr.go b/src/cmd/compile/internal/arm64/gsubr.go
+index 73be9c6397..d4887c74f4 100644
+--- a/src/cmd/compile/internal/arm64/gsubr.go
++++ b/src/cmd/compile/internal/arm64/gsubr.go
+@@ -137,7 +137,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+  */
+ func gmove(f *gc.Node, t *gc.Node) {
+ 	if gc.Debug['M'] != 0 {
+-		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
++		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
+ 	}
+ 
+ 	ft := int(gc.Simsimtype(f.Type))
+@@ -214,7 +214,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
+-		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
++		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, gc.FmtLong), gc.Tconv(t.Type, gc.FmtLong))
+ 
+ 		/*
+ 		 * integer copy and truncate
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 820155b695..94dca9adbd 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -4,8 +4,6 @@
+ 
+ package gc
+ 
+-import "cmd/internal/obj"
+-
+ // machine size and rounding alignment is dictated around
+ // the size of a pointer, set in betypeinit (see ../amd64/galign.go).
+ var defercalc int
+@@ -74,7 +72,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 		}
+ 		o += w
+ 		if o >= Thearch.MAXWIDTH {
+-			Yyerror("type %v too large", Tconv(errtype, obj.FmtLong))
++			Yyerror("type %v too large", Tconv(errtype, FmtLong))
+ 			o = 8 // small but nonzero
+ 		}
+ 	}
+@@ -248,7 +246,7 @@ func dowidth(t *Type) {
+ 			if t.Type.Width != 0 {
+ 				cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Type.Width)
+ 				if uint64(t.Bound) > cap {
+-					Yyerror("type %v larger than address space", Tconv(t, obj.FmtLong))
++					Yyerror("type %v larger than address space", Tconv(t, FmtLong))
+ 				}
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 3c77747026..c539fe579a 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -336,7 +336,7 @@ func Export(out *obj.Biobuf, trace bool) int {
+ 	}
+ 	for _, f := range p.inlined {
+ 		if p.trace {
+-			p.tracef("{ %s }\n", Hconv(f.Inl, obj.FmtSharp))
++			p.tracef("{ %s }\n", Hconv(f.Inl, FmtSharp))
+ 		}
+ 		p.nodeList(f.Inl)
+ 		if p.trace {
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index dced3b077a..37eb77683a 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -361,7 +361,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 	default:
+ 		Dump("cgen", n)
+ 		Dump("cgen-res", res)
+-		Fatalf("cgen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
++		Fatalf("cgen: unknown op %v", Nconv(n, FmtShort|FmtSign))
+ 
+ 	case OOROR, OANDAND,
+ 		OEQ, ONE,
+@@ -592,7 +592,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 			break
+ 		}
+ 
+-		Fatalf("cgen: OLEN: unknown type %v", Tconv(nl.Type, obj.FmtLong))
++		Fatalf("cgen: OLEN: unknown type %v", Tconv(nl.Type, FmtLong))
+ 
+ 	case OCAP:
+ 		if Istype(nl.Type, TCHAN) {
+@@ -630,7 +630,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 			break
+ 		}
+ 
+-		Fatalf("cgen: OCAP: unknown type %v", Tconv(nl.Type, obj.FmtLong))
++		Fatalf("cgen: OCAP: unknown type %v", Tconv(nl.Type, FmtLong))
+ 
+ 	case OADDR:
+ 		if n.Bounded { // let race detector avoid nil checks
+@@ -1541,7 +1541,7 @@ func Agen(n *Node, res *Node) {
+ 
+ 	switch n.Op {
+ 	default:
+-		Fatalf("agen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
++		Fatalf("agen: unknown op %v", Nconv(n, FmtShort|FmtSign))
+ 
+ 	case OCALLMETH:
+ 		cgen_callmeth(n, 0)
+@@ -1856,7 +1856,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	case OLITERAL:
+ 		// n is a constant.
+ 		if !Isconst(n, CTBOOL) {
+-			Fatalf("bgen: non-bool const %v\n", Nconv(n, obj.FmtLong))
++			Fatalf("bgen: non-bool const %v\n", Nconv(n, FmtLong))
+ 		}
+ 		if genval {
+ 			Cgen(Nodbool(wantTrue == n.Val().U.(bool)), res)
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 7417ba0870..722a874452 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -5,7 +5,6 @@
+ package gc
+ 
+ import (
+-	"cmd/internal/obj"
+ 	"fmt"
+ )
+ 
+@@ -80,7 +79,7 @@ func typecheckclosure(func_ *Node, top int) {
+ 		if !n.Name.Captured {
+ 			n.Name.Captured = true
+ 			if n.Name.Decldepth == 0 {
+-				Fatalf("typecheckclosure: var %v does not have decldepth assigned", Nconv(n, obj.FmtShort))
++				Fatalf("typecheckclosure: var %v does not have decldepth assigned", Nconv(n, FmtShort))
+ 			}
+ 
+ 			// Ignore assignments to the variable in straightline code
+@@ -165,7 +164,7 @@ func closurename(n *Node) *Sym {
+ 		n.Func.Outerfunc.Func.Closgen++
+ 		gen = n.Func.Outerfunc.Func.Closgen
+ 	} else {
+-		Fatalf("closurename called for %v", Nconv(n, obj.FmtShort))
++		Fatalf("closurename called for %v", Nconv(n, FmtShort))
+ 	}
+ 	n.Sym = Lookupf("%s.%s%d", outer, prefix, gen)
+ 	return n.Sym
+@@ -487,9 +486,9 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 
+ 	rcvrtype := fn.Left.Type
+ 	if exportname(meth.Sym.Name) {
+-		p = fmt.Sprintf("(%v).%s-fm", Tconv(rcvrtype, obj.FmtLeft|obj.FmtShort), meth.Sym.Name)
++		p = fmt.Sprintf("(%v).%s-fm", Tconv(rcvrtype, FmtLeft|FmtShort), meth.Sym.Name)
+ 	} else {
+-		p = fmt.Sprintf("(%v).(%v)-fm", Tconv(rcvrtype, obj.FmtLeft|obj.FmtShort), Sconv(meth.Sym, obj.FmtLeft))
++		p = fmt.Sprintf("(%v).(%v)-fm", Tconv(rcvrtype, FmtLeft|FmtShort), Sconv(meth.Sym, FmtLeft))
+ 	}
+ 	basetype := rcvrtype
+ 	if Isptr[rcvrtype.Etype] {
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index f2a3e7dee6..0edcc61b97 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -362,7 +362,7 @@ func toflt(v Val) Val {
+ 		f := newMpflt()
+ 		mpmovefltflt(f, &v.U.(*Mpcplx).Real)
+ 		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) != 0 {
+-			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp|obj.FmtSign))
++			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp|FmtSign))
+ 		}
+ 		v.U = f
+ 	}
+@@ -385,17 +385,17 @@ func toint(v Val) Val {
+ 			if f.Val.IsInt() {
+ 				msg = "constant %v overflows integer"
+ 			}
+-			Yyerror(msg, Fconv(f, obj.FmtSharp))
++			Yyerror(msg, Fconv(f, FmtSharp))
+ 		}
+ 		v.U = i
+ 
+ 	case CTCPLX:
+ 		i := new(Mpint)
+ 		if mpmovefltfix(i, &v.U.(*Mpcplx).Real) < 0 {
+-			Yyerror("constant %v%vi truncated to integer", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp|obj.FmtSign))
++			Yyerror("constant %v%vi truncated to integer", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp|FmtSign))
+ 		}
+ 		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) != 0 {
+-			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp|obj.FmtSign))
++			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp|FmtSign))
+ 		}
+ 		v.U = i
+ 	}
+@@ -1280,7 +1280,7 @@ func defaultlit(np **Node, t *Type) {
+ 		Yyerror("defaultlit: unknown literal: %v", n)
+ 
+ 	case CTxxx:
+-		Fatalf("defaultlit: idealkind is CTxxx: %v", Nconv(n, obj.FmtSign))
++		Fatalf("defaultlit: idealkind is CTxxx: %v", Nconv(n, FmtSign))
+ 
+ 	case CTBOOL:
+ 		t1 := Types[TBOOL]
+@@ -1487,7 +1487,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 		var i int64
+ 		switch n.Val().Ctype() {
+ 		default:
+-			Fatalf("convconst ctype=%d %v", n.Val().Ctype(), Tconv(t, obj.FmtLong))
++			Fatalf("convconst ctype=%d %v", n.Val().Ctype(), Tconv(t, FmtLong))
+ 
+ 		case CTINT, CTRUNE:
+ 			i = Mpgetfix(n.Val().U.(*Mpint))
+@@ -1524,7 +1524,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 		return
+ 	}
+ 
+-	Fatalf("convconst %v constant", Tconv(t, obj.FmtLong))
++	Fatalf("convconst %v constant", Tconv(t, FmtLong))
+ }
+ 
+ // complex multiply v *= rv
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 5cd8ae9f39..f59b99c8a2 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1221,15 +1221,15 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
+ 
+ 	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) {
+ 		if t0.Sym == nil && Isptr[t0.Etype] {
+-			p = fmt.Sprintf("(%v).%s.%s%s", Tconv(t0, obj.FmtLeft|obj.FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
++			p = fmt.Sprintf("(%v).%s.%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
+ 		} else {
+-			p = fmt.Sprintf("%v.%s.%s%s", Tconv(t0, obj.FmtLeft|obj.FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
++			p = fmt.Sprintf("%v.%s.%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
+ 		}
+ 	} else {
+ 		if t0.Sym == nil && Isptr[t0.Etype] {
+-			p = fmt.Sprintf("(%v).%s%s", Tconv(t0, obj.FmtLeft|obj.FmtShort), nsym.Name, suffix)
++			p = fmt.Sprintf("(%v).%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Name, suffix)
+ 		} else {
+-			p = fmt.Sprintf("%v.%s%s", Tconv(t0, obj.FmtLeft|obj.FmtShort), nsym.Name, suffix)
++			p = fmt.Sprintf("%v.%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Name, suffix)
+ 		}
+ 	}
+ 
+@@ -1339,7 +1339,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
+ 
+ 		// Should have picked off all the reasons above,
+ 		// but just in case, fall back to generic error.
+-		Yyerror("invalid receiver type %v (%v / %v)", pa, Tconv(pa, obj.FmtLong), Tconv(t, obj.FmtLong))
++		Yyerror("invalid receiver type %v (%v / %v)", pa, Tconv(pa, FmtLong), Tconv(t, FmtLong))
+ 
+ 		return
+ 	}
+@@ -1383,7 +1383,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
+ 
+ 	// during import unexported method names should be in the type's package
+ 	if tpkg != nil && f.Sym != nil && !exportname(f.Sym.Name) && f.Sym.Pkg != tpkg {
+-		Fatalf("imported method name %v in wrong package %s\n", Sconv(f.Sym, obj.FmtSign), tpkg.Name)
++		Fatalf("imported method name %v in wrong package %s\n", Sconv(f.Sym, FmtSign), tpkg.Name)
+ 	}
+ 
+ 	if d == nil {
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 7f7b7577a1..333f218b0f 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -5,7 +5,6 @@
+ package gc
+ 
+ import (
+-	"cmd/internal/obj"
+ 	"fmt"
+ 	"strconv"
+ 	"strings"
+@@ -455,7 +454,7 @@ func escAnalyze(all []*Node, recursive bool) {
+ 	if Debug['m'] != 0 {
+ 		for _, n := range e.noesc {
+ 			if n.Esc == EscNone {
+-				Warnl(n.Lineno, "%v %v does not escape", e.curfnSym(n), Nconv(n, obj.FmtShort))
++				Warnl(n.Lineno, "%v %v does not escape", e.curfnSym(n), Nconv(n, FmtShort))
+ 			}
+ 		}
+ 	}
+@@ -538,7 +537,7 @@ func escloopdepth(e *EscState, n *Node) {
+ 	switch n.Op {
+ 	case OLABEL:
+ 		if n.Left == nil || n.Left.Sym == nil {
+-			Fatalf("esc:label without label: %v", Nconv(n, obj.FmtSign))
++			Fatalf("esc:label without label: %v", Nconv(n, FmtSign))
+ 		}
+ 
+ 		// Walk will complain about this label being already defined, but that's not until
+@@ -549,7 +548,7 @@ func escloopdepth(e *EscState, n *Node) {
+ 
+ 	case OGOTO:
+ 		if n.Left == nil || n.Left.Sym == nil {
+-			Fatalf("esc:goto without label: %v", Nconv(n, obj.FmtSign))
++			Fatalf("esc:goto without label: %v", Nconv(n, FmtSign))
+ 		}
+ 
+ 		// If we come past one that's uninitialized, this must be a (harmless) forward jump
+@@ -712,7 +711,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			// b escapes as well. If we ignore such OSLICEARR, we will conclude
+ 			// that b does not escape when b contents do.
+ 			if Debug['m'] != 0 {
+-				Warnl(n.Lineno, "%v ignoring self-assignment to %v", e.curfnSym(n), Nconv(n.Left, obj.FmtShort))
++				Warnl(n.Lineno, "%v ignoring self-assignment to %v", e.curfnSym(n), Nconv(n.Left, FmtShort))
+ 			}
+ 
+ 			break
+@@ -808,7 +807,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			slice2 := n.List.Second()
+ 			escassignDereference(e, &e.theSink, slice2) // lose track of assign of dereference
+ 			if Debug['m'] > 2 {
+-				Warnl(n.Lineno, "%v special treatment of append(slice1, slice2...) %v", e.curfnSym(n), Nconv(n, obj.FmtShort))
++				Warnl(n.Lineno, "%v special treatment of append(slice1, slice2...) %v", e.curfnSym(n), Nconv(n, FmtShort))
+ 			}
+ 		}
+ 		escassignDereference(e, &e.theSink, n.List.First()) // The original elements are now leaked, too
+@@ -938,8 +937,8 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 	if Debug['m'] > 1 {
+ 		fmt.Printf("%v:[%d] %v escassign: %v(%v)[%v] = %v(%v)[%v]\n",
+ 			linestr(lineno), e.loopdepth, funcSym(Curfn),
+-			Nconv(dst, obj.FmtShort), Jconv(dst, obj.FmtShort), Oconv(dst.Op, 0),
+-			Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), Oconv(src.Op, 0))
++			Nconv(dst, FmtShort), Jconv(dst, FmtShort), Oconv(dst.Op, 0),
++			Nconv(src, FmtShort), Jconv(src, FmtShort), Oconv(src.Op, 0))
+ 	}
+ 
+ 	setlineno(dst)
+@@ -1207,7 +1206,7 @@ func escassignfromtag(e *EscState, note *string, dsts Nodes, src *Node) uint16 {
+ 
+ 	if Debug['m'] > 2 {
+ 		fmt.Printf("%v::assignfromtag:: src=%v, em=%s\n",
+-			linestr(lineno), Nconv(src, obj.FmtShort), describeEscape(em))
++			linestr(lineno), Nconv(src, FmtShort), describeEscape(em))
+ 	}
+ 
+ 	if em == EscUnknown {
+@@ -1377,7 +1376,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		for _, n1 := range ll.Slice() {
+ 			escassign(e, &e.theSink, n1)
+ 			if Debug['m'] > 2 {
+-				fmt.Printf("%v::esccall:: indirect call <- %v, untracked\n", linestr(lineno), Nconv(n1, obj.FmtShort))
++				fmt.Printf("%v::esccall:: indirect call <- %v, untracked\n", linestr(lineno), Nconv(n1, FmtShort))
+ 			}
+ 		}
+ 		// Set up bogus outputs
+@@ -1397,7 +1396,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
+ 		fn.Name.Defn != nil && len(fn.Name.Defn.Nbody.Slice()) != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
+ 		if Debug['m'] > 2 {
+-			fmt.Printf("%v::esccall:: %v in recursive group\n", linestr(lineno), Nconv(n, obj.FmtShort))
++			fmt.Printf("%v::esccall:: %v in recursive group\n", linestr(lineno), Nconv(n, FmtShort))
+ 		}
+ 
+ 		// function in same mutually recursive group. Incorporate into flow graph.
+@@ -1444,7 +1443,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		// "..." arguments are untracked
+ 		for ; i < len(lls); i++ {
+ 			if Debug['m'] > 2 {
+-				fmt.Printf("%v::esccall:: ... <- %v, untracked\n", linestr(lineno), Nconv(lls[i], obj.FmtShort))
++				fmt.Printf("%v::esccall:: ... <- %v, untracked\n", linestr(lineno), Nconv(lls[i], FmtShort))
+ 			}
+ 			escassign(e, &e.theSink, lls[i])
+ 		}
+@@ -1454,11 +1453,11 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 
+ 	// Imported or completely analyzed function. Use the escape tags.
+ 	if nE.Escretval.Len() != 0 {
+-		Fatalf("esc already decorated call %v\n", Nconv(n, obj.FmtSign))
++		Fatalf("esc already decorated call %v\n", Nconv(n, FmtSign))
+ 	}
+ 
+ 	if Debug['m'] > 2 {
+-		fmt.Printf("%v::esccall:: %v not recursive\n", linestr(lineno), Nconv(n, obj.FmtShort))
++		fmt.Printf("%v::esccall:: %v not recursive\n", linestr(lineno), Nconv(n, FmtShort))
+ 	}
+ 
+ 	// set up out list on this call node with dummy auto ONAMES in the current (calling) function.
+@@ -1528,7 +1527,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 
+ 	for ; i < len(lls); i++ {
+ 		if Debug['m'] > 2 {
+-			fmt.Printf("%v::esccall:: ... <- %v\n", linestr(lineno), Nconv(lls[i], obj.FmtShort))
++			fmt.Printf("%v::esccall:: ... <- %v\n", linestr(lineno), Nconv(lls[i], FmtShort))
+ 		}
+ 		escassign(e, src, lls[i]) // args to slice
+ 	}
+@@ -1547,7 +1546,7 @@ func escflows(e *EscState, dst *Node, src *Node) {
+ 	}
+ 
+ 	if Debug['m'] > 2 {
+-		fmt.Printf("%v::flows:: %v <- %v\n", linestr(lineno), Nconv(dst, obj.FmtShort), Nconv(src, obj.FmtShort))
++		fmt.Printf("%v::flows:: %v <- %v\n", linestr(lineno), Nconv(dst, FmtShort), Nconv(src, FmtShort))
+ 	}
+ 
+ 	dstE := e.nodeEscState(dst)
+@@ -1581,7 +1580,7 @@ func escflood(e *EscState, dst *Node) {
+ 
+ 	dstE := e.nodeEscState(dst)
+ 	if Debug['m'] > 1 {
+-		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", e.walkgen, Nconv(dst, obj.FmtShort), e.curfnSym(dst), dstE.Escloopdepth)
++		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", e.walkgen, Nconv(dst, FmtShort), e.curfnSym(dst), dstE.Escloopdepth)
+ 	}
+ 
+ 	for _, n := range dstE.Escflowsrc {
+@@ -1636,7 +1635,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 
+ 	if Debug['m'] > 1 {
+ 		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %v(%v) scope:%v[%d] extraloopdepth=%v\n",
+-			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(src.Op, 0), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), e.curfnSym(src), srcE.Escloopdepth, extraloopdepth)
++			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(src.Op, 0), Nconv(src, FmtShort), Jconv(src, FmtShort), e.curfnSym(src), srcE.Escloopdepth, extraloopdepth)
+ 	}
+ 
+ 	e.pdepth++
+@@ -1652,9 +1651,9 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 		// 4. return *in
+ 		if Debug['m'] != 0 {
+ 			if Debug['m'] == 1 {
+-				Warnl(src.Lineno, "leaking param: %v to result %v level=%v", Nconv(src, obj.FmtShort), dst.Sym, level.int())
++				Warnl(src.Lineno, "leaking param: %v to result %v level=%v", Nconv(src, FmtShort), dst.Sym, level.int())
+ 			} else {
+-				Warnl(src.Lineno, "leaking param: %v to result %v level=%v", Nconv(src, obj.FmtShort), dst.Sym, level)
++				Warnl(src.Lineno, "leaking param: %v to result %v level=%v", Nconv(src, FmtShort), dst.Sym, level)
+ 			}
+ 		}
+ 		if src.Esc&EscMask != EscReturn {
+@@ -1671,7 +1670,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 		level.int() > 0 {
+ 		src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
+ 		if Debug['m'] != 0 {
+-			Warnl(src.Lineno, "mark escaped content: %v", Nconv(src, obj.FmtShort))
++			Warnl(src.Lineno, "mark escaped content: %v", Nconv(src, FmtShort))
+ 		}
+ 	}
+ 
+@@ -1684,20 +1683,20 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 				src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
+ 				if Debug['m'] != 0 {
+ 					if Debug['m'] == 1 {
+-						Warnl(src.Lineno, "leaking param content: %v", Nconv(src, obj.FmtShort))
++						Warnl(src.Lineno, "leaking param content: %v", Nconv(src, FmtShort))
+ 					} else {
+ 						Warnl(src.Lineno, "leaking param content: %v level=%v dst.eld=%v src.eld=%v dst=%v",
+-							Nconv(src, obj.FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth, Nconv(dst, obj.FmtShort))
++							Nconv(src, FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth, Nconv(dst, FmtShort))
+ 					}
+ 				}
+ 			} else {
+ 				src.Esc = EscScope
+ 				if Debug['m'] != 0 {
+ 					if Debug['m'] == 1 {
+-						Warnl(src.Lineno, "leaking param: %v", Nconv(src, obj.FmtShort))
++						Warnl(src.Lineno, "leaking param: %v", Nconv(src, FmtShort))
+ 					} else {
+ 						Warnl(src.Lineno, "leaking param: %v level=%v dst.eld=%v src.eld=%v dst=%v",
+-							Nconv(src, obj.FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth, Nconv(dst, obj.FmtShort))
++							Nconv(src, FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth, Nconv(dst, FmtShort))
+ 					}
+ 				}
+ 			}
+@@ -1707,7 +1706,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 		// original variable.
+ 		if src.Class == PPARAMREF {
+ 			if leaks && Debug['m'] != 0 {
+-				Warnl(src.Lineno, "leaking closure reference %v", Nconv(src, obj.FmtShort))
++				Warnl(src.Lineno, "leaking closure reference %v", Nconv(src, FmtShort))
+ 			}
+ 			escwalk(e, level, dst, src.Name.Param.Closure)
+ 		}
+@@ -1723,9 +1722,9 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 				}
+ 				if Debug['m'] > 1 {
+ 					Warnl(src.Lineno, "%v escapes to heap, level=%v, dst.eld=%v, src.eld=%v",
+-						Nconv(p, obj.FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth)
++						Nconv(p, FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth)
+ 				} else {
+-					Warnl(src.Lineno, "%v escapes to heap", Nconv(p, obj.FmtShort))
++					Warnl(src.Lineno, "%v escapes to heap", Nconv(p, FmtShort))
+ 				}
+ 			}
+ 			escwalkBody(e, level.dec(), dst, src.Left, modSrcLoopdepth)
+@@ -1741,7 +1740,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 		if leaks {
+ 			src.Esc = EscHeap
+ 			if Debug['m'] != 0 {
+-				Warnl(src.Lineno, "%v escapes to heap", Nconv(src, obj.FmtShort))
++				Warnl(src.Lineno, "%v escapes to heap", Nconv(src, FmtShort))
+ 			}
+ 			extraloopdepth = modSrcLoopdepth
+ 		}
+@@ -1775,7 +1774,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 		if leaks {
+ 			src.Esc = EscHeap
+ 			if Debug['m'] != 0 {
+-				Warnl(src.Lineno, "%v escapes to heap", Nconv(src, obj.FmtShort))
++				Warnl(src.Lineno, "%v escapes to heap", Nconv(src, FmtShort))
+ 			}
+ 			extraloopdepth = modSrcLoopdepth
+ 		}
+@@ -1809,7 +1808,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 			if Debug['m'] > 1 {
+ 				fmt.Printf("%v:[%d] dst %v escwalk replace src: %v with %v\n",
+ 					linestr(lineno), e.loopdepth,
+-					Nconv(dst, obj.FmtShort), Nconv(src, obj.FmtShort), Nconv(srcE.Escretval.First(), obj.FmtShort))
++					Nconv(dst, FmtShort), Nconv(src, FmtShort), Nconv(srcE.Escretval.First(), FmtShort))
+ 			}
+ 			src = srcE.Escretval.First()
+ 			srcE = e.nodeEscState(src)
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 083c3cb665..d1d38b7741 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -235,9 +235,9 @@ func dumpexportconst(s *Sym) {
+ 	dumpexporttype(t)
+ 
+ 	if t != nil && !isideal(t) {
+-		exportf("\tconst %v %v = %v\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtSharp), Vconv(n.Val(), obj.FmtSharp))
++		exportf("\tconst %v %v = %v\n", Sconv(s, FmtSharp), Tconv(t, FmtSharp), Vconv(n.Val(), FmtSharp))
+ 	} else {
+-		exportf("\tconst %v = %v\n", Sconv(s, obj.FmtSharp), Vconv(n.Val(), obj.FmtSharp))
++		exportf("\tconst %v = %v\n", Sconv(s, FmtSharp), Vconv(n.Val(), FmtSharp))
+ 	}
+ }
+ 
+@@ -261,14 +261,14 @@ func dumpexportvar(s *Sym) {
+ 			}
+ 
+ 			// NOTE: The space after %#S here is necessary for ld's export data parser.
+-			exportf("\tfunc %v %v { %v }\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtShort|obj.FmtSharp), Hconv(n.Func.Inl, obj.FmtSharp|obj.FmtBody))
++			exportf("\tfunc %v %v { %v }\n", Sconv(s, FmtSharp), Tconv(t, FmtShort|FmtSharp), Hconv(n.Func.Inl, FmtSharp|FmtBody))
+ 
+ 			reexportdeplist(n.Func.Inl)
+ 		} else {
+-			exportf("\tfunc %v %v\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtShort|obj.FmtSharp))
++			exportf("\tfunc %v %v\n", Sconv(s, FmtSharp), Tconv(t, FmtShort|FmtSharp))
+ 		}
+ 	} else {
+-		exportf("\tvar %v %v\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtSharp))
++		exportf("\tvar %v %v\n", Sconv(s, FmtSharp), Tconv(t, FmtSharp))
+ 	}
+ }
+ 
+@@ -319,7 +319,7 @@ func dumpexporttype(t *Type) {
+ 	}
+ 	sort.Sort(methodbyname(m))
+ 
+-	exportf("\ttype %v %v\n", Sconv(t.Sym, obj.FmtSharp), Tconv(t, obj.FmtSharp|obj.FmtLong))
++	exportf("\ttype %v %v\n", Sconv(t.Sym, FmtSharp), Tconv(t, FmtSharp|FmtLong))
+ 	for _, f := range m {
+ 		if f.Nointerface {
+ 			exportf("\t//go:nointerface\n")
+@@ -331,10 +331,10 @@ func dumpexporttype(t *Type) {
+ 			if Debug['l'] < 2 {
+ 				typecheckinl(f.Type.Nname)
+ 			}
+-			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconv(f.Type.Nname.Func.Inl, obj.FmtSharp))
++			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp), Hconv(f.Type.Nname.Func.Inl, FmtSharp))
+ 			reexportdeplist(f.Type.Nname.Func.Inl)
+ 		} else {
+-			exportf("\tfunc %v %v %v\n", Tconv(f.Type.Recvs(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp))
++			exportf("\tfunc %v %v %v\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp))
+ 		}
+ 	}
+ }
+@@ -552,7 +552,7 @@ func importvar(s *Sym, t *Type) {
+ 	declare(n, PEXTERN)
+ 
+ 	if Debug['E'] != 0 {
+-		fmt.Printf("import var %v %v\n", s, Tconv(t, obj.FmtLong))
++		fmt.Printf("import var %v %v\n", s, Tconv(t, FmtLong))
+ 	}
+ }
+ 
+@@ -573,11 +573,11 @@ func importtype(pt *Type, t *Type) {
+ 		declare(n, PEXTERN)
+ 		checkwidth(pt)
+ 	} else if !Eqtype(pt.Orig, t) {
+-		Yyerror("inconsistent definition for type %v during import\n\t%v (in %q)\n\t%v (in %q)", pt.Sym, Tconv(pt, obj.FmtLong), pt.Sym.Importdef.Path, Tconv(t, obj.FmtLong), importpkg.Path)
++		Yyerror("inconsistent definition for type %v during import\n\t%v (in %q)\n\t%v (in %q)", pt.Sym, Tconv(pt, FmtLong), pt.Sym.Importdef.Path, Tconv(t, FmtLong), importpkg.Path)
+ 	}
+ 
+ 	if Debug['E'] != 0 {
+-		fmt.Printf("import type %v %v\n", pt, Tconv(t, obj.FmtLong))
++		fmt.Printf("import type %v %v\n", pt, Tconv(t, FmtLong))
+ 	}
+ }
+ 
+@@ -593,7 +593,7 @@ func dumpasmhdr() {
+ 		}
+ 		switch n.Op {
+ 		case OLITERAL:
+-			fmt.Fprintf(b, "#define const_%s %v\n", n.Sym.Name, Vconv(n.Val(), obj.FmtSharp))
++			fmt.Fprintf(b, "#define const_%s %v\n", n.Sym.Name, Vconv(n.Val(), FmtSharp))
+ 
+ 		case OTYPE:
+ 			t := n.Type
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index fc22baa61b..867d99a6f1 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -13,6 +13,24 @@ import (
+ 	"unicode/utf8"
+ )
+ 
++// A FmtFlag value is a set of flags (or 0).
++// They control how the Xconv functions format their values.
++// See the respective function's documentation for details.
++type FmtFlag int
++
++const (
++	FmtWidth    FmtFlag = 1 << iota
++	FmtLeft             // "-"
++	FmtSharp            // "#"
++	FmtSign             // "+"
++	FmtUnsigned         // "u"
++	FmtShort            // "h"
++	FmtLong             // "l"
++	FmtComma            // ","
++	FmtByte             // "hh"
++	FmtBody             // for printing export bodies
++)
++
+ //
+ // Format conversions
+ //	%L int		Line numbers
+@@ -89,22 +107,22 @@ var fmtbody bool
+ //	%-uT		type identifiers with package name instead of prefix (typesym, dcommontype, typehash)
+ //
+ 
+-func setfmode(flags *int) (fm int, fb bool) {
++func setfmode(flags *FmtFlag) (fm int, fb bool) {
+ 	fm = fmtmode
+ 	fb = fmtbody
+-	if *flags&obj.FmtSign != 0 {
++	if *flags&FmtSign != 0 {
+ 		fmtmode = FDbg
+-	} else if *flags&obj.FmtSharp != 0 {
++	} else if *flags&FmtSharp != 0 {
+ 		fmtmode = FExp
+-	} else if *flags&obj.FmtLeft != 0 {
++	} else if *flags&FmtLeft != 0 {
+ 		fmtmode = FTypeId
+ 	}
+ 
+-	if *flags&obj.FmtBody != 0 {
++	if *flags&FmtBody != 0 {
+ 		fmtbody = true
+ 	}
+ 
+-	*flags &^= (obj.FmtSharp | obj.FmtLeft | obj.FmtSign | obj.FmtBody)
++	*flags &^= (FmtSharp | FmtLeft | FmtSign | FmtBody)
+ 	return
+ }
+ 
+@@ -174,8 +192,8 @@ var goopnames = []string{
+ }
+ 
+ // Fmt "%O":  Node opcodes
+-func Oconv(o Op, flag int) string {
+-	if (flag&obj.FmtSharp != 0) || fmtmode != FDbg {
++func Oconv(o Op, flag FmtFlag) string {
++	if (flag&FmtSharp != 0) || fmtmode != FDbg {
+ 		if o >= 0 && int(o) < len(goopnames) && goopnames[o] != "" {
+ 			return goopnames[o]
+ 		}
+@@ -199,10 +217,10 @@ var classnames = []string{
+ }
+ 
+ // Fmt "%J": Node details.
+-func Jconv(n *Node, flag int) string {
++func Jconv(n *Node, flag FmtFlag) string {
+ 	var buf bytes.Buffer
+ 
+-	c := flag & obj.FmtShort
++	c := flag & FmtShort
+ 
+ 	if c == 0 && n.Ullman != 0 {
+ 		fmt.Fprintf(&buf, " u(%d)", n.Ullman)
+@@ -308,11 +326,11 @@ func Jconv(n *Node, flag int) string {
+ }
+ 
+ // Fmt "%V": Values
+-func Vconv(v Val, flag int) string {
++func Vconv(v Val, flag FmtFlag) string {
+ 	switch v.Ctype() {
+ 	case CTINT:
+-		if (flag&obj.FmtSharp != 0) || fmtmode == FExp {
+-			return Bconv(v.U.(*Mpint), obj.FmtSharp)
++		if (flag&FmtSharp != 0) || fmtmode == FExp {
++			return Bconv(v.U.(*Mpint), FmtSharp)
+ 		}
+ 		return Bconv(v.U.(*Mpint), 0)
+ 
+@@ -330,25 +348,25 @@ func Vconv(v Val, flag int) string {
+ 		return fmt.Sprintf("('\\x00' + %v)", v.U.(*Mpint))
+ 
+ 	case CTFLT:
+-		if (flag&obj.FmtSharp != 0) || fmtmode == FExp {
++		if (flag&FmtSharp != 0) || fmtmode == FExp {
+ 			return Fconv(v.U.(*Mpflt), 0)
+ 		}
+-		return Fconv(v.U.(*Mpflt), obj.FmtSharp)
++		return Fconv(v.U.(*Mpflt), FmtSharp)
+ 
+ 	case CTCPLX:
+-		if (flag&obj.FmtSharp != 0) || fmtmode == FExp {
++		if (flag&FmtSharp != 0) || fmtmode == FExp {
+ 			return fmt.Sprintf("(%v+%vi)", &v.U.(*Mpcplx).Real, &v.U.(*Mpcplx).Imag)
+ 		}
+ 		if mpcmpfltc(&v.U.(*Mpcplx).Real, 0) == 0 {
+-			return fmt.Sprintf("%vi", Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp))
++			return fmt.Sprintf("%vi", Fconv(&v.U.(*Mpcplx).Imag, FmtSharp))
+ 		}
+ 		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) == 0 {
+-			return Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp)
++			return Fconv(&v.U.(*Mpcplx).Real, FmtSharp)
+ 		}
+ 		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) < 0 {
+-			return fmt.Sprintf("(%v%vi)", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp))
++			return fmt.Sprintf("(%v%vi)", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp))
+ 		}
+-		return fmt.Sprintf("(%v+%vi)", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp))
++		return fmt.Sprintf("(%v+%vi)", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp))
+ 
+ 	case CTSTR:
+ 		return strconv.Quote(v.U.(string))
+@@ -415,8 +433,8 @@ func Econv(et EType) string {
+ }
+ 
+ // Fmt "%S": syms
+-func symfmt(s *Sym, flag int) string {
+-	if s.Pkg != nil && flag&obj.FmtShort == 0 {
++func symfmt(s *Sym, flag FmtFlag) string {
++	if s.Pkg != nil && flag&FmtShort == 0 {
+ 		switch fmtmode {
+ 		case FErr: // This is for the user
+ 			if s.Pkg == builtinpkg || s.Pkg == localpkg {
+@@ -433,7 +451,7 @@ func symfmt(s *Sym, flag int) string {
+ 			return fmt.Sprintf("%s.%s", s.Pkg.Name, s.Name)
+ 
+ 		case FTypeId:
+-			if flag&obj.FmtUnsigned != 0 {
++			if flag&FmtUnsigned != 0 {
+ 				return fmt.Sprintf("%s.%s", s.Pkg.Name, s.Name) // dcommontype, typehash
+ 			}
+ 			return fmt.Sprintf("%s.%s", s.Pkg.Prefix, s.Name) // (methodsym), typesym, weaksym
+@@ -448,7 +466,7 @@ func symfmt(s *Sym, flag int) string {
+ 		}
+ 	}
+ 
+-	if flag&obj.FmtByte != 0 {
++	if flag&FmtByte != 0 {
+ 		// FmtByte (hh) implies FmtShort (h)
+ 		// skip leading "type." in method name
+ 		p := s.Name
+@@ -491,7 +509,7 @@ var basicnames = []string{
+ 	TBLANK:      "blank",
+ }
+ 
+-func typefmt(t *Type, flag int) string {
++func typefmt(t *Type, flag FmtFlag) string {
+ 	if t == nil {
+ 		return "<T>"
+ 	}
+@@ -499,7 +517,7 @@ func typefmt(t *Type, flag int) string {
+ 	if t == bytetype || t == runetype {
+ 		// in %-T mode collapse rune and byte with their originals.
+ 		if fmtmode != FTypeId {
+-			return Sconv(t.Sym, obj.FmtShort)
++			return Sconv(t.Sym, FmtShort)
+ 		}
+ 		t = Types[t.Etype]
+ 	}
+@@ -509,18 +527,18 @@ func typefmt(t *Type, flag int) string {
+ 	}
+ 
+ 	// Unless the 'l' flag was specified, if the type has a name, just print that name.
+-	if flag&obj.FmtLong == 0 && t.Sym != nil && t != Types[t.Etype] {
++	if flag&FmtLong == 0 && t.Sym != nil && t != Types[t.Etype] {
+ 		switch fmtmode {
+ 		case FTypeId:
+-			if flag&obj.FmtShort != 0 {
++			if flag&FmtShort != 0 {
+ 				if t.Vargen != 0 {
+-					return fmt.Sprintf("%v·%d", Sconv(t.Sym, obj.FmtShort), t.Vargen)
++					return fmt.Sprintf("%v·%d", Sconv(t.Sym, FmtShort), t.Vargen)
+ 				}
+-				return Sconv(t.Sym, obj.FmtShort)
++				return Sconv(t.Sym, FmtShort)
+ 			}
+ 
+-			if flag&obj.FmtUnsigned != 0 {
+-				return Sconv(t.Sym, obj.FmtUnsigned)
++			if flag&FmtUnsigned != 0 {
++				return Sconv(t.Sym, FmtUnsigned)
+ 			}
+ 			fallthrough
+ 
+@@ -550,8 +568,8 @@ func typefmt(t *Type, flag int) string {
+ 
+ 	switch t.Etype {
+ 	case TPTR32, TPTR64:
+-		if fmtmode == FTypeId && (flag&obj.FmtShort != 0) {
+-			return fmt.Sprintf("*%v", Tconv(t.Type, obj.FmtShort))
++		if fmtmode == FTypeId && (flag&FmtShort != 0) {
++			return fmt.Sprintf("*%v", Tconv(t.Type, FmtShort))
+ 		}
+ 		return fmt.Sprintf("*%v", t.Type)
+ 
+@@ -592,11 +610,11 @@ func typefmt(t *Type, flag int) string {
+ 				// Wrong interface definitions may have types lacking a symbol.
+ 				break
+ 			case exportname(t1.Sym.Name):
+-				buf.WriteString(Sconv(t1.Sym, obj.FmtShort))
++				buf.WriteString(Sconv(t1.Sym, FmtShort))
+ 			default:
+-				buf.WriteString(Sconv(t1.Sym, obj.FmtUnsigned))
++				buf.WriteString(Sconv(t1.Sym, FmtUnsigned))
+ 			}
+-			buf.WriteString(Tconv(t1.Type, obj.FmtShort))
++			buf.WriteString(Tconv(t1.Type, FmtShort))
+ 			if t1.Down != nil {
+ 				buf.WriteString(";")
+ 			}
+@@ -609,7 +627,7 @@ func typefmt(t *Type, flag int) string {
+ 
+ 	case TFUNC:
+ 		var buf bytes.Buffer
+-		if flag&obj.FmtShort != 0 {
++		if flag&FmtShort != 0 {
+ 			// no leading func
+ 		} else {
+ 			if t.Thistuple != 0 {
+@@ -663,7 +681,7 @@ func typefmt(t *Type, flag int) string {
+ 			buf.WriteString("(")
+ 			if fmtmode == FTypeId || fmtmode == FErr { // no argument names on function signature, and no "noescape"/"nosplit" tags
+ 				for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+-					buf.WriteString(Fldconv(t1, obj.FmtShort))
++					buf.WriteString(Fldconv(t1, FmtShort))
+ 					if t1.Down != nil {
+ 						buf.WriteString(", ")
+ 					}
+@@ -681,7 +699,7 @@ func typefmt(t *Type, flag int) string {
+ 			buf.WriteString("struct {")
+ 			for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+ 				buf.WriteString(" ")
+-				buf.WriteString(Fldconv(t1, obj.FmtLong))
++				buf.WriteString(Fldconv(t1, FmtLong))
+ 				if t1.Down != nil {
+ 					buf.WriteString(";")
+ 				}
+@@ -792,20 +810,20 @@ func stmtfmt(n *Node) string {
+ 			break
+ 		}
+ 
+-		f += fmt.Sprintf("%v %v= %v", n.Left, Oconv(Op(n.Etype), obj.FmtSharp), n.Right)
++		f += fmt.Sprintf("%v %v= %v", n.Left, Oconv(Op(n.Etype), FmtSharp), n.Right)
+ 
+ 	case OAS2:
+ 		if n.Colas && !complexinit {
+-			f += fmt.Sprintf("%v := %v", Hconv(n.List, obj.FmtComma), Hconv(n.Rlist, obj.FmtComma))
++			f += fmt.Sprintf("%v := %v", Hconv(n.List, FmtComma), Hconv(n.Rlist, FmtComma))
+ 			break
+ 		}
+ 		fallthrough
+ 
+ 	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+-		f += fmt.Sprintf("%v = %v", Hconv(n.List, obj.FmtComma), Hconv(n.Rlist, obj.FmtComma))
++		f += fmt.Sprintf("%v = %v", Hconv(n.List, FmtComma), Hconv(n.Rlist, FmtComma))
+ 
+ 	case ORETURN:
+-		f += fmt.Sprintf("return %v", Hconv(n.List, obj.FmtComma))
++		f += fmt.Sprintf("return %v", Hconv(n.List, FmtComma))
+ 
+ 	case ORETJMP:
+ 		f += fmt.Sprintf("retjmp %v", n.Sym)
+@@ -862,7 +880,7 @@ func stmtfmt(n *Node) string {
+ 			break
+ 		}
+ 
+-		f += fmt.Sprintf("for %v = range %v { %v }", Hconv(n.List, obj.FmtComma), n.Right, n.Nbody)
++		f += fmt.Sprintf("for %v = range %v { %v }", Hconv(n.List, FmtComma), n.Right, n.Nbody)
+ 
+ 	case OSELECT, OSWITCH:
+ 		if fmtmode == FErr {
+@@ -870,7 +888,7 @@ func stmtfmt(n *Node) string {
+ 			break
+ 		}
+ 
+-		f += Oconv(n.Op, obj.FmtSharp)
++		f += Oconv(n.Op, FmtSharp)
+ 		if simpleinit {
+ 			f += fmt.Sprintf(" %v;", n.Ninit.First())
+ 		}
+@@ -882,7 +900,7 @@ func stmtfmt(n *Node) string {
+ 
+ 	case OCASE, OXCASE:
+ 		if n.List.Len() != 0 {
+-			f += fmt.Sprintf("case %v: %v", Hconv(n.List, obj.FmtComma), n.Nbody)
++			f += fmt.Sprintf("case %v: %v", Hconv(n.List, FmtComma), n.Nbody)
+ 		} else {
+ 			f += fmt.Sprintf("default: %v", n.Nbody)
+ 		}
+@@ -893,9 +911,9 @@ func stmtfmt(n *Node) string {
+ 		OFALL,
+ 		OXFALL:
+ 		if n.Left != nil {
+-			f += fmt.Sprintf("%v %v", Oconv(n.Op, obj.FmtSharp), n.Left)
++			f += fmt.Sprintf("%v %v", Oconv(n.Op, FmtSharp), n.Left)
+ 		} else {
+-			f += Oconv(n.Op, obj.FmtSharp)
++			f += Oconv(n.Op, FmtSharp)
+ 		}
+ 
+ 	case OEMPTY:
+@@ -1094,9 +1112,9 @@ func exprfmt(n *Node, prec int) string {
+ 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
+ 		if fmtmode == FExp && n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME {
+ 			if Isptr[n.Left.Type.Etype] {
+-				return fmt.Sprintf("(%v).%v", n.Left.Type, Sconv(n.Right.Sym, obj.FmtShort|obj.FmtByte))
++				return fmt.Sprintf("(%v).%v", n.Left.Type, Sconv(n.Right.Sym, FmtShort|FmtByte))
+ 			} else {
+-				return fmt.Sprintf("%v.%v", n.Left.Type, Sconv(n.Right.Sym, obj.FmtShort|obj.FmtByte))
++				return fmt.Sprintf("%v.%v", n.Left.Type, Sconv(n.Right.Sym, FmtShort|FmtByte))
+ 			}
+ 		}
+ 		fallthrough
+@@ -1171,10 +1189,10 @@ func exprfmt(n *Node, prec int) string {
+ 
+ 		if fmtmode == FExp && ptrlit {
+ 			// typecheck has overwritten OIND by OTYPE with pointer type.
+-			return fmt.Sprintf("(&%v{ %v })", n.Right.Type.Type, Hconv(n.List, obj.FmtComma))
++			return fmt.Sprintf("(&%v{ %v })", n.Right.Type.Type, Hconv(n.List, FmtComma))
+ 		}
+ 
+-		return fmt.Sprintf("(%v{ %v })", n.Right, Hconv(n.List, obj.FmtComma))
++		return fmt.Sprintf("(%v{ %v })", n.Right, Hconv(n.List, FmtComma))
+ 
+ 	case OPTRLIT:
+ 		if fmtmode == FExp && n.Left.Implicit {
+@@ -1191,7 +1209,7 @@ func exprfmt(n *Node, prec int) string {
+ 				f += fmt.Sprintf("(%v{", n.Type)
+ 			}
+ 			for i1, n1 := range n.List.Slice() {
+-				f += fmt.Sprintf(" %v:%v", Sconv(n1.Left.Sym, obj.FmtShort|obj.FmtByte), n1.Right)
++				f += fmt.Sprintf(" %v:%v", Sconv(n1.Left.Sym, FmtShort|FmtByte), n1.Right)
+ 
+ 				if i1+1 < n.List.Len() {
+ 					f += ","
+@@ -1214,15 +1232,15 @@ func exprfmt(n *Node, prec int) string {
+ 			return fmt.Sprintf("%v literal", n.Type)
+ 		}
+ 		if fmtmode == FExp && n.Implicit {
+-			return fmt.Sprintf("{ %v }", Hconv(n.List, obj.FmtComma))
++			return fmt.Sprintf("{ %v }", Hconv(n.List, FmtComma))
+ 		}
+-		return fmt.Sprintf("(%v{ %v })", n.Type, Hconv(n.List, obj.FmtComma))
++		return fmt.Sprintf("(%v{ %v })", n.Type, Hconv(n.List, FmtComma))
+ 
+ 	case OKEY:
+ 		if n.Left != nil && n.Right != nil {
+ 			if fmtmode == FExp && n.Left.Type == structkey {
+ 				// requires special handling of field names
+-				return fmt.Sprintf("%v:%v", Sconv(n.Left.Sym, obj.FmtShort|obj.FmtByte), n.Right)
++				return fmt.Sprintf("%v:%v", Sconv(n.Left.Sym, FmtShort|FmtByte), n.Right)
+ 			} else {
+ 				return fmt.Sprintf("%v:%v", n.Left, n.Right)
+ 			}
+@@ -1248,7 +1266,7 @@ func exprfmt(n *Node, prec int) string {
+ 			f += ".<nil>"
+ 			return f
+ 		}
+-		f += fmt.Sprintf(".%v", Sconv(n.Right.Sym, obj.FmtShort|obj.FmtByte))
++		f += fmt.Sprintf(".%v", Sconv(n.Right.Sym, FmtShort|FmtByte))
+ 		return f
+ 
+ 	case ODOTTYPE, ODOTTYPE2:
+@@ -1274,7 +1292,7 @@ func exprfmt(n *Node, prec int) string {
+ 		return f
+ 
+ 	case OCOPY, OCOMPLEX:
+-		return fmt.Sprintf("%v(%v, %v)", Oconv(n.Op, obj.FmtSharp), n.Left, n.Right)
++		return fmt.Sprintf("%v(%v, %v)", Oconv(n.Op, FmtSharp), n.Left, n.Right)
+ 
+ 	case OCONV,
+ 		OCONVIFACE,
+@@ -1290,7 +1308,7 @@ func exprfmt(n *Node, prec int) string {
+ 		if n.Left != nil {
+ 			return fmt.Sprintf("%v(%v)", n.Type, n.Left)
+ 		}
+-		return fmt.Sprintf("%v(%v)", n.Type, Hconv(n.List, obj.FmtComma))
++		return fmt.Sprintf("%v(%v)", n.Type, Hconv(n.List, FmtComma))
+ 
+ 	case OREAL,
+ 		OIMAG,
+@@ -1306,26 +1324,26 @@ func exprfmt(n *Node, prec int) string {
+ 		OPRINT,
+ 		OPRINTN:
+ 		if n.Left != nil {
+-			return fmt.Sprintf("%v(%v)", Oconv(n.Op, obj.FmtSharp), n.Left)
++			return fmt.Sprintf("%v(%v)", Oconv(n.Op, FmtSharp), n.Left)
+ 		}
+ 		if n.Isddd {
+-			return fmt.Sprintf("%v(%v...)", Oconv(n.Op, obj.FmtSharp), Hconv(n.List, obj.FmtComma))
++			return fmt.Sprintf("%v(%v...)", Oconv(n.Op, FmtSharp), Hconv(n.List, FmtComma))
+ 		}
+-		return fmt.Sprintf("%v(%v)", Oconv(n.Op, obj.FmtSharp), Hconv(n.List, obj.FmtComma))
++		return fmt.Sprintf("%v(%v)", Oconv(n.Op, FmtSharp), Hconv(n.List, FmtComma))
+ 
+ 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
+ 		var f string
+ 		f += exprfmt(n.Left, nprec)
+ 		if n.Isddd {
+-			f += fmt.Sprintf("(%v...)", Hconv(n.List, obj.FmtComma))
++			f += fmt.Sprintf("(%v...)", Hconv(n.List, FmtComma))
+ 			return f
+ 		}
+-		f += fmt.Sprintf("(%v)", Hconv(n.List, obj.FmtComma))
++		f += fmt.Sprintf("(%v)", Hconv(n.List, FmtComma))
+ 		return f
+ 
+ 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
+ 		if n.List.Len() != 0 { // pre-typecheck
+-			return fmt.Sprintf("make(%v, %v)", n.Type, Hconv(n.List, obj.FmtComma))
++			return fmt.Sprintf("make(%v, %v)", n.Type, Hconv(n.List, FmtComma))
+ 		}
+ 		if n.Right != nil {
+ 			return fmt.Sprintf("make(%v, %v, %v)", n.Type, n.Left, n.Right)
+@@ -1345,9 +1363,9 @@ func exprfmt(n *Node, prec int) string {
+ 		ORECV:
+ 		var f string
+ 		if n.Left.Op == n.Op {
+-			f += fmt.Sprintf("%v ", Oconv(n.Op, obj.FmtSharp))
++			f += fmt.Sprintf("%v ", Oconv(n.Op, FmtSharp))
+ 		} else {
+-			f += Oconv(n.Op, obj.FmtSharp)
++			f += Oconv(n.Op, FmtSharp)
+ 		}
+ 		f += exprfmt(n.Left, nprec+1)
+ 		return f
+@@ -1376,7 +1394,7 @@ func exprfmt(n *Node, prec int) string {
+ 		var f string
+ 		f += exprfmt(n.Left, nprec)
+ 
+-		f += fmt.Sprintf(" %v ", Oconv(n.Op, obj.FmtSharp))
++		f += fmt.Sprintf(" %v ", Oconv(n.Op, FmtSharp))
+ 		f += exprfmt(n.Right, nprec+1)
+ 		return f
+ 
+@@ -1397,7 +1415,7 @@ func exprfmt(n *Node, prec int) string {
+ 		var f string
+ 		f += exprfmt(n.Left, nprec)
+ 		// TODO(marvin): Fix Node.EType type union.
+-		f += fmt.Sprintf(" %v ", Oconv(Op(n.Etype), obj.FmtSharp))
++		f += fmt.Sprintf(" %v ", Oconv(Op(n.Etype), FmtSharp))
+ 		f += exprfmt(n.Right, nprec+1)
+ 		return f
+ 	}
+@@ -1405,7 +1423,7 @@ func exprfmt(n *Node, prec int) string {
+ 	return fmt.Sprintf("<node %v>", Oconv(n.Op, 0))
+ }
+ 
+-func nodefmt(n *Node, flag int) string {
++func nodefmt(n *Node, flag FmtFlag) string {
+ 	t := n.Type
+ 
+ 	// we almost always want the original, except in export mode for literals
+@@ -1415,7 +1433,7 @@ func nodefmt(n *Node, flag int) string {
+ 		n = n.Orig
+ 	}
+ 
+-	if flag&obj.FmtLong != 0 && t != nil {
++	if flag&FmtLong != 0 && t != nil {
+ 		if t.Etype == TNIL {
+ 			return "nil"
+ 		} else {
+@@ -1441,12 +1459,12 @@ func indent(buf *bytes.Buffer) {
+ 	}
+ }
+ 
+-func nodedump(n *Node, flag int) string {
++func nodedump(n *Node, flag FmtFlag) string {
+ 	if n == nil {
+ 		return ""
+ 	}
+ 
+-	recur := flag&obj.FmtShort == 0
++	recur := flag&FmtShort == 0
+ 
+ 	var buf bytes.Buffer
+ 	if recur {
+@@ -1534,8 +1552,8 @@ func (s *Sym) String() string {
+ 
+ // Fmt "%S": syms
+ // Flags:  "%hS" suppresses qualifying with package
+-func Sconv(s *Sym, flag int) string {
+-	if flag&obj.FmtLong != 0 {
++func Sconv(s *Sym, flag FmtFlag) string {
++	if flag&FmtLong != 0 {
+ 		panic("linksymfmt")
+ 	}
+ 
+@@ -1560,7 +1578,7 @@ func (t *Type) String() string {
+ 	return Tconv(t, 0)
+ }
+ 
+-func Fldconv(f *Field, flag int) string {
++func Fldconv(f *Field, flag FmtFlag) string {
+ 	if f == nil {
+ 		return "<T>"
+ 	}
+@@ -1568,15 +1586,15 @@ func Fldconv(f *Field, flag int) string {
+ 	sf := flag
+ 	sm, sb := setfmode(&flag)
+ 
+-	if fmtmode == FTypeId && (sf&obj.FmtUnsigned != 0) {
++	if fmtmode == FTypeId && (sf&FmtUnsigned != 0) {
+ 		fmtpkgpfx++
+ 	}
+ 	if fmtpkgpfx != 0 {
+-		flag |= obj.FmtUnsigned
++		flag |= FmtUnsigned
+ 	}
+ 
+ 	var name string
+-	if flag&obj.FmtShort == 0 {
++	if flag&FmtShort == 0 {
+ 		s := f.Sym
+ 
+ 		// Take the name from the original, lest we substituted it with ~r%d or ~b%d.
+@@ -1599,8 +1617,8 @@ func Fldconv(f *Field, flag int) string {
+ 		if s != nil && f.Embedded == 0 {
+ 			if f.Funarg {
+ 				name = Nconv(f.Nname, 0)
+-			} else if flag&obj.FmtLong != 0 {
+-				name = Sconv(s, obj.FmtShort|obj.FmtByte) // qualify non-exported names (used on structs, not on funarg)
++			} else if flag&FmtLong != 0 {
++				name = Sconv(s, FmtShort|FmtByte) // qualify non-exported names (used on structs, not on funarg)
+ 			} else {
+ 				name = Sconv(s, 0)
+ 			}
+@@ -1635,11 +1653,11 @@ func Fldconv(f *Field, flag int) string {
+ 	// (The escape analysis tags do not apply to func vars.)
+ 	// But it must not suppress struct field tags.
+ 	// See golang.org/issue/13777 and golang.org/issue/14331.
+-	if flag&obj.FmtShort == 0 && (!fmtbody || !f.Funarg) && f.Note != nil {
++	if flag&FmtShort == 0 && (!fmtbody || !f.Funarg) && f.Note != nil {
+ 		str += " " + strconv.Quote(*f.Note)
+ 	}
+ 
+-	if fmtmode == FTypeId && (sf&obj.FmtUnsigned != 0) {
++	if fmtmode == FTypeId && (sf&FmtUnsigned != 0) {
+ 		fmtpkgpfx--
+ 	}
+ 
+@@ -1653,7 +1671,7 @@ func Fldconv(f *Field, flag int) string {
+ // Flags: 'l' print definition, not name
+ //	  'h' omit 'func' and receiver from function types, short type names
+ //	  'u' package name, not prefix (FTypeId mode, sticky)
+-func Tconv(t *Type, flag int) string {
++func Tconv(t *Type, flag FmtFlag) string {
+ 	if t == nil {
+ 		return "<T>"
+ 	}
+@@ -1666,16 +1684,16 @@ func Tconv(t *Type, flag int) string {
+ 	sf := flag
+ 	sm, sb := setfmode(&flag)
+ 
+-	if fmtmode == FTypeId && (sf&obj.FmtUnsigned != 0) {
++	if fmtmode == FTypeId && (sf&FmtUnsigned != 0) {
+ 		fmtpkgpfx++
+ 	}
+ 	if fmtpkgpfx != 0 {
+-		flag |= obj.FmtUnsigned
++		flag |= FmtUnsigned
+ 	}
+ 
+ 	str := typefmt(t, flag)
+ 
+-	if fmtmode == FTypeId && (sf&obj.FmtUnsigned != 0) {
++	if fmtmode == FTypeId && (sf&FmtUnsigned != 0) {
+ 		fmtpkgpfx--
+ 	}
+ 
+@@ -1693,7 +1711,7 @@ func (n *Node) String() string {
+ // Fmt '%N': Nodes.
+ // Flags: 'l' suffix with "(type %T)" where possible
+ //	  '+h' in debug mode, don't recurse, no multiline output
+-func Nconv(n *Node, flag int) string {
++func Nconv(n *Node, flag FmtFlag) string {
+ 	if n == nil {
+ 		return "<N>"
+ 	}
+@@ -1726,7 +1744,7 @@ func (n Nodes) String() string {
+ 
+ // Fmt '%H': Nodes.
+ // Flags: all those of %N plus ',': separate with comma's instead of semicolons.
+-func Hconv(l Nodes, flag int) string {
++func Hconv(l Nodes, flag FmtFlag) string {
+ 	if l.Len() == 0 && fmtmode == FDbg {
+ 		return "<nil>"
+ 	}
+@@ -1736,7 +1754,7 @@ func Hconv(l Nodes, flag int) string {
+ 	sep := "; "
+ 	if fmtmode == FDbg {
+ 		sep = "\n"
+-	} else if flag&obj.FmtComma != 0 {
++	} else if flag&FmtComma != 0 {
+ 		sep = ", "
+ 	}
+ 
+@@ -1755,9 +1773,9 @@ func Hconv(l Nodes, flag int) string {
+ }
+ 
+ func dumplist(s string, l Nodes) {
+-	fmt.Printf("%s%v\n", s, Hconv(l, obj.FmtSign))
++	fmt.Printf("%s%v\n", s, Hconv(l, FmtSign))
+ }
+ 
+ func Dump(s string, n *Node) {
+-	fmt.Printf("%s [%p]%v\n", s, n, Nconv(n, obj.FmtSign))
++	fmt.Printf("%s [%p]%v\n", s, n, Nconv(n, FmtSign))
+ }
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 8375318a95..2bae7885f5 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -638,7 +638,7 @@ func gen(n *Node) {
+ 
+ 	switch n.Op {
+ 	default:
+-		Fatalf("gen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
++		Fatalf("gen: unknown op %v", Nconv(n, FmtShort|FmtSign))
+ 
+ 	case OCASE,
+ 		OFALL,
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index e1217ce40f..efc48c76a1 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -425,7 +425,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		}
+ 		switch n.Val().Ctype() {
+ 		default:
+-			Fatalf("naddr: const %v", Tconv(n.Type, obj.FmtLong))
++			Fatalf("naddr: const %v", Tconv(n.Type, FmtLong))
+ 
+ 		case CTFLT:
+ 			a.Type = obj.TYPE_FCONST
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 984d61bec5..82e165e2dd 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -28,7 +28,6 @@
+ package gc
+ 
+ import (
+-	"cmd/internal/obj"
+ 	"fmt"
+ )
+ 
+@@ -43,7 +42,7 @@ func fnpkg(fn *Node) *Pkg {
+ 			rcvr = rcvr.Type
+ 		}
+ 		if rcvr.Sym == nil {
+-			Fatalf("receiver with no sym: [%v] %v  (%v)", fn.Sym, Nconv(fn, obj.FmtLong), rcvr)
++			Fatalf("receiver with no sym: [%v] %v  (%v)", fn.Sym, Nconv(fn, FmtLong), rcvr)
+ 		}
+ 		return rcvr.Sym.Pkg
+ 	}
+@@ -68,7 +67,7 @@ func typecheckinl(fn *Node) {
+ 	}
+ 
+ 	if Debug['m'] > 2 {
+-		fmt.Printf("typecheck import [%v] %v { %v }\n", fn.Sym, Nconv(fn, obj.FmtLong), Hconv(fn.Func.Inl, obj.FmtSharp))
++		fmt.Printf("typecheck import [%v] %v { %v }\n", fn.Sym, Nconv(fn, FmtLong), Hconv(fn.Func.Inl, FmtSharp))
+ 	}
+ 
+ 	save_safemode := safemode
+@@ -92,7 +91,7 @@ func caninl(fn *Node) {
+ 		Fatalf("caninl %v", fn)
+ 	}
+ 	if fn.Func.Nname == nil {
+-		Fatalf("caninl no nname %v", Nconv(fn, obj.FmtSign))
++		Fatalf("caninl no nname %v", Nconv(fn, FmtSign))
+ 	}
+ 
+ 	// If marked "go:noinline", don't inline
+@@ -148,7 +147,7 @@ func caninl(fn *Node) {
+ 	fn.Type.Nname = fn.Func.Nname
+ 
+ 	if Debug['m'] > 1 {
+-		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(fn.Func.Nname, obj.FmtSharp), Tconv(fn.Type, obj.FmtSharp), Hconv(fn.Func.Nname.Func.Inl, obj.FmtSharp))
++		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(fn.Func.Nname, FmtSharp), Tconv(fn.Type, FmtSharp), Hconv(fn.Func.Nname.Func.Inl, FmtSharp))
+ 	} else if Debug['m'] != 0 {
+ 		fmt.Printf("%v: can inline %v\n", fn.Line(), fn.Func.Nname)
+ 	}
+@@ -191,10 +190,10 @@ func ishairy(n *Node, budget *int) bool {
+ 	// Call is okay if inlinable and we have the budget for the body.
+ 	case OCALLMETH:
+ 		if n.Left.Type == nil {
+-			Fatalf("no function type for [%p] %v\n", n.Left, Nconv(n.Left, obj.FmtSign))
++			Fatalf("no function type for [%p] %v\n", n.Left, Nconv(n.Left, FmtSign))
+ 		}
+ 		if n.Left.Type.Nname == nil {
+-			Fatalf("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, obj.FmtSign))
++			Fatalf("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, FmtSign))
+ 		}
+ 		if len(n.Left.Type.Nname.Func.Inl.Slice()) != 0 {
+ 			*budget -= int(n.Left.Type.Nname.Func.InlCost)
+@@ -303,7 +302,7 @@ func inlconv2expr(np **Node) {
+ // statements.
+ func inlconv2list(n *Node) []*Node {
+ 	if n.Op != OINLCALL || n.Rlist.Len() == 0 {
+-		Fatalf("inlconv2list %v\n", Nconv(n, obj.FmtSign))
++		Fatalf("inlconv2list %v\n", Nconv(n, FmtSign))
+ 	}
+ 
+ 	s := n.Rlist.Slice()
+@@ -453,7 +452,7 @@ func inlnode(np **Node) {
+ 	switch n.Op {
+ 	case OCALLFUNC:
+ 		if Debug['m'] > 3 {
+-			fmt.Printf("%v:call to func %v\n", n.Line(), Nconv(n.Left, obj.FmtSign))
++			fmt.Printf("%v:call to func %v\n", n.Line(), Nconv(n.Left, FmtSign))
+ 		}
+ 		if n.Left.Func != nil && len(n.Left.Func.Inl.Slice()) != 0 { // normal case
+ 			mkinlcall(np, n.Left, n.Isddd)
+@@ -465,16 +464,16 @@ func inlnode(np **Node) {
+ 
+ 	case OCALLMETH:
+ 		if Debug['m'] > 3 {
+-			fmt.Printf("%v:call to meth %v\n", n.Line(), Nconv(n.Left.Right, obj.FmtLong))
++			fmt.Printf("%v:call to meth %v\n", n.Line(), Nconv(n.Left.Right, FmtLong))
+ 		}
+ 
+ 		// typecheck should have resolved ODOTMETH->type, whose nname points to the actual function.
+ 		if n.Left.Type == nil {
+-			Fatalf("no function type for [%p] %v\n", n.Left, Nconv(n.Left, obj.FmtSign))
++			Fatalf("no function type for [%p] %v\n", n.Left, Nconv(n.Left, FmtSign))
+ 		}
+ 
+ 		if n.Left.Type.Nname == nil {
+-			Fatalf("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, obj.FmtSign))
++			Fatalf("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, FmtSign))
+ 		}
+ 
+ 		mkinlcall(np, n.Left.Type.Nname, n.Isddd)
+@@ -533,13 +532,13 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 
+ 	// Bingo, we have a function node, and it has an inlineable body
+ 	if Debug['m'] > 1 {
+-		fmt.Printf("%v: inlining call to %v %v { %v }\n", n.Line(), fn.Sym, Tconv(fn.Type, obj.FmtSharp), Hconv(fn.Func.Inl, obj.FmtSharp))
++		fmt.Printf("%v: inlining call to %v %v { %v }\n", n.Line(), fn.Sym, Tconv(fn.Type, FmtSharp), Hconv(fn.Func.Inl, FmtSharp))
+ 	} else if Debug['m'] != 0 {
+ 		fmt.Printf("%v: inlining call to %v\n", n.Line(), fn)
+ 	}
+ 
+ 	if Debug['m'] > 2 {
+-		fmt.Printf("%v: Before inlining: %v\n", n.Line(), Nconv(n, obj.FmtSign))
++		fmt.Printf("%v: Before inlining: %v\n", n.Line(), Nconv(n, FmtSign))
+ 	}
+ 
+ 	ninit := n.Ninit
+@@ -601,10 +600,10 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 			Fatalf("missing inlvar for %v\n", t.Nname)
+ 		}
+ 		if n.Left.Left == nil {
+-			Fatalf("method call without receiver: %v", Nconv(n, obj.FmtSign))
++			Fatalf("method call without receiver: %v", Nconv(n, FmtSign))
+ 		}
+ 		if t == nil {
+-			Fatalf("method call unknown receiver type: %v", Nconv(n, obj.FmtSign))
++			Fatalf("method call unknown receiver type: %v", Nconv(n, FmtSign))
+ 		}
+ 		as := Nod(OAS, tinlvar(t), n.Left.Left)
+ 		if as != nil {
+@@ -660,7 +659,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	if fn.Type.Thistuple != 0 && n.Left.Op != ODOTMETH {
+ 		// non-method call to method
+ 		if n.List.Len() == 0 {
+-			Fatalf("non-method call to method without first arg: %v", Nconv(n, obj.FmtSign))
++			Fatalf("non-method call to method without first arg: %v", Nconv(n, FmtSign))
+ 		}
+ 
+ 		// append receiver inlvar to LHS.
+@@ -670,7 +669,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 			Fatalf("missing inlvar for %v\n", t.Nname)
+ 		}
+ 		if t == nil {
+-			Fatalf("method call unknown receiver type: %v", Nconv(n, obj.FmtSign))
++			Fatalf("method call unknown receiver type: %v", Nconv(n, FmtSign))
+ 		}
+ 		as.List.Append(tinlvar(t))
+ 		li++
+@@ -730,7 +729,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 		}
+ 
+ 		if li < n.List.Len() || t != nil {
+-			Fatalf("arg count mismatch: %v  vs %v\n", Tconv(fn.Type.Params(), obj.FmtSharp), Hconv(n.List, obj.FmtComma))
++			Fatalf("arg count mismatch: %v  vs %v\n", Tconv(fn.Type.Params(), FmtSharp), Hconv(n.List, FmtComma))
+ 		}
+ 	}
+ 
+@@ -821,7 +820,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	fn.Func.Inl.Set(body)
+ 
+ 	if Debug['m'] > 2 {
+-		fmt.Printf("%v: After inlining %v\n\n", n.Line(), Nconv(*np, obj.FmtSign))
++		fmt.Printf("%v: After inlining %v\n\n", n.Line(), Nconv(*np, FmtSign))
+ 	}
+ }
+ 
+@@ -830,7 +829,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ // PPARAM's, PAUTOS and PPARAMOUTs of the called function.
+ func inlvar(var_ *Node) *Node {
+ 	if Debug['m'] > 3 {
+-		fmt.Printf("inlvar %v\n", Nconv(var_, obj.FmtSign))
++		fmt.Printf("inlvar %v\n", Nconv(var_, FmtSign))
+ 	}
+ 
+ 	n := newname(var_.Sym)
+@@ -915,13 +914,13 @@ func (subst *inlsubst) node(n *Node) *Node {
+ 	case ONAME:
+ 		if n.Name.Inlvar != nil { // These will be set during inlnode
+ 			if Debug['m'] > 2 {
+-				fmt.Printf("substituting name %v  ->  %v\n", Nconv(n, obj.FmtSign), Nconv(n.Name.Inlvar, obj.FmtSign))
++				fmt.Printf("substituting name %v  ->  %v\n", Nconv(n, FmtSign), Nconv(n.Name.Inlvar, FmtSign))
+ 			}
+ 			return n.Name.Inlvar
+ 		}
+ 
+ 		if Debug['m'] > 2 {
+-			fmt.Printf("not substituting name %v\n", Nconv(n, obj.FmtSign))
++			fmt.Printf("not substituting name %v\n", Nconv(n, FmtSign))
+ 		}
+ 		return n
+ 
+@@ -971,7 +970,7 @@ func (subst *inlsubst) node(n *Node) *Node {
+ 	m.Ninit.Set(nil)
+ 
+ 	if n.Op == OCLOSURE {
+-		Fatalf("cannot inline function containing closure: %v", Nconv(n, obj.FmtSign))
++		Fatalf("cannot inline function containing closure: %v", Nconv(n, FmtSign))
+ 	}
+ 
+ 	m.Left = subst.node(n.Left)
+diff --git a/src/cmd/compile/internal/gc/mpfloat.go b/src/cmd/compile/internal/gc/mpfloat.go
+index 48aa1efc6d..4afd7e6802 100644
+--- a/src/cmd/compile/internal/gc/mpfloat.go
++++ b/src/cmd/compile/internal/gc/mpfloat.go
+@@ -6,7 +6,6 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/big"
+-	"cmd/internal/obj"
+ 	"fmt"
+ 	"math"
+ )
+@@ -209,8 +208,8 @@ func (f *Mpflt) String() string {
+ 	return Fconv(f, 0)
+ }
+ 
+-func Fconv(fvp *Mpflt, flag int) string {
+-	if flag&obj.FmtSharp == 0 {
++func Fconv(fvp *Mpflt, flag FmtFlag) string {
++	if flag&FmtSharp == 0 {
+ 		return fvp.Val.Text('b', 0)
+ 	}
+ 
+@@ -222,7 +221,7 @@ func Fconv(fvp *Mpflt, flag int) string {
+ 	if f.Sign() < 0 {
+ 		sign = "-"
+ 		f = new(big.Float).Abs(f)
+-	} else if flag&obj.FmtSign != 0 {
++	} else if flag&FmtSign != 0 {
+ 		sign = "+"
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/mpint.go b/src/cmd/compile/internal/gc/mpint.go
+index c2f1884b85..3853097e78 100644
+--- a/src/cmd/compile/internal/gc/mpint.go
++++ b/src/cmd/compile/internal/gc/mpint.go
+@@ -6,7 +6,6 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/big"
+-	"cmd/internal/obj"
+ 	"fmt"
+ )
+ 
+@@ -309,8 +308,8 @@ func (x *Mpint) String() string {
+ 	return Bconv(x, 0)
+ }
+ 
+-func Bconv(xval *Mpint, flag int) string {
+-	if flag&obj.FmtSharp != 0 {
++func Bconv(xval *Mpint, flag FmtFlag) string {
++	if flag&FmtSharp != 0 {
+ 		return fmt.Sprintf("%#x", &xval.Val)
+ 	}
+ 	return xval.Val.String()
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index d138e1057b..d5145def8e 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -90,7 +90,7 @@ func gvardefx(n *Node, as obj.As) {
+ 		Fatalf("gvardef nil")
+ 	}
+ 	if n.Op != ONAME {
+-		Yyerror("gvardef %v; %v", Oconv(n.Op, obj.FmtSharp), n)
++		Yyerror("gvardef %v; %v", Oconv(n.Op, FmtSharp), n)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 47987b4ce4..f7f51126fb 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1241,7 +1241,7 @@ func livenessepilogue(lv *Liveness) {
+ 						if !n.Name.Needzero {
+ 							n.Name.Needzero = true
+ 							if debuglive >= 1 {
+-								Warnl(p.Lineno, "%v: %v is ambiguously live", Curfn.Func.Nname, Nconv(n, obj.FmtLong))
++								Warnl(p.Lineno, "%v: %v is ambiguously live", Curfn.Func.Nname, Nconv(n, FmtLong))
+ 							}
+ 
+ 							// Record in 'ambiguous' bitmap.
+@@ -1337,7 +1337,7 @@ func livenessepilogue(lv *Liveness) {
+ 						}
+ 						n := lv.vars[j]
+ 						if n.Class != PPARAM {
+-							yyerrorl(p.Lineno, "internal error: %v %v recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, Nconv(n, obj.FmtLong), p.Pc)
++							yyerrorl(p.Lineno, "internal error: %v %v recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, Nconv(n, FmtLong), p.Pc)
+ 						}
+ 					}
+ 				}
+diff --git a/src/cmd/compile/internal/gc/popt.go b/src/cmd/compile/internal/gc/popt.go
+index 64136e0ea7..41f8ba9fcc 100644
+--- a/src/cmd/compile/internal/gc/popt.go
++++ b/src/cmd/compile/internal/gc/popt.go
+@@ -718,7 +718,7 @@ func mergetemp(firstp *obj.Prog) {
+ 	nfree := len(bystart)
+ 	for _, v := range bystart {
+ 		if debugmerge > 0 && Debug['v'] != 0 {
+-			fmt.Printf("consider %v: removed=%t\n", Nconv(v.node, obj.FmtSharp), v.removed)
++			fmt.Printf("consider %v: removed=%t\n", Nconv(v.node, FmtSharp), v.removed)
+ 		}
+ 
+ 		if v.removed {
+@@ -733,7 +733,7 @@ func mergetemp(firstp *obj.Prog) {
+ 		}
+ 
+ 		if debugmerge > 0 && Debug['v'] != 0 {
+-			fmt.Printf("consider %v: removed=%t nfree=%d nvar=%d\n", Nconv(v.node, obj.FmtSharp), v.removed, nfree, len(bystart))
++			fmt.Printf("consider %v: removed=%t nfree=%d nvar=%d\n", Nconv(v.node, FmtSharp), v.removed, nfree, len(bystart))
+ 		}
+ 
+ 		// Find old temp to reuse if possible.
+@@ -742,7 +742,7 @@ func mergetemp(firstp *obj.Prog) {
+ 		for j := nfree; j < len(inuse); j++ {
+ 			v1 := inuse[j]
+ 			if debugmerge > 0 && Debug['v'] != 0 {
+-				fmt.Printf("consider %v: maybe %v: type=%v,%v addrtaken=%v,%v\n", Nconv(v.node, obj.FmtSharp), Nconv(v1.node, obj.FmtSharp), t, v1.node.Type, v.node.Addrtaken, v1.node.Addrtaken)
++				fmt.Printf("consider %v: maybe %v: type=%v,%v addrtaken=%v,%v\n", Nconv(v.node, FmtSharp), Nconv(v1.node, FmtSharp), t, v1.node.Type, v.node.Addrtaken, v1.node.Addrtaken)
+ 			}
+ 
+ 			// Require the types to match but also require the addrtaken bits to match.
+@@ -778,7 +778,7 @@ func mergetemp(firstp *obj.Prog) {
+ 	if debugmerge > 0 && Debug['v'] != 0 {
+ 		fmt.Printf("%v [%d - %d]\n", Curfn.Func.Nname.Sym, len(vars), nkill)
+ 		for _, v := range vars {
+-			fmt.Printf("var %v %v %d-%d", Nconv(v.node, obj.FmtSharp), v.node.Type, v.start, v.end)
++			fmt.Printf("var %v %v %d-%d", Nconv(v.node, FmtSharp), v.node.Type, v.start, v.end)
+ 			if v.addr {
+ 				fmt.Printf(" addr=true")
+ 			}
+@@ -786,7 +786,7 @@ func mergetemp(firstp *obj.Prog) {
+ 				fmt.Printf(" removed=true")
+ 			}
+ 			if v.merge != nil {
+-				fmt.Printf(" merge %v", Nconv(v.merge.node, obj.FmtSharp))
++				fmt.Printf(" merge %v", Nconv(v.merge.node, FmtSharp))
+ 			}
+ 			if v.start == v.end && v.def != nil {
+ 				fmt.Printf(" %v", v.def.Prog)
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 1459b7a477..28c689650f 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -4,8 +4,6 @@
+ 
+ package gc
+ 
+-import "cmd/internal/obj"
+-
+ // range
+ func typecheckrange(n *Node) {
+ 	var toomany int
+@@ -48,7 +46,7 @@ func typecheckrange(n *Node) {
+ 	toomany = 0
+ 	switch t.Etype {
+ 	default:
+-		Yyerror("cannot range over %v", Nconv(n.Right, obj.FmtLong))
++		Yyerror("cannot range over %v", Nconv(n.Right, FmtLong))
+ 		goto out
+ 
+ 	case TARRAY:
+@@ -104,7 +102,7 @@ func typecheckrange(n *Node) {
+ 		if v1.Name != nil && v1.Name.Defn == n {
+ 			v1.Type = t1
+ 		} else if v1.Type != nil && assignop(t1, v1.Type, &why) == 0 {
+-			Yyerror("cannot assign type %v to %v in range%s", t1, Nconv(v1, obj.FmtLong), why)
++			Yyerror("cannot assign type %v to %v in range%s", t1, Nconv(v1, FmtLong), why)
+ 		}
+ 		checkassign(n, v1)
+ 	}
+@@ -113,7 +111,7 @@ func typecheckrange(n *Node) {
+ 		if v2.Name != nil && v2.Name.Defn == n {
+ 			v2.Type = t2
+ 		} else if v2.Type != nil && assignop(t2, v2.Type, &why) == 0 {
+-			Yyerror("cannot assign type %v to %v in range%s", t2, Nconv(v2, obj.FmtLong), why)
++			Yyerror("cannot assign type %v to %v in range%s", t2, Nconv(v2, FmtLong), why)
+ 		}
+ 		checkassign(n, v2)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index dda876d65f..e72fa4fdcd 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -757,7 +757,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	}
+ 	ot = dsymptr(s, ot, gcsym, 0) // gcdata
+ 
+-	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned)
++	p := Tconv(t, FmtLeft|FmtUnsigned)
+ 
+ 	// If we're writing out type T,
+ 	// we are very likely to write out type *T as well.
+@@ -777,13 +777,13 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ }
+ 
+ func typesym(t *Type) *Sym {
+-	return Pkglookup(Tconv(t, obj.FmtLeft), typepkg)
++	return Pkglookup(Tconv(t, FmtLeft), typepkg)
+ }
+ 
+ // tracksym returns the symbol for tracking use of field/method f, assumed
+ // to be a member of struct/interface type t.
+ func tracksym(t *Type, f *Field) *Sym {
+-	return Pkglookup(Tconv(t, obj.FmtLeft)+"."+f.Sym.Name, trackpkg)
++	return Pkglookup(Tconv(t, FmtLeft)+"."+f.Sym.Name, trackpkg)
+ }
+ 
+ func typelinksym(t *Type) *Sym {
+@@ -796,7 +796,7 @@ func typelinksym(t *Type) *Sym {
+ 	// ensure the types appear sorted by their string field. The
+ 	// names are a little long but they are discarded by the linker
+ 	// and do not end up in the symbol table of the final binary.
+-	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned) + "\t" + Tconv(t, obj.FmtLeft)
++	p := Tconv(t, FmtLeft|FmtUnsigned) + "\t" + Tconv(t, FmtLeft)
+ 
+ 	s := Pkglookup(p, typelinkpkg)
+ 
+@@ -806,7 +806,7 @@ func typelinksym(t *Type) *Sym {
+ }
+ 
+ func typesymprefix(prefix string, t *Type) *Sym {
+-	p := prefix + "." + Tconv(t, obj.FmtLeft)
++	p := prefix + "." + Tconv(t, FmtLeft)
+ 	s := Pkglookup(p, typepkg)
+ 
+ 	//print("algsym: %s -> %+S\n", p, s);
+diff --git a/src/cmd/compile/internal/gc/reg.go b/src/cmd/compile/internal/gc/reg.go
+index 09cf7f59a7..39eaa28667 100644
+--- a/src/cmd/compile/internal/gc/reg.go
++++ b/src/cmd/compile/internal/gc/reg.go
+@@ -392,10 +392,10 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
+ 
+ 	if nvar >= NVAR {
+ 		if Debug['w'] > 1 && node != nil {
+-			Fatalf("variable not optimized: %v", Nconv(node, obj.FmtSharp))
++			Fatalf("variable not optimized: %v", Nconv(node, FmtSharp))
+ 		}
+ 		if Debug['v'] > 0 {
+-			Warn("variable not optimized: %v", Nconv(node, obj.FmtSharp))
++			Warn("variable not optimized: %v", Nconv(node, FmtSharp))
+ 		}
+ 
+ 		// If we're not tracking a word in a variable, mark the rest as
+@@ -487,7 +487,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
+ 	}
+ 
+ 	if Debug['R'] != 0 {
+-		fmt.Printf("bit=%2d et=%v w=%d+%d %v %v flag=%d\n", i, Econv(et), o, w, Nconv(node, obj.FmtSharp), Ctxt.Dconv(a), v.addr)
++		fmt.Printf("bit=%2d et=%v w=%d+%d %v %v flag=%d\n", i, Econv(et), o, w, Nconv(node, FmtSharp), Ctxt.Dconv(a), v.addr)
+ 	}
+ 	Ostats.Nvar++
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 914239fcd2..ac93478fc5 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -5,7 +5,6 @@
+ package gc
+ 
+ import (
+-	"cmd/internal/obj"
+ 	"fmt"
+ )
+ 
+@@ -202,7 +201,7 @@ func init2(n *Node, out *[]*Node) {
+ 	}
+ 
+ 	if n.Op == ONAME && n.Ninit.Len() != 0 {
+-		Fatalf("name %v with ninit: %v\n", n.Sym, Nconv(n, obj.FmtSign))
++		Fatalf("name %v with ninit: %v\n", n.Sym, Nconv(n, FmtSign))
+ 	}
+ 
+ 	init1(n, out)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index df9702a59a..88ca06903c 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -839,11 +839,11 @@ func assignop(src *Type, dst *Type, why *string) Op {
+ 			} else if have != nil && have.Sym == missing.Sym && have.Nointerface {
+ 				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
+ 			} else if have != nil && have.Sym == missing.Sym {
+-				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", src, dst, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort|obj.FmtByte), missing.Sym, Tconv(missing.Type, obj.FmtShort|obj.FmtByte))
++				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", src, dst, missing.Sym, have.Sym, Tconv(have.Type, FmtShort|FmtByte), missing.Sym, Tconv(missing.Type, FmtShort|FmtByte))
+ 			} else if ptr != 0 {
+ 				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", src, dst, missing.Sym)
+ 			} else if have != nil {
+-				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", src, dst, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort|obj.FmtByte), missing.Sym, Tconv(missing.Type, obj.FmtShort|obj.FmtByte))
++				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", src, dst, missing.Sym, have.Sym, Tconv(have.Type, FmtShort|FmtByte), missing.Sym, Tconv(missing.Type, FmtShort|FmtByte))
+ 			} else {
+ 				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)", src, dst, missing.Sym)
+ 			}
+@@ -1047,7 +1047,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
+ 	var why string
+ 	op := assignop(n.Type, t, &why)
+ 	if op == 0 {
+-		Yyerror("cannot use %v as type %v in %s%s", Nconv(n, obj.FmtLong), t, context(), why)
++		Yyerror("cannot use %v as type %v in %s%s", Nconv(n, FmtLong), t, context(), why)
+ 		op = OCONV
+ 	}
+ 
+@@ -1234,10 +1234,10 @@ func typehash(t *Type) uint32 {
+ 		// hide method receiver from Tpretty
+ 		t.Thistuple = 0
+ 
+-		p = Tconv(t, obj.FmtLeft|obj.FmtUnsigned)
++		p = Tconv(t, FmtLeft|FmtUnsigned)
+ 		t.Thistuple = 1
+ 	} else {
+-		p = Tconv(t, obj.FmtLeft|obj.FmtUnsigned)
++		p = Tconv(t, FmtLeft|FmtUnsigned)
+ 	}
+ 
+ 	//print("typehash: %s\n", p);
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index d87dc7cc75..2f07988187 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -5,7 +5,6 @@
+ package gc
+ 
+ import (
+-	"cmd/internal/obj"
+ 	"sort"
+ 	"strconv"
+ )
+@@ -71,7 +70,7 @@ func typecheckswitch(n *Node) {
+ 		typecheck(&n.Left.Right, Erv)
+ 		t = n.Left.Right.Type
+ 		if t != nil && t.Etype != TINTER {
+-			Yyerror("cannot type switch on non-interface value %v", Nconv(n.Left.Right, obj.FmtLong))
++			Yyerror("cannot type switch on non-interface value %v", Nconv(n.Left.Right, FmtLong))
+ 		}
+ 	} else {
+ 		// expression switch
+@@ -87,13 +86,13 @@ func typecheckswitch(n *Node) {
+ 			var badtype *Type
+ 			switch {
+ 			case !okforeq[t.Etype]:
+-				Yyerror("cannot switch on %v", Nconv(n.Left, obj.FmtLong))
++				Yyerror("cannot switch on %v", Nconv(n.Left, FmtLong))
+ 			case t.Etype == TARRAY && !Isfixedarray(t):
+ 				nilonly = "slice"
+ 			case t.Etype == TARRAY && Isfixedarray(t) && algtype1(t, nil) == ANOEQ:
+-				Yyerror("cannot switch on %v", Nconv(n.Left, obj.FmtLong))
++				Yyerror("cannot switch on %v", Nconv(n.Left, FmtLong))
+ 			case t.Etype == TSTRUCT && algtype1(t, &badtype) == ANOEQ:
+-				Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Left, obj.FmtLong), badtype)
++				Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Left, FmtLong), badtype)
+ 			case t.Etype == TFUNC:
+ 				nilonly = "func"
+ 			case t.Etype == TMAP:
+@@ -141,7 +140,7 @@ func typecheckswitch(n *Node) {
+ 					case nilonly != "" && !isnil(n1):
+ 						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
+ 					case Isinter(t) && !Isinter(n1.Type) && algtype1(n1.Type, nil) == ANOEQ:
+-						Yyerror("invalid case %v in switch (incomparable type)", Nconv(n1, obj.FmtLong))
++						Yyerror("invalid case %v in switch (incomparable type)", Nconv(n1, FmtLong))
+ 					}
+ 
+ 				// type switch
+@@ -151,15 +150,15 @@ func typecheckswitch(n *Node) {
+ 					switch {
+ 					case n1.Op == OLITERAL && Istype(n1.Type, TNIL):
+ 					case n1.Op != OTYPE && n1.Type != nil: // should this be ||?
+-						Yyerror("%v is not a type", Nconv(n1, obj.FmtLong))
++						Yyerror("%v is not a type", Nconv(n1, FmtLong))
+ 						// reset to original type
+ 						n1 = n.Left.Right
+ 						ls[i1] = n1
+ 					case n1.Type.Etype != TINTER && t.Etype == TINTER && !implements(n1.Type, t, &missing, &have, &ptr):
+ 						if have != nil && !missing.Broke && !have.Broke {
+-							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, obj.FmtLong), n1.Type, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort), missing.Sym, Tconv(missing.Type, obj.FmtShort))
++							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, FmtLong), n1.Type, missing.Sym, have.Sym, Tconv(have.Type, FmtShort), missing.Sym, Tconv(missing.Type, FmtShort))
+ 						} else if !missing.Broke {
+-							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Left.Right, obj.FmtLong), n1.Type, missing.Sym)
++							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Left.Right, FmtLong), n1.Type, missing.Sym)
+ 						}
+ 					}
+ 				}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index cf3cadbe77..da2f695d3e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -475,7 +475,7 @@ OpSwitch:
+ 
+ 		if !Isptr[t.Etype] {
+ 			if top&(Erv|Etop) != 0 {
+-				Yyerror("invalid indirect of %v", Nconv(n.Left, obj.FmtLong))
++				Yyerror("invalid indirect of %v", Nconv(n.Left, FmtLong))
+ 				n.Type = nil
+ 				return
+ 			}
+@@ -846,7 +846,7 @@ OpSwitch:
+ 			}
+ 
+ 			if n.Type.Etype != TFUNC || n.Type.Thistuple != 1 {
+-				Yyerror("type %v has no method %v", n.Left.Type, Sconv(n.Right.Sym, obj.FmtShort))
++				Yyerror("type %v has no method %v", n.Left.Type, Sconv(n.Right.Sym, FmtShort))
+ 				n.Type = nil
+ 				n.Type = nil
+ 				return
+@@ -950,11 +950,11 @@ OpSwitch:
+ 			var ptr int
+ 			if !implements(n.Type, t, &missing, &have, &ptr) {
+ 				if have != nil && have.Sym == missing.Sym {
+-					Yyerror("impossible type assertion:\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", n.Type, t, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort|obj.FmtByte), missing.Sym, Tconv(missing.Type, obj.FmtShort|obj.FmtByte))
++					Yyerror("impossible type assertion:\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", n.Type, t, missing.Sym, have.Sym, Tconv(have.Type, FmtShort|FmtByte), missing.Sym, Tconv(missing.Type, FmtShort|FmtByte))
+ 				} else if ptr != 0 {
+ 					Yyerror("impossible type assertion:\n\t%v does not implement %v (%v method has pointer receiver)", n.Type, t, missing.Sym)
+ 				} else if have != nil {
+-					Yyerror("impossible type assertion:\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", n.Type, t, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort|obj.FmtByte), missing.Sym, Tconv(missing.Type, obj.FmtShort|obj.FmtByte))
++					Yyerror("impossible type assertion:\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", n.Type, t, missing.Sym, have.Sym, Tconv(have.Type, FmtShort|FmtByte), missing.Sym, Tconv(missing.Type, FmtShort|FmtByte))
+ 				} else {
+ 					Yyerror("impossible type assertion:\n\t%v does not implement %v (missing %v method)", n.Type, t, missing.Sym)
+ 				}
+@@ -1428,7 +1428,7 @@ OpSwitch:
+ 		break OpSwitch
+ 
+ 	badcall1:
+-		Yyerror("invalid argument %v for %v", Nconv(n.Left, obj.FmtLong), Oconv(n.Op, 0))
++		Yyerror("invalid argument %v for %v", Nconv(n.Left, FmtLong), Oconv(n.Op, 0))
+ 		n.Type = nil
+ 		return
+ 
+@@ -1561,7 +1561,7 @@ OpSwitch:
+ 		l := args.First()
+ 		r := args.Second()
+ 		if l.Type != nil && l.Type.Etype != TMAP {
+-			Yyerror("first argument to delete must be map; have %v", Tconv(l.Type, obj.FmtLong))
++			Yyerror("first argument to delete must be map; have %v", Tconv(l.Type, FmtLong))
+ 			n.Type = nil
+ 			return
+ 		}
+@@ -1605,7 +1605,7 @@ OpSwitch:
+ 				return
+ 			}
+ 
+-			Yyerror("first argument to append must be slice; have %v", Tconv(t, obj.FmtLong))
++			Yyerror("first argument to append must be slice; have %v", Tconv(t, FmtLong))
+ 			n.Type = nil
+ 			return
+ 		}
+@@ -1688,25 +1688,25 @@ OpSwitch:
+ 			if Eqtype(n.Left.Type.Type, bytetype) {
+ 				break OpSwitch
+ 			}
+-			Yyerror("arguments to copy have different element types: %v and string", Tconv(n.Left.Type, obj.FmtLong))
++			Yyerror("arguments to copy have different element types: %v and string", Tconv(n.Left.Type, FmtLong))
+ 			n.Type = nil
+ 			return
+ 		}
+ 
+ 		if !Isslice(n.Left.Type) || !Isslice(n.Right.Type) {
+ 			if !Isslice(n.Left.Type) && !Isslice(n.Right.Type) {
+-				Yyerror("arguments to copy must be slices; have %v, %v", Tconv(n.Left.Type, obj.FmtLong), Tconv(n.Right.Type, obj.FmtLong))
++				Yyerror("arguments to copy must be slices; have %v, %v", Tconv(n.Left.Type, FmtLong), Tconv(n.Right.Type, FmtLong))
+ 			} else if !Isslice(n.Left.Type) {
+-				Yyerror("first argument to copy should be slice; have %v", Tconv(n.Left.Type, obj.FmtLong))
++				Yyerror("first argument to copy should be slice; have %v", Tconv(n.Left.Type, FmtLong))
+ 			} else {
+-				Yyerror("second argument to copy should be slice or string; have %v", Tconv(n.Right.Type, obj.FmtLong))
++				Yyerror("second argument to copy should be slice or string; have %v", Tconv(n.Right.Type, FmtLong))
+ 			}
+ 			n.Type = nil
+ 			return
+ 		}
+ 
+ 		if !Eqtype(n.Left.Type.Type, n.Right.Type.Type) {
+-			Yyerror("arguments to copy have different element types: %v and %v", Tconv(n.Left.Type, obj.FmtLong), Tconv(n.Right.Type, obj.FmtLong))
++			Yyerror("arguments to copy have different element types: %v and %v", Tconv(n.Left.Type, FmtLong), Tconv(n.Right.Type, FmtLong))
+ 			n.Type = nil
+ 			return
+ 		}
+@@ -1727,7 +1727,7 @@ OpSwitch:
+ 		n.Op = convertop(t, n.Type, &why)
+ 		if n.Op == 0 {
+ 			if n.Diag == 0 && !n.Type.Broke {
+-				Yyerror("cannot convert %v to type %v%s", Nconv(n.Left, obj.FmtLong), n.Type, why)
++				Yyerror("cannot convert %v to type %v%s", Nconv(n.Left, FmtLong), n.Type, why)
+ 				n.Diag = 1
+ 			}
+ 
+@@ -2053,7 +2053,7 @@ OpSwitch:
+ 		if n.Left != nil {
+ 			t := n.Left.Type
+ 			if t != nil && t.Etype != TBOOL {
+-				Yyerror("non-bool %v used as for condition", Nconv(n.Left, obj.FmtLong))
++				Yyerror("non-bool %v used as for condition", Nconv(n.Left, FmtLong))
+ 			}
+ 		}
+ 		typecheck(&n.Right, Etop)
+@@ -2068,7 +2068,7 @@ OpSwitch:
+ 		if n.Left != nil {
+ 			t := n.Left.Type
+ 			if t != nil && t.Etype != TBOOL {
+-				Yyerror("non-bool %v used as if condition", Nconv(n.Left, obj.FmtLong))
++				Yyerror("non-bool %v used as if condition", Nconv(n.Left, FmtLong))
+ 			}
+ 		}
+ 		typechecklist(n.Nbody.Slice(), Etop)
+@@ -2422,7 +2422,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+ 
+ 	// disallow T.m if m requires *T receiver
+ 	if Isptr[f2.Type.Recv().Type.Etype] && !Isptr[t.Etype] && f2.Embedded != 2 && !isifacemethod(f2.Type) {
+-		Yyerror("invalid method expression %v (needs pointer receiver: (*%v).%v)", n, t, Sconv(f2.Sym, obj.FmtShort))
++		Yyerror("invalid method expression %v (needs pointer receiver: (*%v).%v)", n, t, Sconv(f2.Sym, FmtShort))
+ 		return false
+ 	}
+ 
+@@ -2516,7 +2516,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 				n.Left.Implicit = true
+ 				typecheck(&n.Left, Etype|Erv)
+ 			} else if tt.Etype == Tptr && tt.Type.Etype == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
+-				Yyerror("calling method %v with receiver %v requires explicit dereference", n.Right, Nconv(n.Left, obj.FmtLong))
++				Yyerror("calling method %v with receiver %v requires explicit dereference", n.Right, Nconv(n.Left, FmtLong))
+ 				for tt.Etype == Tptr {
+ 					// Stop one level early for method with pointer receiver.
+ 					if rcvr.Etype == Tptr && tt.Type.Etype != Tptr {
+@@ -3288,7 +3288,7 @@ func checkassignto(src *Type, dst *Node) {
+ 	var why string
+ 
+ 	if assignop(src, dst.Type, &why) == 0 {
+-		Yyerror("cannot assign %v to %v in multiple assignment%s", src, Nconv(dst, obj.FmtLong), why)
++		Yyerror("cannot assign %v to %v in multiple assignment%s", src, Nconv(dst, FmtLong), why)
+ 		return
+ 	}
+ }
+@@ -3709,7 +3709,7 @@ func typecheckdef(n *Node) *Node {
+ 			}
+ 
+ 			if !isideal(e.Type) && !Eqtype(t, e.Type) {
+-				Yyerror("cannot use %v as type %v in const initializer", Nconv(e, obj.FmtLong), t)
++				Yyerror("cannot use %v as type %v in const initializer", Nconv(e, FmtLong), t)
+ 				goto ret
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/gc/unsafe.go b/src/cmd/compile/internal/gc/unsafe.go
+index f69f6f35f0..a1a81e7a1c 100644
+--- a/src/cmd/compile/internal/gc/unsafe.go
++++ b/src/cmd/compile/internal/gc/unsafe.go
+@@ -4,8 +4,6 @@
+ 
+ package gc
+ 
+-import "cmd/internal/obj"
+-
+ // unsafenmagic rewrites calls to package unsafe's functions into constants.
+ func unsafenmagic(nn *Node) *Node {
+ 	fn := nn.Left
+@@ -84,7 +82,7 @@ func unsafenmagic(nn *Node) *Node {
+ 				v += r1.Xoffset
+ 			default:
+ 				Dump("unsafenmagic", r)
+-				Fatalf("impossible %v node after dot insertion", Oconv(r1.Op, obj.FmtSharp))
++				Fatalf("impossible %v node after dot insertion", Oconv(r1.Op, FmtSharp))
+ 				goto bad
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index b9f2b52107..b4c38ec12b 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -185,7 +185,7 @@ func walkstmt(np **Node) {
+ 		ORECOVER,
+ 		OGETG:
+ 		if n.Typecheck == 0 {
+-			Fatalf("missing typecheck: %v", Nconv(n, obj.FmtSign))
++			Fatalf("missing typecheck: %v", Nconv(n, FmtSign))
+ 		}
+ 		init := n.Ninit
+ 		n.Ninit.Set(nil)
+@@ -199,7 +199,7 @@ func walkstmt(np **Node) {
+ 	// the value received.
+ 	case ORECV:
+ 		if n.Typecheck == 0 {
+-			Fatalf("missing typecheck: %v", Nconv(n, obj.FmtSign))
++			Fatalf("missing typecheck: %v", Nconv(n, FmtSign))
+ 		}
+ 		init := n.Ninit
+ 		n.Ninit.Set(nil)
+@@ -349,7 +349,7 @@ func walkstmt(np **Node) {
+ 	}
+ 
+ 	if n.Op == ONAME {
+-		Fatalf("walkstmt ended up with name: %v", Nconv(n, obj.FmtSign))
++		Fatalf("walkstmt ended up with name: %v", Nconv(n, FmtSign))
+ 	}
+ 
+ 	*np = n
+@@ -484,14 +484,14 @@ func walkexpr(np **Node, init *Nodes) {
+ 	}
+ 
+ 	if n.Typecheck != 1 {
+-		Fatalf("missed typecheck: %v\n", Nconv(n, obj.FmtSign))
++		Fatalf("missed typecheck: %v\n", Nconv(n, FmtSign))
+ 	}
+ 
+ opswitch:
+ 	switch n.Op {
+ 	default:
+ 		Dump("walk", n)
+-		Fatalf("walkexpr: switch 1 unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
++		Fatalf("walkexpr: switch 1 unknown op %v", Nconv(n, FmtShort|FmtSign))
+ 
+ 	case OTYPE,
+ 		ONONAME,
+@@ -1005,7 +1005,7 @@ opswitch:
+ 			ll = append(ll, typename(n.Type))
+ 		}
+ 		if !Isinter(n.Left.Type) && !isnilinter(n.Type) {
+-			sym := Pkglookup(Tconv(n.Left.Type, obj.FmtLeft)+"."+Tconv(n.Type, obj.FmtLeft), itabpkg)
++			sym := Pkglookup(Tconv(n.Left.Type, FmtLeft)+"."+Tconv(n.Type, FmtLeft), itabpkg)
+ 			if sym.Def == nil {
+ 				l := Nod(ONAME, nil, nil)
+ 				l.Sym = sym
+@@ -1675,7 +1675,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
+ 		var nln, nrn Nodes
+ 		nln.Set(nl)
+ 		nrn.Set(nr)
+-		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nln, obj.FmtSign), Oconv(op, 0), Hconv(nrn, obj.FmtSign), len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
++		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nln, FmtSign), Oconv(op, 0), Hconv(nrn, FmtSign), len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
+ 	}
+ 	return nn
+ }
+@@ -2302,7 +2302,7 @@ func reorder3(all []*Node) []*Node {
+ 
+ 		switch l.Op {
+ 		default:
+-			Fatalf("reorder3 unexpected lvalue %v", Oconv(l.Op, obj.FmtSharp))
++			Fatalf("reorder3 unexpected lvalue %v", Oconv(l.Op, FmtSharp))
+ 
+ 		case ONAME:
+ 			break
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index 338e3f1434..042b303e3c 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -36,7 +36,7 @@ func defframe(ptxt *obj.Prog) {
+ 			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, gc.FmtLong), int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 
+ 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+diff --git a/src/cmd/compile/internal/mips64/gsubr.go b/src/cmd/compile/internal/mips64/gsubr.go
+index 0ca8cfbb33..d63d35d966 100644
+--- a/src/cmd/compile/internal/mips64/gsubr.go
++++ b/src/cmd/compile/internal/mips64/gsubr.go
+@@ -218,7 +218,7 @@ func bignodes() {
+  */
+ func gmove(f *gc.Node, t *gc.Node) {
+ 	if gc.Debug['M'] != 0 {
+-		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
++		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
+ 	}
+ 
+ 	ft := int(gc.Simsimtype(f.Type))
+@@ -296,7 +296,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
+-		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
++		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, gc.FmtLong), gc.Tconv(t.Type, gc.FmtLong))
+ 
+ 		/*
+ 		 * integer copy and truncate
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 884f492a75..2f2bffc899 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -36,7 +36,7 @@ func defframe(ptxt *obj.Prog) {
+ 			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, gc.FmtLong), int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 
+ 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+index a1611c437b..3b6c0f1a56 100644
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -175,7 +175,7 @@ func bignodes() {
+  */
+ func gmove(f *gc.Node, t *gc.Node) {
+ 	if gc.Debug['M'] != 0 {
+-		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
++		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
+ 	}
+ 
+ 	ft := int(gc.Simsimtype(f.Type))
+@@ -261,7 +261,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
+-		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
++		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, gc.FmtLong), gc.Tconv(t.Type, gc.FmtLong))
+ 
+ 		/*
+ 		 * integer copy and truncate
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index 8b0a9533ac..c65a217a78 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -34,7 +34,7 @@ func defframe(ptxt *obj.Prog) {
+ 			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, gc.FmtLong), int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 		if lo != hi && n.Xoffset+n.Type.Width == lo-int64(2*gc.Widthptr) {
+ 			// merge with range we already have
+diff --git a/src/cmd/compile/internal/x86/gsubr.go b/src/cmd/compile/internal/x86/gsubr.go
+index 5ca76f6abd..2ed29e5a22 100644
+--- a/src/cmd/compile/internal/x86/gsubr.go
++++ b/src/cmd/compile/internal/x86/gsubr.go
+@@ -1603,7 +1603,7 @@ hardmem:
+ 
+ 	// should not happen
+ fatal:
+-	gc.Fatalf("gmove %v -> %v", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
++	gc.Fatalf("gmove %v -> %v", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
+ 
+ 	return
+ }
+diff --git a/src/cmd/internal/obj/fmt.go b/src/cmd/internal/obj/fmt.go
+deleted file mode 100644
+index f98bc6dc17..0000000000
+--- a/src/cmd/internal/obj/fmt.go
++++ /dev/null
+@@ -1,28 +0,0 @@
+-/*
+- * The authors of this software are Rob Pike and Ken Thompson.
+- *              Copyright (c) 2002 by Lucent Technologies.
+- * Permission to use, copy, modify, and distribute this software for any
+- * purpose without fee is hereby granted, provided that this entire notice
+- * is included in all copies of any software which is or includes a copy
+- * or modification of this software and in all copies of the supporting
+- * documentation for such software.
+- * THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR IMPLIED
+- * WARRANTY.  IN PARTICULAR, NEITHER THE AUTHORS NOR LUCENT TECHNOLOGIES MAKE ANY
+- * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+- * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+- */
+-
+-package obj
+-
+-const (
+-	FmtWidth = 1 << iota
+-	FmtLeft
+-	FmtSharp
+-	FmtSign
+-	FmtUnsigned
+-	FmtShort
+-	FmtLong
+-	FmtComma
+-	FmtByte
+-	FmtBody // for printing export bodies
+-)

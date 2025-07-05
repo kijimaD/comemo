@@ -120,3 +120,4 @@ Date:   Fri Feb 20 10:28:36 2015 -0500
  test/fixedbugs/issue4365.go             |   27 +
  test/init1.go                           |   26 +-
  110 files changed, 10175 insertions(+), 3709 deletions(-)
+

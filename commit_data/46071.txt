@@ -9,7 +9,7 @@ Date:   Wed Dec 2 14:37:49 2020 -0500
     Trust: Katie Hockman <katie@golang.org>
     Run-TryBot: Katie Hockman <katie@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  .../go/testdata/script/test_fuzz_mutate_crash.txt  | 68 +++++++++++++++++++
  src/go/build/deps_test.go                          |  2 +-
  src/internal/fuzz/fuzz.go                          | 76 ++++++++++++++++++++--
@@ -18,3 +18,479 @@ Date:   Wed Dec 2 14:37:49 2020 -0500
  src/testing/internal/testdeps/deps.go              |  8 +--
  src/testing/testing.go                             | 26 ++++----
  7 files changed, 204 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+new file mode 100644
+index 0000000000..f28da90ac2
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -0,0 +1,68 @@
++# Tests that a crash caused by a mutator-discovered input writes the bad input
++# to testdata, and fails+reports correctly. This tests the end-to-end behavior
++# of the mutator finding a crash while fuzzing, adding it as a regression test
++# to the seed corpus in testdata, and failing the next time the test is run.
++
++[short] skip
++
++# TODO: remove -parallel=1 once the races are fixed.
++
++# Running the seed corpus for all of the targets should pass the first
++# time, since nothing in the seed corpus will cause a crash.
++go test -parallel=1
++
++# Running the fuzzer should find a crashing input quickly.
++! go test -fuzz=FuzzWithBug -parallel=1
++stdout 'testdata/corpus/FuzzWithBug/fb8e20fc2e4c3f248c60c39bd652f3c1347298bb977b8b4d5903b85055620603'
++stdout 'this input caused a crash!'
++grep '\Aab\z' testdata/corpus/FuzzWithBug/fb8e20fc2e4c3f248c60c39bd652f3c1347298bb977b8b4d5903b85055620603
++
++# Now, the failing bytes should have been added to the seed corpus for
++# the target, and should fail when run without fuzzing.
++! go test -parallel=1
++
++! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -parallel=1
++stdout 'testdata/corpus/FuzzWithNilPanic/f45de51cdef30991551e41e882dd7b5404799648a0a00753f44fc966e6153fc1'
++stdout 'runtime.Goexit'
++grep '\Aac\z' testdata/corpus/FuzzWithNilPanic/f45de51cdef30991551e41e882dd7b5404799648a0a00753f44fc966e6153fc1
++
++! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -parallel=1
++stdout 'testdata/corpus/FuzzWithBadExit/70ba33708cbfb103f1a8e34afef333ba7dc021022b2d9aaa583aabb8058d8d67'
++stdout 'unexpectedly'
++grep '\Aad\z' testdata/corpus/FuzzWithBadExit/70ba33708cbfb103f1a8e34afef333ba7dc021022b2d9aaa583aabb8058d8d67
++
++-- fuzz_crash_test.go --
++package fuzz_crash
++
++import (
++	"bytes"
++    "os"
++	"testing"
++)
++
++func FuzzWithBug(f *testing.F) {
++	f.Add([]byte("aa"))
++	f.Fuzz(func(t *testing.T, b []byte) {
++		if bytes.Equal(b, []byte("ab")) {
++			panic("this input caused a crash!")
++		}
++	})
++}
++
++func FuzzWithNilPanic(f *testing.F) {
++	f.Add([]byte("aa"))
++	f.Fuzz(func(t *testing.T, b []byte) {
++		if bytes.Equal(b, []byte("ac")) {
++			panic(nil)
++		}
++	})
++}
++
++func FuzzWithBadExit(f *testing.F) {
++	f.Add([]byte("aa"))
++	f.Fuzz(func(t *testing.T, b []byte) {
++		if bytes.Equal(b, []byte("ad")) {
++			os.Exit(1)
++		}
++	})
++}
+\ No newline at end of file
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 26f6ab2ec3..7fb4feee82 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -467,7 +467,7 @@ var depsRules = `
+ 	FMT, flag, runtime/debug, runtime/trace
+ 	< testing;
+ 
+-	FMT, encoding/json, math/rand
++	FMT, crypto/sha256, encoding/json, math/rand
+ 	< internal/fuzz;
+ 
+ 	internal/fuzz, internal/testlog, runtime/pprof, regexp
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index b72106b337..930683000f 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -8,6 +8,7 @@
+ package fuzz
+ 
+ import (
++	"crypto/sha256"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
+@@ -31,7 +32,10 @@ import (
+ // in testdata.
+ // Seed values from GOFUZZCACHE should not be included in this list; this
+ // function loads them separately.
+-func CoordinateFuzzing(parallel int, seed [][]byte) error {
++//
++// If a crash occurs, the function will return an error containing information
++// about the crash, which can be reported to the user.
++func CoordinateFuzzing(parallel int, seed [][]byte, crashDir string) error {
+ 	if parallel == 0 {
+ 		parallel = runtime.GOMAXPROCS(0)
+ 	}
+@@ -63,8 +67,9 @@ func CoordinateFuzzing(parallel int, seed [][]byte) error {
+ 	env := os.Environ() // same as self
+ 
+ 	c := &coordinator{
+-		doneC:  make(chan struct{}),
+-		inputC: make(chan corpusEntry),
++		doneC:        make(chan struct{}),
++		inputC:       make(chan corpusEntry),
++		interestingC: make(chan fuzzResponse),
+ 	}
+ 
+ 	newWorker := func() (*worker, error) {
+@@ -128,6 +133,33 @@ func CoordinateFuzzing(parallel int, seed [][]byte) error {
+ 			}
+ 			return nil
+ 
++		case resp := <-c.interestingC:
++			// Some interesting input arrived from a worker.
++			if resp.Err != "" {
++				// This is a crasher, which should be written to testdata and
++				// reported to the user.
++				fileName, err := writeToCorpus(resp.Value, crashDir)
++				if err == nil {
++					err = fmt.Errorf("    Crash written to: %s\n%s", fileName, resp.Err)
++				}
++				// TODO(jayconrod,katiehockman): if -keepfuzzing, don't stop all
++				// of the workers, but still report to the user.
++
++				// Stop the rest of the workers and wait until they have
++				// stopped before returning this error.
++				close(c.doneC)
++				wg.Wait()
++				return err
++			} else if len(resp.Value) > 0 {
++				// This is not a crasher, but something interesting that should
++				// be added to the on disk corpus and prioritized for future
++				// workers to fuzz.
++
++				corpus.entries = append(corpus.entries, corpusEntry{b: resp.Value})
++				// TODO(jayconrod, katiehockman): Add this to the on disk corpus
++				// TODO(jayconrod, katiehockman): Prioritize fuzzing these values which expanded coverage
++			}
++
+ 		case c.inputC <- corpus.entries[i]:
+ 			// Sent the next input to any worker.
+ 			// TODO(jayconrod,katiehockman): need a scheduling algorithm that chooses
+@@ -162,13 +194,17 @@ type coordinator struct {
+ 	// inputC is sent values to fuzz by the coordinator. Any worker may receive
+ 	// values from this channel.
+ 	inputC chan corpusEntry
++
++	// interestingC is sent interesting values by the worker, which is received
++	// by the coordinator. The interesting value could be a crash or some
++	// value that increased coverage.
++	interestingC chan fuzzResponse
+ }
+ 
+ // ReadCorpus reads the corpus from the testdata directory in this target's
+ // package.
+-func ReadCorpus(name string) ([][]byte, error) {
+-	testdataDir := filepath.Join("testdata/corpus", name)
+-	files, err := ioutil.ReadDir(testdataDir)
++func ReadCorpus(dir string) ([][]byte, error) {
++	files, err := ioutil.ReadDir(dir)
+ 	if os.IsNotExist(err) {
+ 		return nil, nil // No corpus to read
+ 	} else if err != nil {
+@@ -179,7 +215,7 @@ func ReadCorpus(name string) ([][]byte, error) {
+ 		if file.IsDir() {
+ 			continue
+ 		}
+-		bytes, err := ioutil.ReadFile(filepath.Join(testdataDir, file.Name()))
++		bytes, err := ioutil.ReadFile(filepath.Join(dir, file.Name()))
+ 		if err != nil {
+ 			return nil, fmt.Errorf("testing: failed to read corpus file: %v", err)
+ 		}
+@@ -187,3 +223,29 @@ func ReadCorpus(name string) ([][]byte, error) {
+ 	}
+ 	return corpus, nil
+ }
++
++// writeToCorpus writes the given bytes to a new file in testdata. If the
++// directory does not exist, it will create one. It returns the filename that
++// was written, or an error if it failed.
++func writeToCorpus(b []byte, crashDir string) (string, error) {
++	// TODO: Consider not writing a new file if one with those contents already
++	// exists. Perhaps the filename can be compared to those that already exist
++	// if all of the filenames are normalized, or by checking the contents of
++	// all other files.
++	if _, err := ioutil.ReadDir(crashDir); os.IsNotExist(err) {
++		// Make the seed corpus directory since it doesn't exist.
++		err = os.MkdirAll(crashDir, 0777)
++		if err != nil {
++			return "", err
++		}
++	} else if err != nil {
++		return "", err
++	}
++	sum := fmt.Sprintf("%x", sha256.Sum256(b))
++	name := filepath.Join(crashDir, sum)
++	err := ioutil.WriteFile(name, b, 0666)
++	if err != nil {
++		return "", err
++	}
++	return name, nil
++}
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 148cc6dae9..47d3009525 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -61,8 +61,7 @@ func (w *worker) cleanup() error {
+ //
+ // This function loops until w.coordinator.doneC is closed or some
+ // fatal error is encountered. It receives inputs from w.coordinator.inputC,
+-// then passes those on to the worker process. If the worker crashes,
+-// runFuzzing restarts it and continues.
++// then passes those on to the worker process.
+ func (w *worker) runFuzzing() error {
+ 	// Start the process.
+ 	if err := w.start(); err != nil {
+@@ -83,14 +82,19 @@ func (w *worker) runFuzzing() error {
+ 			return w.stop()
+ 
+ 		case <-w.termC:
+-			// Worker process terminated unexpectedly.
+-			// TODO(jayconrod,katiehockman): handle crasher.
++			// Worker process terminated unexpectedly, so inform the coordinator
++			// that a crash occurred.
++			b := w.mem.value() // These are the bytes that caused the crash.
++			resB := make([]byte, len(b))
++			copy(resB, b)
++			resp := fuzzResponse{Value: resB, Err: "fuzzing process crashed unexpectedly"}
++			w.coordinator.interestingC <- resp
++
+ 			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
+ 			err := w.stop()
+ 			if err == nil {
+ 				err = fmt.Errorf("worker exited unexpectedly")
+ 			}
+-			close(w.coordinator.doneC)
+ 			return err
+ 
+ 		case input := <-inputC:
+@@ -98,7 +102,7 @@ func (w *worker) runFuzzing() error {
+ 			inputC = nil // block new inputs until we finish with this one.
+ 			go func() {
+ 				args := fuzzArgs{Duration: workerFuzzDuration}
+-				_, err := w.client.fuzz(input.b, args)
++				resp, err := w.client.fuzz(input.b, args)
+ 				if err != nil {
+ 					// TODO(jayconrod): if we get an error here, something failed between
+ 					// main and the call to testing.F.Fuzz. The error here won't
+@@ -109,15 +113,28 @@ func (w *worker) runFuzzing() error {
+ 					// TODO(jayconrod): what happens if testing.F.Fuzz is never called?
+ 					// TODO(jayconrod): time out if the test process hangs.
+ 					fmt.Fprintf(os.Stderr, "communicating with worker: %v\n", err)
++				} else {
++					// TODO(jayconrod, katiehockman): Right now, this will just
++					// send an empty fuzzResponse{} if nothing interesting came
++					// up. Probably want to only pass to interestingC if fuzzing
++					// found something interesting.
++
++					// Inform the coordinator that fuzzing found something
++					// interesting (ie. a crash or new coverage).
++					w.coordinator.interestingC <- resp
++
++					if resp.Err == "" {
++						// Only unblock to allow more fuzzing to occur if
++						// everything was successful with the last fuzzing
++						// attempt.
++						fuzzC <- struct{}{}
++					}
+ 				}
+-
+-				fuzzC <- struct{}{}
++				// TODO(jayconrod,katiehockman): gather statistics.
+ 			}()
+ 
+ 		case <-fuzzC:
+-			// Worker finished fuzzing.
+-			// TODO(jayconrod,katiehockman): gather statistics. Collect "interesting"
+-			// inputs and add to corpus.
++			// Worker finished fuzzing and nothing new happened.
+ 			inputC = w.coordinator.inputC // unblock new inputs
+ 		}
+ 	}
+@@ -304,8 +321,8 @@ type fuzzArgs struct {
+ }
+ 
+ type fuzzResponse struct {
+-	Crasher []byte
+-	Err     string
++	Value []byte // The bytes that yielded the response.
++	Err   string // The error if the bytes resulted in a crash, nil otherwise.
+ }
+ 
+ // workerComm holds pipes and shared memory used for communication
+@@ -375,10 +392,12 @@ func (ws *workerServer) fuzz(value []byte, args fuzzArgs) fuzzResponse {
+ 			return fuzzResponse{}
+ 		default:
+ 			b := mutate(value)
++			ws.mem.setValue(b) // Write the value to memory so it can be recovered it if the process dies
+ 			if err := ws.fuzzFn(b); err != nil {
+-				return fuzzResponse{Crasher: b, Err: err.Error()}
++				return fuzzResponse{Value: b, Err: err.Error()}
+ 			}
+ 			// TODO(jayconrod,katiehockman): return early if coverage is expanded
++			// by returning a fuzzResponse with the Value set but a nil Err.
+ 		}
+ 	}
+ }
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 5f65f8a395..97d64f99be 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -9,6 +9,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"os"
++	"path/filepath"
+ 	"runtime"
+ 	"time"
+ )
+@@ -21,6 +22,10 @@ func initFuzzFlags() {
+ var (
+ 	matchFuzz    *string
+ 	isFuzzWorker *bool
++
++	// corpusDir is the parent directory of the target's seed corpus within
++	// the package.
++	corpusDir = "testdata/corpus"
+ )
+ 
+ // InternalFuzzTarget is an internal type but exported because it is cross-package;
+@@ -87,7 +92,7 @@ func (f *F) Fuzz(ff interface{}) {
+ 	}
+ 
+ 	// Load seed corpus
+-	c, err := f.context.readCorpus(f.name)
++	c, err := f.context.readCorpus(filepath.Join(corpusDir, f.name))
+ 	if err != nil {
+ 		f.Fatal(err)
+ 	}
+@@ -127,12 +132,15 @@ func (f *F) Fuzz(ff interface{}) {
+ 		for i, e := range f.corpus {
+ 			seed[i] = e.b
+ 		}
+-		err := f.context.coordinateFuzzing(*parallel, seed)
++		err := f.context.coordinateFuzzing(*parallel, seed, filepath.Join(corpusDir, f.name))
++		if err != nil {
++			f.Fail()
++			f.result = FuzzResult{Error: err}
++		}
+ 		f.setRan()
+ 		f.finished = true
+-		f.result = FuzzResult{Error: err}
+ 		// TODO(jayconrod,katiehockman): Aggregate statistics across workers
+-		// and set FuzzResult properly.
++		// and add to FuzzResult (ie. time taken, num iterations)
+ 
+ 	case f.context.runFuzzWorker != nil:
+ 		// Fuzzing is enabled, and this is a worker process. Follow instructions
+@@ -249,10 +257,9 @@ func (f *F) runTarget(fn func(*F)) {
+ 
+ // FuzzResult contains the results of a fuzz run.
+ type FuzzResult struct {
+-	N       int           // The number of iterations.
+-	T       time.Duration // The total time taken.
+-	Crasher *corpusEntry  // Crasher is the corpus entry that caused the crash
+-	Error   error         // Error is the error from the crash
++	N     int           // The number of iterations.
++	T     time.Duration // The total time taken.
++	Error error         // Error is the error from the crash
+ }
+ 
+ func (r FuzzResult) String() string {
+@@ -261,9 +268,6 @@ func (r FuzzResult) String() string {
+ 		return s
+ 	}
+ 	s = fmt.Sprintf("%s", r.Error.Error())
+-	if r.Crasher != nil {
+-		s += fmt.Sprintf("\ncrasher: %b", r.Crasher)
+-	}
+ 	return s
+ }
+ 
+@@ -271,7 +275,7 @@ func (r FuzzResult) String() string {
+ type fuzzContext struct {
+ 	runMatch          *matcher
+ 	fuzzMatch         *matcher
+-	coordinateFuzzing func(int, [][]byte) error
++	coordinateFuzzing func(int, [][]byte, string) error
+ 	runFuzzWorker     func(func([]byte) error) error
+ 	readCorpus        func(string) ([][]byte, error)
+ }
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index acd38d78cb..109d925016 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -128,14 +128,14 @@ func (TestDeps) SetPanicOnExit0(v bool) {
+ 	testlog.SetPanicOnExit0(v)
+ }
+ 
+-func (TestDeps) CoordinateFuzzing(parallel int, seed [][]byte) error {
+-	return fuzz.CoordinateFuzzing(parallel, seed)
++func (TestDeps) CoordinateFuzzing(parallel int, seed [][]byte, crashDir string) error {
++	return fuzz.CoordinateFuzzing(parallel, seed, crashDir)
+ }
+ 
+ func (TestDeps) RunFuzzWorker(fn func([]byte) error) error {
+ 	return fuzz.RunFuzzWorker(fn)
+ }
+ 
+-func (TestDeps) ReadCorpus(name string) ([][]byte, error) {
+-	return fuzz.ReadCorpus(name)
++func (TestDeps) ReadCorpus(dir string) ([][]byte, error) {
++	return fuzz.ReadCorpus(dir)
+ }
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 8b4f55215b..6267abfcdf 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1316,17 +1316,17 @@ var errMain = errors.New("testing: unexpected use of func Main")
+ 
+ type matchStringOnly func(pat, str string) (bool, error)
+ 
+-func (f matchStringOnly) MatchString(pat, str string) (bool, error)   { return f(pat, str) }
+-func (f matchStringOnly) StartCPUProfile(w io.Writer) error           { return errMain }
+-func (f matchStringOnly) StopCPUProfile()                             {}
+-func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error { return errMain }
+-func (f matchStringOnly) ImportPath() string                          { return "" }
+-func (f matchStringOnly) StartTestLog(io.Writer)                      {}
+-func (f matchStringOnly) StopTestLog() error                          { return errMain }
+-func (f matchStringOnly) SetPanicOnExit0(bool)                        {}
+-func (f matchStringOnly) CoordinateFuzzing(int, [][]byte) error       { return errMain }
+-func (f matchStringOnly) RunFuzzWorker(func([]byte) error) error      { return errMain }
+-func (f matchStringOnly) ReadCorpus(name string) ([][]byte, error)    { return nil, errMain }
++func (f matchStringOnly) MatchString(pat, str string) (bool, error)     { return f(pat, str) }
++func (f matchStringOnly) StartCPUProfile(w io.Writer) error             { return errMain }
++func (f matchStringOnly) StopCPUProfile()                               {}
++func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error   { return errMain }
++func (f matchStringOnly) ImportPath() string                            { return "" }
++func (f matchStringOnly) StartTestLog(io.Writer)                        {}
++func (f matchStringOnly) StopTestLog() error                            { return errMain }
++func (f matchStringOnly) SetPanicOnExit0(bool)                          {}
++func (f matchStringOnly) CoordinateFuzzing(int, [][]byte, string) error { return errMain }
++func (f matchStringOnly) RunFuzzWorker(func([]byte) error) error        { return errMain }
++func (f matchStringOnly) ReadCorpus(string) ([][]byte, error)           { return nil, errMain }
+ 
+ // Main is an internal function, part of the implementation of the "go test" command.
+ // It was exported because it is cross-package and predates "internal" packages.
+@@ -1369,9 +1369,9 @@ type testDeps interface {
+ 	StartTestLog(io.Writer)
+ 	StopTestLog() error
+ 	WriteProfileTo(string, io.Writer, int) error
+-	CoordinateFuzzing(int, [][]byte) error
++	CoordinateFuzzing(int, [][]byte, string) error
+ 	RunFuzzWorker(func([]byte) error) error
+-	ReadCorpus(name string) ([][]byte, error)
++	ReadCorpus(string) ([][]byte, error)
+ }
+ 
+ // MainStart is meant for use by tests generated by 'go test'.

@@ -7,8 +7,38 @@ Date:   Thu Aug 24 19:24:43 2017 -0400
     Change-Id: Ie9dd13f3ae78a423a231f47e746a38f96768b93c
     Reviewed-on: https://go-review.googlesource.com/58830
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/internal/boring/build/build.sh          |   2 +-
  .../internal/boring/build/build_in_chroot.sh       |   2 ++
  .../boring/goboringcrypto_linux_amd64.syso         | Bin 7576080 -> 7576080 bytes
  3 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/internal/boring/build/build.sh b/src/crypto/internal/boring/build/build.sh
+index 5aa0c051d9..7c50327c2f 100755
+--- a/src/crypto/internal/boring/build/build.sh
++++ b/src/crypto/internal/boring/build/build.sh
+@@ -57,7 +57,7 @@ mkdir $chroot/godriver
+ cp ../goboringcrypto.h $chroot/godriver
+ 
+ sudo http_proxy=$http_proxy chroot $chroot /root_setup_in_chroot.sh
+-sudo chroot --userspec=$USER:$USER $chroot /build_in_chroot.sh
++sudo chroot --userspec=$(id -u):$(id -g) $chroot /build_in_chroot.sh
+ cp $chroot/godriver/goboringcrypto_linux_amd64.syso ..
+ sha256sum ../goboringcrypto_linux_amd64.syso
+ echo DONE
+diff --git a/src/crypto/internal/boring/build/build_in_chroot.sh b/src/crypto/internal/boring/build/build_in_chroot.sh
+index 84ad953ae7..b5e5a778b6 100755
+--- a/src/crypto/internal/boring/build/build_in_chroot.sh
++++ b/src/crypto/internal/boring/build/build_in_chroot.sh
+@@ -183,6 +183,8 @@ __umodti3:
+ 	xorl %ecx, %ecx
+ 	movl %ecx, 0(%ecx)
+ 	jmp 1b
++
++.section .note.GNU-stack,"",@progbits
+ EOF
+ clang-4.0 -c -o umod.o umod.s
+ 
+diff --git a/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso b/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso
+index b1e56a526a..89c88e9953 100644
+Binary files a/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso and b/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso differ

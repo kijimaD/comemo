@@ -7,6 +7,18 @@ Date:   Thu Jun 14 13:18:10 2012 +1000
     R=golang-dev, rsc, dsymonds, minux.ma
     CC=golang-dev
     https://golang.org/cl/6305089
-
+---
  .hgtags | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/.hgtags b/.hgtags
+index a5e7ed6e51..023f984ff2 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -112,4 +112,5 @@ dc5e410f0b4c32ab11dc992593a2bcf5f607381b weekly.2012-03-27
+ dc5e410f0b4c32ab11dc992593a2bcf5f607381b weekly
+ 920e9d1ffd1f46665dd152aa9cf3c0f17d68dd88 go1
+ 2ccfd4b451d319941bfe3e08037e1462d3c15093 go1.0.1
+-2ccfd4b451d319941bfe3e08037e1462d3c15093 release
++5e806355a9e1491aaab53d3612fed4c550b130c0 go1.0.2
++5e806355a9e1491aaab53d3612fed4c550b130c0 release

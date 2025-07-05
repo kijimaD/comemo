@@ -7,6 +7,16 @@ Date:   Wed Feb 15 14:36:20 2012 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5677053
-
+---
  src/pkg/runtime/os_plan9.h | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/os_plan9.h b/src/pkg/runtime/os_plan9.h
+index b7b8383494..cc6343c8ec 100644
+--- a/src/pkg/runtime/os_plan9.h
++++ b/src/pkg/runtime/os_plan9.h
+@@ -66,3 +66,4 @@ struct Tos {
+ 	/* top of stack is here */
+ };
+ 
++#define	NSIG 1

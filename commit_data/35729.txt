@@ -15,7 +15,308 @@ Date:   Fri Mar 2 15:16:27 2018 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 202 --------------------------------
  test/codegen/mathbits.go                |  53 +++++++++
  2 files changed, 53 insertions(+), 202 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 88c8df2c77..025fa2b45c 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -580,48 +580,6 @@ var linuxAMD64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tROLW\t\\$8,"},
+ 	},
+-	{
+-		fn: `
+-		func f48(a uint64) int {
+-			return bits.Len64(a)
+-		}
+-		`,
+-		pos: []string{"\tBSRQ\t"},
+-	},
+-	{
+-		fn: `
+-		func f49(a uint32) int {
+-			return bits.Len32(a)
+-		}
+-		`,
+-		pos: []string{"\tBSRQ\t"},
+-	},
+-	{
+-		fn: `
+-		func f50(a uint16) int {
+-			return bits.Len16(a)
+-		}
+-		`,
+-		pos: []string{"\tBSRQ\t"},
+-	},
+-	/* see ssa.go
+-	{
+-		fn:`
+-		func f51(a uint8) int {
+-			return bits.Len8(a)
+-		}
+-		`,
+-		pos:[]string{"\tBSRQ\t"},
+-	},
+-	*/
+-	{
+-		fn: `
+-		func f52(a uint) int {
+-			return bits.Len(a)
+-		}
+-		`,
+-		pos: []string{"\tBSRQ\t"},
+-	},
+ 	{
+ 		fn: `
+ 		func f53(a uint64) int {
+@@ -1364,46 +1322,6 @@ var linuxS390XTests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tMOVWBR\t"},
+ 	},
+-	{
+-		fn: `
+-		func f24(a uint64) int {
+-			return bits.Len64(a)
+-		}
+-		`,
+-		pos: []string{"\tFLOGR\t"},
+-	},
+-	{
+-		fn: `
+-		func f25(a uint32) int {
+-			return bits.Len32(a)
+-		}
+-		`,
+-		pos: []string{"\tFLOGR\t"},
+-	},
+-	{
+-		fn: `
+-		func f26(a uint16) int {
+-			return bits.Len16(a)
+-		}
+-		`,
+-		pos: []string{"\tFLOGR\t"},
+-	},
+-	{
+-		fn: `
+-		func f27(a uint8) int {
+-			return bits.Len8(a)
+-		}
+-		`,
+-		pos: []string{"\tFLOGR\t"},
+-	},
+-	{
+-		fn: `
+-		func f28(a uint) int {
+-			return bits.Len(a)
+-		}
+-		`,
+-		pos: []string{"\tFLOGR\t"},
+-	},
+ 	{
+ 		fn: `
+ 		func f29(a uint64) int {
+@@ -1501,46 +1419,6 @@ var linuxARMTests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tMOVW\tR[0-9]+@>25,"},
+ 	},
+-	{
+-		fn: `
+-		func f3(a uint64) int {
+-			return bits.Len64(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f4(a uint32) int {
+-			return bits.Len32(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f5(a uint16) int {
+-			return bits.Len16(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f6(a uint8) int {
+-			return bits.Len8(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f7(a uint) int {
+-			return bits.Len(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+ 	{
+ 		fn: `
+ 		func f8(a uint64) int {
+@@ -1715,46 +1593,6 @@ var linuxARM64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tREVW\t"},
+ 	},
+-	{
+-		fn: `
+-		func f24(a uint64) int {
+-			return bits.Len64(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f25(a uint32) int {
+-			return bits.Len32(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f26(a uint16) int {
+-			return bits.Len16(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f27(a uint8) int {
+-			return bits.Len8(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f28(a uint) int {
+-			return bits.Len(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+ 	{
+ 		fn: `
+ 		func f29(a uint64) int {
+@@ -2177,46 +2015,6 @@ var linuxARM64Tests = []*asmTest{
+ 
+ var linuxMIPSTests = []*asmTest{
+ 	// Intrinsic tests for math/bits
+-	{
+-		fn: `
+-		func f0(a uint64) int {
+-			return bits.Len64(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f1(a uint32) int {
+-			return bits.Len32(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f2(a uint16) int {
+-			return bits.Len16(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f3(a uint8) int {
+-			return bits.Len8(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f4(a uint) int {
+-			return bits.Len(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+ 	{
+ 		fn: `
+ 		func f5(a uint64) int {
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+new file mode 100644
+index 0000000000..02552e1fdb
+--- /dev/null
++++ b/test/codegen/mathbits.go
+@@ -0,0 +1,53 @@
++// asmcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++import "math/bits"
++
++// --------------- //
++//    bits.Len*    //
++// --------------- //
++
++func Len(n uint) int {
++	//amd64:"BSRQ"
++	//s390x:"FLOGR"
++	//arm:"CLZ" arm64:"CLZ"
++	//mips:"CLZ"
++	return bits.Len(n)
++}
++
++func Len64(n uint64) int {
++	//amd64:"BSRQ"
++	//s390x:"FLOGR"
++	//arm:"CLZ" arm64:"CLZ"
++	//mips:"CLZ"
++	return bits.Len64(n)
++}
++
++func Len32(n uint32) int {
++	//amd64:"BSRQ"
++	//s390x:"FLOGR"
++	//arm:"CLZ" arm64:"CLZ"
++	//mips:"CLZ"
++	return bits.Len32(n)
++}
++
++func Len16(n uint16) int {
++	//amd64:"BSRQ"
++	//s390x:"FLOGR"
++	//arm:"CLZ" arm64:"CLZ"
++	//mips:"CLZ"
++	return bits.Len16(n)
++}
++
++func Len8(n uint8) int {
++	//amd64 Len8 not intrisified
++	//s390x:"FLOGR"
++	//arm:"CLZ" arm64:"CLZ"
++	//mips:"CLZ"
++	return bits.Len8(n)
++}

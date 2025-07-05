@@ -13,7 +13,39 @@ Date:   Fri Oct 25 20:48:07 2019 +0200
     Change-Id: I5fd94249b60c6fd259c251407b6eccc8fa512934
     Reviewed-on: https://go-review.googlesource.com/c/go/+/203418
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/runtime/stubs_arm64.go      | 1 -
  src/runtime/sys_freebsd_arm64.s | 4 ++--
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/stubs_arm64.go b/src/runtime/stubs_arm64.go
+index 8a1c49cc0f..44c566e602 100644
+--- a/src/runtime/stubs_arm64.go
++++ b/src/runtime/stubs_arm64.go
+@@ -7,4 +7,3 @@ package runtime
+ // Called from assembly only; declared for go vet.
+ func load_g()
+ func save_g()
+-func emptyfunc()
+diff --git a/src/runtime/sys_freebsd_arm64.s b/src/runtime/sys_freebsd_arm64.s
+index 808daa063a..ca2ea4f1d6 100644
+--- a/src/runtime/sys_freebsd_arm64.s
++++ b/src/runtime/sys_freebsd_arm64.s
+@@ -48,7 +48,7 @@
+ #define SYS_cpuset_getaffinity	487
+ #define SYS_pipe2 		542
+ 
+-TEXT runtime·emptyfunc(SB),0,$0-0
++TEXT emptyfunc<>(SB),0,$0-0
+ 	RET
+ 
+ // func sys_umtx_op(addr *uint32, mode int32, val uint32, uaddr1 uintptr, ut *umtx_time) int32
+@@ -77,7 +77,7 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
+ 	// set up g
+ 	MOVD	m_g0(R0), g
+ 	MOVD	R0, g_m(g)
+-	BL	runtime·emptyfunc(SB)	 // fault if stack check is wrong
++	BL	emptyfunc<>(SB)	 // fault if stack check is wrong
+ 	BL	runtime·mstart(SB)
+ 
+ 	MOVD	$2, R8	// crash (not reached)

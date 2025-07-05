@@ -9,7 +9,34 @@ Date:   Mon Aug 15 23:24:31 2016 -0700
     Change-Id: I20550628814e3454f17d6f8ae8b66cce17f09859
     Reviewed-on: https://go-review.googlesource.com/27118
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/alldocs.go | 2 ++
  src/cmd/go/get.go     | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 58b0d16b2b..38c50ae127 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -496,6 +496,8 @@
+ // and their dependencies.  By default, get uses the network to check out
+ // missing packages but does not use it to look for updates to existing packages.
+ //
++// The -v flag enables verbose progress and debug output.
++//
+ // Get also accepts build flags to control the installation. See 'go help build'.
+ //
+ // When checking out a new package, get creates the target directory
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 19858f7e55..d30d612c72 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -43,6 +43,8 @@ The -u flag instructs get to use the network to update the named packages
+ and their dependencies.  By default, get uses the network to check out
+ missing packages but does not use it to look for updates to existing packages.
+ 
++The -v flag enables verbose progress and debug output.
++
+ Get also accepts build flags to control the installation. See 'go help build'.
+ 
+ When checking out a new package, get creates the target directory

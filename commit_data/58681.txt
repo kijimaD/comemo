@@ -23,7 +23,7 @@ Date:   Wed Nov 29 15:42:53 2023 -0500
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go.mod                                     |   8 +-
  src/cmd/go.sum                                     |  16 +-
  src/cmd/vendor/golang.org/x/sys/unix/fcntl.go      |   2 +-
@@ -85,3 +85,2772 @@ Date:   Wed Nov 29 15:42:53 2023 -0500
  src/vendor/golang.org/x/crypto/hkdf/hkdf.go        |   4 +-
  src/vendor/modules.txt                             |   8 +-
  60 files changed, 1256 insertions(+), 333 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 8f66963c14..68ded94ba8 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -4,12 +4,12 @@ go 1.22
+ 
+ require (
+ 	github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17
+-	golang.org/x/arch v0.5.1-0.20231011141335-a6bdeed49307
++	golang.org/x/arch v0.6.0
+ 	golang.org/x/mod v0.14.0
+ 	golang.org/x/sync v0.5.0
+-	golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3
+-	golang.org/x/term v0.13.1-0.20231011140651-6a610bc55bff
+-	golang.org/x/tools v0.15.1-0.20231120183520-8966034e4e53
++	golang.org/x/sys v0.15.0
++	golang.org/x/term v0.15.0
++	golang.org/x/tools v0.16.1-0.20231129202111-1b1e4dafd51a
+ )
+ 
+ require github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index ea29f9f3a3..680616da07 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -2,15 +2,15 @@ github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17 h1:0h35ESZ02+hN/MFZb7
+ github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17/go.mod h1:Jh3hGz2jkYak8qXPD19ryItVnUgpgeqzdkY/D0EaeuA=
+ github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab h1:BA4a7pe6ZTd9F8kXETBoijjFJ/ntaa//1wiH9BZu4zU=
+ github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
+-golang.org/x/arch v0.5.1-0.20231011141335-a6bdeed49307 h1:1nIbNxjxQ3+dss3xYMxayoIZONazUTg8/BENwc19sAQ=
+-golang.org/x/arch v0.5.1-0.20231011141335-a6bdeed49307/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
++golang.org/x/arch v0.6.0 h1:S0JTfE48HbRj80+4tbvZDYsJ3tGv6BUU3XxyZ7CirAc=
++golang.org/x/arch v0.6.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+ golang.org/x/mod v0.14.0 h1:dGoOF9QVLYng8IHTm7BAyWqCqSheQ5pYWGhzW00YJr0=
+ golang.org/x/mod v0.14.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/sync v0.5.0 h1:60k92dhOjHxJkrqnwsfl8KuaHbn/5dl0lUPUklKo3qE=
+ golang.org/x/sync v0.5.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+-golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3 h1:G9se7UpoI67yWrFY0IIFGf6H3nwLLUZFDBCyOJwWeSc=
+-golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/term v0.13.1-0.20231011140651-6a610bc55bff h1:4lCCwEX5qbLiqBk8cqIlwrDbmkzfggoqDXYLTU+jr30=
+-golang.org/x/term v0.13.1-0.20231011140651-6a610bc55bff/go.mod h1:tfGnZ3a6ww9diaioGSzdPRgIfpk6Odt1UPXNhRcgfag=
+-golang.org/x/tools v0.15.1-0.20231120183520-8966034e4e53 h1:OvqfI3Xzb220PLbcIqYXf6DUnr4RyR1MJOhkg8qsnaA=
+-golang.org/x/tools v0.15.1-0.20231120183520-8966034e4e53/go.mod h1:Qt/ThNq1+Jt2UJeOwUFFL3xcU1EExDk5yYNCBwMKeyA=
++golang.org/x/sys v0.15.0 h1:h48lPFYpsTvQJZF4EKyI4aLHaev3CxivZmv7yZig9pc=
++golang.org/x/sys v0.15.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/term v0.15.0 h1:y/Oo/a/q3IXu26lQgl04j/gjuBDOBlx7X6Om1j2CPW4=
++golang.org/x/term v0.15.0/go.mod h1:BDl952bC7+uMoWR75FIrCDx79TPU9oHkTZ9yRbYOrX0=
++golang.org/x/tools v0.16.1-0.20231129202111-1b1e4dafd51a h1:0+Cdrtl1VNF5TeDTr0mLLPN4dMJFHnstbqMo/o1aReI=
++golang.org/x/tools v0.16.1-0.20231129202111-1b1e4dafd51a/go.mod h1:kYVVN6I1mBNoB1OX+noeBjbRk4IUEPa7JJ+TJMEooJ0=
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/fcntl.go b/src/cmd/vendor/golang.org/x/sys/unix/fcntl.go
+index 58c6bfc70f..6200876fb2 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/fcntl.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/fcntl.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd || linux || netbsd || openbsd
++//go:build dragonfly || freebsd || linux || netbsd
+ 
+ package unix
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ioctl_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/ioctl_linux.go
+index 0d12c0851a..dbe680eab8 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ioctl_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ioctl_linux.go
+@@ -231,3 +231,8 @@ func IoctlLoopGetStatus64(fd int) (*LoopInfo64, error) {
+ func IoctlLoopSetStatus64(fd int, value *LoopInfo64) error {
+ 	return ioctlPtr(fd, LOOP_SET_STATUS64, unsafe.Pointer(value))
+ }
++
++// IoctlLoopConfigure configures all loop device parameters in a single step
++func IoctlLoopConfigure(fd int, value *LoopConfig) error {
++	return ioctlPtr(fd, LOOP_CONFIGURE, unsafe.Pointer(value))
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+index cbe24150a7..6202638bae 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+@@ -519,6 +519,7 @@ ccflags="$@"
+ 		$2 ~ /^LOCK_(SH|EX|NB|UN)$/ ||
+ 		$2 ~ /^LO_(KEY|NAME)_SIZE$/ ||
+ 		$2 ~ /^LOOP_(CLR|CTL|GET|SET)_/ ||
++		$2 == "LOOP_CONFIGURE" ||
+ 		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MREMAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL|TCPOPT|UDP)_/ ||
+ 		$2 ~ /^NFC_(GENL|PROTO|COMM|RF|SE|DIRECTION|LLCP|SOCKPROTO)_/ ||
+ 		$2 ~ /^NFC_.*_(MAX)?SIZE$/ ||
+@@ -560,7 +561,7 @@ ccflags="$@"
+ 		$2 ~ /^RLIMIT_(AS|CORE|CPU|DATA|FSIZE|LOCKS|MEMLOCK|MSGQUEUE|NICE|NOFILE|NPROC|RSS|RTPRIO|RTTIME|SIGPENDING|STACK)|RLIM_INFINITY/ ||
+ 		$2 ~ /^PRIO_(PROCESS|PGRP|USER)/ ||
+ 		$2 ~ /^CLONE_[A-Z_]+/ ||
+-		$2 !~ /^(BPF_TIMEVAL|BPF_FIB_LOOKUP_[A-Z]+)$/ &&
++		$2 !~ /^(BPF_TIMEVAL|BPF_FIB_LOOKUP_[A-Z]+|BPF_F_LINK)$/ &&
+ 		$2 ~ /^(BPF|DLT)_/ ||
+ 		$2 ~ /^AUDIT_/ ||
+ 		$2 ~ /^(CLOCK|TIMER)_/ ||
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/pledge_openbsd.go b/src/cmd/vendor/golang.org/x/sys/unix/pledge_openbsd.go
+index eb48294b27..6a09af53e6 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/pledge_openbsd.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/pledge_openbsd.go
+@@ -8,54 +8,31 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"strconv"
+-	"syscall"
+-	"unsafe"
+ )
+ 
+ // Pledge implements the pledge syscall.
+ //
+-// The pledge syscall does not accept execpromises on OpenBSD releases
+-// before 6.3.
+-//
+-// execpromises must be empty when Pledge is called on OpenBSD
+-// releases predating 6.3, otherwise an error will be returned.
++// This changes both the promises and execpromises; use PledgePromises or
++// PledgeExecpromises to only change the promises or execpromises
++// respectively.
+ //
+ // For more information see pledge(2).
+ func Pledge(promises, execpromises string) error {
+-	maj, min, err := majmin()
+-	if err != nil {
++	if err := pledgeAvailable(); err != nil {
+ 		return err
+ 	}
+ 
+-	err = pledgeAvailable(maj, min, execpromises)
++	pptr, err := BytePtrFromString(promises)
+ 	if err != nil {
+ 		return err
+ 	}
+ 
+-	pptr, err := syscall.BytePtrFromString(promises)
++	exptr, err := BytePtrFromString(execpromises)
+ 	if err != nil {
+ 		return err
+ 	}
+ 
+-	// This variable will hold either a nil unsafe.Pointer or
+-	// an unsafe.Pointer to a string (execpromises).
+-	var expr unsafe.Pointer
+-
+-	// If we're running on OpenBSD > 6.2, pass execpromises to the syscall.
+-	if maj > 6 || (maj == 6 && min > 2) {
+-		exptr, err := syscall.BytePtrFromString(execpromises)
+-		if err != nil {
+-			return err
+-		}
+-		expr = unsafe.Pointer(exptr)
+-	}
+-
+-	_, _, e := syscall.Syscall(SYS_PLEDGE, uintptr(unsafe.Pointer(pptr)), uintptr(expr), 0)
+-	if e != 0 {
+-		return e
+-	}
+-
+-	return nil
++	return pledge(pptr, exptr)
+ }
+ 
+ // PledgePromises implements the pledge syscall.
+@@ -64,30 +41,16 @@ func Pledge(promises, execpromises string) error {
+ //
+ // For more information see pledge(2).
+ func PledgePromises(promises string) error {
+-	maj, min, err := majmin()
+-	if err != nil {
+-		return err
+-	}
+-
+-	err = pledgeAvailable(maj, min, "")
+-	if err != nil {
++	if err := pledgeAvailable(); err != nil {
+ 		return err
+ 	}
+ 
+-	// This variable holds the execpromises and is always nil.
+-	var expr unsafe.Pointer
+-
+-	pptr, err := syscall.BytePtrFromString(promises)
++	pptr, err := BytePtrFromString(promises)
+ 	if err != nil {
+ 		return err
+ 	}
+ 
+-	_, _, e := syscall.Syscall(SYS_PLEDGE, uintptr(unsafe.Pointer(pptr)), uintptr(expr), 0)
+-	if e != 0 {
+-		return e
+-	}
+-
+-	return nil
++	return pledge(pptr, nil)
+ }
+ 
+ // PledgeExecpromises implements the pledge syscall.
+@@ -96,30 +59,16 @@ func PledgePromises(promises string) error {
+ //
+ // For more information see pledge(2).
+ func PledgeExecpromises(execpromises string) error {
+-	maj, min, err := majmin()
+-	if err != nil {
++	if err := pledgeAvailable(); err != nil {
+ 		return err
+ 	}
+ 
+-	err = pledgeAvailable(maj, min, execpromises)
++	exptr, err := BytePtrFromString(execpromises)
+ 	if err != nil {
+ 		return err
+ 	}
+ 
+-	// This variable holds the promises and is always nil.
+-	var pptr unsafe.Pointer
+-
+-	exptr, err := syscall.BytePtrFromString(execpromises)
+-	if err != nil {
+-		return err
+-	}
+-
+-	_, _, e := syscall.Syscall(SYS_PLEDGE, uintptr(pptr), uintptr(unsafe.Pointer(exptr)), 0)
+-	if e != 0 {
+-		return e
+-	}
+-
+-	return nil
++	return pledge(nil, exptr)
+ }
+ 
+ // majmin returns major and minor version number for an OpenBSD system.
+@@ -147,16 +96,15 @@ func majmin() (major int, minor int, err error) {
+ 
+ // pledgeAvailable checks for availability of the pledge(2) syscall
+ // based on the running OpenBSD version.
+-func pledgeAvailable(maj, min int, execpromises string) error {
+-	// If OpenBSD <= 5.9, pledge is not available.
+-	if (maj == 5 && min != 9) || maj < 5 {
+-		return fmt.Errorf("pledge syscall is not available on OpenBSD %d.%d", maj, min)
++func pledgeAvailable() error {
++	maj, min, err := majmin()
++	if err != nil {
++		return err
+ 	}
+ 
+-	// If OpenBSD <= 6.2 and execpromises is not empty,
+-	// return an error - execpromises is not available before 6.3
+-	if (maj < 6 || (maj == 6 && min <= 2)) && execpromises != "" {
+-		return fmt.Errorf("cannot use execpromises on OpenBSD %d.%d", maj, min)
++	// Require OpenBSD 6.4 as a minimum.
++	if maj < 6 || (maj == 6 && min <= 3) {
++		return fmt.Errorf("cannot call Pledge on OpenBSD %d.%d", maj, min)
+ 	}
+ 
+ 	return nil
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
+index 6d3009d214..67ce6cef2d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
+@@ -106,7 +106,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	if n > 0 {
+ 		sl += _Socklen(n) + 1
+ 	}
+-	if sa.raw.Path[0] == '@' {
++	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
++		// Check sl > 3 so we don't change unnamed socket behavior.
+ 		sa.raw.Path[0] = 0
+ 		// Don't count trailing NUL for abstract address.
+ 		sl--
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_bsd.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_bsd.go
+index 6f328e3a55..a00c3e5450 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_bsd.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_bsd.go
+@@ -316,7 +316,7 @@ func GetsockoptString(fd, level, opt int) (string, error) {
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	return string(buf[:vallen-1]), nil
++	return ByteSliceToString(buf[:vallen]), nil
+ }
+ 
+ //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+index 6b8a4ad69c..0f85e29e62 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+@@ -61,15 +61,23 @@ func FanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname string) (
+ }
+ 
+ //sys	fchmodat(dirfd int, path string, mode uint32) (err error)
+-
+-func Fchmodat(dirfd int, path string, mode uint32, flags int) (err error) {
+-	// Linux fchmodat doesn't support the flags parameter. Mimick glibc's behavior
+-	// and check the flags. Otherwise the mode would be applied to the symlink
+-	// destination which is not what the user expects.
+-	if flags&^AT_SYMLINK_NOFOLLOW != 0 {
+-		return EINVAL
+-	} else if flags&AT_SYMLINK_NOFOLLOW != 0 {
+-		return EOPNOTSUPP
++//sys	fchmodat2(dirfd int, path string, mode uint32, flags int) (err error)
++
++func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
++	// Linux fchmodat doesn't support the flags parameter, but fchmodat2 does.
++	// Try fchmodat2 if flags are specified.
++	if flags != 0 {
++		err := fchmodat2(dirfd, path, mode, flags)
++		if err == ENOSYS {
++			// fchmodat2 isn't available. If the flags are known to be valid,
++			// return EOPNOTSUPP to indicate that fchmodat doesn't support them.
++			if flags&^(AT_SYMLINK_NOFOLLOW|AT_EMPTY_PATH) != 0 {
++				return EINVAL
++			} else if flags&(AT_SYMLINK_NOFOLLOW|AT_EMPTY_PATH) != 0 {
++				return EOPNOTSUPP
++			}
++		}
++		return err
+ 	}
+ 	return fchmodat(dirfd, path, mode)
+ }
+@@ -417,7 +425,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	if n > 0 {
+ 		sl += _Socklen(n) + 1
+ 	}
+-	if sa.raw.Path[0] == '@' {
++	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
++		// Check sl > 3 so we don't change unnamed socket behavior.
+ 		sa.raw.Path[0] = 0
+ 		// Don't count trailing NUL for abstract address.
+ 		sl--
+@@ -1301,7 +1310,7 @@ func GetsockoptString(fd, level, opt int) (string, error) {
+ 			return "", err
+ 		}
+ 	}
+-	return string(buf[:vallen-1]), nil
++	return ByteSliceToString(buf[:vallen]), nil
+ }
+ 
+ func GetsockoptTpacketStats(fd, level, opt int) (*TpacketStats, error) {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_openbsd.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_openbsd.go
+index 6f34479b59..b25343c71a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_openbsd.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_openbsd.go
+@@ -137,18 +137,13 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ }
+ 
+ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+-	var _p0 unsafe.Pointer
++	var bufptr *Statfs_t
+ 	var bufsize uintptr
+ 	if len(buf) > 0 {
+-		_p0 = unsafe.Pointer(&buf[0])
++		bufptr = &buf[0]
+ 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
+ 	}
+-	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(_p0), bufsize, uintptr(flags))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
++	return getfsstat(bufptr, bufsize, flags)
+ }
+ 
+ //sysnb	getresuid(ruid *_C_int, euid *_C_int, suid *_C_int)
+@@ -171,6 +166,20 @@ func Getresgid() (rgid, egid, sgid int) {
+ 
+ //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
+ 
++//sys	fcntl(fd int, cmd int, arg int) (n int, err error)
++//sys	fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (n int, err error) = SYS_FCNTL
++
++// FcntlInt performs a fcntl syscall on fd with the provided command and argument.
++func FcntlInt(fd uintptr, cmd, arg int) (int, error) {
++	return fcntl(int(fd), cmd, arg)
++}
++
++// FcntlFlock performs a fcntl syscall for the F_GETLK, F_SETLK or F_SETLKW command.
++func FcntlFlock(fd uintptr, cmd int, lk *Flock_t) error {
++	_, err := fcntlPtr(int(fd), cmd, unsafe.Pointer(lk))
++	return err
++}
++
+ //sys	ppoll(fds *PollFd, nfds int, timeout *Timespec, sigmask *Sigset_t) (n int, err error)
+ 
+ func Ppoll(fds []PollFd, timeout *Timespec, sigmask *Sigset_t) (n int, err error) {
+@@ -326,4 +335,7 @@ func Uname(uname *Utsname) error {
+ //sys	write(fd int, p []byte) (n int, err error)
+ //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
+ //sys	munmap(addr uintptr, length uintptr) (err error)
++//sys	getfsstat(stat *Statfs_t, bufsize uintptr, flags int) (n int, err error)
+ //sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
++//sys	pledge(promises *byte, execpromises *byte) (err error)
++//sys	unveil(path *byte, flags *byte) (err error)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_solaris.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_solaris.go
+index b99cfa1342..21974af064 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_solaris.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_solaris.go
+@@ -128,7 +128,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	if n > 0 {
+ 		sl += _Socklen(n) + 1
+ 	}
+-	if sa.raw.Path[0] == '@' {
++	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
++		// Check sl > 3 so we don't change unnamed socket behavior.
+ 		sa.raw.Path[0] = 0
+ 		// Don't count trailing NUL for abstract address.
+ 		sl--
+@@ -157,7 +158,7 @@ func GetsockoptString(fd, level, opt int) (string, error) {
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	return string(buf[:vallen-1]), nil
++	return ByteSliceToString(buf[:vallen]), nil
+ }
+ 
+ const ImplementsGetwd = true
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_zos_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_zos_s390x.go
+index d99d05f1bc..b473038c61 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_zos_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_zos_s390x.go
+@@ -1104,7 +1104,7 @@ func GetsockoptString(fd, level, opt int) (string, error) {
+ 		return "", err
+ 	}
+ 
+-	return string(buf[:vallen-1]), nil
++	return ByteSliceToString(buf[:vallen]), nil
+ }
+ 
+ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/unveil_openbsd.go b/src/cmd/vendor/golang.org/x/sys/unix/unveil_openbsd.go
+index 168d5ae779..cb7e598cef 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/unveil_openbsd.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/unveil_openbsd.go
+@@ -4,39 +4,48 @@
+ 
+ package unix
+ 
+-import (
+-	"syscall"
+-	"unsafe"
+-)
++import "fmt"
+ 
+ // Unveil implements the unveil syscall.
+ // For more information see unveil(2).
+ // Note that the special case of blocking further
+ // unveil calls is handled by UnveilBlock.
+ func Unveil(path string, flags string) error {
+-	pathPtr, err := syscall.BytePtrFromString(path)
+-	if err != nil {
++	if err := supportsUnveil(); err != nil {
+ 		return err
+ 	}
+-	flagsPtr, err := syscall.BytePtrFromString(flags)
++	pathPtr, err := BytePtrFromString(path)
+ 	if err != nil {
+ 		return err
+ 	}
+-	_, _, e := syscall.Syscall(SYS_UNVEIL, uintptr(unsafe.Pointer(pathPtr)), uintptr(unsafe.Pointer(flagsPtr)), 0)
+-	if e != 0 {
+-		return e
++	flagsPtr, err := BytePtrFromString(flags)
++	if err != nil {
++		return err
+ 	}
+-	return nil
++	return unveil(pathPtr, flagsPtr)
+ }
+ 
+ // UnveilBlock blocks future unveil calls.
+ // For more information see unveil(2).
+ func UnveilBlock() error {
+-	// Both pointers must be nil.
+-	var pathUnsafe, flagsUnsafe unsafe.Pointer
+-	_, _, e := syscall.Syscall(SYS_UNVEIL, uintptr(pathUnsafe), uintptr(flagsUnsafe), 0)
+-	if e != 0 {
+-		return e
++	if err := supportsUnveil(); err != nil {
++		return err
+ 	}
++	return unveil(nil, nil)
++}
++
++// supportsUnveil checks for availability of the unveil(2) system call based
++// on the running OpenBSD version.
++func supportsUnveil() error {
++	maj, min, err := majmin()
++	if err != nil {
++		return err
++	}
++
++	// unveil is not available before 6.4
++	if maj < 6 || (maj == 6 && min <= 3) {
++		return fmt.Errorf("cannot call Unveil on OpenBSD %d.%d", maj, min)
++	}
++
+ 	return nil
+ }
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+index 2409c44780..c73cfe2f10 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+@@ -480,10 +480,13 @@ const (
+ 	BPF_FROM_BE                                 = 0x8
+ 	BPF_FROM_LE                                 = 0x0
+ 	BPF_FS_MAGIC                                = 0xcafe4a11
++	BPF_F_AFTER                                 = 0x10
+ 	BPF_F_ALLOW_MULTI                           = 0x2
+ 	BPF_F_ALLOW_OVERRIDE                        = 0x1
+ 	BPF_F_ANY_ALIGNMENT                         = 0x2
+-	BPF_F_KPROBE_MULTI_RETURN                   = 0x1
++	BPF_F_BEFORE                                = 0x8
++	BPF_F_ID                                    = 0x20
++	BPF_F_NETFILTER_IP_DEFRAG                   = 0x1
+ 	BPF_F_QUERY_EFFECTIVE                       = 0x1
+ 	BPF_F_REPLACE                               = 0x4
+ 	BPF_F_SLEEPABLE                             = 0x10
+@@ -520,6 +523,7 @@ const (
+ 	BPF_MAJOR_VERSION                           = 0x1
+ 	BPF_MAXINSNS                                = 0x1000
+ 	BPF_MEM                                     = 0x60
++	BPF_MEMSX                                   = 0x80
+ 	BPF_MEMWORDS                                = 0x10
+ 	BPF_MINOR_VERSION                           = 0x1
+ 	BPF_MISC                                    = 0x7
+@@ -775,6 +779,8 @@ const (
+ 	DEVLINK_GENL_MCGRP_CONFIG_NAME              = "config"
+ 	DEVLINK_GENL_NAME                           = "devlink"
+ 	DEVLINK_GENL_VERSION                        = 0x1
++	DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO            = 0x4
++	DEVLINK_PORT_FN_CAP_IPSEC_PACKET            = 0x8
+ 	DEVLINK_PORT_FN_CAP_MIGRATABLE              = 0x2
+ 	DEVLINK_PORT_FN_CAP_ROCE                    = 0x1
+ 	DEVLINK_SB_THRESHOLD_TO_ALPHA_MAX           = 0x14
+@@ -1697,6 +1703,7 @@ const (
+ 	KEXEC_ON_CRASH                              = 0x1
+ 	KEXEC_PRESERVE_CONTEXT                      = 0x2
+ 	KEXEC_SEGMENT_MAX                           = 0x10
++	KEXEC_UPDATE_ELFCOREHDR                     = 0x4
+ 	KEYCTL_ASSUME_AUTHORITY                     = 0x10
+ 	KEYCTL_CAPABILITIES                         = 0x1f
+ 	KEYCTL_CAPS0_BIG_KEY                        = 0x10
+@@ -1794,6 +1801,7 @@ const (
+ 	LOCK_SH                                     = 0x1
+ 	LOCK_UN                                     = 0x8
+ 	LOOP_CLR_FD                                 = 0x4c01
++	LOOP_CONFIGURE                              = 0x4c0a
+ 	LOOP_CTL_ADD                                = 0x4c80
+ 	LOOP_CTL_GET_FREE                           = 0x4c82
+ 	LOOP_CTL_REMOVE                             = 0x4c81
+@@ -2274,6 +2282,7 @@ const (
+ 	PERF_MEM_LVLNUM_PMEM                        = 0xe
+ 	PERF_MEM_LVLNUM_RAM                         = 0xd
+ 	PERF_MEM_LVLNUM_SHIFT                       = 0x21
++	PERF_MEM_LVLNUM_UNC                         = 0x8
+ 	PERF_MEM_LVL_HIT                            = 0x2
+ 	PERF_MEM_LVL_IO                             = 0x1000
+ 	PERF_MEM_LVL_L1                             = 0x8
+@@ -3460,6 +3469,7 @@ const (
+ 	XDP_PACKET_HEADROOM                         = 0x100
+ 	XDP_PGOFF_RX_RING                           = 0x0
+ 	XDP_PGOFF_TX_RING                           = 0x80000000
++	XDP_PKT_CONTD                               = 0x1
+ 	XDP_RING_NEED_WAKEUP                        = 0x1
+ 	XDP_RX_RING                                 = 0x2
+ 	XDP_SHARED_UMEM                             = 0x1
+@@ -3472,6 +3482,7 @@ const (
+ 	XDP_UMEM_REG                                = 0x4
+ 	XDP_UMEM_UNALIGNED_CHUNK_FLAG               = 0x1
+ 	XDP_USE_NEED_WAKEUP                         = 0x8
++	XDP_USE_SG                                  = 0x10
+ 	XDP_ZEROCOPY                                = 0x4
+ 	XENFS_SUPER_MAGIC                           = 0xabba1974
+ 	XFS_SUPER_MAGIC                             = 0x58465342
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
+index e6467bd23b..27ac4a09e2 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
+@@ -118,6 +118,7 @@ const (
+ 	IXOFF                            = 0x1000
+ 	IXON                             = 0x400
+ 	LASX_CTX_MAGIC                   = 0x41535801
++	LBT_CTX_MAGIC                    = 0x42540001
+ 	LSX_CTX_MAGIC                    = 0x53580001
+ 	MAP_ANON                         = 0x20
+ 	MAP_ANONYMOUS                    = 0x20
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+index c597e31db6..18f2813ed5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+@@ -227,6 +227,9 @@ const (
+ 	PPPIOCUNBRIDGECHAN               = 0x7434
+ 	PPPIOCXFERUNIT                   = 0x744e
+ 	PR_SET_PTRACER_ANY               = 0xffffffffffffffff
++	PTRACE_GETFDPIC                  = 0x21
++	PTRACE_GETFDPIC_EXEC             = 0x0
++	PTRACE_GETFDPIC_INTERP           = 0x1
+ 	RLIMIT_AS                        = 0x9
+ 	RLIMIT_MEMLOCK                   = 0x8
+ 	RLIMIT_NOFILE                    = 0x7
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+index faca7a557b..1488d27128 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+@@ -37,6 +37,21 @@ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fchmodat2(dirfd int, path string, mode uint32, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_FCHMODAT2, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func ioctl(fd int, req uint, arg uintptr) (err error) {
+ 	_, _, e1 := Syscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
+ 	if e1 != 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_386.go
+index 9da3ec3772..a1d061597c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_386.go
+@@ -584,6 +584,32 @@ var libc_sysctl_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fcntl(fd int, cmd int, arg int) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_fcntl_trampoline_addr, uintptr(fd), uintptr(cmd), uintptr(arg))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_fcntl_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_fcntl fcntl "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_fcntl_trampoline_addr, uintptr(fd), uintptr(cmd), uintptr(arg))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func ppoll(fds *PollFd, nfds int, timeout *Timespec, sigmask *Sigset_t) (n int, err error) {
+ 	r0, _, e1 := syscall_syscall6(libc_ppoll_trampoline_addr, uintptr(unsafe.Pointer(fds)), uintptr(nfds), uintptr(unsafe.Pointer(timeout)), uintptr(unsafe.Pointer(sigmask)), 0, 0)
+ 	n = int(r0)
+@@ -2212,6 +2238,21 @@ var libc_munmap_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func getfsstat(stat *Statfs_t, bufsize uintptr, flags int) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_getfsstat_trampoline_addr, uintptr(unsafe.Pointer(stat)), uintptr(bufsize), uintptr(flags))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_getfsstat_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_getfsstat getfsstat "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -2228,3 +2269,33 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error
+ var libc_utimensat_trampoline_addr uintptr
+ 
+ //go:cgo_import_dynamic libc_utimensat utimensat "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pledge(promises *byte, execpromises *byte) (err error) {
++	_, _, e1 := syscall_syscall(libc_pledge_trampoline_addr, uintptr(unsafe.Pointer(promises)), uintptr(unsafe.Pointer(execpromises)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_pledge_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_pledge pledge "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func unveil(path *byte, flags *byte) (err error) {
++	_, _, e1 := syscall_syscall(libc_unveil_trampoline_addr, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(flags)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_unveil_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_unveil unveil "libc.so"
++
++
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_386.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_386.s
+index 3dcacd30d7..41b5617316 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_386.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_386.s
+@@ -178,6 +178,11 @@ TEXT libc_sysctl_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_sysctl_trampoline_addr(SB), RODATA, $4
+ DATA	·libc_sysctl_trampoline_addr(SB)/4, $libc_sysctl_trampoline<>(SB)
+ 
++TEXT libc_fcntl_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_fcntl(SB)
++GLOBL	·libc_fcntl_trampoline_addr(SB), RODATA, $4
++DATA	·libc_fcntl_trampoline_addr(SB)/4, $libc_fcntl_trampoline<>(SB)
++
+ TEXT libc_ppoll_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ppoll(SB)
+ GLOBL	·libc_ppoll_trampoline_addr(SB), RODATA, $4
+@@ -668,7 +673,22 @@ TEXT libc_munmap_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_munmap_trampoline_addr(SB), RODATA, $4
+ DATA	·libc_munmap_trampoline_addr(SB)/4, $libc_munmap_trampoline<>(SB)
+ 
++TEXT libc_getfsstat_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_getfsstat(SB)
++GLOBL	·libc_getfsstat_trampoline_addr(SB), RODATA, $4
++DATA	·libc_getfsstat_trampoline_addr(SB)/4, $libc_getfsstat_trampoline<>(SB)
++
+ TEXT libc_utimensat_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_utimensat(SB)
+ GLOBL	·libc_utimensat_trampoline_addr(SB), RODATA, $4
+ DATA	·libc_utimensat_trampoline_addr(SB)/4, $libc_utimensat_trampoline<>(SB)
++
++TEXT libc_pledge_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_pledge(SB)
++GLOBL	·libc_pledge_trampoline_addr(SB), RODATA, $4
++DATA	·libc_pledge_trampoline_addr(SB)/4, $libc_pledge_trampoline<>(SB)
++
++TEXT libc_unveil_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_unveil(SB)
++GLOBL	·libc_unveil_trampoline_addr(SB), RODATA, $4
++DATA	·libc_unveil_trampoline_addr(SB)/4, $libc_unveil_trampoline<>(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_amd64.go
+index cc273c4126..5b2a740977 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_amd64.go
+@@ -584,6 +584,32 @@ var libc_sysctl_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fcntl(fd int, cmd int, arg int) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_fcntl_trampoline_addr, uintptr(fd), uintptr(cmd), uintptr(arg))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_fcntl_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_fcntl fcntl "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_fcntl_trampoline_addr, uintptr(fd), uintptr(cmd), uintptr(arg))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func ppoll(fds *PollFd, nfds int, timeout *Timespec, sigmask *Sigset_t) (n int, err error) {
+ 	r0, _, e1 := syscall_syscall6(libc_ppoll_trampoline_addr, uintptr(unsafe.Pointer(fds)), uintptr(nfds), uintptr(unsafe.Pointer(timeout)), uintptr(unsafe.Pointer(sigmask)), 0, 0)
+ 	n = int(r0)
+@@ -2212,6 +2238,21 @@ var libc_munmap_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func getfsstat(stat *Statfs_t, bufsize uintptr, flags int) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_getfsstat_trampoline_addr, uintptr(unsafe.Pointer(stat)), uintptr(bufsize), uintptr(flags))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_getfsstat_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_getfsstat getfsstat "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -2228,3 +2269,33 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error
+ var libc_utimensat_trampoline_addr uintptr
+ 
+ //go:cgo_import_dynamic libc_utimensat utimensat "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pledge(promises *byte, execpromises *byte) (err error) {
++	_, _, e1 := syscall_syscall(libc_pledge_trampoline_addr, uintptr(unsafe.Pointer(promises)), uintptr(unsafe.Pointer(execpromises)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_pledge_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_pledge pledge "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func unveil(path *byte, flags *byte) (err error) {
++	_, _, e1 := syscall_syscall(libc_unveil_trampoline_addr, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(flags)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_unveil_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_unveil unveil "libc.so"
++
++
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_amd64.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_amd64.s
+index 2763620b01..4019a656f6 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_amd64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_amd64.s
+@@ -178,6 +178,11 @@ TEXT libc_sysctl_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_sysctl_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_sysctl_trampoline_addr(SB)/8, $libc_sysctl_trampoline<>(SB)
+ 
++TEXT libc_fcntl_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_fcntl(SB)
++GLOBL	·libc_fcntl_trampoline_addr(SB), RODATA, $8
++DATA	·libc_fcntl_trampoline_addr(SB)/8, $libc_fcntl_trampoline<>(SB)
++
+ TEXT libc_ppoll_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ppoll(SB)
+ GLOBL	·libc_ppoll_trampoline_addr(SB), RODATA, $8
+@@ -668,7 +673,22 @@ TEXT libc_munmap_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_munmap_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_munmap_trampoline_addr(SB)/8, $libc_munmap_trampoline<>(SB)
+ 
++TEXT libc_getfsstat_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_getfsstat(SB)
++GLOBL	·libc_getfsstat_trampoline_addr(SB), RODATA, $8
++DATA	·libc_getfsstat_trampoline_addr(SB)/8, $libc_getfsstat_trampoline<>(SB)
++
+ TEXT libc_utimensat_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_utimensat(SB)
+ GLOBL	·libc_utimensat_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_utimensat_trampoline_addr(SB)/8, $libc_utimensat_trampoline<>(SB)
++
++TEXT libc_pledge_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_pledge(SB)
++GLOBL	·libc_pledge_trampoline_addr(SB), RODATA, $8
++DATA	·libc_pledge_trampoline_addr(SB)/8, $libc_pledge_trampoline<>(SB)
++
++TEXT libc_unveil_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_unveil(SB)
++GLOBL	·libc_unveil_trampoline_addr(SB), RODATA, $8
++DATA	·libc_unveil_trampoline_addr(SB)/8, $libc_unveil_trampoline<>(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm.go
+index fa34e22e3b..f6eda1344a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm.go
+@@ -584,6 +584,32 @@ var libc_sysctl_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fcntl(fd int, cmd int, arg int) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_fcntl_trampoline_addr, uintptr(fd), uintptr(cmd), uintptr(arg))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_fcntl_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_fcntl fcntl "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_fcntl_trampoline_addr, uintptr(fd), uintptr(cmd), uintptr(arg))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func ppoll(fds *PollFd, nfds int, timeout *Timespec, sigmask *Sigset_t) (n int, err error) {
+ 	r0, _, e1 := syscall_syscall6(libc_ppoll_trampoline_addr, uintptr(unsafe.Pointer(fds)), uintptr(nfds), uintptr(unsafe.Pointer(timeout)), uintptr(unsafe.Pointer(sigmask)), 0, 0)
+ 	n = int(r0)
+@@ -2212,6 +2238,21 @@ var libc_munmap_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func getfsstat(stat *Statfs_t, bufsize uintptr, flags int) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_getfsstat_trampoline_addr, uintptr(unsafe.Pointer(stat)), uintptr(bufsize), uintptr(flags))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_getfsstat_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_getfsstat getfsstat "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -2228,3 +2269,33 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error
+ var libc_utimensat_trampoline_addr uintptr
+ 
+ //go:cgo_import_dynamic libc_utimensat utimensat "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pledge(promises *byte, execpromises *byte) (err error) {
++	_, _, e1 := syscall_syscall(libc_pledge_trampoline_addr, uintptr(unsafe.Pointer(promises)), uintptr(unsafe.Pointer(execpromises)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_pledge_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_pledge pledge "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func unveil(path *byte, flags *byte) (err error) {
++	_, _, e1 := syscall_syscall(libc_unveil_trampoline_addr, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(flags)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_unveil_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_unveil unveil "libc.so"
++
++
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm.s
+index c922314048..ac4af24f90 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm.s
+@@ -178,6 +178,11 @@ TEXT libc_sysctl_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_sysctl_trampoline_addr(SB), RODATA, $4
+ DATA	·libc_sysctl_trampoline_addr(SB)/4, $libc_sysctl_trampoline<>(SB)
+ 
++TEXT libc_fcntl_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_fcntl(SB)
++GLOBL	·libc_fcntl_trampoline_addr(SB), RODATA, $4
++DATA	·libc_fcntl_trampoline_addr(SB)/4, $libc_fcntl_trampoline<>(SB)
++
+ TEXT libc_ppoll_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ppoll(SB)
+ GLOBL	·libc_ppoll_trampoline_addr(SB), RODATA, $4
+@@ -668,7 +673,22 @@ TEXT libc_munmap_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_munmap_trampoline_addr(SB), RODATA, $4
+ DATA	·libc_munmap_trampoline_addr(SB)/4, $libc_munmap_trampoline<>(SB)
+ 
++TEXT libc_getfsstat_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_getfsstat(SB)
++GLOBL	·libc_getfsstat_trampoline_addr(SB), RODATA, $4
++DATA	·libc_getfsstat_trampoline_addr(SB)/4, $libc_getfsstat_trampoline<>(SB)
++
+ TEXT libc_utimensat_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_utimensat(SB)
+ GLOBL	·libc_utimensat_trampoline_addr(SB), RODATA, $4
+ DATA	·libc_utimensat_trampoline_addr(SB)/4, $libc_utimensat_trampoline<>(SB)
++
++TEXT libc_pledge_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_pledge(SB)
++GLOBL	·libc_pledge_trampoline_addr(SB), RODATA, $4
++DATA	·libc_pledge_trampoline_addr(SB)/4, $libc_pledge_trampoline<>(SB)
++
++TEXT libc_unveil_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_unveil(SB)
++GLOBL	·libc_unveil_trampoline_addr(SB), RODATA, $4
++DATA	·libc_unveil_trampoline_addr(SB)/4, $libc_unveil_trampoline<>(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm64.go
+index ab61221477..55df20ae9d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm64.go
+@@ -584,6 +584,32 @@ var libc_sysctl_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fcntl(fd int, cmd int, arg int) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_fcntl_trampoline_addr, uintptr(fd), uintptr(cmd), uintptr(arg))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_fcntl_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_fcntl fcntl "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_fcntl_trampoline_addr, uintptr(fd), uintptr(cmd), uintptr(arg))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func ppoll(fds *PollFd, nfds int, timeout *Timespec, sigmask *Sigset_t) (n int, err error) {
+ 	r0, _, e1 := syscall_syscall6(libc_ppoll_trampoline_addr, uintptr(unsafe.Pointer(fds)), uintptr(nfds), uintptr(unsafe.Pointer(timeout)), uintptr(unsafe.Pointer(sigmask)), 0, 0)
+ 	n = int(r0)
+@@ -2212,6 +2238,21 @@ var libc_munmap_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func getfsstat(stat *Statfs_t, bufsize uintptr, flags int) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_getfsstat_trampoline_addr, uintptr(unsafe.Pointer(stat)), uintptr(bufsize), uintptr(flags))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_getfsstat_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_getfsstat getfsstat "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -2228,3 +2269,33 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error
+ var libc_utimensat_trampoline_addr uintptr
+ 
+ //go:cgo_import_dynamic libc_utimensat utimensat "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pledge(promises *byte, execpromises *byte) (err error) {
++	_, _, e1 := syscall_syscall(libc_pledge_trampoline_addr, uintptr(unsafe.Pointer(promises)), uintptr(unsafe.Pointer(execpromises)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_pledge_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_pledge pledge "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func unveil(path *byte, flags *byte) (err error) {
++	_, _, e1 := syscall_syscall(libc_unveil_trampoline_addr, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(flags)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_unveil_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_unveil unveil "libc.so"
++
++
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm64.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm64.s
+index a6bc32c922..f77d532121 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm64.s
+@@ -178,6 +178,11 @@ TEXT libc_sysctl_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_sysctl_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_sysctl_trampoline_addr(SB)/8, $libc_sysctl_trampoline<>(SB)
+ 
++TEXT libc_fcntl_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_fcntl(SB)
++GLOBL	·libc_fcntl_trampoline_addr(SB), RODATA, $8
++DATA	·libc_fcntl_trampoline_addr(SB)/8, $libc_fcntl_trampoline<>(SB)
++
+ TEXT libc_ppoll_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ppoll(SB)
+ GLOBL	·libc_ppoll_trampoline_addr(SB), RODATA, $8
+@@ -668,7 +673,22 @@ TEXT libc_munmap_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_munmap_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_munmap_trampoline_addr(SB)/8, $libc_munmap_trampoline<>(SB)
+ 
++TEXT libc_getfsstat_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_getfsstat(SB)
++GLOBL	·libc_getfsstat_trampoline_addr(SB), RODATA, $8
++DATA	·libc_getfsstat_trampoline_addr(SB)/8, $libc_getfsstat_trampoline<>(SB)
++
+ TEXT libc_utimensat_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_utimensat(SB)
+ GLOBL	·libc_utimensat_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_utimensat_trampoline_addr(SB)/8, $libc_utimensat_trampoline<>(SB)
++
++TEXT libc_pledge_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_pledge(SB)
++GLOBL	·libc_pledge_trampoline_addr(SB), RODATA, $8
++DATA	·libc_pledge_trampoline_addr(SB)/8, $libc_pledge_trampoline<>(SB)
++
++TEXT libc_unveil_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_unveil(SB)
++GLOBL	·libc_unveil_trampoline_addr(SB), RODATA, $8
++DATA	·libc_unveil_trampoline_addr(SB)/8, $libc_unveil_trampoline<>(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_mips64.go
+index 3882790a52..8c1155cbc0 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_mips64.go
+@@ -584,6 +584,32 @@ var libc_sysctl_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fcntl(fd int, cmd int, arg int) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_fcntl_trampoline_addr, uintptr(fd), uintptr(cmd), uintptr(arg))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_fcntl_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_fcntl fcntl "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_fcntl_trampoline_addr, uintptr(fd), uintptr(cmd), uintptr(arg))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func ppoll(fds *PollFd, nfds int, timeout *Timespec, sigmask *Sigset_t) (n int, err error) {
+ 	r0, _, e1 := syscall_syscall6(libc_ppoll_trampoline_addr, uintptr(unsafe.Pointer(fds)), uintptr(nfds), uintptr(unsafe.Pointer(timeout)), uintptr(unsafe.Pointer(sigmask)), 0, 0)
+ 	n = int(r0)
+@@ -2212,6 +2238,21 @@ var libc_munmap_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func getfsstat(stat *Statfs_t, bufsize uintptr, flags int) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_getfsstat_trampoline_addr, uintptr(unsafe.Pointer(stat)), uintptr(bufsize), uintptr(flags))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_getfsstat_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_getfsstat getfsstat "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -2228,3 +2269,33 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error
+ var libc_utimensat_trampoline_addr uintptr
+ 
+ //go:cgo_import_dynamic libc_utimensat utimensat "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pledge(promises *byte, execpromises *byte) (err error) {
++	_, _, e1 := syscall_syscall(libc_pledge_trampoline_addr, uintptr(unsafe.Pointer(promises)), uintptr(unsafe.Pointer(execpromises)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_pledge_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_pledge pledge "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func unveil(path *byte, flags *byte) (err error) {
++	_, _, e1 := syscall_syscall(libc_unveil_trampoline_addr, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(flags)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_unveil_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_unveil unveil "libc.so"
++
++
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_mips64.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_mips64.s
+index b4e7bceabf..fae140b62c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_mips64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_mips64.s
+@@ -178,6 +178,11 @@ TEXT libc_sysctl_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_sysctl_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_sysctl_trampoline_addr(SB)/8, $libc_sysctl_trampoline<>(SB)
+ 
++TEXT libc_fcntl_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_fcntl(SB)
++GLOBL	·libc_fcntl_trampoline_addr(SB), RODATA, $8
++DATA	·libc_fcntl_trampoline_addr(SB)/8, $libc_fcntl_trampoline<>(SB)
++
+ TEXT libc_ppoll_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ppoll(SB)
+ GLOBL	·libc_ppoll_trampoline_addr(SB), RODATA, $8
+@@ -668,7 +673,22 @@ TEXT libc_munmap_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_munmap_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_munmap_trampoline_addr(SB)/8, $libc_munmap_trampoline<>(SB)
+ 
++TEXT libc_getfsstat_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_getfsstat(SB)
++GLOBL	·libc_getfsstat_trampoline_addr(SB), RODATA, $8
++DATA	·libc_getfsstat_trampoline_addr(SB)/8, $libc_getfsstat_trampoline<>(SB)
++
+ TEXT libc_utimensat_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_utimensat(SB)
+ GLOBL	·libc_utimensat_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_utimensat_trampoline_addr(SB)/8, $libc_utimensat_trampoline<>(SB)
++
++TEXT libc_pledge_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_pledge(SB)
++GLOBL	·libc_pledge_trampoline_addr(SB), RODATA, $8
++DATA	·libc_pledge_trampoline_addr(SB)/8, $libc_pledge_trampoline<>(SB)
++
++TEXT libc_unveil_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_unveil(SB)
++GLOBL	·libc_unveil_trampoline_addr(SB), RODATA, $8
++DATA	·libc_unveil_trampoline_addr(SB)/8, $libc_unveil_trampoline<>(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_ppc64.go
+index 172ba7f62c..7cc80c58d9 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_ppc64.go
+@@ -584,6 +584,32 @@ var libc_sysctl_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fcntl(fd int, cmd int, arg int) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_fcntl_trampoline_addr, uintptr(fd), uintptr(cmd), uintptr(arg))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_fcntl_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_fcntl fcntl "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_fcntl_trampoline_addr, uintptr(fd), uintptr(cmd), uintptr(arg))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func ppoll(fds *PollFd, nfds int, timeout *Timespec, sigmask *Sigset_t) (n int, err error) {
+ 	r0, _, e1 := syscall_syscall6(libc_ppoll_trampoline_addr, uintptr(unsafe.Pointer(fds)), uintptr(nfds), uintptr(unsafe.Pointer(timeout)), uintptr(unsafe.Pointer(sigmask)), 0, 0)
+ 	n = int(r0)
+@@ -2212,6 +2238,21 @@ var libc_munmap_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func getfsstat(stat *Statfs_t, bufsize uintptr, flags int) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_getfsstat_trampoline_addr, uintptr(unsafe.Pointer(stat)), uintptr(bufsize), uintptr(flags))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_getfsstat_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_getfsstat getfsstat "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -2228,3 +2269,33 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error
+ var libc_utimensat_trampoline_addr uintptr
+ 
+ //go:cgo_import_dynamic libc_utimensat utimensat "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pledge(promises *byte, execpromises *byte) (err error) {
++	_, _, e1 := syscall_syscall(libc_pledge_trampoline_addr, uintptr(unsafe.Pointer(promises)), uintptr(unsafe.Pointer(execpromises)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_pledge_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_pledge pledge "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func unveil(path *byte, flags *byte) (err error) {
++	_, _, e1 := syscall_syscall(libc_unveil_trampoline_addr, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(flags)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_unveil_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_unveil unveil "libc.so"
++
++
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_ppc64.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_ppc64.s
+index ca3f766009..9d1e0ff06d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_ppc64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_ppc64.s
+@@ -213,6 +213,12 @@ TEXT libc_sysctl_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_sysctl_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_sysctl_trampoline_addr(SB)/8, $libc_sysctl_trampoline<>(SB)
+ 
++TEXT libc_fcntl_trampoline<>(SB),NOSPLIT,$0-0
++	CALL	libc_fcntl(SB)
++	RET
++GLOBL	·libc_fcntl_trampoline_addr(SB), RODATA, $8
++DATA	·libc_fcntl_trampoline_addr(SB)/8, $libc_fcntl_trampoline<>(SB)
++
+ TEXT libc_ppoll_trampoline<>(SB),NOSPLIT,$0-0
+ 	CALL	libc_ppoll(SB)
+ 	RET
+@@ -801,8 +807,26 @@ TEXT libc_munmap_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_munmap_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_munmap_trampoline_addr(SB)/8, $libc_munmap_trampoline<>(SB)
+ 
++TEXT libc_getfsstat_trampoline<>(SB),NOSPLIT,$0-0
++	CALL	libc_getfsstat(SB)
++	RET
++GLOBL	·libc_getfsstat_trampoline_addr(SB), RODATA, $8
++DATA	·libc_getfsstat_trampoline_addr(SB)/8, $libc_getfsstat_trampoline<>(SB)
++
+ TEXT libc_utimensat_trampoline<>(SB),NOSPLIT,$0-0
+ 	CALL	libc_utimensat(SB)
+ 	RET
+ GLOBL	·libc_utimensat_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_utimensat_trampoline_addr(SB)/8, $libc_utimensat_trampoline<>(SB)
++
++TEXT libc_pledge_trampoline<>(SB),NOSPLIT,$0-0
++	CALL	libc_pledge(SB)
++	RET
++GLOBL	·libc_pledge_trampoline_addr(SB), RODATA, $8
++DATA	·libc_pledge_trampoline_addr(SB)/8, $libc_pledge_trampoline<>(SB)
++
++TEXT libc_unveil_trampoline<>(SB),NOSPLIT,$0-0
++	CALL	libc_unveil(SB)
++	RET
++GLOBL	·libc_unveil_trampoline_addr(SB), RODATA, $8
++DATA	·libc_unveil_trampoline_addr(SB)/8, $libc_unveil_trampoline<>(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_riscv64.go
+index fd8e6f62fa..0688737f49 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_riscv64.go
+@@ -584,6 +584,32 @@ var libc_sysctl_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fcntl(fd int, cmd int, arg int) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_fcntl_trampoline_addr, uintptr(fd), uintptr(cmd), uintptr(arg))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_fcntl_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_fcntl fcntl "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_fcntl_trampoline_addr, uintptr(fd), uintptr(cmd), uintptr(arg))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func ppoll(fds *PollFd, nfds int, timeout *Timespec, sigmask *Sigset_t) (n int, err error) {
+ 	r0, _, e1 := syscall_syscall6(libc_ppoll_trampoline_addr, uintptr(unsafe.Pointer(fds)), uintptr(nfds), uintptr(unsafe.Pointer(timeout)), uintptr(unsafe.Pointer(sigmask)), 0, 0)
+ 	n = int(r0)
+@@ -2212,6 +2238,21 @@ var libc_munmap_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func getfsstat(stat *Statfs_t, bufsize uintptr, flags int) (n int, err error) {
++	r0, _, e1 := syscall_syscall(libc_getfsstat_trampoline_addr, uintptr(unsafe.Pointer(stat)), uintptr(bufsize), uintptr(flags))
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_getfsstat_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_getfsstat getfsstat "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -2228,3 +2269,33 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error
+ var libc_utimensat_trampoline_addr uintptr
+ 
+ //go:cgo_import_dynamic libc_utimensat utimensat "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pledge(promises *byte, execpromises *byte) (err error) {
++	_, _, e1 := syscall_syscall(libc_pledge_trampoline_addr, uintptr(unsafe.Pointer(promises)), uintptr(unsafe.Pointer(execpromises)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_pledge_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_pledge pledge "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func unveil(path *byte, flags *byte) (err error) {
++	_, _, e1 := syscall_syscall(libc_unveil_trampoline_addr, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(flags)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_unveil_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_unveil unveil "libc.so"
++
++
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_riscv64.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_riscv64.s
+index 477a7d5b21..da115f9a4b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_riscv64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_riscv64.s
+@@ -178,6 +178,11 @@ TEXT libc_sysctl_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_sysctl_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_sysctl_trampoline_addr(SB)/8, $libc_sysctl_trampoline<>(SB)
+ 
++TEXT libc_fcntl_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_fcntl(SB)
++GLOBL	·libc_fcntl_trampoline_addr(SB), RODATA, $8
++DATA	·libc_fcntl_trampoline_addr(SB)/8, $libc_fcntl_trampoline<>(SB)
++
+ TEXT libc_ppoll_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ppoll(SB)
+ GLOBL	·libc_ppoll_trampoline_addr(SB), RODATA, $8
+@@ -668,7 +673,22 @@ TEXT libc_munmap_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_munmap_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_munmap_trampoline_addr(SB)/8, $libc_munmap_trampoline<>(SB)
+ 
++TEXT libc_getfsstat_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_getfsstat(SB)
++GLOBL	·libc_getfsstat_trampoline_addr(SB), RODATA, $8
++DATA	·libc_getfsstat_trampoline_addr(SB)/8, $libc_getfsstat_trampoline<>(SB)
++
+ TEXT libc_utimensat_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_utimensat(SB)
+ GLOBL	·libc_utimensat_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_utimensat_trampoline_addr(SB)/8, $libc_utimensat_trampoline<>(SB)
++
++TEXT libc_pledge_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_pledge(SB)
++GLOBL	·libc_pledge_trampoline_addr(SB), RODATA, $8
++DATA	·libc_pledge_trampoline_addr(SB)/8, $libc_pledge_trampoline<>(SB)
++
++TEXT libc_unveil_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_unveil(SB)
++GLOBL	·libc_unveil_trampoline_addr(SB), RODATA, $8
++DATA	·libc_unveil_trampoline_addr(SB)/8, $libc_unveil_trampoline<>(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_386.go
+index 2d181ba7b2..fcf3ecbdde 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_386.go
+@@ -447,4 +447,5 @@ const (
+ 	SYS_FUTEX_WAITV                  = 449
+ 	SYS_SET_MEMPOLICY_HOME_NODE      = 450
+ 	SYS_CACHESTAT                    = 451
++	SYS_FCHMODAT2                    = 452
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go
+index 2b25ab33cf..f56dc2504a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go
+@@ -369,4 +369,6 @@ const (
+ 	SYS_FUTEX_WAITV             = 449
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+ 	SYS_CACHESTAT               = 451
++	SYS_FCHMODAT2               = 452
++	SYS_MAP_SHADOW_STACK        = 453
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm.go
+index b43e7c4c21..974bf24676 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm.go
+@@ -411,4 +411,5 @@ const (
+ 	SYS_FUTEX_WAITV                  = 449
+ 	SYS_SET_MEMPOLICY_HOME_NODE      = 450
+ 	SYS_CACHESTAT                    = 451
++	SYS_FCHMODAT2                    = 452
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go
+index d50622f82e..39a2739e23 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go
+@@ -314,4 +314,5 @@ const (
+ 	SYS_FUTEX_WAITV             = 449
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+ 	SYS_CACHESTAT               = 451
++	SYS_FCHMODAT2               = 452
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_loong64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_loong64.go
+index 7c31dbe4fe..cf9c9d77e1 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_loong64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_loong64.go
+@@ -308,4 +308,5 @@ const (
+ 	SYS_FUTEX_WAITV             = 449
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+ 	SYS_CACHESTAT               = 451
++	SYS_FCHMODAT2               = 452
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips.go
+index 2b01364d7e..10b7362ef4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips.go
+@@ -431,4 +431,5 @@ const (
+ 	SYS_FUTEX_WAITV                  = 4449
+ 	SYS_SET_MEMPOLICY_HOME_NODE      = 4450
+ 	SYS_CACHESTAT                    = 4451
++	SYS_FCHMODAT2                    = 4452
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64.go
+index 9bb31708e8..cd4d8b4fd3 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64.go
+@@ -361,4 +361,5 @@ const (
+ 	SYS_FUTEX_WAITV             = 5449
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 5450
+ 	SYS_CACHESTAT               = 5451
++	SYS_FCHMODAT2               = 5452
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64le.go
+index 8413fe6dc0..2c0efca818 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64le.go
+@@ -361,4 +361,5 @@ const (
+ 	SYS_FUTEX_WAITV             = 5449
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 5450
+ 	SYS_CACHESTAT               = 5451
++	SYS_FCHMODAT2               = 5452
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mipsle.go
+index cf76a275ad..a72e31d391 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mipsle.go
+@@ -431,4 +431,5 @@ const (
+ 	SYS_FUTEX_WAITV                  = 4449
+ 	SYS_SET_MEMPOLICY_HOME_NODE      = 4450
+ 	SYS_CACHESTAT                    = 4451
++	SYS_FCHMODAT2                    = 4452
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc.go
+index 7999422733..c7d1e37471 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc.go
+@@ -438,4 +438,5 @@ const (
+ 	SYS_FUTEX_WAITV                  = 449
+ 	SYS_SET_MEMPOLICY_HOME_NODE      = 450
+ 	SYS_CACHESTAT                    = 451
++	SYS_FCHMODAT2                    = 452
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64.go
+index 75904d52b9..f4d4838c87 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64.go
+@@ -410,4 +410,5 @@ const (
+ 	SYS_FUTEX_WAITV             = 449
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+ 	SYS_CACHESTAT               = 451
++	SYS_FCHMODAT2               = 452
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64le.go
+index f5f681c3de..b64f0e5911 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64le.go
+@@ -410,4 +410,5 @@ const (
+ 	SYS_FUTEX_WAITV             = 449
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+ 	SYS_CACHESTAT               = 451
++	SYS_FCHMODAT2               = 452
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
+index 391954743d..95711195a0 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
+@@ -315,4 +315,5 @@ const (
+ 	SYS_FUTEX_WAITV             = 449
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+ 	SYS_CACHESTAT               = 451
++	SYS_FCHMODAT2               = 452
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go
+index f33ceef17d..f94e943bc4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go
+@@ -376,4 +376,5 @@ const (
+ 	SYS_FUTEX_WAITV             = 449
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+ 	SYS_CACHESTAT               = 451
++	SYS_FCHMODAT2               = 452
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go
+index a2ce59e73f..ba0c2bc515 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go
+@@ -389,4 +389,5 @@ const (
+ 	SYS_FUTEX_WAITV             = 449
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+ 	SYS_CACHESTAT               = 451
++	SYS_FCHMODAT2               = 452
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+index 997bcd55ae..bbf8399ff5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+@@ -2671,6 +2671,7 @@ const (
+ 	BPF_PROG_TYPE_LSM                          = 0x1d
+ 	BPF_PROG_TYPE_SK_LOOKUP                    = 0x1e
+ 	BPF_PROG_TYPE_SYSCALL                      = 0x1f
++	BPF_PROG_TYPE_NETFILTER                    = 0x20
+ 	BPF_CGROUP_INET_INGRESS                    = 0x0
+ 	BPF_CGROUP_INET_EGRESS                     = 0x1
+ 	BPF_CGROUP_INET_SOCK_CREATE                = 0x2
+@@ -2715,6 +2716,11 @@ const (
+ 	BPF_PERF_EVENT                             = 0x29
+ 	BPF_TRACE_KPROBE_MULTI                     = 0x2a
+ 	BPF_LSM_CGROUP                             = 0x2b
++	BPF_STRUCT_OPS                             = 0x2c
++	BPF_NETFILTER                              = 0x2d
++	BPF_TCX_INGRESS                            = 0x2e
++	BPF_TCX_EGRESS                             = 0x2f
++	BPF_TRACE_UPROBE_MULTI                     = 0x30
+ 	BPF_LINK_TYPE_UNSPEC                       = 0x0
+ 	BPF_LINK_TYPE_RAW_TRACEPOINT               = 0x1
+ 	BPF_LINK_TYPE_TRACING                      = 0x2
+@@ -2725,6 +2731,18 @@ const (
+ 	BPF_LINK_TYPE_PERF_EVENT                   = 0x7
+ 	BPF_LINK_TYPE_KPROBE_MULTI                 = 0x8
+ 	BPF_LINK_TYPE_STRUCT_OPS                   = 0x9
++	BPF_LINK_TYPE_NETFILTER                    = 0xa
++	BPF_LINK_TYPE_TCX                          = 0xb
++	BPF_LINK_TYPE_UPROBE_MULTI                 = 0xc
++	BPF_PERF_EVENT_UNSPEC                      = 0x0
++	BPF_PERF_EVENT_UPROBE                      = 0x1
++	BPF_PERF_EVENT_URETPROBE                   = 0x2
++	BPF_PERF_EVENT_KPROBE                      = 0x3
++	BPF_PERF_EVENT_KRETPROBE                   = 0x4
++	BPF_PERF_EVENT_TRACEPOINT                  = 0x5
++	BPF_PERF_EVENT_EVENT                       = 0x6
++	BPF_F_KPROBE_MULTI_RETURN                  = 0x1
++	BPF_F_UPROBE_MULTI_RETURN                  = 0x1
+ 	BPF_ANY                                    = 0x0
+ 	BPF_NOEXIST                                = 0x1
+ 	BPF_EXIST                                  = 0x2
+@@ -2742,6 +2760,8 @@ const (
+ 	BPF_F_MMAPABLE                             = 0x400
+ 	BPF_F_PRESERVE_ELEMS                       = 0x800
+ 	BPF_F_INNER_MAP                            = 0x1000
++	BPF_F_LINK                                 = 0x2000
++	BPF_F_PATH_FD                              = 0x4000
+ 	BPF_STATS_RUN_TIME                         = 0x0
+ 	BPF_STACK_BUILD_ID_EMPTY                   = 0x0
+ 	BPF_STACK_BUILD_ID_VALID                   = 0x1
+@@ -2762,6 +2782,7 @@ const (
+ 	BPF_F_ZERO_CSUM_TX                         = 0x2
+ 	BPF_F_DONT_FRAGMENT                        = 0x4
+ 	BPF_F_SEQ_NUMBER                           = 0x8
++	BPF_F_NO_TUNNEL_KEY                        = 0x10
+ 	BPF_F_TUNINFO_FLAGS                        = 0x10
+ 	BPF_F_INDEX_MASK                           = 0xffffffff
+ 	BPF_F_CURRENT_CPU                          = 0xffffffff
+@@ -2778,6 +2799,8 @@ const (
+ 	BPF_F_ADJ_ROOM_ENCAP_L4_UDP                = 0x10
+ 	BPF_F_ADJ_ROOM_NO_CSUM_RESET               = 0x20
+ 	BPF_F_ADJ_ROOM_ENCAP_L2_ETH                = 0x40
++	BPF_F_ADJ_ROOM_DECAP_L3_IPV4               = 0x80
++	BPF_F_ADJ_ROOM_DECAP_L3_IPV6               = 0x100
+ 	BPF_ADJ_ROOM_ENCAP_L2_MASK                 = 0xff
+ 	BPF_ADJ_ROOM_ENCAP_L2_SHIFT                = 0x38
+ 	BPF_F_SYSCTL_BASE_NAME                     = 0x1
+@@ -2866,6 +2889,8 @@ const (
+ 	BPF_DEVCG_DEV_CHAR                         = 0x2
+ 	BPF_FIB_LOOKUP_DIRECT                      = 0x1
+ 	BPF_FIB_LOOKUP_OUTPUT                      = 0x2
++	BPF_FIB_LOOKUP_SKIP_NEIGH                  = 0x4
++	BPF_FIB_LOOKUP_TBID                        = 0x8
+ 	BPF_FIB_LKUP_RET_SUCCESS                   = 0x0
+ 	BPF_FIB_LKUP_RET_BLACKHOLE                 = 0x1
+ 	BPF_FIB_LKUP_RET_UNREACHABLE               = 0x2
+@@ -2901,6 +2926,7 @@ const (
+ 	BPF_CORE_ENUMVAL_EXISTS                    = 0xa
+ 	BPF_CORE_ENUMVAL_VALUE                     = 0xb
+ 	BPF_CORE_TYPE_MATCHES                      = 0xc
++	BPF_F_TIMER_ABS                            = 0x1
+ )
+ 
+ const (
+@@ -2979,6 +3005,12 @@ type LoopInfo64 struct {
+ 	Encrypt_key      [32]uint8
+ 	Init             [2]uint64
+ }
++type LoopConfig struct {
++	Fd   uint32
++	Size uint32
++	Info LoopInfo64
++	_    [8]uint64
++}
+ 
+ type TIPCSocketAddr struct {
+ 	Ref  uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+index dcaa40977f..47dc579676 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+@@ -155,6 +155,8 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ //sys	GetModuleFileName(module Handle, filename *uint16, size uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
+ //sys	GetModuleHandleEx(flags uint32, moduleName *uint16, module *Handle) (err error) = kernel32.GetModuleHandleExW
+ //sys	SetDefaultDllDirectories(directoryFlags uint32) (err error)
++//sys	AddDllDirectory(path *uint16) (cookie uintptr, err error) = kernel32.AddDllDirectory
++//sys	RemoveDllDirectory(cookie uintptr) (err error) = kernel32.RemoveDllDirectory
+ //sys	SetDllDirectory(path string) (err error) = kernel32.SetDllDirectoryW
+ //sys	GetVersion() (ver uint32, err error)
+ //sys	FormatMessage(flags uint32, msgsrc uintptr, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
+@@ -970,7 +972,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, int32, error) {
+ 	if n > 0 {
+ 		sl += int32(n) + 1
+ 	}
+-	if sa.raw.Path[0] == '@' {
++	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
++		// Check sl > 3 so we don't change unnamed socket behavior.
+ 		sa.raw.Path[0] = 0
+ 		// Don't count trailing NUL for abstract address.
+ 		sl--
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+index db6282e00a..146a1f0196 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+@@ -184,6 +184,7 @@ var (
+ 	procGetAdaptersInfo                                      = modiphlpapi.NewProc("GetAdaptersInfo")
+ 	procGetBestInterfaceEx                                   = modiphlpapi.NewProc("GetBestInterfaceEx")
+ 	procGetIfEntry                                           = modiphlpapi.NewProc("GetIfEntry")
++	procAddDllDirectory                                      = modkernel32.NewProc("AddDllDirectory")
+ 	procAssignProcessToJobObject                             = modkernel32.NewProc("AssignProcessToJobObject")
+ 	procCancelIo                                             = modkernel32.NewProc("CancelIo")
+ 	procCancelIoEx                                           = modkernel32.NewProc("CancelIoEx")
+@@ -330,6 +331,7 @@ var (
+ 	procReadProcessMemory                                    = modkernel32.NewProc("ReadProcessMemory")
+ 	procReleaseMutex                                         = modkernel32.NewProc("ReleaseMutex")
+ 	procRemoveDirectoryW                                     = modkernel32.NewProc("RemoveDirectoryW")
++	procRemoveDllDirectory                                   = modkernel32.NewProc("RemoveDllDirectory")
+ 	procResetEvent                                           = modkernel32.NewProc("ResetEvent")
+ 	procResizePseudoConsole                                  = modkernel32.NewProc("ResizePseudoConsole")
+ 	procResumeThread                                         = modkernel32.NewProc("ResumeThread")
+@@ -1605,6 +1607,15 @@ func GetIfEntry(pIfRow *MibIfRow) (errcode error) {
+ 	return
+ }
+ 
++func AddDllDirectory(path *uint16) (cookie uintptr, err error) {
++	r0, _, e1 := syscall.Syscall(procAddDllDirectory.Addr(), 1, uintptr(unsafe.Pointer(path)), 0, 0)
++	cookie = uintptr(r0)
++	if cookie == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func AssignProcessToJobObject(job Handle, process Handle) (err error) {
+ 	r1, _, e1 := syscall.Syscall(procAssignProcessToJobObject.Addr(), 2, uintptr(job), uintptr(process), 0)
+ 	if r1 == 0 {
+@@ -2879,6 +2890,14 @@ func RemoveDirectory(path *uint16) (err error) {
+ 	return
+ }
+ 
++func RemoveDllDirectory(cookie uintptr) (err error) {
++	r1, _, e1 := syscall.Syscall(procRemoveDllDirectory.Addr(), 1, uintptr(cookie), 0, 0)
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func ResetEvent(event Handle) (err error) {
+ 	r1, _, e1 := syscall.Syscall(procResetEvent.Addr(), 1, uintptr(event), 0, 0)
+ 	if r1 == 0 {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/doc.go
+index a68adb12b4..4cd5b71e9e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/doc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/doc.go
+@@ -7,7 +7,7 @@
+ //
+ // # Analyzer testinggoroutine
+ //
+-// testinggoroutine: report calls to (*testing.T).Fatal from goroutines started by a test.
++// testinggoroutine: report calls to (*testing.T).Fatal from goroutines started by a test
+ //
+ // Functions that abruptly terminate a test, such as the Fatal, Fatalf, FailNow, and
+ // Skip{,f,Now} methods of *testing.T, must be called from the test goroutine itself.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
+index 907b71503e..dc5307a15d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
+@@ -6,18 +6,28 @@ package testinggoroutine
+ 
+ import (
+ 	_ "embed"
++	"fmt"
+ 	"go/ast"
++	"go/token"
++	"go/types"
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
++	"golang.org/x/tools/go/ast/astutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+-	"golang.org/x/tools/internal/typeparams"
++	"golang.org/x/tools/go/types/typeutil"
+ )
+ 
+ //go:embed doc.go
+ var doc string
+ 
++var reportSubtest bool
++
++func init() {
++	Analyzer.Flags.BoolVar(&reportSubtest, "subtest", false, "whether to check if t.Run subtest is terminated correctly; experimental")
++}
++
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "testinggoroutine",
+ 	Doc:      analysisutil.MustExtractDoc(doc, "testinggoroutine"),
+@@ -26,15 +36,6 @@ var Analyzer = &analysis.Analyzer{
+ 	Run:      run,
+ }
+ 
+-var forbidden = map[string]bool{
+-	"FailNow": true,
+-	"Fatal":   true,
+-	"Fatalf":  true,
+-	"Skip":    true,
+-	"Skipf":   true,
+-	"SkipNow": true,
+-}
+-
+ func run(pass *analysis.Pass) (interface{}, error) {
+ 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+ 
+@@ -42,38 +43,90 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		return nil, nil
+ 	}
+ 
+-	// Filter out anything that isn't a function declaration.
+-	onlyFuncs := []ast.Node{
+-		(*ast.FuncDecl)(nil),
++	toDecl := localFunctionDecls(pass.TypesInfo, pass.Files)
++
++	// asyncs maps nodes whose statements will be executed concurrently
++	// with respect to some test function, to the call sites where they
++	// are invoked asynchronously. There may be multiple such call sites
++	// for e.g. test helpers.
++	asyncs := make(map[ast.Node][]*asyncCall)
++	var regions []ast.Node
++	addCall := func(c *asyncCall) {
++		if c != nil {
++			r := c.region
++			if asyncs[r] == nil {
++				regions = append(regions, r)
++			}
++			asyncs[r] = append(asyncs[r], c)
++		}
+ 	}
+ 
+-	inspect.Nodes(onlyFuncs, func(node ast.Node, push bool) bool {
+-		fnDecl, ok := node.(*ast.FuncDecl)
+-		if !ok {
++	// Collect all of the go callee() and t.Run(name, callee) extents.
++	inspect.Nodes([]ast.Node{
++		(*ast.FuncDecl)(nil),
++		(*ast.GoStmt)(nil),
++		(*ast.CallExpr)(nil),
++	}, func(node ast.Node, push bool) bool {
++		if !push {
+ 			return false
+ 		}
++		switch node := node.(type) {
++		case *ast.FuncDecl:
++			return hasBenchmarkOrTestParams(node)
+ 
+-		if !hasBenchmarkOrTestParams(fnDecl) {
+-			return false
++		case *ast.GoStmt:
++			c := goAsyncCall(pass.TypesInfo, node, toDecl)
++			addCall(c)
++
++		case *ast.CallExpr:
++			c := tRunAsyncCall(pass.TypesInfo, node)
++			addCall(c)
+ 		}
++		return true
++	})
+ 
+-		// Now traverse the benchmark/test's body and check that none of the
+-		// forbidden methods are invoked in the goroutines within the body.
+-		ast.Inspect(fnDecl, func(n ast.Node) bool {
+-			goStmt, ok := n.(*ast.GoStmt)
++	// Check for t.Forbidden() calls within each region r that is a
++	// callee in some go r() or a t.Run("name", r).
++	//
++	// Also considers a special case when r is a go t.Forbidden() call.
++	for _, region := range regions {
++		ast.Inspect(region, func(n ast.Node) bool {
++			if n == region {
++				return true // always descend into the region itself.
++			} else if asyncs[n] != nil {
++				return false // will be visited by another region.
++			}
++
++			call, ok := n.(*ast.CallExpr)
+ 			if !ok {
+ 				return true
+ 			}
++			x, sel, fn := forbiddenMethod(pass.TypesInfo, call)
++			if x == nil {
++				return true
++			}
+ 
+-			checkGoStmt(pass, goStmt)
++			for _, e := range asyncs[region] {
++				if !withinScope(e.scope, x) {
++					forbidden := formatMethod(sel, fn) // e.g. "(*testing.T).Forbidden
+ 
+-			// No need to further traverse the GoStmt since right
+-			// above we manually traversed it in the ast.Inspect(goStmt, ...)
+-			return false
++					var context string
++					var where analysis.Range = e.async // Put the report at the go fun() or t.Run(name, fun).
++					if _, local := e.fun.(*ast.FuncLit); local {
++						where = call // Put the report at the t.Forbidden() call.
++					} else if id, ok := e.fun.(*ast.Ident); ok {
++						context = fmt.Sprintf(" (%s calls %s)", id.Name, forbidden)
++					}
++					if _, ok := e.async.(*ast.GoStmt); ok {
++						pass.ReportRangef(where, "call to %s from a non-test goroutine%s", forbidden, context)
++					} else if reportSubtest {
++						pass.ReportRangef(where, "call to %s on %s defined outside of the subtest%s", forbidden, x.Name(), context)
++					}
++				}
++			}
++			return true
+ 		})
+-
+-		return false
+-	})
++	}
+ 
+ 	return nil, nil
+ }
+@@ -100,7 +153,6 @@ func typeIsTestingDotTOrB(expr ast.Expr) (string, bool) {
+ 	if !ok {
+ 		return "", false
+ 	}
+-
+ 	varPkg := selExpr.X.(*ast.Ident)
+ 	if varPkg.Name != "testing" {
+ 		return "", false
+@@ -111,73 +163,116 @@ func typeIsTestingDotTOrB(expr ast.Expr) (string, bool) {
+ 	return varTypeName, ok
+ }
+ 
+-// goStmtFunc returns the ast.Node of a call expression
+-// that was invoked as a go statement. Currently, only
+-// function literals declared in the same function, and
+-// static calls within the same package are supported.
+-func goStmtFun(goStmt *ast.GoStmt) ast.Node {
+-	switch fun := goStmt.Call.Fun.(type) {
+-	case *ast.IndexExpr, *typeparams.IndexListExpr:
+-		x, _, _, _ := typeparams.UnpackIndexExpr(fun)
+-		id, _ := x.(*ast.Ident)
+-		if id == nil {
+-			break
+-		}
+-		if id.Obj == nil {
+-			break
+-		}
+-		if funDecl, ok := id.Obj.Decl.(ast.Node); ok {
+-			return funDecl
+-		}
+-	case *ast.Ident:
+-		// TODO(cuonglm): improve this once golang/go#48141 resolved.
+-		if fun.Obj == nil {
+-			break
+-		}
+-		if funDecl, ok := fun.Obj.Decl.(ast.Node); ok {
+-			return funDecl
+-		}
+-	case *ast.FuncLit:
+-		return goStmt.Call.Fun
++// asyncCall describes a region of code that needs to be checked for
++// t.Forbidden() calls as it is started asynchronously from an async
++// node go fun() or t.Run(name, fun).
++type asyncCall struct {
++	region ast.Node // region of code to check for t.Forbidden() calls.
++	async  ast.Node // *ast.GoStmt or *ast.CallExpr (for t.Run)
++	scope  ast.Node // Report t.Forbidden() if t is not declared within scope.
++	fun    ast.Expr // fun in go fun() or t.Run(name, fun)
++}
++
++// withinScope returns true if x.Pos() is in [scope.Pos(), scope.End()].
++func withinScope(scope ast.Node, x *types.Var) bool {
++	if scope != nil {
++		return x.Pos() != token.NoPos && scope.Pos() <= x.Pos() && x.Pos() <= scope.End()
+ 	}
+-	return goStmt.Call
++	return false
+ }
+ 
+-// checkGoStmt traverses the goroutine and checks for the
+-// use of the forbidden *testing.(B, T) methods.
+-func checkGoStmt(pass *analysis.Pass, goStmt *ast.GoStmt) {
+-	fn := goStmtFun(goStmt)
+-	// Otherwise examine the goroutine to check for the forbidden methods.
+-	ast.Inspect(fn, func(n ast.Node) bool {
+-		selExpr, ok := n.(*ast.SelectorExpr)
+-		if !ok {
+-			return true
+-		}
++// goAsyncCall returns the extent of a call from a go fun() statement.
++func goAsyncCall(info *types.Info, goStmt *ast.GoStmt, toDecl func(*types.Func) *ast.FuncDecl) *asyncCall {
++	call := goStmt.Call
+ 
+-		_, bad := forbidden[selExpr.Sel.Name]
+-		if !bad {
+-			return true
++	fun := astutil.Unparen(call.Fun)
++	if id := funcIdent(fun); id != nil {
++		if lit := funcLitInScope(id); lit != nil {
++			return &asyncCall{region: lit, async: goStmt, scope: nil, fun: fun}
+ 		}
++	}
+ 
+-		// Now filter out false positives by the import-path/type.
+-		ident, ok := selExpr.X.(*ast.Ident)
+-		if !ok {
+-			return true
++	if fn := typeutil.StaticCallee(info, call); fn != nil { // static call or method in the package?
++		if decl := toDecl(fn); decl != nil {
++			return &asyncCall{region: decl, async: goStmt, scope: nil, fun: fun}
+ 		}
+-		if ident.Obj == nil || ident.Obj.Decl == nil {
+-			return true
+-		}
+-		field, ok := ident.Obj.Decl.(*ast.Field)
+-		if !ok {
+-			return true
+-		}
+-		if typeName, ok := typeIsTestingDotTOrB(field.Type); ok {
+-			var fnRange analysis.Range = goStmt
+-			if _, ok := fn.(*ast.FuncLit); ok {
+-				fnRange = selExpr
+-			}
+-			pass.ReportRangef(fnRange, "call to (*%s).%s from a non-test goroutine", typeName, selExpr.Sel)
++	}
++
++	// Check go statement for go t.Forbidden() or go func(){t.Forbidden()}().
++	return &asyncCall{region: goStmt, async: goStmt, scope: nil, fun: fun}
++}
++
++// tRunAsyncCall returns the extent of a call from a t.Run("name", fun) expression.
++func tRunAsyncCall(info *types.Info, call *ast.CallExpr) *asyncCall {
++	if len(call.Args) != 2 {
++		return nil
++	}
++	run := typeutil.Callee(info, call)
++	if run, ok := run.(*types.Func); !ok || !isMethodNamed(run, "testing", "Run") {
++		return nil
++	}
++
++	fun := astutil.Unparen(call.Args[1])
++	if lit, ok := fun.(*ast.FuncLit); ok { // function lit?
++		return &asyncCall{region: lit, async: call, scope: lit, fun: fun}
++	}
++
++	if id := funcIdent(fun); id != nil {
++		if lit := funcLitInScope(id); lit != nil { // function lit in variable?
++			return &asyncCall{region: lit, async: call, scope: lit, fun: fun}
+ 		}
+-		return true
+-	})
++	}
++
++	// Check within t.Run(name, fun) for calls to t.Forbidden,
++	// e.g. t.Run(name, func(t *testing.T){ t.Forbidden() })
++	return &asyncCall{region: call, async: call, scope: fun, fun: fun}
++}
++
++var forbidden = []string{
++	"FailNow",
++	"Fatal",
++	"Fatalf",
++	"Skip",
++	"Skipf",
++	"SkipNow",
++}
++
++// forbiddenMethod decomposes a call x.m() into (x, x.m, m) where
++// x is a variable, x.m is a selection, and m is the static callee m.
++// Returns (nil, nil, nil) if call is not of this form.
++func forbiddenMethod(info *types.Info, call *ast.CallExpr) (*types.Var, *types.Selection, *types.Func) {
++	// Compare to typeutil.StaticCallee.
++	fun := astutil.Unparen(call.Fun)
++	selExpr, ok := fun.(*ast.SelectorExpr)
++	if !ok {
++		return nil, nil, nil
++	}
++	sel := info.Selections[selExpr]
++	if sel == nil {
++		return nil, nil, nil
++	}
++
++	var x *types.Var
++	if id, ok := astutil.Unparen(selExpr.X).(*ast.Ident); ok {
++		x, _ = info.Uses[id].(*types.Var)
++	}
++	if x == nil {
++		return nil, nil, nil
++	}
++
++	fn, _ := sel.Obj().(*types.Func)
++	if fn == nil || !isMethodNamed(fn, "testing", forbidden...) {
++		return nil, nil, nil
++	}
++	return x, sel, fn
++}
++
++func formatMethod(sel *types.Selection, fn *types.Func) string {
++	var ptr string
++	rtype := sel.Recv()
++	if p, ok := rtype.(*types.Pointer); ok {
++		ptr = "*"
++		rtype = p.Elem()
++	}
++	return fmt.Sprintf("(%s%s).%s", ptr, rtype.String(), fn.Name())
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/util.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/util.go
+new file mode 100644
+index 0000000000..805ccf49e4
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/util.go
+@@ -0,0 +1,96 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testinggoroutine
++
++import (
++	"go/ast"
++	"go/types"
++
++	"golang.org/x/tools/go/ast/astutil"
++	"golang.org/x/tools/internal/typeparams"
++)
++
++// AST and types utilities that not specific to testinggoroutines.
++
++// localFunctionDecls returns a mapping from *types.Func to *ast.FuncDecl in files.
++func localFunctionDecls(info *types.Info, files []*ast.File) func(*types.Func) *ast.FuncDecl {
++	var fnDecls map[*types.Func]*ast.FuncDecl // computed lazily
++	return func(f *types.Func) *ast.FuncDecl {
++		if f != nil && fnDecls == nil {
++			fnDecls = make(map[*types.Func]*ast.FuncDecl)
++			for _, file := range files {
++				for _, decl := range file.Decls {
++					if fnDecl, ok := decl.(*ast.FuncDecl); ok {
++						if fn, ok := info.Defs[fnDecl.Name].(*types.Func); ok {
++							fnDecls[fn] = fnDecl
++						}
++					}
++				}
++			}
++		}
++		// TODO: once we only support go1.19+, set f = f.Origin() here.
++		return fnDecls[f]
++	}
++}
++
++// isMethodNamed returns true if f is a method defined
++// in package with the path pkgPath with a name in names.
++func isMethodNamed(f *types.Func, pkgPath string, names ...string) bool {
++	if f == nil {
++		return false
++	}
++	if f.Pkg() == nil || f.Pkg().Path() != pkgPath {
++		return false
++	}
++	if f.Type().(*types.Signature).Recv() == nil {
++		return false
++	}
++	for _, n := range names {
++		if f.Name() == n {
++			return true
++		}
++	}
++	return false
++}
++
++func funcIdent(fun ast.Expr) *ast.Ident {
++	switch fun := astutil.Unparen(fun).(type) {
++	case *ast.IndexExpr, *typeparams.IndexListExpr:
++		x, _, _, _ := typeparams.UnpackIndexExpr(fun) // necessary?
++		id, _ := x.(*ast.Ident)
++		return id
++	case *ast.Ident:
++		return fun
++	default:
++		return nil
++	}
++}
++
++// funcLitInScope returns a FuncLit that id is at least initially assigned to.
++//
++// TODO: This is closely tied to id.Obj which is deprecated.
++func funcLitInScope(id *ast.Ident) *ast.FuncLit {
++	// Compare to (*ast.Object).Pos().
++	if id.Obj == nil {
++		return nil
++	}
++	var rhs ast.Expr
++	switch d := id.Obj.Decl.(type) {
++	case *ast.AssignStmt:
++		for i, x := range d.Lhs {
++			if ident, isIdent := x.(*ast.Ident); isIdent && ident.Name == id.Name && i < len(d.Rhs) {
++				rhs = d.Rhs[i]
++			}
++		}
++	case *ast.ValueSpec:
++		for i, n := range d.Names {
++			if n.Name == id.Name && i < len(d.Values) {
++				rhs = d.Values[i]
++			}
++		}
++	}
++	lit, _ := rhs.(*ast.FuncLit)
++	return lit
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index dfde4b287b..fa05367a8a 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -17,7 +17,7 @@ github.com/google/pprof/third_party/svgpan
+ # github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab
+ ## explicit; go 1.13
+ github.com/ianlancetaylor/demangle
+-# golang.org/x/arch v0.5.1-0.20231011141335-a6bdeed49307
++# golang.org/x/arch v0.6.0
+ ## explicit; go 1.18
+ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+@@ -37,15 +37,15 @@ golang.org/x/mod/zip
+ # golang.org/x/sync v0.5.0
+ ## explicit; go 1.18
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3
++# golang.org/x/sys v0.15.0
+ ## explicit; go 1.18
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/term v0.13.1-0.20231011140651-6a610bc55bff
++# golang.org/x/term v0.15.0
+ ## explicit; go 1.18
+ golang.org/x/term
+-# golang.org/x/tools v0.15.1-0.20231120183520-8966034e4e53
++# golang.org/x/tools v0.16.1-0.20231129202111-1b1e4dafd51a
+ ## explicit; go 1.18
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+diff --git a/src/go.mod b/src/go.mod
+index 003d6a96a9..c18ae7760f 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,11 +3,11 @@ module std
+ go 1.22
+ 
+ require (
+-	golang.org/x/crypto v0.14.1-0.20231011220222-8779cbd1c995
+-	golang.org/x/net v0.17.1-0.20231025180729-4c7a5b64f145
++	golang.org/x/crypto v0.16.1-0.20231129163542-152cdb1503eb
++	golang.org/x/net v0.19.0
+ )
+ 
+ require (
+-	golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3 // indirect
+-	golang.org/x/text v0.13.1-0.20231011215848-6c97a165dd66 // indirect
++	golang.org/x/sys v0.15.0 // indirect
++	golang.org/x/text v0.14.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 22519d7feb..7c3519882a 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,8 +1,8 @@
+-golang.org/x/crypto v0.14.1-0.20231011220222-8779cbd1c995 h1:fwu25/DhiXr/++jtzz2gHfC/FL/FimAGVxczaK4pjR8=
+-golang.org/x/crypto v0.14.1-0.20231011220222-8779cbd1c995/go.mod h1:aSyBXtGhRzSMdne9jbl3+PPMVS0IgOWF6Llc+HB5uUU=
+-golang.org/x/net v0.17.1-0.20231025180729-4c7a5b64f145 h1:b50rfQxeg+jm4ud87SAQt4escws56zdE+/rT1oKU4oU=
+-golang.org/x/net v0.17.1-0.20231025180729-4c7a5b64f145/go.mod h1:ctp6Rq0w6YZwLQMXSCn4tot1uuoj9E9vKYJV26guPn4=
+-golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3 h1:G9se7UpoI67yWrFY0IIFGf6H3nwLLUZFDBCyOJwWeSc=
+-golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/text v0.13.1-0.20231011215848-6c97a165dd66 h1:9Dyvhe9/DDm3upTpNNwowKgum0eUka4TBRU6uHiINKo=
+-golang.org/x/text v0.13.1-0.20231011215848-6c97a165dd66/go.mod h1:18ZOQIKpY8NJVqYksKHtTdi31H5itFRjB5/qKTNYzSU=
++golang.org/x/crypto v0.16.1-0.20231129163542-152cdb1503eb h1:1ceSY7sk6sJuiDREHpfyrqDnDljsLfEP2GuTClhBBfI=
++golang.org/x/crypto v0.16.1-0.20231129163542-152cdb1503eb/go.mod h1:gCAAfMLgwOJRpTjQ2zCCt2OcSfYMTeZVSRtQlPC7Nq4=
++golang.org/x/net v0.19.0 h1:zTwKpTd2XuCqf8huc7Fo2iSy+4RHPd10s4KzeTnVr1c=
++golang.org/x/net v0.19.0/go.mod h1:CfAk/cbD4CthTvqiEl8NpboMuiuOYsAr/7NOjZJtv1U=
++golang.org/x/sys v0.15.0 h1:h48lPFYpsTvQJZF4EKyI4aLHaev3CxivZmv7yZig9pc=
++golang.org/x/sys v0.15.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
++golang.org/x/text v0.14.0/go.mod h1:18ZOQIKpY8NJVqYksKHtTdi31H5itFRjB5/qKTNYzSU=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index fea33276d8..ac41144d5b 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -1041,41 +1041,44 @@ func http2shouldRetryDial(call *http2dialCall, req *Request) bool {
+ // TODO: Benchmark to determine if the pools are necessary. The GC may have
+ // improved enough that we can instead allocate chunks like this:
+ // make([]byte, max(16<<10, expectedBytesRemaining))
+-var (
+-	http2dataChunkSizeClasses = []int{
+-		1 << 10,
+-		2 << 10,
+-		4 << 10,
+-		8 << 10,
+-		16 << 10,
+-	}
+-	http2dataChunkPools = [...]sync.Pool{
+-		{New: func() interface{} { return make([]byte, 1<<10) }},
+-		{New: func() interface{} { return make([]byte, 2<<10) }},
+-		{New: func() interface{} { return make([]byte, 4<<10) }},
+-		{New: func() interface{} { return make([]byte, 8<<10) }},
+-		{New: func() interface{} { return make([]byte, 16<<10) }},
+-	}
+-)
++var http2dataChunkPools = [...]sync.Pool{
++	{New: func() interface{} { return new([1 << 10]byte) }},
++	{New: func() interface{} { return new([2 << 10]byte) }},
++	{New: func() interface{} { return new([4 << 10]byte) }},
++	{New: func() interface{} { return new([8 << 10]byte) }},
++	{New: func() interface{} { return new([16 << 10]byte) }},
++}
+ 
+ func http2getDataBufferChunk(size int64) []byte {
+-	i := 0
+-	for ; i < len(http2dataChunkSizeClasses)-1; i++ {
+-		if size <= int64(http2dataChunkSizeClasses[i]) {
+-			break
+-		}
++	switch {
++	case size <= 1<<10:
++		return http2dataChunkPools[0].Get().(*[1 << 10]byte)[:]
++	case size <= 2<<10:
++		return http2dataChunkPools[1].Get().(*[2 << 10]byte)[:]
++	case size <= 4<<10:
++		return http2dataChunkPools[2].Get().(*[4 << 10]byte)[:]
++	case size <= 8<<10:
++		return http2dataChunkPools[3].Get().(*[8 << 10]byte)[:]
++	default:
++		return http2dataChunkPools[4].Get().(*[16 << 10]byte)[:]
+ 	}
+-	return http2dataChunkPools[i].Get().([]byte)
+ }
+ 
+ func http2putDataBufferChunk(p []byte) {
+-	for i, n := range http2dataChunkSizeClasses {
+-		if len(p) == n {
+-			http2dataChunkPools[i].Put(p)
+-			return
+-		}
++	switch len(p) {
++	case 1 << 10:
++		http2dataChunkPools[0].Put((*[1 << 10]byte)(p))
++	case 2 << 10:
++		http2dataChunkPools[1].Put((*[2 << 10]byte)(p))
++	case 4 << 10:
++		http2dataChunkPools[2].Put((*[4 << 10]byte)(p))
++	case 8 << 10:
++		http2dataChunkPools[3].Put((*[8 << 10]byte)(p))
++	case 16 << 10:
++		http2dataChunkPools[4].Put((*[16 << 10]byte)(p))
++	default:
++		panic(fmt.Sprintf("unexpected buffer len=%v", len(p)))
+ 	}
+-	panic(fmt.Sprintf("unexpected buffer len=%v", len(p)))
+ }
+ 
+ // dataBuffer is an io.ReadWriter backed by a list of data chunks.
+@@ -3058,41 +3061,6 @@ func http2summarizeFrame(f http2Frame) string {
+ 	return buf.String()
+ }
+ 
+-func http2traceHasWroteHeaderField(trace *httptrace.ClientTrace) bool {
+-	return trace != nil && trace.WroteHeaderField != nil
+-}
+-
+-func http2traceWroteHeaderField(trace *httptrace.ClientTrace, k, v string) {
+-	if trace != nil && trace.WroteHeaderField != nil {
+-		trace.WroteHeaderField(k, []string{v})
+-	}
+-}
+-
+-func http2traceGot1xxResponseFunc(trace *httptrace.ClientTrace) func(int, textproto.MIMEHeader) error {
+-	if trace != nil {
+-		return trace.Got1xxResponse
+-	}
+-	return nil
+-}
+-
+-// dialTLSWithContext uses tls.Dialer, added in Go 1.15, to open a TLS
+-// connection.
+-func (t *http2Transport) dialTLSWithContext(ctx context.Context, network, addr string, cfg *tls.Config) (*tls.Conn, error) {
+-	dialer := &tls.Dialer{
+-		Config: cfg,
+-	}
+-	cn, err := dialer.DialContext(ctx, network, addr)
+-	if err != nil {
+-		return nil, err
+-	}
+-	tlsCn := cn.(*tls.Conn) // DialContext comment promises this will always succeed
+-	return tlsCn, nil
+-}
+-
+-func http2tlsUnderlyingConn(tc *tls.Conn) net.Conn {
+-	return tc.NetConn()
+-}
+-
+ var http2DebugGoroutines = os.Getenv("DEBUG_HTTP2_GOROUTINES") == "1"
+ 
+ type http2goroutineLock uint64
+@@ -6366,7 +6334,6 @@ type http2responseWriterState struct {
+ 	wroteHeader   bool     // WriteHeader called (explicitly or implicitly). Not necessarily sent to user yet.
+ 	sentHeader    bool     // have we sent the header frame?
+ 	handlerDone   bool     // handler has finished
+-	dirty         bool     // a Write failed; don't reuse this responseWriterState
+ 
+ 	sentContentLen int64 // non-zero if handler set a Content-Length header
+ 	wroteBytes     int64
+@@ -6486,7 +6453,6 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
+ 			date:          date,
+ 		})
+ 		if err != nil {
+-			rws.dirty = true
+ 			return 0, err
+ 		}
+ 		if endStream {
+@@ -6507,7 +6473,6 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
+ 	if len(p) > 0 || endStream {
+ 		// only send a 0 byte DATA frame if we're ending the stream.
+ 		if err := rws.conn.writeDataFromHandler(rws.stream, p, endStream); err != nil {
+-			rws.dirty = true
+ 			return 0, err
+ 		}
+ 	}
+@@ -6519,9 +6484,6 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
+ 			trailers:  rws.trailers,
+ 			endStream: true,
+ 		})
+-		if err != nil {
+-			rws.dirty = true
+-		}
+ 		return len(p), err
+ 	}
+ 	return len(p), nil
+@@ -6737,14 +6699,12 @@ func (rws *http2responseWriterState) writeHeader(code int) {
+ 			h.Del("Transfer-Encoding")
+ 		}
+ 
+-		if rws.conn.writeHeaders(rws.stream, &http2writeResHeaders{
++		rws.conn.writeHeaders(rws.stream, &http2writeResHeaders{
+ 			streamID:    rws.stream.id,
+ 			httpResCode: code,
+ 			h:           h,
+ 			endStream:   rws.handlerDone && !rws.hasTrailers(),
+-		}) != nil {
+-			rws.dirty = true
+-		}
++		})
+ 
+ 		return
+ 	}
+@@ -6809,19 +6769,10 @@ func (w *http2responseWriter) write(lenData int, dataB []byte, dataS string) (n
+ 
+ func (w *http2responseWriter) handlerDone() {
+ 	rws := w.rws
+-	dirty := rws.dirty
+ 	rws.handlerDone = true
+ 	w.Flush()
+ 	w.rws = nil
+-	if !dirty {
+-		// Only recycle the pool if all prior Write calls to
+-		// the serverConn goroutine completed successfully. If
+-		// they returned earlier due to resets from the peer
+-		// there might still be write goroutines outstanding
+-		// from the serverConn referencing the rws memory. See
+-		// issue 20704.
+-		http2responseWriterStatePool.Put(rws)
+-	}
++	http2responseWriterStatePool.Put(rws)
+ }
+ 
+ // Push errors.
+@@ -8094,7 +8045,7 @@ func (cc *http2ClientConn) forceCloseConn() {
+ 	if !ok {
+ 		return
+ 	}
+-	if nc := http2tlsUnderlyingConn(tc); nc != nil {
++	if nc := tc.NetConn(); nc != nil {
+ 		nc.Close()
+ 	}
+ }
+@@ -10282,6 +10233,37 @@ func http2traceFirstResponseByte(trace *httptrace.ClientTrace) {
+ 	}
+ }
+ 
++func http2traceHasWroteHeaderField(trace *httptrace.ClientTrace) bool {
++	return trace != nil && trace.WroteHeaderField != nil
++}
++
++func http2traceWroteHeaderField(trace *httptrace.ClientTrace, k, v string) {
++	if trace != nil && trace.WroteHeaderField != nil {
++		trace.WroteHeaderField(k, []string{v})
++	}
++}
++
++func http2traceGot1xxResponseFunc(trace *httptrace.ClientTrace) func(int, textproto.MIMEHeader) error {
++	if trace != nil {
++		return trace.Got1xxResponse
++	}
++	return nil
++}
++
++// dialTLSWithContext uses tls.Dialer, added in Go 1.15, to open a TLS
++// connection.
++func (t *http2Transport) dialTLSWithContext(ctx context.Context, network, addr string, cfg *tls.Config) (*tls.Conn, error) {
++	dialer := &tls.Dialer{
++		Config: cfg,
++	}
++	cn, err := dialer.DialContext(ctx, network, addr)
++	if err != nil {
++		return nil, err
++	}
++	tlsCn := cn.(*tls.Conn) // DialContext comment promises this will always succeed
++	return tlsCn, nil
++}
++
+ // writeFramer is implemented by any type that is used to write frames.
+ type http2writeFramer interface {
+ 	writeFrame(http2writeContext) error
+diff --git a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s
+index 541d696b67..731d2ac6db 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s
++++ b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s
+@@ -183,11 +183,31 @@ GLOBL ·andMask<>(SB), (NOPTR+RODATA), $240
+ #define shiftD1Right BYTE $0x66; BYTE $0x45; BYTE $0x0f; BYTE $0x3a; BYTE $0x0f; BYTE $0xd2; BYTE $0x04 // PALIGNR $4, X10, X10
+ #define shiftD2Right BYTE $0x66; BYTE $0x45; BYTE $0x0f; BYTE $0x3a; BYTE $0x0f; BYTE $0xdb; BYTE $0x04 // PALIGNR $4, X11, X11
+ #define shiftD3Right BYTE $0x66; BYTE $0x45; BYTE $0x0f; BYTE $0x3a; BYTE $0x0f; BYTE $0xff; BYTE $0x04 // PALIGNR $4, X15, X15
++
+ // Some macros
++
++// ROL rotates the uint32s in register R left by N bits, using temporary T.
++#define ROL(N, R, T) \
++	MOVO R, T; PSLLL $(N), T; PSRLL $(32-(N)), R; PXOR T, R
++
++// ROL16 rotates the uint32s in register R left by 16, using temporary T if needed.
++#ifdef GOAMD64_v2
++#define ROL16(R, T) PSHUFB ·rol16<>(SB), R
++#else
++#define ROL16(R, T) ROL(16, R, T)
++#endif
++
++// ROL8 rotates the uint32s in register R left by 8, using temporary T if needed.
++#ifdef GOAMD64_v2
++#define ROL8(R, T) PSHUFB ·rol8<>(SB), R
++#else
++#define ROL8(R, T) ROL(8, R, T)
++#endif
++
+ #define chachaQR(A, B, C, D, T) \
+-	PADDD B, A; PXOR A, D; PSHUFB ·rol16<>(SB), D                            \
++	PADDD B, A; PXOR A, D; ROL16(D, T) \
+ 	PADDD D, C; PXOR C, B; MOVO B, T; PSLLL $12, T; PSRLL $20, B; PXOR T, B \
+-	PADDD B, A; PXOR A, D; PSHUFB ·rol8<>(SB), D                             \
++	PADDD B, A; PXOR A, D; ROL8(D, T) \
+ 	PADDD D, C; PXOR C, B; MOVO B, T; PSLLL $7, T; PSRLL $25, B; PXOR T, B
+ 
+ #define chachaQR_AVX2(A, B, C, D, T) \
+diff --git a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+index 6fc2838a3f..2492f796af 100644
+--- a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
++++ b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+@@ -733,13 +733,14 @@ func (s *String) ReadOptionalASN1OctetString(out *[]byte, outPresent *bool, tag
+ 	return true
+ }
+ 
+-// ReadOptionalASN1Boolean sets *out to the value of the next ASN.1 BOOLEAN or,
+-// if the next bytes are not an ASN.1 BOOLEAN, to the value of defaultValue.
+-// It reports whether the operation was successful.
+-func (s *String) ReadOptionalASN1Boolean(out *bool, defaultValue bool) bool {
++// ReadOptionalASN1Boolean attempts to read an optional ASN.1 BOOLEAN
++// explicitly tagged with tag into out and advances. If no element with a
++// matching tag is present, it sets "out" to defaultValue instead. It reports
++// whether the read was successful.
++func (s *String) ReadOptionalASN1Boolean(out *bool, tag asn1.Tag, defaultValue bool) bool {
+ 	var present bool
+ 	var child String
+-	if !s.ReadOptionalASN1(&child, &present, asn1.BOOLEAN) {
++	if !s.ReadOptionalASN1(&child, &present, tag) {
+ 		return false
+ 	}
+ 
+@@ -748,7 +749,7 @@ func (s *String) ReadOptionalASN1Boolean(out *bool, defaultValue bool) bool {
+ 		return true
+ 	}
+ 
+-	return s.ReadASN1Boolean(out)
++	return child.ReadASN1Boolean(out)
+ }
+ 
+ func (s *String) readASN1(out *String, outTag *asn1.Tag, skipHeader bool) bool {
+diff --git a/src/vendor/golang.org/x/crypto/hkdf/hkdf.go b/src/vendor/golang.org/x/crypto/hkdf/hkdf.go
+index dda3f143be..f4ded5fee2 100644
+--- a/src/vendor/golang.org/x/crypto/hkdf/hkdf.go
++++ b/src/vendor/golang.org/x/crypto/hkdf/hkdf.go
+@@ -56,7 +56,9 @@ func (f *hkdf) Read(p []byte) (int, error) {
+ 
+ 	// Fill the rest of the buffer
+ 	for len(p) > 0 {
+-		f.expander.Reset()
++		if f.counter > 1 {
++			f.expander.Reset()
++		}
+ 		f.expander.Write(f.prev)
+ 		f.expander.Write(f.info)
+ 		f.expander.Write([]byte{f.counter})
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 6d61189796..338c496bf9 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.14.1-0.20231011220222-8779cbd1c995
++# golang.org/x/crypto v0.16.1-0.20231129163542-152cdb1503eb
+ ## explicit; go 1.18
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.17.1-0.20231025180729-4c7a5b64f145
++# golang.org/x/net v0.19.0
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -17,10 +17,10 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3
++# golang.org/x/sys v0.15.0
+ ## explicit; go 1.18
+ golang.org/x/sys/cpu
+-# golang.org/x/text v0.13.1-0.20231011215848-6c97a165dd66
++# golang.org/x/text v0.14.0
+ ## explicit; go 1.18
+ golang.org/x/text/secure/bidirule
+ golang.org/x/text/transform

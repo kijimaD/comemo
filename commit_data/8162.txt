@@ -9,7 +9,40 @@ Date:   Wed Apr 20 16:12:47 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4444054
-
+---
  src/cmd/gc/align.c       |  2 +-
  test/fixedbugs/bug330.go | 13 +++++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index a01e2ea46b..4303bbd0f1 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -530,7 +530,7 @@ typeinit(void)
+ 	okfor[OCOM] = okforand;
+ 	okfor[OMINUS] = okforarith;
+ 	okfor[ONOT] = okforbool;
+-	okfor[OPLUS] = okforadd;
++	okfor[OPLUS] = okforarith;
+ 
+ 	// special
+ 	okfor[OCAP] = okforcap;
+diff --git a/test/fixedbugs/bug330.go b/test/fixedbugs/bug330.go
+new file mode 100644
+index 0000000000..cf1d6cc2d7
+--- /dev/null
++++ b/test/fixedbugs/bug330.go
+@@ -0,0 +1,13 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	x := ""
++	x = +"hello"  // ERROR "invalid operation.*string"
++	x = +x  // ERROR "invalid operation.*string"
++}

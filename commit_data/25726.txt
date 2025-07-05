@@ -7,6 +7,20 @@ Date:   Wed Nov 18 12:04:32 2015 +1300
     Change-Id: Ie4cdf50fdaf7b368a189a84f4e2aea4cedd5ca7d
     Reviewed-on: https://go-review.googlesource.com/17013
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 3e0f7642dd..b980a6b9d3 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -375,7 +375,7 @@ func buildModeInit() {
+ 			fatalf("-buildmode=pie not supported by gccgo")
+ 		} else {
+ 			switch platform {
+-			case "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le",
++			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le",
+ 				"android/amd64", "android/arm", "android/arm64", "android/386":
+ 				codegenArg = "-shared"
+ 			default:

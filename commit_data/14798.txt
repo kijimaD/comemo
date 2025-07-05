@@ -7,6 +7,31 @@ Date:   Sat Jan 5 21:15:51 2013 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7034047
-
+---
  src/cmd/go/test.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 87ae571bd3..5d3f21e5e9 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -642,8 +642,8 @@ func (b *builder) runTest(a *action) error {
+ 	// This is a last-ditch deadline to detect and
+ 	// stop wedged test binaries, to keep the builders
+ 	// running.
+-	tick := time.NewTimer(testKillTimeout)
+ 	if err == nil {
++		tick := time.NewTimer(testKillTimeout)
+ 		startSigHandlers()
+ 		done := make(chan error)
+ 		go func() {
+@@ -660,8 +660,7 @@ func (b *builder) runTest(a *action) error {
+ 		tick.Stop()
+ 	}
+ 	out := buf.Bytes()
+-	t1 := time.Now()
+-	t := fmt.Sprintf("%.3fs", t1.Sub(t0).Seconds())
++	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
+ 	if err == nil {
+ 		if testShowPass {
+ 			a.testOutput.Write(out)

@@ -9,6 +9,21 @@ Date:   Tue Sep 6 09:14:26 2016 -0400
     Change-Id: I57f0596cb254cbe6569e4d4e39fe4f48437733f2
     Reviewed-on: https://go-review.googlesource.com/28544
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/pkg.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 8164ccc0b5..a352b601a7 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -849,7 +849,8 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 	// Currently build modes c-shared, pie, and -linkshared force
+ 	// external linking mode, and external linking mode forces an
+ 	// import of runtime/cgo.
+-	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || buildBuildmode == "pie" || buildLinkshared) {
++	pieCgo := buildBuildmode == "pie" && (buildContext.GOOS != "linux" || buildContext.GOARCH != "amd64")
++	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || pieCgo || buildLinkshared) {
+ 		importPaths = append(importPaths, "runtime/cgo")
+ 	}
+ 

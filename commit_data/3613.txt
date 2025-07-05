@@ -9,6 +9,21 @@ Date:   Wed Oct 21 19:47:52 2009 -0700
     DELTA=2  (1 added, 0 deleted, 1 changed)
     OCL=35977
     CL=35977
-
+---
  src/pkg/encoding/pem/pem.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/pem/pem.go b/src/pkg/encoding/pem/pem.go
+index fc9cd9a362..c1c4600e3e 100644
+--- a/src/pkg/encoding/pem/pem.go
++++ b/src/pkg/encoding/pem/pem.go
+@@ -69,7 +69,8 @@ var pemEndOfLine = strings.Bytes("-----")
+ 
+ // Decode will find the next PEM formatted block (certificate, private key
+ // etc) in the input. It returns that block and the remainder of the input. If
+-// no PEM data is found, p is nil and the whole of the input is returned in // rest.
++// no PEM data is found, p is nil and the whole of the input is returned in
++// rest.
+ func Decode(data []byte) (p *Block, rest []byte) {
+ 	// pemStart begins with a newline. However, at the very beginning of
+ 	// the byte array, we'll accept the start string without it.

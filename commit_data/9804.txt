@@ -8,7 +8,50 @@ Date:   Mon Sep 26 15:58:01 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5134048
-
+---
  src/pkg/gob/decoder.go      |  6 ++++++
  src/pkg/gob/encoder_test.go | 10 ++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index 2819471322..c2a1e0c3a8 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -58,6 +58,8 @@ func (dec *Decoder) recvType(id typeId) {
+ 	dec.wireType[id] = wire
+ }
+ 
++var errBadCount = gobError{os.NewError("invalid message length")}
++
+ // recvMessage reads the next count-delimited item from the input. It is the converse
+ // of Encoder.writeMessage. It returns false on EOF or other error reading the message.
+ func (dec *Decoder) recvMessage() bool {
+@@ -67,6 +69,10 @@ func (dec *Decoder) recvMessage() bool {
+ 		dec.err = err
+ 		return false
+ 	}
++	if nbytes >= 1<<31 {
++		dec.err = errBadCount
++		return false
++	}
+ 	dec.readMessage(int(nbytes))
+ 	return dec.err == nil
+ }
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index 79d2897010..4263666393 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -628,3 +628,13 @@ func TestSliceReusesMemory(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Used to crash: negative count in recvMessage.
++func TestBadCount(t *testing.T) {
++	b := []byte{0xfb, 0xa5, 0x82, 0x2f, 0xca, 0x1}
++	if err := NewDecoder(bytes.NewBuffer(b)).Decode(nil); err == nil {
++		t.Error("expected error from bad count")
++	} else if err.String() != errBadCount.String() {
++		t.Error("expected bad count error; got", err)
++	}
++}

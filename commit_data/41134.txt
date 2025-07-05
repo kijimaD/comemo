@@ -22,8 +22,105 @@ Date:   Wed Sep 4 17:45:50 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go         | 25 ++-----------------------
  src/cmd/compile/internal/gc/iexport.go       |  5 ++---
  src/cmd/compile/internal/ssa/writebarrier.go |  6 +++---
  3 files changed, 7 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index c5b8d816c6..d8e68bf25d 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -349,10 +349,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
+ 		case TARRAY:
+ 			goto bad
+ 
+-		case TPTR, TUNSAFEPTR:
+-			n.SetVal(Val{new(Mpint)})
+-
+-		case TCHAN, TFUNC, TINTER, TMAP, TSLICE:
++		case TCHAN, TFUNC, TINTER, TMAP, TPTR, TSLICE, TUNSAFEPTR:
+ 			break
+ 		}
+ 
+@@ -602,16 +599,7 @@ func evconst(n *Node) {
+ 
+ 	case OEQ, ONE, OLT, OLE, OGT, OGE:
+ 		if nl.Op == OLITERAL && nr.Op == OLITERAL {
+-			if nl.Type.IsInterface() != nr.Type.IsInterface() {
+-				// Mixed interface/non-interface
+-				// constant comparison means comparing
+-				// nil interface with some typed
+-				// constant, which is always unequal.
+-				// E.g., interface{}(nil) == (*int)(nil).
+-				setboolconst(n, op == ONE)
+-			} else {
+-				setboolconst(n, compareOp(nl.Val(), op, nr.Val()))
+-			}
++			setboolconst(n, compareOp(nl.Val(), op, nr.Val()))
+ 		}
+ 
+ 	case OLSH, ORSH:
+@@ -732,15 +720,6 @@ func compareOp(x Val, op Op, y Val) bool {
+ 	x, y = match(x, y)
+ 
+ 	switch x.Ctype() {
+-	case CTNIL:
+-		_, _ = x.U.(*NilVal), y.U.(*NilVal) // assert dynamic types match
+-		switch op {
+-		case OEQ:
+-			return true
+-		case ONE:
+-			return false
+-		}
+-
+ 	case CTBOOL:
+ 		x, y := x.U.(bool), y.U.(bool)
+ 		switch op {
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 560aeabf76..0e5a313baf 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -734,15 +734,14 @@ func constTypeOf(typ *types.Type) Ctype {
+ 	}
+ 
+ 	switch typ.Etype {
+-	case TCHAN, TFUNC, TMAP, TNIL, TINTER, TSLICE:
++	case TCHAN, TFUNC, TMAP, TNIL, TINTER, TPTR, TSLICE, TUNSAFEPTR:
+ 		return CTNIL
+ 	case TBOOL:
+ 		return CTBOOL
+ 	case TSTRING:
+ 		return CTSTR
+ 	case TINT, TINT8, TINT16, TINT32, TINT64,
+-		TUINT, TUINT8, TUINT16, TUINT32, TUINT64, TUINTPTR,
+-		TPTR, TUNSAFEPTR:
++		TUINT, TUINT8, TUINT16, TUINT32, TUINT64, TUINTPTR:
+ 		return CTINT
+ 	case TFLOAT32, TFLOAT64:
+ 		return CTFLT
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 8bc807c493..5fc0ec19f7 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -509,8 +509,8 @@ func IsGlobalAddr(v *Value) bool {
+ 	if v.Op == OpAddr && v.Args[0].Op == OpSB {
+ 		return true // address of a global
+ 	}
+-	if v.Op == OpConst64 || v.Op == OpConst32 {
+-		return true // nil, the only possible pointer constant
++	if v.Op == OpConstNil {
++		return true
+ 	}
+ 	return false
+ }
+@@ -520,7 +520,7 @@ func IsReadOnlyGlobalAddr(v *Value) bool {
+ 	if !IsGlobalAddr(v) {
+ 		return false
+ 	}
+-	if v.Op == OpConst64 || v.Op == OpConst32 {
++	if v.Op == OpConstNil {
+ 		// Nil pointers are read only. See issue 33438.
+ 		return true
+ 	}

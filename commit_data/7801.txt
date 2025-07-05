@@ -9,6 +9,40 @@ Date:   Thu Mar 17 10:47:42 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4290056
-
+---
  src/pkg/gob/decode.go | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index f77504d871..f8159d4ea3 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -41,11 +41,11 @@ func (dec *Decoder) newDecoderState(buf *bytes.Buffer) *decoderState {
+ 	if d == nil {
+ 		d = new(decoderState)
+ 		d.dec = dec
++		d.buf = make([]byte, uint64Size)
+ 	} else {
+ 		dec.freeList = d.next
+ 	}
+ 	d.b = buf
+-	d.buf = make([]byte, uint64Size)
+ 	return d
+ }
+ 
+@@ -412,7 +412,14 @@ func decString(i *decInstr, state *decoderState, p unsafe.Pointer) {
+ 	}
+ 	b := make([]byte, state.decodeUint())
+ 	state.b.Read(b)
+-	*(*string)(p) = string(b)
++	// It would be a shame to do the obvious thing here,
++	//	*(*string)(p) = string(b)
++	// because we've already allocated the storage and this would
++	// allocate again and copy.  So we do this ugly hack, which is even
++	// even more unsafe than it looks as it depends the memory
++	// representation of a string matching the beginning of the memory
++	// representation of a byte slice (a byte slice is longer).
++	*(*string)(p) = *(*string)(unsafe.Pointer(&b))
+ }
+ 
+ // ignoreUint8Array skips over the data for a byte slice value with no destination.

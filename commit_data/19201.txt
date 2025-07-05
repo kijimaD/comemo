@@ -10,7 +10,167 @@ Date:   Thu Apr 17 14:03:05 2014 -0700
     R=nigeltao
     CC=golang-codereviews
     https://golang.org/cl/87910050
-
+---
  src/pkg/net/http/httputil/dump.go      | 32 +++++++++++---
  src/pkg/net/http/httputil/dump_test.go | 80 ++++++++++++++++++++++++++++++++++
  2 files changed, 106 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/http/httputil/dump.go b/src/pkg/net/http/httputil/dump.go
+index ab1eab21bc..acd5618454 100644
+--- a/src/pkg/net/http/httputil/dump.go
++++ b/src/pkg/net/http/httputil/dump.go
+@@ -7,6 +7,7 @@ package httputil
+ import (
+ 	"bufio"
+ 	"bytes"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -230,14 +231,31 @@ func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
+ 	return
+ }
+ 
++// errNoBody is a sentinel error value used by failureToReadBody so we can detect
++// that the lack of body was intentional.
++var errNoBody = errors.New("sentinel error value")
++
++// failureToReadBody is a io.ReadCloser that just returns errNoBody on
++// Read.  It's swapped in when we don't actually want to consume the
++// body, but need a non-nil one, and want to distinguish the error
++// from reading the dummy body.
++type failureToReadBody struct{}
++
++func (failureToReadBody) Read([]byte) (int, error) { return 0, errNoBody }
++func (failureToReadBody) Close() error             { return nil }
++
++var emptyBody = ioutil.NopCloser(strings.NewReader(""))
++
+ // DumpResponse is like DumpRequest but dumps a response.
+ func DumpResponse(resp *http.Response, body bool) (dump []byte, err error) {
+ 	var b bytes.Buffer
+ 	save := resp.Body
+ 	savecl := resp.ContentLength
+-	if !body || resp.Body == nil {
+-		resp.Body = nil
+-		resp.ContentLength = 0
++
++	if !body {
++		resp.Body = failureToReadBody{}
++	} else if resp.Body == nil {
++		resp.Body = emptyBody
+ 	} else {
+ 		save, resp.Body, err = drainBody(resp.Body)
+ 		if err != nil {
+@@ -245,11 +263,13 @@ func DumpResponse(resp *http.Response, body bool) (dump []byte, err error) {
+ 		}
+ 	}
+ 	err = resp.Write(&b)
++	if err == errNoBody {
++		err = nil
++	}
+ 	resp.Body = save
+ 	resp.ContentLength = savecl
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+-	dump = b.Bytes()
+-	return
++	return b.Bytes(), nil
+ }
+diff --git a/src/pkg/net/http/httputil/dump_test.go b/src/pkg/net/http/httputil/dump_test.go
+index a1dbfc39d6..c2902c8ec5 100644
+--- a/src/pkg/net/http/httputil/dump_test.go
++++ b/src/pkg/net/http/httputil/dump_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"io/ioutil"
+ 	"net/http"
+ 	"net/url"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -176,3 +177,82 @@ func mustNewRequest(method, url string, body io.Reader) *http.Request {
+ 	}
+ 	return req
+ }
++
++var dumpResTests = []struct {
++	res  *http.Response
++	body bool
++	want string
++}{
++	{
++		res: &http.Response{
++			Status:        "200 OK",
++			StatusCode:    200,
++			Proto:         "HTTP/1.1",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			ContentLength: 50,
++			Header: http.Header{
++				"Foo": []string{"Bar"},
++			},
++			Body: ioutil.NopCloser(strings.NewReader("foo")), // shouldn't be used
++		},
++		body: false, // to verify we see 50, not empty or 3.
++		want: `HTTP/1.1 200 OK
++Content-Length: 50
++Foo: Bar`,
++	},
++
++	{
++		res: &http.Response{
++			Status:        "200 OK",
++			StatusCode:    200,
++			Proto:         "HTTP/1.1",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			ContentLength: 3,
++			Body:          ioutil.NopCloser(strings.NewReader("foo")),
++		},
++		body: true,
++		want: `HTTP/1.1 200 OK
++Content-Length: 3
++
++foo`,
++	},
++
++	{
++		res: &http.Response{
++			Status:           "200 OK",
++			StatusCode:       200,
++			Proto:            "HTTP/1.1",
++			ProtoMajor:       1,
++			ProtoMinor:       1,
++			ContentLength:    -1,
++			Body:             ioutil.NopCloser(strings.NewReader("foo")),
++			TransferEncoding: []string{"chunked"},
++		},
++		body: true,
++		want: `HTTP/1.1 200 OK
++Transfer-Encoding: chunked
++
++3
++foo
++0`,
++	},
++}
++
++func TestDumpResponse(t *testing.T) {
++	for i, tt := range dumpResTests {
++		gotb, err := DumpResponse(tt.res, tt.body)
++		if err != nil {
++			t.Errorf("%d. DumpResponse = %v", i, err)
++			continue
++		}
++		got := string(gotb)
++		got = strings.TrimSpace(got)
++		got = strings.Replace(got, "\r", "", -1)
++
++		if got != tt.want {
++			t.Errorf("%d.\nDumpResponse got:\n%s\n\nWant:\n%s\n", i, got, tt.want)
++		}
++	}
++}

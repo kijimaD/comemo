@@ -7,6 +7,44 @@ Date:   Thu May 14 14:23:12 2015 -0400
     Change-Id: I815a7ceeea48cc652b3c8568967665af39b02834
     Reviewed-on: https://go-review.googlesource.com/10045
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/gc_test.go | 26 ++++++++++++++++++++++++++
  1 file changed, 26 insertions(+)
+
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index f049bad499..e3e0c3a583 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -308,6 +308,32 @@ func BenchmarkSetTypeNode126Slice(b *testing.B) {
+ 	benchSetType(b, make([]Node126, 32))
+ }
+ 
++type Node128 struct {
++	Value       [128]uintptr
++	Left, Right *byte
++}
++
++func BenchmarkSetTypeNode128(b *testing.B) {
++	benchSetType(b, new(Node128))
++}
++
++func BenchmarkSetTypeNode128Slice(b *testing.B) {
++	benchSetType(b, make([]Node128, 32))
++}
++
++type Node130 struct {
++	Value       [130]uintptr
++	Left, Right *byte
++}
++
++func BenchmarkSetTypeNode130(b *testing.B) {
++	benchSetType(b, new(Node130))
++}
++
++func BenchmarkSetTypeNode130Slice(b *testing.B) {
++	benchSetType(b, make([]Node130, 32))
++}
++
+ type Node1024 struct {
+ 	Value       [1024]uintptr
+ 	Left, Right *byte

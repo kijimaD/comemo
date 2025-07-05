@@ -18,8 +18,243 @@ Date:   Tue Mar 22 08:41:34 2022 -0500
     Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go        |  35 +++++++
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  14 +++
  src/cmd/compile/internal/ssa/opGen.go        | 134 +++++++++++++++++++++++++++
  3 files changed, 183 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 98316c16fa..da74cacd95 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -733,6 +733,41 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
++	case ssa.OpPPC64ADDC, ssa.OpPPC64ADDE, ssa.OpPPC64SUBC, ssa.OpPPC64SUBE:
++		r := v.Reg0() // CA is the first, implied argument.
++		r1 := v.Args[0].Reg()
++		r2 := v.Args[1].Reg()
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r2
++		p.Reg = r1
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++
++	case ssa.OpPPC64ADDZEzero, ssa.OpPPC64SUBZEzero:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = ppc64.REG_R0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
++
++	case ssa.OpPPC64ADDCconst:
++		p := s.Prog(v.Op.Asm())
++		p.Reg = v.Args[0].Reg()
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
++		p.To.Type = obj.TYPE_REG
++		// Output is a pair, the second is the CA, which is implied.
++		p.To.Reg = v.Reg0()
++
++	case ssa.OpPPC64SUBCconst:
++		p := s.Prog(v.Op.Asm())
++		p.SetFrom3Const(v.AuxInt)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[0].Reg()
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg0()
++
+ 	case ssa.OpPPC64SUBFCconst:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.SetFrom3Const(v.AuxInt)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index c079c1cedb..e3b79200fe 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -139,10 +139,14 @@ func init() {
+ 		// tls = buildReg("R13")
+ 		gp01        = regInfo{inputs: nil, outputs: []regMask{gp}}
+ 		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
++		xergp       = regInfo{inputs: []regMask{xer}, outputs: []regMask{gp}, clobbers: xer}
+ 		gp11cxer    = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}, clobbers: xer}
++		gp11xer     = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp, xer}}
+ 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
+ 		gp21a0      = regInfo{inputs: []regMask{gp, gp | sp | sb}, outputs: []regMask{gp}}
+ 		gp21cxer    = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}, clobbers: xer}
++		gp21xer     = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, xer}, clobbers: xer}
++		gp2xer1xer  = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, xer}, outputs: []regMask{gp, xer}, clobbers: xer}
+ 		gp31        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
+ 		gp22        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
+ 		gp32        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
+@@ -223,6 +227,16 @@ func init() {
+ 
+ 		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true}, // arg0 + arg1 + carry, returns (sum, carry)
+ 
++		// Operations which consume or generate the CA (xer)
++		{name: "ADDC", argLength: 2, reg: gp21xer, asm: "ADDC", commutative: true, typ: "(UInt64, UInt64)"},    // arg0 + arg1 -> out, CA
++		{name: "SUBC", argLength: 2, reg: gp21xer, asm: "SUBC", typ: "(UInt64, UInt64)"},                       // arg0 - arg1 -> out, CA
++		{name: "ADDCconst", argLength: 1, reg: gp11xer, asm: "ADDC", typ: "(UInt64, UInt64)", aux: "Int64"},    // arg0 + imm16 -> out, CA
++		{name: "SUBCconst", argLength: 1, reg: gp11xer, asm: "SUBC", typ: "(UInt64, UInt64)", aux: "Int64"},    // imm16 - arg0 -> out, CA
++		{name: "ADDE", argLength: 3, reg: gp2xer1xer, asm: "ADDE", typ: "(UInt64, UInt64)", commutative: true}, // arg0 + arg1 + CA (arg2) -> out, CA
++		{name: "SUBE", argLength: 3, reg: gp2xer1xer, asm: "SUBE", typ: "(UInt64, UInt64)"},                    // arg0 - arg1 - CA (arg2) -> out, CA
++		{name: "ADDZEzero", argLength: 1, reg: xergp, asm: "ADDZE", typ: "UInt64"},                             // CA (arg0) + $0 -> out
++		{name: "SUBZEzero", argLength: 1, reg: xergp, asm: "SUBZE", typ: "UInt64"},                             // $0 - CA (arg0) -> out
++
+ 		{name: "SRADconst", argLength: 1, reg: gp11cxer, asm: "SRAD", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 64, 64 bit width
+ 		{name: "SRAWconst", argLength: 1, reg: gp11cxer, asm: "SRAW", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 32, 32 bit width
+ 		{name: "SRDconst", argLength: 1, reg: gp11, asm: "SRD", aux: "Int64"},       // unsigned arg0 >> auxInt, 0 <= auxInt < 64, 64 bit width
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 05ed0220ff..ca285a2dfc 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1911,6 +1911,14 @@ const (
+ 	OpPPC64CLRLSLWI
+ 	OpPPC64CLRLSLDI
+ 	OpPPC64LoweredAdd64Carry
++	OpPPC64ADDC
++	OpPPC64SUBC
++	OpPPC64ADDCconst
++	OpPPC64SUBCconst
++	OpPPC64ADDE
++	OpPPC64SUBE
++	OpPPC64ADDZEzero
++	OpPPC64SUBZEzero
+ 	OpPPC64SRADconst
+ 	OpPPC64SRAWconst
+ 	OpPPC64SRDconst
+@@ -25578,6 +25586,132 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:        "ADDC",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AADDC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			clobbers: 9223372036854775808, // XER
++			outputs: []outputInfo{
++				{1, 9223372036854775808}, // XER
++				{0, 1073733624},          // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "SUBC",
++		argLen: 2,
++		asm:    ppc64.ASUBC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			clobbers: 9223372036854775808, // XER
++			outputs: []outputInfo{
++				{1, 9223372036854775808}, // XER
++				{0, 1073733624},          // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "ADDCconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     ppc64.AADDC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{1, 9223372036854775808}, // XER
++				{0, 1073733624},          // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "SUBCconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     ppc64.ASUBC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{1, 9223372036854775808}, // XER
++				{0, 1073733624},          // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:        "ADDE",
++		argLen:      3,
++		commutative: true,
++		asm:         ppc64.AADDE,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{2, 9223372036854775808}, // XER
++				{0, 1073733630},          // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630},          // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			clobbers: 9223372036854775808, // XER
++			outputs: []outputInfo{
++				{1, 9223372036854775808}, // XER
++				{0, 1073733624},          // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "SUBE",
++		argLen: 3,
++		asm:    ppc64.ASUBE,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{2, 9223372036854775808}, // XER
++				{0, 1073733630},          // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630},          // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			clobbers: 9223372036854775808, // XER
++			outputs: []outputInfo{
++				{1, 9223372036854775808}, // XER
++				{0, 1073733624},          // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "ADDZEzero",
++		argLen: 1,
++		asm:    ppc64.AADDZE,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372036854775808}, // XER
++			},
++			clobbers: 9223372036854775808, // XER
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "SUBZEzero",
++		argLen: 1,
++		asm:    ppc64.ASUBZE,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372036854775808}, // XER
++			},
++			clobbers: 9223372036854775808, // XER
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:    "SRADconst",
+ 		auxType: auxInt64,

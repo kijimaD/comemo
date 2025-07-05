@@ -7,6 +7,20 @@ Date:   Tue Oct 31 09:24:44 2017 +0000
     Change-Id: I4542f6c095a35a4dec03c67c45a75a155197eb56
     Reviewed-on: https://go-review.googlesource.com/74650
     Reviewed-by: Tom Bergan <tombergan@google.com>
-
+---
  src/net/http/client.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 3ed666e815..65e0fa2bc4 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -760,7 +760,7 @@ func PostForm(url string, data url.Values) (resp *Response, err error) {
+ // with data's keys and values URL-encoded as the request body.
+ //
+ // The Content-Type header is set to application/x-www-form-urlencoded.
+-// To set other headers, use NewRequest and DefaultClient.Do.
++// To set other headers, use NewRequest and Client.Do.
+ //
+ // When err is nil, resp always contains a non-nil resp.Body.
+ // Caller should close resp.Body when done reading from it.

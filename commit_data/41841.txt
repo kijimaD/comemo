@@ -9,8 +9,110 @@ Date:   Mon Oct 28 08:53:53 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/fmtmap_test.go             | 66 +++++++++++++++---------------
  src/cmd/compile/internal/ssa/branchelim.go |  2 +-
  src/cmd/internal/src/pos.go                |  2 +-
  3 files changed, 35 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index ebbaf01b17..51b79c6a89 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -171,37 +171,37 @@ var knownFormats = map[string]string{
+ 	"map[*cmd/compile/internal/gc.Node]*cmd/compile/internal/ssa.Value %v": "",
+ 	"map[*cmd/compile/internal/gc.Node][]*cmd/compile/internal/gc.Node %v": "",
+ 	"map[cmd/compile/internal/ssa.ID]uint32 %v":                            "",
+-	"map[int64]uint32 %v":                                                  "",
+-	"math/big.Accuracy %s":                                                 "",
+-	"reflect.Type %s":                                                      "",
+-	"rune %#U":                                                             "",
+-	"rune %c":                                                              "",
+-	"rune %q":                                                              "",
+-	"string %-*s":                                                          "",
+-	"string %-16s":                                                         "",
+-	"string %-6s":                                                          "",
+-	"string %q":                                                            "",
+-	"string %s":                                                            "",
+-	"string %v":                                                            "",
+-	"time.Duration %d":                                                     "",
+-	"time.Duration %v":                                                     "",
+-	"uint %04x":                                                            "",
+-	"uint %5d":                                                             "",
+-	"uint %d":                                                              "",
+-	"uint %x":                                                              "",
+-	"uint16 %d":                                                            "",
+-	"uint16 %x":                                                            "",
+-	"uint32 %#U":                                                           "",
+-	"uint32 %#x":                                                           "",
+-	"uint32 %d":                                                            "",
+-	"uint32 %v":                                                            "",
+-	"uint32 %x":                                                            "",
+-	"uint64 %08x":                                                          "",
+-	"uint64 %b":                                                            "",
+-	"uint64 %d":                                                            "",
+-	"uint64 %x":                                                            "",
+-	"uint8 %d":                                                             "",
+-	"uint8 %v":                                                             "",
+-	"uint8 %x":                                                             "",
+-	"uintptr %d":                                                           "",
++	"map[int64]uint32 %v":  "",
++	"math/big.Accuracy %s": "",
++	"reflect.Type %s":      "",
++	"rune %#U":             "",
++	"rune %c":              "",
++	"rune %q":              "",
++	"string %-*s":          "",
++	"string %-16s":         "",
++	"string %-6s":          "",
++	"string %q":            "",
++	"string %s":            "",
++	"string %v":            "",
++	"time.Duration %d":     "",
++	"time.Duration %v":     "",
++	"uint %04x":            "",
++	"uint %5d":             "",
++	"uint %d":              "",
++	"uint %x":              "",
++	"uint16 %d":            "",
++	"uint16 %x":            "",
++	"uint32 %#U":           "",
++	"uint32 %#x":           "",
++	"uint32 %d":            "",
++	"uint32 %v":            "",
++	"uint32 %x":            "",
++	"uint64 %08x":          "",
++	"uint64 %b":            "",
++	"uint64 %d":            "",
++	"uint64 %x":            "",
++	"uint8 %d":             "",
++	"uint8 %v":             "",
++	"uint8 %x":             "",
++	"uintptr %d":           "",
+ }
+diff --git a/src/cmd/compile/internal/ssa/branchelim.go b/src/cmd/compile/internal/ssa/branchelim.go
+index 298eed362a..c7c3f8c15f 100644
+--- a/src/cmd/compile/internal/ssa/branchelim.go
++++ b/src/cmd/compile/internal/ssa/branchelim.go
+@@ -220,7 +220,7 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
+ 	// that has the same line number as the Pos for b itself, and
+ 	// puts a statement mark on it, and returns whether it succeeded
+ 	// in this operation.
+-	setBlockPos := func (b *Block) bool {
++	setBlockPos := func(b *Block) bool {
+ 		pos := b.Pos
+ 		for _, v := range b.Values {
+ 			if pos.SameFileAndLine(v.Pos) && !isPoorStatementOp(v.Op) {
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index 8c0b6d277b..60c7c91cde 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -382,7 +382,7 @@ func makeLico(line, col uint) lico {
+ }
+ 
+ func (x lico) Line() uint           { return uint(x) >> lineShift }
+-func (x lico) SameLine(y lico) bool { return 0 == (x^y)&^lico(1 << lineShift-1) }
++func (x lico) SameLine(y lico) bool { return 0 == (x^y)&^lico(1<<lineShift-1) }
+ func (x lico) Col() uint            { return uint(x) >> colShift & colMax }
+ func (x lico) IsStmt() uint {
+ 	if x == 0 {

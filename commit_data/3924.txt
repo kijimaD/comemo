@@ -18,6 +18,25 @@ Date:   Mon Nov 9 09:34:55 2009 -0800
     
     R=rsc
     http://go/go-review/1026034
-
+---
  src/pkg/go/printer/nodes.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 1f863c24b3..f91a34851f 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -1090,8 +1090,12 @@ func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool)
+ //
+ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
+ 	size = maxSize+1;	// assume n doesn't fit
++	// nodeSize computation must be indendent of particular
++	// style so that we always get the same decision; print
++	// in RawFormat
++	cfg := Config{Mode: RawFormat};
+ 	var buf bytes.Buffer;
+-	if _, err := p.Config.Fprint(&buf, n); err != nil {
++	if _, err := cfg.Fprint(&buf, n); err != nil {
+ 		return;
+ 	}
+ 	if buf.Len() <= maxSize {

@@ -9,6 +9,20 @@ Date:   Mon Jan 4 15:08:03 2016 -0500
     Change-Id: I83973298a35afcf55627f0a72223098306a51f4b
     Reviewed-on: https://go-review.googlesource.com/18233
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcshared/test.bash | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+index ac852a007a..4446402ad9 100755
+--- a/misc/cgo/testcshared/test.bash
++++ b/misc/cgo/testcshared/test.bash
+@@ -19,6 +19,8 @@ goarch=$(go env GOARCH)
+ goroot=$(go env GOROOT)
+ if [ ! -d "$goroot" ]; then
+ 	echo 'misc/cgo/testcshared/test.bash cannnot find GOROOT' 1>&2
++	echo '$GOROOT:' "$GOROOT" 1>&2
++	echo 'go env GOROOT:' "$goroot" 1>&2
+ 	exit 1
+ fi
+ 

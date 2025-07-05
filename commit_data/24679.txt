@@ -19,7 +19,44 @@ Date:   Thu Aug 20 17:53:41 2015 +0200
     Change-Id: I6ccb3b7f842338d91fd26ae37dd4fa279d7fc440
     Reviewed-on: https://go-review.googlesource.com/13777
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/mparith2.go | 2 +-
  test/const.go                           | 5 +++++
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/mparith2.go b/src/cmd/compile/internal/gc/mparith2.go
+index 2c7e5176ac..f70e342a96 100644
+--- a/src/cmd/compile/internal/gc/mparith2.go
++++ b/src/cmd/compile/internal/gc/mparith2.go
+@@ -229,7 +229,7 @@ func mprshfixfix(a, b *Mpint) {
+ 	}
+ 
+ 	s := Mpgetfix(b)
+-	if s < 0 || s >= Mpprec {
++	if s < 0 {
+ 		Yyerror("stupid shift: %d", s)
+ 		if a.Val.Sign() < 0 {
+ 			Mpmovecfix(a, -1)
+diff --git a/test/const.go b/test/const.go
+index d583659c6c..6c29336396 100644
+--- a/test/const.go
++++ b/test/const.go
+@@ -19,6 +19,9 @@ const (
+ 	c3div2  = 3 / 2
+ 	c1e3    = 1e3
+ 
++	rsh1 = 1e100 >> 1000
++	rsh2 = 1e302 >> 1000
++
+ 	ctrue  = true
+ 	cfalse = !ctrue
+ )
+@@ -48,6 +51,8 @@ func ints() {
+ 	assert(c3div2 == 1, "3/2")
+ 	assert(c1e3 == 1000, "c1e3 int")
+ 	assert(c1e3 == 1e3, "c1e3 float")
++	assert(rsh1 == 0, "rsh1")
++	assert(rsh2 == 9, "rsh2")
+ 
+ 	// verify that all (in range) are assignable as ints
+ 	var i int

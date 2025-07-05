@@ -16,7 +16,7 @@ Date:   Tue Aug 9 00:55:13 2022 +0700
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/test/issue53888_test.go      |  5 +----
  src/crypto/ed25519/ed25519_test.go                    |  6 +++---
  src/crypto/internal/edwards25519/edwards25519_test.go |  8 +++-----
@@ -27,3 +27,191 @@ Date:   Tue Aug 9 00:55:13 2022 +0700
  src/reflect/all_test.go                               |  2 +-
  src/runtime/traceback_test.go                         |  3 +--
  9 files changed, 28 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/issue53888_test.go b/src/cmd/compile/internal/test/issue53888_test.go
+index 032412afcf..89c40eca2b 100644
+--- a/src/cmd/compile/internal/test/issue53888_test.go
++++ b/src/cmd/compile/internal/test/issue53888_test.go
+@@ -8,15 +8,12 @@ package test
+ 
+ import (
+ 	"internal/testenv"
+-	"strings"
+ 	"testing"
+ )
+ 
+ // TODO(cuonglm,mdempsky): figure out why Unifed IR failed?
+ func TestAppendOfMake(t *testing.T) {
+-	if strings.HasSuffix(testenv.Builder(), "-noopt") {
+-		t.Skip("append of make optimization is disabled on noopt builder")
+-	}
++	testenv.SkipIfOptimizationOff(t)
+ 	for n := 32; n < 33; n++ { // avoid stack allocation of make()
+ 		b := make([]byte, n)
+ 		f := func() {
+diff --git a/src/crypto/ed25519/ed25519_test.go b/src/crypto/ed25519/ed25519_test.go
+index 7c5181788f..2e7fe23025 100644
+--- a/src/crypto/ed25519/ed25519_test.go
++++ b/src/crypto/ed25519/ed25519_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"encoding/hex"
++	"internal/testenv"
+ 	"os"
+ 	"strings"
+ 	"testing"
+@@ -190,9 +191,8 @@ func TestAllocations(t *testing.T) {
+ 	if boring.Enabled {
+ 		t.Skip("skipping allocations test with BoringCrypto")
+ 	}
+-	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt") {
+-		t.Skip("skipping allocations test without relevant optimizations")
+-	}
++	testenv.SkipIfOptimizationOff(t)
++
+ 	if allocs := testing.AllocsPerRun(100, func() {
+ 		seed := make([]byte, SeedSize)
+ 		message := []byte("Hello, world!")
+diff --git a/src/crypto/internal/edwards25519/edwards25519_test.go b/src/crypto/internal/edwards25519/edwards25519_test.go
+index 9bc33f9017..537e503b9d 100644
+--- a/src/crypto/internal/edwards25519/edwards25519_test.go
++++ b/src/crypto/internal/edwards25519/edwards25519_test.go
+@@ -7,9 +7,8 @@ package edwards25519
+ import (
+ 	"crypto/internal/edwards25519/field"
+ 	"encoding/hex"
+-	"os"
++	"internal/testenv"
+ 	"reflect"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -281,9 +280,8 @@ func TestNonCanonicalPoints(t *testing.T) {
+ var testAllocationsSink byte
+ 
+ func TestAllocations(t *testing.T) {
+-	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt") {
+-		t.Skip("skipping allocations test without relevant optimizations")
+-	}
++	testenv.SkipIfOptimizationOff(t)
++
+ 	if allocs := testing.AllocsPerRun(100, func() {
+ 		p := NewIdentityPoint()
+ 		p.Add(p, NewGeneratorPoint())
+diff --git a/src/crypto/internal/nistec/nistec_test.go b/src/crypto/internal/nistec/nistec_test.go
+index 1903f19af3..adddab23a0 100644
+--- a/src/crypto/internal/nistec/nistec_test.go
++++ b/src/crypto/internal/nistec/nistec_test.go
+@@ -8,17 +8,15 @@ import (
+ 	"bytes"
+ 	"crypto/elliptic"
+ 	"crypto/internal/nistec"
++	"internal/testenv"
+ 	"math/big"
+ 	"math/rand"
+-	"os"
+-	"strings"
+ 	"testing"
+ )
+ 
+ func TestAllocations(t *testing.T) {
+-	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt") {
+-		t.Skip("skipping allocations test without relevant optimizations")
+-	}
++	testenv.SkipIfOptimizationOff(t)
++
+ 	t.Run("P224", func(t *testing.T) {
+ 		if allocs := testing.AllocsPerRun(100, func() {
+ 			p := nistec.NewP224Generator()
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 1feb630cf5..4f8c097573 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -408,6 +408,19 @@ func SkipIfShortAndSlow(t testing.TB) {
+ 	}
+ }
+ 
++// SkipIfOptimizationOff skips t if optimization is disabled.
++func SkipIfOptimizationOff(t testing.TB) {
++	if OptimizationOff() {
++		t.Helper()
++		t.Skip("skipping test with optimization disabled on builder")
++	}
++}
++
++// OptimizationOff reports whether optimization is disabled.
++func OptimizationOff() bool {
++	return strings.HasSuffix(Builder(), "-noopt")
++}
++
+ // RunWithTimeout runs cmd and returns its combined output. If the
+ // subprocess exits with a non-zero status, it will log that status
+ // and return a non-nil error, but this is not considered fatal.
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 961ba0cdf5..75831e5215 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -1906,9 +1906,7 @@ func TestNewIntMinInt64(t *testing.T) {
+ }
+ 
+ func TestNewIntAllocs(t *testing.T) {
+-	if strings.HasSuffix(testenv.Builder(), "-noopt") {
+-		t.Skip("inlining is disabled on noopt builder")
+-	}
++	testenv.SkipIfOptimizationOff(t)
+ 	for _, n := range []int64{0, 7, -7, 1 << 30, -1 << 30, 1 << 50, -1 << 50} {
+ 		x := NewInt(3)
+ 		got := testing.AllocsPerRun(100, func() {
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index 74dcc974f8..b0915bd8e9 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -1908,10 +1908,10 @@ func TestAddrStringAllocs(t *testing.T) {
+ 		{"ipv4-in-ipv6", MustParseAddr("::ffff:192.168.1.1"), 1},
+ 		{"ipv4-in-ipv6+zone", MustParseAddr("::ffff:192.168.1.1%eth0"), 1},
+ 	}
+-	isNooptBuilder := strings.HasSuffix(testenv.Builder(), "-noopt")
++	optimizationOff := testenv.OptimizationOff()
+ 	for _, tc := range tests {
+ 		t.Run(tc.name, func(t *testing.T) {
+-			if isNooptBuilder && strings.HasPrefix(tc.name, "ipv4-in-ipv6") {
++			if optimizationOff && strings.HasPrefix(tc.name, "ipv4-in-ipv6") {
+ 				// Optimizations are required to remove some allocs.
+ 				t.Skipf("skipping on %v", testenv.Builder())
+ 			}
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index fe40e6e2bf..aa620bf0ee 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -364,7 +364,7 @@ func TestMapIterSet(t *testing.T) {
+ 		}
+ 	}
+ 
+-	if strings.HasSuffix(testenv.Builder(), "-noopt") {
++	if testenv.OptimizationOff() {
+ 		return // no inlining with the noopt builder
+ 	}
+ 
+diff --git a/src/runtime/traceback_test.go b/src/runtime/traceback_test.go
+index e50bd95ead..97eb92103b 100644
+--- a/src/runtime/traceback_test.go
++++ b/src/runtime/traceback_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"internal/abi"
+ 	"internal/testenv"
+ 	"runtime"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -19,7 +18,7 @@ func TestTracebackArgs(t *testing.T) {
+ 	if *flagQuick {
+ 		t.Skip("-quick")
+ 	}
+-	optimized := !strings.HasSuffix(testenv.Builder(), "-noopt")
++	optimized := !testenv.OptimizationOff()
+ 	abiSel := func(x, y string) string {
+ 		// select expected output based on ABI
+ 		// In noopt build we always spill arguments so the output is the same as stack ABI.

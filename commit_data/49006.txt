@@ -15,7 +15,7 @@ Date:   Mon Jul 5 20:58:56 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/importer/support.go   |  2 ++
  src/cmd/compile/internal/noder/types.go        |  8 --------
  src/cmd/compile/internal/typecheck/bexport.go  |  2 ++
@@ -24,3 +24,120 @@ Date:   Mon Jul 5 20:58:56 2021 -0700
  src/go/internal/gcimporter/support.go          |  2 ++
  test/run.go                                    |  1 -
  7 files changed, 23 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/support.go b/src/cmd/compile/internal/importer/support.go
+index 3d1f77afcd..7eecae15a6 100644
+--- a/src/cmd/compile/internal/importer/support.go
++++ b/src/cmd/compile/internal/importer/support.go
+@@ -101,6 +101,8 @@ var predeclared = []types2.Type{
+ 
+ 	// error
+ 	types2.Universe.Lookup("error").Type(),
++	// comparable
++	types2.Universe.Lookup("comparable").Type(),
+ 
+ 	// untyped types
+ 	types2.Typ[types2.UntypedBool],
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index a0b7fea7cb..d925f991c8 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -189,14 +189,6 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 
+ 			// With Go 1.18, an embedded element can be any type, not
+ 			// just an interface.
+-			if t := types2.AsInterface(e); t != nil {
+-				if t.IsComparable() {
+-					// Ignore predefined type 'comparable', since it
+-					// doesn't resolve and it doesn't have any
+-					// relevant methods.
+-					continue
+-				}
+-			}
+ 			embeddeds[j] = types.NewField(src.NoXPos, nil, g.typ1(e))
+ 			j++
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/bexport.go b/src/cmd/compile/internal/typecheck/bexport.go
+index 4a84bb13fa..45d67f6ea2 100644
+--- a/src/cmd/compile/internal/typecheck/bexport.go
++++ b/src/cmd/compile/internal/typecheck/bexport.go
+@@ -78,6 +78,8 @@ func predeclared() []*types.Type {
+ 
+ 			// error
+ 			types.ErrorType,
++			// comparable
++			types.ComparableType,
+ 
+ 			// untyped types
+ 			types.UntypedBool,
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index de185ab944..54f3c89c24 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -158,6 +158,15 @@ func InitUniverse() {
+ 	s.Def = n
+ 	types.CalcSize(types.ErrorType)
+ 
++	// comparable type (interface)
++	s = types.BuiltinPkg.Lookup("comparable")
++	n = ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, s)
++	types.ComparableType = types.NewNamed(n)
++	types.ComparableType.SetUnderlying(makeComparableInterface())
++	n.SetType(types.ComparableType)
++	s.Def = n
++	types.CalcSize(types.ComparableType)
++
+ 	types.Types[types.TUNSAFEPTR] = defBasic(types.TUNSAFEPTR, ir.Pkgs.Unsafe, "Pointer")
+ 
+ 	// simple aliases
+@@ -338,6 +347,12 @@ func makeErrorInterface() *types.Type {
+ 	return types.NewInterface(types.NoPkg, []*types.Field{method})
+ }
+ 
++func makeComparableInterface() *types.Type {
++	sig := types.NewSignature(types.NoPkg, fakeRecvField(), nil, nil, nil)
++	method := types.NewField(src.NoXPos, Lookup("=="), sig)
++	return types.NewInterface(types.NoPkg, []*types.Field{method})
++}
++
+ // DeclareUniverse makes the universe block visible within the current package.
+ func DeclareUniverse() {
+ 	// Operationally, this is similar to a dot import of builtinpkg, except
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 7f75000797..28312111ad 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -123,6 +123,8 @@ var (
+ 
+ 	// Predeclared error interface type.
+ 	ErrorType *Type
++	// Predeclared comparable interface type.
++	ComparableType *Type
+ 
+ 	// Types to represent untyped string and boolean constants.
+ 	UntypedString = New(TSTRING)
+diff --git a/src/go/internal/gcimporter/support.go b/src/go/internal/gcimporter/support.go
+index b8bb14dc49..bb2058172a 100644
+--- a/src/go/internal/gcimporter/support.go
++++ b/src/go/internal/gcimporter/support.go
+@@ -104,6 +104,8 @@ var predeclared = []types.Type{
+ 
+ 	// error
+ 	types.Universe.Lookup("error").Type(),
++	// comparable
++	types.Universe.Lookup("comparable").Type(),
+ 
+ 	// untyped types
+ 	types.Typ[types.UntypedBool],
+diff --git a/test/run.go b/test/run.go
+index 7afad0ec09..713e2006dc 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2210,7 +2210,6 @@ var g3Failures = setOf(
+ 	"typeparam/mdempsky/4.go",
+ 	"typeparam/mdempsky/5.go",
+ 	"typeparam/mdempsky/7.go",
+-	"typeparam/mdempsky/8.go",
+ 	"typeparam/mdempsky/9.go",
+ 	"typeparam/mdempsky/11.go",
+ 	"typeparam/mdempsky/12.go",

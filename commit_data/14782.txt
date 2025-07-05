@@ -12,7 +12,75 @@ Date:   Wed Jan 2 17:39:41 2013 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6945065
-
+---
  src/pkg/encoding/json/encode.go      | 16 +++++++++-------
  src/pkg/encoding/json/encode_test.go | 20 ++++++++++++++++++++
  2 files changed, 29 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index c3018ad293..83d5ee88b8 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -617,13 +617,20 @@ func typeFields(t reflect.Type) []field {
+ 				index := make([]int, len(f.index)+1)
+ 				copy(index, f.index)
+ 				index[len(f.index)] = i
++
++				ft := sf.Type
++				if ft.Name() == "" && ft.Kind() == reflect.Ptr {
++					// Follow pointer.
++					ft = ft.Elem()
++				}
++
+ 				// Record found field and index sequence.
+-				if name != "" || !sf.Anonymous {
++				if name != "" || !sf.Anonymous || ft.Kind() != reflect.Struct {
+ 					tagged := name != ""
+ 					if name == "" {
+ 						name = sf.Name
+ 					}
+-					fields = append(fields, field{name, tagged, index, sf.Type,
++					fields = append(fields, field{name, tagged, index, ft,
+ 						opts.Contains("omitempty"), opts.Contains("string")})
+ 					if count[f.typ] > 1 {
+ 						// If there were multiple instances, add a second,
+@@ -636,11 +643,6 @@ func typeFields(t reflect.Type) []field {
+ 				}
+ 
+ 				// Record new anonymous struct to explore in next round.
+-				ft := sf.Type
+-				if ft.Name() == "" {
+-					// Must be pointer.
+-					ft = ft.Elem()
+-				}
+ 				nextCount[ft]++
+ 				if nextCount[ft] == 1 {
+ 					next = append(next, field{name: ft.Name(), index: index, typ: ft})
+diff --git a/src/pkg/encoding/json/encode_test.go b/src/pkg/encoding/json/encode_test.go
+index cb1c77eb52..be74c997cf 100644
+--- a/src/pkg/encoding/json/encode_test.go
++++ b/src/pkg/encoding/json/encode_test.go
+@@ -186,3 +186,23 @@ func TestMarshalerEscaping(t *testing.T) {
+ 		t.Errorf("got %q, want %q", got, want)
+ 	}
+ }
++
++type IntType int
++
++type MyStruct struct {
++	IntType
++}
++
++func TestAnonymousNonstruct(t *testing.T) {
++	var i IntType = 11
++	a := MyStruct{i}
++	const want = `{"IntType":11}`
++
++	b, err := Marshal(a)
++	if err != nil {
++		t.Fatalf("Marshal: %v", err)
++	}
++	if got := string(b); got != want {
++		t.Errorf("got %q, want %q", got, want)
++	}
++}

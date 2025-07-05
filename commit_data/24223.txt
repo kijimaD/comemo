@@ -13,10 +13,133 @@ Date:   Wed Jul 15 21:33:49 2015 -0700
     Change-Id: Ida7b8aab3298f4754eaf9fee733974cf8736e45d
     Reviewed-on: https://go-review.googlesource.com/12265
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |  9 +++++++++
  src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
  src/cmd/compile/internal/ssa/gen/genericOps.go |  7 ++++---
  src/cmd/compile/internal/ssa/opGen.go          | 10 ++++++++++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 26 ++++++++++++++++++++++++++
  5 files changed, 50 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 3ad21a6193..2ba1ddbb44 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -226,6 +226,11 @@ func (s *state) newValue1A(op ssa.Op, t ssa.Type, aux interface{}, arg *ssa.Valu
+ 	return s.curBlock.NewValue1A(s.peekLine(), op, t, aux, arg)
+ }
+ 
++// newValue1I adds a new value with one argument and an auxint value to the current block.
++func (s *state) newValue1I(op ssa.Op, t ssa.Type, aux int64, arg *ssa.Value) *ssa.Value {
++	return s.curBlock.NewValue1I(s.peekLine(), op, t, aux, arg)
++}
++
+ // newValue2 adds a new value with two arguments to the current block.
+ func (s *state) newValue2(op ssa.Op, t ssa.Type, arg0, arg1 *ssa.Value) *ssa.Value {
+ 	return s.curBlock.NewValue2(s.peekLine(), op, t, arg0, arg1)
+@@ -556,6 +561,10 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		s.nilCheck(p)
+ 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
+ 
++	case ODOT:
++		v := s.expr(n.Left)
++		return s.newValue1I(ssa.OpStructSelect, n.Type, n.Xoffset, v)
++
+ 	case ODOTPTR:
+ 		p := s.expr(n.Left)
+ 		s.nilCheck(p)
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 9f11a60a6b..a906ec6a5c 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -34,6 +34,7 @@
+ // Note: bounds check has already been done
+ (ArrayIndex (Load ptr mem) idx) -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
+ (PtrIndex <t> ptr idx) -> (Add ptr (Mul <config.Uintptr> idx (Const <config.Uintptr> [t.Elem().Size()])))
++(StructSelect [idx] (Load ptr mem)) -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
+ 
+ // big-object moves
+ // TODO: fix size
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 9155e00859..0af7df1775 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -71,9 +71,10 @@ var genericOps = []opData{
+ 	{name: "IsInBounds"}, // 0 <= arg0 < arg1
+ 
+ 	// Indexing operations
+-	{name: "ArrayIndex"}, // arg0=array, arg1=index.  Returns a[i]
+-	{name: "PtrIndex"},   // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
+-	{name: "OffPtr"},     // arg0 + auxint (arg0 and result are pointers)
++	{name: "ArrayIndex"},   // arg0=array, arg1=index.  Returns a[i]
++	{name: "PtrIndex"},     // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
++	{name: "OffPtr"},       // arg0 + auxint (arg0 and result are pointers)
++	{name: "StructSelect"}, // arg0=struct, auxint=field offset.  Returns field at that offset (size=size of result type)
+ 
+ 	// Slices
+ 	{name: "SliceMake"}, // arg0=ptr, arg1=len, arg2=cap
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 494f4ecf40..74d30e1df5 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -146,6 +146,7 @@ const (
+ 	OpArrayIndex
+ 	OpPtrIndex
+ 	OpOffPtr
++	OpStructSelect
+ 	OpSliceMake
+ 	OpSlicePtr
+ 	OpSliceLen
+@@ -1232,6 +1233,15 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 		generic: true,
+ 	},
++	{
++		name: "StructSelect",
++		reg: regInfo{
++			inputs:   []regMask{},
++			clobbers: 0,
++			outputs:  []regMask{},
++		},
++		generic: true,
++	},
+ 	{
+ 		name: "SliceMake",
+ 		reg: regInfo{
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 78cb2c8ebb..ca523ee19b 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -383,6 +383,32 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		}
+ 		goto end061edc5d85c73ad909089af2556d9380
+ 	end061edc5d85c73ad909089af2556d9380:
++		;
++	case OpStructSelect:
++		// match: (StructSelect [idx] (Load ptr mem))
++		// cond:
++		// result: (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
++		{
++			idx := v.AuxInt
++			if v.Args[0].Op != OpLoad {
++				goto end16fdb45e1dd08feb36e3cc3fb5ed8935
++			}
++			ptr := v.Args[0].Args[0]
++			mem := v.Args[0].Args[1]
++			v.Op = OpLoad
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
++			v0.Type = v.Type.PtrTo()
++			v0.AuxInt = idx
++			v0.AddArg(ptr)
++			v.AddArg(v0)
++			v.AddArg(mem)
++			return true
++		}
++		goto end16fdb45e1dd08feb36e3cc3fb5ed8935
++	end16fdb45e1dd08feb36e3cc3fb5ed8935:
+ 	}
+ 	return false
+ }

@@ -18,8 +18,78 @@ Date:   Wed Oct 24 20:09:00 2018 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Richard Musiol <neelance@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/js/callback.go   |  2 ++
  src/syscall/js/js.go         | 19 ++++++++++++++-----
  src/syscall/js/typedarray.go |  2 ++
  3 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/src/syscall/js/callback.go b/src/syscall/js/callback.go
+index 9d573074cb..2801e00b68 100644
+--- a/src/syscall/js/callback.go
++++ b/src/syscall/js/callback.go
+@@ -20,6 +20,8 @@ var (
+ 	nextCallbackID uint32 = 1
+ )
+ 
++var _ Wrapper = Callback{} // Callback must implement Wrapper
++
+ // Callback is a Go function that got wrapped for use as a JavaScript callback.
+ type Callback struct {
+ 	Value // the JavaScript function that queues the callback for execution
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+index 9d826c3886..dc741e79a7 100644
+--- a/src/syscall/js/js.go
++++ b/src/syscall/js/js.go
+@@ -26,11 +26,22 @@ type ref uint64
+ // nanHead are the upper 32 bits of a ref which are set if the value is not encoded as an IEEE 754 number (see above).
+ const nanHead = 0x7FF80000
+ 
++// Wrapper is implemented by types that are backed by a JavaScript value.
++type Wrapper interface {
++	// JSValue returns a JavaScript value associated with an object.
++	JSValue() Value
++}
++
+ // Value represents a JavaScript value. The zero value is the JavaScript value "undefined".
+ type Value struct {
+ 	ref ref
+ }
+ 
++// JSValue implements Wrapper interface.
++func (v Value) JSValue() Value {
++	return v
++}
++
+ func makeValue(v ref) Value {
+ 	return Value{ref: v}
+ }
+@@ -105,12 +116,10 @@ func Global() Value {
+ //  | map[string]interface{} | new object             |
+ func ValueOf(x interface{}) Value {
+ 	switch x := x.(type) {
+-	case Value:
++	case Value: // should precede Wrapper to avoid a loop
+ 		return x
+-	case TypedArray:
+-		return x.Value
+-	case Callback:
+-		return x.Value
++	case Wrapper:
++		return x.JSValue()
+ 	case nil:
+ 		return valueNull
+ 	case bool:
+diff --git a/src/syscall/js/typedarray.go b/src/syscall/js/typedarray.go
+index afa15488ec..aa56cf69f3 100644
+--- a/src/syscall/js/typedarray.go
++++ b/src/syscall/js/typedarray.go
+@@ -22,6 +22,8 @@ var (
+ 	float64Array = Global().Get("Float64Array")
+ )
+ 
++var _ Wrapper = TypedArray{} // TypedArray must implement Wrapper
++
+ // TypedArray represents a JavaScript typed array.
+ type TypedArray struct {
+ 	Value

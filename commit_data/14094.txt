@@ -9,6 +9,29 @@ Date:   Tue Oct 9 19:54:14 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6642044
-
+---
  src/cmd/go/pkg.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index e9f344ff91..307bd74cf1 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -602,7 +602,7 @@ func loadPackage(arg string, stk *importStack) *Package {
+ 		}
+ 		stk.push(arg)
+ 		defer stk.pop()
+-		bp, err := build.ImportDir(filepath.Join(gorootSrc, arg), 0)
++		bp, err := buildContext.ImportDir(filepath.Join(gorootSrc, arg), 0)
+ 		bp.ImportPath = arg
+ 		bp.Goroot = true
+ 		bp.BinDir = gorootBin
+@@ -630,7 +630,7 @@ func loadPackage(arg string, stk *importStack) *Package {
+ 	// referring to io/ioutil rather than a hypothetical import of
+ 	// "./ioutil".
+ 	if build.IsLocalImport(arg) {
+-		bp, _ := build.ImportDir(filepath.Join(cwd, arg), build.FindOnly)
++		bp, _ := buildContext.ImportDir(filepath.Join(cwd, arg), build.FindOnly)
+ 		if bp.ImportPath != "" && bp.ImportPath != "." {
+ 			arg = bp.ImportPath
+ 		}

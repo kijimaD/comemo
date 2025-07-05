@@ -36,9 +36,643 @@ Date:   Wed Aug 29 21:42:53 2012 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6492054
-
+---
  src/pkg/text/template/parse/lex.go        |  77 ++++++---------------
  src/pkg/text/template/parse/lex_test.go   | 107 ++++++++++++++++++++++++++++--
  src/pkg/text/template/parse/parse.go      |  83 ++++++++++++++++++-----
  src/pkg/text/template/parse/parse_test.go |   4 +-
  4 files changed, 190 insertions(+), 81 deletions(-)
+
+diff --git a/src/pkg/text/template/parse/lex.go b/src/pkg/text/template/parse/lex.go
+index 2f4c6ffe64..ddf4d3a54b 100644
+--- a/src/pkg/text/template/parse/lex.go
++++ b/src/pkg/text/template/parse/lex.go
+@@ -52,6 +52,7 @@ const (
+ 	itemRawString  // raw quoted string (includes quotes)
+ 	itemRightDelim // right action delimiter
+ 	itemRightParen // ')' inside action
++	itemSpace      // run of spaces separating arguments
+ 	itemString     // quoted string (includes quotes)
+ 	itemText       // plain text
+ 	itemVariable   // variable starting with '$', such as '$' or  '$1' or '$hello'.
+@@ -68,47 +69,6 @@ const (
+ 	itemWith     // with keyword
+ )
+ 
+-// Make the types prettyprint.
+-var itemName = map[itemType]string{
+-	itemError:        "error",
+-	itemBool:         "bool",
+-	itemChar:         "char",
+-	itemCharConstant: "charconst",
+-	itemComplex:      "complex",
+-	itemColonEquals:  ":=",
+-	itemEOF:          "EOF",
+-	itemField:        "field",
+-	itemIdentifier:   "identifier",
+-	itemLeftDelim:    "left delim",
+-	itemLeftParen:    "(",
+-	itemNumber:       "number",
+-	itemPipe:         "pipe",
+-	itemRawString:    "raw string",
+-	itemRightDelim:   "right delim",
+-	itemRightParen:   ")",
+-	itemString:       "string",
+-	itemVariable:     "variable",
+-
+-	// keywords
+-	itemDot:      ".",
+-	itemDefine:   "define",
+-	itemElse:     "else",
+-	itemIf:       "if",
+-	itemEnd:      "end",
+-	itemNil:      "nil",
+-	itemRange:    "range",
+-	itemTemplate: "template",
+-	itemWith:     "with",
+-}
+-
+-func (i itemType) String() string {
+-	s := itemName[i]
+-	if s == "" {
+-		return fmt.Sprintf("item%d", int(i))
+-	}
+-	return s
+-}
+-
+ var key = map[string]itemType{
+ 	".":        itemDot,
+ 	"define":   itemDefine,
+@@ -301,7 +261,7 @@ func lexRightDelim(l *lexer) stateFn {
+ // lexInsideAction scans the elements inside action delimiters.
+ func lexInsideAction(l *lexer) stateFn {
+ 	// Either number, quoted string, or identifier.
+-	// Spaces separate and are ignored.
++	// Spaces separate arguments; runs of spaces turn into itemSpace.
+ 	// Pipe symbols separate and are emitted.
+ 	if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
+ 		if l.parenDepth == 0 {
+@@ -310,10 +270,10 @@ func lexInsideAction(l *lexer) stateFn {
+ 		return l.errorf("unclosed left paren")
+ 	}
+ 	switch r := l.next(); {
+-	case r == eof || r == '\n':
++	case r == eof || isEndOfLine(r):
+ 		return l.errorf("unclosed action")
+ 	case isSpace(r):
+-		l.ignore()
++		return lexSpace
+ 	case r == ':':
+ 		if l.next() != '=' {
+ 			return l.errorf("expected :=")
+@@ -354,12 +314,6 @@ func lexInsideAction(l *lexer) stateFn {
+ 		if l.parenDepth < 0 {
+ 			return l.errorf("unexpected right paren %#U", r)
+ 		}
+-		// Catch the mistake of (a).X, which will parse as two args.
+-		// See issue 3999. TODO: Remove once arg parsing is
+-		// better defined.
+-		if l.peek() == '.' {
+-			return l.errorf("cannot evaluate field of parenthesized expression")
+-		}
+ 		return lexInsideAction
+ 	case r <= unicode.MaxASCII && unicode.IsPrint(r):
+ 		l.emit(itemChar)
+@@ -370,6 +324,16 @@ func lexInsideAction(l *lexer) stateFn {
+ 	return lexInsideAction
+ }
+ 
++// lexSpace scans a run of space characters.
++// One space has already been seen.
++func lexSpace(l *lexer) stateFn {
++	for isSpace(l.peek()) {
++		l.next()
++	}
++	l.emit(itemSpace)
++	return lexInsideAction
++}
++
+ // lexIdentifier scans an alphanumeric or field.
+ func lexIdentifier(l *lexer) stateFn {
+ Loop:
+@@ -409,7 +373,7 @@ Loop:
+ // arithmetic.
+ func (l *lexer) atTerminator() bool {
+ 	r := l.peek()
+-	if isSpace(r) {
++	if isSpace(r) || isEndOfLine(r) {
+ 		return true
+ 	}
+ 	switch r {
+@@ -529,11 +493,12 @@ Loop:
+ 
+ // isSpace reports whether r is a space character.
+ func isSpace(r rune) bool {
+-	switch r {
+-	case ' ', '\t', '\n', '\r':
+-		return true
+-	}
+-	return false
++	return r == ' ' || r == '\t'
++}
++
++// isEndOfLine reports whether r is an end-of-line character
++func isEndOfLine(r rune) bool {
++	return r == '\r' || r == '\n'
+ }
+ 
+ // isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
+diff --git a/src/pkg/text/template/parse/lex_test.go b/src/pkg/text/template/parse/lex_test.go
+index 5a4e8b658d..d0d033406c 100644
+--- a/src/pkg/text/template/parse/lex_test.go
++++ b/src/pkg/text/template/parse/lex_test.go
+@@ -5,9 +5,52 @@
+ package parse
+ 
+ import (
++	"fmt"
+ 	"testing"
+ )
+ 
++// Make the types prettyprint.
++var itemName = map[itemType]string{
++	itemError:        "error",
++	itemBool:         "bool",
++	itemChar:         "char",
++	itemCharConstant: "charconst",
++	itemComplex:      "complex",
++	itemColonEquals:  ":=",
++	itemEOF:          "EOF",
++	itemField:        "field",
++	itemIdentifier:   "identifier",
++	itemLeftDelim:    "left delim",
++	itemLeftParen:    "(",
++	itemNumber:       "number",
++	itemPipe:         "pipe",
++	itemRawString:    "raw string",
++	itemRightDelim:   "right delim",
++	itemRightParen:   ")",
++	itemSpace:        "space",
++	itemString:       "string",
++	itemVariable:     "variable",
++
++	// keywords
++	itemDot:      ".",
++	itemDefine:   "define",
++	itemElse:     "else",
++	itemIf:       "if",
++	itemEnd:      "end",
++	itemNil:      "nil",
++	itemRange:    "range",
++	itemTemplate: "template",
++	itemWith:     "with",
++}
++
++func (i itemType) String() string {
++	s := itemName[i]
++	if s == "" {
++		return fmt.Sprintf("item%d", int(i))
++	}
++	return s
++}
++
+ type lexTest struct {
+ 	name  string
+ 	input string
+@@ -16,12 +59,13 @@ type lexTest struct {
+ 
+ var (
+ 	tEOF      = item{itemEOF, 0, ""}
++	tFor      = item{itemIdentifier, 0, "for"}
+ 	tLeft     = item{itemLeftDelim, 0, "{{"}
+-	tRight    = item{itemRightDelim, 0, "}}"}
+-	tRange    = item{itemRange, 0, "range"}
+ 	tPipe     = item{itemPipe, 0, "|"}
+-	tFor      = item{itemIdentifier, 0, "for"}
+ 	tQuote    = item{itemString, 0, `"abc \n\t\" "`}
++	tRange    = item{itemRange, 0, "range"}
++	tRight    = item{itemRightDelim, 0, "}}"}
++	tSpace    = item{itemSpace, 0, " "}
+ 	raw       = "`" + `abc\n\t\" ` + "`"
+ 	tRawQuote = item{itemRawString, 0, raw}
+ )
+@@ -35,11 +79,12 @@ var lexTests = []lexTest{
+ 		{itemText, 0, "-world"},
+ 		tEOF,
+ 	}},
+-	{"punctuation", "{{,@%}}", []item{
++	{"punctuation", "{{,@% }}", []item{
+ 		tLeft,
+ 		{itemChar, 0, ","},
+ 		{itemChar, 0, "@"},
+ 		{itemChar, 0, "%"},
++		tSpace,
+ 		tRight,
+ 		tEOF,
+ 	}},
+@@ -54,18 +99,25 @@ var lexTests = []lexTest{
+ 		tEOF,
+ 	}},
+ 	{"empty action", `{{}}`, []item{tLeft, tRight, tEOF}},
+-	{"for", `{{for }}`, []item{tLeft, tFor, tRight, tEOF}},
++	{"for", `{{for}}`, []item{tLeft, tFor, tRight, tEOF}},
+ 	{"quote", `{{"abc \n\t\" "}}`, []item{tLeft, tQuote, tRight, tEOF}},
+ 	{"raw quote", "{{" + raw + "}}", []item{tLeft, tRawQuote, tRight, tEOF}},
+ 	{"numbers", "{{1 02 0x14 -7.2i 1e3 +1.2e-4 4.2i 1+2i}}", []item{
+ 		tLeft,
+ 		{itemNumber, 0, "1"},
++		tSpace,
+ 		{itemNumber, 0, "02"},
++		tSpace,
+ 		{itemNumber, 0, "0x14"},
++		tSpace,
+ 		{itemNumber, 0, "-7.2i"},
++		tSpace,
+ 		{itemNumber, 0, "1e3"},
++		tSpace,
+ 		{itemNumber, 0, "+1.2e-4"},
++		tSpace,
+ 		{itemNumber, 0, "4.2i"},
++		tSpace,
+ 		{itemComplex, 0, "1+2i"},
+ 		tRight,
+ 		tEOF,
+@@ -73,11 +125,17 @@ var lexTests = []lexTest{
+ 	{"characters", `{{'a' '\n' '\'' '\\' '\u00FF' '\xFF' '本'}}`, []item{
+ 		tLeft,
+ 		{itemCharConstant, 0, `'a'`},
++		tSpace,
+ 		{itemCharConstant, 0, `'\n'`},
++		tSpace,
+ 		{itemCharConstant, 0, `'\''`},
++		tSpace,
+ 		{itemCharConstant, 0, `'\\'`},
++		tSpace,
+ 		{itemCharConstant, 0, `'\u00FF'`},
++		tSpace,
+ 		{itemCharConstant, 0, `'\xFF'`},
++		tSpace,
+ 		{itemCharConstant, 0, `'本'`},
+ 		tRight,
+ 		tEOF,
+@@ -85,6 +143,7 @@ var lexTests = []lexTest{
+ 	{"bools", "{{true false}}", []item{
+ 		tLeft,
+ 		{itemBool, 0, "true"},
++		tSpace,
+ 		{itemBool, 0, "false"},
+ 		tRight,
+ 		tEOF,
+@@ -104,8 +163,11 @@ var lexTests = []lexTest{
+ 	{"dots", "{{.x . .2 .x.y}}", []item{
+ 		tLeft,
+ 		{itemField, 0, ".x"},
++		tSpace,
+ 		{itemDot, 0, "."},
++		tSpace,
+ 		{itemNumber, 0, ".2"},
++		tSpace,
+ 		{itemField, 0, ".x.y"},
+ 		tRight,
+ 		tEOF,
+@@ -113,9 +175,13 @@ var lexTests = []lexTest{
+ 	{"keywords", "{{range if else end with}}", []item{
+ 		tLeft,
+ 		{itemRange, 0, "range"},
++		tSpace,
+ 		{itemIf, 0, "if"},
++		tSpace,
+ 		{itemElse, 0, "else"},
++		tSpace,
+ 		{itemEnd, 0, "end"},
++		tSpace,
+ 		{itemWith, 0, "with"},
+ 		tRight,
+ 		tEOF,
+@@ -123,28 +189,49 @@ var lexTests = []lexTest{
+ 	{"variables", "{{$c := printf $ $hello $23 $ $var.Field .Method}}", []item{
+ 		tLeft,
+ 		{itemVariable, 0, "$c"},
++		tSpace,
+ 		{itemColonEquals, 0, ":="},
++		tSpace,
+ 		{itemIdentifier, 0, "printf"},
++		tSpace,
+ 		{itemVariable, 0, "$"},
++		tSpace,
+ 		{itemVariable, 0, "$hello"},
++		tSpace,
+ 		{itemVariable, 0, "$23"},
++		tSpace,
+ 		{itemVariable, 0, "$"},
++		tSpace,
+ 		{itemVariable, 0, "$var.Field"},
++		tSpace,
+ 		{itemField, 0, ".Method"},
+ 		tRight,
+ 		tEOF,
+ 	}},
++	{"variable invocation ", "{{$x 23}}", []item{
++		tLeft,
++		{itemVariable, 0, "$x"},
++		tSpace,
++		{itemNumber, 0, "23"},
++		tRight,
++		tEOF,
++	}},
+ 	{"pipeline", `intro {{echo hi 1.2 |noargs|args 1 "hi"}} outro`, []item{
+ 		{itemText, 0, "intro "},
+ 		tLeft,
+ 		{itemIdentifier, 0, "echo"},
++		tSpace,
+ 		{itemIdentifier, 0, "hi"},
++		tSpace,
+ 		{itemNumber, 0, "1.2"},
++		tSpace,
+ 		tPipe,
+ 		{itemIdentifier, 0, "noargs"},
+ 		tPipe,
+ 		{itemIdentifier, 0, "args"},
++		tSpace,
+ 		{itemNumber, 0, "1"},
++		tSpace,
+ 		{itemString, 0, `"hi"`},
+ 		tRight,
+ 		{itemText, 0, " outro"},
+@@ -153,7 +240,9 @@ var lexTests = []lexTest{
+ 	{"declaration", "{{$v := 3}}", []item{
+ 		tLeft,
+ 		{itemVariable, 0, "$v"},
++		tSpace,
+ 		{itemColonEquals, 0, ":="},
++		tSpace,
+ 		{itemNumber, 0, "3"},
+ 		tRight,
+ 		tEOF,
+@@ -161,9 +250,13 @@ var lexTests = []lexTest{
+ 	{"2 declarations", "{{$v , $w := 3}}", []item{
+ 		tLeft,
+ 		{itemVariable, 0, "$v"},
++		tSpace,
+ 		{itemChar, 0, ","},
++		tSpace,
+ 		{itemVariable, 0, "$w"},
++		tSpace,
+ 		{itemColonEquals, 0, ":="},
++		tSpace,
+ 		{itemNumber, 0, "3"},
+ 		tRight,
+ 		tEOF,
+@@ -266,7 +359,7 @@ func TestLex(t *testing.T) {
+ 	for _, test := range lexTests {
+ 		items := collect(&test, "", "")
+ 		if !equal(items, test.items, false) {
+-			t.Errorf("%s: got\n\t%v\nexpected\n\t%v", test.name, items, test.items)
++			t.Errorf("%s: got\n\t%+v\nexpected\n\t%v", test.name, items, test.items)
+ 		}
+ 	}
+ }
+@@ -286,7 +379,7 @@ var lexDelimTests = []lexTest{
+ 		tEOF,
+ 	}},
+ 	{"empty action", `$$@@`, []item{tLeftDelim, tRightDelim, tEOF}},
+-	{"for", `$$for @@`, []item{tLeftDelim, tFor, tRightDelim, tEOF}},
++	{"for", `$$for@@`, []item{tLeftDelim, tFor, tRightDelim, tEOF}},
+ 	{"quote", `$$"abc \n\t\" "@@`, []item{tLeftDelim, tQuote, tRightDelim, tEOF}},
+ 	{"raw quote", "$$" + raw + "@@", []item{tLeftDelim, tRawQuote, tRightDelim, tEOF}},
+ }
+diff --git a/src/pkg/text/template/parse/parse.go b/src/pkg/text/template/parse/parse.go
+index 6dc2f0fb78..6177e32e73 100644
+--- a/src/pkg/text/template/parse/parse.go
++++ b/src/pkg/text/template/parse/parse.go
+@@ -23,7 +23,7 @@ type Tree struct {
+ 	// Parsing only; cleared after parse.
+ 	funcs     []map[string]interface{}
+ 	lex       *lexer
+-	token     [2]item // two-token lookahead for parser.
++	token     [3]item // three-token lookahead for parser.
+ 	peekCount int
+ 	vars      []string // variables defined at the moment.
+ }
+@@ -53,12 +53,21 @@ func (t *Tree) backup() {
+ 	t.peekCount++
+ }
+ 
+-// backup2 backs the input stream up two tokens
++// backup2 backs the input stream up two tokens.
++// The zeroth token is already there.
+ func (t *Tree) backup2(t1 item) {
+ 	t.token[1] = t1
+ 	t.peekCount = 2
+ }
+ 
++// backup3 backs the input stream up three tokens
++// The zeroth token is already there.
++func (t *Tree) backup3(t2, t1 item) { // Reverse order: we're pushing back.
++	t.token[1] = t1
++	t.token[2] = t2
++	t.peekCount = 3
++}
++
+ // peek returns but does not consume the next token.
+ func (t *Tree) peek() item {
+ 	if t.peekCount > 0 {
+@@ -69,6 +78,29 @@ func (t *Tree) peek() item {
+ 	return t.token[0]
+ }
+ 
++// nextNonSpace returns the next non-space token.
++func (t *Tree) nextNonSpace() (token item) {
++	for {
++		token = t.next()
++		if token.typ != itemSpace {
++			break
++		}
++	}
++	return token
++}
++
++// peekNonSpace returns but does not consume the next non-space token.
++func (t *Tree) peekNonSpace() (token item) {
++	for {
++		token = t.next()
++		if token.typ != itemSpace {
++			break
++		}
++	}
++	t.backup()
++	return token
++}
++
+ // Parsing.
+ 
+ // New allocates a new parse tree with the given name.
+@@ -93,7 +125,7 @@ func (t *Tree) error(err error) {
+ 
+ // expect consumes the next token and guarantees it has the required type.
+ func (t *Tree) expect(expected itemType, context string) item {
+-	token := t.next()
++	token := t.nextNonSpace()
+ 	if token.typ != expected {
+ 		t.errorf("expected %s in %s; got %s", expected, context, token)
+ 	}
+@@ -102,7 +134,7 @@ func (t *Tree) expect(expected itemType, context string) item {
+ 
+ // expectOneOf consumes the next token and guarantees it has one of the required types.
+ func (t *Tree) expectOneOf(expected1, expected2 itemType, context string) item {
+-	token := t.next()
++	token := t.nextNonSpace()
+ 	if token.typ != expected1 && token.typ != expected2 {
+ 		t.errorf("expected %s or %s in %s; got %s", expected1, expected2, context, token)
+ 	}
+@@ -223,7 +255,7 @@ func (t *Tree) parse(treeSet map[string]*Tree) (next Node) {
+ 	for t.peek().typ != itemEOF {
+ 		if t.peek().typ == itemLeftDelim {
+ 			delim := t.next()
+-			if t.next().typ == itemDefine {
++			if t.nextNonSpace().typ == itemDefine {
+ 				newT := New("definition") // name will be updated once we know it.
+ 				newT.startParse(t.funcs, t.lex)
+ 				newT.parseDefinition(treeSet)
+@@ -266,7 +298,7 @@ func (t *Tree) parseDefinition(treeSet map[string]*Tree) {
+ // Terminates at {{end}} or {{else}}, returned separately.
+ func (t *Tree) itemList() (list *ListNode, next Node) {
+ 	list = newList()
+-	for t.peek().typ != itemEOF {
++	for t.peekNonSpace().typ != itemEOF {
+ 		n := t.textOrAction()
+ 		switch n.Type() {
+ 		case nodeEnd, nodeElse:
+@@ -281,7 +313,7 @@ func (t *Tree) itemList() (list *ListNode, next Node) {
+ // textOrAction:
+ //	text | action
+ func (t *Tree) textOrAction() Node {
+-	switch token := t.next(); token.typ {
++	switch token := t.nextNonSpace(); token.typ {
+ 	case itemText:
+ 		return newText(token.val)
+ 	case itemLeftDelim:
+@@ -298,7 +330,7 @@ func (t *Tree) textOrAction() Node {
+ // Left delim is past. Now get actions.
+ // First word could be a keyword such as range.
+ func (t *Tree) action() (n Node) {
+-	switch token := t.next(); token.typ {
++	switch token := t.nextNonSpace(); token.typ {
+ 	case itemElse:
+ 		return t.elseControl()
+ 	case itemEnd:
+@@ -324,10 +356,15 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 	var decl []*VariableNode
+ 	// Are there declarations?
+ 	for {
+-		if v := t.peek(); v.typ == itemVariable {
++		if v := t.peekNonSpace(); v.typ == itemVariable {
+ 			t.next()
+-			if next := t.peek(); next.typ == itemColonEquals || (next.typ == itemChar && next.val == ",") {
+-				t.next()
++			// Since space is a token, we need 3-token look-ahead here in the worst case:
++			// in "$x foo" we need to read "foo" (as opposed to ":=") to know that $x is an
++			// argument variable rather than a declaration. So remember the token
++			// adjacent to the variable so we can push it back if necessary.
++			tokenAfterVariable := t.peek()
++			if next := t.peekNonSpace(); next.typ == itemColonEquals || (next.typ == itemChar && next.val == ",") {
++				t.nextNonSpace()
+ 				variable := newVariable(v.val)
+ 				if len(variable.Ident) != 1 {
+ 					t.errorf("illegal variable in declaration: %s", v.val)
+@@ -340,6 +377,8 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 					}
+ 					t.errorf("too many declarations in %s", context)
+ 				}
++			} else if tokenAfterVariable.typ == itemSpace {
++				t.backup3(v, tokenAfterVariable)
+ 			} else {
+ 				t.backup2(v)
+ 			}
+@@ -348,7 +387,7 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 	}
+ 	pipe = newPipeline(t.lex.lineNumber(), decl)
+ 	for {
+-		switch token := t.next(); token.typ {
++		switch token := t.nextNonSpace(); token.typ {
+ 		case itemRightDelim, itemRightParen:
+ 			if len(pipe.Cmds) == 0 {
+ 				t.errorf("missing value for %s", context)
+@@ -432,7 +471,7 @@ func (t *Tree) elseControl() Node {
+ // to a string.
+ func (t *Tree) templateControl() Node {
+ 	var name string
+-	switch token := t.next(); token.typ {
++	switch token := t.nextNonSpace(); token.typ {
+ 	case itemString, itemRawString:
+ 		s, err := strconv.Unquote(token.val)
+ 		if err != nil {
+@@ -443,7 +482,7 @@ func (t *Tree) templateControl() Node {
+ 		t.unexpected(token, "template invocation")
+ 	}
+ 	var pipe *PipeNode
+-	if t.next().typ != itemRightDelim {
++	if t.nextNonSpace().typ != itemRightDelim {
+ 		t.backup()
+ 		// Do not pop variables; they persist until "end".
+ 		pipe = t.pipeline("template")
+@@ -458,7 +497,7 @@ func (t *Tree) command() *CommandNode {
+ 	cmd := newCommand()
+ Loop:
+ 	for {
+-		switch token := t.next(); token.typ {
++		switch token := t.nextNonSpace(); token.typ {
+ 		case itemRightDelim, itemRightParen:
+ 			t.backup()
+ 			break Loop
+@@ -466,7 +505,7 @@ Loop:
+ 			break Loop
+ 		case itemLeftParen:
+ 			p := t.pipeline("parenthesized expression")
+-			if t.next().typ != itemRightParen {
++			if t.nextNonSpace().typ != itemRightParen {
+ 				t.errorf("missing right paren in parenthesized expression")
+ 			}
+ 			cmd.append(p)
+@@ -502,6 +541,7 @@ Loop:
+ 		default:
+ 			t.unexpected(token, "command")
+ 		}
++		t.terminate()
+ 	}
+ 	if len(cmd.Args) == 0 {
+ 		t.errorf("empty command")
+@@ -509,6 +549,17 @@ Loop:
+ 	return cmd
+ }
+ 
++// terminate checks that the next token terminates an argument. This guarantees
++// that arguments are space-separated, for example that (2)3 does not parse.
++func (t *Tree) terminate() {
++	token := t.peek()
++	switch token.typ {
++	case itemChar, itemPipe, itemRightDelim, itemRightParen, itemSpace:
++		return
++	}
++	t.unexpected(token, "argument list (missing space?)")
++}
++
+ // hasFunction reports if a function name exists in the Tree's maps.
+ func (t *Tree) hasFunction(name string) bool {
+ 	for _, funcMap := range t.funcs {
+diff --git a/src/pkg/text/template/parse/parse_test.go b/src/pkg/text/template/parse/parse_test.go
+index da1ce1dd17..3838250ef2 100644
+--- a/src/pkg/text/template/parse/parse_test.go
++++ b/src/pkg/text/template/parse/parse_test.go
+@@ -232,9 +232,9 @@ var parseTests = []parseTest{
+ 	{"invalid punctuation", "{{printf 3, 4}}", hasError, ""},
+ 	{"multidecl outside range", "{{with $v, $u := 3}}{{end}}", hasError, ""},
+ 	{"too many decls in range", "{{range $u, $v, $w := 3}}{{end}}", hasError, ""},
+-	// This one should work but doesn't. Caught as a parse error to avoid confusion.
+-	// TODO: Update after issue 3999 is resolved.
+ 	{"dot applied to parentheses", "{{printf (printf .).}}", hasError, ""},
++	{"adjacent args", "{{printf 3`x`}}", hasError, ""},
++	{"adjacent args with .", "{{printf `x`.}}", hasError, ""},
+ 	// Equals (and other chars) do not assignments make (yet).
+ 	{"bug0a", "{{$x := 0}}{{$x}}", noError, "{{$x := 0}}{{$x}}"},
+ 	{"bug0b", "{{$x = 1}}{{$x}}", hasError, ""},

@@ -9,6 +9,37 @@ Date:   Tue Feb 7 19:15:25 2012 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5644049
-
+---
  src/pkg/net/http/transport_test.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 321da52e27..caf81d6e46 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -441,7 +441,11 @@ func TestRoundTripGzip(t *testing.T) {
+ 		}
+ 		if accept == "gzip" {
+ 			rw.Header().Set("Content-Encoding", "gzip")
+-			gz, _ := gzip.NewWriter(rw)
++			gz, err := gzip.NewWriter(rw)
++			if err != nil {
++				t.Errorf("gzip NewWriter: %v", err)
++				return
++			}
+ 			gz.Write([]byte(responseBody))
+ 			gz.Close()
+ 		} else {
+@@ -460,7 +464,11 @@ func TestRoundTripGzip(t *testing.T) {
+ 		res, err := DefaultTransport.RoundTrip(req)
+ 		var body []byte
+ 		if test.compressed {
+-			gzip, _ := gzip.NewReader(res.Body)
++			gzip, err := gzip.NewReader(res.Body)
++			if err != nil {
++				t.Errorf("%d. gzip NewReader: %v", i, err)
++				continue
++			}
+ 			body, err = ioutil.ReadAll(gzip)
+ 			res.Body.Close()
+ 		} else {

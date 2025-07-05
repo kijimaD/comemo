@@ -9,6 +9,20 @@ Date:   Wed Oct 31 20:46:57 2018 -0400
     Change-Id: I9b3765ae63970b7bc4dc87107f546e64a78e2830
     Reviewed-on: https://go-review.googlesource.com/c/146497
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/obj.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 5976cffd06..a9dd092b67 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -81,7 +81,7 @@ func printObjHeader(bout *bio.Writer) {
+ 	if localpkg.Name == "main" {
+ 		fmt.Fprintf(bout, "main\n")
+ 	}
+-	fmt.Fprintf(bout, "\n")     // header ends with blank line
++	fmt.Fprintf(bout, "\n") // header ends with blank line
+ }
+ 
+ func startArchiveEntry(bout *bio.Writer) int64 {

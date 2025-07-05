@@ -21,8 +21,137 @@ Date:   Thu May 27 02:48:33 2021 -0700
     Reviewed-by: Dan Scales <danscales@google.com>
     Trust: Dan Scales <danscales@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/decl.go   | 15 +++++++++++-
  src/cmd/compile/internal/noder/import.go | 40 ++++++++++++++++++--------------
  src/cmd/compile/internal/noder/irgen.go  |  3 +--
  3 files changed, 37 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index 40cbe50aff..375eb41898 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -46,7 +46,12 @@ func (g *irgen) importDecl(p *noder, decl *syntax.ImportDecl) {
+ 
+ 	g.pragmaFlags(decl.Pragma, 0)
+ 
+-	ipkg := importfile(decl)
++	// Get the imported package's path, as resolved already by types2
++	// and gcimporter. This is the same path as would be computed by
++	// parseImportPath.
++	path := pkgNameOf(g.info, decl).Imported().Path()
++
++	ipkg := readImportFile(g.target, path)
+ 	if ipkg == ir.Pkgs.Unsafe {
+ 		p.importedUnsafe = true
+ 	}
+@@ -55,6 +60,14 @@ func (g *irgen) importDecl(p *noder, decl *syntax.ImportDecl) {
+ 	}
+ }
+ 
++// pkgNameOf returns the PkgName associated with the given ImportDecl.
++func pkgNameOf(info *types2.Info, decl *syntax.ImportDecl) *types2.PkgName {
++	if name := decl.LocalPkgName; name != nil {
++		return info.Defs[name].(*types2.PkgName)
++	}
++	return info.Implicits[decl].(*types2.PkgName)
++}
++
+ func (g *irgen) constDecl(out *ir.Nodes, decl *syntax.ConstDecl) {
+ 	g.pragmaFlags(decl.Pragma, 0)
+ 
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index c4a57806eb..24d911ba38 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -175,36 +175,44 @@ func resolveImportPath(path string) (string, error) {
+ 	return path, nil
+ }
+ 
+-// TODO(mdempsky): Return an error instead.
+ func importfile(decl *syntax.ImportDecl) *types.Pkg {
+-	if decl.Path.Kind != syntax.StringLit {
+-		base.Errorf("import path must be a string")
++	path, err := parseImportPath(decl.Path)
++	if err != nil {
++		base.Errorf("%s", err)
+ 		return nil
+ 	}
+ 
+-	path, err := strconv.Unquote(decl.Path.Value)
+-	if err != nil {
+-		base.Errorf("import path must be a string")
+-		return nil
++	pkg := readImportFile(typecheck.Target, path)
++	if pkg != ir.Pkgs.Unsafe && pkg.Height >= myheight {
++		myheight = pkg.Height + 1
+ 	}
++	return pkg
++}
+ 
+-	if err := checkImportPath(path, false); err != nil {
+-		base.Errorf("%s", err.Error())
+-		return nil
++func parseImportPath(pathLit *syntax.BasicLit) (string, error) {
++	if pathLit.Kind != syntax.StringLit {
++		return "", errors.New("import path must be a string")
+ 	}
+ 
+-	path, err = resolveImportPath(path)
++	path, err := strconv.Unquote(pathLit.Value)
+ 	if err != nil {
+-		base.Errorf("%s", err)
+-		return nil
++		return "", errors.New("import path must be a string")
++	}
++
++	if err := checkImportPath(path, false); err != nil {
++		return "", err
+ 	}
+ 
++	return resolveImportPath(path)
++}
++
++func readImportFile(target *ir.Package, path string) *types.Pkg {
+ 	importpkg := types.NewPkg(path, "")
+ 	if importpkg.Direct {
+ 		return importpkg // already fully loaded
+ 	}
+ 	importpkg.Direct = true
+-	typecheck.Target.Imports = append(typecheck.Target.Imports, importpkg)
++	target.Imports = append(target.Imports, importpkg)
+ 
+ 	if path == "unsafe" {
+ 		return importpkg // initialized with universe
+@@ -324,10 +332,6 @@ func importfile(decl *syntax.ImportDecl) *types.Pkg {
+ 		base.Ctxt.AddImport(file[len(file)-len(path)-len(".a"):], fingerprint)
+ 	}
+ 
+-	if importpkg.Height >= myheight {
+-		myheight = importpkg.Height + 1
+-	}
+-
+ 	return importpkg
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index f02246111f..abaaa8cbb0 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -98,6 +98,7 @@ type irgen struct {
+ 
+ func (g *irgen) generate(noders []*noder) {
+ 	types.LocalPkg.Name = g.self.Name()
++	types.LocalPkg.Height = g.self.Height()
+ 	typecheck.TypecheckAllowed = true
+ 
+ 	// Prevent size calculations until we set the underlying type
+@@ -132,8 +133,6 @@ Outer:
+ 			}
+ 		}
+ 	}
+-	assert(myheight == g.self.Height())
+-	types.LocalPkg.Height = myheight
+ 
+ 	// 2. Process all package-block type declarations. As with imports,
+ 	// we need to make sure all types are properly instantiated before

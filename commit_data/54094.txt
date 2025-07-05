@@ -13,7 +13,7 @@ Date:   Wed Sep 21 20:52:00 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/initorder.go | 6 +-----
  test/fixedbugs/bug13343.go                   | 2 +-
  test/fixedbugs/bug223.go                     | 4 ++--
@@ -58,3 +58,507 @@ Date:   Wed Sep 21 20:52:00 2022 -0700
  test/initexp.go                              | 2 +-
  test/typecheckloop.go                        | 4 ++--
  43 files changed, 48 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/initorder.go b/src/cmd/compile/internal/types2/initorder.go
+index cf6110baa9..5f5334e1b8 100644
+--- a/src/cmd/compile/internal/types2/initorder.go
++++ b/src/cmd/compile/internal/types2/initorder.go
+@@ -153,11 +153,7 @@ func findPath(objMap map[Object]*declInfo, from, to Object, seen map[Object]bool
+ func (check *Checker) reportCycle(cycle []Object) {
+ 	obj := cycle[0]
+ 	var err error_
+-	if check.conf.CompilerErrorMessages {
+-		err.errorf(obj, "initialization loop for %s", obj.Name())
+-	} else {
+-		err.errorf(obj, "initialization cycle for %s", obj.Name())
+-	}
++	err.errorf(obj, "initialization cycle for %s", obj.Name())
+ 	// subtle loop: print cycle[i] for i = 0, n-1, n-2, ... 1 for len(cycle) = n
+ 	for i := len(cycle) - 1; i >= 0; i-- {
+ 		err.errorf(obj, "%s refers to", obj.Name())
+diff --git a/test/fixedbugs/bug13343.go b/test/fixedbugs/bug13343.go
+index a7febeae7e..75b3f017e7 100644
+--- a/test/fixedbugs/bug13343.go
++++ b/test/fixedbugs/bug13343.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ var (
+-	a, b = f() // ERROR "initialization loop|depends upon itself|depend upon each other"
++	a, b = f() // ERROR "initialization cycle|depends upon itself|depend upon each other"
+ 	c    = b   // GCCGO_ERROR "depends upon itself|depend upon each other"
+ )
+ 
+diff --git a/test/fixedbugs/bug223.go b/test/fixedbugs/bug223.go
+index 50082cbab1..3aa7dda404 100644
+--- a/test/fixedbugs/bug223.go
++++ b/test/fixedbugs/bug223.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// check that initialization loop is diagnosed
++// check that initialization cycle is diagnosed
+ // and that closure cannot be used to hide it.
+ // error message is not standard format, so no errchk above.
+ 
+@@ -18,4 +18,4 @@ func f() {
+ 	}
+ }
+ 
+-var m = map[string]F{"f": f} // ERROR "initialization loop|depends upon itself|initialization cycle"
++var m = map[string]F{"f": f} // ERROR "initialization cycle|depends upon itself|initialization cycle"
+diff --git a/test/fixedbugs/bug413.go b/test/fixedbugs/bug413.go
+index 819bd1a984..e22279e15c 100644
+--- a/test/fixedbugs/bug413.go
++++ b/test/fixedbugs/bug413.go
+@@ -8,4 +8,4 @@ package p
+ 
+ func f(i int) int { return i }
+ 
+-var i = func() int {a := f(i); return a}()  // ERROR "initialization loop|depends upon itself"
++var i = func() int {a := f(i); return a}()  // ERROR "initialization cycle|depends upon itself"
+diff --git a/test/fixedbugs/bug459.go b/test/fixedbugs/bug459.go
+index c71cb1bd08..a404d218e0 100644
+--- a/test/fixedbugs/bug459.go
++++ b/test/fixedbugs/bug459.go
+@@ -4,12 +4,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Issue 3890: missing detection of init loop involving
++// Issue 3890: missing detection of init cycle involving
+ // method calls in function bodies.
+ 
+ package flag
+ 
+-var commandLine = NewFlagSet() // ERROR "loop|depends upon itself"
++var commandLine = NewFlagSet() // ERROR "initialization cycle|depends upon itself"
+ 
+ type FlagSet struct {
+ }
+diff --git a/test/fixedbugs/bug463.go b/test/fixedbugs/bug463.go
+index ed546bf741..36515f8961 100644
+--- a/test/fixedbugs/bug463.go
++++ b/test/fixedbugs/bug463.go
+@@ -9,11 +9,11 @@
+ 
+ package main
+ 
+-const a = a // ERROR "refers to itself|definition loop|initialization loop"
++const a = a // ERROR "refers to itself|definition loop|initialization cycle"
+ 
+ const (
+ 	X    = A
+-	A    = B // ERROR "refers to itself|definition loop|initialization loop"
++	A    = B // ERROR "refers to itself|definition loop|initialization cycle"
+ 	B    = D
+ 	C, D = 1, A
+ )
+diff --git a/test/fixedbugs/issue23093.go b/test/fixedbugs/issue23093.go
+index 7b2865ca41..0d3b13e633 100644
+--- a/test/fixedbugs/issue23093.go
++++ b/test/fixedbugs/issue23093.go
+@@ -6,4 +6,4 @@
+ 
+ package p
+ 
+-var f = func() { f() } // ERROR "initialization loop|initialization expression for .*f.* depends upon itself"
++var f = func() { f() } // ERROR "initialization cycle|initialization expression for .*f.* depends upon itself"
+diff --git a/test/fixedbugs/issue23094.go b/test/fixedbugs/issue23094.go
+index 853b19b92f..7c58cad562 100644
+--- a/test/fixedbugs/issue23094.go
++++ b/test/fixedbugs/issue23094.go
+@@ -8,4 +8,4 @@
+ 
+ package p
+ 
+-var a [len(a)]int // ERROR "\[len\(a\)\]int|initialization loop"
++var a [len(a)]int // ERROR "\[len\(a\)\]int|initialization cycle"
+diff --git a/test/fixedbugs/issue4847.go b/test/fixedbugs/issue4847.go
+index 91a6568f27..176525e14c 100644
+--- a/test/fixedbugs/issue4847.go
++++ b/test/fixedbugs/issue4847.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Issue 4847: initialization loop is not detected.
++// Issue 4847: initialization cycle is not detected.
+ 
+ package p
+ 
+@@ -19,6 +19,6 @@ func matchList(s *S) E { return matcher(matchAnyFn)(s) }
+ 
+ var foo = matcher(matchList)
+ 
+-var matchAny = matcher(matchList) // ERROR "initialization loop|depends upon itself"
++var matchAny = matcher(matchList) // ERROR "initialization cycle|depends upon itself"
+ 
+ func matchAnyFn(s *S) (err E) { return matchAny(s) }
+diff --git a/test/fixedbugs/issue52748.go b/test/fixedbugs/issue52748.go
+index 42973c01e5..e9f7ea0510 100644
+--- a/test/fixedbugs/issue52748.go
++++ b/test/fixedbugs/issue52748.go
+@@ -10,4 +10,4 @@ import "unsafe"
+ 
+ type S[T any] struct{}
+ 
+-const c = unsafe.Sizeof(S[[c]byte]{}) // ERROR "initialization loop"
++const c = unsafe.Sizeof(S[[c]byte]{}) // ERROR "initialization cycle"
+diff --git a/test/fixedbugs/issue6703a.go b/test/fixedbugs/issue6703a.go
+index 38c59562d0..fe736f5bc6 100644
+--- a/test/fixedbugs/issue6703a.go
++++ b/test/fixedbugs/issue6703a.go
+@@ -13,4 +13,4 @@ func fx() int {
+ 	return 0
+ }
+ 
+-var x = fx // ERROR "initialization loop|depends upon itself"
++var x = fx // ERROR "initialization cycle|depends upon itself"
+diff --git a/test/fixedbugs/issue6703b.go b/test/fixedbugs/issue6703b.go
+index 35438c3b74..41510945c5 100644
+--- a/test/fixedbugs/issue6703b.go
++++ b/test/fixedbugs/issue6703b.go
+@@ -13,4 +13,4 @@ func fx() int {
+ 	return 0
+ }
+ 
+-var x = fx() // ERROR "initialization loop|depends upon itself"
++var x = fx() // ERROR "initialization cycle|depends upon itself"
+diff --git a/test/fixedbugs/issue6703c.go b/test/fixedbugs/issue6703c.go
+index ade40e33d4..73d686c696 100644
+--- a/test/fixedbugs/issue6703c.go
++++ b/test/fixedbugs/issue6703c.go
+@@ -15,4 +15,4 @@ func (T) m() int {
+ 	return 0
+ }
+ 
+-var x = T.m // ERROR "initialization loop|depends upon itself"
++var x = T.m // ERROR "initialization cycle|depends upon itself"
+diff --git a/test/fixedbugs/issue6703d.go b/test/fixedbugs/issue6703d.go
+index dd481636bd..5d77c846cb 100644
+--- a/test/fixedbugs/issue6703d.go
++++ b/test/fixedbugs/issue6703d.go
+@@ -15,4 +15,4 @@ func (T) m() int {
+ 	return 0
+ }
+ 
+-var x = T.m(0) // ERROR "initialization loop|depends upon itself"
++var x = T.m(0) // ERROR "initialization cycle|depends upon itself"
+diff --git a/test/fixedbugs/issue6703e.go b/test/fixedbugs/issue6703e.go
+index d362d6e832..604d4bfa5d 100644
+--- a/test/fixedbugs/issue6703e.go
++++ b/test/fixedbugs/issue6703e.go
+@@ -15,4 +15,4 @@ func (T) m() int {
+ 	return 0
+ }
+ 
+-var x = T(0).m // ERROR "initialization loop|depends upon itself"
++var x = T(0).m // ERROR "initialization cycle|depends upon itself"
+diff --git a/test/fixedbugs/issue6703f.go b/test/fixedbugs/issue6703f.go
+index 0b49026a69..06c9cdff42 100644
+--- a/test/fixedbugs/issue6703f.go
++++ b/test/fixedbugs/issue6703f.go
+@@ -15,4 +15,4 @@ func (T) m() int {
+ 	return 0
+ }
+ 
+-var x = T(0).m() // ERROR "initialization loop|depends upon itself"
++var x = T(0).m() // ERROR "initialization cycle|depends upon itself"
+diff --git a/test/fixedbugs/issue6703g.go b/test/fixedbugs/issue6703g.go
+index 05ec7405f3..a2ca5a3e69 100644
+--- a/test/fixedbugs/issue6703g.go
++++ b/test/fixedbugs/issue6703g.go
+@@ -17,4 +17,4 @@ func (T) m() int {
+ 
+ type E struct{ T }
+ 
+-var x = E.m // ERROR "initialization loop|depends upon itself" 
++var x = E.m // ERROR "initialization cycle|depends upon itself" 
+diff --git a/test/fixedbugs/issue6703h.go b/test/fixedbugs/issue6703h.go
+index f6b69e1b70..e26ce6a7e2 100644
+--- a/test/fixedbugs/issue6703h.go
++++ b/test/fixedbugs/issue6703h.go
+@@ -17,4 +17,4 @@ func (T) m() int {
+ 
+ type E struct{ T }
+ 
+-var x = E.m(E{0}) // ERROR "initialization loop|depends upon itself" 
++var x = E.m(E{0}) // ERROR "initialization cycle|depends upon itself" 
+diff --git a/test/fixedbugs/issue6703i.go b/test/fixedbugs/issue6703i.go
+index fb580a2461..af485b570d 100644
+--- a/test/fixedbugs/issue6703i.go
++++ b/test/fixedbugs/issue6703i.go
+@@ -17,4 +17,4 @@ func (T) m() int {
+ 
+ type E struct{ T }
+ 
+-var x = E{}.m // ERROR "initialization loop|depends upon itself" 
++var x = E{}.m // ERROR "initialization cycle|depends upon itself" 
+diff --git a/test/fixedbugs/issue6703j.go b/test/fixedbugs/issue6703j.go
+index b4c079f808..0b72250f80 100644
+--- a/test/fixedbugs/issue6703j.go
++++ b/test/fixedbugs/issue6703j.go
+@@ -17,4 +17,4 @@ func (T) m() int {
+ 
+ type E struct{ T }
+ 
+-var x = E{}.m() // ERROR "initialization loop|depends upon itself"
++var x = E{}.m() // ERROR "initialization cycle|depends upon itself"
+diff --git a/test/fixedbugs/issue6703k.go b/test/fixedbugs/issue6703k.go
+index 6f606e2976..fad8edd1c8 100644
+--- a/test/fixedbugs/issue6703k.go
++++ b/test/fixedbugs/issue6703k.go
+@@ -17,5 +17,5 @@ func (T) m() int {
+ 
+ var (
+ 	t T
+-	x = t.m // ERROR "initialization loop|depends upon itself"
++	x = t.m // ERROR "initialization cycle|depends upon itself"
+ )
+diff --git a/test/fixedbugs/issue6703l.go b/test/fixedbugs/issue6703l.go
+index 684c225002..750c95e731 100644
+--- a/test/fixedbugs/issue6703l.go
++++ b/test/fixedbugs/issue6703l.go
+@@ -17,5 +17,5 @@ func (T) m() int {
+ 
+ var (
+ 	t T
+-	x = t.m() // ERROR "initialization loop|depends upon itself"
++	x = t.m() // ERROR "initialization cycle|depends upon itself"
+ )
+diff --git a/test/fixedbugs/issue6703m.go b/test/fixedbugs/issue6703m.go
+index 7d1b604860..7646959406 100644
+--- a/test/fixedbugs/issue6703m.go
++++ b/test/fixedbugs/issue6703m.go
+@@ -21,5 +21,5 @@ func f() T {
+ 
+ var (
+ 	t T
+-	x = f().m // ERROR "initialization loop|depends upon itself"
++	x = f().m // ERROR "initialization cycle|depends upon itself"
+ )
+diff --git a/test/fixedbugs/issue6703n.go b/test/fixedbugs/issue6703n.go
+index 22646af783..339789206b 100644
+--- a/test/fixedbugs/issue6703n.go
++++ b/test/fixedbugs/issue6703n.go
+@@ -21,5 +21,5 @@ func f() T {
+ 
+ var (
+ 	t T
+-	x = f().m() // ERROR "initialization loop|depends upon itself"
++	x = f().m() // ERROR "initialization cycle|depends upon itself"
+ )
+diff --git a/test/fixedbugs/issue6703o.go b/test/fixedbugs/issue6703o.go
+index a11fdfd858..87d706bbe8 100644
+--- a/test/fixedbugs/issue6703o.go
++++ b/test/fixedbugs/issue6703o.go
+@@ -19,5 +19,5 @@ type E struct{ T }
+ 
+ var (
+ 	e E
+-	x = e.m // ERROR "initialization loop|depends upon itself" 
++	x = e.m // ERROR "initialization cycle|depends upon itself" 
+ )
+diff --git a/test/fixedbugs/issue6703p.go b/test/fixedbugs/issue6703p.go
+index 3ac7a63de8..24ef94a72f 100644
+--- a/test/fixedbugs/issue6703p.go
++++ b/test/fixedbugs/issue6703p.go
+@@ -19,5 +19,5 @@ type E struct{ T }
+ 
+ var (
+ 	e E
+-	x = e.m() // ERROR "initialization loop|depends upon itself" 
++	x = e.m() // ERROR "initialization cycle|depends upon itself" 
+ )
+diff --git a/test/fixedbugs/issue6703q.go b/test/fixedbugs/issue6703q.go
+index b087c15d37..92bcab92fa 100644
+--- a/test/fixedbugs/issue6703q.go
++++ b/test/fixedbugs/issue6703q.go
+@@ -24,5 +24,5 @@ type E struct{ T }
+ 
+ var (
+ 	e E
+-	x = g().m // ERROR "initialization loop|depends upon itself" 
++	x = g().m // ERROR "initialization cycle|depends upon itself" 
+ )
+diff --git a/test/fixedbugs/issue6703r.go b/test/fixedbugs/issue6703r.go
+index de514f1802..2b538ffa04 100644
+--- a/test/fixedbugs/issue6703r.go
++++ b/test/fixedbugs/issue6703r.go
+@@ -24,5 +24,5 @@ type E struct{ T }
+ 
+ var (
+ 	e E
+-	x = g().m() // ERROR "initialization loop|depends upon itself" 
++	x = g().m() // ERROR "initialization cycle|depends upon itself" 
+ )
+diff --git a/test/fixedbugs/issue6703s.go b/test/fixedbugs/issue6703s.go
+index cd3c5b342f..74ab3866fe 100644
+--- a/test/fixedbugs/issue6703s.go
++++ b/test/fixedbugs/issue6703s.go
+@@ -15,4 +15,4 @@ func (*T) pm() int {
+ 	return 0
+ }
+ 
+-var x = (*T).pm // ERROR "initialization loop|depends upon itself"
++var x = (*T).pm // ERROR "initialization cycle|depends upon itself"
+diff --git a/test/fixedbugs/issue6703t.go b/test/fixedbugs/issue6703t.go
+index 62de37c578..e9266b0c32 100644
+--- a/test/fixedbugs/issue6703t.go
++++ b/test/fixedbugs/issue6703t.go
+@@ -15,4 +15,4 @@ func (*T) pm() int {
+ 	return 0
+ }
+ 
+-var x = (*T).pm(nil) // ERROR "initialization loop|depends upon itself"
++var x = (*T).pm(nil) // ERROR "initialization cycle|depends upon itself"
+diff --git a/test/fixedbugs/issue6703u.go b/test/fixedbugs/issue6703u.go
+index 961a0001c3..9b03c17139 100644
+--- a/test/fixedbugs/issue6703u.go
++++ b/test/fixedbugs/issue6703u.go
+@@ -15,4 +15,4 @@ func (*T) pm() int {
+ 	return 0
+ }
+ 
+-var x = (*T)(nil).pm // ERROR "initialization loop|depends upon itself"
++var x = (*T)(nil).pm // ERROR "initialization cycle|depends upon itself"
+diff --git a/test/fixedbugs/issue6703v.go b/test/fixedbugs/issue6703v.go
+index 2409911ae6..349289cb90 100644
+--- a/test/fixedbugs/issue6703v.go
++++ b/test/fixedbugs/issue6703v.go
+@@ -15,4 +15,4 @@ func (*T) pm() int {
+ 	return 0
+ }
+ 
+-var x = (*T)(nil).pm() // ERROR "initialization loop|depends upon itself"
++var x = (*T)(nil).pm() // ERROR "initialization cycle|depends upon itself"
+diff --git a/test/fixedbugs/issue6703w.go b/test/fixedbugs/issue6703w.go
+index b7b3d91a2f..846b5f8c7d 100644
+--- a/test/fixedbugs/issue6703w.go
++++ b/test/fixedbugs/issue6703w.go
+@@ -17,5 +17,5 @@ func (*T) pm() int {
+ 
+ var (
+ 	p *T
+-	x = p.pm // ERROR "initialization loop|depends upon itself"
++	x = p.pm // ERROR "initialization cycle|depends upon itself"
+ )
+diff --git a/test/fixedbugs/issue6703x.go b/test/fixedbugs/issue6703x.go
+index 48daf03a99..828c09af21 100644
+--- a/test/fixedbugs/issue6703x.go
++++ b/test/fixedbugs/issue6703x.go
+@@ -17,5 +17,5 @@ func (*T) pm() int {
+ 
+ var (
+ 	p *T
+-	x = p.pm() // ERROR "initialization loop|depends upon itself"
++	x = p.pm() // ERROR "initialization cycle|depends upon itself"
+ )
+diff --git a/test/fixedbugs/issue6703y.go b/test/fixedbugs/issue6703y.go
+index 278dfcdb5e..01b8abd7ac 100644
+--- a/test/fixedbugs/issue6703y.go
++++ b/test/fixedbugs/issue6703y.go
+@@ -20,4 +20,4 @@ func pf() *T {
+ 	return nil
+ }
+ 
+-var x = pf().pm // ERROR "initialization loop|depends upon itself" 
++var x = pf().pm // ERROR "initialization cycle|depends upon itself" 
+diff --git a/test/fixedbugs/issue6703z.go b/test/fixedbugs/issue6703z.go
+index f81a3a8c34..76c17e2bb5 100644
+--- a/test/fixedbugs/issue6703z.go
++++ b/test/fixedbugs/issue6703z.go
+@@ -20,4 +20,4 @@ func pf() *T {
+ 	return nil
+ }
+ 
+-var x = pf().pm() // ERROR "initialization loop|depends upon itself" 
++var x = pf().pm() // ERROR "initialization cycle|depends upon itself" 
+diff --git a/test/fixedbugs/issue7525.go b/test/fixedbugs/issue7525.go
+index b292d66ff1..05e26d1915 100644
+--- a/test/fixedbugs/issue7525.go
++++ b/test/fixedbugs/issue7525.go
+@@ -10,6 +10,6 @@ package main
+ 
+ import "unsafe"
+ 
+-var x struct { // GC_ERROR "initialization loop for x"
++var x struct { // GC_ERROR "initialization cycle for x"
+ 	a [unsafe.Sizeof(x.a)]int // GCCGO_ERROR "array bound|typechecking loop|invalid expression"
+ }
+diff --git a/test/fixedbugs/issue7525b.go b/test/fixedbugs/issue7525b.go
+index 139408eb79..b72d12fbb7 100644
+--- a/test/fixedbugs/issue7525b.go
++++ b/test/fixedbugs/issue7525b.go
+@@ -8,6 +8,6 @@
+ 
+ package main
+ 
+-var y struct { // GC_ERROR "initialization loop for y"
++var y struct { // GC_ERROR "initialization cycle for y"
+ 	d [len(y.d)]int // GCCGO_ERROR "array bound|typechecking loop|invalid array"
+ }
+diff --git a/test/fixedbugs/issue7525c.go b/test/fixedbugs/issue7525c.go
+index 94481597ee..8d51154a35 100644
+--- a/test/fixedbugs/issue7525c.go
++++ b/test/fixedbugs/issue7525c.go
+@@ -8,6 +8,6 @@
+ 
+ package main
+ 
+-var z struct { // GC_ERROR "initialization loop for z"
++var z struct { // GC_ERROR "initialization cycle for z"
+ 	e [cap(z.e)]int // GCCGO_ERROR "array bound|typechecking loop|invalid array"
+ }
+diff --git a/test/fixedbugs/issue7525d.go b/test/fixedbugs/issue7525d.go
+index 62d465930a..cedb9f7b31 100644
+--- a/test/fixedbugs/issue7525d.go
++++ b/test/fixedbugs/issue7525d.go
+@@ -10,6 +10,6 @@ package main
+ 
+ import "unsafe"
+ 
+-var x struct { // GC_ERROR "initialization loop for x"
++var x struct { // GC_ERROR "initialization cycle for x"
+ 	b [unsafe.Offsetof(x.b)]int // GCCGO_ERROR "array bound|typechecking loop|invalid array"
+ }
+diff --git a/test/fixedbugs/issue7525e.go b/test/fixedbugs/issue7525e.go
+index 150df074ed..5746397521 100644
+--- a/test/fixedbugs/issue7525e.go
++++ b/test/fixedbugs/issue7525e.go
+@@ -10,6 +10,6 @@ package main
+ 
+ import "unsafe"
+ 
+-var x struct { // GC_ERROR "initialization loop for x"
++var x struct { // GC_ERROR "initialization cycle for x"
+ 	c [unsafe.Alignof(x.c)]int // GCCGO_ERROR "array bound|typechecking loop|invalid array"
+ }
+diff --git a/test/initexp.go b/test/initexp.go
+index f279a7c528..b4d4701aab 100644
+--- a/test/initexp.go
++++ b/test/initexp.go
+@@ -12,7 +12,7 @@ package p
+ // and runs in a fraction of a second without it.
+ // 10 seconds (-t 10 above) should be plenty if the code is working.
+ 
+-var x = f() + z() // ERROR "initialization loop"
++var x = f() + z() // ERROR "initialization cycle"
+ 
+ func f() int { return a1() + a2() + a3() + a4() + a5() + a6() + a7() }
+ func z() int { return x }
+diff --git a/test/typecheckloop.go b/test/typecheckloop.go
+index 13f413cfc9..a143e0984c 100644
+--- a/test/typecheckloop.go
++++ b/test/typecheckloop.go
+@@ -9,6 +9,6 @@
+ 
+ package main
+ 
+-const A = 1 + B // ERROR "constant definition loop\n.*A uses B\n.*B uses C\n.*C uses A|initialization loop"
+-const B = C - 1 // ERROR "constant definition loop\n.*B uses C\n.*C uses B|initialization loop"
++const A = 1 + B // ERROR "constant definition loop\n.*A uses B\n.*B uses C\n.*C uses A|initialization cycle"
++const B = C - 1 // ERROR "constant definition loop\n.*B uses C\n.*C uses B|initialization cycle"
+ const C = A + B + 1

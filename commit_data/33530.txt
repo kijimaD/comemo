@@ -15,6 +15,27 @@ Date:   Fri Aug 18 17:46:03 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Avelino <t@avelino.xxx>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index d3d1922964..ae2151561a 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -953,11 +953,12 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) *Package
+ 
+ 	if cfg.BuildContext.CgoEnabled && p.Name == "main" && !p.Goroot {
+ 		// Currently build modes c-shared, pie (on systems that do not
+-		// support PIE with internal linking mode), plugin, and
+-		// -linkshared force external linking mode, as of course does
++		// support PIE with internal linking mode (currently all
++		// systems: issue #18968)), plugin, and -linkshared force
++		// external linking mode, as of course does
+ 		// -ldflags=-linkmode=external. External linking mode forces
+ 		// an import of runtime/cgo.
+-		pieCgo := cfg.BuildBuildmode == "pie" && (cfg.BuildContext.GOOS != "linux" || cfg.BuildContext.GOARCH != "amd64")
++		pieCgo := cfg.BuildBuildmode == "pie"
+ 		linkmodeExternal := false
+ 		for i, a := range cfg.BuildLdflags {
+ 			if a == "-linkmode=external" {

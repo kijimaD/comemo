@@ -17,8 +17,98 @@ Date:   Fri Jan 20 14:03:43 2023 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/covdata/dump.go                      |  1 +
  src/internal/coverage/decodemeta/decode.go   |  4 +-
  src/internal/coverage/test/roundtrip_test.go | 55 ++++++++++++++++++++++++++++
  3 files changed, 57 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/covdata/dump.go b/src/cmd/covdata/dump.go
+index 59fdc80d03..62267170ce 100644
+--- a/src/cmd/covdata/dump.go
++++ b/src/cmd/covdata/dump.go
+@@ -288,6 +288,7 @@ func (d *dstate) VisitFunc(pkgIdx uint32, fnIdx uint32, fd *coverage.FuncDesc) {
+ 		}
+ 		fmt.Printf("\nFunc: %s\n", fd.Funcname)
+ 		fmt.Printf("Srcfile: %s\n", fd.Srcfile)
++		fmt.Printf("Literal: %v\n", fd.Lit)
+ 	}
+ 	for i := 0; i < len(fd.Units); i++ {
+ 		u := fd.Units[i]
+diff --git a/src/internal/coverage/decodemeta/decode.go b/src/internal/coverage/decodemeta/decode.go
+index 4e80c07f0c..71f1c567ab 100644
+--- a/src/internal/coverage/decodemeta/decode.go
++++ b/src/internal/coverage/decodemeta/decode.go
+@@ -123,8 +123,6 @@ func (d *CoverageMetaDataDecoder) ReadFunc(fidx uint32, f *coverage.FuncDesc) er
+ 			})
+ 	}
+ 	lit := d.r.ReadULEB128()
+-	if lit != 0 {
+-		f.Lit = true
+-	}
++	f.Lit = lit != 0
+ 	return nil
+ }
+diff --git a/src/internal/coverage/test/roundtrip_test.go b/src/internal/coverage/test/roundtrip_test.go
+index b26993ffd5..614f56e632 100644
+--- a/src/internal/coverage/test/roundtrip_test.go
++++ b/src/internal/coverage/test/roundtrip_test.go
+@@ -274,3 +274,58 @@ func TestMetaDataWriterReader(t *testing.T) {
+ 		inf.Close()
+ 	}
+ }
++
++func TestMetaDataDecodeLitFlagIssue57942(t *testing.T) {
++
++	// Encode a package with a few functions. The funcs alternate
++	// between regular functions and function literals.
++	pp := "foo/bar/pkg"
++	pn := "pkg"
++	mp := "barmod"
++	b, err := encodemeta.NewCoverageMetaDataBuilder(pp, pn, mp)
++	if err != nil {
++		t.Fatalf("making builder: %v", err)
++	}
++	const NF = 6
++	const NCU = 1
++	ln := uint32(10)
++	wantfds := []coverage.FuncDesc{}
++	for fi := uint32(0); fi < NF; fi++ {
++		fis := fmt.Sprintf("%d", fi)
++		fd := coverage.FuncDesc{
++			Funcname: "func" + fis,
++			Srcfile:  "foo" + fis + ".go",
++			Units: []coverage.CoverableUnit{
++				coverage.CoverableUnit{StLine: ln + 1, StCol: 2, EnLine: ln + 3, EnCol: 4, NxStmts: fi + 2},
++			},
++			Lit: (fi % 2) == 0,
++		}
++		wantfds = append(wantfds, fd)
++		b.AddFunc(fd)
++	}
++
++	// Emit into a writer.
++	drws := &slicewriter.WriteSeeker{}
++	b.Emit(drws)
++
++	// Decode the result.
++	drws.Seek(0, io.SeekStart)
++	dec, err := decodemeta.NewCoverageMetaDataDecoder(drws.BytesWritten(), false)
++	if err != nil {
++		t.Fatalf("making decoder: %v", err)
++	}
++	nf := dec.NumFuncs()
++	if nf != NF {
++		t.Fatalf("decoder number of functions: got %d want %d", nf, NF)
++	}
++	var fn coverage.FuncDesc
++	for i := uint32(0); i < uint32(NF); i++ {
++		if err := dec.ReadFunc(i, &fn); err != nil {
++			t.Fatalf("err reading function %d: %v", i, err)
++		}
++		res := cmpFuncDesc(wantfds[i], fn)
++		if res != "" {
++			t.Errorf("ReadFunc(%d): %s", i, res)
++		}
++	}
++}

@@ -9,7 +9,7 @@ Date:   Mon May 2 12:38:13 2011 -0700
     R=rsc, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4456045
-
+---
  misc/cgo/test/Makefile     |  1 +
  misc/cgo/test/cgo_test.go  |  1 +
  misc/cgo/test/env.go       | 34 ++++++++++++++++++++++++++++++++++
@@ -18,3 +18,197 @@ Date:   Mon May 2 12:38:13 2011 -0700
  src/pkg/runtime/cgo/util.c | 11 +++++++++++
  src/pkg/runtime/proc.c     | 23 +++++++++++++++++++++++
  7 files changed, 91 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/Makefile b/misc/cgo/test/Makefile
+index 893540d979..43c45f416e 100644
+--- a/misc/cgo/test/Makefile
++++ b/misc/cgo/test/Makefile
+@@ -10,6 +10,7 @@ CGOFILES=\
+ 	align.go\
+ 	basic.go\
+ 	callback.go\
++	env.go\
+ 	issue1222.go\
+ 	issue1328.go\
+ 	issue1560.go\
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index e23da15770..94fba15dbf 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -25,3 +25,4 @@ func TestZeroArgCallback(t *testing.T)     { testZeroArgCallback(t) }
+ func TestBlocking(t *testing.T)            { testBlocking(t) }
+ func Test1328(t *testing.T)                { test1328(t) }
+ func TestParallelSleep(t *testing.T)       { testParallelSleep(t) }
++func TestSetEnv(t *testing.T)              { testSetEnv(t) }
+diff --git a/misc/cgo/test/env.go b/misc/cgo/test/env.go
+new file mode 100644
+index 0000000000..53e80c7c4e
+--- /dev/null
++++ b/misc/cgo/test/env.go
+@@ -0,0 +1,34 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++#include <stdlib.h>
++*/
++import "C"
++import (
++	"os"
++	"testing"
++	"unsafe"
++)
++
++// This is really an os package test but here for convenience.
++func testSetEnv(t *testing.T) {
++	const key = "CGO_OS_TEST_KEY" 
++	const val = "CGO_OS_TEST_VALUE" 
++	os.Setenv(key, val) 
++	keyc := C.CString(key)
++	defer C.free(unsafe.Pointer(keyc))
++	v := C.getenv(keyc)
++	if v == (*C.char)(unsafe.Pointer(uintptr(0))) {
++		t.Fatal("getenv returned NULL")
++	}
++	vs := C.GoString(v)
++	if vs != val {
++		t.Fatalf("getenv() = %q; want %q", vs, val)
++	}
++}
++
++
+diff --git a/src/pkg/os/env.go b/src/pkg/os/env.go
+index 3a6d79dd09..3772c090b8 100644
+--- a/src/pkg/os/env.go
++++ b/src/pkg/os/env.go
+@@ -6,6 +6,8 @@
+ 
+ package os
+ 
++func setenv_c(k, v string)
++
+ // Expand replaces ${var} or $var in the string based on the mapping function.
+ // Invocations of undefined variables are replaced with the empty string.
+ func Expand(s string, mapping func(string) string) string {
+diff --git a/src/pkg/os/env_unix.go b/src/pkg/os/env_unix.go
+index e7e1c3b90f..6a8a0b17fe 100644
+--- a/src/pkg/os/env_unix.go
++++ b/src/pkg/os/env_unix.go
+@@ -29,6 +29,8 @@ func copyenv() {
+ 	}
+ }
+ 
++var envLock sync.RWMutex
++
+ // Getenverror retrieves the value of the environment variable named by the key.
+ // It returns the value and an error, if any.
+ func Getenverror(key string) (value string, err Error) {
+@@ -37,6 +39,10 @@ func Getenverror(key string) (value string, err Error) {
+ 	if len(key) == 0 {
+ 		return "", EINVAL
+ 	}
++
++	envLock.RLock()
++	defer envLock.RUnlock()
++
+ 	v, ok := env[key]
+ 	if !ok {
+ 		return "", ENOENV
+@@ -55,24 +61,36 @@ func Getenv(key string) string {
+ // It returns an Error, if any.
+ func Setenv(key, value string) Error {
+ 	once.Do(copyenv)
+-
+ 	if len(key) == 0 {
+ 		return EINVAL
+ 	}
++
++	envLock.Lock()
++	defer envLock.Unlock()
++
+ 	env[key] = value
++	setenv_c(key, value) // is a no-op if cgo isn't loaded
+ 	return nil
+ }
+ 
+ // Clearenv deletes all environment variables.
+ func Clearenv() {
+ 	once.Do(copyenv) // prevent copyenv in Getenv/Setenv
++
++	envLock.Lock()
++	defer envLock.Unlock()
++
+ 	env = make(map[string]string)
++
++	// TODO(bradfitz): pass through to C
+ }
+ 
+ // Environ returns an array of strings representing the environment,
+ // in the form "key=value".
+ func Environ() []string {
+ 	once.Do(copyenv)
++	envLock.RLock()
++	defer envLock.RUnlock()
+ 	a := make([]string, len(env))
+ 	i := 0
+ 	for k, v := range env {
+diff --git a/src/pkg/runtime/cgo/util.c b/src/pkg/runtime/cgo/util.c
+index 0eff19aa6d..ba6e0ca9c3 100644
+--- a/src/pkg/runtime/cgo/util.c
++++ b/src/pkg/runtime/cgo/util.c
+@@ -4,6 +4,8 @@
+ 
+ #include "libcgo.h"
+ 
++#include <stdlib.h>
++
+ /* Stub for calling malloc from Go */
+ static void
+ x_cgo_malloc(void *p)
+@@ -49,3 +51,12 @@ xlibcgo_thread_start(ThreadStart *arg)
+ }
+ 
+ void (*libcgo_thread_start)(ThreadStart*) = xlibcgo_thread_start;
++
++/* Stub for calling setenv */
++static void
++xlibcgo_setenv(char **arg)
++{
++	setenv(arg[0], arg[1], 1);
++}
++
++void (*libcgo_setenv)(char**) = xlibcgo_setenv;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 52784854fd..61faa15594 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1343,3 +1343,26 @@ runtime·setcpuprofilerate(void (*fn)(uintptr*, int32), int32 hz)
+ 	if(hz != 0)
+ 		runtime·resetcpuprofiler(hz);
+ }
++
++void (*libcgo_setenv)(byte**);
++
++void
++os·setenv_c(String k, String v)
++{
++	byte *arg[2];
++
++	if(libcgo_setenv == nil)
++		return;
++
++	arg[0] = runtime·malloc(k.len + 1);
++	runtime·mcpy(arg[0], k.str, k.len);
++	arg[0][k.len] = 0;
++
++	arg[1] = runtime·malloc(v.len + 1);
++	runtime·mcpy(arg[1], v.str, v.len);
++	arg[1][v.len] = 0;
++
++	runtime·asmcgocall(libcgo_setenv, arg);
++	runtime·free(arg[0]);
++	runtime·free(arg[1]);
++}

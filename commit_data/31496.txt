@@ -20,7 +20,7 @@ Date:   Sun Feb 19 15:57:58 2017 +0100
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/order.go     | 12 ++++++------
  src/cmd/compile/internal/gc/range.go     | 10 +++++-----
  src/cmd/compile/internal/gc/select.go    |  8 ++++----
@@ -30,3 +30,294 @@ Date:   Sun Feb 19 15:57:58 2017 +0100
  src/cmd/compile/internal/gc/typecheck.go | 12 ++++++------
  src/cmd/compile/internal/gc/walk.go      |  6 +++---
  8 files changed, 50 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 2a707a32ac..c3a3be8698 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -594,7 +594,7 @@ func orderstmt(n *Node, order *Order) {
+ 		r = okas(n.List.Second(), tmp2)
+ 		r = typecheck(r, Etop)
+ 		ordermapassign(r, order)
+-		n.List.Set([]*Node{tmp1, tmp2})
++		n.List.Set2(tmp1, tmp2)
+ 		cleantemp(t, order)
+ 
+ 	// Special: does not save n onto out.
+@@ -647,9 +647,9 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 	case ODELETE:
+ 		t := marktemp(order)
+-		n.List.SetIndex(0, orderexpr(n.List.Index(0), order, nil))
+-		n.List.SetIndex(1, orderexpr(n.List.Index(1), order, nil))
+-		n.List.SetIndex(1, orderaddrtemp(n.List.Index(1), order)) // map key
++		n.List.SetFirst(orderexpr(n.List.First(), order, nil))
++		n.List.SetSecond(orderexpr(n.List.Second(), order, nil))
++		n.List.SetSecond(orderaddrtemp(n.List.Second(), order)) // map key
+ 		order.out = append(order.out, n)
+ 		cleantemp(t, order)
+ 
+@@ -1261,12 +1261,12 @@ func orderokas2(n *Node, order *Order) {
+ 		r := nod(OAS, n.List.First(), tmp1)
+ 		r = typecheck(r, Etop)
+ 		ordermapassign(r, order)
+-		n.List.SetIndex(0, tmp1)
++		n.List.SetFirst(tmp1)
+ 	}
+ 	if tmp2 != nil {
+ 		r := okas(n.List.Second(), tmp2)
+ 		r = typecheck(r, Etop)
+ 		ordermapassign(r, order)
+-		n.List.SetIndex(1, tmp2)
++		n.List.SetSecond(tmp2)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index b59047428f..99ecdd3cc5 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -196,8 +196,8 @@ func walkrange(n *Node) {
+ 			body = []*Node{nod(OAS, v1, hv1)}
+ 		} else {
+ 			a := nod(OAS2, nil, nil)
+-			a.List.Set([]*Node{v1, v2})
+-			a.Rlist.Set([]*Node{hv1, nod(OIND, hp, nil)})
++			a.List.Set2(v1, v2)
++			a.Rlist.Set2(hv1, nod(OIND, hp, nil))
+ 			body = []*Node{a}
+ 
+ 			// Advance pointer as part of increment.
+@@ -251,8 +251,8 @@ func walkrange(n *Node) {
+ 			val := nodSym(ODOT, hit, valsym)
+ 			val = nod(OIND, val, nil)
+ 			a := nod(OAS2, nil, nil)
+-			a.List.Set([]*Node{v1, v2})
+-			a.Rlist.Set([]*Node{key, val})
++			a.List.Set2(v1, v2)
++			a.Rlist.Set2(key, val)
+ 			body = []*Node{a}
+ 		}
+ 
+@@ -272,7 +272,7 @@ func walkrange(n *Node) {
+ 		n.Left = nod(ONE, hb, nodbool(false))
+ 		a := nod(OAS2RECV, nil, nil)
+ 		a.Typecheck = 1
+-		a.List.Set([]*Node{hv1, hb})
++		a.List.Set2(hv1, hb)
+ 		a.Rlist.Set1(nod(ORECV, ha, nil))
+ 		n.Left.Ninit.Set1(a)
+ 		if v1 == nil {
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index d999190ad1..a59b65c140 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -31,8 +31,8 @@ func typecheckselect(sel *Node) {
+ 		} else if ncase.List.Len() > 1 {
+ 			yyerror("select cases cannot be lists")
+ 		} else {
+-			ncase.List.SetIndex(0, typecheck(ncase.List.Index(0), Etop))
+-			n = ncase.List.Index(0)
++			ncase.List.SetFirst(typecheck(ncase.List.First(), Etop))
++			n = ncase.List.First()
+ 			ncase.Left = n
+ 			ncase.List.Set(nil)
+ 			setlineno(n)
+@@ -187,8 +187,8 @@ func walkselect(sel *Node) {
+ 				n.Op = OSELRECV
+ 			}
+ 			if n.Op == OSELRECV2 {
+-				n.List.SetIndex(0, nod(OADDR, n.List.First(), nil))
+-				n.List.SetIndex(0, typecheck(n.List.Index(0), Erv))
++				n.List.SetFirst(nod(OADDR, n.List.First(), nil))
++				n.List.SetFirst(typecheck(n.List.First(), Erv))
+ 			}
+ 
+ 			if n.Left == nil {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 884b879714..0f2c00954c 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1045,7 +1045,7 @@ func (n *Node) SetSliceBounds(low, high, max *Node) {
+ 			if low == nil && high == nil {
+ 				return
+ 			}
+-			n.List.Set([]*Node{low, high})
++			n.List.Set2(low, high)
+ 			return
+ 		}
+ 		s[0] = low
+@@ -1057,7 +1057,7 @@ func (n *Node) SetSliceBounds(low, high, max *Node) {
+ 			if low == nil && high == nil && max == nil {
+ 				return
+ 			}
+-			n.List.Set([]*Node{low, high, max})
++			n.List.Set3(low, high, max)
+ 			return
+ 		}
+ 		s[0] = low
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index f48894d77b..5152578818 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -188,7 +188,7 @@ func typecheckswitch(n *Node) {
+ 				}
+ 
+ 				nvar = typecheck(nvar, Erv|Easgn)
+-				ncase.Rlist.SetIndex(0, nvar)
++				ncase.Rlist.SetFirst(nvar)
+ 			}
+ 		}
+ 
+@@ -628,8 +628,8 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
+ 
+ 			case c.node.List.Len() == 2:
+ 				// Range of integers.
+-				low := c.node.List.Index(0).Int64()
+-				high := c.node.List.Index(1).Int64()
++				low := c.node.List.First().Int64()
++				high := c.node.List.Second().Int64()
+ 				for i := low; i <= high; i++ {
+ 					prev, dup := seen[i]
+ 					if !dup {
+@@ -745,7 +745,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 		i.Nbody.Set1(nod(OGOTO, lbl, nil))
+ 		// Wrap default case with label.
+ 		blk := nod(OBLOCK, nil, nil)
+-		blk.List.Set([]*Node{nod(OLABEL, lbl, nil), def})
++		blk.List.Set2(nod(OLABEL, lbl, nil), def)
+ 		def = blk
+ 	}
+ 	i.Left = typecheck(i.Left, Erv)
+@@ -840,7 +840,7 @@ func (s *typeSwitch) typeone(t *Node) *Node {
+ 	}
+ 
+ 	a := nod(OAS2, nil, nil)
+-	a.List.Set([]*Node{name, s.okname}) // name, ok =
++	a.List.Set2(name, s.okname) // name, ok =
+ 	b := nod(ODOTTYPE, s.facename, nil)
+ 	b.Type = t.Left.Type // interface.(type)
+ 	a.Rlist.Set1(b)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index b8aabd7bb4..36b6af5e10 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -556,8 +556,8 @@ func (n *Nodes) Set(s []*Node) {
+ }
+ 
+ // Set1 sets n to a slice containing a single node.
+-func (n *Nodes) Set1(node *Node) {
+-	n.slice = &[]*Node{node}
++func (n *Nodes) Set1(n1 *Node) {
++	n.slice = &[]*Node{n1}
+ }
+ 
+ // Set2 sets n to a slice containing two nodes.
+@@ -565,6 +565,11 @@ func (n *Nodes) Set2(n1, n2 *Node) {
+ 	n.slice = &[]*Node{n1, n2}
+ }
+ 
++// Set3 sets n to a slice containing three nodes.
++func (n *Nodes) Set3(n1, n2, n3 *Node) {
++	n.slice = &[]*Node{n1, n2, n3}
++}
++
+ // MoveNodes sets n to the contents of n2, then clears n2.
+ func (n *Nodes) MoveNodes(n2 *Nodes) {
+ 	n.slice = n2.slice
+@@ -577,6 +582,18 @@ func (n Nodes) SetIndex(i int, node *Node) {
+ 	(*n.slice)[i] = node
+ }
+ 
++// SetFirst sets the first element of Nodes to node.
++// It panics if n does not have at least one elements.
++func (n Nodes) SetFirst(node *Node) {
++	(*n.slice)[0] = node
++}
++
++// SetSecond sets the second element of Nodes to node.
++// It panics if n does not have at least two elements.
++func (n Nodes) SetSecond(node *Node) {
++	(*n.slice)[1] = node
++}
++
+ // Addr returns the address of the i'th element of Nodes.
+ // It panics if n does not have at least i+1 elements.
+ func (n Nodes) Addr(i int) **Node {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 5807f1929e..ba52b71200 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1243,7 +1243,7 @@ OpSwitch:
+ 		}
+ 
+ 		if n.List.Len() == 1 && !n.Isddd {
+-			n.List.SetIndex(0, typecheck(n.List.Index(0), Erv|Efnstruct))
++			n.List.SetFirst(typecheck(n.List.First(), Erv|Efnstruct))
+ 		} else {
+ 			typecheckslice(n.List.Slice(), Erv)
+ 		}
+@@ -1539,7 +1539,7 @@ OpSwitch:
+ 			return n
+ 		}
+ 
+-		args.SetIndex(1, assignconv(r, l.Type.Key(), "delete"))
++		args.SetSecond(assignconv(r, l.Type.Key(), "delete"))
+ 		break OpSwitch
+ 
+ 	case OAPPEND:
+@@ -1552,7 +1552,7 @@ OpSwitch:
+ 		}
+ 
+ 		if args.Len() == 1 && !n.Isddd {
+-			args.SetIndex(0, typecheck(args.Index(0), Erv|Efnstruct))
++			args.SetFirst(typecheck(args.First(), Erv|Efnstruct))
+ 		} else {
+ 			typecheckslice(args.Slice(), Erv)
+ 		}
+@@ -1597,11 +1597,11 @@ OpSwitch:
+ 			}
+ 
+ 			if t.Elem().IsKind(TUINT8) && args.Second().Type.IsString() {
+-				args.SetIndex(1, defaultlit(args.Index(1), Types[TSTRING]))
++				args.SetSecond(defaultlit(args.Second(), Types[TSTRING]))
+ 				break OpSwitch
+ 			}
+ 
+-			args.SetIndex(1, assignconv(args.Index(1), t.Orig, "append"))
++			args.SetSecond(assignconv(args.Second(), t.Orig, "append"))
+ 			break OpSwitch
+ 		}
+ 
+@@ -3328,7 +3328,7 @@ func typecheckas2(n *Node) {
+ 	cl := n.List.Len()
+ 	cr := n.Rlist.Len()
+ 	if cl > 1 && cr == 1 {
+-		n.Rlist.SetIndex(0, typecheck(n.Rlist.Index(0), Erv|Efnstruct))
++		n.Rlist.SetFirst(typecheck(n.Rlist.First(), Erv|Efnstruct))
+ 	} else {
+ 		typecheckslice(n.Rlist.Slice(), Erv)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 066b4ef2f6..ce4d62b82c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -818,7 +818,7 @@ opswitch:
+ 			var_ := temp(ptrto(t.Val()))
+ 			var_.Typecheck = 1
+ 			var_.NonNil = true // mapaccess always returns a non-nil pointer
+-			n.List.SetIndex(0, var_)
++			n.List.SetFirst(var_)
+ 			n = walkexpr(n, init)
+ 			init.Append(n)
+ 			n = nod(OAS, a, nod(OIND, var_, nil))
+@@ -2860,8 +2860,8 @@ func appendslice(n *Node, init *Nodes) *Node {
+ //   s
+ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ 	if !samesafeexpr(dst, n.List.First()) {
+-		n.List.SetIndex(0, safeexpr(n.List.Index(0), init))
+-		n.List.SetIndex(0, walkexpr(n.List.Index(0), init))
++		n.List.SetFirst(safeexpr(n.List.First(), init))
++		n.List.SetFirst(walkexpr(n.List.First(), init))
+ 	}
+ 	walkexprlistsafe(n.List.Slice()[1:], init)
+ 

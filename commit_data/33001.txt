@@ -14,9 +14,77 @@ Date:   Thu Jun 22 16:11:10 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go               | 13 +++++++++++++
  src/cmd/go/internal/work/build.go   | 10 ++++++++++
  src/cmd/go/testdata/src/cgoasm/p.go |  8 ++++++++
  src/cmd/go/testdata/src/cgoasm/p.s  |  2 ++
  4 files changed, 33 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index e7fc5fc103..71b34b6ec4 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2310,6 +2310,19 @@ func TestCoverageWithCgo(t *testing.T) {
+ 	}
+ }
+ 
++func TestCgoAsmError(t *testing.T) {
++	if !canCgo {
++		t.Skip("skipping because cgo not enabled")
++	}
++
++	tg := testgo(t)
++	tg.parallel()
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.runFail("build", "cgoasm")
++	tg.grepBoth("package using cgo has Go assembly file", "did not detect Go assembly file")
++}
++
+ func TestCgoDependsOnSyscall(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping test that removes $GOROOT/pkg/*_race in short mode")
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index a7949b6ff3..d03ad3e139 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -1333,6 +1333,16 @@ func (b *Builder) build(a *Action) (err error) {
+ 			}
+ 			sfiles, gccfiles = filter(sfiles, sfiles[:0], gccfiles)
+ 		} else {
++			for _, sfile := range sfiles {
++				data, err := ioutil.ReadFile(filepath.Join(a.Package.Dir, sfile))
++				if err == nil {
++					if bytes.HasPrefix(data, []byte("TEXT")) || bytes.Contains(data, []byte("\nTEXT")) ||
++						bytes.HasPrefix(data, []byte("DATA")) || bytes.Contains(data, []byte("\nDATA")) ||
++						bytes.HasPrefix(data, []byte("GLOBL")) || bytes.Contains(data, []byte("\nGLOBL")) {
++						return fmt.Errorf("package using cgo has Go assembly file %s", sfile)
++					}
++				}
++			}
+ 			gccfiles = append(gccfiles, sfiles...)
+ 			sfiles = nil
+ 		}
+diff --git a/src/cmd/go/testdata/src/cgoasm/p.go b/src/cmd/go/testdata/src/cgoasm/p.go
+new file mode 100644
+index 0000000000..148b47f6a5
+--- /dev/null
++++ b/src/cmd/go/testdata/src/cgoasm/p.go
+@@ -0,0 +1,8 @@
++package p
++
++/*
++// hi
++*/
++import "C"
++
++func F() {}
+diff --git a/src/cmd/go/testdata/src/cgoasm/p.s b/src/cmd/go/testdata/src/cgoasm/p.s
+new file mode 100644
+index 0000000000..aaade03a43
+--- /dev/null
++++ b/src/cmd/go/testdata/src/cgoasm/p.s
+@@ -0,0 +1,2 @@
++TEXT asm(SB),$0
++	RET

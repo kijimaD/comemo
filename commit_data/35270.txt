@@ -15,6 +15,25 @@ Date:   Sun Jan 28 19:58:25 2018 +0100
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 7eaaf48759..08384825ca 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -81,6 +81,13 @@ func init() {
+ 			skipExternal = true
+ 			canRun = false
+ 		}
++	case "plan9":
++		switch runtime.GOARCH {
++		case "arm":
++			// many plan9/arm machines are too slow to run
++			// the full set of external tests.
++			skipExternal = true
++		}
+ 	case "windows":
+ 		exeSuffix = ".exe"
+ 	}

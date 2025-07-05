@@ -7,6 +7,19 @@ Date:   Sun Dec 30 10:33:33 2012 +1100
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/7025044
-
+---
  src/cmd/dist/build.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 13dbe0e81d..ade56efd5e 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -396,6 +396,7 @@ static char *proto_gccargs[] = {
+ 	"-Werror",
+ 	"-fno-common",
+ 	"-ggdb",
++	"-pipe",
+ 	"-O2",
+ };
+ 

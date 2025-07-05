@@ -10,7 +10,7 @@ Date:   Wed Oct 22 17:12:07 2008 -0700
     DELTA=4528  (2264 added, 2264 deleted, 0 changed)
     OCL=17670
     CL=17672
-
+---
  {usr/r => src/lib}/reflect/Makefile     | 0
  {usr/r => src/lib}/reflect/cast_amd64.s | 0
  {usr/r => src/lib}/reflect/gencast.sh   | 0
@@ -20,3 +20,36 @@ Date:   Wed Oct 22 17:12:07 2008 -0700
  {usr/r => src/lib}/reflect/typestring.c | 0
  {usr/r => src/lib}/reflect/value.go     | 0
  8 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/usr/r/reflect/Makefile b/src/lib/reflect/Makefile
+similarity index 100%
+rename from usr/r/reflect/Makefile
+rename to src/lib/reflect/Makefile
+diff --git a/usr/r/reflect/cast_amd64.s b/src/lib/reflect/cast_amd64.s
+similarity index 100%
+rename from usr/r/reflect/cast_amd64.s
+rename to src/lib/reflect/cast_amd64.s
+diff --git a/usr/r/reflect/gencast.sh b/src/lib/reflect/gencast.sh
+similarity index 100%
+rename from usr/r/reflect/gencast.sh
+rename to src/lib/reflect/gencast.sh
+diff --git a/usr/r/reflect/main.go b/src/lib/reflect/main.go
+similarity index 100%
+rename from usr/r/reflect/main.go
+rename to src/lib/reflect/main.go
+diff --git a/usr/r/reflect/tostring.go b/src/lib/reflect/tostring.go
+similarity index 100%
+rename from usr/r/reflect/tostring.go
+rename to src/lib/reflect/tostring.go
+diff --git a/usr/r/reflect/type.go b/src/lib/reflect/type.go
+similarity index 100%
+rename from usr/r/reflect/type.go
+rename to src/lib/reflect/type.go
+diff --git a/usr/r/reflect/typestring.c b/src/lib/reflect/typestring.c
+similarity index 100%
+rename from usr/r/reflect/typestring.c
+rename to src/lib/reflect/typestring.c
+diff --git a/usr/r/reflect/value.go b/src/lib/reflect/value.go
+similarity index 100%
+rename from usr/r/reflect/value.go
+rename to src/lib/reflect/value.go

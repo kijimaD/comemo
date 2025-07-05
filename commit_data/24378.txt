@@ -16,7 +16,47 @@ Date:   Fri Jul 24 20:09:39 2015 -0700
     Change-Id: I8e37b00a5f5e14f241b427d45d5f5cc1064883a2
     Reviewed-on: https://go-review.googlesource.com/12664
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 8 +-------
  src/cmd/compile/internal/ssa/TODO  | 2 ++
  2 files changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7a3396482f..32d42d8264 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1492,7 +1492,7 @@ func genValue(v *ssa.Value) {
+ 		p.From.Reg = regnum(v.Args[1]) // should be CX
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-	case ssa.OpAMD64SHLQconst, ssa.OpAMD64SHRQconst, ssa.OpAMD64SARQconst:
++	case ssa.OpAMD64SHLQconst, ssa.OpAMD64SHRQconst, ssa.OpAMD64SARQconst, ssa.OpAMD64XORQconst:
+ 		x := regnum(v.Args[0])
+ 		r := regnum(v)
+ 		if x != r {
+@@ -1686,12 +1686,6 @@ func genValue(v *ssa.Value) {
+ 		p := Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v.Args[0])
+-	case ssa.OpAMD64XORQconst:
+-		p := Prog(x86.AXORQ)
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = v.AuxInt
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = regnum(v.Args[0])
+ 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL, ssa.OpAMD64NEGW, ssa.OpAMD64NEGB:
+ 		p := Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index 225768c73c..f77c5ad8f3 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -28,6 +28,8 @@ Regalloc
+  - Floating point registers
+  - Make calls clobber all registers
+  - Make liveness analysis non-quadratic.
++ - Handle in-place instructions (like XORQconst) directly:
++   Use XORQ AX, 1 rather than MOVQ AX, BX; XORQ BX, 1.
+ 
+ StackAlloc:
+  - Sort variables so all ptr-containing ones are first (so stack

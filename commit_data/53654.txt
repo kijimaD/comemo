@@ -11,6 +11,41 @@ Date:   Thu Aug 25 11:11:59 2022 +0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/load.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 7e061f01a4..69b0c30978 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -932,7 +932,7 @@ func (f loadPkgFlags) has(cond loadPkgFlags) bool {
+ // An atomicLoadPkgFlags stores a loadPkgFlags for which individual flags can be
+ // added atomically.
+ type atomicLoadPkgFlags struct {
+-	bits int32
++	bits atomic.Int32
+ }
+ 
+ // update sets the given flags in af (in addition to any flags already set).
+@@ -941,9 +941,9 @@ type atomicLoadPkgFlags struct {
+ // flags were newly-set.
+ func (af *atomicLoadPkgFlags) update(flags loadPkgFlags) (old loadPkgFlags) {
+ 	for {
+-		old := atomic.LoadInt32(&af.bits)
++		old := af.bits.Load()
+ 		new := old | int32(flags)
+-		if new == old || atomic.CompareAndSwapInt32(&af.bits, old, new) {
++		if new == old || af.bits.CompareAndSwap(old, new) {
+ 			return loadPkgFlags(old)
+ 		}
+ 	}
+@@ -951,7 +951,7 @@ func (af *atomicLoadPkgFlags) update(flags loadPkgFlags) (old loadPkgFlags) {
+ 
+ // has reports whether all of the flags in cond are set in af.
+ func (af *atomicLoadPkgFlags) has(cond loadPkgFlags) bool {
+-	return loadPkgFlags(atomic.LoadInt32(&af.bits))&cond == cond
++	return loadPkgFlags(af.bits.Load())&cond == cond
+ }
+ 
+ // isTest reports whether pkg is a test of another package.

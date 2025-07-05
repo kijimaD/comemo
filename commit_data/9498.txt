@@ -12,10 +12,189 @@ Date:   Thu Aug 25 17:46:43 2011 -0700
     R=rsc, dsymonds, adg
     CC=golang-dev
     https://golang.org/cl/4963043
-
+---
  src/cmd/godoc/Makefile    |  1 +
  src/cmd/godoc/doc.go      |  5 +++
  src/cmd/godoc/godoc.go    |  7 ++--
  src/cmd/godoc/index.go    |  5 ++-
  src/cmd/godoc/throttle.go | 88 +++++++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 102 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/godoc/Makefile b/src/cmd/godoc/Makefile
+index f40d717030..a8cf5d6aa3 100644
+--- a/src/cmd/godoc/Makefile
++++ b/src/cmd/godoc/Makefile
+@@ -18,6 +18,7 @@ GOFILES=\
+ 	parser.go\
+ 	snippet.go\
+ 	spec.go\
++	throttle.go\
+ 	utils.go\
+ 	zip.go\
+ 
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index dc98b0eca5..57073ffb1f 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -50,6 +50,11 @@ The flags are:
+ 	-index
+ 		enable identifier and full text search index
+ 		(no search box is shown if -index is not set)
++	-index_throttle=0.75
++		index throttle value; a value of 0 means no time is allocated
++		to the indexer (the indexer will never finish), a value of 1.0
++		means that index creation is running at full throttle (other
++		goroutines may get no time while the index is built)
+ 	-maxresults=10000
+ 		maximum number of full text search results shown
+ 		(no full text index is built if maxresults <= 0)
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 3d29db5199..9554d47b77 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -63,8 +63,9 @@ var (
+ 	templateDir    = flag.String("templates", "", "directory containing alternate template files")
+ 
+ 	// search index
+-	indexEnabled = flag.Bool("index", false, "enable search index")
+-	maxResults   = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
++	indexEnabled  = flag.Bool("index", false, "enable search index")
++	maxResults    = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
++	indexThrottle = flag.Float64("index_throttle", 0.75, "index throttle value; 0.0 = no time allocated, 1.0 = full throttle")
+ 
+ 	// file system mapping
+ 	fs         FileSystem      // the underlying file system for godoc
+@@ -1148,7 +1149,7 @@ func indexer() {
+ 				log.Printf("updating index...")
+ 			}
+ 			start := time.Nanoseconds()
+-			index := NewIndex(fsDirnames(), *maxResults > 0)
++			index := NewIndex(fsDirnames(), *maxResults > 0, *indexThrottle)
+ 			stop := time.Nanoseconds()
+ 			searchIndex.set(index)
+ 			if *verbose {
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 6ff62b7468..f33ca05730 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -736,8 +736,9 @@ func canonical(w string) string { return strings.ToLower(w) }
+ // NewIndex creates a new index for the .go files
+ // in the directories given by dirnames.
+ //
+-func NewIndex(dirnames <-chan string, fulltextIndex bool) *Index {
++func NewIndex(dirnames <-chan string, fulltextIndex bool, throttle float64) *Index {
+ 	var x Indexer
++	th := NewThrottle(throttle, 0.1e9) // run at least 0.1s at a time
+ 
+ 	// initialize Indexer
+ 	x.fset = token.NewFileSet()
+@@ -753,6 +754,7 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool) *Index {
+ 			if !f.IsDirectory() {
+ 				x.visitFile(dirname, f, fulltextIndex)
+ 			}
++			th.Throttle()
+ 		}
+ 	}
+ 
+@@ -778,6 +780,7 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool) *Index {
+ 			Others: others,
+ 		}
+ 		wlist = append(wlist, &wordPair{canonical(w), w})
++		th.Throttle()
+ 	}
+ 	x.stats.Words = len(words)
+ 
+diff --git a/src/cmd/godoc/throttle.go b/src/cmd/godoc/throttle.go
+new file mode 100644
+index 0000000000..1934928027
+--- /dev/null
++++ b/src/cmd/godoc/throttle.go
+@@ -0,0 +1,88 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "time"
++
++// A Throttle permits throttling of a goroutine by
++// calling the Throttle method repeatedly.
++//
++type Throttle struct {
++	f  float64 // f = (1-r)/r for 0 < r < 1
++	tm int64   // minimum run time slice; >= 0
++	tr int64   // accumulated time running
++	ts int64   // accumulated time stopped
++	tt int64   // earliest throttle time (= time Throttle returned + tm)
++}
++
++// NewThrottle creates a new Throttle with a throttle value r and
++// a minimum allocated run time slice of tm nanoseconds:
++//
++//	r == 0: "empty" throttle; the goroutine is always sleeping
++//	r == 1: full throttle; the goroutine is never sleeping
++//
++// A value of r == 0.6 throttles a goroutine such that it runs
++// approx. 60% of the time, and sleeps approx. 40% of the time.
++// Values of r < 0 or r > 1 are clamped down to values between 0 and 1.
++// Values of tm < 0 are set to 0.
++//
++func NewThrottle(r float64, tm int64) *Throttle {
++	var f float64
++	switch {
++	case r <= 0:
++		f = -1 // indicates always sleep
++	case r >= 1:
++		f = 0 // assume r == 1 (never sleep)
++	default:
++		// 0 < r < 1
++		f = (1 - r) / r
++	}
++	if tm < 0 {
++		tm = 0
++	}
++	return &Throttle{f: f, tm: tm, tt: time.Nanoseconds() + tm}
++}
++
++// Throttle calls time.Sleep such that over time the ratio tr/ts between
++// accumulated run (tr) and sleep times (ts) approximates the value 1/(1-r)
++// where r is the throttle value. Throttle returns immediately (w/o sleeping)
++// if less than tm ns have passed since the last call to Throttle.
++//
++func (p *Throttle) Throttle() {
++	if p.f < 0 {
++		select {} // always sleep
++	}
++
++	t0 := time.Nanoseconds()
++	if t0 < p.tt {
++		return // keep running (minimum time slice not exhausted yet)
++	}
++
++	// accumulate running time
++	p.tr += t0 - (p.tt - p.tm)
++
++	// compute sleep time
++	// Over time we want:
++	//
++	//	tr/ts = r/(1-r)
++	//
++	// Thus:
++	//
++	//	ts = tr*f with f = (1-r)/r
++	//
++	// After some incremental run time δr added to the total run time
++	// tr, the incremental sleep-time δs to get to the same ratio again
++	// after waking up from time.Sleep is:
++	if δs := int64(float64(p.tr)*p.f) - p.ts; δs > 0 {
++		time.Sleep(δs)
++	}
++
++	// accumulate (actual) sleep time
++	t1 := time.Nanoseconds()
++	p.ts += t1 - t0
++
++	// set earliest next throttle time
++	p.tt = t1 + p.tm
++}

@@ -17,6 +17,48 @@ Date:   Mon May 23 16:27:13 2022 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/cgo/testsanitizers/cc_test.go | 22 ++++++++++++++++++++--
  1 file changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/cc_test.go b/misc/cgo/testsanitizers/cc_test.go
+index d2f3bb1ed9..4f0252a27c 100644
+--- a/misc/cgo/testsanitizers/cc_test.go
++++ b/misc/cgo/testsanitizers/cc_test.go
+@@ -20,6 +20,7 @@ import (
+ 	"sync"
+ 	"syscall"
+ 	"testing"
++	"time"
+ 	"unicode"
+ )
+ 
+@@ -90,9 +91,26 @@ func replaceEnv(cmd *exec.Cmd, key, value string) {
+ // mustRun executes t and fails cmd with a well-formatted message if it fails.
+ func mustRun(t *testing.T, cmd *exec.Cmd) {
+ 	t.Helper()
+-	out, err := cmd.CombinedOutput()
++	out := new(strings.Builder)
++	cmd.Stdout = out
++	cmd.Stderr = out
++
++	err := cmd.Start()
+ 	if err != nil {
+-		t.Fatalf("%#q exited with %v\n%s", strings.Join(cmd.Args, " "), err, out)
++		t.Fatalf("%v: %v", cmd, err)
++	}
++
++	if deadline, ok := t.Deadline(); ok {
++		timeout := time.Until(deadline)
++		timeout -= timeout / 10 // Leave 10% headroom for logging and cleanup.
++		timer := time.AfterFunc(timeout, func() {
++			cmd.Process.Signal(syscall.SIGQUIT)
++		})
++		defer timer.Stop()
++	}
++
++	if err := cmd.Wait(); err != nil {
++		t.Fatalf("%v exited with %v\n%s", cmd, err, out)
+ 	}
+ }
+ 

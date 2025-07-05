@@ -21,9 +21,114 @@ Date:   Mon Aug 14 17:16:52 2017 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/common.go                     |   8 +++++---
  src/archive/tar/testdata/ustar.issue12594.tar | Bin 3072 -> 0 bytes
  src/archive/tar/writer.go                     |  20 +++++++++++++-------
  src/archive/tar/writer_test.go                |  12 +++---------
  4 files changed, 21 insertions(+), 19 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index 6390ca41c6..b1704a402d 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -86,6 +86,7 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
+ 	paxHdrs = make(map[string]string)
+ 
+ 	verifyString := func(s string, size int, gnuLong bool, paxKey string) {
++
+ 		// NUL-terminator is optional for path and linkpath.
+ 		// Technically, it is required for uname and gname,
+ 		// but neither GNU nor BSD tar checks for it.
+@@ -95,9 +96,10 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
+ 			format &^= formatGNU // No GNU
+ 		}
+ 		if !isASCII(s) || tooLong {
+-			// TODO(dsnet): If the path is splittable, it is possible to still
+-			// use the USTAR format.
+-			format &^= formatUSTAR // No USTAR
++			canSplitUSTAR := paxKey == paxPath
++			if _, _, ok := splitUSTARPath(s); !canSplitUSTAR || !ok {
++				format &^= formatUSTAR // No USTAR
++			}
+ 			if paxKey == paxNone {
+ 				format &^= formatPAX // No PAX
+ 			} else {
+diff --git a/src/archive/tar/testdata/ustar.issue12594.tar b/src/archive/tar/testdata/ustar.issue12594.tar
+deleted file mode 100644
+index 64931bfbe1..0000000000
+Binary files a/src/archive/tar/testdata/ustar.issue12594.tar and /dev/null differ
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 65836ec17f..a918ff3eef 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -28,7 +28,8 @@ type Writer struct {
+ 	pad    int64 // amount of padding to write after current file entry
+ 	closed bool
+ 
+-	blk block // Buffer to use as temporary local storage
++	hdr Header // Shallow copy of Header that is safe for mutations
++	blk block  // Buffer to use as temporary local storage
+ }
+ 
+ // NewWriter creates a new Writer writing to w.
+@@ -59,25 +60,30 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
+ 		return err
+ 	}
+ 
+-	switch allowedFormats, paxHdrs := hdr.allowedFormats(); {
++	tw.hdr = *hdr // Shallow copy of Header
++	switch allowedFormats, paxHdrs := tw.hdr.allowedFormats(); {
+ 	case allowedFormats&formatUSTAR != 0:
+-		return tw.writeUSTARHeader(hdr)
++		return tw.writeUSTARHeader(&tw.hdr)
+ 	case allowedFormats&formatPAX != 0:
+-		return tw.writePAXHeader(hdr, paxHdrs)
++		return tw.writePAXHeader(&tw.hdr, paxHdrs)
+ 	case allowedFormats&formatGNU != 0:
+-		return tw.writeGNUHeader(hdr)
++		return tw.writeGNUHeader(&tw.hdr)
+ 	default:
+ 		return ErrHeader
+ 	}
+ }
+ 
+ func (tw *Writer) writeUSTARHeader(hdr *Header) error {
+-	// TODO(dsnet): Support USTAR prefix/suffix path splitting.
+-	// See https://golang.org/issue/12594
++	// Check if we can use USTAR prefix/suffix splitting.
++	var namePrefix string
++	if prefix, suffix, ok := splitUSTARPath(hdr.Name); ok {
++		namePrefix, hdr.Name = prefix, suffix
++	}
+ 
+ 	// Pack the main header.
+ 	var f formatter
+ 	blk := tw.templateV7Plus(hdr, f.formatString, f.formatOctal)
++	f.formatString(blk.USTAR().Prefix(), namePrefix)
+ 	blk.SetFormat(formatUSTAR)
+ 	if f.err != nil {
+ 		return f.err // Should never happen since header is validated
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 8980871144..a6eec5a9da 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -151,15 +151,9 @@ func TestWriter(t *testing.T) {
+ 			contents: strings.Repeat("\x00", 4<<10),
+ 		}},
+ 	}, {
+-		// TODO(dsnet): The Writer output should match the following file.
+-		// To fix an issue (see https://golang.org/issue/12594), we disabled
+-		// prefix support, which alters the generated output.
+-		/*
+-			// This file was produced using gnu tar 1.17
+-			// gnutar  -b 4 --format=ustar (longname/)*15 + file.txt
+-			file: "testdata/ustar.tar"
+-		*/
+-		file: "testdata/ustar.issue12594.tar", // This is a valid tar file, but not expected
++		// This file was produced using GNU tar v1.17.
++		//	gnutar -b 4 --format=ustar (longname/)*15 + file.txt
++		file: "testdata/ustar.tar",
+ 		entries: []*entry{{
+ 			header: &Header{
+ 				Name:     strings.Repeat("longname/", 15) + "file.txt",

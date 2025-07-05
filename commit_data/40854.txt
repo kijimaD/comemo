@@ -29,9 +29,118 @@ Date:   Tue Jul 16 20:36:33 2019 +0000
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/malloc.go      | 24 ++++++++++++++++++++++--
  src/runtime/mem_linux.go   |  4 ++--
  src/runtime/mgcscavenge.go |  8 ++++----
  src/runtime/mheap.go       |  2 +-
  4 files changed, 29 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 5a21e80e18..d768054198 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -325,12 +325,21 @@ const (
+ var physPageSize uintptr
+ 
+ // physHugePageSize is the size in bytes of the OS's default physical huge
+-// page size whose allocation is opaque to the application.
++// page size whose allocation is opaque to the application. It is assumed
++// and verified to be a power of two.
+ //
+ // If set, this must be set by the OS init code (typically in osinit) before
+ // mallocinit. However, setting it at all is optional, and leaving the default
+ // value is always safe (though potentially less efficient).
+-var physHugePageSize uintptr
++//
++// Since physHugePageSize is always assumed to be a power of two,
++// physHugePageShift is defined as physHugePageSize == 1 << physHugePageShift.
++// The purpose of physHugePageShift is to avoid doing divisions in
++// performance critical functions.
++var (
++	physHugePageSize  uintptr
++	physHugePageShift uint
++)
+ 
+ // OS memory management abstraction layer
+ //
+@@ -432,6 +441,17 @@ func mallocinit() {
+ 		print("system page size (", physPageSize, ") must be a power of 2\n")
+ 		throw("bad system page size")
+ 	}
++	if physHugePageSize&(physHugePageSize-1) != 0 {
++		print("system huge page size (", physHugePageSize, ") must be a power of 2\n")
++		throw("bad system huge page size")
++	}
++	if physHugePageSize != 0 {
++		// Since physHugePageSize is a power of 2, it suffices to increase
++		// physHugePageShift until 1<<physHugePageShift == physHugePageSize.
++		for 1<<physHugePageShift != physHugePageSize {
++			physHugePageShift++
++		}
++	}
+ 
+ 	// Initialize the heap.
+ 	mheap_.init()
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index cda2c78eaf..524915fb31 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -68,11 +68,11 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ 		// flag on the huge pages containing v and v+n-1, and
+ 		// only if those aren't aligned.
+ 		var head, tail uintptr
+-		if uintptr(v)%physHugePageSize != 0 {
++		if uintptr(v)&(physHugePageSize-1) != 0 {
+ 			// Compute huge page containing v.
+ 			head = uintptr(v) &^ (physHugePageSize - 1)
+ 		}
+-		if (uintptr(v)+n)%physHugePageSize != 0 {
++		if (uintptr(v)+n)&(physHugePageSize-1) != 0 {
+ 			// Compute huge page containing v+n-1.
+ 			tail = (uintptr(v) + n - 1) &^ (physHugePageSize - 1)
+ 		}
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 151c84e996..45a9eb2b2a 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -130,7 +130,7 @@ func gcPaceScavenger() {
+ 	if physHugePageSize != 0 {
+ 		// Start by computing the amount of free memory we have in huge pages
+ 		// in total. Trivially, this is all the huge page work we need to do.
+-		hugeWork := uint64(mheap_.free.unscavHugePages * physHugePageSize)
++		hugeWork := uint64(mheap_.free.unscavHugePages) << physHugePageShift
+ 
+ 		// ...but it could turn out that there's more huge work to do than
+ 		// total work, so cap it at total work. This might happen for very large
+@@ -138,14 +138,14 @@ func gcPaceScavenger() {
+ 		// that there are free chunks of memory larger than a huge page that we don't want
+ 		// to scavenge.
+ 		if hugeWork >= totalWork {
+-			hugePages := totalWork / uint64(physHugePageSize)
+-			hugeWork = hugePages * uint64(physHugePageSize)
++			hugePages := totalWork >> physHugePageShift
++			hugeWork = hugePages << physHugePageShift
+ 		}
+ 		// Everything that's not huge work is regular work. At this point we
+ 		// know huge work so we can calculate how much time that will take
+ 		// based on scavengePageRate (which applies to pages of any size).
+ 		regularWork = totalWork - hugeWork
+-		hugeTime = hugeWork / uint64(physHugePageSize) * scavengeHugePagePeriod
++		hugeTime = (hugeWork >> physHugePageShift) * scavengeHugePagePeriod
+ 	}
+ 	// Finally, we can compute how much time it'll take to do the regular work
+ 	// and the total time to do all the work.
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index af2818a2bd..91ad47bdd0 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -561,7 +561,7 @@ func (s *mspan) hugePages() uintptr {
+ 		end &^= physHugePageSize - 1
+ 	}
+ 	if start < end {
+-		return (end - start) / physHugePageSize
++		return (end - start) >> physHugePageShift
+ 	}
+ 	return 0
+ }

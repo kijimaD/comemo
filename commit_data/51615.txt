@@ -11,6 +11,24 @@ Date:   Thu Feb 24 10:19:54 2022 +0100
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Matt Layher <mdlayher@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.18.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 53e9d9b258..5289f82665 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -209,6 +209,12 @@ Do not send CLs removing the interior tags from such phrases.
+   now supports the <code>c-archive</code> and <code>c-shared</code> build modes.
+ </p>
+ 
++<h3 id="linux">Linux</h3>
++
++<p><!-- golang.org/issue/45964 -->
++  Go 1.18 requires Linux kernel version 2.6.32 or later.
++</p>
++
+ <h3 id="windows">Windows</h3>
+ 
+ <p><!-- https://golang.org/issue/49759 -->

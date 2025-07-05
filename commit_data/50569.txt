@@ -14,8 +14,136 @@ Date:   Tue Nov 2 15:38:47 2021 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/cpuprof.go          | 11 ++++++-
  src/runtime/pprof/pprof_test.go | 67 -----------------------------------------
  src/runtime/proc.go             |  9 +-----
  3 files changed, 11 insertions(+), 76 deletions(-)
+
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index 6076564716..c81ab710c2 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -89,7 +89,7 @@ func SetCPUProfileRate(hz int) {
+ // held at the time of the signal, nor can it use substantial amounts
+ // of stack.
+ //go:nowritebarrierrec
+-func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
++func (p *cpuProfile) add(gp *g, stk []uintptr) {
+ 	// Simple cas-lock to coordinate with setcpuprofilerate.
+ 	for !atomic.Cas(&prof.signalLock, 0, 1) {
+ 		osyield()
+@@ -104,6 +104,15 @@ func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
+ 		// because otherwise its write barrier behavior may not
+ 		// be correct. See the long comment there before
+ 		// changing the argument here.
++		//
++		// Note: it can happen on Windows, where we are calling
++		// p.add with a gp that is not the current g, that gp is nil,
++		// meaning we interrupted a system thread with no g.
++		// Avoid faulting in that case.
++		var tagPtr *unsafe.Pointer
++		if gp != nil {
++			tagPtr = &gp.labels
++		}
+ 		cpuprof.log.write(tagPtr, nanotime(), hdr[:], stk)
+ 	}
+ 
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index da006cbe45..06e0274e9a 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1361,73 +1361,6 @@ func TestLabelRace(t *testing.T) {
+ 	})
+ }
+ 
+-func TestLabelSystemstack(t *testing.T) {
+-	// See http://golang.org/cl/351751.
+-	prof := testCPUProfile(t, stackContainsLabeled, []string{"runtime.systemstack;key=value"}, avoidFunctions(), func(dur time.Duration) {
+-		Do(context.Background(), Labels("key", "value"), func(context.Context) {
+-			var wg sync.WaitGroup
+-			stop := make(chan struct{})
+-			for i := 0; i < runtime.GOMAXPROCS(0); i++ {
+-				wg.Add(1)
+-				go func() {
+-					defer wg.Done()
+-					labelHog(stop)
+-				}()
+-			}
+-
+-			time.Sleep(dur)
+-			close(stop)
+-			wg.Wait()
+-		})
+-	})
+-
+-	var withLabel, withoutLabel int64
+-	for _, s := range prof.Sample {
+-		var systemstack, labelHog bool
+-		for _, loc := range s.Location {
+-			for _, l := range loc.Line {
+-				switch l.Function.Name {
+-				case "runtime.systemstack":
+-					systemstack = true
+-				case "runtime/pprof.labelHog":
+-					labelHog = true
+-				}
+-			}
+-		}
+-
+-		if systemstack && labelHog {
+-			if s.Label != nil && contains(s.Label["key"], "value") {
+-				withLabel += s.Value[0]
+-			} else {
+-				withoutLabel += s.Value[0]
+-			}
+-		}
+-	}
+-
+-	// ratio on 2019 Intel MBP before/after CL 351751 for n=30 runs:
+-	// before: mean=0.013 stddev=0.013 min=0.000 max=0.039
+-	// after : mean=0.996 stddev=0.007 min=0.967 max=1.000
+-	//
+-	// TODO: Figure out why some samples still contain labelHog without labels.
+-	// Once fixed this test case can be simplified to just check that all samples
+-	// containing labelHog() have the label, and no other samples do.
+-	ratio := float64(withLabel) / float64((withLabel + withoutLabel))
+-	if ratio < 0.9 {
+-		t.Fatalf("only %.1f%% of labelHog(systemstack()) samples have label", ratio*100)
+-	}
+-}
+-
+-func labelHog(stop chan struct{}) {
+-	for i := 0; ; i++ {
+-		select {
+-		case <-stop:
+-			return
+-		default:
+-			fmt.Fprintf(io.Discard, "%d", i)
+-		}
+-	}
+-}
+-
+ // Check that there is no deadlock when the program receives SIGPROF while in
+ // 64bit atomics' critical section. Used to happen on mips{,le}. See #20146.
+ func TestAtomicLoadStore64(t *testing.T) {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 268d5ff398..bf5fa8e4fc 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4711,14 +4711,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	}
+ 
+ 	if prof.hz != 0 {
+-		// Note: it can happen on Windows that we interrupted a system thread
+-		// with no g, so gp could nil. The other nil checks are done out of
+-		// caution, but not expected to be nil in practice.
+-		var tagPtr *unsafe.Pointer
+-		if gp != nil && gp.m != nil && gp.m.curg != nil {
+-			tagPtr = &gp.m.curg.labels
+-		}
+-		cpuprof.add(tagPtr, stk[:n])
++		cpuprof.add(gp, stk[:n])
+ 	}
+ 	getg().m.mallocing--
+ }

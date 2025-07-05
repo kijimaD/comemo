@@ -9,6 +9,59 @@ Date:   Thu Apr 4 08:06:29 2013 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8327045
-
+---
  misc/dist/bindist.go | 27 +++++++++++++++++++--------
  1 file changed, 19 insertions(+), 8 deletions(-)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index 2d633bef97..1f5cfc817e 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -29,13 +29,14 @@ import (
+ )
+ 
+ var (
+-	tag      = flag.String("tag", "release", "mercurial tag to check out")
+-	repo     = flag.String("repo", "https://code.google.com/p/go", "repo URL")
+-	tourPath = flag.String("tour", "code.google.com/p/go-tour", "Go tour repo import path")
+-	verbose  = flag.Bool("v", false, "verbose output")
+-	upload   = flag.Bool("upload", true, "upload resulting files to Google Code")
+-	wxsFile  = flag.String("wxs", "", "path to custom installer.wxs")
+-	addLabel = flag.String("label", "", "additional label to apply to file when uploading")
++	tag         = flag.String("tag", "release", "mercurial tag to check out")
++	repo        = flag.String("repo", "https://code.google.com/p/go", "repo URL")
++	tourPath    = flag.String("tour", "code.google.com/p/go-tour", "Go tour repo import path")
++	verbose     = flag.Bool("v", false, "verbose output")
++	upload      = flag.Bool("upload", true, "upload resulting files to Google Code")
++	wxsFile     = flag.String("wxs", "", "path to custom installer.wxs")
++	addLabel    = flag.String("label", "", "additional label to apply to file when uploading")
++	includeRace = flag.Bool("race", true, "build race detector packages")
+ 
+ 	username, password string // for Google Code upload
+ )
+@@ -187,6 +188,16 @@ func (b *Build) Do() error {
+ 	if err != nil {
+ 		return err
+ 	}
++	if !b.Source && *includeRace {
++		goCmd := filepath.Join(b.root, "bin", "go")
++		if b.OS == "windows" {
++			goCmd += ".exe"
++		}
++		_, err = b.run(src, goCmd, "install", "-race", "std")
++		if err != nil {
++			return err
++		}
++	}
+ 
+ 	if err := b.tour(); err != nil {
+ 		return err
+@@ -388,7 +399,7 @@ func (b *Build) tour() error {
+ 	// Copy gotour binary to tool directory as "tour"; invoked as "go tool tour".
+ 	gotour := "gotour"
+ 	if runtime.GOOS == "windows" {
+-		gotour = "gotour.exe"
++		gotour += ".exe"
+ 	}
+ 	return cp(
+ 		filepath.Join(b.root, "pkg", "tool", b.OS+"_"+b.Arch, "tour"),

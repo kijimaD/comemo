@@ -11,9 +11,191 @@ Date:   Fri Aug 21 15:23:57 2015 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 25 +++++++++----------------
  src/cmd/link/internal/ld/decodesym.go  |  2 +-
  src/reflect/type.go                    | 21 ++++++++++-----------
  src/runtime/type.go                    |  5 ++---
  4 files changed, 22 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 16f0c5b722..9463379300 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -796,11 +796,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 
+ 	gcsym, useGCProg, ptrdata := dgcsym(t)
+ 
+-	// We use size 0 here so we get the pointer to the zero value,
+-	// but don't allocate space for the zero value unless we need it.
+-	// TODO: how do we get this symbol into bss?  We really want
+-	// a read-only bss, but I don't think such a thing exists.
+-
+ 	// ../../pkg/reflect/type.go:/^type.commonType
+ 	// actual type structure
+ 	//	type commonType struct {
+@@ -816,7 +811,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	//		string        *string
+ 	//		*extraType
+ 	//		ptrToThis     *Type
+-	//		zero          unsafe.Pointer
+ 	//	}
+ 	ot = duintptr(s, ot, uint64(t.Width))
+ 	ot = duintptr(s, ot, uint64(ptrdata))
+@@ -869,7 +863,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	ot += Widthptr
+ 
+ 	ot = dsymptr(s, ot, sptr, 0) // ptrto type
+-	ot = duintptr(s, ot, 0)      // ptr to zero value (unused)
+ 	return ot
+ }
+ 
+@@ -1052,7 +1045,7 @@ ok:
+ 	switch t.Etype {
+ 	default:
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 3*Widthptr
++		xt = ot - 2*Widthptr
+ 
+ 	case TARRAY:
+ 		if t.Bound >= 0 {
+@@ -1064,7 +1057,7 @@ ok:
+ 			t2.Bound = -1 // slice
+ 			s2 := dtypesym(t2)
+ 			ot = dcommontype(s, ot, t)
+-			xt = ot - 3*Widthptr
++			xt = ot - 2*Widthptr
+ 			ot = dsymptr(s, ot, s1, 0)
+ 			ot = dsymptr(s, ot, s2, 0)
+ 			ot = duintptr(s, ot, uint64(t.Bound))
+@@ -1073,7 +1066,7 @@ ok:
+ 			s1 := dtypesym(t.Type)
+ 
+ 			ot = dcommontype(s, ot, t)
+-			xt = ot - 3*Widthptr
++			xt = ot - 2*Widthptr
+ 			ot = dsymptr(s, ot, s1, 0)
+ 		}
+ 
+@@ -1082,7 +1075,7 @@ ok:
+ 		s1 := dtypesym(t.Type)
+ 
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 3*Widthptr
++		xt = ot - 2*Widthptr
+ 		ot = dsymptr(s, ot, s1, 0)
+ 		ot = duintptr(s, ot, uint64(t.Chan))
+ 
+@@ -1101,7 +1094,7 @@ ok:
+ 		}
+ 
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 3*Widthptr
++		xt = ot - 2*Widthptr
+ 		ot = duint8(s, ot, uint8(obj.Bool2int(isddd)))
+ 
+ 		// two slice headers: in and out.
+@@ -1140,7 +1133,7 @@ ok:
+ 		// ../../runtime/type.go:/InterfaceType
+ 		ot = dcommontype(s, ot, t)
+ 
+-		xt = ot - 3*Widthptr
++		xt = ot - 2*Widthptr
+ 		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+@@ -1160,7 +1153,7 @@ ok:
+ 		s3 := dtypesym(mapbucket(t))
+ 		s4 := dtypesym(hmap(t))
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 3*Widthptr
++		xt = ot - 2*Widthptr
+ 		ot = dsymptr(s, ot, s1, 0)
+ 		ot = dsymptr(s, ot, s2, 0)
+ 		ot = dsymptr(s, ot, s3, 0)
+@@ -1196,7 +1189,7 @@ ok:
+ 		s1 := dtypesym(t.Type)
+ 
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 3*Widthptr
++		xt = ot - 2*Widthptr
+ 		ot = dsymptr(s, ot, s1, 0)
+ 
+ 		// ../../runtime/type.go:/StructType
+@@ -1210,7 +1203,7 @@ ok:
+ 		}
+ 
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 3*Widthptr
++		xt = ot - 2*Widthptr
+ 		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index c1cf4d7181..6081ecc5c4 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -47,7 +47,7 @@ func decode_inuxi(p []byte, sz int) uint64 {
+ // commonsize returns the size of the common prefix for all type
+ // structures (runtime._type).
+ func commonsize() int {
+-	return 8*Thearch.Ptrsize + 8
++	return 7*Thearch.Ptrsize + 8
+ }
+ 
+ // Type.commonType.kind
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index d10c2169b0..95eaf2c228 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -247,17 +247,16 @@ const (
+ type rtype struct {
+ 	size          uintptr
+ 	ptrdata       uintptr
+-	hash          uint32         // hash of type; avoids computation in hash tables
+-	_             uint8          // unused/padding
+-	align         uint8          // alignment of variable with this type
+-	fieldAlign    uint8          // alignment of struct field with this type
+-	kind          uint8          // enumeration for C
+-	alg           *typeAlg       // algorithm table
+-	gcdata        *byte          // garbage collection data
+-	string        *string        // string form; unnecessary but undeniably useful
+-	*uncommonType                // (relatively) uncommon fields
+-	ptrToThis     *rtype         // type for pointer to this type, if used in binary or has methods
+-	zero          unsafe.Pointer // unused
++	hash          uint32   // hash of type; avoids computation in hash tables
++	_             uint8    // unused/padding
++	align         uint8    // alignment of variable with this type
++	fieldAlign    uint8    // alignment of struct field with this type
++	kind          uint8    // enumeration for C
++	alg           *typeAlg // algorithm table
++	gcdata        *byte    // garbage collection data
++	string        *string  // string form; unnecessary but undeniably useful
++	*uncommonType          // (relatively) uncommon fields
++	ptrToThis     *rtype   // type for pointer to this type, if used in binary or has methods
+ }
+ 
+ // a copy of runtime.typeAlg
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 4b5631aab4..1321af8d1d 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -8,8 +8,8 @@ package runtime
+ 
+ import "unsafe"
+ 
+-// Needs to be in sync with ../cmd/internal/ld/decodesym.go:/^func.commonsize,
+-// ../cmd/internal/gc/reflect.go:/^func.dcommontype and
++// Needs to be in sync with ../cmd/compile/internal/ld/decodesym.go:/^func.commonsize,
++// ../cmd/compile/internal/gc/reflect.go:/^func.dcommontype and
+ // ../reflect/type.go:/^type.rtype.
+ type _type struct {
+ 	size       uintptr
+@@ -27,7 +27,6 @@ type _type struct {
+ 	_string *string
+ 	x       *uncommontype
+ 	ptrto   *_type
+-	zero    *byte // unused
+ }
+ 
+ type method struct {

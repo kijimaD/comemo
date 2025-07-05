@@ -7,7 +7,32 @@ Date:   Wed Feb 20 14:30:09 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7386045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 0081261134..32ea281b8d 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -229,6 +229,7 @@ Richard Eric Gavaletz <gavaletz@gmail.com>
+ Rick Arnold <rickarnoldjr@gmail.com>
+ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+ Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
++Robert Dinu <r@oktett.se>
+ Robert Figueiredo <robfig@gmail.com>
+ Robert Hencke <robert.hencke@gmail.com>
+ Robin Eklind <r.eklind.87@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index df00c6fd40..6576e3aa76 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -333,6 +333,7 @@ Rick Arnold <rickarnoldjr@gmail.com>
+ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+ Rob Pike <r@golang.org>
+ Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
++Robert Dinu <r@oktett.se>
+ Robert Figueiredo <robfig@gmail.com>
+ Robert Griesemer <gri@golang.org>
+ Robert Hencke <robert.hencke@gmail.com>

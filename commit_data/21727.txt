@@ -7,8 +7,82 @@ Date:   Thu Jan 29 15:26:15 2015 +0300
     Change-Id: I8c7fcc7705070bc9979e39d08a4c9b2870087a08
     Reviewed-on: https://go-review.googlesource.com/3500
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/pprof/trace_parser_test.go |  5 +++++
  src/runtime/pprof/trace_test.go        | 15 ++++++++-------
  src/runtime/trace.go                   | 12 ++++++++++--
  3 files changed, 23 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/pprof/trace_parser_test.go b/src/runtime/pprof/trace_parser_test.go
+index 220cfd9f8b..c1c43245ef 100644
+--- a/src/runtime/pprof/trace_parser_test.go
++++ b/src/runtime/pprof/trace_parser_test.go
+@@ -181,6 +181,11 @@ func parseEvents(rawEvents []RawEvent) (events []*Event, err error) {
+ 			lastTs = int64(raw.args[1])
+ 		case traceEvFrequency:
+ 			ticksPerSec = int64(raw.args[0])
++			if ticksPerSec <= 0 {
++				err = fmt.Errorf("traceEvFrequency contains invalid frequency %v at offset 0x%x",
++					ticksPerSec, raw.off)
++				return
++			}
+ 		case traceEvTimerGoroutine:
+ 			timerGoid = raw.args[0]
+ 		case traceEvStack:
+diff --git a/src/runtime/pprof/trace_test.go b/src/runtime/pprof/trace_test.go
+index 587f09713e..c42032455c 100644
+--- a/src/runtime/pprof/trace_test.go
++++ b/src/runtime/pprof/trace_test.go
+@@ -19,13 +19,14 @@ import (
+ func skipTraceTestsIfNeeded(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "solaris":
+-		t.Skip("skipping: solaris timer can go backwards which is incompatible with tracer (http://golang.org/issue/8976)")
+-	case "windows":
+-		t.Skip("skipping: windows tests fail with 'failed to parse trace: no traceEvFrequency event'")
+-	case "android":
+-		t.Skip("skipping: android tests fail with 'failed to parse trace: g 2 is not runnable before traceEvGoWaiting'")
++		t.Skip("skipping: solaris timer can go backwards (http://golang.org/issue/8976)")
+ 	case "plan9":
+-		t.Skip("skipping: plan9 tests fail with 'fatal error: trace: out of memory'")
++		t.Skip("skipping: plan9 tests fail with out of memory (http://golang.org/issue/9712")
++	}
++
++	switch runtime.GOARCH {
++	case "arm":
++		t.Skip("skipping: arm tests fail with 'failed to parse trace' (http://golang.org/issue/9725)")
+ 	}
+ }
+ 
+@@ -233,7 +234,7 @@ eventLoop:
+ 		for _, f := range ev.stk {
+ 			if strings.HasSuffix(f.file, "trace_test.go") &&
+ 				strings.HasSuffix(f.fn, "pprof_test.TestTraceSymbolize") &&
+-				f.line == 217 {
++				f.line == 218 {
+ 				found = true
+ 				break eventLoop
+ 			}
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 032bef4e77..7da588b5e6 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -208,8 +208,16 @@ func StopTrace() {
+ 		traceFullQueue(buf)
+ 	}
+ 
+-	trace.ticksEnd = cputicks()
+-	trace.timeEnd = nanotime()
++	for {
++		trace.ticksEnd = cputicks()
++		trace.timeEnd = nanotime()
++		// Windows time can tick only every 15ms, wait for at least one tick.
++		if trace.timeEnd != trace.timeStart {
++			break
++		}
++		osyield()
++	}
++
+ 	trace.enabled = false
+ 	trace.shutdown = true
+ 	trace.stackTab.dump()

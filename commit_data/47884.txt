@@ -10,7 +10,45 @@ Date:   Wed Apr 14 16:18:58 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  1 +
  test/typeparam/pragma.go                  | 19 +++++++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 2745016545..53ac617d12 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -270,6 +270,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.No
+ 	gf := nameNode.Func
+ 	// Pos of the instantiated function is same as the generic function
+ 	newf := ir.NewFunc(gf.Pos())
++	newf.Pragma = gf.Pragma // copy over pragmas from generic function to stenciled implementation.
+ 	newf.Nname = ir.NewNameAt(gf.Pos(), newsym)
+ 	newf.Nname.Func = newf
+ 	newf.Nname.Defn = newf
+diff --git a/test/typeparam/pragma.go b/test/typeparam/pragma.go
+new file mode 100644
+index 0000000000..6743e24ff3
+--- /dev/null
++++ b/test/typeparam/pragma.go
+@@ -0,0 +1,19 @@
++// errorcheck -0 -m -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure the go:noinline pragma makes it from a
++// generic function to any of its stenciled instances.
++
++package main
++
++//go:noinline
++func f[T any](x T) T {
++	return x
++}
++
++func main() { // ERROR "can inline main"
++	println(f(5))
++}

@@ -11,7 +11,64 @@ Date:   Fri Sep 8 14:36:43 2017 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/expvar/expvar.go      | 12 +++++++++++-
  src/expvar/expvar_test.go | 22 ++++++++++++++++++++++
  2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index 64dae70c62..8290e0bd72 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -125,7 +125,17 @@ func (v *Map) String() string {
+ 	return b.String()
+ }
+ 
+-func (v *Map) Init() *Map { return v }
++// Init removes all keys from the map.
++func (v *Map) Init() *Map {
++	v.keysMu.Lock()
++	defer v.keysMu.Unlock()
++	v.keys = v.keys[:0]
++	v.m.Range(func(k, _ interface{}) bool {
++		v.m.Delete(k)
++		return true
++	})
++	return v
++}
+ 
+ // updateKeys updates the sorted list of keys in v.keys.
+ func (v *Map) addKey(key string) {
+diff --git a/src/expvar/expvar_test.go b/src/expvar/expvar_test.go
+index 7014063d4f..728e763896 100644
+--- a/src/expvar/expvar_test.go
++++ b/src/expvar/expvar_test.go
+@@ -161,6 +161,28 @@ func BenchmarkStringSet(b *testing.B) {
+ 	})
+ }
+ 
++func TestMapInit(t *testing.T) {
++	RemoveAll()
++	colors := NewMap("bike-shed-colors")
++	colors.Add("red", 1)
++	colors.Add("blue", 1)
++	colors.Add("chartreuse", 1)
++
++	n := 0
++	colors.Do(func(KeyValue) { n++ })
++	if n != 3 {
++		t.Errorf("after three Add calls with distinct keys, Do should invoke f 3 times; got %v", n)
++	}
++
++	colors.Init()
++
++	n = 0
++	colors.Do(func(KeyValue) { n++ })
++	if n != 0 {
++		t.Errorf("after Init, Do should invoke f 0 times; got %v", n)
++	}
++}
++
+ func TestMapCounter(t *testing.T) {
+ 	RemoveAll()
+ 	colors := NewMap("bike-shed-colors")

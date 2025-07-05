@@ -10,6 +10,20 @@ Date:   Thu Jul 31 09:32:09 2014 -0700
     R=dvyukov
     CC=golang-codereviews
     https://golang.org/cl/120960043
-
+---
  src/pkg/runtime/race.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/race.go b/src/pkg/runtime/race.go
+index bdb7193ffb..3707549a3f 100644
+--- a/src/pkg/runtime/race.go
++++ b/src/pkg/runtime/race.go
+@@ -34,7 +34,7 @@ func RaceSemrelease(s *uint32)
+ const raceenabled = true
+ 
+ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+-	kind := t.kind &^ kindNoPointers
++	kind := t.kind & kindMask
+ 	if kind == kindArray || kind == kindStruct {
+ 		// for composite objects we have to read every address
+ 		// because a write might happen to any subobject.

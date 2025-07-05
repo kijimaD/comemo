@@ -28,7 +28,7 @@ Date:   Thu Mar 26 15:50:22 2015 -0400
     Reviewed-by: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/os1_darwin.go    | 2 ++
  src/runtime/os1_dragonfly.go | 2 ++
  src/runtime/os1_freebsd.go   | 2 ++
@@ -41,3 +41,164 @@ Date:   Thu Mar 26 15:50:22 2015 -0400
  src/runtime/os3_solaris.go   | 2 ++
  src/runtime/proc1.go         | 6 ++++--
  11 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index 6a60314494..f6eb557b81 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -71,6 +71,8 @@ func goenvs() {
+ 	}
+ }
+ 
++// May run without a P, so write barriers are not allowed.
++//go:nowritebarrier
+ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
+ 	if false {
+diff --git a/src/runtime/os1_dragonfly.go b/src/runtime/os1_dragonfly.go
+index c94b1411b0..33d87ebdd9 100644
+--- a/src/runtime/os1_dragonfly.go
++++ b/src/runtime/os1_dragonfly.go
+@@ -71,6 +71,8 @@ func futexwakeup(addr *uint32, cnt uint32) {
+ 
+ func lwp_start(uintptr)
+ 
++// May run without a P, so write barriers are not allowed.
++//go:nowritebarrier
+ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	if false {
+ 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " lwp_start=", funcPC(lwp_start), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index ae9f78c27b..10c72d1d7e 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -67,6 +67,8 @@ func futexwakeup(addr *uint32, cnt uint32) {
+ 
+ func thr_start()
+ 
++// May run without a P, so write barriers are not allowed.
++//go:nowritebarrier
+ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	if false {
+ 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " thr_start=", funcPC(thr_start), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index 44da57ab0b..190206dcb6 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -113,6 +113,8 @@ const (
+ 	_CLONE_NEWIPC         = 0x8000000
+ )
+ 
++// May run without a P, so write barriers are not allowed.
++//go:nowritebarrier
+ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	/*
+ 	 * note: strace gets confused if we use CLONE_PTRACE here.
+diff --git a/src/runtime/os1_nacl.go b/src/runtime/os1_nacl.go
+index b3759c1408..238de5b441 100644
+--- a/src/runtime/os1_nacl.go
++++ b/src/runtime/os1_nacl.go
+@@ -67,6 +67,7 @@ func usleep(us uint32) {
+ 
+ func mstart_nacl()
+ 
++// May run without a P, so write barriers are not allowed.
+ //go:nowritebarrier
+ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	mp.tls[0] = uintptr(unsafe.Pointer(mp.g0))
+diff --git a/src/runtime/os1_netbsd.go b/src/runtime/os1_netbsd.go
+index f2e6ef682e..9a401550ba 100644
+--- a/src/runtime/os1_netbsd.go
++++ b/src/runtime/os1_netbsd.go
+@@ -89,6 +89,8 @@ func semawakeup(mp *m) {
+ 	}
+ }
+ 
++// May run without a P, so write barriers are not allowed.
++//go:nowritebarrier
+ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	if false {
+ 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, "/", int32(mp.tls[0]), " ostk=", &mp, "\n")
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os1_openbsd.go
+index 92a19fe31b..1f5ac4aa31 100644
+--- a/src/runtime/os1_openbsd.go
++++ b/src/runtime/os1_openbsd.go
+@@ -98,6 +98,8 @@ func semawakeup(mp *m) {
+ 	}
+ }
+ 
++// May run without a P, so write barriers are not allowed.
++//go:nowritebarrier
+ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	if false {
+ 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, "/", int32(mp.tls[0]), " ostk=", &mp, "\n")
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index bba1f17e32..30621ad561 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -183,6 +183,8 @@ func exit(e int) {
+ 	exits(&status[0])
+ }
+ 
++// May run without a P, so write barriers are not allowed.
++//go:nowritebarrier
+ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	if false {
+ 		print("newosproc mp=", mp, " ostk=", &mp, "\n")
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 4ae1a8411b..609e430711 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -282,6 +282,8 @@ func semacreate() uintptr {
+ 	return stdcall4(_CreateEventA, 0, 0, 0, 0)
+ }
+ 
++// May run without a P, so write barriers are not allowed.
++//go:nowritebarrier
+ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	const _STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000
+ 	thandle := stdcall6(_CreateThread, 0, 0x20000,
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 8c65567b83..ddec87e7e2 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -131,6 +131,8 @@ func osinit() {
+ 
+ func tstart_sysvicall()
+ 
++// May run without a P, so write barriers are not allowed.
++//go:nowritebarrier
+ func newosproc(mp *m, _ unsafe.Pointer) {
+ 	var (
+ 		attr pthreadattr
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 4459802b15..690a978919 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -973,7 +973,7 @@ func unlockextra(mp *m) {
+ 
+ // Create a new m.  It will start off with a call to fn, or else the scheduler.
+ // fn needs to be static and not a heap allocated closure.
+-// May run during STW, so write barriers are not allowed.
++// May run without a P, so write barriers are not allowed.
+ //go:nowritebarrier
+ func newm(fn func(), _p_ *p) {
+ 	mp := allocm(_p_)
+@@ -1035,7 +1035,7 @@ func mspinning() {
+ 
+ // Schedules some M to run the p (creates an M if necessary).
+ // If p==nil, tries to get an idle P, if no idle P's does nothing.
+-// May run during STW, so write barriers are not allowed.
++// May run without a P, so write barriers are not allowed.
+ //go:nowritebarrier
+ func startm(_p_ *p, spinning bool) {
+ 	lock(&sched.lock)
+@@ -1072,6 +1072,8 @@ func startm(_p_ *p, spinning bool) {
+ }
+ 
+ // Hands off P from syscall or locked M.
++// Always runs without a P, so write barriers are not allowed.
++//go:nowritebarrier
+ func handoffp(_p_ *p) {
+ 	// if it has local work, start it straight away
+ 	if _p_.runqhead != _p_.runqtail || sched.runqsize != 0 {

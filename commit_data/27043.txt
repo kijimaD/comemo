@@ -7,6 +7,22 @@ Date:   Fri Feb 26 14:35:42 2016 +1100
     Change-Id: Iaa23d27043e6a050075b40072e466623418ba977
     Reviewed-on: https://go-review.googlesource.com/19878
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  .github/ISSUE_TEMPLATE | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/.github/ISSUE_TEMPLATE b/.github/ISSUE_TEMPLATE
+index f44c6b9a36..cd4274fab1 100644
+--- a/.github/ISSUE_TEMPLATE
++++ b/.github/ISSUE_TEMPLATE
+@@ -7,7 +7,9 @@ Please answer these questions before submitting your issue. Thanks!
+ 
+ 
+ 3. What did you do?
+-(Use play.golang.org to provide a runnable example, if possible.)
++If possible, provide a recipe for reproducing the error.
++A complete runnable program is good.
++A link on play.golang.org is best.
+ 
+ 
+ 4. What did you expect to see?

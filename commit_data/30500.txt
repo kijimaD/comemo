@@ -16,7 +16,7 @@ Date:   Tue Nov 8 16:01:56 2016 -0800
     Change-Id: I7893eedea454a64acd753e32f7a8bf811ddbb03c
     Reviewed-on: https://go-review.googlesource.com/32950
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go            | 28 +++++--
  src/cmd/compile/internal/syntax/dumper_test.go  |  2 +-
  src/cmd/compile/internal/syntax/parser.go       | 17 +----
@@ -26,3 +26,438 @@ Date:   Tue Nov 8 16:01:56 2016 -0800
  src/cmd/compile/internal/syntax/source.go       | 18 +++--
  src/cmd/compile/internal/syntax/syntax.go       | 99 ++++++++++++++-----------
  8 files changed, 126 insertions(+), 85 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 0189242d18..35cbeb5a25 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"fmt"
++	"os"
+ 	"strconv"
+ 	"strings"
+ 	"unicode/utf8"
+@@ -14,18 +15,21 @@ import (
+ )
+ 
+ func parseFile(filename string) {
+-	p := noder{baseline: lexlineno}
+-	file, err := syntax.ReadFile(filename, p.error, p.pragma, 0)
++	src, err := os.Open(filename)
+ 	if err != nil {
+-		fmt.Printf("parse %s: %v\n", filename, err)
++		fmt.Println(err)
+ 		errorexit()
+ 	}
++	defer src.Close()
++
++	p := noder{baseline: lexlineno}
++	file, _ := syntax.Parse(src, p.error, p.pragma, 0) // errors are tracked via p.error
+ 
+ 	p.file(file)
+ 
+ 	if !imported_unsafe {
+ 		for _, x := range p.linknames {
+-			p.error(0, x, "//go:linkname only allowed in Go files that import \"unsafe\"")
++			p.error(syntax.Error{0, x, "//go:linkname only allowed in Go files that import \"unsafe\""})
+ 		}
+ 	}
+ 
+@@ -1003,8 +1007,16 @@ func (p *noder) lineno(n syntax.Node) {
+ 	lineno = p.baseline + l - 1
+ }
+ 
+-func (p *noder) error(_, line int, msg string) {
+-	yyerrorl(p.baseline+int32(line)-1, "%s", msg)
++func (p *noder) error(err error) {
++	line := p.baseline
++	var msg string
++	if err, ok := err.(syntax.Error); ok {
++		line += int32(err.Line) - 1
++		msg = err.Msg
++	} else {
++		msg = err.Error()
++	}
++	yyerrorl(line, "%s", msg)
+ }
+ 
+ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
+@@ -1020,7 +1032,7 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
+ 			break
+ 		}
+ 		if n > 1e8 {
+-			p.error(pos, line, "line number out of range")
++			p.error(syntax.Error{pos, line, "line number out of range"})
+ 			errorexit()
+ 		}
+ 		if n <= 0 {
+@@ -1036,7 +1048,7 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
+ 
+ 		f := strings.Fields(text)
+ 		if len(f) != 3 {
+-			p.error(pos, line, "usage: //go:linkname localname linkname")
++			p.error(syntax.Error{pos, line, "usage: //go:linkname localname linkname"})
+ 			break
+ 		}
+ 		lookup(f[1]).Linkname = f[2]
+diff --git a/src/cmd/compile/internal/syntax/dumper_test.go b/src/cmd/compile/internal/syntax/dumper_test.go
+index 1ee1d982d0..2b20cbdd97 100644
+--- a/src/cmd/compile/internal/syntax/dumper_test.go
++++ b/src/cmd/compile/internal/syntax/dumper_test.go
+@@ -14,7 +14,7 @@ func TestDump(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 
+-	ast, err := ReadFile(*src, nil, nil, 0)
++	ast, err := ParseFile(*src, nil, nil, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index a959c6cd25..41e7cbe56d 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -24,27 +24,16 @@ type parser struct {
+ 	fnest  int    // function nesting level (for error handling)
+ 	xnest  int    // expression nesting level (for complit ambiguity resolution)
+ 	indent []byte // tracing support
+-
+-	nerrors int // error count
+ }
+ 
+ type parserError string // for error recovery if no error handler was installed
+ 
+ func (p *parser) init(src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
+-	p.scanner.init(src, func(pos, line int, msg string) {
+-		p.nerrors++
+-		if !debug && errh != nil {
+-			errh(pos, line, msg)
+-			return
+-		}
+-		panic(parserError(fmt.Sprintf("%d: %s\n", line, msg)))
+-	}, pragh)
++	p.scanner.init(src, errh, pragh)
+ 
+ 	p.fnest = 0
+ 	p.xnest = 0
+ 	p.indent = nil
+-
+-	p.nerrors = 0
+ }
+ 
+ func (p *parser) got(tok token) bool {
+@@ -76,7 +65,7 @@ func (p *parser) syntax_error_at(pos, line int, msg string) {
+ 		defer p.trace("syntax_error (" + msg + ")")()
+ 	}
+ 
+-	if p.tok == _EOF && p.nerrors > 0 {
++	if p.tok == _EOF && p.first != nil {
+ 		return // avoid meaningless follow-up errors
+ 	}
+ 
+@@ -207,7 +196,7 @@ func (p *parser) file() *File {
+ 	p.want(_Semi)
+ 
+ 	// don't bother continuing if package clause has errors
+-	if p.nerrors > 0 {
++	if p.first != nil {
+ 		return nil
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index 0eb9cd5eb3..dc7f91d5ef 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -22,7 +22,7 @@ var src = flag.String("src", "parser.go", "source file to parse")
+ var verify = flag.Bool("verify", false, "verify idempotent printing")
+ 
+ func TestParse(t *testing.T) {
+-	_, err := ReadFile(*src, nil, nil, 0)
++	_, err := ParseFile(*src, nil, nil, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -52,7 +52,7 @@ func TestStdLib(t *testing.T) {
+ 				if debug {
+ 					fmt.Printf("parsing %s\n", filename)
+ 				}
+-				ast, err := ReadFile(filename, nil, nil, 0)
++				ast, err := ParseFile(filename, nil, nil, 0)
+ 				if err != nil {
+ 					t.Error(err)
+ 					return
+@@ -133,7 +133,7 @@ func verifyPrint(filename string, ast1 *File) {
+ 		panic(err)
+ 	}
+ 
+-	ast2, err := ReadBytes(buf1.Bytes(), nil, nil, 0)
++	ast2, err := ParseBytes(buf1.Bytes(), nil, nil, 0)
+ 	if err != nil {
+ 		panic(err)
+ 	}
+@@ -157,8 +157,28 @@ func verifyPrint(filename string, ast1 *File) {
+ }
+ 
+ func TestIssue17697(t *testing.T) {
+-	_, err := ReadBytes(nil, nil, nil, 0) // return with parser error, don't panic
++	_, err := ParseBytes(nil, nil, nil, 0) // return with parser error, don't panic
+ 	if err == nil {
+ 		t.Errorf("no error reported")
+ 	}
+ }
++
++func TestParseFile(t *testing.T) {
++	_, err := ParseFile("", nil, nil, 0)
++	if err == nil {
++		t.Error("missing io error")
++	}
++
++	var first error
++	_, err = ParseFile("", func(err error) {
++		if first == nil {
++			first = err
++		}
++	}, nil, 0)
++	if err == nil || first == nil {
++		t.Error("missing io error")
++	}
++	if err != first {
++		t.Error("got %v; want first error %v", err, first)
++	}
++}
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index a2d43068dd..5c0fc776a1 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -15,7 +15,7 @@ func TestPrint(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 
+-	ast, err := ReadFile(*src, nil, nil, 0)
++	ast, err := ParseFile(*src, nil, nil, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index 38a7e0da4c..0e81c4e613 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -322,21 +322,22 @@ func TestScanErrors(t *testing.T) {
+ 	} {
+ 		var s scanner
+ 		nerrors := 0
+-		s.init(&bytesReader{[]byte(test.src)}, func(pos, line int, msg string) {
++		s.init(&bytesReader{[]byte(test.src)}, func(err error) {
+ 			nerrors++
+ 			// only check the first error
++			e := err.(Error) // we know it's an Error
+ 			if nerrors == 1 {
+-				if msg != test.msg {
+-					t.Errorf("%q: got msg = %q; want %q", test.src, msg, test.msg)
++				if e.Msg != test.msg {
++					t.Errorf("%q: got msg = %q; want %q", test.src, e.Msg, test.msg)
+ 				}
+-				if pos != test.pos {
+-					t.Errorf("%q: got pos = %d; want %d", test.src, pos, test.pos)
++				if e.Pos != test.pos {
++					t.Errorf("%q: got pos = %d; want %d", test.src, e.Pos, test.pos)
+ 				}
+-				if line != test.line {
+-					t.Errorf("%q: got line = %d; want %d", test.src, line, test.line)
++				if e.Line != test.line {
++					t.Errorf("%q: got line = %d; want %d", test.src, e.Line, test.line)
+ 				}
+ 			} else if nerrors > 1 {
+-				t.Errorf("%q: got unexpected %q at pos = %d, line = %d", test.src, msg, pos, line)
++				t.Errorf("%q: got unexpected %q at pos = %d, line = %d", test.src, e.Msg, e.Pos, e.Line)
+ 			}
+ 		}, nil)
+ 
+diff --git a/src/cmd/compile/internal/syntax/source.go b/src/cmd/compile/internal/syntax/source.go
+index 87c22fcc26..05a11960c6 100644
+--- a/src/cmd/compile/internal/syntax/source.go
++++ b/src/cmd/compile/internal/syntax/source.go
+@@ -5,7 +5,6 @@
+ package syntax
+ 
+ import (
+-	"fmt"
+ 	"io"
+ 	"unicode/utf8"
+ )
+@@ -16,8 +15,9 @@ import (
+ //        suf     r0  r            w
+ 
+ type source struct {
+-	src  io.Reader
+-	errh ErrorHandler
++	src   io.Reader
++	errh  ErrorHandler
++	first error // first error encountered
+ 
+ 	// source buffer
+ 	buf         [4 << 10]byte
+@@ -34,6 +34,7 @@ type source struct {
+ func (s *source) init(src io.Reader, errh ErrorHandler) {
+ 	s.src = src
+ 	s.errh = errh
++	s.first = nil
+ 
+ 	s.buf[0] = utf8.RuneSelf // terminate with sentinel
+ 	s.offs = 0
+@@ -50,11 +51,14 @@ func (s *source) error(msg string) {
+ }
+ 
+ func (s *source) error_at(pos, line int, msg string) {
+-	if s.errh != nil {
+-		s.errh(pos, line, msg)
+-		return
++	err := Error{pos, line, msg}
++	if s.first == nil {
++		s.first = err
+ 	}
+-	panic(fmt.Sprintf("%d: %s", line, msg))
++	if s.errh == nil {
++		panic(s.first)
++	}
++	s.errh(err)
+ }
+ 
+ // pos0 returns the byte position of the last character read.
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+index 71fc097c3b..b1e56ee946 100644
+--- a/src/cmd/compile/internal/syntax/syntax.go
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -5,35 +5,72 @@
+ package syntax
+ 
+ import (
+-	"errors"
+ 	"fmt"
+ 	"io"
+ 	"os"
+ )
+ 
++// Mode describes the parser mode.
+ type Mode uint
+ 
++// Error describes a syntax error. Error implements the error interface.
++type Error struct {
++	// TODO(gri) decide what we really need here
++	Pos  int // byte offset from file start
++	Line int // line (starting with 1)
++	Msg  string
++}
++
++func (err Error) Error() string {
++	return fmt.Sprintf("%d: %s", err.Line, err.Msg)
++}
++
++var _ error = Error{} // verify that Error implements error
++
++// An ErrorHandler is called for each error encountered reading a .go file.
++type ErrorHandler func(err error)
++
+ // A Pragma value is a set of flags that augment a function or
+ // type declaration. Callers may assign meaning to the flags as
+ // appropriate.
+ type Pragma uint16
+ 
+-type ErrorHandler func(pos, line int, msg string)
+-
+ // A PragmaHandler is used to process //line and //go: directives as
+ // they're scanned. The returned Pragma value will be unioned into the
+ // next FuncDecl node.
+ type PragmaHandler func(pos, line int, text string) Pragma
+ 
+-// TODO(gri) These need a lot more work.
++// Parse parses a single Go source file from src and returns the corresponding
++// syntax tree. If there are syntax errors, Parse will return the first error
++// encountered.
++//
++// If errh != nil, it is called with each error encountered, and Parse will
++// process as much source as possible. If errh is nil, Parse will terminate
++// immediately upon encountering an error.
++//
++// If a PragmaHandler is provided, it is called with each pragma encountered.
++//
++// The Mode argument is currently ignored.
++func Parse(src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, err error) {
++	defer func() {
++		if p := recover(); p != nil {
++			var ok bool
++			if err, ok = p.(Error); ok {
++				return
++			}
++			panic(p)
++		}
++	}()
+ 
+-func ReadFile(filename string, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
+-	src, err := os.Open(filename)
+-	if err != nil {
+-		return nil, err
+-	}
+-	defer src.Close()
+-	return Read(src, errh, pragh, mode)
++	var p parser
++	p.init(src, errh, pragh)
++	p.next()
++	return p.file(), p.first
++}
++
++// ParseBytes behaves like Parse but it reads the source from the []byte slice provided.
++func ParseBytes(src []byte, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
++	return Parse(&bytesReader{src}, errh, pragh, mode)
+ }
+ 
+ type bytesReader struct {
+@@ -49,37 +86,15 @@ func (r *bytesReader) Read(p []byte) (int, error) {
+ 	return 0, io.EOF
+ }
+ 
+-func ReadBytes(src []byte, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
+-	return Read(&bytesReader{src}, errh, pragh, mode)
+-}
+-
+-func Read(src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (ast *File, err error) {
+-	defer func() {
+-		if p := recover(); p != nil {
+-			if msg, ok := p.(parserError); ok {
+-				err = errors.New(string(msg))
+-				return
+-			}
+-			panic(p)
++// ParseFile behaves like Parse but it reads the source from the named file.
++func ParseFile(filename string, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
++	src, err := os.Open(filename)
++	if err != nil {
++		if errh != nil {
++			errh(err)
+ 		}
+-	}()
+-
+-	var p parser
+-	p.init(src, errh, pragh)
+-	p.next()
+-	ast = p.file()
+-
+-	// TODO(gri) This isn't quite right: Even if there's an error handler installed
+-	//           we should report an error if parsing found syntax errors. This also
+-	//           requires updating the noder's ReadFile call.
+-	if errh == nil && p.nerrors > 0 {
+-		ast = nil
+-		err = fmt.Errorf("%d syntax errors", p.nerrors)
++		return nil, err
+ 	}
+-
+-	return
+-}
+-
+-func Write(w io.Writer, n *File) error {
+-	panic("unimplemented")
++	defer src.Close()
++	return Parse(src, errh, pragh, mode)
+ }

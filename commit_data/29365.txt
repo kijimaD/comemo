@@ -17,10 +17,98 @@ Date:   Sun Sep 11 14:43:37 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go    | 2 +-
  src/cmd/compile/internal/gc/inl.go       | 6 +++---
  src/cmd/compile/internal/gc/pgen.go      | 2 +-
  src/cmd/compile/internal/gc/subr.go      | 6 ++++++
  src/cmd/compile/internal/gc/typecheck.go | 2 +-
  5 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 967b7ba140..fa8eef4184 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -116,7 +116,7 @@ func reexportdep(n *Node) {
+ 			}
+ 
+ 			// nodes for method calls.
+-			if n.Type == nil || n.Type.Recv() != nil {
++			if n.Type == nil || n.IsMethod() {
+ 				break
+ 			}
+ 			fallthrough
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 8043ac8444..7c172e6489 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -32,7 +32,7 @@ import "fmt"
+ // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
+ // the ->sym can be re-used in the local package, so peel it off the receiver's type.
+ func fnpkg(fn *Node) *Pkg {
+-	if fn.Type.Recv() != nil {
++	if fn.IsMethod() {
+ 		// method
+ 		rcvr := fn.Type.Recv().Type
+ 
+@@ -615,7 +615,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 	}
+ 
+ 	// assign receiver.
+-	if fn.Type.Recv() != nil && n.Left.Op == ODOTMETH {
++	if fn.IsMethod() && n.Left.Op == ODOTMETH {
+ 		// method call with a receiver.
+ 		t := fn.Type.Recv()
+ 
+@@ -679,7 +679,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 	li := 0
+ 
+ 	// TODO: if len(nlist) == 1 but multiple args, check that n->list->n is a call?
+-	if fn.Type.Recv() != nil && n.Left.Op != ODOTMETH {
++	if fn.IsMethod() && n.Left.Op != ODOTMETH {
+ 		// non-method call to method
+ 		if n.List.Len() == 0 {
+ 			Fatalf("non-method call to method without first arg: %+v", n)
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index da2e6752a2..402459b3c3 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -144,7 +144,7 @@ func emitptrargsmap() {
+ 	off := duint32(sym, 0, uint32(nbitmap))
+ 	off = duint32(sym, off, uint32(bv.n))
+ 	var xoffset int64
+-	if Curfn.Type.Recv() != nil {
++	if Curfn.IsMethod() {
+ 		xoffset = 0
+ 		onebitwalktype1(Curfn.Type.Recvs(), &xoffset, bv)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 8e6634c9f0..7e30efcf75 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1038,6 +1038,12 @@ func Is64(t *Type) bool {
+ 	return false
+ }
+ 
++// IsMethod reports whether n is a method.
++// n must be a function or a method.
++func (n *Node) IsMethod() bool {
++	return n.Type.Recv() != nil
++}
++
+ // SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
+ // n must be a slice expression. max is nil if n is a simple slice expression.
+ func (n *Node) SliceBounds() (low, high, max *Node) {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 68b0fd8e56..8a4431205a 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -860,7 +860,7 @@ OpSwitch:
+ 				return n
+ 			}
+ 
+-			if n.Type.Etype != TFUNC || n.Type.Recv() == nil {
++			if n.Type.Etype != TFUNC || !n.IsMethod() {
+ 				Yyerror("type %v has no method %1v", n.Left.Type, n.Right.Sym)
+ 				n.Type = nil
+ 				return n

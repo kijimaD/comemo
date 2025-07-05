@@ -32,3 +32,24 @@ Date:   Mon Oct 6 14:18:56 2014 -0400
  src/syscall/mksyscall_windows.go |   79 ++-
  src/syscall/zsyscall_windows.go  |   36 +-
  19 files changed, 786 insertions(+), 928 deletions(-)
+
+diff --cc src/runtime/select.go
+index 1bcea8c4b4,9de057b871..2d0787bd96
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@@ -377,8 -377,14 +377,9 @@@ loop
+  	// iterating through the linked list they are in reverse order.
+  	cas = nil
+  	sglist = gp.waiting
+ -	// Clear all selectdone and elem before unlinking from gp.waiting.
+ -	// They must be cleared before being put back into the sudog cache.
+ -	// Clear before unlinking, because if a stack copy happens after the unlink,
+ -	// they will not be updated, they will be left pointing to the old stack,
+ -	// which creates dangling pointers, which may be detected by the
+ -	// garbage collector.
+ +	// Clear all elem before unlinking from gp.waiting.
+  	for sg1 := gp.waiting; sg1 != nil; sg1 = sg1.waitlink {
++ 		sg1.selectdone = nil
+  		sg1.elem = nil
+  	}
+  	gp.waiting = nil

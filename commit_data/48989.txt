@@ -8,6 +8,19 @@ Date:   Tue Jun 8 20:13:23 2021 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/326011
     Reviewed-by: Damien Neil <dneil@google.com>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/net/http/transport.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 47cb992a50..309194e8e5 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -427,6 +427,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
+ //
+ // The environment values may be either a complete URL or a
+ // "host[:port]", in which case the "http" scheme is assumed.
++// The schemes "http", "https", and "socks5" are supported.
+ // An error is returned if the value is a different form.
+ //
+ // A nil URL and nil error are returned if no proxy is defined in the

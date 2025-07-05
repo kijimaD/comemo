@@ -9,10 +9,444 @@ Date:   Mon Jul 20 10:08:48 2009 -0700
     DELTA=129  (37 added, 7 deleted, 85 changed)
     OCL=31826
     CL=31854
-
+---
  src/cmd/6l/asm.c   | 98 +++++++++++++++++++++++++-----------------------------
  src/cmd/6l/l.h     | 11 ++++--
  src/cmd/6l/span.c  | 18 +++++-----
  src/cmd/ld/elf64.c | 83 ++++++++++++++++++++++++++++++---------------
  src/cmd/ld/elf64.h |  2 ++
  5 files changed, 121 insertions(+), 91 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index eb3a8921cd..3db010a788 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -60,21 +60,21 @@ entryvalue(void)
+ }
+ 
+ void
+-wputl(ushort w)
++wputl(uint16 w)
+ {
+ 	cput(w);
+ 	cput(w>>8);
+ }
+ 
+ void
+-wput(ushort w)
++wputb(uint16 w)
+ {
+ 	cput(w>>8);
+ 	cput(w);
+ }
+ 
+ void
+-lput(int32 l)
++lputb(int32 l)
+ {
+ 	cput(l>>24);
+ 	cput(l>>16);
+@@ -83,10 +83,10 @@ lput(int32 l)
+ }
+ 
+ void
+-vput(vlong v)
++vputb(uint64 v)
+ {
+-	lput(v>>32);
+-	lput(v);
++	lputb(v>>32);
++	lputb(v);
+ }
+ 
+ void
+@@ -99,7 +99,7 @@ lputl(int32 l)
+ }
+ 
+ void
+-vputl(vlong v)
++vputl(uint64 v)
+ {
+ 	lputl(v);
+ 	lputl(v>>32);
+@@ -126,10 +126,9 @@ asmb(void)
+ 	uchar *op1;
+ 	vlong vl, va, fo, w, symo;
+ 	vlong symdatva = 0x99LL<<32;
+-	int strtabindex;
++	Elf64Hdr *eh;
+ 	Elf64PHdr *ph;
+ 	Elf64SHdr *sh;
+-	char eident[EI_NIDENT];
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+@@ -277,29 +276,29 @@ asmb(void)
+ 		magic |= 0x00008000;		/* fat header */
+ 		if(dlm)
+ 			magic |= 0x80000000;	/* dlm */
+-		lput(magic);			/* magic */
+-		lput(textsize);			/* sizes */
+-		lput(datsize);
+-		lput(bsssize);
+-		lput(symsize);			/* nsyms */
++		lputb(magic);			/* magic */
++		lputb(textsize);			/* sizes */
++		lputb(datsize);
++		lputb(bsssize);
++		lputb(symsize);			/* nsyms */
+ 		vl = entryvalue();
+-		lput(PADDR(vl));		/* va of entry */
+-		lput(spsize);			/* sp offsets */
+-		lput(lcsize);			/* line offsets */
+-		vput(vl);			/* va of entry */
++		lputb(PADDR(vl));		/* va of entry */
++		lputb(spsize);			/* sp offsets */
++		lputb(lcsize);			/* line offsets */
++		vputb(vl);			/* va of entry */
+ 		break;
+ 	case 3:	/* plan9 */
+ 		magic = 4*26*26+7;
+ 		if(dlm)
+ 			magic |= 0x80000000;
+-		lput(magic);			/* magic */
+-		lput(textsize);			/* sizes */
+-		lput(datsize);
+-		lput(bsssize);
+-		lput(symsize);			/* nsyms */
+-		lput(entryvalue());		/* va of entry */
+-		lput(spsize);			/* sp offsets */
+-		lput(lcsize);			/* line offsets */
++		lputb(magic);			/* magic */
++		lputb(textsize);		/* sizes */
++		lputb(datsize);
++		lputb(bsssize);
++		lputb(symsize);			/* nsyms */
++		lputb(entryvalue());		/* va of entry */
++		lputb(spsize);			/* sp offsets */
++		lputb(lcsize);			/* line offsets */
+ 		break;
+ 	case 5:
+ 		strnput("\177ELF", 4);		/* e_ident */
+@@ -503,7 +502,6 @@ asmb(void)
+ 
+ 		w = STRTABSIZE;
+ 
+-		strtabindex = nume64shdr;
+ 		sh = newElf64SHdr(".shstrtab");
+ 		sh->type = SHT_STRTAB;
+ 		sh->off = fo;
+@@ -533,31 +531,27 @@ asmb(void)
+ 		sh->addralign = 1;
+ 		sh->entsize = 24;
+ 
+-		// write out the main header */
+-		memset(eident, 0, sizeof eident);
+-		eident[EI_MAG0] = '\177';
+-		eident[EI_MAG1] = 'E';
+-		eident[EI_MAG2] = 'L';
+-		eident[EI_MAG3] = 'F';
+-		eident[EI_CLASS] = ELFCLASS64;
+-		eident[EI_DATA] = ELFDATA2LSB;
+-		eident[EI_VERSION] = EV_CURRENT;
+-		strnput(eident, EI_NIDENT);
+-
+-		wputl(ET_EXEC);			/* type = EXEC */
+-		wputl(62);			/* machine = AMD64 */
+-		lputl(EV_CURRENT);			/* version = CURRENT */
+-		vputl(entryvalue());		/* entry vaddr */
+-		vputl(64L);			/* offset to first phdr */
+-		vputl(64L+56*nume64phdr);		/* offset to first shdr */
+-		lputl(0L);			/* processor specific flags */
+-		wputl(64);			/* Ehdr size */
+-		wputl(56);			/* Phdr size */
+-		wputl(nume64phdr);			/* # of Phdrs */
+-		wputl(64);			/* Shdr size */
+-		wputl(nume64shdr);			/* # of Shdrs */
+-		wputl(strtabindex);			/* Shdr with strings */
+-
++		// main header */
++		eh = getElf64Hdr();
++		eh->ident[EI_MAG0] = '\177';
++		eh->ident[EI_MAG1] = 'E';
++		eh->ident[EI_MAG2] = 'L';
++		eh->ident[EI_MAG3] = 'F';
++		eh->ident[EI_CLASS] = ELFCLASS64;
++		eh->ident[EI_DATA] = ELFDATA2LSB;
++		eh->ident[EI_VERSION] = EV_CURRENT;
++
++		eh->type = ET_EXEC;
++		eh->machine = 62;	/* machine = AMD64 */
++		eh->version = EV_CURRENT;
++		eh->entry = entryvalue();
++		eh->phoff = 64L;
++		eh->shoff = 64L+56*eh->phnum;
++		eh->ehsize = 64;
++		eh->phentsize = 56;
++		eh->shentsize = 64;
++
++		elf64writehdr();
+ 		elf64writephdrs();
+ 		elf64writeshdrs();
+ 		cflush();
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index e09579a6e7..4a7cfc8347 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -413,7 +413,7 @@ void	ldpkg(Biobuf*, int64, char*);
+ void	loadlib(void);
+ void	listinit(void);
+ Sym*	lookup(char*, int);
+-void	lput(int32);
++void	lputb(int32);
+ void	lputl(int32);
+ void	main(int, char*[]);
+ void	mkfwd(void);
+@@ -436,8 +436,9 @@ void	strnput(char*, int);
+ void	undef(void);
+ void	undefsym(Sym*);
+ vlong	vaddr(Adr*);
+-void	vputl(vlong);
+-void	wput(ushort);
++void	vputl(uint64);
++void	wputb(uint16);
++void	wputl(uint16);
+ void	xdefine(char*, int, vlong);
+ void	xfol(Prog*);
+ void	zaddr(Biobuf*, Adr*, Sym*[]);
+@@ -450,6 +451,10 @@ void	machstack(vlong);
+ void	machdylink(void);
+ uint32	machheadr(void);
+ 
++/* Native is little-endian */
++#define	LPUT(a)	lputl(a)
++#define	WPUT(a)	wputl(a)
++#define	VPUT(a)	vputl(a)
+ 
+ #pragma	varargck	type	"D"	Adr*
+ #pragma	varargck	type	"P"	Prog*
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 18b659adc8..c0901dd429 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -158,10 +158,10 @@ putsymb(char *s, int t, vlong v, int ver, char *go)
+ 		s++;
+ 	l = 4;
+ 	if(!debug['8']){
+-		lput(v>>32);
++		lputb(v>>32);
+ 		l = 8;
+ 	}
+-	lput(v);
++	lputb(v);
+ 	if(ver)
+ 		t += 'a' - 'A';
+ 	cput(t+0x80);			/* 0x80 is variable length */
+@@ -1726,14 +1726,14 @@ asmdyn()
+ 
+ 	cflush();
+ 	off = seek(cout, 0, 1);
+-	lput(0);
++	lputb(0);
+ 	t = 0;
+-	lput(imports);
++	lputb(imports);
+ 	t += 4;
+ 	for(i = 0; i < NHASH; i++)
+ 		for(s = hash[i]; s != S; s = s->link)
+ 			if(s->type == SUNDEF){
+-				lput(s->sig);
++				lputb(s->sig);
+ 				t += 4;
+ 				t += sput(s->name);
+ 			}
+@@ -1743,7 +1743,7 @@ asmdyn()
+ 	n = r->n;
+ 	m = r->m;
+ 	a = r->a;
+-	lput(n);
++	lputb(n);
+ 	t += 4;
+ 	for(i = 0; i < n; i++){
+ 		ra = *a-la;
+@@ -1762,11 +1762,11 @@ asmdyn()
+ 			t++;
+ 		}
+ 		else if(c == 1){
+-			wput(ra);
++			wputb(ra);
+ 			t += 2;
+ 		}
+ 		else{
+-			lput(ra);
++			lputb(ra);
+ 			t += 4;
+ 		}
+ 		la = *a++;
+@@ -1774,7 +1774,7 @@ asmdyn()
+ 
+ 	cflush();
+ 	seek(cout, off, 0);
+-	lput(t);
++	lputb(t);
+ 
+ 	if(debug['v']){
+ 		Bprint(&bso, "import table entries = %d\n", imports);
+diff --git a/src/cmd/ld/elf64.c b/src/cmd/ld/elf64.c
+index 647becd97d..9b191693d9 100644
+--- a/src/cmd/ld/elf64.c
++++ b/src/cmd/ld/elf64.c
+@@ -7,9 +7,8 @@
+ #include "../ld/elf64.h"
+ 
+ #define	NSECT	16
+-int	nume64phdr;
+-int	nume64shdr;
+-int	nume64str;
++static	int	nume64str;
++static	Elf64Hdr	hdr;
+ static	Elf64PHdr	*phdr[NSECT];
+ static	Elf64SHdr	*shdr[NSECT];
+ static	char	*sname[NSECT];
+@@ -18,29 +17,29 @@ static	char	*str[NSECT];
+ void
+ elf64phdr(Elf64PHdr *e)
+ {
+-	lputl(e->type);
+-	lputl(e->flags);
+-	vputl(e->off);
+-	vputl(e->vaddr);
+-	vputl(e->paddr);
+-	vputl(e->filesz);
+-	vputl(e->memsz);
+-	vputl(e->align);
++	LPUT(e->type);
++	LPUT(e->flags);
++	VPUT(e->off);
++	VPUT(e->vaddr);
++	VPUT(e->paddr);
++	VPUT(e->filesz);
++	VPUT(e->memsz);
++	VPUT(e->align);
+ }
+ 
+ void
+ elf64shdr(char *name, Elf64SHdr *e)
+ {
+-	lputl(e->name);
+-	lputl(e->type);
+-	vputl(e->flags);
+-	vputl(e->addr);
+-	vputl(e->off);
+-	vputl(e->size);
+-	lputl(e->link);
+-	lputl(e->info);
+-	vputl(e->addralign);
+-	vputl(e->entsize);
++	LPUT(e->name);
++	LPUT(e->type);
++	VPUT(e->flags);
++	VPUT(e->addr);
++	VPUT(e->off);
++	VPUT(e->size);
++	LPUT(e->link);
++	LPUT(e->info);
++	VPUT(e->addralign);
++	VPUT(e->entsize);
+ }
+ 
+ int
+@@ -108,7 +107,7 @@ elf64writeshdrs(void)
+ {
+ 	int i;
+ 
+-	for (i = 0; i < nume64shdr; i++)
++	for (i = 0; i < hdr.shnum; i++)
+ 		elf64shdr(sname[i], shdr[i]);
+ }
+ 
+@@ -117,7 +116,7 @@ elf64writephdrs(void)
+ {
+ 	int i;
+ 
+-	for (i = 0; i < nume64phdr; i++)
++	for (i = 0; i < hdr.phnum; i++)
+ 		elf64phdr(phdr[i]);
+ }
+ 
+@@ -128,10 +127,10 @@ newElf64PHdr(void)
+ 
+ 	e = malloc(sizeof *e);
+ 	memset(e, 0, sizeof *e);
+-	if (nume64phdr >= NSECT)
++	if (hdr.phnum >= NSECT)
+ 		diag("too many phdrs");
+ 	else
+-		phdr[nume64phdr++] = e;
++		phdr[hdr.phnum++] = e;
+ 	return e;
+ }
+ 
+@@ -140,14 +139,44 @@ newElf64SHdr(char *name)
+ {
+ 	Elf64SHdr *e;
+ 
++	if (strcmp(name, ".shstrtab") == 0)
++		hdr.shstrndx = hdr.shnum;
+ 	e = malloc(sizeof *e);
+ 	memset(e, 0, sizeof *e);
+ 	e->name = stroffset;
+-	if (nume64shdr >= NSECT) {
++	if (hdr.shnum >= NSECT) {
+ 		diag("too many shdrs");
+ 	} else {
+ 		e64addstr(name);
+-		shdr[nume64shdr++] = e;
++		shdr[hdr.shnum++] = e;
+ 	}
+ 	return e;
+ }
++
++Elf64Hdr*
++getElf64Hdr(void)
++{
++	return &hdr;
++}
++
++void
++elf64writehdr()
++{
++	int i;
++
++	for (i = 0; i < EI_NIDENT; i++)
++		cput(hdr.ident[i]);
++	WPUT(hdr.type);
++	WPUT(hdr.machine);
++	LPUT(hdr.version);
++	VPUT(hdr.entry);
++	VPUT(hdr.phoff);
++	VPUT(hdr.shoff);
++	LPUT(hdr.flags);
++	WPUT(hdr.ehsize);
++	WPUT(hdr.phentsize);
++	WPUT(hdr.phnum);
++	WPUT(hdr.shentsize);
++	WPUT(hdr.shnum);
++	WPUT(hdr.shstrndx);
++}
+diff --git a/src/cmd/ld/elf64.h b/src/cmd/ld/elf64.h
+index f7af0f07c9..fc71744e64 100644
+--- a/src/cmd/ld/elf64.h
++++ b/src/cmd/ld/elf64.h
+@@ -166,9 +166,11 @@ struct Elf64SHdr
+ #define	SHF_MASKOS	0x0F000000	/* Environment-specific use */
+ #define	SHF_MASKPROC	0xF0000000	/* Processor-specific use */
+ 
++Elf64Hdr	*getElf64Hdr();
+ Elf64SHdr	*newElf64SHdr(char*);
+ Elf64PHdr	*newElf64PHdr();
+ uint32	elf64headr(void);
++void	elf64writehdr(void);
+ void	elf64writephdrs(void);
+ void	elf64writeshdrs(void);
+ void	elf64writestrtable(void);

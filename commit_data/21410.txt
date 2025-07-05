@@ -16,7 +16,56 @@ Date:   Wed Dec 31 13:25:52 2014 -0800
     Change-Id: I96f4190713dc9a9c29142e56658446fba7fb6bc8
     Reviewed-on: https://go-review.googlesource.com/2242
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/go/build.go | 5 ++---
  test/linkx_run.go   | 9 +++++++++
  2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 58fc98d84b..cd17aba737 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1776,9 +1776,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action,
+ 			cxx = true
+ 		}
+ 	}
+-	ldflags := buildLdflags
+-	// Limit slice capacity so that concurrent appends do not race on the shared array.
+-	ldflags = ldflags[:len(ldflags):len(ldflags)]
++	var ldflags []string
+ 	if buildContext.InstallSuffix != "" {
+ 		ldflags = append(ldflags, "-installsuffix", buildContext.InstallSuffix)
+ 	}
+@@ -1824,6 +1822,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action,
+ 			}
+ 		}
+ 	}
++	ldflags = append(ldflags, buildLdflags...)
+ 	return b.run(".", p.ImportPath, nil, tool(archChar+"l"), "-o", out, importArgs, ldflags, mainpkg)
+ }
+ 
+diff --git a/test/linkx_run.go b/test/linkx_run.go
+index 11b66ed5a9..f3029f50a9 100644
+--- a/test/linkx_run.go
++++ b/test/linkx_run.go
+@@ -16,6 +16,7 @@ import (
+ )
+ 
+ func main() {
++	// Successful run
+ 	cmd := exec.Command("go", "run", "-ldflags=-X main.tbd hello -X main.overwrite trumped -X main.nosuchsymbol neverseen", "linkx.go")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+@@ -30,4 +31,12 @@ func main() {
+ 		fmt.Printf("got %q want %q\n", got, want)
+ 		os.Exit(1)
+ 	}
++
++	// Issue 8810
++	cmd = exec.Command("go", "run", "-ldflags=-X main.tbd", "linkx.go")
++	_, err = cmd.CombinedOutput()
++	if err == nil {
++		fmt.Println("-X linker flag should not accept keys without values")
++		os.Exit(1)
++	}
+ }

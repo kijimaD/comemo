@@ -12,8 +12,91 @@ Date:   Fri Dec 2 14:07:33 2022 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/cgo/gcc_386.S          |  4 ++--
  src/runtime/cgo/gcc_arm.S          | 17 ++---------------
  src/runtime/cgo/gcc_linux_ppc64x.S | 13 ++-----------
  3 files changed, 6 insertions(+), 28 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_386.S b/src/runtime/cgo/gcc_386.S
+index 5e6d715ce2..5bd677f4d6 100644
+--- a/src/runtime/cgo/gcc_386.S
++++ b/src/runtime/cgo/gcc_386.S
+@@ -5,9 +5,9 @@
+ .file "gcc_386.S"
+ 
+ /*
+- * Apple still insists on underscore prefixes for C function names.
++ * Windows still insists on underscore prefixes for C function names.
+  */
+-#if defined(__APPLE__) || defined(_WIN32)
++#if defined(_WIN32)
+ #define EXT(s) _##s
+ #else
+ #define EXT(s) s
+diff --git a/src/runtime/cgo/gcc_arm.S b/src/runtime/cgo/gcc_arm.S
+index 6e8c14a28d..474fc23a39 100644
+--- a/src/runtime/cgo/gcc_arm.S
++++ b/src/runtime/cgo/gcc_arm.S
+@@ -4,19 +4,6 @@
+ 
+ .file "gcc_arm.S"
+ 
+-/*
+- * Apple still insists on underscore prefixes for C function names.
+- */
+-#if defined(__APPLE__)
+-#define EXT(s) _##s
+-#else
+-#define EXT(s) s
+-#endif
+-
+-// Apple's ld64 wants 4-byte alignment for ARM code sections.
+-// .align in both Apple as and GNU as treat n as aligning to 2**n bytes.
+-.align	2
+-
+ /*
+  * void crosscall_arm1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
+  *
+@@ -24,8 +11,8 @@
+  * Called from standard ARM EABI, where r4-r11 are callee-save, so they
+  * must be saved explicitly.
+  */
+-.globl EXT(crosscall_arm1)
+-EXT(crosscall_arm1):
++.globl crosscall_arm1
++crosscall_arm1:
+ 	push {r4, r5, r6, r7, r8, r9, r10, r11, ip, lr}
+ 	mov r4, r0
+ 	mov r5, r1
+diff --git a/src/runtime/cgo/gcc_linux_ppc64x.S b/src/runtime/cgo/gcc_linux_ppc64x.S
+index 5c8b3e70bb..e67deaacf2 100644
+--- a/src/runtime/cgo/gcc_linux_ppc64x.S
++++ b/src/runtime/cgo/gcc_linux_ppc64x.S
+@@ -6,15 +6,6 @@
+ 
+ .file "gcc_linux_ppc64x.S"
+ 
+-/*
+- * Apple still insists on underscore prefixes for C function names.
+- */
+-#if defined(__APPLE__)
+-#define EXT(s) _##s
+-#else
+-#define EXT(s) s
+-#endif
+-
+ /*
+  * void crosscall_ppc64(void (*fn)(void), void *g)
+  *
+@@ -22,8 +13,8 @@
+  * Called from standard ppc64 C ABI, where r2, r14-r31, f14-f31 are
+  * callee-save, so they must be saved explicitly.
+  */
+-.globl EXT(crosscall_ppc64)
+-EXT(crosscall_ppc64):
++.globl crosscall_ppc64
++crosscall_ppc64:
+ 	// Start with standard C stack frame layout and linkage
+ 	mflr	%r0
+ 	std	%r0, 16(%r1)	// Save LR in caller's frame

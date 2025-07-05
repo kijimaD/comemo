@@ -7,8 +7,63 @@ Date:   Wed Jun 29 12:27:53 2011 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4634112
-
+---
  src/pkg/http/chunked.go  | 11 +++++++++++
  src/pkg/http/request.go  |  4 ----
  src/pkg/http/transfer.go |  2 +-
  3 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/http/chunked.go b/src/pkg/http/chunked.go
+index 59121c5a23..6c23e691f0 100644
+--- a/src/pkg/http/chunked.go
++++ b/src/pkg/http/chunked.go
+@@ -9,6 +9,7 @@ import (
+ 	"log"
+ 	"os"
+ 	"strconv"
++	"bufio"
+ )
+ 
+ // NewChunkedWriter returns a new writer that translates writes into HTTP
+@@ -64,3 +65,13 @@ func (cw *chunkedWriter) Close() os.Error {
+ 	_, err := io.WriteString(cw.Wire, "0\r\n")
+ 	return err
+ }
++
++// NewChunkedReader returns a new reader that translates the data read from r
++// out of HTTP "chunked" format before returning it. 
++// The reader returns os.EOF when the final 0-length chunk is read.
++//
++// NewChunkedReader is not needed by normal applications. The http package
++// automatically decodes chunking when reading response bodies.
++func NewChunkedReader(r *bufio.Reader) io.Reader {
++	return &chunkedReader{r: r}
++}
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 456476a212..2917cc1e6e 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -428,10 +428,6 @@ type chunkedReader struct {
+ 	err os.Error
+ }
+ 
+-func newChunkedReader(r *bufio.Reader) *chunkedReader {
+-	return &chunkedReader{r: r}
+-}
+-
+ func (cr *chunkedReader) beginChunk() {
+ 	// chunk-size CRLF
+ 	var line string
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index 2502c1fee1..b65d99a6fd 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -279,7 +279,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
+ 	// or close connection when finished, since multipart is not supported yet
+ 	switch {
+ 	case chunked(t.TransferEncoding):
+-		t.Body = &body{Reader: newChunkedReader(r), hdr: msg, r: r, closing: t.Close}
++		t.Body = &body{Reader: NewChunkedReader(r), hdr: msg, r: r, closing: t.Close}
+ 	case t.ContentLength >= 0:
+ 		// TODO: limit the Content-Length. This is an easy DoS vector.
+ 		t.Body = &body{Reader: io.LimitReader(r, t.ContentLength), closing: t.Close}

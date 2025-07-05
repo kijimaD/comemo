@@ -7,6 +7,19 @@ Date:   Thu Mar 12 11:20:55 2015 -0700
     Change-Id: Ic78deaf91b437016b0a064c1f9ef49c9c29f4c32
     Reviewed-on: https://go-review.googlesource.com/7510
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index c4a8012986..5aa34b80d2 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -13,6 +13,7 @@ crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/213
+ crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
+ crypto/x509: wildcards are now only accepted as the first label (https://golang.org/cl/5691)
+ encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
++flag: new nicer format for PrintDefaults (https://go-review.googlesource.com/7330)
+ go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptyStmt.Semicolon position (https://golang.org/cl/5720)
+ log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
+ net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)

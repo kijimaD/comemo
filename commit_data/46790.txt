@@ -15,7 +15,7 @@ Date:   Wed Jan 27 12:55:57 2021 -0800
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go            |   2 +-
  src/cmd/compile/internal/ir/class_string.go       |   7 +-
  src/cmd/compile/internal/ir/expr.go               |   6 +-
@@ -46,3 +46,825 @@ Date:   Wed Jan 27 12:55:57 2021 -0800
  src/cmd/compile/internal/walk/stmt.go             |   4 +-
  src/cmd/compile/internal/walk/walk.go             |   2 +-
  29 files changed, 164 insertions(+), 154 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index bbbdaa63d4..7d70fca6c9 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1228,7 +1228,7 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
+ 		newrecv = newrecvs[0]
+ 	}
+ 	newt := types.NewSignature(oldt.Pkg(), newrecv,
+-		subst.fields(oldt.Params()), subst.fields(oldt.Results()))
++		nil, subst.fields(oldt.Params()), subst.fields(oldt.Results()))
+ 
+ 	newfn.Nname.SetType(newt)
+ 	newfn.Body = subst.list(oldfn.Body)
+diff --git a/src/cmd/compile/internal/ir/class_string.go b/src/cmd/compile/internal/ir/class_string.go
+index 13b9bd4812..11a94c0047 100644
+--- a/src/cmd/compile/internal/ir/class_string.go
++++ b/src/cmd/compile/internal/ir/class_string.go
+@@ -14,12 +14,13 @@ func _() {
+ 	_ = x[PAUTOHEAP-3]
+ 	_ = x[PPARAM-4]
+ 	_ = x[PPARAMOUT-5]
+-	_ = x[PFUNC-6]
++	_ = x[PTYPEPARAM-6]
++	_ = x[PFUNC-7]
+ }
+ 
+-const _Class_name = "PxxxPEXTERNPAUTOPAUTOHEAPPPARAMPPARAMOUTPFUNC"
++const _Class_name = "PxxxPEXTERNPAUTOPAUTOHEAPPPARAMPPARAMOUTPTYPEPARAMPFUNC"
+ 
+-var _Class_index = [...]uint8{0, 4, 11, 16, 25, 31, 40, 45}
++var _Class_index = [...]uint8{0, 4, 11, 16, 25, 31, 40, 50, 55}
+ 
+ func (i Class) String() string {
+ 	if i >= Class(len(_Class_index)-1) {
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index b32ed71260..92f93e98b8 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -153,11 +153,12 @@ const (
+ 	CallUseStmt // results not used - call is a statement
+ )
+ 
+-// A CallExpr is a function call X(Args).
++// A CallExpr is a function call X[Targs](Args).
+ type CallExpr struct {
+ 	miniExpr
+ 	origNode
+ 	X         Node
++	Targs     Nodes
+ 	Args      Nodes
+ 	KeepAlive []*Name // vars to be kept alive until call returns
+ 	IsDDD     bool
+@@ -165,11 +166,12 @@ type CallExpr struct {
+ 	NoInline  bool
+ }
+ 
+-func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
++func NewCallExpr(pos src.XPos, op Op, fun Node, targs, args []Node) *CallExpr {
+ 	n := &CallExpr{X: fun}
+ 	n.pos = pos
+ 	n.orig = n
+ 	n.SetOp(op)
++	n.Targs = targs
+ 	n.Args = args
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index fa0639600c..6240852aaf 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -473,13 +473,14 @@ type Class uint8
+ 
+ //go:generate stringer -type=Class name.go
+ const (
+-	Pxxx      Class = iota // no class; used during ssa conversion to indicate pseudo-variables
+-	PEXTERN                // global variables
+-	PAUTO                  // local variables
+-	PAUTOHEAP              // local variables or parameters moved to heap
+-	PPARAM                 // input arguments
+-	PPARAMOUT              // output results
+-	PFUNC                  // global functions
++	Pxxx       Class = iota // no class; used during ssa conversion to indicate pseudo-variables
++	PEXTERN                 // global variables
++	PAUTO                   // local variables
++	PAUTOHEAP               // local variables or parameters moved to heap
++	PPARAM                  // input arguments
++	PPARAMOUT               // output results
++	PTYPEPARAM              // type params
++	PFUNC                   // global functions
+ 
+ 	// Careful: Class is stored in three bits in Node.flags.
+ 	_ = uint((1 << 3) - iota) // static assert for iota <= (1 << 3)
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index ffd62367ad..a851844ded 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -82,7 +82,7 @@ func Binary(pos src.XPos, op ir.Op, x, y ir.Node) ir.Node {
+ func Call(pos src.XPos, fun ir.Node, args []ir.Node, dots bool) ir.Node {
+ 	// TODO(mdempsky): This should not be so difficult.
+ 
+-	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
++	n := ir.NewCallExpr(pos, ir.OCALL, fun, nil, args)
+ 	n.IsDDD = dots
+ 
+ 	// Actually a type conversion.
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 1c38f1a934..492c2c242a 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -755,7 +755,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
+ 		}
+ 		return ir.NewBinaryExpr(pos, op, x, y)
+ 	case *syntax.CallExpr:
+-		n := ir.NewCallExpr(p.pos(expr), ir.OCALL, p.expr(expr.Fun), p.exprs(expr.ArgList))
++		n := ir.NewCallExpr(p.pos(expr), ir.OCALL, p.expr(expr.Fun), nil, p.exprs(expr.ArgList))
+ 		n.IsDDD = expr.HasDots
+ 		return n
+ 
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index e0ed5a3f99..de191acc90 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -121,7 +121,7 @@ func (g *irgen) signature(recv *types.Field, sig *types2.Signature) *types.Type
+ 		params[len(params)-1].SetIsDDD(true)
+ 	}
+ 
+-	return types.NewSignature(g.tpkg(sig), recv, params, results)
++	return types.NewSignature(g.tpkg(sig), recv, nil, params, results)
+ }
+ 
+ func (g *irgen) param(v *types2.Var) *types.Field {
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index fcd824f164..3d8729069a 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -176,7 +176,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 		loop.PtrInit().Append(init)
+ 
+ 		// h = hashel(&p[i], h)
+-		call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
++		call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil, nil)
+ 
+ 		nx := ir.NewIndexExpr(base.Pos, np, ni)
+ 		nx.SetBounded(true)
+@@ -202,7 +202,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 			// Hash non-memory fields with appropriate hash function.
+ 			if !isRegularMemory(f.Type) {
+ 				hashel := hashfor(f.Type)
+-				call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
++				call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil, nil)
+ 				nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
+ 				na := typecheck.NodAddr(nx)
+ 				call.Args.Append(na)
+@@ -217,7 +217,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 
+ 			// h = hashel(&p.first, size, h)
+ 			hashel := hashmem(f.Type)
+-			call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil)
++			call := ir.NewCallExpr(base.Pos, ir.OCALL, hashel, nil, nil)
+ 			nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym) // TODO: fields from other packages?
+ 			na := typecheck.NodAddr(nx)
+ 			call.Args.Append(na)
+@@ -289,7 +289,7 @@ func hashfor(t *types.Type) ir.Node {
+ 
+ 	n := typecheck.NewName(sym)
+ 	ir.MarkFunc(n)
+-	n.SetType(types.NewSignature(types.NoPkg, nil, []*types.Field{
++	n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
+ 		types.NewField(base.Pos, nil, types.NewPtr(t)),
+ 		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+ 	}, []*types.Field{
+@@ -672,7 +672,7 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
+ 
+ 	fn := typecheck.LookupRuntime("memequal")
+ 	fn = typecheck.SubstArgTypes(fn, types.Types[types.TUINT8], types.Types[types.TUINT8])
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{sptr, tptr, ir.Copy(slen)})
++	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, []ir.Node{sptr, tptr, ir.Copy(slen)})
+ 	typecheck.Call(call)
+ 
+ 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
+@@ -709,7 +709,7 @@ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
+ 	sdata.SetTypecheck(1)
+ 	tdata.SetTypecheck(1)
+ 
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{stab, sdata, tdata})
++	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, []ir.Node{stab, sdata, tdata})
+ 	typecheck.Call(call)
+ 
+ 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, stab, ttab)
+@@ -725,7 +725,7 @@ func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
+ 	ny := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)))
+ 
+ 	fn, needsize := eqmemfunc(size, nx.Type().Elem())
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
++	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, nil)
+ 	call.Args.Append(nx)
+ 	call.Args.Append(ny)
+ 	if needsize {
+@@ -777,7 +777,7 @@ func hashmem(t *types.Type) ir.Node {
+ 
+ 	n := typecheck.NewName(sym)
+ 	ir.MarkFunc(n)
+-	n.SetType(types.NewSignature(types.NoPkg, nil, []*types.Field{
++	n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
+ 		types.NewField(base.Pos, nil, types.NewPtr(t)),
+ 		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+ 		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 3ff14c87f4..c1385e6dab 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1399,7 +1399,7 @@ func WriteBasicTypes() {
+ 		// The latter is the type of an auto-generated wrapper.
+ 		writeType(types.NewPtr(types.ErrorType))
+ 
+-		writeType(types.NewSignature(types.NoPkg, nil, []*types.Field{
++		writeType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
+ 			types.NewField(base.Pos, nil, types.ErrorType),
+ 		}, []*types.Field{
+ 			types.NewField(base.Pos, nil, types.Types[types.TSTRING]),
+@@ -1747,7 +1747,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
+ 		// generating wrapper from *T to T.
+ 		n := ir.NewIfStmt(base.Pos, nil, nil, nil)
+ 		n.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, nthis, typecheck.NodNil())
+-		call := ir.NewCallExpr(base.Pos, ir.OCALL, typecheck.LookupRuntime("panicwrap"), nil)
++		call := ir.NewCallExpr(base.Pos, ir.OCALL, typecheck.LookupRuntime("panicwrap"), nil, nil)
+ 		n.Body = []ir.Node{call}
+ 		fn.Body.Append(n)
+ 	}
+@@ -1772,7 +1772,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
+ 		fn.Body.Append(ir.NewTailCallStmt(base.Pos, method.Nname.(*ir.Name)))
+ 	} else {
+ 		fn.SetWrapper(true) // ignore frame for panic+recover matching
+-		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
++		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil, nil)
+ 		call.Args = ir.ParamNames(tfn.Type())
+ 		call.IsDDD = tfn.Type().IsVariadic()
+ 		if method.Type.NumResults() > 0 {
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 5bebce1db5..b22a5ef2be 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -305,7 +305,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 
+ 		tail = ir.NewTailCallStmt(base.Pos, f.Nname)
+ 	} else {
+-		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
++		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil, nil)
+ 		call.Args = ir.ParamNames(tfn.Type())
+ 		call.IsDDD = tfn.Type().IsVariadic()
+ 		tail = call
+diff --git a/src/cmd/compile/internal/test/abiutilsaux_test.go b/src/cmd/compile/internal/test/abiutilsaux_test.go
+index 19dd3a51fd..bac0c7639d 100644
+--- a/src/cmd/compile/internal/test/abiutilsaux_test.go
++++ b/src/cmd/compile/internal/test/abiutilsaux_test.go
+@@ -57,7 +57,7 @@ func mkFuncType(rcvr *types.Type, ins []*types.Type, outs []*types.Type) *types.
+ 	if rcvr != nil {
+ 		rf = mkParamResultField(rcvr, q, ir.PPARAM)
+ 	}
+-	return types.NewSignature(types.LocalPkg, rf, inf, outf)
++	return types.NewSignature(types.LocalPkg, rf, nil, inf, outf)
+ }
+ 
+ type expectedDump struct {
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 0dee852529..3f93438dfe 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -211,133 +211,133 @@ func runtimeTypes() []*types.Type {
+ 	typs[1] = types.NewPtr(typs[0])
+ 	typs[2] = types.Types[types.TANY]
+ 	typs[3] = types.NewPtr(typs[2])
+-	typs[4] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[3])})
++	typs[4] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[3])})
+ 	typs[5] = types.Types[types.TUINTPTR]
+ 	typs[6] = types.Types[types.TBOOL]
+ 	typs[7] = types.Types[types.TUNSAFEPTR]
+-	typs[8] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[5]), types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[6])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[7])})
+-	typs[9] = types.NewSignature(types.NoPkg, nil, nil, nil)
++	typs[8] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[5]), types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[6])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[7])})
++	typs[9] = types.NewSignature(types.NoPkg, nil, nil, nil, nil)
+ 	typs[10] = types.Types[types.TINTER]
+-	typs[11] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[10])}, nil)
++	typs[11] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[10])}, nil)
+ 	typs[12] = types.Types[types.TINT32]
+ 	typs[13] = types.NewPtr(typs[12])
+-	typs[14] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[13])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[10])})
++	typs[14] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[13])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[10])})
+ 	typs[15] = types.Types[types.TINT]
+-	typs[16] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[15])}, nil)
++	typs[16] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[15])}, nil)
+ 	typs[17] = types.Types[types.TUINT]
+-	typs[18] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[17]), types.NewField(src.NoXPos, nil, typs[15])}, nil)
+-	typs[19] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])}, nil)
++	typs[18] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[17]), types.NewField(src.NoXPos, nil, typs[15])}, nil)
++	typs[19] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])}, nil)
+ 	typs[20] = types.Types[types.TFLOAT64]
+-	typs[21] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[20])}, nil)
++	typs[21] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[20])}, nil)
+ 	typs[22] = types.Types[types.TINT64]
+-	typs[23] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[22])}, nil)
++	typs[23] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[22])}, nil)
+ 	typs[24] = types.Types[types.TUINT64]
+-	typs[25] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[24])}, nil)
++	typs[25] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[24])}, nil)
+ 	typs[26] = types.Types[types.TCOMPLEX128]
+-	typs[27] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[26])}, nil)
++	typs[27] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[26])}, nil)
+ 	typs[28] = types.Types[types.TSTRING]
+-	typs[29] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])}, nil)
+-	typs[30] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[2])}, nil)
+-	typs[31] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[5])}, nil)
++	typs[29] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])}, nil)
++	typs[30] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[2])}, nil)
++	typs[31] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[5])}, nil)
+ 	typs[32] = types.NewArray(typs[0], 32)
+ 	typs[33] = types.NewPtr(typs[32])
+-	typs[34] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
+-	typs[35] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
+-	typs[36] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
+-	typs[37] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
++	typs[34] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
++	typs[35] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
++	typs[36] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
++	typs[37] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
+ 	typs[38] = types.NewSlice(typs[28])
+-	typs[39] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[38])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
+-	typs[40] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[15])})
++	typs[39] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[38])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
++	typs[40] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[15])})
+ 	typs[41] = types.NewArray(typs[0], 4)
+ 	typs[42] = types.NewPtr(typs[41])
+-	typs[43] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[42]), types.NewField(src.NoXPos, nil, typs[22])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
+-	typs[44] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[15])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
+-	typs[45] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[15])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
++	typs[43] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[42]), types.NewField(src.NoXPos, nil, typs[22])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
++	typs[44] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[15])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
++	typs[45] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[15])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
+ 	typs[46] = types.RuneType
+ 	typs[47] = types.NewSlice(typs[46])
+-	typs[48] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[47])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
++	typs[48] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[47])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])})
+ 	typs[49] = types.NewSlice(typs[0])
+-	typs[50] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[49])})
++	typs[50] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[33]), types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[49])})
+ 	typs[51] = types.NewArray(typs[46], 32)
+ 	typs[52] = types.NewPtr(typs[51])
+-	typs[53] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[52]), types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[47])})
+-	typs[54] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[5])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[15])})
+-	typs[55] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[15])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[46]), types.NewField(src.NoXPos, nil, typs[15])})
+-	typs[56] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[15])})
+-	typs[57] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[2])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[2])})
+-	typs[58] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[2])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[7])})
+-	typs[59] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[2])})
+-	typs[60] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[2])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[2]), types.NewField(src.NoXPos, nil, typs[6])})
+-	typs[61] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[1])}, nil)
+-	typs[62] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1])}, nil)
++	typs[53] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[52]), types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[47])})
++	typs[54] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[5])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[15])})
++	typs[55] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[28]), types.NewField(src.NoXPos, nil, typs[15])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[46]), types.NewField(src.NoXPos, nil, typs[15])})
++	typs[56] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[28])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[15])})
++	typs[57] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[2])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[2])})
++	typs[58] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[2])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[7])})
++	typs[59] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[2])})
++	typs[60] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[2])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[2]), types.NewField(src.NoXPos, nil, typs[6])})
++	typs[61] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[1])}, nil)
++	typs[62] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1])}, nil)
+ 	typs[63] = types.NewPtr(typs[5])
+-	typs[64] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[63]), types.NewField(src.NoXPos, nil, typs[7]), types.NewField(src.NoXPos, nil, typs[7])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
++	typs[64] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[63]), types.NewField(src.NoXPos, nil, typs[7]), types.NewField(src.NoXPos, nil, typs[7])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
+ 	typs[65] = types.Types[types.TUINT32]
+-	typs[66] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[65])})
++	typs[66] = types.NewSignature(types.NoPkg, nil, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[65])})
+ 	typs[67] = types.NewMap(typs[2], typs[2])
+-	typs[68] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[22]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[67])})
+-	typs[69] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[67])})
+-	typs[70] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[67])})
+-	typs[71] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[3])})
+-	typs[72] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[2])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[3])})
+-	typs[73] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[1])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[3])})
+-	typs[74] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[6])})
+-	typs[75] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[2])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[6])})
+-	typs[76] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[1])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[6])})
+-	typs[77] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[3])}, nil)
+-	typs[78] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[2])}, nil)
+-	typs[79] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[3])}, nil)
+-	typs[80] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67])}, nil)
++	typs[68] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[22]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[67])})
++	typs[69] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[67])})
++	typs[70] = types.NewSignature(types.NoPkg, nil, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[67])})
++	typs[71] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[3])})
++	typs[72] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[2])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[3])})
++	typs[73] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[1])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[3])})
++	typs[74] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[6])})
++	typs[75] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[2])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[6])})
++	typs[76] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[1])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[6])})
++	typs[77] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[3])}, nil)
++	typs[78] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67]), types.NewField(src.NoXPos, nil, typs[2])}, nil)
++	typs[79] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[3])}, nil)
++	typs[80] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[67])}, nil)
+ 	typs[81] = types.NewChan(typs[2], types.Cboth)
+-	typs[82] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[22])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[81])})
+-	typs[83] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[15])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[81])})
++	typs[82] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[22])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[81])})
++	typs[83] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[15])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[81])})
+ 	typs[84] = types.NewChan(typs[2], types.Crecv)
+-	typs[85] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[84]), types.NewField(src.NoXPos, nil, typs[3])}, nil)
+-	typs[86] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[84]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
++	typs[85] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[84]), types.NewField(src.NoXPos, nil, typs[3])}, nil)
++	typs[86] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[84]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
+ 	typs[87] = types.NewChan(typs[2], types.Csend)
+-	typs[88] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[87]), types.NewField(src.NoXPos, nil, typs[3])}, nil)
++	typs[88] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[87]), types.NewField(src.NoXPos, nil, typs[3])}, nil)
+ 	typs[89] = types.NewArray(typs[0], 3)
+ 	typs[90] = types.NewStruct(types.NoPkg, []*types.Field{types.NewField(src.NoXPos, Lookup("enabled"), typs[6]), types.NewField(src.NoXPos, Lookup("pad"), typs[89]), types.NewField(src.NoXPos, Lookup("needed"), typs[6]), types.NewField(src.NoXPos, Lookup("cgo"), typs[6]), types.NewField(src.NoXPos, Lookup("alignme"), typs[24])})
+-	typs[91] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[3])}, nil)
+-	typs[92] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[3])}, nil)
+-	typs[93] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[15])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[15])})
+-	typs[94] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[87]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
+-	typs[95] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[84])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
++	typs[91] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[3])}, nil)
++	typs[92] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[3])}, nil)
++	typs[93] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[15])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[15])})
++	typs[94] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[87]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
++	typs[95] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[84])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
+ 	typs[96] = types.NewPtr(typs[6])
+-	typs[97] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[96]), types.NewField(src.NoXPos, nil, typs[84])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
+-	typs[98] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[63])}, nil)
+-	typs[99] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[63]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[6])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[6])})
+-	typs[100] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[15])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[7])})
+-	typs[101] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[22]), types.NewField(src.NoXPos, nil, typs[22])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[7])})
+-	typs[102] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[7])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[7])})
++	typs[97] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[96]), types.NewField(src.NoXPos, nil, typs[84])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
++	typs[98] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[63])}, nil)
++	typs[99] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[63]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[6])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[6])})
++	typs[100] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[15])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[7])})
++	typs[101] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[22]), types.NewField(src.NoXPos, nil, typs[22])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[7])})
++	typs[102] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[15]), types.NewField(src.NoXPos, nil, typs[7])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[7])})
+ 	typs[103] = types.NewSlice(typs[2])
+-	typs[104] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[103]), types.NewField(src.NoXPos, nil, typs[15])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[103])})
+-	typs[105] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[5])}, nil)
+-	typs[106] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[7]), types.NewField(src.NoXPos, nil, typs[5])}, nil)
+-	typs[107] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[5])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
+-	typs[108] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
+-	typs[109] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[7]), types.NewField(src.NoXPos, nil, typs[7])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
+-	typs[110] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[7]), types.NewField(src.NoXPos, nil, typs[5]), types.NewField(src.NoXPos, nil, typs[5])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[5])})
+-	typs[111] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[7]), types.NewField(src.NoXPos, nil, typs[5])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[5])})
+-	typs[112] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[22]), types.NewField(src.NoXPos, nil, typs[22])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[22])})
+-	typs[113] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[24]), types.NewField(src.NoXPos, nil, typs[24])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[24])})
+-	typs[114] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[20])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[22])})
+-	typs[115] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[20])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[24])})
+-	typs[116] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[20])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[65])})
+-	typs[117] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[22])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[20])})
+-	typs[118] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[24])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[20])})
+-	typs[119] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[65])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[20])})
+-	typs[120] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[26]), types.NewField(src.NoXPos, nil, typs[26])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[26])})
+-	typs[121] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[5]), types.NewField(src.NoXPos, nil, typs[5])}, nil)
+-	typs[122] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[5]), types.NewField(src.NoXPos, nil, typs[5]), types.NewField(src.NoXPos, nil, typs[5])}, nil)
+-	typs[123] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[7]), types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[5])}, nil)
++	typs[104] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[103]), types.NewField(src.NoXPos, nil, typs[15])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[103])})
++	typs[105] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[5])}, nil)
++	typs[106] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[7]), types.NewField(src.NoXPos, nil, typs[5])}, nil)
++	typs[107] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[5])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
++	typs[108] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[3]), types.NewField(src.NoXPos, nil, typs[3])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
++	typs[109] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[7]), types.NewField(src.NoXPos, nil, typs[7])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[6])})
++	typs[110] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[7]), types.NewField(src.NoXPos, nil, typs[5]), types.NewField(src.NoXPos, nil, typs[5])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[5])})
++	typs[111] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[7]), types.NewField(src.NoXPos, nil, typs[5])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[5])})
++	typs[112] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[22]), types.NewField(src.NoXPos, nil, typs[22])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[22])})
++	typs[113] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[24]), types.NewField(src.NoXPos, nil, typs[24])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[24])})
++	typs[114] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[20])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[22])})
++	typs[115] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[20])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[24])})
++	typs[116] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[20])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[65])})
++	typs[117] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[22])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[20])})
++	typs[118] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[24])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[20])})
++	typs[119] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[65])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[20])})
++	typs[120] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[26]), types.NewField(src.NoXPos, nil, typs[26])}, []*types.Field{types.NewField(src.NoXPos, nil, typs[26])})
++	typs[121] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[5]), types.NewField(src.NoXPos, nil, typs[5])}, nil)
++	typs[122] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[5]), types.NewField(src.NoXPos, nil, typs[5]), types.NewField(src.NoXPos, nil, typs[5])}, nil)
++	typs[123] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[7]), types.NewField(src.NoXPos, nil, typs[1]), types.NewField(src.NoXPos, nil, typs[5])}, nil)
+ 	typs[124] = types.NewSlice(typs[7])
+-	typs[125] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[7]), types.NewField(src.NoXPos, nil, typs[124])}, nil)
++	typs[125] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[7]), types.NewField(src.NoXPos, nil, typs[124])}, nil)
+ 	typs[126] = types.Types[types.TUINT8]
+-	typs[127] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[126]), types.NewField(src.NoXPos, nil, typs[126])}, nil)
++	typs[127] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[126]), types.NewField(src.NoXPos, nil, typs[126])}, nil)
+ 	typs[128] = types.Types[types.TUINT16]
+-	typs[129] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[128]), types.NewField(src.NoXPos, nil, typs[128])}, nil)
+-	typs[130] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[65]), types.NewField(src.NoXPos, nil, typs[65])}, nil)
+-	typs[131] = types.NewSignature(types.NoPkg, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[24]), types.NewField(src.NoXPos, nil, typs[24])}, nil)
++	typs[129] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[128]), types.NewField(src.NoXPos, nil, typs[128])}, nil)
++	typs[130] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[65]), types.NewField(src.NoXPos, nil, typs[65])}, nil)
++	typs[131] = types.NewSignature(types.NoPkg, nil, nil, []*types.Field{types.NewField(src.NoXPos, nil, typs[24]), types.NewField(src.NoXPos, nil, typs[24])}, nil)
+ 	return typs[:]
+ }
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index eab0bb09b2..f3058d8811 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -470,5 +470,5 @@ func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
+ 		results[i] = types.NewField(base.Pos, nil, t.Type)
+ 	}
+ 
+-	return types.NewSignature(types.LocalPkg, nil, params, results)
++	return types.NewSignature(types.LocalPkg, nil, nil, params, results)
+ }
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 7ab5f68ce3..a44af10bbb 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -254,7 +254,7 @@ func MethodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
+ 	ptr.SetByval(true)
+ 	fn.ClosureVars = append(fn.ClosureVars, ptr)
+ 
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil)
++	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil, nil)
+ 	call.Args = ir.ParamNames(tfn.Type())
+ 	call.IsDDD = tfn.Type().IsVariadic()
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index b73ef5176b..201b217e8e 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -607,7 +607,7 @@ func (r *importReader) signature(recv *types.Field) *types.Type {
+ 	if n := len(params); n > 0 {
+ 		params[n-1].SetIsDDD(r.bool())
+ 	}
+-	return types.NewSignature(r.currPkg, recv, params, results)
++	return types.NewSignature(r.currPkg, recv, nil, params, results)
+ }
+ 
+ func (r *importReader) paramList() []*types.Field {
+@@ -1068,7 +1068,7 @@ func (r *importReader) node() ir.Node {
+ 	case ir.OCALL:
+ 		pos := r.pos()
+ 		init := r.stmtList()
+-		n := ir.NewCallExpr(pos, ir.OCALL, r.expr(), r.exprList())
++		n := ir.NewCallExpr(pos, ir.OCALL, r.expr(), nil, r.exprList())
+ 		*n.PtrInit() = init
+ 		n.IsDDD = r.bool()
+ 		return n
+@@ -1236,5 +1236,5 @@ func (r *importReader) exprsOrNil() (a, b ir.Node) {
+ }
+ 
+ func builtinCall(pos src.XPos, op ir.Op) *ir.CallExpr {
+-	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
++	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil, nil)
+ }
+diff --git a/src/cmd/compile/internal/typecheck/mkbuiltin.go b/src/cmd/compile/internal/typecheck/mkbuiltin.go
+index 07f4b767e8..75037235ba 100644
+--- a/src/cmd/compile/internal/typecheck/mkbuiltin.go
++++ b/src/cmd/compile/internal/typecheck/mkbuiltin.go
+@@ -169,7 +169,7 @@ func (i *typeInterner) mktype(t ast.Expr) string {
+ 		}
+ 		return fmt.Sprintf("types.NewChan(%s, %s)", i.subtype(t.Value), dir)
+ 	case *ast.FuncType:
+-		return fmt.Sprintf("types.NewSignature(types.NoPkg, nil, %s, %s)", i.fields(t.Params, false), i.fields(t.Results, false))
++		return fmt.Sprintf("types.NewSignature(types.NoPkg, nil, nil, %s, %s)", i.fields(t.Params, false), i.fields(t.Results, false))
+ 	case *ast.InterfaceType:
+ 		if len(t.Methods.List) != 0 {
+ 			log.Fatal("non-empty interfaces unsupported")
+diff --git a/src/cmd/compile/internal/typecheck/type.go b/src/cmd/compile/internal/typecheck/type.go
+index 6fdafef77d..af694c2d94 100644
+--- a/src/cmd/compile/internal/typecheck/type.go
++++ b/src/cmd/compile/internal/typecheck/type.go
+@@ -88,7 +88,7 @@ func tcFuncType(n *ir.FuncType) ir.Node {
+ 		recv = tcField(n.Recv, misc)
+ 	}
+ 
+-	t := types.NewSignature(types.LocalPkg, recv, tcFields(n.Params, misc), tcFields(n.Results, misc))
++	t := types.NewSignature(types.LocalPkg, recv, nil, tcFields(n.Params, misc), tcFields(n.Results, misc))
+ 	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
+ 
+ 	base.Pos = lno
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index 402b8deeb3..c4c034184b 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -329,7 +329,7 @@ func InitUniverse() {
+ }
+ 
+ func makeErrorInterface() *types.Type {
+-	sig := types.NewSignature(types.NoPkg, fakeRecvField(), nil, []*types.Field{
++	sig := types.NewSignature(types.NoPkg, fakeRecvField(), nil, nil, []*types.Field{
+ 		types.NewField(src.NoXPos, nil, types.Types[types.TSTRING]),
+ 	})
+ 	method := types.NewField(src.NoXPos, Lookup("Error"), sig)
+diff --git a/src/cmd/compile/internal/types/kind_string.go b/src/cmd/compile/internal/types/kind_string.go
+index 1e1e846240..ae24a58b92 100644
+--- a/src/cmd/compile/internal/types/kind_string.go
++++ b/src/cmd/compile/internal/types/kind_string.go
+@@ -37,20 +37,21 @@ func _() {
+ 	_ = x[TANY-26]
+ 	_ = x[TSTRING-27]
+ 	_ = x[TUNSAFEPTR-28]
+-	_ = x[TIDEAL-29]
+-	_ = x[TNIL-30]
+-	_ = x[TBLANK-31]
+-	_ = x[TFUNCARGS-32]
+-	_ = x[TCHANARGS-33]
+-	_ = x[TSSA-34]
+-	_ = x[TTUPLE-35]
+-	_ = x[TRESULTS-36]
+-	_ = x[NTYPE-37]
++	_ = x[TTYPEPARAM-29]
++	_ = x[TIDEAL-30]
++	_ = x[TNIL-31]
++	_ = x[TBLANK-32]
++	_ = x[TFUNCARGS-33]
++	_ = x[TCHANARGS-34]
++	_ = x[TSSA-35]
++	_ = x[TTUPLE-36]
++	_ = x[TRESULTS-37]
++	_ = x[NTYPE-38]
+ }
+ 
+-const _Kind_name = "xxxINT8UINT8INT16UINT16INT32UINT32INT64UINT64INTUINTUINTPTRCOMPLEX64COMPLEX128FLOAT32FLOAT64BOOLPTRFUNCSLICEARRAYSTRUCTCHANMAPINTERFORWANYSTRINGUNSAFEPTRIDEALNILBLANKFUNCARGSCHANARGSSSATUPLERESULTSNTYPE"
++const _Kind_name = "xxxINT8UINT8INT16UINT16INT32UINT32INT64UINT64INTUINTUINTPTRCOMPLEX64COMPLEX128FLOAT32FLOAT64BOOLPTRFUNCSLICEARRAYSTRUCTCHANMAPINTERFORWANYSTRINGUNSAFEPTRTYPEPARAMIDEALNILBLANKFUNCARGSCHANARGSSSATUPLERESULTSNTYPE"
+ 
+-var _Kind_index = [...]uint8{0, 3, 7, 12, 17, 23, 28, 34, 39, 45, 48, 52, 59, 68, 78, 85, 92, 96, 99, 103, 108, 113, 119, 123, 126, 131, 135, 138, 144, 153, 158, 161, 166, 174, 182, 185, 190, 197, 202}
++var _Kind_index = [...]uint8{0, 3, 7, 12, 17, 23, 28, 34, 39, 45, 48, 52, 59, 68, 78, 85, 92, 96, 99, 103, 108, 113, 119, 123, 126, 131, 135, 138, 144, 153, 162, 167, 170, 175, 183, 191, 194, 199, 206, 211}
+ 
+ func (i Kind) String() string {
+ 	if i >= Kind(len(_Kind_index)-1) {
+diff --git a/src/cmd/compile/internal/types/sizeof_test.go b/src/cmd/compile/internal/types/sizeof_test.go
+index 675739f7f6..6937283d69 100644
+--- a/src/cmd/compile/internal/types/sizeof_test.go
++++ b/src/cmd/compile/internal/types/sizeof_test.go
+@@ -24,7 +24,7 @@ func TestSizeof(t *testing.T) {
+ 		{Type{}, 56, 96},
+ 		{Map{}, 20, 40},
+ 		{Forward{}, 20, 32},
+-		{Func{}, 24, 40},
++		{Func{}, 28, 48},
+ 		{Struct{}, 16, 32},
+ 		{Interface{}, 8, 16},
+ 		{Chan{}, 8, 16},
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 0dfbef8af1..1d6edcda47 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -72,6 +72,7 @@ const (
+ 	TANY
+ 	TSTRING
+ 	TUNSAFEPTR
++	TTYPEPARAM
+ 
+ 	// pseudo-types for literals
+ 	TIDEAL // untyped numeric constants
+@@ -150,6 +151,7 @@ type Type struct {
+ 	// TARRAY: *Array
+ 	// TSLICE: Slice
+ 	// TSSA: string
++	// TTYPEPARAM:  *Interface (though we may not need to store/use the Interface info)
+ 	Extra interface{}
+ 
+ 	// Width is the width of this Type in bytes.
+@@ -283,6 +285,7 @@ type Func struct {
+ 	Receiver *Type // function receiver
+ 	Results  *Type // function results
+ 	Params   *Type // function params
++	Tparams  *Type // type params of receiver (if method) or function
+ 
+ 	pkg *Pkg
+ 
+@@ -318,6 +321,7 @@ const (
+ 	FunargRcvr           // receiver
+ 	FunargParams         // input parameters
+ 	FunargResults        // output results
++	FunargTparams        // type params
+ )
+ 
+ // StructType returns t's extra struct-specific fields.
+@@ -1645,8 +1649,8 @@ func NewInterface(pkg *Pkg, methods []*Field) *Type {
+ }
+ 
+ // NewSignature returns a new function type for the given receiver,
+-// parameters, and results, any of which may be nil.
+-func NewSignature(pkg *Pkg, recv *Field, params, results []*Field) *Type {
++// parametes, results, and type parameters, any of which may be nil.
++func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Type {
+ 	var recvs []*Field
+ 	if recv != nil {
+ 		recvs = []*Field{recv}
+@@ -1665,6 +1669,7 @@ func NewSignature(pkg *Pkg, recv *Field, params, results []*Field) *Type {
+ 	}
+ 
+ 	ft.Receiver = funargs(recvs, FunargRcvr)
++	ft.Tparams = funargs(tparams, FunargTparams)
+ 	ft.Params = funargs(params, FunargParams)
+ 	ft.Results = funargs(results, FunargResults)
+ 	ft.pkg = pkg
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 97f9de9c1d..60cbd66370 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -631,7 +631,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 			continue
+ 		}
+ 
+-		r := ir.NewCallExpr(base.Pos, ir.OCALL, on, nil)
++		r := ir.NewCallExpr(base.Pos, ir.OCALL, on, nil, nil)
+ 		if params := on.Type().Params().FieldSlice(); len(params) > 0 {
+ 			t := params[0].Type
+ 			if !types.Identical(t, n.Type()) {
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 1d1cbc2054..d7d6105816 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -68,7 +68,7 @@ func directClosureCall(n *ir.CallExpr) {
+ 
+ 	// Create new function type with parameters prepended, and
+ 	// then update type and declarations.
+-	typ = types.NewSignature(typ.Pkg(), nil, append(params, typ.Params().FieldSlice()...), typ.Results().FieldSlice())
++	typ = types.NewSignature(typ.Pkg(), nil, nil, append(params, typ.Params().FieldSlice()...), typ.Results().FieldSlice())
+ 	f.SetType(typ)
+ 	clofn.Dcl = append(decls, clofn.Dcl...)
+ 
+diff --git a/src/cmd/compile/internal/walk/compare.go b/src/cmd/compile/internal/walk/compare.go
+index 7c385c0e0d..a076cdbe1a 100644
+--- a/src/cmd/compile/internal/walk/compare.go
++++ b/src/cmd/compile/internal/walk/compare.go
+@@ -160,7 +160,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 		}
+ 
+ 		fn, needsize := eqFor(t)
+-		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
++		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, nil)
+ 		call.Args.Append(typecheck.NodAddr(cmpl))
+ 		call.Args.Append(typecheck.NodAddr(cmpr))
+ 		if needsize {
+@@ -428,7 +428,7 @@ func eqFor(t *types.Type) (n ir.Node, needsize bool) {
+ 		sym := reflectdata.TypeSymPrefix(".eq", t)
+ 		n := typecheck.NewName(sym)
+ 		ir.MarkFunc(n)
+-		n.SetType(types.NewSignature(types.NoPkg, nil, []*types.Field{
++		n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
+ 			types.NewField(base.Pos, nil, types.NewPtr(t)),
+ 			types.NewField(base.Pos, nil, types.NewPtr(t)),
+ 		}, []*types.Field{
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index 73442dc404..95f9d18f8c 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -416,7 +416,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
+ 
+ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
+ 	// make the map var
+-	a := ir.NewCallExpr(base.Pos, ir.OMAKE, nil, nil)
++	a := ir.NewCallExpr(base.Pos, ir.OMAKE, nil, nil, nil)
+ 	a.SetEsc(n.Esc())
+ 	a.Args = []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(int64(len(n.List)))}
+ 	litas(m, a, init)
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index fa8e2c0bb8..30bac5462f 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -145,7 +145,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 		types.CalcSize(fromType)
+ 		fn = typecheck.SubstArgTypes(fn, fromType)
+ 		types.CalcSize(fn.Type())
+-		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
++		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, nil)
+ 		call.Args = []ir.Node{n.X}
+ 		e := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeword(), safeExpr(walkExpr(typecheck.Expr(call), init), init))
+ 		e.SetType(toType)
+@@ -180,7 +180,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 	fn := typecheck.LookupRuntime(fnname)
+ 	fn = typecheck.SubstArgTypes(fn, fromType, toType)
+ 	types.CalcSize(fn.Type())
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
++	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, nil)
+ 	call.Args = []ir.Node{tab, v}
+ 	return walkExpr(typecheck.Expr(call), init)
+ }
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index d7a20206c8..b7aeb53e43 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -469,7 +469,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
+ 	}
+ 
+ 	cat := typecheck.LookupRuntime(fn)
+-	r := ir.NewCallExpr(base.Pos, ir.OCALL, cat, nil)
++	r := ir.NewCallExpr(base.Pos, ir.OCALL, cat, nil, nil)
+ 	r.Args = args
+ 	r1 := typecheck.Expr(r)
+ 	r1 = walkExpr(r1, init)
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index 46a621c2ba..8a076ca558 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -278,7 +278,7 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		}
+ 		args[i] = ir.NewConvExpr(base.Pos, origArg.Op(), origArg.Type(), args[i])
+ 	}
+-	call := ir.NewCallExpr(base.Pos, n.Op(), n.X, args)
++	call := ir.NewCallExpr(base.Pos, n.Op(), n.X, nil, args)
+ 	if !isBuiltinCall {
+ 		call.SetOp(ir.OCALL)
+ 		call.IsDDD = n.IsDDD
+@@ -291,6 +291,6 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	typecheck.Stmts(fn.Body)
+ 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
+ 
+-	call = ir.NewCallExpr(base.Pos, ir.OCALL, fn.Nname, n.Args)
++	call = ir.NewCallExpr(base.Pos, ir.OCALL, fn.Nname, nil, n.Args)
+ 	return walkExpr(typecheck.Stmt(call), init)
+ }
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index b47d96dc4c..91b7e34d54 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -113,7 +113,7 @@ func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallEx
+ 		base.Fatalf("vmkcall %v needs %v args got %v", fn, n, len(va))
+ 	}
+ 
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, va)
++	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil, va)
+ 	typecheck.Call(call)
+ 	call.SetType(t)
+ 	return walkExpr(call, init).(*ir.CallExpr)

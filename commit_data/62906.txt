@@ -17,7 +17,38 @@ Date:   Thu May 1 15:09:40 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/internal/syscall/unix/at_openbsd.go | 2 +-
  src/os/root_test.go                     | 6 ++++++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/syscall/unix/at_openbsd.go b/src/internal/syscall/unix/at_openbsd.go
+index 0fd5e90e5c..96e77eb408 100644
+--- a/src/internal/syscall/unix/at_openbsd.go
++++ b/src/internal/syscall/unix/at_openbsd.go
+@@ -43,7 +43,7 @@ func Mkdirat(dirfd int, path string, mode uint32) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_mkdirat_trampoline), uintptr(dirfd), uintptr(unsafe.Pointer(p)), 0, 0, 0, 0)
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_mkdirat_trampoline), uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(mode), 0, 0, 0)
+ 	if errno != 0 {
+ 		return errno
+ 	}
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index 3fec9c5684..63c921b66b 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -507,6 +507,12 @@ func TestRootMkdir(t *testing.T) {
+ 			if !fi.IsDir() {
+ 				t.Fatalf(`stat file created with Root.Mkdir(%q): not a directory`, test.open)
+ 			}
++			if mode := fi.Mode(); mode&0o777 == 0 {
++				// Issue #73559: We're not going to worry about the exact
++				// mode bits (which will have been modified by umask),
++				// but there should be mode bits.
++				t.Fatalf(`stat file created with Root.Mkdir(%q): mode=%v, want non-zero`, test.open, mode)
++			}
+ 		})
+ 	}
+ }

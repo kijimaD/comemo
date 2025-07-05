@@ -16,6 +16,22 @@ Date:   Mon May 19 16:20:47 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/crash_cgo_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 3bd523de1a..23726e1fe3 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -659,8 +659,8 @@ func TestSegv(t *testing.T) {
+ 	case "plan9", "windows":
+ 		t.Skipf("no signals on %s", runtime.GOOS)
+ 	}
+-	if asan.Enabled || msan.Enabled {
+-		t.Skip("skipping test on ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
++	if race.Enabled || asan.Enabled || msan.Enabled {
++		t.Skip("skipping test on race/ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
+ 	}
+ 
+ 	for _, test := range []string{"Segv", "SegvInCgo", "TgkillSegv", "TgkillSegvInCgo"} {

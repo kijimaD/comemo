@@ -7,6 +7,27 @@ Date:   Thu May 26 11:54:10 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4532090
-
+---
  src/pkg/fmt/scan.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 42bc52c92b..33ff87182f 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -226,6 +226,15 @@ func (s *ss) mustReadRune() (rune int) {
+ }
+ 
+ func (s *ss) UnreadRune() os.Error {
++	// Don't use strings.Reader.UnreadRune for now - appears to cause a problem.
++	// TODO(r, gri): Fix this and remove code between --- lines!
++	// ---
++	if _, ok := s.rr.(*strings.Reader); ok {
++		s.peekRune = s.prevRune
++		s.count--
++		return nil
++	}
++	// ---
+ 	if u, ok := s.rr.(runeUnreader); ok {
+ 		u.UnreadRune()
+ 	} else {

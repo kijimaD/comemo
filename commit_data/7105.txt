@@ -7,6 +7,19 @@ Date:   Wed Jan 12 16:17:14 2011 -0800
     R=ken2, ken3
     CC=golang-dev
     https://golang.org/cl/3970041
-
+---
  src/cmd/5g/reg.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 09fff97dc3..5011e75ccc 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -137,6 +137,7 @@ regopt(Prog *firstp)
+ 	uint32 vreg;
+ 	Bits bit;
+ 
++return; // disabled for the moment
+ 	if(first == 0) {
+ 		fmtinstall('Q', Qconv);
+ 	}

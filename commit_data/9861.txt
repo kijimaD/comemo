@@ -7,6 +7,22 @@ Date:   Tue Oct 4 13:58:31 2011 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5131055
-
+---
  src/pkg/syscall/syscall_linux.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index d4eb1bf923..715561fd7a 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -190,6 +190,10 @@ func Sleep(nsec int64) (errno int) {
+ 	return err
+ }
+ 
++func Mkfifo(path string, mode uint32) (errno int) {
++	return Mknod(path, mode|S_IFIFO, 0)
++}
++
+ // For testing: clients can set this flag to force
+ // creation of IPv6 sockets to return EAFNOSUPPORT.
+ var SocketDisableIPv6 bool

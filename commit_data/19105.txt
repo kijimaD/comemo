@@ -15,6 +15,61 @@ Date:   Fri Apr 11 00:08:07 2014 -0400
     R=golang-codereviews, bradfitz
     CC=aram.h, golang-codereviews, iant, khr
     https://golang.org/cl/86550045
-
+---
  src/pkg/runtime/stack_test.go | 16 +++++++++++-----
  1 file changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/stack_test.go b/src/pkg/runtime/stack_test.go
+index 8add63ad35..9a69704368 100644
+--- a/src/pkg/runtime/stack_test.go
++++ b/src/pkg/runtime/stack_test.go
+@@ -132,6 +132,7 @@ func TestStackGrowth(t *testing.T) {
+ 		defer wg.Done()
+ 		growStack()
+ 	}()
++	wg.Wait()
+ 
+ 	// in locked goroutine
+ 	wg.Add(1)
+@@ -141,6 +142,7 @@ func TestStackGrowth(t *testing.T) {
+ 		growStack()
+ 		UnlockOSThread()
+ 	}()
++	wg.Wait()
+ 
+ 	// in finalizer
+ 	wg.Add(1)
+@@ -150,6 +152,7 @@ func TestStackGrowth(t *testing.T) {
+ 		go func() {
+ 			s := new(string)
+ 			SetFinalizer(s, func(ss *string) {
++				growStack()
+ 				done <- true
+ 			})
+ 			s = nil
+@@ -163,17 +166,20 @@ func TestStackGrowth(t *testing.T) {
+ 			t.Fatal("finalizer did not run")
+ 		}
+ 	}()
+-
+ 	wg.Wait()
+ }
+ 
+ // ... and in init
+-func init() {
+-	growStack()
+-}
++//func init() {
++//	growStack()
++//}
+ 
+ func growStack() {
+-	for i := 0; i < 1<<10; i++ {
++	n := 1 << 10
++	if testing.Short() {
++		n = 1 << 8
++	}
++	for i := 0; i < n; i++ {
+ 		x := 0
+ 		growStackIter(&x, i)
+ 		if x != i+1 {

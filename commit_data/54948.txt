@@ -22,6 +22,20 @@ Date:   Tue Nov 22 13:27:16 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index c6d6e0deee..aec826dc27 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6525,7 +6525,7 @@ func (s *state) variable(n ir.Node, t *types.Type) *ssa.Value {
+ 
+ 	if s.curBlock == s.f.Entry {
+ 		// No variable should be live at entry.
+-		s.Fatalf("Value live at entry. It shouldn't be. func %s, node %v, value %v", s.f.Name, n, v)
++		s.f.Fatalf("value %v (%v) incorrectly live at entry", n, v)
+ 	}
+ 	// Make a FwdRef, which records a value that's live on block input.
+ 	// We'll find the matching definition as part of insertPhis.

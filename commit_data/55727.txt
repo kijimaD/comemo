@@ -23,7 +23,168 @@ Date:   Tue Mar 7 15:15:10 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/syscall/pwd_plan9.go     | 26 ++++++++++++++++++++++----
  src/syscall/syscall_plan9.go | 33 +++++++++++++++++++++++++--------
  2 files changed, 47 insertions(+), 12 deletions(-)
+
+diff --git a/src/syscall/pwd_plan9.go b/src/syscall/pwd_plan9.go
+index 1deeaa9061..28e99565ee 100644
+--- a/src/syscall/pwd_plan9.go
++++ b/src/syscall/pwd_plan9.go
+@@ -11,7 +11,10 @@
+ 
+ package syscall
+ 
+-import "sync"
++import (
++	"runtime"
++	"sync"
++)
+ 
+ var (
+ 	wdmu  sync.Mutex // guards following
+@@ -19,6 +22,12 @@ var (
+ 	wdStr string
+ )
+ 
++// Ensure current working directory seen by this goroutine matches
++// the most recent Chdir called in any goroutine. It's called internally
++// before executing any syscall which uses a relative pathname. Must
++// be called with the goroutine locked to the OS thread, to prevent
++// rescheduling on a different thread (potentially with a different
++// working directory) before the syscall is executed.
+ func Fixwd() {
+ 	wdmu.Lock()
+ 	defer wdmu.Unlock()
+@@ -39,13 +48,17 @@ func fixwdLocked() {
+ 	}
+ }
+ 
+-func fixwd(paths ...string) {
++// If any of the paths is relative, call Fixwd and return true
++// (locked to OS thread). Otherwise return false.
++func fixwd(paths ...string) bool {
+ 	for _, path := range paths {
+ 		if path != "" && path[0] != '/' && path[0] != '#' {
++			runtime.LockOSThread()
+ 			Fixwd()
+-			return
++			return true
+ 		}
+ 	}
++	return false
+ }
+ 
+ // goroutine-specific getwd
+@@ -75,10 +88,15 @@ func Getwd() (wd string, err error) {
+ }
+ 
+ func Chdir(path string) error {
+-	fixwd(path)
++	// If Chdir is to a relative path, sync working dir first
++	if fixwd(path) {
++		defer runtime.UnlockOSThread()
++	}
+ 	wdmu.Lock()
+ 	defer wdmu.Unlock()
+ 
++	runtime.LockOSThread()
++	defer runtime.UnlockOSThread()
+ 	if err := chdir(path); err != nil {
+ 		return err
+ 	}
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index ca286c8c97..92414709ef 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -13,6 +13,7 @@ package syscall
+ 
+ import (
+ 	"internal/oserror"
++	"runtime"
+ 	"unsafe"
+ )
+ 
+@@ -301,7 +302,9 @@ func Await(w *Waitmsg) (err error) {
+ }
+ 
+ func Unmount(name, old string) (err error) {
+-	fixwd(name, old)
++	if fixwd(name, old) {
++		defer runtime.UnlockOSThread()
++	}
+ 	oldp, err := BytePtrFromString(old)
+ 	if err != nil {
+ 		return err
+@@ -384,49 +387,63 @@ func Getgroups() (gids []int, err error) {
+ //sys	open(path string, mode int) (fd int, err error)
+ 
+ func Open(path string, mode int) (fd int, err error) {
+-	fixwd(path)
++	if fixwd(path) {
++		defer runtime.UnlockOSThread()
++	}
+ 	return open(path, mode)
+ }
+ 
+ //sys	create(path string, mode int, perm uint32) (fd int, err error)
+ 
+ func Create(path string, mode int, perm uint32) (fd int, err error) {
+-	fixwd(path)
++	if fixwd(path) {
++		defer runtime.UnlockOSThread()
++	}
+ 	return create(path, mode, perm)
+ }
+ 
+ //sys	remove(path string) (err error)
+ 
+ func Remove(path string) error {
+-	fixwd(path)
++	if fixwd(path) {
++		defer runtime.UnlockOSThread()
++	}
+ 	return remove(path)
+ }
+ 
+ //sys	stat(path string, edir []byte) (n int, err error)
+ 
+ func Stat(path string, edir []byte) (n int, err error) {
+-	fixwd(path)
++	if fixwd(path) {
++		defer runtime.UnlockOSThread()
++	}
+ 	return stat(path, edir)
+ }
+ 
+ //sys	bind(name string, old string, flag int) (err error)
+ 
+ func Bind(name string, old string, flag int) (err error) {
+-	fixwd(name, old)
++	if fixwd(name, old) {
++		defer runtime.UnlockOSThread()
++	}
+ 	return bind(name, old, flag)
+ }
+ 
+ //sys	mount(fd int, afd int, old string, flag int, aname string) (err error)
+ 
+ func Mount(fd int, afd int, old string, flag int, aname string) (err error) {
+-	fixwd(old)
++	if fixwd(old) {
++		defer runtime.UnlockOSThread()
++	}
+ 	return mount(fd, afd, old, flag, aname)
+ }
+ 
+ //sys	wstat(path string, edir []byte) (err error)
+ 
+ func Wstat(path string, edir []byte) (err error) {
+-	fixwd(path)
++	if fixwd(path) {
++		defer runtime.UnlockOSThread()
++	}
+ 	return wstat(path, edir)
+ }
+ 

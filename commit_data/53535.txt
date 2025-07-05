@@ -12,7 +12,41 @@ Date:   Thu Aug 18 10:40:31 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/call.go                          | 2 +-
  src/cmd/compile/internal/types2/testdata/fixedbugs/issue43124.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index b1ea6917fb..bb0f86b2d6 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -137,7 +137,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 					}
+ 				}
+ 				if call.HasDots {
+-					check.errorf(call.ArgList[0], "invalid use of ... in type conversion to %s", T)
++					check.errorf(call.ArgList[0], "invalid use of ... in conversion to %s", T)
+ 					break
+ 				}
+ 				check.conversion(x, T)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43124.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43124.go
+index 7e48c2211b..f429f74a74 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43124.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43124.go
+@@ -4,7 +4,7 @@
+ 
+ package p
+ 
+-var _ = int(0 /* ERROR invalid use of \.\.\. in type conversion */ ...)
++var _ = int(0 /* ERROR invalid use of \.\.\. in conversion to int */ ...)
+ 
+ // test case from issue
+ 
+@@ -12,5 +12,5 @@ type M []string
+ 
+ var (
+ 	x = []string{"a", "b"}
+-	_ = M(x /* ERROR invalid use of \.\.\. in type conversion */ ...)
++	_ = M(x /* ERROR invalid use of \.\.\. in conversion to M */ ...)
+ )

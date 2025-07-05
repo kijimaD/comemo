@@ -9,7 +9,7 @@ Date:   Thu Feb 18 23:33:15 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/206084
-
+---
  src/pkg/math/Makefile       |  7 ++++
  src/pkg/math/all_test.go    | 77 ++++++++++++++++++++++++++++++++++++++++---
  src/pkg/math/bits.go        | 48 ---------------------------
@@ -24,3 +24,537 @@ Date:   Thu Feb 18 23:33:15 2010 -0800
  src/pkg/math/sincos_386.s   | 26 +++++++++++++++
  src/pkg/math/sincos_decl.go |  7 ++++
  13 files changed, 311 insertions(+), 53 deletions(-)
+
+diff --git a/src/pkg/math/Makefile b/src/pkg/math/Makefile
+index 6657724c2a..e8c4252938 100644
+--- a/src/pkg/math/Makefile
++++ b/src/pkg/math/Makefile
+@@ -17,12 +17,15 @@ OFILES_386=\
+ 	exp2_386.$O\
+ 	fabs_386.$O\
+ 	floor_386.$O\
++	frexp_386.$O\
+ 	fmod_386.$O\
+ 	hypot_386.$O\
++	ldexp_386.$O\
+ 	log_386.$O\
+ 	log1p_386.$O\
+ 	modf_386.$O\
+ 	sin_386.$O\
++	sincos_386.$O\
+ 	sqrt_386.$O\
+ 	tan_386.$O\
+ 
+@@ -37,6 +40,7 @@ ALLGOFILES=\
+ 	atanh.go\
+ 	atan2.go\
+ 	bits.go\
++	cbrt.go\
+ 	const.go\
+ 	copysign.go\
+ 	erf.go\
+@@ -46,7 +50,9 @@ ALLGOFILES=\
+ 	fdim.go\
+ 	floor.go\
+ 	fmod.go\
++	frexp.go\
+ 	hypot.go\
++	ldexp.go\
+ 	log.go\
+ 	log1p.go\
+ 	modf.go\
+@@ -54,6 +60,7 @@ ALLGOFILES=\
+ 	pow.go\
+ 	pow10.go\
+ 	sin.go\
++	sincos.go\
+ 	sinh.go\
+ 	sqrt.go\
+ 	sqrt_port.go\
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index bd1d4006a8..1109165280 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -112,6 +112,18 @@ var atan2 = []float64{
+ 	1.3902530903455392306872261e+00,
+ 	2.2859857424479142655411058e+00,
+ }
++var cbrt = []float64{
++	1.7075799841925094446722675e+00,
++	1.9779982212970353936691498e+00,
++	-6.5177429017779910853339447e-01,
++	-1.7111838886544019873338113e+00,
++	2.1279920909827937423960472e+00,
++	1.4303536770460741452312367e+00,
++	1.7357021059106154902341052e+00,
++	1.3972633462554328350552916e+00,
++	1.2221149580905388454977636e+00,
++	-2.0556003730500069110343596e+00,
++}
+ var ceil = []float64{
+ 	5.0000000000000000e+00,
+ 	8.0000000000000000e+00,
+@@ -546,6 +558,17 @@ var atan2SC = []float64{
+ 	NaN(),
+ }
+ 
++var vfcbrtSC = []float64{
++	Inf(-1),
++	Inf(1),
++	NaN(),
++}
++var cbrtSC = []float64{
++	Inf(-1),
++	Inf(1),
++	NaN(),
++}
++
+ var vfceilSC = []float64{
+ 	Inf(-1),
+ 	Inf(1),
+@@ -993,6 +1016,19 @@ func TestAtan2(t *testing.T) {
+ 	}
+ }
+ 
++func TestCbrt(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := Cbrt(vf[i]); !veryclose(cbrt[i], f) {
++			t.Errorf("Cbrt(%g) = %g, want %g\n", vf[i], f, cbrt[i])
++		}
++	}
++	for i := 0; i < len(vfcbrtSC); i++ {
++		if f := Cbrt(vfcbrtSC[i]); !alike(cbrtSC[i], f) {
++			t.Errorf("Cbrt(%g) = %g, want %g\n", vfcbrtSC[i], f, cbrtSC[i])
++		}
++	}
++}
++
+ func TestCeil(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Ceil(vf[i]); ceil[i] != f {
+@@ -1309,6 +1345,14 @@ func TestSin(t *testing.T) {
+ 	}
+ }
+ 
++func TestSincos(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if s, c := Sincos(vf[i]); !close(sin[i], s) || !close(cos[i], c) {
++			t.Errorf("Sincos(%g) = %g, %g want %g, %g\n", vf[i], s, c, sin[i], cos[i])
++		}
++	}
++}
++
+ func TestSinh(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Sinh(vf[i]); !close(sinh[i], f) {
+@@ -1366,6 +1410,17 @@ func TestTrunc(t *testing.T) {
+ 
+ // Check that math functions of high angle values
+ // return similar results to low angle values
++func TestLargeCos(t *testing.T) {
++	large := float64(100000 * Pi)
++	for i := 0; i < len(vf); i++ {
++		f1 := Cos(vf[i])
++		f2 := Cos(vf[i] + large)
++		if !kindaclose(f1, f2) {
++			t.Errorf("Cos(%g) = %g, want %g\n", vf[i]+large, f2, f1)
++		}
++	}
++}
++
+ func TestLargeSin(t *testing.T) {
+ 	large := float64(100000 * Pi)
+ 	for i := 0; i < len(vf); i++ {
+@@ -1377,13 +1432,13 @@ func TestLargeSin(t *testing.T) {
+ 	}
+ }
+ 
+-func TestLargeCos(t *testing.T) {
++func TestLargeSincos(t *testing.T) {
+ 	large := float64(100000 * Pi)
+ 	for i := 0; i < len(vf); i++ {
+-		f1 := Cos(vf[i])
+-		f2 := Cos(vf[i] + large)
+-		if !kindaclose(f1, f2) {
+-			t.Errorf("Cos(%g) = %g, want %g\n", vf[i]+large, f2, f1)
++		f1, g1 := Sincos(vf[i])
++		f2, g2 := Sincos(vf[i] + large)
++		if !kindaclose(f1, f2) || !kindaclose(g1, g2) {
++			t.Errorf("Sincos(%g) = %g, %g, want %g, %g\n", vf[i]+large, f2, g2, f1, g1)
+ 		}
+ 	}
+ }
+@@ -1469,6 +1524,12 @@ func BenchmarkAtan2(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkCbrt(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Cbrt(10)
++	}
++}
++
+ func BenchmarkCeil(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Ceil(.5)
+@@ -1625,6 +1686,12 @@ func BenchmarkSin(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkSincos(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Sincos(.5)
++	}
++}
++
+ func BenchmarkSinh(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Sinh(2.5)
+diff --git a/src/pkg/math/bits.go b/src/pkg/math/bits.go
+index ccbcf062f8..d36cd18d76 100644
+--- a/src/pkg/math/bits.go
++++ b/src/pkg/math/bits.go
+@@ -47,51 +47,3 @@ func IsInf(f float64, sign int) bool {
+ 	//	return sign >= 0 && x == uvinf || sign <= 0 && x == uvneginf;
+ 	return sign >= 0 && f > MaxFloat64 || sign <= 0 && f < -MaxFloat64
+ }
+-
+-// Frexp breaks f into a normalized fraction
+-// and an integral power of two.
+-// It returns frac and exp satisfying f == frac × 2<sup>exp</sup>,
+-// with the absolute value of frac in the interval [½, 1).
+-func Frexp(f float64) (frac float64, exp int) {
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+-	// special cases
+-	switch {
+-	case f == 0:
+-		return
+-	case f < -MaxFloat64 || f > MaxFloat64 || f != f: // IsInf(f, 0) || IsNaN(f):
+-		frac = f
+-		return
+-	}
+-	x := Float64bits(f)
+-	exp = int((x>>shift)&mask) - bias
+-	x &^= mask << shift
+-	x |= bias << shift
+-	frac = Float64frombits(x)
+-	return
+-}
+-
+-// Ldexp is the inverse of Frexp.
+-// It returns frac × 2<sup>exp</sup>.
+-func Ldexp(frac float64, exp int) float64 {
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+-	// special cases
+-	if frac != frac { // IsNaN(frac)
+-		return NaN()
+-	}
+-	x := Float64bits(frac)
+-	exp += int(x>>shift) & mask
+-	if exp <= 0 {
+-		return 0 // underflow
+-	}
+-	if exp >= mask { // overflow
+-		if frac < 0 {
+-			return Inf(-1)
+-		}
+-		return Inf(1)
+-	}
+-	x &^= mask << shift
+-	x |= uint64(exp) << shift
+-	return Float64frombits(x)
+-}
+diff --git a/src/pkg/math/cbrt.go b/src/pkg/math/cbrt.go
+new file mode 100644
+index 0000000000..de066f5e51
+--- /dev/null
++++ b/src/pkg/math/cbrt.go
+@@ -0,0 +1,79 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++/*
++	The algorithm is based in part on "Optimal Partitioning of
++	Newton's Method for Calculating Roots", by Gunter Meinardus
++	and G. D. Taylor, Mathematics of Computation © 1980 American
++	Mathematical Society.
++	(http://www.jstor.org/stable/2006387?seq=9, accessed 11-Feb-2010)
++*/
++
++// Cbrt returns the cube root of its argument.
++//
++// Special cases are:
++//	Exp(+Inf) = +Inf
++//	Exp(-Inf) = -Inf
++//	Exp(NaN) = NaN
++func Cbrt(x float64) float64 {
++	const (
++		A1 = 1.662848358e-01
++		A2 = 1.096040958e+00
++		A3 = 4.105032829e-01
++		A4 = 5.649335816e-01
++		B1 = 2.639607233e-01
++		B2 = 8.699282849e-01
++		B3 = 1.629083358e-01
++		B4 = 2.824667908e-01
++		C1 = 4.190115298e-01
++		C2 = 6.904625373e-01
++		C3 = 6.46502159e-02
++		C4 = 1.412333954e-01
++	)
++	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
++	// when compiler does it for us
++	// special cases
++	switch {
++	case x != x || x < -MaxFloat64 || x > MaxFloat64: // IsNaN(x) || IsInf(x, 0):
++		return x
++	}
++	sign := false
++	if x < 0 {
++		x = -x
++		sign = true
++	}
++	// Reduce argument
++	f, e := Frexp(x)
++	m := e % 3
++	if m > 0 {
++		m -= 3
++		e -= m // e is multiple of 3
++	}
++	f = Ldexp(f, m) // 0.125 <= f < 1.0
++
++	// Estimate cube root
++	switch m {
++	case 0: // 0.5 <= f < 1.0
++		f = A1*f + A2 - A3/(A4+f)
++	case -1: // 0.25 <= f < 0.5
++		f = B1*f + B2 - B3/(B4+f)
++	default: // 0.125 <= f < 0.25
++		f = C1*f + C2 - C3/(C4+f)
++	}
++	y := Ldexp(f, e/3) // e/3 = exponent of cube root
++
++	// Iterate
++	s := y * y * y
++	t := s + x
++	y *= (t + x) / (s + t)
++	// Reiterate
++	s = (y*y*y - x) / x
++	y -= y * (((14.0/81.0)*s-(2.0/9.0))*s + (1.0 / 3.0)) * s
++	if sign {
++		y = -y
++	}
++	return y
++}
+diff --git a/src/pkg/math/frexp.go b/src/pkg/math/frexp.go
+new file mode 100644
+index 0000000000..8b6d456067
+--- /dev/null
++++ b/src/pkg/math/frexp.go
+@@ -0,0 +1,28 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++// Frexp breaks f into a normalized fraction
++// and an integral power of two.
++// It returns frac and exp satisfying f == frac × 2<sup>exp</sup>,
++// with the absolute value of frac in the interval [½, 1).
++func Frexp(f float64) (frac float64, exp int) {
++	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
++	// when compiler does it for us
++	// special cases
++	switch {
++	case f == 0:
++		return
++	case f < -MaxFloat64 || f > MaxFloat64 || f != f: // IsInf(f, 0) || IsNaN(f):
++		frac = f
++		return
++	}
++	x := Float64bits(f)
++	exp = int((x>>shift)&mask) - bias
++	x &^= mask << shift
++	x |= bias << shift
++	frac = Float64frombits(x)
++	return
++}
+diff --git a/src/pkg/math/frexp_386.s b/src/pkg/math/frexp_386.s
+new file mode 100644
+index 0000000000..177c4b97bb
+--- /dev/null
++++ b/src/pkg/math/frexp_386.s
+@@ -0,0 +1,23 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// func Frexp(x float64) (f float64, e int)
++TEXT ·Frexp(SB),7,$0
++	FMOVD   x+0(FP), F0   // F0=x
++	FXAM
++	FSTSW   AX
++	SAHF
++	JNP     nan_zero_inf
++	JCS     nan_zero_inf
++	FXTRACT               // F0=f (0<=f<1), F1=e
++	FMULD  $(0.5), F0     // F0=f (0.5<=f<1), F1=e
++	FMOVDP  F0, f+8(FP)   // F0=e
++	FLD1                  // F0=1, F1=e
++	FADDDP  F0, F1        // F0=e+1
++	FMOVLP  F0, e+16(FP)  // (int=int32)
++	RET
++nan_zero_inf:
++	FMOVDP  F0, f+8(FP)   // F0=e
++	MOVL    $0, e+16(FP)  // e=0
++	RET
+diff --git a/src/pkg/math/frexp_decl.go b/src/pkg/math/frexp_decl.go
+new file mode 100644
+index 0000000000..b36bf2eb7c
+--- /dev/null
++++ b/src/pkg/math/frexp_decl.go
+@@ -0,0 +1,7 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++func Frexp(x float64) (f float64, e int)
+diff --git a/src/pkg/math/ldexp.go b/src/pkg/math/ldexp.go
+new file mode 100644
+index 0000000000..e8223703b6
+--- /dev/null
++++ b/src/pkg/math/ldexp.go
+@@ -0,0 +1,30 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++// Ldexp is the inverse of Frexp.
++// It returns frac × 2<sup>exp</sup>.
++func Ldexp(frac float64, exp int) float64 {
++	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
++	// when compiler does it for us
++	// special cases
++	if frac != frac { // IsNaN(frac)
++		return NaN()
++	}
++	x := Float64bits(frac)
++	exp += int(x>>shift) & mask
++	if exp <= 0 {
++		return 0 // underflow
++	}
++	if exp >= mask { // overflow
++		if frac < 0 {
++			return Inf(-1)
++		}
++		return Inf(1)
++	}
++	x &^= mask << shift
++	x |= uint64(exp) << shift
++	return Float64frombits(x)
++}
+diff --git a/src/pkg/math/ldexp_386.s b/src/pkg/math/ldexp_386.s
+new file mode 100644
+index 0000000000..ed91ffcd39
+--- /dev/null
++++ b/src/pkg/math/ldexp_386.s
+@@ -0,0 +1,12 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// func Ldexp(f float64, e int) float64
++TEXT ·Ldexp(SB),7,$0
++	FMOVL   e+8(FP), F0   // F0=e
++	FMOVD   x+0(FP), F0   // F0=x, F1=e
++	FSCALE                // F0=x*2**e, F1=e
++	FMOVDP  F0, F1        // F0=x*2**e
++	FMOVDP  F0, r+12(FP)
++	RET
+diff --git a/src/pkg/math/ldexp_decl.go b/src/pkg/math/ldexp_decl.go
+new file mode 100644
+index 0000000000..40e11e7a1a
+--- /dev/null
++++ b/src/pkg/math/ldexp_decl.go
+@@ -0,0 +1,7 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++func Ldexp(f float64, e int) float64
+diff --git a/src/pkg/math/sincos.go b/src/pkg/math/sincos.go
+new file mode 100644
+index 0000000000..4c1576bead
+--- /dev/null
++++ b/src/pkg/math/sincos.go
+@@ -0,0 +1,13 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++// Sincos(x) returns Sin(x), Cos(x).
++//
++// Special conditions are:
++//	Sincos(+Inf) = NaN, NaN
++//	Sincos(-Inf) = NaN, NaN
++//	Sincos(NaN) = NaN, NaN
++func Sincos(x float64) (sin, cos float64) { return Sin(x), Cos(x) }
+diff --git a/src/pkg/math/sincos_386.s b/src/pkg/math/sincos_386.s
+new file mode 100644
+index 0000000000..9dd37a3b77
+--- /dev/null
++++ b/src/pkg/math/sincos_386.s
+@@ -0,0 +1,26 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// func Sincos(x float64) (sin, cos float64)
++TEXT ·Sincos(SB),7,$0
++	FMOVD   x+0(FP), F0  // F0=x
++	FSINCOS              // F0=cos(x), F1=sin(x) if -2**63 < x < 2**63
++	FSTSW   AX           // AX=status word
++	ANDW    $0x0400, AX
++	JNE     4(PC)        // jump if x outside range
++	FMOVDP  F0, c+16(FP) // F0=sin(x)
++	FMOVDP  F0, s+8(FP)
++	RET
++	FLDPI                // F0=Pi, F1=x
++	FADDD   F0, F0       // F0=2*Pi, F1=x
++	FXCHD   F0, F1       // F0=x, F1=2*Pi
++	FPREM1               // F0=reduced_x, F1=2*Pi
++	FSTSW   AX           // AX=status word
++	ANDW    $0x0400, AX
++	JNE     -3(PC)       // jump if reduction incomplete
++	FMOVDP  F0, F1       // F0=reduced_x
++	FSINCOS              // F0=cos(reduced_x), F1=sin(reduced_x)
++	FMOVDP  F0, c+16(FP) // F0=sin(reduced_x)
++	FMOVDP  F0, s+8(FP)
++	RET
+diff --git a/src/pkg/math/sincos_decl.go b/src/pkg/math/sincos_decl.go
+new file mode 100644
+index 0000000000..0b40544694
+--- /dev/null
++++ b/src/pkg/math/sincos_decl.go
+@@ -0,0 +1,7 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++func Sincos(x float64) (sin, cos float64)

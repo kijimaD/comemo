@@ -14,6 +14,19 @@ Date:   Fri Jul 25 11:22:58 2014 +0400
     R=golang-codereviews, dave, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/112520043
-
+---
  src/cmd/gc/select.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 86313cb2bb..7168e6b806 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -260,7 +260,6 @@ walkselect(Node *sel)
+ 	// generate sel-struct
+ 	setlineno(sel);
+ 	selv = temp(selecttype(sel->xoffset));
+-	selv->esc = EscNone;
+ 	r = nod(OAS, selv, N);
+ 	typecheck(&r, Etop);
+ 	init = list(init, r);

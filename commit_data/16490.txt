@@ -23,8 +23,84 @@ Date:   Tue Jun 4 16:21:04 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/10023043
-
+---
  include/plan9/386/u.h   | 17 +++++++++--------
  include/plan9/amd64/u.h | 17 +++++++++--------
  include/plan9/arm/u.h   | 17 +++++++++--------
  3 files changed, 27 insertions(+), 24 deletions(-)
+
+diff --git a/include/plan9/386/u.h b/include/plan9/386/u.h
+index 3f4a55cb20..4736b8efb2 100644
+--- a/include/plan9/386/u.h
++++ b/include/plan9/386/u.h
+@@ -4,11 +4,12 @@
+ 
+ #include "/386/include/u.h"
+ 
+-typedef char   int8;
+-typedef uchar  uint8;
+-typedef short  int16;
+-typedef ushort uint16;
+-typedef int    int32;
+-typedef uint   uint32;
+-typedef vlong  int64;
+-typedef uvlong uint64;
++typedef	char	int8;
++typedef	uchar	uint8;
++typedef	short	int16;
++typedef	ushort	uint16;
++typedef	int	int32;
++typedef	uint	uint32;
++typedef	vlong	int64;
++typedef	uvlong	uint64;
++typedef	int	intptr;
+diff --git a/include/plan9/amd64/u.h b/include/plan9/amd64/u.h
+index f2430b5359..090b2fa5c9 100644
+--- a/include/plan9/amd64/u.h
++++ b/include/plan9/amd64/u.h
+@@ -4,11 +4,12 @@
+ 
+ #include "/amd64/include/u.h"
+ 
+-typedef char   int8;
+-typedef uchar  uint8;
+-typedef short  int16;
+-typedef ushort uint16;
+-typedef int    int32;
+-typedef uint   uint32;
+-typedef vlong  int64;
+-typedef uvlong uint64;
++typedef	char	int8;
++typedef	uchar	uint8;
++typedef	short	int16;
++typedef	ushort	uint16;
++typedef	int	int32;
++typedef	uint	uint32;
++typedef	vlong	int64;
++typedef	uvlong	uint64;
++typedef	vlong	intptr;
+diff --git a/include/plan9/arm/u.h b/include/plan9/arm/u.h
+index c387ae7b18..19249aa480 100644
+--- a/include/plan9/arm/u.h
++++ b/include/plan9/arm/u.h
+@@ -4,11 +4,12 @@
+ 
+ #include "/arm/include/u.h"
+ 
+-typedef char   int8;
+-typedef uchar  uint8;
+-typedef short  int16;
+-typedef ushort uint16;
+-typedef int    int32;
+-typedef uint   uint32;
+-typedef vlong  int64;
+-typedef uvlong uint64;
++typedef	char	int8;
++typedef	uchar	uint8;
++typedef	short	int16;
++typedef	ushort	uint16;
++typedef	int	int32;
++typedef	uint	uint32;
++typedef	vlong	int64;
++typedef	uvlong	uint64;
++typedef	int	intptr;

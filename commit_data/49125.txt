@@ -56,7 +56,50 @@ Date:   Sat Jul 17 00:15:07 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/call.go |  2 ++
  test/fixedbugs/issue47227.go            | 23 +++++++++++++++++++++++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 9e5abed591..65c76d6870 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -320,6 +320,8 @@ func (e *escape) rewriteArgument(argp *ir.Node, init *ir.Nodes, call ir.Node, fn
+ 			return
+ 		case ir.ONAME:
+ 			if arg.(*ir.Name).Class == ir.PFUNC {
++				// TODO(cuonglm): figure it why this is necessary, we should not depend on this to make
++				//                ABI analyze works correctly (see #47227 and discussion in CL 334882).
+ 				return
+ 			}
+ 		}
+diff --git a/test/fixedbugs/issue47227.go b/test/fixedbugs/issue47227.go
+new file mode 100644
+index 0000000000..a14efc9a68
+--- /dev/null
++++ b/test/fixedbugs/issue47227.go
+@@ -0,0 +1,23 @@
++// run fake-arg-to-force-use-of-go-run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build cgo
++// +build cgo
++
++package main
++
++// void f(int *p) { *p = 0x12345678; }
++import "C"
++
++func main() {
++	var x C.int
++	func() {
++		defer C.f(&x)
++	}()
++	if x != 0x12345678 {
++		panic("FAIL")
++	}
++}

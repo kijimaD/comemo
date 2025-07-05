@@ -19,7 +19,85 @@ Date:   Sat Jan 9 18:31:35 2016 -0800
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/cipher/gcm.go      | 13 ++++++++++++-
  src/crypto/cipher/gcm_test.go | 34 ++++++++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index 5f18f8c490..3868d7123a 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -38,6 +38,9 @@ type AEAD interface {
+ 	//
+ 	// The ciphertext and dst may alias exactly or not at all. To reuse
+ 	// ciphertext's storage for the decrypted output, use ciphertext[:0] as dst.
++	//
++	// Even if the function fails, the contents of dst, up to its capacity,
++	// may be overwritten.
+ 	Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error)
+ }
+ 
+@@ -168,11 +171,19 @@ func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	var expectedTag [gcmTagSize]byte
+ 	g.auth(expectedTag[:], ciphertext, data, &tagMask)
+ 
++	ret, out := sliceForAppend(dst, len(ciphertext))
++
+ 	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
++		// The AESNI code decrypts and authenticates concurrently, and
++		// so overwrites dst in the event of a tag mismatch. That
++		// behaviour is mimicked here in order to be consistent across
++		// platforms.
++		for i := range out {
++			out[i] = 0
++		}
+ 		return nil, errOpen
+ 	}
+ 
+-	ret, out := sliceForAppend(dst, len(ciphertext))
+ 	g.counterCrypt(out, ciphertext, &counter)
+ 
+ 	return ret, nil
+diff --git a/src/crypto/cipher/gcm_test.go b/src/crypto/cipher/gcm_test.go
+index 904091ed5d..bb1ab3c0b0 100644
+--- a/src/crypto/cipher/gcm_test.go
++++ b/src/crypto/cipher/gcm_test.go
+@@ -240,3 +240,37 @@ func TestAESGCM(t *testing.T) {
+ 		ct[0] ^= 0x80
+ 	}
+ }
++
++func TestTagFailureOverwrite(t *testing.T) {
++	// The AESNI GCM code decrypts and authenticates concurrently and so
++	// overwrites the output buffer before checking the authentication tag.
++	// In order to be consistent across platforms, all implementations
++	// should do this and this test checks that.
++
++	key, _ := hex.DecodeString("ab72c77b97cb5fe9a382d9fe81ffdbed")
++	nonce, _ := hex.DecodeString("54cc7dc2c37ec006bcc6d1db")
++	ciphertext, _ := hex.DecodeString("0e1bde206a07a9c2c1b65300f8c649972b4401346697138c7a4891ee59867d0c")
++
++	aes, _ := aes.NewCipher(key)
++	aesgcm, _ := cipher.NewGCM(aes)
++
++	dst := make([]byte, len(ciphertext)-16)
++	for i := range dst {
++		dst[i] = 42
++	}
++
++	result, err := aesgcm.Open(dst[:0], nonce, ciphertext, nil)
++	if err == nil {
++		t.Fatal("Bad Open still resulted in nil error.")
++	}
++
++	if result != nil {
++		t.Fatal("Failed Open returned non-nil result.")
++	}
++
++	for i := range dst {
++		if dst[i] != 0 {
++			t.Fatal("Failed Open didn't zero dst buffer")
++		}
++	}
++}

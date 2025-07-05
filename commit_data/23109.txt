@@ -13,6 +13,26 @@ Date:   Thu Apr 23 20:04:14 2015 +1200
     Reviewed-on: https://go-review.googlesource.com/9272
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Run-TryBot: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/internal/ld/data.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index 13a4019888..5a0ac9e7df 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -372,6 +372,14 @@ func relocsym(s *LSym) {
+ 			}
+ 
+ 		case obj.R_TLS:
++			if Linkmode == LinkExternal && Iself && HEADTYPE != obj.Hopenbsd {
++				r.Done = 0
++				r.Sym = Ctxt.Tlsg
++				r.Xsym = Ctxt.Tlsg
++				r.Xadd = r.Add
++				o = r.Add
++				break
++			}
+ 			if Linkmode == LinkInternal && Iself && Thearch.Thechar == '5' {
+ 				// On ELF ARM, the thread pointer is 8 bytes before
+ 				// the start of the thread-local data block, so add 8

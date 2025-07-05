@@ -16,6 +16,20 @@ Date:   Sat Feb 27 00:49:08 2016 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/gosym/pclntab_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/debug/gosym/pclntab_test.go b/src/debug/gosym/pclntab_test.go
+index 8d4aa547a0..355bb0433e 100644
+--- a/src/debug/gosym/pclntab_test.go
++++ b/src/debug/gosym/pclntab_test.go
+@@ -42,7 +42,7 @@ func dotest(t *testing.T) {
+ 	if err := cmd.Run(); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	cmd = exec.Command("go", "tool", "link", "-H", "linux", "-E", "main",
++	cmd = exec.Command("go", "tool", "link", "-H", "linux",
+ 		"-o", pclinetestBinary, pclinetestBinary+".o")
+ 	cmd.Stdout = os.Stdout
+ 	cmd.Stderr = os.Stderr

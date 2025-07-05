@@ -12,7 +12,7 @@ Date:   Wed Jul 23 17:36:10 2014 +0400
     R=golang-codereviews, dave, josharian, khr, rsc
     CC=golang-codereviews, iant, khr, rlh
     https://golang.org/cl/116060043
-
+---
  src/cmd/5g/gsubr.c   |  7 ++-----
  src/cmd/6g/gsubr.c   |  7 ++-----
  src/cmd/8g/gsubr.c   |  7 ++-----
@@ -22,3 +22,250 @@ Date:   Wed Jul 23 17:36:10 2014 +0400
  src/cmd/gc/reflect.c | 15 +++++++++------
  src/cmd/gc/walk.c    |  3 ++-
  8 files changed, 25 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index b94da96c12..1241a23ea6 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -216,7 +216,7 @@ gargsize(int32 size)
+ }
+ 
+ void
+-ggloblsym(Sym *s, int32 width, int dupok, int rodata)
++ggloblsym(Sym *s, int32 width, int8 flags)
+ {
+ 	Prog *p;
+ 
+@@ -227,10 +227,7 @@ ggloblsym(Sym *s, int32 width, int dupok, int rodata)
+ 	p->to.type = D_CONST;
+ 	p->to.name = D_NONE;
+ 	p->to.offset = width;
+-	if(dupok)
+-		p->reg |= DUPOK;
+-	if(rodata)
+-		p->reg |= RODATA;
++	p->reg = flags;
+ }
+ 
+ void
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index d1b1d9beef..f3464b7e1c 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -225,7 +225,7 @@ gargsize(vlong size)
+ }
+ 
+ void
+-ggloblsym(Sym *s, int32 width, int dupok, int rodata)
++ggloblsym(Sym *s, int32 width, int8 flags)
+ {
+ 	Prog *p;
+ 
+@@ -236,10 +236,7 @@ ggloblsym(Sym *s, int32 width, int dupok, int rodata)
+ 	p->to.type = D_CONST;
+ 	p->to.index = D_NONE;
+ 	p->to.offset = width;
+-	if(dupok)
+-		p->from.scale |= DUPOK;
+-	if(rodata)
+-		p->from.scale |= RODATA;
++	p->from.scale = flags;
+ }
+ 
+ int
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index a131874c61..66d5b8d696 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -216,7 +216,7 @@ gargsize(int32 size)
+ }
+ 
+ void
+-ggloblsym(Sym *s, int32 width, int dupok, int rodata)
++ggloblsym(Sym *s, int32 width, int8 flags)
+ {
+ 	Prog *p;
+ 
+@@ -227,10 +227,7 @@ ggloblsym(Sym *s, int32 width, int dupok, int rodata)
+ 	p->to.type = D_CONST;
+ 	p->to.index = D_NONE;
+ 	p->to.offset = width;
+-	if(dupok)
+-		p->from.scale |= DUPOK;
+-	if(rodata)
+-		p->from.scale |= RODATA;
++	p->from.scale = flags;
+ }
+ 
+ void
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 265037ac51..aaa22d1b13 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1506,7 +1506,7 @@ void	gdata(Node*, Node*, int);
+ void	gdatacomplex(Node*, Mpcplx*);
+ void	gdatastring(Node*, Strlit*);
+ void	ggloblnod(Node *nam);
+-void	ggloblsym(Sym *s, int32 width, int dupok, int rodata);
++void	ggloblsym(Sym *s, int32 width, int8 flags);
+ void	gvardef(Node*);
+ void	gvarkill(Node*);
+ Prog*	gjmp(Prog*);
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 4eeb03aa8e..b752a13ced 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -5,6 +5,7 @@
+ #include <u.h>
+ #include <libc.h>
+ #include "go.h"
++#include "../ld/textflag.h"
+ 
+ /*
+  * architecture-independent object file output
+@@ -84,7 +85,7 @@ dumpobj(void)
+ 	externdcl = tmp;
+ 
+ 	zero = pkglookup("zerovalue", runtimepkg);
+-	ggloblsym(zero, zerosize, 1, 1);
++	ggloblsym(zero, zerosize, DUPOK|RODATA);
+ 
+ 	dumpdata();
+ 	writeobj(ctxt, bout);
+@@ -128,7 +129,7 @@ dumpglobls(void)
+ 	for(l=funcsyms; l; l=l->next) {
+ 		n = l->n;
+ 		dsymptr(n->sym, 0, n->sym->def->shortname->sym, 0);
+-		ggloblsym(n->sym, widthptr, 1, 1);
++		ggloblsym(n->sym, widthptr, DUPOK|RODATA);
+ 	}
+ 	
+ 	// Do not reprocess funcsyms on next dumpglobls call.
+@@ -249,7 +250,7 @@ stringsym(char *s, int len)
+ 	}
+ 	off = duint8(sym, off, 0);  // terminating NUL for runtime
+ 	off = (off+widthptr-1)&~(widthptr-1);  // round to pointer alignment
+-	ggloblsym(sym, off, 1, 1);
++	ggloblsym(sym, off, DUPOK|RODATA);
+ 
+ 	return sym;	
+ }
+@@ -272,7 +273,7 @@ slicebytes(Node *nam, char *s, int len)
+ 			m = len-n;
+ 		off = dsname(sym, off, s+n, m);
+ 	}
+-	ggloblsym(sym, off, 0, 0);
++	ggloblsym(sym, off, NOPTR);
+ 	
+ 	if(nam->op != ONAME)
+ 		fatal("slicebytes %N", nam);
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 4c07d6bc51..d3f1cfbc6e 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -17,6 +17,7 @@
+ #include <libc.h>
+ #include "gg.h"
+ #include "opt.h"
++#include "../ld/textflag.h"
+ #include "../../pkg/runtime/funcdata.h"
+ 
+ enum { BitsPerPointer = 2 };
+@@ -1923,7 +1924,7 @@ twobitwritesymbol(Array *arr, Sym *sym)
+ 		}
+ 	}
+ 	duint32(sym, 0, i); // number of bitmaps
+-	ggloblsym(sym, off, 0, 1);
++	ggloblsym(sym, off, RODATA);
+ }
+ 
+ static void
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index dbb447e4e2..fdcd76be06 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -5,6 +5,7 @@
+ #include <u.h>
+ #include <libc.h>
+ #include "go.h"
++#include "../ld/textflag.h"
+ #include "../../pkg/runtime/mgc0.h"
+ 
+ /*
+@@ -524,7 +525,7 @@ dimportpath(Pkg *p)
+ 	p->pathsym = n->sym;
+ 
+ 	gdatastring(n, p->path);
+-	ggloblsym(n->sym, types[TSTRING]->width, 1, 1);
++	ggloblsym(n->sym, types[TSTRING]->width, DUPOK|RODATA);
+ }
+ 
+ static int
+@@ -975,7 +976,9 @@ dtypesym(Type *t)
+ 	tbase = t;
+ 	if(isptr[t->etype] && t->sym == S && t->type->sym != S)
+ 		tbase = t->type;
+-	dupok = tbase->sym == S;
++	dupok = 0;
++	if(tbase->sym == S)
++		dupok = DUPOK;
+ 
+ 	if(compiling_runtime &&
+ 			(tbase == types[tbase->etype] ||
+@@ -1150,7 +1153,7 @@ ok:
+ 		break;
+ 	}
+ 	ot = dextratype(s, ot, t, xt);
+-	ggloblsym(s, ot, dupok, 1);
++	ggloblsym(s, ot, dupok|RODATA);
+ 
+ 	// generate typelink.foo pointing at s = type.foo.
+ 	// The linker will leave a table of all the typelinks for
+@@ -1164,7 +1167,7 @@ ok:
+ 		case TMAP:
+ 			slink = typelinksym(t);
+ 			dsymptr(slink, 0, s, 0);
+-			ggloblsym(slink, widthptr, dupok, 1);
++			ggloblsym(slink, widthptr, dupok|RODATA);
+ 		}
+ 	}
+ 
+@@ -1267,7 +1270,7 @@ dalgsym(Type *t)
+ 		break;
+ 	}
+ 
+-	ggloblsym(s, ot, 1, 1);
++	ggloblsym(s, ot, DUPOK|RODATA);
+ 	return s;
+ }
+ 
+@@ -1489,7 +1492,7 @@ dgcsym(Type *t)
+ 	ot = duintptr(s, ot, t->width);
+ 	ot = dgcsym1(s, ot, t, &off, 0);
+ 	ot = duintptr(s, ot, GC_END);
+-	ggloblsym(s, ot, 1, 1);
++	ggloblsym(s, ot, DUPOK|RODATA);
+ 
+ 	if(t->align > 0)
+ 		off = rnd(off, t->align);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 1cb25512e5..41d49f57b3 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -5,6 +5,7 @@
+ #include	<u.h>
+ #include	<libc.h>
+ #include	"go.h"
++#include	"../ld/textflag.h"
+ 
+ static	Node*	walkprint(Node*, NodeList**, int);
+ static	Node*	mapfn(char*, Type*);
+@@ -865,7 +866,7 @@ walkexpr(Node **np, NodeList **init)
+ 				l->class = PEXTERN;
+ 				l->xoffset = 0;
+ 				sym->def = l;
+-				ggloblsym(sym, widthptr, 1, 0);
++				ggloblsym(sym, widthptr, DUPOK|NOPTR);
+ 			}
+ 			l = nod(OADDR, sym->def, N);
+ 			l->addable = 1;

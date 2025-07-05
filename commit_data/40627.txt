@@ -16,7 +16,98 @@ Date:   Fri May 31 16:40:14 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/work/exec.go | 19 ----------------
  src/cmd/go/internal/work/gc.go   | 49 ----------------------------------------
  2 files changed, 68 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 6f2d319bc2..c1bb9416cb 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1682,25 +1682,6 @@ func (b *Builder) writeFile(file string, text []byte) error {
+ 	return ioutil.WriteFile(file, text, 0666)
+ }
+ 
+-// appendFile appends the text to file.
+-func (b *Builder) appendFile(file string, text []byte) error {
+-	if cfg.BuildN || cfg.BuildX {
+-		b.Showcmd("", "cat >>%s << 'EOF' # internal\n%sEOF", file, text)
+-	}
+-	if cfg.BuildN {
+-		return nil
+-	}
+-	f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+-	if err != nil {
+-		return err
+-	}
+-	defer f.Close()
+-	if _, err = f.Write(text); err != nil {
+-		return err
+-	}
+-	return f.Close()
+-}
+-
+ // Install the cgo export header file, if there is one.
+ func (b *Builder) installHeader(a *Action) error {
+ 	src := a.Objdir + "_cgo_install.h"
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 6ec24b2855..86322946a6 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -309,55 +309,6 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
+ 		}
+ 	}
+ 
+-	// Gather known cross-package references from assembly code.
+-	var otherPkgs []string
+-	if p.ImportPath == "runtime" {
+-		// Assembly in the following packages references
+-		// symbols in runtime.
+-		otherPkgs = []string{"syscall", "internal/syscall/unix", "runtime/cgo"}
+-	} else if p.ImportPath == "runtime/internal/atomic" {
+-		// sync/atomic is an assembly wrapper around
+-		// runtime/internal/atomic.
+-		otherPkgs = []string{"sync/atomic"}
+-	}
+-	for _, p2name := range otherPkgs {
+-		p2 := load.LoadImportWithFlags(p2name, p.Dir, p, &load.ImportStack{}, nil, 0)
+-		if len(p2.SFiles) == 0 {
+-			continue
+-		}
+-
+-		symabis2 := a.Objdir + "symabis2"
+-		if err := mkSymabis(p2, p2.SFiles, symabis2); err != nil {
+-			return "", err
+-		}
+-
+-		// Filter out just the symbol refs and append them to
+-		// the symabis file.
+-		if cfg.BuildN {
+-			// -x will print the lines from symabis2 that are actually appended
+-			// to symabis. With -n, we don't know what those lines will be.
+-			b.Showcmd("", `grep '^ref' <%s | grep -v '^ref\s*""\.' >>%s`, symabis2, a.Objdir+"symabis")
+-			continue
+-		}
+-		abis2, err := ioutil.ReadFile(symabis2)
+-		if err != nil {
+-			return "", err
+-		}
+-		var refs bytes.Buffer
+-		for _, line := range strings.Split(string(abis2), "\n") {
+-			fs := strings.Fields(line)
+-			if len(fs) >= 2 && fs[0] == "ref" && !strings.HasPrefix(fs[1], `"".`) {
+-				fmt.Fprintf(&refs, "%s\n", line)
+-			}
+-		}
+-		if refs.Len() != 0 {
+-			symabis = a.Objdir + "symabis"
+-			if err := b.appendFile(symabis, refs.Bytes()); err != nil {
+-				return "", err
+-			}
+-		}
+-	}
+-
+ 	return symabis, nil
+ }
+ 

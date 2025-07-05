@@ -12,7 +12,34 @@ Date:   Thu Oct 29 22:40:36 2015 -0400
     Change-Id: Iafbc0903c84f9250ff6bee14baac6fcd4ed5ef76
     Reviewed-on: https://go-review.googlesource.com/16511
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go     | 2 +-
  src/runtime/mgcmark.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index a3326e344e..bf93259d50 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1359,7 +1359,7 @@ func gcBgMarkWorker(p *p) {
+ 		gopark(func(g *g, mp unsafe.Pointer) bool {
+ 			releasem((*m)(mp))
+ 			return true
+-		}, unsafe.Pointer(mp), "mark worker (idle)", traceEvGoBlock, 0)
++		}, unsafe.Pointer(mp), "GC worker (idle)", traceEvGoBlock, 0)
+ 
+ 		// Loop until the P dies and disassociates this
+ 		// worker. (The P may later be reused, in which case
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index f03441b2f9..f1a92e0be2 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -482,7 +482,7 @@ retry:
+ 			goto retry
+ 		}
+ 		// Park for real.
+-		goparkunlock(&work.assistQueue.lock, "GC assist", traceEvGoBlock, 2)
++		goparkunlock(&work.assistQueue.lock, "GC assist wait", traceEvGoBlock, 2)
+ 
+ 		// At this point either background GC has satisfied
+ 		// this G's assist debt, or the GC cycle is over.

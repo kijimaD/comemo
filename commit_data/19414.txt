@@ -26,6 +26,51 @@ Date:   Tue May 20 14:02:57 2014 -0400
     R=iant, rsc, mra
     CC=golang-codereviews
     https://golang.org/cl/100520043
-
+---
  src/cmd/dist/build.c | 9 +--------
  1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 5d90628829..59852b0120 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -242,13 +242,12 @@ findgoversion(void)
+ {
+ 	char *tag, *rev, *p;
+ 	int i, nrev;
+-	Buf b, path, bmore, bplus, branch;
++	Buf b, path, bmore, branch;
+ 	Vec tags;
+ 
+ 	binit(&b);
+ 	binit(&path);
+ 	binit(&bmore);
+-	binit(&bplus);
+ 	binit(&branch);
+ 	vinit(&tags);
+ 
+@@ -315,16 +314,11 @@ findgoversion(void)
+ 		// Add extra information.
+ 		run(&bmore, goroot, CheckExit, "hg", "log", "--template", " +{node|short} {date|date}", "-r", rev, nil);
+ 		chomp(&bmore);
+-		// Generate a list of local modifications, if any.
+-		run(&bplus, goroot, CheckExit, "hg", "status", "-m", "-a", "-r", "-d", nil);
+-		chomp(&bplus);
+ 	}
+ 
+ 	bprintf(&b, "%s", tag);
+ 	if(bmore.len > 0)
+ 		bwriteb(&b, &bmore);
+-	if(bplus.len > 0)
+-		bwritestr(&b, " +");
+ 
+ 	// Cache version.
+ 	writefile(&b, bstr(&path), 0);
+@@ -336,7 +330,6 @@ done:
+ 	bfree(&b);
+ 	bfree(&path);
+ 	bfree(&bmore);
+-	bfree(&bplus);
+ 	bfree(&branch);
+ 	vfree(&tags);
+ 

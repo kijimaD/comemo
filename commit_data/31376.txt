@@ -14,8 +14,107 @@ Date:   Tue Feb 14 21:34:19 2017 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser_test.go |  2 +-
  src/cmd/compile/internal/syntax/scanner.go     | 18 ++++++++++--------
  test/fixedbugs/issue18393.go                   | 24 ++++++++++++++++++++++++
  3 files changed, 35 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index da56168957..f7ada181dd 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -195,7 +195,7 @@ func TestLineDirectives(t *testing.T) {
+ 		{`//line :x`, "invalid line number: x", "", 1, 8},
+ 		{`//line foo :`, "invalid line number: ", "", 1, 12},
+ 		{`//line foo:123abc`, "invalid line number: 123abc", "", 1, 11},
+-		{`/**///line foo:x`, "invalid line number: x", "", 1, 15},
++		{`/**///line foo:x`, "syntax error: package statement must be first", "", 1, 16}, //line directive not at start of line - ignored
+ 		{`//line foo:0`, "invalid line number: 0", "", 1, 11},
+ 		{fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), "", 1, 11},
+ 
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index ede3b00a34..edd60609a0 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -45,10 +45,11 @@ func (s *scanner) init(src io.Reader, errh, pragh func(line, col uint, msg strin
+ // calls the error handler installed with init. The handler
+ // must exist.
+ //
+-// If a //line or //go: directive is encountered, next
+-// calls the pragma handler installed with init, if not nil.
++// If a //line or //go: directive is encountered at the start
++// of a line, next calls the directive handler pragh installed
++// with init, if not nil.
+ //
+-// The (line, col) position passed to the error and pragma
++// The (line, col) position passed to the error and directive
+ // handler is always at or after the current source reading
+ // position.
+ func (s *scanner) next() {
+@@ -561,13 +562,14 @@ func (s *scanner) skipLine(r rune) {
+ 
+ func (s *scanner) lineComment() {
+ 	r := s.getr()
+-	if s.pragh == nil || (r != 'g' && r != 'l') {
++	// directives must start at the beginning of the line (s.col == 0)
++	if s.col != 0 || s.pragh == nil || (r != 'g' && r != 'l') {
+ 		s.skipLine(r)
+ 		return
+ 	}
+-	// s.pragh != nil && (r == 'g' || r == 'l')
++	// s.col == 0 && s.pragh != nil && (r == 'g' || r == 'l')
+ 
+-	// recognize pragmas
++	// recognize directives
+ 	prefix := "go:"
+ 	if r == 'l' {
+ 		prefix = "line "
+@@ -580,7 +582,7 @@ func (s *scanner) lineComment() {
+ 		r = s.getr()
+ 	}
+ 
+-	// pragma text without line ending (which may be "\r\n" if Windows),
++	// directive text without line ending (which may be "\r\n" if Windows),
+ 	s.startLit()
+ 	s.skipLine(r)
+ 	text := s.stopLit()
+@@ -588,7 +590,7 @@ func (s *scanner) lineComment() {
+ 		text = text[:i]
+ 	}
+ 
+-	s.pragh(s.line, s.col+2, prefix+string(text)) // +2 since pragma text starts after //
++	s.pragh(s.line, s.col+2, prefix+string(text)) // +2 since directive text starts after //
+ }
+ 
+ func (s *scanner) fullComment() {
+diff --git a/test/fixedbugs/issue18393.go b/test/fixedbugs/issue18393.go
+new file mode 100644
+index 0000000000..cbcc9804b6
+--- /dev/null
++++ b/test/fixedbugs/issue18393.go
+@@ -0,0 +1,24 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that compiler directives are ignored if they
++// don't start at the beginning of the line.
++
++package p
++
++//line issue18393.go:20
++import 42 // error on line 20
++
++
++/* //line not at start of line: ignored */ //line issue18393.go:30
++var x     // error on line 24, not 30
++
++
++// ERROR "missing import path"
++
++
++
++// ERROR "syntax error: unexpected newline, expecting type"

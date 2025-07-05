@@ -28,7 +28,7 @@ Date:   Thu Apr 20 17:30:38 2023 +0200
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/signal_windows_test.go      | 56 +++++++++++++++++++++++++++++++++
  src/runtime/sys_windows_386.s           |  7 ++++-
  src/runtime/sys_windows_amd64.s         |  8 ++++-
@@ -36,3 +36,215 @@ Date:   Thu Apr 20 17:30:38 2023 +0200
  src/runtime/testdata/testwintls/main.c  | 29 +++++++++++++++++
  src/runtime/testdata/testwintls/main.go | 12 +++++++
  6 files changed, 116 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/signal_windows_test.go b/src/runtime/signal_windows_test.go
+index 5648185cab..431c372876 100644
+--- a/src/runtime/signal_windows_test.go
++++ b/src/runtime/signal_windows_test.go
+@@ -257,3 +257,59 @@ func TestLibraryCtrlHandler(t *testing.T) {
+ 		t.Fatalf("Program exited with error: %v\n%s", err, &stderr)
+ 	}
+ }
++
++func TestIssue59213(t *testing.T) {
++	if runtime.GOOS != "windows" {
++		t.Skip("skipping windows only test")
++	}
++	if *flagQuick {
++		t.Skip("-quick")
++	}
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++
++	goEnv := func(arg string) string {
++		cmd := testenv.Command(t, testenv.GoToolPath(t), "env", arg)
++		cmd.Stderr = new(bytes.Buffer)
++
++		line, err := cmd.Output()
++		if err != nil {
++			t.Fatalf("%v: %v\n%s", cmd, err, cmd.Stderr)
++		}
++		out := string(bytes.TrimSpace(line))
++		t.Logf("%v: %q", cmd, out)
++		return out
++	}
++
++	cc := goEnv("CC")
++	cgoCflags := goEnv("CGO_CFLAGS")
++
++	t.Parallel()
++
++	tmpdir := t.TempDir()
++	dllfile := filepath.Join(tmpdir, "test.dll")
++	exefile := filepath.Join(tmpdir, "gotest.exe")
++
++	// build go dll
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", dllfile, "-buildmode", "c-shared", "testdata/testwintls/main.go")
++	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to build go library: %s\n%s", err, out)
++	}
++
++	// build c program
++	cmd = testenv.Command(t, cc, "-o", exefile, "testdata/testwintls/main.c")
++	testenv.CleanCmdEnv(cmd)
++	cmd.Env = append(cmd.Env, "CGO_CFLAGS="+cgoCflags)
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to build c exe: %s\n%s", err, out)
++	}
++
++	// run test program
++	cmd = testenv.Command(t, exefile, dllfile, "GoFunc")
++	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed: %s\n%s", err, out)
++	}
++}
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index c1cc788aba..41a6ee69ca 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -9,6 +9,7 @@
+ 
+ // Offsets into Thread Environment Block (pointer in FS)
+ #define TEB_TlsSlots 0xE10
++#define TEB_ArbitraryPtr 0x14
+ 
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),NOSPLIT,$0
+@@ -286,7 +287,10 @@ TEXT runtime·wintls(SB),NOSPLIT,$0
+ 	// Assert that slot is less than 64 so we can use _TEB->TlsSlots
+ 	CMPL	CX, $64
+ 	JB	ok
+-	CALL	runtime·abort(SB)
++	// Fallback to the TEB arbitrary pointer.
++	// TODO: don't use the arbitrary pointer (see go.dev/issue/59824)
++	MOVL	$TEB_ArbitraryPtr, CX
++	JMP	settls
+ ok:
+ 	// Convert the TLS index at CX into
+ 	// an offset from TEB_TlsSlots.
+@@ -294,5 +298,6 @@ ok:
+ 
+ 	// Save offset from TLS into tls_g.
+ 	ADDL	$TEB_TlsSlots, CX
++settls:
+ 	MOVL	CX, runtime·tls_g(SB)
+ 	RET
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 9699c9679c..e66f444ff5 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -10,6 +10,7 @@
+ 
+ // Offsets into Thread Environment Block (pointer in GS)
+ #define TEB_TlsSlots 0x1480
++#define TEB_ArbitraryPtr 0x28
+ 
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),NOSPLIT,$16
+@@ -301,7 +302,11 @@ TEXT runtime·wintls(SB),NOSPLIT,$0
+ 	// Assert that slot is less than 64 so we can use _TEB->TlsSlots
+ 	CMPQ	CX, $64
+ 	JB	ok
+-	CALL	runtime·abort(SB)
++
++	// Fallback to the TEB arbitrary pointer.
++	// TODO: don't use the arbitrary pointer (see go.dev/issue/59824)
++	MOVQ	$TEB_ArbitraryPtr, CX
++	JMP	settls
+ ok:
+ 	// Convert the TLS index at CX into
+ 	// an offset from TEB_TlsSlots.
+@@ -309,5 +314,6 @@ ok:
+ 
+ 	// Save offset from TLS into tls_g.
+ 	ADDQ	$TEB_TlsSlots, CX
++settls:
+ 	MOVQ	CX, runtime·tls_g(SB)
+ 	RET
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index 1161ad0132..22bf1dda70 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -12,6 +12,7 @@
+ // Offsets into Thread Environment Block (pointer in R18)
+ #define TEB_error 0x68
+ #define TEB_TlsSlots 0x1480
++#define TEB_ArbitraryPtr 0x28
+ 
+ // Note: R0-R7 are args, R8 is indirect return value address,
+ // R9-R15 are caller-save, R19-R29 are callee-save.
+@@ -273,12 +274,15 @@ TEXT runtime·wintls(SB),NOSPLIT,$0
+ 	// Assert that slot is less than 64 so we can use _TEB->TlsSlots
+ 	CMP	$64, R0
+ 	BLT	ok
+-	MOVD	$runtime·abort(SB), R1
+-	BL	(R1)
++	// Fallback to the TEB arbitrary pointer.
++	// TODO: don't use the arbitrary pointer (see go.dev/issue/59824)
++	MOVD	$TEB_ArbitraryPtr, R0
++	B	settls
+ ok:
+ 
+ 	// Save offset from R18 into tls_g.
+ 	LSL	$3, R0
+ 	ADD	$TEB_TlsSlots, R0
++settls:
+ 	MOVD	R0, runtime·tls_g(SB)
+ 	RET
+diff --git a/src/runtime/testdata/testwintls/main.c b/src/runtime/testdata/testwintls/main.c
+new file mode 100644
+index 0000000000..606182859c
+--- /dev/null
++++ b/src/runtime/testdata/testwintls/main.c
+@@ -0,0 +1,29 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <windows.h>
++
++int main(int argc, char **argv) {
++    if (argc < 3) {
++        return 1;
++    }
++    // Allocate more than 64 TLS indices
++    // so the Go runtime doesn't find
++    // enough space in the TEB TLS slots.
++    for (int i = 0; i < 65; i++) {
++        TlsAlloc();
++    }
++    HMODULE hlib = LoadLibrary(argv[1]);
++    if (hlib == NULL) {
++        return 2;
++    }
++    FARPROC proc = GetProcAddress(hlib, argv[2]);
++    if (proc == NULL) {
++        return 3;
++    }
++    if (proc() != 42) {
++        return 4;
++    }
++    return 0;
++}
+\ No newline at end of file
+diff --git a/src/runtime/testdata/testwintls/main.go b/src/runtime/testdata/testwintls/main.go
+new file mode 100644
+index 0000000000..1cf296c403
+--- /dev/null
++++ b/src/runtime/testdata/testwintls/main.go
+@@ -0,0 +1,12 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "C"
++
++//export GoFunc
++func GoFunc() int { return 42 }
++
++func main() {}

@@ -18,6 +18,29 @@ Date:   Tue Sep 3 10:27:48 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/hash/smhasher_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/bytes/hash/smhasher_test.go b/src/bytes/hash/smhasher_test.go
+index 1b7b44db09..f5169ffa27 100644
+--- a/src/bytes/hash/smhasher_test.go
++++ b/src/bytes/hash/smhasher_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"runtime"
+ 	"strings"
+ 	"testing"
++	"unsafe"
+ )
+ 
+ // Smhasher is a torture test for hash functions.
+@@ -450,6 +451,9 @@ func text(t *testing.T, prefix, suffix string) {
+ 
+ // Make sure different seed values generate different hashes.
+ func TestSmhasherSeed(t *testing.T) {
++	if unsafe.Sizeof(uintptr(0)) == 4 {
++		t.Skip("32-bit platforms don't have ideal seed-input distributions (see issue 33988)")
++	}
+ 	h := newHashSet()
+ 	const N = 100000
+ 	s := "hello"

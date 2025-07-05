@@ -23,7 +23,7 @@ Date:   Sun Jan 17 00:47:12 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go       |  4 ++--
  src/cmd/compile/internal/ir/expr.go             | 14 +++++------
  src/cmd/compile/internal/ir/fmt.go              |  4 ++--
@@ -35,3 +35,267 @@ Date:   Sun Jan 17 00:47:12 2021 +0700
  src/cmd/compile/internal/walk/expr.go           |  4 ++--
  src/cmd/compile/internal/walk/walk.go           |  2 +-
  10 files changed, 51 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 356fbc75f8..26420b820a 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -585,7 +585,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 	default:
+ 		base.Fatalf("unexpected expr: %v", n)
+ 
+-	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OTYPE, ir.OMETHEXPR, ir.ONAMEOFFSET:
++	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OTYPE, ir.OMETHEXPR, ir.OLINKSYMOFFSET:
+ 		// nop
+ 
+ 	case ir.ONAME:
+@@ -871,7 +871,7 @@ func (e *escape) addr(n ir.Node) hole {
+ 			break
+ 		}
+ 		k = e.oldLoc(n).asHole()
+-	case ir.ONAMEOFFSET:
++	case ir.OLINKSYMOFFSET:
+ 		break
+ 	case ir.ODOT:
+ 		n := n.(*ir.SelectorExpr)
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index a3356d432a..8aad25d625 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -462,22 +462,22 @@ func NewResultExpr(pos src.XPos, typ *types.Type, offset int64) *ResultExpr {
+ 	return n
+ }
+ 
+-// A NameOffsetExpr refers to an offset within a global variable.
++// A LinksymOffsetExpr refers to an offset within a global variable.
+ // It is like a SelectorExpr but without the field name.
+-type NameOffsetExpr struct {
++type LinksymOffsetExpr struct {
+ 	miniExpr
+ 	Linksym *obj.LSym
+ 	Offset_ int64
+ }
+ 
+-func NewLinksymOffsetExpr(pos src.XPos, lsym *obj.LSym, offset int64, typ *types.Type) *NameOffsetExpr {
+-	n := &NameOffsetExpr{Linksym: lsym, Offset_: offset}
++func NewLinksymOffsetExpr(pos src.XPos, lsym *obj.LSym, offset int64, typ *types.Type) *LinksymOffsetExpr {
++	n := &LinksymOffsetExpr{Linksym: lsym, Offset_: offset}
+ 	n.typ = typ
+-	n.op = ONAMEOFFSET
++	n.op = OLINKSYMOFFSET
+ 	return n
+ }
+ 
+-func NewNameOffsetExpr(pos src.XPos, name *Name, offset int64, typ *types.Type) *NameOffsetExpr {
++func NewNameOffsetExpr(pos src.XPos, name *Name, offset int64, typ *types.Type) *LinksymOffsetExpr {
+ 	if name == nil || IsBlank(name) || !(name.Op() == ONAME && name.Class == PEXTERN) {
+ 		base.FatalfAt(pos, "cannot take offset of nil, blank name or non-global variable: %v", name)
+ 	}
+@@ -731,7 +731,7 @@ func IsAddressable(n Node) bool {
+ 		}
+ 		return true
+ 
+-	case ONAMEOFFSET:
++	case OLINKSYMOFFSET:
+ 		return true
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index dfb8e42270..68e1bc1569 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -632,8 +632,8 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 	case OPACK, ONONAME:
+ 		fmt.Fprint(s, n.Sym())
+ 
+-	case ONAMEOFFSET:
+-		n := n.(*NameOffsetExpr)
++	case OLINKSYMOFFSET:
++		n := n.(*LinksymOffsetExpr)
+ 		fmt.Fprintf(s, "(%v)(%s@%d)", n.Type(), n.Linksym.Name, n.Offset_)
+ 
+ 	case OTYPE:
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index a44bf42e78..a725307c2c 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -291,19 +291,19 @@ const (
+ 	OTSLICE // []int
+ 
+ 	// misc
+-	OINLCALL    // intermediary representation of an inlined call.
+-	OEFACE      // itable and data words of an empty-interface value.
+-	OITAB       // itable word of an interface value.
+-	OIDATA      // data word of an interface value in Left
+-	OSPTR       // base pointer of a slice or string.
+-	OCFUNC      // reference to c function pointer (not go func value)
+-	OCHECKNIL   // emit code to ensure pointer/interface not nil
+-	OVARDEF     // variable is about to be fully initialized
+-	OVARKILL    // variable is dead
+-	OVARLIVE    // variable is alive
+-	ORESULT     // result of a function call; Xoffset is stack offset
+-	OINLMARK    // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
+-	ONAMEOFFSET // offset within a name
++	OINLCALL       // intermediary representation of an inlined call.
++	OEFACE         // itable and data words of an empty-interface value.
++	OITAB          // itable word of an interface value.
++	OIDATA         // data word of an interface value in Left
++	OSPTR          // base pointer of a slice or string.
++	OCFUNC         // reference to c function pointer (not go func value)
++	OCHECKNIL      // emit code to ensure pointer/interface not nil
++	OVARDEF        // variable is about to be fully initialized
++	OVARKILL       // variable is dead
++	OVARLIVE       // variable is alive
++	ORESULT        // result of a function call; Xoffset is stack offset
++	OINLMARK       // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
++	OLINKSYMOFFSET // offset within a name
+ 
+ 	// arch-specific opcodes
+ 	ORETJMP // return to other function
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 7db9517b2c..8f89c67748 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -734,6 +734,22 @@ func (n *LabelStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ }
+ 
++func (n *LinksymOffsetExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
++func (n *LinksymOffsetExpr) copy() Node {
++	c := *n
++	c.init = copyNodes(c.init)
++	return &c
++}
++func (n *LinksymOffsetExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	return false
++}
++func (n *LinksymOffsetExpr) editChildren(edit func(Node) Node) {
++	editNodes(n.init, edit)
++}
++
+ func (n *LogicalExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *LogicalExpr) copy() Node {
+ 	c := *n
+@@ -815,22 +831,6 @@ func (n *MapType) editChildren(edit func(Node) Node) {
+ 
+ func (n *Name) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ 
+-func (n *NameOffsetExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+-func (n *NameOffsetExpr) copy() Node {
+-	c := *n
+-	c.init = copyNodes(c.init)
+-	return &c
+-}
+-func (n *NameOffsetExpr) doChildren(do func(Node) bool) bool {
+-	if doNodes(n.init, do) {
+-		return true
+-	}
+-	return false
+-}
+-func (n *NameOffsetExpr) editChildren(edit func(Node) Node) {
+-	editNodes(n.init, edit)
+-}
+-
+ func (n *NilExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *NilExpr) copy() Node {
+ 	c := *n
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index 9538599c38..35196b01ae 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -156,15 +156,15 @@ func _() {
+ 	_ = x[OVARLIVE-145]
+ 	_ = x[ORESULT-146]
+ 	_ = x[OINLMARK-147]
+-	_ = x[ONAMEOFFSET-148]
++	_ = x[OLINKSYMOFFSET-148]
+ 	_ = x[ORETJMP-149]
+ 	_ = x[OGETG-150]
+ 	_ = x[OEND-151]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFMETHEXPRSTMTEXPRBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKNAMEOFFSETRETJMPGETGEND"
++const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFMETHEXPRSTMTEXPRBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETRETJMPGETGEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 126, 129, 139, 146, 153, 160, 164, 168, 176, 184, 193, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 280, 284, 287, 294, 302, 309, 315, 318, 324, 331, 339, 343, 350, 358, 360, 362, 364, 366, 368, 370, 375, 380, 388, 391, 400, 403, 407, 415, 422, 431, 444, 447, 450, 453, 456, 459, 462, 468, 471, 474, 480, 484, 487, 491, 496, 501, 507, 512, 516, 521, 529, 537, 543, 552, 563, 570, 574, 581, 589, 593, 597, 601, 608, 615, 623, 629, 637, 645, 650, 655, 659, 667, 672, 676, 679, 687, 691, 693, 698, 700, 705, 711, 717, 723, 729, 734, 738, 745, 751, 756, 762, 768, 775, 780, 784, 789, 793, 798, 806, 812, 819, 826, 832, 839, 849, 855, 859, 862}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 126, 129, 139, 146, 153, 160, 164, 168, 176, 184, 193, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 280, 284, 287, 294, 302, 309, 315, 318, 324, 331, 339, 343, 350, 358, 360, 362, 364, 366, 368, 370, 375, 380, 388, 391, 400, 403, 407, 415, 422, 431, 444, 447, 450, 453, 456, 459, 462, 468, 471, 474, 480, 484, 487, 491, 496, 501, 507, 512, 516, 521, 529, 537, 543, 552, 563, 570, 574, 581, 589, 593, 597, 601, 608, 615, 623, 629, 637, 645, 650, 655, 659, 667, 672, 676, 679, 687, 691, 693, 698, 700, 705, 711, 717, 723, 729, 734, 738, 745, 751, 756, 762, 768, 775, 780, 784, 789, 793, 798, 806, 812, 819, 826, 832, 839, 852, 858, 862, 865}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index fce02f475a..1cd49a487e 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -2258,8 +2258,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 			return s.variable(n, n.Type())
+ 		}
+ 		return s.load(n.Type(), s.addr(n))
+-	case ir.ONAMEOFFSET:
+-		n := n.(*ir.NameOffsetExpr)
++	case ir.OLINKSYMOFFSET:
++		n := n.(*ir.LinksymOffsetExpr)
+ 		return s.load(n.Type(), s.addr(n))
+ 	case ir.ONIL:
+ 		n := n.(*ir.NilExpr)
+@@ -5092,8 +5092,8 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 		return v
+ 	}
+ 	switch n.Op() {
+-	case ir.ONAMEOFFSET:
+-		no := n.(*ir.NameOffsetExpr)
++	case ir.OLINKSYMOFFSET:
++		no := n.(*ir.LinksymOffsetExpr)
+ 		return linksymOffset(no.Linksym, no.Offset_)
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 3530e76972..5b44a5743f 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -521,7 +521,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 		}
+ 		return n
+ 
+-	case ir.ONAMEOFFSET:
++	case ir.OLINKSYMOFFSET:
+ 		// type already set
+ 		return n
+ 
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 8a13f6a923..82a76dc239 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -85,7 +85,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 	case ir.ONONAME, ir.OGETG:
+ 		return n
+ 
+-	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL, ir.ONAMEOFFSET:
++	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL, ir.OLINKSYMOFFSET:
+ 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
+ 		// Perhaps refactor to use Node.mayBeShared for these instead.
+ 		// If these return early, make sure to still call
+@@ -357,7 +357,7 @@ func safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
+ 	}
+ 
+ 	switch n.Op() {
+-	case ir.ONAME, ir.OLITERAL, ir.ONIL, ir.ONAMEOFFSET:
++	case ir.ONAME, ir.OLITERAL, ir.ONIL, ir.OLINKSYMOFFSET:
+ 		return n
+ 
+ 	case ir.OLEN, ir.OCAP:
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index a9672a261b..f214551617 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -316,7 +316,7 @@ func mayCall(n ir.Node) bool {
+ 			n := n.(*ir.ConvExpr)
+ 			return ssagen.Arch.SoftFloat && (isSoftFloat(n.Type()) || isSoftFloat(n.X.Type()))
+ 
+-		case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.ONAMEOFFSET, ir.OMETHEXPR,
++		case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OLINKSYMOFFSET, ir.OMETHEXPR,
+ 			ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOMPLEX, ir.OEFACE,
+ 			ir.OANDAND, ir.OOROR,
+ 			ir.OADDR, ir.OBITNOT, ir.ONOT, ir.OPLUS,

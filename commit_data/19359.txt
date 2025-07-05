@@ -18,8 +18,63 @@ Date:   Wed May 14 17:45:13 2014 -0700
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/92390043
-
+---
  src/cmd/nm/elf.go       | 4 ++--
  src/cmd/objdump/elf.go  | 4 ++--
  src/cmd/objdump/main.go | 9 +++++++++
  3 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/nm/elf.go b/src/cmd/nm/elf.go
+index 58a4b556f3..5aaa194dd1 100644
+--- a/src/cmd/nm/elf.go
++++ b/src/cmd/nm/elf.go
+@@ -34,10 +34,10 @@ func elfSymbols(f *os.File) []Sym {
+ 			sym.Code = 'B'
+ 		default:
+ 			i := int(s.Section)
+-			if i <= 0 || i > len(p.Sections) {
++			if i < 0 || i >= len(p.Sections) {
+ 				break
+ 			}
+-			sect := p.Sections[i-1]
++			sect := p.Sections[i]
+ 			switch sect.Flags & (elf.SHF_WRITE | elf.SHF_ALLOC | elf.SHF_EXECINSTR) {
+ 			case elf.SHF_ALLOC | elf.SHF_EXECINSTR:
+ 				sym.Code = 'T'
+diff --git a/src/cmd/objdump/elf.go b/src/cmd/objdump/elf.go
+index 017c2034e5..906e903532 100644
+--- a/src/cmd/objdump/elf.go
++++ b/src/cmd/objdump/elf.go
+@@ -42,10 +42,10 @@ func elfSymbols(f *os.File) (syms []Sym, goarch string) {
+ 			sym.Code = 'B'
+ 		default:
+ 			i := int(s.Section)
+-			if i <= 0 || i > len(p.Sections) {
++			if i < 0 || i >= len(p.Sections) {
+ 				break
+ 			}
+-			sect := p.Sections[i-1]
++			sect := p.Sections[i]
+ 			switch sect.Flags & (elf.SHF_WRITE | elf.SHF_ALLOC | elf.SHF_EXECINSTR) {
+ 			case elf.SHF_ALLOC | elf.SHF_EXECINSTR:
+ 				sym.Code = 'T'
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index 62cbdec90d..1b6b3d0fc4 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -235,6 +235,15 @@ func gnuDump(tab *gosym.Table, lookup lookupFunc, disasm disasmFunc, textData []
+ 	if err != nil {
+ 		log.Fatalf("invalid end PC: %v", err)
+ 	}
++	if start < textStart {
++		start = textStart
++	}
++	if end < start {
++		end = start
++	}
++	if end > textStart+uint64(len(textData)) {
++		end = textStart + uint64(len(textData))
++	}
+ 
+ 	stdout := bufio.NewWriter(os.Stdout)
+ 	defer stdout.Flush()

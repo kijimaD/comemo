@@ -13,8 +13,168 @@ Date:   Sun Mar 7 20:52:48 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/299671
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Trust: Keith Randall <khr@golang.org>
-
+---
  src/cmd/link/internal/ld/ld_test.go | 100 ++++++++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/lib.go     |  12 +++++
  src/runtime/mprof.go                |  17 +++++-
  3 files changed, 128 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/ld_test.go b/src/cmd/link/internal/ld/ld_test.go
+index 836d9bff3d..f3725cbc6a 100644
+--- a/src/cmd/link/internal/ld/ld_test.go
++++ b/src/cmd/link/internal/ld/ld_test.go
+@@ -224,3 +224,103 @@ func testWindowsBuildmodeCSharedASLR(t *testing.T, useASLR bool) {
+ 		t.Error("IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag should not be set")
+ 	}
+ }
++
++// TestMemProfileCheck tests that cmd/link sets
++// runtime.disableMemoryProfiling if the runtime.MemProfile
++// symbol is unreachable after deadcode (and not dynlinking).
++// The runtime then uses that to set the default value of
++// runtime.MemProfileRate, which this test checks.
++func TestMemProfileCheck(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	t.Parallel()
++
++	tests := []struct {
++		name    string
++		prog    string
++		wantOut string
++	}{
++		{
++			"no_memprofile",
++			`
++package main
++import "runtime"
++func main() {
++	println(runtime.MemProfileRate)
++}
++`,
++			"0",
++		},
++		{
++			"with_memprofile",
++			`
++package main
++import "runtime"
++func main() {
++	runtime.MemProfile(nil, false)
++	println(runtime.MemProfileRate)
++}
++`,
++			"524288",
++		},
++		{
++			"with_memprofile_indirect",
++			`
++package main
++import "runtime"
++var f = runtime.MemProfile
++func main() {
++	if f == nil {
++		panic("no f")
++	}
++	println(runtime.MemProfileRate)
++}
++`,
++			"524288",
++		},
++		{
++			"with_memprofile_runtime_pprof",
++			`
++package main
++import "runtime"
++import "runtime/pprof"
++func main() {
++        _ = pprof.Profiles()
++	println(runtime.MemProfileRate)
++}
++`,
++			"524288",
++		},
++		{
++			"with_memprofile_http_pprof",
++			`
++package main
++import "runtime"
++import _ "net/http/pprof"
++func main() {
++	println(runtime.MemProfileRate)
++}
++`,
++			"524288",
++		},
++	}
++	for _, tt := range tests {
++		tt := tt
++		t.Run(tt.name, func(t *testing.T) {
++			t.Parallel()
++			tempDir := t.TempDir()
++			src := filepath.Join(tempDir, "x.go")
++			if err := ioutil.WriteFile(src, []byte(tt.prog), 0644); err != nil {
++				t.Fatal(err)
++			}
++			cmd := exec.Command(testenv.GoToolPath(t), "run", src)
++			out, err := cmd.CombinedOutput()
++			if err != nil {
++				t.Fatal(err)
++			}
++			got := strings.TrimSpace(string(out))
++			if got != tt.wantOut {
++				t.Errorf("got %q; want %q", got, tt.wantOut)
++			}
++		})
++	}
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 517b0f6930..4c69d24354 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -790,6 +790,18 @@ func (ctxt *Link) linksetup() {
+ 			sb.SetSize(0)
+ 			sb.AddUint8(uint8(objabi.GOARM))
+ 		}
++
++		// Set runtime.disableMemoryProfiling bool if
++		// runtime.MemProfile is not retained in the binary after
++		// deadcode (and we're not dynamically linking).
++		memProfile := ctxt.loader.Lookup("runtime.MemProfile", sym.SymVerABIInternal)
++		if memProfile != 0 && !ctxt.loader.AttrReachable(memProfile) && !ctxt.DynlinkingGo() {
++			memProfSym := ctxt.loader.LookupOrCreateSym("runtime.disableMemoryProfiling", 0)
++			sb := ctxt.loader.MakeSymbolUpdater(memProfSym)
++			sb.SetType(sym.SDATA)
++			sb.SetSize(0)
++			sb.AddUint8(1) // true bool
++		}
+ 	} else {
+ 		// If OTOH the module does not contain the runtime package,
+ 		// create a local symbol for the moduledata.
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index c94b8f7cae..1156329615 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -490,7 +490,22 @@ func (r *StackRecord) Stack() []uintptr {
+ // memory profiling rate should do so just once, as early as
+ // possible in the execution of the program (for example,
+ // at the beginning of main).
+-var MemProfileRate int = 512 * 1024
++var MemProfileRate int = defaultMemProfileRate(512 * 1024)
++
++// defaultMemProfileRate returns 0 if disableMemoryProfiling is set.
++// It exists primarily for the godoc rendering of MemProfileRate
++// above.
++func defaultMemProfileRate(v int) int {
++	if disableMemoryProfiling {
++		return 0
++	}
++	return v
++}
++
++// disableMemoryProfiling is set by the linker if runtime.MemProfile
++// is not used and the link type guarantees nobody else could use it
++// elsewhere.
++var disableMemoryProfiling bool
+ 
+ // A MemProfileRecord describes the live objects allocated
+ // by a particular call sequence (stack trace).

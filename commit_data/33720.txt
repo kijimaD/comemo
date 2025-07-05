@@ -30,7 +30,94 @@ Date:   Wed Aug 30 10:10:15 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/60271
     Reviewed-by: Adam Langley <agl@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 19 ++++++++++++++++
  src/crypto/rsa/boring_test.go          | 40 ++++++++++++++++++++++++++++++++++
  2 files changed, 59 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 91e6f46804..ea771622c2 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1275,9 +1275,25 @@ ok:
+ 	// ../../../../runtime/type.go:/structType
+ 	// for security, only the exported fields.
+ 	case TSTRUCT:
++
++		// omitFieldForAwfulBoringCryptoKludge reports whether
++		// the field t should be omitted from the reflect data.
++		// In the crypto/... packages we omit an unexported field
++		// named "boring", to keep from breaking client code that
++		// expects rsa.PublicKey etc to have only public fields.
++		// As the name suggests, this is an awful kludge, but it is
++		// limited to the dev.boringcrypto branch and avoids
++		// much more invasive effects elsewhere.
++		omitFieldForAwfulBoringCryptoKludge := func(t *types.Field) bool {
++			return strings.HasPrefix(myimportpath, "crypto/") && t.Sym != nil && t.Sym.Name == "boring"
++		}
++
+ 		n := 0
+ 
+ 		for _, t1 := range t.Fields().Slice() {
++			if omitFieldForAwfulBoringCryptoKludge(t1) {
++				continue
++			}
+ 			dtypesym(t1.Type)
+ 			n++
+ 		}
+@@ -1305,6 +1321,9 @@ ok:
+ 		ot = dextratype(lsym, ot, t, dataAdd)
+ 
+ 		for _, f := range t.Fields().Slice() {
++			if omitFieldForAwfulBoringCryptoKludge(f) {
++				continue
++			}
+ 			// ../../../../runtime/type.go:/structField
+ 			ot = dnameField(lsym, ot, pkg, f)
+ 			ot = dsymptr(lsym, ot, dtypesym(f.Type).Linksym(), 0)
+diff --git a/src/crypto/rsa/boring_test.go b/src/crypto/rsa/boring_test.go
+new file mode 100644
+index 0000000000..7fbafee16e
+--- /dev/null
++++ b/src/crypto/rsa/boring_test.go
+@@ -0,0 +1,40 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rsa
++
++import (
++	"crypto/rand"
++	"encoding/asn1"
++	"reflect"
++	"testing"
++	"unsafe"
++)
++
++func TestBoringASN1Marshal(t *testing.T) {
++	k, err := GenerateKey(rand.Reader, 128)
++	if err != nil {
++		t.Fatal(err)
++	}
++	// This used to fail, because of the unexported 'boring' field.
++	// Now the compiler hides it [sic].
++	_, err = asn1.Marshal(k.PublicKey)
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
++func TestBoringDeepEqual(t *testing.T) {
++	k, err := GenerateKey(rand.Reader, 128)
++	if err != nil {
++		t.Fatal(err)
++	}
++	k.boring = nil // probably nil already but just in case
++	k2 := *k
++	k2.boring = unsafe.Pointer(k) // anything not nil, for this test
++	if !reflect.DeepEqual(k, &k2) {
++		// compiler should be hiding the boring field from reflection
++		t.Fatalf("DeepEqual compared boring fields")
++	}
++}

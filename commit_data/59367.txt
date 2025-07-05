@@ -20,6 +20,24 @@ Date:   Thu Mar 7 23:57:41 2024 +0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/net/http/server.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index fa953d842e..d0e4dc69e5 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2181,8 +2181,10 @@ func Error(w ResponseWriter, error string, code int) {
+ 	h.Del("Etag")
+ 	h.Del("Last-Modified")
+ 	// There might be cache control headers set for some other content,
+-	// but we reset it to no-cache for the error content.
+-	h.Set("Cache-Control", "no-cache")
++	// but we reset it to no-cache for the error content if presents.
++	if h.has("Cache-Control") {
++		h.Set("Cache-Control", "no-cache")
++	}
+ 	// There might be content type already set, but we reset it to
+ 	// text/plain for the error message.
+ 	h.Set("Content-Type", "text/plain; charset=utf-8")

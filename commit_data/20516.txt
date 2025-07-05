@@ -10,6 +10,23 @@ Date:   Mon Sep 15 12:30:57 2014 -0700
     R=golang-codereviews, iant, josharian
     CC=golang-codereviews
     https://golang.org/cl/144910044
-
+---
  src/runtime/map_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 9b76a5bbf2..92da2d8209 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -462,8 +462,9 @@ NextRound:
+ 			first = append(first, i)
+ 		}
+ 
+-		// 80 chances to get a different iteration order.
+-		for n := 0; n < 80; n++ {
++		// 800 chances to get a different iteration order.
++		// See bug 8736 for why we need so many tries.
++		for n := 0; n < 800; n++ {
+ 			idx := 0
+ 			for i := range m {
+ 				if i != first[idx] {

@@ -85,8 +85,531 @@ Date:   Fri Sep 28 16:37:16 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/regexp/backtrack.go | 176 ++++++++++++++++++++++++++----------------------
  src/regexp/exec.go      | 107 +++++++++++++++--------------
  src/regexp/regexp.go    |  18 ++---
  3 files changed, 162 insertions(+), 139 deletions(-)
+
+diff --git a/src/regexp/backtrack.go b/src/regexp/backtrack.go
+index 440bf7ffc5..239abc3a57 100644
+--- a/src/regexp/backtrack.go
++++ b/src/regexp/backtrack.go
+@@ -14,7 +14,10 @@
+ 
+ package regexp
+ 
+-import "regexp/syntax"
++import (
++	"regexp/syntax"
++	"sync"
++)
+ 
+ // A job is an entry on the backtracker's job stack. It holds
+ // the instruction pc and the position in the input.
+@@ -32,15 +35,29 @@ const (
+ 
+ // bitState holds state for the backtracker.
+ type bitState struct {
+-	prog *syntax.Prog
++	end      int
++	cap      []int
++	matchcap []int
++	jobs     []job
++	visited  []uint32
++
++	inputs inputs
++}
++
++var bitStatePool sync.Pool
+ 
+-	end     int
+-	cap     []int
+-	jobs    []job
+-	visited []uint32
++func newBitState() *bitState {
++	b, ok := bitStatePool.Get().(*bitState)
++	if !ok {
++		b = new(bitState)
++	}
++	return b
+ }
+ 
+-var notBacktrack *bitState = nil
++func freeBitState(b *bitState) {
++	b.inputs.clear()
++	bitStatePool.Put(b)
++}
+ 
+ // maxBitStateLen returns the maximum length of a string to search with
+ // the backtracker using prog.
+@@ -51,18 +68,6 @@ func maxBitStateLen(prog *syntax.Prog) int {
+ 	return maxBacktrackVector / len(prog.Inst)
+ }
+ 
+-// newBitState returns a new bitState for the given prog,
+-// or notBacktrack if the size of the prog exceeds the maximum size that
+-// the backtracker will be run for.
+-func newBitState(prog *syntax.Prog) *bitState {
+-	if !shouldBacktrack(prog) {
+-		return notBacktrack
+-	}
+-	return &bitState{
+-		prog: prog,
+-	}
+-}
+-
+ // shouldBacktrack reports whether the program is too
+ // long for the backtracker to run.
+ func shouldBacktrack(prog *syntax.Prog) bool {
+@@ -72,7 +77,7 @@ func shouldBacktrack(prog *syntax.Prog) bool {
+ // reset resets the state of the backtracker.
+ // end is the end position in the input.
+ // ncap is the number of captures.
+-func (b *bitState) reset(end int, ncap int) {
++func (b *bitState) reset(prog *syntax.Prog, end int, ncap int) {
+ 	b.end = end
+ 
+ 	if cap(b.jobs) == 0 {
+@@ -81,7 +86,7 @@ func (b *bitState) reset(end int, ncap int) {
+ 		b.jobs = b.jobs[:0]
+ 	}
+ 
+-	visitedSize := (len(b.prog.Inst)*(end+1) + visitedBits - 1) / visitedBits
++	visitedSize := (len(prog.Inst)*(end+1) + visitedBits - 1) / visitedBits
+ 	if cap(b.visited) < visitedSize {
+ 		b.visited = make([]uint32, visitedSize, maxBacktrackVector/visitedBits)
+ 	} else {
+@@ -99,6 +104,15 @@ func (b *bitState) reset(end int, ncap int) {
+ 	for i := range b.cap {
+ 		b.cap[i] = -1
+ 	}
++
++	if cap(b.matchcap) < ncap {
++		b.matchcap = make([]int, ncap)
++	} else {
++		b.matchcap = b.matchcap[:ncap]
++	}
++	for i := range b.matchcap {
++		b.matchcap[i] = -1
++	}
+ }
+ 
+ // shouldVisit reports whether the combination of (pc, pos) has not
+@@ -114,20 +128,19 @@ func (b *bitState) shouldVisit(pc uint32, pos int) bool {
+ 
+ // push pushes (pc, pos, arg) onto the job stack if it should be
+ // visited.
+-func (b *bitState) push(pc uint32, pos int, arg bool) {
++func (b *bitState) push(re *Regexp, pc uint32, pos int, arg bool) {
+ 	// Only check shouldVisit when arg is false.
+ 	// When arg is true, we are continuing a previous visit.
+-	if b.prog.Inst[pc].Op != syntax.InstFail && (arg || b.shouldVisit(pc, pos)) {
++	if re.prog.Inst[pc].Op != syntax.InstFail && (arg || b.shouldVisit(pc, pos)) {
+ 		b.jobs = append(b.jobs, job{pc: pc, arg: arg, pos: pos})
+ 	}
+ }
+ 
+ // tryBacktrack runs a backtracking search starting at pos.
+-func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
+-	longest := m.re.longest
+-	m.matched = false
++func (re *Regexp) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
++	longest := re.longest
+ 
+-	b.push(pc, pos, false)
++	b.push(re, pc, pos, false)
+ 	for len(b.jobs) > 0 {
+ 		l := len(b.jobs) - 1
+ 		// Pop job off the stack.
+@@ -150,7 +163,7 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
+ 		}
+ 	Skip:
+ 
+-		inst := b.prog.Inst[pc]
++		inst := re.prog.Inst[pc]
+ 
+ 		switch inst.Op {
+ 		default:
+@@ -172,23 +185,23 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
+ 				pc = inst.Arg
+ 				goto CheckAndLoop
+ 			} else {
+-				b.push(pc, pos, true)
++				b.push(re, pc, pos, true)
+ 				pc = inst.Out
+ 				goto CheckAndLoop
+ 			}
+ 
+ 		case syntax.InstAltMatch:
+ 			// One opcode consumes runes; the other leads to match.
+-			switch b.prog.Inst[inst.Out].Op {
++			switch re.prog.Inst[inst.Out].Op {
+ 			case syntax.InstRune, syntax.InstRune1, syntax.InstRuneAny, syntax.InstRuneAnyNotNL:
+ 				// inst.Arg is the match.
+-				b.push(inst.Arg, pos, false)
++				b.push(re, inst.Arg, pos, false)
+ 				pc = inst.Arg
+ 				pos = b.end
+ 				goto CheckAndLoop
+ 			}
+ 			// inst.Out is the match - non-greedy
+-			b.push(inst.Out, b.end, false)
++			b.push(re, inst.Out, b.end, false)
+ 			pc = inst.Out
+ 			goto CheckAndLoop
+ 
+@@ -236,7 +249,7 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
+ 			} else {
+ 				if 0 <= inst.Arg && inst.Arg < uint32(len(b.cap)) {
+ 					// Capture pos to register, but save old value.
+-					b.push(pc, b.cap[inst.Arg], true) // come back when we're done.
++					b.push(re, pc, b.cap[inst.Arg], true) // come back when we're done.
+ 					b.cap[inst.Arg] = pos
+ 				}
+ 				pc = inst.Out
+@@ -258,8 +271,7 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
+ 			// We found a match. If the caller doesn't care
+ 			// where the match is, no point going further.
+ 			if len(b.cap) == 0 {
+-				m.matched = true
+-				return m.matched
++				return true
+ 			}
+ 
+ 			// Record best match so far.
+@@ -268,19 +280,18 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
+ 			if len(b.cap) > 1 {
+ 				b.cap[1] = pos
+ 			}
+-			if !m.matched || (longest && pos > 0 && pos > m.matchcap[1]) {
+-				copy(m.matchcap, b.cap)
++			if old := b.matchcap[1]; old == -1 || (longest && pos > 0 && pos > old) {
++				copy(b.matchcap, b.cap)
+ 			}
+-			m.matched = true
+ 
+ 			// If going for first match, we're done.
+ 			if !longest {
+-				return m.matched
++				return true
+ 			}
+ 
+ 			// If we used the entire text, no longer match is possible.
+ 			if pos == b.end {
+-				return m.matched
++				return true
+ 			}
+ 
+ 			// Otherwise, continue on in hope of a longer match.
+@@ -288,65 +299,68 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
+ 		}
+ 	}
+ 
+-	return m.matched
++	return longest && len(b.matchcap) > 1 && b.matchcap[1] >= 0
+ }
+ 
+ // backtrack runs a backtracking search of prog on the input starting at pos.
+-func (m *machine) backtrack(i input, pos int, end int, ncap int) bool {
+-	if !i.canCheckPrefix() {
+-		panic("backtrack called for a RuneReader")
+-	}
+-
+-	startCond := m.re.cond
++func (re *Regexp) backtrack(ib []byte, is string, pos int, ncap int, dstCap []int) []int {
++	startCond := re.cond
+ 	if startCond == ^syntax.EmptyOp(0) { // impossible
+-		return false
++		return nil
+ 	}
+ 	if startCond&syntax.EmptyBeginText != 0 && pos != 0 {
+ 		// Anchored match, past beginning of text.
+-		return false
++		return nil
+ 	}
+ 
+-	b := m.b
+-	b.reset(end, ncap)
+-
+-	m.matchcap = m.matchcap[:ncap]
+-	for i := range m.matchcap {
+-		m.matchcap[i] = -1
+-	}
++	b := newBitState()
++	i, end := b.inputs.init(nil, ib, is)
++	b.reset(re.prog, end, ncap)
+ 
+ 	// Anchored search must start at the beginning of the input
+ 	if startCond&syntax.EmptyBeginText != 0 {
+ 		if len(b.cap) > 0 {
+ 			b.cap[0] = pos
+ 		}
+-		return m.tryBacktrack(b, i, uint32(m.p.Start), pos)
+-	}
++		if !re.tryBacktrack(b, i, uint32(re.prog.Start), pos) {
++			freeBitState(b)
++			return nil
++		}
++	} else {
+ 
+-	// Unanchored search, starting from each possible text position.
+-	// Notice that we have to try the empty string at the end of
+-	// the text, so the loop condition is pos <= end, not pos < end.
+-	// This looks like it's quadratic in the size of the text,
+-	// but we are not clearing visited between calls to TrySearch,
+-	// so no work is duplicated and it ends up still being linear.
+-	width := -1
+-	for ; pos <= end && width != 0; pos += width {
+-		if len(m.re.prefix) > 0 {
+-			// Match requires literal prefix; fast search for it.
+-			advance := i.index(m.re, pos)
+-			if advance < 0 {
+-				return false
++		// Unanchored search, starting from each possible text position.
++		// Notice that we have to try the empty string at the end of
++		// the text, so the loop condition is pos <= end, not pos < end.
++		// This looks like it's quadratic in the size of the text,
++		// but we are not clearing visited between calls to TrySearch,
++		// so no work is duplicated and it ends up still being linear.
++		width := -1
++		for ; pos <= end && width != 0; pos += width {
++			if len(re.prefix) > 0 {
++				// Match requires literal prefix; fast search for it.
++				advance := i.index(re, pos)
++				if advance < 0 {
++					freeBitState(b)
++					return nil
++				}
++				pos += advance
+ 			}
+-			pos += advance
+-		}
+ 
+-		if len(b.cap) > 0 {
+-			b.cap[0] = pos
+-		}
+-		if m.tryBacktrack(b, i, uint32(m.p.Start), pos) {
+-			// Match must be leftmost; done.
+-			return true
++			if len(b.cap) > 0 {
++				b.cap[0] = pos
++			}
++			if re.tryBacktrack(b, i, uint32(re.prog.Start), pos) {
++				// Match must be leftmost; done.
++				goto Match
++			}
++			_, width = i.step(pos)
+ 		}
+-		_, width = i.step(pos)
++		freeBitState(b)
++		return nil
+ 	}
+-	return false
++
++Match:
++	dstCap = append(dstCap, b.matchcap...)
++	freeBitState(b)
++	return dstCap
+ }
+diff --git a/src/regexp/exec.go b/src/regexp/exec.go
+index 1c7b02d1cd..271174670e 100644
+--- a/src/regexp/exec.go
++++ b/src/regexp/exec.go
+@@ -35,37 +35,61 @@ type thread struct {
+ 
+ // A machine holds all the state during an NFA simulation for p.
+ type machine struct {
+-	re             *Regexp      // corresponding Regexp
+-	p              *syntax.Prog // compiled program
+-	op             *onePassProg // compiled onepass program, or notOnePass
+-	maxBitStateLen int          // max length of string to search with bitstate
+-	b              *bitState    // state for backtracker, allocated lazily
+-	q0, q1         queue        // two queues for runq, nextq
+-	pool           []*thread    // pool of available threads
+-	matched        bool         // whether a match was found
+-	matchcap       []int        // capture information for the match
++	re       *Regexp      // corresponding Regexp
++	p        *syntax.Prog // compiled program
++	op       *onePassProg // compiled onepass program, or notOnePass
++	q0, q1   queue        // two queues for runq, nextq
++	pool     []*thread    // pool of available threads
++	matched  bool         // whether a match was found
++	matchcap []int        // capture information for the match
+ 
++	inputs inputs
++}
++
++type inputs struct {
+ 	// cached inputs, to avoid allocation
+-	inputBytes  inputBytes
+-	inputString inputString
+-	inputReader inputReader
++	bytes  inputBytes
++	string inputString
++	reader inputReader
++}
++
++func (i *inputs) newBytes(b []byte) input {
++	i.bytes.str = b
++	return &i.bytes
+ }
+ 
+-func (m *machine) newInputBytes(b []byte) input {
+-	m.inputBytes.str = b
+-	return &m.inputBytes
++func (i *inputs) newString(s string) input {
++	i.string.str = s
++	return &i.string
+ }
+ 
+-func (m *machine) newInputString(s string) input {
+-	m.inputString.str = s
+-	return &m.inputString
++func (i *inputs) newReader(r io.RuneReader) input {
++	i.reader.r = r
++	i.reader.atEOT = false
++	i.reader.pos = 0
++	return &i.reader
++}
++
++func (i *inputs) clear() {
++	// We need to clear 1 of these.
++	// Avoid the expense of clearing the others (pointer write barrier).
++	if i.bytes.str != nil {
++		i.bytes.str = nil
++	} else if i.reader.r != nil {
++		i.reader.r = nil
++	} else {
++		i.string.str = ""
++	}
+ }
+ 
+-func (m *machine) newInputReader(r io.RuneReader) input {
+-	m.inputReader.r = r
+-	m.inputReader.atEOT = false
+-	m.inputReader.pos = 0
+-	return &m.inputReader
++func (i *inputs) init(r io.RuneReader, b []byte, s string) (input, int) {
++	if r != nil {
++		return i.newReader(r), 0
++	}
++	if b != nil {
++		return i.newBytes(b), len(b)
++	}
++	return i.newString(s), len(s)
+ }
+ 
+ // progMachine returns a new machine running the prog p.
+@@ -78,9 +102,6 @@ func progMachine(p *syntax.Prog, op *onePassProg) *machine {
+ 	if ncap < 2 {
+ 		ncap = 2
+ 	}
+-	if op == notOnePass {
+-		m.maxBitStateLen = maxBitStateLen(p)
+-	}
+ 	m.matchcap = make([]int, ncap)
+ 	return m
+ }
+@@ -416,31 +437,23 @@ func (re *Regexp) doMatch(r io.RuneReader, b []byte, s string) bool {
+ //
+ // nil is returned if no matches are found and non-nil if matches are found.
+ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap int, dstCap []int) []int {
+-	m := re.get()
+-	var i input
+-	var size int
+-	if r != nil {
+-		i = m.newInputReader(r)
+-	} else if b != nil {
+-		i = m.newInputBytes(b)
+-		size = len(b)
+-	} else {
+-		i = m.newInputString(s)
+-		size = len(s)
++	if dstCap == nil {
++		// Make sure 'return dstCap' is non-nil.
++		dstCap = arrayNoInts[:0:0]
++	}
++
++	if re.onepass == notOnePass && r == nil && len(b)+len(s) < re.maxBitStateLen {
++		return re.backtrack(b, s, pos, ncap, dstCap)
+ 	}
++
++	m := re.get()
++	i, _ := m.inputs.init(r, b, s)
++
+ 	if m.op != notOnePass {
+ 		if !m.onepass(i, pos, ncap) {
+ 			re.put(m)
+ 			return nil
+ 		}
+-	} else if size < m.maxBitStateLen && r == nil {
+-		if m.b == nil {
+-			m.b = newBitState(m.p)
+-		}
+-		if !m.backtrack(i, pos, size, ncap) {
+-			re.put(m)
+-			return nil
+-		}
+ 	} else {
+ 		m.init(ncap)
+ 		if !m.match(i, pos) {
+@@ -449,10 +462,6 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
+ 		}
+ 	}
+ 	dstCap = append(dstCap, m.matchcap...)
+-	if dstCap == nil {
+-		// Keep the promise of returning non-nil value on match.
+-		dstCap = arrayNoInts[:0]
+-	}
+ 	re.put(m)
+ 	return dstCap
+ }
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 89bb975ac1..dafcfd433d 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -88,17 +88,18 @@ type Regexp struct {
+ }
+ 
+ type regexpRO struct {
+-	expr           string         // as passed to Compile
+-	prog           *syntax.Prog   // compiled program
+-	onepass        *onePassProg   // onepass program or nil
++	expr           string       // as passed to Compile
++	prog           *syntax.Prog // compiled program
++	onepass        *onePassProg // onepass program or nil
++	numSubexp      int
++	maxBitStateLen int
++	subexpNames    []string
+ 	prefix         string         // required prefix in unanchored matches
+ 	prefixBytes    []byte         // prefix, as a []byte
+-	prefixComplete bool           // prefix is the entire regexp
+ 	prefixRune     rune           // first rune in prefix
+ 	prefixEnd      uint32         // pc for last rune in prefix
++	prefixComplete bool           // prefix is the entire regexp
+ 	cond           syntax.EmptyOp // empty-width conditions required at start of match
+-	numSubexp      int
+-	subexpNames    []string
+ 	longest        bool
+ }
+ 
+@@ -192,6 +193,7 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
+ 	}
+ 	if regexp.onepass == notOnePass {
+ 		regexp.prefix, regexp.prefixComplete = prog.Prefix()
++		regexp.maxBitStateLen = maxBitStateLen(prog)
+ 	} else {
+ 		regexp.prefix, regexp.prefixComplete, regexp.prefixEnd = onePassPrefix(prog)
+ 	}
+@@ -227,9 +229,7 @@ func (re *Regexp) get() *machine {
+ // run using re.  (The cache empties when re gets garbage collected.)
+ func (re *Regexp) put(z *machine) {
+ 	// Remove references to input data that we no longer need.
+-	z.inputBytes.str = nil
+-	z.inputString.str = ""
+-	z.inputReader.r = nil
++	z.inputs.clear()
+ 
+ 	re.mu.Lock()
+ 	re.machine = append(re.machine, z)

@@ -11,7 +11,7 @@ Date:   Tue Jun 7 21:46:25 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/cpuprof.go                          |  40 +++++++--
  src/runtime/crash_cgo_test.go                   |  43 +++------
  src/runtime/proc.go                             |  32 +++++++
@@ -19,3 +19,416 @@ Date:   Tue Jun 7 21:46:25 2016 -0700
  src/runtime/sys_linux_amd64.s                   |  30 ++++++-
  src/runtime/testdata/testprogcgo/threadpprof.go | 112 ++++++++++++++++++++++++
  6 files changed, 224 insertions(+), 41 deletions(-)
+
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index b9a6b88b0c..53082006d0 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -193,7 +193,20 @@ func SetCPUProfileRate(hz int) {
+ // and cannot allocate memory or acquire locks that might be
+ // held at the time of the signal, nor can it use substantial amounts
+ // of stack. It is allowed to call evict.
++//go:nowritebarrierrec
+ func (p *cpuProfile) add(pc []uintptr) {
++	p.addWithFlushlog(pc, p.flushlog)
++}
++
++// addWithFlushlog implements add and addNonGo.
++// It is called from signal handlers and other limited environments
++// and cannot allocate memory or acquire locks that might be
++// held at the time of the signal, nor can it use substantial amounts
++// of stack. It may be called by a signal handler with no g or m.
++// It is allowed to call evict, passing the flushlog parameter.
++//go:nosplit
++//go:nowritebarrierrec
++func (p *cpuProfile) addWithFlushlog(pc []uintptr, flushlog func() bool) {
+ 	if len(pc) > maxCPUProfStack {
+ 		pc = pc[:maxCPUProfStack]
+ 	}
+@@ -231,7 +244,7 @@ Assoc:
+ 		}
+ 	}
+ 	if e.count > 0 {
+-		if !p.evict(e) {
++		if !p.evict(e, flushlog) {
+ 			// Could not evict entry. Record lost stack.
+ 			p.lost++
+ 			return
+@@ -248,15 +261,17 @@ Assoc:
+ // evict copies the given entry's data into the log, so that
+ // the entry can be reused.  evict is called from add, which
+ // is called from the profiling signal handler, so it must not
+-// allocate memory or block. It is safe to call flushlog.
+-// evict returns true if the entry was copied to the log,
+-// false if there was no room available.
+-func (p *cpuProfile) evict(e *cpuprofEntry) bool {
++// allocate memory or block, and it may be called with no g or m.
++// It is safe to call flushlog. evict returns true if the entry was
++// copied to the log, false if there was no room available.
++//go:nosplit
++//go:nowritebarrierrec
++func (p *cpuProfile) evict(e *cpuprofEntry, flushlog func() bool) bool {
+ 	d := e.depth
+ 	nslot := d + 2
+ 	log := &p.log[p.toggle]
+ 	if p.nlog+nslot > len(log) {
+-		if !p.flushlog() {
++		if !flushlog() {
+ 			return false
+ 		}
+ 		log = &p.log[p.toggle]
+@@ -278,6 +293,7 @@ func (p *cpuProfile) evict(e *cpuprofEntry) bool {
+ // flushlog is called from evict, called from add, called from the signal handler,
+ // so it cannot allocate memory or block. It can try to swap logs with
+ // the writing goroutine, as explained in the comment at the top of this file.
++//go:nowritebarrierrec
+ func (p *cpuProfile) flushlog() bool {
+ 	if !atomic.Cas(&p.handoff, 0, uint32(p.nlog)) {
+ 		return false
+@@ -299,6 +315,16 @@ func (p *cpuProfile) flushlog() bool {
+ 	return true
+ }
+ 
++// addNonGo is like add, but runs on a non-Go thread.
++// It can't do anything that might need a g or an m.
++// With this entry point, we don't try to flush the log when evicting an
++// old entry. Instead, we just drop the stack trace if we're out of space.
++//go:nosplit
++//go:nowritebarrierrec
++func (p *cpuProfile) addNonGo(pc []uintptr) {
++	p.addWithFlushlog(pc, func() bool { return false })
++}
++
+ // getprofile blocks until the next block of profiling data is available
+ // and returns it as a []byte. It is called from the writing goroutine.
+ func (p *cpuProfile) getprofile() []byte {
+@@ -366,7 +392,7 @@ Flush:
+ 		b := &p.hash[i]
+ 		for j := range b.entry {
+ 			e := &b.entry[j]
+-			if e.count > 0 && !p.evict(e) {
++			if e.count > 0 && !p.evict(e, p.flushlog) {
+ 				// Filled the log. Stop the loop and return what we've got.
+ 				break Flush
+ 			}
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 4f7c10b923..9e1811aa16 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -234,18 +234,18 @@ func TestCgoTracebackContext(t *testing.T) {
+ 	}
+ }
+ 
+-func TestCgoPprof(t *testing.T) {
++func testCgoPprof(t *testing.T, buildArg, runArg string) {
+ 	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+ 		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 	testenv.MustHaveGoRun(t)
+ 
+-	exe, err := buildTestProg(t, "testprogcgo")
++	exe, err := buildTestProg(t, "testprogcgo", buildArg)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+-	got, err := testEnv(exec.Command(exe, "CgoPprof")).CombinedOutput()
++	got, err := testEnv(exec.Command(exe, runArg)).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -253,43 +253,24 @@ func TestCgoPprof(t *testing.T) {
+ 	defer os.Remove(fn)
+ 
+ 	top, err := exec.Command("go", "tool", "pprof", "-top", "-nodecount=1", exe, fn).CombinedOutput()
++	t.Logf("%s", top)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+-	t.Logf("%s", top)
+-
+ 	if !bytes.Contains(top, []byte("cpuHog")) {
+ 		t.Error("missing cpuHog in pprof output")
+ 	}
+ }
+ 
+-func TestCgoPprofPIE(t *testing.T) {
+-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+-		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+-	}
+-	testenv.MustHaveGoRun(t)
+-
+-	exe, err := buildTestProg(t, "testprogcgo", "-ldflags=-extldflags=-pie")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	got, err := testEnv(exec.Command(exe, "CgoPprof")).CombinedOutput()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	fn := strings.TrimSpace(string(got))
+-	defer os.Remove(fn)
+-
+-	top, err := exec.Command("go", "tool", "pprof", "-top", "-nodecount=1", exe, fn).CombinedOutput()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++func TestCgoPprof(t *testing.T) {
++	testCgoPprof(t, "", "CgoPprof")
++}
+ 
+-	t.Logf("%s", top)
++func TestCgoPprofPIE(t *testing.T) {
++	testCgoPprof(t, "-ldflags=-extldflags=-pie", "CgoPprof")
++}
+ 
+-	if !bytes.Contains(top, []byte("cpuHog")) {
+-		t.Error("missing cpuHog in pprof output")
+-	}
++func TestCgoPprofThread(t *testing.T) {
++	testCgoPprof(t, "", "CgoPprofThread")
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 727c991a57..a0fddd0052 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3000,6 +3000,8 @@ func _ExternalCode() { _ExternalCode() }
+ func _GC()           { _GC() }
+ 
+ // Called if we receive a SIGPROF signal.
++// Called by the signal handler, may run during STW.
++//go:nowritebarrierrec
+ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	if prof.hz == 0 {
+ 		return
+@@ -3159,6 +3161,36 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	mp.mallocing--
+ }
+ 
++// If the signal handler receives a SIGPROF signal on a non-Go thread,
++// it tries to collect a traceback into sigprofCallers.
++// sigprofCallersUse is set to non-zero while sigprofCallers holds a traceback.
++var sigprofCallers cgoCallers
++var sigprofCallersUse uint32
++
++// Called if we receive a SIGPROF signal on a non-Go thread.
++// When this is called, sigprofCallersUse will be non-zero.
++// g is nil, and what we can do is very limited.
++//go:nosplit
++//go:nowritebarrierrec
++func sigprofNonGo() {
++	if prof.hz != 0 {
++		n := 0
++		for n < len(sigprofCallers) && sigprofCallers[n] != 0 {
++			n++
++		}
++
++		// Simple cas-lock to coordinate with setcpuprofilerate.
++		if atomic.Cas(&prof.lock, 0, 1) {
++			if prof.hz != 0 {
++				cpuprof.addNonGo(sigprofCallers[:n])
++			}
++			atomic.Store(&prof.lock, 0)
++		}
++	}
++
++	atomic.Store(&sigprofCallersUse, 0)
++}
++
+ // Reports whether a function will set the SP
+ // to an absolute value. Important that
+ // we don't traceback when these are at the bottom
+diff --git a/src/runtime/signal_sigtramp.go b/src/runtime/signal_sigtramp.go
+index 18fc375e24..3e0b104578 100644
+--- a/src/runtime/signal_sigtramp.go
++++ b/src/runtime/signal_sigtramp.go
+@@ -18,6 +18,14 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	}
+ 	g := getg()
+ 	if g == nil {
++		if sig == _SIGPROF {
++			// Ignore profiling signals that arrive on
++			// non-Go threads. On some systems they will
++			// be handled directly by the signal handler,
++			// by calling sigprofNonGo, in which case we won't
++			// get here anyhow.
++			return
++		}
+ 		badsignal(uintptr(sig), &sigctxt{info, ctx})
+ 		return
+ 	}
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 031e412673..8a8f3cce8b 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -253,7 +253,7 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+ 	get_tls(CX)
+ 	MOVQ	g(CX),AX
+ 	TESTQ	AX, AX
+-	JZ	sigtramp        // g == nil
++	JZ	sigtrampnog     // g == nil
+ 	MOVQ	g_m(AX), AX
+ 	TESTQ	AX, AX
+ 	JZ	sigtramp        // g.m == nil
+@@ -276,8 +276,8 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+ 	// Jump to a function in runtime/cgo.
+ 	// That function, written in C, will call the user's traceback
+ 	// function with proper unwind info, and will then call back here.
+-	// The first three arguments are already in registers.
+-	// Set the last three arguments now.
++	// The first three arguments, and the fifth, are already in registers.
++	// Set the two remaining arguments now.
+ 	MOVQ	runtime·cgoTraceback(SB), CX
+ 	MOVQ	$runtime·sigtramp(SB), R9
+ 	MOVQ	_cgo_callers(SB), AX
+@@ -286,6 +286,30 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+ sigtramp:
+ 	JMP	runtime·sigtramp(SB)
+ 
++sigtrampnog:
++	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
++	// stack trace.
++	CMPL	DI, $27 // 27 == SIGPROF
++	JNZ	sigtramp
++
++	// Lock sigprofCallersUse.
++	MOVL	$0, AX
++	MOVL	$1, CX
++	MOVQ	$runtime·sigprofCallersUse(SB), BX
++	LOCK
++	CMPXCHGL	CX, 0(BX)
++	JNZ	sigtramp  // Skip stack trace if already locked.
++
++	// Jump to the traceback function in runtime/cgo.
++	// It will call back to sigprofNonGo, which will ignore the
++	// arguments passed in registers.
++	// First three arguments to traceback function are in registers already.
++	MOVQ	runtime·cgoTraceback(SB), CX
++	MOVQ	$runtime·sigprofCallers(SB), R8
++	MOVQ	$runtime·sigprofNonGo(SB), R9
++	MOVQ	_cgo_callers(SB), AX
++	JMP	AX
++
+ // For cgo unwinding to work, this function must look precisely like
+ // the one in glibc.  The glibc source code is:
+ // https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/x86_64/sigaction.c
+diff --git a/src/runtime/testdata/testprogcgo/threadpprof.go b/src/runtime/testdata/testprogcgo/threadpprof.go
+new file mode 100644
+index 0000000000..fdeee6910d
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/threadpprof.go
+@@ -0,0 +1,112 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9,!windows
++
++package main
++
++// Run a slow C function saving a CPU profile.
++
++/*
++#include <stdint.h>
++#include <time.h>
++#include <pthread.h>
++
++int threadSalt1;
++int threadSalt2;
++
++void cpuHogThread() {
++	int foo = threadSalt1;
++	int i;
++
++	for (i = 0; i < 100000; i++) {
++		if (foo > 0) {
++			foo *= foo;
++		} else {
++			foo *= foo + 1;
++		}
++	}
++	threadSalt2 = foo;
++}
++
++static int cpuHogThreadCount;
++
++struct cgoTracebackArg {
++	uintptr_t  context;
++	uintptr_t  sigContext;
++	uintptr_t* buf;
++	uintptr_t  max;
++};
++
++static void *pprofThread(void* p) {
++	time_t start;
++
++	(void)p;
++	start = time(NULL);
++	while (__sync_add_and_fetch(&cpuHogThreadCount, 0) < 2 && time(NULL) - start < 2) {
++		cpuHogThread();
++	}
++}
++
++
++// pprofCgoThreadTraceback is passed to runtime.SetCgoTraceback.
++// For testing purposes it pretends that all CPU hits in C code are in cpuHog.
++void pprofCgoThreadTraceback(void* parg) {
++	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
++	arg->buf[0] = (uintptr_t)(cpuHogThread) + 0x10;
++	arg->buf[1] = 0;
++	__sync_add_and_fetch(&cpuHogThreadCount, 1);
++}
++
++// getCPUHogThreadCount fetches the number of times we've seen cpuHogThread
++// in the traceback.
++int getCPUHogThreadCount() {
++	return __sync_add_and_fetch(&cpuHogThreadCount, 0);
++}
++*/
++import "C"
++
++import (
++	"fmt"
++	"io/ioutil"
++	"os"
++	"runtime"
++	"runtime/pprof"
++	"time"
++	"unsafe"
++)
++
++func init() {
++	register("CgoPprofThread", CgoPprofThread)
++}
++
++func CgoPprofThread() {
++	runtime.SetCgoTraceback(0, unsafe.Pointer(C.pprofCgoThreadTraceback), nil, nil)
++
++	f, err := ioutil.TempFile("", "prof")
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++
++	if err := pprof.StartCPUProfile(f); err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++
++	t0 := time.Now()
++	for C.getCPUHogThreadCount() < 2 && time.Since(t0) < time.Second {
++		time.Sleep(100 * time.Millisecond)
++	}
++
++	pprof.StopCPUProfile()
++
++	name := f.Name()
++	if err := f.Close(); err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++
++	fmt.Println(name)
++}

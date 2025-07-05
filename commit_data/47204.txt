@@ -14,6 +14,21 @@ Date:   Fri Feb 19 13:50:42 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index e7d4e81672..240f0409e7 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -433,8 +433,8 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
+ 	case top&ctxType == 0 && n.Op() == ir.OTYPE && t != nil:
+ 		if !n.Type().Broke() {
+ 			base.Errorf("type %v is not an expression", n.Type())
++			n.SetDiag(true)
+ 		}
+-		n.SetType(nil)
+ 
+ 	case top&(ctxStmt|ctxExpr) == ctxStmt && !isStmt && t != nil:
+ 		if !n.Diag() {

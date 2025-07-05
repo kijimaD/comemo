@@ -19,7 +19,38 @@ Date:   Wed Apr 19 16:41:37 2023 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/asm_arm64.s  | 1 +
  src/runtime/hash_test.go | 7 +++++--
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index ef70970f77..143ea38fbe 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -611,6 +611,7 @@ done:
+ 	AESE	V0.B16, V2.B16
+ 	AESMC	V2.B16, V2.B16
+ 	AESE	V0.B16, V2.B16
++	AESMC	V2.B16, V2.B16
+ 
+ 	VMOV	V2.D[0], R0
+ 	RET
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index d4a2b3f6bb..099bf51129 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -775,8 +775,11 @@ func TestCollisions(t *testing.T) {
+ 				a[j] = byte(n >> 8)
+ 				m[uint16(BytesHash(a[:], 0))] = struct{}{}
+ 			}
+-			if len(m) <= 1<<15 {
+-				t.Errorf("too many collisions i=%d j=%d outputs=%d out of 65536\n", i, j, len(m))
++			// N balls in N bins, for N=65536
++			avg := 41427
++			stdDev := 123
++			if len(m) < avg-40*stdDev || len(m) > avg+40*stdDev {
++				t.Errorf("bad number of collisions i=%d j=%d outputs=%d out of 65536\n", i, j, len(m))
+ 			}
+ 		}
+ 	}

@@ -12,7 +12,54 @@ Date:   Mon Apr 12 22:40:36 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mgcpacer.go | 10 ++++++++++
  src/runtime/symtab.go   |  7 +++++--
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 9cc7cf99db..ad7c4bb840 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -182,6 +182,12 @@ type gcControllerState struct {
+ 	// Read and updated atomically.
+ 	scannableStackSize uint64
+ 
++	// globalsScan is the total amount of global variable space
++	// that is scannable.
++	//
++	// Read and updated atomically.
++	globalsScan uint64
++
+ 	// heapMarked is the number of bytes marked by the previous
+ 	// GC. After mark termination, heapLive == heapMarked, but
+ 	// unlike heapLive, heapMarked does not change until the
+@@ -715,6 +721,10 @@ func (c *gcControllerState) addScannableStack(pp *p, amount int64) {
+ 	}
+ }
+ 
++func (c *gcControllerState) addGlobals(amount int64) {
++	atomic.Xadd64(&c.globalsScan, amount)
++}
++
+ // commit sets the trigger ratio and updates everything
+ // derived from it: the absolute trigger, the heap goal, mark pacing,
+ // and sweep pacing.
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 41161d6f90..3237a6b708 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -529,8 +529,11 @@ func modulesinit() {
+ 		}
+ 		*modules = append(*modules, md)
+ 		if md.gcdatamask == (bitvector{}) {
+-			md.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(md.gcdata)), md.edata-md.data)
+-			md.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(md.gcbss)), md.ebss-md.bss)
++			scanDataSize := md.edata - md.data
++			md.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(md.gcdata)), scanDataSize)
++			scanBSSSize := md.ebss - md.bss
++			md.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(md.gcbss)), scanBSSSize)
++			gcController.addGlobals(int64(scanDataSize + scanBSSSize))
+ 		}
+ 	}
+ 

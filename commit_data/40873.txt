@@ -11,8 +11,91 @@ Date:   Fri Aug 2 16:24:45 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/load.go           |  6 +++--
  src/cmd/go/testdata/script/mod_tidy_error.txt | 39 +++++++++++++++++++++++++++
  src/cmd/go/testdata/script/mod_vendor.txt     |  6 -----
  3 files changed, 43 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 9a5d4f231c..52b371e5a9 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -387,11 +387,13 @@ func loadAll(testAll bool) []string {
+ 
+ 	var paths []string
+ 	for _, pkg := range loaded.pkgs {
+-		if e, ok := pkg.err.(*ImportMissingError); ok && e.Module.Path == "" {
+-			continue // Package doesn't actually exist.
++		if pkg.err != nil {
++			base.Errorf("%s: %v", pkg.stackText(), pkg.err)
++			continue
+ 		}
+ 		paths = append(paths, pkg.path)
+ 	}
++	base.ExitIfErrors()
+ 	return paths
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/mod_tidy_error.txt b/src/cmd/go/testdata/script/mod_tidy_error.txt
+new file mode 100644
+index 0000000000..9bb8528cb0
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tidy_error.txt
+@@ -0,0 +1,39 @@
++env GO111MODULE=on
++
++# Regression test for golang.org/issue/27063:
++# 'go mod tidy' and 'go mod vendor' should not hide loading errors.
++
++! go mod tidy
++stderr '^issue27063 imports\n\tnonexist: malformed module path "nonexist": missing dot in first path element'
++stderr '^issue27063 imports\n\tnonexist.example.com: cannot find module providing package nonexist.example.com'
++stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: cannot find module providing package other.example.com/nonexist'
++
++! go mod vendor
++stderr '^issue27063 imports\n\tnonexist: malformed module path "nonexist": missing dot in first path element'
++stderr '^issue27063 imports\n\tnonexist.example.com: cannot find module providing package nonexist.example.com'
++stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: cannot find module providing package other.example.com/nonexist'
++
++-- go.mod --
++module issue27063
++
++go 1.13
++
++require issue27063/other v0.0.0
++replace issue27063/other => ./other
++-- x.go --
++package main
++
++import (
++	"nonexist"
++
++	"nonexist.example.com"
++	"issue27063/other"
++)
++
++func main() {}
++-- other/go.mod --
++module issue27063/other
++-- other/other.go --
++package other
++
++import "other.example.com/nonexist"
+diff --git a/src/cmd/go/testdata/script/mod_vendor.txt b/src/cmd/go/testdata/script/mod_vendor.txt
+index eae4f2946c..5d872c3c80 100644
+--- a/src/cmd/go/testdata/script/mod_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_vendor.txt
+@@ -171,12 +171,6 @@ package m
+ 
+ import _ "appengine"
+ import _ "appengine/datastore"
+--- nonexistent.go --
+-// +build alternatereality
+-
+-package m
+-
+-import _ "nonexistent.rsc.io"
+ -- mypkg/go.mod --
+ module me
+ -- mypkg/mydir/d.go --

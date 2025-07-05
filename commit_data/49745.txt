@@ -19,8 +19,161 @@ Date:   Sat Sep 4 19:29:08 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/html.go    |  2 +-
  src/cmd/compile/internal/ssa/print.go   | 32 +++++++++++++++++++++++++-------
  src/cmd/compile/internal/ssa/rewrite.go | 26 ++++++++++++++++++++++++++
  3 files changed, 52 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 4d191199fb..6fd898636c 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -1221,7 +1221,7 @@ func (p htmlFuncPrinter) startBlock(b *Block, reachable bool) {
+ 	}
+ }
+ 
+-func (p htmlFuncPrinter) endBlock(b *Block) {
++func (p htmlFuncPrinter) endBlock(b *Block, reachable bool) {
+ 	if len(b.Values) > 0 { // end list of values
+ 		io.WriteString(p.w, "</ul>")
+ 		io.WriteString(p.w, "</li>")
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index d917183c70..81c64a7692 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -17,22 +17,30 @@ func printFunc(f *Func) {
+ 
+ func hashFunc(f *Func) []byte {
+ 	h := sha256.New()
+-	p := stringFuncPrinter{w: h}
++	p := stringFuncPrinter{w: h, printDead: true}
+ 	fprintFunc(p, f)
+ 	return h.Sum(nil)
+ }
+ 
+ func (f *Func) String() string {
+ 	var buf bytes.Buffer
+-	p := stringFuncPrinter{w: &buf}
++	p := stringFuncPrinter{w: &buf, printDead: true}
+ 	fprintFunc(p, f)
+ 	return buf.String()
+ }
+ 
++// rewriteHash returns a hash of f suitable for detecting rewrite cycles.
++func (f *Func) rewriteHash() string {
++	h := sha256.New()
++	p := stringFuncPrinter{w: h, printDead: false}
++	fprintFunc(p, f)
++	return fmt.Sprintf("%x", h.Sum(nil))
++}
++
+ type funcPrinter interface {
+ 	header(f *Func)
+ 	startBlock(b *Block, reachable bool)
+-	endBlock(b *Block)
++	endBlock(b *Block, reachable bool)
+ 	value(v *Value, live bool)
+ 	startDepCycle()
+ 	endDepCycle()
+@@ -40,7 +48,8 @@ type funcPrinter interface {
+ }
+ 
+ type stringFuncPrinter struct {
+-	w io.Writer
++	w         io.Writer
++	printDead bool
+ }
+ 
+ func (p stringFuncPrinter) header(f *Func) {
+@@ -50,6 +59,9 @@ func (p stringFuncPrinter) header(f *Func) {
+ }
+ 
+ func (p stringFuncPrinter) startBlock(b *Block, reachable bool) {
++	if !p.printDead && !reachable {
++		return
++	}
+ 	fmt.Fprintf(p.w, "  b%d:", b.ID)
+ 	if len(b.Preds) > 0 {
+ 		io.WriteString(p.w, " <-")
+@@ -64,11 +76,17 @@ func (p stringFuncPrinter) startBlock(b *Block, reachable bool) {
+ 	io.WriteString(p.w, "\n")
+ }
+ 
+-func (p stringFuncPrinter) endBlock(b *Block) {
++func (p stringFuncPrinter) endBlock(b *Block, reachable bool) {
++	if !p.printDead && !reachable {
++		return
++	}
+ 	fmt.Fprintln(p.w, "    "+b.LongString())
+ }
+ 
+ func (p stringFuncPrinter) value(v *Value, live bool) {
++	if !p.printDead && !live {
++		return
++	}
+ 	fmt.Fprint(p.w, "    ")
+ 	//fmt.Fprint(p.w, v.Block.Func.fe.Pos(v.Pos))
+ 	//fmt.Fprint(p.w, ": ")
+@@ -103,7 +121,7 @@ func fprintFunc(p funcPrinter, f *Func) {
+ 				p.value(v, live[v.ID])
+ 				printed[v.ID] = true
+ 			}
+-			p.endBlock(b)
++			p.endBlock(b, reachable[b.ID])
+ 			continue
+ 		}
+ 
+@@ -151,7 +169,7 @@ func fprintFunc(p funcPrinter, f *Func) {
+ 			}
+ 		}
+ 
+-		p.endBlock(b)
++		p.endBlock(b, reachable[b.ID])
+ 	}
+ 	for _, name := range f.Names {
+ 		p.named(*name, f.NamedValues[*name])
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 5d468768b6..a997050ee2 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -36,6 +36,8 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
+ 	if debug > 1 {
+ 		fmt.Printf("%s: rewriting for %s\n", f.pass.name, f.Name)
+ 	}
++	var iters int
++	var states map[string]bool
+ 	for {
+ 		change := false
+ 		for _, b := range f.Blocks {
+@@ -146,6 +148,30 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
+ 		if !change {
+ 			break
+ 		}
++		iters++
++		if iters > 1000 || debug >= 2 {
++			// We've done a suspiciously large number of rewrites (or we're in debug mode).
++			// As of Sep 2021, 90% of rewrites complete in 4 iterations or fewer
++			// and the maximum value encountered during make.bash is 12.
++			// Start checking for cycles. (This is too expensive to do routinely.)
++			if states == nil {
++				states = make(map[string]bool)
++			}
++			h := f.rewriteHash()
++			if _, ok := states[h]; ok {
++				// We've found a cycle.
++				// To diagnose it, set debug to 2 and start again,
++				// so that we'll print all rules applied until we complete another cycle.
++				// If debug is already >= 2, we've already done that, so it's time to crash.
++				if debug < 2 {
++					debug = 2
++					states = make(map[string]bool)
++				} else {
++					f.Fatalf("rewrite cycle detected")
++				}
++			}
++			states[h] = true
++		}
+ 	}
+ 	// remove clobbered values
+ 	for _, b := range f.Blocks {

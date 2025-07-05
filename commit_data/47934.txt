@@ -10,6 +10,20 @@ Date:   Wed Apr 7 17:18:17 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/scanner/scanner_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/scanner/scanner_test.go b/src/go/scanner/scanner_test.go
+index ab4c2dd962..db095b3da6 100644
+--- a/src/go/scanner/scanner_test.go
++++ b/src/go/scanner/scanner_test.go
+@@ -628,7 +628,7 @@ func TestInvalidLineDirectives(t *testing.T) {
+ 	}
+ 
+ 	if S.ErrorCount != len(invalidSegments) {
+-		t.Errorf("go %d errors; want %d", S.ErrorCount, len(invalidSegments))
++		t.Errorf("got %d errors; want %d", S.ErrorCount, len(invalidSegments))
+ 	}
+ }
+ 

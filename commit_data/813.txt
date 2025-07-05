@@ -7,6 +7,21 @@ Date:   Mon Oct 6 13:52:23 2008 -0700
     R=ken
     OCL=16550
     CL=16550
-
+---
  src/cmd/gc/const.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index a22cbbc130..c44a2a6b74 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -143,6 +143,9 @@ evconst(Node *n)
+ 	Mpint *xval;
+ 	Mpflt *fval;
+ 
++	xval = nil;
++	fval = nil;
++
+ 	nl = n->left;
+ 	if(nl == N)
+ 		return;

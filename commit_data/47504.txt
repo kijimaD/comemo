@@ -11,6 +11,20 @@ Date:   Tue Mar 23 11:59:34 2021 +0100
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/os/exec/exec_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index c1d2a8f49c..d854e0de84 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -488,7 +488,7 @@ func numOpenFDsAndroid(t *testing.T) (n int, lsof []byte) {
+ }
+ 
+ func TestExtraFilesFDShuffle(t *testing.T) {
+-	t.Skip("flaky test; see https://golang.org/issue/5780")
++	testenv.SkipFlaky(t, 5780)
+ 	switch runtime.GOOS {
+ 	case "windows":
+ 		t.Skip("no operating system support; skipping")

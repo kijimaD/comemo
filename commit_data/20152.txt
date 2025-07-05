@@ -8,6 +8,20 @@ Date:   Thu Aug 21 17:53:45 2014 +0900
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/128500043
-
+---
  src/pkg/net/sockopt_bsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/sockopt_bsd.go b/src/pkg/net/sockopt_bsd.go
+index 77d51d7376..2d36a55953 100644
+--- a/src/pkg/net/sockopt_bsd.go
++++ b/src/pkg/net/sockopt_bsd.go
+@@ -17,7 +17,7 @@ func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
+ 		// On DragonFly BSD, we adjust the ephemeral port
+ 		// range because unlike other BSD systems its default
+ 		// port range doesn't conform to IANA recommendation
+-		// as described in RFC 6355 and is pretty narrow.
++		// as described in RFC 6056 and is pretty narrow.
+ 		switch family {
+ 		case syscall.AF_INET:
+ 			syscall.SetsockoptInt(s, syscall.IPPROTO_IP, syscall.IP_PORTRANGE, syscall.IP_PORTRANGE_HIGH)

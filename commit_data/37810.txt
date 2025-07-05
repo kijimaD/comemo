@@ -16,6 +16,29 @@ Date:   Wed Aug 29 11:55:55 2018 -0400
     Change-Id: I72cda9b422d9637cc5738e681502035af7a5c02d
     Reviewed-on: https://go-review.googlesource.com/131956
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/plive.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index f78d051b06..be53384c1f 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -671,7 +671,7 @@ func (lv *Liveness) pointerMap(liveout bvec, vars []*Node, args, locals bvec) {
+ 
+ // markUnsafePoints finds unsafe points and computes lv.unsafePoints.
+ func (lv *Liveness) markUnsafePoints() {
+-	if compiling_runtime || lv.f.NoSplit {
++	if compiling_runtime || lv.f.NoSplit || objabi.Clobberdead_enabled != 0 {
+ 		// No complex analysis necessary. Do this on the fly
+ 		// in issafepoint.
+ 		return
+@@ -830,7 +830,7 @@ func (lv *Liveness) issafepoint(v *ssa.Value) bool {
+ 	// go:nosplit functions are similar. Since safe points used to
+ 	// be coupled with stack checks, go:nosplit often actually
+ 	// means "no safe points in this function".
+-	if compiling_runtime || lv.f.NoSplit {
++	if compiling_runtime || lv.f.NoSplit || objabi.Clobberdead_enabled != 0 {
+ 		return v.Op.IsCall()
+ 	}
+ 	switch v.Op {

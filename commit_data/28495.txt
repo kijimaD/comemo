@@ -9,6 +9,56 @@ Date:   Sat May 28 02:33:23 2016 -0600
     Change-Id: I4e4471e77091309c4ea1d546b2c4f20dfbb4314e
     Reviewed-on: https://go-review.googlesource.com/23550
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/httputil/persist.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/httputil/persist.go b/src/net/http/httputil/persist.go
+index 51486e78e2..87ddd52cd9 100644
+--- a/src/net/http/httputil/persist.go
++++ b/src/net/http/httputil/persist.go
+@@ -25,7 +25,7 @@ var (
+ var errClosed = errors.New("i/o operation on closed connection")
+ 
+ // ServerConn is an artifact of Go's early HTTP implementation.
+-// Is is low-level, old, and unused by Go's current HTTP stack.
++// It is low-level, old, and unused by Go's current HTTP stack.
+ // We should have deleted it before Go 1.
+ //
+ // Deprecated: Use the Server in package net/http instead.
+@@ -42,7 +42,7 @@ type ServerConn struct {
+ }
+ 
+ // NewServerConn is an artifact of Go's early HTTP implementation.
+-// Is is low-level, old, and unused by Go's current HTTP stack.
++// It is low-level, old, and unused by Go's current HTTP stack.
+ // We should have deleted it before Go 1.
+ //
+ // Deprecated: Use the Server in package net/http instead.
+@@ -218,7 +218,7 @@ func (sc *ServerConn) Write(req *http.Request, resp *http.Response) error {
+ }
+ 
+ // ClientConn is an artifact of Go's early HTTP implementation.
+-// Is is low-level, old, and unused by Go's current HTTP stack.
++// It is low-level, old, and unused by Go's current HTTP stack.
+ // We should have deleted it before Go 1.
+ //
+ // Deprecated: Use Client or Transport in package net/http instead.
+@@ -236,7 +236,7 @@ type ClientConn struct {
+ }
+ 
+ // NewClientConn is an artifact of Go's early HTTP implementation.
+-// Is is low-level, old, and unused by Go's current HTTP stack.
++// It is low-level, old, and unused by Go's current HTTP stack.
+ // We should have deleted it before Go 1.
+ //
+ // Deprecated: Use the Client or Transport in package net/http instead.
+@@ -253,7 +253,7 @@ func NewClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
+ }
+ 
+ // NewProxyClientConn is an artifact of Go's early HTTP implementation.
+-// Is is low-level, old, and unused by Go's current HTTP stack.
++// It is low-level, old, and unused by Go's current HTTP stack.
+ // We should have deleted it before Go 1.
+ //
+ // Deprecated: Use the Client or Transport in package net/http instead.

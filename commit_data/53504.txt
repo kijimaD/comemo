@@ -16,9 +16,78 @@ Date:   Thu Jul 8 16:30:41 2021 -0500
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/go/alldocs.go                   |  2 +-
  src/cmd/go/internal/help/helpdoc.go     |  2 +-
  src/cmd/go/testdata/script/tooltags.txt | 10 ++++++++++
  src/internal/buildcfg/cfg.go            |  4 +++-
  4 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index ce152171fd..f8800eef73 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2171,7 +2171,7 @@
+ //		Valid values are hardfloat (default), softfloat.
+ //	GOPPC64
+ //		For GOARCH=ppc64{,le}, the target ISA (Instruction Set Architecture).
+-//		Valid values are power8 (default), power9.
++//		Valid values are power8 (default), power9, power10.
+ //	GOWASM
+ //		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
+ //		Valid values are satconv, signext.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index c38c403006..2398260536 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -614,7 +614,7 @@ Architecture-specific environment variables:
+ 		Valid values are hardfloat (default), softfloat.
+ 	GOPPC64
+ 		For GOARCH=ppc64{,le}, the target ISA (Instruction Set Architecture).
+-		Valid values are power8 (default), power9.
++		Valid values are power8 (default), power9, power10.
+ 	GOWASM
+ 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
+ 		Valid values are satconv, signext.
+diff --git a/src/cmd/go/testdata/script/tooltags.txt b/src/cmd/go/testdata/script/tooltags.txt
+index ef7c715b7f..3076185bda 100644
+--- a/src/cmd/go/testdata/script/tooltags.txt
++++ b/src/cmd/go/testdata/script/tooltags.txt
+@@ -23,11 +23,21 @@ env GOPPC64=power9
+ go list -f '{{context.ToolTags}}'
+ stdout 'ppc64.power8 ppc64.power9'
+ 
++env GOARCH=ppc64
++env GOPPC64=power10
++go list -f '{{context.ToolTags}}'
++stdout 'ppc64.power8 ppc64.power9 ppc64.power10'
++
+ env GOARCH=ppc64le
+ env GOPPC64=power9
+ go list -f '{{context.ToolTags}}'
+ stdout 'ppc64le.power8 ppc64le.power9'
+ 
++env GOARCH=ppc64le
++env GOPPC64=power10
++go list -f '{{context.ToolTags}}'
++stdout 'ppc64le.power8 ppc64le.power9 ppc64le.power10'
++
+ env GOARCH=386
+ env GO386=sse2
+ go list -f '{{context.ToolTags}}'
+diff --git a/src/internal/buildcfg/cfg.go b/src/internal/buildcfg/cfg.go
+index 1cc3d3dcd0..e8553e8500 100644
+--- a/src/internal/buildcfg/cfg.go
++++ b/src/internal/buildcfg/cfg.go
+@@ -110,8 +110,10 @@ func goppc64() int {
+ 		return 8
+ 	case "power9":
+ 		return 9
++	case "power10":
++		return 10
+ 	}
+-	Error = fmt.Errorf("invalid GOPPC64: must be power8, power9")
++	Error = fmt.Errorf("invalid GOPPC64: must be power8, power9, power10")
+ 	return int(defaultGOPPC64[len("power")] - '0')
+ }
+ 

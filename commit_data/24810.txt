@@ -11,6 +11,19 @@ Date:   Tue Sep 1 21:41:58 2015 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/gen.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 4e03012a7f..1e9c68c210 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -1220,7 +1220,6 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
+ 	case TINTER:
+ 		return f(itable, startOffset) &&
+ 			f(Ptrto(Types[TUINT8]), startOffset+int64(Widthptr))
+-		return true
+ 
+ 	case TSTRING:
+ 		return f(Ptrto(Types[TUINT8]), startOffset) &&

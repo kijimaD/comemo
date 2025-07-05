@@ -9,7 +9,125 @@ Date:   Fri Jun 24 13:48:12 2011 -0700
     R=golang-dev, kevlar
     CC=golang-dev
     https://golang.org/cl/4667041
-
+---
  src/pkg/http/readrequest_test.go | 27 ++++++++++++++++++++++++++-
  src/pkg/http/transfer.go         | 19 ++++++++++++++-----
  2 files changed, 40 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/http/readrequest_test.go b/src/pkg/http/readrequest_test.go
+index 0b92b79426..0df6d21a84 100644
+--- a/src/pkg/http/readrequest_test.go
++++ b/src/pkg/http/readrequest_test.go
+@@ -69,6 +69,31 @@ var reqTests = []reqTest{
+ 		"abcdef\n",
+ 	},
+ 
++	// GET request with no body (the normal case)
++	{
++		"GET / HTTP/1.1\r\n" +
++			"Host: foo.com\r\n\r\n",
++
++		Request{
++			Method: "GET",
++			RawURL: "/",
++			URL: &URL{
++				Raw:     "/",
++				Path:    "/",
++				RawPath: "/",
++			},
++			Proto:         "HTTP/1.1",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			Close:         false,
++			ContentLength: 0,
++			Host:          "foo.com",
++			Form:          Values{},
++		},
++
++		"",
++	},
++
+ 	// Tests that we don't parse a path that looks like a
+ 	// scheme-relative URI as a scheme-relative URI.
+ 	{
+@@ -94,7 +119,7 @@ var reqTests = []reqTest{
+ 			ProtoMinor:    1,
+ 			Header:        Header{},
+ 			Close:         false,
+-			ContentLength: -1,
++			ContentLength: 0,
+ 			Host:          "test",
+ 			Form:          Values{},
+ 		},
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index b54508e7ad..609a5f7233 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -195,6 +195,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
+ 	t := &transferReader{}
+ 
+ 	// Unify input
++	isResponse := false
+ 	switch rr := msg.(type) {
+ 	case *Response:
+ 		t.Header = rr.Header
+@@ -203,6 +204,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
+ 		t.ProtoMajor = rr.ProtoMajor
+ 		t.ProtoMinor = rr.ProtoMinor
+ 		t.Close = shouldClose(t.ProtoMajor, t.ProtoMinor, t.Header)
++		isResponse = true
+ 	case *Request:
+ 		t.Header = rr.Header
+ 		t.ProtoMajor = rr.ProtoMajor
+@@ -211,6 +213,8 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
+ 		// Responses with status code 200, responding to a GET method
+ 		t.StatusCode = 200
+ 		t.RequestMethod = "GET"
++	default:
++		panic("unexpected type")
+ 	}
+ 
+ 	// Default to HTTP/1.1
+@@ -224,7 +228,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
+ 		return err
+ 	}
+ 
+-	t.ContentLength, err = fixLength(t.StatusCode, t.RequestMethod, t.Header, t.TransferEncoding)
++	t.ContentLength, err = fixLength(isResponse, t.StatusCode, t.RequestMethod, t.Header, t.TransferEncoding)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -265,9 +269,6 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
+ 			// Persistent connection (i.e. HTTP/1.1)
+ 			t.Body = &body{Reader: io.LimitReader(r, 0), closing: t.Close}
+ 		}
+-		// TODO(petar): It may be a good idea, for extra robustness, to
+-		// assume ContentLength=0 for GET requests (and other special
+-		// cases?). This logic should be in fixLength().
+ 	}
+ 
+ 	// Unify output
+@@ -345,7 +346,7 @@ func fixTransferEncoding(requestMethod string, header Header) ([]string, os.Erro
+ // Determine the expected body length, using RFC 2616 Section 4.4. This
+ // function is not a method, because ultimately it should be shared by
+ // ReadResponse and ReadRequest.
+-func fixLength(status int, requestMethod string, header Header, te []string) (int64, os.Error) {
++func fixLength(isResponse bool, status int, requestMethod string, header Header, te []string) (int64, os.Error) {
+ 
+ 	// Logic based on response type or status
+ 	if noBodyExpected(requestMethod) {
+@@ -376,6 +377,14 @@ func fixLength(status int, requestMethod string, header Header, te []string) (in
+ 		header.Del("Content-Length")
+ 	}
+ 
++	if !isResponse && requestMethod == "GET" {
++		// RFC 2616 doesn't explicitly permit nor forbid an
++		// entity-body on a GET request so we permit one if
++		// declared, but we default to 0 here (not -1 below)
++		// if there's no mention of a body.
++		return 0, nil
++	}
++
+ 	// Logic based on media type. The purpose of the following code is just
+ 	// to detect whether the unsupported "multipart/byteranges" is being
+ 	// used. A proper Content-Type parser is needed in the future.

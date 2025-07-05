@@ -14,6 +14,28 @@ Date:   Wed Mar 10 11:33:23 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/gofmt/gofmt.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 95f537d91e..cd867bba15 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -51,12 +51,12 @@ const (
+ 	//
+ 	// This value is defined in go/printer specifically for go/format and cmd/gofmt.
+ 	printerNormalizeNumbers = 1 << 30
+-
+-	// parseTypeParams tells go/parser to parse type parameters. Must be kept in
+-	// sync with go/parser/interface.go.
+-	parseTypeParams parser.Mode = 1 << 30
+ )
+ 
++// parseTypeParams tells go/parser to parse type parameters. Must be kept in
++// sync with go/parser/interface.go.
++const parseTypeParams parser.Mode = 1 << 30
++
+ var (
+ 	fileSet    = token.NewFileSet() // per process FileSet
+ 	exitCode   = 0

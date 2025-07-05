@@ -9,6 +9,20 @@ Date:   Tue Apr 27 17:52:44 2010 -0700
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/944044
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 26fc749690..e53d3fb396 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1749,7 +1749,7 @@ func (m *Mutex) Unlock()  { /* Unlock implementation */ }
+ // NewMutex has the same composition as Mutex but its method set is empty.
+ type NewMutex Mutex
+ 
+-// PrintableMutex's method set contains the methods
++// The method set of *PrintableMutex contains the methods
+ // Lock and Unlock bound to its anonymous field Mutex.
+ type PrintableMutex struct {
+ 	Mutex

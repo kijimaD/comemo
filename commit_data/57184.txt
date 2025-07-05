@@ -21,6 +21,22 @@ Date:   Tue Jul 11 10:08:48 2023 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/exec/exec_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index d37fffd39d..473f92ba8e 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -1754,7 +1754,9 @@ func TestConcurrentExec(t *testing.T) {
+ 
+ 			ready.Wait()
+ 			if err := cmd.Start(); err != nil {
+-				t.Error(err)
++				if !errors.Is(err, context.Canceled) {
++					t.Error(err)
++				}
+ 				return
+ 			}
+ 

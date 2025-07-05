@@ -23,6 +23,30 @@ Date:   Thu Oct 13 03:28:10 2022 +0000
     Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/net/dnsconfig_windows.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/net/dnsconfig_windows.go b/src/net/dnsconfig_windows.go
+index 5d640da1d7..f3d242366a 100644
+--- a/src/net/dnsconfig_windows.go
++++ b/src/net/dnsconfig_windows.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"internal/syscall/windows"
+ 	"syscall"
+ 	"time"
+ )
+@@ -30,6 +31,10 @@ func dnsReadConfig(ignoredFilename string) (conf *dnsConfig) {
+ 	// In practice, however, it mostly works.
+ 	for _, aa := range aas {
+ 		for dns := aa.FirstDnsServerAddress; dns != nil; dns = dns.Next {
++			// Only take interfaces whose OperStatus is IfOperStatusUp(0x01) into DNS configs.
++			if aa.OperStatus != windows.IfOperStatusUp {
++				continue
++			}
+ 			sa, err := dns.Address.Sockaddr.Sockaddr()
+ 			if err != nil {
+ 				continue

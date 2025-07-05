@@ -18,9 +18,189 @@ Date:   Tue Jan 16 15:28:57 2018 -0800
     Change-Id: I050592d11d5f984f71185548394c000eea509205
     Reviewed-on: https://go-review.googlesource.com/87898
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/parser/error_test.go           |  6 +++++
  src/go/parser/parser.go               | 42 ++++++++++++++++++++++++++++-------
  src/go/parser/testdata/commas.src     |  4 ++--
  src/go/parser/testdata/issue23434.src | 25 +++++++++++++++++++++
  4 files changed, 67 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/parser/error_test.go b/src/go/parser/error_test.go
+index ef91e1ea60..9b79097acf 100644
+--- a/src/go/parser/error_test.go
++++ b/src/go/parser/error_test.go
+@@ -91,6 +91,12 @@ func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.
+ 				}
+ 				errors[pos] = string(s[2])
+ 			}
++		case token.SEMICOLON:
++			// don't use the position of auto-inserted (invisible) semicolons
++			if lit != ";" {
++				break
++			}
++			fallthrough
+ 		default:
+ 			prev = pos
+ 			var l int // token length
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 88a5eb67d2..bee5ed064c 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -419,7 +419,7 @@ func (p *parser) expectSemi() {
+ 			p.next()
+ 		default:
+ 			p.errorExpected(p.pos, "';'")
+-			syncStmt(p)
++			p.syncStmt()
+ 		}
+ 	}
+ }
+@@ -445,10 +445,12 @@ func assert(cond bool, msg string) {
+ 	}
+ }
+ 
++// TODO(gri) The syncX methods below all use the same pattern. Factor.
++
+ // syncStmt advances to the next statement.
+ // Used for synchronization after an error.
+ //
+-func syncStmt(p *parser) {
++func (p *parser) syncStmt() {
+ 	for {
+ 		switch p.tok {
+ 		case token.BREAK, token.CONST, token.CONTINUE, token.DEFER,
+@@ -486,7 +488,7 @@ func syncStmt(p *parser) {
+ // syncDecl advances to the next declaration.
+ // Used for synchronization after an error.
+ //
+-func syncDecl(p *parser) {
++func (p *parser) syncDecl() {
+ 	for {
+ 		switch p.tok {
+ 		case token.CONST, token.TYPE, token.VAR:
+@@ -507,6 +509,30 @@ func syncDecl(p *parser) {
+ 	}
+ }
+ 
++// syncExprEnd advances to the likely end of an expression.
++// Used for synchronization after an error.
++//
++func (p *parser) syncExprEnd() {
++	for {
++		switch p.tok {
++		case token.COMMA, token.COLON, token.SEMICOLON, token.RPAREN, token.RBRACK, token.RBRACE:
++			// see comments in syncStmt
++			if p.pos == p.syncPos && p.syncCnt < 10 {
++				p.syncCnt++
++				return
++			}
++			if p.pos > p.syncPos {
++				p.syncPos = p.pos
++				p.syncCnt = 0
++				return
++			}
++		case token.EOF:
++			return
++		}
++		p.next()
++	}
++}
++
+ // safePos returns a valid file position for a given position: If pos
+ // is valid to begin with, safePos returns pos. If pos is out-of-range,
+ // safePos returns the EOF position.
+@@ -623,7 +649,7 @@ func (p *parser) parseType() ast.Expr {
+ 	if typ == nil {
+ 		pos := p.pos
+ 		p.errorExpected(pos, "type")
+-		p.next() // make progress
++		p.syncExprEnd()
+ 		return &ast.BadExpr{From: pos, To: p.pos}
+ 	}
+ 
+@@ -1166,7 +1192,7 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
+ 	// we have an error
+ 	pos := p.pos
+ 	p.errorExpected(pos, "operand")
+-	syncStmt(p)
++	p.syncStmt()
+ 	return &ast.BadExpr{From: pos, To: p.pos}
+ }
+ 
+@@ -2202,7 +2228,7 @@ func (p *parser) parseStmt() (s ast.Stmt) {
+ 
+ 	switch p.tok {
+ 	case token.CONST, token.TYPE, token.VAR:
+-		s = &ast.DeclStmt{Decl: p.parseDecl(syncStmt)}
++		s = &ast.DeclStmt{Decl: p.parseDecl((*parser).syncStmt)}
+ 	case
+ 		// tokens that may start an expression
+ 		token.IDENT, token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING, token.FUNC, token.LPAREN, // operands
+@@ -2247,7 +2273,7 @@ func (p *parser) parseStmt() (s ast.Stmt) {
+ 		// no statement found
+ 		pos := p.pos
+ 		p.errorExpected(pos, "statement")
+-		syncStmt(p)
++		p.syncStmt()
+ 		s = &ast.BadStmt{From: pos, To: p.pos}
+ 	}
+ 
+@@ -2530,7 +2556,7 @@ func (p *parser) parseFile() *ast.File {
+ 		if p.mode&ImportsOnly == 0 {
+ 			// rest of package body
+ 			for p.tok != token.EOF {
+-				decls = append(decls, p.parseDecl(syncDecl))
++				decls = append(decls, p.parseDecl((*parser).syncDecl))
+ 			}
+ 		}
+ 	}
+diff --git a/src/go/parser/testdata/commas.src b/src/go/parser/testdata/commas.src
+index af6e706450..e0603cf9f7 100644
+--- a/src/go/parser/testdata/commas.src
++++ b/src/go/parser/testdata/commas.src
+@@ -8,12 +8,12 @@
+ package p
+ 
+ var _ = []int{
+-	0 /* ERROR "missing ','" */
++	0/* ERROR HERE "missing ','" */
+ }
+ 
+ var _ = []int{
+ 	0,
+ 	1,
+ 	2,
+-	3 /* ERROR "missing ','" */
++	3/* ERROR HERE "missing ','" */
+ }
+diff --git a/src/go/parser/testdata/issue23434.src b/src/go/parser/testdata/issue23434.src
+new file mode 100644
+index 0000000000..24a0832347
+--- /dev/null
++++ b/src/go/parser/testdata/issue23434.src
+@@ -0,0 +1,25 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case for issue 23434: Better synchronization of
++// parser after missing type. There should be exactly
++// one error each time, with now follow errors.
++
++package p
++
++func g() {
++	m := make(map[string]! /* ERROR "expected type, found '!'" */ )
++	for {
++		x := 1
++		print(x)
++	}
++}
++
++func f() {
++	m := make(map[string]) /* ERROR "expected type, found '\)'" */
++	for {
++		x := 1
++		print(x)
++	}
++}

@@ -9,7 +9,7 @@ Date:   Tue Oct 25 22:20:02 2011 -0700
     R=golang-dev, bradfitz, gri, r
     CC=golang-dev
     https://golang.org/cl/5300043
-
+---
  src/cmd/cgo/gcc.go                 | 20 +++++++++---------
  src/cmd/cgo/util.go                |  2 +-
  src/cmd/goyacc/goyacc.go           | 43 +++++++++++++++++++-------------------
@@ -31,3 +31,724 @@ Date:   Tue Oct 25 22:20:02 2011 -0700
  test/stringrange.go                | 13 ++++++------
  test/utf.go                        | 30 +++++++++++++++++---------
  20 files changed, 114 insertions(+), 107 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 1864eed09a..97297a8604 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -71,7 +71,7 @@ func (p *Package) ParseFlags(f *File, srcfile string) {
+ NextLine:
+ 	for _, line := range linesIn {
+ 		l := strings.TrimSpace(line)
+-		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(int(l[4])) {
++		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(rune(l[4])) {
+ 			linesOut = append(linesOut, line)
+ 			continue
+ 		}
+@@ -193,28 +193,28 @@ func pkgConfig(packages []string) (cflags, ldflags []string, err os.Error) {
+ //
+ func splitQuoted(s string) (r []string, err os.Error) {
+ 	var args []string
+-	arg := make([]int, len(s))
++	arg := make([]rune, len(s))
+ 	escaped := false
+ 	quoted := false
+-	quote := 0
++	quote := rune(0)
+ 	i := 0
+-	for _, rune := range s {
++	for _, r := range s {
+ 		switch {
+ 		case escaped:
+ 			escaped = false
+-		case rune == '\\':
++		case r == '\\':
+ 			escaped = true
+ 			continue
+ 		case quote != 0:
+-			if rune == quote {
++			if r == quote {
+ 				quote = 0
+ 				continue
+ 			}
+-		case rune == '"' || rune == '\'':
++		case r == '"' || r == '\'':
+ 			quoted = true
+-			quote = rune
++			quote = r
+ 			continue
+-		case unicode.IsSpace(rune):
++		case unicode.IsSpace(r):
+ 			if quoted || i > 0 {
+ 				quoted = false
+ 				args = append(args, string(arg[:i]))
+@@ -222,7 +222,7 @@ func splitQuoted(s string) (r []string, err os.Error) {
+ 			}
+ 			continue
+ 		}
+-		arg[i] = rune
++		arg[i] = r
+ 		i++
+ 	}
+ 	if quoted || i > 0 {
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index e79b0e1bfa..a9c4e8fde7 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -102,7 +102,7 @@ func creat(name string) *os.File {
+ 	return f
+ }
+ 
+-func slashToUnderscore(c int) int {
++func slashToUnderscore(c rune) rune {
+ 	if c == '/' || c == '\\' || c == ':' {
+ 		c = '_'
+ 	}
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index 4ce0c73703..d1a9079812 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -813,7 +813,8 @@ func defin(nt int, s string) int {
+ var peekline = 0
+ 
+ func gettok() int {
+-	var i, match, c int
++	var i int
++	var match, c rune
+ 
+ 	tokname = ""
+ 	for {
+@@ -919,25 +920,25 @@ func gettok() int {
+ 
+ 		getword(c)
+ 		// find a reserved word
+-		for c = 0; c < len(resrv); c++ {
+-			if tokname == resrv[c].name {
++		for i := range resrv {
++			if tokname == resrv[i].name {
+ 				if tokflag {
+ 					fmt.Printf(">>> %%%v %v %v\n", tokname,
+-						resrv[c].value-PRIVATE, lineno)
++						resrv[i].value-PRIVATE, lineno)
+ 				}
+-				return resrv[c].value
++				return resrv[i].value
+ 			}
+ 		}
+ 		errorf("invalid escape, or illegal reserved word: %v", tokname)
+ 
+ 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+-		numbval = c - '0'
++		numbval = int(c - '0')
+ 		for {
+ 			c = getrune(finput)
+ 			if !isdigit(c) {
+ 				break
+ 			}
+-			numbval = numbval*10 + c - '0'
++			numbval = numbval*10 + int(c-'0')
+ 		}
+ 		ungetrune(finput, c)
+ 		if tokflag {
+@@ -953,7 +954,7 @@ func gettok() int {
+ 		if tokflag {
+ 			fmt.Printf(">>> OPERATOR %v %v\n", string(c), lineno)
+ 		}
+-		return c
++		return int(c)
+ 	}
+ 
+ 	// look ahead to distinguish IDENTIFIER from IDENTCOLON
+@@ -982,7 +983,7 @@ func gettok() int {
+ 	return IDENTIFIER
+ }
+ 
+-func getword(c int) {
++func getword(c rune) {
+ 	tokname = ""
+ 	for isword(c) || isdigit(c) || c == '_' || c == '.' || c == '$' {
+ 		tokname += string(c)
+@@ -1107,7 +1108,7 @@ func cpycode() {
+ // skipcom is called after reading a '/'
+ //
+ func skipcom() int {
+-	var c int
++	var c rune
+ 
+ 	c = getrune(finput)
+ 	if c == '/' {
+@@ -1221,7 +1222,7 @@ loop:
+ 			j := 0
+ 			if isdigit(c) {
+ 				for isdigit(c) {
+-					j = j*10 + c - '0'
++					j = j*10 + int(c-'0')
+ 					c = getrune(finput)
+ 				}
+ 				ungetrune(finput, c)
+@@ -2837,10 +2838,10 @@ func others() {
+ 	fmt.Fprintf(ftable, "%d,\n}\n", 0)
+ 
+ 	// copy parser text
+-	c = getrune(finput)
+-	for c != EOF {
+-		ftable.WriteRune(c)
+-		c = getrune(finput)
++	ch := getrune(finput)
++	for ch != EOF {
++		ftable.WriteRune(ch)
++		ch = getrune(finput)
+ 	}
+ 
+ 	// copy yaccpar
+@@ -2976,11 +2977,11 @@ func prlook(p Lkset) {
+ //
+ // utility routines
+ //
+-var peekrune int
++var peekrune rune
+ 
+-func isdigit(c int) bool { return c >= '0' && c <= '9' }
++func isdigit(c rune) bool { return c >= '0' && c <= '9' }
+ 
+-func isword(c int) bool {
++func isword(c rune) bool {
+ 	return c >= 0xa0 || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+ }
+ 
+@@ -3010,8 +3011,8 @@ func putrune(f *bufio.Writer, c int) {
+ 	}
+ }
+ 
+-func getrune(f *bufio.Reader) int {
+-	var r int
++func getrune(f *bufio.Reader) rune {
++	var r rune
+ 
+ 	if peekrune != 0 {
+ 		if peekrune == EOF {
+@@ -3033,7 +3034,7 @@ func getrune(f *bufio.Reader) int {
+ 	return c
+ }
+ 
+-func ungetrune(f *bufio.Reader, c int) {
++func ungetrune(f *bufio.Reader, c rune) {
+ 	if f != finput {
+ 		panic("ungetc - not finput")
+ 	}
+diff --git a/src/pkg/go/build/dir.go b/src/pkg/go/build/dir.go
+index 3ee10ab348..b67f999b76 100644
+--- a/src/pkg/go/build/dir.go
++++ b/src/pkg/go/build/dir.go
+@@ -461,10 +461,10 @@ func safeName(s string) bool {
+ //
+ func splitQuoted(s string) (r []string, err os.Error) {
+ 	var args []string
+-	arg := make([]int, len(s))
++	arg := make([]rune, len(s))
+ 	escaped := false
+ 	quoted := false
+-	quote := 0
++	quote := rune(0)
+ 	i := 0
+ 	for _, rune := range s {
+ 		switch {
+diff --git a/src/pkg/html/entity.go b/src/pkg/html/entity.go
+index 21263e22d8..bd83075235 100644
+--- a/src/pkg/html/entity.go
++++ b/src/pkg/html/entity.go
+@@ -13,7 +13,7 @@ const longestEntityWithoutSemicolon = 6
+ //
+ // Note that the HTML5 list is larger than the HTML4 list at
+ // http://www.w3.org/TR/html4/sgml/entities.html
+-var entity = map[string]int{
++var entity = map[string]rune{
+ 	"AElig;":                           '\U000000C6',
+ 	"AMP;":                             '\U00000026',
+ 	"Aacute;":                          '\U000000C1',
+@@ -2155,7 +2155,7 @@ var entity = map[string]int{
+ }
+ 
+ // HTML entities that are two unicode codepoints.
+-var entity2 = map[string][2]int{
++var entity2 = map[string][2]rune{
+ 	// TODO(nigeltao): Handle replacements that are wider than their names.
+ 	// "nLt;":                     {'\u226A', '\u20D2'},
+ 	// "nGt;":                     {'\u226B', '\u20D2'},
+diff --git a/src/pkg/html/escape.go b/src/pkg/html/escape.go
+index e9edc474da..69e0028e44 100644
+--- a/src/pkg/html/escape.go
++++ b/src/pkg/html/escape.go
+@@ -14,7 +14,7 @@ import (
+ // These replacements permit compatibility with old numeric entities that 
+ // assumed Windows-1252 encoding.
+ // http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#consume-a-character-reference
+-var replacementTable = [...]int{
++var replacementTable = [...]rune{
+ 	'\u20AC', // First entry is what 0x80 should be replaced with.
+ 	'\u0081',
+ 	'\u201A',
+@@ -79,23 +79,23 @@ func unescapeEntity(b []byte, dst, src int, attribute bool) (dst1, src1 int) {
+ 			i++
+ 		}
+ 
+-		x := 0
++		x := rune(0)
+ 		for i < len(s) {
+ 			c = s[i]
+ 			i++
+ 			if hex {
+ 				if '0' <= c && c <= '9' {
+-					x = 16*x + int(c) - '0'
++					x = 16*x + rune(c) - '0'
+ 					continue
+ 				} else if 'a' <= c && c <= 'f' {
+-					x = 16*x + int(c) - 'a' + 10
++					x = 16*x + rune(c) - 'a' + 10
+ 					continue
+ 				} else if 'A' <= c && c <= 'F' {
+-					x = 16*x + int(c) - 'A' + 10
++					x = 16*x + rune(c) - 'A' + 10
+ 					continue
+ 				}
+ 			} else if '0' <= c && c <= '9' {
+-				x = 10*x + int(c) - '0'
++				x = 10*x + rune(c) - '0'
+ 				continue
+ 			}
+ 			if c != ';' {
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index 9ea4c9d8bf..365a712dfa 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -333,18 +333,18 @@ func (h *Handler) handleInternalRedirect(rw http.ResponseWriter, req *http.Reque
+ 	h.PathLocationHandler.ServeHTTP(rw, newReq)
+ }
+ 
+-func upperCaseAndUnderscore(rune int) int {
++func upperCaseAndUnderscore(r rune) rune {
+ 	switch {
+-	case rune >= 'a' && rune <= 'z':
+-		return rune - ('a' - 'A')
+-	case rune == '-':
++	case r >= 'a' && r <= 'z':
++		return r - ('a' - 'A')
++	case r == '-':
+ 		return '_'
+-	case rune == '=':
++	case r == '=':
+ 		// Maybe not part of the CGI 'spec' but would mess up
+ 		// the environment in any case, as Go represents the
+ 		// environment as a slice of "key=value" strings.
+ 		return '_'
+ 	}
+ 	// TODO: other transformations in spec or practice?
+-	return rune
++	return r
+ }
+diff --git a/src/pkg/path/filepath/match.go b/src/pkg/path/filepath/match.go
+index 0ccc87e656..15c84a7e98 100644
+--- a/src/pkg/path/filepath/match.go
++++ b/src/pkg/path/filepath/match.go
+@@ -136,7 +136,7 @@ func matchChunk(chunk, s string) (rest string, ok bool, err os.Error) {
+ 					chunk = chunk[1:]
+ 					break
+ 				}
+-				var lo, hi int
++				var lo, hi rune
+ 				if lo, chunk, err = getEsc(chunk); err != nil {
+ 					return
+ 				}
+@@ -183,7 +183,7 @@ func matchChunk(chunk, s string) (rest string, ok bool, err os.Error) {
+ }
+ 
+ // getEsc gets a possibly-escaped character from chunk, for a character class.
+-func getEsc(chunk string) (r int, nchunk string, err os.Error) {
++func getEsc(chunk string) (r rune, nchunk string, err os.Error) {
+ 	if len(chunk) == 0 || chunk[0] == '-' || chunk[0] == ']' {
+ 		err = ErrBadPattern
+ 		return
+diff --git a/src/pkg/path/match.go b/src/pkg/path/match.go
+index efb8c5ce7f..e9d032799f 100644
+--- a/src/pkg/path/match.go
++++ b/src/pkg/path/match.go
+@@ -136,7 +136,7 @@ func matchChunk(chunk, s string) (rest string, ok bool, err os.Error) {
+ 					chunk = chunk[1:]
+ 					break
+ 				}
+-				var lo, hi int
++				var lo, hi rune
+ 				if lo, chunk, err = getEsc(chunk); err != nil {
+ 					return
+ 				}
+@@ -183,7 +183,7 @@ func matchChunk(chunk, s string) (rest string, ok bool, err os.Error) {
+ }
+ 
+ // getEsc gets a possibly-escaped character from chunk, for a character class.
+-func getEsc(chunk string) (r int, nchunk string, err os.Error) {
++func getEsc(chunk string) (r rune, nchunk string, err os.Error) {
+ 	if len(chunk) == 0 || chunk[0] == '-' || chunk[0] == ']' {
+ 		err = ErrBadPattern
+ 		return
+diff --git a/src/pkg/syscall/exec_windows.go b/src/pkg/syscall/exec_windows.go
+index e8b540ad16..e4fafdb992 100644
+--- a/src/pkg/syscall/exec_windows.go
++++ b/src/pkg/syscall/exec_windows.go
+@@ -100,7 +100,7 @@ func makeCmdLine(args []string) string {
+ // Last bytes are two UCS-2 NULs, or four NUL bytes.
+ func createEnvBlock(envv []string) *uint16 {
+ 	if len(envv) == 0 {
+-		return &utf16.Encode([]int("\x00\x00"))[0]
++		return &utf16.Encode([]rune("\x00\x00"))[0]
+ 	}
+ 	length := 0
+ 	for _, s := range envv {
+@@ -118,7 +118,7 @@ func createEnvBlock(envv []string) *uint16 {
+ 	}
+ 	copy(b[i:i+1], []byte{0})
+ 
+-	return &utf16.Encode([]int(string(b)))[0]
++	return &utf16.Encode([]rune(string(b)))[0]
+ }
+ 
+ func CloseOnExec(fd Handle) {
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 25e90eb6f3..ea62df6a1f 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -56,7 +56,7 @@ func main() {
+ 
+ // StringToUTF16 returns the UTF-16 encoding of the UTF-8 string s,
+ // with a terminating NUL added.
+-func StringToUTF16(s string) []uint16 { return utf16.Encode([]int(s + "\x00")) }
++func StringToUTF16(s string) []uint16 { return utf16.Encode([]rune(s + "\x00")) }
+ 
+ // UTF16ToString returns the UTF-8 encoding of the UTF-16 sequence s,
+ // with a terminating NUL removed.
+diff --git a/src/pkg/testing/quick/quick.go b/src/pkg/testing/quick/quick.go
+index 756a60e135..9ec1925de3 100644
+--- a/src/pkg/testing/quick/quick.go
++++ b/src/pkg/testing/quick/quick.go
+@@ -123,9 +123,9 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+ 		return s, true
+ 	case reflect.String:
+ 		numChars := rand.Intn(complexSize)
+-		codePoints := make([]int, numChars)
++		codePoints := make([]rune, numChars)
+ 		for i := 0; i < numChars; i++ {
+-			codePoints[i] = rand.Intn(0x10ffff)
++			codePoints[i] = rune(rand.Intn(0x10ffff))
+ 		}
+ 		return reflect.ValueOf(string(codePoints)), true
+ 	case reflect.Struct:
+diff --git a/test/convlit.go b/test/convlit.go
+index 90ac5490c8..2e3b15bda1 100644
+--- a/test/convlit.go
++++ b/test/convlit.go
+@@ -36,7 +36,7 @@ var good3 int = 1e9
+ var good4 float64 = 1e20
+ 
+ // explicit conversion of string is okay
+-var _ = []int("abc")
++var _ = []rune("abc")
+ var _ = []byte("abc")
+ 
+ // implicit is not
+@@ -47,20 +47,20 @@ var _ []byte = "abc" // ERROR "cannot use|incompatible|invalid"
+ type Tstring string
+ 
+ var ss Tstring = "abc"
+-var _ = []int(ss)
++var _ = []rune(ss)
+ var _ = []byte(ss)
+ 
+ // implicit is still not
+-var _ []int = ss  // ERROR "cannot use|incompatible|invalid"
++var _ []rune = ss // ERROR "cannot use|incompatible|invalid"
+ var _ []byte = ss // ERROR "cannot use|incompatible|invalid"
+ 
+ // named slice is not
+-type Tint []int
++type Trune []rune
+ type Tbyte []byte
+ 
+-var _ = Tint("abc")  // ERROR "convert|incompatible|invalid"
++var _ = Trune("abc") // ERROR "convert|incompatible|invalid"
+ var _ = Tbyte("abc") // ERROR "convert|incompatible|invalid"
+ 
+ // implicit is still not
+-var _ Tint = "abc"  // ERROR "cannot use|incompatible|invalid"
++var _ Trune = "abc" // ERROR "cannot use|incompatible|invalid"
+ var _ Tbyte = "abc" // ERROR "cannot use|incompatible|invalid"
+diff --git a/test/fixedbugs/bug204.go b/test/fixedbugs/bug204.go
+index d4534c27c5..adf0aafd6b 100644
+--- a/test/fixedbugs/bug204.go
++++ b/test/fixedbugs/bug204.go
+@@ -7,18 +7,18 @@
+ package main
+ 
+ func main() {
+-	nchar := 0;
+-	a := []int { '日', '本', '語', 0xFFFD };
++	nchar := 0
++	a := []rune{'日', '本', '語', 0xFFFD}
+ 	for _, char := range "日本語\xc0" {
+ 		if nchar >= len(a) {
+-			println("BUG");
+-			break;
++			println("BUG")
++			break
+ 		}
+ 		if char != a[nchar] {
+-			println("expected", a[nchar], "got", char);
+-			println("BUG");
+-			break;
++			println("expected", a[nchar], "got", char)
++			println("BUG")
++			break
+ 		}
+-		nchar++;
++		nchar++
+ 	}
+ }
+diff --git a/test/ken/string.go b/test/ken/string.go
+index cbedad4e88..b74bd7d6f1 100644
+--- a/test/ken/string.go
++++ b/test/ken/string.go
+@@ -95,7 +95,7 @@ func main() {
+ 	}
+ 
+ 	/* create string with int array */
+-	var z2 [3]int
++	var z2 [3]rune
+ 	z2[0] = 'a'
+ 	z2[1] = '\u1234'
+ 	z2[2] = 'c'
+diff --git a/test/range.go b/test/range.go
+index 91ccd6307a..84119450b2 100644
+--- a/test/range.go
++++ b/test/range.go
+@@ -172,7 +172,7 @@ func makestring() string {
+ }
+ 
+ func teststring() {
+-	s := 0
++	var s rune
+ 	nmake = 0
+ 	for _, v := range makestring() {
+ 		s += v
+@@ -208,7 +208,7 @@ func teststring1() {
+ 
+ func makemap() map[int]int {
+ 	nmake++
+-	return map[int]int{0:'a', 1:'b', 2:'c', 3:'d', 4:'☺'}
++	return map[int]int{0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: '☺'}
+ }
+ 
+ func testmap() {
+diff --git a/test/solitaire.go b/test/solitaire.go
+index c789bf24a0..473a1d12d7 100644
+--- a/test/solitaire.go
++++ b/test/solitaire.go
+@@ -14,7 +14,7 @@ const N = 11 + 1 // length of a board row (+1 for newline)
+ // The board must be surrounded by 2 illegal fields in each direction
+ // so that move() doesn't need to check the board boundaries. Periods
+ // represent illegal fields, ● are pegs, and ○ are holes.
+-var board = []int(
++var board = []rune(
+ 	`...........
+ ...........
+ ....●●●....
+@@ -28,7 +28,6 @@ var board = []int(
+ ...........
+ `)
+ 
+-
+ // center is the position of the center hole if there is a single one;
+ // otherwise it is -1.
+ var center int
+@@ -46,7 +45,6 @@ func init() {
+ 	}
+ }
+ 
+-
+ var moves int // number of times move is called
+ 
+ // move tests if there is a peg at position pos that can jump over another peg
+@@ -63,7 +61,6 @@ func move(pos, dir int) bool {
+ 	return false
+ }
+ 
+-
+ // unmove reverts a previously executed valid move.
+ func unmove(pos, dir int) {
+ 	board[pos] = '●'
+@@ -71,7 +68,6 @@ func unmove(pos, dir int) {
+ 	board[pos+2*dir] = '○'
+ }
+ 
+-
+ // solve tries to find a sequence of moves such that there is only one peg left
+ // at the end; if center is >= 0, that last peg must be in the center position.
+ // If a solution is found, solve prints the board after each move in a backward
+@@ -110,7 +106,6 @@ func solve() bool {
+ 	return false
+ }
+ 
+-
+ func main() {
+ 	if !solve() {
+ 		println("no solution found")
+diff --git a/test/string_lit.go b/test/string_lit.go
+index 4358dd8e82..c702a05e91 100644
+--- a/test/string_lit.go
++++ b/test/string_lit.go
+@@ -35,14 +35,14 @@ func assert(a, b, c string) {
+ }
+ 
+ const (
+-	gx1 = "aä本☺"
+-	gx2 = "aä\xFF\xFF本☺"
++	gx1    = "aä本☺"
++	gx2    = "aä\xFF\xFF本☺"
+ 	gx2fix = "aä\uFFFD\uFFFD本☺"
+ )
+ 
+ var (
+-	gr1 = []int(gx1)
+-	gr2 = []int(gx2)
++	gr1 = []rune(gx1)
++	gr2 = []rune(gx2)
+ 	gb1 = []byte(gx1)
+ 	gb2 = []byte(gx2)
+ )
+@@ -93,26 +93,26 @@ func main() {
+ 
+ 	// test large runes. perhaps not the most logical place for this test.
+ 	var r int32
+-	r = 0x10ffff;	// largest rune value
++	r = 0x10ffff // largest rune value
+ 	s = string(r)
+ 	assert(s, "\xf4\x8f\xbf\xbf", "largest rune")
+ 	r = 0x10ffff + 1
+ 	s = string(r)
+ 	assert(s, "\xef\xbf\xbd", "too-large rune")
+ 
+-	assert(string(gr1), gx1, "global ->[]int")
+-	assert(string(gr2), gx2fix, "global invalid ->[]int")
++	assert(string(gr1), gx1, "global ->[]rune")
++	assert(string(gr2), gx2fix, "global invalid ->[]rune")
+ 	assert(string(gb1), gx1, "->[]byte")
+ 	assert(string(gb2), gx2, "global invalid ->[]byte")
+ 
+ 	var (
+-		r1 = []int(gx1)
+-		r2 = []int(gx2)
++		r1 = []rune(gx1)
++		r2 = []rune(gx2)
+ 		b1 = []byte(gx1)
+ 		b2 = []byte(gx2)
+ 	)
+-	assert(string(r1), gx1, "->[]int")
+-	assert(string(r2), gx2fix, "invalid ->[]int")
++	assert(string(r1), gx1, "->[]rune")
++	assert(string(r2), gx2fix, "invalid ->[]rune")
+ 	assert(string(b1), gx1, "->[]byte")
+ 	assert(string(b2), gx2, "invalid ->[]byte")
+ 
+diff --git a/test/stringrange.go b/test/stringrange.go
+index d5ada2628d..924022b48e 100644
+--- a/test/stringrange.go
++++ b/test/stringrange.go
+@@ -14,23 +14,24 @@ import (
+ 
+ func main() {
+ 	s := "\000\123\x00\xca\xFE\u0123\ubabe\U0000babe\U0010FFFFx"
+-	expect := []int{ 0, 0123, 0, 0xFFFD, 0xFFFD, 0x123, 0xbabe, 0xbabe, 0x10FFFF, 'x' }
++	expect := []rune{0, 0123, 0, 0xFFFD, 0xFFFD, 0x123, 0xbabe, 0xbabe, 0x10FFFF, 'x'}
+ 	offset := 0
+-	var i, c int
++	var i int
++	var c rune
+ 	ok := true
+ 	cnum := 0
+ 	for i, c = range s {
+-		rune, size := utf8.DecodeRuneInString(s[i:len(s)])  // check it another way
++		r, size := utf8.DecodeRuneInString(s[i:len(s)]) // check it another way
+ 		if i != offset {
+ 			fmt.Printf("unexpected offset %d not %d\n", i, offset)
+ 			ok = false
+ 		}
+-		if rune != expect[cnum] {
+-			fmt.Printf("unexpected rune %d from DecodeRuneInString: %x not %x\n", i, rune, expect[cnum])
++		if r != expect[cnum] {
++			fmt.Printf("unexpected rune %d from DecodeRuneInString: %x not %x\n", i, r, expect[cnum])
+ 			ok = false
+ 		}
+ 		if c != expect[cnum] {
+-			fmt.Printf("unexpected rune %d from range: %x not %x\n", i, rune, expect[cnum])
++			fmt.Printf("unexpected rune %d from range: %x not %x\n", i, r, expect[cnum])
+ 			ok = false
+ 		}
+ 		offset += size
+diff --git a/test/utf.go b/test/utf.go
+index a93fc29341..ed8a983d8f 100644
+--- a/test/utf.go
++++ b/test/utf.go
+@@ -9,7 +9,7 @@ package main
+ import "utf8"
+ 
+ func main() {
+-	var chars [6] int
++	var chars [6]rune
+ 	chars[0] = 'a'
+ 	chars[1] = 'b'
+ 	chars[2] = 'c'
+@@ -21,16 +21,22 @@ func main() {
+ 		s += string(chars[i])
+ 	}
+ 	var l = len(s)
+-	for w, i, j := 0,0,0; i < l; i += w {
+-		var r int
++	for w, i, j := 0, 0, 0; i < l; i += w {
++		var r rune
+ 		r, w = utf8.DecodeRuneInString(s[i:len(s)])
+-		if w == 0 { panic("zero width in string") }
+-		if r != chars[j] { panic("wrong value from string") }
++		if w == 0 {
++			panic("zero width in string")
++		}
++		if r != chars[j] {
++			panic("wrong value from string")
++		}
+ 		j++
+ 	}
+ 	// encoded as bytes:  'a' 'b' 'c' e6 97 a5 e6 9c ac e8 aa 9e
+ 	const L = 12
+-	if L != l { panic("wrong length constructing array") }
++	if L != l {
++		panic("wrong length constructing array")
++	}
+ 	a := make([]byte, L)
+ 	a[0] = 'a'
+ 	a[1] = 'b'
+@@ -44,11 +50,15 @@ func main() {
+ 	a[9] = 0xe8
+ 	a[10] = 0xaa
+ 	a[11] = 0x9e
+-	for w, i, j := 0,0,0; i < L; i += w {
+-		var r int
++	for w, i, j := 0, 0, 0; i < L; i += w {
++		var r rune
+ 		r, w = utf8.DecodeRune(a[i:L])
+-		if w == 0 { panic("zero width in bytes") }
+-		if r != chars[j] { panic("wrong value from bytes") }
++		if w == 0 {
++			panic("zero width in bytes")
++		}
++		if r != chars[j] {
++			panic("wrong value from bytes")
++		}
+ 		j++
+ 	}
+ }

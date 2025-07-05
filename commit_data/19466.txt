@@ -46,7 +46,7 @@ Date:   Wed May 28 21:46:20 2014 -0400
     TBR=r
     CC=golang-codereviews, khr
     https://golang.org/cl/95660043
-
+---
  src/cmd/5g/cgen.c  |  8 --------
  src/cmd/6g/cgen.c  |  7 -------
  src/cmd/6g/gsubr.c |  9 ---------
@@ -54,3 +54,141 @@ Date:   Wed May 28 21:46:20 2014 -0400
  src/cmd/gc/walk.c  |  3 +--
  test/live.go       | 26 --------------------------
  6 files changed, 1 insertion(+), 59 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 9011b20228..9faf754617 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -1490,7 +1490,6 @@ sgen(Node *n, Node *res, int64 w)
+ 	}
+ 	if(osrc%align != 0 || odst%align != 0)
+ 		fatal("sgen: unaligned offset src %d or dst %d (align %d)", osrc, odst, align);
+-
+ 	// if we are copying forward on the stack and
+ 	// the src and dst overlap, then reverse direction
+ 	dir = align;
+@@ -1675,13 +1674,6 @@ componentgen(Node *nr, Node *nl)
+ 		freer = 1;
+ 	}
+ 
+-	// nl and nr are 'cadable' which basically means they are names (variables) now.
+-	// If they are the same variable, don't generate any code, because the
+-	// VARDEF we generate will mark the old value as dead incorrectly.
+-	// (And also the assignments are useless.)
+-	if(nr != N && nl->op == ONAME && nr->op == ONAME && nl == nr)
+-		goto yes;
+-
+ 	switch(nl->type->etype) {
+ 	case TARRAY:
+ 		if(nl->op == ONAME)
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 4dd505b086..ae1309142c 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1585,13 +1585,6 @@ componentgen(Node *nr, Node *nl)
+ 			freer = 1;
+ 		}
+ 	}
+-	
+-	// nl and nr are 'cadable' which basically means they are names (variables) now.
+-	// If they are the same variable, don't generate any code, because the
+-	// VARDEF we generate will mark the old value as dead incorrectly.
+-	// (And also the assignments are useless.)
+-	if(nr != N && nl->op == ONAME && nr->op == ONAME && nl == nr)
+-		goto yes;
+ 
+ 	switch(nl->type->etype) {
+ 	case TARRAY:
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index e4d00bf419..bd2f2304b4 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -462,7 +462,6 @@ Node*
+ nodarg(Type *t, int fp)
+ {
+ 	Node *n;
+-	NodeList *l;
+ 	Type *first;
+ 	Iter savet;
+ 
+@@ -483,14 +482,6 @@ nodarg(Type *t, int fp)
+ 
+ 	if(t->etype != TFIELD)
+ 		fatal("nodarg: not field %T", t);
+-	
+-	if(fp == 1) {
+-		for(l=curfn->dcl; l; l=l->next) {
+-			n = l->n;
+-			if((n->class == PPARAM || n->class == PPARAMOUT) && !isblanksym(t->sym) && n->sym == t->sym)
+-				return n;
+-		}
+-	}
+ 
+ 	n = nod(ONAME, N, N);
+ 	n->type = t->type;
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index d626c2eb02..1aae7771c7 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -1397,13 +1397,6 @@ componentgen(Node *nr, Node *nl)
+ 		}
+ 	}
+ 
+-	// nl and nr are 'cadable' which basically means they are names (variables) now.
+-	// If they are the same variable, don't generate any code, because the
+-	// VARDEF we generate will mark the old value as dead incorrectly.
+-	// (And also the assignments are useless.)
+-	if(nr != N && nl->op == ONAME && nr->op == ONAME && nl == nr)
+-		goto yes;
+-
+ 	switch(nl->type->etype) {
+ 	case TARRAY:
+ 		if(nl->op == ONAME)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 1cb25512e5..2d402d04f5 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1652,8 +1652,7 @@ ascompatte(int op, Node *call, int isddd, Type **nl, NodeList *lr, int fp, NodeL
+ 		// optimization - can do block copy
+ 		if(eqtypenoname(r->type, *nl)) {
+ 			a = nodarg(*nl, fp);
+-			r = nod(OCONVNOP, r, N);
+-			r->type = a->type;
++			a->type = r->type;
+ 			nn = list1(convas(nod(OAS, a, r), init));
+ 			goto ret;
+ 		}
+diff --git a/test/live.go b/test/live.go
+index 286fcc3064..21d3e6a5fa 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -564,29 +564,3 @@ func f38(b bool) {
+ 	}
+ 	println()
+ }
+-
+-// issue 8097: mishandling of x = x during return.
+-
+-func f39() (x []int) {
+-	x = []int{1}
+-	println() // ERROR "live at call to printnl: x"
+-	return x
+-}
+-
+-func f39a() (x []int) {
+-	x = []int{1}
+-	println() // ERROR "live at call to printnl: x"
+-	return
+-}
+-
+-func f39b() (x [10]*int) {
+-	x = [10]*int{new(int)} // ERROR "live at call to new: x"
+-	println() // ERROR "live at call to printnl: x"
+-	return x
+-}
+-
+-func f39c() (x [10]*int) {
+-	x = [10]*int{new(int)} // ERROR "live at call to new: x"
+-	println() // ERROR "live at call to printnl: x"
+-	return
+-}

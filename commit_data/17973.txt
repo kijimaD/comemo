@@ -7,7 +7,40 @@ Date:   Thu Dec 12 17:13:27 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/41610043
-
+---
  test/deferfin.go            | 4 ++++
  test/fixedbugs/issue5493.go | 5 +++--
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/test/deferfin.go b/test/deferfin.go
+index f9a74eba9c..fa5a93354d 100644
+--- a/test/deferfin.go
++++ b/test/deferfin.go
+@@ -23,6 +23,10 @@ func main() {
+ 	if runtime.GOARCH != "amd64" {
+ 		return
+ 	}
++	// Likewise for gccgo.
++	if runtime.Compiler == "gccgo" {
++		return
++	}
+ 	N := 10
+ 	count := int32(N)
+ 	var wg sync.WaitGroup
+diff --git a/test/fixedbugs/issue5493.go b/test/fixedbugs/issue5493.go
+index affc07b588..2ee0398af2 100644
+--- a/test/fixedbugs/issue5493.go
++++ b/test/fixedbugs/issue5493.go
+@@ -31,9 +31,10 @@ func run() error {
+ }
+ 
+ func main() {
+-	// Does not work on 32-bits due to partially conservative GC.
++	// Does not work on 32-bits, or with gccgo, due to partially
++	// conservative GC.
+ 	// Try to enable when we have fully precise GC.
+-	if runtime.GOARCH != "amd64" {
++	if runtime.GOARCH != "amd64" || runtime.Compiler == "gccgo" {
+ 		return
+ 	}
+ 	count = N

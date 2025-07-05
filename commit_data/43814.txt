@@ -25,7 +25,7 @@ Date:   Fri Apr 17 15:42:12 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  doc/go1.15.html                      | 38 +++++++++++++++++++++++
  src/internal/poll/fd.go              | 18 ++++++-----
  src/internal/poll/fd_plan9.go        |  8 ++---
@@ -47,3 +47,947 @@ Date:   Fri Apr 17 15:42:12 2020 -0700
  src/os/os_unix_test.go               |  2 +-
  src/os/timeout_test.go               | 31 ++++++++++---------
  20 files changed, 196 insertions(+), 108 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index a4f78c1c78..9d10092ffa 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -172,6 +172,25 @@ TODO
+   </dd>
+ </dl>
+ 
++<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
++  <dd>
++    <p><!-- CL -->
++      If an I/O operation exceeds a deadline set by
++      the <a href="/pkg/net/#Conn"><code>Conn.SetDeadline</code></a>,
++      <code>Conn.SetReadDeadline</code>,
++      or <code>Conn.SetWriteDeadline</code> methods, it will now
++      return an error that is or wraps
++      <a href="/pkg/os#ErrDeadlineExceeded"><code>os.ErrDeadlineExceeded</code></a>.
++      This may be used to reliably detect whether an error is due to
++      an exceeded deadline.
++      Earlier releases recommended calling the <code>Timeout</code>
++      method on the error, but I/O operations can return errors for
++      which <code>Timeout</code> returns <code>true</code> although a
++      deadline has not been exceeded.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="net/http/pprof"><dt><a href="/pkg/net/http/pprof/">net/http/pprof</a></dt>
+   <dd>
+     <p><!-- CL 147598, 229537 -->
+@@ -200,6 +219,25 @@ TODO
+   </dd>
+ </dl>
+ 
++<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
++  <dd>
++    <p><!-- CL -->
++      If an I/O operation exceeds a deadline set by
++      the <a href="/pkg/os/#File.SetDeadline"><code>File.SetDeadline</code></a>,
++      <a href="/pkg/os/#File.SetReadDeadline"><code>File.SetReadDeadline</code></a>,
++      or <a href="/pkg/os/#File.SetWriteDeadline"><code>File.SetWriteDeadline</code></a>
++      methods, it will now return an error that is or wraps
++      <a href="/pkg/os#ErrDeadlineExceeded"><code>os.ErrDeadlineExceeded</code></a>.
++      This may be used to reliably detect whether an error is due to
++      an exceeded deadline.
++      Earlier releases recommended calling the <code>Timeout</code>
++      method on the error, but I/O operations can return errors for
++      which <code>Timeout</code> returns <code>true</code> although a
++      deadline has not been exceeded.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+   <dd>
+     <p><!-- CL 228902 -->
+diff --git a/src/internal/poll/fd.go b/src/internal/poll/fd.go
+index c0de50c1b4..b72ea3d55c 100644
+--- a/src/internal/poll/fd.go
++++ b/src/internal/poll/fd.go
+@@ -35,16 +35,20 @@ func errClosing(isFile bool) error {
+ 	return ErrNetClosing
+ }
+ 
+-// ErrTimeout is returned for an expired deadline.
+-var ErrTimeout error = &TimeoutError{}
++// ErrDeadlineExceeded is returned for an expired deadline.
++// This is exported by the os package as os.ErrDeadlineExceeded.
++var ErrDeadlineExceeded error = &DeadlineExceededError{}
+ 
+-// TimeoutError is returned for an expired deadline.
+-type TimeoutError struct{}
++// DeadlineExceededError is returned for an expired deadline.
++type DeadlineExceededError struct{}
+ 
+ // Implement the net.Error interface.
+-func (e *TimeoutError) Error() string   { return "i/o timeout" }
+-func (e *TimeoutError) Timeout() bool   { return true }
+-func (e *TimeoutError) Temporary() bool { return true }
++// The string is "i/o timeout" because that is what was returned
++// by earlier Go versions. Changing it may break programs that
++// match on error strings.
++func (e *DeadlineExceededError) Error() string   { return "i/o timeout" }
++func (e *DeadlineExceededError) Timeout() bool   { return true }
++func (e *DeadlineExceededError) Temporary() bool { return true }
+ 
+ // ErrNotPollable is returned when the file or socket is not suitable
+ // for event notification.
+diff --git a/src/internal/poll/fd_plan9.go b/src/internal/poll/fd_plan9.go
+index 0fce32915e..e57e0419c5 100644
+--- a/src/internal/poll/fd_plan9.go
++++ b/src/internal/poll/fd_plan9.go
+@@ -60,7 +60,7 @@ func (fd *FD) Close() error {
+ // Read implements io.Reader.
+ func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (int, error) {
+ 	if fd.rtimedout.isSet() {
+-		return 0, ErrTimeout
++		return 0, ErrDeadlineExceeded
+ 	}
+ 	if err := fd.readLock(); err != nil {
+ 		return 0, err
+@@ -76,7 +76,7 @@ func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (int, error) {
+ 		err = io.EOF
+ 	}
+ 	if isInterrupted(err) {
+-		err = ErrTimeout
++		err = ErrDeadlineExceeded
+ 	}
+ 	return n, err
+ }
+@@ -84,7 +84,7 @@ func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (int, error) {
+ // Write implements io.Writer.
+ func (fd *FD) Write(fn func([]byte) (int, error), b []byte) (int, error) {
+ 	if fd.wtimedout.isSet() {
+-		return 0, ErrTimeout
++		return 0, ErrDeadlineExceeded
+ 	}
+ 	if err := fd.writeLock(); err != nil {
+ 		return 0, err
+@@ -94,7 +94,7 @@ func (fd *FD) Write(fn func([]byte) (int, error), b []byte) (int, error) {
+ 	n, err := fd.waio.Wait()
+ 	fd.waio = nil
+ 	if isInterrupted(err) {
+-		err = ErrTimeout
++		err = ErrDeadlineExceeded
+ 	}
+ 	return n, err
+ }
+diff --git a/src/internal/poll/fd_poll_js.go b/src/internal/poll/fd_poll_js.go
+index 2bfeb0a0b7..d6b28e503c 100644
+--- a/src/internal/poll/fd_poll_js.go
++++ b/src/internal/poll/fd_poll_js.go
+@@ -45,7 +45,7 @@ func (pd *pollDesc) wait(mode int, isFile bool) error {
+ 	if isFile { // TODO(neelance): wasm: Use callbacks from JS to block until the read/write finished.
+ 		return nil
+ 	}
+-	return ErrTimeout
++	return ErrDeadlineExceeded
+ }
+ 
+ func (pd *pollDesc) waitRead(isFile bool) error { return pd.wait('r', isFile) }
+diff --git a/src/internal/poll/fd_poll_runtime.go b/src/internal/poll/fd_poll_runtime.go
+index fd73166ac3..222e5c6707 100644
+--- a/src/internal/poll/fd_poll_runtime.go
++++ b/src/internal/poll/fd_poll_runtime.go
+@@ -123,7 +123,7 @@ func convertErr(res int, isFile bool) error {
+ 	case pollErrClosing:
+ 		return errClosing(isFile)
+ 	case pollErrTimeout:
+-		return ErrTimeout
++		return ErrDeadlineExceeded
+ 	case pollErrNotPollable:
+ 		return ErrNotPollable
+ 	}
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 1a0bdb34fe..e1ef6199b3 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -188,7 +188,7 @@ func execIO(o *operation, submit func(o *operation) error) (int, error) {
+ 	// IO is interrupted by "close" or "timeout"
+ 	netpollErr := err
+ 	switch netpollErr {
+-	case ErrNetClosing, ErrFileClosing, ErrTimeout:
++	case ErrNetClosing, ErrFileClosing, ErrDeadlineExceeded:
+ 		// will deal with those.
+ 	default:
+ 		panic("unexpected runtime.netpoll error: " + netpollErr.Error())
+diff --git a/src/net/dial.go b/src/net/dial.go
+index d8be1c222d..13a312a91a 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -7,7 +7,6 @@ package net
+ import (
+ 	"context"
+ 	"internal/nettrace"
+-	"internal/poll"
+ 	"syscall"
+ 	"time"
+ )
+@@ -141,7 +140,7 @@ func partialDeadline(now, deadline time.Time, addrsRemaining int) (time.Time, er
+ 	}
+ 	timeRemaining := deadline.Sub(now)
+ 	if timeRemaining <= 0 {
+-		return time.Time{}, poll.ErrTimeout
++		return time.Time{}, errTimeout
+ 	}
+ 	// Tentatively allocate equal time to each remaining address.
+ 	timeout := timeRemaining / time.Duration(addrsRemaining)
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index aedf643e98..01582489de 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -9,7 +9,6 @@ package net
+ import (
+ 	"bufio"
+ 	"context"
+-	"internal/poll"
+ 	"internal/testenv"
+ 	"io"
+ 	"os"
+@@ -540,8 +539,8 @@ func TestDialerPartialDeadline(t *testing.T) {
+ 		{now, noDeadline, 1, noDeadline, nil},
+ 		// Step the clock forward and cross the deadline.
+ 		{now.Add(-1 * time.Millisecond), now, 1, now, nil},
+-		{now.Add(0 * time.Millisecond), now, 1, noDeadline, poll.ErrTimeout},
+-		{now.Add(1 * time.Millisecond), now, 1, noDeadline, poll.ErrTimeout},
++		{now.Add(0 * time.Millisecond), now, 1, noDeadline, errTimeout},
++		{now.Add(1 * time.Millisecond), now, 1, noDeadline, errTimeout},
+ 	}
+ 	for i, tt := range testCases {
+ 		deadline, err := partialDeadline(tt.now, tt.deadline, tt.addrs)
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 2ad40dfe02..06553636ee 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"context"
+ 	"errors"
+ 	"fmt"
+-	"internal/poll"
+ 	"io/ioutil"
+ 	"os"
+ 	"path"
+@@ -480,7 +479,7 @@ func TestGoLookupIPWithResolverConfig(t *testing.T) {
+ 			break
+ 		default:
+ 			time.Sleep(10 * time.Millisecond)
+-			return dnsmessage.Message{}, poll.ErrTimeout
++			return dnsmessage.Message{}, os.ErrDeadlineExceeded
+ 		}
+ 		r := dnsmessage.Message{
+ 			Header: dnsmessage.Header{
+@@ -993,7 +992,7 @@ func TestRetryTimeout(t *testing.T) {
+ 		if s == "192.0.2.1:53" {
+ 			deadline0 = deadline
+ 			time.Sleep(10 * time.Millisecond)
+-			return dnsmessage.Message{}, poll.ErrTimeout
++			return dnsmessage.Message{}, os.ErrDeadlineExceeded
+ 		}
+ 
+ 		if deadline.Equal(deadline0) {
+@@ -1131,7 +1130,7 @@ func TestStrictErrorsLookupIP(t *testing.T) {
+ 	}
+ 	makeTimeout := func() error {
+ 		return &DNSError{
+-			Err:       poll.ErrTimeout.Error(),
++			Err:       os.ErrDeadlineExceeded.Error(),
+ 			Name:      name,
+ 			Server:    server,
+ 			IsTimeout: true,
+@@ -1247,7 +1246,7 @@ func TestStrictErrorsLookupIP(t *testing.T) {
+ 					Questions: q.Questions,
+ 				}, nil
+ 			case resolveTimeout:
+-				return dnsmessage.Message{}, poll.ErrTimeout
++				return dnsmessage.Message{}, os.ErrDeadlineExceeded
+ 			default:
+ 				t.Fatal("Impossible resolveWhich")
+ 			}
+@@ -1372,7 +1371,7 @@ func TestStrictErrorsLookupTXT(t *testing.T) {
+ 
+ 		switch q.Questions[0].Name.String() {
+ 		case searchX:
+-			return dnsmessage.Message{}, poll.ErrTimeout
++			return dnsmessage.Message{}, os.ErrDeadlineExceeded
+ 		case searchY:
+ 			return mockTXTResponse(q), nil
+ 		default:
+@@ -1387,7 +1386,7 @@ func TestStrictErrorsLookupTXT(t *testing.T) {
+ 		var wantRRs int
+ 		if strict {
+ 			wantErr = &DNSError{
+-				Err:       poll.ErrTimeout.Error(),
++				Err:       os.ErrDeadlineExceeded.Error(),
+ 				Name:      name,
+ 				Server:    server,
+ 				IsTimeout: true,
+@@ -1415,7 +1414,7 @@ func TestDNSGoroutineRace(t *testing.T) {
+ 
+ 	fake := fakeDNSServer{rh: func(n, s string, q dnsmessage.Message, t time.Time) (dnsmessage.Message, error) {
+ 		time.Sleep(10 * time.Microsecond)
+-		return dnsmessage.Message{}, poll.ErrTimeout
++		return dnsmessage.Message{}, os.ErrDeadlineExceeded
+ 	}}
+ 	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+ 
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 89dcc2e6e6..8d4a7ffb3d 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -91,7 +91,7 @@ second:
+ 		return nil
+ 	}
+ 	switch err := nestedErr.(type) {
+-	case *AddrError, addrinfoErrno, *DNSError, InvalidAddrError, *ParseError, *poll.TimeoutError, UnknownNetworkError:
++	case *AddrError, addrinfoErrno, *timeoutError, *DNSError, InvalidAddrError, *ParseError, *poll.DeadlineExceededError, UnknownNetworkError:
+ 		return nil
+ 	case *os.SyscallError:
+ 		nestedErr = err.Err
+@@ -436,7 +436,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case poll.ErrNetClosing, poll.ErrTimeout, poll.ErrNotPollable:
++	case poll.ErrNetClosing, errTimeout, poll.ErrNotPollable, os.ErrDeadlineExceeded:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+@@ -471,14 +471,14 @@ second:
+ 		return nil
+ 	}
+ 	switch err := nestedErr.(type) {
+-	case *AddrError, addrinfoErrno, *DNSError, InvalidAddrError, *ParseError, *poll.TimeoutError, UnknownNetworkError:
++	case *AddrError, addrinfoErrno, *timeoutError, *DNSError, InvalidAddrError, *ParseError, *poll.DeadlineExceededError, UnknownNetworkError:
+ 		return nil
+ 	case *os.SyscallError:
+ 		nestedErr = err.Err
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case errCanceled, poll.ErrNetClosing, errMissingAddress, poll.ErrTimeout, ErrWriteToConnected, io.ErrUnexpectedEOF:
++	case errCanceled, poll.ErrNetClosing, errMissingAddress, errTimeout, os.ErrDeadlineExceeded, ErrWriteToConnected, io.ErrUnexpectedEOF:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+@@ -627,7 +627,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case poll.ErrNetClosing, poll.ErrTimeout, poll.ErrNotPollable:
++	case poll.ErrNetClosing, errTimeout, poll.ErrNotPollable, os.ErrDeadlineExceeded:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+diff --git a/src/net/net.go b/src/net/net.go
+index 1d7e5e7f65..82b71565aa 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -81,7 +81,6 @@ package net
+ import (
+ 	"context"
+ 	"errors"
+-	"internal/poll"
+ 	"io"
+ 	"os"
+ 	"sync"
+@@ -136,23 +135,22 @@ type Conn interface {
+ 	// SetReadDeadline and SetWriteDeadline.
+ 	//
+ 	// A deadline is an absolute time after which I/O operations
+-	// fail with a timeout (see type Error) instead of
+-	// blocking. The deadline applies to all future and pending
+-	// I/O, not just the immediately following call to Read or
+-	// Write. After a deadline has been exceeded, the connection
+-	// can be refreshed by setting a deadline in the future.
++	// fail instead of blocking. The deadline applies to all future
++	// and pending I/O, not just the immediately following call to
++	// Read or Write. After a deadline has been exceeded, the
++	// connection can be refreshed by setting a deadline in the future.
++	//
++	// If the deadline is exceeded a call to Read or Write or to other
++	// I/O methods will return an error that wraps os.ErrDeadlineExceeded.
++	// This can be tested using errors.Is(err, os.ErrDeadlineExceeded).
++	// The error's Timeout method will return true, but note that there
++	// are other possible errors for which the Timeout method will
++	// return true even if the deadline has not been exceeded.
+ 	//
+ 	// An idle timeout can be implemented by repeatedly extending
+ 	// the deadline after successful Read or Write calls.
+ 	//
+ 	// A zero value for t means I/O operations will not time out.
+-	//
+-	// Note that if a TCP connection has keep-alive turned on,
+-	// which is the default unless overridden by Dialer.KeepAlive
+-	// or ListenConfig.KeepAlive, then a keep-alive failure may
+-	// also return a timeout error. On Unix systems a keep-alive
+-	// failure on I/O can be detected using
+-	// errors.Is(err, syscall.ETIMEDOUT).
+ 	SetDeadline(t time.Time) error
+ 
+ 	// SetReadDeadline sets the deadline for future Read calls
+@@ -420,7 +418,7 @@ func mapErr(err error) error {
+ 	case context.Canceled:
+ 		return errCanceled
+ 	case context.DeadlineExceeded:
+-		return poll.ErrTimeout
++		return errTimeout
+ 	default:
+ 		return err
+ 	}
+@@ -567,6 +565,21 @@ func (e InvalidAddrError) Error() string   { return string(e) }
+ func (e InvalidAddrError) Timeout() bool   { return false }
+ func (e InvalidAddrError) Temporary() bool { return false }
+ 
++// errTimeout exists to return the historical "i/o timeout" string
++// for context.DeadlineExceeded. See mapErr.
++// It is also used when Dialer.Deadline is exceeded.
++//
++// TODO(iant): We could consider changing this to os.ErrDeadlineExceeded
++// in the future, but note that that would conflict with the TODO
++// at mapErr that suggests changing it to context.DeadlineExceeded.
++var errTimeout error = &timeoutError{}
++
++type timeoutError struct{}
++
++func (e *timeoutError) Error() string   { return "i/o timeout" }
++func (e *timeoutError) Timeout() bool   { return true }
++func (e *timeoutError) Temporary() bool { return true }
++
+ // DNSConfigError represents an error reading the machine's DNS configuration.
+ // (No longer used; kept for compatibility.)
+ type DNSConfigError struct {
+diff --git a/src/net/pipe.go b/src/net/pipe.go
+index 9177fc4036..f1741938b0 100644
+--- a/src/net/pipe.go
++++ b/src/net/pipe.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"io"
++	"os"
+ 	"sync"
+ 	"time"
+ )
+@@ -78,12 +79,6 @@ func isClosedChan(c <-chan struct{}) bool {
+ 	}
+ }
+ 
+-type timeoutError struct{}
+-
+-func (timeoutError) Error() string   { return "deadline exceeded" }
+-func (timeoutError) Timeout() bool   { return true }
+-func (timeoutError) Temporary() bool { return true }
+-
+ type pipeAddr struct{}
+ 
+ func (pipeAddr) Network() string { return "pipe" }
+@@ -158,7 +153,7 @@ func (p *pipe) read(b []byte) (n int, err error) {
+ 	case isClosedChan(p.remoteDone):
+ 		return 0, io.EOF
+ 	case isClosedChan(p.readDeadline.wait()):
+-		return 0, timeoutError{}
++		return 0, os.ErrDeadlineExceeded
+ 	}
+ 
+ 	select {
+@@ -171,7 +166,7 @@ func (p *pipe) read(b []byte) (n int, err error) {
+ 	case <-p.remoteDone:
+ 		return 0, io.EOF
+ 	case <-p.readDeadline.wait():
+-		return 0, timeoutError{}
++		return 0, os.ErrDeadlineExceeded
+ 	}
+ }
+ 
+@@ -190,7 +185,7 @@ func (p *pipe) write(b []byte) (n int, err error) {
+ 	case isClosedChan(p.remoteDone):
+ 		return 0, io.ErrClosedPipe
+ 	case isClosedChan(p.writeDeadline.wait()):
+-		return 0, timeoutError{}
++		return 0, os.ErrDeadlineExceeded
+ 	}
+ 
+ 	p.wrMu.Lock() // Ensure entirety of b is written together
+@@ -206,7 +201,7 @@ func (p *pipe) write(b []byte) (n int, err error) {
+ 		case <-p.remoteDone:
+ 			return n, io.ErrClosedPipe
+ 		case <-p.writeDeadline.wait():
+-			return n, timeoutError{}
++			return n, os.ErrDeadlineExceeded
+ 		}
+ 	}
+ 	return n, nil
+diff --git a/src/net/rawconn_test.go b/src/net/rawconn_test.go
+index 9a82f8f78e..a08ff89d1a 100644
+--- a/src/net/rawconn_test.go
++++ b/src/net/rawconn_test.go
+@@ -130,7 +130,7 @@ func TestRawConnReadWrite(t *testing.T) {
+ 		if perr := parseWriteError(err); perr != nil {
+ 			t.Error(perr)
+ 		}
+-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++		if !isDeadlineExceeded(err) {
+ 			t.Errorf("got %v; want timeout", err)
+ 		}
+ 		if _, err = readRawConn(cc, b[:]); err == nil {
+@@ -139,7 +139,7 @@ func TestRawConnReadWrite(t *testing.T) {
+ 		if perr := parseReadError(err); perr != nil {
+ 			t.Error(perr)
+ 		}
+-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++		if !isDeadlineExceeded(err) {
+ 			t.Errorf("got %v; want timeout", err)
+ 		}
+ 
+@@ -153,7 +153,7 @@ func TestRawConnReadWrite(t *testing.T) {
+ 		if perr := parseReadError(err); perr != nil {
+ 			t.Error(perr)
+ 		}
+-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++		if !isDeadlineExceeded(err) {
+ 			t.Errorf("got %v; want timeout", err)
+ 		}
+ 
+@@ -167,7 +167,7 @@ func TestRawConnReadWrite(t *testing.T) {
+ 		if perr := parseWriteError(err); perr != nil {
+ 			t.Error(perr)
+ 		}
+-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++		if !isDeadlineExceeded(err) {
+ 			t.Errorf("got %v; want timeout", err)
+ 		}
+ 	})
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 51123dfbc4..ad14cd79ac 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -7,12 +7,13 @@
+ package net
+ 
+ import (
++	"errors"
+ 	"fmt"
+-	"internal/poll"
+ 	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
+ 	"net/internal/socktest"
++	"os"
+ 	"runtime"
+ 	"sync"
+ 	"testing"
+@@ -148,9 +149,9 @@ var acceptTimeoutTests = []struct {
+ }{
+ 	// Tests that accept deadlines in the past work, even if
+ 	// there's incoming connections available.
+-	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
++	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
+ 
+-	{50 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
++	{50 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
+ }
+ 
+ func TestAcceptTimeout(t *testing.T) {
+@@ -194,7 +195,7 @@ func TestAcceptTimeout(t *testing.T) {
+ 					if perr := parseAcceptError(err); perr != nil {
+ 						t.Errorf("#%d/%d: %v", i, j, perr)
+ 					}
+-					if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++					if !isDeadlineExceeded(err) {
+ 						t.Fatalf("#%d/%d: %v", i, j, err)
+ 					}
+ 				}
+@@ -250,7 +251,7 @@ func TestAcceptTimeoutMustReturn(t *testing.T) {
+ 		if perr := parseAcceptError(err); perr != nil {
+ 			t.Error(perr)
+ 		}
+-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++		if !isDeadlineExceeded(err) {
+ 			t.Fatal(err)
+ 		}
+ 	}
+@@ -302,9 +303,9 @@ var readTimeoutTests = []struct {
+ }{
+ 	// Tests that read deadlines work, even if there's data ready
+ 	// to be read.
+-	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
++	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
+ 
+-	{50 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
++	{50 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
+ }
+ 
+ func TestReadTimeout(t *testing.T) {
+@@ -344,7 +345,7 @@ func TestReadTimeout(t *testing.T) {
+ 					if perr := parseReadError(err); perr != nil {
+ 						t.Errorf("#%d/%d: %v", i, j, perr)
+ 					}
+-					if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++					if !isDeadlineExceeded(err) {
+ 						t.Fatalf("#%d/%d: %v", i, j, err)
+ 					}
+ 				}
+@@ -423,9 +424,9 @@ var readFromTimeoutTests = []struct {
+ }{
+ 	// Tests that read deadlines work, even if there's data ready
+ 	// to be read.
+-	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
++	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
+ 
+-	{50 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
++	{50 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
+ }
+ 
+ func TestReadFromTimeout(t *testing.T) {
+@@ -468,7 +469,7 @@ func TestReadFromTimeout(t *testing.T) {
+ 					if perr := parseReadError(err); perr != nil {
+ 						t.Errorf("#%d/%d: %v", i, j, perr)
+ 					}
+-					if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++					if !isDeadlineExceeded(err) {
+ 						t.Fatalf("#%d/%d: %v", i, j, err)
+ 					}
+ 				}
+@@ -491,9 +492,9 @@ var writeTimeoutTests = []struct {
+ }{
+ 	// Tests that write deadlines work, even if there's buffer
+ 	// space available to write.
+-	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
++	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
+ 
+-	{10 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
++	{10 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
+ }
+ 
+ func TestWriteTimeout(t *testing.T) {
+@@ -522,7 +523,7 @@ func TestWriteTimeout(t *testing.T) {
+ 					if perr := parseWriteError(err); perr != nil {
+ 						t.Errorf("#%d/%d: %v", i, j, perr)
+ 					}
+-					if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++					if !isDeadlineExceeded(err) {
+ 						t.Fatalf("#%d/%d: %v", i, j, err)
+ 					}
+ 				}
+@@ -605,9 +606,9 @@ var writeToTimeoutTests = []struct {
+ }{
+ 	// Tests that write deadlines work, even if there's buffer
+ 	// space available to write.
+-	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
++	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
+ 
+-	{10 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
++	{10 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
+ }
+ 
+ func TestWriteToTimeout(t *testing.T) {
+@@ -641,7 +642,7 @@ func TestWriteToTimeout(t *testing.T) {
+ 					if perr := parseWriteError(err); perr != nil {
+ 						t.Errorf("#%d/%d: %v", i, j, perr)
+ 					}
+-					if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++					if !isDeadlineExceeded(err) {
+ 						t.Fatalf("#%d/%d: %v", i, j, err)
+ 					}
+ 				}
+@@ -685,7 +686,7 @@ func TestReadTimeoutFluctuation(t *testing.T) {
+ 		if perr := parseReadError(err); perr != nil {
+ 			t.Error(perr)
+ 		}
+-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++		if !isDeadlineExceeded(err) {
+ 			t.Fatal(err)
+ 		}
+ 	}
+@@ -718,7 +719,7 @@ func TestReadFromTimeoutFluctuation(t *testing.T) {
+ 		if perr := parseReadError(err); perr != nil {
+ 			t.Error(perr)
+ 		}
+-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++		if !isDeadlineExceeded(err) {
+ 			t.Fatal(err)
+ 		}
+ 	}
+@@ -760,7 +761,7 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
+ 		if perr := parseWriteError(err); perr != nil {
+ 			t.Error(perr)
+ 		}
+-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++		if !isDeadlineExceeded(err) {
+ 			t.Fatal(err)
+ 		}
+ 	}
+@@ -1073,3 +1074,20 @@ func TestConcurrentSetDeadline(t *testing.T) {
+ 	}
+ 	wg.Wait()
+ }
++
++// isDeadlineExceeded reports whether err is or wraps os.ErrDeadlineExceeded.
++// We also check that the error implements net.Error, and that the
++// Timeout method returns true.
++func isDeadlineExceeded(err error) bool {
++	nerr, ok := err.(Error)
++	if !ok {
++		return false
++	}
++	if !nerr.Timeout() {
++		return false
++	}
++	if !errors.Is(err, os.ErrDeadlineExceeded) {
++		return false
++	}
++	return true
++}
+diff --git a/src/net/unixsock_test.go b/src/net/unixsock_test.go
+index 80cccf21e3..4b2cfc4d62 100644
+--- a/src/net/unixsock_test.go
++++ b/src/net/unixsock_test.go
+@@ -113,7 +113,7 @@ func TestUnixgramZeroBytePayload(t *testing.T) {
+ 				t.Fatalf("unexpected peer address: %v", peer)
+ 			}
+ 		default: // Read may timeout, it depends on the platform
+-			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++			if !isDeadlineExceeded(err) {
+ 				t.Fatal(err)
+ 			}
+ 		}
+@@ -163,7 +163,7 @@ func TestUnixgramZeroByteBuffer(t *testing.T) {
+ 				t.Fatalf("unexpected peer address: %v", peer)
+ 			}
+ 		default: // Read may timeout, it depends on the platform
+-			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
++			if !isDeadlineExceeded(err) {
+ 				t.Fatal(err)
+ 			}
+ 		}
+diff --git a/src/os/error.go b/src/os/error.go
+index 26bfe4cab5..875cc9711f 100644
+--- a/src/os/error.go
++++ b/src/os/error.go
+@@ -18,11 +18,12 @@ var (
+ 	// Methods on File will return this error when the receiver is nil.
+ 	ErrInvalid = errInvalid() // "invalid argument"
+ 
+-	ErrPermission = errPermission() // "permission denied"
+-	ErrExist      = errExist()      // "file already exists"
+-	ErrNotExist   = errNotExist()   // "file does not exist"
+-	ErrClosed     = errClosed()     // "file already closed"
+-	ErrNoDeadline = errNoDeadline() // "file type does not support deadline"
++	ErrPermission       = errPermission()       // "permission denied"
++	ErrExist            = errExist()            // "file already exists"
++	ErrNotExist         = errNotExist()         // "file does not exist"
++	ErrClosed           = errClosed()           // "file already closed"
++	ErrNoDeadline       = errNoDeadline()       // "file type does not support deadline"
++	ErrDeadlineExceeded = errDeadlineExceeded() // "i/o timeout"
+ )
+ 
+ func errInvalid() error    { return oserror.ErrInvalid }
+@@ -32,6 +33,15 @@ func errNotExist() error   { return oserror.ErrNotExist }
+ func errClosed() error     { return oserror.ErrClosed }
+ func errNoDeadline() error { return poll.ErrNoDeadline }
+ 
++// errDeadlineExceeded returns the value for os.ErrDeadlineExceeded.
++// This error comes from the internal/poll package, which is also
++// used by package net. Doing this this way ensures that the net
++// package will return os.ErrDeadlineExceeded for an exceeded deadline,
++// as documented by net.Conn.SetDeadline, without requiring any extra
++// work in the net package and without requiring the internal/poll
++// package to import os (which it can't, because that would be circular).
++func errDeadlineExceeded() error { return poll.ErrDeadlineExceeded }
++
+ type timeout interface {
+ 	Timeout() bool
+ }
+diff --git a/src/os/file.go b/src/os/file.go
+index 94341f90e2..57663005a1 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -526,10 +526,12 @@ func (f *File) Chmod(mode FileMode) error { return f.chmod(mode) }
+ // After a deadline has been exceeded, the connection can be refreshed
+ // by setting a deadline in the future.
+ //
+-// An error returned after a timeout fails will implement the
+-// Timeout method, and calling the Timeout method will return true.
+-// The PathError and SyscallError types implement the Timeout method.
+-// In general, call IsTimeout to test whether an error indicates a timeout.
++// If the deadline is exceeded a call to Read or Write or to other I/O
++// methods will return an error that wraps ErrDeadlineExceeded.
++// This can be tested using errors.Is(err, os.ErrDeadlineExceeded).
++// That error implements the Timeout method, and calling the Timeout
++// method will return true, but there are other possible errors for which
++// the Timeout will return true even if the deadline has not been exceeded.
+ //
+ // An idle timeout can be implemented by repeatedly extending
+ // the deadline after successful Read or Write calls.
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 978e99110c..f86428b7b9 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2527,3 +2527,15 @@ func TestReaddirSmallSeek(t *testing.T) {
+ 		t.Fatalf("first names: %v, second names: %v", names1, names2)
+ 	}
+ }
++
++// isDeadlineExceeded reports whether err is or wraps os.ErrDeadlineExceeded.
++// We also check that the error has a Timeout method that returns true.
++func isDeadlineExceeded(err error) bool {
++	if !IsTimeout(err) {
++		return false
++	}
++	if !errors.Is(err, ErrDeadlineExceeded) {
++		return false
++	}
++	return true
++}
+diff --git a/src/os/os_unix_test.go b/src/os/os_unix_test.go
+index 45cb6fc21f..0bce2989c4 100644
+--- a/src/os/os_unix_test.go
++++ b/src/os/os_unix_test.go
+@@ -275,7 +275,7 @@ func newFileTest(t *testing.T, blocking bool) {
+ 	_, err := file.Read(b)
+ 	if !blocking {
+ 		// We want it to fail with a timeout.
+-		if !IsTimeout(err) {
++		if !isDeadlineExceeded(err) {
+ 			t.Fatalf("No timeout reading from file: %v", err)
+ 		}
+ 	} else {
+diff --git a/src/os/timeout_test.go b/src/os/timeout_test.go
+index 0fe03fa517..99b94c2e4c 100644
+--- a/src/os/timeout_test.go
++++ b/src/os/timeout_test.go
+@@ -10,7 +10,6 @@ package os_test
+ 
+ import (
+ 	"fmt"
+-	"internal/poll"
+ 	"io"
+ 	"io/ioutil"
+ 	"math/rand"
+@@ -57,9 +56,9 @@ var readTimeoutTests = []struct {
+ }{
+ 	// Tests that read deadlines work, even if there's data ready
+ 	// to be read.
+-	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
++	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
+ 
+-	{50 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
++	{50 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
+ }
+ 
+ func TestReadTimeout(t *testing.T) {
+@@ -85,7 +84,7 @@ func TestReadTimeout(t *testing.T) {
+ 			for {
+ 				n, err := r.Read(b[:])
+ 				if xerr != nil {
+-					if !os.IsTimeout(err) {
++					if !isDeadlineExceeded(err) {
+ 						t.Fatalf("#%d/%d: %v", i, j, err)
+ 					}
+ 				}
+@@ -148,9 +147,9 @@ var writeTimeoutTests = []struct {
+ }{
+ 	// Tests that write deadlines work, even if there's buffer
+ 	// space available to write.
+-	{-5 * time.Second, [2]error{poll.ErrTimeout, poll.ErrTimeout}},
++	{-5 * time.Second, [2]error{os.ErrDeadlineExceeded, os.ErrDeadlineExceeded}},
+ 
+-	{10 * time.Millisecond, [2]error{nil, poll.ErrTimeout}},
++	{10 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
+ }
+ 
+ func TestWriteTimeout(t *testing.T) {
+@@ -172,7 +171,7 @@ func TestWriteTimeout(t *testing.T) {
+ 				for {
+ 					n, err := w.Write([]byte("WRITE TIMEOUT TEST"))
+ 					if xerr != nil {
+-						if !os.IsTimeout(err) {
++						if !isDeadlineExceeded(err) {
+ 							t.Fatalf("%d: %v", j, err)
+ 						}
+ 					}
+@@ -246,7 +245,7 @@ func timeoutReader(r *os.File, d, min, max time.Duration, ch chan<- error) {
+ 	var n int
+ 	n, err = r.Read(b)
+ 	t1 := time.Now()
+-	if n != 0 || err == nil || !os.IsTimeout(err) {
++	if n != 0 || err == nil || !isDeadlineExceeded(err) {
+ 		err = fmt.Errorf("Read did not return (0, timeout): (%d, %v)", n, err)
+ 		return
+ 	}
+@@ -275,7 +274,7 @@ func TestReadTimeoutFluctuation(t *testing.T) {
+ 	case <-max.C:
+ 		t.Fatal("Read took over 1s; expected 0.1s")
+ 	case err := <-ch:
+-		if !os.IsTimeout(err) {
++		if !isDeadlineExceeded(err) {
+ 			t.Fatal(err)
+ 		}
+ 	}
+@@ -297,7 +296,7 @@ func timeoutWriter(w *os.File, d, min, max time.Duration, ch chan<- error) {
+ 		}
+ 	}
+ 	t1 := time.Now()
+-	if err == nil || !os.IsTimeout(err) {
++	if err == nil || !isDeadlineExceeded(err) {
+ 		err = fmt.Errorf("Write did not return (any, timeout): (%d, %v)", n, err)
+ 		return
+ 	}
+@@ -327,7 +326,7 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
+ 	case <-max.C:
+ 		t.Fatalf("Write took over %v; expected 0.1s", d)
+ 	case err := <-ch:
+-		if !os.IsTimeout(err) {
++		if !isDeadlineExceeded(err) {
+ 			t.Fatal(err)
+ 		}
+ 	}
+@@ -438,7 +437,7 @@ func testVariousDeadlines(t *testing.T) {
+ 
+ 				select {
+ 				case res := <-actvch:
+-					if os.IsTimeout(res.err) {
++					if !isDeadlineExceeded(err) {
+ 						t.Logf("good client timeout after %v, reading %d bytes", res.d, res.n)
+ 					} else {
+ 						t.Fatalf("client Copy = %d, %v; want timeout", res.n, res.err)
+@@ -494,7 +493,7 @@ func TestReadWriteDeadlineRace(t *testing.T) {
+ 		var b [1]byte
+ 		for i := 0; i < N; i++ {
+ 			_, err := r.Read(b[:])
+-			if err != nil && !os.IsTimeout(err) {
++			if err != nil && !isDeadlineExceeded(err) {
+ 				t.Error("Read returned non-timeout error", err)
+ 			}
+ 		}
+@@ -504,7 +503,7 @@ func TestReadWriteDeadlineRace(t *testing.T) {
+ 		var b [1]byte
+ 		for i := 0; i < N; i++ {
+ 			_, err := w.Write(b[:])
+-			if err != nil && !os.IsTimeout(err) {
++			if err != nil && !isDeadlineExceeded(err) {
+ 				t.Error("Write returned non-timeout error", err)
+ 			}
+ 		}
+@@ -541,7 +540,7 @@ func TestRacyRead(t *testing.T) {
+ 				_, err := r.Read(b1)
+ 				copy(b1, b2) // Mutate b1 to trigger potential race
+ 				if err != nil {
+-					if !os.IsTimeout(err) {
++					if !isDeadlineExceeded(err) {
+ 						t.Error(err)
+ 					}
+ 					r.SetReadDeadline(time.Now().Add(time.Millisecond))
+@@ -580,7 +579,7 @@ func TestRacyWrite(t *testing.T) {
+ 				_, err := w.Write(b1)
+ 				copy(b1, b2) // Mutate b1 to trigger potential race
+ 				if err != nil {
+-					if !os.IsTimeout(err) {
++					if !isDeadlineExceeded(err) {
+ 						t.Error(err)
+ 					}
+ 					w.SetWriteDeadline(time.Now().Add(time.Millisecond))

@@ -11,7 +11,79 @@ Date:   Wed Apr 6 23:05:20 2016 +0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/pkg.go         | 10 ++++++++--
  src/cmd/go/vendor_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index fa923c8873..30ef02beff 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -434,6 +434,12 @@ func vendoredImportPath(parent *Package, path string) (found string) {
+ 		}
+ 		targ := filepath.Join(dir[:i], vpath)
+ 		if isDir(targ) && hasGoFiles(targ) {
++			importPath := parent.ImportPath
++			if importPath == "command-line-arguments" {
++				// If parent.ImportPath is 'command-line-arguments'.
++				// set to relative directory to root (also chopped root directory)
++				importPath = dir[len(root)+1:]
++			}
+ 			// We started with parent's dir c:\gopath\src\foo\bar\baz\quux\xyzzy.
+ 			// We know the import path for parent's dir.
+ 			// We chopped off some number of path elements and
+@@ -443,14 +449,14 @@ func vendoredImportPath(parent *Package, path string) (found string) {
+ 			// (actually the same number of bytes) from parent's import path
+ 			// and then append /vendor/path.
+ 			chopped := len(dir) - i
+-			if chopped == len(parent.ImportPath)+1 {
++			if chopped == len(importPath)+1 {
+ 				// We walked up from c:\gopath\src\foo\bar
+ 				// and found c:\gopath\src\vendor\path.
+ 				// We chopped \foo\bar (length 8) but the import path is "foo/bar" (length 7).
+ 				// Use "vendor/path" without any prefix.
+ 				return vpath
+ 			}
+-			return parent.ImportPath[:len(parent.ImportPath)-chopped] + "/" + vpath
++			return importPath[:len(importPath)-chopped] + "/" + vpath
+ 		}
+ 	}
+ 	return path
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+index 199eab4471..bcb5082311 100644
+--- a/src/cmd/go/vendor_test.go
++++ b/src/cmd/go/vendor_test.go
+@@ -232,6 +232,32 @@ func TestVendorTest2(t *testing.T) {
+ 	tg.run("test", "github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx2")
+ }
+ 
++func TestVendorTest3(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++	tg.run("get", "github.com/clsung/go-vendor-issue-14613")
++
++	tg.run("build", "-i", "github.com/clsung/go-vendor-issue-14613")
++
++	// test folder should work
++	tg.run("test", "-i", "github.com/clsung/go-vendor-issue-14613")
++	tg.run("test", "github.com/clsung/go-vendor-issue-14613")
++
++	// test with specified _test.go should work too
++	tg.cd(filepath.Join(tg.path("."), "src"))
++	tg.run("test", "-i", "github.com/clsung/go-vendor-issue-14613/vendor_test.go")
++	tg.run("test", "github.com/clsung/go-vendor-issue-14613/vendor_test.go")
++
++	// test with imported and not used
++	tg.run("test", "-i", "github.com/clsung/go-vendor-issue-14613/vendor/mylibtesttest/myapp/myapp_test.go")
++	tg.runFail("test", "github.com/clsung/go-vendor-issue-14613/vendor/mylibtesttest/myapp/myapp_test.go")
++	tg.grepStderr("imported and not used:", `should say "imported and not used"`)
++}
++
+ func TestVendorList(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 

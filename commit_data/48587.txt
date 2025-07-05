@@ -13,6 +13,24 @@ Date:   Wed Jun 2 11:20:40 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  doc/go1.17.html | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index d80e68d434..27ef524286 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -224,12 +224,6 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO: complete the Vet section
+ </p>
+ 
+-<h2 id="runtime">Runtime</h2>
+-
+-<p>
+-  TODO: complete the Runtime section
+-</p>
+-
+ <h2 id="compiler">Compiler</h2>
+ 
+ <p><!-- golang.org/issue/40724 -->

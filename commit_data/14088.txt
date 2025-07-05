@@ -9,7 +9,7 @@ Date:   Tue Oct 9 08:57:29 2012 +1100
     R=golang-dev, minux.ma, rsc, r
     CC=golang-dev
     https://golang.org/cl/6611059
-
+---
  misc/zsh/go                              | 2 +-
  src/cmd/go/doc.go                        | 4 ++--
  src/cmd/go/test.go                       | 4 ++--
@@ -20,3 +20,146 @@ Date:   Tue Oct 9 08:57:29 2012 +1100
  src/pkg/testing/benchmark.go             | 4 ++--
  test/fixedbugs/bug369.go                 | 4 ++--
  9 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/misc/zsh/go b/misc/zsh/go
+index 23afa96569..dce25547d4 100644
+--- a/misc/zsh/go
++++ b/misc/zsh/go
+@@ -88,7 +88,7 @@ __go_tool_complete() {
+         "-cpu[values of GOMAXPROCS to use]:number list" \
+         "-run[run tests and examples matching regexp]:regexp" \
+         "-bench[run benchmarks matching regexp]:regexp" \
+-        "-benchtime[run each benchmark during n seconds]:duration" \
++        "-benchtime[run each benchmark until taking this long]:duration" \
+         "-timeout[kill test after that duration]:duration" \
+         "-cpuprofile[write CPU profile to file]:file:_files" \
+         "-memprofile[write heap profile to file]:file:_files" \
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 7201065a66..9e728163f8 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -708,8 +708,8 @@ directory containing the package sources, has its own flags:
+ 	-test.timeout t
+ 		If a test runs longer than t, panic.
+ 
+-	-test.benchtime n
+-		Run enough iterations of each benchmark to take n seconds.
++	-test.benchtime t
++		Run enough iterations of each benchmark to take t.
+ 		The default is 1 second.
+ 
+ 	-test.cpu 1,2,4
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 0051fe1b93..a55ecb95d8 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -138,8 +138,8 @@ directory containing the package sources, has its own flags:
+ 	-test.timeout t
+ 		If a test runs longer than t, panic.
+ 
+-	-test.benchtime n
+-		Run enough iterations of each benchmark to take n seconds.
++	-test.benchtime t
++		Run enough iterations of each benchmark to take t.
+ 		The default is 1 second.
+ 
+ 	-test.cpu 1,2,4
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 48840cee51..d73bfde20d 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -26,7 +26,7 @@ var usageMessage = `Usage of go test:
+   // These flags can be passed with or without a "test." prefix: -v or -test.v.
+   -bench="": passes -test.bench to test
+   -benchmem=false: print memory allocation statistics for benchmarks
+-  -benchtime=1: passes -test.benchtime to test
++  -benchtime=1s: passes -test.benchtime to test
+   -cpu="": passes -test.cpu to test
+   -cpuprofile="": passes -test.cpuprofile to test
+   -memprofile="": passes -test.memprofile to test
+diff --git a/src/pkg/go/doc/testdata/benchmark.go b/src/pkg/go/doc/testdata/benchmark.go
+index 0aded5bb4c..905e49644a 100644
+--- a/src/pkg/go/doc/testdata/benchmark.go
++++ b/src/pkg/go/doc/testdata/benchmark.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")
+-var benchTime = flag.Float64("test.benchtime", 1, "approximate run time for each benchmark, in seconds")
++var benchTime = flag.Duration("test.benchtime", 1*time.Second, "approximate run time for each benchmark")
+ 
+ // An internal type but exported because it is cross-package; part of the implementation
+ // of go test.
+@@ -151,7 +151,7 @@ func (b *B) launch() {
+ 
+ 	b.runN(n)
+ 	// Run the benchmark for at least the specified amount of time.
+-	d := time.Duration(*benchTime * float64(time.Second))
++	d := *benchTime
+ 	for !b.failed && b.duration < d && n < 1e9 {
+ 		last := n
+ 		// Predict iterations/sec.
+diff --git a/src/pkg/go/doc/testdata/testing.1.golden b/src/pkg/go/doc/testdata/testing.1.golden
+index d26a4685ca..ffdb5c3b58 100644
+--- a/src/pkg/go/doc/testdata/testing.1.golden
++++ b/src/pkg/go/doc/testdata/testing.1.golden
+@@ -45,7 +45,7 @@ VARIABLES
+ 	)
+ 
+ 	// 
+-	var benchTime = flag.Float64("test.benchtime", 1, "approximate run time for each benchmark, in seconds")
++	var benchTime = flag.Duration("test.benchtime", 1*time.Second, "approximate run time for each benchmark")
+ 
+ 	// 
+ 	var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index c5cf6ae711..71b7b3fb6b 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -1378,7 +1378,7 @@ func benchmarkClientServerParallel(b *testing.B, conc int) {
+ //
+ // For use like:
+ //   $ go test -c
+-//   $ ./http.test -test.run=XX -test.bench=BenchmarkServer -test.benchtime=15 -test.cpuprofile=http.prof
++//   $ ./http.test -test.run=XX -test.bench=BenchmarkServer -test.benchtime=15s -test.cpuprofile=http.prof
+ //   $ go tool pprof http.test http.prof
+ //   (pprof) web
+ func BenchmarkServer(b *testing.B) {
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index 7a8cc1c4ed..cb92fab50a 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -14,7 +14,7 @@ import (
+ )
+ 
+ var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")
+-var benchTime = flag.Float64("test.benchtime", 1, "approximate run time for each benchmark, in seconds")
++var benchTime = flag.Duration("test.benchtime", 1*time.Second, "approximate run time for each benchmark")
+ var benchmarkMemory = flag.Bool("test.benchmem", false, "print memory allocations for benchmarks")
+ 
+ // Global lock to ensure only one benchmark runs at a time.
+@@ -178,7 +178,7 @@ func (b *B) launch() {
+ 
+ 	b.runN(n)
+ 	// Run the benchmark for at least the specified amount of time.
+-	d := time.Duration(*benchTime * float64(time.Second))
++	d := *benchTime
+ 	for !b.failed && b.duration < d && n < 1e9 {
+ 		last := n
+ 		// Predict iterations/sec.
+diff --git a/test/fixedbugs/bug369.go b/test/fixedbugs/bug369.go
+index 2ee8568e04..6d526228b8 100644
+--- a/test/fixedbugs/bug369.go
++++ b/test/fixedbugs/bug369.go
+@@ -38,9 +38,9 @@ func BenchmarkSlowNonASCII(b *testing.B) {
+ }
+ 
+ func main() {
+-	os.Args = []string{os.Args[0], "-test.benchtime=0.1"}
++	os.Args = []string{os.Args[0], "-test.benchtime=100ms"}
+ 	flag.Parse()
+-	
++
+ 	rslow := testing.Benchmark(BenchmarkSlowNonASCII)
+ 	rfast := testing.Benchmark(BenchmarkFastNonASCII)
+ 	tslow := rslow.NsPerOp()

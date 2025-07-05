@@ -7,7 +7,43 @@ Date:   Fri Mar 20 14:22:37 2009 -0700
     R=ken
     OCL=26581
     CL=26587
-
+---
  src/cmd/6a/lex.c   | 7 -------
  src/cmd/cc/lexbody | 7 +++++++
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 8dea599a65..22539fc7ea 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -1334,12 +1334,5 @@ praghjdicks(void)
+ 		;
+ }
+ 
+-void
+-pragtextflag(void)
+-{
+-	while(getnsc() != '\n')
+-		;
+-}
+-
+ #include "../cc/lexbody"
+ #include "../cc/macbody"
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index 27e40fe49d..33734c7224 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -53,6 +53,13 @@ pragfpround(void)
+ 		;
+ }
+ 
++void
++pragtextflag(void)
++{
++	while(getnsc() != '\n')
++		;
++}
++
+ void
+ pragprofile(void)
+ {

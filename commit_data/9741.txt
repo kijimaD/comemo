@@ -7,7 +7,252 @@ Date:   Mon Sep 19 09:01:32 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5070041
-
+---
  src/pkg/http/requestwrite_test.go | 97 +++++++++++++++++++++++++++++++++++++--
  src/pkg/http/transfer.go          | 23 ++++++++--
  2 files changed, 112 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/http/requestwrite_test.go b/src/pkg/http/requestwrite_test.go
+index 458f0bd7f4..128ef776b8 100644
+--- a/src/pkg/http/requestwrite_test.go
++++ b/src/pkg/http/requestwrite_test.go
+@@ -16,10 +16,11 @@ import (
+ )
+ 
+ type reqWriteTest struct {
+-	Req      Request
+-	Body     interface{} // optional []byte or func() io.ReadCloser to populate Req.Body
+-	Raw      string
+-	RawProxy string
++	Req       Request
++	Body      interface{} // optional []byte or func() io.ReadCloser to populate Req.Body
++	Raw       string
++	RawProxy  string
++	WantError os.Error
+ }
+ 
+ var reqWriteTests = []reqWriteTest{
+@@ -78,6 +79,8 @@ var reqWriteTests = []reqWriteTest{
+ 			"Accept-Language: en-us,en;q=0.5\r\n" +
+ 			"Keep-Alive: 300\r\n" +
+ 			"Proxy-Connection: keep-alive\r\n\r\n",
++
++		nil,
+ 	},
+ 	// HTTP/1.1 => chunked coding; body; empty trailer
+ 	{
+@@ -107,6 +110,8 @@ var reqWriteTests = []reqWriteTest{
+ 			"User-Agent: Go http package\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			chunk("abcdef") + chunk(""),
++
++		nil,
+ 	},
+ 	// HTTP/1.1 POST => chunked coding; body; empty trailer
+ 	{
+@@ -139,6 +144,8 @@ var reqWriteTests = []reqWriteTest{
+ 			"Connection: close\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			chunk("abcdef") + chunk(""),
++
++		nil,
+ 	},
+ 
+ 	// HTTP/1.1 POST with Content-Length, no chunking
+@@ -174,6 +181,8 @@ var reqWriteTests = []reqWriteTest{
+ 			"Content-Length: 6\r\n" +
+ 			"\r\n" +
+ 			"abcdef",
++
++		nil,
+ 	},
+ 
+ 	// HTTP/1.1 POST with Content-Length in headers
+@@ -203,6 +212,8 @@ var reqWriteTests = []reqWriteTest{
+ 			"Content-Length: 6\r\n" +
+ 			"\r\n" +
+ 			"abcdef",
++
++		nil,
+ 	},
+ 
+ 	// default to HTTP/1.1
+@@ -225,6 +236,8 @@ var reqWriteTests = []reqWriteTest{
+ 			"Host: www.google.com\r\n" +
+ 			"User-Agent: Go http package\r\n" +
+ 			"\r\n",
++
++		nil,
+ 	},
+ 
+ 	// Request with a 0 ContentLength and a 0 byte body.
+@@ -249,6 +262,8 @@ var reqWriteTests = []reqWriteTest{
+ 			"Host: example.com\r\n" +
+ 			"User-Agent: Go http package\r\n" +
+ 			"\r\n",
++
++		nil,
+ 	},
+ 
+ 	// Request with a 0 ContentLength and a 1 byte body.
+@@ -275,6 +290,74 @@ var reqWriteTests = []reqWriteTest{
+ 			"User-Agent: Go http package\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			chunk("x") + chunk(""),
++
++		nil,
++	},
++
++	// Request with a ContentLength of 10 but a 5 byte body.
++	{
++		Request{
++			Method:        "POST",
++			RawURL:        "/",
++			Host:          "example.com",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			ContentLength: 10, // but we're going to send only 5 bytes
++		},
++
++		[]byte("12345"),
++
++		"", // ignored
++		"", // ignored
++
++		os.NewError("http: Request.ContentLength=10 with Body length 5"),
++	},
++
++	// Request with a ContentLength of 4 but an 8 byte body.
++	{
++		Request{
++			Method:        "POST",
++			RawURL:        "/",
++			Host:          "example.com",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			ContentLength: 4, // but we're going to try to send 8 bytes
++		},
++
++		[]byte("12345678"),
++
++		"", // ignored
++		"", // ignored
++
++		os.NewError("http: Request.ContentLength=4 with Body length 8"),
++	},
++
++	// Request with a 5 ContentLength and nil body.
++	{
++		Request{
++			Method:        "POST",
++			RawURL:        "/",
++			Host:          "example.com",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			ContentLength: 5, // but we'll omit the body
++		},
++
++		nil, // missing body
++
++		"POST / HTTP/1.1\r\n" +
++			"Host: example.com\r\n" +
++			"User-Agent: Go http package\r\n" +
++			"Content-Length: 5\r\n\r\n" +
++			"",
++
++		"POST / HTTP/1.1\r\n" +
++			"Host: example.com\r\n" +
++			"User-Agent: Go http package\r\n" +
++			"Content-Length: 5\r\n\r\n" +
++			"",
++
++		os.NewError("http: Request.ContentLength=5 with nil Body"),
+ 	},
+ }
+ 
+@@ -298,10 +381,14 @@ func TestRequestWrite(t *testing.T) {
+ 		}
+ 		var braw bytes.Buffer
+ 		err := tt.Req.Write(&braw)
++		if g, e := fmt.Sprintf("%v", err), fmt.Sprintf("%v", tt.WantError); g != e {
++			t.Errorf("writing #%d, err = %q, want %q", i, g, e)
++			continue
++		}
+ 		if err != nil {
+-			t.Errorf("error writing #%d: %s", i, err)
+ 			continue
+ 		}
++
+ 		sraw := braw.String()
+ 		if sraw != tt.Raw {
+ 			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, tt.Raw, sraw)
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index 0a754d20a3..8b12447acc 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -7,6 +7,7 @@ package http
+ import (
+ 	"bytes"
+ 	"bufio"
++	"fmt"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -21,7 +22,7 @@ type transferWriter struct {
+ 	Body             io.Reader
+ 	BodyCloser       io.Closer
+ 	ResponseToHEAD   bool
+-	ContentLength    int64
++	ContentLength    int64 // -1 means unknown, 0 means exactly none
+ 	Close            bool
+ 	TransferEncoding []string
+ 	Trailer          Header
+@@ -34,6 +35,10 @@ func newTransferWriter(r interface{}) (t *transferWriter, err os.Error) {
+ 	atLeastHTTP11 := false
+ 	switch rr := r.(type) {
+ 	case *Request:
++		if rr.ContentLength != 0 && rr.Body == nil {
++			return nil, fmt.Errorf("http: Request.ContentLength=%d with nil Body", rr.ContentLength)
++		}
++
+ 		t.Body = rr.Body
+ 		t.BodyCloser = rr.Body
+ 		t.ContentLength = rr.ContentLength
+@@ -154,6 +159,8 @@ func (t *transferWriter) WriteHeader(w io.Writer) (err os.Error) {
+ }
+ 
+ func (t *transferWriter) WriteBody(w io.Writer) (err os.Error) {
++	var ncopy int64
++
+ 	// Write body
+ 	if t.Body != nil {
+ 		if chunked(t.TransferEncoding) {
+@@ -163,9 +170,14 @@ func (t *transferWriter) WriteBody(w io.Writer) (err os.Error) {
+ 				err = cw.Close()
+ 			}
+ 		} else if t.ContentLength == -1 {
+-			_, err = io.Copy(w, t.Body)
++			ncopy, err = io.Copy(w, t.Body)
+ 		} else {
+-			_, err = io.Copy(w, io.LimitReader(t.Body, t.ContentLength))
++			ncopy, err = io.Copy(w, io.LimitReader(t.Body, t.ContentLength))
++			nextra, err := io.Copy(ioutil.Discard, t.Body)
++			if err != nil {
++				return err
++			}
++			ncopy += nextra
+ 		}
+ 		if err != nil {
+ 			return err
+@@ -175,6 +187,11 @@ func (t *transferWriter) WriteBody(w io.Writer) (err os.Error) {
+ 		}
+ 	}
+ 
++	if t.ContentLength != -1 && t.ContentLength != ncopy {
++		return fmt.Errorf("http: Request.ContentLength=%d with Body length %d",
++			t.ContentLength, ncopy)
++	}
++
+ 	// TODO(petar): Place trailer writer code here.
+ 	if chunked(t.TransferEncoding) {
+ 		// Last chunk, empty trailer

@@ -20,6 +20,25 @@ Date:   Wed Apr 27 10:04:55 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/build.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index bbaf595421..519f33afeb 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -199,6 +199,13 @@ func xinit() {
+ 	goexperiment = os.Getenv("GOEXPERIMENT")
+ 	// TODO(mdempsky): Validate known experiments?
+ 
++	if !strings.Contains(goexperiment, "boringcrypto") {
++		if goexperiment != "" {
++			goexperiment += ","
++		}
++		goexperiment += "boringcrypto"
++	}
++
+ 	gogcflags = os.Getenv("BOOT_GO_GCFLAGS")
+ 	goldflags = os.Getenv("BOOT_GO_LDFLAGS")
+ 

@@ -16,6 +16,52 @@ Date:   Sun May 17 12:07:04 2015 +0800
     Change-Id: Ib3d4ea69a25801c34cbe7b044de9870ba12f9aa8
     Reviewed-on: https://go-review.googlesource.com/10190
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/doc/main.go | 27 ++++++++++++++++++++++++++-
  1 file changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index 18dafc298c..720b85e902 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -276,7 +276,7 @@ func pathFor(root, pkg string) (result string) {
+ 			return filepath.SkipDir
+ 		}
+ 		// Is the tail of the path correct?
+-		if strings.HasSuffix(pathName, pkgString) {
++		if strings.HasSuffix(pathName, pkgString) && hasGoFiles(pathName) {
+ 			result = pathName
+ 			panic(nil)
+ 		}
+@@ -287,6 +287,31 @@ func pathFor(root, pkg string) (result string) {
+ 	return "" // Call to panic above sets the real value.
+ }
+ 
++// hasGoFiles tests whether the directory contains at least one file with ".go"
++// extension
++func hasGoFiles(path string) bool {
++	dir, err := os.Open(path)
++	if err != nil {
++		// ignore unreadable directories
++		return false
++	}
++	defer dir.Close()
++
++	names, err := dir.Readdirnames(0)
++	if err != nil {
++		// ignore unreadable directories
++		return false
++	}
++
++	for _, name := range names {
++		if strings.HasSuffix(name, ".go") {
++			return true
++		}
++	}
++
++	return false
++}
++
+ // pwd returns the current directory.
+ func pwd() string {
+ 	wd, err := os.Getwd()

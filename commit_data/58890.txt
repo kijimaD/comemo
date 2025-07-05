@@ -13,6 +13,21 @@ Date:   Mon Oct 23 10:56:57 2023 +0700
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/runtime/extern.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 4b3ae63fb5..e42122fd3a 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -152,6 +152,9 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	risk in that scenario. Currently not supported on Windows, plan9 or js/wasm. Setting this
+ 	option for some applications can produce large traces, so use with care.
+ 
++	panicnil: setting panicnil=1 disables the runtime error when calling panic with nil
++	interface value or an untyped nil.
++
+ 	runtimecontentionstacks: setting runtimecontentionstacks=1 enables inclusion of call stacks
+ 	related to contention on runtime-internal locks in the "mutex" profile, subject to the
+ 	MutexProfileFraction setting. When runtimecontentionstacks=0, contention on

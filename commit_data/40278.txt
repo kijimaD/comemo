@@ -15,7 +15,63 @@ Date:   Tue Apr 30 13:07:05 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/codehost/git.go | 12 +++++++++---
  src/cmd/go/testdata/script/mod_get_hash.txt  | 19 +++++++++++++++++++
  2 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 2cb6637aae..5273e633b5 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -32,7 +32,7 @@ func LocalGitRepo(remote string) (Repo, error) {
+ 	return newGitRepoCached(remote, true)
+ }
+ 
+-const gitWorkDirType = "git2"
++const gitWorkDirType = "git3"
+ 
+ var gitRepoCache par.Cache
+ 
+@@ -339,8 +339,14 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
+ 		}
+ 	}
+ 
+-	// If we know a specific commit we need, fetch it.
+-	if r.fetchLevel <= fetchSome && hash != "" && !r.local {
++	// If we know a specific commit we need and its ref, fetch it.
++	// We do NOT fetch arbitrary hashes (when we don't know the ref)
++	// because we want to avoid ever importing a commit that isn't
++	// reachable from refs/tags/* or refs/heads/* or HEAD.
++	// Both Gerrit and GitHub expose every CL/PR as a named ref,
++	// and we don't want those commits masquerading as being real
++	// pseudo-versions in the main repo.
++	if r.fetchLevel <= fetchSome && ref != "" && hash != "" && !r.local {
+ 		r.fetchLevel = fetchSome
+ 		var refspec string
+ 		if ref != "" && ref != "HEAD" {
+diff --git a/src/cmd/go/testdata/script/mod_get_hash.txt b/src/cmd/go/testdata/script/mod_get_hash.txt
+new file mode 100644
+index 0000000000..d35ad362c0
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_hash.txt
+@@ -0,0 +1,19 @@
++env GO111MODULE=on
++env GOPROXY=direct
++env GOSUMDB=off
++[!net] skip
++
++# fetch commit hash reachable from refs/heads/* and refs/tags/* is OK
++go list -m golang.org/x/time@8be79e1e0910c292df4e79c241bb7e8f7e725959 # on master branch
++
++# fetch other commit hash, even with a non-standard ref, is not OK
++! go list -m golang.org/x/time@334d83c35137ac2b376c1dc3e4c7733791855a3a # refs/changes/24/41624/3
++stderr 'unknown revision'
++! go list -m golang.org/x/time@v0.0.0-20170424233410-334d83c35137
++stderr 'unknown revision'
++! go list -m golang.org/x/time@334d83c35137
++stderr 'unknown revision'
++
++-- go.mod --
++module m
++

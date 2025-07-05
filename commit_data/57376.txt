@@ -21,7 +21,7 @@ Date:   Wed Jul 12 14:47:31 2023 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s |  5 ++++
  src/cmd/internal/obj/s390x/a.out.go       |  6 +++++
  src/cmd/internal/obj/s390x/anames.go      |  4 +++
@@ -32,3 +32,230 @@ Date:   Wed Jul 12 14:47:31 2023 +0200
  src/crypto/sha512/sha512block_s390x.s     |  2 +-
  src/internal/cpu/cpu_s390x.s              |  8 +++---
  9 files changed, 70 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 78ccb96fc1..c73aecdaa6 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -415,6 +415,11 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 
+ 	SYNC                           // 07e0
+ 
++	KM	R2, R4                 // b92e0024
++	KMC	R2, R6                 // b92f0026
++	KLMD	R2, R8                 // b93f0028
++	KIMD	R0, R4                 // b93e0004
++
+ 	// vector add and sub instructions
+ 	VAB	V3, V4, V4              // e743400000f3
+ 	VAH	V3, V4, V4              // e743400010f3
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index cdfb6ddff3..0b1aa5af16 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -480,6 +480,12 @@ const (
+ 	// macros
+ 	ACLEAR
+ 
++	// crypto
++	AKM
++	AKMC
++	AKLMD
++	AKIMD
++
+ 	// vector
+ 	AVA
+ 	AVAB
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index 3af15a504c..d5f5f343e3 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -207,6 +207,10 @@ var Anames = []string{
+ 	"STCKE",
+ 	"STCKF",
+ 	"CLEAR",
++	"KM",
++	"KMC",
++	"KLMD",
++	"KIMD",
+ 	"VA",
+ 	"VAB",
+ 	"VAH",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index d9f76061ef..81e7a2d62e 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -339,6 +339,11 @@ var optab = []Optab{
+ 	// 2 byte no-operation
+ 	{i: 66, as: ANOPH},
+ 
++	// crypto instructions
++
++	// KM
++	{i: 124, as: AKM, a1: C_REG, a6: C_REG},
++
+ 	// vector instructions
+ 
+ 	// VRX store
+@@ -1480,6 +1485,10 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AVFMSDB, r)
+ 			opset(AWFMSDB, r)
+ 			opset(AVPERM, r)
++		case AKM:
++			opset(AKMC, r)
++			opset(AKLMD, r)
++			opset(AKIMD, r)
+ 		}
+ 	}
+ }
+@@ -4366,6 +4375,42 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 		op, _, _ := vop(p.As)
+ 		m4 := c.regoff(&p.From)
+ 		zVRRc(op, uint32(p.To.Reg), uint32(p.Reg), uint32(p.GetFrom3().Reg), 0, 0, uint32(m4), asm)
++
++	case 124:
++		var opcode uint32
++		switch p.As {
++		default:
++			c.ctxt.Diag("unexpected opcode %v", p.As)
++		case AKM, AKMC, AKLMD:
++			if p.From.Reg == REG_R0 {
++				c.ctxt.Diag("input must not be R0 in %v", p)
++			}
++			if p.From.Reg&1 != 0 {
++				c.ctxt.Diag("input must be even register in %v", p)
++			}
++			if p.To.Reg == REG_R0 {
++				c.ctxt.Diag("second argument must not be R0 in %v", p)
++			}
++			if p.To.Reg&1 != 0 {
++				c.ctxt.Diag("second argument must be even register in %v", p)
++			}
++			if p.As == AKM {
++				opcode = op_KM
++			} else if p.As == AKMC {
++				opcode = op_KMC
++			} else {
++				opcode = op_KLMD
++			}
++		case AKIMD:
++			if p.To.Reg == REG_R0 {
++				c.ctxt.Diag("second argument must not be R0 in %v", p)
++			}
++			if p.To.Reg&1 != 0 {
++				c.ctxt.Diag("second argument must be even register in %v", p)
++			}
++			opcode = op_KIMD
++		}
++		zRRE(opcode, uint32(p.From.Reg), uint32(p.To.Reg), asm)
+ 	}
+ }
+ 
+diff --git a/src/crypto/aes/asm_s390x.s b/src/crypto/aes/asm_s390x.s
+index 0c60ac2275..2b596bd34b 100644
+--- a/src/crypto/aes/asm_s390x.s
++++ b/src/crypto/aes/asm_s390x.s
+@@ -12,7 +12,7 @@ TEXT ·cryptBlocks(SB),NOSPLIT,$0-40
+ 	MOVD	length+32(FP), R5
+ 	MOVD	c+0(FP), R0
+ loop:
+-	WORD	$0xB92E0024 // cipher message (KM)
++	KM	R2, R4      // cipher message (KM)
+ 	BVS	loop        // branch back if interrupted
+ 	XOR	R0, R0
+ 	RET
+@@ -29,7 +29,7 @@ TEXT ·cryptBlocksChain(SB),NOSPLIT,$48-48
+ 	MOVD	length+40(FP), R5
+ 	MOVD	c+0(FP), R0
+ loop:
+-	WORD	$0xB92F0024       // cipher message with chaining (KMC)
++	KMC	R2, R4            // cipher message with chaining (KMC)
+ 	BVS	loop              // branch back if interrupted
+ 	XOR	R0, R0
+ 	MVC	$16, 0(R1), 0(R8) // update iv
+@@ -145,7 +145,7 @@ TEXT ·ghash(SB),NOSPLIT,$32-40
+ 	STMG	R4, R7, (R1)
+ 	LMG	data+16(FP), R2, R3 // R2=base, R3=len
+ loop:
+-	WORD    $0xB93E0002 // compute intermediate message digest (KIMD)
++	KIMD	R0, R2      // compute intermediate message digest (KIMD)
+ 	BVS     loop        // branch back if interrupted
+ 	MVC     $16, (R1), (R8)
+ 	MOVD	$0, R0
+diff --git a/src/crypto/sha1/sha1block_s390x.s b/src/crypto/sha1/sha1block_s390x.s
+index 6ba6883cc3..0fb7aef283 100644
+--- a/src/crypto/sha1/sha1block_s390x.s
++++ b/src/crypto/sha1/sha1block_s390x.s
+@@ -12,7 +12,7 @@ TEXT ·block(SB), NOSPLIT|NOFRAME, $0-32
+ 	CMPBEQ R4, $0, generic
+ 
+ loop:
+-	WORD $0xB93E0002 // KIMD R2
++	KIMD R0, R2      // compute intermediate message digest (KIMD)
+ 	BVS  loop        // continue if interrupted
+ 	RET
+ 
+diff --git a/src/crypto/sha256/sha256block_s390x.s b/src/crypto/sha256/sha256block_s390x.s
+index 81b1b382c7..9c30136b31 100644
+--- a/src/crypto/sha256/sha256block_s390x.s
++++ b/src/crypto/sha256/sha256block_s390x.s
+@@ -12,7 +12,7 @@ TEXT ·block(SB), NOSPLIT|NOFRAME, $0-32
+ 	CMPBEQ R4, $0, generic
+ 
+ loop:
+-	WORD $0xB93E0002 // KIMD R2
++	KIMD R0, R2      // compute intermediate message digest (KIMD)
+ 	BVS  loop        // continue if interrupted
+ 	RET
+ 
+diff --git a/src/crypto/sha512/sha512block_s390x.s b/src/crypto/sha512/sha512block_s390x.s
+index f221bd1399..9fdf343900 100644
+--- a/src/crypto/sha512/sha512block_s390x.s
++++ b/src/crypto/sha512/sha512block_s390x.s
+@@ -12,7 +12,7 @@ TEXT ·block(SB), NOSPLIT|NOFRAME, $0-32
+ 	CMPBEQ R4, $0, generic
+ 
+ loop:
+-	WORD $0xB93E0002 // KIMD R2
++	KIMD R0, R2      // compute intermediate message digest (KIMD)
+ 	BVS  loop        // continue if interrupted
+ 	RET
+ 
+diff --git a/src/internal/cpu/cpu_s390x.s b/src/internal/cpu/cpu_s390x.s
+index a1243aa4db..9f73113870 100644
+--- a/src/internal/cpu/cpu_s390x.s
++++ b/src/internal/cpu/cpu_s390x.s
+@@ -16,14 +16,14 @@ TEXT ·stfle(SB), NOSPLIT|NOFRAME, $0-32
+ TEXT ·kmQuery(SB), NOSPLIT|NOFRAME, $0-16
+ 	MOVD $0, R0         // set function code to 0 (KM-Query)
+ 	MOVD $ret+0(FP), R1 // address of 16-byte return value
+-	WORD $0xB92E0024    // cipher message (KM)
++	KM   R2, R4         // cipher message (KM)
+ 	RET
+ 
+ // func kmcQuery() queryResult
+ TEXT ·kmcQuery(SB), NOSPLIT|NOFRAME, $0-16
+ 	MOVD $0, R0         // set function code to 0 (KMC-Query)
+ 	MOVD $ret+0(FP), R1 // address of 16-byte return value
+-	WORD $0xB92F0024    // cipher message with chaining (KMC)
++	KMC  R2, R4         // cipher message with chaining (KMC)
+ 	RET
+ 
+ // func kmctrQuery() queryResult
+@@ -44,14 +44,14 @@ TEXT ·kmaQuery(SB), NOSPLIT|NOFRAME, $0-16
+ TEXT ·kimdQuery(SB), NOSPLIT|NOFRAME, $0-16
+ 	MOVD $0, R0         // set function code to 0 (KIMD-Query)
+ 	MOVD $ret+0(FP), R1 // address of 16-byte return value
+-	WORD $0xB93E0024    // compute intermediate message digest (KIMD)
++	KIMD R2, R4         // compute intermediate message digest (KIMD)
+ 	RET
+ 
+ // func klmdQuery() queryResult
+ TEXT ·klmdQuery(SB), NOSPLIT|NOFRAME, $0-16
+ 	MOVD $0, R0         // set function code to 0 (KLMD-Query)
+ 	MOVD $ret+0(FP), R1 // address of 16-byte return value
+-	WORD $0xB93F0024    // compute last message digest (KLMD)
++	KLMD R2, R4         // compute last message digest (KLMD)
+ 	RET
+ 
+ // func kdsaQuery() queryResult

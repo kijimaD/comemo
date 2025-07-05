@@ -15,8 +15,70 @@ Date:   Fri Dec 1 11:57:57 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/81499
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/alldocs.go            | 7 ++++---
  src/cmd/go/internal/test/test.go | 5 +++++
  src/testing/testing.go           | 2 +-
  3 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 918e1a1e17..fd5b01c92a 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1199,9 +1199,9 @@
+ // 	GO386
+ // 		For GOARCH=386, the floating point instruction set.
+ // 		Valid values are 387, sse2.
+-//	GOMIPS
+-//		For GOARCH=mips{,le}, whether to use floating point instructions.
+-//		Valid values are hardfloat (default), softfloat.
++// 	GOMIPS
++// 		For GOARCH=mips{,le}, whether to use floating point instructions.
++// 		Valid values are hardfloat (default), softfloat.
+ //
+ // Special-purpose environment variables:
+ //
+@@ -1575,6 +1575,7 @@
+ //
+ // 	-timeout d
+ // 	    If a test binary runs longer than duration d, panic.
++// 	    If d is 0, the timeout is disabled.
+ // 	    The default is 10 minutes (10m).
+ //
+ // 	-v
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index e06d7dbbca..408698e416 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -272,6 +272,7 @@ const testFlag2 = `
+ 
+ 	-timeout d
+ 	    If a test binary runs longer than duration d, panic.
++	    If d is 0, the timeout is disabled.
+ 	    The default is 10 minutes (10m).
+ 
+ 	-v
+@@ -549,6 +550,10 @@ func runTest(cmd *base.Command, args []string) {
+ 	// timer does not get a chance to fire.
+ 	if dt, err := time.ParseDuration(testTimeout); err == nil && dt > 0 {
+ 		testKillTimeout = dt + 1*time.Minute
++	} else if err == nil && dt == 0 {
++		// An explicit zero disables the test timeout.
++		// Let it have one century (almost) before we kill it.
++		testKillTimeout = 100 * 365 * 24 * time.Hour
+ 	}
+ 
+ 	// show passing test output (after buffering) with -v flag.
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index e12b622b03..cddd475fd7 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -265,7 +265,7 @@ var (
+ 	mutexProfile         = flag.String("test.mutexprofile", "", "write a mutex contention profile to the named file after execution")
+ 	mutexProfileFraction = flag.Int("test.mutexprofilefraction", 1, "if >= 0, calls runtime.SetMutexProfileFraction()")
+ 	traceFile            = flag.String("test.trace", "", "write an execution trace to `file`")
+-	timeout              = flag.Duration("test.timeout", 0, "panic test binary after duration `d` (0 means unlimited)")
++	timeout              = flag.Duration("test.timeout", 0, "panic test binary after duration `d` (default 0, timeout disabled)")
+ 	cpuListStr           = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
+ 	parallel             = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
+ 

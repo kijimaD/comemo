@@ -7,8 +7,63 @@ Date:   Mon Jul 13 14:01:08 2015 -0600
     Change-Id: I4c9bcea01e2c4333c2a3592b66f1da9f424747a4
     Reviewed-on: https://go-review.googlesource.com/12130
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  2 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 +
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 18 ++++++++++++++++++
  3 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c4bfb2e731..c75dd16264 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -652,7 +652,7 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
+ 		switch {
+ 		case t.IsString():
+ 			val = s.entryNewValue0A(ssa.OpConst, left.Type, "")
+-		case t.IsInteger():
++		case t.IsInteger() || t.IsPtr():
+ 			val = s.entryNewValue0(ssa.OpConst, left.Type)
+ 		case t.IsBoolean():
+ 			val = s.entryNewValue0A(ssa.OpConst, left.Type, false) // TODO: store bools as 0/1 in AuxInt?
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index aa0f6a7943..1eb29105d2 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -76,6 +76,7 @@
+ (OffPtr [off] ptr) -> (ADDQconst [off] ptr)
+ 
+ (Const <t> [val]) && t.IsInteger() -> (MOVQconst [val])
++(Const <t>) && t.IsPtr() -> (MOVQconst [0]) // nil is the only const pointer
+ 
+ (Addr {sym} base) -> (LEAQ {sym} base)
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index d4447ea49a..728c45cc49 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -499,6 +499,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end4c8bfe9df26fc5aa2bd76b211792732a
+ 	end4c8bfe9df26fc5aa2bd76b211792732a:
+ 		;
++		// match: (Const <t>)
++		// cond: t.IsPtr()
++		// result: (MOVQconst [0])
++		{
++			t := v.Type
++			if !(t.IsPtr()) {
++				goto endd23abe8d7061f11c260b162e24eec060
++			}
++			v.Op = OpAMD64MOVQconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = 0
++			return true
++		}
++		goto endd23abe8d7061f11c260b162e24eec060
++	endd23abe8d7061f11c260b162e24eec060:
++		;
+ 	case OpConvNop:
+ 		// match: (ConvNop <t> x)
+ 		// cond: t == x.Type

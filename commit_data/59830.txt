@@ -15,6 +15,18 @@ Date:   Sat Apr 27 18:00:01 2024 +0300
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/testing/testing_other.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/testing_other.go b/src/testing/testing_other.go
+index 586f61b0ce..f91e3b4a2c 100644
+--- a/src/testing/testing_other.go
++++ b/src/testing/testing_other.go
+@@ -27,5 +27,5 @@ func highPrecisionTimeNow() highPrecisionTime {
+ 
+ // highPrecisionTimeSince returns duration since b.
+ func highPrecisionTimeSince(b highPrecisionTime) time.Duration {
+-	return time.Now().Sub(b.now)
++	return time.Since(b.now)
+ }

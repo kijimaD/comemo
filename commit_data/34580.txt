@@ -15,7 +15,7 @@ Date:   Sat Aug 19 00:20:00 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/deps.go                    |  26 +++-
  src/cmd/go/internal/cache/cache.go      | 238 +++++++++++++++++++++++++++++++-
  src/cmd/go/internal/cache/cache_test.go | 106 ++++++++++++++
@@ -25,3 +25,636 @@ Date:   Sat Aug 19 00:20:00 2017 -0400
  src/cmd/go/internal/work/action.go      |   8 +-
  src/cmd/go/internal/work/buildid.go     |  18 +--
  8 files changed, 482 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index 969cb07f7c..eef21c9a86 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -85,11 +85,20 @@ var builddeps = map[string][]string{
+ 	},
+ 
+ 	"cmd/go/internal/cache": {
+-		"crypto/sha256", // cmd/go/internal/cache
+-		"fmt",           // cmd/go/internal/cache
+-		"hash",          // cmd/go/internal/cache
+-		"io",            // cmd/go/internal/cache
+-		"os",            // cmd/go/internal/cache
++		"bytes",                // cmd/go/internal/cache
++		"cmd/go/internal/base", // cmd/go/internal/cache
++		"crypto/sha256",        // cmd/go/internal/cache
++		"encoding/hex",         // cmd/go/internal/cache
++		"errors",               // cmd/go/internal/cache
++		"fmt",                  // cmd/go/internal/cache
++		"hash",                 // cmd/go/internal/cache
++		"io",                   // cmd/go/internal/cache
++		"io/ioutil",            // cmd/go/internal/cache
++		"os",                   // cmd/go/internal/cache
++		"path/filepath",        // cmd/go/internal/cache
++		"runtime",              // cmd/go/internal/cache
++		"strconv",              // cmd/go/internal/cache
++		"sync",                 // cmd/go/internal/cache
+ 	},
+ 
+ 	"cmd/go/internal/cfg": {
+@@ -483,6 +492,13 @@ var builddeps = map[string][]string{
+ 		"reflect", // encoding/binary
+ 	},
+ 
++	"encoding/hex": {
++		"bytes",  // encoding/hex
++		"errors", // encoding/hex
++		"fmt",    // encoding/hex
++		"io",     // encoding/hex
++	},
++
+ 	"encoding/json": {
+ 		"bytes",           // encoding/json
+ 		"encoding",        // encoding/json
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index 97afe959fc..e908aaec55 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -2,12 +2,244 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package cache implements a package cache,
+-// or more properly a build artifact cache,
+-// but our only cached build artifacts are packages.
++// Package cache implements a build artifact cache.
+ package cache
+ 
++import (
++	"bytes"
++	"crypto/sha256"
++	"encoding/hex"
++	"errors"
++	"fmt"
++	"io"
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"strconv"
++)
++
+ // An ActionID is a cache action key, the hash of a complete description of a
+ // repeatable computation (command line, environment variables,
+ // input file contents, executable contents).
+ type ActionID [HashSize]byte
++
++// An OutputID is a cache output key, the hash of an output of a computation.
++type OutputID [HashSize]byte
++
++// A Cache is a package cache, backed by a file system directory tree.
++type Cache struct {
++	dir string
++}
++
++// Open opens and returns the cache in the given directory.
++//
++// It is safe for multiple processes on a single machine to use the
++// same cache directory in a local file system simultaneously.
++// They will coordinate using operating system file locks and may
++// duplicate effort but will not corrupt the cache.
++//
++// However, it is NOT safe for multiple processes on different machines
++// to share a cache directory (for example, if the directory were stored
++// in a network file system). File locking is notoriously unreliable in
++// network file systems and may not suffice to protect the cache.
++//
++func Open(dir string) (*Cache, error) {
++	info, err := os.Stat(dir)
++	if err != nil {
++		return nil, err
++	}
++	if !info.IsDir() {
++		return nil, &os.PathError{Op: "open", Path: dir, Err: fmt.Errorf("not a directory")}
++	}
++	for i := 0; i < 256; i++ {
++		name := filepath.Join(dir, fmt.Sprintf("%02x", i))
++		if err := os.MkdirAll(name, 0777); err != nil {
++			return nil, err
++		}
++	}
++	c := &Cache{dir: dir}
++	return c, nil
++}
++
++// fileName returns the name of the file corresponding to the given id.
++func (c *Cache) fileName(id [HashSize]byte, key string) string {
++	return filepath.Join(c.dir, fmt.Sprintf("%02x", id[0]), fmt.Sprintf("%x", id)+"-"+key)
++}
++
++var errMissing = errors.New("cache entry not found")
++
++const (
++	// action entry file is "v1 <hex id> <hex out> <decimal size space-padded to 20 bytes>\n"
++	hexSize   = HashSize * 2
++	entrySize = 2 + 1 + hexSize + 1 + hexSize + 1 + 20 + 1
++)
++
++// Get looks up the action ID in the cache,
++// returning the corresponding output ID and file size, if any.
++// Note that finding an output ID does not guarantee that the
++// saved file for that output ID is still available.
++func (c *Cache) Get(id ActionID) (OutputID, int64, error) {
++	missing := func() (OutputID, int64, error) {
++		// TODO: log miss
++		return OutputID{}, 0, errMissing
++	}
++	f, err := os.Open(c.fileName(id, "a"))
++	if err != nil {
++		return missing()
++	}
++	defer f.Close()
++	entry := make([]byte, entrySize+1) // +1 to detect whether f is too long
++	if n, err := io.ReadFull(f, entry); n != entrySize || err != io.ErrUnexpectedEOF {
++		return missing()
++	}
++	if entry[0] != 'v' || entry[1] != '1' || entry[2] != ' ' || entry[3+hexSize] != ' ' || entry[3+hexSize+1+64] != ' ' || entry[entrySize-1] != '\n' {
++		return missing()
++	}
++	eid, eout, esize := entry[3:3+hexSize], entry[3+hexSize+1:3+hexSize+1+hexSize], entry[3+hexSize+1+hexSize+1:entrySize-1]
++	var buf [HashSize]byte
++	if _, err := hex.Decode(buf[:], eid); err != nil || buf != id {
++		return missing()
++	}
++	if _, err := hex.Decode(buf[:], eout); err != nil {
++		return missing()
++	}
++	i := 0
++	for i < len(esize) && esize[i] == ' ' {
++		i++
++	}
++	size, err := strconv.ParseInt(string(esize[i:]), 10, 64)
++	if err != nil || size < 0 {
++		return missing()
++	}
++
++	// TODO: Update modtime of f to give a signal about recently used?
++	// TODO: log hit
++
++	return buf, size, nil
++}
++
++// OutputFile returns the name of the cache file storing output with the given OutputID.
++func (c *Cache) OutputFile(out OutputID) string {
++	return c.fileName(out, "d")
++}
++
++// putIndexEntry adds an entry to the cache recording that executing the action
++// with the given id produces an output with the given output id (hash) and size.
++func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64) error {
++	// Note: We expect that for one reason or another it may happen
++	// that repeating an action produces a different output hash
++	// (for example, if the output contains a time stamp or temp dir name).
++	// While not ideal, this is also not a correctness problem, so we
++	// don't make a big deal about it. In particular, we leave the action
++	// cache entries writable specifically so that they can be overwritten.
++	entry := []byte(fmt.Sprintf("v1 %x %x %20d\n", id, out, size))
++	return ioutil.WriteFile(c.fileName(id, "a"), entry, 0666)
++}
++
++// Put stores the given output in the cache as the output for the action ID.
++// It may read file twice. The content of file must not change between the two passes.
++func (c *Cache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
++	// Compute output ID.
++	h := sha256.New()
++	if _, err := file.Seek(0, 0); err != nil {
++		return OutputID{}, 0, err
++	}
++	size, err := io.Copy(h, file)
++	if err != nil {
++		return OutputID{}, 0, err
++	}
++	var out OutputID
++	h.Sum(out[:0])
++
++	// Copy to cached output file (if not already present).
++	if err := c.copyFile(file, out, size); err != nil {
++		return out, size, err
++	}
++
++	// Add to cache index.
++	// TODO: log put
++	return out, size, c.putIndexEntry(id, out, size)
++}
++
++// copyFile copies file into the cache, expecting it to have the given
++// output ID and size, if that file is not present already.
++func (c *Cache) copyFile(file io.ReadSeeker, out OutputID, size int64) error {
++	name := c.fileName(out, "d")
++	info, err := os.Stat(name)
++	if err == nil && info.Size() == size {
++		// Check hash.
++		if f, err := os.Open(name); err == nil {
++			h := sha256.New()
++			io.Copy(h, f)
++			f.Close()
++			var out2 OutputID
++			h.Sum(out2[:0])
++			if out == out2 {
++				return nil
++			}
++		}
++		// Hash did not match. Fall through and rewrite file.
++	}
++
++	// Copy file to cache directory.
++	mode := os.O_RDWR | os.O_CREATE
++	if err == nil && info.Size() > size { // shouldn't happen but fix in case
++		mode |= os.O_TRUNC
++	}
++	f, err := os.OpenFile(name, mode, 0666)
++	if err != nil {
++		return err
++	}
++	defer f.Close()
++	if size == 0 {
++		// File now exists with correct size.
++		// Only one possible zero-length file, so contents are OK too.
++		// Early return here makes sure there's a "last byte" for code below.
++		return nil
++	}
++
++	// From here on, if any of the I/O writing the file fails,
++	// we make a best-effort attempt to truncate the file f
++	// before returning, to avoid leaving bad bytes in the file.
++
++	// Copy file to f, but also into h to double-check hash.
++	if _, err := file.Seek(0, 0); err != nil {
++		f.Truncate(0)
++		return err
++	}
++	h := sha256.New()
++	w := io.MultiWriter(f, h)
++	if _, err := io.CopyN(w, file, size-1); err != nil {
++		f.Truncate(0)
++		return err
++	}
++	// Check last byte before writing it; writing it will make the size match
++	// what other processes expect to find and might cause them to start
++	// using the file.
++	buf := make([]byte, 1)
++	if _, err := file.Read(buf); err != nil {
++		f.Truncate(0)
++		return err
++	}
++	h.Write(buf)
++	sum := h.Sum(nil)
++	if !bytes.Equal(sum, out[:]) {
++		f.Truncate(0)
++		return fmt.Errorf("file content changed underfoot")
++	}
++
++	// Commit cache file entry.
++	if _, err := f.Write(buf); err != nil {
++		f.Truncate(0)
++		return err
++	}
++	if err := f.Close(); err != nil {
++		// Data might not have been written,
++		// but file may look like it is the right size.
++		// To be extra careful, remove cached file.
++		os.Remove(name)
++		return err
++	}
++
++	return nil
++}
+diff --git a/src/cmd/go/internal/cache/cache_test.go b/src/cmd/go/internal/cache/cache_test.go
+new file mode 100644
+index 0000000000..773698cbdf
+--- /dev/null
++++ b/src/cmd/go/internal/cache/cache_test.go
+@@ -0,0 +1,106 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cache
++
++import (
++	"encoding/binary"
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"testing"
++)
++
++func TestBasic(t *testing.T) {
++	dir, err := ioutil.TempDir("", "cachetest-")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++	_, err = Open(filepath.Join(dir, "notexist"))
++	if err == nil {
++		t.Fatal(`Open("tmp/notexist") succeeded, want failure`)
++	}
++
++	cdir := filepath.Join(dir, "c1")
++	if err := os.Mkdir(cdir, 0777); err != nil {
++		t.Fatal(err)
++	}
++
++	c1, err := Open(cdir)
++	if err != nil {
++		t.Fatalf("Open(c1) (create): %v", err)
++	}
++	if err := c1.putIndexEntry(dummyID(1), dummyID(12), 13); err != nil {
++		t.Fatalf("addIndexEntry: %v", err)
++	}
++	if err := c1.putIndexEntry(dummyID(1), dummyID(2), 3); err != nil { // overwrite entry
++		t.Fatalf("addIndexEntry: %v", err)
++	}
++	if out, size, err := c1.Get(dummyID(1)); err != nil || out != dummyID(2) || size != 3 {
++		t.Fatalf("c1.Get(1) = %x, %v, %v, want %x, %v, nil", out[:], size, err, dummyID(2), 3)
++	}
++
++	c2, err := Open(cdir)
++	if err != nil {
++		t.Fatalf("Open(c2) (reuse): %v", err)
++	}
++	if out, size, err := c2.Get(dummyID(1)); err != nil || out != dummyID(2) || size != 3 {
++		t.Fatalf("c2.Get(1) = %x, %v, %v, want %x, %v, nil", out[:], size, err, dummyID(2), 3)
++	}
++	if err := c2.putIndexEntry(dummyID(2), dummyID(3), 4); err != nil {
++		t.Fatalf("addIndexEntry: %v", err)
++	}
++	if out, size, err := c1.Get(dummyID(2)); err != nil || out != dummyID(3) || size != 4 {
++		t.Fatalf("c1.Get(2) = %x, %v, %v, want %x, %v, nil", out[:], size, err, dummyID(3), 4)
++	}
++}
++
++func TestGrowth(t *testing.T) {
++	dir, err := ioutil.TempDir("", "cachetest-")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++
++	c, err := Open(dir)
++	if err != nil {
++		t.Fatalf("Open: %v", err)
++	}
++
++	n := 10000
++	if testing.Short() {
++		n = 1000
++	}
++
++	for i := 0; i < n; i++ {
++		if err := c.putIndexEntry(dummyID(i), dummyID(i*99), int64(i)*101); err != nil {
++			t.Fatalf("addIndexEntry: %v", err)
++		}
++		id := ActionID(dummyID(i))
++		out, size, err := c.Get(id)
++		if err != nil {
++			t.Fatalf("Get(%x): %v", id, err)
++		}
++		if out != dummyID(i*99) || size != int64(i)*101 {
++			t.Errorf("Get(%x) = %x, %d, want %x, %d", id, out, size, dummyID(i*99), int64(i)*101)
++		}
++	}
++	for i := 0; i < n; i++ {
++		id := ActionID(dummyID(i))
++		out, size, err := c.Get(id)
++		if err != nil {
++			t.Fatalf("Get2(%x): %v", id, err)
++		}
++		if out != dummyID(i*99) || size != int64(i)*101 {
++			t.Errorf("Get2(%x) = %x, %d, want %x, %d", id, out, size, dummyID(i*99), int64(i)*101)
++		}
++	}
++}
++
++func dummyID(x int) [HashSize]byte {
++	var out [HashSize]byte
++	binary.LittleEndian.PutUint64(out[:], uint64(x))
++	return out
++}
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+new file mode 100644
+index 0000000000..65b95a32e7
+--- /dev/null
++++ b/src/cmd/go/internal/cache/default.go
+@@ -0,0 +1,77 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cache
++
++import (
++	"cmd/go/internal/base"
++	"os"
++	"path/filepath"
++	"runtime"
++	"sync"
++)
++
++// Default returns the default cache to use, or nil if no cache should be used.
++func Default() *Cache {
++	defaultOnce.Do(initDefaultCache)
++	return defaultCache
++}
++
++var (
++	defaultOnce  sync.Once
++	defaultCache *Cache
++)
++
++// initDefaultCache does the work of finding the default cache
++// the first time Default is called.
++func initDefaultCache() {
++	dir := os.Getenv("GOCACHE")
++	if dir == "off" {
++		return
++	}
++	if dir == "" {
++		// Compute default location.
++		// TODO(rsc): This code belongs somewhere else,
++		// like maybe ioutil.CacheDir or os.CacheDir.
++		switch runtime.GOOS {
++		case "windows":
++			dir = os.Getenv("LocalAppData")
++
++		case "darwin":
++			dir = os.Getenv("HOME")
++			if dir == "" {
++				return
++			}
++			dir += "/Library/Caches"
++
++		case "plan9":
++			dir = os.Getenv("home")
++			if dir == "" {
++				return
++			}
++			dir += "/lib/cache"
++
++		default: // Unix
++			// https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
++			dir = os.Getenv("XDG_CACHE_HOME")
++			if dir == "" {
++				dir = os.Getenv("HOME")
++				if dir == "" {
++					return
++				}
++				dir += "/.cache"
++			}
++		}
++		dir = filepath.Join(dir, "go-build")
++		if err := os.MkdirAll(dir, 0777); err != nil {
++			return
++		}
++	}
++
++	c, err := Open(dir)
++	if err != nil {
++		base.Fatalf("initializing cache in $GOCACHE: %s", err)
++	}
++	defaultCache = c
++}
+diff --git a/src/cmd/go/internal/cache/hash.go b/src/cmd/go/internal/cache/hash.go
+index 7f7261fb64..b8896aa2f9 100644
+--- a/src/cmd/go/internal/cache/hash.go
++++ b/src/cmd/go/internal/cache/hash.go
+@@ -10,6 +10,7 @@ import (
+ 	"hash"
+ 	"io"
+ 	"os"
++	"sync"
+ )
+ 
+ var debugHash = os.Getenv("GOCMDDEBUGHASH") == "1"
+@@ -52,8 +53,24 @@ func (h *Hash) Sum() [HashSize]byte {
+ 	return out
+ }
+ 
++var hashFileCache struct {
++	sync.Mutex
++	m map[string][HashSize]byte
++}
++
+ // HashFile returns the hash of the named file.
+-func HashFile(file string) ([HashSize]byte, error) {
++// It caches repeated lookups for a given file,
++// and the cache entry for a file can be initialized
++// using SetFileHash.
++func FileHash(file string) ([HashSize]byte, error) {
++	hashFileCache.Lock()
++	out, ok := hashFileCache.m[file]
++	hashFileCache.Unlock()
++
++	if ok {
++		return out, nil
++	}
++
+ 	h := sha256.New()
+ 	f, err := os.Open(file)
+ 	if err != nil {
+@@ -62,12 +79,29 @@ func HashFile(file string) ([HashSize]byte, error) {
+ 		}
+ 		return [HashSize]byte{}, err
+ 	}
+-	io.Copy(h, f)
++	_, err = io.Copy(h, f)
+ 	f.Close()
+-	var out [HashSize]byte
++	if err != nil {
++		if debugHash {
++			fmt.Fprintf(os.Stderr, "HASH %s: %v\n", file, err)
++		}
++		return [HashSize]byte{}, err
++	}
+ 	h.Sum(out[:0])
+ 	if debugHash {
+ 		fmt.Fprintf(os.Stderr, "HASH %s: %x\n", file, out)
+ 	}
++
++	SetFileHash(file, out)
+ 	return out, nil
+ }
++
++// SetFileHash sets the hash returned by FileHash for file.
++func SetFileHash(file string, sum [HashSize]byte) {
++	hashFileCache.Lock()
++	if hashFileCache.m == nil {
++		hashFileCache.m = make(map[string][HashSize]byte)
++	}
++	hashFileCache.m[file] = sum
++	hashFileCache.Unlock()
++}
+diff --git a/src/cmd/go/internal/cache/hash_test.go b/src/cmd/go/internal/cache/hash_test.go
+index 493d39339f..312380f6e2 100644
+--- a/src/cmd/go/internal/cache/hash_test.go
++++ b/src/cmd/go/internal/cache/hash_test.go
+@@ -34,7 +34,7 @@ func TestHashFile(t *testing.T) {
+ 	}
+ 
+ 	var h ActionID // make sure hash result is assignable to ActionID
+-	h, err = HashFile(name)
++	h, err = FileHash(name)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 413e950d6e..7fbb8b5fba 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -47,10 +47,9 @@ type Builder struct {
+ 	readySema chan bool
+ 	ready     actionQueue
+ 
+-	id            sync.Mutex
+-	toolIDCache   map[string]string // tool name -> tool ID
+-	buildIDCache  map[string]string // file name -> build ID
+-	fileHashCache map[string]string // file name -> content hash
++	id           sync.Mutex
++	toolIDCache  map[string]string // tool name -> tool ID
++	buildIDCache map[string]string // file name -> build ID
+ }
+ 
+ // NOTE: Much of Action would not need to be exported if not for test.
+@@ -195,7 +194,6 @@ func (b *Builder) Init() {
+ 	b.mkdirCache = make(map[string]bool)
+ 	b.toolIDCache = make(map[string]string)
+ 	b.buildIDCache = make(map[string]string)
+-	b.fileHashCache = make(map[string]string)
+ 
+ 	if cfg.BuildN {
+ 		b.WorkDir = "$WORK"
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index a4bdafc4e2..1ac7fbc2dd 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -216,25 +216,11 @@ func (b *Builder) buildID(file string) string {
+ 
+ // fileHash returns the content hash of the named file.
+ func (b *Builder) fileHash(file string) string {
+-	b.id.Lock()
+-	id := b.fileHashCache[file]
+-	b.id.Unlock()
+-
+-	if id != "" {
+-		return id
+-	}
+-
+-	sum, err := cache.HashFile(file)
++	sum, err := cache.FileHash(file)
+ 	if err != nil {
+ 		return ""
+ 	}
+-	id = hashToString(sum)
+-
+-	b.id.Lock()
+-	b.fileHashCache[file] = id
+-	b.id.Unlock()
+-
+-	return id
++	return hashToString(sum)
+ }
+ 
+ // useCache tries to satisfy the action a, which has action ID actionHash,

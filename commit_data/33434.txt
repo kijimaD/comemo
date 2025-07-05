@@ -10,6 +10,22 @@ Date:   Tue Aug 15 09:50:44 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/55770
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/nacl/testzip.proto | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 8bf25400cb..14d541d67b 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -64,6 +64,10 @@ go	src=..
+ 								armasm
+ 									testdata
+ 										+
++							arm64
++								arm64asm
++									testdata
++										+
+ 							x86
+ 								x86asm
+ 									testdata

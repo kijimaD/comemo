@@ -12,7 +12,7 @@ Date:   Wed May 13 14:11:39 2015 -0700
     Change-Id: Iddf03c062bc8a88ad2bcebbf6528088c01a75779
     Reviewed-on: https://go-review.googlesource.com/10033
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/internal/gc/ssa.go                     |   6 +-
  src/cmd/internal/ssa/lowerAmd64.go             |  36 ++--
  src/cmd/internal/ssa/op.go                     | 273 +++++--------------------
@@ -21,3 +21,764 @@ Date:   Wed May 13 14:11:39 2015 -0700
  src/cmd/internal/ssa/regalloc.go               |  12 +-
  src/cmd/internal/ssa/rulegen/lower_amd64.rules |   8 +-
  7 files changed, 282 insertions(+), 256 deletions(-)
+
+diff --git a/src/cmd/internal/gc/ssa.go b/src/cmd/internal/gc/ssa.go
+index ec747e970b..1d3abb3f37 100644
+--- a/src/cmd/internal/gc/ssa.go
++++ b/src/cmd/internal/gc/ssa.go
+@@ -292,7 +292,7 @@ func (s *ssaState) expr(n *Node) *ssa.Value {
+ 
+ 	case OIND:
+ 		p := s.expr(n.Left)
+-		c := s.curBlock.NewValue1(ssa.OpCheckNil, ssa.TypeBool, nil, p)
++		c := s.curBlock.NewValue1(ssa.OpIsNonNil, ssa.TypeBool, nil, p)
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockIf
+ 		b.Control = c
+@@ -322,7 +322,7 @@ func (s *ssaState) expr(n *Node) *ssa.Value {
+ 
+ 		// bounds check
+ 		len := s.curBlock.NewValue1(ssa.OpSliceLen, s.config.UIntPtr, nil, a)
+-		cmp := s.curBlock.NewValue2(ssa.OpCheckBound, ssa.TypeBool, nil, i, len)
++		cmp := s.curBlock.NewValue2(ssa.OpIsInBounds, ssa.TypeBool, nil, i, len)
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockIf
+ 		b.Control = cmp
+@@ -345,7 +345,7 @@ func (s *ssaState) expr(n *Node) *ssa.Value {
+ 			log.Fatalf("can't handle CALLFUNC with non-ONAME fn %s", opnames[n.Left.Op])
+ 		}
+ 		bNext := s.f.NewBlock(ssa.BlockPlain)
+-		call := s.curBlock.NewValue1(ssa.OpStaticCall, ssa.TypeMem, n.Left.Sym.Name, s.mem())
++		call := s.curBlock.NewValue1(ssa.OpStaticCall, ssa.TypeMem, n.Left.Sym, s.mem())
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockCall
+ 		b.Control = call
+diff --git a/src/cmd/internal/ssa/lowerAmd64.go b/src/cmd/internal/ssa/lowerAmd64.go
+index 842822bda4..ef891c37d9 100644
+--- a/src/cmd/internal/ssa/lowerAmd64.go
++++ b/src/cmd/internal/ssa/lowerAmd64.go
+@@ -209,8 +209,8 @@ func lowerAmd64(v *Value) bool {
+ 		goto enda4e64c7eaeda16c1c0db9dac409cd126
+ 	enda4e64c7eaeda16c1c0db9dac409cd126:
+ 		;
+-	case OpCheckBound:
+-		// match: (CheckBound idx len)
++	case OpIsInBounds:
++		// match: (IsInBounds idx len)
+ 		// cond:
+ 		// result: (SETB (CMPQ <TypeFlags> idx len))
+ 		{
+@@ -226,11 +226,11 @@ func lowerAmd64(v *Value) bool {
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+-		goto end249426f6f996d45a62f89a591311a954
+-	end249426f6f996d45a62f89a591311a954:
++		goto endb51d371171154c0f1613b687757e0576
++	endb51d371171154c0f1613b687757e0576:
+ 		;
+-	case OpCheckNil:
+-		// match: (CheckNil p)
++	case OpIsNonNil:
++		// match: (IsNonNil p)
+ 		// cond:
+ 		// result: (SETNE (TESTQ <TypeFlags> p p))
+ 		{
+@@ -245,8 +245,8 @@ func lowerAmd64(v *Value) bool {
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+-		goto end90d3057824f74ef953074e473aa0b282
+-	end90d3057824f74ef953074e473aa0b282:
++		goto endff508c3726edfb573abc6128c177e76c
++	endff508c3726edfb573abc6128c177e76c:
+ 		;
+ 	case OpLess:
+ 		// match: (Less x y)
+@@ -378,17 +378,17 @@ func lowerAmd64(v *Value) bool {
+ 		;
+ 		// match: (MOVQload [off1] (LEAQ8 [off2] ptr idx) mem)
+ 		// cond:
+-		// result: (MOVQload8 [off1.(int64)+off2.(int64)] ptr idx mem)
++		// result: (MOVQloadidx8 [off1.(int64)+off2.(int64)] ptr idx mem)
+ 		{
+ 			off1 := v.Aux
+ 			if v.Args[0].Op != OpLEAQ8 {
+-				goto end35060118a284c93323ab3fb827156638
++				goto endba0e5cee85021614041016b1a2709ab8
+ 			}
+ 			off2 := v.Args[0].Aux
+ 			ptr := v.Args[0].Args[0]
+ 			idx := v.Args[0].Args[1]
+ 			mem := v.Args[1]
+-			v.Op = OpMOVQload8
++			v.Op = OpMOVQloadidx8
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.Aux = off1.(int64) + off2.(int64)
+@@ -397,8 +397,8 @@ func lowerAmd64(v *Value) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end35060118a284c93323ab3fb827156638
+-	end35060118a284c93323ab3fb827156638:
++		goto endba0e5cee85021614041016b1a2709ab8
++	endba0e5cee85021614041016b1a2709ab8:
+ 		;
+ 	case OpMOVQstore:
+ 		// match: (MOVQstore [off1] (FPAddr [off2]) val mem)
+@@ -493,18 +493,18 @@ func lowerAmd64(v *Value) bool {
+ 		;
+ 		// match: (MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem)
+ 		// cond:
+-		// result: (MOVQstore8 [off1.(int64)+off2.(int64)] ptr idx val mem)
++		// result: (MOVQstoreidx8 [off1.(int64)+off2.(int64)] ptr idx val mem)
+ 		{
+ 			off1 := v.Aux
+ 			if v.Args[0].Op != OpLEAQ8 {
+-				goto endb5cba0ee3ba21d2bd8e5aa163d2b984e
++				goto end4ad469f534c7369f6ac36bdace3462ad
+ 			}
+ 			off2 := v.Args[0].Aux
+ 			ptr := v.Args[0].Args[0]
+ 			idx := v.Args[0].Args[1]
+ 			val := v.Args[1]
+ 			mem := v.Args[2]
+-			v.Op = OpMOVQstore8
++			v.Op = OpMOVQstoreidx8
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.Aux = off1.(int64) + off2.(int64)
+@@ -514,8 +514,8 @@ func lowerAmd64(v *Value) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto endb5cba0ee3ba21d2bd8e5aa163d2b984e
+-	endb5cba0ee3ba21d2bd8e5aa163d2b984e:
++		goto end4ad469f534c7369f6ac36bdace3462ad
++	end4ad469f534c7369f6ac36bdace3462ad:
+ 		;
+ 	case OpMULCQ:
+ 		// match: (MULCQ [c] x)
+diff --git a/src/cmd/internal/ssa/op.go b/src/cmd/internal/ssa/op.go
+index 1d374db61d..ebe4a8e747 100644
+--- a/src/cmd/internal/ssa/op.go
++++ b/src/cmd/internal/ssa/op.go
+@@ -8,25 +8,33 @@ package ssa
+ // Opcodes' semantics can be modified by the type and aux fields of the Value.
+ // For instance, OpAdd can be 32 or 64 bit, signed or unsigned, float or complex, depending on Value.Type.
+ // Semantics of each op are described below.
++//
+ // Ops come in two flavors, architecture-independent and architecture-dependent.
++// Architecture-independent opcodes appear in this file.
++// Architecture-dependent opcodes appear in op{arch}.go files.
+ type Op int32
+ 
+-// All the opcodes
++// Opcode ranges, a generic one and one for each architecture.
+ const (
+-	OpUnknown Op = iota
++	opInvalid     Op = 0
++	opGenericBase Op = 1 + 1000*iota
++	opAMD64Base
++	op386Base
+ 
+-	// machine-independent opcodes
++	opMax // sentinel
++)
+ 
+-	OpNop    // should never be used, appears only briefly during construction,  Has type Void.
+-	OpFwdRef // used during ssa construction.  Like OpCopy, but the arg has not been specified yet.
++// Generic opcodes
++const (
++	opGenericStart Op = opGenericBase + iota
+ 
+ 	// 2-input arithmetic
+-	OpAdd
+-	OpSub
+-	OpMul
++	OpAdd // arg0 + arg1
++	OpSub // arg0 - arg1
++	OpMul // arg0 * arg1
+ 
+ 	// 2-input comparisons
+-	OpLess
++	OpLess // arg0 < arg1
+ 
+ 	// constants.  Constant values are stored in the aux field.
+ 	// booleans have a bool aux field, strings have a string aux
+@@ -36,44 +44,40 @@ const (
+ 	// as it may be different widths on the host and target.
+ 	OpConst
+ 
+-	OpArg    // address of a function parameter/result.  Memory input is an arg called ".mem".
+-	OpGlobal // address of a global variable (aux is a *gc.Sym)
++	OpArg    // address of a function parameter/result.  Memory input is an arg called ".mem".  aux is a string (TODO: make it something other than a string?)
++	OpGlobal // the address of a global variable aux.(*gc.Sym)
+ 	OpFunc   // entry address of a function
+-	OpCopy   // output = input
+-	OpPhi    // select an input based on which predecessor we came from
+-
+-	OpSliceMake // args are ptr/len/cap
+-	OpSlicePtr
+-	OpSliceLen
+-	OpSliceCap
+ 
+-	OpStringMake // args are ptr/len
+-	OpStringPtr
+-	OpStringLen
++	OpCopy // output = arg0
++	OpPhi  // select an argument based on which predecessor block we came from
+ 
+-	OpSliceIndex
+-	OpSliceIndexAddr
++	OpSliceMake // arg0=ptr, arg1=len, arg2=cap
++	OpSlicePtr  // ptr(arg0)
++	OpSliceLen  // len(arg0)
++	OpSliceCap  // cap(arg0)
+ 
+-	OpLoad  // args are ptr, memory.  Loads from ptr+aux.(int64)
+-	OpStore // args are ptr, value, memory, returns memory.  Stores to ptr+aux.(int64)
++	OpStringMake // arg0=ptr, arg1=len
++	OpStringPtr  // ptr(arg0)
++	OpStringLen  // len(arg0)
+ 
+-	OpCheckNil   // arg[0] != nil
+-	OpCheckBound // 0 <= arg[0] < arg[1]
++	OpLoad       // Load from arg0+aux.(int64).  arg1=memory
++	OpStore      // Store arg1 to arg0+aux.(int64).  arg2=memory.  Returns memory.
++	OpSliceIndex // arg0=slice, arg1=index, arg2=memory
++	OpIsNonNil   // arg0 != nil
++	OpIsInBounds // 0 <= arg0 < arg1
+ 
+ 	// function calls.  Arguments to the call have already been written to the stack.
+ 	// Return values appear on the stack.  The method receiver, if any, is treated
+ 	// as a phantom first argument.
+-	// TODO: closure pointer must be in a register.
+-	OpCall       // args are function ptr, memory
+-	OpStaticCall // aux is function, arg is memory
++	OpCall       // arg0=code pointer, arg1=context ptr, arg2=memory.  Returns memory.
++	OpStaticCall // call function aux.(*gc.Sym), arg0=memory.  Returns memory.
+ 
+-	OpConvert
+-	OpConvNop
++	OpConvert // convert arg0 to another type
++	OpConvNop // interpret arg0 as another type
+ 
+-	// These ops return a pointer to a location on the stack.  Aux contains an int64
+-	// indicating an offset from the base pointer.
+-	OpFPAddr // offset from FP (+ == args from caller, - == locals)
+-	OpSPAddr // offset from SP
++	// These ops return a pointer to a location on the stack.
++	OpFPAddr // FP + aux.(int64) (+ == args from caller, - == locals)
++	OpSPAddr // SP + aux.(int64)
+ 
+ 	// spill&restore ops for the register allocator.  These are
+ 	// semantically identical to OpCopy; they do not take/return
+@@ -82,70 +86,19 @@ const (
+ 	OpStoreReg8
+ 	OpLoadReg8
+ 
+-	// machine-dependent opcodes go here
+-
+-	// amd64
+-	OpADDQ
+-	OpSUBQ
+-	OpADDCQ // 1 input arg.  output = input + aux.(int64)
+-	OpSUBCQ // 1 input arg.  output = input - aux.(int64)
+-	OpMULQ
+-	OpMULCQ // output = input * aux.(int64)
+-	OpSHLQ  // output = input0 << input1
+-	OpSHLCQ // output = input << aux.(int64)
+-	OpNEGQ
+-	OpCMPQ
+-	OpCMPCQ // 1 input arg.  Compares input with aux.(int64)
+-	OpADDL
+-	OpTESTQ // compute flags of arg[0] & arg[1]
+-	OpSETEQ
+-	OpSETNE
+-
+-	// generate boolean based on the flags setting
+-	OpSETL  // less than
+-	OpSETGE // >=
+-	OpSETB  // "below" = unsigned less than
+-
+-	// InvertFlags reverses direction of flags register interpretation:
+-	// (InvertFlags (OpCMPQ a b)) == (OpCMPQ b a)
+-	// This is a pseudo-op which can't appear in assembly output.
+-	OpInvertFlags
+-
+-	OpLEAQ  // x+y
+-	OpLEAQ2 // x+2*y
+-	OpLEAQ4 // x+4*y
+-	OpLEAQ8 // x+8*y
+-
+-	OpMOVQload   // (ptr, mem): loads from ptr+aux.(int64)
+-	OpMOVQstore  // (ptr, val, mem): stores val to ptr+aux.(int64), returns mem
+-	OpMOVQload8  // (ptr,idx,mem): loads from ptr+idx*8+aux.(int64)
+-	OpMOVQstore8 // (ptr,idx,val,mem): stores to ptr+idx*8+aux.(int64), returns mem
+-
+-	// load/store from global.  aux = GlobalOffset
+-	OpMOVQloadglobal  // (mem) -> value
+-	OpMOVQstoreglobal // (val, mem) -> mem
+-
+-	// load/store 8-byte integer register from stack slot.
+-	OpMOVQloadFP
+-	OpMOVQloadSP
+-	OpMOVQstoreFP
+-	OpMOVQstoreSP
+-
+-	// materialize a constant into a register
+-	OpMOVQconst
+-
+-	OpMax // sentinel
++	// used during ssa construction.  Like OpCopy, but the arg has not been specified yet.
++	OpFwdRef
+ )
+ 
+ // GlobalOffset represents a fixed offset within a global variable
+ type GlobalOffset struct {
+-	Global interface{} // holds a *cmd/internal/gc.Sym
++	Global interface{} // holds a *gc.Sym
+ 	Offset int64
+ }
+ 
+ //go:generate stringer -type=Op
+ 
+-type OpInfo struct {
++type opInfo struct {
+ 	flags int32
+ 
+ 	// assembly template
+@@ -160,67 +113,13 @@ type OpInfo struct {
+ 	reg [2][]regMask
+ }
+ 
+-type regMask uint64
+-
+-var regs386 = [...]string{
+-	"AX",
+-	"CX",
+-	"DX",
+-	"BX",
+-	"SP",
+-	"BP",
+-	"SI",
+-	"DI",
+-
+-	// pseudo registers
+-	"FLAGS",
+-	"OVERWRITE0", // the same register as the first input
+-}
+-
+-// TODO: match up these with regs386 above
+-var gp regMask = 0xef
+-var cx regMask = 0x2
+-var flags regMask = 1 << 8
+-var overwrite0 regMask = 1 << 9
+-
+ const (
+ 	// possible properties of opcodes
+ 	OpFlagCommutative int32 = 1 << iota
+-
+-	// architecture constants
+-	Arch386
+-	ArchAMD64
+-	ArchARM
+ )
+ 
+-// general purpose registers, 2 input, 1 output
+-var gp21 = [2][]regMask{{gp, gp}, {gp}}
+-var gp21_overwrite = [2][]regMask{{gp, gp}, {gp}}
+-
+-// general purpose registers, 1 input, 1 output
+-var gp11 = [2][]regMask{{gp}, {gp}}
+-var gp11_overwrite = [2][]regMask{{gp}, {gp}}
+-
+-// general purpose registers, 0 input, 1 output
+-var gp01 = [2][]regMask{{}, {gp}}
+-
+-// shift operations
+-var shift = [2][]regMask{{gp, cx}, {gp}}
+-
+-var gp2_flags = [2][]regMask{{gp, gp}, {flags}}
+-var gp1_flags = [2][]regMask{{gp}, {flags}}
+-var gpload = [2][]regMask{{gp, 0}, {gp}}
+-var gploadX = [2][]regMask{{gp, gp, 0}, {gp}} // indexed loads
+-var gpstore = [2][]regMask{{gp, gp, 0}, {0}}
+-var gpstoreX = [2][]regMask{{gp, gp, gp, 0}, {0}} // indexed stores
+-var gploadglobal = [2][]regMask{{0}, {gp}}
+-var gpstoreglobal = [2][]regMask{{gp, 0}, {0}}
+-
+-var gpload_stack = [2][]regMask{{0}, {gp}}
+-var gpstore_stack = [2][]regMask{{gp, 0}, {0}}
+-
+ // Opcodes that represent the input Go program
+-var genericTable = [...]OpInfo{
++var genericTable = map[Op]opInfo{
+ 	// the unknown op is used only during building and should not appear in a
+ 	// fully formed ssa representation.
+ 
+@@ -278,87 +177,11 @@ var genericTable = [...]OpInfo{
+ 	*/
+ }
+ 
+-// Opcodes that appear in an output amd64 program
+-var amd64Table = [...]OpInfo{
+-	OpADDQ:  {flags: OpFlagCommutative, asm: "ADDQ\t%I0,%I1,%O0", reg: gp21}, // TODO: overwrite
+-	OpADDCQ: {asm: "ADDQ\t$%A,%I0,%O0", reg: gp11_overwrite},                 // aux = int64 constant to add
+-	OpSUBQ:  {asm: "SUBQ\t%I0,%I1,%O0", reg: gp21},
+-	OpSUBCQ: {asm: "SUBQ\t$%A,%I0,%O0", reg: gp11_overwrite},
+-	OpMULQ:  {asm: "MULQ\t%I0,%I1,%O0", reg: gp21},
+-	OpMULCQ: {asm: "MULQ\t$%A,%I0,%O0", reg: gp11_overwrite},
+-	OpSHLQ:  {asm: "SHLQ\t%I0,%I1,%O0", reg: gp21},
+-	OpSHLCQ: {asm: "SHLQ\t$%A,%I0,%O0", reg: gp11_overwrite},
+-
+-	OpCMPQ:  {asm: "CMPQ\t%I0,%I1", reg: gp2_flags}, // compute arg[0]-arg[1] and produce flags
+-	OpCMPCQ: {asm: "CMPQ\t$%A,%I0", reg: gp1_flags},
+-	OpTESTQ: {asm: "TESTQ\t%I0,%I1", reg: gp2_flags},
+-
+-	OpLEAQ:  {flags: OpFlagCommutative, asm: "LEAQ\t%A(%I0)(%I1*1),%O0", reg: gp21}, // aux = int64 constant to add
+-	OpLEAQ2: {asm: "LEAQ\t%A(%I0)(%I1*2),%O0"},
+-	OpLEAQ4: {asm: "LEAQ\t%A(%I0)(%I1*4),%O0"},
+-	OpLEAQ8: {asm: "LEAQ\t%A(%I0)(%I1*8),%O0"},
+-
+-	// loads and stores
+-	OpMOVQload:   {asm: "MOVQ\t%A(%I0),%O0", reg: gpload},
+-	OpMOVQstore:  {asm: "MOVQ\t%I1,%A(%I0)", reg: gpstore},
+-	OpMOVQload8:  {asm: "MOVQ\t%A(%I0)(%I1*8),%O0", reg: gploadX},
+-	OpMOVQstore8: {asm: "MOVQ\t%I2,%A(%I0)(%I1*8)", reg: gpstoreX},
+-
+-	OpMOVQloadglobal:  {reg: gploadglobal},
+-	OpMOVQstoreglobal: {reg: gpstoreglobal},
+-
+-	OpMOVQconst: {asm: "MOVQ\t$%A,%O0", reg: gp01},
+-
+-	OpStaticCall: {asm: "CALL\t%A(SB)"},
+-
+-	OpCopy: {asm: "MOVQ\t%I0,%O0", reg: gp11},
+-
+-	// convert from flags back to boolean
+-	OpSETL: {},
+-
+-	// ops for load/store to stack
+-	OpMOVQloadFP:  {asm: "MOVQ\t%A(FP),%O0", reg: gpload_stack},  // mem -> value
+-	OpMOVQloadSP:  {asm: "MOVQ\t%A(SP),%O0", reg: gpload_stack},  // mem -> value
+-	OpMOVQstoreFP: {asm: "MOVQ\t%I0,%A(FP)", reg: gpstore_stack}, // mem, value -> mem
+-	OpMOVQstoreSP: {asm: "MOVQ\t%I0,%A(SP)", reg: gpstore_stack}, // mem, value -> mem
+-
+-	// ops for spilling of registers
+-	// unlike regular loads & stores, these take no memory argument.
+-	// They are just like OpCopy but we use them during register allocation.
+-	// TODO: different widths, float
+-	OpLoadReg8:  {asm: "MOVQ\t%I0,%O0"},
+-	OpStoreReg8: {asm: "MOVQ\t%I0,%O0"},
+-}
+-
+-// A Table is a list of opcodes with a common set of flags.
+-type Table struct {
+-	t     []OpInfo
+-	flags int32
+-}
+-
+-var tables = []Table{
+-	{genericTable[:], 0},
+-	{amd64Table[:], ArchAMD64}, // TODO: pick this dynamically
+-}
+-
+ // table of opcodes, indexed by opcode ID
+-var opcodeTable [OpMax]OpInfo
+-
+-// map from opcode names to opcode IDs
+-var nameToOp map[string]Op
++var opcodeTable [opMax]opInfo
+ 
+ func init() {
+-	// build full opcode table
+-	// Note that the arch-specific table overwrites the generic table
+-	for _, t := range tables {
+-		for op, entry := range t.t {
+-			entry.flags |= t.flags
+-			opcodeTable[op] = entry
+-		}
+-	}
+-	// build name to opcode mapping
+-	nameToOp = make(map[string]Op)
+-	for op := range opcodeTable {
+-		nameToOp[Op(op).String()] = Op(op)
++	for op, info := range genericTable {
++		opcodeTable[op] = info
+ 	}
+ }
+diff --git a/src/cmd/internal/ssa/op_string.go b/src/cmd/internal/ssa/op_string.go
+index adce17a1f2..0851cfe0fb 100644
+--- a/src/cmd/internal/ssa/op_string.go
++++ b/src/cmd/internal/ssa/op_string.go
+@@ -4,13 +4,37 @@ package ssa
+ 
+ import "fmt"
+ 
+-const _Op_name = "OpUnknownOpNopOpFwdRefOpAddOpSubOpMulOpLessOpConstOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpSliceIndexOpSliceIndexAddrOpLoadOpStoreOpCheckNilOpCheckBoundOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpStoreReg8OpLoadReg8OpADDQOpSUBQOpADDCQOpSUBCQOpMULQOpMULCQOpSHLQOpSHLCQOpNEGQOpCMPQOpCMPCQOpADDLOpTESTQOpSETEQOpSETNEOpSETLOpSETGEOpSETBOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpMOVQloadOpMOVQstoreOpMOVQload8OpMOVQstore8OpMOVQloadglobalOpMOVQstoreglobalOpMOVQloadFPOpMOVQloadSPOpMOVQstoreFPOpMOVQstoreSPOpMOVQconstOpMax"
++const (
++	_Op_name_0 = "opInvalid"
++	_Op_name_1 = "opGenericBaseOpAddOpSubOpMulOpLessOpConstOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpLoadOpStoreOpSliceIndexOpIsNonNilOpIsInBoundsOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpStoreReg8OpLoadReg8OpFwdRef"
++	_Op_name_2 = "opAMD64BaseOpADDQOpSUBQOpADDCQOpSUBCQOpMULQOpMULCQOpSHLQOpSHLCQOpNEGQOpADDLOpCMPQOpCMPCQOpTESTQOpSETEQOpSETNEOpSETLOpSETGEOpSETBOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpMOVQloadOpMOVQstoreOpMOVQloadidx8OpMOVQstoreidx8OpMOVQloadglobalOpMOVQstoreglobalOpMOVQloadFPOpMOVQloadSPOpMOVQstoreFPOpMOVQstoreSPOpMOVQconst"
++	_Op_name_3 = "op386Base"
++	_Op_name_4 = "opMax"
++)
+ 
+-var _Op_index = [...]uint16{0, 9, 14, 22, 27, 32, 37, 43, 50, 55, 63, 69, 75, 80, 91, 101, 111, 121, 133, 144, 155, 167, 183, 189, 196, 206, 218, 224, 236, 245, 254, 262, 270, 281, 291, 297, 303, 310, 317, 323, 330, 336, 343, 349, 355, 362, 368, 375, 382, 389, 395, 402, 408, 421, 427, 434, 441, 448, 458, 469, 480, 492, 508, 525, 537, 549, 562, 575, 586, 591}
++var (
++	_Op_index_0 = [...]uint8{0, 9}
++	_Op_index_1 = [...]uint16{0, 13, 18, 23, 28, 34, 41, 46, 54, 60, 66, 71, 82, 92, 102, 112, 124, 135, 146, 152, 159, 171, 181, 193, 199, 211, 220, 229, 237, 245, 256, 266, 274}
++	_Op_index_2 = [...]uint16{0, 11, 17, 23, 30, 37, 43, 50, 56, 63, 69, 75, 81, 88, 95, 102, 109, 115, 122, 128, 141, 147, 154, 161, 168, 178, 189, 203, 218, 234, 251, 263, 275, 288, 301, 312}
++	_Op_index_3 = [...]uint8{0, 9}
++	_Op_index_4 = [...]uint8{0, 5}
++)
+ 
+ func (i Op) String() string {
+-	if i < 0 || i+1 >= Op(len(_Op_index)) {
++	switch {
++	case i == 0:
++		return _Op_name_0
++	case 1001 <= i && i <= 1032:
++		i -= 1001
++		return _Op_name_1[_Op_index_1[i]:_Op_index_1[i+1]]
++	case 2001 <= i && i <= 2035:
++		i -= 2001
++		return _Op_name_2[_Op_index_2[i]:_Op_index_2[i+1]]
++	case i == 3001:
++		return _Op_name_3
++	case i == 4001:
++		return _Op_name_4
++	default:
+ 		return fmt.Sprintf("Op(%d)", i)
+ 	}
+-	return _Op_name[_Op_index[i]:_Op_index[i+1]]
+ }
+diff --git a/src/cmd/internal/ssa/opamd64.go b/src/cmd/internal/ssa/opamd64.go
+new file mode 100644
+index 0000000000..8bdd19f713
+--- /dev/null
++++ b/src/cmd/internal/ssa/opamd64.go
+@@ -0,0 +1,171 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++// amd64-specific opcodes
++
++const (
++	opAMD64start Op = opAMD64Base + iota
++
++	// Suffixes encode the bit width of various instructions.
++	// Q = 64 bit, L = 32 bit, W = 16 bit, B = 8 bit
++
++	// arithmetic
++	OpADDQ  // arg0 + arg1
++	OpSUBQ  // arg0 - arg1
++	OpADDCQ // arg + aux.(int64)
++	OpSUBCQ // arg - aux.(int64)
++	OpMULQ  // arg0 * arg1
++	OpMULCQ // arg * aux.(int64)
++	OpSHLQ  // arg0 << arg1
++	OpSHLCQ // arg << aux.(int64)
++	OpNEGQ  // -arg
++	OpADDL  // arg0 + arg1
++
++	// Flags value generation.
++	// We pretend the flags type is an opaque thing that comparisons generate
++	// and from which we can extract boolean conditions like <, ==, etc.
++	OpCMPQ  // arg0 compare to arg1
++	OpCMPCQ // arg0 compare to aux.(int64)
++	OpTESTQ // (arg0 & arg1) compare to 0
++
++	// These opcodes extract a particular boolean condition from a flags value.
++	OpSETEQ // extract == condition from arg0
++	OpSETNE // extract != condition from arg0
++	OpSETL  // extract signed < condition from arg0
++	OpSETGE // extract signed >= condition from arg0
++	OpSETB  // extract unsigned < condition from arg0
++
++	// InvertFlags reverses the direction of a flags type interpretation:
++	// (InvertFlags (OpCMPQ a b)) == (OpCMPQ b a)
++	// This is a pseudo-op which can't appear in assembly output.
++	OpInvertFlags // reverse direction of arg0
++
++	OpLEAQ  // arg0 + arg1 + aux.(int64)
++	OpLEAQ2 // arg0 + 2*arg1 + aux.(int64)
++	OpLEAQ4 // arg0 + 4*arg1 + aux.(int64)
++	OpLEAQ8 // arg0 + 8*arg1 + aux.(int64)
++
++	// Load/store from general address
++	OpMOVQload      // Load from arg0+aux.(int64).  arg1=memory
++	OpMOVQstore     // Store arg1 to arg0+aux.(int64).  arg2=memory, returns memory.
++	OpMOVQloadidx8  // Load from arg0+arg1*8+aux.(int64).  arg2=memory
++	OpMOVQstoreidx8 // Store arg2 to arg0+arg1*8+aux.(int64).  arg3=memory, returns memory.
++
++	// Load/store from global.  aux.(GlobalOffset) encodes the global location.
++	OpMOVQloadglobal  // arg0 = memory
++	OpMOVQstoreglobal // store arg0.  arg1=memory, returns memory.
++
++	// Load/store from stack slot.
++	OpMOVQloadFP  // load from FP+aux.(int64).  arg0=memory
++	OpMOVQloadSP  // load from SP+aux.(int64).  arg0=memory
++	OpMOVQstoreFP // store arg0 to FP+aux.(int64).  arg1=memory, returns memory.
++	OpMOVQstoreSP // store arg0 to SP+aux.(int64).  arg1=memory, returns memory.
++
++	// materialize a constant into a register
++	OpMOVQconst // (takes no arguments)
++)
++
++type regMask uint64
++
++var regsAMD64 = [...]string{
++	"AX",
++	"CX",
++	"DX",
++	"BX",
++	"SP",
++	"BP",
++	"SI",
++	"DI",
++	"R8",
++	"R9",
++	"R10",
++	"R11",
++	"R12",
++	"R13",
++	"R14",
++	"R15",
++
++	// pseudo registers
++	"FLAGS",
++	"OVERWRITE0", // the same register as the first input
++}
++
++var gp regMask = 0xef // all integer registers except SP
++var cx regMask = 0x2
++var flags regMask = 1 << 16
++
++var (
++	// gp = general purpose (integer) registers
++	gp21      = [2][]regMask{{gp, gp}, {gp}}    // 2 input, 1 output
++	gp11      = [2][]regMask{{gp}, {gp}}        // 1 input, 1 output
++	gp01      = [2][]regMask{{}, {gp}}          // 0 input, 1 output
++	shift     = [2][]regMask{{gp, cx}, {gp}}    // shift operations
++	gp2_flags = [2][]regMask{{gp, gp}, {flags}} // generate flags from 2 gp regs
++	gp1_flags = [2][]regMask{{gp}, {flags}}     // generate flags from 1 gp reg
++
++	gpload     = [2][]regMask{{gp, 0}, {gp}}
++	gploadidx  = [2][]regMask{{gp, gp, 0}, {gp}}
++	gpstore    = [2][]regMask{{gp, gp, 0}, {0}}
++	gpstoreidx = [2][]regMask{{gp, gp, gp, 0}, {0}}
++
++	gpload_stack  = [2][]regMask{{0}, {gp}}
++	gpstore_stack = [2][]regMask{{gp, 0}, {0}}
++)
++
++// Opcodes that appear in an output amd64 program
++var amd64Table = map[Op]opInfo{
++	OpADDQ:  {flags: OpFlagCommutative, asm: "ADDQ\t%I0,%I1,%O0", reg: gp21}, // TODO: overwrite
++	OpADDCQ: {asm: "ADDQ\t$%A,%I0,%O0", reg: gp11},                           // aux = int64 constant to add
++	OpSUBQ:  {asm: "SUBQ\t%I0,%I1,%O0", reg: gp21},
++	OpSUBCQ: {asm: "SUBQ\t$%A,%I0,%O0", reg: gp11},
++	OpMULQ:  {asm: "MULQ\t%I0,%I1,%O0", reg: gp21},
++	OpMULCQ: {asm: "MULQ\t$%A,%I0,%O0", reg: gp11},
++	OpSHLQ:  {asm: "SHLQ\t%I0,%I1,%O0", reg: gp21},
++	OpSHLCQ: {asm: "SHLQ\t$%A,%I0,%O0", reg: gp11},
++
++	OpCMPQ:  {asm: "CMPQ\t%I0,%I1", reg: gp2_flags}, // compute arg[0]-arg[1] and produce flags
++	OpCMPCQ: {asm: "CMPQ\t$%A,%I0", reg: gp1_flags},
++	OpTESTQ: {asm: "TESTQ\t%I0,%I1", reg: gp2_flags},
++
++	OpLEAQ:  {flags: OpFlagCommutative, asm: "LEAQ\t%A(%I0)(%I1*1),%O0", reg: gp21}, // aux = int64 constant to add
++	OpLEAQ2: {asm: "LEAQ\t%A(%I0)(%I1*2),%O0"},
++	OpLEAQ4: {asm: "LEAQ\t%A(%I0)(%I1*4),%O0"},
++	OpLEAQ8: {asm: "LEAQ\t%A(%I0)(%I1*8),%O0"},
++
++	// loads and stores
++	OpMOVQload:      {asm: "MOVQ\t%A(%I0),%O0", reg: gpload},
++	OpMOVQstore:     {asm: "MOVQ\t%I1,%A(%I0)", reg: gpstore},
++	OpMOVQloadidx8:  {asm: "MOVQ\t%A(%I0)(%I1*8),%O0", reg: gploadidx},
++	OpMOVQstoreidx8: {asm: "MOVQ\t%I2,%A(%I0)(%I1*8)", reg: gpstoreidx},
++
++	OpMOVQconst: {asm: "MOVQ\t$%A,%O0", reg: gp01},
++
++	OpStaticCall: {asm: "CALL\t%A(SB)"},
++
++	OpCopy: {asm: "MOVQ\t%I0,%O0", reg: gp11},
++
++	// convert from flags back to boolean
++	OpSETL: {},
++
++	// ops for load/store to stack
++	OpMOVQloadFP:  {asm: "MOVQ\t%A(FP),%O0", reg: gpload_stack},  // mem -> value
++	OpMOVQloadSP:  {asm: "MOVQ\t%A(SP),%O0", reg: gpload_stack},  // mem -> value
++	OpMOVQstoreFP: {asm: "MOVQ\t%I0,%A(FP)", reg: gpstore_stack}, // mem, value -> mem
++	OpMOVQstoreSP: {asm: "MOVQ\t%I0,%A(SP)", reg: gpstore_stack}, // mem, value -> mem
++
++	// ops for spilling of registers
++	// unlike regular loads & stores, these take no memory argument.
++	// They are just like OpCopy but we use them during register allocation.
++	// TODO: different widths, float
++	OpLoadReg8:  {asm: "MOVQ\t%I0,%O0"},
++	OpStoreReg8: {asm: "MOVQ\t%I0,%O0"},
++}
++
++func init() {
++	for op, info := range amd64Table {
++		opcodeTable[op] = info
++	}
++}
+diff --git a/src/cmd/internal/ssa/regalloc.go b/src/cmd/internal/ssa/regalloc.go
+index 724a0557d5..bc397f323f 100644
+--- a/src/cmd/internal/ssa/regalloc.go
++++ b/src/cmd/internal/ssa/regalloc.go
+@@ -28,8 +28,16 @@ var registers = [...]Register{
+ 	Register{"BP"},
+ 	Register{"SI"},
+ 	Register{"DI"},
+-
+-	// TODO R8, X0, ...
++	Register{"R8"},
++	Register{"R9"},
++	Register{"R10"},
++	Register{"R11"},
++	Register{"R12"},
++	Register{"R13"},
++	Register{"R14"},
++	Register{"R15"},
++
++	// TODO X0, ...
+ 	// TODO: make arch-dependent
+ 	Register{"FLAGS"},
+ 	Register{"OVERWRITE"},
+diff --git a/src/cmd/internal/ssa/rulegen/lower_amd64.rules b/src/cmd/internal/ssa/rulegen/lower_amd64.rules
+index 8882e3c253..55267d6842 100644
+--- a/src/cmd/internal/ssa/rulegen/lower_amd64.rules
++++ b/src/cmd/internal/ssa/rulegen/lower_amd64.rules
+@@ -34,8 +34,8 @@
+ (Store ptr val mem) && (is64BitInt(val.Type) || isPtr(val.Type)) -> (MOVQstore [int64(0)] ptr val mem)
+ 
+ // checks
+-(CheckNil p) -> (SETNE (TESTQ <TypeFlags> p p))
+-(CheckBound idx len) -> (SETB (CMPQ <TypeFlags> idx len))
++(IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
++(IsInBounds idx len) -> (SETB (CMPQ <TypeFlags> idx len))
+ 
+ // Rules below here apply some simple optimizations after lowering.
+ // TODO: Should this be a separate pass?
+@@ -80,8 +80,8 @@
+ (MOVQstore [off1] (ADDCQ [off2] ptr) val mem) -> (MOVQstore [off1.(int64)+off2.(int64)] ptr val mem)
+ 
+ // indexed loads and stores
+-(MOVQload [off1] (LEAQ8 [off2] ptr idx) mem) -> (MOVQload8 [off1.(int64)+off2.(int64)] ptr idx mem)
+-(MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem) -> (MOVQstore8 [off1.(int64)+off2.(int64)] ptr idx val mem)
++(MOVQload [off1] (LEAQ8 [off2] ptr idx) mem) -> (MOVQloadidx8 [off1.(int64)+off2.(int64)] ptr idx mem)
++(MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem) -> (MOVQstoreidx8 [off1.(int64)+off2.(int64)] ptr idx val mem)
+ 
+ // Combine the offset of a stack object with the offset within a stack object
+ (ADDCQ [off1] (FPAddr [off2])) -> (FPAddr [off1.(int64)+off2.(int64)])

@@ -7,9 +7,138 @@ Date:   Mon Jan 25 18:49:08 2010 -0800
     R=rsc, rsc1
     CC=golang-dev
     https://golang.org/cl/194046
-
+---
  src/pkg/http/client.go       |  8 +++++++-
  src/pkg/http/request.go      | 17 +++++++----------
  src/pkg/http/request_test.go |  2 +-
  src/pkg/http/response.go     |  8 ++++----
  4 files changed, 19 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 24758eee1b..8af6c761f6 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -137,7 +137,7 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
+ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Error) {
+ 	var req Request
+ 	req.Method = "POST"
+-	req.Body = body
++	req.Body = nopCloser{body}
+ 	req.Header = map[string]string{
+ 		"Content-Type": bodyType,
+ 		"Transfer-Encoding": "chunked",
+@@ -150,3 +150,9 @@ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Erro
+ 
+ 	return send(&req)
+ }
++
++type nopCloser struct {
++	io.Reader
++}
++
++func (nopCloser) Close() os.Error { return nil }
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 2ade5b7661..5842afa61b 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -80,7 +80,7 @@ type Request struct {
+ 	Header map[string]string
+ 
+ 	// The message body.
+-	Body io.Reader
++	Body io.ReadCloser
+ 
+ 	// Whether to close the connection after replying to this request.
+ 	Close bool
+@@ -135,7 +135,8 @@ const defaultUserAgent = "Go http package"
+ //	Header
+ //	Body
+ //
+-// If Body is present, "Transfer-Encoding: chunked" is forced as a header.
++// If Body is present, Write forces "Transfer-Encoding: chunked" as a header
++// and then closes Body when finished sending it.
+ func (req *Request) Write(w io.Writer) os.Error {
+ 	uri := urlEscape(req.URL.Path, false)
+ 	if req.URL.RawQuery != "" {
+@@ -198,6 +199,7 @@ func (req *Request) Write(w io.Writer) os.Error {
+ 				return io.ErrShortWrite
+ 			}
+ 		}
++		req.Body.Close()
+ 		// last-chunk CRLF
+ 		fmt.Fprint(w, "0\r\n\r\n")
+ 	}
+@@ -572,19 +574,14 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 	// A message body exists when either Content-Length or Transfer-Encoding
+ 	// headers are present. Transfer-Encoding trumps Content-Length.
+ 	if v, present := req.Header["Transfer-Encoding"]; present && v == "chunked" {
+-		req.Body = newChunkedReader(b)
++		req.Body = &body{Reader: newChunkedReader(b), th: req, r: b, closing: req.Close}
+ 	} else if v, present := req.Header["Content-Length"]; present {
+-		length, err := strconv.Btoui64(v, 10)
++		length, err := strconv.Btoi64(v, 10)
+ 		if err != nil {
+ 			return nil, &badStringError{"invalid Content-Length", v}
+ 		}
+ 		// TODO: limit the Content-Length. This is an easy DoS vector.
+-		raw := make([]byte, length)
+-		n, err := b.Read(raw)
+-		if err != nil || uint64(n) < length {
+-			return nil, ErrShortBody
+-		}
+-		req.Body = bytes.NewBuffer(raw)
++		req.Body = &body{Reader: io.LimitReader(b, length), closing: req.Close}
+ 	}
+ 
+ 	return req, nil
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index b93d1f79e4..6e483c769a 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -90,7 +90,7 @@ func TestPostContentTypeParsing(t *testing.T) {
+ 		req := &Request{
+ 			Method: "POST",
+ 			Header: test.contentType,
+-			Body: bytes.NewBufferString("body"),
++			Body: nopCloser{bytes.NewBufferString("body")},
+ 		}
+ 		err := req.ParseForm()
+ 		if !test.error && err != nil {
+diff --git a/src/pkg/http/response.go b/src/pkg/http/response.go
+index b20a6a003f..9a2355ff4a 100644
+--- a/src/pkg/http/response.go
++++ b/src/pkg/http/response.go
+@@ -134,7 +134,7 @@ func ReadResponse(r *bufio.Reader, requestMethod string) (resp *Response, err os
+ 	// or close connection when finished, since multipart is not supported yet
+ 	switch {
+ 	case chunked(resp.TransferEncoding):
+-		resp.Body = &body{Reader: newChunkedReader(r), resp: resp, r: r, closing: resp.Close}
++		resp.Body = &body{Reader: newChunkedReader(r), th: resp, r: r, closing: resp.Close}
+ 	case resp.ContentLength >= 0:
+ 		resp.Body = &body{Reader: io.LimitReader(r, resp.ContentLength), closing: resp.Close}
+ 	default:
+@@ -149,13 +149,13 @@ func ReadResponse(r *bufio.Reader, requestMethod string) (resp *Response, err os
+ // and then reads the trailer if necessary.
+ type body struct {
+ 	io.Reader
+-	resp    *Response     // non-nil value means read trailer
++	th      interface{}   // non-nil (Response or Request) value means read trailer
+ 	r       *bufio.Reader // underlying wire-format reader for the trailer
+ 	closing bool          // is the connection to be closed after reading body?
+ }
+ 
+ func (b *body) Close() os.Error {
+-	if b.resp == nil && b.closing {
++	if b.th == nil && b.closing {
+ 		// no trailer and closing the connection next.
+ 		// no point in reading to EOF.
+ 		return nil
+@@ -172,7 +172,7 @@ func (b *body) Close() os.Error {
+ 		}
+ 		return err
+ 	}
+-	if b.resp == nil { // not reading trailer
++	if b.th == nil { // not reading trailer
+ 		return nil
+ 	}
+ 

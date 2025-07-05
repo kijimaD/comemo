@@ -7,6 +7,22 @@ Date:   Fri Jun 22 10:22:01 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6337047
-
+---
  doc/root.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index 3b92229cbe..9c7b9e2d57 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -68,8 +68,8 @@ Linux, Mac OS X, Windows, and more.
+ 
+ <div id="video">
+ <div class="rootHeading">Featured video</div>
+-<a class="title" href="http://www.youtube.com/watch?v=Mo1YKpIF1PQ">Building integrated apps on Google's cloud platform with Go</a>
+-<iframe width="415" height="241" src="http://www.youtube.com/embed/Mo1YKpIF1PQ" frameborder="0" allowfullscreen></iframe>
++<a class="title" href="http://www.youtube.com/watch?v=ytEkHepK08c">A Tour of Go</a>
++<iframe width="415" height="241" src="http://www.youtube.com/embed/ytEkHepK08c" frameborder="0" allowfullscreen></iframe>
+ </div>
+ 
+ </div>

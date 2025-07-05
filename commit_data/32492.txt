@@ -11,7 +11,47 @@ Date:   Tue Apr 18 10:57:12 2017 +0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/client.go   | 3 +++
  src/net/http/response.go | 6 ++++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 7752d812cc..fbdc41bdf2 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -524,10 +524,12 @@ func (c *Client) Do(req *Request) (*Response, error) {
+ 		if len(reqs) > 0 {
+ 			loc := resp.Header.Get("Location")
+ 			if loc == "" {
++				resp.closeBody()
+ 				return nil, uerr(fmt.Errorf("%d response missing Location header", resp.StatusCode))
+ 			}
+ 			u, err := req.URL.Parse(loc)
+ 			if err != nil {
++				resp.closeBody()
+ 				return nil, uerr(fmt.Errorf("failed to parse Location header %q: %v", loc, err))
+ 			}
+ 			ireq := reqs[0]
+@@ -542,6 +544,7 @@ func (c *Client) Do(req *Request) (*Response, error) {
+ 			if includeBody && ireq.GetBody != nil {
+ 				req.Body, err = ireq.GetBody()
+ 				if err != nil {
++					resp.closeBody()
+ 					return nil, uerr(err)
+ 				}
+ 				req.ContentLength = ireq.ContentLength
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index 1ebea6c45c..0357b60502 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -321,3 +321,9 @@ func (r *Response) Write(w io.Writer) error {
+ 	// Success
+ 	return nil
+ }
++
++func (r *Response) closeBody() {
++	if r.Body != nil {
++		r.Body.Close()
++	}
++}

@@ -19,9 +19,140 @@ Date:   Wed Aug 28 14:43:56 2013 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/13327043
-
+---
  src/pkg/text/template/doc.go              |  6 ++++++
  src/pkg/text/template/exec_test.go        |  2 ++
  src/pkg/text/template/parse/parse.go      | 31 +++++++++++++++++++++++++++----
  src/pkg/text/template/parse/parse_test.go |  5 +++++
  4 files changed, 40 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/text/template/doc.go b/src/pkg/text/template/doc.go
+index b952789d1c..ab18f9ab1a 100644
+--- a/src/pkg/text/template/doc.go
++++ b/src/pkg/text/template/doc.go
+@@ -63,6 +63,12 @@ data, defined in detail below.
+ 		If the value of the pipeline is empty, T0 is executed;
+ 		otherwise, T1 is executed.  Dot is unaffected.
+ 
++	{{if pipeline}} T1 {{else if pipeline}} T0 {{end}}
++		To simplify the appearance of if-else chains, the else action
++		of an if may include another if directly; the effect is exactly
++		the same as writing
++			{{if pipeline}} T1 {{else}}{{if pipeline}} T0 {{end}}{{end}}
++
+ 	{{range pipeline}} T1 {{end}}
+ 		The value of the pipeline must be an array, slice, map, or channel.
+ 		If the value of the pipeline has length zero, nothing is output;
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index be1a2d23d8..bc8aee6f3c 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -374,6 +374,8 @@ var execTests = []execTest{
+ 	{"if map not unset", "{{if not .MXI.none}}ZERO{{else}}NON-ZERO{{end}}", "ZERO", tVal, true},
+ 	{"if $x with $y int", "{{if $x := true}}{{with $y := .I}}{{$x}},{{$y}}{{end}}{{end}}", "true,17", tVal, true},
+ 	{"if $x with $x int", "{{if $x := true}}{{with $x := .I}}{{$x}},{{end}}{{$x}}{{end}}", "17,true", tVal, true},
++	{"if else if", "{{if false}}FALSE{{else if true}}TRUE{{end}}", "TRUE", tVal, true},
++	{"if else chain", "{{if eq 1 3}}1{{else if eq 2 3}}2{{else if eq 3 3}}3{{end}}", "3", tVal, true},
+ 
+ 	// Print etc.
+ 	{"print", `{{print "hello, print"}}`, "hello, print", tVal, true},
+diff --git a/src/pkg/text/template/parse/parse.go b/src/pkg/text/template/parse/parse.go
+index 2919124d3b..be83e77cf5 100644
+--- a/src/pkg/text/template/parse/parse.go
++++ b/src/pkg/text/template/parse/parse.go
+@@ -409,7 +409,7 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 	}
+ }
+ 
+-func (t *Tree) parseControl(context string) (pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) {
++func (t *Tree) parseControl(allowElseIf bool, context string) (pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) {
+ 	defer t.popVars(len(t.vars))
+ 	line = t.lex.lineNumber()
+ 	pipe = t.pipeline(context)
+@@ -418,6 +418,23 @@ func (t *Tree) parseControl(context string) (pos Pos, line int, pipe *PipeNode,
+ 	switch next.Type() {
+ 	case nodeEnd: //done
+ 	case nodeElse:
++		if allowElseIf {
++			// Special case for "else if". If the "else" is followed immediately by an "if",
++			// the elseControl will have left the "if" token pending. Treat
++			//	{{if a}}_{{else if b}}_{{end}}
++			// as
++			//	{{if a}}_{{else}}{{if b}}_{{end}}{{end}}.
++			// To do this, parse the if as usual and stop at it {{end}}; the subsequent{{end}}
++			// is assumed. This technique works even for long if-else-if chains.
++			// TODO: Should we allow else-if in with and range?
++			if t.peek().typ == itemIf {
++				t.next() // Consume the "if" token.
++				elseList = newList(next.Position())
++				elseList.append(t.ifControl())
++				// Do not consume the next item - only one {{end}} required.
++				break
++			}
++		}
+ 		elseList, next = t.itemList()
+ 		if next.Type() != nodeEnd {
+ 			t.errorf("expected end; found %s", next)
+@@ -431,7 +448,7 @@ func (t *Tree) parseControl(context string) (pos Pos, line int, pipe *PipeNode,
+ //	{{if pipeline}} itemList {{else}} itemList {{end}}
+ // If keyword is past.
+ func (t *Tree) ifControl() Node {
+-	return newIf(t.parseControl("if"))
++	return newIf(t.parseControl(true, "if"))
+ }
+ 
+ // Range:
+@@ -439,7 +456,7 @@ func (t *Tree) ifControl() Node {
+ //	{{range pipeline}} itemList {{else}} itemList {{end}}
+ // Range keyword is past.
+ func (t *Tree) rangeControl() Node {
+-	return newRange(t.parseControl("range"))
++	return newRange(t.parseControl(false, "range"))
+ }
+ 
+ // With:
+@@ -447,7 +464,7 @@ func (t *Tree) rangeControl() Node {
+ //	{{with pipeline}} itemList {{else}} itemList {{end}}
+ // If keyword is past.
+ func (t *Tree) withControl() Node {
+-	return newWith(t.parseControl("with"))
++	return newWith(t.parseControl(false, "with"))
+ }
+ 
+ // End:
+@@ -461,6 +478,12 @@ func (t *Tree) endControl() Node {
+ //	{{else}}
+ // Else keyword is past.
+ func (t *Tree) elseControl() Node {
++	// Special case for "else if".
++	peek := t.peekNonSpace()
++	if peek.typ == itemIf {
++		// We see "{{else if ... " but in effect rewrite it to {{else}}{{if ... ".
++		return newElse(peek.pos, t.lex.lineNumber())
++	}
+ 	return newElse(t.expect(itemRightDelim, "else").pos, t.lex.lineNumber())
+ }
+ 
+diff --git a/src/pkg/text/template/parse/parse_test.go b/src/pkg/text/template/parse/parse_test.go
+index 0e5c1448c8..c35f4ac5df 100644
+--- a/src/pkg/text/template/parse/parse_test.go
++++ b/src/pkg/text/template/parse/parse_test.go
+@@ -194,6 +194,10 @@ var parseTests = []parseTest{
+ 		`{{if .X}}"hello"{{end}}`},
+ 	{"if with else", "{{if .X}}true{{else}}false{{end}}", noError,
+ 		`{{if .X}}"true"{{else}}"false"{{end}}`},
++	{"if with else if", "{{if .X}}true{{else if .Y}}false{{end}}", noError,
++		`{{if .X}}"true"{{else}}{{if .Y}}"false"{{end}}{{end}}`},
++	{"if else chain", "+{{if .X}}X{{else if .Y}}Y{{else if .Z}}Z{{end}}+", noError,
++		`"+"{{if .X}}"X"{{else}}{{if .Y}}"Y"{{else}}{{if .Z}}"Z"{{end}}{{end}}{{end}}"+"`},
+ 	{"simple range", "{{range .X}}hello{{end}}", noError,
+ 		`{{range .X}}"hello"{{end}}`},
+ 	{"chained field range", "{{range .X.Y.Z}}hello{{end}}", noError,
+@@ -238,6 +242,7 @@ var parseTests = []parseTest{
+ 	{"dot applied to parentheses", "{{printf (printf .).}}", hasError, ""},
+ 	{"adjacent args", "{{printf 3`x`}}", hasError, ""},
+ 	{"adjacent args with .", "{{printf `x`.}}", hasError, ""},
++	{"extra end after if", "{{if .X}}a{{else if .Y}}b{{end}}{{end}}", hasError, ""},
+ 	// Equals (and other chars) do not assignments make (yet).
+ 	{"bug0a", "{{$x := 0}}{{$x}}", noError, "{{$x := 0}}{{$x}}"},
+ 	{"bug0b", "{{$x = 1}}{{$x}}", hasError, ""},

@@ -7,7 +7,7 @@ Date:   Tue Jan 26 20:22:59 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/193104
-
+---
  src/pkg/runtime/embedded/README       |  4 ++
  src/pkg/runtime/embedded/arm/defs.h   |  1 +
  src/pkg/runtime/embedded/arm/rt0.s    |  1 +
@@ -17,3 +17,181 @@ Date:   Tue Jan 26 20:22:59 2010 -0800
  src/pkg/runtime/embedded/os.h         |  1 +
  src/pkg/runtime/embedded/thread.c     | 80 +++++++++++++++++++++++++++++++++++
  8 files changed, 129 insertions(+)
+
+diff --git a/src/pkg/runtime/embedded/README b/src/pkg/runtime/embedded/README
+new file mode 100644
+index 0000000000..6ca7985319
+--- /dev/null
++++ b/src/pkg/runtime/embedded/README
+@@ -0,0 +1,4 @@
++small embedded target for arm
++define the c function write to make debug output work
++
++
+diff --git a/src/pkg/runtime/embedded/arm/defs.h b/src/pkg/runtime/embedded/arm/defs.h
+new file mode 100644
+index 0000000000..5df7576133
+--- /dev/null
++++ b/src/pkg/runtime/embedded/arm/defs.h
+@@ -0,0 +1 @@
++// nothing to see here
+diff --git a/src/pkg/runtime/embedded/arm/rt0.s b/src/pkg/runtime/embedded/arm/rt0.s
+new file mode 100644
+index 0000000000..5df7576133
+--- /dev/null
++++ b/src/pkg/runtime/embedded/arm/rt0.s
+@@ -0,0 +1 @@
++// nothing to see here
+diff --git a/src/pkg/runtime/embedded/arm/signal.c b/src/pkg/runtime/embedded/arm/signal.c
+new file mode 100644
+index 0000000000..5df7576133
+--- /dev/null
++++ b/src/pkg/runtime/embedded/arm/signal.c
+@@ -0,0 +1 @@
++// nothing to see here
+diff --git a/src/pkg/runtime/embedded/arm/sys.s b/src/pkg/runtime/embedded/arm/sys.s
+new file mode 100644
+index 0000000000..5df7576133
+--- /dev/null
++++ b/src/pkg/runtime/embedded/arm/sys.s
+@@ -0,0 +1 @@
++// nothing to see here
+diff --git a/src/pkg/runtime/embedded/mem.c b/src/pkg/runtime/embedded/mem.c
+new file mode 100644
+index 0000000000..0232c6c8e5
+--- /dev/null
++++ b/src/pkg/runtime/embedded/mem.c
+@@ -0,0 +1,40 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "malloc.h"
++
++// Assume there's an arbitrary amount of memory starting at "end".
++
++void*
++SysAlloc(uintptr ask)
++{
++	static byte *p;
++	extern byte end[];
++	byte *q;
++	
++	if(p == nil) {
++		p = end;
++		p += 7 & -(uintptr)p;
++	}
++	ask += 7 & -ask;
++
++	q = p;
++	p += ask;
++	·memclr(q, ask);
++	return q;
++}
++
++void
++SysFree(void *v, uintptr n)
++{
++	USED(v, n);
++}
++
++void
++SysUnused(void *v, uintptr n)
++{
++	USED(v, n);
++}
++
+diff --git a/src/pkg/runtime/embedded/os.h b/src/pkg/runtime/embedded/os.h
+new file mode 100644
+index 0000000000..5df7576133
+--- /dev/null
++++ b/src/pkg/runtime/embedded/os.h
+@@ -0,0 +1 @@
++// nothing to see here
+diff --git a/src/pkg/runtime/embedded/thread.c b/src/pkg/runtime/embedded/thread.c
+new file mode 100644
+index 0000000000..49b764b6d9
+--- /dev/null
++++ b/src/pkg/runtime/embedded/thread.c
+@@ -0,0 +1,80 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++int8 *goos = "embedded";
++
++void
++minit(void)
++{
++}
++
++void
++osinit(void)
++{
++}
++
++void
++initsig(void)
++{
++}
++
++void
++exit(int32)
++{
++	for(;;);
++}
++
++// single processor, no interrupts,
++// so no need for real concurrency or atomicity
++
++void
++newosproc(M *m, G *g, void *stk, void (*fn)(void))
++{
++	USED(m, g, stk, fn);
++	throw("newosproc");
++}
++
++void
++lock(Lock *l)
++{
++	if(m->locks < 0)
++		throw("lock count");
++	m->locks++;
++	if(l->key != 0)
++		throw("deadlock");
++	l->key = 1;
++}
++
++void
++unlock(Lock *l)
++{
++	m->locks--;
++	if(m->locks < 0)
++		throw("lock count");
++	if(l->key != 1)
++		throw("unlock of unlocked lock");
++	l->key = 0;
++}
++
++void
++noteclear(Note *n)
++{
++	n->lock.key = 0;
++}
++
++void
++notewakeup(Note *n)
++{
++	n->lock.key = 1;
++}
++
++void
++notesleep(Note *n)
++{
++	if(n->lock.key != 1)
++		throw("notesleep");
++}
++

@@ -16,7 +16,76 @@ Date:   Tue Aug 1 14:48:16 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/regexp/example_test.go | 14 ++++++++++++++
  src/regexp/regexp.go       |  8 ++++----
  2 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/src/regexp/example_test.go b/src/regexp/example_test.go
+index 466b38b0fa..707445f9ff 100644
+--- a/src/regexp/example_test.go
++++ b/src/regexp/example_test.go
+@@ -228,11 +228,18 @@ func ExampleRegexp_ReplaceAll() {
+ 	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("$1")))
+ 	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("$1W")))
+ 	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("${1}W")))
++
++	re2 := regexp.MustCompile(`a(?P<1W>x*)b`)
++	fmt.Printf("%s\n", re2.ReplaceAll([]byte("-ab-axxb-"), []byte("$1W")))
++	fmt.Printf("%s\n", re2.ReplaceAll([]byte("-ab-axxb-"), []byte("${1}W")))
++
+ 	// Output:
+ 	// -T-T-
+ 	// --xx-
+ 	// ---
+ 	// -W-xxW-
++	// --xx-
++	// -W-xxW-
+ }
+ 
+ func ExampleRegexp_ReplaceAllLiteralString() {
+@@ -252,11 +259,18 @@ func ExampleRegexp_ReplaceAllString() {
+ 	fmt.Println(re.ReplaceAllString("-ab-axxb-", "$1"))
+ 	fmt.Println(re.ReplaceAllString("-ab-axxb-", "$1W"))
+ 	fmt.Println(re.ReplaceAllString("-ab-axxb-", "${1}W"))
++
++	re2 := regexp.MustCompile(`a(?P<1W>x*)b`)
++	fmt.Printf("%s\n", re2.ReplaceAllString("-ab-axxb-", "$1W"))
++	fmt.Println(re.ReplaceAllString("-ab-axxb-", "${1}W"))
++
+ 	// Output:
+ 	// -T-T-
+ 	// --xx-
+ 	// ---
+ 	// -W-xxW-
++	// --xx-
++	// -W-xxW-
+ }
+ 
+ func ExampleRegexp_ReplaceAllStringFunc() {
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 1c9b2fd4de..3752b467c6 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -573,8 +573,8 @@ func Match(pattern string, b []byte) (matched bool, err error) {
+ }
+ 
+ // ReplaceAllString returns a copy of src, replacing matches of the Regexp
+-// with the replacement string repl. Inside repl, $ signs are interpreted as
+-// in Expand, so for instance $1 represents the text of the first submatch.
++// with the replacement string repl.
++// Inside repl, $ signs are interpreted as in Expand.
+ func (re *Regexp) ReplaceAllString(src, repl string) string {
+ 	n := 2
+ 	if strings.Contains(repl, "$") {
+@@ -672,8 +672,8 @@ func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst
+ }
+ 
+ // ReplaceAll returns a copy of src, replacing matches of the Regexp
+-// with the replacement text repl. Inside repl, $ signs are interpreted as
+-// in Expand, so for instance $1 represents the text of the first submatch.
++// with the replacement text repl.
++// Inside repl, $ signs are interpreted as in Expand.
+ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
+ 	n := 2
+ 	if bytes.IndexByte(repl, '$') >= 0 {

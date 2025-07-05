@@ -16,7 +16,7 @@ Date:   Wed Nov 9 22:42:25 2022 -0500
     Auto-Submit: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/syscall/unix/asm_darwin.s   |  53 +++++--------
  src/internal/syscall/unix/net_darwin.go  |   6 ++
  src/internal/syscall/unix/user_darwin.go | 117 ++++++++++++++++++++++++++++
@@ -35,3 +35,943 @@ Date:   Wed Nov 9 22:42:25 2022 -0500
  src/os/user/lookup_unix.go               |   4 +-
  src/os/user/lookup_unix_test.go          |   2 +-
  17 files changed, 407 insertions(+), 227 deletions(-)
+
+diff --git a/src/internal/syscall/unix/asm_darwin.s b/src/internal/syscall/unix/asm_darwin.s
+index 771f77186e..8662c2846f 100644
+--- a/src/internal/syscall/unix/asm_darwin.s
++++ b/src/internal/syscall/unix/asm_darwin.s
+@@ -4,38 +4,21 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·libc_getentropy_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_getentropy(SB)
+-
+-TEXT ·libc_getaddrinfo_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_getaddrinfo(SB)
+-
+-TEXT ·libc_freeaddrinfo_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_freeaddrinfo(SB)
+-
+-TEXT ·libc_getnameinfo_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_getnameinfo(SB)
+-
+-TEXT ·libc_gai_strerror_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_gai_strerror(SB)
+-
+-TEXT ·libresolv_res_9_ninit_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libresolv_res_9_ninit(SB)
+-
+-TEXT ·libresolv_res_9_nclose_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libresolv_res_9_nclose(SB)
+-
+-TEXT ·libresolv_res_9_nsearch_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libresolv_res_9_nsearch(SB)
+-
+-TEXT ·libc_grantpt_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_grantpt(SB)
+-
+-TEXT ·libc_unlockpt_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_unlockpt(SB)
+-
+-TEXT ·libc_ptsname_r_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_ptsname_r(SB)
+-
+-TEXT ·libc_posix_openpt_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_posix_openpt(SB)
++TEXT ·libc_getentropy_trampoline(SB),NOSPLIT,$0-0; JMP libc_getentropy(SB)
++TEXT ·libc_getaddrinfo_trampoline(SB),NOSPLIT,$0-0; JMP libc_getaddrinfo(SB)
++TEXT ·libc_freeaddrinfo_trampoline(SB),NOSPLIT,$0-0; JMP libc_freeaddrinfo(SB)
++TEXT ·libc_getnameinfo_trampoline(SB),NOSPLIT,$0-0; JMP libc_getnameinfo(SB)
++TEXT ·libc_gai_strerror_trampoline(SB),NOSPLIT,$0-0; JMP libc_gai_strerror(SB)
++TEXT ·libresolv_res_9_ninit_trampoline(SB),NOSPLIT,$0-0; JMP libresolv_res_9_ninit(SB)
++TEXT ·libresolv_res_9_nclose_trampoline(SB),NOSPLIT,$0-0; JMP libresolv_res_9_nclose(SB)
++TEXT ·libresolv_res_9_nsearch_trampoline(SB),NOSPLIT,$0-0; JMP libresolv_res_9_nsearch(SB)
++TEXT ·libc_grantpt_trampoline(SB),NOSPLIT,$0-0; JMP libc_grantpt(SB)
++TEXT ·libc_unlockpt_trampoline(SB),NOSPLIT,$0-0; JMP libc_unlockpt(SB)
++TEXT ·libc_ptsname_r_trampoline(SB),NOSPLIT,$0-0; JMP libc_ptsname_r(SB)
++TEXT ·libc_posix_openpt_trampoline(SB),NOSPLIT,$0-0; JMP libc_posix_openpt(SB)
++TEXT ·libc_getgrouplist_trampoline(SB),NOSPLIT,$0-0; JMP libc_getgrouplist(SB)
++TEXT ·libc_getpwnam_r_trampoline(SB),NOSPLIT,$0-0; JMP libc_getpwnam_r(SB)
++TEXT ·libc_getpwuid_r_trampoline(SB),NOSPLIT,$0-0; JMP libc_getpwuid_r(SB)
++TEXT ·libc_getgrnam_r_trampoline(SB),NOSPLIT,$0-0; JMP libc_getgrnam_r(SB)
++TEXT ·libc_getgrgid_r_trampoline(SB),NOSPLIT,$0-0; JMP libc_getgrgid_r(SB)
++TEXT ·libc_sysconf_trampoline(SB),NOSPLIT,$0-0; JMP libc_sysconf(SB)
+diff --git a/src/internal/syscall/unix/net_darwin.go b/src/internal/syscall/unix/net_darwin.go
+index 780aaaa05d..9840359693 100644
+--- a/src/internal/syscall/unix/net_darwin.go
++++ b/src/internal/syscall/unix/net_darwin.go
+@@ -111,9 +111,15 @@ func GoString(p *byte) string {
+ //go:linkname syscall_syscall syscall.syscall
+ func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno)
+ 
++//go:linkname syscall_syscallPtr syscall.syscallPtr
++func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno)
++
+ //go:linkname syscall_syscall6 syscall.syscall6
+ func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno)
+ 
++//go:linkname syscall_syscall6X syscall.syscall6X
++func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno)
++
+ //go:linkname syscall_syscall9 syscall.syscall9
+ func syscall_syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err syscall.Errno)
+ 
+diff --git a/src/internal/syscall/unix/user_darwin.go b/src/internal/syscall/unix/user_darwin.go
+new file mode 100644
+index 0000000000..cfbc02917d
+--- /dev/null
++++ b/src/internal/syscall/unix/user_darwin.go
+@@ -0,0 +1,117 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"internal/abi"
++	"syscall"
++	"unsafe"
++)
++
++//go:cgo_import_dynamic libc_getgrouplist getgrouplist "/usr/lib/libSystem.B.dylib"
++func libc_getgrouplist_trampoline()
++
++func Getgrouplist(name *byte, gid uint32, gids *uint32, n *int32) error {
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_getgrouplist_trampoline),
++		uintptr(unsafe.Pointer(name)), uintptr(gid), uintptr(unsafe.Pointer(gids)),
++		uintptr(unsafe.Pointer(n)), 0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
++
++const (
++	SC_GETGR_R_SIZE_MAX = 0x46
++	SC_GETPW_R_SIZE_MAX = 0x47
++)
++
++type Passwd struct {
++	Name   *byte
++	Passwd *byte
++	Uid    uint32 // uid_t
++	Gid    uint32 // gid_t
++	Change int64  // time_t
++	Class  *byte
++	Gecos  *byte
++	Dir    *byte
++	Shell  *byte
++	Expire int64 // time_t
++}
++
++type Group struct {
++	Name   *byte
++	Passwd *byte
++	Gid    uint32 // gid_t
++	Mem    **byte
++}
++
++//go:cgo_import_dynamic libc_getpwnam_r getpwnam_r  "/usr/lib/libSystem.B.dylib"
++func libc_getpwnam_r_trampoline()
++
++func Getpwnam(name *byte, pwd *Passwd, buf *byte, size uintptr, result **Passwd) syscall.Errno {
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_getpwnam_r_trampoline),
++		uintptr(unsafe.Pointer(name)),
++		uintptr(unsafe.Pointer(pwd)),
++		uintptr(unsafe.Pointer(buf)),
++		size,
++		uintptr(unsafe.Pointer(result)),
++		0)
++	return errno
++}
++
++//go:cgo_import_dynamic libc_getpwuid_r getpwuid_r  "/usr/lib/libSystem.B.dylib"
++func libc_getpwuid_r_trampoline()
++
++func Getpwuid(uid uint32, pwd *Passwd, buf *byte, size uintptr, result **Passwd) syscall.Errno {
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_getpwuid_r_trampoline),
++		uintptr(uid),
++		uintptr(unsafe.Pointer(pwd)),
++		uintptr(unsafe.Pointer(buf)),
++		size,
++		uintptr(unsafe.Pointer(result)),
++		0)
++	return errno
++}
++
++//go:cgo_import_dynamic libc_getgrnam_r getgrnam_r  "/usr/lib/libSystem.B.dylib"
++func libc_getgrnam_r_trampoline()
++
++func Getgrnam(name *byte, grp *Group, buf *byte, size uintptr, result **Group) syscall.Errno {
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_getgrnam_r_trampoline),
++		uintptr(unsafe.Pointer(name)),
++		uintptr(unsafe.Pointer(grp)),
++		uintptr(unsafe.Pointer(buf)),
++		size,
++		uintptr(unsafe.Pointer(result)),
++		0)
++	return errno
++}
++
++//go:cgo_import_dynamic libc_getgrgid_r getgrgid_r  "/usr/lib/libSystem.B.dylib"
++func libc_getgrgid_r_trampoline()
++
++func Getgrgid(gid uint32, grp *Group, buf *byte, size uintptr, result **Group) syscall.Errno {
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_getgrgid_r_trampoline),
++		uintptr(gid),
++		uintptr(unsafe.Pointer(grp)),
++		uintptr(unsafe.Pointer(buf)),
++		size,
++		uintptr(unsafe.Pointer(result)),
++		0)
++	return errno
++}
++
++//go:cgo_import_dynamic libc_sysconf sysconf "/usr/lib/libSystem.B.dylib"
++func libc_sysconf_trampoline()
++
++func Sysconf(key int32) int64 {
++	val, _, errno := syscall_syscall6X(abi.FuncPCABI0(libc_sysconf_trampoline),
++		uintptr(key), 0, 0, 0, 0, 0)
++	if errno != 0 {
++		return -1
++	}
++	return int64(val)
++}
+diff --git a/src/os/user/cgo_listgroups_unix.go b/src/os/user/cgo_listgroups_unix.go
+index 0d937da334..59636954b2 100644
+--- a/src/os/user/cgo_listgroups_unix.go
++++ b/src/os/user/cgo_listgroups_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (dragonfly || darwin || freebsd || (!android && linux) || netbsd || openbsd || (solaris && !illumos)) && cgo && !osusergo
++//go:build (cgo || darwin) && !osusergo && (darwin || dragonfly || freebsd || (linux && !android) || netbsd || openbsd || (solaris && !illumos))
+ 
+ package user
+ 
+@@ -12,12 +12,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-/*
+-#include <unistd.h>
+-#include <sys/types.h>
+-*/
+-import "C"
+-
+ const maxGroups = 2048
+ 
+ func listGroups(u *User) ([]string, error) {
+@@ -25,13 +19,13 @@ func listGroups(u *User) ([]string, error) {
+ 	if err != nil {
+ 		return nil, fmt.Errorf("user: list groups for %s: invalid gid %q", u.Username, u.Gid)
+ 	}
+-	userGID := C.gid_t(ug)
++	userGID := _C_gid_t(ug)
+ 	nameC := make([]byte, len(u.Username)+1)
+ 	copy(nameC, u.Username)
+ 
+-	n := C.int(256)
+-	gidsC := make([]C.gid_t, n)
+-	rv := getGroupList((*C.char)(unsafe.Pointer(&nameC[0])), userGID, &gidsC[0], &n)
++	n := _C_int(256)
++	gidsC := make([]_C_gid_t, n)
++	rv := getGroupList((*_C_char)(unsafe.Pointer(&nameC[0])), userGID, &gidsC[0], &n)
+ 	if rv == -1 {
+ 		// Mac is the only Unix that does not set n properly when rv == -1, so
+ 		// we need to use different logic for Mac vs. the other OS's.
+@@ -46,3 +40,18 @@ func listGroups(u *User) ([]string, error) {
+ 	}
+ 	return gids, nil
+ }
++
++// groupRetry retries getGroupList with much larger size for n. The result is
++// stored in gids.
++func groupRetry(username string, name []byte, userGID _C_gid_t, gids *[]_C_gid_t, n *_C_int) error {
++	// More than initial buffer, but now n contains the correct size.
++	if *n > maxGroups {
++		return fmt.Errorf("user: %q is a member of more than %d groups", username, maxGroups)
++	}
++	*gids = make([]_C_gid_t, *n)
++	rv := getGroupList((*_C_char)(unsafe.Pointer(&name[0])), userGID, &(*gids)[0], n)
++	if rv == -1 {
++		return fmt.Errorf("user: list groups for %s failed", username)
++	}
++	return nil
++}
+diff --git a/src/os/user/cgo_lookup_cgo.go b/src/os/user/cgo_lookup_cgo.go
+new file mode 100644
+index 0000000000..17995738d2
+--- /dev/null
++++ b/src/os/user/cgo_lookup_cgo.go
+@@ -0,0 +1,106 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build cgo && !osusergo && unix && !android && !darwin
++
++package user
++
++import (
++	"syscall"
++)
++
++/*
++#cgo solaris CFLAGS: -D_POSIX_PTHREAD_SEMANTICS
++#include <unistd.h>
++#include <sys/types.h>
++#include <pwd.h>
++#include <grp.h>
++#include <stdlib.h>
++
++static struct passwd mygetpwuid_r(int uid, char *buf, size_t buflen, int *found, int *perr) {
++	struct passwd pwd;
++        struct passwd *result;
++        *perr = getpwuid_r(uid, &pwd, buf, buflen, &result);
++        *found = result != NULL;
++        return pwd;
++}
++
++static struct passwd mygetpwnam_r(const char *name, char *buf, size_t buflen, int *found, int *perr) {
++	struct passwd pwd;
++        struct passwd *result;
++        *perr = getpwnam_r(name, &pwd, buf, buflen, &result);
++        *found = result != NULL;
++        return pwd;
++}
++
++static struct group mygetgrgid_r(int gid, char *buf, size_t buflen, int *found, int *perr) {
++	struct group grp;
++        struct group *result;
++        *perr = getgrgid_r(gid, &grp, buf, buflen, &result);
++        *found = result != NULL;
++        return grp;
++}
++
++static struct group mygetgrnam_r(const char *name, char *buf, size_t buflen, int *found, int *perr) {
++	struct group grp;
++        struct group *result;
++        *perr = getgrnam_r(name, &grp, buf, buflen, &result);
++        *found = result != NULL;
++        return grp;
++}
++*/
++import "C"
++
++type _C_char = C.char
++type _C_int = C.int
++type _C_gid_t = C.gid_t
++type _C_uid_t = C.uid_t
++type _C_size_t = C.size_t
++type _C_struct_group = C.struct_group
++type _C_struct_passwd = C.struct_passwd
++type _C_long = C.long
++
++func _C_pw_uid(p *_C_struct_passwd) _C_uid_t   { return p.pw_uid }
++func _C_pw_uidp(p *_C_struct_passwd) *_C_uid_t { return &p.pw_uid }
++func _C_pw_gid(p *_C_struct_passwd) _C_gid_t   { return p.pw_gid }
++func _C_pw_gidp(p *_C_struct_passwd) *_C_gid_t { return &p.pw_gid }
++func _C_pw_name(p *_C_struct_passwd) *_C_char  { return p.pw_name }
++func _C_pw_gecos(p *_C_struct_passwd) *_C_char { return p.pw_gecos }
++func _C_pw_dir(p *_C_struct_passwd) *_C_char   { return p.pw_dir }
++
++func _C_gr_gid(g *_C_struct_group) _C_gid_t  { return g.gr_gid }
++func _C_gr_name(g *_C_struct_group) *_C_char { return g.gr_name }
++
++func _C_GoString(p *_C_char) string { return C.GoString(p) }
++
++func _C_getpwnam_r(name *_C_char, buf *_C_char, size _C_size_t) (pwd _C_struct_passwd, found bool, errno syscall.Errno) {
++	var f, e _C_int
++	pwd = C.mygetpwnam_r(name, buf, size, &f, &e)
++	return pwd, f != 0, syscall.Errno(e)
++}
++
++func _C_getpwuid_r(uid _C_uid_t, buf *_C_char, size _C_size_t) (pwd _C_struct_passwd, found bool, errno syscall.Errno) {
++	var f, e _C_int
++	pwd = C.mygetpwuid_r(_C_int(uid), buf, size, &f, &e)
++	return pwd, f != 0, syscall.Errno(e)
++}
++
++func _C_getgrnam_r(name *_C_char, buf *_C_char, size _C_size_t) (grp _C_struct_group, found bool, errno syscall.Errno) {
++	var f, e _C_int
++	grp = C.mygetgrnam_r(name, buf, size, &f, &e)
++	return grp, f != 0, syscall.Errno(e)
++}
++
++func _C_getgrgid_r(gid _C_gid_t, buf *_C_char, size _C_size_t) (grp _C_struct_group, found bool, errno syscall.Errno) {
++	var f, e _C_int
++	grp = C.mygetgrgid_r(_C_int(gid), buf, size, &f, &e)
++	return grp, f != 0, syscall.Errno(e)
++}
++
++const (
++	_C__SC_GETPW_R_SIZE_MAX = C._SC_GETPW_R_SIZE_MAX
++	_C__SC_GETGR_R_SIZE_MAX = C._SC_GETGR_R_SIZE_MAX
++)
++
++func _C_sysconf(key _C_int) _C_long { return C.sysconf(key) }
+diff --git a/src/os/user/cgo_lookup_syscall.go b/src/os/user/cgo_lookup_syscall.go
+new file mode 100644
+index 0000000000..321df652be
+--- /dev/null
++++ b/src/os/user/cgo_lookup_syscall.go
+@@ -0,0 +1,65 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !osusergo && darwin
++
++package user
++
++import (
++	"internal/syscall/unix"
++	"syscall"
++)
++
++type _C_char = byte
++type _C_int = int32
++type _C_gid_t = uint32
++type _C_uid_t = uint32
++type _C_size_t = uintptr
++type _C_struct_group = unix.Group
++type _C_struct_passwd = unix.Passwd
++type _C_long = int64
++
++func _C_pw_uid(p *_C_struct_passwd) _C_uid_t   { return p.Uid }
++func _C_pw_uidp(p *_C_struct_passwd) *_C_uid_t { return &p.Uid }
++func _C_pw_gid(p *_C_struct_passwd) _C_gid_t   { return p.Gid }
++func _C_pw_gidp(p *_C_struct_passwd) *_C_gid_t { return &p.Gid }
++func _C_pw_name(p *_C_struct_passwd) *_C_char  { return p.Name }
++func _C_pw_gecos(p *_C_struct_passwd) *_C_char { return p.Gecos }
++func _C_pw_dir(p *_C_struct_passwd) *_C_char   { return p.Dir }
++
++func _C_gr_gid(g *_C_struct_group) _C_gid_t  { return g.Gid }
++func _C_gr_name(g *_C_struct_group) *_C_char { return g.Name }
++
++func _C_GoString(p *_C_char) string { return unix.GoString(p) }
++
++func _C_getpwnam_r(name *_C_char, buf *_C_char, size _C_size_t) (pwd _C_struct_passwd, found bool, errno syscall.Errno) {
++	var result *_C_struct_passwd
++	errno = unix.Getpwnam(name, &pwd, buf, size, &result)
++	return pwd, result != nil, errno
++}
++
++func _C_getpwuid_r(uid _C_uid_t, buf *_C_char, size _C_size_t) (pwd _C_struct_passwd, found bool, errno syscall.Errno) {
++	var result *_C_struct_passwd
++	errno = unix.Getpwuid(uid, &pwd, buf, size, &result)
++	return pwd, result != nil, errno
++}
++
++func _C_getgrnam_r(name *_C_char, buf *_C_char, size _C_size_t) (grp _C_struct_group, found bool, errno syscall.Errno) {
++	var result *_C_struct_group
++	errno = unix.Getgrnam(name, &grp, buf, size, &result)
++	return grp, result != nil, errno
++}
++
++func _C_getgrgid_r(gid _C_gid_t, buf *_C_char, size _C_size_t) (grp _C_struct_group, found bool, errno syscall.Errno) {
++	var result *_C_struct_group
++	errno = unix.Getgrgid(gid, &grp, buf, size, &result)
++	return grp, result != nil, errno
++}
++
++const (
++	_C__SC_GETPW_R_SIZE_MAX = unix.SC_GETPW_R_SIZE_MAX
++	_C__SC_GETGR_R_SIZE_MAX = unix.SC_GETGR_R_SIZE_MAX
++)
++
++func _C_sysconf(key _C_int) _C_long { return unix.Sysconf(key) }
+diff --git a/src/os/user/cgo_lookup_unix.go b/src/os/user/cgo_lookup_unix.go
+index 8d328a17a8..81787fee2b 100644
+--- a/src/os/user/cgo_lookup_unix.go
++++ b/src/os/user/cgo_lookup_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix && !android && cgo && !osusergo
++//go:build (cgo || darwin) && !osusergo && unix && !android
+ 
+ package user
+ 
+@@ -14,65 +14,21 @@ import (
+ 	"unsafe"
+ )
+ 
+-/*
+-#cgo solaris CFLAGS: -D_POSIX_PTHREAD_SEMANTICS
+-#include <unistd.h>
+-#include <sys/types.h>
+-#include <pwd.h>
+-#include <grp.h>
+-#include <stdlib.h>
+-
+-static struct passwd mygetpwuid_r(int uid, char *buf, size_t buflen, int *found, int *perr) {
+-	struct passwd pwd;
+-        struct passwd *result;
+-        *perr = getpwuid_r(uid, &pwd, buf, buflen, &result);
+-        *found = result != NULL;
+-        return pwd;
+-}
+-
+-static struct passwd mygetpwnam_r(const char *name, char *buf, size_t buflen, int *found, int *perr) {
+-	struct passwd pwd;
+-        struct passwd *result;
+-        *perr = getpwnam_r(name, &pwd, buf, buflen, &result);
+-        *found = result != NULL;
+-        return pwd;
+-}
+-
+-static struct group mygetgrgid_r(int gid, char *buf, size_t buflen, int *found, int *perr) {
+-	struct group grp;
+-        struct group *result;
+-        *perr = getgrgid_r(gid, &grp, buf, buflen, &result);
+-        *found = result != NULL;
+-        return grp;
+-}
+-
+-static struct group mygetgrnam_r(const char *name, char *buf, size_t buflen, int *found, int *perr) {
+-	struct group grp;
+-        struct group *result;
+-        *perr = getgrnam_r(name, &grp, buf, buflen, &result);
+-        *found = result != NULL;
+-        return grp;
+-}
+-*/
+-import "C"
+-
+ func current() (*User, error) {
+ 	return lookupUnixUid(syscall.Getuid())
+ }
+ 
+ func lookupUser(username string) (*User, error) {
+-	var pwd C.struct_passwd
++	var pwd _C_struct_passwd
+ 	var found bool
+ 	nameC := make([]byte, len(username)+1)
+ 	copy(nameC, username)
+ 
+ 	err := retryWithBuffer(userBuffer, func(buf []byte) syscall.Errno {
+-		var cfound, cerr C.int
+-		pwd = C.mygetpwnam_r((*C.char)(unsafe.Pointer(&nameC[0])),
+-			(*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf)),
+-			&cfound, &cerr)
+-		found = cfound != 0
+-		return syscall.Errno(cerr)
++		var errno syscall.Errno
++		pwd, found, errno = _C_getpwnam_r((*_C_char)(unsafe.Pointer(&nameC[0])),
++			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))
++		return errno
+ 	})
+ 	if err != nil {
+ 		return nil, fmt.Errorf("user: lookup username %s: %v", username, err)
+@@ -92,16 +48,14 @@ func lookupUserId(uid string) (*User, error) {
+ }
+ 
+ func lookupUnixUid(uid int) (*User, error) {
+-	var pwd C.struct_passwd
++	var pwd _C_struct_passwd
+ 	var found bool
+ 
+ 	err := retryWithBuffer(userBuffer, func(buf []byte) syscall.Errno {
+-		var cfound, cerr C.int
+-		pwd = C.mygetpwuid_r(C.int(uid),
+-			(*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf)),
+-			&cfound, &cerr)
+-		found = cfound != 0
+-		return syscall.Errno(cerr)
++		var errno syscall.Errno
++		pwd, found, errno = _C_getpwuid_r(_C_uid_t(uid),
++			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))
++		return errno
+ 	})
+ 	if err != nil {
+ 		return nil, fmt.Errorf("user: lookup userid %d: %v", uid, err)
+@@ -112,13 +66,13 @@ func lookupUnixUid(uid int) (*User, error) {
+ 	return buildUser(&pwd), nil
+ }
+ 
+-func buildUser(pwd *C.struct_passwd) *User {
++func buildUser(pwd *_C_struct_passwd) *User {
+ 	u := &User{
+-		Uid:      strconv.FormatUint(uint64(pwd.pw_uid), 10),
+-		Gid:      strconv.FormatUint(uint64(pwd.pw_gid), 10),
+-		Username: C.GoString(pwd.pw_name),
+-		Name:     C.GoString(pwd.pw_gecos),
+-		HomeDir:  C.GoString(pwd.pw_dir),
++		Uid:      strconv.FormatUint(uint64(_C_pw_uid(pwd)), 10),
++		Gid:      strconv.FormatUint(uint64(_C_pw_gid(pwd)), 10),
++		Username: _C_GoString(_C_pw_name(pwd)),
++		Name:     _C_GoString(_C_pw_gecos(pwd)),
++		HomeDir:  _C_GoString(_C_pw_dir(pwd)),
+ 	}
+ 	// The pw_gecos field isn't quite standardized. Some docs
+ 	// say: "It is expected to be a comma separated list of
+@@ -129,19 +83,17 @@ func buildUser(pwd *C.struct_passwd) *User {
+ }
+ 
+ func lookupGroup(groupname string) (*Group, error) {
+-	var grp C.struct_group
++	var grp _C_struct_group
+ 	var found bool
+ 
+ 	cname := make([]byte, len(groupname)+1)
+ 	copy(cname, groupname)
+ 
+ 	err := retryWithBuffer(groupBuffer, func(buf []byte) syscall.Errno {
+-		var cfound, cerr C.int
+-		grp = C.mygetgrnam_r((*C.char)(unsafe.Pointer(&cname[0])),
+-			(*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf)),
+-			&cfound, &cerr)
+-		found = cfound != 0
+-		return syscall.Errno(cerr)
++		var errno syscall.Errno
++		grp, found, errno = _C_getgrnam_r((*_C_char)(unsafe.Pointer(&cname[0])),
++			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))
++		return errno
+ 	})
+ 	if err != nil {
+ 		return nil, fmt.Errorf("user: lookup groupname %s: %v", groupname, err)
+@@ -161,16 +113,14 @@ func lookupGroupId(gid string) (*Group, error) {
+ }
+ 
+ func lookupUnixGid(gid int) (*Group, error) {
+-	var grp C.struct_group
++	var grp _C_struct_group
+ 	var found bool
+ 
+ 	err := retryWithBuffer(groupBuffer, func(buf []byte) syscall.Errno {
+-		var cfound, cerr C.int
+-		grp = C.mygetgrgid_r(C.int(gid),
+-			(*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf)),
+-			&cfound, &cerr)
+-		found = cfound != 0
+-		return syscall.Errno(cerr)
++		var errno syscall.Errno
++		grp, found, errno = _C_getgrgid_r(_C_gid_t(gid),
++			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))
++		return syscall.Errno(errno)
+ 	})
+ 	if err != nil {
+ 		return nil, fmt.Errorf("user: lookup groupid %d: %v", gid, err)
+@@ -181,23 +131,23 @@ func lookupUnixGid(gid int) (*Group, error) {
+ 	return buildGroup(&grp), nil
+ }
+ 
+-func buildGroup(grp *C.struct_group) *Group {
++func buildGroup(grp *_C_struct_group) *Group {
+ 	g := &Group{
+-		Gid:  strconv.Itoa(int(grp.gr_gid)),
+-		Name: C.GoString(grp.gr_name),
++		Gid:  strconv.Itoa(int(_C_gr_gid(grp))),
++		Name: _C_GoString(_C_gr_name(grp)),
+ 	}
+ 	return g
+ }
+ 
+-type bufferKind C.int
++type bufferKind _C_int
+ 
+ const (
+-	userBuffer  = bufferKind(C._SC_GETPW_R_SIZE_MAX)
+-	groupBuffer = bufferKind(C._SC_GETGR_R_SIZE_MAX)
++	userBuffer  = bufferKind(_C__SC_GETPW_R_SIZE_MAX)
++	groupBuffer = bufferKind(_C__SC_GETGR_R_SIZE_MAX)
+ )
+ 
+-func (k bufferKind) initialSize() C.size_t {
+-	sz := C.sysconf(C.int(k))
++func (k bufferKind) initialSize() _C_size_t {
++	sz := _C_sysconf(_C_int(k))
+ 	if sz == -1 {
+ 		// DragonFly and FreeBSD do not have _SC_GETPW_R_SIZE_MAX.
+ 		// Additionally, not all Linux systems have it, either. For
+@@ -208,7 +158,7 @@ func (k bufferKind) initialSize() C.size_t {
+ 		// Truncate.  If this truly isn't enough, retryWithBuffer will error on the first run.
+ 		return maxBufferSize
+ 	}
+-	return C.size_t(sz)
++	return _C_size_t(sz)
+ }
+ 
+ // retryWithBuffer repeatedly calls f(), increasing the size of the
+@@ -238,9 +188,9 @@ func isSizeReasonable(sz int64) bool {
+ }
+ 
+ // Because we can't use cgo in tests:
+-func structPasswdForNegativeTest() C.struct_passwd {
+-	sp := C.struct_passwd{}
+-	sp.pw_uid = 1<<32 - 2
+-	sp.pw_gid = 1<<32 - 3
++func structPasswdForNegativeTest() _C_struct_passwd {
++	sp := _C_struct_passwd{}
++	*_C_pw_uidp(&sp) = 1<<32 - 2
++	*_C_pw_gidp(&sp) = 1<<32 - 3
+ 	return sp
+ }
+diff --git a/src/os/user/getgrouplist_darwin.go b/src/os/user/getgrouplist_darwin.go
+deleted file mode 100644
+index db6fb87e23..0000000000
+--- a/src/os/user/getgrouplist_darwin.go
++++ /dev/null
+@@ -1,54 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build cgo && !osusergo
+-
+-package user
+-
+-/*
+-#include <unistd.h>
+-#include <sys/types.h>
+-#include <stdlib.h>
+-
+-static int mygetgrouplist(const char* user, gid_t group, gid_t* groups, int* ngroups) {
+-	int* buf = malloc(*ngroups * sizeof(int));
+-	int rv = getgrouplist(user, (int) group, buf, ngroups);
+-	int i;
+-	if (rv == 0) {
+-		for (i = 0; i < *ngroups; i++) {
+-			groups[i] = (gid_t) buf[i];
+-		}
+-	}
+-	free(buf);
+-	return rv;
+-}
+-*/
+-import "C"
+-import (
+-	"fmt"
+-	"unsafe"
+-)
+-
+-func getGroupList(name *C.char, userGID C.gid_t, gids *C.gid_t, n *C.int) C.int {
+-	return C.mygetgrouplist(name, userGID, gids, n)
+-}
+-
+-// groupRetry retries getGroupList with an increasingly large size for n. The
+-// result is stored in gids.
+-func groupRetry(username string, name []byte, userGID C.gid_t, gids *[]C.gid_t, n *C.int) error {
+-	*n = C.int(256 * 2)
+-	for {
+-		*gids = make([]C.gid_t, *n)
+-		rv := getGroupList((*C.char)(unsafe.Pointer(&name[0])), userGID, &(*gids)[0], n)
+-		if rv >= 0 {
+-			// n is set correctly
+-			break
+-		}
+-		if *n > maxGroups {
+-			return fmt.Errorf("user: %q is a member of more than %d groups", username, maxGroups)
+-		}
+-		*n = *n * C.int(2)
+-	}
+-	return nil
+-}
+diff --git a/src/os/user/getgrouplist_syscall.go b/src/os/user/getgrouplist_syscall.go
+new file mode 100644
+index 0000000000..41b64fca93
+--- /dev/null
++++ b/src/os/user/getgrouplist_syscall.go
+@@ -0,0 +1,19 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !osusergo && darwin
++
++package user
++
++import (
++	"internal/syscall/unix"
++)
++
++func getGroupList(name *_C_char, userGID _C_gid_t, gids *_C_gid_t, n *_C_int) _C_int {
++	err := unix.Getgrouplist(name, userGID, gids, n)
++	if err != nil {
++		return -1
++	}
++	return 0
++}
+diff --git a/src/os/user/getgrouplist_unix.go b/src/os/user/getgrouplist_unix.go
+index 104c2243df..fb482d35ba 100644
+--- a/src/os/user/getgrouplist_unix.go
++++ b/src/os/user/getgrouplist_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (dragonfly || freebsd || (!android && linux) || netbsd || openbsd || (solaris && !illumos)) && cgo && !osusergo
++//go:build cgo && !osusergo && (dragonfly || freebsd || (!android && linux) || netbsd || openbsd || (solaris && !illumos))
+ 
+ package user
+ 
+@@ -16,26 +16,7 @@ static int mygetgrouplist(const char* user, gid_t group, gid_t* groups, int* ngr
+ }
+ */
+ import "C"
+-import (
+-	"fmt"
+-	"unsafe"
+-)
+ 
+-func getGroupList(name *C.char, userGID C.gid_t, gids *C.gid_t, n *C.int) C.int {
++func getGroupList(name *_C_char, userGID _C_gid_t, gids *_C_gid_t, n *_C_int) _C_int {
+ 	return C.mygetgrouplist(name, userGID, gids, n)
+ }
+-
+-// groupRetry retries getGroupList with much larger size for n. The result is
+-// stored in gids.
+-func groupRetry(username string, name []byte, userGID C.gid_t, gids *[]C.gid_t, n *C.int) error {
+-	// More than initial buffer, but now n contains the correct size.
+-	if *n > maxGroups {
+-		return fmt.Errorf("user: %q is a member of more than %d groups", username, maxGroups)
+-	}
+-	*gids = make([]C.gid_t, *n)
+-	rv := getGroupList((*C.char)(unsafe.Pointer(&name[0])), userGID, &(*gids)[0], n)
+-	if rv == -1 {
+-		return fmt.Errorf("user: list groups for %s failed", username)
+-	}
+-	return nil
+-}
+diff --git a/src/os/user/listgroups_unix.go b/src/os/user/listgroups_unix.go
+index fa2df4931c..ef366fa280 100644
+--- a/src/os/user/listgroups_unix.go
++++ b/src/os/user/listgroups_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ((darwin || dragonfly || freebsd || (js && wasm) || (!android && linux) || netbsd || openbsd || solaris) && (!cgo || osusergo)) || aix || illumos
++//go:build ((darwin || dragonfly || freebsd || (js && wasm) || (!android && linux) || netbsd || openbsd || solaris) && ((!cgo && !darwin) || osusergo)) || aix || illumos
+ 
+ package user
+ 
+@@ -16,10 +16,6 @@ import (
+ 	"strconv"
+ )
+ 
+-const groupFile = "/etc/group"
+-
+-var colon = []byte{':'}
+-
+ func listGroupsFromReader(u *User, r io.Reader) ([]string, error) {
+ 	if u.Username == "" {
+ 		return nil, errors.New("user: list groups: empty username")
+diff --git a/src/os/user/listgroups_unix_test.go b/src/os/user/listgroups_unix_test.go
+index a9f79ec6bb..4fa8b1f29b 100644
+--- a/src/os/user/listgroups_unix_test.go
++++ b/src/os/user/listgroups_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ((darwin || dragonfly || freebsd || (js && wasm) || (!android && linux) || netbsd || openbsd || solaris) && (!cgo || osusergo)) || aix || illumos
++//go:build ((darwin || dragonfly || freebsd || (js && wasm) || (!android && linux) || netbsd || openbsd || solaris) && ((!cgo && !darwin) || osusergo)) || aix || illumos
+ 
+ package user
+ 
+@@ -25,7 +25,7 @@ invalidgid:*:notanumber:root
+ -minussign:*:21:root
+ # Next line is invalid (empty group name)
+ :*:22:root
+-      
++
+ daemon:*:1:root
+     indented:*:7:root
+ # comment:*:4:found
+diff --git a/src/os/user/lookup.go b/src/os/user/lookup.go
+index b36b7c01c0..ed33d0c7cd 100644
+--- a/src/os/user/lookup.go
++++ b/src/os/user/lookup.go
+@@ -6,6 +6,13 @@ package user
+ 
+ import "sync"
+ 
++const (
++	userFile  = "/etc/passwd"
++	groupFile = "/etc/group"
++)
++
++var colon = []byte{':'}
++
+ // Current returns the current user.
+ //
+ // The first call will cache the current user information.
+diff --git a/src/os/user/lookup_plan9.go b/src/os/user/lookup_plan9.go
+index 07939363e7..dcc9319268 100644
+--- a/src/os/user/lookup_plan9.go
++++ b/src/os/user/lookup_plan9.go
+@@ -13,9 +13,6 @@ import (
+ // Partial os/user support on Plan 9.
+ // Supports Current(), but not Lookup()/LookupId().
+ // The latter two would require parsing /adm/users.
+-const (
+-	userFile = "/dev/user"
+-)
+ 
+ func init() {
+ 	userImplemented = false
+@@ -24,7 +21,7 @@ func init() {
+ }
+ 
+ func current() (*User, error) {
+-	ubytes, err := os.ReadFile(userFile)
++	ubytes, err := os.ReadFile("/dev/user")
+ 	if err != nil {
+ 		return nil, fmt.Errorf("user: %s", err)
+ 	}
+diff --git a/src/os/user/lookup_stubs.go b/src/os/user/lookup_stubs.go
+index ce1617d250..b02c1ffa28 100644
+--- a/src/os/user/lookup_stubs.go
++++ b/src/os/user/lookup_stubs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (!cgo && !windows && !plan9) || android || (osusergo && !windows && !plan9)
++//go:build (!cgo && !darwin && !windows && !plan9) || android || (osusergo && !windows && !plan9)
+ 
+ package user
+ 
+diff --git a/src/os/user/lookup_unix.go b/src/os/user/lookup_unix.go
+index ed06e73fbc..608d9b2140 100644
+--- a/src/os/user/lookup_unix.go
++++ b/src/os/user/lookup_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ((unix && !android) || (js && wasm)) && (!cgo || osusergo)
++//go:build ((unix && !android) || (js && wasm)) && ((!cgo && !darwin) || osusergo)
+ 
+ package user
+ 
+@@ -16,8 +16,6 @@ import (
+ 	"strings"
+ )
+ 
+-const userFile = "/etc/passwd"
+-
+ // lineFunc returns a value, an error, or (nil, nil) to skip the row.
+ type lineFunc func(line []byte) (v any, err error)
+ 
+diff --git a/src/os/user/lookup_unix_test.go b/src/os/user/lookup_unix_test.go
+index 399a03fc3c..78b33922ba 100644
+--- a/src/os/user/lookup_unix_test.go
++++ b/src/os/user/lookup_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix && !android && !cgo
++//go:build unix && !android && !cgo && !darwin
+ 
+ package user
+ 

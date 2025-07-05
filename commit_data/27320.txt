@@ -11,8 +11,46 @@ Date:   Mon Mar 21 19:55:04 2016 +1300
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/link.go | 1 -
  src/cmd/link/internal/ld/pobj.go | 2 +-
  src/cmd/link/internal/ld/sym.go  | 1 -
  3 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 1b042ba1dc..81d2a58d85 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -178,7 +178,6 @@ type Link struct {
+ 	HashVersion map[symVer]*LSym
+ 
+ 	Allsym     []*LSym
+-	Nsymbol    int32
+ 	Tlsg       *LSym
+ 	Libdir     []string
+ 	Library    []*Library
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+index eeb012d9f8..f48b54efda 100644
+--- a/src/cmd/link/internal/ld/pobj.go
++++ b/src/cmd/link/internal/ld/pobj.go
+@@ -215,7 +215,7 @@ func Ldmain() {
+ 	archive()
+ 	if Debug['v'] != 0 {
+ 		fmt.Fprintf(&Bso, "%5.2f cpu time\n", obj.Cputime())
+-		fmt.Fprintf(&Bso, "%d symbols\n", Ctxt.Nsymbol)
++		fmt.Fprintf(&Bso, "%d symbols\n", len(Ctxt.Allsym))
+ 		fmt.Fprintf(&Bso, "%d liveness data\n", liveness)
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 86e0544f0d..3c4dc5587f 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -171,7 +171,6 @@ func linknewsym(ctxt *Link, symb string, v int) *LSym {
+ 	s.Got = -1
+ 	s.Name = symb
+ 	s.Version = int16(v)
+-	ctxt.Nsymbol++
+ 	ctxt.Allsym = append(ctxt.Allsym, s)
+ 
+ 	return s

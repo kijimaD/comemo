@@ -16,6 +16,20 @@ Date:   Fri Jan 10 00:06:43 2025 +0100
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/internal/sysrand/rand_linux_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/crypto/internal/sysrand/rand_linux_test.go b/src/crypto/internal/sysrand/rand_linux_test.go
+index 417523c29d..ab43904f91 100644
+--- a/src/crypto/internal/sysrand/rand_linux_test.go
++++ b/src/crypto/internal/sysrand/rand_linux_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ package sysrand_test
+ 
+ import (

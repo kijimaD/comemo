@@ -8,7 +8,7 @@ Date:   Wed Apr 15 18:38:37 2009 -0700
     DELTA=252  (240 added, 3 deleted, 9 changed)
     OCL=27482
     CL=27521
-
+---
  usr/gri/pretty/package.html     | 45 ++++++++++++++++++++++++++++++
  usr/gri/pretty/package.txt      | 61 +++++++++++++++++++++++++++++++++++++++++
  usr/gri/pretty/packagelist.html | 15 ++++++++++
@@ -16,3 +16,182 @@ Date:   Wed Apr 15 18:38:37 2009 -0700
  usr/gri/pretty/parseerror.html  |  4 +++
  usr/gri/pretty/parseerror.txt   |  6 ++++
  6 files changed, 142 insertions(+)
+
+diff --git a/usr/gri/pretty/package.html b/usr/gri/pretty/package.html
+new file mode 100644
+index 0000000000..5e3cbc40bd
+--- /dev/null
++++ b/usr/gri/pretty/package.html
+@@ -0,0 +1,45 @@
++<h1>package {PackageName|html}</h1>
++<p><code>import "{ImportPath|html}"</code></p>
++
++{Doc|html-comment}
++{.section Consts}
++	<h2>Constants</h2>
++	{.repeated section @}
++		{Doc|html-comment}
++		<pre>{Decl|html}</pre>
++	{.end}
++{.end}
++{.section Vars}
++	<hr />
++	<h2>Variables</h2>
++	{.repeated section @}
++		{Doc|html-comment}
++		<pre>{Decl|html}</pre>
++	{.end}
++{.end}
++{.section Funcs}
++	<hr />
++	{.repeated section @}
++		<h2>func {Name|html}</h2>
++		<p><code>{Decl|html}</code></p>
++		{Doc|html-comment}
++	{.end}
++{.end}
++{.section Types}
++	<hr />
++	{.repeated section @}
++		<h2>type {.section Type}{Name|html}{.end}</h2>
++		{Doc}
++		<p><code>{Decl|html}</code></p>
++		{.repeated section Factories}
++			<h3>func {Name|html}</h3>
++			<p><code>{Decl|html}</code></p>
++			{Doc|html-comment}
++		{.end}
++		{.repeated section Methods}
++			<h3>func ({Recv|html}) {Name|html}</h3>
++			<p><code>{Decl|html}</code></p>
++			{Doc|html-comment}
++		{.end}
++	{.end}
++{.end}
+diff --git a/usr/gri/pretty/package.txt b/usr/gri/pretty/package.txt
+new file mode 100644
+index 0000000000..127529e96d
+--- /dev/null
++++ b/usr/gri/pretty/package.txt
+@@ -0,0 +1,61 @@
++PACKAGE
++
++package {PackageName}
++import "{ImportPath}"
++{.section Doc}
++
++{@}
++{.end}
++{.section Consts}
++
++CONSTANTS
++{.repeated section @}
++{# the .repeated section, .section idiom skips over nils in the array}
++
++{Decl}
++
++{Doc}
++{.end}
++{.end}
++{.section Vars}
++
++VARIABLES
++{.repeated section @}
++
++{Decl}
++
++{Doc}
++{.end}
++{.end}
++{.section Funcs}
++
++FUNCTIONS
++{.repeated section @}
++
++{Decl}
++
++{Doc}
++{.end}
++{.end}
++{.section Types}
++
++TYPES
++{.repeated section @}
++
++{Decl}
++
++{Doc}
++{.repeated section Factories}
++
++{Decl}
++
++{Doc}
++{.end}
++{.repeated section Methods}
++
++{Decl}
++
++{Doc}
++{.end}
++{.end}
++{.end}
+diff --git a/usr/gri/pretty/packagelist.html b/usr/gri/pretty/packagelist.html
+new file mode 100644
+index 0000000000..ffe95da7d7
+--- /dev/null
++++ b/usr/gri/pretty/packagelist.html
+@@ -0,0 +1,15 @@
++{.section Packages}
++<b>Packages</b><br />
++{.repeated section @}
++<a href="{pakname|html}">{importpath|html}</a><br />
++{.end}
++{.or}
++No such package {Path|html}<br />
++{.end}
++{.section Subdirs}
++<br />
++<b>Directories</b><br />
++{.repeated section @}
++<a href="{Name|html}/">{Path|html}{Name|html}/</a><br />
++{.end}
++{.end}
+diff --git a/usr/gri/pretty/packagelist.txt b/usr/gri/pretty/packagelist.txt
+new file mode 100644
+index 0000000000..380cfa3763
+--- /dev/null
++++ b/usr/gri/pretty/packagelist.txt
+@@ -0,0 +1,11 @@
++{.section Packages}
++{# TODO .or doesn't work on .repeated - template bug}
++{.repeated section @}
++godoc {pakname}
++{.end}
++{.or}
++package not found: {Path}
++{.end}
++{.repeated section Subdirs}
++godoc {Path}/{Name}/
++{.end}
+diff --git a/usr/gri/pretty/parseerror.html b/usr/gri/pretty/parseerror.html
+new file mode 100644
+index 0000000000..4d12425e48
+--- /dev/null
++++ b/usr/gri/pretty/parseerror.html
+@@ -0,0 +1,4 @@
++<h1>Parse errors in {filename}</h1>
++<pre>
++{.repeated section list}
++{src}{.section msg}<b><font color=red>«{msg|html}»</font></b>{.end}{.end}</pre>
+diff --git a/usr/gri/pretty/parseerror.txt b/usr/gri/pretty/parseerror.txt
+new file mode 100644
+index 0000000000..609cb511b5
+--- /dev/null
++++ b/usr/gri/pretty/parseerror.txt
+@@ -0,0 +1,6 @@
++parse errors:
++{.repeated section list}
++{.section msg}
++{filename}:{line}: {msg}
++{.end}
++{.end}

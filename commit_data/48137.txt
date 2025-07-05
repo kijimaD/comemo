@@ -16,10 +16,219 @@ Date:   Tue Apr 27 12:12:01 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/314409
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go          | 13 +++--
  src/cmd/compile/internal/types2/expr.go            |  6 +++
  .../internal/types2/fixedbugs/issue45635.go2       | 32 +++++++++++++
  src/cmd/compile/internal/types2/index.go           | 55 +++++++++++++++-------
  .../compile/internal/types2/testdata/typeinst.go2  |  6 +--
  5 files changed, 86 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 80250212dd..e7b8840b33 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1291,16 +1291,15 @@ func (p *parser) typeInstance(typ Expr) Expr {
+ 
+ 	pos := p.pos()
+ 	p.want(_Lbrack)
+-	if p.tok == _Rbrack {
+-		p.error("expecting type")
+-		p.next()
+-		return typ
+-	}
+-
+ 	x := new(IndexExpr)
+ 	x.pos = pos
+ 	x.X = typ
+-	x.Index, _ = p.typeList()
++	if p.tok == _Rbrack {
++		p.syntaxError("expecting type")
++		x.Index = p.badExpr()
++	} else {
++		x.Index, _ = p.typeList()
++	}
+ 	p.want(_Rbrack)
+ 	return x
+ }
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 8dbe6ea537..23b79656bb 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -508,6 +508,7 @@ func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
+ 		*syntax.IndexExpr,
+ 		*syntax.SliceExpr,
+ 		*syntax.AssertExpr,
++		*syntax.ListExpr,
+ 		//*syntax.StarExpr,
+ 		*syntax.KeyValueExpr,
+ 		*syntax.ArrayType,
+@@ -1410,6 +1411,11 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 	case *syntax.CallExpr:
+ 		return check.callExpr(x, e)
+ 
++	case *syntax.ListExpr:
++		// catch-all for unexpected expression lists
++		check.error(e, "unexpected list of expressions")
++		goto Error
++
+ 	// case *syntax.UnaryExpr:
+ 	// 	check.expr(x, e.X)
+ 	// 	if x.mode == invalid {
+diff --git a/src/cmd/compile/internal/types2/fixedbugs/issue45635.go2 b/src/cmd/compile/internal/types2/fixedbugs/issue45635.go2
+new file mode 100644
+index 0000000000..65662cdc76
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/fixedbugs/issue45635.go2
+@@ -0,0 +1,32 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	some /* ERROR "undeclared name" */ [int, int]()
++}
++
++type N[T any] struct{}
++
++var _ N[] /* ERROR expecting type */
++
++type I interface {
++	type map[int]int, []int
++}
++
++func _[T I](i, j int) {
++	var m map[int]int
++	_ = m[i, j /* ERROR more than one index */ ]
++
++	var a [3]int
++	_ = a[i, j /* ERROR more than one index */ ]
++
++	var s []int
++	_ = s[i, j /* ERROR more than one index */ ]
++
++	var t T
++	// TODO(gri) fix multiple error below
++	_ = t[i, j /* ERROR more than one index */ /* ERROR more than one index */ ]
++}
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index d9a402f212..c94017a8fb 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -77,8 +77,13 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
+ 		x.typ = typ.elem
+ 
+ 	case *Map:
++		index := check.singleIndex(e)
++		if index == nil {
++			x.mode = invalid
++			return
++		}
+ 		var key operand
+-		check.expr(&key, e.Index)
++		check.expr(&key, index)
+ 		check.assignment(&key, typ.key, "map index")
+ 		// ok to continue even if indexing failed - map element type is known
+ 		x.mode = mapindex
+@@ -132,8 +137,13 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
+ 			// If there are maps, the index expression must be assignable
+ 			// to the map key type (as for simple map index expressions).
+ 			if nmaps > 0 {
++				index := check.singleIndex(e)
++				if index == nil {
++					x.mode = invalid
++					return
++				}
+ 				var key operand
+-				check.expr(&key, e.Index)
++				check.expr(&key, index)
+ 				check.assignment(&key, tkey, "map index")
+ 				// ok to continue even if indexing failed - map element type is known
+ 
+@@ -170,24 +180,12 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
+ 		return
+ 	}
+ 
+-	if e.Index == nil {
+-		check.errorf(e, invalidAST+"missing index for %s", x)
++	index := check.singleIndex(e)
++	if index == nil {
+ 		x.mode = invalid
+ 		return
+ 	}
+ 
+-	index := e.Index
+-	if l, _ := index.(*syntax.ListExpr); l != nil {
+-		if n := len(l.ElemList); n <= 1 {
+-			check.errorf(e, invalidAST+"invalid use of ListExpr for index expression %v with %d indices", e, n)
+-			x.mode = invalid
+-			return
+-		}
+-		// len(l.ElemList) > 1
+-		check.error(l.ElemList[1], invalidOp+"more than one index")
+-		index = l.ElemList[0] // continue with first index
+-	}
+-
+ 	// In pathological (invalid) cases (e.g.: type T1 [][[]T1{}[0][0]]T0)
+ 	// the element type may be accessed before it's set. Make sure we have
+ 	// a valid type.
+@@ -310,6 +308,27 @@ L:
+ 	}
+ }
+ 
++// singleIndex returns the (single) index from the index expression e.
++// If the index is missing, or if there are multiple indices, an error
++// is reported and the result is nil.
++func (check *Checker) singleIndex(e *syntax.IndexExpr) syntax.Expr {
++	index := e.Index
++	if index == nil {
++		check.errorf(e, invalidAST+"missing index for %s", e.X)
++		return nil
++	}
++	if l, _ := index.(*syntax.ListExpr); l != nil {
++		if n := len(l.ElemList); n <= 1 {
++			check.errorf(e, invalidAST+"invalid use of ListExpr for index expression %v with %d indices", e, n)
++			return nil
++		}
++		// len(l.ElemList) > 1
++		check.error(l.ElemList[1], invalidOp+"more than one index")
++		index = l.ElemList[0] // continue with first index
++	}
++	return index
++}
++
+ // index checks an index expression for validity.
+ // If max >= 0, it is the upper bound for index.
+ // If the result typ is != Typ[Invalid], index is valid and typ is its (possibly named) integer type.
+@@ -347,6 +366,10 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64)
+ 	return x.typ, v
+ }
+ 
++// isValidIndex checks whether operand x satisfies the criteria for integer
++// index values. If allowNegative is set, a constant operand may be negative.
++// If the operand is not valid, an error is reported (using what as context)
++// and the result is false.
+ func (check *Checker) isValidIndex(x *operand, what string, allowNegative bool) bool {
+ 	if x.mode == invalid {
+ 		return false
+diff --git a/src/cmd/compile/internal/types2/testdata/typeinst.go2 b/src/cmd/compile/internal/types2/testdata/typeinst.go2
+index 6757cd57fd..0d628cb9d0 100644
+--- a/src/cmd/compile/internal/types2/testdata/typeinst.go2
++++ b/src/cmd/compile/internal/types2/testdata/typeinst.go2
+@@ -33,11 +33,11 @@ var _ A3
+ var x int
+ type _ x /* ERROR not a type */ [int]
+ 
+-type _ int[] // ERROR expecting type
+-type _ myInt[] // ERROR expecting type
++type _ int /* ERROR not a generic type */ [] // ERROR expecting type
++type _ myInt /* ERROR not a generic type */ [] // ERROR expecting type
+ 
+ // TODO(gri) better error messages
+-type _ T1 /* ERROR without instantiation */ [] // ERROR expecting type
++type _ T1[] // ERROR expecting type
+ type _ T1[x /* ERROR not a type */ ]
+ type _ T1 /* ERROR got 2 arguments but 1 type parameters */ [int, float32]
+ 

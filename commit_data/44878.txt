@@ -18,8 +18,177 @@ Date:   Thu Sep 3 12:59:09 2020 -0400
     Change-Id: Ic281e6c6ca8ef5fec4bb7c5b71c50dd5393e78ae
     Reviewed-on: https://go-review.googlesource.com/c/go/+/253919
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/data.go   | 20 ++++++++++++-------
  src/cmd/link/internal/ld/macho.go  | 41 +++++++++++++++++++++++---------------
  src/cmd/link/internal/ld/target.go |  6 +++++-
  3 files changed, 43 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 8324a98a26..a730125cf2 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -930,7 +930,7 @@ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym,
+ 			break
+ 		}
+ 		if val < addr {
+-			ldr.Errorf(s, "phase error: addr=%#x but sym=%#x type=%d", addr, val, ldr.SymType(s))
++			ldr.Errorf(s, "phase error: addr=%#x but sym=%#x type=%v sect=%v", addr, val, ldr.SymType(s), ldr.SymSect(s).Name)
+ 			errorexit()
+ 		}
+ 		if addr < val {
+@@ -1308,9 +1308,9 @@ func (state *dodataState) makeRelroForSharedLib(target *Link) {
+ 				// relro Type before it reaches here.
+ 				isRelro = true
+ 			case sym.SFUNCTAB:
+-				if target.IsAIX() && ldr.SymName(s) == "runtime.etypes" {
++				if ldr.SymName(s) == "runtime.etypes" {
+ 					// runtime.etypes must be at the end of
+-					// the relro datas.
++					// the relro data.
+ 					isRelro = true
+ 				}
+ 			}
+@@ -1706,7 +1706,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.ebss", 0), sect)
+ 	bssGcEnd := state.datsize - int64(sect.Vaddr)
+ 
+-	// Emit gcdata for bcc symbols now that symbol values have been assigned.
++	// Emit gcdata for bss symbols now that symbol values have been assigned.
+ 	gcsToEmit := []struct {
+ 		symName string
+ 		symKind sym.SymKind
+@@ -1826,13 +1826,16 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	const fallbackPerm = 04
+ 	relroSecPerm := fallbackPerm
+ 	genrelrosecname := func(suffix string) string {
++		if suffix == "" {
++			return ".rodata"
++		}
+ 		return suffix
+ 	}
+ 	seg := segro
+ 
+ 	if ctxt.UseRelro() {
+ 		segrelro := &Segrelrodata
+-		if ctxt.LinkMode == LinkExternal && ctxt.HeadType != objabi.Haix {
++		if ctxt.LinkMode == LinkExternal && !ctxt.IsAIX() && !ctxt.IsDarwin() {
+ 			// Using a separate segment with an external
+ 			// linker results in some programs moving
+ 			// their data sections unexpectedly, which
+@@ -1845,9 +1848,12 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 			state.datsize = 0
+ 		}
+ 
+-		genrelrosecname = func(suffix string) string {
+-			return ".data.rel.ro" + suffix
++		if !ctxt.IsDarwin() { // We don't need the special names on darwin.
++			genrelrosecname = func(suffix string) string {
++				return ".data.rel.ro" + suffix
++			}
+ 		}
++
+ 		relroReadOnly := []sym.SymKind{}
+ 		for _, symnro := range sym.ReadOnly {
+ 			symn := sym.RelROMap[symnro]
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index f6356729a6..9765ce18d3 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -499,16 +499,7 @@ func machoadddynlib(lib string, linkmode LinkMode) {
+ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) {
+ 	buf := "__" + strings.Replace(sect.Name[1:], ".", "_", -1)
+ 
+-	var msect *MachoSect
+-	if sect.Rwx&1 == 0 && segname != "__DWARF" && (ctxt.Arch.Family == sys.ARM64 ||
+-		(ctxt.Arch.Family == sys.AMD64 && ctxt.BuildMode != BuildModeExe)) {
+-		// Darwin external linker on arm64, and on amd64 in c-shared/c-archive buildmode
+-		// complains about absolute relocs in __TEXT, so if the section is not
+-		// executable, put it in __DATA segment.
+-		msect = newMachoSect(mseg, buf, "__DATA")
+-	} else {
+-		msect = newMachoSect(mseg, buf, segname)
+-	}
++	msect := newMachoSect(mseg, buf, segname)
+ 
+ 	if sect.Rellen > 0 {
+ 		msect.reloc = uint32(sect.Reloff)
+@@ -633,13 +624,28 @@ func asmbMacho(ctxt *Link) {
+ 		machoshbits(ctxt, ms, sect, "__TEXT")
+ 	}
+ 
++	/* rodata */
++	if ctxt.LinkMode != LinkExternal && Segrelrodata.Length > 0 {
++		ms = newMachoSeg("__DATA_CONST", 20)
++		ms.vaddr = Segrelrodata.Vaddr
++		ms.vsize = Segrelrodata.Length
++		ms.fileoffset = Segrelrodata.Fileoff
++		ms.filesize = Segrelrodata.Filelen
++		ms.prot1 = 3
++		ms.prot2 = 3
++		ms.flag = 0x10 // SG_READ_ONLY
++	}
++
++	for _, sect := range Segrelrodata.Sections {
++		machoshbits(ctxt, ms, sect, "__DATA_CONST")
++	}
++
+ 	/* data */
+ 	if ctxt.LinkMode != LinkExternal {
+-		w := int64(Segdata.Length)
+ 		ms = newMachoSeg("__DATA", 20)
+-		ms.vaddr = uint64(va) + uint64(v)
+-		ms.vsize = uint64(w)
+-		ms.fileoffset = uint64(v)
++		ms.vaddr = Segdata.Vaddr
++		ms.vsize = Segdata.Length
++		ms.fileoffset = Segdata.Fileoff
+ 		ms.filesize = Segdata.Filelen
+ 		ms.prot1 = 3
+ 		ms.prot2 = 3
+@@ -695,7 +701,7 @@ func asmbMacho(ctxt *Link) {
+ 
+ 		if ctxt.LinkMode != LinkExternal {
+ 			ms := newMachoSeg("__LINKEDIT", 0)
+-			ms.vaddr = uint64(va) + uint64(v) + uint64(Rnd(int64(Segdata.Length), int64(*FlagRound)))
++			ms.vaddr = uint64(Rnd(int64(Segdata.Vaddr+Segdata.Length), int64(*FlagRound)))
+ 			ms.vsize = uint64(s1) + uint64(s2) + uint64(s3) + uint64(s4)
+ 			ms.fileoffset = uint64(linkoff)
+ 			ms.filesize = ms.vsize
+@@ -1008,7 +1014,7 @@ func doMachoLink(ctxt *Link) int64 {
+ 	size := int(ldr.SymSize(s1) + ldr.SymSize(s2) + ldr.SymSize(s3) + ldr.SymSize(s4))
+ 
+ 	if size > 0 {
+-		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound)) + Rnd(int64(Segdata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))
++		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound)) + Rnd(int64(Segrelrodata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))
+ 		ctxt.Out.SeekSet(linkoff)
+ 
+ 		ctxt.Out.Write(ldr.Data(s1))
+@@ -1086,6 +1092,9 @@ func machoEmitReloc(ctxt *Link) {
+ 	for _, sect := range Segtext.Sections[1:] {
+ 		relocSect(ctxt, sect, ctxt.datap)
+ 	}
++	for _, sect := range Segrelrodata.Sections {
++		relocSect(ctxt, sect, ctxt.datap)
++	}
+ 	for _, sect := range Segdata.Sections {
+ 		relocSect(ctxt, sect, ctxt.datap)
+ 	}
+diff --git a/src/cmd/link/internal/ld/target.go b/src/cmd/link/internal/ld/target.go
+index 102b6c5436..f68de8fff1 100644
+--- a/src/cmd/link/internal/ld/target.go
++++ b/src/cmd/link/internal/ld/target.go
+@@ -74,8 +74,12 @@ func (t *Target) IsDynlinkingGo() bool {
+ func (t *Target) UseRelro() bool {
+ 	switch t.BuildMode {
+ 	case BuildModeCArchive, BuildModeCShared, BuildModeShared, BuildModePIE, BuildModePlugin:
+-		return t.IsELF || t.HeadType == objabi.Haix
++		return t.IsELF || t.HeadType == objabi.Haix || t.HeadType == objabi.Hdarwin
+ 	default:
++		if t.HeadType == objabi.Hdarwin && t.IsARM64() {
++			// On darwin/ARM64, everything is PIE.
++			return true
++		}
+ 		return t.linkShared || (t.HeadType == objabi.Haix && t.LinkMode == LinkExternal)
+ 	}
+ }

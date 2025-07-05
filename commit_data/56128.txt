@@ -19,6 +19,20 @@ Date:   Tue Apr 11 11:54:46 2023 -0700
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/crypto/internal/nistec/generate.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/internal/nistec/generate.go b/src/crypto/internal/nistec/generate.go
+index 0204bc1233..0e84cefb36 100644
+--- a/src/crypto/internal/nistec/generate.go
++++ b/src/crypto/internal/nistec/generate.go
+@@ -40,7 +40,7 @@ var curves = []struct {
+ 		P:         "P256",
+ 		Element:   "fiat.P256Element",
+ 		Params:    elliptic.P256().Params(),
+-		BuildTags: "!amd64 && !arm64 && !ppc64le",
++		BuildTags: "!amd64 && !arm64 && !ppc64le && !s390x",
+ 	},
+ 	{
+ 		P:       "P384",

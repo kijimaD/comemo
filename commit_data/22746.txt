@@ -12,7 +12,7 @@ Date:   Sun Apr 5 17:00:14 2015 +0900
     Change-Id: I5cca0a93776cf05652e0e6a4a4ff4af392ccb885
     Reviewed-on: https://go-review.googlesource.com/8485
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dial_test.go   | 142 ++++++++++++++++++-------------------------------
  src/net/ipraw_test.go  |  41 +++++++-------
  src/net/lookup_test.go |  15 ++++--
@@ -20,3 +20,555 @@ Date:   Sun Apr 5 17:00:14 2015 +0900
  src/net/tcp_test.go    |  54 +++++++------------
  src/net/udp_test.go    |  57 ++++++++++++++------
  6 files changed, 183 insertions(+), 166 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index d808ae2257..7b36f811a9 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -5,15 +5,11 @@
+ package net
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"net/internal/socktest"
+-	"os"
+-	"os/exec"
+ 	"reflect"
+ 	"regexp"
+ 	"runtime"
+-	"strconv"
+ 	"sync"
+ 	"testing"
+ 	"time"
+@@ -216,38 +212,27 @@ func TestDialTimeoutFDLeak(t *testing.T) {
+ 	}
+ }
+ 
+-func numTCP() (ntcp, nopen, nclose int, err error) {
+-	lsof, err := exec.Command("lsof", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
+-	if err != nil {
+-		return 0, 0, 0, err
+-	}
+-	ntcp += bytes.Count(lsof, []byte("TCP"))
+-	for _, state := range []string{"LISTEN", "SYN_SENT", "SYN_RECEIVED", "ESTABLISHED"} {
+-		nopen += bytes.Count(lsof, []byte(state))
+-	}
+-	for _, state := range []string{"CLOSED", "CLOSE_WAIT", "LAST_ACK", "FIN_WAIT_1", "FIN_WAIT_2", "CLOSING", "TIME_WAIT"} {
+-		nclose += bytes.Count(lsof, []byte(state))
++func TestDialerDualStackFDLeak(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9":
++		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
++	case "windows":
++		t.Skipf("not implemented a way to cancel dial racers in TCP SYN-SENT state on %s", runtime.GOOS)
+ 	}
+-	return ntcp, nopen, nclose, nil
+-}
+-
+-func TestDialMultiFDLeak(t *testing.T) {
+-	t.Skip("flaky test - golang.org/issue/8764")
+-
+ 	if !supportsIPv4 || !supportsIPv6 {
+-		t.Skip("neither ipv4 nor ipv6 is supported")
++		t.Skip("ipv4 or ipv6 is not supported")
+ 	}
+ 
++	origTestHookLookupIP := testHookLookupIP
++	defer func() { testHookLookupIP = origTestHookLookupIP }()
++	testHookLookupIP = lookupLocalhost
+ 	handler := func(dss *dualStackServer, ln Listener) {
+ 		for {
+-			if c, err := ln.Accept(); err != nil {
++			c, err := ln.Accept()
++			if err != nil {
+ 				return
+-			} else {
+-				// It just keeps established
+-				// connections like a half-dead server
+-				// does.
+-				dss.putConn(c)
+ 			}
++			c.Close()
+ 		}
+ 	}
+ 	dss, err := newDualStackServer([]streamListener{
+@@ -255,56 +240,35 @@ func TestDialMultiFDLeak(t *testing.T) {
+ 		{network: "tcp6", address: "::1"},
+ 	})
+ 	if err != nil {
+-		t.Fatalf("newDualStackServer failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer dss.teardown()
+ 	if err := dss.buildup(handler); err != nil {
+-		t.Fatalf("dualStackServer.buildup failed: %v", err)
+-	}
+-
+-	_, before, _, err := numTCP()
+-	if err != nil {
+-		t.Skipf("skipping test; error finding or running lsof: %v", err)
++		t.Fatal(err)
+ 	}
+ 
+-	var wg sync.WaitGroup
+-	portnum, _, _ := dtoi(dss.port, 0)
+-	ras := addrList{
+-		// Losers that will fail to connect, see RFC 6890.
+-		&TCPAddr{IP: IPv4(198, 18, 0, 254), Port: portnum},
+-		&TCPAddr{IP: ParseIP("2001:2::254"), Port: portnum},
+-
+-		// Winner candidates of this race.
+-		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: portnum},
+-		&TCPAddr{IP: IPv6loopback, Port: portnum},
+-
+-		// Losers that will have established connections.
+-		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: portnum},
+-		&TCPAddr{IP: IPv6loopback, Port: portnum},
+-	}
+-	const T1 = 10 * time.Millisecond
+-	const T2 = 2 * T1
++	before := sw.Sockets()
++	const T = 100 * time.Millisecond
+ 	const N = 10
++	var wg sync.WaitGroup
++	wg.Add(N)
++	d := &Dialer{DualStack: true, Timeout: T}
+ 	for i := 0; i < N; i++ {
+-		wg.Add(1)
+ 		go func() {
+ 			defer wg.Done()
+-			if c, err := dialMulti("tcp", "fast failover test", nil, ras, time.Now().Add(T1)); err == nil {
+-				c.Close()
++			c, err := d.Dial("tcp", JoinHostPort("localhost", dss.port))
++			if err != nil {
++				t.Error(err)
++				return
+ 			}
++			c.Close()
+ 		}()
+ 	}
+ 	wg.Wait()
+-	time.Sleep(T2)
+-
+-	ntcp, after, nclose, err := numTCP()
+-	if err != nil {
+-		t.Skipf("skipping test; error finding or running lsof: %v", err)
+-	}
+-	t.Logf("tcp sessions: %v, open sessions: %v, closing sessions: %v", ntcp, after, nclose)
+-
+-	if after != before {
+-		t.Fatalf("got %v open sessions; expected %v", after, before)
++	time.Sleep(2 * T) // wait for the dial racers to stop
++	after := sw.Sockets()
++	if len(after) != len(before) {
++		t.Errorf("got %d; want %d", len(after), len(before))
+ 	}
+ }
+ 
+@@ -347,24 +311,20 @@ func TestDialerLocalAddr(t *testing.T) {
+ }
+ 
+ func TestDialerDualStack(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "nacl":
+-		t.Skipf("skipping test on %q", runtime.GOOS)
+-	}
+-
+-	if ips, err := LookupIP("localhost"); err != nil {
+-		t.Fatalf("LookupIP failed: %v", err)
+-	} else if len(ips) < 2 || !supportsIPv4 || !supportsIPv6 {
+-		t.Skip("localhost doesn't have a pair of different address family IP addresses")
++	if !supportsIPv4 || !supportsIPv6 {
++		t.Skip("ipv4 or ipv6 is not supported")
+ 	}
+ 
++	origTestHookLookupIP := testHookLookupIP
++	defer func() { testHookLookupIP = origTestHookLookupIP }()
++	testHookLookupIP = lookupLocalhost
+ 	handler := func(dss *dualStackServer, ln Listener) {
+ 		for {
+-			if c, err := ln.Accept(); err != nil {
++			c, err := ln.Accept()
++			if err != nil {
+ 				return
+-			} else {
+-				c.Close()
+ 			}
++			c.Close()
+ 		}
+ 	}
+ 	dss, err := newDualStackServer([]streamListener{
+@@ -372,26 +332,30 @@ func TestDialerDualStack(t *testing.T) {
+ 		{network: "tcp6", address: "::1"},
+ 	})
+ 	if err != nil {
+-		t.Fatalf("newDualStackServer failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer dss.teardown()
+ 	if err := dss.buildup(handler); err != nil {
+-		t.Fatalf("dualStackServer.buildup failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 
+-	d := &Dialer{DualStack: true}
++	const T = 100 * time.Millisecond
++	d := &Dialer{DualStack: true, Timeout: T}
+ 	for range dss.lns {
+-		if c, err := d.Dial("tcp", JoinHostPort("localhost", dss.port)); err != nil {
+-			t.Errorf("Dial failed: %v", err)
+-		} else {
+-			if addr := c.LocalAddr().(*TCPAddr); addr.IP.To4() != nil {
+-				dss.teardownNetwork("tcp4")
+-			} else if addr.IP.To16() != nil && addr.IP.To4() == nil {
+-				dss.teardownNetwork("tcp6")
+-			}
+-			c.Close()
++		c, err := d.Dial("tcp", JoinHostPort("localhost", dss.port))
++		if err != nil {
++			t.Error(err)
++			continue
++		}
++		switch addr := c.LocalAddr().(*TCPAddr); {
++		case addr.IP.To4() != nil:
++			dss.teardownNetwork("tcp4")
++		case addr.IP.To16() != nil && addr.IP.To4() == nil:
++			dss.teardownNetwork("tcp6")
+ 		}
++		c.Close()
+ 	}
++	time.Sleep(2 * T) // wait for the dial racers to stop
+ }
+ 
+ func TestDialerKeepAlive(t *testing.T) {
+diff --git a/src/net/ipraw_test.go b/src/net/ipraw_test.go
+index f93b9ef0b0..6d917bcac8 100644
+--- a/src/net/ipraw_test.go
++++ b/src/net/ipraw_test.go
+@@ -5,7 +5,6 @@
+ package net
+ 
+ import (
+-	"fmt"
+ 	"reflect"
+ 	"testing"
+ )
+@@ -17,7 +16,7 @@ import (
+ //	golang.org/x/net/icmp
+ 
+ type resolveIPAddrTest struct {
+-	net           string
++	network       string
+ 	litAddrOrName string
+ 	addr          *IPAddr
+ 	err           error
+@@ -44,34 +43,30 @@ var resolveIPAddrTests = []resolveIPAddrTest{
+ 	{"tcp", "1.2.3.4:123", nil, UnknownNetworkError("tcp")},
+ }
+ 
+-func init() {
+-	if ifi := loopbackInterface(); ifi != nil {
+-		index := fmt.Sprintf("%v", ifi.Index)
+-		resolveIPAddrTests = append(resolveIPAddrTests, []resolveIPAddrTest{
+-			{"ip6", "fe80::1%" + ifi.Name, &IPAddr{IP: ParseIP("fe80::1"), Zone: zoneToString(ifi.Index)}, nil},
+-			{"ip6", "fe80::1%" + index, &IPAddr{IP: ParseIP("fe80::1"), Zone: index}, nil},
+-		}...)
+-	}
+-	if ips, err := LookupIP("localhost"); err == nil && len(ips) > 1 && supportsIPv4 && supportsIPv6 {
+-		resolveIPAddrTests = append(resolveIPAddrTests, []resolveIPAddrTest{
+-			{"ip", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
+-			{"ip4", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
+-			{"ip6", "localhost", &IPAddr{IP: IPv6loopback}, nil},
+-		}...)
+-	}
+-}
+-
+ func TestResolveIPAddr(t *testing.T) {
+ 	if !testableNetwork("ip+nopriv") {
+ 		t.Skip("ip+nopriv test")
+ 	}
+ 
+-	for _, tt := range resolveIPAddrTests {
+-		addr, err := ResolveIPAddr(tt.net, tt.litAddrOrName)
++	origTestHookLookupIP := testHookLookupIP
++	defer func() { testHookLookupIP = origTestHookLookupIP }()
++	testHookLookupIP = lookupLocalhost
++
++	for i, tt := range resolveIPAddrTests {
++		addr, err := ResolveIPAddr(tt.network, tt.litAddrOrName)
+ 		if err != tt.err {
+-			t.Fatalf("ResolveIPAddr(%v, %v) failed: %v", tt.net, tt.litAddrOrName, err)
++			t.Errorf("#%d: %v", i, err)
+ 		} else if !reflect.DeepEqual(addr, tt.addr) {
+-			t.Fatalf("got %#v; expected %#v", addr, tt.addr)
++			t.Errorf("#%d: got %#v; want %#v", i, addr, tt.addr)
++		}
++		if err != nil {
++			continue
++		}
++		rtaddr, err := ResolveIPAddr(addr.Network(), addr.String())
++		if err != nil {
++			t.Errorf("#%d: %v", i, err)
++		} else if !reflect.DeepEqual(rtaddr, addr) {
++			t.Errorf("#%d: got %#v; want %#v", i, rtaddr, addr)
+ 		}
+ 	}
+ }
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 658b32a885..ad55f31cb3 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO It would be nice to use a mock DNS server, to eliminate
+-// external dependencies.
+-
+ package net
+ 
+ import (
+@@ -14,6 +11,18 @@ import (
+ 	"time"
+ )
+ 
++func lookupLocalhost(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) {
++	switch host {
++	case "localhost":
++		return []IPAddr{
++			{IP: IPv4(127, 0, 0, 1)},
++			{IP: IPv6loopback},
++		}, nil
++	default:
++		return fn(host)
++	}
++}
++
+ var lookupGoogleSRVTests = []struct {
+ 	service, proto, name string
+ 	cname, target        string
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index ac56d31a25..e9d14658f4 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -48,6 +48,7 @@ var (
+ )
+ 
+ func TestMain(m *testing.M) {
++	setupTestData()
+ 	installTestHooks()
+ 
+ 	st := m.Run()
+@@ -62,6 +63,45 @@ func TestMain(m *testing.M) {
+ 	os.Exit(st)
+ }
+ 
++func setupTestData() {
++	if supportsIPv4 {
++		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
++			{"tcp", "localhost:1", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 1}, nil},
++			{"tcp4", "localhost:2", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 2}, nil},
++		}...)
++		resolveUDPAddrTests = append(resolveUDPAddrTests, []resolveUDPAddrTest{
++			{"udp", "localhost:1", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 1}, nil},
++			{"udp4", "localhost:2", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 2}, nil},
++		}...)
++		resolveIPAddrTests = append(resolveIPAddrTests, []resolveIPAddrTest{
++			{"ip", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
++			{"ip4", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
++		}...)
++	}
++
++	if supportsIPv6 {
++		resolveTCPAddrTests = append(resolveTCPAddrTests, resolveTCPAddrTest{"tcp6", "localhost:3", &TCPAddr{IP: IPv6loopback, Port: 3}, nil})
++		resolveUDPAddrTests = append(resolveUDPAddrTests, resolveUDPAddrTest{"udp6", "localhost:3", &UDPAddr{IP: IPv6loopback, Port: 3}, nil})
++		resolveIPAddrTests = append(resolveIPAddrTests, resolveIPAddrTest{"ip6", "localhost", &IPAddr{IP: IPv6loopback}, nil})
++	}
++
++	if ifi := loopbackInterface(); ifi != nil {
++		index := fmt.Sprintf("%v", ifi.Index)
++		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
++			{"tcp6", "[fe80::1%" + ifi.Name + "]:1", &TCPAddr{IP: ParseIP("fe80::1"), Port: 1, Zone: zoneToString(ifi.Index)}, nil},
++			{"tcp6", "[fe80::1%" + index + "]:2", &TCPAddr{IP: ParseIP("fe80::1"), Port: 2, Zone: index}, nil},
++		}...)
++		resolveUDPAddrTests = append(resolveUDPAddrTests, []resolveUDPAddrTest{
++			{"udp6", "[fe80::1%" + ifi.Name + "]:1", &UDPAddr{IP: ParseIP("fe80::1"), Port: 1, Zone: zoneToString(ifi.Index)}, nil},
++			{"udp6", "[fe80::1%" + index + "]:2", &UDPAddr{IP: ParseIP("fe80::1"), Port: 2, Zone: index}, nil},
++		}...)
++		resolveIPAddrTests = append(resolveIPAddrTests, []resolveIPAddrTest{
++			{"ip6", "fe80::1%" + ifi.Name, &IPAddr{IP: ParseIP("fe80::1"), Zone: zoneToString(ifi.Index)}, nil},
++			{"ip6", "fe80::1%" + index, &IPAddr{IP: ParseIP("fe80::1"), Zone: index}, nil},
++		}...)
++	}
++}
++
+ func printLeakedGoroutines() {
+ 	gss := leakedGoroutines()
+ 	if len(gss) == 0 {
+diff --git a/src/net/tcp_test.go b/src/net/tcp_test.go
+index 2991357288..9b2c8b3cd3 100644
+--- a/src/net/tcp_test.go
++++ b/src/net/tcp_test.go
+@@ -5,7 +5,6 @@
+ package net
+ 
+ import (
+-	"fmt"
+ 	"io"
+ 	"reflect"
+ 	"runtime"
+@@ -288,7 +287,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+ }
+ 
+ type resolveTCPAddrTest struct {
+-	net           string
++	network       string
+ 	litAddrOrName string
+ 	addr          *TCPAddr
+ 	err           error
+@@ -298,8 +297,8 @@ var resolveTCPAddrTests = []resolveTCPAddrTest{
+ 	{"tcp", "127.0.0.1:0", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil},
+ 	{"tcp4", "127.0.0.1:65535", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 65535}, nil},
+ 
+-	{"tcp", "[::1]:1", &TCPAddr{IP: ParseIP("::1"), Port: 1}, nil},
+-	{"tcp6", "[::1]:65534", &TCPAddr{IP: ParseIP("::1"), Port: 65534}, nil},
++	{"tcp", "[::1]:0", &TCPAddr{IP: ParseIP("::1"), Port: 0}, nil},
++	{"tcp6", "[::1]:65535", &TCPAddr{IP: ParseIP("::1"), Port: 65535}, nil},
+ 
+ 	{"tcp", "[::1%en0]:1", &TCPAddr{IP: ParseIP("::1"), Port: 1, Zone: "en0"}, nil},
+ 	{"tcp6", "[::1%911]:2", &TCPAddr{IP: ParseIP("::1"), Port: 2, Zone: "911"}, nil},
+@@ -312,41 +311,26 @@ var resolveTCPAddrTests = []resolveTCPAddrTest{
+ 	{"http", "127.0.0.1:0", nil, UnknownNetworkError("http")},
+ }
+ 
+-func init() {
+-	if ifi := loopbackInterface(); ifi != nil {
+-		index := fmt.Sprintf("%v", ifi.Index)
+-		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
+-			{"tcp6", "[fe80::1%" + ifi.Name + "]:3", &TCPAddr{IP: ParseIP("fe80::1"), Port: 3, Zone: zoneToString(ifi.Index)}, nil},
+-			{"tcp6", "[fe80::1%" + index + "]:4", &TCPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: index}, nil},
+-		}...)
+-	}
+-	if ips, err := LookupIP("localhost"); err == nil && len(ips) > 1 && supportsIPv4 && supportsIPv6 {
+-		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
+-			{"tcp", "localhost:5", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5}, nil},
+-			{"tcp4", "localhost:6", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 6}, nil},
+-			{"tcp6", "localhost:7", &TCPAddr{IP: IPv6loopback, Port: 7}, nil},
+-		}...)
+-	}
+-}
+-
+ func TestResolveTCPAddr(t *testing.T) {
+-	for _, tt := range resolveTCPAddrTests {
+-		addr, err := ResolveTCPAddr(tt.net, tt.litAddrOrName)
++	origTestHookLookupIP := testHookLookupIP
++	defer func() { testHookLookupIP = origTestHookLookupIP }()
++	testHookLookupIP = lookupLocalhost
++
++	for i, tt := range resolveTCPAddrTests {
++		addr, err := ResolveTCPAddr(tt.network, tt.litAddrOrName)
+ 		if err != tt.err {
+-			t.Fatalf("ResolveTCPAddr(%q, %q) failed: %v", tt.net, tt.litAddrOrName, err)
++			t.Errorf("#%d: %v", i, err)
++		} else if !reflect.DeepEqual(addr, tt.addr) {
++			t.Errorf("#%d: got %#v; want %#v", i, addr, tt.addr)
+ 		}
+-		if !reflect.DeepEqual(addr, tt.addr) {
+-			t.Fatalf("ResolveTCPAddr(%q, %q) = %#v, want %#v", tt.net, tt.litAddrOrName, addr, tt.addr)
++		if err != nil {
++			continue
+ 		}
+-		if err == nil {
+-			str := addr.String()
+-			addr1, err := ResolveTCPAddr(tt.net, str)
+-			if err != nil {
+-				t.Fatalf("ResolveTCPAddr(%q, %q) [from %q]: %v", tt.net, str, tt.litAddrOrName, err)
+-			}
+-			if !reflect.DeepEqual(addr1, addr) {
+-				t.Fatalf("ResolveTCPAddr(%q, %q) [from %q] = %#v, want %#v", tt.net, str, tt.litAddrOrName, addr1, addr)
+-			}
++		rtaddr, err := ResolveTCPAddr(addr.Network(), addr.String())
++		if err != nil {
++			t.Errorf("#%d: %v", i, err)
++		} else if !reflect.DeepEqual(rtaddr, addr) {
++			t.Errorf("#%d: got %#v; want %#v", i, rtaddr, addr)
+ 		}
+ 	}
+ }
+diff --git a/src/net/udp_test.go b/src/net/udp_test.go
+index 2be2c319a7..6f689b67f3 100644
+--- a/src/net/udp_test.go
++++ b/src/net/udp_test.go
+@@ -7,30 +7,55 @@ package net
+ import (
+ 	"reflect"
+ 	"runtime"
+-	"strings"
+ 	"testing"
+ 	"time"
+ )
+ 
++type resolveUDPAddrTest struct {
++	network       string
++	litAddrOrName string
++	addr          *UDPAddr
++	err           error
++}
++
++var resolveUDPAddrTests = []resolveUDPAddrTest{
++	{"udp", "127.0.0.1:0", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil},
++	{"udp4", "127.0.0.1:65535", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 65535}, nil},
++
++	{"udp", "[::1]:0", &UDPAddr{IP: ParseIP("::1"), Port: 0}, nil},
++	{"udp6", "[::1]:65535", &UDPAddr{IP: ParseIP("::1"), Port: 65535}, nil},
++
++	{"udp", "[::1%en0]:1", &UDPAddr{IP: ParseIP("::1"), Port: 1, Zone: "en0"}, nil},
++	{"udp6", "[::1%911]:2", &UDPAddr{IP: ParseIP("::1"), Port: 2, Zone: "911"}, nil},
++
++	{"", "127.0.0.1:0", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil}, // Go 1.0 behavior
++	{"", "[::1]:0", &UDPAddr{IP: ParseIP("::1"), Port: 0}, nil},         // Go 1.0 behavior
++
++	{"udp", ":12345", &UDPAddr{Port: 12345}, nil},
++
++	{"http", "127.0.0.1:0", nil, UnknownNetworkError("http")},
++}
++
+ func TestResolveUDPAddr(t *testing.T) {
+-	for _, tt := range resolveTCPAddrTests {
+-		net := strings.Replace(tt.net, "tcp", "udp", -1)
+-		addr, err := ResolveUDPAddr(net, tt.litAddrOrName)
++	origTestHookLookupIP := testHookLookupIP
++	defer func() { testHookLookupIP = origTestHookLookupIP }()
++	testHookLookupIP = lookupLocalhost
++
++	for i, tt := range resolveUDPAddrTests {
++		addr, err := ResolveUDPAddr(tt.network, tt.litAddrOrName)
+ 		if err != tt.err {
+-			t.Fatalf("ResolveUDPAddr(%q, %q) failed: %v", net, tt.litAddrOrName, err)
++			t.Errorf("#%d: %v", i, err)
++		} else if !reflect.DeepEqual(addr, tt.addr) {
++			t.Errorf("#%d: got %#v; want %#v", i, addr, tt.addr)
+ 		}
+-		if !reflect.DeepEqual(addr, (*UDPAddr)(tt.addr)) {
+-			t.Fatalf("ResolveUDPAddr(%q, %q) = %#v, want %#v", net, tt.litAddrOrName, addr, tt.addr)
++		if err != nil {
++			continue
+ 		}
+-		if err == nil {
+-			str := addr.String()
+-			addr1, err := ResolveUDPAddr(net, str)
+-			if err != nil {
+-				t.Fatalf("ResolveUDPAddr(%q, %q) [from %q]: %v", net, str, tt.litAddrOrName, err)
+-			}
+-			if !reflect.DeepEqual(addr1, addr) {
+-				t.Fatalf("ResolveUDPAddr(%q, %q) [from %q] = %#v, want %#v", net, str, tt.litAddrOrName, addr1, addr)
+-			}
++		rtaddr, err := ResolveUDPAddr(addr.Network(), addr.String())
++		if err != nil {
++			t.Errorf("#%d: %v", i, err)
++		} else if !reflect.DeepEqual(rtaddr, addr) {
++			t.Errorf("#%d: got %#v; want %#v", i, rtaddr, addr)
+ 		}
+ 	}
+ }

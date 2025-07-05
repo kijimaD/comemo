@@ -13,6 +13,41 @@ Date:   Thu Aug 17 18:25:54 2017 -0700
     Reviewed-by: Avelino <t@avelino.xxx>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/hashmap.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index f53f7087d8..17a69646ca 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -1021,6 +1021,14 @@ func bucketEvacuated(t *maptype, h *hmap, bucket uintptr) bool {
+ 	return evacuated(b)
+ }
+ 
++// evacDst is an evacuation destination.
++type evacDst struct {
++	b *bmap          // current destination bucket
++	i int            // key/val index into b
++	k unsafe.Pointer // pointer to current key storage
++	v unsafe.Pointer // pointer to current value storage
++}
++
+ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 	b := (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
+ 	newbit := h.noldbuckets()
+@@ -1028,14 +1036,6 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 		// TODO: reuse overflow buckets instead of using new ones, if there
+ 		// is no iterator using the old buckets.  (If !oldIterator.)
+ 
+-		// evacDst is an evacuation destination.
+-		type evacDst struct {
+-			b *bmap          // current destination bucket
+-			i int            // key/val index into b
+-			k unsafe.Pointer // pointer to current key storage
+-			v unsafe.Pointer // pointer to current value storage
+-		}
+-
+ 		// xy contains the x and y (low and high) evacuation destinations.
+ 		var xy [2]evacDst
+ 		x := &xy[0]

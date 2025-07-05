@@ -7,6 +7,20 @@ Date:   Wed Mar 30 22:41:32 2011 -0400
     TBR=r
     CC=golang-dev
     https://golang.org/cl/4333048
-
+---
  src/cmd/gopack/ar.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gopack/ar.c b/src/cmd/gopack/ar.c
+index 8f0cfbf804..dc3899f375 100644
+--- a/src/cmd/gopack/ar.c
++++ b/src/cmd/gopack/ar.c
+@@ -1672,7 +1672,7 @@ arread_cutprefix(Biobuf *b, Armember *bp)
+ 				inprefix = nil;
+ 				o = Boffset(b);
+ 				if(o < end && rd(b, &p) && p.kind == aName && p.type == UNKNOWN && p.sym == 1 && p.id[0] == '<') {
+-					print("skip %lld-%lld\n", offset, o);
++					// print("skip %lld-%lld\n", offset, o);
+ 					offset = o;
+ 				}
+ 			}

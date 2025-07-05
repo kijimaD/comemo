@@ -21,6 +21,19 @@ Date:   Wed May 13 19:27:59 2015 -0700
     Change-Id: Iac86f86dd774d535302fa5e4c08f89f8da00be9e
     Reviewed-on: https://go-review.googlesource.com/10053
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/encoding/json/scanner_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/encoding/json/scanner_test.go b/src/encoding/json/scanner_test.go
+index 7880342902..66383ef0ef 100644
+--- a/src/encoding/json/scanner_test.go
++++ b/src/encoding/json/scanner_test.go
+@@ -209,6 +209,7 @@ var benchScan scanner
+ 
+ func BenchmarkSkipValue(b *testing.B) {
+ 	initBig()
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		nextValue(jsonBig, &benchScan)
+ 	}

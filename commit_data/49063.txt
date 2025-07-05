@@ -20,6 +20,20 @@ Date:   Wed Jul 14 22:42:31 2021 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/testing/testing.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index eeee0aac17..681f99ef93 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -233,6 +233,8 @@
+ //		os.Exit(m.Run())
+ //	}
+ //
++// TestMain is a low-level primitive and should not be necessary for casual
++// testing needs, where ordinary test functions suffice.
+ package testing
+ 
+ import (

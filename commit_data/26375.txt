@@ -12,7 +12,7 @@ Date:   Wed Jan 13 21:34:13 2016 -0500
     Change-Id: Iee3d53c11ea870721803f6e8e67845b405686e79
     Reviewed-on: https://go-review.googlesource.com/18644
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/pkg.go                                      | 16 +++++++++++++++-
  src/cmd/go/testdata/src/vend/dir1/dir1.go              |  1 +
  .../go/testdata/src/vend/vendor/vend/dir1/dir2/dir2.go |  1 +
@@ -21,3 +21,157 @@ Date:   Wed Jan 13 21:34:13 2016 -0500
  src/go/build/build.go                                  | 16 +++++++++++++++-
  src/go/build/build_test.go                             | 18 ++++++++++++++++++
  7 files changed, 63 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 7d2779e01f..b00896d938 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -420,7 +420,7 @@ func vendoredImportPath(parent *Package, path string) (found string) {
+ 			continue
+ 		}
+ 		targ := filepath.Join(dir[:i], vpath)
+-		if isDir(targ) {
++		if isDir(targ) && hasGoFiles(targ) {
+ 			// We started with parent's dir c:\gopath\src\foo\bar\baz\quux\xyzzy.
+ 			// We know the import path for parent's dir.
+ 			// We chopped off some number of path elements and
+@@ -443,6 +443,20 @@ func vendoredImportPath(parent *Package, path string) (found string) {
+ 	return path
+ }
+ 
++// hasGoFiles reports whether dir contains any files with names ending in .go.
++// For a vendor check we must exclude directories that contain no .go files.
++// Otherwise it is not possible to vendor just a/b/c and still import the
++// non-vendored a/b. See golang.org/issue/13832.
++func hasGoFiles(dir string) bool {
++	fis, _ := ioutil.ReadDir(dir)
++	for _, fi := range fis {
++		if !fi.IsDir() && strings.HasSuffix(fi.Name(), ".go") {
++			return true
++		}
++	}
++	return false
++}
++
+ // reusePackage reuses package p to satisfy the import at the top
+ // of the import stack stk.  If this use causes an import loop,
+ // reusePackage updates p's error information to record the loop.
+diff --git a/src/cmd/go/testdata/src/vend/dir1/dir1.go b/src/cmd/go/testdata/src/vend/dir1/dir1.go
+new file mode 100644
+index 0000000000..b719eadc09
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/dir1/dir1.go
+@@ -0,0 +1 @@
++package dir1
+diff --git a/src/cmd/go/testdata/src/vend/vendor/vend/dir1/dir2/dir2.go b/src/cmd/go/testdata/src/vend/vendor/vend/dir1/dir2/dir2.go
+new file mode 100644
+index 0000000000..6fe35e9e59
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/vendor/vend/dir1/dir2/dir2.go
+@@ -0,0 +1 @@
++package dir2
+diff --git a/src/cmd/go/testdata/src/vend/x/x.go b/src/cmd/go/testdata/src/vend/x/x.go
+index ae526ebdda..bdcde575c9 100644
+--- a/src/cmd/go/testdata/src/vend/x/x.go
++++ b/src/cmd/go/testdata/src/vend/x/x.go
+@@ -3,3 +3,5 @@ package x
+ import _ "p"
+ import _ "q"
+ import _ "r"
++import _ "vend/dir1"      // not vendored
++import _ "vend/dir1/dir2" // vendored
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+index ed73be36a8..006a8c9d3f 100644
+--- a/src/cmd/go/vendor_test.go
++++ b/src/cmd/go/vendor_test.go
+@@ -24,12 +24,14 @@ func TestVendorImports(t *testing.T) {
+ 	tg.run("list", "-f", "{{.ImportPath}} {{.Imports}}", "vend/...")
+ 	want := `
+ 		vend [vend/vendor/p r]
++		vend/dir1 []
+ 		vend/hello [fmt vend/vendor/strings]
+ 		vend/subdir [vend/vendor/p r]
+ 		vend/vendor/p []
+ 		vend/vendor/q []
+ 		vend/vendor/strings []
+-		vend/x [vend/x/vendor/p vend/vendor/q vend/x/vendor/r]
++		vend/vendor/vend/dir1/dir2 []
++		vend/x [vend/x/vendor/p vend/vendor/q vend/x/vendor/r vend/dir1 vend/vendor/vend/dir1/dir2]
+ 		vend/x/invalid [vend/x/invalid/vendor/foo]
+ 		vend/x/vendor/p []
+ 		vend/x/vendor/p/p [notfound]
+@@ -45,6 +47,14 @@ func TestVendorImports(t *testing.T) {
+ 	}
+ }
+ 
++func TestVendorBuild(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.setenv("GO15VENDOREXPERIMENT", "1")
++	tg.run("build", "vend/x")
++}
++
+ func TestVendorRun(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 9539413aad..c1b70bcdd7 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -583,7 +583,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 					vendor := ctxt.joinPath(root, sub, "vendor")
+ 					if ctxt.isDir(vendor) {
+ 						dir := ctxt.joinPath(vendor, path)
+-						if ctxt.isDir(dir) {
++						if ctxt.isDir(dir) && hasGoFiles(ctxt, dir) {
+ 							p.Dir = dir
+ 							p.ImportPath = strings.TrimPrefix(pathpkg.Join(sub, "vendor", path), "src/")
+ 							p.Goroot = isGoroot
+@@ -884,6 +884,20 @@ Found:
+ 	return p, pkgerr
+ }
+ 
++// hasGoFiles reports whether dir contains any files with names ending in .go.
++// For a vendor check we must exclude directories that contain no .go files.
++// Otherwise it is not possible to vendor just a/b/c and still import the
++// non-vendored a/b. See golang.org/issue/13832.
++func hasGoFiles(ctxt *Context, dir string) bool {
++	ents, _ := ctxt.readDir(dir)
++	for _, ent := range ents {
++		if !ent.IsDir() && strings.HasSuffix(ent.Name(), ".go") {
++			return true
++		}
++	}
++	return false
++}
++
+ func findImportComment(data []byte) (s string, line int) {
+ 	// expect keyword package
+ 	word, data := parseWord(data)
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index f70389780d..61aac8fe5f 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -327,3 +327,21 @@ func TestImportVendorFailure(t *testing.T) {
+ 		t.Fatalf("error on failed import does not mention GOROOT/src/vendor directory:\n%s", e)
+ 	}
+ }
++
++func TestImportVendorParentFailure(t *testing.T) {
++	testenv.MustHaveGoBuild(t) // really must just have source
++	ctxt := Default
++	ctxt.GOPATH = ""
++	// This import should fail because the vendor/golang.org/x/net/http2 directory has no source code.
++	p, err := ctxt.Import("golang.org/x/net/http2", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
++	if err == nil {
++		t.Fatalf("found empty parent in %s", p.Dir)
++	}
++	if p != nil && p.Dir != "" {
++		t.Fatalf("decided to use %s", p.Dir)
++	}
++	e := err.Error()
++	if !strings.Contains(e, " (vendor tree)") {
++		t.Fatalf("error on failed import does not mention GOROOT/src/vendor directory:\n%s", e)
++	}
++}

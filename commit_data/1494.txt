@@ -9,7 +9,7 @@ Date:   Thu Jan 15 17:54:07 2009 -0800
     DELTA=58  (0 added, 0 deleted, 58 changed)
     OCL=22906
     CL=22908
-
+---
  doc/progs/cat_rot13.go    | 20 ++++++++++----------
  doc/progs/echo.go         |  8 ++++----
  doc/progs/fd.go           | 10 +++++-----
@@ -19,3 +19,331 @@ Date:   Thu Jan 15 17:54:07 2009 -0800
  doc/progs/sieve1.go       | 12 ++++++------
  doc/progs/sortmain.go     | 30 +++++++++++++++---------------
  8 files changed, 58 insertions(+), 58 deletions(-)
+
+diff --git a/doc/progs/cat_rot13.go b/doc/progs/cat_rot13.go
+index 1868c6f0e8..db0a32fa64 100644
+--- a/doc/progs/cat_rot13.go
++++ b/doc/progs/cat_rot13.go
+@@ -22,20 +22,20 @@ func rot13(b byte) byte {
+ 	return b
+ }
+ 
+-type Reader interface {
++type reader interface {
+ 	Read(b []byte) (ret int, err *os.Error);
+ 	String() string;
+ }
+ 
+-type Rot13 struct {
+-	source	Reader;
++type rotate13 struct {
++	source	reader;
+ }
+ 
+-func NewRot13(source Reader) *Rot13 {
+-	return &Rot13{source}
++func newRotate13(source reader) *rotate13 {
++	return &rotate13{source}
+ }
+ 
+-func (r13 *Rot13) Read(b []byte) (ret int, err *os.Error) {
++func (r13 *rotate13) Read(b []byte) (ret int, err *os.Error) {
+ 	r, e := r13.source.Read(b);
+ 	for i := 0; i < r; i++ {
+ 		b[i] = rot13(b[i])
+@@ -43,17 +43,17 @@ func (r13 *Rot13) Read(b []byte) (ret int, err *os.Error) {
+ 	return r, e
+ }
+ 
+-func (r13 *Rot13) String() string {
++func (r13 *rotate13) String() string {
+ 	return r13.source.String()
+ }
+-// end of Rot13 implementation
++// end of Rotate13 implementation
+ 
+-func cat(r Reader) {
++func cat(r reader) {
+ 	const NBUF = 512;
+ 	var buf [NBUF]byte;
+ 
+ 	if *rot13_flag {
+-		r = NewRot13(r)
++		r = newRotate13(r)
+ 	}
+ 	for {
+ 		switch nr, er := r.Read(buf); {
+diff --git a/doc/progs/echo.go b/doc/progs/echo.go
+index 71711bfc0c..3ddb4f83e2 100644
+--- a/doc/progs/echo.go
++++ b/doc/progs/echo.go
+@@ -12,8 +12,8 @@ import (
+ var n_flag = flag.Bool("n", false, "don't print final newline")
+ 
+ const (
+-	Space = " ";
+-	Newline = "\n";
++	kSpace = " ";
++	kNewline = "\n";
+ )
+ 
+ func main() {
+@@ -21,12 +21,12 @@ func main() {
+ 	var s string = "";
+ 	for i := 0; i < flag.NArg(); i++ {
+ 		if i > 0 {
+-			s += Space
++			s += kSpace
+ 		}
+ 		s += flag.Arg(i)
+ 	}
+ 	if !*n_flag {
+-		s += Newline
++		s += kNewline
+ 	}
+ 	os.Stdout.WriteString(s);
+ }
+diff --git a/doc/progs/fd.go b/doc/progs/fd.go
+index 4c3ac15875..ef94b08267 100644
+--- a/doc/progs/fd.go
++++ b/doc/progs/fd.go
+@@ -14,7 +14,7 @@ export type FD struct {
+ 	name    string; // file name at Open time
+ }
+ 
+-func NewFD(fd int64, name string) *FD {
++func newFD(fd int64, name string) *FD {
+ 	if fd < 0 {
+ 		return nil
+ 	}
+@@ -22,14 +22,14 @@ func NewFD(fd int64, name string) *FD {
+ }
+ 
+ export var (
+-	Stdin  = NewFD(0, "/dev/stdin");
+-	Stdout = NewFD(1, "/dev/stdout");
+-	Stderr = NewFD(2, "/dev/stderr");
++	Stdin  = newFD(0, "/dev/stdin");
++	Stdout = newFD(1, "/dev/stdout");
++	Stderr = newFD(2, "/dev/stderr");
+ )
+ 
+ export func Open(name string, mode int64, perm int64) (fd *FD, err *os.Error) {
+ 	r, e := syscall.open(name, mode, perm);
+-	return NewFD(r, name), os.ErrnoToError(e)
++	return newFD(r, name), os.ErrnoToError(e)
+ }
+ 
+ func (fd *FD) Close() *os.Error {
+diff --git a/doc/progs/print_string.go b/doc/progs/print_string.go
+index c435d4eaeb..13a8d82418 100644
+--- a/doc/progs/print_string.go
++++ b/doc/progs/print_string.go
+@@ -6,13 +6,13 @@ package main
+ 
+ import "fmt"
+ 
+-type T struct { a int; b string }
++type testType struct { a int; b string }
+ 
+-func (t *T) String() string {
++func (t *testType) String() string {
+ 	return fmt.Sprint(t.a) + " " + t.b
+ }
+ 
+ func main() {
+-	t := &T{77, "Sunset Strip"};
++	t := &testType{77, "Sunset Strip"};
+ 	fmt.Println(t)
+ }
+diff --git a/doc/progs/server1.go b/doc/progs/server1.go
+index b7e489d46d..a547f6af00 100644
+--- a/doc/progs/server1.go
++++ b/doc/progs/server1.go
+@@ -4,40 +4,40 @@
+ 
+ package main
+ 
+-type Request struct {
++type request struct {
+ 	a, b	int;
+ 	replyc	chan int;
+ }
+ 
+-type BinOp (a, b int) int;
++type binOp (a, b int) int;
+ 
+-func Run(op *BinOp, request *Request) {
++func run(op *binOp, request *request) {
+ 	result := op(request.a, request.b);
+ 	request.replyc <- result;
+ }
+ 
+-func Server(op *BinOp, service chan *Request, quit chan bool) {
++func server(op *binOp, service chan *request, quit chan bool) {
+ 	for {
+ 		select {
+-		case request := <-service:
+-			go Run(op, request);  // don't wait for it
++		case req := <-service:
++			go run(op, req);  // don't wait for it
+ 		case <-quit:
+ 			return;
+ 		}
+ 	}
+ }
+ 
+-func StartServer(op *BinOp) (service chan *Request, quit chan bool) {
+-	service = make(chan *Request);
++func startServer(op *binOp) (service chan *request, quit chan bool) {
++	service = make(chan *request);
+ 	quit = make(chan bool);
+-	go Server(op, service, quit);
++	go server(op, service, quit);
+ 	return service, quit;
+ }
+ 
+ func main() {
+-	adder, quit := StartServer(func(a, b int) int { return a + b });
++	adder, quit := startServer(func(a, b int) int { return a + b });
+ 	const N = 100;
+-	var reqs [N]Request;
++	var reqs [N]request;
+ 	for i := 0; i < N; i++ {
+ 		req := &reqs[i];
+ 		req.a = i;
+diff --git a/doc/progs/sieve.go b/doc/progs/sieve.go
+index 22e14535e3..1e472948e5 100644
+--- a/doc/progs/sieve.go
++++ b/doc/progs/sieve.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+-func Generate(ch chan int) {
++func generate(ch chan int) {
+ 	for i := 2; ; i++ {
+ 		ch <- i  // Send 'i' to channel 'ch'.
+ 	}
+@@ -13,7 +13,7 @@ func Generate(ch chan int) {
+ 
+ // Copy the values from channel 'in' to channel 'out',
+ // removing those divisible by 'prime'.
+-func Filter(in, out chan int, prime int) {
++func filter(in, out chan int, prime int) {
+ 	for {
+ 		i := <-in;  // Receive value of new variable 'i' from 'in'.
+ 		if i % prime != 0 {
+@@ -25,12 +25,12 @@ func Filter(in, out chan int, prime int) {
+ // The prime sieve: Daisy-chain Filter processes together.
+ func main() {
+ 	ch := make(chan int);  // Create a new channel.
+-	go Generate(ch);  // Start Generate() as a goroutine.
++	go generate(ch);  // Start Generate() as a goroutine.
+ 	for {
+ 		prime := <-ch;
+ 		print(prime, "\n");
+ 		ch1 := make(chan int);
+-		go Filter(ch, ch1, prime);
++		go filter(ch, ch1, prime);
+ 		ch = ch1
+ 	}
+ }
+diff --git a/doc/progs/sieve1.go b/doc/progs/sieve1.go
+index 3f2cb9eac3..c9b27f0612 100644
+--- a/doc/progs/sieve1.go
++++ b/doc/progs/sieve1.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ // Send the sequence 2, 3, 4, ... to returned channel 
+-func Generate() chan int {
++func generate() chan int {
+ 	ch := make(chan int);
+ 	go func(ch chan int){
+ 		for i := 2; ; i++ {
+@@ -16,7 +16,7 @@ func Generate() chan int {
+ }
+ 
+ // Filter out input values divisible by 'prime', send rest to returned channel
+-func Filter(in chan int, prime int) chan int {
++func filter(in chan int, prime int) chan int {
+ 	out := make(chan int);
+ 	go func(in chan int, out chan int, prime int) {
+ 		for {
+@@ -28,21 +28,21 @@ func Filter(in chan int, prime int) chan int {
+ 	return out;
+ }
+ 
+-func Sieve() chan int {
++func sieve() chan int {
+ 	out := make(chan int);
+ 	go func(out chan int) {
+-		ch := Generate();
++		ch := generate();
+ 		for {
+ 			prime := <-ch;
+ 			out <- prime;
+-			ch = Filter(ch, prime);
++			ch = filter(ch, prime);
+ 		}
+ 	}(out);
+ 	return out;
+ }
+ 
+ func main() {
+-	primes := Sieve();
++	primes := sieve();
+ 	for {
+ 		print(<-primes, "\n");
+ 	}
+diff --git a/doc/progs/sortmain.go b/doc/progs/sortmain.go
+index 3f0c891e6d..74d1d18408 100644
+--- a/doc/progs/sortmain.go
++++ b/doc/progs/sortmain.go
+@@ -24,30 +24,30 @@ func strings() {
+ 	}
+ }
+ 
+-type Day struct {
++type day struct {
+ 	num        int;
+ 	short_name string;
+ 	long_name  string;
+ }
+ 
+-type DayArray struct {
+-	data []*Day;
++type dayArray struct {
++	data []*day;
+ }
+ 
+-func (p *DayArray) Len() int            { return len(p.data); }
+-func (p *DayArray) Less(i, j int) bool  { return p.data[i].num < p.data[j].num; }
+-func (p *DayArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
++func (p *dayArray) Len() int            { return len(p.data); }
++func (p *dayArray) Less(i, j int) bool  { return p.data[i].num < p.data[j].num; }
++func (p *dayArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+ 
+ func days() {
+-	Sunday :=    Day{ 0, "SUN", "Sunday" };
+-	Monday :=    Day{ 1, "MON", "Monday" };
+-	Tuesday :=   Day{ 2, "TUE", "Tuesday" };
+-	Wednesday := Day{ 3, "WED", "Wednesday" };
+-	Thursday :=  Day{ 4, "THU", "Thursday" };
+-	Friday :=    Day{ 5, "FRI", "Friday" };
+-	Saturday :=  Day{ 6, "SAT", "Saturday" };
+-	data := []*Day{&Tuesday, &Thursday, &Sunday, &Monday, &Friday};
+-	a := DayArray{data};
++	Sunday :=    day{ 0, "SUN", "Sunday" };
++	Monday :=    day{ 1, "MON", "Monday" };
++	Tuesday :=   day{ 2, "TUE", "Tuesday" };
++	Wednesday := day{ 3, "WED", "Wednesday" };
++	Thursday :=  day{ 4, "THU", "Thursday" };
++	Friday :=    day{ 5, "FRI", "Friday" };
++	Saturday :=  day{ 6, "SAT", "Saturday" };
++	data := []*day{&Tuesday, &Thursday, &Sunday, &Monday, &Friday};
++	a := dayArray{data};
+ 	sort.Sort(&a);
+ 	if !sort.IsSorted(&a) {
+ 		panic()

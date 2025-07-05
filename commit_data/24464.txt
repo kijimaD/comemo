@@ -15,7 +15,32 @@ Date:   Thu Jul 30 11:08:15 2015 -0400
     Change-Id: Ic95976b2b698d28c629bfc93d8dac0048b023578
     Reviewed-on: https://go-review.googlesource.com/12897
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/x509/root_darwin_arm_gen.go | 1 +
  src/crypto/x509/root_darwin_armx.go    | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/crypto/x509/root_darwin_arm_gen.go b/src/crypto/x509/root_darwin_arm_gen.go
+index 40e85b752e..5817158c33 100644
+--- a/src/crypto/x509/root_darwin_arm_gen.go
++++ b/src/crypto/x509/root_darwin_arm_gen.go
+@@ -178,6 +178,7 @@ const header = `
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build cgo
+ // +build darwin
+ // +build arm arm64
+ 
+diff --git a/src/crypto/x509/root_darwin_armx.go b/src/crypto/x509/root_darwin_armx.go
+index a3000cc7b5..37675b48a3 100644
+--- a/src/crypto/x509/root_darwin_armx.go
++++ b/src/crypto/x509/root_darwin_armx.go
+@@ -4,6 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build cgo
+ // +build darwin
+ // +build arm arm64 ios
+ 

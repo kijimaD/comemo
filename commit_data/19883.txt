@@ -10,7 +10,7 @@ Date:   Tue Aug 5 11:36:20 2014 -0700
     R=bradfitz, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/108710046
-
+---
  src/pkg/crypto/tls/common.go                       |   1 +
  src/pkg/crypto/tls/handshake_client.go             |  49 +++++++--
  src/pkg/crypto/tls/handshake_client_test.go        |  51 +++++++++
@@ -23,3 +23,993 @@ Date:   Tue Aug 5 11:36:20 2014 -0700
  src/pkg/crypto/tls/testdata/Server-TLSv12-ALPN     | 122 +++++++++++++++++++++
  .../crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch | 121 ++++++++++++++++++++
  11 files changed, 701 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index fca98bdd11..ce30385917 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -72,6 +72,7 @@ const (
+ 	extensionSupportedCurves     uint16 = 10
+ 	extensionSupportedPoints     uint16 = 11
+ 	extensionSignatureAlgorithms uint16 = 13
++	extensionALPN                uint16 = 16
+ 	extensionSessionTicket       uint16 = 35
+ 	extensionNextProtoNeg        uint16 = 13172 // not IANA assigned
+ 	extensionRenegotiationInfo   uint16 = 0xff01
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index a320fde1bc..694a9a217f 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -37,6 +37,18 @@ func (c *Conn) clientHandshake() error {
+ 		return errors.New("tls: either ServerName or InsecureSkipVerify must be specified in the tls.Config")
+ 	}
+ 
++	nextProtosLength := 0
++	for _, proto := range c.config.NextProtos {
++		if l := len(proto); l == 0 || l > 255 {
++			return errors.New("tls: invalid NextProtos value")
++		} else {
++			nextProtosLength += 1 + l
++		}
++	}
++	if nextProtosLength > 0xffff {
++		return errors.New("tls: NextProtos values too large")
++	}
++
+ 	hello := &clientHelloMsg{
+ 		vers:                c.config.maxVersion(),
+ 		compressionMethods:  []uint8{compressionNone},
+@@ -47,6 +59,7 @@ func (c *Conn) clientHandshake() error {
+ 		supportedPoints:     []uint8{pointFormatUncompressed},
+ 		nextProtoNeg:        len(c.config.NextProtos) > 0,
+ 		secureRenegotiation: true,
++		alpnProtocols:       c.config.NextProtos,
+ 	}
+ 
+ 	possibleCipherSuites := c.config.cipherSuites()
+@@ -483,11 +496,31 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
+ 		return false, errors.New("tls: server selected unsupported compression format")
+ 	}
+ 
+-	if !hs.hello.nextProtoNeg && hs.serverHello.nextProtoNeg {
++	clientDidNPN := hs.hello.nextProtoNeg
++	clientDidALPN := len(hs.hello.alpnProtocols) > 0
++	serverHasNPN := hs.serverHello.nextProtoNeg
++	serverHasALPN := len(hs.serverHello.alpnProtocol) > 0
++
++	if !clientDidNPN && serverHasNPN {
+ 		c.sendAlert(alertHandshakeFailure)
+ 		return false, errors.New("server advertised unrequested NPN extension")
+ 	}
+ 
++	if !clientDidALPN && serverHasALPN {
++		c.sendAlert(alertHandshakeFailure)
++		return false, errors.New("server advertised unrequested ALPN extension")
++	}
++
++	if serverHasNPN && serverHasALPN {
++		c.sendAlert(alertHandshakeFailure)
++		return false, errors.New("server advertised both NPN and ALPN extensions")
++	}
++
++	if serverHasALPN {
++		c.clientProtocol = hs.serverHello.alpnProtocol
++		c.clientProtocolFallback = false
++	}
++
+ 	if hs.serverResumedSession() {
+ 		// Restore masterSecret and peerCerts from previous state
+ 		hs.masterSecret = hs.session.masterSecret
+@@ -584,18 +617,18 @@ func clientSessionCacheKey(serverAddr net.Addr, config *Config) string {
+ 	return serverAddr.String()
+ }
+ 
+-// mutualProtocol finds the mutual Next Protocol Negotiation protocol given the
+-// set of client and server supported protocols. The set of client supported
+-// protocols must not be empty. It returns the resulting protocol and flag
++// mutualProtocol finds the mutual Next Protocol Negotiation or ALPN protocol
++// given list of possible protocols and a list of the preference order. The
++// first list must not be empty. It returns the resulting protocol and flag
+ // indicating if the fallback case was reached.
+-func mutualProtocol(clientProtos, serverProtos []string) (string, bool) {
+-	for _, s := range serverProtos {
+-		for _, c := range clientProtos {
++func mutualProtocol(protos, preferenceProtos []string) (string, bool) {
++	for _, s := range preferenceProtos {
++		for _, c := range protos {
+ 			if s == c {
+ 				return s, false
+ 			}
+ 		}
+ 	}
+ 
+-	return clientProtos[0], true
++	return protos[0], true
+ }
+diff --git a/src/pkg/crypto/tls/handshake_client_test.go b/src/pkg/crypto/tls/handshake_client_test.go
+index 0d73c8e2f9..432308b0a8 100644
+--- a/src/pkg/crypto/tls/handshake_client_test.go
++++ b/src/pkg/crypto/tls/handshake_client_test.go
+@@ -49,6 +49,10 @@ type clientTest struct {
+ 	// key, if not nil, contains either a *rsa.PrivateKey or
+ 	// *ecdsa.PrivateKey which is the private key for the reference server.
+ 	key interface{}
++	// validate, if not nil, is a function that will be called with the
++	// ConnectionState of the resulting connection. It returns a non-nil
++	// error if the ConnectionState is unacceptable.
++	validate func(ConnectionState) error
+ }
+ 
+ var defaultServerCommand = []string{"openssl", "s_server"}
+@@ -188,6 +192,11 @@ func (test *clientTest) run(t *testing.T, write bool) {
+ 		if _, err := client.Write([]byte("hello\n")); err != nil {
+ 			t.Logf("Client.Write failed: %s", err)
+ 		}
++		if test.validate != nil {
++			if err := test.validate(client.ConnectionState()); err != nil {
++				t.Logf("validate callback returned error: %s", err)
++			}
++		}
+ 		client.Close()
+ 		clientConn.Close()
+ 		doneChan <- true
+@@ -437,3 +446,45 @@ func TestLRUClientSessionCache(t *testing.T) {
+ 		t.Fatalf("failed to add nil entry to cache")
+ 	}
+ }
++
++func TestHandshakeClientALPNMatch(t *testing.T) {
++	config := *testConfig
++	config.NextProtos = []string{"proto2", "proto1"}
++
++	test := &clientTest{
++		name: "ALPN",
++		// Note that this needs OpenSSL 1.0.2 because that is the first
++		// version that supports the -alpn flag.
++		command: []string{"openssl", "s_server", "-alpn", "proto1,proto2"},
++		config:  &config,
++		validate: func(state ConnectionState) error {
++			// The server's preferences should override the client.
++			if state.NegotiatedProtocol != "proto1" {
++				return fmt.Errorf("Got protocol %q, wanted proto1", state.NegotiatedProtocol)
++			}
++			return nil
++		},
++	}
++	runClientTestTLS12(t, test)
++}
++
++func TestHandshakeClientALPNNoMatch(t *testing.T) {
++	config := *testConfig
++	config.NextProtos = []string{"proto3"}
++
++	test := &clientTest{
++		name: "ALPN-NoMatch",
++		// Note that this needs OpenSSL 1.0.2 because that is the first
++		// version that supports the -alpn flag.
++		command: []string{"openssl", "s_server", "-alpn", "proto1,proto2"},
++		config:  &config,
++		validate: func(state ConnectionState) error {
++			// There's no overlap so OpenSSL will not select a protocol.
++			if state.NegotiatedProtocol != "" {
++				return fmt.Errorf("Got protocol %q, wanted ''", state.NegotiatedProtocol)
++			}
++			return nil
++		},
++	}
++	runClientTestTLS12(t, test)
++}
+diff --git a/src/pkg/crypto/tls/handshake_messages.go b/src/pkg/crypto/tls/handshake_messages.go
+index 7bcaa5eb92..5d14871a34 100644
+--- a/src/pkg/crypto/tls/handshake_messages.go
++++ b/src/pkg/crypto/tls/handshake_messages.go
+@@ -22,6 +22,7 @@ type clientHelloMsg struct {
+ 	sessionTicket       []uint8
+ 	signatureAndHashes  []signatureAndHash
+ 	secureRenegotiation bool
++	alpnProtocols       []string
+ }
+ 
+ func (m *clientHelloMsg) equal(i interface{}) bool {
+@@ -44,7 +45,8 @@ func (m *clientHelloMsg) equal(i interface{}) bool {
+ 		m.ticketSupported == m1.ticketSupported &&
+ 		bytes.Equal(m.sessionTicket, m1.sessionTicket) &&
+ 		eqSignatureAndHashes(m.signatureAndHashes, m1.signatureAndHashes) &&
+-		m.secureRenegotiation == m1.secureRenegotiation
++		m.secureRenegotiation == m1.secureRenegotiation &&
++		eqStrings(m.alpnProtocols, m1.alpnProtocols)
+ }
+ 
+ func (m *clientHelloMsg) marshal() []byte {
+@@ -86,6 +88,17 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		extensionsLength += 1
+ 		numExtensions++
+ 	}
++	if len(m.alpnProtocols) > 0 {
++		extensionsLength += 2
++		for _, s := range m.alpnProtocols {
++			if l := len(s); l == 0 || l > 255 {
++				panic("invalid ALPN protocol")
++			}
++			extensionsLength++
++			extensionsLength += len(s)
++		}
++		numExtensions++
++	}
+ 	if numExtensions > 0 {
+ 		extensionsLength += 4 * numExtensions
+ 		length += 2 + extensionsLength
+@@ -237,6 +250,27 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		z[3] = 1
+ 		z = z[5:]
+ 	}
++	if len(m.alpnProtocols) > 0 {
++		z[0] = byte(extensionALPN >> 8)
++		z[1] = byte(extensionALPN & 0xff)
++		lengths := z[2:]
++		z = z[6:]
++
++		stringsLength := 0
++		for _, s := range m.alpnProtocols {
++			l := len(s)
++			z[0] = byte(l)
++			copy(z[1:], s)
++			z = z[1+l:]
++			stringsLength += 1 + l
++		}
++
++		lengths[2] = byte(stringsLength >> 8)
++		lengths[3] = byte(stringsLength)
++		stringsLength += 2
++		lengths[0] = byte(stringsLength >> 8)
++		lengths[1] = byte(stringsLength)
++	}
+ 
+ 	m.raw = x
+ 
+@@ -291,6 +325,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 	m.ticketSupported = false
+ 	m.sessionTicket = nil
+ 	m.signatureAndHashes = nil
++	m.alpnProtocols = nil
+ 
+ 	if len(data) == 0 {
+ 		// ClientHello is optionally followed by extension data
+@@ -400,6 +435,24 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 				return false
+ 			}
+ 			m.secureRenegotiation = true
++		case extensionALPN:
++			if length < 2 {
++				return false
++			}
++			l := int(data[0])<<8 | int(data[1])
++			if l != length-2 {
++				return false
++			}
++			d := data[2:length]
++			for len(d) != 0 {
++				stringLen := int(d[0])
++				d = d[1:]
++				if stringLen == 0 || stringLen > len(d) {
++					return false
++				}
++				m.alpnProtocols = append(m.alpnProtocols, string(d[:stringLen]))
++				d = d[stringLen:]
++			}
+ 		}
+ 		data = data[length:]
+ 	}
+@@ -419,6 +472,7 @@ type serverHelloMsg struct {
+ 	ocspStapling        bool
+ 	ticketSupported     bool
+ 	secureRenegotiation bool
++	alpnProtocol        string
+ }
+ 
+ func (m *serverHelloMsg) equal(i interface{}) bool {
+@@ -437,7 +491,8 @@ func (m *serverHelloMsg) equal(i interface{}) bool {
+ 		eqStrings(m.nextProtos, m1.nextProtos) &&
+ 		m.ocspStapling == m1.ocspStapling &&
+ 		m.ticketSupported == m1.ticketSupported &&
+-		m.secureRenegotiation == m1.secureRenegotiation
++		m.secureRenegotiation == m1.secureRenegotiation &&
++		m.alpnProtocol == m1.alpnProtocol
+ }
+ 
+ func (m *serverHelloMsg) marshal() []byte {
+@@ -468,6 +523,14 @@ func (m *serverHelloMsg) marshal() []byte {
+ 		extensionsLength += 1
+ 		numExtensions++
+ 	}
++	if alpnLen := len(m.alpnProtocol); alpnLen > 0 {
++		if alpnLen >= 256 {
++			panic("invalid ALPN protocol")
++		}
++		extensionsLength += 2 + 1 + alpnLen
++		numExtensions++
++	}
++
+ 	if numExtensions > 0 {
+ 		extensionsLength += 4 * numExtensions
+ 		length += 2 + extensionsLength
+@@ -528,6 +591,20 @@ func (m *serverHelloMsg) marshal() []byte {
+ 		z[3] = 1
+ 		z = z[5:]
+ 	}
++	if alpnLen := len(m.alpnProtocol); alpnLen > 0 {
++		z[0] = byte(extensionALPN >> 8)
++		z[1] = byte(extensionALPN & 0xff)
++		l := 2 + 1 + alpnLen
++		z[2] = byte(l >> 8)
++		z[3] = byte(l)
++		l -= 2
++		z[4] = byte(l >> 8)
++		z[5] = byte(l)
++		l -= 1
++		z[6] = byte(l)
++		copy(z[7:], []byte(m.alpnProtocol))
++		z = z[7+alpnLen:]
++	}
+ 
+ 	m.raw = x
+ 
+@@ -558,6 +635,7 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
+ 	m.nextProtos = nil
+ 	m.ocspStapling = false
+ 	m.ticketSupported = false
++	m.alpnProtocol = ""
+ 
+ 	if len(data) == 0 {
+ 		// ServerHello is optionally followed by extension data
+@@ -612,6 +690,22 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
+ 				return false
+ 			}
+ 			m.secureRenegotiation = true
++		case extensionALPN:
++			d := data[:length]
++			if len(d) < 3 {
++				return false
++			}
++			l := int(d[0])<<8 | int(d[1])
++			if l != len(d)-2 {
++				return false
++			}
++			d = d[2:]
++			l = int(d[0])
++			if l != len(d)-1 {
++				return false
++			}
++			d = d[1:]
++			m.alpnProtocol = string(d)
+ 		}
+ 		data = data[length:]
+ 	}
+diff --git a/src/pkg/crypto/tls/handshake_messages_test.go b/src/pkg/crypto/tls/handshake_messages_test.go
+index f46aabdfd5..a96e95c3f0 100644
+--- a/src/pkg/crypto/tls/handshake_messages_test.go
++++ b/src/pkg/crypto/tls/handshake_messages_test.go
+@@ -138,6 +138,10 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+ 	if rand.Intn(10) > 5 {
+ 		m.signatureAndHashes = supportedSKXSignatureAlgorithms
+ 	}
++	m.alpnProtocols = make([]string, rand.Intn(5))
++	for i := range m.alpnProtocols {
++		m.alpnProtocols[i] = randomString(rand.Intn(20)+1, rand)
++	}
+ 
+ 	return reflect.ValueOf(m)
+ }
+@@ -166,6 +170,7 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+ 	if rand.Intn(10) > 5 {
+ 		m.ticketSupported = true
+ 	}
++	m.alpnProtocol = randomString(rand.Intn(32)+1, rand)
+ 
+ 	return reflect.ValueOf(m)
+ }
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index 75111eba00..910f3d6ef0 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -163,13 +163,21 @@ Curves:
+ 	if len(hs.clientHello.serverName) > 0 {
+ 		c.serverName = hs.clientHello.serverName
+ 	}
+-	// Although sending an empty NPN extension is reasonable, Firefox has
+-	// had a bug around this. Best to send nothing at all if
+-	// config.NextProtos is empty. See
+-	// https://code.google.com/p/go/issues/detail?id=5445.
+-	if hs.clientHello.nextProtoNeg && len(config.NextProtos) > 0 {
+-		hs.hello.nextProtoNeg = true
+-		hs.hello.nextProtos = config.NextProtos
++
++	if len(hs.clientHello.alpnProtocols) > 0 {
++		if selectedProto, fallback := mutualProtocol(hs.clientHello.alpnProtocols, c.config.NextProtos); !fallback {
++			hs.hello.alpnProtocol = selectedProto
++			c.clientProtocol = selectedProto
++		}
++	} else {
++		// Although sending an empty NPN extension is reasonable, Firefox has
++		// had a bug around this. Best to send nothing at all if
++		// config.NextProtos is empty. See
++		// https://code.google.com/p/go/issues/detail?id=5445.
++		if hs.clientHello.nextProtoNeg && len(config.NextProtos) > 0 {
++			hs.hello.nextProtoNeg = true
++			hs.hello.nextProtos = config.NextProtos
++		}
+ 	}
+ 
+ 	if len(config.Certificates) == 0 {
+diff --git a/src/pkg/crypto/tls/handshake_server_test.go b/src/pkg/crypto/tls/handshake_server_test.go
+index 50eb8842c2..e94dc9f995 100644
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"crypto/ecdsa"
+ 	"crypto/elliptic"
+ 	"crypto/rsa"
+-	"crypto/x509"
+ 	"encoding/hex"
+ 	"encoding/pem"
+ 	"errors"
+@@ -258,6 +257,10 @@ type serverTest struct {
+ 	expectedPeerCerts []string
+ 	// config, if not nil, contains a custom Config to use for this test.
+ 	config *Config
++	// validate, if not nil, is a function that will be called with the
++	// ConnectionState of the resulting connection. It returns false if the
++	// ConnectionState is unacceptable.
++	validate func(ConnectionState) error
+ }
+ 
+ var defaultClientCommand = []string{"openssl", "s_client", "-no_ticket"}
+@@ -354,14 +357,14 @@ func (test *serverTest) run(t *testing.T, write bool) {
+ 		config = testConfig
+ 	}
+ 	server := Server(serverConn, config)
+-	peerCertsChan := make(chan []*x509.Certificate, 1)
++	connStateChan := make(chan ConnectionState, 1)
+ 	go func() {
+ 		if _, err := server.Write([]byte("hello, world\n")); err != nil {
+ 			t.Logf("Error from Server.Write: %s", err)
+ 		}
+ 		server.Close()
+ 		serverConn.Close()
+-		peerCertsChan <- server.ConnectionState().PeerCertificates
++		connStateChan <- server.ConnectionState()
+ 	}()
+ 
+ 	if !write {
+@@ -386,7 +389,8 @@ func (test *serverTest) run(t *testing.T, write bool) {
+ 		clientConn.Close()
+ 	}
+ 
+-	peerCerts := <-peerCertsChan
++	connState := <-connStateChan
++	peerCerts := connState.PeerCertificates
+ 	if len(peerCerts) == len(test.expectedPeerCerts) {
+ 		for i, peerCert := range peerCerts {
+ 			block, _ := pem.Decode([]byte(test.expectedPeerCerts[i]))
+@@ -398,6 +402,12 @@ func (test *serverTest) run(t *testing.T, write bool) {
+ 		t.Fatalf("%s: mismatch on peer list length: %d (wanted) != %d (got)", test.name, len(test.expectedPeerCerts), len(peerCerts))
+ 	}
+ 
++	if test.validate != nil {
++		if err := test.validate(connState); err != nil {
++			t.Fatalf("validate callback returned error: %s", err)
++		}
++	}
++
+ 	if write {
+ 		path := test.dataPath()
+ 		out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+@@ -498,6 +508,49 @@ func TestHandshakeServerECDHEECDSAAES(t *testing.T) {
+ 	runServerTestTLS12(t, test)
+ }
+ 
++func TestHandshakeServerALPN(t *testing.T) {
++	config := *testConfig
++	config.NextProtos = []string{"proto1", "proto2"}
++
++	test := &serverTest{
++		name: "ALPN",
++		// Note that this needs OpenSSL 1.0.2 because that is the first
++		// version that supports the -alpn flag.
++		command: []string{"openssl", "s_client", "-alpn", "proto2,proto1"},
++		config:  &config,
++		validate: func(state ConnectionState) error {
++			// The server's preferences should override the client.
++			if state.NegotiatedProtocol != "proto1" {
++				return fmt.Errorf("Got protocol %q, wanted proto1", state.NegotiatedProtocol)
++			}
++			return nil
++		},
++	}
++	runServerTestTLS12(t, test)
++}
++
++func TestHandshakeServerALPNNoMatch(t *testing.T) {
++	config := *testConfig
++	config.NextProtos = []string{"proto3"}
++
++	test := &serverTest{
++		name: "ALPN-NoMatch",
++		// Note that this needs OpenSSL 1.0.2 because that is the first
++		// version that supports the -alpn flag.
++		command: []string{"openssl", "s_client", "-alpn", "proto2,proto1"},
++		config:  &config,
++		validate: func(state ConnectionState) error {
++			// Rather than reject the connection, Go doesn't select
++			// a protocol when there is no overlap.
++			if state.NegotiatedProtocol != "" {
++				return fmt.Errorf("Got protocol %q, wanted ''", state.NegotiatedProtocol)
++			}
++			return nil
++		},
++	}
++	runServerTestTLS12(t, test)
++}
++
+ // TestHandshakeServerSNI involves a client sending an SNI extension of
+ // "snitest.com", which happens to match the CN of testSNICertificate. The test
+ // verifies that the server correctly selects that certificate.
+diff --git a/src/pkg/crypto/tls/testdata/Client-TLSv12-ALPN b/src/pkg/crypto/tls/testdata/Client-TLSv12-ALPN
+new file mode 100644
+index 0000000000..f09a4f106c
+--- /dev/null
++++ b/src/pkg/crypto/tls/testdata/Client-TLSv12-ALPN
+@@ -0,0 +1,97 @@
++>>> Flow 1 (client to server)
++00000000  16 03 01 00 8d 01 00 00  89 03 03 00 00 00 00 00  |................|
++00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
++00000020  00 00 00 00 00 00 00 00  00 00 00 00 00 1a c0 2f  |.............../|
++00000030  c0 2b c0 11 c0 07 c0 13  c0 09 c0 14 c0 0a 00 05  |.+..............|
++00000040  00 2f 00 35 c0 12 00 0a  01 00 00 46 33 74 00 00  |./.5.......F3t..|
++00000050  00 05 00 05 01 00 00 00  00 00 0a 00 08 00 06 00  |................|
++00000060  17 00 18 00 19 00 0b 00  02 01 00 00 0d 00 0a 00  |................|
++00000070  08 04 01 04 03 02 01 02  03 ff 01 00 01 00 00 10  |................|
++00000080  00 10 00 0e 06 70 72 6f  74 6f 32 06 70 72 6f 74  |.....proto2.prot|
++00000090  6f 31                                             |o1|
++>>> Flow 2 (server to client)
++00000000  16 03 03 00 66 02 00 00  62 03 03 77 a9 7d 9c 4b  |....f...b..w.}.K|
++00000010  69 65 aa dc 95 cb 78 08  3d d2 1a 0a 45 69 23 73  |ie....x.=...Ei#s|
++00000020  4f 41 4f 24 12 2e 57 47  b7 53 64 20 82 9a f8 e7  |OAO$..WG.Sd ....|
++00000030  79 f8 13 2c 9d cd b5 cb  cb 9a 95 56 0e e9 cb a8  |y..,.......V....|
++00000040  e4 a2 8a d6 bc dc fa 25  b3 57 cc cf c0 2f 00 00  |.......%.W.../..|
++00000050  1a ff 01 00 01 00 00 0b  00 04 03 00 01 02 00 10  |................|
++00000060  00 09 00 07 06 70 72 6f  74 6f 31 16 03 03 02 be  |.....proto1.....|
++00000070  0b 00 02 ba 00 02 b7 00  02 b4 30 82 02 b0 30 82  |..........0...0.|
++00000080  02 19 a0 03 02 01 02 02  09 00 85 b0 bb a4 8a 7f  |................|
++00000090  b8 ca 30 0d 06 09 2a 86  48 86 f7 0d 01 01 05 05  |..0...*.H.......|
++000000a0  00 30 45 31 0b 30 09 06  03 55 04 06 13 02 41 55  |.0E1.0...U....AU|
++000000b0  31 13 30 11 06 03 55 04  08 13 0a 53 6f 6d 65 2d  |1.0...U....Some-|
++000000c0  53 74 61 74 65 31 21 30  1f 06 03 55 04 0a 13 18  |State1!0...U....|
++000000d0  49 6e 74 65 72 6e 65 74  20 57 69 64 67 69 74 73  |Internet Widgits|
++000000e0  20 50 74 79 20 4c 74 64  30 1e 17 0d 31 30 30 34  | Pty Ltd0...1004|
++000000f0  32 34 30 39 30 39 33 38  5a 17 0d 31 31 30 34 32  |24090938Z..11042|
++00000100  34 30 39 30 39 33 38 5a  30 45 31 0b 30 09 06 03  |4090938Z0E1.0...|
++00000110  55 04 06 13 02 41 55 31  13 30 11 06 03 55 04 08  |U....AU1.0...U..|
++00000120  13 0a 53 6f 6d 65 2d 53  74 61 74 65 31 21 30 1f  |..Some-State1!0.|
++00000130  06 03 55 04 0a 13 18 49  6e 74 65 72 6e 65 74 20  |..U....Internet |
++00000140  57 69 64 67 69 74 73 20  50 74 79 20 4c 74 64 30  |Widgits Pty Ltd0|
++00000150  81 9f 30 0d 06 09 2a 86  48 86 f7 0d 01 01 01 05  |..0...*.H.......|
++00000160  00 03 81 8d 00 30 81 89  02 81 81 00 bb 79 d6 f5  |.....0.......y..|
++00000170  17 b5 e5 bf 46 10 d0 dc  69 be e6 2b 07 43 5a d0  |....F...i..+.CZ.|
++00000180  03 2d 8a 7a 43 85 b7 14  52 e7 a5 65 4c 2c 78 b8  |.-.zC...R..eL,x.|
++00000190  23 8c b5 b4 82 e5 de 1f  95 3b 7e 62 a5 2c a5 33  |#........;~b.,.3|
++000001a0  d6 fe 12 5c 7a 56 fc f5  06 bf fa 58 7b 26 3f b5  |...\zV.....X{&?.|
++000001b0  cd 04 d3 d0 c9 21 96 4a  c7 f4 54 9f 5a bf ef 42  |.....!.J..T.Z..B|
++000001c0  71 00 fe 18 99 07 7f 7e  88 7d 7d f1 04 39 c4 a2  |q......~.}}..9..|
++000001d0  2e db 51 c9 7c e3 c0 4c  3b 32 66 01 cf af b1 1d  |..Q.|..L;2f.....|
++000001e0  b8 71 9a 1d db db 89 6b  ae da 2d 79 02 03 01 00  |.q.....k..-y....|
++000001f0  01 a3 81 a7 30 81 a4 30  1d 06 03 55 1d 0e 04 16  |....0..0...U....|
++00000200  04 14 b1 ad e2 85 5a cf  cb 28 db 69 ce 23 69 de  |......Z..(.i.#i.|
++00000210  d3 26 8e 18 88 39 30 75  06 03 55 1d 23 04 6e 30  |.&...90u..U.#.n0|
++00000220  6c 80 14 b1 ad e2 85 5a  cf cb 28 db 69 ce 23 69  |l......Z..(.i.#i|
++00000230  de d3 26 8e 18 88 39 a1  49 a4 47 30 45 31 0b 30  |..&...9.I.G0E1.0|
++00000240  09 06 03 55 04 06 13 02  41 55 31 13 30 11 06 03  |...U....AU1.0...|
++00000250  55 04 08 13 0a 53 6f 6d  65 2d 53 74 61 74 65 31  |U....Some-State1|
++00000260  21 30 1f 06 03 55 04 0a  13 18 49 6e 74 65 72 6e  |!0...U....Intern|
++00000270  65 74 20 57 69 64 67 69  74 73 20 50 74 79 20 4c  |et Widgits Pty L|
++00000280  74 64 82 09 00 85 b0 bb  a4 8a 7f b8 ca 30 0c 06  |td...........0..|
++00000290  03 55 1d 13 04 05 30 03  01 01 ff 30 0d 06 09 2a  |.U....0....0...*|
++000002a0  86 48 86 f7 0d 01 01 05  05 00 03 81 81 00 08 6c  |.H.............l|
++000002b0  45 24 c7 6b b1 59 ab 0c  52 cc f2 b0 14 d7 87 9d  |E$.k.Y..R.......|
++000002c0  7a 64 75 b5 5a 95 66 e4  c5 2b 8e ae 12 66 1f eb  |zdu.Z.f..+...f..|
++000002d0  4f 38 b3 6e 60 d3 92 fd  f7 41 08 b5 25 13 b1 18  |O8.n`....A..%...|
++000002e0  7a 24 fb 30 1d ba ed 98  b9 17 ec e7 d7 31 59 db  |z$.0.........1Y.|
++000002f0  95 d3 1d 78 ea 50 56 5c  d5 82 5a 2d 5a 5f 33 c4  |...x.PV\..Z-Z_3.|
++00000300  b6 d8 c9 75 90 96 8c 0f  52 98 b5 cd 98 1f 89 20  |...u....R...... |
++00000310  5f f2 a0 1c a3 1b 96 94  dd a9 fd 57 e9 70 e8 26  |_..........W.p.&|
++00000320  6d 71 99 9b 26 6e 38 50  29 6c 90 a7 bd d9 16 03  |mq..&n8P)l......|
++00000330  03 00 cd 0c 00 00 c9 03  00 17 41 04 1b 42 c3 ae  |..........A..B..|
++00000340  44 19 d3 84 7c 6c 98 cb  b9 22 a2 67 63 95 aa cc  |D...|l...".gc...|
++00000350  bd e4 1e f8 08 e6 60 f3  bc 83 9f 81 da 9c 1c 8c  |......`.........|
++00000360  ff 6f f4 3e 1e e5 3b f6  49 61 f9 70 43 7f c1 69  |.o.>..;.Ia.pC..i|
++00000370  de 73 98 4b bd 5c c3 78  24 18 a8 ec 04 01 00 80  |.s.K.\.x$.......|
++00000380  70 d2 5b e1 39 cf 4d 54  de d2 74 4e 5e a8 b3 ca  |p.[.9.MT..tN^...|
++00000390  e1 f2 4e 76 3c 77 8b ef  f7 d1 df b9 ad c1 70 39  |..Nv<w........p9|
++000003a0  c7 a3 1e 0f 7b 6c 78 2e  c1 86 d2 67 36 d8 25 e0  |....{lx....g6.%.|
++000003b0  e8 e5 cc 35 a2 96 a1 b4  b7 06 68 1e aa c7 06 97  |...5......h.....|
++000003c0  b7 c2 83 ce c0 17 dd 4f  9e 6f 7a bd cd c7 6e 7f  |.......O.oz...n.|
++000003d0  cb 80 d1 7d 06 2d f9 f1  fb 5f cc bb d8 62 5b f0  |...}.-..._...b[.|
++000003e0  27 12 57 d5 9b 55 aa 55  4b 9a 5a f6 a5 aa c1 82  |'.W..U.UK.Z.....|
++000003f0  39 11 6b dc 83 7f a8 47  28 5a 0f 3d 3f 0f c2 22  |9.k....G(Z.=?.."|
++00000400  16 03 03 00 04 0e 00 00  00                       |.........|
++>>> Flow 3 (client to server)
++00000000  16 03 03 00 46 10 00 00  42 41 04 1e 18 37 ef 0d  |....F...BA...7..|
++00000010  19 51 88 35 75 71 b5 e5  54 5b 12 2e 8f 09 67 fd  |.Q.5uq..T[....g.|
++00000020  a7 24 20 3e b2 56 1c ce  97 28 5e f8 2b 2d 4f 9e  |.$ >.V...(^.+-O.|
++00000030  f1 07 9f 6c 4b 5b 83 56  e2 32 42 e9 58 b6 d7 49  |...lK[.V.2B.X..I|
++00000040  a6 b5 68 1a 41 03 56 6b  dc 5a 89 14 03 03 00 01  |..h.A.Vk.Z......|
++00000050  01 16 03 03 00 28 00 00  00 00 00 00 00 00 35 9d  |.....(........5.|
++00000060  92 e8 bf df 7f a7 77 1b  cf 03 2a bf e2 6c 62 2b  |......w...*..lb+|
++00000070  26 f0 fb 93 d3 df fd 55  84 d3 ed 88 31 cb        |&......U....1.|
++>>> Flow 4 (server to client)
++00000000  14 03 03 00 01 01 16 03  03 00 28 c8 c0 78 09 73  |..........(..x.s|
++00000010  58 41 73 66 88 cf db f3  fe c6 57 ab 45 be 2e d8  |XAsf......W.E...|
++00000020  4e e5 ff 42 57 13 74 d2  cc c2 62 07 39 8b 06 46  |N..BW.t...b.9..F|
++00000030  1d 8f 88                                          |...|
++>>> Flow 5 (client to server)
++00000000  17 03 03 00 1e 00 00 00  00 00 00 00 01 10 c3 5f  |..............._|
++00000010  3f c8 92 6c 7a a7 23 05  f3 d8 31 20 01 52 f1 99  |?..lz.#...1 .R..|
++00000020  33 c1 2a 15 03 03 00 1a  00 00 00 00 00 00 00 02  |3.*.............|
++00000030  cc ef eb 78 e4 e1 9d 90  05 6d 95 ac f2 49 ba 8e  |...x.....m...I..|
++00000040  6b 8d                                             |k.|
+diff --git a/src/pkg/crypto/tls/testdata/Client-TLSv12-ALPN-NoMatch b/src/pkg/crypto/tls/testdata/Client-TLSv12-ALPN-NoMatch
+new file mode 100644
+index 0000000000..f24a70cc82
+--- /dev/null
++++ b/src/pkg/crypto/tls/testdata/Client-TLSv12-ALPN-NoMatch
+@@ -0,0 +1,95 @@
++>>> Flow 1 (client to server)
++00000000  16 03 01 00 86 01 00 00  82 03 03 00 00 00 00 00  |................|
++00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
++00000020  00 00 00 00 00 00 00 00  00 00 00 00 00 1a c0 2f  |.............../|
++00000030  c0 2b c0 11 c0 07 c0 13  c0 09 c0 14 c0 0a 00 05  |.+..............|
++00000040  00 2f 00 35 c0 12 00 0a  01 00 00 3f 33 74 00 00  |./.5.......?3t..|
++00000050  00 05 00 05 01 00 00 00  00 00 0a 00 08 00 06 00  |................|
++00000060  17 00 18 00 19 00 0b 00  02 01 00 00 0d 00 0a 00  |................|
++00000070  08 04 01 04 03 02 01 02  03 ff 01 00 01 00 00 10  |................|
++00000080  00 09 00 07 06 70 72 6f  74 6f 33                 |.....proto3|
++>>> Flow 2 (server to client)
++00000000  16 03 03 00 59 02 00 00  55 03 03 69 84 d1 d3 44  |....Y...U..i...D|
++00000010  e9 66 08 48 bc 70 d8 ae  40 0b 17 69 e7 27 f6 7a  |.f.H.p..@..i.'.z|
++00000020  d5 ee 86 74 54 9e a8 bb  79 76 89 20 57 53 1b 02  |...tT...yv. WS..|
++00000030  5b 70 81 a6 f1 53 bc 9d  b7 42 5e ac 92 93 b5 20  |[p...S...B^.... |
++00000040  8a bb 36 cc 8f cb 7e a0  61 a2 e8 ef c0 2f 00 00  |..6...~.a..../..|
++00000050  0d ff 01 00 01 00 00 0b  00 04 03 00 01 02 16 03  |................|
++00000060  03 02 be 0b 00 02 ba 00  02 b7 00 02 b4 30 82 02  |.............0..|
++00000070  b0 30 82 02 19 a0 03 02  01 02 02 09 00 85 b0 bb  |.0..............|
++00000080  a4 8a 7f b8 ca 30 0d 06  09 2a 86 48 86 f7 0d 01  |.....0...*.H....|
++00000090  01 05 05 00 30 45 31 0b  30 09 06 03 55 04 06 13  |....0E1.0...U...|
++000000a0  02 41 55 31 13 30 11 06  03 55 04 08 13 0a 53 6f  |.AU1.0...U....So|
++000000b0  6d 65 2d 53 74 61 74 65  31 21 30 1f 06 03 55 04  |me-State1!0...U.|
++000000c0  0a 13 18 49 6e 74 65 72  6e 65 74 20 57 69 64 67  |...Internet Widg|
++000000d0  69 74 73 20 50 74 79 20  4c 74 64 30 1e 17 0d 31  |its Pty Ltd0...1|
++000000e0  30 30 34 32 34 30 39 30  39 33 38 5a 17 0d 31 31  |00424090938Z..11|
++000000f0  30 34 32 34 30 39 30 39  33 38 5a 30 45 31 0b 30  |0424090938Z0E1.0|
++00000100  09 06 03 55 04 06 13 02  41 55 31 13 30 11 06 03  |...U....AU1.0...|
++00000110  55 04 08 13 0a 53 6f 6d  65 2d 53 74 61 74 65 31  |U....Some-State1|
++00000120  21 30 1f 06 03 55 04 0a  13 18 49 6e 74 65 72 6e  |!0...U....Intern|
++00000130  65 74 20 57 69 64 67 69  74 73 20 50 74 79 20 4c  |et Widgits Pty L|
++00000140  74 64 30 81 9f 30 0d 06  09 2a 86 48 86 f7 0d 01  |td0..0...*.H....|
++00000150  01 01 05 00 03 81 8d 00  30 81 89 02 81 81 00 bb  |........0.......|
++00000160  79 d6 f5 17 b5 e5 bf 46  10 d0 dc 69 be e6 2b 07  |y......F...i..+.|
++00000170  43 5a d0 03 2d 8a 7a 43  85 b7 14 52 e7 a5 65 4c  |CZ..-.zC...R..eL|
++00000180  2c 78 b8 23 8c b5 b4 82  e5 de 1f 95 3b 7e 62 a5  |,x.#........;~b.|
++00000190  2c a5 33 d6 fe 12 5c 7a  56 fc f5 06 bf fa 58 7b  |,.3...\zV.....X{|
++000001a0  26 3f b5 cd 04 d3 d0 c9  21 96 4a c7 f4 54 9f 5a  |&?......!.J..T.Z|
++000001b0  bf ef 42 71 00 fe 18 99  07 7f 7e 88 7d 7d f1 04  |..Bq......~.}}..|
++000001c0  39 c4 a2 2e db 51 c9 7c  e3 c0 4c 3b 32 66 01 cf  |9....Q.|..L;2f..|
++000001d0  af b1 1d b8 71 9a 1d db  db 89 6b ae da 2d 79 02  |....q.....k..-y.|
++000001e0  03 01 00 01 a3 81 a7 30  81 a4 30 1d 06 03 55 1d  |.......0..0...U.|
++000001f0  0e 04 16 04 14 b1 ad e2  85 5a cf cb 28 db 69 ce  |.........Z..(.i.|
++00000200  23 69 de d3 26 8e 18 88  39 30 75 06 03 55 1d 23  |#i..&...90u..U.#|
++00000210  04 6e 30 6c 80 14 b1 ad  e2 85 5a cf cb 28 db 69  |.n0l......Z..(.i|
++00000220  ce 23 69 de d3 26 8e 18  88 39 a1 49 a4 47 30 45  |.#i..&...9.I.G0E|
++00000230  31 0b 30 09 06 03 55 04  06 13 02 41 55 31 13 30  |1.0...U....AU1.0|
++00000240  11 06 03 55 04 08 13 0a  53 6f 6d 65 2d 53 74 61  |...U....Some-Sta|
++00000250  74 65 31 21 30 1f 06 03  55 04 0a 13 18 49 6e 74  |te1!0...U....Int|
++00000260  65 72 6e 65 74 20 57 69  64 67 69 74 73 20 50 74  |ernet Widgits Pt|
++00000270  79 20 4c 74 64 82 09 00  85 b0 bb a4 8a 7f b8 ca  |y Ltd...........|
++00000280  30 0c 06 03 55 1d 13 04  05 30 03 01 01 ff 30 0d  |0...U....0....0.|
++00000290  06 09 2a 86 48 86 f7 0d  01 01 05 05 00 03 81 81  |..*.H...........|
++000002a0  00 08 6c 45 24 c7 6b b1  59 ab 0c 52 cc f2 b0 14  |..lE$.k.Y..R....|
++000002b0  d7 87 9d 7a 64 75 b5 5a  95 66 e4 c5 2b 8e ae 12  |...zdu.Z.f..+...|
++000002c0  66 1f eb 4f 38 b3 6e 60  d3 92 fd f7 41 08 b5 25  |f..O8.n`....A..%|
++000002d0  13 b1 18 7a 24 fb 30 1d  ba ed 98 b9 17 ec e7 d7  |...z$.0.........|
++000002e0  31 59 db 95 d3 1d 78 ea  50 56 5c d5 82 5a 2d 5a  |1Y....x.PV\..Z-Z|
++000002f0  5f 33 c4 b6 d8 c9 75 90  96 8c 0f 52 98 b5 cd 98  |_3....u....R....|
++00000300  1f 89 20 5f f2 a0 1c a3  1b 96 94 dd a9 fd 57 e9  |.. _..........W.|
++00000310  70 e8 26 6d 71 99 9b 26  6e 38 50 29 6c 90 a7 bd  |p.&mq..&n8P)l...|
++00000320  d9 16 03 03 00 cd 0c 00  00 c9 03 00 17 41 04 04  |.............A..|
++00000330  be 27 08 6f 12 83 1b 04  76 fa 5f 16 d6 e3 64 76  |.'.o....v._...dv|
++00000340  ad 0a 77 37 71 64 44 4c  3f 1a be dc 85 ce 46 c8  |..w7qdDL?.....F.|
++00000350  29 a1 e2 24 78 66 1f 35  90 05 46 c0 91 d1 fd dd  |)..$xf.5..F.....|
++00000360  b5 5b 87 d7 6d 9d 77 a7  f7 b3 df 68 27 fd 6d 04  |.[..m.w....h'.m.|
++00000370  01 00 80 7b 9b fd 0d 62  57 07 ef 97 f5 ff a9 00  |...{...bW.......|
++00000380  a0 89 35 5a 8a e6 e7 ae  7b 55 c5 dc 21 64 87 6e  |..5Z....{U..!d.n|
++00000390  0f ab 85 6d 82 e8 83 fd  7d 3b 49 a7 ae 92 5f 6d  |...m....};I..._m|
++000003a0  a3 42 ce ff ef a6 00 6a  33 32 1f 7b eb b7 c2 5c  |.B.....j32.{...\|
++000003b0  2d 38 cf 10 4b 59 69 4d  15 e0 68 49 39 ba cb 2a  |-8..KYiM..hI9..*|
++000003c0  d9 b9 f3 fe 33 01 4f 7e  ac 69 02 35 a5 e0 33 8d  |....3.O~.i.5..3.|
++000003d0  b3 74 34 14 45 9c 89 ad  41 2d d0 27 22 90 58 c6  |.t4.E...A-.'".X.|
++000003e0  e0 2c b4 6e 19 04 e4 46  26 ec 13 35 48 a6 3f 64  |.,.n...F&..5H.?d|
++000003f0  dc 85 2b 16 03 03 00 04  0e 00 00 00              |..+.........|
++>>> Flow 3 (client to server)
++00000000  16 03 03 00 46 10 00 00  42 41 04 1e 18 37 ef 0d  |....F...BA...7..|
++00000010  19 51 88 35 75 71 b5 e5  54 5b 12 2e 8f 09 67 fd  |.Q.5uq..T[....g.|
++00000020  a7 24 20 3e b2 56 1c ce  97 28 5e f8 2b 2d 4f 9e  |.$ >.V...(^.+-O.|
++00000030  f1 07 9f 6c 4b 5b 83 56  e2 32 42 e9 58 b6 d7 49  |...lK[.V.2B.X..I|
++00000040  a6 b5 68 1a 41 03 56 6b  dc 5a 89 14 03 03 00 01  |..h.A.Vk.Z......|
++00000050  01 16 03 03 00 28 00 00  00 00 00 00 00 00 88 0d  |.....(..........|
++00000060  04 8b 8e 93 55 58 d6 75  ca 16 26 42 a3 60 20 67  |....UX.u..&B.` g|
++00000070  84 cf d7 b3 10 fe 63 6c  2f 40 64 0c d6 78        |......cl/@d..x|
++>>> Flow 4 (server to client)
++00000000  14 03 03 00 01 01 16 03  03 00 28 bd 6c 2f 70 b9  |..........(.l/p.|
++00000010  2f 9c 29 70 af 34 49 4c  5b 25 c3 14 b6 6d 28 81  |/.)p.4IL[%...m(.|
++00000020  ff 54 d9 71 8d 2c c7 38  dd 44 27 6b 54 1e 53 7b  |.T.q.,.8.D'kT.S{|
++00000030  22 cb 65                                          |".e|
++>>> Flow 5 (client to server)
++00000000  17 03 03 00 1e 00 00 00  00 00 00 00 01 7f 0d d7  |................|
++00000010  d9 4b 87 7b 36 fb 24 92  69 22 43 50 1e 46 fb c4  |.K.{6.$.i"CP.F..|
++00000020  86 64 6f 15 03 03 00 1a  00 00 00 00 00 00 00 02  |.do.............|
++00000030  37 d5 2d 0a be c5 a8 ae  d4 bd 2b 09 34 18 a0 87  |7.-.......+.4...|
++00000040  08 a6                                             |..|
+diff --git a/src/pkg/crypto/tls/testdata/Server-TLSv12-ALPN b/src/pkg/crypto/tls/testdata/Server-TLSv12-ALPN
+new file mode 100644
+index 0000000000..106244d5a2
+--- /dev/null
++++ b/src/pkg/crypto/tls/testdata/Server-TLSv12-ALPN
+@@ -0,0 +1,122 @@
++>>> Flow 1 (client to server)
++00000000  16 03 01 01 8a 01 00 01  86 03 03 34 54 69 f3 d7  |...........4Ti..|
++00000010  20 9d 1d 74 db 72 e9 2f  51 7c c2 82 0a 9b cb 6d  | ..t.r./Q|.....m|
++00000020  90 b4 8e a2 1f 2f c7 66  74 8f 33 00 00 d6 c0 30  |...../.ft.3....0|
++00000030  c0 2c c0 28 c0 24 c0 14  c0 0a c0 22 c0 21 c0 20  |.,.(.$.....".!. |
++00000040  00 a5 00 a3 00 a1 00 9f  00 6b 00 6a 00 69 00 68  |.........k.j.i.h|
++00000050  00 39 00 38 00 37 00 36  00 88 00 87 00 86 00 85  |.9.8.7.6........|
++00000060  c0 32 c0 2e c0 2a c0 26  c0 0f c0 05 00 9d 00 3d  |.2...*.&.......=|
++00000070  00 35 00 84 c0 2f c0 2b  c0 27 c0 23 c0 13 c0 09  |.5.../.+.'.#....|
++00000080  c0 1f c0 1e c0 1d 00 a4  00 a2 00 a0 00 9e 00 67  |...............g|
++00000090  00 40 00 3f 00 3e 00 33  00 32 00 31 00 30 00 9a  |.@.?.>.3.2.1.0..|
++000000a0  00 99 00 98 00 97 00 45  00 44 00 43 00 42 c0 31  |.......E.D.C.B.1|
++000000b0  c0 2d c0 29 c0 25 c0 0e  c0 04 00 9c 00 3c 00 2f  |.-.).%.......<./|
++000000c0  00 96 00 41 00 07 c0 11  c0 07 c0 0c c0 02 00 05  |...A............|
++000000d0  00 04 c0 12 c0 08 c0 1c  c0 1b c0 1a 00 16 00 13  |................|
++000000e0  00 10 00 0d c0 0d c0 03  00 0a 00 15 00 12 00 0f  |................|
++000000f0  00 0c 00 09 00 14 00 11  00 0e 00 0b 00 08 00 06  |................|
++00000100  00 03 00 ff 01 00 00 87  00 0b 00 04 03 00 01 02  |................|
++00000110  00 0a 00 3a 00 38 00 0e  00 0d 00 19 00 1c 00 0b  |...:.8..........|
++00000120  00 0c 00 1b 00 18 00 09  00 0a 00 1a 00 16 00 17  |................|
++00000130  00 08 00 06 00 07 00 14  00 15 00 04 00 05 00 12  |................|
++00000140  00 13 00 01 00 02 00 03  00 0f 00 10 00 11 00 23  |...............#|
++00000150  00 00 00 0d 00 20 00 1e  06 01 06 02 06 03 05 01  |..... ..........|
++00000160  05 02 05 03 04 01 04 02  04 03 03 01 03 02 03 03  |................|
++00000170  02 01 02 02 02 03 00 0f  00 01 01 00 10 00 10 00  |................|
++00000180  0e 06 70 72 6f 74 6f 32  06 70 72 6f 74 6f 31     |..proto2.proto1|
++>>> Flow 2 (server to client)
++00000000  16 03 03 00 42 02 00 00  3e 03 03 00 00 00 00 00  |....B...>.......|
++00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
++00000020  00 00 00 00 00 00 00 00  00 00 00 00 c0 14 00 00  |................|
++00000030  16 00 23 00 00 ff 01 00  01 00 00 10 00 09 00 07  |..#.............|
++00000040  06 70 72 6f 74 6f 31 16  03 03 02 be 0b 00 02 ba  |.proto1.........|
++00000050  00 02 b7 00 02 b4 30 82  02 b0 30 82 02 19 a0 03  |......0...0.....|
++00000060  02 01 02 02 09 00 85 b0  bb a4 8a 7f b8 ca 30 0d  |..............0.|
++00000070  06 09 2a 86 48 86 f7 0d  01 01 05 05 00 30 45 31  |..*.H........0E1|
++00000080  0b 30 09 06 03 55 04 06  13 02 41 55 31 13 30 11  |.0...U....AU1.0.|
++00000090  06 03 55 04 08 13 0a 53  6f 6d 65 2d 53 74 61 74  |..U....Some-Stat|
++000000a0  65 31 21 30 1f 06 03 55  04 0a 13 18 49 6e 74 65  |e1!0...U....Inte|
++000000b0  72 6e 65 74 20 57 69 64  67 69 74 73 20 50 74 79  |rnet Widgits Pty|
++000000c0  20 4c 74 64 30 1e 17 0d  31 30 30 34 32 34 30 39  | Ltd0...10042409|
++000000d0  30 39 33 38 5a 17 0d 31  31 30 34 32 34 30 39 30  |0938Z..110424090|
++000000e0  39 33 38 5a 30 45 31 0b  30 09 06 03 55 04 06 13  |938Z0E1.0...U...|
++000000f0  02 41 55 31 13 30 11 06  03 55 04 08 13 0a 53 6f  |.AU1.0...U....So|
++00000100  6d 65 2d 53 74 61 74 65  31 21 30 1f 06 03 55 04  |me-State1!0...U.|
++00000110  0a 13 18 49 6e 74 65 72  6e 65 74 20 57 69 64 67  |...Internet Widg|
++00000120  69 74 73 20 50 74 79 20  4c 74 64 30 81 9f 30 0d  |its Pty Ltd0..0.|
++00000130  06 09 2a 86 48 86 f7 0d  01 01 01 05 00 03 81 8d  |..*.H...........|
++00000140  00 30 81 89 02 81 81 00  bb 79 d6 f5 17 b5 e5 bf  |.0.......y......|
++00000150  46 10 d0 dc 69 be e6 2b  07 43 5a d0 03 2d 8a 7a  |F...i..+.CZ..-.z|
++00000160  43 85 b7 14 52 e7 a5 65  4c 2c 78 b8 23 8c b5 b4  |C...R..eL,x.#...|
++00000170  82 e5 de 1f 95 3b 7e 62  a5 2c a5 33 d6 fe 12 5c  |.....;~b.,.3...\|
++00000180  7a 56 fc f5 06 bf fa 58  7b 26 3f b5 cd 04 d3 d0  |zV.....X{&?.....|
++00000190  c9 21 96 4a c7 f4 54 9f  5a bf ef 42 71 00 fe 18  |.!.J..T.Z..Bq...|
++000001a0  99 07 7f 7e 88 7d 7d f1  04 39 c4 a2 2e db 51 c9  |...~.}}..9....Q.|
++000001b0  7c e3 c0 4c 3b 32 66 01  cf af b1 1d b8 71 9a 1d  ||..L;2f......q..|
++000001c0  db db 89 6b ae da 2d 79  02 03 01 00 01 a3 81 a7  |...k..-y........|
++000001d0  30 81 a4 30 1d 06 03 55  1d 0e 04 16 04 14 b1 ad  |0..0...U........|
++000001e0  e2 85 5a cf cb 28 db 69  ce 23 69 de d3 26 8e 18  |..Z..(.i.#i..&..|
++000001f0  88 39 30 75 06 03 55 1d  23 04 6e 30 6c 80 14 b1  |.90u..U.#.n0l...|
++00000200  ad e2 85 5a cf cb 28 db  69 ce 23 69 de d3 26 8e  |...Z..(.i.#i..&.|
++00000210  18 88 39 a1 49 a4 47 30  45 31 0b 30 09 06 03 55  |..9.I.G0E1.0...U|
++00000220  04 06 13 02 41 55 31 13  30 11 06 03 55 04 08 13  |....AU1.0...U...|
++00000230  0a 53 6f 6d 65 2d 53 74  61 74 65 31 21 30 1f 06  |.Some-State1!0..|
++00000240  03 55 04 0a 13 18 49 6e  74 65 72 6e 65 74 20 57  |.U....Internet W|
++00000250  69 64 67 69 74 73 20 50  74 79 20 4c 74 64 82 09  |idgits Pty Ltd..|
++00000260  00 85 b0 bb a4 8a 7f b8  ca 30 0c 06 03 55 1d 13  |.........0...U..|
++00000270  04 05 30 03 01 01 ff 30  0d 06 09 2a 86 48 86 f7  |..0....0...*.H..|
++00000280  0d 01 01 05 05 00 03 81  81 00 08 6c 45 24 c7 6b  |...........lE$.k|
++00000290  b1 59 ab 0c 52 cc f2 b0  14 d7 87 9d 7a 64 75 b5  |.Y..R.......zdu.|
++000002a0  5a 95 66 e4 c5 2b 8e ae  12 66 1f eb 4f 38 b3 6e  |Z.f..+...f..O8.n|
++000002b0  60 d3 92 fd f7 41 08 b5  25 13 b1 18 7a 24 fb 30  |`....A..%...z$.0|
++000002c0  1d ba ed 98 b9 17 ec e7  d7 31 59 db 95 d3 1d 78  |.........1Y....x|
++000002d0  ea 50 56 5c d5 82 5a 2d  5a 5f 33 c4 b6 d8 c9 75  |.PV\..Z-Z_3....u|
++000002e0  90 96 8c 0f 52 98 b5 cd  98 1f 89 20 5f f2 a0 1c  |....R...... _...|
++000002f0  a3 1b 96 94 dd a9 fd 57  e9 70 e8 26 6d 71 99 9b  |.......W.p.&mq..|
++00000300  26 6e 38 50 29 6c 90 a7  bd d9 16 03 03 00 cd 0c  |&n8P)l..........|
++00000310  00 00 c9 03 00 17 41 04  1e 18 37 ef 0d 19 51 88  |......A...7...Q.|
++00000320  35 75 71 b5 e5 54 5b 12  2e 8f 09 67 fd a7 24 20  |5uq..T[....g..$ |
++00000330  3e b2 56 1c ce 97 28 5e  f8 2b 2d 4f 9e f1 07 9f  |>.V...(^.+-O....|
++00000340  6c 4b 5b 83 56 e2 32 42  e9 58 b6 d7 49 a6 b5 68  |lK[.V.2B.X..I..h|
++00000350  1a 41 03 56 6b dc 5a 89  04 01 00 80 2d a0 6e 47  |.A.Vk.Z.....-.nG|
++00000360  93 a2 19 17 32 f5 42 58  93 f6 4f d4 e9 4d a4 0f  |....2.BX..O..M..|
++00000370  fe 4e d7 2c 62 b6 fb 83  37 a3 09 60 4b 69 e2 4c  |.N.,b...7..`Ki.L|
++00000380  fc b8 4c d1 a6 9a 89 a0  c5 76 f5 62 b7 e8 eb c2  |..L......v.b....|
++00000390  fa 0f 0e 61 86 bc 70 da  13 72 8d 87 94 16 9a 8d  |...a..p..r......|
++000003a0  5f 80 82 92 77 37 4f 9e  55 5d dc 35 42 a3 75 5c  |_...w7O.U].5B.u\|
++000003b0  ec a4 58 78 66 97 97 da  49 67 2e b6 7e 11 de fb  |..Xxf...Ig..~...|
++000003c0  e3 8f e8 bf 1d 91 1e 91  20 1b 2a df c6 58 e4 82  |........ .*..X..|
++000003d0  ce 37 dd 6f a5 ac 51 3d  65 db 3f f5 16 03 03 00  |.7.o..Q=e.?.....|
++000003e0  04 0e 00 00 00                                    |.....|
++>>> Flow 3 (client to server)
++00000000  16 03 03 00 46 10 00 00  42 41 04 f3 fc ea d8 50  |....F...BA.....P|
++00000010  e6 15 b0 e7 11 c7 6d ee  09 ad 80 d5 54 eb 4f 62  |......m.....T.Ob|
++00000020  7d bb a7 2d 28 0c 66 33  42 09 cf 2b 58 f8 58 41  |}..-(.f3B..+X.XA|
++00000030  bd 46 51 0a f0 7d 8c 0c  98 9e 26 77 20 fd 5e c1  |.FQ..}....&w .^.|
++00000040  a9 b3 e5 c3 6c 05 97 e3  81 fd db 14 03 03 00 01  |....l...........|
++00000050  01 16 03 03 00 40 02 2a  28 41 e3 9c 5d 45 d4 45  |.....@.*(A..]E.E|
++00000060  51 8c 7a c0 ba b1 8e a4  84 2c f3 83 cd c4 55 5c  |Q.z......,....U\|
++00000070  d6 5c 6f 72 ab 89 7a c6  d7 9c 2a 54 f0 c4 20 ee  |.\or..z...*T.. .|
++00000080  37 74 9b b6 8c f7 e4 37  2c eb d4 9f 5c 5e 55 a0  |7t.....7,...\^U.|
++00000090  e2 5a fe 1e c8 67                                 |.Z...g|
++>>> Flow 4 (server to client)
++00000000  16 03 03 00 72 04 00 00  6e 00 00 00 00 00 68 00  |....r...n.....h.|
++00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 65  |...............e|
++00000020  ea 8b c0 ef ba 59 31 75  33 96 f1 f8 c9 e1 ef 30  |.....Y1u3......0|
++00000030  00 a3 a9 1d ab c8 4b 29  94 f2 c8 c8 8d 03 57 ab  |......K)......W.|
++00000040  56 df 0f 4e 0d 30 13 09  c9 e4 fa 51 4e b3 26 ad  |V..N.0.....QN.&.|
++00000050  43 9f ae 62 d5 59 23 05  9b 69 8f 5b a8 ba 39 f1  |C..b.Y#..i.[..9.|
++00000060  90 84 35 bf 8f 8d d5 39  93 98 ee b9 75 03 3f 91  |..5....9....u.?.|
++00000070  e8 56 0b cb 44 a6 7a 14  03 03 00 01 01 16 03 03  |.V..D.z.........|
++00000080  00 40 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |.@..............|
++00000090  00 00 f9 a0 8e 23 34 f1  61 15 a8 4e ae c4 f3 2a  |.....#4.a..N...*|
++000000a0  a6 f8 ee 1b 65 c4 c0 ff  93 14 74 ed 82 ae 48 a8  |....e.....t...H.|
++000000b0  42 fb a9 24 5d dd fd 98  b8 65 73 03 88 99 e1 ed  |B..$]....es.....|
++000000c0  02 95 17 03 03 00 40 00  00 00 00 00 00 00 00 00  |......@.........|
++000000d0  00 00 00 00 00 00 00 b9  b3 f5 41 84 3b 2a a9 c3  |..........A.;*..|
++000000e0  9c e3 d4 38 90 76 c1 8c  f0 4f 10 1b 04 b5 07 fe  |...8.v...O......|
++000000f0  79 3d 7b 77 a4 17 0f 4e  df 64 70 70 9e 34 8e b6  |y={w...N.dpp.4..|
++00000100  db b2 b6 fd 41 fe b3 15  03 03 00 30 00 00 00 00  |....A......0....|
++00000110  00 00 00 00 00 00 00 00  00 00 00 00 02 73 de fe  |.............s..|
++00000120  fa 4b 69 6d 30 69 79 96  7e 4f 2f 04 67 36 96 27  |.Kim0iy.~O/.g6.'|
++00000130  67 23 2b dc 7a c4 6c 34  ea fc 79 fd              |g#+.z.l4..y.|
+diff --git a/src/pkg/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch b/src/pkg/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch
+new file mode 100644
+index 0000000000..db5881b768
+--- /dev/null
++++ b/src/pkg/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch
+@@ -0,0 +1,121 @@
++>>> Flow 1 (client to server)
++00000000  16 03 01 01 8a 01 00 01  86 03 03 0a a8 82 53 61  |..............Sa|
++00000010  68 e0 83 91 71 36 f9 c1  19 ff e8 09 fc 21 9f 03  |h...q6.......!..|
++00000020  31 f3 87 4a 04 8c 3d c2  6e 00 32 00 00 d6 c0 30  |1..J..=.n.2....0|
++00000030  c0 2c c0 28 c0 24 c0 14  c0 0a c0 22 c0 21 c0 20  |.,.(.$.....".!. |
++00000040  00 a5 00 a3 00 a1 00 9f  00 6b 00 6a 00 69 00 68  |.........k.j.i.h|
++00000050  00 39 00 38 00 37 00 36  00 88 00 87 00 86 00 85  |.9.8.7.6........|
++00000060  c0 32 c0 2e c0 2a c0 26  c0 0f c0 05 00 9d 00 3d  |.2...*.&.......=|
++00000070  00 35 00 84 c0 2f c0 2b  c0 27 c0 23 c0 13 c0 09  |.5.../.+.'.#....|
++00000080  c0 1f c0 1e c0 1d 00 a4  00 a2 00 a0 00 9e 00 67  |...............g|
++00000090  00 40 00 3f 00 3e 00 33  00 32 00 31 00 30 00 9a  |.@.?.>.3.2.1.0..|
++000000a0  00 99 00 98 00 97 00 45  00 44 00 43 00 42 c0 31  |.......E.D.C.B.1|
++000000b0  c0 2d c0 29 c0 25 c0 0e  c0 04 00 9c 00 3c 00 2f  |.-.).%.......<./|
++000000c0  00 96 00 41 00 07 c0 11  c0 07 c0 0c c0 02 00 05  |...A............|
++000000d0  00 04 c0 12 c0 08 c0 1c  c0 1b c0 1a 00 16 00 13  |................|
++000000e0  00 10 00 0d c0 0d c0 03  00 0a 00 15 00 12 00 0f  |................|
++000000f0  00 0c 00 09 00 14 00 11  00 0e 00 0b 00 08 00 06  |................|
++00000100  00 03 00 ff 01 00 00 87  00 0b 00 04 03 00 01 02  |................|
++00000110  00 0a 00 3a 00 38 00 0e  00 0d 00 19 00 1c 00 0b  |...:.8..........|
++00000120  00 0c 00 1b 00 18 00 09  00 0a 00 1a 00 16 00 17  |................|
++00000130  00 08 00 06 00 07 00 14  00 15 00 04 00 05 00 12  |................|
++00000140  00 13 00 01 00 02 00 03  00 0f 00 10 00 11 00 23  |...............#|
++00000150  00 00 00 0d 00 20 00 1e  06 01 06 02 06 03 05 01  |..... ..........|
++00000160  05 02 05 03 04 01 04 02  04 03 03 01 03 02 03 03  |................|
++00000170  02 01 02 02 02 03 00 0f  00 01 01 00 10 00 10 00  |................|
++00000180  0e 06 70 72 6f 74 6f 32  06 70 72 6f 74 6f 31     |..proto2.proto1|
++>>> Flow 2 (server to client)
++00000000  16 03 03 00 35 02 00 00  31 03 03 00 00 00 00 00  |....5...1.......|
++00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
++00000020  00 00 00 00 00 00 00 00  00 00 00 00 c0 14 00 00  |................|
++00000030  09 00 23 00 00 ff 01 00  01 00 16 03 03 02 be 0b  |..#.............|
++00000040  00 02 ba 00 02 b7 00 02  b4 30 82 02 b0 30 82 02  |.........0...0..|
++00000050  19 a0 03 02 01 02 02 09  00 85 b0 bb a4 8a 7f b8  |................|
++00000060  ca 30 0d 06 09 2a 86 48  86 f7 0d 01 01 05 05 00  |.0...*.H........|
++00000070  30 45 31 0b 30 09 06 03  55 04 06 13 02 41 55 31  |0E1.0...U....AU1|
++00000080  13 30 11 06 03 55 04 08  13 0a 53 6f 6d 65 2d 53  |.0...U....Some-S|
++00000090  74 61 74 65 31 21 30 1f  06 03 55 04 0a 13 18 49  |tate1!0...U....I|
++000000a0  6e 74 65 72 6e 65 74 20  57 69 64 67 69 74 73 20  |nternet Widgits |
++000000b0  50 74 79 20 4c 74 64 30  1e 17 0d 31 30 30 34 32  |Pty Ltd0...10042|
++000000c0  34 30 39 30 39 33 38 5a  17 0d 31 31 30 34 32 34  |4090938Z..110424|
++000000d0  30 39 30 39 33 38 5a 30  45 31 0b 30 09 06 03 55  |090938Z0E1.0...U|
++000000e0  04 06 13 02 41 55 31 13  30 11 06 03 55 04 08 13  |....AU1.0...U...|
++000000f0  0a 53 6f 6d 65 2d 53 74  61 74 65 31 21 30 1f 06  |.Some-State1!0..|
++00000100  03 55 04 0a 13 18 49 6e  74 65 72 6e 65 74 20 57  |.U....Internet W|
++00000110  69 64 67 69 74 73 20 50  74 79 20 4c 74 64 30 81  |idgits Pty Ltd0.|
++00000120  9f 30 0d 06 09 2a 86 48  86 f7 0d 01 01 01 05 00  |.0...*.H........|
++00000130  03 81 8d 00 30 81 89 02  81 81 00 bb 79 d6 f5 17  |....0.......y...|
++00000140  b5 e5 bf 46 10 d0 dc 69  be e6 2b 07 43 5a d0 03  |...F...i..+.CZ..|
++00000150  2d 8a 7a 43 85 b7 14 52  e7 a5 65 4c 2c 78 b8 23  |-.zC...R..eL,x.#|
++00000160  8c b5 b4 82 e5 de 1f 95  3b 7e 62 a5 2c a5 33 d6  |........;~b.,.3.|
++00000170  fe 12 5c 7a 56 fc f5 06  bf fa 58 7b 26 3f b5 cd  |..\zV.....X{&?..|
++00000180  04 d3 d0 c9 21 96 4a c7  f4 54 9f 5a bf ef 42 71  |....!.J..T.Z..Bq|
++00000190  00 fe 18 99 07 7f 7e 88  7d 7d f1 04 39 c4 a2 2e  |......~.}}..9...|
++000001a0  db 51 c9 7c e3 c0 4c 3b  32 66 01 cf af b1 1d b8  |.Q.|..L;2f......|
++000001b0  71 9a 1d db db 89 6b ae  da 2d 79 02 03 01 00 01  |q.....k..-y.....|
++000001c0  a3 81 a7 30 81 a4 30 1d  06 03 55 1d 0e 04 16 04  |...0..0...U.....|
++000001d0  14 b1 ad e2 85 5a cf cb  28 db 69 ce 23 69 de d3  |.....Z..(.i.#i..|
++000001e0  26 8e 18 88 39 30 75 06  03 55 1d 23 04 6e 30 6c  |&...90u..U.#.n0l|
++000001f0  80 14 b1 ad e2 85 5a cf  cb 28 db 69 ce 23 69 de  |......Z..(.i.#i.|
++00000200  d3 26 8e 18 88 39 a1 49  a4 47 30 45 31 0b 30 09  |.&...9.I.G0E1.0.|
++00000210  06 03 55 04 06 13 02 41  55 31 13 30 11 06 03 55  |..U....AU1.0...U|
++00000220  04 08 13 0a 53 6f 6d 65  2d 53 74 61 74 65 31 21  |....Some-State1!|
++00000230  30 1f 06 03 55 04 0a 13  18 49 6e 74 65 72 6e 65  |0...U....Interne|
++00000240  74 20 57 69 64 67 69 74  73 20 50 74 79 20 4c 74  |t Widgits Pty Lt|
++00000250  64 82 09 00 85 b0 bb a4  8a 7f b8 ca 30 0c 06 03  |d...........0...|
++00000260  55 1d 13 04 05 30 03 01  01 ff 30 0d 06 09 2a 86  |U....0....0...*.|
++00000270  48 86 f7 0d 01 01 05 05  00 03 81 81 00 08 6c 45  |H.............lE|
++00000280  24 c7 6b b1 59 ab 0c 52  cc f2 b0 14 d7 87 9d 7a  |$.k.Y..R.......z|
++00000290  64 75 b5 5a 95 66 e4 c5  2b 8e ae 12 66 1f eb 4f  |du.Z.f..+...f..O|
++000002a0  38 b3 6e 60 d3 92 fd f7  41 08 b5 25 13 b1 18 7a  |8.n`....A..%...z|
++000002b0  24 fb 30 1d ba ed 98 b9  17 ec e7 d7 31 59 db 95  |$.0.........1Y..|
++000002c0  d3 1d 78 ea 50 56 5c d5  82 5a 2d 5a 5f 33 c4 b6  |..x.PV\..Z-Z_3..|
++000002d0  d8 c9 75 90 96 8c 0f 52  98 b5 cd 98 1f 89 20 5f  |..u....R...... _|
++000002e0  f2 a0 1c a3 1b 96 94 dd  a9 fd 57 e9 70 e8 26 6d  |..........W.p.&m|
++000002f0  71 99 9b 26 6e 38 50 29  6c 90 a7 bd d9 16 03 03  |q..&n8P)l.......|
++00000300  00 cd 0c 00 00 c9 03 00  17 41 04 1e 18 37 ef 0d  |.........A...7..|
++00000310  19 51 88 35 75 71 b5 e5  54 5b 12 2e 8f 09 67 fd  |.Q.5uq..T[....g.|
++00000320  a7 24 20 3e b2 56 1c ce  97 28 5e f8 2b 2d 4f 9e  |.$ >.V...(^.+-O.|
++00000330  f1 07 9f 6c 4b 5b 83 56  e2 32 42 e9 58 b6 d7 49  |...lK[.V.2B.X..I|
++00000340  a6 b5 68 1a 41 03 56 6b  dc 5a 89 04 01 00 80 b9  |..h.A.Vk.Z......|
++00000350  0f 79 8a 16 f4 da 8f 27  b4 16 fc c0 51 db ae d1  |.y.....'....Q...|
++00000360  af 79 77 d5 d5 a2 13 05  45 20 cc eb ac ed cb 30  |.yw.....E .....0|
++00000370  32 2e 2c bd fa 1c 4d b5  32 a6 37 43 c8 5c 2d f8  |2.,...M.2.7C.\-.|
++00000380  6e 85 f5 cd 54 92 29 ad  13 7d d5 9e 8c 1d b7 d0  |n...T.)..}......|
++00000390  c1 c7 3d e8 ba 4a 0f 9a  a6 3e 25 5f 27 62 b1 00  |..=..J...>%_'b..|
++000003a0  91 d9 23 48 3f 10 fe c5  e3 07 9a 58 57 6d cc 10  |..#H?......XWm..|
++000003b0  3b f8 1a d5 6e 8b 1f 03  6f 82 84 98 b5 f7 71 5d  |;...n...o.....q]|
++000003c0  c2 ad 60 14 c1 88 07 5a  3d 99 fd a8 c9 9a 03 16  |..`....Z=.......|
++000003d0  03 03 00 04 0e 00 00 00                           |........|
++>>> Flow 3 (client to server)
++00000000  16 03 03 00 46 10 00 00  42 41 04 76 aa 4e b9 f9  |....F...BA.v.N..|
++00000010  68 85 81 74 7c d9 f9 64  7f bd 09 83 08 5b 4f 76  |h..t|..d.....[Ov|
++00000020  6e be 79 b6 4e 97 17 63  e4 b5 1c 77 e5 85 76 8a  |n.y.N..c...w..v.|
++00000030  5d 9f f1 21 88 ec f9 a7  7c 41 af f9 c5 fe 11 81  |]..!....|A......|
++00000040  11 51 8e a7 20 33 5f cf  e7 90 90 14 03 03 00 01  |.Q.. 3_.........|
++00000050  01 16 03 03 00 40 44 3e  32 01 71 ac 5a b5 1f 2c  |.....@D>2.q.Z..,|
++00000060  37 d9 4b 70 72 91 89 d4  d7 c2 c3 e7 ff dc 72 2a  |7.Kpr.........r*|
++00000070  ba f5 30 b0 e9 dd 48 10  3d cd 98 48 a3 e3 ca de  |..0...H.=..H....|
++00000080  15 0e 90 8e e5 04 14 74  42 b8 b0 12 cc 68 7b 7d  |.......tB....h{}|
++00000090  6c 43 72 60 05 0d                                 |lCr`..|
++>>> Flow 4 (server to client)
++00000000  16 03 03 00 72 04 00 00  6e 00 00 00 00 00 68 00  |....r...n.....h.|
++00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 65  |...............e|
++00000020  ea 8b c0 ef ba 12 45 17  61 24 cd d2 4c 22 bb 3b  |......E.a$..L".;|
++00000030  e3 0e d0 ff 83 e9 7c b7  8f 10 3c 16 1c fc c2 44  |......|...<....D|
++00000040  ef 45 f8 27 30 56 db ea  eb ae f5 b6 17 b2 ef f9  |.E.'0V..........|
++00000050  96 0d 2d db e4 59 23 0a  fc fa e3 13 48 57 e5 b3  |..-..Y#.....HW..|
++00000060  3a d1 f5 5e ca ef d7 3f  7b b5 f4 69 85 c3 bd da  |:..^...?{..i....|
++00000070  fd 9c 50 05 2f 86 ce 14  03 03 00 01 01 16 03 03  |..P./...........|
++00000080  00 40 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |.@..............|
++00000090  00 00 60 25 1c ed 6f c6  a5 bd b2 29 39 4e 09 d1  |..`%..o....)9N..|
++000000a0  64 cc 75 cd df 91 a8 90  9d 03 aa 92 07 f2 d0 8a  |d.u.............|
++000000b0  60 bb 3e 85 21 22 fe f8  dc 52 3c 4e 82 77 14 14  |`.>.!"...R<N.w..|
++000000c0  0f 1f 17 03 03 00 40 00  00 00 00 00 00 00 00 00  |......@.........|
++000000d0  00 00 00 00 00 00 00 0b  87 12 62 3e e5 3e 7d 74  |..........b>.>}t|
++000000e0  0d ac c4 a9 df 67 1c 5a  ad 3e 01 34 03 88 2f 39  |.....g.Z.>.4../9|
++000000f0  f7 3c 06 e4 f6 81 43 66  b1 1b ed a5 e5 b6 a8 43  |.<....Cf.......C|
++00000100  7f 36 2f b2 da 45 9a 15  03 03 00 30 00 00 00 00  |.6/..E.....0....|
++00000110  00 00 00 00 00 00 00 00  00 00 00 00 fa 63 4e c5  |.............cN.|
++00000120  77 89 71 56 e3 0a cf 98  da 2f 89 8f 74 8e 76 24  |w.qV...../..t.v$|
++00000130  e2 40 a5 9f 29 1b b2 11  ef 7a 55 7f              |.@..)....zU.|

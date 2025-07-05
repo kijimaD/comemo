@@ -14,9 +14,99 @@ Date:   Tue Mar 14 14:00:38 2017 -0700
     Change-Id: Ibe74adb5a62dbf6447db37fde22dcbb3479969ef
     Reviewed-on: https://go-review.googlesource.com/38156
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/subr.go |  1 +
  test/fixedbugs/issue19548.dir/a.go  | 26 ++++++++++++++++++++++++++
  test/fixedbugs/issue19548.dir/b.go  | 24 ++++++++++++++++++++++++
  test/fixedbugs/issue19548.go        |  9 +++++++++
  4 files changed, 60 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 6001b83e29..4cb26edb92 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1711,6 +1711,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 	t.Rlist.Set(out)
+ 
+ 	fn := nod(ODCLFUNC, nil, nil)
++	fn.Func.SetDupok(true)
+ 	fn.Func.Nname = newname(newnam)
+ 	fn.Func.Nname.Name.Defn = fn
+ 	fn.Func.Nname.Name.Param.Ntype = t
+diff --git a/test/fixedbugs/issue19548.dir/a.go b/test/fixedbugs/issue19548.dir/a.go
+new file mode 100644
+index 0000000000..3b7cd4b0e2
+--- /dev/null
++++ b/test/fixedbugs/issue19548.dir/a.go
+@@ -0,0 +1,26 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type Mode uint
++
++func (m Mode) String() string { return "mode string" }
++func (m *Mode) Addr() *Mode   { return m }
++
++type Stringer interface {
++	String() string
++}
++
++var global Stringer
++var m Mode
++
++func init() {
++	// force compilation of the (*Mode).String() wrapper
++	global = &m
++}
++
++func String() string {
++	return global.String() + Mode(0).String()
++}
+diff --git a/test/fixedbugs/issue19548.dir/b.go b/test/fixedbugs/issue19548.dir/b.go
+new file mode 100644
+index 0000000000..e5e807f43d
+--- /dev/null
++++ b/test/fixedbugs/issue19548.dir/b.go
+@@ -0,0 +1,24 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++type Value interface {
++	a.Stringer
++	Addr() *a.Mode
++}
++
++var global a.Mode
++
++func f() int {
++	var v Value
++	v = &global
++	return int(v.String()[0])
++}
++
++func main() {
++	f()
++}
+diff --git a/test/fixedbugs/issue19548.go b/test/fixedbugs/issue19548.go
+new file mode 100644
+index 0000000000..e0e769338a
+--- /dev/null
++++ b/test/fixedbugs/issue19548.go
+@@ -0,0 +1,9 @@
++// rundir
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that interface wrappers can be compiled successfully
++// in multiple translation units.
++package ignore

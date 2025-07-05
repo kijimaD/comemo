@@ -24,9 +24,76 @@ Date:   Thu Jan 7 21:45:00 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go |  3 ++-
  test/fixedbugs/issue43551.dir/a.go           | 13 +++++++++++++
  test/fixedbugs/issue43551.dir/b.go           | 14 ++++++++++++++
  test/fixedbugs/issue43551.go                 |  7 +++++++
  4 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index fbde19d94c..679ee8ad16 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -194,7 +194,8 @@ func expandCalls(f *Func) {
+ 				}
+ 				break
+ 			}
+-			if leaf.Op == OpIData {
++			switch leaf.Op {
++			case OpIData, OpStructSelect, OpArraySelect:
+ 				leafType = removeTrivialWrapperTypes(leaf.Type)
+ 			}
+ 			aux := selector.Aux
+diff --git a/test/fixedbugs/issue43551.dir/a.go b/test/fixedbugs/issue43551.dir/a.go
+new file mode 100644
+index 0000000000..d890dd0c65
+--- /dev/null
++++ b/test/fixedbugs/issue43551.dir/a.go
+@@ -0,0 +1,13 @@
++package a
++
++type S struct {
++	a Key
++}
++
++func (s S) A() Key {
++	return s.a
++}
++
++type Key struct {
++	key int64
++}
+diff --git a/test/fixedbugs/issue43551.dir/b.go b/test/fixedbugs/issue43551.dir/b.go
+new file mode 100644
+index 0000000000..ba062bf14c
+--- /dev/null
++++ b/test/fixedbugs/issue43551.dir/b.go
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++type S a.S
++type Key a.Key
++
++func (s S) A() Key {
++	return Key(a.S(s).A())
++}
+diff --git a/test/fixedbugs/issue43551.go b/test/fixedbugs/issue43551.go
+new file mode 100644
+index 0000000000..b83fbd7af1
+--- /dev/null
++++ b/test/fixedbugs/issue43551.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

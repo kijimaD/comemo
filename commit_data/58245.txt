@@ -18,7 +18,126 @@ Date:   Wed Sep 27 08:11:49 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/PPC64.rules |  4 ++--
  src/cmd/compile/internal/ssa/rewritePPC64.go  | 32 ++++++++++-----------------
  2 files changed, 14 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64.rules b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+index 77eb553aed..5780260c24 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+@@ -999,7 +999,7 @@
+ 
+ // Fold bit reversal into loads.
+ (BR(W|H) x:(MOV(W|H)Zload [off] {sym} ptr mem)) && x.Uses == 1 => @x.Block (MOV(W|H)BRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
+-(BR(W|H) x:(MOV(W|H)Zloadidx ptr idx      mem)) && x.Uses == 1 => @x.Block (MOV(W|H)Zreg (MOV(W|H)BRloadidx ptr idx mem))
++(BR(W|H) x:(MOV(W|H)Zloadidx ptr idx      mem)) && x.Uses == 1 => @x.Block (MOV(W|H)BRloadidx ptr idx mem)
+ (BRD x:(MOVDload [off] {sym} ptr mem)) && x.Uses == 1 => @x.Block (MOVDBRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
+ (BRD x:(MOVDloadidx ptr idx      mem)) && x.Uses == 1 => @x.Block (MOVDBRloadidx ptr idx mem)
+ 
+@@ -1010,7 +1010,7 @@
+ // GOPPC64<10 rules.
+ // These Bswap operations should only be introduced by the memcombine pass in places where they can be folded into loads or stores.
+ (Bswap(32|16) x:(MOV(W|H)Zload [off] {sym} ptr mem)) => @x.Block (MOV(W|H)BRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
+-(Bswap(32|16) x:(MOV(W|H)Zloadidx ptr idx      mem)) => @x.Block (MOV(W|H)Zreg (MOV(W|H)BRloadidx ptr idx mem))
++(Bswap(32|16) x:(MOV(W|H)Zloadidx ptr idx      mem)) => @x.Block (MOV(W|H)BRloadidx ptr idx mem)
+ (Bswap64 x:(MOVDload [off] {sym} ptr mem)) => @x.Block (MOVDBRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
+ (Bswap64 x:(MOVDloadidx ptr idx      mem)) => @x.Block (MOVDBRloadidx ptr idx mem)
+ (MOV(D|W|H)store [off] {sym} ptr (Bswap(64|32|16) val) mem) => (MOV(D|W|H)BRstore (MOVDaddr <ptr.Type> [off] {sym} ptr) val mem)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 1809b0a77b..7ec6bb4e46 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -1178,7 +1178,7 @@ func rewriteValuePPC64_OpBswap16(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Bswap16 x:(MOVHZloadidx ptr idx mem))
+-	// result: @x.Block (MOVHZreg (MOVHBRloadidx ptr idx mem))
++	// result: @x.Block (MOVHBRloadidx ptr idx mem)
+ 	for {
+ 		x := v_0
+ 		if x.Op != OpPPC64MOVHZloadidx {
+@@ -1188,11 +1188,9 @@ func rewriteValuePPC64_OpBswap16(v *Value) bool {
+ 		ptr := x.Args[0]
+ 		idx := x.Args[1]
+ 		b = x.Block
+-		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZreg, typ.Int64)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVHBRloadidx, typ.Int16)
+ 		v.copyOf(v0)
+-		v1 := b.NewValue0(v.Pos, OpPPC64MOVHBRloadidx, typ.Int16)
+-		v1.AddArg3(ptr, idx, mem)
+-		v0.AddArg(v1)
++		v0.AddArg3(ptr, idx, mem)
+ 		return true
+ 	}
+ 	return false
+@@ -1235,7 +1233,7 @@ func rewriteValuePPC64_OpBswap32(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Bswap32 x:(MOVWZloadidx ptr idx mem))
+-	// result: @x.Block (MOVWZreg (MOVWBRloadidx ptr idx mem))
++	// result: @x.Block (MOVWBRloadidx ptr idx mem)
+ 	for {
+ 		x := v_0
+ 		if x.Op != OpPPC64MOVWZloadidx {
+@@ -1245,11 +1243,9 @@ func rewriteValuePPC64_OpBswap32(v *Value) bool {
+ 		ptr := x.Args[0]
+ 		idx := x.Args[1]
+ 		b = x.Block
+-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, typ.Int64)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRloadidx, typ.Int32)
+ 		v.copyOf(v0)
+-		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRloadidx, typ.Int32)
+-		v1.AddArg3(ptr, idx, mem)
+-		v0.AddArg(v1)
++		v0.AddArg3(ptr, idx, mem)
+ 		return true
+ 	}
+ 	return false
+@@ -4446,7 +4442,7 @@ func rewriteValuePPC64_OpPPC64BRH(v *Value) bool {
+ 	}
+ 	// match: (BRH x:(MOVHZloadidx ptr idx mem))
+ 	// cond: x.Uses == 1
+-	// result: @x.Block (MOVHZreg (MOVHBRloadidx ptr idx mem))
++	// result: @x.Block (MOVHBRloadidx ptr idx mem)
+ 	for {
+ 		x := v_0
+ 		if x.Op != OpPPC64MOVHZloadidx {
+@@ -4459,11 +4455,9 @@ func rewriteValuePPC64_OpPPC64BRH(v *Value) bool {
+ 			break
+ 		}
+ 		b = x.Block
+-		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZreg, typ.Int64)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVHBRloadidx, typ.Int16)
+ 		v.copyOf(v0)
+-		v1 := b.NewValue0(v.Pos, OpPPC64MOVHBRloadidx, typ.Int16)
+-		v1.AddArg3(ptr, idx, mem)
+-		v0.AddArg(v1)
++		v0.AddArg3(ptr, idx, mem)
+ 		return true
+ 	}
+ 	return false
+@@ -4499,7 +4493,7 @@ func rewriteValuePPC64_OpPPC64BRW(v *Value) bool {
+ 	}
+ 	// match: (BRW x:(MOVWZloadidx ptr idx mem))
+ 	// cond: x.Uses == 1
+-	// result: @x.Block (MOVWZreg (MOVWBRloadidx ptr idx mem))
++	// result: @x.Block (MOVWBRloadidx ptr idx mem)
+ 	for {
+ 		x := v_0
+ 		if x.Op != OpPPC64MOVWZloadidx {
+@@ -4512,11 +4506,9 @@ func rewriteValuePPC64_OpPPC64BRW(v *Value) bool {
+ 			break
+ 		}
+ 		b = x.Block
+-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, typ.Int64)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRloadidx, typ.Int32)
+ 		v.copyOf(v0)
+-		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRloadidx, typ.Int32)
+-		v1.AddArg3(ptr, idx, mem)
+-		v0.AddArg(v1)
++		v0.AddArg3(ptr, idx, mem)
+ 		return true
+ 	}
+ 	return false

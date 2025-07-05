@@ -16,7 +16,7 @@ Date:   Wed Jun 30 23:31:27 2010 -0700
     R=iant, r
     CC=golang-dev
     https://golang.org/cl/1700048
-
+---
  src/Make.pkg       |  5 +++--
  src/cmd/5l/obj.c   |  2 ++
  src/cmd/6l/obj.c   |  2 ++
@@ -24,3 +24,168 @@ Date:   Wed Jun 30 23:31:27 2010 -0700
  src/cmd/cgo/out.go | 32 ++++++++++++++++++++++++--------
  src/cmd/ld/macho.c |  7 +++++++
  6 files changed, 40 insertions(+), 10 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 8f444be123..39c19611e3 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -31,11 +31,12 @@ INSTALLFILES+=$(pkgdir)/$(TARG).a
+ # The rest of the cgo rules are below, but these variable updates
+ # must be done here so they apply to the main rules.
+ ifdef CGOFILES
++CGOTARG=cgo_$(subst /,_,$(TARG))
+ GOFILES+=$(patsubst %.go,%.cgo1.go,$(CGOFILES))
+ GOFILES+=_cgo_gotypes.go
+ OFILES+=_cgo_defun.$O
+ GCC_OFILES=$(patsubst %.go,%.cgo2.o,$(CGOFILES))
+-INSTALLFILES+=$(pkgdir)/$(TARG).so
++INSTALLFILES+=$(pkgdir)/$(CGOTARG).so
+ endif
+ 
+ PREREQ+=$(patsubst %,%.make,$(DEPS))
+@@ -146,7 +147,7 @@ _cgo_defun.$O: _cgo_defun.c
+ _cgo_.so: $(GCC_OFILES) $(CGO_DEPS)
+ 	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ $(GCC_OFILES) $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
+ 
+-$(pkgdir)/$(TARG).so: _cgo_.so
++$(pkgdir)/$(CGOTARG).so: _cgo_.so
+ 	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
+ 	cp _cgo_.so "$@"
+ 
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 1d09f286a5..e3597e0404 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -146,6 +146,8 @@ main(int argc, char *argv[])
+ 		usage();
+ 
+ 	libinit();
++	if(rpath == nil)
++		rpath = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
+ 
+ 	if(!debug['9'] && !debug['U'] && !debug['B'])
+ 		debug[DEFAULT] = 1;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 6a0d49f135..5a4b6a3fc0 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -138,6 +138,8 @@ main(int argc, char *argv[])
+ 		usage();
+ 
+ 	libinit();
++	if(rpath == nil)
++		rpath = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
+ 
+ 	if(HEADTYPE == -1) {
+ 		HEADTYPE = 2;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 304187649f..1a3ecec1d8 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -175,6 +175,8 @@ main(int argc, char *argv[])
+ 	}
+ 
+ 	libinit();
++	if(rpath == nil)
++		rpath = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
+ 
+ 	switch(HEADTYPE) {
+ 	default:
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index e58923ab2a..7cdf483f0e 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -21,6 +21,13 @@ func creat(name string) *os.File {
+ 	return f
+ }
+ 
++func slashToUnderscore(c int) int {
++	if c == '/' {
++		c = '_'
++	}
++	return c
++}
++
+ // writeDefs creates output files to be compiled by 6g, 6c, and gcc.
+ // (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
+ func (p *Prog) writeDefs() {
+@@ -30,6 +37,15 @@ func (p *Prog) writeDefs() {
+ 		path = pkgroot + "/" + path
+ 	}
+ 
++	// The path for the shared object is slash-free so that ELF loaders
++	// will treat it as a relative path.  We rewrite slashes to underscores.
++	sopath := "cgo_" + strings.Map(slashToUnderscore, p.PackagePath)
++	soprefix := ""
++	if os.Getenv("GOOS") == "darwin" {
++		// OS X requires its own prefix for a relative path
++		soprefix = "@rpath/"
++	}
++
+ 	fgo2 := creat("_cgo_gotypes.go")
+ 	fc := creat("_cgo_defun.c")
+ 
+@@ -48,10 +64,10 @@ func (p *Prog) writeDefs() {
+ 	}
+ 	fmt.Fprintf(fgo2, "type _C_void [0]byte\n")
+ 
+-	fmt.Fprintf(fc, cProlog, pkgroot, pkgroot, pkgroot, pkgroot, pkgroot)
++	fmt.Fprintf(fc, cProlog, soprefix, soprefix, soprefix, soprefix, soprefix)
+ 
+ 	for name, def := range p.Vardef {
+-		fmt.Fprintf(fc, "#pragma dynimport ·_C_%s %s \"%s.so\"\n", name, name, path)
++		fmt.Fprintf(fc, "#pragma dynimport ·_C_%s %s \"%s%s.so\"\n", name, name, soprefix, sopath)
+ 		fmt.Fprintf(fgo2, "var _C_%s ", name)
+ 		printer.Fprint(fgo2, &ast.StarExpr{X: def.Go})
+ 		fmt.Fprintf(fgo2, "\n")
+@@ -130,7 +146,7 @@ func (p *Prog) writeDefs() {
+ 
+ 		// C wrapper calls into gcc, passing a pointer to the argument frame.
+ 		// Also emit #pragma to get a pointer to the gcc wrapper.
+-		fmt.Fprintf(fc, "#pragma dynimport _cgo_%s _cgo_%s \"%s.so\"\n", name, name, path)
++		fmt.Fprintf(fc, "#pragma dynimport _cgo_%s _cgo_%s \"%s%s.so\"\n", name, name, soprefix, sopath)
+ 		fmt.Fprintf(fc, "void (*_cgo_%s)(void*);\n", name)
+ 		fmt.Fprintf(fc, "\n")
+ 		fmt.Fprintf(fc, "void\n")
+@@ -564,11 +580,11 @@ const cProlog = `
+ #include "runtime.h"
+ #include "cgocall.h"
+ 
+-#pragma dynimport initcgo initcgo "%s/libcgo.so"
+-#pragma dynimport libcgo_thread_start libcgo_thread_start "%s/libcgo.so"
+-#pragma dynimport libcgo_set_scheduler libcgo_set_scheduler "%s/libcgo.so"
+-#pragma dynimport _cgo_malloc _cgo_malloc "%s/libcgo.so"
+-#pragma dynimport _cgo_free _cgo_free "%s/libcgo.so"
++#pragma dynimport initcgo initcgo "%slibcgo.so"
++#pragma dynimport libcgo_thread_start libcgo_thread_start "%slibcgo.so"
++#pragma dynimport libcgo_set_scheduler libcgo_set_scheduler "%slibcgo.so"
++#pragma dynimport _cgo_malloc _cgo_malloc "%slibcgo.so"
++#pragma dynimport _cgo_free _cgo_free "%slibcgo.so"
+ 
+ void
+ ·_C_GoString(int8 *p, String s)
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index 3e33fe494e..24400cf14c 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -441,6 +441,7 @@ asmbmacho(vlong symdatva, vlong symo)
+ 	vlong v, w;
+ 	vlong va;
+ 	int a, i, ptrsize;
++	char *pkgroot;
+ 	MachoHdr *mh;
+ 	MachoSect *msect;
+ 	MachoSeg *ms;
+@@ -584,6 +585,12 @@ asmbmacho(vlong symdatva, vlong symo)
+ 		ml->data[0] = 12;	/* offset to string */
+ 		strcpy((char*)&ml->data[1], "/usr/lib/dyld");
+ 
++		if(ndylib > 0) {	/* add reference to where .so files are installed */
++			pkgroot = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
++			ml = newMachoLoad(0x80000000 | 0x1c, 1+(strlen(pkgroot)+1+7)/8*2);	/* LC_RPATH */
++			ml->data[0] = 12;	/* offset of string from beginning of load */
++			strcpy((char*)&ml->data[1], pkgroot);
++		}
+ 		for(i=0; i<ndylib; i++) {
+ 			ml = newMachoLoad(12, 4+(strlen(dylib[i])+1+7)/8*2);	/* LC_LOAD_DYLIB */
+ 			ml->data[0] = 24;	/* offset of string from beginning of load */

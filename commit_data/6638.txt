@@ -7,6 +7,37 @@ Date:   Tue Oct 26 20:30:35 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2761041
-
+---
  doc/go_spec.html | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 3aaa2563fe..835f9dd49e 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of Oct 25, 2010 -->
++<!-- subtitle Version of Oct 26, 2010 -->
+ 
+ <!--
+ TODO
+@@ -4557,6 +4557,10 @@ s2 := append(s1, 3, 5, 7)  // append multiple elements    s2 == []int{0, 0, 2, 3
+ s3 := append(s2, s0...)    // append a slice              s3 == []int{0, 0, 2, 3, 5, 7, 0, 0}
+ </pre>
+ 
++<p>
++<span class="alert">Note: <code>append</code> is not yet implemented.</span>
++</p>
++
+ <p>
+ The function <code>copy</code> copies slice elements from
+ a source <code>src</code> to a destination <code>dst</code> and returns the
+@@ -5228,6 +5232,7 @@ The following minimal alignment properties are guaranteed:
+ <h2 id="Implementation_differences"><span class="alert">Implementation differences - TODO</span></h2>
+ <ul>
+ 	<li><span class="alert">Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</span></li>
++	<li><span class="alert">The <code>append</code> built-in function is not yet implemented.</span></li>
+ 	<li><span class="alert">Gccgo: Method expressions are partially implemented.</span></li>
+ 	<li><span class="alert">Gccgo: allows only one init() function per source file.</span></li>
+ </ul>

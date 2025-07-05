@@ -7,6 +7,20 @@ Date:   Fri Jul 5 14:26:09 2013 +1000
     R=golang-dev, dave, adg
     CC=golang-dev
     https://golang.org/cl/10862045
-
+---
  src/pkg/encoding/json/scanner.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/json/scanner.go b/src/pkg/encoding/json/scanner.go
+index 054b6b3d56..a4609c8950 100644
+--- a/src/pkg/encoding/json/scanner.go
++++ b/src/pkg/encoding/json/scanner.go
+@@ -390,7 +390,7 @@ func stateInStringEscU123(s *scanner, c int) int {
+ 	return s.error(c, "in \\u hexadecimal character escape")
+ }
+ 
+-// stateInStringEscU123 is the state after reading `-` during a number.
++// stateNeg is the state after reading `-` during a number.
+ func stateNeg(s *scanner, c int) int {
+ 	if c == '0' {
+ 		s.step = state0

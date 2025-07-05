@@ -14,7 +14,7 @@ Date:   Fri Aug 10 00:09:00 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/netpoll.go         | 20 +++++++++-----------
  src/runtime/netpoll_epoll.go   | 12 ++++++------
  src/runtime/netpoll_fake.go    |  4 ++--
@@ -24,3 +24,359 @@ Date:   Fri Aug 10 00:09:00 2018 -0400
  src/runtime/netpoll_windows.go | 22 +++++++++++-----------
  src/runtime/proc.go            | 29 +++++++++++++++--------------
  8 files changed, 57 insertions(+), 58 deletions(-)
+
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index c8fb95d3aa..f9c422650a 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -289,24 +289,22 @@ func poll_runtime_pollUnblock(pd *pollDesc) {
+ 	}
+ }
+ 
+-// make pd ready, newly runnable goroutines (if any) are returned in rg/wg
++// make pd ready, newly runnable goroutines (if any) are added to toRun.
+ // May run during STW, so write barriers are not allowed.
+ //go:nowritebarrier
+-func netpollready(gpp *guintptr, pd *pollDesc, mode int32) {
+-	var rg, wg guintptr
++func netpollready(toRun *gList, pd *pollDesc, mode int32) {
++	var rg, wg *g
+ 	if mode == 'r' || mode == 'r'+'w' {
+-		rg.set(netpollunblock(pd, 'r', true))
++		rg = netpollunblock(pd, 'r', true)
+ 	}
+ 	if mode == 'w' || mode == 'r'+'w' {
+-		wg.set(netpollunblock(pd, 'w', true))
++		wg = netpollunblock(pd, 'w', true)
+ 	}
+-	if rg != 0 {
+-		rg.ptr().schedlink = *gpp
+-		*gpp = rg
++	if rg != nil {
++		toRun.push(rg)
+ 	}
+-	if wg != 0 {
+-		wg.ptr().schedlink = *gpp
+-		*gpp = wg
++	if wg != nil {
++		toRun.push(wg)
+ 	}
+ }
+ 
+diff --git a/src/runtime/netpoll_epoll.go b/src/runtime/netpoll_epoll.go
+index 1908220ebb..f764d6ff7c 100644
+--- a/src/runtime/netpoll_epoll.go
++++ b/src/runtime/netpoll_epoll.go
+@@ -58,9 +58,9 @@ func netpollarm(pd *pollDesc, mode int) {
+ 
+ // polls for ready network connections
+ // returns list of goroutines that become runnable
+-func netpoll(block bool) *g {
++func netpoll(block bool) gList {
+ 	if epfd == -1 {
+-		return nil
++		return gList{}
+ 	}
+ 	waitms := int32(-1)
+ 	if !block {
+@@ -76,7 +76,7 @@ retry:
+ 		}
+ 		goto retry
+ 	}
+-	var gp guintptr
++	var toRun gList
+ 	for i := int32(0); i < n; i++ {
+ 		ev := &events[i]
+ 		if ev.events == 0 {
+@@ -92,11 +92,11 @@ retry:
+ 		if mode != 0 {
+ 			pd := *(**pollDesc)(unsafe.Pointer(&ev.data))
+ 
+-			netpollready(&gp, pd, mode)
++			netpollready(&toRun, pd, mode)
+ 		}
+ 	}
+-	if block && gp == 0 {
++	if block && toRun.empty() {
+ 		goto retry
+ 	}
+-	return gp.ptr()
++	return toRun
+ }
+diff --git a/src/runtime/netpoll_fake.go b/src/runtime/netpoll_fake.go
+index aab18dc846..5b1a63a878 100644
+--- a/src/runtime/netpoll_fake.go
++++ b/src/runtime/netpoll_fake.go
+@@ -27,6 +27,6 @@ func netpollclose(fd uintptr) int32 {
+ func netpollarm(pd *pollDesc, mode int) {
+ }
+ 
+-func netpoll(block bool) *g {
+-	return nil
++func netpoll(block bool) gList {
++	return gList{}
+ }
+diff --git a/src/runtime/netpoll_kqueue.go b/src/runtime/netpoll_kqueue.go
+index 0f73bf385e..fdaa1cd80d 100644
+--- a/src/runtime/netpoll_kqueue.go
++++ b/src/runtime/netpoll_kqueue.go
+@@ -59,9 +59,9 @@ func netpollarm(pd *pollDesc, mode int) {
+ 
+ // Polls for ready network connections.
+ // Returns list of goroutines that become runnable.
+-func netpoll(block bool) *g {
++func netpoll(block bool) gList {
+ 	if kq == -1 {
+-		return nil
++		return gList{}
+ 	}
+ 	var tp *timespec
+ 	var ts timespec
+@@ -78,7 +78,7 @@ retry:
+ 		}
+ 		goto retry
+ 	}
+-	var gp guintptr
++	var toRun gList
+ 	for i := 0; i < int(n); i++ {
+ 		ev := &events[i]
+ 		var mode int32
+@@ -102,11 +102,11 @@ retry:
+ 			mode += 'w'
+ 		}
+ 		if mode != 0 {
+-			netpollready(&gp, (*pollDesc)(unsafe.Pointer(ev.udata)), mode)
++			netpollready(&toRun, (*pollDesc)(unsafe.Pointer(ev.udata)), mode)
+ 		}
+ 	}
+-	if block && gp == 0 {
++	if block && toRun.empty() {
+ 		goto retry
+ 	}
+-	return gp.ptr()
++	return toRun
+ }
+diff --git a/src/runtime/netpoll_solaris.go b/src/runtime/netpoll_solaris.go
+index 853e5f63e3..6bd484afaa 100644
+--- a/src/runtime/netpoll_solaris.go
++++ b/src/runtime/netpoll_solaris.go
+@@ -180,9 +180,9 @@ func netpollarm(pd *pollDesc, mode int) {
+ 
+ // polls for ready network connections
+ // returns list of goroutines that become runnable
+-func netpoll(block bool) *g {
++func netpoll(block bool) gList {
+ 	if portfd == -1 {
+-		return nil
++		return gList{}
+ 	}
+ 
+ 	var wait *timespec
+@@ -202,7 +202,7 @@ retry:
+ 		goto retry
+ 	}
+ 
+-	var gp guintptr
++	var toRun gList
+ 	for i := 0; i < int(n); i++ {
+ 		ev := &events[i]
+ 
+@@ -233,12 +233,12 @@ retry:
+ 		}
+ 
+ 		if mode != 0 {
+-			netpollready(&gp, pd, mode)
++			netpollready(&toRun, pd, mode)
+ 		}
+ 	}
+ 
+-	if block && gp == 0 {
++	if block && toRun.empty() {
+ 		goto retry
+ 	}
+-	return gp.ptr()
++	return toRun
+ }
+diff --git a/src/runtime/netpoll_stub.go b/src/runtime/netpoll_stub.go
+index a4d6b4608a..f585333579 100644
+--- a/src/runtime/netpoll_stub.go
++++ b/src/runtime/netpoll_stub.go
+@@ -10,10 +10,10 @@ var netpollWaiters uint32
+ 
+ // Polls for ready network connections.
+ // Returns list of goroutines that become runnable.
+-func netpoll(block bool) (gp *g) {
++func netpoll(block bool) gList {
+ 	// Implementation for platforms that do not support
+ 	// integrated network poller.
+-	return
++	return gList{}
+ }
+ 
+ func netpollinited() bool {
+diff --git a/src/runtime/netpoll_windows.go b/src/runtime/netpoll_windows.go
+index 134071f5e3..07ef15ce2f 100644
+--- a/src/runtime/netpoll_windows.go
++++ b/src/runtime/netpoll_windows.go
+@@ -63,17 +63,17 @@ func netpollarm(pd *pollDesc, mode int) {
+ 
+ // Polls for completed network IO.
+ // Returns list of goroutines that become runnable.
+-func netpoll(block bool) *g {
++func netpoll(block bool) gList {
+ 	var entries [64]overlappedEntry
+ 	var wait, qty, key, flags, n, i uint32
+ 	var errno int32
+ 	var op *net_op
+-	var gp guintptr
++	var toRun gList
+ 
+ 	mp := getg().m
+ 
+ 	if iocphandle == _INVALID_HANDLE_VALUE {
+-		return nil
++		return gList{}
+ 	}
+ 	wait = 0
+ 	if block {
+@@ -92,7 +92,7 @@ retry:
+ 			mp.blocked = false
+ 			errno = int32(getlasterror())
+ 			if !block && errno == _WAIT_TIMEOUT {
+-				return nil
++				return gList{}
+ 			}
+ 			println("runtime: GetQueuedCompletionStatusEx failed (errno=", errno, ")")
+ 			throw("runtime: netpoll failed")
+@@ -105,7 +105,7 @@ retry:
+ 			if stdcall5(_WSAGetOverlappedResult, op.pd.fd, uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {
+ 				errno = int32(getlasterror())
+ 			}
+-			handlecompletion(&gp, op, errno, qty)
++			handlecompletion(&toRun, op, errno, qty)
+ 		}
+ 	} else {
+ 		op = nil
+@@ -118,7 +118,7 @@ retry:
+ 			mp.blocked = false
+ 			errno = int32(getlasterror())
+ 			if !block && errno == _WAIT_TIMEOUT {
+-				return nil
++				return gList{}
+ 			}
+ 			if op == nil {
+ 				println("runtime: GetQueuedCompletionStatus failed (errno=", errno, ")")
+@@ -127,15 +127,15 @@ retry:
+ 			// dequeued failed IO packet, so report that
+ 		}
+ 		mp.blocked = false
+-		handlecompletion(&gp, op, errno, qty)
++		handlecompletion(&toRun, op, errno, qty)
+ 	}
+-	if block && gp == 0 {
++	if block && toRun.empty() {
+ 		goto retry
+ 	}
+-	return gp.ptr()
++	return toRun
+ }
+ 
+-func handlecompletion(gpp *guintptr, op *net_op, errno int32, qty uint32) {
++func handlecompletion(toRun *gList, op *net_op, errno int32, qty uint32) {
+ 	if op == nil {
+ 		println("runtime: GetQueuedCompletionStatus returned op == nil")
+ 		throw("runtime: netpoll failed")
+@@ -147,5 +147,5 @@ func handlecompletion(gpp *guintptr, op *net_op, errno int32, qty uint32) {
+ 	}
+ 	op.errno = errno
+ 	op.qty = qty
+-	netpollready(gpp, op.pd, mode)
++	netpollready(toRun, op.pd, mode)
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index fbb1ce1750..2a780e49ee 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1148,8 +1148,8 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
+ 
+ 	_g_.m.locks++ // disable preemption because it can be holding p in a local var
+ 	if netpollinited() {
+-		gp := netpoll(false) // non-blocking
+-		injectglist(gp)
++		list := netpoll(false) // non-blocking
++		injectglist(list.head.ptr())
+ 	}
+ 	add := needaddgcproc()
+ 	lock(&sched.lock)
+@@ -2312,9 +2312,9 @@ top:
+ 	// not set lastpoll yet), this thread will do blocking netpoll below
+ 	// anyway.
+ 	if netpollinited() && atomic.Load(&netpollWaiters) > 0 && atomic.Load64(&sched.lastpoll) != 0 {
+-		if gp := netpoll(false); gp != nil { // non-blocking
+-			// netpoll returns list of goroutines linked by schedlink.
+-			injectglist(gp.schedlink.ptr())
++		if list := netpoll(false); !list.empty() { // non-blocking
++			gp := list.pop()
++			injectglist(list.head.ptr())
+ 			casgstatus(gp, _Gwaiting, _Grunnable)
+ 			if trace.enabled {
+ 				traceGoUnpark(gp, 0)
+@@ -2466,22 +2466,23 @@ stop:
+ 		if _g_.m.spinning {
+ 			throw("findrunnable: netpoll with spinning")
+ 		}
+-		gp := netpoll(true) // block until new work is available
++		list := netpoll(true) // block until new work is available
+ 		atomic.Store64(&sched.lastpoll, uint64(nanotime()))
+-		if gp != nil {
++		if !list.empty() {
+ 			lock(&sched.lock)
+ 			_p_ = pidleget()
+ 			unlock(&sched.lock)
+ 			if _p_ != nil {
+ 				acquirep(_p_)
+-				injectglist(gp.schedlink.ptr())
++				gp := list.pop()
++				injectglist(list.head.ptr())
+ 				casgstatus(gp, _Gwaiting, _Grunnable)
+ 				if trace.enabled {
+ 					traceGoUnpark(gp, 0)
+ 				}
+ 				return gp, false
+ 			}
+-			injectglist(gp)
++			injectglist(list.head.ptr())
+ 		}
+ 	}
+ 	stopm()
+@@ -2501,8 +2502,8 @@ func pollWork() bool {
+ 		return true
+ 	}
+ 	if netpollinited() && atomic.Load(&netpollWaiters) > 0 && sched.lastpoll != 0 {
+-		if gp := netpoll(false); gp != nil {
+-			injectglist(gp)
++		if list := netpoll(false); !list.empty() {
++			injectglist(list.head.ptr())
+ 			return true
+ 		}
+ 	}
+@@ -4387,8 +4388,8 @@ func sysmon() {
+ 		now := nanotime()
+ 		if netpollinited() && lastpoll != 0 && lastpoll+10*1000*1000 < now {
+ 			atomic.Cas64(&sched.lastpoll, uint64(lastpoll), uint64(now))
+-			gp := netpoll(false) // non-blocking - returns list of goroutines
+-			if gp != nil {
++			list := netpoll(false) // non-blocking - returns list of goroutines
++			if !list.empty() {
+ 				// Need to decrement number of idle locked M's
+ 				// (pretending that one more is running) before injectglist.
+ 				// Otherwise it can lead to the following situation:
+@@ -4397,7 +4398,7 @@ func sysmon() {
+ 				// observes that there is no work to do and no other running M's
+ 				// and reports deadlock.
+ 				incidlelocked(-1)
+-				injectglist(gp)
++				injectglist(list.head.ptr())
+ 				incidlelocked(1)
+ 			}
+ 		}

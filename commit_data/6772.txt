@@ -11,6 +11,19 @@ Date:   Thu Nov 18 10:26:41 2010 -0800
     R=ken2, rsc
     CC=golang-dev
     https://golang.org/cl/3205041
-
+---
  src/cmd/6c/txt.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index 9a94ca201b..29b2e1312d 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -38,6 +38,7 @@ ginit(void)
+ 
+ 	thechar = '6';
+ 	thestring = "amd64";
++	dodefine("_64BIT");
+ 	listinit();
+ 	nstring = 0;
+ 	mnstring = 0;

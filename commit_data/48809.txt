@@ -18,7 +18,7 @@ Date:   Wed Jun 16 23:05:44 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/alg.go                              |   9 +-
  src/runtime/cgocall.go                          |   5 +-
  src/runtime/cgocheck.go                         |  14 +--
@@ -83,3 +83,2950 @@ Date:   Wed Jun 16 23:05:44 2021 +0000
  src/runtime/trace.go                            |   7 +-
  src/runtime/traceback.go                        |  21 ++--
  63 files changed, 349 insertions(+), 336 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 39c7426842..493499f2c5 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -7,12 +7,13 @@ package runtime
+ import (
+ 	"internal/cpu"
+ 	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+ const (
+-	c0 = uintptr((8-sys.PtrSize)/4*2860486313 + (sys.PtrSize-4)/4*33054211828000289)
+-	c1 = uintptr((8-sys.PtrSize)/4*3267000013 + (sys.PtrSize-4)/4*23344194077549503)
++	c0 = uintptr((8-goarch.PtrSize)/4*2860486313 + (goarch.PtrSize-4)/4*33054211828000289)
++	c1 = uintptr((8-goarch.PtrSize)/4*3267000013 + (goarch.PtrSize-4)/4*23344194077549503)
+ )
+ 
+ func memhash0(p unsafe.Pointer, h uintptr) uintptr {
+@@ -300,7 +301,7 @@ func ifaceHash(i interface {
+ 	return interhash(noescape(unsafe.Pointer(&i)), seed)
+ }
+ 
+-const hashRandomBytes = sys.PtrSize / 4 * 64
++const hashRandomBytes = goarch.PtrSize / 4 * 64
+ 
+ // used in asm_{386,amd64,arm64}.s to seed the hash function
+ var aeskeysched [hashRandomBytes]byte
+@@ -321,7 +322,7 @@ func alginit() {
+ 		initAlgAES()
+ 		return
+ 	}
+-	getRandomData((*[len(hashkey) * sys.PtrSize]byte)(unsafe.Pointer(&hashkey))[:])
++	getRandomData((*[len(hashkey) * goarch.PtrSize]byte)(unsafe.Pointer(&hashkey))[:])
+ 	hashkey[0] |= 1 // make sure these numbers are odd
+ 	hashkey[1] |= 1
+ 	hashkey[2] |= 1
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 0e287d0b8e..2dafda6ca4 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -87,6 +87,7 @@ package runtime
+ import (
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -470,7 +471,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 		if inheap(uintptr(unsafe.Pointer(it))) {
+ 			panic(errorString(msg))
+ 		}
+-		p = *(*unsafe.Pointer)(add(p, sys.PtrSize))
++		p = *(*unsafe.Pointer)(add(p, goarch.PtrSize))
+ 		if !cgoIsGoPointer(p) {
+ 			return
+ 		}
+@@ -550,7 +551,7 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
+ 		}
+ 		hbits := heapBitsForAddr(base)
+ 		n := span.elemsize
+-		for i = uintptr(0); i < n; i += sys.PtrSize {
++		for i = uintptr(0); i < n; i += goarch.PtrSize {
+ 			if !hbits.morePointers() {
+ 				// No more possible pointers.
+ 				break
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index 516045c163..3acbadf803 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -8,7 +8,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -151,7 +151,7 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 	// src must be in the regular heap.
+ 
+ 	hbits := heapBitsForAddr(uintptr(src))
+-	for i := uintptr(0); i < off+size; i += sys.PtrSize {
++	for i := uintptr(0); i < off+size; i += goarch.PtrSize {
+ 		bits := hbits.bits()
+ 		if i >= off && bits&bitPointer != 0 {
+ 			v := *(*unsafe.Pointer)(add(src, i))
+@@ -169,22 +169,22 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
+-	skipMask := off / sys.PtrSize / 8
+-	skipBytes := skipMask * sys.PtrSize * 8
++	skipMask := off / goarch.PtrSize / 8
++	skipBytes := skipMask * goarch.PtrSize * 8
+ 	ptrmask := addb(gcbits, skipMask)
+ 	src = add(src, skipBytes)
+ 	off -= skipBytes
+ 	size += off
+ 	var bits uint32
+-	for i := uintptr(0); i < size; i += sys.PtrSize {
+-		if i&(sys.PtrSize*8-1) == 0 {
++	for i := uintptr(0); i < size; i += goarch.PtrSize {
++		if i&(goarch.PtrSize*8-1) == 0 {
+ 			bits = uint32(*ptrmask)
+ 			ptrmask = addb(ptrmask, 1)
+ 		} else {
+ 			bits >>= 1
+ 		}
+ 		if off > 0 {
+-			off -= sys.PtrSize
++			off -= goarch.PtrSize
+ 		} else {
+ 			if bits&1 != 0 {
+ 				v := *(*unsafe.Pointer)(add(src, i))
+diff --git a/src/runtime/export_debug_regabiargs_off_test.go b/src/runtime/export_debug_regabiargs_off_test.go
+index fce37ab4d1..5009003d27 100644
+--- a/src/runtime/export_debug_regabiargs_off_test.go
++++ b/src/runtime/export_debug_regabiargs_off_test.go
+@@ -3,8 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build amd64 && linux && !goexperiment.regabiargs
+-// +build amd64,linux
+-// +build !goexperiment.regabiargs
++// +build amd64,linux,!goexperiment.regabiargs
+ 
+ package runtime
+ 
+diff --git a/src/runtime/export_debug_regabiargs_on_test.go b/src/runtime/export_debug_regabiargs_on_test.go
+index 3c65127e56..e1b72efd0f 100644
+--- a/src/runtime/export_debug_regabiargs_on_test.go
++++ b/src/runtime/export_debug_regabiargs_on_test.go
+@@ -3,8 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build amd64 && linux && goexperiment.regabiargs
+-// +build amd64,linux
+-// +build goexperiment.regabiargs
++// +build amd64,linux,goexperiment.regabiargs
+ 
+ package runtime
+ 
+diff --git a/src/runtime/export_debug_test.go b/src/runtime/export_debug_test.go
+index 9808fd5299..a2cef02cf8 100644
+--- a/src/runtime/export_debug_test.go
++++ b/src/runtime/export_debug_test.go
+@@ -9,7 +9,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -115,7 +115,7 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 			return false
+ 		}
+ 		// Push current PC on the stack.
+-		rsp := ctxt.rsp() - sys.PtrSize
++		rsp := ctxt.rsp() - goarch.PtrSize
+ 		*(*uint64)(unsafe.Pointer(uintptr(rsp))) = ctxt.rip()
+ 		ctxt.set_rsp(rsp)
+ 		// Write the argument frame size.
+@@ -166,7 +166,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 			storeRegArgs(ctxt.regs(), h.regArgs)
+ 		}
+ 		// Push return PC.
+-		sp -= sys.PtrSize
++		sp -= goarch.PtrSize
+ 		ctxt.set_rsp(sp)
+ 		*(*uint64)(unsafe.Pointer(uintptr(sp))) = ctxt.rip()
+ 		// Set PC to call and context register.
+@@ -182,7 +182,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 	case 2:
+ 		// Function panicked. Copy panic out.
+ 		sp := ctxt.rsp()
+-		memmove(unsafe.Pointer(&h.panic), unsafe.Pointer(uintptr(sp)), 2*sys.PtrSize)
++		memmove(unsafe.Pointer(&h.panic), unsafe.Pointer(uintptr(sp)), 2*goarch.PtrSize)
+ 	case 8:
+ 		// Call isn't safe. Get the reason.
+ 		sp := ctxt.rsp()
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 60c06c3f10..ae329746fe 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -9,6 +9,7 @@ package runtime
+ import (
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -245,7 +246,7 @@ func BenchSetType(n int, x interface{}) {
+ 	})
+ }
+ 
+-const PtrSize = sys.PtrSize
++const PtrSize = goarch.PtrSize
+ 
+ var ForceGCPeriod = &forcegcperiod
+ 
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 934e55f495..050628e33e 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -13,6 +13,7 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -247,7 +248,7 @@ func dumpbv(cbv *bitvector, offset uintptr) {
+ 	for i := uintptr(0); i < uintptr(cbv.n); i++ {
+ 		if cbv.ptrbit(i) == 1 {
+ 			dumpint(fieldKindPtr)
+-			dumpint(uint64(offset + i*sys.PtrSize))
++			dumpint(uint64(offset + i*goarch.PtrSize))
+ 		}
+ 	}
+ }
+@@ -298,7 +299,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
+ 		dumpbv(&child.args, child.argoff)
+ 	} else {
+ 		// conservative - everything might be a pointer
+-		for off := child.argoff; off < child.argoff+child.arglen; off += sys.PtrSize {
++		for off := child.argoff; off < child.argoff+child.arglen; off += goarch.PtrSize {
+ 			dumpint(fieldKindPtr)
+ 			dumpint(uint64(off))
+ 		}
+@@ -307,21 +308,21 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
+ 	// Dump fields in the local vars section
+ 	if stkmap == nil {
+ 		// No locals information, dump everything.
+-		for off := child.arglen; off < s.varp-s.sp; off += sys.PtrSize {
++		for off := child.arglen; off < s.varp-s.sp; off += goarch.PtrSize {
+ 			dumpint(fieldKindPtr)
+ 			dumpint(uint64(off))
+ 		}
+ 	} else if stkmap.n < 0 {
+ 		// Locals size information, dump just the locals.
+ 		size := uintptr(-stkmap.n)
+-		for off := s.varp - size - s.sp; off < s.varp-s.sp; off += sys.PtrSize {
++		for off := s.varp - size - s.sp; off < s.varp-s.sp; off += goarch.PtrSize {
+ 			dumpint(fieldKindPtr)
+ 			dumpint(uint64(off))
+ 		}
+ 	} else if stkmap.n > 0 {
+ 		// Locals bitmap information, scan just the pointers in
+ 		// locals.
+-		dumpbv(&bv, s.varp-uintptr(bv.n)*sys.PtrSize-s.sp)
++		dumpbv(&bv, s.varp-uintptr(bv.n)*goarch.PtrSize-s.sp)
+ 	}
+ 	dumpint(fieldKindEol)
+ 
+@@ -510,7 +511,7 @@ func dumpparams() {
+ 	} else {
+ 		dumpbool(true) // big-endian ptrs
+ 	}
+-	dumpint(sys.PtrSize)
++	dumpint(goarch.PtrSize)
+ 	var arenaStart, arenaEnd uintptr
+ 	for i1 := range mheap_.arenas {
+ 		if mheap_.arenas[i1] == nil {
+@@ -725,7 +726,7 @@ func dumpfields(bv bitvector) {
+ 
+ func makeheapobjbv(p uintptr, size uintptr) bitvector {
+ 	// Extend the temp buffer if necessary.
+-	nptr := size / sys.PtrSize
++	nptr := size / goarch.PtrSize
+ 	if uintptr(len(tmpbuf)) < nptr/8+1 {
+ 		if tmpbuf != nil {
+ 			sysFree(unsafe.Pointer(&tmpbuf[0]), uintptr(len(tmpbuf)), &memstats.other_sys)
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index b397d1ff8d..67c0582363 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -8,6 +8,7 @@ import (
+ 	"internal/abi"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -64,7 +65,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 	}
+ 
+ 	// Entry doesn't exist yet. Make a new entry & add it.
+-	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*sys.PtrSize, 0, &memstats.other_sys))
++	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*goarch.PtrSize, 0, &memstats.other_sys))
+ 	m.inter = inter
+ 	m._type = typ
+ 	// The hash is used in type switches. However, compiler statically generates itab's
+@@ -101,7 +102,7 @@ func (t *itabTableType) find(inter *interfacetype, typ *_type) *itab {
+ 	mask := t.size - 1
+ 	h := itabHashFunc(inter, typ) & mask
+ 	for i := uintptr(1); ; i++ {
+-		p := (**itab)(add(unsafe.Pointer(&t.entries), h*sys.PtrSize))
++		p := (**itab)(add(unsafe.Pointer(&t.entries), h*goarch.PtrSize))
+ 		// Use atomic read here so if we see m != nil, we also see
+ 		// the initializations of the fields of m.
+ 		// m := *p
+@@ -134,7 +135,7 @@ func itabAdd(m *itab) {
+ 		// t2 = new(itabTableType) + some additional entries
+ 		// We lie and tell malloc we want pointer-free memory because
+ 		// all the pointed-to values are not in the heap.
+-		t2 := (*itabTableType)(mallocgc((2+2*t.size)*sys.PtrSize, nil, true))
++		t2 := (*itabTableType)(mallocgc((2+2*t.size)*goarch.PtrSize, nil, true))
+ 		t2.size = t.size * 2
+ 
+ 		// Copy over entries.
+@@ -162,7 +163,7 @@ func (t *itabTableType) add(m *itab) {
+ 	mask := t.size - 1
+ 	h := itabHashFunc(m.inter, m._type) & mask
+ 	for i := uintptr(1); ; i++ {
+-		p := (**itab)(add(unsafe.Pointer(&t.entries), h*sys.PtrSize))
++		p := (**itab)(add(unsafe.Pointer(&t.entries), h*goarch.PtrSize))
+ 		m2 := *p
+ 		if m2 == m {
+ 			// A given itab may be used in more than one module
+@@ -512,7 +513,7 @@ func iterate_itabs(fn func(*itab)) {
+ 	// so no other locks/atomics needed.
+ 	t := itabTable
+ 	for i := uintptr(0); i < t.size; i++ {
+-		m := *(**itab)(add(unsafe.Pointer(&t.entries), i*sys.PtrSize))
++		m := *(**itab)(add(unsafe.Pointer(&t.entries), i*goarch.PtrSize))
+ 		if m != nil {
+ 			fn(m)
+ 		}
+diff --git a/src/runtime/internal/math/math.go b/src/runtime/internal/math/math.go
+index b6bd12d3e8..c3fac366be 100644
+--- a/src/runtime/internal/math/math.go
++++ b/src/runtime/internal/math/math.go
+@@ -4,14 +4,14 @@
+ 
+ package math
+ 
+-import "runtime/internal/sys"
++import "internal/goarch"
+ 
+ const MaxUintptr = ^uintptr(0)
+ 
+ // MulUintptr returns a * b and whether the multiplication overflowed.
+ // On supported platforms this is an intrinsic lowered by the compiler.
+ func MulUintptr(a, b uintptr) (uintptr, bool) {
+-	if a|b < 1<<(4*sys.PtrSize) || a == 0 {
++	if a|b < 1<<(4*goarch.PtrSize) || a == 0 {
+ 		return a * b, false
+ 	}
+ 	overflow := b > MaxUintptr/a
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index c5f62483ff..9f8e04d760 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -104,6 +104,7 @@ import (
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/math"
+ 	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -150,7 +151,7 @@ const (
+ 	//   windows/32       | 4KB        | 3
+ 	//   windows/64       | 8KB        | 2
+ 	//   plan9            | 4KB        | 3
+-	_NumStackOrders = 4 - sys.PtrSize/4*sys.GoosWindows - 1*sys.GoosPlan9
++	_NumStackOrders = 4 - goarch.PtrSize/4*sys.GoosWindows - 1*sys.GoosPlan9
+ 
+ 	// heapAddrBits is the number of bits in a heap address. On
+ 	// amd64, addresses are sign-extended beyond heapAddrBits. On
+@@ -251,7 +252,7 @@ const (
+ 	logHeapArenaBytes = (6+20)*(_64bit*(1-sys.GoosWindows)*(1-sys.GoarchWasm)*(1-sys.GoosIos*sys.GoarchArm64)) + (2+20)*(_64bit*sys.GoosWindows) + (2+20)*(1-_64bit) + (2+20)*sys.GoarchWasm + (2+20)*sys.GoosIos*sys.GoarchArm64
+ 
+ 	// heapArenaBitmapBytes is the size of each heap arena's bitmap.
+-	heapArenaBitmapBytes = heapArenaBytes / (sys.PtrSize * 8 / 2)
++	heapArenaBitmapBytes = heapArenaBytes / (goarch.PtrSize * 8 / 2)
+ 
+ 	pagesPerArena = heapArenaBytes / pageSize
+ 
+@@ -483,7 +484,7 @@ func mallocinit() {
+ 	lockInit(&globalAlloc.mutex, lockRankGlobalAlloc)
+ 
+ 	// Create initial arena growth hints.
+-	if sys.PtrSize == 8 {
++	if goarch.PtrSize == 8 {
+ 		// On a 64-bit machine, we pick the following hints
+ 		// because:
+ 		//
+@@ -730,7 +731,7 @@ mapped:
+ 		l2 := h.arenas[ri.l1()]
+ 		if l2 == nil {
+ 			// Allocate an L2 arena map.
+-			l2 = (*[1 << arenaL2Bits]*heapArena)(persistentalloc(unsafe.Sizeof(*l2), sys.PtrSize, nil))
++			l2 = (*[1 << arenaL2Bits]*heapArena)(persistentalloc(unsafe.Sizeof(*l2), goarch.PtrSize, nil))
+ 			if l2 == nil {
+ 				throw("out of memory allocating heap arena map")
+ 			}
+@@ -741,9 +742,9 @@ mapped:
+ 			throw("arena already initialized")
+ 		}
+ 		var r *heapArena
+-		r = (*heapArena)(h.heapArenaAlloc.alloc(unsafe.Sizeof(*r), sys.PtrSize, &memstats.gcMiscSys))
++		r = (*heapArena)(h.heapArenaAlloc.alloc(unsafe.Sizeof(*r), goarch.PtrSize, &memstats.gcMiscSys))
+ 		if r == nil {
+-			r = (*heapArena)(persistentalloc(unsafe.Sizeof(*r), sys.PtrSize, &memstats.gcMiscSys))
++			r = (*heapArena)(persistentalloc(unsafe.Sizeof(*r), goarch.PtrSize, &memstats.gcMiscSys))
+ 			if r == nil {
+ 				throw("out of memory allocating heap arena metadata")
+ 			}
+@@ -751,16 +752,16 @@ mapped:
+ 
+ 		// Add the arena to the arenas list.
+ 		if len(h.allArenas) == cap(h.allArenas) {
+-			size := 2 * uintptr(cap(h.allArenas)) * sys.PtrSize
++			size := 2 * uintptr(cap(h.allArenas)) * goarch.PtrSize
+ 			if size == 0 {
+ 				size = physPageSize
+ 			}
+-			newArray := (*notInHeap)(persistentalloc(size, sys.PtrSize, &memstats.gcMiscSys))
++			newArray := (*notInHeap)(persistentalloc(size, goarch.PtrSize, &memstats.gcMiscSys))
+ 			if newArray == nil {
+ 				throw("out of memory allocating allArenas")
+ 			}
+ 			oldSlice := h.allArenas
+-			*(*notInHeapSlice)(unsafe.Pointer(&h.allArenas)) = notInHeapSlice{newArray, len(h.allArenas), int(size / sys.PtrSize)}
++			*(*notInHeapSlice)(unsafe.Pointer(&h.allArenas)) = notInHeapSlice{newArray, len(h.allArenas), int(size / goarch.PtrSize)}
+ 			copy(h.allArenas, oldSlice)
+ 			// Do not free the old backing array because
+ 			// there may be concurrent readers. Since we
+@@ -1015,7 +1016,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 			// Align tiny pointer for required (conservative) alignment.
+ 			if size&7 == 0 {
+ 				off = alignUp(off, 8)
+-			} else if sys.PtrSize == 4 && size == 12 {
++			} else if goarch.PtrSize == 4 && size == 12 {
+ 				// Conservatively align 12-byte objects to 8 bytes on 32-bit
+ 				// systems so that objects whose first field is a 64-bit
+ 				// value is aligned to 8 bytes and does not cause a fault on
+@@ -1410,7 +1411,7 @@ func persistentalloc1(size, align uintptr, sysStat *sysMemStat) *notInHeap {
+ 				break
+ 			}
+ 		}
+-		persistent.off = alignUp(sys.PtrSize, align)
++		persistent.off = alignUp(goarch.PtrSize, align)
+ 	}
+ 	p := persistent.base.add(persistent.off)
+ 	persistent.off += size
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 5575040f2a..ca65d3e77f 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -57,7 +57,7 @@ import (
+ 	"internal/abi"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/math"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -104,7 +104,7 @@ const (
+ 	sameSizeGrow = 8 // the current map growth is to a new map of the same size
+ 
+ 	// sentinel bucket ID for iterator checks
+-	noCheck = 1<<(8*sys.PtrSize) - 1
++	noCheck = 1<<(8*goarch.PtrSize) - 1
+ )
+ 
+ // isEmpty reports whether the given tophash array entry represents an empty bucket entry.
+@@ -183,7 +183,7 @@ type hiter struct {
+ // bucketShift returns 1<<b, optimized for code generation.
+ func bucketShift(b uint8) uintptr {
+ 	// Masking the shift amount allows overflow checks to be elided.
+-	return uintptr(1) << (b & (sys.PtrSize*8 - 1))
++	return uintptr(1) << (b & (goarch.PtrSize*8 - 1))
+ }
+ 
+ // bucketMask returns 1<<b - 1, optimized for code generation.
+@@ -193,7 +193,7 @@ func bucketMask(b uint8) uintptr {
+ 
+ // tophash calculates the tophash value for hash.
+ func tophash(hash uintptr) uint8 {
+-	top := uint8(hash >> (sys.PtrSize*8 - 8))
++	top := uint8(hash >> (goarch.PtrSize*8 - 8))
+ 	if top < minTopHash {
+ 		top += minTopHash
+ 	}
+@@ -206,11 +206,11 @@ func evacuated(b *bmap) bool {
+ }
+ 
+ func (b *bmap) overflow(t *maptype) *bmap {
+-	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-sys.PtrSize))
++	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-goarch.PtrSize))
+ }
+ 
+ func (b *bmap) setoverflow(t *maptype, ovf *bmap) {
+-	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-sys.PtrSize)) = ovf
++	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-goarch.PtrSize)) = ovf
+ }
+ 
+ func (b *bmap) keys() unsafe.Pointer {
+@@ -810,7 +810,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 		return
+ 	}
+ 
+-	if unsafe.Sizeof(hiter{})/sys.PtrSize != 12 {
++	if unsafe.Sizeof(hiter{})/goarch.PtrSize != 12 {
+ 		throw("hash_iter size incorrect") // see cmd/compile/internal/reflectdata/reflect.go
+ 	}
+ 	it.t = t
+@@ -1281,11 +1281,11 @@ func reflect_makemap(t *maptype, cap int) *hmap {
+ 	if t.key.equal == nil {
+ 		throw("runtime.reflect_makemap: unsupported map key type")
+ 	}
+-	if t.key.size > maxKeySize && (!t.indirectkey() || t.keysize != uint8(sys.PtrSize)) ||
++	if t.key.size > maxKeySize && (!t.indirectkey() || t.keysize != uint8(goarch.PtrSize)) ||
+ 		t.key.size <= maxKeySize && (t.indirectkey() || t.keysize != uint8(t.key.size)) {
+ 		throw("key size wrong")
+ 	}
+-	if t.elem.size > maxElemSize && (!t.indirectelem() || t.elemsize != uint8(sys.PtrSize)) ||
++	if t.elem.size > maxElemSize && (!t.indirectelem() || t.elemsize != uint8(goarch.PtrSize)) ||
+ 		t.elem.size <= maxElemSize && (t.indirectelem() || t.elemsize != uint8(t.elem.size)) {
+ 		throw("elem size wrong")
+ 	}
+diff --git a/src/runtime/map_fast32.go b/src/runtime/map_fast32.go
+index 420a01daec..e80caeef55 100644
+--- a/src/runtime/map_fast32.go
++++ b/src/runtime/map_fast32.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -302,7 +302,7 @@ search:
+ 			// Only clear key if there are pointers in it.
+ 			// This can only happen if pointers are 32 bit
+ 			// wide as 64 bit pointers do not fit into a 32 bit key.
+-			if sys.PtrSize == 4 && t.key.ptrdata != 0 {
++			if goarch.PtrSize == 4 && t.key.ptrdata != 0 {
+ 				// The key must be a pointer as we checked pointers are
+ 				// 32 bits wide and the key is 32 bits wide also.
+ 				*(*unsafe.Pointer)(k) = nil
+@@ -428,7 +428,7 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
+ 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
+ 
+ 				// Copy key.
+-				if sys.PtrSize == 4 && t.key.ptrdata != 0 && writeBarrier.enabled {
++				if goarch.PtrSize == 4 && t.key.ptrdata != 0 && writeBarrier.enabled {
+ 					// Write with a write barrier.
+ 					*(*unsafe.Pointer)(dst.k) = *(*unsafe.Pointer)(k)
+ 				} else {
+diff --git a/src/runtime/map_fast64.go b/src/runtime/map_fast64.go
+index cb202113ac..69d8872885 100644
+--- a/src/runtime/map_fast64.go
++++ b/src/runtime/map_fast64.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -301,7 +301,7 @@ search:
+ 			}
+ 			// Only clear key if there are pointers in it.
+ 			if t.key.ptrdata != 0 {
+-				if sys.PtrSize == 8 {
++				if goarch.PtrSize == 8 {
+ 					*(*unsafe.Pointer)(k) = nil
+ 				} else {
+ 					// There are three ways to squeeze at one ore more 32 bit pointers into 64 bits.
+@@ -431,7 +431,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
+ 
+ 				// Copy key.
+ 				if t.key.ptrdata != 0 && writeBarrier.enabled {
+-					if sys.PtrSize == 8 {
++					if goarch.PtrSize == 8 {
+ 						// Write with a write barrier.
+ 						*(*unsafe.Pointer)(dst.k) = *(*unsafe.Pointer)(k)
+ 					} else {
+diff --git a/src/runtime/map_faststr.go b/src/runtime/map_faststr.go
+index ed7e46b5f6..4dca882c63 100644
+--- a/src/runtime/map_faststr.go
++++ b/src/runtime/map_faststr.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -27,7 +27,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 		b := (*bmap)(h.buckets)
+ 		if key.len < 32 {
+ 			// short key, doing lots of comparisons is ok
+-			for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
++			for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*goarch.PtrSize) {
+ 				k := (*stringStruct)(kptr)
+ 				if k.len != key.len || isEmpty(b.tophash[i]) {
+ 					if b.tophash[i] == emptyRest {
+@@ -36,14 +36,14 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 					continue
+ 				}
+ 				if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
+-					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.elemsize))
++					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize))
+ 				}
+ 			}
+ 			return unsafe.Pointer(&zeroVal[0])
+ 		}
+ 		// long key, try not to do more comparisons than necessary
+ 		keymaybe := uintptr(bucketCnt)
+-		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
++		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*goarch.PtrSize) {
+ 			k := (*stringStruct)(kptr)
+ 			if k.len != key.len || isEmpty(b.tophash[i]) {
+ 				if b.tophash[i] == emptyRest {
+@@ -52,7 +52,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 				continue
+ 			}
+ 			if k.str == key.str {
+-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.elemsize))
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize))
+ 			}
+ 			// check first 4 bytes
+ 			if *((*[4]byte)(key.str)) != *((*[4]byte)(k.str)) {
+@@ -69,9 +69,9 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 			keymaybe = i
+ 		}
+ 		if keymaybe != bucketCnt {
+-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*sys.PtrSize))
++			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*goarch.PtrSize))
+ 			if memequal(k.str, key.str, uintptr(key.len)) {
+-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+keymaybe*uintptr(t.elemsize))
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+keymaybe*uintptr(t.elemsize))
+ 			}
+ 		}
+ 		return unsafe.Pointer(&zeroVal[0])
+@@ -92,13 +92,13 @@ dohash:
+ 	}
+ 	top := tophash(hash)
+ 	for ; b != nil; b = b.overflow(t) {
+-		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
++		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*goarch.PtrSize) {
+ 			k := (*stringStruct)(kptr)
+ 			if k.len != key.len || b.tophash[i] != top {
+ 				continue
+ 			}
+ 			if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
+-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.elemsize))
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize))
+ 			}
+ 		}
+ 	}
+@@ -122,7 +122,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 		b := (*bmap)(h.buckets)
+ 		if key.len < 32 {
+ 			// short key, doing lots of comparisons is ok
+-			for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
++			for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*goarch.PtrSize) {
+ 				k := (*stringStruct)(kptr)
+ 				if k.len != key.len || isEmpty(b.tophash[i]) {
+ 					if b.tophash[i] == emptyRest {
+@@ -131,14 +131,14 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 					continue
+ 				}
+ 				if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
+-					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.elemsize)), true
++					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize)), true
+ 				}
+ 			}
+ 			return unsafe.Pointer(&zeroVal[0]), false
+ 		}
+ 		// long key, try not to do more comparisons than necessary
+ 		keymaybe := uintptr(bucketCnt)
+-		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
++		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*goarch.PtrSize) {
+ 			k := (*stringStruct)(kptr)
+ 			if k.len != key.len || isEmpty(b.tophash[i]) {
+ 				if b.tophash[i] == emptyRest {
+@@ -147,7 +147,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 				continue
+ 			}
+ 			if k.str == key.str {
+-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.elemsize)), true
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize)), true
+ 			}
+ 			// check first 4 bytes
+ 			if *((*[4]byte)(key.str)) != *((*[4]byte)(k.str)) {
+@@ -164,9 +164,9 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 			keymaybe = i
+ 		}
+ 		if keymaybe != bucketCnt {
+-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*sys.PtrSize))
++			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*goarch.PtrSize))
+ 			if memequal(k.str, key.str, uintptr(key.len)) {
+-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+keymaybe*uintptr(t.elemsize)), true
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+keymaybe*uintptr(t.elemsize)), true
+ 			}
+ 		}
+ 		return unsafe.Pointer(&zeroVal[0]), false
+@@ -187,13 +187,13 @@ dohash:
+ 	}
+ 	top := tophash(hash)
+ 	for ; b != nil; b = b.overflow(t) {
+-		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
++		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*goarch.PtrSize) {
+ 			k := (*stringStruct)(kptr)
+ 			if k.len != key.len || b.tophash[i] != top {
+ 				continue
+ 			}
+ 			if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
+-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.elemsize)), true
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize)), true
+ 			}
+ 		}
+ 	}
+@@ -246,7 +246,7 @@ bucketloop:
+ 				}
+ 				continue
+ 			}
+-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
++			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*goarch.PtrSize))
+ 			if k.len != key.len {
+ 				continue
+ 			}
+@@ -284,13 +284,13 @@ bucketloop:
+ 	}
+ 	insertb.tophash[inserti&(bucketCnt-1)] = top // mask inserti to avoid bounds checks
+ 
+-	insertk = add(unsafe.Pointer(insertb), dataOffset+inserti*2*sys.PtrSize)
++	insertk = add(unsafe.Pointer(insertb), dataOffset+inserti*2*goarch.PtrSize)
+ 	// store new key at insert position
+ 	*((*stringStruct)(insertk)) = *key
+ 	h.count++
+ 
+ done:
+-	elem := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*2*sys.PtrSize+inserti*uintptr(t.elemsize))
++	elem := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*2*goarch.PtrSize+inserti*uintptr(t.elemsize))
+ 	if h.flags&hashWriting == 0 {
+ 		throw("concurrent map writes")
+ 	}
+@@ -325,7 +325,7 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
+ 	top := tophash(hash)
+ search:
+ 	for ; b != nil; b = b.overflow(t) {
+-		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
++		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*goarch.PtrSize) {
+ 			k := (*stringStruct)(kptr)
+ 			if k.len != key.len || b.tophash[i] != top {
+ 				continue
+@@ -335,7 +335,7 @@ search:
+ 			}
+ 			// Clear key's pointer.
+ 			k.str = nil
+-			e := add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.elemsize))
++			e := add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize))
+ 			if t.elem.ptrdata != 0 {
+ 				memclrHasPointers(e, t.elem.size)
+ 			} else {
+@@ -411,7 +411,7 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
+ 		x := &xy[0]
+ 		x.b = (*bmap)(add(h.buckets, oldbucket*uintptr(t.bucketsize)))
+ 		x.k = add(unsafe.Pointer(x.b), dataOffset)
+-		x.e = add(x.k, bucketCnt*2*sys.PtrSize)
++		x.e = add(x.k, bucketCnt*2*goarch.PtrSize)
+ 
+ 		if !h.sameSizeGrow() {
+ 			// Only calculate y pointers if we're growing bigger.
+@@ -419,13 +419,13 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
+ 			y := &xy[1]
+ 			y.b = (*bmap)(add(h.buckets, (oldbucket+newbit)*uintptr(t.bucketsize)))
+ 			y.k = add(unsafe.Pointer(y.b), dataOffset)
+-			y.e = add(y.k, bucketCnt*2*sys.PtrSize)
++			y.e = add(y.k, bucketCnt*2*goarch.PtrSize)
+ 		}
+ 
+ 		for ; b != nil; b = b.overflow(t) {
+ 			k := add(unsafe.Pointer(b), dataOffset)
+-			e := add(k, bucketCnt*2*sys.PtrSize)
+-			for i := 0; i < bucketCnt; i, k, e = i+1, add(k, 2*sys.PtrSize), add(e, uintptr(t.elemsize)) {
++			e := add(k, bucketCnt*2*goarch.PtrSize)
++			for i := 0; i < bucketCnt; i, k, e = i+1, add(k, 2*goarch.PtrSize), add(e, uintptr(t.elemsize)) {
+ 				top := b.tophash[i]
+ 				if isEmpty(top) {
+ 					b.tophash[i] = evacuatedEmpty
+@@ -451,7 +451,7 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
+ 					dst.b = h.newoverflow(t, dst.b)
+ 					dst.i = 0
+ 					dst.k = add(unsafe.Pointer(dst.b), dataOffset)
+-					dst.e = add(dst.k, bucketCnt*2*sys.PtrSize)
++					dst.e = add(dst.k, bucketCnt*2*goarch.PtrSize)
+ 				}
+ 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
+ 
+@@ -464,7 +464,7 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
+ 				// key or elem arrays.  That's ok, as we have the overflow pointer
+ 				// at the end of the bucket to protect against pointing past the
+ 				// end of the bucket.
+-				dst.k = add(dst.k, 2*sys.PtrSize)
++				dst.k = add(dst.k, 2*goarch.PtrSize)
+ 				dst.e = add(dst.e, uintptr(t.elemsize))
+ 			}
+ 		}
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 302b3c23c1..583be21eb3 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -9,8 +9,8 @@ import (
+ 	"math"
+ 	"reflect"
+ 	"runtime"
+-	"runtime/internal/sys"
+ 	"sort"
++	"internal/goarch"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -21,7 +21,7 @@ func TestHmapSize(t *testing.T) {
+ 	// The structure of hmap is defined in runtime/map.go
+ 	// and in cmd/compile/internal/gc/reflect.go and must be in sync.
+ 	// The size of hmap should be 48 bytes on 64 bit and 28 bytes on 32 bit platforms.
+-	var hmapSize = uintptr(8 + 5*sys.PtrSize)
++	var hmapSize = uintptr(8 + 5*goarch.PtrSize)
+ 	if runtime.RuntimeHmapSize != hmapSize {
+ 		t.Errorf("sizeof(runtime.hmap{})==%d, want %d", runtime.RuntimeHmapSize, hmapSize)
+ 	}
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index b06ee725dd..3fd1cca42c 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -15,7 +15,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -197,11 +197,11 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ // off must be a multiple of sys.PtrSize.
+ //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
+ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+-	if writeBarrier.needed && typ.ptrdata > off && size >= sys.PtrSize {
+-		if off&(sys.PtrSize-1) != 0 {
++	if writeBarrier.needed && typ.ptrdata > off && size >= goarch.PtrSize {
++		if off&(goarch.PtrSize-1) != 0 {
+ 			panic("reflect: internal error: misaligned offset")
+ 		}
+-		pwsize := alignDown(size, sys.PtrSize)
++		pwsize := alignDown(size, goarch.PtrSize)
+ 		if poff := typ.ptrdata - off; pwsize > poff {
+ 			pwsize = poff
+ 		}
+@@ -225,7 +225,7 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size
+ //
+ //go:nosplit
+ func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr, regs *abi.RegArgs) {
+-	if writeBarrier.needed && typ != nil && typ.ptrdata != 0 && size >= sys.PtrSize {
++	if writeBarrier.needed && typ != nil && typ.ptrdata != 0 && size >= goarch.PtrSize {
+ 		bulkBarrierPreWrite(uintptr(dst), uintptr(src), size)
+ 	}
+ 	memmove(dst, src, size)
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 819acf40bd..124ac8f050 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -48,6 +48,7 @@ package runtime
+ import (
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -326,8 +327,8 @@ func heapBitsForAddr(addr uintptr) (h heapBits) {
+ 		// we expect to crash in the caller.
+ 		return
+ 	}
+-	h.bitp = &ha.bitmap[(addr/(sys.PtrSize*4))%heapArenaBitmapBytes]
+-	h.shift = uint32((addr / sys.PtrSize) & 3)
++	h.bitp = &ha.bitmap[(addr/(goarch.PtrSize*4))%heapArenaBitmapBytes]
++	h.shift = uint32((addr / goarch.PtrSize) & 3)
+ 	h.arena = uint32(arena)
+ 	h.last = &ha.bitmap[len(ha.bitmap)-1]
+ 	return
+@@ -557,7 +558,7 @@ func (h heapBits) isPointer() bool {
+ //
+ //go:nosplit
+ func bulkBarrierPreWrite(dst, src, size uintptr) {
+-	if (dst|src|size)&(sys.PtrSize-1) != 0 {
++	if (dst|src|size)&(goarch.PtrSize-1) != 0 {
+ 		throw("bulkBarrierPreWrite: unaligned arguments")
+ 	}
+ 	if !writeBarrier.needed {
+@@ -592,7 +593,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
+ 	buf := &getg().m.p.ptr().wbBuf
+ 	h := heapBitsForAddr(dst)
+ 	if src == 0 {
+-		for i := uintptr(0); i < size; i += sys.PtrSize {
++		for i := uintptr(0); i < size; i += goarch.PtrSize {
+ 			if h.isPointer() {
+ 				dstx := (*uintptr)(unsafe.Pointer(dst + i))
+ 				if !buf.putFast(*dstx, 0) {
+@@ -602,7 +603,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
+ 			h = h.next()
+ 		}
+ 	} else {
+-		for i := uintptr(0); i < size; i += sys.PtrSize {
++		for i := uintptr(0); i < size; i += goarch.PtrSize {
+ 			if h.isPointer() {
+ 				dstx := (*uintptr)(unsafe.Pointer(dst + i))
+ 				srcx := (*uintptr)(unsafe.Pointer(src + i))
+@@ -625,7 +626,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
+ // created and zeroed with malloc.
+ //go:nosplit
+ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
+-	if (dst|src|size)&(sys.PtrSize-1) != 0 {
++	if (dst|src|size)&(goarch.PtrSize-1) != 0 {
+ 		throw("bulkBarrierPreWrite: unaligned arguments")
+ 	}
+ 	if !writeBarrier.needed {
+@@ -633,7 +634,7 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
+ 	}
+ 	buf := &getg().m.p.ptr().wbBuf
+ 	h := heapBitsForAddr(dst)
+-	for i := uintptr(0); i < size; i += sys.PtrSize {
++	for i := uintptr(0); i < size; i += goarch.PtrSize {
+ 		if h.isPointer() {
+ 			srcx := (*uintptr)(unsafe.Pointer(src + i))
+ 			if !buf.putFast(0, *srcx) {
+@@ -653,17 +654,17 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
+ //
+ //go:nosplit
+ func bulkBarrierBitmap(dst, src, size, maskOffset uintptr, bits *uint8) {
+-	word := maskOffset / sys.PtrSize
++	word := maskOffset / goarch.PtrSize
+ 	bits = addb(bits, word/8)
+ 	mask := uint8(1) << (word % 8)
+ 
+ 	buf := &getg().m.p.ptr().wbBuf
+-	for i := uintptr(0); i < size; i += sys.PtrSize {
++	for i := uintptr(0); i < size; i += goarch.PtrSize {
+ 		if mask == 0 {
+ 			bits = addb(bits, 1)
+ 			if *bits == 0 {
+ 				// Skip 8 words.
+-				i += 7 * sys.PtrSize
++				i += 7 * goarch.PtrSize
+ 				continue
+ 			}
+ 			mask = 1
+@@ -720,8 +721,8 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
+ 	ptrmask := typ.gcdata
+ 	buf := &getg().m.p.ptr().wbBuf
+ 	var bits uint32
+-	for i := uintptr(0); i < typ.ptrdata; i += sys.PtrSize {
+-		if i&(sys.PtrSize*8-1) == 0 {
++	for i := uintptr(0); i < typ.ptrdata; i += goarch.PtrSize {
++		if i&(goarch.PtrSize*8-1) == 0 {
+ 			bits = uint32(*ptrmask)
+ 			ptrmask = addb(ptrmask, 1)
+ 		} else {
+@@ -751,14 +752,14 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
+ // Otherwise, it initializes all words to scalar/dead.
+ func (h heapBits) initSpan(s *mspan) {
+ 	// Clear bits corresponding to objects.
+-	nw := (s.npages << _PageShift) / sys.PtrSize
++	nw := (s.npages << _PageShift) / goarch.PtrSize
+ 	if nw%wordsPerBitmapByte != 0 {
+ 		throw("initSpan: unaligned length")
+ 	}
+ 	if h.shift != 0 {
+ 		throw("initSpan: unaligned base")
+ 	}
+-	isPtrs := sys.PtrSize == 8 && s.elemsize == sys.PtrSize
++	isPtrs := goarch.PtrSize == 8 && s.elemsize == goarch.PtrSize
+ 	for nw > 0 {
+ 		hNext, anw := h.forwardOrBoundary(nw)
+ 		nbyte := anw / wordsPerBitmapByte
+@@ -836,7 +837,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 	// The checks for size == sys.PtrSize and size == 2*sys.PtrSize can therefore
+ 	// assume that dataSize == size without checking it explicitly.
+ 
+-	if sys.PtrSize == 8 && size == sys.PtrSize {
++	if goarch.PtrSize == 8 && size == goarch.PtrSize {
+ 		// It's one word and it has pointers, it must be a pointer.
+ 		// Since all allocated one-word objects are pointers
+ 		// (non-pointers are aggregated into tinySize allocations),
+@@ -862,8 +863,8 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 	// objects are at least 4 words long and that their bitmaps start either at the beginning
+ 	// of a bitmap byte, or half-way in (h.shift of 0 and 2 respectively).
+ 
+-	if size == 2*sys.PtrSize {
+-		if typ.size == sys.PtrSize {
++	if size == 2*goarch.PtrSize {
++		if typ.size == goarch.PtrSize {
+ 			// We're allocating a block big enough to hold two pointers.
+ 			// On 64-bit, that means the actual object must be two pointers,
+ 			// or else we'd have used the one-pointer-sized block.
+@@ -872,7 +873,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 			// just the smallest block available. Distinguish by checking dataSize.
+ 			// (In general the number of instances of typ being allocated is
+ 			// dataSize/typ.size.)
+-			if sys.PtrSize == 4 && dataSize == sys.PtrSize {
++			if goarch.PtrSize == 4 && dataSize == goarch.PtrSize {
+ 				// 1 pointer object. On 32-bit machines clear the bit for the
+ 				// unused second word.
+ 				*h.bitp &^= (bitPointer | bitScan | (bitPointer|bitScan)<<heapBitsShift) << h.shift
+@@ -886,38 +887,38 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 		// Otherwise typ.size must be 2*sys.PtrSize,
+ 		// and typ.kind&kindGCProg == 0.
+ 		if doubleCheck {
+-			if typ.size != 2*sys.PtrSize || typ.kind&kindGCProg != 0 {
++			if typ.size != 2*goarch.PtrSize || typ.kind&kindGCProg != 0 {
+ 				print("runtime: heapBitsSetType size=", size, " but typ.size=", typ.size, " gcprog=", typ.kind&kindGCProg != 0, "\n")
+ 				throw("heapBitsSetType")
+ 			}
+ 		}
+ 		b := uint32(*ptrmask)
+ 		hb := b & 3
+-		hb |= bitScanAll & ((bitScan << (typ.ptrdata / sys.PtrSize)) - 1)
++		hb |= bitScanAll & ((bitScan << (typ.ptrdata / goarch.PtrSize)) - 1)
+ 		// Clear the bits for this object so we can set the
+ 		// appropriate ones.
+ 		*h.bitp &^= (bitPointer | bitScan | ((bitPointer | bitScan) << heapBitsShift)) << h.shift
+ 		*h.bitp |= uint8(hb << h.shift)
+ 		return
+-	} else if size == 3*sys.PtrSize {
++	} else if size == 3*goarch.PtrSize {
+ 		b := uint8(*ptrmask)
+ 		if doubleCheck {
+ 			if b == 0 {
+ 				println("runtime: invalid type ", typ.string())
+ 				throw("heapBitsSetType: called with non-pointer type")
+ 			}
+-			if sys.PtrSize != 8 {
++			if goarch.PtrSize != 8 {
+ 				throw("heapBitsSetType: unexpected 3 pointer wide size class on 32 bit")
+ 			}
+ 			if typ.kind&kindGCProg != 0 {
+ 				throw("heapBitsSetType: unexpected GC prog for 3 pointer wide size class")
+ 			}
+-			if typ.size == 2*sys.PtrSize {
++			if typ.size == 2*goarch.PtrSize {
+ 				print("runtime: heapBitsSetType size=", size, " but typ.size=", typ.size, "\n")
+ 				throw("heapBitsSetType: inconsistent object sizes")
+ 			}
+ 		}
+-		if typ.size == sys.PtrSize {
++		if typ.size == goarch.PtrSize {
+ 			// The type contains a pointer otherwise heapBitsSetType wouldn't have been called.
+ 			// Since the type is only 1 pointer wide and contains a pointer, its gcdata must be exactly 1.
+ 			if doubleCheck && *typ.gcdata != 1 {
+@@ -1063,8 +1064,8 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 		// Filling in bits for an array of typ.
+ 		// Set up for repetition of ptrmask during main loop.
+ 		// Note that ptrmask describes only a prefix of
+-		const maxBits = sys.PtrSize*8 - 7
+-		if typ.ptrdata/sys.PtrSize <= maxBits {
++		const maxBits = goarch.PtrSize*8 - 7
++		if typ.ptrdata/goarch.PtrSize <= maxBits {
+ 			// Entire ptrmask fits in uintptr with room for a byte fragment.
+ 			// Load into pbits and never read from ptrmask again.
+ 			// This is especially important when the ptrmask has
+@@ -1075,12 +1076,12 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 			// Accumulate ptrmask into b.
+ 			// ptrmask is sized to describe only typ.ptrdata, but we record
+ 			// it as describing typ.size bytes, since all the high bits are zero.
+-			nb = typ.ptrdata / sys.PtrSize
++			nb = typ.ptrdata / goarch.PtrSize
+ 			for i := uintptr(0); i < nb; i += 8 {
+ 				b |= uintptr(*p) << i
+ 				p = add1(p)
+ 			}
+-			nb = typ.size / sys.PtrSize
++			nb = typ.size / goarch.PtrSize
+ 
+ 			// Replicate ptrmask to fill entire pbits uintptr.
+ 			// Doubling and truncating is fewer steps than
+@@ -1091,7 +1092,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 			pbits = b
+ 			endnb = nb
+ 			if nb+nb <= maxBits {
+-				for endnb <= sys.PtrSize*8 {
++				for endnb <= goarch.PtrSize*8 {
+ 					pbits |= pbits << endnb
+ 					endnb += endnb
+ 				}
+@@ -1110,9 +1111,9 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 			endp = nil
+ 		} else {
+ 			// Ptrmask is larger. Read it multiple times.
+-			n := (typ.ptrdata/sys.PtrSize+7)/8 - 1
++			n := (typ.ptrdata/goarch.PtrSize+7)/8 - 1
+ 			endp = addb(ptrmask, n)
+-			endnb = typ.size/sys.PtrSize - n*8
++			endnb = typ.size/goarch.PtrSize - n*8
+ 		}
+ 	}
+ 	if p != nil {
+@@ -1123,12 +1124,12 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 
+ 	if typ.size == dataSize {
+ 		// Single entry: can stop once we reach the non-pointer data.
+-		nw = typ.ptrdata / sys.PtrSize
++		nw = typ.ptrdata / goarch.PtrSize
+ 	} else {
+ 		// Repeated instances of typ in an array.
+ 		// Have to process first N-1 entries in full, but can stop
+ 		// once we reach the non-pointer data in the final entry.
+-		nw = ((dataSize/typ.size-1)*typ.size + typ.ptrdata) / sys.PtrSize
++		nw = ((dataSize/typ.size-1)*typ.size + typ.ptrdata) / goarch.PtrSize
+ 	}
+ 	if nw == 0 {
+ 		// No pointers! Caller was supposed to check.
+@@ -1291,7 +1292,7 @@ Phase3:
+ 	}
+ 
+ 	// Change nw from counting possibly-pointer words to total words in allocation.
+-	nw = size / sys.PtrSize
++	nw = size / goarch.PtrSize
+ 
+ 	// Write whole bitmap bytes.
+ 	// The first is hb, the rest are zero.
+@@ -1325,7 +1326,7 @@ Phase4:
+ 		h := heapBitsForAddr(x)
+ 		// cnw is the number of heap words, or bit pairs
+ 		// remaining (like nw above).
+-		cnw := size / sys.PtrSize
++		cnw := size / goarch.PtrSize
+ 		src := (*uint8)(unsafe.Pointer(x))
+ 		// We know the first and last byte of the bitmap are
+ 		// not the same, but it's still possible for small
+@@ -1390,7 +1391,7 @@ Phase4:
+ 	if doubleCheck {
+ 		// x+size may not point to the heap, so back up one
+ 		// word and then advance it the way we do above.
+-		end := heapBitsForAddr(x + size - sys.PtrSize)
++		end := heapBitsForAddr(x + size - goarch.PtrSize)
+ 		if outOfPlace {
+ 			// In out-of-place copying, we just advance
+ 			// using next.
+@@ -1417,11 +1418,11 @@ Phase4:
+ 		// Double-check that bits to be written were written correctly.
+ 		// Does not check that other bits were not written, unfortunately.
+ 		h := heapBitsForAddr(x)
+-		nptr := typ.ptrdata / sys.PtrSize
+-		ndata := typ.size / sys.PtrSize
++		nptr := typ.ptrdata / goarch.PtrSize
++		ndata := typ.size / goarch.PtrSize
+ 		count := dataSize / typ.size
+-		totalptr := ((count-1)*typ.size + typ.ptrdata) / sys.PtrSize
+-		for i := uintptr(0); i < size/sys.PtrSize; i++ {
++		totalptr := ((count-1)*typ.size + typ.ptrdata) / goarch.PtrSize
++		for i := uintptr(0); i < size/goarch.PtrSize; i++ {
+ 			j := i % ndata
+ 			var have, want uint8
+ 			have = (*h.bitp >> h.shift) & (bitPointer | bitScan)
+@@ -1446,7 +1447,7 @@ Phase4:
+ 				print("initial bits h0.bitp=", h0.bitp, " h0.shift=", h0.shift, "\n")
+ 				print("current bits h.bitp=", h.bitp, " h.shift=", h.shift, " *h.bitp=", hex(*h.bitp), "\n")
+ 				print("ptrmask=", ptrmask, " p=", p, " endp=", endp, " endnb=", endnb, " pbits=", hex(pbits), " b=", hex(b), " nb=", nb, "\n")
+-				println("at word", i, "offset", i*sys.PtrSize, "have", hex(have), "want", hex(want))
++				println("at word", i, "offset", i*goarch.PtrSize, "have", hex(have), "want", hex(want))
+ 				if typ.kind&kindGCProg != 0 {
+ 					println("GC program:")
+ 					dumpGCProg(addb(typ.gcdata, 4))
+@@ -1477,14 +1478,14 @@ var debugPtrmask struct {
+ // so that the relevant bitmap bytes are not shared with surrounding
+ // objects.
+ func heapBitsSetTypeGCProg(h heapBits, progSize, elemSize, dataSize, allocSize uintptr, prog *byte) {
+-	if sys.PtrSize == 8 && allocSize%(4*sys.PtrSize) != 0 {
++	if goarch.PtrSize == 8 && allocSize%(4*goarch.PtrSize) != 0 {
+ 		// Alignment will be wrong.
+ 		throw("heapBitsSetTypeGCProg: small allocation")
+ 	}
+ 	var totalBits uintptr
+ 	if elemSize == dataSize {
+ 		totalBits = runGCProg(prog, nil, h.bitp, 2)
+-		if totalBits*sys.PtrSize != progSize {
++		if totalBits*goarch.PtrSize != progSize {
+ 			println("runtime: heapBitsSetTypeGCProg: total bits", totalBits, "but progSize", progSize)
+ 			throw("heapBitsSetTypeGCProg: unexpected bit count")
+ 		}
+@@ -1499,7 +1500,7 @@ func heapBitsSetTypeGCProg(h heapBits, progSize, elemSize, dataSize, allocSize u
+ 		// repeats that first element to fill the array.
+ 		var trailer [40]byte // 3 varints (max 10 each) + some bytes
+ 		i := 0
+-		if n := elemSize/sys.PtrSize - progSize/sys.PtrSize; n > 0 {
++		if n := elemSize/goarch.PtrSize - progSize/goarch.PtrSize; n > 0 {
+ 			// literal(0)
+ 			trailer[i] = 0x01
+ 			i++
+@@ -1521,7 +1522,7 @@ func heapBitsSetTypeGCProg(h heapBits, progSize, elemSize, dataSize, allocSize u
+ 		// repeat(elemSize/ptrSize, count-1)
+ 		trailer[i] = 0x80
+ 		i++
+-		n := elemSize / sys.PtrSize
++		n := elemSize / goarch.PtrSize
+ 		for ; n >= 0x80; n >>= 7 {
+ 			trailer[i] = byte(n | 0x80)
+ 			i++
+@@ -1545,10 +1546,10 @@ func heapBitsSetTypeGCProg(h heapBits, progSize, elemSize, dataSize, allocSize u
+ 		// last element. This will cause the code below to
+ 		// memclr the dead section of the final array element,
+ 		// so that scanobject can stop early in the final element.
+-		totalBits = (elemSize*(count-1) + progSize) / sys.PtrSize
++		totalBits = (elemSize*(count-1) + progSize) / goarch.PtrSize
+ 	}
+ 	endProg := unsafe.Pointer(addb(h.bitp, (totalBits+3)/4))
+-	endAlloc := unsafe.Pointer(addb(h.bitp, allocSize/sys.PtrSize/wordsPerBitmapByte))
++	endAlloc := unsafe.Pointer(addb(h.bitp, allocSize/goarch.PtrSize/wordsPerBitmapByte))
+ 	memclrNoHeapPointers(endProg, uintptr(endAlloc)-uintptr(endProg))
+ }
+ 
+@@ -1556,7 +1557,7 @@ func heapBitsSetTypeGCProg(h heapBits, progSize, elemSize, dataSize, allocSize u
+ // size the size of the region described by prog, in bytes.
+ // The resulting bitvector will have no more than size/sys.PtrSize bits.
+ func progToPointerMask(prog *byte, size uintptr) bitvector {
+-	n := (size/sys.PtrSize + 7) / 8
++	n := (size/goarch.PtrSize + 7) / 8
+ 	x := (*[1 << 30]byte)(persistentalloc(n+1, 1, &memstats.buckhash_sys))[:n+1]
+ 	x[len(x)-1] = 0xa1 // overflow check sentinel
+ 	n = runGCProg(prog, nil, &x[0], 1)
+@@ -1691,7 +1692,7 @@ Run:
+ 		// the pattern to a bit buffer holding at most 7 bits (a partial byte)
+ 		// it will not overflow.
+ 		src := dst
+-		const maxBits = sys.PtrSize*8 - 7
++		const maxBits = goarch.PtrSize*8 - 7
+ 		if n <= maxBits {
+ 			// Start with bits in output buffer.
+ 			pattern := bits
+@@ -1744,7 +1745,7 @@ Run:
+ 				nb := npattern
+ 				if nb+nb <= maxBits {
+ 					// Double pattern until the whole uintptr is filled.
+-					for nb <= sys.PtrSize*8 {
++					for nb <= goarch.PtrSize*8 {
+ 						b |= b << nb
+ 						nb += nb
+ 					}
+@@ -1872,7 +1873,7 @@ Run:
+ // The result must be deallocated with dematerializeGCProg.
+ func materializeGCProg(ptrdata uintptr, prog *byte) *mspan {
+ 	// Each word of ptrdata needs one bit in the bitmap.
+-	bitmapBytes := divRoundUp(ptrdata, 8*sys.PtrSize)
++	bitmapBytes := divRoundUp(ptrdata, 8*goarch.PtrSize)
+ 	// Compute the number of pages needed for bitmapBytes.
+ 	pages := divRoundUp(bitmapBytes, pageSize)
+ 	s := mheap_.allocManual(pages, spanAllocPtrScalarBits)
+@@ -1945,7 +1946,7 @@ func getgcmaskcb(frame *stkframe, ctxt unsafe.Pointer) bool {
+ func reflect_gcbits(x interface{}) []byte {
+ 	ret := getgcmask(x)
+ 	typ := (*ptrtype)(unsafe.Pointer(efaceOf(&x)._type)).elem
+-	nptr := typ.ptrdata / sys.PtrSize
++	nptr := typ.ptrdata / goarch.PtrSize
+ 	for uintptr(len(ret)) > nptr && ret[len(ret)-1] == 0 {
+ 		ret = ret[:len(ret)-1]
+ 	}
+@@ -1965,10 +1966,10 @@ func getgcmask(ep interface{}) (mask []byte) {
+ 		if datap.data <= uintptr(p) && uintptr(p) < datap.edata {
+ 			bitmap := datap.gcdatamask.bytedata
+ 			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+-			mask = make([]byte, n/sys.PtrSize)
+-			for i := uintptr(0); i < n; i += sys.PtrSize {
+-				off := (uintptr(p) + i - datap.data) / sys.PtrSize
+-				mask[i/sys.PtrSize] = (*addb(bitmap, off/8) >> (off % 8)) & 1
++			mask = make([]byte, n/goarch.PtrSize)
++			for i := uintptr(0); i < n; i += goarch.PtrSize {
++				off := (uintptr(p) + i - datap.data) / goarch.PtrSize
++				mask[i/goarch.PtrSize] = (*addb(bitmap, off/8) >> (off % 8)) & 1
+ 			}
+ 			return
+ 		}
+@@ -1977,10 +1978,10 @@ func getgcmask(ep interface{}) (mask []byte) {
+ 		if datap.bss <= uintptr(p) && uintptr(p) < datap.ebss {
+ 			bitmap := datap.gcbssmask.bytedata
+ 			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+-			mask = make([]byte, n/sys.PtrSize)
+-			for i := uintptr(0); i < n; i += sys.PtrSize {
+-				off := (uintptr(p) + i - datap.bss) / sys.PtrSize
+-				mask[i/sys.PtrSize] = (*addb(bitmap, off/8) >> (off % 8)) & 1
++			mask = make([]byte, n/goarch.PtrSize)
++			for i := uintptr(0); i < n; i += goarch.PtrSize {
++				off := (uintptr(p) + i - datap.bss) / goarch.PtrSize
++				mask[i/goarch.PtrSize] = (*addb(bitmap, off/8) >> (off % 8)) & 1
+ 			}
+ 			return
+ 		}
+@@ -1990,13 +1991,13 @@ func getgcmask(ep interface{}) (mask []byte) {
+ 	if base, s, _ := findObject(uintptr(p), 0, 0); base != 0 {
+ 		hbits := heapBitsForAddr(base)
+ 		n := s.elemsize
+-		mask = make([]byte, n/sys.PtrSize)
+-		for i := uintptr(0); i < n; i += sys.PtrSize {
++		mask = make([]byte, n/goarch.PtrSize)
++		for i := uintptr(0); i < n; i += goarch.PtrSize {
+ 			if hbits.isPointer() {
+-				mask[i/sys.PtrSize] = 1
++				mask[i/goarch.PtrSize] = 1
+ 			}
+ 			if !hbits.morePointers() {
+-				mask = mask[:i/sys.PtrSize]
++				mask = mask[:i/goarch.PtrSize]
+ 				break
+ 			}
+ 			hbits = hbits.next()
+@@ -2015,12 +2016,12 @@ func getgcmask(ep interface{}) (mask []byte) {
+ 			if locals.n == 0 {
+ 				return
+ 			}
+-			size := uintptr(locals.n) * sys.PtrSize
++			size := uintptr(locals.n) * goarch.PtrSize
+ 			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+-			mask = make([]byte, n/sys.PtrSize)
+-			for i := uintptr(0); i < n; i += sys.PtrSize {
+-				off := (uintptr(p) + i - frame.varp + size) / sys.PtrSize
+-				mask[i/sys.PtrSize] = locals.ptrbit(off)
++			mask = make([]byte, n/goarch.PtrSize)
++			for i := uintptr(0); i < n; i += goarch.PtrSize {
++				off := (uintptr(p) + i - frame.varp + size) / goarch.PtrSize
++				mask[i/goarch.PtrSize] = locals.ptrbit(off)
+ 			}
+ 		}
+ 		return
+diff --git a/src/runtime/mcheckmark.go b/src/runtime/mcheckmark.go
+index ba80ac1bdf..6a43142508 100644
+--- a/src/runtime/mcheckmark.go
++++ b/src/runtime/mcheckmark.go
+@@ -14,7 +14,7 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -24,7 +24,7 @@ import (
+ // allocation.
+ //
+ //go:notinheap
+-type checkmarksMap [heapArenaBytes / sys.PtrSize / 8]uint8
++type checkmarksMap [heapArenaBytes / goarch.PtrSize / 8]uint8
+ 
+ // If useCheckmark is true, marking of an object uses the checkmark
+ // bits instead of the standard mark bits.
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index fd318d49a8..98f7cf793f 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -9,7 +9,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -26,14 +26,14 @@ type finblock struct {
+ 	next    *finblock
+ 	cnt     uint32
+ 	_       int32
+-	fin     [(_FinBlockSize - 2*sys.PtrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
++	fin     [(_FinBlockSize - 2*goarch.PtrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
+ }
+ 
+ var finlock mutex  // protects the following variables
+ var fing *g        // goroutine that runs finalizers
+ var finq *finblock // list of finalizers that are to be executed
+ var finc *finblock // cache of free blocks
+-var finptrmask [_FinBlockSize / sys.PtrSize / 8]byte
++var finptrmask [_FinBlockSize / goarch.PtrSize / 8]byte
+ var fingwait bool
+ var fingwake bool
+ var allfin *finblock // list of all blocks
+@@ -95,12 +95,12 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
+ 			if finptrmask[0] == 0 {
+ 				// Build pointer mask for Finalizer array in block.
+ 				// Check assumptions made in finalizer1 array above.
+-				if (unsafe.Sizeof(finalizer{}) != 5*sys.PtrSize ||
++				if (unsafe.Sizeof(finalizer{}) != 5*goarch.PtrSize ||
+ 					unsafe.Offsetof(finalizer{}.fn) != 0 ||
+-					unsafe.Offsetof(finalizer{}.arg) != sys.PtrSize ||
+-					unsafe.Offsetof(finalizer{}.nret) != 2*sys.PtrSize ||
+-					unsafe.Offsetof(finalizer{}.fint) != 3*sys.PtrSize ||
+-					unsafe.Offsetof(finalizer{}.ot) != 4*sys.PtrSize) {
++					unsafe.Offsetof(finalizer{}.arg) != goarch.PtrSize ||
++					unsafe.Offsetof(finalizer{}.nret) != 2*goarch.PtrSize ||
++					unsafe.Offsetof(finalizer{}.fint) != 3*goarch.PtrSize ||
++					unsafe.Offsetof(finalizer{}.ot) != 4*goarch.PtrSize) {
+ 					throw("finalizer out of sync")
+ 				}
+ 				for i := range finptrmask {
+@@ -432,7 +432,7 @@ okarg:
+ 	for _, t := range ft.out() {
+ 		nret = alignUp(nret, uintptr(t.align)) + uintptr(t.size)
+ 	}
+-	nret = alignUp(nret, sys.PtrSize)
++	nret = alignUp(nret, goarch.PtrSize)
+ 
+ 	// make sure we have a finalizer goroutine
+ 	createfing()
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index eb70ae9f49..85c78f05a7 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -8,7 +8,7 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -245,7 +245,7 @@ func markroot(gcw *gcWork, i uint32) {
+ //
+ //go:nowritebarrier
+ func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
+-	if rootBlockBytes%(8*sys.PtrSize) != 0 {
++	if rootBlockBytes%(8*goarch.PtrSize) != 0 {
+ 		// This is necessary to pick byte offsets in ptrmask0.
+ 		throw("rootBlockBytes must be a multiple of 8*ptrSize")
+ 	}
+@@ -258,7 +258,7 @@ func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
+ 		return
+ 	}
+ 	b := b0 + off
+-	ptrmask := (*uint8)(add(unsafe.Pointer(ptrmask0), uintptr(shard)*(rootBlockBytes/(8*sys.PtrSize))))
++	ptrmask := (*uint8)(add(unsafe.Pointer(ptrmask0), uintptr(shard)*(rootBlockBytes/(8*goarch.PtrSize))))
+ 	n := uintptr(rootBlockBytes)
+ 	if off+n > n0 {
+ 		n = n0 - off
+@@ -372,7 +372,7 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 				scanobject(p, gcw)
+ 
+ 				// The special itself is a root.
+-				scanblock(uintptr(unsafe.Pointer(&spf.fn)), sys.PtrSize, &oneptrmask[0], gcw, nil)
++				scanblock(uintptr(unsafe.Pointer(&spf.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+ 			}
+ 			unlock(&s.speciallock)
+ 		}
+@@ -737,7 +737,7 @@ func scanstack(gp *g, gcw *gcWork) {
+ 	// register that gets moved back and forth between the
+ 	// register and sched.ctxt without a write barrier.
+ 	if gp.sched.ctxt != nil {
+-		scanblock(uintptr(unsafe.Pointer(&gp.sched.ctxt)), sys.PtrSize, &oneptrmask[0], gcw, &state)
++		scanblock(uintptr(unsafe.Pointer(&gp.sched.ctxt)), goarch.PtrSize, &oneptrmask[0], gcw, &state)
+ 	}
+ 
+ 	// Scan the stack. Accumulate a list of stack objects.
+@@ -755,18 +755,18 @@ func scanstack(gp *g, gcw *gcWork) {
+ 		if d.fn != nil {
+ 			// Scan the func value, which could be a stack allocated closure.
+ 			// See issue 30453.
+-			scanblock(uintptr(unsafe.Pointer(&d.fn)), sys.PtrSize, &oneptrmask[0], gcw, &state)
++			scanblock(uintptr(unsafe.Pointer(&d.fn)), goarch.PtrSize, &oneptrmask[0], gcw, &state)
+ 		}
+ 		if d.link != nil {
+ 			// The link field of a stack-allocated defer record might point
+ 			// to a heap-allocated defer record. Keep that heap record live.
+-			scanblock(uintptr(unsafe.Pointer(&d.link)), sys.PtrSize, &oneptrmask[0], gcw, &state)
++			scanblock(uintptr(unsafe.Pointer(&d.link)), goarch.PtrSize, &oneptrmask[0], gcw, &state)
+ 		}
+ 		// Retain defers records themselves.
+ 		// Defer records might not be reachable from the G through regular heap
+ 		// tracing because the defer linked list might weave between the stack and the heap.
+ 		if d.heap {
+-			scanblock(uintptr(unsafe.Pointer(&d)), sys.PtrSize, &oneptrmask[0], gcw, &state)
++			scanblock(uintptr(unsafe.Pointer(&d)), goarch.PtrSize, &oneptrmask[0], gcw, &state)
+ 		}
+ 	}
+ 	if gp._panic != nil {
+@@ -910,13 +910,13 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
+ 
+ 	// Scan local variables if stack frame has been allocated.
+ 	if locals.n > 0 {
+-		size := uintptr(locals.n) * sys.PtrSize
++		size := uintptr(locals.n) * goarch.PtrSize
+ 		scanblock(frame.varp-size, size, locals.bytedata, gcw, state)
+ 	}
+ 
+ 	// Scan arguments.
+ 	if args.n > 0 {
+-		scanblock(frame.argp, uintptr(args.n)*sys.PtrSize, args.bytedata, gcw, state)
++		scanblock(frame.argp, uintptr(args.n)*goarch.PtrSize, args.bytedata, gcw, state)
+ 	}
+ 
+ 	// Add all stack objects to the stack object list.
+@@ -1169,9 +1169,9 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState)
+ 
+ 	for i := uintptr(0); i < n; {
+ 		// Find bits for the next word.
+-		bits := uint32(*addb(ptrmask, i/(sys.PtrSize*8)))
++		bits := uint32(*addb(ptrmask, i/(goarch.PtrSize*8)))
+ 		if bits == 0 {
+-			i += sys.PtrSize * 8
++			i += goarch.PtrSize * 8
+ 			continue
+ 		}
+ 		for j := 0; j < 8 && i < n; j++ {
+@@ -1187,7 +1187,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState)
+ 				}
+ 			}
+ 			bits >>= 1
+-			i += sys.PtrSize
++			i += goarch.PtrSize
+ 		}
+ 	}
+ }
+@@ -1248,7 +1248,7 @@ func scanobject(b uintptr, gcw *gcWork) {
+ 	}
+ 
+ 	var i uintptr
+-	for i = 0; i < n; i, hbits = i+sys.PtrSize, hbits.next() {
++	for i = 0; i < n; i, hbits = i+goarch.PtrSize, hbits.next() {
+ 		// Load bits once. See CL 22712 and issue 16973 for discussion.
+ 		bits := hbits.bits()
+ 		if bits&bitScan == 0 {
+@@ -1297,7 +1297,7 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
+ 		print("conservatively scanning [", hex(b), ",", hex(b+n), ")\n")
+ 		hexdumpWords(b, b+n, func(p uintptr) byte {
+ 			if ptrmask != nil {
+-				word := (p - b) / sys.PtrSize
++				word := (p - b) / goarch.PtrSize
+ 				bits := *addb(ptrmask, word/8)
+ 				if (bits>>(word%8))&1 == 0 {
+ 					return '$'
+@@ -1322,9 +1322,9 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
+ 		printunlock()
+ 	}
+ 
+-	for i := uintptr(0); i < n; i += sys.PtrSize {
++	for i := uintptr(0); i < n; i += goarch.PtrSize {
+ 		if ptrmask != nil {
+-			word := i / sys.PtrSize
++			word := i / goarch.PtrSize
+ 			bits := *addb(ptrmask, word/8)
+ 			if bits == 0 {
+ 				// Skip 8 words (the loop increment will do the 8th)
+@@ -1333,10 +1333,10 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
+ 				// seen this word of ptrmask, so i
+ 				// must be 8-word-aligned, but check
+ 				// our reasoning just in case.
+-				if i%(sys.PtrSize*8) != 0 {
++				if i%(goarch.PtrSize*8) != 0 {
+ 					throw("misaligned mask")
+ 				}
+-				i += sys.PtrSize*8 - sys.PtrSize
++				i += goarch.PtrSize*8 - goarch.PtrSize
+ 				continue
+ 			}
+ 			if (bits>>(word%8))&1 == 0 {
+@@ -1398,7 +1398,7 @@ func shade(b uintptr) {
+ //go:nowritebarrierrec
+ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintptr) {
+ 	// obj should be start of allocation, and so must be at least pointer-aligned.
+-	if obj&(sys.PtrSize-1) != 0 {
++	if obj&(goarch.PtrSize-1) != 0 {
+ 		throw("greyobject: obj not pointer-aligned")
+ 	}
+ 	mbits := span.markBitsForIndex(objIndex)
+@@ -1470,13 +1470,13 @@ func gcDumpObject(label string, obj, off uintptr) {
+ 		// We're printing something from a stack frame. We
+ 		// don't know how big it is, so just show up to an
+ 		// including off.
+-		size = off + sys.PtrSize
++		size = off + goarch.PtrSize
+ 	}
+-	for i := uintptr(0); i < size; i += sys.PtrSize {
++	for i := uintptr(0); i < size; i += goarch.PtrSize {
+ 		// For big objects, just print the beginning (because
+ 		// that usually hints at the object's type) and the
+ 		// fields around off.
+-		if !(i < 128*sys.PtrSize || off-16*sys.PtrSize < i && i < off+16*sys.PtrSize) {
++		if !(i < 128*goarch.PtrSize || off-16*goarch.PtrSize < i && i < off+16*goarch.PtrSize) {
+ 			skipped = true
+ 			continue
+ 		}
+diff --git a/src/runtime/mgcstack.go b/src/runtime/mgcstack.go
+index 92d58485f6..49dc54e165 100644
+--- a/src/runtime/mgcstack.go
++++ b/src/runtime/mgcstack.go
+@@ -95,7 +95,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -107,7 +107,7 @@ const stackTraceDebug = false
+ //go:notinheap
+ type stackWorkBuf struct {
+ 	stackWorkBufHdr
+-	obj [(_WorkbufSize - unsafe.Sizeof(stackWorkBufHdr{})) / sys.PtrSize]uintptr
++	obj [(_WorkbufSize - unsafe.Sizeof(stackWorkBufHdr{})) / goarch.PtrSize]uintptr
+ }
+ 
+ // Header declaration must come after the buf declaration above, because of issue #14620.
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 667c7afa97..9454ac46f3 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -322,7 +322,7 @@ type workbufhdr struct {
+ type workbuf struct {
+ 	workbufhdr
+ 	// account for the above fields
+-	obj [(_WorkbufSize - unsafe.Sizeof(workbufhdr{})) / sys.PtrSize]uintptr
++	obj [(_WorkbufSize - unsafe.Sizeof(workbufhdr{})) / goarch.PtrSize]uintptr
+ }
+ 
+ // workbuf factory routines. These funcs are used to manage the
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 84c00ce8f8..87716a4b53 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -11,7 +11,7 @@ package runtime
+ import (
+ 	"internal/cpu"
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -497,13 +497,13 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
+ 	assertLockHeld(&h.lock)
+ 
+ 	if len(h.allspans) >= cap(h.allspans) {
+-		n := 64 * 1024 / sys.PtrSize
++		n := 64 * 1024 / goarch.PtrSize
+ 		if n < cap(h.allspans)*3/2 {
+ 			n = cap(h.allspans) * 3 / 2
+ 		}
+ 		var new []*mspan
+ 		sp := (*slice)(unsafe.Pointer(&new))
+-		sp.array = sysAlloc(uintptr(n)*sys.PtrSize, &memstats.other_sys)
++		sp.array = sysAlloc(uintptr(n)*goarch.PtrSize, &memstats.other_sys)
+ 		if sp.array == nil {
+ 			throw("runtime: cannot allocate memory")
+ 		}
+@@ -1822,7 +1822,7 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
+ 			scanobject(base, gcw)
+ 			// Mark the finalizer itself, since the
+ 			// special isn't part of the GC'd heap.
+-			scanblock(uintptr(unsafe.Pointer(&s.fn)), sys.PtrSize, &oneptrmask[0], gcw, nil)
++			scanblock(uintptr(unsafe.Pointer(&s.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+ 			releasem(mp)
+ 		}
+ 		return true
+diff --git a/src/runtime/mranges.go b/src/runtime/mranges.go
+index 84a2c06dbb..e0be1e134e 100644
+--- a/src/runtime/mranges.go
++++ b/src/runtime/mranges.go
+@@ -10,7 +10,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -167,7 +167,7 @@ func (a *addrRanges) init(sysStat *sysMemStat) {
+ 	ranges := (*notInHeapSlice)(unsafe.Pointer(&a.ranges))
+ 	ranges.len = 0
+ 	ranges.cap = 16
+-	ranges.array = (*notInHeap)(persistentalloc(unsafe.Sizeof(addrRange{})*uintptr(ranges.cap), sys.PtrSize, sysStat))
++	ranges.array = (*notInHeap)(persistentalloc(unsafe.Sizeof(addrRange{})*uintptr(ranges.cap), goarch.PtrSize, sysStat))
+ 	a.sysStat = sysStat
+ 	a.totalBytes = 0
+ }
+@@ -294,7 +294,7 @@ func (a *addrRanges) add(r addrRange) {
+ 			ranges := (*notInHeapSlice)(unsafe.Pointer(&a.ranges))
+ 			ranges.len = len(oldRanges) + 1
+ 			ranges.cap = cap(oldRanges) * 2
+-			ranges.array = (*notInHeap)(persistentalloc(unsafe.Sizeof(addrRange{})*uintptr(ranges.cap), sys.PtrSize, a.sysStat))
++			ranges.array = (*notInHeap)(persistentalloc(unsafe.Sizeof(addrRange{})*uintptr(ranges.cap), goarch.PtrSize, a.sysStat))
+ 
+ 			// Copy in the old array, but make space for the new range.
+ 			copy(a.ranges[:i], oldRanges[:i])
+@@ -364,7 +364,7 @@ func (a *addrRanges) cloneInto(b *addrRanges) {
+ 		ranges := (*notInHeapSlice)(unsafe.Pointer(&b.ranges))
+ 		ranges.len = 0
+ 		ranges.cap = cap(a.ranges)
+-		ranges.array = (*notInHeap)(persistentalloc(unsafe.Sizeof(addrRange{})*uintptr(ranges.cap), sys.PtrSize, b.sysStat))
++		ranges.array = (*notInHeap)(persistentalloc(unsafe.Sizeof(addrRange{})*uintptr(ranges.cap), goarch.PtrSize, b.sysStat))
+ 	}
+ 	b.ranges = b.ranges[:len(a.ranges)]
+ 	b.totalBytes = a.totalBytes
+diff --git a/src/runtime/mspanset.go b/src/runtime/mspanset.go
+index 10d2596c38..9b0fb99c4c 100644
+--- a/src/runtime/mspanset.go
++++ b/src/runtime/mspanset.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/cpu"
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -82,7 +82,7 @@ func (b *spanSet) push(s *mspan) {
+ retry:
+ 	if top < spineLen {
+ 		spine := atomic.Loadp(unsafe.Pointer(&b.spine))
+-		blockp := add(spine, sys.PtrSize*top)
++		blockp := add(spine, goarch.PtrSize*top)
+ 		block = (*spanSetBlock)(atomic.Loadp(blockp))
+ 	} else {
+ 		// Add a new block to the spine, potentially growing
+@@ -102,11 +102,11 @@ retry:
+ 			if newCap == 0 {
+ 				newCap = spanSetInitSpineCap
+ 			}
+-			newSpine := persistentalloc(newCap*sys.PtrSize, cpu.CacheLineSize, &memstats.gcMiscSys)
++			newSpine := persistentalloc(newCap*goarch.PtrSize, cpu.CacheLineSize, &memstats.gcMiscSys)
+ 			if b.spineCap != 0 {
+ 				// Blocks are allocated off-heap, so
+ 				// no write barriers.
+-				memmove(newSpine, b.spine, b.spineCap*sys.PtrSize)
++				memmove(newSpine, b.spine, b.spineCap*goarch.PtrSize)
+ 			}
+ 			// Spine is allocated off-heap, so no write barrier.
+ 			atomic.StorepNoWB(unsafe.Pointer(&b.spine), newSpine)
+@@ -124,7 +124,7 @@ retry:
+ 		block = spanSetBlockPool.alloc()
+ 
+ 		// Add it to the spine.
+-		blockp := add(b.spine, sys.PtrSize*top)
++		blockp := add(b.spine, goarch.PtrSize*top)
+ 		// Blocks are allocated off-heap, so no write barrier.
+ 		atomic.StorepNoWB(blockp, unsafe.Pointer(block))
+ 		atomic.Storeuintptr(&b.spineLen, spineLen+1)
+@@ -181,7 +181,7 @@ claimLoop:
+ 	// grows monotonically and we've already verified it, we'll definitely
+ 	// be reading from a valid block.
+ 	spine := atomic.Loadp(unsafe.Pointer(&b.spine))
+-	blockp := add(spine, sys.PtrSize*uintptr(top))
++	blockp := add(spine, goarch.PtrSize*uintptr(top))
+ 
+ 	// Given that the spine length is correct, we know we will never
+ 	// see a nil block here, since the length is always updated after
+@@ -241,7 +241,7 @@ func (b *spanSet) reset() {
+ 		// since it may be pushed into again. In order to avoid leaking
+ 		// memory since we're going to reset the head and tail, clean
+ 		// up such a block now, if it exists.
+-		blockp := (**spanSetBlock)(add(b.spine, sys.PtrSize*uintptr(top)))
++		blockp := (**spanSetBlock)(add(b.spine, goarch.PtrSize*uintptr(top)))
+ 		block := *blockp
+ 		if block != nil {
+ 			// Sanity check the popped value.
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index eeb2a7b4bc..3ac88438bc 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -8,7 +8,7 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -713,7 +713,7 @@ type heapStatsDelta struct {
+ 
+ 	// Add a uint32 to ensure this struct is a multiple of 8 bytes in size.
+ 	// Only necessary on 32-bit platforms.
+-	_ [(sys.PtrSize / 4) % 2]uint32
++	_ [(goarch.PtrSize / 4) % 2]uint32
+ }
+ 
+ // merge adds in the deltas from b into a.
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index 6efc00007d..7862dfbd9e 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -24,7 +24,7 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -145,7 +145,7 @@ func (b *wbBuf) putFast(old, new uintptr) bool {
+ 	p := (*[2]uintptr)(unsafe.Pointer(b.next))
+ 	p[0] = old
+ 	p[1] = new
+-	b.next += 2 * sys.PtrSize
++	b.next += 2 * goarch.PtrSize
+ 	return b.next != b.end
+ }
+ 
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index ce8bc7f103..a06d74e279 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -93,7 +93,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 			if usesLR {
+ 				c.setlr(pc)
+ 			} else {
+-				sp -= sys.PtrSize
++				sp -= goarch.PtrSize
+ 				*(*uintptr)(unsafe.Pointer(sp)) = pc
+ 				c.setsp(sp)
+ 			}
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index bfd7c7eb64..84194a3050 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -600,7 +600,7 @@ func sysargs(argc int32, argv **byte) {
+ 	n++
+ 
+ 	// now argv+n is auxv
+-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
++	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+ 	sysauxv(auxv[:])
+ }
+ 
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 0c81ed4d7c..191a560667 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -279,7 +279,7 @@ func sysargs(argc int32, argv **byte) {
+ 	// skip NULL separator
+ 	n++
+ 
+-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
++	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+ 	sysauxv(auxv[:])
+ }
+ 
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 151a5fd91a..5a8121a420 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -117,8 +117,8 @@ func getncpu() int32 {
+ 	}
+ 
+ 	maskSize := int(maxcpus+7) / 8
+-	if maskSize < sys.PtrSize {
+-		maskSize = sys.PtrSize
++	if maskSize < goarch.PtrSize {
++		maskSize = goarch.PtrSize
+ 	}
+ 	if maskSize > len(mask) {
+ 		maskSize = len(mask)
+@@ -392,7 +392,7 @@ func sysargs(argc int32, argv **byte) {
+ 	n++
+ 
+ 	// now argv+n is auxv
+-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
++	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+ 	sysauxv(auxv[:])
+ }
+ 
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 1984bf6844..88c16f7163 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -206,7 +206,7 @@ func sysargs(argc int32, argv **byte) {
+ 	n++
+ 
+ 	// now argv+n is auxv
+-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
++	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+ 	if sysauxv(auxv[:]) != 0 {
+ 		return
+ 	}
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 151cd17bbe..bd936d3735 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -372,7 +372,7 @@ func sysargs(argc int32, argv **byte) {
+ 	n++
+ 
+ 	// now argv+n is auxv
+-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
++	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+ 	sysauxv(auxv[:])
+ }
+ 
+diff --git a/src/runtime/os_openbsd_syscall.go b/src/runtime/os_openbsd_syscall.go
+index a04eb4fc4d..1ddee1864e 100644
+--- a/src/runtime/os_openbsd_syscall.go
++++ b/src/runtime/os_openbsd_syscall.go
+@@ -9,7 +9,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -29,7 +29,7 @@ func newosproc(mp *m) {
+ 	param := tforkt{
+ 		tf_tcb:   unsafe.Pointer(&mp.tls[0]),
+ 		tf_tid:   nil, // minit will record tid
+-		tf_stack: uintptr(stk) - sys.PtrSize,
++		tf_stack: uintptr(stk) - goarch.PtrSize,
+ 	}
+ 
+ 	var oset sigset
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index d82173e738..1cca0876a9 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -1393,7 +1393,7 @@ func preemptM(mp *m) {
+ 			case "386", "amd64":
+ 				// Make it look like the thread called targetPC.
+ 				sp := c.sp()
+-				sp -= sys.PtrSize
++				sp -= goarch.PtrSize
+ 				*(*uintptr)(unsafe.Pointer(sp)) = newpc
+ 				c.set_sp(sp)
+ 				c.set_ip(targetPC)
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index d6cdf1b8f8..cfec196a09 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -55,7 +55,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -321,7 +321,7 @@ func init() {
+ 	f = findfunc(abi.FuncPCABIInternal(asyncPreempt2))
+ 	total += funcMaxSPDelta(f)
+ 	// Add some overhead for return PCs, etc.
+-	asyncPreemptStack = uintptr(total) + 8*sys.PtrSize
++	asyncPreemptStack = uintptr(total) + 8*goarch.PtrSize
+ 	if asyncPreemptStack > _StackLimit {
+ 		// We need more than the nosplit limit. This isn't
+ 		// unsafe, but it may limit asynchronous preemption.
+diff --git a/src/runtime/print.go b/src/runtime/print.go
+index f15296cf02..fe32fbb08e 100644
+--- a/src/runtime/print.go
++++ b/src/runtime/print.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -271,7 +271,7 @@ func hexdumpWords(p, end uintptr, mark func(uintptr) byte) {
+ 	var markbuf [1]byte
+ 	markbuf[0] = ' '
+ 	minhexdigits = int(unsafe.Sizeof(uintptr(0)) * 2)
+-	for i := uintptr(0); p+i < end; i += sys.PtrSize {
++	for i := uintptr(0); p+i < end; i += goarch.PtrSize {
+ 		if i%16 == 0 {
+ 			if i != 0 {
+ 				println()
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index e4268b7109..3b1e067371 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -9,6 +9,7 @@ import (
+ 	"internal/cpu"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -151,7 +152,7 @@ func main() {
+ 	// Max stack size is 1 GB on 64-bit, 250 MB on 32-bit.
+ 	// Using decimal instead of binary GB and MB because
+ 	// they look nicer in the stack overflow failure message.
+-	if sys.PtrSize == 8 {
++	if goarch.PtrSize == 8 {
+ 		maxstacksize = 1000000000
+ 	} else {
+ 		maxstacksize = 250000000
+@@ -555,7 +556,7 @@ func atomicAllG() (**g, uintptr) {
+ 
+ // atomicAllGIndex returns ptr[i] with the allgptr returned from atomicAllG.
+ func atomicAllGIndex(ptr **g, i uintptr) *g {
+-	return *(**g)(add(unsafe.Pointer(ptr), i*sys.PtrSize))
++	return *(**g)(add(unsafe.Pointer(ptr), i*goarch.PtrSize))
+ }
+ 
+ // forEachG calls fn on every G from allgs.
+@@ -2012,7 +2013,7 @@ func oneNewExtraM() {
+ 	gp := malg(4096)
+ 	gp.sched.pc = abi.FuncPCABI0(goexit) + sys.PCQuantum
+ 	gp.sched.sp = gp.stack.hi
+-	gp.sched.sp -= 4 * sys.PtrSize // extra space in case of reads slightly beyond frame
++	gp.sched.sp -= 4 * goarch.PtrSize // extra space in case of reads slightly beyond frame
+ 	gp.sched.lr = 0
+ 	gp.sched.g = guintptr(unsafe.Pointer(gp))
+ 	gp.syscallpc = gp.sched.pc
+@@ -4262,7 +4263,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+ 		throw("newproc1: new g is not Gdead")
+ 	}
+ 
+-	totalSize := uintptr(4*sys.PtrSize + sys.MinFrameSize) // extra space in case of reads slightly beyond frame
++	totalSize := uintptr(4*goarch.PtrSize + sys.MinFrameSize) // extra space in case of reads slightly beyond frame
+ 	totalSize = alignUp(totalSize, sys.StackAlign)
+ 	sp := newg.stack.hi - totalSize
+ 	spArg := sp
+@@ -6390,7 +6391,7 @@ func doInit(t *initTask) {
+ 		t.state = 1 // initialization in progress
+ 
+ 		for i := uintptr(0); i < t.ndeps; i++ {
+-			p := add(unsafe.Pointer(t), (3+i)*sys.PtrSize)
++			p := add(unsafe.Pointer(t), (3+i)*goarch.PtrSize)
+ 			t2 := *(**initTask)(p)
+ 			doInit(t2)
+ 		}
+@@ -6411,9 +6412,9 @@ func doInit(t *initTask) {
+ 			before = inittrace
+ 		}
+ 
+-		firstFunc := add(unsafe.Pointer(t), (3+t.ndeps)*sys.PtrSize)
++		firstFunc := add(unsafe.Pointer(t), (3+t.ndeps)*goarch.PtrSize)
+ 		for i := uintptr(0); i < t.nfns; i++ {
+-			p := add(firstFunc, i*sys.PtrSize)
++			p := add(firstFunc, i*goarch.PtrSize)
+ 			f := *(*func())(unsafe.Pointer(&p))
+ 			f()
+ 		}
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index b238da8f51..eda6aaa401 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/bytealg"
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -55,7 +55,7 @@ var (
+ // nosplit for use in linux startup sysargs
+ //go:nosplit
+ func argv_index(argv **byte, i int32) *byte {
+-	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*sys.PtrSize))
++	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*goarch.PtrSize))
+ }
+ 
+ func args(c int32, v **byte) {
+@@ -190,10 +190,10 @@ func check() {
+ 	if unsafe.Sizeof(j) != 8 {
+ 		throw("bad j")
+ 	}
+-	if unsafe.Sizeof(k) != sys.PtrSize {
++	if unsafe.Sizeof(k) != goarch.PtrSize {
+ 		throw("bad k")
+ 	}
+-	if unsafe.Sizeof(l) != sys.PtrSize {
++	if unsafe.Sizeof(l) != goarch.PtrSize {
+ 		throw("bad l")
+ 	}
+ 	if unsafe.Sizeof(x1) != 1 {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index f13c649a09..e2f0d5910f 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -505,7 +505,7 @@ const (
+ 	// tlsSlots is the number of pointer-sized slots reserved for TLS on some platforms,
+ 	// like Windows.
+ 	tlsSlots = 6
+-	tlsSize  = tlsSlots * sys.PtrSize
++	tlsSize  = tlsSlots * goarch.PtrSize
+ )
+ 
+ type m struct {
+@@ -930,7 +930,7 @@ func extendRandom(r []byte, n int) {
+ 			w = 16
+ 		}
+ 		h := memhash(unsafe.Pointer(&r[n-w]), uintptr(nanotime()), uintptr(w))
+-		for i := 0; i < sys.PtrSize && n < len(r); i++ {
++		for i := 0; i < goarch.PtrSize && n < len(r); i++ {
+ 			r[n] = byte(h)
+ 			n++
+ 			h >>= 8
+diff --git a/src/runtime/signal_386.go b/src/runtime/signal_386.go
+index c77a9cc522..69a59e6dcf 100644
+--- a/src/runtime/signal_386.go
++++ b/src/runtime/signal_386.go
+@@ -9,7 +9,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -53,7 +53,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+ 	// Make it look like we called target at resumePC.
+ 	sp := uintptr(c.esp())
+-	sp -= sys.PtrSize
++	sp -= goarch.PtrSize
+ 	*(*uintptr)(unsafe.Pointer(sp)) = resumePC
+ 	c.set_esp(uint32(sp))
+ 	c.set_eip(uint32(targetPC))
+diff --git a/src/runtime/signal_aix_ppc64.go b/src/runtime/signal_aix_ppc64.go
+index a0becd431e..5999d9dc3d 100644
+--- a/src/runtime/signal_aix_ppc64.go
++++ b/src/runtime/signal_aix_ppc64.go
+@@ -8,7 +8,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -82,5 +82,5 @@ func (c *sigctxt) set_link(x uint64) { c.regs().lr = x }
+ 
+ func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
+ func (c *sigctxt) set_sigaddr(x uint64) {
+-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
++	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
+ }
+diff --git a/src/runtime/signal_amd64.go b/src/runtime/signal_amd64.go
+index afcf4404fb..20490cffbf 100644
+--- a/src/runtime/signal_amd64.go
++++ b/src/runtime/signal_amd64.go
+@@ -10,7 +10,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -81,7 +81,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+ 	// Make it look like we called target at resumePC.
+ 	sp := uintptr(c.rsp())
+-	sp -= sys.PtrSize
++	sp -= goarch.PtrSize
+ 	*(*uintptr)(unsafe.Pointer(sp)) = resumePC
+ 	c.set_rsp(uint64(sp))
+ 	c.set_rip(uint64(targetPC))
+diff --git a/src/runtime/signal_linux_386.go b/src/runtime/signal_linux_386.go
+index 13d9df4071..321518c18e 100644
+--- a/src/runtime/signal_linux_386.go
++++ b/src/runtime/signal_linux_386.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -42,5 +42,5 @@ func (c *sigctxt) set_eip(x uint32)     { c.regs().eip = x }
+ func (c *sigctxt) set_esp(x uint32)     { c.regs().esp = x }
+ func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
+ func (c *sigctxt) set_sigaddr(x uint32) {
+-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
++	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
+ }
+diff --git a/src/runtime/signal_linux_amd64.go b/src/runtime/signal_linux_amd64.go
+index 210e8967e5..573b118397 100644
+--- a/src/runtime/signal_linux_amd64.go
++++ b/src/runtime/signal_linux_amd64.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -52,5 +52,5 @@ func (c *sigctxt) set_rip(x uint64)     { c.regs().rip = x }
+ func (c *sigctxt) set_rsp(x uint64)     { c.regs().rsp = x }
+ func (c *sigctxt) set_sigcode(x uint64) { c.info.si_code = int32(x) }
+ func (c *sigctxt) set_sigaddr(x uint64) {
+-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
++	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
+ }
+diff --git a/src/runtime/signal_linux_arm.go b/src/runtime/signal_linux_arm.go
+index 876b505917..eb107d68d1 100644
+--- a/src/runtime/signal_linux_arm.go
++++ b/src/runtime/signal_linux_arm.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -54,5 +54,5 @@ func (c *sigctxt) set_r10(x uint32) { c.regs().r10 = x }
+ 
+ func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
+ func (c *sigctxt) set_sigaddr(x uint32) {
+-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
++	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
+ }
+diff --git a/src/runtime/signal_linux_arm64.go b/src/runtime/signal_linux_arm64.go
+index 2075f253d7..4ccc030792 100644
+--- a/src/runtime/signal_linux_arm64.go
++++ b/src/runtime/signal_linux_arm64.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -67,5 +67,5 @@ func (c *sigctxt) set_lr(x uint64)  { c.regs().regs[30] = x }
+ func (c *sigctxt) set_r28(x uint64) { c.regs().regs[28] = x }
+ 
+ func (c *sigctxt) set_sigaddr(x uint64) {
+-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
++	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
+ }
+diff --git a/src/runtime/signal_linux_mips64x.go b/src/runtime/signal_linux_mips64x.go
+index f0a75ac3ea..e62d6a93fd 100644
+--- a/src/runtime/signal_linux_mips64x.go
++++ b/src/runtime/signal_linux_mips64x.go
+@@ -9,7 +9,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -75,5 +75,5 @@ func (c *sigctxt) set_link(x uint64) { c.regs().sc_regs[31] = x }
+ 
+ func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
+ func (c *sigctxt) set_sigaddr(x uint64) {
+-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
++	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
+ }
+diff --git a/src/runtime/signal_linux_ppc64x.go b/src/runtime/signal_linux_ppc64x.go
+index d9d3e55ec2..d2eeb39ead 100644
+--- a/src/runtime/signal_linux_ppc64x.go
++++ b/src/runtime/signal_linux_ppc64x.go
+@@ -9,7 +9,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -79,5 +79,5 @@ func (c *sigctxt) set_link(x uint64) { c.regs().link = x }
+ 
+ func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
+ func (c *sigctxt) set_sigaddr(x uint64) {
+-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
++	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
+ }
+diff --git a/src/runtime/signal_linux_riscv64.go b/src/runtime/signal_linux_riscv64.go
+index 9f68e5c548..b26450dbfa 100644
+--- a/src/runtime/signal_linux_riscv64.go
++++ b/src/runtime/signal_linux_riscv64.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -64,5 +64,5 @@ func (c *sigctxt) set_gp(x uint64) { c.regs().sc_regs.gp = x }
+ 
+ func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
+ func (c *sigctxt) set_sigaddr(x uint64) {
+-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
++	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
+ }
+diff --git a/src/runtime/signal_linux_s390x.go b/src/runtime/signal_linux_s390x.go
+index 03c58cbbb6..bba8169ded 100644
+--- a/src/runtime/signal_linux_s390x.go
++++ b/src/runtime/signal_linux_s390x.go
+@@ -7,6 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -54,7 +55,7 @@ func (c *sigctxt) set_sp(x uint64)      { c.regs().gregs[15] = x }
+ func (c *sigctxt) set_pc(x uint64)      { c.regs().psw_addr = x }
+ func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
+ func (c *sigctxt) set_sigaddr(x uint64) {
+-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
++	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
+ }
+ 
+ func dumpregs(c *sigctxt) {
+diff --git a/src/runtime/signal_mips64x.go b/src/runtime/signal_mips64x.go
+index eebcc74886..87dfa724c4 100644
+--- a/src/runtime/signal_mips64x.go
++++ b/src/runtime/signal_mips64x.go
+@@ -10,7 +10,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -69,7 +69,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	// functions are correctly handled. This smashes
+ 	// the stack frame but we're not going back there
+ 	// anyway.
+-	sp := c.sp() - sys.PtrSize
++	sp := c.sp() - goarch.PtrSize
+ 	c.set_sp(sp)
+ 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
+ 
+diff --git a/src/runtime/signal_riscv64.go b/src/runtime/signal_riscv64.go
+index aaaa217051..8a24e4e36a 100644
+--- a/src/runtime/signal_riscv64.go
++++ b/src/runtime/signal_riscv64.go
+@@ -9,7 +9,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -64,7 +64,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	// functions are correctly handled. This smashes
+ 	// the stack frame but we're not going back there
+ 	// anyway.
+-	sp := c.sp() - sys.PtrSize
++	sp := c.sp() - goarch.PtrSize
+ 	c.set_sp(sp)
+ 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.ra()
+ 
+@@ -85,7 +85,7 @@ func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+ 	// push the call. The function being pushed is responsible
+ 	// for restoring the LR and setting the SP back.
+ 	// This extra slot is known to gentraceback.
+-	sp := c.sp() - sys.PtrSize
++	sp := c.sp() - goarch.PtrSize
+ 	c.set_sp(sp)
+ 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.ra()
+ 	// Set up PC and LR to pretend the function being signaled
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 7a470f09b6..ff59fa6278 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -8,6 +8,7 @@ import (
+ 	"internal/abi"
+ 	"runtime/internal/math"
+ 	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -195,15 +196,15 @@ func growslice(et *_type, old slice, cap int) slice {
+ 		capmem = roundupsize(uintptr(newcap))
+ 		overflow = uintptr(newcap) > maxAlloc
+ 		newcap = int(capmem)
+-	case et.size == sys.PtrSize:
+-		lenmem = uintptr(old.len) * sys.PtrSize
+-		newlenmem = uintptr(cap) * sys.PtrSize
+-		capmem = roundupsize(uintptr(newcap) * sys.PtrSize)
+-		overflow = uintptr(newcap) > maxAlloc/sys.PtrSize
+-		newcap = int(capmem / sys.PtrSize)
++	case et.size == goarch.PtrSize:
++		lenmem = uintptr(old.len) * goarch.PtrSize
++		newlenmem = uintptr(cap) * goarch.PtrSize
++		capmem = roundupsize(uintptr(newcap) * goarch.PtrSize)
++		overflow = uintptr(newcap) > maxAlloc/goarch.PtrSize
++		newcap = int(capmem / goarch.PtrSize)
+ 	case isPowerOfTwo(et.size):
+ 		var shift uintptr
+-		if sys.PtrSize == 8 {
++		if goarch.PtrSize == 8 {
+ 			// Mask shift for better code generation.
+ 			shift = uintptr(sys.Ctz64(uint64(et.size))) & 63
+ 		} else {
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index b5545ac796..c37e8e76eb 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -9,6 +9,7 @@ import (
+ 	"internal/cpu"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -67,7 +68,7 @@ const (
+ 	// to each stack below the usual guard area for OS-specific
+ 	// purposes like signal handling. Used on Windows, Plan 9,
+ 	// and iOS because they do not use a separate stack.
+-	_StackSystem = sys.GoosWindows*512*sys.PtrSize + sys.GoosPlan9*512 + sys.GoosIos*sys.GoarchArm64*1024
++	_StackSystem = sys.GoosWindows*512*goarch.PtrSize + sys.GoosPlan9*512 + sys.GoosIos*sys.GoarchArm64*1024
+ 
+ 	// The minimum size of stack used by Go code
+ 	_StackMin = 2048
+@@ -125,7 +126,7 @@ const (
+ )
+ 
+ const (
+-	uintptrMask = 1<<(8*sys.PtrSize) - 1
++	uintptrMask = 1<<(8*goarch.PtrSize) - 1
+ 
+ 	// The values below can be stored to g.stackguard0 to force
+ 	// the next stack check to fail.
+@@ -599,14 +600,14 @@ func adjustpointers(scanp unsafe.Pointer, bv *bitvector, adjinfo *adjustinfo, f
+ 	for i := uintptr(0); i < num; i += 8 {
+ 		if stackDebug >= 4 {
+ 			for j := uintptr(0); j < 8; j++ {
+-				print("        ", add(scanp, (i+j)*sys.PtrSize), ":", ptrnames[bv.ptrbit(i+j)], ":", hex(*(*uintptr)(add(scanp, (i+j)*sys.PtrSize))), " # ", i, " ", *addb(bv.bytedata, i/8), "\n")
++				print("        ", add(scanp, (i+j)*goarch.PtrSize), ":", ptrnames[bv.ptrbit(i+j)], ":", hex(*(*uintptr)(add(scanp, (i+j)*goarch.PtrSize))), " # ", i, " ", *addb(bv.bytedata, i/8), "\n")
+ 			}
+ 		}
+ 		b := *(addb(bv.bytedata, i/8))
+ 		for b != 0 {
+ 			j := uintptr(sys.Ctz8(b))
+ 			b &= b - 1
+-			pp := (*uintptr)(add(scanp, (i+j)*sys.PtrSize))
++			pp := (*uintptr)(add(scanp, (i+j)*goarch.PtrSize))
+ 		retry:
+ 			p := *pp
+ 			if f.valid() && 0 < p && p < minLegalPointer && debug.invalidptr != 0 {
+@@ -655,13 +656,13 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 
+ 	// Adjust local variables if stack frame has been allocated.
+ 	if locals.n > 0 {
+-		size := uintptr(locals.n) * sys.PtrSize
++		size := uintptr(locals.n) * goarch.PtrSize
+ 		adjustpointers(unsafe.Pointer(frame.varp-size), &locals, adjinfo, f)
+ 	}
+ 
+ 	// Adjust saved base pointer if there is one.
+ 	// TODO what about arm64 frame pointer adjustment?
+-	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*sys.PtrSize {
++	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*goarch.PtrSize {
+ 		if stackDebug >= 3 {
+ 			print("      saved bp\n")
+ 		}
+@@ -710,8 +711,8 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 				s = materializeGCProg(ptrdata, gcdata)
+ 				gcdata = (*byte)(unsafe.Pointer(s.startAddr))
+ 			}
+-			for i := uintptr(0); i < ptrdata; i += sys.PtrSize {
+-				if *addb(gcdata, i/(8*sys.PtrSize))>>(i/sys.PtrSize&7)&1 != 0 {
++			for i := uintptr(0); i < ptrdata; i += goarch.PtrSize {
++				if *addb(gcdata, i/(8*goarch.PtrSize))>>(i/goarch.PtrSize&7)&1 != 0 {
+ 					adjustpointer(adjinfo, unsafe.Pointer(p+i))
+ 				}
+ 			}
+@@ -1014,7 +1015,7 @@ func newstack() {
+ 	sp := gp.sched.sp
+ 	if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 || sys.ArchFamily == sys.WASM {
+ 		// The call to morestack cost a word.
+-		sp -= sys.PtrSize
++		sp -= goarch.PtrSize
+ 	}
+ 	if stackDebug >= 1 || sp < gp.stack.lo {
+ 		print("runtime: newstack sp=", hex(sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n",
+@@ -1291,7 +1292,7 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
+ 			// In this case, arglen specifies how much of the args section is actually live.
+ 			// (It could be either all the args + results, or just the args.)
+ 			args = *frame.argmap
+-			n := int32(frame.arglen / sys.PtrSize)
++			n := int32(frame.arglen / goarch.PtrSize)
+ 			if n < args.n {
+ 				args.n = n // Don't use more of the arguments than arglen.
+ 			}
+@@ -1323,7 +1324,7 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
+ 		p := funcdata(f, _FUNCDATA_StackObjects)
+ 		if p != nil {
+ 			n := *(*uintptr)(p)
+-			p = add(p, sys.PtrSize)
++			p = add(p, goarch.PtrSize)
+ 			*(*slice)(unsafe.Pointer(&objs)) = slice{array: noescape(p), len: int(n), cap: int(n)}
+ 			// Note: the noescape above is needed to keep
+ 			// getStackMap from "leaking param content:
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 6b535dfcbf..36e0bfa9c4 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -7,6 +7,7 @@ package runtime
+ import (
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -561,7 +562,7 @@ const debugPcln = false
+ func moduledataverify1(datap *moduledata) {
+ 	// Check that the pclntab's format is valid.
+ 	hdr := datap.pcHeader
+-	if hdr.magic != 0xfffffffa || hdr.pad1 != 0 || hdr.pad2 != 0 || hdr.minLC != sys.PCQuantum || hdr.ptrSize != sys.PtrSize {
++	if hdr.magic != 0xfffffffa || hdr.pad1 != 0 || hdr.pad2 != 0 || hdr.minLC != sys.PCQuantum || hdr.ptrSize != goarch.PtrSize {
+ 		print("runtime: function symbol table header:", hex(hdr.magic), hex(hdr.pad1), hex(hdr.pad2), hex(hdr.minLC), hex(hdr.ptrSize))
+ 		if datap.pluginpath != "" {
+ 			print(", plugin:", datap.pluginpath)
+@@ -779,7 +780,7 @@ type pcvalueCacheEnt struct {
+ // For now, align to sys.PtrSize and reduce mod the number of entries.
+ // In practice, this appears to be fairly randomly and evenly distributed.
+ func pcvalueCacheKey(targetpc uintptr) uintptr {
+-	return (targetpc / sys.PtrSize) % uintptr(len(pcvalueCache{}.entries))
++	return (targetpc / goarch.PtrSize) % uintptr(len(pcvalueCache{}.entries))
+ }
+ 
+ // Returns the PCData value, and the PC where this value starts.
+@@ -948,7 +949,7 @@ func funcline(f funcInfo, targetpc uintptr) (file string, line int32) {
+ 
+ func funcspdelta(f funcInfo, targetpc uintptr, cache *pcvalueCache) int32 {
+ 	x, _ := pcvalue(f, f.pcsp, targetpc, cache, true)
+-	if x&(sys.PtrSize-1) != 0 {
++	if x&(goarch.PtrSize-1) != 0 {
+ 		print("invalid spdelta ", funcname(f), " ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
+ 	}
+ 	return x
+@@ -1007,13 +1008,13 @@ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
+ 		return nil
+ 	}
+ 	p := add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(f.npcdata)*4)
+-	if sys.PtrSize == 8 && uintptr(p)&4 != 0 {
++	if goarch.PtrSize == 8 && uintptr(p)&4 != 0 {
+ 		if uintptr(unsafe.Pointer(f._func))&4 != 0 {
+ 			println("runtime: misaligned func", f._func)
+ 		}
+ 		p = add(p, 4)
+ 	}
+-	return *(*unsafe.Pointer)(add(p, uintptr(i)*sys.PtrSize))
++	return *(*unsafe.Pointer)(add(p, uintptr(i)*goarch.PtrSize))
+ }
+ 
+ // step advances to the next pc, value pair in the encoded table.
+diff --git a/src/runtime/sys_darwin_arm64.go b/src/runtime/sys_darwin_arm64.go
+index 7dabaca08d..e6d4c1be48 100644
+--- a/src/runtime/sys_darwin_arm64.go
++++ b/src/runtime/sys_darwin_arm64.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -54,7 +54,7 @@ func tlsinit(tlsg *uintptr, tlsbase *[_PTHREAD_KEYS_MAX]uintptr) {
+ 
+ 	for i, x := range tlsbase {
+ 		if x == magic {
+-			*tlsg = uintptr(i * sys.PtrSize)
++			*tlsg = uintptr(i * goarch.PtrSize)
+ 			g0_pthread_setspecific(k, 0)
+ 			return
+ 		}
+diff --git a/src/runtime/sys_wasm.go b/src/runtime/sys_wasm.go
+index 057ed4ccd9..1bf80289f2 100644
+--- a/src/runtime/sys_wasm.go
++++ b/src/runtime/sys_wasm.go
+@@ -6,6 +6,7 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -30,7 +31,7 @@ func wasmExit(code int32)
+ // and then stopped before the first instruction in fn.
+ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+ 	sp := buf.sp
+-	sp -= sys.PtrSize
++	sp -= goarch.PtrSize
+ 	*(*uintptr)(unsafe.Pointer(sp)) = buf.pc
+ 	buf.sp = sp
+ 	buf.pc = uintptr(fn)
+diff --git a/src/runtime/sys_x86.go b/src/runtime/sys_x86.go
+index 0866e3140e..856c73a2f6 100644
+--- a/src/runtime/sys_x86.go
++++ b/src/runtime/sys_x86.go
+@@ -8,7 +8,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -16,7 +16,7 @@ import (
+ // and then stopped before the first instruction in fn.
+ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+ 	sp := buf.sp
+-	sp -= sys.PtrSize
++	sp -= goarch.PtrSize
+ 	*(*uintptr)(unsafe.Pointer(sp)) = buf.pc
+ 	buf.sp = sp
+ 	buf.pc = uintptr(fn)
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index 4215d62cc1..e872d74e97 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -73,7 +73,7 @@ type abiDesc struct {
+ }
+ 
+ func (p *abiDesc) assignArg(t *_type) {
+-	if t.size > sys.PtrSize {
++	if t.size > goarch.PtrSize {
+ 		// We don't support this right now. In
+ 		// stdcall/cdecl, 64-bit ints and doubles are
+ 		// passed as two words (little endian); and
+@@ -146,7 +146,7 @@ func (p *abiDesc) assignArg(t *_type) {
+ 
+ 	// cdecl, stdcall, fastcall, and arm pad arguments to word size.
+ 	// TODO(rsc): On arm and arm64 do we need to skip the caller's saved LR?
+-	p.srcStackSize += sys.PtrSize
++	p.srcStackSize += goarch.PtrSize
+ }
+ 
+ // tryRegAssignArg tries to register-assign a value of type t.
+@@ -162,7 +162,7 @@ func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
+ 		return p.assignReg(t.size, offset)
+ 	case kindInt64, kindUint64:
+ 		// Only register-assign if the registers are big enough.
+-		if sys.PtrSize == 8 {
++		if goarch.PtrSize == 8 {
+ 			return p.assignReg(t.size, offset)
+ 		}
+ 	case kindArray:
+@@ -235,7 +235,7 @@ func callbackasmAddr(i int) uintptr {
+ 	return abi.FuncPCABI0(callbackasm) + uintptr(i*entrySize)
+ }
+ 
+-const callbackMaxFrame = 64 * sys.PtrSize
++const callbackMaxFrame = 64 * goarch.PtrSize
+ 
+ // compileCallback converts a Go function fn into a C function pointer
+ // that can be passed to Windows APIs.
+@@ -263,13 +263,13 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
+ 	}
+ 	// The Go ABI aligns the result to the word size. src is
+ 	// already aligned.
+-	abiMap.dstStackSize = alignUp(abiMap.dstStackSize, sys.PtrSize)
++	abiMap.dstStackSize = alignUp(abiMap.dstStackSize, goarch.PtrSize)
+ 	abiMap.retOffset = abiMap.dstStackSize
+ 
+ 	if len(ft.out()) != 1 {
+ 		panic("compileCallback: expected function with one uintptr-sized result")
+ 	}
+-	if ft.out()[0].size != sys.PtrSize {
++	if ft.out()[0].size != goarch.PtrSize {
+ 		panic("compileCallback: expected function with one uintptr-sized result")
+ 	}
+ 	if k := ft.out()[0].kind & kindMask; k == kindFloat32 || k == kindFloat64 {
+@@ -282,12 +282,12 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
+ 		// Make room for the uintptr-sized result.
+ 		// If there are argument registers, the return value will
+ 		// be passed in the first register.
+-		abiMap.dstStackSize += sys.PtrSize
++		abiMap.dstStackSize += goarch.PtrSize
+ 	}
+ 
+ 	// TODO(mknyszek): Remove dstSpill from this calculation when we no longer have
+ 	// caller reserved spill space.
+-	frameSize := alignUp(abiMap.dstStackSize, sys.PtrSize)
++	frameSize := alignUp(abiMap.dstStackSize, goarch.PtrSize)
+ 	frameSize += abiMap.dstSpill
+ 	if frameSize > callbackMaxFrame {
+ 		panic("compileCallback: function argument frame too large")
+@@ -370,7 +370,7 @@ func callbackWrap(a *callbackArgs) {
+ 
+ 	// TODO(mknyszek): Remove this when we no longer have
+ 	// caller reserved spill space.
+-	frameSize := alignUp(c.abiMap.dstStackSize, sys.PtrSize)
++	frameSize := alignUp(c.abiMap.dstStackSize, goarch.PtrSize)
+ 	frameSize += c.abiMap.dstSpill
+ 
+ 	// Even though this is copying back results, we can pass a nil
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 1530178c85..1864e81a42 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -15,6 +15,7 @@ package runtime
+ import (
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -829,7 +830,7 @@ Search:
+ 
+ // newStack allocates a new stack of size n.
+ func (tab *traceStackTable) newStack(n int) *traceStack {
+-	return (*traceStack)(tab.mem.alloc(unsafe.Sizeof(traceStack{}) + uintptr(n)*sys.PtrSize))
++	return (*traceStack)(tab.mem.alloc(unsafe.Sizeof(traceStack{}) + uintptr(n)*goarch.PtrSize))
+ }
+ 
+ // allFrames returns all of the Frames corresponding to pcs.
+@@ -929,7 +930,7 @@ type traceAlloc struct {
+ //go:notinheap
+ type traceAllocBlock struct {
+ 	next traceAllocBlockPtr
+-	data [64<<10 - sys.PtrSize]byte
++	data [64<<10 - goarch.PtrSize]byte
+ }
+ 
+ // TODO: Since traceAllocBlock is now go:notinheap, this isn't necessary.
+@@ -940,7 +941,7 @@ func (p *traceAllocBlockPtr) set(x *traceAllocBlock) { *p = traceAllocBlockPtr(u
+ 
+ // alloc allocates n-byte block.
+ func (a *traceAlloc) alloc(n uintptr) unsafe.Pointer {
+-	n = alignUp(n, sys.PtrSize)
++	n = alignUp(n, goarch.PtrSize)
+ 	if a.head == 0 || a.off+n > uintptr(len(a.head.ptr().data)) {
+ 		if n > uintptr(len(a.head.ptr().data)) {
+ 			throw("trace: alloc too large")
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index fa41fdfe2d..27e187f4ed 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -8,6 +8,7 @@ import (
+ 	"internal/bytealg"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -91,7 +92,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			frame.lr = 0
+ 		} else {
+ 			frame.pc = uintptr(*(*uintptr)(unsafe.Pointer(frame.sp)))
+-			frame.sp += sys.PtrSize
++			frame.sp += goarch.PtrSize
+ 		}
+ 	}
+ 
+@@ -172,7 +173,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc, &cache))
+ 			if !usesLR {
+ 				// On x86, call instruction pushes return PC before entering new function.
+-				frame.fp += sys.PtrSize
++				frame.fp += goarch.PtrSize
+ 			}
+ 		}
+ 		var flr funcInfo
+@@ -213,7 +214,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 				}
+ 			} else {
+ 				if frame.lr == 0 {
+-					lrPtr = frame.fp - sys.PtrSize
++					lrPtr = frame.fp - goarch.PtrSize
+ 					frame.lr = uintptr(*(*uintptr)(unsafe.Pointer(lrPtr)))
+ 				}
+ 			}
+@@ -244,7 +245,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		frame.varp = frame.fp
+ 		if !usesLR {
+ 			// On x86, call instruction pushes return PC before entering new function.
+-			frame.varp -= sys.PtrSize
++			frame.varp -= goarch.PtrSize
+ 		}
+ 
+ 		// For architectures with frame pointers, if there's
+@@ -265,7 +266,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		// And it happens to end up mimicking the x86 layout.
+ 		// Other architectures may make different decisions.
+ 		if frame.varp > frame.sp && framepointer_enabled {
+-			frame.varp -= sys.PtrSize
++			frame.varp -= goarch.PtrSize
+ 		}
+ 
+ 		// Derive size of arguments.
+@@ -665,16 +666,16 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
+ 				// Figure out whether the return values are valid.
+ 				// Reflect will update this value after it copies
+ 				// in the return values.
+-				retValid = *(*bool)(unsafe.Pointer(arg0 + 4*sys.PtrSize))
++				retValid = *(*bool)(unsafe.Pointer(arg0 + 4*goarch.PtrSize))
+ 			}
+ 			if mv.fn != f.entry {
+ 				print("runtime: confused by ", funcname(f), "\n")
+ 				throw("reflect mismatch")
+ 			}
+ 			bv := mv.stack
+-			arglen = uintptr(bv.n * sys.PtrSize)
++			arglen = uintptr(bv.n * goarch.PtrSize)
+ 			if !retValid {
+-				arglen = uintptr(mv.argLen) &^ (sys.PtrSize - 1)
++				arglen = uintptr(mv.argLen) &^ (goarch.PtrSize - 1)
+ 			}
+ 			argmap = bv
+ 		}
+@@ -1010,8 +1011,8 @@ func tracebackothers(me *g) {
+ // for debugging purposes. If the address bad is included in the
+ // hexdumped range, it will mark it as well.
+ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
+-	const expand = 32 * sys.PtrSize
+-	const maxExpand = 256 * sys.PtrSize
++	const expand = 32 * goarch.PtrSize
++	const maxExpand = 256 * goarch.PtrSize
+ 	// Start around frame.sp.
+ 	lo, hi := frame.sp, frame.sp
+ 	// Expand to include frame.fp.

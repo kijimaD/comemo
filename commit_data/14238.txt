@@ -10,6 +10,22 @@ Date:   Mon Oct 29 20:58:24 2012 +0100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6789044
-
+---
  src/pkg/encoding/json/decode.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index 47e3d89aa3..b06b87af40 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -67,8 +67,8 @@ func Unmarshal(data []byte, v interface{}) error {
+ 
+ // Unmarshaler is the interface implemented by objects
+ // that can unmarshal a JSON description of themselves.
+-// The input can be assumed to be a valid JSON object
+-// encoding.  UnmarshalJSON must copy the JSON data
++// The input can be assumed to be a valid encoding of
++// a JSON value. UnmarshalJSON must copy the JSON data
+ // if it wishes to retain the data after returning.
+ type Unmarshaler interface {
+ 	UnmarshalJSON([]byte) error

@@ -7,6 +7,20 @@ Date:   Tue Nov 2 16:01:07 2010 -0700
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/2841041
-
+---
  src/pkg/sync/rwmutex.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/sync/rwmutex.go b/src/pkg/sync/rwmutex.go
+index 0058cf2525..06fd0b0ffb 100644
+--- a/src/pkg/sync/rwmutex.go
++++ b/src/pkg/sync/rwmutex.go
+@@ -21,7 +21,7 @@ type RWMutex struct {
+ 
+ // RLock locks rw for reading.
+ // If the lock is already locked for writing or there is a writer already waiting
+-// to r the lock, RLock blocks until the writer has released the lock.
++// to release the lock, RLock blocks until the writer has released the lock.
+ func (rw *RWMutex) RLock() {
+ 	// Use rw.r.Lock() to block granting the RLock if a goroutine
+ 	// is waiting for its Lock. This is the prevent starvation of W in

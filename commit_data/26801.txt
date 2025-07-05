@@ -29,9 +29,143 @@ Date:   Thu Feb 25 14:58:03 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go       | 19 +++----------------
  src/cmd/internal/goobj/read.go           |  2 +-
  src/cmd/link/internal/ld/lib.go          | 18 +++---------------
  src/go/internal/gcimporter/exportdata.go | 26 ++------------------------
  4 files changed, 9 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index a051214b9c..0142300063 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -549,22 +549,9 @@ func skiptopkgdef(b *obj.Biobuf) bool {
+ 		return false
+ 	}
+ 
+-	// symbol table may be first; skip it
+-	sz := arsize(b, "__.GOSYMDEF")
+-
+-	if sz >= 0 {
+-		obj.Bseek(b, int64(sz), 1)
+-	} else {
+-		obj.Bseek(b, 8, 0)
+-	}
+-
+-	// package export block is next
+-	sz = arsize(b, "__.PKGDEF")
+-
+-	if sz <= 0 {
+-		return false
+-	}
+-	return true
++	// package export block should be first
++	sz := arsize(b, "__.PKGDEF")
++	return sz > 0
+ }
+ 
+ var idirs []string
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 7fdaf557c8..dff6224d85 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -530,7 +530,7 @@ func (r *objReader) parseArchive() error {
+ 			return errCorruptArchive
+ 		}
+ 		switch name {
+-		case "__.SYMDEF", "__.GOSYMDEF", "__.PKGDEF":
++		case "__.PKGDEF":
+ 			r.skip(size)
+ 		default:
+ 			oldLimit := r.limit
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index bdfa0563c3..461ebf8db1 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -255,10 +255,7 @@ var coutbuf struct {
+ 	f *os.File
+ }
+ 
+-const (
+-	symname = "__.GOSYMDEF"
+-	pkgname = "__.PKGDEF"
+-)
++const pkgname = "__.PKGDEF"
+ 
+ var (
+ 	// Set if we see an object compiled by the host compiler that is not
+@@ -781,7 +778,7 @@ func objfile(lib *Library) {
+ 		return
+ 	}
+ 
+-	/* skip over optional __.GOSYMDEF and process __.PKGDEF */
++	/* process __.PKGDEF */
+ 	off := obj.Boffset(f)
+ 
+ 	var arhdr ArHdr
+@@ -792,15 +789,6 @@ func objfile(lib *Library) {
+ 		goto out
+ 	}
+ 
+-	if strings.HasPrefix(arhdr.name, symname) {
+-		off += l
+-		l = nextar(f, off, &arhdr)
+-		if l <= 0 {
+-			Diag("%s: short read on archive file symbol header", lib.File)
+-			goto out
+-		}
+-	}
+-
+ 	if !strings.HasPrefix(arhdr.name, pkgname) {
+ 		Diag("%s: cannot find package header", lib.File)
+ 		goto out
+@@ -829,7 +817,7 @@ func objfile(lib *Library) {
+ 	 * the individual symbols that are unused.
+ 	 *
+ 	 * loading every object will also make it possible to
+-	 * load foreign objects not referenced by __.GOSYMDEF.
++	 * load foreign objects not referenced by __.PKGDEF.
+ 	 */
+ 	for {
+ 		l = nextar(f, off, &arhdr)
+diff --git a/src/go/internal/gcimporter/exportdata.go b/src/go/internal/gcimporter/exportdata.go
+index 18bea415ae..4c0d2fe761 100644
+--- a/src/go/internal/gcimporter/exportdata.go
++++ b/src/go/internal/gcimporter/exportdata.go
+@@ -52,33 +52,11 @@ func FindExportData(r *bufio.Reader) (hdr string, err error) {
+ 	if string(line) == "!<arch>\n" {
+ 		// Archive file. Scan to __.PKGDEF.
+ 		var name string
+-		var size int
+-		if name, size, err = readGopackHeader(r); err != nil {
++		if name, _, err = readGopackHeader(r); err != nil {
+ 			return
+ 		}
+ 
+-		// Optional leading __.GOSYMDEF or __.SYMDEF.
+-		// Read and discard.
+-		if name == "__.SYMDEF" || name == "__.GOSYMDEF" {
+-			const block = 4096
+-			tmp := make([]byte, block)
+-			for size > 0 {
+-				n := size
+-				if n > block {
+-					n = block
+-				}
+-				if _, err = io.ReadFull(r, tmp[:n]); err != nil {
+-					return
+-				}
+-				size -= n
+-			}
+-
+-			if name, _, err = readGopackHeader(r); err != nil {
+-				return
+-			}
+-		}
+-
+-		// First real entry should be __.PKGDEF.
++		// First entry should be __.PKGDEF.
+ 		if name != "__.PKGDEF" {
+ 			err = errors.New("go archive is missing __.PKGDEF")
+ 			return

@@ -7,6 +7,16 @@ Date:   Thu Feb 19 20:42:09 2015 -0500
     Change-Id: I678336daf99f7d7d19f99506f1a604de8e05bf43
     Reviewed-on: https://go-review.googlesource.com/5400
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 95db022c74..3ec9395e1c 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -33,3 +33,4 @@ sort: number of Sort performance optimizations (https://golang.org/cl/2100, http
+ strconv: optimize decimal to string conversion (https://golang.org/cl/2105)
+ math/big: faster assembly kernels for amd64 and 386 (https://golang.org/cl/2503, https://golang.org/cl/2560)
+ math/big: faster "pure Go" kernels for platforms w/o assembly kernels (https://golang.org/cl/2480)
++

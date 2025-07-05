@@ -10,6 +10,59 @@ Date:   Tue Apr 12 22:29:34 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index a20f87d940..f676b9dd09 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -338,7 +338,6 @@ OpSwitch:
+ 		ok |= Etype
+ 
+ 		if n.Type == nil {
+-			n.Type = nil
+ 			return n
+ 		}
+ 
+@@ -449,7 +448,6 @@ OpSwitch:
+ 		n.Op = OTYPE
+ 		n.Type = tointerface(n.List.Slice())
+ 		if n.Type == nil {
+-			n.Type = nil
+ 			return n
+ 		}
+ 
+@@ -458,7 +456,6 @@ OpSwitch:
+ 		n.Op = OTYPE
+ 		n.Type = functype(n.Left, n.List.Slice(), n.Rlist.Slice())
+ 		if n.Type == nil {
+-			n.Type = nil
+ 			return n
+ 		}
+ 		n.Left = nil
+@@ -822,7 +819,6 @@ OpSwitch:
+ 		ok |= Erv
+ 		n = typecheckcomplit(n)
+ 		if n.Type == nil {
+-			n.Type = nil
+ 			return n
+ 		}
+ 		break OpSwitch
+@@ -864,7 +860,6 @@ OpSwitch:
+ 			if n.Type.Etype != TFUNC || n.Type.Recv() == nil {
+ 				Yyerror("type %v has no method %v", n.Left.Type, Sconv(n.Right.Sym, FmtShort))
+ 				n.Type = nil
+-				n.Type = nil
+ 				return n
+ 			}
+ 
+@@ -1961,7 +1956,6 @@ OpSwitch:
+ 		ok |= Erv
+ 		typecheckclosure(n, top)
+ 		if n.Type == nil {
+-			n.Type = nil
+ 			return n
+ 		}
+ 		break OpSwitch

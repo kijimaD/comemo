@@ -26,7 +26,7 @@ Date:   Wed Jul 7 21:38:49 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/instance.go    |  2 +-
  src/cmd/compile/internal/types2/scope.go       |  4 +++-
  src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
@@ -34,3 +34,146 @@ Date:   Wed Jul 7 21:38:49 2021 -0700
  src/cmd/compile/internal/types2/typestring.go  | 29 +++++++++++++++-----------
  src/cmd/compile/internal/types2/universe.go    | 12 +++++++----
  6 files changed, 30 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instance.go b/src/cmd/compile/internal/types2/instance.go
+index 9d6097e874..b133fd1e65 100644
+--- a/src/cmd/compile/internal/types2/instance.go
++++ b/src/cmd/compile/internal/types2/instance.go
+@@ -16,7 +16,7 @@ type instance struct {
+ 	base    *Named       // parameterized type to be instantiated
+ 	targs   []Type       // type arguments
+ 	poslist []syntax.Pos // position of each targ; for error reporting only
+-	value   Type         // base(targs...) after instantiation or Typ[Invalid]; nil if not yet set
++	value   Type         // base[targs...] after instantiation or Typ[Invalid]; nil if not yet set
+ }
+ 
+ // expand returns the instantiated (= expanded) type of t.
+diff --git a/src/cmd/compile/internal/types2/scope.go b/src/cmd/compile/internal/types2/scope.go
+index 2f1814a631..095875d94b 100644
+--- a/src/cmd/compile/internal/types2/scope.go
++++ b/src/cmd/compile/internal/types2/scope.go
+@@ -23,6 +23,7 @@ import (
+ type Scope struct {
+ 	parent   *Scope
+ 	children []*Scope
++	number   int               // parent.children[number-1] is this scope; 0 if there is no parent
+ 	elems    map[string]Object // lazily allocated
+ 	pos, end syntax.Pos        // scope extent; may be invalid
+ 	comment  string            // for debugging only
+@@ -32,10 +33,11 @@ type Scope struct {
+ // NewScope returns a new, empty scope contained in the given parent
+ // scope, if any. The comment is for debugging only.
+ func NewScope(parent *Scope, pos, end syntax.Pos, comment string) *Scope {
+-	s := &Scope{parent, nil, nil, pos, end, comment, false}
++	s := &Scope{parent, nil, 0, nil, pos, end, comment, false}
+ 	// don't add children to Universe scope!
+ 	if parent != nil && parent != Universe {
+ 		parent.children = append(parent.children, s)
++		s.number = len(parent.children)
+ 	}
+ 	return s
+ }
+diff --git a/src/cmd/compile/internal/types2/sizeof_test.go b/src/cmd/compile/internal/types2/sizeof_test.go
+index 0b1f7dacad..a51d0c43d5 100644
+--- a/src/cmd/compile/internal/types2/sizeof_test.go
++++ b/src/cmd/compile/internal/types2/sizeof_test.go
+@@ -47,7 +47,7 @@ func TestSizeof(t *testing.T) {
+ 		{Nil{}, 56, 88},
+ 
+ 		// Misc
+-		{Scope{}, 56, 96},
++		{Scope{}, 60, 104},
+ 		{Package{}, 40, 80},
+ 		{TypeSet{}, 20, 40},
+ 	}
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 7b4796fa2e..59efe8a045 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -422,8 +422,6 @@ func (subst *subster) typ(typ Type) Type {
+ 
+ var instanceHashing = 0
+ 
+-// TODO(gri) Eventually, this should be more sophisticated.
+-//           It won't work correctly for locally declared types.
+ func instantiatedHash(typ *Named, targs []Type) string {
+ 	assert(instanceHashing == 0)
+ 	instanceHashing++
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index f63a23c98c..44099133a0 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -363,22 +363,27 @@ func writeTypeName(buf *bytes.Buffer, obj *TypeName, qf Qualifier) {
+ 	buf.WriteString(obj.name)
+ 
+ 	if instanceHashing != 0 {
+-		// For local defined types, use the (original!) TypeName's position
+-		// to disambiguate. This is overkill, and could probably instead
+-		// just be the pointer value (if we assume a non-moving GC) or
+-		// a unique ID (like cmd/compile uses). But this works for now,
+-		// and is convenient for debugging.
+-
+-		// TODO(mdempsky): I still don't fully understand why typ.orig.orig
+-		// can differ from typ.orig, or whether looping more than twice is
+-		// ever necessary.
++		// For local defined types, use the (original!) TypeName's scope
++		// numbers to disambiguate.
+ 		typ := obj.typ.(*Named)
++		// TODO(gri) Figure out why typ.orig != typ.orig.orig sometimes
++		//           and whether the loop can iterate more than twice.
++		//           (It seems somehow connected to instance types.)
+ 		for typ.orig != typ {
+ 			typ = typ.orig
+ 		}
+-		if orig := typ.obj; orig.pkg != nil && orig.parent != orig.pkg.scope {
+-			fmt.Fprintf(buf, "@%q", orig.pos)
+-		}
++		writeScopeNumbers(buf, typ.obj.parent)
++	}
++}
++
++// writeScopeNumbers writes the number sequence for this scope to buf
++// in the form ".i.j.k" where i, j, k, etc. stand for scope numbers.
++// If a scope is nil or has no parent (such as a package scope), nothing
++// is written.
++func writeScopeNumbers(buf *bytes.Buffer, s *Scope) {
++	if s != nil && s.number > 0 {
++		writeScopeNumbers(buf, s.parent)
++		fmt.Fprintf(buf, ".%d", s.number)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index c9b53bac92..d328b13a8e 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -86,21 +86,25 @@ func defPredeclaredTypes() {
+ 
+ 	// type error interface{ Error() string }
+ 	{
++		obj := NewTypeName(nopos, nil, "error", nil)
++		obj.setColor(black)
+ 		res := NewVar(nopos, nil, "", Typ[String])
+ 		sig := NewSignature(nil, nil, NewTuple(res), false)
+ 		err := NewFunc(nopos, nil, "Error", sig)
+-		typ := &Named{underlying: NewInterfaceType([]*Func{err}, nil)}
++		typ := NewNamed(obj, NewInterfaceType([]*Func{err}, nil), nil)
+ 		sig.recv = NewVar(nopos, nil, "", typ)
+-		def(NewTypeName(nopos, nil, "error", typ))
++		def(obj)
+ 	}
+ 
+ 	// type comparable interface{ ==() }
+ 	{
++		obj := NewTypeName(nopos, nil, "comparable", nil)
++		obj.setColor(black)
+ 		sig := NewSignature(nil, nil, nil, false)
+ 		eql := NewFunc(nopos, nil, "==", sig)
+-		typ := &Named{underlying: NewInterfaceType([]*Func{eql}, nil)}
++		typ := NewNamed(obj, NewInterfaceType([]*Func{eql}, nil), nil)
+ 		sig.recv = NewVar(nopos, nil, "", typ)
+-		def(NewTypeName(nopos, nil, "comparable", typ))
++		def(obj)
+ 	}
+ }
+ 

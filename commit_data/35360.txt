@@ -9,6 +9,20 @@ Date:   Tue Feb 13 10:23:37 2018 +0000
     Change-Id: Ife18ba2f982b5e1c30bda32d13dcd441778b986a
     Reviewed-on: https://go-review.googlesource.com/93575
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/internal/atomic/atomic_mipsx.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_mipsx.go b/src/runtime/internal/atomic/atomic_mipsx.go
+index 93a1f1a9dd..32be1c779d 100644
+--- a/src/runtime/internal/atomic/atomic_mipsx.go
++++ b/src/runtime/internal/atomic/atomic_mipsx.go
+@@ -25,7 +25,7 @@ func spinUnlock(state *uint32)
+ 
+ //go:nosplit
+ func lockAndCheck(addr *uint64) {
+-	// ensure 8-byte alignement
++	// ensure 8-byte alignment
+ 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
+ 		addr = nil
+ 	}

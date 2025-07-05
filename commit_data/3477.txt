@@ -9,7 +9,117 @@ Date:   Wed Oct 7 23:14:23 2009 -0700
     DELTA=84  (77 added, 6 deleted, 1 changed)
     OCL=35456
     CL=35458
-
+---
  src/pkg/image/png/reader_test.go | 16 ++++++----
  src/pkg/image/png/writer_test.go | 69 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 78 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/image/png/reader_test.go b/src/pkg/image/png/reader_test.go
+index 4aa3c0a2a8..4bc6d891ea 100644
+--- a/src/pkg/image/png/reader_test.go
++++ b/src/pkg/image/png/reader_test.go
+@@ -33,6 +33,14 @@ var filenames = []string {
+ 	//"basn6a16",	// bit depth is not 8
+ }
+ 
++func readPng(filename string) (image.Image, os.Error) {
++	f, err := os.Open(filename, os.O_RDONLY, 0444);
++	if err != nil {
++		return nil, err;
++	}
++	defer f.Close();
++	return Decode(f);
++}
+ 
+ // An approximation of the sng command-line tool.
+ func sng(w io.WriteCloser, filename string, png image.Image) {
+@@ -103,13 +111,7 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
+ func TestReader(t *testing.T) {
+ 	for _, fn := range filenames {
+ 		// Read the .png file.
+-		pf, err := os.Open("testdata/pngsuite/" + fn + ".png", os.O_RDONLY, 0444);
+-		if err != nil {
+-			t.Error(fn, err);
+-			continue
+-		}
+-		defer pf.Close();
+-		image, err := Decode(pf);
++		image, err := readPng("testdata/pngsuite/" + fn + ".png");
+ 		if err != nil {
+ 			t.Error(fn, err);
+ 			continue
+diff --git a/src/pkg/image/png/writer_test.go b/src/pkg/image/png/writer_test.go
+new file mode 100644
+index 0000000000..b832f1c267
+--- /dev/null
++++ b/src/pkg/image/png/writer_test.go
+@@ -0,0 +1,69 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package png
++
++import (
++	"fmt";
++	"image";
++	"io";
++	"os";
++	"testing";
++)
++
++func diff(m0, m1 image.Image) os.Error {
++	if m0.Width() != m1.Width() || m0.Height() != m1.Height() {
++		return os.NewError(fmt.Sprintf("dimensions differ: %dx%d vs %dx%d", m0.Width(), m0.Height(), m1.Width(), m1.Height()));
++	}
++	for y := 0; y < m0.Height(); y++ {
++		for x := 0; x < m0.Width(); x++ {
++			r0, g0, b0, a0 := m0.At(x, y).RGBA();
++			r1, g1, b1, a1 := m1.At(x, y).RGBA();
++			if r0 != r1 || g0 != g1 || b0 != b1 || a0 != a1 {
++				return os.NewError(fmt.Sprintf("colors differ at (%d, %d): %v vs %v", x, y, m0.At(x, y), m1.At(x, y)));
++			}
++		}
++	}
++	return nil;
++}
++
++func TestWriter(t *testing.T) {
++	// The filenames variable is declared in reader_test.go.
++	for _, fn := range filenames {
++		qfn := "testdata/pngsuite/" + fn + ".png";
++		// Read the image.
++		m0, err := readPng(qfn);
++		if err != nil {
++			t.Error(fn, err);
++			continue;
++		}
++		// Read the image again, and push it through a pipe that encodes at the write end, and decodes at the read end.
++		pr, pw := io.Pipe();
++		defer pr.Close();
++		go func() {
++			defer pw.Close();
++			m1, err := readPng(qfn);
++			if err != nil {
++				t.Error(fn, err);
++				return;
++			}
++			err = Encode(pw, m1);
++			if err != nil {
++				t.Error(fn, err);
++				return;
++			}
++		}();
++		m2, err := Decode(pr);
++		if err != nil {
++			t.Error(fn, err);
++			continue;
++		}
++		// Compare the two.
++		err = diff(m0, m2);
++		if err != nil {
++			t.Error(fn, err);
++			continue;
++		}
++	}
++}

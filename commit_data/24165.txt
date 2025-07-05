@@ -11,6 +11,53 @@ Date:   Tue Jul 14 19:16:01 2015 -0400
     Change-Id: I6b62d30a4d0e0f84fd2c0e70e8f66ec14e6a5a90
     Reviewed-on: https://go-review.googlesource.com/12197
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.html | 19 ++++++++++++++-----
  1 file changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index a7ff7e57e4..7c3a2f294a 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -792,19 +792,28 @@ This change guards against certain attacks.
+ 
+ <li>
+ The <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
+-now defaults to TLS 1.0.
++minimum protocol version now defaults to TLS 1.0.
+ The old default, SSLv3, is still available through <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> if needed.
+ </li>
+ 
+ <li>
+-Also, the <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
++The <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
+ now supports Signed Certificate Timestamps (SCTs) as specified in RFC 6962.
+ The server serves them if they are listed in the
+ <a href="/pkg/crypto/tls/#Certificate"><code>Certificate</code></a> struct,
+ and the client requests them and exposes them, if present,
+ in its <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a> struct.
+-The <a href="/pkg/crypto/tls/"><code>crytpo/tls</code></a> server implementation
+-will also now always call the
++
++<li>
++The stapled OCSP response to a <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> client connection,
++previously only available via the
++<a href="/pkg/crypto/tls/#Conn.OCSPResponse"><code>OCSPResponse</code></a> method,
++is now exposed in the <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a> struct.
++</li>
++
++<li>
++The <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> server implementation
++will now always call the
+ <code>GetCertificate</code> function in
+ the <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> struct
+ to select a certificate for the connection when none is supplied.
+@@ -813,7 +822,7 @@ to select a certificate for the connection when none is supplied.
+ <li>
+ Finally, the session ticket keys in the
+ <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
+-can now be rotated (changed periodically during an active connection).
++can now be changed while the server is running.
+ This is done through the new
+ <a href="/pkg/crypto/tls/#Config.SetSessionTicketKeys"><code>SetSessionTicketKeys</code></a>
+ method of the

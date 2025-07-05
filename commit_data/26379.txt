@@ -13,6 +13,29 @@ Date:   Thu Jan 14 05:36:03 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/18660
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/serve_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 86f4b66389..f8cad802d4 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -3827,7 +3827,7 @@ func TestServerValidatesHostHeader(t *testing.T) {
+ 		{"HTTP/1.0", "Host: \xff\r\n", 400},
+ 	}
+ 	for _, tt := range tests {
+-		conn := &testConn{closec: make(chan bool)}
++		conn := &testConn{closec: make(chan bool, 1)}
+ 		io.WriteString(&conn.readBuf, "GET / "+tt.proto+"\r\n"+tt.host+"\r\n")
+ 
+ 		ln := &oneConnListener{conn}
+@@ -3867,7 +3867,7 @@ func TestServerValidatesHeaders(t *testing.T) {
+ 		{"foo: foo\xfffoo\r\n", 200}, // non-ASCII high octets in value are fine
+ 	}
+ 	for _, tt := range tests {
+-		conn := &testConn{closec: make(chan bool)}
++		conn := &testConn{closec: make(chan bool, 1)}
+ 		io.WriteString(&conn.readBuf, "GET / HTTP/1.1\r\nHost: foo\r\n"+tt.header+"\r\n")
+ 
+ 		ln := &oneConnListener{conn}

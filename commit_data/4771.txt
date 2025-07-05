@@ -7,9 +7,102 @@ Date:   Tue Feb 2 18:19:27 2010 -0800
     TBR=r
     CC=golang-dev
     https://golang.org/cl/198081
-
+---
  src/pkg/encoding/ascii85/ascii85_test.go | 8 ++------
  src/pkg/encoding/base64/base64_test.go   | 8 ++------
  src/pkg/encoding/git85/git_test.go       | 8 ++------
  src/pkg/exp/datafmt/datafmt.go           | 3 ++-
  4 files changed, 8 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/encoding/ascii85/ascii85_test.go b/src/pkg/encoding/ascii85/ascii85_test.go
+index 7eb245ee26..3219d49e0f 100644
+--- a/src/pkg/encoding/ascii85/ascii85_test.go
++++ b/src/pkg/encoding/ascii85/ascii85_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"io/ioutil"
+ 	"os"
+-	"reflect"
+ 	"strings"
+ 	"testing"
+ )
+@@ -34,11 +33,8 @@ var pairs = []testpair{
+ 
+ var bigtest = pairs[len(pairs)-1]
+ 
+-func testEqual(t *testing.T, msg string, args ...) bool {
+-	v := reflect.NewValue(args).(*reflect.StructValue)
+-	v1 := v.Field(v.NumField() - 2)
+-	v2 := v.Field(v.NumField() - 1)
+-	if v1.Interface() != v2.Interface() {
++func testEqual(t *testing.T, msg string, args ...interface{}) bool {
++	if args[len(args)-2] != args[len(args)-1] {
+ 		t.Errorf(msg, args)
+ 		return false
+ 	}
+diff --git a/src/pkg/encoding/base64/base64_test.go b/src/pkg/encoding/base64/base64_test.go
+index fe66cff7e6..f26f8f2ce5 100644
+--- a/src/pkg/encoding/base64/base64_test.go
++++ b/src/pkg/encoding/base64/base64_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"io/ioutil"
+ 	"os"
+-	"reflect"
+ 	"strings"
+ 	"testing"
+ )
+@@ -48,11 +47,8 @@ var bigtest = testpair{
+ 	"VHdhcyBicmlsbGlnLCBhbmQgdGhlIHNsaXRoeSB0b3Zlcw==",
+ }
+ 
+-func testEqual(t *testing.T, msg string, args ...) bool {
+-	v := reflect.NewValue(args).(*reflect.StructValue)
+-	v1 := v.Field(v.NumField() - 2)
+-	v2 := v.Field(v.NumField() - 1)
+-	if v1.Interface() != v2.Interface() {
++func testEqual(t *testing.T, msg string, args ...interface{}) bool {
++	if args[len(args)-2] != args[len(args)-1] {
+ 		t.Errorf(msg, args)
+ 		return false
+ 	}
+diff --git a/src/pkg/encoding/git85/git_test.go b/src/pkg/encoding/git85/git_test.go
+index 4a42282fe4..0eb65129d3 100644
+--- a/src/pkg/encoding/git85/git_test.go
++++ b/src/pkg/encoding/git85/git_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"io/ioutil"
+ 	"os"
+-	"reflect"
+ 	"strings"
+ 	"testing"
+ )
+@@ -17,11 +16,8 @@ type testpair struct {
+ 	decoded, encoded string
+ }
+ 
+-func testEqual(t *testing.T, msg string, args ...) bool {
+-	v := reflect.NewValue(args).(*reflect.StructValue)
+-	v1 := v.Field(v.NumField() - 2)
+-	v2 := v.Field(v.NumField() - 1)
+-	if v1.Interface() != v2.Interface() {
++func testEqual(t *testing.T, msg string, args ...interface{}) bool {
++	if args[len(args)-2] != args[len(args)-1] {
+ 		t.Errorf(msg, args)
+ 		return false
+ 	}
+diff --git a/src/pkg/exp/datafmt/datafmt.go b/src/pkg/exp/datafmt/datafmt.go
+index cd9af2b6ac..7472a97a93 100644
+--- a/src/pkg/exp/datafmt/datafmt.go
++++ b/src/pkg/exp/datafmt/datafmt.go
+@@ -721,7 +721,8 @@ func (f Format) Sprint(args ...) string {
+ 	var buf bytes.Buffer
+ 	_, err := f.Fprint(&buf, nil, args)
+ 	if err != nil {
+-		fmt.Fprintf(&buf, "--- Sprint(%s) failed: %v", fmt.Sprint(args), err)
++		var i interface{} = args
++		fmt.Fprintf(&buf, "--- Sprint(%s) failed: %v", fmt.Sprint(i), err)
+ 	}
+ 	return buf.String()
+ }

@@ -9,6 +9,19 @@ Date:   Sun Feb 5 00:35:08 2012 -0200
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5630056
-
+---
  src/cmd/dist/build.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 5c68d176d0..04818e1265 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1174,6 +1174,7 @@ cmdenv(int argc, char **argv)
+ 		usage();
+ 	
+ 	xprintf(format, "GOROOT", goroot);
++	xprintf(format, "GOBIN", gobin);
+ 	xprintf(format, "GOARCH", goarch);
+ 	xprintf(format, "GOOS", goos);
+ 	if(pflag) {

@@ -18,7 +18,7 @@ Date:   Tue Aug 5 18:12:32 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/120610043
-
+---
  misc/cgo/testcdefs/cdefstest.c  |  1 +
  misc/cgo/testcdefs/cdefstest.go | 18 ++++++++++++++++++
  misc/cgo/testcdefs/main.c       | 23 +++++++++++++++++++++++
@@ -26,3 +26,143 @@ Date:   Tue Aug 5 18:12:32 2014 -0700
  src/cmd/cgo/out.go              | 10 ++--------
  src/pkg/runtime/defs_linux.go   |  1 +
  6 files changed, 48 insertions(+), 9 deletions(-)
+
+diff --git a/misc/cgo/testcdefs/cdefstest.c b/misc/cgo/testcdefs/cdefstest.c
+index 10cdd66b65..ce670e729e 100644
+--- a/misc/cgo/testcdefs/cdefstest.c
++++ b/misc/cgo/testcdefs/cdefstest.c
+@@ -6,3 +6,4 @@
+ #include "cdefstest.h"
+ 
+ struct CdefsTest test;
++struct PackedTest packed;
+diff --git a/misc/cgo/testcdefs/cdefstest.go b/misc/cgo/testcdefs/cdefstest.go
+index e6305b77d7..0804083a03 100644
+--- a/misc/cgo/testcdefs/cdefstest.go
++++ b/misc/cgo/testcdefs/cdefstest.go
+@@ -35,7 +35,25 @@ struct cdefsTest {
+ 	// Correct: -> Array [20][20]**int8 -> int8 **array[20][20]
+ 	char **array5[20][20];
+ };
++
++// Test that packed structures can be translated to C correctly too.
++// See issue 8477.
++
++struct packedTest {
++	char first;
++	int second;
++	long long third;
++} __attribute__((packed));
++
++// Test that conflicting type definitions don't cause problems with cgo.
++// See issue 8477.
++
++typedef struct timespec {
++	double bogus;
++} pid_t;
++
+ */
+ import "C"
+ 
+ type CdefsTest C.struct_cdefsTest
++type PackedTest C.struct_packedTest
+diff --git a/misc/cgo/testcdefs/main.c b/misc/cgo/testcdefs/main.c
+index 2d3ee4dbea..c13a804306 100644
+--- a/misc/cgo/testcdefs/main.c
++++ b/misc/cgo/testcdefs/main.c
+@@ -17,11 +17,22 @@ struct CdefsOrig {
+ 	int8 **array5[20][20];
+ };
+ 
++typedef struct PackedOrig PackedOrig;
++#pragma pack on
++struct PackedOrig {
++	int8 first;
++	int32 second;
++	int64 third;
++};
++#pragma pack off
++
+ void
+ main·test(int32 ret)
+ {
+ 	CdefsOrig o;
+ 	CdefsTest t;
++	PackedOrig po;
++	PackedTest pt;
+ 	
+ 	ret = 0;
+ 	if(sizeof(t.array1) != sizeof(o.array1) || offsetof(CdefsTest, array1[0]) != offsetof(CdefsOrig, array1[0])) {
+@@ -44,5 +55,17 @@ main·test(int32 ret)
+ 		runtime·printf("array5: size, offset = %d, %d, want %d, %d\n", sizeof(t.array5), offsetof(CdefsTest, array5[0][0]), sizeof(o.array5), offsetof(CdefsOrig, array5[0][0]));
+ 		ret = 1;
+ 	}
++	if(sizeof(pt.first) != sizeof(po.first) || offsetof(PackedTest, first) != offsetof(PackedOrig, first)) {
++		runtime·printf("first: size, offset = %d, %d, want %d, %d\n", sizeof(pt.first), offsetof(PackedTest, first), sizeof(po.first), offsetof(PackedOrig, first));
++		ret = 1;
++	}
++	if(sizeof(pt.second) != sizeof(po.second) || offsetof(PackedTest, second) != offsetof(PackedOrig, second)) {
++		runtime·printf("second: size, offset = %d, %d, want %d, %d\n", sizeof(pt.second), offsetof(PackedTest, second), sizeof(po.second), offsetof(PackedOrig, second));
++		ret = 1;
++	}
++	if(sizeof(pt.third) != sizeof(po.third) || offsetof(PackedTest, third) != offsetof(PackedOrig, third)) {
++		runtime·printf("third: size, offset = %d, %d, want %d, %d\n", sizeof(pt.third), offsetof(PackedTest, third), sizeof(po.third), offsetof(PackedOrig, third));
++		ret = 1;
++	}
+ 	FLUSH(&ret); // flush return value
+ }
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 13e8340291..6b0ecd1099 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1587,12 +1587,14 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 			talign = size
+ 		}
+ 
+-		if talign > 0 && f.ByteOffset%talign != 0 {
++		if talign > 0 && f.ByteOffset%talign != 0 && !*cdefs {
+ 			// Drop misaligned fields, the same way we drop integer bit fields.
+ 			// The goal is to make available what can be made available.
+ 			// Otherwise one bad and unneeded field in an otherwise okay struct
+ 			// makes the whole program not compile. Much of the time these
+ 			// structs are in system headers that cannot be corrected.
++			// Exception: In -cdefs mode, we use #pragma pack, so misaligned
++			// fields should still work.
+ 			continue
+ 		}
+ 		n := len(fld)
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index c6c27c4dbf..1ef78b757c 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1148,16 +1148,10 @@ __cgo_size_assert(double, 8)
+ `
+ 
+ const builtinProlog = `
+-#include <sys/types.h> /* for size_t below */
++#include <stddef.h> /* for ptrdiff_t and size_t below */
+ 
+ /* Define intgo when compiling with GCC.  */
+-#ifdef __PTRDIFF_TYPE__
+-typedef __PTRDIFF_TYPE__ intgo;
+-#elif defined(_LP64)
+-typedef long long intgo;
+-#else
+-typedef int intgo;
+-#endif
++typedef ptrdiff_t intgo;
+ 
+ typedef struct { char *p; intgo n; } _GoString_;
+ typedef struct { char *p; intgo n; intgo c; } _GoBytes_;
+diff --git a/src/pkg/runtime/defs_linux.go b/src/pkg/runtime/defs_linux.go
+index 2f4e03a016..8657dbb0ec 100644
+--- a/src/pkg/runtime/defs_linux.go
++++ b/src/pkg/runtime/defs_linux.go
+@@ -28,6 +28,7 @@ package runtime
+ #include <asm-generic/errno.h>
+ #include <asm-generic/poll.h>
+ #include <linux/eventpoll.h>
++#undef size_t
+ */
+ import "C"
+ 

@@ -17,6 +17,20 @@ Date:   Tue Aug 3 20:56:58 2021 +0000
     Trust: Jay Conrod <jayconrod@google.com>
     Trust: Roland Shoemaker <roland@golang.org>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/clean/clean.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index e0d3c9e0c6..13d6961511 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -116,7 +116,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 	// or no other target (such as a cache) was requested to be cleaned.
+ 	cleanPkg := len(args) > 0 || cleanI || cleanR
+ 	if (!modload.Enabled() || modload.HasModRoot()) &&
+-		!cleanCache && !cleanModcache && !cleanTestcache {
++		!cleanCache && !cleanModcache && !cleanTestcache && !cleanFuzzcache {
+ 		cleanPkg = true
+ 	}
+ 

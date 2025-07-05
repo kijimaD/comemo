@@ -26,8 +26,100 @@ Date:   Thu Mar 2 16:20:07 2023 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Nick Ripley <nick.ripley@datadoghq.com>
-
+---
  src/internal/trace/parser.go    |  4 ++--
  src/runtime/trace.go            | 12 +++++++-----
  src/runtime/trace/annotation.go | 16 ++++++++--------
  3 files changed, 17 insertions(+), 15 deletions(-)
+
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 8dc2930c6b..0376e914b1 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -1074,9 +1074,9 @@ const (
+ 	EvGoBlockGC         = 42 // goroutine blocks on GC assist [timestamp, stack]
+ 	EvGCMarkAssistStart = 43 // GC mark assist start [timestamp, stack]
+ 	EvGCMarkAssistDone  = 44 // GC mark assist done [timestamp]
+-	EvUserTaskCreate    = 45 // trace.NewContext [timestamp, internal task id, internal parent id, stack, name string]
++	EvUserTaskCreate    = 45 // trace.NewTask [timestamp, internal task id, internal parent id, name string, stack]
+ 	EvUserTaskEnd       = 46 // end of task [timestamp, internal task id, stack]
+-	EvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
++	EvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), name string, stack]
+ 	EvUserLog           = 48 // trace.Log [timestamp, internal id, key string id, stack, value string]
+ 	EvCPUSample         = 49 // CPU profiling sample [timestamp, real timestamp, real P id (-1 when absent), goroutine id, stack]
+ 	EvCount             = 50
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index b55849fc09..b5ba2f503d 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -66,9 +66,9 @@ const (
+ 	traceEvGoBlockGC         = 42 // goroutine blocks on GC assist [timestamp, stack]
+ 	traceEvGCMarkAssistStart = 43 // GC mark assist start [timestamp, stack]
+ 	traceEvGCMarkAssistDone  = 44 // GC mark assist done [timestamp]
+-	traceEvUserTaskCreate    = 45 // trace.NewContext [timestamp, internal task id, internal parent task id, stack, name string]
++	traceEvUserTaskCreate    = 45 // trace.NewTask [timestamp, internal task id, internal parent task id, name string, stack]
+ 	traceEvUserTaskEnd       = 46 // end of a task [timestamp, internal task id, stack]
+-	traceEvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
++	traceEvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), name string, stack]
+ 	traceEvUserLog           = 48 // trace.Log [timestamp, internal task id, key string id, stack, value string]
+ 	traceEvCPUSample         = 49 // CPU profiling sample [timestamp, real timestamp, real P id (-1 when absent), goroutine id, stack]
+ 	traceEvCount             = 50
+@@ -1544,10 +1544,12 @@ func trace_userLog(id uint64, category, message string) {
+ 
+ 	categoryID, bufp := traceString(bufp, pid, category)
+ 
+-	extraSpace := traceBytesPerNumber + len(message) // extraSpace for the value string
++	// The log message is recorded after all of the normal trace event
++	// arguments, including the task, category, and stack IDs. We must ask
++	// traceEventLocked to reserve extra space for the length of the message
++	// and the message itself.
++	extraSpace := traceBytesPerNumber + len(message)
+ 	traceEventLocked(extraSpace, mp, pid, bufp, traceEvUserLog, 0, 3, id, categoryID)
+-	// traceEventLocked reserved extra space for val and len(val)
+-	// in buf, so buf now has room for the following.
+ 	buf := bufp.ptr()
+ 
+ 	// double-check the message and its length can fit.
+diff --git a/src/runtime/trace/annotation.go b/src/runtime/trace/annotation.go
+index d47cb8573c..f2ef0dd31d 100644
+--- a/src/runtime/trace/annotation.go
++++ b/src/runtime/trace/annotation.go
+@@ -21,11 +21,11 @@ type traceContextKey struct{}
+ // like the Go execution tracer may assume there are only a bounded
+ // number of unique task types in the system.
+ //
+-// The returned end function is used to mark the task's end.
++// The returned Task's End method is used to mark the task's end.
+ // The trace tool measures task latency as the time between task creation
+-// and when the end function is called, and provides the latency
++// and when the End method is called, and provides the latency
+ // distribution per task type.
+-// If the end function is called multiple times, only the first
++// If the End method is called multiple times, only the first
+ // call is used in the latency measurement.
+ //
+ //	ctx, task := trace.NewTask(ctx, "awesomeTask")
+@@ -42,9 +42,9 @@ func NewTask(pctx context.Context, taskType string) (ctx context.Context, task *
+ 	s := &Task{id: id}
+ 	return context.WithValue(pctx, traceContextKey{}, s), s
+ 
+-	// We allocate a new task and the end function even when
+-	// the tracing is disabled because the context and the detach
+-	// function can be used across trace enable/disable boundaries,
++	// We allocate a new task even when
++	// the tracing is disabled because the context and task
++	// can be used across trace enable/disable boundaries,
+ 	// which complicates the problem.
+ 	//
+ 	// For example, consider the following scenario:
+@@ -141,8 +141,8 @@ func WithRegion(ctx context.Context, regionType string, fn func()) {
+ 	fn()
+ }
+ 
+-// StartRegion starts a region and returns a function for marking the
+-// end of the region. The returned Region's End function must be called
++// StartRegion starts a region and returns it.
++// The returned Region's End method must be called
+ // from the same goroutine where the region was started.
+ // Within each goroutine, regions must nest. That is, regions started
+ // after this region must be ended before this region can be ended.

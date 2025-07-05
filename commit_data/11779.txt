@@ -17,7 +17,7 @@ Date:   Fri Feb 10 18:49:19 2012 +1100
     R=rsc, r, rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/5639057
-
+---
  doc/go1.html                           |  14 +++
  doc/go1.tmpl                           |  14 +++
  src/pkg/archive/zip/writer.go          |   6 +-
@@ -33,3 +33,1030 @@ Date:   Fri Feb 10 18:49:19 2012 +1100
  src/pkg/net/http/response_test.go      |   6 +-
  src/pkg/net/http/transport_test.go     |   8 +-
  14 files changed, 347 insertions(+), 212 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index c2613aaeab..c8643914c4 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -878,6 +878,20 @@ If the argument size is too small or invalid, it is adjusted.
+ What little code is affected will be caught by the compiler and must be updated by hand.
+ </p>
+ 
++<h3 id="bufio">The compress/flate, compress/gzip and compress/zlib packages</h3>
++
++<p>
++In Go 1, the NewWriterXxx functions in compress/flate, compress/gzip and
++compress/zlib all return (*Writer, error) if they take a compression level,
++and *Writer otherwise. Package gzip's Compressor and Decompressor types have
++been renamed to Writer and Reader.
++</p>
++
++<p>
++<em>Updating</em>:
++What little code is affected will be caught by the compiler and must be updated by hand.
++</p>
++
+ <h3 id="crypto_elliptic">The crypto/elliptic package</h3>
+ 
+ <p>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 0700b3c6d8..f37f9516ee 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -782,6 +782,20 @@ If the argument size is too small or invalid, it is adjusted.
+ What little code is affected will be caught by the compiler and must be updated by hand.
+ </p>
+ 
++<h3 id="bufio">The compress/flate, compress/gzip and compress/zlib packages</h3>
++
++<p>
++In Go 1, the NewWriterXxx functions in compress/flate, compress/gzip and
++compress/zlib all return (*Writer, error) if they take a compression level,
++and *Writer otherwise. Package gzip's Compressor and Decompressor types have
++been renamed to Writer and Reader.
++</p>
++
++<p>
++<em>Updating</em>:
++What little code is affected will be caught by the compiler and must be updated by hand.
++</p>
++
+ <h3 id="crypto_elliptic">The crypto/elliptic package</h3>
+ 
+ <p>
+diff --git a/src/pkg/archive/zip/writer.go b/src/pkg/archive/zip/writer.go
+index a4f0654474..51e4f15367 100644
+--- a/src/pkg/archive/zip/writer.go
++++ b/src/pkg/archive/zip/writer.go
+@@ -127,7 +127,11 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
+ 	case Store:
+ 		fw.comp = nopCloser{fw.compCount}
+ 	case Deflate:
+-		fw.comp = flate.NewWriter(fw.compCount, 5)
++		var err error
++		fw.comp, err = flate.NewWriter(fw.compCount, 5)
++		if err != nil {
++			return nil, err
++		}
+ 	default:
+ 		return nil, ErrAlgorithm
+ 	}
+diff --git a/src/pkg/compress/flate/deflate.go b/src/pkg/compress/flate/deflate.go
+index 8505da706c..69033cab64 100644
+--- a/src/pkg/compress/flate/deflate.go
++++ b/src/pkg/compress/flate/deflate.go
+@@ -408,17 +408,22 @@ func (d *compressor) close() error {
+ 	return d.w.err
+ }
+ 
+-// NewWriter returns a new Writer compressing
+-// data at the given level.  Following zlib, levels
+-// range from 1 (BestSpeed) to 9 (BestCompression);
+-// higher levels typically run slower but compress more.
+-// Level 0 (NoCompression) does not attempt any
+-// compression; it only adds the necessary DEFLATE framing.
+-func NewWriter(w io.Writer, level int) *Writer {
++// NewWriter returns a new Writer compressing data at the given level.
++// Following zlib, levels range from 1 (BestSpeed) to 9 (BestCompression);
++// higher levels typically run slower but compress more. Level 0
++// (NoCompression) does not attempt any compression; it only adds the
++// necessary DEFLATE framing. Level -1 (DefaultCompression) uses the default
++// compression level.
++//
++// If level is in the range [-1, 9] then the error returned will be nil.
++// Otherwise the error returned will be non-nil.
++func NewWriter(w io.Writer, level int) (*Writer, error) {
+ 	const logWindowSize = logMaxOffsetSize
+ 	var dw Writer
+-	dw.d.init(w, level)
+-	return &dw
++	if err := dw.d.init(w, level); err != nil {
++		return nil, err
++	}
++	return &dw, nil
+ }
+ 
+ // NewWriterDict is like NewWriter but initializes the new
+@@ -427,13 +432,16 @@ func NewWriter(w io.Writer, level int) *Writer {
+ // any compressed output.  The compressed data written to w
+ // can only be decompressed by a Reader initialized with the
+ // same dictionary.
+-func NewWriterDict(w io.Writer, level int, dict []byte) *Writer {
++func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
+ 	dw := &dictWriter{w, false}
+-	zw := NewWriter(dw, level)
++	zw, err := NewWriter(dw, level)
++	if err != nil {
++		return nil, err
++	}
+ 	zw.Write(dict)
+ 	zw.Flush()
+ 	dw.enabled = true
+-	return zw
++	return zw, err
+ }
+ 
+ type dictWriter struct {
+diff --git a/src/pkg/compress/flate/deflate_test.go b/src/pkg/compress/flate/deflate_test.go
+index 75d801df40..a76e2d930f 100644
+--- a/src/pkg/compress/flate/deflate_test.go
++++ b/src/pkg/compress/flate/deflate_test.go
+@@ -81,7 +81,11 @@ func largeDataChunk() []byte {
+ func TestDeflate(t *testing.T) {
+ 	for _, h := range deflateTests {
+ 		var buf bytes.Buffer
+-		w := NewWriter(&buf, h.level)
++		w, err := NewWriter(&buf, h.level)
++		if err != nil {
++			t.Errorf("NewWriter: %v", err)
++			continue
++		}
+ 		w.Write(h.in)
+ 		w.Close()
+ 		if !bytes.Equal(buf.Bytes(), h.out) {
+@@ -151,7 +155,11 @@ func testSync(t *testing.T, level int, input []byte, name string) {
+ 	buf := newSyncBuffer()
+ 	buf1 := new(bytes.Buffer)
+ 	buf.WriteMode()
+-	w := NewWriter(io.MultiWriter(buf, buf1), level)
++	w, err := NewWriter(io.MultiWriter(buf, buf1), level)
++	if err != nil {
++		t.Errorf("NewWriter: %v", err)
++		return
++	}
+ 	r := NewReader(buf)
+ 
+ 	// Write half the input and read back.
+@@ -213,7 +221,7 @@ func testSync(t *testing.T, level int, input []byte, name string) {
+ 
+ 	// stream should work for ordinary reader too
+ 	r = NewReader(buf1)
+-	out, err := ioutil.ReadAll(r)
++	out, err = ioutil.ReadAll(r)
+ 	if err != nil {
+ 		t.Errorf("testSync: read: %s", err)
+ 		return
+@@ -224,31 +232,31 @@ func testSync(t *testing.T, level int, input []byte, name string) {
+ 	}
+ }
+ 
+-func testToFromWithLevel(t *testing.T, level int, input []byte, name string) error {
+-	return testToFromWithLevelAndLimit(t, level, input, name, -1)
+-}
+-
+-func testToFromWithLevelAndLimit(t *testing.T, level int, input []byte, name string, limit int) error {
++func testToFromWithLevelAndLimit(t *testing.T, level int, input []byte, name string, limit int) {
+ 	var buffer bytes.Buffer
+-	w := NewWriter(&buffer, level)
++	w, err := NewWriter(&buffer, level)
++	if err != nil {
++		t.Errorf("NewWriter: %v", err)
++		return
++	}
+ 	w.Write(input)
+ 	w.Close()
+ 	if limit > 0 && buffer.Len() > limit {
+ 		t.Errorf("level: %d, len(compress(data)) = %d > limit = %d", level, buffer.Len(), limit)
++		return
+ 	}
+ 	r := NewReader(&buffer)
+ 	out, err := ioutil.ReadAll(r)
+ 	if err != nil {
+ 		t.Errorf("read: %s", err)
+-		return err
++		return
+ 	}
+ 	r.Close()
+ 	if !bytes.Equal(input, out) {
+ 		t.Errorf("decompress(compress(data)) != data: level=%d input=%s", level, name)
++		return
+ 	}
+-
+ 	testSync(t, level, input, name)
+-	return nil
+ }
+ 
+ func testToFromWithLimit(t *testing.T, input []byte, name string, limit [10]int) {
+@@ -257,13 +265,9 @@ func testToFromWithLimit(t *testing.T, input []byte, name string, limit [10]int)
+ 	}
+ }
+ 
+-func testToFrom(t *testing.T, input []byte, name string) {
+-	testToFromWithLimit(t, input, name, [10]int{})
+-}
+-
+ func TestDeflateInflate(t *testing.T) {
+ 	for i, h := range deflateInflateTests {
+-		testToFrom(t, h.in, fmt.Sprintf("#%d", i))
++		testToFromWithLimit(t, h.in, fmt.Sprintf("#%d", i), [10]int{})
+ 	}
+ }
+ 
+@@ -311,7 +315,10 @@ func TestReaderDict(t *testing.T) {
+ 		text = "hello again world"
+ 	)
+ 	var b bytes.Buffer
+-	w := NewWriter(&b, 5)
++	w, err := NewWriter(&b, 5)
++	if err != nil {
++		t.Fatalf("NewWriter: %v", err)
++	}
+ 	w.Write([]byte(dict))
+ 	w.Flush()
+ 	b.Reset()
+@@ -334,7 +341,10 @@ func TestWriterDict(t *testing.T) {
+ 		text = "hello again world"
+ 	)
+ 	var b bytes.Buffer
+-	w := NewWriter(&b, 5)
++	w, err := NewWriter(&b, 5)
++	if err != nil {
++		t.Fatalf("NewWriter: %v", err)
++	}
+ 	w.Write([]byte(dict))
+ 	w.Flush()
+ 	b.Reset()
+@@ -342,7 +352,7 @@ func TestWriterDict(t *testing.T) {
+ 	w.Close()
+ 
+ 	var b1 bytes.Buffer
+-	w = NewWriterDict(&b1, 5, []byte(dict))
++	w, _ = NewWriterDict(&b1, 5, []byte(dict))
+ 	w.Write([]byte(text))
+ 	w.Close()
+ 
+@@ -353,7 +363,10 @@ func TestWriterDict(t *testing.T) {
+ 
+ // See http://code.google.com/p/go/issues/detail?id=2508
+ func TestRegression2508(t *testing.T) {
+-	w := NewWriter(ioutil.Discard, 1)
++	w, err := NewWriter(ioutil.Discard, 1)
++	if err != nil {
++		t.Fatalf("NewWriter: %v", err)
++	}
+ 	buf := make([]byte, 1024)
+ 	for i := 0; i < 131072; i++ {
+ 		if _, err := w.Write(buf); err != nil {
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index 4094c45bb0..3828f41052 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -16,9 +16,6 @@ import (
+ 	"time"
+ )
+ 
+-// BUG(nigeltao): Comments and Names don't properly map UTF-8 character codes outside of
+-// the 0x00-0x7f range to ISO 8859-1 (Latin-1).
+-
+ const (
+ 	gzipID1     = 0x1f
+ 	gzipID2     = 0x8b
+@@ -41,7 +38,7 @@ var ErrHeader = errors.New("invalid gzip header")
+ var ErrChecksum = errors.New("gzip checksum error")
+ 
+ // The gzip file stores a header giving metadata about the compressed file.
+-// That header is exposed as the fields of the Compressor and Decompressor structs.
++// That header is exposed as the fields of the Writer and Reader structs.
+ type Header struct {
+ 	Comment string    // comment
+ 	Extra   []byte    // "extra data"
+@@ -50,21 +47,21 @@ type Header struct {
+ 	OS      byte      // operating system type
+ }
+ 
+-// An Decompressor is an io.Reader that can be read to retrieve
++// A Reader is an io.Reader that can be read to retrieve
+ // uncompressed data from a gzip-format compressed file.
+ //
+ // In general, a gzip file can be a concatenation of gzip files,
+-// each with its own header.  Reads from the Decompressor
++// each with its own header.  Reads from the Reader
+ // return the concatenation of the uncompressed data of each.
+-// Only the first header is recorded in the Decompressor fields.
++// Only the first header is recorded in the Reader fields.
+ //
+ // Gzip files store a length and checksum of the uncompressed data.
+-// The Decompressor will return a ErrChecksum when Read
++// The Reader will return a ErrChecksum when Read
+ // reaches the end of the uncompressed data if it does not
+ // have the expected length or checksum.  Clients should treat data
+-// returned by Read as tentative until they receive the successful
+-// (zero length, nil error) Read marking the end of the data.
+-type Decompressor struct {
++// returned by Read as tentative until they receive the io.EOF
++// marking the end of the data.
++type Reader struct {
+ 	Header
+ 	r            flate.Reader
+ 	decompressor io.ReadCloser
+@@ -75,11 +72,11 @@ type Decompressor struct {
+ 	err          error
+ }
+ 
+-// NewReader creates a new Decompressor reading the given reader.
++// NewReader creates a new Reader reading the given reader.
+ // The implementation buffers input and may read more data than necessary from r.
+-// It is the caller's responsibility to call Close on the Decompressor when done.
+-func NewReader(r io.Reader) (*Decompressor, error) {
+-	z := new(Decompressor)
++// It is the caller's responsibility to call Close on the Reader when done.
++func NewReader(r io.Reader) (*Reader, error) {
++	z := new(Reader)
+ 	z.r = makeReader(r)
+ 	z.digest = crc32.NewIEEE()
+ 	if err := z.readHeader(true); err != nil {
+@@ -93,7 +90,7 @@ func get4(p []byte) uint32 {
+ 	return uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24
+ }
+ 
+-func (z *Decompressor) readString() (string, error) {
++func (z *Reader) readString() (string, error) {
+ 	var err error
+ 	needconv := false
+ 	for i := 0; ; i++ {
+@@ -122,7 +119,7 @@ func (z *Decompressor) readString() (string, error) {
+ 	panic("not reached")
+ }
+ 
+-func (z *Decompressor) read2() (uint32, error) {
++func (z *Reader) read2() (uint32, error) {
+ 	_, err := io.ReadFull(z.r, z.buf[0:2])
+ 	if err != nil {
+ 		return 0, err
+@@ -130,7 +127,7 @@ func (z *Decompressor) read2() (uint32, error) {
+ 	return uint32(z.buf[0]) | uint32(z.buf[1])<<8, nil
+ }
+ 
+-func (z *Decompressor) readHeader(save bool) error {
++func (z *Reader) readHeader(save bool) error {
+ 	_, err := io.ReadFull(z.r, z.buf[0:10])
+ 	if err != nil {
+ 		return err
+@@ -196,7 +193,7 @@ func (z *Decompressor) readHeader(save bool) error {
+ 	return nil
+ }
+ 
+-func (z *Decompressor) Read(p []byte) (n int, err error) {
++func (z *Reader) Read(p []byte) (n int, err error) {
+ 	if z.err != nil {
+ 		return 0, z.err
+ 	}
+@@ -236,5 +233,5 @@ func (z *Decompressor) Read(p []byte) (n int, err error) {
+ 	return z.Read(p)
+ }
+ 
+-// Calling Close does not close the wrapped io.Reader originally passed to NewReader.
+-func (z *Decompressor) Close() error { return z.decompressor.Close() }
++// Close closes the Reader. It does not close the underlying io.Reader.
++func (z *Reader) Close() error { return z.decompressor.Close() }
+diff --git a/src/pkg/compress/gzip/gzip.go b/src/pkg/compress/gzip/gzip.go
+index f2639a688c..f9adc1bebe 100644
+--- a/src/pkg/compress/gzip/gzip.go
++++ b/src/pkg/compress/gzip/gzip.go
+@@ -7,6 +7,7 @@ package gzip
+ import (
+ 	"compress/flate"
+ 	"errors"
++	"fmt"
+ 	"hash"
+ 	"hash/crc32"
+ 	"io"
+@@ -21,9 +22,9 @@ const (
+ 	DefaultCompression = flate.DefaultCompression
+ )
+ 
+-// A Compressor is an io.WriteCloser that satisfies writes by compressing data written
++// A Writer is an io.WriteCloser that satisfies writes by compressing data written
+ // to its wrapped io.Writer.
+-type Compressor struct {
++type Writer struct {
+ 	Header
+ 	w          io.Writer
+ 	level      int
+@@ -35,25 +36,40 @@ type Compressor struct {
+ 	err        error
+ }
+ 
+-// NewWriter calls NewWriterLevel with the default compression level.
+-func NewWriter(w io.Writer) (*Compressor, error) {
+-	return NewWriterLevel(w, DefaultCompression)
++// NewWriter creates a new Writer that satisfies writes by compressing data
++// written to w.
++//
++// It is the caller's responsibility to call Close on the WriteCloser when done.
++// Writes may be buffered and not flushed until Close.
++//
++// Callers that wish to set the fields in Writer.Header must do so before
++// the first call to Write or Close. The Comment and Name header fields are
++// UTF-8 strings in Go, but the underlying format requires NUL-terminated ISO
++// 8859-1 (Latin-1). NUL or non-Latin-1 runes in those strings will lead to an
++// error on Write.
++func NewWriter(w io.Writer) *Writer {
++	z, _ := NewWriterLevel(w, DefaultCompression)
++	return z
+ }
+ 
+-// NewWriterLevel creates a new Compressor writing to the given writer.
+-// Writes may be buffered and not flushed until Close.
+-// Callers that wish to set the fields in Compressor.Header must
+-// do so before the first call to Write or Close.
+-// It is the caller's responsibility to call Close on the WriteCloser when done.
+-// level is the compression level, which can be DefaultCompression, NoCompression,
+-// or any integer value between BestSpeed and BestCompression (inclusive).
+-func NewWriterLevel(w io.Writer, level int) (*Compressor, error) {
+-	z := new(Compressor)
+-	z.OS = 255 // unknown
+-	z.w = w
+-	z.level = level
+-	z.digest = crc32.NewIEEE()
+-	return z, nil
++// NewWriterLevel is like NewWriter but specifies the compression level instead
++// of assuming DefaultCompression.
++//
++// The compression level can be DefaultCompression, NoCompression, or any
++// integer value between BestSpeed and BestCompression inclusive. The error
++// returned will be nil if the level is valid.
++func NewWriterLevel(w io.Writer, level int) (*Writer, error) {
++	if level < DefaultCompression || level > BestCompression {
++		return nil, fmt.Errorf("gzip: invalid compression level: %d", level)
++	}
++	return &Writer{
++		Header: Header{
++			OS: 255, // unknown
++		},
++		w:      w,
++		level:  level,
++		digest: crc32.NewIEEE(),
++	}, nil
+ }
+ 
+ // GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
+@@ -70,7 +86,7 @@ func put4(p []byte, v uint32) {
+ }
+ 
+ // writeBytes writes a length-prefixed byte slice to z.w.
+-func (z *Compressor) writeBytes(b []byte) error {
++func (z *Writer) writeBytes(b []byte) error {
+ 	if len(b) > 0xffff {
+ 		return errors.New("gzip.Write: Extra data is too large")
+ 	}
+@@ -83,10 +99,10 @@ func (z *Compressor) writeBytes(b []byte) error {
+ 	return err
+ }
+ 
+-// writeString writes a string (in ISO 8859-1 (Latin-1) format) to z.w.
+-func (z *Compressor) writeString(s string) error {
+-	// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
+-	var err error
++// writeString writes a UTF-8 string s in GZIP's format to z.w.
++// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
++func (z *Writer) writeString(s string) (err error) {
++	// GZIP stores Latin-1 strings; error if non-Latin-1; convert if non-ASCII.
+ 	needconv := false
+ 	for _, v := range s {
+ 		if v == 0 || v > 0xff {
+@@ -114,7 +130,7 @@ func (z *Compressor) writeString(s string) error {
+ 	return err
+ }
+ 
+-func (z *Compressor) Write(p []byte) (int, error) {
++func (z *Writer) Write(p []byte) (int, error) {
+ 	if z.err != nil {
+ 		return 0, z.err
+ 	}
+@@ -165,7 +181,7 @@ func (z *Compressor) Write(p []byte) (int, error) {
+ 				return n, z.err
+ 			}
+ 		}
+-		z.compressor = flate.NewWriter(z.w, z.level)
++		z.compressor, _ = flate.NewWriter(z.w, z.level)
+ 	}
+ 	z.size += uint32(len(p))
+ 	z.digest.Write(p)
+@@ -173,8 +189,8 @@ func (z *Compressor) Write(p []byte) (int, error) {
+ 	return n, z.err
+ }
+ 
+-// Calling Close does not close the wrapped io.Writer originally passed to NewWriter.
+-func (z *Compressor) Close() error {
++// Close closes the Writer. It does not close the underlying io.Writer.
++func (z *Writer) Close() error {
+ 	if z.err != nil {
+ 		return z.err
+ 	}
+diff --git a/src/pkg/compress/gzip/gzip_test.go b/src/pkg/compress/gzip/gzip_test.go
+index eb7a7ec089..6f7b593644 100644
+--- a/src/pkg/compress/gzip/gzip_test.go
++++ b/src/pkg/compress/gzip/gzip_test.go
+@@ -7,108 +7,153 @@ package gzip
+ import (
+ 	"bufio"
+ 	"bytes"
+-	"io"
+ 	"io/ioutil"
+ 	"testing"
+ 	"time"
+ )
+ 
+-// pipe creates two ends of a pipe that gzip and gunzip, and runs dfunc at the
+-// writer end and cfunc at the reader end.
+-func pipe(t *testing.T, dfunc func(*Compressor), cfunc func(*Decompressor)) {
+-	piper, pipew := io.Pipe()
+-	defer piper.Close()
+-	go func() {
+-		defer pipew.Close()
+-		compressor, err := NewWriter(pipew)
+-		if err != nil {
+-			t.Fatalf("%v", err)
+-		}
+-		defer compressor.Close()
+-		dfunc(compressor)
+-	}()
+-	decompressor, err := NewReader(piper)
++// TestEmpty tests that an empty payload still forms a valid GZIP stream.
++func TestEmpty(t *testing.T) {
++	buf := new(bytes.Buffer)
++
++	if err := NewWriter(buf).Close(); err != nil {
++		t.Fatalf("Writer.Close: %v", err)
++	}
++
++	r, err := NewReader(buf)
++	if err != nil {
++		t.Fatalf("NewReader: %v", err)
++	}
++	b, err := ioutil.ReadAll(r)
+ 	if err != nil {
+-		t.Fatalf("%v", err)
++		t.Fatalf("ReadAll: %v", err)
++	}
++	if len(b) != 0 {
++		t.Fatalf("got %d bytes, want 0", len(b))
++	}
++	if err := r.Close(); err != nil {
++		t.Fatalf("Reader.Close: %v", err)
+ 	}
+-	defer decompressor.Close()
+-	cfunc(decompressor)
+ }
+ 
+-// Tests that an empty payload still forms a valid GZIP stream.
+-func TestEmpty(t *testing.T) {
+-	pipe(t,
+-		func(compressor *Compressor) {},
+-		func(decompressor *Decompressor) {
+-			b, err := ioutil.ReadAll(decompressor)
+-			if err != nil {
+-				t.Fatalf("%v", err)
+-			}
+-			if len(b) != 0 {
+-				t.Fatalf("did not read an empty slice")
+-			}
+-		})
+-}
++// TestRoundTrip tests that gzipping and then gunzipping is the identity
++// function.
++func TestRoundTrip(t *testing.T) {
++	buf := new(bytes.Buffer)
++
++	w := NewWriter(buf)
++	w.Comment = "comment"
++	w.Extra = []byte("extra")
++	w.ModTime = time.Unix(1e8, 0)
++	w.Name = "name"
++	if _, err := w.Write([]byte("payload")); err != nil {
++		t.Fatalf("Write: %v", err)
++	}
++	if err := w.Close(); err != nil {
++		t.Fatalf("Writer.Close: %v", err)
++	}
+ 
+-// Tests that gzipping and then gunzipping is the identity function.
+-func TestWriter(t *testing.T) {
+-	pipe(t,
+-		func(compressor *Compressor) {
+-			compressor.Comment = "Äußerung"
+-			//compressor.Comment = "comment"
+-			compressor.Extra = []byte("extra")
+-			compressor.ModTime = time.Unix(1e8, 0)
+-			compressor.Name = "name"
+-			_, err := compressor.Write([]byte("payload"))
+-			if err != nil {
+-				t.Fatalf("%v", err)
+-			}
+-		},
+-		func(decompressor *Decompressor) {
+-			b, err := ioutil.ReadAll(decompressor)
+-			if err != nil {
+-				t.Fatalf("%v", err)
+-			}
+-			if string(b) != "payload" {
+-				t.Fatalf("payload is %q, want %q", string(b), "payload")
+-			}
+-			if decompressor.Comment != "Äußerung" {
+-				t.Fatalf("comment is %q, want %q", decompressor.Comment, "Äußerung")
+-			}
+-			if string(decompressor.Extra) != "extra" {
+-				t.Fatalf("extra is %q, want %q", decompressor.Extra, "extra")
+-			}
+-			if decompressor.ModTime.Unix() != 1e8 {
+-				t.Fatalf("mtime is %d, want %d", decompressor.ModTime.Unix(), uint32(1e8))
+-			}
+-			if decompressor.Name != "name" {
+-				t.Fatalf("name is %q, want %q", decompressor.Name, "name")
+-			}
+-		})
++	r, err := NewReader(buf)
++	if err != nil {
++		t.Fatalf("NewReader: %v", err)
++	}
++	b, err := ioutil.ReadAll(r)
++	if err != nil {
++		t.Fatalf("ReadAll: %v", err)
++	}
++	if string(b) != "payload" {
++		t.Fatalf("payload is %q, want %q", string(b), "payload")
++	}
++	if r.Comment != "comment" {
++		t.Fatalf("comment is %q, want %q", r.Comment, "comment")
++	}
++	if string(r.Extra) != "extra" {
++		t.Fatalf("extra is %q, want %q", r.Extra, "extra")
++	}
++	if r.ModTime.Unix() != 1e8 {
++		t.Fatalf("mtime is %d, want %d", r.ModTime.Unix(), uint32(1e8))
++	}
++	if r.Name != "name" {
++		t.Fatalf("name is %q, want %q", r.Name, "name")
++	}
++	if err := r.Close(); err != nil {
++		t.Fatalf("Reader.Close: %v", err)
++	}
+ }
+ 
++// TestLatin1 tests the internal functions for converting to and from Latin-1.
+ func TestLatin1(t *testing.T) {
+ 	latin1 := []byte{0xc4, 'u', 0xdf, 'e', 'r', 'u', 'n', 'g', 0}
+ 	utf8 := "Äußerung"
+-	z := Decompressor{r: bufio.NewReader(bytes.NewBuffer(latin1))}
++	z := Reader{r: bufio.NewReader(bytes.NewBuffer(latin1))}
+ 	s, err := z.readString()
+ 	if err != nil {
+-		t.Fatalf("%v", err)
++		t.Fatalf("readString: %v", err)
+ 	}
+ 	if s != utf8 {
+-		t.Fatalf("string is %q, want %q", s, utf8)
++		t.Fatalf("read latin-1: got %q, want %q", s, utf8)
+ 	}
+ 
+ 	buf := bytes.NewBuffer(make([]byte, 0, len(latin1)))
+-	c := Compressor{w: buf}
++	c := Writer{w: buf}
+ 	if err = c.writeString(utf8); err != nil {
+-		t.Fatalf("%v", err)
++		t.Fatalf("writeString: %v", err)
+ 	}
+ 	s = buf.String()
+ 	if s != string(latin1) {
+-		t.Fatalf("string is %v, want %v", s, latin1)
++		t.Fatalf("write utf-8: got %q, want %q", s, string(latin1))
++	}
++}
++
++// TestLatin1RoundTrip tests that metadata that is representable in Latin-1
++// survives a round trip.
++func TestLatin1RoundTrip(t *testing.T) {
++	testCases := []struct {
++		name string
++		ok   bool
++	}{
++		{"", true},
++		{"ASCII is OK", true},
++		{"unless it contains a NUL\x00", false},
++		{"no matter where \x00 occurs", false},
++		{"\x00\x00\x00", false},
++		{"Látin-1 also passes (U+00E1)", true},
++		{"but LĀtin Extended-A (U+0100) does not", false},
++		{"neither does 日本語", false},
++		{"invalid UTF-8 also \xffails", false},
++		{"\x00 as does Látin-1 with NUL", false},
++	}
++	for _, tc := range testCases {
++		buf := new(bytes.Buffer)
++
++		w := NewWriter(buf)
++		w.Name = tc.name
++		err := w.Close()
++		if (err == nil) != tc.ok {
++			t.Errorf("Writer.Close: name = %q, err = %v", tc.name, err)
++			continue
++		}
++		if !tc.ok {
++			continue
++		}
++
++		r, err := NewReader(buf)
++		if err != nil {
++			t.Errorf("NewReader: %v", err)
++			continue
++		}
++		_, err = ioutil.ReadAll(r)
++		if err != nil {
++			t.Errorf("ReadAll: %v", err)
++			continue
++		}
++		if r.Name != tc.name {
++			t.Errorf("name is %q, want %q", r.Name, tc.name)
++			continue
++		}
++		if err := r.Close(); err != nil {
++			t.Errorf("Reader.Close: %v", err)
++			continue
++		}
+ 	}
+-	//if s, err = buf.ReadString(0); err != nil {
+-	//t.Fatalf("%v", err)
+-	//}
+ }
+diff --git a/src/pkg/compress/zlib/writer.go b/src/pkg/compress/zlib/writer.go
+index bbff6375ea..6f70513e01 100644
+--- a/src/pkg/compress/zlib/writer.go
++++ b/src/pkg/compress/zlib/writer.go
+@@ -6,7 +6,7 @@ package zlib
+ 
+ import (
+ 	"compress/flate"
+-	"errors"
++	"fmt"
+ 	"hash"
+ 	"hash/adler32"
+ 	"io"
+@@ -24,30 +24,55 @@ const (
+ // A Writer takes data written to it and writes the compressed
+ // form of that data to an underlying writer (see NewWriter).
+ type Writer struct {
+-	w          io.Writer
+-	compressor *flate.Writer
+-	digest     hash.Hash32
+-	err        error
+-	scratch    [4]byte
++	w           io.Writer
++	level       int
++	dict        []byte
++	compressor  *flate.Writer
++	digest      hash.Hash32
++	err         error
++	scratch     [4]byte
++	wroteHeader bool
+ }
+ 
+-// NewWriter calls NewWriterLevel with the default compression level.
+-func NewWriter(w io.Writer) (*Writer, error) {
+-	return NewWriterLevel(w, DefaultCompression)
++// NewWriter creates a new Writer that satisfies writes by compressing data
++// written to w.
++//
++// It is the caller's responsibility to call Close on the WriteCloser when done.
++// Writes may be buffered and not flushed until Close.
++func NewWriter(w io.Writer) *Writer {
++	z, _ := NewWriterLevelDict(w, DefaultCompression, nil)
++	return z
+ }
+ 
+-// NewWriterLevel calls NewWriterDict with no dictionary.
++// NewWriterLevel is like NewWriter but specifies the compression level instead
++// of assuming DefaultCompression.
++//
++// The compression level can be DefaultCompression, NoCompression, or any
++// integer value between BestSpeed and BestCompression inclusive. The error
++// returned will be nil if the level is valid.
+ func NewWriterLevel(w io.Writer, level int) (*Writer, error) {
+-	return NewWriterDict(w, level, nil)
++	return NewWriterLevelDict(w, level, nil)
+ }
+ 
+-// NewWriterDict creates a new io.WriteCloser that satisfies writes by compressing data written to w.
+-// It is the caller's responsibility to call Close on the WriteCloser when done.
+-// level is the compression level, which can be DefaultCompression, NoCompression,
+-// or any integer value between BestSpeed and BestCompression (inclusive).
+-// dict is the preset dictionary to compress with, or nil to use no dictionary.
+-func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
+-	z := new(Writer)
++// NewWriterLevelDict is like NewWriterLevel but specifies a dictionary to
++// compress with.
++//
++// The dictionary may be nil. If not, its contents should not be modified until
++// the Writer is closed.
++func NewWriterLevelDict(w io.Writer, level int, dict []byte) (*Writer, error) {
++	if level < DefaultCompression || level > BestCompression {
++		return nil, fmt.Errorf("zlib: invalid compression level: %d", level)
++	}
++	return &Writer{
++		w:     w,
++		level: level,
++		dict:  dict,
++	}, nil
++}
++
++// writeHeader writes the ZLIB header.
++func (z *Writer) writeHeader() (err error) {
++	z.wroteHeader = true
+ 	// ZLIB has a two-byte header (as documented in RFC 1950).
+ 	// The first four bits is the CINFO (compression info), which is 7 for the default deflate window size.
+ 	// The next four bits is the CM (compression method), which is 8 for deflate.
+@@ -56,7 +81,7 @@ func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
+ 	// 0=fastest, 1=fast, 2=default, 3=best.
+ 	// The next bit, FDICT, is set if a dictionary is given.
+ 	// The final five FCHECK bits form a mod-31 checksum.
+-	switch level {
++	switch z.level {
+ 	case 0, 1:
+ 		z.scratch[1] = 0 << 6
+ 	case 2, 3, 4, 5:
+@@ -66,35 +91,38 @@ func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
+ 	case 7, 8, 9:
+ 		z.scratch[1] = 3 << 6
+ 	default:
+-		return nil, errors.New("level out of range")
++		panic("unreachable")
+ 	}
+-	if dict != nil {
++	if z.dict != nil {
+ 		z.scratch[1] |= 1 << 5
+ 	}
+ 	z.scratch[1] += uint8(31 - (uint16(z.scratch[0])<<8+uint16(z.scratch[1]))%31)
+-	_, err := w.Write(z.scratch[0:2])
+-	if err != nil {
+-		return nil, err
++	if _, err = z.w.Write(z.scratch[0:2]); err != nil {
++		return err
+ 	}
+-	if dict != nil {
++	if z.dict != nil {
+ 		// The next four bytes are the Adler-32 checksum of the dictionary.
+-		checksum := adler32.Checksum(dict)
++		checksum := adler32.Checksum(z.dict)
+ 		z.scratch[0] = uint8(checksum >> 24)
+ 		z.scratch[1] = uint8(checksum >> 16)
+ 		z.scratch[2] = uint8(checksum >> 8)
+ 		z.scratch[3] = uint8(checksum >> 0)
+-		_, err = w.Write(z.scratch[0:4])
+-		if err != nil {
+-			return nil, err
++		if _, err = z.w.Write(z.scratch[0:4]); err != nil {
++			return err
+ 		}
+ 	}
+-	z.w = w
+-	z.compressor = flate.NewWriterDict(w, level, dict)
++	z.compressor, err = flate.NewWriterDict(z.w, z.level, z.dict)
++	if err != nil {
++		return err
++	}
+ 	z.digest = adler32.New()
+-	return z, nil
++	return nil
+ }
+ 
+ func (z *Writer) Write(p []byte) (n int, err error) {
++	if !z.wroteHeader {
++		z.err = z.writeHeader()
++	}
+ 	if z.err != nil {
+ 		return 0, z.err
+ 	}
+@@ -112,6 +140,9 @@ func (z *Writer) Write(p []byte) (n int, err error) {
+ 
+ // Flush flushes the underlying compressor.
+ func (z *Writer) Flush() error {
++	if !z.wroteHeader {
++		z.err = z.writeHeader()
++	}
+ 	if z.err != nil {
+ 		return z.err
+ 	}
+@@ -121,6 +152,9 @@ func (z *Writer) Flush() error {
+ 
+ // Calling Close does not close the wrapped io.Writer originally passed to NewWriter.
+ func (z *Writer) Close() error {
++	if !z.wroteHeader {
++		z.err = z.writeHeader()
++	}
+ 	if z.err != nil {
+ 		return z.err
+ 	}
+diff --git a/src/pkg/compress/zlib/writer_test.go b/src/pkg/compress/zlib/writer_test.go
+index 1c75d088dd..aee1a5c2f5 100644
+--- a/src/pkg/compress/zlib/writer_test.go
++++ b/src/pkg/compress/zlib/writer_test.go
+@@ -52,7 +52,7 @@ func testLevelDict(t *testing.T, fn string, b0 []byte, level int, d string) {
+ 	defer piper.Close()
+ 	go func() {
+ 		defer pipew.Close()
+-		zlibw, err := NewWriterDict(pipew, level, dict)
++		zlibw, err := NewWriterLevelDict(pipew, level, dict)
+ 		if err != nil {
+ 			t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err)
+ 			return
+@@ -125,9 +125,9 @@ func TestWriterDict(t *testing.T) {
+ func TestWriterDictIsUsed(t *testing.T) {
+ 	var input = []byte("Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
+ 	var buf bytes.Buffer
+-	compressor, err := NewWriterDict(&buf, BestCompression, input)
++	compressor, err := NewWriterLevelDict(&buf, BestCompression, input)
+ 	if err != nil {
+-		t.Errorf("error in NewWriterDict: %s", err)
++		t.Errorf("error in NewWriterLevelDict: %s", err)
+ 		return
+ 	}
+ 	compressor.Write(input)
+diff --git a/src/pkg/crypto/rand/rand_test.go b/src/pkg/crypto/rand/rand_test.go
+index bfae7ce4f9..be3a5a221d 100644
+--- a/src/pkg/crypto/rand/rand_test.go
++++ b/src/pkg/crypto/rand/rand_test.go
+@@ -22,7 +22,7 @@ func TestRead(t *testing.T) {
+ 	}
+ 
+ 	var z bytes.Buffer
+-	f := flate.NewWriter(&z, 5)
++	f, _ := flate.NewWriter(&z, 5)
+ 	f.Write(b)
+ 	f.Close()
+ 	if z.Len() < len(b)*99/100 {
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index 286a3bc15d..57c03792b5 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -263,10 +263,7 @@ func filter(cr *[nFilter][]byte, pr []byte, bpp int) int {
+ }
+ 
+ func writeImage(w io.Writer, m image.Image, cb int) error {
+-	zw, err := zlib.NewWriter(w)
+-	if err != nil {
+-		return err
+-	}
++	zw := zlib.NewWriter(w)
+ 	defer zw.Close()
+ 
+ 	bpp := 0 // Bytes per pixel.
+@@ -391,8 +388,7 @@ func writeImage(w io.Writer, m image.Image, cb int) error {
+ 		f := filter(&cr, pr, bpp)
+ 
+ 		// Write the compressed bytes.
+-		_, err = zw.Write(cr[f])
+-		if err != nil {
++		if _, err := zw.Write(cr[f]); err != nil {
+ 			return err
+ 		}
+ 
+diff --git a/src/pkg/net/http/response_test.go b/src/pkg/net/http/response_test.go
+index e5d01698e5..165ec3624a 100644
+--- a/src/pkg/net/http/response_test.go
++++ b/src/pkg/net/http/response_test.go
+@@ -321,9 +321,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
+ 		}
+ 		if test.compressed {
+ 			buf.WriteString("Content-Encoding: gzip\r\n")
+-			var err error
+-			wr, err = gzip.NewWriter(wr)
+-			checkErr(err, "gzip.NewWriter")
++			wr = gzip.NewWriter(wr)
+ 		}
+ 		buf.WriteString("\r\n")
+ 
+@@ -337,7 +335,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
+ 			wr.Write(chunk)
+ 		}
+ 		if test.compressed {
+-			err := wr.(*gzip.Compressor).Close()
++			err := wr.(*gzip.Writer).Close()
+ 			checkErr(err, "compressor close")
+ 		}
+ 		if test.chunked {
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index caf81d6e46..ab67fa0ebc 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -441,11 +441,7 @@ func TestRoundTripGzip(t *testing.T) {
+ 		}
+ 		if accept == "gzip" {
+ 			rw.Header().Set("Content-Encoding", "gzip")
+-			gz, err := gzip.NewWriter(rw)
+-			if err != nil {
+-				t.Errorf("gzip NewWriter: %v", err)
+-				return
+-			}
++			gz := gzip.NewWriter(rw)
+ 			gz.Write([]byte(responseBody))
+ 			gz.Close()
+ 		} else {
+@@ -512,7 +508,7 @@ func TestTransportGzip(t *testing.T) {
+ 				rw.Header().Set("Content-Length", strconv.Itoa(buf.Len()))
+ 			}()
+ 		}
+-		gz, _ := gzip.NewWriter(w)
++		gz := gzip.NewWriter(w)
+ 		gz.Write([]byte(testString))
+ 		if req.FormValue("body") == "large" {
+ 			io.CopyN(gz, rand.Reader, nRandBytes)

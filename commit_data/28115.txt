@@ -15,6 +15,45 @@ Date:   Wed Apr 27 18:03:49 2016 -0400
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 13 +++++++------
  1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 19c746d49a..0f3432650a 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -31,6 +31,7 @@ var gopathEnv []string
+ var exeSuffix string
+ 
+ var GOOS, GOARCH string
++var libgodir string
+ 
+ func init() {
+ 	bin = []string{"./testp"}
+@@ -84,7 +85,11 @@ func init() {
+ 		// TODO(crawshaw): can we do better?
+ 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
+ 	}
+-	cc = append(cc, "-I", filepath.Join("pkg", GOOS+"_"+GOARCH))
++	libgodir = GOOS + "_" + GOARCH
++	if GOOS == "darwin" && GOARCH == "arm" {
++		libgodir = GOOS + "_" + GOARCH + "_shared"
++	}
++	cc = append(cc, "-I", filepath.Join("pkg", libgodir))
+ 
+ 	// Build an environment with GOPATH=$(pwd)
+ 	env := os.Environ()
+@@ -147,11 +152,7 @@ func TestInstall(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	libgopath := filepath.Join("pkg", GOOS+"_"+GOARCH, "libgo.a")
+-	if GOOS == "darwin" && GOARCH == "arm" {
+-		libgopath = filepath.Join("pkg", GOOS+"_"+GOARCH+"_shared", "libgo.a")
+-	}
+-	compilemain(t, libgopath)
++	compilemain(t, filepath.Join("pkg", libgodir, "libgo.a"))
+ 
+ 	binArgs := append(bin, "arg1", "arg2")
+ 	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {

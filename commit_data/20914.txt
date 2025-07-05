@@ -8,6 +8,20 @@ Date:   Tue Oct 28 10:18:44 2014 +1100
     R=golang-codereviews
     CC=golang-codereviews
     https://golang.org/cl/159590043
-
+---
  src/html/template/js_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/html/template/js_test.go b/src/html/template/js_test.go
+index 311e1d2c4e..7af7997de9 100644
+--- a/src/html/template/js_test.go
++++ b/src/html/template/js_test.go
+@@ -138,7 +138,7 @@ func TestJSValEscaper(t *testing.T) {
+ 		// Newlines.
+ 		{"\r\n\u2028\u2029", `"\r\n\u2028\u2029"`},
+ 		// "\v" == "v" on IE 6 so use "\x0b" instead.
+-		{"\t\x0b", `"\u0009\u000b"`},
++		{"\t\x0b", `"\t\u000b"`},
+ 		{struct{ X, Y int }{1, 2}, `{"X":1,"Y":2}`},
+ 		{[]interface{}{}, "[]"},
+ 		{[]interface{}{42, "foo", nil}, `[42,"foo",null]`},

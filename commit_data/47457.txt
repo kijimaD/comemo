@@ -17,7 +17,84 @@ Date:   Thu Mar 18 00:10:38 2021 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/testing/helper_test.go | 32 ++++++++++++++++++++++++++++++++
  src/testing/testing.go     | 15 +++++++--------
  2 files changed, 39 insertions(+), 8 deletions(-)
+
+diff --git a/src/testing/helper_test.go b/src/testing/helper_test.go
+index 8858196cf0..b27fd62ee8 100644
+--- a/src/testing/helper_test.go
++++ b/src/testing/helper_test.go
+@@ -71,6 +71,38 @@ func TestTBHelperParallel(t *T) {
+ 	}
+ }
+ 
++func TestTBHelperLineNumer(t *T) {
++	var buf bytes.Buffer
++	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
++	t1 := &T{
++		common: common{
++			signal: make(chan bool),
++			w:      &buf,
++		},
++		context: ctx,
++	}
++	t1.Run("Test", func(t *T) {
++		helperA := func(t *T) {
++			t.Helper()
++			t.Run("subtest", func(t *T) {
++				t.Helper()
++				t.Fatal("fatal error message")
++			})
++		}
++		helperA(t)
++	})
++
++	want := "helper_test.go:92: fatal error message"
++	got := ""
++	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
++	if len(lines) > 0 {
++		got = strings.TrimSpace(lines[len(lines)-1])
++	}
++	if got != want {
++		t.Errorf("got output:\n\n%v\nwant:\n\n%v", got, want)
++	}
++}
++
+ type noopWriter int
+ 
+ func (nw *noopWriter) Write(b []byte) (int, error) { return len(b), nil }
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index fafc67c5b7..383e56a20e 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -509,6 +509,13 @@ func (c *common) frameSkip(skip int) runtime.Frame {
+ 			}
+ 			return prevFrame
+ 		}
++		// If more helper PCs have been added since we last did the conversion
++		if c.helperNames == nil {
++			c.helperNames = make(map[string]struct{})
++			for pc := range c.helperPCs {
++				c.helperNames[pcToName(pc)] = struct{}{}
++			}
++		}
+ 		if _, ok := c.helperNames[frame.Function]; !ok {
+ 			// Found a frame that wasn't inside a helper function.
+ 			return frame
+@@ -521,14 +528,6 @@ func (c *common) frameSkip(skip int) runtime.Frame {
+ // and inserts the final newline if needed and indentation spaces for formatting.
+ // This function must be called with c.mu held.
+ func (c *common) decorate(s string, skip int) string {
+-	// If more helper PCs have been added since we last did the conversion
+-	if c.helperNames == nil {
+-		c.helperNames = make(map[string]struct{})
+-		for pc := range c.helperPCs {
+-			c.helperNames[pcToName(pc)] = struct{}{}
+-		}
+-	}
+-
+ 	frame := c.frameSkip(skip)
+ 	file := frame.File
+ 	line := frame.Line

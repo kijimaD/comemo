@@ -12,6 +12,19 @@ Date:   Mon Mar 13 13:56:41 2017 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 09c6b73789..3ac2b59e75 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -56,7 +56,6 @@ const (
+ 	//
+ 	LoopAlign  = 16
+ 	MaxLoopPad = 0
+-	funcAlign  = 16
+ )
+ 
+ type Optab struct {

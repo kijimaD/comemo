@@ -47,7 +47,41 @@ Date:   Fri Mar 24 08:13:17 2017 +0100
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go   | 9 ++++++++-
  src/cmd/compile/internal/gc/asm_test.go | 2 +-
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 7381534851..51010b4066 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -493,7 +493,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Reg = v.Args[0].Reg()
+ 	case ssa.OpAMD64MOVLconst, ssa.OpAMD64MOVQconst:
+ 		x := v.Reg()
+-		p := s.Prog(v.Op.Asm())
++		asm := v.Op.Asm()
++		// Use MOVL to move a small constant into a register
++		// when the constant is positive and fits into 32 bits.
++		if 0 <= v.AuxInt && v.AuxInt <= (1<<32-1) {
++			// The upper 32bit are zeroed automatically when using MOVL.
++			asm = x86.AMOVL
++		}
++		p := s.Prog(asm)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 0c0d8a2bc0..e526e0f49b 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -567,7 +567,7 @@ var linuxAMD64Tests = []*asmTest{
+ 			return bits.TrailingZeros64(a)
+ 		}
+ 		`,
+-		[]string{"\tBSFQ\t", "\tMOVQ\t\\$64,", "\tCMOVQEQ\t"},
++		[]string{"\tBSFQ\t", "\tMOVL\t\\$64,", "\tCMOVQEQ\t"},
+ 	},
+ 	{
+ 		`

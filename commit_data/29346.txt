@@ -10,7 +10,7 @@ Date:   Sat Sep 10 14:05:31 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/28957
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go    | 8 ++++----
  src/cmd/link/internal/amd64/obj.go  | 2 +-
  src/cmd/link/internal/arm/obj.go    | 2 +-
@@ -21,3 +21,148 @@ Date:   Sat Sep 10 14:05:31 2016 -0700
  src/cmd/link/internal/ppc64/obj.go  | 2 +-
  src/cmd/link/internal/x86/obj.go    | 2 +-
  9 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 88a094f117..a602179be4 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2188,7 +2188,7 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 					if isAndroid {
+ 						return 0x65 // GS
+ 					}
+-					log.Fatalf("unknown TLS base register for %s", ctxt.Headtype)
++					log.Fatalf("unknown TLS base register for %v", ctxt.Headtype)
+ 
+ 				case obj.Hdarwin,
+ 					obj.Hdragonfly,
+@@ -2201,7 +2201,7 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 
+ 			switch ctxt.Headtype {
+ 			default:
+-				log.Fatalf("unknown TLS base register for %s", ctxt.Headtype)
++				log.Fatalf("unknown TLS base register for %v", ctxt.Headtype)
+ 
+ 			case obj.Hlinux:
+ 				if isAndroid {
+@@ -4016,7 +4016,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 						// are handled in prefixof above and should not be listed here.
+ 						switch ctxt.Headtype {
+ 						default:
+-							log.Fatalf("unknown TLS base location for %s", ctxt.Headtype)
++							log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
+ 
+ 						case obj.Hlinux,
+ 							obj.Hnacl:
+@@ -4092,7 +4092,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 
+ 					switch ctxt.Headtype {
+ 					default:
+-						log.Fatalf("unknown TLS base location for %s", ctxt.Headtype)
++						log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
+ 
+ 					case obj.Hlinux:
+ 						if !ctxt.Flag_shared {
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index ba02910812..4b815c771d 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -99,7 +99,7 @@ func archinit(ctxt *ld.Link) {
+ 			ld.Linkmode = ld.LinkInternal
+ 		}
+ 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+-			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headtype)
++			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
+ 		}
+ 
+ 	case obj.Hdarwin,
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index 8e2802ff2d..0b599b4bc1 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -95,7 +95,7 @@ func archinit(ctxt *ld.Link) {
+ 			ld.Linkmode = ld.LinkInternal
+ 		}
+ 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+-			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headtype)
++			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
+ 		}
+ 
+ 	case obj.Hlinux,
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index a20ad5a65f..5ab3262cb6 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -97,7 +97,7 @@ func archinit(ctxt *ld.Link) {
+ 			ld.Linkmode = ld.LinkInternal
+ 		}
+ 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+-			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headtype)
++			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
+ 		}
+ 	case obj.Hlinux, obj.Hdarwin:
+ 		break
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 9d49ed61fb..6496458061 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -429,7 +429,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 			} else if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
+ 				o = r.Add
+ 			} else {
+-				log.Fatalf("unexpected R_TLS_LE relocation for %s", Headtype)
++				log.Fatalf("unexpected R_TLS_LE relocation for %v", Headtype)
+ 			}
+ 
+ 		case obj.R_TLS_IE:
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index b61e120afe..a5e2e6fb9e 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -60,7 +60,7 @@ func linknew(arch *sys.Arch) *Link {
+ func (ctxt *Link) computeTLSOffset() {
+ 	switch Headtype {
+ 	default:
+-		log.Fatalf("unknown thread-local storage offset for %s", Headtype)
++		log.Fatalf("unknown thread-local storage offset for %v", Headtype)
+ 
+ 	case obj.Hplan9, obj.Hwindows, obj.Hwindowsgui:
+ 		break
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 8e7bcef8ec..0750242b76 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -105,7 +105,7 @@ func archinit(ctxt *ld.Link) {
+ 			ld.Linkmode = ld.LinkInternal
+ 		}
+ 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+-			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headtype)
++			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
+ 		}
+ 
+ 	case obj.Hlinux:
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index be99ac39ff..6dd18096ef 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -120,7 +120,7 @@ func archinit(ctxt *ld.Link) {
+ 			ld.Linkmode = ld.LinkInternal
+ 		}
+ 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+-			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headtype)
++			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
+ 		}
+ 
+ 	case obj.Hlinux:
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index d19774795b..773b5c6b8f 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -98,7 +98,7 @@ func archinit(ctxt *ld.Link) {
+ 			ld.Linkmode = ld.LinkInternal
+ 		}
+ 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+-			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headtype)
++			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
+ 		}
+ 
+ 	case obj.Hdarwin,

@@ -14,6 +14,17 @@ Date:   Sun Mar 10 20:36:44 2024 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/all.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/all.bash b/src/all.bash
+index 5f8e8fec63..1b8ca093e4 100755
+--- a/src/all.bash
++++ b/src/all.bash
+@@ -10,4 +10,4 @@ if [ ! -f make.bash ]; then
+ fi
+ . ./make.bash "$@" --no-banner
+ bash run.bash --no-rebuild
+-$GOTOOLDIR/dist banner  # print build info
++"$GOTOOLDIR/dist" banner  # print build info

@@ -13,7 +13,35 @@ Date:   Wed Jun 17 14:48:03 2015 +0200
     Change-Id: If0c3a201a0ac977eee2b7a5dc68930c0c5787f40
     Reviewed-on: https://go-review.googlesource.com/11064
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/image/gif/reader.go      | 3 +++
  src/image/gif/reader_test.go | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/image/gif/reader.go b/src/image/gif/reader.go
+index b71e041e78..80cbccb690 100644
+--- a/src/image/gif/reader.go
++++ b/src/image/gif/reader.go
+@@ -173,6 +173,9 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
+ 					return err
+ 				}
+ 			} else {
++				if d.globalColorTable == nil {
++					return errors.New("gif: no color table")
++				}
+ 				m.Palette = d.globalColorTable
+ 			}
+ 			if d.hasTransparentIndex && int(d.transparentIndex) < len(m.Palette) {
+diff --git a/src/image/gif/reader_test.go b/src/image/gif/reader_test.go
+index 7712d46228..fd0000886c 100644
+--- a/src/image/gif/reader_test.go
++++ b/src/image/gif/reader_test.go
+@@ -217,7 +217,7 @@ func TestNoPalette(t *testing.T) {
+ 
+ 	b.WriteString(trailerStr)
+ 
+-	try(t, b.Bytes(), "gif: invalid pixel value")
++	try(t, b.Bytes(), "gif: no color table")
+ }
+ 
+ func TestPixelOutsidePaletteRange(t *testing.T) {

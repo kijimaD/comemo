@@ -11,7 +11,84 @@ Date:   Fri May 29 17:19:42 2020 -0700
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/database/sql/sql_test.go        | 20 +++++++++++++++-----
  src/runtime/syscall_windows_test.go | 12 +++++++-----
  2 files changed, 22 insertions(+), 10 deletions(-)
+
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 4b02657b7e..c968852ade 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -2888,20 +2888,26 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
+ 			waitingForConn := make(chan struct{})
+ 
+ 			go func() {
++				defer close(afterPutConn)
++
+ 				conn, err := db.conn(ctx, alwaysNewConn)
+-				if err != nil {
+-					t.Fatal(err)
++				if err == nil {
++					db.putConn(conn, err, false)
++				} else {
++					t.Errorf("db.conn: %v", err)
+ 				}
+-				db.putConn(conn, err, false)
+-				close(afterPutConn)
+ 			}()
+ 			go func() {
++				defer close(waitingForConn)
++
+ 				for {
++					if t.Failed() {
++						return
++					}
+ 					db.mu.Lock()
+ 					ct := len(db.connRequests)
+ 					db.mu.Unlock()
+ 					if ct > 0 {
+-						close(waitingForConn)
+ 						return
+ 					}
+ 					time.Sleep(10 * time.Millisecond)
+@@ -2910,6 +2916,10 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
+ 
+ 			<-waitingForConn
+ 
++			if t.Failed() {
++				return
++			}
++
+ 			offsetMu.Lock()
+ 			if ec.expired {
+ 				offset = 11 * time.Second
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 7705d2a017..3827c6ed83 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -1143,17 +1143,19 @@ func BenchmarkSyscallToSyscallPing(b *testing.B) {
+ 	go func() {
+ 		for i := 0; i < n; i++ {
+ 			syscall.WaitForSingleObject(event1, syscall.INFINITE)
+-			err := setEvent(event2)
+-			if err != nil {
+-				b.Fatal(err)
++			if err := setEvent(event2); err != nil {
++				b.Errorf("Set event failed: %v", err)
++				return
+ 			}
+ 		}
+ 	}()
+ 	for i := 0; i < n; i++ {
+-		err := setEvent(event1)
+-		if err != nil {
++		if err := setEvent(event1); err != nil {
+ 			b.Fatal(err)
+ 		}
++		if b.Failed() {
++			break
++		}
+ 		syscall.WaitForSingleObject(event2, syscall.INFINITE)
+ 	}
+ }

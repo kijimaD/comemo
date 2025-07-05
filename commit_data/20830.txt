@@ -17,7 +17,33 @@ Date:   Thu Oct 16 14:58:11 2014 -0400
     TBR=dvyukov
     CC=golang-codereviews
     https://golang.org/cl/153710043
-
+---
  src/runtime/malloc.go           | 2 ++
  src/runtime/pprof/mprof_test.go | 1 +
  2 files changed, 3 insertions(+)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 9b4264f2b3..876a2ddaa7 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -40,6 +40,8 @@ type pageID uintptr
+ // base address for all 0-byte allocations
+ var zerobase uintptr
+ 
++//go:nowritebarrier
++
+ // Allocate an object of size bytes.
+ // Small objects are allocated from the per-P cache's free lists.
+ // Large objects (> 32 kB) are allocated straight from the heap.
+diff --git a/src/runtime/pprof/mprof_test.go b/src/runtime/pprof/mprof_test.go
+index 1880b9a707..76ac02f2b7 100644
+--- a/src/runtime/pprof/mprof_test.go
++++ b/src/runtime/pprof/mprof_test.go
+@@ -52,6 +52,7 @@ func allocatePersistent1K() {
+ var memoryProfilerRun = 0
+ 
+ func TestMemoryProfiler(t *testing.T) {
++	t.Skip("broken test - see issue 8867")
+ 	// Create temp file for the profile.
+ 	f, err := ioutil.TempFile("", "memprof")
+ 	if err != nil {

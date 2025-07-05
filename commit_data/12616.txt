@@ -8,6 +8,29 @@ Date:   Wed Mar 14 04:59:17 2012 +0800
     R=golang-dev, r, r
     CC=golang-dev
     https://golang.org/cl/5808043
-
+---
  src/pkg/fmt/scan_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index 61b48f9cc6..320857b73e 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -810,7 +810,7 @@ func TestMultiLine(t *testing.T) {
+ 	}
+ }
+ 
+-// RecursiveInt accepts an string matching %d.%d.%d....
++// RecursiveInt accepts a string matching %d.%d.%d....
+ // and parses it into a linked list.
+ // It allows us to benchmark recursive descent style scanners.
+ type RecursiveInt struct {
+@@ -826,7 +826,7 @@ func (r *RecursiveInt) Scan(state ScanState, verb rune) (err error) {
+ 	next := new(RecursiveInt)
+ 	_, err = Fscanf(state, ".%v", next)
+ 	if err != nil {
+-		if err == errors.New("input does not match format") || err == io.ErrUnexpectedEOF {
++		if err == io.ErrUnexpectedEOF {
+ 			err = nil
+ 		}
+ 		return

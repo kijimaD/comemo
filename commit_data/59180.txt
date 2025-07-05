@@ -13,10 +13,322 @@ Date:   Wed Feb 21 14:57:02 2024 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/operand.go | 42 ++++++++++----------
  src/cmd/compile/internal/types2/util.go    | 19 ++++++++-
  src/go/types/generate_test.go              | 64 ++++++++++++++++++++----------
  src/go/types/operand.go                    | 37 ++++++++++++++---
  src/go/types/util.go                       |  6 +++
  5 files changed, 120 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 7323b0c385..193231794f 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -11,7 +11,6 @@ import (
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"go/constant"
+-	"go/token"
+ 	. "internal/types/errors"
+ )
+ 
+@@ -109,14 +108,20 @@ func (x *operand) Pos() syntax.Pos {
+ // cgofunc    <expr> (               <mode>       of type <typ>)
+ func operandString(x *operand, qf Qualifier) string {
+ 	// special-case nil
+-	if x.mode == nilvalue {
+-		switch x.typ {
+-		case nil, Typ[Invalid]:
+-			return "nil (with invalid type)"
+-		case Typ[UntypedNil]:
++	if isTypes2 {
++		if x.mode == nilvalue {
++			switch x.typ {
++			case nil, Typ[Invalid]:
++				return "nil (with invalid type)"
++			case Typ[UntypedNil]:
++				return "nil"
++			default:
++				return fmt.Sprintf("nil (of type %s)", TypeString(x.typ, qf))
++			}
++		}
++	} else { // go/types
++		if x.mode == value && x.typ == Typ[UntypedNil] {
+ 			return "nil"
+-		default:
+-			return fmt.Sprintf("nil (of type %s)", TypeString(x.typ, qf))
+ 		}
+ 	}
+ 
+@@ -224,7 +229,7 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
+ 		unreachable()
+ 	}
+ 
+-	val := constant.MakeFromLiteral(lit, kind2tok[k], 0)
++	val := makeFromLiteral(lit, k)
+ 	if val.Kind() == constant.Unknown {
+ 		x.mode = invalid
+ 		x.typ = Typ[Invalid]
+@@ -236,7 +241,13 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
+ }
+ 
+ // isNil reports whether x is the (untyped) nil value.
+-func (x *operand) isNil() bool { return x.mode == nilvalue }
++func (x *operand) isNil() bool {
++	if isTypes2 {
++		return x.mode == nilvalue
++	} else { // go/types
++		return x.mode == value && x.typ == Typ[UntypedNil]
++	}
++}
+ 
+ // assignableTo reports whether x is assignable to a variable of type T. If the
+ // result is false and a non-nil cause is provided, it may be set to a more
+@@ -332,7 +343,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
+ 		return false, IncompatibleAssign
+ 	}
+ 
+-	errorf := func(format string, args ...interface{}) {
++	errorf := func(format string, args ...any) {
+ 		if check != nil && cause != nil {
+ 			msg := check.sprintf(format, args...)
+ 			if *cause != "" {
+@@ -385,12 +396,3 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
+ 
+ 	return false, IncompatibleAssign
+ }
+-
+-// kind2tok translates syntax.LitKinds into token.Tokens.
+-var kind2tok = [...]token.Token{
+-	syntax.IntLit:    token.INT,
+-	syntax.FloatLit:  token.FLOAT,
+-	syntax.ImagLit:   token.IMAG,
+-	syntax.RuneLit:   token.CHAR,
+-	syntax.StringLit: token.STRING,
+-}
+diff --git a/src/cmd/compile/internal/types2/util.go b/src/cmd/compile/internal/types2/util.go
+index 219739fba7..e38966f21a 100644
+--- a/src/cmd/compile/internal/types2/util.go
++++ b/src/cmd/compile/internal/types2/util.go
+@@ -9,7 +9,11 @@
+ 
+ package types2
+ 
+-import "cmd/compile/internal/syntax"
++import (
++	"cmd/compile/internal/syntax"
++	"go/constant"
++	"go/token"
++)
+ 
+ const isTypes2 = true
+ 
+@@ -40,3 +44,16 @@ func ExprString(x syntax.Node) string { return syntax.String(x) }
+ 
+ // endPos returns the position of the first character immediately after node n.
+ func endPos(n syntax.Node) syntax.Pos { return syntax.EndPos(n) }
++
++// makeFromLiteral returns the constant value for the given literal string and kind.
++func makeFromLiteral(lit string, kind syntax.LitKind) constant.Value {
++	return constant.MakeFromLiteral(lit, kind2tok[kind], 0)
++}
++
++var kind2tok = [...]token.Token{
++	syntax.IntLit:    token.INT,
++	syntax.FloatLit:  token.FLOAT,
++	syntax.ImagLit:   token.IMAG,
++	syntax.RuneLit:   token.CHAR,
++	syntax.StringLit: token.STRING,
++}
+diff --git a/src/go/types/generate_test.go b/src/go/types/generate_test.go
+index 1c2a6bc3db..d1b69c383c 100644
+--- a/src/go/types/generate_test.go
++++ b/src/go/types/generate_test.go
+@@ -136,27 +136,37 @@ var filemap = map[string]action{
+ 	"object.go":           func(f *ast.File) { fixTokenPos(f); renameIdents(f, "NewTypeNameLazy->_NewTypeNameLazy") },
+ 	"object_test.go":      func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
+ 	"objset.go":           nil,
+-	"package.go":          nil,
+-	"pointer.go":          nil,
+-	"predicates.go":       nil,
+-	"scope.go":            func(f *ast.File) { fixTokenPos(f); renameIdents(f, "Squash->squash", "InsertLazy->_InsertLazy") },
+-	"selection.go":        nil,
+-	"sizes.go":            func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
+-	"slice.go":            nil,
+-	"subst.go":            func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
+-	"termlist.go":         nil,
+-	"termlist_test.go":    nil,
+-	"tuple.go":            nil,
+-	"typelists.go":        nil,
+-	"typeparam.go":        nil,
+-	"typeterm_test.go":    nil,
+-	"typeterm.go":         nil,
+-	"typestring.go":       nil,
+-	"under.go":            nil,
+-	"unify.go":            fixSprintf,
+-	"universe.go":         fixGlobalTypVarDecl,
+-	"util_test.go":        fixTokenPos,
+-	"validtype.go":        nil,
++	"operand.go": func(f *ast.File) {
++		insertImportPath(f, `"go/token"`)
++		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
++		renameSelectorExprs(f,
++			"syntax.Pos->token.Pos", "syntax.LitKind->token.Token",
++			"syntax.IntLit->token.INT", "syntax.FloatLit->token.FLOAT",
++			"syntax.ImagLit->token.IMAG", "syntax.RuneLit->token.CHAR",
++			"syntax.StringLit->token.STRING") // must happen before renaming identifiers
++		renameIdents(f, "syntax->ast")
++	},
++	"package.go":       nil,
++	"pointer.go":       nil,
++	"predicates.go":    nil,
++	"scope.go":         func(f *ast.File) { fixTokenPos(f); renameIdents(f, "Squash->squash", "InsertLazy->_InsertLazy") },
++	"selection.go":     nil,
++	"sizes.go":         func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
++	"slice.go":         nil,
++	"subst.go":         func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
++	"termlist.go":      nil,
++	"termlist_test.go": nil,
++	"tuple.go":         nil,
++	"typelists.go":     nil,
++	"typeparam.go":     nil,
++	"typeterm_test.go": nil,
++	"typeterm.go":      nil,
++	"typestring.go":    nil,
++	"under.go":         nil,
++	"unify.go":         fixSprintf,
++	"universe.go":      fixGlobalTypVarDecl,
++	"util_test.go":     fixTokenPos,
++	"validtype.go":     nil,
+ }
+ 
+ // TODO(gri) We should be able to make these rewriters more configurable/composable.
+@@ -259,6 +269,18 @@ func renameImportPath(f *ast.File, renames ...string) {
+ 	})
+ }
+ 
++// insertImportPath inserts the given import path.
++// There must be at least one import declaration present already.
++func insertImportPath(f *ast.File, path string) {
++	for _, d := range f.Decls {
++		if g, _ := d.(*ast.GenDecl); g != nil && g.Tok == token.IMPORT {
++			g.Specs = append(g.Specs, &ast.ImportSpec{Path: &ast.BasicLit{ValuePos: g.End(), Kind: token.STRING, Value: path}})
++			return
++		}
++	}
++	panic("no import declaration present")
++}
++
+ // fixTokenPos changes imports of "cmd/compile/internal/syntax" to "go/token",
+ // uses of syntax.Pos to token.Pos, and calls to x.IsKnown() to x.IsValid().
+ func fixTokenPos(f *ast.File) {
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 32bc973ef3..e922ca5cc3 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -1,3 +1,5 @@
++// Code generated by "go test -run=Generate -write=all"; DO NOT EDIT.
++
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -8,6 +10,7 @@ package types
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"go/ast"
+ 	"go/constant"
+ 	"go/token"
+@@ -95,6 +98,9 @@ func (x *operand) Pos() token.Pos {
+ // value      <expr> (<untyped kind> <mode>                    )
+ // value      <expr> (               <mode>       of type <typ>)
+ //
++// nilvalue   untyped nil
++// nilvalue   nil    (                            of type <typ>)
++//
+ // commaok    <expr> (<untyped kind> <mode>                    )
+ // commaok    <expr> (               <mode>       of type <typ>)
+ //
+@@ -105,8 +111,21 @@ func (x *operand) Pos() token.Pos {
+ // cgofunc    <expr> (               <mode>       of type <typ>)
+ func operandString(x *operand, qf Qualifier) string {
+ 	// special-case nil
+-	if x.mode == value && x.typ == Typ[UntypedNil] {
+-		return "nil"
++	if isTypes2 {
++		if x.mode == nilvalue {
++			switch x.typ {
++			case nil, Typ[Invalid]:
++				return "nil (with invalid type)"
++			case Typ[UntypedNil]:
++				return "nil"
++			default:
++				return fmt.Sprintf("nil (of type %s)", TypeString(x.typ, qf))
++			}
++		}
++	} else { // go/types
++		if x.mode == value && x.typ == Typ[UntypedNil] {
++			return "nil"
++		}
+ 	}
+ 
+ 	var buf bytes.Buffer
+@@ -196,9 +215,9 @@ func (x *operand) String() string {
+ }
+ 
+ // setConst sets x to the untyped constant for literal lit.
+-func (x *operand) setConst(tok token.Token, lit string) {
++func (x *operand) setConst(k token.Token, lit string) {
+ 	var kind BasicKind
+-	switch tok {
++	switch k {
+ 	case token.INT:
+ 		kind = UntypedInt
+ 	case token.FLOAT:
+@@ -213,7 +232,7 @@ func (x *operand) setConst(tok token.Token, lit string) {
+ 		unreachable()
+ 	}
+ 
+-	val := constant.MakeFromLiteral(lit, tok, 0)
++	val := makeFromLiteral(lit, k)
+ 	if val.Kind() == constant.Unknown {
+ 		x.mode = invalid
+ 		x.typ = Typ[Invalid]
+@@ -225,7 +244,13 @@ func (x *operand) setConst(tok token.Token, lit string) {
+ }
+ 
+ // isNil reports whether x is the (untyped) nil value.
+-func (x *operand) isNil() bool { return x.mode == value && x.typ == Typ[UntypedNil] }
++func (x *operand) isNil() bool {
++	if isTypes2 {
++		return x.mode == nilvalue
++	} else { // go/types
++		return x.mode == value && x.typ == Typ[UntypedNil]
++	}
++}
+ 
+ // assignableTo reports whether x is assignable to a variable of type T. If the
+ // result is false and a non-nil cause is provided, it may be set to a more
+diff --git a/src/go/types/util.go b/src/go/types/util.go
+index ef6ce12c51..faddf13114 100644
+--- a/src/go/types/util.go
++++ b/src/go/types/util.go
+@@ -11,6 +11,7 @@ package types
+ 
+ import (
+ 	"go/ast"
++	"go/constant"
+ 	"go/token"
+ )
+ 
+@@ -37,3 +38,8 @@ func argErrPos(call *ast.CallExpr) positioner { return inNode(call, call.Rparen)
+ 
+ // endPos returns the position of the first character immediately after node n.
+ func endPos(n ast.Node) token.Pos { return n.End() }
++
++// makeFromLiteral returns the constant value for the given literal string and kind.
++func makeFromLiteral(lit string, kind token.Token) constant.Value {
++	return constant.MakeFromLiteral(lit, kind, 0)
++}

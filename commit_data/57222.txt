@@ -22,8 +22,52 @@ Date:   Mon Jul 10 22:22:15 2023 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/internal/bytealg/indexbyte_amd64.s    | 2 ++
  src/internal/bytealg/indexbyte_generic.go | 6 +++++-
  src/internal/bytealg/indexbyte_native.go  | 2 +-
  3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/bytealg/indexbyte_amd64.s b/src/internal/bytealg/indexbyte_amd64.s
+index 1ca70e39e2..0f07121a8c 100644
+--- a/src/internal/bytealg/indexbyte_amd64.s
++++ b/src/internal/bytealg/indexbyte_amd64.s
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !plan9
++
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+diff --git a/src/internal/bytealg/indexbyte_generic.go b/src/internal/bytealg/indexbyte_generic.go
+index b89d34ff23..b7fffcf460 100644
+--- a/src/internal/bytealg/indexbyte_generic.go
++++ b/src/internal/bytealg/indexbyte_generic.go
+@@ -2,7 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !386 && !amd64 && !s390x && !arm && !arm64 && !loong64 && !ppc64 && !ppc64le && !mips && !mipsle && !mips64 && !mips64le && !riscv64 && !wasm
++// Avoid IndexByte and IndexByteString on Plan 9 because it uses
++// SSE instructions on x86 machines, and those are classified as
++// floating point instructions, which are illegal in a note handler.
++
++//go:build !386 && (!amd64 || plan9) && !s390x && !arm && !arm64 && !loong64 && !ppc64 && !ppc64le && !mips && !mipsle && !mips64 && !mips64le && !riscv64 && !wasm
+ 
+ package bytealg
+ 
+diff --git a/src/internal/bytealg/indexbyte_native.go b/src/internal/bytealg/indexbyte_native.go
+index c5bb2df5ea..8e46c31ff6 100644
+--- a/src/internal/bytealg/indexbyte_native.go
++++ b/src/internal/bytealg/indexbyte_native.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build 386 || amd64 || s390x || arm || arm64 || loong64 || ppc64 || ppc64le || mips || mipsle || mips64 || mips64le || riscv64 || wasm
++//go:build 386 || (amd64 && !plan9) || s390x || arm || arm64 || loong64 || ppc64 || ppc64le || mips || mipsle || mips64 || mips64le || riscv64 || wasm
+ 
+ package bytealg
+ 

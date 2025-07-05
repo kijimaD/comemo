@@ -9,6 +9,39 @@ Date:   Wed Feb 27 17:25:28 2019 +0100
     Change-Id: I379e78a1c385942a19e1a10b91d732f9a73899e6
     Reviewed-on: https://go-review.googlesource.com/c/164041
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 58f9a585ed..3b6131b331 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -73,6 +73,13 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.4+labe
+ 1.11.4 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.11.5 (released 2019/01/23) includes a security fix to the
++<code>crypto/elliptic</code> package.  See
++the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.5">Go
++1.11.5 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.10">go1.10 (released 2018/02/16)</h2>
+ 
+ <p>
+@@ -138,6 +145,13 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.10.7+labe
+ Go 1.10.7 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.10.8 (released 2019/01/23) includes a security fix to the
++<code>crypto/elliptic</code> package.  See
++the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.10.8">Go
++1.10.8 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.9">go1.9 (released 2017/08/24)</h2>
+ 
+ <p>

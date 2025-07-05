@@ -20,9 +20,164 @@ Date:   Mon Sep 28 17:42:30 2020 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/ssa/func.go     |  3 +++
  src/cmd/compile/internal/ssa/location.go | 26 +++++++++++++++++++
  src/cmd/internal/obj/link.go             | 44 +++++++++++++++++++++++++++++---
  src/cmd/internal/obj/x86/obj6.go         | 10 +++++---
  4 files changed, 76 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index e6c4798a78..f753b4407b 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -58,6 +58,9 @@ type Func struct {
+ 	// of keys to make iteration order deterministic.
+ 	Names []LocalSlot
+ 
++	// RegArgs is a slice of register-memory pairs that must be spilled and unspilled in the uncommon path of function entry.
++	RegArgs []ArgPair
++
+ 	// WBLoads is a list of Blocks that branch on the write
+ 	// barrier flag. Safe-points are disabled from the OpLoad that
+ 	// reads the write-barrier flag until the control flow rejoins
+diff --git a/src/cmd/compile/internal/ssa/location.go b/src/cmd/compile/internal/ssa/location.go
+index 69f90d9ab4..4cd0ac8d77 100644
+--- a/src/cmd/compile/internal/ssa/location.go
++++ b/src/cmd/compile/internal/ssa/location.go
+@@ -87,3 +87,29 @@ func (t LocPair) String() string {
+ 	}
+ 	return fmt.Sprintf("<%s,%s>", n0, n1)
+ }
++
++type ArgPair struct {
++	reg *Register
++	mem LocalSlot
++}
++
++func (ap *ArgPair) Reg() int16 {
++	return ap.reg.objNum
++}
++
++func (ap *ArgPair) Type() *types.Type {
++	return ap.mem.Type
++}
++
++func (ap *ArgPair) Mem() *LocalSlot {
++	return &ap.mem
++}
++
++func (t ArgPair) String() string {
++	n0 := "nil"
++	if t.reg != nil {
++		n0 = t.reg.String()
++	}
++	n1 := t.mem.String()
++	return fmt.Sprintf("<%s,%s>", n0, n1)
++}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 977c5c3303..7ba8c6d317 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -766,6 +766,17 @@ type Auto struct {
+ 	Gotype  *LSym
+ }
+ 
++// RegArg provides spill/fill information for a register-resident argument
++// to a function.  These need spilling/filling in the safepoint/stackgrowth case.
++// At the time of fill/spill, the offset must be adjusted by the architecture-dependent
++// adjustment to hardware SP that occurs in a call instruction.  E.g., for AMD64,
++// at Offset+8 because the return address was pushed.
++type RegArg struct {
++	Addr           Addr
++	Reg            int16
++	Spill, Unspill As
++}
++
+ // Link holds the context for writing object code from a compiler
+ // to be linker input or for reading that input into the linker.
+ type Link struct {
+@@ -796,10 +807,11 @@ type Link struct {
+ 	DebugInfo          func(fn *LSym, info *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
+ 	GenAbstractFunc    func(fn *LSym)
+ 	Errors             int
++	RegArgs            []RegArg
+ 
+-	InParallel    bool // parallel backend phase in effect
+-	UseBASEntries bool // use Base Address Selection Entries in location lists and PC ranges
+-	IsAsm         bool // is the source assembly language, which may contain surprising idioms (e.g., call tables)
++	InParallel      bool // parallel backend phase in effect
++	UseBASEntries   bool // use Base Address Selection Entries in location lists and PC ranges
++	IsAsm           bool // is the source assembly language, which may contain surprising idioms (e.g., call tables)
+ 
+ 	// state for writing objects
+ 	Text []*LSym
+@@ -844,6 +856,32 @@ func (ctxt *Link) Logf(format string, args ...interface{}) {
+ 	ctxt.Bso.Flush()
+ }
+ 
++func (ctxt *Link) SpillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
++	// Spill register args.
++	for _, ra := range ctxt.RegArgs {
++		spill := Appendp(last, pa)
++		spill.As = ra.Spill
++		spill.From.Type = TYPE_REG
++		spill.From.Reg = ra.Reg
++		spill.To = ra.Addr
++		last = spill
++	}
++	return last
++}
++
++func (ctxt *Link) UnspillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
++	// Unspill any spilled register args
++	for _, ra := range ctxt.RegArgs {
++		unspill := Appendp(last, pa)
++		unspill.As = ra.Unspill
++		unspill.From = ra.Addr
++		unspill.To.Type = TYPE_REG
++		unspill.To.Reg = ra.Reg
++		last = unspill
++	}
++	return last
++}
++
+ // The smallest possible offset from the hardware stack pointer to a local
+ // variable on the stack. Architectures that use a link register save its value
+ // on the stack in the function prologue and so always have a pointer between
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 839aeb8fe3..1674db626f 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1114,7 +1114,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 	spfix.Spadj = -framesize
+ 
+ 	pcdata := ctxt.EmitEntryStackMap(cursym, spfix, newprog)
+-	pcdata = ctxt.StartUnsafePoint(pcdata, newprog)
++	spill := ctxt.StartUnsafePoint(pcdata, newprog)
++	pcdata = ctxt.SpillRegisterArgs(spill, newprog)
+ 
+ 	call := obj.Appendp(pcdata, newprog)
+ 	call.Pos = cursym.Func().Text.Pos
+@@ -1139,7 +1140,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 		progedit(ctxt, callend.Link, newprog)
+ 	}
+ 
+-	pcdata = ctxt.EndUnsafePoint(callend, newprog, -1)
++	pcdata = ctxt.UnspillRegisterArgs(callend, newprog)
++	pcdata = ctxt.EndUnsafePoint(pcdata, newprog, -1)
+ 
+ 	jmp := obj.Appendp(pcdata, newprog)
+ 	jmp.As = obj.AJMP
+@@ -1147,9 +1149,9 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 	jmp.To.SetTarget(cursym.Func().Text.Link)
+ 	jmp.Spadj = +framesize
+ 
+-	jls.To.SetTarget(call)
++	jls.To.SetTarget(spill)
+ 	if q1 != nil {
+-		q1.To.SetTarget(call)
++		q1.To.SetTarget(spill)
+ 	}
+ 
+ 	return end

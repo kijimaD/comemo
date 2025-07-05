@@ -12,7 +12,47 @@ Date:   Wed May 25 14:08:13 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go    | 9 ++++++++-
  src/cmd/compile/internal/gc/syntax.go | 2 +-
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 9cf0fbd413..cbc4c93a13 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -886,13 +886,20 @@ func stmtfmt(n *Node) string {
+ 
+ 		f += fmt.Sprintf(" { %v }", n.List)
+ 
+-	case OCASE, OXCASE:
++	case OXCASE:
+ 		if n.List.Len() != 0 {
+ 			f += fmt.Sprintf("case %v: %v", hconv(n.List, FmtComma), n.Nbody)
+ 		} else {
+ 			f += fmt.Sprintf("default: %v", n.Nbody)
+ 		}
+ 
++	case OCASE:
++		if n.Left != nil {
++			f += fmt.Sprintf("case %v: %v", n.Left, n.Nbody)
++		} else {
++			f += fmt.Sprintf("default: %v", n.Nbody)
++		}
++
+ 	case OBREAK,
+ 		OCONTINUE,
+ 		OGOTO,
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index b02c70eb94..3608d17c34 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -425,7 +425,7 @@ const (
+ 	// statements
+ 	OBLOCK    // { List } (block of code)
+ 	OBREAK    // break
+-	OCASE     // case List: Nbody (select case after processing; List==nil means default)
++	OCASE     // case Left: Nbody (select case after processing; Left==nil means default)
+ 	OXCASE    // case List: Nbody (select case before processing; List==nil means default)
+ 	OCONTINUE // continue
+ 	ODEFER    // defer Left (Left must be call)

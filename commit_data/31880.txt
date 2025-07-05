@@ -15,6 +15,20 @@ Date:   Tue Mar 21 22:07:23 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/internal/obj/pass.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/pass.go b/src/cmd/internal/obj/pass.go
+index dbc437deb5..644f42cab0 100644
+--- a/src/cmd/internal/obj/pass.go
++++ b/src/cmd/internal/obj/pass.go
+@@ -142,8 +142,6 @@ func linkpatch(ctxt *Link, sym *LSym) {
+ 	var name string
+ 	var q *Prog
+ 
+-	ctxt.Cursym = sym
+-
+ 	for p := sym.Text; p != nil; p = p.Link {
+ 		checkaddr(ctxt, p, &p.From)
+ 		if p.From3 != nil {

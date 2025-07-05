@@ -28,6 +28,19 @@ Date:   Tue Jul 13 23:05:17 2021 +0900
     Trust: Richard Musiol <neelance@gmail.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  misc/wasm/wasm_exec.js | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 231185a123..22b19fbe80 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -1,6 +1,7 @@
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++"use strict";
+ 
+ (() => {
+ 	// Map multiple JavaScript environments to a single common API,

@@ -11,7 +11,34 @@ Date:   Fri Jun 26 12:09:45 2015 +0200
     Change-Id: If13d0da4c0e7831b2bd92c45116c2412a2a965f5
     Reviewed-on: https://go-review.googlesource.com/11550
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa.go | 2 +-
  src/crypto/x509/sec1.go   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index d003f9d0b3..8d66477fd1 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -14,7 +14,7 @@ package ecdsa
+ //   [NSA]: Suite B implementer's guide to FIPS 186-3,
+ //     http://www.nsa.gov/ia/_files/ecdsa.pdf
+ //   [SECG]: SECG, SEC1
+-//     http://www.secg.org/download/aid-780/sec1-v2.pdf
++//     http://www.secg.org/sec1-v2.pdf
+ 
+ import (
+ 	"crypto"
+diff --git a/src/crypto/x509/sec1.go b/src/crypto/x509/sec1.go
+index 7de66754ee..c4d7ab68f7 100644
+--- a/src/crypto/x509/sec1.go
++++ b/src/crypto/x509/sec1.go
+@@ -18,7 +18,7 @@ const ecPrivKeyVersion = 1
+ // ecPrivateKey reflects an ASN.1 Elliptic Curve Private Key Structure.
+ // References:
+ //   RFC5915
+-//   SEC1 - http://www.secg.org/download/aid-780/sec1-v2.pdf
++//   SEC1 - http://www.secg.org/sec1-v2.pdf
+ // Per RFC5915 the NamedCurveOID is marked as ASN.1 OPTIONAL, however in
+ // most cases it is not.
+ type ecPrivateKey struct {

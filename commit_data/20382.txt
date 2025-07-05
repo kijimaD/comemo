@@ -8,8 +8,48 @@ Date:   Thu Sep 4 11:31:39 2014 +0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/140220043
-
+---
  src/pkg/runtime/defs_netbsd_386.h   | 2 +-
  src/pkg/runtime/defs_netbsd_amd64.h | 2 +-
  src/pkg/runtime/defs_netbsd_arm.h   | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_netbsd_386.h b/src/pkg/runtime/defs_netbsd_386.h
+index 53d4b30bb7..fd87804f90 100644
+--- a/src/pkg/runtime/defs_netbsd_386.h
++++ b/src/pkg/runtime/defs_netbsd_386.h
+@@ -149,7 +149,7 @@ struct KeventT {
+ 	uint32	flags;
+ 	uint32	fflags;
+ 	int64	data;
+-	int32	udata;
++	byte	*udata;
+ };
+ 
+ 
+diff --git a/src/pkg/runtime/defs_netbsd_amd64.h b/src/pkg/runtime/defs_netbsd_amd64.h
+index 6227575c92..dac94b113b 100644
+--- a/src/pkg/runtime/defs_netbsd_amd64.h
++++ b/src/pkg/runtime/defs_netbsd_amd64.h
+@@ -154,7 +154,7 @@ struct KeventT {
+ 	uint32	fflags;
+ 	byte	Pad_cgo_0[4];
+ 	int64	data;
+-	int64	udata;
++	byte	*udata;
+ };
+ 
+ 
+diff --git a/src/pkg/runtime/defs_netbsd_arm.h b/src/pkg/runtime/defs_netbsd_arm.h
+index 115fa439a6..70f34af47b 100644
+--- a/src/pkg/runtime/defs_netbsd_arm.h
++++ b/src/pkg/runtime/defs_netbsd_arm.h
+@@ -153,7 +153,7 @@ struct KeventT {
+ 	uint32	flags;
+ 	uint32	fflags;
+ 	int64	data;
+-	int32	udata;
++	byte	*udata;
+ };
+ 
+ 

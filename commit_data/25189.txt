@@ -7,6 +7,31 @@ Date:   Sat Oct 3 21:23:23 2015 -0400
     Change-Id: I772d1bc3e394cdd707f210f2aaff77100d299e24
     Reviewed-on: https://go-review.googlesource.com/15380
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/fixedbugs/issue10975.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/test/fixedbugs/issue10975.go b/test/fixedbugs/issue10975.go
+index 0a4b7be2a8..1aa7d89177 100644
+--- a/test/fixedbugs/issue10975.go
++++ b/test/fixedbugs/issue10975.go
+@@ -4,16 +4,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Issue 10975: Returning an invalid interface would cause 
+-// `internal compiler error: getinarg: not a func`. 
++// Issue 10975: Returning an invalid interface would cause
++// `internal compiler error: getinarg: not a func`.
+ 
+ package main
+ 
+ type I interface {
+-	int	// ERROR "interface contains embedded non-interface int"
++	int // ERROR "interface contains embedded non-interface int"
+ }
+ 
+ func New() I {
+ 	return struct{}{}
+ }
+-

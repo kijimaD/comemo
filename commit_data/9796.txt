@@ -9,6 +9,20 @@ Date:   Mon Sep 26 12:54:30 2011 -0400
     R=dvyukov, r
     CC=golang-dev
     https://golang.org/cl/5083044
-
+---
  doc/go_mem.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index a388283588..45ee0f53f2 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -54,7 +54,7 @@ if both of the following hold:
+ </p>
+ 
+ <ol>
+-<li><span class="event">w</span> happens before <span class="event">r</span>.</li>
++<li><span class="event">r</span> does not happen before <span class="event">w</span>.</li>
+ <li>There is no other write <span class="event">w'</span> to <code>v</code> that happens
+     after <span class="event">w</span> but before <span class="event">r</span>.</li>
+ </ol>

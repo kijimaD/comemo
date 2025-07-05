@@ -13,7 +13,71 @@ Date:   Sat Nov 13 13:57:48 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/index.go               |  9 ++++++---
  .../compile/internal/types2/testdata/check/expr3.src   | 18 +++++++++---------
  2 files changed, 15 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index c773ae8ad3..4995d2d730 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -309,9 +309,12 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ L:
+ 	for i, x := range ind[:len(ind)-1] {
+ 		if x > 0 {
+-			for _, y := range ind[i+1:] {
+-				if y >= 0 && x > y {
+-					check.errorf(e, "invalid slice indices: %d > %d", x, y)
++			for j, y := range ind[i+1:] {
++				if y >= 0 && y < x {
++					// The value y corresponds to the expression e.Index[i+1+j].
++					// Because y >= 0, it must have been set from the expression
++					// when checking indices and thus e.Index[i+1+j] is not nil.
++					check.errorf(e.Index[i+1+j], "invalid slice indices: %d < %d", y, x)
+ 					break L // only report one error, ok to continue
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/expr3.src b/src/cmd/compile/internal/types2/testdata/check/expr3.src
+index 523214461f..0d7bbae9f9 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/expr3.src
++++ b/src/cmd/compile/internal/types2/testdata/check/expr3.src
+@@ -45,9 +45,9 @@ func indexes() {
+ 	_ = a[:10:10]
+ 	_ = a[:11 /* ERROR "index .* out of bounds" */ :10]
+ 	_ = a[:10:11 /* ERROR "index .* out of bounds" */ ]
+-	_ = a[10:0:10] /* ERROR "invalid slice indices" */
+-	_ = a[0:10:0] /* ERROR "invalid slice indices" */
+-	_ = a[10:0:0] /* ERROR "invalid slice indices" */
++	_ = a[10:0 /* ERROR "invalid slice indices" */ :10]
++	_ = a[0:10:0 /* ERROR "invalid slice indices" */ ]
++	_ = a[10:0 /* ERROR "invalid slice indices" */:0]
+ 	_ = &a /* ERROR "cannot take address" */ [:10]
+ 
+ 	pa := &a
+@@ -63,9 +63,9 @@ func indexes() {
+ 	_ = pa[:10:10]
+ 	_ = pa[:11 /* ERROR "index .* out of bounds" */ :10]
+ 	_ = pa[:10:11 /* ERROR "index .* out of bounds" */ ]
+-	_ = pa[10:0:10] /* ERROR "invalid slice indices" */
+-	_ = pa[0:10:0] /* ERROR "invalid slice indices" */
+-	_ = pa[10:0:0] /* ERROR "invalid slice indices" */
++	_ = pa[10:0 /* ERROR "invalid slice indices" */ :10]
++	_ = pa[0:10:0 /* ERROR "invalid slice indices" */ ]
++	_ = pa[10:0 /* ERROR "invalid slice indices" */ :0]
+ 	_ = &pa /* ERROR "cannot take address" */ [:10]
+ 
+ 	var b [0]int
+@@ -90,9 +90,9 @@ func indexes() {
+ 	_ = s[1 /* ERROR "overflows" */ <<100 : 1 /* ERROR "overflows" */ <<100]
+ 	_ = s[: /* ERROR "middle index required" */ :  /* ERROR "final index required" */ ]
+ 	_ = s[:10:10]
+-	_ = s[10:0:10] /* ERROR "invalid slice indices" */
+-	_ = s[0:10:0] /* ERROR "invalid slice indices" */
+-	_ = s[10:0:0] /* ERROR "invalid slice indices" */
++	_ = s[10:0 /* ERROR "invalid slice indices" */ :10]
++	_ = s[0:10:0 /* ERROR "invalid slice indices" */ ]
++	_ = s[10:0 /* ERROR "invalid slice indices" */ :0]
+ 	_ = &s /* ERROR "cannot take address" */ [:10]
+ 
+ 	var m map[string]int

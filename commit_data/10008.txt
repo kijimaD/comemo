@@ -7,6 +7,28 @@ Date:   Mon Oct 17 14:18:21 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5266046
-
+---
  src/cmd/Makefile | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/Makefile b/src/cmd/Makefile
+index 42088fdf11..8761a0bf86 100644
+--- a/src/cmd/Makefile
++++ b/src/cmd/Makefile
+@@ -48,6 +48,7 @@ CLEANDIRS=\
+ 
+ install: $(patsubst %,%.install,$(DIRS))
+ clean: $(patsubst %,%.clean,$(CLEANDIRS))
++nuke: $(patsubst %,%.nuke,$(CLEANDIRS))
+ 
+ %.install:
+ 	@echo
+@@ -62,5 +63,8 @@ $(O)a.install $(O)c.install $(O)g.install: $(O)l.install
+ %.clean:
+ 	$(MAKE) -C $* clean
+ 
++%.nuke:
++	$(MAKE) -C $* nuke
++
+ echo-dirs:
+ 	@echo $(DIRS)

@@ -13,8 +13,62 @@ Date:   Tue Nov 16 21:59:15 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/stmt.go |  8 +++++---
  test/fixedbugs/issue49611.go           | 11 +++++++++++
  test/typeparam/issue49611.go           | 11 +++++++++++
  3 files changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stmt.go b/src/cmd/compile/internal/noder/stmt.go
+index e329a59156..1e996b95c4 100644
+--- a/src/cmd/compile/internal/noder/stmt.go
++++ b/src/cmd/compile/internal/noder/stmt.go
+@@ -46,9 +46,11 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 		n.SetTypecheck(1)
+ 		return n
+ 	case *syntax.DeclStmt:
+-		if _, ok := stmt.DeclList[0].(*syntax.TypeDecl); ok && g.topFuncIsGeneric {
+-			// TODO: remove this restriction. See issue 47631.
+-			base.ErrorfAt(g.pos(stmt), "type declarations inside generic functions are not currently supported")
++		if g.topFuncIsGeneric && len(stmt.DeclList) > 0 {
++			if _, ok := stmt.DeclList[0].(*syntax.TypeDecl); ok {
++				// TODO: remove this restriction. See issue 47631.
++				base.ErrorfAt(g.pos(stmt), "type declarations inside generic functions are not currently supported")
++			}
+ 		}
+ 		n := ir.NewBlockStmt(g.pos(stmt), nil)
+ 		g.decls(&n.List, stmt.DeclList)
+diff --git a/test/fixedbugs/issue49611.go b/test/fixedbugs/issue49611.go
+new file mode 100644
+index 0000000000..b40ad58649
+--- /dev/null
++++ b/test/fixedbugs/issue49611.go
+@@ -0,0 +1,11 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	var ()
++}
+diff --git a/test/typeparam/issue49611.go b/test/typeparam/issue49611.go
+new file mode 100644
+index 0000000000..96c651e2b5
+--- /dev/null
++++ b/test/typeparam/issue49611.go
+@@ -0,0 +1,11 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f[T any]() {
++	var ()
++}

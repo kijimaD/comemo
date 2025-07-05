@@ -7,6 +7,30 @@ Date:   Wed May 6 16:25:15 2015 -0700
     Change-Id: If53563f3477222fe7409011b8780bb0926567251
     Reviewed-on: https://go-review.googlesource.com/9767
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/cgo/out.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 22217a7b77..513b0ed001 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1325,6 +1325,9 @@ func (p *Package) gccExportHeaderProlog() string {
+ const gccExportHeaderProlog = `
+ /* Start of boilerplate cgo prologue.  */
+ 
++#ifndef GO_CGO_PROLOGUE_H
++#define GO_CGO_PROLOGUE_H
++
+ typedef signed char GoInt8;
+ typedef unsigned char GoUint8;
+ typedef short GoInt16;
+@@ -1351,6 +1354,8 @@ typedef void *GoChan;
+ typedef struct { void *t; void *v; } GoInterface;
+ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
+ 
++#endif
++
+ /* End of boilerplate cgo prologue.  */
+ `
+ 

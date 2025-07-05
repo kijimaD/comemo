@@ -11,6 +11,24 @@ Date:   Thu Dec 1 23:20:03 2016 +0530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/bug.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/bug.go b/src/cmd/go/bug.go
+index 2977c94c14..cbd258b80b 100644
+--- a/src/cmd/go/bug.go
++++ b/src/cmd/go/bug.go
+@@ -42,7 +42,11 @@ func runBug(cmd *Command, args []string) {
+ 	env := newEnv
+ 	env = append(env, extraEnvVars()...)
+ 	for _, e := range env {
+-		fmt.Fprintf(&buf, "%s=\"%s\"\n", e.name, e.value)
++		// Hide the TERM environment variable from "go bug".
++		// See issue #18128
++		if e.name != "TERM" {
++			fmt.Fprintf(&buf, "%s=\"%s\"\n", e.name, e.value)
++		}
+ 	}
+ 	printGoDetails(&buf)
+ 	printOSDetails(&buf)

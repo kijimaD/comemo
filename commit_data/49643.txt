@@ -21,6 +21,21 @@ Date:   Thu Sep 2 11:06:27 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/run.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/run.go b/test/run.go
+index 3759059c95..ddce94d7cc 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -759,7 +759,8 @@ func (t *test) run() {
+ 			}
+ 		}
+ 
+-		if hasGFlag && t.glevel != CompilerDefaultGLevel {
++		// In unified IR mode, run the test regardless of explicit -G flag.
++		if !unifiedEnabled && hasGFlag && t.glevel != CompilerDefaultGLevel {
+ 			// test provides explicit -G flag already; don't run again
+ 			if *verbose {
+ 				fmt.Printf("excl\t%s\n", t.goFileName())

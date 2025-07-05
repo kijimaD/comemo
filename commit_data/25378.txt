@@ -9,7 +9,7 @@ Date:   Tue Jun 9 15:24:38 2015 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/asm_386.s           | 10 ++++++----
  src/runtime/asm_amd64.s         | 15 +++++++++------
  src/runtime/rt0_plan9_386.s     |  2 --
@@ -19,3 +19,135 @@ Date:   Tue Jun 9 15:24:38 2015 -0700
  src/runtime/rt0_windows_amd64.s |  3 ---
  src/runtime/runtime1.go         |  7 -------
  8 files changed, 15 insertions(+), 31 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index fa7485367f..d423df7924 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -67,13 +67,15 @@ nocpuinfo:
+ 	MOVL	AX, g_stackguard0(CX)
+ 	MOVL	AX, g_stackguard1(CX)
+ 
++#ifndef GOOS_windows
+ 	// skip runtime·ldt0setup(SB) and tls test after _cgo_init for non-windows
+-	CMPL runtime·iswindows(SB), $0
+-	JEQ ok
++	JMP ok
++#endif
+ needtls:
++#ifdef GOOS_plan9
+ 	// skip runtime·ldt0setup(SB) and tls test on Plan 9 in all cases
+-	CMPL	runtime·isplan9(SB), $1
+-	JEQ	ok
++	JMP	ok
++#endif
+ 
+ 	// set up %gs
+ 	CALL	runtime·ldt0setup(SB)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 39602ec7dc..454789c509 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -65,15 +65,18 @@ nocpuinfo:
+ 	MOVQ	AX, g_stackguard0(CX)
+ 	MOVQ	AX, g_stackguard1(CX)
+ 
+-	CMPL	runtime·iswindows(SB), $0
+-	JEQ ok
++#ifndef GOOS_windows
++	JMP ok
++#endif
+ needtls:
++#ifdef GOOS_plan9
+ 	// skip TLS setup on Plan 9
+-	CMPL	runtime·isplan9(SB), $1
+-	JEQ ok
++	JMP ok
++#endif
++#ifdef GOOS_solaris
+ 	// skip TLS setup on Solaris
+-	CMPL	runtime·issolaris(SB), $1
+-	JEQ ok
++	JMP ok
++#endif
+ 
+ 	LEAQ	runtime·tls0(SB), DI
+ 	CALL	runtime·settls(SB)
+diff --git a/src/runtime/rt0_plan9_386.s b/src/runtime/rt0_plan9_386.s
+index c451299eec..cbbf245632 100644
+--- a/src/runtime/rt0_plan9_386.s
++++ b/src/runtime/rt0_plan9_386.s
+@@ -16,8 +16,6 @@ TEXT _rt0_386_plan9(SB),NOSPLIT,$12
+ 	MOVL	AX, 4(SP)
+ 	CALL	runtime·rt0_go(SB)
+ 
+-DATA  runtime·isplan9(SB)/4, $1
+-GLOBL runtime·isplan9(SB), NOPTR, $4
+ GLOBL _tos(SB), NOPTR, $4
+ GLOBL _privates(SB), NOPTR, $4
+ GLOBL _nprivates(SB), NOPTR, $4
+diff --git a/src/runtime/rt0_plan9_amd64.s b/src/runtime/rt0_plan9_amd64.s
+index ec2d9ec827..6fd493a508 100644
+--- a/src/runtime/rt0_plan9_amd64.s
++++ b/src/runtime/rt0_plan9_amd64.s
+@@ -14,8 +14,6 @@ TEXT _rt0_amd64_plan9(SB),NOSPLIT,$24
+ 	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+ 
+-DATA runtime·isplan9(SB)/4, $1
+-GLOBL runtime·isplan9(SB), NOPTR, $4
+ GLOBL _tos(SB), NOPTR, $8
+ GLOBL _privates(SB), NOPTR, $8
+ GLOBL _nprivates(SB), NOPTR, $4
+diff --git a/src/runtime/rt0_solaris_amd64.s b/src/runtime/rt0_solaris_amd64.s
+index 5997cbf8e3..e2d1e71bb4 100644
+--- a/src/runtime/rt0_solaris_amd64.s
++++ b/src/runtime/rt0_solaris_amd64.s
+@@ -13,6 +13,3 @@ TEXT _rt0_amd64_solaris(SB),NOSPLIT,$-8
+ TEXT main(SB),NOSPLIT,$-8
+ 	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+-
+-DATA runtime·issolaris(SB)/4, $1
+-GLOBL runtime·issolaris(SB), NOPTR, $4
+diff --git a/src/runtime/rt0_windows_386.s b/src/runtime/rt0_windows_386.s
+index 03f95d12ec..0150cc2918 100644
+--- a/src/runtime/rt0_windows_386.s
++++ b/src/runtime/rt0_windows_386.s
+@@ -14,7 +14,3 @@ TEXT _rt0_386_windows(SB),NOSPLIT,$12
+ 
+ TEXT _main(SB),NOSPLIT,$0
+ 	JMP	runtime·rt0_go(SB)
+-
+-
+-DATA  runtime·iswindows(SB)/4, $1
+-GLOBL runtime·iswindows(SB), NOPTR, $4
+diff --git a/src/runtime/rt0_windows_amd64.s b/src/runtime/rt0_windows_amd64.s
+index df956ba36e..95dce06d71 100644
+--- a/src/runtime/rt0_windows_amd64.s
++++ b/src/runtime/rt0_windows_amd64.s
+@@ -15,6 +15,3 @@ TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
+ TEXT main(SB),NOSPLIT,$-8
+ 	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+-
+-DATA  runtime·iswindows(SB)/4, $1
+-GLOBL runtime·iswindows(SB), NOPTR, $4
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 134c999088..e476bca8e5 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -51,13 +51,6 @@ func args(c int32, v **byte) {
+ 	sysargs(c, v)
+ }
+ 
+-var (
+-	// TODO: Retire in favor of GOOS== checks.
+-	isplan9   int32
+-	issolaris int32
+-	iswindows int32
+-)
+-
+ func goargs() {
+ 	if GOOS == "windows" {
+ 		return

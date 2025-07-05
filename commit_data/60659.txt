@@ -12,7 +12,7 @@ Date:   Tue Aug 6 21:22:57 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/poll/sendfile_solaris.go |  11 +-
  src/net/cgo_solaris.go                |   2 +-
  src/os/readfrom_linux_test.go         | 400 +----------------------------
@@ -24,3 +24,1301 @@ Date:   Tue Aug 6 21:22:57 2024 +0800
  src/os/zero_copy_solaris.go           | 111 +++++++++
  src/os/zero_copy_stub.go              |   2 +-
  10 files changed, 684 insertions(+), 445 deletions(-)
+
+diff --git a/src/internal/poll/sendfile_solaris.go b/src/internal/poll/sendfile_solaris.go
+index ec675833a2..a5bf0ab142 100644
+--- a/src/internal/poll/sendfile_solaris.go
++++ b/src/internal/poll/sendfile_solaris.go
+@@ -6,6 +6,8 @@ package poll
+ 
+ import "syscall"
+ 
++//go:cgo_ldflag "-lsendfile"
++
+ // Not strictly needed, but very helpful for debugging, see issue #10221.
+ //
+ //go:cgo_import_dynamic _ _ "libsendfile.so"
+@@ -37,8 +39,13 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (written int64, err error,
+ 		}
+ 		pos1 := pos
+ 		n, err = syscall.Sendfile(dst, src, &pos1, n)
+-		if err == syscall.EAGAIN || err == syscall.EINTR {
+-			// partial write may have occurred
++		if err == syscall.EAGAIN || err == syscall.EINTR || err == syscall.EINVAL {
++			// Partial write or other quirks may have occurred.
++			//
++			// For EINVAL, this is another quirk on SunOS: sendfile() claims to support
++			// out_fd as a regular file but returns EINVAL when the out_fd is not a
++			// socket of SOCK_STREAM, while it actually sends out data anyway and updates
++			// the file offset.
+ 			n = int(pos1 - pos)
+ 		}
+ 		if n > 0 {
+diff --git a/src/net/cgo_solaris.go b/src/net/cgo_solaris.go
+index cde9c957fe..98a0e81956 100644
+--- a/src/net/cgo_solaris.go
++++ b/src/net/cgo_solaris.go
+@@ -7,7 +7,7 @@
+ package net
+ 
+ /*
+-#cgo LDFLAGS: -lsocket -lnsl -lsendfile
++#cgo LDFLAGS: -lsocket -lnsl
+ #include <netdb.h>
+ */
+ import "C"
+diff --git a/src/os/readfrom_linux_test.go b/src/os/readfrom_linux_test.go
+index 3822b2e329..c719d6a099 100644
+--- a/src/os/readfrom_linux_test.go
++++ b/src/os/readfrom_linux_test.go
+@@ -16,7 +16,6 @@ import (
+ 	"path/filepath"
+ 	"runtime"
+ 	"strconv"
+-	"strings"
+ 	"sync"
+ 	"syscall"
+ 	"testing"
+@@ -25,277 +24,6 @@ import (
+ 	"golang.org/x/net/nettest"
+ )
+ 
+-func TestCopyFileRangeAndSendFile(t *testing.T) {
+-	sizes := []int{
+-		1,
+-		42,
+-		1025,
+-		syscall.Getpagesize() + 1,
+-		32769,
+-	}
+-	t.Run("Basic", func(t *testing.T) {
+-		for _, size := range sizes {
+-			t.Run(strconv.Itoa(size), func(t *testing.T) {
+-				testCopyFileRange(t, int64(size), -1)
+-				testSendfileOverCopyFileRange(t, int64(size), -1)
+-			})
+-		}
+-	})
+-	t.Run("Limited", func(t *testing.T) {
+-		t.Run("OneLess", func(t *testing.T) {
+-			for _, size := range sizes {
+-				t.Run(strconv.Itoa(size), func(t *testing.T) {
+-					testCopyFileRange(t, int64(size), int64(size)-1)
+-					testSendfileOverCopyFileRange(t, int64(size), int64(size)-1)
+-				})
+-			}
+-		})
+-		t.Run("Half", func(t *testing.T) {
+-			for _, size := range sizes {
+-				t.Run(strconv.Itoa(size), func(t *testing.T) {
+-					testCopyFileRange(t, int64(size), int64(size)/2)
+-					testSendfileOverCopyFileRange(t, int64(size), int64(size)/2)
+-				})
+-			}
+-		})
+-		t.Run("More", func(t *testing.T) {
+-			for _, size := range sizes {
+-				t.Run(strconv.Itoa(size), func(t *testing.T) {
+-					testCopyFileRange(t, int64(size), int64(size)+7)
+-					testSendfileOverCopyFileRange(t, int64(size), int64(size)+7)
+-				})
+-			}
+-		})
+-	})
+-	t.Run("DoesntTryInAppendMode", func(t *testing.T) {
+-		for _, newTest := range []func(*testing.T, int64) (*File, *File, []byte, *copyFileHook, string){
+-			newCopyFileRangeTest, newSendfileOverCopyFileRangeTest} {
+-			dst, src, data, hook, testName := newTest(t, 42)
+-
+-			dst2, err := OpenFile(dst.Name(), O_RDWR|O_APPEND, 0755)
+-			if err != nil {
+-				t.Fatalf("%s: %v", testName, err)
+-			}
+-			defer dst2.Close()
+-
+-			if _, err := io.Copy(dst2, src); err != nil {
+-				t.Fatalf("%s: %v", testName, err)
+-			}
+-			if hook.called {
+-				t.Fatalf("%s: hook shouldn't be called with destination in O_APPEND mode", testName)
+-			}
+-			mustSeekStart(t, dst2)
+-			mustContainData(t, dst2, data) // through traditional means
+-		}
+-	})
+-	t.Run("CopyFileItself", func(t *testing.T) {
+-		for _, hookFunc := range []func(*testing.T) (*copyFileHook, string){hookCopyFileRange, hookSendFileOverCopyFileRange} {
+-			hook, testName := hookFunc(t)
+-
+-			f, err := CreateTemp("", "file-readfrom-itself-test")
+-			if err != nil {
+-				t.Fatalf("%s: failed to create tmp file: %v", testName, err)
+-			}
+-			t.Cleanup(func() {
+-				f.Close()
+-				Remove(f.Name())
+-			})
+-
+-			data := []byte("hello world!")
+-			if _, err := f.Write(data); err != nil {
+-				t.Fatalf("%s: failed to create and feed the file: %v", testName, err)
+-			}
+-
+-			if err := f.Sync(); err != nil {
+-				t.Fatalf("%s: failed to save the file: %v", testName, err)
+-			}
+-
+-			// Rewind it.
+-			if _, err := f.Seek(0, io.SeekStart); err != nil {
+-				t.Fatalf("%s: failed to rewind the file: %v", testName, err)
+-			}
+-
+-			// Read data from the file itself.
+-			if _, err := io.Copy(f, f); err != nil {
+-				t.Fatalf("%s: failed to read from the file: %v", testName, err)
+-			}
+-
+-			if hook.written != 0 || hook.handled || hook.err != nil {
+-				t.Fatalf("%s: File.readFrom is expected not to use any zero-copy techniques when copying itself."+
+-					"got hook.written=%d, hook.handled=%t, hook.err=%v; expected hook.written=0, hook.handled=false, hook.err=nil",
+-					testName, hook.written, hook.handled, hook.err)
+-			}
+-
+-			switch testName {
+-			case "hookCopyFileRange":
+-				// For copy_file_range(2), it fails and returns EINVAL when the source and target
+-				// refer to the same file and their ranges overlap. The hook should be called to
+-				// get the returned error and fall back to generic copy.
+-				if !hook.called {
+-					t.Fatalf("%s: should have called the hook", testName)
+-				}
+-			case "hookSendFileOverCopyFileRange":
+-				// For sendfile(2), it allows the source and target to refer to the same file and overlap.
+-				// The hook should not be called and just fall back to generic copy directly.
+-				if hook.called {
+-					t.Fatalf("%s: shouldn't have called the hook", testName)
+-				}
+-			default:
+-				t.Fatalf("%s: unexpected test", testName)
+-			}
+-
+-			// Rewind it.
+-			if _, err := f.Seek(0, io.SeekStart); err != nil {
+-				t.Fatalf("%s: failed to rewind the file: %v", testName, err)
+-			}
+-
+-			data2, err := io.ReadAll(f)
+-			if err != nil {
+-				t.Fatalf("%s: failed to read from the file: %v", testName, err)
+-			}
+-
+-			// It should wind up a double of the original data.
+-			if s := strings.Repeat(string(data), 2); s != string(data2) {
+-				t.Fatalf("%s: file contained %s, expected %s", testName, data2, s)
+-			}
+-		}
+-	})
+-	t.Run("NotRegular", func(t *testing.T) {
+-		t.Run("BothPipes", func(t *testing.T) {
+-			for _, hookFunc := range []func(*testing.T) (*copyFileHook, string){hookCopyFileRange, hookSendFileOverCopyFileRange} {
+-				hook, testName := hookFunc(t)
+-
+-				pr1, pw1, err := Pipe()
+-				if err != nil {
+-					t.Fatalf("%s: %v", testName, err)
+-				}
+-				defer pr1.Close()
+-				defer pw1.Close()
+-
+-				pr2, pw2, err := Pipe()
+-				if err != nil {
+-					t.Fatalf("%s: %v", testName, err)
+-				}
+-				defer pr2.Close()
+-				defer pw2.Close()
+-
+-				// The pipe is empty, and PIPE_BUF is large enough
+-				// for this, by (POSIX) definition, so there is no
+-				// need for an additional goroutine.
+-				data := []byte("hello")
+-				if _, err := pw1.Write(data); err != nil {
+-					t.Fatalf("%s: %v", testName, err)
+-				}
+-				pw1.Close()
+-
+-				n, err := io.Copy(pw2, pr1)
+-				if err != nil {
+-					t.Fatalf("%s: %v", testName, err)
+-				}
+-				if n != int64(len(data)) {
+-					t.Fatalf("%s: transferred %d, want %d", testName, n, len(data))
+-				}
+-				if !hook.called {
+-					t.Fatalf("%s: should have called the hook", testName)
+-				}
+-				pw2.Close()
+-				mustContainData(t, pr2, data)
+-			}
+-		})
+-		t.Run("DstPipe", func(t *testing.T) {
+-			for _, newTest := range []func(*testing.T, int64) (*File, *File, []byte, *copyFileHook, string){
+-				newCopyFileRangeTest, newSendfileOverCopyFileRangeTest} {
+-				dst, src, data, hook, testName := newTest(t, 255)
+-				dst.Close()
+-
+-				pr, pw, err := Pipe()
+-				if err != nil {
+-					t.Fatalf("%s: %v", testName, err)
+-				}
+-				defer pr.Close()
+-				defer pw.Close()
+-
+-				n, err := io.Copy(pw, src)
+-				if err != nil {
+-					t.Fatalf("%s: %v", testName, err)
+-				}
+-				if n != int64(len(data)) {
+-					t.Fatalf("%s: transferred %d, want %d", testName, n, len(data))
+-				}
+-				if !hook.called {
+-					t.Fatalf("%s: should have called the hook", testName)
+-				}
+-				pw.Close()
+-				mustContainData(t, pr, data)
+-			}
+-		})
+-		t.Run("SrcPipe", func(t *testing.T) {
+-			for _, newTest := range []func(*testing.T, int64) (*File, *File, []byte, *copyFileHook, string){
+-				newCopyFileRangeTest, newSendfileOverCopyFileRangeTest} {
+-				dst, src, data, hook, testName := newTest(t, 255)
+-				src.Close()
+-
+-				pr, pw, err := Pipe()
+-				if err != nil {
+-					t.Fatalf("%s: %v", testName, err)
+-				}
+-				defer pr.Close()
+-				defer pw.Close()
+-
+-				// The pipe is empty, and PIPE_BUF is large enough
+-				// for this, by (POSIX) definition, so there is no
+-				// need for an additional goroutine.
+-				if _, err := pw.Write(data); err != nil {
+-					t.Fatalf("%s: %v", testName, err)
+-				}
+-				pw.Close()
+-
+-				n, err := io.Copy(dst, pr)
+-				if err != nil {
+-					t.Fatalf("%s: %v", testName, err)
+-				}
+-				if n != int64(len(data)) {
+-					t.Fatalf("%s: transferred %d, want %d", testName, n, len(data))
+-				}
+-				if !hook.called {
+-					t.Fatalf("%s: should have called the hook", testName)
+-				}
+-				mustSeekStart(t, dst)
+-				mustContainData(t, dst, data)
+-			}
+-		})
+-	})
+-	t.Run("Nil", func(t *testing.T) {
+-		var nilFile *File
+-		anyFile, err := CreateTemp("", "")
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		defer Remove(anyFile.Name())
+-		defer anyFile.Close()
+-
+-		if _, err := io.Copy(nilFile, nilFile); err != ErrInvalid {
+-			t.Errorf("io.Copy(nilFile, nilFile) = %v, want %v", err, ErrInvalid)
+-		}
+-		if _, err := io.Copy(anyFile, nilFile); err != ErrInvalid {
+-			t.Errorf("io.Copy(anyFile, nilFile) = %v, want %v", err, ErrInvalid)
+-		}
+-		if _, err := io.Copy(nilFile, anyFile); err != ErrInvalid {
+-			t.Errorf("io.Copy(nilFile, anyFile) = %v, want %v", err, ErrInvalid)
+-		}
+-
+-		if _, err := nilFile.ReadFrom(nilFile); err != ErrInvalid {
+-			t.Errorf("nilFile.ReadFrom(nilFile) = %v, want %v", err, ErrInvalid)
+-		}
+-		if _, err := anyFile.ReadFrom(nilFile); err != ErrInvalid {
+-			t.Errorf("anyFile.ReadFrom(nilFile) = %v, want %v", err, ErrInvalid)
+-		}
+-		if _, err := nilFile.ReadFrom(anyFile); err != ErrInvalid {
+-			t.Errorf("nilFile.ReadFrom(anyFile) = %v, want %v", err, ErrInvalid)
+-		}
+-	})
+-}
+-
+ func TestSpliceFile(t *testing.T) {
+ 	sizes := []int{
+ 		1,
+@@ -516,6 +244,16 @@ func testSpliceToTTY(t *testing.T, proto string, size int64) {
+ 	}
+ }
+ 
++var (
++	copyFileTests = []copyFileTestFunc{newCopyFileRangeTest, newSendfileOverCopyFileRangeTest}
++	copyFileHooks = []copyFileTestHook{hookCopyFileRange, hookSendFileOverCopyFileRange}
++)
++
++func testCopyFiles(t *testing.T, size, limit int64) {
++	testCopyFileRange(t, size, limit)
++	testSendfileOverCopyFileRange(t, size, limit)
++}
++
+ func testCopyFileRange(t *testing.T, size int64, limit int64) {
+ 	dst, src, data, hook, name := newCopyFileRangeTest(t, size)
+ 	testCopyFile(t, dst, src, data, hook, limit, name)
+@@ -526,78 +264,13 @@ func testSendfileOverCopyFileRange(t *testing.T, size int64, limit int64) {
+ 	testCopyFile(t, dst, src, data, hook, limit, name)
+ }
+ 
+-func testCopyFile(t *testing.T, dst, src *File, data []byte, hook *copyFileHook, limit int64, testName string) {
+-	// If we have a limit, wrap the reader.
+-	var (
+-		realsrc io.Reader
+-		lr      *io.LimitedReader
+-	)
+-	if limit >= 0 {
+-		lr = &io.LimitedReader{N: limit, R: src}
+-		realsrc = lr
+-		if limit < int64(len(data)) {
+-			data = data[:limit]
+-		}
+-	} else {
+-		realsrc = src
+-	}
+-
+-	// Now call ReadFrom (through io.Copy), which will hopefully call
+-	// poll.CopyFileRange or poll.SendFile.
+-	n, err := io.Copy(dst, realsrc)
+-	if err != nil {
+-		t.Fatalf("%s: %v", testName, err)
+-	}
+-
+-	// If we didn't have a limit or had a positive limit, we should have called
+-	// poll.CopyFileRange or poll.SendFile with the right file descriptor arguments.
+-	if limit != 0 && !hook.called {
+-		t.Fatalf("%s: never called the hook", testName)
+-	}
+-	if hook.called && hook.dstfd != int(dst.Fd()) {
+-		t.Fatalf("%s: wrong destination file descriptor: got %d, want %d", testName, hook.dstfd, dst.Fd())
+-	}
+-	if hook.called && hook.srcfd != int(src.Fd()) {
+-		t.Fatalf("%s: wrong source file descriptor: got %d, want %d", testName, hook.srcfd, src.Fd())
+-	}
+-
+-	// Check that the offsets after the transfer make sense, that the size
+-	// of the transfer was reported correctly, and that the destination
+-	// file contains exactly the bytes we expect it to contain.
+-	dstoff, err := dst.Seek(0, io.SeekCurrent)
+-	if err != nil {
+-		t.Fatalf("%s: %v", testName, err)
+-	}
+-	srcoff, err := src.Seek(0, io.SeekCurrent)
+-	if err != nil {
+-		t.Fatalf("%s: %v", testName, err)
+-	}
+-	if dstoff != srcoff {
+-		t.Errorf("%s: offsets differ: dstoff = %d, srcoff = %d", testName, dstoff, srcoff)
+-	}
+-	if dstoff != int64(len(data)) {
+-		t.Errorf("%s: dstoff = %d, want %d", testName, dstoff, len(data))
+-	}
+-	if n != int64(len(data)) {
+-		t.Errorf("%s: short ReadFrom: wrote %d bytes, want %d", testName, n, len(data))
+-	}
+-	mustSeekStart(t, dst)
+-	mustContainData(t, dst, data)
+-
+-	// If we had a limit, check that it was updated.
+-	if lr != nil {
+-		if want := limit - n; lr.N != want {
+-			t.Fatalf("%s: didn't update limit correctly: got %d, want %d", testName, lr.N, want)
+-		}
+-	}
+-}
+-
+ // newCopyFileRangeTest initializes a new test for copy_file_range.
+ //
+ // It hooks package os' call to poll.CopyFileRange and returns the hook,
+ // so it can be inspected.
+ func newCopyFileRangeTest(t *testing.T, size int64) (dst, src *File, data []byte, hook *copyFileHook, name string) {
+ 	t.Helper()
++
+ 	name = "newCopyFileRangeTest"
+ 
+ 	dst, src, data = newCopyFileTest(t, size)
+@@ -606,7 +279,7 @@ func newCopyFileRangeTest(t *testing.T, size int64) (dst, src *File, data []byte
+ 	return
+ }
+ 
+-// newSendFileTest initializes a new test for sendfile over copy_file_range.
++// newSendfileOverCopyFileRangeTest initializes a new test for sendfile over copy_file_range.
+ // It hooks package os' call to poll.SendFile and returns the hook,
+ // so it can be inspected.
+ func newSendfileOverCopyFileRangeTest(t *testing.T, size int64) (dst, src *File, data []byte, hook *copyFileHook, name string) {
+@@ -620,22 +293,6 @@ func newSendfileOverCopyFileRangeTest(t *testing.T, size int64) (dst, src *File,
+ 	return
+ }
+ 
+-// newCopyFileTest initializes a new test for copying data between files.
+-// It creates source and destination files, and populates the source file
+-// with random data of the specified size, then rewind it, so it can be
+-// consumed by copy_file_range(2) or sendfile(2).
+-func newCopyFileTest(t *testing.T, size int64) (dst, src *File, data []byte) {
+-	src, data = createTempFile(t, "test-copy_file_range-sendfile-src", size)
+-
+-	dst, err := CreateTemp(t.TempDir(), "test-copy_file_range-sendfile-dst")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	t.Cleanup(func() { dst.Close() })
+-
+-	return
+-}
+-
+ // newSpliceFileTest initializes a new test for splice.
+ //
+ // It creates source sockets and destination file, and populates the source sockets
+@@ -670,29 +327,6 @@ func newSpliceFileTest(t *testing.T, proto string, size int64) (*File, net.Conn,
+ 	return dst, server, data, hook, func() { <-done }
+ }
+ 
+-// mustContainData ensures that the specified file contains exactly the
+-// specified data.
+-func mustContainData(t *testing.T, f *File, data []byte) {
+-	t.Helper()
+-
+-	got := make([]byte, len(data))
+-	if _, err := io.ReadFull(f, got); err != nil {
+-		t.Fatal(err)
+-	}
+-	if !bytes.Equal(got, data) {
+-		t.Fatalf("didn't get the same data back from %s", f.Name())
+-	}
+-	if _, err := f.Read(make([]byte, 1)); err != io.EOF {
+-		t.Fatalf("not at EOF")
+-	}
+-}
+-
+-func mustSeekStart(t *testing.T, f *File) {
+-	if _, err := f.Seek(0, io.SeekStart); err != nil {
+-		t.Fatal(err)
+-	}
+-}
+-
+ func hookCopyFileRange(t *testing.T) (hook *copyFileHook, name string) {
+ 	name = "hookCopyFileRange"
+ 
+@@ -737,16 +371,6 @@ func hookSendFileOverCopyFileRange(t *testing.T) (hook *copyFileHook, name strin
+ 	return
+ }
+ 
+-type copyFileHook struct {
+-	called bool
+-	dstfd  int
+-	srcfd  int
+-
+-	written int64
+-	handled bool
+-	err     error
+-}
+-
+ func hookSpliceFile(t *testing.T) *spliceFileHook {
+ 	h := new(spliceFileHook)
+ 	h.install()
+diff --git a/src/os/readfrom_solaris_test.go b/src/os/readfrom_solaris_test.go
+new file mode 100644
+index 0000000000..2019a3c030
+--- /dev/null
++++ b/src/os/readfrom_solaris_test.go
+@@ -0,0 +1,58 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os_test
++
++import (
++	"internal/poll"
++	. "os"
++	"testing"
++)
++
++var (
++	copyFileTests = []copyFileTestFunc{newSendfileTest}
++	copyFileHooks = []copyFileTestHook{hookSendFile}
++)
++
++func testCopyFiles(t *testing.T, size, limit int64) {
++	testSendfile(t, size, limit)
++}
++
++func testSendfile(t *testing.T, size int64, limit int64) {
++	dst, src, data, hook, name := newSendfileTest(t, size)
++	testCopyFile(t, dst, src, data, hook, limit, name)
++}
++
++// newSendFileTest initializes a new test for sendfile over copy_file_range.
++// It hooks package os' call to poll.SendFile and returns the hook,
++// so it can be inspected.
++func newSendfileTest(t *testing.T, size int64) (dst, src *File, data []byte, hook *copyFileHook, name string) {
++	t.Helper()
++
++	name = "newSendfileTest"
++
++	dst, src, data = newCopyFileTest(t, size)
++	hook, _ = hookSendFile(t)
++
++	return
++}
++
++func hookSendFile(t *testing.T) (hook *copyFileHook, name string) {
++	name = "hookSendFile"
++
++	hook = new(copyFileHook)
++	orig := poll.TestHookDidSendFile
++	t.Cleanup(func() {
++		poll.TestHookDidSendFile = orig
++	})
++	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
++		hook.called = true
++		hook.dstfd = dstFD.Sysfd
++		hook.srcfd = src
++		hook.written = written
++		hook.err = err
++		hook.handled = handled
++	}
++	return
++}
+diff --git a/src/os/readfrom_unix_test.go b/src/os/readfrom_unix_test.go
+new file mode 100644
+index 0000000000..966a4e9962
+--- /dev/null
++++ b/src/os/readfrom_unix_test.go
+@@ -0,0 +1,456 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build linux || solaris
++
++package os_test
++
++import (
++	"bytes"
++	"io"
++	"math/rand"
++	. "os"
++	"runtime"
++	"strconv"
++	"strings"
++	"syscall"
++	"testing"
++	"time"
++)
++
++type (
++	copyFileTestFunc func(*testing.T, int64) (*File, *File, []byte, *copyFileHook, string)
++	copyFileTestHook func(*testing.T) (*copyFileHook, string)
++)
++
++func TestCopyFile(t *testing.T) {
++	sizes := []int{
++		1,
++		42,
++		1025,
++		syscall.Getpagesize() + 1,
++		32769,
++	}
++	t.Run("Basic", func(t *testing.T) {
++		for _, size := range sizes {
++			t.Run(strconv.Itoa(size), func(t *testing.T) {
++				testCopyFiles(t, int64(size), -1)
++			})
++		}
++	})
++	t.Run("Limited", func(t *testing.T) {
++		t.Run("OneLess", func(t *testing.T) {
++			for _, size := range sizes {
++				t.Run(strconv.Itoa(size), func(t *testing.T) {
++					testCopyFiles(t, int64(size), int64(size)-1)
++				})
++			}
++		})
++		t.Run("Half", func(t *testing.T) {
++			for _, size := range sizes {
++				t.Run(strconv.Itoa(size), func(t *testing.T) {
++					testCopyFiles(t, int64(size), int64(size)/2)
++				})
++			}
++		})
++		t.Run("More", func(t *testing.T) {
++			for _, size := range sizes {
++				t.Run(strconv.Itoa(size), func(t *testing.T) {
++					testCopyFiles(t, int64(size), int64(size)+7)
++				})
++			}
++		})
++	})
++	t.Run("DoesntTryInAppendMode", func(t *testing.T) {
++		for _, newTest := range copyFileTests {
++			dst, src, data, hook, testName := newTest(t, 42)
++
++			dst2, err := OpenFile(dst.Name(), O_RDWR|O_APPEND, 0755)
++			if err != nil {
++				t.Fatalf("%s: %v", testName, err)
++			}
++			defer dst2.Close()
++
++			if _, err := io.Copy(dst2, src); err != nil {
++				t.Fatalf("%s: %v", testName, err)
++			}
++			switch runtime.GOOS {
++			case "illumos", "solaris": // sendfile() on SunOS allows target file with O_APPEND set.
++				if !hook.called {
++					t.Fatalf("%s: should have called the hook even with destination in O_APPEND mode", testName)
++				}
++			default:
++				if hook.called {
++					t.Fatalf("%s: hook shouldn't be called with destination in O_APPEND mode", testName)
++				}
++			}
++			mustSeekStart(t, dst2)
++			mustContainData(t, dst2, data) // through traditional means
++		}
++	})
++	t.Run("CopyFileItself", func(t *testing.T) {
++		for _, hookFunc := range copyFileHooks {
++			hook, testName := hookFunc(t)
++
++			f, err := CreateTemp("", "file-readfrom-itself-test")
++			if err != nil {
++				t.Fatalf("%s: failed to create tmp file: %v", testName, err)
++			}
++			t.Cleanup(func() {
++				f.Close()
++				Remove(f.Name())
++			})
++
++			data := []byte("hello world!")
++			if _, err := f.Write(data); err != nil {
++				t.Fatalf("%s: failed to create and feed the file: %v", testName, err)
++			}
++
++			if err := f.Sync(); err != nil {
++				t.Fatalf("%s: failed to save the file: %v", testName, err)
++			}
++
++			// Rewind it.
++			if _, err := f.Seek(0, io.SeekStart); err != nil {
++				t.Fatalf("%s: failed to rewind the file: %v", testName, err)
++			}
++
++			// Read data from the file itself.
++			if _, err := io.Copy(f, f); err != nil {
++				t.Fatalf("%s: failed to read from the file: %v", testName, err)
++			}
++
++			if hook.written != 0 || hook.handled || hook.err != nil {
++				t.Fatalf("%s: File.readFrom is expected not to use any zero-copy techniques when copying itself."+
++					"got hook.written=%d, hook.handled=%t, hook.err=%v; expected hook.written=0, hook.handled=false, hook.err=nil",
++					testName, hook.written, hook.handled, hook.err)
++			}
++
++			switch testName {
++			case "hookCopyFileRange":
++				// For copy_file_range(2), it fails and returns EINVAL when the source and target
++				// refer to the same file and their ranges overlap. The hook should be called to
++				// get the returned error and fall back to generic copy.
++				if !hook.called {
++					t.Fatalf("%s: should have called the hook", testName)
++				}
++			case "hookSendFile", "hookSendFileOverCopyFileRange":
++				// For sendfile(2), it allows the source and target to refer to the same file and overlap.
++				// The hook should not be called and just fall back to generic copy directly.
++				if hook.called {
++					t.Fatalf("%s: shouldn't have called the hook", testName)
++				}
++			default:
++				t.Fatalf("%s: unexpected test", testName)
++			}
++
++			// Rewind it.
++			if _, err := f.Seek(0, io.SeekStart); err != nil {
++				t.Fatalf("%s: failed to rewind the file: %v", testName, err)
++			}
++
++			data2, err := io.ReadAll(f)
++			if err != nil {
++				t.Fatalf("%s: failed to read from the file: %v", testName, err)
++			}
++
++			// It should wind up a double of the original data.
++			if s := strings.Repeat(string(data), 2); s != string(data2) {
++				t.Fatalf("%s: file contained %s, expected %s", testName, data2, s)
++			}
++		}
++	})
++	t.Run("NotRegular", func(t *testing.T) {
++		t.Run("BothPipes", func(t *testing.T) {
++			for _, hookFunc := range copyFileHooks {
++				hook, testName := hookFunc(t)
++
++				pr1, pw1, err := Pipe()
++				if err != nil {
++					t.Fatalf("%s: %v", testName, err)
++				}
++				defer pr1.Close()
++				defer pw1.Close()
++
++				pr2, pw2, err := Pipe()
++				if err != nil {
++					t.Fatalf("%s: %v", testName, err)
++				}
++				defer pr2.Close()
++				defer pw2.Close()
++
++				// The pipe is empty, and PIPE_BUF is large enough
++				// for this, by (POSIX) definition, so there is no
++				// need for an additional goroutine.
++				data := []byte("hello")
++				if _, err := pw1.Write(data); err != nil {
++					t.Fatalf("%s: %v", testName, err)
++				}
++				pw1.Close()
++
++				n, err := io.Copy(pw2, pr1)
++				if err != nil {
++					t.Fatalf("%s: %v", testName, err)
++				}
++				if n != int64(len(data)) {
++					t.Fatalf("%s: transferred %d, want %d", testName, n, len(data))
++				}
++				switch runtime.GOOS {
++				case "illumos", "solaris":
++					// On SunOS, We rely on File.Stat to get the size of the file,
++					// which doesn't work for pipe.
++					if hook.called {
++						t.Fatalf("%s: shouldn't have called the hook with a source of pipe", testName)
++					}
++				default:
++					if !hook.called {
++						t.Fatalf("%s: should have called the hook with a source of pipe", testName)
++					}
++				}
++				pw2.Close()
++				mustContainData(t, pr2, data)
++			}
++		})
++		t.Run("DstPipe", func(t *testing.T) {
++			for _, newTest := range copyFileTests {
++				dst, src, data, hook, testName := newTest(t, 255)
++				dst.Close()
++
++				pr, pw, err := Pipe()
++				if err != nil {
++					t.Fatalf("%s: %v", testName, err)
++				}
++				defer pr.Close()
++				defer pw.Close()
++
++				n, err := io.Copy(pw, src)
++				if err != nil {
++					t.Fatalf("%s: %v", testName, err)
++				}
++				if n != int64(len(data)) {
++					t.Fatalf("%s: transferred %d, want %d", testName, n, len(data))
++				}
++				if !hook.called {
++					t.Fatalf("%s: should have called the hook", testName)
++				}
++				pw.Close()
++				mustContainData(t, pr, data)
++			}
++		})
++		t.Run("SrcPipe", func(t *testing.T) {
++			for _, newTest := range copyFileTests {
++				dst, src, data, hook, testName := newTest(t, 255)
++				src.Close()
++
++				pr, pw, err := Pipe()
++				if err != nil {
++					t.Fatalf("%s: %v", testName, err)
++				}
++				defer pr.Close()
++				defer pw.Close()
++
++				// The pipe is empty, and PIPE_BUF is large enough
++				// for this, by (POSIX) definition, so there is no
++				// need for an additional goroutine.
++				if _, err := pw.Write(data); err != nil {
++					t.Fatalf("%s: %v", testName, err)
++				}
++				pw.Close()
++
++				n, err := io.Copy(dst, pr)
++				if err != nil {
++					t.Fatalf("%s: %v", testName, err)
++				}
++				if n != int64(len(data)) {
++					t.Fatalf("%s: transferred %d, want %d", testName, n, len(data))
++				}
++				switch runtime.GOOS {
++				case "illumos", "solaris":
++					// On SunOS, We rely on File.Stat to get the size of the file,
++					// which doesn't work for pipe.
++					if hook.called {
++						t.Fatalf("%s: shouldn't have called the hook with a source of pipe", testName)
++					}
++				default:
++					if !hook.called {
++						t.Fatalf("%s: should have called the hook with a source of pipe", testName)
++					}
++				}
++				mustSeekStart(t, dst)
++				mustContainData(t, dst, data)
++			}
++		})
++	})
++	t.Run("Nil", func(t *testing.T) {
++		var nilFile *File
++		anyFile, err := CreateTemp("", "")
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer Remove(anyFile.Name())
++		defer anyFile.Close()
++
++		if _, err := io.Copy(nilFile, nilFile); err != ErrInvalid {
++			t.Errorf("io.Copy(nilFile, nilFile) = %v, want %v", err, ErrInvalid)
++		}
++		if _, err := io.Copy(anyFile, nilFile); err != ErrInvalid {
++			t.Errorf("io.Copy(anyFile, nilFile) = %v, want %v", err, ErrInvalid)
++		}
++		if _, err := io.Copy(nilFile, anyFile); err != ErrInvalid {
++			t.Errorf("io.Copy(nilFile, anyFile) = %v, want %v", err, ErrInvalid)
++		}
++
++		if _, err := nilFile.ReadFrom(nilFile); err != ErrInvalid {
++			t.Errorf("nilFile.ReadFrom(nilFile) = %v, want %v", err, ErrInvalid)
++		}
++		if _, err := anyFile.ReadFrom(nilFile); err != ErrInvalid {
++			t.Errorf("anyFile.ReadFrom(nilFile) = %v, want %v", err, ErrInvalid)
++		}
++		if _, err := nilFile.ReadFrom(anyFile); err != ErrInvalid {
++			t.Errorf("nilFile.ReadFrom(anyFile) = %v, want %v", err, ErrInvalid)
++		}
++	})
++}
++
++func testCopyFile(t *testing.T, dst, src *File, data []byte, hook *copyFileHook, limit int64, testName string) {
++	// If we have a limit, wrap the reader.
++	var (
++		realsrc io.Reader
++		lr      *io.LimitedReader
++	)
++	if limit >= 0 {
++		lr = &io.LimitedReader{N: limit, R: src}
++		realsrc = lr
++		if limit < int64(len(data)) {
++			data = data[:limit]
++		}
++	} else {
++		realsrc = src
++	}
++
++	// Now call ReadFrom (through io.Copy), which will hopefully call
++	// poll.CopyFileRange or poll.SendFile.
++	n, err := io.Copy(dst, realsrc)
++	if err != nil {
++		t.Fatalf("%s: %v", testName, err)
++	}
++
++	// If we didn't have a limit or had a positive limit, we should have called
++	// poll.CopyFileRange or poll.SendFile with the right file descriptor arguments.
++	if limit != 0 && !hook.called {
++		t.Fatalf("%s: never called the hook", testName)
++	}
++	if hook.called && hook.dstfd != int(dst.Fd()) {
++		t.Fatalf("%s: wrong destination file descriptor: got %d, want %d", testName, hook.dstfd, dst.Fd())
++	}
++	if hook.called && hook.srcfd != int(src.Fd()) {
++		t.Fatalf("%s: wrong source file descriptor: got %d, want %d", testName, hook.srcfd, src.Fd())
++	}
++
++	// Check that the offsets after the transfer make sense, that the size
++	// of the transfer was reported correctly, and that the destination
++	// file contains exactly the bytes we expect it to contain.
++	dstoff, err := dst.Seek(0, io.SeekCurrent)
++	if err != nil {
++		t.Fatalf("%s: %v", testName, err)
++	}
++	srcoff, err := src.Seek(0, io.SeekCurrent)
++	if err != nil {
++		t.Fatalf("%s: %v", testName, err)
++	}
++	if dstoff != srcoff {
++		t.Errorf("%s: offsets differ: dstoff = %d, srcoff = %d", testName, dstoff, srcoff)
++	}
++	if dstoff != int64(len(data)) {
++		t.Errorf("%s: dstoff = %d, want %d", testName, dstoff, len(data))
++	}
++	if n != int64(len(data)) {
++		t.Errorf("%s: short ReadFrom: wrote %d bytes, want %d", testName, n, len(data))
++	}
++	mustSeekStart(t, dst)
++	mustContainData(t, dst, data)
++
++	// If we had a limit, check that it was updated.
++	if lr != nil {
++		if want := limit - n; lr.N != want {
++			t.Fatalf("%s: didn't update limit correctly: got %d, want %d", testName, lr.N, want)
++		}
++	}
++}
++
++// mustContainData ensures that the specified file contains exactly the
++// specified data.
++func mustContainData(t *testing.T, f *File, data []byte) {
++	t.Helper()
++
++	got := make([]byte, len(data))
++	if _, err := io.ReadFull(f, got); err != nil {
++		t.Fatal(err)
++	}
++	if !bytes.Equal(got, data) {
++		t.Fatalf("didn't get the same data back from %s", f.Name())
++	}
++	if _, err := f.Read(make([]byte, 1)); err != io.EOF {
++		t.Fatalf("not at EOF")
++	}
++}
++
++func mustSeekStart(t *testing.T, f *File) {
++	if _, err := f.Seek(0, io.SeekStart); err != nil {
++		t.Fatal(err)
++	}
++}
++
++// newCopyFileTest initializes a new test for copying data between files.
++// It creates source and destination files, and populates the source file
++// with random data of the specified size, then rewind it, so it can be
++// consumed by copy_file_range(2) or sendfile(2).
++func newCopyFileTest(t *testing.T, size int64) (dst, src *File, data []byte) {
++	src, data = createTempFile(t, "test-copy-file-src", size)
++
++	dst, err := CreateTemp(t.TempDir(), "test-copy-file-dst")
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Cleanup(func() { dst.Close() })
++
++	return
++}
++
++type copyFileHook struct {
++	called bool
++	dstfd  int
++	srcfd  int
++
++	written int64
++	handled bool
++	err     error
++}
++
++func createTempFile(t *testing.T, name string, size int64) (*File, []byte) {
++	f, err := CreateTemp(t.TempDir(), name)
++	if err != nil {
++		t.Fatalf("failed to create temporary file: %v", err)
++	}
++	t.Cleanup(func() {
++		f.Close()
++	})
++
++	randSeed := time.Now().Unix()
++	t.Logf("random data seed: %d\n", randSeed)
++	prng := rand.New(rand.NewSource(randSeed))
++	data := make([]byte, size)
++	prng.Read(data)
++	if _, err := f.Write(data); err != nil {
++		t.Fatalf("failed to create and feed the file: %v", err)
++	}
++	if err := f.Sync(); err != nil {
++		t.Fatalf("failed to save the file: %v", err)
++	}
++	if _, err := f.Seek(0, io.SeekStart); err != nil {
++		t.Fatalf("failed to rewind the file: %v", err)
++	}
++
++	return f, data
++}
+diff --git a/src/os/writeto_linux_test.go b/src/os/writeto_linux_test.go
+index a6f8980d10..59caecd0da 100644
+--- a/src/os/writeto_linux_test.go
++++ b/src/os/writeto_linux_test.go
+@@ -8,13 +8,11 @@ import (
+ 	"bytes"
+ 	"internal/poll"
+ 	"io"
+-	"math/rand"
+ 	"net"
+ 	. "os"
+ 	"strconv"
+ 	"syscall"
+ 	"testing"
+-	"time"
+ )
+ 
+ func TestSendFile(t *testing.T) {
+@@ -133,30 +131,3 @@ type sendFileHook struct {
+ 	handled bool
+ 	err     error
+ }
+-
+-func createTempFile(t *testing.T, name string, size int64) (*File, []byte) {
+-	f, err := CreateTemp(t.TempDir(), name)
+-	if err != nil {
+-		t.Fatalf("failed to create temporary file: %v", err)
+-	}
+-	t.Cleanup(func() {
+-		f.Close()
+-	})
+-
+-	randSeed := time.Now().Unix()
+-	t.Logf("random data seed: %d\n", randSeed)
+-	prng := rand.New(rand.NewSource(randSeed))
+-	data := make([]byte, size)
+-	prng.Read(data)
+-	if _, err := f.Write(data); err != nil {
+-		t.Fatalf("failed to create and feed the file: %v", err)
+-	}
+-	if err := f.Sync(); err != nil {
+-		t.Fatalf("failed to save the file: %v", err)
+-	}
+-	if _, err := f.Seek(0, io.SeekStart); err != nil {
+-		t.Fatalf("failed to rewind the file: %v", err)
+-	}
+-
+-	return f, data
+-}
+diff --git a/src/os/zero_copy_linux.go b/src/os/zero_copy_linux.go
+index 4492c56bf5..42e05d4e1f 100644
+--- a/src/os/zero_copy_linux.go
++++ b/src/os/zero_copy_linux.go
+@@ -15,15 +15,6 @@ var (
+ 	pollSplice        = poll.Splice
+ )
+ 
+-// wrapSyscallError takes an error and a syscall name. If the error is
+-// a syscall.Errno, it wraps it in an os.SyscallError using the syscall name.
+-func wrapSyscallError(name string, err error) error {
+-	if _, ok := err.(syscall.Errno); ok {
+-		err = NewSyscallError(name, err)
+-	}
+-	return err
+-}
+-
+ func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
+ 	pfd, network := getPollFDAndNetwork(w)
+ 	// TODO(panjf2000): same as File.spliceToFile.
+@@ -187,21 +178,6 @@ func getPollFDAndNetwork(i any) (*poll.FD, poll.String) {
+ 	return irc.PollFD(), irc.Network()
+ }
+ 
+-// tryLimitedReader tries to assert the io.Reader to io.LimitedReader, it returns the io.LimitedReader,
+-// the underlying io.Reader and the remaining amount of bytes if the assertion succeeds,
+-// otherwise it just returns the original io.Reader and the theoretical unlimited remaining amount of bytes.
+-func tryLimitedReader(r io.Reader) (*io.LimitedReader, io.Reader, int64) {
+-	var remain int64 = 1<<63 - 1 // by default, copy until EOF
+-
+-	lr, ok := r.(*io.LimitedReader)
+-	if !ok {
+-		return nil, r, remain
+-	}
+-
+-	remain = lr.N
+-	return lr, lr.R, remain
+-}
+-
+ func isUnixOrTCP(network string) bool {
+ 	switch network {
+ 	case "tcp", "tcp4", "tcp6", "unix":
+diff --git a/src/os/zero_copy_posix.go b/src/os/zero_copy_posix.go
+new file mode 100644
+index 0000000000..161144fe23
+--- /dev/null
++++ b/src/os/zero_copy_posix.go
+@@ -0,0 +1,36 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix || js || wasip1 || windows
++
++package os
++
++import (
++	"io"
++	"syscall"
++)
++
++// wrapSyscallError takes an error and a syscall name. If the error is
++// a syscall.Errno, it wraps it in an os.SyscallError using the syscall name.
++func wrapSyscallError(name string, err error) error {
++	if _, ok := err.(syscall.Errno); ok {
++		err = NewSyscallError(name, err)
++	}
++	return err
++}
++
++// tryLimitedReader tries to assert the io.Reader to io.LimitedReader, it returns the io.LimitedReader,
++// the underlying io.Reader and the remaining amount of bytes if the assertion succeeds,
++// otherwise it just returns the original io.Reader and the theoretical unlimited remaining amount of bytes.
++func tryLimitedReader(r io.Reader) (*io.LimitedReader, io.Reader, int64) {
++	var remain int64 = 1<<63 - 1 // by default, copy until EOF
++
++	lr, ok := r.(*io.LimitedReader)
++	if !ok {
++		return nil, r, remain
++	}
++
++	remain = lr.N
++	return lr, lr.R, remain
++}
+diff --git a/src/os/zero_copy_solaris.go b/src/os/zero_copy_solaris.go
+new file mode 100644
+index 0000000000..9d9eca1ae7
+--- /dev/null
++++ b/src/os/zero_copy_solaris.go
+@@ -0,0 +1,111 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"internal/poll"
++	"io"
++	"syscall"
++)
++
++func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
++	return 0, false, nil
++}
++
++// readFrom is basically a refactor of net.sendFile, but adapted to work for the target of *File.
++func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
++	// SunOS uses 0 as the "until EOF" value.
++	// If you pass in more bytes than the file contains, it will
++	// loop back to the beginning ad nauseam until it's sent
++	// exactly the number of bytes told to. As such, we need to
++	// know exactly how many bytes to send.
++	var remain int64 = 0
++
++	lr, ok := r.(*io.LimitedReader)
++	if ok {
++		remain, r = lr.N, lr.R
++		if remain <= 0 {
++			return 0, true, nil
++		}
++	}
++
++	var src *File
++	switch v := r.(type) {
++	case *File:
++		src = v
++	case fileWithoutWriteTo:
++		src = v.File
++	default:
++		return 0, false, nil
++	}
++
++	if src.checkValid("ReadFrom") != nil {
++		// Avoid returning the error as we report handled as false,
++		// leave further error handling as the responsibility of the caller.
++		return 0, false, nil
++	}
++
++	// If fd_in and fd_out refer to the same file and the source and target ranges overlap,
++	// sendfile(2) on SunOS will allow this kind of overlapping and work like a memmove,
++	// in this case the file content remains the same after copying, which is not what we want.
++	// Thus, we just bail out here and leave it to generic copy when it's a file copying itself.
++	if f.pfd.Sysfd == src.pfd.Sysfd {
++		return 0, false, nil
++	}
++
++	if remain == 0 {
++		fi, err := src.Stat()
++		if err != nil {
++			return 0, false, err
++		}
++
++		remain = fi.Size()
++	}
++
++	// The other quirk with SunOS' sendfile implementation
++	// is that it doesn't use the current position of the file
++	// -- if you pass it offset 0, it starts from offset 0.
++	// There's no way to tell it "start from current position",
++	// so we have to manage that explicitly.
++	pos, err := src.Seek(0, io.SeekCurrent)
++	if err != nil {
++		return
++	}
++
++	sc, err := src.SyscallConn()
++	if err != nil {
++		return
++	}
++
++	// System call sendfile()s on Solaris and illumos support file-to-file copying.
++	// Check out https://docs.oracle.com/cd/E86824_01/html/E54768/sendfile-3ext.html and
++	// https://docs.oracle.com/cd/E88353_01/html/E37843/sendfile-3c.html and
++	// https://illumos.org/man/3EXT/sendfile for more details.
++	rerr := sc.Read(func(fd uintptr) bool {
++		written, err, handled = poll.SendFile(&f.pfd, int(fd), pos, remain)
++		return true
++	})
++	if lr != nil {
++		lr.N = remain - written
++	}
++
++	// This is another quirk on SunOS: sendfile() claims to support
++	// out_fd as a regular file but returns EINVAL when the out_fd is not a
++	// socket of SOCK_STREAM, while it actually sends out data anyway and updates
++	// the file offset. In this case, we can just ignore the error.
++	if err == syscall.EINVAL && written > 0 {
++		err = nil
++	}
++	if err == nil {
++		err = rerr
++	}
++
++	_, err1 := src.Seek(written, io.SeekCurrent)
++	if err1 != nil && err == nil {
++		return written, handled, err1
++	}
++
++	return written, handled, wrapSyscallError("sendfile", err)
++}
+diff --git a/src/os/zero_copy_stub.go b/src/os/zero_copy_stub.go
+index 9ec5808101..fb70124fca 100644
+--- a/src/os/zero_copy_stub.go
++++ b/src/os/zero_copy_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !linux
++//go:build !linux && !solaris
+ 
+ package os
+ 

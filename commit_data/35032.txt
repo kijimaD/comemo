@@ -15,6 +15,21 @@ Date:   Tue Nov 7 09:56:11 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/76371
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/testplugin/test.bash | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+index 5ef87625f1..18e3803bf4 100755
+--- a/misc/cgo/testplugin/test.bash
++++ b/misc/cgo/testplugin/test.bash
+@@ -14,9 +14,6 @@ fi
+ goos=$(go env GOOS)
+ goarch=$(go env GOARCH)
+ 
+-echo SKIP: golang.org/issue/22571.
+-exit 0
+-
+ function cleanup() {
+ 	rm -f plugin*.so unnamed*.so iface*.so issue*
+ 	rm -rf host pkg sub iface

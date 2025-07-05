@@ -17,8 +17,151 @@ Date:   Thu Jun 13 19:56:37 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/install-source.html           | 68 ++++++++++++++++++++++++++++-----------
  src/cmd/go/alldocs.go             |  9 ++++++
  src/cmd/go/internal/work/build.go |  9 ++++++
  3 files changed, 68 insertions(+), 18 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 6a0c3844ae..79c2a14b18 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -218,15 +218,14 @@ To build without <code>cgo</code>, set the environment variable
+ 
+ <h2 id="fetch">Fetch the repository</h2>
+ 
+-<p>Go will install to a directory named <code>go</code>.
+-Change to the directory that will be its parent
+-and make sure the <code>go</code> directory does not exist.
+-Then clone the repository and check out the latest release tag
+-(<code class="versionTag">go1.9</code>, for example):</p>
++<p>Change to the directory where you intend to install Go, and make sure
++the <code>goroot</code> directory does not exist. Then clone the repository
++and check out the latest release tag (<code class="versionTag">go1.12</code>,
++for example):</p>
+ 
+ <pre>
+-$ git clone https://go.googlesource.com/go
+-$ cd go
++$ git clone https://go.googlesource.com/go goroot
++$ cd goroot
+ $ git checkout <span class="versionTag"><i>&lt;tag&gt;</i></span>
+ </pre>
+ 
+@@ -234,6 +233,13 @@ $ git checkout <span class="versionTag"><i>&lt;tag&gt;</i></span>
+ Where <code>&lt;tag&gt;</code> is the version string of the release.
+ </p>
+ 
++<p>Go will be installed in the directory where it is checked out. For example,
++if Go is checked out in <code>$HOME/goroot</code>, executables will be installed
++in <code>$HOME/goroot/bin</code>. The directory may have any name, but note
++that if Go is checked out in <code>$HOME/go</code>, it will conflict with
++the default location of <code>$GOPATH</code>.
++See <a href="#gopath"><code>GOPATH</code></a> below.</p>
++
+ <h2 id="head">(Optional) Switch to the master branch</h2>
+ 
+ <p>If you intend to modify the go source code, and
+@@ -441,6 +447,43 @@ but move it elsewhere after the build, set
+ </p>
+ </li>
+ 
++<li id="gopath"><code>$GOPATH</code>
++<p>
++The directory where Go projects outside the Go distribution are typically
++checked out. For example, <code>golang.org/x/tools</code> might be checked out
++to <code>$GOPATH/src/golang.org/x/tools</code>. Executables outside the
++Go distribution are installed in <code>$GOPATH/bin</code> (or
++<code>$GOBIN</code>, if set). Modules are downloaded and cached in
++<code>$GOPATH/pkg/mod</code>.
++</p>
++
++<p>The default location of <code>$GOPATH</code> is <code>$HOME/go</code>,
++and it's not usually necessary to set <code>GOPATH</code> explicitly. However,
++if you have checked out the Go distribution to <code>$HOME/go</code>,
++you must set <code>GOPATH</code> to another location to avoid conflicts.
++</p>
++</li>
++
++<li><code>$GOBIN</code>
++<p>
++The directory where executables outside the Go distribution are installed
++using the <a href="/cmd/go">go command</a>. For example,
++<code>go get golang.org/x/tools/cmd/godoc</code> downloads, builds, and
++installs <code>$GOBIN/godoc</code>. By default, <code>$GOBIN</code> is
++<code>$GOPATH/bin</code> (or <code>$HOME/go/bin</code> if <code>GOPATH</code>
++is not set). After installing, you will want to add this directory to
++your <code>$PATH</code> so you can use installed tools.
++</p>
++
++<p>
++Note that the Go distribution's executables are installed in
++<code>$GOROOT/bin</code> (for executables invoked by people) or
++<code>$GOTOOLDIR</code> (for executables invoked by the go command;
++defaults to <code>$GOROOT/pkg/$GOOS_GOARCH</code>) instead of
++<code>$GOBIN</code>.
++</p>
++</li>
++
+ <li><code>$GOOS</code> and <code>$GOARCH</code>
+ <p>
+ The name of the target operating system and compilation architecture.
+@@ -577,17 +620,6 @@ For example, you should not set <code>$GOHOSTARCH</code> to
+ <code>arm</code> on an x86 system.
+ </p>
+ 
+-<li><code>$GOBIN</code>
+-<p>
+-The location where Go binaries will be installed.
+-The default is <code>$GOROOT/bin</code>.
+-After installing, you will want to arrange to add this
+-directory to your <code>$PATH</code>, so you can use the tools.
+-If <code>$GOBIN</code> is set, the <a href="/cmd/go">go command</a>
+-installs all commands there.
+-</p>
+-</li>
+-
+ <li><code>$GO386</code> (for <code>386</code> only, default is auto-detected
+ if built on either <code>386</code> or <code>amd64</code>, <code>387</code> otherwise)
+ <p>
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index df6b9e3e5d..d2ce578564 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -674,6 +674,15 @@
+ //
+ // Install compiles and installs the packages named by the import paths.
+ //
++// Executables are installed in the directory named by the GOBIN environment
++// variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH
++// environment variable is not set. Executables in $GOROOT
++// are installed in $GOROOT/bin or $GOTOOLDIR instead of $GOBIN.
++//
++// When module-aware mode is disabled, other packages are installed in the
++// directory $GOPATH/pkg/$GOOS_$GOARCH. When module-aware mode is enabled,
++// other packages are built and cached but not installed.
++//
+ // The -i flag installs the dependencies of the named packages as well.
+ //
+ // For more about the build flags, see 'go help build'.
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 9c03f0818d..ed5a149da3 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -404,6 +404,15 @@ var CmdInstall = &base.Command{
+ 	Long: `
+ Install compiles and installs the packages named by the import paths.
+ 
++Executables are installed in the directory named by the GOBIN environment
++variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH
++environment variable is not set. Executables in $GOROOT
++are installed in $GOROOT/bin or $GOTOOLDIR instead of $GOBIN.
++
++When module-aware mode is disabled, other packages are installed in the
++directory $GOPATH/pkg/$GOOS_$GOARCH. When module-aware mode is enabled,
++other packages are built and cached but not installed.
++
+ The -i flag installs the dependencies of the named packages as well.
+ 
+ For more about the build flags, see 'go help build'.

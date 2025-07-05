@@ -12,10 +12,84 @@ Date:   Sat Aug 22 23:26:32 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/fixedbugs/issue13268.go  | 6 ------
  test/fixedbugs/issue21317.go  | 2 +-
  test/fixedbugs/issue22660.go  | 2 +-
  test/fixedbugs/issue22662b.go | 2 +-
  test/fixedbugs/issue9355.go   | 2 +-
  5 files changed, 4 insertions(+), 10 deletions(-)
+
+diff --git a/test/fixedbugs/issue13268.go b/test/fixedbugs/issue13268.go
+index 2a063fa60c..fcb69c9068 100644
+--- a/test/fixedbugs/issue13268.go
++++ b/test/fixedbugs/issue13268.go
+@@ -17,16 +17,10 @@ import (
+ 	"log"
+ 	"os"
+ 	"os/exec"
+-	"runtime"
+ 	"strings"
+ )
+ 
+ func main() {
+-	// cannot use temp file on nacl via child process
+-	if runtime.GOOS == "nacl" {
+-		return
+-	}
+-
+ 	// create source
+ 	f, err := ioutil.TempFile("", "issue13268-")
+ 	if err != nil {
+diff --git a/test/fixedbugs/issue21317.go b/test/fixedbugs/issue21317.go
+index ee1bbf810b..f4ec422371 100644
+--- a/test/fixedbugs/issue21317.go
++++ b/test/fixedbugs/issue21317.go
+@@ -21,7 +21,7 @@ import (
+ )
+ 
+ func main() {
+-	if runtime.Compiler != "gc" || runtime.GOOS == "nacl" || runtime.GOOS == "js" {
++	if runtime.Compiler != "gc" || runtime.GOOS == "js" {
+ 		return
+ 	}
+ 
+diff --git a/test/fixedbugs/issue22660.go b/test/fixedbugs/issue22660.go
+index b2282ea665..44ba42ac96 100644
+--- a/test/fixedbugs/issue22660.go
++++ b/test/fixedbugs/issue22660.go
+@@ -19,7 +19,7 @@ import (
+ )
+ 
+ func main() {
+-	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
++	if runtime.GOOS == "js" {
+ 		return // no file system available on builders
+ 	}
+ 
+diff --git a/test/fixedbugs/issue22662b.go b/test/fixedbugs/issue22662b.go
+index 2678383ab0..0fcfe8d0db 100644
+--- a/test/fixedbugs/issue22662b.go
++++ b/test/fixedbugs/issue22662b.go
+@@ -36,7 +36,7 @@ var tests = []struct {
+ }
+ 
+ func main() {
+-	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
++	if runtime.GOOS == "js" {
+ 		return // can not exec go tool
+ 	}
+ 
+diff --git a/test/fixedbugs/issue9355.go b/test/fixedbugs/issue9355.go
+index 2498bf6a1b..ab3369d415 100644
+--- a/test/fixedbugs/issue9355.go
++++ b/test/fixedbugs/issue9355.go
+@@ -17,7 +17,7 @@ import (
+ )
+ 
+ func main() {
+-	if runtime.Compiler != "gc" || runtime.GOOS == "nacl" || runtime.GOOS == "js" {
++	if runtime.Compiler != "gc" || runtime.GOOS == "js" {
+ 		return
+ 	}
+ 

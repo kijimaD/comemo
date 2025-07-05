@@ -7,6 +7,27 @@ Date:   Sun Sep 2 04:50:58 2012 +0800
     R=golang-dev, r, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6492069
-
+---
  src/cmd/ld/ldmacho.c | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/ldmacho.c b/src/cmd/ld/ldmacho.c
+index 54126d5862..c02d1e7f82 100644
+--- a/src/cmd/ld/ldmacho.c
++++ b/src/cmd/ld/ldmacho.c
+@@ -573,9 +573,14 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			goto bad;
+ 		}
+ 		free(name);
+-		s->p = dat + sect->addr - c->seg.vmaddr;
++
+ 		s->np = sect->size;
+ 		s->size = s->np;
++		if((sect->flags & 0xff) == 1) // S_ZEROFILL
++			s->p = mal(s->size);
++		else {
++			s->p = dat + sect->addr - c->seg.vmaddr;
++		}
+ 		
+ 		if(strcmp(sect->segname, "__TEXT") == 0) {
+ 			if(strcmp(sect->name, "__text") == 0)

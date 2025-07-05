@@ -17,8 +17,71 @@ Date:   Tue Mar 17 09:47:01 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/7692
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/ld/data.go   | 14 ++++++++++++++
  src/cmd/internal/ld/lib.go    |  1 +
  src/runtime/rt0_linux_amd64.s |  7 +++++++
  3 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index b7de5af9fb..ea44ca95c1 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -936,6 +936,15 @@ func Addstring(s *LSym, str string) int64 {
+ 	return int64(r)
+ }
+ 
++func addinitarrdata(s *LSym) {
++	p := s.Name + ".ptr"
++	sp := Linklookup(Ctxt, p, 0)
++	sp.Type = SINITARR
++	sp.Size = 0
++	sp.Dupok = 1
++	Addaddr(Ctxt, sp, s)
++}
++
+ func dosymtype() {
+ 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+ 		if len(s.P) > 0 {
+@@ -946,6 +955,11 @@ func dosymtype() {
+ 				s.Type = SNOPTRDATA
+ 			}
+ 		}
++		// Create a new entry in the .init_array section that points to the
++		// library initializer function.
++		if Flag_shared != 0 && s.Name == INITENTRY {
++			addinitarrdata(s)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index 148ada714b..caca87c180 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -1362,6 +1362,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 			SRODATA,
+ 			SSYMTAB,
+ 			SPCLNTAB,
++			SINITARR,
+ 			SDATA,
+ 			SNOPTRDATA,
+ 			SELFROSECT,
+diff --git a/src/runtime/rt0_linux_amd64.s b/src/runtime/rt0_linux_amd64.s
+index 985426acc4..9d9cb34128 100644
+--- a/src/runtime/rt0_linux_amd64.s
++++ b/src/runtime/rt0_linux_amd64.s
+@@ -10,6 +10,13 @@ TEXT _rt0_amd64_linux(SB),NOSPLIT,$-8
+ 	MOVQ	$main(SB), AX
+ 	JMP	AX
+ 
++// When linking with -shared, this symbol is called when the shared library
++// is loaded.
++TEXT _rt0_amd64_linux_lib(SB),NOSPLIT,$0
++	// TODO(spetrovic): Do something useful, like calling $main.  (Note that
++	// this has to be done in a separate thread, as main is expected to block.)
++	RET
++
+ TEXT main(SB),NOSPLIT,$-8
+ 	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX

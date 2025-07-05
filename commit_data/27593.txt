@@ -9,9 +9,329 @@ Date:   Mon Apr 4 18:46:13 2016 +0900
     Change-Id: Idb0fc0feed61407f7f07eab81ce82b55ffde5040
     Reviewed-on: https://go-review.googlesource.com/21446
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/fd_mutex.go   | 87 ++++++++++++++++++++++++++++++++++++++++++++-------
  src/net/fd_plan9.go   | 49 -----------------------------
  src/net/fd_unix.go    | 49 -----------------------------
  src/net/fd_windows.go | 49 -----------------------------
  4 files changed, 76 insertions(+), 158 deletions(-)
+
+diff --git a/src/net/fd_mutex.go b/src/net/fd_mutex.go
+index 83ebb27ad0..4591fd1cac 100644
+--- a/src/net/fd_mutex.go
++++ b/src/net/fd_mutex.go
+@@ -6,9 +6,9 @@ package net
+ 
+ import "sync/atomic"
+ 
+-// fdMutex is a specialized synchronization primitive
+-// that manages lifetime of an fd and serializes access
+-// to Read and Write methods on netFD.
++// fdMutex is a specialized synchronization primitive that manages
++// lifetime of an fd and serializes access to Read, Write and Close
++// methods on netFD.
+ type fdMutex struct {
+ 	state uint64
+ 	rsema uint32
+@@ -35,16 +35,19 @@ const (
+ )
+ 
+ // Read operations must do rwlock(true)/rwunlock(true).
++//
+ // Write operations must do rwlock(false)/rwunlock(false).
+-// Misc operations must do incref/decref. Misc operations include functions like
+-// setsockopt and setDeadline. They need to use incref/decref to ensure that
+-// they operate on the correct fd in presence of a concurrent close call
+-// (otherwise fd can be closed under their feet).
+-// Close operation must do increfAndClose/decref.
+-
+-// rwlock/incref return whether fd is open.
+-// rwunlock/decref return whether fd is closed and there are no remaining references.
++//
++// Misc operations must do incref/decref.
++// Misc operations include functions like setsockopt and setDeadline.
++// They need to use incref/decref to ensure that they operate on the
++// correct fd in presence of a concurrent close call (otherwise fd can
++// be closed under their feet).
++//
++// Close operations must do increfAndClose/decref.
+ 
++// incref adds a reference to mu.
++// It reports whether mu is available for reading or writing.
+ func (mu *fdMutex) incref() bool {
+ 	for {
+ 		old := atomic.LoadUint64(&mu.state)
+@@ -61,6 +64,8 @@ func (mu *fdMutex) incref() bool {
+ 	}
+ }
+ 
++// increfAndClose sets the state of mu to closed.
++// It reports whether there is no remaining reference.
+ func (mu *fdMutex) increfAndClose() bool {
+ 	for {
+ 		old := atomic.LoadUint64(&mu.state)
+@@ -90,6 +95,8 @@ func (mu *fdMutex) increfAndClose() bool {
+ 	}
+ }
+ 
++// decref removes a reference from mu.
++// It reports whether there is no remaining reference.
+ func (mu *fdMutex) decref() bool {
+ 	for {
+ 		old := atomic.LoadUint64(&mu.state)
+@@ -103,6 +110,8 @@ func (mu *fdMutex) decref() bool {
+ 	}
+ }
+ 
++// lock adds a reference to mu and locks mu.
++// It reports whether mu is available for reading or writing.
+ func (mu *fdMutex) rwlock(read bool) bool {
+ 	var mutexBit, mutexWait, mutexMask uint64
+ 	var mutexSema *uint32
+@@ -146,6 +155,8 @@ func (mu *fdMutex) rwlock(read bool) bool {
+ 	}
+ }
+ 
++// unlock removes a reference from mu and unlocks mu.
++// It reports whether there is no remaining reference.
+ func (mu *fdMutex) rwunlock(read bool) bool {
+ 	var mutexBit, mutexWait, mutexMask uint64
+ 	var mutexSema *uint32
+@@ -182,3 +193,57 @@ func (mu *fdMutex) rwunlock(read bool) bool {
+ // Implemented in runtime package.
+ func runtime_Semacquire(sema *uint32)
+ func runtime_Semrelease(sema *uint32)
++
++// incref adds a reference to fd.
++// It returns an error when fd cannot be used.
++func (fd *netFD) incref() error {
++	if !fd.fdmu.incref() {
++		return errClosing
++	}
++	return nil
++}
++
++// decref removes a reference from fd.
++// It also closes fd when the state of fd is set to closed and there
++// is no remaining reference.
++func (fd *netFD) decref() {
++	if fd.fdmu.decref() {
++		fd.destroy()
++	}
++}
++
++// readLock adds a reference to fd and locks fd for reading.
++// It returns an error when fd cannot be used for reading.
++func (fd *netFD) readLock() error {
++	if !fd.fdmu.rwlock(true) {
++		return errClosing
++	}
++	return nil
++}
++
++// readUnlock removes a reference from fd and unlocks fd for reading.
++// It also closes fd when the state of fd is set to closed and there
++// is no remaining reference.
++func (fd *netFD) readUnlock() {
++	if fd.fdmu.rwunlock(true) {
++		fd.destroy()
++	}
++}
++
++// writeLock adds a reference to fd and locks fd for writing.
++// It returns an error when fd cannot be used for writing.
++func (fd *netFD) writeLock() error {
++	if !fd.fdmu.rwlock(false) {
++		return errClosing
++	}
++	return nil
++}
++
++// writeUnlock removes a reference from fd and unlocks fd for writing.
++// It also closes fd when the state of fd is set to closed and there
++// is no remaining reference.
++func (fd *netFD) writeUnlock() {
++	if fd.fdmu.rwunlock(false) {
++		fd.destroy()
++	}
++}
+diff --git a/src/net/fd_plan9.go b/src/net/fd_plan9.go
+index 577f2b69bc..d0e9c53fca 100644
+--- a/src/net/fd_plan9.go
++++ b/src/net/fd_plan9.go
+@@ -74,55 +74,6 @@ func (fd *netFD) destroy() {
+ 	fd.data = nil
+ }
+ 
+-// Add a reference to this fd.
+-// Returns an error if the fd cannot be used.
+-func (fd *netFD) incref() error {
+-	if !fd.fdmu.incref() {
+-		return errClosing
+-	}
+-	return nil
+-}
+-
+-// Remove a reference to this FD and close if we've been asked to do so
+-// (and there are no references left).
+-func (fd *netFD) decref() {
+-	if fd.fdmu.decref() {
+-		fd.destroy()
+-	}
+-}
+-
+-// Add a reference to this fd and lock for reading.
+-// Returns an error if the fd cannot be used.
+-func (fd *netFD) readLock() error {
+-	if !fd.fdmu.rwlock(true) {
+-		return errClosing
+-	}
+-	return nil
+-}
+-
+-// Unlock for reading and remove a reference to this FD.
+-func (fd *netFD) readUnlock() {
+-	if fd.fdmu.rwunlock(true) {
+-		fd.destroy()
+-	}
+-}
+-
+-// Add a reference to this fd and lock for writing.
+-// Returns an error if the fd cannot be used.
+-func (fd *netFD) writeLock() error {
+-	if !fd.fdmu.rwlock(false) {
+-		return errClosing
+-	}
+-	return nil
+-}
+-
+-// Unlock for writing and remove a reference to this FD.
+-func (fd *netFD) writeUnlock() {
+-	if fd.fdmu.rwunlock(false) {
+-		fd.destroy()
+-	}
+-}
+-
+ func (fd *netFD) Read(b []byte) (n int, err error) {
+ 	if !fd.ok() || fd.data == nil {
+ 		return 0, syscall.EINVAL
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index cb9b2f1343..c90e068474 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -164,55 +164,6 @@ func (fd *netFD) destroy() {
+ 	runtime.SetFinalizer(fd, nil)
+ }
+ 
+-// Add a reference to this fd.
+-// Returns an error if the fd cannot be used.
+-func (fd *netFD) incref() error {
+-	if !fd.fdmu.incref() {
+-		return errClosing
+-	}
+-	return nil
+-}
+-
+-// Remove a reference to this FD and close if we've been asked to do so
+-// (and there are no references left).
+-func (fd *netFD) decref() {
+-	if fd.fdmu.decref() {
+-		fd.destroy()
+-	}
+-}
+-
+-// Add a reference to this fd and lock for reading.
+-// Returns an error if the fd cannot be used.
+-func (fd *netFD) readLock() error {
+-	if !fd.fdmu.rwlock(true) {
+-		return errClosing
+-	}
+-	return nil
+-}
+-
+-// Unlock for reading and remove a reference to this FD.
+-func (fd *netFD) readUnlock() {
+-	if fd.fdmu.rwunlock(true) {
+-		fd.destroy()
+-	}
+-}
+-
+-// Add a reference to this fd and lock for writing.
+-// Returns an error if the fd cannot be used.
+-func (fd *netFD) writeLock() error {
+-	if !fd.fdmu.rwlock(false) {
+-		return errClosing
+-	}
+-	return nil
+-}
+-
+-// Unlock for writing and remove a reference to this FD.
+-func (fd *netFD) writeUnlock() {
+-	if fd.fdmu.rwunlock(false) {
+-		fd.destroy()
+-	}
+-}
+-
+ func (fd *netFD) Close() error {
+ 	if !fd.fdmu.increfAndClose() {
+ 		return errClosing
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 994033c8fa..7b8a91d482 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -395,55 +395,6 @@ func (fd *netFD) destroy() {
+ 	runtime.SetFinalizer(fd, nil)
+ }
+ 
+-// Add a reference to this fd.
+-// Returns an error if the fd cannot be used.
+-func (fd *netFD) incref() error {
+-	if !fd.fdmu.incref() {
+-		return errClosing
+-	}
+-	return nil
+-}
+-
+-// Remove a reference to this FD and close if we've been asked to do so
+-// (and there are no references left).
+-func (fd *netFD) decref() {
+-	if fd.fdmu.decref() {
+-		fd.destroy()
+-	}
+-}
+-
+-// Add a reference to this fd and lock for reading.
+-// Returns an error if the fd cannot be used.
+-func (fd *netFD) readLock() error {
+-	if !fd.fdmu.rwlock(true) {
+-		return errClosing
+-	}
+-	return nil
+-}
+-
+-// Unlock for reading and remove a reference to this FD.
+-func (fd *netFD) readUnlock() {
+-	if fd.fdmu.rwunlock(true) {
+-		fd.destroy()
+-	}
+-}
+-
+-// Add a reference to this fd and lock for writing.
+-// Returns an error if the fd cannot be used.
+-func (fd *netFD) writeLock() error {
+-	if !fd.fdmu.rwlock(false) {
+-		return errClosing
+-	}
+-	return nil
+-}
+-
+-// Unlock for writing and remove a reference to this FD.
+-func (fd *netFD) writeUnlock() {
+-	if fd.fdmu.rwunlock(false) {
+-		fd.destroy()
+-	}
+-}
+-
+ func (fd *netFD) Close() error {
+ 	if !fd.fdmu.increfAndClose() {
+ 		return errClosing

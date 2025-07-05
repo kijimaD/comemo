@@ -21,7 +21,7 @@ Date:   Sat Apr 11 12:05:21 2015 +0800
     Reviewed-on: https://go-review.googlesource.com/8773
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  misc/cgo/testshared/test.bash | 30 ++++++++++++++-
  src/cmd/internal/ld/data.go   | 16 ++++++++
  src/cmd/internal/ld/ld.go     |  4 +-
@@ -30,3 +30,489 @@ Date:   Sat Apr 11 12:05:21 2015 +0800
  src/cmd/internal/ld/symtab.go | 63 ++++++++++++++++++++++++++++++++
  src/runtime/symtab.go         | 20 ++++++++++
  7 files changed, 186 insertions(+), 42 deletions(-)
+
+diff --git a/misc/cgo/testshared/test.bash b/misc/cgo/testshared/test.bash
+index 0b0d0411f7..0d67ff1719 100755
+--- a/misc/cgo/testshared/test.bash
++++ b/misc/cgo/testshared/test.bash
+@@ -8,7 +8,6 @@
+ 
+ set -eu
+ 
+-export GOPATH="$(pwd)"
+ 
+ die () {
+     echo $@
+@@ -23,8 +22,14 @@ rootdir="$(dirname $(go list -f '{{.Target}}' runtime))"
+ template="${rootdir}_XXXXXXXX_dynlink"
+ std_install_dir=$(mktemp -d "$template")
+ 
++scratch_dir=$(mktemp -d)
++cp -a . $scratch_dir
++opwd="$(pwd)"
++cd $scratch_dir
++export GOPATH="$(pwd)"
++
+ cleanup () {
+-    rm -rf $std_install_dir ./bin/ ./pkg/
++    rm -rf $std_install_dir $scratch_dir
+ }
+ trap cleanup EXIT
+ 
+@@ -109,3 +114,24 @@ will_check_rebuilt $rootdir/libdep.so $rootdir/dep.a
+ go install  -installsuffix="$mysuffix" -linkshared exe
+ assert_not_rebuilt $rootdir/dep.a
+ assert_rebuilt $rootdir/libdep.so
++
++# If we make an ABI-breaking change to dep and rebuild libp.so but not exe, exe will
++# abort with a complaint on startup.
++# This assumes adding an exported function breaks ABI, which is not true in some
++# senses but suffices for the narrow definition of ABI compatiblity the toolchain
++# uses today.
++echo "func ABIBreak() {}" >> src/dep/dep.go
++go install -installsuffix="$mysuffix" -buildmode=shared -linkshared dep
++output="$(./bin/exe 2>&1)" && die "exe succeeded after ABI break" || true
++msg="abi mismatch detected between the executable and libdep.so"
++{ echo "$output" | grep -q "$msg"; } || die "exe did not fail with expected message"
++
++# Rebuilding exe makes it work again.
++go install -installsuffix="$mysuffix" -linkshared exe
++./bin/exe || die "exe failed after rebuild"
++
++# If we make a change which does not break ABI (such as adding an
++# unexported function) and rebuild libdep.so, exe still works.
++echo "func noABIBreak() {}" >> src/dep/dep.go
++go install -installsuffix="$mysuffix" -buildmode=shared -linkshared dep
++./bin/exe || die "exe failed after non-ABI breaking change"
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index 37d458802f..b0157547c3 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -963,6 +963,22 @@ func Addstring(s *LSym, str string) int64 {
+ 	return int64(r)
+ }
+ 
++// addgostring adds str, as a Go string value, to s. symname is the name of the
++// symbol used to define the string data and must be unique per linked object.
++func addgostring(s *LSym, symname, str string) {
++	sym := Linklookup(Ctxt, symname, 0)
++	if sym.Type != obj.Sxxx {
++		Diag("duplicate symname in addgostring: %s", symname)
++	}
++	sym.Reachable = true
++	sym.Local = true
++	sym.Type = obj.SRODATA
++	sym.Size = int64(len(str))
++	sym.P = []byte(str)
++	Addaddr(Ctxt, s, sym)
++	adduint(Ctxt, s, uint64(len(str)))
++}
++
+ func addinitarrdata(s *LSym) {
+ 	p := s.Name + ".ptr"
+ 	sp := Linklookup(Ctxt, p, 0)
+diff --git a/src/cmd/internal/ld/ld.go b/src/cmd/internal/ld/ld.go
+index 7242301d0f..1068bdd767 100644
+--- a/src/cmd/internal/ld/ld.go
++++ b/src/cmd/internal/ld/ld.go
+@@ -109,8 +109,8 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s shlibnamefile: %s\n", obj.Cputime(), srcref, objref, file, pkg, shlibnamefile)
+ 	}
+ 
+-	ctxt.Library = append(ctxt.Library, Library{})
+-	l := &ctxt.Library[len(ctxt.Library)-1]
++	ctxt.Library = append(ctxt.Library, &Library{})
++	l := ctxt.Library[len(ctxt.Library)-1]
+ 	l.Objref = objref
+ 	l.Srcref = srcref
+ 	l.File = file
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index e4e68eae27..d4e67800d2 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -34,6 +34,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"cmd/internal/obj"
++	"crypto/sha1"
+ 	"debug/elf"
+ 	"fmt"
+ 	"io"
+@@ -474,7 +475,7 @@ func loadlib() {
+ 		if Ctxt.Library[i].Shlib != "" {
+ 			ldshlibsyms(Ctxt.Library[i].Shlib)
+ 		} else {
+-			objfile(Ctxt.Library[i].File, Ctxt.Library[i].Pkg)
++			objfile(Ctxt.Library[i])
+ 		}
+ 	}
+ 
+@@ -520,7 +521,7 @@ func loadlib() {
+ 				if DynlinkingGo() {
+ 					Exitf("cannot implicitly include runtime/cgo in a shared library")
+ 				}
+-				objfile(Ctxt.Library[i].File, Ctxt.Library[i].Pkg)
++				objfile(Ctxt.Library[i])
+ 			}
+ 		}
+ 	}
+@@ -631,18 +632,18 @@ func nextar(bp *obj.Biobuf, off int64, a *ArHdr) int64 {
+ 	return int64(arsize) + SAR_HDR
+ }
+ 
+-func objfile(file string, pkg string) {
+-	pkg = pathtoprefix(pkg)
++func objfile(lib *Library) {
++	pkg := pathtoprefix(lib.Pkg)
+ 
+ 	if Debug['v'] > 1 {
+-		fmt.Fprintf(&Bso, "%5.2f ldobj: %s (%s)\n", obj.Cputime(), file, pkg)
++		fmt.Fprintf(&Bso, "%5.2f ldobj: %s (%s)\n", obj.Cputime(), lib.File, pkg)
+ 	}
+ 	Bso.Flush()
+ 	var err error
+ 	var f *obj.Biobuf
+-	f, err = obj.Bopenr(file)
++	f, err = obj.Bopenr(lib.File)
+ 	if err != nil {
+-		Exitf("cannot open file %s: %v", file, err)
++		Exitf("cannot open file %s: %v", lib.File, err)
+ 	}
+ 
+ 	magbuf := make([]byte, len(ARMAG))
+@@ -651,7 +652,7 @@ func objfile(file string, pkg string) {
+ 		l := obj.Bseek(f, 0, 2)
+ 
+ 		obj.Bseek(f, 0, 0)
+-		ldobj(f, pkg, l, file, file, FileObj)
++		ldobj(f, pkg, l, lib.File, lib.File, FileObj)
+ 		obj.Bterm(f)
+ 
+ 		return
+@@ -664,7 +665,7 @@ func objfile(file string, pkg string) {
+ 	l := nextar(f, off, &arhdr)
+ 	var pname string
+ 	if l <= 0 {
+-		Diag("%s: short read on archive file symbol header", file)
++		Diag("%s: short read on archive file symbol header", lib.File)
+ 		goto out
+ 	}
+ 
+@@ -672,20 +673,29 @@ func objfile(file string, pkg string) {
+ 		off += l
+ 		l = nextar(f, off, &arhdr)
+ 		if l <= 0 {
+-			Diag("%s: short read on archive file symbol header", file)
++			Diag("%s: short read on archive file symbol header", lib.File)
+ 			goto out
+ 		}
+ 	}
+ 
+ 	if !strings.HasPrefix(arhdr.name, pkgname) {
+-		Diag("%s: cannot find package header", file)
++		Diag("%s: cannot find package header", lib.File)
+ 		goto out
+ 	}
+ 
++	if Buildmode == BuildmodeShared {
++		before := obj.Boffset(f)
++		pkgdefBytes := make([]byte, atolwhex(arhdr.size))
++		obj.Bread(f, pkgdefBytes)
++		hash := sha1.Sum(pkgdefBytes)
++		lib.hash = hash[:]
++		obj.Bseek(f, before, 0)
++	}
++
+ 	off += l
+ 
+ 	if Debug['u'] != 0 {
+-		ldpkg(f, pkg, atolwhex(arhdr.size), file, Pkgdef)
++		ldpkg(f, pkg, atolwhex(arhdr.size), lib.File, Pkgdef)
+ 	}
+ 
+ 	/*
+@@ -706,14 +716,14 @@ func objfile(file string, pkg string) {
+ 			break
+ 		}
+ 		if l < 0 {
+-			Exitf("%s: malformed archive", file)
++			Exitf("%s: malformed archive", lib.File)
+ 		}
+ 
+ 		off += l
+ 
+-		pname = fmt.Sprintf("%s(%s)", file, arhdr.name)
++		pname = fmt.Sprintf("%s(%s)", lib.File, arhdr.name)
+ 		l = atolwhex(arhdr.size)
+-		ldobj(f, pkg, l, pname, file, ArchiveObj)
++		ldobj(f, pkg, l, pname, lib.File, ArchiveObj)
+ 	}
+ 
+ out:
+@@ -974,7 +984,7 @@ func hostlink() {
+ 
+ 	if Linkshared {
+ 		for _, shlib := range Ctxt.Shlibs {
+-			dir, base := filepath.Split(shlib)
++			dir, base := filepath.Split(shlib.Path)
+ 			argv = append(argv, "-L"+dir)
+ 			if !rpath.set {
+ 				argv = append(argv, "-Wl,-rpath="+dir)
+@@ -1120,6 +1130,19 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
+ 	ldobjfile(Ctxt, f, pkg, eof-obj.Boffset(f), pn)
+ }
+ 
++func readelfsymboldata(f *elf.File, sym *elf.Symbol) []byte {
++	data := make([]byte, sym.Size)
++	sect := f.Sections[sym.Section]
++	if sect.Type != elf.SHT_PROGBITS {
++		Diag("reading %s from non-PROGBITS section", sym.Name)
++	}
++	n, err := sect.ReadAt(data, int64(sym.Value-sect.Offset))
++	if uint64(n) != sym.Size {
++		Diag("reading contents of %s: %v", sym.Name, err)
++	}
++	return data
++}
++
+ func ldshlibsyms(shlib string) {
+ 	found := false
+ 	libpath := ""
+@@ -1134,8 +1157,8 @@ func ldshlibsyms(shlib string) {
+ 		Diag("cannot find shared library: %s", shlib)
+ 		return
+ 	}
+-	for _, processedname := range Ctxt.Shlibs {
+-		if processedname == libpath {
++	for _, processedlib := range Ctxt.Shlibs {
++		if processedlib.Path == libpath {
+ 			return
+ 		}
+ 	}
+@@ -1167,6 +1190,7 @@ func ldshlibsyms(shlib string) {
+ 	// table removed.
+ 	gcmasks := make(map[uint64][]byte)
+ 	types := []*LSym{}
++	var hash []byte
+ 	for _, s := range syms {
+ 		if elf.ST_TYPE(s.Info) == elf.STT_NOTYPE || elf.ST_TYPE(s.Info) == elf.STT_SECTION {
+ 			continue
+@@ -1178,15 +1202,10 @@ func ldshlibsyms(shlib string) {
+ 			continue
+ 		}
+ 		if strings.HasPrefix(s.Name, "runtime.gcbits.0x") {
+-			data := make([]byte, s.Size)
+-			sect := f.Sections[s.Section]
+-			if sect.Type == elf.SHT_PROGBITS {
+-				n, err := sect.ReadAt(data, int64(s.Value-sect.Offset))
+-				if uint64(n) != s.Size {
+-					Diag("Error reading contents of %s: %v", s.Name, err)
+-				}
+-			}
+-			gcmasks[s.Value] = data
++			gcmasks[s.Value] = readelfsymboldata(f, &s)
++		}
++		if s.Name == "go.link.abihashbytes" {
++			hash = readelfsymboldata(f, &s)
+ 		}
+ 		if elf.ST_BIND(s.Info) != elf.STB_GLOBAL {
+ 			continue
+@@ -1201,14 +1220,8 @@ func ldshlibsyms(shlib string) {
+ 		lsym.ElfType = elf.ST_TYPE(s.Info)
+ 		lsym.File = libpath
+ 		if strings.HasPrefix(lsym.Name, "type.") {
+-			data := make([]byte, s.Size)
+-			sect := f.Sections[s.Section]
+-			if sect.Type == elf.SHT_PROGBITS {
+-				n, err := sect.ReadAt(data, int64(s.Value-sect.Offset))
+-				if uint64(n) != s.Size {
+-					Diag("Error reading contents of %s: %v", s.Name, err)
+-				}
+-				lsym.P = data
++			if f.Sections[s.Section].Type == elf.SHT_PROGBITS {
++				lsym.P = readelfsymboldata(f, &s)
+ 			}
+ 			if !strings.HasPrefix(lsym.Name, "type..") {
+ 				types = append(types, lsym)
+@@ -1255,7 +1268,7 @@ func ldshlibsyms(shlib string) {
+ 		Ctxt.Etextp = last
+ 	}
+ 
+-	Ctxt.Shlibs = append(Ctxt.Shlibs, libpath)
++	Ctxt.Shlibs = append(Ctxt.Shlibs, Shlib{Path: libpath, Hash: hash})
+ }
+ 
+ func mywhatsys() {
+diff --git a/src/cmd/internal/ld/link.go b/src/cmd/internal/ld/link.go
+index 03da52a981..a314ca1370 100644
+--- a/src/cmd/internal/ld/link.go
++++ b/src/cmd/internal/ld/link.go
+@@ -106,6 +106,11 @@ type Auto struct {
+ 	Gotype  *LSym
+ }
+ 
++type Shlib struct {
++	Path string
++	Hash []byte
++}
++
+ type Link struct {
+ 	Thechar   int32
+ 	Thestring string
+@@ -122,8 +127,8 @@ type Link struct {
+ 	Nsymbol   int32
+ 	Tlsg      *LSym
+ 	Libdir    []string
+-	Library   []Library
+-	Shlibs    []string
++	Library   []*Library
++	Shlibs    []Shlib
+ 	Tlsoffset int
+ 	Diag      func(string, ...interface{})
+ 	Cursym    *LSym
+@@ -149,6 +154,7 @@ type Library struct {
+ 	File   string
+ 	Pkg    string
+ 	Shlib  string
++	hash   []byte
+ }
+ 
+ type Pcln struct {
+diff --git a/src/cmd/internal/ld/symtab.go b/src/cmd/internal/ld/symtab.go
+index d6e79dc00f..ca66541935 100644
+--- a/src/cmd/internal/ld/symtab.go
++++ b/src/cmd/internal/ld/symtab.go
+@@ -32,6 +32,10 @@ package ld
+ 
+ import (
+ 	"cmd/internal/obj"
++	"crypto/sha1"
++	"fmt"
++	"path/filepath"
++	"sort"
+ 	"strings"
+ )
+ 
+@@ -294,6 +298,20 @@ func Vputl(v uint64) {
+ 	Lputl(uint32(v >> 32))
+ }
+ 
++type byPkg []*Library
++
++func (libs byPkg) Len() int {
++	return len(libs)
++}
++
++func (libs byPkg) Less(a, b int) bool {
++	return libs[a].Pkg < libs[b].Pkg
++}
++
++func (libs byPkg) Swap(a, b int) {
++	libs[a], libs[b] = libs[b], libs[a]
++}
++
+ func symtab() {
+ 	dosymtype()
+ 
+@@ -410,6 +428,19 @@ func symtab() {
+ 		}
+ 	}
+ 
++	if Buildmode == BuildmodeShared {
++		sort.Sort(byPkg(Ctxt.Library))
++		h := sha1.New()
++		for _, l := range Ctxt.Library {
++			h.Write(l.hash)
++		}
++		abihashgostr := Linklookup(Ctxt, "go.link.abihash."+filepath.Base(outfile), 0)
++		abihashgostr.Reachable = true
++		abihashgostr.Type = obj.SRODATA
++		var hashbytes []byte
++		addgostring(abihashgostr, "go.link.abihashbytes", string(h.Sum(hashbytes)))
++	}
++
+ 	// Information about the layout of the executable image for the
+ 	// runtime to use. Any changes here must be matched by changes to
+ 	// the definition of moduledata in runtime/symtab.go.
+@@ -454,6 +485,38 @@ func symtab() {
+ 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.typelink", 0))
+ 	adduint(Ctxt, moduledata, uint64(ntypelinks))
+ 	adduint(Ctxt, moduledata, uint64(ntypelinks))
++	if len(Ctxt.Shlibs) > 0 {
++		thismodulename := filepath.Base(outfile)
++		if Buildmode == BuildmodeExe {
++			// When linking an executable, outfile is just "a.out". Make
++			// it something slightly more comprehensible.
++			thismodulename = "the executable"
++		}
++		addgostring(moduledata, "go.link.thismodulename", thismodulename)
++
++		modulehashes := Linklookup(Ctxt, "go.link.abihashes", 0)
++		modulehashes.Reachable = true
++		modulehashes.Local = true
++		modulehashes.Type = obj.SRODATA
++
++		for i, shlib := range Ctxt.Shlibs {
++			// modulehashes[i].modulename
++			modulename := filepath.Base(shlib.Path)
++			addgostring(modulehashes, fmt.Sprintf("go.link.libname.%d", i), modulename)
++
++			// modulehashes[i].linktimehash
++			addgostring(modulehashes, fmt.Sprintf("go.link.linkhash.%d", i), string(shlib.Hash))
++
++			// modulehashes[i].runtimehash
++			abihash := Linklookup(Ctxt, "go.link.abihash."+modulename, 0)
++			abihash.Reachable = true
++			Addaddr(Ctxt, modulehashes, abihash)
++		}
++
++		Addaddr(Ctxt, moduledata, modulehashes)
++		adduint(Ctxt, moduledata, uint64(len(Ctxt.Shlibs)))
++		adduint(Ctxt, moduledata, uint64(len(Ctxt.Shlibs)))
++	}
+ 	// The rest of moduledata is zero initialized.
+ 	// When linking an object that does not contain the runtime we are
+ 	// creating the moduledata from scratch and it does not have a
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index bbf00bf134..9afa954259 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -48,11 +48,24 @@ type moduledata struct {
+ 
+ 	typelinks []*_type
+ 
++	modulename   string
++	modulehashes []modulehash
++
+ 	gcdatamask, gcbssmask bitvector
+ 
+ 	next *moduledata
+ }
+ 
++// For each shared library a module links against, the linker creates an entry in the
++// moduledata.modulehashes slice containing the name of the module, the abi hash seen
++// at link time and a pointer to the runtime abi hash. These are checked in
++// moduledataverify1 below.
++type modulehash struct {
++	modulename   string
++	linktimehash string
++	runtimehash  *string
++}
++
+ var firstmoduledata moduledata  // linker symbol
+ var lastmoduledatap *moduledata // linker symbol
+ 
+@@ -117,6 +130,13 @@ func moduledataverify1(datap *moduledata) {
+ 		datap.maxpc != datap.ftab[nftab].entry {
+ 		throw("minpc or maxpc invalid")
+ 	}
++
++	for _, modulehash := range datap.modulehashes {
++		if modulehash.linktimehash != *modulehash.runtimehash {
++			println("abi mismatch detected between", datap.modulename, "and", modulehash.modulename)
++			throw("abi mismatch")
++		}
++	}
+ }
+ 
+ // FuncForPC returns a *Func describing the function that contains the

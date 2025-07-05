@@ -24,10 +24,410 @@ Date:   Fri Jan 20 10:44:22 2012 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/5558048
-
+---
  src/pkg/image/draw/draw.go   |  32 ++++++--------
  src/pkg/image/image.go       |  16 +++----
  src/pkg/image/jpeg/reader.go |  15 ++-----
  src/pkg/image/ycbcr.go       |  75 ++++++++++++++++++++++++++-----
  src/pkg/image/ycbcr_test.go  | 103 +++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 192 insertions(+), 49 deletions(-)
+
+diff --git a/src/pkg/image/draw/draw.go b/src/pkg/image/draw/draw.go
+index 2ea572d3a8..3b6679f7c7 100644
+--- a/src/pkg/image/draw/draw.go
++++ b/src/pkg/image/draw/draw.go
+@@ -348,7 +348,6 @@ func drawNRGBASrc(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image
+ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Point) {
+ 	// An image.YCbCr is always fully opaque, and so if the mask is implicitly nil
+ 	// (i.e. fully opaque) then the op is effectively always Src.
+-	var yy, cb, cr uint8
+ 	x0 := (r.Min.X - dst.Rect.Min.X) * 4
+ 	x1 := (r.Max.X - dst.Rect.Min.X) * 4
+ 	y0 := r.Min.Y - dst.Rect.Min.Y
+@@ -357,12 +356,11 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 	case image.YCbCrSubsampleRatio422:
+ 		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+ 			dpix := dst.Pix[y*dst.Stride:]
+-			for x, sx := x0, sp.X; x != x1; x, sx = x+4, sx+1 {
+-				i := sx / 2
+-				yy = src.Y[sy*src.YStride+sx]
+-				cb = src.Cb[sy*src.CStride+i]
+-				cr = src.Cr[sy*src.CStride+i]
+-				rr, gg, bb := color.YCbCrToRGB(yy, cb, cr)
++			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
++			ciBase := (sy-src.Rect.Min.Y)*src.CStride - src.Rect.Min.X/2
++			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
++				ci := ciBase + sx/2
++				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
+ 				dpix[x+0] = rr
+ 				dpix[x+1] = gg
+ 				dpix[x+2] = bb
+@@ -372,12 +370,11 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 	case image.YCbCrSubsampleRatio420:
+ 		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+ 			dpix := dst.Pix[y*dst.Stride:]
+-			for x, sx := x0, sp.X; x != x1; x, sx = x+4, sx+1 {
+-				i, j := sx/2, sy/2
+-				yy = src.Y[sy*src.YStride+sx]
+-				cb = src.Cb[j*src.CStride+i]
+-				cr = src.Cr[j*src.CStride+i]
+-				rr, gg, bb := color.YCbCrToRGB(yy, cb, cr)
++			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
++			ciBase := (sy/2-src.Rect.Min.Y/2)*src.CStride - src.Rect.Min.X/2
++			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
++				ci := ciBase + sx/2
++				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
+ 				dpix[x+0] = rr
+ 				dpix[x+1] = gg
+ 				dpix[x+2] = bb
+@@ -388,11 +385,10 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 		// Default to 4:4:4 subsampling.
+ 		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+ 			dpix := dst.Pix[y*dst.Stride:]
+-			for x, sx := x0, sp.X; x != x1; x, sx = x+4, sx+1 {
+-				yy = src.Y[sy*src.YStride+sx]
+-				cb = src.Cb[sy*src.CStride+sx]
+-				cr = src.Cr[sy*src.CStride+sx]
+-				rr, gg, bb := color.YCbCrToRGB(yy, cb, cr)
++			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
++			ci := (sy-src.Rect.Min.Y)*src.CStride + (sp.X - src.Rect.Min.X)
++			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
++				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
+ 				dpix[x+0] = rr
+ 				dpix[x+1] = gg
+ 				dpix[x+2] = bb
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index cc7b2a5e23..9dd676aced 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -130,7 +130,7 @@ func (p *RGBA) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewRGBA returns a new RGBA with the given width and height.
++// NewRGBA returns a new RGBA with the given bounds.
+ func NewRGBA(r Rectangle) *RGBA {
+ 	w, h := r.Dx(), r.Dy()
+ 	buf := make([]uint8, 4*w*h)
+@@ -238,7 +238,7 @@ func (p *RGBA64) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewRGBA64 returns a new RGBA64 with the given width and height.
++// NewRGBA64 returns a new RGBA64 with the given bounds.
+ func NewRGBA64(r Rectangle) *RGBA64 {
+ 	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 8*w*h)
+@@ -333,7 +333,7 @@ func (p *NRGBA) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewNRGBA returns a new NRGBA with the given width and height.
++// NewNRGBA returns a new NRGBA with the given bounds.
+ func NewNRGBA(r Rectangle) *NRGBA {
+ 	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 4*w*h)
+@@ -441,7 +441,7 @@ func (p *NRGBA64) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewNRGBA64 returns a new NRGBA64 with the given width and height.
++// NewNRGBA64 returns a new NRGBA64 with the given bounds.
+ func NewNRGBA64(r Rectangle) *NRGBA64 {
+ 	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 8*w*h)
+@@ -529,7 +529,7 @@ func (p *Alpha) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewAlpha returns a new Alpha with the given width and height.
++// NewAlpha returns a new Alpha with the given bounds.
+ func NewAlpha(r Rectangle) *Alpha {
+ 	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 1*w*h)
+@@ -620,7 +620,7 @@ func (p *Alpha16) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewAlpha16 returns a new Alpha16 with the given width and height.
++// NewAlpha16 returns a new Alpha16 with the given bounds.
+ func NewAlpha16(r Rectangle) *Alpha16 {
+ 	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 2*w*h)
+@@ -695,7 +695,7 @@ func (p *Gray) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewGray returns a new Gray with the given width and height.
++// NewGray returns a new Gray with the given bounds.
+ func NewGray(r Rectangle) *Gray {
+ 	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 1*w*h)
+@@ -773,7 +773,7 @@ func (p *Gray16) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewGray16 returns a new Gray16 with the given width and height.
++// NewGray16 returns a new Gray16 with the given bounds.
+ func NewGray16(r Rectangle) *Gray16 {
+ 	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 2*w*h)
+diff --git a/src/pkg/image/jpeg/reader.go b/src/pkg/image/jpeg/reader.go
+index ed1a962586..2e412ad171 100644
+--- a/src/pkg/image/jpeg/reader.go
++++ b/src/pkg/image/jpeg/reader.go
+@@ -203,8 +203,7 @@ func (d *decoder) makeImg(h0, v0, mxx, myy int) {
+ 		return
+ 	}
+ 	var subsampleRatio image.YCbCrSubsampleRatio
+-	n := h0 * v0
+-	switch n {
++	switch h0 * v0 {
+ 	case 1:
+ 		subsampleRatio = image.YCbCrSubsampleRatio444
+ 	case 2:
+@@ -214,16 +213,8 @@ func (d *decoder) makeImg(h0, v0, mxx, myy int) {
+ 	default:
+ 		panic("unreachable")
+ 	}
+-	b := make([]byte, mxx*myy*(1*8*8*n+2*8*8))
+-	d.img3 = &image.YCbCr{
+-		Y:              b[mxx*myy*(0*8*8*n+0*8*8) : mxx*myy*(1*8*8*n+0*8*8)],
+-		Cb:             b[mxx*myy*(1*8*8*n+0*8*8) : mxx*myy*(1*8*8*n+1*8*8)],
+-		Cr:             b[mxx*myy*(1*8*8*n+1*8*8) : mxx*myy*(1*8*8*n+2*8*8)],
+-		SubsampleRatio: subsampleRatio,
+-		YStride:        mxx * 8 * h0,
+-		CStride:        mxx * 8,
+-		Rect:           image.Rect(0, 0, d.width, d.height),
+-	}
++	m := image.NewYCbCr(image.Rect(0, 0, 8*h0*mxx, 8*v0*myy), subsampleRatio)
++	d.img3 = m.SubImage(image.Rect(0, 0, d.width, d.height)).(*image.YCbCr)
+ }
+ 
+ // Specified in section B.2.3.
+diff --git a/src/pkg/image/ycbcr.go b/src/pkg/image/ycbcr.go
+index 4b77d242c2..c1a0b666f8 100644
+--- a/src/pkg/image/ycbcr.go
++++ b/src/pkg/image/ycbcr.go
+@@ -17,6 +17,18 @@ const (
+ 	YCbCrSubsampleRatio420
+ )
+ 
++func (s YCbCrSubsampleRatio) String() string {
++	switch s {
++	case YCbCrSubsampleRatio444:
++		return "YCbCrSubsampleRatio444"
++	case YCbCrSubsampleRatio422:
++		return "YCbCrSubsampleRatio422"
++	case YCbCrSubsampleRatio420:
++		return "YCbCrSubsampleRatio420"
++	}
++	return "YCbCrSubsampleRatioUnknown"
++}
++
+ // YCbCr is an in-memory image of Y'CbCr colors. There is one Y sample per
+ // pixel, but each Cb and Cr sample can span one or more pixels.
+ // YStride is the Y slice index delta between vertically adjacent pixels.
+@@ -28,9 +40,7 @@ const (
+ //	For 4:2:2, CStride == YStride/2 && len(Cb) == len(Cr) == len(Y)/2.
+ //	For 4:2:0, CStride == YStride/2 && len(Cb) == len(Cr) == len(Y)/4.
+ type YCbCr struct {
+-	Y              []uint8
+-	Cb             []uint8
+-	Cr             []uint8
++	Y, Cb, Cr      []uint8
+ 	YStride        int
+ 	CStride        int
+ 	SubsampleRatio YCbCrSubsampleRatio
+@@ -61,7 +71,7 @@ func (p *YCbCr) At(x, y int) color.Color {
+ // YOffset returns the index of the first element of Y that corresponds to
+ // the pixel at (x, y).
+ func (p *YCbCr) YOffset(x, y int) int {
+-	return y*p.YStride + x
++	return (y-p.Rect.Min.Y)*p.YStride + (x - p.Rect.Min.X)
+ }
+ 
+ // COffset returns the index of the first element of Cb or Cr that corresponds
+@@ -69,23 +79,66 @@ func (p *YCbCr) YOffset(x, y int) int {
+ func (p *YCbCr) COffset(x, y int) int {
+ 	switch p.SubsampleRatio {
+ 	case YCbCrSubsampleRatio422:
+-		return y*p.CStride + (x / 2)
++		return (y-p.Rect.Min.Y)*p.CStride + (x/2 - p.Rect.Min.X/2)
+ 	case YCbCrSubsampleRatio420:
+-		return (y/2)*p.CStride + (x / 2)
++		return (y/2-p.Rect.Min.Y/2)*p.CStride + (x/2 - p.Rect.Min.X/2)
+ 	}
+ 	// Default to 4:4:4 subsampling.
+-	return y*p.CStride + x
++	return (y-p.Rect.Min.Y)*p.CStride + (x - p.Rect.Min.X)
+ }
+ 
+ // SubImage returns an image representing the portion of the image p visible
+ // through r. The returned value shares pixels with the original image.
+ func (p *YCbCr) SubImage(r Rectangle) Image {
+-	q := new(YCbCr)
+-	*q = *p
+-	q.Rect = q.Rect.Intersect(r)
+-	return q
++	r = r.Intersect(p.Rect)
++	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
++	// either r1 or r2 if the intersection is empty. Without explicitly checking for
++	// this, the Pix[i:] expression below can panic.
++	if r.Empty() {
++		return &YCbCr{
++			SubsampleRatio: p.SubsampleRatio,
++		}
++	}
++	yi := p.YOffset(r.Min.X, r.Min.Y)
++	ci := p.COffset(r.Min.X, r.Min.Y)
++	return &YCbCr{
++		Y:              p.Y[yi:],
++		Cb:             p.Cb[ci:],
++		Cr:             p.Cr[ci:],
++		SubsampleRatio: p.SubsampleRatio,
++		YStride:        p.YStride,
++		CStride:        p.CStride,
++		Rect:           r,
++	}
+ }
+ 
+ func (p *YCbCr) Opaque() bool {
+ 	return true
+ }
++
++// NewYCbCr returns a new YCbCr with the given bounds and subsample ratio.
++func NewYCbCr(r Rectangle, subsampleRatio YCbCrSubsampleRatio) *YCbCr {
++	w, h, cw, ch := r.Dx(), r.Dy(), 0, 0
++	switch subsampleRatio {
++	case YCbCrSubsampleRatio422:
++		cw = (r.Max.X+1)/2 - r.Min.X/2
++		ch = h
++	case YCbCrSubsampleRatio420:
++		cw = (r.Max.X+1)/2 - r.Min.X/2
++		ch = (r.Max.Y+1)/2 - r.Min.Y/2
++	default:
++		// Default to 4:4:4 subsampling.
++		cw = w
++		ch = h
++	}
++	b := make([]byte, w*h+2*cw*ch)
++	return &YCbCr{
++		Y:              b[:w*h],
++		Cb:             b[w*h+0*cw*ch : w*h+1*cw*ch],
++		Cr:             b[w*h+1*cw*ch : w*h+2*cw*ch],
++		SubsampleRatio: subsampleRatio,
++		YStride:        w,
++		CStride:        cw,
++		Rect:           r,
++	}
++}
+diff --git a/src/pkg/image/ycbcr_test.go b/src/pkg/image/ycbcr_test.go
+new file mode 100644
+index 0000000000..7852b31ded
+--- /dev/null
++++ b/src/pkg/image/ycbcr_test.go
+@@ -0,0 +1,103 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package image
++
++import (
++	"image/color"
++	"testing"
++)
++
++func TestYCbCr(t *testing.T) {
++	rects := []Rectangle{
++		Rect(0, 0, 16, 16),
++		Rect(1, 0, 16, 16),
++		Rect(0, 1, 16, 16),
++		Rect(1, 1, 16, 16),
++		Rect(1, 1, 15, 16),
++		Rect(1, 1, 16, 15),
++		Rect(1, 1, 15, 15),
++		Rect(2, 3, 14, 15),
++		Rect(7, 0, 7, 16),
++		Rect(0, 8, 16, 8),
++		Rect(0, 0, 10, 11),
++		Rect(5, 6, 16, 16),
++		Rect(7, 7, 8, 8),
++		Rect(7, 8, 8, 9),
++		Rect(8, 7, 9, 8),
++		Rect(8, 8, 9, 9),
++		Rect(7, 7, 17, 17),
++		Rect(8, 8, 17, 17),
++		Rect(9, 9, 17, 17),
++		Rect(10, 10, 17, 17),
++	}
++	subsampleRatios := []YCbCrSubsampleRatio{
++		YCbCrSubsampleRatio444,
++		YCbCrSubsampleRatio422,
++		YCbCrSubsampleRatio420,
++	}
++	deltas := []Point{
++		Pt(0, 0),
++		Pt(1000, 1001),
++		Pt(5001, -400),
++		Pt(-701, -801),
++	}
++	for _, r := range rects {
++		for _, subsampleRatio := range subsampleRatios {
++			for _, delta := range deltas {
++				testYCbCr(t, r, subsampleRatio, delta)
++			}
++		}
++	}
++}
++
++func testYCbCr(t *testing.T, r Rectangle, subsampleRatio YCbCrSubsampleRatio, delta Point) {
++	// Create a YCbCr image m, whose bounds are r translated by (delta.X, delta.Y).
++	r1 := r.Add(delta)
++	m := NewYCbCr(r1, subsampleRatio)
++
++	// Test that the image buffer is reasonably small even if (delta.X, delta.Y) is far from the origin.
++	if len(m.Y) > 100*100 {
++		t.Errorf("r=%v, subsampleRatio=%v, delta=%v: image buffer is too large",
++			r, subsampleRatio, delta)
++		return
++	}
++
++	// Initialize m's pixels. For 422 and 420 subsampling, some of the Cb and Cr elements
++	// will be set multiple times. That's OK. We just want to avoid a uniform image.
++	for y := r1.Min.Y; y < r1.Max.Y; y++ {
++		for x := r1.Min.X; x < r1.Max.X; x++ {
++			yi := m.YOffset(x, y)
++			ci := m.COffset(x, y)
++			m.Y[yi] = uint8(16*y + x)
++			m.Cb[ci] = uint8(y + 16*x)
++			m.Cr[ci] = uint8(y + 16*x)
++		}
++	}
++
++	// Make various sub-images of m.
++	for y0 := delta.Y + 3; y0 < delta.Y+7; y0++ {
++		for y1 := delta.Y + 8; y1 < delta.Y+13; y1++ {
++			for x0 := delta.X + 3; x0 < delta.X+7; x0++ {
++				for x1 := delta.X + 8; x1 < delta.X+13; x1++ {
++					subRect := Rect(x0, y0, x1, y1)
++					sub := m.SubImage(subRect).(*YCbCr)
++
++					// For each point in the sub-image's bounds, check that m.At(x, y) equals sub.At(x, y).
++					for y := sub.Rect.Min.Y; y < sub.Rect.Max.Y; y++ {
++						for x := sub.Rect.Min.X; x < sub.Rect.Max.X; x++ {
++							color0 := m.At(x, y).(color.YCbCr)
++							color1 := sub.At(x, y).(color.YCbCr)
++							if color0 != color1 {
++								t.Errorf("r=%v, subsampleRatio=%v, delta=%v, x=%d, y=%d, color0=%v, color1=%v",
++									r, subsampleRatio, delta, x, y, color0, color1)
++								return
++							}
++						}
++					}
++				}
++			}
++		}
++	}
++}

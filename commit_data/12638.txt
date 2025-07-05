@@ -7,7 +7,44 @@ Date:   Thu Mar 15 08:09:54 2012 +1100
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5819048
-
+---
  doc/style.css          | 6 ++++--
  lib/godoc/example.html | 4 ++--
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/doc/style.css b/doc/style.css
+index 882ce7435d..fc6c34c8df 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -30,11 +30,13 @@ pre .ln {
+ body {
+ 	color: #222;
+ }
+-a {
++a,
++.exampleHeading .text {
+ 	color: #375EAB;
+ 	text-decoration: none;
+ }
+-a:hover {
++a:hover,
++.exampleHeading .text:hover {
+ 	text-decoration: underline;
+ }
+ p,
+diff --git a/lib/godoc/example.html b/lib/godoc/example.html
+index d7b219371a..43ee4bddc1 100644
+--- a/lib/godoc/example.html
++++ b/lib/godoc/example.html
+@@ -1,9 +1,9 @@
+ <div id="example_{{.Name}}" class="example">
+ 	<div class="collapsed">
+-		<p class="exampleHeading">▹ Example{{example_suffix .Name}}</p>
++		<p class="exampleHeading">▹ <span class="text">Example{{example_suffix .Name}}</span></p>
+ 	</div>
+ 	<div class="expanded">
+-		<p class="exampleHeading">▾ Example{{example_suffix .Name}}</p>
++		<p class="exampleHeading">▾ <span class="text">Example{{example_suffix .Name}}</span></p>
+ 		{{with .Doc}}<p>{{html .}}</p>{{end}}
+ 		<p>Code:</p>
+ 		<pre class="code">{{.Code}}</pre>

@@ -49,8 +49,99 @@ Date:   Thu Nov 19 10:23:20 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/17061
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  misc/cgo/test/issue4029.c  | 10 ++++++++++
  misc/cgo/test/issue4029.go | 17 ++++++++++++-----
  src/cmd/cgo/out.go         |  2 +-
  3 files changed, 23 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/test/issue4029.c b/misc/cgo/test/issue4029.c
+new file mode 100644
+index 0000000000..1ff97ec729
+--- /dev/null
++++ b/misc/cgo/test/issue4029.c
+@@ -0,0 +1,10 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows
++
++void call4029(void *arg) {
++	void (*fn)(void) = arg;
++	fn();
++}
+diff --git a/misc/cgo/test/issue4029.go b/misc/cgo/test/issue4029.go
+index b0385eb857..9282725126 100644
+--- a/misc/cgo/test/issue4029.go
++++ b/misc/cgo/test/issue4029.go
+@@ -9,32 +9,35 @@ package cgotest
+ /*
+ #include <dlfcn.h>
+ #cgo linux LDFLAGS: -ldl
++
++extern void call4029(void *arg);
+ */
+ import "C"
+ 
+ import (
+-	"fmt"
+ 	"testing"
+ )
+ 
++var callbacks int
++
+ //export IMPIsOpaque
+ func IMPIsOpaque() {
+-	fmt.Println("isOpaque")
++	callbacks++
+ }
+ 
+ //export IMPInitWithFrame
+ func IMPInitWithFrame() {
+-	fmt.Println("IInitWithFrame")
++	callbacks++
+ }
+ 
+ //export IMPDrawRect
+ func IMPDrawRect() {
+-	fmt.Println("drawRect:")
++	callbacks++
+ }
+ 
+ //export IMPWindowResize
+ func IMPWindowResize() {
+-	fmt.Println("windowDidResize:")
++	callbacks++
+ }
+ 
+ func test4029(t *testing.T) {
+@@ -42,6 +45,9 @@ func test4029(t *testing.T) {
+ 	loadThySelf(t, "IMPDrawRect")
+ 	loadThySelf(t, "IMPInitWithFrame")
+ 	loadThySelf(t, "IMPIsOpaque")
++	if callbacks != 4 {
++		t.Errorf("got %d callbacks, expected 4", callbacks)
++	}
+ }
+ 
+ func loadThySelf(t *testing.T, symbol string) {
+@@ -58,4 +64,5 @@ func loadThySelf(t *testing.T, symbol string) {
+ 		return
+ 	}
+ 	t.Log(symbol, symbol_address)
++	C.call4029(symbol_address)
+ }
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index c59df665ac..473bc9a927 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -817,7 +817,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 			goname += fn.Recv.List[0].Names[0].Name + "_"
+ 		}
+ 		goname += exp.Func.Name.Name
+-		fmt.Fprintf(fgo2, "//go:cgo_export_dynamic %s\n", exp.Func.Name.Name)
++		fmt.Fprintf(fgo2, "//go:cgo_export_dynamic %s\n", exp.ExpName)
+ 		fmt.Fprintf(fgo2, "//go:linkname _cgoexp%s_%s _cgoexp%s_%s\n", cPrefix, exp.ExpName, cPrefix, exp.ExpName)
+ 		fmt.Fprintf(fgo2, "//go:cgo_export_static _cgoexp%s_%s\n", cPrefix, exp.ExpName)
+ 		fmt.Fprintf(fgo2, "//go:nosplit\n") // no split stack, so no use of m or g

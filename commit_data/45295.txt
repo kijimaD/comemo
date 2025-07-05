@@ -30,8 +30,85 @@ Date:   Mon Oct 19 11:09:10 2020 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/internal/bytealg/count_generic.go |  2 +-
  src/internal/bytealg/count_native.go  |  2 +-
  src/internal/bytealg/count_riscv64.s  | 44 +++++++++++++++++++++++++++++++++++
  3 files changed, 46 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/bytealg/count_generic.go b/src/internal/bytealg/count_generic.go
+index 7cc1d50312..5575e81ab8 100644
+--- a/src/internal/bytealg/count_generic.go
++++ b/src/internal/bytealg/count_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!arm,!arm64,!ppc64le,!ppc64,!s390x
++// +build !amd64,!arm,!arm64,!ppc64le,!ppc64,!riscv64,!s390x
+ 
+ package bytealg
+ 
+diff --git a/src/internal/bytealg/count_native.go b/src/internal/bytealg/count_native.go
+index 0448fca9e8..b1ff1d265a 100644
+--- a/src/internal/bytealg/count_native.go
++++ b/src/internal/bytealg/count_native.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64 arm arm64 ppc64le ppc64 s390x
++// +build amd64 arm arm64 ppc64le ppc64 riscv64 s390x
+ 
+ package bytealg
+ 
+diff --git a/src/internal/bytealg/count_riscv64.s b/src/internal/bytealg/count_riscv64.s
+new file mode 100644
+index 0000000000..3f4eb23286
+--- /dev/null
++++ b/src/internal/bytealg/count_riscv64.s
+@@ -0,0 +1,44 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Count(SB),NOSPLIT,$0-40
++	MOV	b_base+0(FP), A1
++	MOV	b_len+8(FP), A2
++	MOVBU	c+24(FP), A3	// byte to count
++	MOV	ZERO, A4	// count
++	ADD	A1, A2		// end
++
++loop:
++	BEQ	A1, A2, done
++	MOVBU	(A1), A5
++	ADD	$1, A1
++	BNE	A3, A5, loop
++	ADD	$1, A4
++	JMP	loop
++
++done:
++	MOV	A4, ret+32(FP)
++	RET
++
++TEXT ·CountString(SB),NOSPLIT,$0-32
++	MOV	s_base+0(FP), A1
++	MOV	s_len+8(FP), A2
++	MOVBU	c+16(FP), A3	// byte to count
++	MOV	ZERO, A4	// count
++	ADD	A1, A2		// end
++
++loop:
++	BEQ	A1, A2, done
++	MOVBU	(A1), A5
++	ADD	$1, A1
++	BNE	A3, A5, loop
++	ADD	$1, A4
++	JMP	loop
++
++done:
++	MOV	A4, ret+24(FP)
++	RET

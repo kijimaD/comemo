@@ -18,6 +18,24 @@ Date:   Thu Aug 31 09:13:06 2023 +0200
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/syscall_windows_test.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 1770b83e5d..6a056c8d2b 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -265,11 +265,9 @@ func TestCallbackInAnotherThread(t *testing.T) {
+ 	h := syscall.Handle(r)
+ 	defer syscall.CloseHandle(h)
+ 
+-	switch s, err := syscall.WaitForSingleObject(h, 100); s {
++	switch s, err := syscall.WaitForSingleObject(h, syscall.INFINITE); s {
+ 	case syscall.WAIT_OBJECT_0:
+ 		break
+-	case syscall.WAIT_TIMEOUT:
+-		t.Fatal("timeout waiting for thread to exit")
+ 	case syscall.WAIT_FAILED:
+ 		t.Fatalf("WaitForSingleObject failed: %v", err)
+ 	default:

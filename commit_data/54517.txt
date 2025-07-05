@@ -17,8 +17,82 @@ Date:   Tue Oct 25 23:10:13 2022 -0400
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/x509/verify_test.go | 4 ++--
  src/crypto/x509/x509.go        | 8 +++-----
  src/crypto/x509/x509_test.go   | 7 ++-----
  3 files changed, 7 insertions(+), 12 deletions(-)
+
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 7bc58d4754..4c21e78ccc 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -543,8 +543,8 @@ func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
+ func TestGoVerify(t *testing.T) {
+ 	// Temporarily enable SHA-1 verification since a number of test chains
+ 	// require it. TODO(filippo): regenerate test chains.
+-	defer func(old bool) { debugAllowSHA1 = old }(debugAllowSHA1)
+-	debugAllowSHA1 = true
++	t.Setenv("GODEBUG", "x509sha1=1")
++
+ 	for _, test := range verifyTests {
+ 		t.Run(test.name, func(t *testing.T) {
+ 			testVerify(t, test, false)
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 3c8fc44232..35394bfc33 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -728,9 +728,6 @@ type Certificate struct {
+ // involves algorithms that are not currently implemented.
+ var ErrUnsupportedAlgorithm = errors.New("x509: cannot verify signature: algorithm unimplemented")
+ 
+-// debugAllowSHA1 allows SHA-1 signatures. See issue 41682.
+-var debugAllowSHA1 = godebug.Get("x509sha1") == "1"
+-
+ // An InsecureAlgorithmError indicates that the SignatureAlgorithm used to
+ // generate the signature is not secure, and the signature has been rejected.
+ //
+@@ -790,7 +787,7 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) error {
+ 
+ 	// TODO(agl): don't ignore the path length constraint.
+ 
+-	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature, parent.PublicKey, debugAllowSHA1)
++	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature, parent.PublicKey, false)
+ }
+ 
+ // CheckSignature verifies that signature is a valid signature over signed from
+@@ -837,7 +834,8 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
+ 	case crypto.MD5:
+ 		return InsecureAlgorithmError(algo)
+ 	case crypto.SHA1:
+-		if !allowSHA1 {
++		// SHA-1 signatures are mostly disabled. See go.dev/issue/41682.
++		if !allowSHA1 && godebug.Get("x509sha1") != "1" {
+ 			return InsecureAlgorithmError(algo)
+ 		}
+ 		fallthrough
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 79bfe66d11..5690e200b2 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -1876,9 +1876,7 @@ func TestSHA1(t *testing.T) {
+ 		t.Fatalf("certificate verification returned %v (%T), wanted InsecureAlgorithmError", err, err)
+ 	}
+ 
+-	defer func(old bool) { debugAllowSHA1 = old }(debugAllowSHA1)
+-	debugAllowSHA1 = true
+-
++	t.Setenv("GODEBUG", "x509sha1=1")
+ 	if err = cert.CheckSignatureFrom(cert); err != nil {
+ 		t.Fatalf("SHA-1 certificate did not verify with GODEBUG=x509sha1=1: %v", err)
+ 	}
+@@ -3470,8 +3468,7 @@ func TestParseUniqueID(t *testing.T) {
+ }
+ 
+ func TestDisableSHA1ForCertOnly(t *testing.T) {
+-	defer func(old bool) { debugAllowSHA1 = old }(debugAllowSHA1)
+-	debugAllowSHA1 = false
++	t.Setenv("GODEBUG", "")
+ 
+ 	tmpl := &Certificate{
+ 		SerialNumber:          big.NewInt(1),

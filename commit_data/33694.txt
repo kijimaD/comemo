@@ -23,7 +23,7 @@ Date:   Fri Jul 21 14:25:28 2017 -0400
     Change-Id: If95783f370781d8ef66addd94886028103a7c26f
     Reviewed-on: https://go-review.googlesource.com/55411
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/cmd/trace/trace.go                             |   6 +-
  src/internal/trace/parser.go                       |  65 ++++++++++++++-------
  src/internal/trace/testdata/http_1_10_good         | Bin 0 -> 2201 bytes
@@ -33,3 +33,335 @@ Date:   Fri Jul 21 14:25:28 2017 -0400
  src/runtime/proc.go                                |   7 ++-
  src/runtime/trace.go                               |  14 ++---
  8 files changed, 73 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index e918df3f5c..784e413335 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -478,12 +478,12 @@ func generateTrace(params *traceParams) (ViewerData, error) {
+ 		case trace.EvGCStart:
+ 			ctx.emitSlice(ev, "GC")
+ 		case trace.EvGCDone:
+-		case trace.EvGCScanStart:
++		case trace.EvGCSTWStart:
+ 			if ctx.gtrace {
+ 				continue
+ 			}
+-			ctx.emitSlice(ev, "MARK TERMINATION")
+-		case trace.EvGCScanDone:
++			ctx.emitSlice(ev, fmt.Sprintf("STW (%s)", ev.SArgs[0]))
++		case trace.EvGCSTWDone:
+ 		case trace.EvGCMarkAssistStart:
+ 			// Mark assists can continue past preemptions, so truncate to the
+ 			// whichever comes first. We'll synthesize another slice if
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 1dd3ef1509..31b41bcac5 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -31,7 +31,7 @@ type Event struct {
+ 	SArgs []string  // event-type-specific string args
+ 	// linked event (can be nil), depends on event type:
+ 	// for GCStart: the GCStop
+-	// for GCScanStart: the GCScanDone
++	// for GCSTWStart: the GCSTWDone
+ 	// for GCSweepStart: the GCSweepDone
+ 	// for GoCreate: first GoStart of the created goroutine
+ 	// for GoStart/GoStartLabel: the associated GoEnd, GoBlock or other blocking event
+@@ -128,7 +128,7 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
+ 		return
+ 	}
+ 	switch ver {
+-	case 1005, 1007, 1008, 1009:
++	case 1005, 1007, 1008, 1009, 1010:
+ 		// Note: When adding a new version, add canned traces
+ 		// from the old version to the test suite using mkcanned.bash.
+ 		break
+@@ -373,7 +373,18 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
+ 				if raw.typ == EvGoStartLabel {
+ 					e.SArgs = []string{strings[e.Args[2]]}
+ 				}
+-			case EvGCStart, EvGCDone, EvGCScanStart, EvGCScanDone:
++			case EvGCSTWStart:
++				e.G = 0
++				switch e.Args[0] {
++				case 0:
++					e.SArgs = []string{"mark termination"}
++				case 1:
++					e.SArgs = []string{"sweep termination"}
++				default:
++					err = fmt.Errorf("unknown STW kind %d", e.Args[0])
++					return
++				}
++			case EvGCStart, EvGCDone, EvGCSTWDone:
+ 				e.G = 0
+ 			case EvGoEnd, EvGoStop, EvGoSched, EvGoPreempt,
+ 				EvGoSleep, EvGoBlock, EvGoBlockSend, EvGoBlockRecv,
+@@ -511,14 +522,14 @@ func postProcessTrace(ver int, events []*Event) error {
+ 	type pdesc struct {
+ 		running bool
+ 		g       uint64
+-		evScan  *Event
++		evSTW   *Event
+ 		evSweep *Event
+ 	}
+ 
+ 	gs := make(map[uint64]gdesc)
+ 	ps := make(map[int]pdesc)
+ 	gs[0] = gdesc{state: gRunning}
+-	var evGC *Event
++	var evGC, evSTW *Event
+ 
+ 	checkRunning := func(p pdesc, g gdesc, ev *Event, allowG0 bool) error {
+ 		name := EventDescriptions[ev.Type].Name
+@@ -565,17 +576,27 @@ func postProcessTrace(ver int, events []*Event) error {
+ 			}
+ 			evGC.Link = ev
+ 			evGC = nil
+-		case EvGCScanStart:
+-			if p.evScan != nil {
+-				return fmt.Errorf("previous scanning is not ended before a new one (offset %v, time %v)", ev.Off, ev.Ts)
+-			}
+-			p.evScan = ev
+-		case EvGCScanDone:
+-			if p.evScan == nil {
+-				return fmt.Errorf("bogus scanning end (offset %v, time %v)", ev.Off, ev.Ts)
+-			}
+-			p.evScan.Link = ev
+-			p.evScan = nil
++		case EvGCSTWStart:
++			evp := &evSTW
++			if ver < 1010 {
++				// Before 1.10, EvGCSTWStart was per-P.
++				evp = &p.evSTW
++			}
++			if *evp != nil {
++				return fmt.Errorf("previous STW is not ended before a new one (offset %v, time %v)", ev.Off, ev.Ts)
++			}
++			*evp = ev
++		case EvGCSTWDone:
++			evp := &evSTW
++			if ver < 1010 {
++				// Before 1.10, EvGCSTWDone was per-P.
++				evp = &p.evSTW
++			}
++			if *evp == nil {
++				return fmt.Errorf("bogus STW end (offset %v, time %v)", ev.Off, ev.Ts)
++			}
++			(*evp).Link = ev
++			*evp = nil
+ 		case EvGCSweepStart:
+ 			if p.evSweep != nil {
+ 				return fmt.Errorf("previous sweeping is not ended before a new one (offset %v, time %v)", ev.Off, ev.Ts)
+@@ -864,6 +885,10 @@ func argNum(raw rawEvent, ver int) int {
+ 		if ver < 1007 {
+ 			narg-- // 1.7 added an additional seq arg
+ 		}
++	case EvGCSTWStart:
++		if ver < 1010 {
++			narg-- // 1.10 added an argument
++		}
+ 	}
+ 	return narg
+ }
+@@ -883,8 +908,8 @@ const (
+ 	EvProcStop          = 6  // stop of P [timestamp]
+ 	EvGCStart           = 7  // GC start [timestamp, seq, stack id]
+ 	EvGCDone            = 8  // GC done [timestamp]
+-	EvGCScanStart       = 9  // GC mark termination start [timestamp]
+-	EvGCScanDone        = 10 // GC mark termination done [timestamp]
++	EvGCSTWStart        = 9  // GC mark termination start [timestamp, kind]
++	EvGCSTWDone         = 10 // GC mark termination done [timestamp]
+ 	EvGCSweepStart      = 11 // GC sweep start [timestamp, stack id]
+ 	EvGCSweepDone       = 12 // GC sweep done [timestamp, swept, reclaimed]
+ 	EvGoCreate          = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
+@@ -937,8 +962,8 @@ var EventDescriptions = [EvCount]struct {
+ 	EvProcStop:          {"ProcStop", 1005, false, []string{}},
+ 	EvGCStart:           {"GCStart", 1005, true, []string{"seq"}}, // in 1.5 format it was {}
+ 	EvGCDone:            {"GCDone", 1005, false, []string{}},
+-	EvGCScanStart:       {"GCScanStart", 1005, false, []string{}},
+-	EvGCScanDone:        {"GCScanDone", 1005, false, []string{}},
++	EvGCSTWStart:        {"GCSTWStart", 1005, false, []string{"kind"}}, // <= 1.9, args was {} (implicitly {0})
++	EvGCSTWDone:         {"GCSTWDone", 1005, false, []string{}},
+ 	EvGCSweepStart:      {"GCSweepStart", 1005, true, []string{}},
+ 	EvGCSweepDone:       {"GCSweepDone", 1005, false, []string{"swept", "reclaimed"}}, // before 1.9, format was {}
+ 	EvGoCreate:          {"GoCreate", 1005, true, []string{"g", "stack"}},
+diff --git a/src/internal/trace/testdata/http_1_10_good b/src/internal/trace/testdata/http_1_10_good
+new file mode 100644
+index 0000000000..a4f2ed83d8
+Binary files /dev/null and b/src/internal/trace/testdata/http_1_10_good differ
+diff --git a/src/internal/trace/testdata/stress_1_10_good b/src/internal/trace/testdata/stress_1_10_good
+new file mode 100644
+index 0000000000..19778b0808
+Binary files /dev/null and b/src/internal/trace/testdata/stress_1_10_good differ
+diff --git a/src/internal/trace/testdata/stress_start_stop_1_10_good b/src/internal/trace/testdata/stress_start_stop_1_10_good
+new file mode 100644
+index 0000000000..b908e10f25
+Binary files /dev/null and b/src/internal/trace/testdata/stress_start_stop_1_10_good differ
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 5708d4afa6..8118be9e21 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1256,6 +1256,9 @@ func gcStart(mode gcMode, trigger gcTrigger) {
+ 	now := nanotime()
+ 	work.tSweepTerm = now
+ 	work.pauseStart = now
++	if trace.enabled {
++		traceGCSTWStart(1)
++	}
+ 	systemstack(stopTheWorldWithSema)
+ 	// Finish sweep before we start concurrent scan.
+ 	systemstack(func() {
+@@ -1309,11 +1312,16 @@ func gcStart(mode gcMode, trigger gcTrigger) {
+ 
+ 		// Concurrent mark.
+ 		systemstack(func() {
+-			now = startTheWorldWithSema()
++			now = startTheWorldWithSema(trace.enabled)
+ 		})
+ 		work.pauseNS += now - work.pauseStart
+ 		work.tMark = now
+ 	} else {
++		if trace.enabled {
++			// Switch to mark termination STW.
++			traceGCSTWDone()
++			traceGCSTWStart(0)
++		}
+ 		t := nanotime()
+ 		work.tMark, work.tMarkTerm = t, t
+ 		work.heapGoal = work.heap0
+@@ -1414,6 +1422,9 @@ top:
+ 		work.tMarkTerm = now
+ 		work.pauseStart = now
+ 		getg().m.preemptoff = "gcing"
++		if trace.enabled {
++			traceGCSTWStart(0)
++		}
+ 		systemstack(stopTheWorldWithSema)
+ 		// The gcphase is _GCmark, it will transition to _GCmarktermination
+ 		// below. The important thing is that the wb remains active until
+@@ -1574,7 +1585,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
+ 	// so events don't leak into the wrong cycle.
+ 	mProf_NextCycle()
+ 
+-	systemstack(func() { startTheWorldWithSema() })
++	systemstack(func() { startTheWorldWithSema(true) })
+ 
+ 	// Flush the heap profile so we can start a new cycle next GC.
+ 	// This is relatively expensive, so we don't do it with the
+@@ -1915,10 +1926,6 @@ func gcMark(start_time int64) {
+ 		work.helperDrainBlock = true
+ 	}
+ 
+-	if trace.enabled {
+-		traceGCScanStart()
+-	}
+-
+ 	if work.nproc > 1 {
+ 		noteclear(&work.alldone)
+ 		helpgc(int32(work.nproc))
+@@ -1962,10 +1969,6 @@ func gcMark(start_time int64) {
+ 		}
+ 	}
+ 
+-	if trace.enabled {
+-		traceGCScanDone()
+-	}
+-
+ 	cachestats()
+ 
+ 	// Update the marked heap stat.
+@@ -2103,10 +2106,6 @@ func gchelper() {
+ 	_g_.m.traceback = 2
+ 	gchelperstart()
+ 
+-	if trace.enabled {
+-		traceGCScanStart()
+-	}
+-
+ 	// Parallel mark over GC roots and heap
+ 	if gcphase == _GCmarktermination {
+ 		gcw := &_g_.m.p.ptr().gcw
+@@ -2118,10 +2117,6 @@ func gchelper() {
+ 		gcw.dispose()
+ 	}
+ 
+-	if trace.enabled {
+-		traceGCScanDone()
+-	}
+-
+ 	nproc := atomic.Load(&work.nproc) // work.nproc can change right after we increment work.ndone
+ 	if atomic.Xadd(&work.ndone, +1) == nproc-1 {
+ 		notewakeup(&work.alldone)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 06abdf2a9b..21fff7de5d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -948,7 +948,7 @@ func stopTheWorld(reason string) {
+ 
+ // startTheWorld undoes the effects of stopTheWorld.
+ func startTheWorld() {
+-	systemstack(func() { startTheWorldWithSema() })
++	systemstack(func() { startTheWorldWithSema(false) })
+ 	// worldsema must be held over startTheWorldWithSema to ensure
+ 	// gomaxprocs cannot change while worldsema is held.
+ 	semrelease(&worldsema)
+@@ -1064,7 +1064,7 @@ func mhelpgc() {
+ 	_g_.m.helpgc = -1
+ }
+ 
+-func startTheWorldWithSema() int64 {
++func startTheWorldWithSema(emitTraceEvent bool) int64 {
+ 	_g_ := getg()
+ 
+ 	_g_.m.locks++        // disable preemption because it can be holding p in a local var
+@@ -1106,6 +1106,9 @@ func startTheWorldWithSema() int64 {
+ 
+ 	// Capture start-the-world time before doing clean-up tasks.
+ 	startTime := nanotime()
++	if emitTraceEvent {
++		traceGCSTWDone()
++	}
+ 
+ 	// Wakeup an additional proc in case we have excessive runnable goroutines
+ 	// in local queues or in the global queue. If we don't, the proc will park itself.
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 826dc9a999..a2eb0ba8c3 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -28,8 +28,8 @@ const (
+ 	traceEvProcStop          = 6  // stop of P [timestamp]
+ 	traceEvGCStart           = 7  // GC start [timestamp, seq, stack id]
+ 	traceEvGCDone            = 8  // GC done [timestamp]
+-	traceEvGCScanStart       = 9  // GC mark termination start [timestamp]
+-	traceEvGCScanDone        = 10 // GC mark termination done [timestamp]
++	traceEvGCSTWStart        = 9  // GC STW start [timestamp, kind]
++	traceEvGCSTWDone         = 10 // GC STW done [timestamp]
+ 	traceEvGCSweepStart      = 11 // GC sweep start [timestamp, stack id]
+ 	traceEvGCSweepDone       = 12 // GC sweep done [timestamp, swept, reclaimed]
+ 	traceEvGoCreate          = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
+@@ -382,7 +382,7 @@ func ReadTrace() []byte {
+ 		trace.headerWritten = true
+ 		trace.lockOwner = nil
+ 		unlock(&trace.lock)
+-		return []byte("go 1.9 trace\x00\x00\x00\x00")
++		return []byte("go 1.10 trace\x00\x00\x00")
+ 	}
+ 	// Wait for new data.
+ 	if trace.fullHead == 0 && !trace.shutdown {
+@@ -924,12 +924,12 @@ func traceGCDone() {
+ 	traceEvent(traceEvGCDone, -1)
+ }
+ 
+-func traceGCScanStart() {
+-	traceEvent(traceEvGCScanStart, -1)
++func traceGCSTWStart(kind int) {
++	traceEvent(traceEvGCSTWStart, -1, uint64(kind))
+ }
+ 
+-func traceGCScanDone() {
+-	traceEvent(traceEvGCScanDone, -1)
++func traceGCSTWDone() {
++	traceEvent(traceEvGCSTWDone, -1)
+ }
+ 
+ // traceGCSweepStart prepares to trace a sweep loop. This does not

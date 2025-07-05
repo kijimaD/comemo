@@ -7,8 +7,58 @@ Date:   Mon Sep 17 17:18:21 2012 -0400
     R=rsc, dave, minux.ma
     CC=golang-dev
     https://golang.org/cl/6493123
-
+---
  src/pkg/runtime/mgc0.c     | 1 -
  src/pkg/runtime/runtime.h  | 4 ++++
  src/pkg/runtime/typekind.h | 5 ++++-
  3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 147c78ad80..6dee9523bb 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -11,7 +11,6 @@
+ 
+ enum {
+ 	Debug = 0,
+-	PtrSize = sizeof(void*),
+ 	DebugMark = 0,  // run second pass to check mark
+ 	DataBlock = 8*1024,
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index c221e82c29..20fb8ddfe1 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -118,6 +118,10 @@ enum
+ 	true	= 1,
+ 	false	= 0,
+ };
++enum
++{
++	PtrSize = sizeof(void*),
++};
+ 
+ /*
+  * structures
+diff --git a/src/pkg/runtime/typekind.h b/src/pkg/runtime/typekind.h
+index 8c58872e17..97cb0a5a2d 100644
+--- a/src/pkg/runtime/typekind.h
++++ b/src/pkg/runtime/typekind.h
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// PtrSize vs sizeof(void*): This file is also included from src/cmd/ld/...
++// which defines PtrSize to be different from sizeof(void*) when crosscompiling.
++
+ enum {
+ 	KindBool = 1,
+ 	KindInt,
+@@ -33,6 +36,6 @@ enum {
+ 	KindNoPointers = 1<<7,
+ 
+ 	// size of Type interface header + CommonType structure.
+-	CommonSize = 2*sizeof(void*) + 6*sizeof(void*) + 8,
++	CommonSize = 2*PtrSize + 6*PtrSize + 8,
+ };
+ 

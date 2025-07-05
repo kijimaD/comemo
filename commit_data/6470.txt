@@ -7,6 +7,20 @@ Date:   Thu Oct 7 04:52:13 2010 -0400
     R=golang-dev, adg, rsc
     CC=golang-dev
     https://golang.org/cl/2341049
-
+---
  misc/cgo/life/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/life/main.go b/misc/cgo/life/main.go
+index 7c2c0c73ef..9cfed434be 100644
+--- a/misc/cgo/life/main.go
++++ b/misc/cgo/life/main.go
+@@ -29,7 +29,7 @@ func main() {
+ 		}
+ 	}
+ 
+-	life.Run(*gen, *dim, *dim, &a)
++	life.Run(*gen, *dim, *dim, a[:])
+ 
+ 	for i := 0; i < *dim; i++ {
+ 		for j := 0; j < *dim; j++ {

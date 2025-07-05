@@ -7,6 +7,22 @@ Date:   Fri Jan 23 11:08:32 2015 -0500
     Change-Id: I10b781927245a3e9822f9cffe254f226a5b93213
     Reviewed-on: https://go-review.googlesource.com/3279
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/pkg.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 23154f9120..f9fbe9c452 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -524,6 +524,10 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		if buildRace && (!p.Standard || !raceExclude[p.ImportPath]) {
+ 			importPaths = append(importPaths, "runtime/race")
+ 		}
++		// On ARM with GOARM=5, everything depends on math for the link.
++		if p.ImportPath == "main" && goarch == "arm" {
++			importPaths = append(importPaths, "math")
++		}
+ 	}
+ 
+ 	// Build list of full paths to all Go files in the package,

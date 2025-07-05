@@ -8,9 +8,193 @@ Date:   Thu Jan 15 14:19:35 2009 -0800
     R=r
     OCL=22859
     CL=22859
-
+---
  usr/gri/pretty/ast.go         | 13 ++++++++++++-
  usr/gri/pretty/compilation.go |  6 ++++--
  usr/gri/pretty/parser.go      | 40 ++++++++++++++++++++++++++++++++++++++--
  usr/gri/pretty/pretty.go      |  3 ++-
  4 files changed, 56 insertions(+), 6 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 8247a6268d..a890913123 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -6,11 +6,13 @@ package AST
+ 
+ import (
+ 	"array";
++	"utf8";
++	"unicode";
+ 	Scanner "scanner";
+ )
+ 
+ 
+-type (
++export type (
+ 	Object struct;
+ 	Type struct;
+ 
+@@ -65,6 +67,15 @@ export type Object struct {
+ }
+ 
+ 
++func (obj *Object) IsExported() bool {
++	switch obj.kind {
++	case NONE /* FUNC for now */, CONST, TYPE, VAR, FUNC:
++		ch, size := utf8.DecodeRuneInString(obj.ident,  0);
++		return unicode.IsUpper(ch);
++	}
++	return false;
++}
++
+ 
+ export var Universe_void_typ *Type  // initialized by Universe to Universe.void_typ
+ var ObjectId int;
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index 06172dc66d..7e4811f404 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -30,6 +30,7 @@ export type Flags struct {
+ 	columns bool;
+ 	testmode bool;
+ 	tokenchan bool;
++	naming bool;
+ }
+ 
+ 
+@@ -90,7 +91,8 @@ func (h *ErrorHandler) ErrorMsg(pos int, msg string) {
+ 	h.errpos = pos;
+ 
+ 	if h.nerrors >= 10 {
+-		sys.exit(1);
++		// TODO enable when done with name convention
++		//sys.exit(1);
+ 	}
+ }
+ 
+@@ -134,7 +136,7 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+ 	}
+ 
+ 	var parser Parser.Parser;
+-	parser.Open(flags.verbose, flags.sixg, flags.deps, &scanner, tstream);
++	parser.Open(flags.verbose, flags.sixg, flags.deps, flags.naming, &scanner, tstream);
+ 
+ 	prog := parser.ParseProgram();
+ 
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 4ae58504c0..fe759e1c20 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -13,7 +13,7 @@ import (
+ 
+ export type Parser struct {
+ 	// Tracing/debugging
+-	verbose, sixg, deps bool;
++	verbose, sixg, deps, naming bool;
+ 	indent uint;
+ 
+ 	// Scanner
+@@ -109,10 +109,11 @@ func (P *Parser) Next() {
+ }
+ 
+ 
+-func (P *Parser) Open(verbose, sixg, deps bool, scanner *Scanner.Scanner, tokchan <-chan *Scanner.Token) {
++func (P *Parser) Open(verbose, sixg, deps, naming bool, scanner *Scanner.Scanner, tokchan <-chan *Scanner.Token) {
+ 	P.verbose = verbose;
+ 	P.sixg = sixg;
+ 	P.deps = deps;
++	P.naming = naming;
+ 	P.indent = 0;
+ 
+ 	P.scanner = scanner;
+@@ -191,6 +192,33 @@ func (P *Parser) Declare(p *AST.Expr, kind int) {
+ }
+ 
+ 
++func (P *Parser) VerifyExport1(p *AST.Expr, exported bool) {
++	obj := p.obj;
++	if exported {
++		if !obj.IsExported() {
++			P.Error(obj.pos, `"` + obj.ident + `" should be uppercase`);
++		}
++	} else if P.scope_lev == 0 {
++		if obj.IsExported() {
++			P.Error(obj.pos, `"` + obj.ident + `" should be lowercase`);
++		}
++	}
++}
++
++
++func (P *Parser) VerifyExport(p *AST.Expr, exported bool) {
++	if !P.naming {
++		return;
++	}
++	for p.tok == Scanner.COMMA {
++		P.VerifyExport1(p.x, exported);
++		p = p.y;
++	}
++	P.VerifyExport1(p, exported);
++}
++
++
++
+ // ----------------------------------------------------------------------------
+ // AST support
+ 
+@@ -1510,6 +1538,7 @@ func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
+ 	}
+ 	
+ 	P.Declare(d.ident, AST.CONST);
++	P.VerifyExport(d.ident, exported);
+ 
+ 	P.Ecart();
+ 	return d;
+@@ -1524,6 +1553,8 @@ func (P *Parser) ParseTypeSpec(exported bool, pos int) *AST.Decl {
+ 	d.typ = P.ParseType();
+ 	P.opt_semi = true;
+ 
++	P.VerifyExport(d.ident, exported);
++
+ 	P.Ecart();
+ 	return d;
+ }
+@@ -1546,6 +1577,7 @@ func (P *Parser) ParseVarSpec(exported bool, pos int) *AST.Decl {
+ 	}
+ 
+ 	P.Declare(d.ident, AST.VAR);
++	P.VerifyExport(d.ident, exported);
+ 
+ 	P.Ecart();
+ 	return d;
+@@ -1630,6 +1662,10 @@ func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
+ 		P.scope_lev--;
+ 	}
+ 
++	if recv == nil || exported {
++		P.VerifyExport(d.ident, exported);
++	}
++
+ 	P.Ecart();
+ 	return d;
+ }
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 9758d8b40b..b5656ce242 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -25,6 +25,7 @@ func init() {
+ 	Flag.BoolVar(&flags.columns, "columns", Platform.USER == "gri", "print column info in error messages");
+ 	Flag.BoolVar(&flags.testmode, "t", false, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
+ 	Flag.BoolVar(&flags.tokenchan, "token_chan", false, "use token channel for scanner-parser connection");
++	Flag.BoolVar(&flags.naming, "naming", false, "verify export naming scheme");
+ }
+ 
+ 
+@@ -54,7 +55,7 @@ func main() {
+ 			if nerrors > 0 {
+ 				return;
+ 			}
+-			if !*silent && !flags.testmode {
++			if !flags.naming && !*silent && !flags.testmode {
+ 				Printer.Print(prog);
+ 			}
+ 		}

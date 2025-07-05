@@ -26,7 +26,7 @@ Date:   Thu Nov 16 01:42:39 2023 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/os/exec_unix.go         | 35 +++++++++++++++++++++++++-------
  src/os/exec_unix_test.go    |  5 ++++-
  src/os/export_linux_test.go |  1 +
@@ -34,3 +34,200 @@ Date:   Thu Nov 16 01:42:39 2023 -0800
  src/os/pidfd_linux_test.go  | 49 +++++++++++++++++++++++++++++++++++++++------
  src/os/pidfd_other.go       |  4 ++++
  6 files changed, 92 insertions(+), 14 deletions(-)
+
+diff --git a/src/os/exec_unix.go b/src/os/exec_unix.go
+index 9f5810ff76..5ac89d17aa 100644
+--- a/src/os/exec_unix.go
++++ b/src/os/exec_unix.go
+@@ -13,8 +13,19 @@ import (
+ 	"time"
+ )
+ 
++const (
++	// Special values for Process.Pid.
++	pidUnset    = 0
++	pidReleased = -1
++	pidDone     = -2
++)
++
+ func (p *Process) wait() (ps *ProcessState, err error) {
+-	if p.Pid == -1 {
++	switch p.Pid {
++	case pidDone:
++		return nil, ErrProcessDone
++	case pidReleased:
++		// Process already released.
+ 		return nil, syscall.EINVAL
+ 	}
+ 	// Wait on pidfd if possible; fallback to using pid on ENOSYS.
+@@ -67,10 +78,12 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ }
+ 
+ func (p *Process) signal(sig Signal) error {
+-	if p.Pid == -1 {
++	switch p.Pid {
++	case pidDone:
++		return ErrProcessDone
++	case pidReleased:
+ 		return errors.New("os: process already released")
+-	}
+-	if p.Pid == 0 {
++	case pidUnset:
+ 		return errors.New("os: process not initialized")
+ 	}
+ 	s, ok := sig.(syscall.Signal)
+@@ -98,15 +111,23 @@ func convertESRCH(err error) error {
+ 
+ func (p *Process) release() error {
+ 	p.pidfdRelease()
+-	p.Pid = -1
++	p.Pid = pidReleased
+ 	// no need for a finalizer anymore
+ 	runtime.SetFinalizer(p, nil)
+ 	return nil
+ }
+ 
+ func findProcess(pid int) (p *Process, err error) {
+-	// NOOP for unix.
+-	return newProcess(pid, unsetHandle), nil
++	h, err := pidfdFind(pid)
++	if err == ErrProcessDone {
++		// Can't return an error here since users are not expecting it.
++		// Instead, return a process with Pid=pidDone and let a
++		// subsequent Signal or Wait call catch that.
++		return newProcess(pidDone, unsetHandle), nil
++	}
++	// Ignore all other errors from pidfdFind, as the callers
++	// do not expect them, and we can use pid anyway.
++	return newProcess(pid, h), nil
+ }
+ 
+ func (p *ProcessState) userTime() time.Duration {
+diff --git a/src/os/exec_unix_test.go b/src/os/exec_unix_test.go
+index 88e1b63a99..69bcdbdad1 100644
+--- a/src/os/exec_unix_test.go
++++ b/src/os/exec_unix_test.go
+@@ -37,7 +37,10 @@ func TestUNIXProcessAlive(t *testing.T) {
+ 	}
+ 	defer p.Kill()
+ 
+-	proc, _ := FindProcess(p.Pid)
++	proc, err := FindProcess(p.Pid)
++	if err != nil {
++		t.Errorf("OS reported error for running process: %v", err)
++	}
+ 	err = proc.Signal(syscall.Signal(0))
+ 	if err != nil {
+ 		t.Errorf("OS reported error for running process: %v", err)
+diff --git a/src/os/export_linux_test.go b/src/os/export_linux_test.go
+index 55f83c834f..1395f52037 100644
+--- a/src/os/export_linux_test.go
++++ b/src/os/export_linux_test.go
+@@ -9,4 +9,5 @@ var (
+ 	PollSpliceFile      = &pollSplice
+ 	GetPollFDAndNetwork = getPollFDAndNetwork
+ 	CheckPidfdOnce      = checkPidfdOnce
++	PidDone             = pidDone
+ )
+diff --git a/src/os/pidfd_linux.go b/src/os/pidfd_linux.go
+index 3701be5140..5a830dadb2 100644
+--- a/src/os/pidfd_linux.go
++++ b/src/os/pidfd_linux.go
+@@ -47,6 +47,18 @@ func getPidfd(sysAttr *syscall.SysProcAttr) uintptr {
+ 	return uintptr(*sysAttr.PidFD)
+ }
+ 
++func pidfdFind(pid int) (uintptr, error) {
++	if !pidfdWorks() {
++		return unsetHandle, syscall.ENOSYS
++	}
++
++	h, err := unix.PidFDOpen(pid, 0)
++	if err == nil {
++		return h, nil
++	}
++	return unsetHandle, convertESRCH(err)
++}
++
+ func (p *Process) pidfdRelease() {
+ 	// Release pidfd unconditionally.
+ 	handle := p.handle.Swap(unsetHandle)
+diff --git a/src/os/pidfd_linux_test.go b/src/os/pidfd_linux_test.go
+index d003e8cb1b..2db127b604 100644
+--- a/src/os/pidfd_linux_test.go
++++ b/src/os/pidfd_linux_test.go
+@@ -5,16 +5,53 @@
+ package os_test
+ 
+ import (
++	"internal/testenv"
+ 	"os"
+ 	"testing"
+ )
+ 
+-func TestCheckPidfd(t *testing.T) {
+-	// This doesn't test anything, but merely allows to check that pidfd
+-	// is working (and thus being tested) in CI on some platforms.
++func TestFindProcessViaPidfd(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	t.Parallel()
++
+ 	if err := os.CheckPidfdOnce(); err != nil {
+-		t.Log("checkPidfd:", err)
+-	} else {
+-		t.Log("pidfd syscalls work")
++		// Non-pidfd code paths tested in exec_unix_test.go.
++		t.Skipf("skipping: pidfd not available: %v", err)
++	}
++
++	p, err := os.StartProcess(testenv.GoToolPath(t), []string{"go"}, &os.ProcAttr{})
++	if err != nil {
++		t.Fatalf("starting test process: %v", err)
++	}
++	p.Wait()
++
++	// Use pid of a non-existing process.
++	proc, err := os.FindProcess(p.Pid)
++	// FindProcess should never return errors on Unix.
++	if err != nil {
++		t.Fatalf("FindProcess: got error %v, want <nil>", err)
++	}
++	// FindProcess should never return nil Process.
++	if proc == nil {
++		t.Fatal("FindProcess: got nil, want non-nil")
++	}
++	if proc.Pid != os.PidDone {
++		t.Fatalf("got pid: %v, want %d", proc.Pid, os.PidDone)
++	}
++
++	// Check that all Process' public methods work as expected with
++	// "done" Process.
++	if err := proc.Kill(); err != os.ErrProcessDone {
++		t.Errorf("Kill: got %v, want %v", err, os.ErrProcessDone)
++	}
++	if err := proc.Signal(os.Kill); err != os.ErrProcessDone {
++		t.Errorf("Signal: got %v, want %v", err, os.ErrProcessDone)
++	}
++	if _, err := proc.Wait(); err != os.ErrProcessDone {
++		t.Errorf("Wait: got %v, want %v", err, os.ErrProcessDone)
++	}
++	// Release never returns errors on Unix.
++	if err := proc.Release(); err != nil {
++		t.Fatalf("Release: got %v, want <nil>", err)
+ 	}
+ }
+diff --git a/src/os/pidfd_other.go b/src/os/pidfd_other.go
+index 1918acbec5..bb38c72404 100644
+--- a/src/os/pidfd_other.go
++++ b/src/os/pidfd_other.go
+@@ -16,6 +16,10 @@ func getPidfd(_ *syscall.SysProcAttr) uintptr {
+ 	return unsetHandle
+ }
+ 
++func pidfdFind(_ int) (uintptr, error) {
++	return unsetHandle, syscall.ENOSYS
++}
++
+ func (p *Process) pidfdRelease() {}
+ 
+ func (_ *Process) pidfdWait() (*ProcessState, error) {

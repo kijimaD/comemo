@@ -18,9 +18,231 @@ Date:   Fri Jun 11 01:09:47 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/subst.go      |   5 +
  src/cmd/compile/internal/types2/typestring.go |  34 +++++--
  test/typeparam/nested.go                      | 134 ++++++++++++++++++++++++++
  test/typeparam/nested.out                     |   4 +
  4 files changed, 168 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index dd8dd74161..3ef65c2e92 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -425,14 +425,19 @@ func (subst *subster) typ(typ Type) Type {
+ 	return typ
+ }
+ 
++var instanceHashing = 0
++
+ // TODO(gri) Eventually, this should be more sophisticated.
+ //           It won't work correctly for locally declared types.
+ func instantiatedHash(typ *Named, targs []Type) string {
++	assert(instanceHashing == 0)
++	instanceHashing++
+ 	var buf bytes.Buffer
+ 	writeTypeName(&buf, typ.obj, nil)
+ 	buf.WriteByte('[')
+ 	writeTypeList(&buf, targs, nil, nil)
+ 	buf.WriteByte(']')
++	instanceHashing--
+ 
+ 	// With respect to the represented type, whether a
+ 	// type is fully expanded or stored as instance
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 07ed510d11..f08c41c2a3 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -350,17 +350,33 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited
+ }
+ 
+ func writeTypeName(buf *bytes.Buffer, obj *TypeName, qf Qualifier) {
+-	s := "<Named w/o object>"
+-	if obj != nil {
+-		if obj.pkg != nil {
+-			writePackage(buf, obj.pkg, qf)
++	if obj == nil {
++		buf.WriteString("<Named w/o object>")
++		return
++	}
++	if obj.pkg != nil {
++		writePackage(buf, obj.pkg, qf)
++	}
++	buf.WriteString(obj.name)
++
++	if instanceHashing != 0 {
++		// For local defined types, use the (original!) TypeName's position
++		// to disambiguate. This is overkill, and could probably instead
++		// just be the pointer value (if we assume a non-moving GC) or
++		// a unique ID (like cmd/compile uses). But this works for now,
++		// and is convenient for debugging.
++
++		// TODO(mdempsky): I still don't fully understand why typ.orig.orig
++		// can differ from typ.orig, or whether looping more than twice is
++		// ever necessary.
++		typ := obj.typ.(*Named)
++		for typ.orig != typ {
++			typ = typ.orig
++		}
++		if orig := typ.obj; orig.pkg != nil && orig.parent != orig.pkg.scope {
++			fmt.Fprintf(buf, "@%q", orig.pos)
+ 		}
+-		// TODO(gri): function-local named types should be displayed
+-		// differently from named types at package level to avoid
+-		// ambiguity.
+-		s = obj.name
+ 	}
+-	buf.WriteString(s)
+ }
+ 
+ func writeTuple(buf *bytes.Buffer, tup *Tuple, variadic bool, qf Qualifier, visited []Type) {
+diff --git a/test/typeparam/nested.go b/test/typeparam/nested.go
+new file mode 100644
+index 0000000000..6512b3fc8f
+--- /dev/null
++++ b/test/typeparam/nested.go
+@@ -0,0 +1,134 @@
++// run -gcflags=all="-d=unified -G"
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test case stress tests a number of subtle cases involving
++// nested type-parameterized declarations. At a high-level, it
++// declares a generic function that contains a generic type
++// declaration:
++//
++//	func F[A intish]() {
++//		type T[B intish] struct{}
++//
++//		// store reflect.Type tuple (A, B, F[A].T[B]) in tests
++//	}
++//
++// It then instantiates this function with a variety of type arguments
++// for A and B. Particularly tricky things like shadowed types.
++//
++// From this data it tests two things:
++//
++// 1. Given tuples (A, B, F[A].T[B]) and (A', B', F[A'].T[B']),
++//    F[A].T[B] should be identical to F[A'].T[B'] iff (A, B) is
++//    identical to (A', B').
++//
++// 2. A few of the instantiations are constructed to be identical, and
++//    it tests that exactly these pairs are duplicated (by golden
++//    output comparison to nested.out).
++//
++// In both cases, we're effectively using the compiler's existing
++// runtime.Type handling (which is well tested) of type identity of A
++// and B as a way to help bootstrap testing and validate its new
++// runtime.Type handling of F[A].T[B].
++//
++// This isn't perfect, but it smoked out a handful of issues in
++// gotypes2 and unified IR.
++
++package main
++
++import (
++	"fmt"
++	"reflect"
++)
++
++type test struct {
++	TArgs    [2]reflect.Type
++	Instance reflect.Type
++}
++
++var tests []test
++
++type intish interface{ ~int }
++
++type Int int
++type GlobalInt = Int // allow access to global Int, even when shadowed
++
++func F[A intish]() {
++	add := func(B, T interface{}) {
++		tests = append(tests, test{
++			TArgs: [2]reflect.Type{
++				reflect.TypeOf(A(0)),
++				reflect.TypeOf(B),
++			},
++			Instance: reflect.TypeOf(T),
++		})
++	}
++
++	type Int int
++
++	type T[B intish] struct{}
++
++	add(int(0), T[int]{})
++	add(Int(0), T[Int]{})
++	add(GlobalInt(0), T[GlobalInt]{})
++	add(A(0), T[A]{}) // NOTE: intentionally dups with int and GlobalInt
++
++	type U[_ any] int
++	type V U[int]
++	type W V
++
++	add(U[int](0), T[U[int]]{})
++	add(U[Int](0), T[U[Int]]{})
++	add(U[GlobalInt](0), T[U[GlobalInt]]{})
++	add(U[A](0), T[U[A]]{}) // NOTE: intentionally dups with U[int] and U[GlobalInt]
++	add(V(0), T[V]{})
++	add(W(0), T[W]{})
++}
++
++func main() {
++	type Int int
++
++	F[int]()
++	F[Int]()
++	F[GlobalInt]()
++
++	type U[_ any] int
++	type V U[int]
++	type W V
++
++	F[U[int]]()
++	F[U[Int]]()
++	F[U[GlobalInt]]()
++	F[V]()
++	F[W]()
++
++	type X[A any] U[X[A]]
++
++	F[X[int]]()
++	F[X[Int]]()
++	F[X[GlobalInt]]()
++
++	for j, tj := range tests {
++		for i, ti := range tests[:j+1] {
++			if (ti.TArgs == tj.TArgs) != (ti.Instance == tj.Instance) {
++				fmt.Printf("FAIL: %d,%d: %s, but %s\n", i, j, eq(ti.TArgs, tj.TArgs), eq(ti.Instance, tj.Instance))
++			}
++
++			// The test is constructed so we should see a few identical types.
++			// See "NOTE" comments above.
++			if i != j && ti.Instance == tj.Instance {
++				fmt.Printf("%d,%d: %v\n", i, j, ti.Instance)
++			}
++		}
++	}
++}
++
++func eq(a, b interface{}) string {
++	op := "=="
++	if a != b {
++		op = "!="
++	}
++	return fmt.Sprintf("%v %s %v", a, op, b)
++}
+diff --git a/test/typeparam/nested.out b/test/typeparam/nested.out
+new file mode 100644
+index 0000000000..9110518248
+--- /dev/null
++++ b/test/typeparam/nested.out
+@@ -0,0 +1,4 @@
++0,3: main.T·2[int;int]
++4,7: main.T·2[int;"".U·3[int;int]]
++22,23: main.T·2["".Int;"".Int]
++26,27: main.T·2["".Int;"".U·3["".Int;"".Int]]

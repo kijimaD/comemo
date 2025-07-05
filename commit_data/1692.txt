@@ -9,7 +9,211 @@ Date:   Mon Feb 16 21:55:37 2009 -0800
     DELTA=94  (27 added, 39 deleted, 28 changed)
     OCL=25085
     CL=25087
-
+---
  src/lib/flag.go      | 73 ++++++++++++++--------------------------------------
  src/lib/flag_test.go | 47 +++++++++++++++++++++++----------
  2 files changed, 54 insertions(+), 66 deletions(-)
+
+diff --git a/src/lib/flag.go b/src/lib/flag.go
+index 541966d87d..188cb90595 100644
+--- a/src/lib/flag.go
++++ b/src/lib/flag.go
+@@ -42,50 +42,12 @@ package flag
+  *	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
+  */
+ 
+-import "fmt"
+-
+-// BUG: ctoi, atoi, atob belong elsewhere
+-func ctoi(c int64) int64 {
+-	if '0' <= c && c <= '9' {
+-		return c - '0'
+-	}
+-	if 'a' <= c && c <= 'f' {
+-		return c - 'a'
+-	}
+-	if 'A' <= c && c <= 'F' {
+-		return c - 'A'
+-	}
+-	return 1000   // too large for any base
+-}
+-
+-func atoi(s string) (value int64, ok bool) {
+-	if len(s) == 0 {
+-		return 0, false
+-	}
+-	if s[0] == '-' {
+-		n, t := atoi(s[1:len(s)]);
+-		return -n, t
+-	}
+-	var base int64 = 10;
+-	i := 0;
+-	if s[0] == '0' {
+-		base = 8;
+-		if len(s) > 1 && (s[1] == 'x' || s[1] == 'X') {
+-			base = 16;
+-			i += 2;
+-		}
+-	}
+-	var n int64 = 0;
+-	for ; i < len(s); i++ {
+-		k := ctoi(int64(s[i]));
+-		if k >= base {
+-			return 0, false
+-		}
+-		n = n * base + k
+-	}
+-	return n, true
+-}
++import (
++	"fmt";
++	"strconv"
++)
+ 
++// BUG: atob belongs elsewhere
+ func atob(str string) (value bool, ok bool) {
+ 	switch str {
+ 		case "1", "t", "T", "true", "TRUE", "True":
+@@ -136,9 +98,9 @@ func newIntValue(val int, p *int) *intValue {
+ }
+ 
+ func (i *intValue) set(s string) bool {
+-	v, ok  := atoi(s);
++	v, err  := strconv.Atoi(s);
+ 	*i.p = int(v);
+-	return ok
++	return err == nil
+ }
+ 
+ func (i *intValue) String() string {
+@@ -156,9 +118,9 @@ func newInt64Value(val int64, p *int64) *int64Value {
+ }
+ 
+ func (i *int64Value) set(s string) bool {
+-	v, ok := atoi(s);
++	v, err  := strconv.Atoi64(s);
+ 	*i.p = v;
+-	return ok;
++	return err == nil;
+ }
+ 
+ func (i *int64Value) String() string {
+@@ -176,9 +138,9 @@ func newUintValue(val uint, p *uint) *uintValue {
+ }
+ 
+ func (i *uintValue) set(s string) bool {
+-	v, ok := atoi(s);	// TODO(r): want unsigned
++	v, err  := strconv.Atoui(s);
+ 	*i.p = uint(v);
+-	return ok;
++	return err == nil;
+ }
+ 
+ func (i *uintValue) String() string {
+@@ -196,9 +158,9 @@ func newUint64Value(val uint64, p *uint64) *uint64Value {
+ }
+ 
+ func (i *uint64Value) set(s string) bool {
+-	v, ok := atoi(s);	// TODO(r): want unsigned
++	v, err := strconv.Atoui64(s);
+ 	*i.p = uint64(v);
+-	return ok;
++	return err == nil;
+ }
+ 
+ func (i *uint64Value) String() string {
+@@ -221,7 +183,7 @@ func (s *stringValue) set(val string) bool {
+ }
+ 
+ func (s *stringValue) String() string {
+-	return fmt.Sprintf("%#q", *s.p)
++	return fmt.Sprintf("%s", *s.p)
+ }
+ 
+ // -- FlagValue interface
+@@ -283,7 +245,12 @@ func Set(name, value string) bool {
+ 
+ func PrintDefaults() {
+ 	VisitAll(func(f *Flag) {
+-		print("  -", f.Name, "=", f.DefValue, ": ", f.Usage, "\n");
++		format := "  -%s=%s: %s\n";
++		if s, ok := f.Value.(*stringValue); ok {
++			// put quotes on the value
++			format = "  -%s=%q: %s\n";
++		}
++		fmt.Printf(format, f.Name, f.DefValue, f.Usage);
+ 	})
+ }
+ 
+diff --git a/src/lib/flag_test.go b/src/lib/flag_test.go
+index 1212cf89ff..0d83fcf81e 100644
+--- a/src/lib/flag_test.go
++++ b/src/lib/flag_test.go
+@@ -11,21 +11,37 @@ import (
+ )
+ 
+ var (
+-	test_bool = flag.Bool("test_bool", true, "bool value");
+-	test_int = flag.Int("test_int", 1, "int value");
+-	test_int64 = flag.Int64("test_int64", 1, "int64 value");
+-	test_uint = flag.Uint("test_uint", 1, "uint value");
+-	test_uint64 = flag.Uint64("test_uint64", 1, "uint64 value");
+-	test_string = flag.String("test_string", "1", "string value");
++	test_bool = flag.Bool("test_bool", false, "bool value");
++	test_int = flag.Int("test_int", 0, "int value");
++	test_int64 = flag.Int64("test_int64", 0, "int64 value");
++	test_uint = flag.Uint("test_uint", 0, "uint value");
++	test_uint64 = flag.Uint64("test_uint64", 0, "uint64 value");
++	test_string = flag.String("test_string", "0", "string value");
+ )
+ 
+-// Because this calls flag.Parse, it needs to be the only Test* function
++func boolString(s string) string {
++	if s == "0" {
++		return "false"
++	}
++	return "true"
++}
++
+ func TestEverything(t *testing.T) {
+-	flag.Parse();
+ 	m := make(map[string] *flag.Flag);
++	desired := "0";
+ 	visitor := func(f *flag.Flag) {
+ 		if len(f.Name) > 5 && f.Name[0:5] == "test_" {
+-			m[f.Name] = f
++			m[f.Name] = f;
++			ok := false;
++			switch {
++			case f.Value.String() == desired:
++				ok = true;
++			case f.Name == "test_bool" && f.Value.String() == boolString(desired):
++				ok = true;
++			}
++			if !ok {
++				t.Error("flag.Visit: bad value", f.Value.String(), "for", f.Name);
++			}
+ 		}
+ 	};
+ 	flag.VisitAll(visitor);
+@@ -43,11 +59,16 @@ func TestEverything(t *testing.T) {
+ 			t.Log(k, *v)
+ 		}
+ 	}
+-	// Now set some flags
+-	flag.Set("test_bool", "false");
+-	flag.Set("test_uint", "1234");
++	// Now set all flags
++	flag.Set("test_bool", "true");
++	flag.Set("test_int", "1");
++	flag.Set("test_int64", "1");
++	flag.Set("test_uint", "1");
++	flag.Set("test_uint64", "1");
++	flag.Set("test_string", "1");
++	desired = "1";
+ 	flag.Visit(visitor);
+-	if len(m) != 2 {
++	if len(m) != 6 {
+ 		t.Error("flag.Visit fails after set");
+ 		for k, v := range m {
+ 			t.Log(k, *v)

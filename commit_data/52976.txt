@@ -13,6 +13,19 @@ Date:   Wed Jun 22 00:42:29 2022 +0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/embed/embed.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/embed/embed.go b/src/embed/embed.go
+index cbe2d398fb..c54b961d15 100644
+--- a/src/embed/embed.go
++++ b/src/embed/embed.go
+@@ -91,6 +91,7 @@
+ // It can only be used with variables at package scope, not with local variables.
+ //
+ // Patterns must not match files outside the package's module, such as ‘.git/*’ or symbolic links.
++// Patterns must not match files whose names include the special punctuation characters  " * < > ? ` ' | / \ and :.
+ // Matches for empty directories are ignored. After that, each pattern in a //go:embed line
+ // must match at least one file or non-empty directory.
+ //

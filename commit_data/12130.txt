@@ -11,9 +11,100 @@ Date:   Tue Feb 21 22:15:03 2012 -0600
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5683054
-
+---
  misc/dist/windows/{LICENSE => LICENSE.rtf} | Bin
  misc/dist/windows/{README => README.txt}   |   8 +++-----
  misc/dist/windows/images/gopher.ico        | Bin 42929 -> 22486 bytes
  misc/dist/windows/installer.wxs            |  21 ++++++++++-----------
  4 files changed, 13 insertions(+), 16 deletions(-)
+
+diff --git a/misc/dist/windows/LICENSE b/misc/dist/windows/LICENSE.rtf
+similarity index 100%
+rename from misc/dist/windows/LICENSE
+rename to misc/dist/windows/LICENSE.rtf
+diff --git a/misc/dist/windows/README b/misc/dist/windows/README.txt
+similarity index 79%
+rename from misc/dist/windows/README
+rename to misc/dist/windows/README.txt
+index a0b0a8a7c1..b2f00d427f 100644
+--- a/misc/dist/windows/README
++++ b/misc/dist/windows/README.txt
+@@ -11,19 +11,17 @@ Dependencies
+ Packaging
+ =========
+ The dependencies must be callable from dist.bat, therefore,
+-they'll need to be in/added to the system's search PATH.
++they'll need to be in/added to the system's search PATH. 
+ 
+ The packaging needs to be done from within a tracked Go folder. 
+ Packages are built by cloning the same version of the source tree
+ that the Go tools were built from.
+ 
+-To create an i386 distribution package on a 64 bit system, set
+-GOARCH=386 prior to calling dist.bat.
+-
+ Run dist.bat from a command prompt or click on the batch file.
+ 
+ TODO
+-----
++----
++- Write a Go program for dist.bat functionality
+ - Documentation server shortcut checkbox option
+ 
+ Misc
+diff --git a/misc/dist/windows/images/gopher.ico b/misc/dist/windows/images/gopher.ico
+index 8421829d84..39a6c47c4d 100644
+Binary files a/misc/dist/windows/images/gopher.ico and b/misc/dist/windows/images/gopher.ico differ
+diff --git a/misc/dist/windows/installer.wxs b/misc/dist/windows/installer.wxs
+index ee5d22c285..faece29b02 100644
+--- a/misc/dist/windows/installer.wxs
++++ b/misc/dist/windows/installer.wxs
+@@ -36,11 +36,11 @@
+     Languages="1033" />
+     <!--    Platform="x86 or x64" -->
+ 
+-    <Property Id="ARPCOMMENTS" Value="The Go programming language is a fast, statically typed, compiled language that feels like a dynamically typed, interpreted language." />
+-    <Property Id="ARPCONTACT" Value="golang-nuts@googlegroups.com" />
+-    <Property Id="ARPHELPLINK" Value="golang.org/doc/community.html" />
+-    <Property Id="ARPREADME" Value="golang.org" />
+-    <Property Id="ARPURLINFOABOUT" Value="golang.org" />
++<Property Id="ARPCOMMENTS" Value="The Go programming language is a fast, statically typed, compiled language that feels like a dynamically typed, interpreted language." />
++<Property Id="ARPCONTACT" Value="golang-nuts@googlegroups.com" />
++<Property Id="ARPHELPLINK" Value="golang.org/doc/community.html" />
++<Property Id="ARPREADME" Value="golang.org" />
++<Property Id="ARPURLINFOABOUT" Value="golang.org" />
+ <Icon Id="gopher.ico" SourceFile="images\gopher.ico"/>
+ <Property Id="ARPPRODUCTICON" Value="gopher.ico" />
+ <Media Id='1' Cabinet="go.cab" EmbedCab="yes" CompressionLevel="high" />
+@@ -114,10 +114,10 @@
+         Key="Software\GoProgrammingLanguage"
+         Action="create" >
+             <RegistryValue
+-        Name="installed"
+-        Type="integer"
+-        Value="1"
+-        KeyPath="yes" />
++                Name="installed"
++                Type="integer"
++                Value="1"
++                KeyPath="yes" />
+             <RegistryValue
+                 Name="installLocation"
+                 Type="string"
+@@ -144,7 +144,6 @@
+     Id="GoTools"
+     Title="Go"
+     Level="1">
+-
+       <ComponentRef Id="Component_GoEnvironment" />
+       <ComponentGroupRef Id="AppFiles" />
+       <ComponentRef Id="Component_GoShortCuts" />
+@@ -156,7 +155,7 @@
+ </InstallExecuteSequence>
+ 
+ <!-- Include the user interface -->
+-<WixVariable Id="WixUILicenseRtf" Value="LICENSE" />
++<WixVariable Id="WixUILicenseRtf" Value="LICENSE.rtf" />
+ <WixVariable Id="WixUIBannerBmp" Value="images\Banner.jpg" />
+ <WixVariable Id="WixUIDialogBmp" Value="images\Dialog.jpg" />
+ <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />

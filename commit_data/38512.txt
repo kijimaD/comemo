@@ -11,7 +11,71 @@ Date:   Fri Nov 2 06:55:48 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  misc/cgo/test/issue28545.go | 20 ++++++++++++++++++++
  src/cmd/cgo/gcc.go          | 19 ++++++++++++++++++-
  2 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/issue28545.go b/misc/cgo/test/issue28545.go
+new file mode 100644
+index 0000000000..802a20b779
+--- /dev/null
++++ b/misc/cgo/test/issue28545.go
+@@ -0,0 +1,20 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Failed to add type conversion for negative constant.
++// No runtime test; just make sure it compiles.
++
++package cgotest
++
++/*
++#include <complex.h>
++
++static void issue28545F(char **p, int n, complex double a) {}
++*/
++import "C"
++
++func issue28545G(p **C.char) {
++	C.issue28545F(p, -1, (0))
++	C.issue28545F(p, 2+3, complex(1, 1))
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index e8be785bf6..9b615db5db 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1214,7 +1214,7 @@ func (p *Package) isType(t ast.Expr) bool {
+ 	return false
+ }
+ 
+-// isConst returns whether x is an untyped constant.
++// isConst returns whether x is an untyped constant expression.
+ func (p *Package) isConst(f *File, x ast.Expr) bool {
+ 	switch x := x.(type) {
+ 	case *ast.BasicLit:
+@@ -1233,6 +1233,23 @@ func (p *Package) isConst(f *File, x ast.Expr) bool {
+ 			strings.HasPrefix(x.Name, "_Ciconst_") ||
+ 			strings.HasPrefix(x.Name, "_Cfconst_") ||
+ 			strings.HasPrefix(x.Name, "_Csconst_")
++	case *ast.UnaryExpr:
++		return p.isConst(f, x.X)
++	case *ast.BinaryExpr:
++		return p.isConst(f, x.X) && p.isConst(f, x.Y)
++	case *ast.ParenExpr:
++		return p.isConst(f, x.X)
++	case *ast.CallExpr:
++		// Calling the builtin function complex on two untyped
++		// constants returns an untyped constant.
++		// TODO: It's possible to construct a case that will
++		// erroneously succeed if there is a local function
++		// named "complex", shadowing the builtin, that returns
++		// a numeric type. I can't think of any cases that will
++		// erroneously fail.
++		if id, ok := x.Fun.(*ast.Ident); ok && id.Name == "complex" && len(x.Args) == 2 {
++			return p.isConst(f, x.Args[0]) && p.isConst(f, x.Args[1])
++		}
+ 	}
+ 	return false
+ }

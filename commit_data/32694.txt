@@ -22,6 +22,24 @@ Date:   Wed May 17 14:27:28 2017 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/pprof/pprof.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index b6253b1aa5..21ea25ce36 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -401,7 +401,11 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
+ 		for _, addr := range p.Stack(index[k]) {
+ 			// For count profiles, all stack addresses are
+ 			// return PCs, which is what locForPC expects.
+-			locs = append(locs, b.locForPC(addr))
++			l := b.locForPC(addr)
++			if l == 0 { // runtime.goexit
++				continue
++			}
++			locs = append(locs, l)
+ 		}
+ 		b.pbSample(values, locs, nil)
+ 	}

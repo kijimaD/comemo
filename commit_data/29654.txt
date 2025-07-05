@@ -15,7 +15,104 @@ Date:   Fri Sep 30 10:40:58 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/net/http/request.go  | 39 +++++++++++++++++++++++++++++++++++++++
  src/net/http/transfer.go | 34 +++++++---------------------------
  2 files changed, 46 insertions(+), 27 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index b191d519f2..21e25b08ef 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -1215,3 +1215,42 @@ func (r *Request) isReplayable() bool {
+ 	}
+ 	return false
+ }
++
++// bodyAndLength reports the request's body and content length, with
++// the difference from r.ContentLength being that 0 means actually
++// zero, and -1 means unknown.
++func (r *Request) bodyAndLength() (body io.Reader, contentLen int64) {
++	body = r.Body
++	if body == nil {
++		return nil, 0
++	}
++	if r.ContentLength != 0 {
++		return body, r.ContentLength
++	}
++	// Don't try to sniff the bytes if they're using a custom
++	// transfer encoding (or specified chunked themselves), and
++	// don't sniff if they're not using HTTP/1.1 and can't chunk
++	// anyway.
++	if len(r.TransferEncoding) != 0 || !r.ProtoAtLeast(1, 1) {
++		return body, -1
++	}
++
++	// Test to see if it's actually zero or just unset.
++	var buf [1]byte
++	n, err := io.ReadFull(body, buf[:])
++	if err != nil && err != io.EOF {
++		return errorReader{err}, -1
++	}
++
++	if n == 1 {
++		// Oh, guess there is data in this Body Reader after all.
++		// The ContentLength field just wasn't set.
++		// Stich the Body back together again, re-attaching our
++		// consumed byte.
++		// TODO(bradfitz): switch to stitchByteAndReader
++		return io.MultiReader(bytes.NewReader(buf[:]), body), -1
++	}
++
++	// Body is actually empty.
++	return nil, 0
++}
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 851469ccbc..9d31b71f32 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -59,37 +59,17 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
+ 			return nil, fmt.Errorf("http: Request.ContentLength=%d with nil Body", rr.ContentLength)
+ 		}
+ 		t.Method = valueOrDefault(rr.Method, "GET")
+-		t.Body = rr.Body
+-		t.BodyCloser = rr.Body
+-		t.ContentLength = rr.ContentLength
+ 		t.Close = rr.Close
+ 		t.TransferEncoding = rr.TransferEncoding
+ 		t.Trailer = rr.Trailer
+ 		atLeastHTTP11 = rr.ProtoAtLeast(1, 1)
+-		if t.Body != nil && len(t.TransferEncoding) == 0 && atLeastHTTP11 {
+-			if t.ContentLength == 0 {
+-				// Test to see if it's actually zero or just unset.
+-				var buf [1]byte
+-				n, rerr := io.ReadFull(t.Body, buf[:])
+-				if rerr != nil && rerr != io.EOF {
+-					t.ContentLength = -1
+-					t.Body = errorReader{rerr}
+-				} else if n == 1 {
+-					// Oh, guess there is data in this Body Reader after all.
+-					// The ContentLength field just wasn't set.
+-					// Stich the Body back together again, re-attaching our
+-					// consumed byte.
+-					t.ContentLength = -1
+-					t.Body = io.MultiReader(bytes.NewReader(buf[:]), t.Body)
+-				} else {
+-					// Body is actually empty.
+-					t.Body = nil
+-					t.BodyCloser = nil
+-				}
+-			}
+-			if t.ContentLength < 0 {
+-				t.TransferEncoding = []string{"chunked"}
+-			}
++
++		t.Body, t.ContentLength = rr.bodyAndLength()
++		if t.Body != nil {
++			t.BodyCloser = rr.Body
++		}
++		if t.ContentLength < 0 && len(t.TransferEncoding) == 0 && atLeastHTTP11 {
++			t.TransferEncoding = []string{"chunked"}
+ 		}
+ 	case *Response:
+ 		t.IsResponse = true

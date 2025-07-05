@@ -9,7 +9,34 @@ Date:   Tue Dec 13 22:03:18 2016 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cgo/gcc.go  | 2 ++
  src/cmd/go/build.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 670a73f546..d6c23a70eb 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1210,6 +1210,8 @@ func (p *Package) gccMachine() []string {
+ 		return []string{"-m64"}
+ 	case "mips64", "mips64le":
+ 		return []string{"-mabi=64"}
++	case "mips", "mipsle":
++		return []string{"-mabi=32"}
+ 	}
+ 	return nil
+ }
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 0027ca0fc0..8eaa768f38 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -3220,6 +3220,8 @@ func (b *builder) gccArchArgs() []string {
+ 		return []string{"-m64", "-march=z196"}
+ 	case "mips64", "mips64le":
+ 		return []string{"-mabi=64"}
++	case "mips", "mipsle":
++		return []string{"-mabi=32", "-march=mips32"}
+ 	}
+ 	return nil
+ }

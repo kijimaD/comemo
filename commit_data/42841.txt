@@ -22,8 +22,71 @@ Date:   Tue Feb 11 18:26:38 2020 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/testdata/script/version.txt | 13 ++++++++++++-
  src/cmd/link/internal/amd64/asm.go     |  5 ++++-
  src/cmd/link/internal/arm64/asm.go     |  5 ++++-
  3 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/version.txt b/src/cmd/go/testdata/script/version.txt
+index 42526247f1..4eafe1f184 100644
+--- a/src/cmd/go/testdata/script/version.txt
++++ b/src/cmd/go/testdata/script/version.txt
+@@ -12,7 +12,7 @@ stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+ # Repeat the test with -buildmode=pie.
+ # TODO(golang.org/issue/27144): don't skip after -buildmode=pie is implemented
+ # on Windows.
+-[windows] skip # -buildmode=pie not supported
++[!buildmode:pie] stop
+ go build -buildmode=pie -o external.exe rsc.io/fortune
+ go version external.exe
+ stdout '^external.exe: .+'
+@@ -20,5 +20,16 @@ go version -m external.exe
+ stdout '^\tpath\trsc.io/fortune'
+ stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+ 
++# Also test PIE with internal linking.
++# currently only supported on linux/amd64 and linux/arm64.
++[!linux] stop
++[!amd64] [!arm64] stop
++go build -buildmode=pie -ldflags=-linkmode=internal -o internal.exe rsc.io/fortune
++go version internal.exe
++stdout '^internal.exe: .+'
++go version -m internal.exe
++stdout '^\tpath\trsc.io/fortune'
++stdout '^\tmod\trsc.io/fortune\tv1.0.0'
++
+ -- go.mod --
+ module m
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 5de77180fc..26208cc619 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -353,7 +353,10 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 				ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+ 			}
+ 			rela.AddAddrPlus(ctxt.Arch, targ, int64(r.Add))
+-			r.Type = objabi.ElfRelocOffset // ignore during relocsym
++			// Not mark r done here. So we still apply it statically,
++			// so in the file content we'll also have the right offset
++			// to the relocation target. So it can be examined statically
++			// (e.g. go version).
+ 			return true
+ 		}
+ 
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index ef9540b2a7..9c3f442238 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -309,7 +309,10 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 				ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+ 			}
+ 			rela.AddAddrPlus(ctxt.Arch, targ, int64(r.Add))
+-			r.Type = objabi.ElfRelocOffset // ignore during relocsym
++			// Not mark r done here. So we still apply it statically,
++			// so in the file content we'll also have the right offset
++			// to the relocation target. So it can be examined statically
++			// (e.g. go version).
+ 			return true
+ 		}
+ 	}

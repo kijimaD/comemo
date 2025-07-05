@@ -7,8 +7,49 @@ Date:   Thu May 28 22:24:03 2009 -0700
     R=ken
     OCL=29568
     CL=29570
-
+---
  src/cmd/gc/builtin.c.boot | 1 +
  src/cmd/gc/sys.go         | 1 +
  src/cmd/gc/walk.c         | 5 ++++-
  3 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 54aebd89fc..4096e18ed4 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -8,6 +8,7 @@ char *sysimport =
+ 	"func sys.printbool (? bool)\n"
+ 	"func sys.printfloat (? float64)\n"
+ 	"func sys.printint (? int64)\n"
++	"func sys.printuint (? uint64)\n"
+ 	"func sys.printstring (? string)\n"
+ 	"func sys.printpointer (? any)\n"
+ 	"func sys.printiface (? any)\n"
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index d4313d2f23..a8a11866d8 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -16,6 +16,7 @@ func	panicl(int32);
+ func	printbool(bool);
+ func	printfloat(float64);
+ func	printint(int64);
++func	printuint(uint64);
+ func	printstring(string);
+ func	printpointer(any);
+ func	printiface(any);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 60d5a9d022..f18227951e 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2290,7 +2290,10 @@ loop:
+ 		on = syslook("printarray", 1);
+ 		argtype(on, l->type);	// any-1
+ 	} else if(isint[et]) {
+-		on = syslook("printint", 0);
++		if(et == TUINT64)
++			on = syslook("printuint", 0);
++		else
++			on = syslook("printint", 0);
+ 	} else if(isfloat[et]) {
+ 		on = syslook("printfloat", 0);
+ 	} else if(et == TBOOL) {

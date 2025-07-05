@@ -13,6 +13,20 @@ Date:   Tue Sep 15 19:53:42 2020 +0800
     Trust: Katie Hockman <katie@golang.org>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/crypto/des/block.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/des/block.go b/src/crypto/des/block.go
+index 3e3fe06c02..cc2888e2c7 100644
+--- a/src/crypto/des/block.go
++++ b/src/crypto/des/block.go
+@@ -127,7 +127,7 @@ func permuteInitialBlock(block uint64) uint64 {
+ 	b2 = (block & 0xff00ff00)
+ 	block ^= b1<<32 ^ b2 ^ b1<<8 ^ b2<<24 // exchange b0 b4 with b3 b7
+ 
+-	// block is now b1 b3 b5 b7 b0 b2 b4 b7, the permutation:
++	// block is now b1 b3 b5 b7 b0 b2 b4 b6, the permutation:
+ 	//                  ...  8
+ 	//                  ... 24
+ 	//                  ... 40

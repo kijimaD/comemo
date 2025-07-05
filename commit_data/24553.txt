@@ -17,6 +17,60 @@ Date:   Wed Aug 5 10:19:12 2015 -0400
     Change-Id: I8b2f6ac2cc1e7657019f7731c6662dc43e20bfb5
     Reviewed-on: https://go-review.googlesource.com/13166
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go | 26 +++++++++++++++++---------
  1 file changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 8b5917b633..5b0f2783f3 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -24,17 +24,16 @@ import (
+ 	"time"
+ )
+ 
+-// Whether we can run go or ./testgo.
+-var canRun = true
++var (
++	canRun  = true  // whether we can run go or ./testgo
++	canRace = false // whether we can run the race detector
++	canCgo  = false // whether we can use cgo
+ 
+-// The suffix for executables, because Windows.
+-var exeSuffix string
++	exeSuffix string // ".exe" on Windows
+ 
+-// Whether we can run the race detector.
+-var canRace bool
+-
+-// Whether we can use cgo.
+-var canCgo bool
++	builder             = testenv.Builder()
++	skipExternalBuilder = false // skip external tests on this builder
++)
+ 
+ func init() {
+ 	switch runtime.GOOS {
+@@ -47,6 +46,11 @@ func init() {
+ 		}
+ 	}
+ 
++	if strings.HasPrefix(builder+"-", "freebsd-arm-") {
++		skipExternalBuilder = true
++		canRun = false
++	}
++
+ 	switch runtime.GOOS {
+ 	case "windows":
+ 		exeSuffix = ".exe"
+@@ -134,6 +138,10 @@ type testgoData struct {
+ func testgo(t *testing.T) *testgoData {
+ 	testenv.MustHaveGoBuild(t)
+ 
++	if skipExternalBuilder {
++		t.Skip("skipping external tests on %s builder", builder)
++	}
++
+ 	return &testgoData{t: t}
+ }
+ 

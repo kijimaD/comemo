@@ -18,10 +18,129 @@ Date:   Sat Aug 7 22:26:46 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/types.go       |  2 +-
  src/cmd/compile/internal/typecheck/iimport.go | 12 ++++++++++--
  src/cmd/compile/internal/typecheck/subr.go    | 20 +++++++++++++++++++-
  src/cmd/compile/internal/types/type.go        |  9 +++++++++
  src/cmd/link/internal/ld/deadcode.go          |  3 +++
  5 files changed, 42 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index 4e80b1a0ff..8d596e599e 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -227,7 +227,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 		// Set g.typs[typ] in case the bound methods reference typ.
+ 		g.typs[typ] = tp
+ 
+-		bound := g.typ1(typ.Bound())
++		bound := g.typ1(typ.Constraint())
+ 		tp.SetBound(bound)
+ 		return tp
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 2e8b18c0b7..d5f4bba98b 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1858,18 +1858,26 @@ func substInstType(t *types.Type, baseType *types.Type, targs []*types.Type) {
+ 
+ 	newfields := make([]*types.Field, baseType.Methods().Len())
+ 	for i, f := range baseType.Methods().Slice() {
++		if !f.IsMethod() || types.IsInterfaceMethod(f.Type) {
++			// Do a normal substitution if this is a non-method (which
++			// means this must be an interface used as a constraint) or
++			// an interface method.
++			t2 := subst.Typ(f.Type)
++			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
++			continue
++		}
+ 		recvType := f.Type.Recv().Type
+ 		if recvType.IsPtr() {
+ 			recvType = recvType.Elem()
+ 		}
+ 		// Substitute in the method using the type params used in the
+ 		// method (not the type params in the definition of the generic type).
+-		subst := Tsubster{
++		msubst := Tsubster{
+ 			Tparams:       recvType.RParams(),
+ 			Targs:         targs,
+ 			SubstForwFunc: doInst,
+ 		}
+-		t2 := subst.Typ(f.Type)
++		t2 := msubst.Typ(f.Type)
+ 		oldsym := f.Nname.Sym()
+ 		newsym := MakeInstName(oldsym, targs, true)
+ 		var nname *ir.Name
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index e840df56dc..e86c4c6bca 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1165,7 +1165,7 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
+ 
+ 	case types.TINTER:
+ 		newt = ts.tinter(t)
+-		if newt == t {
++		if newt == t && !targsChanged {
+ 			newt = nil
+ 		}
+ 
+@@ -1197,6 +1197,24 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
+ 		types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64,
+ 		types.TUINTPTR, types.TBOOL, types.TSTRING, types.TFLOAT32, types.TFLOAT64, types.TCOMPLEX64, types.TCOMPLEX128:
+ 		newt = t.Underlying()
++	case types.TUNION:
++		nt := t.NumTerms()
++		newterms := make([]*types.Type, nt)
++		tildes := make([]bool, nt)
++		changed := false
++		for i := 0; i < nt; i++ {
++			term, tilde := t.Term(i)
++			tildes[i] = tilde
++			newterms[i] = ts.Typ(term)
++			if newterms[i] != term {
++				changed = true
++			}
++		}
++		if changed {
++			newt = types.NewUnion(newterms, tildes)
++		}
++	default:
++		panic(fmt.Sprintf("Bad type in (*TSubster).Typ: %v", t.Kind()))
+ 	}
+ 	if newt == nil {
+ 		// Even though there were typeparams in the type, there may be no
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 099080f48f..875b0ba82f 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1912,6 +1912,15 @@ func NewUnion(terms []*Type, tildes []bool) *Type {
+ 	}
+ 	t.Extra.(*Union).terms = terms
+ 	t.Extra.(*Union).tildes = tildes
++	nt := len(terms)
++	for i := 0; i < nt; i++ {
++		if terms[i].HasTParam() {
++			t.SetHasTParam(true)
++		}
++		if terms[i].HasShape() {
++			t.SetHasShape(true)
++		}
++	}
+ 	return t
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 416e5da398..dd5dafc21b 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -408,6 +408,9 @@ func (d *deadcodePass) decodeMethodSig(ldr *loader.Loader, arch *sys.Arch, symId
+ // Decode the method of interface type symbol symIdx at offset off.
+ func (d *deadcodePass) decodeIfaceMethod(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, off int64) methodsig {
+ 	p := ldr.Data(symIdx)
++	if p == nil {
++		panic(fmt.Sprintf("missing symbol %q", ldr.SymName(symIdx)))
++	}
+ 	if decodetypeKind(arch, p)&kindMask != kindInterface {
+ 		panic(fmt.Sprintf("symbol %q is not an interface", ldr.SymName(symIdx)))
+ 	}

@@ -14,7 +14,7 @@ Date:   Mon Apr 10 13:43:36 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  7 +++++--
  test/fixedbugs/bug255.go                 |  2 +-
  test/fixedbugs/issue19880.go             | 20 ++++++++++++++++++++
@@ -22,3 +22,116 @@ Date:   Mon Apr 10 13:43:36 2017 -0700
  test/fixedbugs/issue7525b.go             | 13 +++++++++++++
  test/fixedbugs/issue7525c.go             | 13 +++++++++++++
  6 files changed, 54 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index db4ea0a895..2e7664ccd2 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -369,9 +369,12 @@ OpSwitch:
+ 			n.Left = indexlit(typecheck(n.Left, Erv))
+ 			l := n.Left
+ 			if consttype(l) != CTINT {
+-				if l.Type != nil && l.Type.IsInteger() && l.Op != OLITERAL {
++				switch {
++				case l.Type == nil:
++					// Error already reported elsewhere.
++				case l.Type.IsInteger() && l.Op != OLITERAL:
+ 					yyerror("non-constant array bound %v", l)
+-				} else {
++				default:
+ 					yyerror("invalid array bound %v", l)
+ 				}
+ 				n.Type = nil
+diff --git a/test/fixedbugs/bug255.go b/test/fixedbugs/bug255.go
+index 247ca328c7..458fb972b2 100644
+--- a/test/fixedbugs/bug255.go
++++ b/test/fixedbugs/bug255.go
+@@ -11,7 +11,7 @@ var b [1e1]int     // ok
+ var c [1.5]int     // ERROR "truncated"
+ var d ["abc"]int   // ERROR "invalid array bound|not numeric"
+ var e [nil]int     // ERROR "use of untyped nil|invalid array bound|not numeric"
+-var f [e]int       // ERROR "invalid array bound|not constant"
++var f [e]int       // ok: error already reported for e
+ var g [1 << 65]int // ERROR "array bound is too large|overflows"
+ var h [len(a)]int  // ok
+ 
+diff --git a/test/fixedbugs/issue19880.go b/test/fixedbugs/issue19880.go
+new file mode 100644
+index 0000000000..629c95d960
+--- /dev/null
++++ b/test/fixedbugs/issue19880.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T struct {
++	f [1]int
++}
++
++func a() {
++	_ = T // ERROR "type T is not an expression"
++}
++
++func b() {
++	var v [len(T{}.f)]int // ok
++	_ = v
++}
+diff --git a/test/fixedbugs/issue7525.go b/test/fixedbugs/issue7525.go
+index 4e1d88aab0..6e6959312e 100644
+--- a/test/fixedbugs/issue7525.go
++++ b/test/fixedbugs/issue7525.go
+@@ -11,9 +11,7 @@ package main
+ import "unsafe"
+ 
+ var x struct {
+-	a [unsafe.Sizeof(x.a)]int // ERROR "array bound|typechecking loop|invalid expression"
++	a [unsafe.Sizeof(x.a)]int   // ERROR "array bound|typechecking loop|invalid expression"
+ 	b [unsafe.Offsetof(x.b)]int // ERROR "array bound"
+-	c [unsafe.Alignof(x.c)]int // ERROR "array bound|invalid expression"
+-	d [len(x.d)]int // ERROR "array bound|invalid array"
+-	e [cap(x.e)]int // ERROR "array bound|invalid array"
++	c [unsafe.Alignof(x.c)]int  // ERROR "array bound|invalid expression"
+ }
+diff --git a/test/fixedbugs/issue7525b.go b/test/fixedbugs/issue7525b.go
+new file mode 100644
+index 0000000000..20a62ee963
+--- /dev/null
++++ b/test/fixedbugs/issue7525b.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7525: self-referential array types.
++
++package main
++
++var y struct {
++	d [len(y.d)]int // ERROR "array bound|typechecking loop|invalid array"
++}
+diff --git a/test/fixedbugs/issue7525c.go b/test/fixedbugs/issue7525c.go
+new file mode 100644
+index 0000000000..f633b1cf89
+--- /dev/null
++++ b/test/fixedbugs/issue7525c.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7525: self-referential array types.
++
++package main
++
++var z struct {
++	e [cap(z.e)]int // ERROR "array bound|typechecking loop|invalid array"
++}

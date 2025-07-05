@@ -13,7 +13,7 @@ Date:   Tue Dec 1 23:05:53 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/274440
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/closure.go   |  2 --
  src/cmd/compile/internal/gc/dcl.go       |  6 +++---
  src/cmd/compile/internal/gc/iexport.go   |  6 ++----
@@ -23,3 +23,288 @@ Date:   Tue Dec 1 23:05:53 2020 -0800
  src/cmd/compile/internal/gc/universe.go  |  6 +++---
  src/cmd/compile/internal/types/type.go   | 36 +++++++++++++-------------------
  8 files changed, 32 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index e33a561bd4..a5441a037a 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -464,8 +464,6 @@ func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) *ir.Func {
+ 	fn.SetDupok(true)
+ 	fn.SetNeedctxt(true)
+ 
+-	tfn.Type().SetPkg(t0.Pkg())
+-
+ 	// Declare and initialize variable holding receiver.
+ 	cr := ir.NewClosureRead(rcvrtype, Rnd(int64(Widthptr), int64(rcvrtype.Align)))
+ 	ptr := NewName(lookup(".this"))
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index e0c87d4517..87b389b98b 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -552,7 +552,7 @@ func tostruct(l []*ir.Field) *types.Type {
+ 	checkdupfields("field", fields)
+ 
+ 	base.Pos = lno
+-	return types.NewStruct(fields)
++	return types.NewStruct(ir.LocalPkg, fields)
+ }
+ 
+ func tointerface(nmethods []*ir.Field) *types.Type {
+@@ -573,7 +573,7 @@ func tointerface(nmethods []*ir.Field) *types.Type {
+ 	}
+ 
+ 	base.Pos = lno
+-	return types.NewInterface(methods)
++	return types.NewInterface(ir.LocalPkg, methods)
+ }
+ 
+ func fakeRecv() *ir.Field {
+@@ -625,7 +625,7 @@ func functype(nrecv *ir.Field, nparams, nresults []*ir.Field) *types.Type {
+ 		recv = funarg(nrecv)
+ 	}
+ 
+-	t := types.NewSignature(recv, funargs(nparams), funargs(nresults))
++	t := types.NewSignature(ir.LocalPkg, recv, funargs(nparams), funargs(nresults))
+ 	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
+ 	return t
+ }
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 2231f493dd..7b21efb8c2 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -718,10 +718,8 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ }
+ 
+ func (w *exportWriter) setPkg(pkg *types.Pkg, write bool) {
+-	if pkg == nil {
+-		// TODO(mdempsky): Proactively set Pkg for types and
+-		// remove this fallback logic.
+-		pkg = ir.LocalPkg
++	if pkg == types.NoPkg {
++		base.Fatalf("missing pkg")
+ 	}
+ 
+ 	if write {
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 1bb9841564..b6653dabda 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -545,9 +545,7 @@ func (r *importReader) typ1() *types.Type {
+ 			fs[i] = f
+ 		}
+ 
+-		t := types.NewStruct(fs)
+-		t.SetPkg(r.currPkg)
+-		return t
++		return types.NewStruct(r.currPkg, fs)
+ 
+ 	case interfaceType:
+ 		r.setPkg()
+@@ -569,8 +567,7 @@ func (r *importReader) typ1() *types.Type {
+ 			methods[i] = types.NewField(pos, sym, typ)
+ 		}
+ 
+-		t := types.NewInterface(append(embeddeds, methods...))
+-		t.SetPkg(r.currPkg)
++		t := types.NewInterface(r.currPkg, append(embeddeds, methods...))
+ 
+ 		// Ensure we expand the interface in the frontend (#25055).
+ 		checkwidth(t)
+@@ -588,9 +585,7 @@ func (r *importReader) signature(recv *types.Field) *types.Type {
+ 	if n := len(params); n > 0 {
+ 		params[n-1].SetIsDDD(r.bool())
+ 	}
+-	t := types.NewSignature(recv, params, results)
+-	t.SetPkg(r.currPkg)
+-	return t
++	return types.NewSignature(r.currPkg, recv, params, results)
+ }
+ 
+ func (r *importReader) paramList() []*types.Field {
+diff --git a/src/cmd/compile/internal/gc/pgen_test.go b/src/cmd/compile/internal/gc/pgen_test.go
+index 710bc32534..473df82a0d 100644
+--- a/src/cmd/compile/internal/gc/pgen_test.go
++++ b/src/cmd/compile/internal/gc/pgen_test.go
+@@ -14,13 +14,13 @@ import (
+ )
+ 
+ func typeWithoutPointers() *types.Type {
+-	return types.NewStruct([]*types.Field{
++	return types.NewStruct(types.NoPkg, []*types.Field{
+ 		types.NewField(src.NoXPos, nil, types.New(types.TINT)),
+ 	})
+ }
+ 
+ func typeWithPointers() *types.Type {
+-	return types.NewStruct([]*types.Field{
++	return types.NewStruct(types.NoPkg, []*types.Field{
+ 		types.NewField(src.NoXPos, nil, types.NewPtr(types.New(types.TINT))),
+ 	})
+ }
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index b249310df0..42139b7135 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -126,7 +126,7 @@ func bmap(t *types.Type) *types.Type {
+ 	field = append(field, overflow)
+ 
+ 	// link up fields
+-	bucket := types.NewStruct(field[:])
++	bucket := types.NewStruct(types.NoPkg, field[:])
+ 	bucket.SetNoalg(true)
+ 	dowidth(bucket)
+ 
+@@ -220,7 +220,7 @@ func hmap(t *types.Type) *types.Type {
+ 		makefield("extra", types.Types[types.TUNSAFEPTR]),
+ 	}
+ 
+-	hmap := types.NewStruct(fields)
++	hmap := types.NewStruct(types.NoPkg, fields)
+ 	hmap.SetNoalg(true)
+ 	dowidth(hmap)
+ 
+@@ -283,7 +283,7 @@ func hiter(t *types.Type) *types.Type {
+ 	}
+ 
+ 	// build iterator struct holding the above fields
+-	hiter := types.NewStruct(fields)
++	hiter := types.NewStruct(types.NoPkg, fields)
+ 	hiter.SetNoalg(true)
+ 	dowidth(hiter)
+ 	if hiter.Width != int64(12*Widthptr) {
+@@ -329,7 +329,7 @@ func deferstruct(stksize int64) *types.Type {
+ 	}
+ 
+ 	// build struct holding the above fields
+-	s := types.NewStruct(fields)
++	s := types.NewStruct(types.NoPkg, fields)
+ 	s.SetNoalg(true)
+ 	s.Width = widstruct(s, s, 0, 1)
+ 	s.Align = uint8(Widthptr)
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 1c744dc367..b315502964 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -104,7 +104,7 @@ func initUniverse() {
+ 	}
+ 
+ 	types.Types[types.TANY] = types.New(types.TANY)
+-	types.Types[types.TINTER] = types.NewInterface(nil)
++	types.Types[types.TINTER] = types.NewInterface(ir.LocalPkg, nil)
+ 
+ 	defBasic := func(kind types.Kind, pkg *types.Pkg, name string) *types.Type {
+ 		sym := pkg.Lookup(name)
+@@ -325,11 +325,11 @@ func initUniverse() {
+ }
+ 
+ func makeErrorInterface() *types.Type {
+-	sig := types.NewSignature(fakeRecvField(), nil, []*types.Field{
++	sig := types.NewSignature(types.NoPkg, fakeRecvField(), nil, []*types.Field{
+ 		types.NewField(src.NoXPos, nil, types.Types[types.TSTRING]),
+ 	})
+ 	method := types.NewField(src.NoXPos, lookup("Error"), sig)
+-	return types.NewInterface([]*types.Field{method})
++	return types.NewInterface(types.NoPkg, []*types.Field{method})
+ }
+ 
+ // finishUniverse makes the universe block visible within the current package.
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 2eff8e3ba4..2c42e5579d 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -211,6 +211,11 @@ func (t *Type) Pos() src.XPos {
+ 	return src.NoXPos
+ }
+ 
++// NoPkg is a nil *Pkg value for clarity.
++// It's intended for use when constructing types that aren't exported
++// and thus don't need to be associated with any package.
++var NoPkg *Pkg = nil
++
+ // Pkg returns the package that t appeared in.
+ //
+ // Pkg is only defined for function, struct, and interface types
+@@ -231,20 +236,6 @@ func (t *Type) Pkg() *Pkg {
+ 	}
+ }
+ 
+-// SetPkg sets the package that t appeared in.
+-func (t *Type) SetPkg(pkg *Pkg) {
+-	switch t.kind {
+-	case TFUNC:
+-		t.Extra.(*Func).pkg = pkg
+-	case TSTRUCT:
+-		t.Extra.(*Struct).pkg = pkg
+-	case TINTER:
+-		t.Extra.(*Interface).pkg = pkg
+-	default:
+-		Fatalf("Pkg: unexpected kind: %v", t)
+-	}
+-}
+-
+ // Map contains Type fields specific to maps.
+ type Map struct {
+ 	Key  *Type // Key type
+@@ -1609,7 +1600,7 @@ func (t *Type) SetUnderlying(underlying *Type) {
+ 	}
+ }
+ 
+-// NewNamed returns a new basic type of the given kind.
++// NewBasic returns a new basic type of the given kind.
+ func NewBasic(kind Kind, obj Object) *Type {
+ 	t := New(kind)
+ 	t.sym = obj.Sym()
+@@ -1619,18 +1610,19 @@ func NewBasic(kind Kind, obj Object) *Type {
+ 
+ // NewInterface returns a new interface for the given methods and
+ // embedded types. Embedded types are specified as fields with no Sym.
+-func NewInterface(methods []*Field) *Type {
++func NewInterface(pkg *Pkg, methods []*Field) *Type {
+ 	t := New(TINTER)
+ 	t.SetInterface(methods)
+ 	if anyBroke(methods) {
+ 		t.SetBroke(true)
+ 	}
++	t.Extra.(*Interface).pkg = pkg
+ 	return t
+ }
+ 
+-//  NewSignature returns a new function type for the given receiver,
+-//  parameters, and results, any of which may be nil.
+-func NewSignature(recv *Field, params, results []*Field) *Type {
++// NewSignature returns a new function type for the given receiver,
++// parameters, and results, any of which may be nil.
++func NewSignature(pkg *Pkg, recv *Field, params, results []*Field) *Type {
+ 	var recvs []*Field
+ 	if recv != nil {
+ 		recvs = []*Field{recv}
+@@ -1640,7 +1632,7 @@ func NewSignature(recv *Field, params, results []*Field) *Type {
+ 	ft := t.FuncType()
+ 
+ 	funargs := func(fields []*Field, funarg Funarg) *Type {
+-		s := NewStruct(fields)
++		s := NewStruct(NoPkg, fields)
+ 		s.StructType().Funarg = funarg
+ 		if s.Broke() {
+ 			t.SetBroke(true)
+@@ -1651,17 +1643,19 @@ func NewSignature(recv *Field, params, results []*Field) *Type {
+ 	ft.Receiver = funargs(recvs, FunargRcvr)
+ 	ft.Params = funargs(params, FunargParams)
+ 	ft.Results = funargs(results, FunargResults)
++	ft.pkg = pkg
+ 
+ 	return t
+ }
+ 
+ // NewStruct returns a new struct with the given fields.
+-func NewStruct(fields []*Field) *Type {
++func NewStruct(pkg *Pkg, fields []*Field) *Type {
+ 	t := New(TSTRUCT)
+ 	t.SetFields(fields)
+ 	if anyBroke(fields) {
+ 		t.SetBroke(true)
+ 	}
++	t.Extra.(*Struct).pkg = pkg
+ 	return t
+ }
+ 

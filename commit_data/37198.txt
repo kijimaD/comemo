@@ -9,6 +9,22 @@ Date:   Fri Jul 6 17:06:55 2018 -0700
     Change-Id: I7db721fb71a17f07472ec7f216478e7887435639
     Reviewed-on: https://go-review.googlesource.com/122557
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/mfinal.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 6ce0312712..a8c51e3e02 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -267,8 +267,8 @@ func runfinq() {
+ // is not guaranteed to run, because there is no ordering that
+ // respects the dependencies.
+ //
+-// The finalizer for obj is scheduled to run at some arbitrary time after
+-// obj becomes unreachable.
++// The finalizer is scheduled to run at some arbitrary time after the
++// program can no longer reach the object to which obj points.
+ // There is no guarantee that finalizers will run before a program exits,
+ // so typically they are useful only for releasing non-memory resources
+ // associated with an object during a long-running program.

@@ -11,7 +11,200 @@ Date:   Wed Jun 7 09:55:05 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/hashmap.go      | 39 +++++++++++++++------------------------
  src/runtime/hashmap_fast.go | 40 ++++++++--------------------------------
  2 files changed, 23 insertions(+), 56 deletions(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index d45bfdfe34..3e413e52f7 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -170,6 +170,15 @@ type hiter struct {
+ 	checkBucket uintptr
+ }
+ 
++// tophash calculates the tophash value for hash.
++func tophash(hash uintptr) uint8 {
++	top := uint8(hash >> (sys.PtrSize*8 - 8))
++	if top < minTopHash {
++		top += minTopHash
++	}
++	return top
++}
++
+ func evacuated(b *bmap) bool {
+ 	h := b.tophash[0]
+ 	return h > empty && h < minTopHash
+@@ -374,10 +383,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 			b = oldb
+ 		}
+ 	}
+-	top := uint8(hash >> (sys.PtrSize*8 - 8))
+-	if top < minTopHash {
+-		top += minTopHash
+-	}
++	top := tophash(hash)
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+ 			if b.tophash[i] != top {
+@@ -432,10 +438,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 			b = oldb
+ 		}
+ 	}
+-	top := uint8(hash >> (sys.PtrSize*8 - 8))
+-	if top < minTopHash {
+-		top += minTopHash
+-	}
++	top := tophash(hash)
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+ 			if b.tophash[i] != top {
+@@ -479,10 +482,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
+ 			b = oldb
+ 		}
+ 	}
+-	top := uint8(hash >> (sys.PtrSize*8 - 8))
+-	if top < minTopHash {
+-		top += minTopHash
+-	}
++	top := tophash(hash)
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+ 			if b.tophash[i] != top {
+@@ -557,10 +557,7 @@ again:
+ 		growWork(t, h, bucket)
+ 	}
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+-	top := uint8(hash >> (sys.PtrSize*8 - 8))
+-	if top < minTopHash {
+-		top += minTopHash
+-	}
++	top := tophash(hash)
+ 
+ 	var inserti *uint8
+ 	var insertk unsafe.Pointer
+@@ -667,10 +664,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 		growWork(t, h, bucket)
+ 	}
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+-	top := uint8(hash >> (sys.PtrSize*8 - 8))
+-	if top < minTopHash {
+-		top += minTopHash
+-	}
++	top := tophash(hash)
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+ 			if b.tophash[i] != top {
+@@ -1102,10 +1096,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 						} else {
+ 							hash &^= newbit
+ 						}
+-						top = uint8(hash >> (sys.PtrSize*8 - 8))
+-						if top < minTopHash {
+-							top += minTopHash
+-						}
++						top = tophash(hash)
+ 					}
+ 					if hash&newbit != 0 {
+ 						useY = 1
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/hashmap_fast.go
+index e7a719d63f..c3ce5ae150 100644
+--- a/src/runtime/hashmap_fast.go
++++ b/src/runtime/hashmap_fast.go
+@@ -281,10 +281,7 @@ dohash:
+ 			b = oldb
+ 		}
+ 	}
+-	top := uint8(hash >> (sys.PtrSize*8 - 8))
+-	if top < minTopHash {
+-		top += minTopHash
+-	}
++	top := tophash(hash)
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+ 			if b.tophash[i] != top {
+@@ -385,10 +382,7 @@ dohash:
+ 			b = oldb
+ 		}
+ 	}
+-	top := uint8(hash >> (sys.PtrSize*8 - 8))
+-	if top < minTopHash {
+-		top += minTopHash
+-	}
++	top := tophash(hash)
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+ 			if b.tophash[i] != top {
+@@ -435,10 +429,7 @@ again:
+ 		growWork(t, h, bucket)
+ 	}
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+-	top := uint8(hash >> (sys.PtrSize*8 - 8))
+-	if top < minTopHash {
+-		top += minTopHash
+-	}
++	top := tophash(hash)
+ 
+ 	var inserti *uint8
+ 	var insertk unsafe.Pointer
+@@ -523,10 +514,7 @@ again:
+ 		growWork(t, h, bucket)
+ 	}
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+-	top := uint8(hash >> (sys.PtrSize*8 - 8))
+-	if top < minTopHash {
+-		top += minTopHash
+-	}
++	top := tophash(hash)
+ 
+ 	var inserti *uint8
+ 	var insertk unsafe.Pointer
+@@ -612,10 +600,7 @@ again:
+ 		growWork(t, h, bucket)
+ 	}
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+-	top := uint8(hash >> (sys.PtrSize*8 - 8))
+-	if top < minTopHash {
+-		top += minTopHash
+-	}
++	top := tophash(hash)
+ 
+ 	var inserti *uint8
+ 	var insertk unsafe.Pointer
+@@ -700,10 +685,7 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
+ 		growWork(t, h, bucket)
+ 	}
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+-	top := uint8(hash >> (sys.PtrSize*8 - 8))
+-	if top < minTopHash {
+-		top += minTopHash
+-	}
++	top := tophash(hash)
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+ 			if b.tophash[i] != top {
+@@ -755,10 +737,7 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
+ 		growWork(t, h, bucket)
+ 	}
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+-	top := uint8(hash >> (sys.PtrSize*8 - 8))
+-	if top < minTopHash {
+-		top += minTopHash
+-	}
++	top := tophash(hash)
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+ 			if b.tophash[i] != top {
+@@ -811,10 +790,7 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
+ 		growWork(t, h, bucket)
+ 	}
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+-	top := uint8(hash >> (sys.PtrSize*8 - 8))
+-	if top < minTopHash {
+-		top += minTopHash
+-	}
++	top := tophash(hash)
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+ 			if b.tophash[i] != top {

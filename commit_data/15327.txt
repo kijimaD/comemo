@@ -8,7 +8,7 @@ Date:   Wed Feb 20 20:21:45 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7386044
-
+---
  src/pkg/runtime/cpuprof.c    |  2 +-
  src/pkg/runtime/mheap.c      |  4 ++--
  src/pkg/runtime/proc.c       | 53 ++++++++++++++++++++++++++++++++++++++++++++
@@ -16,3 +16,141 @@ Date:   Wed Feb 20 20:21:45 2013 +0400
  src/pkg/runtime/sigqueue.goc |  2 +-
  src/pkg/runtime/time.goc     |  2 +-
  6 files changed, 59 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/cpuprof.c b/src/pkg/runtime/cpuprof.c
+index 1bb768085d..dbbf5554fc 100644
+--- a/src/pkg/runtime/cpuprof.c
++++ b/src/pkg/runtime/cpuprof.c
+@@ -360,7 +360,7 @@ getprofile(Profile *p)
+ 		return ret;
+ 
+ 	// Wait for new log.
+-	runtime·entersyscall();
++	runtime·entersyscallblock();
+ 	runtime·notesleep(&p->wait);
+ 	runtime·exitsyscall();
+ 	runtime·noteclear(&p->wait);
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 3191e6f5d1..44c9e99b48 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -424,7 +424,7 @@ runtime·MHeap_Scavenger(void)
+ 	h = runtime·mheap;
+ 	for(k=0;; k++) {
+ 		runtime·noteclear(&note);
+-		runtime·entersyscall();
++		runtime·entersyscallblock();
+ 		runtime·notetsleep(&note, tick);
+ 		runtime·exitsyscall();
+ 
+@@ -438,7 +438,7 @@ runtime·MHeap_Scavenger(void)
+ 			runtime·noteclear(&note);
+ 			notep = &note;
+ 			runtime·newproc1((byte*)forcegchelper, (byte*)&notep, sizeof(notep), 0, runtime·MHeap_Scavenger);
+-			runtime·entersyscall();
++			runtime·entersyscallblock();
+ 			runtime·notesleep(&note);
+ 			runtime·exitsyscall();
+ 			if(trace)
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 111d90b079..b83bd9066f 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1049,6 +1049,59 @@ runtime·entersyscall(void)
+ 	schedunlock();
+ }
+ 
++// The same as runtime·entersyscall(), but with a hint that the syscall is blocking.
++// The hint is ignored at the moment, and it's just a copy of runtime·entersyscall().
++#pragma textflag 7
++void
++runtime·entersyscallblock(void)
++{
++	uint32 v;
++
++	if(m->profilehz > 0)
++		runtime·setprof(false);
++
++	// Leave SP around for gc and traceback.
++	runtime·gosave(&g->sched);
++	g->gcsp = g->sched.sp;
++	g->gcstack = g->stackbase;
++	g->gcguard = g->stackguard;
++	g->status = Gsyscall;
++	if(g->gcsp < g->gcguard-StackGuard || g->gcstack < g->gcsp) {
++		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
++		//	g->gcsp, g->gcguard-StackGuard, g->gcstack);
++		runtime·throw("entersyscall");
++	}
++
++	// Fast path.
++	// The slow path inside the schedlock/schedunlock will get
++	// through without stopping if it does:
++	//	mcpu--
++	//	gwait not true
++	//	waitstop && mcpu <= mcpumax not true
++	// If we can do the same with a single atomic add,
++	// then we can skip the locks.
++	v = runtime·xadd(&runtime·sched.atomic, -1<<mcpuShift);
++	if(!atomic_gwaiting(v) && (!atomic_waitstop(v) || atomic_mcpu(v) > atomic_mcpumax(v)))
++		return;
++
++	schedlock();
++	v = runtime·atomicload(&runtime·sched.atomic);
++	if(atomic_gwaiting(v)) {
++		matchmg();
++		v = runtime·atomicload(&runtime·sched.atomic);
++	}
++	if(atomic_waitstop(v) && atomic_mcpu(v) <= atomic_mcpumax(v)) {
++		runtime·xadd(&runtime·sched.atomic, -1<<waitstopShift);
++		runtime·notewakeup(&runtime·sched.stopped);
++	}
++
++	// Re-save sched in case one of the calls
++	// (notewakeup, matchmg) triggered something using it.
++	runtime·gosave(&g->sched);
++
++	schedunlock();
++}
++
+ // The goroutine g exited its system call.
+ // Arrange for it to run on a cpu again.
+ // This is called only from the go syscall library, not
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index a787cad563..e63877e681 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -692,6 +692,7 @@ M*	runtime·newm(void);
+ void	runtime·goexit(void);
+ void	runtime·asmcgocall(void (*fn)(void*), void*);
+ void	runtime·entersyscall(void);
++void	runtime·entersyscallblock(void);
+ void	runtime·exitsyscall(void);
+ G*	runtime·newproc1(byte*, byte*, int32, int32, void*);
+ bool	runtime·sigsend(int32 sig);
+diff --git a/src/pkg/runtime/sigqueue.goc b/src/pkg/runtime/sigqueue.goc
+index ecc3846625..ab5f312e42 100644
+--- a/src/pkg/runtime/sigqueue.goc
++++ b/src/pkg/runtime/sigqueue.goc
+@@ -105,7 +105,7 @@ func signal_recv() (m uint32) {
+ 				new = HASWAITER;
+ 			if(runtime·cas(&sig.state, old, new)) {
+ 				if (new == HASWAITER) {
+-					runtime·entersyscall();
++					runtime·entersyscallblock();
+ 					runtime·notesleep(&sig);
+ 					runtime·exitsyscall();
+ 					runtime·noteclear(&sig);
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index e41df2c572..d962b74e1f 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -200,7 +200,7 @@ timerproc(void)
+ 		timers.sleeping = true;
+ 		runtime·noteclear(&timers.waitnote);
+ 		runtime·unlock(&timers);
+-		runtime·entersyscall();
++		runtime·entersyscallblock();
+ 		runtime·notetsleep(&timers.waitnote, delta);
+ 		runtime·exitsyscall();
+ 	}

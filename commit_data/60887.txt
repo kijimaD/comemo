@@ -15,7 +15,7 @@ Date:   Thu Sep 5 01:13:30 2024 +0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/dwarfgen/scope_test.go    |  7 +++---
  src/cmd/compile/internal/gc/compile.go             |  7 +++---
  src/cmd/compile/internal/inline/inlheur/scoring.go | 25 +++++++++++-----------
@@ -32,3 +32,516 @@ Date:   Thu Sep 5 01:13:30 2024 +0700
  src/cmd/compile/internal/staticdata/data.go        |  7 +++---
  src/cmd/compile/internal/walk/switch.go            | 19 ++++++++--------
  15 files changed, 83 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/scope_test.go b/src/cmd/compile/internal/dwarfgen/scope_test.go
+index ee4170ef44..feffb06e1f 100644
+--- a/src/cmd/compile/internal/dwarfgen/scope_test.go
++++ b/src/cmd/compile/internal/dwarfgen/scope_test.go
+@@ -5,6 +5,7 @@
+ package dwarfgen
+ 
+ import (
++	"cmp"
+ 	"debug/dwarf"
+ 	"fmt"
+ 	"internal/platform"
+@@ -12,7 +13,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -400,8 +401,8 @@ func readScope(ctxt *scopexplainContext, scope *lexblock, entry *dwarf.Entry) {
+ 		}
+ 		switch e.Tag {
+ 		case 0:
+-			sort.Slice(scope.vars, func(i, j int) bool {
+-				return scope.vars[i].expr < scope.vars[j].expr
++			slices.SortFunc(scope.vars, func(a, b variable) int {
++				return cmp.Compare(a.expr, b.expr)
+ 			})
+ 			return
+ 		case dwarf.TagFormalParameter:
+diff --git a/src/cmd/compile/internal/gc/compile.go b/src/cmd/compile/internal/gc/compile.go
+index 5ade700d46..696c1f566e 100644
+--- a/src/cmd/compile/internal/gc/compile.go
++++ b/src/cmd/compile/internal/gc/compile.go
+@@ -5,9 +5,10 @@
+ package gc
+ 
+ import (
++	"cmp"
+ 	"internal/race"
+ 	"math/rand"
+-	"sort"
++	"slices"
+ 	"sync"
+ 
+ 	"cmd/compile/internal/base"
+@@ -131,8 +132,8 @@ func compileFunctions(profile *pgoir.Profile) {
+ 		// Compile the longest functions first,
+ 		// since they're most likely to be the slowest.
+ 		// This helps avoid stragglers.
+-		sort.Slice(compilequeue, func(i, j int) bool {
+-			return len(compilequeue[i].Body) > len(compilequeue[j].Body)
++		slices.SortFunc(compilequeue, func(a, b *ir.Func) int {
++			return cmp.Compare(len(b.Body), len(a.Body))
+ 		})
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/inline/inlheur/scoring.go b/src/cmd/compile/internal/inline/inlheur/scoring.go
+index c49c087a62..2e39f1e606 100644
+--- a/src/cmd/compile/internal/inline/inlheur/scoring.go
++++ b/src/cmd/compile/internal/inline/inlheur/scoring.go
+@@ -9,9 +9,10 @@ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/pgoir"
+ 	"cmd/compile/internal/types"
++	"cmp"
+ 	"fmt"
+ 	"os"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -504,8 +505,8 @@ func (csa *callSiteAnalyzer) scoreCallsRegion(fn *ir.Func, region ir.Nodes, csta
+ 		csl = append(csl, cs)
+ 	}
+ 	scoreCallsCache.csl = csl[:0]
+-	sort.Slice(csl, func(i, j int) bool {
+-		return csl[i].ID < csl[j].ID
++	slices.SortFunc(csl, func(a, b *CallSite) int {
++		return cmp.Compare(a.ID, b.ID)
+ 	})
+ 
+ 	// Score each call site.
+@@ -700,18 +701,18 @@ func DumpInlCallSiteScores(profile *pgoir.Profile, budgetCallback func(fn *ir.Fu
+ 		for _, cs := range allCallSites {
+ 			sl = append(sl, cs)
+ 		}
+-		sort.Slice(sl, func(i, j int) bool {
+-			if sl[i].Score != sl[j].Score {
+-				return sl[i].Score < sl[j].Score
++		slices.SortFunc(sl, func(a, b *CallSite) int {
++			if a.Score != b.Score {
++				return cmp.Compare(a.Score, b.Score)
+ 			}
+-			fni := ir.PkgFuncName(sl[i].Callee)
+-			fnj := ir.PkgFuncName(sl[j].Callee)
++			fni := ir.PkgFuncName(a.Callee)
++			fnj := ir.PkgFuncName(b.Callee)
+ 			if fni != fnj {
+-				return fni < fnj
++				return cmp.Compare(fni, fnj)
+ 			}
+-			ecsi := EncodeCallSiteKey(sl[i])
+-			ecsj := EncodeCallSiteKey(sl[j])
+-			return ecsi < ecsj
++			ecsi := EncodeCallSiteKey(a)
++			ecsj := EncodeCallSiteKey(b)
++			return cmp.Compare(ecsi, ecsj)
+ 		})
+ 
+ 		mkname := func(fn *ir.Func) string {
+diff --git a/src/cmd/compile/internal/ir/mknode.go b/src/cmd/compile/internal/ir/mknode.go
+index ee9746689a..e5df481a2d 100644
+--- a/src/cmd/compile/internal/ir/mknode.go
++++ b/src/cmd/compile/internal/ir/mknode.go
+@@ -19,7 +19,7 @@ import (
+ 	"io/fs"
+ 	"log"
+ 	"os"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -143,8 +143,8 @@ func main() {
+ 		}
+ 	}
+ 	// Sort for deterministic output.
+-	sort.Slice(concreteNodes, func(i, j int) bool {
+-		return concreteNodes[i].Name.Name < concreteNodes[j].Name.Name
++	slices.SortFunc(concreteNodes, func(a, b *ast.TypeSpec) int {
++		return strings.Compare(a.Name.Name, b.Name.Name)
+ 	})
+ 	// Generate code for each concrete type.
+ 	for _, t := range concreteNodes {
+diff --git a/src/cmd/compile/internal/liveness/mergelocals.go b/src/cmd/compile/internal/liveness/mergelocals.go
+index d0675128b8..d2a138c50e 100644
+--- a/src/cmd/compile/internal/liveness/mergelocals.go
++++ b/src/cmd/compile/internal/liveness/mergelocals.go
+@@ -13,6 +13,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
++	"slices"
+ 	"sort"
+ 	"strings"
+ )
+@@ -268,8 +269,8 @@ func (mls *MergeLocalsState) String() string {
+ 			leaders = append(leaders, n)
+ 		}
+ 	}
+-	sort.Slice(leaders, func(i, j int) bool {
+-		return leaders[i].Sym().Name < leaders[j].Sym().Name
++	slices.SortFunc(leaders, func(a, b *ir.Name) int {
++		return strings.Compare(a.Sym().Name, b.Sym().Name)
+ 	})
+ 	var sb strings.Builder
+ 	for _, n := range leaders {
+@@ -580,7 +581,7 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
+ 		for k := range indirectUE {
+ 			ids = append(ids, k)
+ 		}
+-		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
++		slices.Sort(ids)
+ 		for _, id := range ids {
+ 			fmt.Fprintf(os.Stderr, "  v%d:", id)
+ 			for _, n := range indirectUE[id] {
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 2ee007f4a6..b8ccbb27aa 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -15,8 +15,10 @@
+ package liveness
+ 
+ import (
++	"cmp"
+ 	"fmt"
+ 	"os"
++	"slices"
+ 	"sort"
+ 	"strings"
+ 
+@@ -1445,7 +1447,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
+ 	}
+ 
+ 	// Sort variables from lowest to highest address.
+-	sort.Slice(vars, func(i, j int) bool { return vars[i].FrameOffset() < vars[j].FrameOffset() })
++	slices.SortFunc(vars, func(a, b *ir.Name) int { return cmp.Compare(a.FrameOffset(), b.FrameOffset()) })
+ 
+ 	// Populate the stack object data.
+ 	// Format must match runtime/stack.go:stackObjectRecord.
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index c8dbc43e67..59e8c1013f 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -5,13 +5,14 @@
+ package noder
+ 
+ import (
++	"cmp"
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"internal/pkgbits"
+ 	"internal/types/errors"
+ 	"io"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strings"
+ 
+ 	"cmd/compile/internal/base"
+@@ -519,7 +520,7 @@ func writeUnifiedExport(out io.Writer) {
+ 		for _, idx := range l.decls {
+ 			idxs = append(idxs, idx)
+ 		}
+-		sort.Slice(idxs, func(i, j int) bool { return idxs[i] < idxs[j] })
++		slices.Sort(idxs)
+ 
+ 		w := publicRootWriter
+ 
+@@ -553,7 +554,7 @@ func writeUnifiedExport(out io.Writer) {
+ 		for sym, idx := range l.bodies {
+ 			bodies = append(bodies, symIdx{sym, idx})
+ 		}
+-		sort.Slice(bodies, func(i, j int) bool { return bodies[i].idx < bodies[j].idx })
++		slices.SortFunc(bodies, func(a, b symIdx) int { return cmp.Compare(a.idx, b.idx) })
+ 
+ 		w := privateRootWriter
+ 
+diff --git a/src/cmd/compile/internal/ssa/debug_lines_test.go b/src/cmd/compile/internal/ssa/debug_lines_test.go
+index a4c25d6d06..857cce785f 100644
+--- a/src/cmd/compile/internal/ssa/debug_lines_test.go
++++ b/src/cmd/compile/internal/ssa/debug_lines_test.go
+@@ -7,6 +7,7 @@ package ssa_test
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmp"
+ 	"flag"
+ 	"fmt"
+ 	"internal/testenv"
+@@ -15,7 +16,7 @@ import (
+ 	"reflect"
+ 	"regexp"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -167,16 +168,16 @@ func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
+ }
+ 
+ func sortInlineStacks(x [][]int) {
+-	sort.Slice(x, func(i, j int) bool {
+-		if len(x[i]) != len(x[j]) {
+-			return len(x[i]) < len(x[j])
++	slices.SortFunc(x, func(a, b []int) int {
++		if len(a) != len(b) {
++			return cmp.Compare(len(a), len(b))
+ 		}
+-		for k := range x[i] {
+-			if x[i][k] != x[j][k] {
+-				return x[i][k] < x[j][k]
++		for k := range a {
++			if a[k] != b[k] {
++				return cmp.Compare(a[k], b[k])
+ 			}
+ 		}
+-		return false
++		return 0
+ 	})
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index 2293fc01ce..250b2321af 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -6,7 +6,8 @@ package ssa
+ 
+ import (
+ 	"cmd/compile/internal/types"
+-	"sort"
++	"cmp"
++	"slices"
+ )
+ 
+ // decompose converts phi ops on compound builtin types into phi
+@@ -433,12 +434,11 @@ type namedVal struct {
+ // removes all values with OpInvalid, and re-sorts the list of Names.
+ func deleteNamedVals(f *Func, toDelete []namedVal) {
+ 	// Arrange to delete from larger indices to smaller, to ensure swap-with-end deletion does not invalidate pending indices.
+-	sort.Slice(toDelete, func(i, j int) bool {
+-		if toDelete[i].locIndex != toDelete[j].locIndex {
+-			return toDelete[i].locIndex > toDelete[j].locIndex
++	slices.SortFunc(toDelete, func(a, b namedVal) int {
++		if a.locIndex != b.locIndex {
++			return cmp.Compare(b.locIndex, a.locIndex)
+ 		}
+-		return toDelete[i].valIndex > toDelete[j].valIndex
+-
++		return cmp.Compare(b.valIndex, a.valIndex)
+ 	})
+ 
+ 	// Get rid of obsolete names
+diff --git a/src/cmd/compile/internal/ssa/memcombine.go b/src/cmd/compile/internal/ssa/memcombine.go
+index a7e8ede5bc..47477e76dd 100644
+--- a/src/cmd/compile/internal/ssa/memcombine.go
++++ b/src/cmd/compile/internal/ssa/memcombine.go
+@@ -8,7 +8,8 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+-	"sort"
++	"cmp"
++	"slices"
+ )
+ 
+ // memcombine combines smaller loads and stores into larger ones.
+@@ -232,8 +233,8 @@ func combineLoads(root *Value, n int64) bool {
+ 	}
+ 
+ 	// Sort in memory address order.
+-	sort.Slice(r, func(i, j int) bool {
+-		return r[i].offset < r[j].offset
++	slices.SortFunc(r, func(a, b LoadRecord) int {
++		return cmp.Compare(a.offset, b.offset)
+ 	})
+ 
+ 	// Check that we have contiguous offsets.
+@@ -516,8 +517,8 @@ func combineStores(root *Value, n int64) bool {
+ 	pos := a[n-1].store.Pos
+ 
+ 	// Sort stores in increasing address order.
+-	sort.Slice(a, func(i, j int) bool {
+-		return a[i].offset < a[j].offset
++	slices.SortFunc(a, func(sr1, sr2 StoreRecord) int {
++		return cmp.Compare(sr1.offset, sr2.offset)
+ 	})
+ 
+ 	// Check that everything is written to sequential locations.
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index b42727674f..ffdcedef08 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -7,6 +7,7 @@ package ssa
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
++	"cmp"
+ 	"container/heap"
+ 	"slices"
+ 	"sort"
+@@ -261,8 +262,8 @@ func schedule(f *Func) {
+ 		}
+ 
+ 		// Sort all the edges by source Value ID.
+-		sort.Slice(edges, func(i, j int) bool {
+-			return edges[i].x.ID < edges[j].x.ID
++		slices.SortFunc(edges, func(a, b edge) int {
++			return cmp.Compare(a.x.ID, b.x.ID)
+ 		})
+ 		// Compute inEdges for values in this block.
+ 		for _, e := range edges {
+diff --git a/src/cmd/compile/internal/ssa/stmtlines_test.go b/src/cmd/compile/internal/ssa/stmtlines_test.go
+index 79bcab08a1..8a8f18c811 100644
+--- a/src/cmd/compile/internal/ssa/stmtlines_test.go
++++ b/src/cmd/compile/internal/ssa/stmtlines_test.go
+@@ -7,6 +7,7 @@ package ssa_test
+ import (
+ 	cmddwarf "cmd/internal/dwarf"
+ 	"cmd/internal/quoted"
++	"cmp"
+ 	"debug/dwarf"
+ 	"debug/elf"
+ 	"debug/macho"
+@@ -18,7 +19,8 @@ import (
+ 	"io"
+ 	"os"
+ 	"runtime"
+-	"sort"
++	"slices"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -144,11 +146,11 @@ func TestStmtLines(t *testing.T) {
+ 	}
+ 	t.Logf("Saw %d out of %d lines without statement marks", len(nonStmtLines), len(lines))
+ 	if testing.Verbose() {
+-		sort.Slice(nonStmtLines, func(i, j int) bool {
+-			if nonStmtLines[i].File != nonStmtLines[j].File {
+-				return nonStmtLines[i].File < nonStmtLines[j].File
++		slices.SortFunc(nonStmtLines, func(a, b Line) int {
++			if a.File != b.File {
++				return strings.Compare(a.File, b.File)
+ 			}
+-			return nonStmtLines[i].Line < nonStmtLines[j].Line
++			return cmp.Compare(a.Line, b.Line)
+ 		})
+ 		for _, l := range nonStmtLines {
+ 			t.Logf("%s:%d has no DWARF is_stmt mark\n", l.File, l.Line)
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index e666c22a7d..3c0cfa16f1 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -8,7 +8,9 @@ import (
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"os"
++	"slices"
+ 	"sort"
++	"strings"
+ 	"sync"
+ 
+ 	"cmd/compile/internal/base"
+@@ -414,7 +416,7 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*obj.LSym]struct{}) {
+ 	for sym := range tracked {
+ 		trackSyms = append(trackSyms, sym)
+ 	}
+-	sort.Slice(trackSyms, func(i, j int) bool { return trackSyms[i].Name < trackSyms[j].Name })
++	slices.SortFunc(trackSyms, func(a, b *obj.LSym) int { return strings.Compare(a.Name, b.Name) })
+ 	for _, sym := range trackSyms {
+ 		r := obj.Addrel(fnsym)
+ 		r.Sym = sym
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index b6ca615c6e..acafe9d339 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -10,8 +10,9 @@ import (
+ 	"go/constant"
+ 	"io"
+ 	"os"
+-	"sort"
++	"slices"
+ 	"strconv"
++	"strings"
+ 	"sync"
+ 
+ 	"cmd/compile/internal/base"
+@@ -264,8 +265,8 @@ func GlobalLinksym(n *ir.Name) *obj.LSym {
+ }
+ 
+ func WriteFuncSyms() {
+-	sort.Slice(funcsyms, func(i, j int) bool {
+-		return funcsyms[i].Linksym().Name < funcsyms[j].Linksym().Name
++	slices.SortFunc(funcsyms, func(a, b *ir.Name) int {
++		return strings.Compare(a.Linksym().Name, b.Linksym().Name)
+ 	})
+ 	for _, nam := range funcsyms {
+ 		s := nam.Sym()
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index 119647912b..e451a95d69 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -5,11 +5,14 @@
+ package walk
+ 
+ import (
++	"cmp"
+ 	"fmt"
+ 	"go/constant"
+ 	"go/token"
+ 	"math/bits"
++	"slices"
+ 	"sort"
++	"strings"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+@@ -172,13 +175,13 @@ func (s *exprSwitch) flush() {
+ 		// much cheaper to compare lengths than values, and
+ 		// all we need here is consistency. We respect this
+ 		// sorting below.
+-		sort.Slice(cc, func(i, j int) bool {
+-			si := ir.StringVal(cc[i].lo)
+-			sj := ir.StringVal(cc[j].lo)
++		slices.SortFunc(cc, func(a, b exprClause) int {
++			si := ir.StringVal(a.lo)
++			sj := ir.StringVal(b.lo)
+ 			if len(si) != len(sj) {
+-				return len(si) < len(sj)
++				return cmp.Compare(len(si), len(sj))
+ 			}
+-			return si < sj
++			return strings.Compare(si, sj)
+ 		})
+ 
+ 		// runLen returns the string length associated with a
+@@ -728,7 +731,7 @@ func (s *typeSwitch) flush(cc []typeClause, compiled *ir.Nodes) {
+ 		return
+ 	}
+ 
+-	sort.Slice(cc, func(i, j int) bool { return cc[i].hash < cc[j].hash })
++	slices.SortFunc(cc, func(a, b typeClause) int { return cmp.Compare(a.hash, b.hash) })
+ 
+ 	// Combine adjacent cases with the same hash.
+ 	merged := cc[:1]
+@@ -783,9 +786,7 @@ func (s *typeSwitch) tryJumpTable(cc []typeClause, out *ir.Nodes) bool {
+ 				hashes = append(hashes, h)
+ 			}
+ 			// Order by increasing hash.
+-			sort.Slice(hashes, func(j, k int) bool {
+-				return hashes[j] < hashes[k]
+-			})
++			slices.Sort(hashes)
+ 			for j := 1; j < len(hashes); j++ {
+ 				if hashes[j] == hashes[j-1] {
+ 					// There is a duplicate hash; try a different b/i pair.

@@ -17,7 +17,7 @@ Date:   Fri Aug 7 16:28:35 2020 +0000
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/histogram.go           |  4 ++++
  src/runtime/metrics.go             |  9 +++++++++
  src/runtime/metrics/description.go |  5 +++++
@@ -26,3 +26,190 @@ Date:   Fri Aug 7 16:28:35 2020 +0000
  src/runtime/runtime2.go            | 17 ++++++++++++++++
  src/runtime/sizeof_test.go         |  2 +-
  7 files changed, 81 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/histogram.go b/src/runtime/histogram.go
+index da4910d341..0cccbcca16 100644
+--- a/src/runtime/histogram.go
++++ b/src/runtime/histogram.go
+@@ -81,6 +81,10 @@ type timeHistogram struct {
+ }
+ 
+ // record adds the given duration to the distribution.
++//
++// Disallow preemptions and stack growths because this function
++// may run in sensitive locations.
++//go:nosplit
+ func (h *timeHistogram) record(duration int64) {
+ 	if duration < 0 {
+ 		atomic.Xadd64(&h.underflow, 1)
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index e4343f9148..fe82688aac 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -245,6 +245,15 @@ func initMetrics() {
+ 				out.scalar = uint64(gcount())
+ 			},
+ 		},
++		"/sched/latencies:seconds": {
++			compute: func(_ *statAggregate, out *metricValue) {
++				hist := out.float64HistOrInit(timeHistBuckets)
++				hist.counts[0] = atomic.Load64(&sched.timeToRun.underflow)
++				for i := range sched.timeToRun.counts {
++					hist.counts[i+1] = atomic.Load64(&sched.timeToRun.counts[i])
++				}
++			},
++		},
+ 	}
+ 	metricsInit = true
+ }
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index 1175156104..9aaf457135 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -176,6 +176,11 @@ var allDesc = []Description{
+ 		Description: "Count of live goroutines.",
+ 		Kind:        KindUint64,
+ 	},
++	{
++		Name:        "/sched/latencies:seconds",
++		Description: "Distribution of the time goroutines have spent in the scheduler in a runnable state before actually running.",
++		Kind:        KindFloat64Histogram,
++	},
+ }
+ 
+ // All returns a slice of containing metric descriptions for all supported metrics.
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 7f790afc12..7cbc0415dc 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -139,5 +139,9 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 
+ 	/sched/goroutines:goroutines
+ 		Count of live goroutines.
++
++	/sched/latencies:seconds
++		Distribution of the time goroutines have spent in the scheduler
++		in a runnable state before actually running.
+ */
+ package metrics
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 37c051634c..2f9818d9f1 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -697,6 +697,11 @@ func schedinit() {
+ 	sigsave(&_g_.m.sigmask)
+ 	initSigmask = _g_.m.sigmask
+ 
++	if offset := unsafe.Offsetof(sched.timeToRun); offset%8 != 0 {
++		println(offset)
++		throw("sched.timeToRun not aligned to 8 bytes")
++	}
++
+ 	goargs()
+ 	goenvs()
+ 	parsedebugvars()
+@@ -973,6 +978,37 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 			nextYield = nanotime() + yieldDelay/2
+ 		}
+ 	}
++
++	// Handle tracking for scheduling latencies.
++	if oldval == _Grunning {
++		// Track every 8th time a goroutine transitions out of running.
++		if gp.trackingSeq%gTrackingPeriod == 0 {
++			gp.tracking = true
++		}
++		gp.trackingSeq++
++	}
++	if gp.tracking {
++		now := nanotime()
++		if oldval == _Grunnable {
++			// We transitioned out of runnable, so measure how much
++			// time we spent in this state and add it to
++			// runnableTime.
++			gp.runnableTime += now - gp.runnableStamp
++			gp.runnableStamp = 0
++		}
++		if newval == _Grunnable {
++			// We just transitioned into runnable, so record what
++			// time that happened.
++			gp.runnableStamp = now
++		} else if newval == _Grunning {
++			// We're transitioning into running, so turn off
++			// tracking and record how much time we spent in
++			// runnable.
++			gp.tracking = false
++			sched.timeToRun.record(gp.runnableTime)
++			gp.runnableTime = 0
++		}
++	}
+ }
+ 
+ // casgstatus(gp, oldstatus, Gcopystack), assuming oldstatus is Gwaiting or Grunnable.
+@@ -4286,6 +4322,11 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
+ 	if isSystemGoroutine(newg, false) {
+ 		atomic.Xadd(&sched.ngsys, +1)
+ 	}
++	// Track initial transition?
++	newg.trackingSeq = uint8(fastrand())
++	if newg.trackingSeq%gTrackingPeriod == 0 {
++		newg.tracking = true
++	}
+ 	casgstatus(newg, _Gdead, _Grunnable)
+ 
+ 	if _p_.goidcache == _p_.goidcacheend {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index f84cb51bad..7fc7174334 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -462,6 +462,10 @@ type g struct {
+ 
+ 	raceignore     int8     // ignore race detection events
+ 	sysblocktraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
++	tracking       bool     // whether we're tracking this G for sched latency statistics
++	trackingSeq    uint8    // used to decide whether to track this G
++	runnableStamp  int64    // timestamp of when the G last became runnable, only used when tracking
++	runnableTime   int64    // the amount of time spent runnable, cleared when running, only used when tracking
+ 	sysexitticks   int64    // cputicks when syscall has returned (for tracing)
+ 	traceseq       uint64   // trace event sequencer
+ 	tracelastp     puintptr // last P emitted an event for this goroutine
+@@ -493,6 +497,10 @@ type g struct {
+ 	gcAssistBytes int64
+ }
+ 
++// gTrackingPeriod is the number of transitions out of _Grunning between
++// latency tracking runs.
++const gTrackingPeriod = 8
++
+ const (
+ 	// tlsSlots is the number of pointer-sized slots reserved for TLS on some platforms,
+ 	// like Windows.
+@@ -824,6 +832,15 @@ type schedt struct {
+ 	// Acquire and hold this mutex to block sysmon from interacting
+ 	// with the rest of the runtime.
+ 	sysmonlock mutex
++
++	_ uint32 // ensure timeToRun has 8-byte alignment
++
++	// timeToRun is a distribution of scheduling latencies, defined
++	// as the sum of time a G spends in the _Grunnable state before
++	// it transitions to _Grunning.
++	//
++	// timeToRun is protected by sched.lock.
++	timeToRun timeHistogram
+ }
+ 
+ // Values for the flags field of a sigTabT.
+diff --git a/src/runtime/sizeof_test.go b/src/runtime/sizeof_test.go
+index 736e848f8c..bbbd1becf7 100644
+--- a/src/runtime/sizeof_test.go
++++ b/src/runtime/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{runtime.G{}, 216, 376},   // g, but exported for testing
++		{runtime.G{}, 236, 392},   // g, but exported for testing
+ 		{runtime.Sudog{}, 56, 88}, // sudog, but exported for testing
+ 	}
+ 

@@ -10,7 +10,33 @@ Date:   Mon Nov 7 11:42:08 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5331041
-
+---
  src/cmd/gc/bits.c | 2 +-
  src/cmd/gc/go.h   | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/bits.c b/src/cmd/gc/bits.c
+index 591288db62..c0fd4d85e6 100644
+--- a/src/cmd/gc/bits.c
++++ b/src/cmd/gc/bits.c
+@@ -151,7 +151,7 @@ Qconv(Fmt *fp)
+ 		else
+ 			fmtprint(fp, " ");
+ 		if(var[i].node == N || var[i].node->sym == S)
+-			fmtprint(fp, "$%lld", i);
++			fmtprint(fp, "$%d", i);
+ 		else {
+ 			fmtprint(fp, "%s", var[i].node->sym->name);
+ 			if(var[i].offset != 0)
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 7d6ac08433..40ba7394e8 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1331,6 +1331,7 @@ void	zname(Biobuf *b, Sym *s, int t);
+ #pragma	varargck	type	"D"	Addr*
+ #pragma	varargck	type	"lD"	Addr*
+ #pragma	varargck	type	"E"	int
++#pragma	varargck	type	"E"	uint
+ #pragma	varargck	type	"F"	Mpflt*
+ #pragma	varargck	type	"H"	NodeList*
+ #pragma	varargck	type	"J"	Node*

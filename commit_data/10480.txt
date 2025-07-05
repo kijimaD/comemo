@@ -7,7 +7,7 @@ Date:   Tue Nov 22 17:57:49 2011 +0300
     R=golang-dev, rsc
     CC=golang-dev, mpimenov
     https://golang.org/cl/5375042
-
+---
  misc/cgo/testso/Makefile  | 22 ++++++++++++++++++++++
  misc/cgo/testso/cgoso.go  | 16 ++++++++++++++++
  misc/cgo/testso/cgoso_c.c |  9 +++++++++
@@ -16,3 +16,131 @@ Date:   Tue Nov 22 17:57:49 2011 +0300
  src/cmd/cgo/out.go        |  1 +
  src/run.bash              |  9 +++++++++
  7 files changed, 69 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testso/Makefile b/misc/cgo/testso/Makefile
+new file mode 100644
+index 0000000000..bee80af564
+--- /dev/null
++++ b/misc/cgo/testso/Makefile
+@@ -0,0 +1,22 @@
++# Copyright 2011 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../src/Make.inc
++
++TARG=cgosotest
++
++CGO_DEPS+=libcgoso.so
++CGO_LDFLAGS+=-lcgoso -L.
++CLEANFILES+=out libcgoso.so
++CGOFILES=\
++	cgoso.go\
++
++include ../../../src/Make.pkg
++
++libcgoso.so: cgoso_c.c
++	gcc cgoso_c.c -fPIC -o $@ $(_CGO_CFLAGS_$(GOARCH)) $(_CGO_LDFLAGS_$(GOOS))
++
++out: install main.go
++	$(GC) main.go
++	$(LD) -o $@ main.$O
+diff --git a/misc/cgo/testso/cgoso.go b/misc/cgo/testso/cgoso.go
+new file mode 100644
+index 0000000000..6eb9f40e38
+--- /dev/null
++++ b/misc/cgo/testso/cgoso.go
+@@ -0,0 +1,16 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgosotest
++
++//void sofunc(void);
++import "C"
++
++func Test() {
++	C.sofunc()
++}
++
++//export goCallback
++func goCallback() {
++}
+diff --git a/misc/cgo/testso/cgoso_c.c b/misc/cgo/testso/cgoso_c.c
+new file mode 100644
+index 0000000000..e29f7e8071
+--- /dev/null
++++ b/misc/cgo/testso/cgoso_c.c
+@@ -0,0 +1,9 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++void sofunc(void)
++{
++	extern void goCallback(void);
++	goCallback();
++}
+diff --git a/misc/cgo/testso/main.go b/misc/cgo/testso/main.go
+new file mode 100644
+index 0000000000..672ab262be
+--- /dev/null
++++ b/misc/cgo/testso/main.go
+@@ -0,0 +1,11 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "cgosotest"
++
++func main() {
++	cgosotest.Test()
++}
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 6d0ba987f9..de4c769e5b 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -162,7 +162,7 @@ endif
+ # After main we have to define all the symbols that will be provided
+ # by Go code.  That's crosscall2 and any exported symbols.
+ 
+-_cgo1_.o: _cgo_main.o $(CGO_OFILES)
++_cgo1_.o: _cgo_main.o $(CGO_OFILES) $(CGO_DEPS)
+ 	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ $^ $(CGO_LDFLAGS) $(_CGO_LDFLAGS)
+ 
+ _obj/_cgo_import.c: _cgo1_.o
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index c53226279e..49868aa492 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -501,6 +501,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
+ 		if fn.Recv != nil {
+ 			goname = "_cgoexpwrap" + cPrefix + "_" + fn.Recv.List[0].Names[0].Name + "_" + goname
+ 		}
++		fmt.Fprintf(fc, "#pragma dynexport %s %s\n", goname, goname)
+ 		fmt.Fprintf(fc, "extern void ·%s();\n", goname)
+ 		fmt.Fprintf(fc, "\nvoid\n")
+ 		fmt.Fprintf(fc, "_cgoexp%s_%s(void *a, int32 n)\n", cPrefix, exp.ExpName)
+diff --git a/src/run.bash b/src/run.bash
+index 927e193e0a..74ad72e9e3 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -73,6 +73,15 @@ gomake clean
+ gotest
+ ) || exit $?
+ 
++[ "$CGO_ENABLED" != 1 ] ||
++[ "$GOHOSTOS" == windows ] ||
++[ "$GOHOSTOS" == darwin ] ||
++(xcd ../misc/cgo/testso
++gomake clean
++gomake out
++LD_LIBRARY_PATH=. ./out
++) || exit $?
++
+ (xcd ../doc/progs
+ time ./run
+ ) || exit $?

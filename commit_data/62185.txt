@@ -13,8 +13,87 @@ Date:   Sun Feb 9 12:42:25 2025 +1030
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/export_test.go |  1 -
  src/net/http/serve_test.go  | 13 -------------
  src/net/http/server.go      | 24 +-----------------------
  3 files changed, 1 insertion(+), 37 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 56ebda180b..f2aa663a99 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -21,7 +21,6 @@ import (
+ var (
+ 	DefaultUserAgent                  = defaultUserAgent
+ 	NewLoggingConn                    = newLoggingConn
+-	ExportAppendTime                  = appendTime
+ 	ExportRefererForURL               = refererForURL
+ 	ExportServerNewConn               = (*Server).newConn
+ 	ExportCloseWriteAndWait           = (*conn).closeWriteAndWait
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 0c46b1ecc3..e551732016 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -4302,19 +4302,6 @@ func TestResponseWriterWriteString(t *testing.T) {
+ 	}
+ }
+ 
+-func TestAppendTime(t *testing.T) {
+-	var b [len(TimeFormat)]byte
+-	t1 := time.Date(2013, 9, 21, 15, 41, 0, 0, time.FixedZone("CEST", 2*60*60))
+-	res := ExportAppendTime(b[:0], t1)
+-	t2, err := ParseTime(string(res))
+-	if err != nil {
+-		t.Fatalf("Error parsing time: %s", err)
+-	}
+-	if !t1.Equal(t2) {
+-		t.Fatalf("Times differ; expected: %v, got %v (%s)", t1, t2, string(res))
+-	}
+-}
+-
+ func TestServerConnState(t *testing.T) { run(t, testServerConnState, []testMode{http1Mode}) }
+ func testServerConnState(t *testing.T, mode testMode) {
+ 	handler := map[string]func(w ResponseWriter, r *Request){
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index cbdc9dd0e3..439efa0c75 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -991,28 +991,6 @@ func (ecr *expectContinueReader) Close() error {
+ // For parsing this time format, see [ParseTime].
+ const TimeFormat = "Mon, 02 Jan 2006 15:04:05 GMT"
+ 
+-// appendTime is a non-allocating version of []byte(t.UTC().Format(TimeFormat))
+-func appendTime(b []byte, t time.Time) []byte {
+-	const days = "SunMonTueWedThuFriSat"
+-	const months = "JanFebMarAprMayJunJulAugSepOctNovDec"
+-
+-	t = t.UTC()
+-	yy, mm, dd := t.Date()
+-	hh, mn, ss := t.Clock()
+-	day := days[3*t.Weekday():]
+-	mon := months[3*(mm-1):]
+-
+-	return append(b,
+-		day[0], day[1], day[2], ',', ' ',
+-		byte('0'+dd/10), byte('0'+dd%10), ' ',
+-		mon[0], mon[1], mon[2], ' ',
+-		byte('0'+yy/1000), byte('0'+(yy/100)%10), byte('0'+(yy/10)%10), byte('0'+yy%10), ' ',
+-		byte('0'+hh/10), byte('0'+hh%10), ':',
+-		byte('0'+mn/10), byte('0'+mn%10), ':',
+-		byte('0'+ss/10), byte('0'+ss%10), ' ',
+-		'G', 'M', 'T')
+-}
+-
+ var errTooLarge = errors.New("http: request too large")
+ 
+ // Read next request from connection.
+@@ -1506,7 +1484,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 	}
+ 
+ 	if !header.has("Date") {
+-		setHeader.date = appendTime(cw.res.dateBuf[:0], time.Now())
++		setHeader.date = time.Now().UTC().AppendFormat(cw.res.dateBuf[:0], TimeFormat)
+ 	}
+ 
+ 	if hasCL && hasTE && te != "identity" {

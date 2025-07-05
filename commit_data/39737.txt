@@ -11,6 +11,17 @@ Date:   Sat Mar 16 09:47:17 2019 +1100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/build_acl_windows.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/testdata/script/build_acl_windows.txt b/src/cmd/go/testdata/script/build_acl_windows.txt
+index 13a3ba226a..21b8879a11 100644
+--- a/src/cmd/go/testdata/script/build_acl_windows.txt
++++ b/src/cmd/go/testdata/script/build_acl_windows.txt
+@@ -1,4 +1,5 @@
+ [!windows] stop
++[arm] skip # TODO(golang.org/issue/30711): Skip broken test.
+ [!exec:icacls] skip
+ [!exec:powershell] skip
+ 

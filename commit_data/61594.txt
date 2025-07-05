@@ -18,7 +18,7 @@ Date:   Fri Nov 15 12:54:37 2024 -0500
     TryBot-Bypass: Russ Cox <rsc@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/envcmd/env.go      |   2 +-
  src/cmd/go/internal/fsys/fsys.go       | 248 ++++++++++++++++-----------------
  src/cmd/go/internal/fsys/fsys_test.go  |  56 ++++----
@@ -33,3 +33,924 @@ Date:   Fri Nov 15 12:54:37 2024 -0500
  src/cmd/go/internal/work/gccgo.go      |  10 +-
  src/cmd/go/internal/work/init.go       |   2 +-
  13 files changed, 193 insertions(+), 202 deletions(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 505f99168c..b44bb93e8c 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -306,7 +306,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 	env := cfg.CmdEnv
+ 	env = append(env, ExtraEnvVars()...)
+ 
+-	if err := fsys.Init(base.Cwd()); err != nil {
++	if err := fsys.Init(); err != nil {
+ 		base.Fatal(err)
+ 	}
+ 
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index 7c2e997bda..63db4d2593 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -2,8 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package fsys is an abstraction for reading files that
+-// allows for virtual overlays on top of the files on disk.
++// Package fsys implements a virtual file system that the go command
++// uses to read source file trees. The virtual file system redirects some
++// OS file paths to other OS file paths, according to an overlay file.
++// Editors can use this overlay support to invoke the go command on
++// temporary files that have been edited but not yet saved into their
++// final locations.
+ package fsys
+ 
+ import (
+@@ -14,10 +18,12 @@ import (
+ 	"io"
+ 	"io/fs"
+ 	"log"
++	"maps"
+ 	"os"
+ 	pathpkg "path"
+ 	"path/filepath"
+ 	"runtime/debug"
++	"slices"
+ 	"sort"
+ 	"strings"
+ 	"sync"
+@@ -70,16 +76,15 @@ func init() {
+ 	}
+ }
+ 
+-// OverlayFile is the path to a text file in the OverlayJSON format.
+-// It is the value of the -overlay flag.
++// OverlayFile is the -overlay flag value.
++// It names a file containing the JSON for an overlayJSON struct.
+ var OverlayFile string
+ 
+-// OverlayJSON is the format overlay files are expected to be in.
+-// The Replace map maps from overlaid paths to replacement paths:
+-// the Go command will forward all reads trying to open
+-// each overlaid path to its replacement path, or consider the overlaid
+-// path not to exist if the replacement path is empty.
+-type OverlayJSON struct {
++// overlayJSON is the format for the -overlay file.
++type overlayJSON struct {
++	// Replace maps file names observed by Go tools
++	// to the actual files that should be used when those are read.
++	// If the actual name is "", the file should appear to be deleted.
+ 	Replace map[string]string
+ }
+ 
+@@ -98,15 +103,23 @@ func (n *node) isDeleted() bool {
+ 
+ // TODO(matloob): encapsulate these in an io/fs-like interface
+ var overlay map[string]*node // path -> file or directory node
+-var cwd string               // copy of base.Cwd() to avoid dependency
+-
+-// canonicalize a path for looking it up in the overlay.
+-// Important: filepath.Join(cwd, path) doesn't always produce
+-// the correct absolute path if path is relative, because on
+-// Windows producing the correct absolute path requires making
+-// a syscall. So this should only be used when looking up paths
+-// in the overlay, or canonicalizing the paths in the overlay.
+-func canonicalize(path string) string {
++
++// cwd returns the current directory, caching it on first use.
++var cwd = sync.OnceValue(cwdOnce)
++
++func cwdOnce() string {
++	wd, err := os.Getwd()
++	if err != nil {
++		// Note: cannot import base, so using log.Fatal.
++		log.Fatalf("cannot determine current directory: %v", err)
++	}
++	return wd
++}
++
++// abs returns the absolute form of path, for looking up in the overlay map.
++// For the most part, this is filepath.Abs and filepath.Clean,
++// except that Windows requires special handling, as always.
++func abs(path string) string {
+ 	if path == "" {
+ 		return ""
+ 	}
+@@ -114,28 +127,24 @@ func canonicalize(path string) string {
+ 		return filepath.Clean(path)
+ 	}
+ 
+-	if v := filepath.VolumeName(cwd); v != "" && path[0] == filepath.Separator {
+-		// On Windows filepath.Join(cwd, path) doesn't always work. In general
+-		// filepath.Abs needs to make a syscall on Windows. Elsewhere in cmd/go
+-		// use filepath.Join(cwd, path), but cmd/go specifically supports Windows
+-		// paths that start with "\" which implies the path is relative to the
+-		// volume of the working directory. See golang.org/issue/8130.
+-		return filepath.Join(v, path)
++	dir := cwd()
++	if vol := filepath.VolumeName(dir); vol != "" && (path[0] == '\\' || path[0] == '/') {
++		// path is volume-relative, like `\Temp`.
++		// Connect to volume name to make absolute path.
++		// See go.dev/issue/8130.
++		return filepath.Join(vol, path)
+ 	}
+ 
+-	// Make the path absolute.
+-	return filepath.Join(cwd, path)
++	return filepath.Join(dir, path)
+ }
+ 
+ // Init initializes the overlay, if one is being used.
+-func Init(wd string) error {
++func Init() error {
+ 	if overlay != nil {
+ 		// already initialized
+ 		return nil
+ 	}
+ 
+-	cwd = wd
+-
+ 	if OverlayFile == "" {
+ 		return nil
+ 	}
+@@ -143,46 +152,39 @@ func Init(wd string) error {
+ 	Trace("ReadFile", OverlayFile)
+ 	b, err := os.ReadFile(OverlayFile)
+ 	if err != nil {
+-		return fmt.Errorf("reading overlay file: %v", err)
+-	}
+-
+-	var overlayJSON OverlayJSON
+-	if err := json.Unmarshal(b, &overlayJSON); err != nil {
+-		return fmt.Errorf("parsing overlay JSON: %v", err)
++		return fmt.Errorf("reading overlay: %v", err)
+ 	}
+ 
+-	return initFromJSON(overlayJSON)
++	return initFromJSON(b)
+ }
+ 
+-func initFromJSON(overlayJSON OverlayJSON) error {
++func initFromJSON(js []byte) error {
++	var ojs overlayJSON
++	if err := json.Unmarshal(js, &ojs); err != nil {
++		return err
++	}
++
+ 	// Canonicalize the paths in the overlay map.
+ 	// Use reverseCanonicalized to check for collisions:
+-	// no two 'from' paths should canonicalize to the same path.
++	// no two 'from' paths should abs to the same path.
+ 	overlay = make(map[string]*node)
+-	reverseCanonicalized := make(map[string]string) // inverse of canonicalize operation, to check for duplicates
++	reverseCanonicalized := make(map[string]string) // inverse of abs operation, to check for duplicates
+ 	// Build a table of file and directory nodes from the replacement map.
+ 
+-	// Remove any potential non-determinism from iterating over map by sorting it.
+-	replaceFrom := make([]string, 0, len(overlayJSON.Replace))
+-	for k := range overlayJSON.Replace {
+-		replaceFrom = append(replaceFrom, k)
+-	}
+-	sort.Strings(replaceFrom)
+-
+-	for _, from := range replaceFrom {
+-		to := overlayJSON.Replace[from]
++	for _, from := range slices.Sorted(maps.Keys(ojs.Replace)) {
++		to := ojs.Replace[from]
+ 		// Canonicalize paths and check for a collision.
+ 		if from == "" {
+ 			return fmt.Errorf("empty string key in overlay file Replace map")
+ 		}
+-		cfrom := canonicalize(from)
++		cfrom := abs(from)
+ 		if to != "" {
+-			// Don't canonicalize "", meaning to delete a file, because then it will turn into ".".
+-			to = canonicalize(to)
++			// Don't abs "", meaning to delete a file, because then it will turn into ".".
++			to = abs(to)
+ 		}
+ 		if otherFrom, seen := reverseCanonicalized[cfrom]; seen {
+ 			return fmt.Errorf(
+-				"paths %q and %q both canonicalize to %q in overlay file Replace map", otherFrom, from, cfrom)
++				"paths %q and %q both abs to %q in overlay file Replace map", otherFrom, from, cfrom)
+ 		}
+ 		reverseCanonicalized[cfrom] = from
+ 		from = cfrom
+@@ -247,7 +249,7 @@ func initFromJSON(overlayJSON OverlayJSON) error {
+ // overlay.
+ func IsDir(path string) (bool, error) {
+ 	Trace("IsDir", path)
+-	path = canonicalize(path)
++	path = abs(path)
+ 
+ 	if _, ok := parentIsOverlayFile(path); ok {
+ 		return false, nil
+@@ -290,8 +292,8 @@ func parentIsOverlayFile(name string) (string, bool) {
+ 	return "", false
+ }
+ 
+-// errNotDir is used to communicate from ReadDir to IsDirWithGoFiles
+-// that the argument is not a directory, so that IsDirWithGoFiles doesn't
++// errNotDir is used to communicate from ReadDir to IsGoDir
++// that the argument is not a directory, so that IsGoDir doesn't
+ // return an error.
+ var errNotDir = errors.New("not a directory")
+ 
+@@ -299,49 +301,46 @@ func nonFileInOverlayError(overlayPath string) error {
+ 	return fmt.Errorf("replacement path %q is a directory, not a file", overlayPath)
+ }
+ 
+-// readDir reads a dir on disk, returning an error that is errNotDir if the dir is not a directory.
+-// Unfortunately, the error returned by os.ReadDir if dir is not a directory
+-// can vary depending on the OS (Linux, Mac, Windows return ENOTDIR; BSD returns EINVAL).
+-func readDir(dir string) ([]fs.FileInfo, error) {
+-	entries, err := os.ReadDir(dir)
+-	if err != nil {
+-		if os.IsNotExist(err) {
+-			return nil, err
++// osReadDir is like os.ReadDir but returns []fs.FileInfo and corrects the error to be errNotDir
++// if the problem is that name exists but is not a directory.
++func osReadDir(name string) ([]fs.FileInfo, error) {
++	dirs, err := os.ReadDir(name)
++	if err != nil && !os.IsNotExist(err) {
++		if info, err := os.Stat(name); err == nil && !info.IsDir() {
++			return nil, &fs.PathError{Op: "ReadDir", Path: name, Err: errNotDir}
+ 		}
+-		if dirfi, staterr := os.Stat(dir); staterr == nil && !dirfi.IsDir() {
+-			return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
+-		}
+-		return nil, err
+ 	}
+ 
+-	fis := make([]fs.FileInfo, 0, len(entries))
+-	for _, entry := range entries {
+-		info, err := entry.Info()
++	// Convert dirs to infos, even if there is an error,
++	// so that we preserve any partial read from os.ReadDir.
++	infos := make([]fs.FileInfo, 0, len(dirs))
++	for _, dir := range dirs {
++		info, err := dir.Info()
+ 		if err != nil {
+ 			continue
+ 		}
+-		fis = append(fis, info)
++		infos = append(infos, info)
+ 	}
+-	return fis, nil
++
++	return infos, err
+ }
+ 
+-// ReadDir provides a slice of fs.FileInfo entries corresponding
+-// to the overlaid files in the directory.
++// ReadDir reads the named directory in the virtual file system.
+ func ReadDir(dir string) ([]fs.FileInfo, error) {
+ 	Trace("ReadDir", dir)
+-	dir = canonicalize(dir)
++	dir = abs(dir)
+ 	if _, ok := parentIsOverlayFile(dir); ok {
+ 		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
+ 	}
+ 
+ 	dirNode := overlay[dir]
+ 	if dirNode == nil {
+-		return readDir(dir)
++		return osReadDir(dir)
+ 	}
+ 	if dirNode.isDeleted() {
+ 		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: fs.ErrNotExist}
+ 	}
+-	diskfis, err := readDir(dir)
++	diskfis, err := osReadDir(dir)
+ 	if err != nil && !os.IsNotExist(err) && !errors.Is(err, errNotDir) {
+ 		return nil, err
+ 	}
+@@ -383,28 +382,31 @@ func ReadDir(dir string) ([]fs.FileInfo, error) {
+ 	return sortedFiles, nil
+ }
+ 
+-// OverlayPath returns the path to the overlaid contents of the
+-// file, the empty string if the overlay deletes the file, or path
+-// itself if the file is not in the overlay, the file is a directory
+-// in the overlay, or there is no overlay.
+-// It returns true if the path is overlaid with a regular file
+-// or deleted, and false otherwise.
+-func OverlayPath(path string) (string, bool) {
+-	if p, ok := overlay[canonicalize(path)]; ok && !p.isDir() {
+-		return p.actualFilePath, ok
++// Actual returns the actual file system path for the named file.
++// It returns the empty string if name has been deleted in the virtual file system.
++func Actual(name string) string {
++	if p, ok := overlay[abs(name)]; ok && !p.isDir() {
++		return p.actualFilePath
+ 	}
++	return name
++}
+ 
+-	return path, false
++// Replaced reports whether the named file has been modified
++// in the virtual file system compared to the OS file system.
++func Replaced(name string) bool {
++	p, ok := overlay[abs(name)]
++	return ok && !p.isDir()
+ }
+ 
+-// Open opens the file at or overlaid on the given path.
+-func Open(path string) (*os.File, error) {
+-	Trace("Open", path)
+-	return openFile(path, os.O_RDONLY, 0)
++// Open opens the named file in the virtual file system.
++// It must be an ordinary file, not a directory.
++func Open(name string) (*os.File, error) {
++	Trace("Open", name)
++	return openFile(name, os.O_RDONLY, 0)
+ }
+ 
+ func openFile(path string, flag int, perm os.FileMode) (*os.File, error) {
+-	cpath := canonicalize(path)
++	cpath := abs(path)
+ 	if node, ok := overlay[cpath]; ok {
+ 		// Opening a file in the overlay.
+ 		if node.isDir() {
+@@ -429,9 +431,10 @@ func openFile(path string, flag int, perm os.FileMode) (*os.File, error) {
+ 	return os.OpenFile(cpath, flag, perm)
+ }
+ 
+-// ReadFile reads the file at or overlaid on the given path.
+-func ReadFile(path string) ([]byte, error) {
+-	f, err := Open(path)
++// ReadFile reads the named file from the virtual file system
++// and returns the contents.
++func ReadFile(name string) ([]byte, error) {
++	f, err := Open(name)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -440,11 +443,11 @@ func ReadFile(path string) ([]byte, error) {
+ 	return io.ReadAll(f)
+ }
+ 
+-// IsDirWithGoFiles reports whether dir is a directory containing Go files
+-// either on disk or in the overlay.
+-func IsDirWithGoFiles(dir string) (bool, error) {
+-	Trace("IsDirWithGoFiles", dir)
+-	fis, err := ReadDir(dir)
++// IsGoDir reports whether the named directory in the virtual file system
++// is a directory containing one or more Go source files.
++func IsGoDir(name string) (bool, error) {
++	Trace("IsGoDir", name)
++	fis, err := ReadDir(name)
+ 	if os.IsNotExist(err) || errors.Is(err, errNotDir) {
+ 		return false, nil
+ 	}
+@@ -454,15 +457,7 @@ func IsDirWithGoFiles(dir string) (bool, error) {
+ 
+ 	var firstErr error
+ 	for _, fi := range fis {
+-		if fi.IsDir() {
+-			continue
+-		}
+-
+-		// TODO(matloob): this enforces that the "from" in the map
+-		// has a .go suffix, but the actual destination file
+-		// doesn't need to have a .go suffix. Is this okay with the
+-		// compiler?
+-		if !strings.HasSuffix(fi.Name(), ".go") {
++		if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".go") {
+ 			continue
+ 		}
+ 		if fi.Mode().IsRegular() {
+@@ -472,8 +467,7 @@ func IsDirWithGoFiles(dir string) (bool, error) {
+ 		// fi is the result of an Lstat, so it doesn't follow symlinks.
+ 		// But it's okay if the file is a symlink pointing to a regular
+ 		// file, so use os.Stat to follow symlinks and check that.
+-		actualFilePath, _ := OverlayPath(filepath.Join(dir, fi.Name()))
+-		fi, err := os.Stat(actualFilePath)
++		fi, err := os.Stat(Actual(filepath.Join(name, fi.Name())))
+ 		if err == nil && fi.Mode().IsRegular() {
+ 			return true, nil
+ 		}
+@@ -486,24 +480,26 @@ func IsDirWithGoFiles(dir string) (bool, error) {
+ 	return false, firstErr
+ }
+ 
+-// Lstat implements a version of os.Lstat that operates on the overlay filesystem.
+-func Lstat(path string) (fs.FileInfo, error) {
+-	Trace("Lstat", path)
+-	return overlayStat(path, os.Lstat, "lstat")
++// Lstat returns a FileInfo describing the named file in the virtual file system.
++// It does not follow symbolic links
++func Lstat(name string) (fs.FileInfo, error) {
++	Trace("Lstat", name)
++	return overlayStat("lstat", name, os.Lstat)
+ }
+ 
+-// Stat implements a version of os.Stat that operates on the overlay filesystem.
+-func Stat(path string) (fs.FileInfo, error) {
+-	Trace("Stat", path)
+-	return overlayStat(path, os.Stat, "stat")
++// Stat returns a FileInfo describing the named file in the virtual file system.
++// It follows symbolic links.
++func Stat(name string) (fs.FileInfo, error) {
++	Trace("Stat", name)
++	return overlayStat("stat", name, os.Stat)
+ }
+ 
+ // overlayStat implements lstat or Stat (depending on whether os.Lstat or os.Stat is passed in).
+-func overlayStat(path string, osStat func(string) (fs.FileInfo, error), opName string) (fs.FileInfo, error) {
+-	cpath := canonicalize(path)
++func overlayStat(op, path string, osStat func(string) (fs.FileInfo, error)) (fs.FileInfo, error) {
++	cpath := abs(path)
+ 
+ 	if _, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
+-		return nil, &fs.PathError{Op: opName, Path: cpath, Err: fs.ErrNotExist}
++		return nil, &fs.PathError{Op: op, Path: path, Err: fs.ErrNotExist}
+ 	}
+ 
+ 	node, ok := overlay[cpath]
+@@ -514,7 +510,7 @@ func overlayStat(path string, osStat func(string) (fs.FileInfo, error), opName s
+ 
+ 	switch {
+ 	case node.isDeleted():
+-		return nil, &fs.PathError{Op: opName, Path: cpath, Err: fs.ErrNotExist}
++		return nil, &fs.PathError{Op: op, Path: path, Err: fs.ErrNotExist}
+ 	case node.isDir():
+ 		return fakeDir(filepath.Base(path)), nil
+ 	default:
+@@ -528,7 +524,7 @@ func overlayStat(path string, osStat func(string) (fs.FileInfo, error), opName s
+ 			return nil, err
+ 		}
+ 		if fi.IsDir() {
+-			return nil, &fs.PathError{Op: opName, Path: cpath, Err: nonFileInOverlayError(node.actualFilePath)}
++			return nil, &fs.PathError{Op: op, Path: path, Err: nonFileInOverlayError(node.actualFilePath)}
+ 		}
+ 		return fakeFile{name: filepath.Base(path), real: fi}, nil
+ 	}
+diff --git a/src/cmd/go/internal/fsys/fsys_test.go b/src/cmd/go/internal/fsys/fsys_test.go
+index f79e03bc85..bb3f091cd5 100644
+--- a/src/cmd/go/internal/fsys/fsys_test.go
++++ b/src/cmd/go/internal/fsys/fsys_test.go
+@@ -5,7 +5,6 @@
+ package fsys
+ 
+ import (
+-	"encoding/json"
+ 	"errors"
+ 	"internal/testenv"
+ 	"internal/txtar"
+@@ -14,23 +13,26 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
++	"sync"
+ 	"testing"
+ )
+ 
++func resetForTesting() {
++	cwd = sync.OnceValue(cwdOnce)
++	overlay = nil
++}
++
+ // initOverlay resets the overlay state to reflect the config.
+ // config should be a text archive string. The comment is the overlay config
+ // json, and the files, in the archive are laid out in a temp directory
+ // that cwd is set to.
+ func initOverlay(t *testing.T, config string) {
+ 	t.Helper()
++	t.Chdir(t.TempDir())
++	resetForTesting()
++	t.Cleanup(resetForTesting)
+ 
+-	// Create a temporary directory and chdir to it.
+-	cwd = filepath.Join(t.TempDir(), "root")
+-	if err := os.Mkdir(cwd, 0777); err != nil {
+-		t.Fatal(err)
+-	}
+-	t.Chdir(cwd)
+-
++	cwd := cwd()
+ 	a := txtar.Parse([]byte(config))
+ 	for _, f := range a.Files {
+ 		name := filepath.Join(cwd, f.Name)
+@@ -42,15 +44,9 @@ func initOverlay(t *testing.T, config string) {
+ 		}
+ 	}
+ 
+-	var overlayJSON OverlayJSON
+-	if err := json.Unmarshal(a.Comment, &overlayJSON); err != nil {
+-		t.Fatal("parsing overlay JSON:", err)
+-	}
+-
+-	if err := initFromJSON(overlayJSON); err != nil {
++	if err := initFromJSON(a.Comment); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	t.Cleanup(func() { overlay = nil })
+ }
+ 
+ func TestIsDir(t *testing.T) {
+@@ -80,6 +76,7 @@ x
+ six
+ `)
+ 
++	cwd := cwd()
+ 	testCases := []struct {
+ 		path          string
+ 		want, wantErr bool
+@@ -414,7 +411,7 @@ func TestGlob(t *testing.T) {
+ 	}
+ }
+ 
+-func TestOverlayPath(t *testing.T) {
++func TestActual(t *testing.T) {
+ 	initOverlay(t, `
+ {
+ 	"Replace": {
+@@ -438,16 +435,17 @@ file 2
+ 99999999
+ `)
+ 
++	cwd := cwd()
+ 	testCases := []struct {
+ 		path     string
+ 		wantPath string
+ 		wantOK   bool
+ 	}{
+ 		{"subdir1/file1.txt", "subdir1/file1.txt", false},
+-		// OverlayPath returns false for directories
++		// Actual returns false for directories
+ 		{"subdir2", "subdir2", false},
+ 		{"subdir2/file2.txt", filepath.Join(cwd, "overlayfiles/subdir2_file2.txt"), true},
+-		// OverlayPath doesn't stat a file to see if it exists, so it happily returns
++		// Actual doesn't stat a file to see if it exists, so it happily returns
+ 		// the 'to' path and true even if the 'to' path doesn't exist on disk.
+ 		{"subdir3/doesntexist", filepath.Join(cwd, "this_file_doesnt_exist_anywhere"), true},
+ 		// Like the subdir2/file2.txt case above, but subdir4 exists on disk, but subdir2 does not.
+@@ -457,10 +455,14 @@ file 2
+ 	}
+ 
+ 	for _, tc := range testCases {
+-		gotPath, gotOK := OverlayPath(tc.path)
+-		if gotPath != tc.wantPath || gotOK != tc.wantOK {
+-			t.Errorf("OverlayPath(%q): got %v, %v; want %v, %v",
+-				tc.path, gotPath, gotOK, tc.wantPath, tc.wantOK)
++		path := Actual(tc.path)
++		ok := Replaced(tc.path)
++
++		if path != tc.wantPath {
++			t.Errorf("Actual(%q) = %q, want %q", tc.path, path, tc.wantPath)
++		}
++		if ok != tc.wantOK {
++			t.Errorf("Replaced(%q) = %v, want %v", tc.path, ok, tc.wantOK)
+ 		}
+ 	}
+ }
+@@ -546,7 +548,7 @@ this can exist because the parent directory is deleted
+ 	}
+ }
+ 
+-func TestIsDirWithGoFiles(t *testing.T) {
++func TestIsGoDir(t *testing.T) {
+ 	initOverlay(t, `
+ {
+ 	"Replace": {
+@@ -585,18 +587,18 @@ contents don't matter for this test
+ 	}
+ 
+ 	for _, tc := range testCases {
+-		got, gotErr := IsDirWithGoFiles(tc.dir)
++		got, gotErr := IsGoDir(tc.dir)
+ 		if tc.wantErr {
+ 			if gotErr == nil {
+-				t.Errorf("IsDirWithGoFiles(%q): got %v, %v; want non-nil error", tc.dir, got, gotErr)
++				t.Errorf("IsGoDir(%q): got %v, %v; want non-nil error", tc.dir, got, gotErr)
+ 			}
+ 			continue
+ 		}
+ 		if gotErr != nil {
+-			t.Errorf("IsDirWithGoFiles(%q): got %v, %v; want nil error", tc.dir, got, gotErr)
++			t.Errorf("IsGoDir(%q): got %v, %v; want nil error", tc.dir, got, gotErr)
+ 		}
+ 		if got != tc.want {
+-			t.Errorf("IsDirWithGoFiles(%q) = %v; want %v", tc.dir, got, tc.want)
++			t.Errorf("IsGoDir(%q) = %v; want %v", tc.dir, got, tc.want)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 791d4d8dc1..65bbcae5fb 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -481,11 +481,11 @@ func readGoSumFile(dst map[module.Version][]string, file string) (bool, error) {
+ 		data []byte
+ 		err  error
+ 	)
+-	if actualSumFile, ok := fsys.OverlayPath(file); ok {
++	if fsys.Replaced(file) {
+ 		// Don't lock go.sum if it's part of the overlay.
+ 		// On Plan 9, locking requires chmod, and we don't want to modify any file
+ 		// in the overlay. See #44700.
+-		data, err = os.ReadFile(actualSumFile)
++		data, err = os.ReadFile(fsys.Actual(file))
+ 	} else {
+ 		data, err = lockedfile.Read(file)
+ 	}
+@@ -861,7 +861,7 @@ Outer:
+ 	if readonly {
+ 		return ErrGoSumDirty
+ 	}
+-	if _, ok := fsys.OverlayPath(GoSumFile); ok {
++	if fsys.Replaced(GoSumFile) {
+ 		base.Fatalf("go: updates to go.sum needed, but go.sum is part of the overlay specified with -overlay")
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 3a847ab937..7950884248 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -671,7 +671,7 @@ func IsStandardPackage(goroot_, compiler, path string) bool {
+ 		modroot = filepath.Join(modroot, "cmd")
+ 	}
+ 	if pkg, err := GetPackage(modroot, filepath.Join(modroot, reldir)); err == nil {
+-		hasGo, err := pkg.IsDirWithGoFiles()
++		hasGo, err := pkg.IsGoDir()
+ 		return err == nil && hasGo
+ 	} else if errors.Is(err, ErrNotIndexed) {
+ 		// Fall back because package isn't indexable. (Probably because
+@@ -681,8 +681,8 @@ func IsStandardPackage(goroot_, compiler, path string) bool {
+ 	return false
+ }
+ 
+-// IsDirWithGoFiles is the equivalent of fsys.IsDirWithGoFiles using the information in the index.
+-func (rp *IndexPackage) IsDirWithGoFiles() (_ bool, err error) {
++// IsGoDir is the equivalent of fsys.IsGoDir using the information in the index.
++func (rp *IndexPackage) IsGoDir() (_ bool, err error) {
+ 	defer func() {
+ 		if e := recover(); e != nil {
+ 			err = fmt.Errorf("error reading module index: %v", e)
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 97c88f193d..5003ede241 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -719,13 +719,13 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
+ 	haveGoFiles, err = haveGoFilesCache.Do(dir, func() (bool, error) {
+ 		// modindex.GetPackage will return ErrNotIndexed for any directories which
+ 		// are reached through a symlink, so that they will be handled by
+-		// fsys.IsDirWithGoFiles below.
++		// fsys.IsGoDir below.
+ 		if ip, err := modindex.GetPackage(mdir, dir); err == nil {
+-			return ip.IsDirWithGoFiles()
++			return ip.IsGoDir()
+ 		} else if !errors.Is(err, modindex.ErrNotIndexed) {
+ 			return false, err
+ 		}
+-		return fsys.IsDirWithGoFiles(dir)
++		return fsys.IsGoDir(dir)
+ 	})
+ 
+ 	return dir, haveGoFiles, err
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index c41bfc38af..ffd6e13217 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -355,7 +355,7 @@ func BinDir() string {
+ // for example 'go mod tidy', that don't operate in workspace mode.
+ func InitWorkfile() {
+ 	// Initialize fsys early because we need overlay to read go.work file.
+-	if err := fsys.Init(base.Cwd()); err != nil {
++	if err := fsys.Init(); err != nil {
+ 		base.Fatal(err)
+ 	}
+ 	workFilePath = FindGoWork(base.Cwd())
+@@ -434,7 +434,7 @@ func Init() {
+ 		return
+ 	}
+ 
+-	if err := fsys.Init(base.Cwd()); err != nil {
++	if err := fsys.Init(); err != nil {
+ 		base.Fatal(err)
+ 	}
+ 
+@@ -1938,7 +1938,7 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
+ 
+ 	mainModule := MainModules.mustGetSingleMainModule()
+ 	modFilePath := modFilePath(MainModules.ModRoot(mainModule))
+-	if _, ok := fsys.OverlayPath(modFilePath); ok {
++	if fsys.Replaced(modFilePath) {
+ 		if dirty {
+ 			return errors.New("updates to go.mod needed, but go.mod is part of the overlay specified with -overlay")
+ 		}
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 5b9edfbf02..636ad03c78 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -34,13 +34,13 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
+ 	// so a more convenient path is displayed in the errors. ShortPath isn't used
+ 	// because it's meant only to be used in errors, not to open files.
+ 	gomod = base.ShortPathConservative(gomod)
+-	if gomodActual, ok := fsys.OverlayPath(gomod); ok {
++	if fsys.Replaced(gomod) {
+ 		// Don't lock go.mod if it's part of the overlay.
+ 		// On Plan 9, locking requires chmod, and we don't want to modify any file
+ 		// in the overlay. See #44700.
+-		data, err = os.ReadFile(gomodActual)
++		data, err = os.ReadFile(fsys.Actual(gomod))
+ 	} else {
+-		data, err = lockedfile.Read(gomodActual)
++		data, err = lockedfile.Read(gomod)
+ 	}
+ 	if err != nil {
+ 		return nil, nil, err
+@@ -749,13 +749,13 @@ func rawGoModData(m module.Version) (name string, data []byte, err error) {
+ 			}
+ 		}
+ 		name = filepath.Join(dir, "go.mod")
+-		if gomodActual, ok := fsys.OverlayPath(name); ok {
++		if fsys.Replaced(name) {
+ 			// Don't lock go.mod if it's part of the overlay.
+ 			// On Plan 9, locking requires chmod, and we don't want to modify any file
+ 			// in the overlay. See #44700.
+-			data, err = os.ReadFile(gomodActual)
++			data, err = os.ReadFile(fsys.Actual(name))
+ 		} else {
+-			data, err = lockedfile.Read(gomodActual)
++			data, err = lockedfile.Read(name)
+ 		}
+ 		if err != nil {
+ 			return "", nil, module.VersionError(m, fmt.Errorf("reading %s: %v", base.ShortPath(name), err))
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 421c693149..29538fb8d6 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -398,8 +398,7 @@ func (b *Builder) buildID(file string) string {
+ 
+ // fileHash returns the content hash of the named file.
+ func (b *Builder) fileHash(file string) string {
+-	file, _ = fsys.OverlayPath(file)
+-	sum, err := cache.FileHash(file)
++	sum, err := cache.FileHash(fsys.Actual(file))
+ 	if err != nil {
+ 		return ""
+ 	}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index a527a80941..2fa950f13b 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -617,7 +617,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+ OverlayLoop:
+ 	for _, fs := range nonGoFileLists {
+ 		for _, f := range fs {
+-			if _, ok := fsys.OverlayPath(mkAbs(p.Dir, f)); ok {
++			if fsys.Replaced(mkAbs(p.Dir, f)) {
+ 				a.nonGoOverlay = make(map[string]string)
+ 				break OverlayLoop
+ 			}
+@@ -627,9 +627,8 @@ OverlayLoop:
+ 		for _, fs := range nonGoFileLists {
+ 			for i := range fs {
+ 				from := mkAbs(p.Dir, fs[i])
+-				opath, _ := fsys.OverlayPath(from)
+ 				dst := objdir + filepath.Base(fs[i])
+-				if err := sh.CopyFile(dst, opath, 0666, false); err != nil {
++				if err := sh.CopyFile(dst, fsys.Actual(from), 0666, false); err != nil {
+ 					return err
+ 				}
+ 				a.nonGoOverlay[from] = dst
+@@ -2840,9 +2839,10 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 	var trimpath []string
+ 	for i := range cgofiles {
+ 		path := mkAbs(p.Dir, cgofiles[i])
+-		if opath, ok := fsys.OverlayPath(path); ok {
+-			cgofiles[i] = opath
+-			trimpath = append(trimpath, opath+"=>"+path)
++		if fsys.Replaced(path) {
++			actual := fsys.Actual(path)
++			cgofiles[i] = actual
++			trimpath = append(trimpath, actual+"=>"+path)
+ 		}
+ 	}
+ 	if len(trimpath) > 0 {
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 9959928da7..62d9a34abe 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -159,10 +159,10 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 	for _, f := range gofiles {
+ 		f := mkAbs(p.Dir, f)
+ 
+-		// Handle overlays. Convert path names using OverlayPath
++		// Handle overlays. Convert path names using fsys.Actual
+ 		// so these paths can be handed directly to tools.
+ 		// Deleted files won't show up in when scanning directories earlier,
+-		// so OverlayPath will never return "" (meaning a deleted file) here.
++		// so Actual will never return "" (meaning a deleted file) here.
+ 		// TODO(#39958): Handle cases where the package directory
+ 		// doesn't exist on disk (this can happen when all the package's
+ 		// files are in an overlay): the code expects the package directory
+@@ -171,9 +171,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 		// gofiles, cgofiles, cfiles, sfiles, and cxxfiles variables are
+ 		// created in (*Builder).build. Doing that requires rewriting the
+ 		// code that uses those values to expect absolute paths.
+-		f, _ = fsys.OverlayPath(f)
+-
+-		args = append(args, f)
++		args = append(args, fsys.Actual(f))
+ 	}
+ 
+ 	output, err = sh.runOut(base.Cwd(), nil, args...)
+@@ -286,12 +284,12 @@ func (a *Action) trimpath() string {
+ 			base := filepath.Base(path)
+ 			isGo := strings.HasSuffix(filename, ".go") || strings.HasSuffix(filename, ".s")
+ 			isCgo := cgoFiles[filename] || !isGo
+-			overlayPath, isOverlay := fsys.OverlayPath(path)
+-			if isCgo && isOverlay {
+-				hasCgoOverlay = true
+-			}
+-			if !isCgo && isOverlay {
+-				rewrite += overlayPath + "=>" + filepath.Join(rewriteDir, base) + ";"
++			if fsys.Replaced(path) {
++				if isCgo {
++					hasCgoOverlay = true
++				} else {
++					rewrite += fsys.Actual(path) + "=>" + filepath.Join(rewriteDir, base) + ";"
++				}
+ 			} else if isCgo {
+ 				// Generate rewrites for non-Go files copied to files in objdir.
+ 				if filepath.Dir(path) == a.Package.Dir {
+@@ -395,10 +393,9 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
+ 
+ 	var ofiles []string
+ 	for _, sfile := range sfiles {
+-		overlayPath, _ := fsys.OverlayPath(mkAbs(p.Dir, sfile))
+ 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
+ 		ofiles = append(ofiles, ofile)
+-		args1 := append(args, "-o", ofile, overlayPath)
++		args1 := append(args, "-o", ofile, fsys.Actual(mkAbs(p.Dir, sfile)))
+ 		if err := b.Shell(a).run(p.Dir, p.ImportPath, nil, args1...); err != nil {
+ 			return nil, err
+ 		}
+@@ -416,8 +413,7 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
+ 			if p.ImportPath == "runtime/cgo" && strings.HasPrefix(sfile, "gcc_") {
+ 				continue
+ 			}
+-			op, _ := fsys.OverlayPath(mkAbs(p.Dir, sfile))
+-			args = append(args, op)
++			args = append(args, fsys.Actual(mkAbs(p.Dir, sfile)))
+ 		}
+ 
+ 		// Supply an empty go_asm.h as if the compiler had been run.
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 3e4c204ad1..bdd76f6364 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -107,8 +107,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg,
+ 		if fsys.OverlayFile != "" {
+ 			for _, name := range gofiles {
+ 				absPath := mkAbs(p.Dir, name)
+-				overlayPath, ok := fsys.OverlayPath(absPath)
+-				if !ok {
++				if !fsys.Replaced(absPath) {
+ 					continue
+ 				}
+ 				toPath := absPath
+@@ -117,7 +116,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg,
+ 				if cfg.BuildTrimpath && str.HasFilePathPrefix(toPath, base.Cwd()) {
+ 					toPath = "." + toPath[len(base.Cwd()):]
+ 				}
+-				args = append(args, "-ffile-prefix-map="+overlayPath+"="+toPath)
++				args = append(args, "-ffile-prefix-map="+fsys.Actual(absPath)+"="+toPath)
+ 			}
+ 		}
+ 	}
+@@ -127,8 +126,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg,
+ 		f := mkAbs(p.Dir, f)
+ 		// Overlay files if necessary.
+ 		// See comment on gctoolchain.gc about overlay TODOs
+-		f, _ = fsys.OverlayPath(f)
+-		args = append(args, f)
++		args = append(args, fsys.Actual(f))
+ 	}
+ 
+ 	output, err = sh.runOut(p.Dir, nil, args)
+@@ -200,7 +198,7 @@ func (tools gccgoToolchain) asm(b *Builder, a *Action, sfiles []string) ([]strin
+ 		base := filepath.Base(sfile)
+ 		ofile := a.Objdir + base[:len(base)-len(".s")] + ".o"
+ 		ofiles = append(ofiles, ofile)
+-		sfile, _ = fsys.OverlayPath(mkAbs(p.Dir, sfile))
++		sfile = fsys.Actual(mkAbs(p.Dir, sfile))
+ 		defs := []string{"-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch}
+ 		if pkgpath := tools.gccgoCleanPkgpath(b, p); pkgpath != "" {
+ 			defs = append(defs, `-D`, `GOPKGPATH=`+pkgpath)
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 175912bb85..831c64bada 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -36,7 +36,7 @@ func BuildInit() {
+ 	modload.Init()
+ 	instrumentInit()
+ 	buildModeInit()
+-	if err := fsys.Init(base.Cwd()); err != nil {
++	if err := fsys.Init(); err != nil {
+ 		base.Fatal(err)
+ 	}
+ 

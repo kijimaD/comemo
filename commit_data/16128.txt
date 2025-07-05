@@ -7,6 +7,20 @@ Date:   Sun Apr 7 16:50:23 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8499043
-
+---
  src/pkg/go/ast/print.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/ast/print.go b/src/pkg/go/ast/print.go
+index 4a1ce480f4..f15dc11dc0 100644
+--- a/src/pkg/go/ast/print.go
++++ b/src/pkg/go/ast/print.go
+@@ -34,7 +34,7 @@ func NotNilFilter(_ string, v reflect.Value) bool {
+ //
+ // A non-nil FieldFilter f may be provided to control the output:
+ // struct fields for which f(fieldname, fieldvalue) is true are
+-// are printed; all others are filtered from the output. Unexported
++// printed; all others are filtered from the output. Unexported
+ // struct fields are never printed.
+ //
+ func Fprint(w io.Writer, fset *token.FileSet, x interface{}, f FieldFilter) (err error) {

@@ -7,7 +7,338 @@ Date:   Tue May 14 17:14:59 2013 -0700
     R=r, agl
     CC=agl, bradfitz, golang-dev
     https://golang.org/cl/9296046
-
+---
  src/pkg/testing/quick/quick.go      |  66 +++++++++++-----------
  src/pkg/testing/quick/quick_test.go | 107 +++++++++++++++++++++++++++++++++++-
  2 files changed, 137 insertions(+), 36 deletions(-)
+
+diff --git a/src/pkg/testing/quick/quick.go b/src/pkg/testing/quick/quick.go
+index 761a6471b5..bc79cc3292 100644
+--- a/src/pkg/testing/quick/quick.go
++++ b/src/pkg/testing/quick/quick.go
+@@ -34,7 +34,7 @@ func randFloat32(rand *rand.Rand) float32 {
+ 
+ // randFloat64 generates a random float taking the full range of a float64.
+ func randFloat64(rand *rand.Rand) float64 {
+-	f := rand.Float64()
++	f := rand.Float64() * math.MaxFloat64
+ 	if rand.Int()&1 == 1 {
+ 		f = -f
+ 	}
+@@ -56,90 +56,88 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+ 		return m.Generate(rand, complexSize), true
+ 	}
+ 
++	v := reflect.New(t).Elem()
+ 	switch concrete := t; concrete.Kind() {
+ 	case reflect.Bool:
+-		return reflect.ValueOf(rand.Int()&1 == 0), true
++		v.SetBool(rand.Int()&1 == 0)
+ 	case reflect.Float32:
+-		return reflect.ValueOf(randFloat32(rand)), true
++		v.SetFloat(float64(randFloat32(rand)))
+ 	case reflect.Float64:
+-		return reflect.ValueOf(randFloat64(rand)), true
++		v.SetFloat(randFloat64(rand))
+ 	case reflect.Complex64:
+-		return reflect.ValueOf(complex(randFloat32(rand), randFloat32(rand))), true
++		v.SetComplex(complex(float64(randFloat32(rand)), float64(randFloat32(rand))))
+ 	case reflect.Complex128:
+-		return reflect.ValueOf(complex(randFloat64(rand), randFloat64(rand))), true
++		v.SetComplex(complex(randFloat64(rand), randFloat64(rand)))
+ 	case reflect.Int16:
+-		return reflect.ValueOf(int16(randInt64(rand))), true
++		v.SetInt(randInt64(rand))
+ 	case reflect.Int32:
+-		return reflect.ValueOf(int32(randInt64(rand))), true
++		v.SetInt(randInt64(rand))
+ 	case reflect.Int64:
+-		return reflect.ValueOf(randInt64(rand)), true
++		v.SetInt(randInt64(rand))
+ 	case reflect.Int8:
+-		return reflect.ValueOf(int8(randInt64(rand))), true
++		v.SetInt(randInt64(rand))
+ 	case reflect.Int:
+-		return reflect.ValueOf(int(randInt64(rand))), true
++		v.SetInt(randInt64(rand))
+ 	case reflect.Uint16:
+-		return reflect.ValueOf(uint16(randInt64(rand))), true
++		v.SetUint(uint64(randInt64(rand)))
+ 	case reflect.Uint32:
+-		return reflect.ValueOf(uint32(randInt64(rand))), true
++		v.SetUint(uint64(randInt64(rand)))
+ 	case reflect.Uint64:
+-		return reflect.ValueOf(uint64(randInt64(rand))), true
++		v.SetUint(uint64(randInt64(rand)))
+ 	case reflect.Uint8:
+-		return reflect.ValueOf(uint8(randInt64(rand))), true
++		v.SetUint(uint64(randInt64(rand)))
+ 	case reflect.Uint:
+-		return reflect.ValueOf(uint(randInt64(rand))), true
++		v.SetUint(uint64(randInt64(rand)))
+ 	case reflect.Uintptr:
+-		return reflect.ValueOf(uintptr(randInt64(rand))), true
++		v.SetUint(uint64(randInt64(rand)))
+ 	case reflect.Map:
+ 		numElems := rand.Intn(complexSize)
+-		m := reflect.MakeMap(concrete)
++		v.Set(reflect.MakeMap(concrete))
+ 		for i := 0; i < numElems; i++ {
+ 			key, ok1 := Value(concrete.Key(), rand)
+ 			value, ok2 := Value(concrete.Elem(), rand)
+ 			if !ok1 || !ok2 {
+ 				return reflect.Value{}, false
+ 			}
+-			m.SetMapIndex(key, value)
++			v.SetMapIndex(key, value)
+ 		}
+-		return m, true
+ 	case reflect.Ptr:
+-		v, ok := Value(concrete.Elem(), rand)
++		elem, ok := Value(concrete.Elem(), rand)
+ 		if !ok {
+ 			return reflect.Value{}, false
+ 		}
+-		p := reflect.New(concrete.Elem())
+-		p.Elem().Set(v)
+-		return p, true
++		v.Set(reflect.New(concrete.Elem()))
++		v.Elem().Set(elem)
+ 	case reflect.Slice:
+ 		numElems := rand.Intn(complexSize)
+-		s := reflect.MakeSlice(concrete, numElems, numElems)
++		v.Set(reflect.MakeSlice(concrete, numElems, numElems))
+ 		for i := 0; i < numElems; i++ {
+-			v, ok := Value(concrete.Elem(), rand)
++			elem, ok := Value(concrete.Elem(), rand)
+ 			if !ok {
+ 				return reflect.Value{}, false
+ 			}
+-			s.Index(i).Set(v)
++			v.Index(i).Set(elem)
+ 		}
+-		return s, true
+ 	case reflect.String:
+ 		numChars := rand.Intn(complexSize)
+ 		codePoints := make([]rune, numChars)
+ 		for i := 0; i < numChars; i++ {
+ 			codePoints[i] = rune(rand.Intn(0x10ffff))
+ 		}
+-		return reflect.ValueOf(string(codePoints)), true
++		v.SetString(string(codePoints))
+ 	case reflect.Struct:
+-		s := reflect.New(t).Elem()
+-		for i := 0; i < s.NumField(); i++ {
+-			v, ok := Value(concrete.Field(i).Type, rand)
++		for i := 0; i < v.NumField(); i++ {
++			elem, ok := Value(concrete.Field(i).Type, rand)
+ 			if !ok {
+ 				return reflect.Value{}, false
+ 			}
+-			s.Field(i).Set(v)
++			v.Field(i).Set(elem)
+ 		}
+-		return s, true
+ 	default:
+ 		return reflect.Value{}, false
+ 	}
++
++	return v, true
+ }
+ 
+ // A Config structure contains options for running a test.
+diff --git a/src/pkg/testing/quick/quick_test.go b/src/pkg/testing/quick/quick_test.go
+index a6cf0dc396..e925ba6750 100644
+--- a/src/pkg/testing/quick/quick_test.go
++++ b/src/pkg/testing/quick/quick_test.go
+@@ -12,32 +12,82 @@ import (
+ 
+ func fBool(a bool) bool { return a }
+ 
++type TestBoolAlias bool
++
++func fBoolAlias(a TestBoolAlias) TestBoolAlias { return a }
++
+ func fFloat32(a float32) float32 { return a }
+ 
++type TestFloat32Alias float32
++
++func fFloat32Alias(a TestFloat32Alias) TestFloat32Alias { return a }
++
+ func fFloat64(a float64) float64 { return a }
+ 
++type TestFloat64Alias float64
++
++func fFloat64Alias(a TestFloat64Alias) TestFloat64Alias { return a }
++
+ func fComplex64(a complex64) complex64 { return a }
+ 
++type TestComplex64Alias complex64
++
++func fComplex64Alias(a TestComplex64Alias) TestComplex64Alias { return a }
++
+ func fComplex128(a complex128) complex128 { return a }
+ 
++type TestComplex128Alias complex128
++
++func fComplex128Alias(a TestComplex128Alias) TestComplex128Alias { return a }
++
+ func fInt16(a int16) int16 { return a }
+ 
++type TestInt16Alias int16
++
++func fInt16Alias(a TestInt16Alias) TestInt16Alias { return a }
++
+ func fInt32(a int32) int32 { return a }
+ 
++type TestInt32Alias int32
++
++func fInt32Alias(a TestInt32Alias) TestInt32Alias { return a }
++
+ func fInt64(a int64) int64 { return a }
+ 
++type TestInt64Alias int64
++
++func fInt64Alias(a TestInt64Alias) TestInt64Alias { return a }
++
+ func fInt8(a int8) int8 { return a }
+ 
++type TestInt8Alias int8
++
++func fInt8Alias(a TestInt8Alias) TestInt8Alias { return a }
++
+ func fInt(a int) int { return a }
+ 
+-func fUInt8(a uint8) uint8 { return a }
++type TestIntAlias int
++
++func fIntAlias(a TestIntAlias) TestIntAlias { return a }
+ 
+ func fMap(a map[int]int) map[int]int { return a }
+ 
++type TestMapAlias map[int]int
++
++func fMapAlias(a TestMapAlias) TestMapAlias { return a }
++
+ func fSlice(a []byte) []byte { return a }
+ 
++type TestSliceAlias []byte
++
++func fSliceAlias(a TestSliceAlias) TestSliceAlias { return a }
++
+ func fString(a string) string { return a }
+ 
++type TestStringAlias string
++
++func fStringAlias(a TestStringAlias) TestStringAlias { return a }
++
+ type TestStruct struct {
+ 	A int
+ 	B string
+@@ -45,23 +95,55 @@ type TestStruct struct {
+ 
+ func fStruct(a TestStruct) TestStruct { return a }
+ 
++type TestStructAlias TestStruct
++
++func fStructAlias(a TestStructAlias) TestStructAlias { return a }
++
+ func fUint16(a uint16) uint16 { return a }
+ 
++type TestUint16Alias uint16
++
++func fUint16Alias(a TestUint16Alias) TestUint16Alias { return a }
++
+ func fUint32(a uint32) uint32 { return a }
+ 
++type TestUint32Alias uint32
++
++func fUint32Alias(a TestUint32Alias) TestUint32Alias { return a }
++
+ func fUint64(a uint64) uint64 { return a }
+ 
++type TestUint64Alias uint64
++
++func fUint64Alias(a TestUint64Alias) TestUint64Alias { return a }
++
+ func fUint8(a uint8) uint8 { return a }
+ 
++type TestUint8Alias uint8
++
++func fUint8Alias(a TestUint8Alias) TestUint8Alias { return a }
++
+ func fUint(a uint) uint { return a }
+ 
++type TestUintAlias uint
++
++func fUintAlias(a TestUintAlias) TestUintAlias { return a }
++
+ func fUintptr(a uintptr) uintptr { return a }
+ 
++type TestUintptrAlias uintptr
++
++func fUintptrAlias(a TestUintptrAlias) TestUintptrAlias { return a }
++
+ func fIntptr(a *int) *int {
+ 	b := *a
+ 	return &b
+ }
+ 
++type TestIntptrAlias *int
++
++func fIntptrAlias(a TestIntptrAlias) TestIntptrAlias { return a }
++
+ func reportError(property string, err error, t *testing.T) {
+ 	if err != nil {
+ 		t.Errorf("%s: %s", property, err)
+@@ -70,28 +152,49 @@ func reportError(property string, err error, t *testing.T) {
+ 
+ func TestCheckEqual(t *testing.T) {
+ 	reportError("fBool", CheckEqual(fBool, fBool, nil), t)
++	reportError("fBoolAlias", CheckEqual(fBoolAlias, fBoolAlias, nil), t)
+ 	reportError("fFloat32", CheckEqual(fFloat32, fFloat32, nil), t)
++	reportError("fFloat32Alias", CheckEqual(fFloat32Alias, fFloat32Alias, nil), t)
+ 	reportError("fFloat64", CheckEqual(fFloat64, fFloat64, nil), t)
++	reportError("fFloat64Alias", CheckEqual(fFloat64Alias, fFloat64Alias, nil), t)
+ 	reportError("fComplex64", CheckEqual(fComplex64, fComplex64, nil), t)
++	reportError("fComplex64Alias", CheckEqual(fComplex64Alias, fComplex64Alias, nil), t)
+ 	reportError("fComplex128", CheckEqual(fComplex128, fComplex128, nil), t)
++	reportError("fComplex128Alias", CheckEqual(fComplex128Alias, fComplex128Alias, nil), t)
+ 	reportError("fInt16", CheckEqual(fInt16, fInt16, nil), t)
++	reportError("fInt16Alias", CheckEqual(fInt16Alias, fInt16Alias, nil), t)
+ 	reportError("fInt32", CheckEqual(fInt32, fInt32, nil), t)
++	reportError("fInt32Alias", CheckEqual(fInt32Alias, fInt32Alias, nil), t)
+ 	reportError("fInt64", CheckEqual(fInt64, fInt64, nil), t)
++	reportError("fInt64Alias", CheckEqual(fInt64Alias, fInt64Alias, nil), t)
+ 	reportError("fInt8", CheckEqual(fInt8, fInt8, nil), t)
++	reportError("fInt8Alias", CheckEqual(fInt8Alias, fInt8Alias, nil), t)
+ 	reportError("fInt", CheckEqual(fInt, fInt, nil), t)
+-	reportError("fUInt8", CheckEqual(fUInt8, fUInt8, nil), t)
++	reportError("fIntAlias", CheckEqual(fIntAlias, fIntAlias, nil), t)
+ 	reportError("fInt32", CheckEqual(fInt32, fInt32, nil), t)
++	reportError("fInt32Alias", CheckEqual(fInt32Alias, fInt32Alias, nil), t)
+ 	reportError("fMap", CheckEqual(fMap, fMap, nil), t)
++	reportError("fMapAlias", CheckEqual(fMapAlias, fMapAlias, nil), t)
+ 	reportError("fSlice", CheckEqual(fSlice, fSlice, nil), t)
++	reportError("fSliceAlias", CheckEqual(fSliceAlias, fSliceAlias, nil), t)
+ 	reportError("fString", CheckEqual(fString, fString, nil), t)
++	reportError("fStringAlias", CheckEqual(fStringAlias, fStringAlias, nil), t)
+ 	reportError("fStruct", CheckEqual(fStruct, fStruct, nil), t)
++	reportError("fStructAlias", CheckEqual(fStructAlias, fStructAlias, nil), t)
+ 	reportError("fUint16", CheckEqual(fUint16, fUint16, nil), t)
++	reportError("fUint16Alias", CheckEqual(fUint16Alias, fUint16Alias, nil), t)
+ 	reportError("fUint32", CheckEqual(fUint32, fUint32, nil), t)
++	reportError("fUint32Alias", CheckEqual(fUint32Alias, fUint32Alias, nil), t)
+ 	reportError("fUint64", CheckEqual(fUint64, fUint64, nil), t)
++	reportError("fUint64Alias", CheckEqual(fUint64Alias, fUint64Alias, nil), t)
+ 	reportError("fUint8", CheckEqual(fUint8, fUint8, nil), t)
++	reportError("fUint8Alias", CheckEqual(fUint8Alias, fUint8Alias, nil), t)
+ 	reportError("fUint", CheckEqual(fUint, fUint, nil), t)
++	reportError("fUintAlias", CheckEqual(fUintAlias, fUintAlias, nil), t)
+ 	reportError("fUintptr", CheckEqual(fUintptr, fUintptr, nil), t)
++	reportError("fUintptrAlias", CheckEqual(fUintptrAlias, fUintptrAlias, nil), t)
+ 	reportError("fIntptr", CheckEqual(fIntptr, fIntptr, nil), t)
++	reportError("fIntptrAlias", CheckEqual(fIntptrAlias, fIntptrAlias, nil), t)
+ }
+ 
+ // This tests that ArbitraryValue is working by checking that all the arbitrary

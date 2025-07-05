@@ -20,6 +20,21 @@ Date:   Tue Feb 13 22:11:20 2018 +0100
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/trace/trace_stack_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/trace/trace_stack_test.go b/src/runtime/trace/trace_stack_test.go
+index 0275279a6b..e7b8d57659 100644
+--- a/src/runtime/trace/trace_stack_test.go
++++ b/src/runtime/trace/trace_stack_test.go
+@@ -128,7 +128,8 @@ func TestTraceSymbolize(t *testing.T) {
+ 	wp.Write(data[:])
+ 	<-pipeReadDone
+ 
+-	oldGoMaxProcs := runtime.GOMAXPROCS(1)
++	oldGoMaxProcs := runtime.GOMAXPROCS(0)
++	runtime.GOMAXPROCS(oldGoMaxProcs + 1)
+ 
+ 	Stop()
+ 

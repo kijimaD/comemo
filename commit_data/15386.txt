@@ -7,6 +7,20 @@ Date:   Fri Feb 22 16:38:44 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7399050
-
+---
  src/pkg/runtime/asm_arm.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 35fb537331..c0b728ab25 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -319,7 +319,7 @@ TEXT runtime·cgocallback(SB),7,$12
+ 	MOVW	R0, 8(R13)
+ 	MOVW	framesize+8(FP), R0
+ 	MOVW	R0, 12(R13)
+-	MOVL	$runtime·cgocallback_gofunc(SB), R0
++	MOVW	$runtime·cgocallback_gofunc(SB), R0
+ 	BL	(R0)
+ 	RET
+ 

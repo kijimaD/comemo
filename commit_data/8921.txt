@@ -7,6 +7,18 @@ Date:   Thu Jun 30 10:45:36 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4643062
-
+---
  src/pkg/exp/regexp/syntax/Makefile | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/exp/regexp/syntax/Makefile b/src/pkg/exp/regexp/syntax/Makefile
+index 673bf98316..97d4ad6ca8 100644
+--- a/src/pkg/exp/regexp/syntax/Makefile
++++ b/src/pkg/exp/regexp/syntax/Makefile
+@@ -11,5 +11,6 @@ GOFILES=\
+ 	perl_groups.go\
+ 	prog.go\
+ 	regexp.go\
++	simplify.go\
+ 
+ include ../../../../Make.pkg

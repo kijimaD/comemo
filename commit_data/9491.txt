@@ -7,8 +7,57 @@ Date:   Thu Aug 25 16:29:56 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4971042
-
+---
  src/cmd/5g/gsubr.c | 2 ++
  src/cmd/8g/gobj.c  | 2 ++
  src/cmd/8g/gsubr.c | 5 +++++
  3 files changed, 9 insertions(+)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index d133c6a90c..c9a2efa559 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -86,6 +86,8 @@ gbranch(int as, Type *t)
+ {
+ 	Prog *p;
+ 
++	USED(t);
++
+ 	p = prog(as);
+ 	p->to.type = D_BRANCH;
+ 	p->to.branch = P;
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 2cf622830a..ec2af12f7f 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -549,6 +549,8 @@ genembedtramp(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 	Prog *p;
+ 	Type *f;
+ 
++	USED(iface);
++
+ 	e = method->sym;
+ 	for(d=0; d<nelem(dotlist); d++) {
+ 		c = adddot1(e, rcvr, d, nil, 0);
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index b523875504..ab4cc1cfe1 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -84,6 +84,7 @@ gbranch(int as, Type *t)
+ {
+ 	Prog *p;
+ 
++	USED(t);
+ 	p = prog(as);
+ 	p->to.type = D_BRANCH;
+ 	p->to.branch = P;
+@@ -1957,5 +1958,9 @@ sudoclean(void)
+ int
+ sudoaddable(int as, Node *n, Addr *a)
+ {
++	USED(as);
++	USED(n);
++	USED(a);
++
+ 	return 0;
+ }

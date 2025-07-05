@@ -19,10 +19,163 @@ Date:   Tue Jan 5 06:43:38 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go |  5 +----
  src/cmd/compile/internal/escape/escape.go  | 20 ++++----------------
  src/cmd/compile/internal/ir/expr.go        | 11 +++--------
  src/cmd/compile/internal/ir/name.go        | 29 +++++++++++++++++++++++++++--
  src/cmd/compile/internal/typecheck/func.go |  4 ++--
  5 files changed, 37 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 1534adaac8..ff249c1f4e 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -127,10 +127,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
+ }
+ 
+ func declPos(decl *ir.Name) src.XPos {
+-	if decl.IsClosureVar() {
+-		decl = decl.Defn.(*ir.Name)
+-	}
+-	return decl.Pos()
++	return decl.Canonical().Pos()
+ }
+ 
+ // createDwarfVars process fn, returning a list of DWARF variables and the
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 6a2e685fe8..794c52f5ae 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -1146,19 +1146,6 @@ func (e *escape) later(k hole) hole {
+ 	return loc.asHole()
+ }
+ 
+-// canonicalNode returns the canonical *Node that n logically
+-// represents.
+-func canonicalNode(n ir.Node) ir.Node {
+-	if n != nil && n.Op() == ir.ONAME && n.Name().IsClosureVar() {
+-		n = n.Name().Defn
+-		if n.Name().IsClosureVar() {
+-			base.Fatalf("still closure var")
+-		}
+-	}
+-
+-	return n
+-}
+-
+ func (e *escape) newLoc(n ir.Node, transient bool) *location {
+ 	if e.curfn == nil {
+ 		base.Fatalf("e.curfn isn't set")
+@@ -1167,7 +1154,9 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
+ 		base.ErrorfAt(n.Pos(), "%v is incomplete (or unallocatable); stack allocation disallowed", n.Type())
+ 	}
+ 
+-	n = canonicalNode(n)
++	if n != nil && n.Op() == ir.ONAME {
++		n = n.(*ir.Name).Canonical()
++	}
+ 	loc := &location{
+ 		n:         n,
+ 		curfn:     e.curfn,
+@@ -1196,8 +1185,7 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
+ }
+ 
+ func (b *batch) oldLoc(n *ir.Name) *location {
+-	n = canonicalNode(n).(*ir.Name)
+-	return n.Opt.(*location)
++	return n.Canonical().Opt.(*location)
+ }
+ 
+ func (l *location) asHole() hole {
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 77b6c8a103..e7aa9c6a8f 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -829,14 +829,9 @@ func reassigned(name *Name) bool {
+ 	// reassignment detection for use by inlining and devirtualization.
+ 
+ 	// isName reports whether n is a reference to name.
+-	isName := func(n Node) bool {
+-		if n, ok := n.(*Name); ok && n.Op() == ONAME {
+-			if n.IsClosureVar() && n.Defn != nil {
+-				n = n.Defn.(*Name)
+-			}
+-			return n == name
+-		}
+-		return false
++	isName := func(x Node) bool {
++		n, ok := x.(*Name)
++		return ok && n.Canonical() == name
+ 	}
+ 
+ 	var do func(n Node) bool
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 58b4ababff..9d7d376ba5 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -279,7 +279,6 @@ const (
+ 
+ func (n *Name) Captured() bool              { return n.flags&nameCaptured != 0 }
+ func (n *Name) Readonly() bool              { return n.flags&nameReadonly != 0 }
+-func (n *Name) Byval() bool                 { return n.flags&nameByval != 0 }
+ func (n *Name) Needzero() bool              { return n.flags&nameNeedzero != 0 }
+ func (n *Name) AutoTemp() bool              { return n.flags&nameAutoTemp != 0 }
+ func (n *Name) Used() bool                  { return n.flags&nameUsed != 0 }
+@@ -294,7 +293,6 @@ func (n *Name) LibfuzzerExtraCounter() bool { return n.flags&nameLibfuzzerExtraC
+ 
+ func (n *Name) SetCaptured(b bool)              { n.flags.set(nameCaptured, b) }
+ func (n *Name) setReadonly(b bool)              { n.flags.set(nameReadonly, b) }
+-func (n *Name) SetByval(b bool)                 { n.flags.set(nameByval, b) }
+ func (n *Name) SetNeedzero(b bool)              { n.flags.set(nameNeedzero, b) }
+ func (n *Name) SetAutoTemp(b bool)              { n.flags.set(nameAutoTemp, b) }
+ func (n *Name) SetUsed(b bool)                  { n.flags.set(nameUsed, b) }
+@@ -336,6 +334,33 @@ func (n *Name) SetVal(v constant.Value) {
+ 	n.val = v
+ }
+ 
++// Canonical returns the logical declaration that n represents. If n
++// is a closure variable, then Canonical returns the original Name as
++// it appears in the function that immediately contains the
++// declaration. Otherwise, Canonical simply returns n itself.
++func (n *Name) Canonical() *Name {
++	if n.IsClosureVar() {
++		n = n.Defn.(*Name)
++		if n.IsClosureVar() {
++			base.Fatalf("recursive closure variable: %v", n)
++		}
++	}
++	return n
++}
++
++func (n *Name) SetByval(b bool) {
++	if n.Canonical() != n {
++		base.Fatalf("SetByval called on non-canonical variable: %v", n)
++	}
++	n.flags.set(nameByval, b)
++}
++
++func (n *Name) Byval() bool {
++	// We require byval to be set on the canonical variable, but we
++	// allow it to be accessed from any instance.
++	return n.Canonical().flags&nameByval != 0
++}
++
+ // SameSource reports whether two nodes refer to the same source
+ // element.
+ //
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index e4c3088225..8fdb33b145 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -110,8 +110,8 @@ func CaptureVars(fn *ir.Func) {
+ 		outermost := v.Defn.(*ir.Name)
+ 
+ 		// out parameters will be assigned to implicitly upon return.
+-		if outermost.Class != ir.PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type().Size() <= 128 {
+-			v.SetByval(true)
++		if outermost.Class != ir.PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && outermost.Type().Size() <= 128 {
++			outermost.SetByval(true)
+ 		} else {
+ 			outermost.SetAddrtaken(true)
+ 		}

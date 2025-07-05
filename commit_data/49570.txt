@@ -16,7 +16,53 @@ Date:   Sat Aug 28 15:27:55 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go |  2 +-
  test/fixedbugs/issue48026.go                 | 26 ++++++++++++++++++++++++++
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index a1ce27cc4a..b37d3b8c9c 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -852,7 +852,7 @@ func storeOneArg(x *expandState, pos src.XPos, b *Block, locs []*LocalSlot, suff
+ 
+ // storeOneLoad creates a decomposed (one step) load that is then stored.
+ func storeOneLoad(x *expandState, pos src.XPos, b *Block, source, mem *Value, t *types.Type, offArg, offStore int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
+-	from := x.offsetFrom(b, source.Args[0], offArg, types.NewPtr(t))
++	from := x.offsetFrom(source.Block, source.Args[0], offArg, types.NewPtr(t))
+ 	w := source.Block.NewValue2(source.Pos, OpLoad, t, from, mem)
+ 	return x.storeArgOrLoad(pos, b, w, mem, t, offStore, loadRegOffset, storeRc)
+ }
+diff --git a/test/fixedbugs/issue48026.go b/test/fixedbugs/issue48026.go
+new file mode 100644
+index 0000000000..a693d33b45
+--- /dev/null
++++ b/test/fixedbugs/issue48026.go
+@@ -0,0 +1,26 @@
++// compile -d=ssa/check/on
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var i int
++
++type t struct {
++	a, b, c, d, e int
++}
++
++func f(p t, q int) int {
++	var a, b, c, d, e, f, g int
++	var h, i, j, k, l, m int
++	_, _, _, _, _, _, _ = a, b, c, d, e, f, g
++	_, _, _, _, _, _ = h, i, j, k, l, m
++	return 0
++}
++
++func g() int {
++	var v t
++	return f(v, 1<<i)
++}

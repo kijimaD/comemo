@@ -10,6 +10,27 @@ Date:   Fri Jul 30 12:33:40 2010 +0300
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1664056
-
+---
  test/arm-pass.txt | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index ffc4ee2ab5..0a586a077b 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -1,5 +1,5 @@
+ ./235.go
+-# ./64bit.go	# fail, flaky
++# ./64bit.go	# fail, flaky on android build
+ ./args.go
+ ./assign.go
+ ./assign1.go
+@@ -430,7 +430,7 @@ fixedbugs/bug239.go
+ fixedbugs/bug240.go
+ fixedbugs/bug241.go
+ fixedbugs/bug242.go
+-fixedbugs/bug243.go
++# fixedbugs/bug243.go	# fail, flaky on android build
+ fixedbugs/bug244.go
+ fixedbugs/bug245.go
+ fixedbugs/bug246.go

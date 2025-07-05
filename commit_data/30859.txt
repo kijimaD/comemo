@@ -14,7 +14,36 @@ Date:   Sun Dec 11 13:54:22 2016 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/time/format.go      | 5 +++--
  src/time/format_test.go | 1 +
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 3fbfa734d0..b903e1485c 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -1101,8 +1101,9 @@ func parseTimeZone(value string) (length int, ok bool) {
+ 		if value[4] == 'T' {
+ 			return 5, true
+ 		}
+-	case 4: // Must end in T to match.
+-		if value[3] == 'T' {
++	case 4:
++		// Must end in T, except one special case.
++		if value[3] == 'T' || value[:4] == "WITA" {
+ 			return 4, true
+ 		}
+ 	case 3:
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index aa4434a09c..219c2caee8 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -405,6 +405,7 @@ var parseTimeZoneTests = []ParseTimeZoneTest{
+ 	{"ESAST hi", 5, true},
+ 	{"ESASTT hi", 0, false}, // run of upper-case letters too long.
+ 	{"ESATY hi", 0, false},  // five letters must end in T.
++	{"WITA hi", 4, true},    // Issue #18251
+ }
+ 
+ func TestParseTimeZone(t *testing.T) {

@@ -7,6 +7,20 @@ Date:   Tue Mar 17 19:10:32 2009 -0700
     R=r
     OCL=26434
     CL=26434
-
+---
  src/cmd/gc/swt.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index e4bd271665..82639a53e9 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -394,7 +394,7 @@ walkswitch(Node *sw)
+ 	arg = Snorm;
+ 	if(isconst(sw->ntest, CTBOOL)) {
+ 		arg = Strue;
+-		if(sw->ntest->val.u.xval == 0)
++		if(sw->ntest->val.u.bval == 0)
+ 			arg = Sfalse;
+ 	}
+ 

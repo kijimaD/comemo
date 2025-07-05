@@ -8,6 +8,26 @@ Date:   Sat Dec 1 00:42:50 2012 +0800
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/6852100
-
+---
  src/cmd/godoc/godoc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 9ac38c746e..70e1984b2a 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -853,12 +853,12 @@ type docServer struct {
+ 
+ // fsReadDir implements ReadDir for the go/build package.
+ func fsReadDir(dir string) ([]os.FileInfo, error) {
+-	return fs.ReadDir(dir)
++	return fs.ReadDir(filepath.ToSlash(dir))
+ }
+ 
+ // fsOpenFile implements OpenFile for the go/build package.
+ func fsOpenFile(name string) (r io.ReadCloser, err error) {
+-	data, err := ReadFile(fs, name)
++	data, err := ReadFile(fs, filepath.ToSlash(name))
+ 	if err != nil {
+ 		return nil, err
+ 	}

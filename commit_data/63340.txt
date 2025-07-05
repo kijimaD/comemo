@@ -12,6 +12,20 @@ Date:   Thu Jun 26 18:18:32 2025 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/encoding/json/v2_options.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/v2_options.go b/src/encoding/json/v2_options.go
+index 40b20e5552..4006d764cc 100644
+--- a/src/encoding/json/v2_options.go
++++ b/src/encoding/json/v2_options.go
+@@ -221,7 +221,7 @@ type Options = jsonopts.Options
+ //   - [jsontext.AllowInvalidUTF8]
+ //   - [jsontext.EscapeForHTML]
+ //   - [jsontext.EscapeForJS]
+-//   - [jsontext.PreserveRawString]
++//   - [jsontext.PreserveRawStrings]
+ //
+ // All other boolean options are set to false.
+ // All non-boolean options are set to the zero value,

@@ -12,8 +12,54 @@ Date:   Tue Dec 19 09:35:32 2023 -0800
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/pagetrace_on.go | 2 +-
  src/runtime/runtime2.go     | 2 ++
  src/runtime/trace2status.go | 1 +
  3 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/pagetrace_on.go b/src/runtime/pagetrace_on.go
+index 0e621cb6ca..f82521caad 100644
+--- a/src/runtime/pagetrace_on.go
++++ b/src/runtime/pagetrace_on.go
+@@ -317,7 +317,7 @@ func finishPageTrace() {
+ 		pageTrace.enabled = false
+ 
+ 		// Execute a ragged barrier, flushing each trace buffer.
+-		forEachP(func(pp *p) {
++		forEachP(waitReasonPageTraceFlush, func(pp *p) {
+ 			if pp.pageTraceBuf.buf != nil {
+ 				pp.pageTraceBuf = pp.pageTraceBuf.flush(pp.id, nanotime())
+ 			}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 2d3fd30e63..63320d4a8a 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1127,6 +1127,7 @@ const (
+ 	waitReasonFlushProcCaches                         // "flushing proc caches"
+ 	waitReasonTraceGoroutineStatus                    // "trace goroutine status"
+ 	waitReasonTraceProcStatus                         // "trace proc status"
++	waitReasonPageTraceFlush                          // "page trace flush"
+ 	waitReasonCoroutine                               // "coroutine"
+ )
+ 
+@@ -1166,6 +1167,7 @@ var waitReasonStrings = [...]string{
+ 	waitReasonFlushProcCaches:       "flushing proc caches",
+ 	waitReasonTraceGoroutineStatus:  "trace goroutine status",
+ 	waitReasonTraceProcStatus:       "trace proc status",
++	waitReasonPageTraceFlush:        "page trace flush",
+ 	waitReasonCoroutine:             "coroutine",
+ }
+ 
+diff --git a/src/runtime/trace2status.go b/src/runtime/trace2status.go
+index a4a8905196..5016e08656 100644
+--- a/src/runtime/trace2status.go
++++ b/src/runtime/trace2status.go
+@@ -147,6 +147,7 @@ func goStatusToTraceGoStatus(status uint32, wr waitReason) traceGoStatus {
+ 			wr == waitReasonGCMarkTermination ||
+ 			wr == waitReasonGarbageCollection ||
+ 			wr == waitReasonTraceProcStatus ||
++			wr == waitReasonPageTraceFlush ||
+ 			wr == waitReasonGCWorkerActive {
+ 			tgs = traceGoRunning
+ 		}

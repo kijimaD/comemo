@@ -15,7 +15,73 @@ Date:   Sat May 16 23:01:39 2015 -0400
     Change-Id: I0fb2b43d0668bc0e2985886d989abbf2252070e2
     Reviewed-on: https://go-review.googlesource.com/10183
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/json/decode_test.go | 24 ++++++++++++++++++++++++
  src/encoding/json/encode.go      | 15 ++++++++++++++-
  2 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index f208ee8a7c..4834c062cc 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -1393,3 +1393,27 @@ func TestInvalidUnmarshal(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Test that string option is ignored for invalid types.
++// Issue 9812.
++func TestInvalidStringOption(t *testing.T) {
++	num := 0
++	item := struct {
++		T time.Time         `json:",string"`
++		M map[string]string `json:",string"`
++		S []string          `json:",string"`
++		A [1]string         `json:",string"`
++		I interface{}       `json:",string"`
++		P *int              `json:",string"`
++	}{M: make(map[string]string), S: make([]string, 0), I: num, P: &num}
++
++	data, err := Marshal(item)
++	if err != nil {
++		t.Fatalf("Marshal: %v", err)
++	}
++
++	err = Unmarshal(data, &item)
++	if err != nil {
++		t.Fatalf("Unmarshal: %v", err)
++	}
++}
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 08bb67134e..90782deb70 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -1043,6 +1043,19 @@ func typeFields(t reflect.Type) []field {
+ 					ft = ft.Elem()
+ 				}
+ 
++				// Only strings, floats, integers, and booleans can be quoted.
++				quoted := false
++				if opts.Contains("string") {
++					switch ft.Kind() {
++					case reflect.Bool,
++						reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
++						reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
++						reflect.Float32, reflect.Float64,
++						reflect.String:
++						quoted = true
++					}
++				}
++
+ 				// Record found field and index sequence.
+ 				if name != "" || !sf.Anonymous || ft.Kind() != reflect.Struct {
+ 					tagged := name != ""
+@@ -1055,7 +1068,7 @@ func typeFields(t reflect.Type) []field {
+ 						index:     index,
+ 						typ:       ft,
+ 						omitEmpty: opts.Contains("omitempty"),
+-						quoted:    opts.Contains("string"),
++						quoted:    quoted,
+ 					}))
+ 					if count[f.typ] > 1 {
+ 						// If there were multiple instances, add a second,

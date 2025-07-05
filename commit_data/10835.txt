@@ -7,7 +7,7 @@ Date:   Fri Dec 16 10:48:06 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5461047
-
+---
  misc/dashboard/app/app.yaml                |   4 +-
  misc/dashboard/app/build/build.go          | 129 ++++++++++++++------
  misc/dashboard/app/build/test.go           |  25 +++-
@@ -16,3 +16,686 @@ Date:   Fri Dec 16 10:48:06 2011 +1100
  misc/dashboard/app/static/status_alert.gif | Bin 0 -> 570 bytes
  misc/dashboard/app/static/status_good.gif  | Bin 0 -> 328 bytes
  7 files changed, 442 insertions(+), 41 deletions(-)
+
+diff --git a/misc/dashboard/app/app.yaml b/misc/dashboard/app/app.yaml
+index 0fb6fec6ab..d16f1a2ff4 100644
+--- a/misc/dashboard/app/app.yaml
++++ b/misc/dashboard/app/app.yaml
+@@ -4,9 +4,11 @@ runtime: go
+ api_version: 3
+ 
+ handlers:
++- url: /static
++  static_dir: static
+ - url: /log/.+
+   script: _go_app
+-- url: /(commit|packages|result|tag|todo)
++- url: /(|commit|packages|result|tag|todo)
+   script: _go_app
+ - url: /(init|buildtest)
+   script: _go_app
+diff --git a/misc/dashboard/app/build/build.go b/misc/dashboard/app/build/build.go
+index 98ace20abf..bf298c7bed 100644
+--- a/misc/dashboard/app/build/build.go
++++ b/misc/dashboard/app/build/build.go
+@@ -27,6 +27,10 @@ type Package struct {
+ 	NextNum int    // Num of the next head Commit
+ }
+ 
++func (p *Package) String() string {
++	return fmt.Sprintf("%s: %q", p.Path, p.Name)
++}
++
+ func (p *Package) Key(c appengine.Context) *datastore.Key {
+ 	key := p.Path
+ 	if key == "" {
+@@ -35,6 +39,24 @@ func (p *Package) Key(c appengine.Context) *datastore.Key {
+ 	return datastore.NewKey(c, "Package", key, 0, nil)
+ }
+ 
++// LastCommit returns the most recent Commit for this Package.
++func (p *Package) LastCommit(c appengine.Context) (*Commit, os.Error) {
++	var commits []*Commit
++	_, err := datastore.NewQuery("Commit").
++		Ancestor(p.Key(c)).
++		Order("-Time").
++		Limit(1).
++		GetAll(c, &commits)
++	if err != nil {
++		return nil, err
++	}
++	if len(commits) != 1 {
++		return nil, datastore.ErrNoSuchEntity
++	}
++	return commits[0], nil
++}
++
++// GetPackage fetches a Package by path from the datastore.
+ func GetPackage(c appengine.Context, path string) (*Package, os.Error) {
+ 	p := &Package{Path: path}
+ 	err := datastore.Get(c, p.Key(c), p)
+@@ -59,11 +81,11 @@ type Commit struct {
+ 	Desc string `datastore:",noindex"`
+ 	Time datastore.Time
+ 
+-	// Result is the Data string of each build Result for this Commit.
++	// ResultData is the Data string of each build Result for this Commit.
+ 	// For non-Go commits, only the Results for the current Go tip, weekly,
+ 	// and release Tags are stored here. This is purely de-normalized data.
+ 	// The complete data set is stored in Result entities.
+-	Result []string `datastore:",noindex"`
++	ResultData []string `datastore:",noindex"`
+ }
+ 
+ func (com *Commit) Key(c appengine.Context) *datastore.Key {
+@@ -91,28 +113,45 @@ func (com *Commit) AddResult(c appengine.Context, r *Result) os.Error {
+ 	if err := datastore.Get(c, com.Key(c), com); err != nil {
+ 		return err
+ 	}
+-	com.Result = append(com.Result, r.Data())
++	com.ResultData = append(com.ResultData, r.Data())
+ 	_, err := datastore.Put(c, com.Key(c), com)
+ 	return err
+ }
+ 
+-func (com *Commit) HasResult(builder string) bool {
+-	for _, r := range com.Result {
+-		if strings.SplitN(r, "|", 2)[0] == builder {
+-			return true
++// Result returns the build Result for this Commit for the given builder/goHash.
++func (c *Commit) Result(builder, goHash string) *Result {
++	for _, r := range c.ResultData {
++		p := strings.SplitN(r, "|", 4)
++		if len(p) != 4 || p[0] != builder || p[3] != goHash {
++			continue
+ 		}
++		return partsToHash(c, p)
+ 	}
+-	return false
++	return nil
+ }
+ 
+-func (com *Commit) HasGoHashResult(builder, goHash string) bool {
+-	for _, r := range com.Result {
++// Results returns the build Results for this Commit for the given goHash.
++func (c *Commit) Results(goHash string) (results []*Result) {
++	for _, r := range c.ResultData {
+ 		p := strings.SplitN(r, "|", 4)
+-		if len(p) == 4 && p[0] == builder && p[3] == goHash {
+-			return true
++		if len(p) != 4 || p[3] != goHash {
++			continue
+ 		}
++		results = append(results, partsToHash(c, p))
++	}
++	return
++}
++
++// partsToHash converts a Commit and ResultData substrings to a Result.
++func partsToHash(c *Commit, p []string) *Result {
++	return &Result{
++		Builder:     p[0],
++		Hash:        c.Hash,
++		PackagePath: c.PackagePath,
++		GoHash:      p[3],
++		OK:          p[1] == "true",
++		LogHash:     p[2],
+ 	}
+-	return false
+ }
+ 
+ // A Result describes a build result for a Commit on an OS/architecture.
+@@ -137,10 +176,6 @@ func (r *Result) Key(c appengine.Context) *datastore.Key {
+ 	return datastore.NewKey(c, "Result", key, 0, p.Key(c))
+ }
+ 
+-func (r *Result) Data() string {
+-	return fmt.Sprintf("%v|%v|%v|%v", r.Builder, r.OK, r.LogHash, r.GoHash)
+-}
+-
+ func (r *Result) Valid() os.Error {
+ 	if !validHash(r.Hash) {
+ 		return os.NewError("invalid Hash")
+@@ -151,6 +186,12 @@ func (r *Result) Valid() os.Error {
+ 	return nil
+ }
+ 
++// Data returns the Result in string format
++// to be stored in Commit's ResultData field.
++func (r *Result) Data() string {
++	return fmt.Sprintf("%v|%v|%v|%v", r.Builder, r.OK, r.LogHash, r.GoHash)
++}
++
+ // A Log is a gzip-compressed log file stored under the SHA1 hash of the
+ // uncompressed log text.
+ type Log struct {
+@@ -179,12 +220,12 @@ type Tag struct {
+ }
+ 
+ func (t *Tag) Key(c appengine.Context) *datastore.Key {
+-	p := &Package{Path: ""}
++	p := &Package{}
+ 	return datastore.NewKey(c, "Tag", t.Kind, 0, p.Key(c))
+ }
+ 
+ func (t *Tag) Valid() os.Error {
+-	if t.Kind != "weekly" || t.Kind != "release" || t.Kind != "tip" {
++	if t.Kind != "weekly" && t.Kind != "release" && t.Kind != "tip" {
+ 		return os.NewError("invalid Kind")
+ 	}
+ 	if !validHash(t.Hash) {
+@@ -193,6 +234,21 @@ func (t *Tag) Valid() os.Error {
+ 	return nil
+ }
+ 
++// GetTag fetches a Tag by name from the datastore.
++func GetTag(c appengine.Context, tag string) (*Tag, os.Error) {
++	t := &Tag{Kind: tag}
++	if err := datastore.Get(c, t.Key(c), t); err != nil {
++		if err == datastore.ErrNoSuchEntity {
++			return nil, os.NewError("tag not found: " + tag)
++		}
++		return nil, err
++	}
++	if err := t.Valid(); err != nil {
++		return nil, err
++	}
++	return t, nil
++}
++
+ // commitHandler retrieves commit data or records a new commit.
+ //
+ // For GET requests it returns a Commit value for the specified
+@@ -332,13 +388,7 @@ func todoHandler(r *http.Request) (interface{}, os.Error) {
+ 			}
+ 			return nil, err
+ 		}
+-		var hasResult bool
+-		if goHash != "" {
+-			hasResult = com.HasGoHashResult(builder, goHash)
+-		} else {
+-			hasResult = com.HasResult(builder)
+-		}
+-		if !hasResult {
++		if com.Result(builder, goHash) == nil {
+ 			return com.Hash, nil
+ 		}
+ 	}
+@@ -348,7 +398,11 @@ func todoHandler(r *http.Request) (interface{}, os.Error) {
+ // packagesHandler returns a list of the non-Go Packages monitored
+ // by the dashboard.
+ func packagesHandler(r *http.Request) (interface{}, os.Error) {
+-	c := appengine.NewContext(r)
++	return Packages(appengine.NewContext(r))
++}
++
++// Packages returns all non-Go packages.
++func Packages(c appengine.Context) ([]*Package, os.Error) {
+ 	var pkgs []*Package
+ 	for t := datastore.NewQuery("Package").Run(c); ; {
+ 		pkg := new(Package)
+@@ -407,6 +461,8 @@ func resultHandler(r *http.Request) (interface{}, os.Error) {
+ 	return nil, datastore.RunInTransaction(c, tx, nil)
+ }
+ 
++// logHandler displays log text for a given hash.
++// It handles paths like "/log/hash".
+ func logHandler(w http.ResponseWriter, r *http.Request) {
+ 	c := appengine.NewContext(r)
+ 	h := r.URL.Path[len("/log/"):]
+@@ -426,12 +482,6 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
+ 	}
+ }
+ 
+-type errBadMethod string
+-
+-func (e errBadMethod) String() string {
+-	return "bad method: " + string(e)
+-}
+-
+ type dashHandler func(*http.Request) (interface{}, os.Error)
+ 
+ type dashResponse struct {
+@@ -439,6 +489,14 @@ type dashResponse struct {
+ 	Error    string
+ }
+ 
++// errBadMethod is returned by a dashHandler when
++// the request has an unsuitable method.
++type errBadMethod string
++
++func (e errBadMethod) String() string {
++	return "bad method: " + string(e)
++}
++
+ // AuthHandler wraps a http.HandlerFunc with a handler that validates the
+ // supplied key and builder query parameters.
+ func AuthHandler(h dashHandler) http.HandlerFunc {
+@@ -449,7 +507,8 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
+ 
+ 		// Validate key query parameter for POST requests only.
+ 		key := r.FormValue("key")
+-		if r.Method == "POST" && key != secretKey {
++		if r.Method == "POST" && key != secretKey &&
++			!appengine.IsDevAppServer() {
+ 			h := sha1.New()
+ 			h.Write([]byte(r.FormValue("builder") + secretKey))
+ 			if key != fmt.Sprintf("%x", h.Sum()) {
+@@ -476,7 +535,7 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
+ func initHandler(w http.ResponseWriter, r *http.Request) {
+ 	// TODO(adg): devise a better way of bootstrapping new packages
+ 	var pkgs = []*Package{
+-		&Package{Name: "Go", Path: ""},
++		&Package{Name: "Go"},
+ 		&Package{Name: "Test", Path: "code.google.com/p/go.test"},
+ 	}
+ 	c := appengine.NewContext(r)
+diff --git a/misc/dashboard/app/build/test.go b/misc/dashboard/app/build/test.go
+index 09aa89eb4f..a6a2582e18 100644
+--- a/misc/dashboard/app/build/test.go
++++ b/misc/dashboard/app/build/test.go
+@@ -17,6 +17,7 @@ import (
+ 	"json"
+ 	"os"
+ 	"strings"
++	"time"
+ 	"url"
+ )
+ 
+@@ -40,6 +41,19 @@ var testPackages = []*Package{
+ 	testPackage,
+ }
+ 
++var tCommitTime = time.Seconds() - 60*60*24*7
++
++func tCommit(hash, parentHash string) *Commit {
++	tCommitTime += 60 * 60 * 12 // each commit should have a different time
++	return &Commit{
++		Hash:       hash,
++		ParentHash: parentHash,
++		Time:       datastore.Time(tCommitTime * 1e6),
++		User:       "adg",
++		Desc:       "change description",
++	}
++}
++
+ var testRequests = []struct {
+ 	path string
+ 	vals url.Values
+@@ -50,9 +64,9 @@ var testRequests = []struct {
+ 	{"/packages", nil, nil, []*Package{testPackage}},
+ 
+ 	// Go repo
+-	{"/commit", nil, &Commit{Hash: "0001", ParentHash: "0000"}, nil},
+-	{"/commit", nil, &Commit{Hash: "0002", ParentHash: "0001"}, nil},
+-	{"/commit", nil, &Commit{Hash: "0003", ParentHash: "0002"}, nil},
++	{"/commit", nil, tCommit("0001", "0000"), nil},
++	{"/commit", nil, tCommit("0002", "0001"), nil},
++	{"/commit", nil, tCommit("0003", "0002"), nil},
+ 	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
+ 	{"/todo", url.Values{"builder": {"linux-amd64"}}, nil, "0003"},
+ 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0001", OK: true}, nil},
+@@ -67,8 +81,8 @@ var testRequests = []struct {
+ 	{"/todo", url.Values{"builder": {"linux-amd64"}}, nil, "0002"},
+ 
+ 	// branches
+-	{"/commit", nil, &Commit{Hash: "0004", ParentHash: "0003"}, nil},
+-	{"/commit", nil, &Commit{Hash: "0005", ParentHash: "0002"}, nil},
++	{"/commit", nil, tCommit("0004", "0003"), nil},
++	{"/commit", nil, tCommit("0005", "0002"), nil},
+ 	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0005"},
+ 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0005", OK: true}, nil},
+ 	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0004"},
+@@ -92,6 +106,7 @@ var testRequests = []struct {
+ 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0001", OK: true}, nil},
+ 	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, nil},
+ 	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0002"}}, nil, "1003"},
++	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0005", OK: false, Log: []byte("boo")}, nil},
+ }
+ 
+ func testHandler(w http.ResponseWriter, r *http.Request) {
+diff --git a/misc/dashboard/app/build/ui.go b/misc/dashboard/app/build/ui.go
+new file mode 100644
+index 0000000000..918b53e5bd
+--- /dev/null
++++ b/misc/dashboard/app/build/ui.go
+@@ -0,0 +1,187 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO(adg): packages at weekly/release
++// TODO(adg): some means to register new packages
++
++package build
++
++import (
++	"appengine"
++	"appengine/datastore"
++	"exp/template/html"
++	"http"
++	"os"
++	"regexp"
++	"sort"
++	"strconv"
++	"strings"
++	"template"
++)
++
++func init() {
++	http.HandleFunc("/", uiHandler)
++	html.Escape(uiTemplate)
++}
++
++// uiHandler draws the build status page.
++func uiHandler(w http.ResponseWriter, r *http.Request) {
++	// TODO(adg): put the HTML in memcache and invalidate on updates
++	c := appengine.NewContext(r)
++
++	page, _ := strconv.Atoi(r.FormValue("page"))
++	if page < 0 {
++		page = 0
++	}
++
++	commits, err := goCommits(c, page)
++	if err != nil {
++		logErr(w, r, err)
++		return
++	}
++	builders := commitBuilders(commits)
++
++	tipState, err := TagState(c, "tip")
++	if err != nil {
++		logErr(w, r, err)
++		return
++	}
++
++	p := &Pagination{}
++	if len(commits) == commitsPerPage {
++		p.Next = page + 1
++	}
++	if page > 0 {
++		p.Prev = page - 1
++		p.HasPrev = true
++	}
++	data := &uiTemplateData{commits, builders, tipState, p}
++	if err := uiTemplate.Execute(w, data); err != nil {
++		logErr(w, r, err)
++	}
++}
++
++type Pagination struct {
++	Next, Prev int
++	HasPrev    bool
++}
++
++// goCommits gets a slice of the latest Commits to the Go repository.
++// If page > 0 it paginates by commitsPerPage.
++func goCommits(c appengine.Context, page int) ([]*Commit, os.Error) {
++	q := datastore.NewQuery("Commit").
++		Ancestor((&Package{}).Key(c)).
++		Order("-Time").
++		Limit(commitsPerPage).
++		Offset(page * commitsPerPage)
++	var commits []*Commit
++	_, err := q.GetAll(c, &commits)
++	return commits, err
++}
++
++// commitBuilders returns the names of the builders that provided
++// Results for the provided commits.
++func commitBuilders(commits []*Commit) []string {
++	builders := make(map[string]bool)
++	for _, commit := range commits {
++		for _, r := range commit.Results("") {
++			builders[r.Builder] = true
++		}
++	}
++	return keys(builders)
++}
++
++func keys(m map[string]bool) (s []string) {
++	for k := range m {
++		s = append(s, k)
++	}
++	sort.Strings(s)
++	return
++}
++
++// PackageState represents the state of a Package at a tag.
++type PackageState struct {
++	*Package
++	*Commit
++	Results []*Result
++	OK      bool
++}
++
++// TagState fetches the results for all non-Go packages at the specified tag.
++func TagState(c appengine.Context, name string) ([]*PackageState, os.Error) {
++	tag, err := GetTag(c, name)
++	if err != nil {
++		return nil, err
++	}
++	pkgs, err := Packages(c)
++	if err != nil {
++		return nil, err
++	}
++	var states []*PackageState
++	for _, pkg := range pkgs {
++		commit, err := pkg.LastCommit(c)
++		if err != nil {
++			c.Errorf("no Commit found: %v", pkg)
++			continue
++		}
++		results := commit.Results(tag.Hash)
++		ok := len(results) > 0
++		for _, r := range results {
++			ok = ok && r.OK
++		}
++		states = append(states, &PackageState{
++			pkg, commit, results, ok,
++		})
++	}
++	return states, nil
++}
++
++type uiTemplateData struct {
++	Commits    []*Commit
++	Builders   []string
++	TipState   []*PackageState
++	Pagination *Pagination
++}
++
++var uiTemplate = template.Must(
++	template.New("ui").
++		Funcs(template.FuncMap{
++			"builderTitle": builderTitle,
++			"shortHash":    shortHash,
++			"repoURL":      repoURL,
++		}).
++		ParseFile("build/ui.html"),
++)
++
++// builderTitle formats "linux-amd64-foo" as "linux amd64 foo".
++func builderTitle(s string) string {
++	return strings.Replace(s, "-", " ", -1)
++}
++
++// shortHash returns a the short version of a hash.
++func shortHash(hash string) string {
++	if len(hash) > 12 {
++		hash = hash[:12]
++	}
++	return hash
++}
++
++// repoRe matches Google Code repositories and subrepositories (without paths).
++var repoRe = regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+)(\.[a-z0-9\-]+)?$`)
++
++// repoURL returns the URL of a change at a Google Code repository or subrepo.
++func repoURL(hash, packagePath string) (string, os.Error) {
++	if packagePath == "" {
++		return "https://code.google.com/p/go/source/detail?r=" + hash, nil
++	}
++	m := repoRe.FindStringSubmatch(packagePath)
++	if m == nil {
++		return "", os.NewError("unrecognized package: " + packagePath)
++	}
++	url := "https://code.google.com/p/" + m[1] + "/source/detail?r=" + hash
++	if len(m) > 2 {
++		url += "&repo=" + m[2][1:]
++	}
++	return url, nil
++}
+diff --git a/misc/dashboard/app/build/ui.html b/misc/dashboard/app/build/ui.html
+new file mode 100644
+index 0000000000..684ae1333f
+--- /dev/null
++++ b/misc/dashboard/app/build/ui.html
+@@ -0,0 +1,138 @@
++<!DOCTYPE HTML>
++<html>
++  <head>
++    <title>Go Build Dashboard</title>
++    <style>
++      body {
++        font-family: sans-serif;
++        padding: 0; margin: 0;
++      }
++      h1, h2 {
++      	margin: 0;
++        padding: 5px;
++      }
++      h1 {
++      	background: #eee;
++      }
++      h2 {
++        margin-top: 10px;
++      }
++      .build, .packages {
++        margin: 5px;
++        border-collapse: collapse;
++      }
++      .build td, .build th, .packages td, .packages th {
++        vertical-align: top;
++        padding: 2px 4px;
++        font-size: 10pt;
++      }
++      .build tr:nth-child(2n) {
++        background-color: #f0f0f0;
++      }
++      .build .result {
++        text-align: center;
++        width: 50px;
++      }
++      .build .time {
++        color: #666;
++      }
++      .build .descr, .build .time, .build .user {
++        white-space: nowrap;
++      }
++      .paginate {
++        padding: 0.5em;
++      }
++      .paginate a {
++        padding: 0.5em;
++        background: #eee;
++        color: blue;
++      }
++      .paginate a.inactive {
++        color: #999;
++      }
++    </style>
++  </head>
++  <body>
++
++    <h1>Go Build Status</h1>
++
++    <h2>Go</h2>
++
++  {{if $.Commits}}
++
++    <table class="build">
++      <tr>
++        <th>&nbsp;</th>
++    {{range $.Builders}}
++        <th class="result">{{builderTitle .}}</th>
++    {{end}}
++      </tr>
++    {{range $c := $.Commits}}
++      <tr>
++      <td class="hash"><a href="{{repoURL .Hash ""}}">{{shortHash .Hash}}</a></td>
++      {{range $.Builders}}
++      <td class="result">
++      {{with $c.Result . ""}}
++        {{if .OK}}
++        <span class="ok">ok</span>
++        {{else}}
++        <a href="/log/{{.LogHash}}" class="fail">fail</a>
++        {{end}}
++      {{else}}
++        &nbsp;
++      {{end}}
++      </td>
++      {{end}}
++      <td class="user">{{.User}}</td>
++      <td class="time">{{.Time.Time}}</td>
++      <td class="desc">{{.Desc}}</td>
++      </tr>
++    {{end}}
++    </table>
++
++    {{with $.Pagination}}
++    <div class="paginate">
++      <a {{if .HasPrev}}href="?page={{.Prev}}"{{else}}class="inactive"{{end}}>prev</a>
++      <a {{if .Next}}href="?page={{.Next}}"{{else}}class="inactive"{{end}}>next</a>
++      <a {{if .HasPrev}}href="?page=0}"{{else}}class="inactive"{{end}}>top</a>
++    </div>
++    {{end}}
++
++  {{else}}
++    <p>No commits to display. Hm.</p>
++  {{end}}
++
++    <h2>Other packages</h2>
++
++    <table class="packages">
++    <tr>
++      <th>State</th>
++      <th>Package</th>
++      <th>&nbsp;</th>
++    </tr>
++  {{range $state := $.TipState}}
++    <tr>
++      <td>
++    {{if .Results}}
++        <img src="/static/status_{{if .OK}}good{{else}}alert{{end}}.gif" />
++    {{else}}
++        &nbsp;
++    {{end}}
++      </td>
++      <td><a title="{{.Package.Path}}">{{.Package.Name}}</a></td>
++      <td>
++    {{range .Results}}
++        <div>
++          {{$h := $state.Commit.Hash}}
++          <a href="{{repoURL $h $state.Commit.PackagePath}}">{{shortHash $h}}</a>
++          <a href="/log/{{.LogHash}}">failed</a>
++          on {{.Builder}}/<a href="{{repoURL .GoHash ""}}">{{shortHash .GoHash}}</a>
++        </a></div>
++    {{end}}
++      </td>
++    </tr>
++  {{end}}
++    </table>
++
++  </body>
++</html>
+diff --git a/misc/dashboard/app/static/status_alert.gif b/misc/dashboard/app/static/status_alert.gif
+new file mode 100644
+index 0000000000..495d9d2e0c
+Binary files /dev/null and b/misc/dashboard/app/static/status_alert.gif differ
+diff --git a/misc/dashboard/app/static/status_good.gif b/misc/dashboard/app/static/status_good.gif
+new file mode 100644
+index 0000000000..ef9c5a8f64
+Binary files /dev/null and b/misc/dashboard/app/static/status_good.gif differ

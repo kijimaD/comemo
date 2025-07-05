@@ -22,9 +22,186 @@ Date:   Tue Mar 21 09:58:03 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go | 55 ++++++++++++++++++-------
  src/cmd/compile/internal/types2/expr.go        |  1 +
  src/go/types/assignments.go                    | 57 ++++++++++++++++++--------
  src/go/types/expr.go                           |  1 +
  4 files changed, 83 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 9b130b48e1..2d6391cf59 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -387,30 +387,55 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
+ }
+ 
+ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+-	rhs, commaOk := check.exprList(orig_rhs, len(lhs) == 2)
++	l, r := len(lhs), len(orig_rhs)
++
++	// If l == 1 and the rhs is a single call, for a better
++	// error message don't handle it as n:n mapping below.
++	isCall := false
++	if r == 1 {
++		_, isCall = unparen(orig_rhs[0]).(*syntax.CallExpr)
++	}
++
++	// If we have a n:n mapping from lhs variable to rhs expression,
++	// each value can be assigned to its corresponding variable.
++	if l == r && !isCall {
++		for i, lhs := range lhs {
++			var x operand
++			check.expr(&x, orig_rhs[i])
++			check.assignVar(lhs, &x)
++		}
++		return
++	}
+ 
+-	if len(lhs) != len(rhs) {
++	// If we don't have an n:n mapping, the rhs must be a single expression
++	// resulting in 2 or more values; otherwise we have an assignment mismatch.
++	if r != 1 {
++		check.assignError(orig_rhs, l, r)
+ 		check.useLHS(lhs...)
+-		// don't report an error if we already reported one
+-		for _, x := range rhs {
+-			if x.mode == invalid {
+-				return
+-			}
+-		}
+-		check.assignError(orig_rhs, len(lhs), len(rhs))
++		check.use(orig_rhs...)
+ 		return
+ 	}
+ 
+-	if commaOk {
+-		check.assignVar(lhs[0], rhs[0])
+-		check.assignVar(lhs[1], rhs[1])
+-		check.recordCommaOkTypes(orig_rhs[0], rhs)
++	rhs, commaOk := check.multiExpr(orig_rhs[0], l == 2)
++	r = len(rhs)
++	if l == r {
++		for i, lhs := range lhs {
++			check.assignVar(lhs, rhs[i])
++		}
++		if commaOk {
++			check.recordCommaOkTypes(orig_rhs[0], rhs)
++		}
+ 		return
+ 	}
+ 
+-	for i, lhs := range lhs {
+-		check.assignVar(lhs, rhs[i])
++	// In all other cases we have an assignment mismatch.
++	// Only report a mismatch error if there was no error
++	// on the rhs.
++	if rhs[0].mode != invalid {
++		check.assignError(orig_rhs, l, r)
+ 	}
++	check.useLHS(lhs...)
++	// orig_rhs[0] was already evaluated
+ }
+ 
+ // unpackExpr unpacks a *syntax.ListExpr into a list of syntax.Expr.
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 1217d2fc7e..fdc7bdbef0 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1826,6 +1826,7 @@ func (check *Checker) expr(x *operand, e syntax.Expr) {
+ // If allowCommaOk is set and e is a map index, comma-ok, or comma-err
+ // expression, the result is a two-element list containing the value
+ // of e, and an untyped bool value or an error value, respectively.
++// If an error occurred, list[0] is not valid.
+ func (check *Checker) multiExpr(e syntax.Expr, allowCommaOk bool) (list []*operand, commaOk bool) {
+ 	var x operand
+ 	check.rawExpr(&x, e, nil, false)
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 9d6a1ef4ed..05049e0a6f 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -372,31 +372,56 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.St
+ 	}
+ }
+ 
+-func (check *Checker) assignVars(lhs, origRHS []ast.Expr) {
+-	rhs, commaOk := check.exprList(origRHS, len(lhs) == 2)
++func (check *Checker) assignVars(lhs, orig_rhs []ast.Expr) {
++	l, r := len(lhs), len(orig_rhs)
++
++	// If l == 1 and the rhs is a single call, for a better
++	// error message don't handle it as n:n mapping below.
++	isCall := false
++	if r == 1 {
++		_, isCall = unparen(orig_rhs[0]).(*ast.CallExpr)
++	}
++
++	// If we have a n:n mapping from lhs variable to rhs expression,
++	// each value can be assigned to its corresponding variable.
++	if l == r && !isCall {
++		for i, lhs := range lhs {
++			var x operand
++			check.expr(&x, orig_rhs[i])
++			check.assignVar(lhs, &x)
++		}
++		return
++	}
+ 
+-	if len(lhs) != len(rhs) {
++	// If we don't have an n:n mapping, the rhs must be a single expression
++	// resulting in 2 or more values; otherwise we have an assignment mismatch.
++	if r != 1 {
++		check.assignError(orig_rhs, l, r)
+ 		check.useLHS(lhs...)
+-		// don't report an error if we already reported one
+-		for _, x := range rhs {
+-			if x.mode == invalid {
+-				return
+-			}
+-		}
+-		check.assignError(origRHS, len(lhs), len(rhs))
++		check.use(orig_rhs...)
+ 		return
+ 	}
+ 
+-	if commaOk {
+-		check.assignVar(lhs[0], rhs[0])
+-		check.assignVar(lhs[1], rhs[1])
+-		check.recordCommaOkTypes(origRHS[0], rhs)
++	rhs, commaOk := check.multiExpr(orig_rhs[0], l == 2)
++	r = len(rhs)
++	if l == r {
++		for i, lhs := range lhs {
++			check.assignVar(lhs, rhs[i])
++		}
++		if commaOk {
++			check.recordCommaOkTypes(orig_rhs[0], rhs)
++		}
+ 		return
+ 	}
+ 
+-	for i, lhs := range lhs {
+-		check.assignVar(lhs, rhs[i])
++	// In all other cases we have an assignment mismatch.
++	// Only report a mismatch error if there was no error
++	// on the rhs.
++	if rhs[0].mode != invalid {
++		check.assignError(orig_rhs, l, r)
+ 	}
++	check.useLHS(lhs...)
++	// orig_rhs[0] was already evaluated
+ }
+ 
+ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 3a4b30d2f2..1abf963b7f 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1773,6 +1773,7 @@ func (check *Checker) expr(x *operand, e ast.Expr) {
+ // If allowCommaOk is set and e is a map index, comma-ok, or comma-err
+ // expression, the result is a two-element list containing the value
+ // of e, and an untyped bool value or an error value, respectively.
++// If an error occurred, list[0] is not valid.
+ func (check *Checker) multiExpr(e ast.Expr, allowCommaOk bool) (list []*operand, commaOk bool) {
+ 	var x operand
+ 	check.rawExpr(&x, e, nil, false)

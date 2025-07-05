@@ -21,8 +21,96 @@ Date:   Mon Jan 30 14:55:12 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/36030
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/plive.go | 31 +++++++++++++++++++++++--------
  src/cmd/compile/internal/gc/ssa.go   |  2 ++
  test/live.go                         | 12 ++++++++++++
  3 files changed, 37 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 03161f889f..dad9ab5acf 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1192,18 +1192,32 @@ func livenessepilogue(lv *Liveness) {
+ 	avarinit := bvalloc(nvars)
+ 	any := bvalloc(nvars)
+ 	all := bvalloc(nvars)
+-	pparamout := bvalloc(localswords())
+-
+-	// Record pointers to heap-allocated pparamout variables.  These
+-	// are implicitly read by post-deferreturn code and thus must be
+-	// kept live throughout the function (if there is any defer that
+-	// recovers).
++	outLive := bvalloc(argswords())       // always-live output params
++	outLiveHeap := bvalloc(localswords()) // always-live pointers to heap-allocated copies of output params
++
++	// If there is a defer (that could recover), then all output
++	// parameters are live all the time.  In addition, any locals
++	// that are pointers to heap-allocated output parameters are
++	// also always live (post-deferreturn code needs these
++	// pointers to copy values back to the stack).
++	// TODO: if the output parameter is heap-allocated, then we
++	// don't need to keep the stack copy live?
+ 	if hasdefer {
+ 		for _, n := range lv.vars {
++			if n.Class == PPARAMOUT {
++				if n.IsOutputParamHeapAddr() {
++					// Just to be paranoid.
++					Fatalf("variable %v both output param and heap output param", n)
++				}
++				// Needzero not necessary, as the compiler
++				// explicitly zeroes output vars at start of fn.
++				xoffset := n.Xoffset
++				onebitwalktype1(n.Type, &xoffset, outLive)
++			}
+ 			if n.IsOutputParamHeapAddr() {
+ 				n.Name.Needzero = true
+ 				xoffset := n.Xoffset + stkptrsize
+-				onebitwalktype1(n.Type, &xoffset, pparamout)
++				onebitwalktype1(n.Type, &xoffset, outLiveHeap)
+ 			}
+ 		}
+ 	}
+@@ -1357,7 +1371,8 @@ func livenessepilogue(lv *Liveness) {
+ 
+ 				// Mark pparamout variables (as described above)
+ 				if p.As == obj.ACALL {
+-					locals.Or(locals, pparamout)
++					args.Or(args, outLive)
++					locals.Or(locals, outLiveHeap)
+ 				}
+ 
+ 				// Show live pointer bitmaps.
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index dac3787dc9..05e97a904f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3200,6 +3200,8 @@ func (s *state) canSSA(n *Node) bool {
+ 			// TODO: handle this case?  Named return values must be
+ 			// in memory so that the deferred function can see them.
+ 			// Maybe do: if !strings.HasPrefix(n.String(), "~") { return false }
++			// Or maybe not, see issue 18860.  Even unnamed return values
++			// must be written back so if a defer recovers, the caller can see them.
+ 			return false
+ 		}
+ 		if s.cgoUnsafeArgs {
+diff --git a/test/live.go b/test/live.go
+index 462f3ef12e..0f2d81336d 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -674,3 +674,15 @@ type T struct{}
+ func (*T) Foo(ptr *int) {}
+ 
+ type R struct{ *T } // ERRORAUTO "live at entry to \(\*R\)\.Foo: \.this ptr" "live at entry to R\.Foo: \.this ptr"
++
++// issue 18860: output arguments must be live all the time if there is a defer.
++// In particular, at printint r must be live.
++func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
++	r = p
++	defer func() {
++		recover()
++	}() // ERROR "live at call to deferproc: q r$" "live at call to deferreturn: r$"
++	printint(0) // ERROR "live at call to printint: q r$"
++	r = q
++	return // ERROR "live at call to deferreturn: r$"
++}

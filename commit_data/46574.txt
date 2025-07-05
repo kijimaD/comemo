@@ -14,10 +14,140 @@ Date:   Tue Jan 12 11:34:00 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go             |  2 --
  src/cmd/compile/internal/ssagen/abi.go          |  5 ++++-
  src/cmd/compile/internal/staticdata/data.go     | 13 ++++++++-----
  src/cmd/compile/internal/typecheck/func.go      |  4 ----
  src/cmd/compile/internal/typecheck/typecheck.go |  7 -------
  5 files changed, 12 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index c3756309ea..1541bc4285 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -20,7 +20,6 @@ import (
+ 	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/ssagen"
+-	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/compile/internal/walk"
+@@ -194,7 +193,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 
+ 	typecheck.Target = new(ir.Package)
+ 
+-	typecheck.NeedFuncSym = staticdata.NeedFuncSym
+ 	typecheck.NeedITab = func(t, iface *types.Type) { reflectdata.ITabAddr(t, iface) }
+ 	typecheck.NeedRuntimeType = reflectdata.NeedRuntimeType // TODO(rsc): typenamesym for lock?
+ 
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 1c013dd2d8..dc27ec3a29 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -14,6 +14,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/escape"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -137,6 +138,8 @@ func ReadSymABIs(file, myimportpath string) {
+ // For body-less functions, we only create the LSym; for functions
+ // with bodies call a helper to setup up / populate the LSym.
+ func InitLSym(f *ir.Func, hasBody bool) {
++	staticdata.NeedFuncSym(f.Sym())
++
+ 	// FIXME: for new-style ABI wrappers, we set up the lsym at the
+ 	// point the wrapper is created.
+ 	if f.LSym != nil && base.Flag.ABIWrap {
+@@ -152,7 +155,7 @@ func InitLSym(f *ir.Func, hasBody bool) {
+ // makes calls to helpers to create ABI wrappers if needed.
+ func selectLSym(f *ir.Func, hasBody bool) {
+ 	if f.LSym != nil {
+-		base.Fatalf("Func.initLSym called twice")
++		base.FatalfAt(f.Pos(), "Func.initLSym called twice on %v", f)
+ 	}
+ 
+ 	if nam := f.Nname; !ir.IsBlank(nam) {
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index a2a844f940..4b12590fde 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -265,7 +265,7 @@ func FuncLinksym(n *ir.Name) *obj.LSym {
+ 	return FuncSym(n.Sym()).Linksym()
+ }
+ 
+-// NeedFuncSym ensures that s·f is exported.
++// NeedFuncSym ensures that s·f is exported, if needed.
+ // It is only used with -dynlink.
+ // When not compiling for dynamic linking,
+ // the funcsyms are created as needed by
+@@ -275,8 +275,13 @@ func FuncLinksym(n *ir.Name) *obj.LSym {
+ // So instead, when dynamic linking, we only create
+ // the s·f stubs in s's package.
+ func NeedFuncSym(s *types.Sym) {
++	if base.Ctxt.InParallel {
++		// The append below probably just needs to lock
++		// funcsymsmu, like in FuncSym.
++		base.Fatalf("NeedFuncSym must be called in serial")
++	}
+ 	if !base.Ctxt.Flag_dynlink {
+-		base.Fatalf("NeedFuncSym: dynlink")
++		return
+ 	}
+ 	if s.IsBlank() {
+ 		return
+@@ -287,9 +292,7 @@ func NeedFuncSym(s *types.Sym) {
+ 		// get funcsyms.
+ 		return
+ 	}
+-	if _, existed := s.Pkg.LookupOK(ir.FuncSymName(s)); !existed {
+-		funcsyms = append(funcsyms, s)
+-	}
++	funcsyms = append(funcsyms, s)
+ }
+ 
+ func WriteFuncSyms() {
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 12762f7ee8..8f7411daec 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -364,10 +364,6 @@ func tcFunc(n *ir.Func) {
+ 		n.Nname.SetSym(ir.MethodSym(rcvr.Type, n.Shortname))
+ 		Declare(n.Nname, ir.PFUNC)
+ 	}
+-
+-	if base.Ctxt.Flag_dynlink && !inimport && n.Nname != nil {
+-		NeedFuncSym(n.Sym())
+-	}
+ }
+ 
+ // tcCall typechecks an OCALL node.
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 3fc077b00c..814af59772 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -24,7 +24,6 @@ var inimport bool // set during import
+ var TypecheckAllowed bool
+ 
+ var (
+-	NeedFuncSym     = func(*types.Sym) {}
+ 	NeedITab        = func(t, itype *types.Type) {}
+ 	NeedRuntimeType = func(*types.Type) {}
+ )
+@@ -1140,12 +1139,6 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
+ 	n.SetOp(ir.OMETHEXPR)
+ 	n.Selection = m
+ 	n.SetType(NewMethodType(m.Type, n.X.Type()))
+-
+-	// Issue 25065. Make sure that we emit the symbol for a local method.
+-	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == types.LocalPkg) {
+-		NeedFuncSym(n.FuncName().Sym())
+-	}
+-
+ 	return n
+ }
+ 

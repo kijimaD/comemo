@@ -12,7 +12,7 @@ Date:   Wed May 23 16:53:55 2018 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  .../golang.org/x/sys/unix/dev_solaris_test.go      | 51 ------------
  .../golang.org/x/sys/unix/syscall_darwin_test.go   | 19 +++++
  .../golang.org/x/sys/unix/syscall_freebsd_test.go  | 15 ++++
@@ -20,3 +20,304 @@ Date:   Wed May 23 16:53:55 2018 -0400
  src/cmd/vendor/golang.org/x/sys/unix/xattr_test.go | 92 ++++++++++++++++++++++
  src/cmd/vendor/vendor.json                         | 30 +++----
  6 files changed, 156 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/dev_solaris_test.go b/src/cmd/vendor/golang.org/x/sys/unix/dev_solaris_test.go
+deleted file mode 100644
+index 656508c971..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/dev_solaris_test.go
++++ /dev/null
+@@ -1,51 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build go1.7
+-
+-package unix_test
+-
+-import (
+-	"fmt"
+-	"testing"
+-
+-	"golang.org/x/sys/unix"
+-)
+-
+-func TestDevices(t *testing.T) {
+-	testCases := []struct {
+-		path  string
+-		major uint32
+-		minor uint32
+-	}{
+-		// Well-known major/minor numbers on OpenSolaris according to
+-		// /etc/name_to_major
+-		{"/dev/zero", 134, 12},
+-		{"/dev/null", 134, 2},
+-		{"/dev/ptyp0", 172, 0},
+-		{"/dev/ttyp0", 175, 0},
+-		{"/dev/ttyp1", 175, 1},
+-	}
+-	for _, tc := range testCases {
+-		t.Run(fmt.Sprintf("%s %v:%v", tc.path, tc.major, tc.minor), func(t *testing.T) {
+-			var stat unix.Stat_t
+-			err := unix.Stat(tc.path, &stat)
+-			if err != nil {
+-				t.Errorf("failed to stat device: %v", err)
+-				return
+-			}
+-
+-			dev := uint64(stat.Rdev)
+-			if unix.Major(dev) != tc.major {
+-				t.Errorf("for %s Major(%#x) == %d, want %d", tc.path, dev, unix.Major(dev), tc.major)
+-			}
+-			if unix.Minor(dev) != tc.minor {
+-				t.Errorf("for %s Minor(%#x) == %d, want %d", tc.path, dev, unix.Minor(dev), tc.minor)
+-			}
+-			if unix.Mkdev(tc.major, tc.minor) != dev {
+-				t.Errorf("for %s Mkdev(%d, %d) == %#x, want %#x", tc.path, tc.major, tc.minor, unix.Mkdev(tc.major, tc.minor), dev)
+-			}
+-		})
+-	}
+-}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin_test.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin_test.go
+new file mode 100644
+index 0000000000..65691d5c1b
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin_test.go
+@@ -0,0 +1,19 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix_test
++
++// stringsFromByteSlice converts a sequence of attributes to a []string.
++// On Darwin, each entry is a NULL-terminated string.
++func stringsFromByteSlice(buf []byte) []string {
++	var result []string
++	off := 0
++	for i, b := range buf {
++		if b == 0 {
++			result = append(result, string(buf[off:i]))
++			off = i + 1
++		}
++	}
++	return result
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_test.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_test.go
+index 654439e02b..0fec1a8277 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_test.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_test.go
+@@ -295,3 +295,18 @@ func TestCapRightsSetAndClear(t *testing.T) {
+ 		t.Fatalf("Wrong rights set")
+ 	}
+ }
++
++// stringsFromByteSlice converts a sequence of attributes to a []string.
++// On FreeBSD, each entry consists of a single byte containing the length
++// of the attribute name, followed by the attribute name.
++// The name is _not_ NULL-terminated.
++func stringsFromByteSlice(buf []byte) []string {
++	var result []string
++	i := 0
++	for i < len(buf) {
++		next := i + 1 + int(buf[i])
++		result = append(result, string(buf[i+1:next]))
++		i = next
++	}
++	return result
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_test.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_test.go
+index a2bc44015f..9c99893c36 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_test.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_test.go
+@@ -285,7 +285,7 @@ func TestSchedSetaffinity(t *testing.T) {
+ func TestStatx(t *testing.T) {
+ 	var stx unix.Statx_t
+ 	err := unix.Statx(unix.AT_FDCWD, ".", 0, 0, &stx)
+-	if err == unix.ENOSYS {
++	if err == unix.ENOSYS || err == unix.EPERM {
+ 		t.Skip("statx syscall is not available, skipping test")
+ 	} else if err != nil {
+ 		t.Fatalf("Statx: %v", err)
+@@ -371,3 +371,17 @@ func TestStatx(t *testing.T) {
+ 		t.Errorf("Statx: returned stat mtime does not match Lstat")
+ 	}
+ }
++
++// stringsFromByteSlice converts a sequence of attributes to a []string.
++// On Linux, each entry is a NULL-terminated string.
++func stringsFromByteSlice(buf []byte) []string {
++	var result []string
++	off := 0
++	for i, b := range buf {
++		if b == 0 {
++			result = append(result, string(buf[off:i]))
++			off = i + 1
++		}
++	}
++	return result
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/xattr_test.go b/src/cmd/vendor/golang.org/x/sys/unix/xattr_test.go
+new file mode 100644
+index 0000000000..78cf9224fd
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/sys/unix/xattr_test.go
+@@ -0,0 +1,92 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd linux
++
++package unix_test
++
++import (
++	"runtime"
++	"strings"
++	"testing"
++
++	"golang.org/x/sys/unix"
++)
++
++func TestXattr(t *testing.T) {
++	defer chtmpdir(t)()
++
++	f := "xattr1"
++	touch(t, f)
++
++	xattrName := "user.test"
++	xattrDataSet := "gopher"
++	err := unix.Setxattr(f, xattrName, []byte(xattrDataSet), 0)
++	if err == unix.ENOTSUP || err == unix.EOPNOTSUPP {
++		t.Skip("filesystem does not support extended attributes, skipping test")
++	} else if err != nil {
++		t.Fatalf("Setxattr: %v", err)
++	}
++
++	// find size
++	size, err := unix.Listxattr(f, nil)
++	if err != nil {
++		t.Fatalf("Listxattr: %v", err)
++	}
++
++	if size <= 0 {
++		t.Fatalf("Listxattr returned an empty list of attributes")
++	}
++
++	buf := make([]byte, size)
++	read, err := unix.Listxattr(f, buf)
++	if err != nil {
++		t.Fatalf("Listxattr: %v", err)
++	}
++
++	xattrs := stringsFromByteSlice(buf[:read])
++
++	xattrWant := xattrName
++	if runtime.GOOS == "freebsd" {
++		// On FreeBSD, the namespace is stored separately from the xattr
++		// name and Listxattr doesn't return the namespace prefix.
++		xattrWant = strings.TrimPrefix(xattrWant, "user.")
++	}
++	found := false
++	for _, name := range xattrs {
++		if name == xattrWant {
++			found = true
++		}
++	}
++
++	if !found {
++		t.Errorf("Listxattr did not return previously set attribute '%s'", xattrName)
++	}
++
++	// find size
++	size, err = unix.Getxattr(f, xattrName, nil)
++	if err != nil {
++		t.Fatalf("Getxattr: %v", err)
++	}
++
++	if size <= 0 {
++		t.Fatalf("Getxattr returned an empty attribute")
++	}
++
++	xattrDataGet := make([]byte, size)
++	_, err = unix.Getxattr(f, xattrName, xattrDataGet)
++	if err != nil {
++		t.Fatalf("Getxattr: %v", err)
++	}
++
++	got := string(xattrDataGet)
++	if got != xattrDataSet {
++		t.Errorf("Getxattr: expected attribute value %s, got %s", xattrDataSet, got)
++	}
++
++	err = unix.Removexattr(f, xattrName)
++	if err != nil {
++		t.Fatalf("Removexattr: %v", err)
++	}
++}
+diff --git a/src/cmd/vendor/vendor.json b/src/cmd/vendor/vendor.json
+index 59e5621ac3..779a2bcacf 100644
+--- a/src/cmd/vendor/vendor.json
++++ b/src/cmd/vendor/vendor.json
+@@ -125,46 +125,46 @@
+ 			"revisionTime": "2018-05-14T23:55:10Z"
+ 		},
+ 		{
+-			"checksumSHA1": "DobNmhseFygjQALN26YxDcGfrWs=",
++			"checksumSHA1": "6dKfNPNpUf9n8ya24buuzpMFfjs=",
+ 			"path": "golang.org/x/sys/unix",
+-			"revision": "dc67e5b82c2c38696b5fbf0bce4f7a6b2340d5a8",
+-			"revisionTime": "2018-05-22T22:13:16Z"
++			"revision": "f3b0f5faf591842dced5f027709e1706df17b749",
++			"revisionTime": "2018-05-23T20:41:33Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "oOO80EfXGcEl+tZoYAZVs6VRpE8=",
+ 			"path": "golang.org/x/sys/windows",
+-			"revision": "dc67e5b82c2c38696b5fbf0bce4f7a6b2340d5a8",
+-			"revisionTime": "2018-05-22T22:13:16Z"
++			"revision": "f3b0f5faf591842dced5f027709e1706df17b749",
++			"revisionTime": "2018-05-23T20:41:33Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "BnZkq/3Ejb7961bDhybRraW6jzI=",
+ 			"path": "golang.org/x/sys/windows/registry",
+-			"revision": "dc67e5b82c2c38696b5fbf0bce4f7a6b2340d5a8",
+-			"revisionTime": "2018-05-22T22:13:16Z"
++			"revision": "f3b0f5faf591842dced5f027709e1706df17b749",
++			"revisionTime": "2018-05-23T20:41:33Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "dQbFeoiAxfB3WFFVcAdeSwSgeDk=",
+ 			"path": "golang.org/x/sys/windows/svc",
+-			"revision": "dc67e5b82c2c38696b5fbf0bce4f7a6b2340d5a8",
+-			"revisionTime": "2018-05-22T22:13:16Z"
++			"revision": "f3b0f5faf591842dced5f027709e1706df17b749",
++			"revisionTime": "2018-05-23T20:41:33Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "e9KJPWrdqg5PMkbE2w60Io8rY4M=",
+ 			"path": "golang.org/x/sys/windows/svc/debug",
+-			"revision": "dc67e5b82c2c38696b5fbf0bce4f7a6b2340d5a8",
+-			"revisionTime": "2018-05-22T22:13:16Z"
++			"revision": "f3b0f5faf591842dced5f027709e1706df17b749",
++			"revisionTime": "2018-05-23T20:41:33Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "dz53pQfqAnXG8HdJj+nazXN9YRw=",
+ 			"path": "golang.org/x/sys/windows/svc/eventlog",
+-			"revision": "dc67e5b82c2c38696b5fbf0bce4f7a6b2340d5a8",
+-			"revisionTime": "2018-05-22T22:13:16Z"
++			"revision": "f3b0f5faf591842dced5f027709e1706df17b749",
++			"revisionTime": "2018-05-23T20:41:33Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "wz+0tf0Z7cVBaz/35P1m1cAiI7k=",
+ 			"path": "golang.org/x/sys/windows/svc/mgr",
+-			"revision": "dc67e5b82c2c38696b5fbf0bce4f7a6b2340d5a8",
+-			"revisionTime": "2018-05-22T22:13:16Z"
++			"revision": "f3b0f5faf591842dced5f027709e1706df17b749",
++			"revisionTime": "2018-05-23T20:41:33Z"
+ 		}
+ 	],
+ 	"rootPath": "/cmd"

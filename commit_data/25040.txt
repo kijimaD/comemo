@@ -9,7 +9,7 @@ Date:   Wed Sep 16 11:15:54 2015 -0700
     Change-Id: I52d059144608912e6f7f9516e4961a75e9463355
     Reviewed-on: https://go-review.googlesource.com/14644
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/api.go              |  2 +-
  src/go/types/assignments.go      | 26 +++++++-------
  src/go/types/builtins.go         | 12 +++----
@@ -22,3 +22,497 @@ Date:   Wed Sep 16 11:15:54 2015 -0700
  src/go/types/testdata/issues.src | 53 +++++++++++++++++++++++++++
  src/go/types/testdata/stmt0.src  |  4 +--
  11 files changed, 141 insertions(+), 80 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index b3bf6f0147..21f885d404 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -320,7 +320,7 @@ func AssertableTo(V *Interface, T Type) bool {
+ // AssignableTo reports whether a value of type V is assignable to a variable of type T.
+ func AssignableTo(V, T Type) bool {
+ 	x := operand{mode: value, typ: V}
+-	return x.assignableTo(nil, T) // config not needed for non-constant x
++	return x.assignableTo(nil, T, nil) // config not needed for non-constant x
+ }
+ 
+ // ConvertibleTo reports whether a value of type V is convertible to a value of type T.
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index e88de56a0d..4231196b2d 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -16,10 +16,9 @@ import (
+ // type. If x.mode == invalid upon return, then assignment has already
+ // issued an error message and the caller doesn't have to report another.
+ // Use T == nil to indicate assignment to an untyped blank identifier.
+-//
+-// TODO(gri) Should find a better way to handle in-band errors.
+-//
+-func (check *Checker) assignment(x *operand, T Type) bool {
++// If the result is false and a non-nil reason is provided, it may be set
++// to a more detailed explanation of the failure (result != "").
++func (check *Checker) assignment(x *operand, T Type, reason *string) bool {
+ 	switch x.mode {
+ 	case invalid:
+ 		return true // error reported before
+@@ -58,11 +57,12 @@ func (check *Checker) assignment(x *operand, T Type) bool {
+ 			return false
+ 		}
+ 	}
++	// x.typ is typed
+ 
+ 	// spec: "If a left-hand side is the blank identifier, any typed or
+ 	// non-constant value except for the predeclared identifier nil may
+ 	// be assigned to it."
+-	return T == nil || x.assignableTo(check.conf, T)
++	return T == nil || x.assignableTo(check.conf, T, reason)
+ }
+ 
+ func (check *Checker) initConst(lhs *Const, x *operand) {
+@@ -88,9 +88,9 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
+ 		lhs.typ = x.typ
+ 	}
+ 
+-	if !check.assignment(x, lhs.typ) {
++	if reason := ""; !check.assignment(x, lhs.typ, &reason) {
+ 		if x.mode != invalid {
+-			check.errorf(x.pos(), "cannot define constant %s (type %s) as %s", lhs.Name(), lhs.typ, x)
++			check.xerrorf(x.pos(), reason, "cannot define constant %s (type %s) as %s", lhs.Name(), lhs.typ, x)
+ 		}
+ 		return
+ 	}
+@@ -122,13 +122,13 @@ func (check *Checker) initVar(lhs *Var, x *operand, result bool) Type {
+ 		lhs.typ = typ
+ 	}
+ 
+-	if !check.assignment(x, lhs.typ) {
++	if reason := ""; !check.assignment(x, lhs.typ, &reason) {
+ 		if x.mode != invalid {
+ 			if result {
+ 				// don't refer to lhs.name because it may be an anonymous result parameter
+-				check.errorf(x.pos(), "cannot return %s as value of type %s", x, lhs.typ)
++				check.xerrorf(x.pos(), reason, "cannot return %s as value of type %s", x, lhs.typ)
+ 			} else {
+-				check.errorf(x.pos(), "cannot initialize %s with %s", lhs, x)
++				check.xerrorf(x.pos(), reason, "cannot initialize %s with %s", lhs, x)
+ 			}
+ 		}
+ 		return nil
+@@ -148,7 +148,7 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
+ 	// Don't evaluate lhs if it is the blank identifier.
+ 	if ident != nil && ident.Name == "_" {
+ 		check.recordDef(ident, nil)
+-		if !check.assignment(x, nil) {
++		if !check.assignment(x, nil, nil) {
+ 			assert(x.mode == invalid)
+ 			x.typ = nil
+ 		}
+@@ -191,9 +191,9 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
+ 		return nil
+ 	}
+ 
+-	if !check.assignment(x, z.typ) {
++	if reason := ""; !check.assignment(x, z.typ, &reason) {
+ 		if x.mode != invalid {
+-			check.errorf(x.pos(), "cannot assign %s to %s", x, &z)
++			check.xerrorf(x.pos(), reason, "cannot assign %s to %s", x, &z)
+ 		}
+ 		return nil
+ 	}
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 7857a446a9..a879c8164d 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -95,7 +95,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// spec: "As a special case, append also accepts a first argument assignable
+ 		// to type []byte with a second argument of string type followed by ... .
+ 		// This form appends the bytes of the string.
+-		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check.conf, NewSlice(universeByte)) {
++		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check.conf, NewSlice(universeByte), nil) {
+ 			arg(x, 1)
+ 			if x.mode == invalid {
+ 				return
+@@ -341,7 +341,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			return
+ 		}
+ 
+-		if !x.assignableTo(check.conf, m.key) {
++		if !x.assignableTo(check.conf, m.key, nil) {
+ 			check.invalidArg(x.pos(), "%s is not assignable to %s", x, m.key)
+ 			return
+ 		}
+@@ -471,7 +471,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	case _Panic:
+ 		// panic(x)
+ 		T := new(Interface)
+-		if !check.assignment(x, T) {
++		if !check.assignment(x, T, nil) {
+ 			assert(x.mode == invalid)
+ 			return
+ 		}
+@@ -491,7 +491,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 				if i > 0 {
+ 					arg(x, i) // first argument already evaluated
+ 				}
+-				if !check.assignment(x, nil) {
++				if !check.assignment(x, nil, nil) {
+ 					assert(x.mode == invalid)
+ 					return
+ 				}
+@@ -514,7 +514,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	case _Alignof:
+ 		// unsafe.Alignof(x T) uintptr
+-		if !check.assignment(x, nil) {
++		if !check.assignment(x, nil, nil) {
+ 			assert(x.mode == invalid)
+ 			return
+ 		}
+@@ -571,7 +571,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	case _Sizeof:
+ 		// unsafe.Sizeof(x T) uintptr
+-		if !check.assignment(x, nil) {
++		if !check.assignment(x, nil, nil) {
+ 			assert(x.mode == invalid)
+ 			return
+ 		}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 62cefc047e..c3ed0778e9 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -261,8 +261,8 @@ func (check *Checker) argument(sig *Signature, i int, x *operand, ellipsis token
+ 		typ = typ.(*Slice).elem
+ 	}
+ 
+-	if !check.assignment(x, typ) && x.mode != invalid {
+-		check.errorf(x.pos(), "cannot pass argument %s to parameter of type %s", x, typ)
++	if reason := ""; !check.assignment(x, typ, &reason) && x.mode != invalid {
++		check.xerrorf(x.pos(), reason, "cannot pass argument %s to parameter of type %s", x, typ)
+ 	}
+ }
+ 
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 74826ce934..33e8930fbb 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -65,7 +65,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 
+ func (x *operand) convertibleTo(conf *Config, T Type) bool {
+ 	// "x is assignable to T"
+-	if x.assignableTo(conf, T) {
++	if x.assignableTo(conf, T, nil) {
+ 		return true
+ 	}
+ 
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 0c0049b1f3..7c81b129a4 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -86,6 +86,14 @@ func (check *Checker) errorf(pos token.Pos, format string, args ...interface{})
+ 	check.err(pos, check.sprintf(format, args...), false)
+ }
+ 
++func (check *Checker) xerrorf(pos token.Pos, reason, format string, args ...interface{}) {
++	if reason != "" {
++		format += ": %s"
++		args = append(args, reason)
++	}
++	check.err(pos, check.sprintf(format, args...), true)
++}
++
+ func (check *Checker) softErrorf(pos token.Pos, format string, args ...interface{}) {
+ 	check.err(pos, check.sprintf(format, args...), true)
+ }
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index e26607b532..9d2331a1ad 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -570,7 +570,7 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
+ 	// spec: "In any comparison, the first operand must be assignable
+ 	// to the type of the second operand, or vice versa."
+ 	err := ""
+-	if x.assignableTo(check.conf, y.typ) || y.assignableTo(check.conf, x.typ) {
++	if x.assignableTo(check.conf, y.typ, nil) || y.assignableTo(check.conf, x.typ, nil) {
+ 		defined := false
+ 		switch op {
+ 		case token.EQL, token.NEQ:
+@@ -898,8 +898,8 @@ func (check *Checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64
+ 		// check element against composite literal element type
+ 		var x operand
+ 		check.exprWithHint(&x, eval, typ)
+-		if !check.assignment(&x, typ) && x.mode != invalid {
+-			check.errorf(x.pos(), "cannot use %s as %s value in array or slice literal", &x, typ)
++		if reason := ""; !check.assignment(&x, typ, &reason) && x.mode != invalid {
++			check.xerrorf(x.pos(), reason, "cannot use %s as %s value in array or slice literal", &x, typ)
+ 		}
+ 	}
+ 	return max
+@@ -1062,9 +1062,9 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 					visited[i] = true
+ 					check.expr(x, kv.Value)
+ 					etyp := fld.typ
+-					if !check.assignment(x, etyp) {
++					if reason := ""; !check.assignment(x, etyp, &reason) {
+ 						if x.mode != invalid {
+-							check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
++							check.xerrorf(x.pos(), reason, "cannot use %s as %s value in struct literal", x, etyp)
+ 						}
+ 						continue
+ 					}
+@@ -1088,9 +1088,9 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 						continue
+ 					}
+ 					etyp := fld.typ
+-					if !check.assignment(x, etyp) {
++					if reason := ""; !check.assignment(x, etyp, &reason) {
+ 						if x.mode != invalid {
+-							check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
++							check.xerrorf(x.pos(), reason, "cannot use %s as %s value in struct literal", x, etyp)
+ 						}
+ 						continue
+ 					}
+@@ -1120,9 +1120,9 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 					continue
+ 				}
+ 				check.exprWithHint(x, kv.Key, utyp.key)
+-				if !check.assignment(x, utyp.key) {
++				if reason := ""; !check.assignment(x, utyp.key, &reason) {
+ 					if x.mode != invalid {
+-						check.errorf(x.pos(), "cannot use %s as %s key in map literal", x, utyp.key)
++						check.xerrorf(x.pos(), reason, "cannot use %s as %s key in map literal", x, utyp.key)
+ 					}
+ 					continue
+ 				}
+@@ -1147,9 +1147,9 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 					}
+ 				}
+ 				check.exprWithHint(x, kv.Value, utyp.elem)
+-				if !check.assignment(x, utyp.elem) {
++				if reason := ""; !check.assignment(x, utyp.elem, &reason) {
+ 					if x.mode != invalid {
+-						check.errorf(x.pos(), "cannot use %s as %s value in map literal", x, utyp.elem)
++						check.xerrorf(x.pos(), reason, "cannot use %s as %s value in map literal", x, utyp.elem)
+ 					}
+ 					continue
+ 				}
+@@ -1220,9 +1220,9 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		case *Map:
+ 			var key operand
+ 			check.expr(&key, e.Index)
+-			if !check.assignment(&key, typ.key) {
++			if reason := ""; !check.assignment(&key, typ.key, &reason) {
+ 				if key.mode != invalid {
+-					check.invalidOp(key.pos(), "cannot use %s as map index of type %s", &key, typ.key)
++					check.xerrorf(key.pos(), reason, "cannot use %s as map index of type %s", &key, typ.key)
+ 				}
+ 				goto Error
+ 			}
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index d3bab51b04..09eac8354d 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -202,7 +202,9 @@ func (x *operand) isNil() bool {
+ //           overlapping in functionality. Need to simplify and clean up.
+ 
+ // assignableTo reports whether x is assignable to a variable of type T.
+-func (x *operand) assignableTo(conf *Config, T Type) bool {
++// If the result is false and a non-nil reason is provided, it may be set
++// to a more detailed explanation of the failure (result != "").
++func (x *operand) assignableTo(conf *Config, T Type, reason *string) bool {
+ 	if x.mode == invalid || T == Typ[Invalid] {
+ 		return true // avoid spurious errors
+ 	}
+@@ -217,49 +219,15 @@ func (x *operand) assignableTo(conf *Config, T Type) bool {
+ 	Vu := V.Underlying()
+ 	Tu := T.Underlying()
+ 
+-	// T is an interface type and x implements T
+-	// (Do this check first as it might succeed early.)
+-	if Ti, ok := Tu.(*Interface); ok {
+-		if Implements(x.typ, Ti) {
+-			return true
+-		}
+-	}
+-
+-	// x's type V and T have identical underlying types
+-	// and at least one of V or T is not a named type
+-	if Identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
+-		return true
+-	}
+-
+-	// x is a bidirectional channel value, T is a channel
+-	// type, x's type V and T have identical element types,
+-	// and at least one of V or T is not a named type
+-	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
+-		if Tc, ok := Tu.(*Chan); ok && Identical(Vc.elem, Tc.elem) {
+-			return !isNamed(V) || !isNamed(T)
+-		}
+-	}
+-
+-	// x is the predeclared identifier nil and T is a pointer,
+-	// function, slice, map, channel, or interface type
+-	if x.isNil() {
+-		switch t := Tu.(type) {
+-		case *Basic:
+-			if t.kind == UnsafePointer {
+-				return true
+-			}
+-		case *Pointer, *Signature, *Slice, *Map, *Chan, *Interface:
+-			return true
+-		}
+-		return false
+-	}
+-
+-	// x is an untyped constant representable by a value of type T
++	// x is an untyped value representable by a value of type T
+ 	// TODO(gri) This is borrowing from checker.convertUntyped and
+ 	//           checker.representable. Need to clean up.
+ 	if isUntyped(Vu) {
+ 		switch t := Tu.(type) {
+ 		case *Basic:
++			if x.isNil() && t.kind == UnsafePointer {
++				return true
++			}
+ 			if x.mode == constant_ {
+ 				return representableConst(x.val, conf, t.kind, nil)
+ 			}
+@@ -274,6 +242,37 @@ func (x *operand) assignableTo(conf *Config, T Type) bool {
+ 			return x.isNil()
+ 		}
+ 	}
++	// Vu is typed
++
++	// x's type V and T have identical underlying types
++	// and at least one of V or T is not a named type
++	if Identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
++		return true
++	}
++
++	// T is an interface type and x implements T
++	if Ti, ok := Tu.(*Interface); ok {
++		if m, wrongType := MissingMethod(x.typ, Ti, true); m != nil /* Implements(x.typ, Ti) */ {
++			if reason != nil {
++				if wrongType {
++					*reason = "wrong type for method " + m.Name()
++				} else {
++					*reason = "missing method " + m.Name()
++				}
++			}
++			return false
++		}
++		return true
++	}
++
++	// x is a bidirectional channel value, T is a channel
++	// type, x's type V and T have identical element types,
++	// and at least one of V or T is not a named type
++	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
++		if Tc, ok := Tu.(*Chan); ok && Identical(Vc.elem, Tc.elem) {
++			return !isNamed(V) || !isNamed(T)
++		}
++	}
+ 
+ 	return false
+ }
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 062b767c1a..50efc1fc99 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -321,9 +321,10 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		if ch.mode == invalid || x.mode == invalid {
+ 			return
+ 		}
+-		if tch, ok := ch.typ.Underlying().(*Chan); !ok || tch.dir == RecvOnly || !check.assignment(&x, tch.elem) {
++		reason := ""
++		if tch, ok := ch.typ.Underlying().(*Chan); !ok || tch.dir == RecvOnly || !check.assignment(&x, tch.elem, &reason) {
+ 			if x.mode != invalid {
+-				check.invalidOp(ch.pos(), "cannot send %s to channel %s", &x, &ch)
++				check.xerrorf(x.pos(), reason, "cannot send %s to channel %s", &x, &ch)
+ 			}
+ 		}
+ 
+@@ -464,7 +465,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			check.expr(&x, s.Tag)
+ 			// By checking assignment of x to an invisible temporary
+ 			// (as a compiler would), we get all the relevant checks.
+-			check.assignment(&x, nil)
++			check.assignment(&x, nil, nil)
+ 		} else {
+ 			// spec: "A missing switch expression is
+ 			// equivalent to the boolean value true."
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index 9e2c901a28..1e2f43b728 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -101,3 +101,56 @@ func issue10979() {
+ var a1, b1 /* ERROR cycle */ , c1 /* ERROR cycle */ b1 = 0 > 0<<""[""[c1]]>c1
+ var a2, b2 /* ERROR cycle */ = 0 /* ERROR mismatch */ /* ERROR mismatch */ > 0<<""[b2]
+ var a3, b3 /* ERROR cycle */ = int /* ERROR mismatch */ /* ERROR mismatch */ (1<<""[b3])
++
++// issue10260
++// Check that error messages explain reason for interface assignment failures.
++type (
++	I0 interface{}
++	I1 interface{ foo() }
++	I2 interface{ foo(x int) }
++	T0 struct{}
++	T1 struct{}
++	T2 struct{}
++)
++
++func (*T1) foo() {}
++func (*T2) foo(x int) {}
++
++func issue10260() {
++	var (
++		i0 I0
++		i1 I1
++		i2 I2
++		t0 *T0
++		t1 *T1
++		t2 *T2
++	)
++	i1 = i0 /* ERROR cannot assign .* missing method foo */
++	i1 = t0 /* ERROR cannot assign .* missing method foo */
++	i1 = i2 /* ERROR cannot assign .* wrong type for method foo */
++	i1 = t2 /* ERROR cannot assign .* wrong type for method foo */
++	i2 = i1 /* ERROR cannot assign .* wrong type for method foo */
++	i2 = t1 /* ERROR cannot assign .* wrong type for method foo */
++
++	_ = func() I1 { return i0 /* ERROR cannot return .* missing method foo */ }
++	_ = func() I1 { return t0 /* ERROR cannot return .* missing method foo */ }
++	_ = func() I1 { return i2 /* ERROR cannot return .* wrong type for method foo */ }
++	_ = func() I1 { return t2 /* ERROR cannot return .* wrong type for method foo */ }
++	_ = func() I2 { return i1 /* ERROR cannot return .* wrong type for method foo */ }
++	_ = func() I2 { return t1 /* ERROR cannot return .* wrong type for method foo */ }
++
++	// a few more - less exhaustive now
++
++	f := func(I1, I2){}
++	f(i0 /* ERROR cannot pass .* missing method foo */ , i1 /* ERROR cannot pass .* wrong type for method foo */)
++
++	_ = [...]I1{i0 /* ERROR cannot use .* missing method foo */ }
++	_ = [...]I1{i2 /* ERROR cannot use .* wrong type for method foo */ }
++	_ = []I1{i0 /* ERROR cannot use .* missing method foo */ }
++	_ = []I1{i2 /* ERROR cannot use .* wrong type for method foo */ }
++	_ = map[int]I1{0: i0 /* ERROR cannot use .* missing method foo */ }
++	_ = map[int]I1{0: i2 /* ERROR cannot use .* wrong type for method foo */ }
++
++	make(chan I1) <- i0 /* ERROR cannot send .* missing method foo */
++	make(chan I1) <- i2 /* ERROR cannot send .* wrong type for method foo */
++}
+diff --git a/src/go/types/testdata/stmt0.src b/src/go/types/testdata/stmt0.src
+index e946066c49..80abbd1d96 100644
+--- a/src/go/types/testdata/stmt0.src
++++ b/src/go/types/testdata/stmt0.src
+@@ -180,8 +180,8 @@ func sends() {
+ 	var ch chan int
+ 	var rch <-chan int
+ 	var x int
+-	x /* ERROR "cannot send" */ <- x
+-	rch /* ERROR "cannot send" */ <- x
++	x <- x /* ERROR "cannot send" */
++	rch <- x /* ERROR "cannot send" */
+ 	ch <- "foo" /* ERROR "cannot convert" */
+ 	ch <- x
+ }

@@ -66,9 +66,383 @@ Date:   Fri Mar 4 11:58:26 2016 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgc.go      |  18 ++++++-
  src/runtime/mgcmark.go  | 133 +++++++++++++++++++++++++++++++++++++++++-------
  src/runtime/proc.go     |  33 +++++++++++-
  src/runtime/runtime2.go |  11 +++-
  4 files changed, 171 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 425ed3a160..328ff4cd88 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -762,7 +762,7 @@ var work struct {
+ 	alldone note
+ 
+ 	// Number of roots of various root types. Set by gcMarkRootPrepare.
+-	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
++	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots, nRescanRoots int
+ 
+ 	// markrootDone indicates that roots have been marked at least
+ 	// once during the current GC cycle. This is checked by root
+@@ -830,6 +830,14 @@ var work struct {
+ 		head, tail guintptr
+ 	}
+ 
++	// rescan is a list of G's that need to be rescanned during
++	// mark termination. A G adds itself to this list when it
++	// first invalidates its stack scan.
++	rescan struct {
++		lock mutex
++		list []guintptr
++	}
++
+ 	// Timing/utilization stats for this cycle.
+ 	stwprocs, maxprocs                 int32
+ 	tSweepTerm, tMark, tMarkTerm, tEnd int64 // nanotime() of phase start
+@@ -1736,14 +1744,22 @@ func gcCopySpans() {
+ func gcResetMarkState() {
+ 	// This may be called during a concurrent phase, so make sure
+ 	// allgs doesn't change.
++	if !(gcphase == _GCoff || gcphase == _GCmarktermination) {
++		// Accessing gcRescan is unsafe.
++		throw("bad GC phase")
++	}
+ 	lock(&allglock)
+ 	for _, gp := range allgs {
+ 		gp.gcscandone = false  // set to true in gcphasework
+ 		gp.gcscanvalid = false // stack has not been scanned
++		gp.gcRescan = -1
+ 		gp.gcAssistBytes = 0
+ 	}
+ 	unlock(&allglock)
+ 
++	// Clear rescan list.
++	work.rescan.list = work.rescan.list[:0]
++
+ 	work.bytesMarked = 0
+ 	work.initialHeapLive = memstats.heap_live
+ 	work.markrootDone = false
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index bad7c7e92b..7f481dee22 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -32,6 +32,8 @@ const (
+ //
+ // The caller must have call gcCopySpans().
+ //
++// The world must be stopped.
++//
+ //go:nowritebarrier
+ func gcMarkRootPrepare() {
+ 	// Compute how many data and BSS root blocks there are.
+@@ -63,24 +65,31 @@ func gcMarkRootPrepare() {
+ 		// after concurrent mark. In STW GC, this will happen
+ 		// during mark termination.
+ 		work.nSpanRoots = (len(work.spans) + rootBlockSpans - 1) / rootBlockSpans
++
++		// On the first markroot, we need to scan all Gs. Gs
++		// may be created after this point, but it's okay that
++		// we ignore them because they begin life without any
++		// roots, so there's nothing to scan, and any roots
++		// they create during the concurrent phase will be
++		// scanned during mark termination. During mark
++		// termination, allglen isn't changing, so we'll scan
++		// all Gs.
++		work.nStackRoots = int(atomic.Loaduintptr(&allglen))
++		work.nRescanRoots = 0
+ 	} else {
+ 		// We've already scanned span roots and kept the scan
+ 		// up-to-date during concurrent mark.
+ 		work.nSpanRoots = 0
+-	}
+ 
+-	// Snapshot of allglen. During concurrent scan, we just need
+-	// to be consistent about how many markroot jobs we create and
+-	// how many Gs we check. Gs may be created after this point,
+-	// but it's okay that we ignore them because they begin life
+-	// without any roots, so there's nothing to scan, and any
+-	// roots they create during the concurrent phase will be
+-	// scanned during mark termination. During mark termination,
+-	// allglen isn't changing, so we'll scan all Gs.
+-	work.nStackRoots = int(atomic.Loaduintptr(&allglen))
++		// On the second pass of markroot, we're just scanning
++		// dirty stacks. It's safe to access rescan since the
++		// world is stopped.
++		work.nStackRoots = 0
++		work.nRescanRoots = len(work.rescan.list)
++	}
+ 
+ 	work.markrootNext = 0
+-	work.markrootJobs = uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
++	work.markrootJobs = uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots + work.nRescanRoots)
+ }
+ 
+ // gcMarkRootCheck checks that all roots have been scanned. It is
+@@ -92,11 +101,24 @@ func gcMarkRootCheck() {
+ 	}
+ 
+ 	lock(&allglock)
+-	// Check that gc work is done.
+-	for i := 0; i < work.nStackRoots; i++ {
+-		gp := allgs[i]
+-		if !gp.gcscandone {
+-			throw("scan missed a g")
++	// Check that stacks have been scanned.
++	if gcphase == _GCmarktermination {
++		for i := 0; i < len(allgs); i++ {
++			gp := allgs[i]
++			if !(gp.gcscandone && gp.gcscanvalid) && readgstatus(gp) != _Gdead {
++				println("gp", gp, "goid", gp.goid,
++					"status", readgstatus(gp),
++					"gcscandone", gp.gcscandone,
++					"gcscanvalid", gp.gcscanvalid)
++				throw("scan missed a g")
++			}
++		}
++	} else {
++		for i := 0; i < work.nStackRoots; i++ {
++			gp := allgs[i]
++			if !gp.gcscandone {
++				throw("scan missed a g")
++			}
+ 		}
+ 	}
+ 	unlock(&allglock)
+@@ -109,12 +131,18 @@ var oneptrmask = [...]uint8{1}
+ //
+ // Preemption must be disabled (because this uses a gcWork).
+ //
++// nowritebarrier is only advisory here.
++//
+ //go:nowritebarrier
+ func markroot(gcw *gcWork, i uint32) {
++	// TODO(austin): This is a bit ridiculous. Compute and store
++	// the bases in gcMarkRootPrepare instead of the counts.
+ 	baseData := uint32(fixedRootCount)
+ 	baseBSS := baseData + uint32(work.nDataRoots)
+ 	baseSpans := baseBSS + uint32(work.nBSSRoots)
+ 	baseStacks := baseSpans + uint32(work.nSpanRoots)
++	baseRescan := baseStacks + uint32(work.nStackRoots)
++	end := baseRescan + uint32(work.nRescanRoots)
+ 
+ 	// Note: if you add a case here, please also update heapdump.go:dumproots.
+ 	switch {
+@@ -151,10 +179,14 @@ func markroot(gcw *gcWork, i uint32) {
+ 
+ 	default:
+ 		// the rest is scanning goroutine stacks
+-		if uintptr(i-baseStacks) >= allglen {
++		var gp *g
++		if baseStacks <= i && i < baseRescan {
++			gp = allgs[i-baseStacks]
++		} else if baseRescan <= i && i < end {
++			gp = work.rescan.list[i-baseRescan].ptr()
++		} else {
+ 			throw("markroot: bad index")
+ 		}
+-		gp := allgs[i-baseStacks]
+ 
+ 		// remember when we've first observed the G blocked
+ 		// needed only to output in traceback
+@@ -163,13 +195,14 @@ func markroot(gcw *gcWork, i uint32) {
+ 			gp.waitsince = work.tstart
+ 		}
+ 
+-		if gcphase != _GCmarktermination && gp.startpc == gcBgMarkWorkerPC {
++		if gcphase != _GCmarktermination && gp.startpc == gcBgMarkWorkerPC && readgstatus(gp) != _Gdead {
+ 			// GC background workers may be
+ 			// non-preemptible, so we may deadlock if we
+ 			// try to scan them during a concurrent phase.
+ 			// They also have tiny stacks, so just ignore
+ 			// them until mark termination.
+ 			gp.gcscandone = true
++			queueRescan(gp)
+ 			break
+ 		}
+ 
+@@ -721,6 +754,14 @@ func scanstack(gp *g) {
+ 		gcw.dispose()
+ 	}
+ 	gcUnlockStackBarriers(gp)
++	if gcphase == _GCmark {
++		// gp may have added itself to the rescan list between
++		// when GC started and now. It's clean now, so remove
++		// it. This isn't safe during mark termination because
++		// mark termination is consuming this list, but it's
++		// also not necessary.
++		dequeueRescan(gp)
++	}
+ 	gp.gcscanvalid = true
+ }
+ 
+@@ -797,6 +838,60 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
+ 	}
+ }
+ 
++// queueRescan adds gp to the stack rescan list and clears
++// gp.gcscanvalid. The caller must own gp and ensure that gp isn't
++// already on the rescan list.
++func queueRescan(gp *g) {
++	if gcphase == _GCoff {
++		gp.gcscanvalid = false
++		return
++	}
++	if gp.gcRescan != -1 {
++		throw("g already on rescan list")
++	}
++
++	lock(&work.rescan.lock)
++	gp.gcscanvalid = false
++
++	// Recheck gcphase under the lock in case there was a phase change.
++	if gcphase == _GCoff {
++		unlock(&work.rescan.lock)
++		return
++	}
++	if len(work.rescan.list) == cap(work.rescan.list) {
++		throw("rescan list overflow")
++	}
++	n := len(work.rescan.list)
++	gp.gcRescan = int32(n)
++	work.rescan.list = work.rescan.list[:n+1]
++	work.rescan.list[n].set(gp)
++	unlock(&work.rescan.lock)
++}
++
++// dequeueRescan removes gp from the stack rescan list, if gp is on
++// the rescan list. The caller must own gp.
++func dequeueRescan(gp *g) {
++	if gp.gcRescan == -1 {
++		return
++	}
++	if gcphase == _GCoff {
++		gp.gcRescan = -1
++		return
++	}
++
++	lock(&work.rescan.lock)
++	if work.rescan.list[gp.gcRescan].ptr() != gp {
++		throw("bad dequeueRescan")
++	}
++	// Careful: gp may itself be the last G on the list.
++	last := work.rescan.list[len(work.rescan.list)-1]
++	work.rescan.list[gp.gcRescan] = last
++	last.ptr().gcRescan = gp.gcRescan
++	gp.gcRescan = -1
++	work.rescan.list = work.rescan.list[:len(work.rescan.list)-1]
++	unlock(&work.rescan.lock)
++}
++
+ type gcDrainFlags int
+ 
+ const (
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index dcdc7bedb8..ee732e3cf7 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -402,6 +402,16 @@ func allgadd(gp *g) {
+ 	lock(&allglock)
+ 	allgs = append(allgs, gp)
+ 	allglen = uintptr(len(allgs))
++
++	// Grow GC rescan list if necessary.
++	if len(allgs) > cap(work.rescan.list) {
++		lock(&work.rescan.lock)
++		l := work.rescan.list
++		// Let append do the heavy lifting, but keep the
++		// length the same.
++		work.rescan.list = append(l[:cap(l)], 0)[:len(l)]
++		unlock(&work.rescan.lock)
++	}
+ 	unlock(&allglock)
+ }
+ 
+@@ -754,8 +764,9 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 			nextYield = nanotime() + yieldDelay/2
+ 		}
+ 	}
+-	if newval == _Grunning {
+-		gp.gcscanvalid = false
++	if newval == _Grunning && gp.gcscanvalid {
++		// Run queueRescan on the system stack so it has more space.
++		systemstack(func() { queueRescan(gp) })
+ 	}
+ }
+ 
+@@ -1405,6 +1416,8 @@ func newextram() {
+ 	gp.syscallpc = gp.sched.pc
+ 	gp.syscallsp = gp.sched.sp
+ 	gp.stktopsp = gp.sched.sp
++	gp.gcscanvalid = true // fresh G, so no dequeueRescan necessary
++	gp.gcRescan = -1
+ 	// malg returns status as Gidle, change to Gsyscall before adding to allg
+ 	// where GC will see it.
+ 	casgstatus(gp, _Gidle, _Gsyscall)
+@@ -2210,6 +2223,10 @@ func goexit0(gp *g) {
+ 	gp.waitreason = ""
+ 	gp.param = nil
+ 
++	// Note that gp's stack scan is now "valid" because it has no
++	// stack. We could dequeueRescan, but that takes a lock and
++	// isn't really necessary.
++	gp.gcscanvalid = true
+ 	dropg()
+ 
+ 	if _g_.m.locked&^_LockExternal != 0 {
+@@ -2700,6 +2717,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 	if newg == nil {
+ 		newg = malg(_StackMin)
+ 		casgstatus(newg, _Gidle, _Gdead)
++		newg.gcRescan = -1
+ 		allgadd(newg) // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
+ 	}
+ 	if newg.stack.hi == 0 {
+@@ -2733,6 +2751,17 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 	if isSystemGoroutine(newg) {
+ 		atomic.Xadd(&sched.ngsys, +1)
+ 	}
++	// The stack is dirty from the argument frame, so queue it for
++	// scanning. Do this before setting it to runnable so we still
++	// own the G. If we're recycling a G, it may already be on the
++	// rescan list.
++	if newg.gcRescan == -1 {
++		queueRescan(newg)
++	} else {
++		// The recycled G is already on the rescan list. Just
++		// mark the stack dirty.
++		newg.gcscanvalid = false
++	}
+ 	casgstatus(newg, _Gdead, _Grunnable)
+ 
+ 	if _p_.goidcache == _p_.goidcacheend {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 0a988ce469..d35b897c3e 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -336,7 +336,7 @@ type g struct {
+ 	paniconfault   bool     // panic (instead of crash) on unexpected fault address
+ 	preemptscan    bool     // preempted g does scan for gc
+ 	gcscandone     bool     // g has scanned stack; protected by _Gscan bit in status
+-	gcscanvalid    bool     // false at start of gc cycle, true if G has not run since last scan
++	gcscanvalid    bool     // false at start of gc cycle, true if G has not run since last scan; transition from true to false by calling queueRescan and false to true by calling dequeueRescan
+ 	throwsplit     bool     // must not split stack
+ 	raceignore     int8     // ignore race detection events
+ 	sysblocktraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
+@@ -354,7 +354,14 @@ type g struct {
+ 	racectx        uintptr
+ 	waiting        *sudog // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
+ 
+-	// Per-G gcController state
++	// Per-G GC state
++
++	// gcRescan is this G's index in work.rescan.list. If this is
++	// -1, this G is not on the rescan list.
++	//
++	// If gcphase != _GCoff and this G is visible to the garbage
++	// collector, writes to this are protected by work.rescan.lock.
++	gcRescan int32
+ 
+ 	// gcAssistBytes is this G's GC assist credit in terms of
+ 	// bytes allocated. If this is positive, then the G has credit

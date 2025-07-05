@@ -25,7 +25,68 @@ Date:   Mon Oct 17 15:57:48 2022 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/debuglog.go      | 15 +++++++++++++--
  src/runtime/debuglog_test.go | 12 ++++++++++++
  2 files changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index 1fc7dd5555..b18774e6c0 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -304,7 +304,12 @@ func (l *dlogger) s(x string) *dlogger {
+ 		l.w.uvarint(uint64(uintptr(unsafe.Pointer(strData)) - datap.etext))
+ 	} else {
+ 		l.w.byte(debugLogString)
+-		b := unsafe.Slice(strData, len(x))
++		// We can't use unsafe.Slice as it may panic, which isn't safe
++		// in this (potentially) nowritebarrier context.
++		var b []byte
++		bb := (*slice)(unsafe.Pointer(&b))
++		bb.array = unsafe.Pointer(strData)
++		bb.len, bb.cap = len(x), len(x)
+ 		if len(b) > debugLogStringLimit {
+ 			b = b[:debugLogStringLimit]
+ 		}
+@@ -655,7 +660,13 @@ func (r *debugLogReader) printVal() bool {
+ 	case debugLogConstString:
+ 		len, ptr := int(r.uvarint()), uintptr(r.uvarint())
+ 		ptr += firstmoduledata.etext
+-		s := unsafe.String((*byte)(unsafe.Pointer(ptr)), len)
++		// We can't use unsafe.String as it may panic, which isn't safe
++		// in this (potentially) nowritebarrier context.
++		str := stringStruct{
++			str: unsafe.Pointer(ptr),
++			len: len,
++		}
++		s := *(*string)(unsafe.Pointer(&str))
+ 		print(s)
+ 
+ 	case debugLogStringOverflow:
+diff --git a/src/runtime/debuglog_test.go b/src/runtime/debuglog_test.go
+index 10dc72cf51..18c54a81b9 100644
+--- a/src/runtime/debuglog_test.go
++++ b/src/runtime/debuglog_test.go
+@@ -24,6 +24,7 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"regexp"
+ 	"runtime"
+ 	"strings"
+@@ -155,3 +156,14 @@ func TestDebugLogLongString(t *testing.T) {
+ 		t.Fatalf("want %q, got %q", want, got)
+ 	}
+ }
++
++// TestDebugLogBuild verifies that the runtime builds with -tags=debuglog.
++func TestDebugLogBuild(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	// It doesn't matter which program we build, anything will rebuild the
++	// runtime.
++	if _, err := buildTestProg(t, "testprog", "-tags=debuglog"); err != nil {
++		t.Fatal(err)
++	}
++}

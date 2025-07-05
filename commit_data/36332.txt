@@ -31,7 +31,128 @@ Date:   Wed Apr 18 12:35:34 2018 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go | 38 ++++++++++++++++++++++-
  test/fixedbugs/issue24799.go          | 58 +++++++++++++++++++++++++++++++++++
  2 files changed, 95 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 7e470e55b9..e615f207bd 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+ 	"math"
++	"strings"
+ )
+ 
+ // iselOp encodes mapping of comparison operations onto ISEL operands
+@@ -680,7 +681,42 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Reg = v.Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 
+-	case ssa.OpPPC64MOVDload, ssa.OpPPC64MOVWload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload:
++	case ssa.OpPPC64MOVDload:
++
++		// MOVDload uses a DS instruction which requires the offset value of the data to be a multiple of 4.
++		// For offsets known at compile time, a MOVDload won't be selected, but in the case of a go.string,
++		// the offset is not known until link time. If the load of a go.string uses relocation for the
++		// offset field of the instruction, and if the offset is not aligned to 4, then a link error will occur.
++		// To avoid this problem, the full address of the go.string is computed and loaded into the base register,
++		// and that base register is used for the MOVDload using a 0 offset. This problem can only occur with
++		// go.string types because other types will have proper alignment.
++
++		gostring := false
++		switch n := v.Aux.(type) {
++		case *obj.LSym:
++			gostring = strings.HasPrefix(n.Name, "go.string.")
++		}
++		if gostring {
++			// Generate full addr of the go.string const
++			// including AuxInt
++			p := s.Prog(ppc64.AMOVD)
++			p.From.Type = obj.TYPE_ADDR
++			p.From.Reg = v.Args[0].Reg()
++			gc.AddAux(&p.From, v)
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = v.Reg()
++			// Load go.string using 0 offset
++			p = s.Prog(v.Op.Asm())
++			p.From.Type = obj.TYPE_MEM
++			p.From.Reg = v.Reg()
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = v.Reg()
++			break
++		}
++		// Not a go.string, generate a normal load
++		fallthrough
++
++	case ssa.OpPPC64MOVWload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = v.Args[0].Reg()
+diff --git a/test/fixedbugs/issue24799.go b/test/fixedbugs/issue24799.go
+new file mode 100644
+index 0000000000..c805c86dda
+--- /dev/null
++++ b/test/fixedbugs/issue24799.go
+@@ -0,0 +1,58 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Loads of 8 byte go.strings cannot use DS relocation
++// in case the alignment is not a multiple of 4.
++
++package main
++
++import (
++        "fmt"
++)
++
++type Level string
++
++// The following are all go.strings. A link time error can
++// occur if an 8 byte load is used to load a go.string that is
++// not aligned to 4 bytes due to the type of relocation that
++// is generated for the instruction. A fix was made to avoid
++// generating an instruction with DS relocation for go.strings
++// since their alignment is not known until link time. 
++
++// This problem only affects go.string since other types have
++// correct alignment.
++
++const (
++        LevelBad Level = "badvals"
++        LevelNone Level = "No"
++        LevelMetadata Level = "Metadata"
++        LevelRequest Level = "Request"
++        LevelRequestResponse Level = "RequestResponse"
++)
++
++func ordLevel(l Level) int {
++        switch l {
++        case LevelMetadata:
++                return 1
++        case LevelRequest:
++                return 2
++        case LevelRequestResponse:
++                return 3
++        default:
++                return 0
++        }
++}
++
++//go:noinline
++func test(l Level) {
++        if ordLevel(l) < ordLevel(LevelMetadata) {
++                fmt.Printf("OK\n")
++        }
++}
++
++func main() {
++        test(LevelMetadata)
++}

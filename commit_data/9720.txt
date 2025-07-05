@@ -11,8 +11,67 @@ Date:   Fri Sep 16 20:30:54 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5040045
-
+---
  src/pkg/path/filepath/match.go      |  2 +-
  src/pkg/path/filepath/match_test.go | 10 ++++++++++
  src/pkg/template/helper.go          |  6 +++++-
  3 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/path/filepath/match.go b/src/pkg/path/filepath/match.go
+index 7fcc214c05..0ccc87e656 100644
+--- a/src/pkg/path/filepath/match.go
++++ b/src/pkg/path/filepath/match.go
+@@ -215,7 +215,7 @@ func getEsc(chunk string) (r int, nchunk string, err os.Error) {
+ func Glob(pattern string) (matches []string, err os.Error) {
+ 	if !hasMeta(pattern) {
+ 		if _, err = os.Stat(pattern); err != nil {
+-			return
++			return nil, nil
+ 		}
+ 		return []string{pattern}, nil
+ 	}
+diff --git a/src/pkg/path/filepath/match_test.go b/src/pkg/path/filepath/match_test.go
+index a1c8333f37..711e835fb7 100644
+--- a/src/pkg/path/filepath/match_test.go
++++ b/src/pkg/path/filepath/match_test.go
+@@ -124,6 +124,16 @@ func TestGlob(t *testing.T) {
+ 			t.Errorf("Glob(%#q) = %#v want %v", tt.pattern, matches, tt.result)
+ 		}
+ 	}
++	for _, pattern := range []string{"no_match", "../*/no_match"} {
++		matches, err := Glob(pattern)
++		if err != nil {
++			t.Errorf("Glob error for %q: %s", pattern, err)
++			continue
++		}
++		if len(matches) != 0 {
++			t.Errorf("Glob(%#q) = %#v want []", pattern, matches)
++		}
++	}
+ }
+ 
+ func TestGlobError(t *testing.T) {
+diff --git a/src/pkg/template/helper.go b/src/pkg/template/helper.go
+index c9b0998565..1dc90f7ff4 100644
+--- a/src/pkg/template/helper.go
++++ b/src/pkg/template/helper.go
+@@ -210,7 +210,8 @@ func ParseTemplateFiles(filenames ...string) (*Set, os.Error) {
+ }
+ 
+ // ParseTemplateGlob creates a set by parsing the files matched
+-// by the pattern, each of which defines a single template. Each
++// by the pattern, each of which defines a single template. The pattern
++// is processed by filepath.Glob and must match at least one file. Each
+ // template will be named the base name of its file.
+ // Unlike with ParseGlob, each file should be a stand-alone template
+ // definition suitable for Template.Parse (not Set.Parse); that is, the
+@@ -225,6 +226,9 @@ func ParseTemplateGlob(pattern string) (*Set, os.Error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	if len(filenames) == 0 {
++		return nil, fmt.Errorf("pattern matches no files: %#q", pattern)
++	}
+ 	for _, filename := range filenames {
+ 		t, err := ParseFile(filename)
+ 		if err != nil {

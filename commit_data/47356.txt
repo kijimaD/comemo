@@ -16,6 +16,20 @@ Date:   Tue Feb 16 16:01:39 2021 +0000
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index ccce873859..219436935f 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -17,7 +17,7 @@
+ //   [Coron]
+ //     https://cs.nyu.edu/~dodis/ps/merkle.pdf
+ //   [Larsson]
+-//     https://www.nada.kth.se/kurser/kth/2D1441/semteo03/lecturenotes/assump.pdf
++//     https://web.archive.org/web/20040719170906/https://www.nada.kth.se/kurser/kth/2D1441/semteo03/lecturenotes/assump.pdf
+ package ecdsa
+ 
+ // Further references:

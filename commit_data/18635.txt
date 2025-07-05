@@ -8,7 +8,7 @@ Date:   Mon Feb 24 22:31:01 2014 -0500
     R=golang-codereviews, minux.ma, mikioh.mikioh, dave, iant, rsc
     CC=golang-codereviews
     https://golang.org/cl/36030043
-
+---
  src/pkg/net/cgo_bsd.go                 |   2 +-
  src/pkg/net/cgo_unix.go                |   2 +-
  src/pkg/net/dial_test.go               |   2 +-
@@ -53,3 +53,855 @@ Date:   Mon Feb 24 22:31:01 2014 -0500
  src/pkg/runtime/sys_solaris_amd64.s    |   2 +-
  src/pkg/runtime/syscall_solaris.goc    |   6 +-
  43 files changed, 324 insertions(+), 45 deletions(-)
+
+diff --git a/src/pkg/net/cgo_bsd.go b/src/pkg/net/cgo_bsd.go
+index 388eab4fe1..3090d3019d 100644
+--- a/src/pkg/net/cgo_bsd.go
++++ b/src/pkg/net/cgo_bsd.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build !netgo
+-// +build darwin dragonfly freebsd
++// +build darwin dragonfly freebsd solaris
+ 
+ package net
+ 
+diff --git a/src/pkg/net/cgo_unix.go b/src/pkg/net/cgo_unix.go
+index 1f366ee5c6..0c670982f2 100644
+--- a/src/pkg/net/cgo_unix.go
++++ b/src/pkg/net/cgo_unix.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build !netgo
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index 15ab10dfd4..9def44074c 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -141,7 +141,7 @@ func TestSelfConnect(t *testing.T) {
+ 		n = 1000
+ 	}
+ 	switch runtime.GOOS {
+-	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "windows":
++	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "solaris", "windows":
+ 		// Non-Linux systems take a long time to figure
+ 		// out that there is nothing listening on localhost.
+ 		n = 100
+diff --git a/src/pkg/net/dnsclient_unix.go b/src/pkg/net/dnsclient_unix.go
+index a30c9a73d7..7840d4eebb 100644
+--- a/src/pkg/net/dnsclient_unix.go
++++ b/src/pkg/net/dnsclient_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ // DNS client: see RFC 1035.
+ // Has to be linked into package net for Dial.
+diff --git a/src/pkg/net/dnsconfig_unix.go b/src/pkg/net/dnsconfig_unix.go
+index 7856ebc80d..656b270f18 100644
+--- a/src/pkg/net/dnsconfig_unix.go
++++ b/src/pkg/net/dnsconfig_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ // Read system DNS config from /etc/resolv.conf
+ 
+diff --git a/src/pkg/net/fd_poll_runtime.go b/src/pkg/net/fd_poll_runtime.go
+index 549e19cd3f..2bddc836c7 100644
+--- a/src/pkg/net/fd_poll_runtime.go
++++ b/src/pkg/net/fd_poll_runtime.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows solaris
+ 
+ package net
+ 
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index ef44d44a99..f96dbf975d 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/pkg/net/fd_unix_test.go b/src/pkg/net/fd_unix_test.go
+index 65d3e69a76..fe8e8ff6a8 100644
+--- a/src/pkg/net/fd_unix_test.go
++++ b/src/pkg/net/fd_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/pkg/net/file_unix.go b/src/pkg/net/file_unix.go
+index 38ae47f784..214a4196c8 100644
+--- a/src/pkg/net/file_unix.go
++++ b/src/pkg/net/file_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/pkg/net/interface_stub.go b/src/pkg/net/interface_stub.go
+index a4eb731da4..31f6ee3e1c 100644
+--- a/src/pkg/net/interface_stub.go
++++ b/src/pkg/net/interface_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build plan9
++// +build plan9 solaris
+ 
+ package net
+ 
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index ea183f1d3e..1408b065d3 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -277,7 +277,7 @@ func TestIPConnRemoteName(t *testing.T) {
+ 		}
+ 	}
+ 
+-	raddr := &IPAddr{IP: IPv4(127, 0, 0, 10).To4()}
++	raddr := &IPAddr{IP: IPv4(127, 0, 0, 1).To4()}
+ 	c, err := DialIP("ip:tcp", &IPAddr{IP: IPv4(127, 0, 0, 1)}, raddr)
+ 	if err != nil {
+ 		t.Fatalf("DialIP failed: %v", err)
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index a1a008ac41..517bea21f3 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/ipsock_posix.go b/src/pkg/net/ipsock_posix.go
+index a83e525617..486c3f2b9a 100644
+--- a/src/pkg/net/ipsock_posix.go
++++ b/src/pkg/net/ipsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ // Internet protocol family sockets for POSIX
+ 
+diff --git a/src/pkg/net/lookup_unix.go b/src/pkg/net/lookup_unix.go
+index 59e9f63210..a54578456d 100644
+--- a/src/pkg/net/lookup_unix.go
++++ b/src/pkg/net/lookup_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index 5660fd42f8..0f313cc4cb 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -27,6 +27,8 @@ func TestIPv4MulticastListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
++	case "solaris":
++		t.Skipf("skipping test on solaris, see issue 7399")
+ 	}
+ 
+ 	closer := func(cs []*UDPConn) {
+@@ -93,8 +95,10 @@ var ipv6MulticastListenerTests = []struct {
+ // port.
+ func TestIPv6MulticastListener(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9", "solaris":
++	case "plan9":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
++	case "solaris":
++		t.Skipf("skipping test on solaris, see issue 7399")
+ 	}
+ 	if !supportsIPv6 {
+ 		t.Skip("ipv6 is not supported")
+diff --git a/src/pkg/net/port_unix.go b/src/pkg/net/port_unix.go
+index 3cd9ca2aa7..a1beb840d5 100644
+--- a/src/pkg/net/port_unix.go
++++ b/src/pkg/net/port_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ // Read system port mappings from /etc/services
+ 
+@@ -10,12 +10,16 @@ package net
+ 
+ import "sync"
+ 
+-var services map[string]map[string]int
++// services contains minimal mappings between services names and port
++// numbers for platforms that don't have a complete list of port numbers
++// (some Solaris distros).
++var services = map[string]map[string]int{
++	"tcp": {"http": 80},
++}
+ var servicesError error
+ var onceReadServices sync.Once
+ 
+ func readServices() {
+-	services = make(map[string]map[string]int)
+ 	var file *file
+ 	if file, servicesError = open("/etc/services"); servicesError != nil {
+ 		return
+diff --git a/src/pkg/net/sendfile_stub.go b/src/pkg/net/sendfile_stub.go
+index 3660849c18..d7401e274d 100644
+--- a/src/pkg/net/sendfile_stub.go
++++ b/src/pkg/net/sendfile_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin netbsd openbsd
++// +build darwin netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index c2d343c585..290596247e 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sock_solaris.go b/src/pkg/net/sock_solaris.go
+new file mode 100644
+index 0000000000..90fe9de894
+--- /dev/null
++++ b/src/pkg/net/sock_solaris.go
+@@ -0,0 +1,13 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import "syscall"
++
++func maxListenerBacklog() int {
++	// TODO: Implement this
++	// NOTE: Never return a number bigger than 1<<16 - 1. See issue 5030.
++	return syscall.SOMAXCONN
++}
+diff --git a/src/pkg/net/sockopt_posix.go b/src/pkg/net/sockopt_posix.go
+index ff3bc68994..1654d1b85e 100644
+--- a/src/pkg/net/sockopt_posix.go
++++ b/src/pkg/net/sockopt_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sockopt_solaris.go b/src/pkg/net/sockopt_solaris.go
+new file mode 100644
+index 0000000000..54c20b1409
+--- /dev/null
++++ b/src/pkg/net/sockopt_solaris.go
+@@ -0,0 +1,32 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
++	if family == syscall.AF_INET6 && sotype != syscall.SOCK_RAW {
++		// Allow both IP versions even if the OS default
++		// is otherwise.  Note that some operating systems
++		// never admit this option.
++		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, boolint(ipv6only))
++	}
++	// Allow broadcast.
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1))
++}
++
++func setDefaultListenerSockopts(s int) error {
++	// Allow reuse of recently-used addresses.
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1))
++}
++
++func setDefaultMulticastSockopts(s int) error {
++	// Allow multicast UDP and raw IP datagram sockets to listen
++	// concurrently across multiple listeners.
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1))
++}
+diff --git a/src/pkg/net/sockoptip_bsd.go b/src/pkg/net/sockoptip_bsd.go
+index 2199e480d4..0fa74718a6 100644
+--- a/src/pkg/net/sockoptip_bsd.go
++++ b/src/pkg/net/sockoptip_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sockoptip_posix.go b/src/pkg/net/sockoptip_posix.go
+index c2579be911..f38bb4f040 100644
+--- a/src/pkg/net/sockoptip_posix.go
++++ b/src/pkg/net/sockoptip_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sys_cloexec.go b/src/pkg/net/sys_cloexec.go
+index bbfcc1a4fc..cdc669b621 100644
+--- a/src/pkg/net/sys_cloexec.go
++++ b/src/pkg/net/sys_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that do not
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build darwin dragonfly freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/pkg/net/tcp_test.go b/src/pkg/net/tcp_test.go
+index 62fd99f5c0..d3628748a7 100644
+--- a/src/pkg/net/tcp_test.go
++++ b/src/pkg/net/tcp_test.go
+@@ -440,6 +440,9 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+ }
+ 
+ func TestTCPConcurrentAccept(t *testing.T) {
++	if runtime.GOOS == "solaris" {
++		t.Skip("skipping on Solaris, see issue 7400")
++	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+ 	ln, err := Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index 00c692e423..3727e470e6 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/tcpsockopt_posix.go b/src/pkg/net/tcpsockopt_posix.go
+index e03476ac63..0abf3f97f6 100644
+--- a/src/pkg/net/tcpsockopt_posix.go
++++ b/src/pkg/net/tcpsockopt_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/tcpsockopt_solaris.go b/src/pkg/net/tcpsockopt_solaris.go
+new file mode 100644
+index 0000000000..eaab6b6787
+--- /dev/null
++++ b/src/pkg/net/tcpsockopt_solaris.go
+@@ -0,0 +1,27 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TCP socket options for solaris
++
++package net
++
++import (
++	"os"
++	"syscall"
++	"time"
++)
++
++// Set keep alive period.
++func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
++	if err := fd.incref(); err != nil {
++		return err
++	}
++	defer fd.decref()
++
++	// The kernel expects seconds so round to next highest second.
++	d += (time.Second - time.Nanosecond)
++	secs := int(d.Seconds())
++
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.SO_KEEPALIVE, secs))
++}
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 142da8186f..11f9621dc3 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 54d9d16c99..5f1503acab 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/pkg/runtime/defs_solaris_amd64.go b/src/pkg/runtime/defs_solaris_amd64.go
+index f0265de931..0493178880 100644
+--- a/src/pkg/runtime/defs_solaris_amd64.go
++++ b/src/pkg/runtime/defs_solaris_amd64.go
+@@ -1,4 +1,4 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
++// Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/pkg/runtime/netpoll.goc b/src/pkg/runtime/netpoll.goc
+index e78c02c9a7..9cc5eb5a36 100644
+--- a/src/pkg/runtime/netpoll.goc
++++ b/src/pkg/runtime/netpoll.goc
+@@ -58,6 +58,7 @@ struct PollDesc
+ 	G*	wg;	// READY, WAIT, G waiting for write or nil
+ 	Timer	wt;	// write deadline timer
+ 	int64	wd;	// write deadline
++	void*	user;	// user settable cookie
+ };
+ 
+ static struct
+@@ -141,7 +142,7 @@ func runtime_pollWait(pd *PollDesc, mode int) (err int) {
+ 	if(err == 0) {
+ 		// As for now only Solaris uses level-triggered IO.
+ 		if(Solaris)
+-			runtime·netpollarm(pd->fd, mode);
++			runtime·netpollarm(pd, mode);
+ 		while(!netpollblock(pd, mode, false)) {
+ 			err = checkerr(pd, mode);
+ 			if(err != 0)
+@@ -256,6 +257,12 @@ runtime·netpollfd(PollDesc *pd)
+ 	return pd->fd;
+ }
+ 
++void**
++runtime·netpolluser(PollDesc *pd)
++{
++	return &pd->user;
++}
++
+ // make pd ready, newly runnable goroutines (if any) are enqueued info gpp list
+ void
+ runtime·netpollready(G **gpp, PollDesc *pd, int32 mode)
+diff --git a/src/pkg/runtime/netpoll_epoll.c b/src/pkg/runtime/netpoll_epoll.c
+index 318e069299..9ea5e1a595 100644
+--- a/src/pkg/runtime/netpoll_epoll.c
++++ b/src/pkg/runtime/netpoll_epoll.c
+@@ -53,9 +53,9 @@ runtime·netpollclose(uintptr fd)
+ }
+ 
+ void
+-runtime·netpollarm(uintptr fd, int32 mode)
++runtime·netpollarm(PollDesc* pd, int32 mode)
+ {
+-	USED(fd, mode);
++	USED(pd, mode);
+ 	runtime·throw("unused");
+ }
+ 
+diff --git a/src/pkg/runtime/netpoll_kqueue.c b/src/pkg/runtime/netpoll_kqueue.c
+index 7c5f12a1bd..171346cce2 100644
+--- a/src/pkg/runtime/netpoll_kqueue.c
++++ b/src/pkg/runtime/netpoll_kqueue.c
+@@ -60,9 +60,9 @@ runtime·netpollclose(uintptr fd)
+ }
+ 
+ void
+-runtime·netpollarm(uintptr fd, int32 mode)
++runtime·netpollarm(PollDesc* pd, int32 mode)
+ {
+-	USED(fd, mode);
++	USED(pd, mode);
+ 	runtime·throw("unused");
+ }
+ 
+diff --git a/src/pkg/runtime/netpoll_solaris.c b/src/pkg/runtime/netpoll_solaris.c
+new file mode 100644
+index 0000000000..f745f23435
+--- /dev/null
++++ b/src/pkg/runtime/netpoll_solaris.c
+@@ -0,0 +1,188 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "arch_GOARCH.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++
++#pragma dynimport libc·fcntl fcntl "libc.so"
++#pragma dynimport libc·port_create port_create "libc.so"
++#pragma dynimport libc·port_associate port_associate "libc.so"
++#pragma dynimport libc·port_dissociate port_dissociate "libc.so"
++#pragma dynimport libc·port_getn port_getn "libc.so"
++extern uintptr libc·fcntl;
++extern uintptr libc·port_create;
++extern uintptr libc·port_associate;
++extern uintptr libc·port_dissociate;
++extern uintptr libc·port_getn;
++
++#define errno (*m->perrno)
++
++int32
++runtime·fcntl(int32 fd, int32 cmd, uintptr arg)
++{
++	return runtime·sysvicall6(libc·fcntl, 3,
++	    (uintptr)fd, (uintptr)cmd, (uintptr)arg);
++}
++
++int32
++runtime·port_create(void)
++{
++	return runtime·sysvicall6(libc·port_create, 0);
++}
++
++int32
++runtime·port_associate(int32 port, int32 source, uintptr object, int32 events, uintptr user)
++{
++	return runtime·sysvicall6(libc·port_associate,
++	    5, (uintptr)port, (uintptr)source, object, (uintptr)events, user);
++}
++
++int32
++runtime·port_dissociate(int32 port, int32 source, uintptr object)
++{
++	return runtime·sysvicall6(libc·port_dissociate,
++	    3, (uintptr)port, (uintptr)source, object);
++}
++
++int32
++runtime·port_getn(int32 port, PortEvent *evs, uint32 max, uint32 *nget, Timespec *timeout)
++{
++	return runtime·sysvicall6(libc·port_getn, 5, (uintptr)port,
++	    (uintptr)evs, (uintptr)max, (uintptr)nget, (uintptr)timeout);
++}
++
++static int32 portfd = -1;
++
++void
++runtime·netpollinit(void)
++{
++	if((portfd = runtime·port_create()) >= 0) {
++		runtime·fcntl(portfd, F_SETFD, FD_CLOEXEC);
++		return;
++	}
++
++	runtime·printf("netpollinit: failed to create port (%d)\n", errno);
++	runtime·throw("netpollinit: failed to create port");
++}
++
++int32
++runtime·netpollopen(uintptr fd, PollDesc *pd)
++{
++	uint32 events = POLLIN | POLLOUT;
++	*runtime·netpolluser(pd) = (void*)events;
++
++	return runtime·port_associate(portfd, PORT_SOURCE_FD, fd, events, (uintptr)pd);
++}
++
++int32
++runtime·netpollclose(uintptr fd)
++{
++	return runtime·port_dissociate(portfd, PORT_SOURCE_FD, fd);
++}
++
++void
++runtime·netpollupdate(PollDesc* pd, uint32 set, uint32 clear)
++{
++	uint32 *ep, old, events;
++	uintptr fd = runtime·netpollfd(pd);
++	ep = (uint32*)runtime·netpolluser(pd);
++
++	do {
++		old = *ep;
++		events = (old & ~clear) | set;
++		if(old == events)
++			return;
++
++		if(events && runtime·port_associate(portfd, PORT_SOURCE_FD, fd, events, (uintptr)pd) != 0) {
++			runtime·printf("netpollupdate: failed to associate (%d)\n", errno);
++			runtime·throw("netpollupdate: failed to associate");
++		}
++	} while(runtime·cas(ep, old, events) != events);
++}
++
++void
++runtime·netpollarm(PollDesc* pd, int32 mode)
++{
++	switch(mode) {
++	case 'r':
++		runtime·netpollupdate(pd, POLLIN, 0);
++		break;
++	case 'w':
++		runtime·netpollupdate(pd, POLLOUT, 0);
++		break;
++	default:
++		runtime·throw("netpollarm: bad mode");
++	}
++}
++
++// polls for ready network connections
++// returns list of goroutines that become runnable
++G*
++runtime·netpoll(bool block)
++{
++	static int32 lasterr;
++	PortEvent events[128], *ev;
++	PollDesc *pd;
++	int32 i, mode;
++	uint32 n;
++	Timespec *wait = nil, zero;
++	G *gp;
++
++	if(portfd == -1)
++		return (nil);
++
++	if(!block) {
++		zero.tv_sec = 0;
++		zero.tv_nsec = 0;
++		wait = &zero;
++	}
++
++retry:
++	n = 1;
++
++	if(runtime·port_getn(portfd, events, nelem(events), &n, wait) < 0) {
++		if(errno != EINTR && errno != lasterr) {
++			lasterr = errno;
++			runtime·printf("runtime: port_getn on fd %d "
++			    "failed with %d\n", portfd, errno);
++		}
++		goto retry;
++	}
++
++	gp = nil;
++
++	for(i = 0; i < n; i++) {
++		ev = &events[i];
++
++		if(ev->portev_events == 0)
++			continue;
++
++		if((pd = (PollDesc *)ev->portev_user) == nil)
++			continue;
++
++		mode = 0;
++
++		if(ev->portev_events & (POLLIN|POLLHUP|POLLERR))
++			mode += 'r';
++
++		if(ev->portev_events & (POLLOUT|POLLHUP|POLLERR))
++			mode += 'w';
++
++		//
++		// To effect edge-triggered events, we need to be sure to
++		// update our association with whatever events were not
++		// set with the event.
++		//
++		runtime·netpollupdate(pd, 0, ev->portev_events & (POLLIN|POLLOUT));
++
++		if(mode)
++			runtime·netpollready(&gp, pd, mode);
++	}
++
++	if(block && gp == nil)
++		goto retry;
++	return gp;
++}
+diff --git a/src/pkg/runtime/netpoll_windows.c b/src/pkg/runtime/netpoll_windows.c
+index a9f828c706..f3cd15c7a9 100644
+--- a/src/pkg/runtime/netpoll_windows.c
++++ b/src/pkg/runtime/netpoll_windows.c
+@@ -73,9 +73,9 @@ runtime·netpollclose(uintptr fd)
+ }
+ 
+ void
+-runtime·netpollarm(uintptr fd, int32 mode)
++runtime·netpollarm(PollDesc* pd, int32 mode)
+ {
+-	USED(fd, mode);
++	USED(pd, mode);
+ 	runtime·throw("unused");
+ }
+ 
+diff --git a/src/pkg/runtime/os_solaris.h b/src/pkg/runtime/os_solaris.h
+index 47c712b6af..f3fae5da2a 100644
+--- a/src/pkg/runtime/os_solaris.h
++++ b/src/pkg/runtime/os_solaris.h
+@@ -1,4 +1,4 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
++// Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/pkg/runtime/rt0_solaris_amd64.s b/src/pkg/runtime/rt0_solaris_amd64.s
+index 32fc8333f4..4aca991f08 100644
+--- a/src/pkg/runtime/rt0_solaris_amd64.s
++++ b/src/pkg/runtime/rt0_solaris_amd64.s
+@@ -1,4 +1,4 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
++// Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 8d07294e81..c9887b6637 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -919,7 +919,8 @@ int32	runtime·netpollopen(uintptr, PollDesc*);
+ int32   runtime·netpollclose(uintptr);
+ void	runtime·netpollready(G**, PollDesc*, int32);
+ uintptr	runtime·netpollfd(PollDesc*);
+-void	runtime·netpollarm(uintptr, int32);
++void	runtime·netpollarm(PollDesc*, int32);
++void**	runtime·netpolluser(PollDesc*);
+ void	runtime·crash(void);
+ void	runtime·parsedebugvars(void);
+ void	_rt0_go(void);
+diff --git a/src/pkg/runtime/signal_solaris_amd64.h b/src/pkg/runtime/signal_solaris_amd64.h
+index df54a7d149..c2e0a15497 100644
+--- a/src/pkg/runtime/signal_solaris_amd64.h
++++ b/src/pkg/runtime/signal_solaris_amd64.h
+@@ -1,4 +1,4 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
++// Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/pkg/runtime/signals_solaris.h b/src/pkg/runtime/signals_solaris.h
+index 75304644a5..c272cad292 100644
+--- a/src/pkg/runtime/signals_solaris.h
++++ b/src/pkg/runtime/signals_solaris.h
+@@ -1,4 +1,4 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
++// Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/pkg/runtime/sys_solaris_amd64.s b/src/pkg/runtime/sys_solaris_amd64.s
+index ffe2df43fb..21517693b2 100644
+--- a/src/pkg/runtime/sys_solaris_amd64.s
++++ b/src/pkg/runtime/sys_solaris_amd64.s
+@@ -1,4 +1,4 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
++// Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ //
+diff --git a/src/pkg/runtime/syscall_solaris.goc b/src/pkg/runtime/syscall_solaris.goc
+index 5fe3aa3ebc..cd30dd1788 100644
+--- a/src/pkg/runtime/syscall_solaris.goc
++++ b/src/pkg/runtime/syscall_solaris.goc
+@@ -1,4 +1,4 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
++// Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -50,7 +50,7 @@ extern uintptr libc·forkx;
+ extern uintptr libc·wait4;
+ extern uintptr libc·write;
+ 
+-func Sysvicall6(func uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr)
++func sysvicall6(func uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr)
+ {
+ 	LibCall c;
+ 
+@@ -69,7 +69,7 @@ func Sysvicall6(func uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr,
+ }
+ 
+ #pragma textflag NOSPLIT
+-func RawSysvicall6(func uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr)
++func rawSysvicall6(func uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr)
+ {
+ 	LibCall c;
+ 

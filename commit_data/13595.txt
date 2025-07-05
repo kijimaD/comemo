@@ -9,6 +9,35 @@ Date:   Tue Aug 7 16:10:10 2012 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/6445083
-
+---
  src/pkg/io/io.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 54bf159eb4..7c863c16d3 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -130,11 +130,23 @@ type ReadWriteSeeker interface {
+ }
+ 
+ // ReaderFrom is the interface that wraps the ReadFrom method.
++//
++// ReadFrom reads data from r until EOF. The return value n is the
++// number of bytes read. Any error except io.EOF encountered during
++// the read is also returned.
++//
++// The Copy function uses ReaderFrom if available.
+ type ReaderFrom interface {
+ 	ReadFrom(r Reader) (n int64, err error)
+ }
+ 
+ // WriterTo is the interface that wraps the WriteTo method.
++//
++// WriteTo writes data to w until there's no more data to write or
++// when an error occurs. The return value n is the number of bytes
++// written. Any error encountered during the write is also returned.
++//
++// The Copy function uses WriterTo if available.
+ type WriterTo interface {
+ 	WriteTo(w Writer) (n int64, err error)
+ }

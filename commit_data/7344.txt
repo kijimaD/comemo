@@ -7,6 +7,27 @@ Date:   Wed Feb 2 22:43:40 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3989059
-
+---
  lib/codereview/codereview.py | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index cd0c7a8761..94270f840d 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1142,12 +1142,11 @@ def clpatch(ui, repo, clname, **opts):
+ 	if err != "":
+ 		return err
+ 	try:
+-		cmd = subprocess.Popen(argv, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=None, close_fds=True)
++		cmd = subprocess.Popen(argv, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=None, close_fds=sys.platform != "win32")
+ 	except:
+ 		return "hgpatch: " + ExceptionDetail()
+-	if os.fork() == 0:
+-		cmd.stdin.write(patch)
+-		os._exit(0)
++
++	cmd.stdin.write(patch)
+ 	cmd.stdin.close()
+ 	out = cmd.stdout.read()
+ 	if cmd.wait() != 0 and not opts["ignore_hgpatch_failure"]:

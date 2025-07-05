@@ -17,6 +17,19 @@ Date:   Tue Mar 28 12:10:38 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 7a8becb35a..4c06fe5e6c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2127,6 +2127,7 @@ func convas(n *Node, init *Nodes) *Node {
+ 		n.Right = assignconv(n.Right, lt, "assignment")
+ 		n.Right = walkexpr(n.Right, init)
+ 	}
++	dowidth(n.Right.Type)
+ 
+ out:
+ 	updateHasCall(n)

@@ -7,6 +7,20 @@ Date:   Fri Feb 18 10:47:38 2011 -0800
     R=agl
     CC=golang-dev
     https://golang.org/cl/4173062
-
+---
  src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go
+index ee5a30d321..5543b20297 100644
+--- a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go
++++ b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go
+@@ -54,7 +54,7 @@ func testMDCReader(t *testing.T) {
+ 
+ 		err = mdcReader.Close()
+ 		if err != nil {
+-			t.Errorf("stride: %d, error on Close: %s", err)
++			t.Errorf("stride: %d, error on Close: %s", stride, err)
+ 		}
+ 	}
+ 

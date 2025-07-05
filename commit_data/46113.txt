@@ -41,6 +41,28 @@ Date:   Mon Dec 7 17:15:06 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/275912
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  doc/go1.16.html | 9 +++------
  1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index a1f07c10fd..da8f560f85 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -361,13 +361,10 @@ Do not send CLs removing the interior tags from such phrases.
+   supported architecture/OS combinations (the 1.15 performance improvements
+   were primarily focused on <code>ELF</code>-based OSes and
+   <code>amd64</code> architectures).  For a representative set of
+-  large Go programs, linking is 20-35% faster than 1.15 and requires
++  large Go programs, linking is 20-25% faster than 1.15 and requires
+   5-15% less memory on average for <code>linux/amd64</code>, with larger
+-  improvements for other architectures and OSes.
+-</p>
+-
+-<p>
+-  TODO: update with final numbers later in the release.
++  improvements for other architectures and OSes. Most binaries are
++  also smaller as a result of more aggressive symbol pruning.
+ </p>
+ 
+ <p><!-- CL 255259 -->

@@ -22,7 +22,51 @@ Date:   Thu Oct 19 10:29:23 2017 -0700
     Reviewed-by: Tom Bergan <tombergan@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Tom Bergan <tombergan@google.com>
-
+---
  src/net/http/transfer.go       |  2 +-
  src/net/http/transport_test.go | 22 ++++++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 2087ce5587..a400a6abb1 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -497,7 +497,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
+ 	// or close connection when finished, since multipart is not supported yet
+ 	switch {
+ 	case chunked(t.TransferEncoding):
+-		if noResponseBodyExpected(t.RequestMethod) {
++		if noResponseBodyExpected(t.RequestMethod) || !bodyAllowedForStatus(t.StatusCode) {
+ 			t.Body = NoBody
+ 		} else {
+ 			t.Body = &body{src: internal.NewChunkedReader(r), hdr: msg, r: r, closing: t.Close}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index b838fe9002..31cf917066 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -4337,3 +4337,25 @@ func doFetchCheckPanic(tr *Transport, req *Request) (res *Response, err error, p
+ 	res, err = tr.RoundTrip(req)
+ 	return
+ }
++
++// Issue 22330: do not allow the response body to be read when the status code
++// forbids a response body.
++func TestNoBodyOnChunked304Response(t *testing.T) {
++	defer afterTest(t)
++	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
++		conn, buf, _ := w.(Hijacker).Hijack()
++		buf.Write([]byte("HTTP/1.1 304 NOT MODIFIED\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n"))
++		buf.Flush()
++		conn.Close()
++	}))
++	defer cst.close()
++
++	res, err := cst.c.Get(cst.ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if res.Body != NoBody {
++		t.Errorf("Unexpected body on 304 response")
++	}
++}

@@ -11,6 +11,20 @@ Date:   Tue Aug 21 14:27:07 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cover/cover_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index c818819c39..8eb7124aad 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -314,7 +314,7 @@ func TestCoverHTML(t *testing.T) {
+ 	// Compare at the line level, stopping at first different line so
+ 	// we don't generate tons of output if there's an inserted or deleted line.
+ 	for i, goldenLine := range goldenLines {
+-		if i > len(outLines) {
++		if i >= len(outLines) {
+ 			t.Fatalf("output shorter than golden; stops before line %d: %s\n", i+1, goldenLine)
+ 		}
+ 		// Convert all white space to simple spaces, for easy comparison.

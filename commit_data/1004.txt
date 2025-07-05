@@ -7,6 +7,30 @@ Date:   Thu Oct 30 14:32:04 2008 -0700
     R=r
     OCL=18166
     CL=18166
-
+---
  src/cmd/6g/gen.c | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 39c9d6f38b..f4a15f2f20 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -1047,13 +1047,16 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 	regalloc(&n1, nr->type, &n1);
+ 
+ 	// clean out the CL register
+-	if(rcl && !samereg(res, &n1)) {
++	if(rcl) {
+ 		regalloc(&n2, types[TINT64], N);
+ 		gins(AMOVQ, &n1, &n2);
+ 		regfree(&n1);
+ 
+ 		reg[D_CX] = 0;
+-		cgen_shift(op, nl, nr, res);
++		if(samereg(res, &n1))
++			cgen_shift(op, nl, nr, &n2);
++		else
++			cgen_shift(op, nl, nr, res);
+ 		reg[D_CX] = rcl;
+ 
+ 		gins(AMOVQ, &n2, &n1);

@@ -16,6 +16,24 @@ Date:   Wed Jun 30 13:14:46 2010 -0700
     R=rsc, rsc1
     CC=golang-dev
     https://golang.org/cl/1682048
-
+---
  src/pkg/io/pipe.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/io/pipe.go b/src/pkg/io/pipe.go
+index 79221bd497..898526921f 100644
+--- a/src/pkg/io/pipe.go
++++ b/src/pkg/io/pipe.go
+@@ -144,10 +144,11 @@ func (p *pipeHalf) rw(data []byte) (n int, err os.Error) {
+ 	// Run i/o operation.
+ 	// Check ioclosed flag under lock to make sure we're still allowed to do i/o.
+ 	p.io.Lock()
+-	defer p.io.Unlock()
+ 	if p.ioclosed {
++		p.io.Unlock()
+ 		return 0, os.EINVAL
+ 	}
++	p.io.Unlock()
+ 	p.c1 <- data
+ 	res := <-p.c2
+ 	return res.n, res.err

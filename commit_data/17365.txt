@@ -10,6 +10,23 @@ Date:   Fri Aug 23 15:07:42 2013 +1000
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/12798045
-
+---
  src/pkg/net/timeout_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 7ea81fe34b..350ec8f7b1 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -496,7 +496,10 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
+ 				clientc <- copyRes{n, err, d}
+ 			}()
+ 
+-			const tooLong = 2000 * time.Millisecond
++			tooLong := 2 * time.Second
++			if runtime.GOOS == "windows" {
++				tooLong = 5 * time.Second
++			}
+ 			select {
+ 			case res := <-clientc:
+ 				if isTimeout(res.err) {

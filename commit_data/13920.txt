@@ -41,6 +41,39 @@ Date:   Mon Sep 24 17:58:08 2012 +1000
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/6533048
-
+---
  src/pkg/compress/flate/inflate.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index 92670126e6..c7ef5ff7e6 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -212,7 +212,7 @@ type decompressor struct {
+ 	codebits [numCodes]int
+ 
+ 	// Output history, buffer.
+-	hist  [maxHist]byte
++	hist  *[maxHist]byte
+ 	hp    int  // current output position in buffer
+ 	hw    int  // have written hist[0:hw] already
+ 	hfull bool // buffer has filled at least once
+@@ -693,6 +693,7 @@ func makeReader(r io.Reader) Reader {
+ func NewReader(r io.Reader) io.ReadCloser {
+ 	var f decompressor
+ 	f.r = makeReader(r)
++	f.hist = new([maxHist]byte)
+ 	f.step = (*decompressor).nextBlock
+ 	return &f
+ }
+@@ -704,8 +705,9 @@ func NewReader(r io.Reader) io.ReadCloser {
+ // to read data compressed by NewWriterDict.
+ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
+ 	var f decompressor
+-	f.setDict(dict)
+ 	f.r = makeReader(r)
++	f.hist = new([maxHist]byte)
+ 	f.step = (*decompressor).nextBlock
++	f.setDict(dict)
+ 	return &f
+ }

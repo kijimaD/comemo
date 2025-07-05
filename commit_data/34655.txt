@@ -14,7 +14,55 @@ Date:   Sat Nov 4 19:35:23 2017 -0700
     Change-Id: I77b16c37af9bf00a1799fa84277f066180edac47
     Reviewed-on: https://go-review.googlesource.com/76110
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/os_test.go      | 21 +++++++++++++++++++++
  src/syscall/fs_nacl.go |  4 ++++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 7ac2431df9..eb8a7d1b92 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -721,6 +721,27 @@ func TestHardLink(t *testing.T) {
+ 	if !SameFile(tostat, fromstat) {
+ 		t.Errorf("link %q, %q did not create hard link", to, from)
+ 	}
++	// We should not be able to perform the same Link() a second time
++	err = Link(to, from)
++	switch err := err.(type) {
++	case *LinkError:
++		if err.Op != "link" {
++			t.Errorf("Link(%q, %q) err.Op = %q; want %q", to, from, err.Op, "link")
++		}
++		if err.Old != to {
++			t.Errorf("Link(%q, %q) err.Old = %q; want %q", to, from, err.Old, to)
++		}
++		if err.New != from {
++			t.Errorf("Link(%q, %q) err.New = %q; want %q", to, from, err.New, from)
++		}
++		if !IsExist(err.Err) {
++			t.Errorf("Link(%q, %q) err.Err = %q; want %q", to, from, err.Err, "file exists error")
++		}
++	case nil:
++		t.Errorf("link %q, %q: expected error, got nil", from, to)
++	default:
++		t.Errorf("link %q, %q: expected %T, got %T %v", from, to, new(LinkError), err, err)
++	}
+ }
+ 
+ // chtmpdir changes the working directory to a new temporary directory and
+diff --git a/src/syscall/fs_nacl.go b/src/syscall/fs_nacl.go
+index cbd9539c92..8fee4daee9 100644
+--- a/src/syscall/fs_nacl.go
++++ b/src/syscall/fs_nacl.go
+@@ -636,6 +636,10 @@ func Link(path, link string) error {
+ 	if ip.Mode&S_IFMT == S_IFDIR {
+ 		return EPERM
+ 	}
++	_, _, err = fs.dirlookup(dp, elem)
++	if err == nil {
++		return EEXIST
++	}
+ 	fs.dirlink(dp, elem, ip)
+ 	return nil
+ }

@@ -8,8 +8,62 @@ Date:   Mon Feb 13 15:08:04 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/36931
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go |  4 ++--
  test/syntax/forvar.go                     | 11 -----------
  test/syntax/initvar.go                    | 15 +++++++++++++++
  3 files changed, 17 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index e4aaa12ae5..d7f542e609 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1703,8 +1703,8 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
+ 
+ 	if p.tok != _Semi {
+ 		// accept potential varDecl but complain
+-		if keyword == _For && p.got(_Var) {
+-			p.syntax_error("var declaration not allowed in for initializer")
++		if p.got(_Var) {
++			p.syntax_error(fmt.Sprintf("var declaration not allowed in %s initializer", keyword.String()))
+ 		}
+ 		init = p.simpleStmt(nil, keyword == _For)
+ 		// If we have a range clause, we are done (can only happen for keyword == _For).
+diff --git a/test/syntax/forvar.go b/test/syntax/forvar.go
+deleted file mode 100644
+index 3a70d9cfbe..0000000000
+--- a/test/syntax/forvar.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// errorcheck
+-
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func main() {
+-	var x int // avoid undefined: x error below with recursive-descent parser
+-	for var x = 0; x < 10; x++ {	// ERROR "var declaration not allowed in for initializer"
+diff --git a/test/syntax/initvar.go b/test/syntax/initvar.go
+new file mode 100644
+index 0000000000..74623f587c
+--- /dev/null
++++ b/test/syntax/initvar.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	if var x = 0; x < 10 {}    // ERROR "var declaration not allowed in if initializer"
++
++	switch var x = 0; x {}     // ERROR "var declaration not allowed in switch initializer"
++
++	for var x = 0; x < 10; {}  // ERROR "var declaration not allowed in for initializer"
++}

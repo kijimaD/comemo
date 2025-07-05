@@ -12,7 +12,7 @@ Date:   Wed Jun 15 14:06:35 2011 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4572065
-
+---
  src/cmd/godoc/Makefile      |  2 +
  src/cmd/godoc/codewalk.go   | 30 +++++++-------
  src/cmd/godoc/dirtrees.go   | 37 ++++++++---------
@@ -24,3 +24,670 @@ Date:   Wed Jun 15 14:06:35 2011 -0700
  src/cmd/godoc/parser.go     | 69 ++++++++++++++++++++++++++++++++
  src/cmd/godoc/utils.go      |  7 +++-
  10 files changed, 237 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/godoc/Makefile b/src/cmd/godoc/Makefile
+index c4e0fd9f95..06a18be707 100644
+--- a/src/cmd/godoc/Makefile
++++ b/src/cmd/godoc/Makefile
+@@ -8,11 +8,13 @@ TARG=godoc
+ GOFILES=\
+ 	codewalk.go\
+ 	dirtrees.go\
++	filesystem.go\
+ 	format.go\
+ 	godoc.go\
+ 	index.go\
+ 	main.go\
+ 	mapping.go\
++	parser.go\
+ 	snippet.go\
+ 	spec.go\
+ 	utils.go\
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+index 24087eb880..54bebe854f 100644
+--- a/src/cmd/godoc/codewalk.go
++++ b/src/cmd/godoc/codewalk.go
+@@ -17,7 +17,6 @@ import (
+ 	"fmt"
+ 	"http"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"regexp"
+@@ -42,7 +41,7 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 
+ 	// If directory exists, serve list of code walks.
+-	dir, err := os.Lstat(abspath)
++	dir, err := fs.Lstat(abspath)
+ 	if err == nil && dir.IsDirectory() {
+ 		codewalkDir(w, r, relpath, abspath)
+ 		return
+@@ -114,8 +113,8 @@ func (st *Codestep) String() string {
+ 
+ 
+ // loadCodewalk reads a codewalk from the named XML file.
+-func loadCodewalk(file string) (*Codewalk, os.Error) {
+-	f, err := os.Open(file)
++func loadCodewalk(filename string) (*Codewalk, os.Error) {
++	f, err := fs.Open(filename)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -125,7 +124,7 @@ func loadCodewalk(file string) (*Codewalk, os.Error) {
+ 	p.Entity = xml.HTMLEntity
+ 	err = p.Unmarshal(cw, nil)
+ 	if err != nil {
+-		return nil, &os.PathError{"parsing", file, err}
++		return nil, &os.PathError{"parsing", filename, err}
+ 	}
+ 
+ 	// Compute file list, evaluate line numbers for addresses.
+@@ -135,8 +134,8 @@ func loadCodewalk(file string) (*Codewalk, os.Error) {
+ 		if i < 0 {
+ 			i = len(st.Src)
+ 		}
+-		file := st.Src[0:i]
+-		data, err := ioutil.ReadFile(absolutePath(file, *goroot))
++		filename := st.Src[0:i]
++		data, err := fs.ReadFile(absolutePath(filename, *goroot))
+ 		if err != nil {
+ 			st.Err = err
+ 			continue
+@@ -158,8 +157,8 @@ func loadCodewalk(file string) (*Codewalk, os.Error) {
+ 			st.Hi = byteToLine(data, hi-1)
+ 		}
+ 		st.Data = data
+-		st.File = file
+-		m[file] = true
++		st.File = filename
++		m[filename] = true
+ 	}
+ 
+ 	// Make list of files
+@@ -184,7 +183,7 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
+ 		Title string
+ 	}
+ 
+-	dir, err := ioutil.ReadDir(abspath)
++	dir, err := fs.ReadDir(abspath)
+ 	if err != nil {
+ 		log.Print(err)
+ 		serveError(w, r, relpath, err)
+@@ -192,14 +191,15 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
+ 	}
+ 	var v vector.Vector
+ 	for _, fi := range dir {
++		name := fi.Name()
+ 		if fi.IsDirectory() {
+-			v.Push(&elem{fi.Name + "/", ""})
+-		} else if strings.HasSuffix(fi.Name, ".xml") {
+-			cw, err := loadCodewalk(abspath + "/" + fi.Name)
++			v.Push(&elem{name + "/", ""})
++		} else if strings.HasSuffix(name, ".xml") {
++			cw, err := loadCodewalk(abspath + "/" + name)
+ 			if err != nil {
+ 				continue
+ 			}
+-			v.Push(&elem{fi.Name[0 : len(fi.Name)-len(".xml")], cw.Title})
++			v.Push(&elem{name[0 : len(name)-len(".xml")], cw.Title})
+ 		}
+ 	}
+ 
+@@ -216,7 +216,7 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
+ // the usual godoc HTML wrapper.
+ func codewalkFileprint(w http.ResponseWriter, r *http.Request, f string) {
+ 	abspath := absolutePath(f, *goroot)
+-	data, err := ioutil.ReadFile(abspath)
++	data, err := fs.ReadFile(abspath)
+ 	if err != nil {
+ 		log.Print(err)
+ 		serveError(w, r, f, err)
+diff --git a/src/cmd/godoc/dirtrees.go b/src/cmd/godoc/dirtrees.go
+index 97737ca5ac..af44fa16ad 100644
+--- a/src/cmd/godoc/dirtrees.go
++++ b/src/cmd/godoc/dirtrees.go
+@@ -11,9 +11,7 @@ import (
+ 	"go/doc"
+ 	"go/parser"
+ 	"go/token"
+-	"io/ioutil"
+ 	"log"
+-	"os"
+ 	"path/filepath"
+ 	"strings"
+ 	"unicode"
+@@ -29,21 +27,23 @@ type Directory struct {
+ }
+ 
+ 
+-func isGoFile(f *os.FileInfo) bool {
+-	return f.IsRegular() &&
+-		!strings.HasPrefix(f.Name, ".") && // ignore .files
+-		filepath.Ext(f.Name) == ".go"
++func isGoFile(fi FileInfo) bool {
++	name := fi.Name()
++	return fi.IsRegular() &&
++		!strings.HasPrefix(name, ".") && // ignore .files
++		filepath.Ext(name) == ".go"
+ }
+ 
+ 
+-func isPkgFile(f *os.FileInfo) bool {
+-	return isGoFile(f) &&
+-		!strings.HasSuffix(f.Name, "_test.go") // ignore test files
++func isPkgFile(fi FileInfo) bool {
++	return isGoFile(fi) &&
++		!strings.HasSuffix(fi.Name(), "_test.go") // ignore test files
+ }
+ 
+ 
+-func isPkgDir(f *os.FileInfo) bool {
+-	return f.IsDirectory() && len(f.Name) > 0 && f.Name[0] != '_'
++func isPkgDir(fi FileInfo) bool {
++	name := fi.Name()
++	return fi.IsDirectory() && len(name) > 0 && name[0] != '_'
+ }
+ 
+ 
+@@ -101,12 +101,12 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
+ 		return &Directory{depth, path, name, "", nil}
+ 	}
+ 
+-	list, err := ioutil.ReadDir(path)
++	list, err := fs.ReadDir(path)
+ 	if err != nil {
+ 		// newDirTree is called with a path that should be a package
+ 		// directory; errors here should not happen, but if they do,
+ 		// we want to know about them
+-		log.Printf("ioutil.ReadDir(%s): %s", path, err)
++		log.Printf("ReadDir(%s): %s", path, err)
+ 	}
+ 
+ 	// determine number of subdirectories and if there are package files
+@@ -123,7 +123,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
+ 			// though the directory doesn't contain any real package files - was bug)
+ 			if synopses[0] == "" {
+ 				// no "optimal" package synopsis yet; continue to collect synopses
+-				file, err := parser.ParseFile(fset, filepath.Join(path, d.Name), nil,
++				file, err := parser.ParseFile(fset, filepath.Join(path, d.Name()), nil,
+ 					parser.ParseComments|parser.PackageClauseOnly)
+ 				if err == nil {
+ 					hasPkgFiles = true
+@@ -156,7 +156,8 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
+ 		i := 0
+ 		for _, d := range list {
+ 			if isPkgDir(d) {
+-				dd := b.newDirTree(fset, filepath.Join(path, d.Name), d.Name, depth+1)
++				name := d.Name()
++				dd := b.newDirTree(fset, filepath.Join(path, name), name, depth+1)
+ 				if dd != nil {
+ 					dirs[i] = dd
+ 					i++
+@@ -195,8 +196,8 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
+ // (i.e., in this case the tree may contain directories w/o any package files).
+ //
+ func newDirectory(root string, pathFilter func(string) bool, maxDepth int) *Directory {
+-	// The root could be a symbolic link so use os.Stat not os.Lstat.
+-	d, err := os.Stat(root)
++	// The root could be a symbolic link so use Stat not Lstat.
++	d, err := fs.Stat(root)
+ 	// If we fail here, report detailed error messages; otherwise
+ 	// is is hard to see why a directory tree was not built.
+ 	switch {
+@@ -213,7 +214,7 @@ func newDirectory(root string, pathFilter func(string) bool, maxDepth int) *Dire
+ 	b := treeBuilder{pathFilter, maxDepth}
+ 	// the file set provided is only for local parsing, no position
+ 	// information escapes and thus we don't need to save the set
+-	return b.newDirTree(token.NewFileSet(), root, d.Name, 0)
++	return b.newDirTree(token.NewFileSet(), root, d.Name(), 0)
+ }
+ 
+ 
+diff --git a/src/cmd/godoc/filesystem.go b/src/cmd/godoc/filesystem.go
+new file mode 100644
+index 0000000000..bf68378d48
+--- /dev/null
++++ b/src/cmd/godoc/filesystem.go
+@@ -0,0 +1,96 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file defines abstract file system access.
++
++package main
++
++import (
++	"io"
++	"io/ioutil"
++	"os"
++)
++
++
++// The FileInfo interface provides access to file information.
++type FileInfo interface {
++	Name() string
++	Size() int64
++	IsRegular() bool
++	IsDirectory() bool
++}
++
++
++// The FileSystem interface specifies the methods godoc is using
++// to access the file system for which it serves documentation.
++type FileSystem interface {
++	Open(path string) (io.ReadCloser, os.Error)
++	Lstat(path string) (FileInfo, os.Error)
++	Stat(path string) (FileInfo, os.Error)
++	ReadDir(path string) ([]FileInfo, os.Error)
++	ReadFile(path string) ([]byte, os.Error)
++}
++
++
++// ----------------------------------------------------------------------------
++// OS-specific FileSystem implementation
++
++var OS FileSystem = osFS{}
++
++
++// osFI is the OS-specific implementation of FileInfo.
++type osFI struct {
++	*os.FileInfo
++}
++
++
++func (fi osFI) Name() string {
++	return fi.FileInfo.Name
++}
++
++
++func (fi osFI) Size() int64 {
++	if fi.IsDirectory() {
++		return 0
++	}
++	return fi.FileInfo.Size
++}
++
++
++// osFS is the OS-specific implementation of FileSystem
++type osFS struct{}
++
++func (osFS) Open(path string) (io.ReadCloser, os.Error) {
++	return os.Open(path)
++}
++
++
++func (osFS) Lstat(path string) (FileInfo, os.Error) {
++	fi, err := os.Lstat(path)
++	return osFI{fi}, err
++}
++
++
++func (osFS) Stat(path string) (FileInfo, os.Error) {
++	fi, err := os.Stat(path)
++	return osFI{fi}, err
++}
++
++
++func (osFS) ReadDir(path string) ([]FileInfo, os.Error) {
++	l0, err := ioutil.ReadDir(path)
++	if err != nil {
++		return nil, err
++	}
++	l1 := make([]FileInfo, len(l0))
++	for i, e := range l0 {
++		l1[i] = osFI{e}
++	}
++	return l1, nil
++}
++
++
++func (osFS) ReadFile(path string) ([]byte, os.Error) {
++	return ioutil.ReadFile(path)
++}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index f97c764f97..6987d911b7 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -10,12 +10,10 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/doc"
+-	"go/parser"
+ 	"go/printer"
+ 	"go/token"
+ 	"http"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"path"
+@@ -71,10 +69,11 @@ var (
+ 	maxResults   = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
+ 
+ 	// file system mapping
+-	fsMap      Mapping // user-defined mapping
+-	fsTree     RWValue // *Directory tree of packages, updated with each sync
+-	pathFilter RWValue // filter used when building fsMap directory trees
+-	fsModified RWValue // timestamp of last call to invalidateIndex
++	fs         FileSystem // the underlying file system
++	fsMap      Mapping    // user-defined mapping
++	fsTree     RWValue    // *Directory tree of packages, updated with each sync
++	pathFilter RWValue    // filter used when building fsMap directory trees
++	fsModified RWValue    // timestamp of last call to invalidateIndex
+ 
+ 	// http handlers
+ 	fileServer http.Handler // default file server
+@@ -147,13 +146,13 @@ func getPathFilter() func(string) bool {
+ // readDirList reads a file containing a newline-separated list
+ // of directory paths and returns the list of paths.
+ func readDirList(filename string) ([]string, os.Error) {
+-	contents, err := ioutil.ReadFile(filename)
++	contents, err := fs.ReadFile(filename)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	// create a sorted list of valid directory names
+ 	filter := func(path string) bool {
+-		d, e := os.Lstat(path)
++		d, e := fs.Lstat(path)
+ 		if e != nil && err == nil {
+ 			// remember first error and return it from readDirList
+ 			// so we have at least some information if things go bad
+@@ -598,7 +597,7 @@ func timeFmt(w io.Writer, format string, x ...interface{}) {
+ 
+ // Template formatter for "dir/" format.
+ func dirslashFmt(w io.Writer, format string, x ...interface{}) {
+-	if x[0].(*os.FileInfo).IsDirectory() {
++	if x[0].(FileInfo).IsDirectory() {
+ 		w.Write([]byte{'/'})
+ 	}
+ }
+@@ -642,12 +641,12 @@ func readTemplate(name string) *template.Template {
+ 	if *templateDir != "" {
+ 		defaultpath := path
+ 		path = filepath.Join(*templateDir, name)
+-		if _, err := os.Stat(path); err != nil {
++		if _, err := fs.Stat(path); err != nil {
+ 			log.Print("readTemplate:", err)
+ 			path = defaultpath
+ 		}
+ 	}
+-	data, err := ioutil.ReadFile(path)
++	data, err := fs.ReadFile(path)
+ 	if err != nil {
+ 		log.Fatalf("ReadFile %s: %v", path, err)
+ 	}
+@@ -742,9 +741,9 @@ func extractString(src []byte, rx *regexp.Regexp) (s string) {
+ 
+ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
+ 	// get HTML body contents
+-	src, err := ioutil.ReadFile(abspath)
++	src, err := fs.ReadFile(abspath)
+ 	if err != nil {
+-		log.Printf("ioutil.ReadFile: %s", err)
++		log.Printf("ReadFile: %s", err)
+ 		serveError(w, r, relpath, err)
+ 		return
+ 	}
+@@ -793,9 +792,9 @@ func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
+ }
+ 
+ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, title string) {
+-	src, err := ioutil.ReadFile(abspath)
++	src, err := fs.ReadFile(abspath)
+ 	if err != nil {
+-		log.Printf("ioutil.ReadFile: %s", err)
++		log.Printf("ReadFile: %s", err)
+ 		serveError(w, r, relpath, err)
+ 		return
+ 	}
+@@ -814,19 +813,13 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath str
+ 		return
+ 	}
+ 
+-	list, err := ioutil.ReadDir(abspath)
++	list, err := fs.ReadDir(abspath)
+ 	if err != nil {
+-		log.Printf("ioutil.ReadDir: %s", err)
++		log.Printf("ReadDir: %s", err)
+ 		serveError(w, r, relpath, err)
+ 		return
+ 	}
+ 
+-	for _, d := range list {
+-		if d.IsDirectory() {
+-			d.Size = 0
+-		}
+-	}
+-
+ 	contents := applyTemplate(dirlistHTML, "dirlistHTML", list)
+ 	servePage(w, "Directory "+relpath, "", "", contents)
+ }
+@@ -864,7 +857,7 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 
+-	dir, err := os.Lstat(abspath)
++	dir, err := fs.Lstat(abspath)
+ 	if err != nil {
+ 		log.Print(err)
+ 		serveError(w, r, relpath, err)
+@@ -942,15 +935,15 @@ type httpHandler struct {
+ //
+ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInfoMode) PageInfo {
+ 	// filter function to select the desired .go files
+-	filter := func(d *os.FileInfo) bool {
++	filter := func(d FileInfo) bool {
+ 		// If we are looking at cmd documentation, only accept
+ 		// the special fakePkgFile containing the documentation.
+-		return isPkgFile(d) && (h.isPkg || d.Name == fakePkgFile)
++		return isPkgFile(d) && (h.isPkg || d.Name() == fakePkgFile)
+ 	}
+ 
+ 	// get package ASTs
+ 	fset := token.NewFileSet()
+-	pkgs, err := parser.ParseDir(fset, abspath, filter, parser.ParseComments)
++	pkgs, err := parseDir(fset, abspath, filter)
+ 	if err != nil && pkgs == nil {
+ 		// only report directory read errors, ignore parse errors
+ 		// (may be able to extract partial package information)
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 5938d0b74a..61caee101d 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -45,7 +45,6 @@ import (
+ 	"go/token"
+ 	"go/scanner"
+ 	"index/suffixarray"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+@@ -624,7 +623,7 @@ func pkgName(filename string) string {
+ // failed (that is, if the file was not added), it returns file == nil.
+ func (x *Indexer) addFile(filename string, goFile bool) (file *token.File, ast *ast.File) {
+ 	// open file
+-	f, err := os.Open(filename)
++	f, err := fs.Open(filename)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -727,12 +726,12 @@ func isWhitelisted(filename string) bool {
+ }
+ 
+ 
+-func (x *Indexer) visitFile(dirname string, f *os.FileInfo, fulltextIndex bool) {
++func (x *Indexer) visitFile(dirname string, f FileInfo, fulltextIndex bool) {
+ 	if !f.IsRegular() {
+ 		return
+ 	}
+ 
+-	filename := filepath.Join(dirname, f.Name)
++	filename := filepath.Join(dirname, f.Name())
+ 	goFile := false
+ 
+ 	switch {
+@@ -745,7 +744,7 @@ func (x *Indexer) visitFile(dirname string, f *os.FileInfo, fulltextIndex bool)
+ 		}
+ 		goFile = true
+ 
+-	case !fulltextIndex || !isWhitelisted(f.Name):
++	case !fulltextIndex || !isWhitelisted(f.Name()):
+ 		return
+ 	}
+ 
+@@ -804,7 +803,7 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool) *Index {
+ 
+ 	// index all files in the directories given by dirnames
+ 	for dirname := range dirnames {
+-		list, err := ioutil.ReadDir(dirname)
++		list, err := fs.ReadDir(dirname)
+ 		if err != nil {
+ 			continue // ignore this directory
+ 		}
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 967ea87272..55f6031bc4 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -222,6 +222,10 @@ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 
++	// Determine file system to use.
++	// TODO(gri) Complete this - for now we only have one.
++	fs = OS
++
+ 	// Clean goroot: normalize path separator.
+ 	*goroot = filepath.Clean(*goroot)
+ 
+diff --git a/src/cmd/godoc/mapping.go b/src/cmd/godoc/mapping.go
+index 6ae9032e48..73f1881a2d 100644
+--- a/src/cmd/godoc/mapping.go
++++ b/src/cmd/godoc/mapping.go
+@@ -9,7 +9,6 @@ package main
+ import (
+ 	"fmt"
+ 	"io"
+-	"os"
+ 	"path"
+ 	"path/filepath"
+ 	"sort"
+@@ -174,7 +173,7 @@ func (m *Mapping) ToAbsolute(spath string) string {
+ 			continue // no match
+ 		}
+ 		abspath := filepath.Join(e.path, tail)
+-		if _, err := os.Stat(abspath); err == nil {
++		if _, err := fs.Stat(abspath); err == nil {
+ 			return abspath
+ 		}
+ 	}
+diff --git a/src/cmd/godoc/parser.go b/src/cmd/godoc/parser.go
+new file mode 100644
+index 0000000000..423db222da
+--- /dev/null
++++ b/src/cmd/godoc/parser.go
+@@ -0,0 +1,69 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains support functions for parsing .go files.
++// Similar functionality is found in package go/parser but the
++// functions here operate using godoc's file system fs instead
++// of calling the OS's file operations directly.
++
++package main
++
++import (
++	"go/ast"
++	"go/parser"
++	"go/token"
++	"os"
++	"path/filepath"
++)
++
++func parseFiles(fset *token.FileSet, filenames []string) (pkgs map[string]*ast.Package, first os.Error) {
++	pkgs = make(map[string]*ast.Package)
++	for _, filename := range filenames {
++		src, err := fs.ReadFile(filename)
++		if err != nil {
++			if first == nil {
++				first = err
++			}
++			continue
++		}
++
++		file, err := parser.ParseFile(fset, filename, src, parser.ParseComments)
++		if err != nil {
++			if first == nil {
++				first = err
++			}
++			continue
++		}
++
++		name := file.Name.Name
++		pkg, found := pkgs[name]
++		if !found {
++			// TODO(gri) Use NewPackage here; reconsider ParseFiles API.
++			pkg = &ast.Package{name, nil, nil, make(map[string]*ast.File)}
++			pkgs[name] = pkg
++		}
++		pkg.Files[filename] = file
++	}
++	return
++}
++
++
++func parseDir(fset *token.FileSet, path string, filter func(FileInfo) bool) (map[string]*ast.Package, os.Error) {
++	list, err := fs.ReadDir(path)
++	if err != nil {
++		return nil, err
++	}
++
++	filenames := make([]string, len(list))
++	i := 0
++	for _, d := range list {
++		if filter == nil || filter(d) {
++			filenames[i] = filepath.Join(path, d.Name())
++			i++
++		}
++	}
++	filenames = filenames[0:i]
++
++	return parseFiles(fset, filenames)
++}
+diff --git a/src/cmd/godoc/utils.go b/src/cmd/godoc/utils.go
+index 593b51ce00..660bf6d043 100644
+--- a/src/cmd/godoc/utils.go
++++ b/src/cmd/godoc/utils.go
+@@ -44,6 +44,10 @@ func (v *RWValue) get() (interface{}, int64) {
+ }
+ 
+ 
++// TODO(gri) For now, using os.Getwd() is ok here since the functionality
++//           based on this code is not invoked for the appengine version,
++//           but this is fragile. Determine what the right thing to do is,
++//           here (possibly have some Getwd-equivalent in FileSystem).
+ var cwd, _ = os.Getwd() // ignore errors
+ 
+ // canonicalizePaths takes a list of (directory/file) paths and returns
+@@ -95,6 +99,7 @@ func canonicalizePaths(list []string, filter func(path string) bool) []string {
+ // atomically renames that file to the file named by filename.
+ //
+ func writeFileAtomically(filename string, data []byte) os.Error {
++	// TODO(gri) this won't work on appengine
+ 	f, err := ioutil.TempFile(filepath.Split(filename))
+ 	if err != nil {
+ 		return err
+@@ -155,7 +160,7 @@ func isTextFile(filename string) bool {
+ 
+ 	// the extension is not known; read an initial chunk
+ 	// of the file and check if it looks like text
+-	f, err := os.Open(filename)
++	f, err := fs.Open(filename)
+ 	if err != nil {
+ 		return false
+ 	}

@@ -13,7 +13,40 @@ Date:   Wed Nov 10 22:14:03 2021 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/mime/mediatype.go      | 4 ++--
  src/mime/mediatype_test.go | 5 ++++-
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/mime/mediatype.go b/src/mime/mediatype.go
+index 6c1b095065..bc8d417e62 100644
+--- a/src/mime/mediatype.go
++++ b/src/mime/mediatype.go
+@@ -180,8 +180,8 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
+ 				pmap = continuation[baseName]
+ 			}
+ 		}
+-		if _, exists := pmap[key]; exists {
+-			// Duplicate parameter name is bogus.
++		if v, exists := pmap[key]; exists && v != value {
++			// Duplicate parameter names are incorrect, but we allow them if they are equal.
+ 			return "", nil, errors.New("mime: duplicate parameter name")
+ 		}
+ 		pmap[key] = value
+diff --git a/src/mime/mediatype_test.go b/src/mime/mediatype_test.go
+index 079c080db7..1458cdb6e2 100644
+--- a/src/mime/mediatype_test.go
++++ b/src/mime/mediatype_test.go
+@@ -407,8 +407,11 @@ func TestParseMediaType(t *testing.T) {
+ 			`message/external-body`,
+ 			m("access-type", "URL", "url", "ftp://cs.utk.edu/pub/moore/bulk-mailer/bulk-mailer.tar"),
+ 		},
+-	}
+ 
++		// Issue #48866: duplicate parameters containing equal values should be allowed
++		{`text; charset=utf-8; charset=utf-8; format=fixed`, "text", m("charset", "utf-8", "format", "fixed")},
++		{`text; charset=utf-8; format=flowed; charset=utf-8`, "text", m("charset", "utf-8", "format", "flowed")},
++	}
+ 	for _, test := range tests {
+ 		mt, params, err := ParseMediaType(test.in)
+ 		if err != nil {

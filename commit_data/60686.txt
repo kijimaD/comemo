@@ -15,6 +15,26 @@ Date:   Fri Aug 9 10:50:00 2024 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/604099
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/importer/ureader.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/ureader.go b/src/cmd/compile/internal/importer/ureader.go
+index d3c7d4516f..e8d3e20cee 100644
+--- a/src/cmd/compile/internal/importer/ureader.go
++++ b/src/cmd/compile/internal/importer/ureader.go
+@@ -28,11 +28,9 @@ func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input
+ 	pr := pkgReader{
+ 		PkgDecoder: input,
+ 
+-		ctxt:    ctxt,
+-		imports: imports,
+-		// Currently, the compiler panics when using Alias types.
+-		// TODO(gri) set to true once this is fixed (issue #66873)
+-		enableAlias: false,
++		ctxt:        ctxt,
++		imports:     imports,
++		enableAlias: true,
+ 
+ 		posBases: make([]*syntax.PosBase, input.NumElems(pkgbits.RelocPosBase)),
+ 		pkgs:     make([]*types2.Package, input.NumElems(pkgbits.RelocPkg)),

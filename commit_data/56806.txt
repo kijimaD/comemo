@@ -12,6 +12,30 @@ Date:   Wed May 24 18:41:32 2023 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  doc/go1.21.html | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index ad84fa04a7..4a771bc6f3 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -697,6 +697,18 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- runtime/trace -->
+ 
++<dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics/">runtime/metrics</a></dt>
++  <dd>
++    <p><!-- https://go.dev/issue/56857 -->
++      A few previously-internal GC metrics, such as live heap size, are
++      now available.
++
++      <code>GOGC</code> and <code>GOMEMLIMIT</code> are also now
++      available as metrics.
++    </p>
++  </dd>
++</dl><!-- runtime/metrics -->
++
+ <dl id="slices"><dt><a href="/pkg/slices/">slices</a></dt>
+   <dd>
+     <p><!-- https://go.dev/issue/54768 -->

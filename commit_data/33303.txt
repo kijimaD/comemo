@@ -38,3 +38,4 @@ Date:   Fri Aug 11 17:47:15 2017 +0000
  src/cmd/link/internal/ld/symkind.go            |   2 +
  src/cmd/link/internal/ld/symkind_string.go     |   4 +-
  32 files changed, 1551 insertions(+), 290 deletions(-)
+

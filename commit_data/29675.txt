@@ -14,9 +14,163 @@ Date:   Fri Sep 30 16:24:31 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go  |  9 +++++++++
  src/cmd/go/help.go     |  9 +++++++++
  src/cmd/go/vcs.go      | 24 +++++++++++++++++++++---
  src/cmd/go/vcs_test.go | 39 +++++++++++++++++++++++++++++++++++++++
  4 files changed, 78 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 71befe57c4..c719c88648 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1127,6 +1127,10 @@
+ // 		Whether the linker should use external linking mode
+ // 		when using -linkmode=auto with code that uses cgo.
+ // 		Set to 0 to disable external linking mode, 1 to enable it.
++// 	GIT_ALLOW_PROTOCOL
++// 		Defined by Git. A colon-separated list of schemes that are allowed to be used
++// 		with git fetch/clone. If set, any scheme not explicitly mentioned will be
++// 		considered insecure by 'go get'.
+ //
+ //
+ // Import path syntax
+@@ -1226,6 +1230,11 @@
+ // each is tried in turn when downloading.  For example, a Git
+ // download tries https://, then git+ssh://.
+ //
++// By default, downloads are restricted to known secure protocols
++// (e.g. https, ssh). To override this setting for Git downloads, the
++// GIT_ALLOW_PROTOCOL environment variable can be set (For more details see:
++// 'go help environment').
++//
+ // If the import path is not a known code hosting site and also lacks a
+ // version control qualifier, the go tool attempts to fetch the import
+ // over https/http and looks for a <meta> tag in the document's HTML
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 410701646d..25e33e70a7 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -197,6 +197,11 @@ When a version control system supports multiple protocols,
+ each is tried in turn when downloading.  For example, a Git
+ download tries https://, then git+ssh://.
+ 
++By default, downloads are restricted to known secure protocols
++(e.g. https, ssh). To override this setting for Git downloads, the
++GIT_ALLOW_PROTOCOL environment variable can be set (For more details see:
++'go help environment').
++
+ If the import path is not a known code hosting site and also lacks a
+ version control qualifier, the go tool attempts to fetch the import
+ over https/http and looks for a <meta> tag in the document's HTML
+@@ -488,6 +493,10 @@ Special-purpose environment variables:
+ 		Whether the linker should use external linking mode
+ 		when using -linkmode=auto with code that uses cgo.
+ 		Set to 0 to disable external linking mode, 1 to enable it.
++	GIT_ALLOW_PROTOCOL
++		Defined by Git. A colon-separated list of schemes that are allowed to be used
++		with git fetch/clone. If set, any scheme not explicitly mentioned will be
++		considered insecure by 'go get'.
+ 	`,
+ }
+ 
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 53ddbe694e..a161962f15 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -41,7 +41,7 @@ type vcsCmd struct {
+ 	resolveRepo func(v *vcsCmd, rootDir, remoteRepo string) (realRepo string, err error)
+ }
+ 
+-var isSecureScheme = map[string]bool{
++var defaultSecureScheme = map[string]bool{
+ 	"https":   true,
+ 	"git+ssh": true,
+ 	"bzr+ssh": true,
+@@ -55,7 +55,25 @@ func (v *vcsCmd) isSecure(repo string) bool {
+ 		// If repo is not a URL, it's not secure.
+ 		return false
+ 	}
+-	return isSecureScheme[u.Scheme]
++	return v.isSecureScheme(u.Scheme)
++}
++
++func (v *vcsCmd) isSecureScheme(scheme string) bool {
++	switch v.cmd {
++	case "git":
++		// GIT_ALLOW_PROTOCOL is an environment variable defined by Git. It is a
++		// colon-separated list of schemes that are allowed to be used with git
++		// fetch/clone. Any scheme not mentioned will be considered insecure.
++		if allow := os.Getenv("GIT_ALLOW_PROTOCOL"); allow != "" {
++			for _, s := range strings.Split(allow, ":") {
++				if s == scheme {
++					return true
++				}
++			}
++			return false
++		}
++	}
++	return defaultSecureScheme[scheme]
+ }
+ 
+ // A tagCmd describes a command to list available tags
+@@ -612,7 +630,7 @@ func repoRootFromVCSPaths(importPath, scheme string, security securityMode, vcsP
+ 				match["repo"] = scheme + "://" + match["repo"]
+ 			} else {
+ 				for _, scheme := range vcs.scheme {
+-					if security == secure && !isSecureScheme[scheme] {
++					if security == secure && !vcs.isSecureScheme(scheme) {
+ 						continue
+ 					}
+ 					if vcs.ping(scheme, match["repo"]) == nil {
+diff --git a/src/cmd/go/vcs_test.go b/src/cmd/go/vcs_test.go
+index 25e3866df0..e702fdbd97 100644
+--- a/src/cmd/go/vcs_test.go
++++ b/src/cmd/go/vcs_test.go
+@@ -229,6 +229,45 @@ func TestIsSecure(t *testing.T) {
+ 	}
+ }
+ 
++func TestIsSecureGitAllowProtocol(t *testing.T) {
++	tests := []struct {
++		vcs    *vcsCmd
++		url    string
++		secure bool
++	}{
++		// Same as TestIsSecure to verify same behavior.
++		{vcsGit, "http://example.com/foo.git", false},
++		{vcsGit, "https://example.com/foo.git", true},
++		{vcsBzr, "http://example.com/foo.bzr", false},
++		{vcsBzr, "https://example.com/foo.bzr", true},
++		{vcsSvn, "http://example.com/svn", false},
++		{vcsSvn, "https://example.com/svn", true},
++		{vcsHg, "http://example.com/foo.hg", false},
++		{vcsHg, "https://example.com/foo.hg", true},
++		{vcsGit, "user@server:path/to/repo.git", false},
++		{vcsGit, "user@server:", false},
++		{vcsGit, "server:repo.git", false},
++		{vcsGit, "server:path/to/repo.git", false},
++		{vcsGit, "example.com:path/to/repo.git", false},
++		{vcsGit, "path/that/contains/a:colon/repo.git", false},
++		{vcsHg, "ssh://user@example.com/path/to/repo.hg", true},
++		// New behavior.
++		{vcsGit, "ssh://user@example.com/foo.git", false},
++		{vcsGit, "foo://example.com/bar.git", true},
++		{vcsHg, "foo://example.com/bar.hg", false},
++		{vcsSvn, "foo://example.com/svn", false},
++		{vcsBzr, "foo://example.com/bar.bzr", false},
++	}
++
++	os.Setenv("GIT_ALLOW_PROTOCOL", "https:foo")
++	for _, test := range tests {
++		secure := test.vcs.isSecure(test.url)
++		if secure != test.secure {
++			t.Errorf("%s isSecure(%q) = %t; want %t", test.vcs, test.url, secure, test.secure)
++		}
++	}
++}
++
+ func TestMatchGoImport(t *testing.T) {
+ 	tests := []struct {
+ 		imports []metaImport

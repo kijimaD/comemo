@@ -8,8 +8,280 @@ Date:   Wed Feb 17 15:41:26 2010 -0800
     R=agl, agl1
     CC=golang-dev
     https://golang.org/cl/212046
-
+---
  src/pkg/go/printer/printer.go               | 31 ++++++----
  src/pkg/go/printer/testdata/comments.golden | 92 +++++++++++++++++++++++++++++
  src/pkg/go/printer/testdata/comments.input  | 92 +++++++++++++++++++++++++++++
  3 files changed, 205 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 304ba0b0ac..90f3e20161 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -429,6 +429,7 @@ func stripCommonPrefix(lines [][]byte) {
+ 	if len(lines) < 2 {
+ 		return // at most one line - nothing to do
+ 	}
++	// len(lines) >= 2
+ 
+ 	// The heuristic in this function tries to handle a few
+ 	// common patterns of /*-style comments: Comments where
+@@ -441,18 +442,28 @@ func stripCommonPrefix(lines [][]byte) {
+ 	// Compute maximum common white prefix of all but the first,
+ 	// last, and blank lines, and replace blank lines with empty
+ 	// lines (the first line starts with /* and has no prefix).
++	// In case of two-line comments, consider the last line for
++	// the prefix computation since otherwise the prefix would
++	// be empty.
++	//
++	// Note that the first and last line are never empty (they
++	// contain the opening /* and closing */ respectively) and
++	// thus they can be ignored by the blank line check.
+ 	var prefix []byte
+-	for i, line := range lines {
+-		switch {
+-		case i == 0 || i == len(lines)-1:
+-			// ignore
+-		case isBlank(line):
+-			lines[i] = nil
+-		case prefix == nil:
+-			prefix = commonPrefix(line, line)
+-		default:
+-			prefix = commonPrefix(prefix, line)
++	if len(lines) > 2 {
++		for i, line := range lines[1 : len(lines)-1] {
++			switch {
++			case isBlank(line):
++				lines[i+1] = nil
++			case prefix == nil:
++				prefix = commonPrefix(line, line)
++			default:
++				prefix = commonPrefix(prefix, line)
++			}
+ 		}
++	} else { // len(lines) == 2
++		line := lines[1]
++		prefix = commonPrefix(line, line)
+ 	}
+ 
+ 	/*
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index 741500c621..18a407478e 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -217,6 +217,80 @@ func _() {
+ 		aligned line */
+ }
+ 
++func _() {
++	/* freestanding comment
++	   aligned line
++	*/
++}
++
++func _() {
++	/* freestanding comment
++	   aligned line
++	*/
++}
++
++func _() {
++	/* freestanding comment
++	   aligned line */
++}
++
++func _() {
++	/*	freestanding comment
++		aligned line
++	*/
++}
++
++func _() {
++	/*	freestanding comment
++		aligned line
++	*/
++}
++
++func _() {
++	/*	freestanding comment
++		aligned line */
++}
++
++
++func _() {
++	/*
++	   freestanding comment
++	   aligned line
++	*/
++}
++
++func _() {
++	/*
++	   freestanding comment
++	   aligned line
++	*/
++}
++
++func _() {
++	/*
++	   freestanding comment
++	   aligned line */
++}
++
++func _() {
++	/*
++		freestanding comment
++		aligned line
++	*/
++}
++
++func _() {
++	/*
++		freestanding comment
++		aligned line
++	*/
++}
++
++func _() {
++	/*
++		freestanding comment
++		aligned line */
++}
+ 
+ /*
+  * line
+@@ -232,6 +306,24 @@ func _() {
+  *	of
+  *	stars */
+ 
++/* a line of
++ * stars */
++
++/*	and another line of
++ *	stars */
++
++/* a line of stars
++ */
++
++/*	and another line of
++ */
++
++/* a line of stars
++ */
++
++/*	and another line of
++ */
++
+ /*
+ aligned in middle
+ here
+diff --git a/src/pkg/go/printer/testdata/comments.input b/src/pkg/go/printer/testdata/comments.input
+index 700a492306..8cba7e5a2c 100644
+--- a/src/pkg/go/printer/testdata/comments.input
++++ b/src/pkg/go/printer/testdata/comments.input
+@@ -217,6 +217,80 @@ func _() {
+ 		aligned line */
+ }
+ 
++func _() {
++	/* freestanding comment
++	   aligned line
++	*/
++}
++
++func _() {
++	/* freestanding comment
++	   aligned line
++	   */
++}
++
++func _() {
++	/* freestanding comment
++	   aligned line */
++}
++
++func _() {
++	/*	freestanding comment
++		aligned line
++	*/
++}
++
++func _() {
++	/*	freestanding comment
++		aligned line
++		*/
++}
++
++func _() {
++	/*	freestanding comment
++		aligned line */
++}
++
++
++func _() {
++	/*
++	   freestanding comment
++	   aligned line
++	*/
++}
++
++func _() {
++	/*
++	   freestanding comment
++	   aligned line
++	   */
++}
++
++func _() {
++	/*
++	   freestanding comment
++	   aligned line */
++}
++
++func _() {
++	/*
++		freestanding comment
++		aligned line
++	*/
++}
++
++func _() {
++	/*
++		freestanding comment
++		aligned line
++		*/
++}
++
++func _() {
++	/*
++		freestanding comment
++		aligned line */
++}
+ 
+ /*
+  * line
+@@ -232,6 +306,24 @@ func _() {
+  *	of
+  *	stars */
+ 
++/* a line of
++ * stars */
++
++/*	and another line of
++ *	stars */
++
++/* a line of stars
++*/
++
++/*	and another line of
++*/
++
++/* a line of stars
++ */
++
++/*	and another line of
++ */
++
+ /*
+ aligned in middle
+ here

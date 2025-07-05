@@ -16,7 +16,164 @@ Date:   Mon Dec 3 13:39:40 2012 +0100
     R=golang-dev, rsc, lvd
     CC=golang-dev
     https://golang.org/cl/6871043
-
+---
  src/cmd/gc/inl.c            | 69 +++++++++++++++++++++++----------------------
  test/fixedbugs/issue4167.go | 50 ++++++++++++++++++++++++++++++++
  2 files changed, 86 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index 54f4a0b597..593533c505 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -516,6 +516,7 @@ static void
+ mkinlcall1(Node **np, Node *fn)
+ {
+ 	int i;
++	int chkargcount;
+ 	Node *n, *call, *saveinlfn, *as, *m;
+ 	NodeList *dcl, *ll, *ninit, *body;
+ 	Type *t;
+@@ -571,52 +572,54 @@ mkinlcall1(Node **np, Node *fn)
+ 			inlretvars = list(inlretvars, m);
+ 		}
+ 
+-	// assign arguments to the parameters' temp names
+-	as = N;
+-	if(fn->type->thistuple) {
++	// assign receiver.
++	if(fn->type->thistuple && n->left->op == ODOTMETH) {
++		// method call with a receiver.
+ 		t = getthisx(fn->type)->type;
+ 		if(t != T && t->nname != N && !isblank(t->nname) && !t->nname->inlvar)
+ 			fatal("missing inlvar for %N\n", t->nname);
+-
+-		if(n->left->op == ODOTMETH) {
+-			if(!n->left->left)
+-				fatal("method call without receiver: %+N", n);
+-			if(t == T)
+-				fatal("method call unknown receiver type: %+N", n);
+-			as = nod(OAS, tinlvar(t), n->left->left);
+-		} else {  // non-method call to method
+-			if(!n->list)
+-				fatal("non-method call to method without first arg: %+N", n);
+-			if(t != T)
+-				as = nod(OAS, tinlvar(t), n->list->n);
+-		}
+-
++		if(!n->left->left)
++			fatal("method call without receiver: %+N", n);
++		if(t == T)
++			fatal("method call unknown receiver type: %+N", n);
++		as = nod(OAS, tinlvar(t), n->left->left);
+ 		if(as != N) {
+ 			typecheck(&as, Etop);
+ 			ninit = list(ninit, as);
+ 		}
+ 	}
+ 
++	// assign arguments to the parameters' temp names
+ 	as = nod(OAS2, N, N);
+-	if(fn->type->intuple > 1 && n->list && !n->list->next) {
+-		// TODO check that n->list->n is a call?
+-		// TODO: non-method call to T.meth(f()) where f returns t, args...
+-		as->rlist = n->list;
+-		for(t = getinargx(fn->type)->type; t; t=t->down)
+-			as->list = list(as->list, tinlvar(t));		
+-	} else {
+-		ll = n->list;
+-		if(fn->type->thistuple && n->left->op != ODOTMETH) // non method call to method
+-			ll=ll->next;  // was handled above in if(thistuple)
+-
+-		for(t = getinargx(fn->type)->type; t && ll; t=t->down) {
+-			as->list = list(as->list, tinlvar(t));
+-			as->rlist = list(as->rlist, ll->n);
++	as->rlist = n->list;
++	ll = n->list;
++
++	// TODO: if len(nlist) == 1 but multiple args, check that n->list->n is a call?
++	if(fn->type->thistuple && n->left->op != ODOTMETH) {
++		// non-method call to method
++		if(!n->list)
++			fatal("non-method call to method without first arg: %+N", n);
++		// append receiver inlvar to LHS.
++		t = getthisx(fn->type)->type;
++		if(t != T && t->nname != N && !isblank(t->nname) && !t->nname->inlvar)
++			fatal("missing inlvar for %N\n", t->nname);
++		if(t == T)
++			fatal("method call unknown receiver type: %+N", n);
++		as->list = list(as->list, tinlvar(t));
++		ll = ll->next; // track argument count.
++	}
++
++	// append ordinary arguments to LHS.
++	chkargcount = n->list && n->list->next;
++	for(t = getinargx(fn->type)->type; t && (!chkargcount || ll); t=t->down) {
++		if(chkargcount && ll) {
++			// len(n->list) > 1, count arguments.
+ 			ll=ll->next;
+ 		}
+-		if(ll || t)
+-			fatal("arg count mismatch: %#T  vs %,H\n",  getinargx(fn->type), n->list);
++		as->list = list(as->list, tinlvar(t));
+ 	}
++	if(chkargcount && (ll || t))
++		fatal("arg count mismatch: %#T  vs %,H\n",  getinargx(fn->type), n->list);
+ 
+ 	if (as->rlist) {
+ 		typecheck(&as, Etop);
+diff --git a/test/fixedbugs/issue4167.go b/test/fixedbugs/issue4167.go
+new file mode 100644
+index 0000000000..4e353312b8
+--- /dev/null
++++ b/test/fixedbugs/issue4167.go
+@@ -0,0 +1,50 @@
++// run
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4167: inlining of a (*T).Method expression taking
++// its arguments from a multiple return breaks the compiler.
++
++package main
++
++type pa []int
++
++type p int
++
++func (this *pa) func1() (v *p, c int) {
++	for _ = range *this {
++		c++
++	}
++	v = (*p)(&c)
++	return
++}
++
++func (this *pa) func2() p {
++	return (*p).func3(this.func1())
++}
++
++func (this *p) func3(f int) p {
++	return *this
++}
++
++func (this *pa) func2dots() p {
++	return (*p).func3(this.func1())
++}
++
++func (this *p) func3dots(f ...int) p {
++	return *this
++}
++
++func main() {
++	arr := make(pa, 13)
++	length := arr.func2()
++	if int(length) != len(arr) {
++		panic("length != len(arr)")
++	}
++	length = arr.func2dots()
++	if int(length) != len(arr) {
++		panic("length != len(arr)")
++	}
++}

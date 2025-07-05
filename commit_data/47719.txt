@@ -14,10 +14,98 @@ Date:   Tue Apr 6 08:28:17 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/internal/objabi/util.go  |  1 -
  src/cmd/link/internal/ld/main.go |  2 --
  src/runtime/heapdump.go          |  2 +-
  src/runtime/internal/sys/arch.go |  2 --
  src/runtime/proc.go              | 21 ---------------------
  5 files changed, 1 insertion(+), 27 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index ae03aac31a..ca3d3fc1a3 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -171,7 +171,6 @@ func init() {
+ 	}
+ 
+ 	// Set GOEXPERIMENT to the parsed and canonicalized set of experiments.
+-	// This format must be parseable by runtime.haveexperiment.
+ 	GOEXPERIMENT = expList()
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 78df50ee2d..95c89f813b 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -118,8 +118,6 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
+ 	addstrdata1(ctxt, "cmd/internal/objabi.defaultGOROOT="+final)
+ 
+-	addstrdata1(ctxt, "runtime/internal/sys.GOEXPERIMENT="+objabi.GOEXPERIMENT)
+-
+ 	// TODO(matloob): define these above and then check flag values here
+ 	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
+ 		flag.BoolVar(&flag8, "8", false, "use 64-bit addresses in symbol table")
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index e0913162a4..934e55f495 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -532,7 +532,7 @@ func dumpparams() {
+ 	dumpint(uint64(arenaStart))
+ 	dumpint(uint64(arenaEnd))
+ 	dumpstr(sys.GOARCH)
+-	dumpstr(sys.GOEXPERIMENT)
++	dumpstr(buildVersion)
+ 	dumpint(uint64(ncpu))
+ }
+ 
+diff --git a/src/runtime/internal/sys/arch.go b/src/runtime/internal/sys/arch.go
+index f00c55913f..3c99a2f7da 100644
+--- a/src/runtime/internal/sys/arch.go
++++ b/src/runtime/internal/sys/arch.go
+@@ -52,5 +52,3 @@ const MinFrameSize = _MinFrameSize
+ // StackAlign is the required alignment of the SP register.
+ // The stack must be at least word aligned, but some architectures require more.
+ const StackAlign = _StackAlign
+-
+-var GOEXPERIMENT string // set by cmd/link
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index a256b6e04a..583ed73d84 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5,7 +5,6 @@
+ package runtime
+ 
+ import (
+-	"internal/bytealg"
+ 	"internal/cpu"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+@@ -6039,26 +6038,6 @@ func setMaxThreads(in int) (out int) {
+ 	return
+ }
+ 
+-func haveexperiment(name string) bool {
+-	// GOEXPERIMENT is a comma-separated list of enabled
+-	// experiments. It's not the raw environment variable, but a
+-	// pre-processed list from cmd/internal/objabi.
+-	x := sys.GOEXPERIMENT
+-	for x != "" {
+-		xname := ""
+-		i := bytealg.IndexByteString(x, ',')
+-		if i < 0 {
+-			xname, x = x, ""
+-		} else {
+-			xname, x = x[:i], x[i+1:]
+-		}
+-		if xname == name {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ //go:nosplit
+ func procPin() int {
+ 	_g_ := getg()

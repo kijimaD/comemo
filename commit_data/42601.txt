@@ -12,6 +12,19 @@ Date:   Thu Jan 23 23:00:29 2020 +0200
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/text/template/parse/lex.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index 3d57708796..30371f2862 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -411,7 +411,6 @@ func lexInsideAction(l *lexer) stateFn {
+ 		}
+ 	case r <= unicode.MaxASCII && unicode.IsPrint(r):
+ 		l.emit(itemChar)
+-		return lexInsideAction
+ 	default:
+ 		return l.errorf("unrecognized character in action: %#U", r)
+ 	}

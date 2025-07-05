@@ -17,9 +17,174 @@ Date:   Mon Sep 12 15:51:32 2022 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/issues_test.go | 37 ++++++++++++++++++++++++++
  src/cmd/compile/internal/types2/signature.go   | 15 +++++++----
  src/go/types/issues_test.go                    | 37 ++++++++++++++++++++++++++
  src/go/types/signature.go                      | 11 +++++---
  4 files changed, 91 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 8588687803..b77e8a8fe1 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -636,3 +636,40 @@ func TestIssue50646(t *testing.T) {
+ 		t.Errorf("comparable not assignable to any")
+ 	}
+ }
++
++func TestIssue55030(t *testing.T) {
++	// makeSig makes the signature func(typ...)
++	makeSig := func(typ Type) {
++		par := NewVar(nopos, nil, "", typ)
++		params := NewTuple(par)
++		NewSignatureType(nil, nil, nil, params, nil, true)
++	}
++
++	// makeSig must not panic for the following (example) types:
++	// []int
++	makeSig(NewSlice(Typ[Int]))
++
++	// string
++	makeSig(Typ[String])
++
++	// P where P's core type is string
++	{
++		P := NewTypeName(nopos, nil, "P", nil) // [P string]
++		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{Typ[String]})))
++	}
++
++	// P where P's core type is an (unnamed) slice
++	{
++		P := NewTypeName(nopos, nil, "P", nil) // [P []int]
++		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{NewSlice(Typ[Int])})))
++	}
++
++	// P where P's core type is bytestring (i.e., string or []byte)
++	{
++		t1 := NewTerm(true, Typ[String])          // ~string
++		t2 := NewTerm(false, NewSlice(Typ[Byte])) // []byte
++		u := NewUnion([]*Term{t1, t2})            // ~string | []byte
++		P := NewTypeName(nopos, nil, "P", nil)    // [P ~string | []byte]
++		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{u})))
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 3f1066e050..07399f77aa 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -4,7 +4,10 @@
+ 
+ package types2
+ 
+-import "cmd/compile/internal/syntax"
++import (
++	"cmd/compile/internal/syntax"
++	"fmt"
++)
+ 
+ // ----------------------------------------------------------------------------
+ // API
+@@ -28,16 +31,18 @@ type Signature struct {
+ // NewSignatureType creates a new function type for the given receiver,
+ // receiver type parameters, type parameters, parameters, and results. If
+ // variadic is set, params must hold at least one parameter and the last
+-// parameter must be of unnamed slice type. If recv is non-nil, typeParams must
+-// be empty. If recvTypeParams is non-empty, recv must be non-nil.
++// parameter's core type must be of unnamed slice or bytestring type.
++// If recv is non-nil, typeParams must be empty. If recvTypeParams is
++// non-empty, recv must be non-nil.
+ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params, results *Tuple, variadic bool) *Signature {
+ 	if variadic {
+ 		n := params.Len()
+ 		if n == 0 {
+ 			panic("variadic function must have at least one parameter")
+ 		}
+-		if _, ok := params.At(n - 1).typ.(*Slice); !ok {
+-			panic("variadic parameter must be of unnamed slice type")
++		core := coreString(params.At(n - 1).typ)
++		if _, ok := core.(*Slice); !ok && !isString(core) {
++			panic(fmt.Sprintf("got %s, want variadic parameter with unnamed slice type or string as core type", core.String()))
+ 		}
+ 	}
+ 	sig := &Signature{recv: recv, params: params, results: results, variadic: variadic}
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index d46d085ba8..4f926ed421 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -663,3 +663,40 @@ func TestIssue50646(t *testing.T) {
+ 		t.Errorf("comparable not assignable to any")
+ 	}
+ }
++
++func TestIssue55030(t *testing.T) {
++	// makeSig makes the signature func(typ...)
++	makeSig := func(typ Type) {
++		par := NewVar(token.NoPos, nil, "", typ)
++		params := NewTuple(par)
++		NewSignatureType(nil, nil, nil, params, nil, true)
++	}
++
++	// makeSig must not panic for the following (example) types:
++	// []int
++	makeSig(NewSlice(Typ[Int]))
++
++	// string
++	makeSig(Typ[String])
++
++	// P where P's core type is string
++	{
++		P := NewTypeName(token.NoPos, nil, "P", nil) // [P string]
++		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{Typ[String]})))
++	}
++
++	// P where P's core type is an (unnamed) slice
++	{
++		P := NewTypeName(token.NoPos, nil, "P", nil) // [P []int]
++		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{NewSlice(Typ[Int])})))
++	}
++
++	// P where P's core type is bytestring (i.e., string or []byte)
++	{
++		t1 := NewTerm(true, Typ[String])             // ~string
++		t2 := NewTerm(false, NewSlice(Typ[Byte]))    // []byte
++		u := NewUnion([]*Term{t1, t2})               // ~string | []byte
++		P := NewTypeName(token.NoPos, nil, "P", nil) // [P ~string | []byte]
++		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{u})))
++	}
++}
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index f44d257d8f..918f8a9733 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -5,6 +5,7 @@
+ package types
+ 
+ import (
++	"fmt"
+ 	"go/ast"
+ 	"go/token"
+ )
+@@ -41,16 +42,18 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
+ // NewSignatureType creates a new function type for the given receiver,
+ // receiver type parameters, type parameters, parameters, and results. If
+ // variadic is set, params must hold at least one parameter and the last
+-// parameter must be of unnamed slice type. If recv is non-nil, typeParams must
+-// be empty. If recvTypeParams is non-empty, recv must be non-nil.
++// parameter's core type must be of unnamed slice or bytestring type.
++// If recv is non-nil, typeParams must be empty. If recvTypeParams is
++// non-empty, recv must be non-nil.
+ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params, results *Tuple, variadic bool) *Signature {
+ 	if variadic {
+ 		n := params.Len()
+ 		if n == 0 {
+ 			panic("variadic function must have at least one parameter")
+ 		}
+-		if _, ok := params.At(n - 1).typ.(*Slice); !ok {
+-			panic("variadic parameter must be of unnamed slice type")
++		core := coreString(params.At(n - 1).typ)
++		if _, ok := core.(*Slice); !ok && !isString(core) {
++			panic(fmt.Sprintf("got %s, want variadic parameter with unnamed slice type or string as core type", core.String()))
+ 		}
+ 	}
+ 	sig := &Signature{recv: recv, params: params, results: results, variadic: variadic}

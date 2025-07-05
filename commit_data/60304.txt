@@ -12,6 +12,28 @@ Date:   Wed Jun 12 14:28:30 2024 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Bypass: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go_spec.html | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index d1ca6722e1..c1d3360ef6 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Language version go1.23 (June 4, 2024)",
++	"Subtitle": "Language version go1.23 (June 12, 2024)",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -6733,8 +6733,6 @@ to generate iteration values this way for each <code>yield</code> call until
+ <code>f</code> returns.
+ If the loop body terminates (such as by a <code>break</code> statement),
+ <code>yield</code> returns false and must not be called again.
+-The number of iteration variables must match the number and order of arguments
+-to <code>yield</code>.
+ </li>
+ </ol>
+ 

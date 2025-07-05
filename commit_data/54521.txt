@@ -51,7 +51,7 @@ Date:   Thu Oct 13 16:13:46 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/test/test.go                   |  41 ++++-
  src/cmd/go/internal/test/testflag.go               |  10 +-
  .../testdata/script/test_chatty_parallel_fail.txt  |  24 +--
@@ -79,3 +79,1585 @@ Date:   Thu Oct 13 16:13:46 2022 -0400
  src/testing/sub_test.go                            |  35 ++++-
  src/testing/testing.go                             | 151 +++++++++++++++----
  26 files changed, 890 insertions(+), 101 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index dac13e9a4b..c1528debbe 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -536,10 +536,41 @@ var (
+ 	testOutputDir    outputdirFlag                     // -outputdir flag
+ 	testShuffle      shuffleFlag                       // -shuffle flag
+ 	testTimeout      time.Duration                     // -timeout flag
+-	testV            bool                              // -v flag
++	testV            testVFlag                         // -v flag
+ 	testVet          = vetFlag{flags: defaultVetFlags} // -vet flag
+ )
+ 
++type testVFlag struct {
++	on   bool // -v is set in some form
++	json bool // -v=test2json is set, to make output better for test2json
++}
++
++func (*testVFlag) IsBoolFlag() bool { return true }
++
++func (f *testVFlag) Set(arg string) error {
++	if v, err := strconv.ParseBool(arg); err == nil {
++		f.on = v
++		f.json = false
++		return nil
++	}
++	if arg == "test2json" {
++		f.on = true
++		f.json = arg == "test2json"
++		return nil
++	}
++	return fmt.Errorf("invalid flag -test.v=%s", arg)
++}
++
++func (f *testVFlag) String() string {
++	if f.json {
++		return "test2json"
++	}
++	if f.on {
++		return "true"
++	}
++	return "false"
++}
++
+ var (
+ 	testArgs []string
+ 	pkgArgs  []string
+@@ -592,7 +623,7 @@ func testNeedBinary() bool {
+ 
+ // testShowPass reports whether the output for a passing test should be shown.
+ func testShowPass() bool {
+-	return testV || (testList != "") || testHelp
++	return testV.on || testList != "" || testHelp
+ }
+ 
+ var defaultVetFlags = []string{
+@@ -1309,7 +1340,11 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
+ 		// not a pipe.
+ 		// TODO(golang.org/issue/29062): tests that exit with status 0 without
+ 		// printing a final result should fail.
+-		fmt.Fprintf(cmd.Stdout, "FAIL\t%s\t%s\n", a.Package.ImportPath, t)
++		prefix := ""
++		if testJSON || testV.json {
++			prefix = "\x16"
++		}
++		fmt.Fprintf(cmd.Stdout, "%sFAIL\t%s\t%s\n", prefix, a.Package.ImportPath, t)
+ 	}
+ 
+ 	if cmd.Stdout != &buf {
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 55f6ebf9be..e69068977d 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -64,7 +64,7 @@ func init() {
+ 	cf.String("fuzztime", "", "")
+ 	cf.String("fuzzminimizetime", "", "")
+ 	cf.StringVar(&testTrace, "trace", "", "")
+-	cf.BoolVar(&testV, "v", false, "")
++	cf.Var(&testV, "v", "")
+ 	cf.Var(&testShuffle, "shuffle", "")
+ 
+ 	for name := range passFlagToTest {
+@@ -342,9 +342,11 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 
+ 	var injectedFlags []string
+ 	if testJSON {
+-		// If converting to JSON, we need the full output in order to pipe it to
+-		// test2json.
+-		injectedFlags = append(injectedFlags, "-test.v=true")
++		// If converting to JSON, we need the full output in order to pipe it to test2json.
++		// The -test.v=test2json flag is like -test.v=true but causes the test to add
++		// extra ^V characters before testing output lines and other framing,
++		// which helps test2json do a better job creating the JSON events.
++		injectedFlags = append(injectedFlags, "-test.v=test2json")
+ 		delete(addFromGOFLAGS, "v")
+ 		delete(addFromGOFLAGS, "test.v")
+ 	}
+diff --git a/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt b/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt
+index f8faa93663..62f97db474 100644
+--- a/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt
++++ b/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt
+@@ -1,17 +1,21 @@
+-# Run parallel chatty tests. Assert on CONT lines. This test makes sure that
+-# multiple parallel outputs have the appropriate CONT lines between them.
++# Run parallel chatty tests.
++# Check that multiple parallel outputs continue running.
+ ! go test -parallel 3 chatty_parallel_test.go -v
+ 
+-stdout -count=1 '^=== CONT  TestChattyParallel/sub-0\n    chatty_parallel_test.go:38: error from sub-0$'
+-stdout -count=1 '^=== CONT  TestChattyParallel/sub-1\n    chatty_parallel_test.go:38: error from sub-1$'
+-stdout -count=1 '^=== CONT  TestChattyParallel/sub-2\n    chatty_parallel_test.go:38: error from sub-2$'
++stdout -count=1 '^=== CONT  TestChattyParallel/sub-0'
++stdout -count=1 '^=== CONT  TestChattyParallel/sub-1'
++stdout -count=1 '^=== CONT  TestChattyParallel/sub-2'
+ 
+-# Run parallel chatty tests with -json. Assert on CONT lines as above - make
+-# sure there are CONT lines before each output line.
++stdout -count=1 '^=== (CONT|NAME)  TestChattyParallel/sub-0\n    chatty_parallel_test.go:38: error from sub-0$'
++stdout -count=1 '^=== (CONT|NAME)  TestChattyParallel/sub-1\n    chatty_parallel_test.go:38: error from sub-1$'
++stdout -count=1 '^=== (CONT|NAME)  TestChattyParallel/sub-2\n    chatty_parallel_test.go:38: error from sub-2$'
++
++# Run parallel chatty tests with -json.
++# Check that each output is attributed to the right test.
+ ! go test -json -parallel 3 chatty_parallel_test.go -v
+-stdout -count=1 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"=== CONT  TestChattyParallel/sub-0\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"    chatty_parallel_test.go:38: error from sub-0\\n"}'
+-stdout -count=1 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"=== CONT  TestChattyParallel/sub-1\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"    chatty_parallel_test.go:38: error from sub-1\\n"}'
+-stdout -count=1 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"=== CONT  TestChattyParallel/sub-2\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:38: error from sub-2\\n"}'
++stdout -count=1 '"Test":"TestChattyParallel/sub-0","Output":"    chatty_parallel_test.go:38: error from sub-0\\n"'
++stdout -count=1 '"Test":"TestChattyParallel/sub-1","Output":"    chatty_parallel_test.go:38: error from sub-1\\n"'
++stdout -count=1 '"Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:38: error from sub-2\\n"'
+ 
+ -- chatty_parallel_test.go --
+ package chatty_parallel_test
+diff --git a/src/cmd/go/testdata/script/test_chatty_parallel_success.txt b/src/cmd/go/testdata/script/test_chatty_parallel_success.txt
+index 63034fa3b5..01653acd36 100644
+--- a/src/cmd/go/testdata/script/test_chatty_parallel_success.txt
++++ b/src/cmd/go/testdata/script/test_chatty_parallel_success.txt
+@@ -1,16 +1,16 @@
+-# Run parallel chatty tests. Assert on CONT lines. This test makes sure that
+-# multiple parallel outputs have the appropriate CONT lines between them.
++# Run parallel chatty tests. Assert on CONT or NAME lines. This test makes sure that
++# multiple parallel outputs have the appropriate test name lines between them.
+ go test -parallel 3 chatty_parallel_test.go -v
+-stdout -count=2 '^=== CONT  TestChattyParallel/sub-0\n    chatty_parallel_test.go:32: this is sub-0$'
+-stdout -count=2 '^=== CONT  TestChattyParallel/sub-1\n    chatty_parallel_test.go:32: this is sub-1$'
+-stdout -count=2 '^=== CONT  TestChattyParallel/sub-2\n    chatty_parallel_test.go:32: this is sub-2$'
++stdout -count=2 '^=== (CONT|NAME)  TestChattyParallel/sub-0\n    chatty_parallel_test.go:32: this is sub-0$'
++stdout -count=2 '^=== (CONT|NAME)  TestChattyParallel/sub-1\n    chatty_parallel_test.go:32: this is sub-1$'
++stdout -count=2 '^=== (CONT|NAME)  TestChattyParallel/sub-2\n    chatty_parallel_test.go:32: this is sub-2$'
+ 
+-# Run parallel chatty tests with -json. Assert on CONT lines as above - make
+-# sure there are CONT lines before each output line.
++# Run parallel chatty tests with -json.
++# Assert test2json has properly attributed output.
+ go test -json -parallel 3 chatty_parallel_test.go -v
+-stdout -count=2 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"=== CONT  TestChattyParallel/sub-0\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"    chatty_parallel_test.go:32: this is sub-0\\n"}'
+-stdout -count=2 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"=== CONT  TestChattyParallel/sub-1\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"    chatty_parallel_test.go:32: this is sub-1\\n"}'
+-stdout -count=2 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"=== CONT  TestChattyParallel/sub-2\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:32: this is sub-2\\n"}'
++stdout -count=2 '"Test":"TestChattyParallel/sub-0","Output":"    chatty_parallel_test.go:32: this is sub-0\\n"'
++stdout -count=2 '"Test":"TestChattyParallel/sub-1","Output":"    chatty_parallel_test.go:32: this is sub-1\\n"'
++stdout -count=2 '"Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:32: this is sub-2\\n"'
+ 
+ -- chatty_parallel_test.go --
+ package chatty_parallel_test
+diff --git a/src/cmd/go/testdata/script/test_chatty_parallel_success_run.txt b/src/cmd/go/testdata/script/test_chatty_parallel_success_run.txt
+index 4e0f239a66..1d4b6d6318 100644
+--- a/src/cmd/go/testdata/script/test_chatty_parallel_success_run.txt
++++ b/src/cmd/go/testdata/script/test_chatty_parallel_success_run.txt
+@@ -1,8 +1,8 @@
+-# Run parallel chatty tests. Assert on CONT lines. This test makes sure that
++# Run parallel chatty tests. Assert on CONT or NAME lines. This test makes sure that
+ # multiple parallel outputs have the appropriate CONT lines between them.
+ go test -parallel 3 chatty_parallel -v
+ 
+-stdout '=== RUN   TestInterruptor/interruption\n=== CONT  TestLog\n    chatty_parallel_test.go:28: this is the second TestLog log\n--- PASS: Test(Log|Interruptor) \([0-9.]{4}s\)'
++stdout '=== RUN   TestInterruptor/interruption\n=== (CONT|NAME)  TestLog\n    chatty_parallel_test.go:28: this is the second TestLog log\n--- PASS: Test(Log|Interruptor) \([0-9.]{4}s\)'
+ 
+ -- go.mod --
+ module chatty_parallel
+diff --git a/src/cmd/go/testdata/script/test_json_panic_exit.txt b/src/cmd/go/testdata/script/test_json_panic_exit.txt
+index d0a7991fe5..5f1d03329f 100644
+--- a/src/cmd/go/testdata/script/test_json_panic_exit.txt
++++ b/src/cmd/go/testdata/script/test_json_panic_exit.txt
+@@ -4,7 +4,7 @@
+ 
+ # 'go test -json' should say a test passes if it says it passes.
+ go test -json ./pass
+-stdout '"Action":"pass".*\n\z'
++stdout '"Action":"pass","Package":"[^"]*","Elapsed":[^"]*}\n\z'
+ ! stdout '"Test":.*\n\z'
+ 
+ # 'go test -json' should say a test passes if it exits 0 and prints nothing.
+diff --git a/src/cmd/go/testdata/script/test_json_prints.txt b/src/cmd/go/testdata/script/test_json_prints.txt
+new file mode 100644
+index 0000000000..f979998068
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_json_prints.txt
+@@ -0,0 +1,48 @@
++go test -json
++
++stdout '"Action":"output","Package":"p","Output":"M1"}'
++stdout '"Action":"output","Package":"p","Test":"Test","Output":"=== RUN   Test\\n"}'
++stdout '"Action":"output","Package":"p","Test":"Test","Output":"T1"}'
++stdout '"Action":"output","Package":"p","Test":"Test/Sub1","Output":"=== RUN   Test/Sub1\\n"}'
++stdout '"Action":"output","Package":"p","Test":"Test/Sub1","Output":"Sub1    x_test.go:19: SubLog1\\n"}'
++stdout '"Action":"output","Package":"p","Test":"Test/Sub1","Output":"Sub2"}'
++stdout '"Action":"output","Package":"p","Test":"Test/Sub1","Output":"--- PASS: Test/Sub1 \([\d.]+s\)\\n"}'
++stdout '"Action":"pass","Package":"p","Test":"Test/Sub1","Elapsed"'
++stdout '"Action":"output","Package":"p","Test":"Test/Sub3","Output":"foo bar"}'
++stdout '"Action":"output","Package":"p","Test":"Test/Sub3","Output":"baz\\n"}'
++stdout '"Action":"output","Package":"p","Test":"Test","Output":"T2"}'
++stdout '"Action":"output","Package":"p","Test":"Test","Output":"--- PASS: Test \([\d.]+s\)\\n"}'
++stdout '"Action":"pass","Package":"p","Test":"Test","Elapsed"'
++stdout '"Action":"output","Package":"p","Output":"M2ok  \\tp\\t[\d.]+s\\n"}'
++stdout '"Action":"pass","Package":"p","Elapsed"'
++
++-- go.mod --
++module p
++
++-- x_test.go --
++package p
++
++import (
++	"os"
++	"testing"
++)
++
++func TestMain(m *testing.M) {
++	print("M1")
++	code := m.Run()
++	print("M2")
++	os.Exit(code)
++}
++
++func Test(t *testing.T) {
++	print("T1")
++	t.Run("Sub1", func(t *testing.T) {
++		print("Sub1")
++		t.Log("SubLog1")
++		print("Sub2")
++	})
++	t.Run("Sub3", func(t *testing.T) {
++		print("\x16foo bar\x16baz\n")
++	})
++	print("T2")
++}
+diff --git a/src/cmd/go/testdata/script/test_json_timeout.txt b/src/cmd/go/testdata/script/test_json_timeout.txt
+new file mode 100644
+index 0000000000..0a2329b9f3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_json_timeout.txt
+@@ -0,0 +1,19 @@
++! go test -json -timeout=1ms
++
++stdout '"Action":"output","Package":"p","Output":"FAIL\\tp\\t'
++stdout '"Action":"fail","Package":"p","Elapsed":'
++
++-- go.mod --
++module p
++
++-- x_test.go --
++package p
++
++import (
++	"testing"
++	"time"
++)
++
++func Test(t *testing.T) {
++	time.Sleep(1*time.Hour)
++}
+diff --git a/src/cmd/internal/test2json/test2json.go b/src/cmd/internal/test2json/test2json.go
+index 6beadae859..807dcc5102 100644
+--- a/src/cmd/internal/test2json/test2json.go
++++ b/src/cmd/internal/test2json/test2json.go
+@@ -49,15 +49,16 @@ func (b textBytes) MarshalText() ([]byte, error) { return b, nil }
+ // It implements io.WriteCloser; the caller writes test output in,
+ // and the converter writes JSON output to w.
+ type Converter struct {
+-	w        io.Writer  // JSON output stream
+-	pkg      string     // package to name in events
+-	mode     Mode       // mode bits
+-	start    time.Time  // time converter started
+-	testName string     // name of current test, for output attribution
+-	report   []*event   // pending test result reports (nested for subtests)
+-	result   string     // overall test result if seen
+-	input    lineBuffer // input buffer
+-	output   lineBuffer // output buffer
++	w          io.Writer  // JSON output stream
++	pkg        string     // package to name in events
++	mode       Mode       // mode bits
++	start      time.Time  // time converter started
++	testName   string     // name of current test, for output attribution
++	report     []*event   // pending test result reports (nested for subtests)
++	result     string     // overall test result if seen
++	input      lineBuffer // input buffer
++	output     lineBuffer // output buffer
++	needMarker bool       // require ^V marker to introduce test framing line
+ }
+ 
+ // inBuffer and outBuffer are the input and output buffer sizes.
+@@ -136,21 +137,31 @@ func (c *Converter) Exited(err error) {
+ 	}
+ }
+ 
++const marker = byte(0x16) // ^V
++
+ var (
+ 	// printed by test on successful run.
+-	bigPass = []byte("PASS\n")
++	bigPass = []byte("PASS")
+ 
+ 	// printed by test after a normal test failure.
+-	bigFail = []byte("FAIL\n")
++	bigFail = []byte("FAIL")
+ 
+ 	// printed by 'go test' along with an error if the test binary terminates
+ 	// with an error.
+ 	bigFailErrorPrefix = []byte("FAIL\t")
+ 
++	// an === NAME line with no test name, if trailing spaces are deleted
++	emptyName     = []byte("=== NAME")
++	emptyNameLine = []byte("=== NAME  \n")
++
+ 	updates = [][]byte{
+ 		[]byte("=== RUN   "),
+ 		[]byte("=== PAUSE "),
+ 		[]byte("=== CONT  "),
++		[]byte("=== NAME  "),
++		[]byte("=== PASS  "),
++		[]byte("=== FAIL  "),
++		[]byte("=== SKIP  "),
+ 	}
+ 
+ 	reports = [][]byte{
+@@ -163,18 +174,49 @@ var (
+ 	fourSpace = []byte("    ")
+ 
+ 	skipLinePrefix = []byte("?   \t")
+-	skipLineSuffix = []byte("\t[no test files]\n")
++	skipLineSuffix = []byte("\t[no test files]")
+ )
+ 
+ // handleInputLine handles a single whole test output line.
+ // It must write the line to c.output but may choose to do so
+ // before or after emitting other events.
+ func (c *Converter) handleInputLine(line []byte) {
++	if len(line) == 0 {
++		return
++	}
++	sawMarker := false
++	if c.needMarker && line[0] != marker {
++		c.output.write(line)
++		return
++	}
++	if line[0] == marker {
++		c.output.flush()
++		sawMarker = true
++		line = line[1:]
++	}
++
++	// Trim is line without \n or \r\n.
++	trim := line
++	if len(trim) > 0 && trim[len(trim)-1] == '\n' {
++		trim = trim[:len(trim)-1]
++		if len(trim) > 0 && trim[len(trim)-1] == '\r' {
++			trim = trim[:len(trim)-1]
++		}
++	}
++
++	// === CONT followed by an empty test name can lose its trailing spaces.
++	if bytes.Equal(trim, emptyName) {
++		line = emptyNameLine
++		trim = line[:len(line)-1]
++	}
++
+ 	// Final PASS or FAIL.
+-	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigFail) || bytes.HasPrefix(line, bigFailErrorPrefix) {
++	if bytes.Equal(trim, bigPass) || bytes.Equal(trim, bigFail) || bytes.HasPrefix(trim, bigFailErrorPrefix) {
+ 		c.flushReport(0)
++		c.testName = ""
++		c.needMarker = sawMarker
+ 		c.output.write(line)
+-		if bytes.Equal(line, bigPass) {
++		if bytes.Equal(trim, bigPass) {
+ 			c.result = "pass"
+ 		} else {
+ 			c.result = "fail"
+@@ -184,7 +226,7 @@ func (c *Converter) handleInputLine(line []byte) {
+ 
+ 	// Special case for entirely skipped test binary: "?   \tpkgname\t[no test files]\n" is only line.
+ 	// Report it as plain output but remember to say skip in the final summary.
+-	if bytes.HasPrefix(line, skipLinePrefix) && bytes.HasSuffix(line, skipLineSuffix) && len(c.report) == 0 {
++	if bytes.HasPrefix(line, skipLinePrefix) && bytes.HasSuffix(trim, skipLineSuffix) && len(c.report) == 0 {
+ 		c.result = "skip"
+ 	}
+ 
+@@ -268,6 +310,7 @@ func (c *Converter) handleInputLine(line []byte) {
+ 			return
+ 		}
+ 		// Flush reports at this indentation level or deeper.
++		c.needMarker = sawMarker
+ 		c.flushReport(indent)
+ 		e.Test = name
+ 		c.testName = name
+@@ -277,9 +320,16 @@ func (c *Converter) handleInputLine(line []byte) {
+ 	}
+ 	// === update.
+ 	// Finish any pending PASS/FAIL reports.
++	c.needMarker = sawMarker
+ 	c.flushReport(0)
+ 	c.testName = name
+ 
++	if action == "name" {
++		// This line is only generated to get c.testName right.
++		// Don't emit an event.
++		return
++	}
++
+ 	if action == "pause" {
+ 		// For a pause, we want to write the pause notification before
+ 		// delivering the pause event, just so it doesn't look like the test
+@@ -370,15 +420,15 @@ type lineBuffer struct {
+ // write writes b to the buffer.
+ func (l *lineBuffer) write(b []byte) {
+ 	for len(b) > 0 {
+-		// Copy what we can into b.
++		// Copy what we can into l.b.
+ 		m := copy(l.b[len(l.b):cap(l.b)], b)
+ 		l.b = l.b[:len(l.b)+m]
+ 		b = b[m:]
+ 
+-		// Process lines in b.
++		// Process lines in l.b.
+ 		i := 0
+ 		for i < len(l.b) {
+-			j := bytes.IndexByte(l.b[i:], '\n')
++			j, w := indexEOL(l.b[i:])
+ 			if j < 0 {
+ 				if !l.mid {
+ 					if j := bytes.IndexByte(l.b[i:], '\t'); j >= 0 {
+@@ -391,7 +441,7 @@ func (l *lineBuffer) write(b []byte) {
+ 				}
+ 				break
+ 			}
+-			e := i + j + 1
++			e := i + j + w
+ 			if l.mid {
+ 				// Found the end of a partial line.
+ 				l.part(l.b[i:e])
+@@ -421,6 +471,23 @@ func (l *lineBuffer) write(b []byte) {
+ 	}
+ }
+ 
++// indexEOL finds the index of a line ending,
++// returning its position and output width.
++// A line ending is either a \n or the empty string just before a ^V not beginning a line.
++// The output width for \n is 1 (meaning it should be printed)
++// but the output width for ^V is 0 (meaning it should be left to begin the next line).
++func indexEOL(b []byte) (pos, wid int) {
++	for i, c := range b {
++		if c == '\n' {
++			return i, 1
++		}
++		if c == marker && i > 0 { // test -v=json emits ^V at start of framing lines
++			return i, 0
++		}
++	}
++	return -1, 0
++}
++
+ // flush flushes the line buffer.
+ func (l *lineBuffer) flush() {
+ 	if len(l.b) > 0 {
+diff --git a/src/cmd/internal/test2json/test2json_test.go b/src/cmd/internal/test2json/test2json_test.go
+index dee3920511..c1aecc85e2 100644
+--- a/src/cmd/internal/test2json/test2json_test.go
++++ b/src/cmd/internal/test2json/test2json_test.go
+@@ -72,6 +72,16 @@ func TestGolden(t *testing.T) {
+ 				diffJSON(t, buf.Bytes(), want)
+ 			})
+ 
++			// In bulk again with \r\n.
++			t.Run("crlf", func(t *testing.T) {
++				buf.Reset()
++				c = NewConverter(&buf, "", 0)
++				in = bytes.ReplaceAll(orig, []byte("\n"), []byte("\r\n"))
++				writeAndKill(c, in)
++				c.Close()
++				diffJSON(t, bytes.ReplaceAll(buf.Bytes(), []byte(`\r\n`), []byte(`\n`)), want)
++			})
++
+ 			// Write 2 bytes at a time on even boundaries.
+ 			t.Run("even2", func(t *testing.T) {
+ 				buf.Reset()
+diff --git a/src/cmd/internal/test2json/testdata/frame.json b/src/cmd/internal/test2json/testdata/frame.json
+new file mode 100644
+index 0000000000..d2a65fc36b
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/frame.json
+@@ -0,0 +1,9 @@
++{"Action":"run","Test":"TestAscii"}
++{"Action":"output","Test":"TestAscii","Output":"=== RUN   TestAscii\n"}
++{"Action":"output","Test":"TestAscii","Output":"=== RUN   TestNotReally\n"}
++{"Action":"output","Test":"TestAscii","Output":"--- PASS: TestAscii\n"}
++{"Action":"output","Test":"TestAscii","Output":"    i can eat glass, and it doesn't hurt me. i can eat glass, and it doesn't hurt me.\n"}
++{"Action":"output","Test":"TestAscii","Output":"FAIL\n"}
++{"Action":"pass","Test":"TestAscii"}
++{"Action":"output","Output":"PASS\n"}
++{"Action":"pass"}
+diff --git a/src/cmd/internal/test2json/testdata/frame.test b/src/cmd/internal/test2json/testdata/frame.test
+new file mode 100644
+index 0000000000..ec7d453027
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/frame.test
+@@ -0,0 +1,6 @@
++=== RUN   TestAscii
++=== RUN   TestNotReally
++--- PASS: TestAscii
++    i can eat glass, and it doesn't hurt me. i can eat glass, and it doesn't hurt me.
++FAIL
++PASS
+diff --git a/src/cmd/internal/test2json/testdata/framebig.json b/src/cmd/internal/test2json/testdata/framebig.json
+new file mode 100644
+index 0000000000..ebb9bdf3f1
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/framebig.json
+@@ -0,0 +1,167 @@
++{"Action":"run","Test":"TestIndex"}
++{"Action":"output","Test":"TestIndex","Output":"=== RUN   TestIndex\n"}
++{"Action":"output","Test":"TestIndex","Output":"--- PASS: TestIndex (0.00s)\n"}
++{"Action":"pass","Test":"TestIndex"}
++{"Action":"pass","Test":"TestIndex"}
++{"Action":"output","Test":"TestIndex","Output":"=== PASS  TestIndex\n"}
++{"Action":"run","Test":"TestLastIndex"}
++{"Action":"output","Test":"TestLastIndex","Output":"=== RUN   TestLastIndex\n"}
++{"Action":"output","Test":"TestLastIndex","Output":"--- PASS: TestLastIndex (0.00s)\n"}
++{"Action":"pass","Test":"TestLastIndex"}
++{"Action":"pass","Test":"TestLastIndex"}
++{"Action":"output","Test":"TestLastIndex","Output":"=== PASS  TestLastIndex\n"}
++{"Action":"run","Test":"TestIndexAny"}
++{"Action":"output","Test":"TestIndexAny","Output":"=== RUN   TestIndexAny\n"}
++{"Action":"output","Test":"TestIndexAny","Output":"--- PASS: TestIndexAny (0.00s)\n"}
++{"Action":"pass","Test":"TestIndexAny"}
++{"Action":"pass","Test":"TestIndexAny"}
++{"Action":"output","Test":"TestIndexAny","Output":"=== PASS  TestIndexAny\n"}
++{"Action":"run","Test":"TestLastIndexAny"}
++{"Action":"output","Test":"TestLastIndexAny","Output":"=== RUN   TestLastIndexAny\n"}
++{"Action":"output","Test":"TestLastIndexAny","Output":"--- PASS: TestLastIndexAny (0.00s)\n"}
++{"Action":"pass","Test":"TestLastIndexAny"}
++{"Action":"pass","Test":"TestLastIndexAny"}
++{"Action":"output","Test":"TestLastIndexAny","Output":"=== PASS  TestLastIndexAny\n"}
++{"Action":"run","Test":"TestIndexByte"}
++{"Action":"output","Test":"TestIndexByte","Output":"=== RUN   TestIndexByte\n"}
++{"Action":"output","Test":"TestIndexByte","Output":"--- PASS: TestIndexByte (0.00s)\n"}
++{"Action":"pass","Test":"TestIndexByte"}
++{"Action":"pass","Test":"TestIndexByte"}
++{"Action":"output","Test":"TestIndexByte","Output":"=== PASS  TestIndexByte\n"}
++{"Action":"run","Test":"TestLastIndexByte"}
++{"Action":"output","Test":"TestLastIndexByte","Output":"=== RUN   TestLastIndexByte\n"}
++{"Action":"output","Test":"TestLastIndexByte","Output":"--- PASS: TestLastIndexByte (0.00s)\n"}
++{"Action":"pass","Test":"TestLastIndexByte"}
++{"Action":"pass","Test":"TestLastIndexByte"}
++{"Action":"output","Test":"TestLastIndexByte","Output":"=== PASS  TestLastIndexByte\n"}
++{"Action":"run","Test":"TestIndexRandom"}
++{"Action":"output","Test":"TestIndexRandom","Output":"=== RUN   TestIndexRandom\n"}
++{"Action":"output","Test":"TestIndexRandom","Output":"--- PASS: TestIndexRandom (0.00s)\n"}
++{"Action":"pass","Test":"TestIndexRandom"}
++{"Action":"pass","Test":"TestIndexRandom"}
++{"Action":"output","Test":"TestIndexRandom","Output":"=== PASS  TestIndexRandom\n"}
++{"Action":"run","Test":"TestIndexRune"}
++{"Action":"output","Test":"TestIndexRune","Output":"=== RUN   TestIndexRune\n"}
++{"Action":"output","Test":"TestIndexRune","Output":"--- PASS: TestIndexRune (0.00s)\n"}
++{"Action":"pass","Test":"TestIndexRune"}
++{"Action":"pass","Test":"TestIndexRune"}
++{"Action":"output","Test":"TestIndexRune","Output":"=== PASS  TestIndexRune\n"}
++{"Action":"run","Test":"TestIndexFunc"}
++{"Action":"output","Test":"TestIndexFunc","Output":"=== RUN   TestIndexFunc\n"}
++{"Action":"output","Test":"TestIndexFunc","Output":"--- PASS: TestIndexFunc (0.00s)\n"}
++{"Action":"pass","Test":"TestIndexFunc"}
++{"Action":"pass","Test":"TestIndexFunc"}
++{"Action":"output","Test":"TestIndexFunc","Output":"=== PASS  TestIndexFunc\n"}
++{"Action":"run","Test":"ExampleIndex"}
++{"Action":"output","Test":"ExampleIndex","Output":"=== RUN   ExampleIndex\n"}
++{"Action":"output","Test":"ExampleIndex","Output":"--- PASS: ExampleIndex (0.00s)\n"}
++{"Action":"pass","Test":"ExampleIndex"}
++{"Action":"run","Test":"ExampleIndexFunc"}
++{"Action":"output","Test":"ExampleIndexFunc","Output":"=== RUN   ExampleIndexFunc\n"}
++{"Action":"output","Test":"ExampleIndexFunc","Output":"--- PASS: ExampleIndexFunc (0.00s)\n"}
++{"Action":"pass","Test":"ExampleIndexFunc"}
++{"Action":"run","Test":"ExampleIndexAny"}
++{"Action":"output","Test":"ExampleIndexAny","Output":"=== RUN   ExampleIndexAny\n"}
++{"Action":"output","Test":"ExampleIndexAny","Output":"--- PASS: ExampleIndexAny (0.00s)\n"}
++{"Action":"pass","Test":"ExampleIndexAny"}
++{"Action":"run","Test":"ExampleIndexByte"}
++{"Action":"output","Test":"ExampleIndexByte","Output":"=== RUN   ExampleIndexByte\n"}
++{"Action":"output","Test":"ExampleIndexByte","Output":"--- PASS: ExampleIndexByte (0.00s)\n"}
++{"Action":"pass","Test":"ExampleIndexByte"}
++{"Action":"run","Test":"ExampleIndexRune"}
++{"Action":"output","Test":"ExampleIndexRune","Output":"=== RUN   ExampleIndexRune\n"}
++{"Action":"output","Test":"ExampleIndexRune","Output":"--- PASS: ExampleIndexRune (0.00s)\n"}
++{"Action":"pass","Test":"ExampleIndexRune"}
++{"Action":"run","Test":"ExampleLastIndex"}
++{"Action":"output","Test":"ExampleLastIndex","Output":"=== RUN   ExampleLastIndex\n"}
++{"Action":"output","Test":"ExampleLastIndex","Output":"--- PASS: ExampleLastIndex (0.00s)\n"}
++{"Action":"pass","Test":"ExampleLastIndex"}
++{"Action":"run","Test":"ExampleLastIndexAny"}
++{"Action":"output","Test":"ExampleLastIndexAny","Output":"=== RUN   ExampleLastIndexAny\n"}
++{"Action":"output","Test":"ExampleLastIndexAny","Output":"--- PASS: ExampleLastIndexAny (0.00s)\n"}
++{"Action":"pass","Test":"ExampleLastIndexAny"}
++{"Action":"run","Test":"ExampleLastIndexByte"}
++{"Action":"output","Test":"ExampleLastIndexByte","Output":"=== RUN   ExampleLastIndexByte\n"}
++{"Action":"output","Test":"ExampleLastIndexByte","Output":"--- PASS: ExampleLastIndexByte (0.00s)\n"}
++{"Action":"pass","Test":"ExampleLastIndexByte"}
++{"Action":"run","Test":"ExampleLastIndexFunc"}
++{"Action":"output","Test":"ExampleLastIndexFunc","Output":"=== RUN   ExampleLastIndexFunc\n"}
++{"Action":"output","Test":"ExampleLastIndexFunc","Output":"--- PASS: ExampleLastIndexFunc (0.00s)\n"}
++{"Action":"pass","Test":"ExampleLastIndexFunc"}
++{"Action":"output","Output":"goos: darwin\n"}
++{"Action":"output","Output":"goarch: amd64\n"}
++{"Action":"output","Output":"pkg: strings\n"}
++{"Action":"output","Output":"cpu: Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz\n"}
++{"Action":"run","Test":"BenchmarkIndexRune"}
++{"Action":"output","Test":"BenchmarkIndexRune","Output":"=== RUN   BenchmarkIndexRune\n"}
++{"Action":"output","Test":"BenchmarkIndexRune","Output":"BenchmarkIndexRune\n"}
++{"Action":"output","Test":"BenchmarkIndexRune","Output":"BenchmarkIndexRune-16              \t87335496\t        14.27 ns/op\n"}
++{"Action":"run","Test":"BenchmarkIndexRuneLongString"}
++{"Action":"output","Test":"BenchmarkIndexRuneLongString","Output":"=== RUN   BenchmarkIndexRuneLongString\n"}
++{"Action":"output","Test":"BenchmarkIndexRuneLongString","Output":"BenchmarkIndexRuneLongString\n"}
++{"Action":"output","Test":"BenchmarkIndexRuneLongString","Output":"BenchmarkIndexRuneLongString-16    \t57104472\t        18.66 ns/op\n"}
++{"Action":"run","Test":"BenchmarkIndexRuneFastPath"}
++{"Action":"output","Test":"BenchmarkIndexRuneFastPath","Output":"=== RUN   BenchmarkIndexRuneFastPath\n"}
++{"Action":"output","Test":"BenchmarkIndexRuneFastPath","Output":"BenchmarkIndexRuneFastPath\n"}
++{"Action":"output","Test":"BenchmarkIndexRuneFastPath","Output":"BenchmarkIndexRuneFastPath-16      \t262380160\t         4.499 ns/op\n"}
++{"Action":"run","Test":"BenchmarkIndex"}
++{"Action":"output","Test":"BenchmarkIndex","Output":"=== RUN   BenchmarkIndex\n"}
++{"Action":"output","Test":"BenchmarkIndex","Output":"BenchmarkIndex\n"}
++{"Action":"output","Test":"BenchmarkIndex","Output":"BenchmarkIndex-16                  \t248529364\t         4.697 ns/op\n"}
++{"Action":"run","Test":"BenchmarkLastIndex"}
++{"Action":"output","Test":"BenchmarkLastIndex","Output":"=== RUN   BenchmarkLastIndex\n"}
++{"Action":"output","Test":"BenchmarkLastIndex","Output":"BenchmarkLastIndex\n"}
++{"Action":"output","Test":"BenchmarkLastIndex","Output":"BenchmarkLastIndex-16              \t293688756\t         4.166 ns/op\n"}
++{"Action":"run","Test":"BenchmarkIndexByte"}
++{"Action":"output","Test":"BenchmarkIndexByte","Output":"=== RUN   BenchmarkIndexByte\n"}
++{"Action":"output","Test":"BenchmarkIndexByte","Output":"BenchmarkIndexByte\n"}
++{"Action":"output","Test":"BenchmarkIndexByte","Output":"BenchmarkIndexByte-16              \t310338391\t         3.608 ns/op\n"}
++{"Action":"run","Test":"BenchmarkIndexHard1"}
++{"Action":"output","Test":"BenchmarkIndexHard1","Output":"=== RUN   BenchmarkIndexHard1\n"}
++{"Action":"output","Test":"BenchmarkIndexHard1","Output":"BenchmarkIndexHard1\n"}
++{"Action":"output","Test":"BenchmarkIndexHard1","Output":"BenchmarkIndexHard1-16             \t   12852\t     92380 ns/op\n"}
++{"Action":"run","Test":"BenchmarkIndexHard2"}
++{"Action":"output","Test":"BenchmarkIndexHard2","Output":"=== RUN   BenchmarkIndexHard2\n"}
++{"Action":"output","Test":"BenchmarkIndexHard2","Output":"BenchmarkIndexHard2\n"}
++{"Action":"output","Test":"BenchmarkIndexHard2","Output":"BenchmarkIndexHard2-16             \t    8977\t    135080 ns/op\n"}
++{"Action":"run","Test":"BenchmarkIndexHard3"}
++{"Action":"output","Test":"BenchmarkIndexHard3","Output":"=== RUN   BenchmarkIndexHard3\n"}
++{"Action":"output","Test":"BenchmarkIndexHard3","Output":"BenchmarkIndexHard3\n"}
++{"Action":"output","Test":"BenchmarkIndexHard3","Output":"BenchmarkIndexHard3-16             \t    1885\t    532079 ns/op\n"}
++{"Action":"run","Test":"BenchmarkIndexHard4"}
++{"Action":"output","Test":"BenchmarkIndexHard4","Output":"=== RUN   BenchmarkIndexHard4\n"}
++{"Action":"output","Test":"BenchmarkIndexHard4","Output":"BenchmarkIndexHard4\n"}
++{"Action":"output","Test":"BenchmarkIndexHard4","Output":"BenchmarkIndexHard4-16             \t    2298\t    533435 ns/op\n"}
++{"Action":"run","Test":"BenchmarkLastIndexHard1"}
++{"Action":"output","Test":"BenchmarkLastIndexHard1","Output":"=== RUN   BenchmarkLastIndexHard1\n"}
++{"Action":"output","Test":"BenchmarkLastIndexHard1","Output":"BenchmarkLastIndexHard1\n"}
++{"Action":"output","Test":"BenchmarkLastIndexHard1","Output":"BenchmarkLastIndexHard1-16         \t     813\t   1295767 ns/op\n"}
++{"Action":"run","Test":"BenchmarkLastIndexHard2"}
++{"Action":"output","Test":"BenchmarkLastIndexHard2","Output":"=== RUN   BenchmarkLastIndexHard2\n"}
++{"Action":"output","Test":"BenchmarkLastIndexHard2","Output":"BenchmarkLastIndexHard2\n"}
++{"Action":"output","Test":"BenchmarkLastIndexHard2","Output":"BenchmarkLastIndexHard2-16         \t     784\t   1389403 ns/op\n"}
++{"Action":"run","Test":"BenchmarkLastIndexHard3"}
++{"Action":"output","Test":"BenchmarkLastIndexHard3","Output":"=== RUN   BenchmarkLastIndexHard3\n"}
++{"Action":"output","Test":"BenchmarkLastIndexHard3","Output":"BenchmarkLastIndexHard3\n"}
++{"Action":"output","Test":"BenchmarkLastIndexHard3","Output":"BenchmarkLastIndexHard3-16         \t     913\t   1316608 ns/op\n"}
++{"Action":"run","Test":"BenchmarkIndexTorture"}
++{"Action":"output","Test":"BenchmarkIndexTorture","Output":"=== RUN   BenchmarkIndexTorture\n"}
++{"Action":"output","Test":"BenchmarkIndexTorture","Output":"BenchmarkIndexTorture\n"}
++{"Action":"output","Test":"BenchmarkIndexTorture","Output":"BenchmarkIndexTorture-16           \t   98090\t     10201 ns/op\n"}
++{"Action":"run","Test":"BenchmarkIndexAnyASCII"}
++{"Action":"output","Test":"BenchmarkIndexAnyASCII","Output":"=== RUN   BenchmarkIndexAnyASCII\n"}
++{"Action":"output","Test":"BenchmarkIndexAnyASCII","Output":"BenchmarkIndexAnyASCII\n"}
++{"Action":"run","Test":"BenchmarkIndexAnyASCII/1:1"}
++{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:1","Output":"=== RUN   BenchmarkIndexAnyASCII/1:1\n"}
++{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:1","Output":"BenchmarkIndexAnyASCII/1:1\n"}
++{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:1","Output":"BenchmarkIndexAnyASCII/1:1-16      \t214829462\t         5.592 ns/op\n"}
++{"Action":"run","Test":"BenchmarkIndexAnyASCII/1:2"}
++{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:2","Output":"=== RUN   BenchmarkIndexAnyASCII/1:2\n"}
++{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:2","Output":"BenchmarkIndexAnyASCII/1:2\n"}
++{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:2","Output":"BenchmarkIndexAnyASCII/1:2-16      \t155499682\t         7.214 ns/op\n"}
++{"Action":"run","Test":"BenchmarkIndexAnyASCII/1:4"}
++{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:4","Output":"=== RUN   BenchmarkIndexAnyASCII/1:4\n"}
++{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:4","Output":"BenchmarkIndexAnyASCII/1:4\n"}
++{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:4","Output":"BenchmarkIndexAnyASCII/1:4-16      \t172757770\t         7.092 ns/op\n"}
++{"Action":"output","Output":"PASS\n"}
++{"Action":"pass"}
+diff --git a/src/cmd/internal/test2json/testdata/framebig.test b/src/cmd/internal/test2json/testdata/framebig.test
+new file mode 100644
+index 0000000000..cb0b11a6a0
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/framebig.test
+@@ -0,0 +1,138 @@
++=== RUN   TestIndex
++--- PASS: TestIndex (0.00s)
++=== PASS  TestIndex
++=== NAME
++=== RUN   TestLastIndex
++--- PASS: TestLastIndex (0.00s)
++=== PASS  TestLastIndex
++=== NAME
++=== RUN   TestIndexAny
++--- PASS: TestIndexAny (0.00s)
++=== PASS  TestIndexAny
++=== NAME
++=== RUN   TestLastIndexAny
++--- PASS: TestLastIndexAny (0.00s)
++=== PASS  TestLastIndexAny
++=== NAME
++=== RUN   TestIndexByte
++--- PASS: TestIndexByte (0.00s)
++=== PASS  TestIndexByte
++=== NAME
++=== RUN   TestLastIndexByte
++--- PASS: TestLastIndexByte (0.00s)
++=== PASS  TestLastIndexByte
++=== NAME
++=== RUN   TestIndexRandom
++--- PASS: TestIndexRandom (0.00s)
++=== PASS  TestIndexRandom
++=== NAME
++=== RUN   TestIndexRune
++--- PASS: TestIndexRune (0.00s)
++=== PASS  TestIndexRune
++=== NAME
++=== RUN   TestIndexFunc
++--- PASS: TestIndexFunc (0.00s)
++=== PASS  TestIndexFunc
++=== NAME
++=== RUN   ExampleIndex
++--- PASS: ExampleIndex (0.00s)
++=== NAME
++=== RUN   ExampleIndexFunc
++--- PASS: ExampleIndexFunc (0.00s)
++=== NAME
++=== RUN   ExampleIndexAny
++--- PASS: ExampleIndexAny (0.00s)
++=== NAME
++=== RUN   ExampleIndexByte
++--- PASS: ExampleIndexByte (0.00s)
++=== NAME
++=== RUN   ExampleIndexRune
++--- PASS: ExampleIndexRune (0.00s)
++=== NAME
++=== RUN   ExampleLastIndex
++--- PASS: ExampleLastIndex (0.00s)
++=== NAME
++=== RUN   ExampleLastIndexAny
++--- PASS: ExampleLastIndexAny (0.00s)
++=== NAME
++=== RUN   ExampleLastIndexByte
++--- PASS: ExampleLastIndexByte (0.00s)
++=== NAME
++=== RUN   ExampleLastIndexFunc
++--- PASS: ExampleLastIndexFunc (0.00s)
++=== NAME
++goos: darwin
++goarch: amd64
++pkg: strings
++cpu: Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz
++=== RUN   BenchmarkIndexRune
++BenchmarkIndexRune
++BenchmarkIndexRune-16              	87335496	        14.27 ns/op
++=== NAME
++=== RUN   BenchmarkIndexRuneLongString
++BenchmarkIndexRuneLongString
++BenchmarkIndexRuneLongString-16    	57104472	        18.66 ns/op
++=== NAME
++=== RUN   BenchmarkIndexRuneFastPath
++BenchmarkIndexRuneFastPath
++BenchmarkIndexRuneFastPath-16      	262380160	         4.499 ns/op
++=== NAME
++=== RUN   BenchmarkIndex
++BenchmarkIndex
++BenchmarkIndex-16                  	248529364	         4.697 ns/op
++=== NAME
++=== RUN   BenchmarkLastIndex
++BenchmarkLastIndex
++BenchmarkLastIndex-16              	293688756	         4.166 ns/op
++=== NAME
++=== RUN   BenchmarkIndexByte
++BenchmarkIndexByte
++BenchmarkIndexByte-16              	310338391	         3.608 ns/op
++=== NAME
++=== RUN   BenchmarkIndexHard1
++BenchmarkIndexHard1
++BenchmarkIndexHard1-16             	   12852	     92380 ns/op
++=== NAME
++=== RUN   BenchmarkIndexHard2
++BenchmarkIndexHard2
++BenchmarkIndexHard2-16             	    8977	    135080 ns/op
++=== NAME
++=== RUN   BenchmarkIndexHard3
++BenchmarkIndexHard3
++BenchmarkIndexHard3-16             	    1885	    532079 ns/op
++=== NAME
++=== RUN   BenchmarkIndexHard4
++BenchmarkIndexHard4
++BenchmarkIndexHard4-16             	    2298	    533435 ns/op
++=== NAME
++=== RUN   BenchmarkLastIndexHard1
++BenchmarkLastIndexHard1
++BenchmarkLastIndexHard1-16         	     813	   1295767 ns/op
++=== NAME
++=== RUN   BenchmarkLastIndexHard2
++BenchmarkLastIndexHard2
++BenchmarkLastIndexHard2-16         	     784	   1389403 ns/op
++=== NAME
++=== RUN   BenchmarkLastIndexHard3
++BenchmarkLastIndexHard3
++BenchmarkLastIndexHard3-16         	     913	   1316608 ns/op
++=== NAME
++=== RUN   BenchmarkIndexTorture
++BenchmarkIndexTorture
++BenchmarkIndexTorture-16           	   98090	     10201 ns/op
++=== NAME
++=== RUN   BenchmarkIndexAnyASCII
++BenchmarkIndexAnyASCII
++=== RUN   BenchmarkIndexAnyASCII/1:1
++BenchmarkIndexAnyASCII/1:1
++BenchmarkIndexAnyASCII/1:1-16      	214829462	         5.592 ns/op
++=== NAME
++=== RUN   BenchmarkIndexAnyASCII/1:2
++BenchmarkIndexAnyASCII/1:2
++BenchmarkIndexAnyASCII/1:2-16      	155499682	         7.214 ns/op
++=== NAME
++=== RUN   BenchmarkIndexAnyASCII/1:4
++BenchmarkIndexAnyASCII/1:4
++BenchmarkIndexAnyASCII/1:4-16      	172757770	         7.092 ns/op
++=== NAME
++PASS
+diff --git a/src/cmd/internal/test2json/testdata/framefuzz.json b/src/cmd/internal/test2json/testdata/framefuzz.json
+new file mode 100644
+index 0000000000..ea2eafa717
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/framefuzz.json
+@@ -0,0 +1,68 @@
++{"Action":"run","Test":"TestAddrStringAllocs"}
++{"Action":"output","Test":"TestAddrStringAllocs","Output":"=== RUN   TestAddrStringAllocs\n"}
++{"Action":"run","Test":"TestAddrStringAllocs/zero"}
++{"Action":"output","Test":"TestAddrStringAllocs/zero","Output":"=== RUN   TestAddrStringAllocs/zero\n"}
++{"Action":"run","Test":"TestAddrStringAllocs/ipv4"}
++{"Action":"output","Test":"TestAddrStringAllocs/ipv4","Output":"=== RUN   TestAddrStringAllocs/ipv4\n"}
++{"Action":"run","Test":"TestAddrStringAllocs/ipv6"}
++{"Action":"output","Test":"TestAddrStringAllocs/ipv6","Output":"=== RUN   TestAddrStringAllocs/ipv6\n"}
++{"Action":"run","Test":"TestAddrStringAllocs/ipv6+zone"}
++{"Action":"output","Test":"TestAddrStringAllocs/ipv6+zone","Output":"=== RUN   TestAddrStringAllocs/ipv6+zone\n"}
++{"Action":"run","Test":"TestAddrStringAllocs/ipv4-in-ipv6"}
++{"Action":"output","Test":"TestAddrStringAllocs/ipv4-in-ipv6","Output":"=== RUN   TestAddrStringAllocs/ipv4-in-ipv6\n"}
++{"Action":"run","Test":"TestAddrStringAllocs/ipv4-in-ipv6+zone"}
++{"Action":"output","Test":"TestAddrStringAllocs/ipv4-in-ipv6+zone","Output":"=== RUN   TestAddrStringAllocs/ipv4-in-ipv6+zone\n"}
++{"Action":"output","Test":"TestAddrStringAllocs","Output":"--- PASS: TestAddrStringAllocs (0.00s)\n"}
++{"Action":"output","Test":"TestAddrStringAllocs/zero","Output":"    --- PASS: TestAddrStringAllocs/zero (0.00s)\n"}
++{"Action":"pass","Test":"TestAddrStringAllocs/zero"}
++{"Action":"output","Test":"TestAddrStringAllocs/ipv4","Output":"    --- PASS: TestAddrStringAllocs/ipv4 (0.00s)\n"}
++{"Action":"pass","Test":"TestAddrStringAllocs/ipv4"}
++{"Action":"output","Test":"TestAddrStringAllocs/ipv6","Output":"    --- PASS: TestAddrStringAllocs/ipv6 (0.00s)\n"}
++{"Action":"pass","Test":"TestAddrStringAllocs/ipv6"}
++{"Action":"output","Test":"TestAddrStringAllocs/ipv6+zone","Output":"    --- PASS: TestAddrStringAllocs/ipv6+zone (0.00s)\n"}
++{"Action":"pass","Test":"TestAddrStringAllocs/ipv6+zone"}
++{"Action":"output","Test":"TestAddrStringAllocs/ipv4-in-ipv6","Output":"    --- PASS: TestAddrStringAllocs/ipv4-in-ipv6 (0.00s)\n"}
++{"Action":"pass","Test":"TestAddrStringAllocs/ipv4-in-ipv6"}
++{"Action":"output","Test":"TestAddrStringAllocs/ipv4-in-ipv6+zone","Output":"    --- PASS: TestAddrStringAllocs/ipv4-in-ipv6+zone (0.00s)\n"}
++{"Action":"pass","Test":"TestAddrStringAllocs/ipv4-in-ipv6+zone"}
++{"Action":"pass","Test":"TestAddrStringAllocs"}
++{"Action":"run","Test":"TestPrefixString"}
++{"Action":"output","Test":"TestPrefixString","Output":"=== RUN   TestPrefixString\n"}
++{"Action":"output","Test":"TestPrefixString","Output":"--- PASS: TestPrefixString (0.00s)\n"}
++{"Action":"pass","Test":"TestPrefixString"}
++{"Action":"run","Test":"TestInvalidAddrPortString"}
++{"Action":"output","Test":"TestInvalidAddrPortString","Output":"=== RUN   TestInvalidAddrPortString\n"}
++{"Action":"output","Test":"TestInvalidAddrPortString","Output":"--- PASS: TestInvalidAddrPortString (0.00s)\n"}
++{"Action":"pass","Test":"TestInvalidAddrPortString"}
++{"Action":"run","Test":"TestAsSlice"}
++{"Action":"output","Test":"TestAsSlice","Output":"=== RUN   TestAsSlice\n"}
++{"Action":"output","Test":"TestAsSlice","Output":"--- PASS: TestAsSlice (0.00s)\n"}
++{"Action":"pass","Test":"TestAsSlice"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"Addr.string4\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"Prefix.isZero\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"IPv4Unspecified\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"joinHostPort\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"Addr.MarshalBinary\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"bePutUint64\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"mask6\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"AddrPort.isZero\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"stringsLastIndexByte\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"Addr.isZero\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"bePutUint32\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"leUint16\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"Addr.string6\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"beUint64\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"appendHexPad\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"lePutUint16\"\n"}
++{"Action":"output","Test":"TestInlining","Output":"--- PASS: TestInlining (0.10s)\n"}
++{"Action":"pass","Test":"TestInlining"}
++{"Action":"run","Test":"FuzzParse"}
++{"Action":"output","Test":"FuzzParse","Output":"=== RUN   FuzzParse\n"}
++{"Action":"output","Test":"FuzzParse","Output":"fuzz: elapsed: 0s, gathering baseline coverage: 0/390 completed\n"}
++{"Action":"output","Test":"FuzzParse","Output":"fuzz: elapsed: 0s, gathering baseline coverage: 390/390 completed, now fuzzing with 16 workers\n"}
++{"Action":"output","Test":"FuzzParse","Output":"fuzz: elapsed: 3s, execs: 438666 (146173/sec), new interesting: 12 (total: 402)\n"}
++{"Action":"output","Test":"FuzzParse","Output":"\u0003fuzz: elapsed: 4s, execs: 558467 (147850/sec), new interesting: 15 (total: 405)\n"}
++{"Action":"output","Test":"FuzzParse","Output":"--- PASS: FuzzParse (3.85s)\n"}
++{"Action":"pass","Test":"FuzzParse"}
++{"Action":"output","Output":"PASS\n"}
++{"Action":"pass"}
+diff --git a/src/cmd/internal/test2json/testdata/framefuzz.test b/src/cmd/internal/test2json/testdata/framefuzz.test
+new file mode 100644
+index 0000000000..1eb3a125e2
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/framefuzz.test
+@@ -0,0 +1,56 @@
++=== RUN   TestAddrStringAllocs
++=== RUN   TestAddrStringAllocs/zero
++=== NAME  TestAddrStringAllocs
++=== RUN   TestAddrStringAllocs/ipv4
++=== NAME  TestAddrStringAllocs
++=== RUN   TestAddrStringAllocs/ipv6
++=== NAME  TestAddrStringAllocs
++=== RUN   TestAddrStringAllocs/ipv6+zone
++=== NAME  TestAddrStringAllocs
++=== RUN   TestAddrStringAllocs/ipv4-in-ipv6
++=== NAME  TestAddrStringAllocs
++=== RUN   TestAddrStringAllocs/ipv4-in-ipv6+zone
++=== NAME  TestAddrStringAllocs
++--- PASS: TestAddrStringAllocs (0.00s)
++    --- PASS: TestAddrStringAllocs/zero (0.00s)
++    --- PASS: TestAddrStringAllocs/ipv4 (0.00s)
++    --- PASS: TestAddrStringAllocs/ipv6 (0.00s)
++    --- PASS: TestAddrStringAllocs/ipv6+zone (0.00s)
++    --- PASS: TestAddrStringAllocs/ipv4-in-ipv6 (0.00s)
++    --- PASS: TestAddrStringAllocs/ipv4-in-ipv6+zone (0.00s)
++=== NAME
++=== RUN   TestPrefixString
++--- PASS: TestPrefixString (0.00s)
++=== NAME
++=== RUN   TestInvalidAddrPortString
++--- PASS: TestInvalidAddrPortString (0.00s)
++=== NAME
++=== RUN   TestAsSlice
++--- PASS: TestAsSlice (0.00s)
++=== NAME
++=== NAME  TestInlining
++    inlining_test.go:102: not in expected set, but also inlinable: "Addr.string4"
++    inlining_test.go:102: not in expected set, but also inlinable: "Prefix.isZero"
++    inlining_test.go:102: not in expected set, but also inlinable: "IPv4Unspecified"
++    inlining_test.go:102: not in expected set, but also inlinable: "joinHostPort"
++    inlining_test.go:102: not in expected set, but also inlinable: "Addr.MarshalBinary"
++    inlining_test.go:102: not in expected set, but also inlinable: "bePutUint64"
++    inlining_test.go:102: not in expected set, but also inlinable: "mask6"
++    inlining_test.go:102: not in expected set, but also inlinable: "AddrPort.isZero"
++    inlining_test.go:102: not in expected set, but also inlinable: "stringsLastIndexByte"
++    inlining_test.go:102: not in expected set, but also inlinable: "Addr.isZero"
++    inlining_test.go:102: not in expected set, but also inlinable: "bePutUint32"
++    inlining_test.go:102: not in expected set, but also inlinable: "leUint16"
++    inlining_test.go:102: not in expected set, but also inlinable: "Addr.string6"
++    inlining_test.go:102: not in expected set, but also inlinable: "beUint64"
++    inlining_test.go:102: not in expected set, but also inlinable: "appendHexPad"
++    inlining_test.go:102: not in expected set, but also inlinable: "lePutUint16"
++--- PASS: TestInlining (0.10s)
++=== RUN   FuzzParse
++fuzz: elapsed: 0s, gathering baseline coverage: 0/390 completed
++fuzz: elapsed: 0s, gathering baseline coverage: 390/390 completed, now fuzzing with 16 workers
++fuzz: elapsed: 3s, execs: 438666 (146173/sec), new interesting: 12 (total: 402)
++fuzz: elapsed: 4s, execs: 558467 (147850/sec), new interesting: 15 (total: 405)
++--- PASS: FuzzParse (3.85s)
++=== NAME
++PASS
+diff --git a/src/cmd/internal/test2json/testdata/timeout.json b/src/cmd/internal/test2json/testdata/timeout.json
+new file mode 100644
+index 0000000000..162a5bde44
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/timeout.json
+@@ -0,0 +1,7 @@
++{"Action":"run","Test":"Test"}
++{"Action":"output","Test":"Test","Output":"=== RUN   Test\n"}
++{"Action":"output","Test":"Test","Output":"panic: test timed out after 1s\n"}
++{"Action":"output","Test":"Test","Output":"\n"}
++{"Action":"output","Output":"FAIL\tp\t1.111s\n"}
++{"Action":"output","Output":"FAIL\n"}
++{"Action":"fail"}
+diff --git a/src/cmd/internal/test2json/testdata/timeout.test b/src/cmd/internal/test2json/testdata/timeout.test
+new file mode 100644
+index 0000000000..7f3debf37d
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/timeout.test
+@@ -0,0 +1,5 @@
++=== RUN   Test
++panic: test timed out after 1s
++
++FAIL	p	1.111s
++FAIL
+diff --git a/src/cmd/test2json/main.go b/src/cmd/test2json/main.go
+index f9e590cd36..06648b1a9c 100644
+--- a/src/cmd/test2json/main.go
++++ b/src/cmd/test2json/main.go
+@@ -6,7 +6,7 @@
+ //
+ // Usage:
+ //
+-//	go tool test2json [-p pkg] [-t] [./pkg.test -test.v [-test.paniconexit0]]
++//	go tool test2json [-p pkg] [-t] [./pkg.test -test.v=test2json]
+ //
+ // Test2json runs the given test command and converts its output to JSON;
+ // with no command specified, test2json expects test output on standard input.
+@@ -18,13 +18,16 @@
+ //
+ // The -t flag requests that time stamps be added to each test event.
+ //
+-// The test must be invoked with -test.v. Additionally passing
+-// -test.paniconexit0 will cause test2json to exit with a non-zero
+-// status if one of the tests being run calls os.Exit(0).
++// The test should be invoked with -test.v=test2json. Using only -test.v
++// (or -test.v=true) is permissible but produces lower fidelity results.
+ //
+-// Note that test2json is only intended for converting a single test
+-// binary's output. To convert the output of a "go test" command,
+-// use "go test -json" instead of invoking test2json directly.
++// Note that "go test -json" takes care of invoking test2json correctly,
++// so "go tool test2json" is only needed when a test binary is being run
++// separately from "go test". Use "go test -json" whenever possible.
++//
++// Note also that test2json is only intended for converting a single test
++// binary's output. To convert the output of a "go test" command that
++// runs multiple packages, again use "go test -json".
+ //
+ // # Output Format
+ //
+@@ -79,7 +82,7 @@
+ // (for example, by using b.Log or b.Error), that extra output is reported
+ // as a sequence of events with Test set to the benchmark name, terminated
+ // by a final event with Action == "bench" or "fail".
+-// Benchmarks have no events with Action == "run", "pause", or "cont".
++// Benchmarks have no events with Action == "pause".
+ package main
+ 
+ import (
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 7ee517604b..31fc7d7156 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -234,7 +234,7 @@ func (b *B) run1() bool {
+ 	}()
+ 	<-b.signal
+ 	if b.failed {
+-		fmt.Fprintf(b.w, "--- FAIL: %s\n%s", b.name, b.output)
++		fmt.Fprintf(b.w, "%s--- FAIL: %s\n%s", b.chatty.prefix(), b.name, b.output)
+ 		return false
+ 	}
+ 	// Only print the output if we know we are not going to proceed.
+@@ -249,7 +249,7 @@ func (b *B) run1() bool {
+ 		}
+ 		if b.chatty != nil && (len(b.output) > 0 || finished) {
+ 			b.trimOutput()
+-			fmt.Fprintf(b.w, "--- %s: %s\n%s", tag, b.name, b.output)
++			fmt.Fprintf(b.w, "%s--- %s: %s\n%s", b.chatty.prefix(), tag, b.name, b.output)
+ 		}
+ 		return false
+ 	}
+@@ -602,7 +602,7 @@ func (ctx *benchContext) processBench(b *B) {
+ 				// The output could be very long here, but probably isn't.
+ 				// We print it all, regardless, because we don't want to trim the reason
+ 				// the benchmark failed.
+-				fmt.Fprintf(b.w, "--- FAIL: %s\n%s", benchName, b.output)
++				fmt.Fprintf(b.w, "%s--- FAIL: %s\n%s", b.chatty.prefix(), benchName, b.output)
+ 				continue
+ 			}
+ 			results := r.String()
+@@ -617,11 +617,14 @@ func (ctx *benchContext) processBench(b *B) {
+ 			// benchmarks since the output generation time will skew the results.
+ 			if len(b.output) > 0 {
+ 				b.trimOutput()
+-				fmt.Fprintf(b.w, "--- BENCH: %s\n%s", benchName, b.output)
++				fmt.Fprintf(b.w, "%s--- BENCH: %s\n%s", b.chatty.prefix(), benchName, b.output)
+ 			}
+ 			if p := runtime.GOMAXPROCS(-1); p != procs {
+ 				fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
+ 			}
++			if b.chatty != nil && b.chatty.json {
++				b.chatty.Updatef("", "=== NAME  %s\n", "")
++			}
+ 		}
+ 	}
+ }
+@@ -687,6 +690,9 @@ func (b *B) Run(name string, f func(b *B)) bool {
+ 		})
+ 
+ 		if !hideStdoutForTesting {
++			if b.chatty.json {
++				b.chatty.Updatef(benchName, "=== RUN   %s\n", benchName)
++			}
+ 			fmt.Println(benchName)
+ 		}
+ 	}
+diff --git a/src/testing/example.go b/src/testing/example.go
+index f33e8d2f92..f618b06de1 100644
+--- a/src/testing/example.go
++++ b/src/testing/example.go
+@@ -80,10 +80,14 @@ func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Durati
+ 		}
+ 	}
+ 	if fail != "" || !finished || recovered != nil {
+-		fmt.Printf("--- FAIL: %s (%s)\n%s", eg.Name, dstr, fail)
++		fmt.Printf("%s--- FAIL: %s (%s)\n%s", chatty.prefix(), eg.Name, dstr, fail)
+ 		passed = false
+-	} else if *chatty {
+-		fmt.Printf("--- PASS: %s (%s)\n", eg.Name, dstr)
++	} else if chatty.on {
++		fmt.Printf("%s--- PASS: %s (%s)\n", chatty.prefix(), eg.Name, dstr)
++	}
++
++	if chatty.on && chatty.json {
++		fmt.Printf("%s=== NAME   %s\n", chatty.prefix(), "")
+ 	}
+ 
+ 	if recovered != nil {
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index d885f44b32..d88de9c99a 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -316,7 +316,6 @@ func (f *F) Fuzz(ff any) {
+ 		}
+ 		t.w = indenter{&t.common}
+ 		if t.chatty != nil {
+-			// TODO(#48132): adjust this to work with test2json.
+ 			t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
+ 		}
+ 		f.common.inFuzzFn, f.inFuzzFn = true, true
+@@ -336,6 +335,9 @@ func (f *F) Fuzz(ff any) {
+ 			fn.Call(args)
+ 		})
+ 		<-t.signal
++		if t.chatty != nil && t.chatty.json {
++			t.chatty.Updatef(t.parent.name, "=== NAME  %s\n", t.parent.name)
++		}
+ 		f.common.inFuzzFn, f.inFuzzFn = false, false
+ 		return !t.Failed()
+ 	}
+@@ -512,12 +514,13 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
+ 		}
+ 		f.w = indenter{&f.common}
+ 		if f.chatty != nil {
+-			// TODO(#48132): adjust this to work with test2json.
+ 			f.chatty.Updatef(f.name, "=== RUN   %s\n", f.name)
+ 		}
+-
+ 		go fRunner(f, ft.Fn)
+ 		<-f.signal
++		if f.chatty != nil && f.chatty.json {
++			f.chatty.Updatef(f.parent.name, "=== NAME  %s\n", f.parent.name)
++		}
+ 	}
+ 	return root.ran, !root.Failed()
+ }
+@@ -583,11 +586,13 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
+ 	}
+ 	f.w = indenter{&f.common}
+ 	if f.chatty != nil {
+-		// TODO(#48132): adjust this to work with test2json.
+-		f.chatty.Updatef(f.name, "=== FUZZ  %s\n", f.name)
++		f.chatty.Updatef(f.name, "=== RUN   %s\n", f.name)
+ 	}
+ 	go fRunner(f, fuzzTest.Fn)
+ 	<-f.signal
++	if f.chatty != nil {
++		f.chatty.Updatef(f.parent.name, "=== NAME  %s\n", f.parent.name)
++	}
+ 	return !f.failed
+ }
+ 
+diff --git a/src/testing/run_example.go b/src/testing/run_example.go
+index e7eab1e50e..776fbffc7e 100644
+--- a/src/testing/run_example.go
++++ b/src/testing/run_example.go
+@@ -19,8 +19,8 @@ import (
+ )
+ 
+ func runExample(eg InternalExample) (ok bool) {
+-	if *chatty {
+-		fmt.Printf("=== RUN   %s\n", eg.Name)
++	if chatty.on {
++		fmt.Printf("%s=== RUN   %s\n", chatty.prefix(), eg.Name)
+ 	}
+ 
+ 	// Capture stdout.
+diff --git a/src/testing/run_example_js.go b/src/testing/run_example_js.go
+index f3a11201a1..572c6b3e2e 100644
+--- a/src/testing/run_example_js.go
++++ b/src/testing/run_example_js.go
+@@ -17,8 +17,8 @@ import (
+ // TODO(@musiol, @odeke-em): unify this code back into
+ // example.go when js/wasm gets an os.Pipe implementation.
+ func runExample(eg InternalExample) (ok bool) {
+-	if *chatty {
+-		fmt.Printf("=== RUN   %s\n", eg.Name)
++	if chatty.on {
++		fmt.Printf("%s=== RUN   %s\n", chatty.prefix(), eg.Name)
+ 	}
+ 
+ 	// Capture stdout to temporary file. We're not using
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 7d6b97b66e..e1da99d07a 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -124,6 +124,7 @@ func TestTRun(t *T) {
+ 		ok     bool
+ 		maxPar int
+ 		chatty bool
++		json   bool
+ 		output string
+ 		f      func(*T)
+ 	}{{
+@@ -203,6 +204,36 @@ func TestTRun(t *T) {
+ 				t.Run("", func(t *T) {})
+ 			})
+ 		},
++	}, {
++		desc:   "chatty with recursion and json",
++		ok:     false,
++		chatty: true,
++		json:   true,
++		output: `
++^V=== RUN   chatty with recursion and json
++^V=== RUN   chatty with recursion and json/#00
++^V=== RUN   chatty with recursion and json/#00/#00
++^V--- PASS: chatty with recursion and json/#00/#00 (N.NNs)
++^V=== NAME  chatty with recursion and json/#00
++^V=== RUN   chatty with recursion and json/#00/#01
++    sub_test.go:NNN: skip
++^V--- SKIP: chatty with recursion and json/#00/#01 (N.NNs)
++^V=== NAME  chatty with recursion and json/#00
++^V=== RUN   chatty with recursion and json/#00/#02
++    sub_test.go:NNN: fail
++^V--- FAIL: chatty with recursion and json/#00/#02 (N.NNs)
++^V=== NAME  chatty with recursion and json/#00
++^V--- FAIL: chatty with recursion and json/#00 (N.NNs)
++^V=== NAME  chatty with recursion and json
++^V--- FAIL: chatty with recursion and json (N.NNs)
++^V=== NAME  `,
++		f: func(t *T) {
++			t.Run("", func(t *T) {
++				t.Run("", func(t *T) {})
++				t.Run("", func(t *T) { t.Skip("skip") })
++				t.Run("", func(t *T) { t.Fatal("fail") })
++			})
++		},
+ 	}, {
+ 		desc: "skipping without message, not chatty",
+ 		ok:   true,
+@@ -482,13 +513,14 @@ func TestTRun(t *T) {
+ 				common: common{
+ 					signal:  make(chan bool),
+ 					barrier: make(chan bool),
+-					name:    "Test",
++					name:    "",
+ 					w:       buf,
+ 				},
+ 				context: ctx,
+ 			}
+ 			if tc.chatty {
+ 				root.chatty = newChattyPrinter(root.w)
++				root.chatty.json = tc.json
+ 			}
+ 			ok := root.Run(tc.desc, tc.f)
+ 			ctx.release()
+@@ -702,6 +734,7 @@ func TestBRun(t *T) {
+ 
+ func makeRegexp(s string) string {
+ 	s = regexp.QuoteMeta(s)
++	s = strings.ReplaceAll(s, "^V", "\x16")
+ 	s = strings.ReplaceAll(s, ":NNN:", `:\d\d\d\d?:`)
+ 	s = strings.ReplaceAll(s, "N\\.NNs", `\d*\.\d*s`)
+ 	return s
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index c7d51a13e3..76dcc1ab73 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -418,7 +418,7 @@ func Init() {
+ 	// the "go test" command is run.
+ 	outputDir = flag.String("test.outputdir", "", "write profiles to `dir`")
+ 	// Report as tests are run; default is silent for success.
+-	chatty = flag.Bool("test.v", false, "verbose: print additional output")
++	flag.Var(&chatty, "test.v", "verbose: print additional output")
+ 	count = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
+ 	coverProfile = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
+ 	gocoverdir = flag.String("test.gocoverdir", "", "write coverage intermediate files to this directory")
+@@ -449,7 +449,7 @@ var (
+ 	short                *bool
+ 	failFast             *bool
+ 	outputDir            *string
+-	chatty               *bool
++	chatty               chattyFlag
+ 	count                *uint
+ 	coverProfile         *string
+ 	gocoverdir           *string
+@@ -479,14 +479,66 @@ var (
+ 	numFailed atomic.Uint32 // number of test failures
+ )
+ 
++type chattyFlag struct {
++	on   bool // -v is set in some form
++	json bool // -v=test2json is set, to make output better for test2json
++}
++
++func (*chattyFlag) IsBoolFlag() bool { return true }
++
++func (f *chattyFlag) Set(arg string) error {
++	switch arg {
++	default:
++		return fmt.Errorf("invalid flag -test.v=%s", arg)
++	case "true", "test2json":
++		f.on = true
++		f.json = arg == "test2json"
++	case "false":
++		f.on = false
++		f.json = false
++	}
++	return nil
++}
++
++func (f *chattyFlag) String() string {
++	if f.json {
++		return "test2json"
++	}
++	if f.on {
++		return "true"
++	}
++	return "false"
++}
++
++const marker = byte(0x16) // ^V for framing
++
++func (f *chattyFlag) prefix() string {
++	if f.json {
++		return string(marker)
++	}
++	return ""
++}
++
+ type chattyPrinter struct {
+ 	w          io.Writer
+ 	lastNameMu sync.Mutex // guards lastName
+ 	lastName   string     // last printed test name in chatty mode
++	json       bool       // -v=json output mode
+ }
+ 
+ func newChattyPrinter(w io.Writer) *chattyPrinter {
+-	return &chattyPrinter{w: w}
++	return &chattyPrinter{w: w, json: chatty.json}
++}
++
++// prefix is like chatty.prefix but using p.json instead of chatty.json.
++// Using p.json allows tests to check the json behavior without modifying
++// the global variable. For convenience, we allow p == nil and treat
++// that as not in json mode (because it's not chatty at all).
++func (p *chattyPrinter) prefix() string {
++	if p != nil && p.json {
++		return string(marker)
++	}
++	return ""
+ }
+ 
+ // Updatef prints a message about the status of the named test to w.
+@@ -497,11 +549,11 @@ func (p *chattyPrinter) Updatef(testName, format string, args ...any) {
+ 	defer p.lastNameMu.Unlock()
+ 
+ 	// Since the message already implies an association with a specific new test,
+-	// we don't need to check what the old test name was or log an extra CONT line
++	// we don't need to check what the old test name was or log an extra NAME line
+ 	// for it. (We're updating it anyway, and the current message already includes
+ 	// the test name.)
+ 	p.lastName = testName
+-	fmt.Fprintf(p.w, format, args...)
++	fmt.Fprintf(p.w, p.prefix()+format, args...)
+ }
+ 
+ // Printf prints a message, generated by the named test, that does not
+@@ -513,7 +565,7 @@ func (p *chattyPrinter) Printf(testName, format string, args ...any) {
+ 	if p.lastName == "" {
+ 		p.lastName = testName
+ 	} else if p.lastName != testName {
+-		fmt.Fprintf(p.w, "=== CONT  %s\n", testName)
++		fmt.Fprintf(p.w, "%s=== NAME  %s\n", p.prefix(), testName)
+ 		p.lastName = testName
+ 	}
+ 
+@@ -591,13 +643,10 @@ func CoverMode() string {
+ // Verbose reports whether the -test.v flag is set.
+ func Verbose() bool {
+ 	// Same as in Short.
+-	if chatty == nil {
+-		panic("testing: Verbose called before Init")
+-	}
+ 	if !flag.Parsed() {
+ 		panic("testing: Verbose called before Parse")
+ 	}
+-	return *chatty
++	return chatty.on
+ }
+ 
+ func (c *common) checkFuzzFn(name string) {
+@@ -732,26 +781,33 @@ func (c *common) flushToParent(testName, format string, args ...any) {
+ 	defer c.mu.Unlock()
+ 
+ 	if len(c.output) > 0 {
++		// Add the current c.output to the print,
++		// and then arrange for the print to replace c.output.
++		// (This displays the logged output after the --- FAIL line.)
+ 		format += "%s"
+ 		args = append(args[:len(args):len(args)], c.output)
+-		c.output = c.output[:0] // but why?
++		c.output = c.output[:0]
+ 	}
+ 
+-	if c.chatty != nil && p.w == c.chatty.w {
++	if c.chatty != nil && (p.w == c.chatty.w || c.chatty.json) {
+ 		// We're flushing to the actual output, so track that this output is
+ 		// associated with a specific test (and, specifically, that the next output
+ 		// is *not* associated with that test).
+ 		//
+ 		// Moreover, if c.output is non-empty it is important that this write be
+ 		// atomic with respect to the output of other tests, so that we don't end up
+-		// with confusing '=== CONT' lines in the middle of our '--- PASS' block.
++		// with confusing '=== NAME' lines in the middle of our '--- PASS' block.
+ 		// Neither humans nor cmd/test2json can parse those easily.
+-		// (See https://golang.org/issue/40771.)
++		// (See https://go.dev/issue/40771.)
++		//
++		// If test2json is used, we never flush to parent tests,
++		// so that the json stream shows subtests as they finish.
++		// (See https://go.dev/issue/29811.)
+ 		c.chatty.Updatef(testName, format, args...)
+ 	} else {
+ 		// We're flushing to the output buffer of the parent test, which will
+ 		// itself follow a test-name header when it is finally flushed to stdout.
+-		fmt.Fprintf(p.w, format, args...)
++		fmt.Fprintf(p.w, c.chatty.prefix()+format, args...)
+ 	}
+ }
+ 
+@@ -770,9 +826,14 @@ func (w indenter) Write(b []byte) (n int, err error) {
+ 		}
+ 		// An indent of 4 spaces will neatly align the dashes with the status
+ 		// indicator of the parent.
++		line := b[:end]
++		if line[0] == marker {
++			w.c.output = append(w.c.output, marker)
++			line = line[1:]
++		}
+ 		const indent = "    "
+ 		w.c.output = append(w.c.output, indent...)
+-		w.c.output = append(w.c.output, b[:end]...)
++		w.c.output = append(w.c.output, line...)
+ 		b = b[end:]
+ 	}
+ 	return
+@@ -1300,12 +1361,6 @@ func (t *T) Parallel() {
+ 	t.raceErrors += race.Errors()
+ 
+ 	if t.chatty != nil {
+-		// Unfortunately, even though PAUSE indicates that the named test is *no
+-		// longer* running, cmd/test2json interprets it as changing the active test
+-		// for the purpose of log parsing. We could fix cmd/test2json, but that
+-		// won't fix existing deployments of third-party tools that already shell
+-		// out to older builds of cmd/test2json — so merely fixing cmd/test2json
+-		// isn't enough for now.
+ 		t.chatty.Updatef(t.name, "=== PAUSE %s\n", t.name)
+ 	}
+ 
+@@ -1551,6 +1606,9 @@ func (t *T) Run(name string, f func(t *T)) bool {
+ 		// parent tests by one of the subtests. Continue aborting up the chain.
+ 		runtime.Goexit()
+ 	}
++	if t.chatty != nil && t.chatty.json {
++		t.chatty.Updatef(t.parent.name, "=== NAME  %s\n", t.parent.name)
++	}
+ 	return !t.failed
+ }
+ 
+@@ -1713,6 +1771,7 @@ func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchma
+ }
+ 
+ var testingTesting bool
++var realStderr *os.File
+ 
+ // Run runs the tests. It returns an exit code to pass to os.Exit.
+ func (m *M) Run() (code int) {
+@@ -1723,7 +1782,7 @@ func (m *M) Run() (code int) {
+ 	// Count the number of calls to m.Run.
+ 	// We only ever expected 1, but we didn't enforce that,
+ 	// and now there are tests in the wild that call m.Run multiple times.
+-	// Sigh. golang.org/issue/23129.
++	// Sigh. go.dev/issue/23129.
+ 	m.numRun++
+ 
+ 	// TestMain may have already called flag.Parse.
+@@ -1731,6 +1790,44 @@ func (m *M) Run() (code int) {
+ 		flag.Parse()
+ 	}
+ 
++	if chatty.json {
++		// With -v=json, stdout and stderr are pointing to the same pipe,
++		// which is leading into test2json. In general, operating systems
++		// do a good job of ensuring that writes to the same pipe through
++		// different file descriptors are delivered whole, so that writing
++		// AAA to stdout and BBB to stderr simultaneously produces
++		// AAABBB or BBBAAA on the pipe, not something like AABBBA.
++		// However, the exception to this is when the pipe fills: in that
++		// case, Go's use of non-blocking I/O means that writing AAA
++		// or BBB might be split across multiple system calls, making it
++		// entirely possible to get output like AABBBA. The same problem
++		// happens inside the operating system kernel if we switch to
++		// blocking I/O on the pipe. This interleaved output can do things
++		// like print unrelated messages in the middle of a TestFoo line,
++		// which confuses test2json. Setting os.Stderr = os.Stdout will make
++		// them share a single pfd, which will hold a lock for each program
++		// write, preventing any interleaving.
++		//
++		// It might be nice to set Stderr = Stdout always, or perhaps if
++		// we can tell they are the same file, but for now -v=json is
++		// a very clear signal. Making the two files the same may cause
++		// surprises if programs close os.Stdout but expect to be able
++		// to continue to write to os.Stderr, but it's hard to see why a
++		// test would think it could take over global state that way.
++		//
++		// This fix only helps programs where the output is coming directly
++		// from Go code. It does not help programs in which a subprocess is
++		// writing to stderr or stdout at the same time that a Go test is writing output.
++		// It also does not help when the output is coming from the runtime,
++		// such as when using the print/println functions, since that code writes
++		// directly to fd 2 without any locking.
++		// We keep realStderr around to prevent fd 2 from being closed.
++		//
++		// See go.dev/issue/33419.
++		realStderr = os.Stderr
++		os.Stderr = os.Stdout
++	}
++
+ 	if *parallel < 1 {
+ 		fmt.Fprintln(os.Stderr, "testing: -parallel can only be given a positive integer")
+ 		flag.Usage()
+@@ -1793,12 +1890,12 @@ func (m *M) Run() (code int) {
+ 				// with no obvious way to detect this problem (since no tests are running).
+ 				// So make 'no tests to run' a hard failure when testing package testing itself.
+ 				// The compile-only builders use -run=^$ to run no tests, so allow that.
+-				fmt.Println("FAIL: package testing must run tests")
++				fmt.Print(chatty.prefix(), "FAIL: package testing must run tests\n")
+ 				testOk = false
+ 			}
+ 		}
+ 		if !testOk || !exampleOk || !fuzzTargetsOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
+-			fmt.Println("FAIL")
++			fmt.Print(chatty.prefix(), "FAIL\n")
+ 			m.exitCode = 1
+ 			return
+ 		}
+@@ -1806,7 +1903,7 @@ func (m *M) Run() (code int) {
+ 
+ 	fuzzingOk := runFuzzing(m.deps, m.fuzzTargets)
+ 	if !fuzzingOk {
+-		fmt.Println("FAIL")
++		fmt.Print(chatty.prefix(), "FAIL\n")
+ 		if *isFuzzWorker {
+ 			m.exitCode = fuzzWorkerExitCode
+ 		} else {
+@@ -1817,7 +1914,7 @@ func (m *M) Run() (code int) {
+ 
+ 	m.exitCode = 0
+ 	if !*isFuzzWorker {
+-		fmt.Println("PASS")
++		fmt.Print(chatty.prefix(), "PASS\n")
+ 	}
+ 	return
+ }

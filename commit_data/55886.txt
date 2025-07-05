@@ -15,7 +15,40 @@ Date:   Wed Mar 22 17:45:07 2023 +0700
     Reviewed-by: Jakub Ciolek <jakub@ciolek.dev>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go |  3 +++
  test/fixedbugs/issue59174.go            | 12 ++++++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 54ea2d3f4f..afd56018d3 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1370,6 +1370,9 @@ func zeroUpper56Bits(x *Value, depth int) bool {
+ }
+ 
+ func isInlinableMemclr(c *Config, sz int64) bool {
++	if sz < 0 {
++		return false
++	}
+ 	// TODO: expand this check to allow other architectures
+ 	// see CL 454255 and issue 56997
+ 	switch c.arch {
+diff --git a/test/fixedbugs/issue59174.go b/test/fixedbugs/issue59174.go
+new file mode 100644
+index 0000000000..33a19a4653
+--- /dev/null
++++ b/test/fixedbugs/issue59174.go
+@@ -0,0 +1,12 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func p() {
++	s := make([]int, copy([]byte{' '}, "")-1)
++	_ = append([]int{}, make([]int, len(s))...)
++}

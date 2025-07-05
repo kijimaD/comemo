@@ -9,7 +9,7 @@ Date:   Sun Sep 12 00:17:44 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2136047
-
+---
  src/cmd/6g/gsubr.c |  3 ++
  src/cmd/6g/list.c  | 12 +++++---
  src/cmd/6l/6.out.h |  1 +
@@ -33,3 +33,1239 @@ Date:   Sun Sep 12 00:17:44 2010 -0400
  src/cmd/ld/lib.c   |  1 +
  src/cmd/ld/macho.c |  2 +-
  22 files changed, 228 insertions(+), 153 deletions(-)
+
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index e368dcad50..abece5e50c 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -147,6 +147,8 @@ ggloblnod(Node *nam, int32 width)
+ 	p->to.sym = S;
+ 	p->to.type = D_CONST;
+ 	p->to.offset = width;
++	if(nam->readonly)
++		p->from.scale = RODATA;
+ }
+ 
+ void
+@@ -163,6 +165,7 @@ ggloblsym(Sym *s, int32 width, int dupok)
+ 	p->to.offset = width;
+ 	if(dupok)
+ 		p->from.scale = DUPOK;
++	p->from.scale |= RODATA;
+ }
+ 
+ int
+diff --git a/src/cmd/6g/list.c b/src/cmd/6g/list.c
+index 9194b1dab2..24e8bc70b9 100644
+--- a/src/cmd/6g/list.c
++++ b/src/cmd/6g/list.c
+@@ -47,13 +47,17 @@ Pconv(Fmt *fp)
+ {
+ 	char str[STRINGSZ];
+ 	Prog *p;
++	char scale[40];
+ 
+ 	p = va_arg(fp->args, Prog*);
+ 	sconsize = 8;
++	scale[0] = '\0';
++	if(p->from.scale != 0 && (p->as == AGLOBL || p->as == ATEXT))
++		snprint(scale, sizeof scale, "%d,", p->from.scale);
+ 	switch(p->as) {
+ 	default:
+-		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%D",
+-			p->loc, p->lineno, p->as, &p->from, &p->to);
++		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%s%D",
++			p->loc, p->lineno, p->as, &p->from, scale, &p->to);
+ 		break;
+ 
+ 	case ADATA:
+@@ -63,8 +67,8 @@ Pconv(Fmt *fp)
+ 		break;
+ 
+ 	case ATEXT:
+-		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%lD",
+-			p->loc, p->lineno, p->as, &p->from, &p->to);
++		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%s%lD",
++			p->loc, p->lineno, p->as, &p->from, scale, &p->to);
+ 		break;
+ 	}
+ 	return fmtstrcpy(fp, str);
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index ca5e485c09..fdcd3f87b0 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -33,6 +33,7 @@
+ #define NOPROF	(1<<0)
+ #define DUPOK	(1<<1)
+ #define NOSPLIT	(1<<2)
++#define RODATA	(1<<3)
+ 
+ /*
+  *	amd64
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 256213fe2f..e86f516743 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -136,16 +136,16 @@ addstring(Sym *s, char *str)
+ 	if(s->type == 0)
+ 		s->type = SDATA;
+ 	s->reachable = 1;
+-	r = s->value;
++	r = s->size;
+ 	n = strlen(str)+1;
+ 	while(n > 0) {
+ 		m = n;
+ 		if(m > sizeof(p->to.scon))
+ 			m = sizeof(p->to.scon);
+-		p = newdata(s, s->value, m, D_EXTERN);
++		p = newdata(s, s->size, m, D_EXTERN);
+ 		p->to.type = D_SCONST;
+ 		memmove(p->to.scon, str, m);
+-		s->value += m;
++		s->size += m;
+ 		str += m;
+ 		n -= m;
+ 	}
+@@ -161,9 +161,9 @@ adduintxx(Sym *s, uint64 v, int wid)
+ 	if(s->type == 0)
+ 		s->type = SDATA;
+ 	s->reachable = 1;
+-	r = s->value;
+-	p = newdata(s, s->value, wid, D_EXTERN);
+-	s->value += wid;
++	r = s->size;
++	p = newdata(s, s->size, wid, D_EXTERN);
++	s->size += wid;
+ 	p->to.type = D_CONST;
+ 	p->to.offset = v;
+ 	return r;
+@@ -203,9 +203,9 @@ addaddr(Sym *s, Sym *t)
+ 	if(s->type == 0)
+ 		s->type = SDATA;
+ 	s->reachable = 1;
+-	r = s->value;
+-	p = newdata(s, s->value, Ptrsize, D_EXTERN);
+-	s->value += Ptrsize;
++	r = s->size;
++	p = newdata(s, s->size, Ptrsize, D_EXTERN);
++	s->size += Ptrsize;
+ 	p->to.type = D_ADDR;
+ 	p->to.index = D_EXTERN;
+ 	p->to.offset = 0;
+@@ -223,9 +223,9 @@ addsize(Sym *s, Sym *t)
+ 	if(s->type == 0)
+ 		s->type = SDATA;
+ 	s->reachable = 1;
+-	r = s->value;
+-	p = newdata(s, s->value, Ptrsize, D_EXTERN);
+-	s->value += Ptrsize;
++	r = s->size;
++	p = newdata(s, s->size, Ptrsize, D_EXTERN);
++	s->size += Ptrsize;
+ 	p->to.type = D_SIZE;
+ 	p->to.index = D_EXTERN;
+ 	p->to.offset = 0;
+@@ -321,13 +321,12 @@ doelf(void)
+ 		s = lookup(".dynsym", 0);
+ 		s->type = SELFDATA;
+ 		s->reachable = 1;
+-		s->value += ELF64SYMSIZE;
++		s->size += ELF64SYMSIZE;
+ 
+ 		/* dynamic string table */
+ 		s = lookup(".dynstr", 0);
+ 		s->type = SELFDATA;
+ 		s->reachable = 1;
+-		s->value += ELF64SYMSIZE;
+ 		addstring(s, "");
+ 		dynstr = s;
+ 
+@@ -467,7 +466,7 @@ asmb(void)
+ 	int32 v, magic;
+ 	int a, dynsym;
+ 	uchar *op1;
+-	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink;
++	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink, etext;
+ 	vlong symdatva = SYMDATVA;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+@@ -519,6 +518,16 @@ asmb(void)
+ 	}
+ 	cflush();
+ 
++	datap = datsort(datap);
++
++	/* output read-only data in text segment */
++	etext = INITTEXT + textsize;
++	for(v = pc; v < etext; v += sizeof(buf)-Dbufslop) {
++		if(etext - v > sizeof(buf)-Dbufslop)
++			datblk(v, sizeof(buf)-Dbufslop);
++		else
++			datblk(v, etext-v);
++	}
+ 
+ 	switch(HEADTYPE) {
+ 	default:
+@@ -564,12 +573,11 @@ asmb(void)
+ 		textsize = INITDAT;
+ 	}
+ 
+-	datap = datsort(datap);
+ 	for(v = 0; v < datsize; v += sizeof(buf)-Dbufslop) {
+ 		if(datsize-v > sizeof(buf)-Dbufslop)
+-			datblk(v, sizeof(buf)-Dbufslop);
++			datblk(v+INITDAT, sizeof(buf)-Dbufslop);
+ 		else
+-			datblk(v, datsize-v);
++			datblk(v+INITDAT, datsize-v);
+ 	}
+ 
+ 	machlink = 0;
+@@ -1102,6 +1110,8 @@ datsort(Prog *l)
+ 	for(p = l; p != P; p = p->link) {
+ 		a = &p->from;
+ 		a->offset += a->sym->value;
++		if(a->sym->type != SRODATA)
++			a->offset += INITDAT;
+ 	}
+ 	datp = dsort(l);
+ 	return datp;
+@@ -1202,10 +1212,10 @@ datblk(int32 s, int32 n)
+ 						diag("missing symbol %s", p->to.sym->name);
+ 					}
+ 					o += p->to.sym->value;
+-					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF)
++					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF && p->to.sym->type != SRODATA)
+ 						o += INITDAT;
+ 					if(dlm)
+-						dynreloc(p->to.sym, l+s+INITDAT, 1);
++						dynreloc(p->to.sym, l+s, 1);
+ 				}
+ 			}
+ 			fl = o;
+@@ -1266,6 +1276,7 @@ datblk(int32 s, int32 n)
+ 		if(a->sym->type == SMACHO)
+ 			continue;
+ 
++		curp = p;
+ 		switch(p->to.type) {
+ 		case D_FCONST:
+ 			switch(c) {
+@@ -1273,17 +1284,17 @@ datblk(int32 s, int32 n)
+ 			case 4:
+ 				fl = ieeedtof(&p->to.ieee);
+ 				cast = (uchar*)&fl;
+-				outa(c, cast, fnuxi4, l+s+INITDAT);
++				outa(c, cast, fnuxi4, l+s);
+ 				break;
+ 			case 8:
+ 				cast = (uchar*)&p->to.ieee;
+-				outa(c, cast, fnuxi8, l+s+INITDAT);
++				outa(c, cast, fnuxi8, l+s);
+ 				break;
+ 			}
+ 			break;
+ 
+ 		case D_SCONST:
+-			outa(c, (uchar*)p->to.scon, nil, l+s+INITDAT);
++			outa(c, (uchar*)p->to.scon, nil, l+s);
+ 			break;
+ 
+ 		default:
+@@ -1293,7 +1304,7 @@ datblk(int32 s, int32 n)
+ 			if(p->to.type == D_ADDR) {
+ 				if(p->to.sym) {
+ 					o += p->to.sym->value;
+-					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF)
++					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF && p->to.sym->type != SRODATA)
+ 						o += INITDAT;
+ 				}
+ 			}
+@@ -1301,17 +1312,17 @@ datblk(int32 s, int32 n)
+ 			cast = (uchar*)&fl;
+ 			switch(c) {
+ 			case 1:
+-				outa(c, cast, inuxi1, l+s+INITDAT);
++				outa(c, cast, inuxi1, l+s);
+ 				break;
+ 			case 2:
+-				outa(c, cast, inuxi2, l+s+INITDAT);
++				outa(c, cast, inuxi2, l+s);
+ 				break;
+ 			case 4:
+-				outa(c, cast, inuxi4, l+s+INITDAT);
++				outa(c, cast, inuxi4, l+s);
+ 				break;
+ 			case 8:
+ 				cast = (uchar*)&o;
+-				outa(c, cast, inuxi8, l+s+INITDAT);
++				outa(c, cast, inuxi8, l+s);
+ 				break;
+ 			}
+ 			break;
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index a8428865a7..22f266fe4c 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -169,6 +169,7 @@ enum
+ 	SMACHO,
+ 	SFIXED,
+ 	SELFDATA,
++	SRODATA,
+ 
+ 	NHASH		= 10007,
+ 	NHUNK		= 100000,
+diff --git a/src/cmd/6l/list.c b/src/cmd/6l/list.c
+index 195e11d1de..d1ecabbc44 100644
+--- a/src/cmd/6l/list.c
++++ b/src/cmd/6l/list.c
+@@ -47,41 +47,30 @@ listinit(void)
+ int
+ Pconv(Fmt *fp)
+ {
+-	char str[STRINGSZ], str1[STRINGSZ];
+ 	Prog *p;
+ 
+ 	p = va_arg(fp->args, Prog*);
+-	if(p == P)
+-		return fmtstrcpy(fp, "<P>");
+-
+ 	bigP = p;
+-
+-	snprint(str1, sizeof(str1), "(%ld)", p->line);
+ 	switch(p->as) {
+ 	case ATEXT:
+ 		if(p->from.scale) {
+-			snprint(str, sizeof(str), "%-7s %-7A %D,%d,%lD",
+-				str1, p->as, &p->from, p->from.scale, &p->to);
++			fmtprint(fp, "(%d)	%A	%D,%d,%D",
++				p->line, p->as, &p->from, p->from.scale, &p->to);
+ 			break;
+ 		}
+-		snprint(str, sizeof(str), "%-7s %-7A %D,%lD",
+-			str1, p->as, &p->from, &p->to);
+-		break;
+-
+ 	default:
+-		snprint(str, sizeof(str), "%-7s %-7A %D,%D",
+-			str1, p->as, &p->from, &p->to);
++		fmtprint(fp, "(%d)	%A	%D,%D",
++			p->line, p->as, &p->from, &p->to);
+ 		break;
+-
+ 	case ADATA:
+ 	case AINIT:
+ 	case ADYNT:
+-		snprint(str, sizeof(str), "%-7s %-7A %D/%d,%D",
+-			str1, p->as, &p->from, p->from.scale, &p->to);
++		fmtprint(fp, "(%d)	%A	%D/%d,%D",
++			p->line, p->as, &p->from, p->from.scale, &p->to);
+ 		break;
+ 	}
+ 	bigP = P;
+-	return fmtstrcpy(fp, str);
++	return 0;
+ }
+ 
+ int
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index adcccb55a3..da2630e630 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -633,18 +633,20 @@ loop:
+ 		s = p->from.sym;
+ 		if(s->type == 0 || s->type == SXREF) {
+ 			s->type = SBSS;
+-			s->value = 0;
++			s->size = 0;
+ 		}
+-		if(s->type != SBSS) {
++		if(s->type != SBSS && !s->dupok) {
+ 			diag("%s: redefinition: %s in %s",
+ 				pn, s->name, TNAME);
+ 			s->type = SBSS;
+-			s->value = 0;
++			s->size = 0;
+ 		}
+-		if(p->to.offset > s->value)
+-			s->value = p->to.offset;
++		if(p->to.offset > s->size)
++			s->size = p->to.offset;
+ 		if(p->from.scale & DUPOK)
+ 			s->dupok = 1;
++		if(p->from.scale & RODATA)
++			s->type = SRODATA;
+ 		goto loop;
+ 
+ 	case ADYNT:
+@@ -791,7 +793,7 @@ loop:
+ 			s = lookup(literal, 0);
+ 			if(s->type == 0) {
+ 				s->type = SBSS;
+-				s->value = 4;
++				s->size = 4;
+ 				t = prg();
+ 				t->as = ADATA;
+ 				t->line = p->line;
+@@ -837,7 +839,7 @@ loop:
+ 			s = lookup(literal, 0);
+ 			if(s->type == 0) {
+ 				s->type = SBSS;
+-				s->value = 8;
++				s->size = 8;
+ 				t = prg();
+ 				t->as = ADATA;
+ 				t->line = p->line;
+@@ -967,7 +969,7 @@ doprof1(void)
+ 	q->to.offset = n;
+ 
+ 	s->type = SBSS;
+-	s->value = n*4;
++	s->size = n*4;
+ }
+ 
+ void
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 5fedee24a9..275844c9b4 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -56,13 +56,13 @@ dodata(void)
+ 			s->value = dtype;
+ 		if(s->type == SBSS)
+ 			s->type = SDATA;
+-		if(s->type != SDATA && s->type != SELFDATA)
++		if(s->type != SDATA && s->type != SELFDATA && s->type != SRODATA)
+ 			diag("initialize non-data (%d): %s\n%P",
+ 				s->type, s->name, p);
+ 		t = p->from.offset + p->width;
+-		if(t > s->value)
++		if(t > s->size)
+ 			diag("initialize bounds (%lld): %s\n%P",
+-				s->value, s->name, p);
++				s->size, s->name, p);
+ 	}
+ 
+ 	/* allocate elf guys - must be segregated from real data */
+@@ -73,7 +73,7 @@ dodata(void)
+ 			continue;
+ 		if(s->type != SELFDATA)
+ 			continue;
+-		t = rnd(s->value, 8);
++		t = rnd(s->size, 8);
+ 		s->size = t;
+ 		s->value = datsize;
+ 		datsize += t;
+@@ -88,13 +88,12 @@ dodata(void)
+ 		if(s->type != SDATA)
+ 		if(s->type != SBSS)
+ 			continue;
+-		t = s->value;
++		t = s->size;
+ 		if(t == 0 && s->name[0] != '.') {
+ 			diag("%s: no size", s->name);
+ 			t = 1;
+ 		}
+ 		t = rnd(t, 4);
+-		s->value = t;
+ 		if(t > MINSIZ)
+ 			continue;
+ 		if(t >= 8)
+@@ -115,10 +114,9 @@ dodata(void)
+ 				s->type = SDATA;
+ 			continue;
+ 		}
+-		t = s->value;
++		t = s->size;
+ 		if(t >= 8)
+ 			datsize = rnd(datsize, 8);
+-		s->size = t;
+ 		s->value = datsize;
+ 		datsize += t;
+ 	}
+@@ -171,8 +169,7 @@ dobss(void)
+ 			continue;
+ 		if(s->type != SBSS)
+ 			continue;
+-		t = s->value;
+-		s->size = t;
++		t = s->size;
+ 		if(t >= 8)
+ 			bsssize = rnd(bsssize, 8);
+ 		s->value = bsssize + dynptrsize + datsize;
+@@ -1164,10 +1161,10 @@ export(void)
+ 		newdata(et, off, sizeof(int32), D_EXTERN);
+ 		off += sizeof(int32);
+ 	}
+-	et->value = off;
++	et->size = off;
+ 	if(sv == 0)
+ 		sv = 1;
+-	str->value = sv;
++	str->size = sv;
+ 	exports = ne;
+ 	free(esyms);
+ }
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 7e0086e930..2da3656f10 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -39,9 +39,10 @@ void
+ span(void)
+ {
+ 	Prog *p, *q;
+-	int32 v;
++	int32 i, v;
+ 	vlong c, idat;
+ 	int m, n, again;
++	Sym *s;
+ 
+ 	xdefine("etext", STEXT, 0L);
+ 	idat = INITDAT;
+@@ -121,6 +122,22 @@ loop:
+ 		textsize = c;
+ 		goto loop;
+ 	}
++	
++	/*
++	 * allocate read-only data to the text segment.
++	 */
++	c = rnd(c, 8);
++	for(i=0; i<NHASH; i++)
++	for(s = hash[i]; s != S; s = s->link) {
++		if(s->type != SRODATA)
++			continue;
++		v = s->size;
++		while(v & 7)
++			v++;
++		s->value = c;
++		c += v;
++	}
++
+ 	if(INITRND) {
+ 		INITDAT = rnd(c, INITRND);
+ 		if(INITDAT != idat) {
+@@ -128,6 +145,7 @@ loop:
+ 			goto start;
+ 		}
+ 	}
++
+ 	xdefine("etext", STEXT, c);
+ 	if(debug['v'])
+ 		Bprint(&bso, "etext = %llux\n", c);
+@@ -228,6 +246,7 @@ genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*))
+ 		for(s=hash[h]; s!=S; s=s->link) {
+ 			switch(s->type) {
+ 			case SCONST:
++			case SRODATA:
+ 				if(!s->reachable)
+ 					continue;
+ 				put(s->name, 'D', s->value, s->size, s->version, s->gotype);
+@@ -809,6 +828,7 @@ vaddr(Adr *a)
+ 				ckoff(s, v);
+ 			case STEXT:
+ 			case SCONST:
++			case SRODATA:
+ 				if(!s->reachable)
+ 					diag("unreachable symbol in vaddr - %s", s->name);
+ 				if((uvlong)s->value < (uvlong)INITTEXT)
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index a63d03e66e..42794a5784 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -149,6 +149,8 @@ ggloblnod(Node *nam, int32 width)
+ 	p->to.sym = S;
+ 	p->to.type = D_CONST;
+ 	p->to.offset = width;
++	if(nam->readonly)
++		p->from.scale = RODATA;
+ }
+ 
+ void
+@@ -165,6 +167,7 @@ ggloblsym(Sym *s, int32 width, int dupok)
+ 	p->to.offset = width;
+ 	if(dupok)
+ 		p->from.scale = DUPOK;
++	p->from.scale |= RODATA;
+ }
+ 
+ int
+diff --git a/src/cmd/8g/list.c b/src/cmd/8g/list.c
+index 9b3622a6de..7438a6521c 100644
+--- a/src/cmd/8g/list.c
++++ b/src/cmd/8g/list.c
+@@ -47,13 +47,17 @@ Pconv(Fmt *fp)
+ {
+ 	char str[STRINGSZ];
+ 	Prog *p;
++	char scale[40];
+ 
+ 	p = va_arg(fp->args, Prog*);
+ 	sconsize = 8;
++	scale[0] = '\0';
++	if(p->from.scale != 0 && (p->as == AGLOBL || p->as == ATEXT))
++		snprint(scale, sizeof scale, "%d,", p->from.scale);
+ 	switch(p->as) {
+ 	default:
+-		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%D",
+-			p->loc, p->lineno, p->as, &p->from, &p->to);
++		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%s%D",
++			p->loc, p->lineno, p->as, &p->from, scale, &p->to);
+ 		break;
+ 
+ 	case ADATA:
+@@ -63,8 +67,8 @@ Pconv(Fmt *fp)
+ 		break;
+ 
+ 	case ATEXT:
+-		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%lD",
+-			p->loc, p->lineno, p->as, &p->from, &p->to);
++		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%s%lD",
++			p->loc, p->lineno, p->as, &p->from, scale, &p->to);
+ 		break;
+ 	}
+ 	return fmtstrcpy(fp, str);
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index c17f606e26..4e30226532 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -33,6 +33,7 @@
+ #define NOPROF	(1<<0)
+ #define DUPOK	(1<<1)
+ #define NOSPLIT	(1<<2)
++#define RODATA	(1<<3)
+ 
+ enum	as
+ {
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 89d0fca3ce..4d5417b4f1 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -127,16 +127,16 @@ addstring(Sym *s, char *str)
+ 	if(s->type == 0)
+ 		s->type = SDATA;
+ 	s->reachable = 1;
+-	r = s->value;
++	r = s->size;
+ 	n = strlen(str)+1;
+ 	while(n > 0) {
+ 		m = n;
+ 		if(m > sizeof(p->to.scon))
+ 			m = sizeof(p->to.scon);
+-		p = newdata(s, s->value, m, D_EXTERN);
++		p = newdata(s, s->size, m, D_EXTERN);
+ 		p->to.type = D_SCONST;
+ 		memmove(p->to.scon, str, m);
+-		s->value += m;
++		s->size += m;
+ 		str += m;
+ 		n -= m;
+ 	}
+@@ -152,9 +152,9 @@ adduintxx(Sym *s, uint64 v, int wid)
+ 	if(s->type == 0)
+ 		s->type = SDATA;
+ 	s->reachable = 1;
+-	r = s->value;
+-	p = newdata(s, s->value, wid, D_EXTERN);
+-	s->value += wid;
++	r = s->size;
++	p = newdata(s, s->size, wid, D_EXTERN);
++	s->size += wid;
+ 	p->to.type = D_CONST;
+ 	p->to.offset = v;
+ 	return r;
+@@ -194,9 +194,9 @@ addaddr(Sym *s, Sym *t)
+ 	if(s->type == 0)
+ 		s->type = SDATA;
+ 	s->reachable = 1;
+-	r = s->value;
+-	p = newdata(s, s->value, Ptrsize, D_EXTERN);
+-	s->value += Ptrsize;
++	r = s->size;
++	p = newdata(s, s->size, Ptrsize, D_EXTERN);
++	s->size += Ptrsize;
+ 	p->to.type = D_ADDR;
+ 	p->to.index = D_EXTERN;
+ 	p->to.offset = 0;
+@@ -214,9 +214,9 @@ addsize(Sym *s, Sym *t)
+ 	if(s->type == 0)
+ 		s->type = SDATA;
+ 	s->reachable = 1;
+-	r = s->value;
+-	p = newdata(s, s->value, Ptrsize, D_EXTERN);
+-	s->value += Ptrsize;
++	r = s->size;
++	p = newdata(s, s->size, Ptrsize, D_EXTERN);
++	s->size += Ptrsize;
+ 	p->to.type = D_SIZE;
+ 	p->to.index = D_EXTERN;
+ 	p->to.offset = 0;
+@@ -317,7 +317,7 @@ doelf(void)
+ 		s = lookup(".dynsym", 0);
+ 		s->type = SELFDATA;
+ 		s->reachable = 1;
+-		s->value += ELF32SYMSIZE;
++		s->size += ELF32SYMSIZE;
+ 
+ 		/* dynamic string table */
+ 		s = lookup(".dynstr", 0);
+@@ -455,7 +455,7 @@ asmb(void)
+ 	Prog *p;
+ 	int32 v, magic;
+ 	int a, dynsym;
+-	uint32 va, fo, w, symo, startva, machlink;
++	uint32 va, fo, w, symo, startva, machlink, etext;
+ 	uchar *op1;
+ 	ulong expectpc;
+ 	ElfEhdr *eh;
+@@ -529,6 +529,15 @@ asmb(void)
+ 		}
+ 	}
+ 	cflush();
++	
++	/* output read-only data in text segment */
++	etext = INITTEXT + textsize;
++	for(v = pc; v < etext; v += sizeof(buf)-Dbufslop) {
++		if(etext-v > sizeof(buf)-Dbufslop)
++			datblk(v, sizeof(buf)-Dbufslop, 1);
++		else
++			datblk(v, etext-v, 1);
++	}
+ 
+ 	switch(HEADTYPE) {
+ 	default:
+@@ -587,9 +596,9 @@ asmb(void)
+ 
+ 	for(v = 0; v < datsize; v += sizeof(buf)-Dbufslop) {
+ 		if(datsize-v > sizeof(buf)-Dbufslop)
+-			datblk(v, sizeof(buf)-Dbufslop);
++			datblk(v, sizeof(buf)-Dbufslop, 0);
+ 		else
+-			datblk(v, datsize-v);
++			datblk(v, datsize-v, 0);
+ 	}
+ 
+ 	machlink = 0;
+@@ -1135,17 +1144,24 @@ cpos(void)
+ }
+ 
+ void
+-datblk(int32 s, int32 n)
++datblk(int32 s, int32 n, int32 rodata)
+ {
+ 	Prog *p;
+ 	char *cast;
+ 	int32 l, fl, j;
+ 	int i, c;
+ 	Adr *a;
++	int32 base;
++	
++	base = INITDAT;
++	if(rodata)
++		base = 0;
+ 
+ 	memset(buf.dbuf, 0, n+Dbufslop);
+ 	for(p = datap; p != P; p = p->link) {
+ 		a = &p->from;
++		if(rodata != (a->sym->type == SRODATA))
++			continue;
+ 
+ 		l = a->sym->value + a->offset - s;
+ 		if(l >= n)
+@@ -1214,7 +1230,7 @@ datblk(int32 s, int32 n)
+ 					if(p->to.sym->type == SUNDEF)
+ 						ckoff(p->to.sym, fl);
+ 					fl += p->to.sym->value;
+-					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF)
++					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF && p->to.sym->type != SRODATA)
+ 						fl += INITDAT;
+ 					if(dlm)
+ 						dynreloc(p->to.sym, l+s+INITDAT, 1);
+@@ -1257,6 +1273,8 @@ datblk(int32 s, int32 n)
+ 	 */
+ 	for(p = datap; p != P; p = p->link) {
+ 		a = &p->from;
++		if(rodata != (a->sym->type == SRODATA))
++			continue;
+ 
+ 		l = a->sym->value + a->offset - s;
+ 		if(l < 0 || l >= n)
+@@ -1272,26 +1290,26 @@ datblk(int32 s, int32 n)
+ 			case 4:
+ 				fl = ieeedtof(&p->to.ieee);
+ 				cast = (char*)&fl;
+-				Bprint(&bso, pcstr, l+s+INITDAT);
++				Bprint(&bso, pcstr, l+s+base);
+ 				for(j=0; j<c; j++)
+ 					Bprint(&bso, "%.2ux", cast[fnuxi4[j]] & 0xff);
+-				Bprint(&bso, "\t%P\n", curp);
++				Bprint(&bso, "\t%P\n", p);
+ 				break;
+ 			case 8:
+ 				cast = (char*)&p->to.ieee;
+-				Bprint(&bso, pcstr, l+s+INITDAT);
++				Bprint(&bso, pcstr, l+s+base);
+ 				for(j=0; j<c; j++)
+ 					Bprint(&bso, "%.2ux", cast[fnuxi8[j]] & 0xff);
+-				Bprint(&bso, "\t%P\n", curp);
++				Bprint(&bso, "\t%P\n", p);
+ 				break;
+ 			}
+ 			break;
+ 
+ 		case D_SCONST:
+-			Bprint(&bso, pcstr, l+s+INITDAT);
++			Bprint(&bso, pcstr, l+s+base);
+ 			for(j=0; j<c; j++)
+ 				Bprint(&bso, "%.2ux", p->to.scon[j] & 0xff);
+-			Bprint(&bso, "\t%P\n", curp);
++			Bprint(&bso, "\t%P\n", p);
+ 			break;
+ 
+ 		default:
+@@ -1305,34 +1323,34 @@ datblk(int32 s, int32 n)
+ 					if(p->to.sym->type == SUNDEF)
+ 						ckoff(p->to.sym, fl);
+ 					fl += p->to.sym->value;
+-					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF)
++					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF && p->to.sym->type != SRODATA)
+ 						fl += INITDAT;
+ 					if(dlm)
+-						dynreloc(p->to.sym, l+s+INITDAT, 1);
++						dynreloc(p->to.sym, l+s+base, 1);
+ 				}
+ 			}
+ 			cast = (char*)&fl;
+ 			switch(c) {
+ 			default:
+-				diag("bad nuxi %d %d\n%P", c, i, curp);
++				diag("bad nuxi %d %d\n%P", c, i, p);
+ 				break;
+ 			case 1:
+-				Bprint(&bso, pcstr, l+s+INITDAT);
++				Bprint(&bso, pcstr, l+s+base);
+ 				for(j=0; j<c; j++)
+ 					Bprint(&bso, "%.2ux", cast[inuxi1[j]] & 0xff);
+-				Bprint(&bso, "\t%P\n", curp);
++				Bprint(&bso, "\t%P\n", p);
+ 				break;
+ 			case 2:
+-				Bprint(&bso, pcstr, l+s+INITDAT);
++				Bprint(&bso, pcstr, l+s+base);
+ 				for(j=0; j<c; j++)
+ 					Bprint(&bso, "%.2ux", cast[inuxi2[j]] & 0xff);
+-				Bprint(&bso, "\t%P\n", curp);
++				Bprint(&bso, "\t%P\n", p);
+ 				break;
+ 			case 4:
+-				Bprint(&bso, pcstr, l+s+INITDAT);
++				Bprint(&bso, pcstr, l+s+base);
+ 				for(j=0; j<c; j++)
+ 					Bprint(&bso, "%.2ux", cast[inuxi4[j]] & 0xff);
+-				Bprint(&bso, "\t%P\n", curp);
++				Bprint(&bso, "\t%P\n", p);
+ 				break;
+ 			}
+ 			break;
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 32ead12efb..e3b53f202f 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -163,6 +163,7 @@ enum
+ 
+ 	SFIXED,
+ 	SELFDATA,
++	SRODATA,
+ 
+ 	NHASH		= 10007,
+ 	NHUNK		= 100000,
+@@ -347,7 +348,7 @@ void	ckoff(Sym*, int32);
+ Prog*	copyp(Prog*);
+ vlong   cpos(void);
+ double	cputime(void);
+-void	datblk(int32, int32);
++void	datblk(int32, int32, int32);
+ void	diag(char*, ...);
+ void	dodata(void);
+ void	doelf(void);
+diff --git a/src/cmd/8l/list.c b/src/cmd/8l/list.c
+index e665992a3e..85f3da6d63 100644
+--- a/src/cmd/8l/list.c
++++ b/src/cmd/8l/list.c
+@@ -47,7 +47,6 @@ static	Prog	*bigP;
+ int
+ Pconv(Fmt *fp)
+ {
+-	char str[STRINGSZ];
+ 	Prog *p;
+ 
+ 	p = va_arg(fp->args, Prog*);
+@@ -55,23 +54,23 @@ Pconv(Fmt *fp)
+ 	switch(p->as) {
+ 	case ATEXT:
+ 		if(p->from.scale) {
+-			sprint(str, "(%d)	%A	%D,%d,%D",
++			fmtprint(fp, "(%d)	%A	%D,%d,%D",
+ 				p->line, p->as, &p->from, p->from.scale, &p->to);
+ 			break;
+ 		}
+ 	default:
+-		sprint(str, "(%d)	%A	%D,%D",
++		fmtprint(fp, "(%d)	%A	%D,%D",
+ 			p->line, p->as, &p->from, &p->to);
+ 		break;
+ 	case ADATA:
+ 	case AINIT:
+ 	case ADYNT:
+-		sprint(str, "(%d)	%A	%D/%d,%D",
++		fmtprint(fp, "(%d)	%A	%D/%d,%D",
+ 			p->line, p->as, &p->from, p->from.scale, &p->to);
+ 		break;
+ 	}
+ 	bigP = P;
+-	return fmtstrcpy(fp, str);
++	return 0;
+ }
+ 
+ int
+@@ -102,15 +101,15 @@ Dconv(Fmt *fp)
+ 	i = a->type;
+ 	if(i >= D_INDIR && i < 2*D_INDIR) {
+ 		if(a->offset)
+-			sprint(str, "%ld(%R)", (long)a->offset, i-D_INDIR);
++			snprint(str, sizeof str, "%ld(%R)", (long)a->offset, i-D_INDIR);
+ 		else
+-			sprint(str, "(%R)", i-D_INDIR);
++			snprint(str, sizeof str, "(%R)", i-D_INDIR);
+ 		goto brk;
+ 	}
+ 	switch(i) {
+ 
+ 	default:
+-		sprint(str, "%R", i);
++		snprint(str, sizeof str, "%R", i);
+ 		break;
+ 
+ 	case D_NONE:
+@@ -120,54 +119,54 @@ Dconv(Fmt *fp)
+ 	case D_BRANCH:
+ 		if(bigP != P && bigP->pcond != P)
+ 			if(a->sym != S)
+-				sprint(str, "%lux+%s", bigP->pcond->pc,
++				snprint(str, sizeof str, "%lux+%s", bigP->pcond->pc,
+ 					a->sym->name);
+ 			else
+-				sprint(str, "%lux", bigP->pcond->pc);
++				snprint(str, sizeof str, "%lux", bigP->pcond->pc);
+ 		else
+-			sprint(str, "%ld(PC)", a->offset);
++			snprint(str, sizeof str, "%ld(PC)", a->offset);
+ 		break;
+ 
+ 	case D_EXTERN:
+-		sprint(str, "%s+%ld(SB)", xsymname(a->sym), a->offset);
++		snprint(str, sizeof str, "%s+%ld(SB)", xsymname(a->sym), a->offset);
+ 		break;
+ 
+ 	case D_STATIC:
+-		sprint(str, "%s<%d>+%ld(SB)", xsymname(a->sym),
++		snprint(str, sizeof str, "%s<%d>+%ld(SB)", xsymname(a->sym),
+ 			a->sym->version, a->offset);
+ 		break;
+ 
+ 	case D_AUTO:
+-		sprint(str, "%s+%ld(SP)", xsymname(a->sym), a->offset);
++		snprint(str, sizeof str, "%s+%ld(SP)", xsymname(a->sym), a->offset);
+ 		break;
+ 
+ 	case D_PARAM:
+ 		if(a->sym)
+-			sprint(str, "%s+%ld(FP)", a->sym->name, a->offset);
++			snprint(str, sizeof str, "%s+%ld(FP)", a->sym->name, a->offset);
+ 		else
+-			sprint(str, "%ld(FP)", a->offset);
++			snprint(str, sizeof str, "%ld(FP)", a->offset);
+ 		break;
+ 
+ 	case D_CONST:
+-		sprint(str, "$%ld", a->offset);
++		snprint(str, sizeof str, "$%ld", a->offset);
+ 		break;
+ 
+ 	case D_CONST2:
+-		sprint(str, "$%ld-%ld", a->offset, a->offset2);
++		snprint(str, sizeof str, "$%ld-%ld", a->offset, a->offset2);
+ 		break;
+ 
+ 	case D_FCONST:
+-		sprint(str, "$(%.8lux,%.8lux)", a->ieee.h, a->ieee.l);
++		snprint(str, sizeof str, "$(%.8lux,%.8lux)", a->ieee.h, a->ieee.l);
+ 		break;
+ 
+ 	case D_SCONST:
+-		sprint(str, "$\"%S\"", a->scon);
++		snprint(str, sizeof str, "$\"%S\"", a->scon);
+ 		break;
+ 
+ 	case D_ADDR:
+ 		a->type = a->index;
+ 		a->index = D_NONE;
+-		sprint(str, "$%D", a);
++		snprint(str, sizeof str, "$%D", a);
+ 		a->index = a->type;
+ 		a->type = D_ADDR;
+ 		goto conv;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 241b4d6b7f..006189444b 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -432,7 +432,7 @@ zsym(char *pn, Biobuf *f, Sym *h[])
+ void
+ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ {
+-	int o, t;
++	int t;
+ 	int32 l;
+ 	Sym *s;
+ 	Auto *u;
+@@ -652,18 +652,20 @@ loop:
+ 		s = p->from.sym;
+ 		if(s->type == 0 || s->type == SXREF) {
+ 			s->type = SBSS;
+-			s->value = 0;
++			s->size = 0;
+ 		}
+-		if(s->type != SBSS) {
++		if(s->type != SBSS && !s->dupok) {
+ 			diag("%s: redefinition: %s in %s",
+ 				pn, s->name, TNAME);
+ 			s->type = SBSS;
+-			s->value = 0;
++			s->size = 0;
+ 		}
+-		if(p->to.offset > s->value)
+-			s->value = p->to.offset;
++		if(p->to.offset > s->size)
++			s->size = p->to.offset;
+ 		if(p->from.scale & DUPOK)
+ 			s->dupok = 1;
++		if(p->from.scale & RODATA)
++			s->type = SRODATA;
+ 		goto loop;
+ 
+ 	case ADYNT:
+@@ -788,7 +790,7 @@ loop:
+ 			s = lookup(literal, 0);
+ 			if(s->type == 0) {
+ 				s->type = SBSS;
+-				s->value = 4;
++				s->size = 4;
+ 				t = prg();
+ 				t->as = ADATA;
+ 				t->line = p->line;
+@@ -827,7 +829,7 @@ loop:
+ 			s = lookup(literal, 0);
+ 			if(s->type == 0) {
+ 				s->type = SBSS;
+-				s->value = 8;
++				s->size = 8;
+ 				t = prg();
+ 				t->as = ADATA;
+ 				t->line = p->line;
+@@ -955,7 +957,7 @@ doprof1(void)
+ 	q->to.offset = n;
+ 
+ 	s->type = SBSS;
+-	s->value = n*4;
++	s->size = n*4;
+ }
+ 
+ void
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 92a0b93343..dd27878725 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -55,13 +55,13 @@ dodata(void)
+ 			s->value = dtype;
+ 		if(s->type == SBSS)
+ 			s->type = SDATA;
+-		if(s->type != SDATA && s->type != SELFDATA)
++		if(s->type != SDATA && s->type != SELFDATA && s->type != SRODATA)
+ 			diag("initialize non-data (%d): %s\n%P",
+ 				s->type, s->name, p);
+ 		t = p->from.offset + p->width;
+-		if(t > s->value)
++		if(t > s->size)
+ 			diag("initialize bounds (%ld): %s\n%P",
+-				s->value, s->name, p);
++				s->size, s->name, p);
+ 	}
+ 
+ 	/* allocate elf guys - must be segregated from real data */
+@@ -72,7 +72,7 @@ dodata(void)
+ 			continue;
+ 		if(s->type != SELFDATA)
+ 			continue;
+-		t = rnd(s->value, 4);
++		t = rnd(s->size, 4);
+ 		s->size = t;
+ 		s->value = datsize;
+ 		datsize += t;
+@@ -87,14 +87,13 @@ dodata(void)
+ 		if(s->type != SDATA)
+ 		if(s->type != SBSS)
+ 			continue;
+-		t = s->value;
++		t = s->size;
+ 		if(t == 0 && s->name[0] != '.') {
+ 			diag("%s: no size", s->name);
+ 			t = 1;
+ 		}
+ 		t = rnd(t, 4);
+ 		s->size = t;
+-		s->value = t;
+ 		if(t > MINSIZ)
+ 			continue;
+ 		s->value = datsize;
+@@ -110,8 +109,7 @@ dodata(void)
+ 				s->type = SDATA;
+ 			continue;
+ 		}
+-		t = s->value;
+-		s->size = t;
++		t = s->size;
+ 		s->value = datsize;
+ 		datsize += t;
+ 	}
+@@ -154,8 +152,7 @@ dodata(void)
+ 			continue;
+ 		if(s->type != SBSS)
+ 			continue;
+-		t = s->value;
+-		s->size = t;
++		t = s->size;
+ 		s->value = bsssize + dynptrsize + datsize;
+ 		bsssize += t;
+ 	}
+@@ -1042,10 +1039,10 @@ export(void)
+ 		newdata(et, off, sizeof(int32), D_EXTERN);
+ 		off += sizeof(int32);
+ 	}
+-	et->value = off;
++	et->size = off;
+ 	if(sv == 0)
+ 		sv = 1;
+-	str->value = sv;
++	str->size = sv;
+ 	exports = ne;
+ 	free(esyms);
+ }
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index 99ba279da0..3bc18adb6d 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -35,8 +35,9 @@ void
+ span(void)
+ {
+ 	Prog *p, *q;
+-	int32 v, c, idat;
++	int32 i, v, c, idat;
+ 	int m, n, again;
++	Sym *s;
+ 
+ 	xdefine("etext", STEXT, 0L);
+ 	idat = INITDAT;
+@@ -106,6 +107,21 @@ start:
+ 		textsize = c;
+ 		n++;
+ 	}while(again);
++	
++	/*
++	 * allocate read-only data to the text segment.
++	 */
++	c = rnd(c, 8);
++	for(i=0; i<NHASH; i++)
++	for(s = hash[i]; s != S; s = s->link) {
++		if(s->type != SRODATA)
++			continue;
++		v = s->size;
++		while(v & 3)
++			v++;
++		s->value = c;
++		c += v;
++	}
+ 
+ 	if(INITRND) {
+ 		INITDAT = rnd(c+textpad, INITRND);
+@@ -114,6 +130,7 @@ start:
+ 			goto start;
+ 		}
+ 	}
++
+ 	xdefine("etext", STEXT, c);
+ 	if(debug['v'])
+ 		Bprint(&bso, "etext = %lux\n", c);
+@@ -208,6 +225,7 @@ asmsym(void)
+ 		for(s=hash[h]; s!=S; s=s->link)
+ 			switch(s->type) {
+ 			case SCONST:
++			case SRODATA:
+ 				if(!s->reachable)
+ 					continue;
+ 				putsymb(s->name, 'D', s->value, s->version, s->gotype);
+@@ -618,6 +636,7 @@ vaddr(Adr *a)
+ 				ckoff(s, v);
+ 			case STEXT:
+ 			case SCONST:
++			case SRODATA:
+ 				if(!s->reachable)
+ 					sysfatal("unreachable symbol in vaddr - %s", s->name);
+ 				v += s->value;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index cadaf0aafb..c39bfbbc6a 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -211,6 +211,7 @@ struct	Node
+ 	uchar	used;
+ 	uchar	isddd;
+ 	uchar	pun;		// dont registerize variable ONAME
++	uchar	readonly;
+ 
+ 	// most nodes
+ 	Node*	left;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 277c252013..9c9377c4f5 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2600,6 +2600,7 @@ staticname(Type *t)
+ 	snprint(namebuf, sizeof(namebuf), "statictmp_%.4d", statuniqgen);
+ 	statuniqgen++;
+ 	n = newname(lookup(namebuf));
++//	n->readonly = 1;
+ 	addvar(n, t, PEXTERN);
+ 	return n;
+ }
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 808708c2c3..c91705c6ba 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -495,6 +495,7 @@ lookup(char *symb, int v)
+ 	s->version = v;
+ 	s->value = 0;
+ 	s->sig = 0;
++	s->size = 0;
+ 	hash[h] = s;
+ 	nsymbol++;
+ 	return s;
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index e081053c15..a14ec41e77 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -533,7 +533,7 @@ asmbmacho(vlong symdatva, vlong symo)
+ 		ml->data[0] = 4;	/* thread type */
+ 		ml->data[1] = 42;	/* word count */
+ 		ml->data[2+32] = entryvalue();	/* start pc */
+-		ml->data[2+32+1] = entryvalue()>>32;
++		ml->data[2+32+1] = entryvalue()>>16>>16;	// hide >>32 for 8l
+ 		break;
+ 	case '8':
+ 		ml = newMachoLoad(5, 16+2);	/* unix thread */

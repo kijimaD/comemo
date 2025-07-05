@@ -11,9 +11,213 @@ Date:   Sun Mar 4 12:36:52 2018 +0100
     Change-Id: I5cc38552a31b193d35fb81ae87600a76b8b9e9b5
     Reviewed-on: https://go-review.googlesource.com/106996
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/math/big/arith_wasm.s |  40 ++++++++++++++++++
  src/math/floor_wasm.s     |  26 ++++++++++++
  src/math/sqrt_wasm.s      |  12 ++++++
  src/math/stubs_wasm.s     | 101 ++++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 179 insertions(+)
+
+diff --git a/src/math/big/arith_wasm.s b/src/math/big/arith_wasm.s
+new file mode 100644
+index 0000000000..382597c694
+--- /dev/null
++++ b/src/math/big/arith_wasm.s
+@@ -0,0 +1,40 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !math_big_pure_go
++
++#include "textflag.h"
++
++TEXT ·mulWW(SB),NOSPLIT,$0
++	JMP ·mulWW_g(SB)
++
++TEXT ·divWW(SB),NOSPLIT,$0
++	JMP ·divWW_g(SB)
++
++TEXT ·addVV(SB),NOSPLIT,$0
++	JMP ·addVV_g(SB)
++
++TEXT ·subVV(SB),NOSPLIT,$0
++	JMP ·subVV_g(SB)
++
++TEXT ·addVW(SB),NOSPLIT,$0
++	JMP ·addVW_g(SB)
++
++TEXT ·subVW(SB),NOSPLIT,$0
++	JMP ·subVW_g(SB)
++
++TEXT ·shlVU(SB),NOSPLIT,$0
++	JMP ·shlVU_g(SB)
++
++TEXT ·shrVU(SB),NOSPLIT,$0
++	JMP ·shrVU_g(SB)
++
++TEXT ·mulAddVWW(SB),NOSPLIT,$0
++	JMP ·mulAddVWW_g(SB)
++
++TEXT ·addMulVVW(SB),NOSPLIT,$0
++	JMP ·addMulVVW_g(SB)
++
++TEXT ·divWVW(SB),NOSPLIT,$0
++	JMP ·divWVW_g(SB)
+diff --git a/src/math/floor_wasm.s b/src/math/floor_wasm.s
+new file mode 100644
+index 0000000000..4d8a0eb070
+--- /dev/null
++++ b/src/math/floor_wasm.s
+@@ -0,0 +1,26 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT ·Floor(SB),NOSPLIT,$0
++	Get SP
++	F64Load x+0(FP)
++	F64Floor
++	F64Store ret+8(FP)
++	RET
++
++TEXT ·Ceil(SB),NOSPLIT,$0
++	Get SP
++	F64Load x+0(FP)
++	F64Ceil
++	F64Store ret+8(FP)
++	RET
++
++TEXT ·Trunc(SB),NOSPLIT,$0
++	Get SP
++	F64Load x+0(FP)
++	F64Trunc
++	F64Store ret+8(FP)
++	RET
+diff --git a/src/math/sqrt_wasm.s b/src/math/sqrt_wasm.s
+new file mode 100644
+index 0000000000..cbfe598a43
+--- /dev/null
++++ b/src/math/sqrt_wasm.s
+@@ -0,0 +1,12 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT ·Sqrt(SB),NOSPLIT,$0
++	Get SP
++	F64Load x+0(FP)
++	F64Sqrt
++	F64Store ret+8(FP)
++	RET
+diff --git a/src/math/stubs_wasm.s b/src/math/stubs_wasm.s
+new file mode 100644
+index 0000000000..744e1d7318
+--- /dev/null
++++ b/src/math/stubs_wasm.s
+@@ -0,0 +1,101 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT ·Asin(SB),NOSPLIT,$0
++	JMP ·asin(SB)
++
++TEXT ·Asinh(SB),NOSPLIT,$0
++	JMP ·asinh(SB)
++
++TEXT ·Acos(SB),NOSPLIT,$0
++	JMP ·acos(SB)
++
++TEXT ·Acosh(SB),NOSPLIT,$0
++	JMP ·acosh(SB)
++
++TEXT ·Atan(SB),NOSPLIT,$0
++	JMP ·atan(SB)
++
++TEXT ·Atanh(SB),NOSPLIT,$0
++	JMP ·atanh(SB)
++
++TEXT ·Atan2(SB),NOSPLIT,$0
++	JMP ·atan2(SB)
++
++TEXT ·Cbrt(SB),NOSPLIT,$0
++	JMP ·cbrt(SB)
++
++TEXT ·Cos(SB),NOSPLIT,$0
++	JMP ·cos(SB)
++
++TEXT ·Cosh(SB),NOSPLIT,$0
++	JMP ·cosh(SB)
++
++TEXT ·Erf(SB),NOSPLIT,$0
++	JMP ·erf(SB)
++
++TEXT ·Erfc(SB),NOSPLIT,$0
++	JMP ·erfc(SB)
++
++TEXT ·Exp(SB),NOSPLIT,$0
++	JMP ·exp(SB)
++
++TEXT ·Expm1(SB),NOSPLIT,$0
++	JMP ·expm1(SB)
++
++TEXT ·Exp2(SB),NOSPLIT,$0
++	JMP ·exp2(SB)
++
++TEXT ·Frexp(SB),NOSPLIT,$0
++	JMP ·frexp(SB)
++
++TEXT ·Hypot(SB),NOSPLIT,$0
++	JMP ·hypot(SB)
++
++TEXT ·Ldexp(SB),NOSPLIT,$0
++	JMP ·ldexp(SB)
++
++TEXT ·Log(SB),NOSPLIT,$0
++	JMP ·log(SB)
++
++TEXT ·Log1p(SB),NOSPLIT,$0
++	JMP ·log1p(SB)
++
++TEXT ·Log10(SB),NOSPLIT,$0
++	JMP ·log10(SB)
++
++TEXT ·Log2(SB),NOSPLIT,$0
++	JMP ·log2(SB)
++
++TEXT ·Max(SB),NOSPLIT,$0
++	JMP ·max(SB)
++
++TEXT ·Min(SB),NOSPLIT,$0
++	JMP ·min(SB)
++
++TEXT ·Mod(SB),NOSPLIT,$0
++	JMP ·mod(SB)
++
++TEXT ·Modf(SB),NOSPLIT,$0
++	JMP ·modf(SB)
++
++TEXT ·Pow(SB),NOSPLIT,$0
++	JMP ·pow(SB)
++
++TEXT ·Remainder(SB),NOSPLIT,$0
++	JMP ·remainder(SB)
++
++TEXT ·Sin(SB),NOSPLIT,$0
++	JMP ·sin(SB)
++
++TEXT ·Sinh(SB),NOSPLIT,$0
++	JMP ·sinh(SB)
++
++TEXT ·Tan(SB),NOSPLIT,$0
++	JMP ·tan(SB)
++
++TEXT ·Tanh(SB),NOSPLIT,$0
++	JMP ·tanh(SB)

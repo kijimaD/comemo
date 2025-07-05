@@ -16,6 +16,20 @@ Date:   Sat Feb 3 16:29:54 2018 +0100
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/hashmap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index dee5dd5816..eddb045622 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -309,7 +309,7 @@ func makemap(t *maptype, hint int, h *hmap) *hmap {
+ 
+ 	// initialize Hmap
+ 	if h == nil {
+-		h = (*hmap)(newobject(t.hmap))
++		h = new(hmap)
+ 	}
+ 	h.hash0 = fastrand()
+ 

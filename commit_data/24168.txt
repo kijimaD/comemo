@@ -11,6 +11,81 @@ Date:   Tue Jul 14 10:24:40 2015 +1000
     Change-Id: Iaf821b0f17bad8c71d338d45de75d4a345cac2dd
     Reviewed-on: https://go-review.googlesource.com/12160
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/asm.html | 30 ++++++++++++++++++++++++++----
  1 file changed, 26 insertions(+), 4 deletions(-)
+
+diff --git a/doc/asm.html b/doc/asm.html
+index 76aecad54c..11249a3b7f 100644
+--- a/doc/asm.html
++++ b/doc/asm.html
+@@ -663,6 +663,13 @@ The name <code>SP</code> always refers to the virtual stack pointer described ea
+ For the hardware register, use <code>R13</code>.
+ </p>
+ 
++<p>
++Condition code syntax is to append a period and the one- or two-letter code to the instruction,
++as in <code>MOVW.EQ</code>.
++Multiple codes may be appended: <code>MOVM.IA.W</code>.
++The order of the code modifiers is irrelevant.
++</p>
++
+ <p>
+ Addressing modes:
+ </p>
+@@ -703,12 +710,23 @@ The other codes are <code>-&gt;</code> (arithmetic right shift),
+ <code>R0</code>, <code>g</code>, and <code>R12</code> through <code>R15</code> inclusive.
+ </li>
+ 
++<li>
++<code>(R5, R6)</code>: Destination register pair.
++</li>
++
+ </ul>
+ 
+ <h3 id="arm64">ARM64</h3>
+ 
+ <p>
+-TODO
++The ARM64 port is in an experimental state.
++</p>
++
++<p>
++Instruction modifiers are appended to the instruction following a period.
++The only modifiers are <code>P</code> (postincrement) and <code>W</code>
++(preincrement):
++<code>MOVW.P</code>, <code>MOVW.W</code>
+ </p>
+ 
+ <p>
+@@ -718,7 +736,7 @@ Addressing modes:
+ <ul>
+ 
+ <li>
+-TODO
++<code>(R5, R6)</code>: Register pair for <code>LDP</code>/<code>STP</code>.
+ </li>
+ 
+ </ul>
+@@ -726,7 +744,7 @@ TODO
+ <h3 id="ppc64">Power64, a.k.a. ppc64</h3>
+ 
+ <p>
+-TODO
++The Power 64 port is in an experimental state.
+ </p>
+ 
+ <p>
+@@ -737,7 +755,11 @@ Addressing modes:
+ 
+ <li>
+ <code>(R5)(R6*1)</code>: The location at <code>R5</code> plus <code>R6</code>. It is a scaled
+-mode like on the x86, but the only scale allowed is <code>1</code>.
++mode as on the x86, but the only scale allowed is <code>1</code>.
++</li>
++
++<li>
++<code>(R5+R6)</code>: Alias for (R5)(R6*1)
+ </li>
+ 
+ </ul>

@@ -37,9 +37,88 @@ Date:   Wed Jun 16 21:57:58 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/malloc.go | 6 +++---
  src/runtime/panic.go  | 3 ++-
  src/runtime/stack.go  | 2 +-
  src/runtime/trace.go  | 2 +-
  4 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 715019671d..8483ec99d8 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -209,7 +209,7 @@ const (
+ 	// arenaBaseOffset to offset into the top 4 GiB.
+ 	//
+ 	// WebAssembly currently has a limit of 4GB linear memory.
+-	heapAddrBits = (_64bit*(1-sys.GoarchWasm)*(1-goos.IsIos*sys.GoarchArm64))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle)) + 33*goos.IsIos*sys.GoarchArm64
++	heapAddrBits = (_64bit*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64))*48 + (1-_64bit+goarch.IsWasm)*(32-(goarch.IsMips+goarch.IsMipsle)) + 33*goos.IsIos*goarch.IsArm64
+ 
+ 	// maxAlloc is the maximum size of an allocation. On 64-bit,
+ 	// it's theoretically possible to allocate 1<<heapAddrBits bytes. On
+@@ -250,7 +250,7 @@ const (
+ 	// logHeapArenaBytes is log_2 of heapArenaBytes. For clarity,
+ 	// prefer using heapArenaBytes where possible (we need the
+ 	// constant to compute some other constants).
+-	logHeapArenaBytes = (6+20)*(_64bit*(1-goos.IsWindows)*(1-sys.GoarchWasm)*(1-goos.IsIos*sys.GoarchArm64)) + (2+20)*(_64bit*goos.IsWindows) + (2+20)*(1-_64bit) + (2+20)*sys.GoarchWasm + (2+20)*goos.IsIos*sys.GoarchArm64
++	logHeapArenaBytes = (6+20)*(_64bit*(1-goos.IsWindows)*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64)) + (2+20)*(_64bit*goos.IsWindows) + (2+20)*(1-_64bit) + (2+20)*goarch.IsWasm + (2+20)*goos.IsIos*goarch.IsArm64
+ 
+ 	// heapArenaBitmapBytes is the size of each heap arena's bitmap.
+ 	heapArenaBitmapBytes = heapArenaBytes / (goarch.PtrSize * 8 / 2)
+@@ -305,7 +305,7 @@ const (
+ 	//
+ 	// On other platforms, the user address space is contiguous
+ 	// and starts at 0, so no offset is necessary.
+-	arenaBaseOffset = 0xffff800000000000*sys.GoarchAmd64 + 0x0a00000000000000*goos.IsAix
++	arenaBaseOffset = 0xffff800000000000*goarch.IsAmd64 + 0x0a00000000000000*goos.IsAix
+ 	// A typed version of this constant that will make it into DWARF (for viewcore).
+ 	arenaBaseOffsetUintptr = uintptr(arenaBaseOffset)
+ 
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 04b95e51e5..abf76537b0 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/goarch"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -29,7 +30,7 @@ import (
+ // pc should be the program counter of the compiler-generated code that
+ // triggered this panic.
+ func panicCheck1(pc uintptr, msg string) {
+-	if sys.GoarchWasm == 0 && hasPrefix(funcname(findfunc(pc)), "runtime.") {
++	if goarch.IsWasm == 0 && hasPrefix(funcname(findfunc(pc)), "runtime.") {
+ 		// Note: wasm can't tail call, so we can't get the original caller's pc.
+ 		throw(msg)
+ 	}
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 779d0c21a0..1fa235bf86 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -69,7 +69,7 @@ const (
+ 	// to each stack below the usual guard area for OS-specific
+ 	// purposes like signal handling. Used on Windows, Plan 9,
+ 	// and iOS because they do not use a separate stack.
+-	_StackSystem = goos.IsWindows*512*goarch.PtrSize + goos.IsPlan9*512 + goos.IsIos*sys.GoarchArm64*1024
++	_StackSystem = goos.IsWindows*512*goarch.PtrSize + goos.IsPlan9*512 + goos.IsIos*goarch.IsArm64*1024
+ 
+ 	// The minimum size of stack used by Go code
+ 	_StackMin = 2048
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 72e95947db..00544e4283 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -86,7 +86,7 @@ const (
+ 	// and ppc64le.
+ 	// Tracing won't work reliably for architectures where cputicks is emulated
+ 	// by nanotime, so the value doesn't matter for those architectures.
+-	traceTickDiv = 16 + 48*(sys.Goarch386|sys.GoarchAmd64)
++	traceTickDiv = 16 + 48*(goarch.Is386|goarch.IsAmd64)
+ 	// Maximum number of PCs in a single stack trace.
+ 	// Since events contain only stack id rather than whole stack trace,
+ 	// we can allow quite large values here.

@@ -7,6 +7,20 @@ Date:   Tue Jan 19 13:09:27 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/186229
-
+---
  src/cmd/ld/lib.c | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index b70c874390..8039bf8ee0 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -718,8 +718,6 @@ Bget4(Biobuf *f)
+ void
+ mywhatsys(void)
+ {
+-	char *s;
+-
+ 	goroot = getgoroot();
+ 	goos = getgoos();
+ 	goarch = thestring;	// ignore $GOARCH - we know who we are

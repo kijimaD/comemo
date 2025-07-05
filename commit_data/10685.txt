@@ -9,9 +9,158 @@ Date:   Fri Dec 9 08:03:51 2011 -0500
     R=lvd
     CC=golang-dev
     https://golang.org/cl/5479046
-
+---
  src/cmd/gc/dcl.c                |  8 +++++---
  src/cmd/gc/typecheck.c          |  3 ++-
  src/cmd/gc/walk.c               | 12 +++++++++---
  src/pkg/exp/types/gcimporter.go | 16 ++++++----------
  4 files changed, 22 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index c61306ad4c..235e2ceff4 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -642,7 +642,7 @@ funcargs2(Type *t)
+ 		for(ft=getthisx(t)->type; ft; ft=ft->down) {
+ 			if(!ft->nname || !ft->nname->sym)
+ 				continue;
+-			n = newname(ft->nname->sym);
++			n = ft->nname;  // no need for newname(ft->nname->sym)
+ 			n->type = ft->type;
+ 			declare(n, PPARAM);
+ 		}
+@@ -651,7 +651,7 @@ funcargs2(Type *t)
+ 		for(ft=getinargx(t)->type; ft; ft=ft->down) {
+ 			if(!ft->nname || !ft->nname->sym)
+ 				continue;
+-			n = newname(ft->nname->sym);
++			n = ft->nname;
+ 			n->type = ft->type;
+ 			declare(n, PPARAM);
+ 		}
+@@ -660,7 +660,7 @@ funcargs2(Type *t)
+ 		for(ft=getoutargx(t)->type; ft; ft=ft->down) {
+ 			if(!ft->nname || !ft->nname->sym)
+ 				continue;
+-			n = newname(ft->nname->sym);
++			n = ft->nname;
+ 			n->type = ft->type;
+ 			declare(n, PPARAMOUT);
+ 		}
+@@ -845,6 +845,7 @@ tofunargs(NodeList *l)
+ 	for(tp = &t->type; l; l=l->next) {
+ 		f = structfield(l->n);
+ 		f->funarg = 1;
++
+ 		// esc.c needs to find f given a PPARAM to add the tag.
+ 		if(l->n->left && l->n->left->class == PPARAM)
+ 			l->n->left->paramfld = f;
+@@ -1224,6 +1225,7 @@ methodname1(Node *n, Node *t)
+ 	}
+ 	if(t->sym == S || isblank(n))
+ 		return newname(n->sym);
++
+ 	if(star)
+ 		p = smprint("(%s%S).%S", star, t->sym, n->sym);
+ 	else
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index edf32fe2fa..5527bc342c 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1685,6 +1685,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
+ 		n->right = methodname(n->right, n->left->type);
+ 		n->xoffset = f2->width;
+ 		n->type = f2->type;
++//		print("lookdot found [%p] %T\n", f2->type, f2->type);
+ 		n->op = ODOTMETH;
+ 		return 1;
+ 	}
+@@ -2441,7 +2442,7 @@ typecheckfunc(Node *n)
+ 	if((t = n->nname->type) == T)
+ 		return;
+ 	n->type = t;
+-
++	t->nname = n->nname;
+ 	rcvr = getthisx(t)->type;
+ 	if(rcvr != nil && n->shortname != N && !isblank(n->shortname))
+ 		addmethod(n->shortname->sym, t, 1);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 93bcd423f4..3e2160a94f 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -167,6 +167,8 @@ walkstmt(Node **np)
+ 
+ 	setlineno(n);
+ 
++	walkstmtlist(n->ninit);
++
+ 	switch(n->op) {
+ 	default:
+ 		if(n->op == ONAME)
+@@ -243,7 +245,6 @@ walkstmt(Node **np)
+ 		break;
+ 
+ 	case OFOR:
+-		walkstmtlist(n->ninit);
+ 		if(n->ntest != N) {
+ 			walkstmtlist(n->ntest->ninit);
+ 			init = n->ntest->ninit;
+@@ -256,7 +257,6 @@ walkstmt(Node **np)
+ 		break;
+ 
+ 	case OIF:
+-		walkstmtlist(n->ninit);
+ 		walkexpr(&n->ntest, &n->ninit);
+ 		walkstmtlist(n->nbody);
+ 		walkstmtlist(n->nelse);
+@@ -384,6 +384,12 @@ walkexpr(Node **np, NodeList **init)
+ 		fatal("walkexpr init == &n->ninit");
+ 	}
+ 
++	if(n->ninit != nil) {
++		walkstmtlist(n->ninit);
++		*init = concat(*init, n->ninit);
++		n->ninit = nil;
++	}
++
+ 	// annoying case - not typechecked
+ 	if(n->op == OKEY) {
+ 		walkexpr(&n->left, init);
+@@ -1229,7 +1235,7 @@ ascompatee(int op, NodeList *nl, NodeList *nr, NodeList **init)
+ 
+ 	// cannot happen: caller checked that lists had same length
+ 	if(ll || lr)
+-		yyerror("error in shape across %O", op);
++		yyerror("error in shape across %+H %O %+H", nl, op, nr);
+ 	return nn;
+ }
+ 
+diff --git a/src/pkg/exp/types/gcimporter.go b/src/pkg/exp/types/gcimporter.go
+index 0b10e5fb3f..10c56db21f 100644
+--- a/src/pkg/exp/types/gcimporter.go
++++ b/src/pkg/exp/types/gcimporter.go
+@@ -145,18 +145,14 @@ func GcImporter(imports map[string]*ast.Object, path string) (pkg *ast.Object, e
+ 
+ // Declare inserts a named object of the given kind in scope.
+ func (p *gcParser) declare(scope *ast.Scope, kind ast.ObjKind, name string) *ast.Object {
+-	// a type may have been declared before - if it exists
+-	// already in the respective package scope, return that
+-	// type
+-	if kind == ast.Typ {
+-		if obj := scope.Lookup(name); obj != nil {
+-			assert(obj.Kind == ast.Typ)
+-			return obj
+-		}
++	// the object may have been imported before - if it exists
++	// already in the respective package scope, return that object
++	if obj := scope.Lookup(name); obj != nil {
++		assert(obj.Kind == kind)
++		return obj
+ 	}
+ 
+-	// any other object must be a newly declared object -
+-	// create it and insert it into the package scope
++	// otherwise create a new object and insert it into the package scope
+ 	obj := ast.NewObj(kind, name)
+ 	if scope.Insert(obj) != nil {
+ 		p.errorf("already declared: %v %s", kind, obj.Name)

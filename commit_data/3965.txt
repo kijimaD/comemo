@@ -7,6 +7,25 @@ Date:   Tue Nov 10 18:00:48 2009 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/153049
-
+---
  src/make.bash | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/make.bash b/src/make.bash
+index aaaf547efd..9f7c80c48c 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -13,6 +13,13 @@ then
+ 	exit 1
+ fi
+ 
++if ! test -d $GOBIN
++then
++	echo '$GOBIN is not a directory or does not exist' 1>&2
++	echo 'create it or set $GOBIN differently' 1>&2
++	exit 1
++fi
++
+ bash clean.bash
+ 
+ rm -f $GOBIN/quietgcc

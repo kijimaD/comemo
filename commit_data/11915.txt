@@ -7,7 +7,42 @@ Date:   Wed Feb 15 12:58:40 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5672048
-
+---
  doc/docs.html      | 6 ++++++
  doc/reference.html | 6 ++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index 169b7c14f9..907cdbd8b7 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -51,6 +51,12 @@ the language specification, both of which should be read first.
+ How to write a new package and how to test code.
+ </p>
+ 
++<h3 id="appengine"><a href="http://code.google.com/appengine/docs/go/gettingstarted/">Getting Started with Go on App Engine</a></h3>
++<p>
++How to develop and deploy a simple Go project with
++<a href="http://code.google.com/appengine/">Google App Engine</a>.
++</p>
++
+ <h3 id="go_faq"><a href="go_faq.html">Frequently Asked Questions (FAQ)</a></h3>
+ <p>
+ Answers to common questions about Go.
+diff --git a/doc/reference.html b/doc/reference.html
+index 278b4bba23..71812bfc6a 100644
+--- a/doc/reference.html
++++ b/doc/reference.html
+@@ -22,6 +22,12 @@ The built-in documentation for the Go tools.
+ The official Go Language specification. 
+ </p>
+ 
++<h3 id="appengine"><a href="http://code.google.com/appengine/docs/go/">App Engine Go Runtime Documentation</a></h3>
++<p>
++The documentation for
++<a href="http://code.google.com/appengine/">Google App Engine</a>'s Go runtime.
++</p>
++
+ <h3 id="release"><a href="devel/release.html">Release History</a></h3>
+ <p>A summary of the changes between Go releases.</p>
+ 

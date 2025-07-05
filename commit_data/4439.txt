@@ -9,6 +9,31 @@ Date:   Tue Dec 15 19:16:56 2009 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/180057
-
+---
  doc/install.html | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/doc/install.html b/doc/install.html
+index e7365575c1..34c2bcc58f 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -301,6 +301,19 @@ gives more detail about
+ the process of building and testing Go programs.
+ </p>
+ 
++<h2>Keeping up with releases</h2>
++
++<p>New releases are announced on the <a href="http://groups.google.com/group/golang-nuts">Go Nuts</a> mailing list.
++To update an existing tree to the latest release, you can run:
++</p>
++
++<pre>
++$ cd $GOROOT/src
++$ hg pull
++$ hg update release
++$ make all
++</pre>
++
+ <h2>Community resources</h2>
+ 
+ <p>

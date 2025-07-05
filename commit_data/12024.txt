@@ -12,7 +12,62 @@ Date:   Sat Feb 18 14:38:37 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5675087
-
+---
  src/pkg/encoding/gob/decode.go       |  4 ++--
  src/pkg/encoding/gob/encoder_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/gob/decode.go b/src/pkg/encoding/gob/decode.go
+index b7f3e2420e..a0bb985300 100644
+--- a/src/pkg/encoding/gob/decode.go
++++ b/src/pkg/encoding/gob/decode.go
+@@ -473,7 +473,7 @@ func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, basep uint
+ 	}
+ 	instr := &engine.instr[singletonField]
+ 	if instr.indir != ut.indir {
+-		errorf("gob: internal error: inconsistent indirection instr %d ut %d", instr.indir, ut.indir)
++		errorf("internal error: inconsistent indirection instr %d ut %d", instr.indir, ut.indir)
+ 	}
+ 	ptr := unsafe.Pointer(basep) // offset will be zero
+ 	if instr.indir > 1 {
+@@ -1149,7 +1149,7 @@ func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEn
+ 
+ // getDecEnginePtr returns the engine for the specified type.
+ func (dec *Decoder) getDecEnginePtr(remoteId typeId, ut *userTypeInfo) (enginePtr **decEngine, err error) {
+-	rt := ut.base
++	rt := ut.user
+ 	decoderMap, ok := dec.decoderCache[rt]
+ 	if !ok {
+ 		decoderMap = make(map[typeId]**decEngine)
+diff --git a/src/pkg/encoding/gob/encoder_test.go b/src/pkg/encoding/gob/encoder_test.go
+index 7911dad90d..3bfae30f39 100644
+--- a/src/pkg/encoding/gob/encoder_test.go
++++ b/src/pkg/encoding/gob/encoder_test.go
+@@ -712,3 +712,27 @@ func TestGobPtrSlices(t *testing.T) {
+ 		t.Fatal("got %v; wanted %v", out, in)
+ 	}
+ }
++
++// getDecEnginePtr cached engine for ut.base instead of ut.user so we passed
++// a *map and then tried to reuse its engine to decode the inner map.
++func TestPtrToMapOfMap(t *testing.T) {
++	Register(make(map[string]interface{}))
++	subdata := make(map[string]interface{})
++	subdata["bar"] = "baz"
++	data := make(map[string]interface{})
++	data["foo"] = subdata
++
++	b := new(bytes.Buffer)
++	err := NewEncoder(b).Encode(data)
++	if err != nil {
++		t.Fatal("encode:", err)
++	}
++	var newData map[string]interface{}
++	err = NewDecoder(b).Decode(&newData)
++	if err != nil {
++		t.Fatal("decode:", err)
++	}
++	if !reflect.DeepEqual(data, newData) {
++		t.Fatalf("expected %v got %v", data, newData)
++	}
++}

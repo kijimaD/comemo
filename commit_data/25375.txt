@@ -11,7 +11,7 @@ Date:   Thu Oct 22 09:51:12 2015 +0900
     Reviewed-on: https://go-review.googlesource.com/16190
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go     |  74 +++++------
  src/cmd/compile/internal/gc/bv.go        |   6 +-
  src/cmd/compile/internal/gc/cgen.go      | 136 ++++++++------------
@@ -39,3 +39,2867 @@ Date:   Thu Oct 22 09:51:12 2015 +0900
  src/cmd/compile/internal/gc/unsafe.go    |  12 +-
  src/cmd/compile/internal/gc/walk.go      | 187 ++++++++++-----------------
  26 files changed, 527 insertions(+), 852 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 741588ed44..5e14047ea7 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -6,12 +6,8 @@ package gc
+ 
+ import "cmd/internal/obj"
+ 
+-/*
+- * machine size and rounding
+- * alignment is dictated around
+- * the size of a pointer, set in betypeinit
+- * (see ../6g/galign.c).
+- */
++// machine size and rounding alignment is dictated around
++// the size of a pointer, set in betypeinit (see ../amd64/galign.go).
+ var defercalc int
+ 
+ func Rnd(o int64, r int64) int64 {
+@@ -68,7 +64,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 		f.Width = o // really offset for TFIELD
+ 		if f.Nname != nil {
+ 			// this same stackparam logic is in addrescapes
+-			// in typecheck.c.  usually addrescapes runs after
++			// in typecheck.go.  usually addrescapes runs after
+ 			// widstruct, in which case we could drop this,
+ 			// but function closure functions are the exception.
+ 			if f.Nname.Name.Param.Stackparam != nil {
+@@ -158,7 +154,7 @@ func dowidth(t *Type) {
+ 	case TFUNC, TCHAN, TMAP, TSTRING:
+ 		break
+ 
+-		/* simtype == 0 during bootstrap */
++	// simtype == 0 during bootstrap
+ 	default:
+ 		if Simtype[t.Etype] != 0 {
+ 			et = int32(Simtype[t.Etype])
+@@ -170,7 +166,7 @@ func dowidth(t *Type) {
+ 	default:
+ 		Fatalf("dowidth: unknown type: %v", t)
+ 
+-		/* compiler-specific stuff */
++	// compiler-specific stuff
+ 	case TINT8, TUINT8, TBOOL:
+ 		// bool is int8
+ 		w = 1
+@@ -238,7 +234,7 @@ func dowidth(t *Type) {
+ 		}
+ 		w = 1 // anything will do
+ 
+-		// dummy type; should be replaced before use.
++	// dummy type; should be replaced before use.
+ 	case TANY:
+ 		if Debug['A'] == 0 {
+ 			Fatalf("dowidth any")
+@@ -286,7 +282,7 @@ func dowidth(t *Type) {
+ 		}
+ 		w = widstruct(t, t, 0, 1)
+ 
+-		// make fake type to check later to
++	// make fake type to check later to
+ 	// trigger function argument computation.
+ 	case TFUNC:
+ 		t1 := typ(TFUNCARGS)
+@@ -297,7 +293,7 @@ func dowidth(t *Type) {
+ 		// width of func type is pointer
+ 		w = int64(Widthptr)
+ 
+-		// function is 3 cated structures;
++	// function is 3 cated structures;
+ 	// compute their widths as side-effect.
+ 	case TFUNCARGS:
+ 		t1 := t.Type
+@@ -333,23 +329,21 @@ func dowidth(t *Type) {
+ 	}
+ }
+ 
+-/*
+- * when a type's width should be known, we call checkwidth
+- * to compute it.  during a declaration like
+- *
+- *	type T *struct { next T }
+- *
+- * it is necessary to defer the calculation of the struct width
+- * until after T has been initialized to be a pointer to that struct.
+- * similarly, during import processing structs may be used
+- * before their definition.  in those situations, calling
+- * defercheckwidth() stops width calculations until
+- * resumecheckwidth() is called, at which point all the
+- * checkwidths that were deferred are executed.
+- * dowidth should only be called when the type's size
+- * is needed immediately.  checkwidth makes sure the
+- * size is evaluated eventually.
+- */
++// when a type's width should be known, we call checkwidth
++// to compute it.  during a declaration like
++//
++//	type T *struct { next T }
++//
++// it is necessary to defer the calculation of the struct width
++// until after T has been initialized to be a pointer to that struct.
++// similarly, during import processing structs may be used
++// before their definition.  in those situations, calling
++// defercheckwidth() stops width calculations until
++// resumecheckwidth() is called, at which point all the
++// checkwidths that were deferred are executed.
++// dowidth should only be called when the type's size
++// is needed immediately.  checkwidth makes sure the
++// size is evaluated eventually.
+ type TypeList struct {
+ 	t    *Type
+ 	next *TypeList
+@@ -469,9 +463,7 @@ func typeinit() {
+ 	Issigned[TINT32] = true
+ 	Issigned[TINT64] = true
+ 
+-	/*
+-	 * initialize okfor
+-	 */
++	// initialize okfor
+ 	for i := 0; i < NTYPE; i++ {
+ 		if Isint[i] || i == TIDEAL {
+ 			okforeq[i] = true
+@@ -599,10 +591,10 @@ func typeinit() {
+ 	mpatofix(Maxintval[TUINT32], "0xffffffff")
+ 	mpatofix(Maxintval[TUINT64], "0xffffffffffffffff")
+ 
+-	/* f is valid float if min < f < max.  (min and max are not themselves valid.) */
+-	mpatoflt(maxfltval[TFLOAT32], "33554431p103") /* 2^24-1 p (127-23) + 1/2 ulp*/
++	// f is valid float if min < f < max.  (min and max are not themselves valid.)
++	mpatoflt(maxfltval[TFLOAT32], "33554431p103") // 2^24-1 p (127-23) + 1/2 ulp
+ 	mpatoflt(minfltval[TFLOAT32], "-33554431p103")
+-	mpatoflt(maxfltval[TFLOAT64], "18014398509481983p970") /* 2^53-1 p (1023-52) + 1/2 ulp */
++	mpatoflt(maxfltval[TFLOAT64], "18014398509481983p970") // 2^53-1 p (1023-52) + 1/2 ulp
+ 	mpatoflt(minfltval[TFLOAT64], "-18014398509481983p970")
+ 
+ 	maxfltval[TCOMPLEX64] = maxfltval[TFLOAT32]
+@@ -610,23 +602,23 @@ func typeinit() {
+ 	maxfltval[TCOMPLEX128] = maxfltval[TFLOAT64]
+ 	minfltval[TCOMPLEX128] = minfltval[TFLOAT64]
+ 
+-	/* for walk to use in error messages */
++	// for walk to use in error messages
+ 	Types[TFUNC] = functype(nil, nil, nil)
+ 
+-	/* types used in front end */
++	// types used in front end
+ 	// types[TNIL] got set early in lexinit
+ 	Types[TIDEAL] = typ(TIDEAL)
+ 
+ 	Types[TINTER] = typ(TINTER)
+ 
+-	/* simple aliases */
++	// simple aliases
+ 	Simtype[TMAP] = uint8(Tptr)
+ 
+ 	Simtype[TCHAN] = uint8(Tptr)
+ 	Simtype[TFUNC] = uint8(Tptr)
+ 	Simtype[TUNSAFEPTR] = uint8(Tptr)
+ 
+-	/* pick up the backend thearch.typedefs */
++	// pick up the backend thearch.typedefs
+ 	var s1 *Sym
+ 	var etype int
+ 	var sameas int
+@@ -678,9 +670,7 @@ func typeinit() {
+ 	itable.Type = Types[TUINT8]
+ }
+ 
+-/*
+- * compute total size of f's in/out arguments.
+- */
++// compute total size of f's in/out arguments.
+ func Argsize(t *Type) int {
+ 	var save Iter
+ 	var x int64
+diff --git a/src/cmd/compile/internal/gc/bv.go b/src/cmd/compile/internal/gc/bv.go
+index b40339e484..c19ec8130d 100644
+--- a/src/cmd/compile/internal/gc/bv.go
++++ b/src/cmd/compile/internal/gc/bv.go
+@@ -56,7 +56,7 @@ func (b *bulkBvec) next() Bvec {
+ 	return out
+ }
+ 
+-/* difference */
++// difference
+ func bvandnot(dst Bvec, src1 Bvec, src2 Bvec) {
+ 	for i, x := range src1.b {
+ 		dst.b[i] = x &^ src2.b[i]
+@@ -151,14 +151,14 @@ func bvnot(bv Bvec) {
+ 	}
+ }
+ 
+-/* union */
++// union
+ func bvor(dst Bvec, src1 Bvec, src2 Bvec) {
+ 	for i, x := range src1.b {
+ 		dst.b[i] = x | src2.b[i]
+ 	}
+ }
+ 
+-/* intersection */
++// intersection
+ func bvand(dst Bvec, src1 Bvec, src2 Bvec) {
+ 	for i, x := range src1.b {
+ 		dst.b[i] = x & src2.b[i]
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index d6538a358b..9504a0f0f6 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -9,12 +9,10 @@ import (
+ 	"fmt"
+ )
+ 
+-/*
+- * generate:
+- *	res = n;
+- * simplifies and calls Thearch.Gmove.
+- * if wb is true, need to emit write barriers.
+- */
++// generate:
++//	res = n;
++// simplifies and calls Thearch.Gmove.
++// if wb is true, need to emit write barriers.
+ func Cgen(n, res *Node) {
+ 	cgen_wb(n, res, false)
+ }
+@@ -687,22 +685,20 @@ func cgen_wb(n, res *Node, wb bool) {
+ 
+ 	return
+ 
+-	/*
+-	 * put simplest on right - we'll generate into left
+-	 * and then adjust it using the computation of right.
+-	 * constants and variables have the same ullman
+-	 * count, so look for constants specially.
+-	 *
+-	 * an integer constant we can use as an immediate
+-	 * is simpler than a variable - we can use the immediate
+-	 * in the adjustment instruction directly - so it goes
+-	 * on the right.
+-	 *
+-	 * other constants, like big integers or floating point
+-	 * constants, require a mov into a register, so those
+-	 * might as well go on the left, so we can reuse that
+-	 * register for the computation.
+-	 */
++	// put simplest on right - we'll generate into left
++	// and then adjust it using the computation of right.
++	// constants and variables have the same ullman
++	// count, so look for constants specially.
++	//
++	// an integer constant we can use as an immediate
++	// is simpler than a variable - we can use the immediate
++	// in the adjustment instruction directly - so it goes
++	// on the right.
++	//
++	// other constants, like big integers or floating point
++	// constants, require a mov into a register, so those
++	// might as well go on the left, so we can reuse that
++	// register for the computation.
+ sbop: // symmetric binary
+ 	if nl.Ullman < nr.Ullman || (nl.Ullman == nr.Ullman && (Smallintconst(nl) || (nr.Op == OLITERAL && !Smallintconst(nr)))) {
+ 		nl, nr = nr, nl
+@@ -909,11 +905,9 @@ func Mfree(n *Node) {
+ 	}
+ }
+ 
+-/*
+- * allocate a register (reusing res if possible) and generate
+- *  a = n
+- * The caller must call Regfree(a).
+- */
++// allocate a register (reusing res if possible) and generate
++//	a = n
++// The caller must call Regfree(a).
+ func Cgenr(n *Node, a *Node, res *Node) {
+ 	if Debug['g'] != 0 {
+ 		Dump("cgenr-n", n)
+@@ -949,12 +943,10 @@ func Cgenr(n *Node, a *Node, res *Node) {
+ 	}
+ }
+ 
+-/*
+- * allocate a register (reusing res if possible) and generate
+- * a = &n
+- * The caller must call Regfree(a).
+- * The generated code checks that the result is not nil.
+- */
++// allocate a register (reusing res if possible) and generate
++//	a = &n
++// The caller must call Regfree(a).
++// The generated code checks that the result is not nil.
+ func Agenr(n *Node, a *Node, res *Node) {
+ 	if Debug['g'] != 0 {
+ 		Dump("\nagenr-n", n)
+@@ -1468,11 +1460,9 @@ func log2(n uint64) int {
+ 	return x
+ }
+ 
+-/*
+- * generate:
+- *	res = &n;
+- * The generated code checks that the result is not nil.
+- */
++// generate:
++//	res = &n;
++// The generated code checks that the result is not nil.
+ func Agen(n *Node, res *Node) {
+ 	if Debug['g'] != 0 {
+ 		Dump("\nagen-res", res)
+@@ -2219,11 +2209,9 @@ func stkof(n *Node) int64 {
+ 	return -1000 // not on stack
+ }
+ 
+-/*
+- * block copy:
+- *	memmove(&ns, &n, w);
+- * if wb is true, needs write barrier.
+- */
++// block copy:
++//	memmove(&ns, &n, w);
++// if wb is true, needs write barrier.
+ func sgen_wb(n *Node, ns *Node, w int64, wb bool) {
+ 	if Debug['g'] != 0 {
+ 		op := "sgen"
+@@ -2301,15 +2289,13 @@ func sgen_wb(n *Node, ns *Node, w int64, wb bool) {
+ 	Thearch.Blockcopy(n, ns, osrc, odst, w)
+ }
+ 
+-/*
+- * generate:
+- *	call f
+- *	proc=-1	normal call but no return
+- *	proc=0	normal call
+- *	proc=1	goroutine run in new proc
+- *	proc=2	defer call save away stack
+-  *	proc=3	normal call to C pointer (not Go func value)
+-*/
++// generate:
++//	call f
++//	proc=-1	normal call but no return
++//	proc=0	normal call
++//	proc=1	goroutine run in new proc
++//	proc=2	defer call save away stack
++//	proc=3	normal call to C pointer (not Go func value)
+ func Ginscall(f *Node, proc int) {
+ 	if f.Type != nil {
+ 		extra := int32(0)
+@@ -2395,10 +2381,8 @@ func Ginscall(f *Node, proc int) {
+ 	}
+ }
+ 
+-/*
+- * n is call to interface method.
+- * generate res = n.
+- */
++// n is call to interface method.
++// generate res = n.
+ func cgen_callinter(n *Node, res *Node, proc int) {
+ 	i := n.Left
+ 	if i.Op != ODOTINTER {
+@@ -2468,12 +2452,10 @@ func cgen_callinter(n *Node, res *Node, proc int) {
+ 	Regfree(&nodo)
+ }
+ 
+-/*
+- * generate function call;
+- *	proc=0	normal call
+- *	proc=1	goroutine run in new proc
+- *	proc=2	defer call save away stack
+- */
++// generate function call;
++//	proc=0	normal call
++//	proc=1	goroutine run in new proc
++//	proc=2	defer call save away stack
+ func cgen_call(n *Node, proc int) {
+ 	if n == nil {
+ 		return
+@@ -2519,11 +2501,9 @@ func cgen_call(n *Node, proc int) {
+ 	Ginscall(n.Left, proc)
+ }
+ 
+-/*
+- * call to n has already been generated.
+- * generate:
+- *	res = return value from call.
+- */
++// call to n has already been generated.
++// generate:
++//	res = return value from call.
+ func cgen_callret(n *Node, res *Node) {
+ 	t := n.Left.Type
+ 	if t.Etype == TPTR32 || t.Etype == TPTR64 {
+@@ -2546,11 +2526,9 @@ func cgen_callret(n *Node, res *Node) {
+ 	Cgen_as(res, &nod)
+ }
+ 
+-/*
+- * call to n has already been generated.
+- * generate:
+- *	res = &return value from call.
+- */
++// call to n has already been generated.
++// generate:
++//	res = &return value from call.
+ func cgen_aret(n *Node, res *Node) {
+ 	t := n.Left.Type
+ 	if Isptr[t.Etype] {
+@@ -2581,10 +2559,8 @@ func cgen_aret(n *Node, res *Node) {
+ 	}
+ }
+ 
+-/*
+- * generate return.
+- * n->left is assignments to return values.
+- */
++// generate return.
++// n->left is assignments to return values.
+ func cgen_ret(n *Node) {
+ 	if n != nil {
+ 		Genlist(n.List) // copy out args
+@@ -2601,11 +2577,9 @@ func cgen_ret(n *Node) {
+ 	}
+ }
+ 
+-/*
+- * generate division according to op, one of:
+- *	res = nl / nr
+- *	res = nl % nr
+- */
++// generate division according to op, one of:
++//	res = nl / nr
++//	res = nl % nr
+ func cgen_div(op int, nl *Node, nr *Node, res *Node) {
+ 	var w int
+ 
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index e7bece8bd9..df3e31a7ec 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -9,9 +9,7 @@ import (
+ 	"fmt"
+ )
+ 
+-/*
+- * function literals aka closures
+- */
++// function literals aka closures
+ func closurehdr(ntype *Node) {
+ 	var name *Node
+ 	var a *Node
+@@ -179,10 +177,8 @@ func closurename(n *Node) *Sym {
+ }
+ 
+ func makeclosure(func_ *Node) *Node {
+-	/*
+-	 * wrap body in external function
+-	 * that begins by reading closure parameters.
+-	 */
++	// wrap body in external function
++	// that begins by reading closure parameters.
+ 	xtype := Nod(OTFUNC, nil, nil)
+ 
+ 	xtype.List = func_.List
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 71b582b739..87bd9982d8 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -59,10 +59,8 @@ func (n *Node) Bool() bool {
+ 	return n.Val().U.(bool)
+ }
+ 
+-/*
+- * truncate float literal fv to 32-bit or 64-bit precision
+- * according to type; return truncated value.
+- */
++// truncate float literal fv to 32-bit or 64-bit precision
++// according to type; return truncated value.
+ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
+ 	if t == nil {
+ 		return oldv
+@@ -90,19 +88,15 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
+ 	return fv
+ }
+ 
+-/*
+- * convert n, if literal, to type t.
+- * implicit conversion.
+- */
++// convert n, if literal, to type t.
++// implicit conversion.
+ func Convlit(np **Node, t *Type) {
+ 	convlit1(np, t, false)
+ }
+ 
+-/*
+- * convert n, if literal, to type t.
+- * return a new node if necessary
+- * (if n is a named constant, can't edit n->type directly).
+- */
++// convert n, if literal, to type t.
++// return a new node if necessary
++//(if n is a named constant, can't edit n->type directly).
+ func convlit1(np **Node, t *Type, explicit bool) {
+ 	n := *np
+ 	if n == nil || t == nil || n.Type == nil || isideal(t) || n.Type == t {
+@@ -501,9 +495,7 @@ func saveorig(n *Node) *Node {
+ 	return n.Orig
+ }
+ 
+-/*
+- * if n is constant, rewrite as OLITERAL node.
+- */
++// if n is constant, rewrite as OLITERAL node.
+ func evconst(n *Node) {
+ 	// pick off just the opcodes that can be
+ 	// constant evaluated.
+@@ -1300,12 +1292,10 @@ num:
+ 	return
+ }
+ 
+-/*
+- * defaultlit on both nodes simultaneously;
+- * if they're both ideal going in they better
+- * get the same type going out.
+- * force means must assign concrete (non-ideal) type.
+- */
++// defaultlit on both nodes simultaneously;
++// if they're both ideal going in they better
++// get the same type going out.
++// force means must assign concrete (non-ideal) type.
+ func defaultlit2(lp **Node, rp **Node, force int) {
+ 	l := *lp
+ 	r := *rp
+@@ -1406,10 +1396,8 @@ func nonnegconst(n *Node) int {
+ 	return -1
+ }
+ 
+-/*
+- * convert x to type et and back to int64
+- * for sign extension and truncation.
+- */
++// convert x to type et and back to int64
++// for sign extension and truncation.
+ func iconv(x int64, et int) int64 {
+ 	switch et {
+ 	case TINT8:
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 65188384e9..0d508daeb1 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -23,9 +23,7 @@ func dflag() bool {
+ 	return true
+ }
+ 
+-/*
+- * declaration stack & operations
+- */
++// declaration stack & operations
+ func dcopy(a *Sym, b *Sym) {
+ 	a.Pkg = b.Pkg
+ 	a.Name = b.Name
+@@ -149,9 +147,7 @@ func redeclare(s *Sym, where string) {
+ 
+ var vargen int
+ 
+-/*
+- * declare individual names - var, typ, const
+- */
++// declare individual names - var, typ, const
+ 
+ var declare_typegen int
+ 
+@@ -236,10 +232,8 @@ func addvar(n *Node, t *Type, ctxt uint8) {
+ 	n.Type = t
+ }
+ 
+-/*
+- * declare variables from grammar
+- * new_name_list (type | [type] = expr_list)
+- */
++// declare variables from grammar
++// new_name_list (type | [type] = expr_list)
+ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
+ 	var init *NodeList
+ 	doexpr := el != nil
+@@ -302,10 +296,8 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
+ 	return init
+ }
+ 
+-/*
+- * declare constants from grammar
+- * new_name_list [[type] = expr_list]
+- */
++// declare constants from grammar
++// new_name_list [[type] = expr_list]
+ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
+ 	lno := int32(0) // default is to leave line number alone in listtreecopy
+ 	if cl == nil {
+@@ -350,10 +342,8 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
+ 	return vv
+ }
+ 
+-/*
+- * this generates a new name node,
+- * typically for labels or other one-off names.
+- */
++// this generates a new name node,
++// typically for labels or other one-off names.
+ func newname(s *Sym) *Node {
+ 	if s == nil {
+ 		Fatalf("newname nil")
+@@ -377,10 +367,8 @@ func newfuncname(s *Sym) *Node {
+ 	return n
+ }
+ 
+-/*
+- * this generates a new name node for a name
+- * being declared.
+- */
++// this generates a new name node for a name
++// being declared.
+ func dclname(s *Sym) *Node {
+ 	n := newname(s)
+ 	n.Op = ONONAME // caller will correct it
+@@ -400,12 +388,10 @@ func typenod(t *Type) *Node {
+ 	return t.Nod
+ }
+ 
+-/*
+- * this will return an old name
+- * that has already been pushed on the
+- * declaration list. a diagnostic is
+- * generated if no name has been defined.
+- */
++// this will return an old name
++// that has already been pushed on the
++// declaration list. a diagnostic is
++// generated if no name has been defined.
+ func oldname(s *Sym) *Node {
+ 	n := s.Def
+ 	if n == nil {
+@@ -450,9 +436,7 @@ func oldname(s *Sym) *Node {
+ 	return n
+ }
+ 
+-/*
+- * := declarations
+- */
++// := declarations
+ func colasname(n *Node) bool {
+ 	switch n.Op {
+ 	case ONAME,
+@@ -532,10 +516,8 @@ func colas(left *NodeList, right *NodeList, lno int32) *Node {
+ 	return as
+ }
+ 
+-/*
+- * declare the arguments in an
+- * interface field declaration.
+- */
++// declare the arguments in an
++// interface field declaration.
+ func ifacedcl(n *Node) {
+ 	if n.Op != ODCLFIELD || n.Right == nil {
+ 		Fatalf("ifacedcl")
+@@ -563,12 +545,10 @@ func ifacedcl(n *Node) {
+ 	funcbody(n)
+ }
+ 
+-/*
+- * declare the function proper
+- * and declare the arguments.
+- * called in extern-declaration context
+- * returns in auto-declaration context.
+- */
++// declare the function proper
++// and declare the arguments.
++// called in extern-declaration context
++// returns in auto-declaration context.
+ func funchdr(n *Node) {
+ 	// change the declaration context from extern to auto
+ 	if Funcdepth == 0 && dclcontext != PEXTERN {
+@@ -688,11 +668,9 @@ func funcargs(nt *Node) {
+ 	}
+ }
+ 
+-/*
+- * Same as funcargs, except run over an already constructed TFUNC.
+- * This happens during import, where the hidden_fndcl rule has
+- * used functype directly to parse the function's type.
+- */
++// Same as funcargs, except run over an already constructed TFUNC.
++// This happens during import, where the hidden_fndcl rule has
++// used functype directly to parse the function's type.
+ func funcargs2(t *Type) {
+ 	if t.Etype != TFUNC {
+ 		Fatalf("funcargs2 %v", t)
+@@ -735,11 +713,9 @@ func funcargs2(t *Type) {
+ 	}
+ }
+ 
+-/*
+- * finish the body.
+- * called in auto-declaration context.
+- * returns in extern-declaration context.
+- */
++// finish the body.
++// called in auto-declaration context.
++// returns in extern-declaration context.
+ func funcbody(n *Node) {
+ 	// change the declaration context from auto to extern
+ 	if dclcontext != PAUTO {
+@@ -754,9 +730,7 @@ func funcbody(n *Node) {
+ 	}
+ }
+ 
+-/*
+- * new type being defined with name s.
+- */
++// new type being defined with name s.
+ func typedcl0(s *Sym) *Node {
+ 	n := newname(s)
+ 	n.Op = OTYPE
+@@ -764,21 +738,17 @@ func typedcl0(s *Sym) *Node {
+ 	return n
+ }
+ 
+-/*
+- * node n, which was returned by typedcl0
+- * is being declared to have uncompiled type t.
+- * return the ODCLTYPE node to use.
+- */
++// node n, which was returned by typedcl0
++// is being declared to have uncompiled type t.
++// return the ODCLTYPE node to use.
+ func typedcl1(n *Node, t *Node, local bool) *Node {
+ 	n.Name.Param.Ntype = t
+ 	n.Local = local
+ 	return Nod(ODCLTYPE, n, nil)
+ }
+ 
+-/*
+- * structs, functions, and methods.
+- * they don't belong here, but where do they belong?
+- */
++// structs, functions, and methods.
++// they don't belong here, but where do they belong?
+ func checkembeddedtype(t *Type) {
+ 	if t == nil {
+ 		return
+@@ -869,10 +839,8 @@ func checkdupfields(t *Type, what string) {
+ 	lineno = int32(lno)
+ }
+ 
+-/*
+- * convert a parsed id/type list into
+- * a type for struct/interface/arglist
+- */
++// convert a parsed id/type list into
++// a type for struct/interface/arglist
+ func tostruct(l *NodeList) *Type {
+ 	t := typ(TSTRUCT)
+ 	tostruct0(t, l)
+@@ -915,7 +883,7 @@ func tofunargs(l *NodeList) *Type {
+ 		f = structfield(l.N)
+ 		f.Funarg = true
+ 
+-		// esc.c needs to find f given a PPARAM to add the tag.
++		// esc.go needs to find f given a PPARAM to add the tag.
+ 		if l.N.Left != nil && l.N.Left.Class == PPARAM {
+ 			l.N.Left.Name.Param.Field = f
+ 		}
+@@ -1075,9 +1043,7 @@ func embedded(s *Sym, pkg *Pkg) *Node {
+ 	return n
+ }
+ 
+-/*
+- * check that the list of declarations is either all anonymous or all named
+- */
++// check that the list of declarations is either all anonymous or all named
+ func findtype(l *NodeList) *Node {
+ 	for ; l != nil; l = l.Next {
+ 		if l.N.Op == OKEY {
+@@ -1142,7 +1108,7 @@ func checkarglist(all *NodeList, input int) *NodeList {
+ 		// declarations, which are parsed by rules that don't
+ 		// use checkargs, but can happen for func literals in
+ 		// the inline bodies.
+-		// TODO(rsc) this can go when typefmt case TFIELD in exportmode fmt.c prints _ instead of ?
++		// TODO(rsc) this can go when typefmt case TFIELD in exportmode fmt.go prints _ instead of ?
+ 		if importpkg != nil && n.Sym == nil {
+ 			n = nil
+ 		}
+@@ -1182,12 +1148,9 @@ func fakethis() *Node {
+ 	return n
+ }
+ 
+-/*
+- * Is this field a method on an interface?
+- * Those methods have an anonymous
+- * *struct{} as the receiver.
+- * (See fakethis above.)
+- */
++// Is this field a method on an interface?
++// Those methods have an anonymous *struct{} as the receiver.
++// (See fakethis above.)
+ func isifacemethod(f *Type) bool {
+ 	rcvr := getthisx(f).Type
+ 	if rcvr.Sym != nil {
+@@ -1204,10 +1167,7 @@ func isifacemethod(f *Type) bool {
+ 	return true
+ }
+ 
+-/*
+- * turn a parsed function declaration
+- * into a type
+- */
++// turn a parsed function declaration into a type
+ func functype(this *Node, in *NodeList, out *NodeList) *Type {
+ 	t := typ(TFUNC)
+ 	functype0(t, this, in, out)
+@@ -1355,10 +1315,8 @@ func methodname1(n *Node, t *Node) *Node {
+ 	return n
+ }
+ 
+-/*
+- * add a method, declared as a function,
+- * n is fieldname, pa is base type, t is function type
+- */
++// add a method, declared as a function,
++// n is fieldname, pa is base type, t is function type
+ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 	// get field sym
+ 	if sf == nil {
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 578b30c97d..293f9169e0 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -856,7 +856,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		var v *Node
+ 		for ll := n.Func.Cvars; ll != nil; ll = ll.Next {
+ 			v = ll.N
+-			if v.Op == OXXX { // unnamed out argument; see dcl.c:/^funcargs
++			if v.Op == OXXX { // unnamed out argument; see dcl.go:/^funcargs
+ 				continue
+ 			}
+ 			a = v.Name.Param.Closure
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index dc3ffaec55..d38810b809 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -435,13 +435,9 @@ func dumpexport() {
+ 	}
+ }
+ 
+-/*
+- * import
+- */
++// import
+ 
+-/*
+- * return the sym for ss, which should match lexical
+- */
++// return the sym for ss, which should match lexical
+ func importsym(s *Sym, op int) *Sym {
+ 	if s.Def != nil && int(s.Def.Op) != op {
+ 		pkgstr := fmt.Sprintf("during import %q", importpkg.Path)
+@@ -460,9 +456,7 @@ func importsym(s *Sym, op int) *Sym {
+ 	return s
+ }
+ 
+-/*
+- * return the type pkg.name, forward declaring if needed
+- */
++// return the type pkg.name, forward declaring if needed
+ func pkgtype(s *Sym) *Type {
+ 	importsym(s, OTYPE)
+ 	if s.Def == nil || s.Def.Op != OTYPE {
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 1949427ad3..221e4a648b 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -47,9 +47,9 @@ import (
+ //		Flags: those of %N
+ //			','  separate items with ',' instead of ';'
+ //
+-//   In mparith1.c:
+-//      %B Mpint*	Big integers
+-//	%F Mpflt*	Big floats
++//   In mparith2.go and mparith3.go:
++//		%B Mpint*	Big integers
++//		%F Mpflt*	Big floats
+ //
+ //   %S, %T and %N obey use the following flags to set the format mode:
+ const (
+@@ -713,7 +713,7 @@ func typefmt(t *Type, flag int) string {
+ 				}
+ 			} else if fmtmode == FExp {
+ 				// TODO(rsc) this breaks on the eliding of unused arguments in the backend
+-				// when this is fixed, the special case in dcl.c checkarglist can go.
++				// when this is fixed, the special case in dcl.go checkarglist can go.
+ 				//if(t->funarg)
+ 				//	fmtstrcpy(fp, "_ ");
+ 				//else
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 22d8a1ebae..a2221854de 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -9,10 +9,8 @@ import (
+ 	"fmt"
+ )
+ 
+-/*
+- * portable half of code generator.
+- * mainly statements and control flow.
+- */
++// portable half of code generator.
++// mainly statements and control flow.
+ var labellist *Label
+ 
+ var lastlabel *Label
+@@ -211,18 +209,14 @@ func stmtlabel(n *Node) *Label {
+ 	return nil
+ }
+ 
+-/*
+- * compile statements
+- */
++// compile statements
+ func Genlist(l *NodeList) {
+ 	for ; l != nil; l = l.Next {
+ 		gen(l.N)
+ 	}
+ }
+ 
+-/*
+- * generate code to start new proc running call n.
+- */
++// generate code to start new proc running call n.
+ func cgen_proc(n *Node, proc int) {
+ 	switch n.Left.Op {
+ 	default:
+@@ -239,11 +233,9 @@ func cgen_proc(n *Node, proc int) {
+ 	}
+ }
+ 
+-/*
+- * generate declaration.
+- * have to allocate heap copy
+- * for escaped variables.
+- */
++// generate declaration.
++// have to allocate heap copy
++// for escaped variables.
+ func cgen_dcl(n *Node) {
+ 	if Debug['g'] != 0 {
+ 		Dump("\ncgen-dcl", n)
+@@ -265,9 +257,7 @@ func cgen_dcl(n *Node) {
+ 	Cgen_as(n.Name.Heapaddr, prealloc[n])
+ }
+ 
+-/*
+- * generate discard of value
+- */
++// generate discard of value
+ func cgen_discard(nr *Node) {
+ 	if nr == nil {
+ 		return
+@@ -322,9 +312,7 @@ func cgen_discard(nr *Node) {
+ 	}
+ }
+ 
+-/*
+- * clearslim generates code to zero a slim node.
+- */
++// clearslim generates code to zero a slim node.
+ func Clearslim(n *Node) {
+ 	var z Node
+ 	z.Op = OLITERAL
+@@ -367,17 +355,13 @@ func Clearslim(n *Node) {
+ 	Cgen(&z, n)
+ }
+ 
+-/*
+- * generate:
+- *	res = iface{typ, data}
+- * n->left is typ
+- * n->right is data
+- */
++// generate:
++//	res = iface{typ, data}
++// n->left is typ
++// n->right is data
+ func Cgen_eface(n *Node, res *Node) {
+-	/*
+-	 * the right node of an eface may contain function calls that uses res as an argument,
+-	 * so it's important that it is done first
+-	 */
++	// the right node of an eface may contain function calls that uses res as an argument,
++	// so it's important that it is done first
+ 
+ 	tmp := temp(Types[Tptr])
+ 	Cgen(n.Right, tmp)
+@@ -393,13 +377,11 @@ func Cgen_eface(n *Node, res *Node) {
+ 	Cgen(n.Left, &dst)
+ }
+ 
+-/*
+- * generate one of:
+- *	res, resok = x.(T)
+- *	res = x.(T) (when resok == nil)
+- * n.Left is x
+- * n.Type is T
+- */
++// generate one of:
++//	res, resok = x.(T)
++//	res = x.(T) (when resok == nil)
++// n.Left is x
++// n.Type is T
+ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
+ 	if Debug_typeassert > 0 {
+ 		Warn("type assertion inlined")
+@@ -485,12 +467,10 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
+ 	}
+ }
+ 
+-/*
+- * generate:
+- *	res, resok = x.(T)
+- * n.Left is x
+- * n.Type is T
+- */
++// generate:
++//	res, resok = x.(T)
++// n.Left is x
++// n.Type is T
+ func Cgen_As2dottype(n, res, resok *Node) {
+ 	if Debug_typeassert > 0 {
+ 		Warn("type assertion inlined")
+@@ -549,11 +529,9 @@ func Cgen_As2dottype(n, res, resok *Node) {
+ 	Patch(q, Pc)
+ }
+ 
+-/*
+- * gather series of offsets
+- * >=0 is direct addressed field
+- * <0 is pointer to next field (+1)
+- */
++// gather series of offsets
++// >=0 is direct addressed field
++// <0 is pointer to next field (+1)
+ func Dotoffset(n *Node, oary []int64, nn **Node) int {
+ 	var i int
+ 
+@@ -602,9 +580,7 @@ func Dotoffset(n *Node, oary []int64, nn **Node) int {
+ 	return i
+ }
+ 
+-/*
+- * make a new off the books
+- */
++// make a new off the books
+ func Tempname(nn *Node, t *Type) {
+ 	if Curfn == nil {
+ 		Fatalf("no curfn for tempname")
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 805226eeb6..9b91b57c34 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -325,8 +325,8 @@ const (
+ )
+ 
+ const (
+-	/* types of channel */
+-	/* must match ../../pkg/nreflect/type.go:/Chandir */
++	// types of channel
++	// must match ../../pkg/nreflect/type.go:/Chandir
+ 	Cxxx  = 0
+ 	Crecv = 1 << 0
+ 	Csend = 1 << 1
+@@ -399,10 +399,8 @@ type Idir struct {
+ 	dir  string
+ }
+ 
+-/*
+- * argument passing to/from
+- * smagic and umagic
+- */
++// argument passing to/from
++// smagic and umagic
+ type Magic struct {
+ 	W   int // input for both - width
+ 	S   int // output for both - shift
+@@ -418,17 +416,15 @@ type Magic struct {
+ 	Ua int    // output - adder
+ }
+ 
+-/*
+- * note this is the runtime representation
+- * of the compilers arrays.
+- *
+- * typedef	struct
+- * {				// must not move anything
+- *	uchar	array[8];	// pointer to data
+- *	uchar	nel[4];		// number of elements
+- *	uchar	cap[4];		// allocated number of elements
+- * } Array;
+- */
++// note this is the runtime representation
++// of the compilers arrays.
++//
++// typedef	struct
++// {					// must not move anything
++// 	uchar	array[8];	// pointer to data
++// 	uchar	nel[4];		// number of elements
++// 	uchar	cap[4];		// allocated number of elements
++// } Array;
+ var Array_array int // runtime offsetof(Array,array) - same for String
+ 
+ var Array_nel int // runtime offsetof(Array,nel) - same for String
+@@ -437,16 +433,14 @@ var Array_cap int // runtime offsetof(Array,cap)
+ 
+ var sizeof_Array int // runtime sizeof(Array)
+ 
+-/*
+- * note this is the runtime representation
+- * of the compilers strings.
+- *
+- * typedef	struct
+- * {				// must not move anything
+- *	uchar	array[8];	// pointer to data
+- *	uchar	nel[4];		// number of elements
+- * } String;
+- */
++// note this is the runtime representation
++// of the compilers strings.
++//
++// typedef	struct
++// {					// must not move anything
++// 	uchar	array[8];	// pointer to data
++// 	uchar	nel[4];		// number of elements
++// } String;
+ var sizeof_String int // runtime sizeof(String)
+ 
+ var dotlist [10]Dlist // size is max depth of embeddeds
+@@ -714,9 +708,7 @@ type Graph struct {
+ 	Rpo []*Flow
+ }
+ 
+-/*
+- *	interface to back end
+- */
++// interface to back end
+ 
+ const (
+ 	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 5c057d5d0c..2547cb39f6 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -43,9 +43,7 @@ var dfirst *obj.Prog
+ 
+ var dpc *obj.Prog
+ 
+-/*
+- * Is this node a memory operand?
+- */
++// Is this node a memory operand?
+ func Ismem(n *Node) bool {
+ 	switch n.Op {
+ 	case OITAB,
+@@ -662,11 +660,9 @@ func Anyregalloc() bool {
+ 	return n > len(Thearch.ReservedRegs)
+ }
+ 
+-/*
+- * allocate register of type t, leave in n.
+- * if o != N, o may be reusable register.
+- * caller must Regfree(n).
+- */
++// allocate register of type t, leave in n.
++// if o != N, o may be reusable register.
++// caller must Regfree(n).
+ func Regalloc(n *Node, t *Type, o *Node) {
+ 	if t == nil {
+ 		Fatalf("regalloc: t nil")
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 5fbc82dd38..6071ab44f0 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -17,13 +17,11 @@ package gc
+ //		a->offset += v;
+ //		break;
+ 
+-/*
+- * a function named init is a special case.
+- * it is called by the initialization before
+- * main is run. to make it unique within a
+- * package and also uncallable, the name,
+- * normally "pkg.init", is altered to "pkg.init.1".
+- */
++// a function named init is a special case.
++// it is called by the initialization before
++// main is run. to make it unique within a
++// package and also uncallable, the name,
++// normally "pkg.init", is altered to "pkg.init.1".
+ 
+ var renameinit_initgen int
+ 
+@@ -32,24 +30,22 @@ func renameinit() *Sym {
+ 	return Lookupf("init.%d", renameinit_initgen)
+ }
+ 
+-/*
+- * hand-craft the following initialization code
+- *	var initdone· uint8 				(1)
+- *	func init()					(2)
+- *		if initdone· != 0 {			(3)
+- *			if initdone· == 2		(4)
+- *				return
+- *			throw();			(5)
+- *		}
+- *		initdone· = 1;				(6)
+- *		// over all matching imported symbols
+- *			<pkg>.init()			(7)
+- *		{ <init stmts> }			(8)
+- *		init.<n>() // if any			(9)
+- *		initdone· = 2;				(10)
+- *		return					(11)
+- *	}
+- */
++// hand-craft the following initialization code
++//	var initdone· uint8 				(1)
++//	func init()					(2)
++//		if initdone· != 0 {			(3)
++//			if initdone· == 2		(4)
++//				return
++//			throw();			(5)
++//		}
++//		initdone· = 1;				(6)
++//		// over all matching imported symbols
++//			<pkg>.init()			(7)
++//		{ <init stmts> }			(8)
++//		init.<n>() // if any			(9)
++//		initdone· = 2;				(10)
++//		return					(11)
++//	}
+ func anyinit(n *NodeList) bool {
+ 	// are there any interesting init statements
+ 	for l := n; l != nil; l = l.Next {
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index b491ea60c7..50885774eb 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -535,7 +535,7 @@ func arsize(b *obj.Biobuf, name string) int {
+ }
+ 
+ func skiptopkgdef(b *obj.Biobuf) bool {
+-	/* archive header */
++	// archive header
+ 	p := obj.Brdline(b, '\n')
+ 	if p == "" {
+ 		return false
+@@ -547,7 +547,7 @@ func skiptopkgdef(b *obj.Biobuf) bool {
+ 		return false
+ 	}
+ 
+-	/* symbol table may be first; skip it */
++	// symbol table may be first; skip it
+ 	sz := arsize(b, "__.GOSYMDEF")
+ 
+ 	if sz >= 0 {
+@@ -556,7 +556,7 @@ func skiptopkgdef(b *obj.Biobuf) bool {
+ 		obj.Bseek(b, 8, 0)
+ 	}
+ 
+-	/* package export block is next */
++	// package export block is next
+ 	sz = arsize(b, "__.PKGDEF")
+ 
+ 	if sz <= 0 {
+@@ -946,10 +946,10 @@ l0:
+ 		goto l0
+ 	}
+ 
+-	lineno = lexlineno /* start of token */
++	lineno = lexlineno // start of token
+ 
+ 	if c >= utf8.RuneSelf {
+-		/* all multibyte runes are alpha */
++		// all multibyte runes are alpha
+ 		cp = &lexbuf
+ 		cp.Reset()
+ 
+@@ -1073,7 +1073,7 @@ l0:
+ 			c1 = '.'
+ 		}
+ 
+-		/* "..." */
++		// "..."
+ 	case '"':
+ 		lexbuf.Reset()
+ 		lexbuf.WriteString(`"<string>"`)
+@@ -1094,7 +1094,7 @@ l0:
+ 
+ 		goto strlit
+ 
+-		/* `...` */
++		// `...`
+ 	case '`':
+ 		lexbuf.Reset()
+ 		lexbuf.WriteString("`<string>`")
+@@ -1120,7 +1120,7 @@ l0:
+ 
+ 		goto strlit
+ 
+-		/* '.' */
++		// '.'
+ 	case '\'':
+ 		if escchar('\'', &escflag, &v) {
+ 			Yyerror("empty character literal or unescaped ' in character literal")
+@@ -1336,24 +1336,22 @@ l0:
+ 			goto asop
+ 		}
+ 
+-		/*
+-		 * clumsy dance:
+-		 * to implement rule that disallows
+-		 *	if T{1}[0] { ... }
+-		 * but allows
+-		 * 	if (T{1}[0]) { ... }
+-		 * the block bodies for if/for/switch/select
+-		 * begin with an LBODY token, not '{'.
+-		 *
+-		 * when we see the keyword, the next
+-		 * non-parenthesized '{' becomes an LBODY.
+-		 * loophack is normally false.
+-		 * a keyword sets it to true.
+-		 * parens push loophack onto a stack and go back to false.
+-		 * a '{' with loophack == true becomes LBODY and disables loophack.
+-		 *
+-		 * i said it was clumsy.
+-		 */
++		// clumsy dance:
++		// to implement rule that disallows
++		//	if T{1}[0] { ... }
++		// but allows
++		// 	if (T{1}[0]) { ... }
++		// the block bodies for if/for/switch/select
++		// begin with an LBODY token, not '{'.
++		//
++		// when we see the keyword, the next
++		// non-parenthesized '{' becomes an LBODY.
++		// loophack is normally false.
++		// a keyword sets it to true.
++		// parens push loophack onto a stack and go back to false.
++		// a '{' with loophack == true becomes LBODY and disables loophack.
++		//
++		// I said it was clumsy.
+ 	case '(', '[':
+ 		if loophack || _yylex_lstk != nil {
+ 			h = new(Loophack)
+@@ -1426,10 +1424,8 @@ asop:
+ 	}
+ 	return LASOP
+ 
+-	/*
+-	 * cp is set to lexbuf and some
+-	 * prefix has been stored
+-	 */
++	// cp is set to lexbuf and some
++	// prefix has been stored
+ talph:
+ 	for {
+ 		if c >= utf8.RuneSelf {
+@@ -1594,12 +1590,10 @@ func more(pp *string) bool {
+ 	return p != ""
+ }
+ 
+-/*
+- * read and interpret syntax that looks like
+- * //line parse.y:15
+- * as a discontinuity in sequential line numbers.
+- * the next line of input comes from parse.y:15
+- */
++// read and interpret syntax that looks like
++// //line parse.y:15
++// as a discontinuity in sequential line numbers.
++// the next line of input comes from parse.y:15
+ func getlinepragma() int {
+ 	var cmd, verb, name string
+ 
+@@ -2161,7 +2155,7 @@ var syms = []struct {
+ 	etype   int
+ 	op      int
+ }{
+-	/* basic types */
++	// basic types
+ 	{"int8", LNAME, TINT8, OXXX},
+ 	{"int16", LNAME, TINT16, OXXX},
+ 	{"int32", LNAME, TINT32, OXXX},
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 9d35dfd85c..d65e3ba615 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -10,9 +10,7 @@ import (
+ 	"strconv"
+ )
+ 
+-/*
+- * architecture-independent object file output
+- */
++// architecture-independent object file output
+ const (
+ 	ArhdrSize = 60
+ )
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index f996ce2aa0..7e052c10b2 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -396,7 +396,7 @@ func ordercall(n *Node, order *Order) {
+ // contain m or k. They are usually unnecessary, but in the unnecessary
+ // cases they are also typically registerizable, so not much harm done.
+ // And this only applies to the multiple-assignment form.
+-// We could do a more precise analysis if needed, like in walk.c.
++// We could do a more precise analysis if needed, like in walk.go.
+ //
+ // Ordermapassign also inserts these temporaries if needed for
+ // calling writebarrierfat with a pointer to n->right.
+@@ -408,7 +408,7 @@ func ordermapassign(n *Node, order *Order) {
+ 	case OAS:
+ 		order.out = list(order.out, n)
+ 
+-		// We call writebarrierfat only for values > 4 pointers long. See walk.c.
++		// We call writebarrierfat only for values > 4 pointers long. See walk.go.
+ 		if (n.Left.Op == OINDEXMAP || (needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr))) && !isaddrokay(n.Right) {
+ 			m := n.Left
+ 			n.Left = ordertemp(m.Type, order, false)
+@@ -756,7 +756,7 @@ func orderstmt(n *Node, order *Order) {
+ 		ordercallargs(&n.List, order)
+ 		order.out = list(order.out, n)
+ 
+-		// Special: clean case temporaries in each block entry.
++	// Special: clean case temporaries in each block entry.
+ 	// Select must enter one of its blocks, so there is no
+ 	// need for a cleaning at the end.
+ 	// Doubly special: evaluation order for select is stricter
+diff --git a/src/cmd/compile/internal/gc/popt.go b/src/cmd/compile/internal/gc/popt.go
+index 985ebb6f70..4d71ab643d 100644
+--- a/src/cmd/compile/internal/gc/popt.go
++++ b/src/cmd/compile/internal/gc/popt.go
+@@ -88,7 +88,7 @@ func Noreturn(p *obj.Prog) bool {
+ // longer and more difficult to follow during debugging.
+ // Remove them.
+ 
+-/* what instruction does a JMP to p eventually land on? */
++// what instruction does a JMP to p eventually land on?
+ func chasejmp(p *obj.Prog, jmploop *int) *obj.Prog {
+ 	n := 0
+ 	for p != nil && p.As == obj.AJMP && p.To.Type == obj.TYPE_BRANCH {
+@@ -104,14 +104,12 @@ func chasejmp(p *obj.Prog, jmploop *int) *obj.Prog {
+ 	return p
+ }
+ 
+-/*
+- * reuse reg pointer for mark/sweep state.
+- * leave reg==nil at end because alive==nil.
+- */
++// reuse reg pointer for mark/sweep state.
++// leave reg==nil at end because alive==nil.
+ var alive interface{} = nil
+ var dead interface{} = 1
+ 
+-/* mark all code reachable from firstp as alive */
++// mark all code reachable from firstp as alive
+ func mark(firstp *obj.Prog) {
+ 	for p := firstp; p != nil; p = p.Link {
+ 		if p.Opt != dead {
+@@ -335,21 +333,19 @@ func Flowend(graph *Graph) {
+ 	}
+ }
+ 
+-/*
+- * find looping structure
+- *
+- * 1) find reverse postordering
+- * 2) find approximate dominators,
+- *	the actual dominators if the flow graph is reducible
+- *	otherwise, dominators plus some other non-dominators.
+- *	See Matthew S. Hecht and Jeffrey D. Ullman,
+- *	"Analysis of a Simple Algorithm for Global Data Flow Problems",
+- *	Conf.  Record of ACM Symp. on Principles of Prog. Langs, Boston, Massachusetts,
+- *	Oct. 1-3, 1973, pp.  207-217.
+- * 3) find all nodes with a predecessor dominated by the current node.
+- *	such a node is a loop head.
+- *	recursively, all preds with a greater rpo number are in the loop
+- */
++// find looping structure
++//
++// 1) find reverse postordering
++// 2) find approximate dominators,
++//	the actual dominators if the flow graph is reducible
++//	otherwise, dominators plus some other non-dominators.
++//	See Matthew S. Hecht and Jeffrey D. Ullman,
++//	"Analysis of a Simple Algorithm for Global Data Flow Problems",
++//	Conf.  Record of ACM Symp. on Principles of Prog. Langs, Boston, Massachusetts,
++//	Oct. 1-3, 1973, pp.  207-217.
++// 3) find all nodes with a predecessor dominated by the current node.
++//	such a node is a loop head.
++//	recursively, all preds with a greater rpo number are in the loop
+ func postorder(r *Flow, rpo2r []*Flow, n int32) int32 {
+ 	r.Rpo = 1
+ 	r1 := r.S1
+@@ -903,7 +899,7 @@ func nilopt(firstp *obj.Prog) {
+ 		return
+ 	}
+ 
+-	if Debug_checknil > 1 { /* || strcmp(curfn->nname->sym->name, "f1") == 0 */
++	if Debug_checknil > 1 { // || strcmp(curfn->nname->sym->name, "f1") == 0
+ 		Dumpit("nilopt", g.Start, 0)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 0beee4e492..4386bcfeed 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -6,9 +6,7 @@ package gc
+ 
+ import "cmd/internal/obj"
+ 
+-/*
+- * range
+- */
++// range
+ func typecheckrange(n *Node) {
+ 	var toomany int
+ 	var why string
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index d507949f60..99ad619d8c 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -12,9 +12,7 @@ import (
+ 	"sort"
+ )
+ 
+-/*
+- * runtime interface and reflection data structures
+- */
++// runtime interface and reflection data structures
+ var signatlist *NodeList
+ 
+ // byMethodNameAndPackagePath sorts method signatures by name, then package path.
+@@ -237,10 +235,8 @@ func hiter(t *Type) *Type {
+ 	return i
+ }
+ 
+-/*
+- * f is method type, with receiver.
+- * return function type, receiver as first argument (or not).
+- */
++// f is method type, with receiver.
++// return function type, receiver as first argument (or not).
+ func methodfunc(f *Type, receiver *Type) *Type {
+ 	var in *NodeList
+ 	if receiver != nil {
+@@ -477,10 +473,8 @@ func dgopkgpath(s *Sym, ot int, pkg *Pkg) int {
+ 	return dsymptr(s, ot, pkg.Pathsym, 0)
+ }
+ 
+-/*
+- * uncommonType
+- * ../../runtime/type.go:/uncommonType
+- */
++// uncommonType
++// ../../runtime/type.go:/uncommonType
+ func dextratype(sym *Sym, off int, t *Type, ptroff int) int {
+ 	m := methods(t)
+ 	if t.Sym == nil && len(m) == 0 {
+@@ -686,10 +680,8 @@ func typeptrdata(t *Type) int64 {
+ 	}
+ }
+ 
+-/*
+- * commonType
+- * ../../runtime/type.go:/commonType
+- */
++// commonType
++// ../../runtime/type.go:/commonType
+ 
+ var dcommontype_algarray *Sym
+ 
+@@ -1040,7 +1032,7 @@ ok:
+ 			ot = dsymptr(s, ot, s1, 0)
+ 		}
+ 
+-		// ../../runtime/type.go:/ChanType
++	// ../../runtime/type.go:/ChanType
+ 	case TCHAN:
+ 		s1 := dtypesym(t.Type)
+ 
+@@ -1114,7 +1106,7 @@ ok:
+ 			ot = dsymptr(s, ot, dtypesym(a.type_), 0)
+ 		}
+ 
+-		// ../../../runtime/type.go:/MapType
++	// ../../../runtime/type.go:/MapType
+ 	case TMAP:
+ 		s1 := dtypesym(t.Down)
+ 
+@@ -1162,7 +1154,7 @@ ok:
+ 		xt = ot - 2*Widthptr
+ 		ot = dsymptr(s, ot, s1, 0)
+ 
+-		// ../../runtime/type.go:/StructType
++	// ../../runtime/type.go:/StructType
+ 	// for security, only the exported fields.
+ 	case TSTRUCT:
+ 		n := 0
+diff --git a/src/cmd/compile/internal/gc/reg.go b/src/cmd/compile/internal/gc/reg.go
+index ff6ec321a1..8ae4633092 100644
+--- a/src/cmd/compile/internal/gc/reg.go
++++ b/src/cmd/compile/internal/gc/reg.go
+@@ -218,10 +218,8 @@ func walkvardef(n *Node, f *Flow, active int) {
+ 	}
+ }
+ 
+-/*
+- * add mov b,rn
+- * just after r
+- */
++// add mov b,rn
++// just after r
+ func addmove(r *Flow, bn int, rn int, f int) {
+ 	p1 := Ctxt.NewProg()
+ 	Clearp(p1)
+@@ -282,9 +280,7 @@ func overlap_reg(o1 int64, w1 int, o2 int64, w2 int) bool {
+ }
+ 
+ func mkvar(f *Flow, a *obj.Addr) Bits {
+-	/*
+-	 * mark registers used
+-	 */
++	// mark registers used
+ 	if a.Type == obj.TYPE_NONE {
+ 		return zbits
+ 	}
+@@ -460,7 +456,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
+ 	}
+ 
+ 	// Treat values with their address taken as live at calls,
+-	// because the garbage collector's liveness analysis in ../gc/plive.c does.
++	// because the garbage collector's liveness analysis in plive.go does.
+ 	// These must be consistent or else we will elide stores and the garbage
+ 	// collector will see uninitialized data.
+ 	// The typical case where our own analysis is out of sync is when the
+@@ -473,7 +469,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
+ 	// sets addrtaken, even though it ends up not being actually shared.
+ 	// If we were better about _ elision, _ = &x would suffice too.
+ 	// The broader := in a closure problem is mentioned in a comment in
+-	// closure.c:/^typecheckclosure and dcl.c:/^oldname.
++	// closure.go:/^typecheckclosure and dcl.go:/^oldname.
+ 	if node.Addrtaken {
+ 		v.addr = 1
+ 	}
+@@ -1036,11 +1032,9 @@ func Dumpit(str string, r0 *Flow, isreg int) {
+ func regopt(firstp *obj.Prog) {
+ 	mergetemp(firstp)
+ 
+-	/*
+-	 * control flow is more complicated in generated go code
+-	 * than in generated c code.  define pseudo-variables for
+-	 * registers, so we have complete register usage information.
+-	 */
++	// control flow is more complicated in generated go code
++	// than in generated c code.  define pseudo-variables for
++	// registers, so we have complete register usage information.
+ 	var nreg int
+ 	regnames := Thearch.Regnames(&nreg)
+ 
+@@ -1063,12 +1057,10 @@ func regopt(firstp *obj.Prog) {
+ 	ivar = zbits
+ 	ovar = zbits
+ 
+-	/*
+-	 * pass 1
+-	 * build aux data structure
+-	 * allocate pcs
+-	 * find use and set of variables
+-	 */
++	// pass 1
++	// build aux data structure
++	// allocate pcs
++	// find use and set of variables
+ 	g := Flowstart(firstp, func() interface{} { return new(Reg) })
+ 	if g == nil {
+ 		for i := 0; i < nvar; i++ {
+@@ -1159,23 +1151,19 @@ func regopt(firstp *obj.Prog) {
+ 		Dumpit("pass1", firstf, 1)
+ 	}
+ 
+-	/*
+-	 * pass 2
+-	 * find looping structure
+-	 */
++	// pass 2
++	// find looping structure
+ 	flowrpo(g)
+ 
+ 	if Debug['R'] != 0 && Debug['v'] != 0 {
+ 		Dumpit("pass2", firstf, 1)
+ 	}
+ 
+-	/*
+-	 * pass 2.5
+-	 * iterate propagating fat vardef covering forward
+-	 * r->act records vars with a VARDEF since the last CALL.
+-	 * (r->act will be reused in pass 5 for something else,
+-	 * but we'll be done with it by then.)
+-	 */
++	// pass 2.5
++	// iterate propagating fat vardef covering forward
++	// r->act records vars with a VARDEF since the last CALL.
++	// (r->act will be reused in pass 5 for something else,
++	// but we'll be done with it by then.)
+ 	active := 0
+ 
+ 	for f := firstf; f != nil; f = f.Link {
+@@ -1192,11 +1180,9 @@ func regopt(firstp *obj.Prog) {
+ 		}
+ 	}
+ 
+-	/*
+-	 * pass 3
+-	 * iterate propagating usage
+-	 * 	back until flow graph is complete
+-	 */
++	// pass 3
++	// iterate propagating usage
++	// 	back until flow graph is complete
+ 	var f1 *Flow
+ 	var i int
+ 	var f *Flow
+@@ -1212,7 +1198,7 @@ loop1:
+ 		}
+ 	}
+ 
+-	/* pick up unreachable code */
++	// pick up unreachable code
+ loop11:
+ 	i = 0
+ 
+@@ -1235,11 +1221,9 @@ loop11:
+ 		Dumpit("pass3", firstf, 1)
+ 	}
+ 
+-	/*
+-	 * pass 4
+-	 * iterate propagating register/variable synchrony
+-	 * 	forward until graph is complete
+-	 */
++	// pass 4
++	// iterate propagating register/variable synchrony
++	// 	forward until graph is complete
+ loop2:
+ 	change = 0
+ 
+@@ -1255,10 +1239,8 @@ loop2:
+ 		Dumpit("pass4", firstf, 1)
+ 	}
+ 
+-	/*
+-	 * pass 4.5
+-	 * move register pseudo-variables into regu.
+-	 */
++	// pass 4.5
++	// move register pseudo-variables into regu.
+ 	mask := uint64((1 << uint(nreg)) - 1)
+ 	for f := firstf; f != nil; f = f.Link {
+ 		r := f.Data.(*Reg)
+@@ -1278,11 +1260,9 @@ loop2:
+ 		Dumpit("pass4.5", firstf, 1)
+ 	}
+ 
+-	/*
+-	 * pass 5
+-	 * isolate regions
+-	 * calculate costs (paint1)
+-	 */
++	// pass 5
++	// isolate regions
++	// calculate costs (paint1)
+ 	var bit Bits
+ 	if f := firstf; f != nil {
+ 		r := f.Data.(*Reg)
+@@ -1358,11 +1338,9 @@ loop2:
+ 		Dumpit("pass5", firstf, 1)
+ 	}
+ 
+-	/*
+-	 * pass 6
+-	 * determine used registers (paint2)
+-	 * replace code (paint3)
+-	 */
++	// pass 6
++	// determine used registers (paint2)
++	// replace code (paint3)
+ 	if Debug['R'] != 0 && Debug['v'] != 0 {
+ 		fmt.Printf("\nregisterizing\n")
+ 	}
+@@ -1386,9 +1364,7 @@ loop2:
+ 		}
+ 	}
+ 
+-	/*
+-	 * free aux structures. peep allocates new ones.
+-	 */
++	// free aux structures. peep allocates new ones.
+ 	for i := 0; i < nvar; i++ {
+ 		vars[i].node.SetOpt(nil)
+ 	}
+@@ -1404,17 +1380,13 @@ loop2:
+ 		firstf = nil
+ 	}
+ 
+-	/*
+-	 * pass 7
+-	 * peep-hole on basic block
+-	 */
++	// pass 7
++	// peep-hole on basic block
+ 	if Debug['R'] == 0 || Debug['P'] != 0 {
+ 		Thearch.Peep(firstp)
+ 	}
+ 
+-	/*
+-	 * eliminate nops
+-	 */
++	// eliminate nops
+ 	for p := firstp; p != nil; p = p.Link {
+ 		for p.Link != nil && p.Link.As == obj.ANOP {
+ 			p.Link = p.Link.Link
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 83f53c1de1..e770c8f18d 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -4,9 +4,7 @@
+ 
+ package gc
+ 
+-/*
+- * select
+- */
++// select
+ func typecheckselect(sel *Node) {
+ 	var ncase *Node
+ 	var n *Node
+@@ -109,7 +107,7 @@ func walkselect(sel *Node) {
+ 	}
+ 
+ 	// optimization: one-case select: single op.
+-	// TODO(rsc): Reenable optimization once order.c can handle it.
++	// TODO(rsc): Reenable optimization once order.go can handle it.
+ 	// golang.org/issue/7672.
+ 	if i == 1 {
+ 		cas := sel.List.N
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index c63b775f00..bfce8e95d0 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -9,9 +9,7 @@ import (
+ 	"fmt"
+ )
+ 
+-/*
+- * static initialization
+- */
++// static initialization
+ const (
+ 	InitNotStarted = 0
+ 	InitDone       = 1
+@@ -248,10 +246,8 @@ func initfix(l *NodeList) *NodeList {
+ 	return lout
+ }
+ 
+-/*
+- * compilation of top-level (static) assignments
+- * into DATA statements if at all possible.
+- */
++// compilation of top-level (static) assignments
++// into DATA statements if at all possible.
+ func staticinit(n *Node, out **NodeList) bool {
+ 	if n.Op != ONAME || n.Class != PEXTERN || n.Name.Defn == nil || n.Name.Defn.Op != OAS {
+ 		Fatalf("staticinit")
+@@ -489,13 +485,11 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 	return false
+ }
+ 
+-/*
+- * from here down is the walk analysis
+- * of composite literals.
+- * most of the work is to generate
+- * data statements for the constant
+- * part of the composite literal.
+- */
++// from here down is the walk analysis
++// of composite literals.
++// most of the work is to generate
++// data statements for the constant
++// part of the composite literal.
+ func staticname(t *Type, ctxt int) *Node {
+ 	n := newname(Lookupf("statictmp_%.4d", statuniqgen))
+ 	statuniqgen++
+@@ -765,7 +759,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 	// set auto to point at new temp or heap (3 assign)
+ 	var a *Node
+ 	if x := prealloc[n]; x != nil {
+-		// temp allocated during order.c for dddarg
++		// temp allocated during order.go for dddarg
+ 		x.Type = t
+ 
+ 		if vstat == nil {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 33b7dba81b..ca8a89c549 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -846,10 +846,8 @@ func isideal(t *Type) bool {
+ 	return false
+ }
+ 
+-/*
+- * given receiver of type t (t == r or t == *r)
+- * return type to hang methods off (r).
+- */
++// given receiver of type t (t == r or t == *r)
++// return type to hang methods off (r).
+ func methtype(t *Type, mustname int) *Type {
+ 	if t == nil {
+ 		return nil
+@@ -1383,9 +1381,7 @@ func substAny(tp **Type, types *[]*Type) {
+ 	}
+ }
+ 
+-/*
+- * Is this a 64-bit type?
+- */
++// Is this a 64-bit type?
+ func Is64(t *Type) bool {
+ 	if t == nil {
+ 		return false
+@@ -1398,9 +1394,7 @@ func Is64(t *Type) bool {
+ 	return false
+ }
+ 
+-/*
+- * Is a conversion between t1 and t2 a no-op?
+- */
++// Is a conversion between t1 and t2 a no-op?
+ func Noconv(t1 *Type, t2 *Type) bool {
+ 	e1 := int(Simtype[t1.Etype])
+ 	e2 := int(Simtype[t2.Etype])
+@@ -1501,18 +1495,16 @@ func syslook(name string, copy int) *Node {
+ 	return n
+ }
+ 
+-/*
+- * compute a hash value for type t.
+- * if t is a method type, ignore the receiver
+- * so that the hash can be used in interface checks.
+- * %T already contains
+- * all the necessary logic to generate a representation
+- * of the type that completely describes it.
+- * using smprint here avoids duplicating that code.
+- * using md5 here is overkill, but i got tired of
+- * accidental collisions making the runtime think
+- * two types are equal when they really aren't.
+- */
++// compute a hash value for type t.
++// if t is a method type, ignore the receiver
++// so that the hash can be used in interface checks.
++// %T already contains
++// all the necessary logic to generate a representation
++// of the type that completely describes it.
++// using smprint here avoids duplicating that code.
++// using md5 here is overkill, but i got tired of
++// accidental collisions making the runtime think
++// two types are equal when they really aren't.
+ func typehash(t *Type) uint32 {
+ 	var p string
+ 
+@@ -1613,12 +1605,10 @@ func printframenode(n *Node) {
+ 	}
+ }
+ 
+-/*
+- * calculate sethi/ullman number
+- * roughly how many registers needed to
+- * compile a node. used to compile the
+- * hardest side first to minimize registers.
+- */
++// calculate sethi/ullman number
++// roughly how many registers needed to
++// compile a node. used to compile the
++// hardest side first to minimize registers.
+ func ullmancalc(n *Node) {
+ 	if n == nil {
+ 		return
+@@ -1695,9 +1685,7 @@ func badtype(o int, tl *Type, tr *Type) {
+ 	Yyerror("illegal types for operand: %v%s", Oconv(int(o), 0), s)
+ }
+ 
+-/*
+- * iterator to walk a structure declaration
+- */
++// iterator to walk a structure declaration
+ func Structfirst(s *Iter, nn **Type) *Type {
+ 	var t *Type
+ 
+@@ -1749,9 +1737,7 @@ func structnext(s *Iter) *Type {
+ 	return t
+ }
+ 
+-/*
+- * iterator to this and inargs in a function
+- */
++// iterator to this and inargs in a function
+ func funcfirst(s *Iter, t *Type) *Type {
+ 	var fp *Type
+ 
+@@ -1863,10 +1849,8 @@ func Brrev(a int) int {
+ 	return a
+ }
+ 
+-/*
+- * return side effect-free n, appending side effects to init.
+- * result is assignable if n is.
+- */
++// return side effect-free n, appending side effects to init.
++// result is assignable if n is.
+ func safeexpr(n *Node, init **NodeList) *Node {
+ 	if n == nil {
+ 		return nil
+@@ -1935,10 +1919,8 @@ func copyexpr(n *Node, t *Type, init **NodeList) *Node {
+ 	return l
+ }
+ 
+-/*
+- * return side-effect free and cheap n, appending side effects to init.
+- * result may not be assignable.
+- */
++// return side-effect free and cheap n, appending side effects to init.
++// result may not be assignable.
+ func cheapexpr(n *Node, init **NodeList) *Node {
+ 	switch n.Op {
+ 	case ONAME, OLITERAL:
+@@ -1963,14 +1945,10 @@ func Setmaxarg(t *Type, extra int32) {
+ 	}
+ }
+ 
+-/*
+- * unicode-aware case-insensitive strcmp
+- */
++// unicode-aware case-insensitive strcmp
+ 
+-/*
+- * code to resolve elided DOTs
+- * in embedded types
+- */
++// code to resolve elided DOTs
++// in embedded types
+ 
+ // search depth 0 --
+ // return count of fields+methods
+@@ -2103,16 +2081,14 @@ func adddot(n *Node) *Node {
+ 	return n
+ }
+ 
+-/*
+- * code to help generate trampoline
+- * functions for methods on embedded
+- * subtypes.
+- * these are approx the same as
+- * the corresponding adddot routines
+- * except that they expect to be called
+- * with unique tasks and they return
+- * the actual methods.
+- */
++// code to help generate trampoline
++// functions for methods on embedded
++// subtypes.
++// these are approx the same as
++// the corresponding adddot routines
++// except that they expect to be called
++// with unique tasks and they return
++// the actual methods.
+ type Symlink struct {
+ 	field     *Type
+ 	link      *Symlink
+@@ -2260,9 +2236,7 @@ func expandmeth(t *Type) {
+ 	}
+ }
+ 
+-/*
+- * Given funarg struct list, return list of ODCLFIELD Node fn args.
+- */
++// Given funarg struct list, return list of ODCLFIELD Node fn args.
+ func structargs(tl **Type, mustname int) *NodeList {
+ 	var savet Iter
+ 	var a *Node
+@@ -2293,29 +2267,27 @@ func structargs(tl **Type, mustname int) *NodeList {
+ 	return args
+ }
+ 
+-/*
+- * Generate a wrapper function to convert from
+- * a receiver of type T to a receiver of type U.
+- * That is,
+- *
+- *	func (t T) M() {
+- *		...
+- *	}
+- *
+- * already exists; this function generates
+- *
+- *	func (u U) M() {
+- *		u.M()
+- *	}
+- *
+- * where the types T and U are such that u.M() is valid
+- * and calls the T.M method.
+- * The resulting function is for use in method tables.
+- *
+- *	rcvr - U
+- *	method - M func (t T)(), a TFIELD type struct
+- *	newnam - the eventual mangled name of this function
+- */
++// Generate a wrapper function to convert from
++// a receiver of type T to a receiver of type U.
++// That is,
++//
++//	func (t T) M() {
++//		...
++//	}
++//
++// already exists; this function generates
++//
++//	func (u U) M() {
++//		u.M()
++//	}
++//
++// where the types T and U are such that u.M() is valid
++// and calls the T.M method.
++// The resulting function is for use in method tables.
++//
++//	rcvr - U
++//	method - M func (t T)(), a TFIELD type struct
++//	newnam - the eventual mangled name of this function
+ 
+ var genwrapper_linehistdone int = 0
+ 
+@@ -2511,9 +2483,7 @@ func hashfor(t *Type) *Node {
+ 	return n
+ }
+ 
+-/*
+- * Generate a helper function to compute the hash of a value of type t.
+- */
++// Generate a helper function to compute the hash of a value of type t.
+ func genhash(sym *Sym, t *Type) {
+ 	if Debug['r'] != 0 {
+ 		fmt.Printf("genhash %v %v\n", sym, t)
+@@ -2748,9 +2718,7 @@ func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
+ 	return nif
+ }
+ 
+-/*
+- * Generate a helper function to check equality of two values of type t.
+- */
++// Generate a helper function to check equality of two values of type t.
+ func geneq(sym *Sym, t *Type) {
+ 	if Debug['r'] != 0 {
+ 		fmt.Printf("geneq %v %v\n", sym, t)
+@@ -3020,11 +2988,9 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool
+ 	return true
+ }
+ 
+-/*
+- * even simpler simtype; get rid of ptr, bool.
+- * assuming that the front end has rejected
+- * all the invalid conversions (like ptr -> bool)
+- */
++// even simpler simtype; get rid of ptr, bool.
++// assuming that the front end has rejected
++// all the invalid conversions (like ptr -> bool)
+ func Simsimtype(t *Type) int {
+ 	if t == nil {
+ 		return 0
+@@ -3062,9 +3028,7 @@ func liststmt(l *NodeList) *Node {
+ 	return n
+ }
+ 
+-/*
+- * return nelem of list
+- */
++// return nelem of list
+ func structcount(t *Type) int {
+ 	var s Iter
+ 
+@@ -3075,11 +3039,9 @@ func structcount(t *Type) int {
+ 	return v
+ }
+ 
+-/*
+- * return power of 2 of the constant
+- * operand. -1 if it is not a power of 2.
+- * 1000+ if it is a -(power of 2)
+- */
++// return power of 2 of the constant
++// operand. -1 if it is not a power of 2.
++// 1000+ if it is a -(power of 2)
+ func powtwo(n *Node) int {
+ 	if n == nil || n.Op != OLITERAL || n.Type == nil {
+ 		return -1
+@@ -3113,12 +3075,10 @@ func powtwo(n *Node) int {
+ 	return -1
+ }
+ 
+-/*
+- * return the unsigned type for
+- * a signed integer type.
+- * returns T if input is not a
+- * signed integer type.
+- */
++// return the unsigned type for
++// a signed integer type.
++// returns T if input is not a
++// signed integer type.
+ func tounsigned(t *Type) *Type {
+ 	// this is types[et+1], but not sure
+ 	// that this relation is immutable
+@@ -3146,10 +3106,8 @@ func tounsigned(t *Type) *Type {
+ 	return t
+ }
+ 
+-/*
+- * magic number for signed division
+- * see hacker's delight chapter 10
+- */
++// magic number for signed division
++// see hacker's delight chapter 10
+ func Smagic(m *Magic) {
+ 	var mask uint64
+ 
+@@ -3243,10 +3201,8 @@ func Smagic(m *Magic) {
+ 	m.S = p - m.W
+ }
+ 
+-/*
+- * magic number for unsigned division
+- * see hacker's delight chapter 10
+- */
++// magic number for unsigned division
++// see hacker's delight chapter 10
+ func Umagic(m *Magic) {
+ 	var mask uint64
+ 
+@@ -3353,15 +3309,13 @@ func ngotype(n *Node) *Sym {
+ 	return nil
+ }
+ 
+-/*
+- * Convert raw string to the prefix that will be used in the symbol
+- * table.  All control characters, space, '%' and '"', as well as
+- * non-7-bit clean bytes turn into %xx.  The period needs escaping
+- * only in the last segment of the path, and it makes for happier
+- * users if we escape that as little as possible.
+- *
+- * If you edit this, edit ../../debug/goobj/read.go:/importPathToPrefix too.
+- */
++// Convert raw string to the prefix that will be used in the symbol
++// table.  All control characters, space, '%' and '"', as well as
++// non-7-bit clean bytes turn into %xx.  The period needs escaping
++// only in the last segment of the path, and it makes for happier
++// users if we escape that as little as possible.
++//
++// If you edit this, edit ../../debug/goobj/read.go:/importPathToPrefix too.
+ func pathtoprefix(s string) string {
+ 	slash := strings.LastIndex(s, "/")
+ 	for i := 0; i < len(s); i++ {
+@@ -3479,10 +3433,8 @@ func checknil(x *Node, init **NodeList) {
+ 	*init = list(*init, n)
+ }
+ 
+-/*
+- * Can this type be stored directly in an interface word?
+- * Yes, if the representation is a single pointer.
+- */
++// Can this type be stored directly in an interface word?
++// Yes, if the representation is a single pointer.
+ func isdirectiface(t *Type) bool {
+ 	switch t.Etype {
+ 	case TPTR32,
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index c2c53f3ea5..1d9ad55574 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -11,18 +11,14 @@ import (
+ 	"strings"
+ )
+ 
+-/*
+- * type check the whole tree of an expression.
+- * calculates expression types.
+- * evaluates compile time constants.
+- * marks variables that escape the local frame.
+- * rewrites n->op to be more specific in some cases.
+- */
++// type check the whole tree of an expression.
++// calculates expression types.
++// evaluates compile time constants.
++// marks variables that escape the local frame.
++// rewrites n->op to be more specific in some cases.
+ var typecheckdefstack []*Node
+ 
+-/*
+- * resolve ONONAME to definition, if any.
+- */
++// resolve ONONAME to definition, if any.
+ func resolve(n *Node) *Node {
+ 	if n != nil && n.Op == ONONAME && n.Sym != nil {
+ 		r := n.Sym.Def
+@@ -194,9 +190,7 @@ func typecheck(np **Node, top int) *Node {
+ 	return n
+ }
+ 
+-/*
+- * does n contain a call or receive operation?
+- */
++// does n contain a call or receive operation?
+ func callrecv(n *Node) bool {
+ 	if n == nil {
+ 		return false
+@@ -275,9 +269,7 @@ OpSwitch:
+ 
+ 		Fatalf("typecheck %v", Oconv(int(n.Op), 0))
+ 
+-		/*
+-		 * names
+-		 */
++	// names
+ 	case OLITERAL:
+ 		ok |= Erv
+ 
+@@ -327,9 +319,7 @@ OpSwitch:
+ 	case ODDD:
+ 		break
+ 
+-		/*
+-		 * types (OIND is with exprs)
+-		 */
++	// types (OIND is with exprs)
+ 	case OTYPE:
+ 		ok |= Etype
+ 
+@@ -454,9 +444,7 @@ OpSwitch:
+ 			return
+ 		}
+ 
+-		/*
+-		 * type or expr
+-		 */
++	// type or expr
+ 	case OIND:
+ 		ntop := Erv | Etype
+ 
+@@ -492,9 +480,7 @@ OpSwitch:
+ 		n.Type = t.Type
+ 		break OpSwitch
+ 
+-		/*
+-		 * arithmetic exprs
+-		 */
++	// arithmetic exprs
+ 	case OASOP,
+ 		OADD,
+ 		OAND,
+@@ -778,9 +764,7 @@ OpSwitch:
+ 		n.Type = t
+ 		break OpSwitch
+ 
+-		/*
+-		 * exprs
+-		 */
++	// exprs
+ 	case OADDR:
+ 		ok |= Erv
+ 
+@@ -1247,9 +1231,7 @@ OpSwitch:
+ 		}
+ 		break OpSwitch
+ 
+-		/*
+-		 * call and call like
+-		 */
++	// call and call like
+ 	case OCALL:
+ 		l := n.Left
+ 
+@@ -2024,9 +2006,7 @@ OpSwitch:
+ 		typecheck(&n.Left, Erv)
+ 		break OpSwitch
+ 
+-		/*
+-		 * statements
+-		 */
++	// statements
+ 	case OAS:
+ 		ok |= Etop
+ 
+@@ -2616,9 +2596,7 @@ func downcount(t *Type) int {
+ 	return n
+ }
+ 
+-/*
+- * typecheck assignment: type list = expression list
+- */
++// typecheck assignment: type list = expression list
+ func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList, desc func() string) {
+ 	var t *Type
+ 	var n *Node
+@@ -2795,9 +2773,7 @@ toomany:
+ 	goto out
+ }
+ 
+-/*
+- * type check composite
+- */
++// type check composite
+ func fielddup(n *Node, hash map[string]bool) {
+ 	if n.Op != ONAME {
+ 		Fatalf("fielddup: not ONAME")
+@@ -2944,7 +2920,7 @@ func typecheckcomplit(np **Node) {
+ 	*norig = *n
+ 
+ 	setlineno(n.Right)
+-	l := typecheck(&n.Right, Etype|Ecomplit) /* sic */
++	l := typecheck(&n.Right, Etype|Ecomplit) // sic
+ 	t := l.Type
+ 	if t == nil {
+ 		n.Type = nil
+@@ -3180,9 +3156,7 @@ func typecheckcomplit(np **Node) {
+ 	return
+ }
+ 
+-/*
+- * lvalue etc
+- */
++// lvalue etc
+ func islvalue(n *Node) bool {
+ 	switch n.Op {
+ 	case OINDEX:
+@@ -3281,11 +3255,9 @@ func samesafeexpr(l *Node, r *Node) bool {
+ 	return false
+ }
+ 
+-/*
+- * type check assignment.
+- * if this assignment is the definition of a var on the left side,
+- * fill in the var's type.
+- */
++// type check assignment.
++// if this assignment is the definition of a var on the left side,
++// fill in the var's type.
+ func typecheckas(n *Node) {
+ 	// delicate little dance.
+ 	// the definition of n may refer to this assignment
+@@ -3454,9 +3426,7 @@ out:
+ 	}
+ }
+ 
+-/*
+- * type check function definition
+- */
++// type check function definition
+ func typecheckfunc(n *Node) {
+ 	typecheck(&n.Func.Nname, Erv|Easgn)
+ 	t := n.Func.Nname.Type
+diff --git a/src/cmd/compile/internal/gc/unsafe.go b/src/cmd/compile/internal/gc/unsafe.go
+index 44a658fd5b..8884374bd5 100644
+--- a/src/cmd/compile/internal/gc/unsafe.go
++++ b/src/cmd/compile/internal/gc/unsafe.go
+@@ -6,13 +6,11 @@ package gc
+ 
+ import "cmd/internal/obj"
+ 
+-/*
+- * look for
+- *	unsafe.Sizeof
+- *	unsafe.Offsetof
+- *	unsafe.Alignof
+- * rewrite with a constant
+- */
++// look for
++//	unsafe.Sizeof
++//	unsafe.Offsetof
++//	unsafe.Alignof
++// rewrite with a constant
+ func unsafenmagic(nn *Node) *Node {
+ 	fn := nn.Left
+ 	args := nn.List
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index b1068dc370..7b327fc492 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -366,13 +366,11 @@ func isSmallMakeSlice(n *Node) bool {
+ 	return Smallintconst(l) && Smallintconst(r) && (t.Type.Width == 0 || Mpgetfix(r.Val().U.(*Mpint)) < (1<<16)/t.Type.Width)
+ }
+ 
+-/*
+- * walk the whole tree of the body of an
+- * expression or simple statement.
+- * the types expressions are calculated.
+- * compile-time constants are evaluated.
+- * complex side effects like statements are appended to init
+- */
++// walk the whole tree of the body of an
++// expression or simple statement.
++// the types expressions are calculated.
++// compile-time constants are evaluated.
++// complex side effects like statements are appended to init
+ func walkexprlist(l *NodeList, init **NodeList) {
+ 	for ; l != nil; l = l.Next {
+ 		walkexpr(&l.N, init)
+@@ -1015,16 +1013,15 @@ func walkexpr(np **Node, init **NodeList) {
+ 			ll = list(ll, l)
+ 
+ 			if isdirectiface(n.Left.Type) {
+-				/* For pointer types, we can make a special form of optimization
+-				 *
+-				 * These statements are put onto the expression init list:
+-				 * 	Itab *tab = atomicloadtype(&cache);
+-				 * 	if(tab == nil)
+-				 * 		tab = typ2Itab(type, itype, &cache);
+-				 *
+-				 * The CONVIFACE expression is replaced with this:
+-				 * 	OEFACE{tab, ptr};
+-				 */
++				// For pointer types, we can make a special form of optimization
++				//
++				// These statements are put onto the expression init list:
++				// 	Itab *tab = atomicloadtype(&cache);
++				// 	if(tab == nil)
++				// 		tab = typ2Itab(type, itype, &cache);
++				//
++				// The CONVIFACE expression is replaced with this:
++				// 	OEFACE{tab, ptr};
+ 				l := temp(Ptrto(Types[TUINT8]))
+ 
+ 				n1 := Nod(OAS, l, sym.Def)
+@@ -1140,9 +1137,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		walkexpr(&n.Left, init)
+ 		walkexpr(&n.Right, init)
+ 
+-		/*
+-		 * rewrite complex div into function call.
+-		 */
++		// rewrite complex div into function call.
+ 		et := int(n.Left.Type.Etype)
+ 
+ 		if Iscomplex[et] && n.Op == ODIV {
+@@ -1160,10 +1155,8 @@ func walkexpr(np **Node, init **NodeList) {
+ 		// Try rewriting as shifts or magic multiplies.
+ 		walkdiv(&n, init)
+ 
+-		/*
+-		 * rewrite 64-bit div and mod into function calls
+-		 * on 32-bit architectures.
+-		 */
++		// rewrite 64-bit div and mod into function calls
++		// on 32-bit architectures.
+ 		switch n.Op {
+ 		case OMOD, ODIV:
+ 			if Widthreg >= 8 || (et != TUINT64 && et != TINT64) {
+@@ -1683,11 +1676,9 @@ func ascompatee1(op int, l *Node, r *Node, init **NodeList) *Node {
+ }
+ 
+ func ascompatee(op int, nl *NodeList, nr *NodeList, init **NodeList) *NodeList {
+-	/*
+-	 * check assign expression list to
+-	 * a expression list. called in
+-	 *	expr-list = expr-list
+-	 */
++	// check assign expression list to
++	// a expression list. called in
++	//	expr-list = expr-list
+ 
+ 	// ensure order of evaluation for function calls
+ 	for ll := nl; ll != nil; ll = ll.Next {
+@@ -1715,12 +1706,10 @@ func ascompatee(op int, nl *NodeList, nr *NodeList, init **NodeList) *NodeList {
+ 	return nn
+ }
+ 
+-/*
+- * l is an lv and rt is the type of an rv
+- * return 1 if this implies a function call
+- * evaluating the lv or a function call
+- * in the conversion of the types
+- */
++// l is an lv and rt is the type of an rv
++// return 1 if this implies a function call
++// evaluating the lv or a function call
++// in the conversion of the types
+ func fncall(l *Node, rt *Type) bool {
+ 	if l.Ullman >= UINF || l.Op == OINDEXMAP {
+ 		return true
+@@ -1742,11 +1731,9 @@ func ascompatet(op int, nl *NodeList, nr **Type, fp int, init **NodeList) *NodeL
+ 	var ll *NodeList
+ 	var saver Iter
+ 
+-	/*
+-	 * check assign type list to
+-	 * a expression list. called in
+-	 *	expr-list = func()
+-	 */
++	// check assign type list to
++	// a expression list. called in
++	//	expr-list = func()
+ 	r := Structfirst(&saver, nr)
+ 
+ 	var nn *NodeList
+@@ -1796,9 +1783,7 @@ func ascompatet(op int, nl *NodeList, nr **Type, fp int, init **NodeList) *NodeL
+ 	return concat(nn, mm)
+ }
+ 
+-/*
+-* package all the arguments that match a ... T parameter into a []T.
+- */
++// package all the arguments that match a ... T parameter into a []T.
+ func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList, ddd *Node) *NodeList {
+ 	esc := uint16(EscUnknown)
+ 	if ddd != nil {
+@@ -1832,9 +1817,7 @@ func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList
+ 	return nn
+ }
+ 
+-/*
+- * helpers for shape errors
+- */
++// helpers for shape errors
+ func dumptypes(nl **Type, what string) string {
+ 	var savel Iter
+ 
+@@ -1878,12 +1861,10 @@ func dumpnodetypes(l *NodeList, what string) string {
+ 	return fmt_
+ }
+ 
+-/*
+- * check assign expression list to
+- * a type list. called in
+- *	return expr-list
+- *	func(expr-list)
+- */
++// check assign expression list to
++// a type list. called in
++//	return expr-list
++//	func(expr-list)
+ func ascompatte(op int, call *Node, isddd bool, nl **Type, lr *NodeList, fp int, init **NodeList) *NodeList {
+ 	var savel Iter
+ 
+@@ -2286,14 +2267,12 @@ out:
+ 	return n
+ }
+ 
+-/*
+- * from ascompat[te]
+- * evaluating actual function arguments.
+- *	f(a,b)
+- * if there is exactly one function expr,
+- * then it is done first. otherwise must
+- * make temp variables
+- */
++// from ascompat[te]
++// evaluating actual function arguments.
++//	f(a,b)
++// if there is exactly one function expr,
++// then it is done first. otherwise must
++// make temp variables
+ func reorder1(all *NodeList) *NodeList {
+ 	var n *Node
+ 
+@@ -2350,14 +2329,12 @@ func reorder1(all *NodeList) *NodeList {
+ 	return concat(g, r)
+ }
+ 
+-/*
+- * from ascompat[ee]
+- *	a,b = c,d
+- * simultaneous assignment. there cannot
+- * be later use of an earlier lvalue.
+- *
+- * function calls have been removed.
+- */
++// from ascompat[ee]
++//	a,b = c,d
++// simultaneous assignment. there cannot
++// be later use of an earlier lvalue.
++//
++// function calls have been removed.
+ func reorder3(all *NodeList) *NodeList {
+ 	var l *Node
+ 
+@@ -2413,12 +2390,10 @@ func reorder3(all *NodeList) *NodeList {
+ 	return concat(early, all)
+ }
+ 
+-/*
+- * if the evaluation of *np would be affected by the
+- * assignments in all up to but not including stop,
+- * copy into a temporary during *early and
+- * replace *np with that temp.
+- */
++// if the evaluation of *np would be affected by the
++// assignments in all up to but not including stop,
++// copy into a temporary during *early and
++// replace *np with that temp.
+ func reorder3save(np **Node, all *NodeList, stop *NodeList, early **NodeList) {
+ 	n := *np
+ 	if !aliased(n, all, stop) {
+@@ -2432,10 +2407,8 @@ func reorder3save(np **Node, all *NodeList, stop *NodeList, early **NodeList) {
+ 	*np = q.Left
+ }
+ 
+-/*
+- * what's the outer value that a write to n affects?
+- * outer value means containing struct or array.
+- */
++// what's the outer value that a write to n affects?
++// outer value means containing struct or array.
+ func outervalue(n *Node) *Node {
+ 	for {
+ 		if n.Op == OXDOT {
+@@ -2457,10 +2430,8 @@ func outervalue(n *Node) *Node {
+ 	return n
+ }
+ 
+-/*
+- * Is it possible that the computation of n might be
+- * affected by writes in as up to but not including stop?
+- */
++// Is it possible that the computation of n might be
++// affected by writes in as up to but not including stop?
+ func aliased(n *Node, all *NodeList, stop *NodeList) bool {
+ 	if n == nil {
+ 		return false
+@@ -2521,11 +2492,9 @@ func aliased(n *Node, all *NodeList, stop *NodeList) bool {
+ 	return true
+ }
+ 
+-/*
+- * does the evaluation of n only refer to variables
+- * whose addresses have not been taken?
+- * (and no other memory)
+- */
++// does the evaluation of n only refer to variables
++// whose addresses have not been taken?
++// (and no other memory)
+ func varexpr(n *Node) bool {
+ 	if n == nil {
+ 		return true
+@@ -2574,9 +2543,7 @@ func varexpr(n *Node) bool {
+ 	return false
+ }
+ 
+-/*
+- * is the name l mentioned in r?
+- */
++// is the name l mentioned in r?
+ func vmatch2(l *Node, r *Node) bool {
+ 	if r == nil {
+ 		return false
+@@ -2604,14 +2571,10 @@ func vmatch2(l *Node, r *Node) bool {
+ 	return false
+ }
+ 
+-/*
+- * is any name mentioned in l also mentioned in r?
+- * called by sinit.go
+- */
++// is any name mentioned in l also mentioned in r?
++// called by sinit.go
+ func vmatch1(l *Node, r *Node) bool {
+-	/*
+-	 * isolate all left sides
+-	 */
++	// isolate all left sides
+ 	if l == nil || r == nil {
+ 		return false
+ 	}
+@@ -2649,11 +2612,9 @@ func vmatch1(l *Node, r *Node) bool {
+ 	return false
+ }
+ 
+-/*
+- * walk through argin parameters.
+- * generate and return code to allocate
+- * copies of escaped parameters to the heap.
+- */
++// walk through argin parameters.
++// generate and return code to allocate
++// copies of escaped parameters to the heap.
+ func paramstoheap(argin **Type, out int) *NodeList {
+ 	var savet Iter
+ 	var v *Node
+@@ -2699,9 +2660,7 @@ func paramstoheap(argin **Type, out int) *NodeList {
+ 	return nn
+ }
+ 
+-/*
+- * walk through argout parameters copying back to stack
+- */
++// walk through argout parameters copying back to stack
+ func returnsfromheap(argin **Type) *NodeList {
+ 	var savet Iter
+ 	var v *Node
+@@ -2718,11 +2677,9 @@ func returnsfromheap(argin **Type) *NodeList {
+ 	return nn
+ }
+ 
+-/*
+- * take care of migrating any function in/out args
+- * between the stack and the heap.  adds code to
+- * curfn's before and after lists.
+- */
++// take care of migrating any function in/out args
++// between the stack and the heap.  adds code to
++// curfn's before and after lists.
+ func heapmoves() {
+ 	lno := lineno
+ 	lineno = Curfn.Lineno
+@@ -3455,9 +3412,7 @@ func walkrotate(np **Node) {
+ 	return
+ }
+ 
+-/*
+- * walkmul rewrites integer multiplication by powers of two as shifts.
+- */
++// walkmul rewrites integer multiplication by powers of two as shifts.
+ func walkmul(np **Node, init **NodeList) {
+ 	n := *np
+ 	if !Isint[n.Type.Etype] {
+@@ -3526,10 +3481,8 @@ ret:
+ 	*np = n
+ }
+ 
+-/*
+- * walkdiv rewrites division by a constant as less expensive
+- * operations.
+- */
++// walkdiv rewrites division by a constant as less expensive
++// operations.
+ func walkdiv(np **Node, init **NodeList) {
+ 	// if >= 0, nr is 1<<pow // 1 if nr is negative.
+ 

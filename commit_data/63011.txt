@@ -71,7 +71,122 @@ Date:   Mon May 12 13:59:27 2025 -0400
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Mark Freeman <mark@golang.org>
     TryBot-Bypass: Mark Freeman <mark@golang.org>
-
+---
  src/cmd/compile/internal/noder/doc.go |  8 +++++-
  src/internal/pkgbits/doc.go           | 53 +++++++++++++++++++++--------------
  2 files changed, 39 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/doc.go b/src/cmd/compile/internal/noder/doc.go
+index 5509b0001a..24590107c2 100644
+--- a/src/cmd/compile/internal/noder/doc.go
++++ b/src/cmd/compile/internal/noder/doc.go
+@@ -20,7 +20,7 @@ The payload is a series of sections. Each section has a kind which determines
+ its index in the series.
+ 
+ SectionKind = Uint64 .
+-Payload     = SectionString  // TODO(markfreeman) Define.
++Payload     = SectionString
+               SectionMeta
+               SectionPosBase // TODO(markfreeman) Define.
+               SectionPkg     // TODO(markfreeman) Define.
+@@ -40,6 +40,12 @@ accessed using an index relative to the start of the section.
+ // TODO(markfreeman): Rename to SectionIndex.
+ RelIndex = Uint64 .
+ 
++## String Section
++String values are stored as elements in the string section. Elements outside
++the string section access string values by reference.
++
++SectionString = { String } .
++
+ ## Meta Section
+ The meta section provides fundamental information for a package. It contains
+ exactly two elements — a public root and a private root.
+diff --git a/src/internal/pkgbits/doc.go b/src/internal/pkgbits/doc.go
+index b2c4888685..bd05daa3a6 100644
+--- a/src/internal/pkgbits/doc.go
++++ b/src/internal/pkgbits/doc.go
+@@ -16,51 +16,62 @@ zvarint = (* a zig-zag encoded signed variable-width integer *) .
+ uvarint = (* an unsigned variable-width integer *) .
+ 
+ # Strings
+-Strings are not encoded directly. Rather, they are deduplicated during encoding
+-and referenced where needed.
++A string is a series of bytes.
+ 
+-String      = [ Sync ] StringRef .
+-StringRef   = [ Sync ] Uint64 . // TODO(markfreeman): Document.
++// TODO(markfreeman): Does this need a marker?
++String    = { byte } .
+ 
+-StringSlice = Uint64            // the number of strings in the slice
+-              { String }
+-              .
++Strings are typically not encoded directly. Rather, they are deduplicated
++during encoding and referenced where needed; this process is called interning.
+ 
+-// TODO(markfreeman) It is awkward to discuss references (and by extension
+-// strings and constants). We cannot explain how they resolve without mention
+-// of foreign concepts. Ideally, references would be defined in familar terms —
+-// perhaps using an index on the byte array.
++StringRef = [ Sync ] Ref[String] .
++
++Note that StringRef is *not* equivalent to Ref[String] due to the extra marker.
++
++# References
++References specify the location of a value. While the representation here is
++fixed, the interpretation of a reference is left to other packages.
++
++Ref[T] = [ Sync ] Uint64 . // points to a value of type T
++
++# Slices
++Slices are a convenience for encoding a series of values of the same type.
++
++// TODO(markfreeman): Does this need a marker?
++Slice[T] = Uint64 // the number of values in the slice
++           { T }  // the values
++           .
+ 
+ # Constants
+ Constants appear as defined via the package constant.
+ 
+ Constant = [ Sync ]
+-           Bool       // whether the constant is a complex number
+-           Scalar     // the real part
+-           [ Scalar ] // if complex, the imaginary part
++           Bool        // whether the constant is a complex number
++           Scalar      // the real part
++           [ Scalar ]  // if complex, the imaginary part
+            .
+ 
+ A scalar represents a value using one of several potential formats. The exact
+ format and interpretation is distinguished by a code preceding the value.
+ 
+ Scalar   = [ Sync ]
+-           Uint64     // the code
++           Uint64      // the code indicating the type of Val
+            Val
+            .
+ 
+ Val      = Bool
+          | Int64
+-         | String
+-         | Term       // big integer
+-         | Term Term  // big ratio, numerator / denominator
+-         | BigBytes   // big float, precision 512
++         | StringRef
++         | Term        // big integer
++         | Term Term   // big ratio, numerator / denominator
++         | BigBytes    // big float, precision 512
+            .
+ 
+ Term     = BigBytes
+-           Bool       // whether the term is negative
++           Bool        // whether the term is negative
+            .
+ 
+-BigBytes = String .   // bytes of a big value
++BigBytes = StringRef . // bytes of a big value
+ 
+ # Markers
+ Markers provide a mechanism for asserting that encoders and decoders are

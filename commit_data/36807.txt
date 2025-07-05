@@ -9,7 +9,57 @@ Date:   Tue May 29 22:08:32 2018 +0000
     Change-Id: I2a4688a79bdaa25b4e8ef38e3390d93d3d0bce04
     Reviewed-on: https://go-review.googlesource.com/115135
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go      | 15 +++++++++++++--
  src/net/http/httputil/reverseproxy_test.go |  4 ++++
  2 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 80ee22895a..d5d0a505f7 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -178,9 +178,20 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	// important is "Connection" because we want a persistent
+ 	// connection, regardless of what the client sent to us.
+ 	for _, h := range hopHeaders {
+-		if outreq.Header.Get(h) != "" {
+-			outreq.Header.Del(h)
++		hv := outreq.Header.Get(h)
++		if hv == "" {
++			continue
+ 		}
++		if h == "Te" && hv == "trailers" {
++			// Issue 21096: tell backend applications that
++			// care about trailer support that we support
++			// trailers. (We do, but we don't go out of
++			// our way to advertise that unless the
++			// incoming client request thought it was
++			// worth mentioning)
++			continue
++		}
++		outreq.Header.Del(h)
+ 	}
+ 
+ 	if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 3dcc5c7287..1ad67562af 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -49,6 +49,9 @@ func TestReverseProxy(t *testing.T) {
+ 		if c := r.Header.Get("Connection"); c != "" {
+ 			t.Errorf("handler got Connection header value %q", c)
+ 		}
++		if c := r.Header.Get("Te"); c != "trailers" {
++			t.Errorf("handler got Te header value %q; want 'trailers'", c)
++		}
+ 		if c := r.Header.Get("Upgrade"); c != "" {
+ 			t.Errorf("handler got Upgrade header value %q", c)
+ 		}
+@@ -85,6 +88,7 @@ func TestReverseProxy(t *testing.T) {
+ 	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+ 	getReq.Host = "some-name"
+ 	getReq.Header.Set("Connection", "close")
++	getReq.Header.Set("Te", "trailers")
+ 	getReq.Header.Set("Proxy-Connection", "should be deleted")
+ 	getReq.Header.Set("Upgrade", "foo")
+ 	getReq.Close = true

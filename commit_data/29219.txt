@@ -45,9 +45,231 @@ Date:   Thu Apr 28 17:34:24 2016 +0300
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/bytes/bytes.go         | 31 ---------------------
  src/bytes/bytes_amd64.go   | 69 ++++++++++++++++++++++++++++++++++++++++++++++
  src/bytes/bytes_generic.go | 41 +++++++++++++++++++++++++++
  src/runtime/asm_amd64.s    | 26 ++++++++++++++---
  4 files changed, 132 insertions(+), 35 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 305c85d9f4..c35a1c0005 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -93,37 +93,6 @@ func ContainsRune(b []byte, r rune) bool {
+ 	return IndexRune(b, r) >= 0
+ }
+ 
+-// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+-func Index(s, sep []byte) int {
+-	n := len(sep)
+-	if n == 0 {
+-		return 0
+-	}
+-	if n > len(s) {
+-		return -1
+-	}
+-	c := sep[0]
+-	if n == 1 {
+-		return IndexByte(s, c)
+-	}
+-	i := 0
+-	t := s[:len(s)-n+1]
+-	for i < len(t) {
+-		if t[i] != c {
+-			o := IndexByte(t[i:], c)
+-			if o < 0 {
+-				break
+-			}
+-			i += o
+-		}
+-		if Equal(s[i:i+n], sep) {
+-			return i
+-		}
+-		i++
+-	}
+-	return -1
+-}
+-
+ func indexBytePortable(s []byte, c byte) int {
+ 	for i, b := range s {
+ 		if b == c {
+diff --git a/src/bytes/bytes_amd64.go b/src/bytes/bytes_amd64.go
+new file mode 100644
+index 0000000000..e8be28b51d
+--- /dev/null
++++ b/src/bytes/bytes_amd64.go
+@@ -0,0 +1,69 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bytes
++
++// indexShortStr returns the index of the first instance of c in s, or -1 if c is not present in s.
++// indexShortStr requires 2 <= len(c) <= shortStringLen
++func indexShortStr(s, c []byte) int // ../runtime/asm_$GOARCH.s
++const shortStringLen = 31
++
++// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
++func Index(s, sep []byte) int {
++	n := len(sep)
++	switch {
++	case n == 0:
++		return 0
++	case n == 1:
++		return IndexByte(s, sep[0])
++	case n <= shortStringLen:
++		return indexShortStr(s, sep)
++	case n == len(s):
++		if Equal(sep, s) {
++			return 0
++		}
++		return -1
++	case n > len(s):
++		return -1
++	}
++	// Rabin-Karp search
++	hashsep, pow := hashStr(sep)
++	var h uint32
++	for i := 0; i < n; i++ {
++		h = h*primeRK + uint32(s[i])
++	}
++	if h == hashsep && Equal(s[:n], sep) {
++		return 0
++	}
++	for i := n; i < len(s); {
++		h *= primeRK
++		h += uint32(s[i])
++		h -= pow * uint32(s[i-n])
++		i++
++		if h == hashsep && Equal(s[i-n:i], sep) {
++			return i - n
++		}
++	}
++	return -1
++}
++
++// primeRK is the prime base used in Rabin-Karp algorithm.
++const primeRK = 16777619
++
++// hashStr returns the hash and the appropriate multiplicative
++// factor for use in Rabin-Karp algorithm.
++func hashStr(sep []byte) (uint32, uint32) {
++	hash := uint32(0)
++	for i := 0; i < len(sep); i++ {
++		hash = hash*primeRK + uint32(sep[i])
++	}
++	var pow, sq uint32 = 1, primeRK
++	for i := len(sep); i > 0; i >>= 1 {
++		if i&1 != 0 {
++			pow *= sq
++		}
++		sq *= sq
++	}
++	return hash, pow
++}
+diff --git a/src/bytes/bytes_generic.go b/src/bytes/bytes_generic.go
+new file mode 100644
+index 0000000000..88e232eccf
+--- /dev/null
++++ b/src/bytes/bytes_generic.go
+@@ -0,0 +1,41 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !amd64
++
++package bytes
++
++// TODO: implements short string optimization on non amd64 platforms
++// and get rid of bytes_amd64.go
++
++// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
++func Index(s, sep []byte) int {
++	n := len(sep)
++	if n == 0 {
++		return 0
++	}
++	if n > len(s) {
++		return -1
++	}
++	c := sep[0]
++	if n == 1 {
++		return IndexByte(s, c)
++	}
++	i := 0
++	t := s[:len(s)-n+1]
++	for i < len(t) {
++		if t[i] != c {
++			o := IndexByte(t[i:], c)
++			if o < 0 {
++				break
++			}
++			i += o
++		}
++		if Equal(s[i:i+n], sep) {
++			return i
++		}
++		i++
++	}
++	return -1
++}
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index f44fc1166a..c9d6b90d80 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1695,13 +1695,31 @@ big_loop_avx2_exit:
+ 	JMP loop
+ 
+ 
+-// TODO: Also use this in bytes.Index
+ TEXT strings·indexShortStr(SB),NOSPLIT,$0-40
+ 	MOVQ s+0(FP), DI
+ 	// We want len in DX and AX, because PCMPESTRI implicitly consumes them
+ 	MOVQ s_len+8(FP), DX
+ 	MOVQ c+16(FP), BP
+ 	MOVQ c_len+24(FP), AX
++	MOVQ DI, R10
++	LEAQ ret+32(FP), R11
++	JMP  runtime·indexShortStr(SB)
++
++TEXT bytes·indexShortStr(SB),NOSPLIT,$0-56
++	MOVQ s+0(FP), DI
++	MOVQ s_len+8(FP), DX
++	MOVQ c+24(FP), BP
++	MOVQ c_len+32(FP), AX
++	MOVQ DI, R10
++	LEAQ ret+48(FP), R11
++	JMP  runtime·indexShortStr(SB)
++
++// AX: length of string, that we are searching for
++// DX: length of string, in which we are searching
++// DI: pointer to string, in which we are searching
++// BP: pointer to string, that we are searching for
++// R11: address, where to put return value
++TEXT runtime·indexShortStr(SB),NOSPLIT,$0
+ 	CMPQ AX, DX
+ 	JA fail
+ 	CMPQ DX, $16
+@@ -1853,7 +1871,7 @@ partial_success17to31:
+ 	CMPQ DI,DX
+ 	JB loop17to31
+ fail:
+-	MOVQ $-1, ret+32(FP)
++	MOVQ $-1, (R11)
+ 	RET
+ sse42:
+ 	MOVL runtime·cpuid_ecx(SB), CX
+@@ -1893,8 +1911,8 @@ loop_sse42:
+ sse42_success:
+ 	ADDQ CX, DI
+ success:
+-	SUBQ s+0(FP), DI
+-	MOVQ DI, ret+32(FP)
++	SUBQ R10, DI
++	MOVQ DI, (R11)
+ 	RET
+ 
+ 

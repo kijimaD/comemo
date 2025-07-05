@@ -13,6 +13,20 @@ Date:   Thu Apr 28 10:46:08 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: jcd . <jcd@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/type.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 9f049babc2..9ae05f7ff1 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -992,6 +992,8 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
+ 				return ssa.CMPlt // bucket maps are least
+ 			}
+ 			return t.StructType().Map.cmp(x.StructType().Map)
++		} else if x.StructType().Map.MapType().Bucket == x {
++			return ssa.CMPgt // bucket maps are least
+ 		} // If t != t.Map.Bucket, fall through to general case
+ 
+ 		fallthrough

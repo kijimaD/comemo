@@ -20,7 +20,7 @@ Date:   Sun Oct 29 11:53:18 2017 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go                 | 37 ++++++++++++++--------
  src/cmd/compile/internal/ssa/block.go              | 23 ++++++++++++++
  .../internal/ssa/testdata/hist.dbg-dlv.nexts       |  3 +-
@@ -29,3 +29,194 @@ Date:   Sun Oct 29 11:53:18 2017 -0400
  src/cmd/compile/internal/ssa/value.go              | 11 +++++++
  test/fixedbugs/issue18902.go                       |  2 +-
  7 files changed, 61 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 339c6be7a4..7780953e90 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -203,7 +203,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
+ 
+ 	for _, b := range s.f.Blocks {
+ 		if b.Pos != src.NoXPos {
+-			updateUnsetPredPos(b)
++			s.updateUnsetPredPos(b)
+ 		}
+ 	}
+ 
+@@ -217,26 +217,35 @@ func buildssa(fn *Node, worker int) *ssa.Func {
+ 	return s.f
+ }
+ 
+-func updateUnsetPredPos(b *ssa.Block) {
++// updateUnsetPredPos propagates the earliest-value position information for b
++// towards all of b's predecessors that need a position, and recurs on that
++// predecessor if its position is updated. B should have a non-empty position.
++func (s *state) updateUnsetPredPos(b *ssa.Block) {
++	if b.Pos == src.NoXPos {
++		s.Fatalf("Block %s should have a position", b)
++	}
++	bestPos := src.NoXPos
+ 	for _, e := range b.Preds {
+ 		p := e.Block()
+-		if p.Pos == src.NoXPos && p.Kind == ssa.BlockPlain {
+-			pos := b.Pos
+-			// TODO: This ought to be produce a better result, but it causes
+-			// line 46 ("scanner := bufio.NewScanner(reader)")
+-			// to drop out of gdb-dbg and dlv-dbg debug-next traces for hist.go.
++		if !p.LackingPos() {
++			continue
++		}
++		if bestPos == src.NoXPos {
++			bestPos = b.Pos
+ 			for _, v := range b.Values {
+-				if v.Op == ssa.OpVarDef || v.Op == ssa.OpVarKill || v.Op == ssa.OpVarLive || v.Op == ssa.OpCopy && v.Type == types.TypeMem {
++				if v.LackingPos() {
+ 					continue
+ 				}
+ 				if v.Pos != src.NoXPos {
+-					pos = v.Pos
++					// Assume values are still in roughly textual order;
++					// TODO: could also seek minimum position?
++					bestPos = v.Pos
+ 					break
+ 				}
+ 			}
+-			p.Pos = pos
+-			updateUnsetPredPos(p) // We do not expect long chains of these, thus recursion is okay.
+ 		}
++		p.Pos = bestPos
++		s.updateUnsetPredPos(p) // We do not expect long chains of these, thus recursion is okay.
+ 	}
+ 	return
+ }
+@@ -372,7 +381,7 @@ func (s *state) endBlock() *ssa.Block {
+ 	s.defvars[b.ID] = s.vars
+ 	s.curBlock = nil
+ 	s.vars = nil
+-	if len(b.Values) == 0 && b.Kind == ssa.BlockPlain {
++	if b.LackingPos() {
+ 		// Empty plain blocks get the line of their successor (handled after all blocks created),
+ 		// except for increment blocks in For statements (handled in ssa conversion of OFOR),
+ 		// and for blocks ending in GOTO/BREAK/CONTINUE.
+@@ -817,7 +826,9 @@ func (s *state) stmt(n *Node) {
+ 
+ 	case ORETURN:
+ 		s.stmtList(n.List)
+-		s.exit()
++		b := s.exit()
++		b.Pos = s.lastPos
++
+ 	case ORETJMP:
+ 		s.stmtList(n.List)
+ 		b := s.exit()
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 10f07cefba..273e5f15d7 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -198,6 +198,29 @@ func (b *Block) swapSuccessors() {
+ 	b.Likely *= -1
+ }
+ 
++// LackingPos indicates whether b is a block whose position should be inherited
++// from its successors.  This is true if all the values within it have unreliable positions
++// and if it is "plain", meaning that there is no control flow that is also very likely
++// to correspond to a well-understood source position.
++func (b *Block) LackingPos() bool {
++	// Non-plain predecessors are If or Defer, which both (1) have two successors,
++	// which might have different line numbers and (2) correspond to statements
++	// in the source code that have positions, so this case ought not occur anyway.
++	if b.Kind != BlockPlain {
++		return false
++	}
++	if b.Pos != src.NoXPos {
++		return false
++	}
++	for _, v := range b.Values {
++		if v.LackingPos() {
++			continue
++		}
++		return false
++	}
++	return true
++}
++
+ func (b *Block) Logf(msg string, args ...interface{})   { b.Func.Logf(msg, args...) }
+ func (b *Block) Log() bool                              { return b.Func.Log() }
+ func (b *Block) Fatalf(msg string, args ...interface{}) { b.Func.Fatalf(msg, args...) }
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.dbg-dlv.nexts b/src/cmd/compile/internal/ssa/testdata/hist.dbg-dlv.nexts
+index 49a63c7294..f4fe2af161 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.dbg-dlv.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/hist.dbg-dlv.nexts
+@@ -8,7 +8,7 @@
+ 63:		hist := make([]int, 7)                                //gdb-opt=(sink,dx/O,dy/O)
+ 64:		var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A,cannedInput/A)
+ 65:		if len(os.Args) > 1 {
+-70:				return
++73:		scanner := bufio.NewScanner(reader)
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+ 76:			i, err := strconv.ParseInt(s, 10, 64)
+@@ -96,4 +96,3 @@
+ 87:			if a == 0 { //gdb-opt=(a,n,t)
+ 88:				continue
+ 86:		for i, a := range hist {
+-95:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.dbg-gdb.nexts b/src/cmd/compile/internal/ssa/testdata/hist.dbg-gdb.nexts
+index 6a62b0533f..abd4535ca5 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.dbg-gdb.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/hist.dbg-gdb.nexts
+@@ -12,7 +12,7 @@ l.end.y = 4
+ hist =  []int = {0, 0, 0, 0, 0, 0, 0}
+ cannedInput = "1\n1\n1\n2\n2\n2\n4\n4\n5\n"
+ 65:		if len(os.Args) > 1 {
+-70:				return
++73:		scanner := bufio.NewScanner(reader)
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+ 76:			i, err := strconv.ParseInt(s, 10, 64)
+@@ -121,4 +121,3 @@ t = 22
+ 87:			if a == 0 { //gdb-opt=(a,n,t)
+ 88:				continue
+ 86:		for i, a := range hist {
+-95:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.opt-gdb.nexts b/src/cmd/compile/internal/ssa/testdata/hist.opt-gdb.nexts
+index 0b5db28c0e..f6c6a3c9be 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.opt-gdb.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/hist.opt-gdb.nexts
+@@ -180,4 +180,3 @@ a = 0
+ n = 9
+ t = 22
+ 88:				continue
+-95:	}
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 68d9565b2b..288ad19bc3 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -320,3 +320,14 @@ func (v *Value) MemoryArg() *Value {
+ 	}
+ 	return nil
+ }
++
++// LackingPos indicates whether v is a value that is unlikely to have a correct
++// position assigned to it.  Ignoring such values leads to more user-friendly positions
++// assigned to nearby values and the blocks containing them.
++func (v *Value) LackingPos() bool {
++	// The exact definition of LackingPos is somewhat heuristically defined and may change
++	// in the future, for example if some of these operations are generated more carefully
++	// with respect to their source position.
++	return v.Op == OpVarDef || v.Op == OpVarKill || v.Op == OpVarLive || v.Op == OpPhi ||
++		(v.Op == OpFwdRef || v.Op == OpCopy) && v.Type == types.TypeMem
++}
+diff --git a/test/fixedbugs/issue18902.go b/test/fixedbugs/issue18902.go
+index 9b85503eca..78c92187ee 100644
+--- a/test/fixedbugs/issue18902.go
++++ b/test/fixedbugs/issue18902.go
+@@ -50,7 +50,7 @@ func main() {
+ 	testarch := os.Getenv("TESTARCH")     // Targets other platform in test compilation.
+ 	debug := os.Getenv("TESTDEBUG") != "" // Output the relevant assembly language.
+ 
+-	cmd := exec.Command("go", "build", "-gcflags", "-S", "fixedbugs/issue18902b.go")
++	cmd := exec.Command("go", "tool", "compile", "-S", "fixedbugs/issue18902b.go")
+ 	var buf bytes.Buffer
+ 	cmd.Stdout = &buf
+ 	cmd.Stderr = &buf

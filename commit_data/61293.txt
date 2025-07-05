@@ -10,7 +10,51 @@ Date:   Thu Oct 24 23:02:46 2024 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/dwarf_test.go                     | 8 ++++++--
  src/go/internal/gccgoimporter/importer_test.go | 8 ++++++--
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index 25d906bc82..68849d7db9 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -121,10 +121,14 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 
+ 			if buildmode == "c-archive" {
+ 				// Extract the archive and use the go.o object within.
+-				cmd := testenv.Command(t, "ar", "-x", exe)
++				ar := os.Getenv("AR")
++				if ar == "" {
++					ar = "ar"
++				}
++				cmd := testenv.Command(t, ar, "-x", exe)
+ 				cmd.Dir = tmpDir
+ 				if out, err := cmd.CombinedOutput(); err != nil {
+-					t.Fatalf("ar -x %s: %v\n%s", exe, err, out)
++					t.Fatalf("%s -x %s: %v\n%s", ar, exe, err, out)
+ 				}
+ 				exe = filepath.Join(tmpDir, "go.o")
+ 			}
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index 76b4500f3b..a965a55409 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -180,11 +180,15 @@ func TestObjImporter(t *testing.T) {
+ 
+ 		runImporterTest(t, imp, initmap, &test)
+ 
+-		cmd = testenv.Command(t, "ar", "cr", afile, ofile)
++		ar := os.Getenv("AR")
++		if ar == "" {
++			ar = "ar"
++		}
++		cmd = testenv.Command(t, ar, "cr", afile, ofile)
+ 		out, err = cmd.CombinedOutput()
+ 		if err != nil {
+ 			t.Logf("%s", out)
+-			t.Fatalf("ar cr %s %s failed: %s", afile, ofile, err)
++			t.Fatalf("%s cr %s %s failed: %s", ar, afile, ofile, err)
+ 		}
+ 
+ 		runImporterTest(t, arimp, arinitmap, &test)

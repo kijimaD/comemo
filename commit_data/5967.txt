@@ -7,7 +7,45 @@ Date:   Fri Aug 6 13:10:47 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/1856054
-
+---
  AUTHORS      | 2 ++
  CONTRIBUTORS | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index e894c2c151..7c7e2701f3 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -56,11 +56,13 @@ Ken Friedenbach <kenliz@cruzio.com>
+ Kevin Ballard <kevin@sb.org>
+ Kyle Consalus <consalus@gmail.com>
+ Markus Duft <markus.duft@salomon.at>
++Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
+ Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
++Nicholas Waples <nwaples@gmail.com>
+ Paolo Giarrusso <p.giarrusso@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>
+ Peter Froehlich <peter.hans.froehlich@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 513a06d6e3..200a740853 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -98,12 +98,14 @@ Kyle Consalus <consalus@gmail.com>
+ Larry Hosken <lahosken@golang.org>
+ Mark Zavislak <zavislak@google.com>
+ Markus Duft <markus.duft@salomon.at>
++Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+ Maxim Ushakov <ushakov@google.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
+ Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
++Nicholas Waples <nwaples@gmail.com>
+ Nigel Tao <nigeltao@golang.org>
+ Paolo Giarrusso <p.giarrusso@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>

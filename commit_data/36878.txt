@@ -14,8 +14,123 @@ Date:   Wed Jun 6 13:10:16 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/116595
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/Wasm.rules |  4 ++--
  src/cmd/compile/internal/ssa/rewriteWasm.go | 37 +++++++++++++++--------------
  test/fixedbugs/issue25741.go                | 14 +++++++++++
  3 files changed, 35 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index 01f3f5a670..18c208cccb 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -46,8 +46,7 @@
+ (Not x) -> (I64Eqz x)
+ 
+ // Lowering pointer arithmetic
+-(OffPtr [0] ptr) -> ptr
+-(OffPtr [off] ptr) && off > 0 -> (I64AddConst [off] ptr)
++(OffPtr [off] ptr) -> (I64AddConst [off] ptr)
+ 
+ // Lowering extension
+ // It is unnecessary to extend loads
+@@ -388,6 +387,7 @@
+ (I64Ne x (I64Const [0])) -> (I64Eqz (I64Eqz x))
+ 
+ (I64Add x (I64Const [y])) -> (I64AddConst [y] x)
++(I64AddConst [0] x) -> x
+ (I64Eqz (I64Eqz (I64Eqz x))) -> (I64Eqz x)
+ 
+ ((I64Load|I64Load32U|I64Load32S|I64Load16U|I64Load16S|I64Load8U|I64Load8S) [off] (I64AddConst [off2] ptr) mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index 38822a7466..f3648ebca1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -463,6 +463,8 @@ func rewriteValueWasm(v *Value) bool {
+ 		return rewriteValueWasm_OpWasmF64Mul_0(v)
+ 	case OpWasmI64Add:
+ 		return rewriteValueWasm_OpWasmI64Add_0(v)
++	case OpWasmI64AddConst:
++		return rewriteValueWasm_OpWasmI64AddConst_0(v)
+ 	case OpWasmI64And:
+ 		return rewriteValueWasm_OpWasmI64And_0(v)
+ 	case OpWasmI64Eq:
+@@ -3688,34 +3690,17 @@ func rewriteValueWasm_OpNot_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValueWasm_OpOffPtr_0(v *Value) bool {
+-	// match: (OffPtr [0] ptr)
+-	// cond:
+-	// result: ptr
+-	for {
+-		if v.AuxInt != 0 {
+-			break
+-		}
+-		ptr := v.Args[0]
+-		v.reset(OpCopy)
+-		v.Type = ptr.Type
+-		v.AddArg(ptr)
+-		return true
+-	}
+ 	// match: (OffPtr [off] ptr)
+-	// cond: off > 0
++	// cond:
+ 	// result: (I64AddConst [off] ptr)
+ 	for {
+ 		off := v.AuxInt
+ 		ptr := v.Args[0]
+-		if !(off > 0) {
+-			break
+-		}
+ 		v.reset(OpWasmI64AddConst)
+ 		v.AuxInt = off
+ 		v.AddArg(ptr)
+ 		return true
+ 	}
+-	return false
+ }
+ func rewriteValueWasm_OpOr16_0(v *Value) bool {
+ 	// match: (Or16 x y)
+@@ -5211,6 +5196,22 @@ func rewriteValueWasm_OpWasmI64Add_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueWasm_OpWasmI64AddConst_0(v *Value) bool {
++	// match: (I64AddConst [0] x)
++	// cond:
++	// result: x
++	for {
++		if v.AuxInt != 0 {
++			break
++		}
++		x := v.Args[0]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueWasm_OpWasmI64And_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/test/fixedbugs/issue25741.go b/test/fixedbugs/issue25741.go
+new file mode 100644
+index 0000000000..c76e975946
+--- /dev/null
++++ b/test/fixedbugs/issue25741.go
+@@ -0,0 +1,14 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var s []int
++
++func main() {
++	i := -1
++	s[i] = 0
++}

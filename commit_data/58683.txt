@@ -34,7 +34,7 @@ Date:   Mon Nov 20 17:22:37 2023 -0500
     Auto-Submit: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  doc/go1.22.html                              | 12 ++++++++++
  src/cmd/compile/internal/types2/api.go       |  9 +++++++
  src/cmd/compile/internal/types2/api_test.go  | 32 ++++++++++++++++++++++---
@@ -52,3 +52,535 @@ Date:   Mon Nov 20 17:22:37 2023 -0500
  src/go/types/stmt.go                         |  4 ----
  src/go/types/util_test.go                    |  7 +++++-
  16 files changed, 169 insertions(+), 47 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 789ecc3c32..8e9b6ee53c 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -486,6 +486,18 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- os/exec -->
+ 
++<dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
++  <dd>
++    <p><!-- https://go.dev/issue/64295, CL 544035 -->
++      The start position (<a href="/pkg/go/types#Scope.Pos">Pos</a>)
++      of the lexical environment block (<a href="/pkg/go/types#Scope">Scope</a>)
++      that represents a function body has changed:
++      it used to start at the opening curly brace of the function body,
++      but now starts at the function's <code>func</code> token.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+   <dd>
+     <p><!-- https://go.dev/issue/61827, CL 517777 -->
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 6628174428..bb02d9198e 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -268,6 +268,15 @@ type Info struct {
+ 	// scope, the function scopes are embedded in the file scope of the file
+ 	// containing the function declaration.
+ 	//
++	// The Scope of a function contains the declarations of any
++	// type parameters, parameters, and named results, plus any
++	// local declarations in the body block.
++	// It is coextensive with the complete extent of the
++	// function's syntax ([*ast.FuncDecl] or [*ast.FuncLit]).
++	// The Scopes mapping does not contain an entry for the
++	// function body ([*ast.BlockStmt]); the function's scope is
++	// associated with the [*ast.FuncType].
++	//
+ 	// The following node types may appear in Scopes:
+ 	//
+ 	//     *syntax.File
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 56cddf6b29..c70d914453 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -1892,12 +1892,12 @@ const Pi = 3.1415
+ type T struct{}
+ var Y, _ = lib.X, X
+ 
+-func F(){
++func F[T *U, U any](param1, param2 int) /*param1=undef*/ (res1 /*res1=undef*/, res2 int) /*param1=var:12*/ /*res1=var:12*/ /*U=typename:12*/ {
+ 	const pi, e = 3.1415, /*pi=undef*/ 2.71828 /*pi=const:13*/ /*e=const:13*/
+ 	type /*t=undef*/ t /*t=typename:14*/ *t
+ 	print(Y) /*Y=var:10*/
+ 	x, Y := Y, /*x=undef*/ /*Y=var:10*/ Pi /*x=var:16*/ /*Y=var:16*/ ; _ = x; _ = Y
+-	var F = /*F=func:12*/ F /*F=var:17*/ ; _ = F
++	var F = /*F=func:12*/ F[*int, int] /*F=var:17*/ ; _ = F
+ 
+ 	var a []int
+ 	for i, x := range a /*i=undef*/ /*x=var:16*/ { _ = i; _ = x }
+@@ -1916,6 +1916,10 @@ func F(){
+         	println(int)
+         default /*int=var:31*/ :
+         }
++
++	_ = param1
++	_ = res1
++	return
+ }
+ /*main=undef*/
+ `
+@@ -1981,7 +1985,29 @@ func F(){
+ 
+ 		_, gotObj := inner.LookupParent(id.Value, id.Pos())
+ 		if gotObj != wantObj {
+-			t.Errorf("%s: got %v, want %v", id.Pos(), gotObj, wantObj)
++			// Print the scope tree of mainScope in case of error.
++			var printScopeTree func(indent string, s *Scope)
++			printScopeTree = func(indent string, s *Scope) {
++				t.Logf("%sscope %s %v-%v = %v",
++					indent,
++					ScopeComment(s),
++					s.Pos(),
++					s.End(),
++					s.Names())
++				for i := range s.NumChildren() {
++					printScopeTree(indent+"  ", s.Child(i))
++				}
++			}
++			printScopeTree("", mainScope)
++
++			t.Errorf("%s: Scope(%s).LookupParent(%s@%v) got %v, want %v [scopePos=%v]",
++				id.Pos(),
++				ScopeComment(inner),
++				id.Value,
++				id.Pos(),
++				gotObj,
++				wantObj,
++				ObjectScopePos(wantObj))
+ 			continue
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 3abde44c71..3ffa9431e4 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -570,8 +570,11 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
+ 	// Declare type parameters up-front.
+ 	// The scope of type parameters starts at the beginning of the type parameter
+ 	// list (so we can have mutually recursive parameterized type bounds).
+-	for i, f := range list {
+-		tparams[i] = check.declareTypeParam(f.Name)
++	if len(list) > 0 {
++		scopePos := list[0].Pos()
++		for i, f := range list {
++			tparams[i] = check.declareTypeParam(f.Name, scopePos)
++		}
+ 	}
+ 
+ 	// Set the type parameters before collecting the type constraints because
+@@ -628,7 +631,7 @@ func (check *Checker) bound(x syntax.Expr) Type {
+ 	return check.typ(x)
+ }
+ 
+-func (check *Checker) declareTypeParam(name *syntax.Name) *TypeParam {
++func (check *Checker) declareTypeParam(name *syntax.Name, scopePos syntax.Pos) *TypeParam {
+ 	// Use Typ[Invalid] for the type constraint to ensure that a type
+ 	// is present even if the actual constraint has not been assigned
+ 	// yet.
+@@ -636,8 +639,8 @@ func (check *Checker) declareTypeParam(name *syntax.Name) *TypeParam {
+ 	//           constraints to make sure we don't rely on them if they
+ 	//           are not properly set yet.
+ 	tname := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
+-	tpar := check.newTypeParam(tname, Typ[Invalid])          // assigns type to tname as a side-effect
+-	check.declare(check.scope, name, tname, check.scope.pos) // TODO(gri) check scope position
++	tpar := check.newTypeParam(tname, Typ[Invalid]) // assigns type to tname as a side-effect
++	check.declare(check.scope, name, tname, scopePos)
+ 	return tpar
+ }
+ 
+@@ -750,6 +753,11 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
+ 	check.funcType(sig, fdecl.Recv, fdecl.TParamList, fdecl.Type)
+ 	obj.color_ = saved
+ 
++	// Set the scope's extent to the complete "func (...) { ... }"
++	// so that Scope.Innermost works correctly.
++	sig.scope.pos = fdecl.Pos()
++	sig.scope.end = syntax.EndPos(fdecl)
++
+ 	if len(fdecl.TParamList) > 0 && fdecl.Body == nil {
+ 		check.softErrorf(fdecl, BadDecl, "generic function is missing function body")
+ 	}
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 321b0c4762..e1c2c8ff2a 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1081,6 +1081,10 @@ func (check *Checker) exprInternal(T Type, x *operand, e syntax.Expr, hint Type)
+ 
+ 	case *syntax.FuncLit:
+ 		if sig, ok := check.typ(e.Type).(*Signature); ok {
++			// Set the Scope's extent to the complete "func (...) {...}"
++			// so that Scope.Innermost works correctly.
++			sig.scope.pos = e.Pos()
++			sig.scope.end = syntax.EndPos(e)
+ 			if !check.conf.IgnoreFuncBodies && e.Body != nil {
+ 				// Anonymous functions are considered part of the
+ 				// init expression/func declaration which contains
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 8b896f7a90..18a64ec1a0 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -108,9 +108,12 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 		// - the receiver specification acts as local declaration for its type parameters, which may be blank
+ 		_, rname, rparams := check.unpackRecv(recvPar.Type, true)
+ 		if len(rparams) > 0 {
++			// The scope of the type parameter T in "func (r T[T]) f()"
++			// starts after f, not at "r"; see #52038.
++			scopePos := ftyp.Pos()
+ 			tparams := make([]*TypeParam, len(rparams))
+ 			for i, rparam := range rparams {
+-				tparams[i] = check.declareTypeParam(rparam)
++				tparams[i] = check.declareTypeParam(rparam, scopePos)
+ 			}
+ 			sig.rparams = bindTParams(tparams)
+ 			// Blank identifiers don't get declared, so naive type-checking of the
+@@ -167,16 +170,21 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 		check.collectTypeParams(&sig.tparams, tparams)
+ 	}
+ 
+-	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
+-	// declarations and then squash that scope into the parent scope (and report any redeclarations at
+-	// that time).
++	// Use a temporary scope for all parameter declarations and then
++	// squash that scope into the parent scope (and report any
++	// redeclarations at that time).
++	//
++	// TODO(adonovan): now that each declaration has the correct
++	// scopePos, there should be no need for scope squashing.
++	// Audit to ensure all lookups honor scopePos and simplify.
+ 	scope := NewScope(check.scope, nopos, nopos, "function body (temp. scope)")
+-	var recvList []*Var // TODO(gri) remove the need for making a list here
++	scopePos := syntax.EndPos(ftyp) // all parameters' scopes start after the signature
++	var recvList []*Var             // TODO(gri) remove the need for making a list here
+ 	if recvPar != nil {
+-		recvList, _ = check.collectParams(scope, []*syntax.Field{recvPar}, false) // use rewritten receiver type, if any
++		recvList, _ = check.collectParams(scope, []*syntax.Field{recvPar}, false, scopePos) // use rewritten receiver type, if any
+ 	}
+-	params, variadic := check.collectParams(scope, ftyp.ParamList, true)
+-	results, _ := check.collectParams(scope, ftyp.ResultList, false)
++	params, variadic := check.collectParams(scope, ftyp.ParamList, true, scopePos)
++	results, _ := check.collectParams(scope, ftyp.ResultList, false, scopePos)
+ 	scope.Squash(func(obj, alt Object) {
+ 		var err error_
+ 		err.code = DuplicateDecl
+@@ -259,7 +267,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 
+ // collectParams declares the parameters of list in scope and returns the corresponding
+ // variable list.
+-func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, variadicOk bool) (params []*Var, variadic bool) {
++func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, variadicOk bool, scopePos syntax.Pos) (params []*Var, variadic bool) {
+ 	if list == nil {
+ 		return
+ 	}
+@@ -294,7 +302,7 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, variadic
+ 				// ok to continue
+ 			}
+ 			par := NewParam(field.Name.Pos(), check.pkg, name, typ)
+-			check.declare(scope, field.Name, par, scope.pos)
++			check.declare(scope, field.Name, par, scopePos)
+ 			params = append(params, par)
+ 			named = true
+ 		} else {
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index e4bda49c52..7956bf3033 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -23,10 +23,6 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ 		check.trace(body.Pos(), "-- %s: %s", name, sig)
+ 	}
+ 
+-	// set function scope extent
+-	sig.scope.pos = body.Pos()
+-	sig.scope.end = syntax.EndPos(body)
+-
+ 	// save/restore current environment and set up function environment
+ 	// (and use 0 indentation at function start)
+ 	defer func(env environment, indent int) {
+diff --git a/src/cmd/compile/internal/types2/util_test.go b/src/cmd/compile/internal/types2/util_test.go
+index 4cbd002355..70058aad84 100644
+--- a/src/cmd/compile/internal/types2/util_test.go
++++ b/src/cmd/compile/internal/types2/util_test.go
+@@ -7,6 +7,11 @@
+ 
+ package types2
+ 
+-import "cmd/compile/internal/syntax"
++import (
++	"cmd/compile/internal/syntax"
++)
+ 
+ func CmpPos(p, q syntax.Pos) int { return cmpPos(p, q) }
++
++func ScopeComment(s *Scope) string         { return s.comment }
++func ObjectScopePos(obj Object) syntax.Pos { return obj.scopePos() }
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index f729e33dec..796fe055e6 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -263,6 +263,15 @@ type Info struct {
+ 	// scope, the function scopes are embedded in the file scope of the file
+ 	// containing the function declaration.
+ 	//
++	// The Scope of a function contains the declarations of any
++	// type parameters, parameters, and named results, plus any
++	// local declarations in the body block.
++	// It is coextensive with the complete extent of the
++	// function's syntax ([*ast.FuncDecl] or [*ast.FuncLit]).
++	// The Scopes mapping does not contain an entry for the
++	// function body ([*ast.BlockStmt]); the function's scope is
++	// associated with the [*ast.FuncType].
++	//
+ 	// The following node types may appear in Scopes:
+ 	//
+ 	//     *ast.File
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 594b92bb23..0dc5f35dff 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -27,7 +27,7 @@ import (
+ var nopos token.Pos
+ 
+ func mustParse(fset *token.FileSet, src string) *ast.File {
+-	f, err := parser.ParseFile(fset, pkgName(src), src, 0)
++	f, err := parser.ParseFile(fset, pkgName(src), src, parser.ParseComments)
+ 	if err != nil {
+ 		panic(err) // so we don't need to pass *testing.T
+ 	}
+@@ -1896,12 +1896,12 @@ const Pi = 3.1415
+ type T struct{}
+ var Y, _ = lib.X, X
+ 
+-func F(){
++func F[T *U, U any](param1, param2 int) /*param1=undef*/ (res1 /*res1=undef*/, res2 int) /*param1=var:12*/ /*res1=var:12*/ /*U=typename:12*/ {
+ 	const pi, e = 3.1415, /*pi=undef*/ 2.71828 /*pi=const:13*/ /*e=const:13*/
+ 	type /*t=undef*/ t /*t=typename:14*/ *t
+ 	print(Y) /*Y=var:10*/
+ 	x, Y := Y, /*x=undef*/ /*Y=var:10*/ Pi /*x=var:16*/ /*Y=var:16*/ ; _ = x; _ = Y
+-	var F = /*F=func:12*/ F /*F=var:17*/ ; _ = F
++	var F = /*F=func:12*/ F[*int, int] /*F=var:17*/ ; _ = F
+ 
+ 	var a []int
+ 	for i, x := range a /*i=undef*/ /*x=var:16*/ { _ = i; _ = x }
+@@ -1920,6 +1920,10 @@ func F(){
+         	println(int)
+         default /*int=var:31*/ :
+         }
++
++	_ = param1
++	_ = res1
++	return
+ }
+ /*main=undef*/
+ `
+@@ -1981,8 +1985,29 @@ func F(){
+ 
+ 		_, gotObj := inner.LookupParent(id.Name, id.Pos())
+ 		if gotObj != wantObj {
+-			t.Errorf("%s: got %v, want %v",
+-				fset.Position(id.Pos()), gotObj, wantObj)
++			// Print the scope tree of mainScope in case of error.
++			var printScopeTree func(indent string, s *Scope)
++			printScopeTree = func(indent string, s *Scope) {
++				t.Logf("%sscope %s %v-%v = %v",
++					indent,
++					ScopeComment(s),
++					s.Pos(),
++					s.End(),
++					s.Names())
++				for i := range s.NumChildren() {
++					printScopeTree(indent+"  ", s.Child(i))
++				}
++			}
++			printScopeTree("", mainScope)
++
++			t.Errorf("%s: Scope(%s).LookupParent(%s@%v) got %v, want %v [scopePos=%v]",
++				fset.Position(id.Pos()),
++				ScopeComment(inner),
++				id.Name,
++				id.Pos(),
++				gotObj,
++				wantObj,
++				ObjectScopePos(wantObj))
+ 			continue
+ 		}
+ 	}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index c8716bd74f..0795cb5fce 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -638,8 +638,9 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
+ 	// Declare type parameters up-front, with empty interface as type bound.
+ 	// The scope of type parameters starts at the beginning of the type parameter
+ 	// list (so we can have mutually recursive parameterized interfaces).
++	scopePos := list.Pos()
+ 	for _, f := range list.List {
+-		tparams = check.declareTypeParams(tparams, f.Names)
++		tparams = check.declareTypeParams(tparams, f.Names, scopePos)
+ 	}
+ 
+ 	// Set the type parameters before collecting the type constraints because
+@@ -708,7 +709,7 @@ func (check *Checker) bound(x ast.Expr) Type {
+ 	return check.typ(x)
+ }
+ 
+-func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident) []*TypeParam {
++func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident, scopePos token.Pos) []*TypeParam {
+ 	// Use Typ[Invalid] for the type constraint to ensure that a type
+ 	// is present even if the actual constraint has not been assigned
+ 	// yet.
+@@ -717,8 +718,8 @@ func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident
+ 	//           are not properly set yet.
+ 	for _, name := range names {
+ 		tname := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
+-		tpar := check.newTypeParam(tname, Typ[Invalid])          // assigns type to tpar as a side-effect
+-		check.declare(check.scope, name, tname, check.scope.pos) // TODO(gri) check scope position
++		tpar := check.newTypeParam(tname, Typ[Invalid]) // assigns type to tpar as a side-effect
++		check.declare(check.scope, name, tname, scopePos)
+ 		tparams = append(tparams, tpar)
+ 	}
+ 
+@@ -835,6 +836,11 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
+ 	check.funcType(sig, fdecl.Recv, fdecl.Type)
+ 	obj.color_ = saved
+ 
++	// Set the scope's extent to the complete "func (...) { ... }"
++	// so that Scope.Innermost works correctly.
++	sig.scope.pos = fdecl.Pos()
++	sig.scope.end = fdecl.End()
++
+ 	if fdecl.Type.TypeParams.NumFields() > 0 && fdecl.Body == nil {
+ 		check.softErrorf(fdecl.Name, BadDecl, "generic function is missing function body")
+ 	}
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index 4e995afd7e..dd9bd7f426 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -139,7 +139,7 @@ func TestEvalPos(t *testing.T) {
+ 				/* c => , struct{c int} */
+ 				_ = c
+ 			}
+-			_ = func(a, b, c int) /* c => , string */ {
++			_ = func(a, b, c int /* c => , string */) /* c => , int */ {
+ 				/* c => , int */
+ 			}
+ 			_ = c
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index b018939730..ecd0d56908 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1059,6 +1059,10 @@ func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) ex
+ 
+ 	case *ast.FuncLit:
+ 		if sig, ok := check.typ(e.Type).(*Signature); ok {
++			// Set the Scope's extent to the complete "func (...) {...}"
++			// so that Scope.Innermost works correctly.
++			sig.scope.pos = e.Pos()
++			sig.scope.end = e.End()
+ 			if !check.conf.IgnoreFuncBodies && e.Body != nil {
+ 				// Anonymous functions are considered part of the
+ 				// init expression/func declaration which contains
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index ed9fcfe58e..cad42cb942 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -7,6 +7,7 @@ package types
+ import (
+ 	"fmt"
+ 	"go/ast"
++	"go/token"
+ 	. "internal/types/errors"
+ )
+ 
+@@ -115,7 +116,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 		// - the receiver specification acts as local declaration for its type parameters, which may be blank
+ 		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
+ 		if len(rparams) > 0 {
+-			tparams := check.declareTypeParams(nil, rparams)
++			// The scope of the type parameter T in "func (r T[T]) f()"
++			// starts after f, not at "r"; see #52038.
++			scopePos := ftyp.Params.Pos()
++			tparams := check.declareTypeParams(nil, rparams, scopePos)
+ 			sig.rparams = bindTParams(tparams)
+ 			// Blank identifiers don't get declared, so naive type-checking of the
+ 			// receiver type expression would fail in Checker.collectParams below,
+@@ -176,13 +180,18 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 		}
+ 	}
+ 
+-	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
+-	// declarations and then squash that scope into the parent scope (and report any redeclarations at
+-	// that time).
++	// Use a temporary scope for all parameter declarations and then
++	// squash that scope into the parent scope (and report any
++	// redeclarations at that time).
++	//
++	// TODO(adonovan): now that each declaration has the correct
++	// scopePos, there should be no need for scope squashing.
++	// Audit to ensure all lookups honor scopePos and simplify.
+ 	scope := NewScope(check.scope, nopos, nopos, "function body (temp. scope)")
+-	recvList, _ := check.collectParams(scope, recvPar, false)
+-	params, variadic := check.collectParams(scope, ftyp.Params, true)
+-	results, _ := check.collectParams(scope, ftyp.Results, false)
++	scopePos := ftyp.End() // all parameters' scopes start after the signature
++	recvList, _ := check.collectParams(scope, recvPar, false, scopePos)
++	params, variadic := check.collectParams(scope, ftyp.Params, true, scopePos)
++	results, _ := check.collectParams(scope, ftyp.Results, false, scopePos)
+ 	scope.squash(func(obj, alt Object) {
+ 		check.errorf(obj, DuplicateDecl, "%s redeclared in this block", obj.Name())
+ 		check.reportAltDecl(alt)
+@@ -262,7 +271,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 
+ // collectParams declares the parameters of list in scope and returns the corresponding
+ // variable list.
+-func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {
++func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool, scopePos token.Pos) (params []*Var, variadic bool) {
+ 	if list == nil {
+ 		return
+ 	}
+@@ -290,7 +299,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
+ 					// ok to continue
+ 				}
+ 				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
+-				check.declare(scope, name, par, scope.pos)
++				check.declare(scope, name, par, scopePos)
+ 				params = append(params, par)
+ 			}
+ 			named = true
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 7a3bcf029b..288d74b95a 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -24,10 +24,6 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ 		check.trace(body.Pos(), "-- %s: %s", name, sig)
+ 	}
+ 
+-	// set function scope extent
+-	sig.scope.pos = body.Pos()
+-	sig.scope.end = body.End()
+-
+ 	// save/restore current environment and set up function environment
+ 	// (and use 0 indentation at function start)
+ 	defer func(env environment, indent int) {
+diff --git a/src/go/types/util_test.go b/src/go/types/util_test.go
+index 205237211f..70d376f0bb 100644
+--- a/src/go/types/util_test.go
++++ b/src/go/types/util_test.go
+@@ -9,6 +9,11 @@
+ 
+ package types
+ 
+-import "go/token"
++import (
++	"go/token"
++)
+ 
+ func CmpPos(p, q token.Pos) int { return cmpPos(p, q) }
++
++func ScopeComment(s *Scope) string        { return s.comment }
++func ObjectScopePos(obj Object) token.Pos { return obj.scopePos() }

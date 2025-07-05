@@ -14,6 +14,20 @@ Date:   Thu Aug 31 11:58:16 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/encoding/gob/encoder.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/gob/encoder.go b/src/encoding/gob/encoder.go
+index aa413939d4..16b65bf7d4 100644
+--- a/src/encoding/gob/encoder.go
++++ b/src/encoding/gob/encoder.go
+@@ -39,7 +39,7 @@ func NewEncoder(w io.Writer) *Encoder {
+ 	return enc
+ }
+ 
+-// writer() returns the innermost writer the encoder is using
++// writer returns the innermost writer the encoder is using.
+ func (enc *Encoder) writer() io.Writer {
+ 	return enc.w[len(enc.w)-1]
+ }

@@ -9,7 +9,40 @@ Date:   Fri Mar 25 18:31:55 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4289073
-
+---
  src/cmd/gc/typecheck.c   | 5 -----
  test/fixedbugs/bug252.go | 4 ++--
  2 files changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index b4fd55f5df..1cc5abd5c3 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1634,11 +1634,6 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
+ 	for(tl=tstruct->type; tl; tl=tl->down) {
+ 		t = tl->type;
+ 		if(tl->isddd) {
+-			if(nl != nil && nl->n->op == ONAME && nl->n->isddd && !isddd) {
+-				// TODO(rsc): This is not actually illegal, but it will help catch bugs.
+-				yyerror("to pass '%#N' as ...%T, use '%#N...'", nl->n, t->type, nl->n);
+-				isddd = 1;
+-			}
+ 			if(isddd) {
+ 				if(nl == nil)
+ 					goto notenough;
+diff --git a/test/fixedbugs/bug252.go b/test/fixedbugs/bug252.go
+index 5615f84fa1..a2c1dab9d3 100644
+--- a/test/fixedbugs/bug252.go
++++ b/test/fixedbugs/bug252.go
+@@ -7,9 +7,9 @@
+ package main
+ 
+ func f(args ...int) {
+-	g(args)	// ERROR "[.][.][.]"
++	g(args)
+ }
+ 
+ func g(args ...interface{}) {
+-	f(args)	// ERROR "[.][.][.]"
++	f(args)	// ERROR "cannot use|incompatible"
+ }

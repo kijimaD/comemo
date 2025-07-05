@@ -10,7 +10,61 @@ Date:   Sun Dec 6 17:44:44 2015 -0700
     Change-Id: Ie3bddcf25eb6b243a21da934f2f3c76a750c083a
     Reviewed-on: https://go-review.googlesource.com/17488
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/doc/reader.go       | 6 +++---
  src/syscall/dll_windows.go | 4 ++--
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/doc/reader.go b/src/go/doc/reader.go
+index ed82c47cd9..f5c02b684d 100644
+--- a/src/go/doc/reader.go
++++ b/src/go/doc/reader.go
+@@ -18,7 +18,7 @@ import (
+ // Internally, we treat functions like methods and collect them in method sets.
+ 
+ // A methodSet describes a set of methods. Entries where Decl == nil are conflict
+-// entries (more then one method with the same name at the same embedding level).
++// entries (more than one method with the same name at the same embedding level).
+ //
+ type methodSet map[string]*Func
+ 
+@@ -71,7 +71,7 @@ func (mset methodSet) set(f *ast.FuncDecl) {
+ 
+ // add adds method m to the method set; m is ignored if the method set
+ // already contains a method with the same name at the same or a higher
+-// level then m.
++// level than m.
+ //
+ func (mset methodSet) add(m *Func) {
+ 	old := mset[m.Name]
+@@ -208,7 +208,7 @@ func (r *reader) recordAnonymousField(parent *namedType, fieldType ast.Expr) (fn
+ 
+ func (r *reader) readDoc(comment *ast.CommentGroup) {
+ 	// By convention there should be only one package comment
+-	// but collect all of them if there are more then one.
++	// but collect all of them if there are more than one.
+ 	text := comment.Text()
+ 	if r.doc == "" {
+ 		r.doc = text
+diff --git a/src/syscall/dll_windows.go b/src/syscall/dll_windows.go
+index c157e6dd7b..3cf4b1be8c 100644
+--- a/src/syscall/dll_windows.go
++++ b/src/syscall/dll_windows.go
+@@ -115,7 +115,7 @@ func (p *Proc) Addr() uintptr {
+ 	return p.addr
+ }
+ 
+-// Call executes procedure p with arguments a. It will panic, if more then 15 arguments
++// Call executes procedure p with arguments a. It will panic, if more than 15 arguments
+ // are supplied.
+ //
+ // The returned error is always non-nil, constructed from the result of GetLastError.
+@@ -267,7 +267,7 @@ func (p *LazyProc) Addr() uintptr {
+ 	return p.proc.Addr()
+ }
+ 
+-// Call executes procedure p with arguments a. It will panic, if more then 15 arguments
++// Call executes procedure p with arguments a. It will panic, if more than 15 arguments
+ // are supplied.
+ //
+ // The returned error is always non-nil, constructed from the result of GetLastError.

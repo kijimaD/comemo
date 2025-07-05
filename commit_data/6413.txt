@@ -13,8 +13,57 @@ Date:   Tue Sep 28 20:50:00 2010 -0400
     TBR=r
     CC=golang-dev
     https://golang.org/cl/2294041
-
+---
  src/pkg/runtime/darwin/thread.c  | 2 +-
  src/pkg/runtime/freebsd/thread.c | 2 +-
  src/pkg/runtime/linux/thread.c   | 4 ++--
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/thread.c b/src/pkg/runtime/darwin/thread.c
+index 6f64c08738..f4dd180122 100644
+--- a/src/pkg/runtime/darwin/thread.c
++++ b/src/pkg/runtime/darwin/thread.c
+@@ -456,7 +456,7 @@ sigpanic(void)
+ 		printf("unexpected fault address %p\n", g->sigcode1);
+ 		throw("fault");
+ 	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR) && g->sigcode1 < 0x1000)
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000)
+ 			panicstring("invalid memory address or nil pointer dereference");
+ 		printf("unexpected fault address %p\n", g->sigcode1);
+ 		throw("fault");
+diff --git a/src/pkg/runtime/freebsd/thread.c b/src/pkg/runtime/freebsd/thread.c
+index c9c058c5ae..27f8aa5ff5 100644
+--- a/src/pkg/runtime/freebsd/thread.c
++++ b/src/pkg/runtime/freebsd/thread.c
+@@ -182,7 +182,7 @@ sigpanic(void)
+ 		printf("unexpected fault address %p\n", g->sigcode1);
+ 		throw("fault");
+ 	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR) && g->sigcode1 < 0x1000)
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000)
+ 			panicstring("invalid memory address or nil pointer dereference");
+ 		printf("unexpected fault address %p\n", g->sigcode1);
+ 		throw("fault");
+diff --git a/src/pkg/runtime/linux/thread.c b/src/pkg/runtime/linux/thread.c
+index 47bf3428f7..f31838ea50 100644
+--- a/src/pkg/runtime/linux/thread.c
++++ b/src/pkg/runtime/linux/thread.c
+@@ -168,7 +168,7 @@ unlock(Lock *l)
+ }
+ 
+ void
+-destroylock(Lock *l)
++destroylock(Lock*)
+ {
+ }
+ 
+@@ -282,7 +282,7 @@ sigpanic(void)
+ 		printf("unexpected fault address %p\n", g->sigcode1);
+ 		throw("fault");
+ 	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR) && g->sigcode1 < 0x1000)
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000)
+ 			panicstring("invalid memory address or nil pointer dereference");
+ 		printf("unexpected fault address %p\n", g->sigcode1);
+ 		throw("fault");

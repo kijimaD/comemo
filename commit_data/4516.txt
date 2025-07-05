@@ -8,7 +8,64 @@ Date:   Thu Dec 31 12:47:20 2009 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/183090
-
+---
  src/pkg/gob/encoder.go      | 9 +++++----
  src/pkg/gob/encoder_test.go | 3 ++-
  2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/gob/encoder.go b/src/pkg/gob/encoder.go
+index cf380cd56f..8ba5031384 100644
+--- a/src/pkg/gob/encoder.go
++++ b/src/pkg/gob/encoder.go
+@@ -249,20 +249,22 @@ func (enc *Encoder) sendType(origt reflect.Type) {
+ 	// Drill down to the base type.
+ 	rt, _ := indirect(origt)
+ 
+-	// We only send structs - everything else is basic or an error
+ 	switch rt := rt.(type) {
+ 	default:
+ 		// Basic types do not need to be described.
+ 		return
+-	case reflect.ArrayOrSliceType:
++	case *reflect.SliceType:
+ 		// If it's []uint8, don't send; it's considered basic.
+ 		if _, ok := rt.Elem().(*reflect.Uint8Type); ok {
+ 			return
+ 		}
+ 		// Otherwise we do send.
+ 		break
+-	// Struct types are not sent, only their element types.
++	case *reflect.ArrayType:
++		// arrays must be sent so we know their lengths and element types.
++		break
+ 	case *reflect.StructType:
++		// structs must be sent so we know their fields.
+ 		break
+ 	case *reflect.ChanType, *reflect.FuncType, *reflect.MapType, *reflect.InterfaceType:
+ 		// Probably a bad field in a struct.
+@@ -337,7 +339,6 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
+ 		// No, so send it.
+ 		enc.sendType(rt)
+ 		if enc.state.err != nil {
+-			enc.countState.b.Reset()
+ 			return enc.state.err
+ 		}
+ 	}
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index a25ad69088..4250b8a9d7 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -240,11 +240,12 @@ func TestValueError(t *testing.T) {
+ func TestArray(t *testing.T) {
+ 	type Type5 struct {
+ 		a [3]string
++		b [3]byte
+ 	}
+ 	type Type6 struct {
+ 		a [2]string // can't hold t5.a
+ 	}
+-	t5 := Type5{[3]string{"hello", ",", "world"}}
++	t5 := Type5{[3]string{"hello", ",", "world"}, [3]byte{1, 2, 3}}
+ 	var t5p Type5
+ 	if err := encAndDec(t5, &t5p); err != nil {
+ 		t.Error(err)

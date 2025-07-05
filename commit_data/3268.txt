@@ -8,10 +8,123 @@ Date:   Mon Sep 14 18:38:30 2009 -0700
     R=ken
     OCL=34621
     CL=34621
-
+---
  src/cmd/gc/gen.c       | 10 +++++++---
  src/cmd/gc/go.h        |  1 +
  src/cmd/gc/go.y        |  2 ++
  src/cmd/gc/typecheck.c | 10 +++++++---
  src/cmd/gc/walk.c      |  3 +++
  5 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index a64b0a3ca2..8c00c58987 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -26,6 +26,7 @@ allocparams(void)
+ 	Node *n;
+ 	uint32 w;
+ 	Sym *s;
++	int lno;
+ 
+ 	if(stksize < 0)
+ 		fatal("allocparams not during code generation");
+@@ -35,6 +36,7 @@ allocparams(void)
+ 	 * slots for all automatics.
+ 	 * allocated starting at -w down.
+ 	 */
++	lno = lineno;
+ 	for(l=curfn->dcl; l; l=l->next) {
+ 		n = l->n;
+ 		if(n->op == ONAME && n->class == PHEAP-1) {
+@@ -46,19 +48,21 @@ allocparams(void)
+ 		}
+ 		if(n->op != ONAME || n->class != PAUTO)
+ 			continue;
+-		typecheck(&n, Erv);	// only needed for unused variables
++		lineno = n->lineno;
++		typecheck(&n, Erv | Easgn);	// only needed for unused variables
+ 		if(n->type == T)
+ 			continue;
++	//	if(!n->used && n->sym->name[0] != '&')
++	//		yyerror("%S declared and not used", n->sym);
+ 		dowidth(n->type);
+ 		w = n->type->width;
+-		if(n->class & PHEAP)
+-			w = widthptr;
+ 		if(w >= 100000000)
+ 			fatal("bad width");
+ 		stksize += w;
+ 		stksize = rnd(stksize, w);
+ 		n->xoffset = -stksize;
+ 	}
++	lineno = lno;
+ }
+ 
+ void
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 93c900db32..aa2e6d89d6 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -201,6 +201,7 @@ struct	Node
+ 	uchar	local;
+ 	uchar	initorder;
+ 	uchar	dodata;		// compile literal assignment as data statement
++	uchar	used;
+ 
+ 	// most nodes
+ 	Node*	left;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 61f8b2b2ee..ea9cd3aed5 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -456,6 +456,7 @@ case:
+ 		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
+ 			// type switch - declare variable
+ 			n = newname(n->sym);
++			n->used = 1;	// TODO(rsc): better job here
+ 			declare(n, dclcontext);
+ 			$$->nname = n;
+ 		}
+@@ -488,6 +489,7 @@ case:
+ 		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
+ 			// type switch - declare variable
+ 			n = newname(n->sym);
++			n->used = 1;	// TODO(rsc): better job here
+ 			declare(n, dclcontext);
+ 			$$->nname = n;
+ 		}
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index d33e9e8094..308ed90e33 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -112,9 +112,13 @@ reswitch:
+ 			ok |= Ecall;
+ 			goto ret;
+ 		}
+-		if(isblank(n) && !(top & Easgn)) {
+-			yyerror("cannot use _ as value");
+-			goto error;
++		if(!(top & Easgn)) {
++			// not a write to the variable
++			if(isblank(n)) {
++				yyerror("cannot use _ as value");
++				goto error;
++			}
++			n->used = 1;
+ 		}
+ 		ok |= Erv;
+ 		goto ret;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 6f5dde3282..e66a42ce23 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1771,6 +1771,9 @@ convas(Node *n, NodeList **init)
+ 	if(lt == T || rt == T)
+ 		goto out;
+ 
++	if(isblank(n->left))
++		goto out;
++
+ 	if(n->left->op == OINDEXMAP) {
+ 		n = mkcall1(mapfn("mapassign1", n->left->left->type), T, init,
+ 			n->left->left, n->left->right, n->right);

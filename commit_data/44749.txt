@@ -20,6 +20,36 @@ Date:   Sat Aug 15 21:15:35 2020 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  misc/wasm/wasm_exec.js | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 8501ae7cd8..ef97c4e311 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -11,6 +11,7 @@
+ 	// - Node.js
+ 	// - Electron
+ 	// - Parcel
++	// - Webpack
+ 
+ 	if (typeof global !== "undefined") {
+ 		// global already exists
+@@ -28,7 +29,7 @@
+ 
+ 	if (!global.fs && global.require) {
+ 		const fs = require("fs");
+-		if (Object.keys(fs) !== 0) {
++		if (typeof fs === "object" && fs !== null && Object.keys(fs).length !== 0) {
+ 			global.fs = fs;
+ 		}
+ 	}
+@@ -556,6 +557,7 @@
+ 	}
+ 
+ 	if (
++		typeof module !== "undefined" &&
+ 		global.require &&
+ 		global.require.main === module &&
+ 		global.process &&

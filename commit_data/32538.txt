@@ -14,7 +14,52 @@ Date:   Thu Jun 2 11:07:41 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mbitmap.go | 11 -----------
  src/runtime/mgcmark.go |  4 ++--
  2 files changed, 2 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 844e662a04..48754de562 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -495,17 +495,6 @@ func (h heapBits) isPointer() bool {
+ 	return h.bits()&bitPointer != 0
+ }
+ 
+-// hasPointers reports whether the given object has any pointers.
+-// It must be told how large the object at h is for efficiency.
+-// h must describe the initial word of the object.
+-func (h heapBits) hasPointers(size uintptr) bool {
+-	// TODO: Use span.noScan instead of the heap bitmap.
+-	if size == sys.PtrSize { // 1-word objects are always pointers
+-		return true
+-	}
+-	return (*h.bitp>>h.shift)&bitScan != 0
+-}
+-
+ // isCheckmarked reports whether the heap bits have the checkmarked bit set.
+ // It must be told how large the object at h is, because the encoding of the
+ // checkmark bit varies by size.
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 1046aa896e..dbca5cd1c7 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1127,7 +1127,7 @@ func scanobject(b uintptr, gcw *gcWork) {
+ 			// paths), in which case we must *not* enqueue
+ 			// oblets since their bitmaps will be
+ 			// uninitialized.
+-			if !hbits.hasPointers(n) {
++			if s.spanclass.noscan() {
+ 				// Bypass the whole scan.
+ 				gcw.bytesMarked += uint64(n)
+ 				return
+@@ -1257,7 +1257,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
+ 		atomic.Or8(mbits.bytep, mbits.mask)
+ 		// If this is a noscan object, fast-track it to black
+ 		// instead of greying it.
+-		if !hbits.hasPointers(span.elemsize) {
++		if span.spanclass.noscan() {
+ 			gcw.bytesMarked += uint64(span.elemsize)
+ 			return
+ 		}

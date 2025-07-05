@@ -29,7 +29,7 @@ Date:   Wed Dec 10 17:02:58 2014 -0800
     Change-Id: I0a9335028f32b10ad484966e3019987973afd3eb
     Reviewed-on: https://go-review.googlesource.com/1360
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/alg.go         | 25 ++----------
  src/runtime/export_test.go |  1 -
  src/runtime/hash32.go      | 93 ++++++++++++++++++++++++++++++++++++++++++++
@@ -38,3 +38,358 @@ Date:   Wed Dec 10 17:02:58 2014 -0800
  src/runtime/unaligned1.go  | 17 ++++++++
  src/runtime/unaligned2.go  | 20 ++++++++++
  7 files changed, 229 insertions(+), 32 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 88bd1a5919..1bed3c461b 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -72,8 +72,6 @@ var algarray = [alg_max]typeAlg{
+ 	alg_CPLX128:  {c128hash, c128equal},
+ }
+ 
+-const nacl = GOOS == "nacl"
+-
+ var useAeshash bool
+ 
+ // in asm_*.s
+@@ -82,22 +80,9 @@ func aeshash32(p unsafe.Pointer, s, h uintptr) uintptr
+ func aeshash64(p unsafe.Pointer, s, h uintptr) uintptr
+ func aeshashstr(p unsafe.Pointer, s, h uintptr) uintptr
+ 
+-func memhash(p unsafe.Pointer, s, h uintptr) uintptr {
+-	if !nacl && useAeshash {
+-		return aeshash(p, s, h)
+-	}
+-
+-	h ^= c0
+-	for s > 0 {
+-		h = (h ^ uintptr(*(*byte)(p))) * c1
+-		p = add(p, 1)
+-		s--
+-	}
+-	return h
+-}
+-
+ func strhash(a unsafe.Pointer, s, h uintptr) uintptr {
+-	return memhash((*stringStruct)(a).str, uintptr(len(*(*string)(a))), h)
++	x := (*stringStruct)(a)
++	return memhash(x.str, uintptr(x.len), h)
+ }
+ 
+ // NOTE: Because NaN != NaN, a map can contain any
+@@ -267,10 +252,6 @@ func ifaceeq(p, q interface {
+ }
+ 
+ // Testing adapters for hash quality tests (see hash_test.go)
+-func haveGoodHash() bool {
+-	return useAeshash
+-}
+-
+ func stringHash(s string, seed uintptr) uintptr {
+ 	return algarray[alg_STRING].hash(noescape(unsafe.Pointer(&s)), unsafe.Sizeof(s), seed)
+ }
+@@ -315,7 +296,7 @@ const hashRandomBytes = ptrSize / 4 * 64
+ var aeskeysched [hashRandomBytes]byte
+ 
+ func init() {
+-	if theGoos == "nacl" {
++	if GOOS == "nacl" {
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 5ed2550262..6faaa41af4 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -103,7 +103,6 @@ func RunSchedLocalQueueStealTest() {
+ 	systemstack(testSchedLocalQueueSteal)
+ }
+ 
+-var HaveGoodHash = haveGoodHash
+ var StringHash = stringHash
+ var BytesHash = bytesHash
+ var Int32Hash = int32Hash
+diff --git a/src/runtime/hash32.go b/src/runtime/hash32.go
+new file mode 100644
+index 0000000000..7fada1518b
+--- /dev/null
++++ b/src/runtime/hash32.go
+@@ -0,0 +1,93 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Hashing algorithm inspired by
++//   xxhash: https://code.google.com/p/xxhash/
++// cityhash: https://code.google.com/p/cityhash/
++
++// +build 386 arm
++
++package runtime
++
++import "unsafe"
++
++const (
++	// Constants for multiplication: four random odd 32-bit numbers.
++	m1 = 3168982561
++	m2 = 3339683297
++	m3 = 832293441
++	m4 = 2336365089
++)
++
++func memhash(p unsafe.Pointer, s, seed uintptr) uintptr {
++	if GOARCH == "386" && GOOS != "nacl" && useAeshash {
++		return aeshash(p, s, seed)
++	}
++	h := uint32(seed + s)
++tail:
++	switch {
++	case s == 0:
++	case s < 4:
++		w := uint32(*(*byte)(p))
++		w += uint32(*(*byte)(add(p, s>>1))) << 8
++		w += uint32(*(*byte)(add(p, s-1))) << 16
++		h ^= w * m1
++	case s == 4:
++		h ^= readUnaligned32(p) * m1
++	case s <= 8:
++		h ^= readUnaligned32(p) * m1
++		h = rotl_15(h) * m2
++		h = rotl_11(h)
++		h ^= readUnaligned32(add(p, s-4)) * m1
++	case s <= 16:
++		h ^= readUnaligned32(p) * m1
++		h = rotl_15(h) * m2
++		h = rotl_11(h)
++		h ^= readUnaligned32(add(p, 4)) * m1
++		h = rotl_15(h) * m2
++		h = rotl_11(h)
++		h ^= readUnaligned32(add(p, s-8)) * m1
++		h = rotl_15(h) * m2
++		h = rotl_11(h)
++		h ^= readUnaligned32(add(p, s-4)) * m1
++	default:
++		v1 := h
++		v2 := h + m1
++		v3 := h + m2
++		v4 := h + m3
++		for s >= 16 {
++			v1 ^= readUnaligned32(p) * m1
++			v1 = rotl_15(v1) * m2
++			p = add(p, 4)
++			v2 ^= readUnaligned32(p) * m1
++			v2 = rotl_15(v2) * m2
++			p = add(p, 4)
++			v3 ^= readUnaligned32(p) * m1
++			v3 = rotl_15(v3) * m2
++			p = add(p, 4)
++			v4 ^= readUnaligned32(p) * m1
++			v4 = rotl_15(v4) * m2
++			p = add(p, 4)
++			s -= 16
++		}
++		h = rotl_11(v1)*m1 + rotl_11(v2)*m2 + rotl_11(v3)*m3 + rotl_11(v4)*m4
++		goto tail
++	}
++	h ^= h >> 17
++	h *= m3
++	h ^= h >> 13
++	h *= m4
++	h ^= h >> 16
++	return uintptr(h)
++}
++
++// Note: in order to get the compiler to issue rotl instructions, we
++// need to constant fold the shift amount by hand.
++// TODO: convince the compiler to issue rotl instructions after inlining.
++func rotl_15(x uint32) uint32 {
++	return (x << 15) | (x >> (32 - 15))
++}
++func rotl_11(x uint32) uint32 {
++	return (x << 11) | (x >> (32 - 11))
++}
+diff --git a/src/runtime/hash64.go b/src/runtime/hash64.go
+new file mode 100644
+index 0000000000..fc7eef45a4
+--- /dev/null
++++ b/src/runtime/hash64.go
+@@ -0,0 +1,96 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Hashing algorithm inspired by
++//   xxhash: https://code.google.com/p/xxhash/
++// cityhash: https://code.google.com/p/cityhash/
++
++// +build amd64 amd64p32 ppc64 ppc64le
++
++package runtime
++
++import "unsafe"
++
++const (
++	// Constants for multiplication: four random odd 64-bit numbers.
++	m1 = 16877499708836156737
++	m2 = 2820277070424839065
++	m3 = 9497967016996688599
++	m4 = 15839092249703872147
++)
++
++func memhash(p unsafe.Pointer, s, seed uintptr) uintptr {
++	if GOARCH == "amd64" && GOOS != "nacl" && useAeshash {
++		return aeshash(p, s, seed)
++	}
++	h := uint64(seed + s)
++tail:
++	switch {
++	case s == 0:
++	case s < 4:
++		w := uint64(*(*byte)(p))
++		w += uint64(*(*byte)(add(p, s>>1))) << 8
++		w += uint64(*(*byte)(add(p, s-1))) << 16
++		h ^= w * m1
++	case s <= 8:
++		w := uint64(readUnaligned32(p))
++		w += uint64(readUnaligned32(add(p, s-4))) << 32
++		h ^= w * m1
++	case s <= 16:
++		h ^= readUnaligned64(p) * m1
++		h = rotl_31(h) * m2
++		h = rotl_27(h)
++		h ^= readUnaligned64(add(p, s-8)) * m1
++	case s <= 32:
++		h ^= readUnaligned64(p) * m1
++		h = rotl_31(h) * m2
++		h = rotl_27(h)
++		h ^= readUnaligned64(add(p, 8)) * m1
++		h = rotl_31(h) * m2
++		h = rotl_27(h)
++		h ^= readUnaligned64(add(p, s-16)) * m1
++		h = rotl_31(h) * m2
++		h = rotl_27(h)
++		h ^= readUnaligned64(add(p, s-8)) * m1
++	default:
++		v1 := h
++		v2 := h + m1
++		v3 := h + m2
++		v4 := h + m3
++		for s >= 32 {
++			v1 ^= readUnaligned64(p) * m1
++			v1 = rotl_31(v1) * m2
++			p = add(p, 8)
++			v2 ^= readUnaligned64(p) * m1
++			v2 = rotl_31(v2) * m2
++			p = add(p, 8)
++			v3 ^= readUnaligned64(p) * m1
++			v3 = rotl_31(v3) * m2
++			p = add(p, 8)
++			v4 ^= readUnaligned64(p) * m1
++			v4 = rotl_31(v4) * m2
++			p = add(p, 8)
++			s -= 32
++		}
++		h = rotl_27(v1)*m1 + rotl_27(v2)*m2 + rotl_27(v3)*m3 + rotl_27(v4)*m4
++		goto tail
++	}
++
++	h ^= h >> 33
++	h *= m2
++	h ^= h >> 29
++	h *= m3
++	h ^= h >> 32
++	return uintptr(h)
++}
++
++// Note: in order to get the compiler to issue rotl instructions, we
++// need to constant fold the shift amount by hand.
++// TODO: convince the compiler to issue rotl instructions after inlining.
++func rotl_31(x uint64) uint64 {
++	return (x << 31) | (x >> (64 - 31))
++}
++func rotl_27(x uint64) uint64 {
++	return (x << 27) | (x >> (64 - 27))
++}
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index 41fff98eb0..6b229bdb88 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -171,9 +171,6 @@ func TestSmhasherCyclic(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("Skipping in short mode")
+ 	}
+-	if !HaveGoodHash() {
+-		t.Skip("fallback hash not good enough for this test")
+-	}
+ 	r := rand.New(rand.NewSource(1234))
+ 	const REPEAT = 8
+ 	const N = 1000000
+@@ -235,9 +232,6 @@ func TestSmhasherPermutation(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("Skipping in short mode")
+ 	}
+-	if !HaveGoodHash() {
+-		t.Skip("fallback hash not good enough for this test")
+-	}
+ 	permutation(t, []uint32{0, 1, 2, 3, 4, 5, 6, 7}, 8)
+ 	permutation(t, []uint32{0, 1 << 29, 2 << 29, 3 << 29, 4 << 29, 5 << 29, 6 << 29, 7 << 29}, 8)
+ 	permutation(t, []uint32{0, 1}, 20)
+@@ -404,9 +398,6 @@ func (k *IfaceKey) name() string {
+ 
+ // Flipping a single bit of a key should flip each output bit with 50% probability.
+ func TestSmhasherAvalanche(t *testing.T) {
+-	if !HaveGoodHash() {
+-		t.Skip("fallback hash not good enough for this test")
+-	}
+ 	if testing.Short() {
+ 		t.Skip("Skipping in short mode")
+ 	}
+diff --git a/src/runtime/unaligned1.go b/src/runtime/unaligned1.go
+new file mode 100644
+index 0000000000..0a88ff2029
+--- /dev/null
++++ b/src/runtime/unaligned1.go
+@@ -0,0 +1,17 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 amd64 amd64p32
++
++package runtime
++
++import "unsafe"
++
++func readUnaligned32(p unsafe.Pointer) uint32 {
++	return *(*uint32)(p)
++}
++
++func readUnaligned64(p unsafe.Pointer) uint64 {
++	return *(*uint64)(p)
++}
+diff --git a/src/runtime/unaligned2.go b/src/runtime/unaligned2.go
+new file mode 100644
+index 0000000000..4fc7917662
+--- /dev/null
++++ b/src/runtime/unaligned2.go
+@@ -0,0 +1,20 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build arm ppc64 ppc64le
++
++package runtime
++
++import "unsafe"
++
++// Note: These routines perform the read with an unspecified endianness.
++func readUnaligned32(p unsafe.Pointer) uint32 {
++	q := (*[4]byte)(p)
++	return uint32(q[0]) + uint32(q[1])<<8 + uint32(q[2])<<16 + uint32(q[3])<<24
++}
++
++func readUnaligned64(p unsafe.Pointer) uint64 {
++	q := (*[8]byte)(p)
++	return uint64(q[0]) + uint64(q[1])<<8 + uint64(q[2])<<16 + uint64(q[3])<<24 + uint64(q[4])<<32 + uint64(q[5])<<40 + uint64(q[6])<<48 + uint64(q[7])<<56
++}

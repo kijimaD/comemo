@@ -12,6 +12,22 @@ Date:   Thu Mar 29 10:01:27 2018 -0700
     Change-Id: Id7df31224c93181c8d01bab7b0b23da25b42a288
     Reviewed-on: https://go-review.googlesource.com/103397
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index c8666653ba..355b6aa300 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -738,7 +738,9 @@ func (db *DB) Ping() error {
+ 	return db.PingContext(context.Background())
+ }
+ 
+-// Close closes the database, releasing any open resources.
++// Close closes the database and prevents new queries from starting.
++// Close then waits for all queries that have started processing on the server
++// to finish.
+ //
+ // It is rare to Close a DB, as the DB handle is meant to be
+ // long-lived and shared between many goroutines.

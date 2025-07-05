@@ -7,6 +7,22 @@ Date:   Tue Nov 17 11:44:15 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/157042
-
+---
  src/pkg/runtime/extern.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index b4f4f2b319..575caf1f21 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -4,7 +4,9 @@
+ 
+ /*
+ 	The runtime package contains operations that interact with Go's runtime system,
+-	such as functions to control goroutines.
++	such as functions to control goroutines. It also includes the low-level type information
++	used by the reflect package; see reflect's documentation for the programmable
++	interface to the run-time type system.
+ */
+ package runtime
+ 

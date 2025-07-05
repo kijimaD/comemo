@@ -8,6 +8,20 @@ Date:   Sun Jan 15 19:32:16 2012 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5533083
-
+---
  src/pkg/net/http/cookie.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/cookie.go b/src/pkg/net/http/cookie.go
+index cad852242e..2e30bbff17 100644
+--- a/src/pkg/net/http/cookie.go
++++ b/src/pkg/net/http/cookie.go
+@@ -96,7 +96,7 @@ func readSetCookies(h Header) []*Cookie {
+ 				continue
+ 			case "max-age":
+ 				secs, err := strconv.Atoi(val)
+-				if err != nil || secs < 0 || secs != 0 && val[0] == '0' {
++				if err != nil || secs != 0 && val[0] == '0' {
+ 					break
+ 				}
+ 				if secs <= 0 {

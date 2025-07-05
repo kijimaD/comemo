@@ -38,10 +38,357 @@ Date:   Thu Feb 1 21:33:56 2018 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/order.go |  39 +++++++------
  src/cmd/compile/internal/gc/walk.go  |  11 +++-
  src/runtime/map_test.go              | 105 ++++++++++++++++++++++++++++++-----
  test/fixedbugs/issue19359.go         |  28 ++++++++++
  test/fixedbugs/issue22881.go         |   7 ++-
  5 files changed, 158 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index ef82ae7625..0e88d0f67c 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -14,7 +14,7 @@ import (
+ // order of evaluation. Makes walk easier, because it
+ // can (after this runs) reorder at will within an expression.
+ //
+-// Rewrite x op= y into x = x op y.
++// Rewrite m[k] op= r into m[k] = m[k] op r if op is / or %.
+ //
+ // Introduce temporaries as needed by runtime routines.
+ // For example, the map runtime routines take the map key
+@@ -434,7 +434,7 @@ func (o *Order) mapAssign(n *Node) {
+ 	default:
+ 		Fatalf("ordermapassign %v", n.Op)
+ 
+-	case OAS:
++	case OAS, OASOP:
+ 		if n.Left.Op == OINDEXMAP {
+ 			// Make sure we evaluate the RHS before starting the map insert.
+ 			// We need to make sure the RHS won't panic.  See issue 22881.
+@@ -514,26 +514,31 @@ func (o *Order) stmt(n *Node) {
+ 		o.cleanTemp(t)
+ 
+ 	case OASOP:
+-		// Special: rewrite l op= r into l = l op r.
+-		// This simplifies quite a few operations;
+-		// most important is that it lets us separate
+-		// out map read from map write when l is
+-		// a map index expression.
+ 		t := o.markTemp()
+ 		n.Left = o.expr(n.Left, nil)
+ 		n.Right = o.expr(n.Right, nil)
+ 
+-		n.Left = o.safeExpr(n.Left)
+-		tmp1 := treecopy(n.Left, src.NoXPos)
+-		if tmp1.Op == OINDEXMAP {
+-			tmp1.SetIndexMapLValue(false)
++		if instrumenting || n.Left.Op == OINDEXMAP && (n.SubOp() == ODIV || n.SubOp() == OMOD) {
++			// Rewrite m[k] op= r into m[k] = m[k] op r so
++			// that we can ensure that if op panics
++			// because r is zero, the panic happens before
++			// the map assignment.
++
++			n.Left = o.safeExpr(n.Left)
++
++			l := treecopy(n.Left, src.NoXPos)
++			if l.Op == OINDEXMAP {
++				l.SetIndexMapLValue(false)
++			}
++			l = o.copyExpr(l, n.Left.Type, false)
++			n.Right = nod(n.SubOp(), l, n.Right)
++			n.Right = typecheck(n.Right, Erv)
++			n.Right = o.expr(n.Right, nil)
++
++			n.Op = OAS
++			n.ResetAux()
+ 		}
+-		tmp1 = o.copyExpr(tmp1, n.Left.Type, false)
+-		n.Right = nod(n.SubOp(), tmp1, n.Right)
+-		n.Right = typecheck(n.Right, Erv)
+-		n.Right = o.expr(n.Right, nil)
+-		n.Op = OAS
+-		n.ResetAux()
++
+ 		o.mapAssign(n)
+ 		o.cleanTemp(t)
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 0441a15c60..b3339d6e59 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -667,12 +667,21 @@ opswitch:
+ 		updateHasCall(n.Left)
+ 		n.List.Set(reorder1(ll))
+ 
+-	case OAS:
++	case OAS, OASOP:
+ 		init.AppendNodes(&n.Ninit)
+ 
+ 		n.Left = walkexpr(n.Left, init)
+ 		n.Left = safeexpr(n.Left, init)
+ 
++		if n.Op == OASOP {
++			// Rewrite x op= y into x = x op y.
++			n.Right = nod(n.SubOp(), n.Left, n.Right)
++			n.Right = typecheck(n.Right, Erv)
++
++			n.Op = OAS
++			n.ResetAux()
++		}
++
+ 		if oaslit(n, init) {
+ 			break
+ 		}
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index d1b268bda4..05fe986b33 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -52,14 +52,7 @@ func TestNegativeZero(t *testing.T) {
+ 	}
+ }
+ 
+-// nan is a good test because nan != nan, and nan has
+-// a randomized hash value.
+-func TestNan(t *testing.T) {
+-	m := make(map[float64]int, 0)
+-	nan := math.NaN()
+-	m[nan] = 1
+-	m[nan] = 2
+-	m[nan] = 4
++func testMapNan(t *testing.T, m map[float64]int) {
+ 	if len(m) != 3 {
+ 		t.Error("length wrong")
+ 	}
+@@ -78,6 +71,49 @@ func TestNan(t *testing.T) {
+ 	}
+ }
+ 
++// nan is a good test because nan != nan, and nan has
++// a randomized hash value.
++func TestMapAssignmentNan(t *testing.T) {
++	m := make(map[float64]int, 0)
++	nan := math.NaN()
++
++	// Test assignment.
++	m[nan] = 1
++	m[nan] = 2
++	m[nan] = 4
++	testMapNan(t, m)
++}
++
++// nan is a good test because nan != nan, and nan has
++// a randomized hash value.
++func TestMapOperatorAssignmentNan(t *testing.T) {
++	m := make(map[float64]int, 0)
++	nan := math.NaN()
++
++	// Test assignment operations.
++	m[nan] += 1
++	m[nan] += 2
++	m[nan] += 4
++	testMapNan(t, m)
++}
++
++func TestMapOperatorAssignment(t *testing.T) {
++	m := make(map[int]int, 0)
++
++	// "m[k] op= x" is rewritten into "m[k] = m[k] op x"
++	// differently when op is / or % than when it isn't.
++	// Simple test to make sure they all work as expected.
++	m[0] = 12345
++	m[0] += 67890
++	m[0] /= 123
++	m[0] %= 456
++
++	const want = (12345 + 67890) / 123 % 456
++	if got := m[0]; got != want {
++		t.Errorf("got %d, want %d", got, want)
++	}
++}
++
+ // Maps aren't actually copied on assignment.
+ func TestAlias(t *testing.T) {
+ 	m := make(map[int]int, 0)
+@@ -92,18 +128,25 @@ func TestAlias(t *testing.T) {
+ func TestGrowWithNaN(t *testing.T) {
+ 	m := make(map[float64]int, 4)
+ 	nan := math.NaN()
++
++	// Use both assignment and assignment operations as they may
++	// behave differently.
+ 	m[nan] = 1
+ 	m[nan] = 2
+-	m[nan] = 4
++	m[nan] += 4
++
+ 	cnt := 0
+ 	s := 0
+ 	growflag := true
+ 	for k, v := range m {
+ 		if growflag {
+ 			// force a hashtable resize
+-			for i := 0; i < 100; i++ {
++			for i := 0; i < 50; i++ {
+ 				m[float64(i)] = i
+ 			}
++			for i := 50; i < 100; i++ {
++				m[float64(i)] += i
++			}
+ 			growflag = false
+ 		}
+ 		if k != k {
+@@ -128,8 +171,8 @@ func TestGrowWithNegativeZero(t *testing.T) {
+ 	negzero := math.Copysign(0.0, -1.0)
+ 	m := make(map[FloatInt]int, 4)
+ 	m[FloatInt{0.0, 0}] = 1
+-	m[FloatInt{0.0, 1}] = 2
+-	m[FloatInt{0.0, 2}] = 4
++	m[FloatInt{0.0, 1}] += 2
++	m[FloatInt{0.0, 2}] += 4
+ 	m[FloatInt{0.0, 3}] = 8
+ 	growflag := true
+ 	s := 0
+@@ -211,9 +254,12 @@ func TestIterGrowAndDelete(t *testing.T) {
+ // an iterator is still using them.
+ func TestIterGrowWithGC(t *testing.T) {
+ 	m := make(map[int]int, 4)
+-	for i := 0; i < 16; i++ {
++	for i := 0; i < 8; i++ {
+ 		m[i] = i
+ 	}
++	for i := 8; i < 16; i++ {
++		m[i] += i
++	}
+ 	growflag := true
+ 	bitmask := 0
+ 	for k := range m {
+@@ -786,6 +832,13 @@ func benchmarkMapAssignInt32(b *testing.B, n int) {
+ 	}
+ }
+ 
++func benchmarkMapOperatorAssignInt32(b *testing.B, n int) {
++	a := make(map[int32]int)
++	for i := 0; i < b.N; i++ {
++		a[int32(i&(n-1))] += i
++	}
++}
++
+ func benchmarkMapDeleteInt32(b *testing.B, n int) {
+ 	a := make(map[int32]int, n)
+ 	b.ResetTimer()
+@@ -808,6 +861,13 @@ func benchmarkMapAssignInt64(b *testing.B, n int) {
+ 	}
+ }
+ 
++func benchmarkMapOperatorAssignInt64(b *testing.B, n int) {
++	a := make(map[int64]int)
++	for i := 0; i < b.N; i++ {
++		a[int64(i&(n-1))] += i
++	}
++}
++
+ func benchmarkMapDeleteInt64(b *testing.B, n int) {
+ 	a := make(map[int64]int, n)
+ 	b.ResetTimer()
+@@ -835,6 +895,19 @@ func benchmarkMapAssignStr(b *testing.B, n int) {
+ 	}
+ }
+ 
++func benchmarkMapOperatorAssignStr(b *testing.B, n int) {
++	k := make([]string, n)
++	for i := 0; i < len(k); i++ {
++		k[i] = strconv.Itoa(i)
++	}
++	b.ResetTimer()
++	a := make(map[string]string)
++	for i := 0; i < b.N; i++ {
++		key := k[i&(n-1)]
++		a[key] += key
++	}
++}
++
+ func benchmarkMapDeleteStr(b *testing.B, n int) {
+ 	i2s := make([]string, n)
+ 	for i := 0; i < n; i++ {
+@@ -870,6 +943,12 @@ func BenchmarkMapAssign(b *testing.B) {
+ 	b.Run("Str", runWith(benchmarkMapAssignStr, 1<<8, 1<<16))
+ }
+ 
++func BenchmarkMapOperatorAssign(b *testing.B) {
++	b.Run("Int32", runWith(benchmarkMapOperatorAssignInt32, 1<<8, 1<<16))
++	b.Run("Int64", runWith(benchmarkMapOperatorAssignInt64, 1<<8, 1<<16))
++	b.Run("Str", runWith(benchmarkMapOperatorAssignStr, 1<<8, 1<<16))
++}
++
+ func BenchmarkMapDelete(b *testing.B) {
+ 	b.Run("Int32", runWith(benchmarkMapDeleteInt32, 100, 1000, 10000))
+ 	b.Run("Int64", runWith(benchmarkMapDeleteInt64, 100, 1000, 10000))
+diff --git a/test/fixedbugs/issue19359.go b/test/fixedbugs/issue19359.go
+index 4717d1365d..3f26d6c0d7 100644
+--- a/test/fixedbugs/issue19359.go
++++ b/test/fixedbugs/issue19359.go
+@@ -28,10 +28,38 @@ func del(m map[interface{}]interface{}, key interface{}) (err error) {
+ 	return nil
+ }
+ 
++func addInt(m map[interface{}]int, key interface{}) (err error) {
++	defer func() {
++		if r := recover(); r != nil {
++			err = fmt.Errorf("addInt failed: %v", r)
++		}
++	}()
++	m[key] += 2018
++	return nil
++}
++
++func addStr(m map[interface{}]string, key interface{}) (err error) {
++	defer func() {
++		if r := recover(); r != nil {
++			err = fmt.Errorf("addStr failed: %v", r)
++		}
++	}()
++	m[key] += "hello, go"
++	return nil
++}
++
+ func main() {
+ 	m := make(map[interface{}]interface{})
+ 	set(m, []int{1, 2, 3})
+ 	set(m, "abc") // used to throw
+ 	del(m, []int{1, 2, 3})
+ 	del(m, "abc") // used to throw
++
++	mi := make(map[interface{}]int)
++	addInt(mi, []int{1, 2, 3})
++	addInt(mi, "abc") // used to throw
++
++	ms := make(map[interface{}]string)
++	addStr(ms, []int{1, 2, 3})
++	addStr(ms, "abc") // used to throw
+ }
+diff --git a/test/fixedbugs/issue22881.go b/test/fixedbugs/issue22881.go
+index 61e99a288c..8eaf42e1c0 100644
+--- a/test/fixedbugs/issue22881.go
++++ b/test/fixedbugs/issue22881.go
+@@ -13,7 +13,7 @@ import "fmt"
+ 
+ func main() {
+ 	for i, f := range []func(map[int]int){
+-		f0, f1, f2, f3, f4, f5, f6, f7,
++		f0, f1, f2, f3, f4, f5, f6, f7, f8,
+ 	} {
+ 		m := map[int]int{}
+ 		func() { // wrapper to scope the defer.
+@@ -69,4 +69,9 @@ func f7(m map[int]int) {
+ 	m[0] = a[0]
+ }
+ 
++func f8(m map[int]int) {
++	var z int
++	m[0] %= z
++}
++
+ var sink bool

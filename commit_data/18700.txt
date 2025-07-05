@@ -12,7 +12,39 @@ Date:   Sat Mar 1 11:13:29 2014 +1100
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/69960044
-
+---
  src/pkg/runtime/cgocall.c   | 6 ++++++
  src/pkg/runtime/hashmap.goc | 3 +++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 639139d74a..9f8db3ae09 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -223,6 +223,12 @@ struct CallbackArgs
+ #define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+2*sizeof(void*))
+ #endif
+ 
++// There is no cgo support for nacl/amd64p32 but we need to have something here 
++// so use the amd64 value as a placeholder.
++#ifdef GOARCH_amd64p32
++#define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+2*sizeof(void*))
++#endif
++
+ // On 386, stack frame is three words, plus caller PC.
+ #ifdef GOARCH_386
+ #define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+4*sizeof(void*))
+diff --git a/src/pkg/runtime/hashmap.goc b/src/pkg/runtime/hashmap.goc
+index dbec9a689e..4900a16ff4 100644
+--- a/src/pkg/runtime/hashmap.goc
++++ b/src/pkg/runtime/hashmap.goc
+@@ -448,6 +448,9 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
+ #ifdef GOARCH_amd64
+ #define CHECKTYPE uint64
+ #endif
++#ifdef GOARCH_amd64p32
++#define CHECKTYPE uint32
++#endif
+ #ifdef GOARCH_386
+ #define CHECKTYPE uint32
+ #endif

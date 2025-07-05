@@ -8,6 +8,21 @@ Date:   Sat Jun 21 20:19:32 2014 +0400
     R=golang-codereviews, ruiu
     CC=golang-codereviews
     https://golang.org/cl/109100046
-
+---
  doc/articles/race_detector.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/articles/race_detector.html b/doc/articles/race_detector.html
+index 282db8ba40..32ad61de87 100644
+--- a/doc/articles/race_detector.html
++++ b/doc/articles/race_detector.html
+@@ -377,7 +377,8 @@ func (w *Watchdog) Start() {
+ <h2 id="Supported_Systems">Supported Systems</h2>
+ 
+ <p>
+-The race detector runs on <code>darwin/amd64</code>, <code>linux/amd64</code>, and <code>windows/amd64</code>.
++The race detector runs on <code>darwin/amd64</code>, <code>freebsd/amd64</code>,
++<code>linux/amd64</code>, and <code>windows/amd64</code>.
+ </p>
+ 
+ <h2 id="Runtime_Overheads">Runtime Overhead</h2>

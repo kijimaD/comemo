@@ -24,7 +24,7 @@ Date:   Fri Jan 17 09:59:50 2025 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/syscall/zerrors_linux_386.go      | 2 +-
  src/syscall/zerrors_linux_amd64.go    | 2 +-
  src/syscall/zerrors_linux_arm.go      | 2 +-
@@ -32,3 +32,82 @@ Date:   Fri Jan 17 09:59:50 2025 -0800
  src/syscall/zerrors_linux_mips64le.go | 2 +-
  src/syscall/zerrors_linux_ppc64.go    | 2 +-
  6 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/syscall/zerrors_linux_386.go b/src/syscall/zerrors_linux_386.go
+index 9d4ecdeb69..05b621a2cc 100644
+--- a/src/syscall/zerrors_linux_386.go
++++ b/src/syscall/zerrors_linux_386.go
+@@ -1467,7 +1467,7 @@ var errors = [...]string{
+ 	113: "no route to host",
+ 	114: "operation already in progress",
+ 	115: "operation now in progress",
+-	116: "stale NFS file handle",
++	116: "stale file handle",
+ 	117: "structure needs cleaning",
+ 	118: "not a XENIX named type file",
+ 	119: "no XENIX semaphores available",
+diff --git a/src/syscall/zerrors_linux_amd64.go b/src/syscall/zerrors_linux_amd64.go
+index a8b67801e6..8bc322a707 100644
+--- a/src/syscall/zerrors_linux_amd64.go
++++ b/src/syscall/zerrors_linux_amd64.go
+@@ -1468,7 +1468,7 @@ var errors = [...]string{
+ 	113: "no route to host",
+ 	114: "operation already in progress",
+ 	115: "operation now in progress",
+-	116: "stale NFS file handle",
++	116: "stale file handle",
+ 	117: "structure needs cleaning",
+ 	118: "not a XENIX named type file",
+ 	119: "no XENIX semaphores available",
+diff --git a/src/syscall/zerrors_linux_arm.go b/src/syscall/zerrors_linux_arm.go
+index 285d26a561..ccbea5f287 100644
+--- a/src/syscall/zerrors_linux_arm.go
++++ b/src/syscall/zerrors_linux_arm.go
+@@ -1480,7 +1480,7 @@ var errors = [...]string{
+ 	113: "no route to host",
+ 	114: "operation already in progress",
+ 	115: "operation now in progress",
+-	116: "stale NFS file handle",
++	116: "stale file handle",
+ 	117: "structure needs cleaning",
+ 	118: "not a XENIX named type file",
+ 	119: "no XENIX semaphores available",
+diff --git a/src/syscall/zerrors_linux_mips64.go b/src/syscall/zerrors_linux_mips64.go
+index 6953c92484..7d505c7bb0 100644
+--- a/src/syscall/zerrors_linux_mips64.go
++++ b/src/syscall/zerrors_linux_mips64.go
+@@ -1744,7 +1744,7 @@ var errors = [...]string{
+ 	148:  "no route to host",
+ 	149:  "operation already in progress",
+ 	150:  "operation now in progress",
+-	151:  "stale NFS file handle",
++	151:  "stale file handle",
+ 	158:  "operation canceled",
+ 	159:  "no medium found",
+ 	160:  "wrong medium type",
+diff --git a/src/syscall/zerrors_linux_mips64le.go b/src/syscall/zerrors_linux_mips64le.go
+index 6953c92484..7d505c7bb0 100644
+--- a/src/syscall/zerrors_linux_mips64le.go
++++ b/src/syscall/zerrors_linux_mips64le.go
+@@ -1744,7 +1744,7 @@ var errors = [...]string{
+ 	148:  "no route to host",
+ 	149:  "operation already in progress",
+ 	150:  "operation now in progress",
+-	151:  "stale NFS file handle",
++	151:  "stale file handle",
+ 	158:  "operation canceled",
+ 	159:  "no medium found",
+ 	160:  "wrong medium type",
+diff --git a/src/syscall/zerrors_linux_ppc64.go b/src/syscall/zerrors_linux_ppc64.go
+index f0661a2445..fba5353b3e 100644
+--- a/src/syscall/zerrors_linux_ppc64.go
++++ b/src/syscall/zerrors_linux_ppc64.go
+@@ -1800,7 +1800,7 @@ var errors = [...]string{
+ 	113: "no route to host",
+ 	114: "operation already in progress",
+ 	115: "operation now in progress",
+-	116: "stale NFS file handle",
++	116: "stale file handle",
+ 	117: "structure needs cleaning",
+ 	118: "not a XENIX named type file",
+ 	119: "no XENIX semaphores available",

@@ -21,9 +21,112 @@ Date:   Fri May 7 13:20:34 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/319589
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go       |  9 +++++++--
  src/cmd/compile/internal/noder/expr.go    |  2 +-
  src/cmd/compile/internal/noder/stencil.go | 22 +++++++++++++++++++---
  test/typeparam/issue45817.go              | 25 +++++++++++++++++++++++++
  4 files changed, 52 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index f70645f079..9ea8b61965 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -494,8 +494,13 @@ func NewNameOffsetExpr(pos src.XPos, name *Name, offset int64, typ *types.Type)
+ // A SelectorExpr is a selector expression X.Sel.
+ type SelectorExpr struct {
+ 	miniExpr
+-	X         Node
+-	Sel       *types.Sym
++	X Node
++	// Sel is the name of the field or method being selected, without (in the
++	// case of methods) any preceding type specifier. If the field/method is
++	// exported, than the Sym uses the local package regardless of the package
++	// of the containing type.
++	Sel *types.Sym
++	// The actual selected field - may not be filled in until typechecking.
+ 	Selection *types.Field
+ 	Prealloc  *Name // preallocated storage for OCALLPART, if any
+ }
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index c7695ed920..b7f7a34953 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -266,7 +266,7 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
+ 				recvType2 = recvType2Base
+ 				// method is the generic method associated with the gen type
+ 				method := g.obj(types2.AsNamed(recvType2).Method(last))
+-				n = ir.NewSelectorExpr(pos, ir.OCALLPART, x, method.Sym())
++				n = ir.NewSelectorExpr(pos, ir.OCALLPART, x, typecheck.Lookup(expr.Sel.Value))
+ 				n.(*ir.SelectorExpr).Selection = types.NewField(pos, method.Sym(), method.Type())
+ 				n.(*ir.SelectorExpr).Selection.Nname = method
+ 				typed(method.Type(), n)
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 3ebc8dff6d..751a628256 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -112,14 +112,30 @@ func (g *irgen) stencil() {
+ 		// EditChildren rather than Visit), where we actually change the
+ 		// OFUNCINST node to an ONAME for the instantiated function.
+ 		// EditChildren is more expensive than Visit, so we only do this
+-		// in the infrequent case of an OFUNCINSt without a corresponding
++		// in the infrequent case of an OFUNCINST without a corresponding
+ 		// call.
+ 		if foundFuncInst {
+ 			var edit func(ir.Node) ir.Node
+ 			edit = func(x ir.Node) ir.Node {
+ 				if x.Op() == ir.OFUNCINST {
+-					st := g.getInstantiationForNode(x.(*ir.InstExpr))
+-					return st.Nname
++					// inst.X is either a function name node
++					// or a selector expression for a method.
++					inst := x.(*ir.InstExpr)
++					st := g.getInstantiationForNode(inst)
++					modified = true
++					if inst.X.Op() == ir.ONAME {
++						return st.Nname
++					}
++					assert(inst.X.Op() == ir.OCALLPART)
++
++					// Return a new selector expression referring
++					// to the newly stenciled function.
++					oldse := inst.X.(*ir.SelectorExpr)
++					newse := ir.NewSelectorExpr(oldse.Pos(), ir.OCALLPART, oldse.X, oldse.Sel)
++					newse.Selection = types.NewField(oldse.Pos(), st.Sym(), st.Type())
++					newse.Selection.Nname = st
++					typed(inst.Type(), newse)
++					return newse
+ 				}
+ 				ir.EditChildren(x, edit)
+ 				return x
+diff --git a/test/typeparam/issue45817.go b/test/typeparam/issue45817.go
+new file mode 100644
+index 0000000000..744698f40b
+--- /dev/null
++++ b/test/typeparam/issue45817.go
+@@ -0,0 +1,25 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++)
++
++type s[T any] struct {
++	a T
++}
++func (x s[T]) f() T {
++	return x.a
++}
++func main() {
++	x := s[int]{a:7}
++	f := x.f
++	if got, want := f(), 7; got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++}

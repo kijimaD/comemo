@@ -15,6 +15,44 @@ Date:   Wed Aug 9 01:19:38 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/internal/bisect/bisect.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/bisect/bisect.go b/src/internal/bisect/bisect.go
+index 48c796e54a..26d3ebf333 100644
+--- a/src/internal/bisect/bisect.go
++++ b/src/internal/bisect/bisect.go
+@@ -66,7 +66,7 @@
+ //
+ //	func ShouldEnable(file string, line int) bool {
+ //		if m == nil {
+-//			return false
++//			return true
+ //		}
+ //		h := bisect.Hash(file, line)
+ //		if m.ShouldPrint(h) {
+@@ -83,12 +83,12 @@
+ //
+ //	func ShouldEnable(file string, line int) bool {
+ //		if m == nil {
+-//			return false
++//			return true
+ //		}
+ //		h := bisect.Hash(file, line)
+ //		if m.ShouldPrint(h) {
+ //			if m.MarkerOnly() {
+-//				bisect.PrintMarker(os.Stderr)
++//				bisect.PrintMarker(os.Stderr, h)
+ //			} else {
+ //				fmt.Fprintf(os.Stderr, "%v %s:%d\n", bisect.Marker(h), file, line)
+ //			}
+@@ -495,7 +495,7 @@ type Writer interface {
+ // It is appropriate to use when [Matcher.ShouldPrint] and [Matcher.MarkerOnly] both return true.
+ func PrintMarker(w Writer, h uint64) error {
+ 	var buf [50]byte
+-	b := AppendMarker(buf[:], h)
++	b := AppendMarker(buf[:0], h)
+ 	b = append(b, '\n')
+ 	_, err := w.Write(b)
+ 	return err

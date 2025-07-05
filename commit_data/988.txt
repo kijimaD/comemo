@@ -8,9 +8,507 @@ Date:   Wed Oct 29 14:28:19 2008 -0700
     DELTA=202  (60 added, 24 deleted, 118 changed)
     OCL=18029
     CL=18038
-
+---
  src/lib/flag.go       |   2 +-
  src/lib/fmt/format.go | 161 ++++++++++++++++++++++++++++++--------------------
  src/lib/fmt/print.go  |  30 +++++-----
  test/fmt_test.go      |  71 +++++++++++-----------
  4 files changed, 150 insertions(+), 114 deletions(-)
+
+diff --git a/src/lib/flag.go b/src/lib/flag.go
+index 79edbec6bc..7baa72a852 100644
+--- a/src/lib/flag.go
++++ b/src/lib/flag.go
+@@ -210,7 +210,7 @@ func (i *IntValue) Set(val int64) {
+ }
+ 
+ func (i *IntValue) Str() string {
+-	return fmt.New().D(i.val).str()
++	return fmt.New().d64(i.val).str()
+ }
+ 
+ // -- String Value
+diff --git a/src/lib/fmt/format.go b/src/lib/fmt/format.go
+index 6c72a9a4f5..089de43f40 100644
+--- a/src/lib/fmt/format.go
++++ b/src/lib/fmt/format.go
+@@ -176,122 +176,143 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string
+ }
+ 
+ // decimal
+-func (f *Fmt) d(a int32) *Fmt {
+-	f.pad(f.integer(int64(a), 10, true, &ldigits));
++func (f *Fmt) d64(a int64) *Fmt {
++	f.pad(f.integer(a, 10, true, &ldigits));
+ 	f.clearflags();
+ 	return f;
+ }
++	
++func (f *Fmt) d32(a int32) *Fmt {
++	return f.d64(int64(a));
++}
+ 
+-func (f *Fmt) D(a int64) *Fmt {
+-	f.pad(f.integer(a, 10, true, &ldigits));
+-	f.clearflags();
+-	return f;
++func (f *Fmt) d(a int) *Fmt {
++	return f.d64(int64(a));
+ }
+ 
+ // unsigned decimal
+-func (f *Fmt) ud(a int32) *Fmt {
+-	f.pad(f.integer(int64(uint32(a)), 10, false, &ldigits));
++func (f *Fmt) ud64(a uint64) *Fmt {
++	f.pad(f.integer(int64(a), 10, false, &ldigits));
+ 	f.clearflags();
+ 	return f;
+ }
+ 
+-func (f *Fmt) uD(a int64) *Fmt {
+-	f.pad(f.integer(a, 10, false, &ldigits));
+-	f.clearflags();
+-	return f;
++func (f *Fmt) ud32(a uint32) *Fmt {
++	return f.ud64(uint64(a));
+ }
+ 
+-// hexdecimal
+-func (f *Fmt) x(a int32) *Fmt {
+-	f.pad(f.integer(int64(a), 16, true, &ldigits));
+-	f.clearflags();
+-	return f;
++func (f *Fmt) ud(a uint) *Fmt {
++	return f.ud64(uint64(a));
+ }
+ 
+-func (f *Fmt) X(a int64) *Fmt {
++// hexdecimal
++func (f *Fmt) x64(a int64) *Fmt {
+ 	f.pad(f.integer(a, 16, true, &ldigits));
+ 	f.clearflags();
+ 	return f;
+ }
+ 
++func (f *Fmt) x32(a int32) *Fmt {
++	return f.x64(int64(a));
++}
++
++func (f *Fmt) x(a int) *Fmt {
++	return f.x64(int64(a));
++}
++
+ // unsigned hexdecimal
+-func (f *Fmt) ux(a int32) *Fmt {
+-	f.pad(f.integer(int64(uint32(a)), 16, false, &ldigits));
++func (f *Fmt) ux64(a uint64) *Fmt {
++	f.pad(f.integer(int64(a), 16, false, &ldigits));
+ 	f.clearflags();
+ 	return f;
+ }
+ 
+-func (f *Fmt) uX(a int64) *Fmt {
+-	f.pad(f.integer(a, 16, false, &ldigits));
+-	f.clearflags();
+-	return f;
++func (f *Fmt) ux32(a uint32) *Fmt {
++	return f.ux64(uint64(a));
+ }
+ 
+-// HEXADECIMAL
+-func (f *Fmt) Ux(a int32) *Fmt {
+-	f.pad(f.integer(int64(a), 16, true, &udigits));
+-	f.clearflags();
+-	return f;
++func (f *Fmt) ux(a uint) *Fmt {
++	return f.ux64(uint64(a));
+ }
+ 
+-func (f *Fmt) UX(a int64) *Fmt {
++// HEXADECIMAL
++func (f *Fmt) X64(a int64) *Fmt {
+ 	f.pad(f.integer(a, 16, true, &udigits));
+ 	f.clearflags();
+ 	return f;
+ }
+ 
++func (f *Fmt) X32(a int32) *Fmt {
++	return f.X64(int64(a));
++}
++
++func (f *Fmt) X(a int) *Fmt {
++	return f.X64(int64(a));
++}
++
+ // unsigned HEXADECIMAL
+-func (f *Fmt) uUx(a int32) *Fmt {
+-	f.pad(f.integer(int64(uint32(a)), 16, false, &udigits));
++func (f *Fmt) uX64(a uint64) *Fmt {
++	f.pad(f.integer(int64(a), 16, false, &udigits));
+ 	f.clearflags();
+ 	return f;
+ }
+ 
+-func (f *Fmt) uUX(a int64) *Fmt {
+-	f.pad(f.integer(a, 16, false, &udigits));
+-	f.clearflags();
+-	return f;
++func (f *Fmt) uX32(a uint32) *Fmt {
++	return f.uX64(uint64(a));
+ }
+ 
+-// octal
+-func (f *Fmt) o(a int32) *Fmt {
+-	f.pad(f.integer(int64(a), 8, true, &ldigits));
+-	f.clearflags();
+-	return f;
++func (f *Fmt) uX(a uint) *Fmt {
++	return f.uX64(uint64(a));
+ }
+ 
+-func (f *Fmt) O(a int64) *Fmt {
++// octal
++func (f *Fmt) o64(a int64) *Fmt {
+ 	f.pad(f.integer(a, 8, true, &ldigits));
+ 	f.clearflags();
+ 	return f;
+ }
+ 
++func (f *Fmt) o32(a int32) *Fmt {
++	return f.o64(int64(a));
++}
++
++func (f *Fmt) o(a int) *Fmt {
++	return f.o64(int64(a));
++}
++
++
+ // unsigned octal
+-func (f *Fmt) uo(a int32) *Fmt {
+-	f.pad(f.integer(int64(uint32(a)), 8, false, &ldigits));
++func (f *Fmt) uo64(a uint64) *Fmt {
++	f.pad(f.integer(int64(a), 8, false, &ldigits));
+ 	f.clearflags();
+ 	return f;
+ }
+ 
+-func (f *Fmt) uO(a int64) *Fmt {
+-	f.pad(f.integer(a, 8, false, &ldigits));
+-	f.clearflags();
+-	return f;
++func (f *Fmt) uo32(a uint32) *Fmt {
++	return f.uo64(uint64(a));
+ }
+ 
+-// binary
+-func (f *Fmt) b(a int32) *Fmt {
+-	f.pad(f.integer(int64(uint32(a)), 2, false, &ldigits));
+-	f.clearflags();
+-	return f;
++func (f *Fmt) uo(a uint) *Fmt {
++	return f.uo64(uint64(a));
+ }
+ 
+-func (f *Fmt) B(a int64) *Fmt {
+-	f.pad(f.integer(a, 2, false, &ldigits));
++
++// unsigned binary
++func (f *Fmt) b64(a uint64) *Fmt {
++	f.pad(f.integer(int64(a), 2, false, &ldigits));
+ 	f.clearflags();
+ 	return f;
+ }
+ 
++func (f *Fmt) b32(a uint32) *Fmt {
++	return f.b64(uint64(a));
++}
++
++func (f *Fmt) b(a uint) *Fmt {
++	return f.b64(uint64(a));
++}
++
++
+ // character
+ func (f *Fmt) c(a int) *Fmt {
+ 	f.pad(string(a));
+@@ -388,7 +409,7 @@ func(f *Fmt) InfOrNan(a float64) bool {
+ }
+ 
+ // float64
+-func (f *Fmt) E(a float64) *Fmt {
++func (f *Fmt) e64(a float64) *Fmt {
+ 	var negative bool;
+ 	var g float64;
+ 	var exp int;
+@@ -431,7 +452,7 @@ func (f *Fmt) E(a float64) *Fmt {
+ }
+ 
+ // float64
+-func (f *Fmt) F(a float64) *Fmt {
++func (f *Fmt) f64(a float64) *Fmt {
+ 	var negative bool;
+ 	var g float64;
+ 	var exp int;
+@@ -440,7 +461,7 @@ func (f *Fmt) F(a float64) *Fmt {
+ 	}
+ 	negative, exp, g = unpack(a);
+ 	if exp > 19 || exp < -19 {  // too big for this sloppy code
+-		return f.E(a);
++		return f.e64(a);
+ 	}
+ 	prec := 6;
+ 	if f.prec_present {
+@@ -468,7 +489,7 @@ func (f *Fmt) F(a float64) *Fmt {
+ }
+ 
+ // float64
+-func (f *Fmt) G(a float64) *Fmt {
++func (f *Fmt) g64(a float64) *Fmt {
+ 	if f.InfOrNan(a) {
+ 		return f;
+ 	}
+@@ -482,8 +503,8 @@ func (f *Fmt) G(a float64) *Fmt {
+ 		f1.p(f.prec);
+ 		f2.p(f.prec);
+ 	}
+-	efmt := f1.E(a).str();
+-	ffmt := f2.F(a).str();
++	efmt := f1.e64(a).str();
++	ffmt := f2.f64(a).str();
+ 	// ffmt can return e in my bogus world; don't trim trailing 0s if so.
+ 	f_is_e := false;
+ 	for i := 0; i < len(ffmt); i++ {
+@@ -510,16 +531,28 @@ func (f *Fmt) G(a float64) *Fmt {
+ }
+ 
+ // float
++func (x *Fmt) f32(a float32) *Fmt {
++	return x.f64(float64(a))
++}
++
+ func (x *Fmt) f(a float) *Fmt {
+-	return x.F(float64(a))
++	return x.f64(float64(a))
+ }
+ 
+ // float
++func (x *Fmt) e32(a float32) *Fmt {
++	return x.e64(float64(a))
++}
++
+ func (x *Fmt) e(a float) *Fmt {
+-	return x.E(float64(a))
++	return x.e64(float64(a))
+ }
+ 
+ // float
++func (x *Fmt) g32(a float32) *Fmt {
++	return x.g64(float64(a))
++}
++
+ func (x *Fmt) g(a float) *Fmt {
+-	return x.G(float64(a))
++	return x.g64(float64(a))
+ }
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index 39500f44ae..6ef2733f5f 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -270,16 +270,16 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
+ 			// int
+ 			case 'b':
+ 				if v, signed, ok := getInt(field); ok {
+-					s = p.fmt.B(v).str()	// always unsigned
++					s = p.fmt.b64(uint64(v)).str()	// always unsigned
+ 				} else {
+ 					s = "%b%"
+ 				}
+ 			case 'd':
+ 				if v, signed, ok := getInt(field); ok {
+ 					if signed {
+-						s = p.fmt.D(v).str()
++						s = p.fmt.d64(v).str()
+ 					} else {
+-						s = p.fmt.uD(v).str()
++						s = p.fmt.ud64(uint64(v)).str()
+ 					}
+ 				} else {
+ 					s = "%d%"
+@@ -287,9 +287,9 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
+ 			case 'o':
+ 				if v, signed, ok := getInt(field); ok {
+ 					if signed {
+-						s = p.fmt.O(v).str()
++						s = p.fmt.o64(v).str()
+ 					} else {
+-						s = p.fmt.uO(v).str()
++						s = p.fmt.uo64(uint64(v)).str()
+ 					}
+ 				} else {
+ 					s= "%o%"
+@@ -297,9 +297,9 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
+ 			case 'x':
+ 				if v, signed, ok := getInt(field); ok {
+ 					if signed {
+-						s = p.fmt.X(v).str()
++						s = p.fmt.x64(v).str()
+ 					} else {
+-						s = p.fmt.uX(v).str()
++						s = p.fmt.ux64(uint64(v)).str()
+ 					}
+ 				} else {
+ 					s = "%x%"
+@@ -308,19 +308,19 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
+ 			// float
+ 			case 'e':
+ 				if v, ok := getFloat(field); ok {
+-					s = p.fmt.E(v).str()
++					s = p.fmt.e64(v).str()
+ 				} else {
+ 					s = "%e%"
+ 				}
+ 			case 'f':
+ 				if v, ok := getFloat(field); ok {
+-					s = p.fmt.F(v).str()
++					s = p.fmt.f64(v).str()
+ 				} else {
+ 					s = "%f%";
+ 				}
+ 			case 'g':
+ 				if v, ok := getFloat(field); ok {
+-					s = p.fmt.G(v).str()
++					s = p.fmt.g64(v).str()
+ 				} else {
+ 					s = "%g%"
+ 				}
+@@ -336,7 +336,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
+ 			// pointer
+ 			case 'p':
+ 				if v, ok := getPtr(field); ok {
+-					s = "0x" + p.fmt.uX(int64(v)).str()
++					s = "0x" + p.fmt.uX64(v).str()
+ 				} else {
+ 					s = "%p%"
+ 				}
+@@ -365,13 +365,13 @@ func (p *P) doprint(v reflect.StructValue, is_println bool) {
+ 		switch field.Kind() {
+ 		case reflect.Int8Kind, reflect.Int16Kind, reflect.Int32Kind, reflect.Int64Kind:
+ 			v, signed, ok := getInt(field);
+-			s = p.fmt.D(v).str();
++			s = p.fmt.d64(v).str();
+ 		case reflect.Uint8Kind, reflect.Uint16Kind, reflect.Uint32Kind, reflect.Uint64Kind:
+ 			v, signed, ok := getInt(field);
+-			s = p.fmt.uD(v).str();
++			s = p.fmt.ud64(uint64(v)).str();
+ 		case reflect.Float32Kind, reflect.Float64Kind, reflect.Float80Kind:
+ 			v, ok := getFloat(field);
+-			s = p.fmt.G(v).str();
++			s = p.fmt.g64(v).str();
+ 		case reflect.StringKind:
+ 			v, ok := getString(field);
+ 			s = p.fmt.s(v).str();
+@@ -379,7 +379,7 @@ func (p *P) doprint(v reflect.StructValue, is_println bool) {
+ 			v, ok := getPtr(field);
+ 			p.add('0');
+ 			p.add('x');
+-			s = p.fmt.uX(int64(v)).str();
++			s = p.fmt.uX64(v).str();
+ 		default:
+ 			s = "???";
+ 		}
+diff --git a/test/fmt_test.go b/test/fmt_test.go
+index bbec4e71a0..f694a55af9 100644
+--- a/test/fmt_test.go
++++ b/test/fmt_test.go
+@@ -23,36 +23,39 @@ func E(f *fmt.Fmt, e string) {
+ 	}
+ }
+ 
++const B32 = 1<<32 - 1
++const B64 = 1<<64 - 1
++
+ func main() {
+ 	f := fmt.New();
+ 	E(f.s("d   ").d(1234), "d   1234");
+ 	E(f.s("Simple output\n"), "Simple output\n");
+ 	E(f.s("\td   ").d(-1234), "\td   -1234");
+-	E(f.s("\tud  ").ud(^0), "\tud  4294967295");
+-	E(f.s("\tuD  ").uD(^0), "\tuD  18446744073709551615");
++	E(f.s("\tud  ").ud(B32), "\tud  4294967295");
++	E(f.s("\tud64  ").ud64(B64), "\tud64  18446744073709551615");
+ 	E(f.s("\to   ").o(01234), "\to   1234");
+-	E(f.s("\tuo  ").uo(^0), "\tuo  37777777777");
+-	E(f.s("\tuO  ").uO(^0), "\tuO  1777777777777777777777");
++	E(f.s("\tuo  ").uo(B32), "\tuo  37777777777");
++	E(f.s("\tuo64  ").uo64(B64), "\tuo64  1777777777777777777777");
+ 	E(f.s("\tx   ").x(0x1234abcd), "\tx   1234abcd");
+-	E(f.s("\tux  ").ux(^0 - 0x01234567), "\tux  fedcba98");
+-	E(f.s("\tUx  ").Ux(0x1234abcd), "\tUx  1234ABCD");
+-	E(f.s("\tuUx ").uUx(^0 - 0x01234567), "\tuUx FEDCBA98");
+-	E(f.s("\tuX  ").uX(^0), "\tuX  ffffffffffffffff");
++	E(f.s("\tux  ").ux(B32 - 0x01234567), "\tux  fedcba98");
++	E(f.s("\tX  ").X(0x1234abcd), "\tX  1234ABCD");
++	E(f.s("\tuX ").uX(B32 - 0x01234567), "\tuX FEDCBA98");
++	E(f.s("\tux64  ").ux64(B64), "\tux64  ffffffffffffffff");
+ 	E(f.s("\tb   ").b(7), "\tb   111");
+-	E(f.s("\tB   ").B(^0), "\tB   1111111111111111111111111111111111111111111111111111111111111111");
+-	E(f.s("\te   ").E(1.), "\te   1.000000e+00");
+-	E(f.s("\te   ").E(1234.5678e3), "\te   1.234567e+06");
+-	E(f.s("\te   ").E(1234.5678e-8), "\te   1.234567e-05");
+-	E(f.s("\te   ").E(-7.0), "\te   -7.000000e+00");
+-	E(f.s("\te   ").E(-1e-9), "\te   -1.000000e-09");
+-	E(f.s("\tf   ").F(1234.5678e3), "\tf   1234567.800000");
+-	E(f.s("\tf   ").F(1234.5678e-8), "\tf   0.000012");
+-	E(f.s("\tf   ").F(-7.0), "\tf   -7.000000");
+-	E(f.s("\tf   ").F(-1e-9), "\tf   -0.000000");
+-	E(f.s("\tg   ").G(1234.5678e3), "\tg   1234567.8");
+-	E(f.s("\tg   ").G(1234.5678e-8), "\tg   0.000012");
+-	E(f.s("\tg   ").G(-7.0), "\tg   -7.");
+-	E(f.s("\tg   ").G(-1e-9), "\tg   -0.");
++	E(f.s("\tb64   ").b64(B64), "\tb64   1111111111111111111111111111111111111111111111111111111111111111");
++	E(f.s("\te   ").e64(1.), "\te   1.000000e+00");
++	E(f.s("\te   ").e64(1234.5678e3), "\te   1.234567e+06");
++	E(f.s("\te   ").e64(1234.5678e-8), "\te   1.234567e-05");
++	E(f.s("\te   ").e64(-7.0), "\te   -7.000000e+00");
++	E(f.s("\te   ").e64(-1e-9), "\te   -1.000000e-09");
++	E(f.s("\tf   ").f64(1234.5678e3), "\tf   1234567.800000");
++	E(f.s("\tf   ").f64(1234.5678e-8), "\tf   0.000012");
++	E(f.s("\tf   ").f64(-7.0), "\tf   -7.000000");
++	E(f.s("\tf   ").f64(-1e-9), "\tf   -0.000000");
++	E(f.s("\tg   ").g64(1234.5678e3), "\tg   1234567.8");
++	E(f.s("\tg   ").g64(1234.5678e-8), "\tg   0.000012");
++	E(f.s("\tg   ").g64(-7.0), "\tg   -7.");
++	E(f.s("\tg   ").g64(-1e-9), "\tg   -0.");
+ 	E(f.s("\tc   ").c('x'), "\tc   x");
+ 	E(f.s("\tc   ").c(0xe4), "\tc   ä");
+ 	E(f.s("\tc   ").c(0x672c), "\tc   本");
+@@ -75,17 +78,17 @@ func main() {
+ 	E(f.s("\t20e\t|").w(20).e(1.2345e-3).s("|"), "\t20e\t|        1.234500e-03|");
+ 	E(f.s("\t-20e\t|").w(-20).e(1.2345e3).s("|"), "\t-20e\t|1.234500e+03        |");
+ 	E(f.s("\t20.8e\t|").wp(20,8).e(1.2345e3).s("|"), "\t20.8e\t|      1.23450000e+03|");
+-	E(f.s("\t20f\t|").w(20).F(1.23456789e3).s("|"), "\t20f\t|         1234.567890|");
+-	E(f.s("\t20f\t|").w(20).F(1.23456789e-3).s("|"), "\t20f\t|            0.001235|");
+-	E(f.s("\t20f\t|").w(20).F(12345678901.23456789).s("|"), "\t20f\t|  12345678901.234570|");
+-	E(f.s("\t-20f\t|").w(-20).F(1.23456789e3).s("|"), "\t-20f\t|1234.567890         |");
+-	E(f.s("\t20.8f\t|").wp(20,8).F(1.23456789e3).s("|"), "\t20.8f\t|       1234.56789000|");
+-	E(f.s("\t20.8f\t|").wp(20,8).F(1.23456789e-3).s("|"), "\t20.8f\t|          0.00123457|");
+-	E(f.s("\tg\t|").G(1.23456789e3).s("|"), "\tg\t|1234.56789|");
+-	E(f.s("\tg\t|").G(1.23456789e-3).s("|"), "\tg\t|0.001235|");
+-	E(f.s("\tg\t|").G(1.23456789e20).s("|"), "\tg\t|1.234567e+20|");
++	E(f.s("\t20f\t|").w(20).f64(1.23456789e3).s("|"), "\t20f\t|         1234.567890|");
++	E(f.s("\t20f\t|").w(20).f64(1.23456789e-3).s("|"), "\t20f\t|            0.001235|");
++	E(f.s("\t20f\t|").w(20).f64(12345678901.23456789).s("|"), "\t20f\t|  12345678901.234570|");
++	E(f.s("\t-20f\t|").w(-20).f64(1.23456789e3).s("|"), "\t-20f\t|1234.567890         |");
++	E(f.s("\t20.8f\t|").wp(20,8).f64(1.23456789e3).s("|"), "\t20.8f\t|       1234.56789000|");
++	E(f.s("\t20.8f\t|").wp(20,8).f64(1.23456789e-3).s("|"), "\t20.8f\t|          0.00123457|");
++	E(f.s("\tg\t|").g64(1.23456789e3).s("|"), "\tg\t|1234.56789|");
++	E(f.s("\tg\t|").g64(1.23456789e-3).s("|"), "\tg\t|0.001235|");
++	E(f.s("\tg\t|").g64(1.23456789e20).s("|"), "\tg\t|1.234567e+20|");
+ 
+-	E(f.s("\tE\t|").w(20).G(sys.Inf(1)).s("|"), "\tE\t|                 Inf|");
+-	E(f.s("\tF\t|").w(-20).G(sys.Inf(-1)).s("|"), "\tF\t|-Inf                |");
+-	E(f.s("\tG\t|").w(20).G(sys.NaN()).s("|"), "\tG\t|                 NaN|");
++	E(f.s("\tE\t|").w(20).g64(sys.Inf(1)).s("|"), "\tE\t|                 Inf|");
++	E(f.s("\tF\t|").w(-20).g64(sys.Inf(-1)).s("|"), "\tF\t|-Inf                |");
++	E(f.s("\tG\t|").w(20).g64(sys.NaN()).s("|"), "\tG\t|                 NaN|");
+ }

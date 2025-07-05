@@ -17,6 +17,44 @@ Date:   Tue Jun 28 09:43:01 2011 -0400
     R=bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/4641066
-
+---
  src/pkg/sync/once.go | 14 +++++++++++---
  1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/sync/once.go b/src/pkg/sync/once.go
+index b6f5f5a872..447b71dcb7 100644
+--- a/src/pkg/sync/once.go
++++ b/src/pkg/sync/once.go
+@@ -4,10 +4,14 @@
+ 
+ package sync
+ 
++import (
++	"sync/atomic"
++)
++
+ // Once is an object that will perform exactly one action.
+ type Once struct {
+ 	m    Mutex
+-	done bool
++	done int32
+ }
+ 
+ // Do calls the function f if and only if the method is being called for the
+@@ -26,10 +30,14 @@ type Once struct {
+ // Do to be called, it will deadlock.
+ //
+ func (o *Once) Do(f func()) {
++	if atomic.AddInt32(&o.done, 0) == 1 {
++		return
++	}
++	// Slow-path.
+ 	o.m.Lock()
+ 	defer o.m.Unlock()
+-	if !o.done {
+-		o.done = true
++	if o.done == 0 {
+ 		f()
++		atomic.CompareAndSwapInt32(&o.done, 0, 1)
+ 	}
+ }

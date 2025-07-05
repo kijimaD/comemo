@@ -7,6 +7,23 @@ Date:   Thu May 17 02:01:03 2012 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6209072
-
+---
  src/pkg/net/unicast_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/net/unicast_test.go b/src/pkg/net/unicast_test.go
+index 7b3b19b323..12ec4e4ef6 100644
+--- a/src/pkg/net/unicast_test.go
++++ b/src/pkg/net/unicast_test.go
+@@ -544,6 +544,11 @@ func TestWildWildcardListener(t *testing.T) {
+ 		return
+ 	}
+ 
++	if testing.Short() || !*testExternal {
++		t.Logf("skipping test to avoid external network")
++		return
++	}
++
+ 	defer func() {
+ 		if recover() != nil {
+ 			t.Fatalf("panicked")

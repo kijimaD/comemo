@@ -11,6 +11,41 @@ Date:   Thu Jun 2 12:01:03 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/traceback.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 96f154e213..80a54407b3 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -962,12 +962,21 @@ func isSystemGoroutine(gp *g) bool {
+ // traceback function will only be called with the context field set
+ // to zero.  If the context function is nil, then calls from Go to C
+ // to Go will not show a traceback for the C portion of the call stack.
++//
++// SetCgoTraceback should be called only once, ideally from an init function.
+ func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer) {
+ 	if version != 0 {
+ 		panic("unsupported version")
+ 	}
+ 
++	if cgoTraceback != nil && cgoTraceback != traceback ||
++		cgoContext != nil && cgoContext != context ||
++		cgoSymbolizer != nil && cgoSymbolizer != symbolizer {
++		panic("call SetCgoTraceback only once")
++	}
++
+ 	cgoTraceback = traceback
++	cgoContext = context
+ 	cgoSymbolizer = symbolizer
+ 
+ 	// The context function is called when a C function calls a Go
+@@ -978,6 +987,7 @@ func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer)
+ }
+ 
+ var cgoTraceback unsafe.Pointer
++var cgoContext unsafe.Pointer
+ var cgoSymbolizer unsafe.Pointer
+ 
+ // cgoTracebackArg is the type passed to cgoTraceback.

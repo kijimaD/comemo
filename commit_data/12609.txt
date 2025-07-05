@@ -7,6 +7,20 @@ Date:   Tue Mar 13 16:39:52 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5754097
-
+---
  doc/devel/weekly.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/weekly.html b/doc/devel/weekly.html
+index d77255f261..1824480946 100644
+--- a/doc/devel/weekly.html
++++ b/doc/devel/weekly.html
+@@ -14,7 +14,7 @@ hg pull
+ hg update weekly.<i>YYYY-MM-DD</i>
+ </pre>
+ 
+-<h2 id="2012-03-12">2012-03-12</h2>
++<h2 id="2012-03-13">2012-03-13</h2>
+ 
+ <pre>
+ This weekly snapshot is very close to what we expect will be the contents of

@@ -12,6 +12,53 @@ Date:   Tue Oct 29 15:32:09 2024 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/map_benchmark_test.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/runtime/map_benchmark_test.go b/src/runtime/map_benchmark_test.go
+index 6f527c3af6..3b83de59cd 100644
+--- a/src/runtime/map_benchmark_test.go
++++ b/src/runtime/map_benchmark_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"encoding/binary"
++	"flag"
+ 	"fmt"
+ 	"math/rand"
+ 	"runtime"
+@@ -16,6 +17,8 @@ import (
+ 	"unsafe"
+ )
+ 
++var mapbench = flag.Bool("mapbench", false, "enable the full set of map benchmark variants")
++
+ const size = 10
+ 
+ func BenchmarkHashStringSpeed(b *testing.B) {
+@@ -511,9 +514,24 @@ func benchSizes(f func(b *testing.B, n int)) func(*testing.B) {
+ 		1 << 22,
+ 	}
+ 
++	// Cases enabled by default. Set -mapbench for the remainder.
++	//
++	// With the other type combinations, there are literally thousands of
++	// variations. It take too long to run all of these as part of
++	// builders.
++	byDefault := map[int]bool{
++		6:       true,
++		64:      true,
++		1 << 16: true,
++	}
++
+ 	return func(b *testing.B) {
+ 		for _, n := range cases {
+ 			b.Run("len="+strconv.Itoa(n), func(b *testing.B) {
++				if !*mapbench && !byDefault[n] {
++					b.Skip("Skipped because -mapbench=false")
++				}
++
+ 				f(b, n)
+ 			})
+ 		}

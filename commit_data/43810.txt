@@ -9,8 +9,58 @@ Date:   Thu Apr 23 23:11:08 2020 -0700
     Change-Id: I3005210cc156d01a6ac1ccaafb4311c607681bf0
     Reviewed-on: https://go-review.googlesource.com/c/go/+/229691
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules | 2 +-
  src/cmd/compile/internal/ssa/rewrite.go        | 4 ++--
  src/cmd/compile/internal/ssa/rewritegeneric.go | 4 ++--
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 7ab2013117..328585bbb6 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -2391,7 +2391,7 @@
+ 				(Store {t5} (OffPtr <tt5> [o5] dst) d4
+ 					(Zero {t1} [n] dst mem)))))
+ 
+-(StaticCall {sym} x) && needRaceCleanup(sym,v) -> x
++(StaticCall {sym} x) && needRaceCleanup(sym, v) => x
+ 
+ // Collapse moving A -> B -> C into just A -> C.
+ // Later passes (deadstore, elim unread auto) will remove the A -> B move, if possible.
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 87d6195b62..0522a955dd 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1340,12 +1340,12 @@ func registerizable(b *Block, typ *types.Type) bool {
+ }
+ 
+ // needRaceCleanup reports whether this call to racefuncenter/exit isn't needed.
+-func needRaceCleanup(sym interface{}, v *Value) bool {
++func needRaceCleanup(sym Sym, v *Value) bool {
+ 	f := v.Block.Func
+ 	if !f.Config.Race {
+ 		return false
+ 	}
+-	if !isSameSym(sym, "runtime.racefuncenter") && !isSameSym(sym, "runtime.racefuncexit") {
++	if !symNamed(sym, "runtime.racefuncenter") && !symNamed(sym, "runtime.racefuncexit") {
+ 		return false
+ 	}
+ 	for _, b := range f.Blocks {
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 2d9f73da09..d0f6363d13 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -21128,10 +21128,10 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (StaticCall {sym} x)
+-	// cond: needRaceCleanup(sym,v)
++	// cond: needRaceCleanup(sym, v)
+ 	// result: x
+ 	for {
+-		sym := v.Aux
++		sym := auxToSym(v.Aux)
+ 		x := v_0
+ 		if !(needRaceCleanup(sym, v)) {
+ 			break

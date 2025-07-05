@@ -34,7 +34,7 @@ Date:   Sat Nov 9 19:06:24 2019 +1100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/build/deps_test.go                       |  2 +-
  src/internal/syscall/windows/reparse_windows.go | 10 ++++++----
  src/internal/syscall/windows/syscall_windows.go | 20 ++++++++++++++++++++
@@ -47,3 +47,318 @@ Date:   Sat Nov 9 19:06:24 2019 +1100
  src/syscall/security_windows.go                 |  2 +-
  src/syscall/syscall_windows.go                  | 21 ++++++++++++++++++++-
  11 files changed, 76 insertions(+), 34 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 753a7937e1..fd256ee000 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -151,7 +151,7 @@ var pkgDeps = map[string][]string{
+ 	"syscall/js":                        {"L0"},
+ 	"internal/oserror":                  {"L0"},
+ 	"internal/syscall/unix":             {"L0", "syscall"},
+-	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll"},
++	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
+ 	"internal/syscall/windows/registry": {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
+ 	"time": {
+ 		// "L0" without the "io" package:
+diff --git a/src/internal/syscall/windows/reparse_windows.go b/src/internal/syscall/windows/reparse_windows.go
+index 610b733c4a..6e111392f0 100644
+--- a/src/internal/syscall/windows/reparse_windows.go
++++ b/src/internal/syscall/windows/reparse_windows.go
+@@ -60,8 +60,9 @@ type SymbolicLinkReparseBuffer struct {
+ 
+ // Path returns path stored in rb.
+ func (rb *SymbolicLinkReparseBuffer) Path() string {
+-	p := (*[0xffff]uint16)(unsafe.Pointer(&rb.PathBuffer[0]))
+-	return syscall.UTF16ToString(p[rb.SubstituteNameOffset/2 : (rb.SubstituteNameOffset+rb.SubstituteNameLength)/2])
++	n1 := rb.SubstituteNameOffset / 2
++	n2 := (rb.SubstituteNameOffset + rb.SubstituteNameLength) / 2
++	return syscall.UTF16ToString((*[0xffff]uint16)(unsafe.Pointer(&rb.PathBuffer[0]))[n1:n2:n2])
+ }
+ 
+ type MountPointReparseBuffer struct {
+@@ -83,6 +84,7 @@ type MountPointReparseBuffer struct {
+ 
+ // Path returns path stored in rb.
+ func (rb *MountPointReparseBuffer) Path() string {
+-	p := (*[0xffff]uint16)(unsafe.Pointer(&rb.PathBuffer[0]))
+-	return syscall.UTF16ToString(p[rb.SubstituteNameOffset/2 : (rb.SubstituteNameOffset+rb.SubstituteNameLength)/2])
++	n1 := rb.SubstituteNameOffset / 2
++	n2 := (rb.SubstituteNameOffset + rb.SubstituteNameLength) / 2
++	return syscall.UTF16ToString((*[0xffff]uint16)(unsafe.Pointer(&rb.PathBuffer[0]))[n1:n2:n2])
+ }
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 099e91ed68..dc641116ba 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -7,9 +7,29 @@ package windows
+ import (
+ 	"sync"
+ 	"syscall"
++	"unicode/utf16"
+ 	"unsafe"
+ )
+ 
++// UTF16PtrToString is like UTF16ToString, but takes *uint16
++// as a parameter instead of []uint16.
++// max is how many times p can be advanced looking for the null terminator.
++// If max is hit, the string is truncated at that point.
++func UTF16PtrToString(p *uint16, max int) string {
++	if p == nil {
++		return ""
++	}
++	// Find NUL terminator.
++	end := unsafe.Pointer(p)
++	n := 0
++	for *(*uint16)(end) != 0 && n < max {
++		end = unsafe.Pointer(uintptr(end) + unsafe.Sizeof(*p))
++		n++
++	}
++	s := (*[(1 << 30) - 1]uint16)(unsafe.Pointer(p))[:n:n]
++	return string(utf16.Decode(s))
++}
++
+ const (
+ 	ERROR_SHARING_VIOLATION      syscall.Errno = 32
+ 	ERROR_LOCK_VIOLATION         syscall.Errno = 33
+diff --git a/src/net/interface_windows.go b/src/net/interface_windows.go
+index 28b0a65f66..544943278d 100644
+--- a/src/net/interface_windows.go
++++ b/src/net/interface_windows.go
+@@ -58,7 +58,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ 		if ifindex == 0 || ifindex == int(index) {
+ 			ifi := Interface{
+ 				Index: int(index),
+-				Name:  syscall.UTF16ToString((*(*[10000]uint16)(unsafe.Pointer(aa.FriendlyName)))[:]),
++				Name:  windows.UTF16PtrToString(aa.FriendlyName, 10000),
+ 			}
+ 			if aa.OperStatus == windows.IfOperStatusUp {
+ 				ifi.Flags |= FlagUp
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index cb840ae238..7d5c941956 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"context"
++	"internal/syscall/windows"
+ 	"os"
+ 	"runtime"
+ 	"syscall"
+@@ -233,7 +234,7 @@ func (*Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
+ 	defer syscall.DnsRecordListFree(r, 1)
+ 
+ 	resolved := resolveCNAME(syscall.StringToUTF16Ptr(name), r)
+-	cname := syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(resolved))[:])
++	cname := windows.UTF16PtrToString(resolved, 256)
+ 	return absDomainName([]byte(cname)), nil
+ }
+ 
+@@ -277,7 +278,7 @@ func (*Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
+ 	mxs := make([]*MX, 0, 10)
+ 	for _, p := range validRecs(r, syscall.DNS_TYPE_MX, name) {
+ 		v := (*syscall.DNSMXData)(unsafe.Pointer(&p.Data[0]))
+-		mxs = append(mxs, &MX{absDomainName([]byte(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.NameExchange))[:]))), v.Preference})
++		mxs = append(mxs, &MX{absDomainName([]byte(windows.UTF16PtrToString(v.NameExchange, 256))), v.Preference})
+ 	}
+ 	byPref(mxs).sort()
+ 	return mxs, nil
+@@ -317,8 +318,8 @@ func (*Resolver) lookupTXT(ctx context.Context, name string) ([]string, error) {
+ 	for _, p := range validRecs(r, syscall.DNS_TYPE_TEXT, name) {
+ 		d := (*syscall.DNSTXTData)(unsafe.Pointer(&p.Data[0]))
+ 		s := ""
+-		for _, v := range (*[1 << 10]*uint16)(unsafe.Pointer(&(d.StringArray[0])))[:d.StringCount] {
+-			s += syscall.UTF16ToString((*[1 << 20]uint16)(unsafe.Pointer(v))[:])
++		for _, v := range (*[1 << 10]*uint16)(unsafe.Pointer(&(d.StringArray[0])))[:d.StringCount:d.StringCount] {
++			s += windows.UTF16PtrToString(v, 1<<20)
+ 		}
+ 		txts = append(txts, s)
+ 	}
+@@ -343,7 +344,7 @@ func (*Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error)
+ 	ptrs := make([]string, 0, 10)
+ 	for _, p := range validRecs(r, syscall.DNS_TYPE_PTR, arpa) {
+ 		v := (*syscall.DNSPTRData)(unsafe.Pointer(&p.Data[0]))
+-		ptrs = append(ptrs, absDomainName([]byte(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:]))))
++		ptrs = append(ptrs, absDomainName([]byte(windows.UTF16PtrToString(v.Host, 256))))
+ 	}
+ 	return ptrs, nil
+ }
+diff --git a/src/os/env_windows.go b/src/os/env_windows.go
+index e8f647e7ac..b1b1ee4b3e 100644
+--- a/src/os/env_windows.go
++++ b/src/os/env_windows.go
+@@ -23,16 +23,20 @@ func environForSysProcAttr(sys *syscall.SysProcAttr) (env []string, err error) {
+ 	defer windows.DestroyEnvironmentBlock(block)
+ 	blockp := uintptr(unsafe.Pointer(block))
+ 	for {
+-		entry := (*[(1 << 30) - 1]uint16)(unsafe.Pointer(blockp))[:]
+-		for i, v := range entry {
+-			if v == 0 {
+-				entry = entry[:i]
+-				break
+-			}
++
++		// find NUL terminator
++		end := unsafe.Pointer(blockp)
++		for *(*uint16)(end) != 0 {
++			end = unsafe.Pointer(uintptr(end) + 2)
+ 		}
+-		if len(entry) == 0 {
++
++		n := (uintptr(end) - uintptr(unsafe.Pointer(blockp))) / 2
++		if n == 0 {
++			// environment block ends with empty string
+ 			break
+ 		}
++
++		entry := (*[(1 << 30) - 1]uint16)(unsafe.Pointer(blockp))[:n:n]
+ 		env = append(env, string(utf16.Decode(entry)))
+ 		blockp += 2 * (uintptr(len(entry)) + 1)
+ 	}
+diff --git a/src/os/exec_windows.go b/src/os/exec_windows.go
+index 38293a0d28..10503c595f 100644
+--- a/src/os/exec_windows.go
++++ b/src/os/exec_windows.go
+@@ -6,11 +6,11 @@ package os
+ 
+ import (
+ 	"errors"
++	"internal/syscall/windows"
+ 	"runtime"
+ 	"sync/atomic"
+ 	"syscall"
+ 	"time"
+-	"unsafe"
+ )
+ 
+ func (p *Process) wait() (ps *ProcessState, err error) {
+@@ -98,8 +98,7 @@ func findProcess(pid int) (p *Process, err error) {
+ }
+ 
+ func init() {
+-	p := syscall.GetCommandLine()
+-	cmd := syscall.UTF16ToString((*[0xffff]uint16)(unsafe.Pointer(p))[:])
++	cmd := windows.UTF16PtrToString(syscall.GetCommandLine(), 0xffff)
+ 	if len(cmd) == 0 {
+ 		arg0, _ := Executable()
+ 		Args = []string{arg0}
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 651fe63b3f..8c14103143 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -263,7 +263,8 @@ func createMountPoint(link string, target *reparseData) error {
+ 	buf.SubstituteNameLength = target.substituteName.length
+ 	buf.PrintNameOffset = target.printName.offset
+ 	buf.PrintNameLength = target.printName.length
+-	copy((*[2048]uint16)(unsafe.Pointer(&buf.PathBuffer[0]))[:], target.pathBuf)
++	pbuflen := len(target.pathBuf)
++	copy((*[2048]uint16)(unsafe.Pointer(&buf.PathBuffer[0]))[:pbuflen:pbuflen], target.pathBuf)
+ 
+ 	var rdb _REPARSE_DATA_BUFFER
+ 	rdb.header.ReparseTag = windows.IO_REPARSE_TAG_MOUNT_POINT
+@@ -356,7 +357,8 @@ func createSymbolicLink(link string, target *reparseData, isrelative bool) error
+ 	if isrelative {
+ 		buf.Flags = windows.SYMLINK_FLAG_RELATIVE
+ 	}
+-	copy((*[2048]uint16)(unsafe.Pointer(&buf.PathBuffer[0]))[:], target.pathBuf)
++	pbuflen := len(target.pathBuf)
++	copy((*[2048]uint16)(unsafe.Pointer(&buf.PathBuffer[0]))[:pbuflen:pbuflen], target.pathBuf)
+ 
+ 	var rdb _REPARSE_DATA_BUFFER
+ 	rdb.header.ReparseTag = syscall.IO_REPARSE_TAG_SYMLINK
+@@ -714,7 +716,7 @@ func TestReadStdin(t *testing.T) {
+ 						if n > consoleSize {
+ 							n = consoleSize
+ 						}
+-						n = copy((*[10000]uint16)(unsafe.Pointer(buf))[:n], s16)
++						n = copy((*[10000]uint16)(unsafe.Pointer(buf))[:n:n], s16)
+ 						s16 = s16[n:]
+ 						*read = uint32(n)
+ 						t.Logf("read %d -> %d", toread, *read)
+diff --git a/src/os/user/lookup_windows.go b/src/os/user/lookup_windows.go
+index 7499f6a470..faaddd2341 100644
+--- a/src/os/user/lookup_windows.go
++++ b/src/os/user/lookup_windows.go
+@@ -44,11 +44,7 @@ func lookupFullNameServer(servername, username string) (string, error) {
+ 	}
+ 	defer syscall.NetApiBufferFree(p)
+ 	i := (*syscall.UserInfo10)(unsafe.Pointer(p))
+-	if i.FullName == nil {
+-		return "", nil
+-	}
+-	name := syscall.UTF16ToString((*[1024]uint16)(unsafe.Pointer(i.FullName))[:])
+-	return name, nil
++	return windows.UTF16PtrToString(i.FullName, 1024), nil
+ }
+ 
+ func lookupFullName(domain, username, domainAndUser string) (string, error) {
+@@ -165,14 +161,13 @@ func listGroupsForUsernameAndDomain(username, domain string) ([]string, error) {
+ 	if entriesRead == 0 {
+ 		return nil, fmt.Errorf("listGroupsForUsernameAndDomain: NetUserGetLocalGroups() returned an empty list for domain: %s, username: %s", domain, username)
+ 	}
+-	entries := (*[1024]windows.LocalGroupUserInfo0)(unsafe.Pointer(p0))[:entriesRead]
++	entries := (*[1024]windows.LocalGroupUserInfo0)(unsafe.Pointer(p0))[:entriesRead:entriesRead]
+ 	var sids []string
+ 	for _, entry := range entries {
+ 		if entry.Name == nil {
+ 			continue
+ 		}
+-		name := syscall.UTF16ToString((*[1024]uint16)(unsafe.Pointer(entry.Name))[:])
+-		sid, err := lookupGroupName(name)
++		sid, err := lookupGroupName(windows.UTF16PtrToString(entry.Name, 1024))
+ 		if err != nil {
+ 			return nil, err
+ 		}
+diff --git a/src/syscall/security_windows.go b/src/syscall/security_windows.go
+index db80d98a08..3a75759606 100644
+--- a/src/syscall/security_windows.go
++++ b/src/syscall/security_windows.go
+@@ -163,7 +163,7 @@ func (sid *SID) String() (string, error) {
+ 		return "", e
+ 	}
+ 	defer LocalFree((Handle)(unsafe.Pointer(s)))
+-	return UTF16ToString((*[256]uint16)(unsafe.Pointer(s))[:]), nil
++	return utf16PtrToString(s, 256), nil
+ }
+ 
+ // Len returns the length, in bytes, of a valid security identifier sid.
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 992f6738ce..950c281e4d 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -57,6 +57,25 @@ func UTF16ToString(s []uint16) string {
+ 	return string(utf16.Decode(s))
+ }
+ 
++// utf16PtrToString is like UTF16ToString, but takes *uint16
++// as a parameter instead of []uint16.
++// max is how many times p can be advanced looking for the null terminator.
++// If max is hit, the string is truncated at that point.
++func utf16PtrToString(p *uint16, max int) string {
++	if p == nil {
++		return ""
++	}
++	// Find NUL terminator.
++	end := unsafe.Pointer(p)
++	n := 0
++	for *(*uint16)(end) != 0 && n < max {
++		end = unsafe.Pointer(uintptr(end) + unsafe.Sizeof(*p))
++		n++
++	}
++	s := (*[(1 << 30) - 1]uint16)(unsafe.Pointer(p))[:n:n]
++	return string(utf16.Decode(s))
++}
++
+ // StringToUTF16Ptr returns pointer to the UTF-16 encoding of
+ // the UTF-8 string s, with a terminating NUL added. If s
+ // contains a NUL byte this function panics instead of
+@@ -769,7 +788,7 @@ func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, error) {
+ 		for n < len(pp.Path) && pp.Path[n] != 0 {
+ 			n++
+ 		}
+-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
++		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n:n]
+ 		sa.Name = string(bytes)
+ 		return sa, nil
+ 

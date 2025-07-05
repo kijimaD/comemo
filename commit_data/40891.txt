@@ -7,6 +7,25 @@ Date:   Wed Aug 7 20:11:46 2019 +0200
     Change-Id: Id0a55674a16671aaee99182d9096a9263f7a80b3
     Reviewed-on: https://go-review.googlesource.com/c/go/+/189357
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/articles/race_detector.html | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/doc/articles/race_detector.html b/doc/articles/race_detector.html
+index 6defd98f96..2f18acfbfb 100644
+--- a/doc/articles/race_detector.html
++++ b/doc/articles/race_detector.html
+@@ -377,8 +377,11 @@ func (w *Watchdog) Start() {
+ <h2 id="Supported_Systems">Supported Systems</h2>
+ 
+ <p>
+-The race detector runs on <code>darwin/amd64</code>, <code>freebsd/amd64</code>,
+-<code>linux/amd64</code>, and <code>windows/amd64</code>.
++  The race detector runs on
++  <code>linux/amd64</code>, <code>linux/ppc64le</code>,
++  <code>linux/arm64</code>, <code>freebsd/amd64</code>,
++  <code>netbsd/amd64</code>, <code>darwin/amd64</code>,
++  and <code>windows/amd64</code>.
+ </p>
+ 
+ <h2 id="Runtime_Overheads">Runtime Overhead</h2>

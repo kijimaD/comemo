@@ -20,7 +20,47 @@ Date:   Wed Feb 16 10:52:01 2022 -0500
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Nooras Saba‎ <saba@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_return.txt | 19 +++++++++++++++++++
  src/testing/fuzz.go                             |  3 +++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_return.txt b/src/cmd/go/testdata/script/test_fuzz_return.txt
+new file mode 100644
+index 0000000000..63275aad01
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_return.txt
+@@ -0,0 +1,19 @@
++[short] skip
++
++! go test .
++stdout '^panic: testing: fuzz target must not return a value \[recovered\]$'
++
++-- go.mod --
++module test
++go 1.18
++-- x_test.go --
++package test
++
++import "testing"
++
++func FuzzReturnErr(f *testing.F) {
++	f.Add("hello, validation!")
++	f.Fuzz(func(t *testing.T, in string) string {
++		return in
++	})
++}
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index e1d7544f7a..b5e1339deb 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -227,6 +227,9 @@ func (f *F) Fuzz(ff any) {
+ 	if fnType.NumIn() < 2 || fnType.In(0) != reflect.TypeOf((*T)(nil)) {
+ 		panic("testing: fuzz target must receive at least two arguments, where the first argument is a *T")
+ 	}
++	if fnType.NumOut() != 0 {
++		panic("testing: fuzz target must not return a value")
++	}
+ 
+ 	// Save the types of the function to compare against the corpus.
+ 	var types []reflect.Type

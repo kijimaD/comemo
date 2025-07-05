@@ -23,6 +23,21 @@ Date:   Thu Apr 24 17:07:04 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/dist/build.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 596036fce9..aa82c851bb 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -274,7 +274,8 @@ func xinit() {
+ 	tooldir = pathf("%s/pkg/tool/%s_%s", goroot, gohostos, gohostarch)
+ 
+ 	goversion := findgoversion()
+-	isRelease = strings.HasPrefix(goversion, "release.") || strings.HasPrefix(goversion, "go")
++	isRelease = (strings.HasPrefix(goversion, "release.") || strings.HasPrefix(goversion, "go")) &&
++		!strings.Contains(goversion, "devel")
+ }
+ 
+ // compilerEnv returns a map from "goos/goarch" to the

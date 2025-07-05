@@ -7,6 +7,19 @@ Date:   Fri Aug 27 13:46:59 2010 +1000
     R=r, rsc1
     CC=golang-dev
     https://golang.org/cl/2040041
-
+---
  doc/root.html | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index 5fd5538548..8e5e5d3c8b 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -23,7 +23,6 @@ function loadFeed() {
+ 		}
+ 		container.innerHTML = "";
+ 		var entries = result.feed.entries;
+-		console.log(entries);
+ 		for (var i=0; i<entries.length; i++) {
+ 			var a = document.createElement("a");
+ 			a.setAttribute("href", entries[i].link);

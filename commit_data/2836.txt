@@ -7,9 +7,65 @@ Date:   Thu Jul 30 11:03:58 2009 -0700
     R=ken
     OCL=32521
     CL=32521
-
+---
  src/cmd/5g/ggen.c | 2 ++
  src/cmd/6g/ggen.c | 2 ++
  src/cmd/6g/list.c | 5 ++++-
  src/cmd/8g/ggen.c | 2 ++
  4 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 9014cb407b..04fe16ce12 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -68,6 +68,8 @@ compile(Node *fn)
+ 	genlist(curfn->enter);
+ 	genlist(curfn->nbody);
+ 	checklabels();
++	if(nerrors != 0)
++		goto ret;
+ 
+ 	if(curfn->type->outtuple != 0)
+ 		ginscall(throwreturn, 0);
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index ea932e7824..d0f9ab3f91 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -70,6 +70,8 @@ compile(Node *fn)
+ 	genlist(curfn->nbody);
+ 	gclean();
+ 	checklabels();
++	if(nerrors != 0)
++		goto ret;
+ 
+ 	if(curfn->type->outtuple != 0)
+ 		ginscall(throwreturn, 0);
+diff --git a/src/cmd/6g/list.c b/src/cmd/6g/list.c
+index 799bacf9a2..5f71813c55 100644
+--- a/src/cmd/6g/list.c
++++ b/src/cmd/6g/list.c
+@@ -101,7 +101,10 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_BRANCH:
+-		snprint(str, sizeof(str), "%ld", a->branch->loc);
++		if(a->branch == nil)
++			snprint(str, sizeof(str), "<nil>");
++		else
++			snprint(str, sizeof(str), "%ld", a->branch->loc);
+ 		break;
+ 
+ 	case D_EXTERN:
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 3a44d64f01..ee26a61109 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -68,6 +68,8 @@ compile(Node *fn)
+ 	genlist(curfn->nbody);
+ 	gclean();
+ 	checklabels();
++	if(nerrors != 0)
++		goto ret;
+ 
+ 	if(curfn->type->outtuple != 0)
+ 		ginscall(throwreturn, 0);

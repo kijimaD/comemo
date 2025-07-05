@@ -19,6 +19,32 @@ Date:   Thu Dec 8 08:44:51 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mfinal_test.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/runtime/mfinal_test.go b/src/runtime/mfinal_test.go
+index 61d625ac27..87d31c472c 100644
+--- a/src/runtime/mfinal_test.go
++++ b/src/runtime/mfinal_test.go
+@@ -21,10 +21,6 @@ type Tinter interface {
+ }
+ 
+ func TestFinalizerType(t *testing.T) {
+-	if runtime.GOARCH != "amd64" {
+-		t.Skipf("Skipping on non-amd64 machine")
+-	}
+-
+ 	ch := make(chan bool, 10)
+ 	finalize := func(x *int) {
+ 		if *x != 97531 {
+@@ -82,9 +78,6 @@ type bigValue struct {
+ }
+ 
+ func TestFinalizerInterfaceBig(t *testing.T) {
+-	if runtime.GOARCH != "amd64" {
+-		t.Skipf("Skipping on non-amd64 machine")
+-	}
+ 	ch := make(chan bool)
+ 	done := make(chan bool, 1)
+ 	go func() {

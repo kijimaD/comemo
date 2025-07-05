@@ -7,8 +7,111 @@ Date:   Wed Nov 2 17:11:40 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5318056
-
+---
  src/pkg/net/lookup_test.go        |  4 ----
  src/pkg/net/lookup_windows.go     | 25 +++++++++++++++++++------
  src/pkg/syscall/ztypes_windows.go |  5 +++++
  3 files changed, 24 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/net/lookup_test.go b/src/pkg/net/lookup_test.go
+index 6b7e53d0c6..9a39ca8a1e 100644
+--- a/src/pkg/net/lookup_test.go
++++ b/src/pkg/net/lookup_test.go
+@@ -52,10 +52,6 @@ func TestGmailMX(t *testing.T) {
+ }
+ 
+ func TestGmailTXT(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		t.Logf("LookupTXT is not implemented on Windows")
+-		return
+-	}
+ 	if testing.Short() || avoidMacFirewall {
+ 		t.Logf("skipping test to avoid external network")
+ 		return
+diff --git a/src/pkg/net/lookup_windows.go b/src/pkg/net/lookup_windows.go
+index 53cb8f468a..b515d0c851 100644
+--- a/src/pkg/net/lookup_windows.go
++++ b/src/pkg/net/lookup_windows.go
+@@ -5,7 +5,6 @@
+ package net
+ 
+ import (
+-	"errors"
+ 	"syscall"
+ 	"unsafe"
+ 	"os"
+@@ -81,7 +80,7 @@ func LookupPort(network, service string) (port int, err error) {
+ func LookupCNAME(name string) (cname string, err error) {
+ 	var r *syscall.DNSRecord
+ 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_CNAME, 0, nil, &r, nil)
+-	if int(e) != 0 {
++	if e != 0 {
+ 		return "", os.NewSyscallError("LookupCNAME", int(e))
+ 	}
+ 	defer syscall.DnsRecordListFree(r, 1)
+@@ -110,7 +109,7 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
+ 	}
+ 	var r *syscall.DNSRecord
+ 	e := syscall.DnsQuery(target, syscall.DNS_TYPE_SRV, 0, nil, &r, nil)
+-	if int(e) != 0 {
++	if e != 0 {
+ 		return "", nil, os.NewSyscallError("LookupSRV", int(e))
+ 	}
+ 	defer syscall.DnsRecordListFree(r, 1)
+@@ -126,7 +125,7 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
+ func LookupMX(name string) (mx []*MX, err error) {
+ 	var r *syscall.DNSRecord
+ 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_MX, 0, nil, &r, nil)
+-	if int(e) != 0 {
++	if e != 0 {
+ 		return nil, os.NewSyscallError("LookupMX", int(e))
+ 	}
+ 	defer syscall.DnsRecordListFree(r, 1)
+@@ -140,7 +139,21 @@ func LookupMX(name string) (mx []*MX, err error) {
+ }
+ 
+ func LookupTXT(name string) (txt []string, err error) {
+-	return nil, errors.New("net.LookupTXT is not implemented on Windows")
++	var r *syscall.DNSRecord
++	e := syscall.DnsQuery(name, syscall.DNS_TYPE_TEXT, 0, nil, &r, nil)
++	if e != 0 {
++		return nil, os.NewSyscallError("LookupTXT", int(e))
++	}
++	defer syscall.DnsRecordListFree(r, 1)
++	txt = make([]string, 0, 10)
++	if r != nil && r.Type == syscall.DNS_TYPE_TEXT {
++		d := (*syscall.DNSTXTData)(unsafe.Pointer(&r.Data[0]))
++		for _, v := range (*[1 << 10]*uint16)(unsafe.Pointer(&(d.StringArray[0])))[:d.StringCount] {
++			s := syscall.UTF16ToString((*[1 << 20]uint16)(unsafe.Pointer(v))[:])
++			txt = append(txt, s)
++		}
++	}
++	return
+ }
+ 
+ func LookupAddr(addr string) (name []string, err error) {
+@@ -150,7 +163,7 @@ func LookupAddr(addr string) (name []string, err error) {
+ 	}
+ 	var r *syscall.DNSRecord
+ 	e := syscall.DnsQuery(arpa, syscall.DNS_TYPE_PTR, 0, nil, &r, nil)
+-	if int(e) != 0 {
++	if e != 0 {
+ 		return nil, os.NewSyscallError("LookupAddr", int(e))
+ 	}
+ 	defer syscall.DnsRecordListFree(r, 1)
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index c8db2ee785..4fe1fa21d4 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -530,6 +530,11 @@ type DNSMXData struct {
+ 	Pad          uint16
+ }
+ 
++type DNSTXTData struct {
++	StringCount uint16
++	StringArray [1]*uint16
++}
++
+ type DNSRecord struct {
+ 	Next     *DNSRecord
+ 	Name     *uint16

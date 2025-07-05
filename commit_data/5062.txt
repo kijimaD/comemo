@@ -9,9 +9,366 @@ Date:   Tue Mar 16 18:44:55 2010 -0700
     R=r, petar-m, ukai
     CC=golang-dev, madari
     https://golang.org/cl/582043
-
+---
  src/pkg/http/readrequest_test.go  |   2 +-
  src/pkg/http/requestwrite_test.go |   2 +-
  src/pkg/http/url.go               |  23 ++++--
  src/pkg/http/url_test.go          | 152 +++++++++++++++++++++++---------------
  4 files changed, 109 insertions(+), 70 deletions(-)
+
+diff --git a/src/pkg/http/readrequest_test.go b/src/pkg/http/readrequest_test.go
+index fa186f1abf..7654dbfc74 100644
+--- a/src/pkg/http/readrequest_test.go
++++ b/src/pkg/http/readrequest_test.go
+@@ -39,7 +39,7 @@ var reqTests = []reqTest{
+ 			URL: &URL{
+ 				Raw:       "http://www.techcrunch.com/",
+ 				Scheme:    "http",
+-				RawPath:   "//www.techcrunch.com/",
++				RawPath:   "/",
+ 				Authority: "www.techcrunch.com",
+ 				Userinfo:  "",
+ 				Host:      "www.techcrunch.com",
+diff --git a/src/pkg/http/requestwrite_test.go b/src/pkg/http/requestwrite_test.go
+index 5671e13ad3..469df69d70 100644
+--- a/src/pkg/http/requestwrite_test.go
++++ b/src/pkg/http/requestwrite_test.go
+@@ -23,7 +23,7 @@ var reqWriteTests = []reqWriteTest{
+ 			URL: &URL{
+ 				Raw:       "http://www.techcrunch.com/",
+ 				Scheme:    "http",
+-				RawPath:   "//www.techcrunch.com/",
++				RawPath:   "http://www.techcrunch.com/",
+ 				Authority: "www.techcrunch.com",
+ 				Userinfo:  "",
+ 				Host:      "www.techcrunch.com",
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index 1f22bf30a1..148ada4b25 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Parse URLs (actually URIs, but that seems overly pedantic).
+-// RFC 2396
++// RFC 3986
+ 
+ package http
+ 
+@@ -239,10 +239,10 @@ func urlEscape(s string, doPlus bool) string {
+ type URL struct {
+ 	Raw       string // the original string
+ 	Scheme    string // scheme
+-	RawPath   string // //[userinfo@]host/path[?query][#fragment]
+ 	Authority string // [userinfo@]host
+ 	Userinfo  string // userinfo
+ 	Host      string // host
++	RawPath   string // /path[?query][#fragment]
+ 	Path      string // /path
+ 	RawQuery  string // query
+ 	Fragment  string // fragment
+@@ -306,18 +306,22 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
+ 	if url.Scheme, path, err = getscheme(rawurl); err != nil {
+ 		goto Error
+ 	}
+-	url.RawPath = path
+ 
+ 	// RFC 2396: a relative URI (no scheme) has a ?query,
+ 	// but absolute URIs only have query if path begins with /
++	var query string
+ 	if url.Scheme == "" || len(path) > 0 && path[0] == '/' {
+-		path, url.RawQuery = split(path, '?', true)
++		path, query = split(path, '?', false)
++		if len(query) > 1 {
++			url.RawQuery = query[1:]
++		}
+ 	}
+ 
+ 	// Maybe path is //authority/path
+ 	if len(path) > 2 && path[0:2] == "//" {
+ 		url.Authority, path = split(path[2:], '/', false)
+ 	}
++	url.RawPath = path + query
+ 
+ 	// If there's no @, split's default is wrong.  Check explicitly.
+ 	if strings.Index(url.Authority, "@") < 0 {
+@@ -357,12 +361,17 @@ Error:
+ // ParseURLReference is like ParseURL but allows a trailing #fragment.
+ func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
+ 	// Cut off #frag.
+-	rawurl, frag := split(rawurlref, '#', true)
++	rawurl, frag := split(rawurlref, '#', false)
+ 	if url, err = ParseURL(rawurl); err != nil {
+ 		return nil, err
+ 	}
+-	if url.Fragment, err = urlUnescape(frag, false); err != nil {
+-		return nil, &URLError{"parse", rawurl, err}
++	url.Raw += frag
++	url.RawPath += frag
++	if len(frag) > 1 {
++		frag = frag[1:]
++		if url.Fragment, err = urlUnescape(frag, false); err != nil {
++			return nil, &URLError{"parse", rawurl, err}
++		}
+ 	}
+ 	return url, nil
+ }
+diff --git a/src/pkg/http/url_test.go b/src/pkg/http/url_test.go
+index a16bbbddf6..3d665100af 100644
+--- a/src/pkg/http/url_test.go
++++ b/src/pkg/http/url_test.go
+@@ -27,10 +27,10 @@ var urltests = []URLTest{
+ 	URLTest{
+ 		"http://www.google.com",
+ 		&URL{
+-			"http://www.google.com",
+-			"http", "//www.google.com",
+-			"www.google.com", "", "www.google.com",
+-			"", "", "",
++			Raw:       "http://www.google.com",
++			Scheme:    "http",
++			Authority: "www.google.com",
++			Host:      "www.google.com",
+ 		},
+ 		"",
+ 	},
+@@ -38,21 +38,25 @@ var urltests = []URLTest{
+ 	URLTest{
+ 		"http://www.google.com/",
+ 		&URL{
+-			"http://www.google.com/",
+-			"http", "//www.google.com/",
+-			"www.google.com", "", "www.google.com",
+-			"/", "", "",
++			Raw:       "http://www.google.com/",
++			Scheme:    "http",
++			Authority: "www.google.com",
++			Host:      "www.google.com",
++			RawPath:   "/",
++			Path:      "/",
+ 		},
+ 		"",
+ 	},
+-	// path with hex escaping... note that space roundtrips to +
++	// path with hex escaping
+ 	URLTest{
+ 		"http://www.google.com/file%20one%26two",
+ 		&URL{
+-			"http://www.google.com/file%20one%26two",
+-			"http", "//www.google.com/file%20one%26two",
+-			"www.google.com", "", "www.google.com",
+-			"/file one&two", "", "",
++			Raw:       "http://www.google.com/file%20one%26two",
++			Scheme:    "http",
++			Authority: "www.google.com",
++			Host:      "www.google.com",
++			RawPath:   "/file%20one%26two",
++			Path:      "/file one&two",
+ 		},
+ 		"http://www.google.com/file%20one%26two",
+ 	},
+@@ -60,10 +64,13 @@ var urltests = []URLTest{
+ 	URLTest{
+ 		"ftp://webmaster@www.google.com/",
+ 		&URL{
+-			"ftp://webmaster@www.google.com/",
+-			"ftp", "//webmaster@www.google.com/",
+-			"webmaster@www.google.com", "webmaster", "www.google.com",
+-			"/", "", "",
++			Raw:       "ftp://webmaster@www.google.com/",
++			Scheme:    "ftp",
++			Authority: "webmaster@www.google.com",
++			Userinfo:  "webmaster",
++			Host:      "www.google.com",
++			RawPath:   "/",
++			Path:      "/",
+ 		},
+ 		"",
+ 	},
+@@ -71,10 +78,13 @@ var urltests = []URLTest{
+ 	URLTest{
+ 		"ftp://john%20doe@www.google.com/",
+ 		&URL{
+-			"ftp://john%20doe@www.google.com/",
+-			"ftp", "//john%20doe@www.google.com/",
+-			"john doe@www.google.com", "john doe", "www.google.com",
+-			"/", "", "",
++			Raw:       "ftp://john%20doe@www.google.com/",
++			Scheme:    "ftp",
++			Authority: "john doe@www.google.com",
++			Userinfo:  "john doe",
++			Host:      "www.google.com",
++			RawPath:   "/",
++			Path:      "/",
+ 		},
+ 		"ftp://john%20doe@www.google.com/",
+ 	},
+@@ -82,10 +92,13 @@ var urltests = []URLTest{
+ 	URLTest{
+ 		"http://www.google.com/?q=go+language",
+ 		&URL{
+-			"http://www.google.com/?q=go+language",
+-			"http", "//www.google.com/?q=go+language",
+-			"www.google.com", "", "www.google.com",
+-			"/", "q=go+language", "",
++			Raw:       "http://www.google.com/?q=go+language",
++			Scheme:    "http",
++			Authority: "www.google.com",
++			Host:      "www.google.com",
++			RawPath:   "/?q=go+language",
++			Path:      "/",
++			RawQuery:  "q=go+language",
+ 		},
+ 		"",
+ 	},
+@@ -93,10 +106,13 @@ var urltests = []URLTest{
+ 	URLTest{
+ 		"http://www.google.com/?q=go%20language",
+ 		&URL{
+-			"http://www.google.com/?q=go%20language",
+-			"http", "//www.google.com/?q=go%20language",
+-			"www.google.com", "", "www.google.com",
+-			"/", "q=go%20language", "",
++			Raw:       "http://www.google.com/?q=go%20language",
++			Scheme:    "http",
++			Authority: "www.google.com",
++			Host:      "www.google.com",
++			RawPath:   "/?q=go%20language",
++			Path:      "/",
++			RawQuery:  "q=go%20language",
+ 		},
+ 		"",
+ 	},
+@@ -104,10 +120,13 @@ var urltests = []URLTest{
+ 	URLTest{
+ 		"http://www.google.com/a%20b?q=c+d",
+ 		&URL{
+-			"http://www.google.com/a%20b?q=c+d",
+-			"http", "//www.google.com/a%20b?q=c+d",
+-			"www.google.com", "", "www.google.com",
+-			"/a b", "q=c+d", "",
++			Raw:       "http://www.google.com/a%20b?q=c+d",
++			Scheme:    "http",
++			Authority: "www.google.com",
++			Host:      "www.google.com",
++			RawPath:   "/a%20b?q=c+d",
++			Path:      "/a b",
++			RawQuery:  "q=c+d",
+ 		},
+ 		"",
+ 	},
+@@ -115,10 +134,10 @@ var urltests = []URLTest{
+ 	URLTest{
+ 		"http:www.google.com/?q=go+language",
+ 		&URL{
+-			"http:www.google.com/?q=go+language",
+-			"http", "www.google.com/?q=go+language",
+-			"", "", "",
+-			"www.google.com/?q=go+language", "", "",
++			Raw:     "http:www.google.com/?q=go+language",
++			Scheme:  "http",
++			RawPath: "www.google.com/?q=go+language",
++			Path:    "www.google.com/?q=go+language",
+ 		},
+ 		"http:www.google.com/%3fq%3dgo%2blanguage",
+ 	},
+@@ -126,10 +145,10 @@ var urltests = []URLTest{
+ 	URLTest{
+ 		"mailto:/webmaster@golang.org",
+ 		&URL{
+-			"mailto:/webmaster@golang.org",
+-			"mailto", "/webmaster@golang.org",
+-			"", "", "",
+-			"/webmaster@golang.org", "", "",
++			Raw:     "mailto:/webmaster@golang.org",
++			Scheme:  "mailto",
++			RawPath: "/webmaster@golang.org",
++			Path:    "/webmaster@golang.org",
+ 		},
+ 		"",
+ 	},
+@@ -137,10 +156,10 @@ var urltests = []URLTest{
+ 	URLTest{
+ 		"mailto:webmaster@golang.org",
+ 		&URL{
+-			"mailto:webmaster@golang.org",
+-			"mailto", "webmaster@golang.org",
+-			"", "", "",
+-			"webmaster@golang.org", "", "",
++			Raw:     "mailto:webmaster@golang.org",
++			Scheme:  "mailto",
++			RawPath: "webmaster@golang.org",
++			Path:    "webmaster@golang.org",
+ 		},
+ 		"",
+ 	},
+@@ -148,10 +167,10 @@ var urltests = []URLTest{
+ 	URLTest{
+ 		"/foo?query=http://bad",
+ 		&URL{
+-			"/foo?query=http://bad",
+-			"", "/foo?query=http://bad",
+-			"", "", "",
+-			"/foo", "query=http://bad", "",
++			Raw:      "/foo?query=http://bad",
++			RawPath:  "/foo?query=http://bad",
++			Path:     "/foo",
++			RawQuery: "query=http://bad",
+ 		},
+ 		"",
+ 	},
+@@ -161,10 +180,13 @@ var urlnofragtests = []URLTest{
+ 	URLTest{
+ 		"http://www.google.com/?q=go+language#foo",
+ 		&URL{
+-			"http://www.google.com/?q=go+language#foo",
+-			"http", "//www.google.com/?q=go+language#foo",
+-			"www.google.com", "", "www.google.com",
+-			"/", "q=go+language#foo", "",
++			Raw:       "http://www.google.com/?q=go+language#foo",
++			Scheme:    "http",
++			Authority: "www.google.com",
++			Host:      "www.google.com",
++			RawPath:   "/?q=go+language#foo",
++			Path:      "/",
++			RawQuery:  "q=go+language#foo",
+ 		},
+ 		"",
+ 	},
+@@ -174,20 +196,28 @@ var urlfragtests = []URLTest{
+ 	URLTest{
+ 		"http://www.google.com/?q=go+language#foo",
+ 		&URL{
+-			"http://www.google.com/?q=go+language",
+-			"http", "//www.google.com/?q=go+language",
+-			"www.google.com", "", "www.google.com",
+-			"/", "q=go+language", "foo",
++			Raw:       "http://www.google.com/?q=go+language#foo",
++			Scheme:    "http",
++			Authority: "www.google.com",
++			Host:      "www.google.com",
++			RawPath:   "/?q=go+language#foo",
++			Path:      "/",
++			RawQuery:  "q=go+language",
++			Fragment:  "foo",
+ 		},
+ 		"",
+ 	},
+ 	URLTest{
+ 		"http://www.google.com/?q=go+language#foo%26bar",
+ 		&URL{
+-			"http://www.google.com/?q=go+language",
+-			"http", "//www.google.com/?q=go+language",
+-			"www.google.com", "", "www.google.com",
+-			"/", "q=go+language", "foo&bar",
++			Raw:       "http://www.google.com/?q=go+language#foo%26bar",
++			Scheme:    "http",
++			Authority: "www.google.com",
++			Host:      "www.google.com",
++			RawPath:   "/?q=go+language#foo%26bar",
++			Path:      "/",
++			RawQuery:  "q=go+language",
++			Fragment:  "foo&bar",
+ 		},
+ 		"",
+ 	},

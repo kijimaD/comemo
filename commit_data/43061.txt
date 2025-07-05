@@ -18,7 +18,7 @@ Date:   Tue Mar 3 23:05:32 2020 +0800
     Run-TryBot: Meng Zhuo <mengzhuo1203@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arch.go          |  4 ++
  src/cmd/asm/internal/arch/mips.go          |  4 ++
  src/cmd/asm/internal/asm/testdata/mips64.s | 33 +++++++++++++
@@ -28,3 +28,334 @@ Date:   Tue Mar 3 23:05:32 2020 +0800
  src/cmd/internal/obj/mips/asm0.go          | 74 ++++++++++++++++++++++++++++++
  src/cmd/internal/obj/mips/list0.go         |  3 ++
  8 files changed, 171 insertions(+)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index f090d12bed..d9ba6670e8 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -484,6 +484,9 @@ func archMips64(linkArch *obj.LinkArch) *Arch {
+ 	for i := mips.REG_FCR0; i <= mips.REG_FCR31; i++ {
+ 		register[obj.Rconv(i)] = int16(i)
+ 	}
++	for i := mips.REG_W0; i <= mips.REG_W31; i++ {
++		register[obj.Rconv(i)] = int16(i)
++	}
+ 	register["HI"] = mips.REG_HI
+ 	register["LO"] = mips.REG_LO
+ 	// Pseudo-registers.
+@@ -501,6 +504,7 @@ func archMips64(linkArch *obj.LinkArch) *Arch {
+ 		"FCR": true,
+ 		"M":   true,
+ 		"R":   true,
++		"W":   true,
+ 	}
+ 
+ 	instructions := make(map[string]obj.As)
+diff --git a/src/cmd/asm/internal/arch/mips.go b/src/cmd/asm/internal/arch/mips.go
+index 79fb7cf02e..5d71f40fbe 100644
+--- a/src/cmd/asm/internal/arch/mips.go
++++ b/src/cmd/asm/internal/arch/mips.go
+@@ -63,6 +63,10 @@ func mipsRegisterNumber(name string, n int16) (int16, bool) {
+ 		if 0 <= n && n <= 31 {
+ 			return mips.REG_R0 + n, true
+ 		}
++	case "W":
++		if 0 <= n && n <= 31 {
++			return mips.REG_W0 + n, true
++		}
+ 	}
+ 	return 0, false
+ }
+diff --git a/src/cmd/asm/internal/asm/testdata/mips64.s b/src/cmd/asm/internal/asm/testdata/mips64.s
+index 2a8c288d7b..21ab82f319 100644
+--- a/src/cmd/asm/internal/asm/testdata/mips64.s
++++ b/src/cmd/asm/internal/asm/testdata/mips64.s
+@@ -583,6 +583,39 @@ label4:
+ 	NEGV	R1, R2 // 0001102f
+ 	RET
+ 
++// MSA VMOVI
++	VMOVB	$511, W0   // 7b0ff807
++	VMOVH	$24, W23   // 7b20c5c7
++	VMOVW	$-24, W15  // 7b5f43c7
++	VMOVD	$-511, W31 // 7b700fc7
++
++	VMOVB	(R0), W8       // 78000220
++	VMOVB	511(R3), W0    // 79ff1820
++	VMOVB	-512(R12), W21 // 7a006560
++	VMOVH	(R24), W12     // 7800c321
++	VMOVH	110(R19), W8   // 78379a21
++	VMOVH	-70(R12), W3   // 7bdd60e1
++	VMOVW	(R3), W31      // 78001fe2
++	VMOVW	64(R20), W16   // 7810a422
++	VMOVW	-104(R17), W24 // 7be68e22
++	VMOVD	(R3), W2       // 780018a3
++	VMOVD	128(R23), W19  // 7810bce3
++	VMOVD	-256(R31), W0  // 7be0f823
++
++	VMOVB	W8, (R0)       // 78000224
++	VMOVB	W0, 511(R3)    // 79ff1824
++	VMOVB	W21, -512(R12) // 7a006564
++	VMOVH	W12, (R24)     // 7800c325
++	VMOVH	W8, 110(R19)   // 78379a25
++	VMOVH	W3, -70(R12)   // 7bdd60e5
++	VMOVW	W31, (R3)      // 78001fe6
++	VMOVW	W16, 64(R20)   // 7810a426
++	VMOVW	W24, -104(R17) // 7be68e26
++	VMOVD	W2, (R3)       // 780018a7
++	VMOVD	W19, 128(R23)  // 7810bce7
++	VMOVD	W0, -256(R31)  // 7be0f827
++	RET
++
+ // END
+ //
+ //	LEND	comma // asm doesn't support the trailing comma.
+diff --git a/src/cmd/internal/obj/mips/a.out.go b/src/cmd/internal/obj/mips/a.out.go
+index b0205ec11a..ddd048a17f 100644
+--- a/src/cmd/internal/obj/mips/a.out.go
++++ b/src/cmd/internal/obj/mips/a.out.go
+@@ -43,6 +43,7 @@ const (
+ 	NSYM   = 50
+ 	NREG   = 32 /* number of general registers */
+ 	NFREG  = 32 /* number of floating point registers */
++	NWREG  = 32 /* number of MSA registers */
+ )
+ 
+ const (
+@@ -180,6 +181,41 @@ const (
+ 	REG_FCR30
+ 	REG_FCR31
+ 
++	// MSA registers
++	// The lower bits of W registers are alias to F registers
++	REG_W0 // must be a multiple of 32
++	REG_W1
++	REG_W2
++	REG_W3
++	REG_W4
++	REG_W5
++	REG_W6
++	REG_W7
++	REG_W8
++	REG_W9
++	REG_W10
++	REG_W11
++	REG_W12
++	REG_W13
++	REG_W14
++	REG_W15
++	REG_W16
++	REG_W17
++	REG_W18
++	REG_W19
++	REG_W20
++	REG_W21
++	REG_W22
++	REG_W23
++	REG_W24
++	REG_W25
++	REG_W26
++	REG_W27
++	REG_W28
++	REG_W29
++	REG_W30
++	REG_W31
++
+ 	REG_HI
+ 	REG_LO
+ 
+@@ -217,6 +253,8 @@ func init() {
+ 	f(REG_F0, REG_F31, 32) // For 32-bit MIPS, compiler only uses even numbered registers --  see cmd/compile/internal/ssa/gen/MIPSOps.go
+ 	MIPSDWARFRegisters[REG_HI] = 64
+ 	MIPSDWARFRegisters[REG_LO] = 65
++	// The lower bits of W registers are alias to F registers
++	f(REG_W0, REG_W31, 32)
+ }
+ 
+ const (
+@@ -243,6 +281,7 @@ const (
+ 	C_FREG
+ 	C_FCREG
+ 	C_MREG /* special processor register */
++	C_WREG /* MSA registers */
+ 	C_HI
+ 	C_LO
+ 	C_ZCON
+@@ -405,6 +444,12 @@ const (
+ 	AMOVVF
+ 	AMOVVD
+ 
++	/* MSA */
++	AVMOVB
++	AVMOVH
++	AVMOVW
++	AVMOVD
++
+ 	ALAST
+ 
+ 	// aliases
+@@ -430,4 +475,7 @@ func init() {
+ 	if REG_FCR0%32 != 0 {
+ 		panic("REG_FCR0 is not a multiple of 32")
+ 	}
++	if REG_W0%32 != 0 {
++		panic("REG_W0 is not a multiple of 32")
++	}
+ }
+diff --git a/src/cmd/internal/obj/mips/anames.go b/src/cmd/internal/obj/mips/anames.go
+index 9a2e4f5703..2a44e4ca70 100644
+--- a/src/cmd/internal/obj/mips/anames.go
++++ b/src/cmd/internal/obj/mips/anames.go
+@@ -127,5 +127,9 @@ var Anames = []string{
+ 	"MOVDV",
+ 	"MOVVF",
+ 	"MOVVD",
++	"VMOVB",
++	"VMOVH",
++	"VMOVW",
++	"VMOVD",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/mips/anames0.go b/src/cmd/internal/obj/mips/anames0.go
+index c56d34eaf5..c300696730 100644
+--- a/src/cmd/internal/obj/mips/anames0.go
++++ b/src/cmd/internal/obj/mips/anames0.go
+@@ -10,6 +10,7 @@ var cnames0 = []string{
+ 	"FREG",
+ 	"FCREG",
+ 	"MREG",
++	"WREG",
+ 	"HI",
+ 	"LO",
+ 	"ZCON",
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 934f88a0b1..c19541522f 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -377,6 +377,11 @@ var optab = []Optab{
+ 	{ATEQ, C_SCON, C_NONE, C_REG, 15, 4, 0, 0, 0},
+ 	{ACMOVT, C_REG, C_NONE, C_REG, 17, 4, 0, 0, 0},
+ 
++	{AVMOVB, C_SCON, C_NONE, C_WREG, 56, 4, 0, sys.MIPS64, 0},
++	{AVMOVB, C_ADDCON, C_NONE, C_WREG, 56, 4, 0, sys.MIPS64, 0},
++	{AVMOVB, C_SOREG, C_NONE, C_WREG, 57, 4, 0, sys.MIPS64, 0},
++	{AVMOVB, C_WREG, C_NONE, C_SOREG, 58, 4, 0, sys.MIPS64, 0},
++
+ 	{ABREAK, C_REG, C_NONE, C_SEXT, 7, 4, REGSB, sys.MIPS64, 0}, /* really CACHE instruction */
+ 	{ABREAK, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, sys.MIPS64, 0},
+ 	{ABREAK, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.MIPS64, 0},
+@@ -556,6 +561,9 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 		if REG_FCR0 <= a.Reg && a.Reg <= REG_FCR31 {
+ 			return C_FCREG
+ 		}
++		if REG_W0 <= a.Reg && a.Reg <= REG_W31 {
++			return C_WREG
++		}
+ 		if a.Reg == REG_LO {
+ 			return C_LO
+ 		}
+@@ -1029,6 +1037,11 @@ func buildop(ctxt *obj.Link) {
+ 		case AMOVVL:
+ 			opset(AMOVVR, r0)
+ 
++		case AVMOVB:
++			opset(AVMOVH, r0)
++			opset(AVMOVW, r0)
++			opset(AVMOVD, r0)
++
+ 		case AMOVW,
+ 			AMOVD,
+ 			AMOVF,
+@@ -1121,6 +1134,14 @@ func OP_JMP(op uint32, i uint32) uint32 {
+ 	return op | i&0x3FFFFFF
+ }
+ 
++func OP_VI10(op uint32, df uint32, s10 int32, wd uint32, minor uint32) uint32 {
++	return 0x1e<<26 | (op&7)<<23 | (df&3)<<21 | uint32(s10&0x3FF)<<11 | (wd&31)<<6 | minor&0x3F
++}
++
++func OP_VMI10(s10 int32, rs uint32, wd uint32, minor uint32, df uint32) uint32 {
++	return 0x1e<<26 | uint32(s10&0x3FF)<<16 | (rs&31)<<11 | (wd&31)<<6 | (minor&15)<<2 | df&3
++}
++
+ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	o1 := uint32(0)
+ 	o2 := uint32(0)
+@@ -1629,6 +1650,19 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		rel.Sym = p.From.Sym
+ 		rel.Add = p.From.Offset
+ 		rel.Type = objabi.R_ADDRMIPSTLS
++
++	case 56: /* vmov{b,h,w,d} $scon, wr */
++
++		v := c.regoff(&p.From)
++		o1 = OP_VI10(110, c.twobitdf(p.As), v, uint32(p.To.Reg), 7)
++
++	case 57: /* vld $soreg, wr */
++		v := c.lsoffset(p.As, c.regoff(&p.From))
++		o1 = OP_VMI10(v, uint32(p.From.Reg), uint32(p.To.Reg), 8, c.twobitdf(p.As))
++
++	case 58: /* vst wr, $soreg */
++		v := c.lsoffset(p.As, c.regoff(&p.To))
++		o1 = OP_VMI10(v, uint32(p.To.Reg), uint32(p.From.Reg), 9, c.twobitdf(p.As))
+ 	}
+ 
+ 	out[0] = o1
+@@ -2009,3 +2043,43 @@ func vshift(a obj.As) bool {
+ 	}
+ 	return false
+ }
++
++// MSA Two-bit Data Format Field Encoding
++func (c *ctxt0) twobitdf(a obj.As) uint32 {
++	switch a {
++	case AVMOVB:
++		return 0
++	case AVMOVH:
++		return 1
++	case AVMOVW:
++		return 2
++	case AVMOVD:
++		return 3
++	default:
++		c.ctxt.Diag("unsupported data format %v", a)
++	}
++	return 0
++}
++
++// MSA Load/Store offset have to be multiple of size of data format
++func (c *ctxt0) lsoffset(a obj.As, o int32) int32 {
++	var mod int32
++	switch a {
++	case AVMOVB:
++		mod = 1
++	case AVMOVH:
++		mod = 2
++	case AVMOVW:
++		mod = 4
++	case AVMOVD:
++		mod = 8
++	default:
++		c.ctxt.Diag("unsupported instruction:%v", a)
++	}
++
++	if o%mod != 0 {
++		c.ctxt.Diag("invalid offset for %v: %d is not a multiple of %d", a, o, mod)
++	}
++
++	return o / mod
++}
+diff --git a/src/cmd/internal/obj/mips/list0.go b/src/cmd/internal/obj/mips/list0.go
+index addf9f70d8..f734e21ede 100644
+--- a/src/cmd/internal/obj/mips/list0.go
++++ b/src/cmd/internal/obj/mips/list0.go
+@@ -59,6 +59,9 @@ func rconv(r int) string {
+ 	if REG_FCR0 <= r && r <= REG_FCR31 {
+ 		return fmt.Sprintf("FCR%d", r-REG_FCR0)
+ 	}
++	if REG_W0 <= r && r <= REG_W31 {
++		return fmt.Sprintf("W%d", r-REG_W0)
++	}
+ 	if r == REG_HI {
+ 		return "HI"
+ 	}

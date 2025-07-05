@@ -13,7 +13,33 @@ Date:   Sat Apr 14 12:48:55 2018 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/poll/fd_windows.go | 2 +-
  src/syscall/types_windows.go    | 1 -
  2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 1114d66a7a..309f0291a1 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -226,7 +226,7 @@ func (s *ioSrv) ExecIO(o *operation, submit func(o *operation) error) (int, erro
+ 		if o.errno != 0 {
+ 			err = syscall.Errno(o.errno)
+ 			// More data available. Return back the size of received data.
+-			if err == syscall.ERROR_MORE_DATA || err == syscall.WSAEMSGSIZE {
++			if err == syscall.ERROR_MORE_DATA || err == windows.WSAEMSGSIZE {
+ 				return int(o.qty), err
+ 			}
+ 			return 0, err
+diff --git a/src/syscall/types_windows.go b/src/syscall/types_windows.go
+index 59bfe5d642..bc9bd4dbd8 100644
+--- a/src/syscall/types_windows.go
++++ b/src/syscall/types_windows.go
+@@ -27,7 +27,6 @@ const (
+ 	ERROR_NOT_FOUND           Errno = 1168
+ 	ERROR_PRIVILEGE_NOT_HELD  Errno = 1314
+ 	WSAEACCES                 Errno = 10013
+-	WSAEMSGSIZE               Errno = 10040
+ 	WSAECONNABORTED           Errno = 10053
+ 	WSAECONNRESET             Errno = 10054
+ )

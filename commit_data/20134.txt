@@ -8,7 +8,7 @@ Date:   Tue Aug 19 11:49:59 2014 +0400
     R=golang-codereviews, rlh, bradfitz, khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/127490043
-
+---
  src/pkg/runtime/extern.go |  4 ----
  src/pkg/runtime/proc.c    | 14 ++++----------
  src/pkg/runtime/proc.go   | 11 +++++++++++
@@ -16,3 +16,113 @@ Date:   Tue Aug 19 11:49:59 2014 +0400
  src/pkg/runtime/stack.c   |  2 +-
  src/pkg/runtime/stubs.go  |  3 ++-
  6 files changed, 19 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 57f09aaf7d..533cb431b9 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -73,10 +73,6 @@ of the run-time system.
+ */
+ package runtime
+ 
+-// Gosched yields the processor, allowing other goroutines to run.  It does not
+-// suspend the current goroutine, so execution resumes automatically.
+-func Gosched()
+-
+ // Goexit terminates the goroutine that calls it.  No other goroutine is affected.
+ // Goexit runs all deferred calls before terminating the goroutine.
+ //
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index a3e0f4bc52..2510a421a8 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1449,15 +1449,15 @@ park0(G *gp)
+ void
+ runtime·gosched(void)
+ {
+-	if(g->status != Grunning)
+-		runtime·throw("bad g status");
+-	runtime·mcall(runtime·gosched0);
++	runtime·mcall(runtime·gosched_m);
+ }
+ 
+ // runtime·gosched continuation on g0.
+ void
+-runtime·gosched0(G *gp)
++runtime·gosched_m(G *gp)
+ {
++	if(gp->status != Grunning)
++		runtime·throw("bad g status");
+ 	gp->status = Grunnable;
+ 	dropg();
+ 	runtime·lock(&runtime·sched.lock);
+@@ -2055,12 +2055,6 @@ runtime·Breakpoint(void)
+ 	runtime·breakpoint();
+ }
+ 
+-void
+-runtime·Gosched(void)
+-{
+-	runtime·gosched();
+-}
+-
+ // Implementation of runtime.GOMAXPROCS.
+ // delete when scheduler is even stronger
+ int32
+diff --git a/src/pkg/runtime/proc.go b/src/pkg/runtime/proc.go
+new file mode 100644
+index 0000000000..1b586e8c62
+--- /dev/null
++++ b/src/pkg/runtime/proc.go
+@@ -0,0 +1,11 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// Gosched yields the processor, allowing other goroutines to run.  It does not
++// suspend the current goroutine, so execution resumes automatically.
++func Gosched() {
++	mcall(&gosched_m)
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 0aeba39da8..0dc60b286b 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -919,7 +919,7 @@ void	runtime·newextram(void);
+ void	runtime·exit(int32);
+ void	runtime·breakpoint(void);
+ void	runtime·gosched(void);
+-void	runtime·gosched0(G*);
++void	runtime·gosched_m(G*);
+ void	runtime·schedtrace(bool);
+ void	runtime·park(bool(*)(G*, void*), void*, int8*);
+ void	runtime·parkunlock(Lock*, int8*);
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 3bd96ff314..f7d41f44d4 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -903,7 +903,7 @@ runtime·newstack(void)
+ 		}
+ 		// Act like goroutine called runtime.Gosched.
+ 		gp->status = oldstatus;
+-		runtime·gosched0(gp);	// never return
++		runtime·gosched_m(gp);	// never return
+ 	}
+ 
+ 	// If every frame on the top segment is copyable, allocate a bigger segment
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index a4ef9d3d55..39244ef9df 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -68,7 +68,8 @@ var (
+ 	setFinalizer_m,
+ 	markallocated_m,
+ 	unrollgcprog_m,
+-	unrollgcproginplace_m mFunction
++	unrollgcproginplace_m,
++	gosched_m mFunction
+ )
+ 
+ // memclr clears n bytes starting at ptr.

@@ -14,6 +14,22 @@ Date:   Mon Nov 28 14:54:38 2016 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/os_linux.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 72d17f549a..67c62bc18e 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -200,6 +200,10 @@ func sysargs(argc int32, argv **byte) {
+ 
+ 	// now argv+n is auxv
+ 	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
++	sysauxv(auxv[:])
++}
++
++func sysauxv(auxv []uintptr) {
+ 	for i := 0; auxv[i] != _AT_NULL; i += 2 {
+ 		tag, val := auxv[i], auxv[i+1]
+ 		switch tag {

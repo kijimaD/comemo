@@ -7,8 +7,48 @@ Date:   Thu Jun 4 14:27:39 2015 -0400
     Change-Id: I038e892725836ab7718f7638e8ad5712953f2cb5
     Reviewed-on: https://go-review.googlesource.com/10704
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go | 2 +-
  src/cmd/go/build.go                | 2 +-
  src/cmd/link/internal/ld/elf.go    | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index f7a99afce4..09b159d773 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -399,7 +399,7 @@ func TestNotes(t *testing.T) {
+ 	abiHashNoteFound := false
+ 	depsNoteFound := false
+ 	for _, note := range notes {
+-		if note.name != "GO\x00\x00" {
++		if note.name != "Go\x00\x00" {
+ 			continue
+ 		}
+ 		switch note.tag {
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 030c73d46e..861043c055 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -751,7 +751,7 @@ func goFilesPackage(gofiles []string) *Package {
+ }
+ 
+ func readpkglist(shlibpath string) []*Package {
+-	pkglistbytes, err := readELFNote(shlibpath, "GO\x00\x00", 1)
++	pkglistbytes, err := readELFNote(shlibpath, "Go\x00\x00", 1)
+ 	if err != nil {
+ 		fatalf("readELFNote failed: %v", err)
+ 	}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 68d21f415c..7854ce429f 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1210,7 +1210,7 @@ const (
+ 	ELF_NOTE_GODEPS_TAG    = 3
+ )
+ 
+-var ELF_NOTE_GO_NAME = []byte("GO\x00\x00")
++var ELF_NOTE_GO_NAME = []byte("Go\x00\x00")
+ 
+ var elfverneed int
+ 

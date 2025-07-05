@@ -9,6 +9,31 @@ Date:   Thu Feb 16 14:13:17 2012 -0800
     R=golang-dev, rsc, r, iant
     CC=golang-dev
     https://golang.org/cl/5676054
-
+---
  doc/go_spec.html | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 7d4862f50d..85394b20e9 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of February 14, 2012"
++	"Subtitle": "Version of February 16, 2012"
+ }-->
+ 
+ <!--
+@@ -3058,8 +3058,9 @@ These terms and the result of the comparisons are defined as follows:
+ 	</li>
+ 
+ 	<li>
+-	Struct values are comparable if all the fields are comparable.
+-	Two struct values are equal if their corresponding fields are equal.
++	Struct values are comparable if all their fields are comparable.
++	Two struct values are equal if their corresponding
++	non-<a href="#Blank_identifier">blank</a> fields are equal.
+ 	</li>
+ 	
+ 	<li>

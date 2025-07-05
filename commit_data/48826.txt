@@ -19,8 +19,125 @@ Date:   Wed Jun 16 19:08:52 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/go/build/deps_test.go |  4 ++--
  src/internal/abi/abi.go   | 45 ++++++++++++++++++++++++++++++++++++++++++++-
  src/reflect/value.go      | 11 ++++-------
  3 files changed, 50 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index b440f7d235..80f8e1a00d 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -77,8 +77,8 @@ var depsRules = `
+ 	  unicode/utf8, unicode/utf16, unicode,
+ 	  unsafe;
+ 
+-	# These packages depend only on unsafe.
+-	unsafe
++	# These packages depend only on internal/goarch and unsafe.
++	internal/goarch, unsafe
+ 	< internal/abi;
+ 
+ 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
+diff --git a/src/internal/abi/abi.go b/src/internal/abi/abi.go
+index aaff9cece3..eadff248d9 100644
+--- a/src/internal/abi/abi.go
++++ b/src/internal/abi/abi.go
+@@ -4,7 +4,10 @@
+ 
+ package abi
+ 
+-import "unsafe"
++import (
++	"internal/goarch"
++	"unsafe"
++)
+ 
+ // RegArgs is a struct that has space for each argument
+ // and return value register on the current architecture.
+@@ -33,6 +36,46 @@ type RegArgs struct {
+ 	ReturnIsPtr IntArgRegBitmap
+ }
+ 
++// IntRegArgAddr returns a pointer inside of r.Ints[reg] that is appropriately
++// offset for an argument of size argSize.
++//
++// argSize must be non-zero, fit in a register, and a power-of-two.
++//
++// This method is a helper for dealing with the endianness of different CPU
++// architectures, since sub-word-sized arguments in big endian architectures
++// need to be "aligned" to the upper edge of the register to be interpreted
++// by the CPU correctly.
++func (r *RegArgs) IntRegArgAddr(reg int, argSize uintptr) unsafe.Pointer {
++	if argSize > goarch.PtrSize || argSize == 0 || argSize&(argSize-1) != 0 {
++		panic("invalid argSize")
++	}
++	offset := uintptr(0)
++	if goarch.BigEndian {
++		offset = goarch.PtrSize - argSize
++	}
++	return unsafe.Pointer(uintptr(unsafe.Pointer(&r.Ints[reg])) + offset)
++}
++
++// FloatRegArgAddr returns a pointer inside of r.Floats[reg] that is appropriately
++// offset for an argument of size argSize.
++//
++// argSize must be non-zero, fit in a register, and a power-of-two.
++//
++// This method is a helper for dealing with the endianness of different CPU
++// architectures, since sub-word-sized arguments in big endian architectures
++// need to be "aligned" to the upper edge of the register to be interpreted
++// by the CPU correctly.
++func (r *RegArgs) FloatRegArgAddr(reg int, argSize uintptr) unsafe.Pointer {
++	if argSize > EffectiveFloatRegSize || argSize == 0 || argSize&(argSize-1) != 0 {
++		panic("invalid argSize")
++	}
++	offset := uintptr(0)
++	if goarch.BigEndian {
++		offset = EffectiveFloatRegSize - argSize
++	}
++	return unsafe.Pointer(uintptr(unsafe.Pointer(&r.Floats[reg])) + offset)
++}
++
+ // IntArgRegBitmap is a bitmap large enough to hold one bit per
+ // integer argument/return register.
+ type IntArgRegBitmap [(IntArgRegs + 7) / 8]uint8
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index d8a0b5245e..4341fd3f90 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -957,9 +957,6 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
+ 		// 2. Stack -> registers translation.
+ 		// 3. Registers -> stack translation.
+ 		// 4. Registers -> registers translation.
+-		// TODO(mknyszek): Cases 2 and 3 below only work on little endian
+-		// architectures. This is OK for now, but this needs to be fixed
+-		// before supporting the register ABI on big endian architectures.
+ 
+ 		// If the value ABI passes the value on the stack,
+ 		// then the method ABI does too, because it has strictly
+@@ -985,9 +982,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
+ 					methodRegs.Ptrs[mStep.ireg] = *(*unsafe.Pointer)(from)
+ 					fallthrough // We need to make sure this ends up in Ints, too.
+ 				case abiStepIntReg:
+-					memmove(unsafe.Pointer(&methodRegs.Ints[mStep.ireg]), from, mStep.size)
++					memmove(methodRegs.IntRegArgAddr(mStep.ireg, mStep.size), from, mStep.size)
+ 				case abiStepFloatReg:
+-					memmove(unsafe.Pointer(&methodRegs.Floats[mStep.freg]), from, mStep.size)
++					memmove(methodRegs.FloatRegArgAddr(mStep.freg, mStep.size), from, mStep.size)
+ 				default:
+ 					panic("unexpected method step")
+ 				}
+@@ -1003,9 +1000,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
+ 					// Do the pointer copy directly so we get a write barrier.
+ 					*(*unsafe.Pointer)(to) = valueRegs.Ptrs[vStep.ireg]
+ 				case abiStepIntReg:
+-					memmove(to, unsafe.Pointer(&valueRegs.Ints[vStep.ireg]), vStep.size)
++					memmove(to, valueRegs.IntRegArgAddr(vStep.ireg, vStep.size), vStep.size)
+ 				case abiStepFloatReg:
+-					memmove(to, unsafe.Pointer(&valueRegs.Floats[vStep.freg]), vStep.size)
++					memmove(to, valueRegs.FloatRegArgAddr(vStep.freg, vStep.size), vStep.size)
+ 				default:
+ 					panic("unexpected value step")
+ 				}

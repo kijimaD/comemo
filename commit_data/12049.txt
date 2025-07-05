@@ -16,6 +16,30 @@ Date:   Sun Feb 19 00:26:33 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5677092
-
+---
  src/pkg/runtime/proc.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index d9047c92c1..eaec093c85 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1011,6 +1011,7 @@ runtime·oldstack(void)
+ {
+ 	Stktop *top, old;
+ 	uint32 argsize;
++	uintptr cret;
+ 	byte *sp;
+ 	G *g1;
+ 	int32 goid;
+@@ -1034,7 +1035,9 @@ runtime·oldstack(void)
+ 	g1->stackbase = old.stackbase;
+ 	g1->stackguard = old.stackguard;
+ 
+-	runtime·gogo(&old.gobuf, m->cret);
++	cret = m->cret;
++	m->cret = 0;  // drop reference
++	runtime·gogo(&old.gobuf, cret);
+ }
+ 
+ // Called from reflect·call or from runtime·morestack when a new

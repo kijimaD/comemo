@@ -14,7 +14,115 @@ Date:   Mon Dec 3 20:46:23 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/c/151898
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go      | 18 ++++++-----
  src/net/http/httputil/reverseproxy_test.go | 48 ++++++++++++++++++++++++------
  2 files changed, 49 insertions(+), 17 deletions(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index f0607a68ea..5d07ba3d36 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -282,14 +282,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	}
+ 
+ 	rw.WriteHeader(res.StatusCode)
+-	if len(res.Trailer) > 0 {
+-		// Force chunking if we saw a response trailer.
+-		// This prevents net/http from calculating the length for short
+-		// bodies and adding a Content-Length.
+-		if fl, ok := rw.(http.Flusher); ok {
+-			fl.Flush()
+-		}
+-	}
++
+ 	err = p.copyResponse(rw, res.Body, p.flushInterval(req, res))
+ 	if err != nil {
+ 		defer res.Body.Close()
+@@ -304,6 +297,15 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	}
+ 	res.Body.Close() // close now, instead of defer, to populate res.Trailer
+ 
++	if len(res.Trailer) > 0 {
++		// Force chunking if we saw a response trailer.
++		// This prevents net/http from calculating the length for short
++		// bodies and adding a Content-Length.
++		if fl, ok := rw.(http.Flusher); ok {
++			fl.Flush()
++		}
++	}
++
+ 	if len(res.Trailer) == announcedTrailers {
+ 		copyHeader(rw.Header(), res.Trailer)
+ 		return
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 039273e7c5..588022c066 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -7,23 +7,23 @@
+ package httputil
+ 
+ import (
+-	"bufio"
+-	"bytes"
+-	"errors"
+-	"fmt"
+-	"io"
+ 	"io/ioutil"
+ 	"log"
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"net/url"
+-	"os"
++	"testing"
++	"time"
+ 	"reflect"
+-	"strconv"
++	"io"
+ 	"strings"
++	"bufio"
+ 	"sync"
+-	"testing"
+-	"time"
++	"strconv"
++	"bytes"
++	"errors"
++	"fmt"
++	"os"
+ )
+ 
+ const fakeHopHeader = "X-Fake-Hop-Header-For-Test"
+@@ -1048,3 +1048,33 @@ func TestReverseProxyWebSocket(t *testing.T) {
+ 		t.Errorf("got %#q, want %#q", got, want)
+ 	}
+ }
++
++func TestUnannouncedTrailer(t *testing.T) {
++	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		w.WriteHeader(http.StatusOK)
++		w.(http.Flusher).Flush()
++		w.Header().Set(http.TrailerPrefix+"X-Unannounced-Trailer", "unannounced_trailer_value")
++	}))
++	defer backend.Close()
++	backendURL, err := url.Parse(backend.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	proxyHandler := NewSingleHostReverseProxy(backendURL)
++	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
++	frontend := httptest.NewServer(proxyHandler)
++	defer frontend.Close()
++	frontendClient := frontend.Client()
++
++	res, err := frontendClient.Get(frontend.URL)
++	if err != nil {
++		t.Fatalf("Get: %v", err)
++	}
++
++	ioutil.ReadAll(res.Body)
++
++	if g, w := res.Trailer.Get("X-Unannounced-Trailer"), "unannounced_trailer_value"; g != w {
++		t.Errorf("Trailer(X-Unannounced-Trailer) = %q; want %q", g, w)
++	}
++
++}

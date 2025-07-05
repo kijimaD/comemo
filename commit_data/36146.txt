@@ -16,7 +16,7 @@ Date:   Fri Apr 6 22:38:48 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  .../github.com/google/pprof/driver/driver.go       |  39 +++--
  .../google/pprof/internal/binutils/addr2liner.go   |  25 ++-
  .../google/pprof/internal/binutils/binutils.go     |  31 +++-
@@ -45,3 +45,1109 @@ Date:   Fri Apr 6 22:38:48 2018 +0100
  .../google/pprof/internal/report/source_test.go    |  80 +++++++++
  .../google/pprof/third_party/svgpan/svgpan.go      |   2 +-
  27 files changed, 401 insertions(+), 195 deletions(-)
+
+diff --git a/src/cmd/vendor/github.com/google/pprof/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+index ee7d67d784..3735d6ace9 100644
+--- a/src/cmd/vendor/github.com/google/pprof/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+@@ -41,24 +41,36 @@ func (o *Options) internalOptions() *plugin.Options {
+ 	if o.Sym != nil {
+ 		sym = &internalSymbolizer{o.Sym}
+ 	}
++	var httpServer func(args *plugin.HTTPServerArgs) error
++	if o.HTTPServer != nil {
++		httpServer = func(args *plugin.HTTPServerArgs) error {
++			return o.HTTPServer(((*HTTPServerArgs)(args)))
++		}
++	}
+ 	return &plugin.Options{
+-		Writer:  o.Writer,
+-		Flagset: o.Flagset,
+-		Fetch:   o.Fetch,
+-		Sym:     sym,
+-		Obj:     obj,
+-		UI:      o.UI,
++		Writer:     o.Writer,
++		Flagset:    o.Flagset,
++		Fetch:      o.Fetch,
++		Sym:        sym,
++		Obj:        obj,
++		UI:         o.UI,
++		HTTPServer: httpServer,
+ 	}
+ }
+ 
++// HTTPServerArgs contains arguments needed by an HTTP server that
++// is exporting a pprof web interface.
++type HTTPServerArgs plugin.HTTPServerArgs
++
+ // Options groups all the optional plugins into pprof.
+ type Options struct {
+-	Writer  Writer
+-	Flagset FlagSet
+-	Fetch   Fetcher
+-	Sym     Symbolizer
+-	Obj     ObjTool
+-	UI      UI
++	Writer     Writer
++	Flagset    FlagSet
++	Fetch      Fetcher
++	Sym        Symbolizer
++	Obj        ObjTool
++	UI         UI
++	HTTPServer func(*HTTPServerArgs) error
+ }
+ 
+ // Writer provides a mechanism to write data under a certain name,
+@@ -206,6 +218,9 @@ type UI interface {
+ 	// interactive terminal (as opposed to being redirected to a file).
+ 	IsTerminal() bool
+ 
++	// WantBrowser indicates whether browser should be opened with the -http option.
++	WantBrowser() bool
++
+ 	// SetAutoComplete instructs the UI to call complete(cmd) to obtain
+ 	// the auto-completion of cmd, if the UI supports auto-completion at all.
+ 	SetAutoComplete(complete func(string) string)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go
+index 71e471b5d6..c0661bf4aa 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go
+@@ -41,9 +41,11 @@ type addr2Liner struct {
+ 	rw   lineReaderWriter
+ 	base uint64
+ 
+-	// nm holds an NM based addr2Liner which can provide
+-	// better full names compared to addr2line, which often drops
+-	// namespaces etc. from the names it returns.
++	// nm holds an addr2Liner using nm tool. Certain versions of addr2line
++	// produce incomplete names due to
++	// https://sourceware.org/bugzilla/show_bug.cgi?id=17541. As a workaround,
++	// the names from nm are used when they look more complete. See addrInfo()
++	// code below for the exact heuristic.
+ 	nm *addr2LinerNM
+ }
+ 
+@@ -215,17 +217,22 @@ func (d *addr2Liner) addrInfo(addr uint64) ([]plugin.Frame, error) {
+ 		return nil, err
+ 	}
+ 
+-	// Get better name from nm if possible.
++	// Certain versions of addr2line produce incomplete names due to
++	// https://sourceware.org/bugzilla/show_bug.cgi?id=17541. Attempt to replace
++	// the name with a better one from nm.
+ 	if len(stack) > 0 && d.nm != nil {
+ 		nm, err := d.nm.addrInfo(addr)
+ 		if err == nil && len(nm) > 0 {
+-			// Last entry in frame list should match since
+-			// it is non-inlined. As a simple heuristic,
+-			// we only switch to the nm-based name if it
+-			// is longer.
++			// Last entry in frame list should match since it is non-inlined. As a
++			// simple heuristic, we only switch to the nm-based name if it is longer
++			// by 2 or more characters. We consider nm names that are longer by 1
++			// character insignificant to avoid replacing foo with _foo on MacOS (for
++			// unknown reasons read2line produces the former and nm produces the
++			// latter on MacOS even though both tools are asked to produce mangled
++			// names).
+ 			nmName := nm[len(nm)-1].Func
+ 			a2lName := stack[len(stack)-1].Func
+-			if len(nmName) > len(a2lName) {
++			if len(nmName) > len(a2lName)+1 {
+ 				stack[len(stack)-1].Func = nmName
+ 			}
+ 		}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+index 390f952feb..12b6a5c4b2 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+@@ -81,6 +81,26 @@ func (bu *Binutils) update(fn func(r *binrep)) {
+ 	bu.rep = r
+ }
+ 
++// String returns string representation of the binutils state for debug logging.
++func (bu *Binutils) String() string {
++	r := bu.get()
++	var llvmSymbolizer, addr2line, nm, objdump string
++	if r.llvmSymbolizerFound {
++		llvmSymbolizer = r.llvmSymbolizer
++	}
++	if r.addr2lineFound {
++		addr2line = r.addr2line
++	}
++	if r.nmFound {
++		nm = r.nm
++	}
++	if r.objdumpFound {
++		objdump = r.objdump
++	}
++	return fmt.Sprintf("llvm-symbolizer=%q addr2line=%q nm=%q objdump=%q fast=%t",
++		llvmSymbolizer, addr2line, nm, objdump, r.fast)
++}
++
+ // SetFastSymbolization sets a toggle that makes binutils use fast
+ // symbolization (using nm), which is much faster than addr2line but
+ // provides only symbol name information (no file/line).
+@@ -111,6 +131,11 @@ func initTools(b *binrep, config string) {
+ 	defaultPath := paths[""]
+ 	b.llvmSymbolizer, b.llvmSymbolizerFound = findExe("llvm-symbolizer", append(paths["llvm-symbolizer"], defaultPath...))
+ 	b.addr2line, b.addr2lineFound = findExe("addr2line", append(paths["addr2line"], defaultPath...))
++	if !b.addr2lineFound {
++		// On MacOS, brew installs addr2line under gaddr2line name, so search for
++		// that if the tool is not found by its default name.
++		b.addr2line, b.addr2lineFound = findExe("gaddr2line", append(paths["addr2line"], defaultPath...))
++	}
+ 	b.nm, b.nmFound = findExe("nm", append(paths["nm"], defaultPath...))
+ 	b.objdump, b.objdumpFound = findExe("objdump", append(paths["objdump"], defaultPath...))
+ }
+@@ -306,9 +331,9 @@ func (f *fileNM) SourceLine(addr uint64) ([]plugin.Frame, error) {
+ }
+ 
+ // fileAddr2Line implements the binutils.ObjFile interface, using
+-// 'addr2line' to map addresses to symbols (with file/line number
+-// information). It can be slow for large binaries with debug
+-// information.
++// llvm-symbolizer, if that's available, or addr2line to map addresses to
++// symbols (with file/line number information). It can be slow for large
++// binaries with debug information.
+ type fileAddr2Line struct {
+ 	once sync.Once
+ 	file
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go
+index 0317cf5126..d844ed7e4e 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go
+@@ -265,8 +265,6 @@ func TestObjFile(t *testing.T) {
+ func TestMachoFiles(t *testing.T) {
+ 	skipUnlessDarwinAmd64(t)
+ 
+-	t.Skip("Disabled because of issues with addr2line (see https://github.com/google/pprof/pull/313#issuecomment-364073010)")
+-
+ 	// Load `file`, pretending it was mapped at `start`. Then get the symbol
+ 	// table. Check that it contains the symbol `sym` and that the address
+ 	// `addr` gives the `expected` stack trace.
+@@ -291,7 +289,7 @@ func TestMachoFiles(t *testing.T) {
+ 		{"lib normal mapping", "lib_mac_64", 0, math.MaxUint64, 0,
+ 			0xfa0, "_bar",
+ 			[]plugin.Frame{
+-				{Func: "bar", File: "/tmp/lib.c", Line: 6},
++				{Func: "bar", File: "/tmp/lib.c", Line: 5},
+ 			}},
+ 	} {
+ 		t.Run(tc.desc, func(t *testing.T) {
+@@ -300,6 +298,13 @@ func TestMachoFiles(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatalf("Open: unexpected error %v", err)
+ 			}
++			t.Logf("binutils: %v", bu)
++			if runtime.GOOS == "darwin" && !bu.rep.addr2lineFound && !bu.rep.llvmSymbolizerFound {
++				// On OSX user needs to install gaddr2line or llvm-symbolizer with
++				// Homebrew, skip the test when the environment doesn't have it
++				// installed.
++				t.Skip("couldn't find addr2line or gaddr2line")
++			}
+ 			defer f.Close()
+ 			syms, err := f.Symbols(nil, 0)
+ 			if err != nil {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/build_mac.sh b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/build_mac.sh
+new file mode 100755
+index 0000000000..5ec98f39b5
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/build_mac.sh
+@@ -0,0 +1,31 @@
++#!/bin/bash -x
++
++# This is a script that generates the test MacOS executables in this directory.
++# It should be needed very rarely to run this script. It is mostly provided
++# as a future reference on how the original binary set was created.
++
++set -o errexit
++
++cat <<EOF >/tmp/hello.cc
++#include <stdio.h>
++
++int main() {
++  printf("Hello, world!\n");
++  return 0;
++}
++EOF
++
++cat <<EOF >/tmp/lib.c
++int foo() {
++  return 1;
++}
++
++int bar() {
++  return 2;
++}
++EOF
++
++cd $(dirname $0)
++rm -rf exe_mac_64* lib_mac_64*
++clang -g -o exe_mac_64 /tmp/hello.c
++clang -g -o lib_mac_64 -dynamiclib /tmp/lib.c
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64 b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64
+new file mode 100755
+index 0000000000..dba1ae1581
+Binary files /dev/null and b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64 differ
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64.dSYM/Contents/Info.plist b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64.dSYM/Contents/Info.plist
+new file mode 100644
+index 0000000000..41ce537f5d
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64.dSYM/Contents/Info.plist
+@@ -0,0 +1,20 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
++<plist version="1.0">
++  <dict>
++    <key>CFBundleDevelopmentRegion</key>
++    <string>English</string>
++    <key>CFBundleIdentifier</key>
++    <string>com.apple.xcode.dsym.exe_mac_64</string>
++    <key>CFBundleInfoDictionaryVersion</key>
++    <string>6.0</string>
++    <key>CFBundlePackageType</key>
++    <string>dSYM</string>
++    <key>CFBundleSignature</key>
++    <string>????</string>
++    <key>CFBundleShortVersionString</key>
++    <string>1.0</string>
++    <key>CFBundleVersion</key>
++    <string>1</string>
++  </dict>
++</plist>
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64.dSYM/Contents/Resources/DWARF/exe_mac_64 b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64.dSYM/Contents/Resources/DWARF/exe_mac_64
+new file mode 100644
+index 0000000000..2cb0e3bf31
+Binary files /dev/null and b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64.dSYM/Contents/Resources/DWARF/exe_mac_64 differ
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64 b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64
+new file mode 100755
+index 0000000000..933a3f6931
+Binary files /dev/null and b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64 differ
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64.dSYM/Contents/Info.plist b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64.dSYM/Contents/Info.plist
+new file mode 100644
+index 0000000000..409e4cf0c9
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64.dSYM/Contents/Info.plist
+@@ -0,0 +1,20 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
++<plist version="1.0">
++  <dict>
++    <key>CFBundleDevelopmentRegion</key>
++    <string>English</string>
++    <key>CFBundleIdentifier</key>
++    <string>com.apple.xcode.dsym.lib_mac_64</string>
++    <key>CFBundleInfoDictionaryVersion</key>
++    <string>6.0</string>
++    <key>CFBundlePackageType</key>
++    <string>dSYM</string>
++    <key>CFBundleSignature</key>
++    <string>????</string>
++    <key>CFBundleShortVersionString</key>
++    <string>1.0</string>
++    <key>CFBundleVersion</key>
++    <string>1</string>
++  </dict>
++</plist>
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64.dSYM/Contents/Resources/DWARF/lib_mac_64 b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64.dSYM/Contents/Resources/DWARF/lib_mac_64
+new file mode 100644
+index 0000000000..e466c1342e
+Binary files /dev/null and b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64.dSYM/Contents/Resources/DWARF/lib_mac_64 differ
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+index c2b1cd082b..3b7439fc9a 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+@@ -54,7 +54,7 @@ func PProf(eo *plugin.Options) error {
+ 	}
+ 
+ 	if src.HTTPHostport != "" {
+-		return serveWebInterface(src.HTTPHostport, p, o, true)
++		return serveWebInterface(src.HTTPHostport, p, o)
+ 	}
+ 	return interactive(p, o)
+ }
+@@ -138,7 +138,7 @@ func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.
+ 
+ 	// Output to specified file.
+ 	o.UI.PrintErr("Generating report in ", output)
+-	out, err := os.Create(output)
++	out, err := o.Writer.Open(output)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_test.go
+index 0604da911c..06219eae64 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_test.go
+@@ -96,114 +96,118 @@ func TestParse(t *testing.T) {
+ 	baseVars := pprofVariables
+ 	defer func() { pprofVariables = baseVars }()
+ 	for _, tc := range testcase {
+-		// Reset the pprof variables before processing
+-		pprofVariables = baseVars.makeCopy()
++		t.Run(tc.flags+":"+tc.source, func(t *testing.T) {
++			// Reset the pprof variables before processing
++			pprofVariables = baseVars.makeCopy()
+ 
+-		f := baseFlags()
+-		f.args = []string{tc.source}
++			testUI := &proftest.TestUI{T: t, AllowRx: "Generating report in|Ignoring local file|expression matched no samples|Interpreted .* as range, not regexp"}
+ 
+-		flags := strings.Split(tc.flags, ",")
++			f := baseFlags()
++			f.args = []string{tc.source}
+ 
+-		// Skip the output format in the first flag, to output to a proto
+-		addFlags(&f, flags[1:])
++			flags := strings.Split(tc.flags, ",")
+ 
+-		// Encode profile into a protobuf and decode it again.
+-		protoTempFile, err := ioutil.TempFile("", "profile_proto")
+-		if err != nil {
+-			t.Errorf("cannot create tempfile: %v", err)
+-		}
+-		defer os.Remove(protoTempFile.Name())
+-		defer protoTempFile.Close()
+-		f.strings["output"] = protoTempFile.Name()
+-
+-		if flags[0] == "topproto" {
+-			f.bools["proto"] = false
+-			f.bools["topproto"] = true
+-		}
++			// Skip the output format in the first flag, to output to a proto
++			addFlags(&f, flags[1:])
+ 
+-		// First pprof invocation to save the profile into a profile.proto.
+-		o1 := setDefaults(nil)
+-		o1.Flagset = f
+-		o1.Fetch = testFetcher{}
+-		o1.Sym = testSymbolizer{}
+-		if err := PProf(o1); err != nil {
+-			t.Errorf("%s %q:  %v", tc.source, tc.flags, err)
+-			continue
+-		}
+-		// Reset the pprof variables after the proto invocation
+-		pprofVariables = baseVars.makeCopy()
++			// Encode profile into a protobuf and decode it again.
++			protoTempFile, err := ioutil.TempFile("", "profile_proto")
++			if err != nil {
++				t.Errorf("cannot create tempfile: %v", err)
++			}
++			defer os.Remove(protoTempFile.Name())
++			defer protoTempFile.Close()
++			f.strings["output"] = protoTempFile.Name()
+ 
+-		// Read the profile from the encoded protobuf
+-		outputTempFile, err := ioutil.TempFile("", "profile_output")
+-		if err != nil {
+-			t.Errorf("cannot create tempfile: %v", err)
+-		}
+-		defer os.Remove(outputTempFile.Name())
+-		defer outputTempFile.Close()
+-		f.strings["output"] = outputTempFile.Name()
+-		f.args = []string{protoTempFile.Name()}
+-
+-		var solution string
+-		// Apply the flags for the second pprof run, and identify name of
+-		// the file containing expected results
+-		if flags[0] == "topproto" {
+-			solution = solutionFilename(tc.source, &f)
+-			delete(f.bools, "topproto")
+-			f.bools["text"] = true
+-		} else {
+-			delete(f.bools, "proto")
+-			addFlags(&f, flags[:1])
+-			solution = solutionFilename(tc.source, &f)
+-		}
+-		// The add_comment flag is not idempotent so only apply it on the first run.
+-		delete(f.strings, "add_comment")
+-
+-		// Second pprof invocation to read the profile from profile.proto
+-		// and generate a report.
+-		o2 := setDefaults(nil)
+-		o2.Flagset = f
+-		o2.Sym = testSymbolizeDemangler{}
+-		o2.Obj = new(mockObjTool)
+-
+-		if err := PProf(o2); err != nil {
+-			t.Errorf("%s: %v", tc.source, err)
+-		}
+-		b, err := ioutil.ReadFile(outputTempFile.Name())
+-		if err != nil {
+-			t.Errorf("Failed to read profile %s: %v", outputTempFile.Name(), err)
+-		}
++			if flags[0] == "topproto" {
++				f.bools["proto"] = false
++				f.bools["topproto"] = true
++			}
+ 
+-		// Read data file with expected solution
+-		solution = "testdata/" + solution
+-		sbuf, err := ioutil.ReadFile(solution)
+-		if err != nil {
+-			t.Errorf("reading solution file %s: %v", solution, err)
+-			continue
+-		}
+-		if runtime.GOOS == "windows" {
+-			sbuf = bytes.Replace(sbuf, []byte("testdata/"), []byte("testdata\\"), -1)
+-			sbuf = bytes.Replace(sbuf, []byte("/path/to/"), []byte("\\path\\to\\"), -1)
+-		}
++			// First pprof invocation to save the profile into a profile.proto.
++			o1 := setDefaults(nil)
++			o1.Flagset = f
++			o1.Fetch = testFetcher{}
++			o1.Sym = testSymbolizer{}
++			o1.UI = testUI
++			if err := PProf(o1); err != nil {
++				t.Fatalf("%s %q:  %v", tc.source, tc.flags, err)
++			}
++			// Reset the pprof variables after the proto invocation
++			pprofVariables = baseVars.makeCopy()
+ 
+-		if flags[0] == "svg" {
+-			b = removeScripts(b)
+-			sbuf = removeScripts(sbuf)
+-		}
++			// Read the profile from the encoded protobuf
++			outputTempFile, err := ioutil.TempFile("", "profile_output")
++			if err != nil {
++				t.Errorf("cannot create tempfile: %v", err)
++			}
++			defer os.Remove(outputTempFile.Name())
++			defer outputTempFile.Close()
++			f.strings["output"] = outputTempFile.Name()
++			f.args = []string{protoTempFile.Name()}
++
++			var solution string
++			// Apply the flags for the second pprof run, and identify name of
++			// the file containing expected results
++			if flags[0] == "topproto" {
++				solution = solutionFilename(tc.source, &f)
++				delete(f.bools, "topproto")
++				f.bools["text"] = true
++			} else {
++				delete(f.bools, "proto")
++				addFlags(&f, flags[:1])
++				solution = solutionFilename(tc.source, &f)
++			}
++			// The add_comment flag is not idempotent so only apply it on the first run.
++			delete(f.strings, "add_comment")
++
++			// Second pprof invocation to read the profile from profile.proto
++			// and generate a report.
++			o2 := setDefaults(nil)
++			o2.Flagset = f
++			o2.Sym = testSymbolizeDemangler{}
++			o2.Obj = new(mockObjTool)
++			o2.UI = testUI
++
++			if err := PProf(o2); err != nil {
++				t.Errorf("%s: %v", tc.source, err)
++			}
++			b, err := ioutil.ReadFile(outputTempFile.Name())
++			if err != nil {
++				t.Errorf("Failed to read profile %s: %v", outputTempFile.Name(), err)
++			}
+ 
+-		if string(b) != string(sbuf) {
+-			t.Errorf("diff %s %s", solution, tc.source)
+-			d, err := proftest.Diff(sbuf, b)
++			// Read data file with expected solution
++			solution = "testdata/" + solution
++			sbuf, err := ioutil.ReadFile(solution)
+ 			if err != nil {
+-				t.Fatalf("diff %s %v", solution, err)
++				t.Fatalf("reading solution file %s: %v", solution, err)
+ 			}
+-			t.Errorf("%s\n%s\n", solution, d)
+-			if *updateFlag {
+-				err := ioutil.WriteFile(solution, b, 0644)
++			if runtime.GOOS == "windows" {
++				sbuf = bytes.Replace(sbuf, []byte("testdata/"), []byte("testdata\\"), -1)
++				sbuf = bytes.Replace(sbuf, []byte("/path/to/"), []byte("\\path\\to\\"), -1)
++			}
++
++			if flags[0] == "svg" {
++				b = removeScripts(b)
++				sbuf = removeScripts(sbuf)
++			}
++
++			if string(b) != string(sbuf) {
++				t.Errorf("diff %s %s", solution, tc.source)
++				d, err := proftest.Diff(sbuf, b)
+ 				if err != nil {
+-					t.Errorf("failed to update the solution file %q: %v", solution, err)
++					t.Fatalf("diff %s %v", solution, err)
++				}
++				t.Errorf("%s\n%s\n", solution, d)
++				if *updateFlag {
++					err := ioutil.WriteFile(solution, b, 0644)
++					if err != nil {
++						t.Errorf("failed to update the solution file %q: %v", solution, err)
++					}
+ 				}
+ 			}
+-		}
++		})
+ 	}
+ }
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+index a929b0f790..1b34e70bea 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+@@ -407,6 +407,7 @@ mapping:
+ 				if matches, err := filepath.Glob(filepath.Join(path, m.BuildID, "*")); err == nil {
+ 					fileNames = append(fileNames, matches...)
+ 				}
++				fileNames = append(fileNames, filepath.Join(path, m.File, m.BuildID)) // perf path format
+ 			}
+ 			if m.File != "" {
+ 				// Try both the basename and the full path, to support the same directory
+@@ -534,7 +535,8 @@ func convertPerfData(perfPath string, ui plugin.UI) (*os.File, error) {
+ 		return nil, err
+ 	}
+ 	deferDeleteTempFile(profile.Name())
+-	cmd := exec.Command("perf_to_profile", perfPath, profile.Name())
++	cmd := exec.Command("perf_to_profile", "-i", perfPath, "-o", profile.Name(), "-f")
++	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+ 	if err := cmd.Run(); err != nil {
+ 		profile.Close()
+ 		return nil, fmt.Errorf("failed to convert perf.data file. Try github.com/google/perf_data_converter: %v", err)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+index c80a0dbc1d..f15328bfae 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+@@ -283,8 +283,10 @@ func TestFetchWithBase(t *testing.T) {
+ 			}
+ 			f.args = tc.sources
+ 
+-			o := setDefaults(nil)
+-			o.Flagset = f
++			o := setDefaults(&plugin.Options{
++				UI:      &proftest.TestUI{T: t, AllowRx: "Local symbolization failed|Some binary filenames not available"},
++				Flagset: f,
++			})
+ 			src, _, err := parseFlags(o)
+ 
+ 			if err != nil {
+@@ -397,18 +399,6 @@ func TestHttpsInsecure(t *testing.T) {
+ 	}()
+ 	defer l.Close()
+ 
+-	go func() {
+-		deadline := time.Now().Add(5 * time.Second)
+-		for time.Now().Before(deadline) {
+-			// Simulate a hotspot function. Spin in the inner loop for 100M iterations
+-			// to ensure we get most of the samples landed here rather than in the
+-			// library calls. We assume Go compiler won't elide the empty loop.
+-			for i := 0; i < 1e8; i++ {
+-			}
+-			runtime.Gosched()
+-		}
+-	}()
+-
+ 	outputTempFile, err := ioutil.TempFile("", "profile_output")
+ 	if err != nil {
+ 		t.Fatalf("Failed to create tempfile: %v", err)
+@@ -416,7 +406,7 @@ func TestHttpsInsecure(t *testing.T) {
+ 	defer os.Remove(outputTempFile.Name())
+ 	defer outputTempFile.Close()
+ 
+-	address := "https+insecure://" + l.Addr().String() + "/debug/pprof/profile"
++	address := "https+insecure://" + l.Addr().String() + "/debug/pprof/goroutine"
+ 	s := &source{
+ 		Sources:   []string{address},
+ 		Seconds:   10,
+@@ -435,31 +425,14 @@ func TestHttpsInsecure(t *testing.T) {
+ 	if len(p.SampleType) == 0 {
+ 		t.Fatalf("fetchProfiles(%s) got empty profile: len(p.SampleType)==0", address)
+ 	}
+-	switch runtime.GOOS {
+-	case "plan9":
+-		// CPU profiling is not supported on Plan9; see golang.org/issues/22564.
+-		return
+-	case "darwin":
+-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+-			// CPU profiling on iOS os not symbolized; see golang.org/issues/22612.
+-			return
+-		}
+-	}
+ 	if len(p.Function) == 0 {
+ 		t.Fatalf("fetchProfiles(%s) got non-symbolized profile: len(p.Function)==0", address)
+ 	}
+-	if err := checkProfileHasFunction(p, "TestHttpsInsecure"); !badSigprofOS[runtime.GOOS] && err != nil {
++	if err := checkProfileHasFunction(p, "TestHttpsInsecure"); err != nil {
+ 		t.Fatalf("fetchProfiles(%s) %v", address, err)
+ 	}
+ }
+ 
+-// Some operating systems don't trigger the profiling signal right.
+-// See https://github.com/golang/go/issues/13841.
+-var badSigprofOS = map[string]bool{
+-	"darwin": true,
+-	"netbsd": true,
+-}
+-
+ func checkProfileHasFunction(p *profile.Profile, fname string) error {
+ 	for _, f := range p.Function {
+ 		if strings.Contains(f.Name, fname) {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph.go
+index 10588d6262..29a41011bb 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph.go
+@@ -92,7 +92,7 @@ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
+ 		return
+ 	}
+ 
+-	ui.render(w, "/flamegraph", "flamegraph", rpt, errList, config.Labels, webArgs{
++	ui.render(w, "flamegraph", rpt, errList, config.Labels, webArgs{
+ 		FlameGraph: template.JS(b),
+ 		Nodes:      nodeArr,
+ 	})
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go
+index b893697b62..bebfbbec1e 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go
+@@ -149,9 +149,14 @@ func greetings(p *profile.Profile, ui plugin.UI) {
+ 	numLabelUnits := identifyNumLabelUnits(p, ui)
+ 	ropt, err := reportOptions(p, numLabelUnits, pprofVariables)
+ 	if err == nil {
+-		ui.Print(strings.Join(report.ProfileLabels(report.New(p, ropt)), "\n"))
++		rpt := report.New(p, ropt)
++		ui.Print(strings.Join(report.ProfileLabels(rpt), "\n"))
++		if rpt.Total() == 0 && len(p.SampleType) > 1 {
++			ui.Print(`No samples were found with the default sample value type.`)
++			ui.Print(`Try "sample_index" command to analyze different sample values.`, "\n")
++		}
+ 	}
+-	ui.Print("Entering interactive mode (type \"help\" for commands, \"o\" for options)")
++	ui.Print(`Entering interactive mode (type "help" for commands, "o" for options)`)
+ }
+ 
+ // shortcuts represents composite commands that expand into a sequence
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/options.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/options.go
+index cb20e948b4..34167d4bf5 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/options.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/options.go
+@@ -128,6 +128,10 @@ func (ui *stdUI) IsTerminal() bool {
+ 	return false
+ }
+ 
++func (ui *stdUI) WantBrowser() bool {
++	return true
++}
++
+ func (ui *stdUI) SetAutoComplete(func(string) string) {
+ }
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+index 5d2821cd42..e9bc872035 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+@@ -233,7 +233,7 @@ table tr td {
+ {{define "header"}}
+ <div class="header">
+   <div class="title">
+-    <h1><a href="/">pprof</a></h1>
++    <h1><a href="./">pprof</a></h1>
+   </div>
+ 
+   <div id="view" class="menu-item">
+@@ -242,12 +242,12 @@ table tr td {
+       <i class="downArrow"></i>
+     </div>
+     <div class="submenu">
+-      <a title="{{.Help.top}}"  href="/top" id="topbtn">Top</a>
+-      <a title="{{.Help.graph}}" href="/" id="graphbtn">Graph</a>
+-      <a title="{{.Help.flamegraph}}" href="/flamegraph" id="flamegraph">Flame Graph</a>
+-      <a title="{{.Help.peek}}" href="/peek" id="peek">Peek</a>
+-      <a title="{{.Help.list}}" href="/source" id="list">Source</a>
+-      <a title="{{.Help.disasm}}" href="/disasm" id="disasm">Disassemble</a>
++      <a title="{{.Help.top}}"  href="./top" id="topbtn">Top</a>
++      <a title="{{.Help.graph}}" href="./" id="graphbtn">Graph</a>
++      <a title="{{.Help.flamegraph}}" href="./flamegraph" id="flamegraph">Flame Graph</a>
++      <a title="{{.Help.peek}}" href="./peek" id="peek">Peek</a>
++      <a title="{{.Help.list}}" href="./source" id="list">Source</a>
++      <a title="{{.Help.disasm}}" href="./disasm" id="disasm">Disassemble</a>
+     </div>
+   </div>
+ 
+@@ -257,12 +257,12 @@ table tr td {
+       <i class="downArrow"></i>
+     </div>
+     <div class="submenu">
+-      <a title="{{.Help.focus}}" href="{{.BaseURL}}" id="focus">Focus</a>
+-      <a title="{{.Help.ignore}}" href="{{.BaseURL}}" id="ignore">Ignore</a>
+-      <a title="{{.Help.hide}}" href="{{.BaseURL}}" id="hide">Hide</a>
+-      <a title="{{.Help.show}}" href="{{.BaseURL}}" id="show">Show</a>
++      <a title="{{.Help.focus}}" href="?" id="focus">Focus</a>
++      <a title="{{.Help.ignore}}" href="?" id="ignore">Ignore</a>
++      <a title="{{.Help.hide}}" href="?" id="hide">Hide</a>
++      <a title="{{.Help.show}}" href="?" id="show">Show</a>
+       <hr>
+-      <a title="{{.Help.reset}}" href="{{.BaseURL}}">Reset</a>
++      <a title="{{.Help.reset}}" href="?">Reset</a>
+     </div>
+   </div>
+ 
+@@ -295,7 +295,7 @@ table tr td {
+     {{.HTMLBody}}
+   </div>
+   {{template "script" .}}
+-  <script>viewer({{.BaseURL}}, {{.Nodes}});</script>
++  <script>viewer(new URL(window.location.href), {{.Nodes}});</script>
+ </body>
+ </html>
+ {{end}}
+@@ -597,7 +597,7 @@ function viewer(baseUrl, nodes) {
+   function handleKey(e) {
+     if (e.keyCode != 13) return;
+     window.location.href =
+-        updateUrl(new URL({{.BaseURL}}, window.location.href), 'f');
++        updateUrl(new URL(window.location.href), 'f');
+     e.preventDefault();
+   }
+ 
+@@ -963,7 +963,7 @@ function viewer(baseUrl, nodes) {
+       bindSort('namehdr', 'Name');
+     }
+ 
+-    viewer({{.BaseURL}}, {{.Nodes}});
++    viewer(new URL(window.location.href), {{.Nodes}});
+     makeTopTable({{.Total}}, {{.Top}});
+   </script>
+ </body>
+@@ -986,7 +986,7 @@ function viewer(baseUrl, nodes) {
+     {{.HTMLBody}}
+   </div>
+   {{template "script" .}}
+-  <script>viewer({{.BaseURL}}, null);</script>
++  <script>viewer(new URL(window.location.href), null);</script>
+ </body>
+ </html>
+ {{end}}
+@@ -1007,7 +1007,7 @@ function viewer(baseUrl, nodes) {
+     </pre>
+   </div>
+   {{template "script" .}}
+-  <script>viewer({{.BaseURL}}, null);</script>
++  <script>viewer(new URL(window.location.href), null);</script>
+ </body>
+ </html>
+ {{end}}
+@@ -1044,7 +1044,7 @@ function viewer(baseUrl, nodes) {
+     <div id="flamegraphdetails" class="flamegraph-details"></div>
+   </div>
+   {{template "script" .}}
+-  <script>viewer({{.BaseURL}}, {{.Nodes}});</script>
++  <script>viewer(new URL(window.location.href), {{.Nodes}});</script>
+   <script>{{template "d3script" .}}</script>
+   <script>{{template "d3tipscript" .}}</script>
+   <script>{{template "d3flamegraphscript" .}}</script>
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+index 20d4e025f4..89bc558668 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+@@ -69,7 +69,6 @@ func (ec *errorCatcher) PrintErr(args ...interface{}) {
+ 
+ // webArgs contains arguments passed to templates in webhtml.go.
+ type webArgs struct {
+-	BaseURL    string
+ 	Title      string
+ 	Errors     []string
+ 	Total      int64
+@@ -82,7 +81,7 @@ type webArgs struct {
+ 	FlameGraph template.JS
+ }
+ 
+-func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, wantBrowser bool) error {
++func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options) error {
+ 	host, port, err := getHostAndPort(hostport)
+ 	if err != nil {
+ 		return err
+@@ -117,7 +116,7 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, w
+ 		},
+ 	}
+ 
+-	if wantBrowser {
++	if o.UI.WantBrowser() {
+ 		go openBrowser("http://"+args.Hostport, o)
+ 	}
+ 	return server(args)
+@@ -172,7 +171,15 @@ func defaultWebServer(args *plugin.HTTPServerArgs) error {
+ 		}
+ 		h.ServeHTTP(w, req)
+ 	})
+-	s := &http.Server{Handler: handler}
++
++	// We serve the ui at /ui/ and redirect there from the root. This is done
++	// to surface any problems with serving the ui at a non-root early. See:
++	//
++	// https://github.com/google/pprof/pull/348
++	mux := http.NewServeMux()
++	mux.Handle("/ui/", http.StripPrefix("/ui", handler))
++	mux.Handle("/", http.RedirectHandler("/ui/", http.StatusTemporaryRedirect))
++	s := &http.Server{Handler: mux}
+ 	return s.Serve(ln)
+ }
+ 
+@@ -248,11 +255,10 @@ func (ui *webInterface) makeReport(w http.ResponseWriter, req *http.Request,
+ }
+ 
+ // render generates html using the named template based on the contents of data.
+-func (ui *webInterface) render(w http.ResponseWriter, baseURL, tmpl string,
++func (ui *webInterface) render(w http.ResponseWriter, tmpl string,
+ 	rpt *report.Report, errList, legend []string, data webArgs) {
+ 	file := getFromLegend(legend, "File: ", "unknown")
+ 	profile := getFromLegend(legend, "Type: ", "unknown")
+-	data.BaseURL = baseURL
+ 	data.Title = file + " " + profile
+ 	data.Errors = errList
+ 	data.Total = rpt.Total()
+@@ -297,7 +303,7 @@ func (ui *webInterface) dot(w http.ResponseWriter, req *http.Request) {
+ 		nodes = append(nodes, n.Info.Name)
+ 	}
+ 
+-	ui.render(w, "/", "graph", rpt, errList, legend, webArgs{
++	ui.render(w, "graph", rpt, errList, legend, webArgs{
+ 		HTMLBody: template.HTML(string(svg)),
+ 		Nodes:    nodes,
+ 	})
+@@ -332,7 +338,7 @@ func (ui *webInterface) top(w http.ResponseWriter, req *http.Request) {
+ 		nodes = append(nodes, item.Name)
+ 	}
+ 
+-	ui.render(w, "/top", "top", rpt, errList, legend, webArgs{
++	ui.render(w, "top", rpt, errList, legend, webArgs{
+ 		Top:   top,
+ 		Nodes: nodes,
+ 	})
+@@ -354,7 +360,7 @@ func (ui *webInterface) disasm(w http.ResponseWriter, req *http.Request) {
+ 	}
+ 
+ 	legend := report.ProfileLabels(rpt)
+-	ui.render(w, "/disasm", "plaintext", rpt, errList, legend, webArgs{
++	ui.render(w, "plaintext", rpt, errList, legend, webArgs{
+ 		TextBody: out.String(),
+ 	})
+ 
+@@ -378,7 +384,7 @@ func (ui *webInterface) source(w http.ResponseWriter, req *http.Request) {
+ 	}
+ 
+ 	legend := report.ProfileLabels(rpt)
+-	ui.render(w, "/source", "sourcelisting", rpt, errList, legend, webArgs{
++	ui.render(w, "sourcelisting", rpt, errList, legend, webArgs{
+ 		HTMLBody: template.HTML(body.String()),
+ 	})
+ }
+@@ -399,7 +405,7 @@ func (ui *webInterface) peek(w http.ResponseWriter, req *http.Request) {
+ 	}
+ 
+ 	legend := report.ProfileLabels(rpt)
+-	ui.render(w, "/peek", "plaintext", rpt, errList, legend, webArgs{
++	ui.render(w, "plaintext", rpt, errList, legend, webArgs{
+ 		TextBody: out.String(),
+ 	})
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui_test.go
+index 424752fd1f..7e061699ce 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui_test.go
+@@ -28,6 +28,7 @@ import (
+ 	"testing"
+ 
+ 	"github.com/google/pprof/internal/plugin"
++	"github.com/google/pprof/internal/proftest"
+ 	"github.com/google/pprof/profile"
+ )
+ 
+@@ -55,9 +56,9 @@ func TestWebInterface(t *testing.T) {
+ 	// Start server and wait for it to be initialized
+ 	go serveWebInterface("unused:1234", prof, &plugin.Options{
+ 		Obj:        fakeObjTool{},
+-		UI:         &stdUI{},
++		UI:         &proftest.TestUI{},
+ 		HTTPServer: creator,
+-	}, false)
++	})
+ 	<-serverCreated
+ 	defer server.Close()
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+index 7e42c88d14..297bb24b1c 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+@@ -218,7 +218,7 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
+ 			// So the base should be:
+ 			if stextOffset != nil && (start%pageSize) == (*stextOffset%pageSize) {
+ 				// perf uses the address of _stext as start. Some tools may
+-				// adjust for this before calling GetBase, in which case the the page
++				// adjust for this before calling GetBase, in which case the page
+ 				// alignment should be different from that of stextOffset.
+ 				return start - *stextOffset, nil
+ 			}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go b/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
+index e5878aed70..0003656026 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
+@@ -192,6 +192,9 @@ type UI interface {
+ 	// interactive terminal (as opposed to being redirected to a file).
+ 	IsTerminal() bool
+ 
++	// WantBrowser indicates whether a browser should be opened with the -http option.
++	WantBrowser() bool
++
+ 	// SetAutoComplete instructs the UI to call complete(cmd) to obtain
+ 	// the auto-completion of cmd, if the UI supports auto-completion at all.
+ 	SetAutoComplete(complete func(string) string)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/proftest/proftest.go b/src/cmd/vendor/github.com/google/pprof/internal/proftest/proftest.go
+index 03fac7e330..5d3a19b4a1 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/proftest/proftest.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/proftest/proftest.go
+@@ -122,7 +122,7 @@ func (ui *TestUI) PrintErr(args ...interface{}) {
+ 	// implementation does. Without this Error() calls fmt.Sprintln() which
+ 	// _always_ adds spaces between arguments, unlike fmt.Sprint() which only
+ 	// adds them between arguments if neither is string.
+-	ui.T.Error(fmt.Sprint(args...))
++	ui.T.Error("unexpected error: " + fmt.Sprint(args...))
+ }
+ 
+ // IsTerminal indicates if the UI is an interactive terminal.
+@@ -130,6 +130,11 @@ func (ui *TestUI) IsTerminal() bool {
+ 	return false
+ }
+ 
++// WantBrowser indicates whether a browser should be opened with the -http option.
++func (ui *TestUI) WantBrowser() bool {
++	return false
++}
++
+ // SetAutoComplete is not supported by the test UI.
+ func (ui *TestUI) SetAutoComplete(_ func(string) string) {
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/source.go b/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
+index 9a98f7460b..5295839973 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
+@@ -576,7 +576,7 @@ func openSourceFile(path, searchPath string) (*os.File, error) {
+ 	}
+ 
+ 	// Scan each component of the path
+-	for _, dir := range strings.Split(searchPath, ":") {
++	for _, dir := range filepath.SplitList(searchPath) {
+ 		// Search up for every parent of each possible path.
+ 		for {
+ 			filename := filepath.Join(dir, path)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/source_test.go b/src/cmd/vendor/github.com/google/pprof/internal/report/source_test.go
+index d45d4c5815..682bfe0a1e 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/source_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/source_test.go
+@@ -2,6 +2,7 @@ package report
+ 
+ import (
+ 	"bytes"
++	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+@@ -38,6 +39,85 @@ func TestWebList(t *testing.T) {
+ 	}
+ }
+ 
++func TestOpenSourceFile(t *testing.T) {
++	tempdir, err := ioutil.TempDir("", "")
++	if err != nil {
++		t.Fatalf("failed to create temp dir: %v", err)
++	}
++	const lsep = string(filepath.ListSeparator)
++	for _, tc := range []struct {
++		desc       string
++		searchPath string
++		fs         []string
++		path       string
++		wantPath   string // If empty, error is wanted.
++	}{
++		{
++			desc:     "exact absolute path is found",
++			fs:       []string{"foo/bar.txt"},
++			path:     "$dir/foo/bar.txt",
++			wantPath: "$dir/foo/bar.txt",
++		},
++		{
++			desc:       "exact relative path is found",
++			searchPath: "$dir",
++			fs:         []string{"foo/bar.txt"},
++			path:       "foo/bar.txt",
++			wantPath:   "$dir/foo/bar.txt",
++		},
++		{
++			desc:       "multiple search path",
++			searchPath: "some/path" + lsep + "$dir",
++			fs:         []string{"foo/bar.txt"},
++			path:       "foo/bar.txt",
++			wantPath:   "$dir/foo/bar.txt",
++		},
++		{
++			desc:       "relative path is found in parent dir",
++			searchPath: "$dir/foo/bar",
++			fs:         []string{"bar.txt", "foo/bar/baz.txt"},
++			path:       "bar.txt",
++			wantPath:   "$dir/bar.txt",
++		},
++		{
++			desc: "error when not found",
++			path: "foo.txt",
++		},
++	} {
++		t.Run(tc.desc, func(t *testing.T) {
++			defer func() {
++				if err := os.RemoveAll(tempdir); err != nil {
++					t.Fatalf("failed to remove dir %q: %v", tempdir, err)
++				}
++			}()
++			for _, f := range tc.fs {
++				path := filepath.Join(tempdir, filepath.FromSlash(f))
++				dir := filepath.Dir(path)
++				if err := os.MkdirAll(dir, 0755); err != nil {
++					t.Fatalf("failed to create dir %q: %v", dir, err)
++				}
++				if err := ioutil.WriteFile(path, nil, 0644); err != nil {
++					t.Fatalf("failed to create file %q: %v", path, err)
++				}
++			}
++			tc.searchPath = filepath.FromSlash(strings.Replace(tc.searchPath, "$dir", tempdir, -1))
++			tc.path = filepath.FromSlash(strings.Replace(tc.path, "$dir", tempdir, 1))
++			tc.wantPath = filepath.FromSlash(strings.Replace(tc.wantPath, "$dir", tempdir, 1))
++			if file, err := openSourceFile(tc.path, tc.searchPath); err != nil && tc.wantPath != "" {
++				t.Errorf("openSourceFile(%q, %q) = err %v, want path %q", tc.path, tc.searchPath, err, tc.wantPath)
++			} else if err == nil {
++				defer file.Close()
++				gotPath := file.Name()
++				if tc.wantPath == "" {
++					t.Errorf("openSourceFile(%q, %q) = %q, want error", tc.path, tc.searchPath, gotPath)
++				} else if gotPath != tc.wantPath {
++					t.Errorf("openSourceFile(%q, %q) = %q, want path %q", tc.path, tc.searchPath, gotPath, tc.wantPath)
++				}
++			}
++		})
++	}
++}
++
+ func TestIndentation(t *testing.T) {
+ 	for _, c := range []struct {
+ 		str        string
+diff --git a/src/cmd/vendor/github.com/google/pprof/third_party/svgpan/svgpan.go b/src/cmd/vendor/github.com/google/pprof/third_party/svgpan/svgpan.go
+index e7639a388e..6ca08adedb 100644
+--- a/src/cmd/vendor/github.com/google/pprof/third_party/svgpan/svgpan.go
++++ b/src/cmd/vendor/github.com/google/pprof/third_party/svgpan/svgpan.go
+@@ -12,7 +12,7 @@ const JSSource = `
+  * ======================
+  *
+  * Given an unique existing element with id "viewport" (or when missing, the
+- * first g-element), including the the library into any SVG adds the following
++ * first g-element), including the library into any SVG adds the following
+  * capabilities:
+  *
+  *  - Mouse panning

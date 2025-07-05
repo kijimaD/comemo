@@ -13,6 +13,57 @@ Date:   Wed Nov 12 14:58:43 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/174050044
-
+---
  src/cmd/9g/prog.c | 22 ++++++++++++++--------
  1 file changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/9g/prog.c b/src/cmd/9g/prog.c
+index 0a51a533a0..e3e50f28a9 100644
+--- a/src/cmd/9g/prog.c
++++ b/src/cmd/9g/prog.c
+@@ -96,11 +96,8 @@ static ProgInfo progtable[ALAST] = {
+ 	[ABGT]=		{Cjmp},
+ 	[ABLE]=		{Cjmp},
+ 	[ARETURN]=	{Break},
+-	// In addtion, duffzero reads R0,R2 and writes R2.  This fact must be
+-	// encoded in peep.c (TODO)
++
+ 	[ADUFFZERO]=	{Call},
+-	// In addtion, duffcopy reads R0,R2,R3 and writes R2,R3.  This fact must be
+-	// encoded in peep.c (TODO)
+ 	[ADUFFCOPY]=	{Call},
+ };
+ 
+@@ -118,14 +115,14 @@ proginfo(ProgInfo *info, Prog *p)
+ 		info->flags |= /*CanRegRead |*/ RightRead;
+ 	}
+ 
+-	if(p->from.type == D_OREG && p->from.reg != NREG) {
+-		info->reguse |= RtoB(p->from.reg);
++	if((p->from.type == D_OREG || p->from.type == D_CONST) && p->from.reg != NREG) {
++		info->regindex |= RtoB(p->from.reg);
+ 		if(info->flags & PostInc) {
+ 			info->regset |= RtoB(p->from.reg);
+ 		}
+ 	}
+-	if(p->to.type == D_OREG && p->to.reg != NREG) {
+-		info->reguse |= RtoB(p->to.reg);
++	if((p->to.type == D_OREG || p->to.type == D_CONST) && p->to.reg != NREG) {
++		info->regindex |= RtoB(p->to.reg);
+ 		if(info->flags & PostInc) {
+ 			info->regset |= RtoB(p->to.reg);
+ 		}
+@@ -135,4 +132,13 @@ proginfo(ProgInfo *info, Prog *p)
+ 		info->flags &= ~LeftRead;
+ 		info->flags |= LeftAddr;
+ 	}
++
++	if(p->as == ADUFFZERO) {
++		info->reguse |= RtoB(0) | RtoB(2);
++		info->regset |= RtoB(2);
++	}
++	if(p->as == ADUFFCOPY) {
++		info->reguse |= RtoB(0) | RtoB(2) | RtoB(3);
++		info->regset |= RtoB(2) | RtoB(3);
++	}
+ }

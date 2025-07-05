@@ -7,8 +7,153 @@ Date:   Tue Aug 30 08:47:28 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4950052
-
+---
  src/cmd/6g/ggen.c        | 23 +++++++++++++++++------
  src/cmd/8g/ggen.c        | 19 +++++++++++++++----
  test/fixedbugs/bug366.go | 37 +++++++++++++++++++++++++++++++++++++
  3 files changed, 69 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 48e2588ded..2f68885bd3 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -448,8 +448,8 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
+ {
+ 	int a, check;
+ 	Node n3, n4, n5;
+-	Type *t;
+-	Node ax, dx, oldax, olddx;
++	Type *t, *t0;
++	Node ax, dx, ax1, n31, oldax, olddx;
+ 	Prog *p1, *p2, *p3;
+ 
+ 	// Have to be careful about handling
+@@ -461,6 +461,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
+ 	// For int32 and int64, use explicit test.
+ 	// Could use int64 hw for int32.
+ 	t = nl->type;
++	t0 = t;
+ 	check = 0;
+ 	if(issigned[t->etype]) {
+ 		check = 1;
+@@ -478,18 +479,28 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
+ 	}
+ 	a = optoas(op, t);
+ 
+-	regalloc(&n3, t, N);
++	regalloc(&n3, t0, N);
+ 	if(nl->ullman >= nr->ullman) {
+-		savex(D_AX, &ax, &oldax, res, t);
++		savex(D_AX, &ax, &oldax, res, t0);
+ 		cgen(nl, &ax);
+-		regalloc(&ax, t, &ax);	// mark ax live during cgen
++		regalloc(&ax, t0, &ax);	// mark ax live during cgen
+ 		cgen(nr, &n3);
+ 		regfree(&ax);
+ 	} else {
+ 		cgen(nr, &n3);
+-		savex(D_AX, &ax, &oldax, res, t);
++		savex(D_AX, &ax, &oldax, res, t0);
+ 		cgen(nl, &ax);
+ 	}
++	if(t != t0) {
++		// Convert
++		ax1 = ax;
++		n31 = n3;
++		ax.type = t;
++		n3.type = t;
++		gmove(&ax1, &ax);
++		gmove(&n31, &n3);
++	}
++
+ 	p3 = P;
+ 	if(check) {
+ 		nodconst(&n4, t, -1);
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 3490a7bd02..c4f2823680 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -484,8 +484,8 @@ void
+ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+ {
+ 	int check;
+-	Node n1, t1, t2, n4, nz;
+-	Type *t;
++	Node n1, t1, t2, t3, t4, n4, nz;
++	Type *t, *t0;
+ 	Prog *p1, *p2, *p3;
+ 
+ 	// Have to be careful about handling
+@@ -497,6 +497,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+ 	// For int32 and int64, use explicit test.
+ 	// Could use int64 hw for int32.
+ 	t = nl->type;
++	t0 = t;
+ 	check = 0;
+ 	if(issigned[t->etype]) {
+ 		check = 1;
+@@ -515,8 +516,18 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+ 
+ 	tempname(&t1, t);
+ 	tempname(&t2, t);
+-	cgen(nl, &t1);
+-	cgen(nr, &t2);
++	if(t0 != t) {
++		tempname(&t3, t0);
++		tempname(&t4, t0);
++		cgen(nl, &t3);
++		cgen(nr, &t4);
++		// Convert.
++		gmove(&t3, &t1);
++		gmove(&t4, &t2);
++	} else {
++		cgen(nl, &t1);
++		cgen(nr, &t2);
++	}
+ 
+ 	if(!samereg(ax, res) && !samereg(dx, res))
+ 		regalloc(&n1, t, res);
+diff --git a/test/fixedbugs/bug366.go b/test/fixedbugs/bug366.go
+new file mode 100644
+index 0000000000..8c000f50a9
+--- /dev/null
++++ b/test/fixedbugs/bug366.go
+@@ -0,0 +1,37 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2206.  Incorrect sign extension of div arguments.
++
++package main
++
++func five(x int64) {
++	if x != 5 {
++		panic(x)
++	}
++}
++
++func main() {
++       // 5
++       five(int64(5 / (5 / 3)))
++
++       // 5
++       five(int64(byte(5) / (byte(5) / byte(3))))
++
++       // 5
++       var a, b byte = 5, 3
++       five(int64(a / (a / b)))
++       
++       // integer divide by zero in golang.org sandbox
++       // 0 on windows/amd64
++       x := [3]byte{2, 3, 5}
++       five(int64(x[2] / (x[2] / x[1])))
++
++       // integer divide by zero in golang.org sandbox
++       // crash on windows/amd64
++       y := x[1:3]
++       five(int64(y[1] / (y[1] / y[0])))
++}
+\ No newline at end of file

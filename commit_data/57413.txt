@@ -14,8 +14,64 @@ Date:   Fri Aug 4 03:15:12 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/encoding/xml/typeinfo.go | 7 -------
  src/image/jpeg/writer.go     | 8 --------
  src/image/png/reader.go      | 7 -------
  3 files changed, 22 deletions(-)
+
+diff --git a/src/encoding/xml/typeinfo.go b/src/encoding/xml/typeinfo.go
+index 12d3918760..b18ed284a6 100644
+--- a/src/encoding/xml/typeinfo.go
++++ b/src/encoding/xml/typeinfo.go
+@@ -251,13 +251,6 @@ func lookupXMLName(typ reflect.Type) (xmlname *fieldInfo) {
+ 	return nil
+ }
+ 
+-func min(a, b int) int {
+-	if a <= b {
+-		return a
+-	}
+-	return b
+-}
+-
+ // addFieldInfo adds finfo to tinfo.fields if there are no
+ // conflicts, or if conflicts arise from previous fields that were
+ // obtained from deeper embedded structures than finfo. In the latter
+diff --git a/src/image/jpeg/writer.go b/src/image/jpeg/writer.go
+index 0027f78294..f202d6549c 100644
+--- a/src/image/jpeg/writer.go
++++ b/src/image/jpeg/writer.go
+@@ -12,14 +12,6 @@ import (
+ 	"io"
+ )
+ 
+-// min returns the minimum of two integers.
+-func min(x, y int) int {
+-	if x < y {
+-		return x
+-	}
+-	return y
+-}
+-
+ // div returns a/b rounded to the nearest integer, instead of rounded to zero.
+ func div(a, b int32) int32 {
+ 	if a >= 0 {
+diff --git a/src/image/png/reader.go b/src/image/png/reader.go
+index 3a717344c2..e852bb28e8 100644
+--- a/src/image/png/reader.go
++++ b/src/image/png/reader.go
+@@ -136,13 +136,6 @@ type UnsupportedError string
+ 
+ func (e UnsupportedError) Error() string { return "png: unsupported feature: " + string(e) }
+ 
+-func min(a, b int) int {
+-	if a < b {
+-		return a
+-	}
+-	return b
+-}
+-
+ func (d *decoder) parseIHDR(length uint32) error {
+ 	if length != 13 {
+ 		return FormatError("bad IHDR length")

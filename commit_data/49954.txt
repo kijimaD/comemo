@@ -17,10 +17,122 @@ Date:   Wed Sep 22 08:52:41 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go     | 11 ++++-------
  src/cmd/compile/internal/typecheck/iexport.go |  5 ++++-
  src/cmd/compile/internal/typecheck/subr.go    |  3 ++-
  src/cmd/internal/obj/objfile.go               |  2 +-
  src/cmd/internal/objabi/util.go               |  3 ++-
  5 files changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 7fca674132..c8ce230121 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -401,10 +401,7 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 	var dictVar *ir.Name
+ 	var dictAssign *ir.AssignStmt
+ 	if outer != nil {
+-		// Note: for now this is a compile-time constant, so we don't really need a closure
+-		// to capture it (a wrapper function would work just as well). But eventually it
+-		// will be a read of a subdictionary from the parent dictionary.
+-		dictVar = ir.NewNameAt(pos, typecheck.LookupNum(".dict", g.dnum))
++		dictVar = ir.NewNameAt(pos, typecheck.LookupNum(typecheck.LocalDictName, g.dnum))
+ 		g.dnum++
+ 		dictVar.Class = ir.PAUTO
+ 		typed(types.Types[types.TUINTPTR], dictVar)
+@@ -723,7 +720,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*typ
+ 	newf.Dcl = make([]*ir.Name, 0, len(gf.Dcl)+1)
+ 
+ 	// Create the needed dictionary param
+-	dictionarySym := newsym.Pkg.Lookup(".dict")
++	dictionarySym := newsym.Pkg.Lookup(typecheck.LocalDictName)
+ 	dictionaryType := types.Types[types.TUINTPTR]
+ 	dictionaryName := ir.NewNameAt(gf.Pos(), dictionarySym)
+ 	typed(dictionaryType, dictionaryName)
+@@ -731,7 +728,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*typ
+ 	dictionaryName.Curfn = newf
+ 	newf.Dcl = append(newf.Dcl, dictionaryName)
+ 	for _, n := range gf.Dcl {
+-		if n.Sym().Name == ".dict" {
++		if n.Sym().Name == typecheck.LocalDictName {
+ 			panic("already has dictionary")
+ 		}
+ 		newf.Dcl = append(newf.Dcl, subst.localvar(n))
+@@ -1127,7 +1124,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			// Copy that closure variable to a local one.
+ 			// Note: this allows the dictionary to be captured by child closures.
+ 			// See issue 47723.
+-			ldict := ir.NewNameAt(x.Pos(), newfn.Sym().Pkg.Lookup(".dict"))
++			ldict := ir.NewNameAt(x.Pos(), newfn.Sym().Pkg.Lookup(typecheck.LocalDictName))
+ 			typed(types.Types[types.TUINTPTR], ldict)
+ 			ldict.Class = ir.PAUTO
+ 			ldict.Curfn = newfn
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 489306e1e6..a2ad71dd4c 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -2196,7 +2196,7 @@ func (w *exportWriter) localIdent(s *types.Sym) {
+ 		return
+ 	}
+ 
+-	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, ".dict") { // TODO: just use autotmp names for dictionaries?
++	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, LocalDictName) {
+ 		base.Fatalf("unexpected dot in identifier: %v", name)
+ 	}
+ 
+@@ -2232,3 +2232,6 @@ func (w *intWriter) uint64(x uint64) {
+ // information (e.g. length field for OSLICELIT).
+ const go117ExportTypes = true
+ const Go117ExportTypes = go117ExportTypes
++
++// The name used for dictionary parameters or local variables.
++const LocalDictName = ".dict"
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index d4af4e172e..9233bbe6f2 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -14,6 +14,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ )
+ 
+@@ -987,7 +988,7 @@ func MakeDictSym(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sy
+ 		}
+ 	}
+ 	name := makeInstName1(gf.Name, targs, hasBrackets)
+-	name = ".dict." + name
++	name = fmt.Sprintf("%s.%s", objabi.GlobalDictPrefix, name)
+ 	return gf.Pkg.Lookup(name)
+ }
+ 
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 910e6ef0d9..8a094df91a 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -340,7 +340,7 @@ func (w *writer) Sym(s *LSym) {
+ 	if strings.HasPrefix(s.Name, "go.itab.") && s.Type == objabi.SRODATA {
+ 		flag2 |= goobj.SymFlagItab
+ 	}
+-	if strings.HasPrefix(s.Name, w.ctxt.Pkgpath) && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath):], "..dict") {
++	if strings.HasPrefix(s.Name, w.ctxt.Pkgpath) && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath):], ".") && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath)+1:], objabi.GlobalDictPrefix) {
+ 		flag2 |= goobj.SymFlagDict
+ 	}
+ 	name := s.Name
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index 63640950d9..6bfa25a5ca 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -13,7 +13,8 @@ import (
+ 
+ const (
+ 	ElfRelocOffset   = 256
+-	MachoRelocOffset = 2048 // reserve enough space for ELF relocations
++	MachoRelocOffset = 2048    // reserve enough space for ELF relocations
++	GlobalDictPrefix = ".dict" // prefix for names of global dictionaries
+ )
+ 
+ // HeaderString returns the toolchain configuration string written in

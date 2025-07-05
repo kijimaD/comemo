@@ -15,9 +15,125 @@ Date:   Sun Apr 10 20:01:49 2016 -0400
     Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s |  4 ++++
  src/cmd/internal/obj/s390x/a.out.go       |  1 +
  src/cmd/internal/obj/s390x/anames.go      |  1 +
  src/cmd/internal/obj/s390x/asmz.go        | 34 +++++++++++++++++++++++--------
  4 files changed, 32 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 148cd2eaae..f1dc9aff2d 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -61,6 +61,10 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
+ 	MULLW	R6, R7, R8            // b9040087b91c0086
+ 	MULLW	$8192, R6             // c26000002000
+ 	MULLW	$8192, R6, R7         // b9040076c27000002000
++	MULHD	R9, R8                // b90400b8b98600a9ebb9003f000ab98000b8b90900abebb8003f000ab98000b9b9e9b08a
++	MULHD	R7, R2, R1            // b90400b2b98600a7ebb7003f000ab98000b2b90900abebb2003f000ab98000b7b9e9b01a
++	MULHDU	R3, R4                // b90400b4b98600a3b904004a
++	MULHDU	R5, R6, R7            // b90400b6b98600a5b904007a
+ 	DIVD	R1, R2                // b90400b2b90d00a1b904002b
+ 	DIVD	R1, R2, R3            // b90400b2b90d00a1b904003b
+ 	DIVW	R4, R5                // b90400b5b91d00a4b904005b
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index 2cb03ae603..e7256d1d41 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -218,6 +218,7 @@ const (
+ 	ADIVDU
+ 	AMULLW
+ 	AMULLD
++	AMULHD
+ 	AMULHDU
+ 	ASUB
+ 	ASUBC
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index e79a147a90..62dd181eda 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -17,6 +17,7 @@ var Anames = []string{
+ 	"DIVDU",
+ 	"MULLW",
+ 	"MULLD",
++	"MULHD",
+ 	"MULHDU",
+ 	"SUB",
+ 	"SUBC",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index bccd7c3bd8..cf3b11424b 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -150,6 +150,8 @@ var optab = []Optab{
+ 	Optab{AMULLW, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
+ 	Optab{AMULLW, C_LCON, C_REG, C_NONE, C_REG, 22, 0},
+ 	Optab{AMULLW, C_LCON, C_NONE, C_NONE, C_REG, 22, 0},
++	Optab{AMULHD, C_REG, C_NONE, C_NONE, C_REG, 4, 0},
++	Optab{AMULHD, C_REG, C_REG, C_NONE, C_REG, 4, 0},
+ 	Optab{ASUBC, C_REG, C_REG, C_NONE, C_REG, 10, 0},
+ 	Optab{ASUBC, C_REG, C_NONE, C_NONE, C_REG, 10, 0},
+ 	Optab{ADIVW, C_REG, C_REG, C_NONE, C_REG, 2, 0},
+@@ -793,10 +795,11 @@ func buildop(ctxt *obj.Link) {
+ 		case ADIVW:
+ 			opset(AADDE, r)
+ 			opset(AMULLD, r)
+-			opset(AMULHDU, r)
+ 			opset(ADIVD, r)
+ 			opset(ADIVDU, r)
+ 			opset(ADIVWU, r)
++		case AMULHD:
++			opset(AMULHDU, r)
+ 		case AMOVBZ:
+ 			opset(AMOVH, r)
+ 			opset(AMOVHZ, r)
+@@ -2580,8 +2583,6 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 			opcode = op_MSGFR
+ 		case AMULLD:
+ 			opcode = op_MSGR
+-		case AMULHDU:
+-			opcode = op_MLGR
+ 		case ADIVW:
+ 			opcode = op_DSGFR
+ 		case ADIVWU:
+@@ -2628,11 +2629,6 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 			zRRE(opcode, REGTMP, uint32(p.From.Reg), asm)
+ 			zRRE(op_LGR, uint32(p.To.Reg), REGTMP2, asm)
+ 
+-		case AMULHDU:
+-			zRRE(op_LGR, REGTMP2, uint32(r), asm)
+-			zRRE(opcode, REGTMP, uint32(p.From.Reg), asm)
+-			zRRE(op_LGR, uint32(p.To.Reg), REGTMP, asm)
+-
+ 		case AFADD, AFADDS:
+ 			if r == int(p.To.Reg) {
+ 				zRRE(opcode, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+@@ -2695,6 +2691,28 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 			zRIL(_a, op_IIHF, uint32(p.To.Reg), uint32(v>>32), asm)
+ 		}
+ 
++	case 4: // multiply high (a*b)>>64
++		r := p.Reg
++		if r == 0 {
++			r = p.To.Reg
++		}
++		zRRE(op_LGR, REGTMP2, uint32(r), asm)
++		zRRE(op_MLGR, REGTMP, uint32(p.From.Reg), asm)
++		switch p.As {
++		case AMULHDU:
++			// Unsigned: move result into correct register.
++			zRRE(op_LGR, uint32(p.To.Reg), REGTMP, asm)
++		case AMULHD:
++			// Signed: need to convert result.
++			// See Hacker's Delight 8-3.
++			zRSY(op_SRAG, REGTMP2, uint32(p.From.Reg), 0, 63, asm)
++			zRRE(op_NGR, REGTMP2, uint32(r), asm)
++			zRRE(op_SGR, REGTMP, REGTMP2, asm)
++			zRSY(op_SRAG, REGTMP2, uint32(r), 0, 63, asm)
++			zRRE(op_NGR, REGTMP2, uint32(p.From.Reg), asm)
++			zRRF(op_SGRK, REGTMP2, 0, uint32(p.To.Reg), REGTMP, asm)
++		}
++
+ 	case 5: // syscall
+ 		zI(op_SVC, 0, asm)
+ 

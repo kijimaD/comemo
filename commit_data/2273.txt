@@ -11,7 +11,112 @@ Date:   Thu May 21 14:06:24 2009 -0700
     R=ken
     OCL=29192
     CL=29194
-
+---
  src/cmd/gc/walk.c | 47 ++++++++++++++++++++++++++++++++++++++++++++++-
  test/assign.go    | 33 +++++++++++++++++++++++++++++++++
  2 files changed, 79 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index b1c1c2d229..8b4fc40f23 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2046,14 +2046,59 @@ loop:
+ 	goto loop;
+ }
+ 
++/*
++ * do the export rules allow writing to this type?
++ * cannot be implicitly assigning to any type with
++ * an unavailable field.
++ */
++int
++exportasok(Type *t)
++{
++	Type *f;
++	Sym *s;
++
++	if(t == T)
++		return 1;
++	switch(t->etype) {
++	default:
++		// most types can't contain others; they're all fine.
++		break;
++	case TSTRUCT:
++		for(f=t->type; f; f=f->down) {
++			if(f->etype != TFIELD)
++				fatal("structas: not field");
++			s = f->sym;
++			// s == nil doesn't happen for embedded fields (they get the type symbol).
++			// it only happens for fields in a ... struct.
++			if(s != nil && !exportname(s->name) && strcmp(package, s->package) != 0) {
++				yyerror("implicit assignment of %T field '%s'", t, s->name);
++				return 0;
++			}
++			if(!exportasok(f->type))
++				return 0;
++		}
++		break;
++
++	case TARRAY:
++		if(t->bound < 0)	// slices are pointers; that's fine
++			break;
++		if(!exportasok(t->type))
++			return 0;
++		break;
++	}
++	return 1;
++}
++
+ /*
+  * can we assign var of type src to var of type dst
+  */
+ int
+ ascompat(Type *dst, Type *src)
+ {
+-	if(eqtype(dst, src))
++	if(eqtype(dst, src)) {
++		exportasok(src);
+ 		return 1;
++	}
+ 
+ 	if(dst == T || src == T)
+ 		return 0;
+diff --git a/test/assign.go b/test/assign.go
+new file mode 100644
+index 0000000000..a98b7b75a0
+--- /dev/null
++++ b/test/assign.go
+@@ -0,0 +1,33 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "sync"
++
++type T struct {
++	int;
++	sync.Mutex;
++}
++
++func main() {
++	{
++		var x, y sync.Mutex;
++		x = y;	// ERROR "assignment.*Mutex"
++	}
++	{
++		var x, y T;
++		x = y;	// ERROR "assignment.*Mutex"
++	}
++	{
++		var x, y [2]sync.Mutex;
++		x = y;	// ERROR "assignment.*Mutex"
++	}
++	{
++		var x, y [2]T;
++		x = y;	// ERROR "assignment.*Mutex"
++	}
++}

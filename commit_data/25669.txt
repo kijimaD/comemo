@@ -11,6 +11,63 @@ Date:   Mon Oct 26 16:09:48 2015 +0100
     Change-Id: I2b4053bab02ff045f0a4577b8114808a60aae27e
     Reviewed-on: https://go-review.googlesource.com/16305
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/rpc/server_test.go | 24 ++++++++++++++++++++++++
  1 file changed, 24 insertions(+)
+
+diff --git a/src/net/rpc/server_test.go b/src/net/rpc/server_test.go
+index 498217b6ed..8871c88133 100644
+--- a/src/net/rpc/server_test.go
++++ b/src/net/rpc/server_test.go
+@@ -74,6 +74,17 @@ func (t *Arith) Error(args *Args, reply *Reply) error {
+ 	panic("ERROR")
+ }
+ 
++type hidden int
++
++func (t *hidden) Exported(args Args, reply *Reply) error {
++	reply.C = args.A + args.B
++	return nil
++}
++
++type Embed struct {
++	hidden
++}
++
+ func listenTCP() (net.Listener, string) {
+ 	l, e := net.Listen("tcp", "127.0.0.1:0") // any available address
+ 	if e != nil {
+@@ -84,6 +95,7 @@ func listenTCP() (net.Listener, string) {
+ 
+ func startServer() {
+ 	Register(new(Arith))
++	Register(new(Embed))
+ 	RegisterName("net.rpc.Arith", new(Arith))
+ 
+ 	var l net.Listener
+@@ -98,6 +110,7 @@ func startServer() {
+ func startNewServer() {
+ 	newServer = NewServer()
+ 	newServer.Register(new(Arith))
++	newServer.Register(new(Embed))
+ 	newServer.RegisterName("net.rpc.Arith", new(Arith))
+ 	newServer.RegisterName("newServer.Arith", new(Arith))
+ 
+@@ -142,6 +155,17 @@ func testRPC(t *testing.T, addr string) {
+ 		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
+ 	}
+ 
++	// Methods exported from unexported embedded structs
++	args = &Args{7, 0}
++	reply = new(Reply)
++	err = client.Call("Embed.Exported", args, reply)
++	if err != nil {
++		t.Errorf("Add: expected no error but got string %q", err.Error())
++	}
++	if reply.C != args.A+args.B {
++		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
++	}
++
+ 	// Nonexistent method
+ 	args = &Args{7, 0}
+ 	reply = new(Reply)

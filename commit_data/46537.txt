@@ -14,7 +14,7 @@ Date:   Thu Jan 7 12:58:31 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types2/api.go             |   2 +-
  src/cmd/compile/internal/types2/api_test.go        |  10 +-
  src/cmd/compile/internal/types2/assignments.go     |   2 +-
@@ -24,3 +24,446 @@ Date:   Thu Jan 7 12:58:31 2021 -0800
  src/cmd/compile/internal/types2/exprstring_test.go |   9 +-
  src/cmd/compile/internal/types2/operand.go         |   2 +-
  8 files changed, 15 insertions(+), 307 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index c5c30babff..3348ccb900 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -379,7 +379,7 @@ func (init *Initializer) String() string {
+ 		buf.WriteString(lhs.Name())
+ 	}
+ 	buf.WriteString(" = ")
+-	WriteExpr(&buf, init.Rhs)
++	syntax.Fprint(&buf, init.Rhs, syntax.ShortForm)
+ 	return buf.String()
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 58d7df2f1d..c1327b179c 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -151,7 +151,7 @@ func TestValuesInfo(t *testing.T) {
+ 		// look for expression
+ 		var expr syntax.Expr
+ 		for e := range info.Types {
+-			if ExprString(e) == test.expr {
++			if syntax.ShortString(e) == test.expr {
+ 				expr = e
+ 				break
+ 			}
+@@ -306,7 +306,7 @@ func TestTypesInfo(t *testing.T) {
+ 		// look for expression type
+ 		var typ Type
+ 		for e, tv := range info.Types {
+-			if ExprString(e) == test.expr {
++			if syntax.ShortString(e) == test.expr {
+ 				typ = tv.Type
+ 				break
+ 			}
+@@ -454,7 +454,7 @@ func TestInferredInfo(t *testing.T) {
+ 			default:
+ 				panic(fmt.Sprintf("unexpected call expression type %T", call))
+ 			}
+-			if ExprString(fun) == test.fun {
++			if syntax.ShortString(fun) == test.fun {
+ 				targs = inf.Targs
+ 				sig = inf.Sig
+ 				break
+@@ -733,8 +733,8 @@ func TestPredicatesInfo(t *testing.T) {
+ 		// look for expression predicates
+ 		got := "<missing>"
+ 		for e, tv := range info.Types {
+-			//println(name, ExprString(e))
+-			if ExprString(e) == test.expr {
++			//println(name, syntax.ShortString(e))
++			if syntax.ShortString(e) == test.expr {
+ 				got = predString(tv)
+ 				break
+ 			}
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index b367aa76da..0fa9c6b8e6 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -197,7 +197,7 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
+ 			var op operand
+ 			check.expr(&op, sel.X)
+ 			if op.mode == mapindex {
+-				check.errorf(&z, "cannot assign to struct field %s in map", ExprString(z.expr))
++				check.errorf(&z, "cannot assign to struct field %s in map", syntax.ShortString(z.expr))
+ 				return nil
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/types2/builtins_test.go b/src/cmd/compile/internal/types2/builtins_test.go
+index 9f737bc9bb..0fc7c17d3e 100644
+--- a/src/cmd/compile/internal/types2/builtins_test.go
++++ b/src/cmd/compile/internal/types2/builtins_test.go
+@@ -176,7 +176,7 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
+ 		// the recorded type for the built-in must match the wanted signature
+ 		typ := types[fun].Type
+ 		if typ == nil {
+-			t.Errorf("%s: no type recorded for %s", src0, ExprString(fun))
++			t.Errorf("%s: no type recorded for %s", src0, syntax.ShortString(fun))
+ 			return
+ 		}
+ 		if got := typ.String(); got != want {
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 941e7c6fd3..d74980253e 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -53,7 +53,7 @@ func (check *Checker) sprintf(format string, args ...interface{}) string {
+ 		case syntax.Pos:
+ 			arg = a.String()
+ 		case syntax.Expr:
+-			arg = ExprString(a)
++			arg = syntax.ShortString(a)
+ 		case Object:
+ 			arg = ObjectString(a, check.qualifier)
+ 		case Type:
+diff --git a/src/cmd/compile/internal/types2/exprstring.go b/src/cmd/compile/internal/types2/exprstring.go
+deleted file mode 100644
+index 0ec5d1338f..0000000000
+--- a/src/cmd/compile/internal/types2/exprstring.go
++++ /dev/null
+@@ -1,293 +0,0 @@
+-// UNREVIEWED
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file implements printing of expressions.
+-
+-package types2
+-
+-import (
+-	"bytes"
+-	"cmd/compile/internal/syntax"
+-)
+-
+-// ExprString returns the (possibly shortened) string representation for x.
+-// Shortened representations are suitable for user interfaces but may not
+-// necessarily follow Go syntax.
+-func ExprString(x syntax.Expr) string {
+-	var buf bytes.Buffer
+-	WriteExpr(&buf, x)
+-	return buf.String()
+-}
+-
+-// WriteExpr writes the (possibly shortened) string representation for x to buf.
+-// Shortened representations are suitable for user interfaces but may not
+-// necessarily follow Go syntax.
+-func WriteExpr(buf *bytes.Buffer, x syntax.Expr) {
+-	// The AST preserves source-level parentheses so there is
+-	// no need to introduce them here to correct for different
+-	// operator precedences. (This assumes that the AST was
+-	// generated by a Go parser.)
+-
+-	// TODO(gri): This assumption is not correct - we need to recreate
+-	//            parentheses in expressions.
+-
+-	switch x := x.(type) {
+-	default:
+-		buf.WriteString("(ast: bad expr)") // nil, syntax.BadExpr, syntax.KeyValueExpr
+-
+-	case *syntax.Name:
+-		buf.WriteString(x.Value)
+-
+-	case *syntax.DotsType:
+-		buf.WriteString("...")
+-		if x.Elem != nil {
+-			WriteExpr(buf, x.Elem)
+-		}
+-
+-	case *syntax.BasicLit:
+-		buf.WriteString(x.Value)
+-
+-	case *syntax.FuncLit:
+-		WriteExpr(buf, x.Type)
+-		if x.Body != nil && len(x.Body.List) > 0 {
+-			buf.WriteString(" {…}") // shortened
+-		} else {
+-			buf.WriteString(" {}")
+-		}
+-
+-	case *syntax.CompositeLit:
+-		WriteExpr(buf, x.Type)
+-		if len(x.ElemList) > 0 {
+-			buf.WriteString("{…}") // shortened
+-		} else {
+-			buf.WriteString("{}")
+-		}
+-
+-	case *syntax.ParenExpr:
+-		buf.WriteByte('(')
+-		WriteExpr(buf, x.X)
+-		buf.WriteByte(')')
+-
+-	case *syntax.SelectorExpr:
+-		WriteExpr(buf, x.X)
+-		buf.WriteByte('.')
+-		buf.WriteString(x.Sel.Value)
+-
+-	case *syntax.IndexExpr:
+-		WriteExpr(buf, x.X)
+-		buf.WriteByte('[')
+-		WriteExpr(buf, x.Index) // x.Index may be a *ListExpr
+-		buf.WriteByte(']')
+-
+-	case *syntax.SliceExpr:
+-		WriteExpr(buf, x.X)
+-		buf.WriteByte('[')
+-		if x.Index[0] != nil {
+-			WriteExpr(buf, x.Index[0])
+-		}
+-		buf.WriteByte(':')
+-		if x.Index[1] != nil {
+-			WriteExpr(buf, x.Index[1])
+-		}
+-		if x.Full {
+-			buf.WriteByte(':')
+-			if x.Index[2] != nil {
+-				WriteExpr(buf, x.Index[2])
+-			}
+-		}
+-		buf.WriteByte(']')
+-
+-	case *syntax.AssertExpr:
+-		WriteExpr(buf, x.X)
+-		buf.WriteString(".(")
+-		WriteExpr(buf, x.Type)
+-		buf.WriteByte(')')
+-
+-	case *syntax.CallExpr:
+-		WriteExpr(buf, x.Fun)
+-		buf.WriteByte('(')
+-		writeExprList(buf, x.ArgList)
+-		if x.HasDots {
+-			buf.WriteString("...")
+-		}
+-		buf.WriteByte(')')
+-
+-	case *syntax.ListExpr:
+-		writeExprList(buf, x.ElemList)
+-
+-	case *syntax.Operation:
+-		// TODO(gri) This would be simpler if x.X == nil meant unary expression.
+-		if x.Y == nil {
+-			// unary expression
+-			buf.WriteString(x.Op.String())
+-			WriteExpr(buf, x.X)
+-		} else {
+-			// binary expression
+-			WriteExpr(buf, x.X)
+-			buf.WriteByte(' ')
+-			buf.WriteString(x.Op.String())
+-			buf.WriteByte(' ')
+-			WriteExpr(buf, x.Y)
+-		}
+-
+-		// case *ast.StarExpr:
+-		// 	buf.WriteByte('*')
+-		// 	WriteExpr(buf, x.X)
+-
+-		// case *ast.UnaryExpr:
+-		// 	buf.WriteString(x.Op.String())
+-		// 	WriteExpr(buf, x.X)
+-
+-		// case *ast.BinaryExpr:
+-		// 	WriteExpr(buf, x.X)
+-		// 	buf.WriteByte(' ')
+-		// 	buf.WriteString(x.Op.String())
+-		// 	buf.WriteByte(' ')
+-		// 	WriteExpr(buf, x.Y)
+-
+-	case *syntax.ArrayType:
+-		if x.Len == nil {
+-			buf.WriteString("[...]")
+-		} else {
+-			buf.WriteByte('[')
+-			WriteExpr(buf, x.Len)
+-			buf.WriteByte(']')
+-		}
+-		WriteExpr(buf, x.Elem)
+-
+-	case *syntax.SliceType:
+-		buf.WriteString("[]")
+-		WriteExpr(buf, x.Elem)
+-
+-	case *syntax.StructType:
+-		buf.WriteString("struct{")
+-		writeFieldList(buf, x.FieldList, "; ", false)
+-		buf.WriteByte('}')
+-
+-	case *syntax.FuncType:
+-		buf.WriteString("func")
+-		writeSigExpr(buf, x)
+-
+-	case *syntax.InterfaceType:
+-		// separate type list types from method list
+-		// TODO(gri) we can get rid of this extra code if writeExprList does the separation
+-		var types []syntax.Expr
+-		var methods []*syntax.Field
+-		for _, f := range x.MethodList {
+-			if f.Name != nil && f.Name.Value == "type" {
+-				// type list type
+-				types = append(types, f.Type)
+-			} else {
+-				// method or embedded interface
+-				methods = append(methods, f)
+-			}
+-		}
+-
+-		buf.WriteString("interface{")
+-		writeFieldList(buf, methods, "; ", true)
+-		if len(types) > 0 {
+-			if len(methods) > 0 {
+-				buf.WriteString("; ")
+-			}
+-			buf.WriteString("type ")
+-			writeExprList(buf, types)
+-		}
+-		buf.WriteByte('}')
+-
+-	case *syntax.MapType:
+-		buf.WriteString("map[")
+-		WriteExpr(buf, x.Key)
+-		buf.WriteByte(']')
+-		WriteExpr(buf, x.Value)
+-
+-	case *syntax.ChanType:
+-		var s string
+-		switch x.Dir {
+-		case syntax.SendOnly:
+-			s = "chan<- "
+-		case syntax.RecvOnly:
+-			s = "<-chan "
+-		default:
+-			s = "chan "
+-		}
+-		buf.WriteString(s)
+-		if e, _ := x.Elem.(*syntax.ChanType); x.Dir != syntax.SendOnly && e != nil && e.Dir == syntax.RecvOnly {
+-			// don't print chan (<-chan T) as chan <-chan T (but chan<- <-chan T is ok)
+-			buf.WriteByte('(')
+-			WriteExpr(buf, x.Elem)
+-			buf.WriteByte(')')
+-		} else {
+-			WriteExpr(buf, x.Elem)
+-		}
+-	}
+-}
+-
+-func writeSigExpr(buf *bytes.Buffer, sig *syntax.FuncType) {
+-	buf.WriteByte('(')
+-	writeFieldList(buf, sig.ParamList, ", ", false)
+-	buf.WriteByte(')')
+-
+-	res := sig.ResultList
+-	n := len(res)
+-	if n == 0 {
+-		// no result
+-		return
+-	}
+-
+-	buf.WriteByte(' ')
+-	if n == 1 && res[0].Name == nil {
+-		// single unnamed result
+-		WriteExpr(buf, res[0].Type)
+-		return
+-	}
+-
+-	// multiple or named result(s)
+-	buf.WriteByte('(')
+-	writeFieldList(buf, res, ", ", false)
+-	buf.WriteByte(')')
+-}
+-
+-func writeFieldList(buf *bytes.Buffer, list []*syntax.Field, sep string, iface bool) {
+-	for i := 0; i < len(list); {
+-		f := list[i]
+-		if i > 0 {
+-			buf.WriteString(sep)
+-		}
+-
+-		// if we don't have a name, we have an embedded type
+-		if f.Name == nil {
+-			WriteExpr(buf, f.Type)
+-			i++
+-			continue
+-		}
+-
+-		// types of interface methods consist of signatures only
+-		if sig, _ := f.Type.(*syntax.FuncType); sig != nil && iface {
+-			buf.WriteString(f.Name.Value)
+-			writeSigExpr(buf, sig)
+-			i++
+-			continue
+-		}
+-
+-		// write the type only once for a sequence of fields with the same type
+-		t := f.Type
+-		buf.WriteString(f.Name.Value)
+-		for i++; i < len(list) && list[i].Type == t; i++ {
+-			buf.WriteString(", ")
+-			buf.WriteString(list[i].Name.Value)
+-		}
+-		buf.WriteByte(' ')
+-		WriteExpr(buf, t)
+-	}
+-}
+-
+-func writeExprList(buf *bytes.Buffer, list []syntax.Expr) {
+-	for i, x := range list {
+-		if i > 0 {
+-			buf.WriteString(", ")
+-		}
+-		WriteExpr(buf, x)
+-	}
+-}
+diff --git a/src/cmd/compile/internal/types2/exprstring_test.go b/src/cmd/compile/internal/types2/exprstring_test.go
+index efb7c308b7..39e1354eac 100644
+--- a/src/cmd/compile/internal/types2/exprstring_test.go
++++ b/src/cmd/compile/internal/types2/exprstring_test.go
+@@ -9,9 +9,9 @@ import (
+ 	"testing"
+ 
+ 	"cmd/compile/internal/syntax"
+-	. "cmd/compile/internal/types2"
+ )
+ 
++// TODO(gri) move these tests into syntax package
+ var testExprs = []testEntry{
+ 	// basic type literals
+ 	dup("x"),
+@@ -24,8 +24,9 @@ var testExprs = []testEntry{
+ 	dup("`bar`"),
+ 
+ 	// func and composite literals
+-	{"func(){}", "func() {}"},
+-	{"func(x int) complex128 {}", "func(x int) complex128 {}"},
++	dup("func() {}"),
++	dup("[]int{}"),
++	{"func(x int) complex128 { return 0 }", "func(x int) complex128 {…}"},
+ 	{"[]int{1, 2, 3}", "[]int{…}"},
+ 
+ 	// non-type expressions
+@@ -90,7 +91,7 @@ func TestExprString(t *testing.T) {
+ 			continue
+ 		}
+ 		x := f.DeclList[0].(*syntax.VarDecl).Values
+-		if got := ExprString(x); got != test.str {
++		if got := syntax.ShortString(x); got != test.str {
+ 			t.Errorf("%s: got %s, want %s", test.src, got, test.str)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 0a19760423..ab4a7eb4f3 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -110,7 +110,7 @@ func operandString(x *operand, qf Qualifier) string {
+ 
+ 	var expr string
+ 	if x.expr != nil {
+-		expr = ExprString(x.expr)
++		expr = syntax.ShortString(x.expr)
+ 	} else {
+ 		switch x.mode {
+ 		case builtin:

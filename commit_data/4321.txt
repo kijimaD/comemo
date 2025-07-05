@@ -178,7 +178,7 @@ Date:   Fri Dec 4 10:23:43 2009 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/166055
-
+---
  src/pkg/bytes/Makefile       |  3 +++
  src/pkg/bytes/asm_386.s      | 17 +++++++++++++++++
  src/pkg/bytes/asm_amd64.s    | 17 +++++++++++++++++
@@ -187,3 +187,157 @@ Date:   Fri Dec 4 10:23:43 2009 -0800
  src/pkg/bytes/bytes_test.go  | 40 ++++++++++++++++++++++++++++++++++++++++
  src/pkg/bytes/export_test.go |  8 ++++++++
  7 files changed, 96 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/Makefile b/src/pkg/bytes/Makefile
+index f9e18ac6b8..b2076c181c 100644
+--- a/src/pkg/bytes/Makefile
++++ b/src/pkg/bytes/Makefile
+@@ -9,4 +9,7 @@ GOFILES=\
+ 	buffer.go\
+ 	bytes.go\
+ 
++OFILES=\
++	asm_$(GOARCH).$O\
++
+ include ../../Make.pkg
+diff --git a/src/pkg/bytes/asm_386.s b/src/pkg/bytes/asm_386.s
+new file mode 100644
+index 0000000000..a949bb9541
+--- /dev/null
++++ b/src/pkg/bytes/asm_386.s
+@@ -0,0 +1,17 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT bytes·IndexByte(SB),7,$0
++	MOVL	p+0(FP), SI
++	MOVL	len+4(FP), CX
++	MOVB	b+12(FP), AL
++	MOVL	SI, DI
++	CLD; REPN; SCASB
++	JZ 3(PC)
++	MOVL	$-1, ret+16(FP)
++	RET
++	SUBL	SI, DI
++	SUBL	$1, DI
++	MOVL	DI, ret+16(FP)
++	RET
+diff --git a/src/pkg/bytes/asm_amd64.s b/src/pkg/bytes/asm_amd64.s
+new file mode 100644
+index 0000000000..9132cce962
+--- /dev/null
++++ b/src/pkg/bytes/asm_amd64.s
+@@ -0,0 +1,17 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT bytes·IndexByte(SB),7,$0
++	MOVQ	p+0(FP), SI
++	MOVL	len+8(FP), CX
++	MOVB	b+16(FP), AL
++	MOVQ	SI, DI
++	REPN; SCASB
++	JZ 3(PC)
++	MOVL	$-1, ret+24(FP)
++	RET
++	SUBQ	SI, DI
++	SUBL	$1, DI
++	MOVL	DI, ret+24(FP)
++	RET
+diff --git a/src/pkg/bytes/asm_arm.s b/src/pkg/bytes/asm_arm.s
+new file mode 100644
+index 0000000000..b8ddda9afe
+--- /dev/null
++++ b/src/pkg/bytes/asm_arm.s
+@@ -0,0 +1,8 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// no memchr implementation on arm yet
++TEXT bytes·IndexByte(SB),7,$0
++	B	bytes·indexBytePortable(SB)
++
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 91ecdf9470..9ab199ceb6 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -99,7 +99,9 @@ func Index(s, sep []byte) int {
+ }
+ 
+ // IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
+-func IndexByte(s []byte, c byte) int {
++func IndexByte(s []byte, c byte) int	// asm_$GOARCH.s
++
++func indexBytePortable(s []byte, c byte) int {
+ 	for i, b := range s {
+ 		if b == c {
+ 			return i
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index a4f4adcfec..553ceb7c5a 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -114,7 +114,47 @@ func TestIndexByte(t *testing.T) {
+ 		if pos != tt.i {
+ 			t.Errorf(`IndexByte(%q, '%c') = %v`, tt.a, b, pos)
+ 		}
++		posp := IndexBytePortable(a, b);
++		if posp != tt.i {
++			t.Errorf(`indexBytePortable(%q, '%c') = %v`, tt.a, b, posp)
++		}
++	}
++}
++
++func BenchmarkIndexByte4K(b *testing.B)	{ bmIndex(b, IndexByte, 4<<10) }
++
++func BenchmarkIndexByte4M(b *testing.B)	{ bmIndex(b, IndexByte, 4<<20) }
++
++func BenchmarkIndexByte64M(b *testing.B)	{ bmIndex(b, IndexByte, 64<<20) }
++
++func BenchmarkIndexBytePortable4K(b *testing.B) {
++	bmIndex(b, IndexBytePortable, 4<<10)
++}
++
++func BenchmarkIndexBytePortable4M(b *testing.B) {
++	bmIndex(b, IndexBytePortable, 4<<20)
++}
++
++func BenchmarkIndexBytePortable64M(b *testing.B) {
++	bmIndex(b, IndexBytePortable, 64<<20)
++}
++
++var bmbuf []byte
++
++func bmIndex(b *testing.B, index func([]byte, byte) int, n int) {
++	if len(bmbuf) < n {
++		bmbuf = make([]byte, n)
++	}
++	b.SetBytes(int64(n));
++	buf := bmbuf[0:n];
++	buf[n-1] = 'x';
++	for i := 0; i < b.N; i++ {
++		j := index(buf, 'x');
++		if j != n-1 {
++			panic("bad index", j)
++		}
+ 	}
++	buf[n-1] = '0';
+ }
+ 
+ type ExplodeTest struct {
+diff --git a/src/pkg/bytes/export_test.go b/src/pkg/bytes/export_test.go
+new file mode 100644
+index 0000000000..b65428d9ce
+--- /dev/null
++++ b/src/pkg/bytes/export_test.go
+@@ -0,0 +1,8 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bytes
++
++// Export func for testing
++var IndexBytePortable = indexBytePortable

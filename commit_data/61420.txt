@@ -15,7 +15,7 @@ Date:   Thu Oct 31 09:49:47 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/obj/dwarf.go              |  2 +-
  src/cmd/internal/obj/objfile.go            |  4 ++--
  src/cmd/internal/obj/plist.go              |  2 +-
@@ -43,3 +43,857 @@ Date:   Thu Oct 31 09:49:47 2024 -0400
  src/cmd/link/internal/sym/symkind.go       | 26 +++++++++++++++++++---
  src/cmd/link/internal/x86/asm.go           |  2 +-
  26 files changed, 133 insertions(+), 87 deletions(-)
+
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index 0cf4addb60..dc06660ab3 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -293,7 +293,7 @@ func isDwarf64(ctxt *Link) bool {
+ }
+ 
+ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym, dwarfDebugLines *LSym) {
+-	if s.Type != objabi.STEXT {
++	if !s.Type.IsText() {
+ 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
+ 	}
+ 	fn := s.Func()
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 5ac15b8228..bc22765abc 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -896,7 +896,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
+ 		fmt.Fprintf(ctxt.Bso, "asm ")
+ 	}
+ 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
+-	if s.Type == objabi.STEXT {
++	if s.Type.IsText() {
+ 		fn := s.Func()
+ 		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x funcid=%#x align=%#x", uint64(fn.Args), uint64(fn.Locals), uint64(fn.FuncID), uint64(fn.Align))
+ 		if s.Leaf() {
+@@ -904,7 +904,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
+ 		}
+ 	}
+ 	fmt.Fprintf(ctxt.Bso, "\n")
+-	if s.Type == objabi.STEXT {
++	if s.Type.IsText() {
+ 		for p := s.Func().Text; p != nil; p = p.Link {
+ 			fmt.Fprintf(ctxt.Bso, "\t%#04x ", uint(int(p.Pc)))
+ 			if ctxt.Debugasm > 1 {
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 9cf6a20bdb..4d4e7eb94b 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -250,7 +250,7 @@ func (ctxt *Link) GloblPos(s *LSym, size int64, flag int, pos src.XPos) {
+ 	if flag&RODATA != 0 {
+ 		s.Type = objabi.SRODATA
+ 	} else if flag&NOPTR != 0 {
+-		if s.Type == objabi.SDATA {
++		if s.Type.IsDATA() {
+ 			s.Type = objabi.SNOPTRDATA
+ 		} else {
+ 			s.Type = objabi.SNOPTRBSS
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index ac43a812b9..472ca9eee6 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -137,13 +137,18 @@ func (ctxt *Link) LookupInit(name string, init func(s *LSym)) *LSym {
+ 	return s
+ }
+ 
++func (ctxt *Link) rodataKind() (suffix string, typ objabi.SymKind) {
++	return "", objabi.SRODATA
++}
++
+ func (ctxt *Link) Float32Sym(f float32) *LSym {
++	suffix, typ := ctxt.rodataKind()
+ 	i := math.Float32bits(f)
+-	name := fmt.Sprintf("$f32.%08x", i)
++	name := fmt.Sprintf("$f32.%08x%s", i, suffix)
+ 	return ctxt.LookupInit(name, func(s *LSym) {
+ 		s.Size = 4
+ 		s.WriteFloat32(ctxt, 0, f)
+-		s.Type = objabi.SRODATA
++		s.Type = typ
+ 		s.Set(AttrLocal, true)
+ 		s.Set(AttrContentAddressable, true)
+ 		ctxt.constSyms = append(ctxt.constSyms, s)
+@@ -151,12 +156,13 @@ func (ctxt *Link) Float32Sym(f float32) *LSym {
+ }
+ 
+ func (ctxt *Link) Float64Sym(f float64) *LSym {
++	suffix, typ := ctxt.rodataKind()
+ 	i := math.Float64bits(f)
+-	name := fmt.Sprintf("$f64.%016x", i)
++	name := fmt.Sprintf("$f64.%016x%s", i, suffix)
+ 	return ctxt.LookupInit(name, func(s *LSym) {
+ 		s.Size = 8
+ 		s.WriteFloat64(ctxt, 0, f)
+-		s.Type = objabi.SRODATA
++		s.Type = typ
+ 		s.Set(AttrLocal, true)
+ 		s.Set(AttrContentAddressable, true)
+ 		ctxt.constSyms = append(ctxt.constSyms, s)
+@@ -164,11 +170,12 @@ func (ctxt *Link) Float64Sym(f float64) *LSym {
+ }
+ 
+ func (ctxt *Link) Int32Sym(i int64) *LSym {
+-	name := fmt.Sprintf("$i32.%08x", uint64(i))
++	suffix, typ := ctxt.rodataKind()
++	name := fmt.Sprintf("$i32.%08x%s", uint64(i), suffix)
+ 	return ctxt.LookupInit(name, func(s *LSym) {
+ 		s.Size = 4
+ 		s.WriteInt(ctxt, 0, 4, i)
+-		s.Type = objabi.SRODATA
++		s.Type = typ
+ 		s.Set(AttrLocal, true)
+ 		s.Set(AttrContentAddressable, true)
+ 		ctxt.constSyms = append(ctxt.constSyms, s)
+@@ -176,11 +183,12 @@ func (ctxt *Link) Int32Sym(i int64) *LSym {
+ }
+ 
+ func (ctxt *Link) Int64Sym(i int64) *LSym {
+-	name := fmt.Sprintf("$i64.%016x", uint64(i))
++	suffix, typ := ctxt.rodataKind()
++	name := fmt.Sprintf("$i64.%016x%s", uint64(i), suffix)
+ 	return ctxt.LookupInit(name, func(s *LSym) {
+ 		s.Size = 8
+ 		s.WriteInt(ctxt, 0, 8, i)
+-		s.Type = objabi.SRODATA
++		s.Type = typ
+ 		s.Set(AttrLocal, true)
+ 		s.Set(AttrContentAddressable, true)
+ 		ctxt.constSyms = append(ctxt.constSyms, s)
+@@ -188,7 +196,8 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
+ }
+ 
+ func (ctxt *Link) Int128Sym(hi, lo int64) *LSym {
+-	name := fmt.Sprintf("$i128.%016x%016x", uint64(hi), uint64(lo))
++	suffix, typ := ctxt.rodataKind()
++	name := fmt.Sprintf("$i128.%016x%016x%s", uint64(hi), uint64(lo), suffix)
+ 	return ctxt.LookupInit(name, func(s *LSym) {
+ 		s.Size = 16
+ 		if ctxt.Arch.ByteOrder == binary.LittleEndian {
+@@ -198,7 +207,7 @@ func (ctxt *Link) Int128Sym(hi, lo int64) *LSym {
+ 			s.WriteInt(ctxt, 0, 8, hi)
+ 			s.WriteInt(ctxt, 8, 8, lo)
+ 		}
+-		s.Type = objabi.SRODATA
++		s.Type = typ
+ 		s.Set(AttrLocal, true)
+ 		s.Set(AttrContentAddressable, true)
+ 		ctxt.constSyms = append(ctxt.constSyms, s)
+@@ -406,7 +415,7 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
+ 			}
+ 			if flag&traverseAux != 0 {
+ 				fnNoNil(s.Gotype)
+-				if s.Type == objabi.STEXT {
++				if s.Type.IsText() {
+ 					f := func(parent *LSym, aux *LSym) {
+ 						fn(aux)
+ 					}
+@@ -415,7 +424,7 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
+ 					fnNoNil(v.dwarfInfoSym)
+ 				}
+ 			}
+-			if flag&traversePcdata != 0 && s.Type == objabi.STEXT {
++			if flag&traversePcdata != 0 && s.Type.IsText() {
+ 				fi := s.Func().Pcln
+ 				fnNoNil(fi.Pcsp)
+ 				fnNoNil(fi.Pcfile)
+@@ -491,7 +500,7 @@ func (ctxt *Link) traverseAuxSyms(flag traverseFlag, fn func(parent *LSym, aux *
+ 					fn(s, s.Gotype)
+ 				}
+ 			}
+-			if s.Type == objabi.STEXT {
++			if s.Type.IsText() {
+ 				ctxt.traverseFuncAux(flag, s, fn, files)
+ 			} else if v := s.VarInfo(); v != nil && v.dwarfInfoSym != nil {
+ 				fn(s, v.dwarfInfoSym)
+diff --git a/src/cmd/internal/objabi/symkind.go b/src/cmd/internal/objabi/symkind.go
+index 463b77689c..d4ba5f361e 100644
+--- a/src/cmd/internal/objabi/symkind.go
++++ b/src/cmd/internal/objabi/symkind.go
+@@ -79,3 +79,19 @@ const (
+ 	SSEHUNWINDINFO
+ 	// Update cmd/link/internal/sym/AbiSymKindToSymKind for new SymKind values.
+ )
++
++// IsText reports whether t is one of the text kinds.
++func (t SymKind) IsText() bool {
++	return t == STEXT || t == STEXTFIPS
++}
++
++// IsDATA reports whether t is one of the DATA kinds (SDATA or SDATAFIPS,
++// excluding NOPTRDATA, RODATA, BSS, and so on).
++func (t SymKind) IsDATA() bool {
++	return t == SDATA || t == SDATAFIPS
++}
++
++// IsFIPS reports whether t is one fo the FIPS kinds.
++func (t SymKind) IsFIPS() bool {
++	return t == STEXTFIPS || t == SRODATAFIPS || t == SNOPTRDATAFIPS || t == SDATAFIPS
++}
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 9da0541f52..9a3af983a3 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -263,7 +263,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		return true
+ 
+ 	case objabi.R_PCREL:
+-		if targType == sym.SDYNIMPORT && ldr.SymType(s) == sym.STEXT && target.IsDarwin() {
++		if targType == sym.SDYNIMPORT && ldr.SymType(s).IsText() && target.IsDarwin() {
+ 			// Loading the address of a dynamic symbol. Rewrite to use GOT.
+ 			// turn LEAQ symbol address to MOVQ of GOT entry
+ 			if r.Add() != 0 {
+@@ -287,7 +287,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		}
+ 
+ 	case objabi.R_ADDR:
+-		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
++		if ldr.SymType(s).IsText() && target.IsElf() {
+ 			su := ldr.MakeSymbolUpdater(s)
+ 			if target.IsSolaris() {
+ 				addpltsym(target, ldr, syms, targ)
+@@ -349,7 +349,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 			// linking, in which case the relocation will be
+ 			// prepared in the 'reloc' phase and passed to the
+ 			// external linker in the 'asmb' phase.
+-			if ldr.SymType(s) != sym.SDATA && ldr.SymType(s) != sym.SRODATA {
++			if t := ldr.SymType(s); !t.IsDATA() && !t.IsRODATA() {
+ 				break
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 0443e49197..7fd0a99c75 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -224,7 +224,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		return true
+ 
+ 	case objabi.R_ADDR:
+-		if ldr.SymType(s) != sym.SDATA {
++		if !ldr.SymType(s).IsDATA() {
+ 			break
+ 		}
+ 		if target.IsElf() {
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 7b85bb3e26..4ec4b65793 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -305,7 +305,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		return true
+ 
+ 	case objabi.R_ADDRARM64:
+-		if targType == sym.SDYNIMPORT && ldr.SymType(s) == sym.STEXT && target.IsDarwin() {
++		if targType == sym.SDYNIMPORT && ldr.SymType(s).IsText() && target.IsDarwin() {
+ 			// Loading the address of a dynamic symbol. Rewrite to use GOT.
+ 			// turn MOVD $sym (adrp+add) into MOVD sym@GOT (adrp+ldr)
+ 			if r.Add() != 0 {
+@@ -339,7 +339,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		}
+ 
+ 	case objabi.R_ADDR:
+-		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
++		if ldr.SymType(s).IsText() && target.IsElf() {
+ 			// The code is asking for the address of an external
+ 			// function. We provide it with the address of the
+ 			// correspondent GOT symbol.
+@@ -394,7 +394,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 			// linking, in which case the relocation will be
+ 			// prepared in the 'reloc' phase and passed to the
+ 			// external linker in the 'asmb' phase.
+-			if ldr.SymType(s) != sym.SDATA && ldr.SymType(s) != sym.SRODATA {
++			if t := ldr.SymType(s); !t.IsDATA() && !t.IsRODATA() {
+ 				break
+ 			}
+ 		}
+@@ -1278,7 +1278,7 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
+ 			continue
+ 		}
+ 		t := ldr.SymType(s)
+-		if t == sym.STEXT {
++		if t.IsText() {
+ 			// Except for Duff's devices (handled above), we don't
+ 			// target the middle of a function.
+ 			continue
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 6543208c70..b9a15767e7 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -50,7 +50,7 @@ func (d *deadcodePass) init() {
+ 		n := d.ldr.NDef()
+ 		for i := 1; i < n; i++ {
+ 			s := loader.Sym(i)
+-			if d.ldr.SymType(s) == sym.STEXT && d.ldr.SymSize(s) == 0 {
++			if d.ldr.SymType(s).IsText() && d.ldr.SymSize(s) == 0 {
+ 				// Zero-sized text symbol is a function deadcoded by the
+ 				// compiler. It doesn't really get compiled, and its
+ 				// metadata may be missing.
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index b1cce52ae0..7599b937ff 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1965,8 +1965,9 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 			continue
+ 		}
+ 		t := d.ldr.SymType(idx)
+-		switch t {
+-		case sym.SRODATA, sym.SDATA, sym.SNOPTRDATA, sym.STYPE, sym.SBSS, sym.SNOPTRBSS, sym.STLSBSS:
++		switch {
++		case t.IsRODATA(), t.IsDATA(), t.IsNOPTRDATA(),
++			t == sym.STYPE, t == sym.SBSS, t == sym.SNOPTRBSS, t == sym.STLSBSS:
+ 			// ok
+ 		default:
+ 			continue
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 52a284ae9a..3a418d3b61 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -2414,7 +2414,7 @@ func elfadddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.S
+ 		/* type */
+ 		var t uint8
+ 
+-		if cgoexp && st == sym.STEXT {
++		if cgoexp && st.IsText() {
+ 			t = elf.ST_INFO(elf.STB_GLOBAL, elf.STT_FUNC)
+ 		} else {
+ 			t = elf.ST_INFO(elf.STB_GLOBAL, elf.STT_OBJECT)
+@@ -2464,9 +2464,9 @@ func elfadddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.S
+ 		var t uint8
+ 
+ 		// TODO(mwhudson): presumably the behavior should actually be the same on both arm and 386.
+-		if target.Arch.Family == sys.I386 && cgoexp && st == sym.STEXT {
++		if target.Arch.Family == sys.I386 && cgoexp && st.IsText() {
+ 			t = elf.ST_INFO(elf.STB_GLOBAL, elf.STT_FUNC)
+-		} else if target.Arch.Family == sys.ARM && cgoeDynamic && st == sym.STEXT {
++		} else if target.Arch.Family == sys.ARM && cgoeDynamic && st.IsText() {
+ 			t = elf.ST_INFO(elf.STB_GLOBAL, elf.STT_FUNC)
+ 		} else {
+ 			t = elf.ST_INFO(elf.STB_GLOBAL, elf.STT_OBJECT)
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index 774dc84897..082aa137e6 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -221,7 +221,7 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
+ 		return nil, 0
+ 	}
+ 	amd := ctxt.loader.LookupOrCreateSym("runtime.addmoduledata", 0)
+-	if ctxt.loader.SymType(amd) == sym.STEXT && ctxt.BuildMode != BuildModePlugin {
++	if ctxt.loader.SymType(amd).IsText() && ctxt.BuildMode != BuildModePlugin {
+ 		// we're linking a module containing the runtime -> no need for
+ 		// an init function
+ 		return nil, 0
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index e74c96c09d..f2cf611b20 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2748,7 +2748,7 @@ func Entryvalue(ctxt *Link) int64 {
+ 	if st == 0 {
+ 		return *FlagTextAddr
+ 	}
+-	if !ctxt.IsAIX() && st != sym.STEXT {
++	if !ctxt.IsAIX() && !st.IsText() {
+ 		ldr.Errorf(s, "entry not text")
+ 	}
+ 	return ldr.SymValue(s)
+@@ -2768,7 +2768,7 @@ func (ctxt *Link) callgraph() {
+ 			if rs == 0 {
+ 				continue
+ 			}
+-			if r.Type().IsDirectCall() && ldr.SymType(rs) == sym.STEXT {
++			if r.Type().IsDirectCall() && ldr.SymType(rs).IsText() {
+ 				ctxt.Logf("%s calls %s\n", ldr.SymName(s), ldr.SymName(rs))
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 57b7cd9c4c..1e7c8629ef 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -866,7 +866,7 @@ func collectmachosyms(ctxt *Link) {
+ 	if !*FlagS {
+ 		if !ctxt.DynlinkingGo() {
+ 			s := ldr.Lookup("runtime.text", 0)
+-			if ldr.SymType(s) == sym.STEXT {
++			if ldr.SymType(s).IsText() {
+ 				addsym(s)
+ 			}
+ 		}
+@@ -880,7 +880,7 @@ func collectmachosyms(ctxt *Link) {
+ 		}
+ 		if !ctxt.DynlinkingGo() {
+ 			s := ldr.Lookup("runtime.etext", 0)
+-			if ldr.SymType(s) == sym.STEXT {
++			if ldr.SymType(s).IsText() {
+ 				addsym(s)
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 09867ec7c9..d4d6abe153 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -736,7 +736,7 @@ func (f *peFile) mapToPESection(ldr *loader.Loader, s loader.Sym, linkmode LinkM
+ 	if linkmode != LinkExternal {
+ 		return f.dataSect.index, int64(v), nil
+ 	}
+-	if ldr.SymType(s) == sym.SDATA {
++	if ldr.SymType(s).IsDATA() {
+ 		return f.dataSect.index, int64(v), nil
+ 	}
+ 	// Note: although address of runtime.edata (type sym.SDATA) is at the start of .bss section
+@@ -793,8 +793,8 @@ func (f *peFile) writeSymbols(ctxt *Link) {
+ 		name = mangleABIName(ctxt, ldr, s, name)
+ 
+ 		var peSymType uint16 = IMAGE_SYM_TYPE_NULL
+-		switch t {
+-		case sym.STEXT, sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT:
++		switch {
++		case t.IsText(), t == sym.SDYNIMPORT, t == sym.SHOSTOBJ, t == sym.SUNDEFEXT:
+ 			// Microsoft's PE documentation is contradictory. It says that the symbol's complex type
+ 			// is stored in the pesym.Type most significant byte, but MSVC, LLVM, and mingw store it
+ 			// in the 4 high bits of the less significant byte. Also, the PE documentation says that
+@@ -828,11 +828,11 @@ func (f *peFile) writeSymbols(ctxt *Link) {
+ 
+ 	// Add special runtime.text and runtime.etext symbols.
+ 	s := ldr.Lookup("runtime.text", 0)
+-	if ldr.SymType(s) == sym.STEXT {
++	if ldr.SymType(s).IsText() {
+ 		addsym(s)
+ 	}
+ 	s = ldr.Lookup("runtime.etext", 0)
+-	if ldr.SymType(s) == sym.STEXT {
++	if ldr.SymType(s).IsText() {
+ 		addsym(s)
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index f48e2087c1..7298af5756 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -158,7 +158,7 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
+ 		sname = strings.Replace(sname, "·", ".", -1)
+ 	}
+ 
+-	if ctxt.DynlinkingGo() && bind == elf.STB_GLOBAL && curbind == elf.STB_LOCAL && ldr.SymType(x) == sym.STEXT {
++	if ctxt.DynlinkingGo() && bind == elf.STB_GLOBAL && curbind == elf.STB_LOCAL && ldr.SymType(x).IsText() {
+ 		// When dynamically linking, we want references to functions defined
+ 		// in this module to always be to the function object, not to the
+ 		// PLT. We force this by writing an additional local symbol for every
+@@ -202,7 +202,7 @@ func genelfsym(ctxt *Link, elfbind elf.SymBind) {
+ 		if s == 0 {
+ 			break
+ 		}
+-		if ldr.SymType(s) != sym.STEXT {
++		if !ldr.SymType(s).IsText() {
+ 			panic("unexpected type for runtime.text symbol")
+ 		}
+ 		putelfsym(ctxt, s, elf.STT_FUNC, elfbind)
+@@ -215,7 +215,7 @@ func genelfsym(ctxt *Link, elfbind elf.SymBind) {
+ 
+ 	// runtime.etext marker symbol.
+ 	s = ldr.Lookup("runtime.etext", 0)
+-	if ldr.SymType(s) == sym.STEXT {
++	if ldr.SymType(s).IsText() {
+ 		putelfsym(ctxt, s, elf.STT_FUNC, elfbind)
+ 	}
+ 
+@@ -315,11 +315,11 @@ func asmbPlan9Sym(ctxt *Link) {
+ 
+ 	// Add special runtime.text and runtime.etext symbols.
+ 	s := ldr.Lookup("runtime.text", 0)
+-	if ldr.SymType(s) == sym.STEXT {
++	if ldr.SymType(s).IsText() {
+ 		putplan9sym(ctxt, ldr, s, TextSym)
+ 	}
+ 	s = ldr.Lookup("runtime.etext", 0)
+-	if ldr.SymType(s) == sym.STEXT {
++	if ldr.SymType(s).IsText() {
+ 		putplan9sym(ctxt, ldr, s, TextSym)
+ 	}
+ 
+@@ -871,8 +871,8 @@ func mangleABIName(ctxt *Link, ldr *loader.Loader, x loader.Sym, name string) st
+ 		return name
+ 	}
+ 
+-	if ldr.SymType(x) == sym.STEXT && ldr.SymVersion(x) != sym.SymVerABIInternal && ldr.SymVersion(x) < sym.SymVerStatic {
+-		if s2 := ldr.Lookup(name, sym.SymVerABIInternal); s2 != 0 && ldr.SymType(s2) == sym.STEXT {
++	if ldr.SymType(x).IsText() && ldr.SymVersion(x) != sym.SymVerABIInternal && ldr.SymVersion(x) < sym.SymVerStatic {
++		if s2 := ldr.Lookup(name, sym.SymVerABIInternal); s2 != 0 && ldr.SymType(s2).IsText() {
+ 			name = fmt.Sprintf("%s.abi%d", name, ldr.SymVersion(x))
+ 		}
+ 	}
+@@ -883,7 +883,7 @@ func mangleABIName(ctxt *Link, ldr *loader.Loader, x loader.Sym, name string) st
+ 	// except symbols that are exported to C. Type symbols are always
+ 	// ABIInternal so they are not mangled.
+ 	if ctxt.IsShared() {
+-		if ldr.SymType(x) == sym.STEXT && ldr.SymVersion(x) == sym.SymVerABIInternal && !ldr.AttrCgoExport(x) && !strings.HasPrefix(name, "type:") {
++		if ldr.SymType(x).IsText() && ldr.SymVersion(x) == sym.SymVerABIInternal && !ldr.AttrCgoExport(x) && !strings.HasPrefix(name, "type:") {
+ 			name = fmt.Sprintf("%s.abiinternal", name)
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 8f566283b1..1bce2cf9b6 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1056,7 +1056,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
+ 	// These symbols won't show up in the first loop below because we
+ 	// skip sym.STEXT symbols. Normal sym.STEXT symbols are emitted by walking textp.
+ 	s := ldr.Lookup("runtime.text", 0)
+-	if ldr.SymType(s) == sym.STEXT {
++	if ldr.SymType(s).IsText() {
+ 		// We've already included this symbol in ctxt.Textp on AIX with external linker.
+ 		// See data.go:/textaddress
+ 		if !ctxt.IsExternal() {
+@@ -1075,14 +1075,14 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
+ 		if s == 0 {
+ 			break
+ 		}
+-		if ldr.SymType(s) == sym.STEXT {
++		if ldr.SymType(s).IsText() {
+ 			putaixsym(ctxt, s, TextSym)
+ 		}
+ 		n++
+ 	}
+ 
+ 	s = ldr.Lookup("runtime.etext", 0)
+-	if ldr.SymType(s) == sym.STEXT {
++	if ldr.SymType(s).IsText() {
+ 		// We've already included this symbol in ctxt.Textp
+ 		// on AIX with external linker.
+ 		// See data.go:/textaddress
+@@ -1255,7 +1255,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
+ 					break
+ 				}
+ 			}
+-		} else if t := ldr.SymType(s); t == sym.SDATA || t == sym.SNOPTRDATA || t == sym.SBUILDINFO || t == sym.SXCOFFTOC {
++		} else if t := ldr.SymType(s); t.IsDATA() || t.IsNOPTRDATA() || t == sym.SBUILDINFO || t == sym.SXCOFFTOC {
+ 			switch ldr.SymSect(targ).Seg {
+ 			default:
+ 				ldr.Errorf(s, "unknown segment for .loader relocation with symbol %s", ldr.SymName(targ))
+@@ -1327,7 +1327,7 @@ func (ctxt *Link) doxcoff() {
+ 				panic("cgo_export on static symbol")
+ 			}
+ 
+-			if ldr.SymType(s) == sym.STEXT {
++			if ldr.SymType(s).IsText() {
+ 				// On AIX, an exported function must have two symbols:
+ 				// - a .text symbol which must start with a ".".
+ 				// - a .data symbol which is a function descriptor.
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 9a560e029f..e0363b5535 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -636,7 +636,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 		}
+ 		sb.SetValue(int64(elfsym.value))
+ 		sb.SetSize(int64(elfsym.size))
+-		if sectsb.Type() == sym.STEXT {
++		if sectsb.Type().IsText() {
+ 			if l.AttrExternal(s) && !l.AttrDuplicateOK(s) {
+ 				return errorf("%s: duplicate symbol definition", sb.Name())
+ 			}
+@@ -674,7 +674,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 		if l.SubSym(s) != 0 {
+ 			sb.SortSub()
+ 		}
+-		if sb.Type() == sym.STEXT {
++		if sb.Type().IsText() {
+ 			if l.AttrOnList(s) {
+ 				return errorf("symbol %s listed multiple times",
+ 					l.SymName(s))
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index a391c8ced9..d99dbbd157 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1623,7 +1623,7 @@ func (l *Loader) Aux(i Sym, j int) Aux {
+ // import statement.
+ // (https://webassembly.github.io/spec/core/syntax/modules.html#imports)
+ func (l *Loader) WasmImportSym(fnSymIdx Sym) Sym {
+-	if l.SymType(fnSymIdx) != sym.STEXT {
++	if !l.SymType(fnSymIdx).IsText() {
+ 		log.Fatalf("error: non-function sym %d/%s t=%s passed to WasmImportSym", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
+ 	}
+ 	return l.aux1(fnSymIdx, goobj.AuxWasmImport)
+@@ -1636,7 +1636,7 @@ func (l *Loader) WasmTypeSym(s Sym) Sym {
+ // SEHUnwindSym returns the auxiliary SEH unwind symbol associated with
+ // a given function symbol.
+ func (l *Loader) SEHUnwindSym(fnSymIdx Sym) Sym {
+-	if l.SymType(fnSymIdx) != sym.STEXT {
++	if !l.SymType(fnSymIdx).IsText() {
+ 		log.Fatalf("error: non-function sym %d/%s t=%s passed to SEHUnwindSym", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
+ 	}
+ 
+@@ -1649,7 +1649,7 @@ func (l *Loader) SEHUnwindSym(fnSymIdx Sym) Sym {
+ // lookups, e.f. for function with name XYZ we would then look up
+ // go.info.XYZ, etc.
+ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, auxDwarfRanges, auxDwarfLines Sym) {
+-	if l.SymType(fnSymIdx) != sym.STEXT {
++	if !l.SymType(fnSymIdx).IsText() {
+ 		log.Fatalf("error: non-function sym %d/%s t=%s passed to GetFuncDwarfAuxSyms", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
+ 	}
+ 	r, auxs := l.auxs(fnSymIdx)
+@@ -2609,7 +2609,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
+ 			}
+ 			osym := r.Sym(i)
+ 			st := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
+-			if st != sym.STEXT {
++			if !st.IsText() {
+ 				continue
+ 			}
+ 			dupok := osym.Dupok()
+diff --git a/src/cmd/link/internal/loadmacho/ldmacho.go b/src/cmd/link/internal/loadmacho/ldmacho.go
+index 6e783929e3..0d2bca28e9 100644
+--- a/src/cmd/link/internal/loadmacho/ldmacho.go
++++ b/src/cmd/link/internal/loadmacho/ldmacho.go
+@@ -645,7 +645,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 		if !l.AttrCgoExportDynamic(s) {
+ 			bld.SetDynimplib("") // satisfy dynimport
+ 		}
+-		if l.SymType(outer) == sym.STEXT {
++		if l.SymType(outer).IsText() {
+ 			if bld.External() && !bld.DuplicateOK() {
+ 				return errorf("%v: duplicate symbol definition", s)
+ 			}
+@@ -678,7 +678,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 			}
+ 		}
+ 
+-		if bld.Type() == sym.STEXT {
++		if bld.Type().IsText() {
+ 			if bld.OnList() {
+ 				return errorf("symbol %s listed multiple times", bld.Name())
+ 			}
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index 1ba6debb4e..b895ac4149 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -558,7 +558,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 		l.AddInteriorSym(sectsym, s)
+ 		bld.SetValue(int64(pesym.Value))
+ 		bld.SetSize(4)
+-		if l.SymType(sectsym) == sym.STEXT {
++		if l.SymType(sectsym).IsText() {
+ 			if bld.External() && !bld.DuplicateOK() {
+ 				return nil, fmt.Errorf("%s: duplicate symbol definition", l.SymName(s))
+ 			}
+@@ -583,7 +583,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 		}
+ 		l.SortSub(s)
+ 		importSymsState.secSyms = append(importSymsState.secSyms, s)
+-		if l.SymType(s) == sym.STEXT {
++		if l.SymType(s).IsText() {
+ 			for ; s != 0; s = l.SubSym(s) {
+ 				if l.AttrOnList(s) {
+ 					return nil, fmt.Errorf("symbol %s listed multiple times", l.SymName(s))
+@@ -633,7 +633,7 @@ func PostProcessImports() error {
+ 	arch := importSymsState.arch
+ 	keeprelocneeded := make(map[loader.Sym]loader.Sym)
+ 	for _, s := range importSymsState.secSyms {
+-		isText := ldr.SymType(s) == sym.STEXT
++		isText := ldr.SymType(s).IsText()
+ 		relocs := ldr.Relocs(s)
+ 		for i := 0; i < relocs.Count(); i++ {
+ 			r := relocs.At(i)
+diff --git a/src/cmd/link/internal/loadxcoff/ldxcoff.go b/src/cmd/link/internal/loadxcoff/ldxcoff.go
+index 29d162596a..fd116d5420 100644
+--- a/src/cmd/link/internal/loadxcoff/ldxcoff.go
++++ b/src/cmd/link/internal/loadxcoff/ldxcoff.go
+@@ -104,7 +104,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 		s := l.LookupOrCreateSym(sx.Name, 0)
+ 
+ 		// Text symbol
+-		if l.SymType(s) == sym.STEXT {
++		if l.SymType(s).IsText() {
+ 			if l.AttrOnList(s) {
+ 				return errorf("symbol %s listed multiple times", l.SymName(s))
+ 			}
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index de5614e92a..94660beba8 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -272,14 +272,14 @@ func genstubs(ctxt *ld.Link, ldr *loader.Loader) {
+ 		for i := 0; i < relocs.Count(); i++ {
+ 			switch r := relocs.At(i); r.Type() {
+ 			case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24), objabi.R_CALLPOWER:
+-				switch ldr.SymType(r.Sym()) {
+-				case sym.SDYNIMPORT:
++				switch t := ldr.SymType(r.Sym()); {
++				case t == sym.SDYNIMPORT:
+ 					// This call goes through the PLT, generate and call through a PLT stub.
+ 					if sym, firstUse := genpltstub(ctxt, ldr, r, i, s); firstUse {
+ 						stubs = append(stubs, sym)
+ 					}
+ 
+-				case sym.SXREF:
++				case t == sym.SXREF:
+ 					// Is this an ELF ABI defined function which is (in practice)
+ 					// generated by the linker to save/restore callee save registers?
+ 					// These are defined similarly for both PPC64 ELF and ELFv2.
+@@ -289,7 +289,7 @@ func genstubs(ctxt *ld.Link, ldr *loader.Loader) {
+ 							abifuncs = append(abifuncs, sym)
+ 						}
+ 					}
+-				case sym.STEXT:
++				case t.IsText():
+ 					targ := r.Sym()
+ 					if (ldr.AttrExternal(targ) && ldr.SymLocalentry(targ) != 1) || !ldr.AttrExternal(targ) {
+ 						// All local symbols share the same TOC pointer. This caller has a valid TOC
+@@ -308,18 +308,18 @@ func genstubs(ctxt *ld.Link, ldr *loader.Loader) {
+ 				// GOPPC64 and -buildmode.
+ 				fallthrough
+ 			case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24_NOTOC):
+-				switch ldr.SymType(r.Sym()) {
+-				case sym.SDYNIMPORT:
++				switch rt := ldr.SymType(r.Sym()); {
++				case rt == sym.SDYNIMPORT:
+ 					// This call goes through the PLT, generate and call through a PLT stub.
+ 					if sym, firstUse := genpltstub(ctxt, ldr, r, i, s); firstUse {
+ 						stubs = append(stubs, sym)
+ 					}
+ 
+-				case sym.SXREF:
++				case rt == sym.SXREF:
+ 					// TODO: This is not supported yet.
+ 					ldr.Errorf(s, "Unsupported NOTOC external reference call into %s", ldr.SymName(r.Sym()))
+ 
+-				case sym.STEXT:
++				case rt.IsText():
+ 					targ := r.Sym()
+ 					if (ldr.AttrExternal(targ) && ldr.SymLocalentry(targ) <= 1) || (!ldr.AttrExternal(targ) && (!ldr.AttrShared(targ) || hasPCrel)) {
+ 						// This is NOTOC to NOTOC call (st_other is 0 or 1). No call stub is needed.
+@@ -334,14 +334,14 @@ func genstubs(ctxt *ld.Link, ldr *loader.Loader) {
+ 			// Handle objects compiled with -fno-plt. Rewrite local calls to avoid indirect calling.
+ 			// These are 0 sized relocs. They mark the mtctr r12, or bctrl + ld r2,24(r1).
+ 			case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_PLTSEQ):
+-				if ldr.SymType(r.Sym()) == sym.STEXT {
++				if ldr.SymType(r.Sym()).IsText() {
+ 					// This should be an mtctr instruction. Turn it into a nop.
+ 					su := ldr.MakeSymbolUpdater(s)
+ 					const MASK_OP_MTCTR = 63<<26 | 0x3FF<<11 | 0x1FF<<1
+ 					rewritetonop(&ctxt.Target, ldr, su, int64(r.Off()), MASK_OP_MTCTR, OP_MTCTR)
+ 				}
+ 			case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_PLTCALL):
+-				if ldr.SymType(r.Sym()) == sym.STEXT {
++				if ldr.SymType(r.Sym()).IsText() {
+ 					// This relocation should point to a bctrl followed by a ld r2, 24(41)
+ 					// Convert the bctrl into a bl.
+ 					su := ldr.MakeSymbolUpdater(s)
+@@ -631,7 +631,7 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
+ 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_GOT_PCREL34):
+ 		su := ldr.MakeSymbolUpdater(s)
+ 		su.SetRelocType(rIdx, objabi.R_ADDRPOWER_PCREL34)
+-		if targType != sym.STEXT {
++		if !targType.IsText() {
+ 			ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_PPC64_GLOB_DAT))
+ 			su.SetRelocSym(rIdx, syms.GOT)
+ 			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
+@@ -757,7 +757,7 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
+ 			ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_PPC64_GLOB_DAT))
+ 			su.SetRelocSym(rIdx, syms.GOT)
+ 			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
+-		} else if targType == sym.STEXT {
++		} else if targType.IsText() {
+ 			if isPLT16_LO_DS {
+ 				// Expect an ld opcode to nop
+ 				rewritetonop(target, ldr, su, int64(r.Off()), MASK_OP_LD, OP_LD)
+@@ -779,7 +779,7 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
+ 
+ 	switch r.Type() {
+ 	case objabi.R_ADDR:
+-		if ldr.SymType(s) == sym.STEXT {
++		if ldr.SymType(s).IsText() {
+ 			log.Fatalf("R_ADDR relocation in text symbol %s is unsupported\n", ldr.SymName(s))
+ 		}
+ 		if target.IsPIE() && target.IsInternal() {
+@@ -825,7 +825,7 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
+ 			// linking, in which case the relocation will be
+ 			// prepared in the 'reloc' phase and passed to the
+ 			// external linker in the 'asmb' phase.
+-			if ldr.SymType(s) != sym.SDATA && ldr.SymType(s) != sym.SRODATA {
++			if t := ldr.SymType(s); !t.IsDATA() && !t.IsRODATA() {
+ 				break
+ 			}
+ 		}
+@@ -1441,7 +1441,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 		// local call offsets for externally generated objects are accounted for when converting into golang relocs.
+ 		if !hasPCrel && !ldr.AttrExternal(rs) && ldr.AttrShared(rs) && tgtName != "runtime.duffzero" && tgtName != "runtime.duffcopy" {
+ 			// Furthermore, only apply the offset if the target looks like the start of a function call.
+-			if r.Add() == 0 && ldr.SymType(rs) == sym.STEXT {
++			if r.Add() == 0 && ldr.SymType(rs).IsText() {
+ 				t += 8
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index 73a8815459..587b10f512 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -174,7 +174,7 @@ func genSymsLate(ctxt *ld.Link, ldr *loader.Loader) {
+ 				r.Type() != objabi.R_RISCV_PCREL_STYPE && r.Type() != objabi.R_RISCV_TLS_IE {
+ 				continue
+ 			}
+-			if r.Off() == 0 && ldr.SymType(s) == sym.STEXT {
++			if r.Off() == 0 && ldr.SymType(s).IsText() {
+ 				// Use the symbol for the function instead of creating
+ 				// an overlapping symbol.
+ 				continue
+@@ -206,7 +206,7 @@ func findHI20Symbol(ctxt *ld.Link, ldr *loader.Loader, val int64) loader.Sym {
+ 	if idx >= len(ctxt.Textp) {
+ 		return 0
+ 	}
+-	if s := ctxt.Textp[idx]; ldr.SymValue(s) == val && ldr.SymType(s) == sym.STEXT {
++	if s := ctxt.Textp[idx]; ldr.SymValue(s) == val && ldr.SymType(s).IsText() {
+ 		return s
+ 	}
+ 	return 0
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index 69d0d0ae2f..19c62bca8c 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -206,11 +206,31 @@ var RelROMap = map[SymKind]SymKind{
+ 	SFUNCTAB:  SFUNCTABRELRO,
+ }
+ 
+-// IsData returns true if the type is a data type.
++// IsText returns true if t is a text type.
++func (t SymKind) IsText() bool {
++	return STEXT <= t && t <= STEXTEND
++}
++
++// IsData returns true if t is any kind of data type.
+ func (t SymKind) IsData() bool {
+-	return t == SDATA || t == SNOPTRDATA || t == SBSS || t == SNOPTRBSS
++	return SNOPTRDATA <= t && t <= SNOPTRBSS
++}
++
++// IsDATA returns true if t is one of the SDATA types.
++func (t SymKind) IsDATA() bool {
++	return SDATA <= t && t <= SDATAEND
++}
++
++// IsRODATA returns true if t is one of the SRODATA types.
++func (t SymKind) IsRODATA() bool {
++	return SRODATA <= t && t <= SRODATAEND
++}
++
++// IsNOPTRDATA returns true if t is one of the SNOPTRDATA types.
++func (t SymKind) IsNOPTRDATA() bool {
++	return SNOPTRDATA <= t && t <= SNOPTRDATAEND
+ }
+ 
+ func (t SymKind) IsDWARF() bool {
+-	return t >= SDWARFSECT && t <= SDWARFLINES
++	return SDWARFSECT <= t && t <= SDWARFLINES
+ }
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 876dbd984f..d535e5fb4d 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -294,7 +294,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		return true
+ 
+ 	case objabi.R_ADDR:
+-		if ldr.SymType(s) != sym.SDATA {
++		if !ldr.SymType(s).IsDATA() {
+ 			break
+ 		}
+ 		if target.IsElf() {

@@ -7,9 +7,169 @@ Date:   Tue Dec 9 18:31:31 2008 -0800
     R=r
     OCL=20879
     CL=20879
-
+---
  src/cmd/gc/dcl.c                        | 39 +++++++++++++++++----------------
  src/cmd/gc/go.h                         |  4 ++--
  src/lib/syscall/syscall_amd64_darwin.go |  2 +-
  src/lib/syscall/types_amd64_darwin.go   |  2 +-
  4 files changed, 24 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index a7882e9add..c1dad5d0ee 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -65,7 +65,7 @@ dodcltype(Type *n)
+ 	// if n has been forward declared,
+ 	// use the Type* created then
+ 	s = n->sym;
+-	if(s->tblock == block) {
++	if(s->block == block) {
+ 		switch(s->otype->etype) {
+ 		case TFORWSTRUCT:
+ 		case TFORWINTER:
+@@ -556,8 +556,8 @@ dcopy(Sym *a, Sym *b)
+ 	a->lexical = b->lexical;
+ 	a->undef = b->undef;
+ 	a->vargen = b->vargen;
+-	a->vblock = b->vblock;
+-	a->tblock = b->tblock;
++	a->block = b->block;
++	a->lastlineno = b->lastlineno;
+ 	a->local = b->local;
+ 	a->offset = b->offset;
+ }
+@@ -602,7 +602,7 @@ popdcl(void)
+ 	if(d == S)
+ 		fatal("popdcl: no mark");
+ 	dclstack = d->link;
+-	block = d->vblock;
++	block = d->block;
+ }
+ 
+ void
+@@ -630,7 +630,7 @@ markdcl(void)
+ 
+ 	d = push();
+ 	d->name = nil;		// used as a mark in fifo
+-	d->vblock = block;
++	d->block = block;
+ 
+ 	blockgen++;
+ 	block = blockgen;
+@@ -698,6 +698,18 @@ testdclstack(void)
+ 	}
+ }
+ 
++static void
++redeclare(char *str, Sym *s)
++{
++	if(s->block != block) {
++		s->block = block;
++		s->lastlineno = lineno;
++		return;
++	}
++	yyerror("%s %S redeclared in this block %d", str, s, block);
++	print("	previous declaration at %L\n", s->lastlineno);
++}
++
+ void
+ addvar(Node *n, Type *t, int ctxt)
+ {
+@@ -710,15 +722,6 @@ addvar(Node *n, Type *t, int ctxt)
+ 
+ 	s = n->sym;
+ 
+-	if(s->vblock == block) {
+-		if(s->oname != N) {
+-			yyerror("var %S redeclared in this block"
+-				"\n\tprevious declaration at %L",
+-				s, s->oname->lineno);
+-		} else
+-			yyerror("var %S redeclared in this block", s);
+-	}
+-
+ 	if(ctxt == PEXTERN) {
+ 		r = externdcl;
+ 		gen = 0;
+@@ -729,10 +732,10 @@ addvar(Node *n, Type *t, int ctxt)
+ 		pushdcl(s);
+ 	}
+ 
++	redeclare("variable", s);
+ 	s->vargen = gen;
+ 	s->oname = n;
+ 	s->offset = 0;
+-	s->vblock = block;
+ 	s->lexical = LNAME;
+ 
+ 	n->type = t;
+@@ -775,12 +778,9 @@ addtyp(Type *n, int ctxt)
+ 		n->vargen = ++typgen;
+ 	}
+ 
+-	if(s->tblock == block)
+-		yyerror("type %S redeclared in this block %d", s, block);
+-
++	redeclare("type", s);
+ 	s->otype = n;
+ 	s->lexical = LATYPE;
+-	s->tblock = block;
+ 
+ 	d = dcl();
+ 	d->dsym = s;
+@@ -831,6 +831,7 @@ addconst(Node *n, Node *e, int ctxt)
+ 		pushdcl(s);
+ 	}
+ 
++	redeclare("constant", s);
+ 	s->oconst = e;
+ 	s->lexical = LACONST;
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 775a4cca12..5dea32c7cf 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -231,8 +231,7 @@ struct	Node
+ 
+ struct	Sym
+ {
+-	ushort	tblock;		// blocknumber for type
+-	ushort	vblock;		// blocknumber for variable
++	ushort	block;		// blocknumber to catch redeclaration
+ 
+ 	uchar	undef;		// a diagnostic has been generated
+ 	uchar	export;		// marked as export
+@@ -252,6 +251,7 @@ struct	Sym
+ 	vlong	offset;		// stack location if automatic
+ 	int32	lexical;
+ 	int32	vargen;		// unique variable number
++	int32	lastlineno;	// last declaration for diagnostic
+ 	Sym*	link;
+ };
+ #define	S	((Sym*)0)
+diff --git a/src/lib/syscall/syscall_amd64_darwin.go b/src/lib/syscall/syscall_amd64_darwin.go
+index 76d1c46a64..c3f72d857f 100644
+--- a/src/lib/syscall/syscall_amd64_darwin.go
++++ b/src/lib/syscall/syscall_amd64_darwin.go
+@@ -339,7 +339,7 @@ export const (
+ 	// SYS_NOSYS = 296;  // { int nosys(void); } { old load_shared_file }
+ 	// SYS_NOSYS = 297;  // { int nosys(void); } { old reset_shared_file }
+ 	// SYS_NOSYS = 298;  // { int nosys(void); } { old new_system_shared_regions }
+-	SYS_ENOSYS = 299;  // { int enosys(void); } { old shared_region_map_file_np }
++	// SYS_ENOSYS = 299;  // { int enosys(void); } { old shared_region_map_file_np }
+ 	SYS_ENOSYS = 300;  // { int enosys(void); } { old shared_region_make_private_np }
+ 	SYS___PTHREAD_MUTEX_DESTROY = 301;  // { int __pthread_mutex_destroy(int mutexid); }
+ 	SYS___PTHREAD_MUTEX_INIT = 302;  // { int __pthread_mutex_init(user_addr_t  mutex, user_addr_t attr); }
+diff --git a/src/lib/syscall/types_amd64_darwin.go b/src/lib/syscall/types_amd64_darwin.go
+index f03f8c7546..dea06c8113 100644
+--- a/src/lib/syscall/types_amd64_darwin.go
++++ b/src/lib/syscall/types_amd64_darwin.go
+@@ -191,7 +191,7 @@ export const (
+ 	// flags
+ 	EV_ONESHOT = 0x0010;
+ 	EV_CLEAR = 0x0020;
+-	EV_RECEIPT = 0x40;
++//	EV_RECEIPT = 0x40;
+ 	EV_SYSFLAGS = 0xF000;
+ 	EV_FLAG0 = 0x1000;
+ 	EV_FLAG1 = 0x2000;

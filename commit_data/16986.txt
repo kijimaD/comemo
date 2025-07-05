@@ -7,6 +7,19 @@ Date:   Thu Aug 1 12:05:05 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12276043
-
+---
  src/pkg/net/http/server.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 5332239ede..4e8f6dce2e 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -1196,6 +1196,7 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
+ // Helper handlers
+ 
+ // Error replies to the request with the specified error message and HTTP code.
++// The error message should be plain text.
+ func Error(w ResponseWriter, error string, code int) {
+ 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+ 	w.WriteHeader(code)

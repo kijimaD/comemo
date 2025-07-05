@@ -19,6 +19,22 @@ Date:   Thu Mar 8 18:47:07 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/gob/codec_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/encoding/gob/codec_test.go b/src/encoding/gob/codec_test.go
+index 8f7b6f3c62..520afde34d 100644
+--- a/src/encoding/gob/codec_test.go
++++ b/src/encoding/gob/codec_test.go
+@@ -1478,6 +1478,10 @@ func TestFuzzOneByte(t *testing.T) {
+ 		switch i {
+ 		case 14, 167, 231, 265: // a slice length, corruptions are not handled yet.
+ 			continue
++		case 248:
++			// Large map size, which currently causes an out of memory panic.
++			// See golang.org/issue/24308 and golang.org/issue/20221.
++			continue
+ 		}
+ 		indices = append(indices, i)
+ 	}

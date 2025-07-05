@@ -14,6 +14,37 @@ Date:   Wed Mar 7 14:54:31 2012 -0500
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5779043
-
+---
  src/pkg/testing/testing.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 477d2ac23a..f59ce8ed6f 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -107,6 +107,8 @@ var (
+ 	cpuListStr     = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
+ 	parallel       = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
+ 
++	haveExamples bool // are there examples?
++
+ 	cpuList []int
+ )
+ 
+@@ -279,6 +281,7 @@ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest,
+ 
+ 	before()
+ 	startAlarm()
++	haveExamples = len(examples) > 0
+ 	testOk := RunTests(matchString, tests)
+ 	exampleOk := RunExamples(matchString, examples)
+ 	if !testOk || !exampleOk {
+@@ -303,7 +306,7 @@ func (t *T) report() {
+ 
+ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool) {
+ 	ok = true
+-	if len(tests) == 0 {
++	if len(tests) == 0 && !haveExamples {
+ 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+ 		return
+ 	}

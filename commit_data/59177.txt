@@ -20,9 +20,158 @@ Date:   Wed Feb 7 15:19:06 2024 +0000
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Alex Bozhenko <alexbozhenko@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/fix/buildtag.go      |  5 +++--
  src/cmd/fix/buildtag_test.go |  4 ++--
  src/cmd/fix/main.go          | 29 ++++++-----------------------
  src/cmd/fix/main_test.go     | 10 +++++-----
  4 files changed, 16 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/fix/buildtag.go b/src/cmd/fix/buildtag.go
+index 5f4fbfef16..6b706c4cb5 100644
+--- a/src/cmd/fix/buildtag.go
++++ b/src/cmd/fix/buildtag.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"go/ast"
++	"go/version"
+ 	"strings"
+ )
+ 
+@@ -13,7 +14,7 @@ func init() {
+ 	register(buildtagFix)
+ }
+ 
+-const buildtagGoVersionCutoff = 1_18
++const buildtagGoVersionCutoff = "go1.18"
+ 
+ var buildtagFix = fix{
+ 	name: "buildtag",
+@@ -23,7 +24,7 @@ var buildtagFix = fix{
+ }
+ 
+ func buildtag(f *ast.File) bool {
+-	if goVersion < buildtagGoVersionCutoff {
++	if version.Compare(*goVersion, buildtagGoVersionCutoff) < 0 {
+ 		return false
+ 	}
+ 
+diff --git a/src/cmd/fix/buildtag_test.go b/src/cmd/fix/buildtag_test.go
+index 1c6efbe9e0..e5997043c2 100644
+--- a/src/cmd/fix/buildtag_test.go
++++ b/src/cmd/fix/buildtag_test.go
+@@ -11,7 +11,7 @@ func init() {
+ var buildtagTests = []testCase{
+ 	{
+ 		Name:    "buildtag.oldGo",
+-		Version: 1_10,
++		Version: "go1.10",
+ 		In: `//go:build yes
+ // +build yes
+ 
+@@ -20,7 +20,7 @@ package main
+ 	},
+ 	{
+ 		Name:    "buildtag.new",
+-		Version: 1_99,
++		Version: "go1.99",
+ 		In: `//go:build yes
+ // +build yes
+ 
+diff --git a/src/cmd/fix/main.go b/src/cmd/fix/main.go
+index 0f36fcc312..db67b4ba07 100644
+--- a/src/cmd/fix/main.go
++++ b/src/cmd/fix/main.go
+@@ -13,13 +13,13 @@ import (
+ 	"go/parser"
+ 	"go/scanner"
+ 	"go/token"
++	"go/version"
+ 	"internal/diff"
+ 	"io"
+ 	"io/fs"
+ 	"os"
+ 	"path/filepath"
+ 	"sort"
+-	"strconv"
+ 	"strings"
+ )
+ 
+@@ -37,10 +37,8 @@ var forceRewrites = flag.String("force", "",
+ var allowed, force map[string]bool
+ 
+ var (
+-	doDiff       = flag.Bool("diff", false, "display diffs instead of rewriting files")
+-	goVersionStr = flag.String("go", "", "go language version for files")
+-
+-	goVersion int // 115 for go1.15
++	doDiff    = flag.Bool("diff", false, "display diffs instead of rewriting files")
++	goVersion = flag.String("go", "", "go language version for files")
+ )
+ 
+ // enable for debugging fix failures
+@@ -68,24 +66,9 @@ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 
+-	if *goVersionStr != "" {
+-		if !strings.HasPrefix(*goVersionStr, "go") {
+-			report(fmt.Errorf("invalid -go=%s", *goVersionStr))
+-			os.Exit(exitCode)
+-		}
+-		majorStr := (*goVersionStr)[len("go"):]
+-		minorStr := "0"
+-		if before, after, found := strings.Cut(majorStr, "."); found {
+-			majorStr, minorStr = before, after
+-		}
+-		major, err1 := strconv.Atoi(majorStr)
+-		minor, err2 := strconv.Atoi(minorStr)
+-		if err1 != nil || err2 != nil || major < 0 || major >= 100 || minor < 0 || minor >= 100 {
+-			report(fmt.Errorf("invalid -go=%s", *goVersionStr))
+-			os.Exit(exitCode)
+-		}
+-
+-		goVersion = major*100 + minor
++	if !version.IsValid(*goVersion) {
++		report(fmt.Errorf("invalid -go=%s", *goVersion))
++		os.Exit(exitCode)
+ 	}
+ 
+ 	sort.Sort(byDate(fixes))
+diff --git a/src/cmd/fix/main_test.go b/src/cmd/fix/main_test.go
+index cafd116cfd..8d841b101f 100644
+--- a/src/cmd/fix/main_test.go
++++ b/src/cmd/fix/main_test.go
+@@ -17,7 +17,7 @@ import (
+ type testCase struct {
+ 	Name    string
+ 	Fn      func(*ast.File) bool
+-	Version int
++	Version string
+ 	In      string
+ 	Out     string
+ }
+@@ -96,7 +96,7 @@ func TestRewrite(t *testing.T) {
+ 	for _, tt := range testCases {
+ 		tt := tt
+ 		t.Run(tt.Name, func(t *testing.T) {
+-			if tt.Version == 0 {
++			if tt.Version == "" {
+ 				if testing.Verbose() {
+ 					// Don't run in parallel: cmd/fix sometimes writes directly to stderr,
+ 					// and since -v prints which test is currently running we want that
+@@ -105,10 +105,10 @@ func TestRewrite(t *testing.T) {
+ 					t.Parallel()
+ 				}
+ 			} else {
+-				old := goVersion
+-				goVersion = tt.Version
++				old := *goVersion
++				*goVersion = tt.Version
+ 				defer func() {
+-					goVersion = old
++					*goVersion = old
+ 				}()
+ 			}
+ 

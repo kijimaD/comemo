@@ -8,7 +8,7 @@ Date:   Wed Oct 7 00:11:59 2009 -0700
     DELTA=3214  (904 added, 2260 deleted, 50 changed)
     OCL=35425
     CL=35427
-
+---
  src/cmd/5l/Makefile |   6 +-
  src/cmd/5l/asm.c    |   1 +
  src/cmd/5l/go.c     |  12 -
@@ -43,3 +43,4017 @@ Date:   Wed Oct 7 00:11:59 2009 -0700
  src/cmd/ld/lib.h    |  87 ++++++
  src/cmd/ld/macho.c  |   2 +
  33 files changed, 952 insertions(+), 2085 deletions(-)
+
+diff --git a/src/cmd/5l/Makefile b/src/cmd/5l/Makefile
+index 44ee2ead12..b042115043 100644
+--- a/src/cmd/5l/Makefile
++++ b/src/cmd/5l/Makefile
+@@ -9,8 +9,8 @@ TARG=\
+ 
+ OFILES=\
+ 	asm.$O\
+-	compat.$O\
+ 	enam.$O\
++	lib.$O\
+ 	list.$O\
+ 	noop.$O\
+ 	obj.$O\
+@@ -24,7 +24,6 @@ HFILES=\
+ 	l.h\
+ 	../5l/5.out.h\
+ 
+-
+ $(TARG): $(OFILES)
+ 	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
+ 
+@@ -38,3 +37,6 @@ clean:
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
++
++%.$O: ../ld/%.c
++	$(CC) $(CFLAGS) -c -I. ../ld/$*.c
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index dbb305892b..1abf07bbec 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include	"l.h"
++#include	"../ld/lib.h"
+ 
+ int32	OFFSET;
+ 
+diff --git a/src/cmd/5l/go.c b/src/cmd/5l/go.c
+deleted file mode 100644
+index f1146c0c99..0000000000
+--- a/src/cmd/5l/go.c
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "l.h"
+-#include "compat.h"
+-enum
+-{
+-	PtrSize = 4
+-};
+-#define pcond cond
+-#include "../ld/go.c"
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 4f7ef58297..09fbda8c21 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -33,6 +33,11 @@
+ #include	<bio.h>
+ #include	"../5l/5.out.h"
+ 
++enum
++{
++	PtrSize = 4
++};
++
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+ #endif
+@@ -119,7 +124,6 @@ struct	Sym
+ 	short	frame;
+ 	uchar	subtype;
+ 	uchar	reachable;
+-	ushort	file;
+ 	int32	value;
+ 	int32	sig;
+ 	uchar	used;
+@@ -131,6 +135,7 @@ struct	Sym
+ 	Prog*	text;
+ 	Prog*	data;
+ 	Sym*	gotype;
++	char*	file;
+ 	char*	dynldname;
+ 	char*	dynldlib;
+ };
+@@ -313,20 +318,8 @@ EXTERN	char	debug[128];
+ EXTERN	Prog*	edatap;
+ EXTERN	Prog*	etextp;
+ EXTERN	Prog*	firstp;
+-EXTERN	uchar	fnuxi4[4];
+-EXTERN	uchar	fnuxi8[8];
+ EXTERN	char*	noname;
+-EXTERN	Sym*	hash[NHASH];
+-EXTERN	Sym*	histfrog[MAXHIST];
+-EXTERN	int	histfrogp;
+-EXTERN	int	histgen;
+-EXTERN	char*	library[50];
+-EXTERN	char*	libraryobj[50];
+-EXTERN	int	libraryp;
+ EXTERN	int	xrefresolv;
+-EXTERN	uchar	inuxi1[1];
+-EXTERN	uchar	inuxi2[2];
+-EXTERN	uchar	inuxi4[4];
+ EXTERN	Prog*	lastp;
+ EXTERN	int32	lcsize;
+ EXTERN	char	literal[32];
+@@ -342,7 +335,6 @@ EXTERN	uint32	stroffset;
+ EXTERN	int32	symsize;
+ EXTERN	Prog*	textp;
+ EXTERN	int32	textsize;
+-EXTERN	int32	thunk;
+ EXTERN	int	version;
+ EXTERN	char	xcmp[C_GOK+1][C_GOK+1];
+ EXTERN	Prog	zprg;
+@@ -418,19 +410,12 @@ void	doprof1(void);
+ void	doprof2(void);
+ void	dynreloc(Sym*, int32, int);
+ int32	entryvalue(void);
+-void	errorexit(void);
+ void	exchange(Prog*);
+ void	export(void);
+-int	find1(int32, int);
+ void	follow(void);
+-void	histtoauto(void);
+ void	hputl(int);
+-double	ieeedtod(Ieee*);
+-int32	ieeedtof(Ieee*);
+ void	import(void);
+ int	isnop(Prog*);
+-void	ldobj(Biobuf*, int32, char*);
+-void	loadlib(void);
+ void	listinit(void);
+ Sym*	lookup(char*, int);
+ void	cput(int);
+@@ -442,8 +427,6 @@ void*	mysbrk(uint32);
+ void	names(void);
+ Prog*	newdata(Sym *s, int o, int w, int t);
+ void	nocache(Prog*);
+-void	nuxiinit(void);
+-void	objfile(char*);
+ int	ocmp(const void*, const void*);
+ int32	opirr(int);
+ Optab*	oplook(Prog*);
+@@ -464,19 +447,16 @@ void	prepend(Prog*, Prog*);
+ Prog*	prg(void);
+ int	pseudo(Prog*);
+ void	putsymb(char*, int, int32, int);
+-void	readundefs(char*, int);
+ int32	regoff(Adr*);
+ int	relinv(int);
+ int32	rnd(int32, int32);
+ void	span(void);
+ void	strnput(char*, int);
+ void	undef(void);
+-void	undefsym(Sym*);
+ void	wput(int32);
+ void    wputl(ushort w);
+ void	xdefine(char*, int, int32);
+ void	xfol(Prog*);
+-void	zerosig(char*);
+ void	noops(void);
+ int32	immrot(uint32);
+ int32	immaddr(int32);
+diff --git a/src/cmd/5l/list.c b/src/cmd/5l/list.c
+index a039c2d2b6..9cbb5501c8 100644
+--- a/src/cmd/5l/list.c
++++ b/src/cmd/5l/list.c
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include "l.h"
++#include "../ld/lib.h"
+ 
+ void
+ listinit(void)
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index f1747fc930..574d506487 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -30,7 +30,7 @@
+ 
+ #define	EXTERN
+ #include	"l.h"
+-#include	"compat.h"
++#include	"../ld/lib.h"
+ #include	<ar.h>
+ 
+ #ifndef	DEFAULT
+@@ -38,11 +38,8 @@
+ #endif
+ 
+ char	*noname		= "<none>";
+-char	symname[]	= SYMDEF;
+ char	thechar		= '5';
+ char	*thestring 	= "arm";
+-char*	libdir[16];	// contains "." first, goroot last
+-int	nlibdir		= 0;
+ 
+ /*
+  *	-H1 -T0x10005000 -R4		is aif for risc os
+@@ -74,24 +71,29 @@ isobjfile(char *f)
+ 	return v;
+ }
+ 
++void
++usage(void)
++{
++	fprint(2, "usage: 5l [-options] objects\n");
++	errorexit();
++}
++
+ void
+ main(int argc, char *argv[])
+ {
+ 	int c;
+-	char *a;
+ 
+ 	Binit(&bso, 1, OWRITE);
+ 	cout = -1;
+ 	listinit();
+-	outfile = 0;
+ 	nerrors = 0;
+ 	curtext = P;
++	outfile = "5.out";
+ 	HEADTYPE = -1;
+ 	INITTEXT = -1;
+ 	INITDAT = -1;
+ 	INITRND = -1;
+ 	INITENTRY = 0;
+-	libdir[nlibdir++] = ".";	// look in dot first
+ 
+ 	ARGBEGIN {
+ 	default:
+@@ -100,38 +102,25 @@ main(int argc, char *argv[])
+ 			debug[c]++;
+ 		break;
+ 	case 'o':
+-		outfile = ARGF();
++		outfile = EARGF(usage());
+ 		break;
+ 	case 'E':
+-		a = ARGF();
+-		if(a)
+-			INITENTRY = a;
++		INITENTRY = EARGF(usage());
+ 		break;
+ 	case 'L':
+-		if(nlibdir >= nelem(libdir)-1) {
+-			print("too many -L's: %d\n", nlibdir);
+-		}
+-		libdir[nlibdir++] = ARGF();
++		Lflag(EARGF(usage()));
+ 		break;
+ 	case 'T':
+-		a = ARGF();
+-		if(a)
+-			INITTEXT = atolwhex(a);
++		INITTEXT = atolwhex(EARGF(usage()));
+ 		break;
+ 	case 'D':
+-		a = ARGF();
+-		if(a)
+-			INITDAT = atolwhex(a);
++		INITDAT = atolwhex(EARGF(usage()));
+ 		break;
+ 	case 'R':
+-		a = ARGF();
+-		if(a)
+-			INITRND = atolwhex(a);
++		INITRND = atolwhex(EARGF(usage()));
+ 		break;
+ 	case 'H':
+-		a = ARGF();
+-		if(a)
+-			HEADTYPE = atolwhex(a);
++		HEADTYPE = atolwhex(EARGF(usage()));
+ 		/* do something about setting INITTEXT */
+ 		break;
+ 	case 'x':	/* produce export table */
+@@ -149,16 +138,10 @@ main(int argc, char *argv[])
+ 
+ 	USED(argc);
+ 
+-	if(*argv == 0) {
+-		diag("usage: 5l [-options] objects");
+-		errorexit();
+-	}
+-	mywhatsys();	// get goroot, goarch, goos
+-	if(strcmp(goarch, thestring) != 0)
+-		print("goarch is not known: %s\n", goarch);
++	if(*argv == 0)
++		usage();
+ 
+-	// put goroot in the libdir list.
+-	libdir[nlibdir++] = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
++	libinit();
+ 
+ 	if(!debug['9'] && !debug['U'] && !debug['B'])
+ 		debug[DEFAULT] = 1;
+@@ -261,14 +244,6 @@ main(int argc, char *argv[])
+ 	edatap = P;
+ 	pc = 0;
+ 	dtype = 4;
+-	if(outfile == 0)
+-		outfile = "5.out";
+-	unlink(outfile);
+-	cout = create(outfile, 1, 0775);
+-	if(cout < 0) {
+-		diag("%s: cannot create", outfile);
+-		errorexit();
+-	}
+ 	nuxiinit();
+ 
+ 	version = 0;
+@@ -277,20 +252,11 @@ main(int argc, char *argv[])
+ 	firstp = prg();
+ 	lastp = firstp;
+ 
+-	if(INITENTRY == nil) {
+- 		INITENTRY = mal(strlen(goarch)+strlen(goos)+10);
+-		sprint(INITENTRY, "_rt0_%s_%s", goarch, goos);
+-	}
+-	lookup(INITENTRY, 0)->type = SXREF;
+-
+ 	while(*argv)
+ 		objfile(*argv++);
+-	if(!debug['l']) {
++	if(!debug['l'])
+ 		loadlib();
+-		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
+-		sprint(a, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
+-		objfile(a);
+-	}
++
+ 	deadcode();
+ 
+ 	firstp = firstp->link;
+@@ -340,7 +306,6 @@ out:
+ 	}
+ 	if(debug['v']) {
+ 		Bprint(&bso, "%5.2f cpu time\n", cputime());
+-		Bprint(&bso, "%ld memory used\n", thunk);
+ 		Bprint(&bso, "%d sizeof adr\n", sizeof(Adr));
+ 		Bprint(&bso, "%d sizeof prog\n", sizeof(Prog));
+ 	}
+@@ -348,160 +313,6 @@ out:
+ 	errorexit();
+ }
+ 
+-void
+-loadlib(void)
+-{
+-	int i;
+-	int32 h;
+-	Sym *s;
+-
+-loop:
+-	xrefresolv = 0;
+-	for(i=0; i<libraryp; i++) {
+-		if(debug['v'])
+-			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i], libraryobj[i]);
+-		objfile(library[i]);
+-	}
+-	if(xrefresolv)
+-	for(h=0; h<nelem(hash); h++)
+-	for(s = hash[h]; s != S; s = s->link)
+-		if(s->type == SXREF)
+-			goto loop;
+-}
+-
+-void
+-errorexit(void)
+-{
+-
+-	Bflush(&bso);
+-	if(nerrors) {
+-		if(cout >= 0)
+-			remove(outfile);
+-		exits("error");
+-	}
+-	exits(0);
+-}
+-
+-void
+-objfile(char *file)
+-{
+-	int32 off, esym, cnt, l;
+-	int work;
+-	Biobuf *f;
+-	Sym *s;
+-	char magbuf[SARMAG];
+-	char name[100], pname[150];
+-	struct ar_hdr arhdr;
+-	char *e, *start, *stop;
+-
+-	if(file[0] == '-' && file[1] == 'l') {
+-		if(debug['9'])
+-			sprint(name, "/%s/lib/lib", thestring);
+-		else
+-			sprint(name, "/usr/%clib/lib", thechar);
+-		strcat(name, file+2);
+-		strcat(name, ".a");
+-		file = name;
+-	}
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f ldobj: %s\n", cputime(), file);
+-	Bflush(&bso);
+-	f = Bopen(file, 0);
+-	if(f == nil) {
+-		diag("cannot open file: %s", file);
+-		errorexit();
+-	}
+-	l = Bread(f, magbuf, SARMAG);
+-	if(l != SARMAG || strncmp(magbuf, ARMAG, SARMAG)){
+-		/* load it as a regular file */
+-		l = Bseek(f, 0L, 2);
+-		Bseek(f, 0L, 0);
+-		ldobj(f, l, file);
+-		Bterm(f);
+-		return;
+-	}
+-
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f ldlib: %s\n", cputime(), file);
+-	l = Bread(f, &arhdr, SAR_HDR);
+-	if(l != SAR_HDR) {
+-		diag("%s: short read on archive file symbol header", file);
+-		goto out;
+-	}
+-	if(strncmp(arhdr.name, symname, strlen(symname))) {
+-		diag("%s: first entry not symbol header", file);
+-		goto out;
+-	}
+-
+-	esym = SARMAG + SAR_HDR + atolwhex(arhdr.size);
+-	off = SARMAG + SAR_HDR;
+-
+-	/*
+-	 * just bang the whole symbol file into memory
+-	 */
+-	Bseek(f, off, 0);
+-	cnt = esym - off;
+-	start = malloc(cnt + 10);
+-	cnt = Bread(f, start, cnt);
+-	if(cnt <= 0){
+-		Bterm(f);
+-		return;
+-	}
+-	stop = &start[cnt];
+-	memset(stop, 0, 10);
+-
+-	work = 1;
+-	while(work){
+-		if(debug['v'])
+-			Bprint(&bso, "%5.2f library pass: %s\n", cputime(), file);
+-		Bflush(&bso);
+-		work = 0;
+-		for(e = start; e < stop; e = strchr(e+5, 0) + 1) {
+-			s = lookup(e+5, 0);
+-			if(s->type != SXREF)
+-				continue;
+-			sprint(pname, "%s(%s)", file, s->name);
+-			if(debug['v'])
+-				Bprint(&bso, "%5.2f library: %s\n", cputime(), pname);
+-			Bflush(&bso);
+-			l = e[1] & 0xff;
+-			l |= (e[2] & 0xff) << 8;
+-			l |= (e[3] & 0xff) << 16;
+-			l |= (e[4] & 0xff) << 24;
+-			Bseek(f, l, 0);
+-			l = Bread(f, &arhdr, SAR_HDR);
+-			if(l != SAR_HDR)
+-				goto bad;
+-			if(strncmp(arhdr.fmag, ARFMAG, sizeof(arhdr.fmag)))
+-				goto bad;
+-			l = atolwhex(arhdr.size);
+-			ldobj(f, l, pname);
+-			if(s->type == SXREF) {
+-				diag("%s: failed to load: %s", file, s->name);
+-				errorexit();
+-			}
+-			work = 1;
+-			xrefresolv = 1;
+-		}
+-	}
+-	return;
+-
+-bad:
+-	diag("%s: bad or out of date archive", file);
+-out:
+-	Bterm(f);
+-}
+-
+-int32
+-Bget4(Biobuf *f)
+-{
+-	uchar p[4];
+-
+-	if(Bread(f, p, 4) != 4)
+-		return 0;
+-	return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+-}
+-
+ void
+ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ {
+@@ -602,163 +413,6 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 	u->type = i;
+ }
+ 
+-void
+-addlib(char *obj)
+-{
+-	char name[1024], pname[1024], comp[256], *p;
+-	int i, search;
+-
+-	if(histfrogp <= 0)
+-		return;
+-
+-	search = 0;
+-	if(histfrog[0]->name[1] == '/') {
+-		sprint(name, "");
+-		i = 1;
+-	} else
+-	if(histfrog[0]->name[1] == '.') {
+-		sprint(name, ".");
+-		i = 0;
+-	} else {
+-		sprint(name, "");
+-		i = 0;
+-		search = 1;
+-	}
+-
+-	for(; i<histfrogp; i++) {
+-		snprint(comp, sizeof comp, histfrog[i]->name+1);
+-		for(;;) {
+-			p = strstr(comp, "$O");
+-			if(p == 0)
+-				break;
+-			memmove(p+1, p+2, strlen(p+2)+1);
+-			p[0] = thechar;
+-		}
+-		for(;;) {
+-			p = strstr(comp, "$M");
+-			if(p == 0)
+-				break;
+-			if(strlen(comp)+strlen(thestring)-2+1 >= sizeof comp) {
+-				diag("library component too long");
+-				return;
+-			}
+-			memmove(p+strlen(thestring), p+2, strlen(p+2)+1);
+-			memmove(p, thestring, strlen(thestring));
+-		}
+-		if(strlen(name) + strlen(comp) + 3 >= sizeof(name)) {
+-			diag("library component too long");
+-			return;
+-		}
+-		strcat(name, "/");
+-		strcat(name, comp);
+-	}
+-
+-	if(search) {
+-		// try dot, -L "libdir", and then goroot.
+-		for(i=0; i<nlibdir; i++) {
+-			snprint(pname, sizeof pname, "%s/%s", libdir[i], name);
+-			if(access(pname, AEXIST) >= 0)
+-				break;
+-		}
+-		strcpy(name, pname);
+-	}
+-	cleanname(name);
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f addlib: %s pulls in %s\n", cputime(), obj, name);
+-
+-	for(i=0; i<libraryp; i++)
+-		if(strcmp(name, library[i]) == 0)
+-			return;
+-	if(libraryp == nelem(library)){
+-		diag("too many autolibs; skipping %s", name);
+-		return;
+-	}
+-
+-	p = malloc(strlen(name) + 1);
+-	strcpy(p, name);
+-	library[libraryp] = p;
+-	p = malloc(strlen(obj) + 1);
+-	strcpy(p, obj);
+-	libraryobj[libraryp] = p;
+-	libraryp++;
+-}
+-
+-void
+-addhist(int32 line, int type)
+-{
+-	Auto *u;
+-	Sym *s;
+-	int i, j, k;
+-
+-	u = malloc(sizeof(Auto));
+-	s = malloc(sizeof(Sym));
+-	s->name = malloc(2*(histfrogp+1) + 1);
+-
+-	u->asym = s;
+-	u->type = type;
+-	u->aoffset = line;
+-	u->link = curhist;
+-	curhist = u;
+-
+-	j = 1;
+-	for(i=0; i<histfrogp; i++) {
+-		k = histfrog[i]->value;
+-		s->name[j+0] = k>>8;
+-		s->name[j+1] = k;
+-		j += 2;
+-	}
+-}
+-
+-void
+-histtoauto(void)
+-{
+-	Auto *l;
+-
+-	while(l = curhist) {
+-		curhist = l->link;
+-		l->link = curauto;
+-		curauto = l;
+-	}
+-}
+-
+-void
+-collapsefrog(Sym *s)
+-{
+-	int i;
+-
+-	/*
+-	 * bad encoding of path components only allows
+-	 * MAXHIST components. if there is an overflow,
+-	 * first try to collapse xxx/..
+-	 */
+-	for(i=1; i<histfrogp; i++)
+-		if(strcmp(histfrog[i]->name+1, "..") == 0) {
+-			memmove(histfrog+i-1, histfrog+i+1,
+-				(histfrogp-i-1)*sizeof(histfrog[0]));
+-			histfrogp--;
+-			goto out;
+-		}
+-
+-	/*
+-	 * next try to collapse .
+-	 */
+-	for(i=0; i<histfrogp; i++)
+-		if(strcmp(histfrog[i]->name+1, ".") == 0) {
+-			memmove(histfrog+i, histfrog+i+1,
+-				(histfrogp-i-1)*sizeof(histfrog[0]));
+-			goto out;
+-		}
+-
+-	/*
+-	 * last chance, just truncate from front
+-	 */
+-	memmove(histfrog+0, histfrog+1,
+-		(histfrogp-1)*sizeof(histfrog[0]));
+-
+-out:
+-	histfrog[histfrogp-1] = s;
+-}
+-
+ void
+ nopout(Prog *p)
+ {
+@@ -770,67 +424,20 @@ nopout(Prog *p)
+ static void puntfp(Prog *);
+ 
+ void
+-ldobj(Biobuf *f, int32 len, char *pn)
++ldobj1(Biobuf *f, int64 len, char *pn)
+ {
+ 	int32 ipc;
+ 	Prog *p, *t;
+ 	Sym *h[NSYM], *s, *di;
+ 	int v, o, r, skip;
+ 	uint32 sig;
+-	static int files;
+-	static char **filen;
+-	char **nfilen, *line, *name;
+-	int n, c1, c2, c3;
++	char *name;
+ 	int32 eof;
+-	int32 start, import0, import1;
++	char src[1024];
+ 
+ 	eof = Boffset(f) + len;
+-
+-	if((files&15) == 0){
+-		nfilen = malloc((files+16)*sizeof(char*));
+-		memmove(nfilen, filen, files*sizeof(char*));
+-		free(filen);
+-		filen = nfilen;
+-	}
+-	filen[files++] = strdup(pn);
+-
+ 	di = S;
+-
+-	/* check the header */
+-	start = Boffset(f);
+-	line = Brdline(f, '\n');
+-	if(line == nil) {
+-		if(Blinelen(f) > 0) {
+-			diag("%s: malformed object file", pn);
+-			return;
+-		}
+-		goto eof;
+-	}
+-	n = Blinelen(f) - 1;
+-	if(n != strlen(thestring) || strncmp(line, thestring, n) != 0) {
+-		if(line)
+-			line[n] = '\0';
+-		diag("file not %s [%s]\n", thestring, line);
+-		return;
+-	}
+-
+-	/* skip over exports and other info -- ends with \n!\n */
+-	import0 = Boffset(f);
+-	c1 = '\n';	// the last line ended in \n
+-	c2 = Bgetc(f);
+-	c3 = Bgetc(f);
+-	while(c1 != '\n' || c2 != '!' || c3 != '\n') {
+-		c1 = c2;
+-		c2 = c3;
+-		c3 = Bgetc(f);
+-		if(c3 == Beof)
+-			goto eof;
+-	}
+-	import1 = Boffset(f);
+-
+-	Bseek(f, import0, 0);
+-	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
+-	Bseek(f, import1, 0);
++	src[0] = 0;
+ 
+ newloop:
+ 	memset(h, 0, sizeof(h));
+@@ -872,9 +479,9 @@ loop:
+ 
+ 		if(sig != 0){
+ 			if(s->sig != 0 && s->sig != sig)
+-				diag("incompatible type signatures %lux(%s) and %lux(%s) for %s", s->sig, filen[s->file], sig, pn, s->name);
++				diag("incompatible type signatures %lux(%s) and %lux(%s) for %s", s->sig, s->file, sig, pn, s->name);
+ 			s->sig = sig;
+-			s->file = files-1;
++			s->file = pn;
+ 		}
+ 
+ 		if(debug['W'])
+@@ -918,10 +525,12 @@ loop:
+ 	switch(o) {
+ 	case AHISTORY:
+ 		if(p->to.offset == -1) {
+-			addlib(pn);
++			addlib(src, pn);
+ 			histfrogp = 0;
+ 			goto loop;
+ 		}
++		if(src[0] == '\0')
++			copyhistfrog(src, sizeof src);
+ 		addhist(p->line, D_FILE);		/* 'z' */
+ 		if(p->to.offset)
+ 			addhist(p->to.offset, D_FILE1);	/* 'Z' */
+@@ -1213,41 +822,6 @@ eof:
+ 	diag("truncated object file: %s", pn);
+ }
+ 
+-Sym*
+-lookup(char *symb, int v)
+-{
+-	Sym *s;
+-	char *p;
+-	int32 h;
+-	int c, l;
+-
+-	h = v;
+-	for(p=symb; c = *p; p++)
+-		h = h+h+h + c;
+-	l = (p - symb) + 1;
+-	if(h < 0)
+-		h = ~h;
+-	h %= NHASH;
+-	for(s = hash[h]; s != S; s = s->link)
+-		if(s->version == v)
+-		if(memcmp(s->name, symb, l) == 0)
+-			return s;
+-
+-	s = mal(sizeof(Sym));
+-	s->name = malloc(l);
+-	memmove(s->name, symb, l);
+-
+-	s->link = hash[h];
+-	s->type = 0;
+-	s->version = v;
+-	s->value = 0;
+-	s->sig = 0;
+-	s->used = s->thumb = s->foreign = s->fnptr = 0;
+-	s->use = nil;
+-	hash[h] = s;
+-	return s;
+-}
+-
+ Prog*
+ prg(void)
+ {
+@@ -1436,114 +1010,6 @@ doprof2(void)
+ 	}
+ }
+ 
+-void
+-nuxiinit(void)
+-{
+-
+-	int i, c;
+-
+-	for(i=0; i<4; i++) {
+-		c = find1(0x04030201L, i+1);
+-		if(i < 2)
+-			inuxi2[i] = c;
+-		if(i < 1)
+-			inuxi1[i] = c;
+-		inuxi4[i] = c;
+-		fnuxi4[i] = c;
+-		if(debug['d']){
+-			fnuxi8[i] = c;
+-			fnuxi8[i+4] = c+4;
+-		}
+-		else{
+-			fnuxi8[i] = c+4;		/* ms word first, then ls, even in little endian mode */
+-			fnuxi8[i+4] = c;
+-		}
+-	}
+-	if(debug['v']) {
+-		Bprint(&bso, "inuxi = ");
+-		for(i=0; i<1; i++)
+-			Bprint(&bso, "%d", inuxi1[i]);
+-		Bprint(&bso, " ");
+-		for(i=0; i<2; i++)
+-			Bprint(&bso, "%d", inuxi2[i]);
+-		Bprint(&bso, " ");
+-		for(i=0; i<4; i++)
+-			Bprint(&bso, "%d", inuxi4[i]);
+-		Bprint(&bso, "\nfnuxi = ");
+-		for(i=0; i<4; i++)
+-			Bprint(&bso, "%d", fnuxi4[i]);
+-		Bprint(&bso, " ");
+-		for(i=0; i<8; i++)
+-			Bprint(&bso, "%d", fnuxi8[i]);
+-		Bprint(&bso, "\n");
+-	}
+-	Bflush(&bso);
+-}
+-
+-int
+-find1(int32 l, int c)
+-{
+-	char *p;
+-	int i;
+-
+-	p = (char*)&l;
+-	for(i=0; i<4; i++)
+-		if(*p++ == c)
+-			return i;
+-	return 0;
+-}
+-
+-int32
+-ieeedtof(Ieee *ieeep)
+-{
+-	int exp;
+-	int32 v;
+-
+-	if(ieeep->h == 0)
+-		return 0;
+-	exp = (ieeep->h>>20) & ((1L<<11)-1L);
+-	exp -= (1L<<10) - 2L;
+-	v = (ieeep->h & 0xfffffL) << 3;
+-	v |= (ieeep->l >> 29) & 0x7L;
+-	if((ieeep->l >> 28) & 1) {
+-		v++;
+-		if(v & 0x800000L) {
+-			v = (v & 0x7fffffL) >> 1;
+-			exp++;
+-		}
+-	}
+-	if(exp <= -126 || exp >= 130)
+-		diag("double fp to single fp overflow");
+-	v |= ((exp + 126) & 0xffL) << 23;
+-	v |= ieeep->h & 0x80000000L;
+-	return v;
+-}
+-
+-double
+-ieeedtod(Ieee *ieeep)
+-{
+-	Ieee e;
+-	double fr;
+-	int exp;
+-
+-	if(ieeep->h & (1L<<31)) {
+-		e.h = ieeep->h & ~(1L<<31);
+-		e.l = ieeep->l;
+-		return -ieeedtod(&e);
+-	}
+-	if(ieeep->l == 0 && ieeep->h == 0)
+-		return 0;
+-	fr = ieeep->l & ((1L<<16)-1L);
+-	fr /= 1L<<16;
+-	fr += (ieeep->l>>16) & ((1L<<16)-1L);
+-	fr /= 1L<<16;
+-	fr += (ieeep->h & (1L<<20)-1L) | (1L<<20);
+-	fr /= 1L<<21;
+-	exp = (ieeep->h>>20) & ((1L<<11)-1L);
+-	exp -= (1L<<10) - 2L;
+-	return ldexp(fr, exp);
+-}
+-
+ static void
+ puntfp(Prog *p)
+ {
+@@ -1566,68 +1032,3 @@ appendp(Prog *q)
+ 	p->line = q->line;
+ 	return p;
+ }
+-
+-void
+-undefsym(Sym *s)
+-{
+-	int n;
+-
+-	n = imports;
+-	if(s->value != 0)
+-		diag("value != 0 on SXREF");
+-	if(n >= 1<<Rindex)
+-		diag("import index %d out of range", n);
+-	s->value = n<<Roffset;
+-	s->type = SUNDEF;
+-	imports++;
+-}
+-
+-void
+-zerosig(char *sp)
+-{
+-	Sym *s;
+-
+-	s = lookup(sp, 0);
+-	s->sig = 0;
+-}
+-
+-void
+-readundefs(char *f, int t)
+-{
+-	int i, n;
+-	Sym *s;
+-	Biobuf *b;
+-	char *l, buf[256], *fields[64];
+-
+-	if(f == nil)
+-		return;
+-	b = Bopen(f, OREAD);
+-	if(b == nil){
+-		diag("could not open %s: %r", f);
+-		errorexit();
+-	}
+-	while((l = Brdline(b, '\n')) != nil){
+-		n = Blinelen(b);
+-		if(n >= sizeof(buf)){
+-			diag("%s: line too long", f);
+-			errorexit();
+-		}
+-		memmove(buf, l, n);
+-		buf[n-1] = '\0';
+-		n = getfields(buf, fields, nelem(fields), 1, " \t\r\n");
+-		if(n == nelem(fields)){
+-			diag("%s: bad format", f);
+-			errorexit();
+-		}
+-		for(i = 0; i < n; i++){
+-			s = lookup(fields[i], 0);
+-			s->type = SXREF;
+-			s->subtype = t;
+-			if(t == SIMPORT)
+-				nimports++;
+-			else
+-				nexports++;
+-		}
+-	}
+-	Bterm(b);
+-}
+diff --git a/src/cmd/5l/pass.c b/src/cmd/5l/pass.c
+index be0b50afcb..f05cca2639 100644
+--- a/src/cmd/5l/pass.c
++++ b/src/cmd/5l/pass.c
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include	"l.h"
++#include	"../ld/lib.h"
+ 
+ void
+ dodata(void)
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index 18d6cd45c4..72121bf32d 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include	"l.h"
++#include	"../ld/lib.h"
+ 
+ static struct {
+ 	uint32	start;
+diff --git a/src/cmd/6l/Makefile b/src/cmd/6l/Makefile
+index 82de18448d..3260c15a7a 100644
+--- a/src/cmd/6l/Makefile
++++ b/src/cmd/6l/Makefile
+@@ -9,10 +9,10 @@ TARG=\
+ 
+ OFILES=\
+ 	asm.$O\
+-	compat.$O\
+ 	elf.$O\
+ 	enam.$O\
+ 	go.$O\
++	lib.$O\
+ 	list.$O\
+ 	macho.$O\
+ 	obj.$O\
+@@ -23,10 +23,9 @@ OFILES=\
+ HFILES=\
+ 	l.h\
+ 	../6l/6.out.h\
++	../ld/lib.h\
+ 	../ld/elf.h\
+ 	../ld/macho.h\
+-	../6l/compat.h\
+-
+ 
+ $(TARG): $(OFILES)
+ 	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
+@@ -42,6 +41,5 @@ clean:
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+ 
+-go.o: ../ld/go.c
+-elf.o: ../ld/elf.c
+-macho.o: ../ld/macho.c
++%.$O: ../ld/%.c
++	$(CC) $(CFLAGS) -c -I. ../ld/$*.c
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index a0f8524e73..9ae5409cfc 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include	"l.h"
++#include	"../ld/lib.h"
+ #include	"../ld/elf.h"
+ #include	"../ld/macho.h"
+ 
+diff --git a/src/cmd/6l/elf.c b/src/cmd/6l/elf.c
+deleted file mode 100644
+index e8ff543aae..0000000000
+--- a/src/cmd/6l/elf.c
++++ /dev/null
+@@ -1,6 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "l.h"
+-#include "../ld/elf.c"
+diff --git a/src/cmd/6l/go.c b/src/cmd/6l/go.c
+deleted file mode 100644
+index 08c3c8c36e..0000000000
+--- a/src/cmd/6l/go.c
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "l.h"
+-enum
+-{
+-	PtrSize = 8
+-};
+-#include "../ld/go.c"
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index c6afa6a323..2b5c886497 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -32,12 +32,16 @@
+ #include	<libc.h>
+ #include	<bio.h>
+ #include	"../6l/6.out.h"
+-#include	"compat.h"
+ 
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+ #endif
+ 
++enum
++{
++	PtrSize = 8
++};
++
+ #define	P		((Prog*)0)
+ #define	S		((Sym*)0)
+ #define	TNAME		(curtext?curtext->from.sym->name:noname)
+@@ -115,7 +119,6 @@ struct	Sym
+ 	short	version;
+ 	short	become;
+ 	short	frame;
+-	ushort	file;
+ 	uchar	subtype;
+ 	uchar	dupok;
+ 	uchar	reachable;
+@@ -126,6 +129,7 @@ struct	Sym
+ 	Prog*	text;
+ 	Prog*	data;
+ 	Sym*	gotype;
++	char*	file;
+ 	char*	dynldname;
+ 	char*	dynldlib;
+ };
+@@ -301,7 +305,6 @@ EXTERN	int32	bsssize;
+ EXTERN	int	cbc;
+ EXTERN	char*	cbp;
+ EXTERN	char*	pcstr;
+-EXTERN	int	cout;
+ EXTERN	Auto*	curauto;
+ EXTERN	Auto*	curhist;
+ EXTERN	Prog*	curp;
+@@ -313,21 +316,7 @@ EXTERN	char	debug[128];
+ EXTERN	char	literal[32];
+ EXTERN	Prog*	etextp;
+ EXTERN	Prog*	firstp;
+-EXTERN	uchar	fnuxi8[8];
+-EXTERN	uchar	fnuxi4[4];
+-EXTERN	Sym*	hash[NHASH];
+-EXTERN	Sym*	histfrog[MAXHIST];
+-EXTERN	int	histfrogp;
+-EXTERN	int	histgen;
+-EXTERN	char*	library[50];
+-EXTERN	char*	libraryobj[50];
+-EXTERN	int	libraryp;
+ EXTERN	int	xrefresolv;
+-EXTERN	char*	hunk;
+-EXTERN	uchar	inuxi1[1];
+-EXTERN	uchar	inuxi2[2];
+-EXTERN	uchar	inuxi4[4];
+-EXTERN	uchar	inuxi8[8];
+ EXTERN	char	ycover[Ymax*Ymax];
+ EXTERN	uchar*	andptr;
+ EXTERN	uchar*	rexptr;
+@@ -337,8 +326,6 @@ EXTERN	int	regrex[D_NONE+1];
+ EXTERN	Prog*	lastp;
+ EXTERN	int32	lcsize;
+ EXTERN	int	nerrors;
+-EXTERN	int32	nhunk;
+-EXTERN	int32	nsymbol;
+ EXTERN	char*	noname;
+ EXTERN	char*	outfile;
+ EXTERN	vlong	pc;
+@@ -347,7 +334,6 @@ EXTERN	Sym*	symlist;
+ EXTERN	int32	symsize;
+ EXTERN	Prog*	textp;
+ EXTERN	vlong	textsize;
+-EXTERN	int32	thunk;
+ EXTERN	int	version;
+ EXTERN	Prog	zprg;
+ EXTERN	int	dtype;
+@@ -411,21 +397,11 @@ void	doprof2(void);
+ void	dostkoff(void);
+ void	dynreloc(Sym*, uint32, int);
+ vlong	entryvalue(void);
+-void	errorexit(void);
+ void	export(void);
+-int	find1(int32, int);
+-int	find2(int32, int);
+ void	follow(void);
+-void	addstachmark(void);
+ void	gethunk(void);
+ void	gotypestrings(void);
+-void	histtoauto(void);
+-double	ieeedtod(Ieee*);
+-int32	ieeedtof(Ieee*);
+ void	import(void);
+-void	ldobj(Biobuf*, int64, char*);
+-void	ldpkg(Biobuf*, int64, char*);
+-void	loadlib(void);
+ void	listinit(void);
+ Sym*	lookup(char*, int);
+ void	lputb(int32);
+@@ -436,20 +412,16 @@ void*	mysbrk(uint32);
+ Prog*	newdata(Sym*, int, int, int);
+ Prog*	newtext(Prog*, Sym*);
+ void	nopout(Prog*);
+-void	nuxiinit(void);
+-void	objfile(char*);
+ int	opsize(Prog*);
+ void	patch(void);
+ Prog*	prg(void);
+ void	parsetextconst(vlong);
+-void	readundefs(char*, int);
+ int	relinv(int);
+ int32	reuse(Prog*, Sym*);
+ vlong	rnd(vlong, vlong);
+ void	span(void);
+ void	strnput(char*, int);
+ void	undef(void);
+-void	undefsym(Sym*);
+ vlong	vaddr(Adr*);
+ vlong	symaddr(Sym*);
+ void	vputl(uint64);
+@@ -458,7 +430,6 @@ void	wputl(uint16);
+ void	xdefine(char*, int, vlong);
+ void	xfol(Prog*);
+ void	zaddr(Biobuf*, Adr*, Sym*[]);
+-void	zerosig(char*);
+ 
+ void	machseg(char*, vlong, vlong, vlong, vlong, uint32, uint32, uint32, uint32);
+ void	machsymseg(uint32, uint32);
+diff --git a/src/cmd/6l/list.c b/src/cmd/6l/list.c
+index 2acd36e67b..286bba69cf 100644
+--- a/src/cmd/6l/list.c
++++ b/src/cmd/6l/list.c
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include	"l.h"
++#include	"../ld/lib.h"
+ 
+ static	Prog*	bigP;
+ 
+diff --git a/src/cmd/6l/macho.c b/src/cmd/6l/macho.c
+deleted file mode 100644
+index bafb0258cd..0000000000
+--- a/src/cmd/6l/macho.c
++++ /dev/null
+@@ -1,6 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "l.h"
+-#include "../ld/macho.c"
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 47cb44f480..7098b42ebc 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -30,17 +30,15 @@
+ 
+ #define	EXTERN
+ #include	"l.h"
++#include	"../ld/lib.h"
+ #include	"../ld/elf.h"
+ #include	"../ld/macho.h"
+ #include	<ar.h>
+ 
+ char	*noname		= "<none>";
+-char	symname[]	= SYMDEF;
+ char	thechar		= '6';
+ char*	thestring 	= "amd64";
+ char*	paramspace	= "FP";
+-char*	libdir[16];	// contains "." first, goroot last
+-int	nlibdir		= 0;
+ 
+ /*
+  *	-H2 -T4136 -R4096		is plan9 64-bit format
+@@ -85,7 +83,6 @@ void
+ main(int argc, char *argv[])
+ {
+ 	int i, c;
+-	char *a;
+ 
+ 	Binit(&bso, 1, OWRITE);
+ 	cout = -1;
+@@ -98,7 +95,6 @@ main(int argc, char *argv[])
+ 	INITDAT = -1;
+ 	INITRND = -1;
+ 	INITENTRY = 0;
+-	libdir[nlibdir++] = ".";	// look in dot first
+ 
+ 	ARGBEGIN {
+ 	default:
+@@ -116,11 +112,7 @@ main(int argc, char *argv[])
+ 		HEADTYPE = atolwhex(EARGF(usage()));
+ 		break;
+ 	case 'L':
+-		if(nlibdir >= nelem(libdir)-1) {
+-			print("too many -L's: %d\n", nlibdir);
+-			usage();
+-		}
+-		libdir[nlibdir++] = EARGF(usage());
++		Lflag(EARGF(usage()));
+ 		break;
+ 	case 'T':
+ 		INITTEXT = atolwhex(EARGF(usage()));
+@@ -147,12 +139,7 @@ main(int argc, char *argv[])
+ 	if(*argv == 0)
+ 		usage();
+ 
+-	mywhatsys();	// get goroot, goarch, goos
+-	if(strcmp(goarch, thestring) != 0)
+-		print("goarch is not known: %s\n", goarch);
+-
+-	// put goroot in the libdir list.
+-	libdir[nlibdir++] = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
++	libinit();
+ 
+ 	if(HEADTYPE == -1) {
+ 		HEADTYPE = 2;
+@@ -348,33 +335,18 @@ main(int argc, char *argv[])
+ 	edatap = P;
+ 	pc = 0;
+ 	dtype = 4;
+-	unlink(outfile);
+-	cout = create(outfile, 1, 0775);
+-	if(cout < 0) {
+-		diag("cannot create %s", outfile);
+-		errorexit();
+-	}
+ 	version = 0;
+ 	cbp = buf.cbuf;
+ 	cbc = sizeof(buf.cbuf);
+ 	firstp = prg();
+ 	lastp = firstp;
+ 
+-	if(INITENTRY == nil) {
+-		INITENTRY = mal(strlen(goarch)+strlen(goos)+10);
+-		sprint(INITENTRY, "_rt0_%s_%s", goarch, goos);
+-	}
+-	lookup(INITENTRY, 0)->type = SXREF;
+-
+ 	while(*argv)
+ 		objfile(*argv++);
+ 
+-	if(!debug['l']) {
++	if(!debug['l'])
+ 		loadlib();
+-		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
+-		sprint(a, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
+-		objfile(a);
+-	}
++
+ 	deadcode();
+ 
+ 	firstp = firstp->link;
+@@ -419,7 +391,6 @@ main(int argc, char *argv[])
+ 	if(debug['v']) {
+ 		Bprint(&bso, "%5.2f cpu time\n", cputime());
+ 		Bprint(&bso, "%ld symbols\n", nsymbol);
+-		Bprint(&bso, "%ld memory used\n", thunk);
+ 		Bprint(&bso, "%d sizeof adr\n", sizeof(Adr));
+ 		Bprint(&bso, "%d sizeof prog\n", sizeof(Prog));
+ 	}
+@@ -428,160 +399,6 @@ main(int argc, char *argv[])
+ 	errorexit();
+ }
+ 
+-void
+-loadlib(void)
+-{
+-	int i;
+-	int32 h;
+-	Sym *s;
+-
+-loop:
+-	xrefresolv = 0;
+-	for(i=0; i<libraryp; i++) {
+-		if(debug['v'])
+-			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i], libraryobj[i]);
+-		objfile(library[i]);
+-	}
+-	if(xrefresolv)
+-	for(h=0; h<nelem(hash); h++)
+-	for(s = hash[h]; s != S; s = s->link)
+-		if(s->type == SXREF)
+-			goto loop;
+-}
+-
+-void
+-errorexit(void)
+-{
+-	if(nerrors) {
+-		if(cout >= 0)
+-			remove(outfile);
+-		exits("error");
+-	}
+-	exits(0);
+-}
+-
+-void
+-objfile(char *file)
+-{
+-	int32 off, esym, cnt, l;
+-	int work;
+-	Biobuf *f;
+-	Sym *s;
+-	char magbuf[SARMAG];
+-	char name[100], pname[150];
+-	struct ar_hdr arhdr;
+-	char *e, *start, *stop;
+-
+-	if(file[0] == '-' && file[1] == 'l') {	// TODO: fix this
+-		if(debug['9'])
+-			sprint(name, "/%s/lib/lib", thestring);
+-		else
+-			sprint(name, "/usr/%clib/lib", thechar);
+-		strcat(name, file+2);
+-		strcat(name, ".a");
+-		file = name;
+-	}
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f ldobj: %s\n", cputime(), file);
+-	Bflush(&bso);
+-	f = Bopen(file, 0);
+-	if(f == nil) {
+-		diag("cannot open file: %s", file);
+-		errorexit();
+-	}
+-	l = Bread(f, magbuf, SARMAG);
+-	if(l != SARMAG || strncmp(magbuf, ARMAG, SARMAG)){
+-		/* load it as a regular file */
+-		l = Bseek(f, 0L, 2);
+-		Bseek(f, 0L, 0);
+-		ldobj(f, l, file);
+-		Bterm(f);
+-		return;
+-	}
+-
+-	l = Bread(f, &arhdr, SAR_HDR);
+-	if(l != SAR_HDR) {
+-		diag("%s: short read on archive file symbol header", file);
+-		goto out;
+-	}
+-	if(strncmp(arhdr.name, symname, strlen(symname))) {
+-		diag("%s: first entry not symbol header", file);
+-		goto out;
+-	}
+-
+-	esym = SARMAG + SAR_HDR + atolwhex(arhdr.size);
+-	off = SARMAG + SAR_HDR;
+-
+-	/*
+-	 * just bang the whole symbol file into memory
+-	 */
+-	Bseek(f, off, 0);
+-	cnt = esym - off;
+-	start = mal(cnt + 10);
+-	cnt = Bread(f, start, cnt);
+-	if(cnt <= 0){
+-		Bterm(f);
+-		return;
+-	}
+-	stop = &start[cnt];
+-	memset(stop, 0, 10);
+-
+-	work = 1;
+-	while(work) {
+-		if(debug['v'])
+-			Bprint(&bso, "%5.2f library pass: %s\n", cputime(), file);
+-		Bflush(&bso);
+-		work = 0;
+-		for(e = start; e < stop; e = strchr(e+5, 0) + 1) {
+-			s = lookup(e+5, 0);
+-			if(s->type != SXREF)
+-				continue;
+-			sprint(pname, "%s(%s)", file, s->name);
+-			if(debug['v'])
+-				Bprint(&bso, "%5.2f library: %s\n", cputime(), pname);
+-			Bflush(&bso);
+-			l = e[1] & 0xff;
+-			l |= (e[2] & 0xff) << 8;
+-			l |= (e[3] & 0xff) << 16;
+-			l |= (e[4] & 0xff) << 24;
+-			Bseek(f, l, 0);
+-			l = Bread(f, &arhdr, SAR_HDR);
+-			if(l != SAR_HDR)
+-				goto bad;
+-			if(strncmp(arhdr.fmag, ARFMAG, sizeof(arhdr.fmag)))
+-				goto bad;
+-			l = SARNAME;
+-			while(l > 0 && arhdr.name[l-1] == ' ')
+-				l--;
+-			sprint(pname, "%s(%.*s)", file, l, arhdr.name);
+-			l = atolwhex(arhdr.size);
+-			ldobj(f, l, pname);
+-			if(s->type == SXREF) {
+-				diag("%s: failed to load: %s", file, s->name);
+-				errorexit();
+-			}
+-			work = 1;
+-			xrefresolv = 1;
+-		}
+-	}
+-	return;
+-
+-bad:
+-	diag("%s: bad or out of date archive", file);
+-out:
+-	Bterm(f);
+-}
+-
+-int32
+-Bget4(Biobuf *f)
+-{
+-	uchar p[4];
+-
+-	if(Bread(f, p, 4) != 4)
+-		return 0;
+-	return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+-}
+-
+ void
+ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ {
+@@ -654,182 +471,6 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 	u->gotype = a->gotype;
+ }
+ 
+-void
+-addlib(char *src, char *obj)
+-{
+-	char name[1024], pname[1024], comp[256], *p;
+-	int i, search;
+-
+-	if(histfrogp <= 0)
+-		return;
+-
+-	search = 0;
+-	if(histfrog[0]->name[1] == '/') {
+-		sprint(name, "");
+-		i = 1;
+-	} else
+-	if(histfrog[0]->name[1] == '.') {
+-		sprint(name, ".");
+-		i = 0;
+-	} else {
+-		sprint(name, "");
+-		i = 0;
+-		search = 1;
+-	}
+-
+-	for(; i<histfrogp; i++) {
+-		snprint(comp, sizeof comp, histfrog[i]->name+1);
+-		for(;;) {
+-			p = strstr(comp, "$O");
+-			if(p == 0)
+-				break;
+-			memmove(p+1, p+2, strlen(p+2)+1);
+-			p[0] = thechar;
+-		}
+-		for(;;) {
+-			p = strstr(comp, "$M");
+-			if(p == 0)
+-				break;
+-			if(strlen(comp)+strlen(thestring)-2+1 >= sizeof comp) {
+-				diag("library component too long");
+-				return;
+-			}
+-			memmove(p+strlen(thestring), p+2, strlen(p+2)+1);
+-			memmove(p, thestring, strlen(thestring));
+-		}
+-		if(strlen(name) + strlen(comp) + 3 >= sizeof(name)) {
+-			diag("library component too long");
+-			return;
+-		}
+-		strcat(name, "/");
+-		strcat(name, comp);
+-	}
+-
+-	if(search) {
+-		// try dot, -L "libdir", and then goroot.
+-		for(i=0; i<nlibdir; i++) {
+-			snprint(pname, sizeof pname, "%s/%s", libdir[i], name);
+-			if(access(pname, AEXIST) >= 0)
+-				break;
+-		}
+-		strcpy(name, pname);
+-	}
+-	cleanname(name);
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, name);
+-
+-	for(i=0; i<libraryp; i++)
+-		if(strcmp(name, library[i]) == 0)
+-			return;
+-	if(libraryp == nelem(library)){
+-		diag("too many autolibs; skipping %s", name);
+-		return;
+-	}
+-
+-	p = mal(strlen(name) + 1);
+-	strcpy(p, name);
+-	library[libraryp] = p;
+-	p = mal(strlen(obj) + 1);
+-	strcpy(p, obj);
+-	libraryobj[libraryp] = p;
+-	libraryp++;
+-}
+-
+-void
+-copyhistfrog(char *buf, int nbuf)
+-{
+-	char *p, *ep;
+-	int i;
+-
+-	p = buf;
+-	ep = buf + nbuf;
+-	i = 0;
+-	for(i=0; i<histfrogp; i++) {
+-		p = seprint(p, ep, "%s", histfrog[i]->name+1);
+-		if(i+1<histfrogp && (p == buf || p[-1] != '/'))
+-			p = seprint(p, ep, "/");
+-	}
+-}
+-
+-void
+-addhist(int32 line, int type)
+-{
+-	Auto *u;
+-	Sym *s;
+-	int i, j, k;
+-
+-	u = mal(sizeof(Auto));
+-	s = mal(sizeof(Sym));
+-	s->name = mal(2*(histfrogp+1) + 1);
+-
+-	u->asym = s;
+-	u->type = type;
+-	u->aoffset = line;
+-	u->link = curhist;
+-	curhist = u;
+-
+-	s->name[0] = 0;
+-	j = 1;
+-	for(i=0; i<histfrogp; i++) {
+-		k = histfrog[i]->value;
+-		s->name[j+0] = k>>8;
+-		s->name[j+1] = k;
+-		j += 2;
+-	}
+-	s->name[j] = 0;
+-	s->name[j+1] = 0;
+-}
+-
+-void
+-histtoauto(void)
+-{
+-	Auto *l;
+-
+-	while(l = curhist) {
+-		curhist = l->link;
+-		l->link = curauto;
+-		curauto = l;
+-	}
+-}
+-
+-void
+-collapsefrog(Sym *s)
+-{
+-	int i;
+-
+-	/*
+-	 * bad encoding of path components only allows
+-	 * MAXHIST components. if there is an overflow,
+-	 * first try to collapse xxx/..
+-	 */
+-	for(i=1; i<histfrogp; i++)
+-		if(strcmp(histfrog[i]->name+1, "..") == 0) {
+-			memmove(histfrog+i-1, histfrog+i+1,
+-				(histfrogp-i-1)*sizeof(histfrog[0]));
+-			histfrogp--;
+-			goto out;
+-		}
+-
+-	/*
+-	 * next try to collapse .
+-	 */
+-	for(i=0; i<histfrogp; i++)
+-		if(strcmp(histfrog[i]->name+1, ".") == 0) {
+-			memmove(histfrog+i, histfrog+i+1,
+-				(histfrogp-i-1)*sizeof(histfrog[0]));
+-			goto out;
+-		}
+-
+-	/*
+-	 * last chance, just truncate from front
+-	 */
+-	memmove(histfrog+0, histfrog+1,
+-		(histfrogp-1)*sizeof(histfrog[0]));
+-
+-out:
+-	histfrog[histfrogp-1] = s;
+-}
+-
+ void
+ nopout(Prog *p)
+ {
+@@ -839,71 +480,22 @@ nopout(Prog *p)
+ }
+ 
+ void
+-ldobj(Biobuf *f, int64 len, char *pn)
++ldobj1(Biobuf *f, int64 len, char *pn)
+ {
+ 	vlong ipc;
+ 	Prog *p, *t;
+ 	int v, o, r, skip, mode;
+ 	Sym *h[NSYM], *s, *di;
+ 	uint32 sig;
+-	static int files;
+-	static char **filen;
+-	char **nfilen, *line, *name;
+-	int ntext, n, c1, c2, c3;
++	char *name;
++	int ntext;
+ 	vlong eof;
+-	vlong import0, import1;
+ 	char src[1024];
+ 
+-	src[0] = '\0';
+-	eof = Boffset(f) + len;
+-
+ 	ntext = 0;
+-
+-	if((files&15) == 0){
+-		nfilen = malloc((files+16)*sizeof(char*));
+-		memmove(nfilen, filen, files*sizeof(char*));
+-		free(filen);
+-		filen = nfilen;
+-	}
+-	pn = strdup(pn);
+-	filen[files++] = pn;
+-
++	eof = Boffset(f) + len;
+ 	di = S;
+-
+-	/* check the header */
+-	line = Brdline(f, '\n');
+-	if(line == nil) {
+-		if(Blinelen(f) > 0) {
+-			diag("%s: malformed object file", pn);
+-			return;
+-		}
+-		goto eof;
+-	}
+-	n = Blinelen(f) - 1;
+-	if(n != strlen(thestring) || strncmp(line, thestring, n) != 0) {
+-		if(line)
+-			line[n] = '\0';
+-		diag("file not %s [%s]\n", thestring, line);
+-		return;
+-	}
+-
+-	/* skip over exports and other info -- ends with \n!\n */
+-	import0 = Boffset(f);
+-	c1 = '\n';	// the last line ended in \n
+-	c2 = Bgetc(f);
+-	c3 = Bgetc(f);
+-	while(c1 != '\n' || c2 != '!' || c3 != '\n') {
+-		c1 = c2;
+-		c2 = c3;
+-		c3 = Bgetc(f);
+-		if(c3 == Beof)
+-			goto eof;
+-	}
+-	import1 = Boffset(f);
+-
+-	Bseek(f, import0, 0);
+-	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
+-	Bseek(f, import1, 0);
++	src[0] = 0;
+ 
+ newloop:
+ 	memset(h, 0, sizeof(h));
+@@ -953,9 +545,9 @@ loop:
+ 			if(s->sig != 0 && s->sig != sig)
+ 				diag("incompatible type signatures"
+ 					"%lux(%s) and %lux(%s) for %s",
+-					s->sig, filen[s->file], sig, pn, s->name);
++					s->sig, s->file, sig, pn, s->name);
+ 			s->sig = sig;
+-			s->file = files-1;
++			s->file = pn;
+ 		}
+ 
+ 		if(debug['W'])
+@@ -1256,43 +848,6 @@ eof:
+ 	diag("truncated object file: %s", pn);
+ }
+ 
+-Sym*
+-lookup(char *symb, int v)
+-{
+-	Sym *s;
+-	char *p;
+-	int32 h;
+-	int l, c;
+-
+-	h = v;
+-	for(p=symb; c = *p; p++)
+-		h = h+h+h + c;
+-	l = (p - symb) + 1;
+-	if(h < 0)
+-		h = ~h;
+-	h %= NHASH;
+-	for(s = hash[h]; s != S; s = s->link)
+-		if(s->version == v)
+-		if(memcmp(s->name, symb, l) == 0)
+-			return s;
+-
+-	s = mal(sizeof(*s));
+-	if(debug['v'] > 1)
+-		Bprint(&bso, "lookup %s\n", symb);
+-
+-	s->name = mal(l + 1);
+-	memmove(s->name, symb, l);
+-
+-	s->link = hash[h];
+-	s->type = 0;
+-	s->version = v;
+-	s->value = 0;
+-	s->sig = 0;
+-	hash[h] = s;
+-	nsymbol++;
+-	return s;
+-}
+-
+ Prog*
+ prg(void)
+ {
+@@ -1477,189 +1032,3 @@ doprof2(void)
+ 	}
+ }
+ 
+-void
+-nuxiinit(void)
+-{
+-	int i, c;
+-
+-	for(i=0; i<4; i++) {
+-		c = find1(0x04030201L, i+1);
+-		if(i < 2)
+-			inuxi2[i] = c;
+-		if(i < 1)
+-			inuxi1[i] = c;
+-		inuxi4[i] = c;
+-		inuxi8[i] = c;
+-		inuxi8[i+4] = c+4;
+-		fnuxi4[i] = c;
+-		fnuxi8[i] = c;
+-		fnuxi8[i+4] = c+4;
+-	}
+-	if(debug['v']) {
+-		Bprint(&bso, "inuxi = ");
+-		for(i=0; i<1; i++)
+-			Bprint(&bso, "%d", inuxi1[i]);
+-		Bprint(&bso, " ");
+-		for(i=0; i<2; i++)
+-			Bprint(&bso, "%d", inuxi2[i]);
+-		Bprint(&bso, " ");
+-		for(i=0; i<4; i++)
+-			Bprint(&bso, "%d", inuxi4[i]);
+-		Bprint(&bso, " ");
+-		for(i=0; i<8; i++)
+-			Bprint(&bso, "%d", inuxi8[i]);
+-		Bprint(&bso, "\nfnuxi = ");
+-		for(i=0; i<4; i++)
+-			Bprint(&bso, "%d", fnuxi4[i]);
+-		Bprint(&bso, " ");
+-		for(i=0; i<8; i++)
+-			Bprint(&bso, "%d", fnuxi8[i]);
+-		Bprint(&bso, "\n");
+-	}
+-	Bflush(&bso);
+-}
+-
+-int
+-find1(int32 l, int c)
+-{
+-	char *p;
+-	int i;
+-
+-	p = (char*)&l;
+-	for(i=0; i<4; i++)
+-		if(*p++ == c)
+-			return i;
+-	return 0;
+-}
+-
+-int
+-find2(int32 l, int c)
+-{
+-	short *p;
+-	int i;
+-
+-	p = (short*)&l;
+-	for(i=0; i<4; i+=2) {
+-		if(((*p >> 8) & 0xff) == c)
+-			return i;
+-		if((*p++ & 0xff) == c)
+-			return i+1;
+-	}
+-	return 0;
+-}
+-
+-int32
+-ieeedtof(Ieee *e)
+-{
+-	int exp;
+-	int32 v;
+-
+-	if(e->h == 0)
+-		return 0;
+-	exp = (e->h>>20) & ((1L<<11)-1L);
+-	exp -= (1L<<10) - 2L;
+-	v = (e->h & 0xfffffL) << 3;
+-	v |= (e->l >> 29) & 0x7L;
+-	if((e->l >> 28) & 1) {
+-		v++;
+-		if(v & 0x800000L) {
+-			v = (v & 0x7fffffL) >> 1;
+-			exp++;
+-		}
+-	}
+-	if(exp <= -126 || exp >= 130)
+-		diag("double fp to single fp overflow");
+-	v |= ((exp + 126) & 0xffL) << 23;
+-	v |= e->h & 0x80000000L;
+-	return v;
+-}
+-
+-double
+-ieeedtod(Ieee *ieeep)
+-{
+-	Ieee e;
+-	double fr;
+-	int exp;
+-
+-	if(ieeep->h & (1L<<31)) {
+-		e.h = ieeep->h & ~(1L<<31);
+-		e.l = ieeep->l;
+-		return -ieeedtod(&e);
+-	}
+-	if(ieeep->l == 0 && ieeep->h == 0)
+-		return 0;
+-	fr = ieeep->l & ((1L<<16)-1L);
+-	fr /= 1L<<16;
+-	fr += (ieeep->l>>16) & ((1L<<16)-1L);
+-	fr /= 1L<<16;
+-	fr += (ieeep->h & (1L<<20)-1L) | (1L<<20);
+-	fr /= 1L<<21;
+-	exp = (ieeep->h>>20) & ((1L<<11)-1L);
+-	exp -= (1L<<10) - 2L;
+-	return ldexp(fr, exp);
+-}
+-
+-void
+-undefsym(Sym *s)
+-{
+-	int n;
+-
+-	n = imports;
+-	if(s->value != 0)
+-		diag("value != 0 on SXREF");
+-	if(n >= 1<<Rindex)
+-		diag("import index %d out of range", n);
+-	s->value = n<<Roffset;
+-	s->type = SUNDEF;
+-	imports++;
+-}
+-
+-void
+-zerosig(char *sp)
+-{
+-	Sym *s;
+-
+-	s = lookup(sp, 0);
+-	s->sig = 0;
+-}
+-
+-void
+-readundefs(char *f, int t)
+-{
+-	int i, n;
+-	Sym *s;
+-	Biobuf *b;
+-	char *l, buf[256], *fields[64];
+-
+-	if(f == nil)
+-		return;
+-	b = Bopen(f, OREAD);
+-	if(b == nil){
+-		diag("could not open %s: %r", f);
+-		errorexit();
+-	}
+-	while((l = Brdline(b, '\n')) != nil){
+-		n = Blinelen(b);
+-		if(n >= sizeof(buf)){
+-			diag("%s: line too long", f);
+-			errorexit();
+-		}
+-		memmove(buf, l, n);
+-		buf[n-1] = '\0';
+-		n = getfields(buf, fields, nelem(fields), 1, " \t\r\n");
+-		if(n == nelem(fields)){
+-			diag("%s: bad format", f);
+-			errorexit();
+-		}
+-		for(i = 0; i < n; i++){
+-			s = lookup(fields[i], 0);
+-			s->type = SXREF;
+-			s->subtype = t;
+-			if(t == SIMPORT)
+-				nimports++;
+-			else
+-				nexports++;
+-		}
+-	}
+-	Bterm(b);
+-}
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 2da88bac1d..e5b948a6ed 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include	"l.h"
++#include	"../ld/lib.h"
+ 
+ // see ../../runtime/proc.c:/StackGuard
+ enum
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 18bf8cc0cc..41f20fac91 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include	"l.h"
++#include	"../ld/lib.h"
+ 
+ static int	rexflag;
+ static int	asmode;
+diff --git a/src/cmd/8l/Makefile b/src/cmd/8l/Makefile
+index 4520a4a1ec..088174877f 100644
+--- a/src/cmd/8l/Makefile
++++ b/src/cmd/8l/Makefile
+@@ -9,9 +9,9 @@ TARG=\
+ 
+ OFILES=\
+ 	asm.$O\
+-	compat.$O\
+ 	elf.$O\
+ 	enam.$O\
++	lib.$O\
+ 	list.$O\
+ 	macho.$O\
+ 	obj.$O\
+@@ -41,6 +41,5 @@ clean:
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+ 
+-go.o: ../ld/go.c
+-elf.o: ../ld/elf.c
+-macho.o: ../ld/macho.c
++%.$O: ../ld/%.c
++	$(CC) $(CFLAGS) -c -I. ../ld/$*.c
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index c70af7072c..3603da2ea9 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include	"l.h"
++#include	"../ld/lib.h"
+ #include	"../ld/elf.h"
+ #include	"../ld/macho.h"
+ 
+@@ -414,18 +415,13 @@ asmb(void)
+ {
+ 	Prog *p;
+ 	int32 v, magic;
+-	int a, i, dynsym;
++	int a, dynsym;
+ 	uint32 va, fo, w, symo, startva, machlink;
+ 	uchar *op1;
+ 	ulong expectpc;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+-	MachoHdr *mh;
+-	MachoSect *msect;
+-	MachoSeg *ms;
+-	MachoDebug *md;
+-	MachoLoad *ml;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+diff --git a/src/cmd/8l/elf.c b/src/cmd/8l/elf.c
+deleted file mode 100644
+index e8ff543aae..0000000000
+--- a/src/cmd/8l/elf.c
++++ /dev/null
+@@ -1,6 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "l.h"
+-#include "../ld/elf.c"
+diff --git a/src/cmd/8l/go.c b/src/cmd/8l/go.c
+deleted file mode 100644
+index a295fa5b4c..0000000000
+--- a/src/cmd/8l/go.c
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "l.h"
+-enum
+-{
+-	PtrSize = 4
+-};
+-#include "../ld/go.c"
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 5b7bcc9296..a648770a08 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -37,6 +37,11 @@
+ #define	EXTERN	extern
+ #endif
+ 
++enum
++{
++	PtrSize = 4
++};
++
+ #define	P		((Prog*)0)
+ #define	S		((Sym*)0)
+ #define	TNAME		(curtext?curtext->from.sym->name:noname)
+@@ -116,7 +121,6 @@ struct	Sym
+ 	uchar	subtype;
+ 	uchar	dupok;
+ 	uchar	reachable;
+-	ushort	file;
+ 	int32	value;
+ 	int32	size;
+ 	int32	sig;
+@@ -124,6 +128,7 @@ struct	Sym
+ 	Prog*	text;
+ 	Prog*	data;
+ 	Sym*	gotype;
++	char*	file;
+ 	char*	dynldname;
+ 	char*	dynldlib;
+ };
+@@ -265,7 +270,6 @@ EXTERN	int32	casepc;
+ EXTERN	int	cbc;
+ EXTERN	char*	cbp;
+ EXTERN	char*	pcstr;
+-EXTERN	int	cout;
+ EXTERN	Auto*	curauto;
+ EXTERN	Auto*	curhist;
+ EXTERN	Prog*	curp;
+@@ -278,19 +282,7 @@ EXTERN	char	debug[128];
+ EXTERN	char	literal[32];
+ EXTERN	Prog*	etextp;
+ EXTERN	Prog*	firstp;
+-EXTERN	uchar	fnuxi8[8];
+-EXTERN	uchar	fnuxi4[4];
+-EXTERN	Sym*	hash[NHASH];
+-EXTERN	Sym*	histfrog[MAXHIST];
+-EXTERN	int	histfrogp;
+-EXTERN	int	histgen;
+-EXTERN	char*	library[50];
+-EXTERN	char*	libraryobj[50];
+-EXTERN	int	libraryp;
+ EXTERN	int	xrefresolv;
+-EXTERN	uchar	inuxi1[1];
+-EXTERN	uchar	inuxi2[2];
+-EXTERN	uchar	inuxi4[4];
+ EXTERN	uchar	ycover[Ymax*Ymax];
+ EXTERN	uchar*	andptr;
+ EXTERN	uchar	and[100];
+@@ -299,20 +291,16 @@ EXTERN	Prog*	lastp;
+ EXTERN	int32	lcsize;
+ EXTERN	int	maxop;
+ EXTERN	int	nerrors;
+-EXTERN	int32	nsymbol;
+ EXTERN	char*	noname;
+-EXTERN	char*	outfile;
+ EXTERN	int32	pc;
+ EXTERN	int32	spsize;
+ EXTERN	Sym*	symlist;
+ EXTERN	int32	symsize;
+ EXTERN	Prog*	textp;
+ EXTERN	int32	textsize;
+-EXTERN	int32	thunk;
+ EXTERN	int	version;
+ EXTERN	Prog	zprg;
+ EXTERN	int	dtype;
+-EXTERN	char	thechar;
+ EXTERN	int	tlsoffset;
+ 
+ EXTERN	Adr*	reloca;
+@@ -357,18 +345,9 @@ void	doprof2(void);
+ void	dostkoff(void);
+ void	dynreloc(Sym*, uint32, int);
+ int32	entryvalue(void);
+-void	errorexit(void);
+ void	export(void);
+-int	find1(int32, int);
+-int	find2(int32, int);
+ void	follow(void);
+-void	gethunk(void);
+-void	histtoauto(void);
+-double	ieeedtod(Ieee*);
+-int32	ieeedtof(Ieee*);
+ void	import(void);
+-void	ldobj(Biobuf*, int32, char*);
+-void	loadlib(void);
+ void	listinit(void);
+ Sym*	lookup(char*, int);
+ void	lput(int32);
+@@ -380,19 +359,15 @@ void	mkfwd(void);
+ void*	mal(uint32);
+ Prog*	newdata(Sym*, int, int, int);
+ Prog*	newtext(Prog*, Sym*);
+-void	nuxiinit(void);
+-void	objfile(char*);
+ int	opsize(Prog*);
+ void	patch(void);
+ Prog*	prg(void);
+-void	readundefs(char*, int);
+ int	relinv(int);
+ int32	reuse(Prog*, Sym*);
+ int32	rnd(int32, int32);
+ void	s8put(char*);
+ void	span(void);
+ void	undef(void);
+-void	undefsym(Sym*);
+ int32	vaddr(Adr*);
+ int32	symaddr(Sym*);
+ void	wput(ushort);
+@@ -400,9 +375,7 @@ void	wputl(ushort);
+ void	xdefine(char*, int, int32);
+ void	xfol(Prog*);
+ void	zaddr(Biobuf*, Adr*, Sym*[]);
+-void	zerosig(char*);
+ uint32	machheadr(void);
+-void	whatsys(void);
+ vlong		addaddr(Sym *s, Sym *t);
+ vlong		addsize(Sym *s, Sym *t);
+ vlong		addstring(Sym *s, char *str);
+@@ -416,13 +389,6 @@ vlong		adduintxx(Sym *s, uint64 v, int wid);
+  *	go.c
+  */
+ void	deadcode(void);
+-void	ldpkg(Biobuf *f, int64 len, char *filename);
+-
+-
+-/* set by call to whatsys() */
+-extern	char*	goroot;
+-extern	char*	goarch;
+-extern	char*	goos;
+ 
+ /* Native is little-endian */
+ #define	LPUT(a)	lputl(a)
+diff --git a/src/cmd/8l/list.c b/src/cmd/8l/list.c
+index 2c8ccf9d71..a8a042fc64 100644
+--- a/src/cmd/8l/list.c
++++ b/src/cmd/8l/list.c
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include	"l.h"
++#include	"../ld/lib.h"
+ 
+ void
+ listinit(void)
+diff --git a/src/cmd/8l/macho.c b/src/cmd/8l/macho.c
+deleted file mode 100644
+index a4a4e69546..0000000000
+--- a/src/cmd/8l/macho.c
++++ /dev/null
+@@ -1,6 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "l.h"
+-#include "../ld/macho.c"
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 4e63a38cef..d60b9eaba5 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -30,6 +30,7 @@
+ 
+ #define	EXTERN
+ #include	"l.h"
++#include	"../ld/lib.h"
+ #include	"../ld/elf.h"
+ #include	"../ld/macho.h"
+ #include	<ar.h>
+@@ -39,11 +40,8 @@
+ #endif
+ 
+ char	*noname		= "<none>";
+-char	symname[]	= SYMDEF;
+ char	thechar		= '8';
+ char	*thestring 	= "386";
+-char*	libdir[16];	// contains "." first, goroot last
+-int	nlibdir		= 0;
+ 
+ /*
+  *	-H0 -T0x40004C -D0x10000000	is garbage unix
+@@ -86,7 +84,6 @@ void
+ main(int argc, char *argv[])
+ {
+ 	int i, c;
+-	char *a;
+ 
+ 	Binit(&bso, 1, OWRITE);
+ 	cout = -1;
+@@ -99,7 +96,6 @@ main(int argc, char *argv[])
+ 	INITDAT = -1;
+ 	INITRND = -1;
+ 	INITENTRY = 0;
+-	libdir[nlibdir++] = ".";	// look in dot first
+ 
+ 	ARGBEGIN {
+ 	default:
+@@ -117,11 +113,7 @@ main(int argc, char *argv[])
+ 		HEADTYPE = atolwhex(EARGF(usage()));
+ 		break;
+ 	case 'L':
+-		if(nlibdir >= nelem(libdir)-1) {
+-			print("too many -L's: %d\n", nlibdir);
+-			usage();
+-		}
+-		libdir[nlibdir++] = EARGF(usage());
++		Lflag(EARGF(usage()));
+ 		break;
+ 	case 'T':
+ 		INITTEXT = atolwhex(EARGF(usage()));
+@@ -149,12 +141,7 @@ main(int argc, char *argv[])
+ 	if(*argv == 0)
+ 		usage();
+ 
+-	whatsys();	// get goroot, goarch, goos
+-	if(strcmp(goarch, thestring) != 0)
+-		print("goarch is not known: %s\n", goarch);
+-
+-	// put goroot in the libdir list.
+-	libdir[nlibdir++] = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
++	libinit();
+ 
+ 	if(HEADTYPE == -1) {
+ 		HEADTYPE = 2;
+@@ -346,33 +333,18 @@ main(int argc, char *argv[])
+ 	edatap = P;
+ 	pc = 0;
+ 	dtype = 4;
+-	unlink(outfile);
+-	cout = create(outfile, 1, 0775);
+-	if(cout < 0) {
+-		diag("cannot create %s", outfile);
+-		errorexit();
+-	}
+ 	version = 0;
+ 	cbp = buf.cbuf;
+ 	cbc = sizeof(buf.cbuf);
+ 	firstp = prg();
+ 	lastp = firstp;
+ 
+-	if(INITENTRY == nil) {
+-		INITENTRY = mal(strlen(goarch)+strlen(goos)+10);
+-		sprint(INITENTRY, "_rt0_%s_%s", goarch, goos);
+-	}
+-	lookup(INITENTRY, 0)->type = SXREF;
+-
+ 	while(*argv)
+ 		objfile(*argv++);
+ 
+-	if(!debug['l']) {
++	if(!debug['l'])
+ 		loadlib();
+-		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
+-		sprint(a, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
+-		objfile(a);
+-	}
++
+ 	deadcode();
+ 
+ 	firstp = firstp->link;
+@@ -412,7 +384,6 @@ main(int argc, char *argv[])
+ 	if(debug['v']) {
+ 		Bprint(&bso, "%5.2f cpu time\n", cputime());
+ 		Bprint(&bso, "%ld symbols\n", nsymbol);
+-		Bprint(&bso, "%ld memory used\n", thunk);
+ 		Bprint(&bso, "%d sizeof adr\n", sizeof(Adr));
+ 		Bprint(&bso, "%d sizeof prog\n", sizeof(Prog));
+ 	}
+@@ -421,161 +392,6 @@ main(int argc, char *argv[])
+ 	errorexit();
+ }
+ 
+-void
+-loadlib(void)
+-{
+-	int i;
+-	int32 h;
+-	Sym *s;
+-
+-loop:
+-	xrefresolv = 0;
+-	for(i=0; i<libraryp; i++) {
+-		if(debug['v'])
+-			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i], libraryobj[i]);
+-		objfile(library[i]);
+-	}
+-	if(xrefresolv)
+-	for(h=0; h<nelem(hash); h++)
+-	for(s = hash[h]; s != S; s = s->link)
+-		if(s->type == SXREF)
+-			goto loop;
+-}
+-
+-void
+-errorexit(void)
+-{
+-
+-	if(nerrors) {
+-		if(cout >= 0)
+-			remove(outfile);
+-		exits("error");
+-	}
+-	exits(0);
+-}
+-
+-void
+-objfile(char *file)
+-{
+-	int32 off, esym, cnt, l;
+-	int work;
+-	Biobuf *f;
+-	Sym *s;
+-	char magbuf[SARMAG];
+-	char name[100], pname[150];
+-	struct ar_hdr arhdr;
+-	char *e, *start, *stop;
+-
+-	if(file[0] == '-' && file[1] == 'l') {	// TODO: fix this
+-		if(debug['9'])
+-			sprint(name, "/%s/lib/lib", thestring);
+-		else
+-			sprint(name, "/usr/%clib/lib", thechar);
+-		strcat(name, file+2);
+-		strcat(name, ".a");
+-		file = name;
+-	}
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f ldobj: %s\n", cputime(), file);
+-	Bflush(&bso);
+-	f = Bopen(file, 0);
+-	if(f == nil) {
+-		diag("cannot open file: %s", file);
+-		errorexit();
+-	}
+-	l = Bread(f, magbuf, SARMAG);
+-	if(l != SARMAG || strncmp(magbuf, ARMAG, SARMAG)){
+-		/* load it as a regular file */
+-		l = Bseek(f, 0L, 2);
+-		Bseek(f, 0L, 0);
+-		ldobj(f, l, file);
+-		Bterm(f);
+-		return;
+-	}
+-
+-	l = Bread(f, &arhdr, SAR_HDR);
+-	if(l != SAR_HDR) {
+-		diag("%s: short read on archive file symbol header", file);
+-		goto out;
+-	}
+-	if(strncmp(arhdr.name, symname, strlen(symname))) {
+-		diag("%s: first entry not symbol header", file);
+-		goto out;
+-	}
+-
+-	esym = SARMAG + SAR_HDR + atolwhex(arhdr.size);
+-	off = SARMAG + SAR_HDR;
+-
+-	/*
+-	 * just bang the whole symbol file into memory
+-	 */
+-	Bseek(f, off, 0);
+-	cnt = esym - off;
+-	start = mal(cnt + 10);
+-	cnt = Bread(f, start, cnt);
+-	if(cnt <= 0){
+-		Bterm(f);
+-		return;
+-	}
+-	stop = &start[cnt];
+-	memset(stop, 0, 10);
+-
+-	work = 1;
+-	while(work) {
+-		if(debug['v'])
+-			Bprint(&bso, "%5.2f library pass: %s\n", cputime(), file);
+-		Bflush(&bso);
+-		work = 0;
+-		for(e = start; e < stop; e = strchr(e+5, 0) + 1) {
+-			s = lookup(e+5, 0);
+-			if(s->type != SXREF)
+-				continue;
+-			sprint(pname, "%s(%s)", file, s->name);
+-			if(debug['v'])
+-				Bprint(&bso, "%5.2f library: %s\n", cputime(), pname);
+-			Bflush(&bso);
+-			l = e[1] & 0xff;
+-			l |= (e[2] & 0xff) << 8;
+-			l |= (e[3] & 0xff) << 16;
+-			l |= (e[4] & 0xff) << 24;
+-			Bseek(f, l, 0);
+-			l = Bread(f, &arhdr, SAR_HDR);
+-			if(l != SAR_HDR)
+-				goto bad;
+-			if(strncmp(arhdr.fmag, ARFMAG, sizeof(arhdr.fmag)))
+-				goto bad;
+-			l = SARNAME;
+-			while(l > 0 && arhdr.name[l-1] == ' ')
+-				l--;
+-			sprint(pname, "%s(%.*s)", file, l, arhdr.name);
+-			l = atolwhex(arhdr.size);
+-			ldobj(f, l, pname);
+-			if(s->type == SXREF) {
+-				diag("%s: failed to load: %s", file, s->name);
+-				errorexit();
+-			}
+-			work = 1;
+-			xrefresolv = 1;
+-		}
+-	}
+-	return;
+-
+-bad:
+-	diag("%s: bad or out of date archive", file);
+-out:
+-	Bterm(f);
+-}
+-
+-int32
+-Bget4(Biobuf *f)
+-{
+-	uchar p[4];
+-
+-	if(Bread(f, p, 4) != 4)
+-		return 0;
+-	return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+-}
+-
+ void
+ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ {
+@@ -651,182 +467,6 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 	u->gotype = a->gotype;
+ }
+ 
+-void
+-addlib(char *src, char *obj)
+-{
+-	char name[1024], pname[1024], comp[256], *p;
+-	int i, search;
+-
+-	if(histfrogp <= 0)
+-		return;
+-
+-	search = 0;
+-	if(histfrog[0]->name[1] == '/') {
+-		sprint(name, "");
+-		i = 1;
+-	} else
+-	if(histfrog[0]->name[1] == '.') {
+-		sprint(name, ".");
+-		i = 0;
+-	} else {
+-		sprint(name, "");
+-		i = 0;
+-		search = 1;
+-	}
+-
+-	for(; i<histfrogp; i++) {
+-		snprint(comp, sizeof comp, histfrog[i]->name+1);
+-		for(;;) {
+-			p = strstr(comp, "$O");
+-			if(p == 0)
+-				break;
+-			memmove(p+1, p+2, strlen(p+2)+1);
+-			p[0] = thechar;
+-		}
+-		for(;;) {
+-			p = strstr(comp, "$M");
+-			if(p == 0)
+-				break;
+-			if(strlen(comp)+strlen(thestring)-2+1 >= sizeof comp) {
+-				diag("library component too long");
+-				return;
+-			}
+-			memmove(p+strlen(thestring), p+2, strlen(p+2)+1);
+-			memmove(p, thestring, strlen(thestring));
+-		}
+-		if(strlen(name) + strlen(comp) + 3 >= sizeof(name)) {
+-			diag("library component too long");
+-			return;
+-		}
+-		strcat(name, "/");
+-		strcat(name, comp);
+-	}
+-
+-	if(search) {
+-		// try dot, -L "libdir", and then goroot.
+-		for(i=0; i<nlibdir; i++) {
+-			snprint(pname, sizeof pname, "%s/%s", libdir[i], name);
+-			if(access(pname, AEXIST) >= 0)
+-				break;
+-		}
+-		strcpy(name, pname);
+-	}
+-	cleanname(name);
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, name);
+-
+-	for(i=0; i<libraryp; i++)
+-		if(strcmp(name, library[i]) == 0)
+-			return;
+-	if(libraryp == nelem(library)){
+-		diag("too many autolibs; skipping %s", name);
+-		return;
+-	}
+-
+-	p = mal(strlen(name) + 1);
+-	strcpy(p, name);
+-	library[libraryp] = p;
+-	p = mal(strlen(obj) + 1);
+-	strcpy(p, obj);
+-	libraryobj[libraryp] = p;
+-	libraryp++;
+-}
+-
+-void
+-copyhistfrog(char *buf, int nbuf)
+-{
+-	char *p, *ep;
+-	int i;
+-
+-	p = buf;
+-	ep = buf + nbuf;
+-	i = 0;
+-	for(i=0; i<histfrogp; i++) {
+-		p = seprint(p, ep, "%s", histfrog[i]->name+1);
+-		if(i+1<histfrogp && (p == buf || p[-1] != '/'))
+-			p = seprint(p, ep, "/");
+-	}
+-}
+-
+-void
+-addhist(int32 line, int type)
+-{
+-	Auto *u;
+-	Sym *s;
+-	int i, j, k;
+-
+-	u = mal(sizeof(Auto));
+-	s = mal(sizeof(Sym));
+-	s->name = mal(2*(histfrogp+1) + 1);
+-
+-	u->asym = s;
+-	u->type = type;
+-	u->aoffset = line;
+-	u->link = curhist;
+-	curhist = u;
+-
+-	s->name[0] = 0;
+-	j = 1;
+-	for(i=0; i<histfrogp; i++) {
+-		k = histfrog[i]->value;
+-		s->name[j+0] = k>>8;
+-		s->name[j+1] = k;
+-		j += 2;
+-	}
+-	s->name[j] = 0;
+-	s->name[j+1] = 0;
+-}
+-
+-void
+-histtoauto(void)
+-{
+-	Auto *l;
+-
+-	while(l = curhist) {
+-		curhist = l->link;
+-		l->link = curauto;
+-		curauto = l;
+-	}
+-}
+-
+-void
+-collapsefrog(Sym *s)
+-{
+-	int i;
+-
+-	/*
+-	 * bad encoding of path components only allows
+-	 * MAXHIST components. if there is an overflow,
+-	 * first try to collapse xxx/..
+-	 */
+-	for(i=1; i<histfrogp; i++)
+-		if(strcmp(histfrog[i]->name+1, "..") == 0) {
+-			memmove(histfrog+i-1, histfrog+i+1,
+-				(histfrogp-i-1)*sizeof(histfrog[0]));
+-			histfrogp--;
+-			goto out;
+-		}
+-
+-	/*
+-	 * next try to collapse .
+-	 */
+-	for(i=0; i<histfrogp; i++)
+-		if(strcmp(histfrog[i]->name+1, ".") == 0) {
+-			memmove(histfrog+i, histfrog+i+1,
+-				(histfrogp-i-1)*sizeof(histfrog[0]));
+-			goto out;
+-		}
+-
+-	/*
+-	 * last chance, just truncate from front
+-	 */
+-	memmove(histfrog+0, histfrog+1,
+-		(histfrogp-1)*sizeof(histfrog[0]));
+-
+-out:
+-	histfrog[histfrogp-1] = s;
+-}
+-
+ void
+ nopout(Prog *p)
+ {
+@@ -836,72 +476,23 @@ nopout(Prog *p)
+ }
+ 
+ void
+-ldobj(Biobuf *f, int32 len, char *pn)
++ldobj1(Biobuf *f, int64 len, char *pn)
+ {
+ 	int32 ipc;
+ 	Prog *p, *t;
+ 	int v, o, r, skip;
+ 	Sym *h[NSYM], *s, *di;
+ 	uint32 sig;
+-	static int files;
+-	static char **filen;
+-	char **nfilen;
+-	int ntext, n, c1, c2, c3;
++	int ntext;
+ 	int32 eof;
+-	int32 import0, import1;
+-	char *line, *name;
++	char *name;
+ 	char src[1024];
+ 
+-	src[0] = '\0';
+-	eof = Boffset(f) + len;
+-
+ 	ntext = 0;
+-
+-	if((files&15) == 0){
+-		nfilen = malloc((files+16)*sizeof(char*));
+-		memmove(nfilen, filen, files*sizeof(char*));
+-		free(filen);
+-		filen = nfilen;
+-	}
+-	pn = strdup(pn);
+-	filen[files++] = pn;
+-
++	eof = Boffset(f) + len;
+ 	di = S;
++	src[0] = 0;
+ 
+-	/* check the header */
+-	line = Brdline(f, '\n');
+-	if(line == nil) {
+-		if(Blinelen(f) > 0) {
+-			diag("%s: malformed object file", pn);
+-			return;
+-		}
+-		goto eof;
+-	}
+-	n = Blinelen(f) - 1;
+-	if(n != strlen(thestring) || strncmp(line, thestring, n) != 0) {
+-		if(line)
+-			line[n] = '\0';
+-		diag("file not %s [%s]\n", thestring, line);
+-		return;
+-	}
+-
+-	/* skip over exports and other info -- ends with \n!\n */
+-	import0 = Boffset(f);
+-	c1 = '\n';	// the last line ended in \n
+-	c2 = Bgetc(f);
+-	c3 = Bgetc(f);
+-	while(c1 != '\n' || c2 != '!' || c3 != '\n') {
+-		c1 = c2;
+-		c2 = c3;
+-		c3 = Bgetc(f);
+-		if(c3 == Beof)
+-			goto eof;
+-	}
+-	import1 = Boffset(f);
+-
+-	Bseek(f, import0, 0);
+-	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
+-	Bseek(f, import1, 0);
+ 
+ newloop:
+ 	memset(h, 0, sizeof(h));
+@@ -950,9 +541,9 @@ loop:
+ 			if(s->sig != 0 && s->sig != sig)
+ 				diag("incompatible type signatures"
+ 					"%lux(%s) and %lux(%s) for %s",
+-					s->sig, filen[s->file], sig, pn, s->name);
++					s->sig, s->file, sig, pn, s->name);
+ 			s->sig = sig;
+-			s->file = files-1;
++			s->file = pn;
+ 		}
+ 
+ 		if(debug['W'])
+@@ -1223,40 +814,6 @@ eof:
+ 	diag("truncated object file: %s", pn);
+ }
+ 
+-Sym*
+-lookup(char *symb, int v)
+-{
+-	Sym *s;
+-	char *p;
+-	int32 h;
+-	int l, c;
+-
+-	h = v;
+-	for(p=symb; c = *p; p++)
+-		h = h+h+h + c;
+-	l = (p - symb) + 1;
+-	if(h < 0)
+-		h = ~h;
+-	h %= NHASH;
+-	for(s = hash[h]; s != S; s = s->link)
+-		if(s->version == v)
+-		if(memcmp(s->name, symb, l) == 0)
+-			return s;
+-
+-	s = mal(sizeof(Sym));
+-	s->name = mal(l + 1);
+-	memmove(s->name, symb, l);
+-
+-	s->link = hash[h];
+-	s->type = 0;
+-	s->version = v;
+-	s->value = 0;
+-	s->sig = 0;
+-	hash[h] = s;
+-	nsymbol++;
+-	return s;
+-}
+-
+ Prog*
+ prg(void)
+ {
+@@ -1438,185 +995,3 @@ doprof2(void)
+ 		}
+ 	}
+ }
+-
+-void
+-nuxiinit(void)
+-{
+-	int i, c;
+-
+-	for(i=0; i<4; i++) {
+-		c = find1(0x04030201L, i+1);
+-		if(i < 2)
+-			inuxi2[i] = c;
+-		if(i < 1)
+-			inuxi1[i] = c;
+-		inuxi4[i] = c;
+-		fnuxi4[i] = c;
+-		fnuxi8[i] = c;
+-		fnuxi8[i+4] = c+4;
+-	}
+-	if(debug['v']) {
+-		Bprint(&bso, "inuxi = ");
+-		for(i=0; i<1; i++)
+-			Bprint(&bso, "%d", inuxi1[i]);
+-		Bprint(&bso, " ");
+-		for(i=0; i<2; i++)
+-			Bprint(&bso, "%d", inuxi2[i]);
+-		Bprint(&bso, " ");
+-		for(i=0; i<4; i++)
+-			Bprint(&bso, "%d", inuxi4[i]);
+-		Bprint(&bso, "\nfnuxi = ");
+-		for(i=0; i<4; i++)
+-			Bprint(&bso, "%d", fnuxi4[i]);
+-		Bprint(&bso, " ");
+-		for(i=0; i<8; i++)
+-			Bprint(&bso, "%d", fnuxi8[i]);
+-		Bprint(&bso, "\n");
+-	}
+-	Bflush(&bso);
+-}
+-
+-int
+-find1(int32 l, int c)
+-{
+-	char *p;
+-	int i;
+-
+-	p = (char*)&l;
+-	for(i=0; i<4; i++)
+-		if(*p++ == c)
+-			return i;
+-	return 0;
+-}
+-
+-int
+-find2(int32 l, int c)
+-{
+-	short *p;
+-	int i;
+-
+-	p = (short*)&l;
+-	for(i=0; i<4; i+=2) {
+-		if(((*p >> 8) & 0xff) == c)
+-			return i;
+-		if((*p++ & 0xff) == c)
+-			return i+1;
+-	}
+-	return 0;
+-}
+-
+-int32
+-ieeedtof(Ieee *e)
+-{
+-	int exp;
+-	int32 v;
+-
+-	if(e->h == 0)
+-		return 0;
+-	exp = (e->h>>20) & ((1L<<11)-1L);
+-	exp -= (1L<<10) - 2L;
+-	v = (e->h & 0xfffffL) << 3;
+-	v |= (e->l >> 29) & 0x7L;
+-	if((e->l >> 28) & 1) {
+-		v++;
+-		if(v & 0x800000L) {
+-			v = (v & 0x7fffffL) >> 1;
+-			exp++;
+-		}
+-	}
+-	if(exp <= -126 || exp >= 130)
+-		diag("double fp to single fp overflow");
+-	v |= ((exp + 126) & 0xffL) << 23;
+-	v |= e->h & 0x80000000L;
+-	return v;
+-}
+-
+-double
+-ieeedtod(Ieee *ieeep)
+-{
+-	Ieee e;
+-	double fr;
+-	int exp;
+-
+-	if(ieeep->h & (1L<<31)) {
+-		e.h = ieeep->h & ~(1L<<31);
+-		e.l = ieeep->l;
+-		return -ieeedtod(&e);
+-	}
+-	if(ieeep->l == 0 && ieeep->h == 0)
+-		return 0;
+-	fr = ieeep->l & ((1L<<16)-1L);
+-	fr /= 1L<<16;
+-	fr += (ieeep->l>>16) & ((1L<<16)-1L);
+-	fr /= 1L<<16;
+-	fr += (ieeep->h & (1L<<20)-1L) | (1L<<20);
+-	fr /= 1L<<21;
+-	exp = (ieeep->h>>20) & ((1L<<11)-1L);
+-	exp -= (1L<<10) - 2L;
+-	return ldexp(fr, exp);
+-}
+-
+-void
+-undefsym(Sym *s)
+-{
+-	int n;
+-
+-	n = imports;
+-	if(s->value != 0)
+-		diag("value != 0 on SXREF");
+-	if(n >= 1<<Rindex)
+-		diag("import index %d out of range", n);
+-	s->value = n<<Roffset;
+-	s->type = SUNDEF;
+-	imports++;
+-}
+-
+-void
+-zerosig(char *sp)
+-{
+-	Sym *s;
+-
+-	s = lookup(sp, 0);
+-	s->sig = 0;
+-}
+-
+-void
+-readundefs(char *f, int t)
+-{
+-	int i, n;
+-	Sym *s;
+-	Biobuf *b;
+-	char *l, buf[256], *fields[64];
+-
+-	if(f == nil)
+-		return;
+-	b = Bopen(f, OREAD);
+-	if(b == nil){
+-		diag("could not open %s: %r", f);
+-		errorexit();
+-	}
+-	while((l = Brdline(b, '\n')) != nil){
+-		n = Blinelen(b);
+-		if(n >= sizeof(buf)){
+-			diag("%s: line too long", f);
+-			errorexit();
+-		}
+-		memmove(buf, l, n);
+-		buf[n-1] = '\0';
+-		n = getfields(buf, fields, nelem(fields), 1, " \t\r\n");
+-		if(n == nelem(fields)){
+-			diag("%s: bad format", f);
+-			errorexit();
+-		}
+-		for(i = 0; i < n; i++){
+-			s = lookup(fields[i], 0);
+-			s->type = SXREF;
+-			s->subtype = t;
+-			if(t == SIMPORT)
+-				nimports++;
+-			else
+-				nexports++;
+-		}
+-	}
+-	Bterm(b);
+-}
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index c624f750aa..aee0c129c5 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include	"l.h"
++#include	"../ld/lib.h"
+ 
+ // see ../../pkg/runtime/proc.c:/StackGuard
+ enum
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index 6f62f9b4d4..0204caa1e8 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include	"l.h"
++#include	"../ld/lib.h"
+ 
+ void
+ span(void)
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 9948a85032..a556d92aa2 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../ld/elf.h"
++#include	"l.h"
++#include	"lib.h"
++#include	"../ld/elf.h"
+ 
+ /*
+  * We use the 64-bit data structures on both 32- and 64-bit machines
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index f86b457b63..ca304525db 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -4,6 +4,9 @@
+ 
+ // go-specific code shared across loaders (5l, 6l, 8l).
+ 
++#include	"l.h"
++#include	"../ld/lib.h"
++
+ // accumulate all type information from .6 files.
+ // check for inconsistencies.
+ 
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+new file mode 100644
+index 0000000000..0ca165417c
+--- /dev/null
++++ b/src/cmd/ld/lib.c
+@@ -0,0 +1,761 @@
++// Derived from Inferno utils/6l/obj.c
++// http://code.google.com/p/inferno-os/source/browse/utils/6l/obj.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++#include	"l.h"
++#include	"lib.h"
++#include	<ar.h>
++
++char	symname[]	= SYMDEF;
++char*	libdir[16] = { "." };
++int	nlibdir = 1;
++int	cout = -1;
++
++char*	goroot;
++char*	goarch;
++char*	goos;
++
++void
++Lflag(char *arg)
++{
++	if(nlibdir >= nelem(libdir)-1) {
++		print("too many -L's: %d\n", nlibdir);
++		usage();
++	}
++	libdir[nlibdir++] = arg;
++}
++
++void
++libinit(void)
++{
++	mywhatsys();	// get goroot, goarch, goos
++	if(strcmp(goarch, thestring) != 0)
++		print("goarch is not known: %s\n", goarch);
++
++	// add goroot to the end of the libdir list.
++	libdir[nlibdir++] = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
++
++	unlink(outfile);
++	cout = create(outfile, 1, 0775);
++	if(cout < 0) {
++		diag("cannot create %s", outfile);
++		errorexit();
++	}
++
++	if(INITENTRY == nil) {
++		INITENTRY = mal(strlen(goarch)+strlen(goos)+10);
++		sprint(INITENTRY, "_rt0_%s_%s", goarch, goos);
++	}
++	lookup(INITENTRY, 0)->type = SXREF;
++}
++
++void
++errorexit(void)
++{
++	if(nerrors) {
++		if(cout >= 0)
++			remove(outfile);
++		exits("error");
++	}
++	exits(0);
++}
++
++void
++addlib(char *src, char *obj)
++{
++	char name[1024], pname[1024], comp[256], *p;
++	int i, search;
++
++	if(histfrogp <= 0)
++		return;
++
++	search = 0;
++	if(histfrog[0]->name[1] == '/') {
++		sprint(name, "");
++		i = 1;
++	} else
++	if(histfrog[0]->name[1] == '.') {
++		sprint(name, ".");
++		i = 0;
++	} else {
++		sprint(name, "");
++		i = 0;
++		search = 1;
++	}
++
++	for(; i<histfrogp; i++) {
++		snprint(comp, sizeof comp, histfrog[i]->name+1);
++		for(;;) {
++			p = strstr(comp, "$O");
++			if(p == 0)
++				break;
++			memmove(p+1, p+2, strlen(p+2)+1);
++			p[0] = thechar;
++		}
++		for(;;) {
++			p = strstr(comp, "$M");
++			if(p == 0)
++				break;
++			if(strlen(comp)+strlen(thestring)-2+1 >= sizeof comp) {
++				diag("library component too long");
++				return;
++			}
++			memmove(p+strlen(thestring), p+2, strlen(p+2)+1);
++			memmove(p, thestring, strlen(thestring));
++		}
++		if(strlen(name) + strlen(comp) + 3 >= sizeof(name)) {
++			diag("library component too long");
++			return;
++		}
++		strcat(name, "/");
++		strcat(name, comp);
++	}
++
++	if(search) {
++		// try dot, -L "libdir", and then goroot.
++		for(i=0; i<nlibdir; i++) {
++			snprint(pname, sizeof pname, "%s/%s", libdir[i], name);
++			if(access(pname, AEXIST) >= 0)
++				break;
++		}
++		strcpy(name, pname);
++	}
++	cleanname(name);
++	if(debug['v'])
++		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, name);
++
++	for(i=0; i<libraryp; i++)
++		if(strcmp(name, library[i]) == 0)
++			return;
++	if(libraryp == nelem(library)){
++		diag("too many autolibs; skipping %s", name);
++		return;
++	}
++
++	p = mal(strlen(name) + 1);
++	strcpy(p, name);
++	library[libraryp] = p;
++	p = mal(strlen(obj) + 1);
++	strcpy(p, obj);
++	libraryobj[libraryp] = p;
++	libraryp++;
++}
++
++void
++loadlib(void)
++{
++	int i;
++	int32 h;
++	Sym *s;
++	char *a;
++
++loop:
++	xrefresolv = 0;
++	for(i=0; i<libraryp; i++) {
++		if(debug['v'])
++			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i], libraryobj[i]);
++		objfile(library[i]);
++	}
++	if(xrefresolv)
++	for(h=0; h<nelem(hash); h++)
++	for(s = hash[h]; s != S; s = s->link)
++		if(s->type == SXREF)
++			goto loop;
++
++	i = strlen(goroot)+strlen(goarch)+strlen(goos)+20;
++	a = mal(i);
++	snprint(a, i, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
++	objfile(a);
++}
++
++void
++objfile(char *file)
++{
++	int32 off, esym, cnt, l;
++	int work;
++	Biobuf *f;
++	Sym *s;
++	char magbuf[SARMAG];
++	char name[100], pname[150];
++	struct ar_hdr arhdr;
++	char *e, *start, *stop;
++
++	if(file[0] == '-' && file[1] == 'l') {	// TODO: fix this
++		if(debug['9'])
++			sprint(name, "/%s/lib/lib", thestring);
++		else
++			sprint(name, "/usr/%clib/lib", thechar);
++		strcat(name, file+2);
++		strcat(name, ".a");
++		file = name;
++	}
++	if(debug['v'])
++		Bprint(&bso, "%5.2f ldobj: %s\n", cputime(), file);
++	Bflush(&bso);
++	f = Bopen(file, 0);
++	if(f == nil) {
++		diag("cannot open file: %s", file);
++		errorexit();
++	}
++	l = Bread(f, magbuf, SARMAG);
++	if(l != SARMAG || strncmp(magbuf, ARMAG, SARMAG)){
++		/* load it as a regular file */
++		l = Bseek(f, 0L, 2);
++		Bseek(f, 0L, 0);
++		ldobj(f, l, file);
++		Bterm(f);
++		return;
++	}
++
++	l = Bread(f, &arhdr, SAR_HDR);
++	if(l != SAR_HDR) {
++		diag("%s: short read on archive file symbol header", file);
++		goto out;
++	}
++	if(strncmp(arhdr.name, symname, strlen(symname))) {
++		diag("%s: first entry not symbol header", file);
++		goto out;
++	}
++
++	esym = SARMAG + SAR_HDR + atolwhex(arhdr.size);
++	off = SARMAG + SAR_HDR;
++
++	/*
++	 * just bang the whole symbol file into memory
++	 */
++	Bseek(f, off, 0);
++	cnt = esym - off;
++	start = mal(cnt + 10);
++	cnt = Bread(f, start, cnt);
++	if(cnt <= 0){
++		Bterm(f);
++		return;
++	}
++	stop = &start[cnt];
++	memset(stop, 0, 10);
++
++	work = 1;
++	while(work) {
++		if(debug['v'])
++			Bprint(&bso, "%5.2f library pass: %s\n", cputime(), file);
++		Bflush(&bso);
++		work = 0;
++		for(e = start; e < stop; e = strchr(e+5, 0) + 1) {
++			s = lookup(e+5, 0);
++			if(s->type != SXREF)
++				continue;
++			sprint(pname, "%s(%s)", file, s->name);
++			if(debug['v'])
++				Bprint(&bso, "%5.2f library: %s\n", cputime(), pname);
++			Bflush(&bso);
++			l = e[1] & 0xff;
++			l |= (e[2] & 0xff) << 8;
++			l |= (e[3] & 0xff) << 16;
++			l |= (e[4] & 0xff) << 24;
++			Bseek(f, l, 0);
++			l = Bread(f, &arhdr, SAR_HDR);
++			if(l != SAR_HDR)
++				goto bad;
++			if(strncmp(arhdr.fmag, ARFMAG, sizeof(arhdr.fmag)))
++				goto bad;
++			l = SARNAME;
++			while(l > 0 && arhdr.name[l-1] == ' ')
++				l--;
++			sprint(pname, "%s(%.*s)", file, l, arhdr.name);
++			l = atolwhex(arhdr.size);
++			ldobj(f, l, pname);
++			if(s->type == SXREF) {
++				diag("%s: failed to load: %s", file, s->name);
++				errorexit();
++			}
++			work = 1;
++			xrefresolv = 1;
++		}
++	}
++	return;
++
++bad:
++	diag("%s: bad or out of date archive", file);
++out:
++	Bterm(f);
++}
++
++void
++ldobj(Biobuf *f, int64 len, char *pn)
++{
++	static int files;
++	static char **filen;
++	char **nfilen, *line;
++	int n, c1, c2, c3;
++	vlong import0, import1, eof;
++	char src[1024];
++
++	eof = Boffset(f) + len;
++	src[0] = '\0';
++
++	if((files&15) == 0){
++		nfilen = malloc((files+16)*sizeof(char*));
++		memmove(nfilen, filen, files*sizeof(char*));
++		free(filen);
++		filen = nfilen;
++	}
++	pn = strdup(pn);
++	filen[files++] = pn;
++
++
++	/* check the header */
++	line = Brdline(f, '\n');
++	if(line == nil) {
++		if(Blinelen(f) > 0) {
++			diag("%s: malformed object file", pn);
++			return;
++		}
++		goto eof;
++	}
++	n = Blinelen(f) - 1;
++	if(n != strlen(thestring) || strncmp(line, thestring, n) != 0) {
++		if(line)
++			line[n] = '\0';
++		diag("file not %s [%s]\n", thestring, line);
++		return;
++	}
++
++	/* skip over exports and other info -- ends with \n!\n */
++	import0 = Boffset(f);
++	c1 = '\n';	// the last line ended in \n
++	c2 = Bgetc(f);
++	c3 = Bgetc(f);
++	while(c1 != '\n' || c2 != '!' || c3 != '\n') {
++		c1 = c2;
++		c2 = c3;
++		c3 = Bgetc(f);
++		if(c3 == Beof)
++			goto eof;
++	}
++	import1 = Boffset(f);
++
++	Bseek(f, import0, 0);
++	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
++	Bseek(f, import1, 0);
++
++	ldobj1(f, eof - Boffset(f), pn);
++	return;
++
++eof:
++	diag("truncated object file: %s", pn);
++}
++
++Sym*
++lookup(char *symb, int v)
++{
++	Sym *s;
++	char *p;
++	int32 h;
++	int l, c;
++
++	h = v;
++	for(p=symb; c = *p; p++)
++		h = h+h+h + c;
++	l = (p - symb) + 1;
++	if(h < 0)
++		h = ~h;
++	h %= NHASH;
++	for(s = hash[h]; s != S; s = s->link)
++		if(s->version == v)
++		if(memcmp(s->name, symb, l) == 0)
++			return s;
++
++	s = mal(sizeof(*s));
++	if(debug['v'] > 1)
++		Bprint(&bso, "lookup %s\n", symb);
++
++	s->name = mal(l + 1);
++	memmove(s->name, symb, l);
++
++	s->link = hash[h];
++	s->type = 0;
++	s->version = v;
++	s->value = 0;
++	s->sig = 0;
++	hash[h] = s;
++	nsymbol++;
++	return s;
++}
++
++void
++copyhistfrog(char *buf, int nbuf)
++{
++	char *p, *ep;
++	int i;
++
++	p = buf;
++	ep = buf + nbuf;
++	i = 0;
++	for(i=0; i<histfrogp; i++) {
++		p = seprint(p, ep, "%s", histfrog[i]->name+1);
++		if(i+1<histfrogp && (p == buf || p[-1] != '/'))
++			p = seprint(p, ep, "/");
++	}
++}
++
++void
++addhist(int32 line, int type)
++{
++	Auto *u;
++	Sym *s;
++	int i, j, k;
++
++	u = mal(sizeof(Auto));
++	s = mal(sizeof(Sym));
++	s->name = mal(2*(histfrogp+1) + 1);
++
++	u->asym = s;
++	u->type = type;
++	u->aoffset = line;
++	u->link = curhist;
++	curhist = u;
++
++	s->name[0] = 0;
++	j = 1;
++	for(i=0; i<histfrogp; i++) {
++		k = histfrog[i]->value;
++		s->name[j+0] = k>>8;
++		s->name[j+1] = k;
++		j += 2;
++	}
++	s->name[j] = 0;
++	s->name[j+1] = 0;
++}
++
++void
++histtoauto(void)
++{
++	Auto *l;
++
++	while(l = curhist) {
++		curhist = l->link;
++		l->link = curauto;
++		curauto = l;
++	}
++}
++
++void
++collapsefrog(Sym *s)
++{
++	int i;
++
++	/*
++	 * bad encoding of path components only allows
++	 * MAXHIST components. if there is an overflow,
++	 * first try to collapse xxx/..
++	 */
++	for(i=1; i<histfrogp; i++)
++		if(strcmp(histfrog[i]->name+1, "..") == 0) {
++			memmove(histfrog+i-1, histfrog+i+1,
++				(histfrogp-i-1)*sizeof(histfrog[0]));
++			histfrogp--;
++			goto out;
++		}
++
++	/*
++	 * next try to collapse .
++	 */
++	for(i=0; i<histfrogp; i++)
++		if(strcmp(histfrog[i]->name+1, ".") == 0) {
++			memmove(histfrog+i, histfrog+i+1,
++				(histfrogp-i-1)*sizeof(histfrog[0]));
++			goto out;
++		}
++
++	/*
++	 * last chance, just truncate from front
++	 */
++	memmove(histfrog+0, histfrog+1,
++		(histfrogp-1)*sizeof(histfrog[0]));
++
++out:
++	histfrog[histfrogp-1] = s;
++}
++
++void
++nuxiinit(void)
++{
++	int i, c;
++
++	for(i=0; i<4; i++) {
++		c = find1(0x04030201L, i+1);
++		if(i < 2)
++			inuxi2[i] = c;
++		if(i < 1)
++			inuxi1[i] = c;
++		inuxi4[i] = c;
++		inuxi8[i] = c;
++		inuxi8[i+4] = c+4;
++		fnuxi4[i] = c;
++		fnuxi8[i] = c;
++		fnuxi8[i+4] = c+4;
++	}
++	if(debug['v']) {
++		Bprint(&bso, "inuxi = ");
++		for(i=0; i<1; i++)
++			Bprint(&bso, "%d", inuxi1[i]);
++		Bprint(&bso, " ");
++		for(i=0; i<2; i++)
++			Bprint(&bso, "%d", inuxi2[i]);
++		Bprint(&bso, " ");
++		for(i=0; i<4; i++)
++			Bprint(&bso, "%d", inuxi4[i]);
++		Bprint(&bso, " ");
++		for(i=0; i<8; i++)
++			Bprint(&bso, "%d", inuxi8[i]);
++		Bprint(&bso, "\nfnuxi = ");
++		for(i=0; i<4; i++)
++			Bprint(&bso, "%d", fnuxi4[i]);
++		Bprint(&bso, " ");
++		for(i=0; i<8; i++)
++			Bprint(&bso, "%d", fnuxi8[i]);
++		Bprint(&bso, "\n");
++	}
++	Bflush(&bso);
++}
++
++int
++find1(int32 l, int c)
++{
++	char *p;
++	int i;
++
++	p = (char*)&l;
++	for(i=0; i<4; i++)
++		if(*p++ == c)
++			return i;
++	return 0;
++}
++
++int
++find2(int32 l, int c)
++{
++	short *p;
++	int i;
++
++	p = (short*)&l;
++	for(i=0; i<4; i+=2) {
++		if(((*p >> 8) & 0xff) == c)
++			return i;
++		if((*p++ & 0xff) == c)
++			return i+1;
++	}
++	return 0;
++}
++
++int32
++ieeedtof(Ieee *e)
++{
++	int exp;
++	int32 v;
++
++	if(e->h == 0)
++		return 0;
++	exp = (e->h>>20) & ((1L<<11)-1L);
++	exp -= (1L<<10) - 2L;
++	v = (e->h & 0xfffffL) << 3;
++	v |= (e->l >> 29) & 0x7L;
++	if((e->l >> 28) & 1) {
++		v++;
++		if(v & 0x800000L) {
++			v = (v & 0x7fffffL) >> 1;
++			exp++;
++		}
++	}
++	if(exp <= -126 || exp >= 130)
++		diag("double fp to single fp overflow");
++	v |= ((exp + 126) & 0xffL) << 23;
++	v |= e->h & 0x80000000L;
++	return v;
++}
++
++double
++ieeedtod(Ieee *ieeep)
++{
++	Ieee e;
++	double fr;
++	int exp;
++
++	if(ieeep->h & (1L<<31)) {
++		e.h = ieeep->h & ~(1L<<31);
++		e.l = ieeep->l;
++		return -ieeedtod(&e);
++	}
++	if(ieeep->l == 0 && ieeep->h == 0)
++		return 0;
++	fr = ieeep->l & ((1L<<16)-1L);
++	fr /= 1L<<16;
++	fr += (ieeep->l>>16) & ((1L<<16)-1L);
++	fr /= 1L<<16;
++	fr += (ieeep->h & (1L<<20)-1L) | (1L<<20);
++	fr /= 1L<<21;
++	exp = (ieeep->h>>20) & ((1L<<11)-1L);
++	exp -= (1L<<10) - 2L;
++	return ldexp(fr, exp);
++}
++
++void
++undefsym(Sym *s)
++{
++	int n;
++
++	n = imports;
++	if(s->value != 0)
++		diag("value != 0 on SXREF");
++	if(n >= 1<<Rindex)
++		diag("import index %d out of range", n);
++	s->value = n<<Roffset;
++	s->type = SUNDEF;
++	imports++;
++}
++
++void
++zerosig(char *sp)
++{
++	Sym *s;
++
++	s = lookup(sp, 0);
++	s->sig = 0;
++}
++
++void
++readundefs(char *f, int t)
++{
++	int i, n;
++	Sym *s;
++	Biobuf *b;
++	char *l, buf[256], *fields[64];
++
++	if(f == nil)
++		return;
++	b = Bopen(f, OREAD);
++	if(b == nil){
++		diag("could not open %s: %r", f);
++		errorexit();
++	}
++	while((l = Brdline(b, '\n')) != nil){
++		n = Blinelen(b);
++		if(n >= sizeof(buf)){
++			diag("%s: line too long", f);
++			errorexit();
++		}
++		memmove(buf, l, n);
++		buf[n-1] = '\0';
++		n = getfields(buf, fields, nelem(fields), 1, " \t\r\n");
++		if(n == nelem(fields)){
++			diag("%s: bad format", f);
++			errorexit();
++		}
++		for(i = 0; i < n; i++){
++			s = lookup(fields[i], 0);
++			s->type = SXREF;
++			s->subtype = t;
++			if(t == SIMPORT)
++				nimports++;
++			else
++				nexports++;
++		}
++	}
++	Bterm(b);
++}
++
++int32
++Bget4(Biobuf *f)
++{
++	uchar p[4];
++
++	if(Bread(f, p, 4) != 4)
++		return 0;
++	return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
++}
++
++void
++mywhatsys(void)
++{
++	char *s;
++
++	goroot = getenv("GOROOT");
++	goarch = getenv("GOARCH");
++	goos = getenv("GOOS");
++
++	if(goroot == nil) {
++		s = getenv("HOME");
++		if(s == nil)
++			s = "/home/ken";
++		goroot = mal(strlen(s) + 10);
++		strcpy(goroot, s);
++		strcat(goroot, "/go");
++	}
++	if(goarch == nil) {
++		goarch = "amd64";
++	}
++	if(goos == nil) {
++		goos = "linux";
++	}
++}
++
++int
++pathchar(void)
++{
++	return '/';
++}
++
++static	uchar*	hunk;
++static	uint32	nhunk;
++#define	NHUNK	(10UL<<20)
++
++void*
++mal(uint32 n)
++{
++	void *v;
++
++	while(n & 7)
++		n++;
++	if(n > NHUNK) {
++		v = malloc(n);
++		memset(v, 0, n);
++		return v;
++	}
++	if(n > nhunk) {
++		hunk = malloc(NHUNK);
++		nhunk = NHUNK;
++	}
++
++	v = hunk;
++	nhunk -= n;
++	hunk += n;
++
++	memset(v, 0, n);
++	return v;
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+new file mode 100644
+index 0000000000..1d455979ff
+--- /dev/null
++++ b/src/cmd/ld/lib.h
+@@ -0,0 +1,87 @@
++// Derived from Inferno utils/6l/l.h
++// http://code.google.com/p/inferno-os/source/browse/utils/6l/l.h
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++extern	char	symname[];
++extern	char	*libdir[];
++extern	int	nlibdir;
++extern	int	cout;
++
++EXTERN	char*	INITENTRY;
++EXTERN	char	thechar;
++EXTERN	char*	thestring;
++EXTERN	char*	library[50];
++EXTERN	char*	libraryobj[50];
++EXTERN	int	libraryp;
++EXTERN	Sym*	hash[NHASH];
++EXTERN	Sym*	histfrog[MAXHIST];
++EXTERN	uchar	fnuxi8[8];
++EXTERN	uchar	fnuxi4[4];
++EXTERN	int	histfrogp;
++EXTERN	int	histgen;
++EXTERN	uchar	inuxi1[1];
++EXTERN	uchar	inuxi2[2];
++EXTERN	uchar	inuxi4[4];
++EXTERN	uchar	inuxi8[8];
++EXTERN	char*	outfile;
++EXTERN	int32	nsymbol;
++
++void	addlib(char *src, char *obj);
++void	copyhistfrog(char *buf, int nbuf);
++void	addhist(int32 line, int type);
++void	histtoauto(void);
++void	collapsefrog(Sym *s);
++Sym*	lookup(char *symb, int v);
++void	nuxiinit(void);
++int	find1(int32 l, int c);
++int	find2(int32 l, int c);
++int32	ieeedtof(Ieee *e);
++double	ieeedtod(Ieee *e);
++void	undefsym(Sym *s);
++void	zerosig(char *sp);
++void	readundefs(char *f, int t);
++int32	Bget4(Biobuf *f);
++void	loadlib(void);
++void	errorexit(void);
++void	objfile(char *file);
++void	libinit(void);
++void	Lflag(char *arg);
++void	usage(void);
++void	ldobj1(Biobuf *f, int64 len, char *pn);
++void	ldobj(Biobuf*, int64, char*);
++void	ldpkg(Biobuf*, int64, char*);
++
++int	pathchar(void);
++void*	mal(uint32);
++void	mywhatsys(void);
++
++/* set by call to mywhatsys() */
++extern	char*	goroot;
++extern	char*	goarch;
++extern	char*	goos;
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index e4fe963ac1..88798dad73 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -5,6 +5,8 @@
+ // Mach-O file writing
+ // http://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
+ 
++#include "l.h"
++#include "../ld/lib.h"
+ #include "../ld/macho.h"
+ 
+ static	int	macho64;

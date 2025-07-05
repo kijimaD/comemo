@@ -13,6 +13,19 @@ Date:   Fri Jan 9 15:16:14 2015 -0800
     Change-Id: Idce381f219bfef2e3a3be38d3ba3c258b71310ae
     Reviewed-on: https://go-review.googlesource.com/2640
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/gc/range.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 947b4580ed..55fadae723 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -185,6 +185,7 @@ walkrange(Node *n)
+ 				tmp->bounded = 1;
+ 				tmp = nod(OADDR, tmp, N);
+ 				tmp = nod(OCONVNOP, tmp, N);
++				tmp->type = ptrto(types[TUINT8]);
+ 				n->nbody = list(n->nbody, nod(OAS, hp, tmp));
+ 
+ 				// hn = len(a) * sizeof(elem(a))

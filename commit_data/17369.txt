@@ -9,7 +9,32 @@ Date:   Sat Aug 24 01:32:01 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12739048
-
+---
  src/cmd/5l/asm.c | 1 +
  src/cmd/8l/asm.c | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index b88f249e21..020dbdaae1 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -41,6 +41,7 @@ char linuxdynld[] = "/lib/ld-linux.so.3"; // 2 for OABI, 3 for EABI
+ char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
+ char openbsddynld[] = "XXX";
+ char netbsddynld[] = "/libexec/ld.elf_so";
++char dragonflydynld[] = "/libexec/ld-elf.so.2";
+ 
+ int32
+ entryvalue(void)
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index ab597a9ab3..61265daaa2 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -41,6 +41,7 @@ char linuxdynld[] = "/lib/ld-linux.so.2";
+ char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
+ char openbsddynld[] = "/usr/libexec/ld.so";
+ char netbsddynld[] = "/usr/libexec/ld.elf_so";
++char dragonflydynld[] = "/libexec/ld-elf.so.2";
+ 
+ int32
+ entryvalue(void)

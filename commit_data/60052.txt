@@ -19,7 +19,49 @@ Date:   Fri May 17 06:13:32 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Commit-Queue: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/conf.go | 4 +---
  src/net/ip.go   | 6 +++---
  2 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 7499d49045..358f5434c4 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -336,9 +336,7 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
+ 	}
+ 
+ 	// Canonicalize the hostname by removing any trailing dot.
+-	if stringslite.HasSuffix(hostname, ".") {
+-		hostname = hostname[:len(hostname)-1]
+-	}
++	hostname = stringslite.TrimSuffix(hostname, ".")
+ 
+ 	nss := getSystemNSS()
+ 	srcs := nss.sources["hosts"]
+diff --git a/src/net/ip.go b/src/net/ip.go
+index 6083dd8bf9..49124d95e7 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -15,6 +15,7 @@ package net
+ import (
+ 	"internal/bytealg"
+ 	"internal/itoa"
++	"internal/stringslite"
+ 	"net/netip"
+ )
+ 
+@@ -515,11 +516,10 @@ func parseIP(s string) ([16]byte, bool) {
+ // For example, ParseCIDR("192.0.2.1/24") returns the IP address
+ // 192.0.2.1 and the network 192.0.2.0/24.
+ func ParseCIDR(s string) (IP, *IPNet, error) {
+-	i := bytealg.IndexByteString(s, '/')
+-	if i < 0 {
++	addr, mask, found := stringslite.Cut(s, "/")
++	if !found {
+ 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
+ 	}
+-	addr, mask := s[:i], s[i+1:]
+ 
+ 	ipAddr, err := netip.ParseAddr(addr)
+ 	if err != nil || ipAddr.Zone() != "" {

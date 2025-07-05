@@ -7,6 +7,20 @@ Date:   Sat Sep 27 13:33:50 2008 -0700
     R=r
     OCL=16045
     CL=16045
-
+---
  src/runtime/print.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/print.c b/src/runtime/print.c
+index 726665bb76..2bc58752d5 100644
+--- a/src/runtime/print.c
++++ b/src/runtime/print.c
+@@ -52,7 +52,7 @@ sys·printfloat(float64 v)
+ 	int32 e, s, i, n;
+ 	float64 h;
+ 
+-	n = 5;	// digits printed
++	n = 7;	// digits printed
+ 	e = 0;	// exp
+ 	s = 0;	// sign
+ 	if(v != 0) {

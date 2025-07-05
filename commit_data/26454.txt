@@ -7,7 +7,32 @@ Date:   Tue Jan 26 16:35:52 2016 +0900
     Change-Id: I85fa5e672a476098f8711dcbb5b20ea1a3fa630d
     Reviewed-on: https://go-review.googlesource.com/18953
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/testdata/src/vend/hello/hello_test.go  | 2 +-
  src/cmd/go/testdata/src/vend/hello/hellox_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/src/vend/hello/hello_test.go b/src/cmd/go/testdata/src/vend/hello/hello_test.go
+index 5e72ada938..7190f599d6 100644
+--- a/src/cmd/go/testdata/src/vend/hello/hello_test.go
++++ b/src/cmd/go/testdata/src/vend/hello/hello_test.go
+@@ -7,6 +7,6 @@ import (
+ 
+ func TestMsgInternal(t *testing.T) {
+ 	if strings.Msg != "hello, world" {
+-		t.Fatal("unexpected msg: %v", strings.Msg)
++		t.Fatalf("unexpected msg: %v", strings.Msg)
+ 	}
+ }
+diff --git a/src/cmd/go/testdata/src/vend/hello/hellox_test.go b/src/cmd/go/testdata/src/vend/hello/hellox_test.go
+index 96e6049dad..3f2165bd38 100644
+--- a/src/cmd/go/testdata/src/vend/hello/hellox_test.go
++++ b/src/cmd/go/testdata/src/vend/hello/hellox_test.go
+@@ -7,6 +7,6 @@ import (
+ 
+ func TestMsgExternal(t *testing.T) {
+ 	if strings.Msg != "hello, world" {
+-		t.Fatal("unexpected msg: %v", strings.Msg)
++		t.Fatalf("unexpected msg: %v", strings.Msg)
+ 	}
+ }

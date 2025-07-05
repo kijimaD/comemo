@@ -11,7 +11,45 @@ Date:   Fri Apr 8 20:09:10 2016 +1000
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 4 ++--
  src/cmd/compile/internal/gc/export.go  | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 702090280f..909ff14982 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -135,8 +135,8 @@ type exporter struct {
+ 	trace   bool
+ }
+ 
+-// Export writes the exportlist for localpkg to out and returns the number of bytes written.
+-func Export(out *bio.Buf, trace bool) int {
++// export writes the exportlist for localpkg to out and returns the number of bytes written.
++func export(out *bio.Buf, trace bool) int {
+ 	p := exporter{
+ 		out:      out,
+ 		pkgIndex: make(map[*Pkg]int),
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 5d4add8ff4..2f94b9c62f 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -385,7 +385,7 @@ func dumpexport() {
+ 			// save a copy of the export data
+ 			var copy bytes.Buffer
+ 			bcopy := bio.BufWriter(&copy)
+-			size = Export(bcopy, Debug_export != 0)
++			size = export(bcopy, Debug_export != 0)
+ 			bcopy.Flush() // flushing to bytes.Buffer cannot fail
+ 			if n, err := bout.Write(copy.Bytes()); n != size || err != nil {
+ 				Fatalf("error writing export data: got %d bytes, want %d bytes, err = %v", n, size, err)
+@@ -407,7 +407,7 @@ func dumpexport() {
+ 			pkgs = savedPkgs
+ 			pkgMap = savedPkgMap
+ 		} else {
+-			size = Export(bout, Debug_export != 0)
++			size = export(bout, Debug_export != 0)
+ 		}
+ 		exportf("\n$$\n")
+ 	} else {

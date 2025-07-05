@@ -18,7 +18,98 @@ Date:   Tue Apr 27 14:48:20 2021 +0200
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/bug/bug.go    | 14 +++++++++-----
  src/cmd/go/internal/envcmd/env.go | 20 +++++++++++++-------
  2 files changed, 22 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/internal/bug/bug.go b/src/cmd/go/internal/bug/bug.go
+index df63c579d9..307527c695 100644
+--- a/src/cmd/go/internal/bug/bug.go
++++ b/src/cmd/go/internal/bug/bug.go
+@@ -20,6 +20,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/envcmd"
+ 	"cmd/go/internal/web"
+ )
+ 
+@@ -90,17 +91,20 @@ func printEnvDetails(w io.Writer) {
+ 	fmt.Fprintf(w, "### What operating system and processor architecture are you using (`go env`)?\n\n")
+ 	fmt.Fprintf(w, "<details><summary><code>go env</code> Output</summary><br><pre>\n")
+ 	fmt.Fprintf(w, "$ go env\n")
+-	goexe, err := os.Executable()
+-	if err != nil {
+-		goexe = filepath.Join(runtime.GOROOT(), "bin/go")
+-	}
+-	printCmdOut(w, "", goexe, "env")
++	printGoEnv(w)
+ 	printGoDetails(w)
+ 	printOSDetails(w)
+ 	printCDetails(w)
+ 	fmt.Fprintf(w, "</pre></details>\n\n")
+ }
+ 
++func printGoEnv(w io.Writer) {
++	env := envcmd.MkEnv()
++	env = append(env, envcmd.ExtraEnvVars()...)
++	env = append(env, envcmd.ExtraEnvVarsCostly()...)
++	envcmd.PrintEnv(w, env)
++}
++
+ func printGoDetails(w io.Writer) {
+ 	printCmdOut(w, "GOROOT/bin/go version: ", filepath.Join(runtime.GOROOT(), "bin/go"), "version")
+ 	printCmdOut(w, "GOROOT/bin/go tool compile -V: ", filepath.Join(runtime.GOROOT(), "bin/go"), "tool", "compile", "-V")
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index aad5d704e5..8dbb8af1e7 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -10,6 +10,7 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"go/build"
++	"io"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -347,27 +348,32 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 		return
+ 	}
+ 
++	PrintEnv(os.Stdout, env)
++}
++
++// PrintEnv prints the environment variables to w.
++func PrintEnv(w io.Writer, env []cfg.EnvVar) {
+ 	for _, e := range env {
+ 		if e.Name != "TERM" {
+ 			switch runtime.GOOS {
+ 			default:
+-				fmt.Printf("%s=\"%s\"\n", e.Name, e.Value)
++				fmt.Fprintf(w, "%s=\"%s\"\n", e.Name, e.Value)
+ 			case "plan9":
+ 				if strings.IndexByte(e.Value, '\x00') < 0 {
+-					fmt.Printf("%s='%s'\n", e.Name, strings.ReplaceAll(e.Value, "'", "''"))
++					fmt.Fprintf(w, "%s='%s'\n", e.Name, strings.ReplaceAll(e.Value, "'", "''"))
+ 				} else {
+ 					v := strings.Split(e.Value, "\x00")
+-					fmt.Printf("%s=(", e.Name)
++					fmt.Fprintf(w, "%s=(", e.Name)
+ 					for x, s := range v {
+ 						if x > 0 {
+-							fmt.Printf(" ")
++							fmt.Fprintf(w, " ")
+ 						}
+-						fmt.Printf("%s", s)
++						fmt.Fprintf(w, "%s", s)
+ 					}
+-					fmt.Printf(")\n")
++					fmt.Fprintf(w, ")\n")
+ 				}
+ 			case "windows":
+-				fmt.Printf("set %s=%s\n", e.Name, e.Value)
++				fmt.Fprintf(w, "set %s=%s\n", e.Name, e.Value)
+ 			}
+ 		}
+ 	}

@@ -9,7 +9,32 @@ Date:   Thu Jul 10 10:49:59 2014 +1000
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/110970047
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 32df72ebb0..3ca21160fa 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -252,6 +252,7 @@ Lucio De Re <lucio.dere@gmail.com>
+ Luit van Drongelen <luitvd@gmail.com>
+ Luka Zakrajšek <tr00.g33k@gmail.com>
+ Luke Curley <qpingu@gmail.com>
++Manuel Mendez <mmendez534@gmail.com>
+ Marc Weistroff <marc@weistroff.net>
+ Marco Hennings <marco.hennings@freiheit.com>
+ Marko Juhani Silokunnas <marko.silokunnas@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 64ea77c3cc..d3d90fc501 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -361,6 +361,7 @@ Luke Curley <qpingu@gmail.com>
+ Luuk van Dijk <lvd@golang.org> <lvd@google.com>
+ Manoj Dayaram <platform-dev@moovweb.com> <manoj.dayaram@moovweb.com>
+ Manu Garg <manugarg@google.com>
++Manuel Mendez <mmendez534@gmail.com>
+ Marc Weistroff <marc@weistroff.net>
+ Marcel van Lohuizen <mpvl@golang.org>
+ Marco Hennings <marco.hennings@freiheit.com>

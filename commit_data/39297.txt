@@ -11,6 +11,30 @@ Date:   Fri Feb 15 17:58:21 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/cover/cover_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index 3de9b0c12d..f002442b63 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -448,6 +448,10 @@ func TestHtmlUnformatted(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
++	if err := ioutil.WriteFile(filepath.Join(htmlUDir, "go.mod"), []byte("module htmlunformatted\n"), 0444); err != nil {
++		t.Fatal(err)
++	}
++
+ 	const htmlUContents = `
+ package htmlunformatted
+ 
+@@ -475,6 +479,7 @@ lab:
+ 
+ 	// testcover -html TMPDIR/htmlunformatted.cov -o unformatted.html
+ 	cmd = exec.Command(testcover, "-html", htmlUProfile, "-o", htmlUHTML)
++	cmd.Dir = htmlUDir
+ 	run(cmd, t)
+ }
+ 

@@ -13,7 +13,7 @@ Date:   Thu Sep 7 11:06:35 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/526595
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/base/flag.go                         | 2 +-
  src/cmd/cover/cfg_test.go                                     | 2 +-
  src/cmd/cover/cover.go                                        | 4 ++--
@@ -24,3 +24,149 @@ Date:   Thu Sep 7 11:06:35 2023 -0400
  src/{internal/coverage => cmd/internal/cov}/covcmd/cmddefs.go | 0
  src/go/build/deps_test.go                                     | 2 +-
  9 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 36340cb70b..dc0952a0f1 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -5,11 +5,11 @@
+ package base
+ 
+ import (
++	"cmd/internal/cov/covcmd"
+ 	"encoding/json"
+ 	"flag"
+ 	"fmt"
+ 	"internal/buildcfg"
+-	"internal/coverage/covcmd"
+ 	"internal/platform"
+ 	"log"
+ 	"os"
+diff --git a/src/cmd/cover/cfg_test.go b/src/cmd/cover/cfg_test.go
+index 81157ea089..701de615d0 100644
+--- a/src/cmd/cover/cfg_test.go
++++ b/src/cmd/cover/cfg_test.go
+@@ -5,9 +5,9 @@
+ package main_test
+ 
+ import (
++	"cmd/internal/cov/covcmd"
+ 	"encoding/json"
+ 	"fmt"
+-	"internal/coverage/covcmd"
+ 	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 4883d5aa31..ba7694b3af 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/cov/covcmd"
+ 	"encoding/json"
+ 	"flag"
+ 	"fmt"
+@@ -13,7 +14,6 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"internal/coverage"
+-	"internal/coverage/covcmd"
+ 	"internal/coverage/encodemeta"
+ 	"internal/coverage/slicewriter"
+ 	"io"
+@@ -51,7 +51,7 @@ where -pkgcfg points to a file containing the package path,
+ package name, module path, and related info from "go build",
+ and -outfilelist points to a file containing the filenames
+ of the instrumented output files (one per input file).
+-See https://pkg.go.dev/internal/coverage/covcmd#CoverPkgConfig for
++See https://pkg.go.dev/cmd/internal/cov/covcmd#CoverPkgConfig for
+ more on the package config.
+ `
+ 
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index de68f11025..c20ba4f3a0 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -63,7 +63,7 @@ var bootstrapDirs = []string{
+ 	"go/constant",
+ 	"internal/abi",
+ 	"internal/coverage",
+-	"internal/coverage/covcmd",
++	"cmd/internal/cov/covcmd",
+ 	"internal/bisect",
+ 	"internal/buildcfg",
+ 	"internal/goarch",
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 9ccc23c275..685c233fe9 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -9,12 +9,12 @@ package work
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/internal/cov/covcmd"
+ 	"container/heap"
+ 	"context"
+ 	"debug/elf"
+ 	"encoding/json"
+ 	"fmt"
+-	"internal/coverage/covcmd"
+ 	"internal/platform"
+ 	"os"
+ 	"path/filepath"
+diff --git a/src/cmd/go/internal/work/cover.go b/src/cmd/go/internal/work/cover.go
+index 9e87995611..b1de4b0cb4 100644
+--- a/src/cmd/go/internal/work/cover.go
++++ b/src/cmd/go/internal/work/cover.go
+@@ -10,11 +10,11 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/str"
++	"cmd/internal/cov/covcmd"
+ 	"context"
+ 	"encoding/json"
+ 	"fmt"
+ 	"internal/coverage"
+-	"internal/coverage/covcmd"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 8560f74506..0a9e109c50 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -8,13 +8,13 @@ package work
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/cov/covcmd"
+ 	"context"
+ 	"crypto/sha256"
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+ 	"go/token"
+-	"internal/coverage/covcmd"
+ 	"internal/lazyregexp"
+ 	"io"
+ 	"io/fs"
+diff --git a/src/internal/coverage/covcmd/cmddefs.go b/src/cmd/internal/cov/covcmd/cmddefs.go
+similarity index 100%
+rename from src/internal/coverage/covcmd/cmddefs.go
+rename to src/cmd/internal/cov/covcmd/cmddefs.go
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index a7c85929ae..fcd5e93998 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -625,7 +625,7 @@ var depsRules = `
+ 	< internal/coverage/cformat;
+ 
+ 	internal/coverage, crypto/sha256, FMT
+-	< internal/coverage/covcmd;
++	< cmd/internal/cov/covcmd;
+ 
+     encoding/json,
+ 	runtime/debug,

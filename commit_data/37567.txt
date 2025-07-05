@@ -7,6 +7,22 @@ Date:   Sat Aug 18 14:50:50 2018 -0400
     Change-Id: I5f887f9831378cf76f5a9f447f481ea24c63f390
     Reviewed-on: https://go-review.googlesource.com/129803
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.11.html | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 89649f34c0..fae1c5ff14 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -273,9 +273,8 @@ func f(v interface{}) {
+ 
+   This is useful, for example, to call <code>String</code> methods
+   when paused at a breakpoint.
+-  <!-- TODO(austin): Make sure methods calls are actually supported by Delve -->
+ 
+-  This is currently only supported by Delve.
++  This is currently only supported by Delve (version 1.1.0 and up).
+ </p>
+ 
+ <h3 id="test">Test</h3>

@@ -11,7 +11,7 @@ Date:   Tue Feb 26 06:15:29 2013 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7376054
-
+---
  src/cmd/5a/lex.c   |   1 +
  src/cmd/5c/swt.c   |   3 +-
  src/cmd/5g/gg.h    |   2 +-
@@ -21,3 +21,361 @@ Date:   Tue Feb 26 06:15:29 2013 +0800
  src/cmd/5l/obj.c   |  34 ++++++++++++--
  src/libmach/5obj.c |   2 +
  8 files changed, 110 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index fbce6b771d..a77e3050dc 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -505,6 +505,7 @@ zaddr(Gen *a, int s)
+ 	Bputc(&obuf, a->reg);
+ 	Bputc(&obuf, s);
+ 	Bputc(&obuf, a->name);
++	Bputc(&obuf, 0);
+ 	switch(a->type) {
+ 	default:
+ 		print("unknown type %d\n", a->type);
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index dea28cf6fd..ff33eab14b 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -601,7 +601,8 @@ zaddr(char *bp, Adr *a, int s)
+ 	bp[1] = a->reg;
+ 	bp[2] = s;
+ 	bp[3] = a->name;
+-	bp += 4;
++	bp[4] = 0;
++	bp += 5;
+ 	switch(a->type) {
+ 	default:
+ 		diag(Z, "unknown type %d in zaddr", a->type);
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index fc17bf3c99..45a9a887e5 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -166,7 +166,7 @@ int	Rconv(Fmt*);
+ int	Yconv(Fmt*);
+ void	listinit(void);
+ 
+-void	zaddr(Biobuf*, Addr*, int);
++void	zaddr(Biobuf*, Addr*, int, int);
+ 
+ #pragma	varargck	type	"D"	Addr*
+ #pragma	varargck	type	"M"	Addr*
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 78eadfadb5..9c5fb2a962 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -65,17 +65,17 @@ zhist(Biobuf *b, int line, vlong offset)
+ 	Bputc(b, line>>8);
+ 	Bputc(b, line>>16);
+ 	Bputc(b, line>>24);
+-	zaddr(b, &zprog.from, 0);
++	zaddr(b, &zprog.from, 0, 0);
+ 	a = zprog.to;
+ 	if(offset != 0) {
+ 		a.offset = offset;
+ 		a.type = D_CONST;
+ 	}
+-	zaddr(b, &a, 0);
++	zaddr(b, &a, 0, 0);
+ }
+ 
+ void
+-zaddr(Biobuf *b, Addr *a, int s)
++zaddr(Biobuf *b, Addr *a, int s, int gotype)
+ {
+ 	int32 l;
+ 	uint64 e;
+@@ -95,6 +95,7 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 		Bputc(b, a->reg);
+ 		Bputc(b, s);
+ 		Bputc(b, a->name);
++		Bputc(b, gotype);
+ 	}
+ 
+ 	switch(a->type) {
+@@ -167,20 +168,66 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 	}
+ }
+ 
++static struct {
++	struct { Sym *sym; short type; } h[NSYM];
++	int sym;
++} z;
++
++static void
++zsymreset(void)
++{
++	for(z.sym=0; z.sym<NSYM; z.sym++) {
++		z.h[z.sym].sym = S;
++		z.h[z.sym].type = 0;
++	}
++	z.sym = 1;
++}
++
++static int
++zsym(Sym *s, int t, int *new)
++{
++	int i;
++
++	*new = 0;
++	if(s == S)
++		return 0;
++
++	i = s->sym;
++	if(i < 0 || i >= NSYM)
++		i = 0;
++	if(z.h[i].type == t && z.h[i].sym == s)
++		return i;
++	i = z.sym;
++	s->sym = i;
++	zname(bout, s, t);
++	z.h[i].sym = s;
++	z.h[i].type = t;
++	if(++z.sym >= NSYM)
++		z.sym = 1;
++	*new = 1;
++	return i;
++}
++
++static int
++zsymaddr(Addr *a, int *new)
++{
++	int t;
++
++	t = a->name;
++	if(t == D_ADDR)
++		t = a->name;
++	return zsym(a->sym, t, new);
++}
++
+ void
+ dumpfuncs(void)
+ {
+ 	Plist *pl;
+-	int sf, st, t, sym;
+-	struct { Sym *sym; short type; } h[NSYM];
++	int sf, st, gf, gt, new;
+ 	Sym *s;
+ 	Prog *p;
+ 
+-	for(sym=0; sym<NSYM; sym++) {
+-		h[sym].sym = S;
+-		h[sym].type = 0;
+-	}
+-	sym = 1;
++	zsymreset();
+ 
+ 	// fix up pc
+ 	pcloc = 0;
+@@ -210,53 +257,20 @@ dumpfuncs(void)
+ 		}
+ 
+ 		for(p=pl->firstpc; p!=P; p=p->link) {
+-		jackpot:
+-			sf = 0;
+-			s = p->from.sym;
+-			while(s != S) {
+-				sf = s->sym;
+-				if(sf < 0 || sf >= NSYM)
+-					sf = 0;
+-				t = p->from.name;
+-				if(t == D_ADDR)
+-					t = p->from.name;
+-				if(h[sf].type == t)
+-				if(h[sf].sym == s)
+-					break;
+-				s->sym = sym;
+-				zname(bout, s, t);
+-				h[sym].sym = s;
+-				h[sym].type = t;
+-				sf = sym;
+-				sym++;
+-				if(sym >= NSYM)
+-					sym = 1;
+-				break;
+-			}
+-			st = 0;
+-			s = p->to.sym;
+-			while(s != S) {
+-				st = s->sym;
+-				if(st < 0 || st >= NSYM)
+-					st = 0;
+-				t = p->to.name;
+-				if(t == D_ADDR)
+-					t = p->to.name;
+-				if(h[st].type == t)
+-				if(h[st].sym == s)
+-					break;
+-				s->sym = sym;
+-				zname(bout, s, t);
+-				h[sym].sym = s;
+-				h[sym].type = t;
+-				st = sym;
+-				sym++;
+-				if(sym >= NSYM)
+-					sym = 1;
+-				if(st == sf)
+-					goto jackpot;
++			for(;;) {
++				sf = zsymaddr(&p->from, &new);
++				gf = zsym(p->from.gotype, D_EXTERN, &new);
++				if(new && sf == gf)
++					continue;
++				st = zsymaddr(&p->to, &new);
++				if(new && (st == sf || st == gf))
++					continue;
++				gt = zsym(p->to.gotype, D_EXTERN, &new);
++				if(new && (gt == sf || gt == gf || gt == st))
++					continue;
+ 				break;
+ 			}
++
+ 			Bputc(bout, p->as);
+ 			Bputc(bout, p->scond);
+  			Bputc(bout, p->reg);
+@@ -264,8 +278,8 @@ dumpfuncs(void)
+ 			Bputc(bout, p->lineno>>8);
+ 			Bputc(bout, p->lineno>>16);
+ 			Bputc(bout, p->lineno>>24);
+-			zaddr(bout, &p->from, sf);
+-			zaddr(bout, &p->to, st);
++			zaddr(bout, &p->from, sf, gf);
++			zaddr(bout, &p->to, st, gt);
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 38c4a92006..191c755b80 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1214,6 +1214,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	a->type = D_NONE;
+ 	a->name = D_NONE;
+ 	a->reg = NREG;
++	a->gotype = S;
+ 	a->node = N;
+ 	a->etype = 0;
+ 	if(n == N)
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index ce4f720126..62dd8947f0 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -321,6 +321,8 @@ EXTERN	int	dtype;
+ EXTERN	int	tlsoffset;
+ EXTERN	int	armsize;
+ EXTERN	int	goarm;
++EXTERN	Sym*	adrgotype;	// type symbol on last Adr read
++EXTERN	Sym*	fromgotype;	// type symbol on last p->from read
+ 
+ extern	char*	anames[];
+ extern	Optab	optab[];
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 14b1ea7aae..6aa7fdd69b 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -280,8 +280,21 @@ main(int argc, char *argv[])
+ 	errorexit();
+ }
+ 
++static Sym*
++zsym(char *pn, Biobuf *f, Sym *h[])
++{	
++	int o;
++	
++	o = BGETC(f);
++	if(o == 0)
++		return S;
++	if(o < 0 || o >= NSYM || h[o] == nil)
++		mangle(pn);
++	return h[o];
++}
++
+ static void
+-zaddr(Biobuf *f, Adr *a, Sym *h[])
++zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ {
+ 	int i, c;
+ 	int32 l;
+@@ -298,6 +311,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 	}
+ 	a->sym = h[c];
+ 	a->name = BGETC(f);
++	adrgotype = zsym(pn, f, h);
+ 
+ 	if((schar)a->reg < 0 || a->reg > NREG) {
+ 		print("register out of range %d\n", a->reg);
+@@ -358,8 +372,11 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 	if(s == S)
+ 		return;
+ 	i = a->name;
+-	if(i != D_AUTO && i != D_PARAM)
++	if(i != D_AUTO && i != D_PARAM) {
++		if(s && adrgotype)
++			s->gotype = adrgotype;
+ 		return;
++	}
+ 
+ 	l = a->offset;
+ 	for(u=curauto; u; u=u->link)
+@@ -367,6 +384,8 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 		if(u->type == i) {
+ 			if(u->aoffset > l)
+ 				u->aoffset = l;
++			if(adrgotype)
++				u->gotype = adrgotype;
+ 			return;
+ 		}
+ 
+@@ -376,6 +395,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 	u->asym = s;
+ 	u->aoffset = l;
+ 	u->type = i;
++	u->gotype = adrgotype;
+ }
+ 
+ void
+@@ -484,8 +504,9 @@ loop:
+ 	p->reg = BGETC(f);
+ 	p->line = Bget4(f);
+ 
+-	zaddr(f, &p->from, h);
+-	zaddr(f, &p->to, h);
++	zaddr(pn, f, &p->from, h);
++	fromgotype = adrgotype;
++	zaddr(pn, f, &p->to, h);
+ 
+ 	if(p->as != ATEXT && p->as != AGLOBL && p->reg > NREG)
+ 		diag("register out of range %A %d", p->as, p->reg);
+@@ -611,6 +632,11 @@ loop:
+ 			etextp->next = s;
+ 		else
+ 			textp = s;
++		if(fromgotype) {
++			if(s->gotype && s->gotype != fromgotype)
++				diag("%s: type mismatch for %s", pn, s->name);
++			s->gotype = fromgotype;
++		}
+ 		etextp = s;
+ 		p->align = 4;
+ 		autosize = (p->to.offset+3L) & ~3L;
+diff --git a/src/libmach/5obj.c b/src/libmach/5obj.c
+index 0f6bfa171c..57573b8663 100644
+--- a/src/libmach/5obj.c
++++ b/src/libmach/5obj.c
+@@ -42,6 +42,7 @@ struct Addr
+ 	char	type;
+ 	char	sym;
+ 	char	name;
++	char	gotype;
+ };
+ static Addr addr(Biobuf*);
+ static char type2char(int);
+@@ -115,6 +116,7 @@ addr(Biobuf *bp)
+ 	skip(bp,1);		/* reg */
+ 	a.sym = Bgetc(bp);	/* sym index */
+ 	a.name = Bgetc(bp);	/* sym type */
++	a.gotype = Bgetc(bp);	/* go type */
+ 	switch(a.type){
+ 	default:
+ 	case D_NONE:

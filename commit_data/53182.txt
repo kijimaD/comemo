@@ -9,7 +9,51 @@ Date:   Mon Jul 25 21:37:30 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go   | 7 +++----
  src/cmd/compile/internal/noder/reader.go | 7 ++++++-
  2 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index b6f80a1723..77848577c6 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -685,9 +685,8 @@ var inlgen int
+ var SSADumpInline = func(*ir.Func) {}
+ 
+ // NewInline allows the inliner implementation to be overridden.
+-// If it returns nil, the legacy inliner will handle this call
+-// instead.
+-var NewInline = func(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr { return nil }
++// If it returns nil, the function will not be inlined.
++var NewInline = oldInline
+ 
+ // If n is a OCALLFUNC node, and fn is an ONAME node for a
+ // function with an inlinable body, return an OINLCALL node that can replace n.
+@@ -807,7 +806,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 
+ 	res := NewInline(n, fn, inlIndex)
+ 	if res == nil {
+-		res = oldInline(n, fn, inlIndex)
++		return n
+ 	}
+ 
+ 	// transitive inlining
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index a8ef0a8e25..0a382e1c9b 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -2227,7 +2227,12 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
+ 
+ 	pri, ok := bodyReader[fn]
+ 	if !ok {
+-		base.FatalfAt(call.Pos(), "missing function body for call to %v", fn)
++		// TODO(mdempsky): Reconsider this diagnostic's wording, if it's
++		// to be included in Go 1.20.
++		if base.Flag.LowerM != 0 {
++			base.WarnfAt(call.Pos(), "cannot inline call to %v: missing inline body", fn)
++		}
++		return nil
+ 	}
+ 
+ 	if fn.Inl.Body == nil {

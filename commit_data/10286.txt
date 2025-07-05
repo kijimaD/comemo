@@ -11,7 +11,67 @@ Date:   Tue Nov 8 14:33:07 2011 -0800
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/5354045
-
+---
  src/pkg/text/template/parse.go | 15 ++++-----------
  src/pkg/text/template/set.go   |  9 +++++----
  2 files changed, 9 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/text/template/parse.go b/src/pkg/text/template/parse.go
+index 2fbd37ffa9..6ecd2f50b4 100644
+--- a/src/pkg/text/template/parse.go
++++ b/src/pkg/text/template/parse.go
+@@ -71,7 +71,7 @@ func (t *Template) Parse(s string) (tmpl *Template, err error) {
+ 
+ // ParseInSet parses the template definition string to construct an internal
+ // representation of the template for execution. It also adds the template
+-// to the set.
++// to the set. It is an error if s is already defined in the set.
+ // Function bindings are checked against those in the set.
+ func (t *Template) ParseInSet(s string, set *Set) (tmpl *Template, err error) {
+ 	var setFuncs FuncMap
+@@ -82,15 +82,8 @@ func (t *Template) ParseInSet(s string, set *Set) (tmpl *Template, err error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	t.addToSet(set)
+-	return t, nil
+-}
+-
+-// addToSet adds the template to the set, verifying it's not being double-assigned.
+-func (t *Template) addToSet(set *Set) {
+-	if set == nil || t.set == set {
+-		return
++	if set != nil {
++		err = set.add(t)
+ 	}
+-	// If double-assigned, Add will panic and we will turn that into an error.
+-	set.Add(t)
++	return t, err
+ }
+diff --git a/src/pkg/text/template/set.go b/src/pkg/text/template/set.go
+index bd0dfc6b36..ba5dc00544 100644
+--- a/src/pkg/text/template/set.go
++++ b/src/pkg/text/template/set.go
+@@ -101,8 +101,7 @@ func (s *Set) Execute(wr io.Writer, name string, data interface{}) error {
+ 
+ // Parse parses a string into a set of named templates.  Parse may be called
+ // multiple times for a given set, adding the templates defined in the string
+-// to the set.  If a template is redefined, the element in the set is
+-// overwritten with the new definition.
++// to the set.  It is an error if a template has a name already defined in the set.
+ func (s *Set) Parse(text string) (*Set, error) {
+ 	trees, err := parse.Set(text, s.leftDelim, s.rightDelim, s.parseFuncs, builtins)
+ 	if err != nil {
+@@ -112,8 +111,10 @@ func (s *Set) Parse(text string) (*Set, error) {
+ 	for name, tree := range trees {
+ 		tmpl := New(name)
+ 		tmpl.Tree = tree
+-		tmpl.addToSet(s)
+-		s.tmpl[name] = tmpl
++		err = s.add(tmpl)
++		if err != nil {
++			return s, err
++		}
+ 	}
+ 	return s, nil
+ }

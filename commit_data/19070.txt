@@ -13,9 +13,171 @@ Date:   Tue Apr 8 22:35:29 2014 -0400
     R=golang-codereviews, gobot, adg, rsc
     CC=golang-codereviews
     https://golang.org/cl/72770043
-
+---
  src/cmd/go/context.go | 36 ++++++++++++++++++++++++++++++++++++
  src/cmd/go/doc.go     | 23 +++++++++++++++++++++--
  src/cmd/go/list.go    | 36 +++++++++++++++++++++++++++++++++---
  src/cmd/go/test.bash  |  6 ++++++
  4 files changed, 96 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/context.go b/src/cmd/go/context.go
+new file mode 100644
+index 0000000000..68e518259f
+--- /dev/null
++++ b/src/cmd/go/context.go
+@@ -0,0 +1,36 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/build"
++)
++
++type Context struct {
++	GOARCH        string   `json:",omitempty"` // target architecture
++	GOOS          string   `json:",omitempty"` // target operating system
++	GOROOT        string   `json:",omitempty"` // Go root
++	GOPATH        string   `json:",omitempty"` // Go path
++	CgoEnabled    bool     `json:",omitempty"` // whether cgo can be used
++	UseAllFiles   bool     `json:",omitempty"` // use files regardless of +build lines, file names
++	Compiler      string   `json:",omitempty"` // compiler to assume when computing target paths
++	BuildTags     []string `json:",omitempty"` // build constraints to match in +build lines
++	ReleaseTags   []string `json:",omitempty"` // releases the current release is compatible with
++	InstallSuffix string   `json:",omitempty"` // suffix to use in the name of the install dir
++}
++
++func newContext(c *build.Context) *Context {
++	return &Context{
++		GOARCH:        c.GOARCH,
++		GOOS:          c.GOOS,
++		GOROOT:        c.GOROOT,
++		CgoEnabled:    c.CgoEnabled,
++		UseAllFiles:   c.UseAllFiles,
++		Compiler:      c.Compiler,
++		BuildTags:     c.BuildTags,
++		ReleaseTags:   c.ReleaseTags,
++		InstallSuffix: c.InstallSuffix,
++	}
++}
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index d5f1d1bf24..664bc83bde 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -283,8 +283,7 @@ The default output shows the package import path:
+ 
+ The -f flag specifies an alternate format for the list, using the
+ syntax of package template.  The default output is equivalent to -f
+-'{{.ImportPath}}'.  One extra template function is available, "join",
+-which calls strings.Join. The struct being passed to the template is:
++'{{.ImportPath}}'. The struct being passed to the template is:
+ 
+     type Package struct {
+         Dir        string // directory containing package sources
+@@ -332,6 +331,26 @@ which calls strings.Join. The struct being passed to the template is:
+         XTestImports []string // imports from XTestGoFiles
+     }
+ 
++The template function "join" calls strings.Join.
++
++The template function "context" returns the build context, defined as:
++
++	type Context struct {
++		GOARCH        string   // target architecture
++		GOOS          string   // target operating system
++		GOROOT        string   // Go root
++		GOPATH        string   // Go path
++		CgoEnabled    bool     // whether cgo can be used
++		UseAllFiles   bool     // use files regardless of +build lines, file names
++		Compiler      string   // compiler to assume when computing target paths
++		BuildTags     []string // build constraints to match in +build lines
++		ReleaseTags   []string // releases the current release is compatible with
++		InstallSuffix string   // suffix to use in the name of the install dir
++	}
++
++For more information about the meaning of these fields see the documentation
++for the go/build package's Context type.
++
+ The -json flag causes the package data to be printed in JSON format
+ instead of using the template format.
+ 
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index 2cd8e5fa78..e2b0ba0dc1 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -27,8 +27,7 @@ The default output shows the package import path:
+ 
+ The -f flag specifies an alternate format for the list, using the
+ syntax of package template.  The default output is equivalent to -f
+-'{{.ImportPath}}'.  One extra template function is available, "join",
+-which calls strings.Join. The struct being passed to the template is:
++'{{.ImportPath}}'. The struct being passed to the template is:
+ 
+     type Package struct {
+         Dir        string // directory containing package sources
+@@ -76,6 +75,26 @@ which calls strings.Join. The struct being passed to the template is:
+         XTestImports []string // imports from XTestGoFiles
+     }
+ 
++The template function "join" calls strings.Join.
++
++The template function "context" returns the build context, defined as:
++
++	type Context struct {
++		GOARCH        string   // target architecture
++		GOOS          string   // target operating system
++		GOROOT        string   // Go root
++		GOPATH        string   // Go path
++		CgoEnabled    bool     // whether cgo can be used
++		UseAllFiles   bool     // use files regardless of +build lines, file names
++		Compiler      string   // compiler to assume when computing target paths
++		BuildTags     []string // build constraints to match in +build lines
++		ReleaseTags   []string // releases the current release is compatible with
++		InstallSuffix string   // suffix to use in the name of the install dir
++	}
++
++For more information about the meaning of these fields see the documentation
++for the go/build package's Context type.
++
+ The -json flag causes the package data to be printed in JSON format
+ instead of using the template format.
+ 
+@@ -131,7 +150,18 @@ func runList(cmd *Command, args []string) {
+ 			out.Write(nl)
+ 		}
+ 	} else {
+-		tmpl, err := template.New("main").Funcs(template.FuncMap{"join": strings.Join}).Parse(*listFmt)
++		var cachedCtxt *Context
++		context := func() *Context {
++			if cachedCtxt == nil {
++				cachedCtxt = newContext(&buildContext)
++			}
++			return cachedCtxt
++		}
++		fm := template.FuncMap{
++			"join":    strings.Join,
++			"context": context,
++		}
++		tmpl, err := template.New("main").Funcs(fm).Parse(*listFmt)
+ 		if err != nil {
+ 			fatalf("%s", err)
+ 		}
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 1091695b37..45215de4de 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -694,6 +694,12 @@ unset go_cmds
+ unset ldflags
+ unset GOPATH
+ 
++TEST list template can use context function
++if ! ./testgo list -f "GOARCH: {{context.GOARCH}}"; then 
++	echo unable to use context in list template
++	ok=false
++fi
++
+ # clean up
+ if $started; then stop; fi
+ rm -rf testdata/bin testdata/bin1

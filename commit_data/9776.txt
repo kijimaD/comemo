@@ -7,7 +7,34 @@ Date:   Fri Sep 23 07:22:28 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5086048
-
+---
  doc/docs.html          | 1 +
  src/pkg/image/image.go | 3 +++
  2 files changed, 4 insertions(+)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index b6e8028e4d..ed03a24ede 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -97,6 +97,7 @@ Notable articles from the <a href="http://blog.golang.org/">Go Blog</a>.
+ <li><a href="http://blog.golang.org/2011/01/json-and-go.html">JSON and Go</a> - using the <a href="/pkg/json/">json</a> package.</li>
+ <li><a href="http://blog.golang.org/2011/03/gobs-of-data.html">Gobs of data</a> - the design and use of the <a href="/pkg/gob/">gob</a> package.</li>
+ <li><a href="http://blog.golang.org/2011/09/laws-of-reflection.html">The Laws of Reflection</a> - the fundamentals of the <a href="/pkg/reflect/">reflect</a> package.</li>
++<li><a href="http://blog.golang.org/2011/09/go-image-package.html">The Go image package</a> - the fundamentals of the <a href="/pkg/image/">image</a> package.</li>
+ </ul>
+ 
+ <h3>Tools</h3>
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index 1ff0c023a4..72dfb62431 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -3,6 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package image implements a basic 2-D image library.
++//
++// See "The Go image package" for an introduction to this package:
++// http://blog.golang.org/2011/09/go-image-package.html
+ package image
+ 
+ // Config holds an image's color model and dimensions.

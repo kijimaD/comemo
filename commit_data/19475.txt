@@ -10,7 +10,44 @@ Date:   Sat May 31 09:35:54 2014 -0400
     R=golang-codereviews, bradfitz, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/100870046
-
+---
  src/cmd/gc/racewalk.c             |  2 +-
  src/pkg/runtime/race/race_test.go | 15 +++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 2319d7f642..285bd78a25 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -182,7 +182,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 			// x, y := f() becomes BLOCK{CALL f, AS x [SP+0], AS y [SP+n]}
+ 			// We don't want to instrument between the statements because it will
+ 			// smash the results.
+-			racewalknode(&n->list->n, &n->ninit, 0, 0);
++			racewalknode(&n->list->n, &n->list->n->ninit, 0, 0);
+ 			fini = nil;
+ 			racewalklist(n->list->next, &fini);
+ 			n->list = concat(n->list, fini);
+diff --git a/src/pkg/runtime/race/race_test.go b/src/pkg/runtime/race/race_test.go
+index 88ef89d82a..7e0ee866a6 100644
+--- a/src/pkg/runtime/race/race_test.go
++++ b/src/pkg/runtime/race/race_test.go
+@@ -155,3 +155,18 @@ func runTests() ([]byte, error) {
+ 	cmd.Env = append(cmd.Env, `GORACE="suppress_equal_stacks=0 suppress_equal_addresses=0 exitcode=0"`)
+ 	return cmd.CombinedOutput()
+ }
++
++func TestIssue8102(t *testing.T) {
++	// If this compiles with -race, the test passes.
++	type S struct {
++		x interface{}
++		i int
++	}
++	c := make(chan int)
++	a := [2]*int{}
++	for ; ; c <- *a[S{}.i] {
++		if t != nil {
++			break
++		}
++	}
++}

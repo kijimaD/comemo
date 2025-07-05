@@ -18,6 +18,20 @@ Date:   Wed Jan 14 01:23:26 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/2808
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/get.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 86e1697618..50e0ca93bf 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -290,7 +290,7 @@ func downloadPackage(p *Package) error {
+ 						}
+ 					}
+ 					if remote != repo {
+-						return fmt.Errorf("%s is from %s, should be from %s", dir, remote, repo)
++						return fmt.Errorf("%s is a custom import path for %s, but %s is checked out from %s", rr.root, repo, dir, remote)
+ 					}
+ 				}
+ 			}

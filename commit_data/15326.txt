@@ -8,6 +8,28 @@ Date:   Wed Feb 20 12:34:16 2013 +0400
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/7379043
-
+---
  src/pkg/runtime/debug/garbage_test.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/debug/garbage_test.go b/src/pkg/runtime/debug/garbage_test.go
+index 5fda5ca1ae..b93cfee568 100644
+--- a/src/pkg/runtime/debug/garbage_test.go
++++ b/src/pkg/runtime/debug/garbage_test.go
+@@ -70,12 +70,14 @@ func TestReadGCStats(t *testing.T) {
+ 	}
+ }
+ 
+-var big []byte
++var big = make([]byte, 1<<20)
+ 
+ func TestFreeOSMemory(t *testing.T) {
+ 	var ms1, ms2 runtime.MemStats
+ 
+-	big = make([]byte, 1<<20)
++	if big == nil {
++		t.Skip("test is not reliable when run multiple times")
++	}
+ 	big = nil
+ 	runtime.GC()
+ 	runtime.ReadMemStats(&ms1)

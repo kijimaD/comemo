@@ -9,10 +9,116 @@ Date:   Fri Jan 8 00:01:03 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/181184
-
+---
  src/cmd/gc/const.c       |  4 ++++
  src/cmd/gc/walk.c        |  5 ++++-
  test/bugs/bug238.go      | 19 -------------------
  test/fixedbugs/bug238.go | 19 +++++++++++++++++++
  test/golden.out          | 15 ---------------
  5 files changed, 27 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 4575ff6da4..895f264313 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -186,6 +186,10 @@ convlit1(Node **np, Type *t, int explicit)
+ 	return;
+ 
+ bad:
++	if(!n->diag) {
++		yyerror("cannot convert %#N to type %T", n, t);
++		n->diag = 1;
++	}
+ 	if(isideal(n->type)) {
+ 		defaultlit(&n, T);
+ 		*np = n;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 587119c96f..211efaec94 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -180,8 +180,11 @@ walkdef(Node *n)
+ 			goto ret;
+ 		}
+ 		t = n->type;
+-		if(t != T)
++		if(t != T) {
+ 			convlit(&e, t);
++			if(!isint[t->etype] && !isfloat[t->etype] && t->etype != TSTRING)
++				yyerror("invalid constant type %T", t);
++		}
+ 		n->val = e->val;
+ 		n->type = e->type;
+ 		break;
+diff --git a/test/bugs/bug238.go b/test/bugs/bug238.go
+deleted file mode 100644
+index a5737d6602..0000000000
+--- a/test/bugs/bug238.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// errchk $G -e $D/$F.go
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Test case for issue 471. This file shouldn't compile.
+-
+-package main
+-
+-const a *int = 1        // ERROR "wrong|incompatible"
+-const b [2]int = 2      // ERROR "wrong|incompatible"
+-const c map[int]int = 3 // ERROR "wrong|incompatible"
+-const d chan int = 4    // ERROR "wrong|incompatible"
+-const e func() = 5      // ERROR "wrong|incompatible"
+-const f struct{} = 6    // ERROR "wrong|incompatible"
+-const g interface{} = 7 // ERROR "wrong|incompatible"
+-
+-func main() { println(a, b, c, d, e, f, g) }
+diff --git a/test/fixedbugs/bug238.go b/test/fixedbugs/bug238.go
+new file mode 100644
+index 0000000000..3ceacf51d7
+--- /dev/null
++++ b/test/fixedbugs/bug238.go
+@@ -0,0 +1,19 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case for issue 471. This file shouldn't compile.
++
++package main
++
++const a *int = 1        // ERROR "convert|wrong|incompatible"
++const b [2]int = 2      // ERROR "convert|wrong|incompatible"
++const c map[int]int = 3 // ERROR "convert|wrong|incompatible"
++const d chan int = 4    // ERROR "convert|wrong|incompatible"
++const e func() = 5      // ERROR "convert|wrong|incompatible"
++const f struct{} = 6    // ERROR "convert|wrong|incompatible"
++const g interface{} = 7 // ERROR "constant|wrong|incompatible"
++
++func main() { println(a, b, c, d, e, f, g) }
+diff --git a/test/golden.out b/test/golden.out
+index 0795adf44e..ae04f70bb3 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -144,18 +144,3 @@ throw: interface conversion
+ panic PC=xxx
+ 
+ == bugs/
+-
+-=========== bugs/bug219.go
+-bugs/bug219.go:16: syntax error near if
+-BUG: bug219
+-
+-=========== bugs/bug238.go
+-BUG: errchk: command succeeded unexpectedly
+-
+-=========== bugs/bug239.go
+-bugs/bug239.go:11: imported and not used: unsafe
+-bugs/bug239.go:15: undefined: Sizeof
+-BUG: bug239
+-
+-=========== bugs/bug240.go
+-BUG: errchk: command succeeded unexpectedly

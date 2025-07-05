@@ -11,7 +11,34 @@ Date:   Sun Sep 4 18:37:30 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/http/httputil/dump_test.go         | 2 +-
  src/net/http/httputil/reverseproxy_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/httputil/dump_test.go b/src/net/http/httputil/dump_test.go
+index 764750e2f7..c20c054865 100644
+--- a/src/net/http/httputil/dump_test.go
++++ b/src/net/http/httputil/dump_test.go
+@@ -523,7 +523,7 @@ func TestDumpRequestOutIssue38352(t *testing.T) {
+ 		select {
+ 		case <-out:
+ 		case <-time.After(timeout):
+-			b := &bytes.Buffer{}
++			b := &strings.Builder{}
+ 			fmt.Fprintf(b, "deadlock detected on iteration %d after %s with delay: %v\n", i, timeout, delay)
+ 			pprof.Lookup("goroutine").WriteTo(b, 1)
+ 			t.Fatal(b.String())
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index f8157e9435..549bc67b87 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -1123,7 +1123,7 @@ func TestModifyResponseClosesBody(t *testing.T) {
+ 	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
+ 	req.RemoteAddr = "1.2.3.4:56789"
+ 	closeCheck := new(checkCloser)
+-	logBuf := new(bytes.Buffer)
++	logBuf := new(strings.Builder)
+ 	outErr := errors.New("ModifyResponse error")
+ 	rp := &ReverseProxy{
+ 		Director: func(req *http.Request) {},

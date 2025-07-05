@@ -17,6 +17,20 @@ Date:   Thu Dec 2 19:05:27 2021 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/ppc64/galign.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 6f9d1407d6..20fd8cec54 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -16,7 +16,7 @@ func Init(arch *ssagen.ArchInfo) {
+ 		arch.LinkArch = &ppc64.Linkppc64le
+ 	}
+ 	arch.REGSP = ppc64.REGSP
+-	arch.MAXWIDTH = 1 << 60
++	arch.MAXWIDTH = 1 << 50
+ 
+ 	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop

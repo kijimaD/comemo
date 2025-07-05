@@ -7,6 +7,20 @@ Date:   Thu Jun 13 16:40:10 2013 +0400
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/10260043
-
+---
  src/pkg/runtime/malloc.goc | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 12d326fe20..0347b90c91 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -399,7 +399,7 @@ runtime·mallocinit(void)
+ 		// So adjust it upward a little bit ourselves: 1/4 MB to get
+ 		// away from the running binary image and then round up
+ 		// to a MB boundary.
+-		want = (byte*)ROUND((uintptr)end + 1<<18, 1<<20);
++		want = (byte*)ROUND((uintptr)end + (1<<18), 1<<20);
+ 		p = runtime·SysReserve(want, bitmap_size + spans_size + arena_size);
+ 		if(p == nil)
+ 			runtime·throw("runtime: cannot reserve arena virtual address space");

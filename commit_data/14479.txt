@@ -8,7 +8,41 @@ Date:   Mon Nov 26 10:53:11 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6847067
-
+---
  src/pkg/runtime/debug.go  | 2 ++
  src/pkg/runtime/extern.go | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index 0211ce61b8..d82afb08ec 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -125,6 +125,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool)
+ // blocking until data is available.  If profiling is turned off and all the profile
+ // data accumulated while it was on has been returned, CPUProfile returns nil.
+ // The caller must save the returned data before calling CPUProfile again.
++//
+ // Most clients should use the runtime/pprof package or
+ // the testing package's -test.cpuprofile flag instead of calling
+ // CPUProfile directly.
+@@ -133,6 +134,7 @@ func CPUProfile() []byte
+ // SetCPUProfileRate sets the CPU profiling rate to hz samples per second.
+ // If hz <= 0, SetCPUProfileRate turns off profiling.
+ // If the profiler is on, the rate cannot be changed without first turning it off.
++//
+ // Most clients should use the runtime/pprof package or
+ // the testing package's -test.cpuprofile flag instead of calling
+ // SetCPUProfileRate directly.
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index d93259d7bb..8df005f952 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -67,7 +67,7 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
+ // implemented in symtab.c
+ func funcline_go(*Func, uintptr) (string, int)
+ 
+-// mid returns the current os thread (m) id.
++// mid returns the current OS thread (m) id.
+ func mid() uint32
+ 
+ // SetFinalizer sets the finalizer associated with x to f.

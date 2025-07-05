@@ -20,6 +20,29 @@ Date:   Mon Mar 5 16:21:46 2012 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5755044
-
+---
  test/fixedbugs/bug388.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/test/fixedbugs/bug388.go b/test/fixedbugs/bug388.go
+index aa4cc5a97a..d41f9ea543 100644
+--- a/test/fixedbugs/bug388.go
++++ b/test/fixedbugs/bug388.go
+@@ -9,13 +9,13 @@
+ package main
+ import "runtime"
+ 
+-func foo(runtime.UintType, i int) {  // ERROR "cannot declare name runtime.UintType|named/anonymous mix"
+-	println(i, runtime.UintType) 
++func foo(runtime.UintType, i int) {  // ERROR "cannot declare name runtime.UintType|named/anonymous mix|undefined identifier"
++	println(i, runtime.UintType) // GCCGO_ERROR "undefined identifier"
+ }
+ 
+ func bar(i int) {
+-	runtime.UintType := i       // ERROR "cannot declare name runtime.UintType|non-name on left side"
+-	println(runtime.UintType)	// GCCGO_ERROR "invalid use of type"
++	runtime.UintType := i       // ERROR "cannot declare name runtime.UintType|non-name on left side|undefined identifier"
++	println(runtime.UintType)	// GCCGO_ERROR "invalid use of type|undefined identifier"
+ }
+ 
+ func baz() {

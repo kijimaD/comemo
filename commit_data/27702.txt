@@ -17,7 +17,7 @@ Date:   Sat Apr 9 15:04:45 2016 +1000
     Reviewed-on: https://go-review.googlesource.com/21782
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/internal/goobj/read.go                  |  7 ++----
  src/cmd/internal/obj/mips/asm0.go               |  4 ----
  src/cmd/internal/obj/x86/asm6.go                |  5 -----
@@ -36,3 +36,313 @@ Date:   Sat Apr 9 15:04:45 2016 +1000
  src/cmd/link/internal/ppc64/asm.go              |  4 ----
  src/cmd/link/internal/x86/asm.go                |  4 ----
  17 files changed, 7 insertions(+), 106 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 5434661384..698d58efe0 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -229,11 +229,8 @@ var (
+ 
+ 	errCorruptArchive   = errors.New("corrupt archive")
+ 	errTruncatedArchive = errors.New("truncated archive")
+-	errNotArchive       = errors.New("unrecognized archive format")
+-
+-	errCorruptObject   = errors.New("corrupt object file")
+-	errTruncatedObject = errors.New("truncated object file")
+-	errNotObject       = errors.New("unrecognized object file format")
++	errCorruptObject    = errors.New("corrupt object file")
++	errNotObject        = errors.New("unrecognized object file format")
+ )
+ 
+ // An objReader is an object file reader.
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 521cb66dec..5cb5d1cfd9 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -974,10 +974,6 @@ func OP_JMP(op uint32, i uint32) uint32 {
+ 	return op | i&0x3FFFFFF
+ }
+ 
+-func oclass(a *obj.Addr) int {
+-	return int(a.Class) - 1
+-}
+-
+ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 	o1 := uint32(0)
+ 	o2 := uint32(0)
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index b940094b8b..c15b59b5e8 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -884,11 +884,6 @@ var yvex_vpbroadcast = []ytab{
+ 	{Yxm, Ynone, Yyr, Zvex_rm_v_r, 2},
+ }
+ 
+-var yvex_xxmyxm = []ytab{
+-	{Yxr, Ynone, Yxm, Zvex_r_v_rm, 2},
+-	{Yyr, Ynone, Yxm, Zvex_r_v_rm, 2},
+-}
+-
+ var ymmxmm0f38 = []ytab{
+ 	{Ymm, Ynone, Ymr, Zlitm_r, 3},
+ 	{Yxm, Ynone, Yxr, Zlitm_r, 5},
+diff --git a/src/cmd/internal/obj/x86/obj6_test.go b/src/cmd/internal/obj/x86/obj6_test.go
+index a5c80cea3b..fe1f95cc0d 100644
+--- a/src/cmd/internal/obj/x86/obj6_test.go
++++ b/src/cmd/internal/obj/x86/obj6_test.go
+@@ -76,7 +76,6 @@ func parseTestData(t *testing.T) *ParsedTestData {
+ }
+ 
+ var spaces_re *regexp.Regexp = regexp.MustCompile("\\s+")
+-var marker_re *regexp.Regexp = regexp.MustCompile("MOVQ \\$([0-9]+), AX")
+ 
+ func normalize(s string) string {
+ 	return spaces_re.ReplaceAllLiteralString(strings.TrimSpace(s), " ")
+diff --git a/src/cmd/internal/objfile/pe.go b/src/cmd/internal/objfile/pe.go
+index 1b319941ac..c024762371 100644
+--- a/src/cmd/internal/objfile/pe.go
++++ b/src/cmd/internal/objfile/pe.go
+@@ -69,8 +69,6 @@ func (f *peFile) symbols() ([]Sym, error) {
+ 				text  = 0x20
+ 				data  = 0x40
+ 				bss   = 0x80
+-				permX = 0x20000000
+-				permR = 0x40000000
+ 				permW = 0x80000000
+ 			)
+ 			ch := sect.Characteristics
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 8cecd422e1..a6dce6c2c9 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -99,12 +99,6 @@ func gentext() {
+ 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
+ }
+ 
+-func adddynrela(rela *ld.LSym, s *ld.LSym, r *ld.Reloc) {
+-	ld.Addaddrplus(ld.Ctxt, rela, s, int64(r.Off))
+-	ld.Adduint64(ld.Ctxt, rela, ld.R_X86_64_RELATIVE)
+-	ld.Addaddrplus(ld.Ctxt, rela, r.Sym, r.Add) // Addend
+-}
+-
+ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 	targ := r.Sym
+ 	ld.Ctxt.Cursym = s
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index b89cb20bdf..1188615716 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -114,11 +114,6 @@ func braddoff(a int32, b int32) int32 {
+ 	return int32((uint32(a))&0xff000000 | 0x00ffffff&uint32(a+b))
+ }
+ 
+-func adddynrela(rel *ld.LSym, s *ld.LSym, r *ld.Reloc) {
+-	ld.Addaddrplus(ld.Ctxt, rel, s, int64(r.Off))
+-	ld.Adduint32(ld.Ctxt, rel, ld.R_ARM_RELATIVE)
+-}
+-
+ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 	targ := r.Sym
+ 	ld.Ctxt.Cursym = s
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index fd8929dd99..d3ba5ff3f3 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -91,10 +91,6 @@ func gentext() {
+ 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
+ }
+ 
+-func adddynrela(rel *ld.LSym, s *ld.LSym, r *ld.Reloc) {
+-	log.Fatalf("adddynrela not implemented")
+-}
+-
+ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 	log.Fatalf("adddynrel not implemented")
+ }
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index cd910b54c0..2c8cc9ca4f 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -236,10 +236,6 @@ func addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
+  * Used for the data block.
+  */
+ 
+-func listnextp(s *LSym) **LSym {
+-	return &s.Next
+-}
+-
+ func listsubp(s *LSym) **LSym {
+ 	return &s.Sub
+ }
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index b17b96001e..8b2d0d447e 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -170,9 +170,7 @@ type methodref struct {
+ 	r   [3]*Reloc // R_METHOD relocations to fields of runtime.method
+ }
+ 
+-func (m methodref) mtyp() *LSym { return m.r[0].Sym }
+-func (m methodref) ifn() *LSym  { return m.r[1].Sym }
+-func (m methodref) tfn() *LSym  { return m.r[2].Sym }
++func (m methodref) ifn() *LSym { return m.r[1].Sym }
+ 
+ func (m methodref) isExported() bool {
+ 	for _, r := range m.m {
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index bc29938590..1066d220f7 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -56,11 +56,6 @@ func decodetype_kind(s *LSym) uint8 {
+ 	return uint8(s.P[2*SysArch.PtrSize+7] & obj.KindMask) //  0x13 / 0x1f
+ }
+ 
+-// Type.commonType.kind
+-func decodetype_noptr(s *LSym) uint8 {
+-	return uint8(s.P[2*SysArch.PtrSize+7] & obj.KindNoPointers) //  0x13 / 0x1f
+-}
+-
+ // Type.commonType.kind
+ func decodetype_usegcprog(s *LSym) uint8 {
+ 	return uint8(s.P[2*SysArch.PtrSize+7] & obj.KindGCProg) //  0x13 / 0x1f
+@@ -216,19 +211,6 @@ func decodetype_structfieldarrayoff(s *LSym, i int) int {
+ 	return off
+ }
+ 
+-func decodetype_stringptr(s *LSym, off int) string {
+-	s = decode_reloc_sym(s, int32(off))
+-	if s == nil {
+-		return ""
+-	}
+-	r := decode_reloc(s, 0) // s has a pointer to the string data at offset 0
+-	if r == nil {           // shouldn't happen.
+-		return ""
+-	}
+-	strlen := int64(decode_inuxi(s.P[SysArch.PtrSize:], SysArch.IntSize))
+-	return string(r.Sym.P[r.Add : r.Add+strlen])
+-}
+-
+ // decodetype_name decodes the name from a reflect.name.
+ func decodetype_name(s *LSym, off int) string {
+ 	r := decode_reloc(s, int32(off))
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 5dad90dae6..3af5f7a046 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -419,35 +419,7 @@ type Pkg struct {
+ 	impby   []*Pkg
+ }
+ 
+-var (
+-	// pkgmap records the imported-by relationship between packages.
+-	// Entries are keyed by package path (e.g., "runtime" or "net/url").
+-	pkgmap = map[string]*Pkg{}
+-
+-	pkgall []*Pkg
+-)
+-
+-func lookupPkg(path string) *Pkg {
+-	if p, ok := pkgmap[path]; ok {
+-		return p
+-	}
+-	p := &Pkg{path: path}
+-	pkgmap[path] = p
+-	pkgall = append(pkgall, p)
+-	return p
+-}
+-
+-// imported records that package pkg imports package imp.
+-func imported(pkg, imp string) {
+-	// everyone imports runtime, even runtime.
+-	if imp == "runtime" {
+-		return
+-	}
+-
+-	p := lookupPkg(pkg)
+-	i := lookupPkg(imp)
+-	i.impby = append(i.impby, p)
+-}
++var pkgall []*Pkg
+ 
+ func (p *Pkg) cycle() *Pkg {
+ 	if p.checked {
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 25d48fbf22..1d9a1a9324 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -586,11 +586,8 @@ func Asmbmacho() {
+ 		// and we can assume OS X.
+ 		//
+ 		// See golang.org/issues/12941.
+-		const (
+-			LC_VERSION_MIN_MACOSX   = 0x24
+-			LC_VERSION_MIN_IPHONEOS = 0x25
+-			LC_VERSION_MIN_WATCHOS  = 0x30
+-		)
++		const LC_VERSION_MIN_MACOSX = 0x24
++
+ 		ml := newMachoLoad(LC_VERSION_MIN_MACOSX, 2)
+ 		ml.data[0] = 10<<16 | 7<<8 | 0<<0 // OS X version 10.7.0
+ 		ml.data[1] = 10<<16 | 7<<8 | 0<<0 // SDK 10.7.0
+diff --git a/src/cmd/link/internal/ld/macho_combine_dwarf.go b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+index b5a5a8d429..dcc371ec05 100644
+--- a/src/cmd/link/internal/ld/macho_combine_dwarf.go
++++ b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+@@ -15,11 +15,9 @@ import (
+ 	"unsafe"
+ )
+ 
+-var fakedwarf, realdwarf, linkseg *macho.Segment
++var realdwarf, linkseg *macho.Segment
+ var dwarfstart, linkstart int64
+ var linkoffset uint32
+-var machHeader *macho.FileHeader
+-var mappedHeader []byte
+ 
+ const (
+ 	LC_ID_DYLIB             = 0xd
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 027736cc11..ad6a1f7524 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -41,10 +41,6 @@ import (
+ 
+ func gentext() {}
+ 
+-func adddynrela(rel *ld.LSym, s *ld.LSym, r *ld.Reloc) {
+-	log.Fatalf("adddynrela not implemented")
+-}
+-
+ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 	log.Fatalf("adddynrel not implemented")
+ }
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 13d80545c7..3970f3c5f9 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -265,10 +265,6 @@ func gencallstub(abicase int, stub *ld.LSym, targ *ld.LSym) {
+ 	ld.Adduint32(ld.Ctxt, stub, 0x4e800420) // bctr
+ }
+ 
+-func adddynrela(rel *ld.LSym, s *ld.LSym, r *ld.Reloc) {
+-	log.Fatalf("adddynrela not implemented")
+-}
+-
+ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 	targ := r.Sym
+ 	ld.Ctxt.Cursym = s
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index a786ba5a48..19a8917ec8 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -139,10 +139,6 @@ func gentext() {
+ 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
+ }
+ 
+-func adddynrela(rela *ld.LSym, s *ld.LSym, r *ld.Reloc) {
+-	log.Fatalf("adddynrela not implemented")
+-}
+-
+ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 	targ := r.Sym
+ 	ld.Ctxt.Cursym = s

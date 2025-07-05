@@ -16,6 +16,23 @@ Date:   Sat Nov 3 17:23:30 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/deadcode.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 8f582174c5..627ce05d7a 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -209,11 +209,6 @@ func (d *deadcodepass) markMethod(m methodref) {
+ func (d *deadcodepass) init() {
+ 	var names []string
+ 
+-	if d.ctxt.Arch.Family == sys.ARM {
+-		// mark some functions that are only referenced after linker code editing
+-		names = append(names, "runtime.read_tls_fallback")
+-	}
+-
+ 	if d.ctxt.BuildMode == BuildModeShared {
+ 		// Mark all symbols defined in this library as reachable when
+ 		// building a shared library.

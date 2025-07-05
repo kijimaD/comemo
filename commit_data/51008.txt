@@ -21,7 +21,7 @@ Date:   Wed Nov 17 15:23:12 2021 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go     | 81 +++++++++++++++++++---
  src/cmd/compile/internal/types2/call.go            | 25 +++++--
  src/cmd/compile/internal/types2/decl.go            |  2 +-
@@ -38,3 +38,515 @@ Date:   Wed Nov 17 15:23:12 2021 -0800
  test/fixedbugs/issue48834.go                       | 24 +++++++
  test/fixedbugs/issue48835.go                       | 25 +++++++
  15 files changed, 190 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index ac4f7b88a4..0a85d8eb39 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -9,6 +9,7 @@ package types2
+ import (
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
++	"strings"
+ )
+ 
+ // assignment reports whether x can be assigned to a variable of type T,
+@@ -241,6 +242,58 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
+ 	return x.typ
+ }
+ 
++// operandTypes returns the list of types for the given operands.
++func operandTypes(list []*operand) (res []Type) {
++	for _, x := range list {
++		res = append(res, x.typ)
++	}
++	return res
++}
++
++// varTypes returns the list of types for the given variables.
++func varTypes(list []*Var) (res []Type) {
++	for _, x := range list {
++		res = append(res, x.typ)
++	}
++	return res
++}
++
++// typesSummary returns a string of the form "(t1, t2, ...)" where the
++// ti's are user-friendly string representations for the given types.
++// If variadic is set and the last type is a slice, its string is of
++// the form "...E" where E is the slice's element type.
++func (check *Checker) typesSummary(list []Type, variadic bool) string {
++	var res []string
++	for i, t := range list {
++		var s string
++		switch {
++		case t == nil:
++			fallthrough // should not happend but be cautious
++		case t == Typ[Invalid]:
++			s = "<T>"
++		case isUntyped(t):
++			if isNumeric(t) {
++				// Do not imply a specific type requirement:
++				// "have number, want float64" is better than
++				// "have untyped int, want float64" or
++				// "have int, want float64".
++				s = "number"
++			} else {
++				// If we don't have a number, omit the "untyped" qualifier
++				// for compactness.
++				s = strings.Replace(t.(*Basic).name, "untyped ", "", -1)
++			}
++		case variadic && i == len(list)-1:
++			s = check.sprintf("...%s", t.(*Slice).elem)
++		}
++		if s == "" {
++			s = check.sprintf("%s", t)
++		}
++		res = append(res, s)
++	}
++	return "(" + strings.Join(res, ", ") + ")"
++}
++
+ func (check *Checker) assignError(rhs []syntax.Expr, nvars, nvals int) {
+ 	measure := func(x int, unit string) string {
+ 		s := fmt.Sprintf("%d %s", x, unit)
+@@ -263,10 +316,10 @@ func (check *Checker) assignError(rhs []syntax.Expr, nvars, nvals int) {
+ 	check.errorf(rhs0, "assignment mismatch: %s but %s", vars, vals)
+ }
+ 
+-// If returnPos is valid, initVars is called to type-check the assignment of
+-// return expressions, and returnPos is the position of the return statement.
+-func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnPos syntax.Pos) {
+-	rhs, commaOk := check.exprList(orig_rhs, len(lhs) == 2 && !returnPos.IsKnown())
++// If returnStmt != nil, initVars is called to type-check the assignment
++// of return expressions, and returnStmt is the the return statement.
++func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt syntax.Stmt) {
++	rhs, commaOk := check.exprList(orig_rhs, len(lhs) == 2 && returnStmt == nil)
+ 
+ 	if len(lhs) != len(rhs) {
+ 		// invalidate lhs
+@@ -282,8 +335,20 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnPos syn
+ 				return
+ 			}
+ 		}
+-		if returnPos.IsKnown() {
+-			check.errorf(returnPos, "wrong number of return values (want %d, got %d)", len(lhs), len(rhs))
++		if returnStmt != nil {
++			var at poser = returnStmt
++			qualifier := "not enough"
++			if len(rhs) > len(lhs) {
++				at = rhs[len(lhs)].expr // report at first extra value
++				qualifier = "too many"
++			} else if len(rhs) > 0 {
++				at = rhs[len(rhs)-1].expr // report at last value
++			}
++			var err error_
++			err.errorf(at, "%s return values", qualifier)
++			err.errorf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
++			err.errorf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))
++			check.report(&err)
+ 			return
+ 		}
+ 		if check.conf.CompilerErrorMessages {
+@@ -295,7 +360,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnPos syn
+ 	}
+ 
+ 	context := "assignment"
+-	if returnPos.IsKnown() {
++	if returnStmt != nil {
+ 		context = "return statement"
+ 	}
+ 
+@@ -449,7 +514,7 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
+ 		}
+ 	}
+ 
+-	check.initVars(lhsVars, rhs, nopos)
++	check.initVars(lhsVars, rhs, nil)
+ 
+ 	// process function literals in rhs expressions before scope changes
+ 	check.processDelayed(top)
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 4e2c2a2989..91e2a8f783 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -350,12 +350,25 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 	}
+ 
+ 	// check argument count
+-	switch {
+-	case nargs < npars:
+-		check.errorf(call, "not enough arguments in call to %s", call.Fun)
+-		return
+-	case nargs > npars:
+-		check.errorf(args[npars], "too many arguments in call to %s", call.Fun) // report at first extra argument
++	if nargs != npars {
++		var at poser = call
++		qualifier := "not enough"
++		if nargs > npars {
++			at = args[npars].expr // report at first extra argument
++			qualifier = "too many"
++		} else if nargs > 0 {
++			at = args[nargs-1].expr // report at last argument
++		}
++		// take care of empty parameter lists represented by nil tuples
++		var params []*Var
++		if sig.params != nil {
++			params = sig.params.vars
++		}
++		var err error_
++		err.errorf(at, "%s arguments in call to %s", qualifier, call.Fun)
++		err.errorf(nopos, "have %s", check.typesSummary(operandTypes(args), false))
++		err.errorf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
++		check.report(&err)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 4b79c59af3..a4bc3969c0 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -549,7 +549,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
+ 		}
+ 	}
+ 
+-	check.initVars(lhs, []syntax.Expr{init}, nopos)
++	check.initVars(lhs, []syntax.Expr{init}, nil)
+ }
+ 
+ // isImportedConstraint reports whether typ is an imported type constraint.
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 44d9256c50..ab64882c02 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -493,7 +493,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 				}
+ 			} else {
+ 				// return has results or result parameters are unnamed
+-				check.initVars(res.vars, results, s.Pos())
++				check.initVars(res.vars, results, s)
+ 			}
+ 		} else if len(results) > 0 {
+ 			check.error(results[0], "no result values expected")
+diff --git a/src/cmd/compile/internal/types2/testdata/check/builtins.src b/src/cmd/compile/internal/types2/testdata/check/builtins.src
+index 17e4068d65..de27f5c632 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/builtins.src
++++ b/src/cmd/compile/internal/types2/testdata/check/builtins.src
+@@ -25,7 +25,7 @@ func append1() {
+ 	_ = append(s, b)
+ 	_ = append(s, x /* ERROR cannot use x */ )
+ 	_ = append(s, s /* ERROR cannot use s */ )
+-	_ = append(s... ) /* ERROR not enough arguments */
++	_ = append(s /* ERROR not enough arguments */ ...)
+ 	_ = append(s, b, s /* ERROR too many arguments */ ... )
+ 	_ = append(s, 1, 2, 3)
+ 	_ = append(s, 1, 2, 3, x /* ERROR cannot use x */ , 5, 6, 6)
+diff --git a/src/cmd/compile/internal/types2/testdata/check/errors.src b/src/cmd/compile/internal/types2/testdata/check/errors.src
+index ff929217c4..5f09197bde 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/errors.src
++++ b/src/cmd/compile/internal/types2/testdata/check/errors.src
+@@ -8,32 +8,38 @@ package errors
+ // (matching messages are regular expressions, hence the \'s).
+ func f(x int, m map[string]int) {
+ 	// no values
+-	_ = f /* ERROR "f\(0, m\) \(no value\) used as value" */ (0, m)
++	_ = f /* ERROR f\(0, m\) \(no value\) used as value */ (0, m)
+ 
+ 	// built-ins
+-	_ = println /* ERROR "println \(built-in\) must be called" */
++	_ = println // ERROR println \(built-in\) must be called
+ 
+ 	// types
+-	_ = complex128 /* ERROR "complex128 \(type\) is not an expression" */
++	_ = complex128 // ERROR complex128 \(type\) is not an expression
+ 
+ 	// constants
+ 	const c1 = 991
+ 	const c2 float32 = 0.5
+-	0 /* ERROR "0 \(untyped int constant\) is not used" */
+-	c1 /* ERROR "c1 \(untyped int constant 991\) is not used" */
+-	c2 /* ERROR "c2 \(constant 0.5 of type float32\) is not used" */
+-	c1 /* ERROR "c1 \+ c2 \(constant 991.5 of type float32\) is not used" */ + c2
++	const c3 = "foo"
++	0 // ERROR 0 \(untyped int constant\) is not used
++	0.5 // ERROR 0.5 \(untyped float constant\) is not used
++	"foo" // ERROR "foo" \(untyped string constant\) is not used
++	c1 // ERROR c1 \(untyped int constant 991\) is not used
++	c2 // ERROR c2 \(constant 0.5 of type float32\) is not used
++	c1 /* ERROR c1 \+ c2 \(constant 991.5 of type float32\) is not used */ + c2
++	c3 // ERROR c3 \(untyped string constant "foo"\) is not used
+ 
+ 	// variables
+-	x /* ERROR "x \(variable of type int\) is not used" */
++	x // ERROR x \(variable of type int\) is not used
+ 
+ 	// values
+-	x /* ERROR "x != x \(untyped bool value\) is not used" */ != x
+-	x /* ERROR "x \+ x \(value of type int\) is not used" */ + x
++	nil // ERROR nil is not used
++	(*int)(nil) // ERROR \(\*int\)\(nil\) \(value of type \*int\) is not used
++	x /* ERROR x != x \(untyped bool value\) is not used */ != x
++	x /* ERROR x \+ x \(value of type int\) is not used */ + x
+ 
+ 	// value, ok's
+ 	const s = "foo"
+-	m /* ERROR "m\[s\] \(map index expression of type int\) is not used" */ [s]
++	m /* ERROR m\[s\] \(map index expression of type int\) is not used */ [s]
+ }
+ 
+ // Valid ERROR comments can have a variety of forms.
+diff --git a/src/cmd/compile/internal/types2/testdata/check/expr3.src b/src/cmd/compile/internal/types2/testdata/check/expr3.src
+index 0d7bbae9f9..646319e4c4 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/expr3.src
++++ b/src/cmd/compile/internal/types2/testdata/check/expr3.src
+@@ -494,23 +494,23 @@ func _calls() {
+ 	f1(0)
+ 	f1(x)
+ 	f1(10.0)
+-	f1() /* ERROR "not enough arguments" */
+-	f1(x, y /* ERROR "too many arguments" */ )
++	f1 /* ERROR "not enough arguments in call to f1\n\thave \(\)\n\twant \(int\)" */ ()
++	f1(x, y /* ERROR "too many arguments in call to f1\n\thave \(int, float32\)\n\twant \(int\)" */ )
+ 	f1(s /* ERROR "cannot use .* in argument" */ )
+ 	f1(x ... /* ERROR "cannot use ..." */ )
+ 	f1(g0 /* ERROR "used as value" */ ())
+ 	f1(g1())
+-	f1(g2 /* ERROR "too many arguments" */ ())
++	f1(g2 /* ERROR "too many arguments in call to f1\n\thave \(float32, string\)\n\twant \(int\)" */ ())
+ 
+-	f2() /* ERROR "not enough arguments" */
+-	f2(3.14) /* ERROR "not enough arguments" */
++	f2 /* ERROR "not enough arguments in call to f2\n\thave \(\)\n\twant \(float32, string\)" */ ()
++	f2(3.14 /* ERROR "not enough arguments in call to f2\n\thave \(number\)\n\twant \(float32, string\)" */ )
+ 	f2(3.14, "foo")
+ 	f2(x /* ERROR "cannot use .* in argument" */ , "foo")
+ 	f2(g0 /* ERROR "used as value" */ ())
+-	f2(g1()) /* ERROR "not enough arguments" */
++	f2(g1 /* ERROR "not enough arguments in call to f2\n\thave \(int\)\n\twant \(float32, string\)" */ ())
+ 	f2(g2())
+ 
+-	fs() /* ERROR "not enough arguments" */
++	fs /* ERROR "not enough arguments" */ ()
+ 	fs(g0 /* ERROR "used as value" */ ())
+ 	fs(g1 /* ERROR "cannot use .* in argument" */ ())
+ 	fs(g2 /* ERROR "too many arguments" */ ())
+diff --git a/src/cmd/compile/internal/types2/testdata/check/stmt0.src b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+index 8171c57d8b..8b18d676ac 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/stmt0.src
++++ b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+@@ -29,10 +29,10 @@ func assignments0() (int, int) {
+ 
+ 	a, b, c = <- /* ERROR "cannot assign [1-9]+ values to [1-9]+ variables" */ ch
+ 
+-	return /* ERROR "wrong number of return values" */
+-	return /* ERROR "wrong number of return values" */ 1
++	return /* ERROR "not enough return values\n\thave \(\)\n\twant \(int, int\)" */
++	return 1 /* ERROR "not enough return values\n\thave \(number\)\n\twant \(int, int\)" */
+ 	return 1, 2
+-	return /* ERROR "wrong number of return values" */ 1, 2, 3
++	return 1, 2, 3 /* ERROR "too many return values\n\thave \(number, number, number\)\n\twant \(int, int\)" */
+ }
+ 
+ func assignments1() {
+@@ -81,12 +81,12 @@ func assignments1() {
+ 	// test cases for issue 5500
+ 	_ = func() (int, bool) {
+ 		var m map[int]int
+-		return /* ERROR "wrong number of return values" */ m[0]
++		return m /* ERROR "not enough return values" */ [0]
+ 	}
+ 
+ 	g := func(int, bool){}
+ 	var m map[int]int
+-	g(m[0]) /* ERROR "not enough arguments" */
++	g(m /* ERROR "not enough arguments" */ [0])
+ 
+ 	// assignments to _
+ 	_ = nil /* ERROR "use of untyped nil" */
+@@ -380,15 +380,15 @@ func returns0() {
+ 
+ func returns1(x float64) (int, *float64) {
+ 	return 0, &x
+-	return /* ERROR wrong number of return values */
++	return /* ERROR not enough return values */
+ 	return "foo" /* ERROR "cannot .* in return statement" */, x /* ERROR "cannot use .* in return statement" */
+-	return /* ERROR wrong number of return values */ 0, &x, 1
++	return 0, &x, 1 /* ERROR too many return values */
+ }
+ 
+ func returns2() (a, b int) {
+ 	return
+ 	return 1, "foo" /* ERROR cannot use .* in return statement */
+-	return /* ERROR wrong number of return values */ 1, 2, 3
++	return 1, 2, 3 /* ERROR too many return values */
+ 	{
+ 		type a int
+ 		return 1, 2
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2 b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+index d72cf078a7..007157ea0f 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+@@ -312,7 +312,7 @@ var _ = f7(1.2, 3 /* ERROR does not match */ )
+ 
+ func f8[A, B any](A, B, ...B) int { panic(0) }
+ 
+-var _ = f8(1) /* ERROR not enough arguments */
++var _ = f8(1 /* ERROR not enough arguments */ )
+ var _ = f8(1, 2.3)
+ var _ = f8(1, 2.3, 3.4, 4.5)
+ var _ = f8(1, 2.3, 3.4, 4 /* ERROR does not match */ )
+diff --git a/src/cmd/compile/internal/types2/testdata/check/vardecl.src b/src/cmd/compile/internal/types2/testdata/check/vardecl.src
+index 9e48cdf847..827b9b9d69 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/vardecl.src
++++ b/src/cmd/compile/internal/types2/testdata/check/vardecl.src
+@@ -183,7 +183,7 @@ func _() {
+ 
+ func _() int {
+ 	var x, y int
+-	return /* ERROR wrong number of return values */ x, y
++	return x, y /* ERROR too many return values */
+ }
+ 
+ // Short variable declarations must declare at least one new non-blank variable.
+diff --git a/test/fixedbugs/bug326.go b/test/fixedbugs/bug326.go
+index dfd8be8005..74e06f39d7 100644
+--- a/test/fixedbugs/bug326.go
++++ b/test/fixedbugs/bug326.go
+@@ -19,7 +19,7 @@ func h() (_ int, _ error) {
+ }
+ 
+ func i() (int, error) {
+-	return // ERROR "not enough arguments to return|wrong number of return values"
++	return // ERROR "not enough return values|not enough arguments to return"
+ }
+ 
+ func f1() (_ int, err error) {
+diff --git a/test/fixedbugs/issue4215.go b/test/fixedbugs/issue4215.go
+index 7201591f3f..b6ece4bf21 100644
+--- a/test/fixedbugs/issue4215.go
++++ b/test/fixedbugs/issue4215.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func foo() (int, int) {
+-	return 2.3 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int\)|not enough arguments to return|wrong number of return values"
++	return 2.3 // ERROR "not enough return values\n\thave \(number\)\n\twant \(int, int\)|not enough arguments to return"
+ }
+ 
+ func foo2() {
+@@ -16,19 +16,19 @@ func foo2() {
+ 
+ func foo3(v int) (a, b, c, d int) {
+ 	if v >= 0 {
+-		return 1 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int, int, int\)|not enough arguments to return|wrong number of return values"
++		return 1 // ERROR "not enough return values\n\thave \(number\)\n\twant \(int, int, int, int\)|not enough arguments to return"
+ 	}
+-	return 2, 3 // ERROR "not enough arguments to return\n\thave \(number, number\)\n\twant \(int, int, int, int\)|not enough arguments to return|wrong number of return values"
++	return 2, 3 // ERROR "not enough return values\n\thave \(number, number\)\n\twant \(int, int, int, int\)|not enough arguments to return"
+ }
+ 
+ func foo4(name string) (string, int) {
+ 	switch name {
+ 	case "cow":
+-		return "moo" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)|not enough arguments to return|wrong number of return values"
++		return "moo" // ERROR "not enough return values\n\thave \(string\)\n\twant \(string, int\)|not enough arguments to return"
+ 	case "dog":
+-		return "dog", 10, true // ERROR "too many arguments to return\n\thave \(string, number, bool\)\n\twant \(string, int\)|too many values in return statement|wrong number of return values"
++		return "dog", 10, true // ERROR "too many return values\n\thave \(string, number, bool\)\n\twant \(string, int\)|too many arguments to return"
+ 	case "fish":
+-		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)|not enough arguments to return|wrong number of return values"
++		return "" // ERROR "not enough return values\n\thave \(string\)\n\twant \(string, int\)|not enough arguments to return"
+ 	default:
+ 		return "lizard", 10
+ 	}
+@@ -40,14 +40,14 @@ type U float64
+ 
+ func foo5() (S, T, U) {
+ 	if false {
+-		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(S, T, U\)|not enough arguments to return|wrong number of return values"
++		return "" // ERROR "not enough return values\n\thave \(string\)\n\twant \(S, T, U\)|not enough arguments to return"
+ 	} else {
+ 		ptr := new(T)
+-		return ptr // ERROR "not enough arguments to return\n\thave \(\*T\)\n\twant \(S, T, U\)|not enough arguments to return|wrong number of return values"
++		return ptr // ERROR "not enough return values\n\thave \(\*T\)\n\twant \(S, T, U\)|not enough arguments to return"
+ 	}
+-	return new(S), 12.34, 1 + 0i, 'r', true // ERROR "too many arguments to return\n\thave \(\*S, number, number, number, bool\)\n\twant \(S, T, U\)|too many values in return statement|wrong number of return values"
++	return new(S), 12.34, 1 + 0i, 'r', true // ERROR "too many return values\n\thave \(\*S, number, number, number, bool\)\n\twant \(S, T, U\)|too many arguments to return"
+ }
+ 
+ func foo6() (T, string) {
+-	return "T", true, true // ERROR "too many arguments to return\n\thave \(string, bool, bool\)\n\twant \(T, string\)|too many values in return statement|wrong number of return values"
++	return "T", true, true // ERROR "too many return values\n\thave \(string, bool, bool\)\n\twant \(T, string\)|too many arguments to return"
+ }
+diff --git a/test/fixedbugs/issue46957.go b/test/fixedbugs/issue46957.go
+index f3ed3c3def..6c1c0fe0c2 100644
+--- a/test/fixedbugs/issue46957.go
++++ b/test/fixedbugs/issue46957.go
+@@ -9,5 +9,5 @@ package main
+ func f(a int, b ...int) {}
+ 
+ func main() {
+-	f(nil...) // ERROR "not enough arguments in call to f$"
++	f(nil...) // ERROR "not enough arguments in call to f\n\thave \(nil\)\n\twant \(int, \[\]int\)|not enough arguments"
+ }
+diff --git a/test/fixedbugs/issue48834.go b/test/fixedbugs/issue48834.go
+new file mode 100644
+index 0000000000..cf97d132c3
+--- /dev/null
++++ b/test/fixedbugs/issue48834.go
+@@ -0,0 +1,24 @@
++// errorcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() (int, error) {
++	return 1 // ERROR "not enough (arguments to return|return values)\n\thave \(number\)\n\twant \(int, error\)"
++}
++
++func _() (int, error) {
++	var x int
++	return x // ERROR "not enough (arguments to return|return values)\n\thave \(int\)\n\twant \(int, error\)"
++}
++
++func _() int {
++	return 1, 2 // ERROR "too many (arguments to return|return values)\n\thave \(number, number\)\n\twant \(int\)"
++}
++
++func _() {
++	return 1 // ERROR "too many arguments to return\n\thave \(number\)\n\twant \(\)|no result values expected"
++}
+diff --git a/test/fixedbugs/issue48835.go b/test/fixedbugs/issue48835.go
+new file mode 100644
+index 0000000000..c000f8357d
+--- /dev/null
++++ b/test/fixedbugs/issue48835.go
+@@ -0,0 +1,25 @@
++// errorcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f0()
++func f1(_ int)
++func f2(_, _ int)
++func f2ddd(_, _ int, _ ...int)
++
++func f() {
++	var x int
++	f0(1)              // ERROR "too many arguments in call to f0\n\thave \(number\)\n\twant \(\)"
++	f0(x)              // ERROR "too many arguments in call to f0\n\thave \(int\)\n\twant \(\)"
++	f1()               // ERROR "not enough arguments in call to f1\n\thave \(\)\n\twant \(int\)"
++	f1(1, 2)           // ERROR "too many arguments in call to f1\n\thave \(number, number\)\n\twant \(int\)"
++	f2(1)              // ERROR "not enough arguments in call to f2\n\thave \(number\)\n\twant \(int, int\)"
++	f2(1, "foo", true) // ERROR "too many arguments in call to f2\n\thave \(number, string, bool\)\n\twant \(int, int\)"
++	f2ddd(1)           // ERROR "not enough arguments in call to f2ddd\n\thave \(number\)\n\twant \(int, int, \.\.\.int\)"
++	f2ddd(1, 2)
++	f2ddd(1, 2, 3)
++}

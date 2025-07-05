@@ -7,6 +7,18 @@ Date:   Thu Dec 19 21:12:18 2013 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/38030045
-
+---
  src/pkg/runtime/os_openbsd.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 6de4b8a718..45f5040c9f 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -304,5 +304,5 @@ runtime·signalstack(byte *p, int32 n)
+ void
+ runtime·unblocksignals(void)
+ {
+-	runtime·sigprocmask(SIG_SETMASK, &sigset_none);
++	runtime·sigprocmask(SIG_SETMASK, sigset_none);
+ }

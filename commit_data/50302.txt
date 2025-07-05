@@ -22,8 +22,92 @@ Date:   Wed Sep 15 09:56:09 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/all_test.go | 20 ++++++++++++++++++++
  src/reflect/value.go    | 17 +++++++++++++++++
  src/runtime/mbitmap.go  |  9 +++++++++
  3 files changed, 46 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 427855b02e..8642d60f8b 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -7697,3 +7697,23 @@ func TestSetIter(t *testing.T) {
+ 		t.Errorf("pointer incorrect: got %d want %d", got, b)
+ 	}
+ }
++
++//go:notinheap
++type nih struct{ x int }
++
++var global_nih = nih{x: 7}
++
++func TestNotInHeapDeref(t *testing.T) {
++	// See issue 48399.
++	v := ValueOf((*nih)(nil))
++	v.Elem()
++	shouldPanic("reflect: call of reflect.Value.Field on zero Value", func() { v.Elem().Field(0) })
++
++	v = ValueOf(&global_nih)
++	if got := v.Elem().Field(0).Int(); got != 7 {
++		t.Fatalf("got %d, want 7", got)
++	}
++
++	v = ValueOf((*nih)(unsafe.Pointer(new(int))))
++	shouldPanic("reflect: reflect.Value.Elem on an invalid notinheap pointer", func() { v.Elem() })
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index abcc346de8..449f3bbb3c 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1169,6 +1169,21 @@ func (v Value) Elem() Value {
+ 	case Ptr:
+ 		ptr := v.ptr
+ 		if v.flag&flagIndir != 0 {
++			if ifaceIndir(v.typ) {
++				// This is a pointer to a not-in-heap object. ptr points to a uintptr
++				// in the heap. That uintptr is the address of a not-in-heap object.
++				// In general, pointers to not-in-heap objects can be total junk.
++				// But Elem() is asking to dereference it, so the user has asserted
++				// that at least it is a valid pointer (not just an integer stored in
++				// a pointer slot). So let's check, to make sure that it isn't a pointer
++				// that the runtime will crash on if it sees it during GC or write barriers.
++				// Since it is a not-in-heap pointer, all pointers to the heap are
++				// forbidden! That makes the test pretty easy.
++				// See issue 48399.
++				if !verifyNotInHeapPtr(*(*uintptr)(ptr)) {
++					panic("reflect: reflect.Value.Elem on an invalid notinheap pointer")
++				}
++			}
+ 			ptr = *(*unsafe.Pointer)(ptr)
+ 		}
+ 		// The returned value's address is v's value.
+@@ -3406,6 +3421,8 @@ func typedslicecopy(elemType *rtype, dst, src unsafeheader.Slice) int
+ //go:noescape
+ func typehash(t *rtype, p unsafe.Pointer, h uintptr) uintptr
+ 
++func verifyNotInHeapPtr(p uintptr) bool
++
+ // Dummy annotation marking that the value x escapes,
+ // for use in cases where the reflect code is so clever that
+ // the compiler cannot follow.
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index daf1fcfbc0..3330ddd62e 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -417,6 +417,15 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
+ 	return
+ }
+ 
++// verifyNotInHeapPtr reports whether converting the not-in-heap pointer into a unsafe.Pointer is ok.
++//go:linkname reflect_verifyNotInHeapPtr reflect.verifyNotInHeapPtr
++func reflect_verifyNotInHeapPtr(p uintptr) bool {
++	// Conversion to a pointer is ok as long as findObject above does not call badPointer.
++	// Since we're already promised that p doesn't point into the heap, just disallow heap
++	// pointers and the special clobbered pointer.
++	return spanOf(p) == nil && p != clobberdeadPtr
++}
++
+ // next returns the heapBits describing the next pointer-sized word in memory.
+ // That is, if h describes address p, h.next() describes p+ptrSize.
+ // Note that next does not modify h. The caller must record the result.

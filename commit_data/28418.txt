@@ -14,7 +14,32 @@ Date:   Tue May 24 02:25:56 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index bebe250458..d6b72718bc 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -58,6 +58,7 @@ Alif Rachmawadi <subosito@gmail.com>
+ Amazon.com, Inc
+ Amir Mohammad Saied <amir@gluegadget.com>
+ Amrut Joshi <amrut.joshi@gmail.com>
++Andre Nathan <andrenth@gmail.com>
+ Andrei Korzhevskii <a.korzhevskiy@gmail.com>
+ Andrei Vieru <euvieru@gmail.com>
+ Andrew Balholm <andybalholm@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 4d0863b3ef..6845a39268 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -86,6 +86,7 @@ Aliaksandr Valialkin <valyala@gmail.com>
+ Alif Rachmawadi <subosito@gmail.com>
+ Amir Mohammad Saied <amir@gluegadget.com>
+ Amrut Joshi <amrut.joshi@gmail.com>
++Andre Nathan <andrenth@gmail.com>
+ Andrea Spadaccini <spadaccio@google.com>
+ Andreas Jellinghaus <andreas@ionisiert.de> <anj@google.com>
+ Andrei Korzhevskii <a.korzhevskiy@gmail.com>

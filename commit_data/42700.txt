@@ -9,8 +9,173 @@ Date:   Wed Feb 5 15:06:27 2020 -0500
     Change-Id: I5f097b4be1995ece8e40ad4b60456c5dbbf4e4d5
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217939
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  misc/boring/build.docker  |   5 +--
  misc/boring/dockerfile.in |  18 +++++----
  misc/boring/go-wrapper    | 100 ----------------------------------------------
  3 files changed, 12 insertions(+), 111 deletions(-)
+
+diff --git a/misc/boring/build.docker b/misc/boring/build.docker
+index fb73edc88e..6bdf29f19b 100755
+--- a/misc/boring/build.docker
++++ b/misc/boring/build.docker
+@@ -36,10 +36,9 @@ if echo "$url" | grep '!' >/dev/null; then
+ 	exit 2
+ fi
+ 
+-sed "s!UUU!$url!; s/SSS/$sha256/" dockerfile.in >$dir/Dockerfile
+-cp go-wrapper $dir/go-wrapper
+-
+ dversion=$(echo "$version" | sed 's/^go//')
++sed "s!UUU!$url!; s/SSS/$sha256/; s/VVV/$dversion/" dockerfile.in >$dir/Dockerfile
++
+ docker build --pull -t goboring/golang:$dversion $dir
+ docker run goboring/golang:$dversion go version
+ docker run goboring/golang:$dversion go tool nm /usr/local/go/bin/go >$dir/nm
+diff --git a/misc/boring/dockerfile.in b/misc/boring/dockerfile.in
+index dc03cd6c2f..b43908968c 100644
+--- a/misc/boring/dockerfile.in
++++ b/misc/boring/dockerfile.in
+@@ -1,6 +1,6 @@
+ # Template for Dockerfile, used in build.docker script.
+-# Based on https://github.com/docker-library/golang/blob/master/1.9-rc/stretch/Dockerfile
+-FROM buildpack-deps:stretch-scm
++# Based on https://github.com/docker-library/golang/blob/7e3d99a803/1.13/buster/Dockerfile
++FROM buildpack-deps:buster-scm
+ 
+ # gcc for cgo
+ RUN apt-get update && apt-get install -y --no-install-recommends \
+@@ -11,19 +11,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
+ 		pkg-config \
+ 	&& rm -rf /var/lib/apt/lists/*
+ 
+-ADD UUU /go.tgz
++ENV GOLANG_VERSION VVV
+ 
+ RUN set -eux; \
+ 	\
+-	echo "SSS /go.tgz" | sha256sum -c -; \
+-	tar -C /usr/local -xzf /go.tgz; \
+-	rm /go.tgz; \
++	url="UUU"; \
++	wget -O go.tgz "$url"; \
++	echo "SSS go.tgz" | sha256sum -c -; \
++	tar -C /usr/local -xzf go.tgz; \
++	rm go.tgz; \
++	\
+ 	export PATH="/usr/local/go/bin:$PATH"; \
+ 	go version
+ 
+ ENV GOPATH /go
+ ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
++
+ RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+ WORKDIR $GOPATH
+-
+-COPY go-wrapper /usr/local/bin/
+diff --git a/misc/boring/go-wrapper b/misc/boring/go-wrapper
+deleted file mode 100755
+index eacd6cc8f6..0000000000
+--- a/misc/boring/go-wrapper
++++ /dev/null
+@@ -1,100 +0,0 @@
+-#!/bin/sh
+-# Copied from https://raw.githubusercontent.com/docker-library/golang/master/1.9-rc/stretch/go-wrapper
+-# Copied into Docker images.
+-
+-set -e
+-
+-usage() {
+-	base="$(basename "$0")"
+-	cat <<EOUSAGE
+-
+-usage: $base command [args]
+-
+-This script assumes that is is run from the root of your Go package (for
+-example, "/go/src/app" if your GOPATH is set to "/go").
+-
+-In Go 1.4, a feature was introduced to supply the canonical "import path" for a
+-given package in a comment attached to a package statement
+-(https://golang.org/s/go14customimport).
+-
+-This script allows us to take a generic directory of Go source files such as
+-"/go/src/app" and determine that the canonical "import path" of where that code
+-expects to live and reference itself is "github.com/jsmith/my-cool-app".  It
+-will then ensure that "/go/src/github.com/jsmith/my-cool-app" is a symlink to
+-"/go/src/app", which allows us to build and run it under the proper package
+-name.
+-
+-For compatibility with versions of Go older than 1.4, the "import path" may also
+-be placed in a file named ".godir".
+-
+-Available Commands:
+-
+-  $base download
+-  $base download -u
+-    (equivalent to "go get -d [args] [godir]")
+-
+-  $base install
+-  $base install -race
+-    (equivalent to "go install [args] [godir]")
+-
+-  $base run
+-  $base run -app -specific -arguments
+-    (assumes "GOPATH/bin" is in "PATH")
+-
+-EOUSAGE
+-}
+-
+-# make sure there is a subcommand specified
+-if [ "$#" -eq 0 ]; then
+-	usage >&2
+-	exit 1
+-fi
+-# "shift" so that "$@" becomes the remaining arguments and can be passed along to other "go" subcommands easily
+-cmd="$1"
+-shift
+-
+-goDir="$(go list -e -f '{{.ImportComment}}' 2>/dev/null || true)"
+-
+-if [ -z "$goDir" -a -s .godir ]; then
+-	goDir="$(cat .godir)"
+-fi
+-
+-dir="$(pwd -P)"
+-if [ "$goDir" ]; then
+-	goPath="${GOPATH%%:*}" # this just grabs the first path listed in GOPATH, if there are multiple (which is the detection logic "go get" itself uses, too)
+-	goDirPath="$goPath/src/$goDir"
+-	mkdir -p "$(dirname "$goDirPath")"
+-	if [ ! -e "$goDirPath" ]; then
+-		ln -sfv "$dir" "$goDirPath"
+-	elif [ ! -L "$goDirPath" ]; then
+-		echo >&2 "error: $goDirPath already exists but is unexpectedly not a symlink!"
+-		exit 1
+-	fi
+-	goBin="$goPath/bin/$(basename "$goDir")"
+-else
+-	goBin="$(basename "$dir")" # likely "app"
+-fi
+-
+-case "$cmd" in
+-	download)
+-		set -- go get -v -d "$@"
+-		if [ "$goDir" ]; then set -- "$@" "$goDir"; fi
+-		set -x; exec "$@"
+-		;;
+-		
+-	install)
+-		set -- go install -v "$@"
+-		if [ "$goDir" ]; then set -- "$@" "$goDir"; fi
+-		set -x; exec "$@"
+-		;;
+-		
+-	run)
+-		set -x; exec "$goBin" "$@"
+-		;;
+-		
+-	*)
+-		echo >&2 'error: unknown command:' "$cmd"
+-		usage >&2
+-		exit 1
+-		;;
+-esac

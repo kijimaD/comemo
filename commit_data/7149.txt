@@ -7,6 +7,22 @@ Date:   Wed Jan 19 09:55:46 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4081041
-
+---
  src/pkg/net/port.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/port.go b/src/pkg/net/port.go
+index cd18d2b42a..7d25058b29 100644
+--- a/src/pkg/net/port.go
++++ b/src/pkg/net/port.go
+@@ -18,7 +18,9 @@ var onceReadServices sync.Once
+ func readServices() {
+ 	services = make(map[string]map[string]int)
+ 	var file *file
+-	file, servicesError = open("/etc/services")
++	if file, servicesError = open("/etc/services"); servicesError != nil {
++		return
++	}
+ 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+ 		// "http 80/tcp www www-http # World Wide Web HTTP"
+ 		if i := byteIndex(line, '#'); i >= 0 {

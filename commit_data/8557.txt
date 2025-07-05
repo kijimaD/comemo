@@ -15,9 +15,116 @@ Date:   Tue May 31 20:52:21 2011 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4515167
-
+---
  src/cmd/gc/closure.c            | 38 ++++++++++++++++++++++++++++++++++++++
  src/cmd/gc/go.h                 |  1 +
  src/cmd/gc/walk.c               |  9 ++++++++-
  src/pkg/runtime/closure_test.go | 21 +++++++++++++++++++++
  4 files changed, 68 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index eb70143665..091abde622 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -199,3 +199,41 @@ walkclosure(Node *func, NodeList **init)
+ 	walkexpr(&call, init);
+ 	return call;
+ }
++
++// Special case for closures that get called in place.
++// Optimize runtime.closure(X, __func__xxxx_, .... ) away
++// to __func__xxxx_(Y ....).
++// On entry, expect n->op == OCALL, n->left->op == OCLOSURE.
++void
++walkcallclosure(Node *n, NodeList **init)
++{
++	Node *z;
++	NodeList *ll, *cargs;
++
++	walkexpr(&n->left, init);
++	cargs =	n->left    // FUNC runtime.closure
++		->list     // arguments
++		->next     // skip first
++		->next;    // skip second
++
++	n->left = n->left  // FUNC runtime.closure
++		->list     // arguments
++		->next     // skip first
++		->n        // AS (to indreg) 
++		->right;   // argument  == the generated function 
++
++	// New arg list for n. First the closure-args, stolen from
++	// runtime.closure's 3rd and following,
++	ll = nil;
++	for (; cargs; cargs = cargs->next)
++		ll = list(ll, cargs->n->right);  // cargs->n is the OAS(INDREG, arg)
++
++	// then an extra zero, to fill the dummy return pointer slot,
++	z = nod(OXXX, N, N);
++	nodconst(z, types[TUINTPTR], 0);
++	z->typecheck = 1;
++	ll = list(ll, z);
++
++	// and finally the original parameter list.
++	n->list = concat(ll, n->list);
++}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 3f07befcbd..f4ca58b737 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -817,6 +817,7 @@ Node*	closurebody(NodeList *body);
+ void	closurehdr(Node *ntype);
+ void	typecheckclosure(Node *func);
+ Node*	walkclosure(Node *func, NodeList **init);
++void	walkcallclosure(Node *n, NodeList **init);
+ 
+ /*
+  *	const.c
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index b3b400556c..68885e6596 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -770,8 +770,15 @@ walkexpr(Node **np, NodeList **init)
+ 		t = n->left->type;
+ 		if(n->list && n->list->n->op == OAS)
+ 			goto ret;
+-		walkexpr(&n->left, init);
++
++		if(n->left->op == OCLOSURE) {
++			walkcallclosure(n, init);
++			t = n->left->type;
++		} else
++			walkexpr(&n->left, init);
++
+ 		walkexprlist(n->list, init);
++
+ 		ll = ascompatte(n->op, n->isddd, getinarg(t), n->list, 0, init);
+ 		n->list = reorder1(ll);
+ 		if(isselect(n)) {
+diff --git a/src/pkg/runtime/closure_test.go b/src/pkg/runtime/closure_test.go
+new file mode 100644
+index 0000000000..199016fcf7
+--- /dev/null
++++ b/src/pkg/runtime/closure_test.go
+@@ -0,0 +1,21 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package runtime_test
++
++import "testing"
++
++var s int
++
++func BenchmarkCallClosure(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		s += func(ii int) int { return 2 * ii }(i)
++	}
++}
++
++func BenchmarkCallClosure1(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		j := i
++		s += func(ii int) int { return 2*ii + j }(i)
++	}
++}

@@ -19,6 +19,36 @@ Date:   Mon Aug 19 17:45:41 2024 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/internal/runtime/maps/map.go | 12 ++++++++----
  1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index 112fc08e0f..ad6edd65bf 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -381,16 +381,20 @@ func (m *Map) getWithKeySmall(hash uintptr, key unsafe.Pointer) (unsafe.Pointer,
+ 		data: m.dirPtr,
+ 	}
+ 
+-	match := g.ctrls().matchH2(h2(hash))
++	h2 := uint8(h2(hash))
++	ctrls := *g.ctrls()
+ 
+-	for match != 0 {
+-		i := match.first()
++	for i := uint32(0); i < abi.SwissMapGroupSlots; i++ {
++		c := uint8(ctrls)
++		ctrls >>= 8
++		if c != h2 {
++			continue
++		}
+ 
+ 		slotKey := g.key(i)
+ 		if m.typ.Key.Equal(key, slotKey) {
+ 			return slotKey, g.elem(i), true
+ 		}
+-		match = match.removeFirst()
+ 	}
+ 
+ 	return nil, nil, false

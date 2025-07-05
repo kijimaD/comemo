@@ -11,6 +11,41 @@ Date:   Thu Dec 18 19:32:40 2014 +0000
     Change-Id: Ie79b565b037db3c469aa1dc6d0a8a5a9252d5f0a
     Reviewed-on: https://go-review.googlesource.com/1777
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/binary/binary.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index 466bf97c97..3c37949862 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -605,25 +605,25 @@ func (e *encoder) skip(v reflect.Value) {
+ // It returns zero if the type cannot be implemented by the fast path in Read or Write.
+ func intDataSize(data interface{}) int {
+ 	switch data := data.(type) {
+-	case int8, *int8, *uint8:
++	case int8, uint8, *int8, *uint8:
+ 		return 1
+ 	case []int8:
+ 		return len(data)
+ 	case []uint8:
+ 		return len(data)
+-	case int16, *int16, *uint16:
++	case int16, uint16, *int16, *uint16:
+ 		return 2
+ 	case []int16:
+ 		return 2 * len(data)
+ 	case []uint16:
+ 		return 2 * len(data)
+-	case int32, *int32, *uint32:
++	case int32, uint32, *int32, *uint32:
+ 		return 4
+ 	case []int32:
+ 		return 4 * len(data)
+ 	case []uint32:
+ 		return 4 * len(data)
+-	case int64, *int64, *uint64:
++	case int64, uint64, *int64, *uint64:
+ 		return 8
+ 	case []int64:
+ 		return 8 * len(data)

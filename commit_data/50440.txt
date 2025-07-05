@@ -23,7 +23,78 @@ Date:   Wed Aug 4 17:33:50 2021 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/crash_cgo_test.go | 18 +++++++++++++-----
  src/runtime/traceback.go      | 11 +++++++++--
  2 files changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 9df6fcd48b..0ccfe8580a 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -526,13 +526,15 @@ func TestCgoTracebackSigpanic(t *testing.T) {
+ 	}
+ 	t.Parallel()
+ 	got := runTestProg(t, "testprogcgo", "TracebackSigpanic")
++	t.Log(got)
+ 	want := "runtime.sigpanic"
+ 	if !strings.Contains(got, want) {
+-		t.Fatalf("want failure containing %q. output:\n%s\n", want, got)
++		t.Errorf("did not see %q in output", want)
+ 	}
+-	nowant := "unexpected return pc"
++	// No runtime errors like "runtime: unexpected return pc".
++	nowant := "runtime: "
+ 	if strings.Contains(got, nowant) {
+-		t.Fatalf("failure incorrectly contains %q. output:\n%s\n", nowant, got)
++		t.Errorf("unexpectedly saw %q in output", want)
+ 	}
+ }
+ 
+@@ -619,8 +621,14 @@ func TestSegv(t *testing.T) {
+ 			t.Parallel()
+ 			got := runTestProg(t, "testprogcgo", test)
+ 			t.Log(got)
+-			if !strings.Contains(got, "SIGSEGV") {
+-				t.Errorf("expected crash from signal")
++			want := "SIGSEGV"
++			if !strings.Contains(got, want) {
++				t.Errorf("did not see %q in output", want)
++			}
++			// No runtime errors like "runtime: unknown pc".
++			nowant := "runtime: "
++			if strings.Contains(got, nowant) {
++				t.Errorf("unexpectedly saw %q in output", want)
+ 			}
+ 		})
+ 	}
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 530d572095..7e1b14ccf2 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -777,16 +777,23 @@ func traceback1(pc, sp, lr uintptr, gp *g, flags uint) {
+ 		printCgoTraceback(&cgoCallers)
+ 	}
+ 
+-	var n int
+ 	if readgstatus(gp)&^_Gscan == _Gsyscall {
+ 		// Override registers if blocked in system call.
+ 		pc = gp.syscallpc
+ 		sp = gp.syscallsp
+ 		flags &^= _TraceTrap
+ 	}
++	if gp.m != nil && gp.m.vdsoSP != 0 {
++		// Override registers if running in VDSO. This comes after the
++		// _Gsyscall check to cover VDSO calls after entersyscall.
++		pc = gp.m.vdsoPC
++		sp = gp.m.vdsoSP
++		flags &^= _TraceTrap
++	}
++
+ 	// Print traceback. By default, omits runtime frames.
+ 	// If that means we print nothing at all, repeat forcing all frames printed.
+-	n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, flags)
++	n := gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, flags)
+ 	if n == 0 && (flags&_TraceRuntimeFrames) == 0 {
+ 		n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, flags|_TraceRuntimeFrames)
+ 	}

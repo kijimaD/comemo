@@ -7,6 +7,23 @@ Date:   Tue Oct 18 10:43:22 2011 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5267049
-
+---
  doc/devel/release.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index d6de1d71ce..984e674935 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -110,6 +110,11 @@ r60.2
+ a memory leak involving maps.
+ </p>
+ 
++<p>
++r60.3 fixes a
++<a href="http://code.google.com/p/go/source/detail?r=01fa62f5e4e5">reflect bug</a>.
++</p>
++
+ <h2 id="r59">r59 (released 2011/08/01)</h2>
+ 
+ <p>

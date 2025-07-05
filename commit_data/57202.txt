@@ -18,7 +18,7 @@ Date:   Fri Jul 14 14:50:37 2023 -0400
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/scriptconds_test.go                     |  1 +
  src/cmd/go/testdata/script/README                  |  2 ++
  src/cmd/go/testdata/script/gotoolchain_net.txt     |  4 +++-
@@ -27,3 +27,172 @@ Date:   Fri Jul 14 14:50:37 2023 -0400
  src/cmd/go/testdata/script/mod_sumdb_file_path.txt |  4 +++-
  src/cmd/go/testdata/script/mod_sumdb_golang.txt    | 22 +++++++++++-----------
  7 files changed, 48 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/scriptconds_test.go b/src/cmd/go/scriptconds_test.go
+index 641f69f312..8dd9b0d1cd 100644
+--- a/src/cmd/go/scriptconds_test.go
++++ b/src/cmd/go/scriptconds_test.go
+@@ -49,6 +49,7 @@ func scriptConditions() map[string]script.Cond {
+ 	add("git", lazyBool("the 'git' executable exists and provides the standard CLI", hasWorkingGit))
+ 	add("GODEBUG", script.PrefixCondition("GODEBUG contains <suffix>", hasGodebug))
+ 	add("GOEXPERIMENT", script.PrefixCondition("GOEXPERIMENT <suffix> is enabled", hasGoexperiment))
++	add("go-builder", script.BoolCondition("GO_BUILDER_NAME is non-empty", testenv.Builder() != ""))
+ 	add("link", lazyBool("testenv.HasLink()", testenv.HasLink))
+ 	add("mismatched-goroot", script.Condition("test's GOROOT_FINAL does not match the real GOROOT", isMismatchedGoroot))
+ 	add("msan", sysCondition("-msan", platform.MSanSupported, true))
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index b7215e8f4f..792a158760 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -398,6 +398,8 @@ The available conditions are:
+ 	GOOS/GOARCH supports -fuzz with instrumentation
+ [git]
+ 	the 'git' executable exists and provides the standard CLI
++[go-builder]
++	GO_BUILDER_NAME is non-empty
+ [link]
+ 	testenv.HasLink()
+ [mismatched-goroot]
+diff --git a/src/cmd/go/testdata/script/gotoolchain_net.txt b/src/cmd/go/testdata/script/gotoolchain_net.txt
+index 72bb2b7252..35f6696454 100644
+--- a/src/cmd/go/testdata/script/gotoolchain_net.txt
++++ b/src/cmd/go/testdata/script/gotoolchain_net.txt
+@@ -43,11 +43,13 @@ env GOSUMDB=$oldsumdb
+ # Test a real GOTOOLCHAIN
+ [short] skip
+ [!net:golang.org] skip
++[!net:sum.golang.org] skip
+ [!GOOS:darwin] [!GOOS:windows] [!GOOS:linux] skip
+ [!GOARCH:amd64] [!GOARCH:arm64] skip
+ 
+ env GOPROXY=
+-env GOSUMDB=
++[go-builder] env GOSUMDB=
++[!go-builder] env GOSUMDB=sum.golang.org  # Set explicitly in case GOROOT/go.env is modified.
+ env GOTOOLCHAIN=go1.20.1
+ 
+ 	# Avoid resolving a "go1.20.1" from the user's real $PATH.
+diff --git a/src/cmd/go/testdata/script/gotoolchain_version.txt b/src/cmd/go/testdata/script/gotoolchain_version.txt
+index ba1bde6671..e0736ff980 100644
+--- a/src/cmd/go/testdata/script/gotoolchain_version.txt
++++ b/src/cmd/go/testdata/script/gotoolchain_version.txt
+@@ -1,6 +1,15 @@
+-[!net:golang.org] skip
++[!net:proxy.golang.org] skip
+ 
+-env GOPROXY=
++	# In the Go project's official release GOPROXY defaults to proxy.golang.org,
++	# but it may be changed in GOROOT/go.env (such as in third-party
++	# distributions).
++	#
++	# Make sure it is in use here, because the server for releases not served
++	# through the proxy (https://golang.org/toolchain?go-get=1) currently only
++	# serves the latest patch release for each of the supported stable releases.
++
++[go-builder] env GOPROXY=
++[!go-builder] env GOPROXY=https://proxy.golang.org
+ 
+ go list -m -versions go
+ stdout 1.20.1 # among others
+diff --git a/src/cmd/go/testdata/script/mod_prefer_compatible.txt b/src/cmd/go/testdata/script/mod_prefer_compatible.txt
+index 57036b95be..4d583ff5f7 100644
+--- a/src/cmd/go/testdata/script/mod_prefer_compatible.txt
++++ b/src/cmd/go/testdata/script/mod_prefer_compatible.txt
+@@ -10,9 +10,9 @@ env GOPROXY=
+ env GOSUMDB=
+ 
+ # github.com/russross/blackfriday v2.0.0+incompatible exists,
+-# and should be resolved if we ask for v2.0 explicitly.
++# and should be resolved if we ask for it explicitly.
+ 
+-go list -m github.com/russross/blackfriday@v2.0
++go list -m github.com/russross/blackfriday@v2.0.0+incompatible
+ stdout '^github.com/russross/blackfriday v2\.0\.0\+incompatible$'
+ 
+ # blackfriday v1.5.2 has a go.mod file, so v1.5.2 should be preferred over
+@@ -27,6 +27,7 @@ stdout '^github.com/russross/blackfriday v1\.'
+ ! go list -m github.com/russross/blackfriday@patch
+ stderr '^go: github.com/russross/blackfriday@patch: can''t query version "patch" of module github.com/russross/blackfriday: no existing version is required$'
+ 
++
+ # If we're fetching directly from version control, ignored +incompatible
+ # versions should also be omitted by 'go list'.
+ 
+@@ -38,10 +39,23 @@ stderr '^go: github.com/russross/blackfriday@patch: can''t query version "patch"
+ [!git] stop
+ env GOPROXY=direct
+ 
+-go list -versions -m github.com/russross/blackfriday github.com/russross/blackfriday
++go list -versions -m github.com/russross/blackfriday
+ stdout '^github.com/russross/blackfriday v1\.5\.1 v1\.5\.2' # and possibly others
+ ! stdout ' v2\.'
+ 
++# For this module, v2.1.0 exists and has a go.mod file.
++# 'go list -m github.com/russross/blackfriday@v2.0' will check
++# the latest v2.0 tag, discover that it isn't the right module, and stop there
++# (instead of spending the time to check O(N) previous tags).
++
++! go list -m github.com/russross/blackfriday@v2.0
++stderr '^go: module github.com/russross/blackfriday: no matching versions for query "v2\.0\"'
++
++# (But asking for exactly v2.0.0+incompatible should still succeed.)
++go list -m github.com/russross/blackfriday@v2.0.0+incompatible
++stdout '^github.com/russross/blackfriday v2\.0\.0\+incompatible$'
++
++
+ # However, if the latest compatible version does not include a go.mod file,
+ # +incompatible versions should still be listed, as they may still reflect the
+ # intent of the module author.
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_file_path.txt b/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
+index c95a667bfd..2f42cb54f5 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
+@@ -1,7 +1,9 @@
+ [!net:proxy.golang.org] skip
++[!net:sum.golang.org] skip
+ 
+ env GO111MODULE=on
+-env GOSUMDB=
++[go-builder] env GOSUMDB=
++[!go-builder] env GOSUMDB=sum.golang.org  # Set explicitly in case GOROOT/go.env is modified.
+ env GOPATH=$WORK/gopath1
+ 
+ # With a file-based proxy with an empty checksum directory,
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_golang.txt b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+index 8698412f78..067e2e3b31 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_golang.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+@@ -1,13 +1,13 @@
+ # Test default GOPROXY and GOSUMDB
+-env GOPROXY=
+-env GOSUMDB=
+-go env GOPROXY
+-stdout '^https://proxy.golang.org,direct$'
+-go env GOSUMDB
+-stdout '^sum.golang.org$'
+-env GOPROXY=https://proxy.golang.org
+-go env GOSUMDB
+-stdout '^sum.golang.org$'
++[go-builder] env GOPROXY=
++[go-builder] env GOSUMDB=
++[go-builder] go env GOPROXY
++[go-builder] stdout '^https://proxy.golang.org,direct$'
++[go-builder] go env GOSUMDB
++[go-builder] stdout '^sum.golang.org$'
++[go-builder] env GOPROXY=https://proxy.golang.org
++[go-builder] go env GOSUMDB
++[go-builder] stdout '^sum.golang.org$'
+ 
+ # Download direct from github.
+ 
+@@ -26,8 +26,8 @@ cp go.sum saved.sum
+ # files not listed in go.sum.
+ 
+ go clean -modcache
+-env GOSUMDB=
+-env GOPROXY=
++env GOSUMDB=sum.golang.org
++env GOPROXY=https://proxy.golang.org,direct
+ 
+ go list -x -m all  # Download go.mod files.
+ ! stderr github

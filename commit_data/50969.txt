@@ -22,8 +22,59 @@ Date:   Thu Nov 18 14:48:26 2021 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/modfile.go                  |  3 +++
  src/cmd/go/internal/workcmd/sync.go                     |  7 +++++++
  src/cmd/go/testdata/script/work_sync_missing_module.txt | 12 ++++++++++++
  3 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 40e6ed787d..7cc2272ea0 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -124,6 +124,9 @@ const (
+ )
+ 
+ func pruningForGoVersion(goVersion string) modPruning {
++	if inWorkspaceMode() {
++		return workspace
++	}
+ 	if semver.Compare("v"+goVersion, ExplicitIndirectVersionV) < 0 {
+ 		// The go.mod file does not duplicate relevant information about transitive
+ 		// dependencies, so they cannot be pruned out.
+diff --git a/src/cmd/go/internal/workcmd/sync.go b/src/cmd/go/internal/workcmd/sync.go
+index 6f35dc4ff3..5f33e057f6 100644
+--- a/src/cmd/go/internal/workcmd/sync.go
++++ b/src/cmd/go/internal/workcmd/sync.go
+@@ -74,6 +74,13 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
+ 	workFilePath := modload.WorkFilePath() // save go.work path because EnterModule clobbers it.
+ 
+ 	for _, m := range mms.Versions() {
++		if mms.ModRoot(m) == "" && m.Path == "command-line-arguments" {
++			// This is not a real module.
++			// TODO(#49228): Remove this special case once the special
++			// command-line-arguments module is gone.
++			continue
++		}
++
+ 		// Use EnterModule to reset the global state in modload to be in
+ 		// single-module mode using the modroot of m.
+ 		modload.EnterModule(ctx, mms.ModRoot(m))
+diff --git a/src/cmd/go/testdata/script/work_sync_missing_module.txt b/src/cmd/go/testdata/script/work_sync_missing_module.txt
+new file mode 100644
+index 0000000000..0018c733ee
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_sync_missing_module.txt
+@@ -0,0 +1,12 @@
++# Ensure go work sync works without any modules in go.work.
++go work sync
++
++# Ensure go work sync works even without a go.mod file.
++rm go.mod
++go work sync
++
++-- go.work --
++go 1.18
++-- go.mod --
++go 1.18
++module foo

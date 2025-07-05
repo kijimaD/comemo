@@ -8,7 +8,7 @@ Date:   Tue Aug 5 15:20:58 2008 -0700
     R=r
     OCL=13894
     CL=13894
-
+---
  usr/gri/gosrc/export.go   |  21 +++----
  usr/gri/gosrc/globals.go  |   2 +-
  usr/gri/gosrc/import.go   |  35 +++++------
@@ -18,3 +18,563 @@ Date:   Tue Aug 5 15:20:58 2008 -0700
  usr/gri/gosrc/universe.go |   1 +
  usr/gri/gosrc/verifier.go |  69 +++++++++++++++++----
  8 files changed, 186 insertions(+), 115 deletions(-)
+
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index 3a0a6bfa86..cccb33bcbf 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -124,7 +124,9 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
+ 	}
+ 
+ 	for p := scope.entries.first; p != nil; p = p.next {
+-		E.WriteObject(p.obj);
++		if p.obj.exported {
++			E.WriteObject(p.obj);
++		}
+ 	}
+ 	E.WriteObject(nil);
+ 	
+@@ -158,7 +160,8 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 		if !typ.obj.exported {
+ 			// the type is invisible (it's identifier is not exported)
+ 			// prepend "." to the identifier to make it an illegal
+-			// identifier and thus invisible in Go source code
++			// identifier for importing packages and thus inaccessible
++			// from those package's source code
+ 			ident = "." + ident;
+ 		}
+ 	}
+@@ -170,17 +173,14 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 	}
+ 	
+ 	switch typ.form {
+-	case Type.ALIAS:
++	case Type.ALIAS, Type.MAP:
++		E.WriteType(typ.aux);
+ 		E.WriteType(typ.elt);
+ 
+ 	case Type.ARRAY:
+ 		E.WriteInt(typ.len_);
+ 		E.WriteType(typ.elt);
+ 
+-	case Type.MAP:
+-		E.WriteType(typ.key);
+-		E.WriteType(typ.elt);
+-
+ 	case Type.CHANNEL:
+ 		E.WriteInt(typ.flags);
+ 		E.WriteType(typ.elt);
+@@ -262,12 +262,7 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+ 	// export package 0
+ 	pkg := comp.pkg_list[0];
+ 	E.WritePackage(pkg);
+-	for p := pkg.scope.entries.first; p != nil; p = p.next {
+-		if p.obj.exported {
+-			E.WriteObject(p.obj);
+-		}
+-	}
+-	E.WriteObject(nil);
++	E.WriteScope(pkg.scope);
+ 	
+ 	if E.debug {
+ 		print "\n(", E.buf_pos, " bytes)\n";
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index 81e24aace4..3624ede13a 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -30,7 +30,7 @@ export type Type struct {
+ 	size int;  // in bytes
+ 	len_ int;  // array length, no. of parameters (w/o recv)
+ 	obj *Object;  // primary type object or NULL
+-	key *Type;  // maps
++	aux *Type;  // alias base type or map key
+ 	elt *Type;  // aliases, arrays, maps, channels, pointers
+ 	scope *Scope;  // structs, interfaces, functions
+ }
+diff --git a/usr/gri/gosrc/import.go b/usr/gri/gosrc/import.go
+index 920b98be77..101b51416b 100755
+--- a/usr/gri/gosrc/import.go
++++ b/usr/gri/gosrc/import.go
+@@ -140,23 +140,26 @@ func (I *Importer) ReadPackage() *Globals.Package {
+ }
+ 
+ 
+-func (I *Importer) ReadScope() *Globals.Scope {
++func (I *Importer) ReadScope(scope *Globals.Scope, allow_multiples bool) {
+ 	if I.debug {
+ 		print " {";
+ 	}
+ 
+-	scope := Globals.NewScope(nil);
+ 	obj := I.ReadObject();
+ 	for obj != nil {
+-		scope.Insert(obj);
++		// allow_multiples is for debugging only - we should never
++		// have multiple imports where we don't expect them
++		if allow_multiples {
++			scope.InsertImport(obj);
++		} else {
++			scope.Insert(obj);
++		}
+ 		obj = I.ReadObject();
+ 	}
+ 	
+ 	if I.debug {
+ 		print " }";
+ 	}
+-	
+-	return scope;
+ }
+ 
+ 
+@@ -191,27 +194,26 @@ func (I *Importer) ReadType() *Globals.Type {
+ 	I.type_ref++;
+ 
+ 	switch (typ.form) {
+-	case Type.ALIAS:
++	case Type.ALIAS, Type.MAP:
++		typ.aux = I.ReadType();
+ 		typ.elt = I.ReadType();
+ 
+ 	case Type.ARRAY:
+ 		typ.len_ = I.ReadInt();
+ 		typ.elt = I.ReadType();
+ 
+-	case Type.MAP:
+-		typ.key = I.ReadType();
+-		typ.elt = I.ReadType();
+-
+ 	case Type.CHANNEL:
+ 		typ.flags = I.ReadInt();
+ 		typ.elt = I.ReadType();
+ 
+ 	case Type.FUNCTION:
+ 		typ.flags = I.ReadInt();
+-		typ.scope = I.ReadScope();
++		typ.scope = Globals.NewScope(nil);
++		I.ReadScope(typ.scope, false);
+ 
+ 	case Type.STRUCT, Type.INTERFACE:
+-		typ.scope = I.ReadScope();
++		typ.scope = Globals.NewScope(nil);
++		I.ReadScope(typ.scope, false);
+ 
+ 	case Type.POINTER, Type.REFERENCE:
+ 		typ.elt = I.ReadType();
+@@ -241,6 +243,7 @@ func (I *Importer) ReadObject() *Globals.Object {
+ 	
+ 	ident := I.ReadString();
+ 	obj := Globals.NewObject(0, tag, ident);
++	obj.exported = true;
+ 	obj.typ = I.ReadType();
+ 
+ 	switch (tag) {
+@@ -290,13 +293,7 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
+ 
+ 	// import package
+ 	pkg := I.ReadPackage();
+-	{	obj := I.ReadObject();
+-		for obj != nil {
+-			obj.pnolev = pkg.obj.pnolev;
+-			pkg.scope.InsertImport(obj);
+-			obj = I.ReadObject();
+-		}
+-	}
++	I.ReadScope(pkg.scope, true);
+ 	
+ 	if I.debug {
+ 		print "\n(", I.buf_pos, " bytes)\n";
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 10a0563c59..503a4cf51e 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -147,74 +147,82 @@ func (P *Parser) Declare(obj *Globals.Object) {
+ 
+ 
+ func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.Type {
+-  // Determine if we have a receiver or not.
+-  // TODO do we still need this?
+-  if p0 > 0 && check_recv {
+-    // method
+-	if p0 != 1 {
+-		panic "p0 != 1";
++	// Determine if we have a receiver or not.
++	// TODO do we still need this?
++	if p0 > 0 && check_recv {
++		// method
++		if p0 != 1 {
++			panic "p0 != 1";
++		}
+ 	}
+-  }
+-  typ := Globals.NewType(Type.FUNCTION);
+-  if p0 == 0 {
+-	typ.flags = 0;
+-  } else {
+-	typ.flags = Type.RECV;
+-  }
+-  typ.len_ = r0 - p0;
+-  typ.scope = sig;
+-  return typ;
++
++	typ := Globals.NewType(Type.FUNCTION);
++	if p0 == 0 {
++		typ.flags = 0;
++	} else {
++		typ.flags = Type.RECV;
++	}
++	typ.len_ = r0 - p0;
++	typ.scope = sig;
++
++	// parameters are always exported (they can't be accessed w/o the function
++	// or function type being exported)
++	for p := sig.entries.first; p != nil; p = p.next {
++		p.obj.exported = true;
++	}
++
++	return typ;
+ }
+ 
+ 
+ func (P *Parser) DeclareFunc(ident string, typ *Globals.Type) *Globals.Object {
+-  // determine scope
+-  scope := P.top_scope;
+-  if typ.flags & Type.RECV != 0 {
+-    // method - declare in corresponding struct
+-	if typ.scope.entries.len_ < 1 {
+-		panic "no recv in signature?";
+-	}
+-    recv_typ := typ.scope.entries.first.obj.typ;
+-    if recv_typ.form == Type.POINTER {
+-      recv_typ = recv_typ.elt;
+-    }
+-    scope = recv_typ.scope;
+-  }
+-  
+-  // declare the function
+-  obj := scope.Lookup(ident);
+-  if obj == nil {
+-    obj = Globals.NewObject(-1, Object.FUNC, ident);
+-	obj.typ = typ;
+-	// TODO do we need to set the primary type? probably...
+-    P.DeclareInScope(scope, obj);
+-    return obj;
+-  }
+-  
+-  // obj != NULL: possibly a forward declaration.
+-  if (obj.kind != Object.FUNC) {
+-    P.Error(-1, `"` + ident + `" is declared already`);
+-    // Continue but do not insert this function into the scope.
+-    obj = Globals.NewObject(-1, Object.FUNC, ident);
+-	obj.typ = typ;
+-	// TODO do we need to set the prymary type? probably...
+-    return obj;
+-  }
+-  
+-  // We have a function with the same name.
+-  /*
+-  if (!EqualTypes(type, obj->type())) {
+-    this->Error("type of \"%s\" does not match its forward declaration", name.cstr());
+-    // Continue but do not insert this function into the scope.
+-    NewObject(Object::FUNC, name);
+-    obj->set_type(type);
+-    return obj;    
+-  }
+-  */
+-  
+-  // We have a matching forward declaration. Use it.
+-  return obj;
++	// determine scope
++	scope := P.top_scope;
++	if typ.flags & Type.RECV != 0 {
++		// method - declare in corresponding struct
++		if typ.scope.entries.len_ < 1 {
++			panic "no recv in signature?";
++		}
++		recv_typ := typ.scope.entries.first.obj.typ;
++		if recv_typ.form == Type.POINTER {
++			recv_typ = recv_typ.elt;
++		}
++		scope = recv_typ.scope;
++	}
++
++	// declare the function
++	obj := scope.Lookup(ident);
++	if obj == nil {
++		obj = Globals.NewObject(-1, Object.FUNC, ident);
++		obj.typ = typ;
++		// TODO do we need to set the primary type? probably...
++		P.DeclareInScope(scope, obj);
++		return obj;
++	}
++
++	// obj != NULL: possibly a forward declaration.
++	if obj.kind != Object.FUNC {
++		P.Error(-1, `"` + ident + `" is declared already`);
++		// Continue but do not insert this function into the scope.
++		obj = Globals.NewObject(-1, Object.FUNC, ident);
++		obj.typ = typ;
++		// TODO do we need to set the primary type? probably...
++		return obj;
++	}
++
++	// We have a function with the same name.
++	/*
++	if !EqualTypes(type, obj->type()) {
++		this->Error("type of \"%s\" does not match its forward declaration", name.cstr());
++		// Continue but do not insert this function into the scope.
++		NewObject(Object::FUNC, name);
++		obj->set_type(type);
++		return obj;    
++	}
++	*/
++
++	// We have a matching forward declaration. Use it.
++	return obj;
+ }
+ 
+ 
+@@ -521,7 +529,7 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
+ 	
+ 	if P.tok == Scanner.PERIOD {
+ 		p0 = sig.entries.len_;
+-		if (P.semantic_checks && p0 != 1) {
++		if P.semantic_checks && p0 != 1 {
+ 			P.Error(recv_pos, "must have exactly one receiver")
+ 			panic "UNIMPLEMENTED (ParseAnonymousSignature)";
+ 			// TODO do something useful here
+@@ -561,7 +569,7 @@ func (P *Parser) ParseNamedSignature() (name string, typ *Globals.Type) {
+ 		recv_pos := P.pos;
+ 		P.ParseParameters();
+ 		p0 = sig.entries.len_;
+-		if (P.semantic_checks && p0 != 1) {
++		if P.semantic_checks && p0 != 1 {
+ 			print "p0 = ", p0, "\n";
+ 			P.Error(recv_pos, "must have exactly one receiver")
+ 			panic "UNIMPLEMENTED (ParseNamedSignature)";
+@@ -651,7 +659,7 @@ func (P *Parser) ParseMapType() *Globals.Type {
+ 	P.Expect(Scanner.MAP);
+ 	P.Expect(Scanner.LBRACK);
+ 	typ := Globals.NewType(Type.MAP);
+-	typ.key = P.ParseVarType();
++	typ.aux = P.ParseVarType();
+ 	P.Expect(Scanner.RBRACK);
+ 	typ.elt = P.ParseVarType();
+ 	P.Ecart();
+@@ -1617,7 +1625,7 @@ func (P *Parser) ParseImportSpec() {
+ 		obj = P.ParseIdentDecl(Object.PACKAGE);
+ 	}
+ 	
+-	if (P.semantic_checks && P.tok == Scanner.STRING) {
++	if P.semantic_checks && P.tok == Scanner.STRING {
+ 		// TODO eventually the scanner should strip the quotes
+ 		pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
+ 		pkg := Import.Import(P.comp, pkg_name);
+@@ -1699,6 +1707,11 @@ func (P *Parser) ParseTypeSpec(exported bool) {
+ 	if typ != nil {
+ 		if make_alias {
+ 			alias := Globals.NewType(Type.ALIAS);
++			if typ.form == Type.ALIAS {
++				alias.aux = typ.aux;  // the base type
++			} else {
++				alias.aux = typ;
++			}
+ 			alias.elt = typ;
+ 			typ = alias;
+ 		}
+@@ -1706,6 +1719,14 @@ func (P *Parser) ParseTypeSpec(exported bool) {
+ 		if typ.obj == nil {
+ 			typ.obj = obj;  // primary type object
+ 		}
++		// if the type is exported, for now we export all fields
++		// of structs and interfaces by default
++		// TODO this needs to change eventually
++		if exported && (typ.form == Type.STRUCT || typ.form == Type.INTERFACE) {
++			for p := typ.scope.entries.first; p != nil; p = p.next {
++				p.obj.exported = true;
++			}
++		}
+ 	}
+ 	
+ 	P.Ecart();
+diff --git a/usr/gri/gosrc/printer.go b/usr/gri/gosrc/printer.go
+index d4b3779c23..54c510c37a 100755
+--- a/usr/gri/gosrc/printer.go
++++ b/usr/gri/gosrc/printer.go
+@@ -109,7 +109,7 @@ func (P *Printer) PrintScope(scope *Globals.Scope, delta int) {
+ 	} else {
+ 		n = 0;
+ 		for p := scope.entries.first; p != nil; p = p.next {
+-			if p.obj.exported {
++			if p.obj.exported && !IsAnonymous(p.obj.ident) {
+ 				n++;
+ 			}
+ 		}
+@@ -120,7 +120,7 @@ func (P *Printer) PrintScope(scope *Globals.Scope, delta int) {
+ 	if n > 0 {
+ 		P.level += delta;
+ 		for p := scope.entries.first; p != nil; p = p.next {
+-			if P.print_all || p.obj.exported {
++			if P.print_all || p.obj.exported && !IsAnonymous(p.obj.ident) {
+ 				P.PrintIndent();
+ 				P.PrintObjectStruct(p.obj);
+ 			}
+@@ -200,7 +200,12 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
+ 
+ 	case Type.ALIAS:
+ 		P.PrintType(typ.elt);
+-
++		if typ.aux != typ.elt {
++			print " /* ";
++			P.PrintType(typ.aux);
++			print " */";
++		}
++		
+ 	case Type.ARRAY:
+ 		print "[]";
+ 		P.PrintType(typ.elt);
+@@ -217,7 +222,7 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
+ 
+ 	case Type.MAP:
+ 		print "map [";
+-		P.PrintType(typ.key);
++		P.PrintType(typ.aux);
+ 		print "] ";
+ 		P.PrintType(typ.elt);
+ 
+@@ -263,4 +268,5 @@ export func PrintObject(comp *Globals.Compilation, obj *Globals.Object, print_al
+ 	var P Printer;
+ 	(&P).Init(comp, print_all);
+ 	(&P).PrintObjectStruct(obj);
++	print "\n";
+ }
+diff --git a/usr/gri/gosrc/test/d.go b/usr/gri/gosrc/test/d.go
+index 540a03d71e..e9d87e8374 100644
+--- a/usr/gri/gosrc/test/d.go
++++ b/usr/gri/gosrc/test/d.go
+@@ -13,3 +13,7 @@ export type T2 struct {
+ 
+ export func (obj *T2) M1(u, v float) {
+ }
++
++export func F0(a int, b T0) int {
++	return a + b;
++}
+\ No newline at end of file
+diff --git a/usr/gri/gosrc/universe.go b/usr/gri/gosrc/universe.go
+index 0de2c69ea6..c167e67d07 100755
+--- a/usr/gri/gosrc/universe.go
++++ b/usr/gri/gosrc/universe.go
+@@ -71,6 +71,7 @@ func DeclType(form int, ident string, size int) *Globals.Type {
+ 
+ func DeclAlias(ident string, typ *Globals.Type) *Globals.Type {
+ 	alias := Globals.NewType(Type.ALIAS);
++	alias.aux = typ;
+ 	alias.elt = typ;
+ 	return DeclObj(Object.TYPE, ident, alias).typ;
+ }
+diff --git a/usr/gri/gosrc/verifier.go b/usr/gri/gosrc/verifier.go
+index af4eca116b..daadc62733 100644
+--- a/usr/gri/gosrc/verifier.go
++++ b/usr/gri/gosrc/verifier.go
+@@ -21,12 +21,27 @@ func Error(msg string) {
+ }
+ 
+ 
+-func VerifyObject(obj *Globals.Object, pnolev int);
++type Verifier struct {
++	comp *Globals.Compilation;
++	
++	// various sets for marking the graph (and thus avoid cycles)
++	objs *map[*Globals.Object] bool;
++	typs *map[*Globals.Type] bool;
++	pkgs *map[*Globals.Package] bool;
++}
++
++
++func (V *Verifier) VerifyObject(obj *Globals.Object, pnolev int);
+ 
+ 
+-func VerifyType(typ *Globals.Type) {
++func (V *Verifier) VerifyType(typ *Globals.Type) {
++	if V.typs[typ] {
++		return;  // already verified
++	}
++	V.typs[typ] = true;
++	
+ 	if typ.obj != nil {
+-		VerifyObject(typ.obj, 0);
++		V.VerifyObject(typ.obj, 0);
+ 	}
+ 	
+ 	switch typ.form {
+@@ -70,8 +85,14 @@ func VerifyType(typ *Globals.Type) {
+ }
+ 
+ 
+-func VerifyObject(obj *Globals.Object, pnolev int) {
+-	VerifyType(obj.typ);
++func (V *Verifier) VerifyObject(obj *Globals.Object, pnolev int) {
++	if V.objs[obj] {
++		return;  // already verified
++	}
++	V.objs[obj] = true;
++	
++	// all objects have a non-nil type
++	V.VerifyType(obj.typ);
+ 	
+ 	switch obj.kind {
+ 	case Object.CONST:
+@@ -92,20 +113,46 @@ func VerifyObject(obj *Globals.Object, pnolev int) {
+ }
+ 
+ 
+-func VerifyScope(scope *Globals.Scope) {
++func (V *Verifier) VerifyScope(scope *Globals.Scope) {
+ 	for p := scope.entries.first; p != nil; p = p.next {
+-		VerifyObject(p.obj, 0);
++		V.VerifyObject(p.obj, 0);
+ 	}
+ }
+ 
+ 
+-func VerifyPackage(pkg *Globals.Package, pno int) {
+-	VerifyObject(pkg.obj, 0);
++func (V *Verifier) VerifyPackage(pkg *Globals.Package, pno int) {
++	if V.pkgs[pkg] {
++		return;  // already verified
++	}
++	V.pkgs[pkg] = true;
++	
++	V.VerifyObject(pkg.obj, pno);
++	V.VerifyScope(pkg.scope);
+ }
+ 
+ 
+-export func Verify(comp *Globals.Compilation) {
++func (V *Verifier) Verify(comp *Globals.Compilation) {
++	// initialize Verifier
++	V.comp = comp;
++	V.objs = new(map[*Globals.Object] bool);
++	V.typs = new(map[*Globals.Type] bool);
++	V.pkgs = new(map[*Globals.Package] bool);
++
++	// verify all packages
++	filenames := new(map[string] bool);
+ 	for i := 0; i < comp.pkg_ref; i++ {
+-		VerifyPackage(comp.pkg_list[i], i);
++		pkg := comp.pkg_list[i];
++		// each pkg filename must appear only once
++		if filenames[pkg.file_name] {
++			Error("package filename present more then once");
++		}
++		filenames[pkg.file_name] = true;
++		V.VerifyPackage(pkg, i);
+ 	}
+ }
++
++
++export func Verify(comp *Globals.Compilation) {
++	V := new(Verifier);
++	V.Verify(comp);
++}

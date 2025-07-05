@@ -7,9 +7,246 @@ Date:   Mon Jan 13 23:08:10 2014 -0500
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/51470043
-
+---
  src/cmd/link/dead.go         |  63 ++++++++++++++++++++++++++++
  src/cmd/link/dead_test.go    |  97 +++++++++++++++++++++++++++++++++++++++++++
  src/cmd/link/testdata/dead.6 | Bin 0 -> 1062 bytes
  src/cmd/link/testdata/dead.s |  49 ++++++++++++++++++++++
  4 files changed, 209 insertions(+)
+
+diff --git a/src/cmd/link/dead.go b/src/cmd/link/dead.go
+index d129dd24d5..e1e775eb3b 100644
+--- a/src/cmd/link/dead.go
++++ b/src/cmd/link/dead.go
+@@ -6,6 +6,69 @@
+ 
+ package main
+ 
++import "debug/goobj"
++
+ // dead removes unreachable code and data from the program.
++// It is basically a mark-sweep garbage collection: traverse all the
++// symbols reachable from the entry (startSymID) and then delete
++// the rest.
+ func (p *Prog) dead() {
++	p.Dead = make(map[goobj.SymID]bool)
++	reachable := make(map[goobj.SymID]bool)
++	p.walkDead(p.startSym, reachable)
++
++	for sym := range p.Syms {
++		if !reachable[sym] {
++			delete(p.Syms, sym)
++			p.Dead[sym] = true
++		}
++	}
++
++	for sym := range p.Missing {
++		if !reachable[sym] {
++			delete(p.Missing, sym)
++			p.Dead[sym] = true
++		}
++	}
++
++	p.SymOrder = removeDead(p.SymOrder, reachable)
++
++	for _, pkg := range p.Packages {
++		pkg.Syms = removeDead(pkg.Syms, reachable)
++	}
++}
++
++// walkDead traverses the symbols reachable from sym, adding them to reachable.
++// The caller has verified that reachable[sym] = false.
++func (p *Prog) walkDead(sym goobj.SymID, reachable map[goobj.SymID]bool) {
++	reachable[sym] = true
++	s := p.Syms[sym]
++	if s == nil {
++		return
++	}
++	for i := range s.Reloc {
++		r := &s.Reloc[i]
++		if !reachable[r.Sym] {
++			p.walkDead(r.Sym, reachable)
++		}
++	}
++	if s.Func != nil {
++		for _, fdata := range s.Func.FuncData {
++			if fdata.Sym.Name != "" && !reachable[fdata.Sym] {
++				p.walkDead(fdata.Sym, reachable)
++			}
++		}
++	}
++}
++
++// removeDead removes unreachable (dead) symbols from syms,
++// returning a shortened slice using the same underlying array.
++func removeDead(syms []*Sym, reachable map[goobj.SymID]bool) []*Sym {
++	keep := syms[:0]
++	for _, sym := range syms {
++		if reachable[sym.SymID] {
++			keep = append(keep, sym)
++		}
++	}
++	return keep
+ }
+diff --git a/src/cmd/link/dead_test.go b/src/cmd/link/dead_test.go
+new file mode 100644
+index 0000000000..0e00c7da4b
+--- /dev/null
++++ b/src/cmd/link/dead_test.go
+@@ -0,0 +1,97 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"debug/goobj"
++	"reflect"
++	"strings"
++	"testing"
++)
++
++// Each test case is an object file, generated from a corresponding .s file.
++// The symbols in the object file with a dead_ prefix are the ones that
++// should be removed from the program.
++var deadTests = []string{
++	"testdata/dead.6",
++}
++
++func TestDead(t *testing.T) {
++	for _, obj := range deadTests {
++		p := Prog{GOOS: "darwin", GOARCH: "amd64", StartSym: "start"}
++		p.omitRuntime = true
++		p.Error = func(s string) { t.Error(s) }
++		p.init()
++		p.scan(obj)
++		if p.NumError > 0 {
++			continue // already reported
++		}
++		origSyms := copyMap(p.Syms)
++		origMissing := copyMap(p.Missing)
++		origSymOrder := copySlice(p.SymOrder)
++		origPkgSyms := copySlice(p.Packages["main"].Syms)
++		p.dead()
++		checkDeadMap(t, obj, "p.Syms", origSyms, p.Syms)
++		checkDeadMap(t, obj, "p.Missing", origMissing, p.Missing)
++		checkDeadSlice(t, obj, "p.SymOrder", origSymOrder, p.SymOrder)
++		checkDeadSlice(t, obj, `p.Packages["main"].Syms`, origPkgSyms, p.Packages["main"].Syms)
++	}
++}
++
++func copyMap(m interface{}) interface{} {
++	v := reflect.ValueOf(m)
++	out := reflect.MakeMap(v.Type())
++	for _, key := range v.MapKeys() {
++		out.SetMapIndex(key, v.MapIndex(key))
++	}
++	return out.Interface()
++}
++
++func checkDeadMap(t *testing.T, obj, name string, old, new interface{}) {
++	vold := reflect.ValueOf(old)
++	vnew := reflect.ValueOf(new)
++	for _, vid := range vold.MapKeys() {
++		id := vid.Interface().(goobj.SymID)
++		if strings.HasPrefix(id.Name, "dead_") {
++			if vnew.MapIndex(vid).IsValid() {
++				t.Errorf("%s: %s contains unnecessary symbol %s", obj, name, id)
++			}
++		} else {
++			if !vnew.MapIndex(vid).IsValid() {
++				t.Errorf("%s: %s is missing symbol %s", obj, name, id)
++			}
++		}
++	}
++	for _, vid := range vnew.MapKeys() {
++		id := vid.Interface().(goobj.SymID)
++		if !vold.MapIndex(vid).IsValid() {
++			t.Errorf("%s: %s contains unexpected symbol %s", obj, name, id)
++		}
++	}
++}
++
++func copySlice(x []*Sym) (out []*Sym) {
++	return append(out, x...)
++}
++
++func checkDeadSlice(t *testing.T, obj, name string, old, new []*Sym) {
++	for i, s := range old {
++		if strings.HasPrefix(s.Name, "dead_") {
++			continue
++		}
++		if len(new) == 0 {
++			t.Errorf("%s: %s is missing symbol %s\nhave%v\nwant%v", obj, name, s, new, old[i:])
++			return
++		}
++		if new[0].SymID != s.SymID {
++			t.Errorf("%s: %s is incorrect: have %s, want %s\nhave%v\nwant%v", obj, name, new[0].SymID, s.SymID, new, old[i:])
++			return
++		}
++		new = new[1:]
++	}
++	if len(new) > 0 {
++		t.Errorf("%s: %s has unexpected symbols: %v", new)
++	}
++}
+diff --git a/src/cmd/link/testdata/dead.6 b/src/cmd/link/testdata/dead.6
+new file mode 100644
+index 0000000000..f8eaf7ab8d
+Binary files /dev/null and b/src/cmd/link/testdata/dead.6 differ
+diff --git a/src/cmd/link/testdata/dead.s b/src/cmd/link/testdata/dead.s
+new file mode 100644
+index 0000000000..832ddaff60
+--- /dev/null
++++ b/src/cmd/link/testdata/dead.s
+@@ -0,0 +1,49 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test of dead code removal.
++// Symbols with names beginning with dead_ should be discarded.
++// Others should be kept.
++
++TEXT start(SB),7,$0	// start symbol
++	MOVQ $data1<>(SB), AX
++	CALL text1(SB)
++	MOVQ $text2(SB), BX
++	RET
++
++TEXT text1(SB),7,$0
++	FUNCDATA $1, funcdata+4(SB)
++	RET
++
++TEXT text2(SB),7,$0
++	MOVQ $edata(SB),BX
++	RET
++
++DATA data1<>+0(SB)/8, $data2(SB)
++DATA data1<>+8(SB)/8, $data3(SB)
++GLOBL data1<>(SB), $16
++GLOBL data2(SB), $1
++GLOBL data3(SB), $1
++GLOBL funcdata(SB), $8
++
++TEXT dead_start(SB),7,$0
++	MOVQ $dead_data1(SB), AX
++	CALL dead_text1(SB)
++	MOVQ $dead_text2(SB), BX
++	RET
++
++TEXT dead_text1(SB),7,$0
++	FUNCDATA $1, dead_funcdata+4(SB)
++	RET
++
++TEXT dead_text2(SB),7,$0
++	RET
++
++DATA dead_data1+0(SB)/8, $dead_data2(SB)
++DATA dead_data1+8(SB)/8, $dead_data3(SB)
++GLOBL dead_data1(SB), $16
++GLOBL dead_data2(SB), $1
++GLOBL dead_data3(SB), $1
++GLOBL dead_funcdata(SB), $8
++

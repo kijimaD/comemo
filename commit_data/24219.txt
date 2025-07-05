@@ -11,6 +11,20 @@ Date:   Thu Jul 16 01:49:47 2015 +0000
     Change-Id: I35fa21005af2183828a9d8b195ebcfbe45ec5138
     Reviewed-on: https://go-review.googlesource.com/12247
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mbitmap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index b9b52a7bc4..ef17409ebe 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -201,7 +201,7 @@ func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits, s *mspan) {
+ 		// The following ensures that we are rigorous about what data
+ 		// structures hold valid pointers.
+ 		// TODO(rsc): Check if this still happens.
+-		if true {
++		if false {
+ 			// Still happens sometimes. We don't know why.
+ 			printlock()
+ 			print("runtime:objectstart Span weird: p=", hex(p), " k=", hex(k))

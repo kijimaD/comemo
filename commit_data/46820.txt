@@ -14,8 +14,76 @@ Date:   Thu Feb 4 10:27:41 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/assignments.go       |  1 +
  src/go/types/decl.go              | 14 ++++++++++++++
  src/go/types/testdata/vardecl.src | 14 +++++++++++++-
  3 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 616564b567..d6f18c9bee 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -120,6 +120,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
+ 		if lhs.typ == nil {
+ 			lhs.typ = Typ[Invalid]
+ 		}
++		lhs.used = true
+ 		return nil
+ 	}
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 1f0bc358a2..df01e92530 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -504,6 +504,20 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr, inherited bool)
+ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
+ 	assert(obj.typ == nil)
+ 
++	// If we have undefined variable types due to errors,
++	// mark variables as used to avoid follow-on errors.
++	// Matches compiler behavior.
++	defer func() {
++		if obj.typ == Typ[Invalid] {
++			obj.used = true
++		}
++		for _, lhs := range lhs {
++			if lhs.typ == Typ[Invalid] {
++				lhs.used = true
++			}
++		}
++	}()
++
+ 	// determine type, if any
+ 	if typ != nil {
+ 		obj.typ = check.typ(typ)
+diff --git a/src/go/types/testdata/vardecl.src b/src/go/types/testdata/vardecl.src
+index 54f5ef1e10..6e2d1b5bd5 100644
+--- a/src/go/types/testdata/vardecl.src
++++ b/src/go/types/testdata/vardecl.src
+@@ -158,6 +158,18 @@ func _() {
+ 	}
+ }
+ 
++
++// Invalid variable declarations must not lead to "declared but not used errors".
++func _() {
++	var a x        // ERROR undeclared name: x
++	var b = x      // ERROR undeclared name: x
++	var c int = x  // ERROR undeclared name: x
++	var d, e, f x  /* ERROR x */ /* ERROR x */ /* ERROR x */
++	var g, h, i = x /* ERROR x */, x /* ERROR x */, x /* ERROR x */
++	var j, k, l float32 = x /* ERROR x */, x /* ERROR x */, x /* ERROR x */
++	// but no "declared but not used" errors
++}
++
+ // Invalid (unused) expressions must not lead to spurious "declared but not used errors"
+ func _() {
+ 	var a, b, c int
+@@ -203,4 +215,4 @@ func _() {
+ 	_, _, _ = x, y, z
+ }
+ 
+-// TODO(gri) consolidate other var decl checks in this file
+\ No newline at end of file
++// TODO(gri) consolidate other var decl checks in this file

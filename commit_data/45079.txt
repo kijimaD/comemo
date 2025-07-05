@@ -13,9 +13,134 @@ Date:   Mon Sep 28 17:38:13 2020 +0800
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/map.go         | 4 ++--
  src/runtime/map_fast32.go  | 8 ++++----
  src/runtime/map_fast64.go  | 8 ++++----
  src/runtime/map_faststr.go | 4 ++--
  4 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 6f31f23d6f..5ac3a9958b 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -599,7 +599,7 @@ again:
+ 	if h.growing() {
+ 		growWork(t, h, bucket)
+ 	}
+-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+ 	top := tophash(hash)
+ 
+ 	var inserti *uint8
+@@ -650,7 +650,7 @@ bucketloop:
+ 	}
+ 
+ 	if inserti == nil {
+-		// all current buckets are full, allocate a new one.
++		// The current bucket and all the overflow buckets connected to it are full, allocate a new one.
+ 		newb := h.newoverflow(t, b)
+ 		inserti = &newb.tophash[0]
+ 		insertk = add(unsafe.Pointer(newb), dataOffset)
+diff --git a/src/runtime/map_fast32.go b/src/runtime/map_fast32.go
+index d80f5eac78..8d52dad217 100644
+--- a/src/runtime/map_fast32.go
++++ b/src/runtime/map_fast32.go
+@@ -114,7 +114,7 @@ again:
+ 	if h.growing() {
+ 		growWork_fast32(t, h, bucket)
+ 	}
+-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+ 
+ 	var insertb *bmap
+ 	var inserti uintptr
+@@ -158,7 +158,7 @@ bucketloop:
+ 	}
+ 
+ 	if insertb == nil {
+-		// all current buckets are full, allocate a new one.
++		// The current bucket and all the overflow buckets connected to it are full, allocate a new one.
+ 		insertb = h.newoverflow(t, b)
+ 		inserti = 0 // not necessary, but avoids needlessly spilling inserti
+ 	}
+@@ -204,7 +204,7 @@ again:
+ 	if h.growing() {
+ 		growWork_fast32(t, h, bucket)
+ 	}
+-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+ 
+ 	var insertb *bmap
+ 	var inserti uintptr
+@@ -248,7 +248,7 @@ bucketloop:
+ 	}
+ 
+ 	if insertb == nil {
+-		// all current buckets are full, allocate a new one.
++		// The current bucket and all the overflow buckets connected to it are full, allocate a new one.
+ 		insertb = h.newoverflow(t, b)
+ 		inserti = 0 // not necessary, but avoids needlessly spilling inserti
+ 	}
+diff --git a/src/runtime/map_fast64.go b/src/runtime/map_fast64.go
+index 3bc84bbdd3..f1368dc774 100644
+--- a/src/runtime/map_fast64.go
++++ b/src/runtime/map_fast64.go
+@@ -114,7 +114,7 @@ again:
+ 	if h.growing() {
+ 		growWork_fast64(t, h, bucket)
+ 	}
+-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+ 
+ 	var insertb *bmap
+ 	var inserti uintptr
+@@ -158,7 +158,7 @@ bucketloop:
+ 	}
+ 
+ 	if insertb == nil {
+-		// all current buckets are full, allocate a new one.
++		// The current bucket and all the overflow buckets connected to it are full, allocate a new one.
+ 		insertb = h.newoverflow(t, b)
+ 		inserti = 0 // not necessary, but avoids needlessly spilling inserti
+ 	}
+@@ -204,7 +204,7 @@ again:
+ 	if h.growing() {
+ 		growWork_fast64(t, h, bucket)
+ 	}
+-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+ 
+ 	var insertb *bmap
+ 	var inserti uintptr
+@@ -248,7 +248,7 @@ bucketloop:
+ 	}
+ 
+ 	if insertb == nil {
+-		// all current buckets are full, allocate a new one.
++		// The current bucket and all the overflow buckets connected to it are full, allocate a new one.
+ 		insertb = h.newoverflow(t, b)
+ 		inserti = 0 // not necessary, but avoids needlessly spilling inserti
+ 	}
+diff --git a/src/runtime/map_faststr.go b/src/runtime/map_faststr.go
+index 108c502394..2d1ac762a8 100644
+--- a/src/runtime/map_faststr.go
++++ b/src/runtime/map_faststr.go
+@@ -225,7 +225,7 @@ again:
+ 	if h.growing() {
+ 		growWork_faststr(t, h, bucket)
+ 	}
+-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+ 	top := tophash(hash)
+ 
+ 	var insertb *bmap
+@@ -274,7 +274,7 @@ bucketloop:
+ 	}
+ 
+ 	if insertb == nil {
+-		// all current buckets are full, allocate a new one.
++		// The current bucket and all the overflow buckets connected to it are full, allocate a new one.
+ 		insertb = h.newoverflow(t, b)
+ 		inserti = 0 // not necessary, but avoids needlessly spilling inserti
+ 	}

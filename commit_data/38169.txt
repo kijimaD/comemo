@@ -11,7 +11,7 @@ Date:   Sat Oct 6 06:10:25 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/callback.go                              | 2 +-
  misc/cgo/testplugin/unnamed1/main.go                   | 2 +-
  misc/cgo/testsanitizers/cc_test.go                     | 2 +-
@@ -53,3 +53,559 @@ Date:   Sat Oct 6 06:10:25 2018 +0000
  test/closure3.dir/main.go                              | 2 +-
  test/closure3.go                                       | 2 +-
  40 files changed, 44 insertions(+), 44 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index b88bf134bc..58e126b41b 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -295,7 +295,7 @@ func goWithString(s string) {
+ }
+ 
+ func testCallbackStack(t *testing.T) {
+-	// Make cgo call and callback with different amount of stack stack available.
++	// Make cgo call and callback with different amount of stack available.
+ 	// We do not do any explicit checks, just ensure that it does not crash.
+ 	for _, f := range splitTests {
+ 		f()
+diff --git a/misc/cgo/testplugin/unnamed1/main.go b/misc/cgo/testplugin/unnamed1/main.go
+index 5c1df086d7..caf09c9e89 100644
+--- a/misc/cgo/testplugin/unnamed1/main.go
++++ b/misc/cgo/testplugin/unnamed1/main.go
+@@ -9,7 +9,7 @@ import "C"
+ 
+ func FuncInt() int { return 1 }
+ 
+-// Add a recursive type to to check that type equality across plugins doesn't
++// Add a recursive type to check that type equality across plugins doesn't
+ // crash. See https://golang.org/issues/19258
+ func FuncRecursive() X { return X{} }
+ 
+diff --git a/misc/cgo/testsanitizers/cc_test.go b/misc/cgo/testsanitizers/cc_test.go
+index f09ad52cee..218e225429 100644
+--- a/misc/cgo/testsanitizers/cc_test.go
++++ b/misc/cgo/testsanitizers/cc_test.go
+@@ -374,7 +374,7 @@ func (c *config) checkRuntime() (skip bool, err error) {
+ 	}
+ 
+ 	// libcgo.h sets CGO_TSAN if it detects TSAN support in the C compiler.
+-	// Dump the preprocessor defines to check that that works.
++	// Dump the preprocessor defines to check that works.
+ 	// (Sometimes it doesn't: see https://golang.org/issue/15983.)
+ 	cmd, err := cc(c.cFlags...)
+ 	if err != nil {
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 529a2c692f..c3c7a6aab6 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -578,7 +578,7 @@ func TestNotes(t *testing.T) {
+ }
+ 
+ // Build a GOPATH package (depBase) into a shared library that links against the goroot
+-// runtime, another package (dep2) that links against the first, and and an
++// runtime, another package (dep2) that links against the first, and an
+ // executable that links against dep2.
+ func TestTwoGopathShlibs(t *testing.T) {
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "depBase")
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index 0dfaacb584..b68314cf73 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -125,7 +125,7 @@ directive can skip over a directive like any other comment.
+ // For a //line comment, this is the first character of the next line, and
+ // for a /*line comment this is the character position immediately following the closing */.
+ // If no filename is given, the recorded filename is empty if there is also no column number;
+-// otherwise is is the most recently recorded filename (actual filename or filename specified
++// otherwise it is the most recently recorded filename (actual filename or filename specified
+ // by previous line directive).
+ // If a line directive doesn't specify a column number, the column is "unknown" until
+ // the next directive and the compiler does not report column numbers for that range.
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index eb2ab6b916..ab65ddebb4 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -45,7 +45,7 @@ type Node struct {
+ 	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
+ 	// - ODOT, ODOTPTR, and OINDREGSP use it to indicate offset relative to their base address.
+ 	// - OSTRUCTKEY uses it to store the named field's offset.
+-	// - Named OLITERALs use it to to store their ambient iota value.
++	// - Named OLITERALs use it to store their ambient iota value.
+ 	// Possibly still more uses. If you find any, document them.
+ 	Xoffset int64
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 5aa2146a8c..1c398ef43c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -34,7 +34,7 @@ func walk(fn *Node) {
+ 		}
+ 	}
+ 
+-	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
++	// Propagate the used flag for typeswitch variables up to the NONAME in its definition.
+ 	for _, ln := range fn.Func.Dcl {
+ 		if ln.Op == ONAME && (ln.Class() == PAUTO || ln.Class() == PAUTOHEAP) && ln.Name.Defn != nil && ln.Name.Defn.Op == OTYPESW && ln.Name.Used() {
+ 			ln.Name.Defn.Left.Name.SetUsed(true)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 7d79c9ad50..21c12591c5 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -956,7 +956,7 @@
+ (MOVWZreg (MOVDconst [c])) -> (MOVDconst [int64(uint32(c))])
+ 
+ 
+-// Lose widening ops fed to to stores
++// Lose widening ops fed to stores
+ (MOVBstore [off] {sym} ptr (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) -> (MOVBstore [off] {sym} ptr x mem)
+ (MOVHstore [off] {sym} ptr (MOV(H|HZ|W|WZ)reg x) mem) -> (MOVHstore [off] {sym} ptr x mem)
+ (MOVWstore [off] {sym} ptr (MOV(W|WZ)reg x) mem) -> (MOVWstore [off] {sym} ptr x mem)
+diff --git a/src/cmd/compile/internal/ssa/layout.go b/src/cmd/compile/internal/ssa/layout.go
+index 15e111ae7c..78d5dc77fe 100644
+--- a/src/cmd/compile/internal/ssa/layout.go
++++ b/src/cmd/compile/internal/ssa/layout.go
+@@ -12,7 +12,7 @@ func layout(f *Func) {
+ }
+ 
+ // Register allocation may use a different order which has constraints
+-// imposed by the linear-scan algorithm. Note that that f.pass here is
++// imposed by the linear-scan algorithm. Note that f.pass here is
+ // regalloc, so the switch is conditional on -d=ssa/regalloc/test=N
+ func layoutRegallocOrder(f *Func) []*Block {
+ 
+diff --git a/src/cmd/compile/internal/ssa/poset.go b/src/cmd/compile/internal/ssa/poset.go
+index 37b607977c..0e0e2789b1 100644
+--- a/src/cmd/compile/internal/ssa/poset.go
++++ b/src/cmd/compile/internal/ssa/poset.go
+@@ -114,7 +114,7 @@ type posetNode struct {
+ // given that non-equality is not transitive, the only effect is that a later call
+ // to SetEqual for the same values will fail. NonEqual checks whether it is known that
+ // the nodes are different, either because SetNonEqual was called before, or because
+-// we know that that they are strictly ordered.
++// we know that they are strictly ordered.
+ //
+ // It is implemented as a forest of DAGs; in each DAG, if node A dominates B,
+ // it means that A<B. Equality is represented by mapping two SSA values to the same
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 8d0ab93c64..7612585136 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -212,7 +212,7 @@ func (s *stackAllocState) stackalloc() {
+ 					h := f.getHome(id)
+ 					if h != nil && h.(LocalSlot).N == name.N && h.(LocalSlot).Off == name.Off {
+ 						// A variable can interfere with itself.
+-						// It is rare, but but it can happen.
++						// It is rare, but it can happen.
+ 						s.nSelfInterfere++
+ 						goto noname
+ 					}
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index e27c1fdba3..e502b986ae 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -135,7 +135,7 @@ func InternString(b []byte) string {
+ 	return s
+ }
+ 
+-// CleanroomDo invokes f in an environment with with no preexisting packages.
++// CleanroomDo invokes f in an environment with no preexisting packages.
+ // For testing of import/export only.
+ func CleanroomDo(f func()) {
+ 	saved := pkgMap
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 90a5bd8130..54a2b724d4 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -247,7 +247,7 @@ func runGet(cmd *base.Command, args []string) {
+ 		// Deciding which module to upgrade/downgrade for a particular argument is difficult.
+ 		// Patterns only make it more difficult.
+ 		// We impose restrictions to avoid needing to interlace pattern expansion,
+-		// like in in modload.ImportPaths.
++		// like in modload.ImportPaths.
+ 		// Specifically, these patterns are supported:
+ 		//
+ 		//	- Relative paths like ../../foo or ../../foo... are restricted to matching directories
+diff --git a/src/cmd/go/testdata/testterminal18153/terminal_test.go b/src/cmd/go/testdata/testterminal18153/terminal_test.go
+index d662e55ee5..71493efe98 100644
+--- a/src/cmd/go/testdata/testterminal18153/terminal_test.go
++++ b/src/cmd/go/testdata/testterminal18153/terminal_test.go
+@@ -5,7 +5,7 @@
+ // +build linux
+ 
+ // This test is run by src/cmd/dist/test.go (cmd_go_test_terminal),
+-// and not by cmd/go's tests. This is because this test requires that
++// and not by cmd/go's tests. This is because this test requires
+ // that it be called with its stdout and stderr being a terminal.
+ // dist doesn't run `cmd/go test` against this test directory if
+ // dist's stdout/stderr aren't terminals.
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 67cefe3aeb..3056455f31 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -6118,7 +6118,7 @@ func (c *ctxt7) oaddi(p *obj.Prog, o1 int32, v int32, r int, rt int) uint32 {
+ }
+ 
+ /*
+- * load a a literal value into dr
++ * load a literal value into dr
+  */
+ func (c *ctxt7) omovlit(as obj.As, p *obj.Prog, a *obj.Addr, dr int) uint32 {
+ 	var o1 int32
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 3453b71b3b..aeb7854193 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -386,7 +386,7 @@ func offConv(off int64) string {
+ // opSuffixSet is like regListSet, but for opcode suffixes.
+ //
+ // Unlike some other similar structures, uint8 space is not
+-// divided by it's own values set (because the're only 256 of them).
++// divided by its own values set (because there are only 256 of them).
+ // Instead, every arch may interpret/format all 8 bits as they like,
+ // as long as they register proper cconv function for it.
+ type opSuffixSet struct {
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 23ff7f32af..1d056097c3 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -5051,7 +5051,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ bad:
+ 	if ctxt.Arch.Family != sys.AMD64 {
+ 		// here, the assembly has failed.
+-		// if its a byte instruction that has
++		// if it's a byte instruction that has
+ 		// unaddressable registers, try to
+ 		// exchange registers and reissue the
+ 		// instruction with the operands renamed.
+diff --git a/src/cmd/internal/obj/x86/ytab.go b/src/cmd/internal/obj/x86/ytab.go
+index 14bbaf72a9..7d0b75bf46 100644
+--- a/src/cmd/internal/obj/x86/ytab.go
++++ b/src/cmd/internal/obj/x86/ytab.go
+@@ -22,7 +22,7 @@ type ytab struct {
+ 
+ // Returns true if yt is compatible with args.
+ //
+-// Elements from args and yt.args are used to
++// Elements from args and yt.args are used
+ // to index ycover table like `ycover[args[i]+yt.args[i]]`.
+ // This means that args should contain values that already
+ // multiplied by Ymax.
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 5d2aadf589..e5d9981590 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -526,7 +526,7 @@ func (ex *examiner) entryFromOffset(off dwarf.Offset) *dwarf.Entry {
+ 	return nil
+ }
+ 
+-// Return the ID that that examiner uses to refer to the DIE at offset off
++// Return the ID that examiner uses to refer to the DIE at offset off
+ func (ex *examiner) idxFromOffset(off dwarf.Offset) int {
+ 	if idx, found := ex.idxByOffset[off]; found {
+ 		return idx
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index f61a290e42..c2a2b3a7ba 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -506,7 +506,7 @@ func Elfinit(ctxt *Link) {
+ 		}
+ 		elf64 = true
+ 
+-		ehdr.phoff = ELF64HDRSIZE      /* Must be be ELF64HDRSIZE: first PHdr must follow ELF header */
++		ehdr.phoff = ELF64HDRSIZE      /* Must be ELF64HDRSIZE: first PHdr must follow ELF header */
+ 		ehdr.shoff = ELF64HDRSIZE      /* Will move as we add PHeaders */
+ 		ehdr.ehsize = ELF64HDRSIZE     /* Must be ELF64HDRSIZE */
+ 		ehdr.phentsize = ELF64PHDRSIZE /* Must be ELF64PHDRSIZE */
+@@ -533,7 +533,7 @@ func Elfinit(ctxt *Link) {
+ 		fallthrough
+ 	default:
+ 		ehdr.phoff = ELF32HDRSIZE
+-		/* Must be be ELF32HDRSIZE: first PHdr must follow ELF header */
++		/* Must be ELF32HDRSIZE: first PHdr must follow ELF header */
+ 		ehdr.shoff = ELF32HDRSIZE      /* Will move as we add PHeaders */
+ 		ehdr.ehsize = ELF32HDRSIZE     /* Must be ELF32HDRSIZE */
+ 		ehdr.phentsize = ELF32PHDRSIZE /* Must be ELF32PHDRSIZE */
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 7029ba19c6..8f3326d8cd 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1565,7 +1565,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 	//
+ 	// Note: It's possible for "\n!\n" to appear within the binary
+ 	// package export data format. To avoid truncating the package
+-	// definition prematurely (issue 21703), we keep keep track of
++	// definition prematurely (issue 21703), we keep track of
+ 	// how many "$$" delimiters we've seen.
+ 
+ 	import0 := f.Offset()
+diff --git a/src/cmd/vet/testdata/structtag.go b/src/cmd/vet/testdata/structtag.go
+index ad55c4ab64..755d52be84 100644
+--- a/src/cmd/vet/testdata/structtag.go
++++ b/src/cmd/vet/testdata/structtag.go
+@@ -59,7 +59,7 @@ type DuplicateJSONFields struct {
+ 	NonJSON           int `foo:"a"`
+ 	DuplicateNonJSON  int `foo:"a"`
+ 	Embedded          struct {
+-		DuplicateJSON int `json:"a"` // OK because its not in the same struct type
++		DuplicateJSON int `json:"a"` // OK because it's not in the same struct type
+ 	}
+ 	AnonymousJSON `json:"a"` // ERROR "struct field AnonymousJSON repeats json tag .a. also at structtag.go:52"
+ 
+@@ -75,7 +75,7 @@ type DuplicateJSONFields struct {
+ 	NonXML           int `foo:"a"`
+ 	DuplicateNonXML  int `foo:"a"`
+ 	Embedded2        struct {
+-		DuplicateXML int `xml:"a"` // OK because its not in the same struct type
++		DuplicateXML int `xml:"a"` // OK because it's not in the same struct type
+ 	}
+ 	AnonymousXML `xml:"a"` // ERROR "struct field AnonymousXML repeats xml tag .a. also at structtag.go:68"
+ 	Attribute    struct {
+diff --git a/src/compress/flate/inflate.go b/src/compress/flate/inflate.go
+index 25e81f3f72..685be70a3e 100644
+--- a/src/compress/flate/inflate.go
++++ b/src/compress/flate/inflate.go
+@@ -65,7 +65,7 @@ func (e *WriteError) Error() string {
+ 	return "flate: write error at offset " + strconv.FormatInt(e.Offset, 10) + ": " + e.Err.Error()
+ }
+ 
+-// Resetter resets a ReadCloser returned by NewReader or NewReaderDict to
++// Resetter resets a ReadCloser returned by NewReader or NewReaderDict
+ // to switch to a new underlying Reader. This permits reusing a ReadCloser
+ // instead of allocating a new one.
+ type Resetter interface {
+diff --git a/src/compress/zlib/reader.go b/src/compress/zlib/reader.go
+index 2efa193035..a195b380d8 100644
+--- a/src/compress/zlib/reader.go
++++ b/src/compress/zlib/reader.go
+@@ -51,7 +51,7 @@ type reader struct {
+ 	scratch      [4]byte
+ }
+ 
+-// Resetter resets a ReadCloser returned by NewReader or NewReaderDict to
++// Resetter resets a ReadCloser returned by NewReader or NewReaderDict
+ // to switch to a new underlying Reader. This permits reusing a ReadCloser
+ // instead of allocating a new one.
+ type Resetter interface {
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index e52091c3af..1be9f770f1 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -397,7 +397,7 @@ func TestQueryContextWait(t *testing.T) {
+ 	prepares0 := numPrepares(t, db)
+ 
+ 	// TODO(kardianos): convert this from using a timeout to using an explicit
+-	// cancel when the query signals that is is "executing" the query.
++	// cancel when the query signals that it is "executing" the query.
+ 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+ 	defer cancel()
+ 
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index 64f8eb660a..0982243edb 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -170,7 +170,7 @@ func (x int64Val) String() string { return strconv.FormatInt(int64(x), 10) }
+ func (x intVal) String() string   { return x.val.String() }
+ func (x ratVal) String() string   { return rtof(x).String() }
+ 
+-// String returns returns a decimal approximation of the Float value.
++// String returns a decimal approximation of the Float value.
+ func (x floatVal) String() string {
+ 	f := x.val
+ 
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 189bfb4223..ba16b65224 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -300,7 +300,7 @@ func (p *parser) consumeCommentGroup(n int) (comments *ast.CommentGroup, endline
+ 
+ // Advance to the next non-comment token. In the process, collect
+ // any comment groups encountered, and remember the last lead and
+-// and line comments.
++// line comments.
+ //
+ // A lead comment is a comment group that starts and ends in a
+ // line without any other tokens and that is followed by a non-comment
+diff --git a/src/go/printer/testdata/parser.go b/src/go/printer/testdata/parser.go
+index 44dfa19ff3..80b476cf2e 100644
+--- a/src/go/printer/testdata/parser.go
++++ b/src/go/printer/testdata/parser.go
+@@ -290,7 +290,7 @@ func (p *parser) consumeCommentGroup() (comments *ast.CommentGroup, endline int)
+ 
+ // Advance to the next non-comment token. In the process, collect
+ // any comment groups encountered, and remember the last lead and
+-// and line comments.
++// line comments.
+ //
+ // A lead comment is a comment group that starts and ends in a
+ // line without any other tokens and that is followed by a non-comment
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 55b93c8915..6b0cb3f1ed 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -293,7 +293,7 @@ func (z *Float) setExpAndRound(exp int64, sbit uint) {
+ 	z.round(sbit)
+ }
+ 
+-// SetMantExp sets z to mant × 2**exp and and returns z.
++// SetMantExp sets z to mant × 2**exp and returns z.
+ // The result z has the same precision and rounding mode
+ // as mant. SetMantExp is an inverse of MantExp but does
+ // not require 0.5 <= |mant| < 1.0. Specifically:
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 739fe5f597..8c31238c11 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -4279,7 +4279,7 @@ func testTransportIdleConnTimeout(t *testing.T, h2 bool) {
+ }
+ 
+ // Issue 16208: Go 1.7 crashed after Transport.IdleConnTimeout if an
+-// HTTP/2 connection was established but but its caller no longer
++// HTTP/2 connection was established but its caller no longer
+ // wanted it. (Assuming the connection cache was enabled, which it is
+ // by default)
+ //
+diff --git a/src/net/smtp/smtp_test.go b/src/net/smtp/smtp_test.go
+index 000cac4fcb..42de7935c2 100644
+--- a/src/net/smtp/smtp_test.go
++++ b/src/net/smtp/smtp_test.go
+@@ -540,7 +540,7 @@ func TestSendMail(t *testing.T) {
+ 	bcmdbuf := bufio.NewWriter(&cmdbuf)
+ 	l, err := net.Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+-		t.Fatalf("Unable to to create listener: %v", err)
++		t.Fatalf("Unable to create listener: %v", err)
+ 	}
+ 	defer l.Close()
+ 
+@@ -639,7 +639,7 @@ QUIT
+ func TestSendMailWithAuth(t *testing.T) {
+ 	l, err := net.Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+-		t.Fatalf("Unable to to create listener: %v", err)
++		t.Fatalf("Unable to create listener: %v", err)
+ 	}
+ 	defer l.Close()
+ 	wg := sync.WaitGroup{}
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 8901eadd25..223698c130 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -356,7 +356,7 @@ func Symlink(oldname, newname string) error {
+ 	// '/' does not work in link's content
+ 	oldname = fromSlash(oldname)
+ 
+-	// need the exact location of the oldname when its relative to determine if its a directory
++	// need the exact location of the oldname when it's relative to determine if it's a directory
+ 	destpath := oldname
+ 	if !isAbs(oldname) {
+ 		destpath = dirname(newname) + `\` + oldname
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 08853691a9..876058e73a 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -269,7 +269,7 @@ func TestRead0(t *testing.T) {
+ 	}
+ }
+ 
+-// Reading a closed file should should return ErrClosed error
++// Reading a closed file should return ErrClosed error
+ func TestReadClosed(t *testing.T) {
+ 	path := sfdir + "/" + sfname
+ 	file, err := Open(path)
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 9dfee5a4dc..2c6af43da5 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -884,7 +884,7 @@ const gcGoalUtilization = 0.30
+ // mutator latency.
+ const gcBackgroundUtilization = 0.25
+ 
+-// gcCreditSlack is the amount of scan work credit that can can
++// gcCreditSlack is the amount of scan work credit that can
+ // accumulate locally before updating gcController.scanWork and,
+ // optionally, gcController.bgScanCredit. Lower values give a more
+ // accurate assist ratio and make it more likely that assists will
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index acfdc8472e..f536b82aab 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1878,7 +1878,7 @@ func startTemplateThread() {
+ 
+ // templateThread is a thread in a known-good state that exists solely
+ // to start new threads in known-good states when the calling thread
+-// may not be a a good state.
++// may not be in a good state.
+ //
+ // Many programs never need this, so templateThread is started lazily
+ // when we first enter a state that might lead to running on a thread
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index b815aa859e..65aa7dbd59 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1279,7 +1279,7 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
+ 		p = add(p, sys.PtrSize)
+ 		*(*slice)(unsafe.Pointer(&objs)) = slice{array: noescape(p), len: int(n), cap: int(n)}
+ 		// Note: the noescape above is needed to keep
+-		// getStackMap from from "leaking param content:
++		// getStackMap from "leaking param content:
+ 		// frame".  That leak propagates up to getgcmask, then
+ 		// GCMask, then verifyGCInfo, which converts the stack
+ 		// gcinfo tests into heap gcinfo tests :(
+diff --git a/src/syscall/mksyscall_windows.go b/src/syscall/mksyscall_windows.go
+index 5fd3a756f8..dd84e33c0f 100644
+--- a/src/syscall/mksyscall_windows.go
++++ b/src/syscall/mksyscall_windows.go
+@@ -22,7 +22,7 @@ like func declarations if //sys is replaced by func, but:
+ 
+ * If the return parameter is an error number, it must be named err.
+ 
+-* If go func name needs to be different from it's winapi dll name,
++* If go func name needs to be different from its winapi dll name,
+   the winapi name could be specified at the end, after "=" sign, like
+   //sys LoadLibrary(libname string) (handle uint32, err error) = LoadLibraryA
+ 
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 528ef4f26d..de05840386 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -123,14 +123,14 @@ func compileCallback(fn interface{}, cleanstack bool) uintptr
+ 
+ // NewCallback converts a Go function to a function pointer conforming to the stdcall calling convention.
+ // This is useful when interoperating with Windows code requiring callbacks.
+-// The argument is expected to be a function with with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
++// The argument is expected to be a function with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
+ func NewCallback(fn interface{}) uintptr {
+ 	return compileCallback(fn, true)
+ }
+ 
+ // NewCallbackCDecl converts a Go function to a function pointer conforming to the cdecl calling convention.
+ // This is useful when interoperating with Windows code requiring callbacks.
+-// The argument is expected to be a function with with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
++// The argument is expected to be a function with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
+ func NewCallbackCDecl(fn interface{}) uintptr {
+ 	return compileCallback(fn, false)
+ }
+diff --git a/test/closure3.dir/main.go b/test/closure3.dir/main.go
+index e382ad980b..59c36e3218 100644
+--- a/test/closure3.dir/main.go
++++ b/test/closure3.dir/main.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check correctness of various closure corner cases that
++// Check correctness of various closure corner cases
+ // that are expected to be inlined
+ 
+ package main
+diff --git a/test/closure3.go b/test/closure3.go
+index 263d8fcb47..37b548d6dc 100644
+--- a/test/closure3.go
++++ b/test/closure3.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check correctness of various closure corner cases that
++// Check correctness of various closure corner cases
+ // that are expected to be inlined
+ 
+ package ignored

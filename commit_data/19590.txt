@@ -16,6 +16,29 @@ Date:   Sun Jun 22 17:33:00 2014 +1000
     R=golang-codereviews, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/107290043
-
+---
  test/fixedbugs/issue8074.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/test/fixedbugs/issue8074.go b/test/fixedbugs/issue8074.go
+new file mode 100644
+index 0000000000..776563ac28
+--- /dev/null
++++ b/test/fixedbugs/issue8074.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 8073.
++// was "cannot take the address of 1"
++
++package main
++
++func main() {
++	a := make([]byte, 10)
++	m := make(map[float64][]byte)
++	go copy(a, m[1.0])
++}

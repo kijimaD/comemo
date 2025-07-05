@@ -17,7 +17,7 @@ Date:   Wed Oct 12 14:02:38 2022 -0500
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Paul Murphy <murp@ibm.com>
     Reviewed-by: Joedian Reid <joedian@golang.org>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go              | 21 +++++++-----
  src/cmd/compile/internal/ssa/_gen/PPC64Ops.go      | 13 +++++---
  .../compile/internal/ssa/_gen/PPC64latelower.rules |  5 +++
@@ -25,3 +25,190 @@ Date:   Wed Oct 12 14:02:38 2022 -0500
  .../compile/internal/ssa/rewritePPC64latelower.go  | 38 ++++++++++++++++++++++
  test/codegen/condmove.go                           | 24 ++++++++++++++
  6 files changed, 102 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index aa3620f56b..c25681a71c 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -963,18 +963,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 
+-	case ssa.OpPPC64ISEL, ssa.OpPPC64ISELB:
+-		// ISEL, ISELB
+-		// AuxInt value indicates condition: 0=LT 1=GT 2=EQ 4=GE 5=LE 6=NE
+-		// ISEL only accepts 0, 1, 2 condition values but the others can be
+-		// achieved by swapping operand order.
+-		// arg0 ? arg1 : arg2 with conditions LT, GT, EQ
+-		// arg0 ? arg2 : arg1 for conditions GE, LE, NE
+-		// ISELB is used when a boolean result is needed, returning 0 or 1
++	case ssa.OpPPC64ISEL, ssa.OpPPC64ISELB, ssa.OpPPC64ISELZ:
++		// ISEL  AuxInt ? arg0 : arg1
++		// ISELB is a special case of ISEL where AuxInt ? $1 (arg0) : $0.
++		// ISELZ is a special case of ISEL where arg1 is implicitly $0.
++		//
++		// AuxInt value indicates conditions 0=LT 1=GT 2=EQ 3=SO 4=GE 5=LE 6=NE 7=NSO.
++		// ISEL accepts a CR bit argument, not a condition as expressed by AuxInt.
++		// Convert the condition to a CR bit argument by the following conversion:
++		//
++		// AuxInt&3 ? arg0 : arg1 for conditions LT, GT, EQ, SO
++		// AuxInt&3 ? arg1 : arg0 for conditions GE, LE, NE, NSO
+ 		p := s.Prog(ppc64.AISEL)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-		// For ISELB, boolean result 0 or 1. Use R0 for 0 operand to avoid load.
++		// For ISELB/ISELZ Use R0 for 0 operand to avoid load.
+ 		r := obj.Addr{Type: obj.TYPE_REG, Reg: ppc64.REG_R0}
+ 		if v.Op == ssa.OpPPC64ISEL {
+ 			r.Reg = v.Args[1].Reg()
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+index fe129c6467..baa783e30b 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+@@ -404,11 +404,14 @@ func init() {
+ 		{name: "CMPWconst", argLength: 1, reg: gp1cr, asm: "CMPW", aux: "Int32", typ: "Flags"},
+ 		{name: "CMPWUconst", argLength: 1, reg: gp1cr, asm: "CMPWU", aux: "Int32", typ: "Flags"},
+ 
+-		// ISEL auxInt values 0=LT 1=GT 2=EQ   arg2 ? arg0 : arg1
+-		// ISEL auxInt values 4=GE 5=LE 6=NE   !arg2 ? arg1 : arg0
+-		// ISELB special case where arg0, arg1 values are 0, 1 for boolean result
+-		{name: "ISEL", argLength: 3, reg: crgp21, asm: "ISEL", aux: "Int32", typ: "Int32"},  // see above
+-		{name: "ISELB", argLength: 2, reg: crgp11, asm: "ISEL", aux: "Int32", typ: "Int32"}, // see above
++		// ISEL  arg2 ? arg0 : arg1
++		// ISELB arg1 ? arg0 : $0. arg0 is some register holding $1.
++		// ISELZ arg1 ? arg0 : $0
++		// auxInt values 0=LT 1=GT 2=EQ 3=SO (summary overflow/unordered) 4=GE 5=LE 6=NE 7=NSO (not summary overflow/not unordered)
++		// Note, auxInt^4 inverts the comparison condition. For example, LT^4 becomes GE, and "ISEL [a] x y z" is equivalent to ISEL [a^4] y x z".
++		{name: "ISEL", argLength: 3, reg: crgp21, asm: "ISEL", aux: "Int32", typ: "Int32"},
++		{name: "ISELB", argLength: 2, reg: crgp11, asm: "ISEL", aux: "Int32", typ: "Int32"},
++		{name: "ISELZ", argLength: 2, reg: crgp11, asm: "ISEL", aux: "Int32"},
+ 
+ 		// pseudo-ops
+ 		{name: "Equal", argLength: 1, reg: crgp},         // bool, true flags encode x==y false otherwise.
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules b/src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules
+index c43e10a809..ada97b23f6 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules
+@@ -3,3 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // This file contains rules used by the laterLower pass.
++
++// Simplify ISEL x $0 z into ISELZ
++(ISEL [a] x (MOVDconst [0]) z) => (ISELZ [a] x z)
++// Simplify ISEL $0 y z into ISELZ by inverting comparison and reversing arguments.
++(ISEL [a] (MOVDconst [0]) y z) => (ISELZ [a^0x4] y z)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d84bc279a4..9fb751535d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2240,6 +2240,7 @@ const (
+ 	OpPPC64CMPWUconst
+ 	OpPPC64ISEL
+ 	OpPPC64ISELB
++	OpPPC64ISELZ
+ 	OpPPC64Equal
+ 	OpPPC64NotEqual
+ 	OpPPC64LessThan
+@@ -30071,6 +30072,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "ISELZ",
++		auxType: auxInt32,
++		argLen:  2,
++		asm:     ppc64.AISEL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:   "Equal",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64latelower.go b/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
+index 2c66630045..d687f59c3e 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
+@@ -4,6 +4,44 @@
+ package ssa
+ 
+ func rewriteValuePPC64latelower(v *Value) bool {
++	switch v.Op {
++	case OpPPC64ISEL:
++		return rewriteValuePPC64latelower_OpPPC64ISEL(v)
++	}
++	return false
++}
++func rewriteValuePPC64latelower_OpPPC64ISEL(v *Value) bool {
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (ISEL [a] x (MOVDconst [0]) z)
++	// result: (ISELZ [a] x z)
++	for {
++		a := auxIntToInt32(v.AuxInt)
++		x := v_0
++		if v_1.Op != OpPPC64MOVDconst || auxIntToInt64(v_1.AuxInt) != 0 {
++			break
++		}
++		z := v_2
++		v.reset(OpPPC64ISELZ)
++		v.AuxInt = int32ToAuxInt(a)
++		v.AddArg2(x, z)
++		return true
++	}
++	// match: (ISEL [a] (MOVDconst [0]) y z)
++	// result: (ISELZ [a^0x4] y z)
++	for {
++		a := auxIntToInt32(v.AuxInt)
++		if v_0.Op != OpPPC64MOVDconst || auxIntToInt64(v_0.AuxInt) != 0 {
++			break
++		}
++		y := v_1
++		z := v_2
++		v.reset(OpPPC64ISELZ)
++		v.AuxInt = int32ToAuxInt(a ^ 0x4)
++		v.AddArg2(y, z)
++		return true
++	}
+ 	return false
+ }
+ func rewriteBlockPPC64latelower(b *Block) bool {
+diff --git a/test/codegen/condmove.go b/test/codegen/condmove.go
+index bfab62213b..7b0f32e708 100644
+--- a/test/codegen/condmove.go
++++ b/test/codegen/condmove.go
+@@ -440,3 +440,27 @@ func cmovzero2(c bool) int {
+ 	// loong64:"MASKNEZ", -"MASKEQZ"
+ 	return x
+ }
++
++// Conditionally selecting between a value or 0 can be done without
++// an extra load of 0 to a register on PPC64 by using R0 (which always
++// holds the value $0) instead. Verify both cases where either arg1
++// or arg2 is zero.
++func cmovzeroreg0(a, b int) int {
++	x := 0
++	if a == b {
++		x = a
++	}
++	// ppc64:"ISEL\t[$]2, R[0-9]+, R0, R[0-9]+"
++	// ppc64le:"ISEL\t[$]2, R[0-9]+, R0, R[0-9]+"
++	return x
++}
++
++func cmovzeroreg1(a, b int) int {
++	x := a
++	if a == b {
++		x = 0
++	}
++	// ppc64:"ISEL\t[$]2, R0, R[0-9]+, R[0-9]+"
++	// ppc64le:"ISEL\t[$]2, R0, R[0-9]+, R[0-9]+"
++	return x
++}

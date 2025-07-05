@@ -13,6 +13,28 @@ Date:   Fri Oct 9 11:59:58 2015 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index fa5ef3eb65..f72c2272f0 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -13,7 +13,6 @@ import (
+ 	"go/doc"
+ 	"go/parser"
+ 	"go/token"
+-	"log"
+ 	"os"
+ 	"os/exec"
+ 	"path"
+@@ -439,7 +438,7 @@ func runTest(cmd *Command, args []string) {
+ 		}
+ 		for _, p := range testCoverPkgs {
+ 			if !used[p.ImportPath] {
+-				log.Printf("warning: no packages being tested depend on %s", p.ImportPath)
++				fmt.Fprintf(os.Stderr, "warning: no packages being tested depend on %s\n", p.ImportPath)
+ 			}
+ 		}
+ 

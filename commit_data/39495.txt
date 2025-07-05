@@ -23,7 +23,70 @@ Date:   Sun Nov 25 23:22:11 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/hex/hex.go      | 17 +++++++++--------
  src/encoding/hex/hex_test.go | 14 ++++++++++++++
  2 files changed, 23 insertions(+), 8 deletions(-)
+
+diff --git a/src/encoding/hex/hex.go b/src/encoding/hex/hex.go
+index 2bb2b57df9..7675de9bd9 100644
+--- a/src/encoding/hex/hex.go
++++ b/src/encoding/hex/hex.go
+@@ -55,23 +55,24 @@ func DecodedLen(x int) int { return x / 2 }
+ // If the input is malformed, Decode returns the number
+ // of bytes decoded before the error.
+ func Decode(dst, src []byte) (int, error) {
+-	var i int
+-	for i = 0; i < len(src)/2; i++ {
+-		a, ok := fromHexChar(src[i*2])
++	i, j := 0, 1
++	for ; j < len(src); j += 2 {
++		a, ok := fromHexChar(src[j-1])
+ 		if !ok {
+-			return i, InvalidByteError(src[i*2])
++			return i, InvalidByteError(src[j-1])
+ 		}
+-		b, ok := fromHexChar(src[i*2+1])
++		b, ok := fromHexChar(src[j])
+ 		if !ok {
+-			return i, InvalidByteError(src[i*2+1])
++			return i, InvalidByteError(src[j])
+ 		}
+ 		dst[i] = (a << 4) | b
++		i++
+ 	}
+ 	if len(src)%2 == 1 {
+ 		// Check for invalid char before reporting bad length,
+ 		// since the invalid char (if present) is an earlier problem.
+-		if _, ok := fromHexChar(src[i*2]); !ok {
+-			return i, InvalidByteError(src[i*2])
++		if _, ok := fromHexChar(src[j-1]); !ok {
++			return i, InvalidByteError(src[j-1])
+ 		}
+ 		return i, ErrLength
+ 	}
+diff --git a/src/encoding/hex/hex_test.go b/src/encoding/hex/hex_test.go
+index e9f4b3a53a..ba703cf1c1 100644
+--- a/src/encoding/hex/hex_test.go
++++ b/src/encoding/hex/hex_test.go
+@@ -249,6 +249,20 @@ func BenchmarkEncode(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkDecode(b *testing.B) {
++	for _, size := range []int{256, 1024, 4096, 16384} {
++		src := bytes.Repeat([]byte{'2', 'b', '7', '4', '4', 'f', 'a', 'a'}, size/8)
++		sink = make([]byte, size/2)
++
++		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
++			b.SetBytes(int64(size))
++			for i := 0; i < b.N; i++ {
++				Decode(sink, src)
++			}
++		})
++	}
++}
++
+ func BenchmarkDump(b *testing.B) {
+ 	for _, size := range []int{256, 1024, 4096, 16384} {
+ 		src := bytes.Repeat([]byte{2, 3, 5, 7, 9, 11, 13, 17}, size/8)

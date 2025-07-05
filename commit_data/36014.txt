@@ -19,7 +19,213 @@ Date:   Fri Mar 23 16:40:15 2018 -0400
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/pprof/pprof.go      | 52 ++++++++++++++++--------------
  src/net/http/pprof/pprof_test.go | 69 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 98 insertions(+), 23 deletions(-)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index 21992d62da..77e0bcdf4f 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -80,6 +80,7 @@ func init() {
+ // command line, with arguments separated by NUL bytes.
+ // The package initialization registers it as /debug/pprof/cmdline.
+ func Cmdline(w http.ResponseWriter, r *http.Request) {
++	w.Header().Set("X-Content-Type-Options", "nosniff")
+ 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+ 	fmt.Fprintf(w, strings.Join(os.Args, "\x00"))
+ }
+@@ -100,33 +101,36 @@ func durationExceedsWriteTimeout(r *http.Request, seconds float64) bool {
+ 	return ok && srv.WriteTimeout != 0 && seconds >= srv.WriteTimeout.Seconds()
+ }
+ 
++func serveError(w http.ResponseWriter, status int, txt string) {
++	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
++	w.Header().Set("X-Go-Pprof", "1")
++	w.Header().Del("Content-Disposition")
++	w.WriteHeader(status)
++	fmt.Fprintln(w, txt)
++}
++
+ // Profile responds with the pprof-formatted cpu profile.
+ // The package initialization registers it as /debug/pprof/profile.
+ func Profile(w http.ResponseWriter, r *http.Request) {
++	w.Header().Set("X-Content-Type-Options", "nosniff")
+ 	sec, _ := strconv.ParseInt(r.FormValue("seconds"), 10, 64)
+ 	if sec == 0 {
+ 		sec = 30
+ 	}
+ 
+ 	if durationExceedsWriteTimeout(r, float64(sec)) {
+-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+-		w.Header().Set("X-Go-Pprof", "1")
+-		w.WriteHeader(http.StatusBadRequest)
+-		fmt.Fprintln(w, "profile duration exceeds server's WriteTimeout")
++		serveError(w, http.StatusBadRequest, "profile duration exceeds server's WriteTimeout")
+ 		return
+ 	}
+ 
+ 	// Set Content Type assuming StartCPUProfile will work,
+ 	// because if it does it starts writing.
+ 	w.Header().Set("Content-Type", "application/octet-stream")
++	w.Header().Set("Content-Disposition", `attachment; filename="profile"`)
+ 	if err := pprof.StartCPUProfile(w); err != nil {
+ 		// StartCPUProfile failed, so no writes yet.
+-		// Can change header back to text content
+-		// and send error code.
+-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+-		w.Header().Set("X-Go-Pprof", "1")
+-		w.WriteHeader(http.StatusInternalServerError)
+-		fmt.Fprintf(w, "Could not enable CPU profiling: %s\n", err)
++		serveError(w, http.StatusInternalServerError,
++			fmt.Sprintf("Could not enable CPU profiling: %s", err))
+ 		return
+ 	}
+ 	sleep(w, time.Duration(sec)*time.Second)
+@@ -137,29 +141,25 @@ func Profile(w http.ResponseWriter, r *http.Request) {
+ // Tracing lasts for duration specified in seconds GET parameter, or for 1 second if not specified.
+ // The package initialization registers it as /debug/pprof/trace.
+ func Trace(w http.ResponseWriter, r *http.Request) {
++	w.Header().Set("X-Content-Type-Options", "nosniff")
+ 	sec, err := strconv.ParseFloat(r.FormValue("seconds"), 64)
+ 	if sec <= 0 || err != nil {
+ 		sec = 1
+ 	}
+ 
+ 	if durationExceedsWriteTimeout(r, sec) {
+-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+-		w.Header().Set("X-Go-Pprof", "1")
+-		w.WriteHeader(http.StatusBadRequest)
+-		fmt.Fprintln(w, "profile duration exceeds server's WriteTimeout")
++		serveError(w, http.StatusBadRequest, "profile duration exceeds server's WriteTimeout")
+ 		return
+ 	}
+ 
+ 	// Set Content Type assuming trace.Start will work,
+ 	// because if it does it starts writing.
+ 	w.Header().Set("Content-Type", "application/octet-stream")
++	w.Header().Set("Content-Disposition", `attachment; filename="trace"`)
+ 	if err := trace.Start(w); err != nil {
+ 		// trace.Start failed, so no writes yet.
+-		// Can change header back to text content and send error code.
+-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+-		w.Header().Set("X-Go-Pprof", "1")
+-		w.WriteHeader(http.StatusInternalServerError)
+-		fmt.Fprintf(w, "Could not enable tracing: %s\n", err)
++		serveError(w, http.StatusInternalServerError,
++			fmt.Sprintf("Could not enable tracing: %s", err))
+ 		return
+ 	}
+ 	sleep(w, time.Duration(sec*float64(time.Second)))
+@@ -170,6 +170,7 @@ func Trace(w http.ResponseWriter, r *http.Request) {
+ // responding with a table mapping program counters to function names.
+ // The package initialization registers it as /debug/pprof/symbol.
+ func Symbol(w http.ResponseWriter, r *http.Request) {
++	w.Header().Set("X-Content-Type-Options", "nosniff")
+ 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+ 
+ 	// We have to read the whole POST body before
+@@ -222,18 +223,23 @@ func Handler(name string) http.Handler {
+ type handler string
+ 
+ func (name handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+-	debug, _ := strconv.Atoi(r.FormValue("debug"))
++	w.Header().Set("X-Content-Type-Options", "nosniff")
+ 	p := pprof.Lookup(string(name))
+ 	if p == nil {
+-		w.WriteHeader(404)
+-		fmt.Fprintf(w, "Unknown profile: %s\n", name)
++		serveError(w, http.StatusNotFound, "Unknown profile")
+ 		return
+ 	}
+ 	gc, _ := strconv.Atoi(r.FormValue("gc"))
+ 	if name == "heap" && gc > 0 {
+ 		runtime.GC()
+ 	}
++	debug, _ := strconv.Atoi(r.FormValue("debug"))
++	if debug != 0 {
++		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
++	} else {
++		w.Header().Set("Content-Type", "application/octet-stream")
++		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, name))
++	}
+ 	p.WriteTo(w, debug)
+ }
+ 
+diff --git a/src/net/http/pprof/pprof_test.go b/src/net/http/pprof/pprof_test.go
+new file mode 100644
+index 0000000000..47dd35b9b0
+--- /dev/null
++++ b/src/net/http/pprof/pprof_test.go
+@@ -0,0 +1,69 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pprof
++
++import (
++	"bytes"
++	"io/ioutil"
++	"net/http"
++	"net/http/httptest"
++	"testing"
++)
++
++func TestHandlers(t *testing.T) {
++	testCases := []struct {
++		path               string
++		handler            http.HandlerFunc
++		statusCode         int
++		contentType        string
++		contentDisposition string
++		resp               []byte
++	}{
++		{"/debug/pprof/<script>scripty<script>", Index, http.StatusNotFound, "text/plain; charset=utf-8", "", []byte("Unknown profile\n")},
++		{"/debug/pprof/heap", Index, http.StatusOK, "application/octet-stream", `attachment; filename="heap"`, nil},
++		{"/debug/pprof/heap?debug=1", Index, http.StatusOK, "text/plain; charset=utf-8", "", nil},
++		{"/debug/pprof/cmdline", Cmdline, http.StatusOK, "text/plain; charset=utf-8", "", nil},
++		{"/debug/pprof/profile?seconds=1", Profile, http.StatusOK, "application/octet-stream", `attachment; filename="profile"`, nil},
++		{"/debug/pprof/symbol", Symbol, http.StatusOK, "text/plain; charset=utf-8", "", nil},
++		{"/debug/pprof/trace", Trace, http.StatusOK, "application/octet-stream", `attachment; filename="trace"`, nil},
++	}
++	for _, tc := range testCases {
++		t.Run(tc.path, func(t *testing.T) {
++			req := httptest.NewRequest("GET", "http://example.com"+tc.path, nil)
++			w := httptest.NewRecorder()
++			tc.handler(w, req)
++
++			resp := w.Result()
++			if got, want := resp.StatusCode, tc.statusCode; got != want {
++				t.Errorf("status code: got %d; want %d", got, want)
++			}
++
++			body, err := ioutil.ReadAll(resp.Body)
++			if err != nil {
++				t.Errorf("when reading response body, expected non-nil err; got %v", err)
++			}
++			if got, want := resp.Header.Get("X-Content-Type-Options"), "nosniff"; got != want {
++				t.Errorf("X-Content-Type-Options: got %q; want %q", got, want)
++			}
++			if got, want := resp.Header.Get("Content-Type"), tc.contentType; got != want {
++				t.Errorf("Content-Type: got %q; want %q", got, want)
++			}
++			if got, want := resp.Header.Get("Content-Disposition"), tc.contentDisposition; got != want {
++				t.Errorf("Content-Disposition: got %q; want %q", got, want)
++			}
++
++			if resp.StatusCode == http.StatusOK {
++				return
++			}
++			if got, want := resp.Header.Get("X-Go-Pprof"), "1"; got != want {
++				t.Errorf("X-Go-Pprof: got %q; want %q", got, want)
++			}
++			if !bytes.Equal(body, tc.resp) {
++				t.Errorf("response: got %q; want %q", body, tc.resp)
++			}
++		})
++	}
++
++}

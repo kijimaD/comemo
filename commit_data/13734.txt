@@ -11,7 +11,64 @@ Date:   Sat Sep 1 13:52:55 2012 -0400
     R=golang-dev, remyoudompheng, rsc
     CC=golang-dev
     https://golang.org/cl/6500064
-
+---
  src/cmd/gc/typecheck.c     | 20 +++++++++++++-------
  test/interface/explicit.go |  6 ++++++
  2 files changed, 19 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index f21f07faaa..eeb46e2aa7 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -735,14 +735,20 @@ reswitch:
+ 		}
+ 		if(n->type != T && n->type->etype != TINTER)
+ 		if(!implements(n->type, t, &missing, &have, &ptr)) {
+-			if(have)
+-				yyerror("impossible type assertion: %lN cannot have dynamic type %T"
+-					" (wrong type for %S method)\n\thave %S%hT\n\twant %S%hT",
+-					l, n->type, missing->sym, have->sym, have->type,
+-					missing->sym, missing->type);
++			if(have && have->sym == missing->sym)
++				yyerror("impossible type assertion:\n\t%T does not implement %T (wrong type for %S method)\n"
++					"\t\thave %S%hhT\n\t\twant %S%hhT", n->type, t, missing->sym,
++					have->sym, have->type, missing->sym, missing->type);
++			else if(ptr)
++				yyerror("impossible type assertion:\n\t%T does not implement %T (%S method requires pointer receiver)",
++					n->type, t, missing->sym);
++			else if(have)
++				yyerror("impossible type assertion:\n\t%T does not implement %T (missing %S method)\n"
++					"\t\thave %S%hhT\n\t\twant %S%hhT", n->type, t, missing->sym,
++					have->sym, have->type, missing->sym, missing->type);
+ 			else
+-				yyerror("impossible type assertion: %lN cannot have dynamic type %T"
+-					" (missing %S method)", l, n->type, missing->sym);
++				yyerror("impossible type assertion:\n\t%T does not implement %T (missing %S method)",
++					n->type, t, missing->sym);
+ 			goto error;
+ 		}
+ 		goto ret;
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index 7822b88d08..eb81156e08 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -15,6 +15,10 @@ type T struct {
+ 
+ var t *T
+ 
++type X int
++
++func (x *X) M() {}
++
+ type I interface {
+ 	M()
+ }
+@@ -66,6 +70,8 @@ func (Int) M(float64) {}
+ 
+ var _ = m.(Int) // ERROR "impossible type assertion"
+ 
++var _ = m.(X) // ERROR "pointer receiver"
++
+ var ii int
+ var jj Int
+ 

@@ -18,8 +18,185 @@ Date:   Sat Mar 10 10:00:02 2012 -0800
     R=golang-dev, gary.burd
     CC=golang-dev
     https://golang.org/cl/5798049
-
+---
  src/pkg/database/sql/fakedb_test.go |  4 ++--
  src/pkg/database/sql/sql.go         | 20 +++++++++++------
  src/pkg/database/sql/sql_test.go    | 43 +++++++++++++++++++++++++++++++++++++
  3 files changed, 58 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/database/sql/fakedb_test.go b/src/pkg/database/sql/fakedb_test.go
+index 3bbbb430b4..8732d028bc 100644
+--- a/src/pkg/database/sql/fakedb_test.go
++++ b/src/pkg/database/sql/fakedb_test.go
+@@ -209,10 +209,10 @@ func (c *fakeConn) Begin() (driver.Tx, error) {
+ 
+ func (c *fakeConn) Close() error {
+ 	if c.currTx != nil {
+-		return errors.New("can't close; in a Transaction")
++		return errors.New("can't close fakeConn; in a Transaction")
+ 	}
+ 	if c.db == nil {
+-		return errors.New("can't close; already closed")
++		return errors.New("can't close fakeConn; already closed")
+ 	}
+ 	c.db = nil
+ 	return nil
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index afee275c35..c00425d8fa 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -262,6 +262,9 @@ func (db *DB) connIfFree(wanted driver.Conn) (conn driver.Conn, ok bool) {
+ 	return nil, false
+ }
+ 
++// putConnHook is a hook for testing.
++var putConnHook func(*DB, driver.Conn)
++
+ // putConn adds a connection to the db's free pool.
+ // err is optionally the last error that occured on this connection.
+ func (db *DB) putConn(c driver.Conn, err error) {
+@@ -270,6 +273,9 @@ func (db *DB) putConn(c driver.Conn, err error) {
+ 		return
+ 	}
+ 	db.mu.Lock()
++	if putConnHook != nil {
++		putConnHook(db, c)
++	}
+ 	if n := len(db.freeConn); !db.closed && n < db.maxIdleConns() {
+ 		db.freeConn = append(db.freeConn, c)
+ 		db.mu.Unlock()
+@@ -654,7 +660,7 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	defer releaseConn()
++	defer releaseConn(nil)
+ 
+ 	// -1 means the driver doesn't know how to count the number of
+ 	// placeholders, so we won't sanity check input here and instead let the
+@@ -717,7 +723,7 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
+ // connStmt returns a free driver connection on which to execute the
+ // statement, a function to call to release the connection, and a
+ // statement bound to that connection.
+-func (s *Stmt) connStmt() (ci driver.Conn, releaseConn func(), si driver.Stmt, err error) {
++func (s *Stmt) connStmt() (ci driver.Conn, releaseConn func(error), si driver.Stmt, err error) {
+ 	if err = s.stickyErr; err != nil {
+ 		return
+ 	}
+@@ -736,7 +742,7 @@ func (s *Stmt) connStmt() (ci driver.Conn, releaseConn func(), si driver.Stmt, e
+ 		if err != nil {
+ 			return
+ 		}
+-		releaseConn = func() { s.tx.releaseConn() }
++		releaseConn = func(error) { s.tx.releaseConn() }
+ 		return ci, releaseConn, s.txsi, nil
+ 	}
+ 
+@@ -776,7 +782,7 @@ func (s *Stmt) connStmt() (ci driver.Conn, releaseConn func(), si driver.Stmt, e
+ 	}
+ 
+ 	conn := cs.ci
+-	releaseConn = func() { s.db.putConn(conn, nil) }
++	releaseConn = func(err error) { s.db.putConn(conn, err) }
+ 	return conn, releaseConn, cs.si, nil
+ }
+ 
+@@ -800,7 +806,7 @@ func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
+ 	}
+ 	rowsi, err := si.Query(sargs)
+ 	if err != nil {
+-		s.db.putConn(ci, err)
++		releaseConn(err)
+ 		return nil, err
+ 	}
+ 	// Note: ownership of ci passes to the *Rows, to be freed
+@@ -878,7 +884,7 @@ func (s *Stmt) Close() error {
+ type Rows struct {
+ 	db          *DB
+ 	ci          driver.Conn // owned; must call putconn when closed to release
+-	releaseConn func()
++	releaseConn func(error)
+ 	rowsi       driver.Rows
+ 
+ 	closed    bool
+@@ -990,7 +996,7 @@ func (rs *Rows) Close() error {
+ 	}
+ 	rs.closed = true
+ 	err := rs.rowsi.Close()
+-	rs.releaseConn()
++	rs.releaseConn(err)
+ 	if rs.closeStmt != nil {
+ 		rs.closeStmt.Close()
+ 	}
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index 02ab20cd7c..90a40efa28 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -5,13 +5,35 @@
+ package sql
+ 
+ import (
++	"database/sql/driver"
+ 	"fmt"
+ 	"reflect"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+ )
+ 
++func init() {
++	type dbConn struct {
++		db *DB
++		c  driver.Conn
++	}
++	freedFrom := make(map[dbConn]string)
++	putConnHook = func(db *DB, c driver.Conn) {
++		for _, oc := range db.freeConn {
++			if oc == c {
++				// print before panic, as panic may get lost due to conflicting panic
++				// (all goroutines asleep) elsewhere, since we might not unlock
++				// the mutex in freeConn here.
++				println("double free of conn. conflicts are:\nA) " + freedFrom[dbConn{db, c}] + "\n\nand\nB) " + stack())
++				panic("double free of conn.")
++			}
++		}
++		freedFrom[dbConn{db, c}] = stack()
++	}
++}
++
+ const fakeDBName = "foo"
+ 
+ var chrisBirthday = time.Unix(123456789, 0)
+@@ -358,6 +380,22 @@ func TestTxQuery(t *testing.T) {
+ 	}
+ }
+ 
++func TestTxQueryInvalid(t *testing.T) {
++	db := newTestDB(t, "")
++	defer closeDB(t, db)
++
++	tx, err := db.Begin()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer tx.Rollback()
++
++	_, err = tx.Query("SELECT|t1|name|")
++	if err == nil {
++		t.Fatal("Error expected")
++	}
++}
++
+ // Tests fix for issue 2542, that we release a lock when querying on
+ // a closed connection.
+ func TestIssue2542Deadlock(t *testing.T) {
+@@ -562,3 +600,8 @@ func nullTestRun(t *testing.T, spec nullTestSpec) {
+ 		}
+ 	}
+ }
++
++func stack() string {
++	buf := make([]byte, 1024)
++	return string(buf[:runtime.Stack(buf, false)])
++}

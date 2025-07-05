@@ -21,9 +21,191 @@ Date:   Wed Jul 20 13:38:56 2022 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/readrequest_test.go |  7 ++--
  src/net/http/request_test.go     | 18 ++++-------
  src/net/http/serve_test.go       | 70 ++++++++++++++++++++++++++++++++++++++++
  src/net/http/transfer.go         | 11 ++-----
  4 files changed, 84 insertions(+), 22 deletions(-)
+
+diff --git a/src/net/http/readrequest_test.go b/src/net/http/readrequest_test.go
+index ba5cf4a261..5aaf3b9fe2 100644
+--- a/src/net/http/readrequest_test.go
++++ b/src/net/http/readrequest_test.go
+@@ -450,9 +450,12 @@ Content-Length: 3
+ Content-Length: 4
+ 
+ abc`)},
+-	{"smuggle_content_len_head", reqBytes(`HEAD / HTTP/1.1
++	{"smuggle_two_content_len_head", reqBytes(`HEAD / HTTP/1.1
+ Host: foo
+-Content-Length: 5`)},
++Content-Length: 4
++Content-Length: 5
++
++1234`)},
+ 
+ 	// golang.org/issue/22464
+ 	{"leading_space_in_header", reqBytes(`GET / HTTP/1.1
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 2f348284de..0e5d86719f 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -485,10 +485,6 @@ var readRequestErrorTests = []struct {
+ 	1: {"GET / HTTP/1.1\r\nheader:foo\r\n", io.ErrUnexpectedEOF.Error(), nil},
+ 	2: {"", io.EOF.Error(), nil},
+ 	3: {
+-		in:  "HEAD / HTTP/1.1\r\nContent-Length:4\r\n\r\n",
+-		err: "http: method cannot contain a Content-Length",
+-	},
+-	4: {
+ 		in:     "HEAD / HTTP/1.1\r\n\r\n",
+ 		header: Header{},
+ 	},
+@@ -496,32 +492,32 @@ var readRequestErrorTests = []struct {
+ 	// Multiple Content-Length values should either be
+ 	// deduplicated if same or reject otherwise
+ 	// See Issue 16490.
+-	5: {
++	4: {
+ 		in:  "POST / HTTP/1.1\r\nContent-Length: 10\r\nContent-Length: 0\r\n\r\nGopher hey\r\n",
+ 		err: "cannot contain multiple Content-Length headers",
+ 	},
+-	6: {
++	5: {
+ 		in:  "POST / HTTP/1.1\r\nContent-Length: 10\r\nContent-Length: 6\r\n\r\nGopher\r\n",
+ 		err: "cannot contain multiple Content-Length headers",
+ 	},
+-	7: {
++	6: {
+ 		in:     "PUT / HTTP/1.1\r\nContent-Length: 6 \r\nContent-Length: 6\r\nContent-Length:6\r\n\r\nGopher\r\n",
+ 		err:    "",
+ 		header: Header{"Content-Length": {"6"}},
+ 	},
+-	8: {
++	7: {
+ 		in:  "PUT / HTTP/1.1\r\nContent-Length: 1\r\nContent-Length: 6 \r\n\r\n",
+ 		err: "cannot contain multiple Content-Length headers",
+ 	},
+-	9: {
++	8: {
+ 		in:  "POST / HTTP/1.1\r\nContent-Length:\r\nContent-Length: 3\r\n\r\n",
+ 		err: "cannot contain multiple Content-Length headers",
+ 	},
+-	10: {
++	9: {
+ 		in:     "HEAD / HTTP/1.1\r\nContent-Length:0\r\nContent-Length: 0\r\n\r\n",
+ 		header: Header{"Content-Length": {"0"}},
+ 	},
+-	11: {
++	10: {
+ 		in:  "HEAD / HTTP/1.1\r\nHost: foo\r\nHost: bar\r\n\r\n\r\n\r\n",
+ 		err: "too many Host headers",
+ 	},
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index dd1ae55b8a..4fadc56c9e 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -6907,3 +6907,73 @@ func testParseFormCleanup(t *testing.T, h2 bool) {
+ 		t.Errorf("file %q exists after HTTP handler returned", string(fname))
+ 	}
+ }
++
++func TestHeadBody(t *testing.T) {
++	const identityMode = false
++	const chunkedMode = true
++	t.Run("h1", func(t *testing.T) {
++		t.Run("identity", func(t *testing.T) { testHeadBody(t, h1Mode, identityMode, "HEAD") })
++		t.Run("chunked", func(t *testing.T) { testHeadBody(t, h1Mode, chunkedMode, "HEAD") })
++	})
++	t.Run("h2", func(t *testing.T) {
++		t.Run("identity", func(t *testing.T) { testHeadBody(t, h2Mode, identityMode, "HEAD") })
++		t.Run("chunked", func(t *testing.T) { testHeadBody(t, h2Mode, chunkedMode, "HEAD") })
++	})
++}
++
++func TestGetBody(t *testing.T) {
++	const identityMode = false
++	const chunkedMode = true
++	t.Run("h1", func(t *testing.T) {
++		t.Run("identity", func(t *testing.T) { testHeadBody(t, h1Mode, identityMode, "GET") })
++		t.Run("chunked", func(t *testing.T) { testHeadBody(t, h1Mode, chunkedMode, "GET") })
++	})
++	t.Run("h2", func(t *testing.T) {
++		t.Run("identity", func(t *testing.T) { testHeadBody(t, h2Mode, identityMode, "GET") })
++		t.Run("chunked", func(t *testing.T) { testHeadBody(t, h2Mode, chunkedMode, "GET") })
++	})
++}
++
++func testHeadBody(t *testing.T, h2, chunked bool, method string) {
++	setParallel(t)
++	defer afterTest(t)
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
++		b, err := io.ReadAll(r.Body)
++		if err != nil {
++			t.Errorf("server reading body: %v", err)
++			return
++		}
++		w.Header().Set("X-Request-Body", string(b))
++		w.Header().Set("Content-Length", "0")
++	}))
++	defer cst.close()
++	for _, reqBody := range []string{
++		"",
++		"",
++		"request_body",
++		"",
++	} {
++		var bodyReader io.Reader
++		if reqBody != "" {
++			bodyReader = strings.NewReader(reqBody)
++			if chunked {
++				bodyReader = bufio.NewReader(bodyReader)
++			}
++		}
++		req, err := NewRequest(method, cst.ts.URL, bodyReader)
++		if err != nil {
++			t.Fatal(err)
++		}
++		res, err := cst.c.Do(req)
++		if err != nil {
++			t.Fatal(err)
++		}
++		res.Body.Close()
++		if got, want := res.StatusCode, 200; got != want {
++			t.Errorf("%v request with %d-byte body: StatusCode = %v, want %v", method, len(reqBody), got, want)
++		}
++		if got, want := res.Header.Get("X-Request-Body"), reqBody; got != want {
++			t.Errorf("%v request with %d-byte body: handler read body %q, want %q", method, len(reqBody), got, want)
++		}
++	}
++}
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 4583c6b453..09b42c188a 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -557,7 +557,7 @@ func readTransfer(msg any, r *bufio.Reader) (err error) {
+ 	// or close connection when finished, since multipart is not supported yet
+ 	switch {
+ 	case t.Chunked:
+-		if noResponseBodyExpected(t.RequestMethod) || !bodyAllowedForStatus(t.StatusCode) {
++		if isResponse && (noResponseBodyExpected(t.RequestMethod) || !bodyAllowedForStatus(t.StatusCode)) {
+ 			t.Body = NoBody
+ 		} else {
+ 			t.Body = &body{src: internal.NewChunkedReader(r), hdr: msg, r: r, closing: t.Close}
+@@ -691,14 +691,7 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
+ 	}
+ 
+ 	// Logic based on response type or status
+-	if noResponseBodyExpected(requestMethod) {
+-		// For HTTP requests, as part of hardening against request
+-		// smuggling (RFC 7230), don't allow a Content-Length header for
+-		// methods which don't permit bodies. As an exception, allow
+-		// exactly one Content-Length header if its value is "0".
+-		if isRequest && len(contentLens) > 0 && !(len(contentLens) == 1 && contentLens[0] == "0") {
+-			return 0, fmt.Errorf("http: method cannot contain a Content-Length; got %q", contentLens)
+-		}
++	if isResponse && noResponseBodyExpected(requestMethod) {
+ 		return 0, nil
+ 	}
+ 	if status/100 == 1 {

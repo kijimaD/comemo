@@ -22,9 +22,80 @@ Date:   Fri Apr 28 07:28:49 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go |  1 +
  src/cmd/compile/internal/gc/main.go  |  1 +
  test/fixedbugs/issue20162.go         | 16 ++++++++++++++++
  test/run.go                          |  5 +++--
  4 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 6f7e67ca93..f29c587877 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -31,6 +31,7 @@ func expandiface(t *types.Type) {
+ 	for _, m := range t.Methods().Slice() {
+ 		if m.Sym != nil {
+ 			fields = append(fields, m)
++			checkwidth(m.Type)
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index d4ac4a2315..495baebcc4 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -1076,6 +1076,7 @@ func IsAlias(sym *types.Sym) bool {
+ var concurrentFlagOK = [256]bool{
+ 	'B': true, // disabled bounds checking
+ 	'C': true, // disable printing of columns in error messages
++	'e': true, // no limit on errors; errors all come from non-concurrent code
+ 	'I': true, // add `directory` to import search path
+ 	'N': true, // disable optimizations
+ 	'l': true, // disable inlining
+diff --git a/test/fixedbugs/issue20162.go b/test/fixedbugs/issue20162.go
+new file mode 100644
+index 0000000000..41f156ef14
+--- /dev/null
++++ b/test/fixedbugs/issue20162.go
+@@ -0,0 +1,16 @@
++// compile -c=4
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 20162: embedded interfaces weren't dowidth-ed by the front end,
++// leading to races in the backend.
++
++package p
++
++func Foo() {
++	_ = (make([]func() interface {
++		M(interface{})
++	}, 1))
++}
+diff --git a/test/run.go b/test/run.go
+index 3cd5352259..dc86ab7438 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -193,8 +193,9 @@ func goFiles(dir string) []string {
+ 
+ type runCmd func(...string) ([]byte, error)
+ 
+-func compileFile(runcmd runCmd, longname string) (out []byte, err error) {
++func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, err error) {
+ 	cmd := []string{"go", "tool", "compile", "-e"}
++	cmd = append(cmd, flags...)
+ 	if *linkshared {
+ 		cmd = append(cmd, "-dynlink", "-installsuffix=dynlink")
+ 	}
+@@ -609,7 +610,7 @@ func (t *test) run() {
+ 		return
+ 
+ 	case "compile":
+-		_, t.err = compileFile(runcmd, long)
++		_, t.err = compileFile(runcmd, long, flags)
+ 
+ 	case "compiledir":
+ 		// Compile all files in the directory in lexicographic order.

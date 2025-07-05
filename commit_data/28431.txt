@@ -37,6 +37,19 @@ Date:   Fri May 20 14:57:55 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/traceback.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index eef3470803..279fb52fc0 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -256,6 +256,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			sp := frame.sp
+ 			if flags&_TraceJumpStack != 0 && f.entry == systemstackPC && gp == g.m.g0 && gp.m.curg != nil {
+ 				sp = gp.m.curg.sched.sp
++				frame.sp = sp
+ 				stkbarG = gp.m.curg
+ 				stkbar = stkbarG.stkbar[stkbarG.stkbarPos:]
+ 				cgoCtxt = gp.m.curg.cgoCtxt

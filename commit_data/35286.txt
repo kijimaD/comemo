@@ -21,7 +21,7 @@ Date:   Wed Jan 31 13:59:00 2018 +0100
     Reviewed-on: https://go-review.googlesource.com/91055
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/syscall/syscall_linux.go           | 2 +-
  src/syscall/syscall_linux_386.go       | 1 -
  src/syscall/syscall_linux_amd64.go     | 1 -
@@ -45,3 +45,306 @@ Date:   Wed Jan 31 13:59:00 2018 +0100
  src/syscall/ztypes_linux_mips64.go     | 5 +----
  src/syscall/ztypes_linux_mips64le.go   | 5 +----
  22 files changed, 15 insertions(+), 35 deletions(-)
+
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 3fb9b1aa3f..d2cb7c1afe 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -831,7 +831,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
+ //sys	Fdatasync(fd int) (err error)
+ //sys	Flock(fd int, how int) (err error)
+ //sys	Fsync(fd int) (err error)
+-//sys	Getdents(fd int, buf []byte) (n int, err error) = _SYS_getdents
++//sys	Getdents(fd int, buf []byte) (n int, err error) = SYS_GETDENTS64
+ //sysnb	Getpgid(pid int) (pgid int, err error)
+ 
+ func Getpgrp() (pid int) {
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index 2c5d9a3eee..13b9e2ece5 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -11,7 +11,6 @@ import "unsafe"
+ 
+ const (
+ 	_SYS_dup       = SYS_DUP2
+-	_SYS_getdents  = SYS_GETDENTS64
+ 	_SYS_setgroups = SYS_SETGROUPS32
+ )
+ 
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index eaba868f89..4b4aa6d414 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -6,7 +6,6 @@ package syscall
+ 
+ const (
+ 	_SYS_dup       = SYS_DUP2
+-	_SYS_getdents  = SYS_GETDENTS64
+ 	_SYS_setgroups = SYS_SETGROUPS
+ )
+ 
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index 5c652b2e5b..5ccab9bb74 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -8,7 +8,6 @@ import "unsafe"
+ 
+ const (
+ 	_SYS_dup       = SYS_DUP2
+-	_SYS_getdents  = SYS_GETDENTS64
+ 	_SYS_setgroups = SYS_SETGROUPS32
+ )
+ 
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 12b9ebcb43..27c351d7bd 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -6,7 +6,6 @@ package syscall
+ 
+ const (
+ 	_SYS_dup       = SYS_DUP3
+-	_SYS_getdents  = SYS_GETDENTS64
+ 	_SYS_setgroups = SYS_SETGROUPS
+ )
+ 
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index e4bc77530c..d9eba62b06 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -8,14 +8,7 @@
+ package syscall
+ 
+ const (
+-	_SYS_dup = SYS_DUP2
+-
+-	// Linux introduced getdents64 syscall for N64 ABI only in 3.10
+-	// (May 21 2013, rev dec33abaafc89bcbd78f85fad0513170415a26d5),
+-	// to support older kernels, we have to use getdents for mips64.
+-	// Also note that struct dirent is different for these two.
+-	// Lookup linux_dirent{,64} in kernel source code for details.
+-	_SYS_getdents  = SYS_GETDENTS
++	_SYS_dup       = SYS_DUP2
+ 	_SYS_setgroups = SYS_SETGROUPS
+ )
+ 
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index 1da265d3c4..92785e1596 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -11,7 +11,6 @@ import "unsafe"
+ 
+ const (
+ 	_SYS_dup       = SYS_DUP2
+-	_SYS_getdents  = SYS_GETDENTS64
+ 	_SYS_setgroups = SYS_SETGROUPS
+ )
+ 
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index 55ade887ec..f743b77163 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -9,7 +9,6 @@ package syscall
+ 
+ const (
+ 	_SYS_dup       = SYS_DUP2
+-	_SYS_getdents  = SYS_GETDENTS64
+ 	_SYS_setgroups = SYS_SETGROUPS
+ )
+ 
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index 8f3bbfc6f7..6bd9744bdf 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -8,7 +8,6 @@ import "unsafe"
+ 
+ const (
+ 	_SYS_dup       = SYS_DUP2
+-	_SYS_getdents  = SYS_GETDENTS64
+ 	_SYS_setgroups = SYS_SETGROUPS
+ )
+ 
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index 8955fca336..86f8ec15fa 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -479,7 +479,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index 34cbed812c..6545d1a159 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -479,7 +479,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index c9fa1c86e2..0f0464bf1c 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -479,7 +479,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_linux_arm64.go b/src/syscall/zsyscall_linux_arm64.go
+index a694b83b0b..27470ac0c9 100644
+--- a/src/syscall/zsyscall_linux_arm64.go
++++ b/src/syscall/zsyscall_linux_arm64.go
+@@ -479,7 +479,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_linux_mips.go b/src/syscall/zsyscall_linux_mips.go
+index 5aa984d780..6b26f7bb92 100644
+--- a/src/syscall/zsyscall_linux_mips.go
++++ b/src/syscall/zsyscall_linux_mips.go
+@@ -479,7 +479,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_linux_mips64.go b/src/syscall/zsyscall_linux_mips64.go
+index 110b35870a..00a8f7f0c0 100644
+--- a/src/syscall/zsyscall_linux_mips64.go
++++ b/src/syscall/zsyscall_linux_mips64.go
+@@ -479,7 +479,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_linux_mips64le.go b/src/syscall/zsyscall_linux_mips64le.go
+index 23597f8388..97a68ff9e8 100644
+--- a/src/syscall/zsyscall_linux_mips64le.go
++++ b/src/syscall/zsyscall_linux_mips64le.go
+@@ -479,7 +479,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_linux_mipsle.go b/src/syscall/zsyscall_linux_mipsle.go
+index 07825a3b80..face54ba28 100644
+--- a/src/syscall/zsyscall_linux_mipsle.go
++++ b/src/syscall/zsyscall_linux_mipsle.go
+@@ -479,7 +479,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index 56fb3b8d93..7df49c728a 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -479,7 +479,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index d08279f4fb..f073f7dbd1 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -479,7 +479,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_linux_s390x.go b/src/syscall/zsyscall_linux_s390x.go
+index e8f1a70b43..689f2f472c 100644
+--- a/src/syscall/zsyscall_linux_s390x.go
++++ b/src/syscall/zsyscall_linux_s390x.go
+@@ -479,7 +479,7 @@ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	} else {
+ 		_p0 = unsafe.Pointer(&_zero)
+ 	}
+-	r0, _, e1 := Syscall(_SYS_getdents, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/ztypes_linux_mips64.go b/src/syscall/ztypes_linux_mips64.go
+index 925afb9d1c..8c5a0d1d76 100644
+--- a/src/syscall/ztypes_linux_mips64.go
++++ b/src/syscall/ztypes_linux_mips64.go
+@@ -130,15 +130,12 @@ type Statfs_t struct {
+ 	Spare   [5]int64
+ }
+ 
+-// Note: on mips64, we're using the getdents syscall,
+-// so the Dirent struct is different.
+-
+ type Dirent struct {
+ 	Ino       uint64
+ 	Off       int64
+ 	Reclen    uint16
+-	Name      [256]int8
+ 	Type      uint8
++	Name      [256]int8
+ 	Pad_cgo_0 [5]byte
+ }
+ 
+diff --git a/src/syscall/ztypes_linux_mips64le.go b/src/syscall/ztypes_linux_mips64le.go
+index 925afb9d1c..8c5a0d1d76 100644
+--- a/src/syscall/ztypes_linux_mips64le.go
++++ b/src/syscall/ztypes_linux_mips64le.go
+@@ -130,15 +130,12 @@ type Statfs_t struct {
+ 	Spare   [5]int64
+ }
+ 
+-// Note: on mips64, we're using the getdents syscall,
+-// so the Dirent struct is different.
+-
+ type Dirent struct {
+ 	Ino       uint64
+ 	Off       int64
+ 	Reclen    uint16
+-	Name      [256]int8
+ 	Type      uint8
++	Name      [256]int8
+ 	Pad_cgo_0 [5]byte
+ }
+ 

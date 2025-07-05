@@ -14,7 +14,7 @@ Date:   Mon Nov 5 19:26:25 2018 +0000
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/heapdump.go  |  4 ++--
  src/runtime/mcache.go    |  2 +-
  src/runtime/mcentral.go  | 10 +++++-----
@@ -24,3 +24,313 @@ Date:   Mon Nov 5 19:26:25 2018 +0000
  src/runtime/mheap.go     | 44 ++++++++++++++++++++++----------------------
  src/runtime/mstats.go    |  2 +-
  8 files changed, 43 insertions(+), 43 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index eadbcaeee1..ca56708a04 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -428,7 +428,7 @@ func dumproots() {
+ 	dumpmemrange(unsafe.Pointer(firstmoduledata.bss), firstmoduledata.ebss-firstmoduledata.bss)
+ 	dumpfields(firstmoduledata.gcbssmask)
+ 
+-	// MSpan.types
++	// mspan.types
+ 	for _, s := range mheap_.allspans {
+ 		if s.state == mSpanInUse {
+ 			// Finalizers
+@@ -661,7 +661,7 @@ func writeheapdump_m(fd uintptr) {
+ 	_g_.waitreason = waitReasonDumpingHeap
+ 
+ 	// Update stats so we can dump them.
+-	// As a side effect, flushes all the MCaches so the MSpan.freelist
++	// As a side effect, flushes all the mcaches so the mspan.freelist
+ 	// lists contain all the free objects.
+ 	updatememstats()
+ 
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index e20e92cdf4..7895e489bc 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -79,7 +79,7 @@ type stackfreelist struct {
+ 	size uintptr   // total size of stacks in list
+ }
+ 
+-// dummy MSpan that contains no free objects.
++// dummy mspan that contains no free objects.
+ var emptymspan mspan
+ 
+ func allocmcache() *mcache {
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index f108bfc31e..a60eb9fd0c 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -6,8 +6,8 @@
+ //
+ // See malloc.go for an overview.
+ //
+-// The MCentral doesn't actually contain the list of free objects; the MSpan does.
+-// Each MCentral is two lists of MSpans: those with free objects (c->nonempty)
++// The mcentral doesn't actually contain the list of free objects; the mspan does.
++// Each mcentral is two lists of mspans: those with free objects (c->nonempty)
+ // and those that are completely allocated (c->empty).
+ 
+ package runtime
+@@ -36,7 +36,7 @@ func (c *mcentral) init(spc spanClass) {
+ 	c.empty.init()
+ }
+ 
+-// Allocate a span to use in an MCache.
++// Allocate a span to use in an mcache.
+ func (c *mcentral) cacheSpan() *mspan {
+ 	// Deduct credit for this span allocation and sweep if necessary.
+ 	spanBytes := uintptr(class_to_allocnpages[c.spanclass.sizeclass()]) * _PageSize
+@@ -146,7 +146,7 @@ havespan:
+ 	return s
+ }
+ 
+-// Return span from an MCache.
++// Return span from an mcache.
+ func (c *mcentral) uncacheSpan(s *mspan) {
+ 	if s.allocCount == 0 {
+ 		throw("uncaching span but s.allocCount == 0")
+@@ -231,7 +231,7 @@ func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
+ 	}
+ 
+ 	// delay updating sweepgen until here. This is the signal that
+-	// the span may be used in an MCache, so it must come after the
++	// the span may be used in an mcache, so it must come after the
+ 	// linked list operations above (actually, just after the
+ 	// lock of c above.)
+ 	atomic.Store(&s.sweepgen, mheap_.sweepgen)
+diff --git a/src/runtime/mfixalloc.go b/src/runtime/mfixalloc.go
+index 1febe782bb..f9dd6ca474 100644
+--- a/src/runtime/mfixalloc.go
++++ b/src/runtime/mfixalloc.go
+@@ -12,7 +12,7 @@ import "unsafe"
+ 
+ // FixAlloc is a simple free-list allocator for fixed size objects.
+ // Malloc uses a FixAlloc wrapped around sysAlloc to manage its
+-// MCache and MSpan objects.
++// mcache and mspan objects.
+ //
+ // Memory returned by fixalloc.alloc is zeroed by default, but the
+ // caller may take responsibility for zeroing allocations by setting
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 14f09700ee..28260ab706 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -178,7 +178,7 @@ func markroot(gcw *gcWork, i uint32) {
+ 		systemstack(markrootFreeGStacks)
+ 
+ 	case baseSpans <= i && i < baseStacks:
+-		// mark MSpan.specials
++		// mark mspan.specials
+ 		markrootSpans(gcw, int(i-baseSpans))
+ 
+ 	default:
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 627a6a023f..6733aa9b4a 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -152,7 +152,7 @@ func (s *mspan) ensureSwept() {
+ 	// (if GC is triggered on another goroutine).
+ 	_g_ := getg()
+ 	if _g_.m.locks == 0 && _g_.m.mallocing == 0 && _g_ != _g_.m.g0 {
+-		throw("MSpan_EnsureSwept: m is not locked")
++		throw("mspan.ensureSwept: m is not locked")
+ 	}
+ 
+ 	sg := mheap_.sweepgen
+@@ -178,7 +178,7 @@ func (s *mspan) ensureSwept() {
+ // Sweep frees or collects finalizers for blocks not marked in the mark phase.
+ // It clears the mark bits in preparation for the next GC round.
+ // Returns true if the span was returned to heap.
+-// If preserve=true, don't return it to heap nor relink in MCentral lists;
++// If preserve=true, don't return it to heap nor relink in mcentral lists;
+ // caller takes care of it.
+ //TODO go:nowritebarrier
+ func (s *mspan) sweep(preserve bool) bool {
+@@ -186,12 +186,12 @@ func (s *mspan) sweep(preserve bool) bool {
+ 	// GC must not start while we are in the middle of this function.
+ 	_g_ := getg()
+ 	if _g_.m.locks == 0 && _g_.m.mallocing == 0 && _g_ != _g_.m.g0 {
+-		throw("MSpan_Sweep: m is not locked")
++		throw("mspan.sweep: m is not locked")
+ 	}
+ 	sweepgen := mheap_.sweepgen
+ 	if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {
+-		print("MSpan_Sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
+-		throw("MSpan_Sweep: bad span state")
++		print("mspan.sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
++		throw("mspan.sweep: bad span state")
+ 	}
+ 
+ 	if trace.enabled {
+@@ -327,8 +327,8 @@ func (s *mspan) sweep(preserve bool) bool {
+ 		// The span must be in our exclusive ownership until we update sweepgen,
+ 		// check for potential races.
+ 		if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {
+-			print("MSpan_Sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
+-			throw("MSpan_Sweep: bad span state after sweep")
++			print("mspan.sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
++			throw("mspan.sweep: bad span state after sweep")
+ 		}
+ 		// Serialization point.
+ 		// At this point the mark bits are cleared and allocation ready
+@@ -339,7 +339,7 @@ func (s *mspan) sweep(preserve bool) bool {
+ 	if nfreed > 0 && spc.sizeclass() != 0 {
+ 		c.local_nsmallfree[spc.sizeclass()] += uintptr(nfreed)
+ 		res = mheap_.central[spc].mcentral.freeSpan(s, preserve, wasempty)
+-		// MCentral_FreeSpan updates sweepgen
++		// mcentral.freeSpan updates sweepgen
+ 	} else if freeToHeap {
+ 		// Free large span to heap
+ 
+@@ -351,12 +351,12 @@ func (s *mspan) sweep(preserve bool) bool {
+ 		// calling sysFree here without any kind of adjustment of the
+ 		// heap data structures means that when the memory does
+ 		// come back to us, we have the wrong metadata for it, either in
+-		// the MSpan structures or in the garbage collection bitmap.
++		// the mspan structures or in the garbage collection bitmap.
+ 		// Using sysFault here means that the program will run out of
+ 		// memory fairly quickly in efence mode, but at least it won't
+ 		// have mysterious crashes due to confused memory reuse.
+ 		// It should be possible to switch back to sysFree if we also
+-		// implement and then call some kind of MHeap_DeleteSpan.
++		// implement and then call some kind of mheap.deleteSpan.
+ 		if debug.efence > 0 {
+ 			s.limit = 0 // prevent mlookup from finding this span
+ 			sysFault(unsafe.Pointer(s.base()), size)
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 56ec3d4465..43f59adb8a 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -136,8 +136,8 @@ type mheap struct {
+ 	// _ uint32 // ensure 64-bit alignment of central
+ 
+ 	// central free lists for small size classes.
+-	// the padding makes sure that the MCentrals are
+-	// spaced CacheLinePadSize bytes apart, so that each MCentral.lock
++	// the padding makes sure that the mcentrals are
++	// spaced CacheLinePadSize bytes apart, so that each mcentral.lock
+ 	// gets its own cache line.
+ 	// central is indexed by spanClass.
+ 	central [numSpanClasses]struct {
+@@ -196,20 +196,20 @@ type arenaHint struct {
+ 	next *arenaHint
+ }
+ 
+-// An MSpan is a run of pages.
++// An mspan is a run of pages.
+ //
+-// When a MSpan is in the heap free treap, state == mSpanFree
++// When a mspan is in the heap free treap, state == mSpanFree
+ // and heapmap(s->start) == span, heapmap(s->start+s->npages-1) == span.
+-// If the MSpan is in the heap scav treap, then in addition to the
++// If the mspan is in the heap scav treap, then in addition to the
+ // above scavenged == true. scavenged == false in all other cases.
+ //
+-// When a MSpan is allocated, state == mSpanInUse or mSpanManual
++// When a mspan is allocated, state == mSpanInUse or mSpanManual
+ // and heapmap(i) == span for all s->start <= i < s->start+s->npages.
+ 
+-// Every MSpan is in one doubly-linked list, either in the MHeap's
+-// busy list or one of the MCentral's span lists.
++// Every mspan is in one doubly-linked list, either in the mheap's
++// busy list or one of the mcentral's span lists.
+ 
+-// An MSpan representing actual memory has state mSpanInUse,
++// An mspan representing actual memory has state mSpanInUse,
+ // mSpanManual, or mSpanFree. Transitions between these states are
+ // constrained as follows:
+ //
+@@ -880,10 +880,10 @@ func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
+ HaveSpan:
+ 	// Mark span in use.
+ 	if s.state != mSpanFree {
+-		throw("MHeap_AllocLocked - MSpan not free")
++		throw("mheap.allocLocked - mspan not free")
+ 	}
+ 	if s.npages < npage {
+-		throw("MHeap_AllocLocked - bad npages")
++		throw("mheap.allocLocked - bad npages")
+ 	}
+ 
+ 	// First, subtract any memory that was released back to
+@@ -1022,16 +1022,16 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
+ 	switch s.state {
+ 	case mSpanManual:
+ 		if s.allocCount != 0 {
+-			throw("MHeap_FreeSpanLocked - invalid stack free")
++			throw("mheap.freeSpanLocked - invalid stack free")
+ 		}
+ 	case mSpanInUse:
+ 		if s.allocCount != 0 || s.sweepgen != h.sweepgen {
+-			print("MHeap_FreeSpanLocked - span ", s, " ptr ", hex(s.base()), " allocCount ", s.allocCount, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
+-			throw("MHeap_FreeSpanLocked - invalid free")
++			print("mheap.freeSpanLocked - span ", s, " ptr ", hex(s.base()), " allocCount ", s.allocCount, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
++			throw("mheap.freeSpanLocked - invalid free")
+ 		}
+ 		h.pagesInUse -= uint64(s.npages)
+ 	default:
+-		throw("MHeap_FreeSpanLocked - invalid span state")
++		throw("mheap.freeSpanLocked - invalid span state")
+ 	}
+ 
+ 	if acctinuse {
+@@ -1251,9 +1251,9 @@ func (list *mSpanList) init() {
+ 
+ func (list *mSpanList) remove(span *mspan) {
+ 	if span.list != list {
+-		print("runtime: failed MSpanList_Remove span.npages=", span.npages,
++		print("runtime: failed mSpanList.remove span.npages=", span.npages,
+ 			" span=", span, " prev=", span.prev, " span.list=", span.list, " list=", list, "\n")
+-		throw("MSpanList_Remove")
++		throw("mSpanList.remove")
+ 	}
+ 	if list.first == span {
+ 		list.first = span.next
+@@ -1276,8 +1276,8 @@ func (list *mSpanList) isEmpty() bool {
+ 
+ func (list *mSpanList) insert(span *mspan) {
+ 	if span.next != nil || span.prev != nil || span.list != nil {
+-		println("runtime: failed MSpanList_Insert", span, span.next, span.prev, span.list)
+-		throw("MSpanList_Insert")
++		println("runtime: failed mSpanList.insert", span, span.next, span.prev, span.list)
++		throw("mSpanList.insert")
+ 	}
+ 	span.next = list.first
+ 	if list.first != nil {
+@@ -1294,8 +1294,8 @@ func (list *mSpanList) insert(span *mspan) {
+ 
+ func (list *mSpanList) insertBack(span *mspan) {
+ 	if span.next != nil || span.prev != nil || span.list != nil {
+-		println("runtime: failed MSpanList_InsertBack", span, span.next, span.prev, span.list)
+-		throw("MSpanList_InsertBack")
++		println("runtime: failed mSpanList.insertBack", span, span.next, span.prev, span.list)
++		throw("mSpanList.insertBack")
+ 	}
+ 	span.prev = list.last
+ 	if list.last != nil {
+@@ -1523,7 +1523,7 @@ func setprofilebucket(p unsafe.Pointer, b *bucket) {
+ }
+ 
+ // Do whatever cleanup needs to be done to deallocate s. It has
+-// already been unlinked from the MSpan specials list.
++// already been unlinked from the mspan specials list.
+ func freespecial(s *special, p unsafe.Pointer, size uintptr) {
+ 	switch s.kind {
+ 	case _KindSpecialFinalizer:
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index fd576b7ae0..9250865ed1 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -529,7 +529,7 @@ func updatememstats() {
+ 		memstats.by_size[i].nfree = 0
+ 	}
+ 
+-	// Flush MCache's to MCentral.
++	// Flush mcache's to mcentral.
+ 	systemstack(flushallmcaches)
+ 
+ 	// Aggregate local stats.

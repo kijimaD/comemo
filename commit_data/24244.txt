@@ -21,6 +21,21 @@ Date:   Thu Jul 16 16:25:44 2015 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/get.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 09314f563e..320698ec47 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -278,6 +278,9 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
+ 
+ 		// Process dependencies, now that we know what they are.
+ 		for _, path := range p.Imports {
++			if path == "C" {
++				continue
++			}
+ 			// Don't get test dependencies recursively.
+ 			download(path, p, stk, false)
+ 		}

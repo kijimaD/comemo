@@ -22,6 +22,31 @@ Date:   Mon Sep 28 17:43:44 2020 -0400
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/crypto/tls/link_test.go | 13 -------------
  1 file changed, 13 deletions(-)
+
+diff --git a/src/crypto/tls/link_test.go b/src/crypto/tls/link_test.go
+index c1fb57e70e..8224216b5c 100644
+--- a/src/crypto/tls/link_test.go
++++ b/src/crypto/tls/link_test.go
+@@ -41,19 +41,6 @@ func main() {}
+ 				"type.crypto/tls.serverHandshakeState",
+ 			},
+ 		},
+-		{
+-			name: "only_conn",
+-			program: `package main
+-import "crypto/tls"
+-var c = new(tls.Conn)
+-func main() {}
+-`,
+-			want: []string{"tls.(*Conn)"},
+-			bad: []string{
+-				"type.crypto/tls.clientHandshakeState",
+-				"type.crypto/tls.serverHandshakeState",
+-			},
+-		},
+ 		{
+ 			name: "client_and_server",
+ 			program: `package main

@@ -17,7 +17,7 @@ Date:   Tue Feb 7 09:09:24 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/align_test.go       | 2 +-
  src/runtime/arena.go            | 6 +++---
  src/runtime/asan_amd64.s        | 2 +-
@@ -35,3 +35,243 @@ Date:   Tue Feb 7 09:09:24 2023 +0000
  src/runtime/tls_mipsx.s         | 2 +-
  src/runtime/trace/trace_test.go | 2 +-
  16 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/runtime/align_test.go b/src/runtime/align_test.go
+index 5f225d63c4..2bad5b141c 100644
+--- a/src/runtime/align_test.go
++++ b/src/runtime/align_test.go
+@@ -47,7 +47,7 @@ func TestAtomicAlignment(t *testing.T) {
+ 		varDesc[i] = v[1]
+ 	}
+ 
+-	// Check all of our alignemnts. This is the actual core of the test.
++	// Check all of our alignments. This is the actual core of the test.
+ 	for i, d := range runtime.AtomicFields {
+ 		if d%8 != 0 {
+ 			t.Errorf("field alignment of %s failed: offset is %d", fieldDesc[i], d)
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index c338d302b0..7ff612e902 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -26,7 +26,7 @@
+ // The implementation works in layers. At the bottom, arenas are managed in chunks.
+ // Each chunk must be a multiple of the heap arena size, or the heap arena size must
+ // be divisible by the arena chunks. The address space for each chunk, and each
+-// corresponding heapArena for that addres space, are eternelly reserved for use as
++// corresponding heapArena for that address space, are eternally reserved for use as
+ // arena chunks. That is, they can never be used for the general heap. Each chunk
+ // is also represented by a single mspan, and is modeled as a single large heap
+ // allocation. It must be, because each chunk contains ordinary Go values that may
+@@ -202,10 +202,10 @@ const (
+ 
+ func init() {
+ 	if userArenaChunkPages*pageSize != userArenaChunkBytes {
+-		throw("user arena chunk size is not a mutliple of the page size")
++		throw("user arena chunk size is not a multiple of the page size")
+ 	}
+ 	if userArenaChunkBytes%physPageSize != 0 {
+-		throw("user arena chunk size is not a mutliple of the physical page size")
++		throw("user arena chunk size is not a multiple of the physical page size")
+ 	}
+ 	if userArenaChunkBytes < heapArenaBytes {
+ 		if heapArenaBytes%userArenaChunkBytes != 0 {
+diff --git a/src/runtime/asan_amd64.s b/src/runtime/asan_amd64.s
+index 0489aa86dd..bf847f2601 100644
+--- a/src/runtime/asan_amd64.s
++++ b/src/runtime/asan_amd64.s
+@@ -24,7 +24,7 @@
+ #define RARG3 CX
+ #endif
+ 
+-// Called from intrumented code.
++// Called from instrumented code.
+ // func runtime·doasanread(addr unsafe.Pointer, sz, sp, pc uintptr)
+ TEXT	runtime·doasanread(SB), NOSPLIT, $0-32
+ 	MOVQ	addr+0(FP), RARG0
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index f5a83f2b88..45afcda38f 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -279,7 +279,7 @@ ok:
+ 
+ 	CLD				// convention is D is always left cleared
+ 
+-	// Check GOAMD64 reqirements
++	// Check GOAMD64 requirements
+ 	// We need to do this after setting up TLS, so that
+ 	// we can report an error if there is a failure. See issue 49586.
+ #ifdef NEED_FEATURES_CX
+diff --git a/src/runtime/libfuzzer_amd64.s b/src/runtime/libfuzzer_amd64.s
+index 435536986b..7f184d9cb6 100644
+--- a/src/runtime/libfuzzer_amd64.s
++++ b/src/runtime/libfuzzer_amd64.s
+@@ -100,7 +100,7 @@ call:
+ 	PUSHQ   BX
+ 	// Load the starting address of the return sled into BX.
+ 	MOVQ    $ret_sled<>(SB), BX
+-	// Load the address of the i'th return instruction fron the return sled.
++	// Load the address of the i'th return instruction from the return sled.
+ 	// The index is given in the fakePC argument.
+ 	ADDQ    R8, BX
+ 	PUSHQ   BX
+@@ -108,7 +108,7 @@ call:
+ 	// Function arguments arg0 and arg1 are passed in the registers specified
+ 	// by the x64 calling convention.
+ 	JMP     AX
+-// This code will not be executed and is only there to statisfy assembler
++// This code will not be executed and is only there to satisfy assembler
+ // check of a balanced stack.
+ not_reachable:
+ 	POPQ    BX
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 6fff43214c..a164b6550b 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1303,7 +1303,7 @@ HaveSpan:
+ 			}
+ 		}
+ 	}
+-	// There are a few very limited cirumstances where we won't have a P here.
++	// There are a few very limited circumstances where we won't have a P here.
+ 	// It's OK to simply skip scavenging in these cases. Something else will notice
+ 	// and pick up the tab.
+ 	var now int64
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index 35b2a019a3..6b5583035b 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -279,7 +279,7 @@ type pageAlloc struct {
+ 	}
+ 
+ 	// mheap_.lock. This level of indirection makes it possible
+-	// to test pageAlloc indepedently of the runtime allocator.
++	// to test pageAlloc independently of the runtime allocator.
+ 	mheapLock *mutex
+ 
+ 	// sysStat is the runtime memstat to update when new system
+diff --git a/src/runtime/mpagealloc_64bit.go b/src/runtime/mpagealloc_64bit.go
+index 371c1fb31c..48859a7d01 100644
+--- a/src/runtime/mpagealloc_64bit.go
++++ b/src/runtime/mpagealloc_64bit.go
+@@ -131,7 +131,7 @@ func (p *pageAlloc) sysGrow(base, limit uintptr) {
+ 		}
+ 	}
+ 
+-	// addrRangeToSumAddrRange is a convienience function that converts
++	// addrRangeToSumAddrRange is a convenience function that converts
+ 	// an address range r to the address range of the given summary level
+ 	// that stores the summaries for r.
+ 	addrRangeToSumAddrRange := func(level int, r addrRange) addrRange {
+diff --git a/src/runtime/mpallocbits.go b/src/runtime/mpallocbits.go
+index f63164becd..2f35ce007c 100644
+--- a/src/runtime/mpallocbits.go
++++ b/src/runtime/mpallocbits.go
+@@ -187,7 +187,7 @@ outer:
+ 		}
+ 
+ 		// Strategy: shrink all runs of zeros by max. If any runs of zero
+-		// remain, then we've identified a larger maxiumum zero run.
++		// remain, then we've identified a larger maximum zero run.
+ 		p := max     // number of zeros we still need to shrink by.
+ 		k := uint(1) // current minimum length of runs of ones in x.
+ 		for {
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index b68f30d923..f2ff3d2767 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -197,7 +197,7 @@ func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file
+ 	// TODO: we set HasFunctions if all symbols from samples were symbolized (hasFuncs).
+ 	// Decide what to do about HasInlineFrames and HasLineNumbers.
+ 	// Also, another approach to handle the mapping entry with
+-	// incomplete symbolization results is to dupliace the mapping
++	// incomplete symbolization results is to duplicate the mapping
+ 	// entry (but with different Has* fields values) and use
+ 	// different entries for symbolized locations and unsymbolized locations.
+ 	if hasFuncs {
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index 780b481de8..e05a1a60a7 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -38,7 +38,7 @@ func translateCPUProfile(data []uint64, count int) (*profile.Profile, error) {
+ }
+ 
+ // fmtJSON returns a pretty-printed JSON form for x.
+-// It works reasonbly well for printing protocol-buffer
++// It works reasonably well for printing protocol-buffer
+ // data structures like profile.Profile.
+ func fmtJSON(x any) string {
+ 	js, _ := json.MarshalIndent(x, "", "\t")
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 554a60d747..d100d6c8c0 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -829,7 +829,7 @@ func mcommoninit(mp *m, id int64) {
+ 		hi = 1
+ 	}
+ 	// Same behavior as for 1.17.
+-	// TODO: Simplify ths.
++	// TODO: Simplify this.
+ 	if goarch.BigEndian {
+ 		mp.fastrand = uint64(lo)<<32 | uint64(hi)
+ 	} else {
+@@ -4348,7 +4348,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+ }
+ 
+ // saveAncestors copies previous ancestors of the given caller g and
+-// includes infor for the current caller into a new set of tracebacks for
++// includes info for the current caller into a new set of tracebacks for
+ // a g being created.
+ func saveAncestors(callergp *g) *[]ancestorInfo {
+ 	// Copy all prior info, except for the root goroutine (goid 0).
+diff --git a/src/runtime/rt0_aix_ppc64.s b/src/runtime/rt0_aix_ppc64.s
+index e06caa1671..86fda56899 100644
+--- a/src/runtime/rt0_aix_ppc64.s
++++ b/src/runtime/rt0_aix_ppc64.s
+@@ -12,7 +12,7 @@ GLOBL	_rt0_ppc64_aix(SB), NOPTR, $16
+ 
+ 
+ // The starting function must return in the loader to
+-// initialise some librairies, especially libthread which
++// initialise some libraries, especially libthread which
+ // creates the main thread and adds the TLS in R13
+ // R19 contains a function descriptor to the loader function
+ // which needs to be called.
+diff --git a/src/runtime/rt0_linux_ppc64le.s b/src/runtime/rt0_linux_ppc64le.s
+index 66f7e7b22a..6aaec7ae83 100644
+--- a/src/runtime/rt0_linux_ppc64le.s
++++ b/src/runtime/rt0_linux_ppc64le.s
+@@ -155,7 +155,7 @@ TEXT _main<>(SB),NOSPLIT,$-8
+ 	//
+ 	// When loading via glibc, the first doubleword on the stack points
+ 	// to NULL a value. (that is *(uintptr)(R1) == 0). This is used to
+-	// differentiate static vs dynamicly linked binaries.
++	// differentiate static vs dynamically linked binaries.
+ 	//
+ 	// If loading with the musl loader, it doesn't follow the ELFv2 ABI. It
+ 	// passes argc/argv similar to the linux kernel, R13 (TLS) is
+diff --git a/src/runtime/tls_mipsx.s b/src/runtime/tls_mipsx.s
+index acc3eb5a17..71806f417c 100644
+--- a/src/runtime/tls_mipsx.s
++++ b/src/runtime/tls_mipsx.s
+@@ -10,7 +10,7 @@
+ #include "textflag.h"
+ 
+ // If !iscgo, this is a no-op.
+-// NOTE: gogo asumes load_g only clobers g (R30) and REGTMP (R23)
++// NOTE: gogo assumes load_g only clobers g (R30) and REGTMP (R23)
+ TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVB	runtime·iscgo(SB), R23
+ 	BEQ	R23, nocgo
+diff --git a/src/runtime/trace/trace_test.go b/src/runtime/trace/trace_test.go
+index 19f7dbe775..1203e34a58 100644
+--- a/src/runtime/trace/trace_test.go
++++ b/src/runtime/trace/trace_test.go
+@@ -708,7 +708,7 @@ func TestTraceCPUProfile(t *testing.T) {
+ 	// of CPU samples, so we'll call that success.
+ 	overflowed := totalTraceSamples >= 1900
+ 	if traceSamples < pprofSamples {
+-		t.Logf("exectution trace did not include all CPU profile samples; %d in profile, %d in trace", pprofSamples, traceSamples)
++		t.Logf("execution trace did not include all CPU profile samples; %d in profile, %d in trace", pprofSamples, traceSamples)
+ 		if !overflowed {
+ 			t.Fail()
+ 		}

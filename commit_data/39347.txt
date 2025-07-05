@@ -12,6 +12,20 @@ Date:   Tue Feb 26 19:01:47 2019 +0100
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 31b44e8ef4..6f2eee19df 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -626,7 +626,7 @@ func (t *tester) registerTests() {
+ 		if fortran == "" {
+ 			fortran, _ = exec.LookPath("gfortran")
+ 		}
+-		if t.hasBash() && fortran != "" {
++		if t.hasBash() && goos != "android" && fortran != "" {
+ 			t.tests = append(t.tests, distTest{
+ 				name:    "cgo_fortran",
+ 				heading: "../misc/cgo/fortran",

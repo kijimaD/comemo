@@ -13,8 +13,100 @@ Date:   Tue Nov 29 09:57:17 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/33660
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/database/sql/convert.go  |  4 ++--
  src/database/sql/sql.go      | 25 ++++++++++++++++++-------
  src/database/sql/sql_test.go |  6 +++---
  3 files changed, 23 insertions(+), 12 deletions(-)
+
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index 44695b67a6..4b4dfc40d7 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -42,7 +42,7 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
+ 			var err error
+ 			nv := &nvargs[n]
+ 			nv.Ordinal = n + 1
+-			if np, ok := arg.(NamedParam); ok {
++			if np, ok := arg.(NamedArg); ok {
+ 				arg = np.Value
+ 				nvargs[n].Name = np.Name
+ 			}
+@@ -59,7 +59,7 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
+ 	for n, arg := range args {
+ 		nv := &nvargs[n]
+ 		nv.Ordinal = n + 1
+-		if np, ok := arg.(NamedParam); ok {
++		if np, ok := arg.(NamedArg); ok {
+ 			arg = np.Value
+ 			nv.Name = np.Name
+ 		}
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 4ef0fa7221..a620707b2d 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -69,9 +69,9 @@ func Drivers() []string {
+ 	return list
+ }
+ 
+-// NamedParam may be passed into query parameter arguments to associate
+-// a named placeholder with a value.
+-type NamedParam struct {
++// A NamedArg used as an argument to Query or Exec
++// binds to the corresponding named parameter in the SQL statement.
++type NamedArg struct {
+ 	_Named_Fields_Required struct{}
+ 
+ 	// Name of the parameter placeholder. If empty the ordinal position in the
+@@ -83,13 +83,24 @@ type NamedParam struct {
+ 	Value interface{}
+ }
+ 
+-// Param provides a more concise way to create NamedParam values.
+-func Param(name string, value interface{}) NamedParam {
++// Named provides a more concise way to create NamedArg values.
++//
++// Example usage:
++//
++//     db.ExecContext(ctx, `
++//         delete from Invoice
++//         where
++//             TimeCreated < @end
++//             and TimeCreated >= @start;`,
++//         sql.Named("start", startTime),
++//         sql.Named("end", endTime),
++//     )
++func Named(name string, value interface{}) NamedArg {
+ 	// This method exists because the go1compat promise
+ 	// doesn't guarantee that structs don't grow more fields,
+ 	// so unkeyed struct literals are a vet error. Thus, we don't
+-	// want to encourage sql.NamedParam{name, value}.
+-	return NamedParam{Name: name, Value: value}
++	// want to allow sql.NamedArg{name, value}.
++	return NamedArg{Name: name, Value: value}
+ }
+ 
+ // IsolationLevel is the transaction isolation level stored in Context.
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index d94ef5cad3..c0f2cf2909 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -468,15 +468,15 @@ func TestMultiResultSetQuery(t *testing.T) {
+ 	}
+ }
+ 
+-func TestQueryNamedParam(t *testing.T) {
++func TestQueryNamedArg(t *testing.T) {
+ 	db := newTestDB(t, "people")
+ 	defer closeDB(t, db)
+ 	prepares0 := numPrepares(t, db)
+ 	rows, err := db.Query(
+ 		// Ensure the name and age parameters only match on placeholder name, not position.
+ 		"SELECT|people|age,name|name=?name,age=?age",
+-		Param("?age", 2),
+-		Param("?name", "Bob"),
++		Named("?age", 2),
++		Named("?name", "Bob"),
+ 	)
+ 	if err != nil {
+ 		t.Fatalf("Query: %v", err)

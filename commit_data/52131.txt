@@ -19,7 +19,7 @@ Date:   Thu Apr 7 15:13:47 2022 +0900
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go                | 2 +-
  src/cmd/compile/internal/ir/const.go                      | 2 +-
  src/cmd/go/internal/work/security.go                      | 2 +-
@@ -32,3 +32,170 @@ Date:   Thu Apr 7 15:13:47 2022 +0900
  src/runtime/mgcsweep.go                                   | 2 +-
  src/testing/testing.go                                    | 2 +-
  11 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index e249a52e57..ba73976504 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -547,7 +547,7 @@ func RecordFlags(flags ...string) {
+ 		fmt.Fprintf(&cmd, " -%s=%v", f.Name, getter.Get())
+ 	}
+ 
+-	// Adds flag to producer string singalling whether regabi is turned on or
++	// Adds flag to producer string signaling whether regabi is turned on or
+ 	// off.
+ 	// Once regabi is turned on across the board and the relative GOEXPERIMENT
+ 	// knobs no longer exist this code should be removed.
+diff --git a/src/cmd/compile/internal/ir/const.go b/src/cmd/compile/internal/ir/const.go
+index eaa4d5b6b1..f0b66957f1 100644
+--- a/src/cmd/compile/internal/ir/const.go
++++ b/src/cmd/compile/internal/ir/const.go
+@@ -26,7 +26,7 @@ func NewString(s string) Node {
+ }
+ 
+ const (
+-	// Maximum size in bits for big.Ints before signalling
++	// Maximum size in bits for big.Ints before signaling
+ 	// overflow and also mantissa precision for big.Floats.
+ 	ConstPrec = 512
+ )
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index d1e2c673fa..0bf8763543 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -171,7 +171,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
+ 	// Note that any wildcards in -Wl need to exclude comma,
+ 	// since -Wl splits its argument at commas and passes
+ 	// them all to the linker uninterpreted. Allowing comma
+-	// in a wildcard would allow tunnelling arbitrary additional
++	// in a wildcard would allow tunneling arbitrary additional
+ 	// linker arguments through one of these.
+ 	re(`-Wl,--(no-)?allow-multiple-definition`),
+ 	re(`-Wl,--(no-)?allow-shlib-undefined`),
+diff --git a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go
+index d42ab0f294..e30e41fe33 100644
+--- a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go
++++ b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go
+@@ -4037,9 +4037,9 @@ var instFormats = [...]instFormat{
+ 		[6]*argField{ap_VecReg_6_10, ap_VecReg_16_20}},
+ 	{XSADDSP, 0xfc0007f800000000, 0xf000000000000000, 0x0, // VSX Scalar Add Single-Precision XX3-form (xsaddsp XT,XA,XB)
+ 		[6]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_29_29_11_15, ap_VecSReg_30_30_16_20}},
+-	{XSCVDPSPN, 0xfc0007fc00000000, 0xf000042c00000000, 0x1f000000000000, // VSX Scalar Convert Scalar Single-Precision to Vector Single-Precision format Non-signalling XX2-form (xscvdpspn XT,XB)
++	{XSCVDPSPN, 0xfc0007fc00000000, 0xf000042c00000000, 0x1f000000000000, // VSX Scalar Convert Scalar Single-Precision to Vector Single-Precision format Non-signaling XX2-form (xscvdpspn XT,XB)
+ 		[6]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_30_30_16_20}},
+-	{XSCVSPDPN, 0xfc0007fc00000000, 0xf000052c00000000, 0x1f000000000000, // VSX Scalar Convert Single-Precision to Double-Precision format Non-signalling XX2-form (xscvspdpn XT,XB)
++	{XSCVSPDPN, 0xfc0007fc00000000, 0xf000052c00000000, 0x1f000000000000, // VSX Scalar Convert Single-Precision to Double-Precision format Non-signaling XX2-form (xscvspdpn XT,XB)
+ 		[6]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_30_30_16_20}},
+ 	{XSCVSXDSP, 0xfc0007fc00000000, 0xf00004e000000000, 0x1f000000000000, // VSX Scalar Convert with round Signed Doubleword to Single-Precision format XX2-form (xscvsxdsp XT,XB)
+ 		[6]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_30_30_16_20}},
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 0950bb0ac4..380de9f6fb 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -2564,7 +2564,7 @@ func testResumptionKeepsOCSPAndSCT(t *testing.T, ver uint16) {
+ 	}
+ }
+ 
+-// TestClientHandshakeContextCancellation tests that cancelling
++// TestClientHandshakeContextCancellation tests that canceling
+ // the context given to the client side conn.HandshakeContext
+ // interrupts the in-progress handshake.
+ func TestClientHandshakeContextCancellation(t *testing.T) {
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 6d2c405626..16a22542eb 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -1944,7 +1944,7 @@ func TestAESCipherReorderingTLS13(t *testing.T) {
+ 	}
+ }
+ 
+-// TestServerHandshakeContextCancellation tests that cancelling
++// TestServerHandshakeContextCancellation tests that canceling
+ // the context given to the server side conn.HandshakeContext
+ // interrupts the in-progress handshake.
+ func TestServerHandshakeContextCancellation(t *testing.T) {
+diff --git a/src/net/http/fcgi/fcgi_test.go b/src/net/http/fcgi/fcgi_test.go
+index 5888783620..7a344ff31d 100644
+--- a/src/net/http/fcgi/fcgi_test.go
++++ b/src/net/http/fcgi/fcgi_test.go
+@@ -401,16 +401,16 @@ func TestResponseWriterSniffsContentType(t *testing.T) {
+ 	}
+ }
+ 
+-type signallingNopCloser struct {
++type signalingNopCloser struct {
+ 	io.Reader
+ 	closed chan bool
+ }
+ 
+-func (*signallingNopCloser) Write(buf []byte) (int, error) {
++func (*signalingNopCloser) Write(buf []byte) (int, error) {
+ 	return len(buf), nil
+ }
+ 
+-func (rc *signallingNopCloser) Close() error {
++func (rc *signalingNopCloser) Close() error {
+ 	close(rc.closed)
+ 	return nil
+ }
+@@ -429,7 +429,7 @@ func TestSlowRequest(t *testing.T) {
+ 		}
+ 	}(pw)
+ 
+-	rc := &signallingNopCloser{pr, make(chan bool)}
++	rc := &signalingNopCloser{pr, make(chan bool)}
+ 	handlerDone := make(chan bool)
+ 
+ 	c := newChild(rc, http.HandlerFunc(func(
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index bd4ef1bacc..77e0108426 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1721,7 +1721,7 @@ type closeWriter interface {
+ var _ closeWriter = (*net.TCPConn)(nil)
+ 
+ // closeWrite flushes any outstanding data and sends a FIN packet (if
+-// client is connected via TCP), signalling that we're done. We then
++// client is connected via TCP), signaling that we're done. We then
+ // pause for a bit, hoping the client processes it before any
+ // subsequent RST.
+ //
+diff --git a/src/reflect/visiblefields_test.go b/src/reflect/visiblefields_test.go
+index fdedc21f73..66d545dd1f 100644
+--- a/src/reflect/visiblefields_test.go
++++ b/src/reflect/visiblefields_test.go
+@@ -78,7 +78,7 @@ var fieldsTests = []struct {
+ 		index: []int{0, 1},
+ 	}},
+ }, {
+-	testName: "TwoEmbeddedStructsWithCancellingMembers",
++	testName: "TwoEmbeddedStructsWithCancelingMembers",
+ 	val: struct {
+ 		SFG
+ 		SF
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index c863ea9cd8..d0b81fd3df 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -387,7 +387,7 @@ func sweepone() uintptr {
+ 		// concurrent sweeps running, but we're at least very
+ 		// close to done sweeping.
+ 
+-		// Move the scavenge gen forward (signalling
++		// Move the scavenge gen forward (signaling
+ 		// that there's new work to do) and wake the scavenger.
+ 		//
+ 		// The scavenger is signaled by the last sweeper because once
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 05d8f22aff..badc159159 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -219,7 +219,7 @@
+ // The Skip method of *T can be used in a fuzz target if the input is invalid,
+ // but should not be considered a failing input. For example:
+ //
+-//     func FuzzJSONMarshalling(f *testing.F) {
++//     func FuzzJSONMarshaling(f *testing.F) {
+ //         f.Fuzz(func(t *testing.T, b []byte) {
+ //             var v interface{}
+ //             if err := json.Unmarshal(b, &v); err != nil {

@@ -23,7 +23,55 @@ Date:   Fri May 25 14:27:29 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go             | 11 +++++++++++
  src/cmd/go/internal/work/build.go | 10 +++++-----
  2 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index fb8846c710..a0fc72aac4 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -6325,3 +6325,14 @@ func TestCDAndGOPATHAreDifferent(t *testing.T) {
+ 		testCDAndGOPATHAreDifferent(tg, cd, strings.ToLower(gopath))
+ 	}
+ }
++
++// Issue 25579.
++func TestGoBuildDashODevNull(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.run("build", "-o", os.DevNull, filepath.Join(tg.pwd(), "testdata", "src", "hello", "hello.go"))
++	tg.mustNotExist("hello")
++	tg.mustNotExist("hello.exe")
++}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index e5f0e624c3..5cb0c2431f 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -284,11 +284,6 @@ func runBuild(cmd *base.Command, args []string) {
+ 		cfg.BuildO += cfg.ExeSuffix
+ 	}
+ 
+-	// Special case -o /dev/null by not writing at all.
+-	if cfg.BuildO == os.DevNull {
+-		cfg.BuildO = ""
+-	}
+-
+ 	// sanity check some often mis-used options
+ 	switch cfg.BuildContext.Compiler {
+ 	case "gccgo":
+@@ -311,6 +306,11 @@ func runBuild(cmd *base.Command, args []string) {
+ 
+ 	pkgs = pkgsFilter(load.Packages(args))
+ 
++	// Special case -o /dev/null by not writing at all.
++	if cfg.BuildO == os.DevNull {
++		cfg.BuildO = ""
++	}
++
+ 	if cfg.BuildO != "" {
+ 		if len(pkgs) > 1 {
+ 			base.Fatalf("go build: cannot use -o with multiple packages")

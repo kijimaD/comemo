@@ -8,7 +8,58 @@ Date:   Wed Oct 20 13:18:00 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2614041
-
+---
  src/cmd/5g/ggen.c  |  5 +++--
  src/cmd/5g/gsubr.c | 14 ++++++++++----
  2 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 55f6169465..d665f6158b 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -458,13 +458,14 @@ cgen_asop(Node *n)
+ 		}
+ 		if(nr->ullman < UINF)
+ 		if(sudoaddable(a, nl, &addr, &w)) {
++			w = optoas(OAS, nl->type);
+ 			regalloc(&n2, nl->type, N);
+-			p1 = gins(AMOVW, N, &n2);
++			p1 = gins(w, N, &n2);
+ 			p1->from = addr;
+ 			regalloc(&n3, nr->type, N);
+ 			cgen(nr, &n3);
+ 			gins(a, &n3, &n2);
+-			p1 = gins(AMOVW, &n2, N);
++			p1 = gins(w, &n2, N);
+ 			p1->to = addr;
+ 			regfree(&n2);
+ 			regfree(&n3);
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 6cccdac25f..b96e30cea7 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1835,14 +1835,20 @@ oindex:
+ 		gmove(&n2, reg);
+ 	}
+ 
+-	if(*w == 1)
++	switch(*w) {
++	case 1:
+ 		gins(AADD, reg1, reg);
+-	else if(*w == 2)
++		break;
++	case 2:
+ 		gshift(AADD, reg1, SHIFT_LL, 1, reg);
+-	else if(*w == 4)
++		break;
++	case 4:
+ 		gshift(AADD, reg1, SHIFT_LL, 2, reg);
+-	else if(*w == 8)
++		break;
++	case 8:
+ 		gshift(AADD, reg1, SHIFT_LL, 3, reg);
++		break;
++	}
+ 
+ 	naddr(reg1, a, 1);
+ 	a->type = D_OREG;

@@ -13,7 +13,99 @@ Date:   Mon Oct 5 22:12:46 2015 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/convert.go      |  7 ++++++-
  src/database/sql/convert_test.go | 40 +++++++++++++++++++++++++++-------------
  2 files changed, 33 insertions(+), 14 deletions(-)
+
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index c0b38a2494..bba5a8843a 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -203,11 +203,16 @@ func convertAssign(dest, src interface{}) error {
+ 	}
+ 
+ 	dv := reflect.Indirect(dpv)
+-	if dv.Kind() == sv.Kind() {
++	if sv.IsValid() && sv.Type().AssignableTo(dv.Type()) {
+ 		dv.Set(sv)
+ 		return nil
+ 	}
+ 
++	if dv.Kind() == sv.Kind() && sv.Type().ConvertibleTo(dv.Type()) {
++		dv.Set(sv.Convert(dv.Type()))
++		return nil
++	}
++
+ 	switch dv.Kind() {
+ 	case reflect.Ptr:
+ 		if src == nil {
+diff --git a/src/database/sql/convert_test.go b/src/database/sql/convert_test.go
+index 98af9fb64c..1fab282b40 100644
+--- a/src/database/sql/convert_test.go
++++ b/src/database/sql/convert_test.go
+@@ -16,23 +16,28 @@ import (
+ var someTime = time.Unix(123, 0)
+ var answer int64 = 42
+ 
++type userDefined float64
++
++type userDefinedSlice []int
++
+ type conversionTest struct {
+ 	s, d interface{} // source and destination
+ 
+ 	// following are used if they're non-zero
+-	wantint   int64
+-	wantuint  uint64
+-	wantstr   string
+-	wantbytes []byte
+-	wantraw   RawBytes
+-	wantf32   float32
+-	wantf64   float64
+-	wanttime  time.Time
+-	wantbool  bool // used if d is of type *bool
+-	wanterr   string
+-	wantiface interface{}
+-	wantptr   *int64 // if non-nil, *d's pointed value must be equal to *wantptr
+-	wantnil   bool   // if true, *d must be *int64(nil)
++	wantint    int64
++	wantuint   uint64
++	wantstr    string
++	wantbytes  []byte
++	wantraw    RawBytes
++	wantf32    float32
++	wantf64    float64
++	wanttime   time.Time
++	wantbool   bool // used if d is of type *bool
++	wanterr    string
++	wantiface  interface{}
++	wantptr    *int64 // if non-nil, *d's pointed value must be equal to *wantptr
++	wantnil    bool   // if true, *d must be *int64(nil)
++	wantusrdef userDefined
+ }
+ 
+ // Target variables for scanning into.
+@@ -145,6 +150,12 @@ var conversionTests = []conversionTest{
+ 	{s: true, d: &scaniface, wantiface: true},
+ 	{s: nil, d: &scaniface},
+ 	{s: []byte(nil), d: &scaniface, wantiface: []byte(nil)},
++
++	// To a user-defined type
++	{s: 1.5, d: new(userDefined), wantusrdef: 1.5},
++	{s: int64(123), d: new(userDefined), wantusrdef: 123},
++	{s: "1.5", d: new(userDefined), wantusrdef: 1.5},
++	{s: []byte{1, 2, 3}, d: new(userDefinedSlice), wanterr: `unsupported driver -> Scan pair: []uint8 -> *sql.userDefinedSlice`},
+ }
+ 
+ func intPtrValue(intptr interface{}) interface{} {
+@@ -228,6 +239,9 @@ func TestConversions(t *testing.T) {
+ 				}
+ 			}
+ 		}
++		if ct.wantusrdef != 0 && ct.wantusrdef != *ct.d.(*userDefined) {
++			errf("want userDefined %f, got %f", ct.wantusrdef, *ct.d.(*userDefined))
++		}
+ 	}
+ }
+ 

@@ -13,8 +13,84 @@ Date:   Fri Dec 26 00:48:33 2014 -0500
     Reviewed-on: https://go-review.googlesource.com/2118
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/ld/lib.c      |  8 +++++++-
  src/liblink/asm5.c    |  5 +++--
  src/runtime/tls_arm.s | 11 +++++++++--
  3 files changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index fa08bc5f03..192e28398b 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -257,7 +257,13 @@ loadlib(void)
+ 	}
+ 	
+ 	tlsg = linklookup(ctxt, "runtime.tlsg", 0);
+-	tlsg->type = STLSBSS;
++	// For most ports, runtime.tlsg is a placeholder symbol for TLS
++	// relocation. However, the Android and Darwin ports need it to
++	// be a real variable. Instead of hard-coding which platforms
++	// need it to be a real variable, we set the type to STLSBSS only
++	// when the runtime has not declared its type already.
++	if(tlsg->type == 0)
++		tlsg->type = STLSBSS;
+ 	tlsg->size = PtrSize;
+ 	tlsg->hide = 1;
+ 	tlsg->reachable = 1;
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index 8d597750b7..7b4ac47e85 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -1638,8 +1638,9 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
+ 			// runtime.tlsg is special.
+ 			// Its "address" is the offset from the TLS thread pointer
+ 			// to the thread-local g and m pointers.
+-			// Emit a TLS relocation instead of a standard one.
+-			if(rel->sym == ctxt->tlsg) {
++			// Emit a TLS relocation instead of a standard one if it's
++			// typed STLSBSS.
++			if(rel->sym == ctxt->tlsg && ctxt->tlsg->type == STLSBSS) {
+ 				rel->type = R_TLS;
+ 				if(ctxt->flag_shared)
+ 					rel->add += ctxt->pc - p->pcrel->pc - 8 - rel->siz;
+diff --git a/src/runtime/tls_arm.s b/src/runtime/tls_arm.s
+index 7c5c0e215e..4b01d12c46 100644
+--- a/src/runtime/tls_arm.s
++++ b/src/runtime/tls_arm.s
+@@ -17,6 +17,9 @@
+ 
+ // On android, runtime.tlsg is a normal variable.
+ // TLS offset is computed in x_cgo_inittls.
++#ifdef GOOS_android
++#define TLSG_IS_VARIABLE
++#endif
+ 
+ // save_g saves the g register into pthread-provided
+ // thread-local memory, so that we can call externally compiled
+@@ -37,7 +40,7 @@ TEXT runtime·save_g(SB),NOSPLIT,$-4
+ 	// $runtime.tlsg(SB) is a special linker symbol.
+ 	// It is the offset from the TLS base pointer to our
+ 	// thread-local storage for g.
+-#ifdef GOOS_android
++#ifdef TLSG_IS_VARIABLE
+ 	MOVW	runtime·tlsg(SB), R11
+ #else
+ 	MOVW	$runtime·tlsg(SB), R11
+@@ -60,7 +63,7 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
+ 	// $runtime.tlsg(SB) is a special linker symbol.
+ 	// It is the offset from the TLS base pointer to our
+ 	// thread-local storage for g.
+-#ifdef GOOS_android
++#ifdef TLSG_IS_VARIABLE
+ 	MOVW	runtime·tlsg(SB), R11
+ #else
+ 	MOVW	$runtime·tlsg(SB), R11
+@@ -68,3 +71,7 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
+ 	ADD	R11, R0
+ 	MOVW	0(R0), g
+ 	RET
++
++#ifdef TLSG_IS_VARIABLE
++GLOBL runtime·tlsg+0(SB), NOPTR, $4
++#endif

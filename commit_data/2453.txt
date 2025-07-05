@@ -11,8 +11,61 @@ Date:   Mon Jun 15 21:31:56 2009 -0700
     DELTA=6  (3 added, 0 deleted, 3 changed)
     OCL=30323
     CL=30326
-
+---
  src/pkg/runtime/malloc.c  | 4 ++--
  src/pkg/runtime/mgc0.c    | 2 ++
  src/pkg/runtime/runtime.h | 1 +
  3 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.c b/src/pkg/runtime/malloc.c
+index 81cdfb3001..84c802f94a 100644
+--- a/src/pkg/runtime/malloc.c
++++ b/src/pkg/runtime/malloc.c
+@@ -274,7 +274,7 @@ stackalloc(uint32 n)
+ 	uint32 *ref;
+ 
+ //return oldmal(n);
+-	if(m->mallocing) {
++	if(m->mallocing || m->gcing) {
+ 		lock(&stacks);
+ 		if(stacks.size == 0)
+ 			FixAlloc_Init(&stacks, n, SysAlloc, nil, nil);
+@@ -298,7 +298,7 @@ stackfree(void *v)
+ {
+ //return;
+ 
+-	if(m->mallocing) {
++	if(m->mallocing || m->gcing) {
+ 		lock(&stacks);
+ 		FixAlloc_Free(&stacks, v);
+ 		unlock(&stacks);
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index d58d6ce44d..75f2003783 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -215,6 +215,7 @@ gc(int32 force)
+ 	if(gcpercent < 0)
+ 		return;
+ 
++	m->gcing = 1;
+ 	semacquire(&gcsema);
+ 	gosave(&g->sched);	// update g's stack pointer for scanstack
+ 	stoptheworld();
+@@ -228,4 +229,5 @@ gc(int32 force)
+ 	starttheworld();
+ 	gosave(&g->sched);	// update g's stack pointer for debugging
+ 	semrelease(&gcsema);
++	m->gcing = 0;
+ }
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 749364f954..dc80a088dc 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -177,6 +177,7 @@ struct	M
+ 	int32	siz2;
+ 	int32	id;
+ 	int32	mallocing;
++	int32	gcing;
+ 	int32	locks;
+ 	Note	havenextg;
+ 	G*	nextg;

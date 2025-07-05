@@ -10,7 +10,7 @@ Date:   Fri Mar 1 09:24:17 2013 -0500
     R=golang-dev, devon.odell
     CC=golang-dev
     https://golang.org/cl/7414046
-
+---
  src/pkg/runtime/runtime.h           | 3 ++-
  src/pkg/runtime/sys_freebsd_386.s   | 5 +++--
  src/pkg/runtime/sys_freebsd_amd64.s | 6 +++---
@@ -19,3 +19,118 @@ Date:   Fri Mar 1 09:24:17 2013 -0500
  src/pkg/runtime/thread_freebsd.c    | 2 +-
  src/pkg/runtime/thread_windows.c    | 2 +-
  7 files changed, 15 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 665f15e924..4440808319 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -265,7 +265,8 @@ struct	M
+ 	uintptr	cret;		// return value from C
+ 	uint64	procid;		// for debuggers, but offset not hard-coded
+ 	G*	gsignal;	// signal-handling G
+-	uint64	tls[4];		// thread-local storage (for x86 extern register)
++	uintptr	tls[4];		// thread-local storage (for x86 extern register)
++	void	(*mstartfn)(void);
+ 	G*	curg;		// current running goroutine
+ 	P*	p;		// attached P for executing Go code (nil if not executing Go code)
+ 	P*	nextp;
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index f779c666e7..0b472e3074 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -39,9 +39,10 @@ TEXT runtime·thr_start(SB),7,$0
+ 	MOVL	AX, m(CX)
+ 	CALL	runtime·stackcheck(SB)		// smashes AX
+ 
+-	// newosproc left the function we should call in mp->tls[2] for us.
++	// newosproc left the function we should call in mp->mstartfn.
+ 	get_tls(CX)
+-	MOVQ	8(CX), AX
++	MOVL	m(CX), AX
++	MOVL	m_mstartfn(AX), AX
+ 	CALL	AX
+ 
+ 	MOVL	0, AX			// crash (not reached)
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index 94f37021c5..218851b782 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -34,16 +34,16 @@ TEXT runtime·thr_start(SB),7,$0
+ 
+ 	// set up m, g
+ 	get_tls(CX)
+-	MOVQ	8(CX), AX
+ 	MOVQ	R13, m(CX)
+ 	MOVQ	m_g0(R13), DI
+ 	MOVQ	DI, g(CX)
+ 
+ 	CALL runtime·stackcheck(SB)
+ 	
+-	// newosproc left the function we should call in mp->tls[2] for us.
++	// newosproc left the function we should call in mp->mstartfn.
+ 	get_tls(CX)
+-	MOVQ	16(CX), AX
++	MOVQ	m(CX), AX
++	MOVQ	m_mstartfn(AX), AX
+ 	CALL	AX
+ 
+ 	MOVQ 0, AX			// crash (not reached)
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index 4cb725e197..2c3c5d465c 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -260,9 +260,10 @@ TEXT runtime·tstart(SB),7,$0
+ 
+ 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
+ 
+-	// start function is in tls[2]
++	// newosproc left the function we should call in mp->mstartfn.
+ 	get_tls(CX)
+-	MOVL	8(CX), AX
++	MOVL	m(CX), AX
++	MOVL	m_mstartfn(AX), AX
+ 	CALL	AX
+ 
+ 	RET
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index 94e5d79917..dc9c94ae4c 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -330,9 +330,9 @@ TEXT runtime·tstart_stdcall(SB),7,$0
+ 
+ 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
+ 
+-	// start function is in tls[2]
+ 	get_tls(CX)
+-	MOVQ	16(CX), AX
++	MOVQ	m(CX), AX
++	MOVQ	m_mstartfn(AX), AX
+ 	CALL	AX
+ 
+ 	XORL	AX, AX			// return 0 == success
+diff --git a/src/pkg/runtime/thread_freebsd.c b/src/pkg/runtime/thread_freebsd.c
+index 06edc22fe1..aae52ea379 100644
+--- a/src/pkg/runtime/thread_freebsd.c
++++ b/src/pkg/runtime/thread_freebsd.c
+@@ -104,7 +104,7 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ 	param.tls_size = sizeof mp->tls;
+ 
+ 	mp->tls[0] = mp->id;	// so 386 asm can find it
+-	mp->tls[2] = (uintptr)fn;
++	mp->mstartfn = fn;
+ 
+ 	runtime·thr_new(&param, sizeof param);
+ 	runtime·sigprocmask(&oset, nil);
+diff --git a/src/pkg/runtime/thread_windows.c b/src/pkg/runtime/thread_windows.c
+index 5ff35b811e..06326c2187 100644
+--- a/src/pkg/runtime/thread_windows.c
++++ b/src/pkg/runtime/thread_windows.c
+@@ -197,7 +197,7 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ 	if(gp != mp->g0)
+ 		runtime·throw("invalid newosproc gp");
+ 
+-	mp->tls[2] = (uintptr)fn;
++	mp->mstartfn = fn;
+ 
+ 	thandle = runtime·stdcall(runtime·CreateThread, 6,
+ 		nil, (uintptr)0x20000, runtime·tstart_stdcall, mp,

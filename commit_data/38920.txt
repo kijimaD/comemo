@@ -18,8 +18,93 @@ Date:   Thu Dec 6 16:18:12 2018 -0500
     Change-Id: I7927559769c5d4617d73eb63f3b17e2f26d8c219
     Reviewed-on: https://go-review.googlesource.com/c/153158
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/fix/fix.go             |  2 +-
  src/cmd/go/internal/generate/generate.go   |  2 +-
  src/cmd/go/testdata/script/mod_outside.txt | 31 ++++++++++++++++++++++++++++++
  3 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/fix/fix.go b/src/cmd/go/internal/fix/fix.go
+index aab164148f..4d741df2b4 100644
+--- a/src/cmd/go/internal/fix/fix.go
++++ b/src/cmd/go/internal/fix/fix.go
+@@ -34,7 +34,7 @@ See also: go fmt, go vet.
+ func runFix(cmd *base.Command, args []string) {
+ 	printed := false
+ 	for _, pkg := range load.Packages(args) {
+-		if modload.Enabled() && !pkg.Module.Main {
++		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
+ 			if !printed {
+ 				fmt.Fprintf(os.Stderr, "go: not fixing packages in dependency modules\n")
+ 				printed = true
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index 9482be98ae..7cbc448e6d 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -161,7 +161,7 @@ func runGenerate(cmd *base.Command, args []string) {
+ 	// Even if the arguments are .go files, this loop suffices.
+ 	printed := false
+ 	for _, pkg := range load.Packages(args) {
+-		if modload.Enabled() && !pkg.Module.Main {
++		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
+ 			if !printed {
+ 				fmt.Fprintf(os.Stderr, "go: not generating in packages in dependency modules\n")
+ 				printed = true
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index cc99ed6b00..25013b6271 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -36,6 +36,9 @@ stdout '^cmd/go$'
+ go list $GOROOT/src/fmt
+ stdout '^fmt$'
+ 
++# 'go list' should work with file arguments.
++go list ./foo/foo.go
++stdout 'command-line-arguments'
+ 
+ # 'go list -m' with an explicit version should resolve that version.
+ go list -m example.com/version@latest
+@@ -186,11 +189,27 @@ stdout 'path is \.$'
+ stdout 'main is main \(devel\)'
+ stdout 'using example.com/version v1.1.0'
+ 
++# 'go generate' should work with file arguments.
++[exec:touch] go generate ./foo/foo.go
++[exec:touch] exists ./foo/gen.txt
++
++# 'go install' should work with file arguments.
++go install ./foo/foo.go
++
++# 'go test' should work with file arguments.
++go test -v ./foo/foo_test.go
++stdout 'foo was tested'
++
++# 'go vet' should work with file arguments.
++go vet ./foo/foo.go
++
+ 
+ -- README.txt --
+ There is no go.mod file in the working directory.
+ 
+ -- foo/foo.go --
++//go:generate touch gen.txt
++
+ package main
+ 
+ import (
+@@ -212,3 +231,15 @@ func main() {
+ 		fmt.Fprintf(os.Stdout, "using %s %s\n", m.Path, m.Version)
+ 	}
+ }
++
++-- foo/foo_test.go --
++package main
++
++import (
++	"fmt"
++	"testing"
++)
++
++func TestFoo(t *testing.T) {
++	fmt.Println("foo was tested")
++}

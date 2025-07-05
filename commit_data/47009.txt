@@ -12,6 +12,20 @@ Date:   Thu Feb 18 17:53:07 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/293842
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Trust: Katie Hockman <katie@golang.org>
-
+---
  src/go/build/deps_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 8542e52049..16ca675f8c 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -484,7 +484,7 @@ var depsRules = `
+ 	FMT, flag, runtime/debug, runtime/trace, internal/sysinfo
+ 	< testing;
+ 
+-	FMT, crypto/sha256, encoding/json, math/rand
++	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token, math/rand
+ 	< internal/fuzz;
+ 
+ 	internal/fuzz, internal/testlog, runtime/pprof, regexp

@@ -17,10 +17,487 @@ Date:   Thu Jun 4 16:59:06 2020 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/debug/dwarf/const.go                |  12 ++
  src/debug/dwarf/dwarf5ranges_test.go    |  36 +++++
  src/debug/dwarf/entry.go                | 234 ++++++++++++++++++++++++--------
  src/debug/dwarf/open.go                 |  94 ++++++++++++-
  src/debug/dwarf/testdata/debug_rnglists | Bin 0 -> 23 bytes
  5 files changed, 317 insertions(+), 59 deletions(-)
+
+diff --git a/src/debug/dwarf/const.go b/src/debug/dwarf/const.go
+index b11bf90c37..c60709199b 100644
+--- a/src/debug/dwarf/const.go
++++ b/src/debug/dwarf/const.go
+@@ -461,3 +461,15 @@ const (
+ 	utSplitCompile = 0x05
+ 	utSplitType    = 0x06
+ )
++
++// Opcodes for DWARFv5 debug_rnglists section.
++const (
++	rleEndOfList    = 0x0
++	rleBaseAddressx = 0x1
++	rleStartxEndx   = 0x2
++	rleStartxLength = 0x3
++	rleOffsetPair   = 0x4
++	rleBaseAddress  = 0x5
++	rleStartEnd     = 0x6
++	rleStartLength  = 0x7
++)
+diff --git a/src/debug/dwarf/dwarf5ranges_test.go b/src/debug/dwarf/dwarf5ranges_test.go
+new file mode 100644
+index 0000000000..2229d439a5
+--- /dev/null
++++ b/src/debug/dwarf/dwarf5ranges_test.go
+@@ -0,0 +1,36 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package dwarf
++
++import (
++	"encoding/binary"
++	"io/ioutil"
++	"reflect"
++	"testing"
++)
++
++func TestDwarf5Ranges(t *testing.T) {
++	rngLists, err := ioutil.ReadFile("testdata/debug_rnglists")
++	if err != nil {
++		t.Fatalf("could not read test data: %v", err)
++	}
++
++	d := &Data{}
++	d.order = binary.LittleEndian
++	if err := d.AddSection(".debug_rnglists", rngLists); err != nil {
++		t.Fatal(err)
++	}
++	ret, err := d.dwarf5Ranges(nil, 0x5fbd, 0xc, [][2]uint64{})
++	if err != nil {
++		t.Fatalf("could not read rnglist: %v", err)
++	}
++	t.Logf("%#v", ret)
++
++	tgt := [][2]uint64{{0x0000000000006712, 0x000000000000679f}, {0x00000000000067af}, {0x00000000000067b3}}
++
++	if reflect.DeepEqual(ret, tgt) {
++		t.Errorf("expected %#v got %#x", tgt, ret)
++	}
++}
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index 88eb56936b..bc05d7ef31 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -453,38 +453,28 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry
+ 			case formAddrx4:
+ 				off = uint64(b.uint32())
+ 			}
+-			if len(b.dwarf.addr) == 0 {
++			if b.dwarf.addr == nil {
+ 				b.error("DW_FORM_addrx with no .debug_addr section")
+ 			}
+ 			if b.err != nil {
+ 				return nil
+ 			}
+-			addrsize := b.format.addrsize()
+-			if addrsize == 0 {
+-				b.error("unknown address size for DW_FORM_addrx")
+-			}
+-			off *= uint64(addrsize)
+ 
+ 			// We have to adjust by the offset of the
+ 			// compilation unit. This won't work if the
+ 			// program uses Reader.Seek to skip over the
+ 			// unit. Not much we can do about that.
++			var addrBase int64
+ 			if cu != nil {
+-				cuOff, ok := cu.Val(AttrAddrBase).(int64)
+-				if ok {
+-					off += uint64(cuOff)
+-				}
++				addrBase, _ = cu.Val(AttrAddrBase).(int64)
+ 			}
+ 
+-			if uint64(int(off)) != off {
+-				b.error("DW_FORM_addrx offset out of range")
+-			}
+-
+-			b1 := makeBuf(b.dwarf, b.format, "addr", 0, b.dwarf.addr)
+-			b1.skip(int(off))
+-			val = b1.addr()
+-			if b1.err != nil {
+-				b.err = b1.err
++			var err error
++			val, err = b.dwarf.debugAddr(uint64(addrBase), off)
++			if err != nil {
++				if b.err == nil {
++					b.err = err
++				}
+ 				return nil
+ 			}
+ 
+@@ -935,53 +925,187 @@ func (d *Data) Ranges(e *Entry) ([][2]uint64, error) {
+ 		ret = append(ret, [2]uint64{low, high})
+ 	}
+ 
+-	ranges, rangesOK := e.Val(AttrRanges).(int64)
+-	if rangesOK && d.ranges != nil {
+-		// The initial base address is the lowpc attribute
+-		// of the enclosing compilation unit.
+-		// Although DWARF specifies the lowpc attribute,
+-		// comments in gdb/dwarf2read.c say that some versions
+-		// of GCC use the entrypc attribute, so we check that too.
+-		var cu *Entry
+-		if e.Tag == TagCompileUnit {
+-			cu = e
+-		} else {
+-			i := d.offsetToUnit(e.Offset)
+-			if i == -1 {
+-				return nil, errors.New("no unit for entry")
++	var u *unit
++	if uidx := d.offsetToUnit(e.Offset); uidx >= 0 && uidx < len(d.unit) {
++		u = &d.unit[uidx]
++	}
++
++	if u != nil && u.vers >= 5 && d.rngLists != nil {
++		// DWARF version 5 and later
++		field := e.AttrField(AttrRanges)
++		if field == nil {
++			return ret, nil
++		}
++		switch field.Class {
++		case ClassRangeListPtr:
++			ranges, rangesOK := field.Val.(int64)
++			if !rangesOK {
++				return ret, nil
+ 			}
+-			u := &d.unit[i]
+-			b := makeBuf(d, u, "info", u.off, u.data)
+-			cu = b.entry(nil, u.atable, u.base, u.vers)
+-			if b.err != nil {
+-				return nil, b.err
++			cu, base, err := d.baseAddressForEntry(e)
++			if err != nil {
++				return nil, err
+ 			}
++			return d.dwarf5Ranges(cu, base, ranges, ret)
++
++		case ClassRngList:
++			// TODO: support DW_FORM_rnglistx
++			return ret, nil
++
++		default:
++			return ret, nil
+ 		}
++	}
+ 
+-		var base uint64
+-		if cuEntry, cuEntryOK := cu.Val(AttrEntrypc).(uint64); cuEntryOK {
+-			base = cuEntry
+-		} else if cuLow, cuLowOK := cu.Val(AttrLowpc).(uint64); cuLowOK {
+-			base = cuLow
++	// DWARF version 2 through 4
++	ranges, rangesOK := e.Val(AttrRanges).(int64)
++	if rangesOK && d.ranges != nil {
++		_, base, err := d.baseAddressForEntry(e)
++		if err != nil {
++			return nil, err
+ 		}
++		return d.dwarf2Ranges(u, base, ranges, ret)
++	}
+ 
+-		u := &d.unit[d.offsetToUnit(e.Offset)]
+-		buf := makeBuf(d, u, "ranges", Offset(ranges), d.ranges[ranges:])
+-		for len(buf.data) > 0 {
+-			low = buf.addr()
+-			high = buf.addr()
++	return ret, nil
++}
+ 
+-			if low == 0 && high == 0 {
+-				break
++// baseAddressForEntry returns the initial base address to be used when
++// looking up the range list of entry e.
++// DWARF specifies that this should be the lowpc attribute of the enclosing
++// compilation unit, however comments in gdb/dwarf2read.c say that some
++// versions of GCC use the entrypc attribute, so we check that too.
++func (d *Data) baseAddressForEntry(e *Entry) (*Entry, uint64, error) {
++	var cu *Entry
++	if e.Tag == TagCompileUnit {
++		cu = e
++	} else {
++		i := d.offsetToUnit(e.Offset)
++		if i == -1 {
++			return nil, 0, errors.New("no unit for entry")
++		}
++		u := &d.unit[i]
++		b := makeBuf(d, u, "info", u.off, u.data)
++		cu = b.entry(nil, u.atable, u.base, u.vers)
++		if b.err != nil {
++			return nil, 0, b.err
++		}
++	}
++
++	if cuEntry, cuEntryOK := cu.Val(AttrEntrypc).(uint64); cuEntryOK {
++		return cu, cuEntry, nil
++	} else if cuLow, cuLowOK := cu.Val(AttrLowpc).(uint64); cuLowOK {
++		return cu, cuLow, nil
++	}
++
++	return cu, 0, nil
++}
++
++func (d *Data) dwarf2Ranges(u *unit, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
++	buf := makeBuf(d, u, "ranges", Offset(ranges), d.ranges[ranges:])
++	for len(buf.data) > 0 {
++		low := buf.addr()
++		high := buf.addr()
++
++		if low == 0 && high == 0 {
++			break
++		}
++
++		if low == ^uint64(0)>>uint((8-u.addrsize())*8) {
++			base = high
++		} else {
++			ret = append(ret, [2]uint64{base + low, base + high})
++		}
++	}
++
++	return ret, nil
++}
++
++// dwarf5Ranges interpets a debug_rnglists sequence, see DWARFv5 section
++// 2.17.3 (page 53).
++func (d *Data) dwarf5Ranges(cu *Entry, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
++	var addrBase int64
++	if cu != nil {
++		addrBase, _ = cu.Val(AttrAddrBase).(int64)
++	}
++
++	buf := makeBuf(d, d.rngLists, "rnglists", 0, d.rngLists.data)
++	buf.skip(int(ranges))
++	for {
++		opcode := buf.uint8()
++		switch opcode {
++		case rleEndOfList:
++			if buf.err != nil {
++				return nil, buf.err
++			}
++			return ret, nil
++
++		case rleBaseAddressx:
++			baseIdx := buf.uint()
++			var err error
++			base, err = d.debugAddr(uint64(addrBase), baseIdx)
++			if err != nil {
++				return nil, err
+ 			}
+ 
+-			if low == ^uint64(0)>>uint((8-u.addrsize())*8) {
+-				base = high
+-			} else {
+-				ret = append(ret, [2]uint64{base + low, base + high})
++		case rleStartxEndx:
++			startIdx := buf.uint()
++			endIdx := buf.uint()
++
++			start, err := d.debugAddr(uint64(addrBase), startIdx)
++			if err != nil {
++				return nil, err
++			}
++			end, err := d.debugAddr(uint64(addrBase), endIdx)
++			if err != nil {
++				return nil, err
++			}
++			ret = append(ret, [2]uint64{start, end})
++
++		case rleStartxLength:
++			startIdx := buf.uint()
++			len := buf.uint()
++			start, err := d.debugAddr(uint64(addrBase), startIdx)
++			if err != nil {
++				return nil, err
+ 			}
++			ret = append(ret, [2]uint64{start, start + len})
++
++		case rleOffsetPair:
++			off1 := buf.uint()
++			off2 := buf.uint()
++			ret = append(ret, [2]uint64{base + off1, base + off2})
++
++		case rleBaseAddress:
++			base = buf.addr()
++
++		case rleStartEnd:
++			start := buf.addr()
++			end := buf.addr()
++			ret = append(ret, [2]uint64{start, end})
++
++		case rleStartLength:
++			start := buf.addr()
++			len := buf.uint()
++			ret = append(ret, [2]uint64{start, start + len})
+ 		}
+ 	}
++}
+ 
+-	return ret, nil
++// debugAddr returns the address at idx in debug_addr
++func (d *Data) debugAddr(addrBase, idx uint64) (uint64, error) {
++	off := idx*uint64(d.addr.addrsize()) + addrBase
++
++	if uint64(int(off)) != off {
++		return 0, errors.New("offset out of range")
++	}
++
++	b := makeBuf(d, d.addr, "addr", 0, d.addr.data)
++	b.skip(int(off))
++	val := b.addr()
++	if b.err != nil {
++		return 0, b.err
++	}
++
++	return val, nil
+ }
+diff --git a/src/debug/dwarf/open.go b/src/debug/dwarf/open.go
+index 72ee64d558..617b8c56dd 100644
+--- a/src/debug/dwarf/open.go
++++ b/src/debug/dwarf/open.go
+@@ -7,7 +7,10 @@
+ // http://dwarfstd.org/doc/dwarf-2.0.0.pdf
+ package dwarf
+ 
+-import "encoding/binary"
++import (
++	"encoding/binary"
++	"errors"
++)
+ 
+ // Data represents the DWARF debugging information
+ // loaded from an executable file (for example, an ELF or Mach-O executable).
+@@ -23,9 +26,10 @@ type Data struct {
+ 	str      []byte
+ 
+ 	// New sections added in DWARF 5.
+-	addr       []byte
++	addr       *debugAddr
+ 	lineStr    []byte
+ 	strOffsets []byte
++	rngLists   *rngLists
+ 
+ 	// parsed data
+ 	abbrevCache map[uint64]abbrevTable
+@@ -36,6 +40,23 @@ type Data struct {
+ 	unit        []unit
+ }
+ 
++// rngLists represents the contents of a debug_rnglists section (DWARFv5).
++type rngLists struct {
++	is64  bool
++	asize uint8
++	data  []byte
++	ver   uint16
++}
++
++// debugAddr represents the contents of a debug_addr section (DWARFv5).
++type debugAddr struct {
++	is64  bool
++	asize uint8
++	data  []byte
++}
++
++var errSegmentSelector = errors.New("non-zero segment_selector size not supported")
++
+ // New returns a new Data object initialized from the given parameters.
+ // Rather than calling this function directly, clients should typically use
+ // the DWARF method of the File type of the appropriate package debug/elf,
+@@ -108,14 +129,79 @@ func (d *Data) AddTypes(name string, types []byte) error {
+ // so forth. This approach is used for new DWARF sections added in
+ // DWARF 5 and later.
+ func (d *Data) AddSection(name string, contents []byte) error {
++	var err error
+ 	switch name {
+ 	case ".debug_addr":
+-		d.addr = contents
++		d.addr, err = d.parseAddrHeader(contents)
+ 	case ".debug_line_str":
+ 		d.lineStr = contents
+ 	case ".debug_str_offsets":
+ 		d.strOffsets = contents
++	case ".debug_rnglists":
++		d.rngLists, err = d.parseRngListsHeader(contents)
+ 	}
+ 	// Just ignore names that we don't yet support.
+-	return nil
++	return err
++}
++
++// parseRngListsHeader reads the header of a debug_rnglists section, see
++// DWARFv5 section 7.28 (page 242).
++func (d *Data) parseRngListsHeader(bytes []byte) (*rngLists, error) {
++	rngLists := &rngLists{data: bytes}
++
++	buf := makeBuf(d, unknownFormat{}, "rnglists", 0, bytes)
++	_, rngLists.is64 = buf.unitLength()
++
++	rngLists.ver = buf.uint16() // version
++
++	rngLists.asize = buf.uint8()
++	segsize := buf.uint8()
++	if segsize != 0 {
++		return nil, errSegmentSelector
++	}
++
++	// Header fields not read: offset_entry_count, offset table
++
++	return rngLists, nil
++}
++
++func (rngLists *rngLists) version() int {
++	return int(rngLists.ver)
++}
++
++func (rngLists *rngLists) dwarf64() (bool, bool) {
++	return rngLists.is64, true
++}
++
++func (rngLists *rngLists) addrsize() int {
++	return int(rngLists.asize)
++}
++
++// parseAddrHeader reads the header of a debug_addr section, see DWARFv5
++// section 7.27 (page 241).
++func (d *Data) parseAddrHeader(bytes []byte) (*debugAddr, error) {
++	addr := &debugAddr{data: bytes}
++
++	buf := makeBuf(d, unknownFormat{}, "addr", 0, bytes)
++	_, addr.is64 = buf.unitLength()
++
++	addr.asize = buf.uint8()
++	segsize := buf.uint8()
++	if segsize != 0 {
++		return nil, errSegmentSelector
++	}
++
++	return addr, nil
++}
++
++func (addr *debugAddr) version() int {
++	return 5
++}
++
++func (addr *debugAddr) dwarf64() (bool, bool) {
++	return addr.is64, true
++}
++
++func (addr *debugAddr) addrsize() int {
++	return int(addr.asize)
+ }
+diff --git a/src/debug/dwarf/testdata/debug_rnglists b/src/debug/dwarf/testdata/debug_rnglists
+new file mode 100644
+index 0000000000..985ec6c9f2
+Binary files /dev/null and b/src/debug/dwarf/testdata/debug_rnglists differ

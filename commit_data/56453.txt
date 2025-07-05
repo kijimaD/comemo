@@ -22,6 +22,19 @@ Date:   Tue May 9 15:55:45 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/libfuzzer_amd64.s | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/libfuzzer_amd64.s b/src/runtime/libfuzzer_amd64.s
+index 7f184d9cb6..e30b768a05 100644
+--- a/src/runtime/libfuzzer_amd64.s
++++ b/src/runtime/libfuzzer_amd64.s
+@@ -93,6 +93,7 @@ TEXT	runtime·libfuzzerCallTraceIntCmp(SB), NOSPLIT, $0-32
+ 	MOVQ	(g_sched+gobuf_sp)(R10), SP
+ call:
+ 	ANDQ	$~15, SP	// alignment for gcc ABI
++	SUBQ	$8, SP
+ 	// Load the address of the end of the function and push it into the stack.
+ 	// This address will be jumped to after executing the return instruction
+ 	// from the return sled. There we reset the stack pointer and return.

@@ -15,6 +15,32 @@ Date:   Tue Dec 7 13:44:01 2010 -0800
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/3453042
-
+---
  src/pkg/go/parser/interface.go | 13 ++++++-------
  1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 916efc6c1b..f14e4ac757 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -111,14 +111,13 @@ func ParseDeclList(fset *token.FileSet, filename string, src interface{}) ([]ast
+ }
+ 
+ 
+-// TODO(gri) Change ParseFile to Parse and improve documentation (issue 1311).
+-
+-// ParseFile parses a Go source file and returns a File node.
++// ParseFile parses the source code of a single Go source file and returns
++// the corresponding ast.File node. The source code may be provided via
++// the filename of the source file, or via the src parameter.
+ //
+-// If src != nil, ParseFile parses the file source from src. src may
+-// be provided in a variety of formats. At the moment the following types
+-// are supported: string, []byte, and io.Reader. In this case, filename is
+-// only used for source position information and error messages.
++// If src != nil, ParseFile parses the source from src and the filename is
++// only used when recording position information. The type of the argument
++// for the src parameter must be string, []byte, or io.Reader.
+ //
+ // If src == nil, ParseFile parses the file specified by filename.
+ //

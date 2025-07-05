@@ -7,7 +7,68 @@ Date:   Thu Jul 16 13:12:57 2015 -0600
     Change-Id: Ia56ee9798eefe123d4da04138a6a559d2c25ddf3
     Reviewed-on: https://go-review.googlesource.com/12312
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 ++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 36 ++++++++++++++++++++++++++++
  2 files changed, 38 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 1eb29105d2..6882621f71 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -77,6 +77,8 @@
+ 
+ (Const <t> [val]) && t.IsInteger() -> (MOVQconst [val])
+ (Const <t>) && t.IsPtr() -> (MOVQconst [0]) // nil is the only const pointer
++(Const <t>) && t.IsBoolean() && !v.Aux.(bool) -> (MOVQconst [0])
++(Const <t>) && t.IsBoolean() && v.Aux.(bool) -> (MOVQconst [1])
+ 
+ (Addr {sym} base) -> (LEAQ {sym} base)
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 728c45cc49..7393cd9a89 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -517,6 +517,42 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endd23abe8d7061f11c260b162e24eec060
+ 	endd23abe8d7061f11c260b162e24eec060:
+ 		;
++		// match: (Const <t>)
++		// cond: t.IsBoolean() && !v.Aux.(bool)
++		// result: (MOVQconst [0])
++		{
++			t := v.Type
++			if !(t.IsBoolean() && !v.Aux.(bool)) {
++				goto end7b1347fd0902b990ee1e49145c7e8c31
++			}
++			v.Op = OpAMD64MOVQconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = 0
++			return true
++		}
++		goto end7b1347fd0902b990ee1e49145c7e8c31
++	end7b1347fd0902b990ee1e49145c7e8c31:
++		;
++		// match: (Const <t>)
++		// cond: t.IsBoolean() && v.Aux.(bool)
++		// result: (MOVQconst [1])
++		{
++			t := v.Type
++			if !(t.IsBoolean() && v.Aux.(bool)) {
++				goto ende0d1c954b5ab5af7227bff9635774f1c
++			}
++			v.Op = OpAMD64MOVQconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = 1
++			return true
++		}
++		goto ende0d1c954b5ab5af7227bff9635774f1c
++	ende0d1c954b5ab5af7227bff9635774f1c:
++		;
+ 	case OpConvNop:
+ 		// match: (ConvNop <t> x)
+ 		// cond: t == x.Type

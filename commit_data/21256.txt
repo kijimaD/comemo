@@ -9,6 +9,22 @@ Date:   Sat Dec 13 18:19:05 2014 +1100
     Change-Id: Ide5ac70215d73278e6910f5b9c7687ad7734c0be
     Reviewed-on: https://go-review.googlesource.com/1530
     Reviewed-by: David Symonds <dsymonds@golang.org>
-
+---
  src/net/http/transport.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 782f7cd395..b751ffbcfc 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1087,7 +1087,9 @@ WaitResponse:
+ 				break WaitResponse
+ 			}
+ 			if d := pc.t.ResponseHeaderTimeout; d > 0 {
+-				respHeaderTimer = time.After(d)
++				timer := time.NewTimer(d)
++				defer timer.Stop() // prevent leaks
++				respHeaderTimer = timer.C
+ 			}
+ 		case <-pconnDeadCh:
+ 			// The persist connection is dead. This shouldn't

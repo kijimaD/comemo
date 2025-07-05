@@ -7,6 +7,19 @@ Date:   Mon Aug 26 19:11:43 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13232043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 9c6afc96a4..f0923a2ee9 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -213,6 +213,7 @@ Icarus Sparry <golang@icarus.freeuk.com>
+ Ingo Oeser <nightlyone@googlemail.com> <nightlyone@gmail.com>
+ Isaac Wagner <ibw@isaacwagner.me>
+ Ivan Krasin <krasin@golang.org>
++JP Sugarbroad <jpsugar@google.com>
+ Jacob Baskin <jbaskin@google.com>
+ James Aguilar <jaguilar@google.com>
+ James David Chalfant <james.chalfant@gmail.com>

@@ -8,6 +8,19 @@ Date:   Mon Jul 21 16:29:38 2014 +1000
     R=golang-codereviews, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/118020043
-
+---
  src/make.bat | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/make.bat b/src/make.bat
+index 22c0b0bf83..a1a6c14a40 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -115,6 +115,6 @@ goto end
+ 
+ :fail
+ set GOBUILDFAIL=1
++if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
+ 
+ :end
+-if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%

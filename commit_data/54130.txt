@@ -16,8 +16,54 @@ Date:   Tue Sep 27 18:30:01 2022 +1000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/image/gif/fuzz_test.go  | 4 ++++
  src/image/jpeg/fuzz_test.go | 4 ++++
  src/image/png/fuzz_test.go  | 4 ++++
  3 files changed, 12 insertions(+)
+
+diff --git a/src/image/gif/fuzz_test.go b/src/image/gif/fuzz_test.go
+index 3ddf15d80f..a4bc06ed69 100644
+--- a/src/image/gif/fuzz_test.go
++++ b/src/image/gif/fuzz_test.go
+@@ -14,6 +14,10 @@ import (
+ )
+ 
+ func FuzzDecode(f *testing.F) {
++	if testing.Short() {
++		f.Skip("Skipping in short mode")
++	}
++
+ 	testdata, err := os.ReadDir("../testdata")
+ 	if err != nil {
+ 		f.Fatalf("failed to read testdata directory: %s", err)
+diff --git a/src/image/jpeg/fuzz_test.go b/src/image/jpeg/fuzz_test.go
+index 716f06f43c..bd534a921d 100644
+--- a/src/image/jpeg/fuzz_test.go
++++ b/src/image/jpeg/fuzz_test.go
+@@ -14,6 +14,10 @@ import (
+ )
+ 
+ func FuzzDecode(f *testing.F) {
++	if testing.Short() {
++		f.Skip("Skipping in short mode")
++	}
++
+ 	testdata, err := os.ReadDir("../testdata")
+ 	if err != nil {
+ 		f.Fatalf("failed to read testdata directory: %s", err)
+diff --git a/src/image/png/fuzz_test.go b/src/image/png/fuzz_test.go
+index 22b3ef082a..4b639459e7 100644
+--- a/src/image/png/fuzz_test.go
++++ b/src/image/png/fuzz_test.go
+@@ -14,6 +14,10 @@ import (
+ )
+ 
+ func FuzzDecode(f *testing.F) {
++	if testing.Short() {
++		f.Skip("Skipping in short mode")
++	}
++
+ 	testdata, err := os.ReadDir("../testdata")
+ 	if err != nil {
+ 		f.Fatalf("failed to read testdata directory: %s", err)

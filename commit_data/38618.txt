@@ -12,7 +12,34 @@ Date:   Fri Nov 9 23:28:54 2018 +0300
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/build/read_test.go | 2 +-
  src/go/doc/reader.go      | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/build/read_test.go b/src/go/build/read_test.go
+index 9cef657e13..2a36a012d5 100644
+--- a/src/go/build/read_test.go
++++ b/src/go/build/read_test.go
+@@ -118,7 +118,7 @@ func testRead(t *testing.T, tests []readTest, read func(io.Reader) ([]byte, erro
+ 			}
+ 			continue
+ 		}
+-		if err == nil && tt.err != "" {
++		if tt.err != "" {
+ 			t.Errorf("#%d: success, expected %q", i, tt.err)
+ 			continue
+ 		}
+diff --git a/src/go/doc/reader.go b/src/go/doc/reader.go
+index 26365e46b5..4950e7c6c3 100644
+--- a/src/go/doc/reader.go
++++ b/src/go/doc/reader.go
+@@ -81,7 +81,7 @@ func (mset methodSet) add(m *Func) {
+ 		mset[m.Name] = m
+ 		return
+ 	}
+-	if old != nil && m.Level == old.Level {
++	if m.Level == old.Level {
+ 		// conflict - mark it using a method with nil Decl
+ 		mset[m.Name] = &Func{
+ 			Name:  m.Name,

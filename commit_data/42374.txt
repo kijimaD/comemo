@@ -18,7 +18,80 @@ Date:   Fri Dec 6 15:51:34 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modcmd/edit.go      |  8 ++++----
  src/cmd/go/testdata/script/mod_edit.txt | 14 ++++++++++++++
  2 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index ae8966bab1..2cb4566796 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -164,7 +164,7 @@ func runEdit(cmd *base.Command, args []string) {
+ 	}
+ 
+ 	if *editModule != "" {
+-		if err := module.CheckPath(*editModule); err != nil {
++		if err := module.CheckImportPath(*editModule); err != nil {
+ 			base.Fatalf("go mod: invalid -module: %v", err)
+ 		}
+ 	}
+@@ -242,7 +242,7 @@ func parsePathVersion(flag, arg string) (path, version string) {
+ 		base.Fatalf("go mod: -%s=%s: need path@version", flag, arg)
+ 	}
+ 	path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
+-	if err := module.CheckPath(path); err != nil {
++	if err := module.CheckImportPath(path); err != nil {
+ 		base.Fatalf("go mod: -%s=%s: invalid path: %v", flag, arg, err)
+ 	}
+ 
+@@ -264,7 +264,7 @@ func parsePath(flag, arg string) (path string) {
+ 		base.Fatalf("go mod: -%s=%s: need just path, not path@version", flag, arg)
+ 	}
+ 	path = arg
+-	if err := module.CheckPath(path); err != nil {
++	if err := module.CheckImportPath(path); err != nil {
+ 		base.Fatalf("go mod: -%s=%s: invalid path: %v", flag, arg, err)
+ 	}
+ 	return path
+@@ -278,7 +278,7 @@ func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version
+ 	} else {
+ 		path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
+ 	}
+-	if err := module.CheckPath(path); err != nil {
++	if err := module.CheckImportPath(path); err != nil {
+ 		if !allowDirPath || !modfile.IsDirectoryPath(path) {
+ 			return path, version, fmt.Errorf("invalid %s path: %v", adj, err)
+ 		}
+diff --git a/src/cmd/go/testdata/script/mod_edit.txt b/src/cmd/go/testdata/script/mod_edit.txt
+index 42007b13d0..898d8524ac 100644
+--- a/src/cmd/go/testdata/script/mod_edit.txt
++++ b/src/cmd/go/testdata/script/mod_edit.txt
+@@ -52,6 +52,12 @@ go mod init a.a/b/c
+ go mod edit -module x.x/y/z
+ cmpenv go.mod go.mod.edit
+ 
++# golang.org/issue/30513: don't require go-gettable module paths.
++cd $WORK/local
++go mod init foo
++go mod edit -module local-only -require=other-local@v1.0.0 -replace other-local@v1.0.0=./other
++cmpenv go.mod go.mod.edit
++
+ -- x.go --
+ package x
+ 
+@@ -159,6 +165,14 @@ exclude x.1 v1.2.0
+ replace x.1 => y.1/v2 v2.3.6
+ 
+ require x.3 v1.99.0
++-- $WORK/local/go.mod.edit --
++module local-only
++
++go $goversion
++
++require other-local v1.0.0
++
++replace other-local v1.0.0 => ./other
+ -- $WORK/go.mod.badfmt --
+ module     x.x/y/z
+ 

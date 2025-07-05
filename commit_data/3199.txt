@@ -8,6 +8,21 @@ Date:   Thu Sep 3 09:46:24 2009 -0700
     DELTA=3  (0 added, 3 deleted, 0 changed)
     OCL=34305
     CL=34305
-
+---
  doc/go_spec.html | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 3f78f63cab..22107d589f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1352,9 +1352,6 @@ Constants:
+ 
+ Functions:
+ 	cap close closed len make new panic panicln print println
+-
+-Packages:
+-	unsafe
+ </pre>
+ 
+ 

@@ -16,7 +16,7 @@ Date:   Wed Jul 26 14:09:06 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/vendor.go               |  4 ++
  src/cmd/go/internal/modload/init.go                | 64 ++++++++++++++++++----
  .../script/work_vendor_modules_txt_conditional.txt | 62 +++++++++++++++++++++
@@ -24,3 +24,254 @@ Date:   Wed Jul 26 14:09:06 2023 -0400
  src/cmd/go/testdata/script/work_vendor_prune.txt   |  1 +
  .../go/testdata/script/work_vendor_prune_all.txt   |  1 +
  6 files changed, 128 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 82a267587a..033d47b104 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -155,6 +155,10 @@ func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string)
+ 		w = io.MultiWriter(&buf, os.Stderr)
+ 	}
+ 
++	if modload.MainModules.WorkFile() != nil {
++		fmt.Fprintf(w, "## workspace\n")
++	}
++
+ 	replacementWritten := make(map[module.Version]bool)
+ 	for _, m := range vendorMods {
+ 		replacement := modload.Replacement(m)
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 5ab46d5693..8629dff201 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -11,6 +11,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"internal/lazyregexp"
++	"io"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+@@ -1408,26 +1409,69 @@ func setDefaultBuildMod() {
+ 		if fi, err := fsys.Stat(vendorDir); err == nil && fi.IsDir() {
+ 			modGo := "unspecified"
+ 			if goVersion != "" {
+-				if gover.Compare(goVersion, "1.14") >= 0 {
+-					// The Go version is at least 1.14, and a vendor directory exists.
+-					// Set -mod=vendor by default.
+-					cfg.BuildMod = "vendor"
+-					cfg.BuildModReason = "Go version in " + versionSource + " is at least 1.14 and vendor directory exists."
+-					return
++				if gover.Compare(goVersion, "1.14") < 0 {
++					// The go version is less than 1.14. Don't set -mod=vendor by default.
++					// Since a vendor directory exists, we should record why we didn't use it.
++					// This message won't normally be shown, but it may appear with import errors.
++					cfg.BuildModReason = fmt.Sprintf("Go version in "+versionSource+" is %s, so vendor directory was not used.", modGo)
+ 				} else {
+-					modGo = goVersion
++					vendoredWorkspace, err := modulesTextIsForWorkspace(vendorDir)
++					if err != nil {
++						base.Fatalf("go: reading modules.txt for vendor directory: %v", err)
++					}
++					if vendoredWorkspace != (versionSource == "go.work") {
++						if vendoredWorkspace {
++							cfg.BuildModReason = "Outside workspace mode, but vendor directory is for a workspace."
++						} else {
++							cfg.BuildModReason = "In workspace mode, but vendor directory is not for a workspace"
++						}
++					} else {
++						// The Go version is at least 1.14, a vendor directory exists, and
++						// the modules.txt was generated in the same mode the command is running in.
++						// Set -mod=vendor by default.
++						cfg.BuildMod = "vendor"
++						cfg.BuildModReason = "Go version in " + versionSource + " is at least 1.14 and vendor directory exists."
++						return
++					}
+ 				}
++				modGo = goVersion
+ 			}
+ 
+-			// Since a vendor directory exists, we should record why we didn't use it.
+-			// This message won't normally be shown, but it may appear with import errors.
+-			cfg.BuildModReason = fmt.Sprintf("Go version in "+versionSource+" is %s, so vendor directory was not used.", modGo)
+ 		}
+ 	}
+ 
+ 	cfg.BuildMod = "readonly"
+ }
+ 
++func modulesTextIsForWorkspace(vendorDir string) (bool, error) {
++	f, err := fsys.Open(filepath.Join(vendorDir, "modules.txt"))
++	if errors.Is(err, os.ErrNotExist) {
++		// Some vendor directories exist that don't contain modules.txt.
++		// This mostly happens when converting to modules.
++		// We want to preserve the behavior that mod=vendor is set (even though
++		// readVendorList does nothing in that case).
++		return false, nil
++	}
++	if err != nil {
++		return false, err
++	}
++	var buf [512]byte
++	n, err := f.Read(buf[:])
++	if err != nil && err != io.EOF {
++		return false, err
++	}
++	line, _, _ := strings.Cut(string(buf[:n]), "\n")
++	if annotations, ok := strings.CutPrefix(line, "## "); ok {
++		for _, entry := range strings.Split(annotations, ";") {
++			entry = strings.TrimSpace(entry)
++			if entry == "workspace" {
++				return true, nil
++			}
++		}
++	}
++	return false, nil
++}
++
+ func mustHaveCompleteRequirements() bool {
+ 	return cfg.BuildMod != "mod" && !inWorkspaceMode()
+ }
+diff --git a/src/cmd/go/testdata/script/work_vendor_modules_txt_conditional.txt b/src/cmd/go/testdata/script/work_vendor_modules_txt_conditional.txt
+new file mode 100644
+index 0000000000..3d671ebaab
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_vendor_modules_txt_conditional.txt
+@@ -0,0 +1,62 @@
++# This test checks to see if we only start in workspace vendor
++# mode if the modules.txt specifies ## workspace (and only in
++# standard vendor if it doesn't).
++
++# vendor directory produced for workspace, workspace mode
++# runs in mod=vendor
++go work vendor
++cmp vendor/modules.txt want_workspace_modules_txt
++go list -f {{.Dir}} example.com/b
++stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]b
++
++# vendor directory produced for workspace, module mode
++# runs in mod=readonly
++env GOWORK=off
++go list -f {{.Dir}} example.com/b
++stdout $GOPATH[\\/]src[\\/]b
++
++# vendor directory produced for module, module mode
++# runs in mod=vendor
++go mod vendor
++cmp vendor/modules.txt want_module_modules_txt
++go list -f {{.Dir}} example.com/b
++stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]b
++
++# vendor directory produced for module, workspace mode
++# runs in mod=readonly
++env GOWORK=
++go list -f {{.Dir}} example.com/b
++stdout $GOPATH[\\/]src[\\/]b
++
++-- want_workspace_modules_txt --
++## workspace
++# example.com/b v0.0.0 => ./b
++## explicit; go 1.21
++example.com/b
++# example.com/b => ./b
++-- want_module_modules_txt --
++# example.com/b v0.0.0 => ./b
++## explicit; go 1.21
++example.com/b
++# example.com/b => ./b
++-- go.work --
++go 1.21
++
++use .
++-- go.mod --
++module example.com/a
++
++go 1.21
++
++require example.com/b v0.0.0
++replace example.com/b => ./b
++-- a.go --
++package a
++
++import _ "example.com/b"
++-- b/go.mod --
++module example.com/b
++
++go 1.21
++-- b/b.go --
++package b
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/work_vendor_modules_txt_consistent.txt b/src/cmd/go/testdata/script/work_vendor_modules_txt_consistent.txt
+index 038e1a54d6..bc0f068fd0 100644
+--- a/src/cmd/go/testdata/script/work_vendor_modules_txt_consistent.txt
++++ b/src/cmd/go/testdata/script/work_vendor_modules_txt_consistent.txt
+@@ -28,11 +28,13 @@ cp modules.txt.extra_replacement vendor/modules.txt
+ cmpenv stderr extra_replacement_error.txt
+ 
+ -- modules.txt.want --
++## workspace
+ # example.com/p v1.0.0 => ./p
+ ## explicit; go 1.21
+ # example.com/q v1.0.0 => ./q
+ ## explicit; go 1.21
+ -- modules.txt.required_but_not_explicit --
++## workspace
+ # example.com/p v1.0.0 => ./p
+ ## go 1.21
+ # example.com/q v1.0.0 => ./q
+@@ -45,6 +47,7 @@ go: inconsistent vendoring in $GOPATH${/}src:
+ 	To sync the vendor directory, run:
+ 		go work vendor
+ -- modules.txt.missing_replacement --
++## workspace
+ # example.com/p v1.0.0
+ ## explicit; go 1.21
+ # example.com/q v1.0.0 => ./q
+@@ -57,6 +60,7 @@ go: inconsistent vendoring in $GOPATH${/}src:
+ 	To sync the vendor directory, run:
+ 		go work vendor
+ -- modules.txt.different_replacement --
++## workspace
+ # example.com/p v1.0.0 => ./r
+ ## explicit; go 1.21
+ # example.com/q v1.0.0 => ./q
+@@ -69,6 +73,7 @@ go: inconsistent vendoring in $GOPATH${/}src:
+ 	To sync the vendor directory, run:
+ 		go work vendor
+ -- modules.txt.extra_explicit --
++## workspace
+ # example.com/p v1.0.0 => ./p
+ ## explicit; go 1.21
+ # example.com/q v1.0.0 => ./q
+@@ -84,6 +89,7 @@ go: inconsistent vendoring in $GOPATH${/}src:
+ 	To sync the vendor directory, run:
+ 		go work vendor
+ -- modules.txt.extra_replacement --
++## workspace
+ # example.com/p v1.0.0 => ./p
+ ## explicit; go 1.21
+ # example.com/q v1.0.0 => ./q
+diff --git a/src/cmd/go/testdata/script/work_vendor_prune.txt b/src/cmd/go/testdata/script/work_vendor_prune.txt
+index 5972cc70d6..424b4d59da 100644
+--- a/src/cmd/go/testdata/script/work_vendor_prune.txt
++++ b/src/cmd/go/testdata/script/work_vendor_prune.txt
+@@ -22,6 +22,7 @@ go run example.com/p
+ stdout 'version 1.1.0'
+ 
+ -- modules.txt.want --
++## workspace
+ # example.com/b v1.0.0 => ./b
+ ## explicit; go 1.18
+ example.com/b
+diff --git a/src/cmd/go/testdata/script/work_vendor_prune_all.txt b/src/cmd/go/testdata/script/work_vendor_prune_all.txt
+index b004afddf7..a369d22bd8 100644
+--- a/src/cmd/go/testdata/script/work_vendor_prune_all.txt
++++ b/src/cmd/go/testdata/script/work_vendor_prune_all.txt
+@@ -18,6 +18,7 @@ stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]z
+ cmp $GOPATH/src/vendor/example.com/q/q.go q1_1_0/q.go
+ 
+ -- modules.txt.want --
++## workspace
+ # example.com/b v1.0.0 => ./b
+ ## explicit; go 1.18
+ example.com/b

@@ -8,8 +8,43 @@ Date:   Sat May 23 13:53:36 2009 -0700
     DELTA=4  (3 added, 0 deleted, 1 changed)
     OCL=29314
     CL=29314
-
+---
  src/lib/Make.deps | 1 +
  src/lib/Makefile  | 1 +
  src/lib/deps.bash | 1 +
  3 files changed, 3 insertions(+)
+
+diff --git a/src/lib/Make.deps b/src/lib/Make.deps
+index 4b0df407ce..6a965e3271 100644
+--- a/src/lib/Make.deps
++++ b/src/lib/Make.deps
+@@ -3,6 +3,7 @@ bufio.install: io.install os.install utf8.install
+ container/vector.install:
+ crypto/aes.install: os.install
+ crypto/block.install: fmt.install io.install os.install
++crypto/hmac.install: crypto/md5.install crypto/sha1.install hash.install os.install
+ crypto/md5.install: hash.install os.install
+ crypto/sha1.install: hash.install os.install
+ exec.install: os.install strings.install
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index d258e1adbc..6539002366 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -19,6 +19,7 @@ DIRS=\
+ 	container/vector\
+ 	crypto/aes\
+ 	crypto/block\
++	crypto/hmac\
+ 	crypto/md5\
+ 	crypto/sha1\
+ 	exec\
+diff --git a/src/lib/deps.bash b/src/lib/deps.bash
+index 8495bb28eb..d6796c9406 100755
+--- a/src/lib/deps.bash
++++ b/src/lib/deps.bash
+@@ -28,4 +28,5 @@ for dir in $dirs; do (
+ 	echo $dir.install: $deps
+ ) done > $TMP
+ 
++p4 open $OUT
+ mv $TMP $OUT

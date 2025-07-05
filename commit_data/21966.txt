@@ -14,9 +14,117 @@ Date:   Sat Feb 14 16:10:06 2015 +0300
     Change-Id: I7172a0df482657be39faa59e2579dd9f209cb54d
     Reviewed-on: https://go-review.googlesource.com/4901
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/gc/reflect.c    |  3 ++-
  src/reflect/type.go     |  3 ++-
  src/runtime/hashmap.go  |  2 +-
  src/runtime/map_test.go | 55 +++++++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 60 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 14a1f13e33..9390ab9a86 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -179,7 +179,8 @@ mapbucket(Type *t)
+ 		bucket->width += widthreg - widthptr;
+ 
+ 	// See comment on hmap.overflow in ../../runtime/hashmap.go.
+-	if(!haspointers(t->type) && !haspointers(t->down))
++	if(!haspointers(t->type) && !haspointers(t->down) &&
++		t->type->width <= MAXKEYSIZE && t->down->width <= MAXVALSIZE)
+ 		bucket->haspointers = 1;  // no pointers
+ 
+ 	t->bucket = bucket;
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 0a8c40808a..1752dddd8d 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1659,7 +1659,8 @@ const (
+ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 	// See comment on hmap.overflow in ../runtime/hashmap.go.
+ 	var kind uint8
+-	if ktyp.kind&kindNoPointers != 0 && etyp.kind&kindNoPointers != 0 {
++	if ktyp.kind&kindNoPointers != 0 && etyp.kind&kindNoPointers != 0 &&
++		ktyp.size <= maxKeySize && etyp.size <= maxValSize {
+ 		kind = kindNoPointers
+ 	}
+ 
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index c7c1198259..ca049dd632 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -114,7 +114,7 @@ type hmap struct {
+ 	oldbuckets unsafe.Pointer // previous bucket array of half the size, non-nil only when growing
+ 	nevacuate  uintptr        // progress counter for evacuation (buckets less than this have been evacuated)
+ 
+-	// If both key and value do not contain pointers, then we mark bucket
++	// If both key and value do not contain pointers and are inline, then we mark bucket
+ 	// type as containing no pointers. This avoids scanning such maps.
+ 	// However, bmap.overflow is a pointer. In order to keep overflow buckets
+ 	// alive, we store pointers to all overflow buckets in hmap.overflow.
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 55f1f82625..9d2894cb6f 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -515,6 +515,61 @@ func TestMapStringBytesLookup(t *testing.T) {
+ 	}
+ }
+ 
++func TestMapLargeKeyNoPointer(t *testing.T) {
++	const (
++		I = 1000
++		N = 64
++	)
++	type T [N]int
++	m := make(map[T]int)
++	for i := 0; i < I; i++ {
++		var v T
++		for j := 0; j < N; j++ {
++			v[j] = i + j
++		}
++		m[v] = i
++	}
++	runtime.GC()
++	for i := 0; i < I; i++ {
++		var v T
++		for j := 0; j < N; j++ {
++			v[j] = i + j
++		}
++		if m[v] != i {
++			t.Fatalf("corrupted map: want %+v, got %+v", i, m[v])
++		}
++	}
++}
++
++func TestMapLargeValNoPointer(t *testing.T) {
++	const (
++		I = 1000
++		N = 64
++	)
++	type T [N]int
++	m := make(map[int]T)
++	for i := 0; i < I; i++ {
++		var v T
++		for j := 0; j < N; j++ {
++			v[j] = i + j
++		}
++		m[i] = v
++	}
++	runtime.GC()
++	for i := 0; i < I; i++ {
++		var v T
++		for j := 0; j < N; j++ {
++			v[j] = i + j
++		}
++		v1 := m[i]
++		for j := 0; j < N; j++ {
++			if v1[j] != v[j] {
++				t.Fatalf("corrupted map: want %+v, got %+v", v, v1)
++			}
++		}
++	}
++}
++
+ func benchmarkMapPop(b *testing.B, n int) {
+ 	m := map[int]int{}
+ 	for i := 0; i < b.N; i++ {

@@ -13,6 +13,25 @@ Date:   Tue Sep 13 09:51:13 2022 -0400
     Auto-Submit: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/test_cleanup_failnow.txt | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_cleanup_failnow.txt b/src/cmd/go/testdata/script/test_cleanup_failnow.txt
+index 0737a93db2..0aba8c7c00 100644
+--- a/src/cmd/go/testdata/script/test_cleanup_failnow.txt
++++ b/src/cmd/go/testdata/script/test_cleanup_failnow.txt
+@@ -2,11 +2,10 @@
+ [short] skip
+ 
+ # This test could fail if the testing package does not wait until
+-# a panicking test does the panic. Turn off multithreading, GC, and
+-# async preemption to increase the probability of such a failure.
++# a panicking test does the panic. Turn off multithreading and GC
++# to increase the probability of such a failure.
+ env GOMAXPROCS=1
+ env GOGC=off
+-env GODEBUG=asyncpreempt=off
+ 
+ # If the test exits with 'no tests to run', it means the testing package
+ # implementation is incorrect and does not wait until a test panic.

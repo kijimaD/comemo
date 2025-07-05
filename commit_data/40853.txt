@@ -15,7 +15,69 @@ Date:   Sat Jul 27 16:20:49 2019 -0700
     Change-Id: I44e62962fb04d0d22966a39eda3a2d16de7a2291
     Reviewed-on: https://go-review.googlesource.com/c/go/+/187825
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/strings/example_test.go | 11 ++++++++++-
  src/strings/strings.go      |  7 ++++---
  2 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/strings/example_test.go b/src/strings/example_test.go
+index 4f3a1ce8c6..375f9cac65 100644
+--- a/src/strings/example_test.go
++++ b/src/strings/example_test.go
+@@ -247,14 +247,23 @@ func ExampleSplitAfterN() {
+ }
+ 
+ func ExampleTitle() {
++	// Compare this example to the ToTitle example.
+ 	fmt.Println(strings.Title("her royal highness"))
+-	// Output: Her Royal Highness
++	fmt.Println(strings.Title("loud noises"))
++	fmt.Println(strings.Title("хлеб"))
++	// Output:
++	// Her Royal Highness
++	// Loud Noises
++	// Хлеб
+ }
+ 
+ func ExampleToTitle() {
++	// Compare this example to the Title example.
++	fmt.Println(strings.ToTitle("her royal highness"))
+ 	fmt.Println(strings.ToTitle("loud noises"))
+ 	fmt.Println(strings.ToTitle("хлеб"))
+ 	// Output:
++	// HER ROYAL HIGHNESS
+ 	// LOUD NOISES
+ 	// ХЛЕБ
+ }
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 7337481380..cee315ce9e 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -610,7 +610,8 @@ func ToLower(s string) string {
+ 	return Map(unicode.ToLower, s)
+ }
+ 
+-// ToTitle returns a copy of the string s with all Unicode letters mapped to their title case.
++// ToTitle returns a copy of the string s with all Unicode letters mapped to
++// their Unicode title case.
+ func ToTitle(s string) string { return Map(unicode.ToTitle, s) }
+ 
+ // ToUpperSpecial returns a copy of the string s with all Unicode letters mapped to their
+@@ -626,7 +627,7 @@ func ToLowerSpecial(c unicode.SpecialCase, s string) string {
+ }
+ 
+ // ToTitleSpecial returns a copy of the string s with all Unicode letters mapped to their
+-// title case, giving priority to the special casing rules.
++// Unicode title case, giving priority to the special casing rules.
+ func ToTitleSpecial(c unicode.SpecialCase, s string) string {
+ 	return Map(c.ToTitle, s)
+ }
+@@ -707,7 +708,7 @@ func isSeparator(r rune) bool {
+ }
+ 
+ // Title returns a copy of the string s with all Unicode letters that begin words
+-// mapped to their title case.
++// mapped to their Unicode title case.
+ //
+ // BUG(rsc): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
+ func Title(s string) string {

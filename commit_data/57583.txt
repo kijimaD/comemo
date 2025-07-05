@@ -27,7 +27,69 @@ Date:   Wed Aug 16 22:37:42 2023 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/typecheck/stmt.go |  2 +-
  test/fixedbugs/issue31573.go               | 24 ++++++++++++------------
  2 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 4c21f045af..93a147c335 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -241,7 +241,7 @@ func tcGoDefer(n *ir.GoDeferStmt) {
+ 		// the wrapper, so we don't need to allocate space for them within
+ 		// the closure.
+ 		switch arg.Op() {
+-		case ir.OLITERAL, ir.ONIL, ir.OMETHEXPR:
++		case ir.OLITERAL, ir.ONIL, ir.OMETHEXPR, ir.ONEW:
+ 			return
+ 		case ir.ONAME:
+ 			arg := arg.(*ir.Name)
+diff --git a/test/fixedbugs/issue31573.go b/test/fixedbugs/issue31573.go
+index a0cff3099a..5197163f04 100644
+--- a/test/fixedbugs/issue31573.go
++++ b/test/fixedbugs/issue31573.go
+@@ -19,31 +19,31 @@ func g() {
+ 	defer f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int{...} does not escape$" "new\(int\) does not escape$"
+ 
+ 	go f()
+-	go f(new(int))           // ERROR "... argument does not escape$" "new\(int\) escapes to heap$"
+-	go f(new(int), new(int)) // ERROR "... argument does not escape$" "new\(int\) escapes to heap$"
++	go f(new(int))           // ERROR "... argument does not escape$" "new\(int\) does not escape$"
++	go f(new(int), new(int)) // ERROR "... argument does not escape$" "new\(int\) does not escape$"
+ 
+ 	go f(nil...)
+ 	go f([]*int{}...)                   // ERROR "\[\]\*int{} does not escape$"
+-	go f([]*int{new(int)}...)           // ERROR "\[\]\*int{...} does not escape$" "new\(int\) escapes to heap$"
+-	go f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int{...} does not escape$" "new\(int\) escapes to heap$"
++	go f([]*int{new(int)}...)           // ERROR "\[\]\*int{...} does not escape$" "new\(int\) does not escape$"
++	go f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int{...} does not escape$" "new\(int\) does not escape$"
+ 
+ 	for {
+ 		defer f()
+-		defer f(new(int))           // ERROR "... argument does not escape$" "new\(int\) escapes to heap$"
+-		defer f(new(int), new(int)) // ERROR "... argument does not escape$" "new\(int\) escapes to heap$"
++		defer f(new(int))           // ERROR "... argument does not escape$" "new\(int\) does not escape$"
++		defer f(new(int), new(int)) // ERROR "... argument does not escape$" "new\(int\) does not escape$"
+ 
+ 		defer f(nil...)
+ 		defer f([]*int{}...)                   // ERROR "\[\]\*int{} does not escape$"
+-		defer f([]*int{new(int)}...)           // ERROR "\[\]\*int{...} does not escape$" "new\(int\) escapes to heap$"
+-		defer f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int{...} does not escape$" "new\(int\) escapes to heap$"
++		defer f([]*int{new(int)}...)           // ERROR "\[\]\*int{...} does not escape$" "new\(int\) does not escape$"
++		defer f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int{...} does not escape$" "new\(int\) does not escape$"
+ 
+ 		go f()
+-		go f(new(int))           // ERROR "... argument does not escape$" "new\(int\) escapes to heap$"
+-		go f(new(int), new(int)) // ERROR "... argument does not escape$" "new\(int\) escapes to heap$"
++		go f(new(int))           // ERROR "... argument does not escape$" "new\(int\) does not escape$"
++		go f(new(int), new(int)) // ERROR "... argument does not escape$" "new\(int\) does not escape$"
+ 
+ 		go f(nil...)
+ 		go f([]*int{}...)                   // ERROR "\[\]\*int{} does not escape$"
+-		go f([]*int{new(int)}...)           // ERROR "\[\]\*int{...} does not escape$" "new\(int\) escapes to heap$"
+-		go f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int{...} does not escape$" "new\(int\) escapes to heap$"
++		go f([]*int{new(int)}...)           // ERROR "\[\]\*int{...} does not escape$" "new\(int\) does not escape$"
++		go f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int{...} does not escape$" "new\(int\) does not escape$"
+ 	}
+ }

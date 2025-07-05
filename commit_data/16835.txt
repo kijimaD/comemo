@@ -9,6 +9,27 @@ Date:   Mon Jul 22 12:22:14 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/11556043
-
+---
  doc/articles/wiki/index.html | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/doc/articles/wiki/index.html b/doc/articles/wiki/index.html
+index ea3507f4df..5d290a2acc 100644
+--- a/doc/articles/wiki/index.html
++++ b/doc/articles/wiki/index.html
+@@ -128,11 +128,10 @@ In addition to saving pages, we will want to load pages, too:
+ {{code "doc/articles/wiki/part1-noerror.go" `/^func loadPage/` `/^}/`}}
+ 
+ <p>
+-The function <code>loadPage</code> constructs the file name from
+-the title parameter, reads the file's contents into a new
+-variable <code>body</code>, and returns two values: a pointer to a
+-<code>Page</code> literal constructed with the proper title and body
+-values and <code>nil</code> for the error value.
++The function <code>loadPage</code> constructs the file name from the title
++parameter, reads the file's contents into a new variable <code>body</code>, and
++returns a pointer to a <code>Page</code> literal constructed with the proper
++title and body values.
+ </p>
+ 
+ <p>

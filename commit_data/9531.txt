@@ -45,7 +45,7 @@ Date:   Mon Aug 29 09:35:04 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4964046
-
+---
  src/cmd/gc/bits.c      |  2 +-
  src/cmd/gc/closure.c   |  1 -
  src/cmd/gc/dcl.c       |  3 ---
@@ -63,3 +63,432 @@ Date:   Mon Aug 29 09:35:04 2011 -0400
  src/cmd/gc/typecheck.c |  8 ++++----
  src/cmd/gc/walk.c      | 10 +++-------
  16 files changed, 53 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/gc/bits.c b/src/cmd/gc/bits.c
+index ed695e9087..2d102adbfc 100644
+--- a/src/cmd/gc/bits.c
++++ b/src/cmd/gc/bits.c
+@@ -155,7 +155,7 @@ Qconv(Fmt *fp)
+ 		else {
+ 			fmtprint(fp, var[i].sym->name);
+ 			if(var[i].offset != 0)
+-				fmtprint(fp, "%+d", var[i].offset);
++				fmtprint(fp, "%+lld", (vlong)var[i].offset);
+ 		}
+ 		bits.b[i/32] &= ~(1L << (i%32));
+ 	}
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index af42685564..d29e8cbc28 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -59,7 +59,6 @@ closurebody(NodeList *body)
+ 		body = list1(nod(OEMPTY, N, N));
+ 
+ 	func = curfn;
+-	l = func->dcl;
+ 	func->nbody = body;
+ 	funcbody(func);
+ 
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 315f291a63..0ad696f46b 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -730,7 +730,6 @@ stotype(NodeList *l, int et, Type **t, int funarg)
+ 	for(; l; l=l->next) {
+ 		n = l->n;
+ 		lineno = n->lineno;
+-		note = nil;
+ 
+ 		if(n->op != ODCLFIELD)
+ 			fatal("stotype: oops %N\n", n);
+@@ -1141,8 +1140,6 @@ addmethod(Sym *sf, Type *t, int local)
+ 	Type *f, *d, *pa;
+ 	Node *n;
+ 
+-	pa = nil;
+-
+ 	// get field sym
+ 	if(sf == S)
+ 		fatal("no method symbol");
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index bc2ea33d7a..7dbe2c4cb8 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -317,7 +317,6 @@ gen(Node *n)
+ 	if(n == N)
+ 		goto ret;
+ 
+-	p3 = pc;	// save pc for loop labels
+ 	if(n->ninit)
+ 		genlist(n->ninit);
+ 
+@@ -576,7 +575,7 @@ cgen_callmeth(Node *n, int proc)
+ /*
+  * generate code to start new proc running call n.
+  */
+-void
++static void
+ cgen_proc(Node *n, int proc)
+ {
+ 	switch(n->left->op) {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ecd48ea6bb..2459e538ec 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1308,3 +1308,23 @@ void	zname(Biobuf *b, Sym *s, int t);
+ void	data(void);
+ void	text(void);
+ 
++#pragma	varargck	type	"A"	int
++#pragma	varargck	type	"B"	Mpint*
++#pragma	varargck	type	"D"	Addr*
++#pragma	varargck	type	"lD"	Addr*
++#pragma	varargck	type	"E"	int
++#pragma	varargck	type	"F"	Mpflt*
++#pragma	varargck	type	"J"	Node*
++#pragma	varargck	type	"L"	int
++#pragma	varargck	type	"L"	uint
++#pragma	varargck	type	"N"	Node*
++#pragma	varargck	type	"O"	uint
++#pragma	varargck	type	"P"	Prog*
++#pragma	varargck	type	"Q"	Bits
++#pragma	varargck	type	"R"	int
++#pragma	varargck	type	"S"	Sym*
++#pragma	varargck	type	"lS"	Sym*
++#pragma	varargck	type	"T"	Type*
++#pragma	varargck	type	"lT"	Type*
++#pragma	varargck	type	"Y"	char*
++#pragma	varargck	type	"Z"	Strlit*
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 3fba453839..c0aea9095a 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -65,7 +65,7 @@ yy_isalnum(int c)
+ #define isalpha use_yy_isalpha_instead_of_isalpha
+ #define isalnum use_yy_isalnum_instead_of_isalnum
+ 
+-#define	DBG	if(!debug['x']);else print
++#define	DBG	if(!debug['x']){}else print
+ enum
+ {
+ 	EOF		= -1,
+@@ -92,7 +92,7 @@ usage(void)
+ 	print("  -u disable package unsafe\n");
+ 	print("  -w print the parse tree after typing\n");
+ 	print("  -x print lex tokens\n");
+-	exit(0);
++	exits(0);
+ }
+ 
+ void
+@@ -115,9 +115,11 @@ main(int argc, char *argv[])
+ 	int i, c;
+ 	NodeList *l;
+ 	char *p;
+-	
++
++#ifdef	SIGBUS	
+ 	signal(SIGBUS, fault);
+ 	signal(SIGSEGV, fault);
++#endif
+ 
+ 	localpkg = mkpkg(strlit(""));
+ 	localpkg->prefix = "\"\"";
+@@ -163,7 +165,7 @@ main(int argc, char *argv[])
+ 
+ 	case 'V':
+ 		print("%cg version %s\n", thechar, getgoversion());
+-		exit(0);
++		exits(0);
+ 	} ARGEND
+ 
+ 	if(argc < 1)
+@@ -311,7 +313,7 @@ main(int argc, char *argv[])
+ 		errorexit();
+ 
+ 	flusherrors();
+-	exit(0);
++	exits(0);
+ 	return 0;
+ }
+ 
+@@ -681,7 +683,6 @@ l0:
+ 			ep = lexbuf+sizeof lexbuf;
+ 			*cp++ = c;
+ 			c = c1;
+-			c1 = 0;
+ 			goto casedot;
+ 		}
+ 		if(c1 == '.') {
+@@ -1072,7 +1073,6 @@ talph:
+ 	return s->lexical;
+ 
+ tnum:
+-	c1 = 0;
+ 	cp = lexbuf;
+ 	ep = lexbuf+sizeof lexbuf;
+ 	if(c != '0') {
+diff --git a/src/cmd/gc/mparith2.c b/src/cmd/gc/mparith2.c
+index 16eb4abaa2..71cc29c99a 100644
+--- a/src/cmd/gc/mparith2.c
++++ b/src/cmd/gc/mparith2.c
+@@ -351,6 +351,7 @@ mporfixfix(Mpint *a, Mpint *b)
+ 	int i;
+ 	long x, *a1, *b1;
+ 
++	x = 0;
+ 	if(a->ovf || b->ovf) {
+ 		yyerror("ovf in mporfixfix");
+ 		mpmovecfix(a, 0);
+@@ -385,6 +386,7 @@ mpandfixfix(Mpint *a, Mpint *b)
+ 	int i;
+ 	long x, *a1, *b1;
+ 
++	x = 0;
+ 	if(a->ovf || b->ovf) {
+ 		yyerror("ovf in mpandfixfix");
+ 		mpmovecfix(a, 0);
+@@ -419,6 +421,7 @@ mpandnotfixfix(Mpint *a, Mpint *b)
+ 	int i;
+ 	long x, *a1, *b1;
+ 
++	x = 0;
+ 	if(a->ovf || b->ovf) {
+ 		yyerror("ovf in mpandnotfixfix");
+ 		mpmovecfix(a, 0);
+@@ -453,6 +456,7 @@ mpxorfixfix(Mpint *a, Mpint *b)
+ 	int i;
+ 	long x, *a1, *b1;
+ 
++	x = 0;
+ 	if(a->ovf || b->ovf) {
+ 		yyerror("ovf in mporfixfix");
+ 		mpmovecfix(a, 0);
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 23b5e03b0d..ef5c3214d4 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -270,7 +270,7 @@ stringsym(char *s, int len)
+ 		tmp.lit.len = len;
+ 		memmove(tmp.lit.s, s, len);
+ 		tmp.lit.s[len] = '\0';
+-		snprint(namebuf, sizeof(namebuf), "\"%Z\"", &tmp);
++		snprint(namebuf, sizeof(namebuf), "\"%Z\"", &tmp.lit);
+ 		pkg = gostringpkg;
+ 	}
+ 	sym = pkglookup(namebuf, pkg);
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 78288e2223..53aa83b149 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -117,7 +117,7 @@ compile(Node *fn)
+ 	oldstksize = stksize;
+ 	compactframe(ptxt);
+ 	if(0)
+-		print("compactframe: %ld to %ld\n", oldstksize, stksize);
++		print("compactframe: %lld to %lld\n", oldstksize, (vlong)stksize);
+ 
+ 	defframe(ptxt);
+ 
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 26edf8c3a7..bb22d234c5 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -113,8 +113,6 @@ walkrange(Node *n)
+ 	}
+ 
+ 	v1 = n->list->n;
+-	hv1 = N;
+-
+ 	v2 = N;
+ 	if(n->list->next)
+ 		v2 = n->list->next->n;
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 4daa1499b8..045a2aa275 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -586,7 +586,6 @@ dcommontype(Sym *s, int ot, Type *t)
+ 
+ 	dowidth(t);
+ 	
+-	sptr = nil;
+ 	if(t->sym != nil && !isptr[t->etype])
+ 		sptr = dtypesym(ptrto(t));
+ 	else
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 58fa5b9ec4..1b92781b52 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -529,6 +529,7 @@ maplit(int ctxt, Node *n, Node *var, NodeList **init)
+ 	Node *vstat, *index, *value;
+ 	Sym *syma, *symb;
+ 
++USED(ctxt);
+ ctxt = 0;
+ 
+ 	// make the map var
+@@ -552,7 +553,6 @@ ctxt = 0;
+ 			b++;
+ 	}
+ 
+-	t = T;
+ 	if(b != 0) {
+ 		// build type [count]struct { a Tindex, b Tvalue }
+ 		t = n->type;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 8699b0d222..795c128109 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -29,7 +29,7 @@ errorexit(void)
+ 	flusherrors();
+ 	if(outfile)
+ 		remove(outfile);
+-	exit(1);
++	exits("error");
+ }
+ 
+ extern int yychar;
+@@ -108,7 +108,7 @@ hcrash(void)
+ 	if(debug['h']) {
+ 		flusherrors();
+ 		if(outfile)
+-			unlink(outfile);
++			remove(outfile);
+ 		*(volatile int*)0 = 0;
+ 	}
+ }
+@@ -2840,10 +2840,12 @@ setmaxarg(Type *t)
+ 		maxarg = w;
+ }
+ 
+-/* unicode-aware case-insensitive strcmp */
++/*
++ * unicode-aware case-insensitive strcmp
++ */
+ 
+ static int
+-cistrcmp(char *p, char *q)
++ucistrcmp(char *p, char *q)
+ {
+ 	Rune rp, rq;
+ 
+@@ -2885,7 +2887,7 @@ lookdot0(Sym *s, Type *t, Type **save, int ignorecase)
+ 	c = 0;
+ 	if(u->etype == TSTRUCT || u->etype == TINTER) {
+ 		for(f=u->type; f!=T; f=f->down)
+-			if(f->sym == s || (ignorecase && cistrcmp(f->sym->name, s->name) == 0)) {
++			if(f->sym == s || (ignorecase && ucistrcmp(f->sym->name, s->name) == 0)) {
+ 				if(save)
+ 					*save = f;
+ 				c++;
+@@ -2894,7 +2896,7 @@ lookdot0(Sym *s, Type *t, Type **save, int ignorecase)
+ 	u = methtype(t);
+ 	if(u != T) {
+ 		for(f=u->method; f!=T; f=f->down)
+-			if(f->embedded == 0 && (f->sym == s || (ignorecase && cistrcmp(f->sym->name, s->name) == 0))) {
++			if(f->embedded == 0 && (f->sym == s || (ignorecase && ucistrcmp(f->sym->name, s->name) == 0))) {
+ 				if(save)
+ 					*save = f;
+ 				c++;
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 6f2028c7fc..163cdb84e2 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -867,9 +867,9 @@ typecheckswitch(Node *n)
+ 						yyerror("case %+N in %T switch", ll->n, t);
+ 					break;
+ 				case Etype:	// type switch
+-					if(ll->n->op == OLITERAL && istype(ll->n->type, TNIL))
++					if(ll->n->op == OLITERAL && istype(ll->n->type, TNIL)) {
+ 						;
+-					else if(ll->n->op != OTYPE && ll->n->type != T) {
++					} else if(ll->n->op != OTYPE && ll->n->type != T) {
+ 						yyerror("%#N is not a type", ll->n);
+ 						// reset to original type
+ 						ll->n = n->ntest->right;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 0f16407859..08a69d17cc 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -38,7 +38,7 @@ static	NodeList*	typecheckdefstack;
+ /*
+  * resolve ONONAME to definition, if any.
+  */
+-Node*
++static Node*
+ resolve(Node *n)
+ {
+ 	Node *r;
+@@ -724,7 +724,7 @@ reswitch:
+ 		}
+ 		defaultlit(&n->right, t->type);
+ 		r = n->right;
+-		if((t = r->type) == T)
++		if(r->type == T)
+ 			goto error;
+ 		r = assignconv(r, l->type->type, "send");
+ 		// TODO: more aggressive
+@@ -1073,7 +1073,7 @@ reswitch:
+ 			goto error;
+ 		if((n->op = convertop(t, n->type, &why)) == 0) {
+ 			yyerror("cannot convert %+N to type %T%s", n->left, n->type, why);
+-			op = OCONV;
++			n->op = OCONV;
+ 		}
+ 		switch(n->op) {
+ 		case OCONVNOP:
+@@ -2443,7 +2443,7 @@ getforwtype(Node *n)
+ {
+ 	Node *f1, *f2;
+ 
+-	for(f1=f2=n; ; n=n->ntype) {
++	for(f2=n; ; n=n->ntype) {
+ 		if((n = resolve(n)) == N || n->op != OTYPE)
+ 			return T;
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 794d65205a..7ca7257179 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -380,14 +380,11 @@ walkexpr(Node **np, NodeList **init)
+ 		fatal("missed typecheck");
+ 	}
+ 
+-	t = T;
+-	et = Txxx;
+-
+ 	switch(n->op) {
+ 	default:
+ 		dump("walk", n);
+ 		fatal("walkexpr: switch 1 unknown op %N", n);
+-		goto ret;
++		break;
+ 
+ 	case OTYPE:
+ 	case ONONAME:
+@@ -1364,7 +1361,6 @@ dumptypes(Type **nl, char *what)
+ 
+ 	fmtstrinit(&fmt);
+ 	fmtprint(&fmt, "\t");
+-	l = structfirst(&savel, nl);
+ 	first = 1;
+ 	for(l = structfirst(&savel, nl); l != T; l = structnext(&savel)) {
+ 		if(first)
+@@ -1745,7 +1741,7 @@ out:
+  * then it is done first. otherwise must
+  * make temp variables
+  */
+-NodeList*
++static NodeList*
+ reorder1(NodeList *all)
+ {
+ 	Node *f, *a, *n;
+@@ -1871,7 +1867,7 @@ vmatch1(Node *l, Node *r)
+ 	return 0;
+ }
+ 
+-NodeList*
++static NodeList*
+ reorder3(NodeList *all)
+ {
+ 	Node *n1, *n2, *q;

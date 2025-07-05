@@ -20,7 +20,41 @@ Date:   Tue Aug 11 13:19:57 2020 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/racewalk.go | 2 +-
  src/cmd/compile/internal/ssa/rewrite.go | 9 +++++++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 6f251377c9..3552617401 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -42,7 +42,7 @@ var omit_pkgs = []string{
+ 	"internal/cpu",
+ }
+ 
+-// Only insert racefuncenterfp/racefuncexit into the following packages.
++// Don't insert racefuncenterfp/racefuncexit into the following packages.
+ // Memory accesses in the packages are either uninteresting or will cause false positives.
+ var norace_inst_pkgs = []string{"sync", "sync/atomic"}
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 2152b1675a..e082bb1dfa 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1379,6 +1379,15 @@ func needRaceCleanup(sym Sym, v *Value) bool {
+ 			}
+ 		}
+ 	}
++	if symNamed(sym, "runtime.racefuncenter") {
++		// If we're removing racefuncenter, remove its argument as well.
++		if v.Args[0].Op != OpStore {
++			return false
++		}
++		mem := v.Args[0].Args[2]
++		v.Args[0].reset(OpCopy)
++		v.Args[0].AddArg(mem)
++	}
+ 	return true
+ }
+ 

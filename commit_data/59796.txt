@@ -19,6 +19,33 @@ Date:   Tue Apr 23 15:42:22 2024 -0700
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/bytes/buffer_test.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/bytes/buffer_test.go b/src/bytes/buffer_test.go
+index 845e5e2209..322e7367c7 100644
+--- a/src/bytes/buffer_test.go
++++ b/src/bytes/buffer_test.go
+@@ -94,6 +94,21 @@ func TestNewBuffer(t *testing.T) {
+ 	check(t, "NewBuffer", buf, testString)
+ }
+ 
++var buf Buffer
++
++// Calling NewBuffer and immediately shallow copying the Buffer struct
++// should not result in any allocations.
++// This can be used to reset the underlying []byte of an existing Buffer.
++func TestNewBufferShallow(t *testing.T) {
++	n := testing.AllocsPerRun(1000, func() {
++		buf = *NewBuffer(testBytes)
++	})
++	if n > 0 {
++		t.Errorf("allocations occurred while shallow copying")
++	}
++	check(t, "NewBuffer", &buf, testString)
++}
++
+ func TestNewBufferString(t *testing.T) {
+ 	buf := NewBufferString(testString)
+ 	check(t, "NewBufferString", buf, testString)

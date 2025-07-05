@@ -8,7 +8,7 @@ Date:   Thu Aug 1 13:27:27 2013 +1000
     R=adg
     CC=golang-dev
     https://golang.org/cl/12213043
-
+---
  misc/dashboard/README                      |  26 --
  misc/dashboard/app/app.yaml                |  20 -
  misc/dashboard/app/build/build.go          | 330 ---------------
@@ -30,3 +30,3226 @@ Date:   Thu Aug 1 13:27:27 2013 +1000
  misc/dashboard/builder/main.go             | 653 -----------------------------
  misc/dashboard/builder/vcs.go              | 148 -------
  20 files changed, 3106 deletions(-)
+
+diff --git a/misc/dashboard/README b/misc/dashboard/README
+deleted file mode 100644
+index d599f3d063..0000000000
+--- a/misc/dashboard/README
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-The files in this directory constitute the continuous builder:
+-
+-app/:     an AppEngine server
+-builder/: gobuilder, a Go continuous build client
+-
+-If you wish to run a Go builder, please email golang-dev@googlegroups.com
+-
+-To run a builder:
+-
+-* Write the key ~gobuild/.gobuildkey 
+-  You need to get it from someone who knows the key.
+-  You may also use a filename of the form .gobuildkey-$BUILDER if you
+-  wish to run builders for multiple targets.
+-
+-* Append your username and password googlecode.com credentials from
+-    https://code.google.com/hosting/settings
+-  to the buildkey file in the format "Username\nPassword\n".
+-  (This is for uploading tarballs to the project downloads section,
+-   and is an optional step.)
+-
+-* Build and run gobuilder (see its documentation for command-line options).
+-
+diff --git a/misc/dashboard/app/app.yaml b/misc/dashboard/app/app.yaml
+deleted file mode 100644
+index c5a1f6cb8a..0000000000
+--- a/misc/dashboard/app/app.yaml
++++ /dev/null
+@@ -1,20 +0,0 @@
+-# Update with
+-#	google_appengine/appcfg.py [-V test-build] update .
+-#
+-# Using -V test-build will run as test-build.golang.org.
+-
+-application: golang-org
+-version: build
+-runtime: go
+-api_version: go1
+-
+-handlers:
+-- url: /static
+-  static_dir: static
+-- url: /log/.+
+-  script: _go_app
+-- url: /(|commit|packages|result|tag|todo)
+-  script: _go_app
+-- url: /(init|buildtest|key|_ah/queue/go/delay)
+-  script: _go_app
+-  login: admin
+diff --git a/misc/dashboard/app/build/build.go b/misc/dashboard/app/build/build.go
+deleted file mode 100644
+index 47ad8dec50..0000000000
+--- a/misc/dashboard/app/build/build.go
++++ /dev/null
+@@ -1,330 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package build
+-
+-import (
+-	"bytes"
+-	"compress/gzip"
+-	"crypto/sha1"
+-	"errors"
+-	"fmt"
+-	"io"
+-	"io/ioutil"
+-	"strings"
+-	"time"
+-
+-	"appengine"
+-	"appengine/datastore"
+-)
+-
+-const maxDatastoreStringLen = 500
+-
+-// A Package describes a package that is listed on the dashboard.
+-type Package struct {
+-	Kind    string // "subrepo", "external", or empty for the main Go tree
+-	Name    string
+-	Path    string // (empty for the main Go tree)
+-	NextNum int    // Num of the next head Commit
+-}
+-
+-func (p *Package) String() string {
+-	return fmt.Sprintf("%s: %q", p.Path, p.Name)
+-}
+-
+-func (p *Package) Key(c appengine.Context) *datastore.Key {
+-	key := p.Path
+-	if key == "" {
+-		key = "go"
+-	}
+-	return datastore.NewKey(c, "Package", key, 0, nil)
+-}
+-
+-// LastCommit returns the most recent Commit for this Package.
+-func (p *Package) LastCommit(c appengine.Context) (*Commit, error) {
+-	var commits []*Commit
+-	_, err := datastore.NewQuery("Commit").
+-		Ancestor(p.Key(c)).
+-		Order("-Time").
+-		Limit(1).
+-		GetAll(c, &commits)
+-	if _, ok := err.(*datastore.ErrFieldMismatch); ok {
+-		// Some fields have been removed, so it's okay to ignore this error.
+-		err = nil
+-	}
+-	if err != nil {
+-		return nil, err
+-	}
+-	if len(commits) != 1 {
+-		return nil, datastore.ErrNoSuchEntity
+-	}
+-	return commits[0], nil
+-}
+-
+-// GetPackage fetches a Package by path from the datastore.
+-func GetPackage(c appengine.Context, path string) (*Package, error) {
+-	p := &Package{Path: path}
+-	err := datastore.Get(c, p.Key(c), p)
+-	if err == datastore.ErrNoSuchEntity {
+-		return nil, fmt.Errorf("package %q not found", path)
+-	}
+-	if _, ok := err.(*datastore.ErrFieldMismatch); ok {
+-		// Some fields have been removed, so it's okay to ignore this error.
+-		err = nil
+-	}
+-	return p, err
+-}
+-
+-// A Commit describes an individual commit in a package.
+-//
+-// Each Commit entity is a descendant of its associated Package entity.
+-// In other words, all Commits with the same PackagePath belong to the same
+-// datastore entity group.
+-type Commit struct {
+-	PackagePath string // (empty for Go commits)
+-	Hash        string
+-	ParentHash  string
+-	Num         int // Internal monotonic counter unique to this package.
+-
+-	User string
+-	Desc string `datastore:",noindex"`
+-	Time time.Time
+-
+-	// ResultData is the Data string of each build Result for this Commit.
+-	// For non-Go commits, only the Results for the current Go tip, weekly,
+-	// and release Tags are stored here. This is purely de-normalized data.
+-	// The complete data set is stored in Result entities.
+-	ResultData []string `datastore:",noindex"`
+-
+-	FailNotificationSent bool
+-}
+-
+-func (com *Commit) Key(c appengine.Context) *datastore.Key {
+-	if com.Hash == "" {
+-		panic("tried Key on Commit with empty Hash")
+-	}
+-	p := Package{Path: com.PackagePath}
+-	key := com.PackagePath + "|" + com.Hash
+-	return datastore.NewKey(c, "Commit", key, 0, p.Key(c))
+-}
+-
+-func (c *Commit) Valid() error {
+-	if !validHash(c.Hash) {
+-		return errors.New("invalid Hash")
+-	}
+-	if c.ParentHash != "" && !validHash(c.ParentHash) { // empty is OK
+-		return errors.New("invalid ParentHash")
+-	}
+-	return nil
+-}
+-
+-// each result line is approx 105 bytes. This constant is a tradeoff between
+-// build history and the AppEngine datastore limit of 1mb.
+-const maxResults = 1000
+-
+-// AddResult adds the denormalized Result data to the Commit's Result field.
+-// It must be called from inside a datastore transaction.
+-func (com *Commit) AddResult(c appengine.Context, r *Result) error {
+-	if err := datastore.Get(c, com.Key(c), com); err != nil {
+-		return fmt.Errorf("getting Commit: %v", err)
+-	}
+-	com.ResultData = trim(append(com.ResultData, r.Data()), maxResults)
+-	if _, err := datastore.Put(c, com.Key(c), com); err != nil {
+-		return fmt.Errorf("putting Commit: %v", err)
+-	}
+-	return nil
+-}
+-
+-func trim(s []string, n int) []string {
+-	l := min(len(s), n)
+-	return s[len(s)-l:]
+-}
+-
+-func min(a, b int) int {
+-	if a < b {
+-		return a
+-	}
+-	return b
+-}
+-
+-// Result returns the build Result for this Commit for the given builder/goHash.
+-func (c *Commit) Result(builder, goHash string) *Result {
+-	for _, r := range c.ResultData {
+-		p := strings.SplitN(r, "|", 4)
+-		if len(p) != 4 || p[0] != builder || p[3] != goHash {
+-			continue
+-		}
+-		return partsToHash(c, p)
+-	}
+-	return nil
+-}
+-
+-// Results returns the build Results for this Commit for the given goHash.
+-func (c *Commit) Results(goHash string) (results []*Result) {
+-	for _, r := range c.ResultData {
+-		p := strings.SplitN(r, "|", 4)
+-		if len(p) != 4 || p[3] != goHash {
+-			continue
+-		}
+-		results = append(results, partsToHash(c, p))
+-	}
+-	return
+-}
+-
+-// partsToHash converts a Commit and ResultData substrings to a Result.
+-func partsToHash(c *Commit, p []string) *Result {
+-	return &Result{
+-		Builder:     p[0],
+-		Hash:        c.Hash,
+-		PackagePath: c.PackagePath,
+-		GoHash:      p[3],
+-		OK:          p[1] == "true",
+-		LogHash:     p[2],
+-	}
+-}
+-
+-// A Result describes a build result for a Commit on an OS/architecture.
+-//
+-// Each Result entity is a descendant of its associated Commit entity.
+-type Result struct {
+-	Builder     string // "os-arch[-note]"
+-	Hash        string
+-	PackagePath string // (empty for Go commits)
+-
+-	// The Go Commit this was built against (empty for Go commits).
+-	GoHash string
+-
+-	OK      bool
+-	Log     string `datastore:"-"`        // for JSON unmarshaling only
+-	LogHash string `datastore:",noindex"` // Key to the Log record.
+-
+-	RunTime int64 // time to build+test in nanoseconds
+-}
+-
+-func (r *Result) Key(c appengine.Context) *datastore.Key {
+-	p := Package{Path: r.PackagePath}
+-	key := r.Builder + "|" + r.PackagePath + "|" + r.Hash + "|" + r.GoHash
+-	return datastore.NewKey(c, "Result", key, 0, p.Key(c))
+-}
+-
+-func (r *Result) Valid() error {
+-	if !validHash(r.Hash) {
+-		return errors.New("invalid Hash")
+-	}
+-	if r.PackagePath != "" && !validHash(r.GoHash) {
+-		return errors.New("invalid GoHash")
+-	}
+-	return nil
+-}
+-
+-// Data returns the Result in string format
+-// to be stored in Commit's ResultData field.
+-func (r *Result) Data() string {
+-	return fmt.Sprintf("%v|%v|%v|%v", r.Builder, r.OK, r.LogHash, r.GoHash)
+-}
+-
+-// A Log is a gzip-compressed log file stored under the SHA1 hash of the
+-// uncompressed log text.
+-type Log struct {
+-	CompressedLog []byte
+-}
+-
+-func (l *Log) Text() ([]byte, error) {
+-	d, err := gzip.NewReader(bytes.NewBuffer(l.CompressedLog))
+-	if err != nil {
+-		return nil, fmt.Errorf("reading log data: %v", err)
+-	}
+-	b, err := ioutil.ReadAll(d)
+-	if err != nil {
+-		return nil, fmt.Errorf("reading log data: %v", err)
+-	}
+-	return b, nil
+-}
+-
+-func PutLog(c appengine.Context, text string) (hash string, err error) {
+-	h := sha1.New()
+-	io.WriteString(h, text)
+-	b := new(bytes.Buffer)
+-	z, _ := gzip.NewWriterLevel(b, gzip.BestCompression)
+-	io.WriteString(z, text)
+-	z.Close()
+-	hash = fmt.Sprintf("%x", h.Sum(nil))
+-	key := datastore.NewKey(c, "Log", hash, 0, nil)
+-	_, err = datastore.Put(c, key, &Log{b.Bytes()})
+-	return
+-}
+-
+-// A Tag is used to keep track of the most recent Go weekly and release tags.
+-// Typically there will be one Tag entity for each kind of hg tag.
+-type Tag struct {
+-	Kind string // "weekly", "release", or "tip"
+-	Name string // the tag itself (for example: "release.r60")
+-	Hash string
+-}
+-
+-func (t *Tag) Key(c appengine.Context) *datastore.Key {
+-	p := &Package{}
+-	return datastore.NewKey(c, "Tag", t.Kind, 0, p.Key(c))
+-}
+-
+-func (t *Tag) Valid() error {
+-	if t.Kind != "weekly" && t.Kind != "release" && t.Kind != "tip" {
+-		return errors.New("invalid Kind")
+-	}
+-	if !validHash(t.Hash) {
+-		return errors.New("invalid Hash")
+-	}
+-	return nil
+-}
+-
+-// Commit returns the Commit that corresponds with this Tag.
+-func (t *Tag) Commit(c appengine.Context) (*Commit, error) {
+-	com := &Commit{Hash: t.Hash}
+-	err := datastore.Get(c, com.Key(c), com)
+-	return com, err
+-}
+-
+-// GetTag fetches a Tag by name from the datastore.
+-func GetTag(c appengine.Context, tag string) (*Tag, error) {
+-	t := &Tag{Kind: tag}
+-	if err := datastore.Get(c, t.Key(c), t); err != nil {
+-		if err == datastore.ErrNoSuchEntity {
+-			return nil, errors.New("tag not found: " + tag)
+-		}
+-		return nil, err
+-	}
+-	if err := t.Valid(); err != nil {
+-		return nil, err
+-	}
+-	return t, nil
+-}
+-
+-// Packages returns packages of the specified kind.
+-// Kind must be one of "external" or "subrepo".
+-func Packages(c appengine.Context, kind string) ([]*Package, error) {
+-	switch kind {
+-	case "external", "subrepo":
+-	default:
+-		return nil, errors.New(`kind must be one of "external" or "subrepo"`)
+-	}
+-	var pkgs []*Package
+-	q := datastore.NewQuery("Package").Filter("Kind=", kind)
+-	for t := q.Run(c); ; {
+-		pkg := new(Package)
+-		_, err := t.Next(pkg)
+-		if _, ok := err.(*datastore.ErrFieldMismatch); ok {
+-			// Some fields have been removed, so it's okay to ignore this error.
+-			err = nil
+-		}
+-		if err == datastore.Done {
+-			break
+-		} else if err != nil {
+-			return nil, err
+-		}
+-		if pkg.Path != "" {
+-			pkgs = append(pkgs, pkg)
+-		}
+-	}
+-	return pkgs, nil
+-}
+diff --git a/misc/dashboard/app/build/handler.go b/misc/dashboard/app/build/handler.go
+deleted file mode 100644
+index 4ba05e3a6f..0000000000
+--- a/misc/dashboard/app/build/handler.go
++++ /dev/null
+@@ -1,447 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package build
+-
+-import (
+-	"crypto/hmac"
+-	"crypto/md5"
+-	"encoding/json"
+-	"errors"
+-	"fmt"
+-	"net/http"
+-	"strings"
+-
+-	"appengine"
+-	"appengine/datastore"
+-	"cache"
+-)
+-
+-const commitsPerPage = 30
+-
+-// commitHandler retrieves commit data or records a new commit.
+-//
+-// For GET requests it returns a Commit value for the specified
+-// packagePath and hash.
+-//
+-// For POST requests it reads a JSON-encoded Commit value from the request
+-// body and creates a new Commit entity. It also updates the "tip" Tag for
+-// each new commit at tip.
+-//
+-// This handler is used by a gobuilder process in -commit mode.
+-func commitHandler(r *http.Request) (interface{}, error) {
+-	c := appengine.NewContext(r)
+-	com := new(Commit)
+-
+-	if r.Method == "GET" {
+-		com.PackagePath = r.FormValue("packagePath")
+-		com.Hash = r.FormValue("hash")
+-		if err := datastore.Get(c, com.Key(c), com); err != nil {
+-			return nil, fmt.Errorf("getting Commit: %v", err)
+-		}
+-		return com, nil
+-	}
+-	if r.Method != "POST" {
+-		return nil, errBadMethod(r.Method)
+-	}
+-
+-	// POST request
+-	defer r.Body.Close()
+-	if err := json.NewDecoder(r.Body).Decode(com); err != nil {
+-		return nil, fmt.Errorf("decoding Body: %v", err)
+-	}
+-	if len(com.Desc) > maxDatastoreStringLen {
+-		com.Desc = com.Desc[:maxDatastoreStringLen]
+-	}
+-	if err := com.Valid(); err != nil {
+-		return nil, fmt.Errorf("validating Commit: %v", err)
+-	}
+-	defer cache.Tick(c)
+-	tx := func(c appengine.Context) error {
+-		return addCommit(c, com)
+-	}
+-	return nil, datastore.RunInTransaction(c, tx, nil)
+-}
+-
+-// addCommit adds the Commit entity to the datastore and updates the tip Tag.
+-// It must be run inside a datastore transaction.
+-func addCommit(c appengine.Context, com *Commit) error {
+-	var tc Commit // temp value so we don't clobber com
+-	err := datastore.Get(c, com.Key(c), &tc)
+-	if err != datastore.ErrNoSuchEntity {
+-		// if this commit is already in the datastore, do nothing
+-		if err == nil {
+-			return nil
+-		}
+-		return fmt.Errorf("getting Commit: %v", err)
+-	}
+-	// get the next commit number
+-	p, err := GetPackage(c, com.PackagePath)
+-	if err != nil {
+-		return fmt.Errorf("GetPackage: %v", err)
+-	}
+-	com.Num = p.NextNum
+-	p.NextNum++
+-	if _, err := datastore.Put(c, p.Key(c), p); err != nil {
+-		return fmt.Errorf("putting Package: %v", err)
+-	}
+-	// if this isn't the first Commit test the parent commit exists
+-	if com.Num > 0 {
+-		n, err := datastore.NewQuery("Commit").
+-			Filter("Hash =", com.ParentHash).
+-			Ancestor(p.Key(c)).
+-			Count(c)
+-		if err != nil {
+-			return fmt.Errorf("testing for parent Commit: %v", err)
+-		}
+-		if n == 0 {
+-			return errors.New("parent commit not found")
+-		}
+-	}
+-	// update the tip Tag if this is the Go repo and this isn't on a release branch
+-	if p.Path == "" && !strings.HasPrefix(com.Desc, "[release-branch") {
+-		t := &Tag{Kind: "tip", Hash: com.Hash}
+-		if _, err = datastore.Put(c, t.Key(c), t); err != nil {
+-			return fmt.Errorf("putting Tag: %v", err)
+-		}
+-	}
+-	// put the Commit
+-	if _, err = datastore.Put(c, com.Key(c), com); err != nil {
+-		return fmt.Errorf("putting Commit: %v", err)
+-	}
+-	return nil
+-}
+-
+-// tagHandler records a new tag. It reads a JSON-encoded Tag value from the
+-// request body and updates the Tag entity for the Kind of tag provided.
+-//
+-// This handler is used by a gobuilder process in -commit mode.
+-func tagHandler(r *http.Request) (interface{}, error) {
+-	if r.Method != "POST" {
+-		return nil, errBadMethod(r.Method)
+-	}
+-
+-	t := new(Tag)
+-	defer r.Body.Close()
+-	if err := json.NewDecoder(r.Body).Decode(t); err != nil {
+-		return nil, err
+-	}
+-	if err := t.Valid(); err != nil {
+-		return nil, err
+-	}
+-	c := appengine.NewContext(r)
+-	defer cache.Tick(c)
+-	_, err := datastore.Put(c, t.Key(c), t)
+-	return nil, err
+-}
+-
+-// Todo is a todoHandler response.
+-type Todo struct {
+-	Kind string // "build-go-commit" or "build-package"
+-	Data interface{}
+-}
+-
+-// todoHandler returns the next action to be performed by a builder.
+-// It expects "builder" and "kind" query parameters and returns a *Todo value.
+-// Multiple "kind" parameters may be specified.
+-func todoHandler(r *http.Request) (interface{}, error) {
+-	c := appengine.NewContext(r)
+-	now := cache.Now(c)
+-	key := "build-todo-" + r.Form.Encode()
+-	var todo *Todo
+-	if cache.Get(r, now, key, &todo) {
+-		return todo, nil
+-	}
+-	var err error
+-	builder := r.FormValue("builder")
+-	for _, kind := range r.Form["kind"] {
+-		var data interface{}
+-		switch kind {
+-		case "build-go-commit":
+-			data, err = buildTodo(c, builder, "", "")
+-		case "build-package":
+-			packagePath := r.FormValue("packagePath")
+-			goHash := r.FormValue("goHash")
+-			data, err = buildTodo(c, builder, packagePath, goHash)
+-		}
+-		if data != nil || err != nil {
+-			todo = &Todo{Kind: kind, Data: data}
+-			break
+-		}
+-	}
+-	if err == nil {
+-		cache.Set(r, now, key, todo)
+-	}
+-	return todo, err
+-}
+-
+-// buildTodo returns the next Commit to be built (or nil if none available).
+-//
+-// If packagePath and goHash are empty, it scans the first 20 Go Commits in
+-// Num-descending order and returns the first one it finds that doesn't have a
+-// Result for this builder.
+-//
+-// If provided with non-empty packagePath and goHash args, it scans the first
+-// 20 Commits in Num-descending order for the specified packagePath and
+-// returns the first that doesn't have a Result for this builder and goHash.
+-func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interface{}, error) {
+-	p, err := GetPackage(c, packagePath)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	t := datastore.NewQuery("Commit").
+-		Ancestor(p.Key(c)).
+-		Limit(commitsPerPage).
+-		Order("-Num").
+-		Run(c)
+-	for {
+-		com := new(Commit)
+-		if _, err := t.Next(com); err == datastore.Done {
+-			break
+-		} else if err != nil {
+-			return nil, err
+-		}
+-		if com.Result(builder, goHash) == nil {
+-			return com, nil
+-		}
+-	}
+-
+-	// Nothing left to do if this is a package (not the Go tree).
+-	if packagePath != "" {
+-		return nil, nil
+-	}
+-
+-	// If there are no Go tree commits left to build,
+-	// see if there are any subrepo commits that need to be built at tip.
+-	// If so, ask the builder to build a go tree at the tip commit.
+-	// TODO(adg): do the same for "weekly" and "release" tags.
+-
+-	tag, err := GetTag(c, "tip")
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	// Check that this Go commit builds OK for this builder.
+-	// If not, don't re-build as the subrepos will never get built anyway.
+-	com, err := tag.Commit(c)
+-	if err != nil {
+-		return nil, err
+-	}
+-	if r := com.Result(builder, ""); r != nil && !r.OK {
+-		return nil, nil
+-	}
+-
+-	pkgs, err := Packages(c, "subrepo")
+-	if err != nil {
+-		return nil, err
+-	}
+-	for _, pkg := range pkgs {
+-		com, err := pkg.LastCommit(c)
+-		if err != nil {
+-			c.Warningf("%v: no Commit found: %v", pkg, err)
+-			continue
+-		}
+-		if com.Result(builder, tag.Hash) == nil {
+-			return tag.Commit(c)
+-		}
+-	}
+-
+-	return nil, nil
+-}
+-
+-// packagesHandler returns a list of the non-Go Packages monitored
+-// by the dashboard.
+-func packagesHandler(r *http.Request) (interface{}, error) {
+-	kind := r.FormValue("kind")
+-	c := appengine.NewContext(r)
+-	now := cache.Now(c)
+-	key := "build-packages-" + kind
+-	var p []*Package
+-	if cache.Get(r, now, key, &p) {
+-		return p, nil
+-	}
+-	p, err := Packages(c, kind)
+-	if err != nil {
+-		return nil, err
+-	}
+-	cache.Set(r, now, key, p)
+-	return p, nil
+-}
+-
+-// resultHandler records a build result.
+-// It reads a JSON-encoded Result value from the request body,
+-// creates a new Result entity, and updates the relevant Commit entity.
+-// If the Log field is not empty, resultHandler creates a new Log entity
+-// and updates the LogHash field before putting the Commit entity.
+-func resultHandler(r *http.Request) (interface{}, error) {
+-	if r.Method != "POST" {
+-		return nil, errBadMethod(r.Method)
+-	}
+-
+-	c := appengine.NewContext(r)
+-	res := new(Result)
+-	defer r.Body.Close()
+-	if err := json.NewDecoder(r.Body).Decode(res); err != nil {
+-		return nil, fmt.Errorf("decoding Body: %v", err)
+-	}
+-	if err := res.Valid(); err != nil {
+-		return nil, fmt.Errorf("validating Result: %v", err)
+-	}
+-	defer cache.Tick(c)
+-	// store the Log text if supplied
+-	if len(res.Log) > 0 {
+-		hash, err := PutLog(c, res.Log)
+-		if err != nil {
+-			return nil, fmt.Errorf("putting Log: %v", err)
+-		}
+-		res.LogHash = hash
+-	}
+-	tx := func(c appengine.Context) error {
+-		// check Package exists
+-		if _, err := GetPackage(c, res.PackagePath); err != nil {
+-			return fmt.Errorf("GetPackage: %v", err)
+-		}
+-		// put Result
+-		if _, err := datastore.Put(c, res.Key(c), res); err != nil {
+-			return fmt.Errorf("putting Result: %v", err)
+-		}
+-		// add Result to Commit
+-		com := &Commit{PackagePath: res.PackagePath, Hash: res.Hash}
+-		if err := com.AddResult(c, res); err != nil {
+-			return fmt.Errorf("AddResult: %v", err)
+-		}
+-		// Send build failure notifications, if necessary.
+-		// Note this must run after the call AddResult, which
+-		// populates the Commit's ResultData field.
+-		return notifyOnFailure(c, com, res.Builder)
+-	}
+-	return nil, datastore.RunInTransaction(c, tx, nil)
+-}
+-
+-// logHandler displays log text for a given hash.
+-// It handles paths like "/log/hash".
+-func logHandler(w http.ResponseWriter, r *http.Request) {
+-	w.Header().Set("Content-type", "text/plain; charset=utf-8")
+-	c := appengine.NewContext(r)
+-	hash := r.URL.Path[len("/log/"):]
+-	key := datastore.NewKey(c, "Log", hash, 0, nil)
+-	l := new(Log)
+-	if err := datastore.Get(c, key, l); err != nil {
+-		logErr(w, r, err)
+-		return
+-	}
+-	b, err := l.Text()
+-	if err != nil {
+-		logErr(w, r, err)
+-		return
+-	}
+-	w.Write(b)
+-}
+-
+-type dashHandler func(*http.Request) (interface{}, error)
+-
+-type dashResponse struct {
+-	Response interface{}
+-	Error    string
+-}
+-
+-// errBadMethod is returned by a dashHandler when
+-// the request has an unsuitable method.
+-type errBadMethod string
+-
+-func (e errBadMethod) Error() string {
+-	return "bad method: " + string(e)
+-}
+-
+-// AuthHandler wraps a http.HandlerFunc with a handler that validates the
+-// supplied key and builder query parameters.
+-func AuthHandler(h dashHandler) http.HandlerFunc {
+-	return func(w http.ResponseWriter, r *http.Request) {
+-		c := appengine.NewContext(r)
+-
+-		// Put the URL Query values into r.Form to avoid parsing the
+-		// request body when calling r.FormValue.
+-		r.Form = r.URL.Query()
+-
+-		var err error
+-		var resp interface{}
+-
+-		// Validate key query parameter for POST requests only.
+-		key := r.FormValue("key")
+-		builder := r.FormValue("builder")
+-		if r.Method == "POST" && !validKey(c, key, builder) {
+-			err = errors.New("invalid key: " + key)
+-		}
+-
+-		// Call the original HandlerFunc and return the response.
+-		if err == nil {
+-			resp, err = h(r)
+-		}
+-
+-		// Write JSON response.
+-		dashResp := &dashResponse{Response: resp}
+-		if err != nil {
+-			c.Errorf("%v", err)
+-			dashResp.Error = err.Error()
+-		}
+-		w.Header().Set("Content-Type", "application/json")
+-		if err = json.NewEncoder(w).Encode(dashResp); err != nil {
+-			c.Criticalf("encoding response: %v", err)
+-		}
+-	}
+-}
+-
+-func keyHandler(w http.ResponseWriter, r *http.Request) {
+-	builder := r.FormValue("builder")
+-	if builder == "" {
+-		logErr(w, r, errors.New("must supply builder in query string"))
+-		return
+-	}
+-	c := appengine.NewContext(r)
+-	fmt.Fprint(w, builderKey(c, builder))
+-}
+-
+-func init() {
+-	// admin handlers
+-	http.HandleFunc("/init", initHandler)
+-	http.HandleFunc("/key", keyHandler)
+-
+-	// authenticated handlers
+-	http.HandleFunc("/commit", AuthHandler(commitHandler))
+-	http.HandleFunc("/packages", AuthHandler(packagesHandler))
+-	http.HandleFunc("/result", AuthHandler(resultHandler))
+-	http.HandleFunc("/tag", AuthHandler(tagHandler))
+-	http.HandleFunc("/todo", AuthHandler(todoHandler))
+-
+-	// public handlers
+-	http.HandleFunc("/log/", logHandler)
+-}
+-
+-func validHash(hash string) bool {
+-	// TODO(adg): correctly validate a hash
+-	return hash != ""
+-}
+-
+-func validKey(c appengine.Context, key, builder string) bool {
+-	if appengine.IsDevAppServer() {
+-		return true
+-	}
+-	if key == secretKey(c) {
+-		return true
+-	}
+-	return key == builderKey(c, builder)
+-}
+-
+-func builderKey(c appengine.Context, builder string) string {
+-	h := hmac.New(md5.New, []byte(secretKey(c)))
+-	h.Write([]byte(builder))
+-	return fmt.Sprintf("%x", h.Sum(nil))
+-}
+-
+-func logErr(w http.ResponseWriter, r *http.Request, err error) {
+-	appengine.NewContext(r).Errorf("Error: %v", err)
+-	w.WriteHeader(http.StatusInternalServerError)
+-	fmt.Fprint(w, "Error: ", err)
+-}
+diff --git a/misc/dashboard/app/build/init.go b/misc/dashboard/app/build/init.go
+deleted file mode 100644
+index 6d1a840c53..0000000000
+--- a/misc/dashboard/app/build/init.go
++++ /dev/null
+@@ -1,66 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package build
+-
+-import (
+-	"fmt"
+-	"net/http"
+-
+-	"appengine"
+-	"appengine/datastore"
+-	"cache"
+-)
+-
+-// defaultPackages specifies the Package records to be created by initHandler.
+-var defaultPackages = []*Package{
+-	{Name: "Go", Kind: "go"},
+-}
+-
+-// subRepos specifies the Go project sub-repositories.
+-var subRepos = []string{
+-	"blog",
+-	"codereview",
+-	"crypto",
+-	"exp",
+-	"image",
+-	"net",
+-	"talks",
+-	"tools",
+-}
+-
+-// Put subRepos into defaultPackages.
+-func init() {
+-	for _, name := range subRepos {
+-		p := &Package{
+-			Kind: "subrepo",
+-			Name: "go." + name,
+-			Path: "code.google.com/p/go." + name,
+-		}
+-		defaultPackages = append(defaultPackages, p)
+-	}
+-}
+-
+-func initHandler(w http.ResponseWriter, r *http.Request) {
+-	c := appengine.NewContext(r)
+-	defer cache.Tick(c)
+-	for _, p := range defaultPackages {
+-		err := datastore.Get(c, p.Key(c), new(Package))
+-		if _, ok := err.(*datastore.ErrFieldMismatch); ok {
+-			// Some fields have been removed, so it's okay to ignore this error.
+-			err = nil
+-		}
+-		if err == nil {
+-			continue
+-		} else if err != datastore.ErrNoSuchEntity {
+-			logErr(w, r, err)
+-			return
+-		}
+-		if _, err := datastore.Put(c, p.Key(c), p); err != nil {
+-			logErr(w, r, err)
+-			return
+-		}
+-	}
+-	fmt.Fprint(w, "OK")
+-}
+diff --git a/misc/dashboard/app/build/key.go b/misc/dashboard/app/build/key.go
+deleted file mode 100644
+index 49ab236d4b..0000000000
+--- a/misc/dashboard/app/build/key.go
++++ /dev/null
+@@ -1,62 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package build
+-
+-import (
+-	"sync"
+-
+-	"appengine"
+-	"appengine/datastore"
+-)
+-
+-var theKey struct {
+-	sync.RWMutex
+-	BuilderKey
+-}
+-
+-type BuilderKey struct {
+-	Secret string
+-}
+-
+-func (k *BuilderKey) Key(c appengine.Context) *datastore.Key {
+-	return datastore.NewKey(c, "BuilderKey", "root", 0, nil)
+-}
+-
+-func secretKey(c appengine.Context) string {
+-	// check with rlock
+-	theKey.RLock()
+-	k := theKey.Secret
+-	theKey.RUnlock()
+-	if k != "" {
+-		return k
+-	}
+-
+-	// prepare to fill; check with lock and keep lock
+-	theKey.Lock()
+-	defer theKey.Unlock()
+-	if theKey.Secret != "" {
+-		return theKey.Secret
+-	}
+-
+-	// fill
+-	if err := datastore.Get(c, theKey.Key(c), &theKey.BuilderKey); err != nil {
+-		if err == datastore.ErrNoSuchEntity {
+-			// If the key is not stored in datastore, write it.
+-			// This only happens at the beginning of a new deployment.
+-			// The code is left here for SDK use and in case a fresh
+-			// deployment is ever needed.  "gophers rule" is not the
+-			// real key.
+-			if !appengine.IsDevAppServer() {
+-				panic("lost key from datastore")
+-			}
+-			theKey.Secret = "gophers rule"
+-			datastore.Put(c, theKey.Key(c), &theKey.BuilderKey)
+-			return theKey.Secret
+-		}
+-		panic("cannot load builder key: " + err.Error())
+-	}
+-
+-	return theKey.Secret
+-}
+diff --git a/misc/dashboard/app/build/notify.go b/misc/dashboard/app/build/notify.go
+deleted file mode 100644
+index 52b91f6c12..0000000000
+--- a/misc/dashboard/app/build/notify.go
++++ /dev/null
+@@ -1,166 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package build
+-
+-import (
+-	"appengine"
+-	"appengine/datastore"
+-	"appengine/delay"
+-	"appengine/mail"
+-	"bytes"
+-	"encoding/gob"
+-	"fmt"
+-	"text/template"
+-)
+-
+-const (
+-	mailFrom   = "builder@golang.org" // use this for sending any mail
+-	failMailTo = "golang-dev@googlegroups.com"
+-	domain     = "build.golang.org"
+-)
+-
+-// failIgnore is a set of builders that we don't email about because
+-// they're too flaky.
+-var failIgnore = map[string]bool{
+-	"netbsd-386-bsiegert":   true,
+-	"netbsd-amd64-bsiegert": true,
+-}
+-
+-// notifyOnFailure checks whether the supplied Commit or the subsequent
+-// Commit (if present) breaks the build for this builder.
+-// If either of those commits break the build an email notification is sent
+-// from a delayed task. (We use a task because this way the mail won't be
+-// sent if the enclosing datastore transaction fails.)
+-//
+-// This must be run in a datastore transaction, and the provided *Commit must
+-// have been retrieved from the datastore within that transaction.
+-func notifyOnFailure(c appengine.Context, com *Commit, builder string) error {
+-	if failIgnore[builder] {
+-		return nil
+-	}
+-
+-	// TODO(adg): implement notifications for packages
+-	if com.PackagePath != "" {
+-		return nil
+-	}
+-
+-	p := &Package{Path: com.PackagePath}
+-	var broken *Commit
+-	cr := com.Result(builder, "")
+-	if cr == nil {
+-		return fmt.Errorf("no result for %s/%s", com.Hash, builder)
+-	}
+-	q := datastore.NewQuery("Commit").Ancestor(p.Key(c))
+-	if cr.OK {
+-		// This commit is OK. Notify if next Commit is broken.
+-		next := new(Commit)
+-		q = q.Filter("ParentHash=", com.Hash)
+-		if err := firstMatch(c, q, next); err != nil {
+-			if err == datastore.ErrNoSuchEntity {
+-				// OK at tip, no notification necessary.
+-				return nil
+-			}
+-			return err
+-		}
+-		if nr := next.Result(builder, ""); nr != nil && !nr.OK {
+-			c.Debugf("commit ok: %#v\nresult: %#v", com, cr)
+-			c.Debugf("next commit broken: %#v\nnext result:%#v", next, nr)
+-			broken = next
+-		}
+-	} else {
+-		// This commit is broken. Notify if the previous Commit is OK.
+-		prev := new(Commit)
+-		q = q.Filter("Hash=", com.ParentHash)
+-		if err := firstMatch(c, q, prev); err != nil {
+-			if err == datastore.ErrNoSuchEntity {
+-				// No previous result, let the backfill of
+-				// this result trigger the notification.
+-				return nil
+-			}
+-			return err
+-		}
+-		if pr := prev.Result(builder, ""); pr != nil && pr.OK {
+-			c.Debugf("commit broken: %#v\nresult: %#v", com, cr)
+-			c.Debugf("previous commit ok: %#v\nprevious result:%#v", prev, pr)
+-			broken = com
+-		}
+-	}
+-	var err error
+-	if broken != nil && !broken.FailNotificationSent {
+-		c.Infof("%s is broken commit; notifying", broken.Hash)
+-		sendFailMailLater.Call(c, broken, builder) // add task to queue
+-		broken.FailNotificationSent = true
+-		_, err = datastore.Put(c, broken.Key(c), broken)
+-	}
+-	return err
+-}
+-
+-// firstMatch executes the query q and loads the first entity into v.
+-func firstMatch(c appengine.Context, q *datastore.Query, v interface{}) error {
+-	t := q.Limit(1).Run(c)
+-	_, err := t.Next(v)
+-	if err == datastore.Done {
+-		err = datastore.ErrNoSuchEntity
+-	}
+-	return err
+-}
+-
+-var (
+-	sendFailMailLater = delay.Func("sendFailMail", sendFailMail)
+-	sendFailMailTmpl  = template.Must(
+-		template.New("notify.txt").
+-			Funcs(template.FuncMap(tmplFuncs)).
+-			ParseFiles("build/notify.txt"),
+-	)
+-)
+-
+-func init() {
+-	gob.Register(&Commit{}) // for delay
+-}
+-
+-// sendFailMail sends a mail notification that the build failed on the
+-// provided commit and builder.
+-func sendFailMail(c appengine.Context, com *Commit, builder string) {
+-	// TODO(adg): handle packages
+-
+-	// get Result
+-	r := com.Result(builder, "")
+-	if r == nil {
+-		c.Errorf("finding result for %q: %+v", builder, com)
+-		return
+-	}
+-
+-	// get Log
+-	k := datastore.NewKey(c, "Log", r.LogHash, 0, nil)
+-	l := new(Log)
+-	if err := datastore.Get(c, k, l); err != nil {
+-		c.Errorf("finding Log record %v: %v", r.LogHash, err)
+-		return
+-	}
+-
+-	// prepare mail message
+-	var body bytes.Buffer
+-	err := sendFailMailTmpl.Execute(&body, map[string]interface{}{
+-		"Builder": builder, "Commit": com, "Result": r, "Log": l,
+-		"Hostname": domain,
+-	})
+-	if err != nil {
+-		c.Errorf("rendering mail template: %v", err)
+-		return
+-	}
+-	subject := fmt.Sprintf("%s broken by %s", builder, shortDesc(com.Desc))
+-	msg := &mail.Message{
+-		Sender:  mailFrom,
+-		To:      []string{failMailTo},
+-		ReplyTo: failMailTo,
+-		Subject: subject,
+-		Body:    body.String(),
+-	}
+-
+-	// send mail
+-	if err := mail.Send(c, msg); err != nil {
+-		c.Errorf("sending mail: %v", err)
+-	}
+-}
+diff --git a/misc/dashboard/app/build/notify.txt b/misc/dashboard/app/build/notify.txt
+deleted file mode 100644
+index 6c90067032..0000000000
+--- a/misc/dashboard/app/build/notify.txt
++++ /dev/null
+@@ -1,9 +0,0 @@
+-Change {{shortHash .Commit.Hash}} broke the {{.Builder}} build:
+-http://{{.Hostname}}/log/{{.Result.LogHash}}
+-
+-{{.Commit.Desc}}
+-
+-http://code.google.com/p/go/source/detail?r={{shortHash .Commit.Hash}}
+-
+-$ tail -200 < log
+-{{printf "%s" .Log.Text | tail 200}}
+diff --git a/misc/dashboard/app/build/test.go b/misc/dashboard/app/build/test.go
+deleted file mode 100644
+index 7e55392363..0000000000
+--- a/misc/dashboard/app/build/test.go
++++ /dev/null
+@@ -1,256 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package build
+-
+-// TODO(adg): test authentication
+-
+-import (
+-	"appengine"
+-	"appengine/datastore"
+-	"bytes"
+-	"encoding/json"
+-	"errors"
+-	"fmt"
+-	"io"
+-	"net/http"
+-	"net/http/httptest"
+-	"net/url"
+-	"strings"
+-	"time"
+-)
+-
+-func init() {
+-	http.HandleFunc("/buildtest", testHandler)
+-}
+-
+-var testEntityKinds = []string{
+-	"Package",
+-	"Commit",
+-	"Result",
+-	"Log",
+-}
+-
+-const testPkg = "code.google.com/p/go.test"
+-
+-var testPackage = &Package{Name: "Test", Kind: "subrepo", Path: testPkg}
+-
+-var testPackages = []*Package{
+-	{Name: "Go", Path: ""},
+-	testPackage,
+-}
+-
+-var tCommitTime = time.Now().Add(-time.Hour * 24 * 7)
+-
+-func tCommit(hash, parentHash, path string) *Commit {
+-	tCommitTime.Add(time.Hour) // each commit should have a different time
+-	return &Commit{
+-		PackagePath: path,
+-		Hash:        hash,
+-		ParentHash:  parentHash,
+-		Time:        tCommitTime,
+-		User:        "adg",
+-		Desc:        "change description " + hash,
+-	}
+-}
+-
+-var testRequests = []struct {
+-	path string
+-	vals url.Values
+-	req  interface{}
+-	res  interface{}
+-}{
+-	// Packages
+-	{"/packages?kind=subrepo", nil, nil, []*Package{testPackage}},
+-
+-	// Go repo
+-	{"/commit", nil, tCommit("0001", "0000", ""), nil},
+-	{"/commit", nil, tCommit("0002", "0001", ""), nil},
+-	{"/commit", nil, tCommit("0003", "0002", ""), nil},
+-	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
+-	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
+-	{"/result", nil, &Result{Builder: "linux-386", Hash: "0001", OK: true}, nil},
+-	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
+-	{"/result", nil, &Result{Builder: "linux-386", Hash: "0002", OK: true}, nil},
+-	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
+-
+-	// multiple builders
+-	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
+-	{"/result", nil, &Result{Builder: "linux-amd64", Hash: "0003", OK: true}, nil},
+-	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
+-	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0002"}}},
+-
+-	// branches
+-	{"/commit", nil, tCommit("0004", "0003", ""), nil},
+-	{"/commit", nil, tCommit("0005", "0002", ""), nil},
+-	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0005"}}},
+-	{"/result", nil, &Result{Builder: "linux-386", Hash: "0005", OK: true}, nil},
+-	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0004"}}},
+-	{"/result", nil, &Result{Builder: "linux-386", Hash: "0004", OK: false}, nil},
+-	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
+-
+-	// logs
+-	{"/result", nil, &Result{Builder: "linux-386", Hash: "0003", OK: false, Log: "test"}, nil},
+-	{"/log/a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", nil, nil, "test"},
+-	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, nil},
+-
+-	// repeat failure (shouldn't re-send mail)
+-	{"/result", nil, &Result{Builder: "linux-386", Hash: "0003", OK: false, Log: "test"}, nil},
+-
+-	// non-Go repos
+-	{"/commit", nil, tCommit("1001", "1000", testPkg), nil},
+-	{"/commit", nil, tCommit("1002", "1001", testPkg), nil},
+-	{"/commit", nil, tCommit("1003", "1002", testPkg), nil},
+-	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, &Todo{Kind: "build-package", Data: &Commit{Hash: "1003"}}},
+-	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1003", GoHash: "0001", OK: true}, nil},
+-	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, &Todo{Kind: "build-package", Data: &Commit{Hash: "1002"}}},
+-	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1002", GoHash: "0001", OK: true}, nil},
+-	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, &Todo{Kind: "build-package", Data: &Commit{Hash: "1001"}}},
+-	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0001", OK: true}, nil},
+-	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, nil},
+-	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0002"}}, nil, &Todo{Kind: "build-package", Data: &Commit{Hash: "1003"}}},
+-
+-	// re-build Go revision for stale subrepos
+-	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0005"}}},
+-	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0005", OK: false, Log: "boo"}, nil},
+-	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, nil},
+-}
+-
+-func testHandler(w http.ResponseWriter, r *http.Request) {
+-	if !appengine.IsDevAppServer() {
+-		fmt.Fprint(w, "These tests must be run under the dev_appserver.")
+-		return
+-	}
+-	c := appengine.NewContext(r)
+-	if err := nukeEntities(c, testEntityKinds); err != nil {
+-		logErr(w, r, err)
+-		return
+-	}
+-	if r.FormValue("nukeonly") != "" {
+-		fmt.Fprint(w, "OK")
+-		return
+-	}
+-
+-	for _, p := range testPackages {
+-		if _, err := datastore.Put(c, p.Key(c), p); err != nil {
+-			logErr(w, r, err)
+-			return
+-		}
+-	}
+-
+-	for i, t := range testRequests {
+-		c.Infof("running test %d %s", i, t.path)
+-		errorf := func(format string, args ...interface{}) {
+-			fmt.Fprintf(w, "%d %s: ", i, t.path)
+-			fmt.Fprintf(w, format, args...)
+-			fmt.Fprintln(w)
+-		}
+-		var body io.ReadWriter
+-		if t.req != nil {
+-			body = new(bytes.Buffer)
+-			json.NewEncoder(body).Encode(t.req)
+-		}
+-		url := "http://" + domain + t.path
+-		if t.vals != nil {
+-			url += "?" + t.vals.Encode()
+-		}
+-		req, err := http.NewRequest("POST", url, body)
+-		if err != nil {
+-			logErr(w, r, err)
+-			return
+-		}
+-		if t.req != nil {
+-			req.Method = "POST"
+-		}
+-		req.Header = r.Header
+-		rec := httptest.NewRecorder()
+-
+-		// Make the request
+-		http.DefaultServeMux.ServeHTTP(rec, req)
+-
+-		if rec.Code != 0 && rec.Code != 200 {
+-			errorf(rec.Body.String())
+-			return
+-		}
+-		resp := new(dashResponse)
+-
+-		// If we're expecting a *Todo value,
+-		// prime the Response field with a Todo and a Commit inside it.
+-		if _, ok := t.res.(*Todo); ok {
+-			resp.Response = &Todo{Data: &Commit{}}
+-		}
+-
+-		if strings.HasPrefix(t.path, "/log/") {
+-			resp.Response = rec.Body.String()
+-		} else {
+-			err := json.NewDecoder(rec.Body).Decode(resp)
+-			if err != nil {
+-				errorf("decoding response: %v", err)
+-				return
+-			}
+-		}
+-		if e, ok := t.res.(string); ok {
+-			g, ok := resp.Response.(string)
+-			if !ok {
+-				errorf("Response not string: %T", resp.Response)
+-				return
+-			}
+-			if g != e {
+-				errorf("response mismatch: got %q want %q", g, e)
+-				return
+-			}
+-		}
+-		if e, ok := t.res.(*Todo); ok {
+-			g, ok := resp.Response.(*Todo)
+-			if !ok {
+-				errorf("Response not *Todo: %T", resp.Response)
+-				return
+-			}
+-			if e.Data == nil && g.Data != nil {
+-				errorf("Response.Data should be nil, got: %v", g.Data)
+-				return
+-			}
+-			if g.Data == nil {
+-				errorf("Response.Data is nil, want: %v", e.Data)
+-				return
+-			}
+-			gd, ok := g.Data.(*Commit)
+-			if !ok {
+-				errorf("Response.Data not *Commit: %T", g.Data)
+-				return
+-			}
+-			if eh := e.Data.(*Commit).Hash; eh != gd.Hash {
+-				errorf("hashes don't match: got %q, want %q", gd.Hash, eh)
+-				return
+-			}
+-		}
+-		if t.res == nil && resp.Response != nil {
+-			errorf("response mismatch: got %q expected <nil>",
+-				resp.Response)
+-			return
+-		}
+-	}
+-	fmt.Fprint(w, "PASS\nYou should see only one mail notification (for 0003/linux-386) in the dev_appserver logs.")
+-}
+-
+-func nukeEntities(c appengine.Context, kinds []string) error {
+-	if !appengine.IsDevAppServer() {
+-		return errors.New("can't nuke production data")
+-	}
+-	var keys []*datastore.Key
+-	for _, kind := range kinds {
+-		q := datastore.NewQuery(kind).KeysOnly()
+-		for t := q.Run(c); ; {
+-			k, err := t.Next(nil)
+-			if err == datastore.Done {
+-				break
+-			}
+-			if err != nil {
+-				return err
+-			}
+-			keys = append(keys, k)
+-		}
+-	}
+-	return datastore.DeleteMulti(c, keys)
+-}
+diff --git a/misc/dashboard/app/build/ui.go b/misc/dashboard/app/build/ui.go
+deleted file mode 100644
+index 3e2b523e9e..0000000000
+--- a/misc/dashboard/app/build/ui.go
++++ /dev/null
+@@ -1,319 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// TODO(adg): packages at weekly/release
+-// TODO(adg): some means to register new packages
+-
+-package build
+-
+-import (
+-	"bytes"
+-	"errors"
+-	"html/template"
+-	"net/http"
+-	"regexp"
+-	"sort"
+-	"strconv"
+-	"strings"
+-
+-	"appengine"
+-	"appengine/datastore"
+-	"cache"
+-)
+-
+-func init() {
+-	http.HandleFunc("/", uiHandler)
+-}
+-
+-// uiHandler draws the build status page.
+-func uiHandler(w http.ResponseWriter, r *http.Request) {
+-	c := appengine.NewContext(r)
+-	now := cache.Now(c)
+-	const key = "build-ui"
+-
+-	page, _ := strconv.Atoi(r.FormValue("page"))
+-	if page < 0 {
+-		page = 0
+-	}
+-
+-	// Used cached version of front page, if available.
+-	if page == 0 {
+-		var b []byte
+-		if cache.Get(r, now, key, &b) {
+-			w.Write(b)
+-			return
+-		}
+-	}
+-
+-	commits, err := goCommits(c, page)
+-	if err != nil {
+-		logErr(w, r, err)
+-		return
+-	}
+-	builders := commitBuilders(commits, "")
+-
+-	var tipState *TagState
+-	if page == 0 {
+-		// only show sub-repo state on first page
+-		tipState, err = TagStateByName(c, "tip")
+-		if err != nil {
+-			logErr(w, r, err)
+-			return
+-		}
+-	}
+-
+-	p := &Pagination{}
+-	if len(commits) == commitsPerPage {
+-		p.Next = page + 1
+-	}
+-	if page > 0 {
+-		p.Prev = page - 1
+-		p.HasPrev = true
+-	}
+-	data := &uiTemplateData{commits, builders, tipState, p}
+-
+-	var buf bytes.Buffer
+-	if err := uiTemplate.Execute(&buf, data); err != nil {
+-		logErr(w, r, err)
+-		return
+-	}
+-
+-	// Cache the front page.
+-	if page == 0 {
+-		cache.Set(r, now, key, buf.Bytes())
+-	}
+-
+-	buf.WriteTo(w)
+-}
+-
+-type Pagination struct {
+-	Next, Prev int
+-	HasPrev    bool
+-}
+-
+-// goCommits gets a slice of the latest Commits to the Go repository.
+-// If page > 0 it paginates by commitsPerPage.
+-func goCommits(c appengine.Context, page int) ([]*Commit, error) {
+-	q := datastore.NewQuery("Commit").
+-		Ancestor((&Package{}).Key(c)).
+-		Order("-Num").
+-		Limit(commitsPerPage).
+-		Offset(page * commitsPerPage)
+-	var commits []*Commit
+-	_, err := q.GetAll(c, &commits)
+-	return commits, err
+-}
+-
+-// commitBuilders returns the names of the builders that provided
+-// Results for the provided commits.
+-func commitBuilders(commits []*Commit, goHash string) []string {
+-	builders := make(map[string]bool)
+-	for _, commit := range commits {
+-		for _, r := range commit.Results(goHash) {
+-			builders[r.Builder] = true
+-		}
+-	}
+-	return keys(builders)
+-}
+-
+-func keys(m map[string]bool) (s []string) {
+-	for k := range m {
+-		s = append(s, k)
+-	}
+-	sort.Strings(s)
+-	return
+-}
+-
+-// TagState represents the state of all Packages at a Tag.
+-type TagState struct {
+-	Tag      *Commit
+-	Packages []*PackageState
+-}
+-
+-// PackageState represents the state of a Package at a Tag.
+-type PackageState struct {
+-	Package *Package
+-	Commit  *Commit
+-}
+-
+-// TagStateByName fetches the results for all Go subrepos at the specified Tag.
+-func TagStateByName(c appengine.Context, name string) (*TagState, error) {
+-	tag, err := GetTag(c, name)
+-	if err != nil {
+-		return nil, err
+-	}
+-	pkgs, err := Packages(c, "subrepo")
+-	if err != nil {
+-		return nil, err
+-	}
+-	var st TagState
+-	for _, pkg := range pkgs {
+-		com, err := pkg.LastCommit(c)
+-		if err != nil {
+-			c.Warningf("%v: no Commit found: %v", pkg, err)
+-			continue
+-		}
+-		st.Packages = append(st.Packages, &PackageState{pkg, com})
+-	}
+-	st.Tag, err = tag.Commit(c)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return &st, nil
+-}
+-
+-type uiTemplateData struct {
+-	Commits    []*Commit
+-	Builders   []string
+-	TipState   *TagState
+-	Pagination *Pagination
+-}
+-
+-var uiTemplate = template.Must(
+-	template.New("ui.html").Funcs(tmplFuncs).ParseFiles("build/ui.html"),
+-)
+-
+-var tmplFuncs = template.FuncMap{
+-	"builderOS":        builderOS,
+-	"builderArch":      builderArch,
+-	"builderArchShort": builderArchShort,
+-	"builderArchChar":  builderArchChar,
+-	"builderTitle":     builderTitle,
+-	"builderSpans":     builderSpans,
+-	"repoURL":          repoURL,
+-	"shortDesc":        shortDesc,
+-	"shortHash":        shortHash,
+-	"shortUser":        shortUser,
+-	"tail":             tail,
+-}
+-
+-func splitDash(s string) (string, string) {
+-	i := strings.Index(s, "-")
+-	if i >= 0 {
+-		return s[:i], s[i+1:]
+-	}
+-	return s, ""
+-}
+-
+-// builderOS returns the os tag for a builder string
+-func builderOS(s string) string {
+-	os, _ := splitDash(s)
+-	return os
+-}
+-
+-// builderArch returns the arch tag for a builder string
+-func builderArch(s string) string {
+-	_, arch := splitDash(s)
+-	arch, _ = splitDash(arch) // chop third part
+-	return arch
+-}
+-
+-// builderArchShort returns a short arch tag for a builder string
+-func builderArchShort(s string) string {
+-	if strings.Contains(s+"-", "-race-") {
+-		return "race"
+-	}
+-	arch := builderArch(s)
+-	switch arch {
+-	case "amd64":
+-		return "x64"
+-	}
+-	return arch
+-}
+-
+-// builderArchChar returns the architecture letter for a builder string
+-func builderArchChar(s string) string {
+-	arch := builderArch(s)
+-	switch arch {
+-	case "386":
+-		return "8"
+-	case "amd64":
+-		return "6"
+-	case "arm":
+-		return "5"
+-	}
+-	return arch
+-}
+-
+-type builderSpan struct {
+-	N  int
+-	OS string
+-}
+-
+-// builderSpans creates a list of tags showing
+-// the builder's operating system names, spanning
+-// the appropriate number of columns.
+-func builderSpans(s []string) []builderSpan {
+-	var sp []builderSpan
+-	for len(s) > 0 {
+-		i := 1
+-		os := builderOS(s[0])
+-		for i < len(s) && builderOS(s[i]) == os {
+-			i++
+-		}
+-		sp = append(sp, builderSpan{i, os})
+-		s = s[i:]
+-	}
+-	return sp
+-}
+-
+-// builderTitle formats "linux-amd64-foo" as "linux amd64 foo".
+-func builderTitle(s string) string {
+-	return strings.Replace(s, "-", " ", -1)
+-}
+-
+-// shortDesc returns the first line of a description.
+-func shortDesc(desc string) string {
+-	if i := strings.Index(desc, "\n"); i != -1 {
+-		desc = desc[:i]
+-	}
+-	return desc
+-}
+-
+-// shortHash returns a short version of a hash.
+-func shortHash(hash string) string {
+-	if len(hash) > 12 {
+-		hash = hash[:12]
+-	}
+-	return hash
+-}
+-
+-// shortUser returns a shortened version of a user string.
+-func shortUser(user string) string {
+-	if i, j := strings.Index(user, "<"), strings.Index(user, ">"); 0 <= i && i < j {
+-		user = user[i+1 : j]
+-	}
+-	if i := strings.Index(user, "@"); i >= 0 {
+-		return user[:i]
+-	}
+-	return user
+-}
+-
+-// repoRe matches Google Code repositories and subrepositories (without paths).
+-var repoRe = regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+)(\.[a-z0-9\-]+)?$`)
+-
+-// repoURL returns the URL of a change at a Google Code repository or subrepo.
+-func repoURL(hash, packagePath string) (string, error) {
+-	if packagePath == "" {
+-		return "https://code.google.com/p/go/source/detail?r=" + hash, nil
+-	}
+-	m := repoRe.FindStringSubmatch(packagePath)
+-	if m == nil {
+-		return "", errors.New("unrecognized package: " + packagePath)
+-	}
+-	url := "https://code.google.com/p/" + m[1] + "/source/detail?r=" + hash
+-	if len(m) > 2 {
+-		url += "&repo=" + m[2][1:]
+-	}
+-	return url, nil
+-}
+-
+-// tail returns the trailing n lines of s.
+-func tail(n int, s string) string {
+-	lines := strings.Split(s, "\n")
+-	if len(lines) < n {
+-		return s
+-	}
+-	return strings.Join(lines[len(lines)-n:], "\n")
+-}
+diff --git a/misc/dashboard/app/build/ui.html b/misc/dashboard/app/build/ui.html
+deleted file mode 100644
+index 5b5f4ebe34..0000000000
+--- a/misc/dashboard/app/build/ui.html
++++ /dev/null
+@@ -1,209 +0,0 @@
+-<!DOCTYPE HTML>
+-<html>
+-  <head>
+-    <title>Go Build Dashboard</title>
+-    <style>
+-      body {
+-        font-family: sans-serif;
+-        padding: 0; margin: 0;
+-      }
+-      h1, h2 {
+-        margin: 0;
+-        padding: 5px;
+-      }
+-      h1 {
+-        background: #eee;
+-      }
+-      h2 {
+-        margin-top: 20px;
+-      }
+-      .build, .packages {
+-        margin: 5px;
+-        border-collapse: collapse;
+-      }
+-      .build td, .build th, .packages td, .packages th {
+-        vertical-align: top;
+-        padding: 2px 4px;
+-        font-size: 10pt;
+-      }
+-      .build tr.commit:nth-child(2n) {
+-        background-color: #f0f0f0;
+-      }
+-      .build .hash {
+-        font-family: monospace;
+-        font-size: 9pt;
+-      }
+-      .build .result {
+-        text-align: center;
+-        width: 2em;
+-      }
+-      .col-hash, .col-result {
+-        border-right: solid 1px #ccc;
+-      }
+-      .build .arch {
+-        font-size: 66%;
+-        font-weight: normal;
+-      }
+-      .build .time {
+-        color: #666;
+-      }
+-      .build .ok {
+-        font-size: 83%;
+-      }
+-      .build .desc, .build .time, .build .user {
+-        white-space: nowrap;
+-      }
+-      .paginate {
+-        padding: 0.5em;
+-      }
+-      .paginate a {
+-        padding: 0.5em;
+-        background: #eee;
+-        color: blue;
+-      }
+-      .paginate a.inactive {
+-        color: #999;
+-      }
+-      .fail {
+-        color: #C00;
+-      }
+-    </style>
+-  </head>
+-  <body>
+-
+-    <h1>Go Build Status</h1>
+-
+-  {{if $.Commits}}
+-
+-    <table class="build">
+-      <colgroup class="col-hash"></colgroup>
+-    {{range $.Builders | builderSpans}}
+-      <colgroup class="col-result" span="{{.N}}"></colgroup>
+-    {{end}}
+-      <colgroup class="col-user"></colgroup>
+-      <colgroup class="col-time"></colgroup>
+-      <colgroup class="col-desc"></colgroup>
+-      <tr>
+-        <!-- extra row to make alternating colors use dark for first result -->
+-      </tr>
+-      <tr>
+-        <th>&nbsp;</th>
+-    {{range $.Builders | builderSpans}}
+-        <th colspan="{{.N}}">{{.OS}}</th>
+-    {{end}}
+-        <th></th>
+-        <th></th>
+-        <th></th>
+-      </tr>
+-      <tr>
+-        <th>&nbsp;</th>
+-    {{range $.Builders}}
+-        <th class="result arch" title="{{.}}">{{builderArchShort .}}</th>
+-    {{end}}
+-      </tr>
+-    {{range $c := $.Commits}}
+-      <tr class="commit">
+-        <td class="hash"><a href="{{repoURL .Hash ""}}">{{shortHash .Hash}}</a></td>
+-        {{range $.Builders}}
+-          <td class="result">
+-            {{with $c.Result . ""}}
+-              {{if .OK}}
+-                <span class="ok">ok</span>
+-              {{else}}
+-                <a href="/log/{{.LogHash}}" class="fail">fail</a>
+-              {{end}}
+-            {{else}}
+-              &nbsp;
+-            {{end}}
+-          </td>
+-        {{end}}
+-        <td class="user" title="{{.User}}">{{shortUser .User}}</td>
+-        <td class="time">{{.Time.Format "Mon 02 Jan 15:04"}}</td>
+-        <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
+-      </tr>
+-    {{end}}
+-    </table>
+-
+-    {{with $.Pagination}}
+-    <div class="paginate">
+-      <a {{if .HasPrev}}href="?page={{.Prev}}"{{else}}class="inactive"{{end}}>newer</a>
+-      <a {{if .Next}}href="?page={{.Next}}"{{else}}class="inactive"{{end}}>older</a>
+-      <a {{if .HasPrev}}href="."{{else}}class="inactive"{{end}}>latest</a>
+-    </div>
+-    {{end}}
+-
+-  {{else}}
+-    <p>No commits to display. Hm.</p>
+-  {{end}}
+-
+-  {{with $.TipState}}
+-    {{$goHash := .Tag.Hash}}
+-    <h2>
+-      Sub-repositories at tip
+-      <small>(<a href="{{repoURL .Tag.Hash ""}}">{{shortHash .Tag.Hash}}</a>)</small>
+-    </h2>
+-
+-    <table class="build">
+-      <colgroup class="col-package"></colgroup>
+-      <colgroup class="col-hash"></colgroup>
+-      {{range $.Builders | builderSpans}}
+-        <colgroup class="col-result" span="{{.N}}"></colgroup>
+-      {{end}}
+-      <colgroup class="col-user"></colgroup>
+-      <colgroup class="col-time"></colgroup>
+-      <colgroup class="col-desc"></colgroup>
+-      <tr>
+-        <!-- extra row to make alternating colors use dark for first result -->
+-      </tr>
+-      <tr>
+-        <th></th>
+-        <th></th>
+-        {{range $.Builders | builderSpans}}
+-          <th colspan="{{.N}}">{{.OS}}</th>
+-        {{end}}
+-        <th></th>
+-        <th></th>
+-        <th></th>
+-      </tr>
+-      <tr>
+-        <th></th>
+-        <th></th>
+-        {{range $.Builders}}
+-          <th class="result arch" title="{{.}}">{{builderArchShort .}}</th>
+-        {{end}}
+-        <th></th>
+-        <th></th>
+-        <th></th>
+-      </tr>
+-    {{range $pkg := .Packages}}
+-      <tr class="commit">
+-        <td><a title="{{.Package.Path}}">{{.Package.Name}}</a></td>
+-        <td class="hash">
+-          {{$h := $pkg.Commit.Hash}}
+-          <a href="{{repoURL $h $pkg.Commit.PackagePath}}">{{shortHash $h}}</a>
+-        </td>
+-        {{range $.Builders}}
+-          <td class="result">
+-            {{with $pkg.Commit.Result . $goHash}}
+-              {{if .OK}}
+-                <span class="ok">ok</span>
+-              {{else}}
+-                <a href="/log/{{.LogHash}}" class="fail">fail</a>
+-              {{end}}
+-            {{else}}
+-              &nbsp;
+-            {{end}}
+-          </td>
+-        {{end}}
+-        {{with $pkg.Commit}}
+-          <td class="user" title="{{.User}}">{{shortUser .User}}</td>
+-          <td class="time">{{.Time.Format "Mon 02 Jan 15:04"}}</td>
+-          <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
+-        {{end}}
+-      </tr>
+-    {{end}}
+-    </table>
+-  {{end}}
+-
+-  </body>
+-</html>
+diff --git a/misc/dashboard/app/cache/cache.go b/misc/dashboard/app/cache/cache.go
+deleted file mode 100644
+index 8bd3020f3c..0000000000
+--- a/misc/dashboard/app/cache/cache.go
++++ /dev/null
+@@ -1,82 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cache
+-
+-import (
+-	"fmt"
+-	"net/http"
+-	"time"
+-
+-	"appengine"
+-	"appengine/memcache"
+-)
+-
+-const (
+-	nocache = "nocache"
+-	timeKey = "cachetime"
+-	expiry  = 600 // 10 minutes
+-)
+-
+-func newTime() uint64 { return uint64(time.Now().Unix()) << 32 }
+-
+-// Now returns the current logical datastore time to use for cache lookups.
+-func Now(c appengine.Context) uint64 {
+-	t, err := memcache.Increment(c, timeKey, 0, newTime())
+-	if err != nil {
+-		c.Errorf("cache.Now: %v", err)
+-		return 0
+-	}
+-	return t
+-}
+-
+-// Tick sets the current logical datastore time to a never-before-used time
+-// and returns that time. It should be called to invalidate the cache.
+-func Tick(c appengine.Context) uint64 {
+-	t, err := memcache.Increment(c, timeKey, 1, newTime())
+-	if err != nil {
+-		c.Errorf("cache.Tick: %v", err)
+-		return 0
+-	}
+-	return t
+-}
+-
+-// Get fetches data for name at time now from memcache and unmarshals it into
+-// value. It reports whether it found the cache record and logs any errors to
+-// the admin console.
+-func Get(r *http.Request, now uint64, name string, value interface{}) bool {
+-	if now == 0 || r.FormValue(nocache) != "" {
+-		return false
+-	}
+-	c := appengine.NewContext(r)
+-	key := fmt.Sprintf("%s.%d", name, now)
+-	_, err := memcache.JSON.Get(c, key, value)
+-	if err == nil {
+-		c.Debugf("cache hit %q", key)
+-		return true
+-	}
+-	c.Debugf("cache miss %q", key)
+-	if err != memcache.ErrCacheMiss {
+-		c.Errorf("get cache %q: %v", key, err)
+-	}
+-	return false
+-}
+-
+-// Set puts value into memcache under name at time now.
+-// It logs any errors to the admin console.
+-func Set(r *http.Request, now uint64, name string, value interface{}) {
+-	if now == 0 || r.FormValue(nocache) != "" {
+-		return
+-	}
+-	c := appengine.NewContext(r)
+-	key := fmt.Sprintf("%s.%d", name, now)
+-	err := memcache.JSON.Set(c, &memcache.Item{
+-		Key:        key,
+-		Object:     value,
+-		Expiration: expiry,
+-	})
+-	if err != nil {
+-		c.Errorf("set cache %q: %v", key, err)
+-	}
+-}
+diff --git a/misc/dashboard/app/static/status_alert.gif b/misc/dashboard/app/static/status_alert.gif
+deleted file mode 100644
+index 495d9d2e0c..0000000000
+Binary files a/misc/dashboard/app/static/status_alert.gif and /dev/null differ
+diff --git a/misc/dashboard/app/static/status_good.gif b/misc/dashboard/app/static/status_good.gif
+deleted file mode 100644
+index ef9c5a8f64..0000000000
+Binary files a/misc/dashboard/app/static/status_good.gif and /dev/null differ
+diff --git a/misc/dashboard/builder/Makefile b/misc/dashboard/builder/Makefile
+deleted file mode 100644
+index 4e4d408bfd..0000000000
+--- a/misc/dashboard/builder/Makefile
++++ /dev/null
+@@ -1,9 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-builder: $(shell ls *.go)
+-	go build -o $@ $^
+-
+-clean:
+-	rm -f builder
+diff --git a/misc/dashboard/builder/doc.go b/misc/dashboard/builder/doc.go
+deleted file mode 100644
+index 5192861704..0000000000
+--- a/misc/dashboard/builder/doc.go
++++ /dev/null
+@@ -1,58 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+-
+-Go Builder is a continuous build client for the Go project.
+-It integrates with the Go Dashboard AppEngine application.
+-
+-Go Builder is intended to run continuously as a background process.
+-
+-It periodically pulls updates from the Go Mercurial repository.
+-
+-When a newer revision is found, Go Builder creates a clone of the repository,
+-runs all.bash, and reports build success or failure to the Go Dashboard.
+-
+-For a release revision (a change description that matches "release.YYYY-MM-DD"),
+-Go Builder will create a tar.gz archive of the GOROOT and deliver it to the
+-Go Google Code project's downloads section.
+-
+-Usage:
+-
+-  gobuilder goos-goarch...
+-
+-  Several goos-goarch combinations can be provided, and the builder will
+-  build them in serial.
+-
+-Optional flags:
+-
+-  -dashboard="godashboard.appspot.com": Go Dashboard Host
+-    The location of the Go Dashboard application to which Go Builder will
+-    report its results.
+-
+-  -release: Build and deliver binary release archive
+-
+-  -rev=N: Build revision N and exit
+-
+-  -cmd="./all.bash": Build command (specify absolute or relative to go/src)
+-
+-  -v: Verbose logging
+-
+-  -external: External package builder mode (will not report Go build
+-     state to dashboard or issue releases)
+-
+-The key file should be located at $HOME/.gobuildkey or, for a builder-specific
+-key, $HOME/.gobuildkey-$BUILDER (eg, $HOME/.gobuildkey-linux-amd64).
+-
+-The build key file is a text file of the format:
+-
+-  godashboard-key
+-  googlecode-username
+-  googlecode-password
+-
+-If the Google Code credentials are not provided the archival step
+-will be skipped.
+-
+-*/
+-package main
+diff --git a/misc/dashboard/builder/exec.go b/misc/dashboard/builder/exec.go
+deleted file mode 100644
+index a4aabd2842..0000000000
+--- a/misc/dashboard/builder/exec.go
++++ /dev/null
+@@ -1,79 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"io"
+-	"log"
+-	"os"
+-	"os/exec"
+-	"time"
+-)
+-
+-// run is a simple wrapper for exec.Run/Close
+-func run(timeout time.Duration, envv []string, dir string, argv ...string) error {
+-	if *verbose {
+-		log.Println("run", argv)
+-	}
+-	cmd := exec.Command(argv[0], argv[1:]...)
+-	cmd.Dir = dir
+-	cmd.Env = envv
+-	cmd.Stderr = os.Stderr
+-	if err := cmd.Start(); err != nil {
+-		return err
+-	}
+-	return waitWithTimeout(timeout, cmd)
+-}
+-
+-// runLog runs a process and returns the combined stdout/stderr. It returns
+-// process combined stdout and stderr output, exit status and error. The
+-// error returned is nil, if process is started successfully, even if exit
+-// status is not successful.
+-func runLog(timeout time.Duration, envv []string, dir string, argv ...string) (string, bool, error) {
+-	var b bytes.Buffer
+-	ok, err := runOutput(timeout, envv, &b, dir, argv...)
+-	return b.String(), ok, err
+-}
+-
+-// runOutput runs a process and directs any output to the supplied writer.
+-// It returns exit status and error. The error returned is nil, if process
+-// is started successfully, even if exit status is not successful.
+-func runOutput(timeout time.Duration, envv []string, out io.Writer, dir string, argv ...string) (bool, error) {
+-	if *verbose {
+-		log.Println("runOutput", argv)
+-	}
+-
+-	cmd := exec.Command(argv[0], argv[1:]...)
+-	cmd.Dir = dir
+-	cmd.Env = envv
+-	cmd.Stdout = out
+-	cmd.Stderr = out
+-
+-	startErr := cmd.Start()
+-	if startErr != nil {
+-		return false, startErr
+-	}
+-	if err := waitWithTimeout(timeout, cmd); err != nil {
+-		return false, err
+-	}
+-	return true, nil
+-}
+-
+-func waitWithTimeout(timeout time.Duration, cmd *exec.Cmd) error {
+-	errc := make(chan error, 1)
+-	go func() {
+-		errc <- cmd.Wait()
+-	}()
+-	var err error
+-	select {
+-	case <-time.After(timeout):
+-		cmd.Process.Kill()
+-		err = fmt.Errorf("timed out after %v", timeout)
+-	case err = <-errc:
+-	}
+-	return err
+-}
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+deleted file mode 100644
+index b50e84551b..0000000000
+--- a/misc/dashboard/builder/http.go
++++ /dev/null
+@@ -1,167 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"bytes"
+-	"encoding/json"
+-	"errors"
+-	"fmt"
+-	"io"
+-	"log"
+-	"net/http"
+-	"net/url"
+-	"time"
+-)
+-
+-type obj map[string]interface{}
+-
+-// dash runs the given method and command on the dashboard.
+-// If args is non-nil it is encoded as the URL query string.
+-// If req is non-nil it is JSON-encoded and passed as the body of the HTTP POST.
+-// If resp is non-nil the server's response is decoded into the value pointed
+-// to by resp (resp must be a pointer).
+-func dash(meth, cmd string, args url.Values, req, resp interface{}) error {
+-	var r *http.Response
+-	var err error
+-	if *verbose {
+-		log.Println("dash", meth, cmd, args, req)
+-	}
+-	cmd = "http://" + *dashboard + "/" + cmd
+-	if len(args) > 0 {
+-		cmd += "?" + args.Encode()
+-	}
+-	switch meth {
+-	case "GET":
+-		if req != nil {
+-			log.Panicf("%s to %s with req", meth, cmd)
+-		}
+-		r, err = http.Get(cmd)
+-	case "POST":
+-		var body io.Reader
+-		if req != nil {
+-			b, err := json.Marshal(req)
+-			if err != nil {
+-				return err
+-			}
+-			body = bytes.NewBuffer(b)
+-		}
+-		r, err = http.Post(cmd, "text/json", body)
+-	default:
+-		log.Panicf("%s: invalid method %q", cmd, meth)
+-		panic("invalid method: " + meth)
+-	}
+-	if err != nil {
+-		return err
+-	}
+-	defer r.Body.Close()
+-	if r.StatusCode != http.StatusOK {
+-		return fmt.Errorf("bad http response: %v", r.Status)
+-	}
+-	body := new(bytes.Buffer)
+-	if _, err := body.ReadFrom(r.Body); err != nil {
+-		return err
+-	}
+-
+-	// Read JSON-encoded Response into provided resp
+-	// and return an error if present.
+-	var result = struct {
+-		Response interface{}
+-		Error    string
+-	}{
+-		// Put the provided resp in here as it can be a pointer to
+-		// some value we should unmarshal into.
+-		Response: resp,
+-	}
+-	if err = json.Unmarshal(body.Bytes(), &result); err != nil {
+-		log.Printf("json unmarshal %#q: %s\n", body.Bytes(), err)
+-		return err
+-	}
+-	if result.Error != "" {
+-		return errors.New(result.Error)
+-	}
+-
+-	return nil
+-}
+-
+-// todo returns the next hash to build.
+-func (b *Builder) todo(kind, pkg, goHash string) (rev string, err error) {
+-	args := url.Values{
+-		"kind":        {kind},
+-		"builder":     {b.name},
+-		"packagePath": {pkg},
+-		"goHash":      {goHash},
+-	}
+-	var resp *struct {
+-		Kind string
+-		Data struct {
+-			Hash string
+-		}
+-	}
+-	if err = dash("GET", "todo", args, nil, &resp); err != nil {
+-		return "", err
+-	}
+-	if resp == nil {
+-		return "", nil
+-	}
+-	if kind != resp.Kind {
+-		return "", fmt.Errorf("expecting Kind %q, got %q", kind, resp.Kind)
+-	}
+-	return resp.Data.Hash, nil
+-}
+-
+-// recordResult sends build results to the dashboard
+-func (b *Builder) recordResult(ok bool, pkg, hash, goHash, buildLog string, runTime time.Duration) error {
+-	req := obj{
+-		"Builder":     b.name,
+-		"PackagePath": pkg,
+-		"Hash":        hash,
+-		"GoHash":      goHash,
+-		"OK":          ok,
+-		"Log":         buildLog,
+-		"RunTime":     runTime,
+-	}
+-	args := url.Values{"key": {b.key}, "builder": {b.name}}
+-	return dash("POST", "result", args, req, nil)
+-}
+-
+-func postCommit(key, pkg string, l *HgLog) error {
+-	t, err := time.Parse(time.RFC3339, l.Date)
+-	if err != nil {
+-		return fmt.Errorf("parsing %q: %v", l.Date, t)
+-	}
+-	return dash("POST", "commit", url.Values{"key": {key}}, obj{
+-		"PackagePath": pkg,
+-		"Hash":        l.Hash,
+-		"ParentHash":  l.Parent,
+-		"Time":        t.Format(time.RFC3339),
+-		"User":        l.Author,
+-		"Desc":        l.Desc,
+-	}, nil)
+-}
+-
+-func dashboardCommit(pkg, hash string) bool {
+-	err := dash("GET", "commit", url.Values{
+-		"packagePath": {pkg},
+-		"hash":        {hash},
+-	}, nil, nil)
+-	return err == nil
+-}
+-
+-func dashboardPackages(kind string) []string {
+-	args := url.Values{"kind": []string{kind}}
+-	var resp []struct {
+-		Path string
+-	}
+-	if err := dash("GET", "packages", args, nil, &resp); err != nil {
+-		log.Println("dashboardPackages:", err)
+-		return nil
+-	}
+-	var pkgs []string
+-	for _, r := range resp {
+-		pkgs = append(pkgs, r.Path)
+-	}
+-	return pkgs
+-}
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+deleted file mode 100644
+index 6ef357ad49..0000000000
+--- a/misc/dashboard/builder/main.go
++++ /dev/null
+@@ -1,653 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"bytes"
+-	"flag"
+-	"fmt"
+-	"io"
+-	"io/ioutil"
+-	"log"
+-	"os"
+-	"path/filepath"
+-	"regexp"
+-	"runtime"
+-	"strings"
+-	"time"
+-)
+-
+-const (
+-	codeProject      = "go"
+-	codePyScript     = "misc/dashboard/googlecode_upload.py"
+-	hgUrl            = "https://code.google.com/p/go/"
+-	mkdirPerm        = 0750
+-	waitInterval     = 30 * time.Second // time to wait before checking for new revs
+-	pkgBuildInterval = 24 * time.Hour   // rebuild packages every 24 hours
+-)
+-
+-// These variables are copied from the gobuilder's environment
+-// to the envv of its subprocesses.
+-var extraEnv = []string{
+-	"GOARM",
+-
+-	// For Unix derivatives.
+-	"CC",
+-	"PATH",
+-	"TMPDIR",
+-	"USER",
+-
+-	// For Plan 9.
+-	"objtype",
+-	"cputype",
+-	"path",
+-}
+-
+-type Builder struct {
+-	goroot       *Repo
+-	name         string
+-	goos, goarch string
+-	key          string
+-}
+-
+-var (
+-	buildroot      = flag.String("buildroot", defaultBuildRoot(), "Directory under which to build")
+-	dashboard      = flag.String("dashboard", "build.golang.org", "Go Dashboard Host")
+-	buildRelease   = flag.Bool("release", false, "Build and upload binary release archives")
+-	buildRevision  = flag.String("rev", "", "Build specified revision and exit")
+-	buildCmd       = flag.String("cmd", filepath.Join(".", allCmd), "Build command (specify relative to go/src/)")
+-	failAll        = flag.Bool("fail", false, "fail all builds")
+-	parallel       = flag.Bool("parallel", false, "Build multiple targets in parallel")
+-	buildTimeout   = flag.Duration("buildTimeout", 60*time.Minute, "Maximum time to wait for builds and tests")
+-	cmdTimeout     = flag.Duration("cmdTimeout", 10*time.Minute, "Maximum time to wait for an external command")
+-	commitInterval = flag.Duration("commitInterval", 1*time.Minute, "Time to wait between polling for new commits (0 disables commit poller)")
+-	verbose        = flag.Bool("v", false, "verbose")
+-)
+-
+-var (
+-	binaryTagRe = regexp.MustCompile(`^(release\.r|weekly\.)[0-9\-.]+`)
+-	releaseRe   = regexp.MustCompile(`^release\.r[0-9\-.]+`)
+-	allCmd      = "all" + suffix
+-	raceCmd     = "race" + suffix
+-	cleanCmd    = "clean" + suffix
+-	suffix      = defaultSuffix()
+-)
+-
+-func main() {
+-	flag.Usage = func() {
+-		fmt.Fprintf(os.Stderr, "usage: %s goos-goarch...\n", os.Args[0])
+-		flag.PrintDefaults()
+-		os.Exit(2)
+-	}
+-	flag.Parse()
+-	if len(flag.Args()) == 0 {
+-		flag.Usage()
+-	}
+-	goroot := &Repo{
+-		Path: filepath.Join(*buildroot, "goroot"),
+-	}
+-
+-	// set up work environment, use existing enviroment if possible
+-	if goroot.Exists() || *failAll {
+-		log.Print("Found old workspace, will use it")
+-	} else {
+-		if err := os.RemoveAll(*buildroot); err != nil {
+-			log.Fatalf("Error removing build root (%s): %s", *buildroot, err)
+-		}
+-		if err := os.Mkdir(*buildroot, mkdirPerm); err != nil {
+-			log.Fatalf("Error making build root (%s): %s", *buildroot, err)
+-		}
+-		var err error
+-		goroot, err = RemoteRepo(hgUrl).Clone(goroot.Path, "tip")
+-		if err != nil {
+-			log.Fatal("Error cloning repository:", err)
+-		}
+-	}
+-
+-	// set up builders
+-	builders := make([]*Builder, len(flag.Args()))
+-	for i, name := range flag.Args() {
+-		b, err := NewBuilder(goroot, name)
+-		if err != nil {
+-			log.Fatal(err)
+-		}
+-		builders[i] = b
+-	}
+-
+-	if *failAll {
+-		failMode(builders)
+-		return
+-	}
+-
+-	// if specified, build revision and return
+-	if *buildRevision != "" {
+-		hash, err := goroot.FullHash(*buildRevision)
+-		if err != nil {
+-			log.Fatal("Error finding revision: ", err)
+-		}
+-		for _, b := range builders {
+-			if err := b.buildHash(hash); err != nil {
+-				log.Println(err)
+-			}
+-		}
+-		return
+-	}
+-
+-	// Start commit watcher
+-	go commitWatcher(goroot)
+-
+-	// go continuous build mode
+-	// check for new commits and build them
+-	for {
+-		built := false
+-		t := time.Now()
+-		if *parallel {
+-			done := make(chan bool)
+-			for _, b := range builders {
+-				go func(b *Builder) {
+-					done <- b.build()
+-				}(b)
+-			}
+-			for _ = range builders {
+-				built = <-done || built
+-			}
+-		} else {
+-			for _, b := range builders {
+-				built = b.build() || built
+-			}
+-		}
+-		// sleep if there was nothing to build
+-		if !built {
+-			time.Sleep(waitInterval)
+-		}
+-		// sleep if we're looping too fast.
+-		dt := time.Now().Sub(t)
+-		if dt < waitInterval {
+-			time.Sleep(waitInterval - dt)
+-		}
+-	}
+-}
+-
+-// go continuous fail mode
+-// check for new commits and FAIL them
+-func failMode(builders []*Builder) {
+-	for {
+-		built := false
+-		for _, b := range builders {
+-			built = b.failBuild() || built
+-		}
+-		// stop if there was nothing to fail
+-		if !built {
+-			break
+-		}
+-	}
+-}
+-
+-func NewBuilder(goroot *Repo, name string) (*Builder, error) {
+-	b := &Builder{
+-		goroot: goroot,
+-		name:   name,
+-	}
+-
+-	// get goos/goarch from builder string
+-	s := strings.SplitN(b.name, "-", 3)
+-	if len(s) >= 2 {
+-		b.goos, b.goarch = s[0], s[1]
+-	} else {
+-		return nil, fmt.Errorf("unsupported builder form: %s", name)
+-	}
+-
+-	// read keys from keyfile
+-	fn := ""
+-	if runtime.GOOS == "windows" {
+-		fn = os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
+-	} else {
+-		fn = os.Getenv("HOME")
+-	}
+-	fn = filepath.Join(fn, ".gobuildkey")
+-	if s := fn + "-" + b.name; isFile(s) { // builder-specific file
+-		fn = s
+-	}
+-	c, err := ioutil.ReadFile(fn)
+-	if err != nil {
+-		return nil, fmt.Errorf("readKeys %s (%s): %s", b.name, fn, err)
+-	}
+-	b.key = string(bytes.TrimSpace(bytes.SplitN(c, []byte("\n"), 2)[0]))
+-	return b, nil
+-}
+-
+-// buildCmd returns the build command to invoke.
+-// Builders which contain the string '-race' in their
+-// name will override *buildCmd and return raceCmd.
+-func (b *Builder) buildCmd() string {
+-	if strings.Contains(b.name, "-race") {
+-		return raceCmd
+-	}
+-	return *buildCmd
+-}
+-
+-// build checks for a new commit for this builder
+-// and builds it if one is found.
+-// It returns true if a build was attempted.
+-func (b *Builder) build() bool {
+-	hash, err := b.todo("build-go-commit", "", "")
+-	if err != nil {
+-		log.Println(err)
+-		return false
+-	}
+-	if hash == "" {
+-		return false
+-	}
+-
+-	if err := b.buildHash(hash); err != nil {
+-		log.Println(err)
+-	}
+-	return true
+-}
+-
+-func (b *Builder) buildHash(hash string) error {
+-	log.Println(b.name, "building", hash)
+-
+-	// create place in which to do work
+-	workpath := filepath.Join(*buildroot, b.name+"-"+hash[:12])
+-	if err := os.Mkdir(workpath, mkdirPerm); err != nil {
+-		return err
+-	}
+-	defer os.RemoveAll(workpath)
+-
+-	// pull before cloning to ensure we have the revision
+-	if err := b.goroot.Pull(); err != nil {
+-		return err
+-	}
+-
+-	// clone repo at specified revision
+-	if _, err := b.goroot.Clone(filepath.Join(workpath, "go"), hash); err != nil {
+-		return err
+-	}
+-
+-	srcDir := filepath.Join(workpath, "go", "src")
+-
+-	// build
+-	var buildlog bytes.Buffer
+-	logfile := filepath.Join(workpath, "build.log")
+-	f, err := os.Create(logfile)
+-	if err != nil {
+-		return err
+-	}
+-	defer f.Close()
+-	w := io.MultiWriter(f, &buildlog)
+-
+-	cmd := b.buildCmd()
+-	if !filepath.IsAbs(cmd) {
+-		cmd = filepath.Join(srcDir, cmd)
+-	}
+-	startTime := time.Now()
+-	ok, err := runOutput(*buildTimeout, b.envv(), w, srcDir, cmd)
+-	runTime := time.Now().Sub(startTime)
+-	errf := func() string {
+-		if err != nil {
+-			return fmt.Sprintf("error: %v", err)
+-		}
+-		if !ok {
+-			return "failed"
+-		}
+-		return "success"
+-	}
+-	fmt.Fprintf(w, "Build complete, duration %v. Result: %v\n", runTime, errf())
+-
+-	if err != nil || !ok {
+-		// record failure
+-		return b.recordResult(false, "", hash, "", buildlog.String(), runTime)
+-	}
+-
+-	// record success
+-	if err = b.recordResult(true, "", hash, "", "", runTime); err != nil {
+-		return fmt.Errorf("recordResult: %s", err)
+-	}
+-
+-	// build Go sub-repositories
+-	goRoot := filepath.Join(workpath, "go")
+-	goPath := workpath
+-	b.buildSubrepos(goRoot, goPath, hash)
+-
+-	return nil
+-}
+-
+-// failBuild checks for a new commit for this builder
+-// and fails it if one is found.
+-// It returns true if a build was "attempted".
+-func (b *Builder) failBuild() bool {
+-	hash, err := b.todo("build-go-commit", "", "")
+-	if err != nil {
+-		log.Println(err)
+-		return false
+-	}
+-	if hash == "" {
+-		return false
+-	}
+-
+-	log.Printf("fail %s %s\n", b.name, hash)
+-
+-	if err := b.recordResult(false, "", hash, "", "auto-fail mode run by "+os.Getenv("USER"), 0); err != nil {
+-		log.Print(err)
+-	}
+-	return true
+-}
+-
+-func (b *Builder) buildSubrepos(goRoot, goPath, goHash string) {
+-	for _, pkg := range dashboardPackages("subrepo") {
+-		// get the latest todo for this package
+-		hash, err := b.todo("build-package", pkg, goHash)
+-		if err != nil {
+-			log.Printf("buildSubrepos %s: %v", pkg, err)
+-			continue
+-		}
+-		if hash == "" {
+-			continue
+-		}
+-
+-		// build the package
+-		if *verbose {
+-			log.Printf("buildSubrepos %s: building %q", pkg, hash)
+-		}
+-		buildLog, err := b.buildSubrepo(goRoot, goPath, pkg, hash)
+-		if err != nil {
+-			if buildLog == "" {
+-				buildLog = err.Error()
+-			}
+-			log.Printf("buildSubrepos %s: %v", pkg, err)
+-		}
+-
+-		// record the result
+-		err = b.recordResult(err == nil, pkg, hash, goHash, buildLog, 0)
+-		if err != nil {
+-			log.Printf("buildSubrepos %s: %v", pkg, err)
+-		}
+-	}
+-}
+-
+-// buildSubrepo fetches the given package, updates it to the specified hash,
+-// and runs 'go test -short pkg/...'. It returns the build log and any error.
+-func (b *Builder) buildSubrepo(goRoot, goPath, pkg, hash string) (string, error) {
+-	goTool := filepath.Join(goRoot, "bin", "go")
+-	env := append(b.envv(), "GOROOT="+goRoot, "GOPATH="+goPath)
+-
+-	// add $GOROOT/bin and $GOPATH/bin to PATH
+-	for i, e := range env {
+-		const p = "PATH="
+-		if !strings.HasPrefix(e, p) {
+-			continue
+-		}
+-		sep := string(os.PathListSeparator)
+-		env[i] = p + filepath.Join(goRoot, "bin") + sep + filepath.Join(goPath, "bin") + sep + e[len(p):]
+-	}
+-
+-	// fetch package and dependencies
+-	log, ok, err := runLog(*cmdTimeout, env, goPath, goTool, "get", "-d", pkg+"/...")
+-	if err == nil && !ok {
+-		err = fmt.Errorf("go exited with status 1")
+-	}
+-	if err != nil {
+-		return log, err
+-	}
+-
+-	// hg update to the specified hash
+-	repo := Repo{Path: filepath.Join(goPath, "src", pkg)}
+-	if err := repo.UpdateTo(hash); err != nil {
+-		return "", err
+-	}
+-
+-	// test the package
+-	log, ok, err = runLog(*buildTimeout, env, goPath, goTool, "test", "-short", pkg+"/...")
+-	if err == nil && !ok {
+-		err = fmt.Errorf("go exited with status 1")
+-	}
+-	return log, err
+-}
+-
+-// envv returns an environment for build/bench execution
+-func (b *Builder) envv() []string {
+-	if runtime.GOOS == "windows" {
+-		return b.envvWindows()
+-	}
+-	e := []string{
+-		"GOOS=" + b.goos,
+-		"GOHOSTOS=" + b.goos,
+-		"GOARCH=" + b.goarch,
+-		"GOHOSTARCH=" + b.goarch,
+-		"GOROOT_FINAL=/usr/local/go",
+-	}
+-	for _, k := range extraEnv {
+-		if s, ok := getenvOk(k); ok {
+-			e = append(e, k+"="+s)
+-		}
+-	}
+-	return e
+-}
+-
+-// windows version of envv
+-func (b *Builder) envvWindows() []string {
+-	start := map[string]string{
+-		"GOOS":         b.goos,
+-		"GOHOSTOS":     b.goos,
+-		"GOARCH":       b.goarch,
+-		"GOHOSTARCH":   b.goarch,
+-		"GOROOT_FINAL": `c:\go`,
+-		"GOBUILDEXIT":  "1", // exit all.bat with completion status.
+-	}
+-	for _, name := range extraEnv {
+-		if s, ok := getenvOk(name); ok {
+-			start[name] = s
+-		}
+-	}
+-	skip := map[string]bool{
+-		"GOBIN":   true,
+-		"GOROOT":  true,
+-		"INCLUDE": true,
+-		"LIB":     true,
+-	}
+-	var e []string
+-	for name, v := range start {
+-		e = append(e, name+"="+v)
+-		skip[name] = true
+-	}
+-	for _, kv := range os.Environ() {
+-		s := strings.SplitN(kv, "=", 2)
+-		name := strings.ToUpper(s[0])
+-		switch {
+-		case name == "":
+-			// variables, like "=C:=C:\", just copy them
+-			e = append(e, kv)
+-		case !skip[name]:
+-			e = append(e, kv)
+-			skip[name] = true
+-		}
+-	}
+-	return e
+-}
+-
+-func isDirectory(name string) bool {
+-	s, err := os.Stat(name)
+-	return err == nil && s.IsDir()
+-}
+-
+-func isFile(name string) bool {
+-	s, err := os.Stat(name)
+-	return err == nil && !s.IsDir()
+-}
+-
+-// commitWatcher polls hg for new commits and tells the dashboard about them.
+-func commitWatcher(goroot *Repo) {
+-	if *commitInterval == 0 {
+-		log.Printf("commitInterval is %s, disabling commitWatcher", *commitInterval)
+-		return
+-	}
+-	// Create builder just to get master key.
+-	b, err := NewBuilder(goroot, "mercurial-commit")
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	key := b.key
+-
+-	for {
+-		if *verbose {
+-			log.Printf("poll...")
+-		}
+-		// Main Go repository.
+-		commitPoll(goroot, "", key)
+-		// Go sub-repositories.
+-		for _, pkg := range dashboardPackages("subrepo") {
+-			pkgroot := &Repo{
+-				Path: filepath.Join(*buildroot, pkg),
+-			}
+-			commitPoll(pkgroot, pkg, key)
+-		}
+-		if *verbose {
+-			log.Printf("sleep...")
+-		}
+-		time.Sleep(*commitInterval)
+-	}
+-}
+-
+-// logByHash is a cache of all Mercurial revisions we know about,
+-// indexed by full hash.
+-var logByHash = map[string]*HgLog{}
+-
+-// commitPoll pulls any new revisions from the hg server
+-// and tells the server about them.
+-func commitPoll(repo *Repo, pkg, key string) {
+-	if !repo.Exists() {
+-		var err error
+-		repo, err = RemoteRepo(repoURL(pkg)).Clone(repo.Path, "tip")
+-		if err != nil {
+-			log.Printf("%s: hg clone failed: %v", pkg, err)
+-			if err := os.RemoveAll(repo.Path); err != nil {
+-				log.Printf("%s: %v", pkg, err)
+-			}
+-		}
+-		return
+-	}
+-
+-	logs, err := repo.Log() // repo.Log calls repo.Pull internally
+-	if err != nil {
+-		log.Printf("hg log: %v", err)
+-		return
+-	}
+-
+-	// Pass 1.  Fill in parents and add new log entries to logsByHash.
+-	// Empty parent means take parent from next log entry.
+-	// Non-empty parent has form 1234:hashhashhash; we want full hash.
+-	for i := range logs {
+-		l := &logs[i]
+-		if l.Parent == "" && i+1 < len(logs) {
+-			l.Parent = logs[i+1].Hash
+-		} else if l.Parent != "" {
+-			l.Parent, _ = repo.FullHash(l.Parent)
+-		}
+-		if *verbose {
+-			log.Printf("hg log %s: %s < %s\n", pkg, l.Hash, l.Parent)
+-		}
+-		if logByHash[l.Hash] == nil {
+-			// Make copy to avoid pinning entire slice when only one entry is new.
+-			t := *l
+-			logByHash[t.Hash] = &t
+-		}
+-	}
+-
+-	for _, l := range logs {
+-		addCommit(pkg, l.Hash, key)
+-	}
+-}
+-
+-// addCommit adds the commit with the named hash to the dashboard.
+-// key is the secret key for authentication to the dashboard.
+-// It avoids duplicate effort.
+-func addCommit(pkg, hash, key string) bool {
+-	l := logByHash[hash]
+-	if l == nil {
+-		return false
+-	}
+-	if l.added {
+-		return true
+-	}
+-
+-	// Check for already added, perhaps in an earlier run.
+-	if dashboardCommit(pkg, hash) {
+-		log.Printf("%s already on dashboard\n", hash)
+-		// Record that this hash is on the dashboard,
+-		// as must be all its parents.
+-		for l != nil {
+-			l.added = true
+-			l = logByHash[l.Parent]
+-		}
+-		return true
+-	}
+-
+-	// Create parent first, to maintain some semblance of order.
+-	if l.Parent != "" {
+-		if !addCommit(pkg, l.Parent, key) {
+-			return false
+-		}
+-	}
+-
+-	// Create commit.
+-	if err := postCommit(key, pkg, l); err != nil {
+-		log.Printf("failed to add %s to dashboard: %v", key, err)
+-		return false
+-	}
+-	return true
+-}
+-
+-var repoRe = regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+(\.[a-z0-9\-]+)?)(/[a-z0-9A-Z_.\-/]+)?$`)
+-
+-// repoURL returns the repository URL for the supplied import path.
+-func repoURL(importPath string) string {
+-	m := repoRe.FindStringSubmatch(importPath)
+-	if len(m) < 2 {
+-		log.Printf("repoURL: couldn't decipher %q", importPath)
+-		return ""
+-	}
+-	return "https://code.google.com/p/" + m[1]
+-}
+-
+-// defaultSuffix returns file extension used for command files in
+-// current os environment.
+-func defaultSuffix() string {
+-	switch runtime.GOOS {
+-	case "windows":
+-		return ".bat"
+-	case "plan9":
+-		return ".rc"
+-	default:
+-		return ".bash"
+-	}
+-}
+-
+-// defaultBuildRoot returns default buildroot directory.
+-func defaultBuildRoot() string {
+-	var d string
+-	if runtime.GOOS == "windows" {
+-		// will use c:\, otherwise absolute paths become too long
+-		// during builder run, see http://golang.org/issue/3358.
+-		d = `c:\`
+-	} else {
+-		d = os.TempDir()
+-	}
+-	return filepath.Join(d, "gobuilder")
+-}
+-
+-func getenvOk(k string) (v string, ok bool) {
+-	v = os.Getenv(k)
+-	if v != "" {
+-		return v, true
+-	}
+-	keq := k + "="
+-	for _, kv := range os.Environ() {
+-		if kv == keq {
+-			return "", true
+-		}
+-	}
+-	return "", false
+-}
+diff --git a/misc/dashboard/builder/vcs.go b/misc/dashboard/builder/vcs.go
+deleted file mode 100644
+index 63198a34bf..0000000000
+--- a/misc/dashboard/builder/vcs.go
++++ /dev/null
+@@ -1,148 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"encoding/xml"
+-	"fmt"
+-	"log"
+-	"os"
+-	"path/filepath"
+-	"strconv"
+-	"strings"
+-	"sync"
+-)
+-
+-// Repo represents a mercurial repository.
+-type Repo struct {
+-	Path string
+-	sync.Mutex
+-}
+-
+-// RemoteRepo constructs a *Repo representing a remote repository.
+-func RemoteRepo(url string) *Repo {
+-	return &Repo{
+-		Path: url,
+-	}
+-}
+-
+-// Clone clones the current Repo to a new destination
+-// returning a new *Repo if successful.
+-func (r *Repo) Clone(path, rev string) (*Repo, error) {
+-	r.Lock()
+-	defer r.Unlock()
+-	if err := run(*cmdTimeout, nil, *buildroot, r.hgCmd("clone", "-r", rev, r.Path, path)...); err != nil {
+-		return nil, err
+-	}
+-	return &Repo{
+-		Path: path,
+-	}, nil
+-}
+-
+-// UpdateTo updates the working copy of this Repo to the
+-// supplied revision.
+-func (r *Repo) UpdateTo(hash string) error {
+-	r.Lock()
+-	defer r.Unlock()
+-	return run(*cmdTimeout, nil, r.Path, r.hgCmd("update", hash)...)
+-}
+-
+-// Exists reports whether this Repo represents a valid Mecurial repository.
+-func (r *Repo) Exists() bool {
+-	fi, err := os.Stat(filepath.Join(r.Path, ".hg"))
+-	if err != nil {
+-		return false
+-	}
+-	return fi.IsDir()
+-}
+-
+-// Pull pulls changes from the default path, that is, the path
+-// this Repo was cloned from.
+-func (r *Repo) Pull() error {
+-	r.Lock()
+-	defer r.Unlock()
+-	return run(*cmdTimeout, nil, r.Path, r.hgCmd("pull")...)
+-}
+-
+-// Log returns the changelog for this repository.
+-func (r *Repo) Log() ([]HgLog, error) {
+-	if err := r.Pull(); err != nil {
+-		return nil, err
+-	}
+-	const N = 50 // how many revisions to grab
+-
+-	r.Lock()
+-	defer r.Unlock()
+-	data, _, err := runLog(*cmdTimeout, nil, r.Path, r.hgCmd("log",
+-		"--encoding=utf-8",
+-		"--limit="+strconv.Itoa(N),
+-		"--template="+xmlLogTemplate)...,
+-	)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	var logStruct struct {
+-		Log []HgLog
+-	}
+-	err = xml.Unmarshal([]byte("<Top>"+data+"</Top>"), &logStruct)
+-	if err != nil {
+-		log.Printf("unmarshal hg log: %v", err)
+-		return nil, err
+-	}
+-	return logStruct.Log, nil
+-}
+-
+-// FullHash returns the full hash for the given Mercurial revision.
+-func (r *Repo) FullHash(rev string) (string, error) {
+-	r.Lock()
+-	defer r.Unlock()
+-	s, _, err := runLog(*cmdTimeout, nil, r.Path,
+-		r.hgCmd("log",
+-			"--encoding=utf-8",
+-			"--rev="+rev,
+-			"--limit=1",
+-			"--template={node}")...,
+-	)
+-	if err != nil {
+-		return "", nil
+-	}
+-	s = strings.TrimSpace(s)
+-	if s == "" {
+-		return "", fmt.Errorf("cannot find revision")
+-	}
+-	if len(s) != 40 {
+-		return "", fmt.Errorf("hg returned invalid hash " + s)
+-	}
+-	return s, nil
+-}
+-
+-func (r *Repo) hgCmd(args ...string) []string {
+-	return append([]string{"hg", "--config", "extensions.codereview=!"}, args...)
+-}
+-
+-// HgLog represents a single Mercurial revision.
+-type HgLog struct {
+-	Hash   string
+-	Author string
+-	Date   string
+-	Desc   string
+-	Parent string
+-
+-	// Internal metadata
+-	added bool
+-}
+-
+-// xmlLogTemplate is a template to pass to Mercurial to make
+-// hg log print the log in valid XML for parsing with xml.Unmarshal.
+-const xmlLogTemplate = `
+-        <Log>
+-        <Hash>{node|escape}</Hash>
+-        <Parent>{parent|escape}</Parent>
+-        <Author>{author|escape}</Author>
+-        <Date>{date|rfc3339date}</Date>
+-        <Desc>{desc|escape}</Desc>
+-        </Log>
+-`

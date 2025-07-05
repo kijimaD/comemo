@@ -11,6 +11,23 @@ Date:   Wed Nov 29 19:22:27 2017 +0000
     Reviewed-on: https://go-review.googlesource.com/80756
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/platform_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index eca1202beb..8e7d9151de 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -44,6 +44,11 @@ func testableNetwork(network string) bool {
+ 		switch runtime.GOOS {
+ 		case "android", "darwin", "nacl", "plan9", "windows":
+ 			return false
++		case "netbsd":
++			// It passes on amd64 at least. 386 fails (Issue 22927). arm is unknown.
++			if runtime.GOARCH == "386" {
++				return false
++			}
+ 		}
+ 	}
+ 	switch ss[0] {

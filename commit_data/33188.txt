@@ -10,6 +10,19 @@ Date:   Thu May 25 15:34:05 2017 -0400
     Change-Id: I5db9c9498e9a4421742389eb929752fdac873b38
     Reviewed-on: https://go-review.googlesource.com/50877
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/decompose.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index 2b3f16c30c..120f84fdcf 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -98,6 +98,7 @@ func decomposeBuiltIn(f *Func) {
+ 			delete(f.NamedValues, name)
+ 		case t.IsFloat():
+ 			// floats are never decomposed, even ones bigger than RegSize
++			newNames = append(newNames, name)
+ 		case t.Size() > f.Config.RegSize:
+ 			f.Fatalf("undecomposed named type %v %v", name, t)
+ 		default:

@@ -40,7 +40,7 @@ Date:   Sun Nov 28 13:05:16 2021 +0900
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-
+---
  api/next/46787.txt                          |   3 +
  src/cmd/cgo/internal/testerrors/ptr_test.go |  11 +
  src/runtime/cgocall.go                      |  32 +-
@@ -54,3 +54,1405 @@ Date:   Sun Nov 28 13:05:16 2021 +0900
  src/runtime/pinner_test.go                  | 526 ++++++++++++++++++++++++++++
  src/runtime/sizeclasses.go                  |   1 +
  12 files changed, 968 insertions(+), 90 deletions(-)
+
+diff --git a/api/next/46787.txt b/api/next/46787.txt
+new file mode 100644
+index 0000000000..259f654ce1
+--- /dev/null
++++ b/api/next/46787.txt
+@@ -0,0 +1,3 @@
++pkg runtime, method (*Pinner) Pin(interface{}) #46787
++pkg runtime, method (*Pinner) Unpin() #46787
++pkg runtime, type Pinner struct #46787
+diff --git a/src/cmd/cgo/internal/testerrors/ptr_test.go b/src/cmd/cgo/internal/testerrors/ptr_test.go
+index 149445899f..eb923eaa5b 100644
+--- a/src/cmd/cgo/internal/testerrors/ptr_test.go
++++ b/src/cmd/cgo/internal/testerrors/ptr_test.go
+@@ -163,6 +163,17 @@ var ptrTests = []ptrTest{
+ 		fail:      true,
+ 		expensive: true,
+ 	},
++	{
++		// Storing a pinned Go pointer into C memory should succeed.
++		name: "barrierpinnedok",
++		c: `#include <stdlib.h>
++		    char **f14a2() { return malloc(sizeof(char*)); }
++		    void f14b2(char **p) {}`,
++		imports:   []string{"runtime"},
++		body:      `var pinr runtime.Pinner; p := C.f14a2(); x := new(C.char); pinr.Pin(x); *p = x; C.f14b2(p); pinr.Unpin()`,
++		fail:      false,
++		expensive: true,
++	},
+ 	{
+ 		// Storing a Go pointer into C memory by assigning a
+ 		// large value should fail.
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index a944723882..1da7249abc 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -376,12 +376,12 @@ var racecgosync uint64 // represents possible synchronization in C code
+ 
+ // We want to detect all cases where a program that does not use
+ // unsafe makes a cgo call passing a Go pointer to memory that
+-// contains a Go pointer. Here a Go pointer is defined as a pointer
+-// to memory allocated by the Go runtime. Programs that use unsafe
+-// can evade this restriction easily, so we don't try to catch them.
+-// The cgo program will rewrite all possibly bad pointer arguments to
+-// call cgoCheckPointer, where we can catch cases of a Go pointer
+-// pointing to a Go pointer.
++// contains an unpinned Go pointer. Here a Go pointer is defined as a
++// pointer to memory allocated by the Go runtime. Programs that use
++// unsafe can evade this restriction easily, so we don't try to catch
++// them. The cgo program will rewrite all possibly bad pointer
++// arguments to call cgoCheckPointer, where we can catch cases of a Go
++// pointer pointing to an unpinned Go pointer.
+ 
+ // Complicating matters, taking the address of a slice or array
+ // element permits the C program to access all elements of the slice
+@@ -403,7 +403,7 @@ var racecgosync uint64 // represents possible synchronization in C code
+ // pointers.)
+ 
+ // cgoCheckPointer checks if the argument contains a Go pointer that
+-// points to a Go pointer, and panics if it does.
++// points to an unpinned Go pointer, and panics if it does.
+ func cgoCheckPointer(ptr any, arg any) {
+ 	if !goexperiment.CgoCheck2 && debug.cgocheck == 0 {
+ 		return
+@@ -450,13 +450,14 @@ func cgoCheckPointer(ptr any, arg any) {
+ 	cgoCheckArg(t, ep.data, t.Kind_&kindDirectIface == 0, top, cgoCheckPointerFail)
+ }
+ 
+-const cgoCheckPointerFail = "cgo argument has Go pointer to Go pointer"
++const cgoCheckPointerFail = "cgo argument has Go pointer to unpinned Go pointer"
+ const cgoResultFail = "cgo result has Go pointer"
+ 
+ // cgoCheckArg is the real work of cgoCheckPointer. The argument p
+ // is either a pointer to the value (of type t), or the value itself,
+ // depending on indir. The top parameter is whether we are at the top
+-// level, where Go pointers are allowed.
++// level, where Go pointers are allowed. Go pointers to pinned objects are
++// always allowed.
+ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 	if t.PtrBytes == 0 || p == nil {
+ 		// If the type has no pointers there is nothing to do.
+@@ -507,7 +508,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 		if !cgoIsGoPointer(p) {
+ 			return
+ 		}
+-		if !top {
++		if !top && !isPinned(p) {
+ 			panic(errorString(msg))
+ 		}
+ 		cgoCheckArg(it, p, it.Kind_&kindDirectIface == 0, false, msg)
+@@ -518,7 +519,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 		if p == nil || !cgoIsGoPointer(p) {
+ 			return
+ 		}
+-		if !top {
++		if !top && !isPinned(p) {
+ 			panic(errorString(msg))
+ 		}
+ 		if st.Elem.PtrBytes == 0 {
+@@ -533,7 +534,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 		if !cgoIsGoPointer(ss.str) {
+ 			return
+ 		}
+-		if !top {
++		if !top && !isPinned(ss.str) {
+ 			panic(errorString(msg))
+ 		}
+ 	case kindStruct:
+@@ -562,7 +563,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 		if !cgoIsGoPointer(p) {
+ 			return
+ 		}
+-		if !top {
++		if !top && !isPinned(p) {
+ 			panic(errorString(msg))
+ 		}
+ 
+@@ -572,7 +573,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 
+ // cgoCheckUnknownPointer is called for an arbitrary pointer into Go
+ // memory. It checks whether that Go memory contains any other
+-// pointer into Go memory. If it does, we panic.
++// pointer into unpinned Go memory. If it does, we panic.
+ // The return values are unused but useful to see in panic tracebacks.
+ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
+ 	if inheap(uintptr(p)) {
+@@ -588,7 +589,8 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
+ 			if hbits, addr = hbits.next(); addr == 0 {
+ 				break
+ 			}
+-			if cgoIsGoPointer(*(*unsafe.Pointer)(unsafe.Pointer(addr))) {
++			pp := *(*unsafe.Pointer)(unsafe.Pointer(addr))
++			if cgoIsGoPointer(pp) && !isPinned(pp) {
+ 				panic(errorString(msg))
+ 			}
+ 		}
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index 11ff95078f..ec5734a5c7 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -12,10 +12,11 @@ import (
+ 	"unsafe"
+ )
+ 
+-const cgoWriteBarrierFail = "Go pointer stored into non-Go memory"
++const cgoWriteBarrierFail = "unpinned Go pointer stored into non-Go memory"
+ 
+ // cgoCheckPtrWrite is called whenever a pointer is stored into memory.
+-// It throws if the program is storing a Go pointer into non-Go memory.
++// It throws if the program is storing an unpinned Go pointer into non-Go
++// memory.
+ //
+ // This is called from generated code when GOEXPERIMENT=cgocheck2 is enabled.
+ //
+@@ -48,6 +49,12 @@ func cgoCheckPtrWrite(dst *unsafe.Pointer, src unsafe.Pointer) {
+ 		return
+ 	}
+ 
++	// If the object is pinned, it's safe to store it in C memory. The GC
++	// ensures it will not be moved or freed.
++	if isPinned(src) {
++		return
++	}
++
+ 	// It's OK if writing to memory allocated by persistentalloc.
+ 	// Do this check last because it is more expensive and rarely true.
+ 	// If it is false the expense doesn't matter since we are crashing.
+@@ -56,14 +63,14 @@ func cgoCheckPtrWrite(dst *unsafe.Pointer, src unsafe.Pointer) {
+ 	}
+ 
+ 	systemstack(func() {
+-		println("write of Go pointer", hex(uintptr(src)), "to non-Go memory", hex(uintptr(unsafe.Pointer(dst))))
++		println("write of unpinned Go pointer", hex(uintptr(src)), "to non-Go memory", hex(uintptr(unsafe.Pointer(dst))))
+ 		throw(cgoWriteBarrierFail)
+ 	})
+ }
+ 
+ // cgoCheckMemmove is called when moving a block of memory.
+-// It throws if the program is copying a block that contains a Go pointer
+-// into non-Go memory.
++// It throws if the program is copying a block that contains an unpinned Go
++// pointer into non-Go memory.
+ //
+ // This is called from generated code when GOEXPERIMENT=cgocheck2 is enabled.
+ //
+@@ -76,8 +83,8 @@ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer) {
+ // cgoCheckMemmove2 is called when moving a block of memory.
+ // dst and src point off bytes into the value to copy.
+ // size is the number of bytes to copy.
+-// It throws if the program is copying a block that contains a Go pointer
+-// into non-Go memory.
++// It throws if the program is copying a block that contains an unpinned Go
++// pointer into non-Go memory.
+ //
+ //go:nosplit
+ //go:nowritebarrier
+@@ -97,8 +104,8 @@ func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+ // cgoCheckSliceCopy is called when copying n elements of a slice.
+ // src and dst are pointers to the first element of the slice.
+ // typ is the element type of the slice.
+-// It throws if the program is copying slice elements that contain Go pointers
+-// into non-Go memory.
++// It throws if the program is copying slice elements that contain unpinned Go
++// pointers into non-Go memory.
+ //
+ //go:nosplit
+ //go:nowritebarrier
+@@ -120,7 +127,7 @@ func cgoCheckSliceCopy(typ *_type, dst, src unsafe.Pointer, n int) {
+ }
+ 
+ // cgoCheckTypedBlock checks the block of memory at src, for up to size bytes,
+-// and throws if it finds a Go pointer. The type of the memory is typ,
++// and throws if it finds an unpinned Go pointer. The type of the memory is typ,
+ // and src is off bytes into that type.
+ //
+ //go:nosplit
+@@ -177,14 +184,14 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 			break
+ 		}
+ 		v := *(*unsafe.Pointer)(unsafe.Pointer(addr))
+-		if cgoIsGoPointer(v) {
++		if cgoIsGoPointer(v) && !isPinned(v) {
+ 			throw(cgoWriteBarrierFail)
+ 		}
+ 	}
+ }
+ 
+ // cgoCheckBits checks the block of memory at src, for up to size
+-// bytes, and throws if it finds a Go pointer. The gcbits mark each
++// bytes, and throws if it finds an unpinned Go pointer. The gcbits mark each
+ // pointer value. The src pointer is off bytes into the gcbits.
+ //
+ //go:nosplit
+@@ -209,7 +216,7 @@ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
+ 		} else {
+ 			if bits&1 != 0 {
+ 				v := *(*unsafe.Pointer)(add(src, i))
+-				if cgoIsGoPointer(v) {
++				if cgoIsGoPointer(v) && !isPinned(v) {
+ 					throw(cgoWriteBarrierFail)
+ 				}
+ 			}
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index d5a3258a06..c04b76ee44 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -47,6 +47,8 @@ var NetpollGenericInit = netpollGenericInit
+ var Memmove = memmove
+ var MemclrNoHeapPointers = memclrNoHeapPointers
+ 
++var CgoCheckPointer = cgoCheckPointer
++
+ const TracebackInnerFrames = tracebackInnerFrames
+ const TracebackOuterFrames = tracebackOuterFrames
+ 
+@@ -1826,3 +1828,15 @@ func PersistentAlloc(n uintptr) unsafe.Pointer {
+ func FPCallers(pcBuf []uintptr) int {
+ 	return fpTracebackPCs(unsafe.Pointer(getcallerfp()), pcBuf)
+ }
++
++var (
++	IsPinned      = isPinned
++	GetPinCounter = pinnerGetPinCounter
++)
++
++func SetPinnerLeakPanic(f func()) {
++	pinnerLeakPanic = f
++}
++func GetPinnerLeakPanic() func() {
++	return pinnerLeakPanic
++}
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 80670d49ef..a242872884 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -202,6 +202,10 @@ func (s *mspan) isFree(index uintptr) bool {
+ // n must be within [0, s.npages*_PageSize),
+ // or may be exactly s.npages*_PageSize
+ // if s.elemsize is from sizeclasses.go.
++//
++// nosplit, because it is called by objIndex, which is nosplit
++//
++//go:nosplit
+ func (s *mspan) divideByElemSize(n uintptr) uintptr {
+ 	const doubleCheck = false
+ 
+@@ -215,6 +219,9 @@ func (s *mspan) divideByElemSize(n uintptr) uintptr {
+ 	return q
+ }
+ 
++// nosplit, because it is called by other nosplit code like findObject
++//
++//go:nosplit
+ func (s *mspan) objIndex(p uintptr) uintptr {
+ 	return s.divideByElemSize(p - s.base())
+ }
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 3f9cd4ec74..cfdbd79af6 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -274,6 +274,31 @@ func runfinq() {
+ 	}
+ }
+ 
++func isGoPointerWithoutSpan(p unsafe.Pointer) bool {
++	// 0-length objects are okay.
++	if p == unsafe.Pointer(&zerobase) {
++		return true
++	}
++
++	// Global initializers might be linker-allocated.
++	//	var Foo = &Object{}
++	//	func main() {
++	//		runtime.SetFinalizer(Foo, nil)
++	//	}
++	// The relevant segments are: noptrdata, data, bss, noptrbss.
++	// We cannot assume they are in any order or even contiguous,
++	// due to external linking.
++	for datap := &firstmoduledata; datap != nil; datap = datap.next {
++		if datap.noptrdata <= uintptr(p) && uintptr(p) < datap.enoptrdata ||
++			datap.data <= uintptr(p) && uintptr(p) < datap.edata ||
++			datap.bss <= uintptr(p) && uintptr(p) < datap.ebss ||
++			datap.noptrbss <= uintptr(p) && uintptr(p) < datap.enoptrbss {
++			return true
++		}
++	}
++	return false
++}
++
+ // SetFinalizer sets the finalizer associated with obj to the provided
+ // finalizer function. When the garbage collector finds an unreachable block
+ // with an associated finalizer, it clears the association and runs
+@@ -388,27 +413,9 @@ func SetFinalizer(obj any, finalizer any) {
+ 	base, _, _ := findObject(uintptr(e.data), 0, 0)
+ 
+ 	if base == 0 {
+-		// 0-length objects are okay.
+-		if e.data == unsafe.Pointer(&zerobase) {
++		if isGoPointerWithoutSpan(e.data) {
+ 			return
+ 		}
+-
+-		// Global initializers might be linker-allocated.
+-		//	var Foo = &Object{}
+-		//	func main() {
+-		//		runtime.SetFinalizer(Foo, nil)
+-		//	}
+-		// The relevant segments are: noptrdata, data, bss, noptrbss.
+-		// We cannot assume they are in any order or even contiguous,
+-		// due to external linking.
+-		for datap := &firstmoduledata; datap != nil; datap = datap.next {
+-			if datap.noptrdata <= uintptr(e.data) && uintptr(e.data) < datap.enoptrdata ||
+-				datap.data <= uintptr(e.data) && uintptr(e.data) < datap.edata ||
+-				datap.bss <= uintptr(e.data) && uintptr(e.data) < datap.ebss ||
+-				datap.noptrbss <= uintptr(e.data) && uintptr(e.data) < datap.enoptrbss {
+-				return
+-			}
+-		}
+ 		throw("runtime.SetFinalizer: pointer not in allocated block")
+ 	}
+ 
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index d69822b143..6dccb4e33d 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -199,13 +199,15 @@ type mheap struct {
+ 		pad      [(cpu.CacheLinePadSize - unsafe.Sizeof(mcentral{})%cpu.CacheLinePadSize) % cpu.CacheLinePadSize]byte
+ 	}
+ 
+-	spanalloc             fixalloc // allocator for span*
+-	cachealloc            fixalloc // allocator for mcache*
+-	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
+-	specialprofilealloc   fixalloc // allocator for specialprofile*
+-	specialReachableAlloc fixalloc // allocator for specialReachable
+-	speciallock           mutex    // lock for special record allocators.
+-	arenaHintAlloc        fixalloc // allocator for arenaHints
++	spanalloc              fixalloc // allocator for span*
++	cachealloc             fixalloc // allocator for mcache*
++	specialfinalizeralloc  fixalloc // allocator for specialfinalizer*
++	specialprofilealloc    fixalloc // allocator for specialprofile*
++	specialReachableAlloc  fixalloc // allocator for specialReachable
++	specialPinCounterAlloc fixalloc // allocator for specialPinCounter
++	pinnerBitsAlloc        fixalloc // allocator for *pBits
++	speciallock            mutex    // lock for special record and pinnerBits allocators.
++	arenaHintAlloc         fixalloc // allocator for arenaHints
+ 
+ 	// User arena state.
+ 	//
+@@ -488,8 +490,9 @@ type mspan struct {
+ 	allocCountBeforeCache uint16        // a copy of allocCount that is stored just before this span is cached
+ 	elemsize              uintptr       // computed from sizeclass or from npages
+ 	limit                 uintptr       // end of data in span
+-	speciallock           mutex         // guards specials list
++	speciallock           mutex         // guards specials list and changes to pinnerBits
+ 	specials              *special      // linked list of special records sorted by offset.
++	pinnerBits            *pinBits      // bitmap for pinned objects; accessed atomically
+ 	userArenaChunkFree    addrRange     // interval for managing chunk allocation
+ 
+ 	// freeIndexForScan is like freeindex, except that freeindex is
+@@ -756,6 +759,8 @@ func (h *mheap) init() {
+ 	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
+ 	h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
+ 	h.specialReachableAlloc.init(unsafe.Sizeof(specialReachable{}), nil, nil, &memstats.other_sys)
++	h.specialPinCounterAlloc.init(unsafe.Sizeof(specialPinCounter{}), nil, nil, &memstats.other_sys)
++	h.pinnerBitsAlloc.init(unsafe.Sizeof(pinBits{}), nil, nil, &memstats.other_sys)
+ 	h.arenaHintAlloc.init(unsafe.Sizeof(arenaHint{}), nil, nil, &memstats.other_sys)
+ 
+ 	// Don't zero mspan allocations. Background sweeping can
+@@ -1635,6 +1640,12 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
+ 	// Mark the space as free.
+ 	h.pages.free(s.base(), s.npages)
+ 
++	// Free pinnerBits if set.
++	if pinnerBits := s.getPinnerBits(); pinnerBits != nil {
++		s.setPinnerBits(nil)
++		h.freePinnerBits(pinnerBits)
++	}
++
+ 	// Free the span structure. We no longer have a use for it.
+ 	s.state.set(mSpanDead)
+ 	h.freeMSpanLocked(s)
+@@ -1688,6 +1699,7 @@ func (span *mspan) init(base uintptr, npages uintptr) {
+ 	span.freeIndexForScan = 0
+ 	span.allocBits = nil
+ 	span.gcmarkBits = nil
++	span.pinnerBits = nil
+ 	span.state.set(mSpanDead)
+ 	lockInit(&span.speciallock, lockRankMspanSpecial)
+ }
+@@ -1793,6 +1805,9 @@ const (
+ 	// _KindSpecialReachable is a special used for tracking
+ 	// reachability during testing.
+ 	_KindSpecialReachable = 3
++	// _KindSpecialPinCounter is a special used for objects that are pinned
++	// multiple times
++	_KindSpecialPinCounter = 4
+ 	// Note: The finalizer special must be first because if we're freeing
+ 	// an object, a finalizer special will cause the freeing operation
+ 	// to abort, and we want to keep the other special records around
+@@ -1846,32 +1861,18 @@ func addspecial(p unsafe.Pointer, s *special) bool {
+ 	lock(&span.speciallock)
+ 
+ 	// Find splice point, check for existing record.
+-	t := &span.specials
+-	for {
+-		x := *t
+-		if x == nil {
+-			break
+-		}
+-		if offset == uintptr(x.offset) && kind == x.kind {
+-			unlock(&span.speciallock)
+-			releasem(mp)
+-			return false // already exists
+-		}
+-		if offset < uintptr(x.offset) || (offset == uintptr(x.offset) && kind < x.kind) {
+-			break
+-		}
+-		t = &x.next
++	iter, exists := span.specialFindSplicePoint(offset, kind)
++	if !exists {
++		// Splice in record, fill in offset.
++		s.offset = uint16(offset)
++		s.next = *iter
++		*iter = s
++		spanHasSpecials(span)
+ 	}
+ 
+-	// Splice in record, fill in offset.
+-	s.offset = uint16(offset)
+-	s.next = *t
+-	*t = s
+-	spanHasSpecials(span)
+ 	unlock(&span.speciallock)
+ 	releasem(mp)
+-
+-	return true
++	return !exists // already exists
+ }
+ 
+ // Removes the Special record of the given kind for the object p.
+@@ -1893,27 +1894,43 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
+ 
+ 	var result *special
+ 	lock(&span.speciallock)
+-	t := &span.specials
++
++	iter, exists := span.specialFindSplicePoint(offset, kind)
++	if exists {
++		s := *iter
++		*iter = s.next
++		result = s
++	}
++	if span.specials == nil {
++		spanHasNoSpecials(span)
++	}
++	unlock(&span.speciallock)
++	releasem(mp)
++	return result
++}
++
++// Find a splice point in the sorted list and check for an already existing
++// record. Returns a pointer to the next-reference in the list predecessor.
++// Returns true, if the referenced item is an exact match.
++func (span *mspan) specialFindSplicePoint(offset uintptr, kind byte) (**special, bool) {
++	// Find splice point, check for existing record.
++	iter := &span.specials
++	found := false
+ 	for {
+-		s := *t
++		s := *iter
+ 		if s == nil {
+ 			break
+ 		}
+-		// This function is used for finalizers only, so we don't check for
+-		// "interior" specials (p must be exactly equal to s->offset).
+ 		if offset == uintptr(s.offset) && kind == s.kind {
+-			*t = s.next
+-			result = s
++			found = true
+ 			break
+ 		}
+-		t = &s.next
+-	}
+-	if span.specials == nil {
+-		spanHasNoSpecials(span)
++		if offset < uintptr(s.offset) || (offset == uintptr(s.offset) && kind < s.kind) {
++			break
++		}
++		iter = &s.next
+ 	}
+-	unlock(&span.speciallock)
+-	releasem(mp)
+-	return result
++	return iter, found
+ }
+ 
+ // The described object has a finalizer set for it.
+@@ -2006,6 +2023,12 @@ type specialReachable struct {
+ 	reachable bool
+ }
+ 
++// specialPinCounter tracks whether an object is pinned multiple times.
++type specialPinCounter struct {
++	special special
++	counter uintptr
++}
++
+ // specialsIter helps iterate over specials lists.
+ type specialsIter struct {
+ 	pprev **special
+@@ -2054,6 +2077,10 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
+ 		sp := (*specialReachable)(unsafe.Pointer(s))
+ 		sp.done = true
+ 		// The creator frees these.
++	case _KindSpecialPinCounter:
++		lock(&mheap_.speciallock)
++		mheap_.specialPinCounterAlloc.free(unsafe.Pointer(s))
++		unlock(&mheap_.speciallock)
+ 	default:
+ 		throw("bad special kind")
+ 		panic("not reached")
+diff --git a/src/runtime/mksizeclasses.go b/src/runtime/mksizeclasses.go
+index 64ed844329..156e61315f 100644
+--- a/src/runtime/mksizeclasses.go
++++ b/src/runtime/mksizeclasses.go
+@@ -277,6 +277,17 @@ func printComment(w io.Writer, classes []class) {
+ 	fmt.Fprintf(w, "\n")
+ }
+ 
++func maxObjsPerSpan(classes []class) int {
++	max := 0
++	for _, c := range classes[1:] {
++		n := c.npages * pageSize / c.size
++		if n > max {
++			max = n
++		}
++	}
++	return max
++}
++
+ func printClasses(w io.Writer, classes []class) {
+ 	fmt.Fprintln(w, "const (")
+ 	fmt.Fprintf(w, "_MaxSmallSize = %d\n", maxSmallSize)
+@@ -285,6 +296,7 @@ func printClasses(w io.Writer, classes []class) {
+ 	fmt.Fprintf(w, "largeSizeDiv = %d\n", largeSizeDiv)
+ 	fmt.Fprintf(w, "_NumSizeClasses = %d\n", len(classes))
+ 	fmt.Fprintf(w, "_PageShift = %d\n", pageShift)
++	fmt.Fprintf(w, "maxObjsPerSpan = %d\n", maxObjsPerSpan(classes))
+ 	fmt.Fprintln(w, ")")
+ 
+ 	fmt.Fprint(w, "var class_to_size = [_NumSizeClasses]uint16 {")
+diff --git a/src/runtime/pinner.go b/src/runtime/pinner.go
+new file mode 100644
+index 0000000000..1c4209997a
+--- /dev/null
++++ b/src/runtime/pinner.go
+@@ -0,0 +1,261 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"runtime/internal/atomic"
++	"runtime/internal/sys"
++	"unsafe"
++)
++
++// Pinner represents a set of pinned Go objects. An object can be pinned with
++// the Pin method and all pinned objects of a Pinner can be unpinned with the
++// Unpin method.
++type Pinner struct {
++	*pinner
++}
++
++// Pin a Go object. The object will not be moved or freed by the garbage
++// collector until the Unpin method has been called. The pointer to a pinned
++// object can be directly stored in C memory or can be contained in Go memory
++// passed to C functions. If the pinned object iftself contains pointers to Go
++// objects, these objects must be pinned separately if they are going to be
++// accessed from C code. The argument must be a pointer of any type or an
++// unsafe.Pointer. It must be a pointer to an object allocated by calling new,
++// by taking the address of a composite literal, or by taking the address of a
++// local variable. If one of these conditions is not met, Pin will panic.
++func (p *Pinner) Pin(pointer any) {
++	if p.pinner == nil {
++		p.pinner = new(pinner)
++		SetFinalizer(p.pinner, func(i *pinner) {
++			if i.refs != nil {
++				i.unpin() // only required to make the test idempotent
++				pinnerLeakPanic()
++			}
++		})
++	}
++	ptr := pinnerGetPtr(&pointer)
++
++	setPinned(ptr, true)
++	p.refs = append(p.refs, ptr)
++}
++
++// Unpin all pinned objects of the Pinner.
++func (p *Pinner) Unpin() {
++	p.pinner.unpin()
++}
++
++type pinner struct {
++	refs []unsafe.Pointer
++}
++
++func (p *pinner) unpin() {
++	if p == nil || p.refs == nil {
++		return
++	}
++	for i := range p.refs {
++		setPinned(p.refs[i], false)
++		p.refs[i] = nil
++	}
++	p.refs = nil
++}
++
++func pinnerGetPtr(i *any) unsafe.Pointer {
++	e := efaceOf(i)
++	etyp := e._type
++	if etyp == nil {
++		panic(errorString("runtime.Pinner: argument is nil"))
++	}
++	if kind := etyp.Kind_ & kindMask; kind != kindPtr && kind != kindUnsafePointer {
++		panic(errorString("runtime.Pinner: argument is not a pointer: " + toRType(etyp).string()))
++	}
++	if inUserArenaChunk(uintptr(e.data)) {
++		// Arena-allocated objects are not eligible for pinning.
++		panic(errorString("runtime.Pinner: object was allocated into an arena"))
++	}
++	return e.data
++}
++
++// isPinned checks if a Go pointer is pinned.
++// nosplit, because it's called from nosplit code in cgocheck.
++//
++//go:nosplit
++func isPinned(ptr unsafe.Pointer) bool {
++	span := spanOfHeap(uintptr(ptr))
++	if span == nil {
++		// this code is only called for Go pointer, so this must be a
++		// linker-allocated global object.
++		return true
++	}
++	pinnerBits := span.getPinnerBits()
++	if pinnerBits == nil {
++		return false
++	}
++	objIndex := span.objIndex(uintptr(ptr))
++	bytep := &pinnerBits.x[objIndex/8]
++	mask := byte(1 << (objIndex % 8))
++	result := (bytep.Load() & mask) != 0
++	KeepAlive(ptr) // make sure ptr is alive until we are done so the span can't be freed
++	return result
++}
++
++// setPinned marks or unmarks a Go pointer as pinned.
++func setPinned(ptr unsafe.Pointer, pin bool) {
++	span := spanOfHeap(uintptr(ptr))
++	if span == nil {
++		if isGoPointerWithoutSpan(ptr) {
++			// this is a linker-allocated or zero size object, nothing to do.
++			return
++		}
++		panic(errorString("runtime.Pinner.Pin: argument is not a Go pointer"))
++	}
++
++	// ensure that the span is swept, b/c sweeping accesses the specials list
++	// w/o locks.
++	mp := acquirem()
++	span.ensureSwept()
++	KeepAlive(ptr) // make sure ptr is still alive after span is swept
++
++	objIndex := span.objIndex(uintptr(ptr))
++	mask := byte(1 << (objIndex % 8))
++
++	lock(&span.speciallock) // guard against concurrent calls of setPinned on same span
++
++	pinnerBits := span.getPinnerBits()
++	if pinnerBits == nil {
++		pinnerBits = mheap_.newPinnerBits()
++		span.setPinnerBits(pinnerBits)
++	}
++	bytep := &pinnerBits.x[objIndex/8]
++	alreadySet := pin == ((bytep.Load() & mask) != 0)
++	if pin {
++		if alreadySet {
++			// multiple pin on same object, record it in counter
++			offset := objIndex * span.elemsize
++			// TODO(mknyszek): investigate if systemstack is necessary here
++			systemstack(func() {
++				span.incPinCounter(offset)
++			})
++		} else {
++			bytep.Or(mask)
++		}
++	} else {
++		if alreadySet {
++			// unpinning unpinned object, bail out
++			throw("runtime.Pinner: object already unpinned")
++		} else {
++			multipin := false
++			if pinnerBits.specialCnt.Load() != 0 {
++				// TODO(mknyszek): investigate if systemstack is necessary here
++				systemstack(func() {
++					offset := objIndex * span.elemsize
++					multipin = span.decPinCounter(offset)
++				})
++			}
++			if !multipin {
++				// no multiple pins recoded. unpin object.
++				bytep.And(^mask)
++			}
++		}
++	}
++	unlock(&span.speciallock)
++	releasem(mp)
++	return
++}
++
++// pinBits is a bitmap for pinned objects. This is always used as pinBits.x.
++type pinBits struct {
++	_          sys.NotInHeap
++	x          [(maxObjsPerSpan + 7) / 8]atomic.Uint8
++	specialCnt atomic.Int32
++}
++
++func (h *mheap) newPinnerBits() *pinBits {
++	lock(&h.speciallock)
++	pinnerBits := (*pinBits)(h.pinnerBitsAlloc.alloc())
++	unlock(&h.speciallock)
++	return pinnerBits
++}
++
++func (h *mheap) freePinnerBits(p *pinBits) {
++	lock(&h.speciallock)
++	h.pinnerBitsAlloc.free(unsafe.Pointer(p))
++	unlock(&h.speciallock)
++}
++
++// nosplit, because it's called by isPinned, which is nosplit
++//
++//go:nosplit
++func (s *mspan) getPinnerBits() *pinBits {
++	return (*pinBits)(atomic.Loadp(unsafe.Pointer(&s.pinnerBits)))
++}
++
++func (s *mspan) setPinnerBits(p *pinBits) {
++	atomicstorep(unsafe.Pointer(&s.pinnerBits), unsafe.Pointer(p))
++}
++
++// incPinCounter is only called for multiple pins of the same object and records
++// the _additional_ pins.
++func (span *mspan) incPinCounter(offset uintptr) {
++	var rec *specialPinCounter
++
++	ref, exists := span.specialFindSplicePoint(offset, _KindSpecialPinCounter)
++	if !exists {
++		lock(&mheap_.speciallock)
++		rec = (*specialPinCounter)(mheap_.specialPinCounterAlloc.alloc())
++		unlock(&mheap_.speciallock)
++		// splice in record, fill in offset.
++		rec.special.offset = uint16(offset)
++		rec.special.kind = _KindSpecialPinCounter
++		rec.special.next = *ref
++		*ref = (*special)(unsafe.Pointer(rec))
++		spanHasSpecials(span)
++		span.pinnerBits.specialCnt.Add(1)
++	} else {
++		rec = (*specialPinCounter)(unsafe.Pointer(*ref))
++	}
++	rec.counter++
++}
++
++// decPinCounter is always called for unpins and returns false if no multiple
++// pins are recorded. If multiple pins are recorded, it decreases the counter
++// and returns true.
++func (span *mspan) decPinCounter(offset uintptr) bool {
++	ref, exists := span.specialFindSplicePoint(offset, _KindSpecialPinCounter)
++	if exists {
++		counter := (*specialPinCounter)(unsafe.Pointer(*ref))
++		if counter.counter > 1 {
++			counter.counter--
++		} else {
++			span.pinnerBits.specialCnt.Add(-1)
++			*ref = counter.special.next
++			if span.specials == nil {
++				spanHasNoSpecials(span)
++			}
++			lock(&mheap_.speciallock)
++			mheap_.specialPinCounterAlloc.free(unsafe.Pointer(counter))
++			unlock(&mheap_.speciallock)
++		}
++	}
++	return exists
++}
++
++// only for tests
++func pinnerGetPinCounter(addr unsafe.Pointer) *uintptr {
++	_, span, objIndex := findObject(uintptr(addr), 0, 0)
++	offset := objIndex * span.elemsize
++	t, exists := span.specialFindSplicePoint(offset, _KindSpecialPinCounter)
++	if !exists {
++		return nil
++	}
++	counter := (*specialPinCounter)(unsafe.Pointer(*t))
++	return &counter.counter
++}
++
++// to be able to test that the GC panics when a pinned pointer is leaking, this
++// panic function is a variable, that can be overwritten by a test.
++var pinnerLeakPanic = func() {
++	panic(errorString("runtime.Pinner: found leaking pinned pointer; forgot to call Unpin()?"))
++}
+diff --git a/src/runtime/pinner_test.go b/src/runtime/pinner_test.go
+new file mode 100644
+index 0000000000..7c6dd1c21a
+--- /dev/null
++++ b/src/runtime/pinner_test.go
+@@ -0,0 +1,526 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"runtime"
++	"testing"
++	"time"
++	"unsafe"
++)
++
++type obj struct {
++	x int64
++	y int64
++	z int64
++}
++
++type objWith[T any] struct {
++	x int64
++	y int64
++	z int64
++	o T
++}
++
++var (
++	globalUintptr                uintptr
++	globalPtrToObj               = &obj{}
++	globalPtrToObjWithPtr        = &objWith[*uintptr]{}
++	globalPtrToRuntimeObj        = func() *obj { return &obj{} }()
++	globalPtrToRuntimeObjWithPtr = func() *objWith[*uintptr] { return &objWith[*uintptr]{} }()
++)
++
++func assertDidPanic(t *testing.T) {
++	if recover() == nil {
++		t.Fatal("did not panic")
++	}
++}
++
++func assertCgoCheckPanics(t *testing.T, p any) {
++	defer func() {
++		if recover() == nil {
++			t.Fatal("cgoCheckPointer() did not panic, make sure the tests run with cgocheck=1")
++		}
++	}()
++	runtime.CgoCheckPointer(p, true)
++}
++
++func TestPinnerSimple(t *testing.T) {
++	var pinner runtime.Pinner
++	p := new(obj)
++	addr := unsafe.Pointer(p)
++	if runtime.IsPinned(addr) {
++		t.Fatal("already marked as pinned")
++	}
++	pinner.Pin(p)
++	if !runtime.IsPinned(addr) {
++		t.Fatal("not marked as pinned")
++	}
++	if runtime.GetPinCounter(addr) != nil {
++		t.Fatal("pin counter should not exist")
++	}
++	pinner.Unpin()
++	if runtime.IsPinned(addr) {
++		t.Fatal("still marked as pinned")
++	}
++}
++
++func TestPinnerPinKeepsAliveAndReleases(t *testing.T) {
++	var pinner runtime.Pinner
++	p := new(obj)
++	done := make(chan struct{})
++	runtime.SetFinalizer(p, func(any) {
++		done <- struct{}{}
++	})
++	pinner.Pin(p)
++	p = nil
++	runtime.GC()
++	runtime.GC()
++	select {
++	case <-done:
++		t.Fatal("Pin() didn't keep object alive")
++	case <-time.After(time.Millisecond * 10):
++		break
++	}
++	pinner.Unpin()
++	runtime.GC()
++	runtime.GC()
++	select {
++	case <-done:
++		break
++	case <-time.After(time.Second):
++		t.Fatal("Unpin() didn't release object")
++	}
++}
++
++func TestPinnerMultiplePinsSame(t *testing.T) {
++	const N = 100
++	var pinner runtime.Pinner
++	p := new(obj)
++	addr := unsafe.Pointer(p)
++	if runtime.IsPinned(addr) {
++		t.Fatal("already marked as pinned")
++	}
++	for i := 0; i < N; i++ {
++		pinner.Pin(p)
++	}
++	if !runtime.IsPinned(addr) {
++		t.Fatal("not marked as pinned")
++	}
++	if cnt := runtime.GetPinCounter(addr); cnt == nil || *cnt != N-1 {
++		t.Fatalf("pin counter incorrect: %d", *cnt)
++	}
++	pinner.Unpin()
++	if runtime.IsPinned(addr) {
++		t.Fatal("still marked as pinned")
++	}
++	if runtime.GetPinCounter(addr) != nil {
++		t.Fatal("pin counter was not deleted")
++	}
++}
++
++func TestPinnerTwoPinner(t *testing.T) {
++	var pinner1, pinner2 runtime.Pinner
++	p := new(obj)
++	addr := unsafe.Pointer(p)
++	if runtime.IsPinned(addr) {
++		t.Fatal("already marked as pinned")
++	}
++	pinner1.Pin(p)
++	if !runtime.IsPinned(addr) {
++		t.Fatal("not marked as pinned")
++	}
++	if runtime.GetPinCounter(addr) != nil {
++		t.Fatal("pin counter should not exist")
++	}
++	pinner2.Pin(p)
++	if !runtime.IsPinned(addr) {
++		t.Fatal("not marked as pinned")
++	}
++	if cnt := runtime.GetPinCounter(addr); cnt == nil || *cnt != 1 {
++		t.Fatalf("pin counter incorrect: %d", *cnt)
++	}
++	pinner1.Unpin()
++	if !runtime.IsPinned(addr) {
++		t.Fatal("not marked as pinned")
++	}
++	if runtime.GetPinCounter(addr) != nil {
++		t.Fatal("pin counter should not exist")
++	}
++	pinner2.Unpin()
++	if runtime.IsPinned(addr) {
++		t.Fatal("still marked as pinned")
++	}
++	if runtime.GetPinCounter(addr) != nil {
++		t.Fatal("pin counter was not deleted")
++	}
++}
++
++func TestPinnerPinZerosizeObj(t *testing.T) {
++	var pinner runtime.Pinner
++	defer pinner.Unpin()
++	p := new(struct{})
++	pinner.Pin(p)
++	if !runtime.IsPinned(unsafe.Pointer(p)) {
++		t.Fatal("not marked as pinned")
++	}
++}
++
++func TestPinnerPinGlobalPtr(t *testing.T) {
++	var pinner runtime.Pinner
++	defer pinner.Unpin()
++	pinner.Pin(globalPtrToObj)
++	pinner.Pin(globalPtrToObjWithPtr)
++	pinner.Pin(globalPtrToRuntimeObj)
++	pinner.Pin(globalPtrToRuntimeObjWithPtr)
++}
++
++func TestPinnerPinTinyObj(t *testing.T) {
++	var pinner runtime.Pinner
++	const N = 64
++	var addr [N]unsafe.Pointer
++	for i := 0; i < N; i++ {
++		p := new(bool)
++		addr[i] = unsafe.Pointer(p)
++		pinner.Pin(p)
++		pinner.Pin(p)
++		if !runtime.IsPinned(addr[i]) {
++			t.Fatalf("not marked as pinned: %d", i)
++		}
++		if cnt := runtime.GetPinCounter(addr[i]); cnt == nil || *cnt == 0 {
++			t.Fatalf("pin counter incorrect: %d, %d", *cnt, i)
++		}
++	}
++	pinner.Unpin()
++	for i := 0; i < N; i++ {
++		if runtime.IsPinned(addr[i]) {
++			t.Fatal("still marked as pinned")
++		}
++		if runtime.GetPinCounter(addr[i]) != nil {
++			t.Fatal("pin counter should not exist")
++		}
++	}
++}
++
++func TestPinnerInterface(t *testing.T) {
++	var pinner runtime.Pinner
++	o := new(obj)
++	ifc := any(o)
++	pinner.Pin(&ifc)
++	if !runtime.IsPinned(unsafe.Pointer(&ifc)) {
++		t.Fatal("not marked as pinned")
++	}
++	if runtime.IsPinned(unsafe.Pointer(o)) {
++		t.Fatal("marked as pinned")
++	}
++	pinner.Unpin()
++	pinner.Pin(ifc)
++	if !runtime.IsPinned(unsafe.Pointer(o)) {
++		t.Fatal("not marked as pinned")
++	}
++	if runtime.IsPinned(unsafe.Pointer(&ifc)) {
++		t.Fatal("marked as pinned")
++	}
++	pinner.Unpin()
++}
++
++func TestPinnerPinNonPtrPanics(t *testing.T) {
++	var pinner runtime.Pinner
++	defer pinner.Unpin()
++	var i int
++	defer assertDidPanic(t)
++	pinner.Pin(i)
++}
++
++func TestPinnerReuse(t *testing.T) {
++	var pinner runtime.Pinner
++	p := new(obj)
++	p2 := &p
++	assertCgoCheckPanics(t, p2)
++	pinner.Pin(p)
++	runtime.CgoCheckPointer(p2, true)
++	pinner.Unpin()
++	assertCgoCheckPanics(t, p2)
++	pinner.Pin(p)
++	runtime.CgoCheckPointer(p2, true)
++	pinner.Unpin()
++}
++
++func TestPinnerEmptyUnpin(t *testing.T) {
++	var pinner runtime.Pinner
++	pinner.Unpin()
++	pinner.Unpin()
++}
++
++func TestPinnerLeakPanics(t *testing.T) {
++	old := runtime.GetPinnerLeakPanic()
++	func() {
++		defer assertDidPanic(t)
++		old()
++	}()
++	done := make(chan struct{})
++	runtime.SetPinnerLeakPanic(func() {
++		done <- struct{}{}
++	})
++	func() {
++		var pinner runtime.Pinner
++		p := new(obj)
++		pinner.Pin(p)
++	}()
++	runtime.GC()
++	runtime.GC()
++	select {
++	case <-done:
++		break
++	case <-time.After(time.Second):
++		t.Fatal("leak didn't make GC to panic")
++	}
++	runtime.SetPinnerLeakPanic(old)
++}
++
++func TestPinnerCgoCheckPtr2Ptr(t *testing.T) {
++	var pinner runtime.Pinner
++	defer pinner.Unpin()
++	p := new(obj)
++	p2 := &objWith[*obj]{o: p}
++	assertCgoCheckPanics(t, p2)
++	pinner.Pin(p)
++	runtime.CgoCheckPointer(p2, true)
++}
++
++func TestPinnerCgoCheckPtr2UnsafePtr(t *testing.T) {
++	var pinner runtime.Pinner
++	defer pinner.Unpin()
++	p := unsafe.Pointer(new(obj))
++	p2 := &objWith[unsafe.Pointer]{o: p}
++	assertCgoCheckPanics(t, p2)
++	pinner.Pin(p)
++	runtime.CgoCheckPointer(p2, true)
++}
++
++func TestPinnerCgoCheckPtr2UnknownPtr(t *testing.T) {
++	var pinner runtime.Pinner
++	defer pinner.Unpin()
++	p := unsafe.Pointer(new(obj))
++	p2 := &p
++	func() {
++		defer assertDidPanic(t)
++		runtime.CgoCheckPointer(p2, nil)
++	}()
++	pinner.Pin(p)
++	runtime.CgoCheckPointer(p2, nil)
++}
++
++func TestPinnerCgoCheckInterface(t *testing.T) {
++	var pinner runtime.Pinner
++	defer pinner.Unpin()
++	var ifc any
++	var o obj
++	ifc = &o
++	p := &ifc
++	assertCgoCheckPanics(t, p)
++	pinner.Pin(&o)
++	runtime.CgoCheckPointer(p, true)
++}
++
++func TestPinnerCgoCheckSlice(t *testing.T) {
++	var pinner runtime.Pinner
++	defer pinner.Unpin()
++	sl := []int{1, 2, 3}
++	assertCgoCheckPanics(t, &sl)
++	pinner.Pin(&sl[0])
++	runtime.CgoCheckPointer(&sl, true)
++}
++
++func TestPinnerCgoCheckString(t *testing.T) {
++	var pinner runtime.Pinner
++	defer pinner.Unpin()
++	b := []byte("foobar")
++	str := unsafe.String(&b[0], 6)
++	assertCgoCheckPanics(t, &str)
++	pinner.Pin(&b[0])
++	runtime.CgoCheckPointer(&str, true)
++}
++
++func TestPinnerCgoCheckPinned2UnpinnedPanics(t *testing.T) {
++	var pinner runtime.Pinner
++	defer pinner.Unpin()
++	p := new(obj)
++	p2 := &objWith[*obj]{o: p}
++	assertCgoCheckPanics(t, p2)
++	pinner.Pin(p2)
++	assertCgoCheckPanics(t, p2)
++}
++
++func TestPinnerCgoCheckPtr2Pinned2Unpinned(t *testing.T) {
++	var pinner runtime.Pinner
++	defer pinner.Unpin()
++	p := new(obj)
++	p2 := &objWith[*obj]{o: p}
++	p3 := &objWith[*objWith[*obj]]{o: p2}
++	assertCgoCheckPanics(t, p2)
++	assertCgoCheckPanics(t, p3)
++	pinner.Pin(p2)
++	assertCgoCheckPanics(t, p2)
++	assertCgoCheckPanics(t, p3)
++	pinner.Pin(p)
++	runtime.CgoCheckPointer(p2, true)
++	runtime.CgoCheckPointer(p3, true)
++}
++
++func BenchmarkPinnerPinUnpinBatch(b *testing.B) {
++	const Batch = 1000
++	var data [Batch]*obj
++	for i := 0; i < Batch; i++ {
++		data[i] = new(obj)
++	}
++	var pinner runtime.Pinner
++	b.ResetTimer()
++	for n := 0; n < b.N; n++ {
++		for i := 0; i < Batch; i++ {
++			pinner.Pin(data[i])
++		}
++		pinner.Unpin()
++	}
++}
++
++func BenchmarkPinnerPinUnpinBatchDouble(b *testing.B) {
++	const Batch = 1000
++	var data [Batch]*obj
++	for i := 0; i < Batch; i++ {
++		data[i] = new(obj)
++	}
++	var pinner runtime.Pinner
++	b.ResetTimer()
++	for n := 0; n < b.N; n++ {
++		for i := 0; i < Batch; i++ {
++			pinner.Pin(data[i])
++			pinner.Pin(data[i])
++		}
++		pinner.Unpin()
++	}
++}
++
++func BenchmarkPinnerPinUnpinBatchTiny(b *testing.B) {
++	const Batch = 1000
++	var data [Batch]*bool
++	for i := 0; i < Batch; i++ {
++		data[i] = new(bool)
++	}
++	var pinner runtime.Pinner
++	b.ResetTimer()
++	for n := 0; n < b.N; n++ {
++		for i := 0; i < Batch; i++ {
++			pinner.Pin(data[i])
++		}
++		pinner.Unpin()
++	}
++}
++
++func BenchmarkPinnerPinUnpin(b *testing.B) {
++	var pinner runtime.Pinner
++	b.ResetTimer()
++	for n := 0; n < b.N; n++ {
++		pinner.Pin(new(obj))
++		pinner.Unpin()
++	}
++}
++
++func BenchmarkPinnerPinUnpinTiny(b *testing.B) {
++	var pinner runtime.Pinner
++	b.ResetTimer()
++	for n := 0; n < b.N; n++ {
++		pinner.Pin(new(bool))
++		pinner.Unpin()
++	}
++}
++
++func BenchmarkPinnerPinUnpinDouble(b *testing.B) {
++	var pinner runtime.Pinner
++	b.ResetTimer()
++	for n := 0; n < b.N; n++ {
++		p := new(obj)
++		pinner.Pin(p)
++		pinner.Pin(p)
++		pinner.Unpin()
++	}
++}
++
++func BenchmarkPinnerPinUnpinParallel(b *testing.B) {
++	b.ResetTimer()
++	b.RunParallel(func(pb *testing.PB) {
++		var pinner runtime.Pinner
++		for pb.Next() {
++			pinner.Pin(new(obj))
++			pinner.Unpin()
++		}
++	})
++}
++
++func BenchmarkPinnerPinUnpinParallelTiny(b *testing.B) {
++	b.ResetTimer()
++	b.RunParallel(func(pb *testing.PB) {
++		var pinner runtime.Pinner
++		for pb.Next() {
++			pinner.Pin(new(bool))
++			pinner.Unpin()
++		}
++	})
++}
++
++func BenchmarkPinnerPinUnpinParallelDouble(b *testing.B) {
++	b.ResetTimer()
++	b.RunParallel(func(pb *testing.PB) {
++		var pinner runtime.Pinner
++		for pb.Next() {
++			p := new(obj)
++			pinner.Pin(p)
++			pinner.Pin(p)
++			pinner.Unpin()
++		}
++	})
++}
++
++func BenchmarkPinnerIsPinnedOnPinned(b *testing.B) {
++	var pinner runtime.Pinner
++	ptr := new(obj)
++	pinner.Pin(ptr)
++	b.ResetTimer()
++	for n := 0; n < b.N; n++ {
++		runtime.IsPinned(unsafe.Pointer(ptr))
++	}
++	pinner.Unpin()
++}
++
++func BenchmarkPinnerIsPinnedOnUnpinned(b *testing.B) {
++	ptr := new(obj)
++	b.ResetTimer()
++	for n := 0; n < b.N; n++ {
++		runtime.IsPinned(unsafe.Pointer(ptr))
++	}
++}
++
++func BenchmarkPinnerIsPinnedOnPinnedParallel(b *testing.B) {
++	var pinner runtime.Pinner
++	ptr := new(obj)
++	pinner.Pin(ptr)
++	b.ResetTimer()
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			runtime.IsPinned(unsafe.Pointer(ptr))
++		}
++	})
++	pinner.Unpin()
++}
++
++func BenchmarkPinnerIsPinnedOnUnpinnedParallel(b *testing.B) {
++	ptr := new(obj)
++	b.ResetTimer()
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			runtime.IsPinned(unsafe.Pointer(ptr))
++		}
++	})
++}
+diff --git a/src/runtime/sizeclasses.go b/src/runtime/sizeclasses.go
+index 067871eaf3..9314623453 100644
+--- a/src/runtime/sizeclasses.go
++++ b/src/runtime/sizeclasses.go
+@@ -88,6 +88,7 @@ const (
+ 	largeSizeDiv    = 128
+ 	_NumSizeClasses = 68
+ 	_PageShift      = 13
++	maxObjsPerSpan  = 1024
+ )
+ 
+ var class_to_size = [_NumSizeClasses]uint16{0, 8, 16, 24, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 256, 288, 320, 352, 384, 416, 448, 480, 512, 576, 640, 704, 768, 896, 1024, 1152, 1280, 1408, 1536, 1792, 2048, 2304, 2688, 3072, 3200, 3456, 4096, 4864, 5376, 6144, 6528, 6784, 6912, 8192, 9472, 9728, 10240, 10880, 12288, 13568, 14336, 16384, 18432, 19072, 20480, 21760, 24576, 27264, 28672, 32768}

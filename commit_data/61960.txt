@@ -22,6 +22,21 @@ Date:   Fri Dec 27 17:24:30 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/encoding/json/decode.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 98102291ab..3b398c9fc3 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -113,9 +113,6 @@ func Unmarshal(data []byte, v any) error {
+ // The input can be assumed to be a valid encoding of
+ // a JSON value. UnmarshalJSON must copy the JSON data
+ // if it wishes to retain the data after returning.
+-//
+-// By convention, to approximate the behavior of [Unmarshal] itself,
+-// Unmarshalers implement UnmarshalJSON([]byte("null")) as a no-op.
+ type Unmarshaler interface {
+ 	UnmarshalJSON([]byte) error
+ }

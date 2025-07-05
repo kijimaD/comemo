@@ -16,7 +16,130 @@ Date:   Thu Mar 9 12:10:25 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go     |  6 +++++-
  src/cmd/compile/internal/pgo/irgraph.go | 37 +++++++++++++++++----------------
  2 files changed, 24 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index fa9f429a1e..6865067580 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -256,7 +256,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	base.Timer.Start("fe", "pgoprofile")
+ 	var profile *pgo.Profile
+ 	if base.Flag.PgoProfile != "" {
+-		profile = pgo.New(base.Flag.PgoProfile)
++		var err error
++		profile, err = pgo.New(base.Flag.PgoProfile)
++		if err != nil {
++			log.Fatalf("%s: PGO error: %v", base.Flag.PgoProfile, err)
++		}
+ 	}
+ 
+ 	// Inlining
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index a8d5008929..ff0995eaea 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -49,7 +49,6 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"fmt"
+ 	"internal/profile"
+-	"log"
+ 	"os"
+ )
+ 
+@@ -127,22 +126,20 @@ type Profile struct {
+ }
+ 
+ // New generates a profile-graph from the profile.
+-func New(profileFile string) *Profile {
++func New(profileFile string) (*Profile, error) {
+ 	f, err := os.Open(profileFile)
+ 	if err != nil {
+-		log.Fatal("failed to open file " + profileFile)
+-		return nil
++		return nil, fmt.Errorf("error opening profile: %w", err)
+ 	}
+ 	defer f.Close()
+ 	profile, err := profile.Parse(f)
+ 	if err != nil {
+-		log.Fatal("failed to Parse profile file.")
+-		return nil
++		return nil, fmt.Errorf("error parsing profile: %w", err)
+ 	}
+ 
+ 	if len(profile.Sample) == 0 {
+ 		// We accept empty profiles, but there is nothing to do.
+-		return nil
++		return nil, nil
+ 	}
+ 
+ 	valueIndex := -1
+@@ -157,8 +154,7 @@ func New(profileFile string) *Profile {
+ 	}
+ 
+ 	if valueIndex == -1 {
+-		log.Fatal("failed to find CPU samples count or CPU nanoseconds value-types in profile.")
+-		return nil
++		return nil, fmt.Errorf(`profile does not contain a sample index with value/type "samples/count" or cpu/nanoseconds"`)
+ 	}
+ 
+ 	g := newGraph(profile, &Options{
+@@ -174,14 +170,18 @@ func New(profileFile string) *Profile {
+ 	}
+ 
+ 	// Build the node map and totals from the profile graph.
+-	if !p.processprofileGraph(g) {
+-		return nil
++	if err := p.processprofileGraph(g); err != nil {
++		return nil, err
++	}
++
++	if p.TotalNodeWeight == 0 || p.TotalEdgeWeight == 0 {
++		return nil, nil // accept but ignore profile with no samples.
+ 	}
+ 
+ 	// Create package-level call graph with weights from profile and IR.
+ 	p.initializeIRGraph()
+ 
+-	return p
++	return p, nil
+ }
+ 
+ // processprofileGraph builds various maps from the profile-graph.
+@@ -189,8 +189,9 @@ func New(profileFile string) *Profile {
+ // It initializes NodeMap and Total{Node,Edge}Weight based on the name and
+ // callsite to compute node and edge weights which will be used later on to
+ // create edges for WeightedCG.
+-// Returns whether it successfully processed the profile.
+-func (p *Profile) processprofileGraph(g *Graph) bool {
++//
++// Caller should ignore the profile if p.TotalNodeWeight == 0 || p.TotalEdgeWeight == 0.
++func (p *Profile) processprofileGraph(g *Graph) error {
+ 	nFlat := make(map[string]int64)
+ 	nCum := make(map[string]int64)
+ 	seenStartLine := false
+@@ -231,17 +232,17 @@ func (p *Profile) processprofileGraph(g *Graph) bool {
+ 	}
+ 
+ 	if p.TotalNodeWeight == 0 || p.TotalEdgeWeight == 0 {
+-		return false // accept but ignore profile with no sample
++		return nil // accept but ignore profile with no samples.
+ 	}
+ 
+ 	if !seenStartLine {
+-		// TODO(prattic): If Function.start_line is missing we could
++		// TODO(prattmic): If Function.start_line is missing we could
+ 		// fall back to using absolute line numbers, which is better
+ 		// than nothing.
+-		log.Fatal("PGO profile missing Function.start_line data (Go version of profiled application too old? Go 1.20+ automatically adds this to profiles)")
++		return fmt.Errorf("profile missing Function.start_line data (Go version of profiled application too old? Go 1.20+ automatically adds this to profiles)")
+ 	}
+ 
+-	return true
++	return nil
+ }
+ 
+ // initializeIRGraph builds the IRGraph by visiting all the ir.Func in decl list

@@ -12,6 +12,25 @@ Date:   Tue Apr 17 09:48:05 2018 +0000
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/elf/file_test.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index 58bdf277d3..ce27abb064 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -763,9 +763,10 @@ func TestCompressedSection(t *testing.T) {
+ }
+ 
+ func TestNoSectionOverlaps(t *testing.T) {
+-	// Ensure 6l outputs sections without overlaps.
+-	if runtime.GOOS != "linux" && runtime.GOOS != "freebsd" {
+-		return // not ELF
++	// Ensure cmd/link outputs sections without overlaps.
++	switch runtime.GOOS {
++	case "android", "darwin", "nacl", "plan9", "windows":
++		t.Skipf("cmd/link doesn't produce ELF binaries on %s", runtime.GOOS)
+ 	}
+ 	_ = net.ResolveIPAddr // force dynamic linkage
+ 	f, err := Open(os.Args[0])

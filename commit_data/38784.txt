@@ -16,6 +16,24 @@ Date:   Tue Nov 27 20:01:50 2018 +1100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/debug/pe/file_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/debug/pe/file_test.go b/src/debug/pe/file_test.go
+index 79c2241eb7..5b9fe521d2 100644
+--- a/src/debug/pe/file_test.go
++++ b/src/debug/pe/file_test.go
+@@ -605,9 +605,10 @@ func TestImportTableInUnknownSection(t *testing.T) {
+ 
+ 	// kernel32.dll import table is located in ".rdata" section,
+ 	// so it is good enough to test issue #16103.
+-	path, err := exec.LookPath("kernel32.dll")
++	const filename = "kernel32.dll"
++	path, err := exec.LookPath(filename)
+ 	if err != nil {
+-		t.Fatalf("unable to locate required file %q in search path: %s", "atmfd.dll", err)
++		t.Fatalf("unable to locate required file %q in search path: %s", filename, err)
+ 	}
+ 
+ 	f, err := Open(path)

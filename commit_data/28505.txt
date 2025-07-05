@@ -17,6 +17,19 @@ Date:   Sat May 28 10:06:37 2016 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/dir_plan9.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/syscall/dir_plan9.go b/src/syscall/dir_plan9.go
+index 697bf5499c..15b267411c 100644
+--- a/src/syscall/dir_plan9.go
++++ b/src/syscall/dir_plan9.go
+@@ -184,6 +184,7 @@ func gbit8(b []byte) (uint8, []byte) {
+ }
+ 
+ // gbit16 reads a 16-bit number in little-endian order from b and returns it with the remaining slice of b.
++//go:nosplit
+ func gbit16(b []byte) (uint16, []byte) {
+ 	return uint16(b[0]) | uint16(b[1])<<8, b[2:]
+ }

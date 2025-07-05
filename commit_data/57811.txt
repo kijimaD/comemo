@@ -15,6 +15,20 @@ Date:   Sat Sep 2 00:15:13 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/encoding/gob/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/gob/type.go b/src/encoding/gob/type.go
+index 24105c5e11..2f7254abb9 100644
+--- a/src/encoding/gob/type.go
++++ b/src/encoding/gob/type.go
+@@ -24,7 +24,7 @@ type userTypeInfo struct {
+ 	base        reflect.Type // the base type after all indirections
+ 	indir       int          // number of indirections to reach the base type
+ 	externalEnc int          // xGob, xBinary, or xText
+-	externalDec int          // xGob, xBinary or xText
++	externalDec int          // xGob, xBinary, or xText
+ 	encIndir    int8         // number of indirections to reach the receiver type; may be negative
+ 	decIndir    int8         // number of indirections to reach the receiver type; may be negative
+ }

@@ -10,6 +10,29 @@ Date:   Wed Aug 2 17:03:55 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  doc/go_spec.html | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 371db8c28f..c7b032b57e 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of July 31, 2023",
++	"Subtitle": "Version of Aug 2, 2023",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -8465,9 +8465,6 @@ per the given matching modes if:
+ 		In this case, if <code>T</code> is a defined type, <code>T</code>
+ 		replaces <code>A</code> as the inferred type argument for <code>P</code>.
+ 	</li>
+-	<li>
+-		In all other cases unification of <code>P</code> and <code>T</code> fails.
+-	</li>
+ 	</ul>
+ </li>
+ </ul>

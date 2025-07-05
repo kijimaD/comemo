@@ -19,6 +19,20 @@ Date:   Sat Mar 28 23:25:18 2020 -0400
     Change-Id: Iecf7c6bac01abb164731a4d5c9af6582c250a1a0
     Reviewed-on: https://go-review.googlesource.com/c/go/+/226205
     Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
-
+---
  src/net/http/roundtrip_js.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/roundtrip_js.go b/src/net/http/roundtrip_js.go
+index 4dd99651a7..e14f3f7152 100644
+--- a/src/net/http/roundtrip_js.go
++++ b/src/net/http/roundtrip_js.go
+@@ -157,7 +157,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 	})
+ 	defer success.Release()
+ 	failure := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+-		err := fmt.Errorf("net/http: fetch() failed: %s", args[0].String())
++		err := fmt.Errorf("net/http: fetch() failed: %s", args[0].Get("message").String())
+ 		select {
+ 		case errCh <- err:
+ 		case <-req.Context().Done():

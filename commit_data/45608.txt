@@ -22,7 +22,7 @@ Date:   Wed Oct 28 18:06:05 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Trust: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/heapdump.go     | 15 +++++++++
  src/runtime/lockrank_off.go | 16 +++++++++
  src/runtime/lockrank_on.go  | 79 +++++++++++++++++++++++++++++++++++++++++++++
@@ -33,3 +33,364 @@ Date:   Wed Oct 28 18:06:05 2020 -0400
  src/runtime/mstats.go       | 14 ++++++--
  src/runtime/proc.go         | 14 ++++++++
  9 files changed, 145 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 33e224d587..2d531571aa 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -431,6 +431,9 @@ func finq_callback(fn *funcval, obj unsafe.Pointer, nret uintptr, fint *_type, o
+ }
+ 
+ func dumproots() {
++	// To protect mheap_.allspans.
++	assertWorldStopped()
++
+ 	// TODO(mwhudson): dump datamask etc from all objects
+ 	// data segment
+ 	dumpint(tagData)
+@@ -468,6 +471,9 @@ func dumproots() {
+ var freemark [_PageSize / 8]bool
+ 
+ func dumpobjs() {
++	// To protect mheap_.allspans.
++	assertWorldStopped()
++
+ 	for _, s := range mheap_.allspans {
+ 		if s.state.get() != mSpanInUse {
+ 			continue
+@@ -552,6 +558,8 @@ func dumpms() {
+ 
+ //go:systemstack
+ func dumpmemstats(m *MemStats) {
++	assertWorldStopped()
++
+ 	// These ints should be identical to the exported
+ 	// MemStats structure and should be ordered the same
+ 	// way too.
+@@ -634,6 +642,9 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs,
+ }
+ 
+ func dumpmemprof() {
++	// To protect mheap_.allspans.
++	assertWorldStopped()
++
+ 	iterate_memprof(dumpmemprof_callback)
+ 	for _, s := range mheap_.allspans {
+ 		if s.state.get() != mSpanInUse {
+@@ -655,6 +666,8 @@ func dumpmemprof() {
+ var dumphdr = []byte("go1.7 heap dump\n")
+ 
+ func mdump(m *MemStats) {
++	assertWorldStopped()
++
+ 	// make sure we're done sweeping
+ 	for _, s := range mheap_.allspans {
+ 		if s.state.get() == mSpanInUse {
+@@ -676,6 +689,8 @@ func mdump(m *MemStats) {
+ }
+ 
+ func writeheapdump_m(fd uintptr, m *MemStats) {
++	assertWorldStopped()
++
+ 	_g_ := getg()
+ 	casgstatus(_g_.m.curg, _Grunning, _Gwaiting)
+ 	_g_.waitreason = waitReasonDumpingHeap
+diff --git a/src/runtime/lockrank_off.go b/src/runtime/lockrank_off.go
+index 40edf882ee..7dcd8f5fe9 100644
+--- a/src/runtime/lockrank_off.go
++++ b/src/runtime/lockrank_off.go
+@@ -46,3 +46,19 @@ func assertLockHeld(l *mutex) {
+ //go:nosplit
+ func assertRankHeld(r lockRank) {
+ }
++
++//go:nosplit
++func worldStopped() {
++}
++
++//go:nosplit
++func worldStarted() {
++}
++
++//go:nosplit
++func assertWorldStopped() {
++}
++
++//go:nosplit
++func assertWorldStoppedOrLockHeld(l *mutex) {
++}
+diff --git a/src/runtime/lockrank_on.go b/src/runtime/lockrank_on.go
+index db7ff23a58..c25b3a4656 100644
+--- a/src/runtime/lockrank_on.go
++++ b/src/runtime/lockrank_on.go
+@@ -7,9 +7,14 @@
+ package runtime
+ 
+ import (
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
++// worldIsStopped is accessed atomically to track world-stops. 1 == world
++// stopped.
++var worldIsStopped uint32
++
+ // lockRankStruct is embedded in mutex
+ type lockRankStruct struct {
+ 	// static lock ranking of the lock
+@@ -284,3 +289,77 @@ func assertRankHeld(r lockRank) {
+ 		throw("not holding required lock!")
+ 	})
+ }
++
++// worldStopped notes that the world is stopped.
++//
++// Caller must hold worldsema.
++//
++// nosplit to ensure it can be called in as many contexts as possible.
++//go:nosplit
++func worldStopped() {
++	if stopped := atomic.Xadd(&worldIsStopped, 1); stopped != 1 {
++		print("world stop count=", stopped, "\n")
++		throw("recursive world stop")
++	}
++}
++
++// worldStarted that the world is starting.
++//
++// Caller must hold worldsema.
++//
++// nosplit to ensure it can be called in as many contexts as possible.
++//go:nosplit
++func worldStarted() {
++	if stopped := atomic.Xadd(&worldIsStopped, -1); stopped != 0 {
++		print("world stop count=", stopped, "\n")
++		throw("released non-stopped world stop")
++	}
++}
++
++// nosplit to ensure it can be called in as many contexts as possible.
++//go:nosplit
++func checkWorldStopped() bool {
++	stopped := atomic.Load(&worldIsStopped)
++	if stopped > 1 {
++		print("inconsistent world stop count=", stopped, "\n")
++		throw("inconsistent world stop count")
++	}
++
++	return stopped == 1
++}
++
++// assertWorldStopped throws if the world is not stopped. It does not check
++// which M stopped the world.
++//
++// nosplit to ensure it can be called in as many contexts as possible.
++//go:nosplit
++func assertWorldStopped() {
++	if checkWorldStopped() {
++		return
++	}
++
++	throw("world not stopped")
++}
++
++// assertWorldStoppedOrLockHeld throws if the world is not stopped and the
++// passed lock is not held.
++//
++// nosplit to ensure it can be called in as many contexts as possible.
++//go:nosplit
++func assertWorldStoppedOrLockHeld(l *mutex) {
++	if checkWorldStopped() {
++		return
++	}
++
++	gp := getg()
++	systemstack(func() {
++		held := checkLockHeld(gp, l)
++		if !held {
++			printlock()
++			print("caller requires world stop or lock ", l, " (rank ", l.rank.String(), "), holding:\n")
++			println("<no world stop>")
++			printHeldLocks(gp)
++			throw("no world stop or required lock!")
++		}
++	})
++}
+diff --git a/src/runtime/mcheckmark.go b/src/runtime/mcheckmark.go
+index c0b028d715..ba80ac1bdf 100644
+--- a/src/runtime/mcheckmark.go
++++ b/src/runtime/mcheckmark.go
+@@ -34,6 +34,8 @@ var useCheckmark = false
+ //
+ // The world must be stopped.
+ func startCheckmarks() {
++	assertWorldStopped()
++
+ 	// Clear all checkmarks.
+ 	for _, ai := range mheap_.allArenas {
+ 		arena := mheap_.arenas[ai.l1()][ai.l2()]
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 9d2682f03c..fb3c149942 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -2164,6 +2164,8 @@ func gcMark(start_time int64) {
+ //
+ //go:systemstack
+ func gcSweep(mode gcMode) {
++	assertWorldStopped()
++
+ 	if gcphase != _GCoff {
+ 		throw("gcSweep being done but phase is not GCoff")
+ 	}
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index c71c0e58d3..5a24cdac88 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -54,6 +54,8 @@ const (
+ //
+ // The world must be stopped.
+ func gcMarkRootPrepare() {
++	assertWorldStopped()
++
+ 	work.nFlushCacheRoots = 0
+ 
+ 	// Compute how many data and BSS root blocks there are.
+@@ -1535,6 +1537,8 @@ func gcmarknewobject(span *mspan, obj, size, scanSize uintptr) {
+ //
+ // The world must be stopped.
+ func gcMarkTinyAllocs() {
++	assertWorldStopped()
++
+ 	for _, p := range allp {
+ 		c := p.mcache
+ 		if c == nil || c.tiny == 0 {
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 9b77ce635c..8391435630 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -123,6 +123,8 @@ func (h *mheap) nextSpanForSweep() *mspan {
+ //
+ //go:nowritebarrier
+ func finishsweep_m() {
++	assertWorldStopped()
++
+ 	// Sweeping must be complete before marking commences, so
+ 	// sweep any unswept spans. If this is a concurrent GC, there
+ 	// shouldn't be any spans left to sweep, so this should finish
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index e0a417d213..3829355d7b 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -601,6 +601,8 @@ func readGCStats_m(pauses *[]uint64) {
+ //
+ //go:nowritebarrier
+ func updatememstats() {
++	assertWorldStopped()
++
+ 	// Flush mcaches to mcentral before doing anything else.
+ 	//
+ 	// Flushing to the mcentral may in general cause stats to
+@@ -706,6 +708,8 @@ func updatememstats() {
+ //
+ //go:nowritebarrier
+ func flushmcache(i int) {
++	assertWorldStopped()
++
+ 	p := allp[i]
+ 	c := p.mcache
+ 	if c == nil {
+@@ -721,6 +725,8 @@ func flushmcache(i int) {
+ //
+ //go:nowritebarrier
+ func flushallmcaches() {
++	assertWorldStopped()
++
+ 	for i := 0; i < int(gomaxprocs); i++ {
+ 		flushmcache(i)
+ 	}
+@@ -876,10 +882,10 @@ func (m *consistentHeapStats) release(c *mcache) {
+ // unsafeRead aggregates the delta for this shard into out.
+ //
+ // Unsafe because it does so without any synchronization. The
+-// only safe time to call this is if the world is stopped or
+-// we're freezing the world or going down anyway (and we just
+-// want _some_ estimate).
++// world must be stopped.
+ func (m *consistentHeapStats) unsafeRead(out *heapStatsDelta) {
++	assertWorldStopped()
++
+ 	for i := range m.stats {
+ 		out.merge(&m.stats[i])
+ 	}
+@@ -890,6 +896,8 @@ func (m *consistentHeapStats) unsafeRead(out *heapStatsDelta) {
+ // Unsafe because the world must be stopped and values should
+ // be donated elsewhere before clearing.
+ func (m *consistentHeapStats) unsafeClear() {
++	assertWorldStopped()
++
+ 	for i := range m.stats {
+ 		m.stats[i] = heapStatsDelta{}
+ 	}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 939757f3a7..82284e6cd6 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -587,6 +587,9 @@ func schedinit() {
+ 
+ 	sched.maxmcount = 10000
+ 
++	// The world starts stopped.
++	worldStopped()
++
+ 	moduledataverify()
+ 	stackinit()
+ 	mallocinit()
+@@ -617,6 +620,9 @@ func schedinit() {
+ 	}
+ 	unlock(&sched.lock)
+ 
++	// World is effectively started now, as P's can run.
++	worldStarted()
++
+ 	// For cgocheck > 1, we turn on the write barrier at all times
+ 	// and check all pointer writes. We can't do this until after
+ 	// procresize because the write barrier needs a P.
+@@ -1082,9 +1088,13 @@ func stopTheWorldWithSema() {
+ 	if bad != "" {
+ 		throw(bad)
+ 	}
++
++	worldStopped()
+ }
+ 
+ func startTheWorldWithSema(emitTraceEvent bool) int64 {
++	assertWorldStopped()
++
+ 	mp := acquirem() // disable preemption because it can be holding p in a local var
+ 	if netpollinited() {
+ 		list := netpoll(0) // non-blocking
+@@ -1105,6 +1115,8 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
+ 	}
+ 	unlock(&sched.lock)
+ 
++	worldStarted()
++
+ 	for p1 != nil {
+ 		p := p1
+ 		p1 = p1.link.ptr()
+@@ -4539,6 +4551,7 @@ func (pp *p) init(id int32) {
+ // sched.lock must be held and the world must be stopped.
+ func (pp *p) destroy() {
+ 	assertLockHeld(&sched.lock)
++	assertWorldStopped()
+ 
+ 	// Move all runnable goroutines to the global queue
+ 	for pp.runqhead != pp.runqtail {
+@@ -4629,6 +4642,7 @@ func (pp *p) destroy() {
+ // Returns list of Ps with local work, they need to be scheduled by the caller.
+ func procresize(nprocs int32) *p {
+ 	assertLockHeld(&sched.lock)
++	assertWorldStopped()
+ 
+ 	old := gomaxprocs
+ 	if old < 0 || nprocs <= 0 {

@@ -8,6 +8,19 @@ Date:   Thu Mar 20 16:02:58 2025 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/659756
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/syscall/unix/at_aix.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/syscall/unix/at_aix.go b/src/internal/syscall/unix/at_aix.go
+index aa188cdb76..d277cd332f 100644
+--- a/src/internal/syscall/unix/at_aix.go
++++ b/src/internal/syscall/unix/at_aix.go
+@@ -8,6 +8,7 @@ package unix
+ //go:cgo_import_dynamic libc_fchownat fchownat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_fstatat fstatat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_openat openat "libc.a/shr_64.o"
++//go:cgo_import_dynamic libc_renameat renameat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_readlinkat readlinkat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_mkdirat mkdirat "libc.a/shr_64.o"

@@ -9,7 +9,51 @@ Date:   Thu Jul 28 21:03:40 2011 -0400
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4834041
-
+---
  src/pkg/runtime/cpuprof.c |  4 ++++
  src/pkg/runtime/symtab.c  | 17 +++++++++++++----
  2 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/cpuprof.c b/src/pkg/runtime/cpuprof.c
+index 6233bcb457..74b795b7ee 100644
+--- a/src/pkg/runtime/cpuprof.c
++++ b/src/pkg/runtime/cpuprof.c
+@@ -121,6 +121,10 @@ runtime·SetCPUProfileRate(int32 hz)
+ {
+ 	uintptr *p;
+ 	uintptr n;
++	
++	// Call findfunc now so that it won't have to
++	// build tables during the signal handler.
++	runtime·findfunc(0);
+ 
+ 	// Clamp hz to something reasonable.
+ 	if(hz < 0)
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index ffa042e6f7..63e6d87849 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -420,10 +420,19 @@ runtime·findfunc(uintptr addr)
+ 	Func *f;
+ 	int32 nf, n;
+ 
+-	runtime·lock(&funclock);
+-	if(func == nil)
+-		buildfuncs();
+-	runtime·unlock(&funclock);
++	// Use atomic double-checked locking,
++	// because when called from pprof signal
++	// handler, findfunc must run without
++	// grabbing any locks.
++	// (Before enabling the signal handler,
++	// SetCPUProfileRate calls findfunc to trigger
++	// the initialization outside the handler.)
++	if(runtime·atomicloadp(&func) == nil) {
++		runtime·lock(&funclock);
++		if(func == nil)
++			buildfuncs();
++		runtime·unlock(&funclock);
++	}
+ 
+ 	if(nfunc == 0)
+ 		return nil;

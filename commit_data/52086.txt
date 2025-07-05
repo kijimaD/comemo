@@ -14,6 +14,33 @@ Date:   Wed Mar 2 23:29:43 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/make.bash | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 96cbbf37a9..31387da33c 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -41,12 +41,20 @@
+ # Default is "gcc". Also supported: "clang".
+ #
+ # CC_FOR_TARGET: Command line to run to compile C code for GOARCH.
+-# This is used by cgo.  Default is CC.
++# This is used by cgo. Default is CC.
++#
++# CC_FOR_${GOOS}_${GOARCH}: Command line to run to compile C code for specified ${GOOS} and ${GOARCH}.
++# (for example, CC_FOR_linux_arm)
++# If this is not set, the build will use CC_FOR_TARGET if appropriate, or CC.
+ #
+ # CXX_FOR_TARGET: Command line to run to compile C++ code for GOARCH.
+ # This is used by cgo. Default is CXX, or, if that is not set,
+ # "g++" or "clang++".
+ #
++# CXX_FOR_${GOOS}_${GOARCH}: Command line to run to compile C++ code for specified ${GOOS} and ${GOARCH}.
++# (for example, CXX_FOR_linux_arm)
++# If this is not set, the build will use CXX_FOR_TARGET if appropriate, or CXX.
++#
+ # FC: Command line to run to compile Fortran code for GOARCH.
+ # This is used by cgo. Default is "gfortran".
+ #

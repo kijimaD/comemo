@@ -12,6 +12,33 @@ Date:   Fri Jun 29 14:56:45 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/net/http/serve_test.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 5ab17a649e..4e62cee054 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"crypto/tls"
+ 	"encoding/json"
+ 	"errors"
+-	"flag"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+@@ -5563,11 +5562,9 @@ func testServerShutdown(t *testing.T, h2 bool) {
+ 	}
+ }
+ 
+-var slowTests = flag.Bool("slow", false, "run slow tests")
+-
+ func TestServerShutdownStateNew(t *testing.T) {
+-	if !*slowTests {
+-		t.Skip("skipping slow test without -slow flag")
++	if testing.Short() {
++		t.Skip("test takes 5-6 seconds; skipping in short mode")
+ 	}
+ 	setParallel(t)
+ 	defer afterTest(t)

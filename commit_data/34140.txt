@@ -24,7 +24,155 @@ Date:   Mon Sep 18 11:55:18 2017 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/elliptic/p256_asm_s390x.s | 41 ++++++++++++++++++++++++++++++++----
  src/crypto/elliptic/p256_s390x.go    | 34 +++++++++++++++++++++++-------
  2 files changed, 63 insertions(+), 12 deletions(-)
+
+diff --git a/src/crypto/elliptic/p256_asm_s390x.s b/src/crypto/elliptic/p256_asm_s390x.s
+index 96b59be23f..d0e6d09e2e 100644
+--- a/src/crypto/elliptic/p256_asm_s390x.s
++++ b/src/crypto/elliptic/p256_asm_s390x.s
+@@ -1944,10 +1944,12 @@ TEXT ·p256PointDoubleAsm(SB), NOSPLIT, $0
+ #undef CAR2
+ 
+ // p256PointAddAsm(P3, P1, P2 *p256Point)
+-#define P3ptr   R1
+-#define P1ptr   R2
+-#define P2ptr   R3
+-#define CPOOL   R4
++#define P3ptr  R1
++#define P1ptr  R2
++#define P2ptr  R3
++#define CPOOL  R4
++#define ISZERO R5
++#define TRUE   R6
+ 
+ // Temporaries in REGs
+ #define T1L   V16
+@@ -2102,6 +2104,21 @@ TEXT ·p256PointAddAsm(SB), NOSPLIT, $0
+ 	// SUB(H<H-T)            // H  = H-U1
+ 	p256SubInternal(HH,HL,HH,HL,T1,T0)
+ 
++	// if H == 0 or H^P == 0 then ret=1 else ret=0
++	// clobbers T1H and T1L
++	MOVD   $0, ISZERO
++	MOVD   $1, TRUE
++	VZERO  ZER
++	VO     HL, HH, T1H
++	VCEQGS ZER, T1H, T1H
++	MOVDEQ TRUE, ISZERO
++	VX     HL, PL, T1L
++	VX     HH, PH, T1H
++	VO     T1L, T1H, T1H
++	VCEQGS ZER, T1H, T1H
++	MOVDEQ TRUE, ISZERO
++	MOVD   ISZERO, ret+24(FP)
++
+ 	// X=Z1; Y=Z2; MUL; T-   // Z3 = Z1*Z2
+ 	VL   64(P1ptr), X1       // Z1H
+ 	VL   80(P1ptr), X0       // Z1L
+@@ -2137,6 +2154,22 @@ TEXT ·p256PointAddAsm(SB), NOSPLIT, $0
+ 	// SUB(R<T-S1)           // R  = T-S1
+ 	p256SubInternal(RH,RL,T1,T0,S1H,S1L)
+ 
++	// if R == 0 or R^P == 0 then ret=ret else ret=0
++	// clobbers T1H and T1L
++	MOVD   $0, ISZERO
++	MOVD   $1, TRUE
++	VZERO  ZER
++	VO     RL, RH, T1H
++	VCEQGS ZER, T1H, T1H
++	MOVDEQ TRUE, ISZERO
++	VX     RL, PL, T1L
++	VX     RH, PH, T1H
++	VO     T1L, T1H, T1H
++	VCEQGS ZER, T1H, T1H
++	MOVDEQ TRUE, ISZERO
++	AND    ret+24(FP), ISZERO
++	MOVD   ISZERO, ret+24(FP)
++
+ 	// X=H ; Y=H ; MUL; T-   // T1 = H*H
+ 	VLR  HL, X0
+ 	VLR  HH, X1
+diff --git a/src/crypto/elliptic/p256_s390x.go b/src/crypto/elliptic/p256_s390x.go
+index 45cd2915f9..44c0f41f07 100644
+--- a/src/crypto/elliptic/p256_s390x.go
++++ b/src/crypto/elliptic/p256_s390x.go
+@@ -7,6 +7,7 @@
+ package elliptic
+ 
+ import (
++	"crypto/subtle"
+ 	"math/big"
+ )
+ 
+@@ -32,10 +33,7 @@ func hasVectorFacility() bool
+ var hasVX = hasVectorFacility()
+ 
+ func initP256Arch() {
+-	// Assembly implementation is temporarily disabled until issue
+-	// #20215 is fixed.
+-	// if hasVX {
+-	if false {
++	if hasVX {
+ 		p256 = p256CurveFast{p256Params}
+ 		initTable()
+ 		return
+@@ -90,7 +88,7 @@ func p256OrdSqr(res, in []byte, n int) {
+ func p256PointAddAffineAsm(P3, P1, P2 *p256Point, sign, sel, zero int)
+ 
+ // Point add
+-func p256PointAddAsm(P3, P1, P2 *p256Point)
++func p256PointAddAsm(P3, P1, P2 *p256Point) int
+ func p256PointDoubleAsm(P3, P1 *p256Point)
+ 
+ func (curve p256CurveFast) Inverse(k *big.Int) *big.Int {
+@@ -205,7 +203,9 @@ func maybeReduceModP(in *big.Int) *big.Int {
+ 
+ func (curve p256CurveFast) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
+ 	var r1, r2 p256Point
+-	r1.p256BaseMult(p256GetMultiplier(baseScalar))
++	scalarReduced := p256GetMultiplier(baseScalar)
++	r1IsInfinity := scalarIsZero(scalarReduced)
++	r1.p256BaseMult(scalarReduced)
+ 
+ 	copy(r2.x[:], fromBig(maybeReduceModP(bigX)))
+ 	copy(r2.y[:], fromBig(maybeReduceModP(bigY)))
+@@ -213,9 +213,17 @@ func (curve p256CurveFast) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar
+ 	p256MulAsm(r2.x[:], r2.x[:], rr[:])
+ 	p256MulAsm(r2.y[:], r2.y[:], rr[:])
+ 
++	scalarReduced = p256GetMultiplier(scalar)
++	r2IsInfinity := scalarIsZero(scalarReduced)
+ 	r2.p256ScalarMult(p256GetMultiplier(scalar))
+-	p256PointAddAsm(&r1, &r1, &r2)
+-	return r1.p256PointToAffine()
++
++	var sum, double p256Point
++	pointsEqual := p256PointAddAsm(&sum, &r1, &r2)
++	p256PointDoubleAsm(&double, &r1)
++	p256MovCond(&sum, &double, &sum, pointsEqual)
++	p256MovCond(&sum, &r1, &sum, r2IsInfinity)
++	p256MovCond(&sum, &r2, &sum, r1IsInfinity)
++	return sum.p256PointToAffine()
+ }
+ 
+ func (curve p256CurveFast) ScalarBaseMult(scalar []byte) (x, y *big.Int) {
+@@ -235,6 +243,16 @@ func (curve p256CurveFast) ScalarMult(bigX, bigY *big.Int, scalar []byte) (x, y
+ 	return r.p256PointToAffine()
+ }
+ 
++// scalarIsZero returns 1 if scalar represents the zero value, and zero
++// otherwise.
++func scalarIsZero(scalar []byte) int {
++	b := byte(0)
++	for _, s := range scalar {
++		b |= s
++	}
++	return subtle.ConstantTimeByteEq(b, 0)
++}
++
+ func (p *p256Point) p256PointToAffine() (x, y *big.Int) {
+ 	zInv := make([]byte, 32)
+ 	zInvSq := make([]byte, 32)

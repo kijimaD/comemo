@@ -19,8 +19,128 @@ Date:   Wed Feb 15 18:43:34 2017 -0800
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go  | 14 +++++---------
  src/cmd/compile/internal/gc/subr.go |  2 +-
  src/cmd/compile/internal/gc/walk.go | 28 +++-------------------------
  3 files changed, 9 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 505611e6ae..b9b3b80b52 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -553,7 +553,7 @@ func (s *state) stmt(n *Node) {
+ 			deref = true
+ 			res = res.Args[0]
+ 		}
+-		s.assign(n.List.First(), res, needwritebarrier(n.List.First(), n.Rlist.First()), deref, 0, false)
++		s.assign(n.List.First(), res, needwritebarrier(n.List.First()), deref, 0, false)
+ 		s.assign(n.List.Second(), resok, false, false, 0, false)
+ 		return
+ 
+@@ -565,12 +565,8 @@ func (s *state) stmt(n *Node) {
+ 		v := s.intrinsicCall(n.Rlist.First())
+ 		v1 := s.newValue1(ssa.OpSelect0, n.List.First().Type, v)
+ 		v2 := s.newValue1(ssa.OpSelect1, n.List.Second().Type, v)
+-		// Make a fake node to mimic loading return value, ONLY for write barrier test.
+-		// This is future-proofing against non-scalar 2-result intrinsics.
+-		// Currently we only have scalar ones, which result in no write barrier.
+-		fakeret := &Node{Op: OINDREGSP}
+-		s.assign(n.List.First(), v1, needwritebarrier(n.List.First(), fakeret), false, 0, false)
+-		s.assign(n.List.Second(), v2, needwritebarrier(n.List.Second(), fakeret), false, 0, false)
++		s.assign(n.List.First(), v1, needwritebarrier(n.List.First()), false, 0, false)
++		s.assign(n.List.Second(), v2, needwritebarrier(n.List.Second()), false, 0, false)
+ 		return
+ 
+ 	case ODCL:
+@@ -696,7 +692,7 @@ func (s *state) stmt(n *Node) {
+ 		}
+ 		var r *ssa.Value
+ 		var isVolatile bool
+-		needwb := n.Right != nil && needwritebarrier(n.Left, n.Right)
++		needwb := n.Right != nil && needwritebarrier(n.Left)
+ 		deref := !canSSAType(t)
+ 		if deref {
+ 			if rhs == nil {
+@@ -711,7 +707,7 @@ func (s *state) stmt(n *Node) {
+ 				r = s.expr(rhs)
+ 			}
+ 		}
+-		if rhs != nil && rhs.Op == OAPPEND && needwritebarrier(n.Left, rhs) {
++		if rhs != nil && rhs.Op == OAPPEND && needwritebarrier(n.Left) {
+ 			// The frontend gets rid of the write barrier to enable the special OAPPEND
+ 			// handling above, but since this is not a special case, we need it.
+ 			// TODO: just add a ptr graying to the end of growslice?
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index c7b81858cc..98aebc528e 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1170,7 +1170,7 @@ func ullmancalc(n *Node) {
+ 		goto out
+ 
+ 	case OAS:
+-		if !needwritebarrier(n.Left, n.Right) {
++		if !needwritebarrier(n.Left) {
+ 			break
+ 		}
+ 		fallthrough
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 28b430f22d..b82618af6b 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1664,8 +1664,7 @@ func fncall(l *Node, rt *Type) bool {
+ 	if l.Ullman >= UINF || l.Op == OINDEXMAP {
+ 		return true
+ 	}
+-	var r Node
+-	if needwritebarrier(l, &r) {
++	if needwritebarrier(l) {
+ 		return true
+ 	}
+ 	if eqtype(l.Type, rt) {
+@@ -2049,8 +2048,8 @@ func isstack(n *Node) bool {
+ 	return false
+ }
+ 
+-// Do we need a write barrier for the assignment l = r?
+-func needwritebarrier(l *Node, r *Node) bool {
++// Do we need a write barrier for assigning to l?
++func needwritebarrier(l *Node) bool {
+ 	if !use_writebarrier {
+ 		return false
+ 	}
+@@ -2077,21 +2076,6 @@ func needwritebarrier(l *Node, r *Node) bool {
+ 		return false
+ 	}
+ 
+-	// Implicit zeroing is still zeroing, so it needs write
+-	// barriers. In practice, these are all to stack variables
+-	// (even if isstack isn't smart enough to figure that out), so
+-	// they'll be eliminated by the backend.
+-	if r == nil {
+-		return true
+-	}
+-
+-	// Ignore no-op conversions when making decision.
+-	// Ensures that xp = unsafe.Pointer(&x) is treated
+-	// the same as xp = &x.
+-	for r.Op == OCONVNOP {
+-		r = r.Left
+-	}
+-
+ 	// TODO: We can eliminate write barriers if we know *both* the
+ 	// current and new content of the slot must already be shaded.
+ 	// We know a pointer is shaded if it's nil, or points to
+@@ -2100,12 +2084,6 @@ func needwritebarrier(l *Node, r *Node) bool {
+ 	// writes to just-allocated objects. Unfortunately, knowing
+ 	// the "current" value of the slot requires flow analysis.
+ 
+-	// No write barrier for storing address of stack values,
+-	// which are guaranteed only to be written to the stack.
+-	if r.Op == OADDR && isstack(r.Left) {
+-		return false
+-	}
+-
+ 	// Otherwise, be conservative and use write barrier.
+ 	return true
+ }

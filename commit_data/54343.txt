@@ -17,8 +17,119 @@ Date:   Mon Sep 19 20:09:56 2022 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/import.go              | 10 ++++++++-
  src/cmd/go/internal/modload/load.go                | 26 +++++++++++++++++-----
  .../go/testdata/script/mod_load_missing_std.txt    | 17 ++++++++++++++
  3 files changed, 46 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index d1ac274a28..b314656b96 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -41,6 +41,10 @@ type ImportMissingError struct {
+ 	// modules.
+ 	isStd bool
+ 
++	// importerGoVersion is the version the module containing the import error
++	// specified. It is only set when isStd is true.
++	importerGoVersion string
++
+ 	// replaced the highest replaced version of the module where the replacement
+ 	// contains the package. replaced is only set if the replacement is unused.
+ 	replaced module.Version
+@@ -53,7 +57,11 @@ type ImportMissingError struct {
+ func (e *ImportMissingError) Error() string {
+ 	if e.Module.Path == "" {
+ 		if e.isStd {
+-			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
++			msg := fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
++			if e.importerGoVersion != "" {
++				msg += fmt.Sprintf("\nnote: imported by a module that requires go %s", e.importerGoVersion)
++			}
++			return msg
+ 		}
+ 		if e.QueryErr != nil && e.QueryErr != ErrNoModRoot {
+ 			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index afd6c80370..09572bf1b1 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -984,7 +984,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 	if ld.GoVersion == "" {
+ 		ld.GoVersion = MainModules.GoVersion()
+ 
+-		if ld.Tidy && semver.Compare("v"+ld.GoVersion, "v"+LatestGoVersion()) > 0 {
++		if ld.Tidy && versionLess(LatestGoVersion(), ld.GoVersion) {
+ 			ld.errorf("go: go.mod file indicates go %s, but maximum version supported by tidy is %s\n", ld.GoVersion, LatestGoVersion())
+ 			base.ExitIfErrors()
+ 		}
+@@ -993,7 +993,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 	if ld.Tidy {
+ 		if ld.TidyCompatibleVersion == "" {
+ 			ld.TidyCompatibleVersion = priorGoVersion(ld.GoVersion)
+-		} else if semver.Compare("v"+ld.TidyCompatibleVersion, "v"+ld.GoVersion) > 0 {
++		} else if versionLess(ld.GoVersion, ld.TidyCompatibleVersion) {
+ 			// Each version of the Go toolchain knows how to interpret go.mod and
+ 			// go.sum files produced by all previous versions, so a compatibility
+ 			// version higher than the go.mod version adds nothing.
+@@ -1184,11 +1184,19 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			}
+ 		}
+ 
+-		if ld.SilencePackageErrors {
+-			continue
++		if stdErr := (*ImportMissingError)(nil); errors.As(pkg.err, &stdErr) && stdErr.isStd {
++			// Add importer go version information to import errors of standard
++			// library packages arising from newer releases.
++			if importer := pkg.stack; importer != nil {
++				if v, ok := rawGoVersion.Load(importer.mod); ok && versionLess(LatestGoVersion(), v.(string)) {
++					stdErr.importerGoVersion = v.(string)
++				}
++			}
++			if ld.SilenceMissingStdImports {
++				continue
++			}
+ 		}
+-		if stdErr := (*ImportMissingError)(nil); errors.As(pkg.err, &stdErr) &&
+-			stdErr.isStd && ld.SilenceMissingStdImports {
++		if ld.SilencePackageErrors {
+ 			continue
+ 		}
+ 		if ld.SilenceNoGoErrors && errors.Is(pkg.err, imports.ErrNoGo) {
+@@ -1202,6 +1210,12 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 	return ld
+ }
+ 
++// versionLess returns whether a < b according to semantic version precedence.
++// Both strings are interpreted as go version strings, e.g. "1.19".
++func versionLess(a, b string) bool {
++	return semver.Compare("v"+a, "v"+b) < 0
++}
++
+ // updateRequirements ensures that ld.requirements is consistent with the
+ // information gained from ld.pkgs.
+ //
+diff --git a/src/cmd/go/testdata/script/mod_load_missing_std.txt b/src/cmd/go/testdata/script/mod_load_missing_std.txt
+new file mode 100644
+index 0000000000..bd2508a3e3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_load_missing_std.txt
+@@ -0,0 +1,17 @@
++# Go should indicate the version the module requires when a standard library
++# import is missing. See golang.org/issue/48966.
++
++! go build .
++stderr '^main.go:3:8: package nonexistent is not in GOROOT \(.*\)$'
++stderr '^note: imported by a module that requires go 1.99999$'
++
++-- go.mod --
++module example
++
++go 1.99999
++-- main.go --
++package main
++
++import _ "nonexistent"
++
++func main() {}

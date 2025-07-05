@@ -18,7 +18,7 @@ Date:   Fri Nov 13 17:45:22 2015 -0800
     Change-Id: I549d8b2956daa76eac853928e9280e615d6365f4
     Reviewed-on: https://go-review.googlesource.com/16899
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/errors/ptr.go                         | 190 ++++++++++++++++---
  src/cmd/compile/internal/gc/builtin.go         |   2 +-
  src/cmd/compile/internal/gc/builtin/runtime.go |   6 +-
@@ -33,3 +33,901 @@ Date:   Fri Nov 13 17:45:22 2015 -0800
  src/runtime/runtime1.go                        |   7 +
  src/runtime/slice.go                           |   2 +-
  13 files changed, 479 insertions(+), 46 deletions(-)
+
+diff --git a/misc/cgo/errors/ptr.go b/misc/cgo/errors/ptr.go
+index b417d489d0..7b670be5a7 100644
+--- a/misc/cgo/errors/ptr.go
++++ b/misc/cgo/errors/ptr.go
+@@ -22,22 +22,26 @@ import (
+ 
+ // ptrTest is the tests without the boilerplate.
+ type ptrTest struct {
+-	c       string   // the cgo comment
+-	imports []string // a list of imports
+-	support string   // supporting functions
+-	body    string   // the body of the main function
+-	fail    bool     // whether the test should fail
++	name      string   // for reporting
++	c         string   // the cgo comment
++	imports   []string // a list of imports
++	support   string   // supporting functions
++	body      string   // the body of the main function
++	fail      bool     // whether the test should fail
++	expensive bool     // whether the test requires the expensive check
+ }
+ 
+ var ptrTests = []ptrTest{
+ 	{
+ 		// Passing a pointer to a struct that contains a Go pointer.
++		name: "ptr1",
+ 		c:    `typedef struct s { int *p; } s; void f(s *ps) {}`,
+ 		body: `C.f(&C.s{new(C.int)})`,
+ 		fail: true,
+ 	},
+ 	{
+ 		// Passing a pointer to a struct that contains a Go pointer.
++		name: "ptr2",
+ 		c:    `typedef struct s { int *p; } s; void f(s *ps) {}`,
+ 		body: `p := &C.s{new(C.int)}; C.f(p)`,
+ 		fail: true,
+@@ -45,12 +49,14 @@ var ptrTests = []ptrTest{
+ 	{
+ 		// Passing a pointer to an int field of a Go struct
+ 		// that (irrelevantly) contains a Go pointer.
++		name: "ok1",
+ 		c:    `struct s { int i; int *p; }; void f(int *p) {}`,
+ 		body: `p := &C.struct_s{i: 0, p: new(C.int)}; C.f(&p.i)`,
+ 		fail: false,
+ 	},
+ 	{
+ 		// Passing a pointer to a pointer field of a Go struct.
++		name: "ptr-field",
+ 		c:    `struct s { int i; int *p; }; void f(int **p) {}`,
+ 		body: `p := &C.struct_s{i: 0, p: new(C.int)}; C.f(&p.p)`,
+ 		fail: true,
+@@ -59,12 +65,14 @@ var ptrTests = []ptrTest{
+ 		// Passing a pointer to a pointer field of a Go
+ 		// struct, where the field does not contain a Go
+ 		// pointer, but another field (irrelevantly) does.
++		name: "ptr-field-ok",
+ 		c:    `struct s { int *p1; int *p2; }; void f(int **p) {}`,
+ 		body: `p := &C.struct_s{p1: nil, p2: new(C.int)}; C.f(&p.p1)`,
+ 		fail: false,
+ 	},
+ 	{
+ 		// Passing the address of a slice with no Go pointers.
++		name:    "slice-ok-1",
+ 		c:       `void f(void **p) {}`,
+ 		imports: []string{"unsafe"},
+ 		body:    `s := []unsafe.Pointer{nil}; C.f(&s[0])`,
+@@ -72,6 +80,7 @@ var ptrTests = []ptrTest{
+ 	},
+ 	{
+ 		// Passing the address of a slice with a Go pointer.
++		name:    "slice-ptr-1",
+ 		c:       `void f(void **p) {}`,
+ 		imports: []string{"unsafe"},
+ 		body:    `i := 0; s := []unsafe.Pointer{unsafe.Pointer(&i)}; C.f(&s[0])`,
+@@ -81,6 +90,7 @@ var ptrTests = []ptrTest{
+ 		// Passing the address of a slice with a Go pointer,
+ 		// where we are passing the address of an element that
+ 		// is not a Go pointer.
++		name:    "slice-ptr-2",
+ 		c:       `void f(void **p) {}`,
+ 		imports: []string{"unsafe"},
+ 		body:    `i := 0; s := []unsafe.Pointer{nil, unsafe.Pointer(&i)}; C.f(&s[0])`,
+@@ -89,6 +99,7 @@ var ptrTests = []ptrTest{
+ 	{
+ 		// Passing the address of a slice that is an element
+ 		// in a struct only looks at the slice.
++		name:    "slice-ok-2",
+ 		c:       `void f(void **p) {}`,
+ 		imports: []string{"unsafe"},
+ 		support: `type S struct { p *int; s []unsafe.Pointer }`,
+@@ -98,6 +109,7 @@ var ptrTests = []ptrTest{
+ 	{
+ 		// Passing the address of a static variable with no
+ 		// pointers doesn't matter.
++		name:    "varok",
+ 		c:       `void f(char** parg) {}`,
+ 		support: `var hello = [...]C.char{'h', 'e', 'l', 'l', 'o'}`,
+ 		body:    `parg := [1]*C.char{&hello[0]}; C.f(&parg[0])`,
+@@ -106,11 +118,97 @@ var ptrTests = []ptrTest{
+ 	{
+ 		// Passing the address of a static variable with
+ 		// pointers does matter.
++		name:    "var",
+ 		c:       `void f(char*** parg) {}`,
+ 		support: `var hello = [...]*C.char{new(C.char)}`,
+ 		body:    `parg := [1]**C.char{&hello[0]}; C.f(&parg[0])`,
+ 		fail:    true,
+ 	},
++	{
++		// Storing a Go pointer into C memory should fail.
++		name: "barrier",
++		c: `#include <stdlib.h>
++                    char **f1() { return malloc(sizeof(char*)); }
++                    void f2(char **p) {}`,
++		body:      `p := C.f1(); *p = new(C.char); C.f2(p)`,
++		fail:      true,
++		expensive: true,
++	},
++	{
++		// Storing a Go pointer into C memory by assigning a
++		// large value should fail.
++		name: "barrier-struct",
++		c: `#include <stdlib.h>
++                    struct s { char *a[10]; };
++                    struct s *f1() { return malloc(sizeof(struct s)); }
++                    void f2(struct s *p) {}`,
++		body:      `p := C.f1(); p.a = [10]*C.char{new(C.char)}; C.f2(p)`,
++		fail:      true,
++		expensive: true,
++	},
++	{
++		// Storing a Go pointer into C memory using a slice
++		// copy should fail.
++		name: "barrier-slice",
++		c: `#include <stdlib.h>
++                    struct s { char *a[10]; };
++                    struct s *f1() { return malloc(sizeof(struct s)); }
++                    void f2(struct s *p) {}`,
++		body:      `p := C.f1(); copy(p.a[:], []*C.char{new(C.char)}); C.f2(p)`,
++		fail:      true,
++		expensive: true,
++	},
++	{
++		// A very large value uses a GC program, which is a
++		// different code path.
++		name: "barrier-gcprog-array",
++		c: `#include <stdlib.h>
++                    struct s { char *a[32769]; };
++                    struct s *f1() { return malloc(sizeof(struct s)); }
++                    void f2(struct s *p) {}`,
++		body:      `p := C.f1(); p.a = [32769]*C.char{new(C.char)}; C.f2(p)`,
++		fail:      true,
++		expensive: true,
++	},
++	{
++		// Similar case, with a source on the heap.
++		name: "barrier-gcprog-array-heap",
++		c: `#include <stdlib.h>
++                    struct s { char *a[32769]; };
++                    struct s *f1() { return malloc(sizeof(struct s)); }
++                    void f2(struct s *p) {}
++                    void f3(void *p) {}`,
++		imports:   []string{"unsafe"},
++		body:      `p := C.f1(); n := &[32769]*C.char{new(C.char)}; p.a = *n; C.f2(p); n[0] = nil; C.f3(unsafe.Pointer(n))`,
++		fail:      true,
++		expensive: true,
++	},
++	{
++		// A GC program with a struct.
++		name: "barrier-gcprog-struct",
++		c: `#include <stdlib.h>
++                    struct s { char *a[32769]; };
++                    struct s2 { struct s f; };
++                    struct s2 *f1() { return malloc(sizeof(struct s2)); }
++                    void f2(struct s2 *p) {}`,
++		body:      `p := C.f1(); p.f = C.struct_s{[32769]*C.char{new(C.char)}}; C.f2(p)`,
++		fail:      true,
++		expensive: true,
++	},
++	{
++		// Similar case, with a source on the heap.
++		name: "barrier-gcprog-struct-heap",
++		c: `#include <stdlib.h>
++                    struct s { char *a[32769]; };
++                    struct s2 { struct s f; };
++                    struct s2 *f1() { return malloc(sizeof(struct s2)); }
++                    void f2(struct s2 *p) {}
++                    void f3(void *p) {}`,
++		imports:   []string{"unsafe"},
++		body:      `p := C.f1(); n := &C.struct_s{[32769]*C.char{new(C.char)}}; p.f = *n; C.f2(p); n.a[0] = nil; C.f3(unsafe.Pointer(n))`,
++		fail:      true,
++		expensive: true,
++	},
+ }
+ 
+ func main() {
+@@ -208,50 +306,84 @@ func doOne(dir string, i int) bool {
+ 		return false
+ 	}
+ 
++	ok := true
++
+ 	cmd := exec.Command("go", "run", name)
+ 	cmd.Dir = dir
++
++	if t.expensive {
++		cmd.Env = cgocheckEnv("1")
++		buf, err := cmd.CombinedOutput()
++		if err != nil {
++			var errbuf bytes.Buffer
++			if t.fail {
++				fmt.Fprintf(&errbuf, "test %s marked expensive but failed when not expensive: %v\n", t.name, err)
++			} else {
++				fmt.Fprintf(&errbuf, "test %s failed unexpectedly with GODEBUG=cgocheck=1: %v\n", t.name, err)
++			}
++			reportTestOutput(&errbuf, t.name, buf)
++			os.Stderr.Write(errbuf.Bytes())
++			ok = false
++		}
++
++		cmd = exec.Command("go", "run", name)
++		cmd.Dir = dir
++	}
++
++	if t.expensive {
++		cmd.Env = cgocheckEnv("2")
++	}
++
+ 	buf, err := cmd.CombinedOutput()
+ 
+-	ok := true
+ 	if t.fail {
+ 		if err == nil {
+ 			var errbuf bytes.Buffer
+-			fmt.Fprintf(&errbuf, "test %d did not fail as expected\n", i)
+-			reportTestOutput(&errbuf, i, buf)
++			fmt.Fprintf(&errbuf, "test %s did not fail as expected\n", t.name)
++			reportTestOutput(&errbuf, t.name, buf)
+ 			os.Stderr.Write(errbuf.Bytes())
+ 			ok = false
+ 		} else if !bytes.Contains(buf, []byte("Go pointer")) {
+ 			var errbuf bytes.Buffer
+-			fmt.Fprintf(&errbuf, "test %d output does not contain expected error\n", i)
+-			reportTestOutput(&errbuf, i, buf)
++			fmt.Fprintf(&errbuf, "test %s output does not contain expected error (failed with %v)\n", t.name, err)
++			reportTestOutput(&errbuf, t.name, buf)
+ 			os.Stderr.Write(errbuf.Bytes())
+ 			ok = false
+ 		}
+ 	} else {
+ 		if err != nil {
+ 			var errbuf bytes.Buffer
+-			fmt.Fprintf(&errbuf, "test %d failed unexpectedly: %v\n", i, err)
+-			reportTestOutput(&errbuf, i, buf)
++			fmt.Fprintf(&errbuf, "test %s failed unexpectedly: %v\n", t.name, err)
++			reportTestOutput(&errbuf, t.name, buf)
+ 			os.Stderr.Write(errbuf.Bytes())
+ 			ok = false
+ 		}
++
++		if !t.expensive && ok {
++			// Make sure it passes with the expensive checks.
++			cmd := exec.Command("go", "run", name)
++			cmd.Dir = dir
++			cmd.Env = cgocheckEnv("2")
++			buf, err := cmd.CombinedOutput()
++			if err != nil {
++				var errbuf bytes.Buffer
++				fmt.Fprintf(&errbuf, "test %s failed unexpectedly with expensive checks: %v\n", t.name, err)
++				reportTestOutput(&errbuf, t.name, buf)
++				os.Stderr.Write(errbuf.Bytes())
++				ok = false
++			}
++		}
+ 	}
+ 
+ 	if t.fail && ok {
+ 		cmd = exec.Command("go", "run", name)
+ 		cmd.Dir = dir
+-		env := []string{"GODEBUG=cgocheck=0"}
+-		for _, e := range os.Environ() {
+-			if !strings.HasPrefix(e, "GODEBUG=") {
+-				env = append(env, e)
+-			}
+-		}
+-		cmd.Env = env
++		cmd.Env = cgocheckEnv("0")
+ 		buf, err := cmd.CombinedOutput()
+ 		if err != nil {
+ 			var errbuf bytes.Buffer
+-			fmt.Fprintf(&errbuf, "test %d failed unexpectedly with GODEBUG=cgocheck=0: %v\n", i, err)
+-			reportTestOutput(&errbuf, i, buf)
++			fmt.Fprintf(&errbuf, "test %s failed unexpectedly with GODEBUG=cgocheck=0: %v\n", t.name, err)
++			reportTestOutput(&errbuf, t.name, buf)
+ 			os.Stderr.Write(errbuf.Bytes())
+ 			ok = false
+ 		}
+@@ -260,8 +392,18 @@ func doOne(dir string, i int) bool {
+ 	return ok
+ }
+ 
+-func reportTestOutput(w io.Writer, i int, buf []byte) {
+-	fmt.Fprintf(w, "=== test %d output ===\n", i)
++func reportTestOutput(w io.Writer, name string, buf []byte) {
++	fmt.Fprintf(w, "=== test %s output ===\n", name)
+ 	fmt.Fprintf(w, "%s", buf)
+-	fmt.Fprintf(w, "=== end of test %d output ===\n", i)
++	fmt.Fprintf(w, "=== end of test %s output ===\n", name)
++}
++
++func cgocheckEnv(val string) []string {
++	env := []string{"GODEBUG=cgocheck=" + val}
++	for _, e := range os.Environ() {
++		if !strings.HasPrefix(e, "GODEBUG=") {
++			env = append(env, e)
++		}
++	}
++	return env
+ }
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index f1d2ac957f..4199fb35cc 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -86,7 +86,7 @@ const runtimeimport = "" +
+ 	"func @\"\".chanrecv2 (@\"\".chanType·2 *byte, @\"\".hchan·3 <-chan any, @\"\".elem·4 *any) (? bool)\n" +
+ 	"func @\"\".chansend1 (@\"\".chanType·1 *byte, @\"\".hchan·2 chan<- any, @\"\".elem·3 *any)\n" +
+ 	"func @\"\".closechan (@\"\".hchan·1 any)\n" +
+-	"var @\"\".writeBarrierEnabled bool\n" +
++	"var @\"\".writeBarrier struct { @\"\".enabled bool; @\"\".needed bool; @\"\".cgo bool }\n" +
+ 	"func @\"\".writebarrierptr (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
+ 	"func @\"\".writebarrierstring (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
+ 	"func @\"\".writebarrierslice (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 930175781f..a50fc2e293 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -108,7 +108,11 @@ func chanrecv2(chanType *byte, hchan <-chan any, elem *any) bool
+ func chansend1(chanType *byte, hchan chan<- any, elem *any)
+ func closechan(hchan any)
+ 
+-var writeBarrierEnabled bool
++var writeBarrier struct {
++	enabled bool
++	needed  bool
++	cgo     bool
++}
+ 
+ func writebarrierptr(dst *any, src any)
+ func writebarrierstring(dst *any, src any)
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index e2077bafe8..6456240a12 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -801,7 +801,9 @@ func cgen_wbptr(n, res *Node) {
+ 		Cgenr(n, &src, nil)
+ 	}
+ 
+-	wbEnabled := syslook("writeBarrierEnabled", 0)
++	wbVar := syslook("writeBarrier", 0)
++	wbEnabled := Nod(ODOT, wbVar, newname(wbVar.Type.Type.Sym))
++	wbEnabled = typecheck(&wbEnabled, Erv)
+ 	pbr := Thearch.Ginscmp(ONE, Types[TUINT8], wbEnabled, Nodintconst(0), -1)
+ 	Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, &dst)
+ 	pjmp := Gbranch(obj.AJMP, nil, 0)
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 08be142785..655dd2ae21 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -390,7 +390,7 @@ func cgoCheckPointer(ptr interface{}, args ...interface{}) interface{} {
+ 
+ const cgoCheckPointerFail = "cgo argument has Go pointer to Go pointer"
+ 
+-// cgoCheckArg is the real work of cgoCheckPointer.  The argument p,
++// cgoCheckArg is the real work of cgoCheckPointer.  The argument p
+ // is either a pointer to the value (of type t), or the value itself,
+ // depending on indir.  The top parameter is whether we are at the top
+ // level, where Go pointers are allowed.
+@@ -414,7 +414,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool) {
+ 		}
+ 		for i := uintptr(0); i < at.len; i++ {
+ 			cgoCheckArg(at.elem, p, true, top)
+-			p = unsafe.Pointer(uintptr(p) + at.elem.size)
++			p = add(p, at.elem.size)
+ 		}
+ 	case kindChan, kindMap:
+ 		// These types contain internal pointers that will
+@@ -440,7 +440,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool) {
+ 		if inheap(uintptr(unsafe.Pointer(it))) {
+ 			panic(errorString(cgoCheckPointerFail))
+ 		}
+-		p = *(*unsafe.Pointer)(unsafe.Pointer(uintptr(p) + sys.PtrSize))
++		p = *(*unsafe.Pointer)(add(p, sys.PtrSize))
+ 		if !cgoIsGoPointer(p) {
+ 			return
+ 		}
+@@ -460,7 +460,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool) {
+ 		}
+ 		for i := 0; i < s.cap; i++ {
+ 			cgoCheckArg(st.elem, p, true, false)
+-			p = unsafe.Pointer(uintptr(p) + st.elem.size)
++			p = add(p, st.elem.size)
+ 		}
+ 	case kindStruct:
+ 		st := (*structtype)(unsafe.Pointer(t))
+@@ -472,7 +472,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool) {
+ 			return
+ 		}
+ 		for _, f := range st.fields {
+-			cgoCheckArg(f.typ, unsafe.Pointer(uintptr(p)+f.offset), true, top)
++			cgoCheckArg(f.typ, add(p, f.offset), true, top)
+ 		}
+ 	case kindPtr, kindUnsafePointer:
+ 		if indir {
+@@ -539,6 +539,8 @@ func cgoCheckUnknownPointer(p unsafe.Pointer) {
+ // cgoIsGoPointer returns whether the pointer is a Go pointer--a
+ // pointer to Go memory.  We only care about Go memory that might
+ // contain pointers.
++//go:nosplit
++//go:nowritebarrierrec
+ func cgoIsGoPointer(p unsafe.Pointer) bool {
+ 	if p == nil {
+ 		return false
+@@ -558,6 +560,8 @@ func cgoIsGoPointer(p unsafe.Pointer) bool {
+ }
+ 
+ // cgoInRange returns whether p is between start and end.
++//go:nosplit
++//go:nowritebarrierrec
+ func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {
+ 	return start <= uintptr(p) && uintptr(p) < end
+ }
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+new file mode 100644
+index 0000000000..0077e22332
+--- /dev/null
++++ b/src/runtime/cgocheck.go
+@@ -0,0 +1,243 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Code to check that pointer writes follow the cgo rules.
++// These functions are invoked via the write barrier when debug.cgocheck > 1.
++
++package runtime
++
++import (
++	"runtime/internal/sys"
++	"unsafe"
++)
++
++const cgoWriteBarrierFail = "Go pointer stored into non-Go memory"
++
++// cgoCheckWriteBarrier is called whenever a pointer is stored into memory.
++// It throws if the program is storing a Go pointer into non-Go memory.
++//go:nosplit
++//go:nowritebarrier
++func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
++	if !cgoIsGoPointer(unsafe.Pointer(src)) {
++		return
++	}
++	if cgoIsGoPointer(unsafe.Pointer(dst)) {
++		return
++	}
++
++	// If we are running on the system stack then dst might be an
++	// address on the stack, which is OK.
++	g := getg()
++	if g == g.m.g0 || g == g.m.gsignal {
++		return
++	}
++
++	// Allocating memory can write to various mfixalloc structs
++	// that look like they are non-Go memory.
++	if g.m.mallocing != 0 {
++		return
++	}
++
++	systemstack(func() {
++		println("write of Go pointer", hex(src), "to non-Go memory", hex(uintptr(unsafe.Pointer(dst))))
++		throw(cgoWriteBarrierFail)
++	})
++}
++
++// cgoCheckMemmove is called when moving a block of memory.
++// dst and src point off bytes into the value to copy.
++// size is the number of bytes to copy.
++// It throws if the program is copying a block that contains a Go pointer
++// into non-Go memory.
++//go:nosplit
++//go:nowritebarrier
++func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
++	if typ.kind&kindNoPointers != 0 {
++		return
++	}
++	if !cgoIsGoPointer(src) {
++		return
++	}
++	if cgoIsGoPointer(dst) {
++		return
++	}
++	cgoCheckTypedBlock(typ, src, off, size)
++}
++
++// cgoCheckSliceCopy is called when copying n elements of a slice from
++// src to dst.  typ is the element type of the slice.
++// It throws if the program is copying slice elements that contain Go pointers
++// into non-Go memory.
++//go:nosplit
++//go:nowritebarrier
++func cgoCheckSliceCopy(typ *_type, dst, src slice, n int) {
++	if typ.kind&kindNoPointers != 0 {
++		return
++	}
++	if !cgoIsGoPointer(src.array) {
++		return
++	}
++	if cgoIsGoPointer(dst.array) {
++		return
++	}
++	p := src.array
++	for i := 0; i < n; i++ {
++		cgoCheckTypedBlock(typ, p, 0, typ.size)
++		p = add(p, typ.size)
++	}
++}
++
++// cgoCheckTypedBlock checks the block of memory at src, for up to size bytes,
++// and throws if it finds a Go pointer.  The type of the memory is typ,
++// and src is off bytes into that type.
++//go:nosplit
++//go:nowritebarrier
++func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
++	if typ.kind&kindGCProg == 0 {
++		cgoCheckBits(src, typ.gcdata, off, size)
++		return
++	}
++
++	// The type has a GC program.  Try to find GC bits somewhere else.
++	for datap := &firstmoduledata; datap != nil; datap = datap.next {
++		if cgoInRange(src, datap.data, datap.edata) {
++			doff := uintptr(src) - datap.data
++			cgoCheckBits(add(src, -doff), datap.gcdatamask.bytedata, off+doff, size)
++			return
++		}
++		if cgoInRange(src, datap.bss, datap.ebss) {
++			boff := uintptr(src) - datap.bss
++			cgoCheckBits(add(src, -boff), datap.gcbssmask.bytedata, off+boff, size)
++			return
++		}
++	}
++
++	aoff := uintptr(src) - mheap_.arena_start
++	idx := aoff >> _PageShift
++	s := h_spans[idx]
++	if s.state == _MSpanStack {
++		// There are no heap bits for value stored on the stack.
++		// For a channel receive src might be on the stack of some
++		// other goroutine, so we can't unwind the stack even if
++		// we wanted to.
++		// We can't expand the GC program without extra storage
++		// space we can't easily get.
++		// Fortunately we have the type information.
++		systemstack(func() {
++			cgoCheckUsingType(typ, src, off, size)
++		})
++		return
++	}
++
++	// src must be in the regular heap.
++
++	hbits := heapBitsForAddr(uintptr(src))
++	for i := uintptr(0); i < off+size; i += sys.PtrSize {
++		bits := hbits.bits()
++		if bits != 0 {
++			println(i, bits)
++		}
++		if i >= off && bits&bitPointer != 0 {
++			v := *(*unsafe.Pointer)(add(src, i))
++			if cgoIsGoPointer(v) {
++				systemstack(func() {
++					throw(cgoWriteBarrierFail)
++				})
++			}
++		}
++		hbits = hbits.next()
++	}
++}
++
++// cgoCheckBits checks the block of memory at src, for up to size
++// bytes, and throws if it finds a Go pointer.  The gcbits mark each
++// pointer value.  The src pointer is off bytes into the gcbits.
++//go:nosplit
++//go:nowritebarrier
++func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
++	skipMask := off / sys.PtrSize / 8
++	skipBytes := skipMask * sys.PtrSize * 8
++	ptrmask := addb(gcbits, skipMask)
++	src = add(src, skipBytes)
++	off -= skipBytes
++	size += off
++	var bits uint32
++	for i := uintptr(0); i < size; i += sys.PtrSize {
++		if i&(sys.PtrSize*8-1) == 0 {
++			bits = uint32(*ptrmask)
++			ptrmask = addb(ptrmask, 1)
++		} else {
++			bits >>= 1
++		}
++		if off > 0 {
++			off -= sys.PtrSize
++		} else {
++			if bits&1 != 0 {
++				v := *(*unsafe.Pointer)(add(src, i))
++				if cgoIsGoPointer(v) {
++					systemstack(func() {
++						throw(cgoWriteBarrierFail)
++					})
++				}
++			}
++		}
++	}
++}
++
++// cgoCheckUsingType is like cgoCheckTypedBlock, but is a last ditch
++// fall back to look for pointers in src using the type information.
++// We only this when looking at a value on the stack when the type
++// uses a GC program, because otherwise it's more efficient to use the
++// GC bits.  This is called on the system stack.
++//go:nowritebarrier
++//go:systemstack
++func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
++	if typ.kind&kindNoPointers != 0 {
++		return
++	}
++	if typ.kind&kindGCProg == 0 {
++		cgoCheckBits(src, typ.gcdata, off, size)
++		return
++	}
++	switch typ.kind & kindMask {
++	default:
++		throw("can't happen")
++	case kindArray:
++		at := (*arraytype)(unsafe.Pointer(typ))
++		for i := uintptr(0); i < at.len; i++ {
++			if off < at.elem.size {
++				cgoCheckUsingType(at.elem, src, off, size)
++			}
++			src = add(src, at.elem.size)
++			skipped := off
++			if skipped > at.elem.size {
++				skipped = at.elem.size
++			}
++			checked := at.elem.size - skipped
++			off -= skipped
++			if size <= checked {
++				return
++			}
++			size -= checked
++		}
++	case kindStruct:
++		st := (*structtype)(unsafe.Pointer(typ))
++		for _, f := range st.fields {
++			if off < f.typ.size {
++				cgoCheckUsingType(f.typ, src, off, size)
++			}
++			src = add(src, f.typ.size)
++			skipped := off
++			if skipped > f.typ.size {
++				skipped = f.typ.size
++			}
++			checked := f.typ.size - skipped
++			off -= skipped
++			if size <= checked {
++				return
++			}
++			size -= checked
++		}
++	}
++}
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 564318c7cd..a3b23a448b 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -27,6 +27,13 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	allocfreetrace: setting allocfreetrace=1 causes every allocation to be
+ 	profiled and a stack trace printed on each object's allocation and free.
+ 
++	cgocheck: setting cgocheck=0 disables all checks for packages
++	using cgo to incorrectly pass Go pointers to non-Go code.
++	Setting cgocheck=1 (the default) enables relatively cheap
++	checks that may miss some errors.  Setting cgocheck=2 enables
++	expensive checks that should not miss any errors, but will
++	cause your program to run slower.
++
+ 	efence: setting efence=1 causes the allocator to run in a mode
+ 	where each object is allocated on a unique page and addresses are
+ 	never recycled.
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index f9553b9e14..45086c43cd 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -39,7 +39,7 @@ import (
+ // white object dies before it is reached by the
+ // GC then the object can be collected during this GC cycle
+ // instead of waiting for the next cycle. Unfortunately the cost of
+-// ensure that the object holding the slot doesn't concurrently
++// ensuring that the object holding the slot doesn't concurrently
+ // change to black without the mutator noticing seems prohibitive.
+ //
+ // Consider the following example where the mutator writes into
+@@ -89,7 +89,7 @@ import (
+ // stack frames that have not been active.
+ //go:nowritebarrierrec
+ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
+-	if writeBarrierEnabled {
++	if writeBarrier.needed {
+ 		if ptr != 0 && inheap(ptr) {
+ 			shade(ptr)
+ 		}
+@@ -128,7 +128,10 @@ func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
+ //go:nosplit
+ func writebarrierptr(dst *uintptr, src uintptr) {
+ 	*dst = src
+-	if !writeBarrierEnabled {
++	if writeBarrier.cgo {
++		cgoCheckWriteBarrier(dst, src)
++	}
++	if !writeBarrier.needed {
+ 		return
+ 	}
+ 	if src != 0 && (src < sys.PhysPageSize || src == poisonStack) {
+@@ -144,7 +147,10 @@ func writebarrierptr(dst *uintptr, src uintptr) {
+ // Do not reapply.
+ //go:nosplit
+ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
+-	if !writeBarrierEnabled {
++	if writeBarrier.cgo {
++		cgoCheckWriteBarrier(dst, src)
++	}
++	if !writeBarrier.needed {
+ 		return
+ 	}
+ 	if src != 0 && (src < sys.PhysPageSize || src == poisonStack) {
+@@ -182,6 +188,9 @@ func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
+ //go:nosplit
+ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	memmove(dst, src, typ.size)
++	if writeBarrier.cgo {
++		cgoCheckMemmove(typ, dst, src, 0, typ.size)
++	}
+ 	if typ.kind&kindNoPointers != 0 {
+ 		return
+ 	}
+@@ -198,7 +207,10 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
+ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+ 	memmove(dst, src, size)
+-	if !writeBarrierEnabled || typ.kind&kindNoPointers != 0 || size < sys.PtrSize || !inheap(uintptr(dst)) {
++	if writeBarrier.cgo {
++		cgoCheckMemmove(typ, dst, src, off, size)
++	}
++	if !writeBarrier.needed || typ.kind&kindNoPointers != 0 || size < sys.PtrSize || !inheap(uintptr(dst)) {
+ 		return
+ 	}
+ 
+@@ -218,7 +230,7 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size
+ // not to be preempted before the write barriers have been run.
+ //go:nosplit
+ func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uintptr) {
+-	if !writeBarrierEnabled || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < sys.PtrSize || !inheap(uintptr(frame)) {
++	if !writeBarrier.needed || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < sys.PtrSize || !inheap(uintptr(frame)) {
+ 		return
+ 	}
+ 	heapBitsBulkBarrier(uintptr(add(frame, retoffset)), framesize-retoffset)
+@@ -249,11 +261,15 @@ func typedslicecopy(typ *_type, dst, src slice) int {
+ 		msanread(srcp, uintptr(n)*typ.size)
+ 	}
+ 
++	if writeBarrier.cgo {
++		cgoCheckSliceCopy(typ, dst, src, n)
++	}
++
+ 	// Note: No point in checking typ.kind&kindNoPointers here:
+ 	// compiler only emits calls to typedslicecopy for types with pointers,
+ 	// and growslice and reflect_typedslicecopy check for pointers
+ 	// before calling typedslicecopy.
+-	if !writeBarrierEnabled {
++	if !writeBarrier.needed {
+ 		memmove(dstp, srcp, uintptr(n)*typ.size)
+ 		return n
+ 	}
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 335d1d8251..03435a57cb 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -399,7 +399,7 @@ func heapBitsBulkBarrier(p, size uintptr) {
+ 	if (p|size)&(sys.PtrSize-1) != 0 {
+ 		throw("heapBitsBulkBarrier: unaligned arguments")
+ 	}
+-	if !writeBarrierEnabled {
++	if !writeBarrier.needed {
+ 		return
+ 	}
+ 	if !inheap(p) {
+@@ -466,7 +466,7 @@ func typeBitsBulkBarrier(typ *_type, p, size uintptr) {
+ 		println("runtime: typeBitsBulkBarrier with type ", *typ._string, " with GC prog")
+ 		throw("runtime: invalid typeBitsBulkBarrier")
+ 	}
+-	if !writeBarrierEnabled {
++	if !writeBarrier.needed {
+ 		return
+ 	}
+ 	ptrmask := typ.gcdata
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index e60355083d..7d5b372ba1 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -209,7 +209,14 @@ func setGCPercent(in int32) (out int32) {
+ // Garbage collector phase.
+ // Indicates to write barrier and sychronization task to preform.
+ var gcphase uint32
+-var writeBarrierEnabled bool // compiler emits references to this in write barriers
++
++// The compiler knows about this variable.
++// If you change it, you must change the compiler too.
++var writeBarrier struct {
++	enabled bool // compiler emits a check of this before calling write barrier
++	needed  bool // whether we need a write barrier for current GC phase
++	cgo     bool // whether we need a write barrier for a cgo check
++}
+ 
+ // gcBlackenEnabled is 1 if mutator assists and background mark
+ // workers are allowed to blacken objects. This must only be set when
+@@ -240,7 +247,8 @@ const (
+ //go:nosplit
+ func setGCPhase(x uint32) {
+ 	atomic.Store(&gcphase, x)
+-	writeBarrierEnabled = gcphase == _GCmark || gcphase == _GCmarktermination
++	writeBarrier.needed = gcphase == _GCmark || gcphase == _GCmarktermination
++	writeBarrier.enabled = writeBarrier.needed || writeBarrier.cgo
+ }
+ 
+ // gcMarkWorkerMode represents the mode that a concurrent mark worker
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 455ee34ec2..07eb1901a0 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -780,7 +780,7 @@ const (
+ //
+ //go:nowritebarrier
+ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+-	if !writeBarrierEnabled {
++	if !writeBarrier.needed {
+ 		throw("gcDrain phase incorrect")
+ 	}
+ 
+@@ -859,7 +859,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ // increments. It returns the amount of scan work performed.
+ //go:nowritebarrier
+ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
+-	if !writeBarrierEnabled {
++	if !writeBarrier.needed {
+ 		throw("gcDrainN phase incorrect")
+ 	}
+ 
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index f8ae5df53f..71afd79b55 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -401,6 +401,13 @@ func parsedebugvars() {
+ 	if debug.gcstackbarrierall > 0 {
+ 		firstStackBarrierOffset = 0
+ 	}
++
++	// For cgocheck > 1, we turn on the write barrier at all times
++	// and check all pointer writes.
++	if debug.cgocheck > 1 {
++		writeBarrier.cgo = true
++		writeBarrier.enabled = true
++	}
+ }
+ 
+ // Poor mans 64-bit division.
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index a0b0a7c91b..943ecdc513 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -98,7 +98,7 @@ func growslice(t *slicetype, old slice, cap int) slice {
+ 	} else {
+ 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
+ 		p = newarray(et, uintptr(newcap))
+-		if !writeBarrierEnabled {
++		if !writeBarrier.enabled {
+ 			memmove(p, old.array, lenmem)
+ 		} else {
+ 			for i := uintptr(0); i < lenmem; i += et.size {

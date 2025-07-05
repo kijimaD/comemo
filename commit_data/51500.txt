@@ -18,7 +18,52 @@ Date:   Wed Feb 2 14:09:26 2022 -0500
     Trust: Than McIntosh <thanm@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  test/fixedbugs/issue46234.go |  3 ++-
  test/run.go                  | 14 ++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue46234.go b/test/fixedbugs/issue46234.go
+index 8e7eb8bf8d..ed1c05cfbf 100644
+--- a/test/fixedbugs/issue46234.go
++++ b/test/fixedbugs/issue46234.go
+@@ -1,5 +1,6 @@
+-// buildrun -t 30
++// buildrun -t 45
+ 
++//go:build !js
+ // +build !js
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+diff --git a/test/run.go b/test/run.go
+index 9ba421510c..ae5afc751d 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -710,6 +710,13 @@ func (t *test) run() {
+ 			if err != nil {
+ 				t.err = fmt.Errorf("need number of seconds for -t timeout, got %s instead", args[0])
+ 			}
++			if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
++				timeoutScale, err := strconv.Atoi(s)
++				if err != nil {
++					log.Fatalf("failed to parse $GO_TEST_TIMEOUT_SCALE = %q as integer: %v", s, err)
++				}
++				tim *= timeoutScale
++			}
+ 		case "-goexperiment": // set GOEXPERIMENT environment
+ 			args = args[1:]
+ 			if goexp != "" {
+@@ -834,6 +841,13 @@ func (t *test) run() {
+ 		if tim != 0 {
+ 			err = cmd.Start()
+ 			// This command-timeout code adapted from cmd/go/test.go
++			// Note: the Go command uses a more sophisticated timeout
++			// strategy, first sending SIGQUIT (if appropriate for the
++			// OS in question) to try to trigger a stack trace, then
++			// finally much later SIGKILL. If timeouts prove to be a
++			// common problem here, it would be worth porting over
++			// that code as well. See https://do.dev/issue/50973
++			// for more discussion.
+ 			if err == nil {
+ 				tick := time.NewTimer(time.Duration(tim) * time.Second)
+ 				done := make(chan error)

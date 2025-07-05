@@ -12,8 +12,322 @@ Date:   Fri Aug 9 18:34:08 2013 -0400
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/12703044
-
+---
  src/pkg/go/build/build.go        | 66 ++++++++++++++++++++++++++--------------
  src/pkg/go/build/build_test.go   | 63 ++++++++++++++++++++++++++------------
  src/pkg/go/build/syslist_test.go |  2 +-
  3 files changed, 89 insertions(+), 42 deletions(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 38de9ba07f..563e7fe21b 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -337,16 +337,17 @@ const (
+ 
+ // A Package describes the Go package found in a directory.
+ type Package struct {
+-	Dir        string // directory containing package sources
+-	Name       string // package name
+-	Doc        string // documentation synopsis
+-	ImportPath string // import path of package ("" if unknown)
+-	Root       string // root of Go tree where this package lives
+-	SrcRoot    string // package source root directory ("" if unknown)
+-	PkgRoot    string // package install root directory ("" if unknown)
+-	BinDir     string // command install directory ("" if unknown)
+-	Goroot     bool   // package found in Go root
+-	PkgObj     string // installed .a file
++	Dir        string   // directory containing package sources
++	Name       string   // package name
++	Doc        string   // documentation synopsis
++	ImportPath string   // import path of package ("" if unknown)
++	Root       string   // root of Go tree where this package lives
++	SrcRoot    string   // package source root directory ("" if unknown)
++	PkgRoot    string   // package install root directory ("" if unknown)
++	BinDir     string   // command install directory ("" if unknown)
++	Goroot     bool     // package found in Go root
++	PkgObj     string   // installed .a file
++	AllTags    []string // tags that can influence file selection in this directory
+ 
+ 	// Source files
+ 	GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+@@ -578,6 +579,7 @@ Found:
+ 	imported := make(map[string][]token.Position)
+ 	testImported := make(map[string][]token.Position)
+ 	xTestImported := make(map[string][]token.Position)
++	allTags := make(map[string]bool)
+ 	fset := token.NewFileSet()
+ 	for _, d := range dirs {
+ 		if d.IsDir() {
+@@ -595,7 +597,7 @@ Found:
+ 		}
+ 		ext := name[i:]
+ 
+-		if !ctxt.UseAllFiles && !ctxt.goodOSArchFile(name) {
++		if !ctxt.goodOSArchFile(name, allTags) && !ctxt.UseAllFiles {
+ 			if ext == ".go" {
+ 				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
+ 			}
+@@ -634,7 +636,7 @@ Found:
+ 		}
+ 
+ 		// Look for +build comments to accept or reject the file.
+-		if !ctxt.UseAllFiles && !ctxt.shouldBuild(data) {
++		if !ctxt.shouldBuild(data, allTags) && !ctxt.UseAllFiles {
+ 			if ext == ".go" {
+ 				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
+ 			}
+@@ -736,6 +738,7 @@ Found:
+ 			}
+ 		}
+ 		if isCgo {
++			allTags["cgo"] = true
+ 			if ctxt.CgoEnabled {
+ 				p.CgoFiles = append(p.CgoFiles, name)
+ 			}
+@@ -751,6 +754,11 @@ Found:
+ 		return p, &NoGoError{p.Dir}
+ 	}
+ 
++	for tag := range allTags {
++		p.AllTags = append(p.AllTags, tag)
++	}
++	sort.Strings(p.AllTags)
++
+ 	p.Imports, p.ImportPos = cleanImports(imported)
+ 	p.TestImports, p.TestImportPos = cleanImports(testImported)
+ 	p.XTestImports, p.XTestImportPos = cleanImports(xTestImported)
+@@ -800,7 +808,7 @@ var slashslash = []byte("//")
+ //
+ // marks the file as applicable only on Windows and Linux.
+ //
+-func (ctxt *Context) shouldBuild(content []byte) bool {
++func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) bool {
+ 	// Pass 1. Identify leading run of // comments and blank lines,
+ 	// which must be followed by a blank line.
+ 	end := 0
+@@ -825,6 +833,7 @@ func (ctxt *Context) shouldBuild(content []byte) bool {
+ 
+ 	// Pass 2.  Process each line in the run.
+ 	p = content
++	allok := true
+ 	for len(p) > 0 {
+ 		line := p
+ 		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+@@ -841,19 +850,19 @@ func (ctxt *Context) shouldBuild(content []byte) bool {
+ 				if f[0] == "+build" {
+ 					ok := false
+ 					for _, tok := range f[1:] {
+-						if ctxt.match(tok) {
++						if ctxt.match(tok, allTags) {
+ 							ok = true
+-							break
+ 						}
+ 					}
+ 					if !ok {
+-						return false // this one doesn't match
++						allok = false
+ 					}
+ 				}
+ 			}
+ 		}
+ 	}
+-	return true // everything matches
++
++	return allok
+ }
+ 
+ // saveCgo saves the information from the #cgo lines in the import "C" comment.
+@@ -893,7 +902,7 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
+ 		if len(cond) > 0 {
+ 			ok := false
+ 			for _, c := range cond {
+-				if ctxt.match(c) {
++				if ctxt.match(c, nil) {
+ 					ok = true
+ 					break
+ 				}
+@@ -1018,19 +1027,28 @@ func splitQuoted(s string) (r []string, err error) {
+ //	!tag (if tag is not listed in ctxt.BuildTags or ctxt.ReleaseTags)
+ //	a comma-separated list of any of these
+ //
+-func (ctxt *Context) match(name string) bool {
++func (ctxt *Context) match(name string, allTags map[string]bool) bool {
+ 	if name == "" {
++		if allTags != nil {
++			allTags[name] = true
++		}
+ 		return false
+ 	}
+ 	if i := strings.Index(name, ","); i >= 0 {
+ 		// comma-separated list
+-		return ctxt.match(name[:i]) && ctxt.match(name[i+1:])
++		ok1 := ctxt.match(name[:i], allTags)
++		ok2 := ctxt.match(name[i+1:], allTags)
++		return ok1 && ok2
+ 	}
+ 	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
+ 		return false
+ 	}
+ 	if strings.HasPrefix(name, "!") { // negation
+-		return len(name) > 1 && !ctxt.match(name[1:])
++		return len(name) > 1 && !ctxt.match(name[1:], allTags)
++	}
++
++	if allTags != nil {
++		allTags[name] = true
+ 	}
+ 
+ 	// Tags must be letters, digits, underscores or dots.
+@@ -1075,7 +1093,7 @@ func (ctxt *Context) match(name string) bool {
+ //     name_$(GOARCH)_test.*
+ //     name_$(GOOS)_$(GOARCH)_test.*
+ //
+-func (ctxt *Context) goodOSArchFile(name string) bool {
++func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
+ 	if dot := strings.Index(name, "."); dot != -1 {
+ 		name = name[:dot]
+ 	}
+@@ -1085,12 +1103,16 @@ func (ctxt *Context) goodOSArchFile(name string) bool {
+ 	}
+ 	n := len(l)
+ 	if n >= 2 && knownOS[l[n-2]] && knownArch[l[n-1]] {
++		allTags[l[n-2]] = true
++		allTags[l[n-1]] = true
+ 		return l[n-2] == ctxt.GOOS && l[n-1] == ctxt.GOARCH
+ 	}
+ 	if n >= 1 && knownOS[l[n-1]] {
++		allTags[l[n-1]] = true
+ 		return l[n-1] == ctxt.GOOS
+ 	}
+ 	if n >= 1 && knownArch[l[n-1]] {
++		allTags[l[n-1]] = true
+ 		return l[n-1] == ctxt.GOARCH
+ 	}
+ 	return true
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index d8cf98840d..e36048edec 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -7,6 +7,7 @@ package build
+ import (
+ 	"os"
+ 	"path/filepath"
++	"reflect"
+ 	"runtime"
+ 	"testing"
+ )
+@@ -14,29 +15,37 @@ import (
+ func TestMatch(t *testing.T) {
+ 	ctxt := Default
+ 	what := "default"
+-	match := func(tag string) {
+-		if !ctxt.match(tag) {
++	match := func(tag string, want map[string]bool) {
++		m := make(map[string]bool)
++		if !ctxt.match(tag, m) {
+ 			t.Errorf("%s context should match %s, does not", what, tag)
+ 		}
++		if !reflect.DeepEqual(m, want) {
++			t.Errorf("%s tags = %v, want %v", tag, m, want)
++		}
+ 	}
+-	nomatch := func(tag string) {
+-		if ctxt.match(tag) {
++	nomatch := func(tag string, want map[string]bool) {
++		m := make(map[string]bool)
++		if ctxt.match(tag, m) {
+ 			t.Errorf("%s context should NOT match %s, does", what, tag)
+ 		}
++		if !reflect.DeepEqual(m, want) {
++			t.Errorf("%s tags = %v, want %v", tag, m, want)
++		}
+ 	}
+ 
+-	match(runtime.GOOS + "," + runtime.GOARCH)
+-	match(runtime.GOOS + "," + runtime.GOARCH + ",!foo")
+-	nomatch(runtime.GOOS + "," + runtime.GOARCH + ",foo")
++	match(runtime.GOOS+","+runtime.GOARCH, map[string]bool{runtime.GOOS: true, runtime.GOARCH: true})
++	match(runtime.GOOS+","+runtime.GOARCH+",!foo", map[string]bool{runtime.GOOS: true, runtime.GOARCH: true, "foo": true})
++	nomatch(runtime.GOOS+","+runtime.GOARCH+",foo", map[string]bool{runtime.GOOS: true, runtime.GOARCH: true, "foo": true})
+ 
+ 	what = "modified"
+ 	ctxt.BuildTags = []string{"foo"}
+-	match(runtime.GOOS + "," + runtime.GOARCH)
+-	match(runtime.GOOS + "," + runtime.GOARCH + ",foo")
+-	nomatch(runtime.GOOS + "," + runtime.GOARCH + ",!foo")
+-	match(runtime.GOOS + "," + runtime.GOARCH + ",!bar")
+-	nomatch(runtime.GOOS + "," + runtime.GOARCH + ",bar")
+-	nomatch("!")
++	match(runtime.GOOS+","+runtime.GOARCH, map[string]bool{runtime.GOOS: true, runtime.GOARCH: true})
++	match(runtime.GOOS+","+runtime.GOARCH+",foo", map[string]bool{runtime.GOOS: true, runtime.GOARCH: true, "foo": true})
++	nomatch(runtime.GOOS+","+runtime.GOARCH+",!foo", map[string]bool{runtime.GOOS: true, runtime.GOARCH: true, "foo": true})
++	match(runtime.GOOS+","+runtime.GOARCH+",!bar", map[string]bool{runtime.GOOS: true, runtime.GOARCH: true, "bar": true})
++	nomatch(runtime.GOOS+","+runtime.GOARCH+",bar", map[string]bool{runtime.GOOS: true, runtime.GOARCH: true, "bar": true})
++	nomatch("!", map[string]bool{})
+ }
+ 
+ func TestDotSlashImport(t *testing.T) {
+@@ -92,28 +101,44 @@ func TestLocalDirectory(t *testing.T) {
+ func TestShouldBuild(t *testing.T) {
+ 	const file1 = "// +build tag1\n\n" +
+ 		"package main\n"
++	want1 := map[string]bool{"tag1": true}
+ 
+ 	const file2 = "// +build cgo\n\n" +
+ 		"// This package implements parsing of tags like\n" +
+ 		"// +build tag1\n" +
+ 		"package build"
++	want2 := map[string]bool{"cgo": true}
+ 
+ 	const file3 = "// Copyright The Go Authors.\n\n" +
+ 		"package build\n\n" +
+ 		"// shouldBuild checks tags given by lines of the form\n" +
+ 		"// +build tag\n" +
+ 		"func shouldBuild(content []byte)\n"
++	want3 := map[string]bool{}
+ 
+ 	ctx := &Context{BuildTags: []string{"tag1"}}
+-	if !ctx.shouldBuild([]byte(file1)) {
+-		t.Errorf("should not build file1, expected the contrary")
++	m := map[string]bool{}
++	if !ctx.shouldBuild([]byte(file1), m) {
++		t.Errorf("shouldBuild(file1) = false, want true")
++	}
++	if !reflect.DeepEqual(m, want1) {
++		t.Errorf("shoudBuild(file1) tags = %v, want %v", m, want1)
+ 	}
+-	if ctx.shouldBuild([]byte(file2)) {
+-		t.Errorf("should build file2, expected the contrary")
++
++	m = map[string]bool{}
++	if ctx.shouldBuild([]byte(file2), m) {
++		t.Errorf("shouldBuild(file2) = true, want fakse")
++	}
++	if !reflect.DeepEqual(m, want2) {
++		t.Errorf("shoudBuild(file2) tags = %v, want %v", m, want2)
+ 	}
+ 
++	m = map[string]bool{}
+ 	ctx = &Context{BuildTags: nil}
+-	if !ctx.shouldBuild([]byte(file3)) {
+-		t.Errorf("should not build file3, expected the contrary")
++	if !ctx.shouldBuild([]byte(file3), m) {
++		t.Errorf("shouldBuild(file3) = false, want true")
++	}
++	if !reflect.DeepEqual(m, want3) {
++		t.Errorf("shoudBuild(file3) tags = %v, want %v", m, want3)
+ 	}
+ }
+diff --git a/src/pkg/go/build/syslist_test.go b/src/pkg/go/build/syslist_test.go
+index 9157faf8cb..3be2928f52 100644
+--- a/src/pkg/go/build/syslist_test.go
++++ b/src/pkg/go/build/syslist_test.go
+@@ -55,7 +55,7 @@ var tests = []GoodFileTest{
+ 
+ func TestGoodOSArch(t *testing.T) {
+ 	for _, test := range tests {
+-		if Default.goodOSArchFile(test.name) != test.result {
++		if Default.goodOSArchFile(test.name, make(map[string]bool)) != test.result {
+ 			t.Fatalf("goodOSArchFile(%q) != %v", test.name, test.result)
+ 		}
+ 	}

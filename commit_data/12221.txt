@@ -7,6 +7,22 @@ Date:   Mon Feb 27 11:49:06 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5695070
-
+---
  src/pkg/crypto/x509/verify.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/verify.go b/src/pkg/crypto/x509/verify.go
+index 87b1cb7bb1..3859dd8d48 100644
+--- a/src/pkg/crypto/x509/verify.go
++++ b/src/pkg/crypto/x509/verify.go
+@@ -135,8 +135,8 @@ func (c *Certificate) isValid(certType int, opts *VerifyOptions) error {
+ 
+ // Verify attempts to verify c by building one or more chains from c to a
+ // certificate in opts.roots, using certificates in opts.Intermediates if
+-// needed. If successful, it returns one or chains where the first element of
+-// the chain is c and the last element is from opts.Roots.
++// needed. If successful, it returns one or more chains where the first
++// element of the chain is c and the last element is from opts.Roots.
+ //
+ // WARNING: this doesn't do any revocation checking.
+ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {

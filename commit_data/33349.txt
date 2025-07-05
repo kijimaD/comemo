@@ -15,7 +15,63 @@ Date:   Fri Aug 11 09:48:46 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/mfinal.go      | 15 +++++++++------
  src/runtime/mfinal_test.go | 17 +++++++++++++++++
  2 files changed, 26 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index a8729b1aa4..c11a6f15a4 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -461,11 +461,7 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
+ 	return
+ }
+ 
+-// Mark KeepAlive as noinline so that the current compiler will ensure
+-// that the argument is alive at the point of the function call.
+-// If it were inlined, it would disappear, and there would be nothing
+-// keeping the argument alive. Perhaps a future compiler will recognize
+-// runtime.KeepAlive specially and do something more efficient.
++// Mark KeepAlive as noinline so that it is easily detectable as an intrinsic.
+ //go:noinline
+ 
+ // KeepAlive marks its argument as currently reachable.
+@@ -487,4 +483,11 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
+ // Without the KeepAlive call, the finalizer could run at the start of
+ // syscall.Read, closing the file descriptor before syscall.Read makes
+ // the actual system call.
+-func KeepAlive(interface{}) {}
++func KeepAlive(x interface{}) {
++	// Introduce a use of x that the compiler can't eliminate.
++	// This makes sure x is alive on entry. We need x to be alive
++	// on entry for "defer runtime.KeepAlive(x)"; see issue 21402.
++	if cgoAlwaysFalse {
++		println(x)
++	}
++}
+diff --git a/src/runtime/mfinal_test.go b/src/runtime/mfinal_test.go
+index e9e3601de6..85a5f7acae 100644
+--- a/src/runtime/mfinal_test.go
++++ b/src/runtime/mfinal_test.go
+@@ -241,3 +241,20 @@ var (
+ 	Foo2 = &Object2{}
+ 	Foo1 = &Object1{}
+ )
++
++func TestDeferKeepAlive(t *testing.T) {
++	// See issue 21402.
++	t.Parallel()
++	type T *int // needs to be a pointer base type to avoid tinyalloc and its never-finalized behavior.
++	x := new(T)
++	finRun := false
++	runtime.SetFinalizer(x, func(x *T) {
++		finRun = true
++	})
++	defer runtime.KeepAlive(x)
++	runtime.GC()
++	time.Sleep(time.Second)
++	if finRun {
++		t.Errorf("finalizer ran prematurely")
++	}
++}

@@ -11,7 +11,7 @@ Date:   Wed Jan 31 17:10:49 2024 +0800
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/internal/objabi/pkgspecial.go                                 | 4 ++--
  src/go/build/deps_test.go                                             | 2 +-
  src/internal/coverage/pkid.go                                         | 4 ++--
@@ -42,3 +42,209 @@ Date:   Wed Jan 31 17:10:49 2024 +0800
  src/runtime/os_linux.go                                               | 2 +-
  src/syscall/syscall_linux.go                                          | 4 ++--
  29 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+index 6df95f33f9..6c1f460f07 100644
+--- a/src/cmd/internal/objabi/pkgspecial.go
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -46,7 +46,7 @@ var runtimePkgs = []string{
+ 	"runtime/internal/atomic",
+ 	"runtime/internal/math",
+ 	"runtime/internal/sys",
+-	"runtime/internal/syscall",
++	"internal/runtime/syscall",
+ 
+ 	"internal/abi",
+ 	"internal/bytealg",
+@@ -81,7 +81,7 @@ var allowAsmABIPkgs = []string{
+ 	"syscall",
+ 	"internal/bytealg",
+ 	"internal/chacha8rand",
+-	"runtime/internal/syscall",
++	"internal/runtime/syscall",
+ 	"runtime/internal/startlinetest",
+ }
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index c26228f7a7..5d2230e8e1 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -69,7 +69,7 @@ var depsRules = `
+ 	< internal/itoa
+ 	< internal/unsafeheader
+ 	< runtime/internal/sys
+-	< runtime/internal/syscall
++	< internal/runtime/syscall
+ 	< runtime/internal/atomic
+ 	< runtime/internal/math
+ 	< runtime
+diff --git a/src/internal/coverage/pkid.go b/src/internal/coverage/pkid.go
+index 372a9cb19f..a7a89c03ee 100644
+--- a/src/internal/coverage/pkid.go
++++ b/src/internal/coverage/pkid.go
+@@ -31,7 +31,7 @@ package coverage
+ //    slot: 6 path='runtime/internal/math'  hard-coded id: 6
+ //    slot: 7 path='internal/bytealg'  hard-coded id: 7
+ //    slot: 8 path='internal/goexperiment'
+-//    slot: 9 path='runtime/internal/syscall'  hard-coded id: 8
++//    slot: 9 path='internal/runtime/syscall'  hard-coded id: 8
+ //    slot: 10 path='runtime'  hard-coded id: 9
+ //    fatal error: runtime.addCovMeta
+ //
+@@ -55,7 +55,7 @@ var rtPkgs = [...]string{
+ 	"runtime/internal/math",
+ 	"internal/bytealg",
+ 	"internal/goexperiment",
+-	"runtime/internal/syscall",
++	"internal/runtime/syscall",
+ 	"runtime",
+ }
+ 
+diff --git a/src/runtime/internal/syscall/asm_linux_386.s b/src/internal/runtime/syscall/asm_linux_386.s
+similarity index 100%
+rename from src/runtime/internal/syscall/asm_linux_386.s
+rename to src/internal/runtime/syscall/asm_linux_386.s
+diff --git a/src/runtime/internal/syscall/asm_linux_amd64.s b/src/internal/runtime/syscall/asm_linux_amd64.s
+similarity index 100%
+rename from src/runtime/internal/syscall/asm_linux_amd64.s
+rename to src/internal/runtime/syscall/asm_linux_amd64.s
+diff --git a/src/runtime/internal/syscall/asm_linux_arm.s b/src/internal/runtime/syscall/asm_linux_arm.s
+similarity index 100%
+rename from src/runtime/internal/syscall/asm_linux_arm.s
+rename to src/internal/runtime/syscall/asm_linux_arm.s
+diff --git a/src/runtime/internal/syscall/asm_linux_arm64.s b/src/internal/runtime/syscall/asm_linux_arm64.s
+similarity index 100%
+rename from src/runtime/internal/syscall/asm_linux_arm64.s
+rename to src/internal/runtime/syscall/asm_linux_arm64.s
+diff --git a/src/runtime/internal/syscall/asm_linux_loong64.s b/src/internal/runtime/syscall/asm_linux_loong64.s
+similarity index 100%
+rename from src/runtime/internal/syscall/asm_linux_loong64.s
+rename to src/internal/runtime/syscall/asm_linux_loong64.s
+diff --git a/src/runtime/internal/syscall/asm_linux_mips64x.s b/src/internal/runtime/syscall/asm_linux_mips64x.s
+similarity index 100%
+rename from src/runtime/internal/syscall/asm_linux_mips64x.s
+rename to src/internal/runtime/syscall/asm_linux_mips64x.s
+diff --git a/src/runtime/internal/syscall/asm_linux_mipsx.s b/src/internal/runtime/syscall/asm_linux_mipsx.s
+similarity index 100%
+rename from src/runtime/internal/syscall/asm_linux_mipsx.s
+rename to src/internal/runtime/syscall/asm_linux_mipsx.s
+diff --git a/src/runtime/internal/syscall/asm_linux_ppc64x.s b/src/internal/runtime/syscall/asm_linux_ppc64x.s
+similarity index 100%
+rename from src/runtime/internal/syscall/asm_linux_ppc64x.s
+rename to src/internal/runtime/syscall/asm_linux_ppc64x.s
+diff --git a/src/runtime/internal/syscall/asm_linux_riscv64.s b/src/internal/runtime/syscall/asm_linux_riscv64.s
+similarity index 100%
+rename from src/runtime/internal/syscall/asm_linux_riscv64.s
+rename to src/internal/runtime/syscall/asm_linux_riscv64.s
+diff --git a/src/runtime/internal/syscall/asm_linux_s390x.s b/src/internal/runtime/syscall/asm_linux_s390x.s
+similarity index 100%
+rename from src/runtime/internal/syscall/asm_linux_s390x.s
+rename to src/internal/runtime/syscall/asm_linux_s390x.s
+diff --git a/src/runtime/internal/syscall/defs_linux.go b/src/internal/runtime/syscall/defs_linux.go
+similarity index 100%
+rename from src/runtime/internal/syscall/defs_linux.go
+rename to src/internal/runtime/syscall/defs_linux.go
+diff --git a/src/runtime/internal/syscall/defs_linux_386.go b/src/internal/runtime/syscall/defs_linux_386.go
+similarity index 100%
+rename from src/runtime/internal/syscall/defs_linux_386.go
+rename to src/internal/runtime/syscall/defs_linux_386.go
+diff --git a/src/runtime/internal/syscall/defs_linux_amd64.go b/src/internal/runtime/syscall/defs_linux_amd64.go
+similarity index 100%
+rename from src/runtime/internal/syscall/defs_linux_amd64.go
+rename to src/internal/runtime/syscall/defs_linux_amd64.go
+diff --git a/src/runtime/internal/syscall/defs_linux_arm.go b/src/internal/runtime/syscall/defs_linux_arm.go
+similarity index 100%
+rename from src/runtime/internal/syscall/defs_linux_arm.go
+rename to src/internal/runtime/syscall/defs_linux_arm.go
+diff --git a/src/runtime/internal/syscall/defs_linux_arm64.go b/src/internal/runtime/syscall/defs_linux_arm64.go
+similarity index 100%
+rename from src/runtime/internal/syscall/defs_linux_arm64.go
+rename to src/internal/runtime/syscall/defs_linux_arm64.go
+diff --git a/src/runtime/internal/syscall/defs_linux_loong64.go b/src/internal/runtime/syscall/defs_linux_loong64.go
+similarity index 100%
+rename from src/runtime/internal/syscall/defs_linux_loong64.go
+rename to src/internal/runtime/syscall/defs_linux_loong64.go
+diff --git a/src/runtime/internal/syscall/defs_linux_mips64x.go b/src/internal/runtime/syscall/defs_linux_mips64x.go
+similarity index 100%
+rename from src/runtime/internal/syscall/defs_linux_mips64x.go
+rename to src/internal/runtime/syscall/defs_linux_mips64x.go
+diff --git a/src/runtime/internal/syscall/defs_linux_mipsx.go b/src/internal/runtime/syscall/defs_linux_mipsx.go
+similarity index 100%
+rename from src/runtime/internal/syscall/defs_linux_mipsx.go
+rename to src/internal/runtime/syscall/defs_linux_mipsx.go
+diff --git a/src/runtime/internal/syscall/defs_linux_ppc64x.go b/src/internal/runtime/syscall/defs_linux_ppc64x.go
+similarity index 100%
+rename from src/runtime/internal/syscall/defs_linux_ppc64x.go
+rename to src/internal/runtime/syscall/defs_linux_ppc64x.go
+diff --git a/src/runtime/internal/syscall/defs_linux_riscv64.go b/src/internal/runtime/syscall/defs_linux_riscv64.go
+similarity index 100%
+rename from src/runtime/internal/syscall/defs_linux_riscv64.go
+rename to src/internal/runtime/syscall/defs_linux_riscv64.go
+diff --git a/src/runtime/internal/syscall/defs_linux_s390x.go b/src/internal/runtime/syscall/defs_linux_s390x.go
+similarity index 100%
+rename from src/runtime/internal/syscall/defs_linux_s390x.go
+rename to src/internal/runtime/syscall/defs_linux_s390x.go
+diff --git a/src/runtime/internal/syscall/syscall_linux.go b/src/internal/runtime/syscall/syscall_linux.go
+similarity index 100%
+rename from src/runtime/internal/syscall/syscall_linux.go
+rename to src/internal/runtime/syscall/syscall_linux.go
+diff --git a/src/runtime/internal/syscall/syscall_linux_test.go b/src/internal/runtime/syscall/syscall_linux_test.go
+similarity index 93%
+rename from src/runtime/internal/syscall/syscall_linux_test.go
+rename to src/internal/runtime/syscall/syscall_linux_test.go
+index 1976da5c28..14bb31c4b8 100644
+--- a/src/runtime/internal/syscall/syscall_linux_test.go
++++ b/src/internal/runtime/syscall/syscall_linux_test.go
+@@ -5,7 +5,7 @@
+ package syscall_test
+ 
+ import (
+-	"runtime/internal/syscall"
++	"internal/runtime/syscall"
+ 	"testing"
+ )
+ 
+diff --git a/src/runtime/netpoll_epoll.go b/src/runtime/netpoll_epoll.go
+index a8062b7dc3..63b42a0014 100644
+--- a/src/runtime/netpoll_epoll.go
++++ b/src/runtime/netpoll_epoll.go
+@@ -7,8 +7,8 @@
+ package runtime
+ 
+ import (
++	"internal/runtime/syscall"
+ 	"runtime/internal/atomic"
+-	"runtime/internal/syscall"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 0ba607fe1f..ddacaa585c 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -7,8 +7,8 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
++	"internal/runtime/syscall"
+ 	"runtime/internal/atomic"
+-	"runtime/internal/syscall"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index b6e84203e8..5c6a91265d 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -17,9 +17,9 @@ import (
+ 	"unsafe"
+ )
+ 
+-// N.B. RawSyscall6 is provided via linkname by runtime/internal/syscall.
++// N.B. RawSyscall6 is provided via linkname by internal/runtime/syscall.
+ //
+-// Errno is uintptr and thus compatible with the runtime/internal/syscall
++// Errno is uintptr and thus compatible with the internal/runtime/syscall
+ // definition.
+ 
+ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)

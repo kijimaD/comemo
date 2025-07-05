@@ -18,8 +18,86 @@ Date:   Wed Nov 18 11:08:43 2020 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/sys_darwin.go      | 6 +++---
  src/runtime/sys_darwin_amd64.s | 8 +++++---
  src/runtime/sys_darwin_arm64.s | 8 +++++---
  3 files changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index e4f19bbf41..a7983be2ef 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -303,9 +303,9 @@ func nanotime_trampoline()
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func walltime1() (int64, int32) {
+-	var t timeval
++	var t timespec
+ 	libcCall(unsafe.Pointer(funcPC(walltime_trampoline)), unsafe.Pointer(&t))
+-	return int64(t.tv_sec), 1000 * t.tv_usec
++	return t.tv_sec, int32(t.tv_nsec)
+ }
+ func walltime_trampoline()
+ 
+@@ -470,7 +470,7 @@ func setNonblock(fd int32) {
+ 
+ //go:cgo_import_dynamic libc_mach_timebase_info mach_timebase_info "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_mach_absolute_time mach_absolute_time "/usr/lib/libSystem.B.dylib"
+-//go:cgo_import_dynamic libc_gettimeofday gettimeofday "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_clock_gettime clock_gettime "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_sigaction sigaction "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_sigmask pthread_sigmask "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_sigaltstack sigaltstack "/usr/lib/libSystem.B.dylib"
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 825852d673..129e1e1a96 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -10,6 +10,8 @@
+ #include "go_tls.h"
+ #include "textflag.h"
+ 
++#define CLOCK_REALTIME		0
++
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+@@ -137,9 +139,9 @@ initialized:
+ TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP			// make a frame; keep stack aligned
+ 	MOVQ	SP, BP
+-	// DI already has *timeval
+-	XORL	SI, SI // no timezone needed
+-	CALL	libc_gettimeofday(SB)
++	MOVQ	DI, SI			// arg 2 timespec
++	MOVL	$CLOCK_REALTIME, DI	// arg 1 clock_id
++	CALL	libc_clock_gettime(SB)
+ 	POPQ	BP
+ 	RET
+ 
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index fd713b7902..88cdb281d4 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -10,6 +10,8 @@
+ #include "go_tls.h"
+ #include "textflag.h"
+ 
++#define CLOCK_REALTIME		0
++
+ TEXT notok<>(SB),NOSPLIT,$0
+ 	MOVD	$0, R8
+ 	MOVD	R8, (R8)
+@@ -126,9 +128,9 @@ TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
+-	// R0 already has *timeval
+-	MOVD	$0, R1 // no timezone needed
+-	BL	libc_gettimeofday(SB)
++	MOVD	R0, R1			// arg 2 timespec
++	MOVW	$CLOCK_REALTIME, R0 	// arg 1 clock_id
++	BL	libc_clock_gettime(SB)
+ 	RET
+ 
+ GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)

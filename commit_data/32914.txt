@@ -23,7 +23,130 @@ Date:   Thu May 11 16:56:14 2017 -0700
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/html/template/escape.go      | 40 +++++++++++++++++---------------------
  src/html/template/escape_test.go | 42 ++++++++++++++++++++++++++++++++++++----
  2 files changed, 56 insertions(+), 26 deletions(-)
+
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index 3037e07b29..92b1d08677 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -139,20 +139,6 @@ func (e *escaper) escape(c context, n parse.Node) context {
+ 	panic("escaping " + n.String() + " is unimplemented")
+ }
+ 
+-// allIdents returns the names of the identifiers under the Ident field of the node,
+-// which might be a singleton (Identifier) or a slice (Field or Chain).
+-func allIdents(node parse.Node) []string {
+-	switch node := node.(type) {
+-	case *parse.IdentifierNode:
+-		return []string{node.Ident}
+-	case *parse.FieldNode:
+-		return node.Ident
+-	case *parse.ChainNode:
+-		return node.Field
+-	}
+-	return nil
+-}
+-
+ // escapeAction escapes an action template node.
+ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 	if len(n.Pipe.Decl) != 0 {
+@@ -162,14 +148,24 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 	c = nudge(c)
+ 	// Check for disallowed use of predefined escapers in the pipeline.
+ 	for pos, idNode := range n.Pipe.Cmds {
+-		for _, ident := range allIdents(idNode.Args[0]) {
+-			if _, ok := predefinedEscapers[ident]; ok {
+-				if pos < len(n.Pipe.Cmds)-1 ||
+-					c.state == stateAttr && c.delim == delimSpaceOrTagEnd && ident == "html" {
+-					return context{
+-						state: stateError,
+-						err:   errorf(ErrPredefinedEscaper, n, n.Line, "predefined escaper %q disallowed in template", ident),
+-					}
++		node, ok := idNode.Args[0].(*parse.IdentifierNode)
++		if !ok {
++			// A predefined escaper "esc" will never be found as an identifier in a
++			// Chain or Field node, since:
++			// - "esc.x ..." is invalid, since predefined escapers return strings, and
++			//   strings do not have methods, keys or fields.
++			// - "... .esc" is invalid, since predefined escapers are global functions,
++			//   not methods or fields of any types.
++			// Therefore, it is safe to ignore these two node types.
++			continue
++		}
++		ident := node.Ident
++		if _, ok := predefinedEscapers[ident]; ok {
++			if pos < len(n.Pipe.Cmds)-1 ||
++				c.state == stateAttr && c.delim == delimSpaceOrTagEnd && ident == "html" {
++				return context{
++					state: stateError,
++					err:   errorf(ErrPredefinedEscaper, n, n.Line, "predefined escaper %q disallowed in template", ident),
+ 				}
+ 			}
+ 		}
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 865226f855..d61683b8c9 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -685,6 +685,40 @@ func TestEscape(t *testing.T) {
+ 	}
+ }
+ 
++func TestEscapeMap(t *testing.T) {
++	data := map[string]string{
++		"html":     `<h1>Hi!</h1>`,
++		"urlquery": `http://www.foo.com/index.html?title=main`,
++	}
++	for _, test := range [...]struct {
++		desc, input, output string
++	}{
++		// covering issue 20323
++		{
++			"field with predefined escaper name 1",
++			`{{.html | print}}`,
++			`&lt;h1&gt;Hi!&lt;/h1&gt;`,
++		},
++		// covering issue 20323
++		{
++			"field with predefined escaper name 2",
++			`{{.urlquery | print}}`,
++			`http://www.foo.com/index.html?title=main`,
++		},
++	} {
++		tmpl := Must(New("").Parse(test.input))
++		b := new(bytes.Buffer)
++		if err := tmpl.Execute(b, data); err != nil {
++			t.Errorf("%s: template execution failed: %s", test.desc, err)
++			continue
++		}
++		if w, g := test.output, b.String(); w != g {
++			t.Errorf("%s: escaped output: want\n\t%q\ngot\n\t%q", test.desc, w, g)
++			continue
++		}
++	}
++}
++
+ func TestEscapeSet(t *testing.T) {
+ 	type dataItem struct {
+ 		Children []*dataItem
+@@ -1595,14 +1629,14 @@ func TestEnsurePipelineContains(t *testing.T) {
+ 		},
+ 		{
+ 			// covering issue 10801
+-			"{{.X | js.x }}",
+-			".X | js.x | urlquery | html",
++			"{{.X | println.x }}",
++			".X | println.x | urlquery | html",
+ 			[]string{"urlquery", "html"},
+ 		},
+ 		{
+ 			// covering issue 10801
+-			"{{.X | (print 12 | js).x }}",
+-			".X | (print 12 | js).x | urlquery | html",
++			"{{.X | (print 12 | println).x }}",
++			".X | (print 12 | println).x | urlquery | html",
+ 			[]string{"urlquery", "html"},
+ 		},
+ 		// The following test cases ensure that the merging of internal escapers

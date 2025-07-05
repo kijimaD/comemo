@@ -9,6 +9,20 @@ Date:   Thu Jun 30 13:35:40 2011 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4645073
-
+---
  src/pkg/os/mkunixsignals.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/mkunixsignals.sh b/src/pkg/os/mkunixsignals.sh
+index 6ec764cbd9..4bbc43f3de 100755
+--- a/src/pkg/os/mkunixsignals.sh
++++ b/src/pkg/os/mkunixsignals.sh
+@@ -14,7 +14,7 @@ import (
+   "syscall"
+ )
+ 
+-var _ = syscall.Syscall  // in case there are zero signals
++var _ = syscall.Open  // in case there are zero signals
+ 
+ const (
+ EOH

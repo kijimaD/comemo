@@ -7,6 +7,29 @@ Date:   Tue Jul 24 23:59:48 2018 +0000
     Change-Id: Ie3a8c54fe5e1b94f506cc0e6f650aab441d28a75
     Reviewed-on: https://go-review.googlesource.com/137115
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index af2b9ef0ed..6462370d5c 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -58,7 +58,7 @@ func (r relation) String() string {
+ }
+ 
+ // domain represents the domain of a variable pair in which a set
+-// of relations is known.  For example, relations learned for unsigned
++// of relations is known. For example, relations learned for unsigned
+ // pairs cannot be transferred to signed pairs because the same bit
+ // representation can mean something else.
+ type domain uint
+@@ -625,7 +625,7 @@ var (
+ 	// For example:
+ 	//      OpLess8:   {signed, lt},
+ 	//	v1 = (OpLess8 v2 v3).
+-	// If v1 branch is taken than we learn that the rangeMaks
++	// If v1 branch is taken then we learn that the rangeMask
+ 	// can be at most lt.
+ 	domainRelationTable = map[Op]struct {
+ 		d domain

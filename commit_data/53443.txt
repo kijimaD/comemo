@@ -13,10 +13,153 @@ Date:   Tue Aug 16 18:51:57 2022 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/build.go           | 17 +++++++++++++++++
  src/cmd/dist/test.go            | 12 ++++++++++--
  src/internal/testenv/noopt.go   | 12 ++++++++++++
  src/internal/testenv/opt.go     | 12 ++++++++++++
  src/internal/testenv/testenv.go |  7 +------
  5 files changed, 52 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 7c44c4a605..4440b44aae 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -55,6 +55,7 @@ var (
+ 
+ 	rebuildall   bool
+ 	defaultclang bool
++	noOpt        bool
+ 
+ 	vflag int // verbosity
+ )
+@@ -1325,6 +1326,7 @@ func cmdbootstrap() {
+ 	}
+ 
+ 	gogcflags = os.Getenv("GO_GCFLAGS") // we were using $BOOT_GO_GCFLAGS until now
++	setNoOpt()
+ 	goldflags = os.Getenv("GO_LDFLAGS") // we were using $BOOT_GO_LDFLAGS until now
+ 	goBootstrap := pathf("%s/go_bootstrap", tooldir)
+ 	cmdGo := pathf("%s/go", gorootBin)
+@@ -1510,6 +1512,9 @@ func appendCompilerFlags(args []string) []string {
+ 
+ func goCmd(goBinary string, cmd string, args ...string) {
+ 	goCmd := []string{goBinary, cmd}
++	if noOpt {
++		goCmd = append(goCmd, "-tags=noopt")
++	}
+ 	goCmd = appendCompilerFlags(goCmd)
+ 	if vflag > 0 {
+ 		goCmd = append(goCmd, "-v")
+@@ -1525,6 +1530,9 @@ func goCmd(goBinary string, cmd string, args ...string) {
+ 
+ func checkNotStale(goBinary string, targets ...string) {
+ 	goCmd := []string{goBinary, "list"}
++	if noOpt {
++		goCmd = append(goCmd, "-tags=noopt")
++	}
+ 	goCmd = appendCompilerFlags(goCmd)
+ 	goCmd = append(goCmd, "-f={{if .Stale}}\tSTALE {{.ImportPath}}: {{.StaleReason}}{{end}}")
+ 
+@@ -1800,3 +1808,12 @@ func IsRuntimePackagePath(pkgpath string) bool {
+ 	}
+ 	return rval
+ }
++
++func setNoOpt() {
++	for _, gcflag := range strings.Split(gogcflags, " ") {
++		if gcflag == "-N" || gcflag == "-l" {
++			noOpt = true
++			break
++		}
++	}
++}
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 42ff0f9391..1c22568ebd 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -25,6 +25,7 @@ import (
+ 
+ func cmdtest() {
+ 	gogcflags = os.Getenv("GO_GCFLAGS")
++	setNoOpt()
+ 
+ 	var t tester
+ 
+@@ -325,10 +326,17 @@ func (t *tester) goTest() []string {
+ }
+ 
+ func (t *tester) tags() string {
+-	if t.iOS() {
++	ios := t.iOS()
++	switch {
++	case ios && noOpt:
++		return "-tags=lldb,noopt"
++	case ios:
+ 		return "-tags=lldb"
++	case noOpt:
++		return "-tags=noopt"
++	default:
++		return "-tags="
+ 	}
+-	return "-tags="
+ }
+ 
+ // timeoutDuration converts the provided number of seconds into a
+diff --git a/src/internal/testenv/noopt.go b/src/internal/testenv/noopt.go
+new file mode 100644
+index 0000000000..ae2a3d011a
+--- /dev/null
++++ b/src/internal/testenv/noopt.go
+@@ -0,0 +1,12 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build noopt
++
++package testenv
++
++// OptimizationOff reports whether optimization is disabled.
++func OptimizationOff() bool {
++	return true
++}
+diff --git a/src/internal/testenv/opt.go b/src/internal/testenv/opt.go
+new file mode 100644
+index 0000000000..1bb96f73a1
+--- /dev/null
++++ b/src/internal/testenv/opt.go
+@@ -0,0 +1,12 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !noopt
++
++package testenv
++
++// OptimizationOff reports whether optimization is disabled.
++func OptimizationOff() bool {
++	return false
++}
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 4f8c097573..7b435fd002 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -412,15 +412,10 @@ func SkipIfShortAndSlow(t testing.TB) {
+ func SkipIfOptimizationOff(t testing.TB) {
+ 	if OptimizationOff() {
+ 		t.Helper()
+-		t.Skip("skipping test with optimization disabled on builder")
++		t.Skip("skipping test with optimization disabled")
+ 	}
+ }
+ 
+-// OptimizationOff reports whether optimization is disabled.
+-func OptimizationOff() bool {
+-	return strings.HasSuffix(Builder(), "-noopt")
+-}
+-
+ // RunWithTimeout runs cmd and returns its combined output. If the
+ // subprocess exits with a non-zero status, it will log that status
+ // and return a non-nil error, but this is not considered fatal.

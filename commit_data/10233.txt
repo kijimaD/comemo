@@ -21,7 +21,7 @@ Date:   Thu Nov 3 14:18:06 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5331066
-
+---
  src/pkg/Makefile                                | 14 +++++++-------
  src/pkg/deps.bash                               | 14 ++++++++++++++
  src/pkg/{ => os}/exec/Makefile                  |  4 ++--
@@ -66,3 +66,391 @@ Date:   Thu Nov 3 14:18:06 2011 -0700
  src/pkg/{ => unicode}/utf8/utf8.go              |  0
  src/pkg/{ => unicode}/utf8/utf8_test.go         |  0
  43 files changed, 35 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 691eda4a08..e9286441c2 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -77,7 +77,6 @@ DIRS=\
+ 	encoding/pem\
+ 	encoding/xml\
+ 	errors\
+-	exec\
+ 	exp/ebnf\
+ 	exp/ebnflint\
+ 	exp/gotype\
+@@ -142,6 +141,7 @@ DIRS=\
+ 	old/regexp\
+ 	old/template\
+ 	os\
++	os/exec\
+ 	os/signal\
+ 	os/user\
+ 	patch\
+@@ -154,24 +154,24 @@ DIRS=\
+ 	runtime/cgo\
+ 	runtime/debug\
+ 	runtime/pprof\
+-	scanner\
+ 	sort\
+ 	strconv\
+ 	strings\
+ 	sync\
+ 	sync/atomic\
+ 	syscall\
+-	tabwriter\
+-	template\
+-	template/parse\
+ 	testing\
+ 	testing/iotest\
+ 	testing/quick\
+ 	testing/script\
++	text/scanner\
++	text/tabwriter\
++	text/template\
++	text/template/parse\
+ 	time\
+ 	unicode\
+-	utf16\
+-	utf8\
++	unicode/utf16\
++	unicode/utf8\
+ 	websocket\
+ 	../cmd/cgo\
+ 	../cmd/godoc\
+diff --git a/src/pkg/deps.bash b/src/pkg/deps.bash
+index d17e1c7cf1..ad752a093e 100755
+--- a/src/pkg/deps.bash
++++ b/src/pkg/deps.bash
+@@ -29,6 +29,7 @@ dirpat="$dirpat
+ /^(big)$/
+ /^(cmath)$/
+ /^(csv)$/
++/^(exec)$/
+ /^(exp\/template\/html)$/
+ /^(gob)$/
+ /^(http)/
+@@ -40,9 +41,15 @@ dirpat="$dirpat
+ /^(mail)$/
+ /^(rand)$/
+ /^(rpc)$/
++/^(scanner)$/
+ /^(smtp)$/
+ /^(syslog)$/
++/^(tabwriter)$/
+ /^(url)$/
++/^(template)$/
++/^(template\/parse)$/
++/^(utf16)$/
++/^(utf8)$/
+ /^(xml)$/
+ "
+ 
+@@ -67,6 +74,7 @@ for dir in $dirs; do (
+ 		s;^big.install$;math/big.install;
+ 		s;^cmath.install$;math/cmplx.install;
+ 		s;^csv.install$;encoding/csv.install;
++		s;^exec.install$;os/exec.install;
+ 		s;^exp/template/html.install$;html/template.install;
+ 		s;^gob.install$;encoding/gob.install;
+ 		s;^http.install$;net/http.install;
+@@ -78,10 +86,16 @@ for dir in $dirs; do (
+ 		s;^mail.install$;net/mail.install;
+ 		s;^rpc.install$;net/rpc.install;
+ 		s;^rpc/jsonrpc.install$;net/rpc/jsonrpc.install;
++		s;^scanner.install$;text/scanner.install;
+ 		s;^smtp.install$;net/smtp.install;
+ 		s;^syslog.install$;log/syslog.install;
++		s;^tabwriter.install$;text/tabwriter.install;
++		s;^template.install$;text/template.install;
++		s;^template/parse.install$;text/template/parse.install;
+ 		s;^rand.install$;math/rand.install;
+ 		s;^url.install$;net/url.install;
++		s;^utf16.install$;unicode/utf16.install;
++		s;^utf8.install$;unicode/utf8.install;
+ 		s;^xml.install$;encoding/xml.install;' |
+ 		# TODO: end of renamings.
+ 		sed 's;^C\.install;runtime/cgo.install;' |
+diff --git a/src/pkg/exec/Makefile b/src/pkg/os/exec/Makefile
+similarity index 88%
+rename from src/pkg/exec/Makefile
+rename to src/pkg/os/exec/Makefile
+index ba19d0e4d0..702d6a3827 100644
+--- a/src/pkg/exec/Makefile
++++ b/src/pkg/os/exec/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=exec
+ GOFILES=\
+@@ -28,4 +28,4 @@ GOFILES_plan9=\
+ 
+ GOFILES+=$(GOFILES_$(GOOS))
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/exec/exec.go b/src/pkg/os/exec/exec.go
+similarity index 100%
+rename from src/pkg/exec/exec.go
+rename to src/pkg/os/exec/exec.go
+diff --git a/src/pkg/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+similarity index 100%
+rename from src/pkg/exec/exec_test.go
+rename to src/pkg/os/exec/exec_test.go
+diff --git a/src/pkg/exec/lp_plan9.go b/src/pkg/os/exec/lp_plan9.go
+similarity index 100%
+rename from src/pkg/exec/lp_plan9.go
+rename to src/pkg/os/exec/lp_plan9.go
+diff --git a/src/pkg/exec/lp_test.go b/src/pkg/os/exec/lp_test.go
+similarity index 100%
+rename from src/pkg/exec/lp_test.go
+rename to src/pkg/os/exec/lp_test.go
+diff --git a/src/pkg/exec/lp_unix.go b/src/pkg/os/exec/lp_unix.go
+similarity index 100%
+rename from src/pkg/exec/lp_unix.go
+rename to src/pkg/os/exec/lp_unix.go
+diff --git a/src/pkg/exec/lp_windows.go b/src/pkg/os/exec/lp_windows.go
+similarity index 100%
+rename from src/pkg/exec/lp_windows.go
+rename to src/pkg/os/exec/lp_windows.go
+diff --git a/src/pkg/scanner/Makefile b/src/pkg/text/scanner/Makefile
+similarity index 78%
+rename from src/pkg/scanner/Makefile
+rename to src/pkg/text/scanner/Makefile
+index db4752513a..6b6e075dfe 100644
+--- a/src/pkg/scanner/Makefile
++++ b/src/pkg/text/scanner/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=scanner
+ GOFILES=\
+ 	scanner.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/scanner/scanner.go b/src/pkg/text/scanner/scanner.go
+similarity index 100%
+rename from src/pkg/scanner/scanner.go
+rename to src/pkg/text/scanner/scanner.go
+diff --git a/src/pkg/scanner/scanner_test.go b/src/pkg/text/scanner/scanner_test.go
+similarity index 100%
+rename from src/pkg/scanner/scanner_test.go
+rename to src/pkg/text/scanner/scanner_test.go
+diff --git a/src/pkg/tabwriter/Makefile b/src/pkg/text/tabwriter/Makefile
+similarity index 79%
+rename from src/pkg/tabwriter/Makefile
+rename to src/pkg/text/tabwriter/Makefile
+index bdc888784b..70ad25cea7 100644
+--- a/src/pkg/tabwriter/Makefile
++++ b/src/pkg/text/tabwriter/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=tabwriter
+ GOFILES=\
+ 	tabwriter.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/tabwriter/tabwriter.go b/src/pkg/text/tabwriter/tabwriter.go
+similarity index 100%
+rename from src/pkg/tabwriter/tabwriter.go
+rename to src/pkg/text/tabwriter/tabwriter.go
+diff --git a/src/pkg/tabwriter/tabwriter_test.go b/src/pkg/text/tabwriter/tabwriter_test.go
+similarity index 100%
+rename from src/pkg/tabwriter/tabwriter_test.go
+rename to src/pkg/text/tabwriter/tabwriter_test.go
+diff --git a/src/pkg/template/Makefile b/src/pkg/text/template/Makefile
+similarity index 82%
+rename from src/pkg/template/Makefile
+rename to src/pkg/text/template/Makefile
+index 730b287aff..159b5a7c2f 100644
+--- a/src/pkg/template/Makefile
++++ b/src/pkg/text/template/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=template
+ GOFILES=\
+@@ -13,4 +13,4 @@ GOFILES=\
+ 	parse.go\
+ 	set.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/template/doc.go b/src/pkg/text/template/doc.go
+similarity index 100%
+rename from src/pkg/template/doc.go
+rename to src/pkg/text/template/doc.go
+diff --git a/src/pkg/template/exec.go b/src/pkg/text/template/exec.go
+similarity index 100%
+rename from src/pkg/template/exec.go
+rename to src/pkg/text/template/exec.go
+diff --git a/src/pkg/template/exec_test.go b/src/pkg/text/template/exec_test.go
+similarity index 100%
+rename from src/pkg/template/exec_test.go
+rename to src/pkg/text/template/exec_test.go
+diff --git a/src/pkg/template/funcs.go b/src/pkg/text/template/funcs.go
+similarity index 100%
+rename from src/pkg/template/funcs.go
+rename to src/pkg/text/template/funcs.go
+diff --git a/src/pkg/template/helper.go b/src/pkg/text/template/helper.go
+similarity index 100%
+rename from src/pkg/template/helper.go
+rename to src/pkg/text/template/helper.go
+diff --git a/src/pkg/template/parse.go b/src/pkg/text/template/parse.go
+similarity index 100%
+rename from src/pkg/template/parse.go
+rename to src/pkg/text/template/parse.go
+diff --git a/src/pkg/template/parse/Makefile b/src/pkg/text/template/parse/Makefile
+similarity index 79%
+rename from src/pkg/template/parse/Makefile
+rename to src/pkg/text/template/parse/Makefile
+index fe65858097..39986b943c 100644
+--- a/src/pkg/template/parse/Makefile
++++ b/src/pkg/text/template/parse/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.inc
++include ../../../../Make.inc
+ 
+ TARG=template/parse
+ GOFILES=\
+@@ -11,4 +11,4 @@ GOFILES=\
+ 	parse.go\
+ 	set.go\
+ 
+-include ../../../Make.pkg
++include ../../../../Make.pkg
+diff --git a/src/pkg/template/parse/lex.go b/src/pkg/text/template/parse/lex.go
+similarity index 100%
+rename from src/pkg/template/parse/lex.go
+rename to src/pkg/text/template/parse/lex.go
+diff --git a/src/pkg/template/parse/lex_test.go b/src/pkg/text/template/parse/lex_test.go
+similarity index 100%
+rename from src/pkg/template/parse/lex_test.go
+rename to src/pkg/text/template/parse/lex_test.go
+diff --git a/src/pkg/template/parse/node.go b/src/pkg/text/template/parse/node.go
+similarity index 100%
+rename from src/pkg/template/parse/node.go
+rename to src/pkg/text/template/parse/node.go
+diff --git a/src/pkg/template/parse/parse.go b/src/pkg/text/template/parse/parse.go
+similarity index 100%
+rename from src/pkg/template/parse/parse.go
+rename to src/pkg/text/template/parse/parse.go
+diff --git a/src/pkg/template/parse/parse_test.go b/src/pkg/text/template/parse/parse_test.go
+similarity index 100%
+rename from src/pkg/template/parse/parse_test.go
+rename to src/pkg/text/template/parse/parse_test.go
+diff --git a/src/pkg/template/parse/set.go b/src/pkg/text/template/parse/set.go
+similarity index 100%
+rename from src/pkg/template/parse/set.go
+rename to src/pkg/text/template/parse/set.go
+diff --git a/src/pkg/template/set.go b/src/pkg/text/template/set.go
+similarity index 100%
+rename from src/pkg/template/set.go
+rename to src/pkg/text/template/set.go
+diff --git a/src/pkg/template/set_test.go b/src/pkg/text/template/set_test.go
+similarity index 100%
+rename from src/pkg/template/set_test.go
+rename to src/pkg/text/template/set_test.go
+diff --git a/src/pkg/template/testdata/file1.tmpl b/src/pkg/text/template/testdata/file1.tmpl
+similarity index 100%
+rename from src/pkg/template/testdata/file1.tmpl
+rename to src/pkg/text/template/testdata/file1.tmpl
+diff --git a/src/pkg/template/testdata/file2.tmpl b/src/pkg/text/template/testdata/file2.tmpl
+similarity index 100%
+rename from src/pkg/template/testdata/file2.tmpl
+rename to src/pkg/text/template/testdata/file2.tmpl
+diff --git a/src/pkg/template/testdata/tmpl1.tmpl b/src/pkg/text/template/testdata/tmpl1.tmpl
+similarity index 100%
+rename from src/pkg/template/testdata/tmpl1.tmpl
+rename to src/pkg/text/template/testdata/tmpl1.tmpl
+diff --git a/src/pkg/template/testdata/tmpl2.tmpl b/src/pkg/text/template/testdata/tmpl2.tmpl
+similarity index 100%
+rename from src/pkg/template/testdata/tmpl2.tmpl
+rename to src/pkg/text/template/testdata/tmpl2.tmpl
+diff --git a/src/pkg/utf16/Makefile b/src/pkg/unicode/utf16/Makefile
+similarity index 78%
+rename from src/pkg/utf16/Makefile
+rename to src/pkg/unicode/utf16/Makefile
+index 8a564fb0fd..b60a5e7316 100644
+--- a/src/pkg/utf16/Makefile
++++ b/src/pkg/unicode/utf16/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=utf16
+ GOFILES=\
+ 	utf16.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/utf16/utf16.go b/src/pkg/unicode/utf16/utf16.go
+similarity index 100%
+rename from src/pkg/utf16/utf16.go
+rename to src/pkg/unicode/utf16/utf16.go
+diff --git a/src/pkg/utf16/utf16_test.go b/src/pkg/unicode/utf16/utf16_test.go
+similarity index 100%
+rename from src/pkg/utf16/utf16_test.go
+rename to src/pkg/unicode/utf16/utf16_test.go
+diff --git a/src/pkg/utf8/Makefile b/src/pkg/unicode/utf8/Makefile
+similarity index 79%
+rename from src/pkg/utf8/Makefile
+rename to src/pkg/unicode/utf8/Makefile
+index b3574ba3b4..4ffc31f08a 100644
+--- a/src/pkg/utf8/Makefile
++++ b/src/pkg/unicode/utf8/Makefile
+@@ -2,11 +2,11 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=utf8
+ GOFILES=\
+ 	string.go\
+ 	utf8.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/utf8/string.go b/src/pkg/unicode/utf8/string.go
+similarity index 100%
+rename from src/pkg/utf8/string.go
+rename to src/pkg/unicode/utf8/string.go
+diff --git a/src/pkg/utf8/string_test.go b/src/pkg/unicode/utf8/string_test.go
+similarity index 100%
+rename from src/pkg/utf8/string_test.go
+rename to src/pkg/unicode/utf8/string_test.go
+diff --git a/src/pkg/utf8/utf8.go b/src/pkg/unicode/utf8/utf8.go
+similarity index 100%
+rename from src/pkg/utf8/utf8.go
+rename to src/pkg/unicode/utf8/utf8.go
+diff --git a/src/pkg/utf8/utf8_test.go b/src/pkg/unicode/utf8/utf8_test.go
+similarity index 100%
+rename from src/pkg/utf8/utf8_test.go
+rename to src/pkg/unicode/utf8/utf8_test.go

@@ -10,7 +10,97 @@ Date:   Fri Oct 5 08:28:20 2018 +0900
     Change-Id: I24de1eb31b2ca0e24cb9ab1648f7a71b5067cf97
     Reviewed-on: https://go-review.googlesource.com/c/139937
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  .../golang_org/x/net/route/message_freebsd_test.go      |  8 ++------
  src/vendor/golang_org/x/net/route/sys_freebsd.go        | 17 +++++++++++------
  2 files changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/src/vendor/golang_org/x/net/route/message_freebsd_test.go b/src/vendor/golang_org/x/net/route/message_freebsd_test.go
+index db4b56752c..c6d8a5f54c 100644
+--- a/src/vendor/golang_org/x/net/route/message_freebsd_test.go
++++ b/src/vendor/golang_org/x/net/route/message_freebsd_test.go
+@@ -4,10 +4,7 @@
+ 
+ package route
+ 
+-import (
+-	"testing"
+-	"unsafe"
+-)
++import "testing"
+ 
+ func TestFetchAndParseRIBOnFreeBSD(t *testing.T) {
+ 	for _, typ := range []RIBType{sysNET_RT_IFMALIST} {
+@@ -40,8 +37,7 @@ func TestFetchAndParseRIBOnFreeBSD10AndAbove(t *testing.T) {
+ 	if _, err := FetchRIB(sysAF_UNSPEC, sysNET_RT_IFLISTL, 0); err != nil {
+ 		t.Skip("NET_RT_IFLISTL not supported")
+ 	}
+-	var p uintptr
+-	if kernelAlign != int(unsafe.Sizeof(p)) {
++	if compatFreeBSD32 {
+ 		t.Skip("NET_RT_IFLIST vs. NET_RT_IFLISTL doesn't work for 386 emulation on amd64")
+ 	}
+ 
+diff --git a/src/vendor/golang_org/x/net/route/sys_freebsd.go b/src/vendor/golang_org/x/net/route/sys_freebsd.go
+index a1a0d79b61..fe91be1249 100644
+--- a/src/vendor/golang_org/x/net/route/sys_freebsd.go
++++ b/src/vendor/golang_org/x/net/route/sys_freebsd.go
+@@ -54,6 +54,8 @@ func (m *InterfaceMessage) Sys() []Sys {
+ 	}
+ }
+ 
++var compatFreeBSD32 bool // 386 emulation on amd64
++
+ func probeRoutingStack() (int, map[int]*wireFormat) {
+ 	var p uintptr
+ 	wordSize := int(unsafe.Sizeof(p))
+@@ -83,8 +85,11 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
+ 			break
+ 		}
+ 	}
++	if align != wordSize {
++		compatFreeBSD32 = true // 386 emulation on amd64
++	}
+ 	var rtm, ifm, ifam, ifmam, ifanm *wireFormat
+-	if align != wordSize { // 386 emulation on amd64
++	if compatFreeBSD32 {
+ 		rtm = &wireFormat{extOff: sizeofRtMsghdrFreeBSD10Emu - sizeofRtMetricsFreeBSD10Emu, bodyOff: sizeofRtMsghdrFreeBSD10Emu}
+ 		ifm = &wireFormat{extOff: 16}
+ 		ifam = &wireFormat{extOff: sizeofIfaMsghdrFreeBSD10Emu, bodyOff: sizeofIfaMsghdrFreeBSD10Emu}
+@@ -100,31 +105,31 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
+ 	rel, _ := syscall.SysctlUint32("kern.osreldate")
+ 	switch {
+ 	case rel < 800000:
+-		if align != wordSize { // 386 emulation on amd64
++		if compatFreeBSD32 {
+ 			ifm.bodyOff = sizeofIfMsghdrFreeBSD7Emu
+ 		} else {
+ 			ifm.bodyOff = sizeofIfMsghdrFreeBSD7
+ 		}
+ 	case 800000 <= rel && rel < 900000:
+-		if align != wordSize { // 386 emulation on amd64
++		if compatFreeBSD32 {
+ 			ifm.bodyOff = sizeofIfMsghdrFreeBSD8Emu
+ 		} else {
+ 			ifm.bodyOff = sizeofIfMsghdrFreeBSD8
+ 		}
+ 	case 900000 <= rel && rel < 1000000:
+-		if align != wordSize { // 386 emulation on amd64
++		if compatFreeBSD32 {
+ 			ifm.bodyOff = sizeofIfMsghdrFreeBSD9Emu
+ 		} else {
+ 			ifm.bodyOff = sizeofIfMsghdrFreeBSD9
+ 		}
+ 	case 1000000 <= rel && rel < 1100000:
+-		if align != wordSize { // 386 emulation on amd64
++		if compatFreeBSD32 {
+ 			ifm.bodyOff = sizeofIfMsghdrFreeBSD10Emu
+ 		} else {
+ 			ifm.bodyOff = sizeofIfMsghdrFreeBSD10
+ 		}
+ 	default:
+-		if align != wordSize { // 386 emulation on amd64
++		if compatFreeBSD32 {
+ 			ifm.bodyOff = sizeofIfMsghdrFreeBSD11Emu
+ 		} else {
+ 			ifm.bodyOff = sizeofIfMsghdrFreeBSD11

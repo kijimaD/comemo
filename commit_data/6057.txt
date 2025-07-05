@@ -9,8 +9,250 @@ Date:   Thu Aug 19 18:18:51 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2007043
-
+---
  src/cmd/6g/cgen.c | 167 ++++++++++++++++++++++++++++++++++++++++++------------
  src/cmd/6g/gg.h   |   1 +
  src/cmd/6g/ggen.c |  31 ++--------
  3 files changed, 135 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 20acae652d..76776d7029 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1008,46 +1008,13 @@ sgen(Node *n, Node *ns, int32 w)
+ 		fatal("sgen UINF");
+ 	}
+ 
+-	if(isslice(n->type))
+-	if(isslice(ns->type))
+-	if(n->addable)
+-	if(ns->addable)
+-	if(n->op != OINDREG)
+-	if(ns->op != OINDREG)
+-	if(n->op != OREGISTER)
+-	if(ns->op != OREGISTER) {
+-		// slices are done component by component
+-		// to keep from confusing optimization
+-		nodl = *ns;
+-		nodl.xoffset += Array_array;
+-		nodl.type = types[TUINT64];
+-		nodr = *n;
+-		nodr.xoffset += Array_array;
+-		nodr.type = types[TUINT64];
+-		gmove(&nodr, &nodl);
+-
+-		nodl = *ns;
+-		nodl.xoffset += Array_nel;
+-		nodl.type = types[TUINT32];
+-		nodr = *n;
+-		nodr.xoffset += Array_nel;
+-		nodr.type = types[TUINT32];
+-		gmove(&nodr, &nodl);
+-
+-		nodl = *ns;
+-		nodl.xoffset += Array_cap;
+-		nodl.type = types[TUINT32];
+-		nodr = *n;
+-		nodr.xoffset += Array_cap;
+-		nodr.type = types[TUINT32];
+-		gmove(&nodr, &nodl);
+-
+-		return;
+-	}
+-
+ 	if(w < 0)
+ 		fatal("sgen copy %d", w);
+ 
++	if(w == 16)
++		if(componentgen(n, ns))
++			return;
++
+ 	// offset on the stack
+ 	osrc = stkof(n);
+ 	odst = stkof(ns);
+@@ -1141,3 +1108,129 @@ sgen(Node *n, Node *ns, int32 w)
+ 	restx(&nodr, &oldr);
+ 	restx(&cx, &oldcx);
+ }
++
++/*
++ * copy a structure component by component
++ * return 1 if can do, 0 if cant.
++ * nr is N for copy zero
++ */
++int
++componentgen(Node *nr, Node *nl)
++{
++	Node nodl, nodr;
++	int free;
++
++	free = 0;
++	if(!nl->addable || nl->op != ONAME)
++		goto no;
++
++	nodl = *nl;
++	if(nr != N) {
++		if(!nr->addable || nr->op != ONAME)
++			goto no;
++		nodr = *nr;
++		if(nr->op != ONAME && nr->op != OINDREG) {
++			igen(nr, &nodr, N);
++			free = 1;
++		}
++	}
++
++	switch(nl->type->etype) {
++	case TARRAY:
++		if(!isslice(nl->type))
++			goto no;
++
++		nodl.xoffset += Array_array;
++		nodl.type = ptrto(nl->type->type);
++
++		if(nr != N) {
++			nodr.xoffset += Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		nodl.xoffset += Array_nel-Array_array;
++		nodl.type = types[TUINT32];
++
++		if(nr != N) {
++			nodr.xoffset += Array_nel-Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		nodl.xoffset += Array_cap-Array_nel;
++		nodl.type = types[TUINT32];
++
++		if(nr != N) {
++			nodr.xoffset += Array_cap-Array_nel;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		goto yes;
++
++	case TSTRING:
++
++		nodl.xoffset += Array_array;
++		nodl.type = ptrto(types[TUINT8]);
++
++		if(nr != N) {
++			nodr.xoffset += Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		nodl.xoffset += Array_nel-Array_array;
++		nodl.type = types[TUINT32];
++
++		if(nr != N) {
++			nodr.xoffset += Array_nel-Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		goto yes;
++
++	case TINTER:
++
++		nodl.xoffset += Array_array;
++		nodl.type = ptrto(types[TUINT8]);
++
++		if(nr != N) {
++			nodr.xoffset += Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		nodl.xoffset += Array_nel-Array_array;
++		nodl.type = ptrto(types[TUINT8]);
++
++		if(nr != N) {
++			nodr.xoffset += Array_nel-Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		goto yes;
++
++	case TSTRUCT:
++		goto no;
++	}
++
++no:
++	if(free)
++		regfree(&nodr);
++	return 0;
++
++yes:
++	if(free)
++		regfree(&nodr);
++	return 1;
++}
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 353a86dcd8..d578d67529 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -99,6 +99,7 @@ void	cgen_aret(Node*, Node*);
+ int	cgen_inline(Node*, Node*);
+ void	restx(Node*, Node*);
+ void	savex(int, Node*, Node*, Node*, Type*);
++int	componentgen(Node*, Node*);
+ 
+ /*
+  * gsubr.c
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 7c3cadd50e..f0aa16cb42 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1041,35 +1041,12 @@ clearfat(Node *nl)
+ 	if(debug['g'])
+ 		dump("\nclearfat", nl);
+ 
+-	if(isslice(nl->type))
+-	if(nl->addable)
+-	if(nl->op != OINDREG)
+-	if(nl->op != OREGISTER) {
+-		// slices are done component by component
+-		// to keep from confusing optimization
+-
+-		n1 = *nl;
+-		n1.xoffset += Array_array;
+-		n1.type = types[TUINT64];
+-		nodconst(&ax, types[TUINT64], 0);
+-		gmove(&ax, &n1);
+-
+-		n1 = *nl;
+-		n1.xoffset += Array_nel;
+-		n1.type = types[TUINT32];
+-		nodconst(&ax, types[TUINT32], 0);
+-		gmove(&ax, &n1);
+-
+-		n1 = *nl;
+-		n1.xoffset += Array_cap;
+-		n1.type = types[TUINT32];
+-		nodconst(&ax, types[TUINT32], 0);
+-		gmove(&ax, &n1);
+-
+-		return;
+-	}
+ 
+ 	w = nl->type->width;
++	if(w == 16)
++		if(componentgen(N, nl))
++			return;
++
+ 	c = w % 8;	// bytes
+ 	q = w / 8;	// quads
+ 

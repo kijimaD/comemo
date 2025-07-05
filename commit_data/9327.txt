@@ -9,7 +9,65 @@ Date:   Wed Aug 10 09:26:51 2011 -0400
     R=golang-dev, dsymonds, r
     CC=golang-dev
     https://golang.org/cl/4860041
-
+---
  src/pkg/json/decode.go      |  6 ++++++
  src/pkg/json/decode_test.go | 11 ++++++++++-
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index 7d474fa7b9..4f6562bd55 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -251,6 +251,12 @@ func (d *decodeState) value(v reflect.Value) {
+ // if it encounters an Unmarshaler, indirect stops and returns that.
+ // if wantptr is true, indirect stops at the last pointer.
+ func (d *decodeState) indirect(v reflect.Value, wantptr bool) (Unmarshaler, reflect.Value) {
++	// If v is a named type and is addressable,
++	// start with its address, so that if the type has pointer methods,
++	// we find them.
++	if v.Kind() != reflect.Ptr && v.Type().Name() != "" && v.CanAddr() {
++		v = v.Addr()
++	}
+ 	for {
+ 		var isUnmarshaler bool
+ 		if v.Type().NumMethod() > 0 {
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index c0ef5bc3aa..a855d60486 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -34,10 +34,17 @@ func (u *unmarshaler) UnmarshalJSON(b []byte) os.Error {
+ 	return nil
+ }
+ 
++type ustruct struct {
++	M unmarshaler
++}
++
+ var (
+ 	um0, um1 unmarshaler // target2 of unmarshaling
+ 	ump      = &um1
+ 	umtrue   = unmarshaler{true}
++	umslice  = []unmarshaler{unmarshaler{true}}
++	umslicep = new([]unmarshaler)
++	umstruct = ustruct{unmarshaler{true}}
+ )
+ 
+ type unmarshalTest struct {
+@@ -77,6 +84,9 @@ var unmarshalTests = []unmarshalTest{
+ 	// unmarshal interface test
+ 	{`{"T":false}`, &um0, umtrue, nil}, // use "false" so test will fail if custom unmarshaler is not called
+ 	{`{"T":false}`, &ump, &umtrue, nil},
++	{`[{"T":false}]`, &umslice, umslice, nil},
++	{`[{"T":false}]`, &umslicep, &umslice, nil},
++	{`{"M":{"T":false}}`, &umstruct, umstruct, nil},
+ }
+ 
+ func TestMarshal(t *testing.T) {
+@@ -140,7 +150,6 @@ func TestUnmarshal(t *testing.T) {
+ 			println(string(data))
+ 			data, _ = Marshal(tt.out)
+ 			println(string(data))
+-			return
+ 			continue
+ 		}
+ 	}

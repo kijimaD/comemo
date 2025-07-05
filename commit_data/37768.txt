@@ -12,6 +12,20 @@ Date:   Sat Aug 25 22:35:38 2018 +0000
     GitHub-Pull-Request: golang/go#27214
     Reviewed-on: https://go-review.googlesource.com/131397
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/make.bat | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/make.bat b/src/make.bat
+index 590e639830..9ca7afb5aa 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -77,7 +77,7 @@ set GOROOT=%GOROOT_BOOTSTRAP%
+ set GOOS=
+ set GOARCH=
+ set GOBIN=
+-"%GOROOT_BOOTSTRAP%\bin\go" build -o cmd\dist\dist.exe .\cmd\dist
++"%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist
+ endlocal
+ if errorlevel 1 goto fail
+ .\cmd\dist\dist.exe env -w -p >env.bat

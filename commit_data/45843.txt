@@ -11,7 +11,7 @@ Date:   Mon Nov 16 11:36:13 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/272249
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go | 20 ++++++++++----------
  src/cmd/compile/internal/gc/lex.go    |  4 ++--
  src/cmd/compile/internal/gc/noder.go  |  8 ++++----
@@ -20,3 +20,211 @@ Date:   Mon Nov 16 11:36:13 2020 -0500
  src/cmd/compile/internal/gc/swt.go    |  6 +++---
  src/cmd/compile/internal/gc/unsafe.go |  8 ++++----
  7 files changed, 32 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 142eacf7d8..1fc51745f4 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -1152,16 +1152,16 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
+ 		l := todo[len(todo)-1]
+ 		todo = todo[:len(todo)-1]
+ 
+-		base := l.derefs
++		derefs := l.derefs
+ 
+ 		// If l.derefs < 0, then l's address flows to root.
+-		addressOf := base < 0
++		addressOf := derefs < 0
+ 		if addressOf {
+ 			// For a flow path like "root = &l; l = x",
+ 			// l's address flows to root, but x's does
+ 			// not. We recognize this by lower bounding
+-			// base at 0.
+-			base = 0
++			// derefs at 0.
++			derefs = 0
+ 
+ 			// If l's address flows to a non-transient
+ 			// location, then l can't be transiently
+@@ -1181,15 +1181,15 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
+ 			if l.isName(PPARAM) {
+ 				if (logopt.Enabled() || Debug.m >= 2) && !l.escapes {
+ 					if Debug.m >= 2 {
+-						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", linestr(l.n.Pos), l.n, e.explainLoc(root), base)
++						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", linestr(l.n.Pos), l.n, e.explainLoc(root), derefs)
+ 					}
+ 					explanation := e.explainPath(root, l)
+ 					if logopt.Enabled() {
+ 						logopt.LogOpt(l.n.Pos, "leak", "escape", e.curfn.funcname(),
+-							fmt.Sprintf("parameter %v leaks to %s with derefs=%d", l.n, e.explainLoc(root), base), explanation)
++							fmt.Sprintf("parameter %v leaks to %s with derefs=%d", l.n, e.explainLoc(root), derefs), explanation)
+ 					}
+ 				}
+-				l.leakTo(root, base)
++				l.leakTo(root, derefs)
+ 			}
+ 
+ 			// If l's address flows somewhere that
+@@ -1215,10 +1215,10 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
+ 			if edge.src.escapes {
+ 				continue
+ 			}
+-			derefs := base + edge.derefs
+-			if edge.src.walkgen != walkgen || edge.src.derefs > derefs {
++			d := derefs + edge.derefs
++			if edge.src.walkgen != walkgen || edge.src.derefs > d {
+ 				edge.src.walkgen = walkgen
+-				edge.src.derefs = derefs
++				edge.src.derefs = d
+ 				edge.src.dst = l
+ 				edge.src.dstEdgeIdx = i
+ 				todo = append(todo, edge.src)
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index c58479952e..f01891f365 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -12,8 +12,8 @@ import (
+ 	"strings"
+ )
+ 
+-func makePos(base *src.PosBase, line, col uint) src.XPos {
+-	return Ctxt.PosTable.XPos(src.MakePos(base, line, col))
++func makePos(b *src.PosBase, line, col uint) src.XPos {
++	return Ctxt.PosTable.XPos(src.MakePos(b, line, col))
+ }
+ 
+ func isSpace(c rune) bool {
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index c7119f96f3..27bc9b5629 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -1382,16 +1382,16 @@ func checkLangCompat(lit *syntax.BasicLit) {
+ 	if s[0] != '0' {
+ 		return
+ 	}
+-	base := s[1]
+-	if base == 'b' || base == 'B' {
++	radix := s[1]
++	if radix == 'b' || radix == 'B' {
+ 		yyerrorv("go1.13", "binary literals")
+ 		return
+ 	}
+-	if base == 'o' || base == 'O' {
++	if radix == 'o' || radix == 'O' {
+ 		yyerrorv("go1.13", "0o/0O-style octal literals")
+ 		return
+ 	}
+-	if lit.Kind != syntax.IntLit && (base == 'x' || base == 'X') {
++	if lit.Kind != syntax.IntLit && (radix == 'x' || radix == 'X') {
+ 		yyerrorv("go1.13", "hexadecimal floating-point literals")
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 32aa7c5bb1..8fe480b65f 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -544,13 +544,13 @@ func dsymptrWeakOff(s *obj.LSym, off int, x *obj.LSym) int {
+ // arr must be an ONAME. slicesym does not modify n.
+ func slicesym(n, arr *Node, lencap int64) {
+ 	s := n.Sym.Linksym()
+-	base := n.Xoffset
++	off := n.Xoffset
+ 	if arr.Op != ONAME {
+ 		Fatalf("slicesym non-name arr %v", arr)
+ 	}
+-	s.WriteAddr(Ctxt, base, Widthptr, arr.Sym.Linksym(), arr.Xoffset)
+-	s.WriteInt(Ctxt, base+sliceLenOffset, Widthptr, lencap)
+-	s.WriteInt(Ctxt, base+sliceCapOffset, Widthptr, lencap)
++	s.WriteAddr(Ctxt, off, Widthptr, arr.Sym.Linksym(), arr.Xoffset)
++	s.WriteInt(Ctxt, off+sliceLenOffset, Widthptr, lencap)
++	s.WriteInt(Ctxt, off+sliceCapOffset, Widthptr, lencap)
+ }
+ 
+ // addrsym writes the static address of a to n. a must be an ONAME.
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 6dbb69281c..9c1bd285ae 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -698,20 +698,20 @@ func preInliningDcls(fnsym *obj.LSym) []*Node {
+ // to do with its offset in the user variable.
+ func stackOffset(slot ssa.LocalSlot) int32 {
+ 	n := slot.N.(*Node)
+-	var base int64
++	var off int64
+ 	switch n.Class() {
+ 	case PAUTO:
+ 		if Ctxt.FixedFrameSize() == 0 {
+-			base -= int64(Widthptr)
++			off -= int64(Widthptr)
+ 		}
+ 		if objabi.Framepointer_enabled || objabi.GOARCH == "arm64" {
+ 			// There is a word space for FP on ARM64 even if the frame pointer is disabled
+-			base -= int64(Widthptr)
++			off -= int64(Widthptr)
+ 		}
+ 	case PPARAM, PPARAMOUT:
+-		base += Ctxt.FixedFrameSize()
++		off += Ctxt.FixedFrameSize()
+ 	}
+-	return int32(base + n.Xoffset + slot.Off)
++	return int32(off + n.Xoffset + slot.Off)
+ }
+ 
+ // createComplexVar builds a single DWARF variable entry and location list.
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 8d9fbe300e..9205f4142a 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -720,9 +720,9 @@ func (s *typeSwitch) flush() {
+ // less(i) should return a boolean expression. If it evaluates true,
+ // then cases before i will be tested; otherwise, cases i and later.
+ //
+-// base(i, nif) should setup nif (an OIF node) to test case i. In
++// leaf(i, nif) should setup nif (an OIF node) to test case i. In
+ // particular, it should set nif.Left and nif.Nbody.
+-func binarySearch(n int, out *Nodes, less func(i int) *Node, base func(i int, nif *Node)) {
++func binarySearch(n int, out *Nodes, less func(i int) *Node, leaf func(i int, nif *Node)) {
+ 	const binarySearchMin = 4 // minimum number of cases for binary search
+ 
+ 	var do func(lo, hi int, out *Nodes)
+@@ -731,7 +731,7 @@ func binarySearch(n int, out *Nodes, less func(i int) *Node, base func(i int, ni
+ 		if n < binarySearchMin {
+ 			for i := lo; i < hi; i++ {
+ 				nif := nod(OIF, nil, nil)
+-				base(i, nif)
++				leaf(i, nif)
+ 				lineno = lineno.WithNotStmt()
+ 				nif.Left = typecheck(nif.Left, ctxExpr)
+ 				nif.Left = defaultlit(nif.Left, nil)
+diff --git a/src/cmd/compile/internal/gc/unsafe.go b/src/cmd/compile/internal/gc/unsafe.go
+index 2233961561..a3151e83bf 100644
+--- a/src/cmd/compile/internal/gc/unsafe.go
++++ b/src/cmd/compile/internal/gc/unsafe.go
+@@ -31,7 +31,7 @@ func evalunsafe(n *Node) int64 {
+ 		// Since r->left may be mutated by typechecking, check it explicitly
+ 		// first to track it correctly.
+ 		n.Left.Left = typecheck(n.Left.Left, ctxExpr)
+-		base := n.Left.Left
++		sbase := n.Left.Left
+ 
+ 		n.Left = typecheck(n.Left, ctxExpr)
+ 		if n.Left.Type == nil {
+@@ -48,15 +48,15 @@ func evalunsafe(n *Node) int64 {
+ 			return 0
+ 		}
+ 
+-		// Sum offsets for dots until we reach base.
++		// Sum offsets for dots until we reach sbase.
+ 		var v int64
+-		for r := n.Left; r != base; r = r.Left {
++		for r := n.Left; r != sbase; r = r.Left {
+ 			switch r.Op {
+ 			case ODOTPTR:
+ 				// For Offsetof(s.f), s may itself be a pointer,
+ 				// but accessing f must not otherwise involve
+ 				// indirection via embedded pointer types.
+-				if r.Left != base {
++				if r.Left != sbase {
+ 					yyerror("invalid expression %v: selector implies indirection of embedded %v", n, r.Left)
+ 					return 0
+ 				}

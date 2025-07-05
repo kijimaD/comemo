@@ -7,6 +7,20 @@ Date:   Thu Feb 9 07:47:48 2012 +0900
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/5644055
-
+---
  src/pkg/text/template/parse/lex.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/text/template/parse/lex.go b/src/pkg/text/template/parse/lex.go
+index 97c19a160b..54e75ee0ca 100644
+--- a/src/pkg/text/template/parse/lex.go
++++ b/src/pkg/text/template/parse/lex.go
+@@ -187,7 +187,7 @@ func (l *lexer) lineNumber() int {
+ }
+ 
+ // error returns an error token and terminates the scan by passing
+-// back a nil pointer that will be the next state, terminating l.run.
++// back a nil pointer that will be the next state, terminating l.nextItem.
+ func (l *lexer) errorf(format string, args ...interface{}) stateFn {
+ 	l.items <- item{itemError, fmt.Sprintf(format, args...)}
+ 	return nil

@@ -25,10 +25,228 @@ Date:   Mon Mar 14 21:30:43 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go |  1 -
  src/cmd/link/internal/ld/deadcode.go   | 19 +++----
  src/cmd/link/internal/ld/decodesym.go  |  4 +-
  src/reflect/type.go                    | 90 +++++++++++++++++-----------------
  src/runtime/type.go                    |  1 -
  5 files changed, 52 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 8dc1e6cd0b..dda876d65f 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -505,7 +505,6 @@ func dextratypeData(s *Sym, ot int, t *Type) int {
+ 
+ 		ot = dgopkgpath(s, ot, a.pkg)
+ 		ot = dmethodptr(s, ot, dtypesym(a.mtype))
+-		ot = dmethodptr(s, ot, dtypesym(a.type_))
+ 		ot = dmethodptr(s, ot, a.isym)
+ 		ot = dmethodptr(s, ot, a.tsym)
+ 	}
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 9367375102..9ed9c56f99 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -95,7 +95,7 @@ func deadcode(ctxt *Link) {
+ 				// and setting those fields to nil. Doing so
+ 				// would reduce the binary size of typical
+ 				// programs like cmd/go by ~2%.
+-				d.markMethodType(m)
++				d.mark(m.mtyp(), m.src)
+ 				rem = append(rem, m)
+ 			} else {
+ 				rem = append(rem, m)
+@@ -171,18 +171,17 @@ var markextra = []string{
+ }
+ 
+ // methodref holds the relocations from a receiver type symbol to its
+-// method. There are four relocations, one for each of the fields in
+-// the reflect.method struct: mtyp, typ, ifn, and tfn.
++// method. There are three relocations, one for each of the fields in
++// the reflect.method struct: mtyp, ifn, and tfn.
+ type methodref struct {
+ 	m   methodsig
+ 	src *LSym     // receiver type symbol
+-	r   [4]*Reloc // R_METHOD relocations to fields of runtime.method
++	r   [3]*Reloc // R_METHOD relocations to fields of runtime.method
+ }
+ 
+ func (m methodref) mtyp() *LSym { return m.r[0].Sym }
+-func (m methodref) typ() *LSym  { return m.r[1].Sym }
+-func (m methodref) ifn() *LSym  { return m.r[2].Sym }
+-func (m methodref) tfn() *LSym  { return m.r[3].Sym }
++func (m methodref) ifn() *LSym  { return m.r[1].Sym }
++func (m methodref) tfn() *LSym  { return m.r[2].Sym }
+ 
+ func (m methodref) isExported() bool {
+ 	for _, r := range m.m {
+@@ -233,12 +232,6 @@ func (d *deadcodepass) markMethod(m methodref) {
+ 	}
+ }
+ 
+-// markMethodType marks just a method's types as reachable.
+-func (d *deadcodepass) markMethodType(m methodref) {
+-	d.mark(m.mtyp(), m.src)
+-	d.mark(m.typ(), m.src)
+-}
+-
+ // init marks all initial symbols as reachable.
+ // In a typical binary, this is INITENTRY.
+ func (d *deadcodepass) init() {
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 98590d3677..00e1a79a83 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -350,7 +350,7 @@ func decodetype_methods(s *LSym) []methodsig {
+ 	if r.Sym != s {
+ 		panic(fmt.Sprintf("method slice pointer in %q leads to a different symbol", s.Name))
+ 	}
+-	off = int(r.Add) // array of reflect.method values
+-	sizeofMethod := 6 * Thearch.Ptrsize
++	off = int(r.Add)                    // array of reflect.method values
++	sizeofMethod := 5 * Thearch.Ptrsize // sizeof reflect.method in program
+ 	return decode_methodsig(s, off, sizeofMethod, numMethods)
+ }
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 44ab004274..736c0824cb 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -291,7 +291,6 @@ type method struct {
+ 	name    *string        // name of method
+ 	pkgPath *string        // nil for exported Names; otherwise import path
+ 	mtyp    *rtype         // method type (without receiver)
+-	typ     *rtype         // .(*FuncType) underneath (with receiver)
+ 	ifn     unsafe.Pointer // fn used in interface call (one-word receiver)
+ 	tfn     unsafe.Pointer // fn used for normal method call
+ }
+@@ -561,11 +560,29 @@ func (t *rtype) pointers() bool { return t.kind&kindNoPointers == 0 }
+ 
+ func (t *rtype) common() *rtype { return t }
+ 
+-func (t *uncommonType) Method(i int) (m Method) {
+-	if t == nil || i < 0 || i >= len(t.methods) {
++func (t *rtype) NumMethod() int {
++	if t.Kind() == Interface {
++		tt := (*interfaceType)(unsafe.Pointer(t))
++		return tt.NumMethod()
++	}
++	ut := t.uncommon()
++	if ut == nil {
++		return 0
++	}
++	return len(ut.methods)
++}
++
++func (t *rtype) Method(i int) (m Method) {
++	if t.Kind() == Interface {
++		tt := (*interfaceType)(unsafe.Pointer(t))
++		return tt.Method(i)
++	}
++	ut := t.uncommon()
++
++	if ut == nil || i < 0 || i >= len(ut.methods) {
+ 		panic("reflect: Method index out of range")
+ 	}
+-	p := &t.methods[i]
++	p := &ut.methods[i]
+ 	if p.name != nil {
+ 		m.Name = *p.name
+ 	}
+@@ -574,60 +591,41 @@ func (t *uncommonType) Method(i int) (m Method) {
+ 		m.PkgPath = *p.pkgPath
+ 		fl |= flagStickyRO
+ 	}
+-	mt := p.typ
++	ft := (*funcType)(unsafe.Pointer(p.mtyp))
++	in := make([]Type, 0, 1+len(ft.in()))
++	in = append(in, t)
++	for _, arg := range ft.in() {
++		in = append(in, arg)
++	}
++	out := make([]Type, 0, len(ft.out()))
++	for _, ret := range ft.out() {
++		out = append(out, ret)
++	}
++	mt := FuncOf(in, out, p.mtyp.IsVariadic())
+ 	m.Type = mt
+ 	fn := unsafe.Pointer(&p.tfn)
+-	m.Func = Value{mt, fn, fl}
++	m.Func = Value{mt.(*rtype), fn, fl}
+ 	m.Index = i
+-	return
++	return m
+ }
+ 
+-func (t *uncommonType) NumMethod() int {
+-	if t == nil {
+-		return 0
++func (t *rtype) MethodByName(name string) (m Method, ok bool) {
++	if t.Kind() == Interface {
++		tt := (*interfaceType)(unsafe.Pointer(t))
++		return tt.MethodByName(name)
+ 	}
+-	return len(t.methods)
+-}
+-
+-func (t *uncommonType) MethodByName(name string) (m Method, ok bool) {
+-	if t == nil {
+-		return
++	ut := t.uncommon()
++	if ut == nil {
++		return Method{}, false
+ 	}
+ 	var p *method
+-	for i := range t.methods {
+-		p = &t.methods[i]
++	for i := range ut.methods {
++		p = &ut.methods[i]
+ 		if p.name != nil && *p.name == name {
+ 			return t.Method(i), true
+ 		}
+ 	}
+-	return
+-}
+-
+-// TODO(rsc): gc supplies these, but they are not
+-// as efficient as they could be: they have commonType
+-// as the receiver instead of *rtype.
+-func (t *rtype) NumMethod() int {
+-	if t.Kind() == Interface {
+-		tt := (*interfaceType)(unsafe.Pointer(t))
+-		return tt.NumMethod()
+-	}
+-	return t.uncommon().NumMethod()
+-}
+-
+-func (t *rtype) Method(i int) (m Method) {
+-	if t.Kind() == Interface {
+-		tt := (*interfaceType)(unsafe.Pointer(t))
+-		return tt.Method(i)
+-	}
+-	return t.uncommon().Method(i)
+-}
+-
+-func (t *rtype) MethodByName(name string) (m Method, ok bool) {
+-	if t.Kind() == Interface {
+-		tt := (*interfaceType)(unsafe.Pointer(t))
+-		return tt.MethodByName(name)
+-	}
+-	return t.uncommon().MethodByName(name)
++	return Method{}, false
+ }
+ 
+ func (t *rtype) PkgPath() string {
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index c504e2d294..c7f11d68c2 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -155,7 +155,6 @@ type method struct {
+ 	name    *string
+ 	pkgpath *string
+ 	mtyp    *_type
+-	typ     *_type
+ 	ifn     unsafe.Pointer
+ 	tfn     unsafe.Pointer
+ }

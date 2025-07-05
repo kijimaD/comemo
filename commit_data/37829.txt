@@ -9,6 +9,29 @@ Date:   Thu Aug 30 18:14:09 2018 -0600
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/fmt/example_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/fmt/example_test.go b/src/fmt/example_test.go
+index a600ebcafb..92d5cd519e 100644
+--- a/src/fmt/example_test.go
++++ b/src/fmt/example_test.go
+@@ -29,6 +29,17 @@ func ExampleSprintf() {
+ 	// 15
+ }
+ 
++func ExamplePrintln() {
++	n, err := fmt.Println("there", "are", 99, "gophers")
++	if err != nil {
++		panic(err)
++	}
++	fmt.Print(n)
++	// Output:
++	// there are 99 gophers
++	// 21
++}
++
+ func ExampleFprintln() {
+ 	n, err := fmt.Fprintln(os.Stdout, "there", "are", 99, "gophers")
+ 	if err != nil {

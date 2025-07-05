@@ -9,7 +9,7 @@ Date:   Tue Apr 2 13:18:32 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8284043
-
+---
  src/cmd/gofmt/gofmt_test.go            |  2 ++
  src/cmd/gofmt/rewrite.go               | 12 +++++++++++-
  src/cmd/gofmt/testdata/rewrite6.golden | 15 +++++++++++++++
@@ -17,3 +17,132 @@ Date:   Tue Apr 2 13:18:32 2013 -0700
  src/cmd/gofmt/testdata/rewrite7.golden | 15 +++++++++++++++
  src/cmd/gofmt/testdata/rewrite7.input  | 15 +++++++++++++++
  6 files changed, 73 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index 202d0a50c4..8ff00a253a 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -82,6 +82,8 @@ var tests = []struct {
+ 	{"testdata/rewrite3.input", "-r=x->x"},
+ 	{"testdata/rewrite4.input", "-r=(x)->x"},
+ 	{"testdata/rewrite5.input", "-r=x+x->2*x"},
++	{"testdata/rewrite6.input", "-r=fun(x)->Fun(x)"},
++	{"testdata/rewrite7.input", "-r=fun(x...)->Fun(x)"},
+ 	{"testdata/stdin*.input", "-stdin"},
+ 	{"testdata/comments.input", ""},
+ 	{"testdata/import.input", ""},
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index dfabb61983..1aa1f6ed00 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -107,6 +107,7 @@ var (
+ 	identType     = reflect.TypeOf((*ast.Ident)(nil))
+ 	objectPtrType = reflect.TypeOf((*ast.Object)(nil))
+ 	positionType  = reflect.TypeOf(token.NoPos)
++	callExprType  = reflect.TypeOf((*ast.CallExpr)(nil))
+ 	scopePtrType  = reflect.TypeOf((*ast.Scope)(nil))
+ )
+ 
+@@ -192,8 +193,17 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
+ 		v := val.Interface().(*ast.Ident)
+ 		return p == nil && v == nil || p != nil && v != nil && p.Name == v.Name
+ 	case objectPtrType, positionType:
+-		// object pointers and token positions don't need to match
++		// object pointers and token positions always match
+ 		return true
++	case callExprType:
++		// For calls, the Ellipsis fields (token.Position) must
++		// match since that is how f(x) and f(x...) are different.
++		// Check them here but fall through for the remaining fields.
++		p := pattern.Interface().(*ast.CallExpr)
++		v := val.Interface().(*ast.CallExpr)
++		if p.Ellipsis.IsValid() != v.Ellipsis.IsValid() {
++			return false
++		}
+ 	}
+ 
+ 	p := reflect.Indirect(pattern)
+diff --git a/src/cmd/gofmt/testdata/rewrite6.golden b/src/cmd/gofmt/testdata/rewrite6.golden
+new file mode 100644
+index 0000000000..e565dbdd97
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite6.golden
+@@ -0,0 +1,15 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Rewriting of calls must take the ... (ellipsis)
++// attribute for the last argument into account.
++
++package p
++
++func fun(x []int) {}
++
++func g(x []int) {
++	Fun(x)    // -r='fun(x)->Fun(x)' should rewrite this to Fun(x)
++	fun(x...) // -r='fun(x)->Fun(x)' should not rewrite this
++}
+diff --git a/src/cmd/gofmt/testdata/rewrite6.input b/src/cmd/gofmt/testdata/rewrite6.input
+new file mode 100644
+index 0000000000..8c088b3e87
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite6.input
+@@ -0,0 +1,15 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Rewriting of calls must take the ... (ellipsis)
++// attribute for the last argument into account.
++
++package p
++
++func fun(x []int) {}
++
++func g(x []int) {
++	fun(x)    // -r='fun(x)->Fun(x)' should rewrite this to Fun(x)
++	fun(x...) // -r='fun(x)->Fun(x)' should not rewrite this
++}
+diff --git a/src/cmd/gofmt/testdata/rewrite7.golden b/src/cmd/gofmt/testdata/rewrite7.golden
+new file mode 100644
+index 0000000000..29babad9f9
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite7.golden
+@@ -0,0 +1,15 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Rewriting of calls must take the ... (ellipsis)
++// attribute for the last argument into account.
++
++package p
++
++func fun(x []int) {}
++
++func g(x []int) {
++	fun(x) // -r='fun(x...)->Fun(x)' should not rewrite this
++	Fun(x) // -r='fun(x...)->Fun(x)' should rewrite this to Fun(x)
++}
+diff --git a/src/cmd/gofmt/testdata/rewrite7.input b/src/cmd/gofmt/testdata/rewrite7.input
+new file mode 100644
+index 0000000000..073e2a3e6f
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite7.input
+@@ -0,0 +1,15 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Rewriting of calls must take the ... (ellipsis)
++// attribute for the last argument into account.
++
++package p
++
++func fun(x []int) {}
++
++func g(x []int) {
++	fun(x)    // -r='fun(x...)->Fun(x)' should not rewrite this
++	fun(x...) // -r='fun(x...)->Fun(x)' should rewrite this to Fun(x)
++}

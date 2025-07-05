@@ -8,6 +8,20 @@ Date:   Tue Jan 14 12:58:13 2014 +0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/52000043
-
+---
  src/pkg/runtime/proc.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 60cf02022b..b4bc72b5b7 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -947,7 +947,7 @@ mspinning(void)
+ }
+ 
+ // Schedules some M to run the p (creates an M if necessary).
+-// If p==nil, tries to get an idle P, if no idle P's returns false.
++// If p==nil, tries to get an idle P, if no idle P's does nothing.
+ static void
+ startm(P *p, bool spinning)
+ {

@@ -16,8 +16,177 @@ Date:   Mon Jun 29 10:07:31 2015 +1000
     Run-TryBot: David Symonds <dsymonds@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/request.go        |  7 ++++
  src/net/http/transport.go      | 13 ++++++-
  src/net/http/transport_test.go | 87 ++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 105 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 1a9e0fa925..15b73564c6 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -224,6 +224,13 @@ type Request struct {
+ 	// otherwise it leaves the field nil.
+ 	// This field is ignored by the HTTP client.
+ 	TLS *tls.ConnectionState
++
++	// Cancel is an optional channel whose closure indicates that the client
++	// request should be regarded as canceled. Not all implementations of
++	// RoundTripper may support Cancel.
++	//
++	// For server requests, this field is not applicable.
++	Cancel <-chan struct{}
+ }
+ 
+ // ProtoAtLeast reports whether the HTTP protocol used
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index e4854e8a14..8544fe378d 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -274,8 +274,8 @@ func (t *Transport) CloseIdleConnections() {
+ 	}
+ }
+ 
+-// CancelRequest cancels an in-flight request by closing its
+-// connection.
++// CancelRequest cancels an in-flight request by closing its connection.
++// CancelRequest should only be called after RoundTrip has returned.
+ func (t *Transport) CancelRequest(req *Request) {
+ 	t.reqMu.Lock()
+ 	cancel := t.reqCanceler[req]
+@@ -563,6 +563,9 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
+ 		// when it finishes:
+ 		handlePendingDial()
+ 		return pc, nil
++	case <-req.Cancel:
++		handlePendingDial()
++		return nil, errors.New("net/http: request canceled while waiting for connection")
+ 	case <-cancelc:
+ 		handlePendingDial()
+ 		return nil, errors.New("net/http: request canceled while waiting for connection")
+@@ -971,6 +974,8 @@ func (pc *persistConn) readLoop() {
+ 			// response body to be fully consumed before peek on
+ 			// the underlying bufio reader.
+ 			select {
++			case <-rc.req.Cancel:
++				pc.t.CancelRequest(rc.req)
+ 			case bodyEOF := <-waitForBodyRead:
+ 				pc.t.setReqCanceler(rc.req, nil) // before pc might return to idle pool
+ 				alive = alive &&
+@@ -1153,6 +1158,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
+ 
+ 	var re responseAndError
+ 	var respHeaderTimer <-chan time.Time
++	cancelChan := req.Request.Cancel
+ WaitResponse:
+ 	for {
+ 		select {
+@@ -1193,6 +1199,9 @@ WaitResponse:
+ 			break WaitResponse
+ 		case re = <-resc:
+ 			break WaitResponse
++		case <-cancelChan:
++			pc.t.CancelRequest(req.Request)
++			cancelChan = nil
+ 		}
+ 	}
+ 
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index f8bb6c10d1..0eaf70da5d 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -1466,6 +1466,93 @@ Get = Get http://something.no-network.tld/: net/http: request canceled while wai
+ 	}
+ }
+ 
++func TestCancelRequestWithChannel(t *testing.T) {
++	defer afterTest(t)
++	if testing.Short() {
++		t.Skip("skipping test in -short mode")
++	}
++	unblockc := make(chan bool)
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		fmt.Fprintf(w, "Hello")
++		w.(Flusher).Flush() // send headers and some body
++		<-unblockc
++	}))
++	defer ts.Close()
++	defer close(unblockc)
++
++	tr := &Transport{}
++	defer tr.CloseIdleConnections()
++	c := &Client{Transport: tr}
++
++	req, _ := NewRequest("GET", ts.URL, nil)
++	ch := make(chan struct{})
++	req.Cancel = ch
++
++	res, err := c.Do(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	go func() {
++		time.Sleep(1 * time.Second)
++		close(ch)
++	}()
++	t0 := time.Now()
++	body, err := ioutil.ReadAll(res.Body)
++	d := time.Since(t0)
++
++	if err != ExportErrRequestCanceled {
++		t.Errorf("Body.Read error = %v; want errRequestCanceled", err)
++	}
++	if string(body) != "Hello" {
++		t.Errorf("Body = %q; want Hello", body)
++	}
++	if d < 500*time.Millisecond {
++		t.Errorf("expected ~1 second delay; got %v", d)
++	}
++	// Verify no outstanding requests after readLoop/writeLoop
++	// goroutines shut down.
++	for tries := 5; tries > 0; tries-- {
++		n := tr.NumPendingRequestsForTesting()
++		if n == 0 {
++			break
++		}
++		time.Sleep(100 * time.Millisecond)
++		if tries == 1 {
++			t.Errorf("pending requests = %d; want 0", n)
++		}
++	}
++}
++
++func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
++	defer afterTest(t)
++	unblockc := make(chan bool)
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		<-unblockc
++	}))
++	defer ts.Close()
++	defer close(unblockc)
++
++	// Don't interfere with the next test on plan9.
++	// Cf. http://golang.org/issues/11476
++	if runtime.GOOS == "plan9" {
++		defer time.Sleep(500 * time.Millisecond)
++	}
++
++	tr := &Transport{}
++	defer tr.CloseIdleConnections()
++	c := &Client{Transport: tr}
++
++	req, _ := NewRequest("GET", ts.URL, nil)
++	ch := make(chan struct{})
++	req.Cancel = ch
++	close(ch)
++
++	_, err := c.Do(req)
++	if err == nil || !strings.Contains(err.Error(), "canceled") {
++		t.Errorf("Do error = %v; want cancelation", err)
++	}
++}
++
+ // golang.org/issue/3672 -- Client can't close HTTP stream
+ // Calling Close on a Response.Body used to just read until EOF.
+ // Now it actually closes the TCP connection.

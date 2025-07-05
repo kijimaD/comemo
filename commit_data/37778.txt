@@ -17,6 +17,23 @@ Date:   Mon Aug 27 13:16:38 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 3d0ef28448..4cd854773f 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1343,6 +1343,11 @@ func (t *tester) raceDetectorSupported() bool {
+ 	if isAlpineLinux() {
+ 		return false
+ 	}
++	// NetBSD support is unfinished.
++	// golang.org/issue/26403
++	if goos == "netbsd" {
++		return false
++	}
+ 	return true
+ }
+ 

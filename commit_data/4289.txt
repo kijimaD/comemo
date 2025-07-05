@@ -8,7 +8,7 @@ Date:   Wed Dec 2 17:30:07 2009 -0800
     
     R=ken2
     https://golang.org/cl/163088
-
+---
  src/cmd/5g/cgen.c  |  4 ++--
  src/cmd/5g/gsubr.c |  2 +-
  src/cmd/6g/cgen.c  |  4 ++--
@@ -17,3 +17,186 @@ Date:   Wed Dec 2 17:30:07 2009 -0800
  src/cmd/gc/range.c |  9 ++++++---
  src/cmd/gc/walk.c  |  8 ++++++++
  7 files changed, 34 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 6fc42f5acf..dea94dc08d 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -547,7 +547,7 @@ agen(Node *n, Node *res)
+ 			v = mpgetfix(nr->val.u.xval);
+ 			if(isslice(nl->type)) {
+ 
+-				if(!debug['B']) {
++				if(!debug['B'] && !n->etype) {
+ 					n1 = n3;
+ 					n1.op = OINDREG;
+ 					n1.type = types[tptr];
+@@ -599,7 +599,7 @@ agen(Node *n, Node *res)
+ 		gmove(&n1, &n2);
+ 		regfree(&n1);
+ 
+-		if(!debug['B']) {
++		if(!debug['B'] && !n->etype) {
+ 			// check bounds
+ 			regalloc(&n4, types[TUINT32], N);
+ 			if(isslice(nl->type)) {
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index b14c7d2f34..5357d06fa0 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1767,7 +1767,7 @@ oindex_const:
+ 	v = mpgetfix(r->val.u.xval);
+ 	if(o & ODynam) {
+ 
+-		if(!debug['B']) {
++		if(!debug['B'] && !n->etype) {
+ 			n1 = *reg;
+ 			n1.op = OINDREG;
+ 			n1.type = types[tptr];
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 041f6c13c0..1e7c6e4427 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -504,7 +504,7 @@ agen(Node *n, Node *res)
+ 			v = mpgetfix(nr->val.u.xval);
+ 			if(isslice(nl->type)) {
+ 
+-				if(!debug['B']) {
++				if(!debug['B'] && !n->etype) {
+ 					n1 = n3;
+ 					n1.op = OINDREG;
+ 					n1.type = types[tptr];
+@@ -547,7 +547,7 @@ agen(Node *n, Node *res)
+ 		gmove(&n1, &n2);
+ 		regfree(&n1);
+ 
+-		if(!debug['B']) {
++		if(!debug['B'] && !n->etype) {
+ 			// check bounds
+ 			if(isslice(nl->type)) {
+ 				n1 = n3;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 4f3c85a6b3..7461649ad9 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1827,23 +1827,24 @@ oindex:
+ 		agen(l, reg);
+ 	}
+ 
++	if(!(o & ODynam) && l->type->width >= unmappedzero && l->op == OIND) {
++		// cannot rely on page protections to
++		// catch array ptr == 0, so dereference.
++		n2 = *reg;
++		n2.op = OINDREG;
++		n2.type = types[TUINT8];
++		n2.xoffset = 0;
++		gins(ATESTB, nodintconst(0), &n2);
++	}
++
+ 	// check bounds
+-	if(!debug['B']) {
++	if(!debug['B'] && !n->etype) {
+ 		if(o & ODynam) {
+ 			n2 = *reg;
+ 			n2.op = OINDREG;
+ 			n2.type = types[tptr];
+ 			n2.xoffset = Array_nel;
+ 		} else {
+-			if(l->type->width >= unmappedzero && l->op == OIND) {
+-				// cannot rely on page protections to
+-				// catch array ptr == 0, so dereference.
+-				n2 = *reg;
+-				n2.op = OINDREG;
+-				n2.type = types[TUINT8];
+-				n2.xoffset = 0;
+-				gins(ATESTB, nodintconst(0), &n2);
+-			}
+ 			nodconst(&n2, types[TUINT64], l->type->bound);
+ 		}
+ 		gins(optoas(OCMP, types[TUINT32]), reg1, &n2);
+@@ -1879,7 +1880,7 @@ oindex_const:
+ 	v = mpgetfix(r->val.u.xval);
+ 	if(o & ODynam) {
+ 
+-		if(!debug['B']) {
++		if(!debug['B'] && !n->etype) {
+ 			n1 = *reg;
+ 			n1.op = OINDREG;
+ 			n1.type = types[tptr];
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 84cb4bcbe3..3f0514a36d 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -540,7 +540,7 @@ agen(Node *n, Node *res)
+ 			v = mpgetfix(nr->val.u.xval);
+ 			if(isslice(nl->type)) {
+ 
+-				if(!debug['B']) {
++				if(!debug['B'] && !n->etype) {
+ 					n1 = n3;
+ 					n1.op = OINDREG;
+ 					n1.type = types[tptr];
+@@ -558,7 +558,7 @@ agen(Node *n, Node *res)
+ 				n1.xoffset = Array_array;
+ 				gmove(&n1, &n3);
+ 			} else
+-			if(!debug['B']) {
++			if(!debug['B'] && !n->etype) {
+ 				if(v < 0)
+ 					yyerror("out of bounds on array");
+ 				else
+@@ -583,7 +583,7 @@ agen(Node *n, Node *res)
+ 		gmove(&n1, &n2);
+ 		regfree(&n1);
+ 
+-		if(!debug['B']) {
++		if(!debug['B'] && !n->etype) {
+ 			// check bounds
+ 			if(isslice(nl->type)) {
+ 				n1 = n3;
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 758cd4f29b..4147e8e6c9 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -91,7 +91,7 @@ walkrange(Node *n)
+ 	Node *ohv1, *hv1, *hv2;	// hidden (old) val 1, 2
+ 	Node *ha, *hit;	// hidden aggregate, iterator
+ 	Node *a, *v1, *v2;	// not hidden aggregate, val 1, 2
+-	Node *fn;
++	Node *fn, *tmp;
+ 	NodeList *body, *init;
+ 	Type *th, *t;
+ 
+@@ -128,8 +128,11 @@ walkrange(Node *n)
+ 		n->nincr = nod(OASOP, hv1, nodintconst(1));
+ 		n->nincr->etype = OADD;
+ 		body = list1(nod(OAS, v1, hv1));
+-		if(v2)
+-			body = list(body, nod(OAS, v2, nod(OINDEX, ha, hv1)));
++		if(v2) {
++			tmp = nod(OINDEX, ha, hv1);
++			tmp->etype = 1;	// no bounds check
++			body = list(body, nod(OAS, v2, tmp));
++		}
+ 		break;
+ 
+ 	case TMAP:
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 3c3a00cfd6..62bbf9f5ab 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -787,6 +787,14 @@ walkexpr(Node **np, NodeList **init)
+ 	case OINDEX:
+ 		walkexpr(&n->left, init);
+ 		walkexpr(&n->right, init);
++		
++		// if range of type cannot exceed static array bound,
++		// disable bounds check
++		if(!isslice(n->left->type))
++		if(n->right->type->width < 4)
++		if((1<<(8*n->right->type->width)) <= n->left->type->bound)
++			n->etype = 1;
++
+ 		goto ret;
+ 
+ 	case OINDEXMAP:

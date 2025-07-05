@@ -16,6 +16,22 @@ Date:   Wed Feb 1 18:41:27 2017 +0100
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index bbc17f06ff..493820315f 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -262,7 +262,9 @@ func run(bin string, args []string) (err error) {
+ 		return s.out.LastIndex([]byte("\nPASS\n")) > startTestsLen ||
+ 			s.out.LastIndex([]byte("\nPASS\r")) > startTestsLen ||
+ 			s.out.LastIndex([]byte("\n(lldb) PASS\n")) > startTestsLen ||
+-			s.out.LastIndex([]byte("\n(lldb) PASS\r")) > startTestsLen
++			s.out.LastIndex([]byte("\n(lldb) PASS\r")) > startTestsLen ||
++			s.out.LastIndex([]byte("exited with status = 0 (0x00000000) \n")) > startTestsLen ||
++			s.out.LastIndex([]byte("exited with status = 0 (0x00000000) \r")) > startTestsLen
+ 	}
+ 	err = s.wait("test completion", passed, opts.timeout)
+ 	if passed(s.out) {

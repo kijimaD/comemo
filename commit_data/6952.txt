@@ -7,6 +7,20 @@ Date:   Tue Dec 14 12:26:30 2010 -0500
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/3631041
-
+---
  src/pkg/http/fs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 72db946dff..143a839a80 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -27,7 +27,7 @@ func isText(b []byte) bool {
+ 			// decoding error
+ 			return false
+ 		}
+-		if 0x80 <= rune && rune <= 0x9F {
++		if 0x7F <= rune && rune <= 0x9F {
+ 			return false
+ 		}
+ 		if rune < ' ' {

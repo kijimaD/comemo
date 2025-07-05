@@ -10,6 +10,29 @@ Date:   Fri Nov 21 12:15:18 2014 +1100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/178100043
-
+---
  src/runtime/os1_windows.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index abd2297a30..57ea050f26 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -175,7 +175,7 @@ func goenvs() {
+ 
+ 	n := 0
+ 	for p = env; *p != 0; n++ {
+-		p = (*uint16)(add(unsafe.Pointer(p), uintptr(findnullw(p)+1)))
++		p = (*uint16)(add(unsafe.Pointer(p), uintptr(findnullw(p)+1)*unsafe.Sizeof(*p)))
+ 	}
+ 
+ 	envs = makeStringSlice(int(n))
+@@ -183,7 +183,7 @@ func goenvs() {
+ 	p = env
+ 	for i := 0; i < n; i++ {
+ 		envs[i] = gostringw(p)
+-		p = (*uint16)(add(unsafe.Pointer(p), uintptr(findnullw(p)+1)))
++		p = (*uint16)(add(unsafe.Pointer(p), uintptr(findnullw(p)+1)*unsafe.Sizeof(*p)))
+ 	}
+ 
+ 	stdcall1(_FreeEnvironmentStringsW, uintptr(unsafe.Pointer(env)))

@@ -11,7 +11,7 @@ Date:   Tue Mar 9 17:51:30 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/384041
-
+---
  src/cmd/gc/const.c     |  4 ++--
  src/cmd/gc/cplx.c      | 12 -----------
  src/cmd/gc/subr.c      |  4 +++-
@@ -20,3 +20,201 @@ Date:   Tue Mar 9 17:51:30 2010 -0800
  test/ken/cplx4.go      |  4 +---
  test/ken/cplx5.go      | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++
  7 files changed, 71 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 7debb37083..be351def65 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -76,14 +76,12 @@ convlit1(Node **np, Type *t, int explicit)
+ 	if(!explicit && !isideal(n->type))
+ 		return;
+ 
+-//dump("convlit1", n);
+ 	if(n->op == OLITERAL) {
+ 		nn = nod(OXXX, N, N);
+ 		*nn = *n;
+ 		n = nn;
+ 		*np = n;
+ 	}
+-//dump("convlit2", n);
+ 
+ 	switch(n->op) {
+ 	default:
+@@ -203,6 +201,8 @@ convlit1(Node **np, Type *t, int explicit)
+ 				goto bad;
+ 			case CTFLT:
+ 			case CTINT:
++				if(explicit)
++					goto bad;
+ 				n->val = tocplx(n->val);
+ 				break;
+ 			case CTCPLX:
+diff --git a/src/cmd/gc/cplx.c b/src/cmd/gc/cplx.c
+index 7538a432a3..d7f29d8370 100644
+--- a/src/cmd/gc/cplx.c
++++ b/src/cmd/gc/cplx.c
+@@ -58,18 +58,6 @@ complexmove(Node *f, Node *t)
+ 		cgen(&n1, &n3);
+ 		cgen(&n2, &n4);
+ 		break;
+-
+-	// these are depricated
+-	case CASE(TFLOAT32,TCOMPLEX64):
+-	case CASE(TFLOAT32,TCOMPLEX128):
+-	case CASE(TFLOAT64,TCOMPLEX64):
+-	case CASE(TFLOAT64,TCOMPLEX128):
+-		// float to complex goes to real part
+-
+-		subnode(&n1, &n2, t);
+-		cgen(f, &n1);
+-		zero(&n2);
+-		break;
+ 	}
+ }
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 97bb60d2e1..0c01e728ce 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -458,7 +458,8 @@ algtype(Type *t)
+ {
+ 	int a;
+ 
+-	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN || t->etype == TFUNC || t->etype == TMAP)
++	if(issimple[t->etype] || isptr[t->etype] || iscomplex[t->etype] ||
++	   t->etype == TCHAN || t->etype == TFUNC || t->etype == TMAP)
+ 		a = AMEM;	// just bytes (int, ptr, etc)
+ 	else if(t->etype == TSTRING)
+ 		a = ASTRING;	// string
+@@ -476,6 +477,7 @@ maptype(Type *key, Type *val)
+ {
+ 	Type *t;
+ 
++
+ 	if(key != nil && key->etype != TANY && algtype(key) == ANOEQ) {
+ 		if(key->etype == TFORW) {
+ 			// map[key] used during definition of key.
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 654e72b5f7..4e5b5bbcd5 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1449,9 +1449,14 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et, char *desc)
+ 		return 1;
+ 	}
+ 
+-	// simple fix-float-complex
+-	if(isint[t->etype] || isfloat[t->etype] || iscomplex[t->etype])
+-	if(isint[nt->etype] || isfloat[nt->etype] || iscomplex[nt->etype])
++	// simple fix-float
++	if(isint[t->etype] || isfloat[t->etype])
++	if(isint[nt->etype] || isfloat[nt->etype])
++		return 1;
++
++	// simple complex-complex
++	if(iscomplex[t->etype])
++	if(iscomplex[nt->etype])
+ 		return 1;
+ 
+ 	// to string
+diff --git a/test/ken/cplx3.go b/test/ken/cplx3.go
+index 8d79646493..6c3826df6a 100644
+--- a/test/ken/cplx3.go
++++ b/test/ken/cplx3.go
+@@ -20,7 +20,7 @@ var complexBits = reflect.Typeof(complex(0i)).Size() * 8
+ 
+ func main() {
+ 	c0 := C1
+-	c0 = (c0+c0+c0) / (c0+c0+3i)
++	c0 = (c0 + c0 + c0) / (c0 + c0 + 3i)
+ 	println(c0)
+ 
+ 	c := *(*complex)(unsafe.Pointer(&c0))
+@@ -32,11 +32,11 @@ func main() {
+ 	switch c := reflect.NewValue(a).(type) {
+ 	case *reflect.Complex64Value:
+ 		v := c.Get()
+-		_,_ = complex64(v), true
++		_, _ = complex64(v), true
+ 	case *reflect.ComplexValue:
+ 		if complexBits == 64 {
+ 			v := c.Get()
+-			_,_ = complex64(v), true
++			_, _ = complex64(v), true
+ 		}
+ 	}
+ }
+diff --git a/test/ken/cplx4.go b/test/ken/cplx4.go
+index 34577a21e1..c9ba2e9b93 100644
+--- a/test/ken/cplx4.go
++++ b/test/ken/cplx4.go
+@@ -15,9 +15,7 @@ const (
+ 	C1 = R + I // ADD(5,6)
+ )
+ 
+-func doprint(c complex) {
+-	fmt.Printf("c = %f\n", c)
+-}
++func doprint(c complex) { fmt.Printf("c = %f\n", c) }
+ 
+ func main() {
+ 
+diff --git a/test/ken/cplx5.go b/test/ken/cplx5.go
+new file mode 100644
+index 0000000000..af2a1c57d1
+--- /dev/null
++++ b/test/ken/cplx5.go
+@@ -0,0 +1,54 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var a [12]complex
++var s []complex
++var c chan complex
++var f struct {
++	c complex
++}
++var m map[complex]complex
++
++func main() {
++	// array of complex
++	for i := 0; i < len(a); i++ {
++		a[i] = cmplx(float(i), float(-i))
++	}
++	println(a[5])
++
++	// slice of complex
++	s = make([]complex, len(a))
++	for i := 0; i < len(s); i++ {
++		s[i] = a[i]
++	}
++	println(s[5])
++
++	// chan
++	c = make(chan complex)
++	go chantest(c)
++	println(<-c)
++
++	// pointer of complex
++	v := a[5]
++	pv := &v
++	println(*pv)
++
++	// field of complex
++	f.c = a[5]
++	println(f.c)
++
++	// map of complex
++	m = make(map[complex]complex)
++	for i := 0; i < len(s); i++ {
++		m[-a[i]] = a[i]
++	}
++	println(m[5i-5])
++	println(m[cmplx(-5, 5)])
++}
++
++func chantest(c chan complex) { c <- a[5] }

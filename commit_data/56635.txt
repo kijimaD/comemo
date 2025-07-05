@@ -12,10 +12,94 @@ Date:   Wed May 17 15:32:41 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/cgo/internal/testtls/{tls_unix.c => tls.c} |  4 ++++
  src/cmd/cgo/internal/testtls/tls.go                |  2 +-
  src/cmd/cgo/internal/testtls/tls_none.go           | 13 +++++++++++++
  src/cmd/cgo/internal/testtls/tls_test.go           |  2 --
  src/cmd/dist/test.go                               |  2 +-
  5 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testtls/tls_unix.c b/src/cmd/cgo/internal/testtls/tls.c
+similarity index 79%
+rename from src/cmd/cgo/internal/testtls/tls_unix.c
+rename to src/cmd/cgo/internal/testtls/tls.c
+index 957afce90d..0e2bbee542 100644
+--- a/src/cmd/cgo/internal/testtls/tls_unix.c
++++ b/src/cmd/cgo/internal/testtls/tls.c
+@@ -2,6 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Darwin does not have __thread.
++
++//go:build cgo && unix && !darwin
++
+ #include <pthread.h>
+ 
+ static __thread int tls;
+diff --git a/src/cmd/cgo/internal/testtls/tls.go b/src/cmd/cgo/internal/testtls/tls.go
+index 4684f82ebd..eb59ad41eb 100644
+--- a/src/cmd/cgo/internal/testtls/tls.go
++++ b/src/cmd/cgo/internal/testtls/tls.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix
++//go:build cgo && unix && !darwin
+ 
+ package cgotlstest
+ 
+diff --git a/src/cmd/cgo/internal/testtls/tls_none.go b/src/cmd/cgo/internal/testtls/tls_none.go
+new file mode 100644
+index 0000000000..81c9c5e23d
+--- /dev/null
++++ b/src/cmd/cgo/internal/testtls/tls_none.go
+@@ -0,0 +1,13 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !(cgo && unix && !darwin)
++
++package cgotlstest
++
++import "testing"
++
++func testTLS(t *testing.T) {
++	t.Skip("__thread is not supported")
++}
+diff --git a/src/cmd/cgo/internal/testtls/tls_test.go b/src/cmd/cgo/internal/testtls/tls_test.go
+index 10b71f074e..8e14add988 100644
+--- a/src/cmd/cgo/internal/testtls/tls_test.go
++++ b/src/cmd/cgo/internal/testtls/tls_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo && unix
+-
+ package cgotlstest
+ 
+ import "testing"
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index fe818036b5..40df8c03b8 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1129,6 +1129,7 @@ func (t *tester) registerCgoTests(heading string) {
+ 	}
+ 
+ 	cgoTest("auto", "test", "auto", "")
++	cgoTest("auto", "testtls", "auto", "")
+ 
+ 	// Stub out various buildmode=pie tests  on alpine until 54354 resolved.
+ 	builderName := os.Getenv("GO_BUILDER_NAME")
+@@ -1162,7 +1163,6 @@ func (t *tester) registerCgoTests(heading string) {
+ 		gt := cgoTest("external-g0", "test", "external", "")
+ 		gt.env = append(gt.env, "CGO_CFLAGS=-g0 -fdiagnostics-color")
+ 
+-		cgoTest("auto", "testtls", "auto", "")
+ 		cgoTest("external", "testtls", "external", "")
+ 		switch {
+ 		case os == "aix":

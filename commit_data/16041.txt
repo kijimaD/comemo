@@ -9,6 +9,20 @@ Date:   Mon Apr 1 15:15:02 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8222045
-
+---
  src/cmd/godoc/godoc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 6f585fee88..6f9e19d5f9 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -1517,6 +1517,8 @@ func readIndex(filenames string) error {
+ 	matches, err := filepath.Glob(filenames)
+ 	if err != nil {
+ 		return err
++	} else if matches == nil {
++		return fmt.Errorf("no index files match %q", filenames)
+ 	}
+ 	sort.Strings(matches) // make sure files are in the right order
+ 	files := make([]io.Reader, 0, len(matches))

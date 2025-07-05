@@ -9,7 +9,32 @@ Date:   Thu Jul 16 14:40:35 2015 -0700
     Change-Id: I2d7817ac0aefb5dd2569d7e83afbc51851e24b42
     Reviewed-on: https://go-review.googlesource.com/12321
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index d4412104c9..6862707390 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -170,6 +170,7 @@ Dropbox, Inc.
+ Duncan Holm <mail@frou.org>
+ Dustin Sallings <dsallings@gmail.com>
+ Dustin Shields-Cloues <dcloues@gmail.com>
++Dvir Volk <dvir@everything.me> <dvirsky@gmail.com>
+ Eden Li <eden.li@gmail.com>
+ Egon Elbre <egonelbre@gmail.com>
+ Ehren Kret <ehren.kret@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 84e89fcb97..bffcaf8933 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -245,6 +245,7 @@ Duncan Holm <mail@frou.org>
+ Dustin Long <dustmop@gmail.com>
+ Dustin Sallings <dsallings@gmail.com>
+ Dustin Shields-Cloues <dcloues@gmail.com>
++Dvir Volk <dvir@everything.me> <dvirsky@gmail.com>
+ Eden Li <eden.li@gmail.com>
+ Egon Elbre <egonelbre@gmail.com>
+ Ehren Kret <ehren.kret@gmail.com>

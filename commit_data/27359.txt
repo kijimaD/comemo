@@ -27,7 +27,71 @@ Date:   Fri Feb 12 00:37:52 2016 -0500
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/driver/driver.go |  6 +-----
  src/database/sql/driver/types.go  | 19 ++++++-------------
  2 files changed, 7 insertions(+), 18 deletions(-)
+
+diff --git a/src/database/sql/driver/driver.go b/src/database/sql/driver/driver.go
+index 70c44fb921..4dba85a6d3 100644
+--- a/src/database/sql/driver/driver.go
++++ b/src/database/sql/driver/driver.go
+@@ -17,7 +17,7 @@ import "errors"
+ //   float64
+ //   bool
+ //   []byte
+-//   string   [*] everywhere except from Rows.Next.
++//   string
+ //   time.Time
+ type Value interface{}
+ 
+@@ -165,10 +165,6 @@ type Rows interface {
+ 	// the provided slice. The provided slice will be the same
+ 	// size as the Columns() are wide.
+ 	//
+-	// The dest slice may be populated only with
+-	// a driver Value type, but excluding string.
+-	// All string values must be converted to []byte.
+-	//
+ 	// Next should return io.EOF when there are no more rows.
+ 	Next(dest []Value) error
+ }
+diff --git a/src/database/sql/driver/types.go b/src/database/sql/driver/types.go
+index fbca1ea635..e480e701a4 100644
+--- a/src/database/sql/driver/types.go
++++ b/src/database/sql/driver/types.go
+@@ -172,28 +172,21 @@ func (n NotNull) ConvertValue(v interface{}) (Value, error) {
+ }
+ 
+ // IsValue reports whether v is a valid Value parameter type.
+-// Unlike IsScanValue, IsValue permits the string type.
+ func IsValue(v interface{}) bool {
+-	if IsScanValue(v) {
++	if v == nil {
+ 		return true
+ 	}
+-	if _, ok := v.(string); ok {
++	switch v.(type) {
++	case []byte, bool, float64, int64, string, time.Time:
+ 		return true
+ 	}
+ 	return false
+ }
+ 
+-// IsScanValue reports whether v is a valid Value scan type.
+-// Unlike IsValue, IsScanValue does not permit the string type.
++// IsScanValue is equivalent to IsValue.
++// It exists for compatibility.
+ func IsScanValue(v interface{}) bool {
+-	if v == nil {
+-		return true
+-	}
+-	switch v.(type) {
+-	case int64, float64, []byte, bool, time.Time:
+-		return true
+-	}
+-	return false
++	return IsValue(v)
+ }
+ 
+ // DefaultParameterConverter is the default implementation of

@@ -8,6 +8,28 @@ Date:   Thu Aug 7 14:37:00 2014 -0400
     R=rsc, iant, dave
     CC=golang-codereviews
     https://golang.org/cl/124840043
-
+---
  .hgignore | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index 72d82910d9..5b90728d44 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -2,13 +2,13 @@ syntax:glob
+ .DS_Store
+ .git
+ .gitignore
+-*.[568ao]
+-*.a[568o]
++*.[5689ao]
++*.a[5689o]
+ *.so
+ *.pyc
+ ._*
+ .nfs.*
+-[568a].out
++[5689a].out
+ *~
+ *.orig
+ *.rej

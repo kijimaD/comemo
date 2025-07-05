@@ -9,6 +9,25 @@ Date:   Thu Jan 11 09:58:16 2018 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/server.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 5a7966d961..57e1b5dacb 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2242,9 +2242,12 @@ func (mux *ServeMux) shouldRedirect(host, path string) bool {
+ 	}
+ 
+ 	n := len(path)
++	if n == 0 {
++		return false
++	}
+ 	for _, c := range p {
+ 		if _, exist := mux.m[c+"/"]; exist {
+-			return n > 0 && path[n-1] != '/'
++			return path[n-1] != '/'
+ 		}
+ 	}
+ 

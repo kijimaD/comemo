@@ -30,10 +30,131 @@ Date:   Tue Dec 17 10:40:41 2024 -0500
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/fips140/fips140.go  | 10 ++--------
  src/cmd/go/internal/work/buildid.go     | 16 +---------------
  src/cmd/go/internal/work/exec.go        |  1 +
  src/cmd/go/testdata/script/fips.txt     |  6 ++----
  src/cmd/go/testdata/script/fipssnap.txt |  4 ++--
  5 files changed, 8 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/go/internal/fips140/fips140.go b/src/cmd/go/internal/fips140/fips140.go
+index 1dad8e0bbf..328e06088e 100644
+--- a/src/cmd/go/internal/fips140/fips140.go
++++ b/src/cmd/go/internal/fips140/fips140.go
+@@ -40,14 +40,8 @@
+ //
+ //	GOFIPS140=latest go build -work my/binary
+ //
+-// will leave fips.o behind in $WORK/b001. Auditors like to be able to
+-// see that file. Accordingly, when [Enabled] returns true,
+-// [cmd/go/internal/work.Builder.useCache] arranges never to cache linker
+-// output, so that the link step always runs, and fips.o is always left
+-// behind in the link step. If this proves too slow, we could always
+-// cache fips.o as an extra link output and then restore it when -work is
+-// set, but we went a very long time never caching link steps at all, so
+-// not caching them in FIPS mode seems perfectly fine.
++// will leave fips.o behind in $WORK/b001
++// (unless the build result is cached, of course).
+ //
+ // When GOFIPS140 is set to something besides off and latest, [Snapshot]
+ // returns true, indicating that the build should replace the latest copy
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 55b3190300..cab722c28a 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -15,7 +15,6 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/fips140"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/str"
+ 	"cmd/internal/buildid"
+@@ -447,19 +446,6 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string,
+ 		a.buildID = actionID + buildIDSeparator + mainpkg.buildID + buildIDSeparator + contentID
+ 	}
+ 
+-	// In FIPS mode, we disable any link caching,
+-	// so that we always leave fips.o in $WORK/b001.
+-	// This makes sure that labs validating the FIPS
+-	// implementation can always run 'go build -work'
+-	// and then find fips.o in $WORK/b001/fips.o.
+-	// We could instead also save the fips.o and restore it
+-	// to $WORK/b001 from the cache,
+-	// but we went years without caching binaries anyway,
+-	// so not caching them for FIPS will be fine, at least to start.
+-	if a.Mode == "link" && fips140.Enabled() && a.Package != nil && !strings.HasSuffix(a.Package.ImportPath, ".test") {
+-		return false
+-	}
+-
+ 	// If user requested -a, we force a rebuild, so don't use the cache.
+ 	if cfg.BuildA {
+ 		if p := a.Package; p != nil && !p.Stale {
+@@ -519,7 +505,7 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string,
+ 				oldBuildID := a.buildID
+ 				a.buildID = id[1] + buildIDSeparator + id[2]
+ 				linkID := buildid.HashToString(b.linkActionID(a.triggers[0]))
+-				if id[0] == linkID && !fips140.Enabled() {
++				if id[0] == linkID {
+ 					// Best effort attempt to display output from the compile and link steps.
+ 					// If it doesn't work, it doesn't work: reusing the cached binary is more
+ 					// important than reprinting diagnostic information.
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 2538fae52f..7b073165d5 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1374,6 +1374,7 @@ func (b *Builder) linkActionID(a *Action) cache.ActionID {
+ 	fmt.Fprintf(h, "buildmode %s goos %s goarch %s\n", cfg.BuildBuildmode, cfg.Goos, cfg.Goarch)
+ 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
+ 	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
++	fmt.Fprintf(h, "defaultgodebug %q\n", p.DefaultGODEBUG)
+ 	if cfg.BuildTrimpath {
+ 		fmt.Fprintln(h, "trimpath")
+ 	}
+diff --git a/src/cmd/go/testdata/script/fips.txt b/src/cmd/go/testdata/script/fips.txt
+index fe096ea0c3..374902eb70 100644
+--- a/src/cmd/go/testdata/script/fips.txt
++++ b/src/cmd/go/testdata/script/fips.txt
+@@ -20,12 +20,12 @@ go build -x -o x.exe
+ go build -x -o x.exe
+ ! stderr link
+ 
+-# build with GOFIPS140=latest is NOT cached (need fipso)
++# build with GOFIPS140=latest is cached too
+ env GOFIPS140=latest
+ go build -x -o x.exe
+ stderr link.*-fipso
+ go build -x -o x.exe
+-stderr link.*-fipso
++! stderr link.*-fipso
+ 
+ # build test with GOFIPS140=off is cached
+ env GOFIPS140=off
+@@ -41,8 +41,6 @@ stderr link.*-fipso
+ go test -x -c
+ ! stderr link
+ 
+-
+-
+ -- go.mod --
+ module m
+ -- x.go --
+diff --git a/src/cmd/go/testdata/script/fipssnap.txt b/src/cmd/go/testdata/script/fipssnap.txt
+index 0bf46c56e2..465f304c46 100644
+--- a/src/cmd/go/testdata/script/fipssnap.txt
++++ b/src/cmd/go/testdata/script/fipssnap.txt
+@@ -47,11 +47,11 @@ stdout crypto/internal/fips140/$snap/sha256
+ 
+ [short] skip
+ 
+-# build with GOFIPS140=snap is NOT cached (need fipso)
++# build with GOFIPS140=snap is cached
+ go build -x -o x.exe
+ stderr link.*-fipso
+ go build -x -o x.exe
+-stderr link.*-fipso
++! stderr link.*-fipso
+ 
+ # build test with GOFIPS140=snap is cached
+ go test -x -c

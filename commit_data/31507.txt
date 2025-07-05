@@ -14,7 +14,59 @@ Date:   Sat Feb 11 14:44:16 2017 -0800
     Change-Id: I99c96aa67dd5525cd239ea96452e6e8fcb25ce02
     Reviewed-on: https://go-review.googlesource.com/36891
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/pprof/pprof.go      |  7 ++++++-
  src/runtime/pprof/pprof_test.go | 19 +++++++++++++++++++
  2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index e44921cf83..4d1068d665 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -267,13 +267,18 @@ func (p *Profile) Add(value interface{}, skip int) {
+ 
+ 	stk := make([]uintptr, 32)
+ 	n := runtime.Callers(skip+1, stk[:])
++	stk = stk[:n]
++	if len(stk) == 0 {
++		// The value for skip is too large, and there's no stack trace to record.
++		stk = []uintptr{funcPC(lostProfileEvent)}
++	}
+ 
+ 	p.mu.Lock()
+ 	defer p.mu.Unlock()
+ 	if p.m[value] != nil {
+ 		panic("pprof: Profile.Add of duplicate value")
+ 	}
+-	p.m[value] = stk[:n]
++	p.m[value] = stk
+ }
+ 
+ // Remove removes the execution stack associated with value from the profile.
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 044329246b..2b82e68be7 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -635,3 +635,22 @@ func containsCounts(prof *profile.Profile, counts []int64) bool {
+ 	}
+ 	return true
+ }
++
++// Issue 18836.
++func TestEmptyCallStack(t *testing.T) {
++	t.Parallel()
++	var buf bytes.Buffer
++	p := NewProfile("test18836")
++	p.Add("foo", 47674)
++	p.WriteTo(&buf, 1)
++	p.Remove("foo")
++	got := buf.String()
++	prefix := "test18836 profile: total 1\n"
++	if !strings.HasPrefix(got, prefix) {
++		t.Fatalf("got:\n\t%q\nwant prefix:\n\t%q\n", got, prefix)
++	}
++	lostevent := "lostProfileEvent"
++	if !strings.Contains(got, lostevent) {
++		t.Fatalf("got:\n\t%q\ndoes not contain:\n\t%q\n", got, lostevent)
++	}
++}

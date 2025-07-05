@@ -14,10 +14,157 @@ Date:   Tue Mar 9 17:23:04 2021 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +--
  .../go/testdata/script/mod_invalid_path_plus.txt   | 32 ++++++++++++++++++
  src/cmd/vendor/golang.org/x/mod/module/module.go   | 38 +++++++++++++++++-----
  src/cmd/vendor/modules.txt                         |  2 +-
  5 files changed, 66 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index ef05ca1ad1..05076792c8 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,7 +6,7 @@ require (
+ 	github.com/google/pprof v0.0.0-20201203190320-1bf35d6f28c2
+ 	golang.org/x/arch v0.0.0-20201008161808-52c3e6f60cff
+ 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
+-	golang.org/x/mod v0.4.2-0.20210301144719-c8bb1bd8a2aa
++	golang.org/x/mod v0.4.2-0.20210309222212-d6ab96f2441f
+ 	golang.org/x/sys v0.0.0-20210218145245-beda7e5e158e // indirect
+ 	golang.org/x/tools v0.1.1-0.20210220032852-2363391a5b2f
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 77063f76af..3827248879 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -14,8 +14,8 @@ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPh
+ golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897 h1:pLI5jrR7OSLijeIDcmRxNmw2api+jEfxLoykJVice/E=
+ golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/mod v0.4.1/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+-golang.org/x/mod v0.4.2-0.20210301144719-c8bb1bd8a2aa h1:Ci2bbuyE4ah9djFByg+fdNQcqc8DVSdcXbrWy6MBoEs=
+-golang.org/x/mod v0.4.2-0.20210301144719-c8bb1bd8a2aa/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
++golang.org/x/mod v0.4.2-0.20210309222212-d6ab96f2441f h1:mQozKYYFIVK0MXcDB8Dvw0dR3rxKLnkSCJHWznfaodQ=
++golang.org/x/mod v0.4.2-0.20210309222212-d6ab96f2441f/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/net v0.0.0-20201021035429-f5854403a974/go.mod h1:sp8m0HH+o8qH0wwXwYZr8TS3Oi6o0r6Gce1SSxlDquU=
+diff --git a/src/cmd/go/testdata/script/mod_invalid_path_plus.txt b/src/cmd/go/testdata/script/mod_invalid_path_plus.txt
+new file mode 100644
+index 0000000000..636769eb4d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_invalid_path_plus.txt
+@@ -0,0 +1,32 @@
++# https://golang.org/issue/44776
++# The '+' character should be disallowed in module paths, but allowed in package
++# paths within valid modules.
++
++go get -d example.net/cmd
++go list example.net/cmd/x++
++
++! go list -versions -m 'example.net/bad++'
++stderr '^go list -m: malformed module path "example.net/bad\+\+": invalid char ''\+''$'
++
++# TODO(bcmills): 'go get -d example.net/cmd/x++' should also work, but currently
++# it does not. This might be fixed by https://golang.org/cl/297891.
++! go get -d example.net/cmd/x++
++stderr '^go get: malformed module path "example.net/cmd/x\+\+": invalid char ''\+''$'
++
++-- go.mod --
++module example.com/m
++
++go 1.16
++
++replace (
++	example.net/cmd => ./cmd
++)
++
++-- cmd/go.mod --
++module example.net/cmd
++
++go 1.16
++-- cmd/x++/main.go --
++package main
++
++func main() {}
+diff --git a/src/cmd/vendor/golang.org/x/mod/module/module.go b/src/cmd/vendor/golang.org/x/mod/module/module.go
+index 272baeef17..0e03014837 100644
+--- a/src/cmd/vendor/golang.org/x/mod/module/module.go
++++ b/src/cmd/vendor/golang.org/x/mod/module/module.go
+@@ -224,12 +224,16 @@ func firstPathOK(r rune) bool {
+ 		'a' <= r && r <= 'z'
+ }
+ 
+-// pathOK reports whether r can appear in an import path element.
++// modPathOK reports whether r can appear in a module path element.
+ // Paths can be ASCII letters, ASCII digits, and limited ASCII punctuation: - . _ and ~.
+-// This matches what "go get" has historically recognized in import paths.
++//
++// This matches what "go get" has historically recognized in import paths,
++// and avoids confusing sequences like '%20' or '+' that would change meaning
++// if used in a URL.
++//
+ // TODO(rsc): We would like to allow Unicode letters, but that requires additional
+ // care in the safe encoding (see "escaped paths" above).
+-func pathOK(r rune) bool {
++func modPathOK(r rune) bool {
+ 	if r < utf8.RuneSelf {
+ 		return r == '-' || r == '.' || r == '_' || r == '~' ||
+ 			'0' <= r && r <= '9' ||
+@@ -239,6 +243,17 @@ func pathOK(r rune) bool {
+ 	return false
+ }
+ 
++// modPathOK reports whether r can appear in a package import path element.
++//
++// Import paths are intermediate between module paths and file paths: we allow
++// disallow characters that would be confusing or ambiguous as arguments to
++// 'go get' (such as '@' and ' ' ), but allow certain characters that are
++// otherwise-unambiguous on the command line and historically used for some
++// binary names (such as '++' as a suffix for compiler binaries and wrappers).
++func importPathOK(r rune) bool {
++	return modPathOK(r) || r == '+'
++}
++
+ // fileNameOK reports whether r can appear in a file name.
+ // For now we allow all Unicode letters but otherwise limit to pathOK plus a few more punctuation characters.
+ // If we expand the set of allowed characters here, we have to
+@@ -394,12 +409,19 @@ func checkElem(elem string, kind pathKind) error {
+ 	if elem[len(elem)-1] == '.' {
+ 		return fmt.Errorf("trailing dot in path element")
+ 	}
+-	charOK := pathOK
+-	if kind == filePath {
+-		charOK = fileNameOK
+-	}
+ 	for _, r := range elem {
+-		if !charOK(r) {
++		ok := false
++		switch kind {
++		case modulePath:
++			ok = modPathOK(r)
++		case importPath:
++			ok = importPathOK(r)
++		case filePath:
++			ok = fileNameOK(r)
++		default:
++			panic(fmt.Sprintf("internal error: invalid kind %v", kind))
++		}
++		if !ok {
+ 			return fmt.Errorf("invalid char %q", r)
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index b1a2c67581..b84ee5a7b1 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+ golang.org/x/crypto/ssh/terminal
+-# golang.org/x/mod v0.4.2-0.20210301144719-c8bb1bd8a2aa
++# golang.org/x/mod v0.4.2-0.20210309222212-d6ab96f2441f
+ ## explicit
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

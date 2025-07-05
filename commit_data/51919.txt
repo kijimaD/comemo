@@ -13,7 +13,48 @@ Date:   Wed Mar 23 17:13:38 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/noder.go     |  2 +-
  src/cmd/compile/internal/types/goversion.go | 16 +++-------------
  2 files changed, 4 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 1d7c1f44a4..f8f802936b 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -472,7 +472,7 @@ func checkEmbed(decl *syntax.VarDecl, haveEmbed, withinFunc bool) error {
+ 		return errors.New("go:embed cannot apply to var without type")
+ 	case withinFunc:
+ 		return errors.New("go:embed cannot apply to var inside func")
+-	case !types.AllowsGoVersion(types.LocalPkg, 1, 16):
++	case !types.AllowsGoVersion(1, 16):
+ 		return fmt.Errorf("go:embed requires go1.16 or later (-lang was set to %s; check go.mod)", base.Flag.Lang)
+ 
+ 	default:
+diff --git a/src/cmd/compile/internal/types/goversion.go b/src/cmd/compile/internal/types/goversion.go
+index 1a324aa42f..ceb2ed366e 100644
+--- a/src/cmd/compile/internal/types/goversion.go
++++ b/src/cmd/compile/internal/types/goversion.go
+@@ -24,19 +24,9 @@ type lang struct {
+ // any language version is supported.
+ var langWant lang
+ 
+-// AllowsGoVersion reports whether a particular package
+-// is allowed to use Go version major.minor.
+-// We assume the imported packages have all been checked,
+-// so we only have to check the local package against the -lang flag.
+-func AllowsGoVersion(pkg *Pkg, major, minor int) bool {
+-	if pkg == nil {
+-		// TODO(mdempsky): Set Pkg for local types earlier.
+-		pkg = LocalPkg
+-	}
+-	if pkg != LocalPkg {
+-		// Assume imported packages passed type-checking.
+-		return true
+-	}
++// AllowsGoVersion reports whether local package is allowed
++// to use Go version major.minor.
++func AllowsGoVersion(major, minor int) bool {
+ 	if langWant.major == 0 && langWant.minor == 0 {
+ 		return true
+ 	}

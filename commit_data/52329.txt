@@ -24,7 +24,7 @@ Date:   Mon Mar 7 17:52:53 2022 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/sys_darwin_amd64.s    | 20 ++++++++++++++------
  src/runtime/sys_dragonfly_amd64.s | 20 ++++++++++++++------
  src/runtime/sys_freebsd_amd64.s   | 40 +++++++++++++++++++++++++++------------
@@ -36,3 +36,360 @@ Date:   Mon Mar 7 17:52:53 2022 -0500
  src/runtime/sys_openbsd_amd64.s   | 22 ++++++++++++++-------
  src/runtime/sys_openbsd_arm64.s   |  8 +++++++-
  10 files changed, 148 insertions(+), 56 deletions(-)
+
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index db4715d2b7..8e75a38bd2 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -218,13 +218,21 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+-	// Call into the Go signal handler
++	// Set up ABIInternal environment: g in R14, cleared X15.
++	get_tls(R12)
++	MOVQ	g(R12), R14
++	PXOR	X15, X15
++
++	// Reserve space for spill slots.
+ 	NOP	SP		// disable vet stack checking
+-	ADJSP	$24
+-	MOVL	DI, 0(SP)	// sig
+-	MOVQ	SI, 8(SP)	// info
+-	MOVQ	DX, 16(SP)	// ctx
+-	CALL	·sigtrampgo(SB)
++	ADJSP   $24
++
++	// Call into the Go signal handler
++	MOVQ	DI, AX	// sig
++	MOVQ	SI, BX	// info
++	MOVQ	DX, CX	// ctx
++	CALL	·sigtrampgo<ABIInternal>(SB)
++
+ 	ADJSP	$-24
+ 
+ 	POP_REGS_HOST_TO_ABI0()
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 684c9ab7f0..48b04ff979 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -226,13 +226,21 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+-	// Call into the Go signal handler
++	// Set up ABIInternal environment: g in R14, cleared X15.
++	get_tls(R12)
++	MOVQ	g(R12), R14
++	PXOR	X15, X15
++
++	// Reserve space for spill slots.
+ 	NOP	SP		// disable vet stack checking
+-	ADJSP	$24
+-	MOVQ	DI, 0(SP)	// sig
+-	MOVQ	SI, 8(SP)	// info
+-	MOVQ	DX, 16(SP)	// ctx
+-	CALL	·sigtrampgo(SB)
++	ADJSP   $24
++
++	// Call into the Go signal handler
++	MOVQ	DI, AX	// sig
++	MOVQ	SI, BX	// info
++	MOVQ	DX, CX	// ctx
++	CALL	·sigtrampgo<ABIInternal>(SB)
++
+ 	ADJSP	$-24
+ 
+ 	POP_REGS_HOST_TO_ABI0()
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index cc95da7e64..159f5c66ab 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -228,13 +228,21 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+-	// Call into the Go signal handler
++	// Set up ABIInternal environment: g in R14, cleared X15.
++	get_tls(R12)
++	MOVQ	g(R12), R14
++	PXOR	X15, X15
++
++	// Reserve space for spill slots.
+ 	NOP	SP		// disable vet stack checking
+-        ADJSP   $24
+-	MOVQ	DI, 0(SP)	// sig
+-	MOVQ	SI, 8(SP)	// info
+-	MOVQ	DX, 16(SP)	// ctx
+-	CALL	·sigtrampgo(SB)
++	ADJSP   $24
++
++	// Call into the Go signal handler
++	MOVQ	DI, AX	// sig
++	MOVQ	SI, BX	// info
++	MOVQ	DX, CX	// ctx
++	CALL	·sigtrampgo<ABIInternal>(SB)
++
+ 	ADJSP	$-24
+ 
+         POP_REGS_HOST_TO_ABI0()
+@@ -245,13 +253,21 @@ TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+-	// Call into the Go signal handler
++	// Set up ABIInternal environment: g in R14, cleared X15.
++	get_tls(R12)
++	MOVQ	g(R12), R14
++	PXOR	X15, X15
++
++	// Reserve space for spill slots.
+ 	NOP	SP		// disable vet stack checking
+-	ADJSP	$24
+-	MOVL	DI, 0(SP)	// sig
+-	MOVQ	SI, 8(SP)	// info
+-	MOVQ	DX, 16(SP)	// ctx
+-	CALL	·sigprofNonGo(SB)
++	ADJSP   $24
++
++	// Call into the Go signal handler
++	MOVQ	DI, AX	// sig
++	MOVQ	SI, BX	// info
++	MOVQ	DX, CX	// ctx
++	CALL	·sigprofNonGo<ABIInternal>(SB)
++
+ 	ADJSP	$-24
+ 
+ 	POP_REGS_HOST_TO_ABI0()
+diff --git a/src/runtime/sys_freebsd_arm64.s b/src/runtime/sys_freebsd_arm64.s
+index 7b05fb0900..a4f12eb3b9 100644
+--- a/src/runtime/sys_freebsd_arm64.s
++++ b/src/runtime/sys_freebsd_arm64.s
+@@ -295,10 +295,16 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$176
+ 	BEQ	2(PC)
+ 	BL	runtime·load_g(SB)
+ 
++#ifdef GOEXPERIMENT_regabiargs
++	// Restore signum to R0.
++	MOVW	8(RSP), R0
++	// R1 and R2 already contain info and ctx, respectively.
++#else
+ 	MOVD	R1, 16(RSP)
+ 	MOVD	R2, 24(RSP)
+-	MOVD	$runtime·sigtrampgo(SB), R0
+-	BL	(R0)
++#endif
++	MOVD	$runtime·sigtrampgo<ABIInternal>(SB), R3
++	BL	(R3)
+ 
+ 	// Restore callee-save registers.
+ 	RESTORE_R19_TO_R28(8*4)
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 4be0801114..f2dfbbb70c 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -343,13 +343,21 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+-	// Call into the Go signal handler
++	// Set up ABIInternal environment: g in R14, cleared X15.
++	get_tls(R12)
++	MOVQ	g(R12), R14
++	PXOR	X15, X15
++
++	// Reserve space for spill slots.
+ 	NOP	SP		// disable vet stack checking
+-        ADJSP   $24
+-	MOVQ	DI, 0(SP)	// sig
+-	MOVQ	SI, 8(SP)	// info
+-	MOVQ	DX, 16(SP)	// ctx
+-	CALL	·sigtrampgo(SB)
++	ADJSP   $24
++
++	// Call into the Go signal handler
++	MOVQ	DI, AX	// sig
++	MOVQ	SI, BX	// info
++	MOVQ	DX, CX	// ctx
++	CALL	·sigtrampgo<ABIInternal>(SB)
++
+ 	ADJSP	$-24
+ 
+         POP_REGS_HOST_TO_ABI0()
+@@ -360,13 +368,21 @@ TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+-	// Call into the Go signal handler
++	// Set up ABIInternal environment: g in R14, cleared X15.
++	get_tls(R12)
++	MOVQ	g(R12), R14
++	PXOR	X15, X15
++
++	// Reserve space for spill slots.
+ 	NOP	SP		// disable vet stack checking
+-	ADJSP	$24
+-	MOVL	DI, 0(SP)	// sig
+-	MOVQ	SI, 8(SP)	// info
+-	MOVQ	DX, 16(SP)	// ctx
+-	CALL	·sigprofNonGo(SB)
++	ADJSP   $24
++
++	// Call into the Go signal handler
++	MOVQ	DI, AX	// sig
++	MOVQ	SI, BX	// info
++	MOVQ	DX, CX	// ctx
++	CALL	·sigprofNonGo<ABIInternal>(SB)
++
+ 	ADJSP	$-24
+ 
+ 	POP_REGS_HOST_TO_ABI0()
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 36ac014f03..8e7cbf7d11 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -459,10 +459,16 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$176
+ 	CBZ	R0, 2(PC)
+ 	BL	runtime·load_g(SB)
+ 
++#ifdef GOEXPERIMENT_regabiargs
++	// Restore signum to R0.
++	MOVW	8(RSP), R0
++	// R1 and R2 already contain info and ctx, respectively.
++#else
+ 	MOVD	R1, 16(RSP)
+ 	MOVD	R2, 24(RSP)
+-	MOVD	$runtime·sigtrampgo(SB), R0
+-	BL	(R0)
++#endif
++	MOVD	$runtime·sigtrampgo<ABIInternal>(SB), R3
++	BL	(R3)
+ 
+ 	// Restore callee-save registers.
+ 	RESTORE_R19_TO_R28(8*4)
+@@ -476,10 +482,14 @@ TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$176
+ 	SAVE_R19_TO_R28(8*4)
+ 	SAVE_F8_TO_F15(8*14)
+ 
++#ifdef GOEXPERIMENT_regabiargs
++	// R0, R1 and R2 already contain sig, info and ctx, respectively.
++#else
+ 	MOVW	R0, 8(RSP)	// sig
+ 	MOVD	R1, 16(RSP)	// info
+ 	MOVD	R2, 24(RSP)	// ctx
+-	CALL	runtime·sigprofNonGo(SB)
++#endif
++	CALL	runtime·sigprofNonGo<ABIInternal>(SB)
+ 
+ 	// Restore callee-save registers.
+ 	RESTORE_R19_TO_R28(8*4)
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index 41eddf3735..ade11366e5 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -309,13 +309,21 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+-	// Call into the Go signal handler
++	// Set up ABIInternal environment: g in R14, cleared X15.
++	get_tls(R12)
++	MOVQ	g(R12), R14
++	PXOR	X15, X15
++
++	// Reserve space for spill slots.
+ 	NOP	SP		// disable vet stack checking
+-        ADJSP   $24
+-	MOVQ	DI, 0(SP)	// sig
+-	MOVQ	SI, 8(SP)	// info
+-	MOVQ	DX, 16(SP)	// ctx
+-	CALL	·sigtrampgo(SB)
++	ADJSP   $24
++
++	// Call into the Go signal handler
++	MOVQ	DI, AX	// sig
++	MOVQ	SI, BX	// info
++	MOVQ	DX, CX	// ctx
++	CALL	·sigtrampgo<ABIInternal>(SB)
++
+ 	ADJSP	$-24
+ 
+         POP_REGS_HOST_TO_ABI0()
+diff --git a/src/runtime/sys_netbsd_arm64.s b/src/runtime/sys_netbsd_arm64.s
+index 32e6740c52..6bcd3445d3 100644
+--- a/src/runtime/sys_netbsd_arm64.s
++++ b/src/runtime/sys_netbsd_arm64.s
+@@ -317,9 +317,15 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$176
+ 	BEQ	2(PC)
+ 	BL	runtime·load_g(SB)
+ 
++#ifdef GOEXPERIMENT_regabiargs
++	// Restore signum to R0.
++	MOVW	8(RSP), R0
++	// R1 and R2 already contain info and ctx, respectively.
++#else
+ 	MOVD	R1, 16(RSP)
+ 	MOVD	R2, 24(RSP)
+-	BL	runtime·sigtrampgo(SB)
++#endif
++	BL	runtime·sigtrampgo<ABIInternal>(SB)
+ 
+ 	// Restore callee-save registers.
+ 	RESTORE_R19_TO_R28(8*4)
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index fc6d5dc387..f71f5ccead 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -62,16 +62,24 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+-	// Call into the Go signal handler
++	// Set up ABIInternal environment: g in R14, cleared X15.
++	get_tls(R12)
++	MOVQ	g(R12), R14
++	PXOR	X15, X15
++
++	// Reserve space for spill slots.
+ 	NOP	SP		// disable vet stack checking
+-        ADJSP   $24
+-	MOVQ	DI, 0(SP)	// sig
+-	MOVQ	SI, 8(SP)	// info
+-	MOVQ	DX, 16(SP)	// ctx
+-	CALL	·sigtrampgo(SB)
++	ADJSP   $24
++
++	// Call into the Go signal handler
++	MOVQ	DI, AX	// sig
++	MOVQ	SI, BX	// info
++	MOVQ	DX, CX	// ctx
++	CALL	·sigtrampgo<ABIInternal>(SB)
++
+ 	ADJSP	$-24
+ 
+-        POP_REGS_HOST_TO_ABI0()
++	POP_REGS_HOST_TO_ABI0()
+ 	RET
+ 
+ //
+diff --git a/src/runtime/sys_openbsd_arm64.s b/src/runtime/sys_openbsd_arm64.s
+index 7c1886e0a0..4a3f2fc3a2 100644
+--- a/src/runtime/sys_openbsd_arm64.s
++++ b/src/runtime/sys_openbsd_arm64.s
+@@ -62,9 +62,15 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$192
+ 	MOVW	R0, 8(RSP)		// signum
+ 	BL	runtime·load_g(SB)
+ 
++#ifdef GOEXPERIMENT_regabiargs
++	// Restore signum to R0.
++	MOVW	8(RSP), R0
++	// R1 and R2 already contain info and ctx, respectively.
++#else
+ 	MOVD	R1, 16(RSP)
+ 	MOVD	R2, 24(RSP)
+-	BL	runtime·sigtrampgo(SB)
++#endif
++	BL	runtime·sigtrampgo<ABIInternal>(SB)
+ 
+ 	// Restore callee-save registers.
+ 	RESTORE_R19_TO_R28(8*4)

@@ -18,7 +18,45 @@ Date:   Thu May 27 22:27:55 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/ast/ast.go        | 6 +-----
  src/go/types/resolver.go | 2 +-
  2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index c87529ec77..337c87fd79 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -259,7 +259,7 @@ func (f *FieldList) End() token.Pos {
+ 	return token.NoPos
+ }
+ 
+-// NumFields returns the number of (type) parameters or struct fields represented by a FieldList.
++// NumFields returns the number of parameters or struct fields represented by a FieldList.
+ func (f *FieldList) NumFields() int {
+ 	n := 0
+ 	if f != nil {
+@@ -973,10 +973,6 @@ type (
+ 	}
+ )
+ 
+-func (f *FuncDecl) IsMethod() bool {
+-	return f.Recv.NumFields() != 0
+-}
+-
+ // Pos and End implementations for declaration nodes.
+ 
+ func (d *BadDecl) Pos() token.Pos  { return d.From }
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index f67fc65cd1..114647a2ff 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -383,7 +383,7 @@ func (check *Checker) collectObjects() {
+ 				info := &declInfo{file: fileScope, fdecl: d.decl}
+ 				name := d.decl.Name.Name
+ 				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil)
+-				if !d.decl.IsMethod() {
++				if d.decl.Recv.NumFields() == 0 {
+ 					// regular function
+ 					if d.decl.Recv != nil {
+ 						check.error(d.decl.Recv, _BadRecv, "method is missing receiver")

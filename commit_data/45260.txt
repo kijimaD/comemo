@@ -13,7 +13,112 @@ Date:   Thu Oct 15 15:53:09 2020 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/import.go | 39 ++++++++++++++++++++++++++++++++
  src/cmd/go/internal/modload/mvs.go    | 42 -----------------------------------
  2 files changed, 39 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 76fe6745d9..8641cfec08 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -451,3 +451,42 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
+ 
+ 	return dir, res.haveGoFiles, res.err
+ }
++
++// fetch downloads the given module (or its replacement)
++// and returns its location.
++//
++// The isLocal return value reports whether the replacement,
++// if any, is local to the filesystem.
++func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, err error) {
++	if mod == Target {
++		return ModRoot(), true, nil
++	}
++	if r := Replacement(mod); r.Path != "" {
++		if r.Version == "" {
++			dir = r.Path
++			if !filepath.IsAbs(dir) {
++				dir = filepath.Join(ModRoot(), dir)
++			}
++			// Ensure that the replacement directory actually exists:
++			// dirInModule does not report errors for missing modules,
++			// so if we don't report the error now, later failures will be
++			// very mysterious.
++			if _, err := os.Stat(dir); err != nil {
++				if os.IsNotExist(err) {
++					// Semantically the module version itself “exists” — we just don't
++					// have its source code. Remove the equivalence to os.ErrNotExist,
++					// and make the message more concise while we're at it.
++					err = fmt.Errorf("replacement directory %s does not exist", r.Path)
++				} else {
++					err = fmt.Errorf("replacement directory %s: %w", r.Path, err)
++				}
++				return dir, true, module.VersionError(mod, err)
++			}
++			return dir, true, nil
++		}
++		mod = r
++	}
++
++	dir, err = modfetch.Download(ctx, mod)
++	return dir, false, err
++}
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index 65329524f9..76a1d8a12a 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -7,9 +7,6 @@ package modload
+ import (
+ 	"context"
+ 	"errors"
+-	"fmt"
+-	"os"
+-	"path/filepath"
+ 	"sort"
+ 
+ 	"cmd/go/internal/modfetch"
+@@ -125,42 +122,3 @@ func (*mvsReqs) next(m module.Version) (module.Version, error) {
+ 	}
+ 	return module.Version{Path: m.Path, Version: "none"}, nil
+ }
+-
+-// fetch downloads the given module (or its replacement)
+-// and returns its location.
+-//
+-// The isLocal return value reports whether the replacement,
+-// if any, is local to the filesystem.
+-func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, err error) {
+-	if mod == Target {
+-		return ModRoot(), true, nil
+-	}
+-	if r := Replacement(mod); r.Path != "" {
+-		if r.Version == "" {
+-			dir = r.Path
+-			if !filepath.IsAbs(dir) {
+-				dir = filepath.Join(ModRoot(), dir)
+-			}
+-			// Ensure that the replacement directory actually exists:
+-			// dirInModule does not report errors for missing modules,
+-			// so if we don't report the error now, later failures will be
+-			// very mysterious.
+-			if _, err := os.Stat(dir); err != nil {
+-				if os.IsNotExist(err) {
+-					// Semantically the module version itself “exists” — we just don't
+-					// have its source code. Remove the equivalence to os.ErrNotExist,
+-					// and make the message more concise while we're at it.
+-					err = fmt.Errorf("replacement directory %s does not exist", r.Path)
+-				} else {
+-					err = fmt.Errorf("replacement directory %s: %w", r.Path, err)
+-				}
+-				return dir, true, module.VersionError(mod, err)
+-			}
+-			return dir, true, nil
+-		}
+-		mod = r
+-	}
+-
+-	dir, err = modfetch.Download(ctx, mod)
+-	return dir, false, err
+-}

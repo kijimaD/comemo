@@ -32,7 +32,7 @@ Date:   Mon Dec 17 17:23:42 2018 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/biasedsparsemap.go |   8 +-
  src/cmd/compile/internal/ssa/deadcode.go        |  13 ++-
  src/cmd/compile/internal/ssa/func.go            |  10 +-
@@ -43,3 +43,453 @@ Date:   Mon Dec 17 17:23:42 2018 -0500
  src/cmd/compile/internal/ssa/xposmap.go         | 116 ++++++++++++++++++++++++
  src/cmd/internal/src/xpos.go                    |   8 ++
  9 files changed, 175 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/biasedsparsemap.go b/src/cmd/compile/internal/ssa/biasedsparsemap.go
+index f9d3afa745..0d35154454 100644
+--- a/src/cmd/compile/internal/ssa/biasedsparsemap.go
++++ b/src/cmd/compile/internal/ssa/biasedsparsemap.go
+@@ -29,7 +29,7 @@ func newBiasedSparseMap(first, last int) *biasedSparseMap {
+ 
+ // cap returns one more than the largest key valid for s
+ func (s *biasedSparseMap) cap() int {
+-	if s.s == nil {
++	if s == nil || s.s == nil {
+ 		return 0
+ 	}
+ 	return s.s.cap() + int(s.first)
+@@ -37,7 +37,7 @@ func (s *biasedSparseMap) cap() int {
+ 
+ // size returns the number of entries stored in s
+ func (s *biasedSparseMap) size() int {
+-	if s.s == nil {
++	if s == nil || s.s == nil {
+ 		return 0
+ 	}
+ 	return s.s.size()
+@@ -45,7 +45,7 @@ func (s *biasedSparseMap) size() int {
+ 
+ // contains reports whether x is a key in s
+ func (s *biasedSparseMap) contains(x uint) bool {
+-	if s.s == nil {
++	if s == nil || s.s == nil {
+ 		return false
+ 	}
+ 	if int(x) < s.first {
+@@ -60,7 +60,7 @@ func (s *biasedSparseMap) contains(x uint) bool {
+ // get returns the value s maps for key x, or -1 if
+ // x is not mapped or is out of range for s.
+ func (s *biasedSparseMap) get(x uint) int32 {
+-	if s.s == nil {
++	if s == nil || s.s == nil {
+ 		return -1
+ 	}
+ 	if int(x) < s.first {
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index ceb2933766..24d1d88165 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -258,7 +258,7 @@ func deadcode(f *Func) {
+ 			if !live[v.ID] {
+ 				v.resetArgs()
+ 				if v.Pos.IsStmt() == src.PosIsStmt && reachable[b.ID] {
+-					pendingLines.set(v.Pos.Line(), int32(i)) // TODO could be more than one pos for a line
++					pendingLines.set(v.Pos, int32(i)) // TODO could be more than one pos for a line
+ 				}
+ 			}
+ 		}
+@@ -267,20 +267,19 @@ func deadcode(f *Func) {
+ 	// Find new homes for lost lines -- require earliest in data flow with same line that is also in same block
+ 	for i := len(order) - 1; i >= 0; i-- {
+ 		w := order[i]
+-		if j := pendingLines.get(w.Pos.Line()); j > -1 && f.Blocks[j] == w.Block {
++		if j := pendingLines.get(w.Pos); j > -1 && f.Blocks[j] == w.Block {
+ 			w.Pos = w.Pos.WithIsStmt()
+-			pendingLines.remove(w.Pos.Line())
++			pendingLines.remove(w.Pos)
+ 		}
+ 	}
+ 
+ 	// Any boundary that failed to match a live value can move to a block end
+-	for i := 0; i < pendingLines.size(); i++ {
+-		l, bi := pendingLines.getEntry(i)
++	pendingLines.foreachEntry(func(j int32, l uint, bi int32) {
+ 		b := f.Blocks[bi]
+-		if b.Pos.Line() == l {
++		if b.Pos.Line() == l && b.Pos.FileIndex() == j {
+ 			b.Pos = b.Pos.WithIsStmt()
+ 		}
+-	}
++	})
+ 
+ 	// Remove dead values from blocks' value list. Return dead
+ 	// values to the allocator.
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index df8df64dd5..cdd5161913 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -65,11 +65,11 @@ type Func struct {
+ 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
+ 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
+ 
+-	cachedPostorder  []*Block         // cached postorder traversal
+-	cachedIdom       []*Block         // cached immediate dominators
+-	cachedSdom       SparseTree       // cached dominator tree
+-	cachedLoopnest   *loopnest        // cached loop nest information
+-	cachedLineStarts *biasedSparseMap // cached map/set of line numbers to integers
++	cachedPostorder  []*Block   // cached postorder traversal
++	cachedIdom       []*Block   // cached immediate dominators
++	cachedSdom       SparseTree // cached dominator tree
++	cachedLoopnest   *loopnest  // cached loop nest information
++	cachedLineStarts *xposmap   // cached map/set of xpos to integers
+ 
+ 	auxmap    auxmap             // map from aux values to opaque ids used by CSE
+ 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index 74ce62ba7e..5f6f80f72a 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -152,7 +152,7 @@ func (c *Conf) Fun(entry string, blocs ...bloc) fun {
+ 	// But not both.
+ 	f.Cache = new(Cache)
+ 	f.pass = &emptyPass
+-	f.cachedLineStarts = newBiasedSparseMap(0, 100)
++	f.cachedLineStarts = newXposmap(map[int]lineRange{0: {0, 100}, 1: {0, 100}, 2: {0, 100}, 3: {0, 100}, 4: {0, 100}})
+ 
+ 	blocks := make(map[string]*Block)
+ 	values := make(map[string]*Value)
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 5369a51023..925f55234b 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -124,7 +124,7 @@ func nilcheckelim(f *Func) {
+ 					ptr := v.Args[0]
+ 					if nonNilValues[ptr.ID] {
+ 						if v.Pos.IsStmt() == src.PosIsStmt { // Boolean true is a terrible statement boundary.
+-							pendingLines.add(v.Pos.Line())
++							pendingLines.add(v.Pos)
+ 							v.Pos = v.Pos.WithNotStmt()
+ 						}
+ 						// This is a redundant explicit nil check.
+@@ -141,7 +141,7 @@ func nilcheckelim(f *Func) {
+ 							f.Warnl(v.Pos, "removed nil check")
+ 						}
+ 						if v.Pos.IsStmt() == src.PosIsStmt { // About to lose a statement boundary
+-							pendingLines.add(v.Pos.Line())
++							pendingLines.add(v.Pos)
+ 						}
+ 						v.reset(OpUnknown)
+ 						f.freeValue(v)
+@@ -154,15 +154,15 @@ func nilcheckelim(f *Func) {
+ 					work = append(work, bp{op: ClearPtr, ptr: ptr})
+ 					fallthrough // a non-eliminated nil check might be a good place for a statement boundary.
+ 				default:
+-					if pendingLines.contains(v.Pos.Line()) && v.Pos.IsStmt() != src.PosNotStmt {
++					if pendingLines.contains(v.Pos) && v.Pos.IsStmt() != src.PosNotStmt {
+ 						v.Pos = v.Pos.WithIsStmt()
+-						pendingLines.remove(v.Pos.Line())
++						pendingLines.remove(v.Pos)
+ 					}
+ 				}
+ 			}
+-			if pendingLines.contains(b.Pos.Line()) {
++			if pendingLines.contains(b.Pos) {
+ 				b.Pos = b.Pos.WithIsStmt()
+-				pendingLines.remove(b.Pos.Line())
++				pendingLines.remove(b.Pos)
+ 			}
+ 			for j := i; j < len(b.Values); j++ {
+ 				b.Values[j] = nil
+@@ -212,7 +212,7 @@ func nilcheckelim2(f *Func) {
+ 					f.Warnl(v.Pos, "removed nil check")
+ 				}
+ 				if v.Pos.IsStmt() == src.PosIsStmt {
+-					pendingLines.add(v.Pos.Line())
++					pendingLines.add(v.Pos)
+ 				}
+ 				v.reset(OpUnknown)
+ 				firstToRemove = i
+@@ -273,16 +273,16 @@ func nilcheckelim2(f *Func) {
+ 		for j := i; j < len(b.Values); j++ {
+ 			v := b.Values[j]
+ 			if v.Op != OpUnknown {
+-				if v.Pos.IsStmt() != src.PosNotStmt && pendingLines.contains(v.Pos.Line()) {
++				if v.Pos.IsStmt() != src.PosNotStmt && pendingLines.contains(v.Pos) {
+ 					v.Pos = v.Pos.WithIsStmt()
+-					pendingLines.remove(v.Pos.Line())
++					pendingLines.remove(v.Pos)
+ 				}
+ 				b.Values[i] = v
+ 				i++
+ 			}
+ 		}
+ 
+-		if pendingLines.contains(b.Pos.Line()) {
++		if pendingLines.contains(b.Pos) {
+ 			b.Pos = b.Pos.WithIsStmt()
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/ssa/numberlines.go b/src/cmd/compile/internal/ssa/numberlines.go
+index 9bdb357d35..6ff337ce6f 100644
+--- a/src/cmd/compile/internal/ssa/numberlines.go
++++ b/src/cmd/compile/internal/ssa/numberlines.go
+@@ -7,7 +7,6 @@ package ssa
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+-	"math"
+ )
+ 
+ func isPoorStatementOp(op Op) bool {
+@@ -51,7 +50,7 @@ func nextGoodStatementIndex(v *Value, i int, b *Block) int {
+ 		if b.Values[j].Pos.IsStmt() == src.PosNotStmt { // ignore non-statements
+ 			continue
+ 		}
+-		if b.Values[j].Pos.Line() == v.Pos.Line() {
++		if b.Values[j].Pos.Line() == v.Pos.Line() && v.Pos.SameFile(b.Values[j].Pos) {
+ 			return j
+ 		}
+ 		return i
+@@ -86,14 +85,22 @@ func (b *Block) FirstPossibleStmtValue() *Value {
+ func numberLines(f *Func) {
+ 	po := f.Postorder()
+ 	endlines := make(map[ID]src.XPos)
+-	last := uint(0)              // uint follows type of XPos.Line()
+-	first := uint(math.MaxInt32) // unsigned, but large valid int when cast
+-	note := func(line uint) {
+-		if line < first {
+-			first = line
++	ranges := make(map[int]lineRange)
++	note := func(p src.XPos) {
++		line := uint32(p.Line())
++		i := int(p.FileIndex())
++		lp, found := ranges[i]
++		change := false
++		if line < lp.first || !found {
++			lp.first = line
++			change = true
+ 		}
+-		if line > last {
+-			last = line
++		if line > lp.last {
++			lp.last = line
++			change = true
++		}
++		if change {
++			ranges[i] = lp
+ 		}
+ 	}
+ 
+@@ -104,12 +111,12 @@ func numberLines(f *Func) {
+ 		firstPos := src.NoXPos
+ 		firstPosIndex := -1
+ 		if b.Pos.IsStmt() != src.PosNotStmt {
+-			note(b.Pos.Line())
++			note(b.Pos)
+ 		}
+ 		for i := 0; i < len(b.Values); i++ {
+ 			v := b.Values[i]
+ 			if v.Pos.IsStmt() != src.PosNotStmt {
+-				note(v.Pos.Line())
++				note(v.Pos)
+ 				// skip ahead to better instruction for this line if possible
+ 				i = nextGoodStatementIndex(v, i, b)
+ 				v = b.Values[i]
+@@ -161,7 +168,7 @@ func numberLines(f *Func) {
+ 			if v.Pos.IsStmt() == src.PosNotStmt {
+ 				continue
+ 			}
+-			note(v.Pos.Line())
++			note(v.Pos)
+ 			// skip ahead if possible
+ 			i = nextGoodStatementIndex(v, i, b)
+ 			v = b.Values[i]
+@@ -178,5 +185,6 @@ func numberLines(f *Func) {
+ 		}
+ 		endlines[b.ID] = firstPos
+ 	}
+-	f.cachedLineStarts = newBiasedSparseMap(int(first), int(last))
++	// cachedLineStarts is an empty sparse map for values that are included within ranges.
++	f.cachedLineStarts = newXposmap(ranges)
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index c6b0fa38f3..cd23fe87e5 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -64,7 +64,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
+ 							// TODO: it's possible (in FOR loops, in particular) for statement boundaries for the same
+ 							// line to appear in more than one block, but only one block is stored, so if both end
+ 							// up here, then one will be lost.
+-							pendingLines.set(a.Pos.Line(), int32(a.Block.ID))
++							pendingLines.set(a.Pos, int32(a.Block.ID))
+ 						}
+ 						a.Pos = a.Pos.WithNotStmt()
+ 					}
+@@ -97,7 +97,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
+ 	for _, b := range f.Blocks {
+ 		j := 0
+ 		for i, v := range b.Values {
+-			vl := v.Pos.Line()
++			vl := v.Pos
+ 			if v.Op == OpInvalid {
+ 				if v.Pos.IsStmt() == src.PosIsStmt {
+ 					pendingLines.set(vl, int32(b.ID))
+@@ -114,9 +114,9 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
+ 			}
+ 			j++
+ 		}
+-		if pendingLines.get(b.Pos.Line()) == int32(b.ID) {
++		if pendingLines.get(b.Pos) == int32(b.ID) {
+ 			b.Pos = b.Pos.WithIsStmt()
+-			pendingLines.remove(b.Pos.Line())
++			pendingLines.remove(b.Pos)
+ 		}
+ 		if j != len(b.Values) {
+ 			tail := b.Values[j:]
+diff --git a/src/cmd/compile/internal/ssa/xposmap.go b/src/cmd/compile/internal/ssa/xposmap.go
+new file mode 100644
+index 0000000000..93582e1373
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/xposmap.go
+@@ -0,0 +1,116 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import (
++	"cmd/internal/src"
++	"fmt"
++)
++
++type lineRange struct {
++	first, last uint32
++}
++
++// An xposmap is a map from fileindex and line of src.XPos to int32,
++// implemented sparsely to save space (column and statement status are ignored).
++// The sparse skeleton is constructed once, and then reused by ssa phases
++// that (re)move values with statements attached.
++type xposmap struct {
++	// A map from file index to maps from line range to integers (block numbers)
++	maps map[int32]*biasedSparseMap
++	// The next two fields provide a single-item cache for common case of repeated lines from same file.
++	lastIndex int32            // -1 means no entry in cache
++	lastMap   *biasedSparseMap // map found at maps[lastIndex]
++}
++
++// newXposmap constructs an xposmap valid for inputs which have a file index in the keys of x,
++// and line numbers in the range x[file index].
++// The resulting xposmap will panic if a caller attempts to set or add an XPos not in that range.
++func newXposmap(x map[int]lineRange) *xposmap {
++	maps := make(map[int32]*biasedSparseMap)
++	for i, p := range x {
++		maps[int32(i)] = newBiasedSparseMap(int(p.first), int(p.last))
++	}
++	return &xposmap{maps: maps, lastIndex: -1} // zero for the rest is okay
++}
++
++// clear removes data from the map but leaves the sparse skeleton.
++func (m *xposmap) clear() {
++	for _, l := range m.maps {
++		if l != nil {
++			l.clear()
++		}
++	}
++	m.lastIndex = -1
++	m.lastMap = nil
++}
++
++// mapFor returns the line range map for a given file index.
++func (m *xposmap) mapFor(index int32) *biasedSparseMap {
++	if index == m.lastIndex {
++		return m.lastMap
++	}
++	mf := m.maps[index]
++	m.lastIndex = index
++	m.lastMap = mf
++	return mf
++}
++
++// set inserts p->v into the map.
++// If p does not fall within the set of fileindex->lineRange used to construct m, this will panic.
++func (m *xposmap) set(p src.XPos, v int32) {
++	s := m.mapFor(p.FileIndex())
++	if s == nil {
++		panic(fmt.Sprintf("xposmap.set(%d), file index not found in map\n", p.FileIndex()))
++	}
++	s.set(p.Line(), v)
++}
++
++// get returns the int32 associated with the file index and line of p.
++func (m *xposmap) get(p src.XPos) int32 {
++	s := m.mapFor(p.FileIndex())
++	if s == nil {
++		return -1
++	}
++	return s.get(p.Line())
++}
++
++// add adds p to m, treating m as a set instead of as a map.
++// If p does not fall within the set of fileindex->lineRange used to construct m, this will panic.
++// Use clear() in between set/map interpretations of m.
++func (m *xposmap) add(p src.XPos) {
++	m.set(p, 0)
++}
++
++// contains returns whether the file index and line of p are in m,
++// treating m as a set instead of as a map.
++func (m *xposmap) contains(p src.XPos) bool {
++	s := m.mapFor(p.FileIndex())
++	if s == nil {
++		return false
++	}
++	return s.contains(p.Line())
++}
++
++// remove removes the file index and line for p from m,
++// whether m is currently treated as a map or set.
++func (m *xposmap) remove(p src.XPos) {
++	s := m.mapFor(p.FileIndex())
++	if s == nil {
++		return
++	}
++	s.remove(p.Line())
++}
++
++// foreachEntry applies f to each (fileindex, line, value) triple in m.
++func (m *xposmap) foreachEntry(f func(j int32, l uint, v int32)) {
++	for j, mm := range m.maps {
++		s := mm.size()
++		for i := 0; i < s; i++ {
++			l, v := mm.getEntry(i)
++			f(j, l, v)
++		}
++	}
++}
+diff --git a/src/cmd/internal/src/xpos.go b/src/cmd/internal/src/xpos.go
+index 593251539c..d84543369a 100644
+--- a/src/cmd/internal/src/xpos.go
++++ b/src/cmd/internal/src/xpos.go
+@@ -76,6 +76,7 @@ func (p XPos) WithXlogue(x PosXlogue) XPos {
+ 	return p
+ }
+ 
++// LineNumber returns a string for the line number, "?" if it is not known.
+ func (p XPos) LineNumber() string {
+ 	if !p.IsKnown() {
+ 		return "?"
+@@ -83,6 +84,13 @@ func (p XPos) LineNumber() string {
+ 	return p.lico.lineNumber()
+ }
+ 
++// FileIndex returns a smallish non-negative integer corresponding to the
++// file for this source position.  Smallish is relative; it can be thousands
++// large, but not millions.
++func (p XPos) FileIndex() int32 {
++	return p.index
++}
++
+ func (p XPos) LineNumberHTML() string {
+ 	if !p.IsKnown() {
+ 		return "?"

@@ -9,10 +9,165 @@ Date:   Wed Jan 7 13:58:56 2009 -0800
     R=r
     OCL=22226
     CL=22226
-
+---
  usr/gri/pretty/ast.go         | 28 ++++++++++++++++++++++++++--
  usr/gri/pretty/globals.go     | 14 --------------
  usr/gri/pretty/parser.go      |  7 +------
  usr/gri/pretty/test.sh        |  4 ++--
  usr/gri/pretty/typechecker.go | 11 ++++++++---
  5 files changed, 37 insertions(+), 27 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 5969c8fb16..5e40a61cc9 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -11,7 +11,7 @@ import (
+ 
+ 
+ type (
+-	Any interface {};
++	Object struct;
+ 	Type struct;
+ 	Expr struct;
+ 	Stat struct;
+@@ -23,7 +23,29 @@ type (
+ // All nodes have a source position and and token.
+ 
+ export type Node struct {
+-	pos, tok int;
++	pos int;  // source position (< 0 => unknown position)
++	tok int;  // identifying token
++}
++
++
++// ----------------------------------------------------------------------------
++// Objects represent declared language objects, such as a const, type, var;
++// but also anonymous objects such as type and other literals.
++
++export type Object struct {
++	Node;
++	lit string;  // identifiers and literals
++	typ *Type;
++	val *Expr;
++}
++
++
++export func NewObject(pos, tok int, lit string) *Object {
++	obj := new(Object);
++	obj.pos, obj.tok = pos, tok;
++	obj.lit = lit;
++	obj.typ = nil;  // Universe::void_typ
++	return obj;
+ }
+ 
+ 
+@@ -33,6 +55,8 @@ export type Node struct {
+ export type Expr struct {
+ 	Node;
+ 	x, y *Expr;  // binary (x, y) and unary (y) expressions
++	obj *Object;
++	
+ 	// TODO find a more space efficient way to hold these
+ 	s string;  // identifiers and literals
+ 	t *Type;  // type expressions, function literal types
+diff --git a/usr/gri/pretty/globals.go b/usr/gri/pretty/globals.go
+index ffabfde1df..25a8702f15 100644
+--- a/usr/gri/pretty/globals.go
++++ b/usr/gri/pretty/globals.go
+@@ -15,7 +15,6 @@ package Globals
+ 
+ type Type struct
+ type Scope struct
+-type Elem struct
+ type OldCompilation struct
+ 
+ // Object represents a language object, such as a constant, variable, type,
+@@ -100,19 +99,6 @@ export type Stat interface {
+ }
+ 
+ 
+-// TODO This is hideous! We need to have a decent way to do lists.
+-// Ideally open arrays that allow '+'.
+-
+-export type Elem struct {
+-	next *Elem;
+-	val int;
+-	str string;
+-	obj *Object;
+-	typ *Type;
+-	expr Expr
+-}
+-
+-
+ // ----------------------------------------------------------------------------
+ // Creation
+ 
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 4bd8e193c2..0bca27867d 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -703,7 +703,7 @@ func (P *Parser) ParseOperand() *AST.Expr {
+ 		x = P.ParseIdent();
+ 
+ 	case Scanner.LPAREN:
+-		// TODO we could have a function type here as in: new(**())
++		// TODO we could have a function type here as in: new(())
+ 		// (currently not working)
+ 		P.Next();
+ 		P.expr_lev++;
+@@ -723,11 +723,6 @@ func (P *Parser) ParseOperand() *AST.Expr {
+ 	case Scanner.FUNC:
+ 		x = P.ParseFunctionLit();
+ 
+-	/*
+-	case Scanner.NEW:
+-		x = P.ParseNewCall();
+-	*/
+-
+ 	default:
+ 		t := P.TryType();
+ 		if t != nil {
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index 9fe43ba46f..b248616ff3 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -25,8 +25,8 @@ apply1() {
+ 	# these files don't pass the idempotency test yet
+ 	log.go | type.go | types_amd64_darwin.go | \
+ 	\
+-	selftest1.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
+-	bug068.go | bug088.go | bug083.go | bug106.go | bug125.go ) ;;  # skip - files contain syntax errors
++	method1.go | selftest1.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
++	bug068.go | bug088.go | bug083.go | bug106.go | bug125.go | bug126.go ) ;;  # skip - files contain errors
+ 	* ) $1 $2; count ;;
+ 	esac
+ }
+diff --git a/usr/gri/pretty/typechecker.go b/usr/gri/pretty/typechecker.go
+index b7d796257f..4b0c6e48a0 100644
+--- a/usr/gri/pretty/typechecker.go
++++ b/usr/gri/pretty/typechecker.go
+@@ -163,7 +163,14 @@ func (s *State) CheckDeclaration(d *AST.Decl) {
+ 				// method
+ 				// TODO
+ 			} else {
+-				s.DeclareIdent(d.ident, d.tok, d.typ);
++				// functions may be forward-declared
++				obj := s.Lookup(d.ident.s);
++				if obj != nil {
++				  // TODO check if proper forward-declaration
++				  
++				} else {
++					s.DeclareIdent(d.ident, d.tok, d.typ);
++				}
+ 			}
+ 
+ 		default:
+@@ -190,8 +197,6 @@ func (s *State) CheckProgram(p *AST.Program) {
+ // ----------------------------------------------------------------------------
+ 
+ export func CheckProgram(err Scanner.ErrorHandler, p *AST.Program) {
+-	return;  // DISABLED FOR NOW
+-	
+ 	var s State;
+ 	s.Init(err);
+ 	s.CheckProgram(p);

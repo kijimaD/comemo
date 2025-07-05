@@ -7,7 +7,34 @@ Date:   Tue Jul 23 22:59:32 2013 -0400
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/11595045
-
+---
  src/pkg/runtime/asm_386.s   | 2 +-
  src/pkg/runtime/asm_amd64.s | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 6b0739b2ec..b668799357 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -534,7 +534,7 @@ TEXT runtime·cgocallback_gofunc(SB),7,$8-12
+ #ifdef GOOS_windows
+ 	MOVL	$0, BP
+ 	CMPL	CX, $0
+-	JNE	2(PC)
++	JEQ	2(PC)
+ #endif
+ 	MOVL	m(CX), BP
+ 	MOVL	BP, 4(SP)
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 1ec635516d..96af61265c 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -573,7 +573,7 @@ TEXT runtime·cgocallback_gofunc(SB),7,$16-24
+ #ifdef GOOS_windows
+ 	MOVL	$0, BP
+ 	CMPQ	CX, $0
+-	JNE	2(PC)
++	JEQ	2(PC)
+ #endif
+ 	MOVQ	m(CX), BP
+ 	MOVQ	BP, 8(SP)

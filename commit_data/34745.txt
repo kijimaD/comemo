@@ -19,6 +19,31 @@ Date:   Mon Nov 13 14:25:19 2017 -0800
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index be73b5e372..252a0f6713 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -939,6 +939,7 @@ func (db *DB) connectionResetter(ctx context.Context) {
+ 	for {
+ 		select {
+ 		case <-ctx.Done():
++			close(db.resetterCh)
+ 			for dc := range db.resetterCh {
+ 				dc.Unlock()
+ 			}
+@@ -1171,6 +1172,11 @@ func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
+ 	if putConnHook != nil {
+ 		putConnHook(db, dc)
+ 	}
++	if db.closed {
++		// Connections do not need to be reset if they will be closed.
++		// Prevents writing to resetterCh after the DB has closed.
++		resetSession = false
++	}
+ 	if resetSession {
+ 		if _, resetSession = dc.ci.(driver.ResetSessioner); resetSession {
+ 			// Lock the driverConn here so it isn't released until

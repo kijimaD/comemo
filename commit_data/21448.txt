@@ -10,7 +10,41 @@ Date:   Mon Jan 5 14:29:42 2015 -0800
     Change-Id: Ic48ff5f698c010a336e2bf720e0f44be1aecafa0
     Reviewed-on: https://go-review.googlesource.com/2330
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/crypto/rsa/pss.go      | 2 +-
  src/crypto/rsa/pss_test.go | 9 +++++++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/rsa/pss.go b/src/crypto/rsa/pss.go
+index e9f2908250..0a41814a4b 100644
+--- a/src/crypto/rsa/pss.go
++++ b/src/crypto/rsa/pss.go
+@@ -255,7 +255,7 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte,
+ 		saltLength = hash.Size()
+ 	}
+ 
+-	if opts.Hash != 0 {
++	if opts != nil && opts.Hash != 0 {
+ 		hash = opts.Hash
+ 	}
+ 
+diff --git a/src/crypto/rsa/pss_test.go b/src/crypto/rsa/pss_test.go
+index 32e6fc39d2..cae24e58c6 100644
+--- a/src/crypto/rsa/pss_test.go
++++ b/src/crypto/rsa/pss_test.go
+@@ -189,6 +189,15 @@ func TestPSSOpenSSL(t *testing.T) {
+ 	}
+ }
+ 
++func TestPSSNilOpts(t *testing.T) {
++	hash := crypto.SHA256
++	h := hash.New()
++	h.Write([]byte("testing"))
++	hashed := h.Sum(nil)
++
++	SignPSS(rand.Reader, rsaPrivateKey, hash, hashed, nil)
++}
++
+ func TestPSSSigning(t *testing.T) {
+ 	var saltLengthCombinations = []struct {
+ 		signSaltLength, verifySaltLength int

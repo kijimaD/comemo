@@ -12,8 +12,65 @@ Date:   Thu Mar 10 15:35:17 2022 +0100
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/386Ops.go   | 2 +-
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 4 ++--
  src/cmd/compile/internal/ssa/opGen.go        | 3 ---
  3 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index f4c89b0bb3..8ec9c68d7f 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -306,7 +306,7 @@ func init() {
+ 		{name: "BSRL", argLength: 1, reg: gp11, asm: "BSRL", clobberFlags: true}, // arg0 # of high-order zeroes ; undef if zero
+ 		{name: "BSRW", argLength: 1, reg: gp11, asm: "BSRW", clobberFlags: true}, // arg0 # of high-order zeroes ; undef if zero
+ 
+-		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
++		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true}, // arg0 swap bytes
+ 
+ 		{name: "SQRTSD", argLength: 1, reg: fp11, asm: "SQRTSD"}, // sqrt(arg0)
+ 		{name: "SQRTSS", argLength: 1, reg: fp11, asm: "SQRTSS"}, // sqrt(arg0), float32
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index a6906bec7c..50e23871dd 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -577,8 +577,8 @@ func init() {
+ 		{name: "CMOVWGTF", argLength: 3, reg: gp21, asm: "CMOVWHI", resultInArg0: true},
+ 		{name: "CMOVWGEF", argLength: 3, reg: gp21, asm: "CMOVWCC", resultInArg0: true},
+ 
+-		{name: "BSWAPQ", argLength: 1, reg: gp11, asm: "BSWAPQ", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
+-		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
++		{name: "BSWAPQ", argLength: 1, reg: gp11, asm: "BSWAPQ", resultInArg0: true}, // arg0 swap bytes
++		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true}, // arg0 swap bytes
+ 
+ 		// POPCNT instructions aren't guaranteed to be on the target platform (they are SSE4).
+ 		// Any use must be preceded by a successful check of runtime.x86HasPOPCNT.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index ca285a2dfc..0830cf5f7c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -4815,7 +4815,6 @@ var opcodeTable = [...]opInfo{
+ 		name:         "BSWAPL",
+ 		argLen:       1,
+ 		resultInArg0: true,
+-		clobberFlags: true,
+ 		asm:          x86.ABSWAPL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -11506,7 +11505,6 @@ var opcodeTable = [...]opInfo{
+ 		name:         "BSWAPQ",
+ 		argLen:       1,
+ 		resultInArg0: true,
+-		clobberFlags: true,
+ 		asm:          x86.ABSWAPQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -11521,7 +11519,6 @@ var opcodeTable = [...]opInfo{
+ 		name:         "BSWAPL",
+ 		argLen:       1,
+ 		resultInArg0: true,
+-		clobberFlags: true,
+ 		asm:          x86.ABSWAPL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{

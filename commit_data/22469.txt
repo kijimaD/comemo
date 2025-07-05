@@ -9,8 +9,110 @@ Date:   Tue Mar 10 15:18:10 2015 -0400
     Change-Id: Ib6e5c12bd8752b87c0d8bcf22fa9e25e04a7941f
     Reviewed-on: https://go-review.googlesource.com/7630
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/6g/peep.go | 19 +++++++------------
  src/cmd/6g/prog.go | 20 +++++++++++++-------
  src/cmd/6g/reg.go  | 10 ++++++++++
  3 files changed, 30 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/6g/peep.go b/src/cmd/6g/peep.go
+index 11779dee28..df780d4a36 100644
+--- a/src/cmd/6g/peep.go
++++ b/src/cmd/6g/peep.go
+@@ -45,14 +45,12 @@ const (
+ 
+ // do we need the carry bit
+ func needc(p *obj.Prog) bool {
+-	var info gc.ProgInfo
+-
+ 	for p != nil {
+-		info = proginfo(p)
+-		if info.Flags&gc.UseCarry != 0 {
++		flags := progcarryflags(p)
++		if flags&gc.UseCarry != 0 {
+ 			return true
+ 		}
+-		if info.Flags&(gc.SetCarry|gc.KillCarry) != 0 {
++		if flags&(gc.SetCarry|gc.KillCarry) != 0 {
+ 			return false
+ 		}
+ 		p = p.Link
+@@ -508,15 +506,12 @@ func regconsttyp(a *obj.Addr) bool {
+ 
+ // is reg guaranteed to be truncated by a previous L instruction?
+ func prevl(r0 *gc.Flow, reg int) bool {
+-	var p *obj.Prog
+-	var info gc.ProgInfo
+-
+ 	for r := (*gc.Flow)(gc.Uniqp(r0)); r != nil; r = gc.Uniqp(r) {
+-		p = r.Prog
++		p := r.Prog
+ 		if p.To.Type == obj.TYPE_REG && int(p.To.Reg) == reg {
+-			info = proginfo(p)
+-			if info.Flags&gc.RightWrite != 0 {
+-				if info.Flags&gc.SizeL != 0 {
++			flags := progflags(p)
++			if flags&gc.RightWrite != 0 {
++				if flags&gc.SizeL != 0 {
+ 					return true
+ 				}
+ 				return false
+diff --git a/src/cmd/6g/prog.go b/src/cmd/6g/prog.go
+index 0bc703fa3c..f6c1df1866 100644
+--- a/src/cmd/6g/prog.go
++++ b/src/cmd/6g/prog.go
+@@ -10,13 +10,7 @@ import (
+ 	"cmd/internal/obj/x86"
+ )
+ 
+-var (
+-	AX               = RtoB(x86.REG_AX)
+-	BX               = RtoB(x86.REG_BX)
+-	CX               = RtoB(x86.REG_CX)
+-	DX               = RtoB(x86.REG_DX)
+-	DI               = RtoB(x86.REG_DI)
+-	SI               = RtoB(x86.REG_SI)
++const (
+ 	LeftRdwr  uint32 = gc.LeftRead | gc.LeftWrite
+ 	RightRdwr uint32 = gc.RightRead | gc.RightWrite
+ )
+@@ -237,6 +231,18 @@ var progtable = [x86.ALAST]gc.ProgInfo{
+ 	x86.AXORW:     gc.ProgInfo{gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry, 0, 0, 0},
+ }
+ 
++func progflags(p *obj.Prog) uint32 {
++	flags := progtable[p.As].Flags
++	if flags&gc.ImulAXDX != 0 && p.To.Type != obj.TYPE_NONE {
++		flags |= RightRdwr
++	}
++	return flags
++}
++
++func progcarryflags(p *obj.Prog) uint32 {
++	return progtable[p.As].Flags
++}
++
+ func proginfo(p *obj.Prog) (info gc.ProgInfo) {
+ 	info = progtable[p.As]
+ 	if info.Flags == 0 {
+diff --git a/src/cmd/6g/reg.go b/src/cmd/6g/reg.go
+index 0f32df53c0..dd06bc54d5 100644
+--- a/src/cmd/6g/reg.go
++++ b/src/cmd/6g/reg.go
+@@ -98,6 +98,16 @@ func doregbits(r int) uint64 {
+ 	return b
+ }
+ 
++// For ProgInfo.
++const (
++	AX = 1 << (x86.REG_AX - x86.REG_AX)
++	BX = 1 << (x86.REG_BX - x86.REG_AX)
++	CX = 1 << (x86.REG_CX - x86.REG_AX)
++	DX = 1 << (x86.REG_DX - x86.REG_AX)
++	DI = 1 << (x86.REG_DI - x86.REG_AX)
++	SI = 1 << (x86.REG_SI - x86.REG_AX)
++)
++
+ func RtoB(r int) uint64 {
+ 	if r < x86.REG_AX || r > x86.REG_R15 {
+ 		return 0

@@ -25,6 +25,20 @@ Date:   Thu Jan 12 17:35:53 2017 -0500
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/pcln.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 1ebd7de662..479425f211 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -168,7 +168,7 @@ func container(s *Symbol) int {
+ 	if s == nil {
+ 		return 0
+ 	}
+-	if Buildmode == BuildmodePlugin && onlycsymbol(s) {
++	if Buildmode == BuildmodePlugin && Headtype == obj.Hdarwin && onlycsymbol(s) {
+ 		return 1
+ 	}
+ 	// We want to generate func table entries only for the "lowest level" symbols,

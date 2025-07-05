@@ -20,7 +20,54 @@ Date:   Fri Aug 16 16:05:10 2019 +0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/190537
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/align.go     | 5 +++++
  src/cmd/compile/internal/gc/typecheck.go | 5 +++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index a2b5b53740..44a06fd727 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -178,6 +178,11 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+ // have not already been calculated, it calls Fatal.
+ // This is used to prevent data races in the back end.
+ func dowidth(t *types.Type) {
++	// Calling dowidth when typecheck tracing enabled is not safe.
++	// See issue #33658.
++	if enableTrace && skipDowidthForTracing {
++		return
++	}
+ 	if Widthptr == 0 {
+ 		Fatalf("dowidth without betypeinit")
+ 	}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index d2ad2f04f0..140acb9062 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -16,6 +16,7 @@ const enableTrace = false
+ 
+ var trace bool
+ var traceIndent []byte
++var skipDowidthForTracing bool
+ 
+ func tracePrint(title string, n *Node) func(np **Node) {
+ 	indent := traceIndent
+@@ -29,6 +30,8 @@ func tracePrint(title string, n *Node) func(np **Node) {
+ 		tc = n.Typecheck()
+ 	}
+ 
++	skipDowidthForTracing = true
++	defer func() { skipDowidthForTracing = false }()
+ 	fmt.Printf("%s: %s%s %p %s %v tc=%d\n", pos, indent, title, n, op, n, tc)
+ 	traceIndent = append(traceIndent, ". "...)
+ 
+@@ -51,6 +54,8 @@ func tracePrint(title string, n *Node) func(np **Node) {
+ 			typ = n.Type
+ 		}
+ 
++		skipDowidthForTracing = true
++		defer func() { skipDowidthForTracing = false }()
+ 		fmt.Printf("%s: %s=> %p %s %v tc=%d type=%#L\n", pos, indent, n, op, n, tc, typ)
+ 	}
+ }

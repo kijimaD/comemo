@@ -19,8 +19,48 @@ Date:   Wed Oct 13 01:39:13 2021 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/irgen.go | 2 +-
  src/internal/fuzz/sys_posix.go          | 2 +-
  src/internal/fuzz/sys_windows.go        | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 645ac2c214..e912f797b2 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -115,7 +115,7 @@ type dictInfo struct {
+ 	itabConvs []ir.Node
+ 
+ 	// Mapping from each shape type that substitutes a type param, to its
+-	// type bound (which is also substitued with shapes if it is parameterized)
++	// type bound (which is also substituted with shapes if it is parameterized)
+ 	shapeToBound map[*types.Type]*types.Type
+ 
+ 	// For type switches on nonempty interfaces, a map from OTYPE entries of
+diff --git a/src/internal/fuzz/sys_posix.go b/src/internal/fuzz/sys_posix.go
+index 2473274ecf..ca6b1456e2 100644
+--- a/src/internal/fuzz/sys_posix.go
++++ b/src/internal/fuzz/sys_posix.go
+@@ -48,7 +48,7 @@ func (m *sharedMem) Close() error {
+ 	return nil
+ }
+ 
+-// setWorkerComm configures communciation channels on the cmd that will
++// setWorkerComm configures communication channels on the cmd that will
+ // run a worker process.
+ func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
+ 	mem := <-comm.memMu
+diff --git a/src/internal/fuzz/sys_windows.go b/src/internal/fuzz/sys_windows.go
+index fabf954ba7..9c006b010e 100644
+--- a/src/internal/fuzz/sys_windows.go
++++ b/src/internal/fuzz/sys_windows.go
+@@ -86,7 +86,7 @@ func (m *sharedMem) Close() error {
+ 	return nil
+ }
+ 
+-// setWorkerComm configures communciation channels on the cmd that will
++// setWorkerComm configures communication channels on the cmd that will
+ // run a worker process.
+ func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
+ 	mem := <-comm.memMu

@@ -9,7 +9,7 @@ Date:   Tue Nov 17 17:20:38 2015 -0500
     Change-Id: Icdf46be10ea296fd87e73ab56ebb718c5d3c97ac
     Reviewed-on: https://go-review.googlesource.com/17007
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/os3_plan9.go      | 3 ++-
  src/runtime/signal_386.go     | 3 ++-
  src/runtime/signal_amd64x.go  | 3 ++-
@@ -18,3 +18,102 @@ Date:   Tue Nov 17 17:20:38 2015 -0500
  src/runtime/signal_mips64x.go | 3 ++-
  src/runtime/signal_ppc64x.go  | 3 ++-
  7 files changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index f660cc72a7..edd66c59b3 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -10,7 +10,8 @@ import (
+ )
+ 
+ // May run during STW, so write barriers are not allowed.
+-//go:nowritebarrier
++//
++//go:nowritebarrierrec
+ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 	_g_ := getg()
+ 	var t sigTabT
+diff --git a/src/runtime/signal_386.go b/src/runtime/signal_386.go
+index 90d69ee389..3ea0656e65 100644
+--- a/src/runtime/signal_386.go
++++ b/src/runtime/signal_386.go
+@@ -30,7 +30,8 @@ func dumpregs(c *sigctxt) {
+ var crashing int32
+ 
+ // May run during STW, so write barriers are not allowed.
+-//go:nowritebarrier
++//
++//go:nowritebarrierrec
+ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	_g_ := getg()
+ 	c := &sigctxt{info, ctxt}
+diff --git a/src/runtime/signal_amd64x.go b/src/runtime/signal_amd64x.go
+index df317e3835..ad3187337a 100644
+--- a/src/runtime/signal_amd64x.go
++++ b/src/runtime/signal_amd64x.go
+@@ -39,7 +39,8 @@ func dumpregs(c *sigctxt) {
+ var crashing int32
+ 
+ // May run during STW, so write barriers are not allowed.
+-//go:nowritebarrier
++//
++//go:nowritebarrierrec
+ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	_g_ := getg()
+ 	c := &sigctxt{info, ctxt}
+diff --git a/src/runtime/signal_arm.go b/src/runtime/signal_arm.go
+index c00e43d0c2..e8d19a454d 100644
+--- a/src/runtime/signal_arm.go
++++ b/src/runtime/signal_arm.go
+@@ -35,7 +35,8 @@ func dumpregs(c *sigctxt) {
+ var crashing int32
+ 
+ // May run during STW, so write barriers are not allowed.
+-//go:nowritebarrier
++//
++//go:nowritebarrierrec
+ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	_g_ := getg()
+ 	c := &sigctxt{info, ctxt}
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index 96a4cb3dac..2966ec0b20 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -51,7 +51,8 @@ func dumpregs(c *sigctxt) {
+ var crashing int32
+ 
+ // May run during STW, so write barriers are not allowed.
+-//go:nowritebarrier
++//
++//go:nowritebarrierrec
+ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	_g_ := getg()
+ 	c := &sigctxt{info, ctxt}
+diff --git a/src/runtime/signal_mips64x.go b/src/runtime/signal_mips64x.go
+index 51598e8e5a..f30ff6e9e9 100644
+--- a/src/runtime/signal_mips64x.go
++++ b/src/runtime/signal_mips64x.go
+@@ -54,7 +54,8 @@ func dumpregs(c *sigctxt) {
+ var crashing int32
+ 
+ // May run during STW, so write barriers are not allowed.
+-//go:nowritebarrier
++//
++//go:nowritebarrierrec
+ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	_g_ := getg()
+ 	c := &sigctxt{info, ctxt}
+diff --git a/src/runtime/signal_ppc64x.go b/src/runtime/signal_ppc64x.go
+index 774aa42c77..e0c5f91e33 100644
+--- a/src/runtime/signal_ppc64x.go
++++ b/src/runtime/signal_ppc64x.go
+@@ -56,7 +56,8 @@ func dumpregs(c *sigctxt) {
+ var crashing int32
+ 
+ // May run during STW, so write barriers are not allowed.
+-//go:nowritebarrier
++//
++//go:nowritebarrierrec
+ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	_g_ := getg()
+ 	c := &sigctxt{info, ctxt}

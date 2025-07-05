@@ -13,6 +13,19 @@ Date:   Thu Jun 7 12:43:56 2018 +0530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 1b4d43c462..00ac90d1eb 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1565,6 +1565,7 @@ var objectMagic = [][]byte{
+ 	{0x00, 0x00, 0x01, 0xEB},                  // Plan 9 i386
+ 	{0x00, 0x00, 0x8a, 0x97},                  // Plan 9 amd64
+ 	{0x00, 0x00, 0x06, 0x47},                  // Plan 9 arm
++	{0x00, 0x61, 0x73, 0x6D},                  // WASM
+ }
+ 
+ func isObject(s string) bool {

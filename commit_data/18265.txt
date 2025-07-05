@@ -21,9 +21,110 @@ Date:   Thu Jan 16 12:54:46 2014 +0400
     R=golang-codereviews, khr, kamil.kisiel, bradfitz, rsc
     CC=golang-codereviews
     https://golang.org/cl/50420043
-
+---
  doc/go1.3.txt             |  1 +
  src/pkg/runtime/mgc0.c    |  7 +++++++
  src/pkg/runtime/proc.c    | 14 +++++++++++++-
  src/pkg/runtime/runtime.h |  1 +
  4 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.3.txt b/doc/go1.3.txt
+index 27a72e4a90..dfb21f4fd9 100644
+--- a/doc/go1.3.txt
++++ b/doc/go1.3.txt
+@@ -1,4 +1,5 @@
+ cmd/gofmt: remove -tabwidth and -tabs flags (CL 52170043)
+ liblink: pull linker i/o into separate liblink C library (CL 35790044)
+ misc/dist: renamed misc/makerelease (CL 39920043)
++runtime: output how long goroutines are blocked (CL 50420043)
+ syscall: add NewCallbackCDecl to use for windows callbacks (CL 36180044)
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 5d38db27ba..393de7a836 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -188,6 +188,7 @@ static struct {
+ 	uint64	empty; // lock-free list of empty blocks
+ 	byte	pad0[CacheLineSize]; // prevents false-sharing between full/empty and nproc/nwait
+ 	uint32	nproc;
++	int64	tstart;
+ 	volatile uint32	nwait;
+ 	volatile uint32	ndone;
+ 	volatile uint32 debugmarkdone;
+@@ -1675,6 +1676,11 @@ addroots(void)
+ 			addstackroots(gp);
+ 			break;
+ 		}
++
++		// remember when we've first observed the G blocked
++		// needed only to output in traceback
++		if((gp->status == Gwaiting || gp->status == Gsyscall) && gp->waitsince == 0)
++			gp->waitsince = work.tstart;
+ 	}
+ 
+ 	for(fb=allfin; fb; fb=fb->alllink)
+@@ -2230,6 +2236,7 @@ gc(struct gc_args *args)
+ 	Eface eface;
+ 
+ 	t0 = args->start_time;
++	work.tstart = args->start_time; 
+ 
+ 	if(CollectStats)
+ 		runtime·memclr((byte*)&gcstats, sizeof(gcstats));
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index bc371260fc..064e8cb248 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -237,6 +237,7 @@ void
+ runtime·goroutineheader(G *gp)
+ {
+ 	int8 *status;
++	int64 waitfor;
+ 
+ 	switch(gp->status) {
+ 	case Gidle:
+@@ -261,7 +262,16 @@ runtime·goroutineheader(G *gp)
+ 		status = "???";
+ 		break;
+ 	}
+-	runtime·printf("goroutine %D [%s]:\n", gp->goid, status);
++
++	// approx time the G is blocked, in minutes
++	waitfor = 0;
++	if((gp->status == Gwaiting || gp->status == Gsyscall) && gp->waitsince != 0)
++		waitfor = (runtime·nanotime() - gp->waitsince) / (60LL*1000*1000*1000);
++
++	if(waitfor < 1)
++		runtime·printf("goroutine %D [%s]:\n", gp->goid, status);
++	else
++		runtime·printf("goroutine %D [%s, %D minutes]:\n", gp->goid, status, waitfor);
+ }
+ 
+ void
+@@ -1112,6 +1122,7 @@ execute(G *gp)
+ 		runtime·throw("execute: bad g status");
+ 	}
+ 	gp->status = Grunning;
++	gp->waitsince = 0;
+ 	gp->preempt = false;
+ 	gp->stackguard0 = gp->stackguard;
+ 	m->p->schedtick++;
+@@ -1535,6 +1546,7 @@ runtime·exitsyscall(void)
+ 	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
+ 		incidlelocked(-1);
+ 
++	g->waitsince = 0;
+ 	if(exitsyscallfast()) {
+ 		// There's a cpu for us, so we can run.
+ 		m->p->syscalltick++;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 236284b93e..43ab84c807 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -268,6 +268,7 @@ struct	G
+ 	void*	param;		// passed parameter on wakeup
+ 	int16	status;
+ 	int64	goid;
++	int64	waitsince;	// approx time when the G become blocked
+ 	int8*	waitreason;	// if status==Gwaiting
+ 	G*	schedlink;
+ 	bool	ispanic;

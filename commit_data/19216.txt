@@ -9,7 +9,34 @@ Date:   Mon Apr 21 00:09:22 2014 -0400
     R=golang-codereviews, dave, gobot, iant
     CC=golang-codereviews
     https://golang.org/cl/89150043
-
+---
  src/pkg/go/build/build.go         | 1 +
  src/pkg/runtime/sys_freebsd_arm.s | 5 +++--
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 8a390762dc..766a212562 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -264,6 +264,7 @@ var cgoEnabled = map[string]bool{
+ 	"dragonfly/amd64": true,
+ 	"freebsd/386":     true,
+ 	"freebsd/amd64":   true,
++	"freebsd/arm":     true,
+ 	"linux/386":       true,
+ 	"linux/amd64":     true,
+ 	"linux/arm":       true,
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index 31711de206..3ec95a6518 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -367,6 +367,7 @@ TEXT runtime·casp(SB),NOSPLIT,$0
+ TEXT runtime·cas(SB),NOSPLIT,$0
+ 	B runtime·armcas(SB)
+ 
++// TODO(minux): this only supports ARMv6K+.
+ TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+-	MOVW $0xffff1000, R0
+-	MOVW (R0), R0
++	WORD $0xee1d0f70 // mrc p15, 0, r0, c13, c0, 3
++	RET

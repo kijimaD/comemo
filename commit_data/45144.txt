@@ -12,8 +12,49 @@ Date:   Sat Oct 3 23:58:29 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/259443
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/dist/test.go              | 2 +-
  src/cmd/internal/sys/supported.go | 2 +-
  src/cmd/link/internal/ld/lib.go   | 3 ---
  3 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index d37454c651..03e6866d62 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -992,7 +992,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 	case "c-shared":
+ 		switch pair {
+ 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
+-			"darwin-amd64",
++			"darwin-amd64", "darwin-arm64",
+ 			"freebsd-amd64",
+ 			"android-arm", "android-arm64", "android-386",
+ 			"windows-amd64", "windows-386":
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index f97f663f2a..8d87e95655 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -69,7 +69,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/s390x",
+ 			"android/amd64", "android/arm", "android/arm64", "android/386",
+ 			"freebsd/amd64",
+-			"darwin/amd64",
++			"darwin/amd64", "darwin/arm64",
+ 			"windows/amd64", "windows/386":
+ 			return true
+ 		}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9fb85becec..5fe028d321 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1329,9 +1329,6 @@ func (ctxt *Link) hostlink() {
+ 	case BuildModeCShared:
+ 		if ctxt.HeadType == objabi.Hdarwin {
+ 			argv = append(argv, "-dynamiclib")
+-			if ctxt.Arch.Family != sys.AMD64 {
+-				argv = append(argv, "-Wl,-read_only_relocs,suppress")
+-			}
+ 		} else {
+ 			// ELF.
+ 			argv = append(argv, "-Wl,-Bsymbolic")

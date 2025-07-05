@@ -15,6 +15,20 @@ Date:   Wed May 14 21:44:19 2025 +0000
     Auto-Submit: Sean Liao <sean@liao.dev>
     Reviewed-by: Sean Liao <sean@liao.dev>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/filepathlite/path.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/filepathlite/path.go b/src/internal/filepathlite/path.go
+index e3daa447d9..4a3729832f 100644
+--- a/src/internal/filepathlite/path.go
++++ b/src/internal/filepathlite/path.go
+@@ -180,7 +180,7 @@ func ToSlash(path string) string {
+ 	return replaceStringByte(path, Separator, '/')
+ }
+ 
+-// FromSlash is filepath.ToSlash.
++// FromSlash is filepath.FromSlash.
+ func FromSlash(path string) string {
+ 	if Separator == '/' {
+ 		return path

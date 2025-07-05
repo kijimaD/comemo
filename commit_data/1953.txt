@@ -20,6 +20,21 @@ Date:   Thu Apr 2 21:46:19 2009 -0700
     R=ken
     OCL=27053
     CL=27053
-
+---
  src/cmd/gc/go.y | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index d6155f9f24..9cd7de1162 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -173,6 +173,9 @@ import_package:
+ 	{
+ 		pkgimportname = $2;
+ 
++		if(strcmp($2->name, "main") == 0)
++			yyerror("cannot import package main");
++
+ 		// if we are not remapping the package name
+ 		// then the imported package name is LPACK
+ 		if(pkgmyname == S)

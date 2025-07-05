@@ -40,7 +40,7 @@ Date:   Tue Oct 25 15:49:52 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 60 ++++++++--------------
  src/cmd/compile/internal/ssa/gen/386.rules     |  3 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 +
@@ -63,3 +63,729 @@ Date:   Tue Oct 25 15:49:52 2016 -0700
  src/cmd/compile/internal/ssa/rewritegeneric.go | 69 ++++++++++++++++++++++++++
  test/sliceopt.go                               |  9 ++--
  21 files changed, 325 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 8aa4d22210..df6a6700b6 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -295,7 +295,6 @@ var (
+ 	typVar    = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "typ"}}
+ 	idataVar  = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "idata"}}
+ 	okVar     = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "ok"}}
+-	deltaVar  = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "delta"}}
+ )
+ 
+ // startBlock sets the current block we're generating code in to b.
+@@ -3516,19 +3515,17 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
+ 	}
+ 
+ 	// Generate the following code assuming that indexes are in bounds.
+-	// The conditional is to make sure that we don't generate a slice
++	// The masking is to make sure that we don't generate a slice
+ 	// that points to the next object in memory.
+-	// rlen = j-i
+-	// rcap = k-i
+-	// delta = i*elemsize
+-	// if rcap == 0 {
+-	//    delta = 0
+-	// }
+-	// rptr = p+delta
++	// rlen = j - i
++	// rcap = k - i
++	// delta = i * elemsize
++	// rptr = p + delta&mask(rcap)
+ 	// result = (SliceMake rptr rlen rcap)
++	// where mask(x) is 0 if x==0 and -1 if x>0.
+ 	subOp := s.ssaOp(OSUB, Types[TINT])
+-	eqOp := s.ssaOp(OEQ, Types[TINT])
+ 	mulOp := s.ssaOp(OMUL, Types[TINT])
++	andOp := s.ssaOp(OAND, Types[TINT])
+ 	rlen := s.newValue2(subOp, Types[TINT], j, i)
+ 	var rcap *ssa.Value
+ 	switch {
+@@ -3543,38 +3540,21 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
+ 		rcap = s.newValue2(subOp, Types[TINT], k, i)
+ 	}
+ 
+-	// delta = # of elements to offset pointer by.
+-	s.vars[&deltaVar] = i
+-
+-	// Generate code to set delta=0 if the resulting capacity is zero.
+-	if !((i.Op == ssa.OpConst64 && i.AuxInt == 0) ||
+-		(i.Op == ssa.OpConst32 && int32(i.AuxInt) == 0)) {
+-		cmp := s.newValue2(eqOp, Types[TBOOL], rcap, zero)
+-
+-		b := s.endBlock()
+-		b.Kind = ssa.BlockIf
+-		b.Likely = ssa.BranchUnlikely
+-		b.SetControl(cmp)
+-
+-		// Generate block which zeros the delta variable.
+-		nz := s.f.NewBlock(ssa.BlockPlain)
+-		b.AddEdgeTo(nz)
+-		s.startBlock(nz)
+-		s.vars[&deltaVar] = zero
+-		s.endBlock()
+-
+-		// All done.
+-		merge := s.f.NewBlock(ssa.BlockPlain)
+-		b.AddEdgeTo(merge)
+-		nz.AddEdgeTo(merge)
+-		s.startBlock(merge)
+-
+-		// TODO: use conditional moves somehow?
++	var rptr *ssa.Value
++	if (i.Op == ssa.OpConst64 || i.Op == ssa.OpConst32) && i.AuxInt == 0 {
++		// No pointer arithmetic necessary.
++		rptr = ptr
++	} else {
++		// delta = # of bytes to offset pointer by.
++		delta := s.newValue2(mulOp, Types[TINT], i, s.constInt(Types[TINT], elemtype.Width))
++		// If we're slicing to the point where the capacity is zero,
++		// zero out the delta.
++		mask := s.newValue1(ssa.OpSlicemask, Types[TINT], rcap)
++		delta = s.newValue2(andOp, Types[TINT], delta, mask)
++		// Compute rptr = ptr + delta
++		rptr = s.newValue2(ssa.OpAddPtr, ptrtype, ptr, delta)
+ 	}
+ 
+-	// Compute rptr = ptr + delta * elemsize
+-	rptr := s.newValue2(ssa.OpAddPtr, ptrtype, ptr, s.newValue2(mulOp, Types[TINT], s.variable(&deltaVar, Types[TINT]), s.constInt(Types[TINT], elemtype.Width)))
+-	delete(s.vars, &deltaVar)
+ 	return rptr, rlen, rcap
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 214d34a0c1..a3f2ecb8c3 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -101,7 +101,8 @@
+ (ZeroExt16to32 x) -> (MOVWLZX x)
+ 
+ (Signmask x) -> (SARLconst x [31])
+-(Zeromask <t> x) -> (XORLconst [-1] (SBBLcarrymask <t> (CMPL x (MOVLconst [1]))))
++(Zeromask <t> x) -> (XORLconst [-1] (SBBLcarrymask <t> (CMPLconst x [1])))
++(Slicemask <t> x) -> (XORLconst [-1] (SARLconst <t> (SUBLconst <t> x [1]) [31]))
+ 
+ // Lowering truncation
+ // Because we ignore high parts of registers, truncates are just copies.
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 08916dedef..f4c44975a0 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -125,6 +125,8 @@
+ (ZeroExt16to64 x) -> (MOVWQZX x)
+ (ZeroExt32to64 x) -> (MOVLQZX x)
+ 
++(Slicemask <t> x) -> (XORQconst [-1] (SARQconst <t> (SUBQconst <t> x [1]) [63]))
++
+ // Lowering truncation
+ // Because we ignore high parts of registers, truncates are just copies.
+ (Trunc16to8  x) -> x
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index f27796a5d2..bea9d6c708 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -207,6 +207,7 @@
+ 
+ (Signmask x) -> (SRAconst x [31])
+ (Zeromask x) -> (SRAconst (RSBshiftRL <config.fe.TypeInt32()> x x [1]) [31]) // sign bit of uint32(x)>>1 - x
++(Slicemask <t> x) -> (MVN (SRAconst <t> (SUBconst <t> x [1]) [31]))
+ 
+ // float <-> int conversion
+ (Cvt32to32F x) -> (MOVWF x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 6e2c350162..c36b6f755c 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -207,6 +207,8 @@
+ (ConstNil) -> (MOVDconst [0])
+ (ConstBool [b]) -> (MOVDconst [b])
+ 
++(Slicemask <t> x) -> (MVN (SRAconst <t> (SUBconst <t> x [1]) [63]))
++
+ // truncations
+ // Because we ignore high parts of registers, truncates are just copies.
+ (Trunc16to8 x) -> x
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index a53bd2169e..7a496be0d8 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -152,7 +152,7 @@
+ (OrB x y) -> (OR x y)
+ (EqB x y) -> (XOR (MOVVconst [1]) (XOR <config.fe.TypeBool()> x y))
+ (NeqB x y) -> (XOR x y)
+-(Not x) -> (XOR (MOVVconst [1]) x)
++(Not x) -> (XORconst [1] x)
+ 
+ // constants
+ (Const64 [val]) -> (MOVVconst [val])
+@@ -164,6 +164,8 @@
+ (ConstNil) -> (MOVVconst [0])
+ (ConstBool [b]) -> (MOVVconst [b])
+ 
++(Slicemask <t> x) -> (NORconst [0] (SRAVconst <t> (SUBVconst <t> x [1]) [63]))
++
+ // truncations
+ // Because we ignore high parts of registers, truncates are just copies.
+ (Trunc16to8 x) -> x
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 005b97a77d..0e0f1f9c1e 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -790,6 +790,8 @@
+ (Trunc64to16 x) -> (MOVHreg x)
+ (Trunc64to32 x) -> (MOVWreg x)
+ 
++(Slicemask <t> x) -> (XORconst [-1] (SRADconst <t> (ADDconst <t> x [-1]) [63]))
++
+ // Note that MOV??reg returns a 64-bit int, x is not necessarily that wide
+ // This may interact with other patterns in the future. (Compare with arm64)
+ (MOVBZreg x:(MOVBZload _ _))  -> x
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 99d041c55e..6e21c9e300 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -152,6 +152,8 @@
+ (ZeroExt16to64 x) -> (MOVHZreg x)
+ (ZeroExt32to64 x) -> (MOVWZreg x)
+ 
++(Slicemask <t> x) -> (XOR (MOVDconst [-1]) (SRADconst <t> (SUBconst <t> x [1]) [63]))
++
+ // Lowering truncation
+ // Because we ignore high parts of registers, truncates are just copies.
+ (Trunc16to8  x) -> x
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 6713744f68..5a17ecd5cb 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -602,6 +602,11 @@
+ (Trunc32to16 (And32 (Const32 [y]) x)) && y&0xFFFF == 0xFFFF -> (Trunc32to16 x)
+ (Trunc16to8  (And16 (Const16 [y]) x)) && y&0xFF == 0xFF -> (Trunc16to8 x)
+ 
++(Slicemask (Const32 [x])) && x > 0 -> (Const32 [-1])
++(Slicemask (Const32 [0]))          -> (Const32 [0])
++(Slicemask (Const64 [x])) && x > 0 -> (Const64 [-1])
++(Slicemask (Const64 [0]))          -> (Const64 [0])
++
+ // Rewrite AND of consts as shifts if possible, slightly faster for 64 bit operands
+ // leading zeros can be shifted left, then right
+ (And64 <t> (Const64 [y]) x) && nlz(y) + nto(y) == 64 && nto(y) >= 32
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 838be6a967..5a570c40c1 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -437,6 +437,7 @@ var genericOps = []opData{
+ 
+ 	{name: "Signmask", argLength: 1, typ: "Int32"},  // 0 if arg0 >= 0, -1 if arg0 < 0
+ 	{name: "Zeromask", argLength: 1, typ: "UInt32"}, // 0 if arg0 == 0, 0xffffffff if arg0 != 0
++	{name: "Slicemask", argLength: 1},               // 0 if arg0 == 0, -1 if arg0 > 0, undef if arg0<0. Type is native int size.
+ 
+ 	{name: "Cvt32Uto32F", argLength: 1}, // uint32 -> float32, only used on 32-bit arch
+ 	{name: "Cvt32Uto64F", argLength: 1}, // uint32 -> float64, only used on 32-bit arch
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index f2827568bd..a139ee8c11 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1736,6 +1736,7 @@ const (
+ 	OpSub32withcarry
+ 	OpSignmask
+ 	OpZeromask
++	OpSlicemask
+ 	OpCvt32Uto32F
+ 	OpCvt32Uto64F
+ 	OpCvt32Fto32U
+@@ -19812,6 +19813,11 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "Slicemask",
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:    "Cvt32Uto32F",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 357c3b3676..1925a61a52 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -568,6 +568,44 @@ func updateRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r
+ // simplifyBlock simplifies block known the restrictions in ft.
+ // Returns which branch must always be taken.
+ func simplifyBlock(ft *factsTable, b *Block) branch {
++	for _, v := range b.Values {
++		if v.Op != OpSlicemask {
++			continue
++		}
++		add := v.Args[0]
++		if add.Op != OpAdd64 && add.Op != OpAdd32 {
++			continue
++		}
++		// Note that the arg of slicemask was originally a sub, but
++		// was rewritten to an add by generic.rules (if the thing
++		// being subtracted was a constant).
++		x := add.Args[0]
++		y := add.Args[1]
++		if x.Op == OpConst64 || x.Op == OpConst32 {
++			x, y = y, x
++		}
++		if y.Op != OpConst64 && y.Op != OpConst32 {
++			continue
++		}
++		// slicemask(x + y)
++		// if x is larger than -y (y is negative), then slicemask is -1.
++		lim, ok := ft.limits[x.ID]
++		if !ok {
++			continue
++		}
++		if lim.umin > uint64(-y.AuxInt) {
++			if v.Args[0].Op == OpAdd64 {
++				v.reset(OpConst64)
++			} else {
++				v.reset(OpConst32)
++			}
++			if b.Func.pass.debug > 0 {
++				b.Func.Config.Warnl(v.Line, "Proved slicemask not needed")
++			}
++			v.AuxInt = -1
++		}
++	}
++
+ 	if b.Kind != BlockIf {
+ 		return unknown
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index fa7b7c17bd..741886da90 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -540,6 +540,8 @@ func rewriteValue386(v *Value, config *Config) bool {
+ 		return rewriteValue386_OpSignExt8to32(v, config)
+ 	case OpSignmask:
+ 		return rewriteValue386_OpSignmask(v, config)
++	case OpSlicemask:
++		return rewriteValue386_OpSlicemask(v, config)
+ 	case OpSqrt:
+ 		return rewriteValue386_OpSqrt(v, config)
+ 	case OpStaticCall:
+@@ -12432,6 +12434,27 @@ func rewriteValue386_OpSignmask(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValue386_OpSlicemask(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Slicemask <t> x)
++	// cond:
++	// result: (XORLconst [-1] (SARLconst <t> (SUBLconst <t> x [1]) [31]))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(Op386XORLconst)
++		v.AuxInt = -1
++		v0 := b.NewValue0(v.Line, Op386SARLconst, t)
++		v0.AuxInt = 31
++		v1 := b.NewValue0(v.Line, Op386SUBLconst, t)
++		v1.AuxInt = 1
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValue386_OpSqrt(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -13088,18 +13111,16 @@ func rewriteValue386_OpZeromask(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Zeromask <t> x)
+ 	// cond:
+-	// result: (XORLconst [-1] (SBBLcarrymask <t> (CMPL x (MOVLconst [1]))))
++	// result: (XORLconst [-1] (SBBLcarrymask <t> (CMPLconst x [1])))
+ 	for {
+ 		t := v.Type
+ 		x := v.Args[0]
+ 		v.reset(Op386XORLconst)
+ 		v.AuxInt = -1
+ 		v0 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+-		v1 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
++		v1 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
++		v1.AuxInt = 1
+ 		v1.AddArg(x)
+-		v2 := b.NewValue0(v.Line, Op386MOVLconst, config.fe.TypeUInt32())
+-		v2.AuxInt = 1
+-		v1.AddArg(v2)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 86c65382cf..0f3c636469 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -742,6 +742,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpSignExt8to32(v, config)
+ 	case OpSignExt8to64:
+ 		return rewriteValueAMD64_OpSignExt8to64(v, config)
++	case OpSlicemask:
++		return rewriteValueAMD64_OpSlicemask(v, config)
+ 	case OpSqrt:
+ 		return rewriteValueAMD64_OpSqrt(v, config)
+ 	case OpStaticCall:
+@@ -18101,6 +18103,27 @@ func rewriteValueAMD64_OpSignExt8to64(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpSlicemask(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Slicemask <t> x)
++	// cond:
++	// result: (XORQconst [-1] (SARQconst <t> (SUBQconst <t> x [1]) [63]))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpAMD64XORQconst)
++		v.AuxInt = -1
++		v0 := b.NewValue0(v.Line, OpAMD64SARQconst, t)
++		v0.AuxInt = 63
++		v1 := b.NewValue0(v.Line, OpAMD64SUBQconst, t)
++		v1.AuxInt = 1
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpSqrt(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index a031571786..0f8a77f548 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -684,6 +684,8 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpSignExt8to32(v, config)
+ 	case OpSignmask:
+ 		return rewriteValueARM_OpSignmask(v, config)
++	case OpSlicemask:
++		return rewriteValueARM_OpSlicemask(v, config)
+ 	case OpSqrt:
+ 		return rewriteValueARM_OpSqrt(v, config)
+ 	case OpStaticCall:
+@@ -16530,6 +16532,26 @@ func rewriteValueARM_OpSignmask(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpSlicemask(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Slicemask <t> x)
++	// cond:
++	// result: (MVN (SRAconst <t> (SUBconst <t> x [1]) [31]))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpARMMVN)
++		v0 := b.NewValue0(v.Line, OpARMSRAconst, t)
++		v0.AuxInt = 31
++		v1 := b.NewValue0(v.Line, OpARMSUBconst, t)
++		v1.AuxInt = 1
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM_OpSqrt(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 8d4d65d606..dd5aa28d3c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -660,6 +660,8 @@ func rewriteValueARM64(v *Value, config *Config) bool {
+ 		return rewriteValueARM64_OpSignExt8to32(v, config)
+ 	case OpSignExt8to64:
+ 		return rewriteValueARM64_OpSignExt8to64(v, config)
++	case OpSlicemask:
++		return rewriteValueARM64_OpSlicemask(v, config)
+ 	case OpSqrt:
+ 		return rewriteValueARM64_OpSqrt(v, config)
+ 	case OpStaticCall:
+@@ -14259,6 +14261,26 @@ func rewriteValueARM64_OpSignExt8to64(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpSlicemask(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Slicemask <t> x)
++	// cond:
++	// result: (MVN (SRAconst <t> (SUBconst <t> x [1]) [63]))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpARM64MVN)
++		v0 := b.NewValue0(v.Line, OpARM64SRAconst, t)
++		v0.AuxInt = 63
++		v1 := b.NewValue0(v.Line, OpARM64SUBconst, t)
++		v1.AuxInt = 1
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM64_OpSqrt(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index a3e8b40393..76c6412966 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -516,6 +516,8 @@ func rewriteValueMIPS64(v *Value, config *Config) bool {
+ 		return rewriteValueMIPS64_OpSignExt8to32(v, config)
+ 	case OpSignExt8to64:
+ 		return rewriteValueMIPS64_OpSignExt8to64(v, config)
++	case OpSlicemask:
++		return rewriteValueMIPS64_OpSlicemask(v, config)
+ 	case OpStaticCall:
+ 		return rewriteValueMIPS64_OpStaticCall(v, config)
+ 	case OpStore:
+@@ -7273,13 +7275,11 @@ func rewriteValueMIPS64_OpNot(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Not x)
+ 	// cond:
+-	// result: (XOR (MOVVconst [1]) x)
++	// result: (XORconst [1] x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpMIPS64XOR)
+-		v0 := b.NewValue0(v.Line, OpMIPS64MOVVconst, config.fe.TypeUInt64())
+-		v0.AuxInt = 1
+-		v.AddArg(v0)
++		v.reset(OpMIPS64XORconst)
++		v.AuxInt = 1
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -8810,6 +8810,27 @@ func rewriteValueMIPS64_OpSignExt8to64(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueMIPS64_OpSlicemask(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Slicemask <t> x)
++	// cond:
++	// result: (NORconst [0] (SRAVconst <t> (SUBVconst <t> x [1]) [63]))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpMIPS64NORconst)
++		v.AuxInt = 0
++		v0 := b.NewValue0(v.Line, OpMIPS64SRAVconst, t)
++		v0.AuxInt = 63
++		v1 := b.NewValue0(v.Line, OpMIPS64SUBVconst, t)
++		v1.AuxInt = 1
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueMIPS64_OpStaticCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 5b4574efd4..8c8373b8aa 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -512,6 +512,8 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpSignExt8to32(v, config)
+ 	case OpSignExt8to64:
+ 		return rewriteValuePPC64_OpSignExt8to64(v, config)
++	case OpSlicemask:
++		return rewriteValuePPC64_OpSlicemask(v, config)
+ 	case OpSqrt:
+ 		return rewriteValuePPC64_OpSqrt(v, config)
+ 	case OpStaticCall:
+@@ -9077,6 +9079,27 @@ func rewriteValuePPC64_OpSignExt8to64(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpSlicemask(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Slicemask <t> x)
++	// cond:
++	// result: (XORconst [-1] (SRADconst <t> (ADDconst <t> x [-1]) [63]))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpPPC64XORconst)
++		v.AuxInt = -1
++		v0 := b.NewValue0(v.Line, OpPPC64SRADconst, t)
++		v0.AuxInt = 63
++		v1 := b.NewValue0(v.Line, OpPPC64ADDconst, t)
++		v1.AuxInt = -1
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpSqrt(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 0c14b43e1d..6bdb003ed8 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -652,6 +652,8 @@ func rewriteValueS390X(v *Value, config *Config) bool {
+ 		return rewriteValueS390X_OpSignExt8to32(v, config)
+ 	case OpSignExt8to64:
+ 		return rewriteValueS390X_OpSignExt8to64(v, config)
++	case OpSlicemask:
++		return rewriteValueS390X_OpSlicemask(v, config)
+ 	case OpSqrt:
+ 		return rewriteValueS390X_OpSqrt(v, config)
+ 	case OpStaticCall:
+@@ -17066,6 +17068,29 @@ func rewriteValueS390X_OpSignExt8to64(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpSlicemask(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Slicemask <t> x)
++	// cond:
++	// result: (XOR (MOVDconst [-1]) (SRADconst <t> (SUBconst <t> x [1]) [63]))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpS390XXOR)
++		v0 := b.NewValue0(v.Line, OpS390XMOVDconst, config.fe.TypeUInt64())
++		v0.AuxInt = -1
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpS390XSRADconst, t)
++		v1.AuxInt = 63
++		v2 := b.NewValue0(v.Line, OpS390XSUBconst, t)
++		v2.AuxInt = 1
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v.AddArg(v1)
++		return true
++	}
++}
+ func rewriteValueS390X_OpSqrt(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index f6e2ed34f6..feb3e5b24d 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -320,6 +320,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpSliceLen(v, config)
+ 	case OpSlicePtr:
+ 		return rewriteValuegeneric_OpSlicePtr(v, config)
++	case OpSlicemask:
++		return rewriteValuegeneric_OpSlicemask(v, config)
+ 	case OpSqrt:
+ 		return rewriteValuegeneric_OpSqrt(v, config)
+ 	case OpStore:
+@@ -9793,6 +9795,73 @@ func rewriteValuegeneric_OpSlicePtr(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpSlicemask(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Slicemask (Const32 [x]))
++	// cond: x > 0
++	// result: (Const32 [-1])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst32 {
++			break
++		}
++		x := v_0.AuxInt
++		if !(x > 0) {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = -1
++		return true
++	}
++	// match: (Slicemask (Const32 [0]))
++	// cond:
++	// result: (Const32 [0])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst32 {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = 0
++		return true
++	}
++	// match: (Slicemask (Const64 [x]))
++	// cond: x > 0
++	// result: (Const64 [-1])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64 {
++			break
++		}
++		x := v_0.AuxInt
++		if !(x > 0) {
++			break
++		}
++		v.reset(OpConst64)
++		v.AuxInt = -1
++		return true
++	}
++	// match: (Slicemask (Const64 [0]))
++	// cond:
++	// result: (Const64 [0])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64 {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		v.reset(OpConst64)
++		v.AuxInt = 0
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpSqrt(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/test/sliceopt.go b/test/sliceopt.go
+index 17959e9326..eb24701f31 100644
+--- a/test/sliceopt.go
++++ b/test/sliceopt.go
+@@ -43,10 +43,11 @@ func s1(x **[]int, xs **string, i, j int) {
+ 	z = (**x)[i:0:j] // ERROR "Disproved IsSliceInBounds$"
+ 	z = (**x)[0:i:j] // ERROR "Proved boolean IsSliceInBounds$"
+ 	z = (**x)[0:]    // ERROR "slice: omit slice operation$"
+-	z = (**x)[2:8]   // ERROR "Disproved Eq(32|64)$"
+-	z = (**x)[2:2]   // ERROR "Disproved Eq(32|64)$" "Proved boolean IsSliceInBounds$"
+-	z = (**x)[0:i]   // ERROR "Proved boolean IsSliceInBounds$"
+-	z = (**x)[2:i:8] // ERROR "Disproved IsSliceInBounds$" "Proved IsSliceInBounds$" "Proved boolean IsSliceInBounds$"
++	z = (**x)[2:8]   // ERROR "Proved slicemask not needed$"
++	println(z)
++	z = (**x)[2:2]
++	z = (**x)[0:i]
++	z = (**x)[2:i:8] // ERROR "Disproved IsSliceInBounds$" "Proved IsSliceInBounds$"
+ 	z = (**x)[i:2:i] // ERROR "Proved IsSliceInBounds$" "Proved boolean IsSliceInBounds$"
+ 
+ 	z = z[0:i] // ERROR "Proved boolean IsSliceInBounds"

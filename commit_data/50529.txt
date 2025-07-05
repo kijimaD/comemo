@@ -26,9 +26,143 @@ Date:   Fri Aug 6 17:01:25 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/export.go |  2 +-
  test/asmhdr.dir/main.go               | 66 +++++++++++++++++++++++++++++++++++
  test/asmhdr.dir/main.s                | 27 ++++++++++++++
  test/asmhdr.go                        |  9 +++++
  4 files changed, 103 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 2eac7d03c2..eed438705a 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -31,7 +31,7 @@ func dumpasmhdr() {
+ 			if t == constant.Float || t == constant.Complex {
+ 				break
+ 			}
+-			fmt.Fprintf(b, "#define const_%s %#v\n", n.Sym().Name, n.Val())
++			fmt.Fprintf(b, "#define const_%s %v\n", n.Sym().Name, n.Val())
+ 
+ 		case ir.OTYPE:
+ 			t := n.Type()
+diff --git a/test/asmhdr.dir/main.go b/test/asmhdr.dir/main.go
+new file mode 100644
+index 0000000000..808b5de7bb
+--- /dev/null
++++ b/test/asmhdr.dir/main.go
+@@ -0,0 +1,66 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++const (
++	smallInt = 42
++
++	// For bigInt, we use a value that's too big for an int64, but still
++	// fits in uint64. go/constant uses a different representation for
++	// values larger than int64, but the cmd/asm parser can't parse
++	// anything bigger than a uint64.
++	bigInt = 0xffffffffffffffff
++
++	stringVal = "test"
++)
++
++var (
++	smallIntAsm int64
++	bigIntAsm   uint64
++	stringAsm   [len(stringVal)]byte
++)
++
++type typ struct {
++	a uint64
++	b [100]uint8
++	c uint8
++}
++
++var (
++	typSize uint64
++
++	typA, typB, typC uint64
++)
++
++func main() {
++	if smallInt != smallIntAsm {
++		println("smallInt", smallInt, "!=", smallIntAsm)
++	}
++	if bigInt != bigIntAsm {
++		println("bigInt", uint64(bigInt), "!=", bigIntAsm)
++	}
++	if stringVal != string(stringAsm[:]) {
++		println("stringVal", stringVal, "!=", string(stringAsm[:]))
++	}
++
++	// We also include boolean consts in go_asm.h, but they're
++	// defined to be "true" or "false", and it's not clear how to
++	// use that in assembly.
++
++	if want := unsafe.Sizeof(typ{}); want != uintptr(typSize) {
++		println("typSize", want, "!=", typSize)
++	}
++	if want := unsafe.Offsetof(typ{}.a); want != uintptr(typA) {
++		println("typA", want, "!=", typA)
++	}
++	if want := unsafe.Offsetof(typ{}.b); want != uintptr(typB) {
++		println("typB", want, "!=", typB)
++	}
++	if want := unsafe.Offsetof(typ{}.c); want != uintptr(typC) {
++		println("typC", want, "!=", typC)
++	}
++}
+diff --git a/test/asmhdr.dir/main.s b/test/asmhdr.dir/main.s
+new file mode 100644
+index 0000000000..7e2d8e7abd
+--- /dev/null
++++ b/test/asmhdr.dir/main.s
+@@ -0,0 +1,27 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#define RODATA	8
++
++DATA ·smallIntAsm(SB)/8, $const_smallInt
++GLOBL ·smallIntAsm(SB),RODATA,$8
++
++DATA ·bigIntAsm(SB)/8, $const_bigInt
++GLOBL ·bigIntAsm(SB),RODATA,$8
++
++DATA ·stringAsm(SB)/4, $const_stringVal
++GLOBL ·stringAsm(SB),RODATA,$4
++
++DATA ·typSize(SB)/8, $typ__size
++GLOBL ·typSize(SB),RODATA,$8
++
++DATA ·typA(SB)/8, $typ_a
++GLOBL ·typA(SB),RODATA,$8
++
++DATA ·typB(SB)/8, $typ_b
++GLOBL ·typB(SB),RODATA,$8
++
++DATA ·typC(SB)/8, $typ_c
++GLOBL ·typC(SB),RODATA,$8
+diff --git a/test/asmhdr.go b/test/asmhdr.go
+new file mode 100644
+index 0000000000..772f98e2cc
+--- /dev/null
++++ b/test/asmhdr.go
+@@ -0,0 +1,9 @@
++// buildrundir
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test the -asmhdr output of the compiler.
++
++package ignored

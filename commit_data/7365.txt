@@ -7,6 +7,20 @@ Date:   Thu Feb 3 17:29:09 2011 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4121057
-
+---
  src/cmd/gopack/ar.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gopack/ar.c b/src/cmd/gopack/ar.c
+index eed98967ad..702f104a68 100644
+--- a/src/cmd/gopack/ar.c
++++ b/src/cmd/gopack/ar.c
+@@ -597,7 +597,7 @@ scanobj(Biobuf *b, Arfile *ap, long size)
+ 	Dir *d;
+ 	static int lastobj = -1;
+ 	uchar buf[4];
+-	char *p, *t;
++	char *p;
+ 
+ 	if (!allobj)			/* non-object file encountered */
+ 		return;

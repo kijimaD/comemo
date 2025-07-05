@@ -7,6 +7,25 @@ Date:   Thu Dec 18 12:24:16 2014 +0100
     Change-Id: I7ef01a738b6ca49af1c148146d439c81b0a33b16
     Reviewed-on: https://go-review.googlesource.com/1785
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/yacc/yacc.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/yacc/yacc.go b/src/cmd/yacc/yacc.go
+index 4dba376fc2..0a69c36afc 100644
+--- a/src/cmd/yacc/yacc.go
++++ b/src/cmd/yacc/yacc.go
+@@ -3400,6 +3400,13 @@ $$default:
+ 	_ = $$pt // guard against "declared and not used"
+ 
+ 	$$p -= $$R2[$$n]
++	// $$p is now the index of $0. Perform the default action. Iff the
++	// reduced production is ε, $1 is possibly out of range.
++	if $$p+1 >= len($$S) {
++		nyys := make([]$$SymType, len($$S)*2)
++		copy(nyys, $$S)
++		$$S = nyys
++	}
+ 	$$VAL = $$S[$$p+1]
+ 
+ 	/* consult goto table to find next state */

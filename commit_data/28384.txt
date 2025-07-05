@@ -12,7 +12,121 @@ Date:   Thu May 19 06:15:18 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dial_test.go       | 24 +++++-------------------
  src/net/mockserver_test.go | 38 +++++++++++++++++---------------------
  2 files changed, 22 insertions(+), 40 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index a07c5850e1..5365677011 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -151,10 +151,7 @@ func TestDialerDualStackFDLeak(t *testing.T) {
+ 			c.Close()
+ 		}
+ 	}
+-	dss, err := newDualStackServer([]streamListener{
+-		{network: "tcp4", address: "127.0.0.1"},
+-		{network: "tcp6", address: "::1"},
+-	})
++	dss, err := newDualStackServer()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -329,10 +326,7 @@ func TestDialParallel(t *testing.T) {
+ 	}
+ 
+ 	for i, tt := range testCases {
+-		dss, err := newDualStackServer([]streamListener{
+-			{network: "tcp4", address: "127.0.0.1"},
+-			{network: "tcp6", address: "::1"},
+-		})
++		dss, err := newDualStackServer()
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -449,9 +443,7 @@ func TestDialerFallbackDelay(t *testing.T) {
+ 			c.Close()
+ 		}
+ 	}
+-	dss, err := newDualStackServer([]streamListener{
+-		{network: "tcp", address: "127.0.0.1"},
+-	})
++	dss, err := newDualStackServer()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -504,10 +496,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
+ 		c.Close()
+ 		wg.Done()
+ 	}
+-	dss, err := newDualStackServer([]streamListener{
+-		{network: "tcp4", address: "127.0.0.1"},
+-		{network: "tcp6", address: "::1"},
+-	})
++	dss, err := newDualStackServer()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -733,10 +722,7 @@ func TestDialerDualStack(t *testing.T) {
+ 
+ 	var timeout = 150*time.Millisecond + closedPortDelay
+ 	for _, dualstack := range []bool{false, true} {
+-		dss, err := newDualStackServer([]streamListener{
+-			{network: "tcp4", address: "127.0.0.1"},
+-			{network: "tcp6", address: "::1"},
+-		})
++		dss, err := newDualStackServer()
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index b67dd91650..766de6a815 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -184,28 +184,24 @@ func (dss *dualStackServer) teardown() error {
+ 	return nil
+ }
+ 
+-func newDualStackServer(lns []streamListener) (*dualStackServer, error) {
+-	dss := &dualStackServer{lns: lns, port: "0"}
+-	for i := range dss.lns {
+-		ln, err := Listen(dss.lns[i].network, JoinHostPort(dss.lns[i].address, dss.port))
+-		if err != nil {
+-			for _, ln := range dss.lns[:i] {
+-				ln.Listener.Close()
+-			}
+-			return nil, err
+-		}
+-		dss.lns[i].Listener = ln
+-		dss.lns[i].done = make(chan bool)
+-		if dss.port == "0" {
+-			if _, dss.port, err = SplitHostPort(ln.Addr().String()); err != nil {
+-				for _, ln := range dss.lns {
+-					ln.Listener.Close()
+-				}
+-				return nil, err
+-			}
+-		}
++func newDualStackServer() (*dualStackServer, error) {
++	lns, err := newDualStackListener()
++	if err != nil {
++		return nil, err
++	}
++	_, port, err := SplitHostPort(lns[0].Addr().String())
++	if err != nil {
++		lns[0].Close()
++		lns[1].Close()
++		return nil, err
+ 	}
+-	return dss, nil
++	return &dualStackServer{
++		lns: []streamListener{
++			{network: "tcp4", address: lns[0].Addr().String(), Listener: lns[0], done: make(chan bool)},
++			{network: "tcp6", address: lns[1].Addr().String(), Listener: lns[1], done: make(chan bool)},
++		},
++		port: port,
++	}, nil
+ }
+ 
+ func transponder(ln Listener, ch chan<- error) {

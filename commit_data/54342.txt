@@ -13,9 +13,111 @@ Date:   Fri Oct 7 14:05:56 2022 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/build.go  |  3 +--
  src/cmd/go/internal/modload/import.go | 15 ++++-----------
  src/cmd/go/internal/modload/query.go  |  3 +--
  src/cmd/go/internal/modload/search.go |  6 ++----
  4 files changed, 8 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 14ba83c9c9..9381acf798 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -76,8 +76,7 @@ func PackageModRoot(ctx context.Context, pkgpath string) string {
+ 	if !ok {
+ 		return ""
+ 	}
+-	const needSum = true
+-	root, _, err := fetch(ctx, m, needSum)
++	root, _, err := fetch(ctx, m)
+ 	if err != nil {
+ 		return ""
+ 	}
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index f2c7592a28..d1ac274a28 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -355,8 +355,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 			}
+ 			m := module.Version{Path: prefix, Version: v}
+ 
+-			needSum := true
+-			root, isLocal, err := fetch(ctx, m, needSum)
++			root, isLocal, err := fetch(ctx, m)
+ 			if err != nil {
+ 				if sumErr := (*sumMissingError)(nil); errors.As(err, &sumErr) {
+ 					// We are missing a sum needed to fetch a module in the build list.
+@@ -483,8 +482,7 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
+ 		return len(mods[i].Path) > len(mods[j].Path)
+ 	})
+ 	for _, m := range mods {
+-		needSum := true
+-		root, isLocal, err := fetch(ctx, m, needSum)
++		root, isLocal, err := fetch(ctx, m)
+ 		if err != nil {
+ 			if sumErr := (*sumMissingError)(nil); errors.As(err, &sumErr) {
+ 				return module.Version{}, &ImportMissingSumError{importPath: path}
+@@ -676,14 +674,9 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
+ // fetch downloads the given module (or its replacement)
+ // and returns its location.
+ //
+-// needSum indicates whether the module may be downloaded in readonly mode
+-// without a go.sum entry. It should only be false for modules fetched
+-// speculatively (for example, for incompatible version filtering). The sum
+-// will still be verified normally.
+-//
+ // The isLocal return value reports whether the replacement,
+ // if any, is local to the filesystem.
+-func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, isLocal bool, err error) {
++func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, err error) {
+ 	if modRoot := MainModules.ModRoot(mod); modRoot != "" {
+ 		return modRoot, true, nil
+ 	}
+@@ -713,7 +706,7 @@ func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, i
+ 		mod = r
+ 	}
+ 
+-	if HasModRoot() && cfg.BuildMod == "readonly" && !inWorkspaceMode() && needSum && !modfetch.HaveSum(mod) {
++	if HasModRoot() && cfg.BuildMod == "readonly" && !inWorkspaceMode() && !modfetch.HaveSum(mod) {
+ 		return "", false, module.VersionError(mod, &sumMissingError{})
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 2d6ba8e5a0..c74c9b32e2 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -729,8 +729,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
+ 				return r, err
+ 			}
+ 			r.Mod.Version = r.Rev.Version
+-			needSum := true
+-			root, isLocal, err := fetch(ctx, r.Mod, needSum)
++			root, isLocal, err := fetch(ctx, r.Mod)
+ 			if err != nil {
+ 				return r, err
+ 			}
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index 7fc7aa4dd7..1da46a4b05 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -188,8 +188,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 			isLocal = true
+ 		} else {
+ 			var err error
+-			const needSum = true
+-			root, isLocal, err = fetch(ctx, mod, needSum)
++			root, isLocal, err = fetch(ctx, mod)
+ 			if err != nil {
+ 				m.AddError(err)
+ 				continue
+@@ -279,8 +278,7 @@ func MatchInModule(ctx context.Context, pattern string, m module.Version, tags m
+ 		return match
+ 	}
+ 
+-	const needSum = true
+-	root, isLocal, err := fetch(ctx, m, needSum)
++	root, isLocal, err := fetch(ctx, m)
+ 	if err != nil {
+ 		match.Errs = []error{err}
+ 		return match

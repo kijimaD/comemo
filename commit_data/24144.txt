@@ -19,7 +19,40 @@ Date:   Tue Jun 30 18:20:13 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/11801
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/malloc_test.go | 4 ++++
  src/runtime/mgc.go         | 5 +++--
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index 454b3c36fe..ecef9c93bc 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -44,6 +44,10 @@ func TestMemStats(t *testing.T) {
+ 	if st.HeapIdle+st.HeapInuse != st.HeapSys {
+ 		t.Fatalf("HeapIdle(%d) + HeapInuse(%d) should be equal to HeapSys(%d), but isn't.", st.HeapIdle, st.HeapInuse, st.HeapSys)
+ 	}
++
++	if lpe := st.PauseEnd[int(st.NumGC+255)%len(st.PauseEnd)]; st.LastGC != lpe {
++		t.Fatalf("LastGC(%d) != last PauseEnd(%d)", st.LastGC, lpe)
++	}
+ }
+ 
+ func TestStringConcatenationAllocs(t *testing.T) {
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 5b6765b664..8375d30bb8 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1436,9 +1436,10 @@ func gcMark(start_time int64) {
+ 	}
+ 
+ 	t4 := nanotime()
+-	atomicstore64(&memstats.last_gc, uint64(unixnanotime())) // must be Unix time to make sense to user
++	unixNow := unixnanotime()
++	atomicstore64(&memstats.last_gc, uint64(unixNow)) // must be Unix time to make sense to user
+ 	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(t4 - t0)
+-	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(t4)
++	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(unixNow)
+ 	memstats.pause_total_ns += uint64(t4 - t0)
+ }
+ 

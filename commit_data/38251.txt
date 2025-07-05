@@ -26,9 +26,358 @@ Date:   Fri Oct 5 08:54:50 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/order.go | 60 +++++++++++++++++++++++++++---------
  src/cmd/compile/internal/gc/sinit.go |  6 ++--
  test/live.go                         | 48 ++++++++++++++---------------
  test/uintptrescapes2.go              |  4 +--
  4 files changed, 75 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index fbc05b95d2..519fad4b7e 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -42,8 +42,9 @@ import (
+ 
+ // Order holds state during the ordering process.
+ type Order struct {
+-	out  []*Node // list of generated statements
+-	temp []*Node // stack of temporary variables
++	out  []*Node            // list of generated statements
++	temp []*Node            // stack of temporary variables
++	free map[string][]*Node // free list of unused temporaries, by type.LongString().
+ }
+ 
+ // Order rewrites fn.Nbody to apply the ordering constraints
+@@ -54,14 +55,30 @@ func order(fn *Node) {
+ 		dumplist(s, fn.Nbody)
+ 	}
+ 
+-	orderBlock(&fn.Nbody)
++	orderBlock(&fn.Nbody, map[string][]*Node{})
+ }
+ 
+ // newTemp allocates a new temporary with the given type,
+ // pushes it onto the temp stack, and returns it.
+ // If clear is true, newTemp emits code to zero the temporary.
+ func (o *Order) newTemp(t *types.Type, clear bool) *Node {
+-	v := temp(t)
++	var v *Node
++	// Note: LongString is close to the type equality we want,
++	// but not exactly. We still need to double-check with eqtype.
++	key := t.LongString()
++	a := o.free[key]
++	for i, n := range a {
++		if eqtype(t, n.Type) {
++			v = a[i]
++			a[i] = a[len(a)-1]
++			a = a[:len(a)-1]
++			o.free[key] = a
++			break
++		}
++	}
++	if v == nil {
++		v = temp(t)
++	}
+ 	if clear {
+ 		a := nod(OAS, v, nil)
+ 		a = typecheck(a, Etop)
+@@ -226,6 +243,16 @@ func (o *Order) markTemp() ordermarker {
+ // Poptemp pops temporaries off the stack until reaching the mark,
+ // which must have been returned by marktemp.
+ func (o *Order) popTemp(mark ordermarker) {
++	for _, n := range o.temp[mark:] {
++		if n.Type.Etype == types.TUINT8 {
++			// Don't recycle temps of this type. TUINT8 is used
++			// as a placeholder for a type to be determined later.
++			// TODO: fix
++			continue
++		}
++		key := n.Type.LongString()
++		o.free[key] = append(o.free[key], n)
++	}
+ 	o.temp = o.temp[:mark]
+ }
+ 
+@@ -266,8 +293,10 @@ func (o *Order) stmtList(l Nodes) {
+ 
+ // orderBlock orders the block of statements in n into a new slice,
+ // and then replaces the old slice in n with the new slice.
+-func orderBlock(n *Nodes) {
++// free is a map that can be used to obtain temporary variables by type.
++func orderBlock(n *Nodes, free map[string][]*Node) {
+ 	var order Order
++	order.free = free
+ 	mark := order.markTemp()
+ 	order.stmtList(*n)
+ 	order.cleanTemp(mark)
+@@ -280,6 +309,7 @@ func orderBlock(n *Nodes) {
+ // 	n.Left = o.exprInPlace(n.Left)
+ func (o *Order) exprInPlace(n *Node) *Node {
+ 	var order Order
++	order.free = o.free
+ 	n = order.expr(n, nil)
+ 	n = addinit(n, order.out)
+ 
+@@ -293,8 +323,10 @@ func (o *Order) exprInPlace(n *Node) *Node {
+ // and replaces it with the resulting statement list.
+ // The result of orderStmtInPlace MUST be assigned back to n, e.g.
+ // 	n.Left = orderStmtInPlace(n.Left)
+-func orderStmtInPlace(n *Node) *Node {
++// free is a map that can be used to obtain temporary variables by type.
++func orderStmtInPlace(n *Node, free map[string][]*Node) *Node {
+ 	var order Order
++	order.free = free
+ 	mark := order.markTemp()
+ 	order.stmt(n)
+ 	order.cleanTemp(mark)
+@@ -643,8 +675,8 @@ func (o *Order) stmt(n *Node) {
+ 		t := o.markTemp()
+ 		n.Left = o.exprInPlace(n.Left)
+ 		n.Nbody.Prepend(o.cleanTempNoPop(t)...)
+-		orderBlock(&n.Nbody)
+-		n.Right = orderStmtInPlace(n.Right)
++		orderBlock(&n.Nbody, o.free)
++		n.Right = orderStmtInPlace(n.Right, o.free)
+ 		o.out = append(o.out, n)
+ 		o.cleanTemp(t)
+ 
+@@ -656,8 +688,8 @@ func (o *Order) stmt(n *Node) {
+ 		n.Nbody.Prepend(o.cleanTempNoPop(t)...)
+ 		n.Rlist.Prepend(o.cleanTempNoPop(t)...)
+ 		o.popTemp(t)
+-		orderBlock(&n.Nbody)
+-		orderBlock(&n.Rlist)
++		orderBlock(&n.Nbody, o.free)
++		orderBlock(&n.Rlist, o.free)
+ 		o.out = append(o.out, n)
+ 
+ 	// Special: argument will be converted to interface using convT2E
+@@ -739,7 +771,7 @@ func (o *Order) stmt(n *Node) {
+ 		}
+ 		o.exprListInPlace(n.List)
+ 		if orderBody {
+-			orderBlock(&n.Nbody)
++			orderBlock(&n.Nbody, o.free)
+ 		}
+ 		o.out = append(o.out, n)
+ 		o.cleanTemp(t)
+@@ -857,7 +889,7 @@ func (o *Order) stmt(n *Node) {
+ 					tmp2 = typecheck(tmp2, Etop)
+ 					n2.Ninit.Append(tmp2)
+ 				}
+-				orderBlock(&n2.Ninit)
++				orderBlock(&n2.Ninit, o.free)
+ 
+ 			case OSEND:
+ 				if r.Ninit.Len() != 0 {
+@@ -882,7 +914,7 @@ func (o *Order) stmt(n *Node) {
+ 		// Also insert any ninit queued during the previous loop.
+ 		// (The temporary cleaning must follow that ninit work.)
+ 		for _, n3 := range n.List.Slice() {
+-			orderBlock(&n3.Nbody)
++			orderBlock(&n3.Nbody, o.free)
+ 			n3.Nbody.Prepend(o.cleanTempNoPop(t)...)
+ 
+ 			// TODO(mdempsky): Is this actually necessary?
+@@ -924,7 +956,7 @@ func (o *Order) stmt(n *Node) {
+ 				Fatalf("order switch case %v", ncas.Op)
+ 			}
+ 			o.exprListInPlace(ncas.List)
+-			orderBlock(&ncas.Nbody)
++			orderBlock(&ncas.Nbody, o.free)
+ 		}
+ 
+ 		o.out = append(o.out, n)
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 9d1114fa43..d520f21e63 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -751,7 +751,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
+ 		case initKindStatic:
+ 			genAsStatic(a)
+ 		case initKindDynamic, initKindLocalCode:
+-			a = orderStmtInPlace(a)
++			a = orderStmtInPlace(a, map[string][]*Node{})
+ 			a = walkstmt(a)
+ 			init.Append(a)
+ 		default:
+@@ -909,7 +909,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 		a = nod(OAS, a, value)
+ 
+ 		a = typecheck(a, Etop)
+-		a = orderStmtInPlace(a)
++		a = orderStmtInPlace(a, map[string][]*Node{})
+ 		a = walkstmt(a)
+ 		init.Append(a)
+ 	}
+@@ -918,7 +918,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 	a = nod(OAS, var_, nod(OSLICE, vauto, nil))
+ 
+ 	a = typecheck(a, Etop)
+-	a = orderStmtInPlace(a)
++	a = orderStmtInPlace(a, map[string][]*Node{})
+ 	a = walkstmt(a)
+ 	init.Append(a)
+ }
+diff --git a/test/live.go b/test/live.go
+index ba50f5b779..6367cab96f 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -256,8 +256,8 @@ func f16() {
+ 	if b {
+ 		delete(mi, iface()) // ERROR "stack object .autotmp_[0-9]+ interface \{\}$"
+ 	}
+-	delete(mi, iface()) // ERROR "stack object .autotmp_[0-9]+ interface \{\}$"
+-	delete(mi, iface()) // ERROR "stack object .autotmp_[0-9]+ interface \{\}$"
++	delete(mi, iface())
++	delete(mi, iface())
+ }
+ 
+ var m2s map[string]*byte
+@@ -302,8 +302,8 @@ func f18() {
+ 	if b {
+ 		z = m2[g18()] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+ 	}
+-	z = m2[g18()] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+-	z = m2[g18()] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
++	z = m2[g18()]
++	z = m2[g18()]
+ 	printbytepointer(z)
+ }
+ 
+@@ -319,8 +319,8 @@ func f19() {
+ 	if b {
+ 		z = <-ch // ERROR "stack object .autotmp_[0-9]+ \*byte$"
+ 	}
+-	z = <-ch // ERROR "stack object .autotmp_[0-9]+ \*byte$"
+-	z = <-ch // ERROR "stack object .autotmp_[0-9]+ \*byte$" "live at call to chanrecv1: .autotmp_[0-9]+$"
++	z = <-ch
++	z = <-ch // ERROR "live at call to chanrecv1: .autotmp_[0-9]+$"
+ 	printbytepointer(z)
+ }
+ 
+@@ -329,8 +329,8 @@ func f20() {
+ 	if b {
+ 		ch <- byteptr() // ERROR "stack object .autotmp_[0-9]+ \*byte$"
+ 	}
+-	ch <- byteptr() // ERROR "stack object .autotmp_[0-9]+ \*byte$"
+-	ch <- byteptr() // ERROR "stack object .autotmp_[0-9]+ \*byte$"
++	ch <- byteptr()
++	ch <- byteptr()
+ }
+ 
+ func f21() {
+@@ -339,8 +339,8 @@ func f21() {
+ 	if b {
+ 		z = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+ 	}
+-	z = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+-	z = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
++	z = m2[[2]string{"x", "y"}]
++	z = m2[[2]string{"x", "y"}]
+ 	printbytepointer(z)
+ }
+ 
+@@ -351,8 +351,8 @@ func f23() {
+ 	if b {
+ 		z, ok = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+ 	}
+-	z, ok = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+-	z, ok = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
++	z, ok = m2[[2]string{"x", "y"}]
++	z, ok = m2[[2]string{"x", "y"}]
+ 	printbytepointer(z)
+ 	print(ok)
+ }
+@@ -363,8 +363,8 @@ func f24() {
+ 	if b {
+ 		m2[[2]string{"x", "y"}] = nil // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+ 	}
+-	m2[[2]string{"x", "y"}] = nil // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+-	m2[[2]string{"x", "y"}] = nil // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
++	m2[[2]string{"x", "y"}] = nil
++	m2[[2]string{"x", "y"}] = nil
+ }
+ 
+ // defer should not cause spurious ambiguously live variables
+@@ -389,8 +389,8 @@ func f26(b bool) {
+ 	if b {
+ 		print26((*int)(nil), (*int)(nil), (*int)(nil)) // ERROR "stack object .autotmp_[0-9]+ \[3\]interface \{\}$"
+ 	}
+-	print26((*int)(nil), (*int)(nil), (*int)(nil)) // ERROR "stack object .autotmp_[0-9]+ \[3\]interface \{\}$"
+-	print26((*int)(nil), (*int)(nil), (*int)(nil)) // ERROR "stack object .autotmp_[0-9]+ \[3\]interface \{\}$"
++	print26((*int)(nil), (*int)(nil), (*int)(nil))
++	print26((*int)(nil), (*int)(nil), (*int)(nil))
+ 	printnl()
+ }
+ 
+@@ -442,8 +442,8 @@ func f28(b bool) {
+ 	if b {
+ 		printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10) // ERROR "stack object .autotmp_[0-9]+ \[10\]string$"
+ 	}
+-	printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10) // ERROR "stack object .autotmp_[0-9]+ \[10\]string$"
+-	printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10) // ERROR "stack object .autotmp_[0-9]+ \[10\]string$"
++	printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10)
++	printstring(s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10)
+ }
+ 
+ // map iterator should die on end of range loop
+@@ -454,10 +454,10 @@ func f29(b bool) {
+ 			printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
+ 		}
+ 	}
+-	for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ map.iter\[string\]int$"
++	for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$"
+ 		printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
+ 	}
+-	for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ map.iter\[string\]int$"
++	for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$"
+ 		printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
+ 	}
+ }
+@@ -481,10 +481,10 @@ func f30(b bool) {
+ 			printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+$"
+ 		}
+ 	}
+-	for _, p := range pstructarr { // ERROR "stack object .autotmp_[0-9]+ \[10\]pstruct$"
++	for _, p := range pstructarr {
+ 		printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+$"
+ 	}
+-	for _, p := range pstructarr { // ERROR "stack object .autotmp_[0-9]+ \[10\]pstruct$"
++	for _, p := range pstructarr {
+ 		printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+$"
+ 	}
+ }
+@@ -496,10 +496,10 @@ func f31(b1, b2, b3 bool) {
+ 		g31(g18()) // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+ 	}
+ 	if b2 {
+-		h31(g18()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ \[2\]string$"
++		h31(g18()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
+ 	}
+ 	if b3 {
+-		panic(g18()) // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
++		panic(g18())
+ 	}
+ 	print(b3)
+ }
+diff --git a/test/uintptrescapes2.go b/test/uintptrescapes2.go
+index e7b5d721f5..2c8dfd7102 100644
+--- a/test/uintptrescapes2.go
++++ b/test/uintptrescapes2.go
+@@ -32,12 +32,12 @@ func G() {
+ 	var t int                        // ERROR "moved to heap"
+ 	F1(uintptr(unsafe.Pointer(&t)))  // ERROR "live at call to F1: .?autotmp" "&t escapes to heap" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+ 	var t2 int                       // ERROR "moved to heap"
+-	F3(uintptr(unsafe.Pointer(&t2))) // ERROR "live at call to F3: .?autotmp" "&t2 escapes to heap" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
++	F3(uintptr(unsafe.Pointer(&t2))) // ERROR "live at call to F3: .?autotmp" "&t2 escapes to heap"
+ }
+ 
+ func H() {
+ 	var v int                                 // ERROR "moved to heap"
+ 	F2(0, 1, uintptr(unsafe.Pointer(&v)), 2)  // ERROR "live at call to newobject: .?autotmp" "live at call to F2: .?autotmp" "escapes to heap" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+ 	var v2 int                                // ERROR "moved to heap"
+-	F4(0, 1, uintptr(unsafe.Pointer(&v2)), 2) // ERROR "live at call to newobject: .?autotmp" "live at call to F4: .?autotmp" "escapes to heap" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
++	F4(0, 1, uintptr(unsafe.Pointer(&v2)), 2) // ERROR "live at call to newobject: .?autotmp" "live at call to F4: .?autotmp" "escapes to heap"
+ }

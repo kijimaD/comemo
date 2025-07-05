@@ -13,6 +13,20 @@ Date:   Mon Oct 23 19:13:32 2017 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index eaaf56f385..cfdf07cc77 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -484,7 +484,7 @@ func createComplexVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*
+ 	// named X in this function, but no, I don't have enough
+ 	// information to reliably report its contents."
+ 	for _, n := range automDecls {
+-		if _, found := ssaVars[n]; !found {
++		if _, found := ssaVars[n]; found {
+ 			continue
+ 		}
+ 		c := n.Sym.Name[0]

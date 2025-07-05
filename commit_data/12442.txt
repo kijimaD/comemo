@@ -8,10 +8,131 @@ Date:   Wed Mar 7 13:51:49 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5756067
-
+---
  src/cmd/cgo/doc.go          |  6 +++---
  src/cmd/cgo/main.go         |  2 +-
  src/lib9/utf/Makefile       | 14 ++++++--------
  test/bench/garbage/Makefile | 17 ++++++-----------
  test/bench/go1/Makefile     |  5 -----
  5 files changed, 16 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index f6a14ae08a..109b666bdc 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -111,9 +111,9 @@ Not all Go types can be mapped to C types in a useful way.
+ Cgo transforms the input file into four output files: two Go source
+ files, a C file for 6c (or 8c or 5c), and a C file for gcc.
+ 
+-The standard package makefile rules in Make.pkg automate the
+-process of using cgo.  See $GOROOT/misc/cgo/stdio and
+-$GOROOT/misc/cgo/gmp for examples.
++The standard package construction rules of the go command
++automate the process of using cgo.  See $GOROOT/misc/cgo/stdio
++and $GOROOT/misc/cgo/gmp for examples.
+ 
+ Cgo does not yet work with gccgo.
+ 
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index a8be7be7d9..5f307607ba 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -147,7 +147,7 @@ func main() {
+ 		// cgo -dynimport is essentially a separate helper command
+ 		// built into the cgo binary.  It scans a gcc-produced executable
+ 		// and dumps information about the imported symbols and the
+-		// imported libraries.  The Make.pkg rules for cgo prepare an
++		// imported libraries.  The 'go build' rules for cgo prepare an
+ 		// appropriate executable and then use its import information
+ 		// instead of needing to make the linkers duplicate all the
+ 		// specialized knowledge gcc has about where to look for imported
+diff --git a/src/lib9/utf/Makefile b/src/lib9/utf/Makefile
+index c3b9ec5d06..bbb2da6a90 100644
+--- a/src/lib9/utf/Makefile
++++ b/src/lib9/utf/Makefile
+@@ -4,21 +4,17 @@
+ 
+ # The library is built by the Makefile in the parent directory.
+ # This Makefile only builds mkrunetype.
+-
+-include ../../Make.inc
+-O:=$(HOST_O)
++# GOROOT, GOOS, and GOARCH must be set explicitly.
+ 
+ TARG=mkrunetype
+ 
+-OFILES=\
+-	mkrunetype.$O\
+-
+-include ../../Make.ccmd
+-
+ UnicodeData-%.txt:
+ 	curl http://www.unicode.org/Public/$*/ucd/UnicodeData.txt >_$@
+ 	mv _$@ $@
+ 
++mkrunetype: mkrunetype.c
++	cc -I../../../include -o mkrunetype -L$(GOROOT)/pkg/obj/$(GOOS)_$(GOARCH)/ mkrunetype.c -l9
++
+ runetypebody-%.c: mkrunetype UnicodeData-%.txt
+ 	mkrunetype -p UnicodeData-$*.txt >_$@
+ 	mv _$@ $@
+@@ -30,3 +26,5 @@ UNICODE_VERSION=6.0.0
+ test: mkrunetype UnicodeData-$(UNICODE_VERSION).txt
+ 	mkrunetype -c UnicodeData-$(UNICODE_VERSION).txt
+ 
++clean:
++	rm -f UnicodeData.txt mkrunetype
+\ No newline at end of file
+diff --git a/test/bench/garbage/Makefile b/test/bench/garbage/Makefile
+index 8002a2017b..98838453aa 100644
+--- a/test/bench/garbage/Makefile
++++ b/test/bench/garbage/Makefile
+@@ -2,27 +2,22 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../src/Make.inc
+-
+ ALL=\
+ 	parser\
+ 	peano\
+ 	tree\
+ 	tree2\
+ 
+-all: $(addsuffix .out, $(ALL))
+-
+-%.$O: %.go stats.go
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) $*.go stats.go
++all: $(ALL)
+ 
+-%.out: %.$O
+-	$(LD) -o $@ $*.$O
++%: %.go
++	go build $*.go stats.go
+ 
+-%.bench: %.out
+-	time ./$*.out
++%.bench: %
++	time ./$*
+ 
+ bench: $(addsuffix .bench, $(ALL))
+ 
+ clean:
+-	rm -f *.[$(OS)] $(addsuffix .out, $(ALL))
++	rm -f $(ALL)
+ 
+diff --git a/test/bench/go1/Makefile b/test/bench/go1/Makefile
+index aa55853356..48e01279d4 100644
+--- a/test/bench/go1/Makefile
++++ b/test/bench/go1/Makefile
+@@ -1,10 +1,5 @@
+-include $(GOROOT)/src/Make.inc
+ 
+ TARG=go1
+-GOFILES=\
+-	dummy.go\
+-
+-include $(GOROOT)/src/Make.pkg
+ 
+ test:
+ 	echo go1: tests disabled for now TODO

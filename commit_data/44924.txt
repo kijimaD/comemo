@@ -28,8 +28,67 @@ Date:   Wed Aug 26 14:07:35 2020 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Trust: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  test/notinheap.go                        |  8 ++++++++
  test/notinheap2.go                       | 10 +++++++---
  3 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index fb169cfec8..9bb3c69cd0 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2068,7 +2068,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 		ok |= ctxStmt
+ 		n.Left = typecheck(n.Left, ctxType)
+ 		checkwidth(n.Left.Type)
+-		if n.Left.Type != nil && n.Left.Type.NotInHeap() && n.Left.Name.Param.Pragma&NotInHeap == 0 {
++		if n.Left.Type != nil && n.Left.Type.NotInHeap() && !n.Left.Name.Param.Alias && n.Left.Name.Param.Pragma&NotInHeap == 0 {
+ 			// The type contains go:notinheap types, so it
+ 			// must be marked as such (alternatively, we
+ 			// could silently propagate go:notinheap).
+diff --git a/test/notinheap.go b/test/notinheap.go
+index 16c3f8faf0..a2284a5068 100644
+--- a/test/notinheap.go
++++ b/test/notinheap.go
+@@ -52,6 +52,14 @@ type t3 byte
+ //go:notinheap
+ type t4 rune
+ 
++// Type aliases inherit the go:notinheap-ness of the type they alias.
++type nihAlias = nih
++
++type embedAlias1 struct { // ERROR "must be go:notinheap"
++	x nihAlias
++}
++type embedAlias2 [1]nihAlias // ERROR "must be go:notinheap"
++
+ var sink interface{}
+ 
+ func i() {
+diff --git a/test/notinheap2.go b/test/notinheap2.go
+index de1e6db1d3..09d0fc0b7b 100644
+--- a/test/notinheap2.go
++++ b/test/notinheap2.go
+@@ -27,14 +27,18 @@ func f() {
+ // Heap allocation is not okay.
+ 
+ var y *nih
++var y2 *struct{ x nih }
++var y3 *[1]nih
+ var z []nih
+ var w []nih
+ var n int
+ 
+ func g() {
+-	y = new(nih)       // ERROR "heap allocation disallowed"
+-	z = make([]nih, 1) // ERROR "heap allocation disallowed"
+-	z = append(z, x)   // ERROR "heap allocation disallowed"
++	y = new(nih)              // ERROR "heap allocation disallowed"
++	y2 = new(struct{ x nih }) // ERROR "heap allocation disallowed"
++	y3 = new([1]nih)          // ERROR "heap allocation disallowed"
++	z = make([]nih, 1)        // ERROR "heap allocation disallowed"
++	z = append(z, x)          // ERROR "heap allocation disallowed"
+ 	// Test for special case of OMAKESLICECOPY
+ 	x := make([]nih, n) // ERROR "heap allocation disallowed"
+ 	copy(x, z)

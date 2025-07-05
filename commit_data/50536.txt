@@ -21,7 +21,42 @@ Date:   Sun Oct 31 17:58:07 2021 +0100
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Trust: Martin Möhrmann <martin@golang.org>
-
+---
  src/reflect/all_test.go | 10 ++++++++++
  src/reflect/value.go    |  2 +-
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 725be28bf0..acc09962a0 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -7568,6 +7568,16 @@ func TestMapIterNext(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkMapIterNext(b *testing.B) {
++	m := ValueOf(map[string]int{"a": 0, "b": 1, "c": 2, "d": 3})
++	it := m.MapRange()
++	for i := 0; i < b.N; i++ {
++		for it.Next() {
++		}
++		it.Reset(m)
++	}
++}
++
+ func TestMapIterDelete0(t *testing.T) {
+ 	// Delete all elements before first iteration.
+ 	m := map[string]int{"one": 1, "two": 2, "three": 3}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 90edf8e31d..ecf9dd7bc8 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1665,7 +1665,7 @@ type hiter struct {
+ 	checkBucket uintptr
+ }
+ 
+-func (h hiter) initialized() bool {
++func (h *hiter) initialized() bool {
+ 	return h.t != nil
+ }
+ 

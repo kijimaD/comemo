@@ -13,7 +13,7 @@ Date:   Mon Sep 16 14:07:43 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/613260
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go             | 54 +++++++++++++-------
  src/cmd/compile/internal/ssa/_gen/386Ops.go        |  2 +-
  src/cmd/compile/internal/ssa/_gen/AMD64Ops.go      |  2 +-
@@ -64,3 +64,2085 @@ Date:   Mon Sep 16 14:07:43 2024 -0400
  test/internal/runtime/sys/inlinegcpc.go            | 20 ++++++++
  test/runtime/inlinegcpc.go                         | 11 +---
  49 files changed, 303 insertions(+), 211 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 9834737bfb..aeabc98993 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -442,29 +442,45 @@ opSwitch:
+ 	// Call is okay if inlinable and we have the budget for the body.
+ 	case ir.OCALLFUNC:
+ 		n := n.(*ir.CallExpr)
+-		// Functions that call runtime.getcaller{pc,sp} can not be inlined
+-		// because getcaller{pc,sp} expect a pointer to the caller's first argument.
+-		//
+-		// runtime.throw is a "cheap call" like panic in normal code.
+ 		var cheap bool
+ 		if n.Fun.Op() == ir.ONAME {
+ 			name := n.Fun.(*ir.Name)
+ 			if name.Class == ir.PFUNC {
+-				switch fn := types.RuntimeSymName(name.Sym()); fn {
+-				case "getcallerpc", "getcallersp":
+-					v.reason = "call to " + fn
+-					return true
+-				case "throw":
+-					v.budget -= inlineExtraThrowCost
+-					break opSwitch
+-				case "panicrangestate":
+-					cheap = true
+-				}
+-				// Special case for internal/abi.NoEscape. It does just type
+-				// conversions to appease the escape analysis, and doesn't
+-				// generate code.
+-				if s := name.Sym(); s.Name == "NoEscape" && s.Pkg.Path == "internal/abi" {
+-					cheap = true
++				s := name.Sym()
++				fn := s.Name
++				switch s.Pkg.Path {
++				case "internal/abi":
++					switch fn {
++					case "NoEscape":
++						// Special case for internal/abi.NoEscape. It does just type
++						// conversions to appease the escape analysis, and doesn't
++						// generate code.
++						cheap = true
++					}
++				case "internal/runtime/sys":
++					switch fn {
++					case "GetCallerPC":
++						// Functions that call GetCallerPC can not be inlined
++						// because users expect the PC of the logical caller,
++						// but GetCallerPC returns the physical caller.
++						v.reason = "call to " + fn
++						return true
++					}
++				case "runtime":
++					switch fn {
++					case "getcallersp":
++						// Functions that call getcallersp can not be inlined
++						// because users expect the SP of the logical caller,
++						// but getcallersp returns the physical caller.
++						v.reason = "call to " + fn
++						return true
++					case "throw":
++						// runtime.throw is a "cheap call" like panic in normal code.
++						v.budget -= inlineExtraThrowCost
++						break opSwitch
++					case "panicrangestate":
++						cheap = true
++					}
+ 				}
+ 			}
+ 			// Special case for coverage counter updates; although
+diff --git a/src/cmd/compile/internal/ssa/_gen/386Ops.go b/src/cmd/compile/internal/ssa/_gen/386Ops.go
+index 7401ac871c..52044ff5d6 100644
+--- a/src/cmd/compile/internal/ssa/_gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/386Ops.go
+@@ -508,7 +508,7 @@ func init() {
+ 		// use of DX (the closure pointer)
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}, zeroWidth: true},
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+-		// I.e., if f calls g "calls" getcallerpc,
++		// I.e., if f calls g "calls" sys.GetCallerPC,
+ 		// the result should be the PC within f that g will return to.
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+index 3440c43532..c171d5fd19 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+@@ -960,7 +960,7 @@ func init() {
+ 		// use of DX (the closure pointer)
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}, zeroWidth: true},
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+-		// I.e., if f calls g "calls" getcallerpc,
++		// I.e., if f calls g "calls" sys.GetCallerPC,
+ 		// the result should be the PC within f that g will return to.
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+index fa18b674cc..d7fecf502d 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+@@ -615,7 +615,7 @@ func init() {
+ 		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+-		// I.e., if f calls g "calls" getcallerpc,
++		// I.e., if f calls g "calls" sys.GetCallerPC,
+ 		// the result should be the PC within f that g will return to.
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARMOps.go b/src/cmd/compile/internal/ssa/_gen/ARMOps.go
+index 39d24694e7..3ad96fcac0 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/ARMOps.go
+@@ -535,7 +535,7 @@ func init() {
+ 		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+-		// I.e., if f calls g "calls" getcallerpc,
++		// I.e., if f calls g "calls" sys.GetCallerPC,
+ 		// the result should be the PC within f that g will return to.
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index 140088b6bd..f21f44ffe1 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -453,7 +453,7 @@ func init() {
+ 		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+-		// I.e., if f calls g "calls" getcallerpc,
++		// I.e., if f calls g "calls" sys.GetCallerPC,
+ 		// the result should be the PC within f that g will return to.
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
+index 08cab89d5d..3d1abb16b6 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
+@@ -454,7 +454,7 @@ func init() {
+ 		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+-		// I.e., if f calls g "calls" getcallerpc,
++		// I.e., if f calls g "calls" sys.GetCallerPC,
+ 		// the result should be the PC within f that g will return to.
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPSOps.go b/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
+index 5964bb7a33..48e06a4189 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
+@@ -396,7 +396,7 @@ func init() {
+ 		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+-		// I.e., if f calls g "calls" getcallerpc,
++		// I.e., if f calls g "calls" sys.GetCallerPC,
+ 		// the result should be the PC within f that g will return to.
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+index eab185e05c..719bfeb6f4 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+@@ -457,7 +457,7 @@ func init() {
+ 		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+-		// I.e., if f calls g "calls" getcallerpc,
++		// I.e., if f calls g "calls" sys.GetCallerPC,
+ 		// the result should be the PC within f that g will return to.
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+index 7f3c4a2bf4..85c74b4676 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+@@ -407,7 +407,7 @@ func init() {
+ 		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+-		// I.e., if f calls g "calls" getcallerpc,
++		// I.e., if f calls g "calls" sys.GetCallerPC,
+ 		// the result should be the PC within f that g will return to.
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+diff --git a/src/cmd/compile/internal/ssa/_gen/S390XOps.go b/src/cmd/compile/internal/ssa/_gen/S390XOps.go
+index c4766c12f5..2f57d12630 100644
+--- a/src/cmd/compile/internal/ssa/_gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/S390XOps.go
+@@ -496,7 +496,7 @@ func init() {
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function. arg0=mem.
+ 		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+-		// I.e., if f calls g "calls" getcallerpc,
++		// I.e., if f calls g "calls" sys.GetCallerPC,
+ 		// the result should be the PC within f that g will return to.
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index c3043f58d0..ca8dcf0441 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -488,7 +488,7 @@ var genericOps = []opData{
+ 	// Pseudo-ops
+ 	{name: "GetG", argLength: 1, zeroWidth: true}, // runtime.getg() (read g pointer). arg0=mem
+ 	{name: "GetClosurePtr"},                       // get closure pointer from dedicated register
+-	{name: "GetCallerPC"},                         // for getcallerpc intrinsic
++	{name: "GetCallerPC"},                         // for GetCallerPC intrinsic
+ 	{name: "GetCallerSP", argLength: 1},           // for getcallersp intrinsic. arg0=mem.
+ 
+ 	// Indexing operations
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index e09438dc44..3b38c37051 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -162,12 +162,6 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		},
+ 		all...)
+ 
+-	add("runtime", "getcallerpc",
+-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-			return s.newValue0(ssa.OpGetCallerPC, s.f.Config.Types.Uintptr)
+-		},
+-		all...)
+-
+ 	add("runtime", "getcallersp",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpGetCallerSP, s.f.Config.Types.Uintptr, s.mem())
+@@ -181,13 +175,19 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		},
+ 		sys.ARM64, sys.PPC64, sys.RISCV64)
+ 
++	/******** internal/runtime/sys ********/
++	add("internal/runtime/sys", "GetCallerPC",
++		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++			return s.newValue0(ssa.OpGetCallerPC, s.f.Config.Types.Uintptr)
++		},
++		all...)
++
+ 	brev_arch := []sys.ArchFamily{sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.S390X}
+ 	if cfg.goppc64 >= 10 {
+ 		// Use only on Power10 as the new byte reverse instructions that Power10 provide
+ 		// make it worthwhile as an intrinsic
+ 		brev_arch = append(brev_arch, sys.PPC64)
+ 	}
+-	/******** internal/runtime/sys ********/
+ 	addF("internal/runtime/sys", "Bswap32",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0])
+@@ -1083,7 +1083,9 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
+ 
+ 	fn := sym.Name
+ 	if ssa.IntrinsicsDisable {
+-		if pkg == "runtime" && (fn == "getcallerpc" || fn == "getcallersp" || fn == "getclosureptr") {
++		if pkg == "runtime" && (fn == "getcallersp" || fn == "getclosureptr") {
++			// These runtime functions don't have definitions, must be intrinsics.
++		} else if pkg == "internal/runtime/sys" && fn == "GetCallerPC" {
+ 			// These runtime functions don't have definitions, must be intrinsics.
+ 		} else {
+ 			return nil
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 51744190fc..dd5399b12b 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -26,6 +26,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"386", "internal/runtime/math", "MulUintptr"}:             struct{}{},
+ 	{"386", "internal/runtime/sys", "Bswap32"}:                 struct{}{},
+ 	{"386", "internal/runtime/sys", "Bswap64"}:                 struct{}{},
++	{"386", "internal/runtime/sys", "GetCallerPC"}:             struct{}{},
+ 	{"386", "internal/runtime/sys", "TrailingZeros32"}:         struct{}{},
+ 	{"386", "internal/runtime/sys", "TrailingZeros64"}:         struct{}{},
+ 	{"386", "internal/runtime/sys", "TrailingZeros8"}:          struct{}{},
+@@ -37,7 +38,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"386", "math/bits", "TrailingZeros64"}:                    struct{}{},
+ 	{"386", "math/bits", "TrailingZeros8"}:                     struct{}{},
+ 	{"386", "runtime", "KeepAlive"}:                            struct{}{},
+-	{"386", "runtime", "getcallerpc"}:                          struct{}{},
+ 	{"386", "runtime", "getcallersp"}:                          struct{}{},
+ 	{"386", "runtime", "getclosureptr"}:                        struct{}{},
+ 	{"386", "runtime", "slicebytetostringtmp"}:                 struct{}{},
+@@ -92,6 +92,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"amd64", "internal/runtime/math", "MulUintptr"}:           struct{}{},
+ 	{"amd64", "internal/runtime/sys", "Bswap32"}:               struct{}{},
+ 	{"amd64", "internal/runtime/sys", "Bswap64"}:               struct{}{},
++	{"amd64", "internal/runtime/sys", "GetCallerPC"}:           struct{}{},
+ 	{"amd64", "internal/runtime/sys", "Len64"}:                 struct{}{},
+ 	{"amd64", "internal/runtime/sys", "Len8"}:                  struct{}{},
+ 	{"amd64", "internal/runtime/sys", "OnesCount64"}:           struct{}{},
+@@ -136,7 +137,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"amd64", "math/bits", "TrailingZeros64"}:                  struct{}{},
+ 	{"amd64", "math/bits", "TrailingZeros8"}:                   struct{}{},
+ 	{"amd64", "runtime", "KeepAlive"}:                          struct{}{},
+-	{"amd64", "runtime", "getcallerpc"}:                        struct{}{},
+ 	{"amd64", "runtime", "getcallersp"}:                        struct{}{},
+ 	{"amd64", "runtime", "getclosureptr"}:                      struct{}{},
+ 	{"amd64", "runtime", "slicebytetostringtmp"}:               struct{}{},
+@@ -180,6 +180,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"amd64", "sync/atomic", "SwapUintptr"}:                    struct{}{},
+ 	{"arm", "internal/runtime/sys", "Bswap32"}:                 struct{}{},
+ 	{"arm", "internal/runtime/sys", "Bswap64"}:                 struct{}{},
++	{"arm", "internal/runtime/sys", "GetCallerPC"}:             struct{}{},
+ 	{"arm", "internal/runtime/sys", "Len64"}:                   struct{}{},
+ 	{"arm", "internal/runtime/sys", "Len8"}:                    struct{}{},
+ 	{"arm", "internal/runtime/sys", "TrailingZeros32"}:         struct{}{},
+@@ -201,7 +202,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"arm", "math/bits", "TrailingZeros64"}:                    struct{}{},
+ 	{"arm", "math/bits", "TrailingZeros8"}:                     struct{}{},
+ 	{"arm", "runtime", "KeepAlive"}:                            struct{}{},
+-	{"arm", "runtime", "getcallerpc"}:                          struct{}{},
+ 	{"arm", "runtime", "getcallersp"}:                          struct{}{},
+ 	{"arm", "runtime", "getclosureptr"}:                        struct{}{},
+ 	{"arm", "runtime", "slicebytetostringtmp"}:                 struct{}{},
+@@ -258,6 +258,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"arm64", "internal/runtime/math", "MulUintptr"}:           struct{}{},
+ 	{"arm64", "internal/runtime/sys", "Bswap32"}:               struct{}{},
+ 	{"arm64", "internal/runtime/sys", "Bswap64"}:               struct{}{},
++	{"arm64", "internal/runtime/sys", "GetCallerPC"}:           struct{}{},
+ 	{"arm64", "internal/runtime/sys", "Len64"}:                 struct{}{},
+ 	{"arm64", "internal/runtime/sys", "Len8"}:                  struct{}{},
+ 	{"arm64", "internal/runtime/sys", "OnesCount64"}:           struct{}{},
+@@ -304,7 +305,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"arm64", "math/bits", "TrailingZeros64"}:                  struct{}{},
+ 	{"arm64", "math/bits", "TrailingZeros8"}:                   struct{}{},
+ 	{"arm64", "runtime", "KeepAlive"}:                          struct{}{},
+-	{"arm64", "runtime", "getcallerpc"}:                        struct{}{},
+ 	{"arm64", "runtime", "getcallersp"}:                        struct{}{},
+ 	{"arm64", "runtime", "getclosureptr"}:                      struct{}{},
+ 	{"arm64", "runtime", "publicationBarrier"}:                 struct{}{},
+@@ -388,6 +388,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "internal/runtime/math", "Add64"}:              struct{}{},
+ 	{"loong64", "internal/runtime/math", "Mul64"}:              struct{}{},
+ 	{"loong64", "internal/runtime/math", "MulUintptr"}:         struct{}{},
++	{"loong64", "internal/runtime/sys", "GetCallerPC"}:         struct{}{},
+ 	{"loong64", "math", "Abs"}:                                 struct{}{},
+ 	{"loong64", "math", "Copysign"}:                            struct{}{},
+ 	{"loong64", "math", "sqrt"}:                                struct{}{},
+@@ -402,7 +403,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "math/bits", "Sub"}:                            struct{}{},
+ 	{"loong64", "math/bits", "Sub64"}:                          struct{}{},
+ 	{"loong64", "runtime", "KeepAlive"}:                        struct{}{},
+-	{"loong64", "runtime", "getcallerpc"}:                      struct{}{},
+ 	{"loong64", "runtime", "getcallersp"}:                      struct{}{},
+ 	{"loong64", "runtime", "getclosureptr"}:                    struct{}{},
+ 	{"loong64", "runtime", "slicebytetostringtmp"}:             struct{}{},
+@@ -464,6 +464,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mips", "internal/runtime/atomic", "Xchg"}:                struct{}{},
+ 	{"mips", "internal/runtime/atomic", "Xchgint32"}:           struct{}{},
+ 	{"mips", "internal/runtime/atomic", "Xchguintptr"}:         struct{}{},
++	{"mips", "internal/runtime/sys", "GetCallerPC"}:            struct{}{},
+ 	{"mips", "internal/runtime/sys", "Len64"}:                  struct{}{},
+ 	{"mips", "internal/runtime/sys", "Len8"}:                   struct{}{},
+ 	{"mips", "internal/runtime/sys", "TrailingZeros32"}:        struct{}{},
+@@ -481,7 +482,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mips", "math/bits", "TrailingZeros64"}:                   struct{}{},
+ 	{"mips", "math/bits", "TrailingZeros8"}:                    struct{}{},
+ 	{"mips", "runtime", "KeepAlive"}:                           struct{}{},
+-	{"mips", "runtime", "getcallerpc"}:                         struct{}{},
+ 	{"mips", "runtime", "getcallersp"}:                         struct{}{},
+ 	{"mips", "runtime", "getclosureptr"}:                       struct{}{},
+ 	{"mips", "runtime", "slicebytetostringtmp"}:                struct{}{},
+@@ -548,6 +548,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mips64", "internal/runtime/math", "Add64"}:               struct{}{},
+ 	{"mips64", "internal/runtime/math", "Mul64"}:               struct{}{},
+ 	{"mips64", "internal/runtime/math", "MulUintptr"}:          struct{}{},
++	{"mips64", "internal/runtime/sys", "GetCallerPC"}:          struct{}{},
+ 	{"mips64", "math", "Abs"}:                                  struct{}{},
+ 	{"mips64", "math", "sqrt"}:                                 struct{}{},
+ 	{"mips64", "math/big", "mulWW"}:                            struct{}{},
+@@ -558,7 +559,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mips64", "math/bits", "Sub"}:                             struct{}{},
+ 	{"mips64", "math/bits", "Sub64"}:                           struct{}{},
+ 	{"mips64", "runtime", "KeepAlive"}:                         struct{}{},
+-	{"mips64", "runtime", "getcallerpc"}:                       struct{}{},
+ 	{"mips64", "runtime", "getcallersp"}:                       struct{}{},
+ 	{"mips64", "runtime", "getclosureptr"}:                     struct{}{},
+ 	{"mips64", "runtime", "slicebytetostringtmp"}:              struct{}{},
+@@ -635,6 +635,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mips64le", "internal/runtime/math", "Add64"}:             struct{}{},
+ 	{"mips64le", "internal/runtime/math", "Mul64"}:             struct{}{},
+ 	{"mips64le", "internal/runtime/math", "MulUintptr"}:        struct{}{},
++	{"mips64le", "internal/runtime/sys", "GetCallerPC"}:        struct{}{},
+ 	{"mips64le", "math", "Abs"}:                                struct{}{},
+ 	{"mips64le", "math", "sqrt"}:                               struct{}{},
+ 	{"mips64le", "math/big", "mulWW"}:                          struct{}{},
+@@ -645,7 +646,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mips64le", "math/bits", "Sub"}:                           struct{}{},
+ 	{"mips64le", "math/bits", "Sub64"}:                         struct{}{},
+ 	{"mips64le", "runtime", "KeepAlive"}:                       struct{}{},
+-	{"mips64le", "runtime", "getcallerpc"}:                     struct{}{},
+ 	{"mips64le", "runtime", "getcallersp"}:                     struct{}{},
+ 	{"mips64le", "runtime", "getclosureptr"}:                   struct{}{},
+ 	{"mips64le", "runtime", "slicebytetostringtmp"}:            struct{}{},
+@@ -707,6 +707,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mipsle", "internal/runtime/atomic", "Xchg"}:              struct{}{},
+ 	{"mipsle", "internal/runtime/atomic", "Xchgint32"}:         struct{}{},
+ 	{"mipsle", "internal/runtime/atomic", "Xchguintptr"}:       struct{}{},
++	{"mipsle", "internal/runtime/sys", "GetCallerPC"}:          struct{}{},
+ 	{"mipsle", "internal/runtime/sys", "Len64"}:                struct{}{},
+ 	{"mipsle", "internal/runtime/sys", "Len8"}:                 struct{}{},
+ 	{"mipsle", "internal/runtime/sys", "TrailingZeros32"}:      struct{}{},
+@@ -724,7 +725,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mipsle", "math/bits", "TrailingZeros64"}:                 struct{}{},
+ 	{"mipsle", "math/bits", "TrailingZeros8"}:                  struct{}{},
+ 	{"mipsle", "runtime", "KeepAlive"}:                         struct{}{},
+-	{"mipsle", "runtime", "getcallerpc"}:                       struct{}{},
+ 	{"mipsle", "runtime", "getcallersp"}:                       struct{}{},
+ 	{"mipsle", "runtime", "getclosureptr"}:                     struct{}{},
+ 	{"mipsle", "runtime", "slicebytetostringtmp"}:              struct{}{},
+@@ -792,6 +792,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64", "internal/runtime/math", "MulUintptr"}:           struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "Bswap32"}:               struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "Bswap64"}:               struct{}{},
++	{"ppc64", "internal/runtime/sys", "GetCallerPC"}:           struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "Len64"}:                 struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "Len8"}:                  struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "OnesCount64"}:           struct{}{},
+@@ -833,7 +834,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64", "math/bits", "TrailingZeros32"}:                  struct{}{},
+ 	{"ppc64", "math/bits", "TrailingZeros64"}:                  struct{}{},
+ 	{"ppc64", "runtime", "KeepAlive"}:                          struct{}{},
+-	{"ppc64", "runtime", "getcallerpc"}:                        struct{}{},
+ 	{"ppc64", "runtime", "getcallersp"}:                        struct{}{},
+ 	{"ppc64", "runtime", "getclosureptr"}:                      struct{}{},
+ 	{"ppc64", "runtime", "publicationBarrier"}:                 struct{}{},
+@@ -912,6 +912,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64le", "internal/runtime/math", "MulUintptr"}:         struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "Bswap32"}:             struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "Bswap64"}:             struct{}{},
++	{"ppc64le", "internal/runtime/sys", "GetCallerPC"}:         struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "Len64"}:               struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "Len8"}:                struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "OnesCount64"}:         struct{}{},
+@@ -953,7 +954,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64le", "math/bits", "TrailingZeros32"}:                struct{}{},
+ 	{"ppc64le", "math/bits", "TrailingZeros64"}:                struct{}{},
+ 	{"ppc64le", "runtime", "KeepAlive"}:                        struct{}{},
+-	{"ppc64le", "runtime", "getcallerpc"}:                      struct{}{},
+ 	{"ppc64le", "runtime", "getcallersp"}:                      struct{}{},
+ 	{"ppc64le", "runtime", "getclosureptr"}:                    struct{}{},
+ 	{"ppc64le", "runtime", "publicationBarrier"}:               struct{}{},
+@@ -1031,6 +1031,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"riscv64", "internal/runtime/math", "Add64"}:              struct{}{},
+ 	{"riscv64", "internal/runtime/math", "Mul64"}:              struct{}{},
+ 	{"riscv64", "internal/runtime/math", "MulUintptr"}:         struct{}{},
++	{"riscv64", "internal/runtime/sys", "GetCallerPC"}:         struct{}{},
+ 	{"riscv64", "math", "Abs"}:                                 struct{}{},
+ 	{"riscv64", "math", "Copysign"}:                            struct{}{},
+ 	{"riscv64", "math", "FMA"}:                                 struct{}{},
+@@ -1048,7 +1049,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"riscv64", "math/bits", "Sub"}:                            struct{}{},
+ 	{"riscv64", "math/bits", "Sub64"}:                          struct{}{},
+ 	{"riscv64", "runtime", "KeepAlive"}:                        struct{}{},
+-	{"riscv64", "runtime", "getcallerpc"}:                      struct{}{},
+ 	{"riscv64", "runtime", "getcallersp"}:                      struct{}{},
+ 	{"riscv64", "runtime", "getclosureptr"}:                    struct{}{},
+ 	{"riscv64", "runtime", "publicationBarrier"}:               struct{}{},
+@@ -1127,6 +1127,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"s390x", "internal/runtime/math", "Mul64"}:                struct{}{},
+ 	{"s390x", "internal/runtime/sys", "Bswap32"}:               struct{}{},
+ 	{"s390x", "internal/runtime/sys", "Bswap64"}:               struct{}{},
++	{"s390x", "internal/runtime/sys", "GetCallerPC"}:           struct{}{},
+ 	{"s390x", "internal/runtime/sys", "Len64"}:                 struct{}{},
+ 	{"s390x", "internal/runtime/sys", "Len8"}:                  struct{}{},
+ 	{"s390x", "internal/runtime/sys", "OnesCount64"}:           struct{}{},
+@@ -1166,7 +1167,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"s390x", "math/bits", "TrailingZeros64"}:                  struct{}{},
+ 	{"s390x", "math/bits", "TrailingZeros8"}:                   struct{}{},
+ 	{"s390x", "runtime", "KeepAlive"}:                          struct{}{},
+-	{"s390x", "runtime", "getcallerpc"}:                        struct{}{},
+ 	{"s390x", "runtime", "getcallersp"}:                        struct{}{},
+ 	{"s390x", "runtime", "getclosureptr"}:                      struct{}{},
+ 	{"s390x", "runtime", "slicebytetostringtmp"}:               struct{}{},
+@@ -1198,6 +1198,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"s390x", "sync/atomic", "SwapUint32"}:                     struct{}{},
+ 	{"s390x", "sync/atomic", "SwapUint64"}:                     struct{}{},
+ 	{"s390x", "sync/atomic", "SwapUintptr"}:                    struct{}{},
++	{"wasm", "internal/runtime/sys", "GetCallerPC"}:            struct{}{},
+ 	{"wasm", "internal/runtime/sys", "Len64"}:                  struct{}{},
+ 	{"wasm", "internal/runtime/sys", "Len8"}:                   struct{}{},
+ 	{"wasm", "internal/runtime/sys", "OnesCount64"}:            struct{}{},
+@@ -1228,7 +1229,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"wasm", "math/bits", "TrailingZeros64"}:                   struct{}{},
+ 	{"wasm", "math/bits", "TrailingZeros8"}:                    struct{}{},
+ 	{"wasm", "runtime", "KeepAlive"}:                           struct{}{},
+-	{"wasm", "runtime", "getcallerpc"}:                         struct{}{},
+ 	{"wasm", "runtime", "getcallersp"}:                         struct{}{},
+ 	{"wasm", "runtime", "getclosureptr"}:                       struct{}{},
+ 	{"wasm", "runtime", "slicebytetostringtmp"}:                struct{}{},
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index 1b78e605c8..41d8f87dd2 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -67,7 +67,7 @@ var (
+ 
+ 	// dirs are the directories to look for *.go files in.
+ 	// TODO(bradfitz): just use all directories?
+-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam", "typeparam/mdempsky", "arenas"}
++	dirs = []string{".", "ken", "chan", "interface", "internal/runtime/sys", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam", "typeparam/mdempsky", "arenas"}
+ )
+ 
+ // Test is the main entrypoint that runs tests in the GOROOT/test directory.
+diff --git a/src/internal/runtime/sys/empty.s b/src/internal/runtime/sys/empty.s
+new file mode 100644
+index 0000000000..3e62b7dac3
+--- /dev/null
++++ b/src/internal/runtime/sys/empty.s
+@@ -0,0 +1 @@
++// Empty assembly file to allow empty function bodies for intrinsics.
+diff --git a/src/internal/runtime/sys/intrinsics.go b/src/internal/runtime/sys/intrinsics.go
+index e6a3758447..9607f805c8 100644
+--- a/src/internal/runtime/sys/intrinsics.go
++++ b/src/internal/runtime/sys/intrinsics.go
+@@ -206,3 +206,28 @@ func Prefetch(addr uintptr) {}
+ //
+ // ARM64: Produce PRFM instruction with PLDL1STRM option
+ func PrefetchStreamed(addr uintptr) {}
++
++// GetCallerPC returns the program counter (PC) of its caller's caller.
++// getcallersp returns the stack pointer (SP) of its caller's caller.
++// Both are implemented as intrinsics on every platform.
++//
++// For example:
++//
++//	func f(arg1, arg2, arg3 int) {
++//		pc := GetCallerPC()
++//		sp := getcallersp()
++//	}
++//
++// These two lines find the PC and SP immediately following
++// the call to f (where f will return).
++//
++// The call to GetCallerPC and getcallersp must be done in the
++// frame being asked about.
++//
++// The result of getcallersp is correct at the time of the return,
++// but it may be invalidated by any subsequent call to a function
++// that might relocate the stack in order to grow or shrink it.
++// A general rule is that the result of getcallersp should be used
++// immediately and can only be passed to nosplit functions.
++
++func GetCallerPC() uintptr
+diff --git a/src/runtime/asan.go b/src/runtime/asan.go
+index d79637a334..76b958efbb 100644
+--- a/src/runtime/asan.go
++++ b/src/runtime/asan.go
+@@ -7,19 +7,20 @@
+ package runtime
+ 
+ import (
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+ // Public address sanitizer API.
+ func ASanRead(addr unsafe.Pointer, len int) {
+ 	sp := getcallersp()
+-	pc := getcallerpc()
++	pc := sys.GetCallerPC()
+ 	doasanread(addr, uintptr(len), sp, pc)
+ }
+ 
+ func ASanWrite(addr unsafe.Pointer, len int) {
+ 	sp := getcallersp()
+-	pc := getcallerpc()
++	pc := sys.GetCallerPC()
+ 	doasanwrite(addr, uintptr(len), sp, pc)
+ }
+ 
+@@ -33,7 +34,7 @@ const asanenabled = true
+ //go:nosplit
+ func asanread(addr unsafe.Pointer, sz uintptr) {
+ 	sp := getcallersp()
+-	pc := getcallerpc()
++	pc := sys.GetCallerPC()
+ 	doasanread(addr, sz, sp, pc)
+ }
+ 
+@@ -41,7 +42,7 @@ func asanread(addr unsafe.Pointer, sz uintptr) {
+ //go:nosplit
+ func asanwrite(addr unsafe.Pointer, sz uintptr) {
+ 	sp := getcallersp()
+-	pc := getcallerpc()
++	pc := sys.GetCallerPC()
+ 	doasanwrite(addr, sz, sp, pc)
+ }
+ 
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 4c854c72bc..1702e555ac 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -21,6 +21,7 @@ import (
+ 	"internal/abi"
+ 	"internal/runtime/atomic"
+ 	"internal/runtime/math"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -153,7 +154,7 @@ func full(c *hchan) bool {
+ //
+ //go:nosplit
+ func chansend1(c *hchan, elem unsafe.Pointer) {
+-	chansend(c, elem, true, getcallerpc())
++	chansend(c, elem, true, sys.GetCallerPC())
+ }
+ 
+ /*
+@@ -406,7 +407,7 @@ func closechan(c *hchan) {
+ 	}
+ 
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racewritepc(c.raceaddr(), callerpc, abi.FuncPCABIInternal(closechan))
+ 		racerelease(c.raceaddr())
+ 	}
+@@ -750,7 +751,7 @@ func chanparkcommit(gp *g, chanLock unsafe.Pointer) bool {
+ //		... bar
+ //	}
+ func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
+-	return chansend(c, elem, false, getcallerpc())
++	return chansend(c, elem, false, sys.GetCallerPC())
+ }
+ 
+ // compiler implements
+@@ -775,7 +776,7 @@ func selectnbrecv(elem unsafe.Pointer, c *hchan) (selected, received bool) {
+ 
+ //go:linkname reflect_chansend reflect.chansend0
+ func reflect_chansend(c *hchan, elem unsafe.Pointer, nb bool) (selected bool) {
+-	return chansend(c, elem, !nb, getcallerpc())
++	return chansend(c, elem, !nb, sys.GetCallerPC())
+ }
+ 
+ //go:linkname reflect_chanrecv reflect.chanrecv
+diff --git a/src/runtime/coro.go b/src/runtime/coro.go
+index 30ada455e4..f0aa868952 100644
+--- a/src/runtime/coro.go
++++ b/src/runtime/coro.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/runtime/sys"
++	"unsafe"
++)
+ 
+ // A coro represents extra concurrency without extra parallelism,
+ // as would be needed for a coroutine implementation.
+@@ -39,7 +42,7 @@ type coro struct {
+ func newcoro(f func(*coro)) *coro {
+ 	c := new(coro)
+ 	c.f = f
+-	pc := getcallerpc()
++	pc := sys.GetCallerPC()
+ 	gp := getg()
+ 	systemstack(func() {
+ 		mp := gp.m
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index a9be4f4ee3..8d0174e6ae 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -11,6 +11,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -106,7 +107,7 @@ func debugCallCheck(pc uintptr) string {
+ //go:nosplit
+ func debugCallWrap(dispatch uintptr) {
+ 	var lockedExt uint32
+-	callerpc := getcallerpc()
++	callerpc := sys.GetCallerPC()
+ 	gp := getg()
+ 
+ 	// Lock ourselves to the OS thread.
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index 406f36ca5f..9017c0436c 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -7,6 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/bytealg"
++	"internal/runtime/sys"
+ )
+ 
+ // The Error interface identifies a run time error.
+@@ -329,7 +330,7 @@ func printindented(s string) {
+ //
+ // It is called from the generated wrapper code.
+ func panicwrap() {
+-	pc := getcallerpc()
++	pc := sys.GetCallerPC()
+ 	name := funcNameForPrint(funcname(findfunc(pc)))
+ 	// name is something like "main.(*T).F".
+ 	// We want to extract pkg ("main"), typ ("T"), and meth ("F").
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index c45a4586d4..e5f571814b 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -504,7 +504,7 @@ func LockOSCounts() (external, internal uint32) {
+ //go:noinline
+ func TracebackSystemstack(stk []uintptr, i int) int {
+ 	if i == 0 {
+-		pc, sp := getcallerpc(), getcallersp()
++		pc, sp := sys.GetCallerPC(), getcallersp()
+ 		var u unwinder
+ 		u.initAt(pc, sp, 0, getg(), unwindJumpStack) // Don't ignore errors, for testing
+ 		return tracebackPCs(&u, 0, stk)
+diff --git a/src/runtime/export_windows_test.go b/src/runtime/export_windows_test.go
+index 4880e62a55..6e98fe9789 100644
+--- a/src/runtime/export_windows_test.go
++++ b/src/runtime/export_windows_test.go
+@@ -6,7 +6,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/runtime/sys"
++	"unsafe"
++)
+ 
+ const MaxArgs = maxArgs
+ 
+@@ -31,7 +34,7 @@ func (c ContextStub) GetPC() uintptr {
+ 
+ func NewContextStub() *ContextStub {
+ 	var ctx context
+-	ctx.set_ip(getcallerpc())
++	ctx.set_ip(sys.GetCallerPC())
+ 	ctx.set_sp(getcallersp())
+ 	ctx.set_fp(getcallerfp())
+ 	return &ContextStub{ctx}
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index f35698f621..9986686417 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -333,7 +333,7 @@ var (
+ // be used as the second word of an interface value.
+ func convT(t *_type, v unsafe.Pointer) unsafe.Pointer {
+ 	if raceenabled {
+-		raceReadObjectPC(t, v, getcallerpc(), abi.FuncPCABIInternal(convT))
++		raceReadObjectPC(t, v, sys.GetCallerPC(), abi.FuncPCABIInternal(convT))
+ 	}
+ 	if msanenabled {
+ 		msanread(v, t.Size_)
+@@ -348,7 +348,7 @@ func convT(t *_type, v unsafe.Pointer) unsafe.Pointer {
+ func convTnoptr(t *_type, v unsafe.Pointer) unsafe.Pointer {
+ 	// TODO: maybe take size instead of type?
+ 	if raceenabled {
+-		raceReadObjectPC(t, v, getcallerpc(), abi.FuncPCABIInternal(convTnoptr))
++		raceReadObjectPC(t, v, sys.GetCallerPC(), abi.FuncPCABIInternal(convTnoptr))
+ 	}
+ 	if msanenabled {
+ 		msanread(v, t.Size_)
+diff --git a/src/runtime/map_fast32_noswiss.go b/src/runtime/map_fast32_noswiss.go
+index 6d48cdd756..751717b6cd 100644
+--- a/src/runtime/map_fast32_noswiss.go
++++ b/src/runtime/map_fast32_noswiss.go
+@@ -9,12 +9,13 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess1_fast32))
+ 	}
+ 	if h == nil || h.count == 0 {
+@@ -63,7 +64,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ //go:linkname mapaccess2_fast32
+ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess2_fast32))
+ 	}
+ 	if h == nil || h.count == 0 {
+@@ -116,7 +117,7 @@ func mapassign_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 		panic(plainError("assignment to entry in nil map"))
+ 	}
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_fast32))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+@@ -215,7 +216,7 @@ func mapassign_fast32ptr(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer
+ 		panic(plainError("assignment to entry in nil map"))
+ 	}
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_fast32))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+@@ -302,7 +303,7 @@ done:
+ 
+ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapdelete_fast32))
+ 	}
+ 	if h == nil || h.count == 0 {
+diff --git a/src/runtime/map_fast64_noswiss.go b/src/runtime/map_fast64_noswiss.go
+index 9c1e8f4eca..abb272d2b6 100644
+--- a/src/runtime/map_fast64_noswiss.go
++++ b/src/runtime/map_fast64_noswiss.go
+@@ -9,12 +9,13 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess1_fast64))
+ 	}
+ 	if h == nil || h.count == 0 {
+@@ -63,7 +64,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ //go:linkname mapaccess2_fast64
+ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess2_fast64))
+ 	}
+ 	if h == nil || h.count == 0 {
+@@ -116,7 +117,7 @@ func mapassign_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 		panic(plainError("assignment to entry in nil map"))
+ 	}
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_fast64))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+@@ -216,7 +217,7 @@ func mapassign_fast64ptr(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer
+ 		panic(plainError("assignment to entry in nil map"))
+ 	}
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_fast64))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+@@ -303,7 +304,7 @@ done:
+ 
+ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapdelete_fast64))
+ 	}
+ 	if h == nil || h.count == 0 {
+diff --git a/src/runtime/map_faststr_noswiss.go b/src/runtime/map_faststr_noswiss.go
+index 3c5509fc8e..e8b6a3f1ae 100644
+--- a/src/runtime/map_faststr_noswiss.go
++++ b/src/runtime/map_faststr_noswiss.go
+@@ -9,12 +9,13 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess1_faststr))
+ 	}
+ 	if h == nil || h.count == 0 {
+@@ -118,7 +119,7 @@ dohash:
+ //go:linkname mapaccess2_faststr
+ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess2_faststr))
+ 	}
+ 	if h == nil || h.count == 0 {
+@@ -226,7 +227,7 @@ func mapassign_faststr(t *maptype, h *hmap, s string) unsafe.Pointer {
+ 		panic(plainError("assignment to entry in nil map"))
+ 	}
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_faststr))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+@@ -321,7 +322,7 @@ done:
+ 
+ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapdelete_faststr))
+ 	}
+ 	if h == nil || h.count == 0 {
+diff --git a/src/runtime/map_noswiss.go b/src/runtime/map_noswiss.go
+index 418fd434f7..44a93089ef 100644
+--- a/src/runtime/map_noswiss.go
++++ b/src/runtime/map_noswiss.go
+@@ -60,6 +60,7 @@ import (
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+ 	"internal/runtime/math"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -411,7 +412,7 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
+ // hold onto it for very long.
+ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		pc := abi.FuncPCABIInternal(mapaccess1)
+ 		racereadpc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.Key, key, callerpc, pc)
+@@ -481,7 +482,7 @@ bucketloop:
+ //go:linkname mapaccess2
+ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		pc := abi.FuncPCABIInternal(mapaccess2)
+ 		racereadpc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.Key, key, callerpc, pc)
+@@ -619,7 +620,7 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 		panic(plainError("assignment to entry in nil map"))
+ 	}
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		pc := abi.FuncPCABIInternal(mapassign)
+ 		racewritepc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.Key, key, callerpc, pc)
+@@ -742,7 +743,7 @@ done:
+ //go:linkname mapdelete
+ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		pc := abi.FuncPCABIInternal(mapdelete)
+ 		racewritepc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.Key, key, callerpc, pc)
+@@ -877,7 +878,7 @@ search:
+ //go:linkname mapiterinit
+ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapiterinit))
+ 	}
+ 
+@@ -937,7 +938,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ func mapiternext(it *hiter) {
+ 	h := it.h
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapiternext))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+@@ -1064,7 +1065,7 @@ next:
+ // It is called by the compiler.
+ func mapclear(t *maptype, h *hmap) {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		pc := abi.FuncPCABIInternal(mapclear)
+ 		racewritepc(unsafe.Pointer(h), callerpc, pc)
+ 	}
+@@ -1570,7 +1571,7 @@ func reflect_maplen(h *hmap) int {
+ 		return 0
+ 	}
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(reflect_maplen))
+ 	}
+ 	return h.count
+@@ -1587,7 +1588,7 @@ func reflectlite_maplen(h *hmap) int {
+ 		return 0
+ 	}
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(reflect_maplen))
+ 	}
+ 	return h.count
+diff --git a/src/runtime/map_swiss.go b/src/runtime/map_swiss.go
+index aa2fb61859..590fccc407 100644
+--- a/src/runtime/map_swiss.go
++++ b/src/runtime/map_swiss.go
+@@ -60,6 +60,7 @@ import (
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+ 	"internal/runtime/math"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -391,7 +392,7 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
+ // hold onto it for very long.
+ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		pc := abi.FuncPCABIInternal(mapaccess1)
+ 		racereadpc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.Key, key, callerpc, pc)
+@@ -452,7 +453,7 @@ bucketloop:
+ 
+ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		pc := abi.FuncPCABIInternal(mapaccess2)
+ 		racereadpc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.Key, key, callerpc, pc)
+@@ -577,7 +578,7 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 		panic(plainError("assignment to entry in nil map"))
+ 	}
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		pc := abi.FuncPCABIInternal(mapassign)
+ 		racewritepc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.Key, key, callerpc, pc)
+@@ -691,7 +692,7 @@ done:
+ 
+ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		pc := abi.FuncPCABIInternal(mapdelete)
+ 		racewritepc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.Key, key, callerpc, pc)
+@@ -811,7 +812,7 @@ search:
+ // Both need to have zeroed hiter since the struct contains pointers.
+ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapiterinit))
+ 	}
+ 
+@@ -858,7 +859,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ func mapiternext(it *hiter) {
+ 	h := it.h
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapiternext))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+@@ -984,7 +985,7 @@ next:
+ // mapclear deletes all keys from a map.
+ func mapclear(t *maptype, h *hmap) {
+ 	if raceenabled && h != nil {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		pc := abi.FuncPCABIInternal(mapclear)
+ 		racewritepc(unsafe.Pointer(h), callerpc, pc)
+ 	}
+@@ -1409,7 +1410,7 @@ func reflect_maplen(h *hmap) int {
+ 		return 0
+ 	}
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(reflect_maplen))
+ 	}
+ 	return h.count
+@@ -1426,7 +1427,7 @@ func reflectlite_maplen(h *hmap) int {
+ 		return 0
+ 	}
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(reflect_maplen))
+ 	}
+ 	return h.count
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 7dc8a1a5e5..054d493f35 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -17,6 +17,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/goexperiment"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -224,8 +225,8 @@ func wbMove(typ *_type, dst, src unsafe.Pointer) {
+ //go:linkname reflect_typedmemmove reflect.typedmemmove
+ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	if raceenabled {
+-		raceWriteObjectPC(typ, dst, getcallerpc(), abi.FuncPCABIInternal(reflect_typedmemmove))
+-		raceReadObjectPC(typ, src, getcallerpc(), abi.FuncPCABIInternal(reflect_typedmemmove))
++		raceWriteObjectPC(typ, dst, sys.GetCallerPC(), abi.FuncPCABIInternal(reflect_typedmemmove))
++		raceReadObjectPC(typ, src, sys.GetCallerPC(), abi.FuncPCABIInternal(reflect_typedmemmove))
+ 	}
+ 	if msanenabled {
+ 		msanwrite(dst, typ.Size_)
+@@ -294,7 +295,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
+ 	// assignment operations, it's not instrumented in the calling
+ 	// code and needs its own instrumentation.
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		pc := abi.FuncPCABIInternal(slicecopy)
+ 		racewriterangepc(dstPtr, uintptr(n)*typ.Size_, callerpc, pc)
+ 		racereadrangepc(srcPtr, uintptr(n)*typ.Size_, callerpc, pc)
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 1cd849f9aa..6b6e896e9d 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -811,7 +811,7 @@ func (prof *mLockProfile) captureStack() {
+ 	var nstk int
+ 	gp := getg()
+ 	sp := getcallersp()
+-	pc := getcallerpc()
++	pc := sys.GetCallerPC()
+ 	systemstack(func() {
+ 		var u unwinder
+ 		u.initAt(pc, sp, 0, gp, unwindSilentErrors|unwindJumpStack)
+@@ -1080,7 +1080,7 @@ func copyMemProfileRecord(dst *MemProfileRecord, src profilerecord.MemProfileRec
+ 	dst.AllocObjects = src.AllocObjects
+ 	dst.FreeObjects = src.FreeObjects
+ 	if raceenabled {
+-		racewriterangepc(unsafe.Pointer(&dst.Stack0[0]), unsafe.Sizeof(dst.Stack0), getcallerpc(), abi.FuncPCABIInternal(MemProfile))
++		racewriterangepc(unsafe.Pointer(&dst.Stack0[0]), unsafe.Sizeof(dst.Stack0), sys.GetCallerPC(), abi.FuncPCABIInternal(MemProfile))
+ 	}
+ 	if msanenabled {
+ 		msanwrite(unsafe.Pointer(&dst.Stack0[0]), unsafe.Sizeof(dst.Stack0))
+@@ -1193,7 +1193,7 @@ func copyBlockProfileRecord(dst *BlockProfileRecord, src profilerecord.BlockProf
+ 	dst.Count = src.Count
+ 	dst.Cycles = src.Cycles
+ 	if raceenabled {
+-		racewriterangepc(unsafe.Pointer(&dst.Stack0[0]), unsafe.Sizeof(dst.Stack0), getcallerpc(), abi.FuncPCABIInternal(BlockProfile))
++		racewriterangepc(unsafe.Pointer(&dst.Stack0[0]), unsafe.Sizeof(dst.Stack0), sys.GetCallerPC(), abi.FuncPCABIInternal(BlockProfile))
+ 	}
+ 	if msanenabled {
+ 		msanwrite(unsafe.Pointer(&dst.Stack0[0]), unsafe.Sizeof(dst.Stack0))
+@@ -1402,7 +1402,7 @@ func goroutineProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels
+ 
+ 	// Save current goroutine.
+ 	sp := getcallersp()
+-	pc := getcallerpc()
++	pc := sys.GetCallerPC()
+ 	systemstack(func() {
+ 		saveg(pc, sp, ourg, &p[0], pcbuf)
+ 	})
+@@ -1598,7 +1598,7 @@ func goroutineProfileWithLabelsSync(p []profilerecord.StackRecord, labels []unsa
+ 
+ 		// Save current goroutine.
+ 		sp := getcallersp()
+-		pc := getcallerpc()
++		pc := sys.GetCallerPC()
+ 		systemstack(func() {
+ 			saveg(pc, sp, gp, &r[0], pcbuf)
+ 		})
+@@ -1700,7 +1700,7 @@ func Stack(buf []byte, all bool) int {
+ 	if len(buf) > 0 {
+ 		gp := getg()
+ 		sp := getcallersp()
+-		pc := getcallerpc()
++		pc := sys.GetCallerPC()
+ 		systemstack(func() {
+ 			g0 := getg()
+ 			// Force traceback=1 to override GOTRACEBACK setting,
+diff --git a/src/runtime/os2_aix.go b/src/runtime/os2_aix.go
+index 0d20079242..39fa9fbf73 100644
+--- a/src/runtime/os2_aix.go
++++ b/src/runtime/os2_aix.go
+@@ -11,6 +11,7 @@
+ package runtime
+ 
+ import (
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -182,7 +183,7 @@ func syscall0(fn *libFunc) (r, err uintptr) {
+ 	resetLibcall := true
+ 	if mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+@@ -213,7 +214,7 @@ func syscall1(fn *libFunc, a0 uintptr) (r, err uintptr) {
+ 	resetLibcall := true
+ 	if mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+@@ -245,7 +246,7 @@ func syscall2(fn *libFunc, a0, a1 uintptr) (r, err uintptr) {
+ 	resetLibcall := true
+ 	if mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+@@ -277,7 +278,7 @@ func syscall3(fn *libFunc, a0, a1, a2 uintptr) (r, err uintptr) {
+ 	resetLibcall := true
+ 	if mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+@@ -309,7 +310,7 @@ func syscall4(fn *libFunc, a0, a1, a2, a3 uintptr) (r, err uintptr) {
+ 	resetLibcall := true
+ 	if mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+@@ -341,7 +342,7 @@ func syscall5(fn *libFunc, a0, a1, a2, a3, a4 uintptr) (r, err uintptr) {
+ 	resetLibcall := true
+ 	if mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+@@ -373,7 +374,7 @@ func syscall6(fn *libFunc, a0, a1, a2, a3, a4, a5 uintptr) (r, err uintptr) {
+ 	resetLibcall := true
+ 	if mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+diff --git a/src/runtime/os_solaris.go b/src/runtime/os_solaris.go
+index bc00698cba..8cb9869925 100644
+--- a/src/runtime/os_solaris.go
++++ b/src/runtime/os_solaris.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/runtime/sys"
++	"unsafe"
++)
+ 
+ type mts struct {
+ 	tv_sec  int64
+@@ -42,7 +45,7 @@ func sysvicall0(fn *libcFunc) uintptr {
+ 	}
+ 	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+@@ -80,7 +83,7 @@ func sysvicall1Err(fn *libcFunc, a1 uintptr) (r1, err uintptr) {
+ 	}
+ 	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+@@ -120,7 +123,7 @@ func sysvicall2Err(fn *libcFunc, a1, a2 uintptr) (uintptr, uintptr) {
+ 	}
+ 	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+@@ -159,7 +162,7 @@ func sysvicall3Err(fn *libcFunc, a1, a2, a3 uintptr) (r1, err uintptr) {
+ 	}
+ 	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+@@ -189,7 +192,7 @@ func sysvicall4(fn *libcFunc, a1, a2, a3, a4 uintptr) uintptr {
+ 	}
+ 	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+@@ -219,7 +222,7 @@ func sysvicall5(fn *libcFunc, a1, a2, a3, a4, a5 uintptr) uintptr {
+ 	}
+ 	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+@@ -249,7 +252,7 @@ func sysvicall6(fn *libcFunc, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
+ 	}
+ 	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 4aabc29644..1961d68ad8 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -8,6 +8,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -961,7 +962,7 @@ func stdcall(fn stdFunction) uintptr {
+ 	if mp.profilehz != 0 && mp.libcallsp == 0 {
+ 		// leave pc/sp for cpu profiler
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index ed08bf4f30..e74a7feb05 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -111,13 +111,13 @@ func panicCheck2(err string) {
+ //
+ //go:yeswritebarrierrec
+ func goPanicIndex(x int, y int) {
+-	panicCheck1(getcallerpc(), "index out of range")
++	panicCheck1(sys.GetCallerPC(), "index out of range")
+ 	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsIndex})
+ }
+ 
+ //go:yeswritebarrierrec
+ func goPanicIndexU(x uint, y int) {
+-	panicCheck1(getcallerpc(), "index out of range")
++	panicCheck1(sys.GetCallerPC(), "index out of range")
+ 	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsIndex})
+ }
+ 
+@@ -125,25 +125,25 @@ func goPanicIndexU(x uint, y int) {
+ //
+ //go:yeswritebarrierrec
+ func goPanicSliceAlen(x int, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSliceAlen})
+ }
+ 
+ //go:yeswritebarrierrec
+ func goPanicSliceAlenU(x uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSliceAlen})
+ }
+ 
+ //go:yeswritebarrierrec
+ func goPanicSliceAcap(x int, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSliceAcap})
+ }
+ 
+ //go:yeswritebarrierrec
+ func goPanicSliceAcapU(x uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSliceAcap})
+ }
+ 
+@@ -151,57 +151,57 @@ func goPanicSliceAcapU(x uint, y int) {
+ //
+ //go:yeswritebarrierrec
+ func goPanicSliceB(x int, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSliceB})
+ }
+ 
+ //go:yeswritebarrierrec
+ func goPanicSliceBU(x uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSliceB})
+ }
+ 
+ // failures in the comparisons for s[::x], 0 <= x <= y (y == len(s) or cap(s))
+ func goPanicSlice3Alen(x int, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSlice3Alen})
+ }
+ func goPanicSlice3AlenU(x uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSlice3Alen})
+ }
+ func goPanicSlice3Acap(x int, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSlice3Acap})
+ }
+ func goPanicSlice3AcapU(x uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSlice3Acap})
+ }
+ 
+ // failures in the comparisons for s[:x:y], 0 <= x <= y
+ func goPanicSlice3B(x int, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSlice3B})
+ }
+ func goPanicSlice3BU(x uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSlice3B})
+ }
+ 
+ // failures in the comparisons for s[x:y:], 0 <= x <= y
+ func goPanicSlice3C(x int, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSlice3C})
+ }
+ func goPanicSlice3CU(x uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSlice3C})
+ }
+ 
+ // failures in the conversion ([x]T)(s) or (*[x]T)(s), 0 <= x <= y, y == len(s)
+ func goPanicSliceConvert(x int, y int) {
+-	panicCheck1(getcallerpc(), "slice length too short to convert to array or pointer to array")
++	panicCheck1(sys.GetCallerPC(), "slice length too short to convert to array or pointer to array")
+ 	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsConvert})
+ }
+ 
+@@ -229,7 +229,7 @@ var shiftError = error(errorString("negative shift amount"))
+ 
+ //go:yeswritebarrierrec
+ func panicshift() {
+-	panicCheck1(getcallerpc(), "negative shift amount")
++	panicCheck1(sys.GetCallerPC(), "negative shift amount")
+ 	panic(shiftError)
+ }
+ 
+@@ -280,7 +280,7 @@ func deferproc(fn func()) {
+ 	d.link = gp._defer
+ 	gp._defer = d
+ 	d.fn = fn
+-	d.pc = getcallerpc()
++	d.pc = sys.GetCallerPC()
+ 	// We must not be preempted between calling getcallersp and
+ 	// storing it to d.sp because getcallersp's result is a
+ 	// uintptr stack pointer.
+@@ -394,7 +394,7 @@ func deferrangefunc() any {
+ 	d := newdefer()
+ 	d.link = gp._defer
+ 	gp._defer = d
+-	d.pc = getcallerpc()
++	d.pc = sys.GetCallerPC()
+ 	// We must not be preempted between calling getcallersp and
+ 	// storing it to d.sp because getcallersp's result is a
+ 	// uintptr stack pointer.
+@@ -416,7 +416,7 @@ func badDefer() *_defer {
+ func deferprocat(fn func(), frame any) {
+ 	head := frame.(*atomic.Pointer[_defer])
+ 	if raceenabled {
+-		racewritepc(unsafe.Pointer(head), getcallerpc(), abi.FuncPCABIInternal(deferprocat))
++		racewritepc(unsafe.Pointer(head), sys.GetCallerPC(), abi.FuncPCABIInternal(deferprocat))
+ 	}
+ 	d1 := newdefer()
+ 	d1.fn = fn
+@@ -440,7 +440,7 @@ func deferprocat(fn func(), frame any) {
+ func deferconvert(d0 *_defer) {
+ 	head := d0.head
+ 	if raceenabled {
+-		racereadpc(unsafe.Pointer(head), getcallerpc(), abi.FuncPCABIInternal(deferconvert))
++		racereadpc(unsafe.Pointer(head), sys.GetCallerPC(), abi.FuncPCABIInternal(deferconvert))
+ 	}
+ 	tail := d0.link
+ 	d0.rangefunc = false
+@@ -485,7 +485,7 @@ func deferprocStack(d *_defer) {
+ 	d.heap = false
+ 	d.rangefunc = false
+ 	d.sp = getcallersp()
+-	d.pc = getcallerpc()
++	d.pc = sys.GetCallerPC()
+ 	// The lines below implement:
+ 	//   d.panic = nil
+ 	//   d.fd = nil
+@@ -596,7 +596,7 @@ func deferreturn() {
+ 	var p _panic
+ 	p.deferreturn = true
+ 
+-	p.start(getcallerpc(), unsafe.Pointer(getcallersp()))
++	p.start(sys.GetCallerPC(), unsafe.Pointer(getcallersp()))
+ 	for {
+ 		fn, ok := p.nextDefer()
+ 		if !ok {
+@@ -622,7 +622,7 @@ func Goexit() {
+ 	var p _panic
+ 	p.goexit = true
+ 
+-	p.start(getcallerpc(), unsafe.Pointer(getcallersp()))
++	p.start(sys.GetCallerPC(), unsafe.Pointer(getcallersp()))
+ 	for {
+ 		fn, ok := p.nextDefer()
+ 		if !ok {
+@@ -778,7 +778,7 @@ func gopanic(e any) {
+ 
+ 	runningPanicDefers.Add(1)
+ 
+-	p.start(getcallerpc(), unsafe.Pointer(getcallersp()))
++	p.start(sys.GetCallerPC(), unsafe.Pointer(getcallersp()))
+ 	for {
+ 		fn, ok := p.nextDefer()
+ 		if !ok {
+@@ -817,7 +817,7 @@ func (p *_panic) start(pc uintptr, sp unsafe.Pointer) {
+ 	// that have been recovered. Also, so that if p is from Goexit, we
+ 	// can restart its defer processing loop if a recovered panic tries
+ 	// to jump past it.
+-	p.startPC = getcallerpc()
++	p.startPC = sys.GetCallerPC()
+ 	p.startSP = unsafe.Pointer(getcallersp())
+ 
+ 	if p.deferreturn {
+@@ -1227,7 +1227,7 @@ func recovery(gp *g) {
+ //
+ //go:nosplit
+ func fatalthrow(t throwType) {
+-	pc := getcallerpc()
++	pc := sys.GetCallerPC()
+ 	sp := getcallersp()
+ 	gp := getg()
+ 
+@@ -1263,7 +1263,7 @@ func fatalthrow(t throwType) {
+ //
+ //go:nosplit
+ func fatalpanic(msgs *_panic) {
+-	pc := getcallerpc()
++	pc := sys.GetCallerPC()
+ 	sp := getcallersp()
+ 	gp := getg()
+ 	var docrash bool
+diff --git a/src/runtime/panic32.go b/src/runtime/panic32.go
+index fa3f2bf2f8..cd34485a96 100644
+--- a/src/runtime/panic32.go
++++ b/src/runtime/panic32.go
+@@ -6,82 +6,86 @@
+ 
+ package runtime
+ 
++import (
++	"internal/runtime/sys"
++)
++
+ // Additional index/slice error paths for 32-bit platforms.
+ // Used when the high word of a 64-bit index is not zero.
+ 
+ // failures in the comparisons for s[x], 0 <= x < y (y == len(s))
+ func goPanicExtendIndex(hi int, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "index out of range")
++	panicCheck1(sys.GetCallerPC(), "index out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: true, y: y, code: boundsIndex})
+ }
+ func goPanicExtendIndexU(hi uint, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "index out of range")
++	panicCheck1(sys.GetCallerPC(), "index out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: false, y: y, code: boundsIndex})
+ }
+ 
+ // failures in the comparisons for s[:x], 0 <= x <= y (y == len(s) or cap(s))
+ func goPanicExtendSliceAlen(hi int, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: true, y: y, code: boundsSliceAlen})
+ }
+ func goPanicExtendSliceAlenU(hi uint, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: false, y: y, code: boundsSliceAlen})
+ }
+ func goPanicExtendSliceAcap(hi int, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: true, y: y, code: boundsSliceAcap})
+ }
+ func goPanicExtendSliceAcapU(hi uint, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: false, y: y, code: boundsSliceAcap})
+ }
+ 
+ // failures in the comparisons for s[x:y], 0 <= x <= y
+ func goPanicExtendSliceB(hi int, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: true, y: y, code: boundsSliceB})
+ }
+ func goPanicExtendSliceBU(hi uint, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: false, y: y, code: boundsSliceB})
+ }
+ 
+ // failures in the comparisons for s[::x], 0 <= x <= y (y == len(s) or cap(s))
+ func goPanicExtendSlice3Alen(hi int, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: true, y: y, code: boundsSlice3Alen})
+ }
+ func goPanicExtendSlice3AlenU(hi uint, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: false, y: y, code: boundsSlice3Alen})
+ }
+ func goPanicExtendSlice3Acap(hi int, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: true, y: y, code: boundsSlice3Acap})
+ }
+ func goPanicExtendSlice3AcapU(hi uint, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: false, y: y, code: boundsSlice3Acap})
+ }
+ 
+ // failures in the comparisons for s[:x:y], 0 <= x <= y
+ func goPanicExtendSlice3B(hi int, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: true, y: y, code: boundsSlice3B})
+ }
+ func goPanicExtendSlice3BU(hi uint, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: false, y: y, code: boundsSlice3B})
+ }
+ 
+ // failures in the comparisons for s[x:y:], 0 <= x <= y
+ func goPanicExtendSlice3C(hi int, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: true, y: y, code: boundsSlice3C})
+ }
+ func goPanicExtendSlice3CU(hi uint, lo uint, y int) {
+-	panicCheck1(getcallerpc(), "slice bounds out of range")
++	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
+ 	panic(boundsError{x: int64(hi)<<32 + int64(lo), signed: false, y: y, code: boundsSlice3C})
+ }
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 0909d138ff..8f5919bbf6 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1811,7 +1811,7 @@ func mstart0() {
+ 	mexit(osStack)
+ }
+ 
+-// The go:noinline is to guarantee the getcallerpc/getcallersp below are safe,
++// The go:noinline is to guarantee the sys.GetCallerPC/getcallersp below are safe,
+ // so that we can set up g0.sched to return to the call of mstart1 above.
+ //
+ //go:noinline
+@@ -1829,7 +1829,7 @@ func mstart1() {
+ 	// And goexit0 does a gogo that needs to return from mstart1
+ 	// and let mstart0 exit the thread.
+ 	gp.sched.g = guintptr(unsafe.Pointer(gp))
+-	gp.sched.pc = getcallerpc()
++	gp.sched.pc = sys.GetCallerPC()
+ 	gp.sched.sp = getcallersp()
+ 
+ 	asminit()
+@@ -4496,7 +4496,7 @@ func entersyscall() {
+ 	// the stack. This results in exceeding the nosplit stack requirements
+ 	// on some platforms.
+ 	fp := getcallerfp()
+-	reentersyscall(getcallerpc(), getcallersp(), fp)
++	reentersyscall(sys.GetCallerPC(), getcallersp(), fp)
+ }
+ 
+ func entersyscall_sysmon() {
+@@ -4561,7 +4561,7 @@ func entersyscallblock() {
+ 	gp.m.p.ptr().syscalltick++
+ 
+ 	// Leave SP around for GC and traceback.
+-	pc := getcallerpc()
++	pc := sys.GetCallerPC()
+ 	sp := getcallersp()
+ 	bp := getcallerfp()
+ 	save(pc, sp, bp)
+@@ -4594,7 +4594,7 @@ func entersyscallblock() {
+ 	systemstack(entersyscallblock_handoff)
+ 
+ 	// Resave for traceback during blocked call.
+-	save(getcallerpc(), getcallersp(), getcallerfp())
++	save(sys.GetCallerPC(), getcallersp(), getcallerfp())
+ 
+ 	gp.m.locks--
+ }
+@@ -4984,7 +4984,7 @@ func malg(stacksize int32) *g {
+ // The compiler turns a go statement into a call to this.
+ func newproc(fn *funcval) {
+ 	gp := getg()
+-	pc := getcallerpc()
++	pc := sys.GetCallerPC()
+ 	systemstack(func() {
+ 		newg := newproc1(fn, gp, pc, false, waitReasonZero)
+ 
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index c4a6d49316..9c56389232 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -43,7 +43,7 @@
+ // func runtime·raceread(addr uintptr)
+ // Called from instrumented code.
+ // Defined as ABIInternal so as to avoid introducing a wrapper,
+-// which would render runtime.getcallerpc ineffective.
++// which would render sys.GetCallerPC ineffective.
+ TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
+ 	MOVQ	AX, RARG1
+ 	MOVQ	(SP), RARG2
+@@ -69,7 +69,7 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
+ // func runtime·racewrite(addr uintptr)
+ // Called from instrumented code.
+ // Defined as ABIInternal so as to avoid introducing a wrapper,
+-// which would render runtime.getcallerpc ineffective.
++// which would render sys.GetCallerPC ineffective.
+ TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
+ 	MOVQ	AX, RARG1
+ 	MOVQ	(SP), RARG2
+@@ -95,7 +95,7 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
+ // func runtime·racereadrange(addr, size uintptr)
+ // Called from instrumented code.
+ // Defined as ABIInternal so as to avoid introducing a wrapper,
+-// which would render runtime.getcallerpc ineffective.
++// which would render sys.GetCallerPC ineffective.
+ TEXT	runtime·racereadrange<ABIInternal>(SB), NOSPLIT, $0-16
+ 	MOVQ	AX, RARG1
+ 	MOVQ	BX, RARG2
+@@ -122,7 +122,7 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
+ // func runtime·racewriterange(addr, size uintptr)
+ // Called from instrumented code.
+ // Defined as ABIInternal so as to avoid introducing a wrapper,
+-// which would render runtime.getcallerpc ineffective.
++// which would render sys.GetCallerPC ineffective.
+ TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
+ 	MOVQ	AX, RARG1
+ 	MOVQ	BX, RARG2
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 17c49d7484..2e86c85493 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -8,6 +8,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -27,7 +28,7 @@ var (
+ )
+ 
+ func selectsetpc(pc *uintptr) {
+-	*pc = getcallerpc()
++	*pc = sys.GetCallerPC()
+ }
+ 
+ func sellock(scases []scase, lockorder []uint16) {
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index ecc2e2921b..79d3f6c0de 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -73,7 +73,7 @@ func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsaf
+ 	}
+ 
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		pc := abi.FuncPCABIInternal(makeslicecopy)
+ 		racereadrangepc(from, copymem, callerpc, pc)
+ 	}
+@@ -177,7 +177,7 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
+ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice {
+ 	oldLen := newLen - num
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		racereadrangepc(oldPtr, uintptr(oldLen*int(et.Size_)), callerpc, abi.FuncPCABIInternal(growslice))
+ 	}
+ 	if msanenabled {
+@@ -368,7 +368,7 @@ func slicecopy(toPtr unsafe.Pointer, toLen int, fromPtr unsafe.Pointer, fromLen
+ 
+ 	size := uintptr(n) * width
+ 	if raceenabled {
+-		callerpc := getcallerpc()
++		callerpc := sys.GetCallerPC()
+ 		pc := abi.FuncPCABIInternal(slicecopy)
+ 		racereadrangepc(fromPtr, size, callerpc, pc)
+ 		racewriterangepc(toPtr, size, callerpc, pc)
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 3c34541ee8..640ee02a3c 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -8,6 +8,7 @@ import (
+ 	"internal/abi"
+ 	"internal/bytealg"
+ 	"internal/goarch"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -131,7 +132,7 @@ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) string {
+ 	if raceenabled {
+ 		racereadrangepc(unsafe.Pointer(ptr),
+ 			uintptr(n),
+-			getcallerpc(),
++			sys.GetCallerPC(),
+ 			abi.FuncPCABIInternal(slicebytetostring))
+ 	}
+ 	if msanenabled {
+@@ -194,7 +195,7 @@ func slicebytetostringtmp(ptr *byte, n int) string {
+ 	if raceenabled && n > 0 {
+ 		racereadrangepc(unsafe.Pointer(ptr),
+ 			uintptr(n),
+-			getcallerpc(),
++			sys.GetCallerPC(),
+ 			abi.FuncPCABIInternal(slicebytetostringtmp))
+ 	}
+ 	if msanenabled && n > 0 {
+@@ -246,7 +247,7 @@ func slicerunetostring(buf *tmpBuf, a []rune) string {
+ 	if raceenabled && len(a) > 0 {
+ 		racereadrangepc(unsafe.Pointer(&a[0]),
+ 			uintptr(len(a))*unsafe.Sizeof(a[0]),
+-			getcallerpc(),
++			sys.GetCallerPC(),
+ 			abi.FuncPCABIInternal(slicerunetostring))
+ 	}
+ 	if msanenabled && len(a) > 0 {
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 0cc404f030..ccb2e7f931 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -330,7 +330,6 @@ func publicationBarrier()
+ // A general rule is that the result of getcallersp should be used
+ // immediately and can only be passed to nosplit functions.
+ 
+-func getcallerpc() uintptr
+ 
+ func getcallersp() uintptr
+ 
+diff --git a/src/runtime/sys_libc.go b/src/runtime/sys_libc.go
+index 0c6f13ca9f..556f388662 100644
+--- a/src/runtime/sys_libc.go
++++ b/src/runtime/sys_libc.go
+@@ -6,7 +6,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/runtime/sys"
++	"unsafe"
++)
+ 
+ // Call fn with arg as its argument. Return what fn returns.
+ // fn is the raw pc value of the entry point of the desired function.
+@@ -23,7 +26,7 @@ func libcCall(fn, arg unsafe.Pointer) int32 {
+ 	}
+ 	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+-		mp.libcallpc = getcallerpc()
++		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 8946ec2528..ee6a7e7acc 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -804,7 +804,7 @@ func traceback(pc, sp, lr uintptr, gp *g) {
+ }
+ 
+ // tracebacktrap is like traceback but expects that the PC and SP were obtained
+-// from a trap, not from gp->sched or gp->syscallpc/gp->syscallsp or getcallerpc/getcallersp.
++// from a trap, not from gp->sched or gp->syscallpc/gp->syscallsp or GetCallerPC/getcallersp.
+ // Because they are from a trap instead of from a saved pair,
+ // the initial PC must not be rewound to the previous instruction.
+ // (All the saved pairs record a PC that is a return address, so we
+@@ -1091,7 +1091,7 @@ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
+ //go:linkname callers
+ func callers(skip int, pcbuf []uintptr) int {
+ 	sp := getcallersp()
+-	pc := getcallerpc()
++	pc := sys.GetCallerPC()
+ 	gp := getg()
+ 	var n int
+ 	systemstack(func() {
+diff --git a/src/runtime/unsafe.go b/src/runtime/unsafe.go
+index 85fc8b61eb..185eae0f09 100644
+--- a/src/runtime/unsafe.go
++++ b/src/runtime/unsafe.go
+@@ -6,6 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/runtime/math"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -52,21 +53,21 @@ func panicunsafestringnilptr() {
+ // Keep this code in sync with cmd/compile/internal/walk/builtin.go:walkUnsafeSlice
+ func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
+ 	if len < 0 {
+-		panicunsafeslicelen1(getcallerpc())
++		panicunsafeslicelen1(sys.GetCallerPC())
+ 	}
+ 
+ 	if et.Size_ == 0 {
+ 		if ptr == nil && len > 0 {
+-			panicunsafeslicenilptr1(getcallerpc())
++			panicunsafeslicenilptr1(sys.GetCallerPC())
+ 		}
+ 	}
+ 
+ 	mem, overflow := math.MulUintptr(et.Size_, uintptr(len))
+ 	if overflow || mem > -uintptr(ptr) {
+ 		if ptr == nil {
+-			panicunsafeslicenilptr1(getcallerpc())
++			panicunsafeslicenilptr1(sys.GetCallerPC())
+ 		}
+-		panicunsafeslicelen1(getcallerpc())
++		panicunsafeslicelen1(sys.GetCallerPC())
+ 	}
+ }
+ 
+@@ -74,7 +75,7 @@ func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
+ func unsafeslice64(et *_type, ptr unsafe.Pointer, len64 int64) {
+ 	len := int(len64)
+ 	if int64(len) != len64 {
+-		panicunsafeslicelen1(getcallerpc())
++		panicunsafeslicelen1(sys.GetCallerPC())
+ 	}
+ 	unsafeslice(et, ptr, len)
+ }
+@@ -92,7 +93,7 @@ func unsafeslicecheckptr(et *_type, ptr unsafe.Pointer, len64 int64) {
+ func panicunsafeslicelen() {
+ 	// This is called only from compiler-generated code, so we can get the
+ 	// source of the panic.
+-	panicunsafeslicelen1(getcallerpc())
++	panicunsafeslicelen1(sys.GetCallerPC())
+ }
+ 
+ //go:yeswritebarrierrec
+@@ -104,7 +105,7 @@ func panicunsafeslicelen1(pc uintptr) {
+ func panicunsafeslicenilptr() {
+ 	// This is called only from compiler-generated code, so we can get the
+ 	// source of the panic.
+-	panicunsafeslicenilptr1(getcallerpc())
++	panicunsafeslicenilptr1(sys.GetCallerPC())
+ }
+ 
+ //go:yeswritebarrierrec
+diff --git a/test/internal/runtime/sys/README b/test/internal/runtime/sys/README
+new file mode 100644
+index 0000000000..919e0bb03f
+--- /dev/null
++++ b/test/internal/runtime/sys/README
+@@ -0,0 +1,7 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++The internal/runtime/sys directory contains tests that specifically need to be
++compiled as-if in the internal/runtime/sys package. For error-check tests,
++these require the additional flags -+ and -p=internal/runtime/sys.
+diff --git a/test/internal/runtime/sys/inlinegcpc.go b/test/internal/runtime/sys/inlinegcpc.go
+new file mode 100644
+index 0000000000..c8bdce6aae
+--- /dev/null
++++ b/test/internal/runtime/sys/inlinegcpc.go
+@@ -0,0 +1,20 @@
++// errorcheck -0 -+ -p=internal/runtime/sys -m
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sys
++
++// A function that calls sys.GetCallerPC
++// cannot be inlined, no matter how small it is.
++
++func GetCallerPC() uintptr
++
++func pc() uintptr {
++	return GetCallerPC() + 1
++}
++
++func cpc() uintptr { // ERROR "can inline cpc"
++	return pc() + 2
++}
+diff --git a/test/runtime/inlinegcpc.go b/test/runtime/inlinegcpc.go
+index c423993b71..66683dbdab 100644
+--- a/test/runtime/inlinegcpc.go
++++ b/test/runtime/inlinegcpc.go
+@@ -6,20 +6,11 @@
+ 
+ package runtime
+ 
+-// A function that calls runtime.getcallerpc or runtime.getcallersp()
++// A function that calls runtime.getcallersp()
+ // cannot be inlined, no matter how small it is.
+ 
+-func getcallerpc() uintptr
+ func getcallersp() uintptr
+ 
+-func pc() uintptr {
+-	return getcallerpc() + 1
+-}
+-
+-func cpc() uintptr { // ERROR "can inline cpc"
+-	return pc() + 2
+-}
+-
+ func sp() uintptr {
+ 	return getcallersp() + 3
+ }

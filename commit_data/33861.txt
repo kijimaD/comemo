@@ -9,6 +9,33 @@ Date:   Wed Aug 23 12:45:27 2017 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/install-source.html | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index d120f7d6f2..5a9c84c22b 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -471,8 +471,9 @@ Choices for <code>$GOARCH</code> are
+ <code>amd64</code> (64-bit x86, the most mature port),
+ <code>386</code> (32-bit x86), <code>arm</code> (32-bit ARM), <code>arm64</code> (64-bit ARM),
+ <code>ppc64le</code> (PowerPC 64-bit, little-endian), <code>ppc64</code> (PowerPC 64-bit, big-endian),
+-<code>mips64le</code> (MIPS 64-bit, little-endian), and <code>mips64</code> (MIPS 64-bit, big-endian).
+-<code>mipsle</code> (MIPS 32-bit, little-endian), and <code>mips</code> (MIPS 32-bit, big-endian).
++<code>mips64le</code> (MIPS 64-bit, little-endian), <code>mips64</code> (MIPS 64-bit, big-endian),
++<code>mipsle</code> (MIPS 32-bit, little-endian), <code>mips</code> (MIPS 32-bit, big-endian), and
++<code>s390x</code> (IBM System z 64-bit, big-endian).
+ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
+ <table cellpadding="0">
+ <tr>
+@@ -536,6 +537,9 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
+ <td></td><td><code>linux</code></td> <td><code>mips64le</code></td>
+ </tr>
+ <tr>
++<td></td><td><code>linux</code></td> <td><code>s390x</code></td>
++</tr>
++<tr>
+ <td></td><td><code>netbsd</code></td> <td><code>386</code></td>
+ </tr>
+ <tr>

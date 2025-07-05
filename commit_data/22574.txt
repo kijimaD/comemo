@@ -10,9 +10,113 @@ Date:   Tue Mar 24 18:33:37 2015 +0100
     Reviewed-on: https://go-review.googlesource.com/8030
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/runtime/syscall2_solaris.go  |  2 +-
  src/syscall/exec_solaris_test.go | 29 +++++++++++++++++++++++++++++
  src/syscall/exec_unix_test.go    | 15 +++------------
  src/syscall/export_unix_test.go  | 12 ++++++++++++
  4 files changed, 45 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/syscall2_solaris.go b/src/runtime/syscall2_solaris.go
+index 1b415166a4..df72996da0 100644
+--- a/src/runtime/syscall2_solaris.go
++++ b/src/runtime/syscall2_solaris.go
+@@ -22,7 +22,7 @@ import _ "unsafe" // for go:linkname
+ //go:cgo_import_dynamic libc_setgroups setgroups "libc.so"
+ //go:cgo_import_dynamic libc_setsid setsid "libc.so"
+ //go:cgo_import_dynamic libc_setuid setuid "libc.so"
+-//go:cgo_import_dynamic libc_setpgid setsid "libc.so"
++//go:cgo_import_dynamic libc_setpgid setpgid "libc.so"
+ //go:cgo_import_dynamic libc_syscall syscall "libc.so"
+ //go:cgo_import_dynamic libc_forkx forkx "libc.so"
+ //go:cgo_import_dynamic libc_wait4 wait4 "libc.so"
+diff --git a/src/syscall/exec_solaris_test.go b/src/syscall/exec_solaris_test.go
+new file mode 100644
+index 0000000000..123d9f1afb
+--- /dev/null
++++ b/src/syscall/exec_solaris_test.go
+@@ -0,0 +1,29 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build solaris
++
++package syscall
++
++var (
++	procGetpgid = modlibc.NewProc("getpgid")
++	procGetpgrp = modlibc.NewProc("getpgrp")
++)
++
++func Getpgid(pid int) (pgid int, err error) {
++	r0, _, e1 := sysvicall6(procGetpgid.Addr(), 1, uintptr(pid), 0, 0, 0, 0, 0)
++	pgid = int(r0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++func Getpgrp() (pgrp int) {
++	r0, _, _ := sysvicall6(procGetpgrp.Addr(), 0, 0, 0, 0, 0, 0, 0)
++	pgrp = int(r0)
++	return
++}
++
++var Ioctl = ioctl
+diff --git a/src/syscall/exec_unix_test.go b/src/syscall/exec_unix_test.go
+index 954d9aa26f..ff8261111e 100644
+--- a/src/syscall/exec_unix_test.go
++++ b/src/syscall/exec_unix_test.go
+@@ -167,17 +167,12 @@ func TestForeground(t *testing.T) {
+ 
+ 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+ 	if err != nil {
+-		t.Skipf("Can't test Foreground. Couldn't open /dev/tty: %s",
+-			err)
++		t.Skipf("Can't test Foreground. Couldn't open /dev/tty: %s", err)
+ 	}
+ 
+ 	fpgrp := 0
+ 
+-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
+-		tty.Fd(),
+-		syscall.TIOCGPGRP,
+-		uintptr(unsafe.Pointer(&fpgrp)))
+-
++	errno := syscall.Ioctl(tty.Fd(), syscall.TIOCGPGRP, uintptr(unsafe.Pointer(&fpgrp)))
+ 	if errno != 0 {
+ 		t.Fatalf("TIOCGPGRP failed with error code: %s", errno)
+ 	}
+@@ -212,11 +207,7 @@ func TestForeground(t *testing.T) {
+ 
+ 	cmd.Stop()
+ 
+-	_, _, errno = syscall.Syscall(syscall.SYS_IOCTL,
+-		tty.Fd(),
+-		syscall.TIOCSPGRP,
+-		uintptr(unsafe.Pointer(&fpgrp)))
+-
++	errno = syscall.Ioctl(tty.Fd(), syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&fpgrp)))
+ 	if errno != 0 {
+ 		t.Fatalf("TIOCSPGRP failed with error code: %s", errno)
+ 	}
+diff --git a/src/syscall/export_unix_test.go b/src/syscall/export_unix_test.go
+new file mode 100644
+index 0000000000..b41fe2f86b
+--- /dev/null
++++ b/src/syscall/export_unix_test.go
+@@ -0,0 +1,12 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd
++
++package syscall
++
++func Ioctl(fd, req, arg uintptr) (err Errno) {
++	_, _, err = Syscall(SYS_IOCTL, fd, req, arg)
++	return err
++}

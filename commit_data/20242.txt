@@ -11,7 +11,32 @@ Date:   Wed Aug 27 09:31:32 2014 -0700
     R=golang-codereviews
     CC=golang-codereviews, josharian, khr, remyoudompheng, rsc
     https://golang.org/cl/136870043
-
+---
  src/pkg/runtime/mprof.go | 1 +
  src/pkg/runtime/stubs.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/mprof.go b/src/pkg/runtime/mprof.go
+index 95ea1297ed..5d77c5629c 100644
+--- a/src/pkg/runtime/mprof.go
++++ b/src/pkg/runtime/mprof.go
+@@ -164,6 +164,7 @@ func Stack(buf []byte, all bool) int {
+ 	if len(buf) > 0 {
+ 		gp.writebuf = &buf[0]
+ 		gp.writenbuf = int32(len(buf))
++		goroutineheader(gp)
+ 		traceback(pc, sp, 0, gp)
+ 		if all {
+ 			tracebackothers(gp)
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 5f396aa009..52d0c0e3a5 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -216,6 +216,7 @@ func gonotetsleepg(n *note, t int64) {
+ 
+ func exitsyscall()
+ 
++func goroutineheader(gp *g)
+ func traceback(pc, sp, lr uintptr, gp *g)
+ func tracebackothers(gp *g)
+ 

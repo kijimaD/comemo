@@ -12,7 +12,64 @@ Date:   Tue Oct 25 11:45:26 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/bug.go |  4 +++-
  src/cmd/go/env.go | 27 +++++++++++++++------------
  2 files changed, 18 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/bug.go b/src/cmd/go/bug.go
+index 5d2f6676b3..75fbf445bc 100644
+--- a/src/cmd/go/bug.go
++++ b/src/cmd/go/bug.go
+@@ -39,7 +39,9 @@ func runBug(cmd *Command, args []string) {
+ 	fmt.Fprint(&buf, "#### System details\n\n")
+ 	fmt.Fprintln(&buf, "```")
+ 	fmt.Fprintf(&buf, "go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+-	for _, e := range mkEnv() {
++	env := mkEnv()
++	env = append(env, extraEnvVars()...)
++	for _, e := range env {
+ 		fmt.Fprintf(&buf, "%s=\"%s\"\n", e.name, e.value)
+ 	}
+ 	printOSDetails(&buf)
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index 04c54e635d..366b6c0fbe 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -88,21 +88,24 @@ func findEnv(env []envVar, name string) string {
+ 	return ""
+ }
+ 
+-func runEnv(cmd *Command, args []string) {
+-	env := mkEnv()
+-	// Add these environment variables here so they do not leak
+-	// into child processes.
++// extraEnvVars returns environment variables that should not leak into child processes.
++func extraEnvVars() []envVar {
+ 	var b builder
+ 	b.init()
+ 	cppflags, cflags, cxxflags, fflags, ldflags := b.cflags(&Package{})
+-	env = append(env,
+-		envVar{"PKG_CONFIG", b.pkgconfigCmd()},
+-		envVar{"CGO_CFLAGS", strings.Join(cflags, " ")},
+-		envVar{"CGO_CPPFLAGS", strings.Join(cppflags, " ")},
+-		envVar{"CGO_CXXFLAGS", strings.Join(cxxflags, " ")},
+-		envVar{"CGO_FFLAGS", strings.Join(fflags, " ")},
+-		envVar{"CGO_LDFLAGS", strings.Join(ldflags, " ")},
+-	)
++	return []envVar{
++		{"PKG_CONFIG", b.pkgconfigCmd()},
++		{"CGO_CFLAGS", strings.Join(cflags, " ")},
++		{"CGO_CPPFLAGS", strings.Join(cppflags, " ")},
++		{"CGO_CXXFLAGS", strings.Join(cxxflags, " ")},
++		{"CGO_FFLAGS", strings.Join(fflags, " ")},
++		{"CGO_LDFLAGS", strings.Join(ldflags, " ")},
++	}
++}
++
++func runEnv(cmd *Command, args []string) {
++	env := mkEnv()
++	env = append(env, extraEnvVars()...)
+ 	if len(args) > 0 {
+ 		for _, name := range args {
+ 			fmt.Printf("%s\n", findEnv(env, name))

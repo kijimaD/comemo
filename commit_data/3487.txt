@@ -10,7 +10,7 @@ Date:   Fri Oct 9 11:18:32 2009 -0700
     DELTA=21  (6 added, 1 deleted, 14 changed)
     OCL=35509
     CL=35519
-
+---
  test/gc1.go          | 2 +-
  test/ken/divconst.go | 2 +-
  test/ken/modconst.go | 2 +-
@@ -21,3 +21,188 @@ Date:   Fri Oct 9 11:18:32 2009 -0700
  test/peano.go        | 2 +-
  test/run             | 8 +++++---
  9 files changed, 20 insertions(+), 15 deletions(-)
+
+diff --git a/test/gc1.go b/test/gc1.go
+index eecc036fc7..055079aabe 100644
+--- a/test/gc1.go
++++ b/test/gc1.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main() {
+-	for i := 0; i < 1000000; i++ {
++	for i := 0; i < 1e5; i++ {
+ 		x := new([100]byte);
+ 		_ = x;
+ 	}
+diff --git a/test/ken/divconst.go b/test/ken/divconst.go
+index 29f1b067c9..0b2e059748 100644
+--- a/test/ken/divconst.go
++++ b/test/ken/divconst.go
+@@ -8,7 +8,7 @@ package main
+ 
+ import	"rand"
+ 
+-const	Count	= 1e6
++const	Count	= 1e5
+ 
+ func
+ i64rand() int64
+diff --git a/test/ken/modconst.go b/test/ken/modconst.go
+index 7c35edeaa9..2419a4cf5e 100644
+--- a/test/ken/modconst.go
++++ b/test/ken/modconst.go
+@@ -8,7 +8,7 @@ package main
+ 
+ import	"rand"
+ 
+-const	Count	= 1e6
++const	Count	= 1e5
+ 
+ func
+ i64rand() int64
+diff --git a/test/mallocrand.go b/test/mallocrand.go
+index 59da01d44c..c0184699ff 100644
+--- a/test/mallocrand.go
++++ b/test/mallocrand.go
+@@ -56,7 +56,7 @@ func main() {
+ 	flag.Parse();
+ //	prime();
+ 	var blocks [1] struct { base *byte; siz uintptr; };
+-	for i := 0; i < 1<<12; i++ {
++	for i := 0; i < 1<<10; i++ {
+ 		if i%(1<<10) == 0 && *chatty {
+ 			println(i);
+ 		}
+diff --git a/test/mallocrep.go b/test/mallocrep.go
+index 6306e59ebc..5367787e9a 100644
+--- a/test/mallocrep.go
++++ b/test/mallocrep.go
+@@ -31,7 +31,7 @@ func bigger() {
+ func main() {
+ 	flag.Parse();
+ 	malloc.GetStats().Alloc = 0;	// ignore stacks
+-	for i := 0; i < 1<<8; i++ {
++	for i := 0; i < 1<<7; i++ {
+ 		for j := 1; j <= 1<<22; j<<=1 {
+ 			if i == 0 && *chatty {
+ 				println("First alloc:", j);
+diff --git a/test/mallocrep1.go b/test/mallocrep1.go
+index 2f9900d940..7552e99b46 100644
+--- a/test/mallocrep1.go
++++ b/test/mallocrep1.go
+@@ -98,11 +98,15 @@ func main() {
+ 		AllocAndFree(atoi(flag.Arg(0)), atoi(flag.Arg(1)));
+ 		return;
+ 	}
+-	for j := 1; j <= 1<<22; j<<=1 {
++	maxb := 1<<22;
++	if !*longtest {
++		maxb = 1<<19;
++	}
++	for j := 1; j <= maxb; j<<=1 {
+ 		n := len(b);
+ 		max := uintptr(1<<28);
+ 		if !*longtest {
+-			max = 1<<22;
++			max = uintptr(maxb);
+ 		}
+ 		if uintptr(j)*uintptr(n) > max {
+ 			n = int(max / uintptr(j));
+diff --git a/test/map.go b/test/map.go
+index d09734a130..4905f6e11f 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -11,7 +11,7 @@ import (
+ 	"strconv";
+ )
+ 
+-const arraylen = 2; // BUG: shouldn't need this
++const count = 100;
+ 
+ func P(a []string) string {
+ 	s := "{";
+@@ -57,7 +57,6 @@ func main() {
+ 	type M map[int] int;
+ 	mipM := make(map[int] M);
+ 
+-	const count = 1000;
+ 	var apT [2*count]*T;
+ 
+ 	for i := 0; i < count; i++ {
+@@ -80,7 +79,7 @@ func main() {
+ 		msi[s] = i;
+ 		mss[s] = s10;
+ 		mss[s] = s10;
+-		as := make([]string, arraylen);
++		as := make([]string, 2);
+ 			as[0] = s10;
+ 			as[1] = s10;
+ 		mspa[s] = as;
+@@ -162,7 +161,7 @@ func main() {
+ 		if mss[s] != s10 {
+ 			fmt.Printf("mss[%s] = %g\n", s, mss[s]);
+ 		}
+-		for j := 0; j < arraylen; j++ {
++		for j := 0; j < len(mspa[s]); j++ {
+ 			if mspa[s][j] != s10 {
+ 				fmt.Printf("mspa[%s][%d] = %s\n", s, j, mspa[s][j]);
+ 			}
+diff --git a/test/peano.go b/test/peano.go
+index 07e5f0ed37..ccff66bfef 100644
+--- a/test/peano.go
++++ b/test/peano.go
+@@ -124,7 +124,7 @@ func verify() {
+ func main() {
+ 
+ 	verify();
+-	for i := 0; i <= 10; i++ {
++	for i := 0; i <= 9; i++ {
+ 		print(i, "! = ", count(fact(gen(i))), "\n");
+ 	}
+ }
+diff --git a/test/run b/test/run
+index f8500547ad..a86ce4977e 100755
+--- a/test/run
++++ b/test/run
+@@ -36,12 +36,13 @@ PATH=/bin:/usr/bin:/usr/local/bin:${GOBIN:-$HOME/bin}:`pwd`
+ RUNFILE=/tmp/gorun-$$-$USER
+ TMP1FILE=/tmp/gotest1-$$-$USER
+ TMP2FILE=/tmp/gotest2-$$-$USER
++TMP3FILE=/tmp/gotest3-$$-$USER
+ 
+ # don't run the machine out of memory: limit individual processes to 4GB.
+ # on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
+ ulimit -v 4000000
+ 
+-true >pass.out
++true >pass.out >times.out
+ 
+ for dir in . ken chan interface fixedbugs bugs
+ do
+@@ -52,7 +53,7 @@ do
+ 		export F=$(basename $i .go)
+ 		export D=$dir
+ 		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|' >$RUNFILE
+-		if ! sh $RUNFILE >$TMP1FILE 2>$TMP2FILE
++		if ! /usr/bin/time -p sh -c "sh $RUNFILE >$TMP1FILE 2>$TMP2FILE" 2>$TMP3FILE
+ 		then
+ 			echo
+ 			echo "===========" $i
+@@ -71,6 +72,7 @@ do
+ 		else
+ 			echo $i >>pass.out
+ 		fi
++		echo $(awk 'NR==1{print $2}' $TMP3FILE) $D/$F >>times.out
+ 	done
+ done | # clean up some stack noise
+ 	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
+@@ -88,7 +90,7 @@ case $failed in
+ 1)
+ 	echo FAIL
+ esac
+-rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
++rm  -f $RUNFILE $TMP1FILE $TMP2FILE $TMP3FILE *.$A $A.out
+ diffmsg=""
+ if ! diff run.out golden.out
+ then

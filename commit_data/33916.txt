@@ -21,7 +21,7 @@ Date:   Fri Sep 1 14:55:15 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go   |  4 +--
  src/cmd/compile/internal/gc/bimport.go   |  6 ++--
  src/cmd/compile/internal/gc/fmt.go       |  8 +----
@@ -35,3 +35,357 @@ Date:   Fri Sep 1 14:55:15 2017 -0700
  src/cmd/compile/internal/gc/walk.go      |  4 ---
  test/fixedbugs/issue14540.go             | 20 ++++++++++++
  12 files changed, 72 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 596b8f7e83..e65e7f6280 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1486,8 +1486,8 @@ func (p *exporter) stmt(n *Node) {
+ 		p.stmtList(n.List)
+ 		p.stmtList(n.Nbody)
+ 
+-	case OFALL, OXFALL:
+-		p.op(OXFALL)
++	case OFALL:
++		p.op(OFALL)
+ 		p.pos(n)
+ 
+ 	case OBREAK, OCONTINUE:
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 7cd155c4cb..b676cd2054 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -1176,7 +1176,6 @@ func (p *importer) node() *Node {
+ 	case OXCASE:
+ 		types.Markdcl()
+ 		n := nodl(p.pos(), OXCASE, nil, nil)
+-		n.Xoffset = int64(types.Block)
+ 		n.List.Set(p.exprList())
+ 		// TODO(gri) eventually we must declare variables for type switch
+ 		// statements (type switch statements are not yet exported)
+@@ -1187,9 +1186,8 @@ func (p *importer) node() *Node {
+ 	// case OFALL:
+ 	// 	unreachable - mapped to OXFALL case below by exporter
+ 
+-	case OXFALL:
+-		n := nodl(p.pos(), OXFALL, nil, nil)
+-		n.Xoffset = int64(types.Block)
++	case OFALL:
++		n := nodl(p.pos(), OFALL, nil, nil)
+ 		return n
+ 
+ 	case OBREAK, OCONTINUE:
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 21f5e9d9b9..0ba1ba3d80 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -204,7 +204,6 @@ var goopnames = []string{
+ 	OSUB:      "-",
+ 	OSWITCH:   "switch",
+ 	OXOR:      "^",
+-	OXFALL:    "fallthrough",
+ }
+ 
+ func (o Op) String() string {
+@@ -1080,11 +1079,7 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
+ 		}
+ 		mode.Fprintf(s, ": %v", n.Nbody)
+ 
+-	case OBREAK,
+-		OCONTINUE,
+-		OGOTO,
+-		OFALL,
+-		OXFALL:
++	case OBREAK, OCONTINUE, OGOTO, OFALL:
+ 		if n.Left != nil {
+ 			mode.Fprintf(s, "%#v %v", n.Op, n.Left)
+ 		} else {
+@@ -1219,7 +1214,6 @@ var opprec = []int{
+ 	OSELECT:     -1,
+ 	OSWITCH:     -1,
+ 	OXCASE:      -1,
+-	OXFALL:      -1,
+ 
+ 	OEND: 0,
+ }
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 1ab7a033bc..851f8723a3 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -710,9 +710,13 @@ func (p *noder) embedded(typ syntax.Expr) *Node {
+ }
+ 
+ func (p *noder) stmts(stmts []syntax.Stmt) []*Node {
++	return p.stmtsFall(stmts, false)
++}
++
++func (p *noder) stmtsFall(stmts []syntax.Stmt, fallOK bool) []*Node {
+ 	var nodes []*Node
+-	for _, stmt := range stmts {
+-		s := p.stmt(stmt)
++	for i, stmt := range stmts {
++		s := p.stmtFall(stmt, fallOK && i+1 == len(stmts))
+ 		if s == nil {
+ 		} else if s.Op == OBLOCK && s.Ninit.Len() == 0 {
+ 			nodes = append(nodes, s.List.Slice()...)
+@@ -724,12 +728,16 @@ func (p *noder) stmts(stmts []syntax.Stmt) []*Node {
+ }
+ 
+ func (p *noder) stmt(stmt syntax.Stmt) *Node {
++	return p.stmtFall(stmt, false)
++}
++
++func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
+ 	p.lineno(stmt)
+ 	switch stmt := stmt.(type) {
+ 	case *syntax.EmptyStmt:
+ 		return nil
+ 	case *syntax.LabeledStmt:
+-		return p.labeledStmt(stmt)
++		return p.labeledStmt(stmt, fallOK)
+ 	case *syntax.BlockStmt:
+ 		l := p.blockStmt(stmt)
+ 		if len(l) == 0 {
+@@ -780,7 +788,10 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
+ 		case syntax.Continue:
+ 			op = OCONTINUE
+ 		case syntax.Fallthrough:
+-			op = OXFALL
++			if !fallOK {
++				yyerror("fallthrough statement out of place")
++			}
++			op = OFALL
+ 		case syntax.Goto:
+ 			op = OGOTO
+ 		default:
+@@ -790,9 +801,6 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
+ 		if stmt.Label != nil {
+ 			n.Left = p.newname(stmt.Label)
+ 		}
+-		if op == OXFALL {
+-			n.Xoffset = int64(types.Block)
+-		}
+ 		return n
+ 	case *syntax.CallStmt:
+ 		var op Op
+@@ -912,7 +920,7 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) *Node {
+ 	}
+ 
+ 	tswitch := n.Left
+-	if tswitch != nil && (tswitch.Op != OTYPESW || tswitch.Left == nil) {
++	if tswitch != nil && tswitch.Op != OTYPESW {
+ 		tswitch = nil
+ 	}
+ 	n.List.Set(p.caseClauses(stmt.Body, tswitch, stmt.Rbrace))
+@@ -934,15 +942,35 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node, rbrace
+ 		if clause.Cases != nil {
+ 			n.List.Set(p.exprList(clause.Cases))
+ 		}
+-		if tswitch != nil {
++		if tswitch != nil && tswitch.Left != nil {
+ 			nn := newname(tswitch.Left.Sym)
+ 			declare(nn, dclcontext)
+ 			n.Rlist.Set1(nn)
+ 			// keep track of the instances for reporting unused
+ 			nn.Name.Defn = tswitch
+ 		}
+-		n.Xoffset = int64(types.Block)
+-		n.Nbody.Set(p.stmts(clause.Body))
++
++		// Trim trailing empty statements. We omit them from
++		// the Node AST anyway, and it's easier to identify
++		// out-of-place fallthrough statements without them.
++		body := clause.Body
++		for len(body) > 0 {
++			if _, ok := body[len(body)-1].(*syntax.EmptyStmt); !ok {
++				break
++			}
++			body = body[:len(body)-1]
++		}
++
++		n.Nbody.Set(p.stmtsFall(body, true))
++		if l := n.Nbody.Len(); l > 0 && n.Nbody.Index(l-1).Op == OFALL {
++			if tswitch != nil {
++				yyerror("cannot fallthrough in type switch")
++			}
++			if i+1 == len(clauses) {
++				yyerror("cannot fallthrough final case in switch")
++			}
++		}
++
+ 		nodes = append(nodes, n)
+ 	}
+ 	if len(clauses) > 0 {
+@@ -980,12 +1008,12 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace src.Pos) []*Nod
+ 	return nodes
+ }
+ 
+-func (p *noder) labeledStmt(label *syntax.LabeledStmt) *Node {
++func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) *Node {
+ 	lhs := p.nod(label, OLABEL, p.newname(label.Label), nil)
+ 
+ 	var ls *Node
+ 	if label.Stmt != nil { // TODO(mdempsky): Should always be present.
+-		ls = p.stmt(label.Stmt)
++		ls = p.stmtFall(label.Stmt, fallOK)
+ 	}
+ 
+ 	lhs.Name.Defn = ls
+diff --git a/src/cmd/compile/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+index 09442b595f..47089aad0b 100644
+--- a/src/cmd/compile/internal/gc/opnames.go
++++ b/src/cmd/compile/internal/gc/opnames.go
+@@ -122,7 +122,6 @@ var opnames = []string{
+ 	ODEFER:           "DEFER",
+ 	OEMPTY:           "EMPTY",
+ 	OFALL:            "FALL",
+-	OXFALL:           "XFALL",
+ 	OFOR:             "FOR",
+ 	OFORUNTIL:        "FORUNTIL",
+ 	OGOTO:            "GOTO",
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 27c3272cab..c555a5eabc 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -620,7 +620,6 @@ func orderstmt(n *Node, order *Order) {
+ 		ODCLCONST,
+ 		ODCLTYPE,
+ 		OFALL,
+-		OXFALL,
+ 		OGOTO,
+ 		OLABEL,
+ 		ORETJMP:
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 0740abbbe8..1771e03b86 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -332,7 +332,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		OCLOSE,
+ 		ONEW,
+ 		OXCASE,
+-		OXFALL,
+ 		OCASE,
+ 		OPANIC,
+ 		ORECOVER,
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 3051341b6a..469af86aa6 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -380,7 +380,7 @@ func casebody(sw *Node, typeswvar *Node) {
+ 	var def *Node    // defaults
+ 	br := nod(OBREAK, nil, nil)
+ 
+-	for i, n := range sw.List.Slice() {
++	for _, n := range sw.List.Slice() {
+ 		setlineno(n)
+ 		if n.Op != OXCASE {
+ 			Fatalf("casebody %v", n.Op)
+@@ -474,21 +474,7 @@ func casebody(sw *Node, typeswvar *Node) {
+ 			fallIndex--
+ 		}
+ 		last := stat[fallIndex]
+-
+-		// botch - shouldn't fall through declaration
+-		if last.Xoffset == n.Xoffset && last.Op == OXFALL {
+-			if typeswvar != nil {
+-				setlineno(last)
+-				yyerror("cannot fallthrough in type switch")
+-			}
+-
+-			if i+1 >= sw.List.Len() {
+-				setlineno(last)
+-				yyerror("cannot fallthrough final case in switch")
+-			}
+-
+-			last.Op = OFALL
+-		} else {
++		if last.Op != OFALL {
+ 			stat = append(stat, br)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 32ae6f2f28..ee0666a946 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -45,7 +45,6 @@ type Node struct {
+ 	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
+ 	// - ODOT, ODOTPTR, and OINDREGSP use it to indicate offset relative to their base address.
+ 	// - OSTRUCTKEY uses it to store the named field's offset.
+-	// - OXCASE and OXFALL use it to validate the use of fallthrough.
+ 	// - Named OLITERALs use it to to store their ambient iota value.
+ 	// Possibly still more uses. If you find any, document them.
+ 	Xoffset int64
+@@ -564,8 +563,8 @@ const (
+ 	OCONTINUE // continue
+ 	ODEFER    // defer Left (Left must be call)
+ 	OEMPTY    // no-op (empty statement)
+-	OFALL     // fallthrough (after processing)
+-	OXFALL    // fallthrough (before processing)
++	_         // placeholder to appease toolstash
++	OFALL     // fallthrough
+ 	OFOR      // for Ninit; Left; Right { Nbody }
+ 	OFORUNTIL // for Ninit; Left; Right { Nbody } ; test applied after executing body, not before
+ 	OGOTO     // goto Left
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 59dea3a2e1..23fdb3486e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2012,7 +2012,7 @@ func typecheck1(n *Node, top int) *Node {
+ 		ODCL,
+ 		OEMPTY,
+ 		OGOTO,
+-		OXFALL,
++		OFALL,
+ 		OVARKILL,
+ 		OVARLIVE:
+ 		ok |= Etop
+@@ -3898,7 +3898,7 @@ func (n *Node) isterminating() bool {
+ 	case OBLOCK:
+ 		return n.List.isterminating()
+ 
+-	case OGOTO, ORETURN, ORETJMP, OPANIC, OXFALL:
++	case OGOTO, ORETURN, ORETJMP, OPANIC, OFALL:
+ 		return true
+ 
+ 	case OFOR, OFORUNTIL:
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index fba037b164..b0c98eea83 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -348,10 +348,6 @@ func walkstmt(n *Node) *Node {
+ 
+ 	case ORANGE:
+ 		n = walkrange(n)
+-
+-	case OXFALL:
+-		yyerror("fallthrough statement out of place")
+-		n.Op = OFALL
+ 	}
+ 
+ 	if n.Op == ONAME {
+diff --git a/test/fixedbugs/issue14540.go b/test/fixedbugs/issue14540.go
+new file mode 100644
+index 0000000000..62b17a04c4
+--- /dev/null
++++ b/test/fixedbugs/issue14540.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(x int) {
++	switch x {
++	case 0:
++		fallthrough
++		; // ok
++	case 1:
++		fallthrough // ERROR "fallthrough statement out of place"
++		{}
++	case 2:
++		fallthrough // ERROR "cannot fallthrough"
++	}
++}

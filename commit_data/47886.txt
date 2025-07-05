@@ -16,7 +16,98 @@ Date:   Tue Apr 13 02:48:32 2021 +0000
     Trust: eric fang <eric.fang@arm.com>
     Run-TryBot: eric fang <eric.fang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64error.s | 20 ++++++++++++++++++++
  src/cmd/internal/obj/arm64/asm7.go             | 20 ++++++++++++++++++++
  2 files changed, 40 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index 64bade2051..474ed556d0 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -8,6 +8,26 @@ TEXT errors(SB),$0
+ 	ADDSW	R7->32, R14, R13                                 // ERROR "shift amount out of range 0 to 31"
+ 	ADD	R1.UXTB<<5, R2, R3                               // ERROR "shift amount out of range 0 to 4"
+ 	ADDS	R1.UXTX<<7, R2, R3                               // ERROR "shift amount out of range 0 to 4"
++	ADDS	R5, R6, RSP                                      // ERROR "illegal destination register"
++	SUBS	R5, R6, RSP                                      // ERROR "illegal destination register"
++	ADDSW	R5, R6, RSP                                      // ERROR "illegal destination register"
++	SUBSW	R5, R6, RSP                                      // ERROR "illegal destination register"
++	ADDS	$0xff, R6, RSP                                   // ERROR "illegal destination register"
++	ADDS	$0xffff0, R6, RSP                                // ERROR "illegal destination register"
++	ADDS	$0x1000100010001000, R6, RSP                     // ERROR "illegal destination register"
++	ADDS	$0x10001000100011, R6, RSP                       // ERROR "illegal destination register"
++	ADDSW	$0xff, R6, RSP                                   // ERROR "illegal destination register"
++	ADDSW	$0xffff0, R6, RSP                                // ERROR "illegal destination register"
++	ADDSW	$0x1000100010001000, R6, RSP                     // ERROR "illegal destination register"
++	ADDSW	$0x10001000100011, R6, RSP                       // ERROR "illegal destination register"
++	SUBS	$0xff, R6, RSP                                   // ERROR "illegal destination register"
++	SUBS	$0xffff0, R6, RSP                                // ERROR "illegal destination register"
++	SUBS	$0x1000100010001000, R6, RSP                     // ERROR "illegal destination register"
++	SUBS	$0x10001000100011, R6, RSP                       // ERROR "illegal destination register"
++	SUBSW	$0xff, R6, RSP                                   // ERROR "illegal destination register"
++	SUBSW	$0xffff0, R6, RSP                                // ERROR "illegal destination register"
++	SUBSW	$0x1000100010001000, R6, RSP                     // ERROR "illegal destination register"
++	SUBSW	$0x10001000100011, R6, RSP                       // ERROR "illegal destination register"
+ 	AND	$0x22220000, R2, RSP                             // ERROR "illegal combination"
+ 	ANDS	$0x22220000, R2, RSP                             // ERROR "illegal combination"
+ 	ADD	R1, R2, R3, R4                                   // ERROR "illegal combination"
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index b0e29c26e8..2dbaea98b6 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1347,6 +1347,14 @@ func isADDWop(op obj.As) bool {
+ 	return false
+ }
+ 
++func isADDSop(op obj.As) bool {
++	switch op {
++	case AADDS, AADDSW, ASUBS, ASUBSW:
++		return true
++	}
++	return false
++}
++
+ func isRegShiftOrExt(a *obj.Addr) bool {
+ 	return (a.Index-obj.RBaseARM64)&REG_EXT != 0 || (a.Index-obj.RBaseARM64)&REG_LSL != 0
+ }
+@@ -3215,6 +3223,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
+ 
+ 	case 2: /* add/sub $(uimm12|uimm24)[,R],R; cmp $(uimm12|uimm24),R */
++		if p.To.Reg == REG_RSP && isADDSop(p.As) {
++			c.ctxt.Diag("illegal destination register: %v\n", p)
++		}
+ 		o1 = c.opirr(p, p.As)
+ 
+ 		rt := int(p.To.Reg)
+@@ -3396,6 +3407,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o4 = os[3]
+ 
+ 	case 13: /* addop $vcon, [R], R (64 bit literal); cmp $lcon,R -> addop $lcon,R, ZR */
++		if p.To.Reg == REG_RSP && isADDSop(p.As) {
++			c.ctxt.Diag("illegal destination register: %v\n", p)
++		}
+ 		o := uint32(0)
+ 		num := uint8(0)
+ 		cls := oclass(&p.From)
+@@ -3659,6 +3673,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= (REGZERO & 31 << 5) | uint32(rt&31)
+ 
+ 	case 27: /* op Rm<<n[,Rn],Rd (extended register) */
++		if p.To.Reg == REG_RSP && isADDSop(p.As) {
++			c.ctxt.Diag("illegal destination register: %v\n", p)
++		}
+ 		if (p.From.Reg-obj.RBaseARM64)&REG_EXT != 0 {
+ 			amount := (p.From.Reg >> 5) & 7
+ 			if amount > 4 {
+@@ -4275,6 +4292,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if p.Reg == REGTMP {
+ 			c.ctxt.Diag("cannot use REGTMP as source: %v\n", p)
+ 		}
++		if p.To.Reg == REG_RSP && isADDSop(p.As) {
++			c.ctxt.Diag("illegal destination register: %v\n", p)
++		}
+ 		if isADDWop(p.As) || isANDWop(p.As) {
+ 			o1 = c.omovconst(AMOVW, p, &p.From, REGTMP)
+ 		} else {

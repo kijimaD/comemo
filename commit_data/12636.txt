@@ -9,7 +9,122 @@ Date:   Wed Mar 14 15:12:57 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5821048
-
+---
  src/cmd/go/pkg.go    | 12 ++++++++-
  src/cmd/go/test.bash | 71 +++++++++++++++++++++++++++++++---------------------
  2 files changed, 53 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 1b6a8c5124..46ada4002b 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -17,6 +17,7 @@ import (
+ 	"sort"
+ 	"strings"
+ 	"time"
++	"unicode"
+ )
+ 
+ // A Package describes a single package found in a directory.
+@@ -174,7 +175,16 @@ func reloadPackage(arg string, stk *importStack) *Package {
+ // a special case, so that all the code to deal with ordinary imports works
+ // automatically.
+ func dirToImportPath(dir string) string {
+-	return pathpkg.Join("_", strings.Replace(filepath.ToSlash(dir), ":", "_", -1))
++	return pathpkg.Join("_", strings.Map(makeImportValid, filepath.ToSlash(dir)))
++}
++
++func makeImportValid(r rune) rune {
++	// Should match Go spec, compilers, and ../../pkg/go/parser/parser.go:/isValidImport.
++	const illegalChars = `!"#$%&'()*,:;<=>?[\]^{|}` + "`\uFFFD"
++	if !unicode.IsGraphic(r) || unicode.IsSpace(r) || strings.ContainsRune(illegalChars, r) {
++		return '_'
++	}
++	return r
+ }
+ 
+ // loadImport scans the directory named by path, which must be an import path,
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index daca144ee0..5415351015 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -22,37 +22,50 @@ do
+ done
+ 
+ # Test local (./) imports.
+-./testgo build -o hello testdata/local/easy.go
+-./hello >hello.out
+-if ! grep -q '^easysub\.Hello' hello.out; then
+-	echo "testdata/local/easy.go did not generate expected output"
+-	cat hello.out
+-	ok=false
+-fi
+-
+-./testgo build -o hello testdata/local/easysub/main.go
+-./hello >hello.out
+-if ! grep -q '^easysub\.Hello' hello.out; then
+-	echo "testdata/local/easysub/main.go did not generate expected output"
+-	cat hello.out
+-	ok=false
+-fi
+-
+-./testgo build -o hello testdata/local/hard.go
+-./hello >hello.out
+-if ! grep -q '^sub\.Hello' hello.out || ! grep -q '^subsub\.Hello' hello.out ; then
+-	echo "testdata/local/hard.go did not generate expected output"
+-	cat hello.out
+-	ok=false
+-fi
++testlocal() {
++	local="$1"
++	./testgo build -o hello "testdata/$local/easy.go"
++	./hello >hello.out
++	if ! grep -q '^easysub\.Hello' hello.out; then
++		echo "testdata/$local/easy.go did not generate expected output"
++		cat hello.out
++		ok=false
++	fi
++	
++	./testgo build -o hello "testdata/$local/easysub/main.go"
++	./hello >hello.out
++	if ! grep -q '^easysub\.Hello' hello.out; then
++		echo "testdata/$local/easysub/main.go did not generate expected output"
++		cat hello.out
++		ok=false
++	fi
++	
++	./testgo build -o hello "testdata/$local/hard.go"
++	./hello >hello.out
++	if ! grep -q '^sub\.Hello' hello.out || ! grep -q '^subsub\.Hello' hello.out ; then
++		echo "testdata/$local/hard.go did not generate expected output"
++		cat hello.out
++		ok=false
++	fi
++	
++	rm -f err.out hello.out hello
++	
++	# Test that go install x.go fails.
++	if ./testgo install "testdata/$local/easy.go" >/dev/null 2>&1; then
++		echo "go install testdata/$local/easy.go succeeded"
++		ok=false
++	fi
++}
+ 
+-rm -f err.out hello.out hello
++# Test local imports
++testlocal local
+ 
+-# Test that go install x.go fails.
+-if ./testgo install testdata/local/easy.go >/dev/null 2>&1; then
+-	echo "go install testdata/local/easy.go succeeded"
+-	ok=false
+-fi
++# Test local imports again, with bad characters in the directory name.
++bad='#$%:, &()*;<=>?\^{}'
++rm -rf "testdata/$bad"
++cp -R testdata/local "testdata/$bad"
++testlocal "$bad"
++rm -rf "testdata/$bad"
+ 
+ # Test tests with relative imports.
+ if ! ./testgo test ./testdata/testimport; then

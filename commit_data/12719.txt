@@ -8,6 +8,20 @@ Date:   Thu Mar 22 19:20:03 2012 +1100
     R=golang-dev, bsiegert
     CC=golang-dev
     https://golang.org/cl/5874048
-
+---
  doc/articles/gobs_of_data.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/articles/gobs_of_data.html b/doc/articles/gobs_of_data.html
+index a8670db45e..6b836b2c36 100644
+--- a/doc/articles/gobs_of_data.html
++++ b/doc/articles/gobs_of_data.html
+@@ -86,7 +86,7 @@ used to encode a protocol buffer, you might not be able to parse it.)
+ First, protocol buffers only work on the data type we call a struct in Go. You
+ can't encode an integer or array at the top level, only a struct with fields
+ inside it. That seems a pointless restriction, at least in Go. If all you want
+-to send is an array of integers, why should you have to put put it into a
++to send is an array of integers, why should you have to put it into a
+ struct first?
+ </p>
+ 

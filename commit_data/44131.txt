@@ -20,7 +20,7 @@ Date:   Wed May 6 16:22:15 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              |   7 +-
  src/cmd/go/internal/modget/get.go                  |  12 ++-
  src/cmd/go/internal/modload/import.go              | 104 +++++++++++++++------
@@ -32,3 +32,666 @@ Date:   Wed May 6 16:22:15 2020 -0400
  .../go/testdata/script/list_gofile_in_goroot.txt   |   3 +
  src/cmd/go/testdata/script/list_permissions.txt    |  84 +++++++++++++++++
  10 files changed, 264 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index d7f6b47135..c91167bb22 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -829,10 +829,9 @@ func removeAll(dir string) error {
+ 	// module cache has 0444 directories;
+ 	// make them writable in order to remove content.
+ 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+-		if err != nil {
+-			return nil // ignore errors walking in file system
+-		}
+-		if info.IsDir() {
++		// chmod not only directories, but also things that we couldn't even stat
++		// due to permission errors: they may also be unreadable directories.
++		if err != nil || info.IsDir() {
+ 			os.Chmod(path, 0777)
+ 		}
+ 		return nil
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 8d740471b0..4c6982426f 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -350,11 +350,15 @@ func runGet(cmd *base.Command, args []string) {
+ 			// package in the main module. If the path contains wildcards but
+ 			// matches no packages, we'll warn after package loading.
+ 			if !strings.Contains(path, "...") {
+-				var pkgs []string
++				m := search.NewMatch(path)
+ 				if pkgPath := modload.DirImportPath(path); pkgPath != "." {
+-					pkgs = modload.TargetPackages(pkgPath)
++					m = modload.TargetPackages(pkgPath)
+ 				}
+-				if len(pkgs) == 0 {
++				if len(m.Pkgs) == 0 {
++					for _, err := range m.Errs {
++						base.Errorf("go get %s: %v", arg, err)
++					}
++
+ 					abs, err := filepath.Abs(path)
+ 					if err != nil {
+ 						abs = path
+@@ -394,7 +398,7 @@ func runGet(cmd *base.Command, args []string) {
+ 		default:
+ 			// The argument is a package or module path.
+ 			if modload.HasModRoot() {
+-				if pkgs := modload.TargetPackages(path); len(pkgs) != 0 {
++				if m := modload.TargetPackages(path); len(m.Pkgs) != 0 {
+ 					// The path is in the main module. Nothing to query.
+ 					if vers != "upgrade" && vers != "patch" {
+ 						base.Errorf("go get %s: can't request explicit version of path in main module", arg)
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 162c29d2a6..4d2bc805e2 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -126,7 +126,9 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 	pathIsStd := search.IsStandardImportPath(path)
+ 	if pathIsStd && goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+ 		if targetInGorootSrc {
+-			if dir, ok := dirInModule(path, targetPrefix, ModRoot(), true); ok {
++			if dir, ok, err := dirInModule(path, targetPrefix, ModRoot(), true); err != nil {
++				return module.Version{}, dir, err
++			} else if ok {
+ 				return Target, dir, nil
+ 			}
+ 		}
+@@ -137,8 +139,8 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 	// -mod=vendor is special.
+ 	// Everything must be in the main module or the main module's vendor directory.
+ 	if cfg.BuildMod == "vendor" {
+-		mainDir, mainOK := dirInModule(path, targetPrefix, ModRoot(), true)
+-		vendorDir, vendorOK := dirInModule(path, "", filepath.Join(ModRoot(), "vendor"), false)
++		mainDir, mainOK, mainErr := dirInModule(path, targetPrefix, ModRoot(), true)
++		vendorDir, vendorOK, _ := dirInModule(path, "", filepath.Join(ModRoot(), "vendor"), false)
+ 		if mainOK && vendorOK {
+ 			return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: []string{mainDir, vendorDir}}
+ 		}
+@@ -148,6 +150,9 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 		if !vendorOK && mainDir != "" {
+ 			return Target, mainDir, nil
+ 		}
++		if mainErr != nil {
++			return module.Version{}, "", mainErr
++		}
+ 		readVendorList()
+ 		return vendorPkgModule[path], vendorDir, nil
+ 	}
+@@ -170,8 +175,9 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 			// not ambiguous.
+ 			return module.Version{}, "", err
+ 		}
+-		dir, ok := dirInModule(path, m.Path, root, isLocal)
+-		if ok {
++		if dir, ok, err := dirInModule(path, m.Path, root, isLocal); err != nil {
++			return module.Version{}, "", err
++		} else if ok {
+ 			mods = append(mods, m)
+ 			dirs = append(dirs, dir)
+ 		}
+@@ -247,8 +253,9 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 				// Report fetch error as above.
+ 				return module.Version{}, "", err
+ 			}
+-			_, ok := dirInModule(path, m.Path, root, isLocal)
+-			if ok {
++			if _, ok, err := dirInModule(path, m.Path, root, isLocal); err != nil {
++				return m, "", err
++			} else if ok {
+ 				return m, "", &ImportMissingError{Path: path, Module: m}
+ 			}
+ 		}
+@@ -319,19 +326,29 @@ func maybeInModule(path, mpath string) bool {
+ 		len(path) > len(mpath) && path[len(mpath)] == '/' && path[:len(mpath)] == mpath
+ }
+ 
+-var haveGoModCache, haveGoFilesCache par.Cache
++var (
++	haveGoModCache   par.Cache // dir → bool
++	haveGoFilesCache par.Cache // dir → goFilesEntry
++)
++
++type goFilesEntry struct {
++	haveGoFiles bool
++	err         error
++}
+ 
+ // dirInModule locates the directory that would hold the package named by the given path,
+ // if it were in the module with module path mpath and root mdir.
+ // If path is syntactically not within mpath,
+ // or if mdir is a local file tree (isLocal == true) and the directory
+ // that would hold path is in a sub-module (covered by a go.mod below mdir),
+-// dirInModule returns "", false.
++// dirInModule returns "", false, nil.
+ //
+ // Otherwise, dirInModule returns the name of the directory where
+ // Go source files would be expected, along with a boolean indicating
+ // whether there are in fact Go source files in that directory.
+-func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFiles bool) {
++// A non-nil error indicates that the existence of the directory and/or
++// source files could not be determined, for example due to a permission error.
++func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFiles bool, err error) {
+ 	// Determine where to expect the package.
+ 	if path == mpath {
+ 		dir = mdir
+@@ -340,7 +357,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
+ 	} else if len(path) > len(mpath) && path[len(mpath)] == '/' && path[:len(mpath)] == mpath {
+ 		dir = filepath.Join(mdir, path[len(mpath)+1:])
+ 	} else {
+-		return "", false
++		return "", false, nil
+ 	}
+ 
+ 	// Check that there aren't other modules in the way.
+@@ -357,7 +374,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
+ 			}).(bool)
+ 
+ 			if haveGoMod {
+-				return "", false
++				return "", false, nil
+ 			}
+ 			parent := filepath.Dir(d)
+ 			if parent == d {
+@@ -374,23 +391,58 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
+ 	// Are there Go source files in the directory?
+ 	// We don't care about build tags, not even "+build ignore".
+ 	// We're just looking for a plausible directory.
+-	haveGoFiles = haveGoFilesCache.Do(dir, func() interface{} {
+-		f, err := os.Open(dir)
+-		if err != nil {
+-			return false
++	res := haveGoFilesCache.Do(dir, func() interface{} {
++		ok, err := isDirWithGoFiles(dir)
++		return goFilesEntry{haveGoFiles: ok, err: err}
++	}).(goFilesEntry)
++
++	return dir, res.haveGoFiles, res.err
++}
++
++func isDirWithGoFiles(dir string) (bool, error) {
++	f, err := os.Open(dir)
++	if err != nil {
++		if os.IsNotExist(err) {
++			return false, nil
+ 		}
+-		defer f.Close()
+-		names, _ := f.Readdirnames(-1)
+-		for _, name := range names {
+-			if strings.HasSuffix(name, ".go") {
+-				info, err := os.Stat(filepath.Join(dir, name))
+-				if err == nil && info.Mode().IsRegular() {
+-					return true
++		return false, err
++	}
++	defer f.Close()
++
++	names, firstErr := f.Readdirnames(-1)
++	if firstErr != nil {
++		if fi, err := f.Stat(); err == nil && !fi.IsDir() {
++			return false, nil
++		}
++
++		// Rewrite the error from ReadDirNames to include the path if not present.
++		// See https://golang.org/issue/38923.
++		var pe *os.PathError
++		if !errors.As(firstErr, &pe) {
++			firstErr = &os.PathError{Op: "readdir", Path: dir, Err: firstErr}
++		}
++	}
++
++	for _, name := range names {
++		if strings.HasSuffix(name, ".go") {
++			info, err := os.Stat(filepath.Join(dir, name))
++			if err == nil && info.Mode().IsRegular() {
++				// If any .go source file exists, the package exists regardless of
++				// errors for other source files. Leave further error reporting for
++				// later.
++				return true, nil
++			}
++			if firstErr == nil {
++				if os.IsNotExist(err) {
++					// If the file was concurrently deleted, or was a broken symlink,
++					// convert the error to an opaque error instead of one matching
++					// os.IsNotExist.
++					err = errors.New(err.Error())
+ 				}
++				firstErr = err
+ 			}
+ 		}
+-		return false
+-	}).(bool)
++	}
+ 
+-	return dir, haveGoFiles
++	return false, firstErr
+ }
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 8a02c750e1..30992e0cc2 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -99,14 +99,16 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
+ 				m.Pkgs = []string{m.Pattern()}
+ 
+ 			case strings.Contains(m.Pattern(), "..."):
+-				m.Pkgs = matchPackages(m.Pattern(), loaded.tags, true, buildList)
++				m.Errs = m.Errs[:0]
++				matchPackages(m, loaded.tags, includeStd, buildList)
+ 
+ 			case m.Pattern() == "all":
+ 				loaded.testAll = true
+ 				if iterating {
+ 					// Enumerate the packages in the main module.
+ 					// We'll load the dependencies as we find them.
+-					m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{Target})
++					m.Errs = m.Errs[:0]
++					matchPackages(m, loaded.tags, omitStd, []module.Version{Target})
+ 				} else {
+ 					// Starting with the packages in the main module,
+ 					// enumerate the full list of "all".
+@@ -273,7 +275,9 @@ func resolveLocalPackage(dir string) (string, error) {
+ 		}
+ 
+ 		pkg := targetPrefix + suffix
+-		if _, ok := dirInModule(pkg, targetPrefix, modRoot, true); !ok {
++		if _, ok, err := dirInModule(pkg, targetPrefix, modRoot, true); err != nil {
++			return "", err
++		} else if !ok {
+ 			return "", &PackageNotInModuleError{Mod: Target, Pattern: pkg}
+ 		}
+ 		return pkg, nil
+@@ -422,7 +426,7 @@ func loadAll(testAll bool) []string {
+ 		loaded.testRoots = true
+ 	}
+ 	all := TargetPackages("...")
+-	loaded.load(func() []string { return all })
++	loaded.load(func() []string { return all.Pkgs })
+ 	checkMultiplePaths()
+ 	WriteGoMod()
+ 
+@@ -434,6 +438,9 @@ func loadAll(testAll bool) []string {
+ 		}
+ 		paths = append(paths, pkg.path)
+ 	}
++	for _, err := range all.Errs {
++		base.Errorf("%v", err)
++	}
+ 	base.ExitIfErrors()
+ 	return paths
+ }
+@@ -441,12 +448,14 @@ func loadAll(testAll bool) []string {
+ // TargetPackages returns the list of packages in the target (top-level) module
+ // matching pattern, which may be relative to the working directory, under all
+ // build tag settings.
+-func TargetPackages(pattern string) []string {
++func TargetPackages(pattern string) *search.Match {
+ 	// TargetPackages is relative to the main module, so ensure that the main
+ 	// module is a thing that can contain packages.
+ 	ModRoot()
+ 
+-	return matchPackages(pattern, imports.AnyTags(), false, []module.Version{Target})
++	m := search.NewMatch(pattern)
++	matchPackages(m, imports.AnyTags(), omitStd, []module.Version{Target})
++	return m
+ }
+ 
+ // BuildList returns the module build list,
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 5e9cfdcfe3..acc886bf21 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -403,30 +403,42 @@ func QueryPackage(path, query string, allowed func(module.Version) bool) ([]Quer
+ // possible modules.
+ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]QueryResult, error) {
+ 	base := pattern
+-	var match func(m module.Version, root string, isLocal bool) (pkgs []string)
++
++	firstError := func(m *search.Match) error {
++		if len(m.Errs) == 0 {
++			return nil
++		}
++		return m.Errs[0]
++	}
++
++	var match func(mod module.Version, root string, isLocal bool) *search.Match
+ 
+ 	if i := strings.Index(pattern, "..."); i >= 0 {
+ 		base = pathpkg.Dir(pattern[:i+3])
+-		match = func(m module.Version, root string, isLocal bool) []string {
+-			return matchPackages(pattern, imports.AnyTags(), false, []module.Version{m})
++		match = func(mod module.Version, root string, isLocal bool) *search.Match {
++			m := search.NewMatch(pattern)
++			matchPackages(m, imports.AnyTags(), omitStd, []module.Version{mod})
++			return m
+ 		}
+ 	} else {
+-		match = func(m module.Version, root string, isLocal bool) []string {
+-			prefix := m.Path
+-			if m == Target {
++		match = func(mod module.Version, root string, isLocal bool) *search.Match {
++			m := search.NewMatch(pattern)
++			prefix := mod.Path
++			if mod == Target {
+ 				prefix = targetPrefix
+ 			}
+-			if _, ok := dirInModule(pattern, prefix, root, isLocal); ok {
+-				return []string{pattern}
+-			} else {
+-				return nil
++			if _, ok, err := dirInModule(pattern, prefix, root, isLocal); err != nil {
++				m.AddError(err)
++			} else if ok {
++				m.Pkgs = []string{pattern}
+ 			}
++			return m
+ 		}
+ 	}
+ 
+ 	if HasModRoot() {
+-		pkgs := match(Target, modRoot, true)
+-		if len(pkgs) > 0 {
++		m := match(Target, modRoot, true)
++		if len(m.Pkgs) > 0 {
+ 			if query != "latest" {
+ 				return nil, fmt.Errorf("can't query specific version for package %s in the main module (%s)", pattern, Target.Path)
+ 			}
+@@ -436,9 +448,12 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
+ 			return []QueryResult{{
+ 				Mod:      Target,
+ 				Rev:      &modfetch.RevInfo{Version: Target.Version},
+-				Packages: pkgs,
++				Packages: m.Pkgs,
+ 			}}, nil
+ 		}
++		if err := firstError(m); err != nil {
++			return nil, err
++		}
+ 	}
+ 
+ 	var (
+@@ -466,8 +481,12 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
+ 			if err != nil {
+ 				return r, err
+ 			}
+-			r.Packages = match(r.Mod, root, isLocal)
++			m := match(r.Mod, root, isLocal)
++			r.Packages = m.Pkgs
+ 			if len(r.Packages) == 0 {
++				if err := firstError(m); err != nil {
++					return r, err
++				}
+ 				return r, &PackageNotInModuleError{
+ 					Mod:         r.Mod,
+ 					Replacement: Replacement(r.Mod),
+@@ -684,8 +703,8 @@ func ModuleHasRootPackage(m module.Version) (bool, error) {
+ 	if err != nil {
+ 		return false, err
+ 	}
+-	_, ok := dirInModule(m.Path, m.Path, root, isLocal)
+-	return ok, nil
++	_, ok, err := dirInModule(m.Path, m.Path, root, isLocal)
++	return ok, err
+ }
+ 
+ func versionHasGoMod(m module.Version) (bool, error) {
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index a303f51858..c28e7c0c1e 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -10,7 +10,6 @@ import (
+ 	"path/filepath"
+ 	"strings"
+ 
+-	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/search"
+@@ -18,14 +17,24 @@ import (
+ 	"golang.org/x/mod/module"
+ )
+ 
+-// matchPackages returns a list of packages in the list of modules
+-// matching the pattern. Package loading assumes the given set of tags.
+-func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []module.Version) []string {
+-	match := func(string) bool { return true }
++type stdFilter int8
++
++const (
++	omitStd = stdFilter(iota)
++	includeStd
++)
++
++// matchPackages is like m.MatchPackages, but uses a local variable (rather than
++// a global) for tags, can include or exclude packages in the standard library,
++// and is restricted to the given list of modules.
++func matchPackages(m *search.Match, tags map[string]bool, filter stdFilter, modules []module.Version) {
++	m.Pkgs = []string{}
++
++	isMatch := func(string) bool { return true }
+ 	treeCanMatch := func(string) bool { return true }
+-	if !search.IsMetaPackage(pattern) {
+-		match = search.MatchPattern(pattern)
+-		treeCanMatch = search.TreeCanMatchPattern(pattern)
++	if !m.IsMeta() {
++		isMatch = search.MatchPattern(m.Pattern())
++		treeCanMatch = search.TreeCanMatchPattern(m.Pattern())
+ 	}
+ 
+ 	have := map[string]bool{
+@@ -34,7 +43,6 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 	if !cfg.BuildContext.CgoEnabled {
+ 		have["runtime/cgo"] = true // ignore during walk
+ 	}
+-	var pkgs []string
+ 
+ 	type pruning int8
+ 	const (
+@@ -44,8 +52,9 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 
+ 	walkPkgs := func(root, importPathRoot string, prune pruning) {
+ 		root = filepath.Clean(root)
+-		filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
++		err := filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
+ 			if err != nil {
++				m.AddError(err)
+ 				return nil
+ 			}
+ 
+@@ -94,9 +103,9 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 
+ 			if !have[name] {
+ 				have[name] = true
+-				if match(name) {
++				if isMatch(name) {
+ 					if _, _, err := scanDir(path, tags); err != imports.ErrNoGo {
+-						pkgs = append(pkgs, name)
++						m.Pkgs = append(m.Pkgs, name)
+ 					}
+ 				}
+ 			}
+@@ -106,9 +115,12 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 			}
+ 			return nil
+ 		})
++		if err != nil {
++			m.AddError(err)
++		}
+ 	}
+ 
+-	if useStd {
++	if filter == includeStd {
+ 		walkPkgs(cfg.GOROOTsrc, "", pruneGoMod)
+ 		if treeCanMatch("cmd") {
+ 			walkPkgs(filepath.Join(cfg.GOROOTsrc, "cmd"), "cmd", pruneGoMod)
+@@ -120,7 +132,7 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 			walkPkgs(ModRoot(), targetPrefix, pruneGoMod|pruneVendor)
+ 			walkPkgs(filepath.Join(ModRoot(), "vendor"), "", pruneVendor)
+ 		}
+-		return pkgs
++		return
+ 	}
+ 
+ 	for _, mod := range modules {
+@@ -143,7 +155,7 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 			var err error
+ 			root, isLocal, err = fetch(mod)
+ 			if err != nil {
+-				base.Errorf("go: %v", err)
++				m.AddError(err)
+ 				continue
+ 			}
+ 			modPrefix = mod.Path
+@@ -156,5 +168,5 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 		walkPkgs(root, modPrefix, prune)
+ 	}
+ 
+-	return pkgs
++	return
+ }
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index b588c3e467..4efef24152 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -128,8 +128,11 @@ func (m *Match) MatchPackages() {
+ 			root += "cmd" + string(filepath.Separator)
+ 		}
+ 		err := filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
+-			if err != nil || path == src {
+-				return nil
++			if err != nil {
++				return err // Likely a permission error, which could interfere with matching.
++			}
++			if path == src {
++				return nil // GOROOT/src and GOPATH/src cannot contain packages.
+ 			}
+ 
+ 			want := true
+@@ -261,7 +264,10 @@ func (m *Match) MatchDirs() {
+ 	}
+ 
+ 	err := filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
+-		if err != nil || !fi.IsDir() {
++		if err != nil {
++			return err // Likely a permission error, which could interfere with matching.
++		}
++		if !fi.IsDir() {
+ 			return nil
+ 		}
+ 		top := false
+diff --git a/src/cmd/go/testdata/script/list_dedup_packages.txt b/src/cmd/go/testdata/script/list_dedup_packages.txt
+index ab7068cf15..ebd497b7e5 100644
+--- a/src/cmd/go/testdata/script/list_dedup_packages.txt
++++ b/src/cmd/go/testdata/script/list_dedup_packages.txt
+@@ -6,7 +6,7 @@ env GOPATH=$WORK/tmp/testdata
+ cd $WORK
+ 
+ # Check output of go list to ensure no duplicates
+-go list xtestonly ./testdata/src/xtestonly/...
++go list xtestonly ./tmp/testdata/src/xtestonly/...
+ cmp stdout $WORK/gopath/src/wantstdout
+ 
+ -- wantstdout --
+diff --git a/src/cmd/go/testdata/script/list_gofile_in_goroot.txt b/src/cmd/go/testdata/script/list_gofile_in_goroot.txt
+index 604d8b4fe1..6e48d7b42c 100644
+--- a/src/cmd/go/testdata/script/list_gofile_in_goroot.txt
++++ b/src/cmd/go/testdata/script/list_gofile_in_goroot.txt
+@@ -69,5 +69,8 @@ go 1.14
+ package foo
+ -- $WORK/goroot/src/fmt/fmt.go --
+ package fmt
++-- $WORK/goroot/src/cmd/README --
++This directory must exist in order for the 'cmd' pattern to have something to
++match against.
+ -- $GOPATH/src/foo.go --
+ package foo
+diff --git a/src/cmd/go/testdata/script/list_permissions.txt b/src/cmd/go/testdata/script/list_permissions.txt
+new file mode 100644
+index 0000000000..f65896ca14
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_permissions.txt
+@@ -0,0 +1,84 @@
++env GO111MODULE=on
++
++# Establish baseline behavior, before mucking with file permissions.
++
++go list ./noread/...
++stdout '^example.com/noread$'
++
++go list example.com/noread/...
++stdout '^example.com/noread$'
++
++go list ./empty/...
++stderr 'matched no packages'
++
++[root] stop # Root typically ignores file permissions.
++
++# Make the directory ./noread unreadable, and verify that 'go list' reports an
++# explicit error for a pattern that should match it (rather than treating it as
++# equivalent to an empty directory).
++
++[windows] skip # Does not have Unix-style directory permissions.
++[plan9] skip   # Might not have Unix-style directory permissions.
++
++chmod 000 noread
++
++# Check explicit paths.
++
++! go list ./noread
++! stdout '^example.com/noread$'
++! stderr 'matched no packages'
++
++! go list example.com/noread
++! stdout '^example.com/noread$'
++! stderr 'matched no packages'
++
++# Check filesystem-relative patterns.
++
++! go list ./...
++! stdout '^example.com/noread$'
++! stderr 'matched no packages'
++stderr '^pattern ./...: '
++
++! go list ./noread/...
++! stdout '^example.com/noread$'
++! stderr 'matched no packages'
++stderr '^pattern ./noread/...: '
++
++
++# Check module-prefix patterns.
++
++! go list example.com/...
++! stdout '^example.com/noread$'
++! stderr 'matched no packages'
++stderr '^pattern example.com/...: '
++
++! go list example.com/noread/...
++! stdout '^example.com/noread$'
++! stderr 'matched no packages'
++stderr '^pattern example.com/noread/...: '
++
++
++[short] stop
++
++# Check global patterns, which should still
++# fail due to errors in the local module.
++
++! go list all
++! stdout '^example.com/noread$'
++! stderr 'matched no packages'
++stderr '^pattern all: '
++
++! go list ...
++! stdout '^example.com/noread$'
++! stderr 'matched no packages'
++stderr '^pattern ...: '
++
++
++-- go.mod --
++module example.com
++go 1.15
++-- noread/noread.go --
++// Package noread exists, but will be made unreadable.
++package noread
++-- empty/README.txt --
++This directory intentionally left empty.

@@ -15,6 +15,22 @@ Date:   Fri Dec 13 17:33:16 2024 -0500
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     Auto-Submit: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/testdata/script/test_flags.txt | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_flags.txt b/src/cmd/go/testdata/script/test_flags.txt
+index 7adf4e273c..afef08840d 100644
+--- a/src/cmd/go/testdata/script/test_flags.txt
++++ b/src/cmd/go/testdata/script/test_flags.txt
+@@ -15,8 +15,8 @@ stdout '\Aok\s+example.com/x\s+[0-9.s]+\n\z'
+ # Even though ./x looks like a package path, the real package should be
+ # the implicit '.'.
+ ! go test --answer=42 ./x
+-stdout '^FAIL\t. \[build failed\]'
+-stderr '^\.: no Go files in '$PWD'$'
++stdout '^FAIL\t. \[setup failed\]'
++stderr '^# \.\nno Go files in '$PWD'$'
+ 
+ # However, *flags* that appear after unrecognized flags should still be
+ # interpreted as flags, under the (possibly-erroneous) assumption that

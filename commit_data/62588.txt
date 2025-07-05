@@ -10,6 +10,20 @@ Date:   Fri Mar 14 14:07:45 2025 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/os/root.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/root.go b/src/os/root.go
+index 2edf5c27f2..41342fcf53 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -223,7 +223,7 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, err error)
+ 		suffix = nil
+ 	}
+ 
+-	parts := append([]string{}, prefix...)
++	parts := slices.Clone(prefix)
+ 	i, j := 0, 1
+ 	for {
+ 		if j < len(s) && !IsPathSeparator(s[j]) {

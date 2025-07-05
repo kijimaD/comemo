@@ -18,7 +18,49 @@ Date:   Thu Mar 21 09:15:30 2024 -0700
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/memcombine.go |  2 +-
  test/codegen/memcombine.go                 | 20 ++++++++++++++++++++
  2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/memcombine.go b/src/cmd/compile/internal/ssa/memcombine.go
+index b1a47510be..a7e8ede5bc 100644
+--- a/src/cmd/compile/internal/ssa/memcombine.go
++++ b/src/cmd/compile/internal/ssa/memcombine.go
+@@ -534,7 +534,7 @@ func combineStores(root *Value, n int64) bool {
+ 	isConst := true
+ 	for i := int64(0); i < n; i++ {
+ 		switch a[i].store.Args[1].Op {
+-		case OpConst32, OpConst16, OpConst8:
++		case OpConst32, OpConst16, OpConst8, OpConstBool:
+ 		default:
+ 			isConst = false
+ 			break
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index 6d6c33d947..ff67a442e4 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -918,3 +918,23 @@ func store16be(p *struct{ a, b uint16 }, x uint32) {
+ 	// s390x:-"MOVH",-"SRW"
+ 	p.b = uint16(x)
+ }
++
++func storeBoolConst(p *struct{ a, b bool }) {
++	// amd64:"MOVW",-"MOVB"
++	// arm64:"MOVH",-"MOVB"
++	p.a = true
++	p.b = true
++}
++func issue66413(p *struct {
++	a byte
++	b bool
++	c bool
++	d int8
++}) {
++	// amd64:"MOVL",-"MOVB"
++	// arm64:"MOVW",-"MOVB"
++	p.a = 31
++	p.b = false
++	p.c = true
++	p.d = 12
++}

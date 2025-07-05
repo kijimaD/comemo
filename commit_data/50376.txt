@@ -11,6 +11,58 @@ Date:   Mon Oct 18 13:06:58 2021 -0400
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/url/example_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
  1 file changed, 40 insertions(+)
+
+diff --git a/src/net/url/example_test.go b/src/net/url/example_test.go
+index 476132a1c9..dfce2fc11c 100644
+--- a/src/net/url/example_test.go
++++ b/src/net/url/example_test.go
+@@ -12,6 +12,46 @@ import (
+ 	"strings"
+ )
+ 
++func ExamplePathEscape() {
++	path := url.PathEscape("my/cool+blog&about,stuff")
++	fmt.Println(path)
++
++	// Output:
++	// my%2Fcool+blog&about%2Cstuff
++}
++
++func ExamplePathUnescape() {
++	escapedPath := "my%2Fcool+blog&about%2Cstuff"
++	path, err := url.PathUnescape(escapedPath)
++	if err != nil {
++		log.Fatal(err)
++	}
++	fmt.Println(path)
++
++	// Output:
++	// my/cool+blog&about,stuff
++}
++
++func ExampleQueryEscape() {
++	query := url.QueryEscape("my/cool+blog&about,stuff")
++	fmt.Println(query)
++
++	// Output:
++	// my%2Fcool%2Bblog%26about%2Cstuff
++}
++
++func ExampleQueryUnescape() {
++	escapedQuery := "my%2Fcool%2Bblog%26about%2Cstuff"
++	query, err := url.QueryUnescape(escapedQuery)
++	if err != nil {
++		log.Fatal(err)
++	}
++	fmt.Println(query)
++
++	// Output:
++	// my/cool+blog&about,stuff
++}
++
+ func ExampleValues() {
+ 	v := url.Values{}
+ 	v.Set("name", "Ava")

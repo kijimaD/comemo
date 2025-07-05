@@ -9,6 +9,22 @@ Date:   Sat Nov 7 19:30:25 2015 -0500
     Change-Id: Icee6ffa6e3a9d15b68b4ae9b2716d65ecbdba73a
     Reviewed-on: https://go-review.googlesource.com/16702
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index f0e051173b..3620b1598e 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1171,6 +1171,10 @@ func hostlink() {
+ 				Ctxt.Cursym = nil
+ 				Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
+ 			}
++			// Skip combining if `dsymutil` didn't generate a file. See #11994.
++			if _, err := os.Stat(dsym); os.IsNotExist(err) {
++				return
++			}
+ 			// For os.Rename to work reliably, must be in same directory as outfile.
+ 			combinedOutput := outfile + "~"
+ 			if err := machoCombineDwarf(outfile, dsym, combinedOutput); err != nil {

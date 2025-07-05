@@ -9,6 +9,29 @@ Date:   Sat Dec 29 16:18:11 2018 +0000
     GitHub-Pull-Request: golang/go#29454
     Reviewed-on: https://go-review.googlesource.com/c/155920
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transport.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 44d27d05c2..a8c5efe6aa 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -134,7 +134,7 @@ type Transport struct {
+ 	//
+ 	// DialContext runs concurrently with calls to RoundTrip.
+ 	// A RoundTrip call that initiates a dial may end up using
+-	// an connection dialed previously when the earlier connection
++	// a connection dialed previously when the earlier connection
+ 	// becomes idle before the later DialContext completes.
+ 	DialContext func(ctx context.Context, network, addr string) (net.Conn, error)
+ 
+@@ -142,7 +142,7 @@ type Transport struct {
+ 	//
+ 	// Dial runs concurrently with calls to RoundTrip.
+ 	// A RoundTrip call that initiates a dial may end up using
+-	// an connection dialed previously when the earlier connection
++	// a connection dialed previously when the earlier connection
+ 	// becomes idle before the later Dial completes.
+ 	//
+ 	// Deprecated: Use DialContext instead, which allows the transport

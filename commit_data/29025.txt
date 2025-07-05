@@ -11,6 +11,28 @@ Date:   Mon Aug 8 16:46:48 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/27490
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/sys_openbsd_arm.s | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index 29e89710af..952069bc1a 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -353,15 +353,13 @@ TEXT runtime·kevent(SB),NOSPLIT,$8
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+-// int32 runtime·closeonexec(int32 fd);
++// func closeonexec(fd int32)
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVW	fd+0(FP), R0		// arg 1 - fd
+ 	MOVW	$2, R1			// arg 2 - cmd (F_SETFD)
+ 	MOVW	$1, R2			// arg 3 - arg (FD_CLOEXEC)
+ 	MOVW	$92, R12		// sys_fcntl
+ 	SWI	$0
+-	RSB.CS	$0, R0
+-	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+ TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0

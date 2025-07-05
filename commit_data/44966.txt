@@ -18,7 +18,7 @@ Date:   Thu Aug 20 14:22:30 2020 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Keith Randall <khr@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/debug/garbage.go    |  5 +++++
  src/runtime/debug/panic_test.go | 46 +++++++++++++++++++++++++++++++++++++++++
  src/runtime/error.go            | 20 ++++++++++++++++++
@@ -27,3 +27,177 @@ Date:   Thu Aug 20 14:22:30 2020 -0700
  src/runtime/signal_unix.go      |  4 ++--
  src/runtime/signal_windows.go   |  5 ++++-
  7 files changed, 86 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/debug/garbage.go b/src/runtime/debug/garbage.go
+index 785e9d4598..e36e54f12d 100644
+--- a/src/runtime/debug/garbage.go
++++ b/src/runtime/debug/garbage.go
+@@ -139,6 +139,11 @@ func SetMaxThreads(threads int) int {
+ // manipulation of memory may cause faults at non-nil addresses in less
+ // dramatic situations; SetPanicOnFault allows such programs to request
+ // that the runtime trigger only a panic, not a crash.
++// The runtime.Error that the runtime panics with may have an additional method:
++//     Addr() uintptr
++// If that method exists, it returns the memory address which triggered the fault.
++// The results of Addr are best-effort and the veracity of the result
++// may depend on the platform.
+ // SetPanicOnFault applies only to the current goroutine.
+ // It returns the previous setting.
+ func SetPanicOnFault(enabled bool) bool {
+diff --git a/src/runtime/debug/panic_test.go b/src/runtime/debug/panic_test.go
+new file mode 100644
+index 0000000000..2aad418bae
+--- /dev/null
++++ b/src/runtime/debug/panic_test.go
+@@ -0,0 +1,46 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build aix darwin dragonfly freebsd linux netbsd openbsd
++
++// TODO: test on Windows?
++
++package debug_test
++
++import (
++	"runtime/debug"
++	"syscall"
++	"testing"
++	"unsafe"
++)
++
++func TestPanicOnFault(t *testing.T) {
++	m, err := syscall.Mmap(-1, 0, 0x1000, syscall.PROT_READ /* Note: no PROT_WRITE */, syscall.MAP_SHARED|syscall.MAP_ANON)
++	if err != nil {
++		t.Fatalf("can't map anonymous memory: %s", err)
++	}
++	defer syscall.Munmap(m)
++	old := debug.SetPanicOnFault(true)
++	defer debug.SetPanicOnFault(old)
++	const lowBits = 0x3e7
++	defer func() {
++		r := recover()
++		if r == nil {
++			t.Fatalf("write did not fault")
++		}
++		type addressable interface {
++			Addr() uintptr
++		}
++		a, ok := r.(addressable)
++		if !ok {
++			t.Fatalf("fault does not contain address")
++		}
++		want := uintptr(unsafe.Pointer(&m[lowBits]))
++		got := a.Addr()
++		if got != want {
++			t.Fatalf("fault address %x, want %x", got, want)
++		}
++	}()
++	m[lowBits] = 1 // will fault
++}
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index 386569bead..9e6cdf35dd 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -77,6 +77,26 @@ func (e errorString) Error() string {
+ 	return "runtime error: " + string(e)
+ }
+ 
++type errorAddressString struct {
++	msg  string  // error message
++	addr uintptr // memory address where the error occurred
++}
++
++func (e errorAddressString) RuntimeError() {}
++
++func (e errorAddressString) Error() string {
++	return "runtime error: " + e.msg
++}
++
++// Addr returns the memory address where a fault occurred.
++// The address provided is best-effort.
++// The veracity of the result may depend on the platform.
++// Errors providing this method will only be returned as
++// a result of using runtime/debug.SetPanicOnFault.
++func (e errorAddressString) Addr() uintptr {
++	return e.addr
++}
++
+ // plainError represents a runtime error described a string without
+ // the prefix "runtime error: " after invoking errorString.Error().
+ // See Issue #14965.
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 128c30adeb..f3037a7508 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -92,9 +92,12 @@ func sigpanic() {
+ 		}
+ 		addr := note[i:]
+ 		g.sigcode1 = uintptr(atolwhex(addr))
+-		if g.sigcode1 < 0x1000 || g.paniconfault {
++		if g.sigcode1 < 0x1000 {
+ 			panicmem()
+ 		}
++		if g.paniconfault {
++			panicmemAddr(g.sigcode1)
++		}
+ 		print("unexpected fault address ", hex(g.sigcode1), "\n")
+ 		throw("fault")
+ 	case _SIGTRAP:
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 127843b081..6050a34d29 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -212,6 +212,11 @@ func panicmem() {
+ 	panic(memoryError)
+ }
+ 
++func panicmemAddr(addr uintptr) {
++	panicCheck2("invalid memory address or nil pointer dereference")
++	panic(errorAddressString{msg: "invalid memory address or nil pointer dereference", addr: addr})
++}
++
+ // Create a new deferred function fn with siz bytes of arguments.
+ // The compiler turns a defer statement into a call to this.
+ //go:nosplit
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 064a0ea100..bbfc18e37b 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -710,7 +710,7 @@ func sigpanic() {
+ 		}
+ 		// Support runtime/debug.SetPanicOnFault.
+ 		if g.paniconfault {
+-			panicmem()
++			panicmemAddr(g.sigcode1)
+ 		}
+ 		print("unexpected fault address ", hex(g.sigcode1), "\n")
+ 		throw("fault")
+@@ -720,7 +720,7 @@ func sigpanic() {
+ 		}
+ 		// Support runtime/debug.SetPanicOnFault.
+ 		if g.paniconfault {
+-			panicmem()
++			panicmemAddr(g.sigcode1)
+ 		}
+ 		print("unexpected fault address ", hex(g.sigcode1), "\n")
+ 		throw("fault")
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index d123276d3e..6d98d02598 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -242,9 +242,12 @@ func sigpanic() {
+ 
+ 	switch g.sig {
+ 	case _EXCEPTION_ACCESS_VIOLATION:
+-		if g.sigcode1 < 0x1000 || g.paniconfault {
++		if g.sigcode1 < 0x1000 {
+ 			panicmem()
+ 		}
++		if g.paniconfault {
++			panicmemAddr(g.sigcode1)
++		}
+ 		print("unexpected fault address ", hex(g.sigcode1), "\n")
+ 		throw("fault")
+ 	case _EXCEPTION_INT_DIVIDE_BY_ZERO:

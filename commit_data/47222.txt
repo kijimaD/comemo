@@ -23,9 +23,85 @@ Date:   Thu Mar 4 11:50:31 2021 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modcmd/tidy.go            |  1 +
  src/cmd/go/internal/modcmd/vendor.go          |  1 +
  src/cmd/go/internal/modload/load.go           | 13 ++++++++++++-
  src/cmd/go/testdata/script/mod_tidy_error.txt |  4 ++--
  4 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index e7e63e6533..34ff86ff18 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -67,6 +67,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 		ResolveMissingImports:    true,
+ 		LoadTests:                true,
+ 		AllowErrors:              tidyE,
++		SilenceMissingStdImports: true,
+ 	}, "all")
+ 
+ 	modload.TidyBuildList()
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 2cd683b75c..6ebc18dcd8 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -69,6 +69,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 		ResolveMissingImports:    true,
+ 		UseVendorAll:             true,
+ 		AllowErrors:              vendorE,
++		SilenceMissingStdImports: true,
+ 	}
+ 	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
+ 
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 0dba49e40e..2e62a7659f 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -175,6 +175,12 @@ type PackageOpts struct {
+ 	// that occur while loading packages. SilenceErrors implies AllowErrors.
+ 	SilenceErrors bool
+ 
++	// SilenceMissingStdImports indicates that LoadPackages should not print
++	// errors or terminate the process if an imported package is missing, and the
++	// import path looks like it might be in the standard library (perhaps in a
++	// future version).
++	SilenceMissingStdImports bool
++
+ 	// SilenceUnmatchedWarnings suppresses the warnings normally emitted for
+ 	// patterns that did not match any packages.
+ 	SilenceUnmatchedWarnings bool
+@@ -292,8 +298,13 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 					sumErr.importerIsTest = importer.testOf != nil
+ 				}
+ 			}
++			silence := opts.SilenceErrors
++			if stdErr := (*ImportMissingError)(nil); errors.As(pkg.err, &stdErr) &&
++				stdErr.isStd && opts.SilenceMissingStdImports {
++				silence = true
++			}
+ 
+-			if !opts.SilenceErrors {
++			if !silence {
+ 				if opts.AllowErrors {
+ 					fmt.Fprintf(os.Stderr, "%s: %v\n", pkg.stackText(), pkg.err)
+ 				} else {
+diff --git a/src/cmd/go/testdata/script/mod_tidy_error.txt b/src/cmd/go/testdata/script/mod_tidy_error.txt
+index b6c24ceaf7..395537b1a7 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_error.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_error.txt
+@@ -4,12 +4,12 @@ env GO111MODULE=on
+ # 'go mod tidy' and 'go mod vendor' should not hide loading errors.
+ 
+ ! go mod tidy
+-stderr '^issue27063 imports\n\tnonexist: package nonexist is not in GOROOT \(.*\)'
++! stderr 'package nonexist is not in GOROOT'
+ stderr '^issue27063 imports\n\tnonexist.example.com: cannot find module providing package nonexist.example.com'
+ stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: cannot find module providing package other.example.com/nonexist'
+ 
+ ! go mod vendor
+-stderr '^issue27063 imports\n\tnonexist: package nonexist is not in GOROOT \(.*\)'
++! stderr 'package nonexist is not in GOROOT'
+ stderr '^issue27063 imports\n\tnonexist.example.com: cannot find module providing package nonexist.example.com'
+ stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: cannot find module providing package other.example.com/nonexist'
+ 

@@ -9,7 +9,32 @@ Date:   Wed Jan 2 16:04:32 2013 +1100
     R=gobot
     CC=golang-dev
     https://golang.org/cl/7038046
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 2e31a67cc9..d3908f6c2b 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -149,6 +149,7 @@ Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+ Julian Phillips <julian@quantumfyre.co.uk>
+ Julien Schmidt <google@julienschmidt.com>
+ Kai Backman <kaib@golang.org>
++Kamil Kisiel <kamil@kamilkisiel.net> <kamil.kisiel@gmail.com>
+ Kei Son <hey.calmdown@gmail.com>
+ Keith Rarick <kr@xph.us>
+ Ken Friedenbach <kenliz@cruzio.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 43310fc8fa..dab0c6407f 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -220,6 +220,7 @@ Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+ Julian Phillips <julian@quantumfyre.co.uk>
+ Julien Schmidt <google@julienschmidt.com>
+ Kai Backman <kaib@golang.org>
++Kamil Kisiel <kamil@kamilkisiel.net> <kamil.kisiel@gmail.com>
+ Kei Son <hey.calmdown@gmail.com>
+ Keith Rarick <kr@xph.us>
+ Ken Friedenbach <kenliz@cruzio.com>

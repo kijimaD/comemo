@@ -8,6 +8,19 @@ Date:   Thu Sep 19 02:27:53 2013 -0400
     R=golang-dev, alex.brainman, adg
     CC=golang-dev
     https://golang.org/cl/13722050
-
+---
  src/cmd/ld/ldpe.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 6ed861d7f0..6bcda2cb66 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -468,6 +468,7 @@ readsym(PeObj *obj, int i, PeSym **y)
+ 			break;
+ 		case IMAGE_SYM_CLASS_NULL:
+ 		case IMAGE_SYM_CLASS_STATIC:
++		case IMAGE_SYM_CLASS_LABEL:
+ 			s = lookup(name, version);
+ 			s->dupok = 1;
+ 			break;

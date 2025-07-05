@@ -23,10 +23,413 @@ Date:   Thu Sep 7 17:08:56 2023 -0700
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/62516.txt                          |   4 +
  doc/next/6-stdlib/99-minor/testing/62516.md |   2 +
  src/testing/export_test.go                  |   2 +
  src/testing/testing.go                      |  95 ++++++++++++----
  src/testing/testing_test.go                 | 171 ++++++++++++++++++++++------
  5 files changed, 221 insertions(+), 53 deletions(-)
+
+diff --git a/api/next/62516.txt b/api/next/62516.txt
+new file mode 100644
+index 0000000000..3a09b95049
+--- /dev/null
++++ b/api/next/62516.txt
+@@ -0,0 +1,4 @@
++pkg testing, method (*B) Chdir(string) #62516
++pkg testing, method (*F) Chdir(string) #62516
++pkg testing, method (*T) Chdir(string) #62516
++pkg testing, type TB interface, Chdir(string) #62516
+diff --git a/doc/next/6-stdlib/99-minor/testing/62516.md b/doc/next/6-stdlib/99-minor/testing/62516.md
+new file mode 100644
+index 0000000000..a7a90cdbcd
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/testing/62516.md
+@@ -0,0 +1,2 @@
++The new [T.Chdir] and [B.Chdir] methods can be used to change the working
++directory for the duration of a test or benchmark.
+diff --git a/src/testing/export_test.go b/src/testing/export_test.go
+index 10a5b04aee..a2dddc79b6 100644
+--- a/src/testing/export_test.go
++++ b/src/testing/export_test.go
+@@ -9,3 +9,5 @@ var PrettyPrint = prettyPrint
+ type HighPrecisionTime = highPrecisionTime
+ 
+ var HighPrecisionTimeNow = highPrecisionTimeNow
++
++const ParallelConflict = parallelConflict
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 526cba39f8..49d14f5f66 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -379,6 +379,7 @@ import (
+ 	"io"
+ 	"math/rand"
+ 	"os"
++	"path/filepath"
+ 	"reflect"
+ 	"runtime"
+ 	"runtime/debug"
+@@ -891,6 +892,7 @@ type TB interface {
+ 	Logf(format string, args ...any)
+ 	Name() string
+ 	Setenv(key, value string)
++	Chdir(dir string)
+ 	Skip(args ...any)
+ 	SkipNow()
+ 	Skipf(format string, args ...any)
+@@ -917,8 +919,8 @@ var _ TB = (*B)(nil)
+ // may be called simultaneously from multiple goroutines.
+ type T struct {
+ 	common
+-	isEnvSet bool
+-	context  *testContext // For running tests and subtests.
++	denyParallel bool
++	context      *testContext // For running tests and subtests.
+ }
+ 
+ func (c *common) private() {}
+@@ -1307,6 +1309,48 @@ func (c *common) Setenv(key, value string) {
+ 	}
+ }
+ 
++// Chdir calls os.Chdir(dir) and uses Cleanup to restore the current
++// working directory to its original value after the test. On Unix, it
++// also sets PWD environment variable for the duration of the test.
++//
++// Because Chdir affects the whole process, it cannot be used
++// in parallel tests or tests with parallel ancestors.
++func (c *common) Chdir(dir string) {
++	c.checkFuzzFn("Chdir")
++	oldwd, err := os.Open(".")
++	if err != nil {
++		c.Fatal(err)
++	}
++	if err := os.Chdir(dir); err != nil {
++		c.Fatal(err)
++	}
++	// On POSIX platforms, PWD represents “an absolute pathname of the
++	// current working directory.” Since we are changing the working
++	// directory, we should also set or update PWD to reflect that.
++	switch runtime.GOOS {
++	case "windows", "plan9":
++		// Windows and Plan 9 do not use the PWD variable.
++	default:
++		if !filepath.IsAbs(dir) {
++			dir, err = os.Getwd()
++			if err != nil {
++				c.Fatal(err)
++			}
++		}
++		c.Setenv("PWD", dir)
++	}
++	c.Cleanup(func() {
++		err := oldwd.Chdir()
++		oldwd.Close()
++		if err != nil {
++			// It's not safe to continue with tests if we can't
++			// get back to the original working directory. Since
++			// we are holding a dirfd, this is highly unlikely.
++			panic("testing.Chdir: " + err.Error())
++		}
++	})
++}
++
+ // panicHandling controls the panic handling used by runCleanup.
+ type panicHandling int
+ 
+@@ -1436,6 +1480,8 @@ func pcToName(pc uintptr) string {
+ 	return frame.Function
+ }
+ 
++const parallelConflict = `testing: test using t.Setenv or t.Chdir can not use t.Parallel`
++
+ // Parallel signals that this test is to be run in parallel with (and only with)
+ // other parallel tests. When a test is run multiple times due to use of
+ // -test.count or -test.cpu, multiple instances of a single test never run in
+@@ -1444,8 +1490,8 @@ func (t *T) Parallel() {
+ 	if t.isParallel {
+ 		panic("testing: t.Parallel called multiple times")
+ 	}
+-	if t.isEnvSet {
+-		panic("testing: t.Parallel called after t.Setenv; cannot set environment variables in parallel tests")
++	if t.denyParallel {
++		panic(parallelConflict)
+ 	}
+ 	t.isParallel = true
+ 	if t.parent.barrier == nil {
+@@ -1500,34 +1546,43 @@ func (t *T) Parallel() {
+ 	t.lastRaceErrors.Store(int64(race.Errors()))
+ }
+ 
+-// Setenv calls os.Setenv(key, value) and uses Cleanup to
+-// restore the environment variable to its original value
+-// after the test.
+-//
+-// Because Setenv affects the whole process, it cannot be used
+-// in parallel tests or tests with parallel ancestors.
+-func (t *T) Setenv(key, value string) {
++func (t *T) checkParallel() {
+ 	// Non-parallel subtests that have parallel ancestors may still
+ 	// run in parallel with other tests: they are only non-parallel
+ 	// with respect to the other subtests of the same parent.
+-	// Since SetEnv affects the whole process, we need to disallow it
+-	// if the current test or any parent is parallel.
+-	isParallel := false
++	// Since calls like SetEnv or Chdir affects the whole process, we need
++	// to deny those if the current test or any parent is parallel.
+ 	for c := &t.common; c != nil; c = c.parent {
+ 		if c.isParallel {
+-			isParallel = true
+-			break
++			panic(parallelConflict)
+ 		}
+ 	}
+-	if isParallel {
+-		panic("testing: t.Setenv called after t.Parallel; cannot set environment variables in parallel tests")
+-	}
+ 
+-	t.isEnvSet = true
++	t.denyParallel = true
++}
+ 
++// Setenv calls os.Setenv(key, value) and uses Cleanup to
++// restore the environment variable to its original value
++// after the test.
++//
++// Because Setenv affects the whole process, it cannot be used
++// in parallel tests or tests with parallel ancestors.
++func (t *T) Setenv(key, value string) {
++	t.checkParallel()
+ 	t.common.Setenv(key, value)
+ }
+ 
++// Chdir calls os.Chdir(dir) and uses Cleanup to restore the current
++// working directory to its original value after the test. On Unix, it
++// also sets PWD environment variable for the duration of the test.
++//
++// Because Chdir affects the whole process, it cannot be used
++// in parallel tests or tests with parallel ancestors.
++func (t *T) Chdir(dir string) {
++	t.checkParallel()
++	t.common.Chdir(dir)
++}
++
+ // InternalTest is an internal type but exported because it is cross-package;
+ // it is part of the implementation of the "go test" command.
+ type InternalTest struct {
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index 4a9303952e..af6035fd27 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
++	"runtime"
+ 	"slices"
+ 	"strings"
+ 	"sync"
+@@ -200,64 +201,168 @@ func TestSetenv(t *testing.T) {
+ 	}
+ }
+ 
+-func TestSetenvWithParallelAfterSetenv(t *testing.T) {
+-	defer func() {
+-		want := "testing: t.Parallel called after t.Setenv; cannot set environment variables in parallel tests"
+-		if got := recover(); got != want {
+-			t.Fatalf("expected panic; got %#v want %q", got, want)
+-		}
+-	}()
++func expectParallelConflict(t *testing.T) {
++	want := testing.ParallelConflict
++	if got := recover(); got != want {
++		t.Fatalf("expected panic; got %#v want %q", got, want)
++	}
++}
+ 
+-	t.Setenv("GO_TEST_KEY_1", "value")
++func testWithParallelAfter(t *testing.T, fn func(*testing.T)) {
++	defer expectParallelConflict(t)
+ 
++	fn(t)
+ 	t.Parallel()
+ }
+ 
+-func TestSetenvWithParallelBeforeSetenv(t *testing.T) {
+-	defer func() {
+-		want := "testing: t.Setenv called after t.Parallel; cannot set environment variables in parallel tests"
+-		if got := recover(); got != want {
+-			t.Fatalf("expected panic; got %#v want %q", got, want)
+-		}
+-	}()
++func testWithParallelBefore(t *testing.T, fn func(*testing.T)) {
++	defer expectParallelConflict(t)
+ 
+ 	t.Parallel()
+-
+-	t.Setenv("GO_TEST_KEY_1", "value")
++	fn(t)
+ }
+ 
+-func TestSetenvWithParallelParentBeforeSetenv(t *testing.T) {
++func testWithParallelParentBefore(t *testing.T, fn func(*testing.T)) {
+ 	t.Parallel()
+ 
+ 	t.Run("child", func(t *testing.T) {
+-		defer func() {
+-			want := "testing: t.Setenv called after t.Parallel; cannot set environment variables in parallel tests"
+-			if got := recover(); got != want {
+-				t.Fatalf("expected panic; got %#v want %q", got, want)
+-			}
+-		}()
++		defer expectParallelConflict(t)
+ 
+-		t.Setenv("GO_TEST_KEY_1", "value")
++		fn(t)
+ 	})
+ }
+ 
+-func TestSetenvWithParallelGrandParentBeforeSetenv(t *testing.T) {
++func testWithParallelGrandParentBefore(t *testing.T, fn func(*testing.T)) {
+ 	t.Parallel()
+ 
+ 	t.Run("child", func(t *testing.T) {
+ 		t.Run("grand-child", func(t *testing.T) {
+-			defer func() {
+-				want := "testing: t.Setenv called after t.Parallel; cannot set environment variables in parallel tests"
+-				if got := recover(); got != want {
+-					t.Fatalf("expected panic; got %#v want %q", got, want)
+-				}
+-			}()
++			defer expectParallelConflict(t)
+ 
+-			t.Setenv("GO_TEST_KEY_1", "value")
++			fn(t)
+ 		})
+ 	})
+ }
+ 
++func tSetenv(t *testing.T) {
++	t.Setenv("GO_TEST_KEY_1", "value")
++}
++
++func TestSetenvWithParallelAfter(t *testing.T) {
++	testWithParallelAfter(t, tSetenv)
++}
++
++func TestSetenvWithParallelBefore(t *testing.T) {
++	testWithParallelBefore(t, tSetenv)
++}
++
++func TestSetenvWithParallelParentBefore(t *testing.T) {
++	testWithParallelParentBefore(t, tSetenv)
++}
++
++func TestSetenvWithParallelGrandParentBefore(t *testing.T) {
++	testWithParallelGrandParentBefore(t, tSetenv)
++}
++
++func tChdir(t *testing.T) {
++	t.Chdir(t.TempDir())
++}
++
++func TestChdirWithParallelAfter(t *testing.T) {
++	testWithParallelAfter(t, tChdir)
++}
++
++func TestChdirWithParallelBefore(t *testing.T) {
++	testWithParallelBefore(t, tChdir)
++}
++
++func TestChdirWithParallelParentBefore(t *testing.T) {
++	testWithParallelParentBefore(t, tChdir)
++}
++
++func TestChdirWithParallelGrandParentBefore(t *testing.T) {
++	testWithParallelGrandParentBefore(t, tChdir)
++}
++
++func TestChdir(t *testing.T) {
++	oldDir, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.Chdir(oldDir)
++
++	tmp := t.TempDir()
++	rel, err := filepath.Rel(oldDir, tmp)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	for _, tc := range []struct {
++		name, dir, pwd string
++		extraChdir     bool
++	}{
++		{
++			name: "absolute",
++			dir:  tmp,
++			pwd:  tmp,
++		},
++		{
++			name: "relative",
++			dir:  rel,
++			pwd:  tmp,
++		},
++		{
++			name: "current (absolute)",
++			dir:  oldDir,
++			pwd:  oldDir,
++		},
++		{
++			name: "current (relative) with extra os.Chdir",
++			dir:  ".",
++			pwd:  oldDir,
++
++			extraChdir: true,
++		},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			if !filepath.IsAbs(tc.pwd) {
++				t.Fatalf("Bad tc.pwd: %q (must be absolute)", tc.pwd)
++			}
++
++			t.Chdir(tc.dir)
++
++			newDir, err := os.Getwd()
++			if err != nil {
++				t.Fatal(err)
++			}
++			if newDir != tc.pwd {
++				t.Fatalf("failed to chdir to %q: getwd: got %q, want %q", tc.dir, newDir, tc.pwd)
++			}
++
++			switch runtime.GOOS {
++			case "windows", "plan9":
++				// Windows and Plan 9 do not use the PWD variable.
++			default:
++				if pwd := os.Getenv("PWD"); pwd != tc.pwd {
++					t.Fatalf("PWD: got %q, want %q", pwd, tc.pwd)
++				}
++			}
++
++			if tc.extraChdir {
++				os.Chdir("..")
++			}
++		})
++
++		newDir, err := os.Getwd()
++		if err != nil {
++			t.Fatal(err)
++		}
++		if newDir != oldDir {
++			t.Fatalf("failed to restore wd to %s: getwd: %s", oldDir, newDir)
++		}
++	}
++}
++
+ // testingTrueInInit is part of TestTesting.
+ var testingTrueInInit = false
+ 

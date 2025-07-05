@@ -15,6 +15,19 @@ Date:   Fri Dec 2 16:41:23 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/build_issue48319.txt | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/build_issue48319.txt b/src/cmd/go/testdata/script/build_issue48319.txt
+index cacf8f65e5..4543303059 100644
+--- a/src/cmd/go/testdata/script/build_issue48319.txt
++++ b/src/cmd/go/testdata/script/build_issue48319.txt
+@@ -3,7 +3,6 @@
+ 
+ [short] skip
+ [!cgo] skip
+-[GOOS:windows] skip  # The Go Windows builders have an extremely out-of-date gcc that does not support reproducible builds; see https://go.dev/issue/50824.
+ 
+ # This test is sensitive to cache invalidation,
+ # so use a separate build cache that we can control.

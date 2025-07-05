@@ -8,6 +8,20 @@ Date:   Thu Dec 4 09:29:29 2014 +1100
     R=gri, r
     CC=golang-codereviews
     https://golang.org/cl/185830043
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index ca0deb56a3..3b67f307f6 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -5579,7 +5579,7 @@ s3 := append(s2, s0...)            // append a slice              s3 == []int{0,
+ s4 := append(s3[3:6], s3[2:]...)   // append overlapping slice    s4 == []int{3, 5, 7, 2, 3, 5, 7, 0, 0}
+ 
+ var t []interface{}
+-t = append(t, 42, 3.1415, "foo")                                  t == []interface{}{42, 3.1415, "foo"}
++t = append(t, 42, 3.1415, "foo")   //                             t == []interface{}{42, 3.1415, "foo"}
+ 
+ var b []byte
+ b = append(b, "bar"...)            // append string contents      b == []byte{'b', 'a', 'r' }

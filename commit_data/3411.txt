@@ -8,7 +8,7 @@ Date:   Wed Sep 30 13:11:33 2009 -0700
     DELTA=684  (324 added, 324 deleted, 36 changed)
     OCL=35161
     CL=35163
-
+---
  src/pkg/Make.deps                                      |  2 +-
  src/pkg/Makefile                                       |  2 +-
  src/pkg/{exvar => expvar}/Makefile                     |  4 ++--
@@ -16,3 +16,149 @@ Date:   Wed Sep 30 13:11:33 2009 -0700
  src/pkg/{exvar/exvar_test.go => expvar/expvar_test.go} |  2 +-
  src/pkg/http/triv.go                                   | 10 +++++-----
  6 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 33631e668b..1f85b2c398 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -26,7 +26,7 @@ debug/gosym.install: debug/binary.install fmt.install os.install strconv.install
+ debug/proc.install: container/vector.install fmt.install io.install os.install runtime.install strconv.install strings.install sync.install syscall.install
+ ebnf.install: container/vector.install go/scanner.install go/token.install os.install strconv.install unicode.install utf8.install
+ exec.install: os.install strings.install
+-exvar.install: bytes.install fmt.install http.install log.install strconv.install sync.install
++expvar.install: bytes.install fmt.install http.install log.install strconv.install sync.install
+ flag.install: fmt.install os.install strconv.install
+ fmt.install: io.install os.install reflect.install strconv.install utf8.install
+ go/ast.install: go/token.install unicode.install utf8.install
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index ad2b7828d2..6dd11f93e3 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -40,7 +40,7 @@ DIRS=\
+ 	debug/proc\
+ 	ebnf\
+ 	exec\
+-	exvar\
++	expvar\
+ 	flag\
+ 	fmt\
+ 	go/ast\
+diff --git a/src/pkg/exvar/Makefile b/src/pkg/expvar/Makefile
+similarity index 90%
+rename from src/pkg/exvar/Makefile
+rename to src/pkg/expvar/Makefile
+index 795e8a6443..49e8de6d1f 100644
+--- a/src/pkg/exvar/Makefile
++++ b/src/pkg/expvar/Makefile
+@@ -4,8 +4,8 @@
+ 
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+-TARG=exvar
++TARG=expvar
+ GOFILES=\
+-	exvar.go\
++	expvar.go\
+ 
+ include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/exvar/exvar.go b/src/pkg/expvar/expvar.go
+similarity index 95%
+rename from src/pkg/exvar/exvar.go
+rename to src/pkg/expvar/expvar.go
+index 4791548505..9d04a427cd 100644
+--- a/src/pkg/exvar/exvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The exvar package provides a standardized interface to public variables,
++// The expvar package provides a standardized interface to public variables,
+ // such as operation counters in servers. It exposes these variables via
+ // HTTP at /debug/vars in JSON format.
+-package exvar
++package expvar
+ 
+ import (
+ 	"bytes";
+@@ -203,7 +203,7 @@ func Iter() <-chan KeyValue {
+ 	return c
+ }
+ 
+-func exvarHandler(c *http.Conn, req *http.Request) {
++func expvarHandler(c *http.Conn, req *http.Request) {
+ 	c.SetHeader("content-type", "application/json; charset=utf-8");
+ 	fmt.Fprintf(c, "{\n");
+ 	first := true;
+@@ -218,5 +218,5 @@ func exvarHandler(c *http.Conn, req *http.Request) {
+ }
+ 
+ func init() {
+-	http.Handle("/debug/vars", http.HandlerFunc(exvarHandler));
++	http.Handle("/debug/vars", http.HandlerFunc(expvarHandler));
+ }
+diff --git a/src/pkg/exvar/exvar_test.go b/src/pkg/expvar/expvar_test.go
+similarity index 99%
+rename from src/pkg/exvar/exvar_test.go
+rename to src/pkg/expvar/expvar_test.go
+index eddbbf9e28..1f3e3d686d 100644
+--- a/src/pkg/exvar/exvar_test.go
++++ b/src/pkg/expvar/expvar_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package exvar
++package expvar
+ 
+ import (
+ 	"json";
+diff --git a/src/pkg/http/triv.go b/src/pkg/http/triv.go
+index 900dcbb5b9..0c74aed123 100644
+--- a/src/pkg/http/triv.go
++++ b/src/pkg/http/triv.go
+@@ -7,7 +7,7 @@ package main
+ import (
+ 	"bytes";
+ 	"bufio";
+-	"exvar";
++	"expvar";
+ 	"flag";
+ 	"fmt";
+ 	"io";
+@@ -19,7 +19,7 @@ import (
+ 
+ 
+ // hello world, the web server
+-var helloRequests = exvar.NewInt("hello-requests");
++var helloRequests = expvar.NewInt("hello-requests");
+ func HelloServer(c *http.Conn, req *http.Request) {
+ 	helloRequests.Add(1);
+ 	io.WriteString(c, "hello, world!\n");
+@@ -30,7 +30,7 @@ type Counter struct {
+ 	n int;
+ }
+ 
+-// This makes Counter satisfy the exvar.Var interface, so we can export
++// This makes Counter satisfy the expvar.Var interface, so we can export
+ // it directly.
+ func (ctr *Counter) String() string {
+ 	return fmt.Sprintf("%d", ctr.n)
+@@ -56,7 +56,7 @@ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+ 
+ // simple file server
+ var webroot = flag.String("root", "/home/rsc", "web root directory")
+-var pathVar = exvar.NewMap("file-requests");
++var pathVar = expvar.NewMap("file-requests");
+ func FileServer(c *http.Conn, req *http.Request) {
+ 	c.SetHeader("content-type", "text/plain; charset=utf-8");
+ 	pathVar.Add(req.Url.Path, 1);
+@@ -143,7 +143,7 @@ func main() {
+ 	// The counter is published as a variable directly.
+ 	ctr := new(Counter);
+ 	http.Handle("/counter", ctr);
+-	exvar.Publish("counter", ctr);
++	expvar.Publish("counter", ctr);
+ 
+ 	http.Handle("/go/", http.HandlerFunc(FileServer));
+ 	http.Handle("/flags", http.HandlerFunc(FlagServer));

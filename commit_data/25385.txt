@@ -9,6 +9,24 @@ Date:   Fri Oct 16 17:48:17 2015 -0400
     Change-Id: I46725620c1e163f3b60ffcd85e5388fa646f074d
     Reviewed-on: https://go-review.googlesource.com/15997
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cgo/doc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 723bbfe6ad..a4675bd448 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -189,10 +189,10 @@ by making copies of the data.  In pseudo-Go definitions:
+ 	// C string to Go string
+ 	func C.GoString(*C.char) string
+ 
+-	// C string, length to Go string
++	// C data with explicit length to Go string
+ 	func C.GoStringN(*C.char, C.int) string
+ 
+-	// C pointer, length to Go []byte
++	// C data with explicit length to Go []byte
+ 	func C.GoBytes(unsafe.Pointer, C.int) []byte
+ 
+ C references to Go

@@ -10,6 +10,26 @@ Date:   Mon Oct 26 11:15:09 2015 -0400
     Change-Id: I26061434252ff2a236bb31d95787a1c582d24b3f
     Reviewed-on: https://go-review.googlesource.com/16295
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/androidtest.bash | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/androidtest.bash b/src/androidtest.bash
+index 326bce6608..84c2222b24 100755
+--- a/src/androidtest.bash
++++ b/src/androidtest.bash
+@@ -23,6 +23,14 @@ if [ "$GOOS" != "android" ]; then
+ 	exit 1
+ fi
+ 
++if [ -z $GOARM ]; then
++	export GOARM=7
++fi
++if [ "$GOARM" != "7" ]; then
++	echo "android only supports GOARM=7, got GOARM=$GOARM" 1>&2
++	exit 1
++fi
++
+ export CGO_ENABLED=1
+ unset GOBIN
+ 

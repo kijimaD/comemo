@@ -13,7 +13,68 @@ Date:   Wed Oct 6 15:10:39 2021 -0400
     Trust: Katie Hockman <katie@golang.org>
     Run-TryBot: Katie Hockman <katie@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz.txt       | 14 --------------
  src/cmd/go/testdata/script/test_fuzz_cache.txt | 17 +++++++++++++++++
  2 files changed, 17 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index 0b01c2fb43..c9930aa37e 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -184,20 +184,6 @@ stdout ok
+ ! stdout ^ok
+ stdout FAIL
+ 
+-
+-# Fuzzing indicates that one new interesting value was found with an empty
+-# corpus, and the total size of the cache is now 1.
+-go clean -fuzzcache
+-go test -fuzz=Fuzz -fuzztime=10000x success_fuzz_test.go
+-stdout 'new interesting: 1'
+-stdout 'total: 1'
+-
+-# Fuzzing again with a small fuzztime does not find any other interesting
+-# values but still indicates that the cache size is 1.
+-go test -fuzz=Fuzz -fuzztime=2x success_fuzz_test.go
+-stdout 'new interesting: 0'
+-stdout 'total: 1'
+-
+ -- noop_fuzz_test.go --
+ package noop_fuzz
+ 
+diff --git a/src/cmd/go/testdata/script/test_fuzz_cache.txt b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+index a3fcca887e..fc1c9a1752 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_cache.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+@@ -32,6 +32,19 @@ go clean -fuzzcache
+ go list -f {{.Stale}} ./empty
+ stdout false
+ 
++# Fuzzing indicates that one new interesting value was found with an empty
++# corpus, and the total size of the cache is now 1.
++go clean -fuzzcache
++go test -fuzz=FuzzEmpty -fuzztime=10000x .
++stdout 'new interesting: 1'
++stdout 'total: 1'
++
++# Fuzzing again with a small fuzztime does not find any other interesting
++# values but still indicates that the cache size is 1.
++go test -fuzz=FuzzEmpty -fuzztime=2x .
++stdout 'new interesting: 0'
++stdout 'total: 1'
++
+ -- go.mod --
+ module example.com/y
+ 
+@@ -44,6 +57,10 @@ import (
+ 	"testing"
+ )
+ 
++func FuzzEmpty(f *testing.F) {
++    f.Fuzz(func (*testing.T, []byte) {})
++}
++
+ func FuzzY(f *testing.F) {
+ 	f.Add([]byte("y"))
+ 	f.Fuzz(func(t *testing.T, b []byte) { Y(io.Discard, b) })

@@ -15,6 +15,20 @@ Date:   Mon Jul 6 21:37:29 2009 -0700
     R=ken
     OCL=31232
     CL=31232
-
+---
  src/cmd/gc/const.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 5ce4ebee74..d45e6136a1 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -94,7 +94,7 @@ convlit1(Node *n, Type *t, int explicit)
+ 		goto bad;
+ 
+ 	if(et == TINTER) {
+-		if(ct == CTNIL) {
++		if(ct == CTNIL && n->type == types[TNIL]) {
+ 			n->type = t;
+ 			return;
+ 		}

@@ -16,7 +16,7 @@ Date:   Mon May 27 21:07:22 2024 -0600
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go.mod                                     |    4 +-
  src/cmd/go.sum                                     |   24 +-
  .../github.com/google/pprof/driver/driver.go       |    2 +-
@@ -45,3 +45,4429 @@ Date:   Mon May 27 21:07:22 2024 -0600
  .../github.com/ianlancetaylor/demangle/demangle.go |  663 +++++++---
  src/cmd/vendor/modules.txt                         |    4 +-
  27 files changed, 2146 insertions(+), 658 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 482c85e4ea..e9bc088f1f 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,7 +3,7 @@ module cmd
+ go 1.23
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5
++	github.com/google/pprof v0.0.0-20240528025155-186aa0362fba
+ 	golang.org/x/arch v0.7.0
+ 	golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
+ 	golang.org/x/mod v0.17.1-0.20240514174713-c0bdc7bd01c9
+@@ -15,7 +15,7 @@ require (
+ )
+ 
+ require (
+-	github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab // indirect
++	github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465 // indirect
+ 	golang.org/x/text v0.14.0 // indirect
+ 	rsc.io/markdown v0.0.0-20240117044121-669d2fdf1650 // indirect
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 6892b70f4d..19d4817a9d 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,25 +1,9 @@
+-github.com/chromedp/cdproto v0.0.0-20230802225258-3cf4e6d46a89 h1:aPflPkRFkVwbW6dmcVqfgwp1i+UWGFH6VgR1Jim5Ygc=
+-github.com/chromedp/cdproto v0.0.0-20230802225258-3cf4e6d46a89/go.mod h1:GKljq0VrfU4D5yc+2qA6OVr8pmO/MBbPEWqWQ/oqGEs=
+-github.com/chromedp/chromedp v0.9.2 h1:dKtNz4kApb06KuSXoTQIyUC2TrA0fhGDwNZf3bcgfKw=
+-github.com/chromedp/chromedp v0.9.2/go.mod h1:LkSXJKONWTCHAfQasKFUZI+mxqS4tZqhmtGzzhLsnLs=
+-github.com/chromedp/sysutil v1.0.0 h1:+ZxhTpfpZlmchB58ih/LBHX52ky7w2VhQVKQMucy3Ic=
+-github.com/chromedp/sysutil v1.0.0/go.mod h1:kgWmDdq8fTzXYcKIBqIYvRRTnYb9aNS9moAV0xufSww=
+-github.com/gobwas/httphead v0.1.0 h1:exrUm0f4YX0L7EBwZHuCF4GDp8aJfVeBrlLQrs6NqWU=
+-github.com/gobwas/httphead v0.1.0/go.mod h1:O/RXo79gxV8G+RqlR/otEwx4Q36zl9rqC5u12GKvMCM=
+-github.com/gobwas/pool v0.2.1 h1:xfeeEhW7pwmX8nuLVlqbzVc7udMDrwetjEv+TZIz1og=
+-github.com/gobwas/pool v0.2.1/go.mod h1:q8bcK0KcYlCgd9e7WYLm9LpyS+YeLd8JVDW6WezmKEw=
+-github.com/gobwas/ws v1.2.1 h1:F2aeBZrm2NDsc7vbovKrWSogd4wvfAxg0FQ89/iqOTk=
+-github.com/gobwas/ws v1.2.1/go.mod h1:hRKAFb8wOxFROYNsT1bqfWnhX+b5MFeJM9r2ZSwg/KY=
+ github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
+ github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+-github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5 h1:E/LAvt58di64hlYjx7AsNS6C/ysHWYo+2qPCZKTQhRo=
+-github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5/go.mod h1:czg5+yv1E0ZGTi6S6vVK1mke0fV+FaUhNGcd6VRS9Ik=
+-github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab h1:BA4a7pe6ZTd9F8kXETBoijjFJ/ntaa//1wiH9BZu4zU=
+-github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
+-github.com/josharian/intern v1.0.0 h1:vlS4z54oSdjm0bgjRigI+G1HpF+tI+9rE5LLzOg8HmY=
+-github.com/josharian/intern v1.0.0/go.mod h1:5DoeVV0s6jJacbCEi61lwdGj/aVlrQvzHFFd8Hwg//Y=
+-github.com/mailru/easyjson v0.7.7 h1:UGYAvKxe3sBsEDzO8ZeWOSlIQfWFlxbzLZe7hwFURr0=
+-github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
++github.com/google/pprof v0.0.0-20240528025155-186aa0362fba h1:ql1qNgCyOB7iAEk8JTNM+zJrgIbnyCKX/wdlyPufP5g=
++github.com/google/pprof v0.0.0-20240528025155-186aa0362fba/go.mod h1:K1liHPHnj73Fdn/EKuT8nrFqBihUSKXoLYU0BuatOYo=
++github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465 h1:KwWnWVWCNtNq/ewIX7HIKnELmEx2nDP42yskD/pi7QE=
++github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
+ github.com/yuin/goldmark v1.6.0 h1:boZcn2GTjpsynOsC0iJHnBWa4Bi0qzfJjthwauItG68=
+ github.com/yuin/goldmark v1.6.0/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
+ golang.org/x/arch v0.7.0 h1:pskyeJh/3AmoQ8CPE95vxHLqp1G1GfGNXTmcl9NEKTc=
+diff --git a/src/cmd/vendor/github.com/google/pprof/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+index d5860036c3..6cbf66939d 100644
+--- a/src/cmd/vendor/github.com/google/pprof/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+@@ -202,7 +202,7 @@ type Sym struct {
+ 
+ // A UI manages user interactions.
+ type UI interface {
+-	// Read returns a line of text (a command) read from the user.
++	// ReadLine returns a line of text (a command) read from the user.
+ 	// prompt is printed before reading the command.
+ 	ReadLine(prompt string) (string, error)
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+index efa9167af7..ed87b7e6f8 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+@@ -433,10 +433,8 @@ func (b *binrep) openELF(name string, start, limit, offset uint64, relocationSym
+ 	defer ef.Close()
+ 
+ 	buildID := ""
+-	if f, err := os.Open(name); err == nil {
+-		if id, err := elfexec.GetBuildID(f); err == nil {
+-			buildID = fmt.Sprintf("%x", id)
+-		}
++	if id, err := elfexec.GetBuildID(ef); err == nil {
++		buildID = fmt.Sprintf("%x", id)
+ 	}
+ 
+ 	var (
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+index 74ce8cb422..18941926c5 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+@@ -20,6 +20,7 @@ package driver
+ import (
+ 	"bytes"
+ 	"fmt"
++	"io"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+@@ -118,7 +119,14 @@ func generateReport(p *profile.Profile, cmd []string, cfg config, o *plugin.Opti
+ 
+ 	// Generate the report.
+ 	dst := new(bytes.Buffer)
+-	if err := report.Generate(dst, rpt, o.Obj); err != nil {
++	switch rpt.OutputFormat() {
++	case report.WebList:
++		// We need template expansion, so generate here instead of in report.
++		err = printWebList(dst, rpt, o.Obj)
++	default:
++		err = report.Generate(dst, rpt, o.Obj)
++	}
++	if err != nil {
+ 		return err
+ 	}
+ 	src := dst
+@@ -155,6 +163,18 @@ func generateReport(p *profile.Profile, cmd []string, cfg config, o *plugin.Opti
+ 	return out.Close()
+ }
+ 
++func printWebList(dst io.Writer, rpt *report.Report, obj plugin.ObjTool) error {
++	listing, err := report.MakeWebList(rpt, obj, -1)
++	if err != nil {
++		return err
++	}
++	legend := report.ProfileLabels(rpt)
++	return renderHTML(dst, "sourcelisting", rpt, nil, legend, webArgs{
++		Standalone: true,
++		Listing:    listing,
++	})
++}
++
+ func applyCommandOverrides(cmd string, outputFormat int, cfg config) config {
+ 	// Some report types override the trim flag to false below. This is to make
+ 	// sure the default heuristics of excluding insignificant nodes and edges
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+index 95204a394f..a94ddf6adb 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+@@ -493,7 +493,7 @@ func fetch(source string, duration, timeout time.Duration, ui plugin.UI, tr http
+ 	var f io.ReadCloser
+ 
+ 	// First determine whether the source is a file, if not, it will be treated as a URL.
+-	if _, openErr := os.Stat(source); openErr == nil {
++	if _, err = os.Stat(source); err == nil {
+ 		if isPerfFile(source) {
+ 			f, err = convertPerfData(source, ui)
+ 		} else {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/graph.css b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/graph.css
+new file mode 100644
+index 0000000000..c756ddfdcb
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/graph.css
+@@ -0,0 +1,7 @@
++#graph {
++    cursor: grab;
++}
++
++#graph:active {
++    cursor: grabbing;
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/graph.html b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/graph.html
+index a113549fc4..d17a0ea7d0 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/graph.html
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/graph.html
+@@ -4,6 +4,7 @@
+   <meta charset="utf-8">
+   <title>{{.Title}}</title>
+   {{template "css" .}}
++  {{template "graph_css" .}}
+ </head>
+ <body>
+   {{template "header" .}}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/source.html b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/source.html
+index 3212bee4a0..b676ce2054 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/source.html
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/source.html
+@@ -3,16 +3,70 @@
+ <head>
+   <meta charset="utf-8">
+   <title>{{.Title}}</title>
+-  {{template "css" .}}
++  {{if not .Standalone}}{{template "css" .}}{{end}}
+   {{template "weblistcss" .}}
+   {{template "weblistjs" .}}
+ </head>
+-<body>
+-  {{template "header" .}}
+-  <div id="content" class="source">
+-    {{.HTMLBody}}
+-  </div>
+-  {{template "script" .}}
+-  <script>viewer(new URL(window.location.href), null);</script>
++<body>{{"\n" -}}
++  {{/* emit different header in standalone mode */ -}}
++  {{if .Standalone}}{{"\n" -}}
++    <div class="legend">{{"" -}}
++      {{range $i, $e := .Legend -}}
++        {{if $i}}<br>{{"\n"}}{{end}}{{. -}}
++      {{end}}<br>Total: {{.Listing.Total -}}
++    </div>{{"" -}}
++  {{else -}}
++    {{template "header" .}}
++    <div id="content" class="source">{{"" -}}
++  {{end -}}
++
++  {{range .Listing.Files -}}
++    {{range .Funcs -}}
++      <h2>{{.Name}}</h2>{{"" -}}
++      <p class="filename">{{.File}}</p>{{"\n" -}}
++      <pre onClick="pprof_toggle_asm(event)">{{"\n" -}}
++        {{printf "  Total:  %10s %10s (flat, cum) %s" .Flat .Cumulative .Percent -}}
++        {{range .Lines -}}{{"\n" -}}
++          {{/* source line */ -}}
++          <span class=line>{{printf " %6d" .Line}}</span>{{" " -}}
++          <span class={{.HTMLClass}}>
++            {{- printf "  %10s %10s %8s  %s " .Flat .Cumulative "" .SrcLine -}}
++          </span>{{"" -}}
++
++          {{if .Instructions -}}
++            {{/* instructions for this source line */ -}}
++            <span class=asm>{{"" -}}
++            {{range .Instructions -}}
++              {{/* separate when we hit a new basic block */ -}}
++              {{if .NewBlock -}}{{printf " %8s %28s\n" "" "⋮"}}{{end -}}
++
++              {{/* inlined calls leading to this instruction */ -}}
++              {{range .InlinedCalls -}}
++                {{printf " %8s %10s %10s %8s  " "" "" "" "" -}}
++                <span class=inlinesrc>{{.SrcLine}}</span>{{" " -}}
++                <span class=unimportant>{{.FileBase}}:{{.Line}}</span>{{"\n" -}}
++              {{end -}}
++
++              {{if not .Synthetic -}}
++                {{/* disassembled instruction */ -}}
++                {{printf " %8s %10s %10s %8x: %s " "" .Flat .Cumulative .Address .Disasm -}}
++                <span class=unimportant>{{.FileLine}}</span>{{"\n" -}}
++              {{end -}}
++            {{end -}}
++            </span>{{"" -}}
++          {{end -}}
++          {{/* end of line */ -}}
++        {{end}}{{"\n" -}}
++      </pre>{{"\n" -}}
++      {{/* end of function */ -}}
++    {{end -}}
++    {{/* end of file */ -}}
++  {{end -}}
++
++  {{if not .Standalone}}{{"\n  " -}}
++    </div>{{"\n" -}}
++    {{template "script" .}}{{"\n" -}}
++    <script>viewer(new URL(window.location.href), null);</script>{{"" -}}
++  {{end}}
+ </body>
+ </html>
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.html b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.html
+index 1ddb7a3a1c..c2f8cf26b1 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.html
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.html
+@@ -26,6 +26,7 @@
+   {{template "script" .}}
+   {{template "stacks_js"}}
+   <script>
++    pprofUnitDefs = {{.UnitDefs}};
+     stackViewer({{.Stacks}}, {{.Nodes}});
+   </script>
+ </body>
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
+index c8059fe6bf..df0f0649b9 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
+@@ -13,23 +13,6 @@ function stackViewer(stacks, nodes) {
+   const FONT_SIZE = 12;
+   const MIN_FONT_SIZE = 8;
+ 
+-  // Mapping from unit to a list of display scales/labels.
+-  // List should be ordered by increasing unit size.
+-  const UNITS = new Map([
+-    ['B', [
+-      ['B', 1],
+-      ['kB', Math.pow(2, 10)],
+-      ['MB', Math.pow(2, 20)],
+-      ['GB', Math.pow(2, 30)],
+-      ['TB', Math.pow(2, 40)],
+-      ['PB', Math.pow(2, 50)]]],
+-    ['s', [
+-      ['ns', 1e-9],
+-      ['µs', 1e-6],
+-      ['ms', 1e-3],
+-      ['s', 1],
+-      ['hrs', 60*60]]]]);
+-
+   // Fields
+   let pivots = [];          // Indices of currently selected data.Sources entries.
+   let matches = new Set();  // Indices of sources that match search
+@@ -570,22 +553,7 @@ function stackViewer(stacks, nodes) {
+ 
+   // unitText returns a formatted string to display for value.
+   function unitText(value) {
+-    const sign = (value < 0) ? "-" : "";
+-    let v = Math.abs(value) * stacks.Scale;
+-    // Rescale to appropriate display unit.
+-    let unit = stacks.Unit;
+-    const list = UNITS.get(unit);
+-    if (list) {
+-      // Find first entry in list that is not too small.
+-      for (const [name, scale] of list) {
+-        if (v <= 100*scale) {
+-          v /= scale;
+-          unit = name;
+-          break;
+-        }
+-      }
+-    }
+-    return sign + Number(v.toFixed(2)) + unit;
++    return pprofUnitText(value*stacks.Scale, stacks.Unit);
+   }
+ 
+   function find(name) {
+@@ -606,3 +574,29 @@ function stackViewer(stacks, nodes) {
+     return hsl;
+   }
+ }
++
++// pprofUnitText returns a formatted string to display for value in the specified unit.
++function pprofUnitText(value, unit) {
++  const sign = (value < 0) ? "-" : "";
++  let v = Math.abs(value);
++  // Rescale to appropriate display unit.
++  let list = null;
++  for (const def of pprofUnitDefs) {
++    if (def.DefaultUnit.CanonicalName == unit) {
++      list = def.Units;
++      v *= def.DefaultUnit.Factor;
++      break;
++    }
++  }
++  if (list) {
++    // Stop just before entry that is too large.
++    for (let i = 0; i < list.length; i++) {
++      if (i == list.length-1 || list[i+1].Factor > v) {
++        v /= list[i].Factor;
++        unit = list[i].CanonicalName;
++        break;
++      }
++    }
++  }
++  return sign + Number(v.toFixed(2)) + unit;
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/settings.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/settings.go
+index b784618aca..5011a06666 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/settings.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/settings.go
+@@ -102,7 +102,7 @@ func configMenu(fname string, u url.URL) []configMenuEntry {
+ 			UserConfig: (i != 0),
+ 		}
+ 	}
+-	// Mark the last matching config as currennt
++	// Mark the last matching config as current
+ 	if lastMatch >= 0 {
+ 		result[lastMatch].Current = true
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/stacks.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/stacks.go
+index 6a61613344..355b8f2e2a 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/stacks.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/stacks.go
+@@ -19,6 +19,7 @@ import (
+ 	"html/template"
+ 	"net/http"
+ 
++	"github.com/google/pprof/internal/measurement"
+ 	"github.com/google/pprof/internal/report"
+ )
+ 
+@@ -52,7 +53,8 @@ func (ui *webInterface) stackView(w http.ResponseWriter, req *http.Request) {
+ 
+ 	_, legend := report.TextItems(rpt)
+ 	ui.render(w, req, "stacks", rpt, errList, legend, webArgs{
+-		Stacks: template.JS(b),
+-		Nodes:  nodes,
++		Stacks:   template.JS(b),
++		Nodes:    nodes,
++		UnitDefs: measurement.UnitTypes,
+ 	})
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+index 984936a9d6..0b8630bcf1 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+@@ -19,8 +19,27 @@ import (
+ 	"fmt"
+ 	"html/template"
+ 	"os"
++	"sync"
++
++	"github.com/google/pprof/internal/report"
++)
++
++var (
++	htmlTemplates    *template.Template // Lazily loaded templates
++	htmlTemplateInit sync.Once
+ )
+ 
++// getHTMLTemplates returns the set of HTML templates used by pprof,
++// initializing them if necessary.
++func getHTMLTemplates() *template.Template {
++	htmlTemplateInit.Do(func() {
++		htmlTemplates = template.New("templategroup")
++		addTemplates(htmlTemplates)
++		report.AddSourceTemplates(htmlTemplates)
++	})
++	return htmlTemplates
++}
++
+ //go:embed html
+ var embeddedFiles embed.FS
+ 
+@@ -54,6 +73,7 @@ func addTemplates(templates *template.Template) {
+ 	def("css", loadCSS("html/common.css"))
+ 	def("header", loadFile("html/header.html"))
+ 	def("graph", loadFile("html/graph.html"))
++	def("graph_css", loadCSS("html/graph.css"))
+ 	def("script", loadJS("html/common.js"))
+ 	def("top", loadFile("html/top.html"))
+ 	def("sourcelisting", loadFile("html/source.html"))
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+index 476e1d2cdf..2a2d7fb1d2 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+@@ -18,6 +18,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"html/template"
++	"io"
+ 	"net"
+ 	"net/http"
+ 	gourl "net/url"
+@@ -28,6 +29,7 @@ import (
+ 	"time"
+ 
+ 	"github.com/google/pprof/internal/graph"
++	"github.com/google/pprof/internal/measurement"
+ 	"github.com/google/pprof/internal/plugin"
+ 	"github.com/google/pprof/internal/report"
+ 	"github.com/google/pprof/profile"
+@@ -39,7 +41,6 @@ type webInterface struct {
+ 	copier       profileCopier
+ 	options      *plugin.Options
+ 	help         map[string]string
+-	templates    *template.Template
+ 	settingsFile string
+ }
+ 
+@@ -48,15 +49,11 @@ func makeWebInterface(p *profile.Profile, copier profileCopier, opt *plugin.Opti
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	templates := template.New("templategroup")
+-	addTemplates(templates)
+-	report.AddSourceTemplates(templates)
+ 	return &webInterface{
+ 		prof:         p,
+ 		copier:       copier,
+ 		options:      opt,
+ 		help:         make(map[string]string),
+-		templates:    templates,
+ 		settingsFile: settingsFile,
+ 	}, nil
+ }
+@@ -82,14 +79,17 @@ type webArgs struct {
+ 	Total       int64
+ 	SampleTypes []string
+ 	Legend      []string
++	Standalone  bool // True for command-line generation of HTML
+ 	Help        map[string]string
+ 	Nodes       []string
+ 	HTMLBody    template.HTML
+ 	TextBody    string
+ 	Top         []report.TextItem
++	Listing     report.WebListData
+ 	FlameGraph  template.JS
+ 	Stacks      template.JS
+ 	Configs     []configMenuEntry
++	UnitDefs    []measurement.UnitType
+ }
+ 
+ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, disableBrowser bool) error {
+@@ -283,21 +283,25 @@ func (ui *webInterface) makeReport(w http.ResponseWriter, req *http.Request,
+ 	return rpt, catcher.errors
+ }
+ 
+-// render generates html using the named template based on the contents of data.
+-func (ui *webInterface) render(w http.ResponseWriter, req *http.Request, tmpl string,
+-	rpt *report.Report, errList, legend []string, data webArgs) {
++// renderHTML generates html using the named template based on the contents of data.
++func renderHTML(dst io.Writer, tmpl string, rpt *report.Report, errList, legend []string, data webArgs) error {
+ 	file := getFromLegend(legend, "File: ", "unknown")
+ 	profile := getFromLegend(legend, "Type: ", "unknown")
+ 	data.Title = file + " " + profile
+ 	data.Errors = errList
+ 	data.Total = rpt.Total()
+-	data.SampleTypes = sampleTypes(ui.prof)
+ 	data.Legend = legend
++	return getHTMLTemplates().ExecuteTemplate(dst, tmpl, data)
++}
++
++// render responds with html generated by passing data to the named template.
++func (ui *webInterface) render(w http.ResponseWriter, req *http.Request, tmpl string,
++	rpt *report.Report, errList, legend []string, data webArgs) {
++	data.SampleTypes = sampleTypes(ui.prof)
+ 	data.Help = ui.help
+ 	data.Configs = configMenu(ui.settingsFile, *req.URL)
+-
+ 	html := &bytes.Buffer{}
+-	if err := ui.templates.ExecuteTemplate(html, tmpl, data); err != nil {
++	if err := renderHTML(html, tmpl, rpt, errList, legend, data); err != nil {
+ 		http.Error(w, "internal template error", http.StatusInternalServerError)
+ 		ui.options.UI.PrintErr(err)
+ 		return
+@@ -410,8 +414,8 @@ func (ui *webInterface) source(w http.ResponseWriter, req *http.Request) {
+ 	}
+ 
+ 	// Generate source listing.
+-	var body bytes.Buffer
+-	if err := report.PrintWebList(&body, rpt, ui.options.Obj, maxEntries); err != nil {
++	listing, err := report.MakeWebList(rpt, ui.options.Obj, maxEntries)
++	if err != nil {
+ 		http.Error(w, err.Error(), http.StatusBadRequest)
+ 		ui.options.UI.PrintErr(err)
+ 		return
+@@ -419,7 +423,7 @@ func (ui *webInterface) source(w http.ResponseWriter, req *http.Request) {
+ 
+ 	legend := report.ProfileLabels(rpt)
+ 	ui.render(w, req, "sourcelisting", rpt, errList, legend, webArgs{
+-		HTMLBody: template.HTML(body.String()),
++		Listing: listing,
+ 	})
+ }
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+index 718481b078..10436a2256 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+@@ -118,12 +118,7 @@ func parseNotes(reader io.Reader, alignment int, order binary.ByteOrder) ([]elfN
+ //
+ // If no build-ID was found but the binary was read without error, it returns
+ // (nil, nil).
+-func GetBuildID(binary io.ReaderAt) ([]byte, error) {
+-	f, err := elf.NewFile(binary)
+-	if err != nil {
+-		return nil, err
+-	}
+-
++func GetBuildID(f *elf.File) ([]byte, error) {
+ 	findBuildID := func(notes []elfNote) ([]byte, error) {
+ 		var buildID []byte
+ 		for _, note := range notes {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
+index 5ad10a2ae0..8abbd83f76 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
+@@ -444,7 +444,7 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
+ 		}
+ 	}
+ 
+-	nodes := make(Nodes, len(prof.Location))
++	nodes := make(Nodes, 0, len(prof.Location))
+ 	for _, nm := range parentNodeMap {
+ 		nodes = append(nodes, nm.nodes()...)
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go b/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go
+index d9644f9326..e5b7dbc6c4 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go
+@@ -113,7 +113,7 @@ func compatibleValueTypes(v1, v2 *profile.ValueType) bool {
+ 	if v1.Unit == v2.Unit {
+ 		return true
+ 	}
+-	for _, ut := range unitTypes {
++	for _, ut := range UnitTypes {
+ 		if ut.sniffUnit(v1.Unit) != nil && ut.sniffUnit(v2.Unit) != nil {
+ 			return true
+ 		}
+@@ -130,7 +130,7 @@ func Scale(value int64, fromUnit, toUnit string) (float64, string) {
+ 		v, u := Scale(-value, fromUnit, toUnit)
+ 		return -v, u
+ 	}
+-	for _, ut := range unitTypes {
++	for _, ut := range UnitTypes {
+ 		if v, u, ok := ut.convertUnit(value, fromUnit, toUnit); ok {
+ 			return v, u
+ 		}
+@@ -177,26 +177,26 @@ func Percentage(value, total int64) string {
+ 	}
+ }
+ 
+-// unit includes a list of aliases representing a specific unit and a factor
++// Unit includes a list of aliases representing a specific unit and a factor
+ // which one can multiple a value in the specified unit by to get the value
+ // in terms of the base unit.
+-type unit struct {
+-	canonicalName string
++type Unit struct {
++	CanonicalName string
+ 	aliases       []string
+-	factor        float64
++	Factor        float64
+ }
+ 
+-// unitType includes a list of units that are within the same category (i.e.
++// UnitType includes a list of units that are within the same category (i.e.
+ // memory or time units) and a default unit to use for this type of unit.
+-type unitType struct {
+-	defaultUnit unit
+-	units       []unit
++type UnitType struct {
++	DefaultUnit Unit
++	Units       []Unit
+ }
+ 
+ // findByAlias returns the unit associated with the specified alias. It returns
+ // nil if the unit with such alias is not found.
+-func (ut unitType) findByAlias(alias string) *unit {
+-	for _, u := range ut.units {
++func (ut UnitType) findByAlias(alias string) *Unit {
++	for _, u := range ut.Units {
+ 		for _, a := range u.aliases {
+ 			if alias == a {
+ 				return &u
+@@ -208,7 +208,7 @@ func (ut unitType) findByAlias(alias string) *unit {
+ 
+ // sniffUnit simpifies the input alias and returns the unit associated with the
+ // specified alias. It returns nil if the unit with such alias is not found.
+-func (ut unitType) sniffUnit(unit string) *unit {
++func (ut UnitType) sniffUnit(unit string) *Unit {
+ 	unit = strings.ToLower(unit)
+ 	if len(unit) > 2 {
+ 		unit = strings.TrimSuffix(unit, "s")
+@@ -219,13 +219,13 @@ func (ut unitType) sniffUnit(unit string) *unit {
+ // autoScale takes in the value with units of the base unit and returns
+ // that value scaled to a reasonable unit if a reasonable unit is
+ // found.
+-func (ut unitType) autoScale(value float64) (float64, string, bool) {
++func (ut UnitType) autoScale(value float64) (float64, string, bool) {
+ 	var f float64
+ 	var unit string
+-	for _, u := range ut.units {
+-		if u.factor >= f && (value/u.factor) >= 1.0 {
+-			f = u.factor
+-			unit = u.canonicalName
++	for _, u := range ut.Units {
++		if u.Factor >= f && (value/u.Factor) >= 1.0 {
++			f = u.Factor
++			unit = u.CanonicalName
+ 		}
+ 	}
+ 	if f == 0 {
+@@ -239,27 +239,28 @@ func (ut unitType) autoScale(value float64) (float64, string, bool) {
+ // included in the unitType, then a false boolean will be returned. If the
+ // toUnit is not in the unitType, the value will be returned in terms of the
+ // default unitType.
+-func (ut unitType) convertUnit(value int64, fromUnitStr, toUnitStr string) (float64, string, bool) {
++func (ut UnitType) convertUnit(value int64, fromUnitStr, toUnitStr string) (float64, string, bool) {
+ 	fromUnit := ut.sniffUnit(fromUnitStr)
+ 	if fromUnit == nil {
+ 		return 0, "", false
+ 	}
+-	v := float64(value) * fromUnit.factor
++	v := float64(value) * fromUnit.Factor
+ 	if toUnitStr == "minimum" || toUnitStr == "auto" {
+ 		if v, u, ok := ut.autoScale(v); ok {
+ 			return v, u, true
+ 		}
+-		return v / ut.defaultUnit.factor, ut.defaultUnit.canonicalName, true
++		return v / ut.DefaultUnit.Factor, ut.DefaultUnit.CanonicalName, true
+ 	}
+ 	toUnit := ut.sniffUnit(toUnitStr)
+ 	if toUnit == nil {
+-		return v / ut.defaultUnit.factor, ut.defaultUnit.canonicalName, true
++		return v / ut.DefaultUnit.Factor, ut.DefaultUnit.CanonicalName, true
+ 	}
+-	return v / toUnit.factor, toUnit.canonicalName, true
++	return v / toUnit.Factor, toUnit.CanonicalName, true
+ }
+ 
+-var unitTypes = []unitType{{
+-	units: []unit{
++// UnitTypes holds the definition of units known to pprof.
++var UnitTypes = []UnitType{{
++	Units: []Unit{
+ 		{"B", []string{"b", "byte"}, 1},
+ 		{"kB", []string{"kb", "kbyte", "kilobyte"}, float64(1 << 10)},
+ 		{"MB", []string{"mb", "mbyte", "megabyte"}, float64(1 << 20)},
+@@ -267,18 +268,18 @@ var unitTypes = []unitType{{
+ 		{"TB", []string{"tb", "tbyte", "terabyte"}, float64(1 << 40)},
+ 		{"PB", []string{"pb", "pbyte", "petabyte"}, float64(1 << 50)},
+ 	},
+-	defaultUnit: unit{"B", []string{"b", "byte"}, 1},
++	DefaultUnit: Unit{"B", []string{"b", "byte"}, 1},
+ }, {
+-	units: []unit{
++	Units: []Unit{
+ 		{"ns", []string{"ns", "nanosecond"}, float64(time.Nanosecond)},
+ 		{"us", []string{"μs", "us", "microsecond"}, float64(time.Microsecond)},
+ 		{"ms", []string{"ms", "millisecond"}, float64(time.Millisecond)},
+ 		{"s", []string{"s", "sec", "second"}, float64(time.Second)},
+ 		{"hrs", []string{"hour", "hr"}, float64(time.Hour)},
+ 	},
+-	defaultUnit: unit{"s", []string{}, float64(time.Second)},
++	DefaultUnit: Unit{"s", []string{}, float64(time.Second)},
+ }, {
+-	units: []unit{
++	Units: []Unit{
+ 		{"n*GCU", []string{"nanogcu"}, 1e-9},
+ 		{"u*GCU", []string{"microgcu"}, 1e-6},
+ 		{"m*GCU", []string{"milligcu"}, 1e-3},
+@@ -289,5 +290,5 @@ var unitTypes = []unitType{{
+ 		{"T*GCU", []string{"teragcu"}, 1e12},
+ 		{"P*GCU", []string{"petagcu"}, 1e15},
+ 	},
+-	defaultUnit: unit{"GCU", []string{}, 1.0},
++	DefaultUnit: Unit{"GCU", []string{}, 1.0},
+ }}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go b/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
+index c934551036..f2ef987185 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
+@@ -175,7 +175,7 @@ type Sym struct {
+ 
+ // A UI manages user interactions.
+ type UI interface {
+-	// Read returns a line of text (a command) read from the user.
++	// ReadLine returns a line of text (a command) read from the user.
+ 	// prompt is printed before reading the command.
+ 	ReadLine(prompt string) (string, error)
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+index 96b80039e6..d72ebe914f 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+@@ -111,12 +111,11 @@ func Generate(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
+ 		return printAssembly(w, rpt, obj)
+ 	case List:
+ 		return printSource(w, rpt)
+-	case WebList:
+-		return printWebSource(w, rpt, obj)
+ 	case Callgrind:
+ 		return printCallgrind(w, rpt)
+ 	}
+-	return fmt.Errorf("unexpected output format")
++	// Note: WebList handling is in driver package.
++	return fmt.Errorf("unexpected output format %v", o.OutputFormat)
+ }
+ 
+ // newTrimmedGraph creates a graph for this report, trimmed according
+@@ -1327,6 +1326,9 @@ type Report struct {
+ // Total returns the total number of samples in a report.
+ func (rpt *Report) Total() int64 { return rpt.total }
+ 
++// OutputFormat returns the output format for the report.
++func (rpt *Report) OutputFormat() int { return rpt.options.OutputFormat }
++
+ func abs64(i int64) int64 {
+ 	if i < 0 {
+ 		return -i
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/source.go b/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
+index d8b4395265..d2148607ea 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
+@@ -122,17 +122,6 @@ func printSource(w io.Writer, rpt *Report) error {
+ 	return nil
+ }
+ 
+-// printWebSource prints an annotated source listing, include all
+-// functions with samples that match the regexp rpt.options.symbol.
+-func printWebSource(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
+-	printHeader(w, rpt)
+-	if err := PrintWebList(w, rpt, obj, -1); err != nil {
+-		return err
+-	}
+-	printPageClosing(w)
+-	return nil
+-}
+-
+ // sourcePrinter holds state needed for generating source+asm HTML listing.
+ type sourcePrinter struct {
+ 	reader     *sourceReader
+@@ -198,24 +187,73 @@ type addressRange struct {
+ 	score      int64 // Used to order ranges for processing
+ }
+ 
+-// PrintWebList prints annotated source listing of rpt to w.
++// WebListData holds the data needed to generate HTML source code listing.
++type WebListData struct {
++	Total string
++	Files []WebListFile
++}
++
++// WebListFile holds the per-file information for HTML source code listing.
++type WebListFile struct {
++	Funcs []WebListFunc
++}
++
++// WebListFunc holds the per-function information for HTML source code listing.
++type WebListFunc struct {
++	Name       string
++	File       string
++	Flat       string
++	Cumulative string
++	Percent    string
++	Lines      []WebListLine
++}
++
++// WebListLine holds the per-source-line information for HTML source code listing.
++type WebListLine struct {
++	SrcLine      string
++	HTMLClass    string
++	Line         int
++	Flat         string
++	Cumulative   string
++	Instructions []WebListInstruction
++}
++
++// WebListInstruction holds the per-instruction information for HTML source code listing.
++type WebListInstruction struct {
++	NewBlock     bool // Insert marker that indicates separation from previous block
++	Flat         string
++	Cumulative   string
++	Synthetic    bool
++	Address      uint64
++	Disasm       string
++	FileLine     string
++	InlinedCalls []WebListCall
++}
++
++// WebListCall holds the per-inlined-call information for HTML source code listing.
++type WebListCall struct {
++	SrcLine  string
++	FileBase string
++	Line     int
++}
++
++// MakeWebList returns an annotated source listing of rpt.
+ // rpt.prof should contain inlined call info.
+-func PrintWebList(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFiles int) error {
++func MakeWebList(rpt *Report, obj plugin.ObjTool, maxFiles int) (WebListData, error) {
+ 	sourcePath := rpt.options.SourcePath
+ 	if sourcePath == "" {
+ 		wd, err := os.Getwd()
+ 		if err != nil {
+-			return fmt.Errorf("could not stat current dir: %v", err)
++			return WebListData{}, fmt.Errorf("could not stat current dir: %v", err)
+ 		}
+ 		sourcePath = wd
+ 	}
+ 	sp := newSourcePrinter(rpt, obj, sourcePath)
+ 	if len(sp.interest) == 0 {
+-		return fmt.Errorf("no matches found for regexp: %s", rpt.options.Symbol)
++		return WebListData{}, fmt.Errorf("no matches found for regexp: %s", rpt.options.Symbol)
+ 	}
+-	sp.print(w, maxFiles, rpt)
+-	sp.close()
+-	return nil
++	defer sp.close()
++	return sp.generate(maxFiles, rpt), nil
+ }
+ 
+ func newSourcePrinter(rpt *Report, obj plugin.ObjTool, sourcePath string) *sourcePrinter {
+@@ -566,7 +604,7 @@ func (sp *sourcePrinter) initSamples(flat, cum map[uint64]int64) {
+ 	}
+ }
+ 
+-func (sp *sourcePrinter) print(w io.Writer, maxFiles int, rpt *Report) {
++func (sp *sourcePrinter) generate(maxFiles int, rpt *Report) WebListData {
+ 	// Finalize per-file counts.
+ 	for _, file := range sp.files {
+ 		seen := map[uint64]bool{}
+@@ -598,19 +636,31 @@ func (sp *sourcePrinter) print(w io.Writer, maxFiles int, rpt *Report) {
+ 		maxFiles = len(files)
+ 	}
+ 	sort.Slice(files, order)
++	result := WebListData{
++		Total: rpt.formatValue(rpt.total),
++	}
+ 	for i, f := range files {
+ 		if i < maxFiles {
+-			sp.printFile(w, f, rpt)
++			result.Files = append(result.Files, sp.generateFile(f, rpt))
+ 		}
+ 	}
++	return result
+ }
+ 
+-func (sp *sourcePrinter) printFile(w io.Writer, f *sourceFile, rpt *Report) {
++func (sp *sourcePrinter) generateFile(f *sourceFile, rpt *Report) WebListFile {
++	var result WebListFile
+ 	for _, fn := range sp.functions(f) {
+ 		if fn.cum == 0 {
+ 			continue
+ 		}
+-		printFunctionHeader(w, fn.name, f.fname, fn.flat, fn.cum, rpt)
++
++		listfn := WebListFunc{
++			Name:       fn.name,
++			File:       f.fname,
++			Flat:       rpt.formatValue(fn.flat),
++			Cumulative: rpt.formatValue(fn.cum),
++			Percent:    measurement.Percentage(fn.cum, rpt.total),
++		}
+ 		var asm []assemblyInstruction
+ 		for l := fn.begin; l < fn.end; l++ {
+ 			lineContents, ok := sp.reader.line(f.fname, l)
+@@ -654,10 +704,12 @@ func (sp *sourcePrinter) printFile(w io.Writer, f *sourceFile, rpt *Report) {
+ 				})
+ 			}
+ 
+-			printFunctionSourceLine(w, l, flatSum, cumSum, lineContents, asm, sp.reader, rpt)
++			listfn.Lines = append(listfn.Lines, makeWebListLine(l, flatSum, cumSum, lineContents, asm, sp.reader, rpt))
+ 		}
+-		printFunctionClosing(w)
++
++		result.Funcs = append(result.Funcs, listfn)
+ 	}
++	return result
+ }
+ 
+ // functions splits apart the lines to show in a file into a list of per-function ranges.
+@@ -752,89 +804,58 @@ func (sp *sourcePrinter) objectFile(m *profile.Mapping) plugin.ObjFile {
+ 	return object
+ }
+ 
+-// printHeader prints the page header for a weblist report.
+-func printHeader(w io.Writer, rpt *Report) {
+-	fmt.Fprintln(w, `
+-<!DOCTYPE html>
+-<html>
+-<head>
+-<meta charset="UTF-8">
+-<title>Pprof listing</title>`)
+-	fmt.Fprintln(w, weblistPageCSS)
+-	fmt.Fprintln(w, weblistPageScript)
+-	fmt.Fprint(w, "</head>\n<body>\n\n")
+-
+-	var labels []string
+-	for _, l := range ProfileLabels(rpt) {
+-		labels = append(labels, template.HTMLEscapeString(l))
++// makeWebListLine returns the contents of a single line in a web listing. This includes
++// the source line and the corresponding assembly.
++func makeWebListLine(lineNo int, flat, cum int64, lineContents string,
++	assembly []assemblyInstruction, reader *sourceReader, rpt *Report) WebListLine {
++	line := WebListLine{
++		SrcLine:    lineContents,
++		Line:       lineNo,
++		Flat:       valueOrDot(flat, rpt),
++		Cumulative: valueOrDot(cum, rpt),
+ 	}
+ 
+-	fmt.Fprintf(w, `<div class="legend">%s<br>Total: %s</div>`,
+-		strings.Join(labels, "<br>\n"),
+-		rpt.formatValue(rpt.total),
+-	)
+-}
+-
+-// printFunctionHeader prints a function header for a weblist report.
+-func printFunctionHeader(w io.Writer, name, path string, flatSum, cumSum int64, rpt *Report) {
+-	fmt.Fprintf(w, `<h2>%s</h2><p class="filename">%s</p>
+-<pre onClick="pprof_toggle_asm(event)">
+-  Total:  %10s %10s (flat, cum) %s
+-`,
+-		template.HTMLEscapeString(name), template.HTMLEscapeString(path),
+-		rpt.formatValue(flatSum), rpt.formatValue(cumSum),
+-		measurement.Percentage(cumSum, rpt.total))
+-}
+-
+-// printFunctionSourceLine prints a source line and the corresponding assembly.
+-func printFunctionSourceLine(w io.Writer, lineNo int, flat, cum int64, lineContents string,
+-	assembly []assemblyInstruction, reader *sourceReader, rpt *Report) {
+ 	if len(assembly) == 0 {
+-		fmt.Fprintf(w,
+-			"<span class=line> %6d</span> <span class=nop>  %10s %10s %8s  %s </span>\n",
+-			lineNo,
+-			valueOrDot(flat, rpt), valueOrDot(cum, rpt),
+-			"", template.HTMLEscapeString(lineContents))
+-		return
++		line.HTMLClass = "nop"
++		return line
+ 	}
+ 
+ 	nestedInfo := false
+-	cl := "deadsrc"
++	line.HTMLClass = "deadsrc"
+ 	for _, an := range assembly {
+ 		if len(an.inlineCalls) > 0 || an.instruction != synthAsm {
+ 			nestedInfo = true
+-			cl = "livesrc"
++			line.HTMLClass = "livesrc"
+ 		}
+ 	}
+ 
+-	fmt.Fprintf(w,
+-		"<span class=line> %6d</span> <span class=%s>  %10s %10s %8s  %s </span>",
+-		lineNo, cl,
+-		valueOrDot(flat, rpt), valueOrDot(cum, rpt),
+-		"", template.HTMLEscapeString(lineContents))
+ 	if nestedInfo {
+ 		srcIndent := indentation(lineContents)
+-		printNested(w, srcIndent, assembly, reader, rpt)
++		line.Instructions = makeWebListInstructions(srcIndent, assembly, reader, rpt)
+ 	}
+-	fmt.Fprintln(w)
++	return line
+ }
+ 
+-func printNested(w io.Writer, srcIndent int, assembly []assemblyInstruction, reader *sourceReader, rpt *Report) {
+-	fmt.Fprint(w, "<span class=asm>")
++func makeWebListInstructions(srcIndent int, assembly []assemblyInstruction, reader *sourceReader, rpt *Report) []WebListInstruction {
++	var result []WebListInstruction
+ 	var curCalls []callID
+ 	for i, an := range assembly {
+-		if an.startsBlock && i != 0 {
+-			// Insert a separator between discontiguous blocks.
+-			fmt.Fprintf(w, " %8s %28s\n", "", "⋮")
+-		}
+-
+ 		var fileline string
+ 		if an.file != "" {
+ 			fileline = fmt.Sprintf("%s:%d", template.HTMLEscapeString(filepath.Base(an.file)), an.line)
+ 		}
+-		flat, cum := an.flat, an.cum
++		text := strings.Repeat(" ", srcIndent+4+4*len(an.inlineCalls)) + an.instruction
++		inst := WebListInstruction{
++			NewBlock:   (an.startsBlock && i != 0),
++			Flat:       valueOrDot(an.flat, rpt),
++			Cumulative: valueOrDot(an.cum, rpt),
++			Synthetic:  (an.instruction == synthAsm),
++			Address:    an.address,
++			Disasm:     rightPad(text, 80),
++			FileLine:   fileline,
++		}
+ 
+-		// Print inlined call context.
++		// Add inlined call context.
+ 		for j, c := range an.inlineCalls {
+ 			if j < len(curCalls) && curCalls[j] == c {
+ 				// Skip if same as previous instruction.
+@@ -845,36 +866,18 @@ func printNested(w io.Writer, srcIndent int, assembly []assemblyInstruction, rea
+ 			if !ok {
+ 				fline = ""
+ 			}
+-			text := strings.Repeat(" ", srcIndent+4+4*j) + strings.TrimSpace(fline)
+-			fmt.Fprintf(w, " %8s %10s %10s %8s  <span class=inlinesrc>%s</span> <span class=unimportant>%s:%d</span>\n",
+-				"", "", "", "",
+-				template.HTMLEscapeString(rightPad(text, 80)),
+-				template.HTMLEscapeString(filepath.Base(c.file)), c.line)
++			srcCode := strings.Repeat(" ", srcIndent+4+4*j) + strings.TrimSpace(fline)
++			inst.InlinedCalls = append(inst.InlinedCalls, WebListCall{
++				SrcLine:  rightPad(srcCode, 80),
++				FileBase: filepath.Base(c.file),
++				Line:     c.line,
++			})
+ 		}
+ 		curCalls = an.inlineCalls
+-		if an.instruction == synthAsm {
+-			continue
+-		}
+-		text := strings.Repeat(" ", srcIndent+4+4*len(curCalls)) + an.instruction
+-		fmt.Fprintf(w, " %8s %10s %10s %8x: %s <span class=unimportant>%s</span>\n",
+-			"", valueOrDot(flat, rpt), valueOrDot(cum, rpt), an.address,
+-			template.HTMLEscapeString(rightPad(text, 80)),
+-			// fileline should not be escaped since it was formed by appending
+-			// line number (just digits) to an escaped file name. Escaping here
+-			// would cause double-escaping of file name.
+-			fileline)
+-	}
+-	fmt.Fprint(w, "</span>")
+-}
+-
+-// printFunctionClosing prints the end of a function in a weblist report.
+-func printFunctionClosing(w io.Writer) {
+-	fmt.Fprintln(w, "</pre>")
+-}
+ 
+-// printPageClosing prints the end of the page in a weblist report.
+-func printPageClosing(w io.Writer) {
+-	fmt.Fprintln(w, weblistPageClosing)
++		result = append(result, inst)
++	}
++	return result
+ }
+ 
+ // getSourceFromFile collects the sources of a function from a source
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/source_html.go b/src/cmd/vendor/github.com/google/pprof/internal/report/source_html.go
+index 851693f1d0..614a5ee293 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/source_html.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/source_html.go
+@@ -69,7 +69,3 @@ function pprof_toggle_asm(e) {
+   }
+ }
+ </script>`
+-
+-const weblistPageClosing = `
+-</body>
+-</html>`
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+index 5ca71ab8be..70b4047269 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+@@ -133,22 +133,80 @@ func doLocalSymbolize(prof *profile.Profile, fast, force bool, obj plugin.ObjToo
+ 		}
+ 	}
+ 
+-	mt, err := newMapping(prof, obj, ui, force)
+-	if err != nil {
+-		return err
++	functions := map[profile.Function]*profile.Function{}
++	addFunction := func(f *profile.Function) *profile.Function {
++		if fp := functions[*f]; fp != nil {
++			return fp
++		}
++		functions[*f] = f
++		f.ID = uint64(len(prof.Function)) + 1
++		prof.Function = append(prof.Function, f)
++		return f
++	}
++
++	missingBinaries := false
++	mappingLocs := map[*profile.Mapping][]*profile.Location{}
++	for _, l := range prof.Location {
++		mappingLocs[l.Mapping] = append(mappingLocs[l.Mapping], l)
+ 	}
+-	defer mt.close()
++	for midx, m := range prof.Mapping {
++		locs := mappingLocs[m]
++		if len(locs) == 0 {
++			// The mapping is dangling and has no locations pointing to it.
++			continue
++		}
++		// Do not attempt to re-symbolize a mapping that has already been symbolized.
++		if !force && (m.HasFunctions || m.HasFilenames || m.HasLineNumbers) {
++			continue
++		}
++		if m.File == "" {
++			if midx == 0 {
++				ui.PrintErr("Main binary filename not available.")
++				continue
++			}
++			missingBinaries = true
++			continue
++		}
++		if m.Unsymbolizable() {
++			// Skip well-known system mappings
++			continue
++		}
++		if m.BuildID == "" {
++			if u, err := url.Parse(m.File); err == nil && u.IsAbs() && strings.Contains(strings.ToLower(u.Scheme), "http") {
++				// Skip mappings pointing to a source URL
++				continue
++			}
++		}
+ 
+-	functions := make(map[profile.Function]*profile.Function)
+-	for _, l := range mt.prof.Location {
+-		m := l.Mapping
+-		segment := mt.segments[m]
+-		if segment == nil {
+-			// Nothing to do.
++		name := filepath.Base(m.File)
++		if m.BuildID != "" {
++			name += fmt.Sprintf(" (build ID %s)", m.BuildID)
++		}
++		f, err := obj.Open(m.File, m.Start, m.Limit, m.Offset, m.KernelRelocationSymbol)
++		if err != nil {
++			ui.PrintErr("Local symbolization failed for ", name, ": ", err)
++			missingBinaries = true
+ 			continue
+ 		}
++		if fid := f.BuildID(); m.BuildID != "" && fid != "" && fid != m.BuildID {
++			ui.PrintErr("Local symbolization failed for ", name, ": build ID mismatch")
++			f.Close()
++			continue
++		}
++		symbolizeOneMapping(m, locs, f, addFunction)
++		f.Close()
++	}
+ 
+-		stack, err := segment.SourceLine(l.Address)
++	if missingBinaries {
++		ui.PrintErr("Some binary filenames not available. Symbolization may be incomplete.\n" +
++			"Try setting PPROF_BINARY_PATH to the search path for local binaries.")
++	}
++	return nil
++}
++
++func symbolizeOneMapping(m *profile.Mapping, locs []*profile.Location, obj plugin.ObjFile, addFunction func(*profile.Function) *profile.Function) {
++	for _, l := range locs {
++		stack, err := obj.SourceLine(l.Address)
+ 		if err != nil || len(stack) == 0 {
+ 			// No answers from addr2line.
+ 			continue
+@@ -166,18 +224,11 @@ func doLocalSymbolize(prof *profile.Profile, fast, force bool, obj plugin.ObjToo
+ 			if frame.Line != 0 {
+ 				m.HasLineNumbers = true
+ 			}
+-			f := &profile.Function{
++			f := addFunction(&profile.Function{
+ 				Name:       frame.Func,
+ 				SystemName: frame.Func,
+ 				Filename:   frame.File,
+-			}
+-			if fp := functions[*f]; fp != nil {
+-				f = fp
+-			} else {
+-				functions[*f] = f
+-				f.ID = uint64(len(mt.prof.Function)) + 1
+-				mt.prof.Function = append(mt.prof.Function, f)
+-			}
++			})
+ 			l.Line[i] = profile.Line{
+ 				Function: f,
+ 				Line:     int64(frame.Line),
+@@ -189,8 +240,6 @@ func doLocalSymbolize(prof *profile.Profile, fast, force bool, obj plugin.ObjToo
+ 			m.HasInlineFrames = true
+ 		}
+ 	}
+-
+-	return nil
+ }
+ 
+ // Demangle updates the function names in a profile with demangled C++
+@@ -294,87 +343,3 @@ func removeMatching(name string, start, end byte) string {
+ 	}
+ 	return name
+ }
+-
+-// newMapping creates a mappingTable for a profile.
+-func newMapping(prof *profile.Profile, obj plugin.ObjTool, ui plugin.UI, force bool) (*mappingTable, error) {
+-	mt := &mappingTable{
+-		prof:     prof,
+-		segments: make(map[*profile.Mapping]plugin.ObjFile),
+-	}
+-
+-	// Identify used mappings
+-	mappings := make(map[*profile.Mapping]bool)
+-	for _, l := range prof.Location {
+-		mappings[l.Mapping] = true
+-	}
+-
+-	missingBinaries := false
+-	for midx, m := range prof.Mapping {
+-		if !mappings[m] {
+-			continue
+-		}
+-
+-		// Do not attempt to re-symbolize a mapping that has already been symbolized.
+-		if !force && (m.HasFunctions || m.HasFilenames || m.HasLineNumbers) {
+-			continue
+-		}
+-
+-		if m.File == "" {
+-			if midx == 0 {
+-				ui.PrintErr("Main binary filename not available.")
+-				continue
+-			}
+-			missingBinaries = true
+-			continue
+-		}
+-
+-		// Skip well-known system mappings
+-		if m.Unsymbolizable() {
+-			continue
+-		}
+-
+-		// Skip mappings pointing to a source URL
+-		if m.BuildID == "" {
+-			if u, err := url.Parse(m.File); err == nil && u.IsAbs() && strings.Contains(strings.ToLower(u.Scheme), "http") {
+-				continue
+-			}
+-		}
+-
+-		name := filepath.Base(m.File)
+-		if m.BuildID != "" {
+-			name += fmt.Sprintf(" (build ID %s)", m.BuildID)
+-		}
+-		f, err := obj.Open(m.File, m.Start, m.Limit, m.Offset, m.KernelRelocationSymbol)
+-		if err != nil {
+-			ui.PrintErr("Local symbolization failed for ", name, ": ", err)
+-			missingBinaries = true
+-			continue
+-		}
+-		if fid := f.BuildID(); m.BuildID != "" && fid != "" && fid != m.BuildID {
+-			ui.PrintErr("Local symbolization failed for ", name, ": build ID mismatch")
+-			f.Close()
+-			continue
+-		}
+-
+-		mt.segments[m] = f
+-	}
+-	if missingBinaries {
+-		ui.PrintErr("Some binary filenames not available. Symbolization may be incomplete.\n" +
+-			"Try setting PPROF_BINARY_PATH to the search path for local binaries.")
+-	}
+-	return mt, nil
+-}
+-
+-// mappingTable contains the mechanisms for symbolization of a
+-// profile.
+-type mappingTable struct {
+-	prof     *profile.Profile
+-	segments map[*profile.Mapping]plugin.ObjFile
+-}
+-
+-// close releases any external processes being used for the mapping.
+-func (mt *mappingTable) close() {
+-	for _, segment := range mt.segments {
+-		segment.Close()
+-	}
+-}
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/profile.go b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+index 62df80a556..5551eb0bfa 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/profile.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+@@ -847,7 +847,7 @@ func (p *Profile) HasFileLines() bool {
+ // "[vdso]", [vsyscall]" and some others, see the code.
+ func (m *Mapping) Unsymbolizable() bool {
+ 	name := filepath.Base(m.File)
+-	return strings.HasPrefix(name, "[") || strings.HasPrefix(name, "linux-vdso") || strings.HasPrefix(m.File, "/dev/dri/")
++	return strings.HasPrefix(name, "[") || strings.HasPrefix(name, "linux-vdso") || strings.HasPrefix(m.File, "/dev/dri/") || m.File == "//anon"
+ }
+ 
+ // Copy makes a fully independent copy of a profile.
+diff --git a/src/cmd/vendor/github.com/ianlancetaylor/demangle/ast.go b/src/cmd/vendor/github.com/ianlancetaylor/demangle/ast.go
+index cdc98c3368..9e1fb0661d 100644
+--- a/src/cmd/vendor/github.com/ianlancetaylor/demangle/ast.go
++++ b/src/cmd/vendor/github.com/ianlancetaylor/demangle/ast.go
+@@ -59,6 +59,7 @@ func ASTToString(a AST, options ...Option) string {
+ 		enclosingParams: enclosingParams,
+ 		llvmStyle:       llvmStyle,
+ 		max:             max,
++		scopes:          1,
+ 	}
+ 	a.print(&ps)
+ 	s := ps.buf.String()
+@@ -75,6 +76,17 @@ type printState struct {
+ 	llvmStyle       bool
+ 	max             int // maximum output length
+ 
++	// The scopes field is used to avoid unnecessary parentheses
++	// around expressions that use > (or >>). It is incremented if
++	// we output a parenthesis or something else that means that >
++	// or >> won't be treated as ending a template. It starts out
++	// as 1, and is set to 0 when we start writing template
++	// arguments. We add parentheses around expressions using > if
++	// scopes is 0. The effect is that an expression with > gets
++	// parentheses if used as a template argument that is not
++	// inside some other set of parentheses.
++	scopes int
++
+ 	buf  strings.Builder
+ 	last byte // Last byte written to buffer.
+ 
+@@ -132,6 +144,87 @@ func (ps *printState) print(a AST) {
+ 	ps.printing = ps.printing[:len(ps.printing)-1]
+ }
+ 
++// printList prints a list of AST values separated by commas,
++// optionally skipping some.
++func (ps *printState) printList(args []AST, skip func(AST) bool) {
++	first := true
++	for _, a := range args {
++		if skip != nil && skip(a) {
++			continue
++		}
++		if !first {
++			ps.writeString(", ")
++		}
++
++		needsParen := false
++		if ps.llvmStyle {
++			if p, ok := a.(hasPrec); ok {
++				if p.prec() >= precComma {
++					needsParen = true
++				}
++			}
++		}
++		if needsParen {
++			ps.startScope('(')
++		}
++
++		ps.print(a)
++
++		if needsParen {
++			ps.endScope(')')
++		}
++
++		first = false
++	}
++}
++
++// startScope starts a scope. This is used to decide whether we need
++// to parenthesize an expression using > or >>.
++func (ps *printState) startScope(b byte) {
++	ps.scopes++
++	ps.writeByte(b)
++}
++
++// endScope closes a scope.
++func (ps *printState) endScope(b byte) {
++	ps.scopes--
++	ps.writeByte(b)
++}
++
++// precedence is used for operator precedence. This is used to avoid
++// unnecessary parentheses when printing expressions in the LLVM style.
++type precedence int
++
++// The precedence values, in order from high to low.
++const (
++	precPrimary precedence = iota
++	precPostfix
++	precUnary
++	precCast
++	precPtrMem
++	precMul
++	precAdd
++	precShift
++	precSpaceship
++	precRel
++	precEqual
++	precAnd
++	precXor
++	precOr
++	precLogicalAnd
++	precLogicalOr
++	precCond
++	precAssign
++	precComma
++	precDefault
++)
++
++// hasPrec matches the AST nodes that have a prec method that returns
++// the node's precedence.
++type hasPrec interface {
++	prec() precedence
++}
++
+ // Name is an unqualified name.
+ type Name struct {
+ 	Name string
+@@ -160,6 +253,10 @@ func (n *Name) goString(indent int, field string) string {
+ 	return fmt.Sprintf("%*s%s%s", indent, "", field, n.Name)
+ }
+ 
++func (n *Name) prec() precedence {
++	return precPrimary
++}
++
+ // Typed is a typed name.
+ type Typed struct {
+ 	Name AST
+@@ -287,6 +384,10 @@ func (q *Qualified) goString(indent int, field string) string {
+ 		q.Name.goString(indent+2, "Name: "))
+ }
+ 
++func (q *Qualified) prec() precedence {
++	return precPrimary
++}
++
+ // Template is a template with arguments.
+ type Template struct {
+ 	Name AST
+@@ -311,23 +412,18 @@ func (t *Template) print(ps *printState) {
+ 		ps.writeByte(' ')
+ 	}
+ 
++	scopes := ps.scopes
++	ps.scopes = 0
++
+ 	ps.writeByte('<')
+-	first := true
+-	for _, a := range t.Args {
+-		if ps.isEmpty(a) {
+-			continue
+-		}
+-		if !first {
+-			ps.writeString(", ")
+-		}
+-		ps.print(a)
+-		first = false
+-	}
+-	if ps.last == '>' {
++	ps.printList(t.Args, ps.isEmpty)
++	if ps.last == '>' && !ps.llvmStyle {
+ 		// Avoid syntactic ambiguity in old versions of C++.
+ 		ps.writeByte(' ')
+ 	}
+ 	ps.writeByte('>')
++
++	ps.scopes = scopes
+ }
+ 
+ func (t *Template) Traverse(fn func(AST) bool) {
+@@ -460,6 +556,61 @@ func (la *LambdaAuto) goString(indent int, field string) string {
+ 	return fmt.Sprintf("%*s%sLambdaAuto: Index %d", indent, "", field, la.Index)
+ }
+ 
++// TemplateParamQualifiedArg is used when the mangled name includes
++// both the template parameter declaration and the template argument.
++// See https://github.com/itanium-cxx-abi/cxx-abi/issues/47.
++type TemplateParamQualifiedArg struct {
++	Param AST
++	Arg   AST
++}
++
++func (tpqa *TemplateParamQualifiedArg) print(ps *printState) {
++	// We only demangle the actual template argument.
++	// That is what the LLVM demangler does.
++	// The parameter disambiguates the argument,
++	// but is hopefully not required by a human reader.
++	ps.print(tpqa.Arg)
++}
++
++func (tpqa *TemplateParamQualifiedArg) Traverse(fn func(AST) bool) {
++	if fn(tpqa) {
++		tpqa.Param.Traverse(fn)
++		tpqa.Arg.Traverse(fn)
++	}
++}
++
++func (tpqa *TemplateParamQualifiedArg) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(tpqa) {
++		return nil
++	}
++	param := tpqa.Param.Copy(fn, skip)
++	arg := tpqa.Arg.Copy(fn, skip)
++	if param == nil && arg == nil {
++		return fn(tpqa)
++	}
++	if param == nil {
++		param = tpqa.Param
++	}
++	if arg == nil {
++		arg = tpqa.Arg
++	}
++	tpqa = &TemplateParamQualifiedArg{Param: param, Arg: arg}
++	if r := fn(tpqa); r != nil {
++		return r
++	}
++	return tpqa
++}
++
++func (tpqa *TemplateParamQualifiedArg) GoString() string {
++	return tpqa.goString(0, "")
++}
++
++func (tpqa *TemplateParamQualifiedArg) goString(indent int, field string) string {
++	return fmt.Sprintf("%*s%sTemplateParamQualifiedArg:\n%s\n%s", indent, "", field,
++		tpqa.Param.goString(indent+2, "Param: "),
++		tpqa.Arg.goString(indent+2, "Arg: "))
++}
++
+ // Qualifiers is an ordered list of type qualifiers.
+ type Qualifiers struct {
+ 	Qualifiers []AST
+@@ -531,7 +682,7 @@ type Qualifier struct {
+ func (q *Qualifier) print(ps *printState) {
+ 	ps.writeString(q.Name)
+ 	if len(q.Exprs) > 0 {
+-		ps.writeByte('(')
++		ps.startScope('(')
+ 		first := true
+ 		for _, e := range q.Exprs {
+ 			if el, ok := e.(*ExprList); ok && len(el.Exprs) == 0 {
+@@ -543,7 +694,7 @@ func (q *Qualifier) print(ps *printState) {
+ 			ps.print(e)
+ 			first = false
+ 		}
+-		ps.writeByte(')')
++		ps.endScope(')')
+ 	}
+ }
+ 
+@@ -774,6 +925,10 @@ func (bt *BuiltinType) goString(indent int, field string) string {
+ 	return fmt.Sprintf("%*s%sBuiltinType: %s", indent, "", field, bt.Name)
+ }
+ 
++func (bt *BuiltinType) prec() precedence {
++	return precPrimary
++}
++
+ // printBase is common print code for types that are printed with a
+ // simple suffix.
+ func printBase(ps *printState, qual, base AST) {
+@@ -1000,6 +1155,94 @@ func (it *ImaginaryType) goString(indent int, field string) string {
+ 		it.Base.goString(indent+2, ""))
+ }
+ 
++// SuffixType is an type with an arbitrary suffix.
++type SuffixType struct {
++	Base   AST
++	Suffix string
++}
++
++func (st *SuffixType) print(ps *printState) {
++	printBase(ps, st, st.Base)
++}
++
++func (st *SuffixType) printInner(ps *printState) {
++	ps.writeByte(' ')
++	ps.writeString(st.Suffix)
++}
++
++func (st *SuffixType) Traverse(fn func(AST) bool) {
++	if fn(st) {
++		st.Base.Traverse(fn)
++	}
++}
++
++func (st *SuffixType) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(st) {
++		return nil
++	}
++	base := st.Base.Copy(fn, skip)
++	if base == nil {
++		return fn(st)
++	}
++	st = &SuffixType{Base: base, Suffix: st.Suffix}
++	if r := fn(st); r != nil {
++		return r
++	}
++	return st
++}
++
++func (st *SuffixType) GoString() string {
++	return st.goString(0, "")
++}
++
++func (st *SuffixType) goString(indent int, field string) string {
++	return fmt.Sprintf("%*s%sSuffixType: %s\n%s", indent, "", field,
++		st.Suffix, st.Base.goString(indent+2, "Base: "))
++}
++
++// TransformedType is a builtin type with a template argument.
++type TransformedType struct {
++	Name string
++	Base AST
++}
++
++func (tt *TransformedType) print(ps *printState) {
++	ps.writeString(tt.Name)
++	ps.startScope('(')
++	ps.print(tt.Base)
++	ps.endScope(')')
++}
++
++func (tt *TransformedType) Traverse(fn func(AST) bool) {
++	if fn(tt) {
++		tt.Base.Traverse(fn)
++	}
++}
++
++func (tt *TransformedType) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(tt) {
++		return nil
++	}
++	base := tt.Base.Copy(fn, skip)
++	if base == nil {
++		return fn(tt)
++	}
++	tt = &TransformedType{Name: tt.Name, Base: base}
++	if r := fn(tt); r != nil {
++		return r
++	}
++	return tt
++}
++
++func (tt *TransformedType) GoString() string {
++	return tt.goString(0, "")
++}
++
++func (tt *TransformedType) goString(indent int, field string) string {
++	return fmt.Sprintf("%*s%sTransformedType: %s\n%s", indent, "", field,
++		tt.Name, tt.Base.goString(indent+2, "Base: "))
++}
++
+ // VendorQualifier is a type qualified by a vendor-specific qualifier.
+ type VendorQualifier struct {
+ 	Qualifier AST
+@@ -1102,9 +1345,10 @@ func (at *ArrayType) printDimension(ps *printState) {
+ 			}
+ 			ps.printOneInner(nil)
+ 		} else {
+-			ps.writeString(" (")
++			ps.writeByte(' ')
++			ps.startScope('(')
+ 			ps.printInner(false)
+-			ps.writeByte(')')
++			ps.endScope(')')
+ 		}
+ 	}
+ 	ps.writeString(space)
+@@ -1212,16 +1456,16 @@ func (ft *FunctionType) printArgs(ps *printState) {
+ 		if space && ps.last != ' ' {
+ 			ps.writeByte(' ')
+ 		}
+-		ps.writeByte('(')
++		ps.startScope('(')
+ 	}
+ 
+ 	save := ps.printInner(true)
+ 
+ 	if paren {
+-		ps.writeByte(')')
++		ps.endScope(')')
+ 	}
+ 
+-	ps.writeByte('(')
++	ps.startScope('(')
+ 	if !ft.ForLocalName || ps.enclosingParams {
+ 		first := true
+ 		for _, a := range ft.Args {
+@@ -1235,7 +1479,7 @@ func (ft *FunctionType) printArgs(ps *printState) {
+ 			first = false
+ 		}
+ 	}
+-	ps.writeByte(')')
++	ps.endScope(')')
+ 
+ 	ps.inner = save
+ 	ps.printInner(false)
+@@ -1358,6 +1602,10 @@ func (fp *FunctionParam) goString(indent int, field string) string {
+ 	return fmt.Sprintf("%*s%sFunctionParam: %d", indent, "", field, fp.Index)
+ }
+ 
++func (fp *FunctionParam) prec() precedence {
++	return precPrimary
++}
++
+ // PtrMem is a pointer-to-member expression.
+ type PtrMem struct {
+ 	Class  AST
+@@ -1502,6 +1750,53 @@ func (bfp *BinaryFP) goString(indent int, field string) string {
+ 	return fmt.Sprintf("%*s%sBinaryFP: %d", indent, "", field, bfp.Bits)
+ }
+ 
++// BitIntType is the C++23 _BitInt(N) type.
++type BitIntType struct {
++	Size   AST
++	Signed bool
++}
++
++func (bt *BitIntType) print(ps *printState) {
++	if !bt.Signed {
++		ps.writeString("unsigned ")
++	}
++	ps.writeString("_BitInt")
++	ps.startScope('(')
++	ps.print(bt.Size)
++	ps.endScope(')')
++}
++
++func (bt *BitIntType) Traverse(fn func(AST) bool) {
++	if fn(bt) {
++		bt.Size.Traverse(fn)
++	}
++}
++
++func (bt *BitIntType) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(bt) {
++		return nil
++	}
++	size := bt.Size.Copy(fn, skip)
++	if size == nil {
++		return fn(bt)
++	}
++	bt = &BitIntType{Size: size, Signed: bt.Signed}
++	if r := fn(bt); r != nil {
++		return r
++	}
++	return bt
++}
++
++func (bt *BitIntType) GoString() string {
++	return bt.goString(0, "")
++}
++
++func (bt *BitIntType) goString(indent int, field string) string {
++	return fmt.Sprintf("%*s%sBitIntType: Signed: %t\n%s", indent, "", field,
++		bt.Signed,
++		bt.Size.goString(indent+2, "Size: "))
++}
++
+ // VectorType is a vector type.
+ type VectorType struct {
+ 	Dimension AST
+@@ -1619,9 +1914,9 @@ func (dt *Decltype) print(ps *printState) {
+ 	if !ps.llvmStyle {
+ 		ps.writeString(" ")
+ 	}
+-	ps.writeString("(")
++	ps.startScope('(')
+ 	ps.print(dt.Expr)
+-	ps.writeByte(')')
++	ps.endScope(')')
+ }
+ 
+ func (dt *Decltype) Traverse(fn func(AST) bool) {
+@@ -1656,7 +1951,8 @@ func (dt *Decltype) goString(indent int, field string) string {
+ 
+ // Operator is an operator.
+ type Operator struct {
+-	Name string
++	Name       string
++	precedence precedence
+ }
+ 
+ func (op *Operator) print(ps *printState) {
+@@ -1688,6 +1984,10 @@ func (op *Operator) goString(indent int, field string) string {
+ 	return fmt.Sprintf("%*s%sOperator: %s", indent, "", field, op.Name)
+ }
+ 
++func (op *Operator) prec() precedence {
++	return op.precedence
++}
++
+ // Constructor is a constructor.
+ type Constructor struct {
+ 	Name AST
+@@ -2007,9 +2307,10 @@ type SizeofPack struct {
+ 
+ func (sp *SizeofPack) print(ps *printState) {
+ 	if ps.llvmStyle {
+-		ps.writeString("sizeof...(")
++		ps.writeString("sizeof...")
++		ps.startScope('(')
+ 		ps.print(sp.Pack)
+-		ps.writeByte(')')
++		ps.endScope(')')
+ 	} else {
+ 		ps.writeString(fmt.Sprintf("%d", len(sp.Pack.Args)))
+ 	}
+@@ -2253,20 +2554,27 @@ func (nttp *NonTypeTemplateParam) goString(indent int, field string) string {
+ // TemplateTemplateParam is a template template parameter that appears
+ // in a lambda with explicit template parameters.
+ type TemplateTemplateParam struct {
+-	Name   AST
+-	Params []AST
++	Name       AST
++	Params     []AST
++	Constraint AST
+ }
+ 
+ func (ttp *TemplateTemplateParam) print(ps *printState) {
++	scopes := ps.scopes
++	ps.scopes = 0
++
+ 	ps.writeString("template<")
+-	for i, param := range ttp.Params {
+-		if i > 0 {
+-			ps.writeString(", ")
+-		}
+-		ps.print(param)
+-	}
++	ps.printList(ttp.Params, nil)
+ 	ps.writeString("> typename ")
++
++	ps.scopes = scopes
++
+ 	ps.print(ttp.Name)
++
++	if ttp.Constraint != nil {
++		ps.writeString(" requires ")
++		ps.print(ttp.Constraint)
++	}
+ }
+ 
+ func (ttp *TemplateTemplateParam) Traverse(fn func(AST) bool) {
+@@ -2275,6 +2583,9 @@ func (ttp *TemplateTemplateParam) Traverse(fn func(AST) bool) {
+ 		for _, param := range ttp.Params {
+ 			param.Traverse(fn)
+ 		}
++		if ttp.Constraint != nil {
++			ttp.Constraint.Traverse(fn)
++		}
+ 	}
+ }
+ 
+@@ -2303,13 +2614,24 @@ func (ttp *TemplateTemplateParam) Copy(fn func(AST) AST, skip func(AST) bool) AS
+ 		}
+ 	}
+ 
++	var constraint AST
++	if ttp.Constraint != nil {
++		constraint = ttp.Constraint.Copy(fn, skip)
++		if constraint == nil {
++			constraint = ttp.Constraint
++		} else {
++			changed = true
++		}
++	}
++
+ 	if !changed {
+ 		return fn(ttp)
+ 	}
+ 
+ 	ttp = &TemplateTemplateParam{
+-		Name:   name,
+-		Params: params,
++		Name:       name,
++		Params:     params,
++		Constraint: constraint,
+ 	}
+ 	if r := fn(ttp); r != nil {
+ 		return r
+@@ -2328,9 +2650,76 @@ func (ttp *TemplateTemplateParam) goString(indent int, field string) string {
+ 		params.WriteByte('\n')
+ 		params.WriteString(p.goString(indent+4, fmt.Sprintf("%d: ", i)))
+ 	}
+-	return fmt.Sprintf("%*s%sTemplateTemplateParam:\n%s\n%s", indent, "", field,
++	var constraint string
++	if ttp.Constraint == nil {
++		constraint = fmt.Sprintf("%*sConstraint: nil", indent+2, "")
++	} else {
++		constraint = ttp.Constraint.goString(indent+2, "Constraint: ")
++	}
++	return fmt.Sprintf("%*s%sTemplateTemplateParam:\n%s\n%s\n%s", indent, "", field,
+ 		ttp.Name.goString(indent+2, "Name: "),
+-		params.String())
++		params.String(),
++		constraint)
++}
++
++// ConstrainedTypeTemplateParam is a constrained template type
++// parameter declaration.
++type ConstrainedTypeTemplateParam struct {
++	Name       AST
++	Constraint AST
++}
++
++func (cttp *ConstrainedTypeTemplateParam) print(ps *printState) {
++	ps.inner = append(ps.inner, cttp)
++	ps.print(cttp.Constraint)
++	if len(ps.inner) > 0 {
++		ps.writeByte(' ')
++		ps.print(cttp.Name)
++		ps.inner = ps.inner[:len(ps.inner)-1]
++	}
++}
++
++func (cttp *ConstrainedTypeTemplateParam) printInner(ps *printState) {
++	ps.print(cttp.Name)
++}
++
++func (cttp *ConstrainedTypeTemplateParam) Traverse(fn func(AST) bool) {
++	if fn(cttp) {
++		cttp.Name.Traverse(fn)
++		cttp.Constraint.Traverse(fn)
++	}
++}
++
++func (cttp *ConstrainedTypeTemplateParam) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(cttp) {
++		return nil
++	}
++	name := cttp.Name.Copy(fn, skip)
++	constraint := cttp.Constraint.Copy(fn, skip)
++	if name == nil && constraint == nil {
++		return fn(cttp)
++	}
++	if name == nil {
++		name = cttp.Name
++	}
++	if constraint == nil {
++		constraint = cttp.Constraint
++	}
++	cttp = &ConstrainedTypeTemplateParam{Name: name, Constraint: constraint}
++	if r := fn(cttp); r != nil {
++		return r
++	}
++	return cttp
++}
++
++func (cttp *ConstrainedTypeTemplateParam) GoString() string {
++	return cttp.goString(0, "")
++}
++
++func (cttp *ConstrainedTypeTemplateParam) goString(indent int, field string) string {
++	return fmt.Sprintf("%*s%sConstrainedTypeTemplateParam\n%s\n%s", indent, "", field,
++		cttp.Name.goString(indent+2, "Name: "),
++		cttp.Constraint.goString(indent+2, "Constraint: "))
+ }
+ 
+ // TemplateParamPack is a template parameter pack that appears in a
+@@ -2431,6 +2820,10 @@ func (c *Cast) goString(indent int, field string) string {
+ 		c.To.goString(indent+2, "To: "))
+ }
+ 
++func (c *Cast) prec() precedence {
++	return precCast
++}
++
+ // The parenthesize function prints the string for val, wrapped in
+ // parentheses if necessary.
+ func parenthesize(ps *printState, val AST) {
+@@ -2449,11 +2842,11 @@ func parenthesize(ps *printState, val AST) {
+ 		paren = true
+ 	}
+ 	if paren {
+-		ps.writeByte('(')
++		ps.startScope('(')
+ 	}
+ 	ps.print(val)
+ 	if paren {
+-		ps.writeByte(')')
++		ps.endScope(')')
+ 	}
+ }
+ 
+@@ -2526,7 +2919,27 @@ func (u *Unary) print(ps *printState) {
+ 	}
+ 
+ 	if u.Suffix {
+-		parenthesize(ps, expr)
++		if ps.llvmStyle {
++			wantParens := true
++			opPrec := precUnary
++			if op != nil {
++				opPrec = op.precedence
++			}
++			if p, ok := expr.(hasPrec); ok {
++				if p.prec() < opPrec {
++					wantParens = false
++				}
++			}
++			if wantParens {
++				ps.startScope('(')
++			}
++			ps.print(expr)
++			if wantParens {
++				ps.endScope(')')
++			}
++		} else {
++			parenthesize(ps, expr)
++		}
+ 	}
+ 
+ 	if op != nil {
+@@ -2535,9 +2948,9 @@ func (u *Unary) print(ps *printState) {
+ 			ps.writeByte(' ')
+ 		}
+ 	} else if c, ok := u.Op.(*Cast); ok {
+-		ps.writeByte('(')
++		ps.startScope('(')
+ 		ps.print(c.To)
+-		ps.writeByte(')')
++		ps.endScope(')')
+ 	} else {
+ 		ps.print(u.Op)
+ 	}
+@@ -2549,21 +2962,45 @@ func (u *Unary) print(ps *printState) {
+ 			ps.print(expr)
+ 		} else if u.SizeofType {
+ 			// Always use parentheses for sizeof argument.
+-			ps.writeByte('(')
++			ps.startScope('(')
+ 			ps.print(expr)
+-			ps.writeByte(')')
++			ps.endScope(')')
+ 		} else if op != nil && op.Name == "__alignof__" {
+ 			// Always use parentheses for __alignof__ argument.
+-			ps.writeByte('(')
++			ps.startScope('(')
+ 			ps.print(expr)
+-			ps.writeByte(')')
++			ps.endScope(')')
+ 		} else if ps.llvmStyle {
+-			if op == nil || (op.Name != `operator"" ` && !isDelete) {
+-				ps.writeByte('(')
++			var wantParens bool
++			switch {
++			case op == nil:
++				wantParens = true
++			case op.Name == `operator"" `:
++				wantParens = false
++			case op.Name == "&":
++				wantParens = false
++			case isDelete:
++				wantParens = false
++			case op.Name == "alignof ":
++				wantParens = true
++			case op.Name == "sizeof ":
++				wantParens = true
++			case op.Name == "typeid ":
++				wantParens = true
++			default:
++				wantParens = true
++				if p, ok := expr.(hasPrec); ok {
++					if p.prec() < op.precedence {
++						wantParens = false
++					}
++				}
++			}
++			if wantParens {
++				ps.startScope('(')
+ 			}
+ 			ps.print(expr)
+-			if op == nil || (op.Name != `operator"" ` && !isDelete) {
+-				ps.writeByte(')')
++			if wantParens {
++				ps.endScope(')')
+ 			}
+ 		} else {
+ 			parenthesize(ps, expr)
+@@ -2617,6 +3054,13 @@ func (u *Unary) goString(indent int, field string) string {
+ 		u.Expr.goString(indent+2, "Expr: "))
+ }
+ 
++func (u *Unary) prec() precedence {
++	if p, ok := u.Op.(hasPrec); ok {
++		return p.prec()
++	}
++	return precDefault
++}
++
+ // isDesignatedInitializer reports whether x is a designated
+ // initializer.
+ func isDesignatedInitializer(x AST) bool {
+@@ -2654,11 +3098,19 @@ func (b *Binary) print(ps *printState) {
+ 
+ 	if op != nil && strings.Contains(op.Name, "cast") {
+ 		ps.writeString(op.Name)
++
++		scopes := ps.scopes
++		ps.scopes = 0
++
+ 		ps.writeByte('<')
+ 		ps.print(b.Left)
+-		ps.writeString(">(")
++		ps.writeString(">")
++
++		ps.scopes = scopes
++
++		ps.startScope('(')
+ 		ps.print(b.Right)
+-		ps.writeByte(')')
++		ps.endScope(')')
+ 		return
+ 	}
+ 
+@@ -2691,22 +3143,21 @@ func (b *Binary) print(ps *printState) {
+ 	// Use an extra set of parentheses around an expression that
+ 	// uses the greater-than operator, so that it does not get
+ 	// confused with the '>' that ends template parameters.
+-	if op != nil && op.Name == ">" {
+-		ps.writeByte('(')
++	needsOuterParen := op != nil && (op.Name == ">" || op.Name == ">>")
++	if ps.llvmStyle && ps.scopes > 0 {
++		needsOuterParen = false
++	}
++	if needsOuterParen {
++		ps.startScope('(')
+ 	}
+ 
+ 	left := b.Left
+ 
+ 	skipParens := false
+-	skipBothParens := false
+ 	addSpaces := ps.llvmStyle
+ 	if ps.llvmStyle && op != nil {
+ 		switch op.Name {
+-		case ".", "->":
+-			skipBothParens = true
+-			addSpaces = false
+-		case "->*":
+-			skipParens = true
++		case ".", "->", "->*":
+ 			addSpaces = false
+ 		}
+ 	}
+@@ -2730,12 +3181,26 @@ func (b *Binary) print(ps *printState) {
+ 		}
+ 	}
+ 
+-	if skipParens || skipBothParens {
++	if skipParens {
+ 		ps.print(left)
+ 	} else if ps.llvmStyle {
+-		ps.writeByte('(')
++		prec := precPrimary
++		if p, ok := left.(hasPrec); ok {
++			prec = p.prec()
++		}
++		needsParen := false
++		if prec > b.prec() {
++			needsParen = true
++		}
++		if needsParen {
++			ps.startScope('(')
++		}
++
+ 		ps.print(left)
+-		ps.writeByte(')')
++
++		if needsParen {
++			ps.endScope(')')
++		}
+ 	} else {
+ 		parenthesize(ps, left)
+ 	}
+@@ -2749,7 +3214,7 @@ func (b *Binary) print(ps *printState) {
+ 
+ 	if op != nil {
+ 		if op.Name != "()" {
+-			if addSpaces {
++			if addSpaces && op.Name != "," {
+ 				ps.writeByte(' ')
+ 			}
+ 			ps.writeString(op.Name)
+@@ -2761,18 +3226,30 @@ func (b *Binary) print(ps *printState) {
+ 		ps.print(b.Op)
+ 	}
+ 
+-	if skipBothParens {
+-		ps.print(b.Right)
+-	} else if ps.llvmStyle {
+-		ps.writeByte('(')
++	if ps.llvmStyle {
++		prec := precPrimary
++		if p, ok := b.Right.(hasPrec); ok {
++			prec = p.prec()
++		}
++		needsParen := false
++		if prec >= b.prec() {
++			needsParen = true
++		}
++		if needsParen {
++			ps.startScope('(')
++		}
++
+ 		ps.print(b.Right)
+-		ps.writeByte(')')
++
++		if needsParen {
++			ps.endScope(')')
++		}
+ 	} else {
+ 		parenthesize(ps, b.Right)
+ 	}
+ 
+-	if op != nil && op.Name == ">" {
+-		ps.writeByte(')')
++	if needsOuterParen {
++		ps.endScope(')')
+ 	}
+ }
+ 
+@@ -2821,6 +3298,13 @@ func (b *Binary) goString(indent int, field string) string {
+ 		b.Right.goString(indent+2, "Right: "))
+ }
+ 
++func (b *Binary) prec() precedence {
++	if p, ok := b.Op.(hasPrec); ok {
++		return p.prec()
++	}
++	return precDefault
++}
++
+ // Trinary is the ?: trinary operation in an expression.
+ type Trinary struct {
+ 	Op     AST
+@@ -2852,15 +3336,71 @@ func (t *Trinary) print(ps *printState) {
+ 		return
+ 	}
+ 
+-	parenthesize(ps, t.First)
++	if ps.llvmStyle {
++		wantParens := true
++		opPrec := precPrimary
++		if op, ok := t.Op.(*Operator); ok {
++			opPrec = op.precedence
++		}
++		if p, ok := t.First.(hasPrec); ok {
++			if p.prec() < opPrec {
++				wantParens = false
++			}
++		}
++		if wantParens {
++			ps.startScope('(')
++		}
++		ps.print(t.First)
++		if wantParens {
++			ps.endScope(')')
++		}
++	} else {
++		parenthesize(ps, t.First)
++	}
++
+ 	if ps.llvmStyle {
+ 		ps.writeString(" ? ")
+ 	} else {
+ 		ps.writeByte('?')
+ 	}
+-	parenthesize(ps, t.Second)
++
++	if ps.llvmStyle {
++		wantParens := true
++		if p, ok := t.Second.(hasPrec); ok {
++			if p.prec() < precDefault {
++				wantParens = false
++			}
++		}
++		if wantParens {
++			ps.startScope('(')
++		}
++		ps.print(t.Second)
++		if wantParens {
++			ps.endScope(')')
++		}
++	} else {
++		parenthesize(ps, t.Second)
++	}
++
+ 	ps.writeString(" : ")
+-	parenthesize(ps, t.Third)
++
++	if ps.llvmStyle {
++		wantParens := true
++		if p, ok := t.Third.(hasPrec); ok {
++			if p.prec() < precAssign {
++				wantParens = false
++			}
++		}
++		if wantParens {
++			ps.startScope('(')
++		}
++		ps.print(t.Third)
++		if wantParens {
++			ps.endScope(')')
++		}
++	} else {
++		parenthesize(ps, t.Third)
++	}
+ }
+ 
+ func (t *Trinary) Traverse(fn func(AST) bool) {
+@@ -2938,33 +3478,49 @@ func (f *Fold) print(ps *printState) {
+ 		}
+ 	}
+ 	foldParenthesize := func(a AST) {
+-		if _, ok := a.(*ArgumentPack); ok || !ps.llvmStyle {
+-			parenthesize(ps, a)
+-		} else {
++		if ps.llvmStyle {
++			prec := precDefault
++			if p, ok := a.(hasPrec); ok {
++				prec = p.prec()
++			}
++			needsParen := false
++			if prec > precCast {
++				needsParen = true
++			}
++			if needsParen {
++				ps.startScope('(')
++			}
+ 			ps.print(a)
++			if needsParen {
++				ps.endScope(')')
++			}
++		} else {
++			parenthesize(ps, a)
+ 		}
+ 	}
+ 
+ 	if f.Arg2 == nil {
+ 		if f.Left {
+-			ps.writeString("(...")
++			ps.startScope('(')
++			ps.writeString("...")
+ 			printOp()
+ 			foldParenthesize(f.Arg1)
+-			ps.writeString(")")
++			ps.endScope(')')
+ 		} else {
+-			ps.writeString("(")
++			ps.startScope('(')
+ 			foldParenthesize(f.Arg1)
+ 			printOp()
+-			ps.writeString("...)")
++			ps.writeString("...")
++			ps.endScope(')')
+ 		}
+ 	} else {
+-		ps.writeString("(")
++		ps.startScope('(')
+ 		foldParenthesize(f.Arg1)
+ 		printOp()
+ 		ps.writeString("...")
+ 		printOp()
+ 		foldParenthesize(f.Arg2)
+-		ps.writeString(")")
++		ps.endScope(')')
+ 	}
+ }
+ 
+@@ -3109,11 +3665,11 @@ type PtrMemCast struct {
+ }
+ 
+ func (pmc *PtrMemCast) print(ps *printState) {
+-	ps.writeString("(")
++	ps.startScope('(')
+ 	ps.print(pmc.Type)
+ 	ps.writeString(")(")
+ 	ps.print(pmc.Expr)
+-	ps.writeString(")")
++	ps.endScope(')')
+ }
+ 
+ func (pmc *PtrMemCast) Traverse(fn func(AST) bool) {
+@@ -3310,7 +3866,7 @@ func (l *Literal) print(ps *printState) {
+ 				ps.writeString("true")
+ 				return
+ 			}
+-		} else if b.Name == "decltype(nullptr)" && l.Val == "" {
++		} else if b.Name == "decltype(nullptr)" && (l.Val == "" || l.Val == "0") {
+ 			if ps.llvmStyle {
+ 				ps.writeString("nullptr")
+ 			} else {
+@@ -3322,9 +3878,9 @@ func (l *Literal) print(ps *printState) {
+ 		}
+ 	}
+ 
+-	ps.writeByte('(')
++	ps.startScope('(')
+ 	ps.print(l.Type)
+-	ps.writeByte(')')
++	ps.endScope(')')
+ 
+ 	if isFloat {
+ 		ps.writeByte('[')
+@@ -3373,6 +3929,10 @@ func (l *Literal) goString(indent int, field string) string {
+ 		indent+2, "", l.Val)
+ }
+ 
++func (l *Literal) prec() precedence {
++	return precPrimary
++}
++
+ // StringLiteral is a string literal.
+ type StringLiteral struct {
+ 	Type AST
+@@ -3464,12 +4024,7 @@ type ExprList struct {
+ }
+ 
+ func (el *ExprList) print(ps *printState) {
+-	for i, e := range el.Exprs {
+-		if i > 0 {
+-			ps.writeString(", ")
+-		}
+-		ps.print(e)
+-	}
++	ps.printList(el.Exprs, nil)
+ }
+ 
+ func (el *ExprList) Traverse(fn func(AST) bool) {
+@@ -3521,6 +4076,10 @@ func (el *ExprList) goString(indent int, field string) string {
+ 	return s
+ }
+ 
++func (el *ExprList) prec() precedence {
++	return precComma
++}
++
+ // InitializerList is an initializer list: an optional type with a
+ // list of expressions.
+ type InitializerList struct {
+@@ -3631,9 +4190,11 @@ func (da *DefaultArg) goString(indent int, field string) string {
+ 
+ // Closure is a closure, or lambda expression.
+ type Closure struct {
+-	TemplateArgs []AST
+-	Types        []AST
+-	Num          int
++	TemplateArgs           []AST
++	TemplateArgsConstraint AST
++	Types                  []AST
++	Num                    int
++	CallConstraint         AST
+ }
+ 
+ func (cl *Closure) print(ps *printState) {
+@@ -3654,23 +4215,30 @@ func (cl *Closure) print(ps *printState) {
+ 
+ func (cl *Closure) printTypes(ps *printState) {
+ 	if len(cl.TemplateArgs) > 0 {
++		scopes := ps.scopes
++		ps.scopes = 0
++
+ 		ps.writeString("<")
+-		for i, a := range cl.TemplateArgs {
+-			if i > 0 {
+-				ps.writeString(", ")
+-			}
+-			ps.print(a)
+-		}
++		ps.printList(cl.TemplateArgs, nil)
+ 		ps.writeString(">")
++
++		ps.scopes = scopes
+ 	}
+-	ps.writeString("(")
+-	for i, t := range cl.Types {
+-		if i > 0 {
+-			ps.writeString(", ")
+-		}
+-		ps.print(t)
++
++	if cl.TemplateArgsConstraint != nil {
++		ps.writeString(" requires ")
++		ps.print(cl.TemplateArgsConstraint)
++		ps.writeByte(' ')
++	}
++
++	ps.startScope('(')
++	ps.printList(cl.Types, nil)
++	ps.endScope(')')
++
++	if cl.CallConstraint != nil {
++		ps.writeString(" requires ")
++		ps.print(cl.CallConstraint)
+ 	}
+-	ps.writeString(")")
+ }
+ 
+ func (cl *Closure) Traverse(fn func(AST) bool) {
+@@ -3678,9 +4246,15 @@ func (cl *Closure) Traverse(fn func(AST) bool) {
+ 		for _, a := range cl.TemplateArgs {
+ 			a.Traverse(fn)
+ 		}
++		if cl.TemplateArgsConstraint != nil {
++			cl.TemplateArgsConstraint.Traverse(fn)
++		}
+ 		for _, t := range cl.Types {
+ 			t.Traverse(fn)
+ 		}
++		if cl.CallConstraint != nil {
++			cl.CallConstraint.Traverse(fn)
++		}
+ 	}
+ }
+ 
+@@ -3701,6 +4275,16 @@ func (cl *Closure) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+ 		}
+ 	}
+ 
++	var templateArgsConstraint AST
++	if cl.TemplateArgsConstraint != nil {
++		templateArgsConstraint = cl.TemplateArgsConstraint.Copy(fn, skip)
++		if templateArgsConstraint == nil {
++			templateArgsConstraint = cl.TemplateArgsConstraint
++		} else {
++			changed = true
++		}
++	}
++
+ 	types := make([]AST, len(cl.Types))
+ 	for i, t := range cl.Types {
+ 		tc := t.Copy(fn, skip)
+@@ -3712,10 +4296,26 @@ func (cl *Closure) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+ 		}
+ 	}
+ 
++	var callConstraint AST
++	if cl.CallConstraint != nil {
++		callConstraint = cl.CallConstraint.Copy(fn, skip)
++		if callConstraint == nil {
++			callConstraint = cl.CallConstraint
++		} else {
++			changed = true
++		}
++	}
++
+ 	if !changed {
+ 		return fn(cl)
+ 	}
+-	cl = &Closure{TemplateArgs: args, Types: types, Num: cl.Num}
++	cl = &Closure{
++		TemplateArgs:           args,
++		TemplateArgsConstraint: templateArgsConstraint,
++		Types:                  types,
++		Num:                    cl.Num,
++		CallConstraint:         callConstraint,
++	}
+ 	if r := fn(cl); r != nil {
+ 		return r
+ 	}
+@@ -3727,28 +4327,41 @@ func (cl *Closure) GoString() string {
+ }
+ 
+ func (cl *Closure) goString(indent int, field string) string {
+-	var args string
++	var args strings.Builder
+ 	if len(cl.TemplateArgs) == 0 {
+-		args = fmt.Sprintf("%*sTemplateArgs: nil", indent+2, "")
++		fmt.Fprintf(&args, "%*sTemplateArgs: nil", indent+2, "")
+ 	} else {
+-		args = fmt.Sprintf("%*sTemplateArgs:", indent+2, "")
++		fmt.Fprintf(&args, "%*sTemplateArgs:", indent+2, "")
+ 		for i, a := range cl.TemplateArgs {
+-			args += "\n"
+-			args += a.goString(indent+4, fmt.Sprintf("%d: ", i))
++			args.WriteByte('\n')
++			args.WriteString(a.goString(indent+4, fmt.Sprintf("%d: ", i)))
+ 		}
+ 	}
+-	var types string
++
++	var templateArgsConstraint string
++	if cl.TemplateArgsConstraint != nil {
++		templateArgsConstraint = "\n" + cl.TemplateArgsConstraint.goString(indent+2, "TemplateArgsConstraint: ")
++	}
++
++	var types strings.Builder
+ 	if len(cl.Types) == 0 {
+-		types = fmt.Sprintf("%*sTypes: nil", indent+2, "")
++		fmt.Fprintf(&types, "%*sTypes: nil", indent+2, "")
+ 	} else {
+-		types = fmt.Sprintf("%*sTypes:", indent+2, "")
++		fmt.Fprintf(&types, "%*sTypes:", indent+2, "")
+ 		for i, t := range cl.Types {
+-			types += "\n"
+-			types += t.goString(indent+4, fmt.Sprintf("%d: ", i))
++			types.WriteByte('\n')
++			types.WriteString(t.goString(indent+4, fmt.Sprintf("%d: ", i)))
+ 		}
+ 	}
+-	return fmt.Sprintf("%*s%sClosure: Num: %d\n%s\n%s", indent, "", field,
+-		cl.Num, args, types)
++
++	var callConstraint string
++	if cl.CallConstraint != nil {
++		callConstraint = "\n" + cl.CallConstraint.goString(indent+2, "CallConstraint: ")
++	}
++
++	return fmt.Sprintf("%*s%sClosure: Num: %d\n%s\n%s%s%s", indent, "", field,
++		cl.Num, args.String(), templateArgsConstraint, types.String(),
++		callConstraint)
+ }
+ 
+ // StructuredBindings is a structured binding declaration.
+@@ -3758,12 +4371,7 @@ type StructuredBindings struct {
+ 
+ func (sb *StructuredBindings) print(ps *printState) {
+ 	ps.writeString("[")
+-	for i, b := range sb.Bindings {
+-		if i > 0 {
+-			ps.writeString(", ")
+-		}
+-		b.print(ps)
+-	}
++	ps.printList(sb.Bindings, nil)
+ 	ps.writeString("]")
+ }
+ 
+@@ -3859,9 +4467,10 @@ type Clone struct {
+ func (c *Clone) print(ps *printState) {
+ 	ps.print(c.Base)
+ 	if ps.llvmStyle {
+-		ps.writeString(" (")
++		ps.writeByte(' ')
++		ps.startScope('(')
+ 		ps.writeString(c.Suffix)
+-		ps.writeByte(')')
++		ps.endScope(')')
+ 	} else {
+ 		ps.writeString(fmt.Sprintf(" [clone %s]", c.Suffix))
+ 	}
+@@ -4011,14 +4620,7 @@ type EnableIf struct {
+ func (ei *EnableIf) print(ps *printState) {
+ 	ps.print(ei.Type)
+ 	ps.writeString(" [enable_if:")
+-	first := true
+-	for _, a := range ei.Args {
+-		if !first {
+-			ps.writeString(", ")
+-		}
+-		ps.print(a)
+-		first = false
+-	}
++	ps.printList(ei.Args, nil)
+ 	ps.writeString("]")
+ }
+ 
+@@ -4079,6 +4681,518 @@ func (ei *EnableIf) goString(indent int, field string) string {
+ 		ei.Type.goString(indent+2, "Type: "), args)
+ }
+ 
++// ModuleName is a C++20 module.
++type ModuleName struct {
++	Parent      AST
++	Name        AST
++	IsPartition bool
++}
++
++func (mn *ModuleName) print(ps *printState) {
++	if mn.Parent != nil {
++		ps.print(mn.Parent)
++	}
++	if mn.IsPartition {
++		ps.writeByte(':')
++	} else if mn.Parent != nil {
++		ps.writeByte('.')
++	}
++	ps.print(mn.Name)
++}
++
++func (mn *ModuleName) Traverse(fn func(AST) bool) {
++	if fn(mn) {
++		mn.Parent.Traverse(fn)
++		mn.Name.Traverse(fn)
++	}
++}
++
++func (mn *ModuleName) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(mn) {
++		return nil
++	}
++	var parent AST
++	if mn.Parent != nil {
++		parent = mn.Parent.Copy(fn, skip)
++	}
++	name := mn.Name.Copy(fn, skip)
++	if parent == nil && name == nil {
++		return fn(mn)
++	}
++	if parent == nil {
++		parent = mn.Parent
++	}
++	if name == nil {
++		name = mn.Name
++	}
++	mn = &ModuleName{Parent: parent, Name: name, IsPartition: mn.IsPartition}
++	if r := fn(mn); r != nil {
++		return r
++	}
++	return mn
++}
++
++func (mn *ModuleName) GoString() string {
++	return mn.goString(0, "")
++}
++
++func (mn *ModuleName) goString(indent int, field string) string {
++	var parent string
++	if mn.Parent == nil {
++		parent = fmt.Sprintf("%*sParent: nil", indent+2, "")
++	} else {
++		parent = mn.Parent.goString(indent+2, "Parent: ")
++	}
++	return fmt.Sprintf("%*s%sModuleName: IsPartition: %t\n%s\n%s", indent, "", field,
++		mn.IsPartition, parent,
++		mn.Name.goString(indent+2, "Name: "))
++}
++
++// ModuleEntity is a name inside a module.
++type ModuleEntity struct {
++	Module AST
++	Name   AST
++}
++
++func (me *ModuleEntity) print(ps *printState) {
++	ps.print(me.Name)
++	ps.writeByte('@')
++	ps.print(me.Module)
++}
++
++func (me *ModuleEntity) Traverse(fn func(AST) bool) {
++	if fn(me) {
++		me.Module.Traverse(fn)
++		me.Name.Traverse(fn)
++	}
++}
++
++func (me *ModuleEntity) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(me) {
++		return nil
++	}
++	module := me.Module.Copy(fn, skip)
++	name := me.Name.Copy(fn, skip)
++	if module == nil && name == nil {
++		return fn(me)
++	}
++	if module == nil {
++		module = me.Module
++	}
++	if name == nil {
++		name = me.Name
++	}
++	me = &ModuleEntity{Module: module, Name: name}
++	if r := fn(me); r != nil {
++		return r
++	}
++	return me
++}
++
++func (me *ModuleEntity) GoString() string {
++	return me.goString(0, "")
++}
++
++func (me *ModuleEntity) goString(indent int, field string) string {
++	return fmt.Sprintf("%*s%sModuleEntity:\n%s\n%s", indent, "", field,
++		me.Module.goString(indent+2, "Module: "),
++		me.Name.goString(indent+2, "Name: "))
++}
++
++// Friend is a member like friend name.
++type Friend struct {
++	Name AST
++}
++
++func (f *Friend) print(ps *printState) {
++	ps.writeString("friend ")
++	ps.print(f.Name)
++}
++
++func (f *Friend) Traverse(fn func(AST) bool) {
++	if fn(f) {
++		f.Name.Traverse(fn)
++	}
++}
++
++func (f *Friend) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(f) {
++		return nil
++	}
++	name := f.Name.Copy(fn, skip)
++	if name == nil {
++		return fn(f)
++	}
++	f = &Friend{Name: name}
++	if r := fn(f); r != nil {
++		return r
++	}
++	return f
++}
++
++func (f *Friend) GoString() string {
++	return f.goString(0, "")
++}
++
++func (f *Friend) goString(indent int, field string) string {
++	return fmt.Sprintf("%*s%sFriend:\n%s", indent, "", field,
++		f.Name.goString(indent+2, "Name: "))
++}
++
++// Constraint represents an AST with a constraint.
++type Constraint struct {
++	Name     AST
++	Requires AST
++}
++
++func (c *Constraint) print(ps *printState) {
++	ps.print(c.Name)
++	ps.writeString(" requires ")
++	ps.print(c.Requires)
++}
++
++func (c *Constraint) Traverse(fn func(AST) bool) {
++	if fn(c) {
++		c.Name.Traverse(fn)
++		c.Requires.Traverse(fn)
++	}
++}
++
++func (c *Constraint) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(c) {
++		return nil
++	}
++	name := c.Name.Copy(fn, skip)
++	requires := c.Requires.Copy(fn, skip)
++	if name == nil && requires == nil {
++		return fn(c)
++	}
++	if name == nil {
++		name = c.Name
++	}
++	if requires == nil {
++		requires = c.Requires
++	}
++	c = &Constraint{Name: name, Requires: requires}
++	if r := fn(c); r != nil {
++		return r
++	}
++	return c
++}
++
++func (c *Constraint) GoString() string {
++	return c.goString(0, "")
++}
++
++func (c *Constraint) goString(indent int, field string) string {
++	return fmt.Sprintf("%*s%sConstraint:\n%s\n%s", indent, "", field,
++		c.Name.goString(indent+2, "Name: "),
++		c.Requires.goString(indent+2, "Requires: "))
++}
++
++// RequiresExpr is a C++20 requires expression.
++type RequiresExpr struct {
++	Params       []AST
++	Requirements []AST
++}
++
++func (re *RequiresExpr) print(ps *printState) {
++	ps.writeString("requires")
++	if len(re.Params) > 0 {
++		ps.writeByte(' ')
++		ps.startScope('(')
++		ps.printList(re.Params, nil)
++		ps.endScope(')')
++	}
++	ps.writeByte(' ')
++	ps.startScope('{')
++	for _, req := range re.Requirements {
++		ps.print(req)
++	}
++	ps.writeByte(' ')
++	ps.endScope('}')
++}
++
++func (re *RequiresExpr) Traverse(fn func(AST) bool) {
++	if fn(re) {
++		for _, p := range re.Params {
++			p.Traverse(fn)
++		}
++		for _, r := range re.Requirements {
++			r.Traverse(fn)
++		}
++	}
++}
++
++func (re *RequiresExpr) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(re) {
++		return nil
++	}
++
++	changed := false
++
++	var params []AST
++	if len(re.Params) > 0 {
++		params = make([]AST, len(re.Params))
++		for i, p := range re.Params {
++			pc := p.Copy(fn, skip)
++			if pc == nil {
++				params[i] = p
++			} else {
++				params[i] = pc
++				changed = true
++			}
++		}
++	}
++
++	requirements := make([]AST, len(re.Requirements))
++	for i, r := range re.Requirements {
++		rc := r.Copy(fn, skip)
++		if rc == nil {
++			requirements[i] = r
++		} else {
++			requirements[i] = rc
++			changed = true
++		}
++	}
++
++	if !changed {
++		return fn(re)
++	}
++
++	re = &RequiresExpr{Params: params, Requirements: requirements}
++	if r := fn(re); r != nil {
++		return r
++	}
++	return re
++}
++
++func (re *RequiresExpr) GoString() string {
++	return re.goString(0, "")
++}
++
++func (re *RequiresExpr) goString(indent int, field string) string {
++	var params strings.Builder
++	if len(re.Params) == 0 {
++		fmt.Fprintf(&params, "%*sParams: nil", indent+2, "")
++	} else {
++		fmt.Fprintf(&params, "%*sParams:", indent+2, "")
++		for i, p := range re.Params {
++			params.WriteByte('\n')
++			params.WriteString(p.goString(indent+4, fmt.Sprintf("%d: ", i)))
++		}
++	}
++
++	var requirements strings.Builder
++	fmt.Fprintf(&requirements, "%*sRequirements:", indent+2, "")
++	for i, r := range re.Requirements {
++		requirements.WriteByte('\n')
++		requirements.WriteString(r.goString(indent+4, fmt.Sprintf("%d: ", i)))
++	}
++
++	return fmt.Sprintf("%*s%sRequirements:\n%s\n%s", indent, "", field,
++		params.String(), requirements.String())
++}
++
++// ExprRequirement is a simple requirement in a requires expression.
++// This is an arbitrary expression.
++type ExprRequirement struct {
++	Expr     AST
++	Noexcept bool
++	TypeReq  AST
++}
++
++func (er *ExprRequirement) print(ps *printState) {
++	ps.writeByte(' ')
++	if er.Noexcept || er.TypeReq != nil {
++		ps.startScope('{')
++	}
++	ps.print(er.Expr)
++	if er.Noexcept || er.TypeReq != nil {
++		ps.endScope('}')
++	}
++	if er.Noexcept {
++		ps.writeString(" noexcept")
++	}
++	if er.TypeReq != nil {
++		ps.writeString(" -> ")
++		ps.print(er.TypeReq)
++	}
++	ps.writeByte(';')
++}
++
++func (er *ExprRequirement) Traverse(fn func(AST) bool) {
++	if fn(er) {
++		er.Expr.Traverse(fn)
++		if er.TypeReq != nil {
++			er.TypeReq.Traverse(fn)
++		}
++	}
++}
++
++func (er *ExprRequirement) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(er) {
++		return nil
++	}
++	expr := er.Expr.Copy(fn, skip)
++	var typeReq AST
++	if er.TypeReq != nil {
++		typeReq = er.TypeReq.Copy(fn, skip)
++	}
++	if expr == nil && typeReq == nil {
++		return fn(er)
++	}
++	if expr == nil {
++		expr = er.Expr
++	}
++	if typeReq == nil {
++		typeReq = er.TypeReq
++	}
++	er = &ExprRequirement{Expr: expr, TypeReq: typeReq}
++	if r := fn(er); r != nil {
++		return r
++	}
++	return er
++}
++
++func (er *ExprRequirement) GoString() string {
++	return er.goString(0, "")
++}
++
++func (er *ExprRequirement) goString(indent int, field string) string {
++	var typeReq string
++	if er.TypeReq != nil {
++		typeReq = "\n" + er.TypeReq.goString(indent+2, "TypeReq: ")
++	}
++
++	return fmt.Sprintf("%*s%sExprRequirement: Noexcept: %t\n%s%s", indent, "", field,
++		er.Noexcept,
++		er.Expr.goString(indent+2, "Expr: "),
++		typeReq)
++}
++
++// TypeRequirement is a type requirement in a requires expression.
++type TypeRequirement struct {
++	Type AST
++}
++
++func (tr *TypeRequirement) print(ps *printState) {
++	ps.writeString(" typename ")
++	ps.print(tr.Type)
++	ps.writeByte(';')
++}
++
++func (tr *TypeRequirement) Traverse(fn func(AST) bool) {
++	if fn(tr) {
++		tr.Type.Traverse(fn)
++	}
++}
++
++func (tr *TypeRequirement) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(tr) {
++		return nil
++	}
++	typ := tr.Type.Copy(fn, skip)
++	if typ == nil {
++		return fn(tr)
++	}
++	tr = &TypeRequirement{Type: typ}
++	if r := fn(tr); r != nil {
++		return r
++	}
++	return tr
++}
++
++func (tr *TypeRequirement) GoString() string {
++	return tr.goString(0, "")
++}
++
++func (tr *TypeRequirement) goString(indent int, field string) string {
++	return fmt.Sprintf("%*s%sTypeRequirement:\n%s", indent, "", field,
++		tr.Type.goString(indent+2, ""))
++}
++
++// NestedRequirement is a nested requirement in a requires expression.
++type NestedRequirement struct {
++	Constraint AST
++}
++
++func (nr *NestedRequirement) print(ps *printState) {
++	ps.writeString(" requires ")
++	ps.print(nr.Constraint)
++	ps.writeByte(';')
++}
++
++func (nr *NestedRequirement) Traverse(fn func(AST) bool) {
++	if fn(nr) {
++		nr.Constraint.Traverse(fn)
++	}
++}
++
++func (nr *NestedRequirement) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(nr) {
++		return nil
++	}
++	constraint := nr.Constraint.Copy(fn, skip)
++	if constraint == nil {
++		return fn(nr)
++	}
++	nr = &NestedRequirement{Constraint: constraint}
++	if r := fn(nr); r != nil {
++		return r
++	}
++	return nr
++}
++
++func (nr *NestedRequirement) GoString() string {
++	return nr.goString(0, "")
++}
++
++func (nr *NestedRequirement) goString(indent int, field string) string {
++	return fmt.Sprintf("%*s%sNestedRequirement:\n%s", indent, "", field,
++		nr.Constraint.goString(indent+2, ""))
++}
++
++// ExplicitObjectParameter represents a C++23 explicit object parameter.
++type ExplicitObjectParameter struct {
++	Base AST
++}
++
++func (eop *ExplicitObjectParameter) print(ps *printState) {
++	ps.writeString("this ")
++	ps.print(eop.Base)
++}
++
++func (eop *ExplicitObjectParameter) Traverse(fn func(AST) bool) {
++	if fn(eop) {
++		eop.Base.Traverse(fn)
++	}
++}
++
++func (eop *ExplicitObjectParameter) Copy(fn func(AST) AST, skip func(AST) bool) AST {
++	if skip(eop) {
++		return nil
++	}
++	base := eop.Base.Copy(fn, skip)
++	if base == nil {
++		return fn(eop)
++	}
++	eop = &ExplicitObjectParameter{Base: base}
++	if r := fn(eop); r != nil {
++		return r
++	}
++	return eop
++}
++
++func (eop *ExplicitObjectParameter) GoString() string {
++	return eop.goString(0, "")
++}
++
++func (eop *ExplicitObjectParameter) goString(indent int, field string) string {
++	return fmt.Sprintf("%*s%sExplicitObjectParameter:\n%s", indent, "", field,
++		eop.Base.goString(indent+2, ""))
++}
++
+ // Print the inner types.
+ func (ps *printState) printInner(prefixOnly bool) []AST {
+ 	var save []AST
+diff --git a/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go b/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
+index 14e77a6ac4..4ca57e62a4 100644
+--- a/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
++++ b/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
+@@ -301,6 +301,8 @@ type state struct {
+ 	// a lambda, plus 1 so that 0 means not parsing a lambda.
+ 	lambdaTemplateLevel int
+ 
++	parsingConstraint bool // whether parsing a constraint expression
++
+ 	// Counts of template parameters without template arguments,
+ 	// for lambdas.
+ 	typeTemplateParamCount     int
+@@ -393,7 +395,7 @@ func (st *state) encoding(params bool, local forLocalNameType) AST {
+ 		return st.specialName()
+ 	}
+ 
+-	a := st.name()
++	a, explicitObjectParameter := st.name()
+ 	a = simplify(a)
+ 
+ 	if !params {
+@@ -471,7 +473,12 @@ func (st *state) encoding(params bool, local forLocalNameType) AST {
+ 		enableIfArgs = st.templateArgs()
+ 	}
+ 
+-	ft := st.bareFunctionType(hasReturnType(a))
++	ft := st.bareFunctionType(hasReturnType(a), explicitObjectParameter)
++
++	var constraint AST
++	if len(st.str) > 0 && st.str[0] == 'Q' {
++		constraint = st.constraintExpr()
++	}
+ 
+ 	if template != nil {
+ 		st.templates = st.templates[:len(st.templates)-1]
+@@ -512,6 +519,10 @@ func (st *state) encoding(params bool, local forLocalNameType) AST {
+ 		r = &EnableIf{Type: r, Args: enableIfArgs}
+ 	}
+ 
++	if constraint != nil {
++		r = &Constraint{Name: r, Requires: constraint}
++	}
++
+ 	return r
+ }
+ 
+@@ -572,21 +583,26 @@ func (st *state) taggedName(a AST) AST {
+ //
+ //	<unscoped-template-name> ::= <unscoped-name>
+ //	                         ::= <substitution>
+-func (st *state) name() AST {
++//
++// Besides the name, this returns whether it saw the code indicating
++// a C++23 explicit object parameter.
++func (st *state) name() (AST, bool) {
+ 	if len(st.str) < 1 {
+ 		st.fail("expected name")
+ 	}
++
++	var module AST
+ 	switch st.str[0] {
+ 	case 'N':
+ 		return st.nestedName()
+ 	case 'Z':
+ 		return st.localName()
+ 	case 'U':
+-		a, isCast := st.unqualifiedName()
++		a, isCast := st.unqualifiedName(nil)
+ 		if isCast {
+ 			st.setTemplate(a, nil)
+ 		}
+-		return a
++		return a, false
+ 	case 'S':
+ 		if len(st.str) < 2 {
+ 			st.advance(1)
+@@ -597,10 +613,14 @@ func (st *state) name() AST {
+ 		subst := false
+ 		if st.str[1] == 't' {
+ 			st.advance(2)
+-			a, isCast = st.unqualifiedName()
++			a, isCast = st.unqualifiedName(nil)
+ 			a = &Qualified{Scope: &Name{Name: "std"}, Name: a, LocalName: false}
+ 		} else {
+ 			a = st.substitution(false)
++			if mn, ok := a.(*ModuleName); ok {
++				module = mn
++				break
++			}
+ 			subst = true
+ 		}
+ 		if len(st.str) > 0 && st.str[0] == 'I' {
+@@ -624,37 +644,51 @@ func (st *state) name() AST {
+ 		if isCast {
+ 			st.setTemplate(a, nil)
+ 		}
+-		return a
++		return a, false
++	}
+ 
+-	default:
+-		a, isCast := st.unqualifiedName()
+-		if len(st.str) > 0 && st.str[0] == 'I' {
+-			st.subs.add(a)
+-			args := st.templateArgs()
+-			tmpl := &Template{Name: a, Args: args}
+-			if isCast {
+-				st.setTemplate(a, tmpl)
+-				st.clearTemplateArgs(args)
+-				isCast = false
+-			}
+-			a = tmpl
+-		}
++	a, isCast := st.unqualifiedName(module)
++	if len(st.str) > 0 && st.str[0] == 'I' {
++		st.subs.add(a)
++		args := st.templateArgs()
++		tmpl := &Template{Name: a, Args: args}
+ 		if isCast {
+-			st.setTemplate(a, nil)
++			st.setTemplate(a, tmpl)
++			st.clearTemplateArgs(args)
++			isCast = false
+ 		}
+-		return a
++		a = tmpl
++	}
++	if isCast {
++		st.setTemplate(a, nil)
+ 	}
++	return a, false
+ }
+ 
+ // nestedName parses:
+ //
+ //	<nested-name> ::= N [<CV-qualifiers>] [<ref-qualifier>] <prefix> <unqualified-name> E
+ //	              ::= N [<CV-qualifiers>] [<ref-qualifier>] <template-prefix> <template-args> E
+-func (st *state) nestedName() AST {
++//
++// Besides the name, this returns whether it saw the code indicating
++// a C++23 explicit object parameter.
++func (st *state) nestedName() (AST, bool) {
+ 	st.checkChar('N')
+-	q := st.cvQualifiers()
+-	r := st.refQualifier()
++
++	var q AST
++	var r string
++
++	explicitObjectParameter := false
++	if len(st.str) > 0 && st.str[0] == 'H' {
++		st.advance(1)
++		explicitObjectParameter = true
++	} else {
++		q = st.cvQualifiers()
++		r = st.refQualifier()
++	}
++
+ 	a := st.prefix()
++
+ 	if q != nil || r != "" {
+ 		a = &MethodWithQualifiers{Method: a, Qualifiers: q, RefQualifier: r}
+ 	}
+@@ -662,7 +696,7 @@ func (st *state) nestedName() AST {
+ 		st.fail("expected E after nested name")
+ 	}
+ 	st.advance(1)
+-	return a
++	return a, explicitObjectParameter
+ }
+ 
+ // prefix parses:
+@@ -686,6 +720,8 @@ func (st *state) prefix() AST {
+ 	// The last name seen, for a constructor/destructor.
+ 	var last AST
+ 
++	var module AST
++
+ 	getLast := func(a AST) AST {
+ 		for {
+ 			if t, ok := a.(*Template); ok {
+@@ -708,9 +744,10 @@ func (st *state) prefix() AST {
+ 		var next AST
+ 
+ 		c := st.str[0]
+-		if isDigit(c) || isLower(c) || c == 'U' || c == 'L' || (c == 'D' && len(st.str) > 1 && st.str[1] == 'C') {
+-			un, isUnCast := st.unqualifiedName()
++		if isDigit(c) || isLower(c) || c == 'U' || c == 'L' || c == 'F' || c == 'W' || (c == 'D' && len(st.str) > 1 && st.str[1] == 'C') {
++			un, isUnCast := st.unqualifiedName(module)
+ 			next = un
++			module = nil
+ 			if isUnCast {
+ 				if tn, ok := un.(*TaggedName); ok {
+ 					un = tn.Name
+@@ -762,6 +799,10 @@ func (st *state) prefix() AST {
+ 				}
+ 			case 'S':
+ 				next = st.substitution(true)
++				if mn, ok := next.(*ModuleName); ok {
++					module = mn
++					next = nil
++				}
+ 			case 'I':
+ 				if a == nil {
+ 					st.fail("unexpected template arguments")
+@@ -812,7 +853,7 @@ func (st *state) prefix() AST {
+ 				}
+ 				var args []AST
+ 				for len(st.str) == 0 || st.str[0] != 'E' {
+-					arg := st.templateArg()
++					arg := st.templateArg(nil)
+ 					args = append(args, arg)
+ 				}
+ 				st.advance(1)
+@@ -828,6 +869,11 @@ func (st *state) prefix() AST {
+ 				st.fail("unrecognized letter in prefix")
+ 			}
+ 		}
++
++		if next == nil {
++			continue
++		}
++
+ 		last = next
+ 		if a == nil {
+ 			a = next
+@@ -849,10 +895,19 @@ func (st *state) prefix() AST {
+ //	                   ::= <local-source-name>
+ //
+ //	 <local-source-name>	::= L <source-name> <discriminator>
+-func (st *state) unqualifiedName() (r AST, isCast bool) {
++func (st *state) unqualifiedName(module AST) (r AST, isCast bool) {
+ 	if len(st.str) < 1 {
+ 		st.fail("expected unqualified name")
+ 	}
++
++	module = st.moduleName(module)
++
++	friend := false
++	if len(st.str) > 0 && st.str[0] == 'F' {
++		st.advance(1)
++		friend = true
++	}
++
+ 	var a AST
+ 	isCast = false
+ 	c := st.str[0]
+@@ -911,10 +966,18 @@ func (st *state) unqualifiedName() (r AST, isCast bool) {
+ 		}
+ 	}
+ 
++	if module != nil {
++		a = &ModuleEntity{Module: module, Name: a}
++	}
++
+ 	if len(st.str) > 0 && st.str[0] == 'B' {
+ 		a = st.taggedName(a)
+ 	}
+ 
++	if friend {
++		a = &Friend{Name: a}
++	}
++
+ 	return a, isCast
+ }
+ 
+@@ -948,6 +1011,35 @@ func (st *state) sourceName() AST {
+ 	return n
+ }
+ 
++// moduleName parses:
++//
++//	<module-name> ::= <module-subname>
++//	 	      ::= <module-name> <module-subname>
++//		      ::= <substitution>  # passed in by caller
++//	<module-subname> ::= W <source-name>
++//			 ::= W P <source-name>
++//
++// The module name is optional. If it is not present, this returns the parent.
++func (st *state) moduleName(parent AST) AST {
++	ret := parent
++	for len(st.str) > 0 && st.str[0] == 'W' {
++		st.advance(1)
++		isPartition := false
++		if len(st.str) > 0 && st.str[0] == 'P' {
++			st.advance(1)
++			isPartition = true
++		}
++		name := st.sourceName()
++		ret = &ModuleName{
++			Parent:      ret,
++			Name:        name,
++			IsPartition: isPartition,
++		}
++		st.subs.add(ret)
++	}
++	return ret
++}
++
+ // number parses:
+ //
+ //	number ::= [n] <(non-negative decimal integer)>
+@@ -1019,87 +1111,90 @@ func (st *state) seqID(eofOK bool) int {
+ type operator struct {
+ 	name string
+ 	args int
++	prec precedence
+ }
+ 
+ // The operators map maps the mangled operator names to information
+ // about them.
+ var operators = map[string]operator{
+-	"aN": {"&=", 2},
+-	"aS": {"=", 2},
+-	"aa": {"&&", 2},
+-	"ad": {"&", 1},
+-	"an": {"&", 2},
+-	"at": {"alignof ", 1},
+-	"aw": {"co_await ", 1},
+-	"az": {"alignof ", 1},
+-	"cc": {"const_cast", 2},
+-	"cl": {"()", 2},
++	"aN": {"&=", 2, precAssign},
++	"aS": {"=", 2, precAssign},
++	"aa": {"&&", 2, precLogicalAnd},
++	"ad": {"&", 1, precUnary},
++	"an": {"&", 2, precAnd},
++	"at": {"alignof ", 1, precUnary},
++	"aw": {"co_await ", 1, precPrimary},
++	"az": {"alignof ", 1, precUnary},
++	"cc": {"const_cast", 2, precPostfix},
++	"cl": {"()", 2, precPostfix},
+ 	// cp is not in the ABI but is used by clang "when the call
+ 	// would use ADL except for being parenthesized."
+-	"cp": {"()", 2},
+-	"cm": {",", 2},
+-	"co": {"~", 1},
+-	"dV": {"/=", 2},
+-	"dX": {"[...]=", 3},
+-	"da": {"delete[] ", 1},
+-	"dc": {"dynamic_cast", 2},
+-	"de": {"*", 1},
+-	"di": {"=", 2},
+-	"dl": {"delete ", 1},
+-	"ds": {".*", 2},
+-	"dt": {".", 2},
+-	"dv": {"/", 2},
+-	"dx": {"]=", 2},
+-	"eO": {"^=", 2},
+-	"eo": {"^", 2},
+-	"eq": {"==", 2},
+-	"fl": {"...", 2},
+-	"fr": {"...", 2},
+-	"fL": {"...", 3},
+-	"fR": {"...", 3},
+-	"ge": {">=", 2},
+-	"gs": {"::", 1},
+-	"gt": {">", 2},
+-	"ix": {"[]", 2},
+-	"lS": {"<<=", 2},
+-	"le": {"<=", 2},
+-	"li": {`operator"" `, 1},
+-	"ls": {"<<", 2},
+-	"lt": {"<", 2},
+-	"mI": {"-=", 2},
+-	"mL": {"*=", 2},
+-	"mi": {"-", 2},
+-	"ml": {"*", 2},
+-	"mm": {"--", 1},
+-	"na": {"new[]", 3},
+-	"ne": {"!=", 2},
+-	"ng": {"-", 1},
+-	"nt": {"!", 1},
+-	"nw": {"new", 3},
+-	"nx": {"noexcept", 1},
+-	"oR": {"|=", 2},
+-	"oo": {"||", 2},
+-	"or": {"|", 2},
+-	"pL": {"+=", 2},
+-	"pl": {"+", 2},
+-	"pm": {"->*", 2},
+-	"pp": {"++", 1},
+-	"ps": {"+", 1},
+-	"pt": {"->", 2},
+-	"qu": {"?", 3},
+-	"rM": {"%=", 2},
+-	"rS": {">>=", 2},
+-	"rc": {"reinterpret_cast", 2},
+-	"rm": {"%", 2},
+-	"rs": {">>", 2},
+-	"sP": {"sizeof...", 1},
+-	"sZ": {"sizeof...", 1},
+-	"sc": {"static_cast", 2},
+-	"ss": {"<=>", 2},
+-	"st": {"sizeof ", 1},
+-	"sz": {"sizeof ", 1},
+-	"tr": {"throw", 0},
+-	"tw": {"throw ", 1},
++	"cp": {"()", 2, precPostfix},
++	"cm": {",", 2, precComma},
++	"co": {"~", 1, precUnary},
++	"dV": {"/=", 2, precAssign},
++	"dX": {"[...]=", 3, precAssign},
++	"da": {"delete[] ", 1, precUnary},
++	"dc": {"dynamic_cast", 2, precPostfix},
++	"de": {"*", 1, precUnary},
++	"di": {"=", 2, precAssign},
++	"dl": {"delete ", 1, precUnary},
++	"ds": {".*", 2, precPtrMem},
++	"dt": {".", 2, precPostfix},
++	"dv": {"/", 2, precAssign},
++	"dx": {"]=", 2, precAssign},
++	"eO": {"^=", 2, precAssign},
++	"eo": {"^", 2, precXor},
++	"eq": {"==", 2, precEqual},
++	"fl": {"...", 2, precPrimary},
++	"fr": {"...", 2, precPrimary},
++	"fL": {"...", 3, precPrimary},
++	"fR": {"...", 3, precPrimary},
++	"ge": {">=", 2, precRel},
++	"gs": {"::", 1, precUnary},
++	"gt": {">", 2, precRel},
++	"ix": {"[]", 2, precPostfix},
++	"lS": {"<<=", 2, precAssign},
++	"le": {"<=", 2, precRel},
++	"li": {`operator"" `, 1, precUnary},
++	"ls": {"<<", 2, precShift},
++	"lt": {"<", 2, precRel},
++	"mI": {"-=", 2, precAssign},
++	"mL": {"*=", 2, precAssign},
++	"mi": {"-", 2, precAdd},
++	"ml": {"*", 2, precMul},
++	"mm": {"--", 1, precPostfix},
++	"na": {"new[]", 3, precUnary},
++	"ne": {"!=", 2, precEqual},
++	"ng": {"-", 1, precUnary},
++	"nt": {"!", 1, precUnary},
++	"nw": {"new", 3, precUnary},
++	"nx": {"noexcept", 1, precUnary},
++	"oR": {"|=", 2, precAssign},
++	"oo": {"||", 2, precLogicalOr},
++	"or": {"|", 2, precOr},
++	"pL": {"+=", 2, precAssign},
++	"pl": {"+", 2, precAdd},
++	"pm": {"->*", 2, precPtrMem},
++	"pp": {"++", 1, precPostfix},
++	"ps": {"+", 1, precUnary},
++	"pt": {"->", 2, precPostfix},
++	"qu": {"?", 3, precCond},
++	"rM": {"%=", 2, precAssign},
++	"rS": {">>=", 2, precAssign},
++	"rc": {"reinterpret_cast", 2, precPostfix},
++	"rm": {"%", 2, precMul},
++	"rs": {">>", 2, precShift},
++	"sP": {"sizeof...", 1, precUnary},
++	"sZ": {"sizeof...", 1, precUnary},
++	"sc": {"static_cast", 2, precPostfix},
++	"ss": {"<=>", 2, precSpaceship},
++	"st": {"sizeof ", 1, precUnary},
++	"sz": {"sizeof ", 1, precUnary},
++	"te": {"typeid ", 1, precPostfix},
++	"ti": {"typeid ", 1, precPostfix},
++	"tr": {"throw", 0, precPrimary},
++	"tw": {"throw ", 1, precUnary},
+ }
+ 
+ // operatorName parses:
+@@ -1135,7 +1230,7 @@ func (st *state) operatorName(inExpression bool) (AST, int) {
+ 
+ 		return &Cast{To: t}, 1
+ 	} else if op, ok := operators[code]; ok {
+-		return &Operator{Name: op.name}, op.args
++		return &Operator{Name: op.name, precedence: op.prec}, op.args
+ 	} else {
+ 		st.failEarlier("unrecognized operator code", 2)
+ 		panic("not reached")
+@@ -1147,7 +1242,10 @@ func (st *state) operatorName(inExpression bool) (AST, int) {
+ //	<local-name> ::= Z <(function) encoding> E <(entity) name> [<discriminator>]
+ //	             ::= Z <(function) encoding> E s [<discriminator>]
+ //	             ::= Z <(function) encoding> E d [<parameter> number>] _ <entity name>
+-func (st *state) localName() AST {
++//
++// Besides the name, this returns whether it saw the code indicating
++// a C++23 explicit object parameter.
++func (st *state) localName() (AST, bool) {
+ 	st.checkChar('Z')
+ 	fn := st.encoding(true, forLocalName)
+ 	if len(st.str) == 0 || st.str[0] != 'E' {
+@@ -1158,7 +1256,7 @@ func (st *state) localName() AST {
+ 		st.advance(1)
+ 		var n AST = &Name{Name: "string literal"}
+ 		n = st.discriminator(n)
+-		return &Qualified{Scope: fn, Name: n, LocalName: true}
++		return &Qualified{Scope: fn, Name: n, LocalName: true}, false
+ 	} else {
+ 		num := -1
+ 		if len(st.str) > 0 && st.str[0] == 'd' {
+@@ -1166,12 +1264,12 @@ func (st *state) localName() AST {
+ 			st.advance(1)
+ 			num = st.compactNumber()
+ 		}
+-		n := st.name()
++		n, explicitObjectParameter := st.name()
+ 		n = st.discriminator(n)
+ 		if num >= 0 {
+ 			n = &DefaultArg{Num: num, Arg: n}
+ 		}
+-		return &Qualified{Scope: fn, Name: n, LocalName: true}
++		return &Qualified{Scope: fn, Name: n, LocalName: true}, explicitObjectParameter
+ 	}
+ }
+ 
+@@ -1234,6 +1332,7 @@ func (st *state) javaResource() AST {
+ //	               ::= Gr <resource name>
+ //	               ::= GTt <encoding>
+ //	               ::= GTn <encoding>
++//	               ::= GI <module name>
+ func (st *state) specialName() AST {
+ 	if st.str[0] == 'T' {
+ 		st.advance(1)
+@@ -1256,7 +1355,7 @@ func (st *state) specialName() AST {
+ 			t := st.demangleType(false)
+ 			return &Special{Prefix: "typeinfo name for ", Val: t}
+ 		case 'A':
+-			t := st.templateArg()
++			t := st.templateArg(nil)
+ 			return &Special{Prefix: "template parameter object for ", Val: t}
+ 		case 'h':
+ 			st.callOffset('h')
+@@ -1291,10 +1390,10 @@ func (st *state) specialName() AST {
+ 			t := st.demangleType(false)
+ 			return &Special{Prefix: "java Class for ", Val: t}
+ 		case 'H':
+-			n := st.name()
++			n, _ := st.name()
+ 			return &Special{Prefix: "TLS init function for ", Val: n}
+ 		case 'W':
+-			n := st.name()
++			n, _ := st.name()
+ 			return &Special{Prefix: "TLS wrapper function for ", Val: n}
+ 		default:
+ 			st.fail("unrecognized special T name code")
+@@ -1309,10 +1408,10 @@ func (st *state) specialName() AST {
+ 		st.advance(1)
+ 		switch c {
+ 		case 'V':
+-			n := st.name()
++			n, _ := st.name()
+ 			return &Special{Prefix: "guard variable for ", Val: n}
+ 		case 'R':
+-			n := st.name()
++			n, _ := st.name()
+ 			st.seqID(true)
+ 			return &Special{Prefix: "reference temporary for ", Val: n}
+ 		case 'A':
+@@ -1339,6 +1438,12 @@ func (st *state) specialName() AST {
+ 			}
+ 		case 'r':
+ 			return st.javaResource()
++		case 'I':
++			module := st.moduleName(nil)
++			if module == nil {
++				st.fail("expected module after GI")
++			}
++			return &Special{Prefix: "initializer for module ", Val: module}
+ 		default:
+ 			st.fail("unrecognized special G name code")
+ 			panic("not reached")
+@@ -1471,10 +1576,19 @@ func (st *state) demangleType(isCast bool) AST {
+ 	case 'u':
+ 		st.advance(1)
+ 		ret = st.sourceName()
++		if len(st.str) > 0 && st.str[0] == 'I' {
++			st.advance(1)
++			base := st.demangleType(false)
++			if len(st.str) == 0 || st.str[0] != 'E' {
++				st.fail("expected E after transformed type")
++			}
++			st.advance(1)
++			ret = &TransformedType{Name: ret.(*Name).Name, Base: base}
++		}
+ 	case 'F':
+ 		ret = st.functionType()
+-	case 'N', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+-		ret = st.name()
++	case 'N', 'W', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
++		ret, _ = st.name()
+ 	case 'A':
+ 		ret = st.arrayType(isCast)
+ 	case 'M':
+@@ -1483,7 +1597,7 @@ func (st *state) demangleType(isCast bool) AST {
+ 		if len(st.str) > 1 && (st.str[1] == 's' || st.str[1] == 'u' || st.str[1] == 'e') {
+ 			c = st.str[1]
+ 			st.advance(2)
+-			ret = st.name()
++			ret, _ = st.name()
+ 			var kind string
+ 			switch c {
+ 			case 's':
+@@ -1517,6 +1631,10 @@ func (st *state) demangleType(isCast bool) AST {
+ 		}
+ 		if isDigit(c2) || c2 == '_' || isUpper(c2) {
+ 			ret = st.substitution(false)
++			if _, ok := ret.(*ModuleName); ok {
++				ret, _ = st.unqualifiedName(ret)
++				st.subs.add(ret)
++			}
+ 			if len(st.str) == 0 || st.str[0] != 'I' {
+ 				addSubst = false
+ 			} else {
+@@ -1533,7 +1651,7 @@ func (st *state) demangleType(isCast bool) AST {
+ 				}
+ 			}
+ 		} else {
+-			ret = st.name()
++			ret, _ = st.name()
+ 			// This substitution is not itself a
+ 			// substitution candidate, unless template
+ 			// arguments were added.
+@@ -1657,6 +1775,35 @@ func (st *state) demangleType(isCast bool) AST {
+ 			ret = st.vectorType(isCast)
+ 			addSubst = true
+ 
++		case 'B', 'U':
++			signed := c2 == 'B'
++			var size AST
++			if len(st.str) > 0 && isDigit(st.str[0]) {
++				bits := st.number()
++				size = &Name{Name: fmt.Sprintf("%d", bits)}
++			} else {
++				size = st.expression()
++			}
++			if len(st.str) == 0 || st.str[0] != '_' {
++				st.fail("expected _ after _BitInt size")
++			}
++			st.advance(1)
++			ret = &BitIntType{Size: size, Signed: signed}
++
++		case 'k':
++			constraint, _ := st.name()
++			ret = &SuffixType{
++				Base:   constraint,
++				Suffix: "auto",
++			}
++
++		case 'K':
++			constraint, _ := st.name()
++			ret = &SuffixType{
++				Base:   constraint,
++				Suffix: "decltype(auto)",
++			}
++
+ 		default:
+ 			st.fail("unrecognized D code in type")
+ 		}
+@@ -1830,7 +1977,7 @@ qualLoop:
+ 				qual = &Qualifier{Name: "noexcept", Exprs: []AST{expr}}
+ 			case 'w':
+ 				st.advance(2)
+-				parmlist := st.parmlist()
++				parmlist := st.parmlist(false)
+ 				if len(st.str) == 0 || st.str[0] != 'E' {
+ 					st.fail("expected E after throw parameter list")
+ 				}
+@@ -1871,7 +2018,7 @@ func (st *state) refQualifier() string {
+ // parmlist parses:
+ //
+ //	<type>+
+-func (st *state) parmlist() []AST {
++func (st *state) parmlist(explicitObjectParameter bool) []AST {
+ 	var ret []AST
+ 	for {
+ 		if len(st.str) < 1 {
+@@ -1884,7 +2031,16 @@ func (st *state) parmlist() []AST {
+ 			// This is a function ref-qualifier.
+ 			break
+ 		}
++		if st.str[0] == 'Q' {
++			// This is a requires clause.
++			break
++		}
+ 		ptype := st.demangleType(false)
++
++		if len(ret) == 0 && explicitObjectParameter {
++			ptype = &ExplicitObjectParameter{Base: ptype}
++		}
++
+ 		ret = append(ret, ptype)
+ 	}
+ 
+@@ -1914,7 +2070,7 @@ func (st *state) functionType() AST {
+ 		// Function has C linkage.  We don't print this.
+ 		st.advance(1)
+ 	}
+-	ret := st.bareFunctionType(true)
++	ret := st.bareFunctionType(true, false)
+ 	r := st.refQualifier()
+ 	if r != "" {
+ 		ret = &MethodWithQualifiers{Method: ret, Qualifiers: nil, RefQualifier: r}
+@@ -1929,7 +2085,7 @@ func (st *state) functionType() AST {
+ // bareFunctionType parses:
+ //
+ //	<bare-function-type> ::= [J]<type>+
+-func (st *state) bareFunctionType(hasReturnType bool) AST {
++func (st *state) bareFunctionType(hasReturnType, explicitObjectParameter bool) AST {
+ 	if len(st.str) > 0 && st.str[0] == 'J' {
+ 		hasReturnType = true
+ 		st.advance(1)
+@@ -1938,7 +2094,7 @@ func (st *state) bareFunctionType(hasReturnType bool) AST {
+ 	if hasReturnType {
+ 		returnType = st.demangleType(false)
+ 	}
+-	types := st.parmlist()
++	types := st.parmlist(explicitObjectParameter)
+ 	return &FunctionType{
+ 		Return:       returnType,
+ 		Args:         types,
+@@ -2080,6 +2236,7 @@ func (st *state) compactNumber() int {
+ // this out in substitution and simplify.
+ func (st *state) templateParam() AST {
+ 	off := st.off
++	str := st.str
+ 	st.checkChar('T')
+ 
+ 	level := 0
+@@ -2090,6 +2247,12 @@ func (st *state) templateParam() AST {
+ 
+ 	n := st.compactNumber()
+ 
++	// We don't try to substitute template parameters in a
++	// constraint expression.
++	if st.parsingConstraint {
++		return &Name{Name: str[:st.off-1-off]}
++	}
++
+ 	if level >= len(st.templates) {
+ 		if st.lambdaTemplateLevel > 0 && level == st.lambdaTemplateLevel-1 {
+ 			// Lambda auto params are mangled as template params.
+@@ -2124,7 +2287,7 @@ func (st *state) templateParam() AST {
+ // This handles the forward referencing template parameters found in
+ // cast operators.
+ func (st *state) setTemplate(a AST, tmpl *Template) {
+-	var seen []AST
++	seen := make(map[AST]bool)
+ 	a.Traverse(func(a AST) bool {
+ 		switch a := a.(type) {
+ 		case *TemplateParam:
+@@ -2147,12 +2310,10 @@ func (st *state) setTemplate(a AST, tmpl *Template) {
+ 			// https://gcc.gnu.org/PR78252.
+ 			return false
+ 		default:
+-			for _, v := range seen {
+-				if v == a {
+-					return false
+-				}
++			if seen[a] {
++				return false
+ 			}
+-			seen = append(seen, a)
++			seen[a] = true
+ 			return true
+ 		}
+ 	})
+@@ -2179,8 +2340,17 @@ func (st *state) templateArgs() []AST {
+ 
+ 	var ret []AST
+ 	for len(st.str) == 0 || st.str[0] != 'E' {
+-		arg := st.templateArg()
++		arg := st.templateArg(ret)
+ 		ret = append(ret, arg)
++
++		if len(st.str) > 0 && st.str[0] == 'Q' {
++			// A list of template arguments can have a
++			// constraint, but we don't demangle it.
++			st.constraintExpr()
++			if len(st.str) == 0 || st.str[0] != 'E' {
++				st.fail("expected end of template arguments after constraint")
++			}
++		}
+ 	}
+ 	st.advance(1)
+ 	return ret
+@@ -2191,7 +2361,10 @@ func (st *state) templateArgs() []AST {
+ //	<template-arg> ::= <type>
+ //	               ::= X <expression> E
+ //	               ::= <expr-primary>
+-func (st *state) templateArg() AST {
++//	               ::= J <template-arg>* E
++//	               ::= LZ <encoding> E
++//	               ::= <template-param-decl> <template-arg>
++func (st *state) templateArg(prev []AST) AST {
+ 	if len(st.str) == 0 {
+ 		st.fail("missing template argument")
+ 	}
+@@ -2212,6 +2385,33 @@ func (st *state) templateArg() AST {
+ 		args := st.templateArgs()
+ 		return &ArgumentPack{Args: args}
+ 
++	case 'T':
++		var arg byte
++		if len(st.str) > 1 {
++			arg = st.str[1]
++		}
++		switch arg {
++		case 'y', 'n', 't', 'p', 'k':
++			off := st.off
++
++			// Apparently template references in the
++			// template parameter refer to previous
++			// arguments in the same template.
++			template := &Template{Args: prev}
++			st.templates = append(st.templates, template)
++
++			param, _ := st.templateParamDecl()
++
++			st.templates = st.templates[:len(st.templates)-1]
++
++			if param == nil {
++				st.failEarlier("expected template parameter as template argument", st.off-off)
++			}
++			arg := st.templateArg(nil)
++			return &TemplateParamQualifiedArg{Param: param, Arg: arg}
++		}
++		return st.demangleType(false)
++
+ 	default:
+ 		return st.demangleType(false)
+ 	}
+@@ -2328,7 +2528,7 @@ func (st *state) expression() AST {
+ 		st.advance(2)
+ 		var args []AST
+ 		for len(st.str) == 0 || st.str[0] != 'E' {
+-			arg := st.templateArg()
++			arg := st.templateArg(nil)
+ 			args = append(args, arg)
+ 		}
+ 		st.advance(1)
+@@ -2380,7 +2580,7 @@ func (st *state) expression() AST {
+ 			// Skip operator function ID.
+ 			st.advance(2)
+ 		}
+-		n, _ := st.unqualifiedName()
++		n, _ := st.unqualifiedName(nil)
+ 		if len(st.str) > 0 && st.str[0] == 'I' {
+ 			args := st.templateArgs()
+ 			n = &Template{Name: n, Args: args}
+@@ -2436,7 +2636,7 @@ func (st *state) expression() AST {
+ 				st.advance(1)
+ 				break
+ 			}
+-			arg := st.templateArg()
++			arg := st.templateArg(nil)
+ 			args = append(args, arg)
+ 		}
+ 		return &Binary{
+@@ -2444,6 +2644,8 @@ func (st *state) expression() AST {
+ 			Left:  name,
+ 			Right: &ExprList{Exprs: args},
+ 		}
++	} else if st.str[0] == 'r' && len(st.str) > 1 && (st.str[1] == 'q' || st.str[1] == 'Q') {
++		return st.requiresExpr()
+ 	} else {
+ 		if len(st.str) < 2 {
+ 			st.fail("missing operator code")
+@@ -2481,17 +2683,21 @@ func (st *state) expression() AST {
+ 				right = st.expression()
+ 				return &Fold{Left: code[1] == 'l', Op: left, Arg1: right, Arg2: nil}
+ 			} else if code == "di" {
+-				left, _ = st.unqualifiedName()
++				left, _ = st.unqualifiedName(nil)
+ 			} else {
+ 				left = st.expression()
+ 			}
+ 			if code == "cl" || code == "cp" {
+ 				right = st.exprList('E')
+ 			} else if code == "dt" || code == "pt" {
+-				right = st.unresolvedName()
+-				if len(st.str) > 0 && st.str[0] == 'I' {
+-					args := st.templateArgs()
+-					right = &Template{Name: right, Args: args}
++				if len(st.str) > 0 && st.str[0] == 'L' {
++					right = st.exprPrimary()
++				} else {
++					right = st.unresolvedName()
++					if len(st.str) > 0 && st.str[0] == 'I' {
++						args := st.templateArgs()
++						right = &Template{Name: right, Args: args}
++					}
+ 				}
+ 			} else {
+ 				right = st.expression()
+@@ -2643,7 +2849,6 @@ func (st *state) unresolvedName() AST {
+ 				} else {
+ 					s = &Qualified{Scope: s, Name: n, LocalName: false}
+ 				}
+-				st.subs.add(s)
+ 			}
+ 			if s == nil {
+ 				st.fail("missing scope in unresolved name")
+@@ -2693,6 +2898,83 @@ func (st *state) baseUnresolvedName() AST {
+ 	return n
+ }
+ 
++// requiresExpr parses:
++//
++//	<expression> ::= rQ <bare-function-type> _ <requirement>+ E
++//	             ::= rq <requirement>+ E
++//	<requirement> ::= X <expression> [N] [R <type-constraint>]
++//	              ::= T <type>
++//	              ::= Q <constraint-expression>
++func (st *state) requiresExpr() AST {
++	st.checkChar('r')
++	if len(st.str) == 0 || (st.str[0] != 'q' && st.str[0] != 'Q') {
++		st.fail("expected q or Q in requires clause in expression")
++	}
++	kind := st.str[0]
++	st.advance(1)
++
++	var params []AST
++	if kind == 'Q' {
++		for len(st.str) > 0 && st.str[0] != '_' {
++			typ := st.demangleType(false)
++			params = append(params, typ)
++		}
++		st.advance(1)
++	}
++
++	var requirements []AST
++	for len(st.str) > 0 && st.str[0] != 'E' {
++		var req AST
++		switch st.str[0] {
++		case 'X':
++			st.advance(1)
++			expr := st.expression()
++			var noexcept bool
++			if len(st.str) > 0 && st.str[0] == 'N' {
++				st.advance(1)
++				noexcept = true
++			}
++			var typeReq AST
++			if len(st.str) > 0 && st.str[0] == 'R' {
++				st.advance(1)
++				typeReq, _ = st.name()
++			}
++			req = &ExprRequirement{
++				Expr:     expr,
++				Noexcept: noexcept,
++				TypeReq:  typeReq,
++			}
++
++		case 'T':
++			st.advance(1)
++			typ := st.demangleType(false)
++			req = &TypeRequirement{Type: typ}
++
++		case 'Q':
++			st.advance(1)
++			// We parse a regular expression rather than a
++			// constraint expression.
++			expr := st.expression()
++			req = &NestedRequirement{Constraint: expr}
++
++		default:
++			st.fail("unrecognized requirement code")
++		}
++
++		requirements = append(requirements, req)
++	}
++
++	if len(st.str) == 0 || st.str[0] != 'E' {
++		st.fail("expected E after requirements")
++	}
++	st.advance(1)
++
++	return &RequiresExpr{
++		Params:       params,
++		Requirements: requirements,
++	}
++}
++
+ // exprPrimary parses:
+ //
+ //	<expr-primary> ::= L <type> <(value) number> E
+@@ -2832,7 +3114,12 @@ func (st *state) closureTypeName() AST {
+ 		template.Args = append(template.Args, templateVal)
+ 	}
+ 
+-	types := st.parmlist()
++	var templateArgsConstraint AST
++	if len(st.str) > 0 && st.str[0] == 'Q' {
++		templateArgsConstraint = st.constraintExpr()
++	}
++
++	types := st.parmlist(false)
+ 
+ 	st.lambdaTemplateLevel = oldLambdaTemplateLevel
+ 
+@@ -2840,12 +3127,23 @@ func (st *state) closureTypeName() AST {
+ 		st.templates = st.templates[:len(st.templates)-1]
+ 	}
+ 
++	var callConstraint AST
++	if len(st.str) > 0 && st.str[0] == 'Q' {
++		callConstraint = st.constraintExpr()
++	}
++
+ 	if len(st.str) == 0 || st.str[0] != 'E' {
+ 		st.fail("expected E after closure type name")
+ 	}
+ 	st.advance(1)
+ 	num := st.compactNumber()
+-	return &Closure{TemplateArgs: templateArgs, Types: types, Num: num}
++	return &Closure{
++		TemplateArgs:           templateArgs,
++		TemplateArgsConstraint: templateArgsConstraint,
++		Types:                  types,
++		Num:                    num,
++		CallConstraint:         callConstraint,
++	}
+ }
+ 
+ // templateParamDecl parses:
+@@ -2879,6 +3177,15 @@ func (st *state) templateParamDecl() (AST, AST) {
+ 			Name: name,
+ 		}
+ 		return tp, name
++	case 'k':
++		st.advance(2)
++		constraint, _ := st.name()
++		name := mk("$T", &st.typeTemplateParamCount)
++		tp := &ConstrainedTypeTemplateParam{
++			Name:       name,
++			Constraint: constraint,
++		}
++		return tp, name
+ 	case 'n':
+ 		st.advance(2)
+ 		name := mk("$N", &st.nonTypeTemplateParamCount)
+@@ -2893,6 +3200,7 @@ func (st *state) templateParamDecl() (AST, AST) {
+ 		name := mk("$TT", &st.templateTemplateParamCount)
+ 		var params []AST
+ 		var template *Template
++		var constraint AST
+ 		for {
+ 			if len(st.str) == 0 {
+ 				st.fail("expected closure template parameter")
+@@ -2914,13 +3222,23 @@ func (st *state) templateParamDecl() (AST, AST) {
+ 				st.templates = append(st.templates, template)
+ 			}
+ 			template.Args = append(template.Args, templateVal)
++
++			if len(st.str) > 0 && st.str[0] == 'Q' {
++				// A list of template template
++				// parameters can have a constraint.
++				constraint = st.constraintExpr()
++				if len(st.str) == 0 || st.str[0] != 'E' {
++					st.fail("expected end of template template parameters after constraint")
++				}
++			}
+ 		}
+ 		if template != nil {
+ 			st.templates = st.templates[:len(st.templates)-1]
+ 		}
+ 		tp := &TemplateTemplateParam{
+-			Name:   name,
+-			Params: params,
++			Name:       name,
++			Params:     params,
++			Constraint: constraint,
+ 		}
+ 		return tp, name
+ 	case 'p':
+@@ -2948,6 +3266,18 @@ func (st *state) unnamedTypeName() AST {
+ 	return ret
+ }
+ 
++// constraintExpr parses a constraint expression. This is just a
++// regular expression, but template parameters are handled specially.
++func (st *state) constraintExpr() AST {
++	st.checkChar('Q')
++
++	hold := st.parsingConstraint
++	st.parsingConstraint = true
++	defer func() { st.parsingConstraint = hold }()
++
++	return st.expression()
++}
++
+ // Recognize a clone suffix.  These are not part of the mangling API,
+ // but are added by GCC when cloning functions.
+ func (st *state) cloneSuffix(a AST) AST {
+@@ -3105,6 +3435,11 @@ func (st *state) substitution(forPrefix bool) AST {
+ 			default:
+ 				return nil
+ 			}
++			if st.parsingConstraint {
++				// We don't try to substitute template
++				// parameters in a constraint expression.
++				return &Name{Name: fmt.Sprintf("T%d", index)}
++			}
+ 			if st.lambdaTemplateLevel > 0 {
+ 				if _, ok := a.(*LambdaAuto); ok {
+ 					return nil
+@@ -3135,7 +3470,7 @@ func (st *state) substitution(forPrefix bool) AST {
+ 
+ 			return &TemplateParam{Index: index, Template: template}
+ 		}
+-		var seen []AST
++		seen := make(map[AST]bool)
+ 		skip := func(a AST) bool {
+ 			switch a := a.(type) {
+ 			case *Typed:
+@@ -3152,12 +3487,10 @@ func (st *state) substitution(forPrefix bool) AST {
+ 			case *TemplateParam, *LambdaAuto:
+ 				return false
+ 			}
+-			for _, v := range seen {
+-				if v == a {
+-					return true
+-				}
++			if seen[a] {
++				return true
+ 			}
+-			seen = append(seen, a)
++			seen[a] = true
+ 			return false
+ 		}
+ 
+@@ -3209,14 +3542,12 @@ func isLower(c byte) bool {
+ // simplify replaces template parameters with their expansions, and
+ // merges qualifiers.
+ func simplify(a AST) AST {
+-	var seen []AST
++	seen := make(map[AST]bool)
+ 	skip := func(a AST) bool {
+-		for _, v := range seen {
+-			if v == a {
+-				return true
+-			}
++		if seen[a] {
++			return true
+ 		}
+-		seen = append(seen, a)
++		seen[a] = true
+ 		return false
+ 	}
+ 	if r := a.Copy(simplifyOne, skip); r != nil {
+@@ -3297,19 +3628,17 @@ func simplifyOne(a AST) AST {
+ 					return nil
+ 				}
+ 
+-				var seen []AST
++				seen := make(map[AST]bool)
+ 				skip := func(sub AST) bool {
+ 					// Don't traverse into another
+ 					// pack expansion.
+ 					if _, ok := sub.(*PackExpansion); ok {
+ 						return true
+ 					}
+-					for _, v := range seen {
+-						if v == sub {
+-							return true
+-						}
++					if seen[sub] {
++						return true
+ 					}
+-					seen = append(seen, sub)
++					seen[sub] = true
+ 					return false
+ 				}
+ 
+@@ -3328,7 +3657,7 @@ func simplifyOne(a AST) AST {
+ // findArgumentPack walks the AST looking for the argument pack for a
+ // pack expansion.  We find it via a template parameter.
+ func (st *state) findArgumentPack(a AST) *ArgumentPack {
+-	var seen []AST
++	seen := make(map[AST]bool)
+ 	var ret *ArgumentPack
+ 	a.Traverse(func(a AST) bool {
+ 		if ret != nil {
+@@ -3350,12 +3679,10 @@ func (st *state) findArgumentPack(a AST) *ArgumentPack {
+ 		case *UnnamedType, *FixedType, *DefaultArg:
+ 			return false
+ 		}
+-		for _, v := range seen {
+-			if v == a {
+-				return false
+-			}
++		if seen[a] {
++			return false
+ 		}
+-		seen = append(seen, a)
++		seen[a] = true
+ 		return true
+ 	})
+ 	return ret
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index d24a0f5e6a..c1ce6ec495 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5
++# github.com/google/pprof v0.0.0-20240528025155-186aa0362fba
+ ## explicit; go 1.19
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils
+@@ -13,7 +13,7 @@ github.com/google/pprof/internal/symbolz
+ github.com/google/pprof/internal/transport
+ github.com/google/pprof/profile
+ github.com/google/pprof/third_party/svgpan
+-# github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab
++# github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465
+ ## explicit; go 1.13
+ github.com/ianlancetaylor/demangle
+ # golang.org/x/arch v0.7.0

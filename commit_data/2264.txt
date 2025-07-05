@@ -10,6 +10,29 @@ Date:   Wed May 20 18:16:04 2009 -0700
     DELTA=3  (1 added, 1 deleted, 1 changed)
     OCL=29123
     CL=29134
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 7e66b6542f..4809d0751f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2210,7 +2210,8 @@ x.(T)
+ </pre>
+ 
+ <p>
+-asserts that the value stored in <code>x</code> is of type <code>T</code>.
++asserts that <code>x</code> is not the zero interface value
++and that the value stored in <code>x</code> is of type <code>T</code>.
+ The notation <code>x.(T)</code> is called a <i>type assertion</i>.
+ The type of <code>x</code> must be an interface type.
+ </p>
+@@ -2220,7 +2221,6 @@ that the dynamic type of <code>x</code> is identical to the type <code>T</code>
+ (§Type identity and compatibility).
+ If <code>T</code> is an interface type, <code>x.(T)</code> asserts that the dynamic type
+ of <code>T</code> implements the interface <code>T</code> (§Interface types).
+-<font color=red>TODO: gri wants an error if x is already of type T.</font>
+ </p>
+ <p>
+ If the type assertion holds, the value of the expression is the value

@@ -9,6 +9,46 @@ Date:   Tue Mar 25 23:21:57 2014 -0400
     R=golang-codereviews, bradfitz, r
     CC=golang-codereviews
     https://golang.org/cl/73090043
-
+---
  src/cmd/gc/lex.c | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 3a584c2542..f372581aae 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -2171,14 +2171,18 @@ struct
+ } lexn[] =
+ {
+ 	LANDAND,	"ANDAND",
++	LANDNOT,	"ANDNOT",
+ 	LASOP,		"ASOP",
+ 	LBREAK,		"BREAK",
+ 	LCASE,		"CASE",
+ 	LCHAN,		"CHAN",
+ 	LCOLAS,		"COLAS",
++	LCOMM,		"<-",
+ 	LCONST,		"CONST",
+ 	LCONTINUE,	"CONTINUE",
++	LDDD,		"...",
+ 	LDEC,		"DEC",
++	LDEFAULT,	"DEFAULT",
+ 	LDEFER,		"DEFER",
+ 	LELSE,		"ELSE",
+ 	LEQ,		"EQ",
+@@ -2205,6 +2209,7 @@ struct
+ 	LRANGE,		"RANGE",
+ 	LRETURN,	"RETURN",
+ 	LRSH,		"RSH",
++	LSELECT,	"SELECT",
+ 	LSTRUCT,	"STRUCT",
+ 	LSWITCH,	"SWITCH",
+ 	LTYPE,		"TYPE",
+@@ -2235,6 +2240,7 @@ struct
+ 	"LASOP",	"op=",
+ 	"LBREAK",	"break",
+ 	"LCASE",	"case",
++	"LCHAN",	"chan",
+ 	"LCOLAS",	":=",
+ 	"LCONST",	"const",
+ 	"LCONTINUE",	"continue",

@@ -10,10 +10,67 @@ Date:   Fri Nov 21 18:15:30 2014 -0500
     R=crawshaw, rsc
     CC=golang-codereviews
     https://golang.org/cl/179110043
-
+---
  src/runtime/os_android.h                        |  1 -
  src/runtime/{os_android.c => os_android_arm.go} | 11 +++++------
  src/runtime/signal_android_386.h                |  1 -
  src/runtime/signal_android_arm.h                |  1 -
  src/runtime/signals_android.h                   |  1 -
  5 files changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/os_android.h b/src/runtime/os_android.h
+deleted file mode 100644
+index c7c1098e8d..0000000000
+--- a/src/runtime/os_android.h
++++ /dev/null
+@@ -1 +0,0 @@
+-#include "os_linux.h"
+diff --git a/src/runtime/os_android.c b/src/runtime/os_android_arm.go
+similarity index 64%
+rename from src/runtime/os_android.c
+rename to src/runtime/os_android_arm.go
+index 5805f68713..132832236a 100644
+--- a/src/runtime/os_android.c
++++ b/src/runtime/os_android_arm.go
+@@ -2,15 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
++package runtime
++
++import _ "unsafe"
+ 
+ // Export the runtime entry point symbol.
+ //
+ // Used by the app package to start the Go runtime after loading
+ // a shared library via JNI. See golang.org/x/mobile/app.
+ 
+-void _rt0_arm_linux1();
+-#pragma cgo_export_static _rt0_arm_linux1
+-#pragma cgo_export_dynamic _rt0_arm_linux1
++//go:cgo_export_static _rt0_arm_linux1
++//go:cgo_export_dynamic _rt0_arm_linux1
+diff --git a/src/runtime/signal_android_386.h b/src/runtime/signal_android_386.h
+deleted file mode 100644
+index 2a1bb4b3e4..0000000000
+--- a/src/runtime/signal_android_386.h
++++ /dev/null
+@@ -1 +0,0 @@
+-#include "signal_linux_386.h"
+diff --git a/src/runtime/signal_android_arm.h b/src/runtime/signal_android_arm.h
+deleted file mode 100644
+index 8a05e21e59..0000000000
+--- a/src/runtime/signal_android_arm.h
++++ /dev/null
+@@ -1 +0,0 @@
+-#include "signal_linux_arm.h"
+diff --git a/src/runtime/signals_android.h b/src/runtime/signals_android.h
+deleted file mode 100644
+index 5140d8a184..0000000000
+--- a/src/runtime/signals_android.h
++++ /dev/null
+@@ -1 +0,0 @@
+-#include "signals_linux.h"

@@ -18,7 +18,7 @@ Date:   Sun Mar 10 08:34:59 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/config.go             |   4 +
  src/cmd/compile/internal/ssa/flagalloc.go          |  83 +------
  .../compile/internal/ssa/gen/386splitload.rules    |   9 +
@@ -30,3 +30,781 @@ Date:   Sun Mar 10 08:34:59 2019 -0700
  .../compile/internal/ssa/rewriteAMD64splitload.go  | 253 +++++++++++++++++++++
  src/cmd/dist/buildtool.go                          |   1 +
  10 files changed, 513 insertions(+), 92 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 5d7504392c..e46d937e42 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -21,6 +21,7 @@ type Config struct {
+ 	Types          Types
+ 	lowerBlock     blockRewriter // lowering function
+ 	lowerValue     valueRewriter // lowering function
++	splitLoad      valueRewriter // function for splitting merged load ops; only used on some architectures
+ 	registers      []Register    // machine registers
+ 	gpRegMask      regMask       // general purpose integer register mask
+ 	fpRegMask      regMask       // floating point register mask
+@@ -201,6 +202,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockAMD64
+ 		c.lowerValue = rewriteValueAMD64
++		c.splitLoad = rewriteValueAMD64splitload
+ 		c.registers = registersAMD64[:]
+ 		c.gpRegMask = gpRegMaskAMD64
+ 		c.fpRegMask = fpRegMaskAMD64
+@@ -212,6 +214,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockAMD64
+ 		c.lowerValue = rewriteValueAMD64
++		c.splitLoad = rewriteValueAMD64splitload
+ 		c.registers = registersAMD64[:]
+ 		c.gpRegMask = gpRegMaskAMD64
+ 		c.fpRegMask = fpRegMaskAMD64
+@@ -224,6 +227,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.RegSize = 4
+ 		c.lowerBlock = rewriteBlock386
+ 		c.lowerValue = rewriteValue386
++		c.splitLoad = rewriteValue386splitload
+ 		c.registers = registers386[:]
+ 		c.gpRegMask = gpRegMask386
+ 		c.fpRegMask = fpRegMask386
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+index 56c12e320a..7a2ecc22dc 100644
+--- a/src/cmd/compile/internal/ssa/flagalloc.go
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -4,30 +4,6 @@
+ 
+ package ssa
+ 
+-// When breaking up a combined load-compare to separated load and compare operations,
+-// opLoad specifies the load operation, and opCmp specifies the compare operation.
+-type typeCmdLoadMap struct {
+-	opLoad Op
+-	opCmp  Op
+-}
+-
+-var opCmpLoadMap = map[Op]typeCmdLoadMap{
+-	OpAMD64CMPQload:      {OpAMD64MOVQload, OpAMD64CMPQ},
+-	OpAMD64CMPLload:      {OpAMD64MOVLload, OpAMD64CMPL},
+-	OpAMD64CMPWload:      {OpAMD64MOVWload, OpAMD64CMPW},
+-	OpAMD64CMPBload:      {OpAMD64MOVBload, OpAMD64CMPB},
+-	Op386CMPLload:        {Op386MOVLload, Op386CMPL},
+-	Op386CMPWload:        {Op386MOVWload, Op386CMPW},
+-	Op386CMPBload:        {Op386MOVBload, Op386CMPB},
+-	OpAMD64CMPQconstload: {OpAMD64MOVQload, OpAMD64CMPQconst},
+-	OpAMD64CMPLconstload: {OpAMD64MOVLload, OpAMD64CMPLconst},
+-	OpAMD64CMPWconstload: {OpAMD64MOVWload, OpAMD64CMPWconst},
+-	OpAMD64CMPBconstload: {OpAMD64MOVBload, OpAMD64CMPBconst},
+-	Op386CMPLconstload:   {Op386MOVLload, Op386CMPLconst},
+-	Op386CMPWconstload:   {Op386MOVWload, Op386CMPWconst},
+-	Op386CMPBconstload:   {Op386MOVBload, Op386CMPBconst},
+-}
+-
+ // flagalloc allocates the flag register among all the flag-generating
+ // instructions. Flag values are recomputed if they need to be
+ // spilled/restored.
+@@ -142,67 +118,10 @@ func flagalloc(f *Func) {
+ 
+ 			// If v will be spilled, and v uses memory, then we must split it
+ 			// into a load + a flag generator.
+-			// TODO: figure out how to do this without arch-dependent code.
+ 			if spill[v.ID] && v.MemoryArg() != nil {
+-				switch v.Op {
+-				case OpAMD64CMPQload:
+-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt64, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
+-					v.Op = opCmpLoadMap[v.Op].opCmp
+-					v.AuxInt = 0
+-					v.Aux = nil
+-					v.SetArgs2(load, v.Args[1])
+-				case OpAMD64CMPLload, Op386CMPLload:
+-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt32, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
+-					v.Op = opCmpLoadMap[v.Op].opCmp
+-					v.AuxInt = 0
+-					v.Aux = nil
+-					v.SetArgs2(load, v.Args[1])
+-				case OpAMD64CMPWload, Op386CMPWload:
+-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt16, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
+-					v.Op = opCmpLoadMap[v.Op].opCmp
+-					v.AuxInt = 0
+-					v.Aux = nil
+-					v.SetArgs2(load, v.Args[1])
+-				case OpAMD64CMPBload, Op386CMPBload:
+-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt8, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
+-					v.Op = opCmpLoadMap[v.Op].opCmp
+-					v.AuxInt = 0
+-					v.Aux = nil
+-					v.SetArgs2(load, v.Args[1])
+-
+-				case OpAMD64CMPQconstload:
+-					vo := v.AuxValAndOff()
+-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt64, vo.Off(), v.Aux, v.Args[0], v.Args[1])
+-					v.Op = opCmpLoadMap[v.Op].opCmp
+-					v.AuxInt = vo.Val()
+-					v.Aux = nil
+-					v.SetArgs1(load)
+-				case OpAMD64CMPLconstload, Op386CMPLconstload:
+-					vo := v.AuxValAndOff()
+-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt32, vo.Off(), v.Aux, v.Args[0], v.Args[1])
+-					v.Op = opCmpLoadMap[v.Op].opCmp
+-					v.AuxInt = vo.Val()
+-					v.Aux = nil
+-					v.SetArgs1(load)
+-				case OpAMD64CMPWconstload, Op386CMPWconstload:
+-					vo := v.AuxValAndOff()
+-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt16, vo.Off(), v.Aux, v.Args[0], v.Args[1])
+-					v.Op = opCmpLoadMap[v.Op].opCmp
+-					v.AuxInt = vo.Val()
+-					v.Aux = nil
+-					v.SetArgs1(load)
+-				case OpAMD64CMPBconstload, Op386CMPBconstload:
+-					vo := v.AuxValAndOff()
+-					load := b.NewValue2IA(v.Pos, opCmpLoadMap[v.Op].opLoad, f.Config.Types.UInt8, vo.Off(), v.Aux, v.Args[0], v.Args[1])
+-					v.Op = opCmpLoadMap[v.Op].opCmp
+-					v.AuxInt = vo.Val()
+-					v.Aux = nil
+-					v.SetArgs1(load)
+-
+-				default:
++				if !f.Config.splitLoad(v) {
+ 					f.Fatalf("can't split flag generator: %s", v.LongString())
+ 				}
+-
+ 			}
+ 
+ 			// Make sure any flag arg of v is in the flags register.
+diff --git a/src/cmd/compile/internal/ssa/gen/386splitload.rules b/src/cmd/compile/internal/ssa/gen/386splitload.rules
+new file mode 100644
+index 0000000000..7d24700750
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/gen/386splitload.rules
+@@ -0,0 +1,9 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// See the top of AMD64splitload.rules for discussion of these rules.
++
++(CMP(L|W|B)load {sym} [off] ptr x mem) -> (CMP(L|W|B) (MOV(L|W|B)load {sym} [off] ptr mem) x)
++
++(CMP(L|W|B)constload {sym} [vo] ptr mem) -> (CMP(L|W|B)const (MOV(L|W|B)load {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64splitload.rules b/src/cmd/compile/internal/ssa/gen/AMD64splitload.rules
+new file mode 100644
+index 0000000000..e8e1b4d258
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/gen/AMD64splitload.rules
+@@ -0,0 +1,16 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains rules used by flagalloc to split
++// a flag-generating merged load op into separate load and op.
++// Unlike with the other rules files, not all of these
++// rules will be applied to all values.
++// Rather, flagalloc will request for rules to be applied
++// to a particular problematic value.
++// These are often the exact inverse of rules in AMD64.rules,
++// only with the conditions removed.
++
++(CMP(Q|L|W|B)load {sym} [off] ptr x mem) -> (CMP(Q|L|W|B) (MOV(Q|L|W|B)load {sym} [off] ptr mem) x)
++
++(CMP(Q|L|W|B)constload {sym} [vo] ptr mem) -> (CMP(Q|L|W|B)const (MOV(Q|L|W|B)load {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 0903f77dbb..bfecb9b29f 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -398,6 +398,7 @@ func (a arch) Name() string {
+ func genLower() {
+ 	for _, a := range archs {
+ 		genRules(a)
++		genSplitLoadRules(a)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 1f61035969..2082ba15c4 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -80,11 +80,19 @@ func (r Rule) parse() (match, cond, result string) {
+ 	return match, cond, result
+ }
+ 
+-func genRules(arch arch) {
++func genRules(arch arch)          { genRulesSuffix(arch, "") }
++func genSplitLoadRules(arch arch) { genRulesSuffix(arch, "splitload") }
++
++func genRulesSuffix(arch arch, suff string) {
+ 	// Open input file.
+-	text, err := os.Open(arch.name + ".rules")
++	text, err := os.Open(arch.name + suff + ".rules")
+ 	if err != nil {
+-		log.Fatalf("can't read rule file: %v", err)
++		if suff == "" {
++			// All architectures must have a plain rules file.
++			log.Fatalf("can't read rule file: %v", err)
++		}
++		// Some architectures have bonus rules files that others don't share. That's fine.
++		return
+ 	}
+ 
+ 	// oprules contains a list of rules for each block and opcode
+@@ -122,7 +130,7 @@ func genRules(arch arch) {
+ 			continue
+ 		}
+ 
+-		loc := fmt.Sprintf("%s.rules:%d", arch.name, ruleLineno)
++		loc := fmt.Sprintf("%s%s.rules:%d", arch.name, suff, ruleLineno)
+ 		for _, rule2 := range expandOr(rule) {
+ 			for _, rule3 := range commute(rule2, arch) {
+ 				r := Rule{rule: rule3, loc: loc}
+@@ -156,7 +164,7 @@ func genRules(arch arch) {
+ 
+ 	// Start output buffer, write header.
+ 	w := new(bytes.Buffer)
+-	fmt.Fprintf(w, "// Code generated from gen/%s.rules; DO NOT EDIT.\n", arch.name)
++	fmt.Fprintf(w, "// Code generated from gen/%s%s.rules; DO NOT EDIT.\n", arch.name, suff)
+ 	fmt.Fprintln(w, "// generated with: cd gen; go run *.go")
+ 	fmt.Fprintln(w)
+ 	fmt.Fprintln(w, "package ssa")
+@@ -174,7 +182,7 @@ func genRules(arch arch) {
+ 
+ 	const chunkSize = 10
+ 	// Main rewrite routine is a switch on v.Op.
+-	fmt.Fprintf(w, "func rewriteValue%s(v *Value) bool {\n", arch.name)
++	fmt.Fprintf(w, "func rewriteValue%s%s(v *Value) bool {\n", arch.name, suff)
+ 	fmt.Fprintf(w, "switch v.Op {\n")
+ 	for _, op := range ops {
+ 		fmt.Fprintf(w, "case %s:\n", op)
+@@ -183,7 +191,7 @@ func genRules(arch arch) {
+ 			if chunk > 0 {
+ 				fmt.Fprint(w, " || ")
+ 			}
+-			fmt.Fprintf(w, "rewriteValue%s_%s_%d(v)", arch.name, op, chunk)
++			fmt.Fprintf(w, "rewriteValue%s%s_%s_%d(v)", arch.name, suff, op, chunk)
+ 		}
+ 		fmt.Fprintln(w)
+ 	}
+@@ -243,7 +251,7 @@ func genRules(arch arch) {
+ 			hasconfig := strings.Contains(body, "config.") || strings.Contains(body, "config)")
+ 			hasfe := strings.Contains(body, "fe.")
+ 			hastyps := strings.Contains(body, "typ.")
+-			fmt.Fprintf(w, "func rewriteValue%s_%s_%d(v *Value) bool {\n", arch.name, op, chunk)
++			fmt.Fprintf(w, "func rewriteValue%s%s_%s_%d(v *Value) bool {\n", arch.name, suff, op, chunk)
+ 			if hasb || hasconfig || hasfe || hastyps {
+ 				fmt.Fprintln(w, "b := v.Block")
+ 			}
+@@ -263,7 +271,7 @@ func genRules(arch arch) {
+ 
+ 	// Generate block rewrite function. There are only a few block types
+ 	// so we can make this one function with a switch.
+-	fmt.Fprintf(w, "func rewriteBlock%s(b *Block) bool {\n", arch.name)
++	fmt.Fprintf(w, "func rewriteBlock%s%s(b *Block) bool {\n", arch.name, suff)
+ 	fmt.Fprintln(w, "config := b.Func.Config")
+ 	fmt.Fprintln(w, "_ = config")
+ 	fmt.Fprintln(w, "fe := b.Func.fe")
+@@ -382,7 +390,7 @@ func genRules(arch arch) {
+ 	}
+ 
+ 	// Write to file
+-	err = ioutil.WriteFile("../rewrite"+arch.name+".go", src, 0666)
++	err = ioutil.WriteFile("../rewrite"+arch.name+suff+".go", src, 0666)
+ 	if err != nil {
+ 		log.Fatalf("can't write output: %v\n", err)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index b404533f6c..ee764ec0f8 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -154,6 +154,18 @@ func makeValAndOff(val, off int64) int64 {
+ 	return ValAndOff(val<<32 + int64(uint32(off))).Int64()
+ }
+ 
++// offOnly returns the offset half of ValAndOff vo.
++// It is intended for use in rewrite rules.
++func offOnly(vo int64) int64 {
++	return ValAndOff(vo).Off()
++}
++
++// valOnly returns the value half of ValAndOff vo.
++// It is intended for use in rewrite rules.
++func valOnly(vo int64) int64 {
++	return ValAndOff(vo).Val()
++}
++
+ func (x ValAndOff) canAdd(off int64) bool {
+ 	newoff := x.Off() + off
+ 	return newoff == int64(int32(newoff))
+diff --git a/src/cmd/compile/internal/ssa/rewrite386splitload.go b/src/cmd/compile/internal/ssa/rewrite386splitload.go
+new file mode 100644
+index 0000000000..96f8cf587a
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/rewrite386splitload.go
+@@ -0,0 +1,198 @@
++// Code generated from gen/386splitload.rules; DO NOT EDIT.
++// generated with: cd gen; go run *.go
++
++package ssa
++
++import "fmt"
++import "math"
++import "cmd/internal/obj"
++import "cmd/internal/objabi"
++import "cmd/compile/internal/types"
++
++var _ = fmt.Println   // in case not otherwise used
++var _ = math.MinInt8  // in case not otherwise used
++var _ = obj.ANOP      // in case not otherwise used
++var _ = objabi.GOROOT // in case not otherwise used
++var _ = types.TypeMem // in case not otherwise used
++
++func rewriteValue386splitload(v *Value) bool {
++	switch v.Op {
++	case Op386CMPBconstload:
++		return rewriteValue386splitload_Op386CMPBconstload_0(v)
++	case Op386CMPBload:
++		return rewriteValue386splitload_Op386CMPBload_0(v)
++	case Op386CMPLconstload:
++		return rewriteValue386splitload_Op386CMPLconstload_0(v)
++	case Op386CMPLload:
++		return rewriteValue386splitload_Op386CMPLload_0(v)
++	case Op386CMPWconstload:
++		return rewriteValue386splitload_Op386CMPWconstload_0(v)
++	case Op386CMPWload:
++		return rewriteValue386splitload_Op386CMPWload_0(v)
++	}
++	return false
++}
++func rewriteValue386splitload_Op386CMPBconstload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (CMPBconstload {sym} [vo] ptr mem)
++	// cond:
++	// result: (CMPBconst (MOVBload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
++	for {
++		vo := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(Op386CMPBconst)
++		v.AuxInt = valOnly(vo)
++		v0 := b.NewValue0(v.Pos, Op386MOVBload, typ.UInt8)
++		v0.AuxInt = offOnly(vo)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValue386splitload_Op386CMPBload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (CMPBload {sym} [off] ptr x mem)
++	// cond:
++	// result: (CMPB (MOVBload {sym} [off] ptr mem) x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		x := v.Args[1]
++		mem := v.Args[2]
++		v.reset(Op386CMPB)
++		v0 := b.NewValue0(v.Pos, Op386MOVBload, typ.UInt8)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValue386splitload_Op386CMPLconstload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (CMPLconstload {sym} [vo] ptr mem)
++	// cond:
++	// result: (CMPLconst (MOVLload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
++	for {
++		vo := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(Op386CMPLconst)
++		v.AuxInt = valOnly(vo)
++		v0 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
++		v0.AuxInt = offOnly(vo)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValue386splitload_Op386CMPLload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (CMPLload {sym} [off] ptr x mem)
++	// cond:
++	// result: (CMPL (MOVLload {sym} [off] ptr mem) x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		x := v.Args[1]
++		mem := v.Args[2]
++		v.reset(Op386CMPL)
++		v0 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValue386splitload_Op386CMPWconstload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (CMPWconstload {sym} [vo] ptr mem)
++	// cond:
++	// result: (CMPWconst (MOVWload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
++	for {
++		vo := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(Op386CMPWconst)
++		v.AuxInt = valOnly(vo)
++		v0 := b.NewValue0(v.Pos, Op386MOVWload, typ.UInt16)
++		v0.AuxInt = offOnly(vo)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValue386splitload_Op386CMPWload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (CMPWload {sym} [off] ptr x mem)
++	// cond:
++	// result: (CMPW (MOVWload {sym} [off] ptr mem) x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		x := v.Args[1]
++		mem := v.Args[2]
++		v.reset(Op386CMPW)
++		v0 := b.NewValue0(v.Pos, Op386MOVWload, typ.UInt16)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteBlock386splitload(b *Block) bool {
++	config := b.Func.Config
++	_ = config
++	fe := b.Func.fe
++	_ = fe
++	typ := &config.Types
++	_ = typ
++	switch b.Kind {
++	}
++	return false
++}
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go b/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go
+new file mode 100644
+index 0000000000..af7067b754
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go
+@@ -0,0 +1,253 @@
++// Code generated from gen/AMD64splitload.rules; DO NOT EDIT.
++// generated with: cd gen; go run *.go
++
++package ssa
++
++import "fmt"
++import "math"
++import "cmd/internal/obj"
++import "cmd/internal/objabi"
++import "cmd/compile/internal/types"
++
++var _ = fmt.Println   // in case not otherwise used
++var _ = math.MinInt8  // in case not otherwise used
++var _ = obj.ANOP      // in case not otherwise used
++var _ = objabi.GOROOT // in case not otherwise used
++var _ = types.TypeMem // in case not otherwise used
++
++func rewriteValueAMD64splitload(v *Value) bool {
++	switch v.Op {
++	case OpAMD64CMPBconstload:
++		return rewriteValueAMD64splitload_OpAMD64CMPBconstload_0(v)
++	case OpAMD64CMPBload:
++		return rewriteValueAMD64splitload_OpAMD64CMPBload_0(v)
++	case OpAMD64CMPLconstload:
++		return rewriteValueAMD64splitload_OpAMD64CMPLconstload_0(v)
++	case OpAMD64CMPLload:
++		return rewriteValueAMD64splitload_OpAMD64CMPLload_0(v)
++	case OpAMD64CMPQconstload:
++		return rewriteValueAMD64splitload_OpAMD64CMPQconstload_0(v)
++	case OpAMD64CMPQload:
++		return rewriteValueAMD64splitload_OpAMD64CMPQload_0(v)
++	case OpAMD64CMPWconstload:
++		return rewriteValueAMD64splitload_OpAMD64CMPWconstload_0(v)
++	case OpAMD64CMPWload:
++		return rewriteValueAMD64splitload_OpAMD64CMPWload_0(v)
++	}
++	return false
++}
++func rewriteValueAMD64splitload_OpAMD64CMPBconstload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (CMPBconstload {sym} [vo] ptr mem)
++	// cond:
++	// result: (CMPBconst (MOVBload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
++	for {
++		vo := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpAMD64CMPBconst)
++		v.AuxInt = valOnly(vo)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVBload, typ.UInt8)
++		v0.AuxInt = offOnly(vo)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueAMD64splitload_OpAMD64CMPBload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (CMPBload {sym} [off] ptr x mem)
++	// cond:
++	// result: (CMPB (MOVBload {sym} [off] ptr mem) x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		x := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64CMPB)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVBload, typ.UInt8)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueAMD64splitload_OpAMD64CMPLconstload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (CMPLconstload {sym} [vo] ptr mem)
++	// cond:
++	// result: (CMPLconst (MOVLload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
++	for {
++		vo := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpAMD64CMPLconst)
++		v.AuxInt = valOnly(vo)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, typ.UInt32)
++		v0.AuxInt = offOnly(vo)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueAMD64splitload_OpAMD64CMPLload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (CMPLload {sym} [off] ptr x mem)
++	// cond:
++	// result: (CMPL (MOVLload {sym} [off] ptr mem) x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		x := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64CMPL)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, typ.UInt32)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueAMD64splitload_OpAMD64CMPQconstload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (CMPQconstload {sym} [vo] ptr mem)
++	// cond:
++	// result: (CMPQconst (MOVQload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
++	for {
++		vo := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpAMD64CMPQconst)
++		v.AuxInt = valOnly(vo)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
++		v0.AuxInt = offOnly(vo)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueAMD64splitload_OpAMD64CMPQload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (CMPQload {sym} [off] ptr x mem)
++	// cond:
++	// result: (CMPQ (MOVQload {sym} [off] ptr mem) x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		x := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64CMPQ)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueAMD64splitload_OpAMD64CMPWconstload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (CMPWconstload {sym} [vo] ptr mem)
++	// cond:
++	// result: (CMPWconst (MOVWload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
++	for {
++		vo := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpAMD64CMPWconst)
++		v.AuxInt = valOnly(vo)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVWload, typ.UInt16)
++		v0.AuxInt = offOnly(vo)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueAMD64splitload_OpAMD64CMPWload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (CMPWload {sym} [off] ptr x mem)
++	// cond:
++	// result: (CMPW (MOVWload {sym} [off] ptr mem) x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		x := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64CMPW)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVWload, typ.UInt16)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteBlockAMD64splitload(b *Block) bool {
++	config := b.Func.Config
++	_ = config
++	fe := b.Func.fe
++	_ = fe
++	typ := &config.Types
++	_ = typ
++	switch b.Kind {
++	}
++	return false
++}
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 2f2453fd12..7b85927785 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -245,6 +245,7 @@ func isUnneededSSARewriteFile(srcFile string) (archCaps string, unneeded bool) {
+ 	}
+ 	archCaps = fileArch
+ 	fileArch = strings.ToLower(fileArch)
++	fileArch = strings.TrimSuffix(fileArch, "splitload")
+ 	if fileArch == strings.TrimSuffix(runtime.GOARCH, "le") {
+ 		return "", false
+ 	}

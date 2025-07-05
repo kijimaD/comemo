@@ -10,10 +10,143 @@ Date:   Tue Feb 3 16:17:08 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/3833
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/build.go    | 5 -----
  src/cmd/go/doc.go      | 2 --
  src/cmd/go/testflag.go | 6 ------
  src/make.bash          | 7 ++-----
  src/make.rc            | 7 ++-----
  5 files changed, 4 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index ad44bf0975..b2cb7227c6 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -74,8 +74,6 @@ and test commands:
+ 	-x
+ 		print the commands.
+ 
+-	-ccflags 'arg list'
+-		arguments to pass on each 5c, 6c, or 8c compiler invocation.
+ 	-compiler name
+ 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
+ 	-gccgoflags 'arg list'
+@@ -131,7 +129,6 @@ var buildI bool               // -i flag
+ var buildO = cmdBuild.Flag.String("o", "", "output file")
+ var buildWork bool           // -work flag
+ var buildGcflags []string    // -gcflags flag
+-var buildCcflags []string    // -ccflags flag
+ var buildLdflags []string    // -ldflags flag
+ var buildGccgoflags []string // -gccgoflags flag
+ var buildRace bool           // -race flag
+@@ -183,7 +180,6 @@ func addBuildFlags(cmd *Command) {
+ 	cmd.Flag.BoolVar(&buildX, "x", false, "")
+ 	cmd.Flag.BoolVar(&buildWork, "work", false, "")
+ 	cmd.Flag.Var((*stringsFlag)(&buildGcflags), "gcflags", "")
+-	cmd.Flag.Var((*stringsFlag)(&buildCcflags), "ccflags", "")
+ 	cmd.Flag.Var((*stringsFlag)(&buildLdflags), "ldflags", "")
+ 	cmd.Flag.Var((*stringsFlag)(&buildGccgoflags), "gccgoflags", "")
+ 	cmd.Flag.Var((*stringsFlag)(&buildContext.BuildTags), "tags", "")
+@@ -2648,7 +2644,6 @@ func raceInit() {
+ 	}
+ 	buildGcflags = append(buildGcflags, "-race")
+ 	buildLdflags = append(buildLdflags, "-race")
+-	buildCcflags = append(buildCcflags, "-D", "RACE")
+ 	if buildContext.InstallSuffix != "" {
+ 		buildContext.InstallSuffix += "_"
+ 	}
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 2f783648ed..398f83d113 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -93,8 +93,6 @@ and test commands:
+ 	-x
+ 		print the commands.
+ 
+-	-ccflags 'arg list'
+-		arguments to pass on each 5c, 6c, or 8c compiler invocation.
+ 	-compiler name
+ 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
+ 	-gccgoflags 'arg list'
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 4d73370fa5..b3479e1b23 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -77,7 +77,6 @@ var testFlagDefn = []*testFlagSpec{
+ 	{name: "x", boolVar: &buildX},
+ 	{name: "i", boolVar: &buildI},
+ 	{name: "work", boolVar: &buildWork},
+-	{name: "ccflags"},
+ 	{name: "gcflags"},
+ 	{name: "exec"},
+ 	{name: "ldflags"},
+@@ -165,11 +164,6 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 			if err != nil {
+ 				fatalf("invalid flag argument for -%s: %v", f.name, err)
+ 			}
+-		case "ccflags":
+-			buildCcflags, err = splitQuotedFields(value)
+-			if err != nil {
+-				fatalf("invalid flag argument for -%s: %v", f.name, err)
+-			}
+ 		case "gcflags":
+ 			buildGcflags, err = splitQuotedFields(value)
+ 			if err != nil {
+diff --git a/src/make.bash b/src/make.bash
+index c8573c9954..bf83ee643f 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -25,9 +25,6 @@
+ # GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
+ # building the commands.
+ #
+-# GO_CCFLAGS: Additional 5c/6c/8c arguments to use when
+-# building.
+-#
+ # CGO_ENABLED: Controls cgo usage during the build. Set it to 1
+ # to include all cgo related files, .c and .go file with "cgo"
+ # build directive, in the build. Set it to 0 to ignore them.
+@@ -158,12 +155,12 @@ if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
+ 	# CC_FOR_TARGET is recorded as the default compiler for the go tool. When building for the host, however,
+ 	# use the host compiler, CC, from `cmd/dist/dist env` instead.
+ 	CC=$CC GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
+-		"$GOTOOLDIR"/go_bootstrap install -ccflags "$GO_CCFLAGS" -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
++		"$GOTOOLDIR"/go_bootstrap install -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
+ 	echo
+ fi
+ 
+ echo "##### Building packages and commands for $GOOS/$GOARCH."
+-CC=$CC_FOR_TARGET "$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -ccflags "$GO_CCFLAGS" -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
++CC=$CC_FOR_TARGET "$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
+ echo
+ 
+ rm -f "$GOTOOLDIR"/go_bootstrap
+diff --git a/src/make.rc b/src/make.rc
+index 5fe30aced7..7d57c25ff5 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -25,9 +25,6 @@
+ # GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
+ # building the commands.
+ #
+-# GO_CCFLAGS: Additional 5c/6c/8c arguments to use when
+-# building.
+-#
+ # CGO_ENABLED: Controls cgo usage during the build. Set it to 1
+ # to include all cgo related files, .c and .go file with "cgo"
+ # build directive, in the build. Set it to 0 to ignore them.
+@@ -89,12 +86,12 @@ if(~ $sysname vx32)
+ if(! ~ $GOHOSTARCH $GOARCH || ! ~ $GOHOSTOS $GOOS){
+ 	echo '# Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
+ 	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
+-		$GOTOOLDIR/go_bootstrap install -ccflags $"GO_CCFLAGS -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
++		$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
+ 	echo
+ }
+ 
+ echo '# Building packages and commands for' $GOOS/$GOARCH^.
+-$GOTOOLDIR/go_bootstrap install -ccflags $"GO_CCFLAGS -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
++$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
+ echo
+ 
+ rm -f $GOTOOLDIR/go_bootstrap

@@ -23,6 +23,20 @@ Date:   Thu May 18 10:17:42 2023 +0100
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/poll/fd_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/poll/fd_plan9.go b/src/internal/poll/fd_plan9.go
+index 2cfc5eec26..7cc178a9d5 100644
+--- a/src/internal/poll/fd_plan9.go
++++ b/src/internal/poll/fd_plan9.go
+@@ -171,7 +171,7 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
+ 			fd.wtimer = timer
+ 		}
+ 	}
+-	if !t.IsZero() && d < 0 {
++	if !t.IsZero() && d <= 0 {
+ 		// Interrupt current I/O operation
+ 		if mode == 'r' || mode == 'r'+'w' {
+ 			fd.rtimedout = true

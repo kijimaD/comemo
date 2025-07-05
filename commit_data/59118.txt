@@ -12,7 +12,7 @@ Date:   Thu Feb 8 18:32:55 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/562775
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/alldocs.go                     |  2 ++
  src/cmd/go/internal/list/list.go          |  2 ++
  src/cmd/go/internal/modfetch/fetch.go     | 41 +++++++++++++++++++++++++++++++
@@ -20,3 +20,176 @@ Date:   Thu Feb 8 18:32:55 2024 +0000
  src/cmd/go/internal/modload/build.go      |  6 +++++
  src/cmd/go/testdata/script/mod_list_m.txt | 16 ++++++++++++
  6 files changed, 86 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index a6166a7fdb..5e6d54ee2e 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1004,6 +1004,8 @@
+ //	    Retracted  []string      // retraction information, if any (with -retracted or -u)
+ //	    Deprecated string        // deprecation message, if any (with -u)
+ //	    Error      *ModuleError  // error loading module
++//	    Sum        string        // checksum for path, version (as in go.sum)
++//	    GoModSum   string        // checksum for go.mod (as in go.sum)
+ //	    Origin     any           // provenance of module
+ //	    Reuse      bool          // reuse of old module info is safe
+ //	}
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 66fb5aa31c..df3639cba7 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -245,6 +245,8 @@ applied to a Go struct, but now a Module struct:
+         Retracted  []string      // retraction information, if any (with -retracted or -u)
+         Deprecated string        // deprecation message, if any (with -u)
+         Error      *ModuleError  // error loading module
++        Sum        string        // checksum for path, version (as in go.sum)
++        GoModSum   string        // checksum for go.mod (as in go.sum)
+         Origin     any           // provenance of module
+         Reuse      bool          // reuse of old module info is safe
+     }
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index eeab6da62a..ce801d34f2 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -569,6 +569,47 @@ func HaveSum(mod module.Version) bool {
+ 	return false
+ }
+ 
++// RecordedSum returns the sum if the go.sum file contains an entry for mod.
++// The boolean reports true if an entry was found or
++// false if no entry found or two conflicting sums are found.
++// The entry's hash must be generated with a known hash algorithm.
++// mod.Version may have a "/go.mod" suffix to distinguish sums for
++// .mod and .zip files.
++func RecordedSum(mod module.Version) (sum string, ok bool) {
++	goSum.mu.Lock()
++	defer goSum.mu.Unlock()
++	inited, err := initGoSum()
++	foundSum := ""
++	if err != nil || !inited {
++		return "", false
++	}
++	for _, goSums := range goSum.w {
++		for _, h := range goSums[mod] {
++			if !strings.HasPrefix(h, "h1:") {
++				continue
++			}
++			if !goSum.status[modSum{mod, h}].dirty {
++				if foundSum != "" && foundSum != h { // conflicting sums exist
++					return "", false
++				}
++				foundSum = h
++			}
++		}
++	}
++	for _, h := range goSum.m[mod] {
++		if !strings.HasPrefix(h, "h1:") {
++			continue
++		}
++		if !goSum.status[modSum{mod, h}].dirty {
++			if foundSum != "" && foundSum != h { // conflicting sums exist
++				return "", false
++			}
++			foundSum = h
++		}
++	}
++	return foundSum, true
++}
++
+ // checkMod checks the given module's checksum and Go version.
+ func checkMod(ctx context.Context, mod module.Version) {
+ 	// Do the file I/O before acquiring the go.sum lock.
+diff --git a/src/cmd/go/internal/modinfo/info.go b/src/cmd/go/internal/modinfo/info.go
+index b0adcbcfb3..336f99245a 100644
+--- a/src/cmd/go/internal/modinfo/info.go
++++ b/src/cmd/go/internal/modinfo/info.go
+@@ -14,24 +14,25 @@ import (
+ // and the fields are documented in the help text in ../list/list.go
+ 
+ type ModulePublic struct {
+-	Path       string        `json:",omitempty"` // module path
+-	Version    string        `json:",omitempty"` // module version
+-	Query      string        `json:",omitempty"` // version query corresponding to this version
+-	Versions   []string      `json:",omitempty"` // available module versions
+-	Replace    *ModulePublic `json:",omitempty"` // replaced by this module
+-	Time       *time.Time    `json:",omitempty"` // time version was created
+-	Update     *ModulePublic `json:",omitempty"` // available update (with -u)
+-	Main       bool          `json:",omitempty"` // is this the main module?
+-	Indirect   bool          `json:",omitempty"` // module is only indirectly needed by main module
+-	Dir        string        `json:",omitempty"` // directory holding local copy of files, if any
+-	GoMod      string        `json:",omitempty"` // path to go.mod file describing module, if any
+-	GoVersion  string        `json:",omitempty"` // go version used in module
+-	Retracted  []string      `json:",omitempty"` // retraction information, if any (with -retracted or -u)
+-	Deprecated string        `json:",omitempty"` // deprecation message, if any (with -u)
+-	Error      *ModuleError  `json:",omitempty"` // error loading module
+-
+-	Origin *codehost.Origin `json:",omitempty"` // provenance of module
+-	Reuse  bool             `json:",omitempty"` // reuse of old module info is safe
++	Path       string           `json:",omitempty"` // module path
++	Version    string           `json:",omitempty"` // module version
++	Query      string           `json:",omitempty"` // version query corresponding to this version
++	Versions   []string         `json:",omitempty"` // available module versions
++	Replace    *ModulePublic    `json:",omitempty"` // replaced by this module
++	Time       *time.Time       `json:",omitempty"` // time version was created
++	Update     *ModulePublic    `json:",omitempty"` // available update (with -u)
++	Main       bool             `json:",omitempty"` // is this the main module?
++	Indirect   bool             `json:",omitempty"` // module is only indirectly needed by main module
++	Dir        string           `json:",omitempty"` // directory holding local copy of files, if any
++	GoMod      string           `json:",omitempty"` // path to go.mod file describing module, if any
++	GoVersion  string           `json:",omitempty"` // go version used in module
++	Retracted  []string         `json:",omitempty"` // retraction information, if any (with -retracted or -u)
++	Deprecated string           `json:",omitempty"` // deprecation message, if any (with -u)
++	Error      *ModuleError     `json:",omitempty"` // error loading module
++	Sum        string           `json:",omitempty"` // checksum for path, version (as in go.sum)
++	GoModSum   string           `json:",omitempty"` // checksum for go.mod (as in go.sum)
++	Origin     *codehost.Origin `json:",omitempty"` // provenance of module
++	Reuse      bool             `json:",omitempty"` // reuse of old module info is safe
+ }
+ 
+ type ModuleError struct {
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 5cf1487c3e..6e30afd524 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -364,12 +364,18 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ 						m.GoMod = gomod
+ 					}
+ 				}
++				if gomodsum, ok := modfetch.RecordedSum(modkey(mod)); ok {
++					m.GoModSum = gomodsum
++				}
+ 			}
+ 			if checksumOk("") {
+ 				dir, err := modfetch.DownloadDir(ctx, mod)
+ 				if err == nil {
+ 					m.Dir = dir
+ 				}
++				if sum, ok := modfetch.RecordedSum(mod); ok {
++					m.Sum = sum
++				}
+ 			}
+ 
+ 			if mode&ListRetracted != 0 {
+diff --git a/src/cmd/go/testdata/script/mod_list_m.txt b/src/cmd/go/testdata/script/mod_list_m.txt
+new file mode 100644
+index 0000000000..d579153966
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list_m.txt
+@@ -0,0 +1,16 @@
++go mod tidy
++
++go list -m -json all
++stdout '"GoModSum":\s+"h1:.+"'
++stdout '"Sum":\s+"h1:.+"'
++
++-- go.mod --
++module example
++
++go 1.21
++
++require rsc.io/quote v1.5.1
++-- example.go --
++package example
++
++import _ "rsc.io/quote"
+\ No newline at end of file

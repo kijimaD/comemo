@@ -12,7 +12,67 @@ Date:   Tue Sep 10 11:00:26 2013 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/13352046
-
+---
  src/cmd/go/build.go |  6 ++++--
  src/cmd/go/pkg.go   | 17 +----------------
  2 files changed, 5 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 83c29ee616..7308fb6f55 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1005,8 +1005,9 @@ func (b *builder) install(a *action) (err error) {
+ 				return err
+ 			}
+ 			soname := a.p.swigSoname(f)
++			source := filepath.Join(a.objdir, soname)
+ 			target := filepath.Join(dir, soname)
+-			if err = b.copyFile(a, target, soname, perm); err != nil {
++			if err = b.copyFile(a, target, source, perm); err != nil {
+ 				return err
+ 			}
+ 		}
+@@ -2255,7 +2256,8 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize stri
+ 		cxxlib = []string{"-lstdc++"}
+ 	}
+ 	ldflags := stringList(osldflags[goos], cxxlib)
+-	b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), "-o", soname, gccObj, ldflags)
++	target := filepath.Join(obj, soname)
++	b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), "-o", target, gccObj, ldflags)
+ 
+ 	return obj + goFile, cObj, nil
+ }
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index a23ac9e846..7f53c5c263 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -680,28 +680,13 @@ func isStale(p *Package, topRoot map[string]bool) bool {
+ 		return false
+ 	}
+ 
+-	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.HFiles, p.SFiles, p.CgoFiles, p.SysoFiles)
++	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.HFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
+ 	for _, src := range srcs {
+ 		if olderThan(filepath.Join(p.Dir, src)) {
+ 			return true
+ 		}
+ 	}
+ 
+-	for _, src := range stringList(p.SwigFiles, p.SwigCXXFiles) {
+-		if olderThan(filepath.Join(p.Dir, src)) {
+-			return true
+-		}
+-		soname := p.swigSoname(src)
+-		fi, err := os.Stat(soname)
+-		if err != nil {
+-			return true
+-		}
+-		fiSrc, err := os.Stat(src)
+-		if err != nil || fiSrc.ModTime().After(fi.ModTime()) {
+-			return true
+-		}
+-	}
+-
+ 	return false
+ }
+ 

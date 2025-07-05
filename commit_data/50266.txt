@@ -14,6 +14,20 @@ Date:   Fri Oct 8 19:03:35 2021 +0000
     Trust: Alexander Rakoczy <alex@golang.org>
     Run-TryBot: Alexander Rakoczy <alex@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/os/exec.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/os/exec.go b/src/os/exec.go
+index bc75d4dd66..2beac55f89 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -149,6 +149,8 @@ func (p *ProcessState) SystemTime() time.Duration {
+ }
+ 
+ // Exited reports whether the program has exited.
++// On Unix systems this reports true if the program exited due to calling exit,
++// but false if the program terminated due to a signal.
+ func (p *ProcessState) Exited() bool {
+ 	return p.exited()
+ }

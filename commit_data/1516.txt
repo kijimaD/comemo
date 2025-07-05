@@ -7,8 +7,46 @@ Date:   Fri Jan 16 15:25:52 2009 -0800
     R=ken
     OCL=22996
     CL=22996
-
+---
  src/cmd/gc/dcl.c | 2 ++
  src/cmd/gc/go.h  | 1 +
  src/cmd/gc/go.y  | 1 +
  3 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 50967b53e3..d5ca7c4d73 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -512,6 +512,8 @@ loop:
+ 		f->nname = n->left;
+ 		f->embedded = n->embedded;
+ 		f->sym = f->nname->sym;
++		if(pkgimportname != S && !exportname(f->sym->name))
++			f->sym = pkglookup(f->sym->name, pkgimportname->name);
+ 	}
+ 
+ 	*t = f;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ff69905975..0d899aaee9 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -741,6 +741,7 @@ void	constiter(Node*, Type*, Node*);
+  */
+ void	renamepkg(Node*);
+ void	autoexport(Sym*);
++int	exportname(char*);
+ void	exportsym(Sym*);
+ void	packagesym(Sym*);
+ void	dumpe(Sym*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 442baadda4..3d62bb3b36 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -160,6 +160,7 @@ import_there:
+ 	{
+ 		checkimports();
+ 		unimportfile();
++		pkgimportname = S;
+ 	}
+ |	LIMPORT '$' '$' hidden_import_list '$' '$'
+ 	{

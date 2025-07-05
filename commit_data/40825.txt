@@ -26,7 +26,62 @@ Date:   Tue Jul 16 11:33:10 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/export_test.go | 34 ++++++++++++++++++++++++++++++++++
  src/runtime/proc_test.go   |  4 ++++
  2 files changed, 38 insertions(+)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 62b7730c44..6009932056 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -681,3 +681,37 @@ func (t *Treap) CheckInvariants() {
+ 	t.mTreap.treap.walkTreap(checkTreapNode)
+ 	t.mTreap.treap.validateInvariants()
+ }
++
++func RunGetgThreadSwitchTest() {
++	// Test that getg works correctly with thread switch.
++	// With gccgo, if we generate getg inlined, the backend
++	// may cache the address of the TLS variable, which
++	// will become invalid after a thread switch. This test
++	// checks that the bad caching doesn't happen.
++
++	ch := make(chan int)
++	go func(ch chan int) {
++		ch <- 5
++		LockOSThread()
++	}(ch)
++
++	g1 := getg()
++
++	// Block on a receive. This is likely to get us a thread
++	// switch. If we yield to the sender goroutine, it will
++	// lock the thread, forcing us to resume on a different
++	// thread.
++	<-ch
++
++	g2 := getg()
++	if g1 != g2 {
++		panic("g1 != g2")
++	}
++
++	// Also test getg after some control flow, as the
++	// backend is sensitive to control flow.
++	g3 := getg()
++	if g1 != g3 {
++		panic("g1 != g3")
++	}
++}
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 09b0652bee..6e6272e80a 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -977,3 +977,7 @@ func TestPreemptionAfterSyscall(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestGetgThreadSwitch(t *testing.T) {
++	runtime.RunGetgThreadSwitchTest()
++}

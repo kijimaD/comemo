@@ -32,10 +32,210 @@ Date:   Tue Dec 27 14:34:11 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/covdata/dump.go                    |  8 ++++++
  src/cmd/covdata/merge.go                   |  2 ++
  src/cmd/covdata/tool_test.go               | 20 ++++++++++++---
  src/internal/coverage/cmerge/merge.go      | 41 +++++++++++++++++++++++-------
  src/internal/coverage/cmerge/merge_test.go | 19 +++++++++++---
  5 files changed, 75 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/covdata/dump.go b/src/cmd/covdata/dump.go
+index 62267170ce..4b4671e971 100644
+--- a/src/cmd/covdata/dump.go
++++ b/src/cmd/covdata/dump.go
+@@ -38,6 +38,14 @@ func makeDumpOp(cmd string) covOperation {
+ 		cmd: cmd,
+ 		cm:  &cmerge.Merger{},
+ 	}
++	// For these modes (percent, pkglist, func, etc), use a relaxed
++	// policy when it comes to counter mode clashes. For a percent
++	// report, for example, we only care whether a given line is
++	// executed at least once, so it's ok to (effectively) merge
++	// together runs derived from different counter modes.
++	if d.cmd == percentMode || d.cmd == funcMode || d.cmd == pkglistMode {
++		d.cm.SetModeMergePolicy(cmerge.ModeMergeRelaxed)
++	}
+ 	if d.cmd == pkglistMode {
+ 		d.pkgpaths = make(map[string]struct{})
+ 	}
+diff --git a/src/cmd/covdata/merge.go b/src/cmd/covdata/merge.go
+index 225861dab5..63e823d376 100644
+--- a/src/cmd/covdata/merge.go
++++ b/src/cmd/covdata/merge.go
+@@ -11,6 +11,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/coverage"
++	"internal/coverage/cmerge"
+ 	"internal/coverage/decodecounter"
+ 	"internal/coverage/decodemeta"
+ 	"internal/coverage/pods"
+@@ -60,6 +61,7 @@ func (m *mstate) Setup() {
+ 	if *outdirflag == "" {
+ 		m.Usage("select output directory with '-o' option")
+ 	}
++	m.mm.SetModeMergePolicy(cmerge.ModeMergeRelaxed)
+ }
+ 
+ func (m *mstate) BeginPod(p pods.Pod) {
+diff --git a/src/cmd/covdata/tool_test.go b/src/cmd/covdata/tool_test.go
+index 42334eae94..b6c2465812 100644
+--- a/src/cmd/covdata/tool_test.go
++++ b/src/cmd/covdata/tool_test.go
+@@ -808,7 +808,7 @@ func testCounterClash(t *testing.T, s state) {
+ 
+ 	// Try to merge covdata0 (from prog1.go -countermode=set) with
+ 	// covdata1 (from prog1.go -countermode=atomic"). This should
+-	// produce a counter mode clash error.
++	// work properly, but result in multiple meta-data files.
+ 	ins := fmt.Sprintf("-i=%s,%s", s.outdirs[0], s.outdirs[3])
+ 	out := fmt.Sprintf("-o=%s", ccoutdir)
+ 	args := append([]string{}, "merge", ins, out, "-pcombine")
+@@ -818,13 +818,27 @@ func testCounterClash(t *testing.T, s state) {
+ 	cmd := testenv.Command(t, s.tool, args...)
+ 	b, err := cmd.CombinedOutput()
+ 	t.Logf("%% output: %s\n", string(b))
++	if err != nil {
++		t.Fatalf("clash merge failed: %v", err)
++	}
++
++	// Ask for a textual report from the two dirs. Here we have
++	// to report the mode clash.
++	out = "-o=" + filepath.Join(ccoutdir, "file.txt")
++	args = append([]string{}, "textfmt", ins, out)
++	if debugtrace {
++		t.Logf("clash textfmt command is %s %v\n", s.tool, args)
++	}
++	cmd = testenv.Command(t, s.tool, args...)
++	b, err = cmd.CombinedOutput()
++	t.Logf("%% output: %s\n", string(b))
+ 	if err == nil {
+-		t.Fatalf("clash merge passed unexpectedly")
++		t.Fatalf("expected mode clash")
+ 	}
+ 	got := string(b)
+ 	want := "counter mode clash while reading meta-data"
+ 	if !strings.Contains(got, want) {
+-		t.Errorf("counter clash merge: wanted %s got %s", want, got)
++		t.Errorf("counter clash textfmt: wanted %s got %s", want, got)
+ 	}
+ }
+ 
+diff --git a/src/internal/coverage/cmerge/merge.go b/src/internal/coverage/cmerge/merge.go
+index c482b8bfa8..16fa1e8c38 100644
+--- a/src/internal/coverage/cmerge/merge.go
++++ b/src/internal/coverage/cmerge/merge.go
+@@ -13,6 +13,13 @@ import (
+ 	"math"
+ )
+ 
++type ModeMergePolicy uint8
++
++const (
++	ModeMergeStrict ModeMergePolicy = iota
++	ModeMergeRelaxed
++)
++
+ // Merger provides state and methods to help manage the process of
+ // merging together coverage counter data for a given function, for
+ // tools that need to implicitly merge counter as they read multiple
+@@ -20,9 +27,14 @@ import (
+ type Merger struct {
+ 	cmode    coverage.CounterMode
+ 	cgran    coverage.CounterGranularity
++	policy   ModeMergePolicy
+ 	overflow bool
+ }
+ 
++func (cm *Merger) SetModeMergePolicy(policy ModeMergePolicy) {
++	cm.policy = policy
++}
++
+ // MergeCounters takes the counter values in 'src' and merges them
+ // into 'dst' according to the correct counter mode.
+ func (m *Merger) MergeCounters(dst, src []uint32) (error, bool) {
+@@ -72,20 +84,31 @@ func SaturatingAdd(dst, src uint32) (uint32, bool) {
+ // SetModeAndGranularity records the counter mode and granularity for
+ // the current merge. In the specific case of merging across coverage
+ // data files from different binaries, where we're combining data from
+-// more than one meta-data file, we need to check for mode/granularity
+-// clashes.
++// more than one meta-data file, we need to check for and resolve
++// mode/granularity clashes.
+ func (cm *Merger) SetModeAndGranularity(mdf string, cmode coverage.CounterMode, cgran coverage.CounterGranularity) error {
+-	// Collect counter mode and granularity so as to detect clashes.
+-	if cm.cmode != coverage.CtrModeInvalid {
+-		if cm.cmode != cmode {
+-			return fmt.Errorf("counter mode clash while reading meta-data file %s: previous file had %s, new file has %s", mdf, cm.cmode.String(), cmode.String())
+-		}
++	if cm.cmode == coverage.CtrModeInvalid {
++		// Set merger mode based on what we're seeing here.
++		cm.cmode = cmode
++		cm.cgran = cgran
++	} else {
++		// Granularity clashes are always errors.
+ 		if cm.cgran != cgran {
+ 			return fmt.Errorf("counter granularity clash while reading meta-data file %s: previous file had %s, new file has %s", mdf, cm.cgran.String(), cgran.String())
+ 		}
++		// Mode clashes are treated as errors if we're using the
++		// default strict policy.
++		if cm.cmode != cmode {
++			if cm.policy == ModeMergeStrict {
++				return fmt.Errorf("counter mode clash while reading meta-data file %s: previous file had %s, new file has %s", mdf, cm.cmode.String(), cmode.String())
++			}
++			// In the case of a relaxed mode merge policy, upgrade
++			// mode if needed.
++			if cm.cmode < cmode {
++				cm.cmode = cmode
++			}
++		}
+ 	}
+-	cm.cmode = cmode
+-	cm.cgran = cgran
+ 	return nil
+ }
+ 
+diff --git a/src/internal/coverage/cmerge/merge_test.go b/src/internal/coverage/cmerge/merge_test.go
+index e45589f6b8..0e6112a62c 100644
+--- a/src/internal/coverage/cmerge/merge_test.go
++++ b/src/internal/coverage/cmerge/merge_test.go
+@@ -15,11 +15,11 @@ func TestClash(t *testing.T) {
+ 	m := &cmerge.Merger{}
+ 	err := m.SetModeAndGranularity("mdf1.data", coverage.CtrModeSet, coverage.CtrGranularityPerBlock)
+ 	if err != nil {
+-		t.Fatalf("unexpected clash")
++		t.Fatalf("unexpected clash: %v", err)
+ 	}
+ 	err = m.SetModeAndGranularity("mdf1.data", coverage.CtrModeSet, coverage.CtrGranularityPerBlock)
+ 	if err != nil {
+-		t.Fatalf("unexpected clash")
++		t.Fatalf("unexpected clash: %v", err)
+ 	}
+ 	err = m.SetModeAndGranularity("mdf1.data", coverage.CtrModeCount, coverage.CtrGranularityPerBlock)
+ 	if err == nil {
+@@ -29,10 +29,23 @@ func TestClash(t *testing.T) {
+ 	if err == nil {
+ 		t.Fatalf("expected granularity clash, not found")
+ 	}
++	m.SetModeMergePolicy(cmerge.ModeMergeRelaxed)
++	err = m.SetModeAndGranularity("mdf1.data", coverage.CtrModeCount, coverage.CtrGranularityPerBlock)
++	if err != nil {
++		t.Fatalf("unexpected clash: %v", err)
++	}
++	err = m.SetModeAndGranularity("mdf1.data", coverage.CtrModeSet, coverage.CtrGranularityPerBlock)
++	if err != nil {
++		t.Fatalf("unexpected clash: %v", err)
++	}
++	err = m.SetModeAndGranularity("mdf1.data", coverage.CtrModeAtomic, coverage.CtrGranularityPerBlock)
++	if err != nil {
++		t.Fatalf("unexpected clash: %v", err)
++	}
+ 	m.ResetModeAndGranularity()
+ 	err = m.SetModeAndGranularity("mdf1.data", coverage.CtrModeCount, coverage.CtrGranularityPerFunc)
+ 	if err != nil {
+-		t.Fatalf("unexpected clash after reset")
++		t.Fatalf("unexpected clash after reset: %v", err)
+ 	}
+ }
+ 

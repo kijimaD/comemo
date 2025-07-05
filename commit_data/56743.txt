@@ -13,8 +13,56 @@ Date:   Tue May 23 12:35:48 2023 +0200
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/metrics.go             | 6 ++++++
  src/runtime/metrics/description.go | 5 +++++
  src/runtime/metrics/doc.go         | 3 +++
  3 files changed, 14 insertions(+)
+
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index ffbb4e4d0f..da189565c5 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -189,6 +189,12 @@ func initMetrics() {
+ 				out.scalar = in.sysStats.gcCyclesDone
+ 			},
+ 		},
++		"/gc/scan/globals:bytes": {
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = gcController.globalsScan.Load()
++			},
++		},
+ 		"/gc/heap/allocs-by-size:bytes": {
+ 			deps: makeStatDepSet(heapStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index 8355fc5da0..8275148fdd 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -294,6 +294,11 @@ var allDesc = []Description{
+ 		Kind:        KindFloat64Histogram,
+ 		Cumulative:  true,
+ 	},
++	{
++		Name:        "/gc/scan/globals:bytes",
++		Description: "The total amount of global variable space that is scannable.",
++		Kind:        KindUint64,
++	},
+ 	{
+ 		Name:        "/gc/scan/stack:bytes",
+ 		Description: "The number of bytes of stack that were scanned last GC cycle.",
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 7f21278450..0392e76677 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -216,6 +216,9 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		Distribution of individual GC-related stop-the-world pause
+ 		latencies. Bucket counts increase monotonically.
+ 
++	/gc/scan/globals:bytes
++		The total amount of global variable space that is scannable.
++
+ 	/gc/scan/stack:bytes
+ 		The number of bytes of stack that were scanned last GC cycle.
+ 

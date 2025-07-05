@@ -32,7 +32,7 @@ Date:   Wed May 3 17:47:29 2023 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go        |  7 ++++
  src/cmd/compile/internal/types2/call.go            | 11 ++++-
  src/go/types/api_test.go                           |  7 ++++
@@ -40,3 +40,152 @@ Date:   Wed May 3 17:47:29 2023 -0700
  src/internal/types/testdata/examples/inference2.go |  4 +-
  .../types/testdata/fixedbugs/issue59956.go         | 49 ++++++++++++++++++++++
  6 files changed, 82 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index ae253623e6..8a11dd9a49 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -583,6 +583,13 @@ type T[P any] []P
+ 				{`h`, []string{`int`}, `func([]int, *float32)`},
+ 			},
+ 		},
++		{`package issue59956; func f(func(int), func(string), func(bool)) {}; func g[P any](P) {}; func _() { f(g, g, g) }`,
++			[]testInst{
++				{`g`, []string{`int`}, `func(int)`},
++				{`g`, []string{`string`}, `func(string)`},
++				{`g`, []string{`bool`}, `func(bool)`},
++			},
++		},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index c9a6e2f46e..bd8ca953ef 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -500,8 +500,15 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 		for i, arg := range args {
+ 			// generic arguments cannot have a defined (*Named) type - no need for underlying type below
+ 			if asig, _ := arg.typ.(*Signature); asig != nil && asig.TypeParams().Len() > 0 {
+-				// TODO(gri) need to also rename type parameters for cases like f(g, g)
+-				tparams = append(tparams, asig.TypeParams().list()...)
++				// Rename type parameters for cases like f(g, g); this gives each
++				// generic function argument a unique type identity (go.dev/issues/59956).
++				// TODO(gri) Consider only doing this if a function argument appears
++				//           multiple times, which is rare (possible optimization).
++				atparams, tmp := check.renameTParams(call.Pos(), asig.TypeParams().list(), asig)
++				asig = tmp.(*Signature)
++				asig.tparams = &TypeParamList{atparams} // renameTParams doesn't touch associated type parameters
++				arg.typ = asig                          // new type identity for the function argument
++				tparams = append(tparams, atparams...)
+ 				genericArgs = append(genericArgs, i)
+ 			}
+ 		}
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 02e26c3f02..8f9ef02389 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -583,6 +583,13 @@ type T[P any] []P
+ 				{`h`, []string{`int`}, `func([]int, *float32)`},
+ 			},
+ 		},
++		{`package issue59956; func f(func(int), func(string), func(bool)) {}; func g[P any](P) {}; func _() { f(g, g, g) }`,
++			[]testInst{
++				{`g`, []string{`int`}, `func(int)`},
++				{`g`, []string{`string`}, `func(string)`},
++				{`g`, []string{`bool`}, `func(bool)`},
++			},
++		},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 86c2da0522..6e94156d3e 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -503,8 +503,15 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 		for i, arg := range args {
+ 			// generic arguments cannot have a defined (*Named) type - no need for underlying type below
+ 			if asig, _ := arg.typ.(*Signature); asig != nil && asig.TypeParams().Len() > 0 {
+-				// TODO(gri) need to also rename type parameters for cases like f(g, g)
+-				tparams = append(tparams, asig.TypeParams().list()...)
++				// Rename type parameters for cases like f(g, g); this gives each
++				// generic function argument a unique type identity (go.dev/issues/59956).
++				// TODO(gri) Consider only doing this if a function argument appears
++				//           multiple times, which is rare (possible optimization).
++				atparams, tmp := check.renameTParams(call.Pos(), asig.TypeParams().list(), asig)
++				asig = tmp.(*Signature)
++				asig.tparams = &TypeParamList{atparams} // renameTParams doesn't touch associated type parameters
++				arg.typ = asig                          // new type identity for the function argument
++				tparams = append(tparams, atparams...)
+ 				genericArgs = append(genericArgs, i)
+ 			}
+ 		}
+diff --git a/src/internal/types/testdata/examples/inference2.go b/src/internal/types/testdata/examples/inference2.go
+index 80acc828dd..7b86266d5e 100644
+--- a/src/internal/types/testdata/examples/inference2.go
++++ b/src/internal/types/testdata/examples/inference2.go
+@@ -88,7 +88,5 @@ func _() {
+ 	g2(f4)
+ 	g4(f6)
+ 	g5(f6, f7)
+-
+-	// TODO(gri) this should work (requires type parameter renaming for f1)
+-	g6(f1, f1 /* ERROR "type func[P any](P) of f1 does not match func(string)" */)
++	g6(f1, f1)
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue59956.go b/src/internal/types/testdata/fixedbugs/issue59956.go
+new file mode 100644
+index 0000000000..33b05d72c1
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue59956.go
+@@ -0,0 +1,49 @@
++// -reverseTypeInference
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f1(func(int))
++func f2(func(int), func(string))
++func f3(func(int), func(string), func(float32))
++
++func g1[P any](P) {}
++
++func _() {
++	f1(g1)
++	f2(g1, g1)
++	f3(g1, g1, g1)
++}
++
++// More complex examples
++
++func g2[P any](P, P)                                         {}
++func h3[P any](func(P), func(P), func() P)                   {}
++func h4[P, Q any](func(P), func(P, Q), func() Q, func(P, Q)) {}
++
++func r1() int { return 0 }
++
++func _() {
++	h3(g1, g1, r1)
++	h4(g1, g2, r1, g2)
++}
++
++// Variadic cases
++
++func f(func(int))
++func g[P any](P) {}
++
++func d[P any](...func(P)) {}
++
++func _() {
++	d /* ERROR "cannot infer P" */ ()
++	d(f)
++	d(f, g)
++	d(f, g, g)
++	d /* ERROR "cannot infer P" */ (g, g, g)
++	d(g, g, f)
++	d(g, f, g, f)
++}

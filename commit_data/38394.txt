@@ -17,7 +17,7 @@ Date:   Tue Oct 23 14:38:22 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |   9 +-
  src/cmd/compile/internal/gc/ssa.go             |   7 ++
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |   9 ++
@@ -27,3 +27,483 @@ Date:   Tue Oct 23 14:38:22 2018 -0700
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 141 +++++++++++++++++++++++++
  test/codegen/mathbits.go                       |  60 +++++++++++
  8 files changed, 312 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 760d994c63..144a1f51f8 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -381,7 +381,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			v.Fatalf("output not in same register as an input %s", v.LongString())
+ 		}
+ 
+-	case ssa.OpAMD64ADDQconstcarry, ssa.OpAMD64ADCQconst:
++	case ssa.OpAMD64SUBQborrow, ssa.OpAMD64SBBQ:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[1].Reg()
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg0()
++
++	case ssa.OpAMD64ADDQconstcarry, ssa.OpAMD64ADCQconst, ssa.OpAMD64SUBQconstborrow, ssa.OpAMD64SBBQconst:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 17a1e66646..0d1a1a24e2 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3488,6 +3488,13 @@ func init() {
+ 		sys.AMD64)
+ 	alias("math/bits", "Add", "math/bits", "Add64", sys.ArchAMD64)
+ 
++	addF("math/bits", "Sub64",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
++		},
++		sys.AMD64)
++	alias("math/bits", "Sub", "math/bits", "Sub64", sys.ArchAMD64)
++
+ 	/******** sync/atomic ********/
+ 
+ 	// Note: these are disabled by flag_race in findIntrinsic below.
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index c2b1980fc3..a50811ab9c 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -33,15 +33,24 @@
+ 	(Select0 <typ.UInt64> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
+ (Select1 (Add64carry x y c)) ->
+ 	(NEGQ <typ.UInt64> (SBBQcarrymask <typ.UInt64> (Select1 <types.TypeFlags> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
++(Select0 (Sub64borrow x y c)) ->
++	(Select0 <typ.UInt64> (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
++(Select1 (Sub64borrow x y c)) ->
++	(NEGQ <typ.UInt64> (SBBQcarrymask <typ.UInt64> (Select1 <types.TypeFlags> (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
+ 
+ // Optimize ADCQ and friends
+ (ADCQ x (MOVQconst [c]) carry) && is32Bit(c) -> (ADCQconst x [c] carry)
+ (ADCQ x y (FlagEQ)) -> (ADDQcarry x y)
+ (ADCQconst x [c] (FlagEQ)) -> (ADDQconstcarry x [c])
+ (ADDQcarry x (MOVQconst [c])) && is32Bit(c) -> (ADDQconstcarry x [c])
++(SBBQ x (MOVQconst [c]) borrow) && is32Bit(c) -> (SBBQconst x [c] borrow)
++(SBBQ x y (FlagEQ)) -> (SUBQborrow x y)
++(SBBQconst x [c] (FlagEQ)) -> (SUBQconstborrow x [c])
++(SUBQborrow x (MOVQconst [c])) && is32Bit(c) -> (SUBQconstborrow x [c])
+ (Select1 (NEGLflags (MOVQconst [0]))) -> (FlagEQ)
+ (Select1 (NEGLflags (NEGQ (SBBQcarrymask x)))) -> x
+ 
++
+ (Mul64uhilo x y) -> (MULQU2 x y)
+ (Div128u xhi xlo y) -> (DIVQU2 xhi xlo y)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 7b1362f6d8..bd1339b43a 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -235,10 +235,18 @@ func init() {
+ 		{name: "NEGLflags", argLength: 1, reg: gp11flags, typ: "(UInt32,Flags)", asm: "NEGL", resultInArg0: true}, // -arg0, flags set for 0-arg0.
+ 		// The following 4 add opcodes return the low 64 bits of the sum in the first result and
+ 		// the carry (the 65th bit) in the carry flag.
+-		{name: "ADDQcarry", argLength: 2, reg: gp21flags, typ: "(UInt64,Flags)", asm: "ADDQ", commutative: true, resultInArg0: true},                              // r = arg0+arg1
+-		{name: "ADCQ", argLength: 3, reg: gp2flags1flags, typ: "(UInt64,Flags)", asm: "ADCQ", commutative: true, resultInArg0: true},                              // r = arg0+arg1+carry(arg2)
+-		{name: "ADDQconstcarry", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "ADDQ", aux: "Int32", resultInArg0: true},                              // r = arg0+auxint
+-		{name: "ADCQconst", argLength: 2, reg: gp1flags1flags, typ: "(UInt64,Flags)", asm: "ADCQ", aux: "Int32", resultInArg0: true},                              // r = arg0+auxint+carry(arg1)
++		{name: "ADDQcarry", argLength: 2, reg: gp21flags, typ: "(UInt64,Flags)", asm: "ADDQ", commutative: true, resultInArg0: true}, // r = arg0+arg1
++		{name: "ADCQ", argLength: 3, reg: gp2flags1flags, typ: "(UInt64,Flags)", asm: "ADCQ", commutative: true, resultInArg0: true}, // r = arg0+arg1+carry(arg2)
++		{name: "ADDQconstcarry", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "ADDQ", aux: "Int32", resultInArg0: true}, // r = arg0+auxint
++		{name: "ADCQconst", argLength: 2, reg: gp1flags1flags, typ: "(UInt64,Flags)", asm: "ADCQ", aux: "Int32", resultInArg0: true}, // r = arg0+auxint+carry(arg1)
++
++		// The following 4 add opcodes return the low 64 bits of the difference in the first result and
++		// the borrow (if the result is negative) in the carry flag.
++		{name: "SUBQborrow", argLength: 2, reg: gp21flags, typ: "(UInt64,Flags)", asm: "SUBQ", resultInArg0: true},                    // r = arg0-arg1
++		{name: "SBBQ", argLength: 3, reg: gp2flags1flags, typ: "(UInt64,Flags)", asm: "SBBQ", resultInArg0: true},                     // r = arg0-(arg1+carry(arg2))
++		{name: "SUBQconstborrow", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "SUBQ", aux: "Int32", resultInArg0: true}, // r = arg0-auxint
++		{name: "SBBQconst", argLength: 2, reg: gp1flags1flags, typ: "(UInt64,Flags)", asm: "SBBQ", aux: "Int32", resultInArg0: true},  // r = arg0-(auxint+carry(arg1))
++
+ 		{name: "MULQU2", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx, ax}}, commutative: true, asm: "MULQ", clobberFlags: true}, // arg0 * arg1, returns (hi, lo)
+ 		{name: "DIVQU2", argLength: 3, reg: regInfo{inputs: []regMask{dx, ax, gpsp}, outputs: []regMask{ax, dx}}, asm: "DIVQ", clobberFlags: true},                // arg0:arg1 / arg2 (128-bit divided by 64-bit), returns (q, r)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index e93e6d5a02..522ccbf893 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -492,6 +492,7 @@ var genericOps = []opData{
+ 	{name: "Sub32withcarry", argLength: 3},                    // arg0 - arg1 - arg2, arg2=carry (0 or 1)
+ 
+ 	{name: "Add64carry", argLength: 3, commutative: true, typ: "(UInt64,UInt64)"}, // arg0 + arg1 + arg2, arg2 must be 0 or 1. returns (value, value>>64)
++	{name: "Sub64borrow", argLength: 3, typ: "(UInt64,UInt64)"},                   // arg0 - (arg1 + arg2), arg2 must be 0 or 1. returns (value, value>>64&1)
+ 
+ 	{name: "Signmask", argLength: 1, typ: "Int32"},  // 0 if arg0 >= 0, -1 if arg0 < 0
+ 	{name: "Zeromask", argLength: 1, typ: "UInt32"}, // 0 if arg0 == 0, 0xffffffff if arg0 != 0
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 14329d5600..03837b5f63 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -528,6 +528,10 @@ const (
+ 	OpAMD64ADCQ
+ 	OpAMD64ADDQconstcarry
+ 	OpAMD64ADCQconst
++	OpAMD64SUBQborrow
++	OpAMD64SBBQ
++	OpAMD64SUBQconstborrow
++	OpAMD64SBBQconst
+ 	OpAMD64MULQU2
+ 	OpAMD64DIVQU2
+ 	OpAMD64ANDQ
+@@ -2399,6 +2403,7 @@ const (
+ 	OpSub32carry
+ 	OpSub32withcarry
+ 	OpAdd64carry
++	OpSub64borrow
+ 	OpSignmask
+ 	OpZeromask
+ 	OpSlicemask
+@@ -6627,6 +6632,70 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "SUBQborrow",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASUBQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "SBBQ",
++		argLen:       3,
++		resultInArg0: true,
++		asm:          x86.ASBBQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "SUBQconstborrow",
++		auxType:      auxInt32,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASUBQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "SBBQconst",
++		auxType:      auxInt32,
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASBBQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:         "MULQU2",
+ 		argLen:       2,
+@@ -29722,6 +29791,11 @@ var opcodeTable = [...]opInfo{
+ 		commutative: true,
+ 		generic:     true,
+ 	},
++	{
++		name:    "Sub64borrow",
++		argLen:  3,
++		generic: true,
++	},
+ 	{
+ 		name:    "Signmask",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index ff6002d4a2..c48554f141 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -457,8 +457,12 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAMD64SARWconst_0(v)
+ 	case OpAMD64SBBLcarrymask:
+ 		return rewriteValueAMD64_OpAMD64SBBLcarrymask_0(v)
++	case OpAMD64SBBQ:
++		return rewriteValueAMD64_OpAMD64SBBQ_0(v)
+ 	case OpAMD64SBBQcarrymask:
+ 		return rewriteValueAMD64_OpAMD64SBBQcarrymask_0(v)
++	case OpAMD64SBBQconst:
++		return rewriteValueAMD64_OpAMD64SBBQconst_0(v)
+ 	case OpAMD64SETA:
+ 		return rewriteValueAMD64_OpAMD64SETA_0(v)
+ 	case OpAMD64SETAE:
+@@ -533,6 +537,8 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAMD64SUBLmodify_0(v)
+ 	case OpAMD64SUBQ:
+ 		return rewriteValueAMD64_OpAMD64SUBQ_0(v)
++	case OpAMD64SUBQborrow:
++		return rewriteValueAMD64_OpAMD64SUBQborrow_0(v)
+ 	case OpAMD64SUBQconst:
+ 		return rewriteValueAMD64_OpAMD64SUBQconst_0(v)
+ 	case OpAMD64SUBQload:
+@@ -47835,6 +47841,46 @@ func rewriteValueAMD64_OpAMD64SBBLcarrymask_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64SBBQ_0(v *Value) bool {
++	// match: (SBBQ x (MOVQconst [c]) borrow)
++	// cond: is32Bit(c)
++	// result: (SBBQconst x [c] borrow)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64MOVQconst {
++			break
++		}
++		c := v_1.AuxInt
++		borrow := v.Args[2]
++		if !(is32Bit(c)) {
++			break
++		}
++		v.reset(OpAMD64SBBQconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		v.AddArg(borrow)
++		return true
++	}
++	// match: (SBBQ x y (FlagEQ))
++	// cond:
++	// result: (SUBQborrow x y)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpAMD64FlagEQ {
++			break
++		}
++		v.reset(OpAMD64SUBQborrow)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64SBBQcarrymask_0(v *Value) bool {
+ 	// match: (SBBQcarrymask (FlagEQ))
+ 	// cond:
+@@ -47898,6 +47944,25 @@ func rewriteValueAMD64_OpAMD64SBBQcarrymask_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64SBBQconst_0(v *Value) bool {
++	// match: (SBBQconst x [c] (FlagEQ))
++	// cond:
++	// result: (SUBQconstborrow x [c])
++	for {
++		c := v.AuxInt
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64FlagEQ {
++			break
++		}
++		v.reset(OpAMD64SUBQconstborrow)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64SETA_0(v *Value) bool {
+ 	// match: (SETA (InvertFlags x))
+ 	// cond:
+@@ -55318,6 +55383,28 @@ func rewriteValueAMD64_OpAMD64SUBQ_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64SUBQborrow_0(v *Value) bool {
++	// match: (SUBQborrow x (MOVQconst [c]))
++	// cond: is32Bit(c)
++	// result: (SUBQconstborrow x [c])
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64MOVQconst {
++			break
++		}
++		c := v_1.AuxInt
++		if !(is32Bit(c)) {
++			break
++		}
++		v.reset(OpAMD64SUBQconstborrow)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64SUBQconst_0(v *Value) bool {
+ 	// match: (SUBQconst [0] x)
+ 	// cond:
+@@ -64990,6 +65077,31 @@ func rewriteValueAMD64_OpSelect0_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Select0 (Sub64borrow x y c))
++	// cond:
++	// result: (Select0 <typ.UInt64> (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpSub64borrow {
++			break
++		}
++		_ = v_0.Args[2]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		c := v_0.Args[2]
++		v.reset(OpSelect0)
++		v.Type = typ.UInt64
++		v0 := b.NewValue0(v.Pos, OpAMD64SBBQ, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v1 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v2 := b.NewValue0(v.Pos, OpAMD64NEGLflags, types.NewTuple(typ.UInt32, types.TypeFlags))
++		v2.AddArg(c)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Select0 <t> (AddTupleFirst32 val tuple))
+ 	// cond:
+ 	// result: (ADDL val (Select0 <t> tuple))
+@@ -65104,6 +65216,35 @@ func rewriteValueAMD64_OpSelect1_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Select1 (Sub64borrow x y c))
++	// cond:
++	// result: (NEGQ <typ.UInt64> (SBBQcarrymask <typ.UInt64> (Select1 <types.TypeFlags> (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpSub64borrow {
++			break
++		}
++		_ = v_0.Args[2]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		c := v_0.Args[2]
++		v.reset(OpAMD64NEGQ)
++		v.Type = typ.UInt64
++		v0 := b.NewValue0(v.Pos, OpAMD64SBBQcarrymask, typ.UInt64)
++		v1 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v2 := b.NewValue0(v.Pos, OpAMD64SBBQ, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v2.AddArg(x)
++		v2.AddArg(y)
++		v3 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v4 := b.NewValue0(v.Pos, OpAMD64NEGLflags, types.NewTuple(typ.UInt32, types.TypeFlags))
++		v4.AddArg(c)
++		v3.AddArg(v4)
++		v2.AddArg(v3)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Select1 (NEGLflags (MOVQconst [0])))
+ 	// cond:
+ 	// result: (FlagEQ)
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 9a89c5f6b0..977cbe6eb1 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -386,6 +386,66 @@ func Add64M(p, q, r *[3]uint64) {
+ 	r[2], c = bits.Add64(p[2], q[2], c)
+ }
+ 
++// --------------- //
++//    bits.Sub*    //
++// --------------- //
++
++func Sub(x, y, ci uint) (r, co uint) {
++	// amd64:"NEGL","SBBQ","NEGQ"
++	return bits.Sub(x, y, ci)
++}
++
++func SubC(x, ci uint) (r, co uint) {
++	// amd64:"NEGL","SBBQ","NEGQ"
++	return bits.Sub(x, 7, ci)
++}
++
++func SubZ(x, y uint) (r, co uint) {
++	// amd64:"SUBQ","SBBQ","NEGQ",-"NEGL"
++	return bits.Sub(x, y, 0)
++}
++
++func SubR(x, y, ci uint) uint {
++	// amd64:"NEGL","SBBQ",-"NEGQ"
++	r, _ := bits.Sub(x, y, ci)
++	return r
++}
++func SubM(p, q, r *[3]uint) {
++	var c uint
++	r[0], c = bits.Sub(p[0], q[0], c)
++	// amd64:"SBBQ",-"NEGL",-"NEGQ"
++	r[1], c = bits.Sub(p[1], q[1], c)
++	r[2], c = bits.Sub(p[2], q[2], c)
++}
++
++func Sub64(x, y, ci uint64) (r, co uint64) {
++	// amd64:"NEGL","SBBQ","NEGQ"
++	return bits.Sub64(x, y, ci)
++}
++
++func Sub64C(x, ci uint64) (r, co uint64) {
++	// amd64:"NEGL","SBBQ","NEGQ"
++	return bits.Sub64(x, 7, ci)
++}
++
++func Sub64Z(x, y uint64) (r, co uint64) {
++	// amd64:"SUBQ","SBBQ","NEGQ",-"NEGL"
++	return bits.Sub64(x, y, 0)
++}
++
++func Sub64R(x, y, ci uint64) uint64 {
++	// amd64:"NEGL","SBBQ",-"NEGQ"
++	r, _ := bits.Sub64(x, y, ci)
++	return r
++}
++func Sub64M(p, q, r *[3]uint64) {
++	var c uint64
++	r[0], c = bits.Sub64(p[0], q[0], c)
++	// amd64:"SBBQ",-"NEGL",-"NEGQ"
++	r[1], c = bits.Sub64(p[1], q[1], c)
++	r[2], c = bits.Sub64(p[2], q[2], c)
++}
++
+ // --------------- //
+ //    bits.Mul*    //
+ // --------------- //

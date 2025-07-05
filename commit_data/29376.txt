@@ -11,6 +11,27 @@ Date:   Thu Sep 8 23:58:17 2016 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/net/http/transport_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index fe915e8402..48d4de4fab 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3369,6 +3369,15 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
+ }
+ 
+ func TestTransportEventTraceRealDNS(t *testing.T) {
++	if testing.Short() && testenv.Builder() == "" {
++		// Skip this test in short mode (the default for
++		// all.bash), in case the user is using a shady/ISP
++		// DNS server hijacking queries.
++		// See issues 16732, 16716.
++		// Our builders use 8.8.8.8, though, which correctly
++		// returns NXDOMAIN, so still run this test there.
++		t.Skip("skipping in short mode")
++	}
+ 	defer afterTest(t)
+ 	tr := &Transport{}
+ 	defer tr.CloseIdleConnections()

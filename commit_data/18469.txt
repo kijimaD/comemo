@@ -13,10 +13,115 @@ Date:   Wed Feb 12 22:24:29 2014 +0400
     R=golang-codereviews, dave, rsc
     CC=golang-codereviews
     https://golang.org/cl/55500044
-
+---
  src/pkg/runtime/netpoll.goc       | 18 +++++-------------
  src/pkg/runtime/netpoll_epoll.c   |  7 +++++++
  src/pkg/runtime/netpoll_kqueue.c  |  7 +++++++
  src/pkg/runtime/netpoll_windows.c |  7 +++++++
  src/pkg/runtime/runtime.h         |  3 +--
  5 files changed, 27 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/runtime/netpoll.goc b/src/pkg/runtime/netpoll.goc
+index 81471dca5b..3f00707337 100644
+--- a/src/pkg/runtime/netpoll.goc
++++ b/src/pkg/runtime/netpoll.goc
+@@ -134,12 +134,9 @@ ret:
+ func runtime_pollWait(pd *PollDesc, mode int) (err int) {
+ 	err = checkerr(pd, mode);
+ 	if(err == 0) {
+-#ifdef GOOS_solaris
+-		if(mode == 'r')
+-			runtime·netpollarmread(pd->fd);
+-		else if(mode == 'w')
+-			runtime·netpollarmwrite(pd->fd);
+-#endif
++		// As for now only Solaris uses level-triggered IO.
++		if(Solaris)
++			runtime·netpollarm(pd->fd, mode);
+ 		while(!netpollblock(pd, mode, false)) {
+ 			err = checkerr(pd, mode);
+ 			if(err != 0)
+@@ -152,13 +149,8 @@ func runtime_pollWait(pd *PollDesc, mode int) (err int) {
+ }
+ 
+ func runtime_pollWaitCanceled(pd *PollDesc, mode int) {
+-#ifdef GOOS_solaris
+-	if(mode == 'r')
+-		runtime·netpollarmread(pd->fd);
+-	else if(mode == 'w')
+-		runtime·netpollarmwrite(pd->fd);
+-#endif
+-	// wait for ioready, ignore closing or timeouts.
++	// This function is used only on windows after a failed attempt to cancel
++	// a pending async IO operation. Wait for ioready, ignore closing or timeouts.
+ 	while(!netpollblock(pd, mode, true))
+ 		;
+ }
+diff --git a/src/pkg/runtime/netpoll_epoll.c b/src/pkg/runtime/netpoll_epoll.c
+index 885ac5e4df..318e069299 100644
+--- a/src/pkg/runtime/netpoll_epoll.c
++++ b/src/pkg/runtime/netpoll_epoll.c
+@@ -52,6 +52,13 @@ runtime·netpollclose(uintptr fd)
+ 	return -res;
+ }
+ 
++void
++runtime·netpollarm(uintptr fd, int32 mode)
++{
++	USED(fd, mode);
++	runtime·throw("unused");
++}
++
+ // polls for ready network connections
+ // returns list of goroutines that become runnable
+ G*
+diff --git a/src/pkg/runtime/netpoll_kqueue.c b/src/pkg/runtime/netpoll_kqueue.c
+index afc8d68591..7c5f12a1bd 100644
+--- a/src/pkg/runtime/netpoll_kqueue.c
++++ b/src/pkg/runtime/netpoll_kqueue.c
+@@ -59,6 +59,13 @@ runtime·netpollclose(uintptr fd)
+ 	return 0;
+ }
+ 
++void
++runtime·netpollarm(uintptr fd, int32 mode)
++{
++	USED(fd, mode);
++	runtime·throw("unused");
++}
++
+ // Polls for ready network connections.
+ // Returns list of goroutines that become runnable.
+ G*
+diff --git a/src/pkg/runtime/netpoll_windows.c b/src/pkg/runtime/netpoll_windows.c
+index aeb065148c..a9f828c706 100644
+--- a/src/pkg/runtime/netpoll_windows.c
++++ b/src/pkg/runtime/netpoll_windows.c
+@@ -72,6 +72,13 @@ runtime·netpollclose(uintptr fd)
+ 	return 0;
+ }
+ 
++void
++runtime·netpollarm(uintptr fd, int32 mode)
++{
++	USED(fd, mode);
++	runtime·throw("unused");
++}
++
+ // Polls for completed network IO.
+ // Returns list of goroutines that become runnable.
+ G*
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index ea42dbe59a..57b5329e68 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -893,8 +893,7 @@ int32	runtime·netpollopen(uintptr, PollDesc*);
+ int32   runtime·netpollclose(uintptr);
+ void	runtime·netpollready(G**, PollDesc*, int32);
+ uintptr	runtime·netpollfd(PollDesc*);
+-void	runtime·netpollarmread(uintptr fd);
+-void	runtime·netpollarmwrite(uintptr fd);
++void	runtime·netpollarm(uintptr, int32);
+ void	runtime·crash(void);
+ void	runtime·parsedebugvars(void);
+ void	_rt0_go(void);

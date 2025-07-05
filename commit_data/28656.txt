@@ -7,7 +7,40 @@ Date:   Wed Jun 22 10:41:30 2016 -0400
     Change-Id: Ib285c02e240f02e9d5511bd448163ec1d4e75516
     Reviewed-on: https://go-review.googlesource.com/24323
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/internal/cfg/builder.go  | 4 +++-
  src/cmd/vet/internal/cfg/cfg_test.go | 6 ++++++
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/internal/cfg/builder.go b/src/cmd/vet/internal/cfg/builder.go
+index 79c906bca0..da1cc7e638 100644
+--- a/src/cmd/vet/internal/cfg/builder.go
++++ b/src/cmd/vet/internal/cfg/builder.go
+@@ -98,7 +98,9 @@ start:
+ 			}
+ 
+ 		case token.GOTO:
+-			block = b.labeledBlock(s.Label)._goto
++			if s.Label != nil {
++				block = b.labeledBlock(s.Label)._goto
++			}
+ 		}
+ 		if block == nil {
+ 			block = b.newBlock("undefined.branch")
+diff --git a/src/cmd/vet/internal/cfg/cfg_test.go b/src/cmd/vet/internal/cfg/cfg_test.go
+index 5d98f136bd..2400fed6f4 100644
+--- a/src/cmd/vet/internal/cfg/cfg_test.go
++++ b/src/cmd/vet/internal/cfg/cfg_test.go
+@@ -122,6 +122,12 @@ func f10(ch chan int) {
+ 	}
+ 	live()
+ }
++
++func f11() {
++	goto; // mustn't crash
++	dead()
++}
++
+ `
+ 
+ func TestDeadCode(t *testing.T) {

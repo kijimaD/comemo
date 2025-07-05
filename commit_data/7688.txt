@@ -7,6 +7,21 @@ Date:   Mon Mar 7 15:31:41 2011 -0800
     R=rsc, dsymonds
     CC=golang-dev
     https://golang.org/cl/4250063
-
+---
  src/pkg/net/port_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/pkg/net/port_test.go b/src/pkg/net/port_test.go
+index 1b7eaf2312..329b169f34 100644
+--- a/src/pkg/net/port_test.go
++++ b/src/pkg/net/port_test.go
+@@ -27,9 +27,7 @@ var porttests = []portTest{
+ 	{"tcp", "smtp", 25, true},
+ 	{"tcp", "time", 37, true},
+ 	{"tcp", "domain", 53, true},
+-	{"tcp", "gopher", 70, true},
+ 	{"tcp", "finger", 79, true},
+-	{"tcp", "http", 80, true},
+ 
+ 	{"udp", "echo", 7, true},
+ 	{"udp", "tftp", 69, true},

@@ -7,7 +7,7 @@ Date:   Wed Jun 13 07:06:04 2018 +0000
     Change-Id: I9d2d25df067ca573589db5ff18296a5ec33866be
     Reviewed-on: https://go-review.googlesource.com/118595
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/code.html               |  2 +-
  doc/contribute.html         |  2 +-
  doc/debugging_with_gdb.html |  2 +-
@@ -22,3 +22,322 @@ Date:   Wed Jun 13 07:06:04 2018 +0000
  doc/install-source.html     |  4 ++--
  doc/install.html            |  2 +-
  13 files changed, 33 insertions(+), 33 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 92616a5a5a..c0efcde66f 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -673,7 +673,7 @@ articles about the Go language and its libraries and tools.
+ 
+ <p>
+ For real-time help, ask the helpful gophers in <code>#go-nuts</code> on the
+-<a href="http://freenode.net/">Freenode</a> IRC server.
++<a href="https://freenode.net/">Freenode</a> IRC server.
+ </p>
+ 
+ <p>
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 5f6af2c93c..e7970537dd 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -639,7 +639,7 @@ The existing implementation has poor numerical properties for
+ large arguments, so use the McGillicutty algorithm to improve
+ accuracy above 1e10.
+ 
+-The algorithm is described at http://wikipedia.org/wiki/McGillicutty_Algorithm
++The algorithm is described at https://wikipedia.org/wiki/McGillicutty_Algorithm
+ 
+ Fixes #159
+ </pre>
+diff --git a/doc/debugging_with_gdb.html b/doc/debugging_with_gdb.html
+index 19d36f7d97..ca9d9a7c46 100644
+--- a/doc/debugging_with_gdb.html
++++ b/doc/debugging_with_gdb.html
+@@ -47,7 +47,7 @@ In short, the instructions below should be taken only as a guide to how
+ to use GDB when it works, not as a guarantee of success.
+ 
+ Besides this overview you might want to consult the
+-<a href="http://sourceware.org/gdb/current/onlinedocs/gdb/">GDB manual</a>.
++<a href="https://sourceware.org/gdb/current/onlinedocs/gdb/">GDB manual</a>.
+ </p>
+ 
+ <p>
+diff --git a/doc/docs.html b/doc/docs.html
+index 21a9a63d51..955eb3044e 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -195,7 +195,7 @@ See the <a href="/wiki/Articles">Articles page</a> at the
+ 
+ <img class="gopher" src="/doc/gopher/talks.png"/>
+ 
+-<h3 id="video_tour_of_go"><a href="http://research.swtch.com/gotour">A Video Tour of Go</a></h3>
++<h3 id="video_tour_of_go"><a href="https://research.swtch.com/gotour">A Video Tour of Go</a></h3>
+ <p>
+ Three things that make Go fast, fun, and productive:
+ interfaces, reflection, and concurrency. Builds a toy web crawler to
+diff --git a/doc/editors.html b/doc/editors.html
+index 617a100130..6f787864c6 100644
+--- a/doc/editors.html
++++ b/doc/editors.html
+@@ -9,7 +9,7 @@
+   This document lists commonly used editor plugins and IDEs from the Go ecosystem
+   that make Go development more productive and seamless.
+   A comprehensive list of editor support and IDEs for Go development is available at
+-  <a href="http://golang.org/wiki/IDEsAndTextEditorPlugins">the wiki</a>.
++  <a href="https://golang.org/wiki/IDEsAndTextEditorPlugins">the wiki</a>.
+ </p>
+ 
+ <h2 id="options">Options</h2>
+diff --git a/doc/gccgo_contribute.html b/doc/gccgo_contribute.html
+index 1286fcc2be..6374cd0cbe 100644
+--- a/doc/gccgo_contribute.html
++++ b/doc/gccgo_contribute.html
+@@ -22,7 +22,7 @@ file HACKING</a> in the gofrontend repository.
+ You must follow the <a href="/doc/contribute.html#copyright">Go copyright
+ rules</a> for all changes to the gccgo frontend and the associated
+ libgo library.  Code that is part of GCC rather than gccgo must follow
+-the general <a href="http://gcc.gnu.org/contribute.html">GCC
++the general <a href="https://gcc.gnu.org/contribute.html">GCC
+ contribution rules</a>.
+ </p>
+ 
+@@ -30,9 +30,9 @@ contribution rules</a>.
+ 
+ <p>
+ The master sources for the gccgo frontend may be found at
+-<a href="http://go.googlesource.com/gofrontend">http://go.googlesource.com/gofrontend</a>.
++<a href="https://go.googlesource.com/gofrontend">https://go.googlesource.com/gofrontend</a>.
+ They are mirrored
+-at <a href="http://github.com/golang/gofrontend">http://github.com/golang/gofrontend</a>.
++at <a href="https://github.com/golang/gofrontend">https://github.com/golang/gofrontend</a>.
+ The master sources are not buildable by themselves, but only in
+ conjunction with GCC (in the future, other compilers may be
+ supported).  Changes made to the gccgo frontend are also applied to
+diff --git a/doc/gccgo_install.html b/doc/gccgo_install.html
+index d4eac12f11..a974bb3680 100644
+--- a/doc/gccgo_install.html
++++ b/doc/gccgo_install.html
+@@ -9,7 +9,7 @@ the Go language.  The gccgo compiler is a new frontend
+ for GCC, the widely used GNU compiler.  Although the
+ frontend itself is under a BSD-style license, gccgo is
+ normally used as part of GCC and is then covered by
+-the <a href="http://www.gnu.org/licenses/gpl.html">GNU General Public
++the <a href="https://www.gnu.org/licenses/gpl.html">GNU General Public
+ License</a> (the license covers gccgo itself as part of GCC; it
+ does not cover code generated by gccgo).
+ </p>
+@@ -25,7 +25,7 @@ compiler.
+ <p>
+ The simplest way to install gccgo is to install a GCC binary release
+ built to include Go support.  GCC binary releases are available from
+-<a href="http://gcc.gnu.org/install/binaries.html">various
++<a href="https://gcc.gnu.org/install/binaries.html">various
+ websites</a> and are typically included as part of GNU/Linux
+ distributions.  We expect that most people who build these binaries
+ will include Go support.
+@@ -79,7 +79,7 @@ If you cannot use a release, or prefer to build gccgo for
+ yourself, 
+ the gccgo source code is accessible via Subversion.  The
+ GCC web site
+-has <a href="http://gcc.gnu.org/svn.html">instructions for getting the
++has <a href="https://gcc.gnu.org/svn.html">instructions for getting the
+ GCC source code</a>.  The gccgo source code is included.  As a
+ convenience, a stable version of the Go support is available in
+ a branch of the main GCC code
+@@ -101,7 +101,7 @@ gccgo</a>.
+ <p>
+ Building gccgo is just like building GCC
+ with one or two additional options.  See
+-the <a href="http://gcc.gnu.org/install/">instructions on the gcc web
++the <a href="https://gcc.gnu.org/install/">instructions on the gcc web
+ site</a>.  When you run <code>configure</code>, add the
+ option <code>--enable-languages=c,c++,go</code> (along with other
+ languages you may want to build).  If you are targeting a 32-bit x86,
+@@ -156,7 +156,7 @@ option <code>--with-ld=<var>GOLD_BINARY</var></code>.
+ <p>
+ A number of prerequisites are required to build GCC, as
+ described on
+-the <a href="http://gcc.gnu.org/install/prerequisites.html">gcc web
++the <a href="https://gcc.gnu.org/install/prerequisites.html">gcc web
+ site</a>.  It is important to install all the prerequisites before
+ running the gcc <code>configure</code> script.
+ The prerequisite libraries can be conveniently downloaded using the
+diff --git a/doc/go1.2.html b/doc/go1.2.html
+index 5370bbbbd6..1f6051418c 100644
+--- a/doc/go1.2.html
++++ b/doc/go1.2.html
+@@ -860,13 +860,13 @@ The new build tag <code>netgo</code> (off by default) allows the construction of
+ The <a href="/pkg/net/"><code>net</code></a> package adds a new field
+ <code>DualStack</code> to the <a href="/pkg/net/#Dialer"><code>Dialer</code></a>
+ struct for TCP connection setup using a dual IP stack as described in
+-<a href="http://tools.ietf.org/html/rfc6555">RFC 6555</a>.
++<a href="https://tools.ietf.org/html/rfc6555">RFC 6555</a>.
+ </li>
+ 
+ <li>
+ The <a href="/pkg/net/http/"><code>net/http</code></a> package will no longer
+ transmit cookies that are incorrect according to
+-<a href="http://tools.ietf.org/html/rfc6265">RFC 6265</a>.
++<a href="https://tools.ietf.org/html/rfc6265">RFC 6265</a>.
+ It just logs an error and sends nothing.
+ Also,
+ the <a href="/pkg/net/http/"><code>net/http</code></a> package's
+diff --git a/doc/go1.4.html b/doc/go1.4.html
+index ca44d56ceb..c8f7c9c525 100644
+--- a/doc/go1.4.html
++++ b/doc/go1.4.html
+@@ -420,7 +420,7 @@ to automate the running of tools to generate source code before compilation.
+ For example, it can be used to run the <a href="/cmd/yacc"><code>yacc</code></a>
+ compiler-compiler on a <code>.y</code> file to produce the Go source file implementing the grammar,
+ or to automate the generation of <code>String</code> methods for typed constants using the new
+-<a href="http://godoc.org/golang.org/x/tools/cmd/stringer">stringer</a>
++<a href="https://godoc.org/golang.org/x/tools/cmd/stringer">stringer</a>
+ tool in the <code>golang.org/x/tools</code> subrepository.
+ </p>
+ 
+@@ -619,9 +619,9 @@ has been created to serve as the location for new developments to support system
+ calls on all kernels.
+ It has a nicer structure, with three packages that each hold the implementation of
+ system calls for one of
+-<a href="http://godoc.org/golang.org/x/sys/unix">Unix</a>,
+-<a href="http://godoc.org/golang.org/x/sys/windows">Windows</a> and
+-<a href="http://godoc.org/golang.org/x/sys/plan9">Plan 9</a>.
++<a href="https://godoc.org/golang.org/x/sys/unix">Unix</a>,
++<a href="https://godoc.org/golang.org/x/sys/windows">Windows</a> and
++<a href="https://godoc.org/golang.org/x/sys/plan9">Plan 9</a>.
+ These packages will be curated more generously, accepting all reasonable changes
+ that reflect kernel interfaces in those operating systems.
+ See the documentation and the article mentioned above for more information.
+@@ -670,7 +670,7 @@ The <a href="/pkg/crypto/"><code>crypto</code></a> package now has a
+ 
+ <li>
+ The <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
+-now supports ALPN as defined in <a href="http://tools.ietf.org/html/rfc7301">RFC 7301</a>.
++now supports ALPN as defined in <a href="https://tools.ietf.org/html/rfc7301">RFC 7301</a>.
+ </li>
+ 
+ <li>
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index cc81e49a9b..e83408e6f1 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -97,14 +97,14 @@ What's the origin of the mascot?</h3>
+ 
+ <p>
+ The mascot and logo were designed by
+-<a href="http://reneefrench.blogspot.com">Renée French</a>, who also designed
++<a href="https://reneefrench.blogspot.com">Renée French</a>, who also designed
+ <a href="https://9p.io/plan9/glenda.html">Glenda</a>,
+ the Plan 9 bunny.
+ The <a href="https://blog.golang.org/gopher">gopher</a>
+-is derived from one she used for an <a href="http://wfmu.org/">WFMU</a>
++is derived from one she used for an <a href="https://wfmu.org/">WFMU</a>
+ T-shirt design some years ago.
+ The logo and mascot are covered by the
+-<a href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0</a>
++<a href="https://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0</a>
+ license.
+ </p>
+ 
+@@ -1929,7 +1929,7 @@ func main() {
+ 
+ <p>
+ Nowadays, most Go programmers use a tool,
+-<a href="http://godoc.org/golang.org/x/tools/cmd/goimports">goimports</a>,
++<a href="https://godoc.org/golang.org/x/tools/cmd/goimports">goimports</a>,
+ which automatically rewrites a Go source file to have the correct imports,
+ eliminating the unused imports issue in practice.
+ This program is easily connected to most editors to run automatically when a Go source file is written.
+@@ -1968,7 +1968,7 @@ The slowest depend on libraries for which versions of comparable performance
+ are not available in Go.
+ For instance, <a href="https://go.googlesource.com/exp/+/master/shootout/pidigits.go">pidigits.go</a>
+ depends on a multi-precision math package, and the C
+-versions, unlike Go's, use <a href="http://gmplib.org/">GMP</a> (which is
++versions, unlike Go's, use <a href="https://gmplib.org/">GMP</a> (which is
+ written in optimized assembler).
+ Benchmarks that depend on regular expressions
+ (<a href="https://go.googlesource.com/exp/+/master/shootout/regex-dna.go">regex-dna.go</a>,
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index f1300c105a..f70ff7a02f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -69,7 +69,7 @@ language.
+ 
+ <p>
+ Source code is Unicode text encoded in
+-<a href="http://en.wikipedia.org/wiki/UTF-8">UTF-8</a>. The text is not
++<a href="https://en.wikipedia.org/wiki/UTF-8">UTF-8</a>. The text is not
+ canonicalized, so a single accented code point is distinct from the
+ same character constructed from combining an accent and a letter;
+ those are treated as two code points.  For simplicity, this document
+@@ -104,7 +104,7 @@ unicode_digit  = /* a Unicode code point classified as "Number, decimal digit" *
+ </pre>
+ 
+ <p>
+-In <a href="http://www.unicode.org/versions/Unicode8.0.0/">The Unicode Standard 8.0</a>,
++In <a href="https://www.unicode.org/versions/Unicode8.0.0/">The Unicode Standard 8.0</a>,
+ Section 4.5 "General Category" defines a set of character categories.
+ Go treats all characters in any of the Letter categories Lu, Ll, Lt, Lm, or Lo
+ as Unicode letters, and those in the Number category Nd as Unicode digits.
+@@ -793,7 +793,7 @@ rune        alias for int32
+ 
+ <p>
+ The value of an <i>n</i>-bit integer is <i>n</i> bits wide and represented using
+-<a href="http://en.wikipedia.org/wiki/Two's_complement">two's complement arithmetic</a>.
++<a href="https://en.wikipedia.org/wiki/Two's_complement">two's complement arithmetic</a>.
+ </p>
+ 
+ <p>
+@@ -3543,7 +3543,7 @@ x = q*y + r  and  |r| &lt; |y|
+ 
+ <p>
+ with <code>x / y</code> truncated towards zero
+-(<a href="http://en.wikipedia.org/wiki/Modulo_operation">"truncated division"</a>).
++(<a href="https://en.wikipedia.org/wiki/Modulo_operation">"truncated division"</a>).
+ </p>
+ 
+ <pre>
+@@ -6109,7 +6109,7 @@ package and may be relative to a repository of installed packages.
+ <p>
+ Implementation restriction: A compiler may restrict ImportPaths to
+ non-empty strings using only characters belonging to
+-<a href="http://www.unicode.org/versions/Unicode6.3.0/">Unicode's</a>
++<a href="https://www.unicode.org/versions/Unicode6.3.0/">Unicode's</a>
+ L, M, N, P, and S general categories (the Graphic characters without
+ spaces) and may also exclude the characters
+ <code>!"#$%&amp;'()*,:;&lt;=&gt;?[\]^`{|}</code>
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 1928b0ba9b..844fb002f7 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -197,7 +197,7 @@ have a <code>git</code> command before proceeding.)
+ <p>
+ If you do not have a working Git installation,
+ follow the instructions on the
+-<a href="http://git-scm.com/downloads">Git downloads</a> page.
++<a href="https://git-scm.com/downloads">Git downloads</a> page.
+ </p>
+ 
+ <h2 id="ccompiler">(Optional) Install a C compiler</h2>
+@@ -388,7 +388,7 @@ You can access the latter commands with
+ 
+ <p>
+ The usual community resources such as
+-<code>#go-nuts</code> on the <a href="http://freenode.net/">Freenode</a> IRC server
++<code>#go-nuts</code> on the <a href="https://freenode.net/">Freenode</a> IRC server
+ and the
+ <a href="//groups.google.com/group/golang-nuts">Go Nuts</a>
+ mailing list have active developers that can help you with problems
+diff --git a/doc/install.html b/doc/install.html
+index f3b3f97fb8..cd51e7603a 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -57,7 +57,7 @@ If your OS or architecture is not on the list, you may be able to
+ <sup>&#8224;</sup>A C compiler is required only if you plan to use
+ <a href="/cmd/cgo">cgo</a>.<br/>
+ <sup>&#8225;</sup>You only need to install the command line tools for
+-<a href="http://developer.apple.com/Xcode/">Xcode</a>. If you have already
++<a href="https://developer.apple.com/Xcode/">Xcode</a>. If you have already
+ installed Xcode 4.3+, you can install it from the Components tab of the
+ Downloads preferences panel.
+ </p>

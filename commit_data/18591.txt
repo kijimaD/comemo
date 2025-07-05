@@ -9,7 +9,32 @@ Date:   Fri Feb 21 10:22:56 2014 -0800
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/65340044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index bdfefd01e3..a25529d759 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -48,6 +48,7 @@ Anschel Schaffer-Cohen <anschelsc@gmail.com>
+ Anthony Eufemio <anthony.eufemio@gmail.com>
+ Anthony Martin <ality@pbrane.org>
+ Anthony Starks <ajstarks@gmail.com>
++Apisak Darakananda <pongad@gmail.com>
+ Aram Hăvărneanu <aram@mgk.ro>
+ Arnaud Ysmal <arnaud.ysmal@gmail.com>
+ Arne Hormann <arnehormann@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a928db1493..8f1f605872 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -80,6 +80,7 @@ Anschel Schaffer-Cohen <anschelsc@gmail.com>
+ Anthony Eufemio <anthony.eufemio@gmail.com>
+ Anthony Martin <ality@pbrane.org>
+ Anthony Starks <ajstarks@gmail.com>
++Apisak Darakananda <pongad@gmail.com>
+ Aram Hăvărneanu <aram@mgk.ro>
+ Arnaud Ysmal <arnaud.ysmal@gmail.com>
+ Arne Hormann <arnehormann@gmail.com>

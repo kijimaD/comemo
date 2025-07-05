@@ -15,7 +15,7 @@ Date:   Fri Sep 2 12:10:24 2022 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api.go              |  4 ++--
  src/cmd/compile/internal/types2/api_test.go         |  3 +--
  src/cmd/compile/internal/types2/errors.go           | 17 ++++++++---------
@@ -38,3 +38,581 @@ Date:   Fri Sep 2 12:10:24 2022 -0700
  src/go/types/termlist.go                            |  4 ++--
  src/go/types/typeset.go                             |  4 ++--
  21 files changed, 58 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index ef1db13fb9..0793948838 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -24,10 +24,10 @@
+ package types2
+ 
+ import (
+-	"bytes"
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"go/constant"
++	"strings"
+ )
+ 
+ // An Error describes a type-checking error; it implements the error interface.
+@@ -388,7 +388,7 @@ type Initializer struct {
+ }
+ 
+ func (init *Initializer) String() string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for i, lhs := range init.Lhs {
+ 		if i > 0 {
+ 			buf.WriteString(", ")
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 9367e5f3f2..ac81d31fb2 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -5,7 +5,6 @@
+ package types2_test
+ 
+ import (
+-	"bytes"
+ 	"cmd/compile/internal/syntax"
+ 	"errors"
+ 	"fmt"
+@@ -894,7 +893,7 @@ func TestImplicitsInfo(t *testing.T) {
+ }
+ 
+ func predString(tv TypeAndValue) string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	pred := func(b bool, s string) {
+ 		if b {
+ 			if buf.Len() > 0 {
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 61d8953014..3734db5910 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -7,7 +7,6 @@
+ package types2
+ 
+ import (
+-	"bytes"
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"runtime"
+@@ -64,7 +63,7 @@ func (err *error_) msg(qf Qualifier) string {
+ 	if err.empty() {
+ 		return "no error"
+ 	}
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for i := range err.desc {
+ 		p := &err.desc[i]
+ 		if i > 0 {
+@@ -106,7 +105,7 @@ func sprintf(qf Qualifier, debug bool, format string, args ...interface{}) strin
+ 		case syntax.Expr:
+ 			arg = syntax.String(a)
+ 		case []syntax.Expr:
+-			var buf bytes.Buffer
++			var buf strings.Builder
+ 			buf.WriteByte('[')
+ 			for i, x := range a {
+ 				if i > 0 {
+@@ -121,7 +120,7 @@ func sprintf(qf Qualifier, debug bool, format string, args ...interface{}) strin
+ 		case Type:
+ 			arg = typeString(a, qf, debug)
+ 		case []Type:
+-			var buf bytes.Buffer
++			var buf strings.Builder
+ 			buf.WriteByte('[')
+ 			for i, x := range a {
+ 				if i > 0 {
+@@ -132,7 +131,7 @@ func sprintf(qf Qualifier, debug bool, format string, args ...interface{}) strin
+ 			buf.WriteByte(']')
+ 			arg = buf.String()
+ 		case []*TypeParam:
+-			var buf bytes.Buffer
++			var buf strings.Builder
+ 			buf.WriteByte('[')
+ 			for i, x := range a {
+ 				if i > 0 {
+@@ -300,15 +299,15 @@ func posFor(at poser) syntax.Pos {
+ 
+ // stripAnnotations removes internal (type) annotations from s.
+ func stripAnnotations(s string) string {
+-	var b strings.Builder
++	var buf strings.Builder
+ 	for _, r := range s {
+ 		// strip #'s and subscript digits
+ 		if r < '₀' || '₀'+10 <= r { // '₀' == U+2080
+-			b.WriteRune(r)
++			buf.WriteRune(r)
+ 		}
+ 	}
+-	if b.Len() < len(s) {
+-		return b.String()
++	if buf.Len() < len(s) {
++		return buf.String()
+ 	}
+ 	return s
+ }
+diff --git a/src/cmd/compile/internal/types2/example_test.go b/src/cmd/compile/internal/types2/example_test.go
+index 4edaad580e..ad0f22fcec 100644
+--- a/src/cmd/compile/internal/types2/example_test.go
++++ b/src/cmd/compile/internal/types2/example_test.go
+@@ -17,7 +17,6 @@ package types2_test
+ // from source, use golang.org/x/tools/go/loader.
+ 
+ import (
+-	"bytes"
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/types2"
+ 	"fmt"
+@@ -68,7 +67,7 @@ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get
+ 
+ 	// Print the tree of scopes.
+ 	// For determinism, we redact addresses.
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	pkg.Scope().WriteTo(&buf, 0, true)
+ 	rx := regexp.MustCompile(` 0x[a-fA-F0-9]*`)
+ 	fmt.Println(rx.ReplaceAllString(buf.String(), ""))
+@@ -173,7 +172,7 @@ func fib(x int) int {
+ 	// fmt.Println("Types and Values of each expression:")
+ 	// items = nil
+ 	// for expr, tv := range info.Types {
+-	// 	var buf bytes.Buffer
++	// 	var buf strings.Builder
+ 	// 	posn := expr.Pos()
+ 	// 	tvstr := tv.Type.String()
+ 	// 	if tv.Value != nil {
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index d88eef640a..26e01e9ae5 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -338,16 +338,16 @@ func typeParamsString(list []*TypeParam) string {
+ 	}
+ 
+ 	// general case (n > 2)
+-	var b strings.Builder
++	var buf strings.Builder
+ 	for i, tname := range list[:n-1] {
+ 		if i > 0 {
+-			b.WriteString(", ")
++			buf.WriteString(", ")
+ 		}
+-		b.WriteString(tname.obj.name)
++		buf.WriteString(tname.obj.name)
+ 	}
+-	b.WriteString(", and ")
+-	b.WriteString(list[n-1].obj.name)
+-	return b.String()
++	buf.WriteString(", and ")
++	buf.WriteString(list[n-1].obj.name)
++	return buf.String()
+ }
+ 
+ // isParameterized reports whether typ contains any of the type parameters of tparams.
+diff --git a/src/cmd/compile/internal/types2/instantiate_test.go b/src/cmd/compile/internal/types2/instantiate_test.go
+index 591b467a2e..3c897869fc 100644
+--- a/src/cmd/compile/internal/types2/instantiate_test.go
++++ b/src/cmd/compile/internal/types2/instantiate_test.go
+@@ -233,15 +233,15 @@ var _ T[int]
+ 
+ // Copied from errors.go.
+ func stripAnnotations(s string) string {
+-	var b strings.Builder
++	var buf strings.Builder
+ 	for _, r := range s {
+ 		// strip #'s and subscript digits
+ 		if r < '₀' || '₀'+10 <= r { // '₀' == U+2080
+-			b.WriteRune(r)
++			buf.WriteRune(r)
+ 		}
+ 	}
+-	if b.Len() < len(s) {
+-		return b.String()
++	if buf.Len() < len(s) {
++		return buf.String()
+ 	}
+ 	return s
+ }
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 697a73525c..8588687803 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -7,7 +7,6 @@
+ package types2_test
+ 
+ import (
+-	"bytes"
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"internal/testenv"
+@@ -427,7 +426,7 @@ func TestIssue29029(t *testing.T) {
+ 
+ 	// printInfo prints the *Func definitions recorded in info, one *Func per line.
+ 	printInfo := func(info *Info) string {
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		for _, obj := range info.Defs {
+ 			if fn, ok := obj.(*Func); ok {
+ 				fmt.Fprintln(&buf, fn)
+diff --git a/src/cmd/compile/internal/types2/mono_test.go b/src/cmd/compile/internal/types2/mono_test.go
+index 4511110691..890099207c 100644
+--- a/src/cmd/compile/internal/types2/mono_test.go
++++ b/src/cmd/compile/internal/types2/mono_test.go
+@@ -5,7 +5,6 @@
+ package types2_test
+ 
+ import (
+-	"bytes"
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/types2"
+ 	"errors"
+@@ -22,7 +21,7 @@ func checkMono(t *testing.T, body string) error {
+ 	}
+ 	files := []*syntax.File{file}
+ 
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	conf := types2.Config{
+ 		Error:    func(err error) { fmt.Fprintln(&buf, err) },
+ 		Importer: defaultImporter(),
+diff --git a/src/cmd/compile/internal/types2/scope.go b/src/cmd/compile/internal/types2/scope.go
+index 095875d94b..a679a3d954 100644
+--- a/src/cmd/compile/internal/types2/scope.go
++++ b/src/cmd/compile/internal/types2/scope.go
+@@ -7,7 +7,6 @@
+ package types2
+ 
+ import (
+-	"bytes"
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"io"
+@@ -233,7 +232,7 @@ func (s *Scope) WriteTo(w io.Writer, n int, recurse bool) {
+ 
+ // String returns a string representation of the scope, for debugging.
+ func (s *Scope) String() string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	s.WriteTo(&buf, 0, false)
+ 	return buf.String()
+ }
+diff --git a/src/cmd/compile/internal/types2/termlist.go b/src/cmd/compile/internal/types2/termlist.go
+index 8e1f290b2b..196f8abf72 100644
+--- a/src/cmd/compile/internal/types2/termlist.go
++++ b/src/cmd/compile/internal/types2/termlist.go
+@@ -4,7 +4,7 @@
+ 
+ package types2
+ 
+-import "bytes"
++import "strings"
+ 
+ // A termlist represents the type set represented by the union
+ // t1 ∪ y2 ∪ ... tn of the type sets of the terms t1 to tn.
+@@ -25,7 +25,7 @@ func (xl termlist) String() string {
+ 	if len(xl) == 0 {
+ 		return "∅"
+ 	}
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for i, x := range xl {
+ 		if i > 0 {
+ 			buf.WriteString(termSep)
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 328c5029e7..9ac3b6349c 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -5,10 +5,10 @@
+ package types2
+ 
+ import (
+-	"bytes"
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"sort"
++	"strings"
+ )
+ 
+ // ----------------------------------------------------------------------------
+@@ -71,7 +71,7 @@ func (s *_TypeSet) String() string {
+ 	hasMethods := len(s.methods) > 0
+ 	hasTerms := s.hasTerms()
+ 
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	buf.WriteByte('{')
+ 	if s.comparable {
+ 		buf.WriteString("comparable")
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 8dd30a6ed5..2367f3ab93 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -5,7 +5,6 @@
+ package types_test
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"go/ast"
+@@ -896,7 +895,7 @@ func TestImplicitsInfo(t *testing.T) {
+ }
+ 
+ func predString(tv TypeAndValue) string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	pred := func(b bool, s string) {
+ 		if b {
+ 			if buf.Len() > 0 {
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 964f377984..4148287601 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -62,7 +62,7 @@ func (err *error_) msg(fset *token.FileSet, qf Qualifier) string {
+ 	if err.empty() {
+ 		return "no error"
+ 	}
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for i := range err.desc {
+ 		p := &err.desc[i]
+ 		if i > 0 {
+@@ -164,7 +164,7 @@ func sprintf(fset *token.FileSet, qf Qualifier, debug bool, format string, args
+ 		case Type:
+ 			arg = typeString(a, qf, debug)
+ 		case []Type:
+-			var buf bytes.Buffer
++			var buf strings.Builder
+ 			buf.WriteByte('[')
+ 			for i, x := range a {
+ 				if i > 0 {
+@@ -175,7 +175,7 @@ func sprintf(fset *token.FileSet, qf Qualifier, debug bool, format string, args
+ 			buf.WriteByte(']')
+ 			arg = buf.String()
+ 		case []*TypeParam:
+-			var buf bytes.Buffer
++			var buf strings.Builder
+ 			buf.WriteByte('[')
+ 			for i, x := range a {
+ 				if i > 0 {
+@@ -370,15 +370,15 @@ func spanOf(at positioner) posSpan {
+ 
+ // stripAnnotations removes internal (type) annotations from s.
+ func stripAnnotations(s string) string {
+-	var b strings.Builder
++	var buf strings.Builder
+ 	for _, r := range s {
+ 		// strip #'s and subscript digits
+ 		if r < '₀' || '₀'+10 <= r { // '₀' == U+2080
+-			b.WriteRune(r)
++			buf.WriteRune(r)
+ 		}
+ 	}
+-	if b.Len() < len(s) {
+-		return b.String()
++	if buf.Len() < len(s) {
++		return buf.String()
+ 	}
+ 	return s
+ }
+diff --git a/src/go/types/example_test.go b/src/go/types/example_test.go
+index 3c1bdb58c3..e752a77881 100644
+--- a/src/go/types/example_test.go
++++ b/src/go/types/example_test.go
+@@ -16,7 +16,6 @@ package types_test
+ // from source, use golang.org/x/tools/go/loader.
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/format"
+@@ -72,7 +71,7 @@ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get
+ 
+ 	// Print the tree of scopes.
+ 	// For determinism, we redact addresses.
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	pkg.Scope().WriteTo(&buf, 0, true)
+ 	rx := regexp.MustCompile(` 0x[a-fA-F0-9]*`)
+ 	fmt.Println(rx.ReplaceAllString(buf.String(), ""))
+@@ -233,7 +232,7 @@ func fib(x int) int {
+ 	fmt.Println("Types and Values of each expression:")
+ 	items = nil
+ 	for expr, tv := range info.Types {
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		posn := fset.Position(expr.Pos())
+ 		tvstr := tv.Type.String()
+ 		if tv.Value != nil {
+@@ -328,7 +327,7 @@ func mode(tv types.TypeAndValue) string {
+ }
+ 
+ func exprString(fset *token.FileSet, expr ast.Expr) string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	format.Node(&buf, fset, expr)
+ 	return buf.String()
+ }
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 768efbf73b..f9a855bd1c 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -339,16 +339,16 @@ func typeParamsString(list []*TypeParam) string {
+ 	}
+ 
+ 	// general case (n > 2)
+-	var b strings.Builder
++	var buf strings.Builder
+ 	for i, tname := range list[:n-1] {
+ 		if i > 0 {
+-			b.WriteString(", ")
++			buf.WriteString(", ")
+ 		}
+-		b.WriteString(tname.obj.name)
++		buf.WriteString(tname.obj.name)
+ 	}
+-	b.WriteString(", and ")
+-	b.WriteString(list[n-1].obj.name)
+-	return b.String()
++	buf.WriteString(", and ")
++	buf.WriteString(list[n-1].obj.name)
++	return buf.String()
+ }
+ 
+ // isParameterized reports whether typ contains any of the type parameters of tparams.
+diff --git a/src/go/types/instantiate_test.go b/src/go/types/instantiate_test.go
+index 281c8bbcad..91dae734c1 100644
+--- a/src/go/types/instantiate_test.go
++++ b/src/go/types/instantiate_test.go
+@@ -239,15 +239,15 @@ var _ T[int]
+ 
+ // Copied from errors.go.
+ func stripAnnotations(s string) string {
+-	var b strings.Builder
++	var buf strings.Builder
+ 	for _, r := range s {
+ 		// strip #'s and subscript digits
+ 		if r < '₀' || '₀'+10 <= r { // '₀' == U+2080
+-			b.WriteRune(r)
++			buf.WriteRune(r)
+ 		}
+ 	}
+-	if b.Len() < len(s) {
+-		return b.String()
++	if buf.Len() < len(s) {
++		return buf.String()
+ 	}
+ 	return s
+ }
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index bd98f48177..d46d085ba8 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -7,7 +7,6 @@
+ package types_test
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/importer"
+@@ -429,7 +428,7 @@ func TestIssue29029(t *testing.T) {
+ 
+ 	// printInfo prints the *Func definitions recorded in info, one *Func per line.
+ 	printInfo := func(info *Info) string {
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		for _, obj := range info.Defs {
+ 			if fn, ok := obj.(*Func); ok {
+ 				fmt.Fprintln(&buf, fn)
+diff --git a/src/go/types/mono_test.go b/src/go/types/mono_test.go
+index 5df3d493f8..02daa4fdc6 100644
+--- a/src/go/types/mono_test.go
++++ b/src/go/types/mono_test.go
+@@ -5,7 +5,6 @@
+ package types_test
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"go/ast"
+@@ -25,7 +24,7 @@ func checkMono(t *testing.T, body string) error {
+ 	}
+ 	files := []*ast.File{file}
+ 
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	conf := types.Config{
+ 		Error:    func(err error) { fmt.Fprintln(&buf, err) },
+ 		Importer: importer.Default(),
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index 010727eb72..fc42ce6524 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -7,7 +7,6 @@
+ package types
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"go/token"
+ 	"io"
+@@ -233,7 +232,7 @@ func (s *Scope) WriteTo(w io.Writer, n int, recurse bool) {
+ 
+ // String returns a string representation of the scope, for debugging.
+ func (s *Scope) String() string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	s.WriteTo(&buf, 0, false)
+ 	return buf.String()
+ }
+diff --git a/src/go/types/termlist.go b/src/go/types/termlist.go
+index d65c172ba1..83a02eefac 100644
+--- a/src/go/types/termlist.go
++++ b/src/go/types/termlist.go
+@@ -4,7 +4,7 @@
+ 
+ package types
+ 
+-import "bytes"
++import "strings"
+ 
+ // A termlist represents the type set represented by the union
+ // t1 ∪ y2 ∪ ... tn of the type sets of the terms t1 to tn.
+@@ -25,7 +25,7 @@ func (xl termlist) String() string {
+ 	if len(xl) == 0 {
+ 		return "∅"
+ 	}
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for i, x := range xl {
+ 		if i > 0 {
+ 			buf.WriteString(termSep)
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 08ff191f2e..fc4647e850 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -5,10 +5,10 @@
+ package types
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"go/token"
+ 	"sort"
++	"strings"
+ )
+ 
+ // ----------------------------------------------------------------------------
+@@ -71,7 +71,7 @@ func (s *_TypeSet) String() string {
+ 	hasMethods := len(s.methods) > 0
+ 	hasTerms := s.hasTerms()
+ 
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	buf.WriteByte('{')
+ 	if s.comparable {
+ 		buf.WriteString("comparable")

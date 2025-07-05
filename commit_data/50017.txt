@@ -23,7 +23,74 @@ Date:   Tue Sep 21 13:48:23 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/runtime2.go |  4 ++--
  src/runtime/symtab.go   | 12 +++++++++---
  2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 04bd5cb887..442042eb16 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -879,8 +879,8 @@ type _func struct {
+ // A *Func can be either a *_func or a *funcinl, and they are distinguished
+ // by the first uintptr.
+ type funcinl struct {
+-	zero  uintptr // set to 0 to distinguish from _func
+-	entry uintptr // entry of the real (the "outermost") frame.
++	ones  uintptr // set to ^0 to distinguish from _func
++	entry uintptr // entry of the real (the "outermost") frame
+ 	name  string
+ 	file  string
+ 	line  int
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 6236643ceb..0f4ad5ab95 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -650,6 +650,7 @@ func FuncForPC(pc uintptr) *Func {
+ 			name := funcnameFromNameoff(f, inltree[ix].func_)
+ 			file, line := funcline(f, pc)
+ 			fi := &funcinl{
++				ones:  ^uintptr(0),
+ 				entry: f.entry, // entry of the real (the outermost) function.
+ 				name:  name,
+ 				file:  file,
+@@ -667,7 +668,7 @@ func (f *Func) Name() string {
+ 		return ""
+ 	}
+ 	fn := f.raw()
+-	if fn.entry == 0 { // inlined version
++	if fn.isInlined() { // inlined version
+ 		fi := (*funcinl)(unsafe.Pointer(fn))
+ 		return fi.name
+ 	}
+@@ -677,7 +678,7 @@ func (f *Func) Name() string {
+ // Entry returns the entry address of the function.
+ func (f *Func) Entry() uintptr {
+ 	fn := f.raw()
+-	if fn.entry == 0 { // inlined version
++	if fn.isInlined() { // inlined version
+ 		fi := (*funcinl)(unsafe.Pointer(fn))
+ 		return fi.entry
+ 	}
+@@ -690,7 +691,7 @@ func (f *Func) Entry() uintptr {
+ // counter within f.
+ func (f *Func) FileLine(pc uintptr) (file string, line int) {
+ 	fn := f.raw()
+-	if fn.entry == 0 { // inlined version
++	if fn.isInlined() { // inlined version
+ 		fi := (*funcinl)(unsafe.Pointer(fn))
+ 		return fi.file, fi.line
+ 	}
+@@ -728,6 +729,11 @@ func (f funcInfo) _Func() *Func {
+ 	return (*Func)(unsafe.Pointer(f._func))
+ }
+ 
++// isInlined reports whether f should be re-interpreted as a *funcinl.
++func (f *_func) isInlined() bool {
++	return f.entry == ^uintptr(0) // see comment for funcinl.ones
++}
++
+ // findfunc looks up function metadata for a PC.
+ //
+ // It is nosplit because it's part of the isgoexception

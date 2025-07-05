@@ -14,6 +14,20 @@ Date:   Tue May 5 15:30:22 2020 -0400
     Change-Id: I0881e72fe0c099294ab137b5e2d0c3f5763978f8
     Reviewed-on: https://go-review.googlesource.com/c/go/+/232357
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transport.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 0c1dd1a021..b1705d5439 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -843,7 +843,7 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
+ 	// Deliver pconn to goroutine waiting for idle connection, if any.
+ 	// (They may be actively dialing, but this conn is ready first.
+ 	// Chrome calls this socket late binding.
+-	// See https://insouciant.org/tech/connection-management-in-chromium/.)
++	// See https://www.chromium.org/developers/design-documents/network-stack#TOC-Connection-Management.)
+ 	key := pconn.cacheKey
+ 	if q, ok := t.idleConnWait[key]; ok {
+ 		done := false

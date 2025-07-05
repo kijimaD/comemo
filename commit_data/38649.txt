@@ -19,6 +19,35 @@ Date:   Mon Nov 12 16:31:47 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 087371c6f6..e5d42bfd7d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -557,6 +557,11 @@ func Main(archInit func(*Arch)) {
+ 		errorexit()
+ 	}
+ 
++	// The "init" function is the only user-spellable symbol that
++	// we construct later. Mark it as a function now before
++	// anything can ask for its Linksym.
++	lookup("init").SetFunc(true)
++
+ 	// Phase 4: Decide how to capture closed variables.
+ 	// This needs to run before escape analysis,
+ 	// because variables captured by value do not escape.
+@@ -649,11 +654,6 @@ func Main(archInit func(*Arch)) {
+ 	Curfn = nil
+ 	peekitabs()
+ 
+-	// The "init" function is the only user-spellable symbol that
+-	// we construct later. Mark it as a function now before
+-	// anything can ask for its Linksym.
+-	lookup("init").SetFunc(true)
+-
+ 	// Phase 8: Compile top level functions.
+ 	// Don't use range--walk can add functions to xtop.
+ 	timings.Start("be", "compilefuncs")

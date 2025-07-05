@@ -18,10 +18,179 @@ Date:   Mon Oct 7 21:10:41 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/goobj/readnew.go         |  2 +
  src/cmd/internal/goobj2/objfile.go        |  6 ++-
  src/cmd/internal/obj/objfile2.go          | 62 +++++++++++++++++++++++++++----
  src/cmd/link/internal/ld/deadcode2.go     |  6 +++
  src/cmd/link/internal/objfile/objfile2.go | 11 +++---
  5 files changed, 74 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/readnew.go b/src/cmd/internal/goobj/readnew.go
+index 6e6ec02f60..9a9123a584 100644
+--- a/src/cmd/internal/goobj/readnew.go
++++ b/src/cmd/internal/goobj/readnew.go
+@@ -125,6 +125,8 @@ func (r *objReader) readNew() {
+ 				isym = int(a.Sym.SymIdx)
+ 			case goobj2.AuxFuncdata:
+ 				funcdata = append(funcdata, a.Sym)
++			case goobj2.AuxDwarfInfo, goobj2.AuxDwarfLoc, goobj2.AuxDwarfRanges, goobj2.AuxDwarfLines:
++				// nothing to do
+ 			default:
+ 				panic("unknown aux type")
+ 			}
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index e15dbdca69..ad1b4ad3a7 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -280,8 +280,12 @@ const (
+ 	AuxGotype = iota
+ 	AuxFuncInfo
+ 	AuxFuncdata
++	AuxDwarfInfo
++	AuxDwarfLoc
++	AuxDwarfRanges
++	AuxDwarfLines
+ 
+-	// TODO: more. DWARF? Pcdata?
++	// TODO: more. Pcdata?
+ )
+ 
+ func (a *Aux) Write(w *Writer) {
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 3f68d335ac..f7d87fd9a3 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -95,13 +95,7 @@ func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
+ 	for _, list := range lists {
+ 		for _, s := range list {
+ 			w.Uint32(naux)
+-			if s.Gotype != nil {
+-				naux++
+-			}
+-			if s.Func != nil {
+-				// FuncInfo is an aux symbol, each Funcdata is an aux symbol
+-				naux += 1 + uint32(len(s.Func.Pcln.Funcdata))
+-			}
++			naux += uint32(nAuxSym(s))
+ 		}
+ 	}
+ 	w.Uint32(naux)
+@@ -301,7 +295,61 @@ func (w *writer) Aux(s *LSym) {
+ 			}
+ 			o.Write(w.Writer)
+ 		}
++
++		if s.Func.dwarfInfoSym != nil {
++			o := goobj2.Aux{
++				Type: goobj2.AuxDwarfInfo,
++				Sym:  makeSymRef(s.Func.dwarfInfoSym),
++			}
++			o.Write(w.Writer)
++		}
++		if s.Func.dwarfLocSym != nil {
++			o := goobj2.Aux{
++				Type: goobj2.AuxDwarfLoc,
++				Sym:  makeSymRef(s.Func.dwarfLocSym),
++			}
++			o.Write(w.Writer)
++		}
++		if s.Func.dwarfRangesSym != nil {
++			o := goobj2.Aux{
++				Type: goobj2.AuxDwarfRanges,
++				Sym:  makeSymRef(s.Func.dwarfRangesSym),
++			}
++			o.Write(w.Writer)
++		}
++		if s.Func.dwarfDebugLinesSym != nil {
++			o := goobj2.Aux{
++				Type: goobj2.AuxDwarfLines,
++				Sym:  makeSymRef(s.Func.dwarfDebugLinesSym),
++			}
++			o.Write(w.Writer)
++		}
++	}
++}
++
++// return the number of aux symbols s have.
++func nAuxSym(s *LSym) int {
++	n := 0
++	if s.Gotype != nil {
++		n++
++	}
++	if s.Func != nil {
++		// FuncInfo is an aux symbol, each Funcdata is an aux symbol
++		n += 1 + len(s.Func.Pcln.Funcdata)
++		if s.Func.dwarfInfoSym != nil {
++			n++
++		}
++		if s.Func.dwarfLocSym != nil {
++			n++
++		}
++		if s.Func.dwarfRangesSym != nil {
++			n++
++		}
++		if s.Func.dwarfDebugLinesSym != nil {
++			n++
++		}
+ 	}
++	return n
+ }
+ 
+ // generate symbols for FuncInfo.
+diff --git a/src/cmd/link/internal/ld/deadcode2.go b/src/cmd/link/internal/ld/deadcode2.go
+index 3067d40c29..008285c429 100644
+--- a/src/cmd/link/internal/ld/deadcode2.go
++++ b/src/cmd/link/internal/ld/deadcode2.go
+@@ -126,6 +126,12 @@ func (d *deadcodePass2) flood() {
+ 				i += 2
+ 				continue
+ 			}
++			if r.Type == objabi.R_USETYPE {
++				// type symbol used for DWARF. we need to load the symbol but it may not
++				// be otherwise reachable in the program.
++				// do nothing for now as we still load all type symbols.
++				continue
++			}
+ 			d.mark(r.Sym)
+ 		}
+ 		naux := d.loader.NAux(symIdx)
+diff --git a/src/cmd/link/internal/objfile/objfile2.go b/src/cmd/link/internal/objfile/objfile2.go
+index a099eaba92..c48cf96074 100644
+--- a/src/cmd/link/internal/objfile/objfile2.go
++++ b/src/cmd/link/internal/objfile/objfile2.go
+@@ -462,10 +462,10 @@ func LoadFull(l *Loader, arch *sys.Arch, syms *sym.Symbols) {
+ 	// external symbols
+ 	for i := l.extStart; i <= l.max; i++ {
+ 		nv := l.extSyms[i-l.extStart]
+-		if l.Reachable.Has(i) || strings.HasPrefix(nv.name, "go.info.") || strings.HasPrefix(nv.name, "gofile..") { // XXX some go.info and file symbols are used but not marked
++		if l.Reachable.Has(i) || strings.HasPrefix(nv.name, "gofile..") { // XXX file symbols are used but not marked
+ 			s := syms.Newsym(nv.name, nv.v)
+ 			preprocess(arch, s)
+-			s.Attr.Set(sym.AttrReachable, true)
++			s.Attr.Set(sym.AttrReachable, l.Reachable.Has(i))
+ 			l.Syms[i] = s
+ 		}
+ 	}
+@@ -499,10 +499,9 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) {
+ 		if t == 0 {
+ 			log.Fatalf("missing type for %s in %s", name, lib)
+ 		}
+-		if !l.Reachable.Has(istart+Sym(i)) && (t < sym.SDWARFSECT || t > sym.SDWARFLINES) && !(t == sym.SRODATA && strings.HasPrefix(name, "type.")) && name != "runtime.addmoduledata" && name != "runtime.lastmoduledatap" {
++		if !l.Reachable.Has(istart+Sym(i)) && !(t == sym.SRODATA && strings.HasPrefix(name, "type.")) && name != "runtime.addmoduledata" && name != "runtime.lastmoduledatap" {
+ 			// No need to load unreachable symbols.
+-			// XXX DWARF symbols may be used but are not marked reachable.
+-			// XXX type symbol's content may be needed in DWARF code, but they are not marked.
++			// XXX some type symbol's content may be needed in DWARF code, but they are not marked.
+ 			// XXX reference to runtime.addmoduledata may be generated later by the linker in plugin mode.
+ 			continue
+ 		}
+@@ -612,6 +611,8 @@ func loadObjFull(l *Loader, r *oReader) {
+ 					panic("funcinfo symbol not defined in current package")
+ 				}
+ 				isym = int(a.Sym.SymIdx)
++			case goobj2.AuxDwarfInfo, goobj2.AuxDwarfLoc, goobj2.AuxDwarfRanges, goobj2.AuxDwarfLines:
++				// ignored for now
+ 			default:
+ 				panic("unknown aux type")
+ 			}

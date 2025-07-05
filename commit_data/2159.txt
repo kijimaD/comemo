@@ -9,7 +9,53 @@ Date:   Thu May 7 10:30:22 2009 -0700
     R=ken
     OCL=28408
     CL=28410
-
+---
  src/cmd/gc/dcl.c | 19 ++++++++++++++-----
  src/cmd/gc/go.h  |  1 +
  2 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index b2eaa09ca5..202f48f858 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -151,14 +151,23 @@ int
+ listcount(Node *n)
+ {
+ 	int v;
++	Iter s;
+ 
+ 	v = 0;
+-	while(n != N) {
++	for(n = listfirst(&s, &n); n != N; n = listnext(&s))
++		v++;
++	return v;
++}
++
++int
++structcount(Type *t)
++{
++	int v;
++	Iter s;
++
++	v = 0;
++	for(t = structfirst(&s, &t); t != T; t = structnext(&s))
+ 		v++;
+-		if(n->op != OLIST)
+-			break;
+-		n = n->right;
+-	}
+ 	return v;
+ }
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 91cfed103a..c8f3cbf3fe 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -797,6 +797,7 @@ void	dodclconst(Node*, Node*);
+ void	defaultlit(Node*, Type*);
+ void	defaultlit2(Node*, Node*);
+ int	listcount(Node*);
++int	structcount(Type*);
+ void	addmethod(Node*, Type*, int);
+ Node*	methodname(Node*, Type*);
+ Sym*	methodsym(Sym*, Type*);

@@ -11,7 +11,224 @@ Date:   Wed Nov 23 03:46:58 2016 +0000
     Change-Id: I752ec7a6d086f370feaf3cf282708620e891079b
     Reviewed-on: https://go-review.googlesource.com/33478
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.html | 123 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
  doc/go1.8.txt  |  55 +++++++++++++-------------
  2 files changed, 147 insertions(+), 31 deletions(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index e153d1bc6c..90878a0a31 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -314,7 +314,15 @@ now implements the new
+ <a href="/pkg/net/http/#Pusher"><code>Pusher</code></a> interface.
+ </p>
+ 
+-<h3 id="httpshutdown">HTTP Server Graceful Shutdown</h3>
++<h3 id="http_shutdown">HTTP Server Graceful Shutdown</h3>
++
++<p> <!-- CL 32329 -->
++  The HTTP Server now has support for graceful shutdown using the new
++  <a href="/pkg/net/http/#Server.Shutdown"><code>Server.Shutdown</code></a>
++  method. The related and more abrupt
++  <a href="/pkg/net/http/#Server.Close"><code>Server.Close</code></a>
++  is also new.
++</p>
+ 
+ <h3 id="minor_library_changes">Minor changes to the library</h3>
+ 
+@@ -556,9 +564,118 @@ pkg debug/pe, type StringTable []uint8</pre>
+ <dl id="net_http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+   <dd>
+ 
++    <p>Server changes:</p>
++    <ul>
++      <li>The server now supports graceful shutdown support, <a href="#http_shutdown">mentioned above</a>.</li>
++
++      <li> <!-- CL 32024 -->
++        The <a href="/pkg/net/http/#Server"><code>Server</code></a> now
++        has new configuration options
++        <code>ReadHeaderTimeout</code> and <code>IdleTimeout</code>.
++        The previously ill-defined <code>WriteTimeout</code> is now
++        documented.
++      </li>
++
++      <li> <!-- CL 32014 -->
++        <a href="/pkg/net/http/#FileServer"><code>FileServer</code></a>
++        and
++        <a href="/pkg/net/http/#ServeContent"><code>ServeContent</code></a>
++        now support HTTP <code>If-Match</code> conditional requests,
++        in addition to the previous <code>If-None-Match</code>
++        support.
++      </li>
++
++      <li> <!-- CL 27950 -->
++        The server now logs bad requests.
++      </li>
++    </ul>
++
+     <p>
+-      TODO
+-    </p>
++      There are several additions to what a server's <code>Handler</code> can do:
++    </p>
++
++    <ul>
++      <li><!-- CL 31173 -->
++        The <a href="/pkg/context/#Context"><code>Context</code></a>
++        returned
++        by <a href="/pkg/net/http/#Request.Context"><code>Request.Context</code></a>
++        is canceled if the underlying <code>net.Conn</code>
++        closes. For instance, if the user closes their browser in the
++        middle of a slow request, the <code>Handler</code> can now
++        detect that the user is gone. This complements the
++        existing <a href="/pkg/net/http/#CloseNotifier"><code>CloseNotifier</code></a>
++        support.
++      </li>
++
++      <li><!-- CL 32479 --> There is now a second way to serve trailers
++        for when the trailer name is not known before the headers are
++        written (via a call to
++        to <code>ResponseWriter.WriteHeader</code>). The old way
++        continues to work, but when the trailer is only known after the
++        header has been written, see the
++        new <a href="/pkg/net/http/#TrailerPrefix"><code>TrailerPrefix</code></a>.</li>
++
++      <li><!-- CL 33099 -->
++        A <code>Handler</code> now has a supported mechanism to abort a
++        response: panicking with
++        <a href="/pkg/net/http/#ErrAbortHandler"><code>ErrAbortHandler</code></a>.
++      </li>
++
++      <li><!-- CL 30812 -->
++        There is now a supported mechanism to test whether a
++        <code>ResponseWriter</code> has been hijacked: <code>Write</code> zero bytes to it.
++        While this previously returned
++        <a href="/pkg/net/http/#ErrHijacked"><code>ErrHijacked</code></a>, now
++        it also does so without spamming the server's error log.
++      </li>
++
++    </ul>
++
++    <p>Client &amp; Transport changes:</p>
++    <ul>
++      <li><!-- CL 28930 -->
++        The <code>Client</code> now copies request headers on redirect.
++      </li>
++
++      <li><!-- CL 29072 -->
++        The <code>Transport</code> now supports international domain names.
++      </li>
++
++      <li><!-- CL 31733, CL 29852 -->
++        The <code>Client</code> now supports 307 and 308 redirects.
++        If the redirect involves re-sending the request body,
++        the request must have the new
++        <a href="/pkg/net/http/#Request"><code>Request.GetBody</code></a>
++        field defined.
++        <a href="pkg/net/http/#NewRequest"><code>NewRequest</code></a>
++        sets <code>Request.GetBody</code> automatically for common
++        body types.
++      </li>
++
++      <li><!-- CL 32482 -->
++        The <code>Transport</code> now rejects requests for URLs with
++        ports containing non-digit characters.
++      </li>
++
++      <li><!-- CL 27117 -->
++        The <code>Transport</code> will now retry non-idempotent
++        requests if no bytes were written before a network failure.
++      </li>
++
++      <li><!-- CL 32481 -->
++        The
++        new <a href="/pkg/net/http/#Transport"><code>Transport.ProxyConnectHeader</code></a>
++        allows configuration of header values to send to a proxy
++        during a <code>CONNECT</code> request.
++      </li>
++
++      <li> <!-- CL 28077 -->
++        The <a href="/pkg/net/http/#DefaultTransport"><code>DefaultTransport.Dialer</code></a>
++        now enables <code>DualStack</code> ("Happy Eyeballs") support,
++        to use IPv4 as a backup if it looks like IPv6 might be
++        failing.
++      </li>
++    </ul>
+ 
+   </dd>
+ </dl>
+diff --git a/doc/go1.8.txt b/doc/go1.8.txt
+index d6f615ab7a..0c9f6ce249 100644
+--- a/doc/go1.8.txt
++++ b/doc/go1.8.txt
+@@ -172,34 +172,6 @@ net/http/httputil: make ReverseProxy send nil Body requests when possible (CL 28
+ net/http/httputil: remove custom hop-by-hop headers from response in ReverseProxy (CL 28810)
+ net/http/httputil: remove proxied headers mentioned in connection-tokens (CL 27970)
+ 
+-net/http, net/http/httptest: make http2's TrailerPrefix work for http1 (CL 32479)
+-net/http: add ErrAbortHandler, make Server quiet if used as panic value (CL 33099)
+-net/http: add NoBody, don't return nil from NewRequest on zero bodies (CL 31726)
+-net/http: add Request.GetBody func for 307/308 redirects (CL 31733)
+-net/http: add Server.Close & Server.Shutdown for forced & graceful shutdown (CL 32329)
+-net/http: add Server.ReadHeaderTimeout, IdleTimeout, document WriteTimeout (CL 32024)
+-net/http: add Transport.ProxyConnectHeader to control headers to proxies (CL 32481)
+-net/http: allow Handlers to test Hijacked conn without spamming error log (CL 30812)
+-net/http: don't sniff Request.Body on 100-continue requests in Transport (CL 30151)
+-net/http: handle 3xx redirects properly (CL 29852)
+-net/http: make Client copy headers on redirect (CL 28930)
+-net/http: make DefaultTransport's Dialer enable DualStack ("Happy Eyeballs") (CL 28077)
+-net/http: make NewRequest set empty Body nil, don't peek Read Body in Transport (CL 31445)
+-net/http: make Redirect escape non-ASCII in Location header (CL 31732)
+-net/http: make Server Handler's Request.Context be done on conn errors (CL 31173)
+-net/http: make Server log on bad requests from clients (CL 27950)
+-net/http: make Transport reject URLs with bogus ports with non-digits (CL 32482)
+-net/http: make Transport retry non-idempotent requests if no bytes written (CL 27117)
+-net/http: make Transport support international domain names (CL 29072)
+-net/http: omit Content-Length in Response.Write for 1xx or 204 status (CL 28351)
+-net/http: returned typed error on Transport proxy dial (CL 30750)
+-net/http: send Content-Range if no byte range overlaps (CL 24212)
+-net/http: skip test needing good DNS in short mode, except on builders (CL 28782)
+-net/http: support If-Match in ServeContent (CL 32014)
+-net/http: support multiple identical Content-Length headers (CL 31252)
+-net/http: update bundled http2 for ErrAbortHandler support, document it more (CL 33103)
+-net/http: update bundled http2, add h2 Transport.IdleConnTimeout tests (CL 30078)
+-
+ net: add (*UnixListener).SetUnlinkOnClose (CL 32099)
+ net: add Buffers type, do writev on unix (CL 29951)
+    net: implement Buffers on windows (CL 32371)
+@@ -458,7 +430,34 @@ lib/time: update tzdata to 2016i (CL 33029)
+ math/rand: add Rand.Uint64 (CL 27253)
+ mime/quotedprintable: accept = not followed by 2 hex digits as literal equals (CL 32174)
+ mime/quotedprintable: accept trailing soft line-break at the end of message (CL 27530)
++net/http, net/http/httptest: make http2's TrailerPrefix work for http1 (CL 32479)
++net/http: add ErrAbortHandler, make Server quiet if used as panic value (CL 33099)
++net/http: add NoBody, don't return nil from NewRequest on zero bodies (CL 31726)
++net/http: add Request.GetBody func for 307/308 redirects (CL 31733)
++net/http: add Server.Close & Server.Shutdown for forced & graceful shutdown (CL 32329)
++net/http: add Server.ReadHeaderTimeout, IdleTimeout, document WriteTimeout (CL 32024)
++net/http: add Transport.ProxyConnectHeader to control headers to proxies (CL 32481)
+ net/http: add an interface for HTTP/2 server push (CL 32012)
++net/http: allow Handlers to test Hijacked conn without spamming error log (CL 30812)
++net/http: don't sniff Request.Body on 100-continue requests in Transport (CL 30151)
++net/http: handle 3xx redirects properly (CL 29852)
++net/http: make Client copy headers on redirect (CL 28930)
++net/http: make DefaultTransport's Dialer enable DualStack ("Happy Eyeballs") (CL 28077)
++net/http: make NewRequest set empty Body nil, don't peek Read Body in Transport (CL 31445)
++net/http: make Redirect escape non-ASCII in Location header (CL 31732)
++net/http: make Server Handler's Request.Context be done on conn errors (CL 31173)
++net/http: make Server log on bad requests from clients (CL 27950)
++net/http: make Transport reject URLs with bogus ports with non-digits (CL 32482)
++net/http: make Transport retry non-idempotent requests if no bytes written (CL 27117)
++net/http: make Transport support international domain names (CL 29072)
++net/http: omit Content-Length in Response.Write for 1xx or 204 status (CL 28351)
++net/http: returned typed error on Transport proxy dial (CL 30750)
++net/http: send Content-Range if no byte range overlaps (CL 24212)
++net/http: skip test needing good DNS in short mode, except on builders (CL 28782)
++net/http: support If-Match in ServeContent (CL 32014)
++net/http: support multiple identical Content-Length headers (CL 31252)
++net/http: update bundled http2 for ErrAbortHandler support, document it more (CL 33103)
++net/http: update bundled http2, add h2 Transport.IdleConnTimeout tests (CL 30078)
+ net/mail: allow empty quoted string name in address again (CL 32176)
+ net/mail: expose ParseDate, for use parsing Resent-Date headers (CL 31581)
+ net/smtp: make Client.Auth trim final space if Auth.Start toServer is empty (CL 33143)

@@ -13,6 +13,20 @@ Date:   Tue Nov 21 15:53:47 2017 -0500
     Change-Id: Id6d3c4f5f7572b01065f2db556db605452d1b570
     Reviewed-on: https://go-review.googlesource.com/79176
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/zoneinfo_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/zoneinfo_test.go b/src/time/zoneinfo_test.go
+index b9455db025..7a55d4f618 100644
+--- a/src/time/zoneinfo_test.go
++++ b/src/time/zoneinfo_test.go
+@@ -118,7 +118,7 @@ func TestLocationNames(t *testing.T) {
+ 	}
+ }
+ 
+-func TestLoadLocationFromTzinfo(t *testing.T) {
++func TestLoadLocationFromTZData(t *testing.T) {
+ 	time.ForceZipFileForTesting(true)
+ 	defer time.ForceZipFileForTesting(false)
+ 

@@ -11,7 +11,40 @@ Date:   Sun Sep 23 16:18:19 2012 -0500
     R=golang-dev, rsc, adg
     CC=golang-dev
     https://golang.org/cl/6555053
-
+---
  doc/contrib.html       | 3 ---
  doc/devel/release.html | 7 ++-----
  2 files changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/doc/contrib.html b/doc/contrib.html
+index b4bd47e96a..ec4efc26b8 100644
+--- a/doc/contrib.html
++++ b/doc/contrib.html
+@@ -34,9 +34,6 @@ We encourage all Go users to subscribe to
+ <h3 id="release"><a href="/doc/devel/release.html">Release History</a></h3>
+ <p>A summary of the changes between Go releases.</p>
+ 
+-<h3 id="weekly"><a href="/doc/devel/weekly.html">Weekly Snapshot History</a></h3>
+-<p>A summary of the changes between weekly snapshots of Go.</p>
+-
+ <h3 id="golang-dev"><a href="http://groups.google.com/group/golang-dev">Developer Mailing List</a></h3>
+ <p>The <a href="http://groups.google.com/group/golang-dev">golang-dev</a>
+ mailing list is for discussing and reviewing code for the Go project.</p>
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 9ee49e3b50..3340d1e915 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -3,11 +3,8 @@
+ }-->
+ 
+ <p>This page summarizes the changes between official stable releases of Go.
+-Between releases we issue less stable
+-<a href="http://blog.golang.org/2011/03/go-becomes-more-stable.html">weekly snapshots</a>.
+-The <a href="weekly.html">weekly snapshot history</a> contains more detail,
+-and the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>
+-has full details.</p>
++The <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>
++has the full details.</p>
+ 
+ <p>To update to a specific release, use:</p>
+ 

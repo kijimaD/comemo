@@ -13,7 +13,7 @@ Date:   Mon Apr 5 14:30:03 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/307214
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api.go        | 3 ---
  src/cmd/compile/internal/types2/api_test.go   | 5 ++---
  src/cmd/compile/internal/types2/check.go      | 5 -----
@@ -22,3 +22,122 @@ Date:   Mon Apr 5 14:30:03 2021 -0700
  src/cmd/compile/internal/types2/types_test.go | 9 +++++++++
  src/cmd/compile/internal/types2/typexpr.go    | 7 +++++--
  7 files changed, 17 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 63008711bf..2939dcc0bd 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -107,9 +107,6 @@ type Config struct {
+ 	// type-checked.
+ 	IgnoreFuncBodies bool
+ 
+-	// If AcceptMethodTypeParams is set, methods may have type parameters.
+-	AcceptMethodTypeParams bool
+-
+ 	// If FakeImportC is set, `import "C"` (for packages requiring Cgo)
+ 	// declares an empty "C" package and errors are omitted for qualified
+ 	// identifiers referring to package C (which won't find an object).
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index b5990e5d46..9d31fef69b 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -65,9 +65,8 @@ func mayTypecheck(t *testing.T, path, source string, info *Info) (string, error)
+ 		t.Fatalf("%s: unable to parse: %s", path, err)
+ 	}
+ 	conf := Config{
+-		AcceptMethodTypeParams: true,
+-		Error:                  func(err error) {},
+-		Importer:               defaultImporter(),
++		Error:    func(err error) {},
++		Importer: defaultImporter(),
+ 	}
+ 	pkg, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
+ 	return pkg.Name(), err
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 7d499eb13d..2edcefd4c8 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -31,11 +31,6 @@ const debug = false // leave on during development
+ //
+ const forceStrict = false
+ 
+-// If methodTypeParamsOk is set, type parameters are
+-// permitted in method declarations (in interfaces, too).
+-// Generalization and experimental feature.
+-const methodTypeParamsOk = true
+-
+ // exprInfo stores information about an untyped expression.
+ type exprInfo struct {
+ 	isLhs bool // expression is lhs operand of a shift with delayed type-check
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index a6baa71b2a..2418c29a2f 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -128,7 +128,6 @@ func checkFiles(t *testing.T, filenames []string, goVersion string, colDelta uin
+ 	// typecheck and collect typechecker errors
+ 	var conf Config
+ 	conf.GoVersion = goVersion
+-	conf.AcceptMethodTypeParams = true
+ 	// special case for importC.src
+ 	if len(filenames) == 1 && strings.HasSuffix(filenames[0], "importC.src") {
+ 		conf.FakeImportC = true
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 35bb72ee55..86eeb72b21 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -426,7 +426,7 @@ func (check *Checker) collectObjects() {
+ 				} else {
+ 					// method
+ 					// d.Recv != nil
+-					if !methodTypeParamsOk && len(d.TParamList) != 0 {
++					if !acceptMethodTypeParams && len(d.TParamList) != 0 {
+ 						//check.error(d.TParamList.Pos(), invalidAST + "method must have no type parameters")
+ 						check.error(d, invalidAST+"method must have no type parameters")
+ 					}
+diff --git a/src/cmd/compile/internal/types2/types_test.go b/src/cmd/compile/internal/types2/types_test.go
+new file mode 100644
+index 0000000000..11dca0b53d
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/types_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types2
++
++func init() {
++	acceptMethodTypeParams = true
++}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index ce2fd7797b..e7d24949a4 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -15,6 +15,9 @@ import (
+ 	"strings"
+ )
+ 
++// Disabled by default, but enabled when running tests (via types_test.go).
++var acceptMethodTypeParams bool
++
+ // ident type-checks identifier e and initializes x with the value or type of e.
+ // If an error occurred, x.mode is set to invalid.
+ // For the meaning of def, see Checker.definedType, below.
+@@ -336,7 +339,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 		// Always type-check method type parameters but complain if they are not enabled.
+ 		// (A separate check is needed when type-checking interface method signatures because
+ 		// they don't have a receiver specification.)
+-		if recvPar != nil && !check.conf.AcceptMethodTypeParams {
++		if recvPar != nil && !acceptMethodTypeParams {
+ 			check.error(ftyp, "methods cannot have type parameters")
+ 		}
+ 	}
+@@ -848,7 +851,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 			// Always type-check method type parameters but complain if they are not enabled.
+ 			// (This extra check is needed here because interface method signatures don't have
+ 			// a receiver specification.)
+-			if sig.tparams != nil && !check.conf.AcceptMethodTypeParams {
++			if sig.tparams != nil && !acceptMethodTypeParams {
+ 				check.error(f.Type, "methods cannot have type parameters")
+ 			}
+ 

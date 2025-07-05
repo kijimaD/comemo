@@ -9,6 +9,23 @@ Date:   Wed Nov 28 07:32:08 2018 +0530
     Change-Id: Ie8ba841bd4ee71766bcfbbfbdc9173b9be867ed1
     Reviewed-on: https://go-review.googlesource.com/c/go/+/151479
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/ip.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index a80851803d..407337d9b3 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -31,7 +31,10 @@ const (
+ // be an IPv4 address.
+ type IP []byte
+ 
+-// An IP mask is an IP address.
++// An IPMask is a bitmask that can be used to manipulate
++// IP addresses for IP addressing and routing.
++//
++// See type IPNet and func ParseCIDR for details.
+ type IPMask []byte
+ 
+ // An IPNet represents an IP network.

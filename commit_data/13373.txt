@@ -8,6 +8,20 @@ Date:   Sun Jun 24 01:41:17 2012 +0800
     R=golang-dev, dave, alex.brainman, iant
     CC=golang-dev
     https://golang.org/cl/6296091
-
+---
  src/pkg/runtime/defs_linux_386.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/defs_linux_386.h b/src/pkg/runtime/defs_linux_386.h
+index 02760f987b..e257a6f85f 100644
+--- a/src/pkg/runtime/defs_linux_386.h
++++ b/src/pkg/runtime/defs_linux_386.h
+@@ -132,7 +132,7 @@ struct Sigaction {
+ 	void	*k_sa_handler;
+ 	uint32	sa_flags;
+ 	void	*sa_restorer;
+-	uint32	sa_mask;
++	uint64	sa_mask;
+ };
+ struct Siginfo {
+ 	int32	si_signo;

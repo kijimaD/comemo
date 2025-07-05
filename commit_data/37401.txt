@@ -12,6 +12,24 @@ Date:   Fri Jul 27 17:01:34 2018 +0300
     Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 983698cbc1..b894284533 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1464,12 +1464,6 @@ func TestPackageMainTestCompilerFlags(t *testing.T) {
+ 	tg.grepStderr(`([\\/]compile|gccgo).* (-p p1|-fgo-pkgpath=p1).*p1\.go`, "should have run compile -p p1 p1.go")
+ }
+ 
+-// The runtime version string takes one of two forms:
+-// "go1.X[.Y]" for Go releases, and "devel +hash" at tip.
+-// Determine whether we are in a released copy by
+-// inspecting the version.
+-var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
+-
+ // Issue 12690
+ func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo does not have GOROOT")

@@ -17,6 +17,38 @@ Date:   Sun Sep 11 20:03:14 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 682790587b..4db84662db 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1276,6 +1276,18 @@ func gcMarkTermination() {
+ 
+ 	systemstack(startTheWorldWithSema)
+ 
++	// Update heap profile stats if gcSweep didn't do it. This is
++	// relatively expensive, so we don't want to do it while the
++	// world is stopped, but it needs to happen ASAP after
++	// starting the world to prevent too many allocations from the
++	// next cycle leaking in. It must happen before releasing
++	// worldsema since there are applications that do a
++	// runtime.GC() to update the heap profile and then
++	// immediately collect the profile.
++	if _ConcurrentSweep && work.mode != gcForceBlockMode {
++		mProf_GC()
++	}
++
+ 	// Free stack spans. This must be done between GC cycles.
+ 	systemstack(freeStackSpans)
+ 
+@@ -1714,7 +1726,6 @@ func gcSweep(mode gcMode) {
+ 		ready(sweep.g, 0, true)
+ 	}
+ 	unlock(&sweep.lock)
+-	mProf_GC()
+ }
+ 
+ func gcCopySpans() {

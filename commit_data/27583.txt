@@ -23,7 +23,40 @@ Date:   Sat Apr 2 12:04:45 2016 -0300
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/types/assignments.go     | 8 ++++++++
  src/go/types/testdata/stmt0.src | 2 +-
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 10ab17b9cf..c7564bcf85 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -179,6 +179,14 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
+ 	case variable, mapindex:
+ 		// ok
+ 	default:
++		if sel, ok := z.expr.(*ast.SelectorExpr); ok {
++			var op operand
++			check.expr(&op, sel.X)
++			if op.mode == mapindex {
++				check.errorf(z.pos(), "cannot directly assign to struct field %s in map", ExprString(z.expr))
++				return nil
++			}
++		}
+ 		check.errorf(z.pos(), "cannot assign to %s", &z)
+ 		return nil
+ 	}
+diff --git a/src/go/types/testdata/stmt0.src b/src/go/types/testdata/stmt0.src
+index fec16e1dd7..e0d714dfb6 100644
+--- a/src/go/types/testdata/stmt0.src
++++ b/src/go/types/testdata/stmt0.src
+@@ -137,7 +137,7 @@ func issue6487() {
+ 
+ 	type M map[string]S
+ 	var m M
+-	m /* ERROR "cannot assign" */ ["foo"].x = 0
++	m /* ERROR "cannot directly assign to struct field" */ ["foo"].x = 0
+ 	_ = &( /* ERROR "cannot take address" */ m["foo"].x)
+ 	_ = &m /* ERROR "cannot take address" */ ["foo"].x
+ }

@@ -6,10 +6,112 @@ Date:   Thu Dec 3 22:09:58 2009 -0800
     
     R=ken2
     https://golang.org/cl/165055
-
+---
  src/cmd/gc/typecheck.c         |  8 ++++++--
  test/assign.go                 |  8 ++++++++
  test/fixedbugs/bug226.dir/x.go |  9 +++++++++
  test/fixedbugs/bug226.dir/y.go | 31 +++++++++++++++++++++++++++++++
  test/fixedbugs/bug226.go       |  7 +++++++
  5 files changed, 61 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 76147e48f0..a92b684ae4 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1961,8 +1961,12 @@ typecheckas(Node *n)
+ 
+ 	checkassign(n->left);
+ 	typecheck(&n->right, Erv);
+-	if(n->left->type != T && n->right && n->right->type != T)
+-		n->right = typecheckconv(nil, n->right, n->left->type, 0, nil);
++	if(n->right && n->right->type != T) {
++		if(n->left->type != T)
++			n->right = typecheckconv(nil, n->right, n->left->type, 0, "assignment");
++		else
++			exportassignok(n->right->type, "assignment");
++	}
+ 	if(n->left->defn == n && n->left->ntype == N) {
+ 		defaultlit(&n->right, T);
+ 		n->left->type = n->right->type;
+diff --git a/test/assign.go b/test/assign.go
+index 842bd62d4d..fea7c28285 100644
+--- a/test/assign.go
++++ b/test/assign.go
+@@ -42,4 +42,12 @@ func main() {
+ 		x := sync.Mutex{key: 0};	// ERROR "(unknown|assignment).*Mutex"
+ 		_ = x;
+ 	}
++	{
++		x := &sync.Mutex{};	// ok
++		var y sync.Mutex;	// ok
++		y = *x;	// ERROR "assignment.*Mutex"
++		*x = y;	// ERROR "assignment.*Mutex"
++		_ = x;
++		_ = y;
++	}		
+ }
+diff --git a/test/fixedbugs/bug226.dir/x.go b/test/fixedbugs/bug226.dir/x.go
+new file mode 100644
+index 0000000000..64d7a29e7e
+--- /dev/null
++++ b/test/fixedbugs/bug226.dir/x.go
+@@ -0,0 +1,9 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x
++
++type T struct { x, Y int }
++
++func (t T) M()
+diff --git a/test/fixedbugs/bug226.dir/y.go b/test/fixedbugs/bug226.dir/y.go
+new file mode 100644
+index 0000000000..01e8b7b437
+--- /dev/null
++++ b/test/fixedbugs/bug226.dir/y.go
+@@ -0,0 +1,31 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package y
++
++import "./x"
++
++func f() {
++	ok := new(x.T);
++	var ok1 x.T;
++	ok2 := &ok1;
++	ok3 := &x.T{};
++	ok4 := &x.T{Y:2};
++	_ = x.T{};
++	_ = x.T{Y:2};
++	
++	ok1.M();	// ERROR "assignment.*T"
++	bad1 := *ok;	// ERROR "assignment.*T"
++	bad2 := ok1;	// ERROR "assignment.*T"
++	*ok4 = ok1;	// ERROR "assignment.*T"
++	*ok4 = *ok2;	// ERROR "assignment.*T"
++	ok1 = *ok4;	// ERROR "assignment.*T"
++	_ = bad1;
++	_ = bad2;
++	_ = ok4;
++	_ = ok3;
++	_ = ok2;
++	_ = ok1;
++	_ = ok;
++}
+diff --git a/test/fixedbugs/bug226.go b/test/fixedbugs/bug226.go
+new file mode 100644
+index 0000000000..5457a64bc1
+--- /dev/null
++++ b/test/fixedbugs/bug226.go
+@@ -0,0 +1,7 @@
++// $G $D/$F.dir/x.go && errchk $G $D/$F.dir/y.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++ignored

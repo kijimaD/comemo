@@ -14,9 +14,88 @@ Date:   Thu Mar 20 08:51:06 2014 +1100
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/77580044
-
+---
  src/pkg/fmt/doc.go      | 1 +
  src/pkg/fmt/fmt_test.go | 4 ++++
  src/pkg/fmt/format.go   | 4 ++--
  src/pkg/fmt/print.go    | 4 ++--
  4 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 7a7b63bd6b..7a14b80894 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -37,6 +37,7 @@
+ 		%e	scientific notation, e.g. -1234.456e+78
+ 		%E	scientific notation, e.g. -1234.456E+78
+ 		%f	decimal point but no exponent, e.g. 123.456
++		%F	synonym for %f
+ 		%g	whichever of %e or %f produces more compact output
+ 		%G	whichever of %E or %f produces more compact output
+ 	String and slice of bytes:
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 14a1a56c04..c7a09dedd9 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -220,6 +220,8 @@ var fmtTests = []struct {
+ 	{"%+.3e", 0.0, "+0.000e+00"},
+ 	{"%+.3e", 1.0, "+1.000e+00"},
+ 	{"%+.3f", -1.0, "-1.000"},
++	{"%+.3F", -1.0, "-1.000"},
++	{"%+.3F", float32(-1.0), "-1.000"},
+ 	{"%+07.2f", 1.0, "+001.00"},
+ 	{"%+07.2f", -1.0, "-001.00"},
+ 	{"% .3E", -1.0, "-1.000E+00"},
+@@ -241,6 +243,8 @@ var fmtTests = []struct {
+ 	{"%+.3g", 1 + 2i, "(+1+2i)"},
+ 	{"%.3e", 0i, "(0.000e+00+0.000e+00i)"},
+ 	{"%.3f", 0i, "(0.000+0.000i)"},
++	{"%.3F", 0i, "(0.000+0.000i)"},
++	{"%.3F", complex64(0i), "(0.000+0.000i)"},
+ 	{"%.3g", 0i, "(0+0i)"},
+ 	{"%.3e", 1 + 2i, "(1.000e+00+2.000e+00i)"},
+ 	{"%.3f", 1 + 2i, "(1.000+2.000i)"},
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 3835aa9823..b0f4ad4b73 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -447,7 +447,7 @@ func (f *fmt) fmt_c64(v complex64, verb rune) {
+ 			f.fmt_e32(r)
+ 		case 'E':
+ 			f.fmt_E32(r)
+-		case 'f':
++		case 'f', 'F':
+ 			f.fmt_f32(r)
+ 		case 'g':
+ 			f.fmt_g32(r)
+@@ -477,7 +477,7 @@ func (f *fmt) fmt_c128(v complex128, verb rune) {
+ 			f.fmt_e64(r)
+ 		case 'E':
+ 			f.fmt_E64(r)
+-		case 'f':
++		case 'f', 'F':
+ 			f.fmt_f64(r)
+ 		case 'g':
+ 			f.fmt_g64(r)
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 2f13bcd95e..c56d5b9401 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -447,7 +447,7 @@ func (p *pp) fmtFloat32(v float32, verb rune) {
+ 		p.fmt.fmt_e32(v)
+ 	case 'E':
+ 		p.fmt.fmt_E32(v)
+-	case 'f':
++	case 'f', 'F':
+ 		p.fmt.fmt_f32(v)
+ 	case 'g', 'v':
+ 		p.fmt.fmt_g32(v)
+@@ -466,7 +466,7 @@ func (p *pp) fmtFloat64(v float64, verb rune) {
+ 		p.fmt.fmt_e64(v)
+ 	case 'E':
+ 		p.fmt.fmt_E64(v)
+-	case 'f':
++	case 'f', 'F':
+ 		p.fmt.fmt_f64(v)
+ 	case 'g', 'v':
+ 		p.fmt.fmt_g64(v)

@@ -12,6 +12,22 @@ Date:   Fri Apr 20 13:18:09 2018 -0700
     Change-Id: I99ad61e0ad0075b9efc5ee4e0d067f752f91b8fa
     Reviewed-on: https://go-review.googlesource.com/108535
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 3a6390d970..96d7742a3c 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -301,6 +301,10 @@ type Scanner interface {
+ 	//
+ 	// An error should be returned if the value cannot be stored
+ 	// without loss of information.
++	//
++	// Reference types such as []byte are only valid until the next call to Scan
++	// and should not be retained. Their underlying memory is owned by the driver.
++	// If retention is necessary, copy their values before the next call to Scan.
+ 	Scan(src interface{}) error
+ }
+ 

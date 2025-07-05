@@ -14,9 +14,103 @@ Date:   Wed May 14 21:26:57 2025 +0100
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  api/next/66365.txt                           |  1 +
  doc/next/6-stdlib/99-minor/log/slog/66365.md |  1 +
  src/log/slog/attr.go                         |  9 ++++++
  src/log/slog/example_test.go                 | 44 ++++++++++++++++++++++++++++
  4 files changed, 55 insertions(+)
+
+diff --git a/api/next/66365.txt b/api/next/66365.txt
+new file mode 100644
+index 0000000000..52f1c7ea8e
+--- /dev/null
++++ b/api/next/66365.txt
+@@ -0,0 +1 @@
++pkg log/slog, func GroupAttrs(string, ...Attr) Attr #66365
+diff --git a/doc/next/6-stdlib/99-minor/log/slog/66365.md b/doc/next/6-stdlib/99-minor/log/slog/66365.md
+new file mode 100644
+index 0000000000..b6b0c81fe5
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/log/slog/66365.md
+@@ -0,0 +1 @@
++[GroupAttrs] creates a group [Attr] from a slice of [Attr] values.
+diff --git a/src/log/slog/attr.go b/src/log/slog/attr.go
+index 067c537cc9..c592e54eaf 100644
+--- a/src/log/slog/attr.go
++++ b/src/log/slog/attr.go
+@@ -67,6 +67,15 @@ func Group(key string, args ...any) Attr {
+ 	return Attr{key, GroupValue(argsToAttrSlice(args)...)}
+ }
+ 
++// GroupAttrs returns an Attr for a Group [Value]
++// consisting of the given Attrs.
++//
++// GroupAttrs is a more efficient version of [Group]
++// that accepts only [Attr] values.
++func GroupAttrs(key string, attrs ...Attr) Attr {
++	return Attr{key, GroupValue(attrs...)}
++}
++
+ func argsToAttrSlice(args []any) []Attr {
+ 	var (
+ 		attr  Attr
+diff --git a/src/log/slog/example_test.go b/src/log/slog/example_test.go
+index b03cc01066..c8a05a7bd5 100644
+--- a/src/log/slog/example_test.go
++++ b/src/log/slog/example_test.go
+@@ -5,6 +5,7 @@
+ package slog_test
+ 
+ import (
++	"context"
+ 	"log/slog"
+ 	"net/http"
+ 	"os"
+@@ -35,3 +36,46 @@ func ExampleGroup() {
+ 	// Output:
+ 	// level=INFO msg=finished req.method=GET req.url=localhost status=200 duration=1s
+ }
++
++func ExampleGroupAttrs() {
++	r, _ := http.NewRequest("POST", "localhost", http.NoBody)
++	// ...
++
++	logger := slog.New(
++		slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
++			Level: slog.LevelDebug,
++			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
++				if a.Key == slog.TimeKey && len(groups) == 0 {
++					return slog.Attr{}
++				}
++				return a
++			},
++		}),
++	)
++
++	// Use []slog.Attr to accumulate attributes.
++	attrs := []slog.Attr{slog.String("method", r.Method)}
++	attrs = append(attrs, slog.String("url", r.URL.String()))
++
++	if r.Method == "POST" {
++		attrs = append(attrs, slog.Int("content-length", int(r.ContentLength)))
++	}
++
++	// Group the attributes under a key.
++	logger.LogAttrs(context.Background(), slog.LevelInfo,
++		"finished",
++		slog.Int("status", http.StatusOK),
++		slog.GroupAttrs("req", attrs...),
++	)
++
++	// Groups with empty keys are inlined.
++	logger.LogAttrs(context.Background(), slog.LevelInfo,
++		"finished",
++		slog.Int("status", http.StatusOK),
++		slog.GroupAttrs("", attrs...),
++	)
++
++	// Output:
++	// level=INFO msg=finished status=200 req.method=POST req.url=localhost req.content-length=0
++	// level=INFO msg=finished status=200 method=POST url=localhost content-length=0
++}

@@ -10,6 +10,20 @@ Date:   Tue Oct 18 12:26:09 2011 +1100
     R=adg
     CC=golang-dev
     https://golang.org/cl/5295042
-
+---
  src/pkg/reflect/all_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 85022818a0..915c84d3e7 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -887,7 +887,7 @@ func TestMap(t *testing.T) {
+ 		if i >= len(keys) {
+ 			t.Errorf("Missing key #%d %q", i, k)
+ 		} else if kv := keys[i]; kv.String() != k {
+-			t.Errorf("Keys[%q] = %d, want %d", i, kv.Int(), k)
++			t.Errorf("Keys[%q] = %q, want %q", i, kv.String(), k)
+ 		}
+ 		i++
+ 

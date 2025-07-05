@@ -26,7 +26,7 @@ Date:   Mon Feb 5 15:50:29 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  api/go1.10.txt                        | 18 --------
  doc/go1.10.html                       | 14 ------
  src/text/template/doc.go              |  6 ---
@@ -38,3 +38,531 @@ Date:   Mon Feb 5 15:50:29 2018 -0800
  src/text/template/parse/parse.go      | 44 +++---------------
  src/text/template/parse/parse_test.go | 12 -----
  10 files changed, 31 insertions(+), 225 deletions(-)
+
+diff --git a/api/go1.10.txt b/api/go1.10.txt
+index f17e54343f..250c10f6ab 100644
+--- a/api/go1.10.txt
++++ b/api/go1.10.txt
+@@ -618,24 +618,6 @@ pkg syscall (windows-386), func CreateProcessAsUser(Token, *uint16, *uint16, *Se
+ pkg syscall (windows-386), type SysProcAttr struct, Token Token
+ pkg syscall (windows-amd64), func CreateProcessAsUser(Token, *uint16, *uint16, *SecurityAttributes, *SecurityAttributes, bool, uint32, *uint16, *uint16, *StartupInfo, *ProcessInformation) error
+ pkg syscall (windows-amd64), type SysProcAttr struct, Token Token
+-pkg text/template/parse, const NodeBreak = 20
+-pkg text/template/parse, const NodeBreak NodeType
+-pkg text/template/parse, const NodeContinue = 21
+-pkg text/template/parse, const NodeContinue NodeType
+-pkg text/template/parse, method (*BreakNode) Copy() Node
+-pkg text/template/parse, method (*BreakNode) Position() Pos
+-pkg text/template/parse, method (*BreakNode) String() string
+-pkg text/template/parse, method (*BreakNode) Type() NodeType
+-pkg text/template/parse, method (*ContinueNode) Copy() Node
+-pkg text/template/parse, method (*ContinueNode) Position() Pos
+-pkg text/template/parse, method (*ContinueNode) String() string
+-pkg text/template/parse, method (*ContinueNode) Type() NodeType
+-pkg text/template/parse, type BreakNode struct
+-pkg text/template/parse, type BreakNode struct, embedded NodeType
+-pkg text/template/parse, type BreakNode struct, embedded Pos
+-pkg text/template/parse, type ContinueNode struct
+-pkg text/template/parse, type ContinueNode struct, embedded NodeType
+-pkg text/template/parse, type ContinueNode struct, embedded Pos
+ pkg time, func LoadLocationFromTZData(string, []uint8) (*Location, error)
+ pkg unicode, const Version = "10.0.0"
+ pkg unicode, var Masaram_Gondi *RangeTable
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index aef3be2bef..5885176f46 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -1069,11 +1069,6 @@ now implement those interfaces.
+ <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+ <dd>
+ <p>
+-The new actions <code>{{"{{break}}"}}</code> and <code>{{"{{continue}}"}}</code>
+-break out of the innermost <code>{{"{{range"}}</code>&nbsp;...<code>}}</code> loop,
+-like the corresponding Go statements.
+-</p>
+-<p>
+ The new <a href="/pkg/html/template#Srcset"><code>Srcset</code></a> content
+ type allows for proper handling of values within the
+ <a href="https://w3c.github.io/html/semantics-embedded-content.html#element-attrdef-img-srcset"><code>srcset</code></a>
+@@ -1411,15 +1406,6 @@ is now implemented.
+ </p>
+ </dl>
+ 
+-<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+-<dd>
+-<p>
+-The new actions <code>{{"{{break}}"}}</code> and <code>{{"{{continue}}"}}</code>
+-break out of the innermost <code>{{"{{range"}}</code>&nbsp;...<code>}}</code> loop,
+-like the corresponding Go statements.
+-</p>
+-</dl>
+-
+ <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+ <dd>
+ <p>
+diff --git a/src/text/template/doc.go b/src/text/template/doc.go
+index f7609293ce..d174ebd9cf 100644
+--- a/src/text/template/doc.go
++++ b/src/text/template/doc.go
+@@ -110,12 +110,6 @@ data, defined in detail in the corresponding sections that follow.
+ 		T0 is executed; otherwise, dot is set to the successive elements
+ 		of the array, slice, or map and T1 is executed.
+ 
+-	{{break}}
+-		Break out of the surrounding range loop.
+-
+-	{{continue}}
+-		Begin the next iteration of the surrounding range loop.
+-
+ 	{{template "name"}}
+ 		The template with the specified name is executed with nil data.
+ 
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 87cf1e9b1c..83c38cdf13 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -25,12 +25,11 @@ const maxExecDepth = 100000
+ // template so that multiple executions of the same template
+ // can execute in parallel.
+ type state struct {
+-	tmpl       *Template
+-	wr         io.Writer
+-	node       parse.Node // current node, for errors.
+-	vars       []variable // push-down stack of variable values.
+-	depth      int        // the height of the stack of executing templates.
+-	rangeDepth int        // nesting level of range loops.
++	tmpl  *Template
++	wr    io.Writer
++	node  parse.Node // current node, for errors
++	vars  []variable // push-down stack of variable values.
++	depth int        // the height of the stack of executing templates.
+ }
+ 
+ // variable holds the dynamic value of a variable such as $, $x etc.
+@@ -221,17 +220,9 @@ func (t *Template) DefinedTemplates() string {
+ 	return s
+ }
+ 
+-type rangeControl int8
+-
+-const (
+-	rangeNone     rangeControl = iota // no action.
+-	rangeBreak                        // break out of range.
+-	rangeContinue                     // continues next range iteration.
+-)
+-
+ // Walk functions step through the major pieces of the template structure,
+ // generating output as they go.
+-func (s *state) walk(dot reflect.Value, node parse.Node) rangeControl {
++func (s *state) walk(dot reflect.Value, node parse.Node) {
+ 	s.at(node)
+ 	switch node := node.(type) {
+ 	case *parse.ActionNode:
+@@ -242,15 +233,13 @@ func (s *state) walk(dot reflect.Value, node parse.Node) rangeControl {
+ 			s.printValue(node, val)
+ 		}
+ 	case *parse.IfNode:
+-		return s.walkIfOrWith(parse.NodeIf, dot, node.Pipe, node.List, node.ElseList)
++		s.walkIfOrWith(parse.NodeIf, dot, node.Pipe, node.List, node.ElseList)
+ 	case *parse.ListNode:
+ 		for _, node := range node.Nodes {
+-			if c := s.walk(dot, node); c != rangeNone {
+-				return c
+-			}
++			s.walk(dot, node)
+ 		}
+ 	case *parse.RangeNode:
+-		return s.walkRange(dot, node)
++		s.walkRange(dot, node)
+ 	case *parse.TemplateNode:
+ 		s.walkTemplate(dot, node)
+ 	case *parse.TextNode:
+@@ -258,26 +247,15 @@ func (s *state) walk(dot reflect.Value, node parse.Node) rangeControl {
+ 			s.writeError(err)
+ 		}
+ 	case *parse.WithNode:
+-		return s.walkIfOrWith(parse.NodeWith, dot, node.Pipe, node.List, node.ElseList)
+-	case *parse.BreakNode:
+-		if s.rangeDepth == 0 {
+-			s.errorf("invalid break outside of range")
+-		}
+-		return rangeBreak
+-	case *parse.ContinueNode:
+-		if s.rangeDepth == 0 {
+-			s.errorf("invalid continue outside of range")
+-		}
+-		return rangeContinue
++		s.walkIfOrWith(parse.NodeWith, dot, node.Pipe, node.List, node.ElseList)
+ 	default:
+ 		s.errorf("unknown node: %s", node)
+ 	}
+-	return rangeNone
+ }
+ 
+ // walkIfOrWith walks an 'if' or 'with' node. The two control structures
+ // are identical in behavior except that 'with' sets dot.
+-func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.PipeNode, list, elseList *parse.ListNode) rangeControl {
++func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.PipeNode, list, elseList *parse.ListNode) {
+ 	defer s.pop(s.mark())
+ 	val := s.evalPipeline(dot, pipe)
+ 	truth, ok := isTrue(val)
+@@ -286,14 +264,13 @@ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.
+ 	}
+ 	if truth {
+ 		if typ == parse.NodeWith {
+-			return s.walk(val, list)
++			s.walk(val, list)
+ 		} else {
+-			return s.walk(dot, list)
++			s.walk(dot, list)
+ 		}
+ 	} else if elseList != nil {
+-		return s.walk(dot, elseList)
++		s.walk(dot, elseList)
+ 	}
+-	return rangeNone
+ }
+ 
+ // IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
+@@ -331,14 +308,13 @@ func isTrue(val reflect.Value) (truth, ok bool) {
+ 	return truth, true
+ }
+ 
+-func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) rangeControl {
++func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
+ 	s.at(r)
+ 	defer s.pop(s.mark())
+ 	val, _ := indirect(s.evalPipeline(dot, r.Pipe))
+ 	// mark top of stack before any variables in the body are pushed.
+ 	mark := s.mark()
+-	s.rangeDepth++
+-	oneIteration := func(index, elem reflect.Value) rangeControl {
++	oneIteration := func(index, elem reflect.Value) {
+ 		// Set top var (lexically the second if there are two) to the element.
+ 		if len(r.Pipe.Decl) > 0 {
+ 			s.setVar(1, elem)
+@@ -347,9 +323,8 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) rangeControl {
+ 		if len(r.Pipe.Decl) > 1 {
+ 			s.setVar(2, index)
+ 		}
+-		ctrl := s.walk(elem, r.List)
++		s.walk(elem, r.List)
+ 		s.pop(mark)
+-		return ctrl
+ 	}
+ 	switch val.Kind() {
+ 	case reflect.Array, reflect.Slice:
+@@ -357,23 +332,17 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) rangeControl {
+ 			break
+ 		}
+ 		for i := 0; i < val.Len(); i++ {
+-			if ctrl := oneIteration(reflect.ValueOf(i), val.Index(i)); ctrl == rangeBreak {
+-				break
+-			}
++			oneIteration(reflect.ValueOf(i), val.Index(i))
+ 		}
+-		s.rangeDepth--
+-		return rangeNone
++		return
+ 	case reflect.Map:
+ 		if val.Len() == 0 {
+ 			break
+ 		}
+ 		for _, key := range sortKeys(val.MapKeys()) {
+-			if ctrl := oneIteration(key, val.MapIndex(key)); ctrl == rangeBreak {
+-				break
+-			}
++			oneIteration(key, val.MapIndex(key))
+ 		}
+-		s.rangeDepth--
+-		return rangeNone
++		return
+ 	case reflect.Chan:
+ 		if val.IsNil() {
+ 			break
+@@ -384,25 +353,20 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) rangeControl {
+ 			if !ok {
+ 				break
+ 			}
+-			if ctrl := oneIteration(reflect.ValueOf(i), elem); ctrl == rangeBreak {
+-				break
+-			}
++			oneIteration(reflect.ValueOf(i), elem)
+ 		}
+ 		if i == 0 {
+ 			break
+ 		}
+-		s.rangeDepth--
+-		return rangeNone
++		return
+ 	case reflect.Invalid:
+ 		break // An invalid value is likely a nil map, etc. and acts like an empty map.
+ 	default:
+ 		s.errorf("range can't iterate over %v", val)
+ 	}
+-	s.rangeDepth--
+ 	if r.ElseList != nil {
+-		return s.walk(dot, r.ElseList)
++		s.walk(dot, r.ElseList)
+ 	}
+-	return rangeNone
+ }
+ 
+ func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 79b504f8a4..d0cda6bd62 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -513,10 +513,6 @@ var execTests = []execTest{
+ 	{"declare in range", "{{range $x := .PSI}}<{{$foo:=$x}}{{$x}}>{{end}}", "<21><22><23>", tVal, true},
+ 	{"range count", `{{range $i, $x := count 5}}[{{$i}}]{{$x}}{{end}}`, "[0]a[1]b[2]c[3]d[4]e", tVal, true},
+ 	{"range nil count", `{{range $i, $x := count 0}}{{else}}empty{{end}}`, "empty", tVal, true},
+-	{"range quick break", `{{range .SI}}{{break}}{{.}}{{end}}`, "", tVal, true},
+-	{"range break after two", `{{range $i, $x := .SI}}{{if ge $i 2}}{{break}}{{end}}{{.}}{{end}}`, "34", tVal, true},
+-	{"range continue", `{{range .SI}}{{continue}}{{.}}{{end}}`, "", tVal, true},
+-	{"range continue condition", `{{range .SI}}{{if eq . 3 }}{{continue}}{{end}}{{.}}{{end}}`, "45", tVal, true},
+ 
+ 	// Cute examples.
+ 	{"or as if true", `{{or .SI "slice is empty"}}`, "[3 4 5]", tVal, true},
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index da766cc7c3..e112cb7714 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -60,8 +60,6 @@ const (
+ 	// Keywords appear after all the rest.
+ 	itemKeyword  // used only to delimit the keywords
+ 	itemBlock    // block keyword
+-	itemBreak    // break keyword
+-	itemContinue // continue keyword
+ 	itemDot      // the cursor, spelled '.'
+ 	itemDefine   // define keyword
+ 	itemElse     // else keyword
+@@ -76,8 +74,6 @@ const (
+ var key = map[string]itemType{
+ 	".":        itemDot,
+ 	"block":    itemBlock,
+-	"break":    itemBreak,
+-	"continue": itemContinue,
+ 	"define":   itemDefine,
+ 	"else":     itemElse,
+ 	"end":      itemEnd,
+diff --git a/src/text/template/parse/lex_test.go b/src/text/template/parse/lex_test.go
+index ca7c3f64bc..cb01cd98b6 100644
+--- a/src/text/template/parse/lex_test.go
++++ b/src/text/template/parse/lex_test.go
+@@ -192,7 +192,7 @@ var lexTests = []lexTest{
+ 		tRight,
+ 		tEOF,
+ 	}},
+-	{"keywords", "{{range if else end with break continue}}", []item{
++	{"keywords", "{{range if else end with}}", []item{
+ 		tLeft,
+ 		mkItem(itemRange, "range"),
+ 		tSpace,
+@@ -203,10 +203,6 @@ var lexTests = []lexTest{
+ 		mkItem(itemEnd, "end"),
+ 		tSpace,
+ 		mkItem(itemWith, "with"),
+-		tSpace,
+-		mkItem(itemBreak, "break"),
+-		tSpace,
+-		mkItem(itemContinue, "continue"),
+ 		tRight,
+ 		tEOF,
+ 	}},
+diff --git a/src/text/template/parse/node.go b/src/text/template/parse/node.go
+index 7e16349b31..55ff46c17a 100644
+--- a/src/text/template/parse/node.go
++++ b/src/text/template/parse/node.go
+@@ -69,8 +69,6 @@ const (
+ 	NodeTemplate                   // A template invocation action.
+ 	NodeVariable                   // A $ variable.
+ 	NodeWith                       // A with action.
+-	NodeBreak                      // A break action.
+-	NodeContinue                   // A continue action.
+ )
+ 
+ // Nodes.
+@@ -798,68 +796,6 @@ func (r *RangeNode) Copy() Node {
+ 	return r.tr.newRange(r.Pos, r.Line, r.Pipe.CopyPipe(), r.List.CopyList(), r.ElseList.CopyList())
+ }
+ 
+-// BreakNode represents a {{break}} action.
+-type BreakNode struct {
+-	NodeType
+-	Pos
+-	tr *Tree
+-}
+-
+-func (t *Tree) newBreak(pos Pos) *BreakNode {
+-	return &BreakNode{NodeType: NodeBreak, Pos: pos, tr: t}
+-}
+-
+-func (b *BreakNode) Type() NodeType {
+-	return b.NodeType
+-}
+-
+-func (b *BreakNode) String() string {
+-	return "{{break}}"
+-}
+-
+-func (b *BreakNode) Copy() Node {
+-	return b.tr.newBreak(b.Pos)
+-}
+-
+-func (b *BreakNode) Position() Pos {
+-	return b.Pos
+-}
+-
+-func (b *BreakNode) tree() *Tree {
+-	return b.tr
+-}
+-
+-// ContinueNode represents a {{continue}} action.
+-type ContinueNode struct {
+-	NodeType
+-	Pos
+-	tr *Tree
+-}
+-
+-func (t *Tree) newContinue(pos Pos) *ContinueNode {
+-	return &ContinueNode{NodeType: NodeContinue, Pos: pos, tr: t}
+-}
+-
+-func (c *ContinueNode) Type() NodeType {
+-	return c.NodeType
+-}
+-
+-func (c *ContinueNode) String() string {
+-	return "{{continue}}"
+-}
+-
+-func (c *ContinueNode) Copy() Node {
+-	return c.tr.newContinue(c.Pos)
+-}
+-
+-func (c *ContinueNode) Position() Pos {
+-	return c.Pos
+-}
+-
+-func (c *ContinueNode) tree() *Tree {
+-	return c.tr
+-}
+-
+ // WithNode represents a {{with}} action and its commands.
+ type WithNode struct {
+ 	BranchNode
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index ad9c051978..a91a544ce0 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -23,13 +23,12 @@ type Tree struct {
+ 	Root      *ListNode // top-level root of the tree.
+ 	text      string    // text parsed to create the template (or its parent)
+ 	// Parsing only; cleared after parse.
+-	funcs      []map[string]interface{}
+-	lex        *lexer
+-	token      [3]item // three-token lookahead for parser.
+-	peekCount  int
+-	vars       []string // variables defined at the moment.
+-	treeSet    map[string]*Tree
+-	rangeDepth int // nesting level of range loops.
++	funcs     []map[string]interface{}
++	lex       *lexer
++	token     [3]item // three-token lookahead for parser.
++	peekCount int
++	vars      []string // variables defined at the moment.
++	treeSet   map[string]*Tree
+ }
+ 
+ // Copy returns a copy of the Tree. Any parsing state is discarded.
+@@ -220,7 +219,6 @@ func (t *Tree) stopParse() {
+ 	t.vars = nil
+ 	t.funcs = nil
+ 	t.treeSet = nil
+-	t.rangeDepth = 0
+ }
+ 
+ // Parse parses the template definition string to construct a representation of
+@@ -375,10 +373,6 @@ func (t *Tree) action() (n Node) {
+ 		return t.templateControl()
+ 	case itemWith:
+ 		return t.withControl()
+-	case itemBreak:
+-		return t.breakControl()
+-	case itemContinue:
+-		return t.continueControl()
+ 	}
+ 	t.backup()
+ 	token := t.peek()
+@@ -459,13 +453,7 @@ func (t *Tree) parseControl(allowElseIf bool, context string) (pos Pos, line int
+ 	defer t.popVars(len(t.vars))
+ 	pipe = t.pipeline(context)
+ 	var next Node
+-	if context == "range" {
+-		t.rangeDepth++
+-	}
+ 	list, next = t.itemList()
+-	if context == "range" {
+-		t.rangeDepth--
+-	}
+ 	switch next.Type() {
+ 	case nodeEnd: //done
+ 	case nodeElse:
+@@ -510,26 +498,6 @@ func (t *Tree) rangeControl() Node {
+ 	return t.newRange(t.parseControl(false, "range"))
+ }
+ 
+-// Break:
+-//	{{break}}
+-// Break keyword is past.
+-func (t *Tree) breakControl() Node {
+-	if t.rangeDepth == 0 {
+-		t.errorf("unexpected break outside of range")
+-	}
+-	return t.newBreak(t.expect(itemRightDelim, "break").pos)
+-}
+-
+-// Continue:
+-//	{{continue}}
+-// Continue keyword is past.
+-func (t *Tree) continueControl() Node {
+-	if t.rangeDepth == 0 {
+-		t.errorf("unexpected continue outside of range")
+-	}
+-	return t.newContinue(t.expect(itemRightDelim, "continue").pos)
+-}
+-
+ // With:
+ //	{{with pipeline}} itemList {{end}}
+ //	{{with pipeline}} itemList {{else}} itemList {{end}}
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index aade33ea48..81f14aca98 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -218,12 +218,6 @@ var parseTests = []parseTest{
+ 		`{{range $x := .SI}}{{.}}{{end}}`},
+ 	{"range 2 vars", "{{range $x, $y := .SI}}{{.}}{{end}}", noError,
+ 		`{{range $x, $y := .SI}}{{.}}{{end}}`},
+-	{"range []int with break", "{{range .SI}}{{break}}{{.}}{{end}}", noError,
+-		`{{range .SI}}{{break}}{{.}}{{end}}`},
+-	{"range []int with break in else", "{{range .SI}}{{range .SI}}{{.}}{{else}}{{break}}{{end}}{{end}}", noError,
+-		`{{range .SI}}{{range .SI}}{{.}}{{else}}{{break}}{{end}}{{end}}`},
+-	{"range []int with continue", "{{range .SI}}{{continue}}{{.}}{{end}}", noError,
+-		`{{range .SI}}{{continue}}{{.}}{{end}}`},
+ 	{"constants", "{{range .SI 1 -3.2i true false 'a' nil}}{{end}}", noError,
+ 		`{{range .SI 1 -3.2i true false 'a' nil}}{{end}}`},
+ 	{"template", "{{template `x`}}", noError,
+@@ -294,12 +288,6 @@ var parseTests = []parseTest{
+ 	{"empty pipeline", `{{printf "%d" ( ) }}`, hasError, ""},
+ 	// Missing pipeline in block
+ 	{"block definition", `{{block "foo"}}hello{{end}}`, hasError, ""},
+-	// Invalid range control
+-	{"break outside of range", `{{break}}`, hasError, ""},
+-	{"break in range else, outside of range", `{{range .}}{{.}}{{else}}{{break}}{{end}}`, hasError, ""},
+-	{"continue outside of range", `{{continue}}`, hasError, ""},
+-	{"continue in range else, outside of range", `{{range .}}{{.}}{{else}}{{continue}}{{end}}`, hasError, ""},
+-	{"additional break data", `{{range .}}{{break label}}{{end}}`, hasError, ""},
+ }
+ 
+ var builtins = map[string]interface{}{

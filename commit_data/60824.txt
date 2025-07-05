@@ -15,6 +15,29 @@ Date:   Fri Aug 30 00:23:50 2024 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/testenv/testenv_notwin.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/testenv/testenv_notwin.go b/src/internal/testenv/testenv_notwin.go
+index 30e159a6ec..9dddea94d0 100644
+--- a/src/internal/testenv/testenv_notwin.go
++++ b/src/internal/testenv/testenv_notwin.go
+@@ -11,9 +11,10 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"sync"
+ )
+ 
+-func hasSymlink() (ok bool, reason string) {
++var hasSymlink = sync.OnceValues(func() (ok bool, reason string) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+ 		return false, ""
+@@ -43,4 +44,4 @@ func hasSymlink() (ok bool, reason string) {
+ 	}
+ 
+ 	return true, ""
+-}
++})

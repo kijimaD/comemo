@@ -9,7 +9,32 @@ Date:   Wed Sep 24 13:12:15 2014 -0400
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/147080043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 5d7b870459..8673dce968 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -183,6 +183,7 @@ Gustavo Niemeyer <gustavo@niemeyer.net>
+ Gwenael Treguier <gwenn.kahz@gmail.com>
+ Harley Laue <losinggeneration@gmail.com>
+ Hector Chu <hectorchu@gmail.com>
++Hector Martin Cantero <hector@marcansoft.com>
+ Henning Schmiedehausen <henning@schmiedehausen.org>
+ Henrik Edwards <henrik.edwards@gmail.com>
+ Herbert Georg Fischer <herbert.fischer@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 09fec9f7ae..560faf4274 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -258,6 +258,7 @@ Gwenael Treguier <gwenn.kahz@gmail.com>
+ Han-Wen Nienhuys <hanwen@google.com>
+ Harley Laue <losinggeneration@gmail.com>
+ Hector Chu <hectorchu@gmail.com>
++Hector Martin Cantero <hector@marcansoft.com>
+ Henning Schmiedehausen <henning@schmiedehausen.org>
+ Henrik Edwards <henrik.edwards@gmail.com>
+ Herbert Georg Fischer <herbert.fischer@gmail.com>

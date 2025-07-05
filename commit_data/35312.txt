@@ -9,6 +9,20 @@ Date:   Thu Feb 8 19:29:19 2018 -0500
     Change-Id: I76d928d5fcc5ed22beaffb86f0fa8fbf6d4ac3d7
     Reviewed-on: https://go-review.googlesource.com/93035
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  .github/PULL_REQUEST_TEMPLATE | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/.github/PULL_REQUEST_TEMPLATE b/.github/PULL_REQUEST_TEMPLATE
+deleted file mode 100644
+index 00014e9b86..0000000000
+--- a/.github/PULL_REQUEST_TEMPLATE
++++ /dev/null
+@@ -1,7 +0,0 @@
+-Please do not send pull requests to the golang/* repositories.
+-
+-We do, however, take contributions gladly.
+-
+-See https://golang.org/doc/contribute.html
+-
+-Thanks!

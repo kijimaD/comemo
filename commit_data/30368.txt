@@ -31,7 +31,7 @@ Date:   Mon Oct 31 19:27:26 2016 -0400
     Change-Id: Iec821d2afde10c79f95f3b23de5e71b219f47b92
     Reviewed-on: https://go-review.googlesource.com/32455
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/except.txt                        |  1 +
  src/cmd/go/pkg.go                     |  8 +++
  src/cmd/go/test.go                    | 24 ++-------
@@ -39,3 +39,428 @@ Date:   Mon Oct 31 19:27:26 2016 -0400
  src/testing/internal/testdeps/deps.go | 51 +++++++++++++++++++
  src/testing/testing.go                | 80 ++++++++++++++++++++----------
  6 files changed, 166 insertions(+), 91 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index 8648b58300..2062cbf0da 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -331,6 +331,7 @@ pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, Pad_cgo_1 [4]uint8
+ pkg syscall (openbsd-amd64-cgo), type Timespec struct, Pad_cgo_0 [4]uint8
+ pkg syscall (openbsd-amd64-cgo), type Timespec struct, Sec int32
+ pkg testing, func RegisterCover(Cover)
++pkg testing, func MainStart(func(string, string) (bool, error), []InternalTest, []InternalBenchmark, []InternalExample) *M
+ pkg text/template/parse, type DotNode bool
+ pkg text/template/parse, type Node interface { Copy, String, Type }
+ pkg unicode, const Version = "6.2.0"
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 7505a43f2e..079412ce8a 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -578,6 +578,14 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
+ 		return p
+ 	}
+ 
++	// The generated 'testmain' package is allowed to access testing/internal/...,
++	// as if it were generated into the testing directory tree
++	// (it's actually in a temporary directory outside any Go tree).
++	// This cleans up a former kludge in passing functionality to the testing package.
++	if strings.HasPrefix(p.ImportPath, "testing/internal") && len(*stk) >= 2 && (*stk)[len(*stk)-2] == "testmain" {
++		return p
++	}
++
+ 	// The stack includes p.ImportPath.
+ 	// If that's the only thing on the stack, we started
+ 	// with a name given on the command line, not an
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index fc34b1c696..387a522714 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -394,9 +394,9 @@ var (
+ 
+ var testMainDeps = map[string]bool{
+ 	// Dependencies for testmain.
+-	"testing": true,
+-	"regexp":  true,
+-	"os":      true,
++	"testing":                   true,
++	"testing/internal/testdeps": true,
++	"os": true,
+ }
+ 
+ func runTest(cmd *Command, args []string) {
+@@ -1453,8 +1453,8 @@ import (
+ {{if not .TestMain}}
+ 	"os"
+ {{end}}
+-	"regexp"
+ 	"testing"
++	"testing/internal/testdeps"
+ 
+ {{if .ImportTest}}
+ 	{{if .NeedTest}}_test{{else}}_{{end}} {{.Package.ImportPath | printf "%q"}}
+@@ -1489,20 +1489,6 @@ var examples = []testing.InternalExample{
+ {{end}}
+ }
+ 
+-var matchPat string
+-var matchRe *regexp.Regexp
+-
+-func matchString(pat, str string) (result bool, err error) {
+-	if matchRe == nil || matchPat != pat {
+-		matchPat = pat
+-		matchRe, err = regexp.Compile(matchPat)
+-		if err != nil {
+-			return
+-		}
+-	}
+-	return matchRe.MatchString(str), nil
+-}
+-
+ {{if .CoverEnabled}}
+ 
+ // Only updated by init functions, so no need for atomicity.
+@@ -1551,7 +1537,7 @@ func main() {
+ 		CoveredPackages: {{printf "%q" .Covered}},
+ 	})
+ {{end}}
+-	m := testing.MainStart(matchString, tests, benchmarks, examples)
++	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, examples)
+ {{with .TestMain}}
+ 	{{.Package}}.{{.Name}}(m)
+ {{else}}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 1314e551ea..723189140a 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -220,52 +220,53 @@ var pkgDeps = map[string][]string{
+ 	"go/types":                  {"L4", "GOPARSER", "container/heap", "go/constant"},
+ 
+ 	// One of a kind.
+-	"archive/tar":              {"L4", "OS", "syscall"},
+-	"archive/zip":              {"L4", "OS", "compress/flate"},
+-	"container/heap":           {"sort"},
+-	"compress/bzip2":           {"L4"},
+-	"compress/flate":           {"L4"},
+-	"compress/gzip":            {"L4", "compress/flate"},
+-	"compress/lzw":             {"L4"},
+-	"compress/zlib":            {"L4", "compress/flate"},
+-	"context":                  {"errors", "fmt", "reflect", "sync", "time"},
+-	"database/sql":             {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
+-	"database/sql/driver":      {"L4", "context", "time", "database/sql/internal"},
+-	"debug/dwarf":              {"L4"},
+-	"debug/elf":                {"L4", "OS", "debug/dwarf", "compress/zlib"},
+-	"debug/gosym":              {"L4"},
+-	"debug/macho":              {"L4", "OS", "debug/dwarf"},
+-	"debug/pe":                 {"L4", "OS", "debug/dwarf"},
+-	"debug/plan9obj":           {"L4", "OS"},
+-	"encoding":                 {"L4"},
+-	"encoding/ascii85":         {"L4"},
+-	"encoding/asn1":            {"L4", "math/big"},
+-	"encoding/csv":             {"L4"},
+-	"encoding/gob":             {"L4", "OS", "encoding"},
+-	"encoding/hex":             {"L4"},
+-	"encoding/json":            {"L4", "encoding"},
+-	"encoding/pem":             {"L4"},
+-	"encoding/xml":             {"L4", "encoding"},
+-	"flag":                     {"L4", "OS"},
+-	"go/build":                 {"L4", "OS", "GOPARSER"},
+-	"html":                     {"L4"},
+-	"image/draw":               {"L4", "image/internal/imageutil"},
+-	"image/gif":                {"L4", "compress/lzw", "image/color/palette", "image/draw"},
+-	"image/internal/imageutil": {"L4"},
+-	"image/jpeg":               {"L4", "image/internal/imageutil"},
+-	"image/png":                {"L4", "compress/zlib"},
+-	"index/suffixarray":        {"L4", "regexp"},
+-	"internal/singleflight":    {"sync"},
+-	"internal/trace":           {"L4", "OS"},
+-	"internal/pprof/profile":   {"L4", "OS", "compress/gzip", "regexp"},
+-	"math/big":                 {"L4"},
+-	"mime":                     {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
+-	"mime/quotedprintable":     {"L4"},
+-	"net/internal/socktest":    {"L4", "OS", "syscall"},
+-	"net/url":                  {"L4"},
+-	"plugin":                   {"L0", "OS", "CGO"},
+-	"text/scanner":             {"L4", "OS"},
+-	"text/template/parse":      {"L4"},
++	"archive/tar":               {"L4", "OS", "syscall"},
++	"archive/zip":               {"L4", "OS", "compress/flate"},
++	"container/heap":            {"sort"},
++	"compress/bzip2":            {"L4"},
++	"compress/flate":            {"L4"},
++	"compress/gzip":             {"L4", "compress/flate"},
++	"compress/lzw":              {"L4"},
++	"compress/zlib":             {"L4", "compress/flate"},
++	"context":                   {"errors", "fmt", "reflect", "sync", "time"},
++	"database/sql":              {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
++	"database/sql/driver":       {"L4", "context", "time", "database/sql/internal"},
++	"debug/dwarf":               {"L4"},
++	"debug/elf":                 {"L4", "OS", "debug/dwarf", "compress/zlib"},
++	"debug/gosym":               {"L4"},
++	"debug/macho":               {"L4", "OS", "debug/dwarf"},
++	"debug/pe":                  {"L4", "OS", "debug/dwarf"},
++	"debug/plan9obj":            {"L4", "OS"},
++	"encoding":                  {"L4"},
++	"encoding/ascii85":          {"L4"},
++	"encoding/asn1":             {"L4", "math/big"},
++	"encoding/csv":              {"L4"},
++	"encoding/gob":              {"L4", "OS", "encoding"},
++	"encoding/hex":              {"L4"},
++	"encoding/json":             {"L4", "encoding"},
++	"encoding/pem":              {"L4"},
++	"encoding/xml":              {"L4", "encoding"},
++	"flag":                      {"L4", "OS"},
++	"go/build":                  {"L4", "OS", "GOPARSER"},
++	"html":                      {"L4"},
++	"image/draw":                {"L4", "image/internal/imageutil"},
++	"image/gif":                 {"L4", "compress/lzw", "image/color/palette", "image/draw"},
++	"image/internal/imageutil":  {"L4"},
++	"image/jpeg":                {"L4", "image/internal/imageutil"},
++	"image/png":                 {"L4", "compress/zlib"},
++	"index/suffixarray":         {"L4", "regexp"},
++	"internal/singleflight":     {"sync"},
++	"internal/trace":            {"L4", "OS"},
++	"internal/pprof/profile":    {"L4", "OS", "compress/gzip", "regexp"},
++	"math/big":                  {"L4"},
++	"mime":                      {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
++	"mime/quotedprintable":      {"L4"},
++	"net/internal/socktest":     {"L4", "OS", "syscall"},
++	"net/url":                   {"L4"},
++	"plugin":                    {"L0", "OS", "CGO"},
++	"testing/internal/testdeps": {"L4", "runtime/pprof", "regexp"},
++	"text/scanner":              {"L4", "OS"},
++	"text/template/parse":       {"L4"},
+ 
+ 	"html/template": {
+ 		"L4", "OS", "encoding/json", "html", "text/template",
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+new file mode 100644
+index 0000000000..b08300b5d6
+--- /dev/null
++++ b/src/testing/internal/testdeps/deps.go
+@@ -0,0 +1,51 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package testdeps provides access to dependencies needed by test execution.
++//
++// This package is imported by the generated main package, which passes
++// TestDeps into testing.Main. This allows tests to use packages at run time
++// without making those packages direct dependencies of package testing.
++// Direct dependencies of package testing are harder to write tests for.
++package testdeps
++
++import (
++	"io"
++	"regexp"
++	"runtime/pprof"
++)
++
++// TestDeps is an implementation of the testing.testDeps interface,
++// suitable for passing to testing.MainStart.
++type TestDeps struct{}
++
++var matchPat string
++var matchRe *regexp.Regexp
++
++func (TestDeps) MatchString(pat, str string) (result bool, err error) {
++	if matchRe == nil || matchPat != pat {
++		matchPat = pat
++		matchRe, err = regexp.Compile(matchPat)
++		if err != nil {
++			return
++		}
++	}
++	return matchRe.MatchString(str), nil
++}
++
++func (TestDeps) StartCPUProfile(w io.Writer) error {
++	return pprof.StartCPUProfile(w)
++}
++
++func (TestDeps) StopCPUProfile() {
++	pprof.StopCPUProfile()
++}
++
++func (TestDeps) WriteHeapProfile(w io.Writer) error {
++	return pprof.WriteHeapProfile(w)
++}
++
++func (TestDeps) WriteProfileTo(name string, w io.Writer, debug int) error {
++	return pprof.Lookup(name).WriteTo(w, debug)
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index c52884f0f4..1dae90873a 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -204,13 +204,13 @@ package testing
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"io"
+ 	"os"
+ 	"runtime"
+ 	"runtime/debug"
+-	"runtime/pprof"
+ 	"runtime/trace"
+ 	"strconv"
+ 	"strings"
+@@ -739,29 +739,57 @@ func (c *testContext) release() {
+ 	c.startParallel <- true // Pick a waiting test to be run.
+ }
+ 
+-// An internal function but exported because it is cross-package; part of the implementation
+-// of the "go test" command.
++// No one should be using func Main anymore.
++// See the doc comment on func Main and use MainStart instead.
++var errMain = errors.New("testing: unexpected use of func Main")
++
++type matchStringOnly func(pat, str string) (bool, error)
++
++func (f matchStringOnly) MatchString(pat, str string) (bool, error)   { return f(pat, str) }
++func (f matchStringOnly) StartCPUProfile(w io.Writer) error           { return errMain }
++func (f matchStringOnly) StopCPUProfile()                             {}
++func (f matchStringOnly) WriteHeapProfile(w io.Writer) error          { return errMain }
++func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error { return errMain }
++
++// Main is an internal function, part of the implementation of the "go test" command.
++// It was exported because it is cross-package and predates "internal" packages.
++// It is no longer used by "go test" but preserved, as much as possible, for other
++// systems that simulate "go test" using Main, but Main sometimes cannot be updated as
++// new functionality is added to the testing package.
++// Systems simulating "go test" should be updated to use MainStart.
+ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
+-	os.Exit(MainStart(matchString, tests, benchmarks, examples).Run())
++	os.Exit(MainStart(matchStringOnly(matchString), tests, benchmarks, examples).Run())
+ }
+ 
+ // M is a type passed to a TestMain function to run the actual tests.
+ type M struct {
+-	matchString func(pat, str string) (bool, error)
+-	tests       []InternalTest
+-	benchmarks  []InternalBenchmark
+-	examples    []InternalExample
++	deps       testDeps
++	tests      []InternalTest
++	benchmarks []InternalBenchmark
++	examples   []InternalExample
++}
++
++// testDeps is an internal interface of functionality that is
++// passed into this package by a test's generated main package.
++// The canonical implementation of this interface is
++// testing/internal/testdeps's TestDeps.
++type testDeps interface {
++	MatchString(pat, str string) (bool, error)
++	StartCPUProfile(io.Writer) error
++	StopCPUProfile()
++	WriteHeapProfile(io.Writer) error
++	WriteProfileTo(string, io.Writer, int) error
+ }
+ 
+ // MainStart is meant for use by tests generated by 'go test'.
+ // It is not meant to be called directly and is not subject to the Go 1 compatibility document.
+ // It may change signature from release to release.
+-func MainStart(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) *M {
++func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) *M {
+ 	return &M{
+-		matchString: matchString,
+-		tests:       tests,
+-		benchmarks:  benchmarks,
+-		examples:    examples,
++		deps:       deps,
++		tests:      tests,
++		benchmarks: benchmarks,
++		examples:   examples,
+ 	}
+ }
+ 
+@@ -774,22 +802,22 @@ func (m *M) Run() int {
+ 
+ 	parseCpuList()
+ 
+-	before()
++	m.before()
+ 	startAlarm()
+ 	haveExamples = len(m.examples) > 0
+-	testRan, testOk := runTests(m.matchString, m.tests)
+-	exampleRan, exampleOk := runExamples(m.matchString, m.examples)
++	testRan, testOk := runTests(m.deps.MatchString, m.tests)
++	exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
+ 	if !testRan && !exampleRan && *matchBenchmarks == "" {
+ 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+ 	}
+-	if !testOk || !exampleOk || !runBenchmarks(m.matchString, m.benchmarks) {
++	if !testOk || !exampleOk || !runBenchmarks(m.deps.MatchString, m.benchmarks) {
+ 		fmt.Println("FAIL")
+-		after()
++		m.after()
+ 		return 1
+ 	}
+ 
+ 	fmt.Println("PASS")
+-	after()
++	m.after()
+ 	return 0
+ }
+ 
+@@ -850,7 +878,7 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ }
+ 
+ // before runs before all testing.
+-func before() {
++func (m *M) before() {
+ 	if *memProfileRate > 0 {
+ 		runtime.MemProfileRate = *memProfileRate
+ 	}
+@@ -860,7 +888,7 @@ func before() {
+ 			fmt.Fprintf(os.Stderr, "testing: %s", err)
+ 			return
+ 		}
+-		if err := pprof.StartCPUProfile(f); err != nil {
++		if err := m.deps.StartCPUProfile(f); err != nil {
+ 			fmt.Fprintf(os.Stderr, "testing: can't start cpu profile: %s", err)
+ 			f.Close()
+ 			return
+@@ -893,9 +921,9 @@ func before() {
+ }
+ 
+ // after runs after all testing.
+-func after() {
++func (m *M) after() {
+ 	if *cpuProfile != "" {
+-		pprof.StopCPUProfile() // flushes profile to disk
++		m.deps.StopCPUProfile() // flushes profile to disk
+ 	}
+ 	if *traceFile != "" {
+ 		trace.Stop() // flushes trace to disk
+@@ -907,7 +935,7 @@ func after() {
+ 			os.Exit(2)
+ 		}
+ 		runtime.GC() // materialize all statistics
+-		if err = pprof.WriteHeapProfile(f); err != nil {
++		if err = m.deps.WriteHeapProfile(f); err != nil {
+ 			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *memProfile, err)
+ 			os.Exit(2)
+ 		}
+@@ -919,7 +947,7 @@ func after() {
+ 			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
+ 			os.Exit(2)
+ 		}
+-		if err = pprof.Lookup("block").WriteTo(f, 0); err != nil {
++		if err = m.deps.WriteProfileTo("block", f, 0); err != nil {
+ 			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *blockProfile, err)
+ 			os.Exit(2)
+ 		}
+@@ -931,7 +959,7 @@ func after() {
+ 			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
+ 			os.Exit(2)
+ 		}
+-		if err = pprof.Lookup("mutex").WriteTo(f, 0); err != nil {
++		if err = m.deps.WriteProfileTo("mutex", f, 0); err != nil {
+ 			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *blockProfile, err)
+ 			os.Exit(2)
+ 		}

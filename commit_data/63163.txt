@@ -22,7 +22,33 @@ Date:   Fri May 16 13:44:53 2025 -0400
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/crypto/tls/bogo_config.json    | 1 -
  src/crypto/tls/handshake_server.go | 2 +-
  2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index ba1dce8761..64781b3fba 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -63,7 +63,6 @@
+         "CheckLeafCurve": "TODO: first pass, this should be fixed",
+         "DisabledCurve-HelloRetryRequest-TLS13": "TODO: first pass, this should be fixed",
+         "SupportTicketsWithSessionID": "TODO: first pass, this should be fixed",
+-        "NoNullCompression-TLS12": "TODO: first pass, this should be fixed",
+         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
+         "SupportedVersionSelection-TLS12": "TODO: first pass, this should be fixed",
+         "DuplicateExtensionServer-TLS-TLS1": "TODO: first pass, this should be fixed",
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index c2c924c07b..d7fadcbd59 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -233,7 +233,7 @@ func (hs *serverHandshakeState) processClientHello() error {
+ 	}
+ 
+ 	if !foundCompression {
+-		c.sendAlert(alertHandshakeFailure)
++		c.sendAlert(alertIllegalParameter)
+ 		return errors.New("tls: client does not support uncompressed connections")
+ 	}
+ 

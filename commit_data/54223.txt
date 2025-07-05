@@ -12,7 +12,7 @@ Date:   Tue Sep 27 19:03:54 2022 +0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/envcmd/env.go            |  4 ++--
  src/cmd/go/internal/modfetch/codehost/git.go |  4 ++--
  src/cmd/go/internal/modfetch/coderepo.go     | 10 ++++++----
@@ -22,3 +22,161 @@ Date:   Tue Sep 27 19:03:54 2022 +0800
  src/cmd/go/internal/work/action.go           |  4 ++--
  src/cmd/go/script_test.go                    |  6 ++----
  8 files changed, 22 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 6dd8657bfc..2d8f7afd6b 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -453,8 +453,8 @@ func printEnvAsJSON(env []cfg.EnvVar) {
+ 
+ func getOrigEnv(key string) string {
+ 	for _, v := range cfg.OrigEnv {
+-		if strings.HasPrefix(v, key+"=") {
+-			return strings.TrimPrefix(v, key+"=")
++		if v, found := strings.CutPrefix(v, key+"="); found {
++			return v
+ 		}
+ 	}
+ 	return ""
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 7127d6afe9..127ad264af 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -486,9 +486,9 @@ func (r *gitRepo) stat(rev string) (info *RevInfo, err error) {
+ 	// Either way, try a local stat before falling back to network I/O.
+ 	if !didStatLocal {
+ 		if info, err := r.statLocal(rev, hash); err == nil {
+-			if strings.HasPrefix(ref, "refs/tags/") {
++			if after, found := strings.CutPrefix(ref, "refs/tags/"); found {
+ 				// Make sure tag exists, so it will be in localTags next time the go command is run.
+-				Run(r.dir, "git", "tag", strings.TrimPrefix(ref, "refs/tags/"), hash)
++				Run(r.dir, "git", "tag", after, hash)
+ 			}
+ 			return info, nil
+ 		}
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index b72989b2a8..0aee381e17 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -1095,14 +1095,16 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
+ 			}
+ 			topPrefix = zf.Name[:i+1]
+ 		}
+-		if !strings.HasPrefix(zf.Name, topPrefix) {
++		var name string
++		var found bool
++		if name, found = strings.CutPrefix(zf.Name, topPrefix); !found {
+ 			return fmt.Errorf("zip file contains more than one top-level directory")
+ 		}
+-		name := strings.TrimPrefix(zf.Name, topPrefix)
+-		if !strings.HasPrefix(name, subdir) {
++
++		if name, found = strings.CutPrefix(name, subdir); !found {
+ 			continue
+ 		}
+-		name = strings.TrimPrefix(name, subdir)
++
+ 		if name == "" || strings.HasSuffix(name, "/") {
+ 			continue
+ 		}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 1527e0aa7a..e74780a7b2 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -548,13 +548,12 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
+ 		modRoot := MainModules.ModRoot(mainModule)
+ 		if modRoot != "" && strings.HasPrefix(absDir, modRoot+string(filepath.Separator)) && !strings.Contains(absDir[len(modRoot):], "@") {
+ 			suffix := filepath.ToSlash(absDir[len(modRoot):])
+-			if strings.HasPrefix(suffix, "/vendor/") {
++			if pkg, found := strings.CutPrefix(suffix, "/vendor/"); found {
+ 				if cfg.BuildMod != "vendor" {
+ 					return "", fmt.Errorf("without -mod=vendor, directory %s has no package path", absDir)
+ 				}
+ 
+ 				readVendorList(mainModule)
+-				pkg := strings.TrimPrefix(suffix, "/vendor/")
+ 				if _, ok := vendorPkgModule[pkg]; !ok {
+ 					return "", fmt.Errorf("directory %s is not a package listed in vendor/modules.txt", absDir)
+ 				}
+diff --git a/src/cmd/go/internal/modload/vendor.go b/src/cmd/go/internal/modload/vendor.go
+index 5ea82a8620..e3690495cd 100644
+--- a/src/cmd/go/internal/modload/vendor.go
++++ b/src/cmd/go/internal/modload/vendor.go
+@@ -98,16 +98,16 @@ func readVendorList(mainModule module.Version) {
+ 				continue
+ 			}
+ 
+-			if strings.HasPrefix(line, "## ") {
++			if annonations, ok := strings.CutPrefix(line, "## "); ok {
+ 				// Metadata. Take the union of annotations across multiple lines, if present.
+ 				meta := vendorMeta[mod]
+-				for _, entry := range strings.Split(strings.TrimPrefix(line, "## "), ";") {
++				for _, entry := range strings.Split(annonations, ";") {
+ 					entry = strings.TrimSpace(entry)
+ 					if entry == "explicit" {
+ 						meta.Explicit = true
+ 					}
+-					if strings.HasPrefix(entry, "go ") {
+-						meta.GoVersion = strings.TrimPrefix(entry, "go ")
++					if goVersion, ok := strings.CutPrefix(entry, "go "); ok {
++						meta.GoVersion = goVersion
+ 						rawGoVersion.Store(mod, meta.GoVersion)
+ 					}
+ 					// All other tokens are reserved for future use.
+diff --git a/src/cmd/go/internal/test/genflags.go b/src/cmd/go/internal/test/genflags.go
+index f50ae5c1e9..8c7554919a 100644
+--- a/src/cmd/go/internal/test/genflags.go
++++ b/src/cmd/go/internal/test/genflags.go
+@@ -68,10 +68,11 @@ func testFlags() []string {
+ 
+ 	var names []string
+ 	flag.VisitAll(func(f *flag.Flag) {
+-		if !strings.HasPrefix(f.Name, "test.") {
++		var name string
++		var found bool
++		if name, found = strings.CutPrefix(f.Name, "test."); !found {
+ 			return
+ 		}
+-		name := strings.TrimPrefix(f.Name, "test.")
+ 
+ 		switch name {
+ 		case "testlogfile", "paniconexit0", "fuzzcachedir", "fuzzworker":
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index ae9afd2f12..5700f878af 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -372,8 +372,8 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
+ 		scanner := bufio.NewScanner(bytes.NewBuffer(data))
+ 		for scanner.Scan() {
+ 			t := scanner.Text()
+-			if strings.HasPrefix(t, "pkgpath ") {
+-				t = strings.TrimPrefix(t, "pkgpath ")
++			var found bool
++			if t, found = strings.CutPrefix(t, "pkgpath "); found {
+ 				t = strings.TrimSuffix(t, ";")
+ 				pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd(), nil, &stk, nil, 0))
+ 			}
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 5914efe6d8..8769aa061c 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -448,8 +448,7 @@ Script:
+ 					}).(bool)
+ 					break
+ 				}
+-				if strings.HasPrefix(cond.tag, "GODEBUG:") {
+-					value := strings.TrimPrefix(cond.tag, "GODEBUG:")
++				if value, found := strings.CutPrefix(cond.tag, "GODEBUG:"); found {
+ 					parts := strings.Split(os.Getenv("GODEBUG"), ",")
+ 					for _, p := range parts {
+ 						if strings.TrimSpace(p) == value {
+@@ -459,8 +458,7 @@ Script:
+ 					}
+ 					break
+ 				}
+-				if strings.HasPrefix(cond.tag, "buildmode:") {
+-					value := strings.TrimPrefix(cond.tag, "buildmode:")
++				if value, found := strings.CutPrefix(cond.tag, "buildmode:"); found {
+ 					ok = sys.BuildModeSupported(runtime.Compiler, value, runtime.GOOS, runtime.GOARCH)
+ 					break
+ 				}

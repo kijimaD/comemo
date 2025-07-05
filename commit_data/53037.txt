@@ -17,7 +17,33 @@ Date:   Wed Jun 1 11:17:07 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/409874
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 1 +
  src/net/http/transfer.go   | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 464e0f734d..cb6312d641 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -6245,6 +6245,7 @@ func TestUnsupportedTransferEncodingsReturn501(t *testing.T) {
+ 		"fugazi",
+ 		"foo-bar",
+ 		"unknown",
++		"\rchunked",
+ 	}
+ 
+ 	for _, badTE := range unsupportedTEs {
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 6957b246f3..4583c6b453 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -642,7 +642,7 @@ func (t *transferReader) parseTransferEncoding() error {
+ 	if len(raw) != 1 {
+ 		return &unsupportedTEError{fmt.Sprintf("too many transfer encodings: %q", raw)}
+ 	}
+-	if !ascii.EqualFold(textproto.TrimString(raw[0]), "chunked") {
++	if !ascii.EqualFold(raw[0], "chunked") {
+ 		return &unsupportedTEError{fmt.Sprintf("unsupported transfer encoding: %q", raw[0])}
+ 	}
+ 

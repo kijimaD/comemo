@@ -13,7 +13,36 @@ Date:   Thu Apr 13 09:31:41 2023 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/const.go     | 4 ----
  src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
  2 files changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index 060053bc8d..11386f6f9a 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -496,10 +496,6 @@ func EvalConst(n ir.Node) ir.Node {
+ 			}
+ 		}
+ 
+-	case ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+-		n := n.(*ir.UnaryExpr)
+-		return OrigInt(n, evalunsafe(n))
+-
+ 	case ir.OREAL:
+ 		n := n.(*ir.UnaryExpr)
+ 		nl := n.X
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index e160265d49..51de4700a1 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -608,7 +608,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 	case ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+ 		n := n.(*ir.UnaryExpr)
+ 		n.SetType(types.Types[types.TUINTPTR])
+-		return n
++		return OrigInt(n, evalunsafe(n))
+ 
+ 	case ir.OCAP, ir.OLEN:
+ 		n := n.(*ir.UnaryExpr)

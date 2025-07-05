@@ -9,6 +9,20 @@ Date:   Mon Dec 12 16:08:32 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev, remy
     https://golang.org/cl/5472062
-
+---
  src/cmd/gc/swt.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 786fdf938d..7764f0dd35 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -878,7 +878,7 @@ typecheckswitch(Node *n)
+ 						if(n->ntest)
+ 							yyerror("invalid case %N in switch on %N (mismatched types %T and %T)", ll->n, n->ntest, ll->n->type, t);
+ 						else
+-							yyerror("invalid case %N in switch (mismatched types %T and bool)", ll->n, n->ntest, ll->n->type, t);
++							yyerror("invalid case %N in switch (mismatched types %T and bool)", ll->n, ll->n->type);
+ 					} else if(nilonly && !isconst(ll->n, CTNIL)) {
+ 						yyerror("invalid case %N in switch (can only compare %s %N to nil)", ll->n, nilonly, n->ntest);
+ 					}

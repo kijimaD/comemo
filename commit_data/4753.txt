@@ -7,9 +7,82 @@ Date:   Mon Feb 1 16:22:16 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/199046
-
+---
  src/cmd/gc/gen.c       | 2 ++
  src/cmd/gc/typecheck.c | 1 -
  src/cmd/gc/walk.c      | 2 ++
  test/ddd.go            | 4 ----
  4 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 279cad998f..57dd674fb1 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -411,6 +411,8 @@ cgen_dcl(Node *n)
+ 	}
+ 	if(!(n->class & PHEAP))
+ 		return;
++	if(n->alloc == nil)
++		n->alloc = callnew(n->type);
+ 	cgen_as(n->heapaddr, n->alloc);
+ }
+ 
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 4204ee4568..7b0ce03829 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1907,7 +1907,6 @@ addrescapes(Node *n)
+ 			n->class |= PHEAP;
+ 			n->addable = 0;
+ 			n->ullman = 2;
+-			n->alloc = callnew(n->type);
+ 			n->xoffset = 0;
+ 
+ 			// create stack variable to hold pointer to heap
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 9a84acce36..cac2d50ea1 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2182,6 +2182,8 @@ paramstoheap(Type **argin)
+ 			continue;
+ 
+ 		// generate allocation & copying code
++		if(v->alloc == nil)
++			v->alloc = callnew(v->type);
+ 		nn = list(nn, nod(OAS, v->heapaddr, v->alloc));
+ 		nn = list(nn, nod(OAS, v, v->stackparam));
+ 	}
+diff --git a/test/ddd.go b/test/ddd.go
+index 08c88f4ff2..e633842f54 100644
+--- a/test/ddd.go
++++ b/test/ddd.go
+@@ -18,13 +18,11 @@ func sumC(args ...int) int {
+ 	return func() int { return sum(args) } ()
+ }
+ 
+-/* TODO(rsc)
+ var sumD = func(args ...int) int { return sum(args) }
+ 
+ var sumE = func() func(...int) int { return func(args ...int) int { return sum(args) } } ()
+ 
+ var sumF = func(args ...int) func() int { return func() int { return sum(args) } }
+-*/
+ 
+ func sumA(args []int) int {
+ 	s := 0
+@@ -76,7 +74,6 @@ func main() {
+ 	if x := sumC(4, 5, 6); x != 15 {
+ 		panicln("sumC 15", x)
+ 	}
+-/* TODO(rsc)
+ 	if x := sumD(4, 5, 7); x != 16 {
+ 		panicln("sumD 16", x)
+ 	}
+@@ -86,7 +83,6 @@ func main() {
+ 	if x := sumF(4, 5, 9)(); x != 18 {
+ 		panicln("sumF 18", x)
+ 	}
+-*/
+ 	if x := sum2(1, 2, 3); x != 2*6 {
+ 		panicln("sum 6", x)
+ 	}

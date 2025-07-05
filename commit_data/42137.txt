@@ -12,7 +12,59 @@ Date:   Sat Aug 10 08:00:55 2019 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/189797
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/download.go      | 16 ++++++++++++++--
  src/cmd/go/testdata/script/mod_download.txt |  6 ++++++
  2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 1687cc5794..6ea18ea872 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -81,6 +81,17 @@ func runDownload(cmd *base.Command, args []string) {
+ 	}
+ 	if len(args) == 0 {
+ 		args = []string{"all"}
++	} else if modload.HasModRoot() {
++		modload.InitMod() // to fill Target
++		targetAtLatest := modload.Target.Path + "@latest"
++		targetAtUpgrade := modload.Target.Path + "@upgrade"
++		targetAtPatch := modload.Target.Path + "@patch"
++		for _, arg := range args {
++			switch arg {
++			case modload.Target.Path, targetAtLatest, targetAtUpgrade, targetAtPatch:
++				os.Stderr.WriteString("go mod download: skipping argument "+ arg + " that resolves to the main module\n")
++			}
++		}
+ 	}
+ 
+ 	var mods []*moduleJSON
+@@ -91,8 +102,9 @@ func runDownload(cmd *base.Command, args []string) {
+ 		if info.Replace != nil {
+ 			info = info.Replace
+ 		}
+-		if info.Version == "" && info.Error == nil {
+-			// main module
++		if (module.Version{Path: info.Path, Version: info.Version} == modload.Target) {
++			// skipping main module.
++			// go mod download without dependencies is silent.
+ 			continue
+ 		}
+ 		m := &moduleJSON{
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+index 0777913786..e341222d60 100644
+--- a/src/cmd/go/testdata/script/mod_download.txt
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -93,6 +93,12 @@ stderr '^rsc.io/quote@v1.999.999: reading .*/v1.999.999.info: 404 Not Found$'
+ ! go mod download -json bad/path
+ stdout '^\t"Error": "module bad/path: not a known dependency"'
+ 
++# download main module returns an error
++go mod download m
++stderr '^go mod download: skipping argument m that resolves to the main module\n'
++go mod download m@latest
++stderr '^go mod download: skipping argument m@latest that resolves to the main module\n'
++
+ # allow go mod download without go.mod
+ env GO111MODULE=auto
+ rm go.mod

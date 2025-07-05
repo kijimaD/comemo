@@ -9,7 +9,90 @@ Date:   Thu Aug 1 11:17:42 2013 +1000
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/12214043
-
+---
  src/cmd/go/fmt.go |  7 +++++++
  src/cmd/go/pkg.go | 38 +++++++++++++++++++++++++-------------
  2 files changed, 32 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/fmt.go b/src/cmd/go/fmt.go
+index 9d3c911dd6..55c135ea9c 100644
+--- a/src/cmd/go/fmt.go
++++ b/src/cmd/go/fmt.go
+@@ -4,6 +4,8 @@
+ 
+ package main
+ 
++import "os/exec"
++
+ func init() {
+ 	addBuildFlagsNX(cmdFmt)
+ 	addBuildFlagsNX(cmdDoc)
+@@ -59,6 +61,11 @@ See also: go fix, go fmt, go vet.
+ }
+ 
+ func runDoc(cmd *Command, args []string) {
++	_, err := exec.LookPath("godoc")
++	if err != nil {
++		errorf("go doc: can't find godoc; to install:\n\tgo get code.google.com/p/go.tools/cmd/godoc")
++		return
++	}
+ 	for _, pkg := range packages(args) {
+ 		if pkg.ImportPath == "command-line arguments" {
+ 			errorf("go doc: cannot use package file list")
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 3c7b844197..9c4eca83a2 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -283,15 +283,23 @@ func reusePackage(p *Package, stk *importStack) *Package {
+ 	return p
+ }
+ 
+-// isGoTool is the list of directories for Go programs that are installed in
+-// $GOROOT/pkg/tool.
+-var isGoTool = map[string]bool{
+-	"cmd/api":                              true,
+-	"cmd/cgo":                              true,
+-	"cmd/fix":                              true,
+-	"cmd/yacc":                             true,
+-	"code.google.com/p/go.tools/cmd/cover": true,
+-	"code.google.com/p/go.tools/cmd/vet":   true,
++type targetDir int
++
++const (
++	toRoot targetDir = iota // to bin dir inside package root (default)
++	toTool                  // GOROOT/pkg/tool
++	toBin                   // GOROOT/bin
++)
++
++// goTools is a map of Go program import path to install target directory.
++var goTools = map[string]targetDir{
++	"cmd/api":                              toTool,
++	"cmd/cgo":                              toTool,
++	"cmd/fix":                              toTool,
++	"cmd/yacc":                             toTool,
++	"code.google.com/p/go.tools/cmd/cover": toTool,
++	"code.google.com/p/go.tools/cmd/godoc": toBin,
++	"code.google.com/p/go.tools/cmd/vet":   toTool,
+ }
+ 
+ // expandScanner expands a scanner.List error into all the errors in the list.
+@@ -341,11 +349,15 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 			// Install cross-compiled binaries to subdirectories of bin.
+ 			elem = full
+ 		}
+-		if p.build.BinDir != "" {
+-			p.target = filepath.Join(p.build.BinDir, elem)
+-		}
+-		if isGoTool[p.ImportPath] {
++		switch goTools[p.ImportPath] {
++		case toRoot: // default, if p.ImportPath not in goTools
++			if p.build.BinDir != "" {
++				p.target = filepath.Join(p.build.BinDir, elem)
++			}
++		case toTool:
+ 			p.target = filepath.Join(gorootPkg, "tool", full)
++		case toBin:
++			p.target = filepath.Join(gorootBin, elem)
+ 		}
+ 		if p.target != "" && buildContext.GOOS == "windows" {
+ 			p.target += ".exe"

@@ -16,8 +16,63 @@ Date:   Thu Jan 9 10:48:14 2020 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/issue21897.go                      | 11 +----------
  misc/cgo/test/issue21897b.go                     |  2 +-
  misc/cgo/test/testdata/issue24161_darwin_test.go |  8 --------
  3 files changed, 2 insertions(+), 19 deletions(-)
+
+diff --git a/misc/cgo/test/issue21897.go b/misc/cgo/test/issue21897.go
+index 454a141827..d13246bd84 100644
+--- a/misc/cgo/test/issue21897.go
++++ b/misc/cgo/test/issue21897.go
+@@ -2,16 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// We skip this test in race mode because, for unknown reasons,
+-// linking against CoreFoundation on macOS 10.10 causes mmap to ignore
+-// the hint address, which makes the Go allocator incompatible with
+-// TSAN. See golang.org/issue/26475.
+-//
+-// TODO(austin): Once support for macOS 10.10 is dropped, remove the
+-// race constraint (and the one in issue21897b.go). See
+-// golang.org/issue/26513.
+-
+-// +build darwin,cgo,!internal,!race
++// +build darwin,cgo,!internal
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/issue21897b.go b/misc/cgo/test/issue21897b.go
+index e143bad086..08b5f4d808 100644
+--- a/misc/cgo/test/issue21897b.go
++++ b/misc/cgo/test/issue21897b.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !darwin !cgo internal race
++// +build !darwin !cgo internal
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/testdata/issue24161_darwin_test.go b/misc/cgo/test/testdata/issue24161_darwin_test.go
+index 64f4442856..e60eb4e917 100644
+--- a/misc/cgo/test/testdata/issue24161_darwin_test.go
++++ b/misc/cgo/test/testdata/issue24161_darwin_test.go
+@@ -2,14 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// See issue21897.go and golang.org/issue/26475 for why this is
+-// skipped in race mode.
+-//
+-// TODO(austin): Once support for macOS 10.10 is dropped, remove the
+-// race constraint. See golang.org/issue/26513.
+-
+-// +build !race
+-
+ package cgotest
+ 
+ import (

@@ -7,7 +7,32 @@ Date:   Wed May 29 13:49:31 2013 +1000
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/9853043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 62d8355b42..c4a4cbc753 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -171,6 +171,7 @@ Julian Phillips <julian@quantumfyre.co.uk>
+ Julien Schmidt <google@julienschmidt.com>
+ Kai Backman <kaib@golang.org>
+ Kamil Kisiel <kamil@kamilkisiel.net> <kamil.kisiel@gmail.com>
++Katrina Owen <katrina.owen@gmail.com>
+ Kei Son <hey.calmdown@gmail.com>
+ Keith Rarick <kr@xph.us>
+ Ken Friedenbach <kenliz@cruzio.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 80b01d8a97..a9714b1bef 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -253,6 +253,7 @@ Julian Phillips <julian@quantumfyre.co.uk>
+ Julien Schmidt <google@julienschmidt.com>
+ Kai Backman <kaib@golang.org>
+ Kamil Kisiel <kamil@kamilkisiel.net> <kamil.kisiel@gmail.com>
++Katrina Owen <katrina.owen@gmail.com>
+ Kei Son <hey.calmdown@gmail.com>
+ Keith Randall <khr@golang.org>
+ Keith Rarick <kr@xph.us>

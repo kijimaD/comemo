@@ -12,6 +12,17 @@ Date:   Thu Jan 14 20:10:35 2021 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/abi/regabipragma.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/abi/regabipragma.go b/test/abi/regabipragma.go
+index 93cdb6abbb..6a1b1938ea 100644
+--- a/test/abi/regabipragma.go
++++ b/test/abi/regabipragma.go
+@@ -1,4 +1,5 @@
+ // runindir
++// +build !windows
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

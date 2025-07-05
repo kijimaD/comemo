@@ -15,8 +15,256 @@ Date:   Wed Nov 30 10:03:09 2016 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/user/lookup_stubs.go     |   8 ---
  src/os/user/lookup_unix.go      |  99 ++++++++++++++++++++++++++++++++++
  src/os/user/lookup_unix_test.go | 117 ++++++++++++++++++++++++++++++++++++++++
  3 files changed, 216 insertions(+), 8 deletions(-)
+
+diff --git a/src/os/user/lookup_stubs.go b/src/os/user/lookup_stubs.go
+index ebf24f79de..9b6c4c1266 100644
+--- a/src/os/user/lookup_stubs.go
++++ b/src/os/user/lookup_stubs.go
+@@ -54,14 +54,6 @@ func lookupUserId(uid string) (*User, error) {
+ 	return nil, errors.New("user: LookupId requires cgo")
+ }
+ 
+-func lookupGroup(groupname string) (*Group, error) {
+-	return nil, errors.New("user: LookupGroup requires cgo")
+-}
+-
+-func lookupGroupId(string) (*Group, error) {
+-	return nil, errors.New("user: LookupGroupId requires cgo")
+-}
+-
+ func listGroups(*User) ([]string, error) {
+ 	return nil, errors.New("user: GroupIds requires cgo")
+ }
+diff --git a/src/os/user/lookup_unix.go b/src/os/user/lookup_unix.go
+new file mode 100644
+index 0000000000..8d00c68216
+--- /dev/null
++++ b/src/os/user/lookup_unix.go
+@@ -0,0 +1,99 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd !android,linux nacl netbsd openbsd solaris
++// +build !cgo
++
++package user
++
++import (
++	"bufio"
++	"bytes"
++	"io"
++	"os"
++	"strings"
++)
++
++const groupFile = "/etc/group"
++
++var colon = []byte{':'}
++
++func init() {
++	groupImplemented = false
++}
++
++func findGroupId(id string, r io.Reader) (*Group, error) {
++	bs := bufio.NewScanner(r)
++	substr := []byte(":" + id)
++	for bs.Scan() {
++		lineBytes := bs.Bytes()
++		if !bytes.Contains(lineBytes, substr) || bytes.Count(lineBytes, colon) < 3 {
++			continue
++		}
++		text := strings.TrimSpace(removeComment(string(lineBytes)))
++		// wheel:*:0:root
++		parts := strings.SplitN(text, ":", 4)
++		if len(parts) < 4 {
++			continue
++		}
++		if parts[2] == id {
++			return &Group{Name: parts[0], Gid: parts[2]}, nil
++		}
++	}
++	if err := bs.Err(); err != nil {
++		return nil, err
++	}
++	return nil, UnknownGroupIdError(id)
++}
++
++func findGroupName(name string, r io.Reader) (*Group, error) {
++	bs := bufio.NewScanner(r)
++	substr := []byte(name + ":")
++	for bs.Scan() {
++		lineBytes := bs.Bytes()
++		if !bytes.Contains(lineBytes, substr) || bytes.Count(lineBytes, colon) < 3 {
++			continue
++		}
++		text := strings.TrimSpace(removeComment(string(lineBytes)))
++		// wheel:*:0:root
++		parts := strings.SplitN(text, ":", 4)
++		if len(parts) < 4 {
++			continue
++		}
++		if parts[0] == name && parts[2] != "" {
++			return &Group{Name: parts[0], Gid: parts[2]}, nil
++		}
++	}
++	if err := bs.Err(); err != nil {
++		return nil, err
++	}
++	return nil, UnknownGroupError(name)
++}
++
++func lookupGroup(groupname string) (*Group, error) {
++	f, err := os.Open(groupFile)
++	if err != nil {
++		return nil, err
++	}
++	defer f.Close()
++	return findGroupName(groupname, f)
++}
++
++func lookupGroupId(id string) (*Group, error) {
++	f, err := os.Open(groupFile)
++	if err != nil {
++		return nil, err
++	}
++	defer f.Close()
++	return findGroupId(id, f)
++}
++
++// removeComment returns line, removing any '#' byte and any following
++// bytes.
++func removeComment(line string) string {
++	if i := strings.Index(line, "#"); i != -1 {
++		return line[:i]
++	}
++	return line
++}
+diff --git a/src/os/user/lookup_unix_test.go b/src/os/user/lookup_unix_test.go
+new file mode 100644
+index 0000000000..443dd3b14f
+--- /dev/null
++++ b/src/os/user/lookup_unix_test.go
+@@ -0,0 +1,117 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd !android,linux nacl netbsd openbsd solaris
++// +build !cgo
++
++package user
++
++import (
++	"strings"
++	"testing"
++)
++
++const testGroupFile = `# See the opendirectoryd(8) man page for additional 
++# information about Open Directory.
++##
++nobody:*:-2:
++nogroup:*:-1:
++wheel:*:0:root
++emptyid:*::root
++      
++daemon:*:1:root
++    indented:*:7:
++# comment:*:4:found
++     # comment:*:4:found
++kmem:*:2:root
++`
++
++var groupTests = []struct {
++	in   string
++	name string
++	gid  string
++}{
++	{testGroupFile, "nobody", "-2"},
++	{testGroupFile, "kmem", "2"},
++	{testGroupFile, "notinthefile", ""},
++	{testGroupFile, "comment", ""},
++	{testGroupFile, "emptyid", ""},
++	{testGroupFile, "indented", "7"},
++	{testGroupFile, "# comment", ""},
++	{"", "emptyfile", ""},
++}
++
++func TestFindGroupName(t *testing.T) {
++	for _, tt := range groupTests {
++		got, err := findGroupName(tt.name, strings.NewReader(tt.in))
++		if tt.gid == "" {
++			if err == nil {
++				t.Errorf("findGroupName(%s): got nil error, expected err", tt.name)
++				continue
++			}
++			switch terr := err.(type) {
++			case UnknownGroupError:
++				if terr.Error() != "group: unknown group "+tt.name {
++					t.Errorf("findGroupName(%s): got %v, want %v", tt.name, terr, tt.name)
++				}
++			default:
++				t.Errorf("findGroupName(%s): got unexpected error %v", tt.name, terr)
++			}
++		} else {
++			if err != nil {
++				t.Fatalf("findGroupName(%s): got unexpected error %v", tt.name, err)
++			}
++			if got.Gid != tt.gid {
++				t.Errorf("findGroupName(%s): got gid %v, want %s", tt.name, got.Gid, tt.gid)
++			}
++			if got.Name != tt.name {
++				t.Errorf("findGroupName(%s): got name %s, want %s", tt.name, got.Name, tt.name)
++			}
++		}
++	}
++}
++
++var groupIdTests = []struct {
++	in   string
++	gid  string
++	name string
++}{
++	{testGroupFile, "-2", "nobody"},
++	{testGroupFile, "2", "kmem"},
++	{testGroupFile, "notinthefile", ""},
++	{testGroupFile, "comment", ""},
++	{testGroupFile, "7", "indented"},
++	{testGroupFile, "4", ""},
++	{"", "emptyfile", ""},
++}
++
++func TestFindGroupId(t *testing.T) {
++	for _, tt := range groupIdTests {
++		got, err := findGroupId(tt.gid, strings.NewReader(tt.in))
++		if tt.name == "" {
++			if err == nil {
++				t.Errorf("findGroupId(%s): got nil error, expected err", tt.gid)
++				continue
++			}
++			switch terr := err.(type) {
++			case UnknownGroupIdError:
++				if terr.Error() != "group: unknown groupid "+tt.gid {
++					t.Errorf("findGroupId(%s): got %v, want %v", tt.name, terr, tt.name)
++				}
++			default:
++				t.Errorf("findGroupId(%s): got unexpected error %v", tt.name, terr)
++			}
++		} else {
++			if err != nil {
++				t.Fatalf("findGroupId(%s): got unexpected error %v", tt.name, err)
++			}
++			if got.Gid != tt.gid {
++				t.Errorf("findGroupId(%s): got gid %v, want %s", tt.name, got.Gid, tt.gid)
++			}
++			if got.Name != tt.name {
++				t.Errorf("findGroupId(%s): got name %s, want %s", tt.name, got.Name, tt.name)
++			}
++		}
++	}
++}

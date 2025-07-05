@@ -25,7 +25,7 @@ Date:   Wed May 8 20:41:38 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  doc/godebug.md                                 | 32 ++++++++++--
  src/cmd/go/alldocs.go                          | 46 ++++++++++++----
  src/cmd/go/internal/load/godebug.go            | 53 +++++++++++--------
@@ -36,3 +36,696 @@ Date:   Wed May 8 20:41:38 2024 -0400
  src/cmd/go/testdata/script/mod_edit.txt        | 20 +++++++
  src/cmd/go/testdata/script/work_edit.txt       | 23 +++++++-
  9 files changed, 340 insertions(+), 46 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 7dbdfa9a78..4cbc85f941 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -88,14 +88,38 @@ Because this method of setting GODEBUG defaults was introduced only in Go 1.21,
+ programs listing versions of Go earlier than Go 1.20 are configured to match Go 1.20,
+ not the older version.
+ 
+-To override these defaults, a main package's source files
++To override these defaults, starting in Go 1.23, the work module's `go.mod`
++or the workspace's `go.work` can list one or more `godebug` lines:
++
++	godebug (
++		default=go1.21
++		panicnil=1
++		asynctimerchan=0
++	)
++
++The special key `default` indicates a Go version to take unspecified
++settings from. This allows setting the GODEBUG defaults separately
++from the Go language version in the module.
++In this example, the program is asking for Go 1.21 semantics and
++then asking for the old pre-Go 1.21 `panic(nil)` behavior and the
++new Go 1.23 `asynctimerchan=0` behavior.
++
++Only the work module's `go.mod` is consulted for `godebug` directives.
++Any directives in required dependency modules are ignored.
++It is an error to list a `godebug` with an unrecognized setting.
++(Toolchains older than Go 1.23 reject all `godebug` lines, since they do not
++understand `godebug` at all.)
++
++The defaults from the `go` and `godebug` lines apply to all main
++packages that are built. For more fine-grained control,
++starting in Go 1.21, a main package's source files
+ can include one or more `//go:debug` directives at the top of the file
+ (preceding the `package` statement).
+-Continuing the `panicnil` example, if the module or workspace is updated
+-to say `go` `1.21`, the program can opt back into the old `panic(nil)`
+-behavior by including this directive:
++The `godebug` lines in the previous example would be written:
+ 
++	//go:debug default=go1.21
+ 	//go:debug panicnil=1
++	//go:debug asynctimerchan=0
+ 
+ Starting in Go 1.21, the Go toolchain treats a `//go:debug` directive
+ with an unrecognized GODEBUG setting as an invalid program.
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 7800c72af3..ad34b8dfcc 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1201,6 +1201,12 @@
+ //
+ // The -module flag changes the module's path (the go.mod file's module line).
+ //
++// The -godebug=key=value flag adds a godebug key=value line,
++// replacing any existing godebug lines with the given key.
++//
++// The -dropgodebug=key flag drops any existing godebug lines
++// with the given key.
++//
+ // The -require=path@version and -droprequire=path flags
+ // add and drop a requirement on the given module path and version.
+ // Note that -require overrides any existing requirements on path.
+@@ -1209,6 +1215,14 @@
+ // which make other go.mod adjustments as needed to satisfy
+ // constraints imposed by other modules.
+ //
++// The -go=version flag sets the expected Go language version.
++// This flag is mainly for tools that understand Go version dependencies.
++// Users should prefer 'go get go@version'.
++//
++// The -toolchain=version flag sets the Go toolchain to use.
++// This flag is mainly for tools that understand Go version dependencies.
++// Users should prefer 'go get toolchain@version'.
++//
+ // The -exclude=path@version and -dropexclude=path@version flags
+ // add and drop an exclusion for the given module path and version.
+ // Note that -exclude=path@version is a no-op if that exclusion already exists.
+@@ -1230,13 +1244,9 @@
+ // like "v1.2.3" or a closed interval like "[v1.1.0,v1.1.9]". Note that
+ // -retract=version is a no-op if that retraction already exists.
+ //
+-// The -require, -droprequire, -exclude, -dropexclude, -replace,
+-// -dropreplace, -retract, and -dropretract editing flags may be repeated,
+-// and the changes are applied in the order given.
+-//
+-// The -go=version flag sets the expected Go language version.
+-//
+-// The -toolchain=name flag sets the Go toolchain to use.
++// The -godebug, -dropgodebug, -require, -droprequire, -exclude, -dropexclude,
++// -replace, -dropreplace, -retract, and -dropretract editing flags may be
++// repeated, and the changes are applied in the order given.
+ //
+ // The -print flag prints the final go.mod in its text format instead of
+ // writing it back to go.mod.
+@@ -1253,6 +1263,7 @@
+ //		Module    ModPath
+ //		Go        string
+ //		Toolchain string
++//		Godebug   []Godebug
+ //		Require   []Require
+ //		Exclude   []Module
+ //		Replace   []Replace
+@@ -1264,9 +1275,14 @@
+ //		Deprecated string
+ //	}
+ //
++//	type Godebug struct {
++//		Key   string
++//		Value string
++//	}
++//
+ //	type Require struct {
+-//		Path string
+-//		Version string
++//		Path     string
++//		Version  string
+ //		Indirect bool
+ //	}
+ //
+@@ -1530,6 +1546,12 @@
+ // rewrite the go.mod file. The only time this flag is needed is if no other
+ // flags are specified, as in 'go work edit -fmt'.
+ //
++// The -godebug=key=value flag adds a godebug key=value line,
++// replacing any existing godebug lines with the given key.
++//
++// The -dropgodebug=key flag drops any existing godebug lines
++// with the given key.
++//
+ // The -use=path and -dropuse=path flags
+ // add and drop a use directive from the go.work file's set of module directories.
+ //
+@@ -1561,10 +1583,16 @@
+ //	type GoWork struct {
+ //		Go        string
+ //		Toolchain string
++//		Godebug   []Godebug
+ //		Use       []Use
+ //		Replace   []Replace
+ //	}
+ //
++//	type Godebug struct {
++//		Key   string
++//		Value string
++//	}
++//
+ //	type Use struct {
+ //		DiskPath   string
+ //		ModulePath string
+diff --git a/src/cmd/go/internal/load/godebug.go b/src/cmd/go/internal/load/godebug.go
+index c79245e5cd..4bb734ce64 100644
+--- a/src/cmd/go/internal/load/godebug.go
++++ b/src/cmd/go/internal/load/godebug.go
+@@ -5,7 +5,6 @@
+ package load
+ 
+ import (
+-	"cmd/go/internal/modload"
+ 	"errors"
+ 	"fmt"
+ 	"go/build"
+@@ -13,6 +12,9 @@ import (
+ 	"sort"
+ 	"strconv"
+ 	"strings"
++
++	"cmd/go/internal/gover"
++	"cmd/go/internal/modload"
+ )
+ 
+ var ErrNotGoDebug = errors.New("not //go:debug line")
+@@ -32,25 +34,10 @@ func ParseGoDebug(text string) (key, value string, err error) {
+ 	if !ok {
+ 		return "", "", fmt.Errorf("missing key=value")
+ 	}
+-	if strings.ContainsAny(k, " \t") {
+-		return "", "", fmt.Errorf("key contains space")
+-	}
+-	if strings.ContainsAny(v, " \t") {
+-		return "", "", fmt.Errorf("value contains space")
+-	}
+-	if strings.ContainsAny(k, ",") {
+-		return "", "", fmt.Errorf("key contains comma")
+-	}
+-	if strings.ContainsAny(v, ",") {
+-		return "", "", fmt.Errorf("value contains comma")
+-	}
+-
+-	for _, info := range godebugs.All {
+-		if k == info.Name {
+-			return k, v, nil
+-		}
++	if err := modload.CheckGodebug("//go:debug setting", k, v); err != nil {
++		return "", "", err
+ 	}
+-	return "", "", fmt.Errorf("unknown //go:debug setting %q", k)
++	return k, v, nil
+ }
+ 
+ // defaultGODEBUG returns the default GODEBUG setting for the main package p.
+@@ -64,14 +51,21 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
+ 	if modload.RootMode == modload.NoRoot && p.Module != nil {
+ 		// This is go install pkg@version or go run pkg@version.
+ 		// Use the Go version from the package.
+-		// If there isn't one, then
++		// If there isn't one, then assume Go 1.20,
++		// the last version before GODEBUGs were introduced.
+ 		goVersion = p.Module.GoVersion
+ 		if goVersion == "" {
+ 			goVersion = "1.20"
+ 		}
+ 	}
+ 
+-	m := godebugForGoVersion(goVersion)
++	var m map[string]string
++	for _, g := range modload.MainModules.Godebugs() {
++		if m == nil {
++			m = make(map[string]string)
++		}
++		m[g.Key] = g.Value
++	}
+ 	for _, list := range [][]build.Directive{p.Internal.Build.Directives, directives, testDirectives, xtestDirectives} {
+ 		for _, d := range list {
+ 			k, v, err := ParseGoDebug(d.Text)
+@@ -84,6 +78,23 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
+ 			m[k] = v
+ 		}
+ 	}
++	if v, ok := m["default"]; ok {
++		delete(m, "default")
++		v = strings.TrimPrefix(v, "go")
++		if gover.IsValid(v) {
++			goVersion = v
++		}
++	}
++
++	defaults := godebugForGoVersion(goVersion)
++	if defaults != nil {
++		// Apply m on top of defaults.
++		for k, v := range m {
++			defaults[k] = v
++		}
++		m = defaults
++	}
++
+ 	var keys []string
+ 	for k := range m {
+ 		keys = append(keys, k)
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index db131b0881..9b0c768ba2 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -44,6 +44,12 @@ flags are specified, as in 'go mod edit -fmt'.
+ 
+ The -module flag changes the module's path (the go.mod file's module line).
+ 
++The -godebug=key=value flag adds a godebug key=value line,
++replacing any existing godebug lines with the given key.
++
++The -dropgodebug=key flag drops any existing godebug lines
++with the given key.
++
+ The -require=path@version and -droprequire=path flags
+ add and drop a requirement on the given module path and version.
+ Note that -require overrides any existing requirements on path.
+@@ -52,6 +58,14 @@ Users should prefer 'go get path@version' or 'go get path@none',
+ which make other go.mod adjustments as needed to satisfy
+ constraints imposed by other modules.
+ 
++The -go=version flag sets the expected Go language version.
++This flag is mainly for tools that understand Go version dependencies.
++Users should prefer 'go get go@version'.
++
++The -toolchain=version flag sets the Go toolchain to use.
++This flag is mainly for tools that understand Go version dependencies.
++Users should prefer 'go get toolchain@version'.
++
+ The -exclude=path@version and -dropexclude=path@version flags
+ add and drop an exclusion for the given module path and version.
+ Note that -exclude=path@version is a no-op if that exclusion already exists.
+@@ -73,13 +87,9 @@ retraction on the given version. The version may be a single version
+ like "v1.2.3" or a closed interval like "[v1.1.0,v1.1.9]". Note that
+ -retract=version is a no-op if that retraction already exists.
+ 
+-The -require, -droprequire, -exclude, -dropexclude, -replace,
+--dropreplace, -retract, and -dropretract editing flags may be repeated,
+-and the changes are applied in the order given.
+-
+-The -go=version flag sets the expected Go language version.
+-
+-The -toolchain=name flag sets the Go toolchain to use.
++The -godebug, -dropgodebug, -require, -droprequire, -exclude, -dropexclude,
++-replace, -dropreplace, -retract, and -dropretract editing flags may be
++repeated, and the changes are applied in the order given.
+ 
+ The -print flag prints the final go.mod in its text format instead of
+ writing it back to go.mod.
+@@ -96,6 +106,7 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
+ 		Module    ModPath
+ 		Go        string
+ 		Toolchain string
++		Godebug   []Godebug
+ 		Require   []Require
+ 		Exclude   []Module
+ 		Replace   []Replace
+@@ -107,9 +118,14 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
+ 		Deprecated string
+ 	}
+ 
++	type Godebug struct {
++		Key   string
++		Value string
++	}
++
+ 	type Require struct {
+-		Path string
+-		Version string
++		Path     string
++		Version  string
+ 		Indirect bool
+ 	}
+ 
+@@ -155,12 +171,14 @@ func (f flagFunc) Set(s string) error { f(s); return nil }
+ func init() {
+ 	cmdEdit.Run = runEdit // break init cycle
+ 
++	cmdEdit.Flag.Var(flagFunc(flagGodebug), "godebug", "")
++	cmdEdit.Flag.Var(flagFunc(flagDropGodebug), "dropgodebug", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagRequire), "require", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagDropRequire), "droprequire", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagExclude), "exclude", "")
+-	cmdEdit.Flag.Var(flagFunc(flagDropReplace), "dropreplace", "")
+-	cmdEdit.Flag.Var(flagFunc(flagReplace), "replace", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagDropExclude), "dropexclude", "")
++	cmdEdit.Flag.Var(flagFunc(flagReplace), "replace", "")
++	cmdEdit.Flag.Var(flagFunc(flagDropReplace), "dropreplace", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagRetract), "retract", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagDropRetract), "dropretract", "")
+ 
+@@ -369,6 +387,28 @@ func allowedVersionArg(arg string) bool {
+ 	return !modfile.MustQuote(arg)
+ }
+ 
++// flagGodebug implements the -godebug flag.
++func flagGodebug(arg string) {
++	key, value, ok := strings.Cut(arg, "=")
++	if !ok || strings.ContainsAny(arg, "\"`',") {
++		base.Fatalf("go: -godebug=%s: need key=value", arg)
++	}
++	edits = append(edits, func(f *modfile.File) {
++		if err := f.AddGodebug(key, value); err != nil {
++			base.Fatalf("go: -godebug=%s: %v", arg, err)
++		}
++	})
++}
++
++// flagDropGodebug implements the -dropgodebug flag.
++func flagDropGodebug(arg string) {
++	edits = append(edits, func(f *modfile.File) {
++		if err := f.DropGodebug(arg); err != nil {
++			base.Fatalf("go: -dropgodebug=%s: %v", arg, err)
++		}
++	})
++}
++
+ // flagRequire implements the -require flag.
+ func flagRequire(arg string) {
+ 	path, version := parsePathVersion("require", arg)
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 1de9901563..fe3a98b0c8 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -10,6 +10,7 @@ import (
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
++	"internal/godebugs"
+ 	"internal/lazyregexp"
+ 	"io"
+ 	"os"
+@@ -241,6 +242,27 @@ func (mms *MainModuleSet) GoVersion() string {
+ 	return gover.DefaultGoModVersion
+ }
+ 
++// Godebugs returns the godebug lines set on the single module, in module mode,
++// or on the go.work file in workspace mode.
++// The caller must not modify the result.
++func (mms *MainModuleSet) Godebugs() []*modfile.Godebug {
++	if inWorkspaceMode() {
++		if mms.workFile != nil {
++			return mms.workFile.Godebug
++		}
++		return nil
++	}
++	if mms != nil && len(mms.versions) == 1 {
++		f := mms.ModFile(mms.mustGetSingleMainModule())
++		if f == nil {
++			// Special case: we are outside a module, like 'go run x.go'.
++			return nil
++		}
++		return f.Godebug
++	}
++	return nil
++}
++
+ // Toolchain returns the toolchain set on the single module, in module mode,
+ // or the go.work file in workspace mode.
+ func (mms *MainModuleSet) Toolchain() string {
+@@ -675,6 +697,12 @@ func loadWorkFile(path string) (workFile *modfile.WorkFile, modRoots []string, e
+ 		modRoots = append(modRoots, modRoot)
+ 	}
+ 
++	for _, g := range wf.Godebug {
++		if err := CheckGodebug("godebug", g.Key, g.Value); err != nil {
++			return nil, nil, err
++		}
++	}
++
+ 	return wf, modRoots, nil
+ }
+ 
+@@ -914,6 +942,19 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error)
+ 			}
+ 		}
+ 
++		if !inWorkspaceMode() {
++			ok := true
++			for _, g := range f.Godebug {
++				if err := CheckGodebug("godebug", g.Key, g.Value); err != nil {
++					errs = append(errs, fmt.Errorf("%s: %v", base.ShortPath(filepath.Dir(gomod)), err))
++					ok = false
++				}
++			}
++			if !ok {
++				continue
++			}
++		}
++
+ 		modFiles = append(modFiles, f)
+ 		mainModule := f.Module.Mod
+ 		mainModules = append(mainModules, mainModule)
+@@ -1257,6 +1298,7 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 			}
+ 		}
+ 	}
++
+ 	return mainModules
+ }
+ 
+@@ -2054,3 +2096,33 @@ func suggestGopkgIn(path string) string {
+ 	}
+ 	return url + ".v" + m
+ }
++
++func CheckGodebug(verb, k, v string) error {
++	if strings.ContainsAny(k, " \t") {
++		return fmt.Errorf("key contains space")
++	}
++	if strings.ContainsAny(v, " \t") {
++		return fmt.Errorf("value contains space")
++	}
++	if strings.ContainsAny(k, ",") {
++		return fmt.Errorf("key contains comma")
++	}
++	if strings.ContainsAny(v, ",") {
++		return fmt.Errorf("value contains comma")
++	}
++	if k == "default" {
++		if !strings.HasPrefix(v, "go") || !gover.IsValid(v[len("go"):]) {
++			return fmt.Errorf("value for default= must be goVERSION")
++		}
++		if gover.Compare(v[len("go"):], gover.Local()) > 0 {
++			return fmt.Errorf("default=%s too new (toolchain is go%s)", v, gover.Local())
++		}
++		return nil
++	}
++	for _, info := range godebugs.All {
++		if k == info.Name {
++			return nil
++		}
++	}
++	return fmt.Errorf("unknown %s %q", verb, k)
++}
+diff --git a/src/cmd/go/internal/workcmd/edit.go b/src/cmd/go/internal/workcmd/edit.go
+index 8d975b0b3d..18730436ca 100644
+--- a/src/cmd/go/internal/workcmd/edit.go
++++ b/src/cmd/go/internal/workcmd/edit.go
+@@ -38,6 +38,12 @@ This reformatting is also implied by any other modifications that use or
+ rewrite the go.mod file. The only time this flag is needed is if no other
+ flags are specified, as in 'go work edit -fmt'.
+ 
++The -godebug=key=value flag adds a godebug key=value line,
++replacing any existing godebug lines with the given key.
++
++The -dropgodebug=key flag drops any existing godebug lines
++with the given key.
++
+ The -use=path and -dropuse=path flags
+ add and drop a use directive from the go.work file's set of module directories.
+ 
+@@ -69,10 +75,16 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
+ 	type GoWork struct {
+ 		Go        string
+ 		Toolchain string
++		Godebug   []Godebug
+ 		Use       []Use
+ 		Replace   []Replace
+ 	}
+ 
++	type Godebug struct {
++		Key   string
++		Value string
++	}
++
+ 	type Use struct {
+ 		DiskPath   string
+ 		ModulePath string
+@@ -110,6 +122,8 @@ func (f flagFunc) Set(s string) error { f(s); return nil }
+ func init() {
+ 	cmdEdit.Run = runEditwork // break init cycle
+ 
++	cmdEdit.Flag.Var(flagFunc(flagEditworkGodebug), "godebug", "")
++	cmdEdit.Flag.Var(flagFunc(flagEditworkDropGodebug), "dropgodebug", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagEditworkUse), "use", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagEditworkDropUse), "dropuse", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagEditworkReplace), "replace", "")
+@@ -206,6 +220,28 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.WriteWorkFile(gowork, workFile)
+ }
+ 
++// flagEditworkGodebug implements the -godebug flag.
++func flagEditworkGodebug(arg string) {
++	key, value, ok := strings.Cut(arg, "=")
++	if !ok || strings.ContainsAny(arg, "\"`',") {
++		base.Fatalf("go: -godebug=%s: need key=value", arg)
++	}
++	workedits = append(workedits, func(f *modfile.WorkFile) {
++		if err := f.AddGodebug(key, value); err != nil {
++			base.Fatalf("go: -godebug=%s: %v", arg, err)
++		}
++	})
++}
++
++// flagEditworkDropGodebug implements the -dropgodebug flag.
++func flagEditworkDropGodebug(arg string) {
++	workedits = append(workedits, func(f *modfile.WorkFile) {
++		if err := f.DropGodebug(arg); err != nil {
++			base.Fatalf("go: -dropgodebug=%s: %v", arg, err)
++		}
++	})
++}
++
+ // flagEditworkUse implements the -use flag.
+ func flagEditworkUse(arg string) {
+ 	workedits = append(workedits, func(f *modfile.WorkFile) {
+diff --git a/src/cmd/go/testdata/script/godebug_default.txt b/src/cmd/go/testdata/script/godebug_default.txt
+index 5bb8cac4bb..fecdcdb6b5 100644
+--- a/src/cmd/go/testdata/script/godebug_default.txt
++++ b/src/cmd/go/testdata/script/godebug_default.txt
+@@ -45,6 +45,35 @@ cp go.mod.21 go.mod
+ stderr 'go: module . listed in go.work file requires go >= 1.21'
+ rm go.work
+ 
++# Go 1.21 go.mod with godebug default=go1.20
++rm go.work
++cp go.mod.21 go.mod
++go mod edit -godebug default=go1.20 -godebug asynctimerchan=0
++go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
++stdout panicnil=1
++stdout asynctimerchan=0
++
++# Go 1.21 go.work with godebug default=go1.20
++cp go.work.21 go.work
++go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
++! stdout panicnil # go.work wins
++stdout asynctimerchan=1 # go.work wins
++go work edit -godebug default=go1.20 -godebug asynctimerchan=0
++go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
++stdout panicnil=1
++stdout asynctimerchan=0
++rm go.work
++
++# Go 1.21 go.mod with //go:debug default=go1.20 in program
++cp go.mod.21 go.mod
++go list -tags godebug -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
++stdout panicnil=1
++stdout asynctimerchan=0
++
++# Invalid //go:debug line should be diagnosed at build.
++! go build -tags godebugbad
++stderr 'invalid //go:debug: value contains space'
++
+ [short] skip
+ 
+ # Programs in Go 1.21 work module should trigger run-time error.
+@@ -105,6 +134,19 @@ func main() {
+ 	panic(nil)
+ }
+ 
++-- godebug.go --
++//go:build godebug
++//go:debug default=go1.20
++//go:debug asynctimerchan=0
++
++package main
++
++-- godebugbad.go --
++//go:build godebugbad
++//go:debug default=go1.20 asynctimerchan=0
++
++package main
++
+ -- q/go.mod --
+ go 1.20
+ module q
+diff --git a/src/cmd/go/testdata/script/mod_edit.txt b/src/cmd/go/testdata/script/mod_edit.txt
+index 2d09b06c61..49ff464fa2 100644
+--- a/src/cmd/go/testdata/script/mod_edit.txt
++++ b/src/cmd/go/testdata/script/mod_edit.txt
+@@ -87,6 +87,16 @@ go mod init foo
+ go mod edit -module local-only -require=other-local@v1.0.0 -replace other-local@v1.0.0=./other
+ cmpenv go.mod go.mod.edit
+ 
++# go mod edit -godebug
++cd $WORK/g
++cp go.mod.start go.mod
++go mod edit -godebug key=value
++cmpenv go.mod go.mod.edit
++go mod edit -dropgodebug key2
++cmpenv go.mod go.mod.edit
++go mod edit -dropgodebug key
++cmpenv go.mod go.mod.start
++
+ -- x.go --
+ package x
+ 
+@@ -338,3 +348,13 @@ module m
+ 	"Replace": null,
+ 	"Retract": null
+ }
++-- $WORK/g/go.mod.start --
++module g
++
++go 1.10
++-- $WORK/g/go.mod.edit --
++module g
++
++go 1.10
++
++godebug key=value
+diff --git a/src/cmd/go/testdata/script/work_edit.txt b/src/cmd/go/testdata/script/work_edit.txt
+index c67696dd6e..021346653f 100644
+--- a/src/cmd/go/testdata/script/work_edit.txt
++++ b/src/cmd/go/testdata/script/work_edit.txt
+@@ -34,9 +34,20 @@ cmp stdout go.work.want_print
+ go work edit -json -go 1.19 -use b -dropuse c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+ cmp stdout go.work.want_json
+ 
++# go work edit -godebug
++cd $WORK/g
++cp go.work.start go.work
++go work edit -godebug key=value
++cmpenv go.work go.work.edit
++go work edit -dropgodebug key2
++cmpenv go.work go.work.edit
++go work edit -dropgodebug key
++cmpenv go.work go.work.start
++
++# go work edit -print -fmt
+ env GOWORK=$GOPATH/src/unformatted
+ go work edit -print -fmt
+-cmp stdout formatted
++cmp stdout $GOPATH/src/formatted
+ 
+ -- m/go.mod --
+ module m
+@@ -164,3 +175,13 @@ replace (
+ 	x.1 v1.3.0 => y.1 v1.4.0
+ 	x.1 v1.4.0 => ../z
+ )
++-- $WORK/g/go.work.start --
++use g
++
++go 1.10
++-- $WORK/g/go.work.edit --
++use g
++
++go 1.10
++
++godebug key=value

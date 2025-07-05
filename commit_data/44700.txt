@@ -13,9 +13,101 @@ Date:   Mon May 11 22:57:26 2020 +0100
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/proxy.go            | 13 +++++++------
  src/cmd/go/proxy_test.go                         |  6 ++++++
  src/cmd/go/testdata/script/mod_proxy_invalid.txt |  8 ++++++++
  src/cmd/go/testdata/script/mod_query_empty.txt   |  2 +-
  4 files changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 1c35d0b99b..4ac26650a9 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -242,8 +242,9 @@ func TryProxies(f func(proxy string) error) error {
+ }
+ 
+ type proxyRepo struct {
+-	url  *url.URL
+-	path string
++	url         *url.URL
++	path        string
++	redactedURL string
+ }
+ 
+ func newProxyRepo(baseURL, path string) (Repo, error) {
+@@ -268,10 +269,10 @@ func newProxyRepo(baseURL, path string) (Repo, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-
++	redactedURL := base.Redacted()
+ 	base.Path = strings.TrimSuffix(base.Path, "/") + "/" + enc
+ 	base.RawPath = strings.TrimSuffix(base.RawPath, "/") + "/" + pathEscape(enc)
+-	return &proxyRepo{base, path}, nil
++	return &proxyRepo{base, path, redactedURL}, nil
+ }
+ 
+ func (p *proxyRepo) ModulePath() string {
+@@ -413,7 +414,7 @@ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
+ 	}
+ 	info := new(RevInfo)
+ 	if err := json.Unmarshal(data, info); err != nil {
+-		return nil, p.versionError(rev, err)
++		return nil, p.versionError(rev, fmt.Errorf("invalid response from proxy %q: %w", p.redactedURL, err))
+ 	}
+ 	if info.Version != rev && rev == module.CanonicalVersion(rev) && module.Check(p.path, rev) == nil {
+ 		// If we request a correct, appropriate version for the module path, the
+@@ -434,7 +435,7 @@ func (p *proxyRepo) Latest() (*RevInfo, error) {
+ 	}
+ 	info := new(RevInfo)
+ 	if err := json.Unmarshal(data, info); err != nil {
+-		return nil, p.versionError("", err)
++		return nil, p.versionError("", fmt.Errorf("invalid response from proxy %q: %w", p.redactedURL, err))
+ 	}
+ 	return info, nil
+ }
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 2a4d2935b3..7f58fb8ce4 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -131,6 +131,12 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 	path := r.URL.Path[len("/mod/"):]
+ 
++	// /mod/invalid returns faulty responses.
++	if strings.HasPrefix(path, "invalid/") {
++		w.Write([]byte("invalid"))
++		return
++	}
++
+ 	// /mod/quiet/ does not print errors.
+ 	quiet := false
+ 	if strings.HasPrefix(path, "quiet/") {
+diff --git a/src/cmd/go/testdata/script/mod_proxy_invalid.txt b/src/cmd/go/testdata/script/mod_proxy_invalid.txt
+new file mode 100644
+index 0000000000..6427cc1527
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_proxy_invalid.txt
+@@ -0,0 +1,8 @@
++env GO111MODULE=on
++env GOPROXY=$GOPROXY/invalid
++
++! go list -m rsc.io/quote@latest
++stderr '^go list -m: module rsc.io/quote: invalid response from proxy "'$GOPROXY'": invalid character ''i'' looking for beginning of value$'
++
++! go list -m rsc.io/quote@1.5.2
++stderr '^go list -m: rsc.io/quote@1.5.2: invalid version: invalid response from proxy "'$GOPROXY'": invalid character ''i'' looking for beginning of value$'
+diff --git a/src/cmd/go/testdata/script/mod_query_empty.txt b/src/cmd/go/testdata/script/mod_query_empty.txt
+index 4d8259b40f..b3ea3e3de0 100644
+--- a/src/cmd/go/testdata/script/mod_query_empty.txt
++++ b/src/cmd/go/testdata/script/mod_query_empty.txt
+@@ -40,7 +40,7 @@ env GOPROXY=file:///$WORK/gatekeeper
+ chmod 0000 $WORK/gatekeeper/example.com/join/subpkg/@latest
+ cp go.mod.orig go.mod
+ ! go get -d example.com/join/subpkg
+-stderr 'go get example.com/join/subpkg: module example.com/join/subpkg: (invalid character .+|reading file://.*/gatekeeper/example.com/join/subpkg/@latest: .+)'
++stderr 'go get example.com/join/subpkg: module example.com/join/subpkg: (invalid response from proxy ".+": invalid character .+|reading file://.*/gatekeeper/example.com/join/subpkg/@latest: .+)'
+ 
+ -- go.mod.orig --
+ module example.com/othermodule

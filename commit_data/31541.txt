@@ -11,8 +11,96 @@ Date:   Tue Feb 28 13:18:55 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/37583
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/srcimporter/srcimporter.go | 19 +------------------
  src/go/types/api.go                        |  2 +-
  src/go/types/sizes.go                      | 28 +++++++++++++++++++++++++++-
  3 files changed, 29 insertions(+), 20 deletions(-)
+
+diff --git a/src/go/internal/srcimporter/srcimporter.go b/src/go/internal/srcimporter/srcimporter.go
+index 0892e906f1..9e20a23cdb 100644
+--- a/src/go/internal/srcimporter/srcimporter.go
++++ b/src/go/internal/srcimporter/srcimporter.go
+@@ -34,7 +34,7 @@ func New(ctxt *build.Context, fset *token.FileSet, packages map[string]*types.Pa
+ 	return &Importer{
+ 		ctxt:     ctxt,
+ 		fset:     fset,
+-		sizes:    archSizes[ctxt.GOARCH], // use go/types default if GOARCH not found (map access returns nil)
++		sizes:    types.SizesFor(ctxt.GOARCH), // uses go/types default if GOARCH not found
+ 		packages: packages,
+ 	}
+ }
+@@ -180,20 +180,3 @@ func (p *Importer) joinPath(elem ...string) string {
+ 	}
+ 	return filepath.Join(elem...)
+ }
+-
+-// common architecture word sizes and alignments
+-// TODO(gri) consider making this available via go/types
+-var archSizes = map[string]*types.StdSizes{
+-	"386":      {WordSize: 4, MaxAlign: 4},
+-	"arm":      {WordSize: 4, MaxAlign: 4},
+-	"arm64":    {WordSize: 8, MaxAlign: 8},
+-	"amd64":    {WordSize: 8, MaxAlign: 8},
+-	"amd64p32": {WordSize: 4, MaxAlign: 8},
+-	"mips":     {WordSize: 4, MaxAlign: 4},
+-	"mipsle":   {WordSize: 4, MaxAlign: 4},
+-	"mips64":   {WordSize: 8, MaxAlign: 8},
+-	"mips64le": {WordSize: 8, MaxAlign: 8},
+-	"ppc64":    {WordSize: 8, MaxAlign: 8},
+-	"ppc64le":  {WordSize: 8, MaxAlign: 8},
+-	"s390x":    {WordSize: 8, MaxAlign: 8},
+-}
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 5b911cb96c..cd8b19f024 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -121,7 +121,7 @@ type Config struct {
+ 	Importer Importer
+ 
+ 	// If Sizes != nil, it provides the sizing functions for package unsafe.
+-	// Otherwise &StdSizes{WordSize: 8, MaxAlign: 8} is used instead.
++	// Otherwise SizesFor("amd64") is used instead.
+ 	Sizes Sizes
+ 
+ 	// If DisableUnusedImportCheck is set, packages are not checked
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index 3bbe5aee40..67df9180f9 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -153,8 +153,34 @@ func (s *StdSizes) Sizeof(T Type) int64 {
+ 	return s.WordSize // catch-all
+ }
+ 
++// common architecture word sizes and alignments
++var archSizes = map[string]*StdSizes{
++	"386":      {4, 4},
++	"arm":      {4, 4},
++	"arm64":    {8, 8},
++	"amd64":    {8, 8},
++	"amd64p32": {4, 8},
++	"mips":     {4, 4},
++	"mipsle":   {4, 4},
++	"mips64":   {8, 8},
++	"mips64le": {8, 8},
++	"ppc64":    {8, 8},
++	"ppc64le":  {8, 8},
++	"s390x":    {8, 8},
++	// When adding more architectures here,
++	// update the doc string of SizesFor below.
++}
++
++// SizesFor returns the Sizes for one of these architectures:
++// "386", "arm", "arm64", "amd64", "amd64p32", "mips", "mipsle",
++// "mips64", "mips64le", "ppc64", "ppc64le", "s390x".
++// The result is nil if an architecture is not known.
++func SizesFor(arch string) Sizes {
++	return archSizes[arch]
++}
++
+ // stdSizes is used if Config.Sizes == nil.
+-var stdSizes = StdSizes{8, 8}
++var stdSizes = SizesFor("amd64")
+ 
+ func (conf *Config) alignof(T Type) int64 {
+ 	if s := conf.Sizes; s != nil {

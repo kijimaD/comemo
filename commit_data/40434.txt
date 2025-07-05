@@ -20,6 +20,19 @@ Date:   Mon May 13 11:59:27 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/objdump/objdump_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 0ac1d16fe3..8d73c016c6 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -87,6 +87,7 @@ var target = flag.String("target", "", "test disassembly of `goos/goarch` binary
+ // can handle that one.
+ 
+ func testDisasm(t *testing.T, printCode bool, flags ...string) {
++	t.Parallel()
+ 	goarch := runtime.GOARCH
+ 	if *target != "" {
+ 		f := strings.Split(*target, "/")

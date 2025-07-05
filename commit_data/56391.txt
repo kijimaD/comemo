@@ -21,7 +21,7 @@ Date:   Wed May 3 22:05:27 2023 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/irgen.go              |  5 ++---
  src/cmd/compile/internal/types2/api.go               |  7 -------
  src/cmd/compile/internal/types2/api_test.go          |  5 +----
@@ -45,3 +45,344 @@ Date:   Wed May 3 22:05:27 2023 -0700
  src/internal/types/testdata/fixedbugs/issue59953.go  |  2 --
  src/internal/types/testdata/fixedbugs/issue59956.go  |  2 --
  22 files changed, 33 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 8f31687e9f..3adf9e5d11 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -50,9 +50,8 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 			}
+ 			base.ErrorfAt(m.makeXPos(terr.Pos), terr.Code, "%s", msg)
+ 		},
+-		Importer:                   &importer,
+-		Sizes:                      &gcSizes{},
+-		EnableReverseTypeInference: true,
++		Importer: &importer,
++		Sizes:    &gcSizes{},
+ 	}
+ 	info := &types2.Info{
+ 		StoreTypesInSyntax: true,
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 0ee9a4bd06..b798f2c888 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -169,13 +169,6 @@ type Config struct {
+ 	// If DisableUnusedImportCheck is set, packages are not checked
+ 	// for unused imports.
+ 	DisableUnusedImportCheck bool
+-
+-	// If EnableReverseTypeInference is set, uninstantiated and
+-	// partially instantiated generic functions may be assigned
+-	// (incl. returned) to variables of function type and type
+-	// inference will attempt to infer the missing type arguments.
+-	// See proposal go.dev/issue/59338.
+-	EnableReverseTypeInference bool
+ }
+ 
+ func srcimporter_setUsesCgo(conf *Config) {
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 8a11dd9a49..3fa8782930 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -594,10 +594,7 @@ type T[P any] []P
+ 
+ 	for _, test := range tests {
+ 		imports := make(testImporter)
+-		conf := Config{
+-			Importer:                   imports,
+-			EnableReverseTypeInference: true,
+-		}
++		conf := Config{Importer: imports}
+ 		instMap := make(map[*syntax.Name]Instance)
+ 		useMap := make(map[*syntax.Name]Object)
+ 		makePkg := func(src string) *Package {
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index bd8ca953ef..ac5efad93d 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -496,7 +496,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 
+ 	// collect type parameters from generic function arguments
+ 	var genericArgs []int // indices of generic function arguments
+-	if check.conf.EnableReverseTypeInference {
++	if enableReverseTypeInference {
+ 		for i, arg := range args {
+ 			// generic arguments cannot have a defined (*Named) type - no need for underlying type below
+ 			if asig, _ := arg.typ.(*Signature); asig != nil && asig.TypeParams().Len() > 0 {
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 382d1ad19e..26bb1aed9e 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -133,7 +133,6 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 	flags := flag.NewFlagSet("", flag.PanicOnError)
+ 	flags.StringVar(&conf.GoVersion, "lang", "", "")
+ 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+-	flags.BoolVar(&conf.EnableReverseTypeInference, "reverseTypeInference", false, "")
+ 	if err := parseFlags(filenames[0], nil, flags); err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 295c497054..19e3b9bc98 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1291,7 +1291,7 @@ func (check *Checker) nonGeneric(T Type, x *operand) {
+ 		}
+ 	case *Signature:
+ 		if t.tparams != nil {
+-			if check.conf.EnableReverseTypeInference && T != nil {
++			if enableReverseTypeInference && T != nil {
+ 				if tsig, _ := under(T).(*Signature); tsig != nil {
+ 					check.funcInst(tsig, x.Pos(), x, nil)
+ 					return
+@@ -1617,7 +1617,7 @@ func (check *Checker) exprInternal(T Type, x *operand, e syntax.Expr, hint Type)
+ 	case *syntax.IndexExpr:
+ 		if check.indexExpr(x, e) {
+ 			var tsig *Signature
+-			if check.conf.EnableReverseTypeInference && T != nil {
++			if enableReverseTypeInference && T != nil {
+ 				tsig, _ = under(T).(*Signature)
+ 			}
+ 			check.funcInst(tsig, e.Pos(), x, e)
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 1028924c32..ce6bb91e96 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -13,6 +13,13 @@ import (
+ 	"strings"
+ )
+ 
++// If enableReverseTypeInference is set, uninstantiated and
++// partially instantiated generic functions may be assigned
++// (incl. returned) to variables of function type and type
++// inference will attempt to infer the missing type arguments.
++// Available with go1.21.
++const enableReverseTypeInference = true // disable for debugging
++
+ // infer attempts to infer the complete set of type arguments for generic function instantiation/call
+ // based on the given type parameters tparams, type arguments targs, function parameters params, and
+ // function arguments args, if any. There must be at least one type parameter, no more type arguments
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index d9db545dc6..404e1636ae 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -139,9 +139,8 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 		file, err := syntax.ParseFile(filename, nil, nil, 0)
+ 		if err == nil {
+ 			conf := Config{
+-				GoVersion:                  goVersion,
+-				Importer:                   stdLibImporter,
+-				EnableReverseTypeInference: true,
++				GoVersion: goVersion,
++				Importer:  stdLibImporter,
+ 			}
+ 			_, err = conf.Check(filename, []*syntax.File{file}, nil)
+ 		}
+@@ -254,9 +253,8 @@ func typecheckFiles(t *testing.T, path string, filenames []string) {
+ 
+ 	// typecheck package files
+ 	conf := Config{
+-		Error:                      func(err error) { t.Error(err) },
+-		Importer:                   stdLibImporter,
+-		EnableReverseTypeInference: true,
++		Error:    func(err error) { t.Error(err) },
++		Importer: stdLibImporter,
+ 	}
+ 	info := Info{Uses: make(map[*syntax.Name]Object)}
+ 	conf.Check(path, files, &info)
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index e202d6dea8..05773d134a 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -170,13 +170,6 @@ type Config struct {
+ 	// If DisableUnusedImportCheck is set, packages are not checked
+ 	// for unused imports.
+ 	DisableUnusedImportCheck bool
+-
+-	// If _EnableReverseTypeInference is set, uninstantiated and
+-	// partially instantiated generic functions may be assigned
+-	// (incl. returned) to variables of function type and type
+-	// inference will attempt to infer the missing type arguments.
+-	// See proposal go.dev/issue/59338.
+-	_EnableReverseTypeInference bool
+ }
+ 
+ func srcimporter_setUsesCgo(conf *Config) {
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 8f9ef02389..86ed4b1165 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -594,12 +594,7 @@ type T[P any] []P
+ 
+ 	for _, test := range tests {
+ 		imports := make(testImporter)
+-		conf := Config{
+-			Importer: imports,
+-			// Unexported field: set below with boolFieldAddr
+-			// _EnableReverseTypeInference: true,
+-		}
+-		*boolFieldAddr(&conf, "_EnableReverseTypeInference") = true
++		conf := Config{Importer: imports}
+ 		instMap := make(map[*ast.Ident]Instance)
+ 		useMap := make(map[*ast.Ident]Object)
+ 		makePkg := func(src string) *Package {
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 6e94156d3e..4ee84c2f73 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -499,7 +499,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 
+ 	// collect type parameters from generic function arguments
+ 	var genericArgs []int // indices of generic function arguments
+-	if check.conf._EnableReverseTypeInference {
++	if enableReverseTypeInference {
+ 		for i, arg := range args {
+ 			// generic arguments cannot have a defined (*Named) type - no need for underlying type below
+ 			if asig, _ := arg.typ.(*Signature); asig != nil && asig.TypeParams().Len() > 0 {
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index cda052f4d3..d53aaeadc5 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -146,7 +146,6 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 	flags := flag.NewFlagSet("", flag.PanicOnError)
+ 	flags.StringVar(&conf.GoVersion, "lang", "", "")
+ 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+-	flags.BoolVar(boolFieldAddr(&conf, "_EnableReverseTypeInference"), "reverseTypeInference", false, "")
+ 	if err := parseFlags(filenames[0], srcs[0], flags); err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 0e4e6667d8..27f3c45ac6 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1276,7 +1276,7 @@ func (check *Checker) nonGeneric(T Type, x *operand) {
+ 		}
+ 	case *Signature:
+ 		if t.tparams != nil {
+-			if check.conf._EnableReverseTypeInference && T != nil {
++			if enableReverseTypeInference && T != nil {
+ 				if tsig, _ := under(T).(*Signature); tsig != nil {
+ 					check.funcInst(tsig, x.Pos(), x, nil)
+ 					return
+@@ -1600,7 +1600,7 @@ func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) ex
+ 		ix := typeparams.UnpackIndexExpr(e)
+ 		if check.indexExpr(x, ix) {
+ 			var tsig *Signature
+-			if check.conf._EnableReverseTypeInference && T != nil {
++			if enableReverseTypeInference && T != nil {
+ 				tsig, _ = under(T).(*Signature)
+ 			}
+ 			check.funcInst(tsig, e.Pos(), x, ix)
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 3db10e0010..9810c95c9b 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -15,6 +15,13 @@ import (
+ 	"strings"
+ )
+ 
++// If enableReverseTypeInference is set, uninstantiated and
++// partially instantiated generic functions may be assigned
++// (incl. returned) to variables of function type and type
++// inference will attempt to infer the missing type arguments.
++// Available with go1.21.
++const enableReverseTypeInference = true // disable for debugging
++
+ // infer attempts to infer the complete set of type arguments for generic function instantiation/call
+ // based on the given type parameters tparams, type arguments targs, function parameters params, and
+ // function arguments args, if any. There must be at least one type parameter, no more type arguments
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 88338cc2bd..82f22de836 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -143,7 +143,6 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 				GoVersion: goVersion,
+ 				Importer:  stdLibImporter,
+ 			}
+-			*boolFieldAddr(&conf, "_EnableReverseTypeInference") = true
+ 			_, err = conf.Check(filename, fset, []*ast.File{file}, nil)
+ 		}
+ 
+@@ -271,7 +270,6 @@ func typecheckFiles(t *testing.T, path string, filenames []string) {
+ 		},
+ 		Importer: stdLibImporter,
+ 	}
+-	*boolFieldAddr(&conf, "_EnableReverseTypeInference") = true
+ 	info := Info{Uses: make(map[*ast.Ident]Object)}
+ 	conf.Check(path, fset, files, &info)
+ 
+diff --git a/src/internal/types/testdata/examples/inference.go b/src/internal/types/testdata/examples/inference.go
+index 2dc122c413..b6f735263e 100644
+--- a/src/internal/types/testdata/examples/inference.go
++++ b/src/internal/types/testdata/examples/inference.go
+@@ -1,3 +1,5 @@
++// -lang=go1.20
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -154,4 +156,4 @@ func _() {
+ func f[P any](P) {}
+ 
+ // This must not crash.
+-var _ func(int) = f // ERROR "cannot use generic function f without instantiation"
++var _ func(int) = f // ERROR "implicitly instantiated function in assignment requires go1.21 or later"
+diff --git a/src/internal/types/testdata/examples/inference2.go b/src/internal/types/testdata/examples/inference2.go
+index 7b86266d5e..4eeb6d1b05 100644
+--- a/src/internal/types/testdata/examples/inference2.go
++++ b/src/internal/types/testdata/examples/inference2.go
+@@ -1,5 +1,3 @@
+-// -reverseTypeInference
+-
+ // Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/internal/types/testdata/fixedbugs/issue59338a.go b/src/internal/types/testdata/fixedbugs/issue59338a.go
+index f927813e10..34864dcd30 100644
+--- a/src/internal/types/testdata/fixedbugs/issue59338a.go
++++ b/src/internal/types/testdata/fixedbugs/issue59338a.go
+@@ -1,4 +1,4 @@
+-// -reverseTypeInference -lang=go1.20
++// -lang=go1.20
+ 
+ // Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/src/internal/types/testdata/fixedbugs/issue59338b.go b/src/internal/types/testdata/fixedbugs/issue59338b.go
+index ea321bcd17..1a5530aeae 100644
+--- a/src/internal/types/testdata/fixedbugs/issue59338b.go
++++ b/src/internal/types/testdata/fixedbugs/issue59338b.go
+@@ -1,5 +1,3 @@
+-// -reverseTypeInference
+-
+ // Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/internal/types/testdata/fixedbugs/issue59639.go b/src/internal/types/testdata/fixedbugs/issue59639.go
+index c82d5b10fa..1117668e98 100644
+--- a/src/internal/types/testdata/fixedbugs/issue59639.go
++++ b/src/internal/types/testdata/fixedbugs/issue59639.go
+@@ -1,4 +1,4 @@
+-// -reverseTypeInference -lang=go1.17
++// -lang=go1.17
+ 
+ // Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/src/internal/types/testdata/fixedbugs/issue59953.go b/src/internal/types/testdata/fixedbugs/issue59953.go
+index 40d97378a2..b10ced749b 100644
+--- a/src/internal/types/testdata/fixedbugs/issue59953.go
++++ b/src/internal/types/testdata/fixedbugs/issue59953.go
+@@ -1,5 +1,3 @@
+-// -reverseTypeInference
+-
+ // Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/internal/types/testdata/fixedbugs/issue59956.go b/src/internal/types/testdata/fixedbugs/issue59956.go
+index 33b05d72c1..646b50e771 100644
+--- a/src/internal/types/testdata/fixedbugs/issue59956.go
++++ b/src/internal/types/testdata/fixedbugs/issue59956.go
+@@ -1,5 +1,3 @@
+-// -reverseTypeInference
+-
+ // Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

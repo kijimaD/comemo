@@ -13,7 +13,73 @@ Date:   Wed Nov 1 15:47:46 2017 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/types/issues_test.go | 22 ++++++++++++++++++++++
  src/go/types/stmt.go        | 15 ++++++++++++---
  2 files changed, 34 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 3884735118..02af0cf51b 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -292,3 +292,25 @@ func main() {
+ 	f("src1", src1)
+ 	f("src2", src2)
+ }
++
++func TestIssue22525(t *testing.T) {
++	src := `package p; func f() { var a, b, c, d, e int }`
++	f, err := parser.ParseFile(fset, "", src, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	got := "\n"
++	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
++	conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // do not crash
++	want := `
++1:27: a declared but not used
++1:30: b declared but not used
++1:33: c declared but not used
++1:36: d declared but not used
++1:39: e declared but not used
++`
++	if got != want {
++		t.Errorf("got: %swant: %s", got, want)
++	}
++}
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index f4feabefdd..618d1e5fbf 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -11,6 +11,7 @@ import (
+ 	"go/ast"
+ 	"go/constant"
+ 	"go/token"
++	"sort"
+ )
+ 
+ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt) {
+@@ -57,11 +58,19 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ }
+ 
+ func (check *Checker) usage(scope *Scope) {
+-	for _, obj := range scope.elems {
+-		if v, _ := obj.(*Var); v != nil && !v.used {
+-			check.softErrorf(v.pos, "%s declared but not used", v.name)
++	var unused []*Var
++	for _, elem := range scope.elems {
++		if v, _ := elem.(*Var); v != nil && !v.used {
++			unused = append(unused, v)
+ 		}
+ 	}
++	sort.Slice(unused, func(i, j int) bool {
++		return unused[i].pos < unused[j].pos
++	})
++	for _, v := range unused {
++		check.softErrorf(v.pos, "%s declared but not used", v.name)
++	}
++
+ 	for _, scope := range scope.children {
+ 		check.usage(scope)
+ 	}

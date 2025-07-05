@@ -12,7 +12,7 @@ Date:   Thu Aug 1 16:11:19 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/12289043
-
+---
  src/pkg/bytes/asm_386.s     |  17 -------
  src/pkg/bytes/asm_amd64.s   |  91 -----------------------------------
  src/pkg/bytes/asm_arm.s     |  56 ----------------------
@@ -22,3 +22,433 @@ Date:   Thu Aug 1 16:11:19 2013 -0700
  src/pkg/runtime/asm_amd64.s | 114 +++++++++++++++++++++++++++++++++++++++-----
  src/pkg/runtime/asm_arm.s   |  54 +++++++++++++++++++++
  8 files changed, 176 insertions(+), 179 deletions(-)
+
+diff --git a/src/pkg/bytes/asm_386.s b/src/pkg/bytes/asm_386.s
+deleted file mode 100644
+index 27cd4e787f..0000000000
+--- a/src/pkg/bytes/asm_386.s
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-TEXT ·IndexByte(SB),7,$0
+-	MOVL	s+0(FP), SI
+-	MOVL	s_len+4(FP), CX
+-	MOVB	c+12(FP), AL
+-	MOVL	SI, DI
+-	CLD; REPN; SCASB
+-	JZ 3(PC)
+-	MOVL	$-1, ret+16(FP)
+-	RET
+-	SUBL	SI, DI
+-	SUBL	$1, DI
+-	MOVL	DI, ret+16(FP)
+-	RET
+diff --git a/src/pkg/bytes/asm_amd64.s b/src/pkg/bytes/asm_amd64.s
+deleted file mode 100644
+index b84957b6d2..0000000000
+--- a/src/pkg/bytes/asm_amd64.s
++++ /dev/null
+@@ -1,91 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-TEXT ·IndexByte(SB),7,$0
+-	MOVQ s+0(FP), SI
+-	MOVQ s_len+8(FP), BX
+-	MOVB c+24(FP), AL
+-	MOVQ SI, DI
+-
+-	CMPQ BX, $16
+-	JLT small
+-
+-	// round up to first 16-byte boundary
+-	TESTQ $15, SI
+-	JZ aligned
+-	MOVQ SI, CX
+-	ANDQ $~15, CX
+-	ADDQ $16, CX
+-
+-	// search the beginning
+-	SUBQ SI, CX
+-	REPN; SCASB
+-	JZ success
+-
+-// DI is 16-byte aligned; get ready to search using SSE instructions
+-aligned:
+-	// round down to last 16-byte boundary
+-	MOVQ BX, R11
+-	ADDQ SI, R11
+-	ANDQ $~15, R11
+-
+-	// shuffle X0 around so that each byte contains c
+-	MOVD AX, X0
+-	PUNPCKLBW X0, X0
+-	PUNPCKLBW X0, X0
+-	PSHUFL $0, X0, X0
+-	JMP condition
+-
+-sse:
+-	// move the next 16-byte chunk of the buffer into X1
+-	MOVO (DI), X1
+-	// compare bytes in X0 to X1
+-	PCMPEQB X0, X1
+-	// take the top bit of each byte in X1 and put the result in DX
+-	PMOVMSKB X1, DX
+-	TESTL DX, DX
+-	JNZ ssesuccess
+-	ADDQ $16, DI
+-
+-condition:
+-	CMPQ DI, R11
+-	JLT sse
+-
+-	// search the end
+-	MOVQ SI, CX
+-	ADDQ BX, CX
+-	SUBQ R11, CX
+-	// if CX == 0, the zero flag will be set and we'll end up
+-	// returning a false success
+-	JZ failure
+-	REPN; SCASB
+-	JZ success
+-
+-failure:
+-	MOVQ $-1, ret+32(FP)
+-	RET
+-
+-// handle for lengths < 16
+-small:
+-	MOVQ BX, CX
+-	REPN; SCASB
+-	JZ success
+-	MOVQ $-1, ret+32(FP)
+-	RET
+-
+-// we've found the chunk containing the byte
+-// now just figure out which specific byte it is
+-ssesuccess:
+-	// get the index of the least significant set bit
+-	BSFW DX, DX
+-	SUBQ SI, DI
+-	ADDQ DI, DX
+-	MOVQ DX, ret+32(FP)
+-	RET
+-
+-success:
+-	SUBQ SI, DI
+-	SUBL $1, DI
+-	MOVQ DI, ret+32(FP)
+-	RET
+diff --git a/src/pkg/bytes/asm_arm.s b/src/pkg/bytes/asm_arm.s
+deleted file mode 100644
+index 2e9f805a43..0000000000
+--- a/src/pkg/bytes/asm_arm.s
++++ /dev/null
+@@ -1,56 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-TEXT ·IndexByte(SB),7,$0
+-	MOVW	s+0(FP), R0
+-	MOVW	s_len+4(FP), R1
+-	MOVBU	c+12(FP), R2	// byte to find
+-	MOVW	R0, R4		// store base for later
+-	ADD	R0, R1		// end 
+-
+-_loop:
+-	CMP	R0, R1
+-	B.EQ	_notfound
+-	MOVBU.P	1(R0), R3
+-	CMP	R2, R3
+-	B.NE	_loop
+-
+-	SUB	$1, R0		// R0 will be one beyond the position we want
+-	SUB	R4, R0		// remove base
+-	MOVW    R0, ret+16(FP) 
+-	RET
+-
+-_notfound:
+-	MOVW	$-1, R0
+-	MOVW	R0, ret+16(FP)
+-	RET
+-
+-TEXT ·Equal(SB),7,$0
+-	MOVW	a_len+4(FP), R1
+-	MOVW	b_len+16(FP), R3
+-	
+-	CMP	R1, R3		// unequal lengths are not equal
+-	B.NE	_notequal
+-
+-	MOVW	a+0(FP), R0
+-	MOVW	b+12(FP), R2
+-	ADD	R0, R1		// end
+-
+-_next:
+-	CMP	R0, R1
+-	B.EQ	_equal		// reached the end
+-	MOVBU.P	1(R0), R4
+-	MOVBU.P	1(R2), R5
+-	CMP	R4, R5
+-	B.EQ	_next
+-
+-_notequal:
+-	MOVW	$0, R0
+-	MOVBU	R0, ret+24(FP)
+-	RET
+-
+-_equal:
+-	MOVW	$1, R0
+-	MOVBU	R0, ret+24(FP)
+-	RET
+diff --git a/src/pkg/bytes/bytes.s b/src/pkg/bytes/bytes.s
+new file mode 100644
+index 0000000000..55103bae05
+--- /dev/null
++++ b/src/pkg/bytes/bytes.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is here just to make the go tool happy.
+diff --git a/src/pkg/bytes/bytes_decl.go b/src/pkg/bytes/bytes_decl.go
+index 4e761f4bfb..120d21a318 100644
+--- a/src/pkg/bytes/bytes_decl.go
++++ b/src/pkg/bytes/bytes_decl.go
+@@ -7,13 +7,13 @@ package bytes
+ //go:noescape
+ 
+ // IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
+-func IndexByte(s []byte, c byte) int // asm_$GOARCH.s
++func IndexByte(s []byte, c byte) int // ../runtime/asm_$GOARCH.s
+ 
+ //go:noescape
+ 
+ // Equal returns a boolean reporting whether a == b.
+ // A nil argument is equivalent to an empty slice.
+-func Equal(a, b []byte) bool // asm_arm.s or ../runtime/asm_{386,amd64}.s
++func Equal(a, b []byte) bool // ../runtime/asm_$GOARCH.s
+ 
+ //go:noescape
+ 
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 79fb4e9f96..65b18cbf32 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -1117,6 +1117,20 @@ TEXT bytes·Compare(SB),7,$0-28
+ 	MOVL	AX, res+24(FP)
+ 	RET
+ 
++TEXT bytes·IndexByte(SB),7,$0
++	MOVL	s+0(FP), SI
++	MOVL	s_len+4(FP), CX
++	MOVB	c+12(FP), AL
++	MOVL	SI, DI
++	CLD; REPN; SCASB
++	JZ 3(PC)
++	MOVL	$-1, ret+16(FP)
++	RET
++	SUBL	SI, DI
++	SUBL	$1, DI
++	MOVL	DI, ret+16(FP)
++	RET
++
+ // input:
+ //   SI = a
+ //   DI = b
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 612bbfe7c8..9425fa99e0 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -908,19 +908,6 @@ TEXT runtime·memeq(SB),7,$0-24
+ 	MOVQ	count+16(FP), BX
+ 	JMP	runtime·memeqbody(SB)
+ 
+-TEXT bytes·Equal(SB),7,$0-49
+-	MOVQ	a_len+8(FP), BX
+-	MOVQ	b_len+32(FP), CX
+-	XORQ	AX, AX
+-	CMPQ	BX, CX
+-	JNE	eqret
+-	MOVQ	a+0(FP), SI
+-	MOVQ	b+24(FP), DI
+-	CALL	runtime·memeqbody(SB)
+-eqret:
+-	MOVB	AX, ret+48(FP)
+-	RET
+-
+ // a in SI
+ // b in DI
+ // count in BX
+@@ -1142,3 +1129,104 @@ cmp_allsame:
+ 	SETEQ	CX	// 1 if alen == blen
+ 	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
+ 	RET
++
++TEXT bytes·IndexByte(SB),7,$0
++	MOVQ s+0(FP), SI
++	MOVQ s_len+8(FP), BX
++	MOVB c+24(FP), AL
++	MOVQ SI, DI
++
++	CMPQ BX, $16
++	JLT indexbyte_small
++
++	// round up to first 16-byte boundary
++	TESTQ $15, SI
++	JZ aligned
++	MOVQ SI, CX
++	ANDQ $~15, CX
++	ADDQ $16, CX
++
++	// search the beginning
++	SUBQ SI, CX
++	REPN; SCASB
++	JZ success
++
++// DI is 16-byte aligned; get ready to search using SSE instructions
++aligned:
++	// round down to last 16-byte boundary
++	MOVQ BX, R11
++	ADDQ SI, R11
++	ANDQ $~15, R11
++
++	// shuffle X0 around so that each byte contains c
++	MOVD AX, X0
++	PUNPCKLBW X0, X0
++	PUNPCKLBW X0, X0
++	PSHUFL $0, X0, X0
++	JMP condition
++
++sse:
++	// move the next 16-byte chunk of the buffer into X1
++	MOVO (DI), X1
++	// compare bytes in X0 to X1
++	PCMPEQB X0, X1
++	// take the top bit of each byte in X1 and put the result in DX
++	PMOVMSKB X1, DX
++	TESTL DX, DX
++	JNZ ssesuccess
++	ADDQ $16, DI
++
++condition:
++	CMPQ DI, R11
++	JLT sse
++
++	// search the end
++	MOVQ SI, CX
++	ADDQ BX, CX
++	SUBQ R11, CX
++	// if CX == 0, the zero flag will be set and we'll end up
++	// returning a false success
++	JZ failure
++	REPN; SCASB
++	JZ success
++
++failure:
++	MOVQ $-1, ret+32(FP)
++	RET
++
++// handle for lengths < 16
++indexbyte_small:
++	MOVQ BX, CX
++	REPN; SCASB
++	JZ success
++	MOVQ $-1, ret+32(FP)
++	RET
++
++// we've found the chunk containing the byte
++// now just figure out which specific byte it is
++ssesuccess:
++	// get the index of the least significant set bit
++	BSFW DX, DX
++	SUBQ SI, DI
++	ADDQ DI, DX
++	MOVQ DX, ret+32(FP)
++	RET
++
++success:
++	SUBQ SI, DI
++	SUBL $1, DI
++	MOVQ DI, ret+32(FP)
++	RET
++
++TEXT bytes·Equal(SB),7,$0-49
++	MOVQ	a_len+8(FP), BX
++	MOVQ	b_len+32(FP), CX
++	XORQ	AX, AX
++	CMPQ	BX, CX
++	JNE	eqret
++	MOVQ	a+0(FP), SI
++	MOVQ	b+24(FP), DI
++	CALL	runtime·memeqbody(SB)
++eqret:
++	MOVB	AX, ret+48(FP)
++	RET
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index bdd37215b3..e3331b0d14 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -514,3 +514,57 @@ _next:
+ 
+ 	MOVW	$0, R0
+ 	RET
++
++// TODO: share code with memeq?
++TEXT bytes·Equal(SB),7,$0
++	MOVW	a_len+4(FP), R1
++	MOVW	b_len+16(FP), R3
++	
++	CMP	R1, R3		// unequal lengths are not equal
++	B.NE	_notequal
++
++	MOVW	a+0(FP), R0
++	MOVW	b+12(FP), R2
++	ADD	R0, R1		// end
++
++_byteseq_next:
++	CMP	R0, R1
++	B.EQ	_equal		// reached the end
++	MOVBU.P	1(R0), R4
++	MOVBU.P	1(R2), R5
++	CMP	R4, R5
++	B.EQ	_byteseq_next
++
++_notequal:
++	MOVW	$0, R0
++	MOVBU	R0, ret+24(FP)
++	RET
++
++_equal:
++	MOVW	$1, R0
++	MOVBU	R0, ret+24(FP)
++	RET
++
++TEXT bytes·IndexByte(SB),7,$0
++	MOVW	s+0(FP), R0
++	MOVW	s_len+4(FP), R1
++	MOVBU	c+12(FP), R2	// byte to find
++	MOVW	R0, R4		// store base for later
++	ADD	R0, R1		// end 
++
++_loop:
++	CMP	R0, R1
++	B.EQ	_notfound
++	MOVBU.P	1(R0), R3
++	CMP	R2, R3
++	B.NE	_loop
++
++	SUB	$1, R0		// R0 will be one beyond the position we want
++	SUB	R4, R0		// remove base
++	MOVW    R0, ret+16(FP) 
++	RET
++
++_notfound:
++	MOVW	$-1, R0
++	MOVW	R0, ret+16(FP)
++	RET

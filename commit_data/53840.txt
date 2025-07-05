@@ -11,6 +11,43 @@ Date:   Sun Sep 4 17:31:08 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/debug/buildinfo/buildinfo_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/debug/buildinfo/buildinfo_test.go b/src/debug/buildinfo/buildinfo_test.go
+index 3c7aafa7ff..a0a816be17 100644
+--- a/src/debug/buildinfo/buildinfo_test.go
++++ b/src/debug/buildinfo/buildinfo_test.go
+@@ -80,13 +80,13 @@ func TestReadFile(t *testing.T) {
+ 		cmd := exec.Command(testenv.GoToolPath(t), "build", "-o="+outPath, "-buildmode="+buildmode)
+ 		cmd.Dir = dir
+ 		cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOOS="+goos, "GOARCH="+goarch)
+-		stderr := &bytes.Buffer{}
++		stderr := &strings.Builder{}
+ 		cmd.Stderr = stderr
+ 		if err := cmd.Run(); err != nil {
+ 			if badmodeMsg := badmode(goos, goarch, buildmode); strings.Contains(stderr.String(), badmodeMsg) {
+ 				t.Skip(badmodeMsg)
+ 			}
+-			t.Fatalf("failed building test file: %v\n%s", err, stderr.Bytes())
++			t.Fatalf("failed building test file: %v\n%s", err, stderr.String())
+ 		}
+ 		return outPath
+ 	}
+@@ -106,13 +106,13 @@ func TestReadFile(t *testing.T) {
+ 		cmd := exec.Command(testenv.GoToolPath(t), "build", "-o="+outPath, "-buildmode="+buildmode)
+ 		cmd.Dir = pkgDir
+ 		cmd.Env = append(os.Environ(), "GO111MODULE=off", "GOPATH="+gopathDir, "GOOS="+goos, "GOARCH="+goarch)
+-		stderr := &bytes.Buffer{}
++		stderr := &strings.Builder{}
+ 		cmd.Stderr = stderr
+ 		if err := cmd.Run(); err != nil {
+ 			if badmodeMsg := badmode(goos, goarch, buildmode); strings.Contains(stderr.String(), badmodeMsg) {
+ 				t.Skip(badmodeMsg)
+ 			}
+-			t.Fatalf("failed building test file: %v\n%s", err, stderr.Bytes())
++			t.Fatalf("failed building test file: %v\n%s", err, stderr.String())
+ 		}
+ 		return outPath
+ 	}

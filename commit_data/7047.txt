@@ -9,6 +9,20 @@ Date:   Thu Jan 6 11:21:04 2011 -0500
     R=agl1
     CC=golang-dev
     https://golang.org/cl/3827043
-
+---
  src/pkg/crypto/cipher/cbc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/cipher/cbc.go b/src/pkg/crypto/cipher/cbc.go
+index 3efc863282..4632f882a4 100644
+--- a/src/pkg/crypto/cipher/cbc.go
++++ b/src/pkg/crypto/cipher/cbc.go
+@@ -57,7 +57,7 @@ type cbcDecrypter cbc
+ // NewCBCDecrypter returns a BlockMode which decrypts in cipher block chaining
+ // mode, using the given Block. The length of iv must be the same as the
+ // Block's block size as must match the iv used to encrypt the data.
+-func NewCBCDecrypter(b Block, iv []byte) *cbcDecrypter {
++func NewCBCDecrypter(b Block, iv []byte) BlockMode {
+ 	return (*cbcDecrypter)(newCBC(b, iv))
+ }
+ 

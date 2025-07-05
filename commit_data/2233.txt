@@ -9,10 +9,508 @@ Date:   Sun May 17 19:16:16 2009 -0700
     R=r
     OCL=28977
     CL=28977
-
+---
  src/cmd/6g/cgen.c |   2 +-
  src/cmd/6g/gen.c  | 111 +++++++++++++++++++++++++++++++
  src/cmd/gc/dcl.c  | 190 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
  src/cmd/gc/gen.c  |   2 +
  src/cmd/gc/walk.c |  59 ++++++++---------
  5 files changed, 333 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 148ee6b217..2408cfea80 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -29,7 +29,7 @@ cgen(Node *n, Node *res)
+ 		fatal("cgen: res nil");
+ 
+ 	// static initializations
+-	if(gen_as_init(n, res))
++	if(initflag && gen_as_init(n, res))
+ 		goto ret;
+ 
+ 	if(n->ullman >= UINF) {
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 9246bc96b1..598128f2e6 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -698,8 +698,119 @@ clearfat(Node *nl)
+ 	}
+ }
+ 
++int
++getlit(Node *lit)
++{
++	int l;
++
++	if(smallintconst(lit))
++		return mpgetfix(lit->val.u.xval);
++	return -1;
++}
++
++int
++stataddr(Node *nam, Node *n)
++{
++	int l;
++
++	if(n == N)
++		goto no;
++
++	switch(n->op) {
++	case ONAME:
++		*nam = *n;
++		return 1;
++
++	case ODOT:
++		if(!stataddr(nam, n->left))
++			break;
++		nam->xoffset += n->xoffset;
++		nam->type = n->type;
++		return 1;
++
++	case OINDEX:
++		if(n->left->type->bound < 0)
++			break;
++		if(!stataddr(nam, n->left))
++			break;
++		l = getlit(n->right);
++		if(l < 0)
++			break;
++		nam->xoffset += l*n->type->width;
++		nam->type = n->type;
++		return 1;
++	}
++
++no:
++	return 0;
++}
++
+ int
+ gen_as_init(Node *nr, Node *nl)
+ {
++	Node nam;
++	Prog *p;
++
++	if(!initflag)
++		goto no;
++
++	if(nr == N) {
++		if(!stataddr(&nam, nl))
++			goto no;
++		if(nam.class != PEXTERN)
++			goto no;
++		return 1;
++	}
++
++	if(nr->type == T ||
++	   !eqtype(nl->type, nr->type))
++		goto no;
++
++	if(!stataddr(&nam, nl))
++		goto no;
++	if(nam.class != PEXTERN)
++		goto no;
++
++	switch(nr->op) {
++	default:
++		goto no;
++
++	case OLITERAL:
++		goto lit;
++	}
++
++no:
+ 	return 0;
++
++lit:
++	switch(nr->type->etype) {
++	default:
++		goto no;
++
++	case TBOOL:
++		if(memcmp(nam.sym->name, "initdone·", 9) == 0)
++			goto no;
++	case TINT8:
++	case TUINT8:
++	case TINT16:
++	case TUINT16:
++	case TINT32:
++	case TUINT32:
++	case TINT64:
++	case TUINT64:
++	case TINT:
++	case TUINT:
++	case TFLOAT32:
++	case TFLOAT64:
++	case TFLOAT:
++		p = gins(ADATA, &nam, nr);
++		p->from.scale = nr->type->width;
++		break;
++	}
++
++yes:
++//dump("\ngen_as_init", nl);
++//dump("", nr);
++//print("%P\n", p);
++	return 1;
+ }
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index ef49ee0ff9..f680a9c858 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1322,6 +1322,194 @@ anyinit(Node *n)
+ 	return 0;
+ }
+ 
++/*
++ * the init code (thru initfix) reformats the
++ *	var = ...
++ * statements, rewriting the automatic
++ * variables with the static variables.
++ * this allows the code generator to
++ * generate DATA statements instead
++ * of assignment statements.
++ * it is quadradic, may need to change.
++ * it is extremely fragile knowing exactly
++ * how the code from (struct|array|map)lit
++ * will look. ideally the lit routines could
++ * write the code in this form, but ...
++ */
++
++static	Node*	xxx;
++
++void
++initlin(Node* n)
++{
++	if(n == N)
++		return;
++	initlin(n->ninit);
++	switch(n->op) {
++	default:
++		print("o = %O\n", n->op);
++		n->ninit = N;
++		xxx = list(xxx, n);
++		break;
++
++	case OCALL:
++		// call to mapassign1
++		if(n->left->op != ONAME ||
++		   n->right->op != OLIST ||
++		   n->right->left->op != OAS ||
++		   n->right->right->op != OLIST ||
++		   n->right->right->left->op != OAS ||
++		   n->right->right->right->op != OAS ||
++		   memcmp(n->left->sym->name, "mapassign1", 10) != 0)
++			dump("o=call", n);
++		n->ninit = N;
++		xxx = list(xxx, n);
++		break;
++
++	case OAS:
++		n->ninit = N;
++		xxx = list(xxx, n);
++		break;
++
++	case OLIST:
++		initlin(n->left);
++		initlin(n->right);
++		break;
++	}
++}
++
++int
++inittmp(Node *n)
++{
++	if(n != N)
++	if(n->op == ONAME)
++	if(n->sym != S)
++	if(n->class == PAUTO)
++	if(memcmp(n->sym->name, "!tmpname", 8) == 0)
++		return 1;
++	return 0;
++}
++
++int
++sametmp(Node *n1, Node *n2)
++{
++	if(inittmp(n1))
++	if(n1->xoffset == n2->xoffset)
++		return 1;
++	return 0;
++}
++
++int
++indsametmp(Node *n1, Node *n2)
++{
++	if(n1->op == OIND)
++	if(inittmp(n1->left))
++	if(n1->left->xoffset == n2->xoffset)
++		return 1;
++	return 0;
++}
++
++int
++initsub(Node *n, Node *nam)
++{
++	Iter iter;
++	Node *r;
++	int any, i;
++
++	any = 0;
++	r = listfirst(&iter, &xxx);
++	while(r != N) {
++		switch(r->op) {
++		case OAS:
++		case OEMPTY:
++			if(r->left != N)
++			switch(r->left->op) {
++			case ONAME:
++				if(sametmp(r->left, nam)) {
++					any = 1;
++					r->left = n;
++				}
++				break;
++			case ODOT:
++				if(sametmp(r->left->left, nam)) {
++					any = 1;
++					r->left->left = n;
++				}
++				if(indsametmp(r->left->left, nam)) {
++					any = 1;
++					r->left->left->left = n;
++				}
++				break;
++			case OINDEX:
++				if(sametmp(r->left->left, nam)) {
++					any = 1;
++					r->left->left = n;
++				}
++				if(indsametmp(r->left->left, nam)) {
++					any = 1;
++					r->left->left->left = n;
++				}
++				break;
++			}
++			break;
++		case OCALL:
++			// call to mapassign1
++			// look through all three parameters
++			for(i=0; i<2; i++) {
++				r = r->right;
++				if(r == N || r->op != OLIST)
++					break;
++				if(sametmp(r->left->right, nam)) {
++					any = 1;
++					r->left->right = n;
++				}
++				if(indsametmp(r->left->right, nam)) {
++					any = 1;
++					r->left->left->right = n;
++				}
++				if(sametmp(r->right->right, nam)) {
++					any = 1;
++					r->right->right = n;
++				}
++				if(indsametmp(r->right->right, nam)) {
++					any = 1;
++					r->right->left->right = n;
++				}
++			}
++			break;
++		}
++		r = listnext(&iter);
++	}
++	return any;
++}
++
++Node*
++initfix(Node* n)
++{
++	Iter iter;
++	Node *r;
++
++//dump("prelin", n);
++
++	xxx = N;
++	initlin(n);
++	xxx = rev(xxx);
++
++//dump("preinitfix", xxx);
++	// look for the copy-out reference
++	r = listfirst(&iter, &xxx);
++	while(r != N) {
++		if(r->op == OAS)
++		if(inittmp(r->right)) {
++			if(initsub(r->left, r->right))
++				r->op = OEMPTY;
++		}
++		r = listnext(&iter);
++	}
++//dump("postinitfix", xxx);
++	return xxx;
++}
++
+ void
+ fninit(Node *n)
+ {
+@@ -1389,7 +1577,7 @@ fninit(Node *n)
+ 	}
+ 
+ 	// (6)
+-	r = list(r, n);
++	r = list(r, initfix(n));
+ 
+ 	// (7)
+ 	// could check that it is fn of no args/returns
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 1302ae10c6..0856dfa11d 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -444,6 +444,8 @@ cgen_as(Node *nl, Node *nr)
+ 				return;
+ 			if(nl->class & PHEAP)
+ 				return;
++			if(gen_as_init(nr, nl))
++				return;
+ 		}
+ 
+ 		tl = nl->type;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 6482eba4ca..4892c669ff 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -588,26 +588,26 @@ loop:
+ 		l = n->left;
+ 		if(l == N)
+ 			goto ret;
+-		walktype(l, Erv);
+ 
+-		// structure literal
+-		if(t->etype == TSTRUCT) {
+-			indir(n, structlit(n, N));
++		switch(t->etype) {
++		default:
++			yyerror("invalid type for composite literal: %T", t);
+ 			goto ret;
+-		}
+ 
+-		// array literal
+-		if(t->etype == TARRAY) {
+-			indir(n, arraylit(n, N));
+-			goto ret;
+-		}
++		case TSTRUCT:
++			r = structlit(n, N);
++			break;
+ 
+-		// map literal
+-		if(t->etype == TMAP) {
+-			indir(n, maplit(n, N));
+-			goto ret;
++		case TARRAY:
++			r = arraylit(n, N);
++			break;
++
++		case TMAP:
++			r = maplit(n, N);
++			break;
+ 		}
+-		yyerror("invalid type for composite literal: %T", t);
++		indir(n, r);
++		walktype(l, Erv);
+ 		goto ret;
+ 
+ 	case ORETURN:
+@@ -926,18 +926,19 @@ loop:
+ 			goto nottop;
+ 		defaultlit(n->left, T);
+ 		if(n->left->op == OCOMPOS && n->left->type != T) {
++			Node *nvar, *nas, *nstar;
++
+ 			// turn &Point(1, 2) or &[]int(1, 2) or &[...]int(1, 2) into allocation.
+ 			// initialize with
+ 			//	nvar := new(*Point);
+ 			//	*nvar = Point(1, 2);
+ 			// and replace expression with nvar
+-			; // stupid c syntax - case label must be on stmt, not decl
+-			Node *nvar, *nas, *nstar;
+ 
+ 			nvar = nod(OXXX, N, N);
+ 			tempname(nvar, ptrto(n->left->type));
+ 
+ 			nas = nod(OAS, nvar, callnew(n->left->type));
++			walktype(nas, Etop);
+ 			addtop = list(addtop, nas);
+ 
+ 			nstar = nod(OIND, nvar, N);
+@@ -957,6 +958,7 @@ loop:
+ 				goto badlit;
+ 			}
+ 
++			walktype(n->left->left, Erv);
+ 			indir(n, nvar);
+ 			goto ret;
+ 		}
+@@ -3837,8 +3839,8 @@ arraylit(Node *n, Node *var)
+ {
+ 	Iter saver;
+ 	Type *t;
+-	Node *r, *a, *nnew;
+-	int idx, ninit, b;
++	Node *r, *a;
++	int ninit, b;
+ 
+ 	t = n->type;
+ 	if(t->etype != TARRAY)
+@@ -3867,13 +3869,12 @@ arraylit(Node *n, Node *var)
+ 		tempname(var, t);
+ 	}
+ 
+-	nnew = nil;
+ 	if(b < 0) {
+ 		// slice
+-		nnew = nod(OMAKE, N, N);
+-		nnew->type = t;
+-
+-		a = nod(OAS, var, nnew);
++		a = nod(OMAKE, N, N);
++		a->type = t;
++		a->left = nodintconst(ninit);
++		a = nod(OAS, var, a);
+ 		addtop = list(addtop, a);
+ 	} else {
+ 		// if entire array isnt initialized,
+@@ -3884,21 +3885,20 @@ arraylit(Node *n, Node *var)
+ 		}
+ 	}
+ 
+-	idx = 0;
++	ninit = 0;
+ 	r = listfirst(&saver, &n->left);
+ 	if(r != N && r->op == OEMPTY)
+ 		r = N;
+ 	while(r != N) {
+ 		// build list of var[c] = expr
+-		a = nodintconst(idx);
++		a = nodintconst(ninit);
+ 		a = nod(OINDEX, var, a);
+ 		a = nod(OAS, a, r);
++		walktype(a, Etop);	// add any assignments in r to addtop
+ 		addtop = list(addtop, a);
+-		idx++;
++		ninit++;
+ 		r = listnext(&saver);
+ 	}
+-	if(b < 0)
+-		nnew->left = nodintconst(idx);
+ 	return var;
+ }
+ 
+@@ -3941,6 +3941,7 @@ loop:
+ 
+ 	a = nod(OINDEX, var, r->left);
+ 	a = nod(OAS, a, r->right);
++	walktype(a, Etop);	// add any assignments in r to addtop
+ 	addtop = list(addtop, a);
+ 
+ 	r = listnext(&saver);

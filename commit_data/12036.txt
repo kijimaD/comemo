@@ -7,10 +7,125 @@ Date:   Sat Feb 18 16:24:23 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5675092
-
+---
  src/pkg/compress/flate/deflate_test.go |  7 +++++++
  src/pkg/image/ycbcr_test.go            |  3 +++
  src/pkg/math/big/nat_test.go           |  3 +++
  src/pkg/math/rand/rand_test.go         |  6 ++++++
  src/pkg/old/netchan/netchan_test.go    | 12 ++++++++++++
  5 files changed, 31 insertions(+)
+
+diff --git a/src/pkg/compress/flate/deflate_test.go b/src/pkg/compress/flate/deflate_test.go
+index a76e2d930f..543c595058 100644
+--- a/src/pkg/compress/flate/deflate_test.go
++++ b/src/pkg/compress/flate/deflate_test.go
+@@ -306,6 +306,9 @@ func TestDeflateInflateString(t *testing.T) {
+ 			t.Error(err)
+ 		}
+ 		testToFromWithLimit(t, gold, test.label, test.limit)
++		if testing.Short() {
++			break
++		}
+ 	}
+ }
+ 
+@@ -363,6 +366,10 @@ func TestWriterDict(t *testing.T) {
+ 
+ // See http://code.google.com/p/go/issues/detail?id=2508
+ func TestRegression2508(t *testing.T) {
++	if testing.Short() {
++		t.Logf("test disabled with -short")
++		return
++	}
+ 	w, err := NewWriter(ioutil.Discard, 1)
+ 	if err != nil {
+ 		t.Fatalf("NewWriter: %v", err)
+diff --git a/src/pkg/image/ycbcr_test.go b/src/pkg/image/ycbcr_test.go
+index 7852b31ded..5fa95be3e0 100644
+--- a/src/pkg/image/ycbcr_test.go
++++ b/src/pkg/image/ycbcr_test.go
+@@ -49,6 +49,9 @@ func TestYCbCr(t *testing.T) {
+ 				testYCbCr(t, r, subsampleRatio, delta)
+ 			}
+ 		}
++		if testing.Short() {
++			break
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/math/big/nat_test.go b/src/pkg/math/big/nat_test.go
+index 25e39273c0..7f3f76dc36 100644
+--- a/src/pkg/math/big/nat_test.go
++++ b/src/pkg/math/big/nat_test.go
+@@ -512,6 +512,9 @@ func TestStringPowers(t *testing.T) {
+ 				t.Errorf("failed at %d ** %d in base %d: %s != %s", b, p, b, xs, xs2)
+ 			}
+ 		}
++		if b >= 3 && testing.Short() {
++			break
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/math/rand/rand_test.go b/src/pkg/math/rand/rand_test.go
+index 0ba8f98c49..bbd44e3f8b 100644
+--- a/src/pkg/math/rand/rand_test.go
++++ b/src/pkg/math/rand/rand_test.go
+@@ -141,6 +141,9 @@ func TestNonStandardNormalValues(t *testing.T) {
+ 		for m := 0.5; m < mmax; m *= 2 {
+ 			for _, seed := range testSeeds {
+ 				testNormalDistribution(t, numTestSamples, m, sd, seed)
++				if testing.Short() {
++					break
++				}
+ 			}
+ 		}
+ 	}
+@@ -191,6 +194,9 @@ func TestNonStandardExponentialValues(t *testing.T) {
+ 	for rate := 0.05; rate < 10; rate *= 2 {
+ 		for _, seed := range testSeeds {
+ 			testExponentialDistribution(t, numTestSamples, rate, seed)
++			if testing.Short() {
++				break
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/old/netchan/netchan_test.go b/src/pkg/old/netchan/netchan_test.go
+index 53f0f78776..9a7c076d59 100644
+--- a/src/pkg/old/netchan/netchan_test.go
++++ b/src/pkg/old/netchan/netchan_test.go
+@@ -291,6 +291,10 @@ func exportLoopback(exp *Exporter, t *testing.T) {
+ // This test checks that channel operations can proceed
+ // even when other concurrent operations are blocked.
+ func TestIndependentSends(t *testing.T) {
++	if testing.Short() {
++		t.Logf("disabled test during -short")
++		return
++	}
+ 	exp, imp := pair(t)
+ 
+ 	exportLoopback(exp, t)
+@@ -378,6 +382,10 @@ const flowCount = 100
+ 
+ // test flow control from exporter to importer.
+ func TestExportFlowControl(t *testing.T) {
++	if testing.Short() {
++		t.Logf("disabled test during -short")
++		return
++	}
+ 	exp, imp := pair(t)
+ 
+ 	sendDone := make(chan bool, 1)
+@@ -394,6 +402,10 @@ func TestExportFlowControl(t *testing.T) {
+ 
+ // test flow control from importer to exporter.
+ func TestImportFlowControl(t *testing.T) {
++	if testing.Short() {
++		t.Logf("disabled test during -short")
++		return
++	}
+ 	exp, imp := pair(t)
+ 
+ 	ch := make(chan int)

@@ -7,7 +7,113 @@ Date:   Mon Feb 16 16:36:18 2009 -0800
     R=ken
     OCL=25072
     CL=25072
-
+---
  src/cmd/gc/dcl.c | 36 +++++++++++++++++++++++++++++++++---
  src/cmd/gc/go.y  | 14 +++++++++++---
  2 files changed, 44 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 35d1a8e62b..1f053b6114 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -643,7 +643,7 @@ funclit1(Type *type, Node *body)
+ Type**
+ stotype(Node *n, int et, Type **t)
+ {
+-	Type *f;
++	Type *f, *t1;
+ 	Iter save;
+ 	String *note;
+ 	int lno;
+@@ -666,20 +666,50 @@ loop:
+ 		goto next;
+ 	}
+ 
+-	if(n->op != ODCLFIELD || n->type == T)
++	if(n->op != ODCLFIELD)
+ 		fatal("stotype: oops %N\n", n);
+ 
++	if(n->type == T) {
++		// assume error already printed
++		goto next;
++	}
++
+ 	switch(n->val.ctype) {
+ 	case CTSTR:
++		if(et != TSTRUCT)
++			yyerror("interface method cannot have annotation");
+ 		note = n->val.u.sval;
+ 		break;
+ 	default:
+-		yyerror("field annotation must be string");
++		if(et != TSTRUCT)
++			yyerror("interface method cannot have annotation");
++		else
++			yyerror("field annotation must be string");
+ 	case CTxxx:
+ 		note = nil;
+ 		break;
+ 	}
+ 
++	if(et == TINTER && n->left == N) {
++		// embedded interface - inline the methods
++		if(n->type->etype != TINTER) {
++			yyerror("interface contains embedded non-interface %T", t);
++			goto next;
++		}
++		for(t1=n->type->type; t1!=T; t1=t1->down) {
++			if(strcmp(t1->sym->package, package) != 0)
++				yyerror("embedded interface contains unexported method %S", t1->sym);
++			f = typ(TFIELD);
++			f->type = t1->type;
++			f->width = BADWIDTH;
++			f->nname = newname(t1->sym);
++			f->sym = t1->sym;
++			*t = f;
++			t = &f->down;
++		}
++		goto next;
++	}
++
+ 	f = typ(TFIELD);
+ 	f->type = n->type;
+ 	f->note = note;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 072db35b68..d685764282 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -57,7 +57,7 @@
+ %type	<node>		exprsym3_list_r exprsym3
+ %type	<node>		name onew_name new_name new_name_list_r new_field
+ %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
+-%type	<node>		interfacedcl_list_r interfacedcl
++%type	<node>		interfacedcl_list_r interfacedcl interfacedcl1
+ %type	<node>		structdcl_list_r structdcl embed
+ %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
+ %type	<node>		braced_keyexpr_list keyval_list_r keyval
+@@ -1385,8 +1385,8 @@ embed:
+ 		context = nil;
+ 	}
+ 
+-interfacedcl:
+-	new_name ',' interfacedcl
++interfacedcl1:
++	new_name ',' interfacedcl1
+ 	{
+ 		$$ = nod(ODCLFIELD, $1, N);
+ 		$$ = nod(OLIST, $$, $3);
+@@ -1397,6 +1397,14 @@ interfacedcl:
+ 		$$->type = $2;
+ 	}
+ 
++interfacedcl:
++	interfacedcl1
++|	latype
++	{
++		$$ = nod(ODCLFIELD, N, N);
++		$$->type = oldtype($1);
++	}
++
+ indcl:
+ 	'(' oarg_type_list ')' fnres
+ 	{

@@ -18,7 +18,91 @@ Date:   Tue Apr 16 16:32:26 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  test/escape_runtime_atomic.go | 33 +++++++++++++++++++++++++++++++++
  test/escape_sync_atomic.go    | 38 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 71 insertions(+)
+
+diff --git a/test/escape_runtime_atomic.go b/test/escape_runtime_atomic.go
+new file mode 100644
+index 0000000000..6dfd4aa211
+--- /dev/null
++++ b/test/escape_runtime_atomic.go
+@@ -0,0 +1,33 @@
++// errorcheck -0 -m -l
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test escape analysis for runtime/internal/atomic.
++
++package escape
++
++import (
++	"runtime/internal/atomic"
++	"unsafe"
++)
++
++// BAD: should be "leaking param content".
++func Loadp(addr unsafe.Pointer) unsafe.Pointer { // ERROR "leaking param: addr"
++	return atomic.Loadp(addr)
++}
++
++var ptr unsafe.Pointer
++
++func Storep() {
++	var x int // ERROR "moved to heap: x"
++	atomic.StorepNoWB(unsafe.Pointer(&ptr), unsafe.Pointer(&x))
++}
++
++func Casp1() {
++	// BAD: x doesn't need to be heap allocated
++	var x int // ERROR "moved to heap: x"
++	var y int // ERROR "moved to heap: y"
++	atomic.Casp1(&ptr, unsafe.Pointer(&x), unsafe.Pointer(&y))
++}
+diff --git a/test/escape_sync_atomic.go b/test/escape_sync_atomic.go
+new file mode 100644
+index 0000000000..8da71a0ccf
+--- /dev/null
++++ b/test/escape_sync_atomic.go
+@@ -0,0 +1,38 @@
++// errorcheck -0 -m -l
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test escape analysis for sync/atomic.
++
++package escape
++
++import (
++	"sync/atomic"
++	"unsafe"
++)
++
++// BAD: should be "leaking param content".
++func LoadPointer(addr *unsafe.Pointer) unsafe.Pointer { // ERROR "leaking param: addr"
++	return atomic.LoadPointer(addr)
++}
++
++var ptr unsafe.Pointer
++
++func StorePointer() {
++	var x int // ERROR "moved to heap: x"
++	atomic.StorePointer(&ptr, unsafe.Pointer(&x))
++}
++
++func SwapPointer() {
++	var x int // ERROR "moved to heap: x"
++	atomic.SwapPointer(&ptr, unsafe.Pointer(&x))
++}
++
++func CompareAndSwapPointer() {
++	// BAD: x doesn't need to be heap allocated
++	var x int // ERROR "moved to heap: x"
++	var y int // ERROR "moved to heap: y"
++	atomic.CompareAndSwapPointer(&ptr, unsafe.Pointer(&x), unsafe.Pointer(&y))
++}

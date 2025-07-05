@@ -18,7 +18,40 @@ Date:   Fri Aug 21 19:17:18 2015 +0200
     Change-Id: Ie35222763a57a2d712a5f5f7baec75cab8189a53
     Reviewed-on: https://go-review.googlesource.com/13778
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/floatconv.go      | 4 ++--
  src/math/big/floatconv_test.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/math/big/floatconv.go b/src/math/big/floatconv.go
+index 4a070ca64d..0e8b7b649e 100644
+--- a/src/math/big/floatconv.go
++++ b/src/math/big/floatconv.go
+@@ -125,9 +125,9 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
+ 	// apply 10**exp10
+ 	p := new(Float).SetPrec(z.Prec() + 64) // use more bits for p -- TODO(gri) what is the right number?
+ 	if exp10 < 0 {
+-		z.uquo(z, p.pow10(-exp10))
++		z.Quo(z, p.pow10(-exp10))
+ 	} else {
+-		z.umul(z, p.pow10(exp10))
++		z.Mul(z, p.pow10(exp10))
+ 	}
+ 
+ 	return
+diff --git a/src/math/big/floatconv_test.go b/src/math/big/floatconv_test.go
+index 4f239534a1..156e1af300 100644
+--- a/src/math/big/floatconv_test.go
++++ b/src/math/big/floatconv_test.go
+@@ -367,9 +367,9 @@ func TestFloatText(t *testing.T) {
+ 
+ 		// make sure "stupid" exponents don't stall the machine
+ 		{"1e1000000", 64, 'p', 0, "0x.88b3a28a05eade3ap+3321929"},
+-		{"1e1000000000", 64, 'p', 0, "0x.ecc5f45aa573d3p+1538481529"},
++		{"1e1000000000", 64, 'p', 0, "+Inf"},
+ 		{"1e-1000000", 64, 'p', 0, "0x.efb4542cc8ca418ap-3321928"},
+-		{"1e-1000000000", 64, 'p', 0, "0x.8a64dd983a4c7dabp-1538481528"},
++		{"1e-1000000000", 64, 'p', 0, "0"},
+ 
+ 		// TODO(gri) need tests for actual large Floats
+ 

@@ -54,8 +54,172 @@ Date:   Mon Aug 15 10:41:03 2022 -0400
     Auto-Submit: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/escape/call.go |  4 ++
  src/runtime/traceback.go                | 66 +++++++++++++++++----------------
  test/fixedbugs/issue25897a.go           | 21 ++++++++++-
  3 files changed, 57 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 880d789aa1..4f602ca15f 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -223,6 +223,10 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
+ 
+ 	// If the function is already a zero argument/result function call,
+ 	// just escape analyze it normally.
++	//
++	// Note that the runtime is aware of this optimization for
++	// "go" statements that start in reflect.makeFuncStub or
++	// reflect.methodValueCall.
+ 	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
+ 		if sig := call.X.Type(); sig.NumParams()+sig.NumResults() == 0 {
+ 			if clo, ok := call.X.(*ir.ClosureExpr); ok && n.Op() == ir.OGO {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 599141af94..27ac7b0977 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -53,8 +53,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 	}
+ 	level, _, _ := gotraceback()
+ 
+-	var ctxt *funcval // Context pointer for unstarted goroutines. See issue #25897.
+-
+ 	if pc0 == ^uintptr(0) && sp0 == ^uintptr(0) { // Signal to fetch saved values from gp.
+ 		if gp.syscallsp != 0 {
+ 			pc0 = gp.syscallpc
+@@ -68,7 +66,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			if usesLR {
+ 				lr0 = gp.sched.lr
+ 			}
+-			ctxt = (*funcval)(gp.sched.ctxt)
+ 		}
+ 	}
+ 
+@@ -297,10 +294,9 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			var ok bool
+ 			frame.arglen, frame.argmap, ok = getArgInfoFast(f, callback != nil)
+ 			if !ok {
+-				frame.arglen, frame.argmap = getArgInfo(&frame, f, callback != nil, ctxt)
++				frame.arglen, frame.argmap = getArgInfo(&frame, f, callback != nil)
+ 			}
+ 		}
+-		ctxt = nil // ctxt is only needed to get arg maps for the topmost frame
+ 
+ 		// Determine frame's 'continuation PC', where it can continue.
+ 		// Normally this is the return address on the stack, but if sigpanic
+@@ -683,40 +679,46 @@ func getArgInfoFast(f funcInfo, needArgMap bool) (arglen uintptr, argmap *bitvec
+ 
+ // getArgInfo returns the argument frame information for a call to f
+ // with call frame frame.
+-//
+-// This is used for both actual calls with active stack frames and for
+-// deferred calls or goroutines that are not yet executing. If this is an actual
+-// call, ctxt must be nil (getArgInfo will retrieve what it needs from
+-// the active stack frame). If this is a deferred call or unstarted goroutine,
+-// ctxt must be the function object that was deferred or go'd.
+-func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (arglen uintptr, argmap *bitvector) {
++func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool) (arglen uintptr, argmap *bitvector) {
+ 	arglen = uintptr(f.args)
+ 	if needArgMap && f.args == _ArgsSizeUnknown {
+ 		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
+ 		switch funcname(f) {
+ 		case "reflect.makeFuncStub", "reflect.methodValueCall":
+ 			// These take a *reflect.methodValue as their
+-			// context register.
+-			var mv *reflectMethodValue
+-			var retValid bool
+-			if ctxt != nil {
+-				// This is not an actual call, but a
+-				// deferred call or an unstarted goroutine.
+-				// The function value is itself the *reflect.methodValue.
+-				mv = (*reflectMethodValue)(unsafe.Pointer(ctxt))
+-			} else {
+-				// This is a real call that took the
+-				// *reflect.methodValue as its context
+-				// register and immediately saved it
+-				// to 0(SP). Get the methodValue from
+-				// 0(SP).
+-				arg0 := frame.sp + sys.MinFrameSize
+-				mv = *(**reflectMethodValue)(unsafe.Pointer(arg0))
+-				// Figure out whether the return values are valid.
+-				// Reflect will update this value after it copies
+-				// in the return values.
+-				retValid = *(*bool)(unsafe.Pointer(arg0 + 4*goarch.PtrSize))
++			// context register and immediately save it to 0(SP).
++			// Get the methodValue from 0(SP).
++			arg0 := frame.sp + sys.MinFrameSize
++
++			minSP := frame.fp
++			if !usesLR {
++				// The CALL itself pushes a word.
++				// Undo that adjustment.
++				minSP -= goarch.PtrSize
++			}
++			if arg0 >= minSP {
++				// The function hasn't started yet.
++				// This only happens if f was the
++				// start function of a new goroutine
++				// that hasn't run yet *and* f takes
++				// no arguments and has no results
++				// (otherwise it will get wrapped in a
++				// closure). In this case, we can't
++				// reach into its locals because it
++				// doesn't have locals yet, but we
++				// also know its argument map is
++				// empty.
++				if frame.pc != f.entry() {
++					print("runtime: confused by ", funcname(f), ": no frame (sp=", hex(frame.sp), " fp=", hex(frame.fp), ") at entry+", hex(frame.pc-f.entry()), "\n")
++					throw("reflect mismatch")
++				}
++				return 0, nil
+ 			}
++			mv := *(**reflectMethodValue)(unsafe.Pointer(arg0))
++			// Figure out whether the return values are valid.
++			// Reflect will update this value after it copies
++			// in the return values.
++			retValid := *(*bool)(unsafe.Pointer(arg0 + 4*goarch.PtrSize))
+ 			if mv.fn != f.entry() {
+ 				print("runtime: confused by ", funcname(f), "\n")
+ 				throw("reflect mismatch")
+diff --git a/test/fixedbugs/issue25897a.go b/test/fixedbugs/issue25897a.go
+index 6a724a79a5..d4fa6c82fe 100644
+--- a/test/fixedbugs/issue25897a.go
++++ b/test/fixedbugs/issue25897a.go
+@@ -18,17 +18,34 @@ const N = 100
+ 
+ func main() {
+ 	runtime.GOMAXPROCS(1)
++	// Run GC in a loop. This makes it more likely GC will catch
++	// an unstarted goroutine then if we were to GC after kicking
++	// everything off.
++	go func() {
++		for {
++			runtime.GC()
++		}
++	}()
+ 	c := make(chan bool, N)
+ 	for i := 0; i < N; i++ {
++		// Test both with an argument and without because this
++		// affects whether the compiler needs to generate a
++		// wrapper closure for the "go" statement.
+ 		f := reflect.MakeFunc(reflect.TypeOf(((func(*int))(nil))),
+ 			func(args []reflect.Value) []reflect.Value {
+ 				c <- true
+ 				return nil
+ 			}).Interface().(func(*int))
+ 		go f(nil)
++
++		g := reflect.MakeFunc(reflect.TypeOf(((func())(nil))),
++			func(args []reflect.Value) []reflect.Value {
++				c <- true
++				return nil
++			}).Interface().(func())
++		go g()
+ 	}
+-	runtime.GC()
+-	for i := 0; i < N; i++ {
++	for i := 0; i < N*2; i++ {
+ 		<-c
+ 	}
+ }

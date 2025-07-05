@@ -155,7 +155,7 @@ Date:   Sun Aug 6 13:26:28 2023 +1000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/test/inl_test.go          |   2 +-
  .../compile/internal/typecheck/_builtin/runtime.go |   2 +-
  src/cmd/compile/internal/typecheck/builtin.go      |   2 +-
@@ -223,3 +223,1791 @@ Date:   Sun Aug 6 13:26:28 2023 +1000
  test/live.go                                       |   2 +-
  test/live_regabi.go                                |   2 +-
  66 files changed, 415 insertions(+), 305 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 6d10f6c54c..0ccc7b3761 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -44,7 +44,6 @@ func TestIntendedInlining(t *testing.T) {
+ 			"chanbuf",
+ 			"evacuated",
+ 			"fastlog2",
+-			"fastrand",
+ 			"float64bits",
+ 			"funcspdelta",
+ 			"getm",
+@@ -54,6 +53,7 @@ func TestIntendedInlining(t *testing.T) {
+ 			"nextslicecap",
+ 			"noescape",
+ 			"pcvalueCacheKey",
++			"rand32",
+ 			"readUnaligned32",
+ 			"readUnaligned64",
+ 			"releasem",
+diff --git a/src/cmd/compile/internal/typecheck/_builtin/runtime.go b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+index f27a773a88..421152967c 100644
+--- a/src/cmd/compile/internal/typecheck/_builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+@@ -122,7 +122,7 @@ func panicrangeexit()
+ // defer in range over func
+ func deferrangefunc() interface{}
+ 
+-func fastrand() uint32
++func rand32() uint32
+ 
+ // *byte is really *runtime.Type
+ func makemap64(mapType *byte, hint int64, mapbuf *any) (hmap map[any]any)
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 142fc26d2e..09f60c68c0 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -104,7 +104,7 @@ var runtimeDecls = [...]struct {
+ 	{"efaceeq", funcTag, 72},
+ 	{"panicrangeexit", funcTag, 9},
+ 	{"deferrangefunc", funcTag, 73},
+-	{"fastrand", funcTag, 74},
++	{"rand32", funcTag, 74},
+ 	{"makemap64", funcTag, 76},
+ 	{"makemap", funcTag, 77},
+ 	{"makemap_small", funcTag, 78},
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 90c32154b9..37143baa28 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -358,8 +358,8 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 		if n.Esc() == ir.EscNone {
+ 			// Only need to initialize h.hash0 since
+ 			// hmap h has been allocated on the stack already.
+-			// h.hash0 = fastrand()
+-			rand := mkcall("fastrand", types.Types[types.TUINT32], init)
++			// h.hash0 = rand32()
++			rand := mkcall("rand32", types.Types[types.TUINT32], init)
+ 			hashsym := hmapType.Field(4).Sym // hmap.hash0 see reflect.go:hmap
+ 			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, h, hashsym), rand))
+ 			return typecheck.ConvNop(h, t)
+diff --git a/src/cmd/internal/goobj/builtinlist.go b/src/cmd/internal/goobj/builtinlist.go
+index 03982d54f2..fb729f512e 100644
+--- a/src/cmd/internal/goobj/builtinlist.go
++++ b/src/cmd/internal/goobj/builtinlist.go
+@@ -83,7 +83,7 @@ var builtins = [...]struct {
+ 	{"runtime.efaceeq", 1},
+ 	{"runtime.panicrangeexit", 1},
+ 	{"runtime.deferrangefunc", 1},
+-	{"runtime.fastrand", 1},
++	{"runtime.rand32", 1},
+ 	{"runtime.makemap64", 1},
+ 	{"runtime.makemap", 1},
+ 	{"runtime.makemap_small", 1},
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+index 9bf07153a4..6df95f33f9 100644
+--- a/src/cmd/internal/objabi/pkgspecial.go
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -50,6 +50,7 @@ var runtimePkgs = []string{
+ 
+ 	"internal/abi",
+ 	"internal/bytealg",
++	"internal/chacha8rand",
+ 	"internal/coverage/rtcov",
+ 	"internal/cpu",
+ 	"internal/goarch",
+@@ -79,6 +80,7 @@ var allowAsmABIPkgs = []string{
+ 	"reflect",
+ 	"syscall",
+ 	"internal/bytealg",
++	"internal/chacha8rand",
+ 	"runtime/internal/syscall",
+ 	"runtime/internal/startlinetest",
+ }
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 2d761c7ee7..f4ea8407c8 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -56,10 +56,11 @@ import (
+ func isRuntimeDepPkg(pkg string) bool {
+ 	switch pkg {
+ 	case "runtime",
+-		"sync/atomic",      // runtime may call to sync/atomic, due to go:linkname
+-		"internal/abi",     // used by reflectcall (and maybe more)
+-		"internal/bytealg", // for IndexByte
+-		"internal/cpu":     // for cpu features
++		"sync/atomic",          // runtime may call to sync/atomic, due to go:linkname
++		"internal/abi",         // used by reflectcall (and maybe more)
++		"internal/bytealg",     // for IndexByte
++		"internal/chacha8rand", // for rand
++		"internal/cpu":         // for cpu features
+ 		return true
+ 	}
+ 	return strings.HasPrefix(pkg, "runtime/internal/") && !strings.HasSuffix(pkg, "_test")
+diff --git a/src/hash/maphash/maphash_runtime.go b/src/hash/maphash/maphash_runtime.go
+index 98097ff9c3..b831df2cf4 100644
+--- a/src/hash/maphash/maphash_runtime.go
++++ b/src/hash/maphash/maphash_runtime.go
+@@ -10,8 +10,8 @@ import (
+ 	"unsafe"
+ )
+ 
+-//go:linkname runtime_fastrand64 runtime.fastrand64
+-func runtime_fastrand64() uint64
++//go:linkname runtime_rand runtime.rand
++func runtime_rand() uint64
+ 
+ //go:linkname runtime_memhash runtime.memhash
+ //go:noescape
+@@ -39,5 +39,5 @@ func rthashString(s string, state uint64) uint64 {
+ }
+ 
+ func randUint64() uint64 {
+-	return runtime_fastrand64()
++	return runtime_rand()
+ }
+diff --git a/src/internal/chacha8rand/chacha8.go b/src/internal/chacha8rand/chacha8.go
+index 654ac1bc9d..ce55c07d05 100644
+--- a/src/internal/chacha8rand/chacha8.go
++++ b/src/internal/chacha8rand/chacha8.go
+@@ -93,6 +93,25 @@ func (s *State) Refill() {
+ 	}
+ }
+ 
++// Reseed reseeds the state with new random values.
++// After a call to Reseed, any previously returned random values
++// have been erased from the memory of the state and cannot be
++// recovered.
++func (s *State) Reseed() {
++	var seed [4]uint64
++	for i := range seed {
++		for {
++			x, ok := s.Next()
++			if ok {
++				seed[i] = x
++				break
++			}
++			s.Refill()
++		}
++	}
++	s.Init64(seed)
++}
++
+ // Marshal marshals the state into a byte slice.
+ // Marshal and Unmarshal are functions, not methods,
+ // so that they will not be linked into the runtime
+diff --git a/src/internal/chacha8rand/chacha8_amd64.s b/src/internal/chacha8rand/chacha8_amd64.s
+index cadd516c09..b56deb3b0b 100644
+--- a/src/internal/chacha8rand/chacha8_amd64.s
++++ b/src/internal/chacha8rand/chacha8_amd64.s
+@@ -52,13 +52,10 @@
+ // block runs 4 ChaCha8 block transformations in the four stripes of the X registers.
+ 
+ // func block(seed *[8]uint32, blocks *[16][4]uint32, counter uint32)
+-TEXT ·block(SB), NOSPLIT, $16
++TEXT ·block<ABIInternal>(SB), NOSPLIT, $16
+ 	// seed in AX
+ 	// blocks in BX
+ 	// counter in CX
+-	MOVQ seed+0(FP), AX
+-	MOVQ blocks+8(FP), BX
+-	MOVL counter+16(FP), CX
+ 
+ 	// Load initial constants into top row.
+ 	REPL(0x61707865, X0)
+diff --git a/src/internal/chacha8rand/chacha8_arm64.s b/src/internal/chacha8rand/chacha8_arm64.s
+index 4f36a7021c..18e34dd148 100644
+--- a/src/internal/chacha8rand/chacha8_arm64.s
++++ b/src/internal/chacha8rand/chacha8_arm64.s
+@@ -16,12 +16,10 @@
+ // block runs 4 ChaCha8 block transformations in the four stripes of the V registers.
+ 
+ // func block(seed *[8]uint32, blocks *[4][16]uint32, counter uint32)
+-TEXT ·block(SB), NOSPLIT, $16
++TEXT ·block<ABIInternal>(SB), NOSPLIT, $16
+ 	// seed in R0
+ 	// blocks in R1
+-	MOVD seed+0(FP), R0
+-	MOVD blocks+8(FP), R1
+-	MOVW counter+16(FP), R2
++	// counter in R2
+ 
+ 	// Load initial constants into top row.
+ 	MOVD $·chachaConst(SB), R10
+diff --git a/src/internal/chacha8rand/export_test.go b/src/internal/chacha8rand/export_test.go
+index 70478a45c3..728aded682 100644
+--- a/src/internal/chacha8rand/export_test.go
++++ b/src/internal/chacha8rand/export_test.go
+@@ -6,3 +6,7 @@ package chacha8rand
+ 
+ var Block = block
+ var Block_generic = block_generic
++
++func Seed(s *State) [4]uint64 {
++	return s.seed
++}
+diff --git a/src/internal/chacha8rand/rand_test.go b/src/internal/chacha8rand/rand_test.go
+index f4770999c9..2975013bfa 100644
+--- a/src/internal/chacha8rand/rand_test.go
++++ b/src/internal/chacha8rand/rand_test.go
+@@ -53,6 +53,16 @@ func TestMarshal(t *testing.T) {
+ 	}
+ }
+ 
++func TestReseed(t *testing.T) {
++	var s State
++	s.Init(seed)
++	old := Seed(&s)
++	s.Reseed()
++	if Seed(&s) == old {
++		t.Errorf("Reseed did not change seed")
++	}
++}
++
+ func BenchmarkBlock(b *testing.B) {
+ 	var seed [4]uint64
+ 	var blocks [32]uint64
+diff --git a/src/internal/coverage/pkid.go b/src/internal/coverage/pkid.go
+index 8ddd44d6bb..372a9cb19f 100644
+--- a/src/internal/coverage/pkid.go
++++ b/src/internal/coverage/pkid.go
+@@ -49,6 +49,7 @@ var rtPkgs = [...]string{
+ 	"internal/goarch",
+ 	"runtime/internal/atomic",
+ 	"internal/goos",
++	"internal/chacha8rand",
+ 	"runtime/internal/sys",
+ 	"internal/abi",
+ 	"runtime/internal/math",
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index 78e176e78f..a8ed9c0cb7 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -273,7 +273,7 @@ func (r *Rand) Read(p []byte) (n int, err error) {
+ 	switch src := r.src.(type) {
+ 	case *lockedSource:
+ 		return src.read(p, &r.readVal, &r.readPos)
+-	case *fastSource:
++	case *runtimeSource:
+ 		return src.read(p, &r.readVal, &r.readPos)
+ 	}
+ 	return read(p, r.src, &r.readVal, &r.readPos)
+@@ -328,8 +328,8 @@ func globalRand() *Rand {
+ 		r.Seed(1)
+ 	} else {
+ 		r = &Rand{
+-			src: &fastSource{},
+-			s64: &fastSource{},
++			src: &runtimeSource{},
++			s64: &runtimeSource{},
+ 		}
+ 	}
+ 
+@@ -346,29 +346,29 @@ func globalRand() *Rand {
+ 	return r
+ }
+ 
+-//go:linkname fastrand64
+-func fastrand64() uint64
++//go:linkname runtime_rand runtime.rand
++func runtime_rand() uint64
+ 
+-// fastSource is an implementation of Source64 that uses the runtime
++// runtimeSource is an implementation of Source64 that uses the runtime
+ // fastrand functions.
+-type fastSource struct {
++type runtimeSource struct {
+ 	// The mutex is used to avoid race conditions in Read.
+ 	mu sync.Mutex
+ }
+ 
+-func (*fastSource) Int63() int64 {
+-	return int64(fastrand64() & rngMask)
++func (*runtimeSource) Int63() int64 {
++	return int64(runtime_rand() & rngMask)
+ }
+ 
+-func (*fastSource) Seed(int64) {
+-	panic("internal error: call to fastSource.Seed")
++func (*runtimeSource) Seed(int64) {
++	panic("internal error: call to runtimeSource.Seed")
+ }
+ 
+-func (*fastSource) Uint64() uint64 {
+-	return fastrand64()
++func (*runtimeSource) Uint64() uint64 {
++	return runtime_rand()
+ }
+ 
+-func (fs *fastSource) read(p []byte, readVal *int64, readPos *int8) (n int, err error) {
++func (fs *runtimeSource) read(p []byte, readVal *int64, readPos *int8) (n int, err error) {
+ 	fs.mu.Lock()
+ 	n, err = read(p, fs, readVal, readPos)
+ 	fs.mu.Unlock()
+@@ -405,7 +405,7 @@ func Seed(seed int64) {
+ 	// Otherwise either
+ 	// 1) orig == nil, which is the normal case when Seed is the first
+ 	// top-level function to be called, or
+-	// 2) orig is already a fastSource, in which case we need to change
++	// 2) orig is already a runtimeSource, in which case we need to change
+ 	// to a lockedSource.
+ 	// Either way we do the same thing.
+ 
+diff --git a/src/math/rand/v2/rand.go b/src/math/rand/v2/rand.go
+index 5382f809e0..f490408472 100644
+--- a/src/math/rand/v2/rand.go
++++ b/src/math/rand/v2/rand.go
+@@ -250,20 +250,16 @@ func (r *Rand) Shuffle(n int, swap func(i, j int)) {
+ 
+ // globalRand is the source of random numbers for the top-level
+ // convenience functions.
+-var globalRand = &Rand{src: &fastSource{}}
++var globalRand = &Rand{src: &runtimeSource{}}
+ 
+-//go:linkname fastrand64
+-func fastrand64() uint64
++//go:linkname runtime_rand runtime.rand
++func runtime_rand() uint64
+ 
+-// fastSource is a Source that uses the runtime fastrand functions.
+-type fastSource struct{}
++// runtimeSource is a Source that uses the runtime fastrand functions.
++type runtimeSource struct{}
+ 
+-func (*fastSource) Int64() int64 {
+-	return int64(fastrand64() << 1 >> 1)
+-}
+-
+-func (*fastSource) Uint64() uint64 {
+-	return fastrand64()
++func (*runtimeSource) Uint64() uint64 {
++	return runtime_rand()
+ }
+ 
+ // Int64 returns a non-negative pseudo-random 63-bit integer as an int64
+diff --git a/src/net/dnsclient.go b/src/net/dnsclient.go
+index b609dbd468..204620b2ed 100644
+--- a/src/net/dnsclient.go
++++ b/src/net/dnsclient.go
+@@ -8,15 +8,17 @@ import (
+ 	"internal/bytealg"
+ 	"internal/itoa"
+ 	"sort"
++	_ "unsafe" // for go:linkname
+ 
+ 	"golang.org/x/net/dns/dnsmessage"
+ )
+ 
+ // provided by runtime
+-func fastrandu() uint
++//go:linkname runtime_rand runtime.rand
++func runtime_rand() uint64
+ 
+ func randInt() int {
+-	return int(fastrandu() >> 1) // clear sign bit
++	return int(uint(runtime_rand()) >> 1) // clear sign bit
+ }
+ 
+ func randIntn(n int) int {
+diff --git a/src/os/tempfile.go b/src/os/tempfile.go
+index 315f65ad9c..7f2b6a883c 100644
+--- a/src/os/tempfile.go
++++ b/src/os/tempfile.go
+@@ -8,16 +8,18 @@ import (
+ 	"errors"
+ 	"internal/bytealg"
+ 	"internal/itoa"
++	_ "unsafe" // for go:linkname
+ )
+ 
+-// fastrand provided by runtime.
++// random number source provided by runtime.
+ // We generate random temporary file names so that there's a good
+ // chance the file doesn't exist yet - keeps the number of tries in
+ // TempFile to a minimum.
+-func fastrand() uint32
++//go:linkname runtime_rand runtime.rand
++func runtime_rand() uint64
+ 
+ func nextRandom() string {
+-	return itoa.Uitoa(uint(fastrand()))
++	return itoa.Uitoa(uint(runtime_rand()))
+ }
+ 
+ // CreateTemp creates a new temporary file in the directory dir,
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 336058d159..eaf9c91490 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -66,7 +66,7 @@ func f32hash(p unsafe.Pointer, h uintptr) uintptr {
+ 	case f == 0:
+ 		return c1 * (c0 ^ h) // +0, -0
+ 	case f != f:
+-		return c1 * (c0 ^ h ^ uintptr(fastrand())) // any kind of NaN
++		return c1 * (c0 ^ h ^ uintptr(rand())) // any kind of NaN
+ 	default:
+ 		return memhash(p, h, 4)
+ 	}
+@@ -78,7 +78,7 @@ func f64hash(p unsafe.Pointer, h uintptr) uintptr {
+ 	case f == 0:
+ 		return c1 * (c0 ^ h) // +0, -0
+ 	case f != f:
+-		return c1 * (c0 ^ h ^ uintptr(fastrand())) // any kind of NaN
++		return c1 * (c0 ^ h ^ uintptr(rand())) // any kind of NaN
+ 	default:
+ 		return memhash(p, h, 8)
+ 	}
+@@ -390,17 +390,18 @@ func alginit() {
+ 		initAlgAES()
+ 		return
+ 	}
+-	getRandomData((*[len(hashkey) * goarch.PtrSize]byte)(unsafe.Pointer(&hashkey))[:])
+-	hashkey[0] |= 1 // make sure these numbers are odd
+-	hashkey[1] |= 1
+-	hashkey[2] |= 1
+-	hashkey[3] |= 1
++	for i := range hashkey {
++		hashkey[i] = uintptr(rand()) | 1 // make sure these numbers are odd
++	}
+ }
+ 
+ func initAlgAES() {
+ 	useAeshash = true
+ 	// Initialize with random data so hash collisions will be hard to engineer.
+-	getRandomData(aeskeysched[:])
++	key := (*[hashRandomBytes / 8]uint64)(unsafe.Pointer(&aeskeysched))
++	for i := range key {
++		key[i] = bootstrapRand()
++	}
+ }
+ 
+ // Note: These routines perform the read with a native endianness.
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 9249550fd7..2e707b96e2 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -31,6 +31,8 @@ var Exitsyscall = exitsyscall
+ var LockedOSThread = lockedOSThread
+ var Xadduintptr = atomic.Xadduintptr
+ 
++var ReadRandomFailed = &readRandomFailed
++
+ var Fastlog2 = fastlog2
+ 
+ var Atoi = atoi
+@@ -398,9 +400,9 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
+ 	return
+ }
+ 
+-func Fastrand() uint32          { return fastrand() }
+-func Fastrand64() uint64        { return fastrand64() }
+-func Fastrandn(n uint32) uint32 { return fastrandn(n) }
++func Fastrand() uint32          { return uint32(rand()) }
++func Fastrand64() uint64        { return rand() }
++func Fastrandn(n uint32) uint32 { return randn(n) }
+ 
+ type ProfBuf profBuf
+ 
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index b8c7caeebc..bad49a346e 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -440,14 +440,14 @@ func typeAssert(s *abi.TypeAssert, t *_type) *itab {
+ 
+ 	// Maybe update the cache, so the next time the generated code
+ 	// doesn't need to call into the runtime.
+-	if fastrand()&1023 != 0 {
++	if cheaprand()&1023 != 0 {
+ 		// Only bother updating the cache ~1 in 1000 times.
+ 		return tab
+ 	}
+ 	// Load the current cache.
+ 	oldC := (*abi.TypeAssertCache)(atomic.Loadp(unsafe.Pointer(&s.Cache)))
+ 
+-	if fastrand()&uint32(oldC.Mask) != 0 {
++	if cheaprand()&uint32(oldC.Mask) != 0 {
+ 		// As cache gets larger, choose to update it less often
+ 		// so we can amortize the cost of building a new cache.
+ 		return tab
+@@ -540,7 +540,7 @@ func interfaceSwitch(s *abi.InterfaceSwitch, t *_type) (int, *itab) {
+ 
+ 	// Maybe update the cache, so the next time the generated code
+ 	// doesn't need to call into the runtime.
+-	if fastrand()&1023 != 0 {
++	if cheaprand()&1023 != 0 {
+ 		// Only bother updating the cache ~1 in 1000 times.
+ 		// This ensures we don't waste memory on switches, or
+ 		// switch arguments, that only happen a few times.
+@@ -549,7 +549,7 @@ func interfaceSwitch(s *abi.InterfaceSwitch, t *_type) (int, *itab) {
+ 	// Load the current cache.
+ 	oldC := (*abi.InterfaceSwitchCache)(atomic.Loadp(unsafe.Pointer(&s.Cache)))
+ 
+-	if fastrand()&uint32(oldC.Mask) != 0 {
++	if cheaprand()&uint32(oldC.Mask) != 0 {
+ 		// As cache gets larger, choose to update it less often
+ 		// so we can amortize the cost of building a new cache
+ 		// (that cost is linear in oldc.Mask).
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index ce03114edc..e2cb2e456e 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1472,7 +1472,7 @@ func fastexprand(mean int) int32 {
+ 	// x = -log_e(q) * mean
+ 	// x = log_2(q) * (-log_e(2)) * mean    ; Using log_2 for efficiency
+ 	const randomBitCount = 26
+-	q := fastrandn(1<<randomBitCount) + 1
++	q := cheaprandn(1<<randomBitCount) + 1
+ 	qlog := fastlog2(float64(q)) - randomBitCount
+ 	if qlog > 0 {
+ 		qlog = 0
+@@ -1490,7 +1490,7 @@ func nextSampleNoFP() uintptr {
+ 		rate = 0x3fffffff
+ 	}
+ 	if rate != 0 {
+-		return uintptr(fastrandn(uint32(2 * rate)))
++		return uintptr(cheaprandn(uint32(2 * rate)))
+ 	}
+ 	return 0
+ }
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 11daeb7568..cd3f838fa1 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -238,8 +238,8 @@ func (h *hmap) incrnoverflow() {
+ 	// as many overflow buckets as buckets.
+ 	mask := uint32(1)<<(h.B-15) - 1
+ 	// Example: if h.B == 18, then mask == 7,
+-	// and fastrand & 7 == 0 with probability 1/8.
+-	if fastrand()&mask == 0 {
++	// and rand() & 7 == 0 with probability 1/8.
++	if uint32(rand())&mask == 0 {
+ 		h.noverflow++
+ 	}
+ }
+@@ -293,7 +293,7 @@ func makemap64(t *maptype, hint int64, h *hmap) *hmap {
+ // at compile time and the map needs to be allocated on the heap.
+ func makemap_small() *hmap {
+ 	h := new(hmap)
+-	h.hash0 = fastrand()
++	h.hash0 = uint32(rand())
+ 	return h
+ }
+ 
+@@ -312,7 +312,7 @@ func makemap(t *maptype, hint int, h *hmap) *hmap {
+ 	if h == nil {
+ 		h = new(hmap)
+ 	}
+-	h.hash0 = fastrand()
++	h.hash0 = uint32(rand())
+ 
+ 	// Find the size parameter B which will hold the requested # of elements.
+ 	// For hint < 0 overLoadFactor returns false since hint < bucketCnt.
+@@ -797,7 +797,7 @@ search:
+ 			// Reset the hash seed to make it more difficult for attackers to
+ 			// repeatedly trigger hash collisions. See issue 25237.
+ 			if h.count == 0 {
+-				h.hash0 = fastrand()
++				h.hash0 = uint32(rand())
+ 			}
+ 			break search
+ 		}
+@@ -843,12 +843,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 	}
+ 
+ 	// decide where to start
+-	var r uintptr
+-	if h.B > 31-bucketCntBits {
+-		r = uintptr(fastrand64())
+-	} else {
+-		r = uintptr(fastrand())
+-	}
++	r := uintptr(rand())
+ 	it.startBucket = r & bucketMask(h.B)
+ 	it.offset = uint8(r >> h.B & (bucketCnt - 1))
+ 
+@@ -1032,7 +1027,7 @@ func mapclear(t *maptype, h *hmap) {
+ 
+ 	// Reset the hash seed to make it more difficult for attackers to
+ 	// repeatedly trigger hash collisions. See issue 25237.
+-	h.hash0 = fastrand()
++	h.hash0 = uint32(rand())
+ 
+ 	// Keep the mapextra allocation but clear any extra information.
+ 	if h.extra != nil {
+@@ -1619,7 +1614,7 @@ func keys(m any, p unsafe.Pointer) {
+ 		return
+ 	}
+ 	s := (*slice)(p)
+-	r := int(fastrand())
++	r := int(rand())
+ 	offset := uint8(r >> h.B & (bucketCnt - 1))
+ 	if h.B == 0 {
+ 		copyKeys(t, h, (*bmap)(h.buckets), s, offset)
+@@ -1682,7 +1677,7 @@ func values(m any, p unsafe.Pointer) {
+ 		return
+ 	}
+ 	s := (*slice)(p)
+-	r := int(fastrand())
++	r := int(rand())
+ 	offset := uint8(r >> h.B & (bucketCnt - 1))
+ 	if h.B == 0 {
+ 		copyValues(t, h, (*bmap)(h.buckets), s, offset)
+diff --git a/src/runtime/map_fast32.go b/src/runtime/map_fast32.go
+index d10dca3e91..e1dd495365 100644
+--- a/src/runtime/map_fast32.go
++++ b/src/runtime/map_fast32.go
+@@ -348,7 +348,7 @@ search:
+ 			// Reset the hash seed to make it more difficult for attackers to
+ 			// repeatedly trigger hash collisions. See issue 25237.
+ 			if h.count == 0 {
+-				h.hash0 = fastrand()
++				h.hash0 = uint32(rand())
+ 			}
+ 			break search
+ 		}
+diff --git a/src/runtime/map_fast64.go b/src/runtime/map_fast64.go
+index d771e0b747..7ca35ec6cb 100644
+--- a/src/runtime/map_fast64.go
++++ b/src/runtime/map_fast64.go
+@@ -350,7 +350,7 @@ search:
+ 			// Reset the hash seed to make it more difficult for attackers to
+ 			// repeatedly trigger hash collisions. See issue 25237.
+ 			if h.count == 0 {
+-				h.hash0 = fastrand()
++				h.hash0 = uint32(rand())
+ 			}
+ 			break search
+ 		}
+diff --git a/src/runtime/map_faststr.go b/src/runtime/map_faststr.go
+index ef71da859a..22e1f61f06 100644
+--- a/src/runtime/map_faststr.go
++++ b/src/runtime/map_faststr.go
+@@ -376,7 +376,7 @@ search:
+ 			// Reset the hash seed to make it more difficult for attackers to
+ 			// repeatedly trigger hash collisions. See issue 25237.
+ 			if h.count == 0 {
+-				h.hash0 = fastrand()
++				h.hash0 = uint32(rand())
+ 			}
+ 			break search
+ 		}
+diff --git a/src/runtime/mbitmap_allocheaders.go b/src/runtime/mbitmap_allocheaders.go
+index 33535a515a..2151c12b85 100644
+--- a/src/runtime/mbitmap_allocheaders.go
++++ b/src/runtime/mbitmap_allocheaders.go
+@@ -907,14 +907,14 @@ func heapSetType(x, dataSize uintptr, typ *_type, header **_type, span *mspan) (
+ 		if header == nil {
+ 			maxIterBytes = dataSize
+ 		}
+-		off := alignUp(uintptr(fastrand())%dataSize, goarch.PtrSize)
++		off := alignUp(uintptr(cheaprand())%dataSize, goarch.PtrSize)
+ 		size := dataSize - off
+ 		if size == 0 {
+ 			off -= goarch.PtrSize
+ 			size += goarch.PtrSize
+ 		}
+ 		interior := x + off
+-		size -= alignDown(uintptr(fastrand())%size, goarch.PtrSize)
++		size -= alignDown(uintptr(cheaprand())%size, goarch.PtrSize)
+ 		if size == 0 {
+ 			size = goarch.PtrSize
+ 		}
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 3d07cc70e8..e9af3d60cd 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -712,7 +712,7 @@ func (c *gcControllerState) enlistWorker() {
+ 	}
+ 	myID := gp.m.p.ptr().id
+ 	for tries := 0; tries < 5; tries++ {
+-		id := int32(fastrandn(uint32(gomaxprocs - 1)))
++		id := int32(cheaprandn(uint32(gomaxprocs - 1)))
+ 		if id >= myID {
+ 			id++
+ 		}
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index b1930b3020..aeb03985cc 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -498,7 +498,7 @@ func blockevent(cycles int64, skip int) {
+ // blocksampled returns true for all events where cycles >= rate. Shorter
+ // events have a cycles/rate random chance of returning true.
+ func blocksampled(cycles, rate int64) bool {
+-	if rate <= 0 || (rate > cycles && int64(fastrand())%rate > cycles) {
++	if rate <= 0 || (rate > cycles && cheaprand64()%rate > cycles) {
+ 		return false
+ 	}
+ 	return true
+@@ -589,11 +589,11 @@ func (lt *lockTimer) begin() {
+ 	if rate != 0 && rate < lt.timeRate {
+ 		lt.timeRate = rate
+ 	}
+-	if int64(fastrand())%lt.timeRate == 0 {
++	if int64(cheaprand())%lt.timeRate == 0 {
+ 		lt.timeStart = nanotime()
+ 	}
+ 
+-	if rate > 0 && int64(fastrand())%rate == 0 {
++	if rate > 0 && int64(cheaprand())%rate == 0 {
+ 		lt.tickStart = cputicks()
+ 	}
+ }
+@@ -645,8 +645,8 @@ func (prof *mLockProfile) recordLock(cycles int64, l *mutex) {
+ 		// We can only store one call stack for runtime-internal lock contention
+ 		// on this M, and we've already got one. Decide which should stay, and
+ 		// add the other to the report for runtime._LostContendedLock.
+-		prevScore := fastrand64() % uint64(prev)
+-		thisScore := fastrand64() % uint64(cycles)
++		prevScore := uint64(cheaprand64()) % uint64(prev)
++		thisScore := uint64(cheaprand64()) % uint64(cycles)
+ 		if prevScore > thisScore {
+ 			prof.cyclesLost += cycles
+ 			return
+@@ -790,7 +790,7 @@ func mutexevent(cycles int64, skip int) {
+ 		cycles = 0
+ 	}
+ 	rate := int64(atomic.Load64(&mutexprofilerate))
+-	if rate > 0 && int64(fastrand())%rate == 0 {
++	if rate > 0 && cheaprand64()%rate == 0 {
+ 		saveblockevent(cycles, rate, skip+1, mutexProfile)
+ 	}
+ }
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 81629f02a2..92daf13b1a 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -198,11 +198,11 @@ func exitThread(wait *atomic.Uint32) {
+ var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ //go:nosplit
+-func getRandomData(r []byte) {
++func readRandom(r []byte) int {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	closefd(fd)
+-	extendRandom(r, int(n))
++	return int(n)
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index b26922c908..3a5078a64c 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -239,11 +239,11 @@ func exitThread(wait *atomic.Uint32) {
+ var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ //go:nosplit
+-func getRandomData(r []byte) {
++func readRandom(r []byte) int {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	closefd(fd)
+-	extendRandom(r, int(n))
++	return int(n)
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index ff33db084b..430d1865df 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -194,11 +194,11 @@ func getPageSize() uintptr {
+ var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ //go:nosplit
+-func getRandomData(r []byte) {
++func readRandom(r []byte) int {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	closefd(fd)
+-	extendRandom(r, int(n))
++	return int(n)
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os_darwin_arm64.go b/src/runtime/os_darwin_arm64.go
+index b808150de0..ebc1b139a6 100644
+--- a/src/runtime/os_darwin_arm64.go
++++ b/src/runtime/os_darwin_arm64.go
+@@ -6,7 +6,6 @@ package runtime
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 80c1267765..2aeea17755 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -181,11 +181,11 @@ func osinit() {
+ var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ //go:nosplit
+-func getRandomData(r []byte) {
++func readRandom(r []byte) int {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	closefd(fd)
+-	extendRandom(r, int(n))
++	return int(n)
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index c05e00f6ac..d0d6f14fa0 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -283,11 +283,11 @@ func osinit() {
+ var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ //go:nosplit
+-func getRandomData(r []byte) {
++func readRandom(r []byte) int {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	closefd(fd)
+-	extendRandom(r, int(n))
++	return int(n)
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os_freebsd_arm.go b/src/runtime/os_freebsd_arm.go
+index ae80119fe1..5f6bf46798 100644
+--- a/src/runtime/os_freebsd_arm.go
++++ b/src/runtime/os_freebsd_arm.go
+@@ -49,7 +49,6 @@ func archauxv(tag, val uintptr) {
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_freebsd_arm64.go b/src/runtime/os_freebsd_arm64.go
+index b5b25f0dc5..58bc5d34b7 100644
+--- a/src/runtime/os_freebsd_arm64.go
++++ b/src/runtime/os_freebsd_arm64.go
+@@ -6,7 +6,6 @@ package runtime
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+ 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_js.go b/src/runtime/os_js.go
+index 65fb499de6..099c5265a0 100644
+--- a/src/runtime/os_js.go
++++ b/src/runtime/os_js.go
+@@ -32,6 +32,11 @@ func usleep(usec uint32) {
+ //go:noescape
+ func getRandomData(r []byte)
+ 
++func readRandom(r []byte) int {
++	getRandomData(r)
++	return len(r)
++}
++
+ func goenvs() {
+ 	goenvs_unix()
+ }
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 6386b82a85..0ba607fe1f 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -288,10 +288,6 @@ func sysargs(argc int32, argv **byte) {
+ 	auxv = auxvreadbuf[: pairs*2 : pairs*2]
+ }
+ 
+-// startupRandomData holds random bytes initialized at startup. These come from
+-// the ELF AT_RANDOM auxiliary vector.
+-var startupRandomData []byte
+-
+ // secureMode holds the value of AT_SECURE passed in the auxiliary vector.
+ var secureMode bool
+ 
+@@ -303,7 +299,7 @@ func sysauxv(auxv []uintptr) (pairs int) {
+ 		case _AT_RANDOM:
+ 			// The kernel provides a pointer to 16-bytes
+ 			// worth of random data.
+-			startupRandomData = (*[16]byte)(unsafe.Pointer(val))[:]
++			startupRand = (*[16]byte)(unsafe.Pointer(val))[:]
+ 
+ 		case _AT_PAGESZ:
+ 			physPageSize = val
+@@ -352,16 +348,11 @@ func osinit() {
+ 
+ var urandom_dev = []byte("/dev/urandom\x00")
+ 
+-func getRandomData(r []byte) {
+-	if startupRandomData != nil {
+-		n := copy(r, startupRandomData)
+-		extendRandom(r, n)
+-		return
+-	}
++func readRandom(r []byte) int {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	closefd(fd)
+-	extendRandom(r, int(n))
++	return int(n)
+ }
+ 
+ func goenvs() {
+@@ -656,7 +647,7 @@ func setThreadCPUProfiler(hz int32) {
+ 	// activates may do a couple milliseconds of GC-related work and nothing
+ 	// else in the few seconds that the profiler observes.
+ 	spec := new(itimerspec)
+-	spec.it_value.setNsec(1 + int64(fastrandn(uint32(1e9/hz))))
++	spec.it_value.setNsec(1 + int64(cheaprandn(uint32(1e9/hz))))
+ 	spec.it_interval.setNsec(1e9 / int64(hz))
+ 
+ 	var timerid int32
+diff --git a/src/runtime/os_linux_arm.go b/src/runtime/os_linux_arm.go
+index b9779159ad..5e1274ebab 100644
+--- a/src/runtime/os_linux_arm.go
++++ b/src/runtime/os_linux_arm.go
+@@ -52,7 +52,6 @@ func osArchInit() {}
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+ 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_linux_arm64.go b/src/runtime/os_linux_arm64.go
+index 2daa56fce7..62cead1d22 100644
+--- a/src/runtime/os_linux_arm64.go
++++ b/src/runtime/os_linux_arm64.go
+@@ -19,7 +19,6 @@ func osArchInit() {}
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+ 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_linux_mips64x.go b/src/runtime/os_linux_mips64x.go
+index 11d35bc020..770cc27ba7 100644
+--- a/src/runtime/os_linux_mips64x.go
++++ b/src/runtime/os_linux_mips64x.go
+@@ -19,7 +19,6 @@ func osArchInit() {}
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+ 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_linux_mipsx.go b/src/runtime/os_linux_mipsx.go
+index cdf83ff71d..3807e6d051 100644
+--- a/src/runtime/os_linux_mipsx.go
++++ b/src/runtime/os_linux_mipsx.go
+@@ -13,7 +13,6 @@ func osArchInit() {}
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+ 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 7cbba48194..8abb688aae 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -274,11 +274,11 @@ func osinit() {
+ var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ //go:nosplit
+-func getRandomData(r []byte) {
++func readRandom(r []byte) int {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	closefd(fd)
+-	extendRandom(r, int(n))
++	return int(n)
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os_netbsd_arm.go b/src/runtime/os_netbsd_arm.go
+index 5fb4e08d66..7494a387e3 100644
+--- a/src/runtime/os_netbsd_arm.go
++++ b/src/runtime/os_netbsd_arm.go
+@@ -31,7 +31,6 @@ func checkgoarm() {
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_netbsd_arm64.go b/src/runtime/os_netbsd_arm64.go
+index 2dda9c9274..48841afdb6 100644
+--- a/src/runtime/os_netbsd_arm64.go
++++ b/src/runtime/os_netbsd_arm64.go
+@@ -20,7 +20,6 @@ func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintp
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index aa2ba859a8..856979910a 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -142,11 +142,11 @@ func osinit() {
+ var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ //go:nosplit
+-func getRandomData(r []byte) {
++func readRandom(r []byte) int {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	closefd(fd)
+-	extendRandom(r, int(n))
++	return int(n)
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os_openbsd_arm.go b/src/runtime/os_openbsd_arm.go
+index 0a2409676c..d5dc8cb479 100644
+--- a/src/runtime/os_openbsd_arm.go
++++ b/src/runtime/os_openbsd_arm.go
+@@ -17,7 +17,6 @@ func checkgoarm() {
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_openbsd_arm64.go b/src/runtime/os_openbsd_arm64.go
+index d71de7d196..4b2c6e3fe9 100644
+--- a/src/runtime/os_openbsd_arm64.go
++++ b/src/runtime/os_openbsd_arm64.go
+@@ -6,7 +6,6 @@ package runtime
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_openbsd_mips64.go b/src/runtime/os_openbsd_mips64.go
+index ae220cd683..e5eeb2dcd1 100644
+--- a/src/runtime/os_openbsd_mips64.go
++++ b/src/runtime/os_openbsd_mips64.go
+@@ -6,7 +6,6 @@ package runtime
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index f4ff4d5f45..77446d09d3 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -327,24 +327,8 @@ func crash() {
+ }
+ 
+ //go:nosplit
+-func getRandomData(r []byte) {
+-	// inspired by wyrand see hash32.go for detail
+-	t := nanotime()
+-	v := getg().m.procid ^ uint64(t)
+-
+-	for len(r) > 0 {
+-		v ^= 0xa0761d6478bd642f
+-		v *= 0xe7037ed1a0b428db
+-		size := 8
+-		if len(r) < 8 {
+-			size = len(r)
+-		}
+-		for i := 0; i < size; i++ {
+-			r[i] = byte(v >> (8 * i))
+-		}
+-		r = r[size:]
+-		v = v>>32 | v<<32
+-	}
++func readRandom(r []byte) int {
++	return 0
+ }
+ 
+ func initsig(preinit bool) {
+diff --git a/src/runtime/os_plan9_arm.go b/src/runtime/os_plan9_arm.go
+index f165a34151..cce6229323 100644
+--- a/src/runtime/os_plan9_arm.go
++++ b/src/runtime/os_plan9_arm.go
+@@ -10,7 +10,6 @@ func checkgoarm() {
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_wasip1.go b/src/runtime/os_wasip1.go
+index 8811bb6178..acac2b3f7a 100644
+--- a/src/runtime/os_wasip1.go
++++ b/src/runtime/os_wasip1.go
+@@ -180,10 +180,11 @@ func usleep(usec uint32) {
+ 	}
+ }
+ 
+-func getRandomData(r []byte) {
++func readRandom(r []byte) int {
+ 	if random_get(unsafe.Pointer(&r[0]), size(len(r))) != 0 {
+-		throw("random_get failed")
++		return 0
+ 	}
++	return len(r)
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os_wasm.go b/src/runtime/os_wasm.go
+index bf78dfb5f9..ce260de67e 100644
+--- a/src/runtime/os_wasm.go
++++ b/src/runtime/os_wasm.go
+@@ -122,9 +122,7 @@ func syscall_now() (sec int64, nsec int32) {
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+ 
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 3772a864b2..6533b64004 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -468,7 +468,10 @@ func initLongPathSupport() {
+ 	// strictly necessary, but is a nice validity check for the near to
+ 	// medium term, when this functionality is still relatively new in
+ 	// Windows.
+-	getRandomData(longFileName[len(longFileName)-33 : len(longFileName)-1])
++	targ := longFileName[len(longFileName)-33 : len(longFileName)-1]
++	if readRandom(targ) != len(targ) {
++		readTimeRandom(targ)
++	}
+ 	start := copy(longFileName[:], sysDirectory[:sysDirectoryLen])
+ 	const dig = "0123456789abcdef"
+ 	for i := 0; i < 32; i++ {
+@@ -519,12 +522,12 @@ func osinit() {
+ }
+ 
+ //go:nosplit
+-func getRandomData(r []byte) {
++func readRandom(r []byte) int {
+ 	n := 0
+ 	if stdcall2(_ProcessPrng, uintptr(unsafe.Pointer(&r[0])), uintptr(len(r)))&0xff != 0 {
+ 		n = len(r)
+ 	}
+-	extendRandom(r, n)
++	return n
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 6348335804..7bb8b81c26 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -784,8 +784,8 @@ func schedinit() {
+ 	godebug := getGodebugEarly()
+ 	initPageTrace(godebug) // must run after mallocinit but before anything allocates
+ 	cpuinit(godebug)       // must run before alginit
+-	alginit()              // maps, hash, fastrand must not be used before this call
+-	fastrandinit()         // must run before mcommoninit
++	randinit()             // must run before alginit, mcommoninit
++	alginit()              // maps, hash, rand must not be used before this call
+ 	mcommoninit(gp.m, -1)
+ 	modulesinit()   // provides activeModules
+ 	typelinksinit() // uses maps, activeModules
+@@ -900,18 +900,7 @@ func mcommoninit(mp *m, id int64) {
+ 		mp.id = mReserveID()
+ 	}
+ 
+-	lo := uint32(int64Hash(uint64(mp.id), fastrandseed))
+-	hi := uint32(int64Hash(uint64(cputicks()), ^fastrandseed))
+-	if lo|hi == 0 {
+-		hi = 1
+-	}
+-	// Same behavior as for 1.17.
+-	// TODO: Simplify this.
+-	if goarch.BigEndian {
+-		mp.fastrand = uint64(lo)<<32 | uint64(hi)
+-	} else {
+-		mp.fastrand = uint64(hi)<<32 | uint64(lo)
+-	}
++	mrandinit(mp)
+ 
+ 	mpreinit(mp)
+ 	if mp.gsignal != nil {
+@@ -957,13 +946,6 @@ const (
+ 	osHasLowResClock = osHasLowResClockInt > 0
+ )
+ 
+-var fastrandseed uintptr
+-
+-func fastrandinit() {
+-	s := (*[unsafe.Sizeof(fastrandseed)]byte)(unsafe.Pointer(&fastrandseed))[:]
+-	getRandomData(s)
+-}
+-
+ // Mark gp ready to run.
+ func ready(gp *g, traceskip int, next bool) {
+ 	status := readgstatus(gp)
+@@ -3566,7 +3548,7 @@ func stealWork(now int64) (gp *g, inheritTime bool, rnow, pollUntil int64, newWo
+ 	for i := 0; i < stealTries; i++ {
+ 		stealTimersOrRunNextG := i == stealTries-1
+ 
+-		for enum := stealOrder.start(fastrand()); !enum.done(); enum.next() {
++		for enum := stealOrder.start(cheaprand()); !enum.done(); enum.next() {
+ 			if sched.gcwaiting.Load() {
+ 				// GC work may be available.
+ 				return nil, false, now, pollUntil, true
+@@ -4955,7 +4937,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+ 		}
+ 	}
+ 	// Track initial transition?
+-	newg.trackingSeq = uint8(fastrand())
++	newg.trackingSeq = uint8(cheaprand())
+ 	if newg.trackingSeq%gTrackingPeriod == 0 {
+ 		newg.tracking = true
+ 	}
+@@ -6636,7 +6618,7 @@ const randomizeScheduler = raceenabled
+ // If the run queue is full, runnext puts g on the global queue.
+ // Executed only by the owner P.
+ func runqput(pp *p, gp *g, next bool) {
+-	if randomizeScheduler && next && fastrandn(2) == 0 {
++	if randomizeScheduler && next && randn(2) == 0 {
+ 		next = false
+ 	}
+ 
+@@ -6689,7 +6671,7 @@ func runqputslow(pp *p, gp *g, h, t uint32) bool {
+ 
+ 	if randomizeScheduler {
+ 		for i := uint32(1); i <= n; i++ {
+-			j := fastrandn(i + 1)
++			j := cheaprandn(i + 1)
+ 			batch[i], batch[j] = batch[j], batch[i]
+ 		}
+ 	}
+@@ -6730,7 +6712,7 @@ func runqputbatch(pp *p, q *gQueue, qsize int) {
+ 			return (pp.runqtail + o) % uint32(len(pp.runq))
+ 		}
+ 		for i := uint32(1); i < n; i++ {
+-			j := fastrandn(i + 1)
++			j := cheaprandn(i + 1)
+ 			pp.runq[off(i)], pp.runq[off(j)] = pp.runq[off(j)], pp.runq[off(i)]
+ 		}
+ 	}
+diff --git a/src/runtime/rand.go b/src/runtime/rand.go
+new file mode 100644
+index 0000000000..6cb8deef51
+--- /dev/null
++++ b/src/runtime/rand.go
+@@ -0,0 +1,225 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Random number generation
++
++package runtime
++
++import (
++	"internal/chacha8rand"
++	"internal/goarch"
++	"runtime/internal/math"
++	"unsafe"
++	_ "unsafe" // for go:linkname
++)
++
++// OS-specific startup can set startupRand if the OS passes
++// random data to the process at startup time.
++// For example Linux passes 16 bytes in the auxv vector.
++var startupRand []byte
++
++// globalRand holds the global random state.
++// It is only used at startup and for creating new m's.
++// Otherwise the per-m random state should be used
++// by calling goodrand.
++var globalRand struct {
++	lock  mutex
++	seed  [32]byte
++	state chacha8rand.State
++	init  bool
++}
++
++var readRandomFailed bool
++
++// randinit initializes the global random state.
++// It must be called before any use of grand.
++func randinit() {
++	lock(&globalRand.lock)
++	if globalRand.init {
++		fatal("randinit twice")
++	}
++
++	seed := &globalRand.seed
++	if startupRand != nil {
++		for i, c := range startupRand {
++			seed[i%len(seed)] ^= c
++		}
++		clear(startupRand)
++		startupRand = nil
++	} else {
++		if readRandom(seed[:]) != len(seed) {
++			// readRandom should never fail, but if it does we'd rather
++			// not make Go binaries completely unusable, so make up
++			// some random data based on the current time.
++			readRandomFailed = true
++			readTimeRandom(seed[:])
++		}
++	}
++	globalRand.state.Init(*seed)
++	clear(seed[:])
++	globalRand.init = true
++	unlock(&globalRand.lock)
++}
++
++// readTimeRandom stretches any entropy in the current time
++// into entropy the length of r and XORs it into r.
++// This is a fallback for when readRandom does not read
++// the full requested amount.
++// Whatever entropy r already contained is preserved.
++func readTimeRandom(r []byte) {
++	// Inspired by wyrand.
++	// An earlier version of this code used getg().m.procid as well,
++	// but note that this is called so early in startup that procid
++	// is not initialized yet.
++	v := uint64(nanotime())
++	for len(r) > 0 {
++		v ^= 0xa0761d6478bd642f
++		v *= 0xe7037ed1a0b428db
++		size := 8
++		if len(r) < 8 {
++			size = len(r)
++		}
++		for i := 0; i < size; i++ {
++			r[i] ^= byte(v >> (8 * i))
++		}
++		r = r[size:]
++		v = v>>32 | v<<32
++	}
++}
++
++// bootstrapRand returns a random uint64 from the global random generator.
++func bootstrapRand() uint64 {
++	lock(&globalRand.lock)
++	if !globalRand.init {
++		fatal("randinit missed")
++	}
++	for {
++		if x, ok := globalRand.state.Next(); ok {
++			unlock(&globalRand.lock)
++			return x
++		}
++		globalRand.state.Refill()
++	}
++}
++
++// bootstrapRandReseed reseeds the bootstrap random number generator,
++// clearing from memory any trace of previously returned random numbers.
++func bootstrapRandReseed() {
++	lock(&globalRand.lock)
++	if !globalRand.init {
++		fatal("randinit missed")
++	}
++	globalRand.state.Reseed()
++	unlock(&globalRand.lock)
++}
++
++// rand32 is uint32(rand()), called from compiler-generated code.
++//go:nosplit
++func rand32() uint32 {
++	return uint32(rand())
++}
++
++// rand returns a random uint64 from the per-m chacha8 state.
++// Do not change signature: used via linkname from other packages.
++//go:nosplit
++//go:linkname rand
++func rand() uint64 {
++	// Note: We avoid acquirem here so that in the fast path
++	// there is just a getg, an inlined c.Next, and a return.
++	// The performance difference on a 16-core AMD is
++	// 3.7ns/call this way versus 4.3ns/call with acquirem (+16%).
++	mp := getg().m
++	c := &mp.chacha8
++	for {
++		// Note: c.Next is marked nosplit,
++		// so we don't need to use mp.locks
++		// on the fast path, which is that the
++		// first attempt succeeds.
++		x, ok := c.Next()
++		if ok {
++			return x
++		}
++		mp.locks++ // hold m even though c.Refill may do stack split checks
++		c.Refill()
++		mp.locks--
++	}
++}
++
++// mrandinit initializes the random state of an m.
++func mrandinit(mp *m) {
++	var seed [4]uint64
++	for i := range seed {
++		seed[i] = bootstrapRand()
++	}
++	bootstrapRandReseed() // erase key we just extracted
++	mp.chacha8.Init64(seed)
++	mp.cheaprand = rand()
++}
++
++// randn is like rand() % n but faster.
++// Do not change signature: used via linkname from other packages.
++//go:nosplit
++//go:linkname randn
++func randn(n uint32) uint32 {
++	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
++	return uint32((uint64(uint32(rand())) * uint64(n)) >> 32)
++}
++
++// cheaprand is a non-cryptographic-quality 32-bit random generator
++// suitable for calling at very high frequency (such as during scheduling decisions)
++// and at sensitive moments in the runtime (such as during stack unwinding).
++// it is "cheap" in the sense of both expense and quality.
++//
++// cheaprand must not be exported to other packages:
++// the rule is that other packages using runtime-provided
++// randomness must always use rand.
++//go:nosplit
++func cheaprand() uint32 {
++	mp := getg().m
++	// Implement wyrand: https://github.com/wangyi-fudan/wyhash
++	// Only the platform that math.Mul64 can be lowered
++	// by the compiler should be in this list.
++	if goarch.IsAmd64|goarch.IsArm64|goarch.IsPpc64|
++		goarch.IsPpc64le|goarch.IsMips64|goarch.IsMips64le|
++		goarch.IsS390x|goarch.IsRiscv64|goarch.IsLoong64 == 1 {
++		mp.cheaprand += 0xa0761d6478bd642f
++		hi, lo := math.Mul64(mp.cheaprand, mp.cheaprand^0xe7037ed1a0b428db)
++		return uint32(hi ^ lo)
++	}
++
++	// Implement xorshift64+: 2 32-bit xorshift sequences added together.
++	// Shift triplet [17,7,16] was calculated as indicated in Marsaglia's
++	// Xorshift paper: https://www.jstatsoft.org/article/view/v008i14/xorshift.pdf
++	// This generator passes the SmallCrush suite, part of TestU01 framework:
++	// http://simul.iro.umontreal.ca/testu01/tu01.html
++	t := (*[2]uint32)(unsafe.Pointer(&mp.cheaprand))
++	s1, s0 := t[0], t[1]
++	s1 ^= s1 << 17
++	s1 = s1 ^ s0 ^ s1>>7 ^ s0>>16
++	t[0], t[1] = s0, s1
++	return s0 + s1
++}
++
++// cheaprand64 is a non-cryptographic-quality 63-bit random generator
++// suitable for calling at very high frequency (such as during sampling decisions).
++// it is "cheap" in the sense of both expense and quality.
++//
++// cheaprand64 must not be exported to other packages:
++// the rule is that other packages using runtime-provided
++// randomness must always use rand.
++//go:nosplit
++func cheaprand64() int64 {
++	return int64(cheaprand())<<31 ^ int64(cheaprand())
++}
++
++// cheaprandn is like cheaprand() % n but faster.
++//
++// cheaprandn must not be exported to other packages:
++// the rule is that other packages using runtime-provided
++// randomness must always use randn.
++//go:nosplit
++func cheaprandn(n uint32) uint32 {
++	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
++	return uint32((uint64(cheaprand()) * uint64(n)) >> 32)
++}
+diff --git a/src/runtime/rand_test.go b/src/runtime/rand_test.go
+index 92d07ebada..94648c5216 100644
+--- a/src/runtime/rand_test.go
++++ b/src/runtime/rand_test.go
+@@ -10,6 +10,17 @@ import (
+ 	"testing"
+ )
+ 
++func TestReadRandom(t *testing.T) {
++	if *ReadRandomFailed {
++		switch GOOS {
++		default:
++			t.Fatalf("readRandom failed at startup")
++		case "plan9":
++			// ok
++		}
++	}
++}
++
+ func BenchmarkFastrand(b *testing.B) {
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		for pb.Next() {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 01f1a50670..e64be992b0 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -6,6 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/chacha8rand"
+ 	"internal/goarch"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+@@ -577,7 +578,6 @@ type m struct {
+ 	isExtraInC    bool          // m is an extra m that is not executing Go code
+ 	isExtraInSig  bool          // m is an extra m in a signal handler
+ 	freeWait      atomic.Uint32 // Whether it is safe to free g0 and delete m (one of freeMRef, freeMStack, freeMWait)
+-	fastrand      uint64
+ 	needextram    bool
+ 	traceback     uint8
+ 	ncgocall      uint64        // number of cgo calls in total
+@@ -632,6 +632,9 @@ type m struct {
+ 
+ 	mOS
+ 
++	chacha8   chacha8rand.State
++	cheaprand uint64
++
+ 	// Up to 10 locks held by this m, maintained by the lock ranking code.
+ 	locksHeldLen int
+ 	locksHeld    [10]heldLockInfo
+@@ -1009,27 +1012,6 @@ type forcegcstate struct {
+ 	idle atomic.Bool
+ }
+ 
+-// extendRandom extends the random numbers in r[:n] to the whole slice r.
+-// Treats n<0 as n==0.
+-func extendRandom(r []byte, n int) {
+-	if n < 0 {
+-		n = 0
+-	}
+-	for n < len(r) {
+-		// Extend random bits using hash function & time seed
+-		w := n
+-		if w > 16 {
+-			w = 16
+-		}
+-		h := memhash(unsafe.Pointer(&r[n-w]), uintptr(nanotime()), uintptr(w))
+-		for i := 0; i < goarch.PtrSize && n < len(r); i++ {
+-			r[n] = byte(h)
+-			n++
+-			h >>= 8
+-		}
+-	}
+-}
+-
+ // A _defer holds an entry on the list of deferred calls.
+ // If you add a field here, add code to clear it in deferProcStack.
+ // This struct must match the code in cmd/compile/internal/ssagen/ssa.go:deferstruct
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 34c06375c2..b3a3085cb0 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -173,7 +173,7 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
+ 			continue
+ 		}
+ 
+-		j := fastrandn(uint32(norder + 1))
++		j := cheaprandn(uint32(norder + 1))
+ 		pollorder[norder] = pollorder[j]
+ 		pollorder[j] = uint16(i)
+ 		norder++
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index 3b6874ca11..c87fc7658e 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -338,7 +338,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
+ 	//
+ 	// s.ticket compared with zero in couple of places, therefore set lowest bit.
+ 	// It will not affect treap's quality noticeably.
+-	s.ticket = fastrand() | 1
++	s.ticket = cheaprand() | 1
+ 	s.parent = last
+ 	*pt = s
+ 
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index cf856e135f..34984d86ff 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -6,8 +6,6 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"internal/goarch"
+-	"runtime/internal/math"
+ 	"unsafe"
+ )
+ 
+@@ -120,94 +118,6 @@ func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
+ // exported value for testing
+ const hashLoad = float32(loadFactorNum) / float32(loadFactorDen)
+ 
+-//go:nosplit
+-func fastrand() uint32 {
+-	mp := getg().m
+-	// Implement wyrand: https://github.com/wangyi-fudan/wyhash
+-	// Only the platform that math.Mul64 can be lowered
+-	// by the compiler should be in this list.
+-	if goarch.IsAmd64|goarch.IsArm64|goarch.IsPpc64|
+-		goarch.IsPpc64le|goarch.IsMips64|goarch.IsMips64le|
+-		goarch.IsS390x|goarch.IsRiscv64|goarch.IsLoong64 == 1 {
+-		mp.fastrand += 0xa0761d6478bd642f
+-		hi, lo := math.Mul64(mp.fastrand, mp.fastrand^0xe7037ed1a0b428db)
+-		return uint32(hi ^ lo)
+-	}
+-
+-	// Implement xorshift64+: 2 32-bit xorshift sequences added together.
+-	// Shift triplet [17,7,16] was calculated as indicated in Marsaglia's
+-	// Xorshift paper: https://www.jstatsoft.org/article/view/v008i14/xorshift.pdf
+-	// This generator passes the SmallCrush suite, part of TestU01 framework:
+-	// http://simul.iro.umontreal.ca/testu01/tu01.html
+-	t := (*[2]uint32)(unsafe.Pointer(&mp.fastrand))
+-	s1, s0 := t[0], t[1]
+-	s1 ^= s1 << 17
+-	s1 = s1 ^ s0 ^ s1>>7 ^ s0>>16
+-	t[0], t[1] = s0, s1
+-	return s0 + s1
+-}
+-
+-//go:nosplit
+-func fastrandn(n uint32) uint32 {
+-	// This is similar to fastrand() % n, but faster.
+-	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
+-	return uint32(uint64(fastrand()) * uint64(n) >> 32)
+-}
+-
+-func fastrand64() uint64 {
+-	mp := getg().m
+-	// Implement wyrand: https://github.com/wangyi-fudan/wyhash
+-	// Only the platform that math.Mul64 can be lowered
+-	// by the compiler should be in this list.
+-	if goarch.IsAmd64|goarch.IsArm64|goarch.IsPpc64|
+-		goarch.IsPpc64le|goarch.IsMips64|goarch.IsMips64le|
+-		goarch.IsS390x|goarch.IsRiscv64 == 1 {
+-		mp.fastrand += 0xa0761d6478bd642f
+-		hi, lo := math.Mul64(mp.fastrand, mp.fastrand^0xe7037ed1a0b428db)
+-		return hi ^ lo
+-	}
+-
+-	// Implement xorshift64+: 2 32-bit xorshift sequences added together.
+-	// Xorshift paper: https://www.jstatsoft.org/article/view/v008i14/xorshift.pdf
+-	// This generator passes the SmallCrush suite, part of TestU01 framework:
+-	// http://simul.iro.umontreal.ca/testu01/tu01.html
+-	t := (*[2]uint32)(unsafe.Pointer(&mp.fastrand))
+-	s1, s0 := t[0], t[1]
+-	s1 ^= s1 << 17
+-	s1 = s1 ^ s0 ^ s1>>7 ^ s0>>16
+-	r := uint64(s0 + s1)
+-
+-	s0, s1 = s1, s0
+-	s1 ^= s1 << 17
+-	s1 = s1 ^ s0 ^ s1>>7 ^ s0>>16
+-	r += uint64(s0+s1) << 32
+-
+-	t[0], t[1] = s0, s1
+-	return r
+-}
+-
+-func fastrandu() uint {
+-	if goarch.PtrSize == 4 {
+-		return uint(fastrand())
+-	}
+-	return uint(fastrand64())
+-}
+-
+-//go:linkname rand_fastrand64 math/rand.fastrand64
+-func rand_fastrand64() uint64 { return fastrand64() }
+-
+-//go:linkname rand2_fastrand64 math/rand/v2.fastrand64
+-func rand2_fastrand64() uint64 { return fastrand64() }
+-
+-//go:linkname sync_fastrandn sync.fastrandn
+-func sync_fastrandn(n uint32) uint32 { return fastrandn(n) }
+-
+-//go:linkname net_fastrandu net.fastrandu
+-func net_fastrandu() uint { return fastrandu() }
+-
+-//go:linkname os_fastrand os.fastrand
+-func os_fastrand() uint32 { return fastrand() }
+-
+ // in internal/bytealg/equal_*.s
+ //
+ //go:noescape
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 87b687a196..8b878525d0 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -931,7 +931,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, strict bool) (int32, uint
+ 				cache.inUse++
+ 				if cache.inUse == 1 {
+ 					e := &cache.entries[ck]
+-					ci := fastrandn(uint32(len(cache.entries[ck])))
++					ci := cheaprandn(uint32(len(cache.entries[ck])))
+ 					e[ci] = e[0]
+ 					e[0] = pcvalueCacheEnt{
+ 						targetpc: targetpc,
+diff --git a/src/sync/pool.go b/src/sync/pool.go
+index ffab67bf19..3359aba57b 100644
+--- a/src/sync/pool.go
++++ b/src/sync/pool.go
+@@ -76,7 +76,8 @@ type poolLocal struct {
+ }
+ 
+ // from runtime
+-func fastrandn(n uint32) uint32
++//go:linkname runtime_randn runtime.randn
++func runtime_randn(n uint32) uint32
+ 
+ var poolRaceHash [128]uint64
+ 
+@@ -97,7 +98,7 @@ func (p *Pool) Put(x any) {
+ 		return
+ 	}
+ 	if race.Enabled {
+-		if fastrandn(4) == 0 {
++		if runtime_randn(4) == 0 {
+ 			// Randomly drop x on floor.
+ 			return
+ 		}
+diff --git a/test/live.go b/test/live.go
+index 6badb011b0..5658c8ba06 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -667,7 +667,7 @@ func bad40() {
+ 
+ func good40() {
+ 	ret := T40{}              // ERROR "stack object ret T40$"
+-	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ runtime.hmap$"
++	ret.m = make(map[int]int) // ERROR "live at call to rand32: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ runtime.hmap$"
+ 	t := &ret
+ 	printnl() // ERROR "live at call to printnl: ret$"
+ 	// Note: ret is live at the printnl because the compiler moves &ret
+diff --git a/test/live_regabi.go b/test/live_regabi.go
+index 80a9cc1002..a335126b3f 100644
+--- a/test/live_regabi.go
++++ b/test/live_regabi.go
+@@ -664,7 +664,7 @@ func bad40() {
+ 
+ func good40() {
+ 	ret := T40{}              // ERROR "stack object ret T40$"
+-	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ runtime.hmap$"
++	ret.m = make(map[int]int) // ERROR "live at call to rand32: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ runtime.hmap$"
+ 	t := &ret
+ 	printnl() // ERROR "live at call to printnl: ret$"
+ 	// Note: ret is live at the printnl because the compiler moves &ret

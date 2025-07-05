@@ -11,9 +11,307 @@ Date:   Mon Jun 25 17:36:09 2012 -0400
     R=rsc, iant
     CC=golang-dev
     https://golang.org/cl/6202068
-
+---
  src/pkg/encoding/json/decode.go      | 44 +++++++++++++++--
  src/pkg/encoding/json/decode_test.go | 96 +++++++++++++++++++++++++++++++++---
  src/pkg/encoding/json/encode.go      | 10 +++-
  src/pkg/encoding/json/stream.go      |  4 ++
  4 files changed, 143 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index eb9fa4a8ab..bce868bb8f 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -137,6 +137,22 @@ func (d *decodeState) unmarshal(v interface{}) (err error) {
+ 	return d.savedError
+ }
+ 
++// A Number represents a JSON number literal.
++type Number string
++
++// String returns the literal text of the number.
++func (n Number) String() string { return string(n) }
++
++// Float64 returns the number as a float64.
++func (n Number) Float64() (float64, error) {
++	return strconv.ParseFloat(string(n), 64)
++}
++
++// Int64 returns the number as an int64.
++func (n Number) Int64() (int64, error) {
++	return strconv.ParseInt(string(n), 10, 64)
++}
++
+ // decodeState represents the state while decoding a JSON value.
+ type decodeState struct {
+ 	data       []byte
+@@ -145,6 +161,7 @@ type decodeState struct {
+ 	nextscan   scanner // for calls to nextValue
+ 	savedError error
+ 	tempstr    string // scratch space to avoid some allocations
++	useNumber  bool
+ }
+ 
+ // errPhase is used for errors that should not happen unless
+@@ -576,6 +593,21 @@ func (d *decodeState) literal(v reflect.Value) {
+ 	d.literalStore(d.data[start:d.off], v, false)
+ }
+ 
++// convertNumber converts the number literal s to a float64 or a Number
++// depending on the setting of d.useNumber.
++func (d *decodeState) convertNumber(s string) (interface{}, error) {
++	if d.useNumber {
++		return Number(s), nil
++	}
++	f, err := strconv.ParseFloat(s, 64)
++	if err != nil {
++		return nil, &UnmarshalTypeError{"number " + s, reflect.TypeOf(0.0)}
++	}
++	return f, nil
++}
++
++var numberType = reflect.TypeOf(Number(""))
++
+ // literalStore decodes a literal stored in item into v.
+ //
+ // fromQuoted indicates whether this literal came from unwrapping a
+@@ -664,15 +696,19 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 		s := string(item)
+ 		switch v.Kind() {
+ 		default:
++			if v.Kind() == reflect.String && v.Type() == numberType {
++				v.SetString(s)
++				break
++			}
+ 			if fromQuoted {
+ 				d.error(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
+ 			} else {
+ 				d.error(&UnmarshalTypeError{"number", v.Type()})
+ 			}
+ 		case reflect.Interface:
+-			n, err := strconv.ParseFloat(s, 64)
++			n, err := d.convertNumber(s)
+ 			if err != nil {
+-				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				d.saveError(err)
+ 				break
+ 			}
+ 			v.Set(reflect.ValueOf(n))
+@@ -826,9 +862,9 @@ func (d *decodeState) literalInterface() interface{} {
+ 		if c != '-' && (c < '0' || c > '9') {
+ 			d.error(errPhase)
+ 		}
+-		n, err := strconv.ParseFloat(string(item), 64)
++		n, err := d.convertNumber(string(item))
+ 		if err != nil {
+-			d.saveError(&UnmarshalTypeError{"number " + string(item), reflect.TypeOf(0.0)})
++			d.saveError(err)
+ 		}
+ 		return n
+ 	}
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index 5a85e3f751..e588b28533 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -22,6 +22,28 @@ type U struct {
+ 	Alphabet string `json:"alpha"`
+ }
+ 
++type V struct {
++	F1 interface{}
++	F2 int32
++	F3 Number
++}
++
++// ifaceNumAsFloat64/ifaceNumAsNumber are used to test unmarshalling with and
++// without UseNumber
++var ifaceNumAsFloat64 = map[string]interface{}{
++	"k1": float64(1),
++	"k2": "s",
++	"k3": []interface{}{float64(1), float64(2.0), float64(3e-3)},
++	"k4": map[string]interface{}{"kk1": "s", "kk2": float64(2)},
++}
++
++var ifaceNumAsNumber = map[string]interface{}{
++	"k1": Number("1"),
++	"k2": "s",
++	"k3": []interface{}{Number("1"), Number("2.0"), Number("3e-3")},
++	"k4": map[string]interface{}{"kk1": "s", "kk2": Number("2")},
++}
++
+ type tx struct {
+ 	x int
+ }
+@@ -53,10 +75,11 @@ var (
+ )
+ 
+ type unmarshalTest struct {
+-	in  string
+-	ptr interface{}
+-	out interface{}
+-	err error
++	in        string
++	ptr       interface{}
++	out       interface{}
++	err       error
++	useNumber bool
+ }
+ 
+ var unmarshalTests = []unmarshalTest{
+@@ -65,6 +88,10 @@ var unmarshalTests = []unmarshalTest{
+ 	{in: `1`, ptr: new(int), out: 1},
+ 	{in: `1.2`, ptr: new(float64), out: 1.2},
+ 	{in: `-5`, ptr: new(int16), out: int16(-5)},
++	{in: `2`, ptr: new(Number), out: Number("2"), useNumber: true},
++	{in: `2`, ptr: new(Number), out: Number("2")},
++	{in: `2`, ptr: new(interface{}), out: float64(2.0)},
++	{in: `2`, ptr: new(interface{}), out: Number("2"), useNumber: true},
+ 	{in: `"a\u1234"`, ptr: new(string), out: "a\u1234"},
+ 	{in: `"http:\/\/"`, ptr: new(string), out: "http://"},
+ 	{in: `"g-clef: \uD834\uDD1E"`, ptr: new(string), out: "g-clef: \U0001D11E"},
+@@ -72,6 +99,10 @@ var unmarshalTests = []unmarshalTest{
+ 	{in: "null", ptr: new(interface{}), out: nil},
+ 	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf("")}},
+ 	{in: `{"x": 1}`, ptr: new(tx), out: tx{}, err: &UnmarshalFieldError{"x", txType, txType.Field(0)}},
++	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
++	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: Number("1"), F2: int32(2), F3: Number("3")}, useNumber: true},
++	{in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(interface{}), out: ifaceNumAsFloat64},
++	{in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(interface{}), out: ifaceNumAsNumber, useNumber: true},
+ 
+ 	// Z has a "-" tag.
+ 	{in: `{"Y": 1, "Z": 2}`, ptr: new(T), out: T{Y: 1}},
+@@ -83,6 +114,7 @@ var unmarshalTests = []unmarshalTest{
+ 	// syntax errors
+ 	{in: `{"X": "foo", "Y"}`, err: &SyntaxError{"invalid character '}' after object key", 17}},
+ 	{in: `[1, 2, 3+]`, err: &SyntaxError{"invalid character '+' after array element", 9}},
++	{in: `{"X":12x}`, err: &SyntaxError{"invalid character 'x' after object key:value pair", 8}, useNumber: true},
+ 
+ 	// array tests
+ 	{in: `[1, 2, 3]`, ptr: new([3]int), out: [3]int{1, 2, 3}},
+@@ -143,6 +175,18 @@ func TestMarshalBadUTF8(t *testing.T) {
+ 	}
+ }
+ 
++func TestMarshalNumberZeroVal(t *testing.T) {
++	var n Number
++	out, err := Marshal(n)
++	if err != nil {
++		t.Fatal(err)
++	}
++	outStr := string(out)
++	if outStr != "0" {
++		t.Fatalf("Invalid zero val for Number: %q", outStr)
++	}
++}
++
+ func TestUnmarshal(t *testing.T) {
+ 	for i, tt := range unmarshalTests {
+ 		var scan scanner
+@@ -158,7 +202,11 @@ func TestUnmarshal(t *testing.T) {
+ 		}
+ 		// v = new(right-type)
+ 		v := reflect.New(reflect.TypeOf(tt.ptr).Elem())
+-		if err := Unmarshal([]byte(in), v.Interface()); !reflect.DeepEqual(err, tt.err) {
++		dec := NewDecoder(bytes.NewBuffer(in))
++		if tt.useNumber {
++			dec.UseNumber()
++		}
++		if err := dec.Decode(v.Interface()); !reflect.DeepEqual(err, tt.err) {
+ 			t.Errorf("#%d: %v want %v", i, err, tt.err)
+ 			continue
+ 		}
+@@ -179,7 +227,11 @@ func TestUnmarshal(t *testing.T) {
+ 				continue
+ 			}
+ 			vv := reflect.New(reflect.TypeOf(tt.ptr).Elem())
+-			if err := Unmarshal(enc, vv.Interface()); err != nil {
++			dec = NewDecoder(bytes.NewBuffer(enc))
++			if tt.useNumber {
++				dec.UseNumber()
++			}
++			if err := dec.Decode(vv.Interface()); err != nil {
+ 				t.Errorf("#%d: error re-unmarshaling: %v", i, err)
+ 				continue
+ 			}
+@@ -208,6 +260,38 @@ func TestUnmarshalMarshal(t *testing.T) {
+ 	}
+ }
+ 
++var numberTests = []struct {
++	in       string
++	i        int64
++	intErr   string
++	f        float64
++	floatErr string
++}{
++	{in: "-1.23e1", intErr: "strconv.ParseInt: parsing \"-1.23e1\": invalid syntax", f: -1.23e1},
++	{in: "-12", i: -12, f: -12.0},
++	{in: "1e1000", intErr: "strconv.ParseInt: parsing \"1e1000\": invalid syntax", floatErr: "strconv.ParseFloat: parsing \"1e1000\": value out of range"},
++}
++
++// Independent of Decode, basic coverage of the accessors in Number
++func TestNumberAccessors(t *testing.T) {
++	for _, tt := range numberTests {
++		n := Number(tt.in)
++		if s := n.String(); s != tt.in {
++			t.Errorf("Number(%q).String() is %q", tt.in, s)
++		}
++		if i, err := n.Int64(); err == nil && tt.intErr == "" && i != tt.i {
++			t.Errorf("Number(%q).Int64() is %d", tt.in, i)
++		} else if (err == nil && tt.intErr != "") || (err != nil && err.Error() != tt.intErr) {
++			t.Errorf("Number(%q).Int64() wanted error %q but got: %v", tt.in, tt.intErr, err)
++		}
++		if f, err := n.Float64(); err == nil && tt.floatErr == "" && f != tt.f {
++			t.Errorf("Number(%q).Float64() is %g", tt.in, f)
++		} else if (err == nil && tt.floatErr != "") || (err != nil && err.Error() != tt.floatErr) {
++			t.Errorf("Number(%q).Float64() wanted error %q but got: %v", tt.in, tt.floatErr, err)
++		}
++	}
++}
++
+ func TestLargeByteSlice(t *testing.T) {
+ 	s0 := make([]byte, 2000)
+ 	for i := range s0 {
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index d2c1c4424c..49ab13c79f 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -36,7 +36,7 @@ import (
+ //
+ // Boolean values encode as JSON booleans.
+ //
+-// Floating point and integer values encode as JSON numbers.
++// Floating point, integer, and Number values encode as JSON numbers.
+ //
+ // String values encode as JSON strings, with each invalid UTF-8 sequence
+ // replaced by the encoding of the Unicode replacement character U+FFFD.
+@@ -312,6 +312,14 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
+ 			e.Write(b)
+ 		}
+ 	case reflect.String:
++		if v.Type() == numberType {
++			numStr := v.String()
++			if numStr == "" {
++				numStr = "0" // Number's zero-val
++			}
++			e.WriteString(numStr)
++			break
++		}
+ 		if quoted {
+ 			sb, err := Marshal(v.String())
+ 			if err != nil {
+diff --git a/src/pkg/encoding/json/stream.go b/src/pkg/encoding/json/stream.go
+index 7d1cc5f119..5c196faeab 100644
+--- a/src/pkg/encoding/json/stream.go
++++ b/src/pkg/encoding/json/stream.go
+@@ -26,6 +26,10 @@ func NewDecoder(r io.Reader) *Decoder {
+ 	return &Decoder{r: r}
+ }
+ 
++// UseNumber causes the Decoder to unmarshal a number into an interface{} as a
++// Number instead of as a float64.
++func (dec *Decoder) UseNumber() { dec.d.useNumber = true }
++
+ // Decode reads the next JSON-encoded value from its
+ // input and stores it in the value pointed to by v.
+ //

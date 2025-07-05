@@ -10,7 +10,7 @@ Date:   Fri May 8 11:22:57 2009 -0700
     DELTA=190  (0 added, 0 deleted, 190 changed)
     OCL=28525
     CL=28535
-
+---
  src/cmd/gobuild/makefile.go       |  8 +++---
  src/lib/bufio/bufio.go            | 22 +++++++--------
  src/lib/bufio/bufio_test.go       | 14 +++++-----
@@ -32,3 +32,922 @@ Date:   Fri May 8 11:22:57 2009 -0700
  usr/gri/pretty/godoc.go           | 10 +++----
  usr/gri/pretty/pretty.go          |  8 +++---
  20 files changed, 121 insertions(+), 121 deletions(-)
+
+diff --git a/src/cmd/gobuild/makefile.go b/src/cmd/gobuild/makefile.go
+index 229dbe2194..e5eb47f19e 100644
+--- a/src/cmd/gobuild/makefile.go
++++ b/src/cmd/gobuild/makefile.go
+@@ -96,7 +96,7 @@ var makefileTemplate =
+ 	"	cp {ObjDir}$D/{Name}.a $(GOROOT)/pkg$D/{Name}.a\n"
+ 	"{.end}\n"
+ 
+-func argsFmt(w io.Write, x interface{}, format string) {
++func argsFmt(w io.Writer, x interface{}, format string) {
+ 	args := x.([]string);
+ 	fmt.Fprint(w, "#");
+ 	for i, a := range args {
+@@ -104,17 +104,17 @@ func argsFmt(w io.Write, x interface{}, format string) {
+ 	}
+ }
+ 
+-func basenameFmt(w io.Write, x interface{}, format string) {
++func basenameFmt(w io.Writer, x interface{}, format string) {
+ 	t := fmt.Sprint(x);
+ 	t = t[0:len(t)-len(path.Ext(t))];
+ 	fmt.Fprint(w, MakeString(t));
+ }
+ 
+-func plus1Fmt(w io.Write, x interface{}, format string) {
++func plus1Fmt(w io.Writer, x interface{}, format string) {
+ 	fmt.Fprint(w, x.(int) + 1);
+ }
+ 
+-func makeFmt(w io.Write, x interface{}, format string) {
++func makeFmt(w io.Writer, x interface{}, format string) {
+ 	fmt.Fprint(w, MakeString(fmt.Sprint(x)));
+ }
+ 
+diff --git a/src/lib/bufio/bufio.go b/src/lib/bufio/bufio.go
+index 23f5599938..c3d1fc715a 100644
+--- a/src/lib/bufio/bufio.go
++++ b/src/lib/bufio/bufio.go
+@@ -47,17 +47,17 @@ func copySlice(dst []byte, src []byte) {
+ // BufRead implements buffering for an io.Read object.
+ type BufRead struct {
+ 	buf []byte;
+-	rd io.Read;
++	rd io.Reader;
+ 	r, w int;
+ 	err os.Error;
+ 	lastbyte int;
+ }
+ 
+ // NewBufReadSize creates a new BufRead whose buffer has the specified size,
+-// which must be greater than zero.  If the argument io.Read is already a
++// which must be greater than zero.  If the argument io.Reader is already a
+ // BufRead with large enough size, it returns the underlying BufRead.
+ // It returns the BufRead and any error.
+-func NewBufReadSize(rd io.Read, size int) (*BufRead, os.Error) {
++func NewBufReadSize(rd io.Reader, size int) (*BufRead, os.Error) {
+ 	if size <= 0 {
+ 		return nil, BadBufSize
+ 	}
+@@ -74,7 +74,7 @@ func NewBufReadSize(rd io.Read, size int) (*BufRead, os.Error) {
+ }
+ 
+ // NewBufRead returns a new BufRead whose buffer has the default size.
+-func NewBufRead(rd io.Read) *BufRead {
++func NewBufRead(rd io.Reader) *BufRead {
+ 	b, err := NewBufReadSize(rd, defaultBufSize);
+ 	if err != nil {
+ 		// cannot happen - defaultBufSize is a valid size
+@@ -378,19 +378,19 @@ func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err o
+ 
+ // buffered output
+ 
+-// BufWrite implements buffering for an io.Write object.
++// BufWrite implements buffering for an io.Writer object.
+ type BufWrite struct {
+ 	err os.Error;
+ 	buf []byte;
+ 	n int;
+-	wr io.Write;
++	wr io.Writer;
+ }
+ 
+ // NewBufWriteSize creates a new BufWrite whose buffer has the specified size,
+-// which must be greater than zero. If the argument io.Write is already a
++// which must be greater than zero. If the argument io.Writer is already a
+ // BufWrite with large enough size, it returns the underlying BufWrite.
+ // It returns the BufWrite and any error.
+-func NewBufWriteSize(wr io.Write, size int) (*BufWrite, os.Error) {
++func NewBufWriteSize(wr io.Writer, size int) (*BufWrite, os.Error) {
+ 	if size <= 0 {
+ 		return nil, BadBufSize
+ 	}
+@@ -406,7 +406,7 @@ func NewBufWriteSize(wr io.Write, size int) (*BufWrite, os.Error) {
+ }
+ 
+ // NewBufWrite returns a new BufWrite whose buffer has the default size.
+-func NewBufWrite(wr io.Write) *BufWrite {
++func NewBufWrite(wr io.Writer) *BufWrite {
+ 	b, err := NewBufWriteSize(wr, defaultBufSize);
+ 	if err != nil {
+ 		// cannot happen - defaultBufSize is valid size
+@@ -415,7 +415,7 @@ func NewBufWrite(wr io.Write) *BufWrite {
+ 	return b;
+ }
+ 
+-// Flush writes any buffered data to the underlying io.Write.
++// Flush writes any buffered data to the underlying io.Writer.
+ func (b *BufWrite) Flush() os.Error {
+ 	if b.err != nil {
+ 		return b.err
+@@ -505,7 +505,7 @@ func (b *BufWrite) WriteByte(c byte) os.Error {
+ // buffered input and output
+ 
+ // BufReadWrite stores (a pointer to) a BufRead and a BufWrite.
+-// It implements io.ReadWrite.
++// It implements io.ReadWriter.
+ type BufReadWrite struct {
+ 	*BufRead;
+ 	*BufWrite;
+diff --git a/src/lib/bufio/bufio_test.go b/src/lib/bufio/bufio_test.go
+index 00ab4a4142..4b00cae3ae 100644
+--- a/src/lib/bufio/bufio_test.go
++++ b/src/lib/bufio/bufio_test.go
+@@ -24,7 +24,7 @@ type byteReader struct {
+ 	p []byte
+ }
+ 
+-func newByteReader(p []byte) io.Read {
++func newByteReader(p []byte) io.Reader {
+ 	b := new(byteReader);
+ 	b.p = p;
+ 	return b
+@@ -46,7 +46,7 @@ type halfByteReader struct {
+ 	p []byte
+ }
+ 
+-func newHalfByteReader(p []byte) io.Read {
++func newHalfByteReader(p []byte) io.Reader {
+ 	b := new(halfByteReader);
+ 	b.p = p;
+ 	return b
+@@ -67,10 +67,10 @@ func (b *halfByteReader) Read(p []byte) (int, os.Error) {
+ 
+ // Reads from a reader and rot13s the result.
+ type rot13Reader struct {
+-	r io.Read
++	r io.Reader
+ }
+ 
+-func newRot13Reader(r io.Read) *rot13Reader {
++func newRot13Reader(r io.Reader) *rot13Reader {
+ 	r13 := new(rot13Reader);
+ 	r13.r = r;
+ 	return r13
+@@ -95,11 +95,11 @@ func (r13 *rot13Reader) Read(p []byte) (int, os.Error) {
+ 
+ type readMaker struct {
+ 	name string;
+-	fn func([]byte) io.Read;
++	fn func([]byte) io.Reader;
+ }
+ var readMakers = []readMaker {
+-	readMaker{ "full", func(p []byte) io.Read { return newByteReader(p) } },
+-	readMaker{ "half", func(p []byte) io.Read { return newHalfByteReader(p) } },
++	readMaker{ "full", func(p []byte) io.Reader { return newByteReader(p) } },
++	readMaker{ "half", func(p []byte) io.Reader { return newHalfByteReader(p) } },
+ }
+ 
+ // Call ReadLineString (which ends up calling everything else)
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index d52dcfc10a..229c264757 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -27,7 +27,7 @@ import (
+ )
+ 
+ // Formatter represents the printer state passed to custom formatters.
+-// It provides access to the io.Write interface plus information about
++// It provides access to the io.Writer interface plus information about
+ // the flags and options for the operand's format specifier.
+ type Formatter interface {
+ 	// Write is the function to call to emit formatted output to be printed.
+@@ -52,7 +52,7 @@ type Format interface {
+ // returns a string, which defines the ``native'' format for that object.
+ // Any such object will be printed using that method if passed
+ // as operand to a %s or %v format or to an unformatted printer such as Print.
+-type String interface {
++type Stringer interface {
+ 	String() string
+ }
+ 
+@@ -149,7 +149,7 @@ func (p *pp) doprint(v reflect.StructValue, addspace, addnewline bool);
+ // These routines end in 'f' and take a format string.
+ 
+ // Fprintf formats according to a format specifier and writes to w.
+-func Fprintf(w io.Write, format string, a ...) (n int, error os.Error) {
++func Fprintf(w io.Writer, format string, a ...) (n int, error os.Error) {
+ 	v := reflect.NewValue(a).(reflect.StructValue);
+ 	p := newPrinter();
+ 	p.doprintf(format, v);
+@@ -176,7 +176,7 @@ func Sprintf(format string, a ...) string {
+ 
+ // Fprint formats using the default formats for its operands and writes to w.
+ // Spaces are added between operands when neither is a string.
+-func Fprint(w io.Write, a ...) (n int, error os.Error) {
++func Fprint(w io.Writer, a ...) (n int, error os.Error) {
+ 	v := reflect.NewValue(a).(reflect.StructValue);
+ 	p := newPrinter();
+ 	p.doprint(v, false, false);
+@@ -207,7 +207,7 @@ func Sprint(a ...) string {
+ 
+ // Fprintln formats using the default formats for its operands and writes to w.
+ // Spaces are always added between operands and a newline is appended.
+-func Fprintln(w io.Write, a ...) (n int, error os.Error) {
++func Fprintln(w io.Writer, a ...) (n int, error os.Error) {
+ 	v := reflect.NewValue(a).(reflect.StructValue);
+ 	p := newPrinter();
+ 	p.doprint(v, true, true);
+@@ -364,7 +364,7 @@ func parsenum(s string, start, end int) (n int, got bool, newi int) {
+ func (p *pp) printField(field reflect.Value) (was_string bool) {
+ 	inter := field.Interface();
+ 	if inter != nil {
+-		if stringer, ok := inter.(String); ok {
++		if stringer, ok := inter.(Stringer); ok {
+ 			p.addstr(stringer.String());
+ 			return false;	// this value is not a string
+ 		}
+@@ -628,7 +628,7 @@ func (p *pp) doprintf(format string, v reflect.StructValue) {
+ 			case 's':
+ 				if inter != nil {
+ 					// if object implements String, use the result.
+-					if stringer, ok := inter.(String); ok {
++					if stringer, ok := inter.(Stringer); ok {
+ 						s = p.fmt.Fmt_s(stringer.String()).Str();
+ 						break;
+ 					}
+diff --git a/src/lib/go/parser/parser.go b/src/lib/go/parser/parser.go
+index a1effa6d96..7d18605e4d 100644
+--- a/src/lib/go/parser/parser.go
++++ b/src/lib/go/parser/parser.go
+@@ -1914,7 +1914,7 @@ func readSource(src interface{}, err ErrorHandler) []byte {
+ 		if s != nil {
+ 			return s.Data();
+ 		}
+-	case io.Read:
++	case io.Reader:
+ 		var buf io.ByteBuffer;
+ 		n, os_err := io.Copy(s, &buf);
+ 		if os_err == nil {
+diff --git a/src/lib/http/server.go b/src/lib/http/server.go
+index 9b6aa6c414..5769ced7ee 100644
+--- a/src/lib/http/server.go
++++ b/src/lib/http/server.go
+@@ -43,7 +43,7 @@ type Conn struct {
+ 	RemoteAddr string;	// network address of remote side
+ 	Req *Request;		// current HTTP request
+ 
+-	rwc io.ReadWriteClose;	// i/o connection
++	rwc io.ReadWriteCloser;	// i/o connection
+ 	buf *bufio.BufReadWrite;	// buffered rwc
+ 	handler Handler;	// request handler
+ 	hijacked bool;	// connection has been hijacked by handler
+@@ -56,7 +56,7 @@ type Conn struct {
+ }
+ 
+ // Create new connection from rwc.
+-func newConn(rwc io.ReadWriteClose, raddr string, handler Handler) (c *Conn, err os.Error) {
++func newConn(rwc io.ReadWriteCloser, raddr string, handler Handler) (c *Conn, err os.Error) {
+ 	c = new(Conn);
+ 	c.RemoteAddr = raddr;
+ 	c.handler = handler;
+@@ -238,7 +238,7 @@ func (c *Conn) serve() {
+ // will not do anything else with the connection.
+ // It becomes the caller's responsibility to manage
+ // and close the connection.
+-func (c *Conn) Hijack() (rwc io.ReadWriteClose, buf *bufio.BufReadWrite, err os.Error) {
++func (c *Conn) Hijack() (rwc io.ReadWriteCloser, buf *bufio.BufReadWrite, err os.Error) {
+ 	if c.hijacked {
+ 		return nil, nil, ErrHijacked;
+ 	}
+diff --git a/src/lib/io/io.go b/src/lib/io/io.go
+index 5036e326a6..bb6381099c 100644
+--- a/src/lib/io/io.go
++++ b/src/lib/io/io.go
+@@ -16,44 +16,44 @@ import (
+ // ErrEOF is the error returned by FullRead and Copyn when they encounter EOF.
+ var ErrEOF = os.NewError("EOF")
+ 
+-// Read is the interface that wraps the basic Read method.
+-type Read interface {
++// Reader is the interface that wraps the basic Read method.
++type Reader interface {
+ 	Read(p []byte) (n int, err os.Error);
+ }
+ 
+-// Write is the interface that wraps the basic Write method.
+-type Write interface {
++// Writer is the interface that wraps the basic Write method.
++type Writer interface {
+ 	Write(p []byte) (n int, err os.Error);
+ }
+ 
+-// Close is the interface that wraps the basic Close method.
+-type Close interface {
++// Closer is the interface that wraps the basic Close method.
++type Closer interface {
+ 	Close() os.Error;
+ }
+ 
+ // ReadWrite is the interface that groups the basic Read and Write methods.
+-type ReadWrite interface {
+-	Read;
+-	Write;
++type ReadWriter interface {
++	Reader;
++	Writer;
+ }
+ 
+-// ReadClose is the interface that groups the basic Read and Close methods.
+-type ReadClose interface {
+-	Read;
+-	Close;
++// ReadCloser is the interface that groups the basic Read and Close methods.
++type ReadCloser interface {
++	Reader;
++	Closer;
+ }
+ 
+-// WriteClose is the interface that groups the basic Write and Close methods.
+-type WriteClose interface {
+-	Write;
+-	Close;
++// WriteCloser is the interface that groups the basic Write and Close methods.
++type WriteCloser interface {
++	Writer;
++	Closer;
+ }
+ 
+-// ReadWriteClose is the interface that groups the basic Read, Write and Close methods.
+-type ReadWriteClose interface {
+-	Read;
+-	Write;
+-	Close;
++// ReadWriteCloser is the interface that groups the basic Read, Write and Close methods.
++type ReadWriteCloser interface {
++	Reader;
++	Writer;
++	Closer;
+ }
+ 
+ // Convert a string to an array of bytes for easy marshaling.
+@@ -66,12 +66,12 @@ func StringBytes(s string) []byte {
+ }
+ 
+ // WriteString writes the contents of the string s to w, which accepts an array of bytes.
+-func WriteString(w Write, s string) (n int, err os.Error) {
++func WriteString(w Writer, s string) (n int, err os.Error) {
+ 	return w.Write(StringBytes(s))
+ }
+ 
+ // FullRead reads r until the buffer buf is full, or until EOF or error.
+-func FullRead(r Read, buf []byte) (n int, err os.Error) {
++func FullRead(r Reader, buf []byte) (n int, err os.Error) {
+ 	n = 0;
+ 	for n < len(buf) {
+ 		nn, e := r.Read(buf[n:len(buf)]);
+@@ -91,7 +91,7 @@ func FullRead(r Read, buf []byte) (n int, err os.Error) {
+ // Convert something that implements Read into something
+ // whose Reads are always FullReads
+ type fullRead struct {
+-	r	Read;
++	r	Reader;
+ }
+ 
+ func (fr *fullRead) Read(p []byte) (n int, err os.Error) {
+@@ -101,7 +101,7 @@ func (fr *fullRead) Read(p []byte) (n int, err os.Error) {
+ 
+ // MakeFullReader takes r, an implementation of Read, and returns an object
+ // that still implements Read but always calls FullRead underneath.
+-func MakeFullReader(r Read) Read {
++func MakeFullReader(r Reader) Reader {
+ 	if fr, ok := r.(*fullRead); ok {
+ 		// already a fullRead
+ 		return r
+@@ -111,7 +111,7 @@ func MakeFullReader(r Read) Read {
+ 
+ // Copy n copies n bytes (or until EOF is reached) from src to dst.
+ // It returns the number of bytes copied and the error, if any.
+-func Copyn(src Read, dst Write, n int64) (written int64, err os.Error) {
++func Copyn(src Reader, dst Writer, n int64) (written int64, err os.Error) {
+ 	buf := make([]byte, 32*1024);
+ 	for written < n {
+ 		l := len(buf);
+@@ -147,7 +147,7 @@ func Copyn(src Read, dst Write, n int64) (written int64, err os.Error) {
+ 
+ // Copy copies from src to dst until EOF is reached.
+ // It returns the number of bytes copied and the error, if any.
+-func Copy(src Read, dst Write) (written int64, err os.Error) {
++func Copy(src Reader, dst Writer) (written int64, err os.Error) {
+ 	buf := make([]byte, 32*1024);
+ 	for {
+ 		nr, er := src.Read(buf);
+diff --git a/src/lib/io/pipe.go b/src/lib/io/pipe.go
+index 446ec69bb4..5f9e7a488c 100644
+--- a/src/lib/io/pipe.go
++++ b/src/lib/io/pipe.go
+@@ -170,15 +170,15 @@ func (w *pipeWrite) finish() {
+ }
+ 
+ // Pipe creates a synchronous in-memory pipe.
+-// Used to connect code expecting an io.Read
+-// with code expecting an io.Write.
++// Used to connect code expecting an io.Reader
++// with code expecting an io.Writer.
+ //
+ // Reads on one end are matched by writes on the other.
+ // Writes don't complete until all the data has been
+ // written or the read end is closed.  Reads return
+ // any available data or block until the next write
+ // or the write end is closed.
+-func Pipe() (io.ReadClose, io.WriteClose) {
++func Pipe() (io.ReadCloser, io.WriteCloser) {
+ 	p := new(pipe);
+ 	p.cr = make(chan []byte, 1);
+ 	p.cw = make(chan pipeReturn, 1);
+diff --git a/src/lib/io/pipe_test.go b/src/lib/io/pipe_test.go
+index 3358ef2032..3df6696285 100644
+--- a/src/lib/io/pipe_test.go
++++ b/src/lib/io/pipe_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"time";
+ )
+ 
+-func checkWrite(t *testing.T, w io.Write, data []byte, c chan int) {
++func checkWrite(t *testing.T, w Writer, data []byte, c chan int) {
+ 	n, err := w.Write(data);
+ 	if err != nil {
+ 		t.Errorf("write: %v", err);
+@@ -25,9 +25,9 @@ func checkWrite(t *testing.T, w io.Write, data []byte, c chan int) {
+ // Test a single read/write pair.
+ func TestPipe1(t *testing.T) {
+ 	c := make(chan int);
+-	r, w := io.Pipe();
++	r, w := Pipe();
+ 	var buf = make([]byte, 64);
+-	go checkWrite(t, w, io.StringBytes("hello, world"), c);
++	go checkWrite(t, w, StringBytes("hello, world"), c);
+ 	n, err := r.Read(buf);
+ 	if err != nil {
+ 		t.Errorf("read: %v", err);
+@@ -40,7 +40,7 @@ func TestPipe1(t *testing.T) {
+ 	w.Close();
+ }
+ 
+-func reader(t *testing.T, r io.Read, c chan int) {
++func reader(t *testing.T, r Reader, c chan int) {
+ 	var buf = make([]byte, 64);
+ 	for {
+ 		n, err := r.Read(buf);
+@@ -57,7 +57,7 @@ func reader(t *testing.T, r io.Read, c chan int) {
+ // Test a sequence of read/write pairs.
+ func TestPipe2(t *testing.T) {
+ 	c := make(chan int);
+-	r, w := io.Pipe();
++	r, w := Pipe();
+ 	go reader(t, r, c);
+ 	var buf = make([]byte, 64);
+ 	for i := 0; i < 5; i++ {
+@@ -82,7 +82,7 @@ func TestPipe2(t *testing.T) {
+ }
+ 
+ // Test a large write that requires multiple reads to satisfy.
+-func writer(w io.WriteClose, buf []byte, c chan pipeReturn) {
++func writer(w WriteCloser, buf []byte, c chan pipeReturn) {
+ 	n, err := w.Write(buf);
+ 	w.Close();
+ 	c <- pipeReturn{n, err};
+@@ -90,7 +90,7 @@ func writer(w io.WriteClose, buf []byte, c chan pipeReturn) {
+ 
+ func TestPipe3(t *testing.T) {
+ 	c := make(chan pipeReturn);
+-	r, w := io.Pipe();
++	r, w := Pipe();
+ 	var wdat = make([]byte, 128);
+ 	for i := 0; i < len(wdat); i++ {
+ 		wdat[i] = byte(i);
+@@ -132,7 +132,7 @@ func TestPipe3(t *testing.T) {
+ 
+ // Test read after/before writer close.
+ 
+-func delayClose(t *testing.T, cl io.Close, ch chan int) {
++func delayClose(t *testing.T, cl Closer, ch chan int) {
+ 	time.Sleep(1000*1000);	// 1 ms
+ 	if err := cl.Close(); err != nil {
+ 		t.Errorf("delayClose: %v", err);
+@@ -142,7 +142,7 @@ func delayClose(t *testing.T, cl io.Close, ch chan int) {
+ 
+ func testPipeReadClose(t *testing.T, async bool) {
+ 	c := make(chan int, 1);
+-	r, w := io.Pipe();
++	r, w := Pipe();
+ 	if async {
+ 		go delayClose(t, w, c);
+ 	} else {
+@@ -166,13 +166,13 @@ func testPipeReadClose(t *testing.T, async bool) {
+ 
+ func testPipeWriteClose(t *testing.T, async bool) {
+ 	c := make(chan int, 1);
+-	r, w := io.Pipe();
++	r, w := Pipe();
+ 	if async {
+ 		go delayClose(t, r, c);
+ 	} else {
+ 		delayClose(t, r, c);
+ 	}
+-	n, err := io.WriteString(w, "hello, world");
++	n, err := WriteString(w, "hello, world");
+ 	<-c;
+ 	if err != os.EPIPE {
+ 		t.Errorf("write on closed pipe: %v", err);
+diff --git a/src/lib/log/log.go b/src/lib/log/log.go
+index 34158c789e..4a679a839e 100644
+--- a/src/lib/log/log.go
++++ b/src/lib/log/log.go
+@@ -38,8 +38,8 @@ const (
+ 
+ // Logger represents an active logging object.
+ type Logger struct {
+-	out0	io.Write;	// first destination for output
+-	out1	io.Write;	// second destination for output; may be nil
++	out0	io.Writer;	// first destination for output
++	out1	io.Writer;	// second destination for output; may be nil
+ 	prefix string;	// prefix to write at beginning of each line
+ 	flag int;	// properties
+ }
+@@ -48,7 +48,7 @@ type Logger struct {
+ // destinations to which log data will be written; out1 may be nil.
+ // The prefix appears at the beginning of each generated log line.
+ // The flag argument defines the logging properties.
+-func NewLogger(out0, out1 io.Write, prefix string, flag int) *Logger {
++func NewLogger(out0, out1 io.Writer, prefix string, flag int) *Logger {
+ 	return &Logger{out0, out1, prefix, flag}
+ }
+ 
+diff --git a/src/lib/net/tcpserver_test.go b/src/lib/net/tcpserver_test.go
+index 45b15dab49..62b67b6fa2 100644
+--- a/src/lib/net/tcpserver_test.go
++++ b/src/lib/net/tcpserver_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"testing";
+ )
+ 
+-func runEcho(fd io.ReadWrite, done chan<- int) {
++func runEcho(fd io.ReadWriter, done chan<- int) {
+ 	var buf [1024]byte;
+ 
+ 	for {
+diff --git a/src/lib/tabwriter/tabwriter.go b/src/lib/tabwriter/tabwriter.go
+index 9a5c37c321..8179165bc5 100644
+--- a/src/lib/tabwriter/tabwriter.go
++++ b/src/lib/tabwriter/tabwriter.go
+@@ -95,7 +95,7 @@ func (b *byteArray) append(s []byte) {
+ //
+ type Writer struct {
+ 	// configuration
+-	output io.Write;
++	output io.Writer;
+ 	cellwidth int;
+ 	padding int;
+ 	padbytes [8]byte;
+@@ -168,7 +168,7 @@ const (
+ //				to the tab width in the viewer displaying the result)
+ //	flags		formatting control
+ //
+-func (b *Writer) Init(output io.Write, cellwidth, padding int, padchar byte, flags uint) *Writer {
++func (b *Writer) Init(output io.Writer, cellwidth, padding int, padchar byte, flags uint) *Writer {
+ 	if cellwidth < 0 {
+ 		panic("negative cellwidth");
+ 	}
+@@ -485,6 +485,6 @@ func (b *Writer) Write(buf []byte) (written int, err os.Error) {
+ // NewWriter allocates and initializes a new tabwriter.Writer.
+ // The parameters are the same as for the the Init function.
+ //
+-func NewWriter(output io.Write, cellwidth, padding int, padchar byte, flags uint) *Writer {
++func NewWriter(output io.Writer, cellwidth, padding int, padchar byte, flags uint) *Writer {
+ 	return new(Writer).Init(output, cellwidth, padding, padchar, flags)
+ }
+diff --git a/src/lib/template/format.go b/src/lib/template/format.go
+index 64adba5882..4fb5393b94 100644
+--- a/src/lib/template/format.go
++++ b/src/lib/template/format.go
+@@ -16,7 +16,7 @@ import (
+ // It is stored under the name "str" and is the default formatter.
+ // You can override the default formatter by storing your default
+ // under the name "" in your custom formatter map.
+-func StringFormatter(w io.Write, value interface{}, format string) {
++func StringFormatter(w io.Writer, value interface{}, format string) {
+ 	fmt.Fprint(w, value);
+ }
+ 
+@@ -27,7 +27,7 @@ var esc_gt = io.StringBytes("&gt;")
+ 
+ // HtmlEscape writes to w the properly escaped HTML equivalent
+ // of the plain text data s.
+-func HtmlEscape(w io.Write, s []byte) {
++func HtmlEscape(w io.Writer, s []byte) {
+ 	last := 0;
+ 	for i, c := range s {
+ 		if c == '&' || c == '<' || c == '>' {
+@@ -47,7 +47,7 @@ func HtmlEscape(w io.Write, s []byte) {
+ }
+ 
+ // HtmlFormatter formats arbitrary values for HTML
+-func HtmlFormatter(w io.Write, value interface{}, format string) {
++func HtmlFormatter(w io.Writer, value interface{}, format string) {
+ 	var b io.ByteBuffer;
+ 	fmt.Fprint(&b, value);
+ 	HtmlEscape(w, b.Data());
+diff --git a/src/lib/template/template.go b/src/lib/template/template.go
+index 7519d16f01..b886b31813 100644
+--- a/src/lib/template/template.go
++++ b/src/lib/template/template.go
+@@ -93,7 +93,7 @@ const (
+ 
+ // FormatterMap is the type describing the mapping from formatter
+ // names to the functions that implement them.
+-type FormatterMap map[string] func(io.Write, interface{}, string)
++type FormatterMap map[string] func(io.Writer, interface{}, string)
+ 
+ // Built-in formatters.
+ var builtins = FormatterMap {
+@@ -158,7 +158,7 @@ type Template struct {
+ type state struct {
+ 	parent	*state;	// parent in hierarchy
+ 	data	reflect.Value;	// the driver data for this section etc.
+-	wr	io.Write;	// where to send output
++	wr	io.Writer;	// where to send output
+ 	errors	chan os.Error;	// for reporting errors during execute
+ }
+ 
+@@ -769,7 +769,7 @@ func (t *Template) Parse(s string) os.Error {
+ 
+ // Execute applies a parsed template to the specified data object,
+ // generating output to wr.
+-func (t *Template) Execute(data interface{}, wr io.Write) os.Error {
++func (t *Template) Execute(data interface{}, wr io.Writer) os.Error {
+ 	// Extract the driver data.
+ 	val := reflect.NewValue(data);
+ 	errors := make(chan os.Error);
+diff --git a/src/lib/template/template_test.go b/src/lib/template/template_test.go
+index fb931615ea..9a81d274c9 100644
+--- a/src/lib/template/template_test.go
++++ b/src/lib/template/template_test.go
+@@ -54,8 +54,8 @@ func plus1(v interface{}) string {
+ 	return fmt.Sprint(i + 1);
+ }
+ 
+-func writer(f func(interface{}) string) (func(io.Write, interface{}, string)) {
+-	return func(w io.Write, v interface{}, format string) {
++func writer(f func(interface{}) string) (func(io.Writer, interface{}, string)) {
++	return func(w io.Writer, v interface{}, format string) {
+ 		io.WriteString(w, f(v));
+ 	}
+ }
+diff --git a/usr/gri/pretty/astprinter.go b/usr/gri/pretty/astprinter.go
+index 7cccbdc484..c45508868f 100644
+--- a/usr/gri/pretty/astprinter.go
++++ b/usr/gri/pretty/astprinter.go
+@@ -69,31 +69,31 @@ func hasExportedNames(names []*ast.Ident) bool {
+ // initializing an AST Printer. It is used to print tokens.
+ //
+ type TokenPrinter interface {
+-	PrintLit(w io.Write, tok token.Token, value []byte);
+-	PrintIdent(w io.Write, value string);
+-	PrintToken(w io.Write, token token.Token);
+-	PrintComment(w io.Write, value []byte);
++	PrintLit(w io.Writer, tok token.Token, value []byte);
++	PrintIdent(w io.Writer, value string);
++	PrintToken(w io.Writer, token token.Token);
++	PrintComment(w io.Writer, value []byte);
+ }
+ 
+ 
+ type defaultPrinter struct {}
+ 
+-func (p defaultPrinter) PrintLit(w io.Write, tok token.Token, value []byte) {
++func (p defaultPrinter) PrintLit(w io.Writer, tok token.Token, value []byte) {
+ 	w.Write(value);
+ }
+ 
+ 
+-func (p defaultPrinter) PrintIdent(w io.Write, value string) {
++func (p defaultPrinter) PrintIdent(w io.Writer, value string) {
+ 	fmt.Fprint(w, value);
+ }
+ 
+ 
+-func (p defaultPrinter) PrintToken(w io.Write, token token.Token) {
++func (p defaultPrinter) PrintToken(w io.Writer, token token.Token) {
+ 	fmt.Fprint(w, token.String());
+ }
+ 
+ 
+-func (p defaultPrinter) PrintComment(w io.Write, value []byte) {
++func (p defaultPrinter) PrintComment(w io.Writer, value []byte) {
+ 	w.Write(value);
+ }
+ 
+@@ -123,7 +123,7 @@ const (
+ 
+ type Printer struct {
+ 	// output
+-	text io.Write;
++	text io.Writer;
+ 
+ 	// token printing
+ 	tprinter TokenPrinter;
+@@ -171,7 +171,7 @@ func (P *Printer) nextComments() {
+ }
+ 
+ 
+-func (P *Printer) Init(text io.Write, tprinter TokenPrinter, comments []*ast.Comment, html bool) {
++func (P *Printer) Init(text io.Writer, tprinter TokenPrinter, comments []*ast.Comment, html bool) {
+ 	// writers
+ 	P.text = text;
+ 
+@@ -435,7 +435,7 @@ func (P *Printer) Error(pos token.Position, tok token.Token, msg string) {
+ }
+ 
+ 
+-// An astPrinter implements io.Write.
++// An astPrinter implements io.Writer.
+ // TODO this is not yet used.
+ func (P *Printer) Write(p []byte) (n int, err os.Error) {
+ 	// TODO
+diff --git a/usr/gri/pretty/comment.go b/usr/gri/pretty/comment.go
+index 1025856c4b..82a7cdd7a7 100644
+--- a/usr/gri/pretty/comment.go
++++ b/usr/gri/pretty/comment.go
+@@ -53,7 +53,7 @@ var (
+ 
+ // Escape comment text for HTML.
+ // Also, turn `` into &ldquo; and '' into &rdquo;.
+-func commentEscape(w io.Write, s []byte) {
++func commentEscape(w io.Writer, s []byte) {
+ 	last := 0;
+ 	for i := 0; i < len(s)-1; i++ {
+ 		if s[i] == s[i+1] && (s[i] == '`' || s[i] == '\'') {
+@@ -137,7 +137,7 @@ func unindent(block [][]byte) {
+ //
+ // TODO(rsc): I'd like to pass in an array of variable names []string
+ // and then italicize those strings when they appear as words.
+-func ToHtml(w io.Write, s []byte) {
++func ToHtml(w io.Writer, s []byte) {
+ 	inpara := false;
+ 
+ 	/* TODO(rsc): 6g cant generate code for these
+diff --git a/usr/gri/pretty/format.go b/usr/gri/pretty/format.go
+index 960b5c58fd..7267341913 100644
+--- a/usr/gri/pretty/format.go
++++ b/usr/gri/pretty/format.go
+@@ -44,7 +44,7 @@ var (
+ // Format representation
+ 
+ type (
+-	Formatter func(w io.Write, value interface{}, name string) bool;
++	Formatter func(w io.Writer, value interface{}, name string) bool;
+ 	FormatterMap map[string]Formatter;
+ )
+ 
+@@ -476,7 +476,7 @@ func readSource(src interface{}) ([]byte, os.Error) {
+ 		}
+ 		return s.Data(), nil;
+ 
+-	case io.Read:
++	case io.Reader:
+ 		var buf io.ByteBuffer;
+ 		n, err := io.Copy(s, &buf);
+ 		if err != nil {
+@@ -654,7 +654,7 @@ func percentCount(s []byte) int {
+ }
+ 
+ 
+-func rawPrintf(w io.Write, format []byte, value reflect.Value) {
++func rawPrintf(w io.Writer, format []byte, value reflect.Value) {
+ 	// TODO find a better way to do this
+ 	x := value.Interface();
+ 	switch percentCount(format) {
+@@ -724,7 +724,7 @@ func (ps *state) outdent() {
+ }
+ 
+ 
+-func (ps *state) printIndented(w io.Write, s []byte) {
++func (ps *state) printIndented(w io.Writer, s []byte) {
+ 	// replace each '\n' with the indent + '\n'
+ 	i0 := 0;
+ 	for i := 0; i < len(s); i++ {
+@@ -738,7 +738,7 @@ func (ps *state) printIndented(w io.Write, s []byte) {
+ }
+ 
+ 
+-func (ps *state) printf(w io.Write, format []byte, value reflect.Value) {
++func (ps *state) printf(w io.Writer, format []byte, value reflect.Value) {
+ 	if len(ps.indent_widths) == 0 {
+ 		// no indentation
+ 		rawPrintf(w, format, value);
+@@ -751,10 +751,10 @@ func (ps *state) printf(w io.Write, format []byte, value reflect.Value) {
+ }
+ 
+ 
+-func (ps *state) print(w io.Write, fexpr expr, value reflect.Value, index, level int) bool
++func (ps *state) print(w io.Writer, fexpr expr, value reflect.Value, index, level int) bool
+ 
+ // Returns true if a non-empty field value was found.
+-func (ps *state) print0(w io.Write, fexpr expr, value reflect.Value, index, level int) bool {
++func (ps *state) print0(w io.Writer, fexpr expr, value reflect.Value, index, level int) bool {
+ 	if fexpr == nil {
+ 		return true;
+ 	}
+@@ -917,7 +917,7 @@ func printTrace(indent int, format string, a ...) {
+ }
+ 
+ 
+-func (ps *state) print(w io.Write, fexpr expr, value reflect.Value, index, level int) bool {
++func (ps *state) print(w io.Writer, fexpr expr, value reflect.Value, index, level int) bool {
+ 	if *trace {
+ 		printTrace(level, "%v, %d {\n", fexpr, /*value.Interface(), */index);
+ 	}
+@@ -936,7 +936,7 @@ func (ps *state) print(w io.Write, fexpr expr, value reflect.Value, index, level
+ // Fprint formats each argument according to the format f
+ // and writes to w.
+ //
+-func (f Format) Fprint(w io.Write, args ...) {
++func (f Format) Fprint(w io.Writer, args ...) {
+ 	value := reflect.NewValue(args).(reflect.StructValue);
+ 	for i := 0; i < value.Len(); i++ {
+ 		fld := value.Field(i);
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index 1d4eb5af33..22b1bb52ea 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -97,7 +97,7 @@ func isDir(name string) bool {
+ }
+ 
+ 
+-func makeTabwriter(writer io.Write) *tabwriter.Writer {
++func makeTabwriter(writer io.Writer) *tabwriter.Writer {
+ 	padchar := byte(' ');
+ 	if *usetabs {
+ 		padchar = '\t';
+@@ -255,7 +255,7 @@ func toText(x interface{}) []byte {
+ 
+ 
+ // Template formatter for "html" format.
+-func htmlFmt(w io.Write, x interface{}, format string) {
++func htmlFmt(w io.Writer, x interface{}, format string) {
+ 	// Can do better than text in some cases.
+ 	switch v := x.(type) {
+ 	case ast.Decl:
+@@ -277,13 +277,13 @@ func htmlFmt(w io.Write, x interface{}, format string) {
+ 
+ 
+ // Template formatter for "html-comment" format.
+-func htmlCommentFmt(w io.Write, x interface{}, format string) {
++func htmlCommentFmt(w io.Writer, x interface{}, format string) {
+ 	comment.ToHtml(w, toText(x));
+ }
+ 
+ 
+ // Template formatter for "" (default) format.
+-func textFmt(w io.Write, x interface{}, format string) {
++func textFmt(w io.Writer, x interface{}, format string) {
+ 	w.Write(toText(x));
+ }
+ 
+@@ -292,7 +292,7 @@ func textFmt(w io.Write, x interface{}, format string) {
+ // Writes out "/" if the os.Dir argument is a directory.
+ var slash = io.StringBytes("/");
+ 
+-func dirSlashFmt(w io.Write, x interface{}, format string) {
++func dirSlashFmt(w io.Writer, x interface{}, format string) {
+ 	d := x.(os.Dir);	// TODO(rsc): want *os.Dir
+ 	if d.IsDirectory() {
+ 		w.Write(slash);
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index ffe2c0e2e8..5a27d40207 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -61,7 +61,7 @@ func readFile(filename string) ([]byte, os.Error) {
+ 
+ 
+ // TODO(gri) move this function into tabwriter.go? (also used in godoc)
+-func makeTabwriter(writer io.Write) *tabwriter.Writer {
++func makeTabwriter(writer io.Writer) *tabwriter.Writer {
+ 	padchar := byte(' ');
+ 	if *usetabs {
+ 		padchar = '\t';
+@@ -94,17 +94,17 @@ func (h *ErrorHandler) Error(pos token.Position, msg string) {
+ }
+ 
+ 
+-func isValidPos(w io.Write, value interface{}, name string) bool {
++func isValidPos(w io.Writer, value interface{}, name string) bool {
+ 	return value.(token.Position).Line > 0;
+ }
+ 
+ 
+-func isSend(w io.Write, value interface{}, name string) bool {
++func isSend(w io.Writer, value interface{}, name string) bool {
+ 	return value.(ast.ChanDir) & ast.SEND != 0;
+ }
+ 
+ 
+-func isRecv(w io.Write, value interface{}, name string) bool {
++func isRecv(w io.Writer, value interface{}, name string) bool {
+ 	return value.(ast.ChanDir) & ast.RECV != 0;
+ }
+ 

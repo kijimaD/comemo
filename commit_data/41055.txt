@@ -11,9 +11,98 @@ Date:   Fri Aug 30 06:24:58 2019 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go         |  2 +-
  src/cmd/compile/internal/ssa/gen/386.rules |  3 +++
  src/cmd/compile/internal/ssa/rewrite386.go | 31 ++++++++++++++++++++++++++++++
  test/codegen/mathbits.go                   |  1 +
  4 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a911b175e8..b093e504f1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3370,7 +3370,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz16, types.Types[TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM, sys.ARM64, sys.Wasm)
++		sys.AMD64, sys.I386, sys.ARM, sys.ARM64, sys.Wasm)
+ 	addF("math/bits", "TrailingZeros16",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[TUINT64], args[0])
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index d7cbba1718..1cdcf4c710 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -66,6 +66,9 @@
+ 
+ (Sqrt x) -> (SQRTSD x)
+ 
++(Ctz16 x) -> (BSFL (ORLconst <typ.UInt32> [0x10000] x))
++(Ctz16NonZero x) -> (BSFL x)
++
+ // Lowering extension
+ (SignExt8to16  x) -> (MOVBLSX x)
+ (SignExt8to32  x) -> (MOVBLSX x)
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 812aa9420d..a4796060cf 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -360,6 +360,10 @@ func rewriteValue386(v *Value) bool {
+ 		return rewriteValue386_OpConstBool_0(v)
+ 	case OpConstNil:
+ 		return rewriteValue386_OpConstNil_0(v)
++	case OpCtz16:
++		return rewriteValue386_OpCtz16_0(v)
++	case OpCtz16NonZero:
++		return rewriteValue386_OpCtz16NonZero_0(v)
+ 	case OpCvt32Fto32:
+ 		return rewriteValue386_OpCvt32Fto32_0(v)
+ 	case OpCvt32Fto64F:
+@@ -20783,6 +20787,33 @@ func rewriteValue386_OpConstNil_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValue386_OpCtz16_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Ctz16 x)
++	// cond:
++	// result: (BSFL (ORLconst <typ.UInt32> [0x10000] x))
++	for {
++		x := v.Args[0]
++		v.reset(Op386BSFL)
++		v0 := b.NewValue0(v.Pos, Op386ORLconst, typ.UInt32)
++		v0.AuxInt = 0x10000
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValue386_OpCtz16NonZero_0(v *Value) bool {
++	// match: (Ctz16NonZero x)
++	// cond:
++	// result: (BSFL x)
++	for {
++		x := v.Args[0]
++		v.reset(Op386BSFL)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValue386_OpCvt32Fto32_0(v *Value) bool {
+ 	// match: (Cvt32Fto32 x)
+ 	// cond:
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index ec04a66955..61e5db56e1 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -298,6 +298,7 @@ func TrailingZeros32(n uint32) int {
+ 
+ func TrailingZeros16(n uint16) int {
+ 	// amd64:"BSFL","BTSL\\t\\$16"
++	// 386:"BSFL\t"
+ 	// arm:"ORR\t\\$65536","CLZ",-"MOVHU\tR"
+ 	// arm64:"ORR\t\\$65536","RBITW","CLZW",-"MOVHU\tR",-"RBIT\t",-"CLZ\t"
+ 	// s390x:"FLOGR","OR\t\\$65536"

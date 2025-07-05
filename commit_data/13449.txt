@@ -7,7 +7,7 @@ Date:   Sun Jul 8 11:57:04 2012 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/6355076
-
+---
  doc/articles/json_and_go.html           | 4 ++--
  doc/go_spec.html                        | 2 +-
  src/pkg/go/doc/testdata/error2.1.golden | 2 +-
@@ -17,3 +17,110 @@ Date:   Sun Jul 8 11:57:04 2012 +1000
  src/pkg/text/tabwriter/tabwriter.go     | 2 +-
  src/pkg/text/template/funcs.go          | 2 +-
  8 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/doc/articles/json_and_go.html b/doc/articles/json_and_go.html
+index af7776c0a4..067e23ce97 100644
+--- a/doc/articles/json_and_go.html
++++ b/doc/articles/json_and_go.html
+@@ -82,8 +82,8 @@ is <code>nil</code>).
+ 
+ <p>
+ The json package only accesses the exported fields of struct types (those that
+-begin with an uppercase letter). Therefore only the the exported fields of a
+-struct will be present in the JSON output.
++begin with an uppercase letter). Therefore only the exported fields of a struct
++will be present in the JSON output.
+ </p>
+ 
+ <p>
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 57f2db7402..0f5e803da2 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2206,7 +2206,7 @@ Within a composite literal of array, slice, or map type <code>T</code>,
+ elements that are themselves composite literals may elide the respective
+ literal type if it is identical to the element type of <code>T</code>.
+ Similarly, elements that are addresses of composite literals may elide
+-the <code>&amp;T</code> when the the element type is <code>*T</code>.
++the <code>&amp;T</code> when the element type is <code>*T</code>.
+ </p>
+ 
+ 
+diff --git a/src/pkg/go/doc/testdata/error2.1.golden b/src/pkg/go/doc/testdata/error2.1.golden
+index 776bd1b3e4..dbcc1b03e7 100644
+--- a/src/pkg/go/doc/testdata/error2.1.golden
++++ b/src/pkg/go/doc/testdata/error2.1.golden
+@@ -10,7 +10,7 @@ FILENAMES
+ TYPES
+ 	// 
+ 	type I0 interface {
+-		// When embedded, the the locally declared error interface
++		// When embedded, the locally-declared error interface
+ 		// is only visible if all declarations are shown.
+ 		error
+ 	}
+diff --git a/src/pkg/go/doc/testdata/error2.go b/src/pkg/go/doc/testdata/error2.go
+index 6cc36feef3..6ee96c2450 100644
+--- a/src/pkg/go/doc/testdata/error2.go
++++ b/src/pkg/go/doc/testdata/error2.go
+@@ -5,7 +5,7 @@
+ package error2
+ 
+ type I0 interface {
+-	// When embedded, the the locally declared error interface
++	// When embedded, the locally-declared error interface
+ 	// is only visible if all declarations are shown.
+ 	error
+ }
+diff --git a/src/pkg/math/remainder.go b/src/pkg/math/remainder.go
+index 41efd79085..9a4e4154c4 100644
+--- a/src/pkg/math/remainder.go
++++ b/src/pkg/math/remainder.go
+@@ -4,7 +4,7 @@
+ 
+ package math
+ 
+-// The original C code and the the comment below are from
++// The original C code and the comment below are from
+ // FreeBSD's /usr/src/lib/msun/src/e_remainder.c and came
+ // with this notice.  The go code is a simplified version of
+ // the original C.
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index 474a432d27..396bffe9c9 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -154,7 +154,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 		}
+ 		if sumRangesSize(ranges) >= size {
+ 			// The total number of bytes in all the ranges
+-			// is larger the the size of the file by
++			// is larger than the size of the file by
+ 			// itself, so this is probably an attack, or a
+ 			// dumb client.  Ignore the range request.
+ 			ranges = nil
+diff --git a/src/pkg/text/tabwriter/tabwriter.go b/src/pkg/text/tabwriter/tabwriter.go
+index ce84600d60..722ac8d877 100644
+--- a/src/pkg/text/tabwriter/tabwriter.go
++++ b/src/pkg/text/tabwriter/tabwriter.go
+@@ -547,7 +547,7 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
+ }
+ 
+ // NewWriter allocates and initializes a new tabwriter.Writer.
+-// The parameters are the same as for the the Init function.
++// The parameters are the same as for the Init function.
+ //
+ func NewWriter(output io.Writer, minwidth, tabwidth, padding int, padchar byte, flags uint) *Writer {
+ 	return new(Writer).Init(output, minwidth, tabwidth, padding, padchar, flags)
+diff --git a/src/pkg/text/template/funcs.go b/src/pkg/text/template/funcs.go
+index 8fbf0ef50a..90fb9c52c0 100644
+--- a/src/pkg/text/template/funcs.go
++++ b/src/pkg/text/template/funcs.go
+@@ -154,7 +154,7 @@ func length(item interface{}) (int, error) {
+ 
+ // Function invocation
+ 
+-// call returns the result of evaluating the the first argument as a function.
++// call returns the result of evaluating the first argument as a function.
+ // The function must return 1 result, or 2 results, the second of which is an error.
+ func call(fn interface{}, args ...interface{}) (interface{}, error) {
+ 	v := reflect.ValueOf(fn)

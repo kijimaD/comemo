@@ -9,7 +9,7 @@ Date:   Fri Feb 17 10:59:30 2012 +0900
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5675073
-
+---
  src/pkg/net/file_plan9.go            |  7 ++++---
  src/pkg/net/iprawsock_plan9.go       | 26 +++++++++++++-------------
  src/pkg/net/ipsock_plan9.go          |  7 ++++---
@@ -22,3 +22,476 @@ Date:   Fri Feb 17 10:59:30 2012 +0900
  src/pkg/syscall/syscall_plan9.go     |  8 ++++++++
  src/pkg/syscall/zerrors_plan9_386.go | 17 ++++++++++++++++-
  11 files changed, 84 insertions(+), 45 deletions(-)
+
+diff --git a/src/pkg/net/file_plan9.go b/src/pkg/net/file_plan9.go
+index 06d7cc8984..04f7ee0401 100644
+--- a/src/pkg/net/file_plan9.go
++++ b/src/pkg/net/file_plan9.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"os"
++	"syscall"
+ )
+ 
+ // FileConn returns a copy of the network connection corresponding to
+@@ -13,7 +14,7 @@ import (
+ // finished.  Closing c does not affect f, and closing f does not
+ // affect c.
+ func FileConn(f *os.File) (c Conn, err error) {
+-	return nil, os.EPLAN9
++	return nil, syscall.EPLAN9
+ }
+ 
+ // FileListener returns a copy of the network listener corresponding
+@@ -21,7 +22,7 @@ func FileConn(f *os.File) (c Conn, err error) {
+ // when finished.  Closing c does not affect l, and closing l does not
+ // affect c.
+ func FileListener(f *os.File) (l Listener, err error) {
+-	return nil, os.EPLAN9
++	return nil, syscall.EPLAN9
+ }
+ 
+ // FilePacketConn returns a copy of the packet network connection
+@@ -29,5 +30,5 @@ func FileListener(f *os.File) (l Listener, err error) {
+ // responsibility to close f when finished.  Closing c does not affect
+ // f, and closing f does not affect c.
+ func FilePacketConn(f *os.File) (c PacketConn, err error) {
+-	return nil, os.EPLAN9
++	return nil, syscall.EPLAN9
+ }
+diff --git a/src/pkg/net/iprawsock_plan9.go b/src/pkg/net/iprawsock_plan9.go
+index 382a440277..43719fc99c 100644
+--- a/src/pkg/net/iprawsock_plan9.go
++++ b/src/pkg/net/iprawsock_plan9.go
+@@ -7,7 +7,7 @@
+ package net
+ 
+ import (
+-	"os"
++	"syscall"
+ 	"time"
+ )
+ 
+@@ -17,34 +17,34 @@ type IPConn bool
+ 
+ // SetDeadline implements the Conn SetDeadline method.
+ func (c *IPConn) SetDeadline(t time.Time) error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *IPConn) SetReadDeadline(t time.Time) error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *IPConn) SetWriteDeadline(t time.Time) error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // Implementation of the Conn interface - see Conn for documentation.
+ 
+ // Read implements the Conn Read method.
+ func (c *IPConn) Read(b []byte) (int, error) {
+-	return 0, os.EPLAN9
++	return 0, syscall.EPLAN9
+ }
+ 
+ // Write implements the Conn Write method.
+ func (c *IPConn) Write(b []byte) (int, error) {
+-	return 0, os.EPLAN9
++	return 0, syscall.EPLAN9
+ }
+ 
+ // Close closes the IP connection.
+ func (c *IPConn) Close() error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // LocalAddr returns the local network address.
+@@ -67,12 +67,12 @@ func (c *IPConn) RemoteAddr() Addr {
+ // Timeout() == true after a fixed time limit; see SetDeadline and
+ // SetReadDeadline.
+ func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
+-	return 0, nil, os.EPLAN9
++	return 0, nil, syscall.EPLAN9
+ }
+ 
+ // ReadFrom implements the PacketConn ReadFrom method.
+ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
+-	return 0, nil, os.EPLAN9
++	return 0, nil, syscall.EPLAN9
+ }
+ 
+ // WriteToIP writes a IP packet to addr via c, copying the payload from b.
+@@ -82,18 +82,18 @@ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
+ // see SetDeadline and SetWriteDeadline.
+ // On packet-oriented connections, write timeouts are rare.
+ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
+-	return 0, os.EPLAN9
++	return 0, syscall.EPLAN9
+ }
+ 
+ // WriteTo implements the PacketConn WriteTo method.
+ func (c *IPConn) WriteTo(b []byte, addr Addr) (int, error) {
+-	return 0, os.EPLAN9
++	return 0, syscall.EPLAN9
+ }
+ 
+ // DialIP connects to the remote address raddr on the network protocol netProto,
+ // which must be "ip", "ip4", or "ip6" followed by a colon and a protocol number or name.
+ func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
+-	return nil, os.EPLAN9
++	return nil, syscall.EPLAN9
+ }
+ 
+ // ListenIP listens for incoming IP packets addressed to the
+@@ -101,5 +101,5 @@ func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
+ // and WriteTo methods can be used to receive and send IP
+ // packets with per-packet addressing.
+ func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
+-	return nil, os.EPLAN9
++	return nil, syscall.EPLAN9
+ }
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index 385da036d4..eab0bf3e89 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -10,6 +10,7 @@ import (
+ 	"errors"
+ 	"io"
+ 	"os"
++	"syscall"
+ 	"time"
+ )
+ 
+@@ -148,17 +149,17 @@ func (c *plan9Conn) RemoteAddr() Addr {
+ 
+ // SetDeadline implements the Conn SetDeadline method.
+ func (c *plan9Conn) SetDeadline(t time.Time) error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *plan9Conn) SetReadDeadline(t time.Time) error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *plan9Conn) SetWriteDeadline(t time.Time) error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string, err error) {
+diff --git a/src/pkg/net/lookup_plan9.go b/src/pkg/net/lookup_plan9.go
+index c0bb9225a7..b08a9fb98e 100644
+--- a/src/pkg/net/lookup_plan9.go
++++ b/src/pkg/net/lookup_plan9.go
+@@ -7,6 +7,7 @@ package net
+ import (
+ 	"errors"
+ 	"os"
++	"syscall"
+ )
+ 
+ func query(filename, query string, bufSize int) (res []string, err error) {
+@@ -71,7 +72,7 @@ func queryDNS(addr string, typ string) (res []string, err error) {
+ 
+ func lookupProtocol(name string) (proto int, err error) {
+ 	// TODO: Implement this
+-	return 0, os.EPLAN9
++	return 0, syscall.EPLAN9
+ }
+ 
+ func lookupHost(host string) (addrs []string, err error) {
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index be89e537f3..35f56966ea 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -7,7 +7,7 @@
+ package net
+ 
+ import (
+-	"os"
++	"syscall"
+ 	"time"
+ )
+ 
+@@ -19,17 +19,17 @@ type TCPConn struct {
+ 
+ // SetDeadline implements the Conn SetDeadline method.
+ func (c *TCPConn) SetDeadline(t time.Time) error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *TCPConn) SetReadDeadline(t time.Time) error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *TCPConn) SetWriteDeadline(t time.Time) error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // CloseRead shuts down the reading side of the TCP connection.
+@@ -38,7 +38,7 @@ func (c *TCPConn) CloseRead() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // CloseWrite shuts down the writing side of the TCP connection.
+@@ -47,7 +47,7 @@ func (c *TCPConn) CloseWrite() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // DialTCP connects to the remote address raddr on the network net,
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+index d1f83d3848..4f298a42f8 100644
+--- a/src/pkg/net/udpsock_plan9.go
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -9,6 +9,7 @@ package net
+ import (
+ 	"errors"
+ 	"os"
++	"syscall"
+ 	"time"
+ )
+ 
+@@ -20,17 +21,17 @@ type UDPConn struct {
+ 
+ // SetDeadline implements the Conn SetDeadline method.
+ func (c *UDPConn) SetDeadline(t time.Time) error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *UDPConn) SetReadDeadline(t time.Time) error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *UDPConn) SetWriteDeadline(t time.Time) error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // UDP-specific methods.
+@@ -191,5 +192,5 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
+ // the interface to join.  ListenMulticastUDP uses default
+ // multicast interface if ifi is nil.
+ func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
+-	return nil, os.EPLAN9
++	return nil, syscall.EPLAN9
+ }
+diff --git a/src/pkg/net/unixsock_plan9.go b/src/pkg/net/unixsock_plan9.go
+index 1d9d7578f4..7b4ae6bd11 100644
+--- a/src/pkg/net/unixsock_plan9.go
++++ b/src/pkg/net/unixsock_plan9.go
+@@ -7,7 +7,7 @@
+ package net
+ 
+ import (
+-	"os"
++	"syscall"
+ 	"time"
+ )
+ 
+@@ -19,17 +19,17 @@ type UnixConn bool
+ 
+ // Read implements the Conn Read method.
+ func (c *UnixConn) Read(b []byte) (n int, err error) {
+-	return 0, os.EPLAN9
++	return 0, syscall.EPLAN9
+ }
+ 
+ // Write implements the Conn Write method.
+ func (c *UnixConn) Write(b []byte) (n int, err error) {
+-	return 0, os.EPLAN9
++	return 0, syscall.EPLAN9
+ }
+ 
+ // Close closes the Unix domain connection.
+ func (c *UnixConn) Close() error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // LocalAddr returns the local network address, a *UnixAddr.
+@@ -47,28 +47,28 @@ func (c *UnixConn) RemoteAddr() Addr {
+ 
+ // SetDeadline implements the Conn SetDeadline method.
+ func (c *UnixConn) SetDeadline(t time.Time) error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *UnixConn) SetReadDeadline(t time.Time) error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *UnixConn) SetWriteDeadline(t time.Time) error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // ReadFrom implements the PacketConn ReadFrom method.
+ func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
+-	err = os.EPLAN9
++	err = syscall.EPLAN9
+ 	return
+ }
+ 
+ // WriteTo implements the PacketConn WriteTo method.
+ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err error) {
+-	err = os.EPLAN9
++	err = syscall.EPLAN9
+ 	return
+ }
+ 
+@@ -76,7 +76,7 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err error) {
+ // which must be "unix" or "unixgram".  If laddr is not nil, it is used
+ // as the local address for the connection.
+ func DialUnix(net string, laddr, raddr *UnixAddr) (c *UnixConn, err error) {
+-	return nil, os.EPLAN9
++	return nil, syscall.EPLAN9
+ }
+ 
+ // UnixListener is a Unix domain socket listener.
+@@ -87,19 +87,19 @@ type UnixListener bool
+ // ListenUnix announces on the Unix domain socket laddr and returns a Unix listener.
+ // Net must be "unix" (stream sockets).
+ func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err error) {
+-	return nil, os.EPLAN9
++	return nil, syscall.EPLAN9
+ }
+ 
+ // Accept implements the Accept method in the Listener interface;
+ // it waits for the next call and returns a generic Conn.
+ func (l *UnixListener) Accept() (c Conn, err error) {
+-	return nil, os.EPLAN9
++	return nil, syscall.EPLAN9
+ }
+ 
+ // Close stops listening on the Unix address.
+ // Already accepted connections are not closed.
+ func (l *UnixListener) Close() error {
+-	return os.EPLAN9
++	return syscall.EPLAN9
+ }
+ 
+ // Addr returns the listener's network address.
+diff --git a/src/pkg/os/exec/lp_plan9.go b/src/pkg/os/exec/lp_plan9.go
+index d88cd0df95..0e229e03ee 100644
+--- a/src/pkg/os/exec/lp_plan9.go
++++ b/src/pkg/os/exec/lp_plan9.go
+@@ -8,6 +8,7 @@ import (
+ 	"errors"
+ 	"os"
+ 	"strings"
++	"syscall"
+ )
+ 
+ // ErrNotFound is the error resulting if a path search failed to find an executable file.
+@@ -21,7 +22,7 @@ func findExecutable(file string) error {
+ 	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
+ 		return nil
+ 	}
+-	return os.EPERM
++	return syscall.EPERM
+ }
+ 
+ // LookPath searches for an executable binary named file
+diff --git a/src/pkg/os/signal/signal_stub.go b/src/pkg/os/signal/signal_stub.go
+new file mode 100644
+index 0000000000..fc227cf4c2
+--- /dev/null
++++ b/src/pkg/os/signal/signal_stub.go
+@@ -0,0 +1,11 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build plan9
++
++package signal
++
++import "os"
++
++func enableSignal(sig os.Signal) {}
+diff --git a/src/pkg/syscall/syscall_plan9.go b/src/pkg/syscall/syscall_plan9.go
+index 0bbb7ece99..122a96f26d 100644
+--- a/src/pkg/syscall/syscall_plan9.go
++++ b/src/pkg/syscall/syscall_plan9.go
+@@ -335,6 +335,14 @@ func Getgroups() (gids []int, err error) {
+ 	return make([]int, 0), nil
+ }
+ 
++type Signal int
++
++func (s Signal) Signal() {}
++
++func (s Signal) String() string {
++	return ""
++}
++
+ //sys	Dup(oldfd int, newfd int) (fd int, err error)
+ //sys	Open(path string, mode int) (fd int, err error)
+ //sys	Create(path string, mode int, perm uint32) (fd int, err error)
+diff --git a/src/pkg/syscall/zerrors_plan9_386.go b/src/pkg/syscall/zerrors_plan9_386.go
+index 694fd690cf..e7c993c0f1 100644
+--- a/src/pkg/syscall/zerrors_plan9_386.go
++++ b/src/pkg/syscall/zerrors_plan9_386.go
+@@ -4,6 +4,8 @@
+ 
+ package syscall
+ 
++import "errors"
++
+ // Constants
+ const (
+ 	// Invented values to support what package os expects.
+@@ -22,6 +24,19 @@ const (
+ 	S_IFREG  = 0x8000
+ 	S_IFLNK  = 0xa000
+ 	S_IFSOCK = 0xc000
++
++	SIGINT  = Signal(0x2)
++	SIGKILL = Signal(0x9)
+ )
+ 
+-// Error table
++// Errors
++var (
++	EINVAL       = errors.New("bad arg in system call")
++	ENOTDIR      = errors.New("not a directory")
++	ENOENT       = errors.New("file does not exist")
++	EEXIST       = errors.New("file already exists")
++	EIO          = errors.New("i/o error")
++	ENAMETOOLONG = errors.New("file name too long")
++	EPERM        = errors.New("permission denied")
++	EPLAN9       = errors.New("not supported by plan 9")
++)

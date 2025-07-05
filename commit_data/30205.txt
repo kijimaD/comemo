@@ -11,6 +11,20 @@ Date:   Thu Oct 27 16:42:42 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/math/big/rat_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/rat_test.go b/src/math/big/rat_test.go
+index e16ee5ef20..afda68658f 100644
+--- a/src/math/big/rat_test.go
++++ b/src/math/big/rat_test.go
+@@ -383,7 +383,7 @@ func TestFloat32Distribution(t *testing.T) {
+ 		11,
+ 	}
+ 	var winc, einc = uint64(5), 15 // quick test (~60ms on x86-64)
+-	if testing.Short() {
++	if *long {
+ 		winc, einc = uint64(1), 1 // soak test (~1.5s on x86-64)
+ 	}
+ 

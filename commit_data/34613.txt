@@ -13,7 +13,7 @@ Date:   Tue Oct 24 06:32:45 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arm.go             |  5 +++--
  src/cmd/asm/internal/asm/testdata/arm.s      |  5 ++++-
  src/cmd/asm/internal/asm/testdata/armerror.s |  1 +
@@ -21,3 +21,151 @@ Date:   Tue Oct 24 06:32:45 2017 +0000
  src/cmd/internal/obj/arm/anames.go           |  2 ++
  src/cmd/internal/obj/arm/asm5.go             | 25 +++++++++++++++++++++----
  6 files changed, 33 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm.go b/src/cmd/asm/internal/arch/arm.go
+index 4ee494a74c..6e86ac0fbe 100644
+--- a/src/cmd/asm/internal/arch/arm.go
++++ b/src/cmd/asm/internal/arch/arm.go
+@@ -122,10 +122,11 @@ func IsARMMRC(op obj.As) bool {
+ 	return false
+ }
+ 
+-// IsARMBFX reports whether the op is arm.BFX or arm.BFXU
++// IsARMBFX reports whether the op (as defined by an arm.A* constant) is one the
++// BFX-like instructions which are in the form of "op $width, $LSB, (Reg,) Reg".
+ func IsARMBFX(op obj.As) bool {
+ 	switch op {
+-	case arm.ABFX, arm.ABFXU:
++	case arm.ABFX, arm.ABFXU, arm.ABFC, arm.ABFI:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index 319e07c21c..bc6cf07e83 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -1029,11 +1029,14 @@ jmp_label_3:
+ 	SWI	$65535         // ffff00ef
+ 	SWI	               // 000000ef
+ 
+-// BFX/BFXU
++// BFX/BFXU/BFC/BFI
+ 	BFX	$16, $8, R1, R2 // BFX $16, R1, $8, R2   // 5124afe7
+ 	BFX	$29, $2, R8                              // 5881bce7
+ 	BFXU	$16, $8, R1, R2 // BFXU $16, R1, $8, R2  // 5124efe7
+ 	BFXU	$29, $2, R8                              // 5881fce7
++	BFC	$29, $2, R8                              // 1f81dee7
++	BFI	$29, $2, R8                              // 1881dee7
++	BFI	$16, $8, R1, R2 // BFI $16, R1, $8, R2   // 1124d7e7
+ 
+ // synthetic arithmatic
+ 	ADD	$0xffffffaa, R2, R3 // ADD $4294967210, R2, R3   // 55b0e0e30b3082e0
+diff --git a/src/cmd/asm/internal/asm/testdata/armerror.s b/src/cmd/asm/internal/asm/testdata/armerror.s
+index 6ded33d8e4..f2bed8d1c3 100644
+--- a/src/cmd/asm/internal/asm/testdata/armerror.s
++++ b/src/cmd/asm/internal/asm/testdata/armerror.s
+@@ -149,6 +149,7 @@ TEXT errors(SB),$0
+ 	BFX	$-2, $4, R2, R3    // ERROR "wrong width or LSB"
+ 	BFXU	$4, R2, R5, R2     // ERROR "missing or wrong LSB"
+ 	BFXU	$4, R2, R5         // ERROR "missing or wrong LSB"
++	BFC	$12, $8, R2, R3    // ERROR "illegal combination"
+ 	MOVB	R0>>8, R2          // ERROR "illegal shift"
+ 	MOVH	R0<<16, R2         // ERROR "illegal shift"
+ 	MOVBS	R0->8, R2          // ERROR "illegal shift"
+diff --git a/src/cmd/internal/obj/arm/a.out.go b/src/cmd/internal/obj/arm/a.out.go
+index 385937ff6b..d4d9510230 100644
+--- a/src/cmd/internal/obj/arm/a.out.go
++++ b/src/cmd/internal/obj/arm/a.out.go
+@@ -320,6 +320,8 @@ const (
+ 
+ 	ABFX
+ 	ABFXU
++	ABFC
++	ABFI
+ 
+ 	AMULWT
+ 	AMULWB
+diff --git a/src/cmd/internal/obj/arm/anames.go b/src/cmd/internal/obj/arm/anames.go
+index 75921f4580..cb60eba824 100644
+--- a/src/cmd/internal/obj/arm/anames.go
++++ b/src/cmd/internal/obj/arm/anames.go
+@@ -131,6 +131,8 @@ var Anames = []string{
+ 	"XTAHU",
+ 	"BFX",
+ 	"BFXU",
++	"BFC",
++	"BFI",
+ 	"MULWT",
+ 	"MULWB",
+ 	"MULBB",
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 67be8d720a..0439954fe9 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -69,7 +69,7 @@ type Optab struct {
+ 	param    int16
+ 	flag     int8
+ 	pcrelsiz uint8
+-	scond    uint8  // optional flags accepted by the instruction
++	scond    uint8 // optional flags accepted by the instruction
+ }
+ 
+ type Opcross [32][2][32]uint8
+@@ -1679,6 +1679,8 @@ func buildop(ctxt *obj.Link) {
+ 
+ 		case ABFX:
+ 			opset(ABFXU, r0)
++			opset(ABFC, r0)
++			opset(ABFI, r0)
+ 
+ 		case ACLZ:
+ 			opset(AREV, r0)
+@@ -2033,12 +2035,14 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		r := int(p.Reg)
+ 		o1 |= (uint32(rf)&15)<<8 | (uint32(r)&15)<<0 | (uint32(rt)&15)<<16 | (uint32(rt2)&15)<<12
+ 
+-	case 18: /* BFX/BFXU */
++	case 18: /* BFX/BFXU/BFC/BFI */
+ 		o1 = c.oprrr(p, p.As, int(p.Scond))
+ 		rt := int(p.To.Reg)
+ 		r := int(p.Reg)
+ 		if r == 0 {
+ 			r = rt
++		} else if p.As == ABFC { // only "BFC $width, $lsb, Reg" is accepted, p.Reg must be 0
++			c.ctxt.Diag("illegal combination: %v", p)
+ 		}
+ 		if p.GetFrom3() == nil || p.GetFrom3().Type != obj.TYPE_CONST {
+ 			c.ctxt.Diag("%v: missing or wrong LSB", p)
+@@ -2046,10 +2050,17 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		lsb := p.GetFrom3().Offset
+ 		width := p.From.Offset
+-		if lsb < 0 || lsb > 31 || width <= 0 || (lsb+width) > 31 {
++		if lsb < 0 || lsb > 31 || width <= 0 || (lsb+width) > 32 {
+ 			c.ctxt.Diag("%v: wrong width or LSB", p)
+ 		}
+-		o1 |= (uint32(r)&15)<<0 | (uint32(rt)&15)<<12 | uint32(lsb)<<7 | uint32(width-1)<<16
++		switch p.As {
++		case ABFX, ABFXU: // (width-1) is encoded
++			o1 |= (uint32(r)&15)<<0 | (uint32(rt)&15)<<12 | uint32(lsb)<<7 | uint32(width-1)<<16
++		case ABFC, ABFI: // MSB is encoded
++			o1 |= (uint32(r)&15)<<0 | (uint32(rt)&15)<<12 | uint32(lsb)<<7 | uint32(lsb+width-1)<<16
++		default:
++			c.ctxt.Diag("illegal combination: %v", p)
++		}
+ 
+ 	case 20: /* mov/movb/movbu R,O(R) */
+ 		c.aclass(&p.To)
+@@ -3022,6 +3033,12 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
+ 	case ABFXU:
+ 		return o | 0x3f<<21 | 0x5<<4
+ 
++	case ABFC:
++		return o | 0x3e<<21 | 0x1f
++
++	case ABFI:
++		return o | 0x3e<<21 | 0x1<<4
++
+ 	case AXTAB:
+ 		return o | 0x6a<<20 | 0x7<<4
+ 

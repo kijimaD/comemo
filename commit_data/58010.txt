@@ -20,7 +20,7 @@ Date:   Wed Aug 30 10:06:18 2023 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/cgo_stub.go                          |    2 +-
  src/net/conf.go                              |    2 -
  src/net/conn_test.go                         |   78 +-
@@ -89,3 +89,4335 @@ Date:   Wed Aug 30 10:06:18 2023 -0400
  src/net/writev_test.go                       |   10 +-
  src/syscall/net_fake.go                      |    8 +-
  67 files changed, 1906 insertions(+), 1123 deletions(-)
+
+diff --git a/src/net/cgo_stub.go b/src/net/cgo_stub.go
+index b26b11af8b..a4f6b4b0e8 100644
+--- a/src/net/cgo_stub.go
++++ b/src/net/cgo_stub.go
+@@ -9,7 +9,7 @@
+ //   (Darwin always provides the cgo functions, in cgo_unix_syscall.go)
+ // - on wasip1, where cgo is never available
+ 
+-//go:build (netgo && unix) || (unix && !cgo && !darwin) || wasip1
++//go:build (netgo && unix) || (unix && !cgo && !darwin) || js || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 08c2e7e33d..99717dbf8c 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
+-
+ package net
+ 
+ import (
+diff --git a/src/net/conn_test.go b/src/net/conn_test.go
+index 4f391b0675..d1e1e7bf1c 100644
+--- a/src/net/conn_test.go
++++ b/src/net/conn_test.go
+@@ -2,10 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file implements API tests across platforms and will never have a build
+-// tag.
+-
+-//go:build !js && !wasip1
++// This file implements API tests across platforms and should never have a build
++// constraint.
+ 
+ package net
+ 
+@@ -21,44 +19,46 @@ const someTimeout = 1 * time.Hour
+ 
+ func TestConnAndListener(t *testing.T) {
+ 	for i, network := range []string{"tcp", "unix", "unixpacket"} {
+-		if !testableNetwork(network) {
+-			t.Logf("skipping %s test", network)
+-			continue
+-		}
++		i, network := i, network
++		t.Run(network, func(t *testing.T) {
++			if !testableNetwork(network) {
++				t.Skipf("skipping %s test", network)
++			}
+ 
+-		ls := newLocalServer(t, network)
+-		defer ls.teardown()
+-		ch := make(chan error, 1)
+-		handler := func(ls *localServer, ln Listener) { ls.transponder(ln, ch) }
+-		if err := ls.buildup(handler); err != nil {
+-			t.Fatal(err)
+-		}
+-		if ls.Listener.Addr().Network() != network {
+-			t.Fatalf("got %s; want %s", ls.Listener.Addr().Network(), network)
+-		}
++			ls := newLocalServer(t, network)
++			defer ls.teardown()
++			ch := make(chan error, 1)
++			handler := func(ls *localServer, ln Listener) { ls.transponder(ln, ch) }
++			if err := ls.buildup(handler); err != nil {
++				t.Fatal(err)
++			}
++			if ls.Listener.Addr().Network() != network {
++				t.Fatalf("got %s; want %s", ls.Listener.Addr().Network(), network)
++			}
+ 
+-		c, err := Dial(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		defer c.Close()
+-		if c.LocalAddr().Network() != network || c.RemoteAddr().Network() != network {
+-			t.Fatalf("got %s->%s; want %s->%s", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
+-		}
+-		c.SetDeadline(time.Now().Add(someTimeout))
+-		c.SetReadDeadline(time.Now().Add(someTimeout))
+-		c.SetWriteDeadline(time.Now().Add(someTimeout))
++			c, err := Dial(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer c.Close()
++			if c.LocalAddr().Network() != network || c.RemoteAddr().Network() != network {
++				t.Fatalf("got %s->%s; want %s->%s", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
++			}
++			c.SetDeadline(time.Now().Add(someTimeout))
++			c.SetReadDeadline(time.Now().Add(someTimeout))
++			c.SetWriteDeadline(time.Now().Add(someTimeout))
+ 
+-		if _, err := c.Write([]byte("CONN AND LISTENER TEST")); err != nil {
+-			t.Fatal(err)
+-		}
+-		rb := make([]byte, 128)
+-		if _, err := c.Read(rb); err != nil {
+-			t.Fatal(err)
+-		}
++			if _, err := c.Write([]byte("CONN AND LISTENER TEST")); err != nil {
++				t.Fatal(err)
++			}
++			rb := make([]byte, 128)
++			if _, err := c.Read(rb); err != nil {
++				t.Fatal(err)
++			}
+ 
+-		for err := range ch {
+-			t.Errorf("#%d: %v", i, err)
+-		}
++			for err := range ch {
++				t.Errorf("#%d: %v", i, err)
++			}
++		})
+ 	}
+ }
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index c36274d4d7..1d0832e46e 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+@@ -983,6 +981,8 @@ func TestDialerControl(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
++	case "js", "wasip1":
++		t.Skipf("skipping: fake net does not support Dialer.Control")
+ 	}
+ 
+ 	t.Run("StreamDial", func(t *testing.T) {
+@@ -1026,28 +1026,32 @@ func TestDialerControlContext(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+ 		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
++	case "js", "wasip1":
++		t.Skipf("skipping: fake net does not support Dialer.ControlContext")
+ 	}
+ 	t.Run("StreamDial", func(t *testing.T) {
+ 		for i, network := range []string{"tcp", "tcp4", "tcp6", "unix", "unixpacket"} {
+-			if !testableNetwork(network) {
+-				continue
+-			}
+-			ln := newLocalListener(t, network)
+-			defer ln.Close()
+-			var id int
+-			d := Dialer{ControlContext: func(ctx context.Context, network string, address string, c syscall.RawConn) error {
+-				id = ctx.Value("id").(int)
+-				return controlOnConnSetup(network, address, c)
+-			}}
+-			c, err := d.DialContext(context.WithValue(context.Background(), "id", i+1), network, ln.Addr().String())
+-			if err != nil {
+-				t.Error(err)
+-				continue
+-			}
+-			if id != i+1 {
+-				t.Errorf("got id %d, want %d", id, i+1)
+-			}
+-			c.Close()
++			t.Run(network, func(t *testing.T) {
++				if !testableNetwork(network) {
++					t.Skipf("skipping: %s not available", network)
++				}
++
++				ln := newLocalListener(t, network)
++				defer ln.Close()
++				var id int
++				d := Dialer{ControlContext: func(ctx context.Context, network string, address string, c syscall.RawConn) error {
++					id = ctx.Value("id").(int)
++					return controlOnConnSetup(network, address, c)
++				}}
++				c, err := d.DialContext(context.WithValue(context.Background(), "id", i+1), network, ln.Addr().String())
++				if err != nil {
++					t.Fatal(err)
++				}
++				if id != i+1 {
++					t.Errorf("got id %d, want %d", id, i+1)
++				}
++				c.Close()
++			})
+ 		}
+ 	})
+ }
+@@ -1059,7 +1063,8 @@ func mustHaveExternalNetwork(t *testing.T) {
+ 	t.Helper()
+ 	definitelyHasLongtestBuilder := runtime.GOOS == "linux"
+ 	mobile := runtime.GOOS == "android" || runtime.GOOS == "ios"
+-	if testenv.Builder() != "" && !definitelyHasLongtestBuilder && !mobile {
++	fake := runtime.GOOS == "js" || runtime.GOOS == "wasip1"
++	if testenv.Builder() != "" && !definitelyHasLongtestBuilder && !mobile && !fake {
+ 		// On a non-Linux, non-mobile builder (e.g., freebsd-amd64-13_0).
+ 		//
+ 		// Don't skip testing because otherwise the test may never run on
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 6dc4dbe269..c291d5eb4f 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
+-
+ // DNS client: see RFC 1035.
+ // Has to be linked into package net for Dial.
+ 
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index 69b300410a..b0a318279b 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !windows
++//go:build !windows
+ 
+ // Read system DNS config from /etc/resolv.conf
+ 
+diff --git a/src/net/dnsname_test.go b/src/net/dnsname_test.go
+index 4a5f01a04a..601a33af9f 100644
+--- a/src/net/dnsname_test.go
++++ b/src/net/dnsname_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+diff --git a/src/net/error_posix.go b/src/net/error_posix.go
+index c8dc069db4..84f8044045 100644
+--- a/src/net/error_posix.go
++++ b/src/net/error_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || wasip1 || windows
++//go:build unix || js || wasip1 || windows
+ 
+ package net
+ 
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 4538765d48..f82e863346 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+@@ -157,32 +155,33 @@ func TestDialError(t *testing.T) {
+ 
+ 	d := Dialer{Timeout: someTimeout}
+ 	for i, tt := range dialErrorTests {
+-		c, err := d.Dial(tt.network, tt.address)
+-		if err == nil {
+-			t.Errorf("#%d: should fail; %s:%s->%s", i, c.LocalAddr().Network(), c.LocalAddr(), c.RemoteAddr())
+-			c.Close()
+-			continue
+-		}
+-		if tt.network == "tcp" || tt.network == "udp" {
+-			nerr := err
+-			if op, ok := nerr.(*OpError); ok {
+-				nerr = op.Err
++		i, tt := i, tt
++		t.Run(fmt.Sprint(i), func(t *testing.T) {
++			c, err := d.Dial(tt.network, tt.address)
++			if err == nil {
++				t.Errorf("should fail; %s:%s->%s", c.LocalAddr().Network(), c.LocalAddr(), c.RemoteAddr())
++				c.Close()
++				return
+ 			}
+-			if sys, ok := nerr.(*os.SyscallError); ok {
+-				nerr = sys.Err
++			if tt.network == "tcp" || tt.network == "udp" {
++				nerr := err
++				if op, ok := nerr.(*OpError); ok {
++					nerr = op.Err
++				}
++				if sys, ok := nerr.(*os.SyscallError); ok {
++					nerr = sys.Err
++				}
++				if nerr == errOpNotSupported {
++					t.Fatalf("should fail without %v; %s:%s->", nerr, tt.network, tt.address)
++				}
+ 			}
+-			if nerr == errOpNotSupported {
+-				t.Errorf("#%d: should fail without %v; %s:%s->", i, nerr, tt.network, tt.address)
+-				continue
++			if c != nil {
++				t.Errorf("Dial returned non-nil interface %T(%v) with err != nil", c, c)
+ 			}
+-		}
+-		if c != nil {
+-			t.Errorf("Dial returned non-nil interface %T(%v) with err != nil", c, c)
+-		}
+-		if err = parseDialError(err); err != nil {
+-			t.Errorf("#%d: %v", i, err)
+-			continue
+-		}
++			if err = parseDialError(err); err != nil {
++				t.Error(err)
++			}
++		})
+ 	}
+ }
+ 
+@@ -208,10 +207,11 @@ func TestProtocolDialError(t *testing.T) {
+ 			t.Errorf("%s: should fail", network)
+ 			continue
+ 		}
+-		if err = parseDialError(err); err != nil {
++		if err := parseDialError(err); err != nil {
+ 			t.Errorf("%s: %v", network, err)
+ 			continue
+ 		}
++		t.Logf("%s: error as expected: %v", network, err)
+ 	}
+ }
+ 
+@@ -220,6 +220,7 @@ func TestDialAddrError(t *testing.T) {
+ 	case "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
++
+ 	if !supportsIPv4() || !supportsIPv6() {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+@@ -236,38 +237,42 @@ func TestDialAddrError(t *testing.T) {
+ 		// control name resolution.
+ 		{"tcp6", "", &TCPAddr{IP: IP{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}}},
+ 	} {
+-		var err error
+-		var c Conn
+-		var op string
+-		if tt.lit != "" {
+-			c, err = Dial(tt.network, JoinHostPort(tt.lit, "0"))
+-			op = fmt.Sprintf("Dial(%q, %q)", tt.network, JoinHostPort(tt.lit, "0"))
+-		} else {
+-			c, err = DialTCP(tt.network, nil, tt.addr)
+-			op = fmt.Sprintf("DialTCP(%q, %q)", tt.network, tt.addr)
+-		}
+-		if err == nil {
+-			c.Close()
+-			t.Errorf("%s succeeded, want error", op)
+-			continue
+-		}
+-		if perr := parseDialError(err); perr != nil {
+-			t.Errorf("%s: %v", op, perr)
+-			continue
+-		}
+-		operr := err.(*OpError).Err
+-		aerr, ok := operr.(*AddrError)
+-		if !ok {
+-			t.Errorf("%s: %v is %T, want *AddrError", op, err, operr)
+-			continue
+-		}
+-		want := tt.lit
+-		if tt.lit == "" {
+-			want = tt.addr.IP.String()
+-		}
+-		if aerr.Addr != want {
+-			t.Errorf("%s: %v, error Addr=%q, want %q", op, err, aerr.Addr, want)
+-		}
++		desc := tt.lit
++		if desc == "" {
++			desc = tt.addr.String()
++		}
++		t.Run(fmt.Sprintf("%s/%s", tt.network, desc), func(t *testing.T) {
++			var err error
++			var c Conn
++			var op string
++			if tt.lit != "" {
++				c, err = Dial(tt.network, JoinHostPort(tt.lit, "0"))
++				op = fmt.Sprintf("Dial(%q, %q)", tt.network, JoinHostPort(tt.lit, "0"))
++			} else {
++				c, err = DialTCP(tt.network, nil, tt.addr)
++				op = fmt.Sprintf("DialTCP(%q, %q)", tt.network, tt.addr)
++			}
++			t.Logf("%s: %v", op, err)
++			if err == nil {
++				c.Close()
++				t.Fatalf("%s succeeded, want error", op)
++			}
++			if perr := parseDialError(err); perr != nil {
++				t.Fatal(perr)
++			}
++			operr := err.(*OpError).Err
++			aerr, ok := operr.(*AddrError)
++			if !ok {
++				t.Fatalf("OpError.Err is %T, want *AddrError", operr)
++			}
++			want := tt.lit
++			if tt.lit == "" {
++				want = tt.addr.IP.String()
++			}
++			if aerr.Addr != want {
++				t.Errorf("error Addr=%q, want %q", aerr.Addr, want)
++			}
++		})
+ 	}
+ }
+ 
+@@ -305,32 +310,32 @@ func TestListenError(t *testing.T) {
+ 	defer sw.Set(socktest.FilterListen, nil)
+ 
+ 	for i, tt := range listenErrorTests {
+-		ln, err := Listen(tt.network, tt.address)
+-		if err == nil {
+-			t.Errorf("#%d: should fail; %s:%s->", i, ln.Addr().Network(), ln.Addr())
+-			ln.Close()
+-			continue
+-		}
+-		if tt.network == "tcp" {
+-			nerr := err
+-			if op, ok := nerr.(*OpError); ok {
+-				nerr = op.Err
++		t.Run(fmt.Sprintf("%s_%s", tt.network, tt.address), func(t *testing.T) {
++			ln, err := Listen(tt.network, tt.address)
++			if err == nil {
++				t.Errorf("#%d: should fail; %s:%s->", i, ln.Addr().Network(), ln.Addr())
++				ln.Close()
++				return
+ 			}
+-			if sys, ok := nerr.(*os.SyscallError); ok {
+-				nerr = sys.Err
++			if tt.network == "tcp" {
++				nerr := err
++				if op, ok := nerr.(*OpError); ok {
++					nerr = op.Err
++				}
++				if sys, ok := nerr.(*os.SyscallError); ok {
++					nerr = sys.Err
++				}
++				if nerr == errOpNotSupported {
++					t.Fatalf("#%d: should fail without %v; %s:%s->", i, nerr, tt.network, tt.address)
++				}
+ 			}
+-			if nerr == errOpNotSupported {
+-				t.Errorf("#%d: should fail without %v; %s:%s->", i, nerr, tt.network, tt.address)
+-				continue
++			if ln != nil {
++				t.Errorf("Listen returned non-nil interface %T(%v) with err != nil", ln, ln)
+ 			}
+-		}
+-		if ln != nil {
+-			t.Errorf("Listen returned non-nil interface %T(%v) with err != nil", ln, ln)
+-		}
+-		if err = parseDialError(err); err != nil {
+-			t.Errorf("#%d: %v", i, err)
+-			continue
+-		}
++			if err = parseDialError(err); err != nil {
++				t.Errorf("#%d: %v", i, err)
++			}
++		})
+ 	}
+ }
+ 
+@@ -361,19 +366,20 @@ func TestListenPacketError(t *testing.T) {
+ 	}
+ 
+ 	for i, tt := range listenPacketErrorTests {
+-		c, err := ListenPacket(tt.network, tt.address)
+-		if err == nil {
+-			t.Errorf("#%d: should fail; %s:%s->", i, c.LocalAddr().Network(), c.LocalAddr())
+-			c.Close()
+-			continue
+-		}
+-		if c != nil {
+-			t.Errorf("ListenPacket returned non-nil interface %T(%v) with err != nil", c, c)
+-		}
+-		if err = parseDialError(err); err != nil {
+-			t.Errorf("#%d: %v", i, err)
+-			continue
+-		}
++		t.Run(fmt.Sprintf("%s_%s", tt.network, tt.address), func(t *testing.T) {
++			c, err := ListenPacket(tt.network, tt.address)
++			if err == nil {
++				t.Errorf("#%d: should fail; %s:%s->", i, c.LocalAddr().Network(), c.LocalAddr())
++				c.Close()
++				return
++			}
++			if c != nil {
++				t.Errorf("ListenPacket returned non-nil interface %T(%v) with err != nil", c, c)
++			}
++			if err = parseDialError(err); err != nil {
++				t.Errorf("#%d: %v", i, err)
++			}
++		})
+ 	}
+ }
+ 
+@@ -557,49 +563,57 @@ third:
+ }
+ 
+ func TestCloseError(t *testing.T) {
+-	ln := newLocalListener(t, "tcp")
+-	defer ln.Close()
+-	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer c.Close()
++	t.Run("tcp", func(t *testing.T) {
++		ln := newLocalListener(t, "tcp")
++		defer ln.Close()
++		c, err := Dial(ln.Addr().Network(), ln.Addr().String())
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer c.Close()
+ 
+-	for i := 0; i < 3; i++ {
+-		err = c.(*TCPConn).CloseRead()
+-		if perr := parseCloseError(err, true); perr != nil {
+-			t.Errorf("#%d: %v", i, perr)
++		for i := 0; i < 3; i++ {
++			err = c.(*TCPConn).CloseRead()
++			if perr := parseCloseError(err, true); perr != nil {
++				t.Errorf("#%d: %v", i, perr)
++			}
+ 		}
+-	}
+-	for i := 0; i < 3; i++ {
+-		err = c.(*TCPConn).CloseWrite()
+-		if perr := parseCloseError(err, true); perr != nil {
+-			t.Errorf("#%d: %v", i, perr)
++		for i := 0; i < 3; i++ {
++			err = c.(*TCPConn).CloseWrite()
++			if perr := parseCloseError(err, true); perr != nil {
++				t.Errorf("#%d: %v", i, perr)
++			}
+ 		}
+-	}
+-	for i := 0; i < 3; i++ {
+-		err = c.Close()
+-		if perr := parseCloseError(err, false); perr != nil {
+-			t.Errorf("#%d: %v", i, perr)
++		for i := 0; i < 3; i++ {
++			err = c.Close()
++			if perr := parseCloseError(err, false); perr != nil {
++				t.Errorf("#%d: %v", i, perr)
++			}
++			err = ln.Close()
++			if perr := parseCloseError(err, false); perr != nil {
++				t.Errorf("#%d: %v", i, perr)
++			}
+ 		}
+-		err = ln.Close()
+-		if perr := parseCloseError(err, false); perr != nil {
+-			t.Errorf("#%d: %v", i, perr)
++	})
++
++	t.Run("udp", func(t *testing.T) {
++		if !testableNetwork("udp") {
++			t.Skipf("skipping: udp not available")
+ 		}
+-	}
+ 
+-	pc, err := ListenPacket("udp", "127.0.0.1:0")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer pc.Close()
++		pc, err := ListenPacket("udp", "127.0.0.1:0")
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer pc.Close()
+ 
+-	for i := 0; i < 3; i++ {
+-		err = pc.Close()
+-		if perr := parseCloseError(err, false); perr != nil {
+-			t.Errorf("#%d: %v", i, perr)
++		for i := 0; i < 3; i++ {
++			err = pc.Close()
++			if perr := parseCloseError(err, false); perr != nil {
++				t.Errorf("#%d: %v", i, perr)
++			}
+ 		}
+-	}
++	})
+ }
+ 
+ // parseAcceptError parses nestedErr and reports whether it is a valid
+diff --git a/src/net/external_test.go b/src/net/external_test.go
+index 0709b9d6f5..38788efc3d 100644
+--- a/src/net/external_test.go
++++ b/src/net/external_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+diff --git a/src/net/fd_fake.go b/src/net/fd_fake.go
+new file mode 100644
+index 0000000000..b9361a3c4e
+--- /dev/null
++++ b/src/net/fd_fake.go
+@@ -0,0 +1,169 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build js || wasip1
++
++package net
++
++import (
++	"internal/poll"
++	"runtime"
++	"time"
++)
++
++const (
++	readSyscallName  = "fd_read"
++	writeSyscallName = "fd_write"
++)
++
++// Network file descriptor.
++type netFD struct {
++	pfd poll.FD
++
++	// immutable until Close
++	family      int
++	sotype      int
++	isConnected bool // handshake completed or use of association with peer
++	net         string
++	laddr       Addr
++	raddr       Addr
++
++	// The only networking available in WASI preview 1 is the ability to
++	// sock_accept on an pre-opened socket, and then fd_read, fd_write,
++	// fd_close, and sock_shutdown on the resulting connection. We
++	// intercept applicable netFD calls on this instance, and then pass
++	// the remainder of the netFD calls to fakeNetFD.
++	*fakeNetFD
++}
++
++func newFD(net string, sysfd int) *netFD {
++	return newPollFD(net, poll.FD{
++		Sysfd:         sysfd,
++		IsStream:      true,
++		ZeroReadIsEOF: true,
++	})
++}
++
++func newPollFD(net string, pfd poll.FD) *netFD {
++	var laddr Addr
++	var raddr Addr
++	// WASI preview 1 does not have functions like getsockname/getpeername,
++	// so we cannot get access to the underlying IP address used by connections.
++	//
++	// However, listeners created by FileListener are of type *TCPListener,
++	// which can be asserted by a Go program. The (*TCPListener).Addr method
++	// documents that the returned value will be of type *TCPAddr, we satisfy
++	// the documented behavior by creating addresses of the expected type here.
++	switch net {
++	case "tcp":
++		laddr = new(TCPAddr)
++		raddr = new(TCPAddr)
++	case "udp":
++		laddr = new(UDPAddr)
++		raddr = new(UDPAddr)
++	default:
++		laddr = unknownAddr{}
++		raddr = unknownAddr{}
++	}
++	return &netFD{
++		pfd:   pfd,
++		net:   net,
++		laddr: laddr,
++		raddr: raddr,
++	}
++}
++
++func (fd *netFD) init() error {
++	return fd.pfd.Init(fd.net, true)
++}
++
++func (fd *netFD) name() string {
++	return "unknown"
++}
++
++func (fd *netFD) accept() (netfd *netFD, err error) {
++	if fd.fakeNetFD != nil {
++		return fd.fakeNetFD.accept(fd.laddr)
++	}
++	d, _, errcall, err := fd.pfd.Accept()
++	if err != nil {
++		if errcall != "" {
++			err = wrapSyscallError(errcall, err)
++		}
++		return nil, err
++	}
++	netfd = newFD("tcp", d)
++	if err = netfd.init(); err != nil {
++		netfd.Close()
++		return nil, err
++	}
++	return netfd, nil
++}
++
++func (fd *netFD) setAddr(laddr, raddr Addr) {
++	fd.laddr = laddr
++	fd.raddr = raddr
++	runtime.SetFinalizer(fd, (*netFD).Close)
++}
++
++func (fd *netFD) Close() error {
++	if fd.fakeNetFD != nil {
++		return fd.fakeNetFD.Close()
++	}
++	runtime.SetFinalizer(fd, nil)
++	return fd.pfd.Close()
++}
++
++func (fd *netFD) shutdown(how int) error {
++	if fd.fakeNetFD != nil {
++		return nil
++	}
++	err := fd.pfd.Shutdown(how)
++	runtime.KeepAlive(fd)
++	return wrapSyscallError("shutdown", err)
++}
++
++func (fd *netFD) Read(p []byte) (n int, err error) {
++	if fd.fakeNetFD != nil {
++		return fd.fakeNetFD.Read(p)
++	}
++	n, err = fd.pfd.Read(p)
++	runtime.KeepAlive(fd)
++	return n, wrapSyscallError(readSyscallName, err)
++}
++
++func (fd *netFD) Write(p []byte) (nn int, err error) {
++	if fd.fakeNetFD != nil {
++		return fd.fakeNetFD.Write(p)
++	}
++	nn, err = fd.pfd.Write(p)
++	runtime.KeepAlive(fd)
++	return nn, wrapSyscallError(writeSyscallName, err)
++}
++
++func (fd *netFD) SetDeadline(t time.Time) error {
++	if fd.fakeNetFD != nil {
++		return fd.fakeNetFD.SetDeadline(t)
++	}
++	return fd.pfd.SetDeadline(t)
++}
++
++func (fd *netFD) SetReadDeadline(t time.Time) error {
++	if fd.fakeNetFD != nil {
++		return fd.fakeNetFD.SetReadDeadline(t)
++	}
++	return fd.pfd.SetReadDeadline(t)
++}
++
++func (fd *netFD) SetWriteDeadline(t time.Time) error {
++	if fd.fakeNetFD != nil {
++		return fd.fakeNetFD.SetWriteDeadline(t)
++	}
++	return fd.pfd.SetWriteDeadline(t)
++}
++
++type unknownAddr struct{}
++
++func (unknownAddr) Network() string { return "unknown" }
++func (unknownAddr) String() string  { return "unknown" }
+diff --git a/src/net/fd_js.go b/src/net/fd_js.go
+new file mode 100644
+index 0000000000..0fce036ef1
+--- /dev/null
++++ b/src/net/fd_js.go
+@@ -0,0 +1,28 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Fake networking for js/wasm. It is intended to allow tests of other package to pass.
++
++//go:build js
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++func (fd *netFD) closeRead() error {
++	if fd.fakeNetFD != nil {
++		return fd.fakeNetFD.closeRead()
++	}
++	return os.NewSyscallError("closeRead", syscall.ENOTSUP)
++}
++
++func (fd *netFD) closeWrite() error {
++	if fd.fakeNetFD != nil {
++		return fd.fakeNetFD.closeWrite()
++	}
++	return os.NewSyscallError("closeRead", syscall.ENOTSUP)
++}
+diff --git a/src/net/fd_wasip1.go b/src/net/fd_wasip1.go
+index 74d0b0b2e8..d50effc05d 100644
+--- a/src/net/fd_wasip1.go
++++ b/src/net/fd_wasip1.go
+@@ -7,124 +7,9 @@
+ package net
+ 
+ import (
+-	"internal/poll"
+-	"runtime"
+ 	"syscall"
+-	"time"
+ )
+ 
+-const (
+-	readSyscallName  = "fd_read"
+-	writeSyscallName = "fd_write"
+-)
+-
+-// Network file descriptor.
+-type netFD struct {
+-	pfd poll.FD
+-
+-	// immutable until Close
+-	family      int
+-	sotype      int
+-	isConnected bool // handshake completed or use of association with peer
+-	net         string
+-	laddr       Addr
+-	raddr       Addr
+-
+-	// The only networking available in WASI preview 1 is the ability to
+-	// sock_accept on an pre-opened socket, and then fd_read, fd_write,
+-	// fd_close, and sock_shutdown on the resulting connection. We
+-	// intercept applicable netFD calls on this instance, and then pass
+-	// the remainder of the netFD calls to fakeNetFD.
+-	*fakeNetFD
+-}
+-
+-func newFD(net string, sysfd int) *netFD {
+-	return newPollFD(net, poll.FD{
+-		Sysfd:         sysfd,
+-		IsStream:      true,
+-		ZeroReadIsEOF: true,
+-	})
+-}
+-
+-func newPollFD(net string, pfd poll.FD) *netFD {
+-	var laddr Addr
+-	var raddr Addr
+-	// WASI preview 1 does not have functions like getsockname/getpeername,
+-	// so we cannot get access to the underlying IP address used by connections.
+-	//
+-	// However, listeners created by FileListener are of type *TCPListener,
+-	// which can be asserted by a Go program. The (*TCPListener).Addr method
+-	// documents that the returned value will be of type *TCPAddr, we satisfy
+-	// the documented behavior by creating addresses of the expected type here.
+-	switch net {
+-	case "tcp":
+-		laddr = new(TCPAddr)
+-		raddr = new(TCPAddr)
+-	case "udp":
+-		laddr = new(UDPAddr)
+-		raddr = new(UDPAddr)
+-	default:
+-		laddr = unknownAddr{}
+-		raddr = unknownAddr{}
+-	}
+-	return &netFD{
+-		pfd:   pfd,
+-		net:   net,
+-		laddr: laddr,
+-		raddr: raddr,
+-	}
+-}
+-
+-func (fd *netFD) init() error {
+-	return fd.pfd.Init(fd.net, true)
+-}
+-
+-func (fd *netFD) name() string {
+-	return "unknown"
+-}
+-
+-func (fd *netFD) accept() (netfd *netFD, err error) {
+-	if fd.fakeNetFD != nil {
+-		return fd.fakeNetFD.accept()
+-	}
+-	d, _, errcall, err := fd.pfd.Accept()
+-	if err != nil {
+-		if errcall != "" {
+-			err = wrapSyscallError(errcall, err)
+-		}
+-		return nil, err
+-	}
+-	netfd = newFD("tcp", d)
+-	if err = netfd.init(); err != nil {
+-		netfd.Close()
+-		return nil, err
+-	}
+-	return netfd, nil
+-}
+-
+-func (fd *netFD) setAddr(laddr, raddr Addr) {
+-	fd.laddr = laddr
+-	fd.raddr = raddr
+-	runtime.SetFinalizer(fd, (*netFD).Close)
+-}
+-
+-func (fd *netFD) Close() error {
+-	if fd.fakeNetFD != nil {
+-		return fd.fakeNetFD.Close()
+-	}
+-	runtime.SetFinalizer(fd, nil)
+-	return fd.pfd.Close()
+-}
+-
+-func (fd *netFD) shutdown(how int) error {
+-	if fd.fakeNetFD != nil {
+-		return nil
+-	}
+-	err := fd.pfd.Shutdown(how)
+-	runtime.KeepAlive(fd)
+-	return wrapSyscallError("shutdown", err)
+-}
+-
+ func (fd *netFD) closeRead() error {
+ 	if fd.fakeNetFD != nil {
+ 		return fd.fakeNetFD.closeRead()
+@@ -138,47 +23,3 @@ func (fd *netFD) closeWrite() error {
+ 	}
+ 	return fd.shutdown(syscall.SHUT_WR)
+ }
+-
+-func (fd *netFD) Read(p []byte) (n int, err error) {
+-	if fd.fakeNetFD != nil {
+-		return fd.fakeNetFD.Read(p)
+-	}
+-	n, err = fd.pfd.Read(p)
+-	runtime.KeepAlive(fd)
+-	return n, wrapSyscallError(readSyscallName, err)
+-}
+-
+-func (fd *netFD) Write(p []byte) (nn int, err error) {
+-	if fd.fakeNetFD != nil {
+-		return fd.fakeNetFD.Write(p)
+-	}
+-	nn, err = fd.pfd.Write(p)
+-	runtime.KeepAlive(fd)
+-	return nn, wrapSyscallError(writeSyscallName, err)
+-}
+-
+-func (fd *netFD) SetDeadline(t time.Time) error {
+-	if fd.fakeNetFD != nil {
+-		return fd.fakeNetFD.SetDeadline(t)
+-	}
+-	return fd.pfd.SetDeadline(t)
+-}
+-
+-func (fd *netFD) SetReadDeadline(t time.Time) error {
+-	if fd.fakeNetFD != nil {
+-		return fd.fakeNetFD.SetReadDeadline(t)
+-	}
+-	return fd.pfd.SetReadDeadline(t)
+-}
+-
+-func (fd *netFD) SetWriteDeadline(t time.Time) error {
+-	if fd.fakeNetFD != nil {
+-		return fd.fakeNetFD.SetWriteDeadline(t)
+-	}
+-	return fd.pfd.SetWriteDeadline(t)
+-}
+-
+-type unknownAddr struct{}
+-
+-func (unknownAddr) Network() string { return "unknown" }
+-func (unknownAddr) String() string  { return "unknown" }
+diff --git a/src/net/file_stub.go b/src/net/file_stub.go
+index 91df926a57..6fd3eec48d 100644
+--- a/src/net/file_stub.go
++++ b/src/net/file_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build js && wasm
++//go:build js
+ 
+ package net
+ 
+diff --git a/src/net/file_test.go b/src/net/file_test.go
+index 53cd3c1074..c517af50c5 100644
+--- a/src/net/file_test.go
++++ b/src/net/file_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+@@ -31,7 +29,7 @@ var fileConnTests = []struct {
+ 
+ func TestFileConn(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9", "windows":
++	case "plan9", "windows", "js", "wasip1":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+@@ -132,7 +130,7 @@ var fileListenerTests = []struct {
+ 
+ func TestFileListener(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9", "windows":
++	case "plan9", "windows", "js", "wasip1":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+@@ -224,7 +222,7 @@ var filePacketConnTests = []struct {
+ 
+ func TestFilePacketConn(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9", "windows":
++	case "plan9", "windows", "js", "wasip1":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+@@ -291,7 +289,7 @@ func TestFilePacketConn(t *testing.T) {
+ // Issue 24483.
+ func TestFileCloseRace(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9", "windows":
++	case "plan9", "windows", "js", "wasip1":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 	if !testableNetwork("tcp") {
+diff --git a/src/net/hook_unix.go b/src/net/hook_unix.go
+index bad92939b9..69b375598d 100644
+--- a/src/net/hook_unix.go
++++ b/src/net/hook_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || wasip1
++//go:build unix || js || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/interface_stub.go b/src/net/interface_stub.go
+index 829dbc6938..4c280c6ff2 100644
+--- a/src/net/interface_stub.go
++++ b/src/net/interface_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (js && wasm) || wasip1
++//go:build js || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index 5590b06262..a97d675e7e 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 1373059abe..acc2310be1 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+diff --git a/src/net/iprawsock_posix.go b/src/net/iprawsock_posix.go
+index 59967eb923..73b41ab522 100644
+--- a/src/net/iprawsock_posix.go
++++ b/src/net/iprawsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || wasip1 || windows
++//go:build unix || js || wasip1 || windows
+ 
+ package net
+ 
+diff --git a/src/net/iprawsock_test.go b/src/net/iprawsock_test.go
+index 14c03a1f4d..7f1fc139ab 100644
+--- a/src/net/iprawsock_test.go
++++ b/src/net/iprawsock_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index b0a00a6296..67ce1479c6 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || wasip1 || windows
++//go:build unix || js || wasip1 || windows
+ 
+ package net
+ 
+@@ -25,6 +25,15 @@ import (
+ // general. Unfortunately, we need to run on kernels built without
+ // IPv6 support too. So probe the kernel to figure it out.
+ func (p *ipStackCapabilities) probe() {
++	switch runtime.GOOS {
++	case "js", "wasip1":
++		// Both ipv4 and ipv6 are faked; see net_fake.go.
++		p.ipv4Enabled = true
++		p.ipv6Enabled = true
++		p.ipv4MappedIPv6Enabled = true
++		return
++	}
++
+ 	s, err := sysSocket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+ 	switch err {
+ 	case syscall.EAFNOSUPPORT, syscall.EPROTONOSUPPORT:
+@@ -135,8 +144,11 @@ func favoriteAddrFamily(network string, laddr, raddr sockaddr, mode string) (fam
+ }
+ 
+ func internetSocket(ctx context.Context, net string, laddr, raddr sockaddr, sotype, proto int, mode string, ctrlCtxFn func(context.Context, string, string, syscall.RawConn) error) (fd *netFD, err error) {
+-	if (runtime.GOOS == "aix" || runtime.GOOS == "windows" || runtime.GOOS == "openbsd") && mode == "dial" && raddr.isWildcard() {
+-		raddr = raddr.toLocal(net)
++	switch runtime.GOOS {
++	case "aix", "windows", "openbsd", "js", "wasip1":
++		if mode == "dial" && raddr.isWildcard() {
++			raddr = raddr.toLocal(net)
++		}
+ 	}
+ 	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
+ 	return socket(ctx, net, family, sotype, proto, ipv6only, laddr, raddr, ctrlCtxFn)
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index f0a8861370..9100b3d9f7 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !plan9 && !wasip1
++//go:build !plan9
+ 
+ package net
+ 
+diff --git a/src/net/lookup_fake.go b/src/net/lookup_fake.go
+deleted file mode 100644
+index c27eae4ba5..0000000000
+--- a/src/net/lookup_fake.go
++++ /dev/null
+@@ -1,58 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build js && wasm
+-
+-package net
+-
+-import (
+-	"context"
+-	"syscall"
+-)
+-
+-func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
+-	return lookupProtocolMap(name)
+-}
+-
+-func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
+-	return nil, syscall.ENOPROTOOPT
+-}
+-
+-func (*Resolver) lookupIP(ctx context.Context, network, host string) (addrs []IPAddr, err error) {
+-	return nil, syscall.ENOPROTOOPT
+-}
+-
+-func (*Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
+-	return goLookupPort(network, service)
+-}
+-
+-func (*Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
+-	return "", syscall.ENOPROTOOPT
+-}
+-
+-func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cname string, srvs []*SRV, err error) {
+-	return "", nil, syscall.ENOPROTOOPT
+-}
+-
+-func (*Resolver) lookupMX(ctx context.Context, name string) (mxs []*MX, err error) {
+-	return nil, syscall.ENOPROTOOPT
+-}
+-
+-func (*Resolver) lookupNS(ctx context.Context, name string) (nss []*NS, err error) {
+-	return nil, syscall.ENOPROTOOPT
+-}
+-
+-func (*Resolver) lookupTXT(ctx context.Context, name string) (txts []string, err error) {
+-	return nil, syscall.ENOPROTOOPT
+-}
+-
+-func (*Resolver) lookupAddr(ctx context.Context, addr string) (ptrs []string, err error) {
+-	return nil, syscall.ENOPROTOOPT
+-}
+-
+-// concurrentThreadsLimit returns the number of threads we permit to
+-// run concurrently doing DNS lookups.
+-func concurrentThreadsLimit() int {
+-	return 500
+-}
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 0689c19c3c..85eb1d4d7f 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index 8b852beef3..382a2d44bb 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || wasip1
++//go:build unix || js || wasip1
+ 
+ package net
+ 
+@@ -10,7 +10,6 @@ import (
+ 	"context"
+ 	"internal/bytealg"
+ 	"sync"
+-	"syscall"
+ )
+ 
+ var onceReadProtocols sync.Once
+@@ -120,27 +119,3 @@ func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error
+ 	}
+ 	return r.goLookupPTR(ctx, addr, order, conf)
+ }
+-
+-// concurrentThreadsLimit returns the number of threads we permit to
+-// run concurrently doing DNS lookups via cgo. A DNS lookup may use a
+-// file descriptor so we limit this to less than the number of
+-// permitted open files. On some systems, notably Darwin, if
+-// getaddrinfo is unable to open a file descriptor it simply returns
+-// EAI_NONAME rather than a useful error. Limiting the number of
+-// concurrent getaddrinfo calls to less than the permitted number of
+-// file descriptors makes that error less likely. We don't bother to
+-// apply the same limit to DNS lookups run directly from Go, because
+-// there we will return a meaningful "too many open files" error.
+-func concurrentThreadsLimit() int {
+-	var rlim syscall.Rlimit
+-	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlim); err != nil {
+-		return 500
+-	}
+-	r := rlim.Cur
+-	if r > 500 {
+-		r = 500
+-	} else if r > 30 {
+-		r -= 30
+-	}
+-	return int(r)
+-}
+diff --git a/src/net/main_conf_test.go b/src/net/main_conf_test.go
+index 28a1cb8351..307ff5dd8c 100644
+--- a/src/net/main_conf_test.go
++++ b/src/net/main_conf_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !plan9 && !wasip1
++//go:build !plan9
+ 
+ package net
+ 
+diff --git a/src/net/main_noconf_test.go b/src/net/main_noconf_test.go
+index 077a36e5d6..cdd7c54805 100644
+--- a/src/net/main_noconf_test.go
++++ b/src/net/main_noconf_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (js && wasm) || plan9 || wasip1
++//go:build plan9
+ 
+ package net
+ 
+diff --git a/src/net/main_posix_test.go b/src/net/main_posix_test.go
+index a7942ee327..24a2a55660 100644
+--- a/src/net/main_posix_test.go
++++ b/src/net/main_posix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !plan9 && !wasip1
++//go:build !plan9
+ 
+ package net
+ 
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index 9fd5c88543..7dc1e3ee0d 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+@@ -16,6 +14,7 @@ import (
+ 	"strings"
+ 	"sync"
+ 	"testing"
++	"time"
+ )
+ 
+ var (
+@@ -61,6 +60,20 @@ func TestMain(m *testing.M) {
+ 	os.Exit(st)
+ }
+ 
++// mustSetDeadline calls the bound method m to set a deadline on a Conn.
++// If the call fails, mustSetDeadline skips t if the current GOOS is believed
++// not to support deadlines, or fails the test otherwise.
++func mustSetDeadline(t testing.TB, m func(time.Time) error, d time.Duration) {
++	err := m(time.Now().Add(d))
++	if err != nil {
++		t.Helper()
++		if runtime.GOOS == "plan9" {
++			t.Skipf("skipping: %s does not support deadlines", runtime.GOOS)
++		}
++		t.Fatal(err)
++	}
++}
++
+ type ipv6LinkLocalUnicastTest struct {
+ 	network, address string
+ 	nameLookup       bool
+diff --git a/src/net/main_wasm_test.go b/src/net/main_wasm_test.go
+new file mode 100644
+index 0000000000..b8196bb283
+--- /dev/null
++++ b/src/net/main_wasm_test.go
+@@ -0,0 +1,13 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build wasip1 || js
++
++package net
++
++func installTestHooks() {}
++
++func uninstallTestHooks() {}
++
++func forceCloseSockets() {}
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index f86dd66a2d..46b2a57321 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+@@ -339,6 +337,7 @@ func newLocalPacketListener(t testing.TB, network string, lcOpt ...*ListenConfig
+ 		return c
+ 	}
+ 
++	t.Helper()
+ 	switch network {
+ 	case "udp":
+ 		if supportsIPv4() {
+@@ -359,7 +358,6 @@ func newLocalPacketListener(t testing.TB, network string, lcOpt ...*ListenConfig
+ 		return listenPacket(network, testUnixAddr(t))
+ 	}
+ 
+-	t.Helper()
+ 	t.Fatalf("%s is not supported", network)
+ 	return nil
+ }
+diff --git a/src/net/net_fake.go b/src/net/net_fake.go
+index 908767a1f6..6b6fdc728e 100644
+--- a/src/net/net_fake.go
++++ b/src/net/net_fake.go
+@@ -2,405 +2,1150 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Fake networking for js/wasm and wasip1/wasm. It is intended to allow tests of other package to pass.
++// Fake networking for js/wasm and wasip1/wasm.
++// It is intended to allow tests of other package to pass.
+ 
+-//go:build (js && wasm) || wasip1
++//go:build js || wasip1
+ 
+ package net
+ 
+ import (
+ 	"context"
++	"errors"
+ 	"io"
+ 	"os"
+ 	"sync"
++	"sync/atomic"
+ 	"syscall"
+ 	"time"
+ )
+ 
+-var listenersMu sync.Mutex
+-var listeners = make(map[fakeNetAddr]*netFD)
+-
+-var portCounterMu sync.Mutex
+-var portCounter = 0
++var (
++	sockets         sync.Map // fakeSockAddr → *netFD
++	fakeSocketIDs   sync.Map // fakeNetFD.id → *netFD
++	fakePorts       sync.Map // int (port #) → *netFD
++	nextPortCounter atomic.Int32
++)
+ 
+-func nextPort() int {
+-	portCounterMu.Lock()
+-	defer portCounterMu.Unlock()
+-	portCounter++
+-	return portCounter
+-}
++const defaultBuffer = 65535
+ 
+-type fakeNetAddr struct {
+-	network string
++type fakeSockAddr struct {
++	family  int
+ 	address string
+ }
+ 
+-type fakeNetFD struct {
+-	listener fakeNetAddr
+-	r        *bufferedPipe
+-	w        *bufferedPipe
+-	incoming chan *netFD
+-	closedMu sync.Mutex
+-	closed   bool
++func fakeAddr(sa sockaddr) fakeSockAddr {
++	return fakeSockAddr{
++		family:  sa.family(),
++		address: sa.String(),
++	}
+ }
+ 
+ // socket returns a network file descriptor that is ready for
+-// asynchronous I/O using the network poller.
++// I/O using the fake network.
+ func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, ctrlCtxFn func(context.Context, string, string, syscall.RawConn) error) (*netFD, error) {
+-	fd := &netFD{family: family, sotype: sotype, net: net}
+-	if laddr != nil && raddr == nil {
+-		return fakelistener(fd, laddr)
++	if raddr != nil && ctrlCtxFn != nil {
++		return nil, os.NewSyscallError("socket", syscall.ENOTSUP)
+ 	}
+-	fd2 := &netFD{family: family, sotype: sotype, net: net}
+-	return fakeconn(fd, fd2, laddr, raddr)
+-}
+-
+-func fakeIPAndPort(ip IP, port int) (IP, int) {
+-	if ip == nil {
+-		ip = IPv4(127, 0, 0, 1)
++	switch sotype {
++	case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET, syscall.SOCK_DGRAM:
++	default:
++		return nil, os.NewSyscallError("socket", syscall.ENOTSUP)
+ 	}
+-	if port == 0 {
+-		port = nextPort()
++
++	fd := &netFD{
++		family: family,
++		sotype: sotype,
++		net:    net,
+ 	}
+-	return ip, port
+-}
++	fd.fakeNetFD = newFakeNetFD(fd)
+ 
+-func fakeTCPAddr(addr *TCPAddr) *TCPAddr {
+-	var ip IP
+-	var port int
+-	var zone string
+-	if addr != nil {
+-		ip, port, zone = addr.IP, addr.Port, addr.Zone
++	if raddr == nil {
++		if err := fakeListen(fd, laddr); err != nil {
++			fd.Close()
++			return nil, err
++		}
++		return fd, nil
+ 	}
+-	ip, port = fakeIPAndPort(ip, port)
+-	return &TCPAddr{IP: ip, Port: port, Zone: zone}
+-}
+ 
+-func fakeUDPAddr(addr *UDPAddr) *UDPAddr {
+-	var ip IP
+-	var port int
+-	var zone string
+-	if addr != nil {
+-		ip, port, zone = addr.IP, addr.Port, addr.Zone
++	if err := fakeConnect(ctx, fd, laddr, raddr); err != nil {
++		fd.Close()
++		return nil, err
+ 	}
+-	ip, port = fakeIPAndPort(ip, port)
+-	return &UDPAddr{IP: ip, Port: port, Zone: zone}
++	return fd, nil
+ }
+ 
+-func fakeUnixAddr(sotype int, addr *UnixAddr) *UnixAddr {
+-	var net, name string
+-	if addr != nil {
+-		name = addr.Name
++func validateResolvedAddr(net string, family int, sa sockaddr) error {
++	validateIP := func(ip IP) error {
++		switch family {
++		case syscall.AF_INET:
++			if len(ip) != 4 {
++				return &AddrError{
++					Err:  "non-IPv4 address",
++					Addr: ip.String(),
++				}
++			}
++		case syscall.AF_INET6:
++			if len(ip) != 16 {
++				return &AddrError{
++					Err:  "non-IPv6 address",
++					Addr: ip.String(),
++				}
++			}
++		default:
++			panic("net: unexpected address family in validateResolvedAddr")
++		}
++		return nil
+ 	}
+-	switch sotype {
+-	case syscall.SOCK_DGRAM:
+-		net = "unixgram"
+-	case syscall.SOCK_SEQPACKET:
+-		net = "unixpacket"
++
++	switch net {
++	case "tcp", "tcp4", "tcp6":
++		sa, ok := sa.(*TCPAddr)
++		if !ok {
++			return &AddrError{
++				Err:  "non-TCP address for " + net + " network",
++				Addr: sa.String(),
++			}
++		}
++		if err := validateIP(sa.IP); err != nil {
++			return err
++		}
++		if sa.Port <= 0 || sa.Port >= 1<<16 {
++			return &AddrError{
++				Err:  "port out of range",
++				Addr: sa.String(),
++			}
++		}
++		return nil
++
++	case "udp", "udp4", "udp6":
++		sa, ok := sa.(*UDPAddr)
++		if !ok {
++			return &AddrError{
++				Err:  "non-UDP address for " + net + " network",
++				Addr: sa.String(),
++			}
++		}
++		if err := validateIP(sa.IP); err != nil {
++			return err
++		}
++		if sa.Port <= 0 || sa.Port >= 1<<16 {
++			return &AddrError{
++				Err:  "port out of range",
++				Addr: sa.String(),
++			}
++		}
++		return nil
++
++	case "unix", "unixgram", "unixpacket":
++		sa, ok := sa.(*UnixAddr)
++		if !ok {
++			return &AddrError{
++				Err:  "non-Unix address for " + net + " network",
++				Addr: sa.String(),
++			}
++		}
++		if sa.Name != "" {
++			i := len(sa.Name) - 1
++			for i > 0 && !os.IsPathSeparator(sa.Name[i]) {
++				i--
++			}
++			for i > 0 && os.IsPathSeparator(sa.Name[i]) {
++				i--
++			}
++			if i <= 0 {
++				return &AddrError{
++					Err:  "unix socket name missing path component",
++					Addr: sa.Name,
++				}
++			}
++			if _, err := os.Stat(sa.Name[:i+1]); err != nil {
++				return &AddrError{
++					Err:  err.Error(),
++					Addr: sa.Name,
++				}
++			}
++		}
++		return nil
++
+ 	default:
+-		net = "unix"
++		return &AddrError{
++			Err:  syscall.EAFNOSUPPORT.Error(),
++			Addr: sa.String(),
++		}
+ 	}
+-	return &UnixAddr{Net: net, Name: name}
+ }
+ 
+-func fakelistener(fd *netFD, laddr sockaddr) (*netFD, error) {
+-	switch l := laddr.(type) {
++func matchIPFamily(family int, addr sockaddr) sockaddr {
++	convertIP := func(ip IP) IP {
++		switch family {
++		case syscall.AF_INET:
++			return ip.To4()
++		case syscall.AF_INET6:
++			return ip.To16()
++		default:
++			return ip
++		}
++	}
++
++	switch addr := addr.(type) {
+ 	case *TCPAddr:
+-		laddr = fakeTCPAddr(l)
++		ip := convertIP(addr.IP)
++		if ip == nil || len(ip) == len(addr.IP) {
++			return addr
++		}
++		return &TCPAddr{IP: ip, Port: addr.Port, Zone: addr.Zone}
+ 	case *UDPAddr:
+-		laddr = fakeUDPAddr(l)
+-	case *UnixAddr:
+-		if l.Name == "" {
+-			return nil, syscall.ENOENT
++		ip := convertIP(addr.IP)
++		if ip == nil || len(ip) == len(addr.IP) {
++			return addr
+ 		}
+-		laddr = fakeUnixAddr(fd.sotype, l)
++		return &UDPAddr{IP: ip, Port: addr.Port, Zone: addr.Zone}
+ 	default:
+-		return nil, syscall.EOPNOTSUPP
++		return addr
+ 	}
++}
+ 
+-	listener := fakeNetAddr{
+-		network: laddr.Network(),
+-		address: laddr.String(),
+-	}
++type fakeNetFD struct {
++	fd           *netFD
++	assignedPort int // 0 if no port has been assigned for this socket
++
++	queue         *packetQueue // incoming packets
++	peer          *netFD       // connected peer (for outgoing packets); nil for listeners and PacketConns
++	readDeadline  atomic.Pointer[deadlineTimer]
++	writeDeadline atomic.Pointer[deadlineTimer]
++
++	fakeAddr fakeSockAddr // cached fakeSockAddr equivalent of fd.laddr
+ 
+-	fd.fakeNetFD = &fakeNetFD{
+-		listener: listener,
+-		incoming: make(chan *netFD, 1024),
++	// The incoming channels hold incoming connections that have not yet been accepted.
++	// All of these channels are 1-buffered.
++	incoming      chan []*netFD // holds the queue when it has >0 but <SOMAXCONN pending connections; closed when the Listener is closed
++	incomingFull  chan []*netFD // holds the queue when it has SOMAXCONN pending connections
++	incomingEmpty chan bool     // holds true when the incoming queue is empty
++}
++
++func newFakeNetFD(fd *netFD) *fakeNetFD {
++	ffd := &fakeNetFD{fd: fd}
++	ffd.readDeadline.Store(newDeadlineTimer(noDeadline))
++	ffd.writeDeadline.Store(newDeadlineTimer(noDeadline))
++	return ffd
++}
++
++func (ffd *fakeNetFD) Read(p []byte) (n int, err error) {
++	n, _, err = ffd.queue.recvfrom(ffd.readDeadline.Load(), p, false, nil)
++	return n, err
++}
++
++func (ffd *fakeNetFD) Write(p []byte) (nn int, err error) {
++	peer := ffd.peer
++	if peer == nil {
++		if ffd.fd.raddr == nil {
++			return 0, os.NewSyscallError("write", syscall.ENOTCONN)
++		}
++		peeri, _ := sockets.Load(fakeAddr(ffd.fd.raddr.(sockaddr)))
++		if peeri == nil {
++			return 0, os.NewSyscallError("write", syscall.ECONNRESET)
++		}
++		peer = peeri.(*netFD)
++		if peer.queue == nil {
++			return 0, os.NewSyscallError("write", syscall.ECONNRESET)
++		}
+ 	}
+ 
+-	fd.laddr = laddr
+-	listenersMu.Lock()
+-	defer listenersMu.Unlock()
+-	if _, exists := listeners[listener]; exists {
+-		return nil, syscall.EADDRINUSE
++	if peer.fakeNetFD == nil {
++		return 0, os.NewSyscallError("write", syscall.EINVAL)
+ 	}
+-	listeners[listener] = fd
+-	return fd, nil
++	return peer.queue.write(ffd.writeDeadline.Load(), p, ffd.fd.laddr.(sockaddr))
+ }
+ 
+-func fakeconn(fd *netFD, fd2 *netFD, laddr, raddr sockaddr) (*netFD, error) {
+-	switch r := raddr.(type) {
+-	case *TCPAddr:
+-		r = fakeTCPAddr(r)
+-		raddr = r
+-		laddr = fakeTCPAddr(laddr.(*TCPAddr))
+-	case *UDPAddr:
+-		r = fakeUDPAddr(r)
+-		raddr = r
+-		laddr = fakeUDPAddr(laddr.(*UDPAddr))
+-	case *UnixAddr:
+-		r = fakeUnixAddr(fd.sotype, r)
+-		raddr = r
+-		laddr = &UnixAddr{Net: r.Net, Name: r.Name}
+-	default:
+-		return nil, syscall.EAFNOSUPPORT
++func (ffd *fakeNetFD) Close() (err error) {
++	if ffd.fakeAddr != (fakeSockAddr{}) {
++		sockets.CompareAndDelete(ffd.fakeAddr, ffd.fd)
+ 	}
+-	fd.laddr = laddr
+-	fd.raddr = raddr
+ 
+-	fd.fakeNetFD = &fakeNetFD{
+-		r: newBufferedPipe(65536),
+-		w: newBufferedPipe(65536),
++	if ffd.queue != nil {
++		if closeErr := ffd.queue.closeRead(); err == nil {
++			err = closeErr
++		}
+ 	}
+-	fd2.fakeNetFD = &fakeNetFD{
+-		r: fd.fakeNetFD.w,
+-		w: fd.fakeNetFD.r,
++	if ffd.peer != nil {
++		if closeErr := ffd.peer.queue.closeWrite(); err == nil {
++			err = closeErr
++		}
+ 	}
++	ffd.readDeadline.Load().Reset(noDeadline)
++	ffd.writeDeadline.Load().Reset(noDeadline)
+ 
+-	fd2.laddr = fd.raddr
+-	fd2.raddr = fd.laddr
++	if ffd.incoming != nil {
++		var (
++			incoming []*netFD
++			ok       bool
++		)
++		select {
++		case _, ok = <-ffd.incomingEmpty:
++		case incoming, ok = <-ffd.incoming:
++		case incoming, ok = <-ffd.incomingFull:
++		}
++		if ok {
++			// Sends on ffd.incoming require a receive first.
++			// Since we successfully received, no other goroutine may
++			// send on it at this point, and we may safely close it.
++			close(ffd.incoming)
+ 
+-	listener := fakeNetAddr{
+-		network: fd.raddr.Network(),
+-		address: fd.raddr.String(),
++			for _, c := range incoming {
++				c.Close()
++			}
++		}
+ 	}
+-	listenersMu.Lock()
+-	defer listenersMu.Unlock()
+-	l, ok := listeners[listener]
+-	if !ok {
+-		return nil, syscall.ECONNREFUSED
++
++	if ffd.assignedPort != 0 {
++		fakePorts.CompareAndDelete(ffd.assignedPort, ffd.fd)
+ 	}
+-	l.incoming <- fd2
+-	return fd, nil
++
++	return err
+ }
+ 
+-func (fd *fakeNetFD) Read(p []byte) (n int, err error) {
+-	return fd.r.Read(p)
++func (ffd *fakeNetFD) closeRead() error {
++	return ffd.queue.closeRead()
+ }
+ 
+-func (fd *fakeNetFD) Write(p []byte) (nn int, err error) {
+-	return fd.w.Write(p)
++func (ffd *fakeNetFD) closeWrite() error {
++	if ffd.peer == nil {
++		return os.NewSyscallError("closeWrite", syscall.ENOTCONN)
++	}
++	return ffd.peer.queue.closeWrite()
+ }
+ 
+-func (fd *fakeNetFD) Close() error {
+-	fd.closedMu.Lock()
+-	if fd.closed {
+-		fd.closedMu.Unlock()
+-		return nil
++func (ffd *fakeNetFD) accept(laddr Addr) (*netFD, error) {
++	if ffd.incoming == nil {
++		return nil, os.NewSyscallError("accept", syscall.EINVAL)
+ 	}
+-	fd.closed = true
+-	fd.closedMu.Unlock()
+ 
+-	if fd.listener != (fakeNetAddr{}) {
+-		listenersMu.Lock()
+-		delete(listeners, fd.listener)
+-		close(fd.incoming)
+-		fd.listener = fakeNetAddr{}
+-		listenersMu.Unlock()
+-		return nil
++	var (
++		incoming []*netFD
++		ok       bool
++	)
++	select {
++	case <-ffd.readDeadline.Load().expired:
++		return nil, os.ErrDeadlineExceeded
++	case incoming, ok = <-ffd.incoming:
++		if !ok {
++			return nil, ErrClosed
++		}
++	case incoming, ok = <-ffd.incomingFull:
+ 	}
+ 
+-	fd.r.Close()
+-	fd.w.Close()
+-	return nil
++	peer := incoming[0]
++	incoming = incoming[1:]
++	if len(incoming) == 0 {
++		ffd.incomingEmpty <- true
++	} else {
++		ffd.incoming <- incoming
++	}
++	return peer, nil
++}
++
++func (ffd *fakeNetFD) SetDeadline(t time.Time) error {
++	err1 := ffd.SetReadDeadline(t)
++	err2 := ffd.SetWriteDeadline(t)
++	if err1 != nil {
++		return err1
++	}
++	return err2
+ }
+ 
+-func (fd *fakeNetFD) closeRead() error {
+-	fd.r.Close()
++func (ffd *fakeNetFD) SetReadDeadline(t time.Time) error {
++	dt := ffd.readDeadline.Load()
++	if !dt.Reset(t) {
++		ffd.readDeadline.Store(newDeadlineTimer(t))
++	}
+ 	return nil
+ }
+ 
+-func (fd *fakeNetFD) closeWrite() error {
+-	fd.w.Close()
++func (ffd *fakeNetFD) SetWriteDeadline(t time.Time) error {
++	dt := ffd.writeDeadline.Load()
++	if !dt.Reset(t) {
++		ffd.writeDeadline.Store(newDeadlineTimer(t))
++	}
+ 	return nil
+ }
+ 
+-func (fd *fakeNetFD) accept() (*netFD, error) {
+-	c, ok := <-fd.incoming
+-	if !ok {
+-		return nil, syscall.EINVAL
++const maxPacketSize = 65535
++
++type packet struct {
++	buf       []byte
++	bufOffset int
++	next      *packet
++	from      sockaddr
++}
++
++func (p *packet) clear() {
++	p.buf = p.buf[:0]
++	p.bufOffset = 0
++	p.next = nil
++	p.from = nil
++}
++
++var packetPool = sync.Pool{
++	New: func() any { return new(packet) },
++}
++
++type packetQueueState struct {
++	head, tail      *packet // unqueued packets
++	nBytes          int     // number of bytes enqueued in the packet buffers starting from head
++	readBufferBytes int     // soft limit on nbytes; no more packets may be enqueued when the limit is exceeded
++	readClosed      bool    // true if the reader of the queue has stopped reading
++	writeClosed     bool    // true if the writer of the queue has stopped writing; the reader sees either io.EOF or syscall.ECONNRESET when they have read all buffered packets
++	noLinger        bool    // if true, the reader sees ECONNRESET instead of EOF
++}
++
++// A packetQueue is a set of 1-buffered channels implementing a FIFO queue
++// of packets.
++type packetQueue struct {
++	empty chan packetQueueState // contains configuration parameters when the queue is empty and not closed
++	ready chan packetQueueState // contains the packets when non-empty or closed
++	full  chan packetQueueState // contains the packets when buffer is full and not closed
++}
++
++func newPacketQueue(readBufferBytes int) *packetQueue {
++	pq := &packetQueue{
++		empty: make(chan packetQueueState, 1),
++		ready: make(chan packetQueueState, 1),
++		full:  make(chan packetQueueState, 1),
++	}
++	pq.put(packetQueueState{
++		readBufferBytes: readBufferBytes,
++	})
++	return pq
++}
++
++func (pq *packetQueue) get() packetQueueState {
++	var q packetQueueState
++	select {
++	case q = <-pq.empty:
++	case q = <-pq.ready:
++	case q = <-pq.full:
+ 	}
+-	return c, nil
++	return q
+ }
+ 
+-func (fd *fakeNetFD) SetDeadline(t time.Time) error {
+-	fd.r.SetReadDeadline(t)
+-	fd.w.SetWriteDeadline(t)
++func (pq *packetQueue) put(q packetQueueState) {
++	switch {
++	case q.readClosed || q.writeClosed:
++		pq.ready <- q
++	case q.nBytes >= q.readBufferBytes:
++		pq.full <- q
++	case q.head == nil:
++		if q.nBytes > 0 {
++			defer panic("net: put with nil packet list and nonzero nBytes")
++		}
++		pq.empty <- q
++	default:
++		pq.ready <- q
++	}
++}
++
++func (pq *packetQueue) closeRead() error {
++	q := pq.get()
++
++	// Discard any unread packets.
++	for q.head != nil {
++		p := q.head
++		q.head = p.next
++		p.clear()
++		packetPool.Put(p)
++	}
++	q.nBytes = 0
++
++	q.readClosed = true
++	pq.put(q)
+ 	return nil
+ }
+ 
+-func (fd *fakeNetFD) SetReadDeadline(t time.Time) error {
+-	fd.r.SetReadDeadline(t)
++func (pq *packetQueue) closeWrite() error {
++	q := pq.get()
++	q.writeClosed = true
++	pq.put(q)
+ 	return nil
+ }
+ 
+-func (fd *fakeNetFD) SetWriteDeadline(t time.Time) error {
+-	fd.w.SetWriteDeadline(t)
++func (pq *packetQueue) setLinger(linger bool) error {
++	q := pq.get()
++	defer func() { pq.put(q) }()
++
++	if q.writeClosed {
++		return ErrClosed
++	}
++	q.noLinger = !linger
+ 	return nil
+ }
+ 
+-func newBufferedPipe(softLimit int) *bufferedPipe {
+-	p := &bufferedPipe{softLimit: softLimit}
+-	p.rCond.L = &p.mu
+-	p.wCond.L = &p.mu
+-	return p
++func (pq *packetQueue) write(dt *deadlineTimer, b []byte, from sockaddr) (n int, err error) {
++	for {
++		dn := len(b)
++		if dn > maxPacketSize {
++			dn = maxPacketSize
++		}
++
++		dn, err = pq.send(dt, b[:dn], from, true)
++		n += dn
++		if err != nil {
++			return n, err
++		}
++
++		b = b[dn:]
++		if len(b) == 0 {
++			return n, nil
++		}
++	}
+ }
+ 
+-type bufferedPipe struct {
+-	softLimit int
+-	mu        sync.Mutex
+-	buf       []byte
+-	closed    bool
+-	rCond     sync.Cond
+-	wCond     sync.Cond
+-	rDeadline time.Time
+-	wDeadline time.Time
++func (pq *packetQueue) send(dt *deadlineTimer, b []byte, from sockaddr, block bool) (n int, err error) {
++	if from == nil {
++		return 0, os.NewSyscallError("send", syscall.EINVAL)
++	}
++	if len(b) > maxPacketSize {
++		return 0, os.NewSyscallError("send", syscall.EMSGSIZE)
++	}
++
++	var q packetQueueState
++	var full chan packetQueueState
++	if !block {
++		full = pq.full
++	}
++	select {
++	case <-dt.expired:
++		return 0, os.ErrDeadlineExceeded
++
++	case q = <-full:
++		pq.put(q)
++		return 0, os.NewSyscallError("send", syscall.ENOBUFS)
++
++	case q = <-pq.empty:
++	case q = <-pq.ready:
++	}
++	defer func() { pq.put(q) }()
++
++	// Don't allow a packet to be sent if the deadline has expired,
++	// even if the select above chose a different branch.
++	select {
++	case <-dt.expired:
++		return 0, os.ErrDeadlineExceeded
++	default:
++	}
++	if q.writeClosed {
++		return 0, ErrClosed
++	} else if q.readClosed {
++		return 0, os.NewSyscallError("send", syscall.ECONNRESET)
++	}
++
++	p := packetPool.Get().(*packet)
++	p.buf = append(p.buf[:0], b...)
++	p.from = from
++
++	if q.head == nil {
++		q.head = p
++	} else {
++		q.tail.next = p
++	}
++	q.tail = p
++	q.nBytes += len(p.buf)
++
++	return len(b), nil
+ }
+ 
+-func (p *bufferedPipe) Read(b []byte) (int, error) {
+-	p.mu.Lock()
+-	defer p.mu.Unlock()
++func (pq *packetQueue) recvfrom(dt *deadlineTimer, b []byte, wholePacket bool, checkFrom func(sockaddr) error) (n int, from sockaddr, err error) {
++	var q packetQueueState
++	var empty chan packetQueueState
++	if len(b) == 0 {
++		// For consistency with the implementation on Unix platforms,
++		// allow a zero-length Read to proceed if the queue is empty.
++		// (Without this, TestZeroByteRead deadlocks.)
++		empty = pq.empty
++	}
++	select {
++	case <-dt.expired:
++		return 0, nil, os.ErrDeadlineExceeded
++	case q = <-empty:
++	case q = <-pq.ready:
++	case q = <-pq.full:
++	}
++	defer func() { pq.put(q) }()
+ 
+-	for {
+-		if p.closed && len(p.buf) == 0 {
+-			return 0, io.EOF
+-		}
+-		if !p.rDeadline.IsZero() {
+-			d := time.Until(p.rDeadline)
+-			if d <= 0 {
+-				return 0, os.ErrDeadlineExceeded
++	p := q.head
++	if p == nil {
++		switch {
++		case q.readClosed:
++			return 0, nil, ErrClosed
++		case q.writeClosed:
++			if q.noLinger {
++				return 0, nil, os.NewSyscallError("recvfrom", syscall.ECONNRESET)
+ 			}
+-			time.AfterFunc(d, p.rCond.Broadcast)
++			return 0, nil, io.EOF
++		case len(b) == 0:
++			return 0, nil, nil
++		default:
++			// This should be impossible: pq.full should only contain a non-empty list,
++			// pq.ready should either contain a non-empty list or indicate that the
++			// connection is closed, and we should only receive from pq.empty if
++			// len(b) == 0.
++			panic("net: nil packet list from non-closed packetQueue")
++		}
++	}
++
++	select {
++	case <-dt.expired:
++		return 0, nil, os.ErrDeadlineExceeded
++	default:
++	}
++
++	if checkFrom != nil {
++		if err := checkFrom(p.from); err != nil {
++			return 0, nil, err
+ 		}
+-		if len(p.buf) > 0 {
+-			break
++	}
++
++	n = copy(b, p.buf[p.bufOffset:])
++	from = p.from
++	if wholePacket || p.bufOffset+n == len(p.buf) {
++		q.head = p.next
++		q.nBytes -= len(p.buf)
++		p.clear()
++		packetPool.Put(p)
++	} else {
++		p.bufOffset += n
++	}
++
++	return n, from, nil
++}
++
++// setReadBuffer sets a soft limit on the number of bytes available to read
++// from the pipe.
++func (pq *packetQueue) setReadBuffer(bytes int) error {
++	if bytes <= 0 {
++		return os.NewSyscallError("setReadBuffer", syscall.EINVAL)
++	}
++	q := pq.get() // Use the queue as a lock.
++	q.readBufferBytes = bytes
++	pq.put(q)
++	return nil
++}
++
++type deadlineTimer struct {
++	timer   chan *time.Timer
++	expired chan struct{}
++}
++
++func newDeadlineTimer(deadline time.Time) *deadlineTimer {
++	dt := &deadlineTimer{
++		timer:   make(chan *time.Timer, 1),
++		expired: make(chan struct{}),
++	}
++	dt.timer <- nil
++	dt.Reset(deadline)
++	return dt
++}
++
++// Reset attempts to reset the timer.
++// If the timer has already expired, Reset returns false.
++func (dt *deadlineTimer) Reset(deadline time.Time) bool {
++	timer := <-dt.timer
++	defer func() { dt.timer <- timer }()
++
++	if deadline.Equal(noDeadline) {
++		if timer != nil && timer.Stop() {
++			timer = nil
+ 		}
+-		p.rCond.Wait()
++		return timer == nil
++	}
++
++	d := time.Until(deadline)
++	if d < 0 {
++		// Ensure that a deadline in the past takes effect immediately.
++		defer func() { <-dt.expired }()
+ 	}
+ 
+-	n := copy(b, p.buf)
+-	p.buf = p.buf[n:]
+-	p.wCond.Broadcast()
+-	return n, nil
++	if timer == nil {
++		timer = time.AfterFunc(d, func() { close(dt.expired) })
++		return true
++	}
++	if !timer.Stop() {
++		return false
++	}
++	timer.Reset(d)
++	return true
+ }
+ 
+-func (p *bufferedPipe) Write(b []byte) (int, error) {
+-	p.mu.Lock()
+-	defer p.mu.Unlock()
++func sysSocket(family, sotype, proto int) (int, error) {
++	return 0, os.NewSyscallError("sysSocket", syscall.ENOSYS)
++}
+ 
+-	for {
+-		if p.closed {
+-			return 0, syscall.ENOTCONN
++func fakeListen(fd *netFD, laddr sockaddr) (err error) {
++	wrapErr := func(err error) error {
++		if errno, ok := err.(syscall.Errno); ok {
++			err = os.NewSyscallError("listen", errno)
++		}
++		if errors.Is(err, syscall.EADDRINUSE) {
++			return err
+ 		}
+-		if !p.wDeadline.IsZero() {
+-			d := time.Until(p.wDeadline)
+-			if d <= 0 {
+-				return 0, os.ErrDeadlineExceeded
++		if laddr != nil {
++			if _, ok := err.(*AddrError); !ok {
++				err = &AddrError{
++					Err:  err.Error(),
++					Addr: laddr.String(),
++				}
+ 			}
+-			time.AfterFunc(d, p.wCond.Broadcast)
+ 		}
+-		if len(p.buf) <= p.softLimit {
+-			break
++		return err
++	}
++
++	ffd := newFakeNetFD(fd)
++	defer func() {
++		if fd.fakeNetFD != ffd {
++			// Failed to register listener; clean up.
++			ffd.Close()
+ 		}
+-		p.wCond.Wait()
++	}()
++
++	if err := ffd.assignFakeAddr(matchIPFamily(fd.family, laddr)); err != nil {
++		return wrapErr(err)
+ 	}
+ 
+-	p.buf = append(p.buf, b...)
+-	p.rCond.Broadcast()
+-	return len(b), nil
+-}
++	ffd.fakeAddr = fakeAddr(fd.laddr.(sockaddr))
++	switch fd.sotype {
++	case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
++		ffd.incoming = make(chan []*netFD, 1)
++		ffd.incomingFull = make(chan []*netFD, 1)
++		ffd.incomingEmpty = make(chan bool, 1)
++		ffd.incomingEmpty <- true
++	case syscall.SOCK_DGRAM:
++		ffd.queue = newPacketQueue(defaultBuffer)
++	default:
++		return wrapErr(syscall.EINVAL)
++	}
+ 
+-func (p *bufferedPipe) Close() {
+-	p.mu.Lock()
+-	defer p.mu.Unlock()
++	fd.fakeNetFD = ffd
++	if _, dup := sockets.LoadOrStore(ffd.fakeAddr, fd); dup {
++		fd.fakeNetFD = nil
++		return wrapErr(syscall.EADDRINUSE)
++	}
+ 
+-	p.closed = true
+-	p.rCond.Broadcast()
+-	p.wCond.Broadcast()
++	return nil
+ }
+ 
+-func (p *bufferedPipe) SetReadDeadline(t time.Time) {
+-	p.mu.Lock()
+-	defer p.mu.Unlock()
++func fakeConnect(ctx context.Context, fd *netFD, laddr, raddr sockaddr) error {
++	wrapErr := func(err error) error {
++		if errno, ok := err.(syscall.Errno); ok {
++			err = os.NewSyscallError("connect", errno)
++		}
++		if errors.Is(err, syscall.EADDRINUSE) {
++			return err
++		}
++		if terr, ok := err.(interface{ Timeout() bool }); !ok || !terr.Timeout() {
++			// For consistency with the net implementation on other platforms,
++			// if we don't need to preserve the Timeout-ness of err we should
++			// wrap it in an AddrError. (Unfortunately we can't wrap errors
++			// that convey structured information, because AddrError reduces
++			// the wrapped Err to a flat string.)
++			if _, ok := err.(*AddrError); !ok {
++				err = &AddrError{
++					Err:  err.Error(),
++					Addr: raddr.String(),
++				}
++			}
++		}
++		return err
++	}
++
++	if fd.isConnected {
++		return wrapErr(syscall.EISCONN)
++	}
++	if ctx.Err() != nil {
++		return wrapErr(syscall.ETIMEDOUT)
++	}
++
++	fd.raddr = matchIPFamily(fd.family, raddr)
++	if err := validateResolvedAddr(fd.net, fd.family, fd.raddr.(sockaddr)); err != nil {
++		return wrapErr(err)
++	}
++
++	if err := fd.fakeNetFD.assignFakeAddr(laddr); err != nil {
++		return wrapErr(err)
++	}
++	fd.fakeNetFD.queue = newPacketQueue(defaultBuffer)
++
++	switch fd.sotype {
++	case syscall.SOCK_DGRAM:
++		if ua, ok := fd.laddr.(*UnixAddr); !ok || ua.Name != "" {
++			fd.fakeNetFD.fakeAddr = fakeAddr(fd.laddr.(sockaddr))
++			if _, dup := sockets.LoadOrStore(fd.fakeNetFD.fakeAddr, fd); dup {
++				return wrapErr(syscall.EADDRINUSE)
++			}
++		}
++		fd.isConnected = true
++		return nil
++
++	case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
++	default:
++		return wrapErr(syscall.EINVAL)
++	}
++
++	fa := fakeAddr(raddr)
++	lni, ok := sockets.Load(fa)
++	if !ok {
++		return wrapErr(syscall.ECONNREFUSED)
++	}
++	ln := lni.(*netFD)
++	if ln.sotype != fd.sotype {
++		return wrapErr(syscall.EPROTOTYPE)
++	}
++	if ln.incoming == nil {
++		return wrapErr(syscall.ECONNREFUSED)
++	}
++
++	peer := &netFD{
++		family:      ln.family,
++		sotype:      ln.sotype,
++		net:         ln.net,
++		laddr:       ln.laddr,
++		raddr:       fd.laddr,
++		isConnected: true,
++	}
++	peer.fakeNetFD = newFakeNetFD(fd)
++	peer.fakeNetFD.queue = newPacketQueue(defaultBuffer)
++	defer func() {
++		if fd.peer != peer {
++			// Failed to connect; clean up.
++			peer.Close()
++		}
++	}()
++
++	var incoming []*netFD
++	select {
++	case <-ctx.Done():
++		return wrapErr(syscall.ETIMEDOUT)
++	case ok = <-ln.incomingEmpty:
++	case incoming, ok = <-ln.incoming:
++	}
++	if !ok {
++		return wrapErr(syscall.ECONNREFUSED)
++	}
++
++	fd.isConnected = true
++	fd.peer = peer
++	peer.peer = fd
+ 
+-	p.rDeadline = t
+-	p.rCond.Broadcast()
++	incoming = append(incoming, peer)
++	if len(incoming) >= listenerBacklog() {
++		ln.incomingFull <- incoming
++	} else {
++		ln.incoming <- incoming
++	}
++	return nil
+ }
+ 
+-func (p *bufferedPipe) SetWriteDeadline(t time.Time) {
+-	p.mu.Lock()
+-	defer p.mu.Unlock()
++func (ffd *fakeNetFD) assignFakeAddr(addr sockaddr) error {
++	validate := func(sa sockaddr) error {
++		if err := validateResolvedAddr(ffd.fd.net, ffd.fd.family, sa); err != nil {
++			return err
++		}
++		ffd.fd.laddr = sa
++		return nil
++	}
++
++	assignIP := func(addr sockaddr) error {
++		var (
++			ip   IP
++			port int
++			zone string
++		)
++		switch addr := addr.(type) {
++		case *TCPAddr:
++			if addr != nil {
++				ip = addr.IP
++				port = addr.Port
++				zone = addr.Zone
++			}
++		case *UDPAddr:
++			if addr != nil {
++				ip = addr.IP
++				port = addr.Port
++				zone = addr.Zone
++			}
++		default:
++			return validate(addr)
++		}
++
++		if ip == nil {
++			ip = IPv4(127, 0, 0, 1)
++		}
++		switch ffd.fd.family {
++		case syscall.AF_INET:
++			if ip4 := ip.To4(); ip4 != nil {
++				ip = ip4
++			}
++		case syscall.AF_INET6:
++			if ip16 := ip.To16(); ip16 != nil {
++				ip = ip16
++			}
++		}
++		if ip == nil {
++			return syscall.EINVAL
++		}
++
++		if port == 0 {
++			var prevPort int32
++			portWrapped := false
++			nextPort := func() (int, bool) {
++				for {
++					port := nextPortCounter.Add(1)
++					if port <= 0 || port >= 1<<16 {
++						// nextPortCounter ran off the end of the port space.
++						// Bump it back into range.
++						for {
++							if nextPortCounter.CompareAndSwap(port, 0) {
++								break
++							}
++							if port = nextPortCounter.Load(); port >= 0 && port < 1<<16 {
++								break
++							}
++						}
++						if portWrapped {
++							// This is the second wraparound, so we've scanned the whole port space
++							// at least once already and it's time to give up.
++							return 0, false
++						}
++						portWrapped = true
++						prevPort = 0
++						continue
++					}
++
++					if port <= prevPort {
++						// nextPortCounter has wrapped around since the last time we read it.
++						if portWrapped {
++							// This is the second wraparound, so we've scanned the whole port space
++							// at least once already and it's time to give up.
++							return 0, false
++						} else {
++							portWrapped = true
++						}
++					}
+ 
+-	p.wDeadline = t
+-	p.wCond.Broadcast()
++					prevPort = port
++					return int(port), true
++				}
++			}
++
++			for {
++				var ok bool
++				port, ok = nextPort()
++				if !ok {
++					ffd.assignedPort = 0
++					return syscall.EADDRINUSE
++				}
++
++				ffd.assignedPort = int(port)
++				if _, dup := fakePorts.LoadOrStore(ffd.assignedPort, ffd.fd); !dup {
++					break
++				}
++			}
++		}
++
++		switch addr.(type) {
++		case *TCPAddr:
++			return validate(&TCPAddr{IP: ip, Port: port, Zone: zone})
++		case *UDPAddr:
++			return validate(&UDPAddr{IP: ip, Port: port, Zone: zone})
++		default:
++			panic("unreachable")
++		}
++	}
++
++	switch ffd.fd.net {
++	case "tcp", "tcp4", "tcp6":
++		if addr == nil {
++			return assignIP(new(TCPAddr))
++		}
++		return assignIP(addr)
++
++	case "udp", "udp4", "udp6":
++		if addr == nil {
++			return assignIP(new(UDPAddr))
++		}
++		return assignIP(addr)
++
++	case "unix", "unixgram", "unixpacket":
++		uaddr, ok := addr.(*UnixAddr)
++		if !ok && addr != nil {
++			return &AddrError{
++				Err:  "non-Unix address for " + ffd.fd.net + " network",
++				Addr: addr.String(),
++			}
++		}
++		if uaddr == nil {
++			return validate(&UnixAddr{Net: ffd.fd.net})
++		}
++		return validate(&UnixAddr{Net: ffd.fd.net, Name: uaddr.Name})
++
++	default:
++		return &AddrError{
++			Err:  syscall.EAFNOSUPPORT.Error(),
++			Addr: addr.String(),
++		}
++	}
+ }
+ 
+-func sysSocket(family, sotype, proto int) (int, error) {
+-	return 0, syscall.ENOSYS
++func (ffd *fakeNetFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
++	if ffd.queue == nil {
++		return 0, nil, os.NewSyscallError("readFrom", syscall.EINVAL)
++	}
++
++	n, from, err := ffd.queue.recvfrom(ffd.readDeadline.Load(), p, true, nil)
++
++	if from != nil {
++		// Convert the net.sockaddr to a syscall.Sockaddr type.
++		var saErr error
++		sa, saErr = from.sockaddr(ffd.fd.family)
++		if err == nil {
++			err = saErr
++		}
++	}
++
++	return n, sa, err
+ }
+ 
+-func (fd *fakeNetFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (syscall.Sockaddr, error) {
+-	return nil, syscall.ENOSYS
++func (ffd *fakeNetFD) readFromInet4(p []byte, sa *syscall.SockaddrInet4) (n int, err error) {
++	n, _, err = ffd.queue.recvfrom(ffd.readDeadline.Load(), p, true, func(from sockaddr) error {
++		fromSA, err := from.sockaddr(syscall.AF_INET)
++		if err != nil {
++			return err
++		}
++		if fromSA == nil {
++			return os.NewSyscallError("readFromInet4", syscall.EINVAL)
++		}
++		*sa = *(fromSA.(*syscall.SockaddrInet4))
++		return nil
++	})
++	return n, err
+ }
+ 
+-func (fd *fakeNetFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
+-	return 0, nil, syscall.ENOSYS
++func (ffd *fakeNetFD) readFromInet6(p []byte, sa *syscall.SockaddrInet6) (n int, err error) {
++	n, _, err = ffd.queue.recvfrom(ffd.readDeadline.Load(), p, true, func(from sockaddr) error {
++		fromSA, err := from.sockaddr(syscall.AF_INET6)
++		if err != nil {
++			return err
++		}
++		if fromSA == nil {
++			return os.NewSyscallError("readFromInet6", syscall.EINVAL)
++		}
++		*sa = *(fromSA.(*syscall.SockaddrInet6))
++		return nil
++	})
++	return n, err
++}
+ 
++func (ffd *fakeNetFD) readMsg(p []byte, oob []byte, flags int) (n, oobn, retflags int, sa syscall.Sockaddr, err error) {
++	if flags != 0 {
++		return 0, 0, 0, nil, os.NewSyscallError("readMsg", syscall.ENOTSUP)
++	}
++	n, sa, err = ffd.readFrom(p)
++	return n, 0, 0, sa, err
+ }
+-func (fd *fakeNetFD) readFromInet4(p []byte, sa *syscall.SockaddrInet4) (n int, err error) {
+-	return 0, syscall.ENOSYS
++
++func (ffd *fakeNetFD) readMsgInet4(p []byte, oob []byte, flags int, sa *syscall.SockaddrInet4) (n, oobn, retflags int, err error) {
++	if flags != 0 {
++		return 0, 0, 0, os.NewSyscallError("readMsgInet4", syscall.ENOTSUP)
++	}
++	n, err = ffd.readFromInet4(p, sa)
++	return n, 0, 0, err
+ }
+ 
+-func (fd *fakeNetFD) readFromInet6(p []byte, sa *syscall.SockaddrInet6) (n int, err error) {
+-	return 0, syscall.ENOSYS
++func (ffd *fakeNetFD) readMsgInet6(p []byte, oob []byte, flags int, sa *syscall.SockaddrInet6) (n, oobn, retflags int, err error) {
++	if flags != 0 {
++		return 0, 0, 0, os.NewSyscallError("readMsgInet6", syscall.ENOTSUP)
++	}
++	n, err = ffd.readFromInet6(p, sa)
++	return n, 0, 0, err
+ }
+ 
+-func (fd *fakeNetFD) readMsg(p []byte, oob []byte, flags int) (n, oobn, retflags int, sa syscall.Sockaddr, err error) {
+-	return 0, 0, 0, nil, syscall.ENOSYS
++func (ffd *fakeNetFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
++	if len(oob) > 0 {
++		return 0, 0, os.NewSyscallError("writeMsg", syscall.ENOTSUP)
++	}
++	n, err = ffd.writeTo(p, sa)
++	return n, 0, err
+ }
+ 
+-func (fd *fakeNetFD) readMsgInet4(p []byte, oob []byte, flags int, sa *syscall.SockaddrInet4) (n, oobn, retflags int, err error) {
+-	return 0, 0, 0, syscall.ENOSYS
++func (ffd *fakeNetFD) writeMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (n int, oobn int, err error) {
++	return ffd.writeMsg(p, oob, sa)
+ }
+ 
+-func (fd *fakeNetFD) readMsgInet6(p []byte, oob []byte, flags int, sa *syscall.SockaddrInet6) (n, oobn, retflags int, err error) {
+-	return 0, 0, 0, syscall.ENOSYS
++func (ffd *fakeNetFD) writeMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (n int, oobn int, err error) {
++	return ffd.writeMsg(p, oob, sa)
+ }
+ 
+-func (fd *fakeNetFD) writeMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (n int, oobn int, err error) {
+-	return 0, 0, syscall.ENOSYS
++func (ffd *fakeNetFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
++	raddr := ffd.fd.raddr
++	if sa != nil {
++		if ffd.fd.isConnected {
++			return 0, os.NewSyscallError("writeTo", syscall.EISCONN)
++		}
++		raddr = ffd.fd.addrFunc()(sa)
++	}
++	if raddr == nil {
++		return 0, os.NewSyscallError("writeTo", syscall.EINVAL)
++	}
++
++	peeri, _ := sockets.Load(fakeAddr(raddr.(sockaddr)))
++	if peeri == nil {
++		if len(ffd.fd.net) >= 3 && ffd.fd.net[:3] == "udp" {
++			return len(p), nil
++		}
++		return 0, os.NewSyscallError("writeTo", syscall.ECONNRESET)
++	}
++	peer := peeri.(*netFD)
++	if peer.queue == nil {
++		if len(ffd.fd.net) >= 3 && ffd.fd.net[:3] == "udp" {
++			return len(p), nil
++		}
++		return 0, os.NewSyscallError("writeTo", syscall.ECONNRESET)
++	}
++
++	block := true
++	if len(ffd.fd.net) >= 3 && ffd.fd.net[:3] == "udp" {
++		block = false
++	}
++	return peer.queue.send(ffd.writeDeadline.Load(), p, ffd.fd.laddr.(sockaddr), block)
+ }
+ 
+-func (fd *fakeNetFD) writeMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (n int, oobn int, err error) {
+-	return 0, 0, syscall.ENOSYS
++func (ffd *fakeNetFD) writeToInet4(p []byte, sa *syscall.SockaddrInet4) (n int, err error) {
++	return ffd.writeTo(p, sa)
+ }
+ 
+-func (fd *fakeNetFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
+-	return 0, syscall.ENOSYS
++func (ffd *fakeNetFD) writeToInet6(p []byte, sa *syscall.SockaddrInet6) (n int, err error) {
++	return ffd.writeTo(p, sa)
+ }
+ 
+-func (fd *fakeNetFD) writeToInet4(p []byte, sa *syscall.SockaddrInet4) (n int, err error) {
+-	return 0, syscall.ENOSYS
++func (ffd *fakeNetFD) dup() (f *os.File, err error) {
++	return nil, os.NewSyscallError("dup", syscall.ENOSYS)
+ }
+ 
+-func (fd *fakeNetFD) writeToInet6(p []byte, sa *syscall.SockaddrInet6) (n int, err error) {
+-	return 0, syscall.ENOSYS
++func (ffd *fakeNetFD) setReadBuffer(bytes int) error {
++	if ffd.queue == nil {
++		return os.NewSyscallError("setReadBuffer", syscall.EINVAL)
++	}
++	ffd.queue.setReadBuffer(bytes)
++	return nil
+ }
+ 
+-func (fd *fakeNetFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
+-	return 0, 0, syscall.ENOSYS
++func (ffd *fakeNetFD) setWriteBuffer(bytes int) error {
++	return os.NewSyscallError("setWriteBuffer", syscall.ENOTSUP)
+ }
+ 
+-func (fd *fakeNetFD) dup() (f *os.File, err error) {
+-	return nil, syscall.ENOSYS
++func (ffd *fakeNetFD) setLinger(sec int) error {
++	if sec < 0 || ffd.peer == nil {
++		return os.NewSyscallError("setLinger", syscall.EINVAL)
++	}
++	ffd.peer.queue.setLinger(sec > 0)
++	return nil
+ }
+diff --git a/src/net/net_fake_js.go b/src/net/net_fake_js.go
+deleted file mode 100644
+index 7ba108b664..0000000000
+--- a/src/net/net_fake_js.go
++++ /dev/null
+@@ -1,36 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Fake networking for js/wasm. It is intended to allow tests of other package to pass.
+-
+-//go:build js && wasm
+-
+-package net
+-
+-import (
+-	"context"
+-	"internal/poll"
+-
+-	"golang.org/x/net/dns/dnsmessage"
+-)
+-
+-// Network file descriptor.
+-type netFD struct {
+-	*fakeNetFD
+-
+-	// immutable until Close
+-	family int
+-	sotype int
+-	net    string
+-	laddr  Addr
+-	raddr  Addr
+-
+-	// unused
+-	pfd         poll.FD
+-	isConnected bool // handshake completed or use of association with peer
+-}
+-
+-func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Type, conf *dnsConfig) (dnsmessage.Parser, string, error) {
+-	panic("unreachable")
+-}
+diff --git a/src/net/net_fake_test.go b/src/net/net_fake_test.go
+index 783304d531..4542228fbc 100644
+--- a/src/net/net_fake_test.go
++++ b/src/net/net_fake_test.go
+@@ -13,191 +13,95 @@ package net
+ // The tests in this files are intended to validate the behavior of the fake
+ // network stack on these platforms.
+ 
+-import "testing"
+-
+-func TestFakeConn(t *testing.T) {
+-	tests := []struct {
+-		name   string
+-		listen func() (Listener, error)
+-		dial   func(Addr) (Conn, error)
+-		addr   func(*testing.T, Addr)
+-	}{
+-		{
+-			name: "Listener:tcp",
+-			listen: func() (Listener, error) {
+-				return Listen("tcp", ":0")
+-			},
+-			dial: func(addr Addr) (Conn, error) {
+-				return Dial(addr.Network(), addr.String())
+-			},
+-			addr: testFakeTCPAddr,
+-		},
+-
+-		{
+-			name: "ListenTCP:tcp",
+-			listen: func() (Listener, error) {
+-				// Creating a listening TCP connection with a nil address must
+-				// select an IP address on localhost with a random port.
+-				// This test verifies that the fake network facility does that.
+-				return ListenTCP("tcp", nil)
+-			},
+-			dial: func(addr Addr) (Conn, error) {
+-				// Connecting a listening TCP connection will select a local
+-				// address on the local network and connects to the destination
+-				// address.
+-				return DialTCP("tcp", nil, addr.(*TCPAddr))
+-			},
+-			addr: testFakeTCPAddr,
+-		},
+-
+-		{
+-			name: "ListenUnix:unix",
+-			listen: func() (Listener, error) {
+-				return ListenUnix("unix", &UnixAddr{Name: "test"})
+-			},
+-			dial: func(addr Addr) (Conn, error) {
+-				return DialUnix("unix", nil, addr.(*UnixAddr))
+-			},
+-			addr: testFakeUnixAddr("unix", "test"),
+-		},
+-
+-		{
+-			name: "ListenUnix:unixpacket",
+-			listen: func() (Listener, error) {
+-				return ListenUnix("unixpacket", &UnixAddr{Name: "test"})
+-			},
+-			dial: func(addr Addr) (Conn, error) {
+-				return DialUnix("unixpacket", nil, addr.(*UnixAddr))
+-			},
+-			addr: testFakeUnixAddr("unixpacket", "test"),
+-		},
++import (
++	"errors"
++	"syscall"
++	"testing"
++)
++
++func TestFakePortExhaustion(t *testing.T) {
++	if testing.Short() {
++		t.Skipf("skipping test that opens 1<<16 connections")
+ 	}
+ 
+-	for _, test := range tests {
+-		t.Run(test.name, func(t *testing.T) {
+-			l, err := test.listen()
+-			if err != nil {
+-				t.Fatal(err)
++	ln := newLocalListener(t, "tcp")
++	done := make(chan struct{})
++	go func() {
++		var accepted []Conn
++		defer func() {
++			for _, c := range accepted {
++				c.Close()
+ 			}
+-			defer l.Close()
+-			test.addr(t, l.Addr())
++			close(done)
++		}()
+ 
+-			c, err := test.dial(l.Addr())
++		for {
++			c, err := ln.Accept()
+ 			if err != nil {
+-				t.Fatal(err)
++				return
+ 			}
+-			defer c.Close()
+-			test.addr(t, c.LocalAddr())
+-			test.addr(t, c.RemoteAddr())
+-		})
+-	}
+-}
+-
+-func TestFakePacketConn(t *testing.T) {
+-	tests := []struct {
+-		name   string
+-		listen func() (PacketConn, error)
+-		dial   func(Addr) (Conn, error)
+-		addr   func(*testing.T, Addr)
+-	}{
+-		{
+-			name: "ListenPacket:udp",
+-			listen: func() (PacketConn, error) {
+-				return ListenPacket("udp", ":0")
+-			},
+-			dial: func(addr Addr) (Conn, error) {
+-				return Dial(addr.Network(), addr.String())
+-			},
+-			addr: testFakeUDPAddr,
+-		},
+-
+-		{
+-			name: "ListenUDP:udp",
+-			listen: func() (PacketConn, error) {
+-				// Creating a listening UDP connection with a nil address must
+-				// select an IP address on localhost with a random port.
+-				// This test verifies that the fake network facility does that.
+-				return ListenUDP("udp", nil)
+-			},
+-			dial: func(addr Addr) (Conn, error) {
+-				// Connecting a listening UDP connection will select a local
+-				// address on the local network and connects to the destination
+-				// address.
+-				return DialUDP("udp", nil, addr.(*UDPAddr))
+-			},
+-			addr: testFakeUDPAddr,
+-		},
++			accepted = append(accepted, c)
++		}
++	}()
+ 
+-		{
+-			name: "ListenUnixgram:unixgram",
+-			listen: func() (PacketConn, error) {
+-				return ListenUnixgram("unixgram", &UnixAddr{Name: "test"})
+-			},
+-			dial: func(addr Addr) (Conn, error) {
+-				return DialUnix("unixgram", nil, addr.(*UnixAddr))
+-			},
+-			addr: testFakeUnixAddr("unixgram", "test"),
+-		},
++	var dialed []Conn
++	defer func() {
++		ln.Close()
++		for _, c := range dialed {
++			c.Close()
++		}
++		<-done
++	}()
++
++	// Since this test is not running in parallel, we expect to be able to open
++	// all 65535 valid (fake) ports. The listener is already using one, so
++	// we should be able to Dial the remaining 65534.
++	for len(dialed) < (1<<16)-2 {
++		c, err := Dial(ln.Addr().Network(), ln.Addr().String())
++		if err != nil {
++			t.Fatalf("unexpected error from Dial with %v connections: %v", len(dialed), err)
++		}
++		dialed = append(dialed, c)
++		if testing.Verbose() && len(dialed)%(1<<12) == 0 {
++			t.Logf("dialed %d connections", len(dialed))
++		}
+ 	}
+-
+-	for _, test := range tests {
+-		t.Run(test.name, func(t *testing.T) {
+-			l, err := test.listen()
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-			defer l.Close()
+-			test.addr(t, l.LocalAddr())
+-
+-			c, err := test.dial(l.LocalAddr())
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-			defer c.Close()
+-			test.addr(t, c.LocalAddr())
+-			test.addr(t, c.RemoteAddr())
+-		})
++	t.Logf("dialed %d connections", len(dialed))
++
++	// Now that all of the ports are in use, dialing another should fail due
++	// to port exhaustion, which (for POSIX-like socket APIs) should return
++	// an EADDRINUSE error.
++	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
++	if err == nil {
++		c.Close()
+ 	}
+-}
+-
+-func testFakeTCPAddr(t *testing.T, addr Addr) {
+-	t.Helper()
+-	if a, ok := addr.(*TCPAddr); !ok {
+-		t.Errorf("Addr is not *TCPAddr: %T", addr)
++	if errors.Is(err, syscall.EADDRINUSE) {
++		t.Logf("Dial returned expected error: %v", err)
+ 	} else {
+-		testFakeNetAddr(t, a.IP, a.Port)
++		t.Errorf("unexpected error from Dial: %v\nwant: %v", err, syscall.EADDRINUSE)
+ 	}
+-}
+ 
+-func testFakeUDPAddr(t *testing.T, addr Addr) {
+-	t.Helper()
+-	if a, ok := addr.(*UDPAddr); !ok {
+-		t.Errorf("Addr is not *UDPAddr: %T", addr)
++	// Opening a Listener should fail at this point too.
++	ln2, err := Listen("tcp", "localhost:0")
++	if err == nil {
++		ln2.Close()
++	}
++	if errors.Is(err, syscall.EADDRINUSE) {
++		t.Logf("Listen returned expected error: %v", err)
+ 	} else {
+-		testFakeNetAddr(t, a.IP, a.Port)
++		t.Errorf("unexpected error from Listen: %v\nwant: %v", err, syscall.EADDRINUSE)
+ 	}
+-}
+ 
+-func testFakeNetAddr(t *testing.T, ip IP, port int) {
+-	t.Helper()
+-	if port == 0 {
+-		t.Error("network address is missing port")
+-	} else if len(ip) == 0 {
+-		t.Error("network address is missing IP")
+-	} else if !ip.Equal(IPv4(127, 0, 0, 1)) {
+-		t.Errorf("network address has wrong IP: %s", ip)
+-	}
+-}
+-
+-func testFakeUnixAddr(net, name string) func(*testing.T, Addr) {
+-	return func(t *testing.T, addr Addr) {
+-		t.Helper()
+-		if a, ok := addr.(*UnixAddr); !ok {
+-			t.Errorf("Addr is not *UnixAddr: %T", addr)
+-		} else if a.Net != net {
+-			t.Errorf("unix address has wrong net: want=%q got=%q", net, a.Net)
+-		} else if a.Name != name {
+-			t.Errorf("unix address has wrong name: want=%q got=%q", name, a.Name)
+-		}
++	// When we close an arbitrary connection, we should be able to reuse its port
++	// even if the server hasn't yet seen the ECONNRESET for the connection.
++	dialed[0].Close()
++	dialed = dialed[1:]
++	t.Logf("closed one connection")
++	c, err = Dial(ln.Addr().Network(), ln.Addr().String())
++	if err == nil {
++		c.Close()
++		t.Logf("Dial succeeded")
++	} else {
++		t.Errorf("unexpected error from Dial: %v", err)
+ 	}
+ }
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 38ed31e0f1..b448a79cce 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+@@ -383,8 +381,16 @@ func TestZeroByteRead(t *testing.T) {
+ 
+ 			ln := newLocalListener(t, network)
+ 			connc := make(chan Conn, 1)
++			defer func() {
++				ln.Close()
++				for c := range connc {
++					if c != nil {
++						c.Close()
++					}
++				}
++			}()
+ 			go func() {
+-				defer ln.Close()
++				defer close(connc)
+ 				c, err := ln.Accept()
+ 				if err != nil {
+ 					t.Error(err)
+diff --git a/src/net/packetconn_test.go b/src/net/packetconn_test.go
+index dc0c14b93d..e39e7de5d7 100644
+--- a/src/net/packetconn_test.go
++++ b/src/net/packetconn_test.go
+@@ -2,10 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file implements API tests across platforms and will never have a build
+-// tag.
+-
+-//go:build !js && !wasip1
++// This file implements API tests across platforms and should never have a build
++// constraint.
+ 
+ package net
+ 
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index 71e90821ce..709d4a3eb7 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -165,7 +165,7 @@ func condFatalf(t *testing.T, network string, format string, args ...any) {
+ 	// A few APIs like File and Read/WriteMsg{UDP,IP} are not
+ 	// fully implemented yet on Plan 9 and Windows.
+ 	switch runtime.GOOS {
+-	case "windows":
++	case "windows", "js", "wasip1":
+ 		if network == "file+net" {
+ 			t.Logf(format, args...)
+ 			return
+diff --git a/src/net/port_unix.go b/src/net/port_unix.go
+index 0b2ea3ec5d..df73dbabb3 100644
+--- a/src/net/port_unix.go
++++ b/src/net/port_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || wasip1
++//go:build unix || js || wasip1
+ 
+ // Read system port mappings from /etc/services
+ 
+diff --git a/src/net/protoconn_test.go b/src/net/protoconn_test.go
+index c5668079a9..a617470580 100644
+--- a/src/net/protoconn_test.go
++++ b/src/net/protoconn_test.go
+@@ -5,8 +5,6 @@
+ // This file implements API tests across platforms and will never have a build
+ // tag.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+@@ -39,7 +37,7 @@ func TestTCPListenerSpecificMethods(t *testing.T) {
+ 	}
+ 	defer ln.Close()
+ 	ln.Addr()
+-	ln.SetDeadline(time.Now().Add(30 * time.Nanosecond))
++	mustSetDeadline(t, ln.SetDeadline, 30*time.Nanosecond)
+ 
+ 	if c, err := ln.Accept(); err != nil {
+ 		if !err.(Error).Timeout() {
+@@ -162,6 +160,10 @@ func TestUDPConnSpecificMethods(t *testing.T) {
+ }
+ 
+ func TestIPConnSpecificMethods(t *testing.T) {
++	if !testableNetwork("ip4") {
++		t.Skip("skipping: ip4 not supported")
++	}
++
+ 	la, err := ResolveIPAddr("ip4", "127.0.0.1")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -217,7 +219,7 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
+ 	defer ln.Close()
+ 	defer os.Remove(addr)
+ 	ln.Addr()
+-	ln.SetDeadline(time.Now().Add(30 * time.Nanosecond))
++	mustSetDeadline(t, ln.SetDeadline, 30*time.Nanosecond)
+ 
+ 	if c, err := ln.Accept(); err != nil {
+ 		if !err.(Error).Timeout() {
+@@ -235,7 +237,7 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
+ 	}
+ 
+ 	if f, err := ln.File(); err != nil {
+-		t.Fatal(err)
++		condFatalf(t, "file+net", "%v", err)
+ 	} else {
+ 		f.Close()
+ 	}
+@@ -332,7 +334,7 @@ func TestUnixConnSpecificMethods(t *testing.T) {
+ 	}
+ 
+ 	if f, err := c1.File(); err != nil {
+-		t.Fatal(err)
++		condFatalf(t, "file+net", "%v", err)
+ 	} else {
+ 		f.Close()
+ 	}
+diff --git a/src/net/rawconn_stub_test.go b/src/net/rawconn_stub_test.go
+index c8ad80cc84..6d54f2df55 100644
+--- a/src/net/rawconn_stub_test.go
++++ b/src/net/rawconn_stub_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (js && wasm) || plan9 || wasip1
++//go:build js || plan9 || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/rawconn_test.go b/src/net/rawconn_test.go
+index 06d5856a9a..70b16c4115 100644
+--- a/src/net/rawconn_test.go
++++ b/src/net/rawconn_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+@@ -15,7 +13,7 @@ import (
+ 
+ func TestRawConnReadWrite(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9":
++	case "plan9", "js", "wasip1":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+@@ -169,7 +167,7 @@ func TestRawConnReadWrite(t *testing.T) {
+ 
+ func TestRawConnControl(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9":
++	case "plan9", "js", "wasip1":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+diff --git a/src/net/resolverdialfunc_test.go b/src/net/resolverdialfunc_test.go
+index 1de0402389..1af4199269 100644
+--- a/src/net/resolverdialfunc_test.go
++++ b/src/net/resolverdialfunc_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ // Test that Resolver.Dial can be a func returning an in-memory net.Conn
+ // speaking DNS.
+ 
+diff --git a/src/net/rlimit_js.go b/src/net/rlimit_js.go
+new file mode 100644
+index 0000000000..9ee5748b21
+--- /dev/null
++++ b/src/net/rlimit_js.go
+@@ -0,0 +1,13 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build js
++
++package net
++
++// concurrentThreadsLimit returns the number of threads we permit to
++// run concurrently doing DNS lookups.
++func concurrentThreadsLimit() int {
++	return 500
++}
+diff --git a/src/net/rlimit_unix.go b/src/net/rlimit_unix.go
+new file mode 100644
+index 0000000000..0094756e3a
+--- /dev/null
++++ b/src/net/rlimit_unix.go
+@@ -0,0 +1,33 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix || wasip1
++
++package net
++
++import "syscall"
++
++// concurrentThreadsLimit returns the number of threads we permit to
++// run concurrently doing DNS lookups via cgo. A DNS lookup may use a
++// file descriptor so we limit this to less than the number of
++// permitted open files. On some systems, notably Darwin, if
++// getaddrinfo is unable to open a file descriptor it simply returns
++// EAI_NONAME rather than a useful error. Limiting the number of
++// concurrent getaddrinfo calls to less than the permitted number of
++// file descriptors makes that error less likely. We don't bother to
++// apply the same limit to DNS lookups run directly from Go, because
++// there we will return a meaningful "too many open files" error.
++func concurrentThreadsLimit() int {
++	var rlim syscall.Rlimit
++	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlim); err != nil {
++		return 500
++	}
++	r := rlim.Cur
++	if r > 500 {
++		r = 500
++	} else if r > 30 {
++		r -= 30
++	}
++	return int(r)
++}
+diff --git a/src/net/sendfile_stub.go b/src/net/sendfile_stub.go
+index c7a2e6a1e4..a4fdd99ffe 100644
+--- a/src/net/sendfile_stub.go
++++ b/src/net/sendfile_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || (js && wasm) || netbsd || openbsd || ios || wasip1
++//go:build aix || js || netbsd || openbsd || ios || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/sendfile_test.go b/src/net/sendfile_test.go
+index 44a87a1d20..997a0ed01f 100644
+--- a/src/net/sendfile_test.go
++++ b/src/net/sendfile_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+@@ -209,7 +207,7 @@ func TestSendfileSeeked(t *testing.T) {
+ // Test that sendfile doesn't put a pipe into blocking mode.
+ func TestSendfilePipe(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9", "windows":
++	case "plan9", "windows", "js", "wasip1":
+ 		// These systems don't support deadlines on pipes.
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+ 	}
+diff --git a/src/net/server_test.go b/src/net/server_test.go
+index 2ff0689067..eb6b111f1f 100644
+--- a/src/net/server_test.go
++++ b/src/net/server_test.go
+@@ -2,11 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
++	"fmt"
+ 	"os"
+ 	"testing"
+ )
+@@ -251,65 +250,80 @@ var udpServerTests = []struct {
+ 
+ func TestUDPServer(t *testing.T) {
+ 	for i, tt := range udpServerTests {
+-		if !testableListenArgs(tt.snet, tt.saddr, tt.taddr) {
+-			t.Logf("skipping %s test", tt.snet+" "+tt.saddr+"<-"+tt.taddr)
+-			continue
+-		}
+-
+-		c1, err := ListenPacket(tt.snet, tt.saddr)
+-		if err != nil {
+-			if perr := parseDialError(err); perr != nil {
+-				t.Error(perr)
++		i, tt := i, tt
++		t.Run(fmt.Sprint(i), func(t *testing.T) {
++			if !testableListenArgs(tt.snet, tt.saddr, tt.taddr) {
++				t.Skipf("skipping %s %s<-%s test", tt.snet, tt.saddr, tt.taddr)
+ 			}
+-			t.Fatal(err)
+-		}
++			t.Logf("%s %s<-%s", tt.snet, tt.saddr, tt.taddr)
+ 
+-		ls := (&packetListener{PacketConn: c1}).newLocalServer()
+-		defer ls.teardown()
+-		tpch := make(chan error, 1)
+-		handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, tpch) }
+-		if err := ls.buildup(handler); err != nil {
+-			t.Fatal(err)
+-		}
+-
+-		trch := make(chan error, 1)
+-		_, port, err := SplitHostPort(ls.PacketConn.LocalAddr().String())
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		if tt.dial {
+-			d := Dialer{Timeout: someTimeout}
+-			c2, err := d.Dial(tt.tnet, JoinHostPort(tt.taddr, port))
++			c1, err := ListenPacket(tt.snet, tt.saddr)
+ 			if err != nil {
+ 				if perr := parseDialError(err); perr != nil {
+ 					t.Error(perr)
+ 				}
+ 				t.Fatal(err)
+ 			}
+-			defer c2.Close()
+-			go transceiver(c2, []byte("UDP SERVER TEST"), trch)
+-		} else {
+-			c2, err := ListenPacket(tt.tnet, JoinHostPort(tt.taddr, "0"))
+-			if err != nil {
+-				if perr := parseDialError(err); perr != nil {
+-					t.Error(perr)
+-				}
++
++			ls := (&packetListener{PacketConn: c1}).newLocalServer()
++			defer ls.teardown()
++			tpch := make(chan error, 1)
++			handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, tpch) }
++			if err := ls.buildup(handler); err != nil {
+ 				t.Fatal(err)
+ 			}
+-			defer c2.Close()
+-			dst, err := ResolveUDPAddr(tt.tnet, JoinHostPort(tt.taddr, port))
++
++			trch := make(chan error, 1)
++			_, port, err := SplitHostPort(ls.PacketConn.LocalAddr().String())
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+-			go packetTransceiver(c2, []byte("UDP SERVER TEST"), dst, trch)
+-		}
++			if tt.dial {
++				d := Dialer{Timeout: someTimeout}
++				c2, err := d.Dial(tt.tnet, JoinHostPort(tt.taddr, port))
++				if err != nil {
++					if perr := parseDialError(err); perr != nil {
++						t.Error(perr)
++					}
++					t.Fatal(err)
++				}
++				defer c2.Close()
++				go transceiver(c2, []byte("UDP SERVER TEST"), trch)
++			} else {
++				c2, err := ListenPacket(tt.tnet, JoinHostPort(tt.taddr, "0"))
++				if err != nil {
++					if perr := parseDialError(err); perr != nil {
++						t.Error(perr)
++					}
++					t.Fatal(err)
++				}
++				defer c2.Close()
++				dst, err := ResolveUDPAddr(tt.tnet, JoinHostPort(tt.taddr, port))
++				if err != nil {
++					t.Fatal(err)
++				}
++				go packetTransceiver(c2, []byte("UDP SERVER TEST"), dst, trch)
++			}
+ 
+-		for err := range trch {
+-			t.Errorf("#%d: %v", i, err)
+-		}
+-		for err := range tpch {
+-			t.Errorf("#%d: %v", i, err)
+-		}
++			for trch != nil || tpch != nil {
++				select {
++				case err, ok := <-trch:
++					if !ok {
++						trch = nil
++					}
++					if err != nil {
++						t.Errorf("client: %v", err)
++					}
++				case err, ok := <-tpch:
++					if !ok {
++						tpch = nil
++					}
++					if err != nil {
++						t.Errorf("server: %v", err)
++					}
++				}
++			}
++		})
+ 	}
+ }
+ 
+@@ -326,58 +340,73 @@ func TestUnixgramServer(t *testing.T) {
+ 	}
+ 
+ 	for i, tt := range unixgramServerTests {
+-		if !testableListenArgs("unixgram", tt.saddr, "") {
+-			t.Logf("skipping %s test", "unixgram "+tt.saddr+"<-"+tt.caddr)
+-			continue
+-		}
+-
+-		c1, err := ListenPacket("unixgram", tt.saddr)
+-		if err != nil {
+-			if perr := parseDialError(err); perr != nil {
+-				t.Error(perr)
++		i, tt := i, tt
++		t.Run(fmt.Sprint(i), func(t *testing.T) {
++			if !testableListenArgs("unixgram", tt.saddr, "") {
++				t.Skipf("skipping unixgram %s<-%s test", tt.saddr, tt.caddr)
+ 			}
+-			t.Fatal(err)
+-		}
+-
+-		ls := (&packetListener{PacketConn: c1}).newLocalServer()
+-		defer ls.teardown()
+-		tpch := make(chan error, 1)
+-		handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, tpch) }
+-		if err := ls.buildup(handler); err != nil {
+-			t.Fatal(err)
+-		}
++			t.Logf("unixgram %s<-%s", tt.saddr, tt.caddr)
+ 
+-		trch := make(chan error, 1)
+-		if tt.dial {
+-			d := Dialer{Timeout: someTimeout, LocalAddr: &UnixAddr{Net: "unixgram", Name: tt.caddr}}
+-			c2, err := d.Dial("unixgram", ls.PacketConn.LocalAddr().String())
++			c1, err := ListenPacket("unixgram", tt.saddr)
+ 			if err != nil {
+ 				if perr := parseDialError(err); perr != nil {
+ 					t.Error(perr)
+ 				}
+ 				t.Fatal(err)
+ 			}
+-			defer os.Remove(c2.LocalAddr().String())
+-			defer c2.Close()
+-			go transceiver(c2, []byte(c2.LocalAddr().String()), trch)
+-		} else {
+-			c2, err := ListenPacket("unixgram", tt.caddr)
+-			if err != nil {
+-				if perr := parseDialError(err); perr != nil {
+-					t.Error(perr)
+-				}
++
++			ls := (&packetListener{PacketConn: c1}).newLocalServer()
++			defer ls.teardown()
++			tpch := make(chan error, 1)
++			handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, tpch) }
++			if err := ls.buildup(handler); err != nil {
+ 				t.Fatal(err)
+ 			}
+-			defer os.Remove(c2.LocalAddr().String())
+-			defer c2.Close()
+-			go packetTransceiver(c2, []byte("UNIXGRAM SERVER TEST"), ls.PacketConn.LocalAddr(), trch)
+-		}
+ 
+-		for err := range trch {
+-			t.Errorf("#%d: %v", i, err)
+-		}
+-		for err := range tpch {
+-			t.Errorf("#%d: %v", i, err)
+-		}
++			trch := make(chan error, 1)
++			if tt.dial {
++				d := Dialer{Timeout: someTimeout, LocalAddr: &UnixAddr{Net: "unixgram", Name: tt.caddr}}
++				c2, err := d.Dial("unixgram", ls.PacketConn.LocalAddr().String())
++				if err != nil {
++					if perr := parseDialError(err); perr != nil {
++						t.Error(perr)
++					}
++					t.Fatal(err)
++				}
++				defer os.Remove(c2.LocalAddr().String())
++				defer c2.Close()
++				go transceiver(c2, []byte(c2.LocalAddr().String()), trch)
++			} else {
++				c2, err := ListenPacket("unixgram", tt.caddr)
++				if err != nil {
++					if perr := parseDialError(err); perr != nil {
++						t.Error(perr)
++					}
++					t.Fatal(err)
++				}
++				defer os.Remove(c2.LocalAddr().String())
++				defer c2.Close()
++				go packetTransceiver(c2, []byte("UNIXGRAM SERVER TEST"), ls.PacketConn.LocalAddr(), trch)
++			}
++
++			for trch != nil || tpch != nil {
++				select {
++				case err, ok := <-trch:
++					if !ok {
++						trch = nil
++					}
++					if err != nil {
++						t.Errorf("client: %v", err)
++					}
++				case err, ok := <-tpch:
++					if !ok {
++						tpch = nil
++					}
++					if err != nil {
++						t.Errorf("server: %v", err)
++					}
++				}
++			}
++		})
+ 	}
+ }
+diff --git a/src/net/sock_posix.go b/src/net/sock_posix.go
+index 1fcb82a419..d04c26e7ef 100644
+--- a/src/net/sock_posix.go
++++ b/src/net/sock_posix.go
+@@ -89,30 +89,6 @@ func (fd *netFD) ctrlNetwork() string {
+ 	return fd.net + "6"
+ }
+ 
+-func (fd *netFD) addrFunc() func(syscall.Sockaddr) Addr {
+-	switch fd.family {
+-	case syscall.AF_INET, syscall.AF_INET6:
+-		switch fd.sotype {
+-		case syscall.SOCK_STREAM:
+-			return sockaddrToTCP
+-		case syscall.SOCK_DGRAM:
+-			return sockaddrToUDP
+-		case syscall.SOCK_RAW:
+-			return sockaddrToIP
+-		}
+-	case syscall.AF_UNIX:
+-		switch fd.sotype {
+-		case syscall.SOCK_STREAM:
+-			return sockaddrToUnix
+-		case syscall.SOCK_DGRAM:
+-			return sockaddrToUnixgram
+-		case syscall.SOCK_SEQPACKET:
+-			return sockaddrToUnixpacket
+-		}
+-	}
+-	return func(syscall.Sockaddr) Addr { return nil }
+-}
+-
+ func (fd *netFD) dial(ctx context.Context, laddr, raddr sockaddr, ctrlCtxFn func(context.Context, string, string, syscall.RawConn) error) error {
+ 	var c *rawConn
+ 	if ctrlCtxFn != nil {
+diff --git a/src/net/sock_stub.go b/src/net/sock_stub.go
+index e163755568..fd86fa92dc 100644
+--- a/src/net/sock_stub.go
++++ b/src/net/sock_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || (js && wasm) || solaris || wasip1
++//go:build aix || js || solaris || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/sockaddr_posix.go b/src/net/sockaddr_posix.go
+index e44fc76f4b..c5604fca35 100644
+--- a/src/net/sockaddr_posix.go
++++ b/src/net/sockaddr_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || wasip1 || windows
++//go:build unix || js || wasip1 || windows
+ 
+ package net
+ 
+@@ -32,3 +32,27 @@ type sockaddr interface {
+ 	// toLocal maps the zero address to a local system address (127.0.0.1 or ::1)
+ 	toLocal(net string) sockaddr
+ }
++
++func (fd *netFD) addrFunc() func(syscall.Sockaddr) Addr {
++	switch fd.family {
++	case syscall.AF_INET, syscall.AF_INET6:
++		switch fd.sotype {
++		case syscall.SOCK_STREAM:
++			return sockaddrToTCP
++		case syscall.SOCK_DGRAM:
++			return sockaddrToUDP
++		case syscall.SOCK_RAW:
++			return sockaddrToIP
++		}
++	case syscall.AF_UNIX:
++		switch fd.sotype {
++		case syscall.SOCK_STREAM:
++			return sockaddrToUnix
++		case syscall.SOCK_DGRAM:
++			return sockaddrToUnixgram
++		case syscall.SOCK_SEQPACKET:
++			return sockaddrToUnixpacket
++		}
++	}
++	return func(syscall.Sockaddr) Addr { return nil }
++}
+diff --git a/src/net/sockopt_stub.go b/src/net/sockopt_fake.go
+similarity index 75%
+rename from src/net/sockopt_stub.go
+rename to src/net/sockopt_fake.go
+index 186d8912cb..9d9f7ea951 100644
+--- a/src/net/sockopt_stub.go
++++ b/src/net/sockopt_fake.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (js && wasm) || wasip1
++//go:build js || wasip1
+ 
+ package net
+ 
+@@ -21,10 +21,16 @@ func setDefaultMulticastSockopts(s int) error {
+ }
+ 
+ func setReadBuffer(fd *netFD, bytes int) error {
++	if fd.fakeNetFD != nil {
++		return fd.fakeNetFD.setReadBuffer(bytes)
++	}
+ 	return syscall.ENOPROTOOPT
+ }
+ 
+ func setWriteBuffer(fd *netFD, bytes int) error {
++	if fd.fakeNetFD != nil {
++		return fd.fakeNetFD.setWriteBuffer(bytes)
++	}
+ 	return syscall.ENOPROTOOPT
+ }
+ 
+@@ -33,5 +39,8 @@ func setKeepAlive(fd *netFD, keepalive bool) error {
+ }
+ 
+ func setLinger(fd *netFD, sec int) error {
++	if fd.fakeNetFD != nil {
++		return fd.fakeNetFD.setLinger(sec)
++	}
+ 	return syscall.ENOPROTOOPT
+ }
+diff --git a/src/net/sockoptip_stub.go b/src/net/sockoptip_stub.go
+index a37c31223d..23891a865f 100644
+--- a/src/net/sockoptip_stub.go
++++ b/src/net/sockoptip_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (js && wasm) || wasip1
++//go:build js || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index ba03605627..1528353cba 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -342,10 +342,7 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
+ 	if !l.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	if err := l.fd.pfd.SetDeadline(t); err != nil {
+-		return &OpError{Op: "set", Net: l.fd.net, Source: nil, Addr: l.fd.laddr, Err: err}
+-	}
+-	return nil
++	return l.fd.SetDeadline(t)
+ }
+ 
+ // File returns a copy of the underlying os.File.
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index e6f425b1cd..83cee7c789 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || wasip1 || windows
++//go:build unix || js || wasip1 || windows
+ 
+ package net
+ 
+diff --git a/src/net/tcpsock_test.go b/src/net/tcpsock_test.go
+index f720a22519..b37e936ff8 100644
+--- a/src/net/tcpsock_test.go
++++ b/src/net/tcpsock_test.go
+@@ -2,11 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
++	"context"
++	"errors"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+@@ -670,6 +670,11 @@ func TestTCPBig(t *testing.T) {
+ }
+ 
+ func TestCopyPipeIntoTCP(t *testing.T) {
++	switch runtime.GOOS {
++	case "js", "wasip1":
++		t.Skipf("skipping: os.Pipe not supported on %s", runtime.GOOS)
++	}
++
+ 	ln := newLocalListener(t, "tcp")
+ 	defer ln.Close()
+ 
+@@ -783,3 +788,48 @@ func TestDialTCPDefaultKeepAlive(t *testing.T) {
+ 		t.Errorf("got keepalive %v; want %v", got, defaultTCPKeepAlive)
+ 	}
+ }
++
++func TestTCPListenAfterClose(t *testing.T) {
++	// Regression test for https://go.dev/issue/50216:
++	// after calling Close on a Listener, the fake net implementation would
++	// erroneously Accept a connection dialed before the call to Close.
++
++	ln := newLocalListener(t, "tcp")
++	defer ln.Close()
++
++	var wg sync.WaitGroup
++	ctx, cancel := context.WithCancel(context.Background())
++
++	d := &Dialer{}
++	for n := 2; n > 0; n-- {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++
++			c, err := d.DialContext(ctx, ln.Addr().Network(), ln.Addr().String())
++			if err == nil {
++				<-ctx.Done()
++				c.Close()
++			}
++		}()
++	}
++
++	c, err := ln.Accept()
++	if err == nil {
++		c.Close()
++	} else {
++		t.Error(err)
++	}
++	time.Sleep(10 * time.Millisecond)
++	cancel()
++	wg.Wait()
++	ln.Close()
++
++	c, err = ln.Accept()
++	if !errors.Is(err, ErrClosed) {
++		if err == nil {
++			c.Close()
++		}
++		t.Errorf("after l.Close(), l.Accept() = _, %v\nwant %v", err, ErrClosed)
++	}
++}
+diff --git a/src/net/tcpsock_unix_test.go b/src/net/tcpsock_unix_test.go
+index 35fd937e07..df810a21d8 100644
+--- a/src/net/tcpsock_unix_test.go
++++ b/src/net/tcpsock_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !plan9 && !wasip1 && !windows
++//go:build !plan9 && !windows
+ 
+ package net
+ 
+diff --git a/src/net/tcpsockopt_stub.go b/src/net/tcpsockopt_stub.go
+index f778143d3b..cef07cd648 100644
+--- a/src/net/tcpsockopt_stub.go
++++ b/src/net/tcpsockopt_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (js && wasm) || wasip1
++//go:build js || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 2e23b2f5df..563a842cf9 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+@@ -584,7 +582,7 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
+ 			t.Error(err)
+ 		}
+ 		maxch <- time.NewTimer(100 * time.Millisecond)
+-		var b [1]byte
++		var b [1024]byte
+ 		for {
+ 			if _, err := c.Write(b[:]); err != nil {
+ 				ch <- err
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index f3dbcfec00..5035059831 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || wasip1 || windows
++//go:build unix || js || wasip1 || windows
+ 
+ package net
+ 
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 2afd4ac2ae..8a21aa7370 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -2,12 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+ 	"errors"
++	"fmt"
+ 	"internal/testenv"
+ 	"net/netip"
+ 	"os"
+@@ -116,6 +115,10 @@ func TestWriteToUDP(t *testing.T) {
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
++	if !testableNetwork("udp") {
++		t.Skipf("skipping: udp not supported")
++	}
++
+ 	c, err := ListenPacket("udp", "127.0.0.1:0")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -221,19 +224,29 @@ func TestUDPConnLocalName(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+ 	for _, tt := range udpConnLocalNameTests {
+-		c, err := ListenUDP(tt.net, tt.laddr)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		defer c.Close()
+-		la := c.LocalAddr()
+-		if a, ok := la.(*UDPAddr); !ok || a.Port == 0 {
+-			t.Fatalf("got %v; expected a proper address with non-zero port number", la)
+-		}
++		t.Run(fmt.Sprint(tt.laddr), func(t *testing.T) {
++			if !testableNetwork(tt.net) {
++				t.Skipf("skipping: %s not available", tt.net)
++			}
++
++			c, err := ListenUDP(tt.net, tt.laddr)
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer c.Close()
++			la := c.LocalAddr()
++			if a, ok := la.(*UDPAddr); !ok || a.Port == 0 {
++				t.Fatalf("got %v; expected a proper address with non-zero port number", la)
++			}
++		})
+ 	}
+ }
+ 
+ func TestUDPConnLocalAndRemoteNames(t *testing.T) {
++	if !testableNetwork("udp") {
++		t.Skipf("skipping: udp not available")
++	}
++
+ 	for _, laddr := range []string{"", "127.0.0.1:0"} {
+ 		c1, err := ListenPacket("udp", "127.0.0.1:0")
+ 		if err != nil {
+@@ -330,6 +343,9 @@ func TestUDPZeroBytePayload(t *testing.T) {
+ 	case "darwin", "ios":
+ 		testenv.SkipFlaky(t, 29225)
+ 	}
++	if !testableNetwork("udp") {
++		t.Skipf("skipping: udp not available")
++	}
+ 
+ 	c := newLocalPacketListener(t, "udp")
+ 	defer c.Close()
+@@ -363,6 +379,9 @@ func TestUDPZeroByteBuffer(t *testing.T) {
+ 	case "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
++	if !testableNetwork("udp") {
++		t.Skipf("skipping: udp not available")
++	}
+ 
+ 	c := newLocalPacketListener(t, "udp")
+ 	defer c.Close()
+@@ -397,6 +416,9 @@ func TestUDPReadSizeError(t *testing.T) {
+ 	case "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
++	if !testableNetwork("udp") {
++		t.Skipf("skipping: udp not available")
++	}
+ 
+ 	c1 := newLocalPacketListener(t, "udp")
+ 	defer c1.Close()
+@@ -434,6 +456,10 @@ func TestUDPReadSizeError(t *testing.T) {
+ // TestUDPReadTimeout verifies that ReadFromUDP with timeout returns an error
+ // without data or an address.
+ func TestUDPReadTimeout(t *testing.T) {
++	if !testableNetwork("udp4") {
++		t.Skipf("skipping: udp4 not available")
++	}
++
+ 	la, err := ResolveUDPAddr("udp4", "127.0.0.1:0")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -460,10 +486,14 @@ func TestUDPReadTimeout(t *testing.T) {
+ 
+ func TestAllocs(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9":
+-		// Plan9 wasn't optimized.
++	case "plan9", "js", "wasip1":
++		// These implementations have not been optimized.
+ 		t.Skipf("skipping on %v", runtime.GOOS)
+ 	}
++	if !testableNetwork("udp4") {
++		t.Skipf("skipping: udp4 not available")
++	}
++
+ 	// Optimizations are required to remove the allocs.
+ 	testenv.SkipIfOptimizationOff(t)
+ 
+@@ -590,6 +620,10 @@ func TestUDPIPVersionReadMsg(t *testing.T) {
+ 	case "plan9":
+ 		t.Skipf("skipping on %v", runtime.GOOS)
+ 	}
++	if !testableNetwork("udp4") {
++		t.Skipf("skipping: udp4 not available")
++	}
++
+ 	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -625,8 +659,11 @@ func TestUDPIPVersionReadMsg(t *testing.T) {
+ // WriteMsgUDPAddrPort accepts IPv4, IPv4-mapped IPv6, and IPv6 target addresses
+ // on a UDPConn listening on "::".
+ func TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion(t *testing.T) {
+-	if !supportsIPv6() {
+-		t.Skip("IPv6 is not supported")
++	if !testableNetwork("udp4") {
++		t.Skipf("skipping: udp4 not available")
++	}
++	if !testableNetwork("udp6") {
++		t.Skipf("skipping: udp6 not available")
+ 	}
+ 
+ 	switch runtime.GOOS {
+diff --git a/src/net/unixsock.go b/src/net/unixsock.go
+index 9b767121e5..7e5ffa036a 100644
+--- a/src/net/unixsock.go
++++ b/src/net/unixsock.go
+@@ -287,10 +287,7 @@ func (l *UnixListener) SetDeadline(t time.Time) error {
+ 	if !l.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	if err := l.fd.pfd.SetDeadline(t); err != nil {
+-		return &OpError{Op: "set", Net: l.fd.net, Source: nil, Addr: l.fd.laddr, Err: err}
+-	}
+-	return nil
++	return l.fd.SetDeadline(t)
+ }
+ 
+ // File returns a copy of the underlying os.File.
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index c501b499ed..f6c8e8f0b0 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || wasip1 || windows
++//go:build unix || js || wasip1 || windows
+ 
+ package net
+ 
+diff --git a/src/net/unixsock_readmsg_other.go b/src/net/unixsock_readmsg_other.go
+index 0899a6d3d3..4bef3ee71d 100644
+--- a/src/net/unixsock_readmsg_other.go
++++ b/src/net/unixsock_readmsg_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (js && wasm) || wasip1 || windows
++//go:build js || wasip1 || windows
+ 
+ package net
+ 
+diff --git a/src/net/unixsock_test.go b/src/net/unixsock_test.go
+index 8402519a0d..6906ecc046 100644
+--- a/src/net/unixsock_test.go
++++ b/src/net/unixsock_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !plan9 && !wasip1 && !windows
++//go:build !plan9 && !windows
+ 
+ package net
+ 
+@@ -21,6 +21,10 @@ func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
+ 	if !testableNetwork("unixgram") {
+ 		t.Skip("unixgram test")
+ 	}
++	switch runtime.GOOS {
++	case "js", "wasip1":
++		t.Skipf("skipping: syscall.Socket not implemented on %s", runtime.GOOS)
++	}
+ 	if runtime.GOOS == "openbsd" {
+ 		testenv.SkipFlaky(t, 15157)
+ 	}
+@@ -359,6 +363,11 @@ func TestUnixUnlink(t *testing.T) {
+ 	if !testableNetwork("unix") {
+ 		t.Skip("unix test")
+ 	}
++	switch runtime.GOOS {
++	case "js", "wasip1":
++		t.Skipf("skipping: %s does not support Unlink", runtime.GOOS)
++	}
++
+ 	name := testUnixAddr(t)
+ 
+ 	listen := func(t *testing.T) *UnixListener {
+diff --git a/src/net/writev_test.go b/src/net/writev_test.go
+index 8722c0f920..e4e88c4fac 100644
+--- a/src/net/writev_test.go
++++ b/src/net/writev_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
+-
+ package net
+ 
+ import (
+@@ -187,9 +185,15 @@ func TestWritevError(t *testing.T) {
+ 	}
+ 
+ 	ln := newLocalListener(t, "tcp")
+-	defer ln.Close()
+ 
+ 	ch := make(chan Conn, 1)
++	defer func() {
++		ln.Close()
++		for c := range ch {
++			c.Close()
++		}
++	}()
++
+ 	go func() {
+ 		defer close(ch)
+ 		c, err := ln.Accept()
+diff --git a/src/syscall/net_fake.go b/src/syscall/net_fake.go
+index 689f6f8812..549f2bece0 100644
+--- a/src/syscall/net_fake.go
++++ b/src/syscall/net_fake.go
+@@ -3,9 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Fake networking for js/wasm and wasip1/wasm.
+-// This file only exists to make the compiler happy.
+ 
+-//go:build (js && wasm) || wasip1
++//go:build js || wasip1
+ 
+ package syscall
+ 
+@@ -31,10 +30,13 @@ const (
+ 	IPPROTO_UDP  = 0x11
+ )
+ 
++const (
++	SOMAXCONN = 0x80
++)
++
+ const (
+ 	_ = iota
+ 	IPV6_V6ONLY
+-	SOMAXCONN
+ 	SO_ERROR
+ )
+ 

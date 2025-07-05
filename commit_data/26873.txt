@@ -14,7 +14,112 @@ Date:   Tue Mar 1 13:39:47 2016 +0100
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  5 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 70 ++++++++++++++++++++++++++
  2 files changed, 75 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index ac24337920..11c7b9d7a1 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -147,6 +147,11 @@
+ (Xor16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Xor16 (Const16 <t> [c]) x)
+ (Xor8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Xor8 (Const8 <t> [c]) x)
+ 
++// Distribute multiplication c * (d+x) -> c*d + c*x. Useful for:
++// a[i].b = ...; a[i+1].b = ...
++(Mul64 (Const64 <t> [c]) (Add64 <t> (Const64 <t> [d]) x)) -> (Add64 (Const64 <t> [c*d]) (Mul64 <t> (Const64 <t> [c]) x))
++(Mul32 (Const32 <t> [c]) (Add32 <t> (Const32 <t> [d]) x)) -> (Add32 (Const32 <t> [c*d]) (Mul32 <t> (Const32 <t> [c]) x))
++
+ // rewrite shifts of 8/16/32 bit consts into 64 bit consts to reduce
+ // the number of the other rewrite rules for const shifts
+ (Lsh64x32  <t> x (Const32 [c])) -> (Lsh64x64  x (Const64 <t> [int64(uint32(c))]))
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 4f29cf5348..0c71b2c884 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -4044,6 +4044,41 @@ func rewriteValuegeneric_OpMul32(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (Mul32 (Const32 <t> [c]) (Add32 <t> (Const32 <t> [d]) x))
++	// cond:
++	// result: (Add32 (Const32 <t> [c*d]) (Mul32 <t> (Const32 <t> [c]) x))
++	for {
++		if v.Args[0].Op != OpConst32 {
++			break
++		}
++		t := v.Args[0].Type
++		c := v.Args[0].AuxInt
++		if v.Args[1].Op != OpAdd32 {
++			break
++		}
++		if v.Args[1].Type != v.Args[0].Type {
++			break
++		}
++		if v.Args[1].Args[0].Op != OpConst32 {
++			break
++		}
++		if v.Args[1].Args[0].Type != v.Args[0].Type {
++			break
++		}
++		d := v.Args[1].Args[0].AuxInt
++		x := v.Args[1].Args[1]
++		v.reset(OpAdd32)
++		v0 := b.NewValue0(v.Line, OpConst32, t)
++		v0.AuxInt = c * d
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMul32, t)
++		v2 := b.NewValue0(v.Line, OpConst32, t)
++		v2.AuxInt = c
++		v1.AddArg(v2)
++		v1.AddArg(x)
++		v.AddArg(v1)
++		return true
++	}
+ 	// match: (Mul32 (Const32 [0]) _)
+ 	// cond:
+ 	// result: (Const32 [0])
+@@ -4099,6 +4134,41 @@ func rewriteValuegeneric_OpMul64(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (Mul64 (Const64 <t> [c]) (Add64 <t> (Const64 <t> [d]) x))
++	// cond:
++	// result: (Add64 (Const64 <t> [c*d]) (Mul64 <t> (Const64 <t> [c]) x))
++	for {
++		if v.Args[0].Op != OpConst64 {
++			break
++		}
++		t := v.Args[0].Type
++		c := v.Args[0].AuxInt
++		if v.Args[1].Op != OpAdd64 {
++			break
++		}
++		if v.Args[1].Type != v.Args[0].Type {
++			break
++		}
++		if v.Args[1].Args[0].Op != OpConst64 {
++			break
++		}
++		if v.Args[1].Args[0].Type != v.Args[0].Type {
++			break
++		}
++		d := v.Args[1].Args[0].AuxInt
++		x := v.Args[1].Args[1]
++		v.reset(OpAdd64)
++		v0 := b.NewValue0(v.Line, OpConst64, t)
++		v0.AuxInt = c * d
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpMul64, t)
++		v2 := b.NewValue0(v.Line, OpConst64, t)
++		v2.AuxInt = c
++		v1.AddArg(v2)
++		v1.AddArg(x)
++		v.AddArg(v1)
++		return true
++	}
+ 	// match: (Mul64 (Const64 [0]) _)
+ 	// cond:
+ 	// result: (Const64 [0])

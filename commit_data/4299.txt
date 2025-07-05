@@ -8,8 +8,52 @@ Date:   Thu Dec 3 01:12:02 2009 -0800
     
     R=ken2
     https://golang.org/cl/164094
-
+---
  src/cmd/gc/align.c       |  3 +++
  src/cmd/gc/typecheck.c   |  2 ++
  test/fixedbugs/bug224.go | 10 ++++++++++
  3 files changed, 15 insertions(+)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index b74ac0f29f..cf08516465 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -205,6 +205,9 @@ dowidth(Type *t)
+ 		checkwidth(t->down);
+ 		break;
+ 	case TFORW:		// should have been filled in
++		yyerror("invalid recursive type %T", t);
++		w = 1;	// anything will do
++		break;
+ 	case TANY:
+ 		// dummy type; should be replaced before use.
+ 		if(!debug['A'])
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 0fd359b319..76147e48f0 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1039,6 +1039,8 @@ reswitch:
+ 	case ODCLTYPE:
+ 		ok |= Etop;
+ 		typecheck(&n->left, Etype);
++		if(!incannedimport)
++			checkwidth(n->left->type);
+ 		goto ret;
+ 	}
+ 
+diff --git a/test/fixedbugs/bug224.go b/test/fixedbugs/bug224.go
+new file mode 100644
+index 0000000000..11ee57ecfa
+--- /dev/null
++++ b/test/fixedbugs/bug224.go
+@@ -0,0 +1,10 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T T		// ERROR "recursive"
++

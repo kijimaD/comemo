@@ -16,7 +16,7 @@ Date:   Wed May 2 16:42:58 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/alldocs.go               |  3 +++
  src/cmd/go/internal/cfg/cfg.go      | 18 +++++++++++++-----
  src/cmd/go/internal/help/helpdoc.go |  3 +++
@@ -26,3 +26,175 @@ Date:   Wed May 2 16:42:58 2018 -0700
  src/go/build/gc.go                  | 17 +++++++++++++++++
  src/go/build/gccgo.go               | 14 ++++++++++++++
  8 files changed, 72 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index e911fa01ab..6832203f35 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1100,6 +1100,9 @@
+ //
+ // Special-purpose environment variables:
+ //
++// 	GCCGOTOOLDIR
++// 		If set, where to find gccgo tools, such as cgo.
++// 		The default is based on how gccgo was configured.
+ // 	GOROOT_FINAL
+ // 		The root of the installed Go tree, when it is
+ // 		installed in a location other than where it is built.
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 85494e34f0..3df5905d02 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -93,11 +93,14 @@ var (
+ // Update build context to use our computed GOROOT.
+ func init() {
+ 	BuildContext.GOROOT = GOROOT
+-	// Note that we must use runtime.GOOS and runtime.GOARCH here,
+-	// as the tool directory does not move based on environment variables.
+-	// This matches the initialization of ToolDir in go/build,
+-	// except for using GOROOT rather than runtime.GOROOT().
+-	build.ToolDir = filepath.Join(GOROOT, "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
++	if runtime.Compiler != "gccgo" {
++		// Note that we must use runtime.GOOS and runtime.GOARCH here,
++		// as the tool directory does not move based on environment
++		// variables. This matches the initialization of ToolDir in
++		// go/build, except for using GOROOT rather than
++		// runtime.GOROOT.
++		build.ToolDir = filepath.Join(GOROOT, "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
++	}
+ }
+ 
+ func findGOROOT() string {
+@@ -105,6 +108,11 @@ func findGOROOT() string {
+ 		return filepath.Clean(env)
+ 	}
+ 	def := filepath.Clean(runtime.GOROOT())
++	if runtime.Compiler == "gccgo" {
++		// gccgo has no real GOROOT, and it certainly doesn't
++		// depend on the executable's location.
++		return def
++	}
+ 	exe, err := os.Executable()
+ 	if err == nil {
+ 		exe, err = filepath.Abs(exe)
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 60c1346e1d..a90d19e976 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -533,6 +533,9 @@ Architecture-specific environment variables:
+ 
+ Special-purpose environment variables:
+ 
++	GCCGOTOOLDIR
++		If set, where to find gccgo tools, such as cgo.
++		The default is based on how gccgo was configured.
+ 	GOROOT_FINAL
+ 		The root of the installed Go tree, when it is
+ 		installed in a location other than where it is built.
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index af5ffcd103..e496ce90f0 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -975,7 +975,11 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 		if InstallTargetDir(p) == ToTool {
+ 			// This is for 'go tool'.
+ 			// Override all the usual logic and force it into the tool directory.
+-			p.Target = filepath.Join(cfg.GOROOTpkg, "tool", full)
++			if cfg.BuildToolchainName == "gccgo" {
++				p.Target = filepath.Join(base.ToolDir, elem)
++			} else {
++				p.Target = filepath.Join(cfg.GOROOTpkg, "tool", full)
++			}
+ 		}
+ 		if p.Target != "" && cfg.BuildContext.GOOS == "windows" {
+ 			p.Target += ".exe"
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index db92884f6a..4c7d0897e0 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -33,6 +33,17 @@ For more about each tool command, see 'go doc cmd/<command>'.
+ 
+ var toolN bool
+ 
++// Return whether tool can be expected in the gccgo tool directory.
++// Other binaries could be in the same directory so don't
++// show those with the 'go tool' command.
++func isGccgoTool(tool string) bool {
++	switch tool {
++	case "cgo", "fix", "cover", "godoc", "vet":
++		return true
++	}
++	return false
++}
++
+ func init() {
+ 	CmdTool.Flag.BoolVar(&toolN, "n", false, "")
+ }
+@@ -114,6 +125,11 @@ func listTools() {
+ 		if base.ToolIsWindows && strings.HasSuffix(name, base.ToolWindowsExtension) {
+ 			name = name[:len(name)-len(base.ToolWindowsExtension)]
+ 		}
++		// The tool directory used by gccgo will have other binaries
++		// in addition to go tools. Only display go tools here.
++		if cfg.BuildToolchainName == "gccgo" && !isGccgoTool(name) {
++			continue
++		}
+ 		fmt.Println(name)
+ 	}
+ }
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 30b5283400..ef43888fc5 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1595,7 +1595,7 @@ func init() {
+ }
+ 
+ // ToolDir is the directory containing build tools.
+-var ToolDir = filepath.Join(runtime.GOROOT(), "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
++var ToolDir = getToolDir()
+ 
+ // IsLocalImport reports whether the import path is
+ // a local import path, like ".", "..", "./foo", or "../foo".
+diff --git a/src/go/build/gc.go b/src/go/build/gc.go
+new file mode 100644
+index 0000000000..3025cd5681
+--- /dev/null
++++ b/src/go/build/gc.go
+@@ -0,0 +1,17 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build gc
++
++package build
++
++import (
++	"path/filepath"
++	"runtime"
++)
++
++// getToolDir returns the default value of ToolDir.
++func getToolDir() string {
++	return filepath.Join(runtime.GOROOT(), "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
++}
+diff --git a/src/go/build/gccgo.go b/src/go/build/gccgo.go
+new file mode 100644
+index 0000000000..c6aac9aa1b
+--- /dev/null
++++ b/src/go/build/gccgo.go
+@@ -0,0 +1,14 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build gccgo
++
++package build
++
++import "runtime"
++
++// getToolDir returns the default value of ToolDir.
++func getToolDir() string {
++	return envOr("GCCGOTOOLDIR", runtime.GCCGOTOOLDIR)
++}

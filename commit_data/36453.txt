@@ -67,7 +67,7 @@ Date:   Thu Apr 26 20:56:03 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |   86 +-
  src/cmd/compile/internal/ssa/gen/genericOps.go |  103 +--
  src/cmd/compile/internal/ssa/opGen.go          |   48 ++
@@ -75,3 +75,2447 @@ Date:   Thu Apr 26 20:56:03 2018 -0700
  src/cmd/compile/internal/ssa/rewrite.go        |    6 +
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 1008 ++++++++++++++++++++++--
  6 files changed, 1122 insertions(+), 156 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 3058cccb6f..bd36e60f6e 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -134,67 +134,37 @@
+ // Lowering shifts
+ // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
+ //   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)
+-(Lsh64x64 <t> x y) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst y [64])))
+-(Lsh64x32 <t> x y) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPLconst y [64])))
+-(Lsh64x16 <t> x y) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPWconst y [64])))
+-(Lsh64x8  <t> x y) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPBconst y [64])))
+-
+-(Lsh32x64 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
+-(Lsh32x32 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
+-(Lsh32x16 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
+-(Lsh32x8  <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+-
+-(Lsh16x64 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
+-(Lsh16x32 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
+-(Lsh16x16 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
+-(Lsh16x8  <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+-
+-(Lsh8x64 <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
+-(Lsh8x32 <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
+-(Lsh8x16 <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
+-(Lsh8x8  <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+-
+-(Rsh64Ux64 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst y [64])))
+-(Rsh64Ux32 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPLconst y [64])))
+-(Rsh64Ux16 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPWconst y [64])))
+-(Rsh64Ux8  <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPBconst y [64])))
+-
+-(Rsh32Ux64 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
+-(Rsh32Ux32 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
+-(Rsh32Ux16 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
+-(Rsh32Ux8  <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+-
+-(Rsh16Ux64 <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPQconst y [16])))
+-(Rsh16Ux32 <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPLconst y [16])))
+-(Rsh16Ux16 <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPWconst y [16])))
+-(Rsh16Ux8  <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPBconst y [16])))
+-
+-(Rsh8Ux64 <t> x y)  -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPQconst y [8])))
+-(Rsh8Ux32 <t> x y)  -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPLconst y [8])))
+-(Rsh8Ux16 <t> x y)  -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPWconst y [8])))
+-(Rsh8Ux8  <t> x y)  -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPBconst y [8])))
++(Lsh64x(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMP(Q|L|W|B)const y [64])))
++(Lsh32x(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(Q|L|W|B)const y [32])))
++(Lsh16x(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(Q|L|W|B)const y [32])))
++(Lsh8x(64|32|16|8)  <t> x y) && !shiftIsBounded(v) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(Q|L|W|B)const y [32])))
++
++(Lsh64x(64|32|16|8) x y) && shiftIsBounded(v) -> (SHLQ x y)
++(Lsh32x(64|32|16|8) x y) && shiftIsBounded(v) -> (SHLL x y)
++(Lsh16x(64|32|16|8) x y) && shiftIsBounded(v) -> (SHLL x y)
++(Lsh8x(64|32|16|8)  x y) && shiftIsBounded(v) -> (SHLL x y)
++
++(Rsh64Ux(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMP(Q|L|W|B)const y [64])))
++(Rsh32Ux(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMP(Q|L|W|B)const y [32])))
++(Rsh16Ux(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMP(Q|L|W|B)const y [16])))
++(Rsh8Ux(64|32|16|8)  <t> x y) && !shiftIsBounded(v) -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMP(Q|L|W|B)const y [8])))
++
++(Rsh64Ux(64|32|16|8) x y) && shiftIsBounded(v) -> (SHRQ x y)
++(Rsh32Ux(64|32|16|8) x y) && shiftIsBounded(v) -> (SHRL x y)
++(Rsh16Ux(64|32|16|8) x y) && shiftIsBounded(v) -> (SHRW x y)
++(Rsh8Ux(64|32|16|8)  x y) && shiftIsBounded(v) -> (SHRB x y)
+ 
+ // Signed right shift needs to return 0/-1 if shift amount is >= width of shifted value.
+ // We implement this by setting the shift value to -1 (all ones) if the shift value is >= width.
+-(Rsh64x64 <t> x y) -> (SARQ <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [64])))))
+-(Rsh64x32 <t> x y) -> (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [64])))))
+-(Rsh64x16 <t> x y) -> (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [64])))))
+-(Rsh64x8  <t> x y) -> (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [64])))))
+-
+-(Rsh32x64 <t> x y) -> (SARL <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [32])))))
+-(Rsh32x32 <t> x y) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [32])))))
+-(Rsh32x16 <t> x y) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [32])))))
+-(Rsh32x8  <t> x y) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [32])))))
+-
+-(Rsh16x64 <t> x y) -> (SARW <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [16])))))
+-(Rsh16x32 <t> x y) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [16])))))
+-(Rsh16x16 <t> x y) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [16])))))
+-(Rsh16x8  <t> x y) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [16])))))
+-
+-(Rsh8x64 <t> x y)  -> (SARB <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [8])))))
+-(Rsh8x32 <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [8])))))
+-(Rsh8x16 <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [8])))))
+-(Rsh8x8  <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [8])))))
++(Rsh64x(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (SARQ <t> x (OR(Q|L|L|L) <y.Type> y (NOT(Q|L|L|L) <y.Type> (SBB(Q|L|L|L)carrymask <y.Type> (CMP(Q|L|W|B)const y [64])))))
++(Rsh32x(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (SARL <t> x (OR(Q|L|L|L) <y.Type> y (NOT(Q|L|L|L) <y.Type> (SBB(Q|L|L|L)carrymask <y.Type> (CMP(Q|L|W|B)const y [32])))))
++(Rsh16x(64|32|16|8) <t> x y) && !shiftIsBounded(v) -> (SARW <t> x (OR(Q|L|L|L) <y.Type> y (NOT(Q|L|L|L) <y.Type> (SBB(Q|L|L|L)carrymask <y.Type> (CMP(Q|L|W|B)const y [16])))))
++(Rsh8x(64|32|16|8)  <t> x y) && !shiftIsBounded(v) -> (SARB <t> x (OR(Q|L|L|L) <y.Type> y (NOT(Q|L|L|L) <y.Type> (SBB(Q|L|L|L)carrymask <y.Type> (CMP(Q|L|W|B)const y [8])))))
++
++(Rsh64x(64|32|16|8) x y) && shiftIsBounded(v) -> (SARQ x y)
++(Rsh32x(64|32|16|8) x y) && shiftIsBounded(v) -> (SARL x y)
++(Rsh16x(64|32|16|8) x y) && shiftIsBounded(v) -> (SARW x y)
++(Rsh8x(64|32|16|8) x y)  && shiftIsBounded(v) -> (SARB x y)
+ 
+ // Lowering comparisons
+ (Less(64|32|16|8)  x y) -> (SETL (CMP(Q|L|W|B) x y))
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 20f2c1de5b..a0a0afe779 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -99,56 +99,59 @@ var genericOps = []opData{
+ 
+ 	// For shifts, AxB means the shifted value has A bits and the shift amount has B bits.
+ 	// Shift amounts are considered unsigned.
+-	{name: "Lsh8x8", argLength: 2}, // arg0 << arg1
+-	{name: "Lsh8x16", argLength: 2},
+-	{name: "Lsh8x32", argLength: 2},
+-	{name: "Lsh8x64", argLength: 2},
+-	{name: "Lsh16x8", argLength: 2},
+-	{name: "Lsh16x16", argLength: 2},
+-	{name: "Lsh16x32", argLength: 2},
+-	{name: "Lsh16x64", argLength: 2},
+-	{name: "Lsh32x8", argLength: 2},
+-	{name: "Lsh32x16", argLength: 2},
+-	{name: "Lsh32x32", argLength: 2},
+-	{name: "Lsh32x64", argLength: 2},
+-	{name: "Lsh64x8", argLength: 2},
+-	{name: "Lsh64x16", argLength: 2},
+-	{name: "Lsh64x32", argLength: 2},
+-	{name: "Lsh64x64", argLength: 2},
+-
+-	{name: "Rsh8x8", argLength: 2}, // arg0 >> arg1, signed
+-	{name: "Rsh8x16", argLength: 2},
+-	{name: "Rsh8x32", argLength: 2},
+-	{name: "Rsh8x64", argLength: 2},
+-	{name: "Rsh16x8", argLength: 2},
+-	{name: "Rsh16x16", argLength: 2},
+-	{name: "Rsh16x32", argLength: 2},
+-	{name: "Rsh16x64", argLength: 2},
+-	{name: "Rsh32x8", argLength: 2},
+-	{name: "Rsh32x16", argLength: 2},
+-	{name: "Rsh32x32", argLength: 2},
+-	{name: "Rsh32x64", argLength: 2},
+-	{name: "Rsh64x8", argLength: 2},
+-	{name: "Rsh64x16", argLength: 2},
+-	{name: "Rsh64x32", argLength: 2},
+-	{name: "Rsh64x64", argLength: 2},
+-
+-	{name: "Rsh8Ux8", argLength: 2}, // arg0 >> arg1, unsigned
+-	{name: "Rsh8Ux16", argLength: 2},
+-	{name: "Rsh8Ux32", argLength: 2},
+-	{name: "Rsh8Ux64", argLength: 2},
+-	{name: "Rsh16Ux8", argLength: 2},
+-	{name: "Rsh16Ux16", argLength: 2},
+-	{name: "Rsh16Ux32", argLength: 2},
+-	{name: "Rsh16Ux64", argLength: 2},
+-	{name: "Rsh32Ux8", argLength: 2},
+-	{name: "Rsh32Ux16", argLength: 2},
+-	{name: "Rsh32Ux32", argLength: 2},
+-	{name: "Rsh32Ux64", argLength: 2},
+-	{name: "Rsh64Ux8", argLength: 2},
+-	{name: "Rsh64Ux16", argLength: 2},
+-	{name: "Rsh64Ux32", argLength: 2},
+-	{name: "Rsh64Ux64", argLength: 2},
++	// If arg1 is known to be less than the number of bits in arg0,
++	// then aux may be set to true.
++	// This enables better code generation on some platforms.
++	{name: "Lsh8x8", argLength: 2, aux: "Bool"}, // arg0 << arg1
++	{name: "Lsh8x16", argLength: 2, aux: "Bool"},
++	{name: "Lsh8x32", argLength: 2, aux: "Bool"},
++	{name: "Lsh8x64", argLength: 2, aux: "Bool"},
++	{name: "Lsh16x8", argLength: 2, aux: "Bool"},
++	{name: "Lsh16x16", argLength: 2, aux: "Bool"},
++	{name: "Lsh16x32", argLength: 2, aux: "Bool"},
++	{name: "Lsh16x64", argLength: 2, aux: "Bool"},
++	{name: "Lsh32x8", argLength: 2, aux: "Bool"},
++	{name: "Lsh32x16", argLength: 2, aux: "Bool"},
++	{name: "Lsh32x32", argLength: 2, aux: "Bool"},
++	{name: "Lsh32x64", argLength: 2, aux: "Bool"},
++	{name: "Lsh64x8", argLength: 2, aux: "Bool"},
++	{name: "Lsh64x16", argLength: 2, aux: "Bool"},
++	{name: "Lsh64x32", argLength: 2, aux: "Bool"},
++	{name: "Lsh64x64", argLength: 2, aux: "Bool"},
++
++	{name: "Rsh8x8", argLength: 2, aux: "Bool"}, // arg0 >> arg1, signed
++	{name: "Rsh8x16", argLength: 2, aux: "Bool"},
++	{name: "Rsh8x32", argLength: 2, aux: "Bool"},
++	{name: "Rsh8x64", argLength: 2, aux: "Bool"},
++	{name: "Rsh16x8", argLength: 2, aux: "Bool"},
++	{name: "Rsh16x16", argLength: 2, aux: "Bool"},
++	{name: "Rsh16x32", argLength: 2, aux: "Bool"},
++	{name: "Rsh16x64", argLength: 2, aux: "Bool"},
++	{name: "Rsh32x8", argLength: 2, aux: "Bool"},
++	{name: "Rsh32x16", argLength: 2, aux: "Bool"},
++	{name: "Rsh32x32", argLength: 2, aux: "Bool"},
++	{name: "Rsh32x64", argLength: 2, aux: "Bool"},
++	{name: "Rsh64x8", argLength: 2, aux: "Bool"},
++	{name: "Rsh64x16", argLength: 2, aux: "Bool"},
++	{name: "Rsh64x32", argLength: 2, aux: "Bool"},
++	{name: "Rsh64x64", argLength: 2, aux: "Bool"},
++
++	{name: "Rsh8Ux8", argLength: 2, aux: "Bool"}, // arg0 >> arg1, unsigned
++	{name: "Rsh8Ux16", argLength: 2, aux: "Bool"},
++	{name: "Rsh8Ux32", argLength: 2, aux: "Bool"},
++	{name: "Rsh8Ux64", argLength: 2, aux: "Bool"},
++	{name: "Rsh16Ux8", argLength: 2, aux: "Bool"},
++	{name: "Rsh16Ux16", argLength: 2, aux: "Bool"},
++	{name: "Rsh16Ux32", argLength: 2, aux: "Bool"},
++	{name: "Rsh16Ux64", argLength: 2, aux: "Bool"},
++	{name: "Rsh32Ux8", argLength: 2, aux: "Bool"},
++	{name: "Rsh32Ux16", argLength: 2, aux: "Bool"},
++	{name: "Rsh32Ux32", argLength: 2, aux: "Bool"},
++	{name: "Rsh32Ux64", argLength: 2, aux: "Bool"},
++	{name: "Rsh64Ux8", argLength: 2, aux: "Bool"},
++	{name: "Rsh64Ux16", argLength: 2, aux: "Bool"},
++	{name: "Rsh64Ux32", argLength: 2, aux: "Bool"},
++	{name: "Rsh64Ux64", argLength: 2, aux: "Bool"},
+ 
+ 	// 2-input comparisons
+ 	{name: "Eq8", argLength: 2, commutative: true, typ: "Bool"}, // arg0 == arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 4c7b45fbfe..d8e6836d95 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -25022,241 +25022,289 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "Lsh8x8",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lsh8x16",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lsh8x32",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lsh8x64",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lsh16x8",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lsh16x16",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lsh16x32",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lsh16x64",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lsh32x8",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lsh32x16",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lsh32x32",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lsh32x64",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lsh64x8",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lsh64x16",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lsh64x32",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lsh64x64",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh8x8",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh8x16",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh8x32",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh8x64",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh16x8",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh16x16",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh16x32",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh16x64",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh32x8",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh32x16",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh32x32",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh32x64",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh64x8",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh64x16",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh64x32",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh64x64",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh8Ux8",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh8Ux16",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh8Ux32",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh8Ux64",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh16Ux8",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh16Ux16",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh16Ux32",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh16Ux64",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh32Ux8",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh32Ux16",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh32Ux32",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh32Ux64",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh64Ux8",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh64Ux16",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh64Ux32",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Rsh64Ux64",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 9f2a38252e..1f9445e1bd 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -972,6 +972,33 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
+ 				}
+ 				v.Op = ctzNonZeroOp[v.Op]
+ 			}
++
++		case OpLsh8x8, OpLsh8x16, OpLsh8x32, OpLsh8x64,
++			OpLsh16x8, OpLsh16x16, OpLsh16x32, OpLsh16x64,
++			OpLsh32x8, OpLsh32x16, OpLsh32x32, OpLsh32x64,
++			OpLsh64x8, OpLsh64x16, OpLsh64x32, OpLsh64x64,
++			OpRsh8x8, OpRsh8x16, OpRsh8x32, OpRsh8x64,
++			OpRsh16x8, OpRsh16x16, OpRsh16x32, OpRsh16x64,
++			OpRsh32x8, OpRsh32x16, OpRsh32x32, OpRsh32x64,
++			OpRsh64x8, OpRsh64x16, OpRsh64x32, OpRsh64x64,
++			OpRsh8Ux8, OpRsh8Ux16, OpRsh8Ux32, OpRsh8Ux64,
++			OpRsh16Ux8, OpRsh16Ux16, OpRsh16Ux32, OpRsh16Ux64,
++			OpRsh32Ux8, OpRsh32Ux16, OpRsh32Ux32, OpRsh32Ux64,
++			OpRsh64Ux8, OpRsh64Ux16, OpRsh64Ux32, OpRsh64Ux64:
++			// Check whether, for a << b, we know that b
++			// is strictly less than the number of bits in a.
++			by := v.Args[1]
++			lim, ok := ft.limits[by.ID]
++			if !ok {
++				continue
++			}
++			bits := 8 * v.Args[0].Type.Size()
++			if lim.umax < uint64(bits) || (lim.max < bits && ft.isNonNegative(by)) {
++				v.Aux = true
++				if b.Func.pass.debug > 0 {
++					b.Func.Warnl(v.Pos, "Proved %v bounded", v.Op)
++				}
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 8eaf9907b6..6d53342e2a 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -390,6 +390,12 @@ func b2i(b bool) int64 {
+ 	return 0
+ }
+ 
++// shiftIsBounded reports whether (left/right) shift Value v is known to be bounded.
++// A shift is bounded if it is shifting by less than the width of the shifted value.
++func shiftIsBounded(v *Value) bool {
++	return v.Aux != nil && v.Aux.(bool)
++}
++
+ // i2f is used in rules for converting from an AuxInt to a float.
+ func i2f(i int64) float64 {
+ 	return math.Float64frombits(uint64(i))
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 71b932985a..2fce1e2221 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -54993,13 +54993,16 @@ func rewriteValueAMD64_OpLsh16x16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh16x16 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLL, t)
+ 		v0.AddArg(x)
+@@ -55013,18 +55016,37 @@ func rewriteValueAMD64_OpLsh16x16_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh16x16 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpLsh16x32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh16x32 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLL, t)
+ 		v0.AddArg(x)
+@@ -55038,18 +55060,37 @@ func rewriteValueAMD64_OpLsh16x32_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh16x32 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpLsh16x64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh16x64 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLL, t)
+ 		v0.AddArg(x)
+@@ -55063,18 +55104,37 @@ func rewriteValueAMD64_OpLsh16x64_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh16x64 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpLsh16x8_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh16x8 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLL, t)
+ 		v0.AddArg(x)
+@@ -55088,18 +55148,37 @@ func rewriteValueAMD64_OpLsh16x8_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh16x8 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpLsh32x16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh32x16 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLL, t)
+ 		v0.AddArg(x)
+@@ -55113,18 +55192,37 @@ func rewriteValueAMD64_OpLsh32x16_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh32x16 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpLsh32x32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh32x32 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLL, t)
+ 		v0.AddArg(x)
+@@ -55138,18 +55236,37 @@ func rewriteValueAMD64_OpLsh32x32_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh32x32 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpLsh32x64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh32x64 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLL, t)
+ 		v0.AddArg(x)
+@@ -55163,18 +55280,37 @@ func rewriteValueAMD64_OpLsh32x64_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh32x64 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpLsh32x8_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh32x8 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLL, t)
+ 		v0.AddArg(x)
+@@ -55188,18 +55324,37 @@ func rewriteValueAMD64_OpLsh32x8_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh32x8 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpLsh64x16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh64x16 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPWconst y [64])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDQ)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLQ, t)
+ 		v0.AddArg(x)
+@@ -55213,18 +55368,37 @@ func rewriteValueAMD64_OpLsh64x16_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh64x16 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLQ x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLQ)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpLsh64x32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh64x32 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPLconst y [64])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDQ)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLQ, t)
+ 		v0.AddArg(x)
+@@ -55238,18 +55412,37 @@ func rewriteValueAMD64_OpLsh64x32_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh64x32 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLQ x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLQ)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpLsh64x64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh64x64 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst y [64])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDQ)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLQ, t)
+ 		v0.AddArg(x)
+@@ -55263,18 +55456,37 @@ func rewriteValueAMD64_OpLsh64x64_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh64x64 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLQ x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLQ)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpLsh64x8_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh64x8 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPBconst y [64])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDQ)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLQ, t)
+ 		v0.AddArg(x)
+@@ -55288,18 +55500,37 @@ func rewriteValueAMD64_OpLsh64x8_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh64x8 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLQ x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLQ)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpLsh8x16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh8x16 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLL, t)
+ 		v0.AddArg(x)
+@@ -55313,18 +55544,37 @@ func rewriteValueAMD64_OpLsh8x16_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh8x16 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpLsh8x32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh8x32 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLL, t)
+ 		v0.AddArg(x)
+@@ -55338,18 +55588,37 @@ func rewriteValueAMD64_OpLsh8x32_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh8x32 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpLsh8x64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh8x64 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLL, t)
+ 		v0.AddArg(x)
+@@ -55363,18 +55632,37 @@ func rewriteValueAMD64_OpLsh8x64_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh8x64 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpLsh8x8_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Lsh8x8 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHLL, t)
+ 		v0.AddArg(x)
+@@ -55388,6 +55676,22 @@ func rewriteValueAMD64_OpLsh8x8_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Lsh8x8 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHLL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpMod16_0(v *Value) bool {
+ 	b := v.Block
+@@ -56698,13 +57002,16 @@ func rewriteValueAMD64_OpRsh16Ux16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh16Ux16 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPWconst y [16])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRW, t)
+ 		v0.AddArg(x)
+@@ -56718,18 +57025,37 @@ func rewriteValueAMD64_OpRsh16Ux16_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh16Ux16 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRW x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRW)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh16Ux32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh16Ux32 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPLconst y [16])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRW, t)
+ 		v0.AddArg(x)
+@@ -56743,18 +57069,37 @@ func rewriteValueAMD64_OpRsh16Ux32_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh16Ux32 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRW x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRW)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh16Ux64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh16Ux64 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPQconst y [16])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRW, t)
+ 		v0.AddArg(x)
+@@ -56768,18 +57113,37 @@ func rewriteValueAMD64_OpRsh16Ux64_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh16Ux64 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRW x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRW)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh16Ux8_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh16Ux8 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPBconst y [16])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRW, t)
+ 		v0.AddArg(x)
+@@ -56793,18 +57157,37 @@ func rewriteValueAMD64_OpRsh16Ux8_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh16Ux8 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRW x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRW)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh16x16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh16x16 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [16])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARW)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -56821,18 +57204,37 @@ func rewriteValueAMD64_OpRsh16x16_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh16x16 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARW x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARW)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh16x32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh16x32 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [16])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARW)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -56849,18 +57251,37 @@ func rewriteValueAMD64_OpRsh16x32_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh16x32 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARW x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARW)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh16x64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh16x64 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARW <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [16])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARW)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -56877,18 +57298,37 @@ func rewriteValueAMD64_OpRsh16x64_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh16x64 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARW x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARW)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh16x8_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh16x8 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [16])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARW)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -56905,18 +57345,37 @@ func rewriteValueAMD64_OpRsh16x8_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh16x8 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARW x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARW)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh32Ux16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh32Ux16 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRL, t)
+ 		v0.AddArg(x)
+@@ -56930,18 +57389,37 @@ func rewriteValueAMD64_OpRsh32Ux16_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh32Ux16 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh32Ux32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh32Ux32 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRL, t)
+ 		v0.AddArg(x)
+@@ -56955,18 +57433,37 @@ func rewriteValueAMD64_OpRsh32Ux32_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh32Ux32 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh32Ux64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh32Ux64 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRL, t)
+ 		v0.AddArg(x)
+@@ -56980,18 +57477,37 @@ func rewriteValueAMD64_OpRsh32Ux64_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh32Ux64 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh32Ux8_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh32Ux8 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRL, t)
+ 		v0.AddArg(x)
+@@ -57005,18 +57521,37 @@ func rewriteValueAMD64_OpRsh32Ux8_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh32Ux8 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh32x16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh32x16 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [32])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARL)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -57033,18 +57568,37 @@ func rewriteValueAMD64_OpRsh32x16_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh32x16 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh32x32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh32x32 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [32])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARL)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -57061,18 +57615,37 @@ func rewriteValueAMD64_OpRsh32x32_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh32x32 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh32x64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh32x64 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARL <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [32])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARL)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -57089,18 +57662,37 @@ func rewriteValueAMD64_OpRsh32x64_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh32x64 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh32x8_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh32x8 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [32])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARL)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -57117,18 +57709,37 @@ func rewriteValueAMD64_OpRsh32x8_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh32x8 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh64Ux16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh64Ux16 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPWconst y [64])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDQ)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRQ, t)
+ 		v0.AddArg(x)
+@@ -57142,18 +57753,37 @@ func rewriteValueAMD64_OpRsh64Ux16_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh64Ux16 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRQ x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRQ)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh64Ux32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh64Ux32 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPLconst y [64])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDQ)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRQ, t)
+ 		v0.AddArg(x)
+@@ -57167,18 +57797,37 @@ func rewriteValueAMD64_OpRsh64Ux32_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh64Ux32 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRQ x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRQ)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh64Ux64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh64Ux64 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst y [64])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDQ)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRQ, t)
+ 		v0.AddArg(x)
+@@ -57192,18 +57841,37 @@ func rewriteValueAMD64_OpRsh64Ux64_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh64Ux64 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRQ x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRQ)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh64Ux8_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh64Ux8 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPBconst y [64])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDQ)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRQ, t)
+ 		v0.AddArg(x)
+@@ -57217,18 +57885,37 @@ func rewriteValueAMD64_OpRsh64Ux8_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh64Ux8 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRQ x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRQ)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh64x16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh64x16 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [64])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARQ)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -57245,18 +57932,37 @@ func rewriteValueAMD64_OpRsh64x16_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh64x16 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARQ x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARQ)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh64x32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh64x32 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [64])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARQ)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -57273,18 +57979,37 @@ func rewriteValueAMD64_OpRsh64x32_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh64x32 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARQ x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARQ)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh64x64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh64x64 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARQ <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [64])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARQ)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -57301,18 +58026,37 @@ func rewriteValueAMD64_OpRsh64x64_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh64x64 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARQ x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARQ)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh64x8_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh64x8 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [64])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARQ)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -57329,18 +58073,37 @@ func rewriteValueAMD64_OpRsh64x8_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh64x8 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARQ x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARQ)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh8Ux16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh8Ux16 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPWconst y [8])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRB, t)
+ 		v0.AddArg(x)
+@@ -57354,18 +58117,37 @@ func rewriteValueAMD64_OpRsh8Ux16_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh8Ux16 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRB x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh8Ux32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh8Ux32 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPLconst y [8])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRB, t)
+ 		v0.AddArg(x)
+@@ -57379,18 +58161,37 @@ func rewriteValueAMD64_OpRsh8Ux32_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh8Ux32 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRB x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh8Ux64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh8Ux64 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPQconst y [8])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRB, t)
+ 		v0.AddArg(x)
+@@ -57404,18 +58205,37 @@ func rewriteValueAMD64_OpRsh8Ux64_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh8Ux64 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRB x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh8Ux8_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh8Ux8 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPBconst y [8])))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64ANDL)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64SHRB, t)
+ 		v0.AddArg(x)
+@@ -57429,18 +58249,37 @@ func rewriteValueAMD64_OpRsh8Ux8_0(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Rsh8Ux8 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SHRB x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SHRB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh8x16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh8x16 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [8])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARB)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -57457,18 +58296,37 @@ func rewriteValueAMD64_OpRsh8x16_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh8x16 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARB x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh8x32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh8x32 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [8])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARB)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -57485,18 +58343,37 @@ func rewriteValueAMD64_OpRsh8x32_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh8x32 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARB x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh8x64_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh8x64 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARB <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [8])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARB)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -57513,18 +58390,37 @@ func rewriteValueAMD64_OpRsh8x64_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh8x64 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARB x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpRsh8x8_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Rsh8x8 <t> x y)
+-	// cond:
++	// cond: !shiftIsBounded(v)
+ 	// result: (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [8])))))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
++		if !(!shiftIsBounded(v)) {
++			break
++		}
+ 		v.reset(OpAMD64SARB)
+ 		v.Type = t
+ 		v.AddArg(x)
+@@ -57541,6 +58437,22 @@ func rewriteValueAMD64_OpRsh8x8_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh8x8 x y)
++	// cond: shiftIsBounded(v)
++	// result: (SARB x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpAMD64SARB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpSelect0_0(v *Value) bool {
+ 	b := v.Block

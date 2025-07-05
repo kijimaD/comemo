@@ -29,9 +29,96 @@ Date:   Thu Mar 28 13:18:37 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/modcmd/tidy.go            |  1 +
  src/cmd/go/internal/modload/init.go           | 12 ++++++++----
  src/cmd/go/testdata/script/mod_init_empty.txt | 16 ++++++++++++++++
  src/cmd/go/testdata/script/mod_std_vendor.txt |  2 +-
  4 files changed, 26 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 789e936608..8c68ec51d8 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -64,6 +64,7 @@ func runTidy(cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 	modload.SetBuildList(keep)
++	modload.AddGoStmt()
+ 	modTidyGoSum() // updates memory copy; WriteGoMod on next line flushes it out
+ 	modload.WriteGoMod()
+ }
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 4bc4a2449c..fad204a2dd 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -408,10 +408,9 @@ func legacyModInit() {
+ 		fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", path)
+ 		modFile = new(modfile.File)
+ 		modFile.AddModuleStmt(path)
++		AddGoStmt()
+ 	}
+ 
+-	addGoStmt()
+-
+ 	for _, name := range altConfigs {
+ 		cfg := filepath.Join(modRoot, name)
+ 		data, err := ioutil.ReadFile(cfg)
+@@ -420,6 +419,7 @@ func legacyModInit() {
+ 			if convert == nil {
+ 				return
+ 			}
++			AddGoStmt()
+ 			fmt.Fprintf(os.Stderr, "go: copying requirements from %s\n", base.ShortPath(cfg))
+ 			cfg = filepath.ToSlash(cfg)
+ 			if err := modconv.ConvertLegacyConfig(modFile, cfg, data); err != nil {
+@@ -434,8 +434,12 @@ func legacyModInit() {
+ 	}
+ }
+ 
+-// addGoStmt adds a go statement referring to the current version.
+-func addGoStmt() {
++// AddGoStmt adds a go directive to the go.mod file if it does not already include one.
++// The 'go' version added, if any, is the latest version supported by this toolchain.
++func AddGoStmt() {
++	if modFile.Go != nil && modFile.Go.Version != "" {
++		return
++	}
+ 	tags := build.Default.ReleaseTags
+ 	version := tags[len(tags)-1]
+ 	if !strings.HasPrefix(version, "go") || !modfile.GoVersionRE.MatchString(version[2:]) {
+diff --git a/src/cmd/go/testdata/script/mod_init_empty.txt b/src/cmd/go/testdata/script/mod_init_empty.txt
+new file mode 100644
+index 0000000000..b6357bb053
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_init_empty.txt
+@@ -0,0 +1,16 @@
++env GO111MODULE=on
++
++env GOPATH=$devnull
++
++go list -m
++stdout '^example.com$'
++
++go list
++stdout '^example.com$'
++
++-- go.mod --
++module example.com
++-- main.go --
++package main
++
++func main() {}
+diff --git a/src/cmd/go/testdata/script/mod_std_vendor.txt b/src/cmd/go/testdata/script/mod_std_vendor.txt
+index 5aa544cb77..5986cff594 100644
+--- a/src/cmd/go/testdata/script/mod_std_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_std_vendor.txt
+@@ -20,7 +20,7 @@ stdout ^vendor/golang.org/x/crypto # dep of .TestImports
+ # Modules outside the standard library should not use the packages vendored there...
+ cd broken
+ ! go build -mod=readonly
+-stderr 'updates to go.mod needed'
++stderr 'disabled by -mod=readonly'
+ ! go build -mod=vendor
+ stderr 'cannot find package'
+ stderr 'hpack'

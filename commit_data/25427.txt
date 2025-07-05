@@ -12,7 +12,65 @@ Date:   Tue Oct 27 21:35:48 2015 -0500
     Run-TryBot: Todd Neal <todd@tneal.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go                 |  2 +-
  .../compile/internal/gc/testdata/loadstore_ssa.go  | 28 ++++++++++++++++++++++
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4b4dc09f11..b96661d15e 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2265,7 +2265,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 		switch n.Class {
+ 		case PEXTERN:
+ 			// global variable
+-			aux := &ssa.ExternSymbol{n.Type, n.Sym}
++			aux := s.lookupSymbol(n, &ssa.ExternSymbol{n.Type, n.Sym})
+ 			v := s.entryNewValue1A(ssa.OpAddr, t, aux, s.sb)
+ 			// TODO: Make OpAddr use AuxInt as well as Aux.
+ 			if n.Xoffset != 0 {
+diff --git a/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go b/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go
+index e986f53bc6..e0b0b4dfab 100644
+--- a/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go
+@@ -77,11 +77,39 @@ func testExtStore() {
+ 	}
+ }
+ 
++var b int
++
++// testDeadStorePanic_ssa ensures that we don't optimize away stores
++// that could be read by after recover().  Modeled after fixedbugs/issue1304.
++func testDeadStorePanic_ssa(a int) (r int) {
++	switch {
++	}
++	defer func() {
++		recover()
++		r = a
++	}()
++	a = 2      // store
++	b := a - a // optimized to zero
++	c := 4
++	a = c / b // store, but panics
++	a = 3     // store
++	r = a
++	return
++}
++
++func testDeadStorePanic() {
++	if want, got := 2, testDeadStorePanic_ssa(1); want != got {
++		fmt.Println("testDeadStorePanic failed.  want =", want, ", got =", got)
++		failed = true
++	}
++}
++
+ func main() {
+ 
+ 	testLoadStoreOrder()
+ 	testStoreSize()
+ 	testExtStore()
++	testDeadStorePanic()
+ 
+ 	if failed {
+ 		panic("failed")

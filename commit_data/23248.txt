@@ -12,6 +12,21 @@ Date:   Sat May 2 14:47:27 2015 +0300
     Change-Id: Ib2d880eea03348e8a69720aad7752302a75bd277
     Reviewed-on: https://go-review.googlesource.com/9622
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/ast/walk.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/go/ast/walk.go b/src/go/ast/walk.go
+index d531f5e714..8ca21959b1 100644
+--- a/src/go/ast/walk.go
++++ b/src/go/ast/walk.go
+@@ -361,8 +361,7 @@ func Walk(v Visitor, node Node) {
+ 		}
+ 
+ 	default:
+-		fmt.Printf("ast.Walk: unexpected node type %T", n)
+-		panic("ast.Walk")
++		panic(fmt.Sprintf("ast.Walk: unexpected node type %T", n))
+ 	}
+ 
+ 	v.Visit(nil)

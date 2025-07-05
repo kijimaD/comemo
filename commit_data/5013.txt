@@ -8,8 +8,124 @@ Date:   Mon Mar 8 15:44:18 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/311041
-
+---
  src/cmd/gc/const.c     |  3 +++
  src/cmd/gc/print.c     | 20 ++++++++++++++++++++
  src/cmd/gc/typecheck.c | 45 ++++++++++++++-------------------------------
  3 files changed, 37 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 5a5a059668..7debb37083 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -888,6 +888,9 @@ nodcplxlit(Val r, Val i)
+ 	Node *n;
+ 	Mpcplx *c;
+ 
++	r = toflt(r);
++	i = toflt(i);
++
+ 	c = mal(sizeof(*c));
+ 	n = nod(OLITERAL, N, N);
+ 	n->type = types[TIDEAL];
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index b460953a2a..af69202838 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -309,6 +309,26 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		fmtprint(f, ")");
+ 		break;
+ 
++	case OCMPLX:
++		fmtprint(f, "cmplx(");
++		exprfmt(f, n->left, 0);
++		fmtprint(f, ", ");
++		exprfmt(f, n->right, 0);
++		fmtprint(f, ")");
++		break;
++
++	case OREAL:
++		fmtprint(f, "real(");
++		exprfmt(f, n->left, 0);
++		fmtprint(f, ")");
++		break;
++
++	case OIMAG:
++		fmtprint(f, "imag(");
++		exprfmt(f, n->left, 0);
++		fmtprint(f, ")");
++		break;
++
+ 	case OCONV:
+ 	case OCONVNOP:
+ 	case OCONVSLICE:
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index e7db038bf6..654e72b5f7 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -788,51 +788,34 @@ reswitch:
+ 		if(l->type == T || r->type == T)
+ 			goto error;
+ 		defaultlit2(&l, &r, 0);
+-		if(l->op == OLITERAL && r->op == OLITERAL) {
+-			// make it a complex literal
+-			switch(l->type->etype) {
+-			default:
+-				yyerror("real and imag parts must be the floating");
+-				goto error;
+-			case TIDEAL:
+-				convlit(&l, types[TFLOAT]);
+-				convlit(&r, types[TFLOAT]);
+-				t = types[TIDEAL];
+-				// fallthrough
+-			case TFLOAT:
+-				t = types[TCOMPLEX];
+-				break;
+-			case TFLOAT32:
+-				t = types[TCOMPLEX64];
+-				break;
+-			case TFLOAT64:
+-				t = types[TCOMPLEX128];
+-				break;
+-			}
+-			n = nodcplxlit(l->val, r->val);
+-			n->type = t;
+-			goto ret;
+-		}
+ 		n->left = l;
+ 		n->right = r;
+ 		if(l->type->etype != l->type->etype) {
+-			yyerror("real and imag parts must be the same type");
++		badcmplx:
++			yyerror("invalid operation: %#N (cmplx of types %T, %T)", n, l->type, r->type);
+ 			goto error;
+ 		}
+ 		switch(l->type->etype) {
+ 		default:
+-			yyerror("real and imag parts must be the floating");
+-			goto error;
++			goto badcmplx;
++		case TIDEAL:
++			t = types[TIDEAL];
++			break;
+ 		case TFLOAT:
+-			n->type = types[TCOMPLEX];
++			t = types[TCOMPLEX];
+ 			break;
+ 		case TFLOAT32:
+-			n->type = types[TCOMPLEX64];
++			t = types[TCOMPLEX64];
+ 			break;
+ 		case TFLOAT64:
+-			n->type = types[TCOMPLEX128];
++			t = types[TCOMPLEX128];
+ 			break;
+ 		}
++		if(l->op == OLITERAL && r->op == OLITERAL) {
++			// make it a complex literal
++			n = nodcplxlit(l->val, r->val);
++		}
++		n->type = t;
+ 		goto ret;
+ 
+ 	case OCLOSED:

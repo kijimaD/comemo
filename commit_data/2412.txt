@@ -9,7 +9,124 @@ Date:   Sat Jun 6 17:30:17 2009 -0700
     DELTA=45  (37 added, 1 deleted, 7 changed)
     OCL=29964
     CL=29990
-
+---
  src/lib/http/request.go | 31 +++++++++++++++++++++++++++----
  src/lib/http/triv.go    | 18 ++++++++++++++++--
  2 files changed, 43 insertions(+), 6 deletions(-)
+
+diff --git a/src/lib/http/request.go b/src/lib/http/request.go
+index 1173dd2a2d..76dd6f30c1 100644
+--- a/src/lib/http/request.go
++++ b/src/lib/http/request.go
+@@ -13,10 +13,12 @@ package http
+ 
+ import (
+ 	"bufio";
++	"fmt";
+ 	"http";
+ 	"io";
+ 	"os";
+-	"strings"
++	"strconv";
++	"strings";
+ )
+ 
+ const (
+@@ -33,6 +35,8 @@ var (
+ 	LineTooLong = &ProtocolError{"http header line too long"};
+ 	ValueTooLong = &ProtocolError{"http header value too long"};
+ 	HeaderTooLong = &ProtocolError{"http header too long"};
++	BadContentLength = &ProtocolError{"invalid content length"};
++	ShortEntityBody = &ProtocolError{"entity body too short"};
+ 	BadHeader = &ProtocolError{"malformed http header"};
+ 	BadRequest = &ProtocolError{"invalid http request"};
+ 	BadHTTPVersion = &ProtocolError{"unsupported http version"};
+@@ -40,9 +44,9 @@ var (
+ 
+ // A Request represents a parsed HTTP request header.
+ type Request struct {
+-	Method string;		// GET, PUT,etc.
++	Method string;		// GET, POST, PUT, etc.
+ 	RawUrl string;		// The raw URL given in the request.
+-	Url *URL;		// URL after GET, PUT etc.
++	Url *URL;		// Parsed URL.
+ 	Proto string;	// "HTTP/1.0"
+ 	ProtoMajor int;	// 1
+ 	ProtoMinor int;	// 0
+@@ -68,6 +72,9 @@ type Request struct {
+ 	// following a hyphen uppercase and the rest lowercase.
+ 	Header map[string] string;
+ 
++	// The message body.
++	Body io.Reader;
++
+ 	// Whether to close the connection after replying to this request.
+ 	Close bool;
+ 
+@@ -386,5 +393,21 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 	//	Via
+ 	//	Warning
+ 
+-	return req, nil;
++	// A message body exists when either Content-Length or Transfer-Encoding
++	// headers are present. TODO: Handle Transfer-Encoding.
++	if v, present := req.Header["Content-Length"]; present {
++		length, err := strconv.Btoui64(v, 10);
++		if err != nil {
++			return nil, BadContentLength
++		}
++		// TODO: limit the Content-Length. This is an easy DoS vector.
++		raw := make([]byte, length);
++		n, err := b.Read(raw);
++		if err != nil || uint64(n) < length {
++			return nil, ShortEntityBody
++		}
++		req.Body = io.NewByteReader(raw);
++	}
++
++	return req, nil
+ }
+diff --git a/src/lib/http/triv.go b/src/lib/http/triv.go
+index f8b59ebeab..8528984904 100644
+--- a/src/lib/http/triv.go
++++ b/src/lib/http/triv.go
+@@ -14,6 +14,7 @@ import (
+ 	"log";
+ 	"net";
+ 	"os";
++	"strconv";
+ )
+ 
+ 
+@@ -24,7 +25,7 @@ func HelloServer(c *http.Conn, req *http.Request) {
+ 	io.WriteString(c, "hello, world!\n");
+ }
+ 
+-// simple counter server
++// Simple counter server. POSTing to it will set the value.
+ type Counter struct {
+ 	n int;
+ }
+@@ -36,8 +37,21 @@ func (ctr *Counter) String() string {
+ }
+ 
+ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
++	switch req.Method {
++	case "GET":
++		ctr.n++;
++	case "POST":
++		buf := new(io.ByteBuffer);
++		io.Copy(req.Body, buf);
++		body := string(buf.Data());
++		if n, err := strconv.Atoi(body); err != nil {
++			fmt.Fprintf(c, "bad POST: %v\nbody: [%v]\n", err, body);
++		} else {
++			ctr.n = n;
++			fmt.Fprint(c, "counter reset\n");
++		}
++	}
+ 	fmt.Fprintf(c, "counter = %d\n", ctr.n);
+-	ctr.n++;
+ }
+ 
+ // simple file server

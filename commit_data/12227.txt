@@ -7,6 +7,29 @@ Date:   Mon Feb 27 16:18:58 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5700078
-
+---
  misc/dashboard/app/build/ui.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/dashboard/app/build/ui.html b/misc/dashboard/app/build/ui.html
+index 742268f755..5b5f4ebe34 100644
+--- a/misc/dashboard/app/build/ui.html
++++ b/misc/dashboard/app/build/ui.html
+@@ -118,7 +118,7 @@
+           </td>
+         {{end}}
+         <td class="user" title="{{.User}}">{{shortUser .User}}</td>
+-        <td class="time">{{.Time.Time.Format "Mon 02 Jan 15:04"}}</td>
++        <td class="time">{{.Time.Format "Mon 02 Jan 15:04"}}</td>
+         <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
+       </tr>
+     {{end}}
+@@ -197,7 +197,7 @@
+         {{end}}
+         {{with $pkg.Commit}}
+           <td class="user" title="{{.User}}">{{shortUser .User}}</td>
+-          <td class="time">{{.Time.Time.Format "Mon 02 Jan 15:04"}}</td>
++          <td class="time">{{.Time.Format "Mon 02 Jan 15:04"}}</td>
+           <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
+         {{end}}
+       </tr>

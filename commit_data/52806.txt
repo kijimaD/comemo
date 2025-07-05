@@ -14,6 +14,21 @@ Date:   Thu Jun 2 21:10:26 2022 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/debuglog.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index 7f92a6baf8..ca1a791c93 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -777,7 +777,8 @@ func printDebugLog() {
+ 			// Logged before runtimeInitTime was set.
+ 			pnano = 0
+ 		}
+-		print(string(itoaDiv(tmpbuf[:], uint64(pnano), 9)))
++		pnanoBytes := itoaDiv(tmpbuf[:], uint64(pnano), 9)
++		print(slicebytetostringtmp((*byte)(noescape(unsafe.Pointer(&pnanoBytes[0]))), len(pnanoBytes)))
+ 		print(" P ", p, "] ")
+ 
+ 		for i := 0; s.begin < s.end; i++ {

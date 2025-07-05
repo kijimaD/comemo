@@ -11,7 +11,34 @@ Date:   Thu Oct 20 10:06:54 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/build/build.go      | 3 ++-
  src/go/build/build_test.go | 1 +
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index bd89e3188f..e26ab48aa4 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1294,7 +1294,8 @@ func expandSrcDir(str string, srcdir string) (string, bool) {
+ // We never pass these arguments to a shell (just to programs we construct argv for), so this should be okay.
+ // See golang.org/issue/6038.
+ // The @ is for OS X. See golang.org/issue/13720.
+-const safeString = "+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$@"
++// The % is for Jenkins. See golang.org/issue/16959.
++const safeString = "+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$@%"
+ const safeSpaces = " "
+ 
+ var safeBytes = []byte(safeSpaces + safeString)
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 0a20af01bd..8ca8e5e04d 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -294,6 +294,7 @@ func TestShellSafety(t *testing.T) {
+ 		result                  bool
+ 	}{
+ 		{"-I${SRCDIR}/../include", "/projects/src/issue 11868", "-I/projects/src/issue 11868/../include", true},
++		{"-I${SRCDIR}", "wtf$@%", "-Iwtf$@%", true},
+ 		{"-X${SRCDIR}/1,${SRCDIR}/2", "/projects/src/issue 11868", "-X/projects/src/issue 11868/1,/projects/src/issue 11868/2", true},
+ 		{"-I/tmp -I/tmp", "/tmp2", "-I/tmp -I/tmp", false},
+ 		{"-I/tmp", "/tmp/[0]", "-I/tmp", true},

@@ -8,7 +8,42 @@ Date:   Tue Jul 15 01:38:05 2014 +0000
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/115820043
-
+---
  src/cmd/ld/decodesym.c | 3 ++-
  src/cmd/ld/dwarf.c     | 2 +-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/decodesym.c b/src/cmd/ld/decodesym.c
+index da48d3786e..1773387f54 100644
+--- a/src/cmd/ld/decodesym.c
++++ b/src/cmd/ld/decodesym.c
+@@ -104,7 +104,7 @@ decodetype_arrayelem(LSym *s)
+ vlong
+ decodetype_arraylen(LSym *s)
+ {
+-	return decode_inuxi(s->p + commonsize()+PtrSize, PtrSize);
++	return decode_inuxi(s->p + commonsize()+2*PtrSize, PtrSize);
+ }
+ 
+ // Type.PtrType.elem
+@@ -120,6 +120,7 @@ decodetype_mapkey(LSym *s)
+ {
+ 	return decode_reloc_sym(s, commonsize());	// 0x1c / 0x30
+ }
++
+ LSym*
+ decodetype_mapvalue(LSym *s)
+ {
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 3c8b33f6b4..f3e8781641 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -992,7 +992,7 @@ defgotype(LSym *gotype)
+ 		s = decodetype_arrayelem(gotype);
+ 		newrefattr(die, DW_AT_type, defgotype(s));
+ 		fld = newdie(die, DW_ABRV_ARRAYRANGE, "range");
+-		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, decodetype_arraylen(gotype), 0);
++		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, decodetype_arraylen(gotype)-1, 0); // -1: want upper bound, not count.
+ 		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
+ 		break;
+ 

@@ -12,6 +12,19 @@ Date:   Wed May 6 13:45:03 2015 -0700
     Change-Id: I768bde13a400259df3e46dddc9f58c8f0e993c72
     Reviewed-on: https://go-review.googlesource.com/9764
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/doc/pkg.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index d52dd97864..3a0aa7ff89 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -71,6 +71,7 @@ func parsePackage(pkg *build.Package, userPath string) *Package {
+ 	docPkg := doc.New(astPkg, pkg.ImportPath, doc.AllDecls)
+ 	for _, typ := range docPkg.Types {
+ 		docPkg.Consts = append(docPkg.Consts, typ.Consts...)
++		docPkg.Vars = append(docPkg.Vars, typ.Vars...)
+ 		docPkg.Funcs = append(docPkg.Funcs, typ.Funcs...)
+ 	}
+ 

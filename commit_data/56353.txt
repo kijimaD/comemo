@@ -22,7 +22,39 @@ Date:   Mon May 1 09:08:01 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/runtime1.go | 1 -
  src/runtime/trace.go    | 6 ++----
  2 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 7dc65bdcc1..65bed433c3 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -369,7 +369,6 @@ func parsedebugvars() {
+ 	debug.cgocheck = 1
+ 	debug.invalidptr = 1
+ 	debug.adaptivestackstart = 1 // set this to 0 to turn larger initial goroutine stacks off
+-	debug.tracefpunwindoff = 1   // Frame pointer unwinding sometimes crashes on amd64. See issue 59692.
+ 	if GOOS == "linux" {
+ 		// On Linux, MADV_FREE is faster than MADV_DONTNEED,
+ 		// but doesn't affect many of the statistics that
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 79ccebb4b3..5eb68271d1 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -927,12 +927,10 @@ func traceStackID(mp *m, pcBuf []uintptr, skip int) uint64 {
+ 	return uint64(id)
+ }
+ 
+-// tracefpunwindoff returns false if frame pointer unwinding for the tracer is
++// tracefpunwindoff returns true if frame pointer unwinding for the tracer is
+ // disabled via GODEBUG or not supported by the architecture.
+ func tracefpunwindoff() bool {
+-	// compiler emits frame pointers for amd64 and arm64, but issue 58432 blocks
+-	// arm64 support for now.
+-	return debug.tracefpunwindoff != 0 || goarch.ArchFamily != goarch.AMD64
++	return debug.tracefpunwindoff != 0 || (goarch.ArchFamily != goarch.AMD64 && goarch.ArchFamily != goarch.ARM64)
+ }
+ 
+ // fpTracebackPCs populates pcBuf with the return addresses for each frame and

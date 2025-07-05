@@ -18,7 +18,7 @@ Date:   Thu May 31 13:06:27 2018 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/aes/block.go      | 48 ++++++++++++++++++++++-----------------
  src/crypto/aes/ctr_s390x.go  | 14 ++++++------
  src/crypto/aes/gcm_s390x.go  | 31 +++++--------------------
@@ -26,3 +26,344 @@ Date:   Thu May 31 13:06:27 2018 +0100
  src/crypto/rand/rand_unix.go | 10 ++------
  src/go/build/deps_test.go    |  2 +-
  6 files changed, 56 insertions(+), 103 deletions(-)
+
+diff --git a/src/crypto/aes/block.go b/src/crypto/aes/block.go
+index 8647019d58..40bd0d335d 100644
+--- a/src/crypto/aes/block.go
++++ b/src/crypto/aes/block.go
+@@ -36,14 +36,17 @@
+ 
+ package aes
+ 
++import (
++	"encoding/binary"
++)
++
+ // Encrypt one block from src into dst, using the expanded key xk.
+ func encryptBlockGo(xk []uint32, dst, src []byte) {
+-	var s0, s1, s2, s3, t0, t1, t2, t3 uint32
+-
+-	s0 = uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])
+-	s1 = uint32(src[4])<<24 | uint32(src[5])<<16 | uint32(src[6])<<8 | uint32(src[7])
+-	s2 = uint32(src[8])<<24 | uint32(src[9])<<16 | uint32(src[10])<<8 | uint32(src[11])
+-	s3 = uint32(src[12])<<24 | uint32(src[13])<<16 | uint32(src[14])<<8 | uint32(src[15])
++	_ = src[15] // early bounds check
++	s0 := binary.BigEndian.Uint32(src[0:4])
++	s1 := binary.BigEndian.Uint32(src[4:8])
++	s2 := binary.BigEndian.Uint32(src[8:12])
++	s3 := binary.BigEndian.Uint32(src[12:16])
+ 
+ 	// First round just XORs input with key.
+ 	s0 ^= xk[0]
+@@ -55,6 +58,7 @@ func encryptBlockGo(xk []uint32, dst, src []byte) {
+ 	// Number of rounds is set by length of expanded key.
+ 	nr := len(xk)/4 - 2 // - 2: one above, one more below
+ 	k := 4
++	var t0, t1, t2, t3 uint32
+ 	for r := 0; r < nr; r++ {
+ 		t0 = xk[k+0] ^ te0[uint8(s0>>24)] ^ te1[uint8(s1>>16)] ^ te2[uint8(s2>>8)] ^ te3[uint8(s3)]
+ 		t1 = xk[k+1] ^ te0[uint8(s1>>24)] ^ te1[uint8(s2>>16)] ^ te2[uint8(s3>>8)] ^ te3[uint8(s0)]
+@@ -75,20 +79,20 @@ func encryptBlockGo(xk []uint32, dst, src []byte) {
+ 	s2 ^= xk[k+2]
+ 	s3 ^= xk[k+3]
+ 
+-	dst[0], dst[1], dst[2], dst[3] = byte(s0>>24), byte(s0>>16), byte(s0>>8), byte(s0)
+-	dst[4], dst[5], dst[6], dst[7] = byte(s1>>24), byte(s1>>16), byte(s1>>8), byte(s1)
+-	dst[8], dst[9], dst[10], dst[11] = byte(s2>>24), byte(s2>>16), byte(s2>>8), byte(s2)
+-	dst[12], dst[13], dst[14], dst[15] = byte(s3>>24), byte(s3>>16), byte(s3>>8), byte(s3)
++	_ = dst[15] // early bounds check
++	binary.BigEndian.PutUint32(dst[0:4], s0)
++	binary.BigEndian.PutUint32(dst[4:8], s1)
++	binary.BigEndian.PutUint32(dst[8:12], s2)
++	binary.BigEndian.PutUint32(dst[12:16], s3)
+ }
+ 
+ // Decrypt one block from src into dst, using the expanded key xk.
+ func decryptBlockGo(xk []uint32, dst, src []byte) {
+-	var s0, s1, s2, s3, t0, t1, t2, t3 uint32
+-
+-	s0 = uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])
+-	s1 = uint32(src[4])<<24 | uint32(src[5])<<16 | uint32(src[6])<<8 | uint32(src[7])
+-	s2 = uint32(src[8])<<24 | uint32(src[9])<<16 | uint32(src[10])<<8 | uint32(src[11])
+-	s3 = uint32(src[12])<<24 | uint32(src[13])<<16 | uint32(src[14])<<8 | uint32(src[15])
++	_ = src[15] // early bounds check
++	s0 := binary.BigEndian.Uint32(src[0:4])
++	s1 := binary.BigEndian.Uint32(src[4:8])
++	s2 := binary.BigEndian.Uint32(src[8:12])
++	s3 := binary.BigEndian.Uint32(src[12:16])
+ 
+ 	// First round just XORs input with key.
+ 	s0 ^= xk[0]
+@@ -100,6 +104,7 @@ func decryptBlockGo(xk []uint32, dst, src []byte) {
+ 	// Number of rounds is set by length of expanded key.
+ 	nr := len(xk)/4 - 2 // - 2: one above, one more below
+ 	k := 4
++	var t0, t1, t2, t3 uint32
+ 	for r := 0; r < nr; r++ {
+ 		t0 = xk[k+0] ^ td0[uint8(s0>>24)] ^ td1[uint8(s3>>16)] ^ td2[uint8(s2>>8)] ^ td3[uint8(s1)]
+ 		t1 = xk[k+1] ^ td0[uint8(s1>>24)] ^ td1[uint8(s0>>16)] ^ td2[uint8(s3>>8)] ^ td3[uint8(s2)]
+@@ -120,10 +125,11 @@ func decryptBlockGo(xk []uint32, dst, src []byte) {
+ 	s2 ^= xk[k+2]
+ 	s3 ^= xk[k+3]
+ 
+-	dst[0], dst[1], dst[2], dst[3] = byte(s0>>24), byte(s0>>16), byte(s0>>8), byte(s0)
+-	dst[4], dst[5], dst[6], dst[7] = byte(s1>>24), byte(s1>>16), byte(s1>>8), byte(s1)
+-	dst[8], dst[9], dst[10], dst[11] = byte(s2>>24), byte(s2>>16), byte(s2>>8), byte(s2)
+-	dst[12], dst[13], dst[14], dst[15] = byte(s3>>24), byte(s3>>16), byte(s3>>8), byte(s3)
++	_ = dst[15] // early bounds check
++	binary.BigEndian.PutUint32(dst[0:4], s0)
++	binary.BigEndian.PutUint32(dst[4:8], s1)
++	binary.BigEndian.PutUint32(dst[8:12], s2)
++	binary.BigEndian.PutUint32(dst[12:16], s3)
+ }
+ 
+ // Apply sbox0 to each byte in w.
+@@ -144,7 +150,7 @@ func expandKeyGo(key []byte, enc, dec []uint32) {
+ 	var i int
+ 	nk := len(key) / 4
+ 	for i = 0; i < nk; i++ {
+-		enc[i] = uint32(key[4*i])<<24 | uint32(key[4*i+1])<<16 | uint32(key[4*i+2])<<8 | uint32(key[4*i+3])
++		enc[i] = binary.BigEndian.Uint32(key[4*i:])
+ 	}
+ 	for ; i < len(enc); i++ {
+ 		t := enc[i-1]
+diff --git a/src/crypto/aes/ctr_s390x.go b/src/crypto/aes/ctr_s390x.go
+index 8fa85a3ae8..bfa8cbba7f 100644
+--- a/src/crypto/aes/ctr_s390x.go
++++ b/src/crypto/aes/ctr_s390x.go
+@@ -7,7 +7,7 @@ package aes
+ import (
+ 	"crypto/cipher"
+ 	"crypto/internal/subtle"
+-	"unsafe"
++	"encoding/binary"
+ )
+ 
+ // Assert that aesCipherAsm implements the ctrAble interface.
+@@ -38,8 +38,8 @@ func (c *aesCipherAsm) NewCTR(iv []byte) cipher.Stream {
+ 	}
+ 	var ac aesctr
+ 	ac.block = c
+-	ac.ctr[0] = *(*uint64)(unsafe.Pointer((&iv[0]))) // high bits
+-	ac.ctr[1] = *(*uint64)(unsafe.Pointer((&iv[8]))) // low bits
++	ac.ctr[0] = binary.BigEndian.Uint64(iv[0:]) // high bits
++	ac.ctr[1] = binary.BigEndian.Uint64(iv[8:]) // low bits
+ 	ac.buffer = ac.storage[:0]
+ 	return &ac
+ }
+@@ -48,10 +48,10 @@ func (c *aesctr) refill() {
+ 	// Fill up the buffer with an incrementing count.
+ 	c.buffer = c.storage[:streamBufferSize]
+ 	c0, c1 := c.ctr[0], c.ctr[1]
+-	for i := 0; i < streamBufferSize; i += BlockSize {
+-		b0 := (*uint64)(unsafe.Pointer(&c.buffer[i]))
+-		b1 := (*uint64)(unsafe.Pointer(&c.buffer[i+BlockSize/2]))
+-		*b0, *b1 = c0, c1
++	for i := 0; i < streamBufferSize; i += 16 {
++		binary.BigEndian.PutUint64(c.buffer[i+0:], c0)
++		binary.BigEndian.PutUint64(c.buffer[i+8:], c1)
++
+ 		// Increment in big endian: c0 is high, c1 is low.
+ 		c1++
+ 		if c1 == 0 {
+diff --git a/src/crypto/aes/gcm_s390x.go b/src/crypto/aes/gcm_s390x.go
+index d154ddbaa0..c58aa2cda8 100644
+--- a/src/crypto/aes/gcm_s390x.go
++++ b/src/crypto/aes/gcm_s390x.go
+@@ -8,6 +8,7 @@ import (
+ 	"crypto/cipher"
+ 	subtleoverlap "crypto/internal/subtle"
+ 	"crypto/subtle"
++	"encoding/binary"
+ 	"errors"
+ 	"internal/cpu"
+ )
+@@ -22,35 +23,15 @@ type gcmCount [16]byte
+ 
+ // inc increments the rightmost 32-bits of the count value by 1.
+ func (x *gcmCount) inc() {
+-	// The compiler should optimize this to a 32-bit addition.
+-	n := uint32(x[15]) | uint32(x[14])<<8 | uint32(x[13])<<16 | uint32(x[12])<<24
+-	n += 1
+-	x[12] = byte(n >> 24)
+-	x[13] = byte(n >> 16)
+-	x[14] = byte(n >> 8)
+-	x[15] = byte(n)
++	binary.BigEndian.PutUint32(x[len(x)-4:], binary.BigEndian.Uint32(x[len(x)-4:])+1)
+ }
+ 
+ // gcmLengths writes len0 || len1 as big-endian values to a 16-byte array.
+ func gcmLengths(len0, len1 uint64) [16]byte {
+-	return [16]byte{
+-		byte(len0 >> 56),
+-		byte(len0 >> 48),
+-		byte(len0 >> 40),
+-		byte(len0 >> 32),
+-		byte(len0 >> 24),
+-		byte(len0 >> 16),
+-		byte(len0 >> 8),
+-		byte(len0),
+-		byte(len1 >> 56),
+-		byte(len1 >> 48),
+-		byte(len1 >> 40),
+-		byte(len1 >> 32),
+-		byte(len1 >> 24),
+-		byte(len1 >> 16),
+-		byte(len1 >> 8),
+-		byte(len1),
+-	}
++	v := [16]byte{}
++	binary.BigEndian.PutUint64(v[0:], len0)
++	binary.BigEndian.PutUint64(v[8:], len1)
++	return v
+ }
+ 
+ // gcmHashKey represents the 16-byte hash key required by the GHASH algorithm.
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index 6321e9e82d..73d78550f8 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -7,6 +7,7 @@ package cipher
+ import (
+ 	subtleoverlap "crypto/internal/subtle"
+ 	"crypto/subtle"
++	"encoding/binary"
+ 	"errors"
+ )
+ 
+@@ -53,8 +54,8 @@ type gcmAble interface {
+ }
+ 
+ // gcmFieldElement represents a value in GF(2¹²⁸). In order to reflect the GCM
+-// standard and make getUint64 suitable for marshaling these values, the bits
+-// are stored backwards. For example:
++// standard and make binary.BigEndian suitable for marshaling these values, the
++// bits are stored in big endian order. For example:
+ //   the coefficient of x⁰ can be obtained by v.low >> 63.
+ //   the coefficient of x⁶³ can be obtained by v.low & 1.
+ //   the coefficient of x⁶⁴ can be obtained by v.high >> 63.
+@@ -130,8 +131,8 @@ func newGCMWithNonceAndTagSize(cipher Block, nonceSize, tagSize int) (AEAD, erro
+ 	// would expect, say, 4*key to be in index 4 of the table but due to
+ 	// this bit ordering it will actually be in index 0010 (base 2) = 2.
+ 	x := gcmFieldElement{
+-		getUint64(key[:8]),
+-		getUint64(key[8:]),
++		binary.BigEndian.Uint64(key[:8]),
++		binary.BigEndian.Uint64(key[8:]),
+ 	}
+ 	g.productTable[reverseBits(1)] = x
+ 
+@@ -316,8 +317,8 @@ func (g *gcm) mul(y *gcmFieldElement) {
+ // Horner's rule. There must be a multiple of gcmBlockSize bytes in blocks.
+ func (g *gcm) updateBlocks(y *gcmFieldElement, blocks []byte) {
+ 	for len(blocks) > 0 {
+-		y.low ^= getUint64(blocks)
+-		y.high ^= getUint64(blocks[8:])
++		y.low ^= binary.BigEndian.Uint64(blocks)
++		y.high ^= binary.BigEndian.Uint64(blocks[8:])
+ 		g.mul(y)
+ 		blocks = blocks[gcmBlockSize:]
+ 	}
+@@ -339,12 +340,8 @@ func (g *gcm) update(y *gcmFieldElement, data []byte) {
+ // gcmInc32 treats the final four bytes of counterBlock as a big-endian value
+ // and increments it.
+ func gcmInc32(counterBlock *[16]byte) {
+-	for i := gcmBlockSize - 1; i >= gcmBlockSize-4; i-- {
+-		counterBlock[i]++
+-		if counterBlock[i] != 0 {
+-			break
+-		}
+-	}
++	ctr := counterBlock[len(counterBlock)-4:]
++	binary.BigEndian.PutUint32(ctr, binary.BigEndian.Uint32(ctr)+1)
+ }
+ 
+ // sliceForAppend takes a slice and a requested number of bytes. It returns a
+@@ -400,8 +397,8 @@ func (g *gcm) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
+ 		g.update(&y, nonce)
+ 		y.high ^= uint64(len(nonce)) * 8
+ 		g.mul(&y)
+-		putUint64(counter[:8], y.low)
+-		putUint64(counter[8:], y.high)
++		binary.BigEndian.PutUint64(counter[:8], y.low)
++		binary.BigEndian.PutUint64(counter[8:], y.high)
+ 	}
+ }
+ 
+@@ -417,33 +414,8 @@ func (g *gcm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSize]
+ 
+ 	g.mul(&y)
+ 
+-	putUint64(out, y.low)
+-	putUint64(out[8:], y.high)
++	binary.BigEndian.PutUint64(out, y.low)
++	binary.BigEndian.PutUint64(out[8:], y.high)
+ 
+ 	xorWords(out, out, tagMask[:])
+ }
+-
+-func getUint64(data []byte) uint64 {
+-	_ = data[7] // bounds check hint to compiler; see golang.org/issue/14808
+-	r := uint64(data[0])<<56 |
+-		uint64(data[1])<<48 |
+-		uint64(data[2])<<40 |
+-		uint64(data[3])<<32 |
+-		uint64(data[4])<<24 |
+-		uint64(data[5])<<16 |
+-		uint64(data[6])<<8 |
+-		uint64(data[7])
+-	return r
+-}
+-
+-func putUint64(out []byte, v uint64) {
+-	_ = out[7] // bounds check hint to compiler; see golang.org/issue/14808
+-	out[0] = byte(v >> 56)
+-	out[1] = byte(v >> 48)
+-	out[2] = byte(v >> 40)
+-	out[3] = byte(v >> 32)
+-	out[4] = byte(v >> 24)
+-	out[5] = byte(v >> 16)
+-	out[6] = byte(v >> 8)
+-	out[7] = byte(v)
+-}
+diff --git a/src/crypto/rand/rand_unix.go b/src/crypto/rand/rand_unix.go
+index 631972b92a..cebb7a761c 100644
+--- a/src/crypto/rand/rand_unix.go
++++ b/src/crypto/rand/rand_unix.go
+@@ -13,6 +13,7 @@ import (
+ 	"bufio"
+ 	"crypto/aes"
+ 	"crypto/cipher"
++	"encoding/binary"
+ 	"io"
+ 	"os"
+ 	"runtime"
+@@ -137,14 +138,7 @@ func (r *reader) Read(b []byte) (n int, err error) {
+ 		// dst = encrypt(t^seed)
+ 		// seed = encrypt(t^dst)
+ 		ns := time.Now().UnixNano()
+-		r.time[0] = byte(ns >> 56)
+-		r.time[1] = byte(ns >> 48)
+-		r.time[2] = byte(ns >> 40)
+-		r.time[3] = byte(ns >> 32)
+-		r.time[4] = byte(ns >> 24)
+-		r.time[5] = byte(ns >> 16)
+-		r.time[6] = byte(ns >> 8)
+-		r.time[7] = byte(ns)
++		binary.BigEndian.PutUint64(r.time[:], uint64(ns))
+ 		r.cipher.Encrypt(r.time[0:], r.time[0:])
+ 		for i := 0; i < aes.BlockSize; i++ {
+ 			r.dst[i] = r.time[i] ^ r.seed[i]
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index ef1f6604a8..729d0db51f 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -100,7 +100,7 @@ var pkgDeps = map[string][]string{
+ 	// and interface definitions, but nothing that makes
+ 	// system calls.
+ 	"crypto":                 {"L2", "hash"}, // interfaces
+-	"crypto/cipher":          {"L2", "crypto/subtle", "crypto/internal/subtle"},
++	"crypto/cipher":          {"L2", "crypto/subtle", "crypto/internal/subtle", "encoding/binary"},
+ 	"crypto/internal/subtle": {"unsafe", "reflect"}, // reflect behind a appengine tag
+ 	"crypto/subtle":          {},
+ 	"encoding/base32":        {"L2"},

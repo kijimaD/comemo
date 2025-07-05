@@ -19,9 +19,115 @@ Date:   Mon Dec 2 09:38:03 2019 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/types/check.go            |  2 ++
  src/go/types/errors.go           |  9 +++++++--
  src/go/types/resolver.go         |  1 +
  src/go/types/testdata/issues.src | 22 +++++++++++++++++++---
  4 files changed, 29 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index eec33057de..b599df1c50 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -79,6 +79,7 @@ type Checker struct {
+ 	objMap map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
+ 	impMap map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
+ 	posMap map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
++	pkgCnt map[string]int             // counts number of imported packages with a given name (for better error messages)
+ 
+ 	// information collected during type-checking of a set of package files
+ 	// (initialized by Files, valid only for the duration of check.Files;
+@@ -190,6 +191,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		objMap: make(map[Object]*declInfo),
+ 		impMap: make(map[importKey]*Package),
+ 		posMap: make(map[*Interface][]token.Pos),
++		pkgCnt: make(map[string]int),
+ 	}
+ }
+ 
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 23f2611b48..91b077163c 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -10,7 +10,7 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
+-	"path"
++	"strconv"
+ 	"strings"
+ )
+ 
+@@ -25,8 +25,13 @@ func unreachable() {
+ }
+ 
+ func (check *Checker) qualifier(pkg *Package) string {
++	// Qualify the package unless it's the package being type-checked.
+ 	if pkg != check.pkg {
+-		return path.Base(pkg.path) // avoid excessively long path names in error messages
++		// If the same package name was used by multiple packages, display the full path.
++		if check.pkgCnt[pkg.name] > 1 {
++			return strconv.Quote(pkg.path)
++		}
++		return pkg.name
+ 	}
+ 	return ""
+ }
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index d66a5428ff..839d076e36 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -188,6 +188,7 @@ func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
+ 	// package should be complete or marked fake, but be cautious
+ 	if imp.complete || imp.fake {
+ 		check.impMap[key] = imp
++		check.pkgCnt[imp.name]++
+ 		return imp
+ 	}
+ 
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index 5ddf6e0e71..fe2407999c 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -4,8 +4,12 @@
+ 
+ package issues
+ 
+-import "fmt"
+-import syn "cmd/compile/internal/syntax"
++import (
++	"fmt"
++	syn "cmd/compile/internal/syntax"
++	t1 "text/template"
++	t2 "html/template"
++)
+ 
+ func issue7035() {
+ 	type T struct{ X int }
+@@ -316,7 +320,7 @@ func issue28281g() (... /* ERROR expected type */ TT)
+ 
+ // Issue #26234: Make various field/method lookup errors easier to read by matching cmd/compile's output
+ func issue26234a(f *syn.File) {
+-	// The error message below should refer to the actual package path base (syntax)
++	// The error message below should refer to the actual package name (syntax)
+ 	// not the local package name (syn).
+ 	f.foo /* ERROR f.foo undefined \(type \*syntax.File has no field or method foo\) */
+ }
+@@ -337,3 +341,15 @@ func issue26234b(x T) {
+ func issue26234c() {
+ 	T.x /* ERROR T.x undefined \(type T has no method x\) */ ()
+ }
++
++func issue35895() {
++	// T is defined in this package, don't qualify its name with the package name.
++	var _ T = 0 // ERROR cannot convert 0 \(untyped int constant\) to T
++
++	// There is only one package with name syntax imported, only use the (global) package name in error messages.
++	var _ *syn.File = 0 // ERROR cannot convert 0 \(untyped int constant\) to \*syntax.File
++
++	// Because both t1 and t2 have the same global package name (template),
++	// qualify packages with full path name in this case.
++	var _ t1.Template = t2 /* ERROR cannot use .* \(value of type "html/template".Template\) as "text/template".Template */ .Template{}
++}
+\ No newline at end of file

@@ -16,7 +16,7 @@ Date:   Sat Dec 27 20:58:00 2014 -0800
     Reviewed-on: https://go-review.googlesource.com/2150
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/runtime/cgocall.go         |  14 ++---
  src/runtime/chan.go            |  16 ++---
  src/runtime/env_posix.go       |   2 +-
@@ -84,3 +84,4199 @@ Date:   Sat Dec 27 20:58:00 2014 -0800
  src/runtime/syscall_windows.go |   2 +-
  src/runtime/traceback.go       |  16 ++---
  66 files changed, 530 insertions(+), 524 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 258cabfc83..52b48c46c7 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -90,11 +90,11 @@ func cgocall(fn, arg unsafe.Pointer) {
+ //go:nosplit
+ func cgocall_errno(fn, arg unsafe.Pointer) int32 {
+ 	if !iscgo && GOOS != "solaris" && GOOS != "windows" {
+-		gothrow("cgocall unavailable")
++		throw("cgocall unavailable")
+ 	}
+ 
+ 	if fn == nil {
+-		gothrow("cgocall nil")
++		throw("cgocall nil")
+ 	}
+ 
+ 	if raceenabled {
+@@ -161,7 +161,7 @@ func cmalloc(n uintptr) unsafe.Pointer {
+ 	args.n = uint64(n)
+ 	cgocall(_cgo_malloc, unsafe.Pointer(&args))
+ 	if args.ret == nil {
+-		gothrow("C malloc failed")
++		throw("C malloc failed")
+ 	}
+ 	return args.ret
+ }
+@@ -218,7 +218,7 @@ func cgocallbackg1() {
+ 	sp := gp.m.g0.sched.sp
+ 	switch GOARCH {
+ 	default:
+-		gothrow("cgocallbackg is unimplemented on arch")
++		throw("cgocallbackg is unimplemented on arch")
+ 	case "arm":
+ 		// On arm, stack frame is two words and there's a saved LR between
+ 		// SP and the stack frame and between the stack frame and the arguments.
+@@ -253,7 +253,7 @@ func unwindm(restore *bool) {
+ 	sched := &mp.g0.sched
+ 	switch GOARCH {
+ 	default:
+-		gothrow("unwindm not implemented")
++		throw("unwindm not implemented")
+ 	case "386", "amd64":
+ 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp))
+ 	case "arm":
+@@ -264,12 +264,12 @@ func unwindm(restore *bool) {
+ 
+ // called from assembly
+ func badcgocallback() {
+-	gothrow("misaligned stack in cgocallback")
++	throw("misaligned stack in cgocallback")
+ }
+ 
+ // called from (incomplete) assembly
+ func cgounimpl() {
+-	gothrow("cgo not implemented")
++	throw("cgo not implemented")
+ }
+ 
+ var racecgosync uint64 // represents possible synchronization in C code
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 43c0703895..45aa4e74c9 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -26,10 +26,10 @@ func makechan(t *chantype, size int64) *hchan {
+ 
+ 	// compiler checks this but be safe.
+ 	if elem.size >= 1<<16 {
+-		gothrow("makechan: invalid channel element type")
++		throw("makechan: invalid channel element type")
+ 	}
+ 	if hchanSize%maxAlign != 0 || elem.align > maxAlign {
+-		gothrow("makechan: bad alignment")
++		throw("makechan: bad alignment")
+ 	}
+ 	if size < 0 || int64(uintptr(size)) != size || (elem.size > 0 && uintptr(size) > (_MaxMem-hchanSize)/uintptr(elem.size)) {
+ 		panic("makechan: size out of range")
+@@ -95,7 +95,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 			return false
+ 		}
+ 		gopark(nil, nil, "chan send (nil chan)")
+-		gothrow("unreachable")
++		throw("unreachable")
+ 	}
+ 
+ 	if debugChan {
+@@ -180,12 +180,12 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 
+ 		// someone woke us up.
+ 		if mysg != gp.waiting {
+-			gothrow("G waiting list is corrupted!")
++			throw("G waiting list is corrupted!")
+ 		}
+ 		gp.waiting = nil
+ 		if gp.param == nil {
+ 			if c.closed == 0 {
+-				gothrow("chansend: spurious wakeup")
++				throw("chansend: spurious wakeup")
+ 			}
+ 			panic("send on closed channel")
+ 		}
+@@ -339,7 +339,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 			return
+ 		}
+ 		gopark(nil, nil, "chan receive (nil chan)")
+-		gothrow("unreachable")
++		throw("unreachable")
+ 	}
+ 
+ 	// Fast path: check for failed non-blocking operation without acquiring the lock.
+@@ -416,7 +416,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 
+ 		// someone woke us up
+ 		if mysg != gp.waiting {
+-			gothrow("G waiting list is corrupted!")
++			throw("G waiting list is corrupted!")
+ 		}
+ 		gp.waiting = nil
+ 		if mysg.releasetime > 0 {
+@@ -435,7 +435,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 
+ 		lock(&c.lock)
+ 		if c.closed == 0 {
+-			gothrow("chanrecv: spurious wakeup")
++			throw("chanrecv: spurious wakeup")
+ 		}
+ 		return recvclosed(c, ep)
+ 	}
+diff --git a/src/runtime/env_posix.go b/src/runtime/env_posix.go
+index 1e013296f9..b6567d39f4 100644
+--- a/src/runtime/env_posix.go
++++ b/src/runtime/env_posix.go
+@@ -20,7 +20,7 @@ func getenv(s *byte) *byte {
+ func gogetenv(key string) string {
+ 	env := environ()
+ 	if env == nil {
+-		gothrow("getenv before env init")
++		throw("getenv before env init")
+ 	}
+ 	for _, s := range environ() {
+ 		if len(s) > len(key) && s[len(key)] == '=' && s[:len(key)] == key {
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 077a4dfc98..f0759b58a9 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -158,7 +158,7 @@ func (b *bmap) setoverflow(t *maptype, ovf *bmap) {
+ 
+ func makemap(t *maptype, hint int64) *hmap {
+ 	if sz := unsafe.Sizeof(hmap{}); sz > 48 || sz != uintptr(t.hmap.size) {
+-		gothrow("bad hmap size")
++		throw("bad hmap size")
+ 	}
+ 
+ 	if hint < 0 || int64(int32(hint)) != hint {
+@@ -167,41 +167,41 @@ func makemap(t *maptype, hint int64) *hmap {
+ 	}
+ 
+ 	if !ismapkey(t.key) {
+-		gothrow("runtime.makemap: unsupported map key type")
++		throw("runtime.makemap: unsupported map key type")
+ 	}
+ 
+ 	// check compiler's and reflect's math
+ 	if t.key.size > maxKeySize && (!t.indirectkey || t.keysize != uint8(ptrSize)) ||
+ 		t.key.size <= maxKeySize && (t.indirectkey || t.keysize != uint8(t.key.size)) {
+-		gothrow("key size wrong")
++		throw("key size wrong")
+ 	}
+ 	if t.elem.size > maxValueSize && (!t.indirectvalue || t.valuesize != uint8(ptrSize)) ||
+ 		t.elem.size <= maxValueSize && (t.indirectvalue || t.valuesize != uint8(t.elem.size)) {
+-		gothrow("value size wrong")
++		throw("value size wrong")
+ 	}
+ 
+ 	// invariants we depend on.  We should probably check these at compile time
+ 	// somewhere, but for now we'll do it here.
+ 	if t.key.align > bucketCnt {
+-		gothrow("key align too big")
++		throw("key align too big")
+ 	}
+ 	if t.elem.align > bucketCnt {
+-		gothrow("value align too big")
++		throw("value align too big")
+ 	}
+ 	if uintptr(t.key.size)%uintptr(t.key.align) != 0 {
+-		gothrow("key size not a multiple of key align")
++		throw("key size not a multiple of key align")
+ 	}
+ 	if uintptr(t.elem.size)%uintptr(t.elem.align) != 0 {
+-		gothrow("value size not a multiple of value align")
++		throw("value size not a multiple of value align")
+ 	}
+ 	if bucketCnt < 8 {
+-		gothrow("bucketsize too small for proper alignment")
++		throw("bucketsize too small for proper alignment")
+ 	}
+ 	if dataOffset%uintptr(t.key.align) != 0 {
+-		gothrow("need padding in bucket (key)")
++		throw("need padding in bucket (key)")
+ 	}
+ 	if dataOffset%uintptr(t.elem.align) != 0 {
+-		gothrow("need padding in bucket (value)")
++		throw("need padding in bucket (value)")
+ 	}
+ 
+ 	// find size parameter which will hold the requested # of elements
+@@ -561,7 +561,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 	}
+ 
+ 	if unsafe.Sizeof(hiter{})/ptrSize != 10 {
+-		gothrow("hash_iter size incorrect") // see ../../cmd/gc/reflect.c
++		throw("hash_iter size incorrect") // see ../../cmd/gc/reflect.c
+ 	}
+ 	it.t = t
+ 	it.h = h
+@@ -735,7 +735,7 @@ next:
+ 
+ func hashGrow(t *maptype, h *hmap) {
+ 	if h.oldbuckets != nil {
+-		gothrow("evacuation not done in time")
++		throw("evacuation not done in time")
+ 	}
+ 	oldbuckets := h.buckets
+ 	if checkgc {
+@@ -796,7 +796,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 					continue
+ 				}
+ 				if top < minTopHash {
+-					gothrow("bad map state")
++					throw("bad map state")
+ 				}
+ 				k2 := k
+ 				if t.indirectkey {
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 3983670456..5b219bb484 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -222,7 +222,7 @@ func dumpbv(cbv *bitvector, offset uintptr) {
+ 	for i := uintptr(0); i < uintptr(bv.n); i += bitsPerPointer {
+ 		switch bv.bytedata[i/8] >> (i % 8) & 3 {
+ 		default:
+-			gothrow("unexpected pointer bits")
++			throw("unexpected pointer bits")
+ 		case _BitsDead:
+ 			// BitsDead has already been processed in makeheapobjbv.
+ 			// We should only see it in stack maps, in which case we should continue processing.
+@@ -392,7 +392,7 @@ func dumpgs() {
+ 		switch status {
+ 		default:
+ 			print("runtime: unexpected G.status ", hex(status), "\n")
+-			gothrow("dumpgs in STW - bad status")
++			throw("dumpgs in STW - bad status")
+ 		case _Gdead:
+ 			// ok
+ 		case _Grunnable,
+@@ -462,7 +462,7 @@ func dumpobjs() {
+ 		size := s.elemsize
+ 		n := (s.npages << _PageShift) / size
+ 		if n > uintptr(len(freemark)) {
+-			gothrow("freemark array doesn't have enough entries")
++			throw("freemark array doesn't have enough entries")
+ 		}
+ 		for l := s.freelist; l.ptr() != nil; l = l.ptr().next {
+ 			freemark[(uintptr(l)-p)/size] = true
+@@ -708,7 +708,7 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
+ 		n := nptr*_BitsPerPointer/8 + 1
+ 		p := sysAlloc(n, &memstats.other_sys)
+ 		if p == nil {
+-			gothrow("heapdump: out of memory")
++			throw("heapdump: out of memory")
+ 		}
+ 		tmpbuf = (*[1 << 30]byte)(p)[:n]
+ 	}
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 6be1df74a3..f62e51a8a9 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -26,7 +26,7 @@ type fInterface interface {
+ 
+ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 	if len(inter.mhdr) == 0 {
+-		gothrow("internal error - misuse of itab")
++		throw("internal error - misuse of itab")
+ 	}
+ 
+ 	// easy case
+@@ -114,7 +114,7 @@ search:
+ 	nextimethod:
+ 	}
+ 	if locked == 0 {
+-		gothrow("invalid itab locking")
++		throw("invalid itab locking")
+ 	}
+ 	m.link = hash[h]
+ 	atomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
+diff --git a/src/runtime/lfstack.go b/src/runtime/lfstack.go
+index fd3325972a..5838c1d14d 100644
+--- a/src/runtime/lfstack.go
++++ b/src/runtime/lfstack.go
+@@ -14,7 +14,7 @@ func lfstackpush(head *uint64, node *lfnode) {
+ 	new := lfstackPack(node, node.pushcnt)
+ 	if node1, _ := lfstackUnpack(new); node1 != node {
+ 		println("runtime: lfstackpush invalid packing: node=", node, " cnt=", hex(node.pushcnt), " packed=", hex(new), " -> node=", node1, "\n")
+-		gothrow("lfstackpush")
++		throw("lfstackpush")
+ 	}
+ 	for {
+ 		old := atomicload64(head)
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index 11c3a3f06e..6e1f1e9da4 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -43,7 +43,7 @@ func lock(l *mutex) {
+ 	gp := getg()
+ 
+ 	if gp.m.locks < 0 {
+-		gothrow("runtime·lock: lock count")
++		throw("runtime·lock: lock count")
+ 	}
+ 	gp.m.locks++
+ 
+@@ -102,7 +102,7 @@ func lock(l *mutex) {
+ func unlock(l *mutex) {
+ 	v := xchg(key32(&l.key), mutex_unlocked)
+ 	if v == mutex_unlocked {
+-		gothrow("unlock of unlocked lock")
++		throw("unlock of unlocked lock")
+ 	}
+ 	if v == mutex_sleeping {
+ 		futexwakeup(key32(&l.key), 1)
+@@ -111,7 +111,7 @@ func unlock(l *mutex) {
+ 	gp := getg()
+ 	gp.m.locks--
+ 	if gp.m.locks < 0 {
+-		gothrow("runtime·unlock: lock count")
++		throw("runtime·unlock: lock count")
+ 	}
+ 	if gp.m.locks == 0 && gp.preempt { // restore the preemption request in case we've cleared it in newstack
+ 		gp.stackguard0 = stackPreempt
+@@ -127,7 +127,7 @@ func notewakeup(n *note) {
+ 	old := xchg(key32(&n.key), 1)
+ 	if old != 0 {
+ 		print("notewakeup - double wakeup (", old, ")\n")
+-		gothrow("notewakeup - double wakeup")
++		throw("notewakeup - double wakeup")
+ 	}
+ 	futexwakeup(key32(&n.key), 1)
+ }
+@@ -135,7 +135,7 @@ func notewakeup(n *note) {
+ func notesleep(n *note) {
+ 	gp := getg()
+ 	if gp != gp.m.g0 {
+-		gothrow("notesleep not on g0")
++		throw("notesleep not on g0")
+ 	}
+ 	for atomicload(key32(&n.key)) == 0 {
+ 		gp.m.blocked = true
+@@ -181,7 +181,7 @@ func notetsleep_internal(n *note, ns int64) bool {
+ func notetsleep(n *note, ns int64) bool {
+ 	gp := getg()
+ 	if gp != gp.m.g0 && gp.m.gcing == 0 {
+-		gothrow("notetsleep not on g0")
++		throw("notetsleep not on g0")
+ 	}
+ 
+ 	return notetsleep_internal(n, ns)
+@@ -192,7 +192,7 @@ func notetsleep(n *note, ns int64) bool {
+ func notetsleepg(n *note, ns int64) bool {
+ 	gp := getg()
+ 	if gp == gp.m.g0 {
+-		gothrow("notetsleepg on g0")
++		throw("notetsleepg on g0")
+ 	}
+ 
+ 	entersyscallblock(0)
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index a2a87bac4d..c995e08441 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -34,7 +34,7 @@ const (
+ func lock(l *mutex) {
+ 	gp := getg()
+ 	if gp.m.locks < 0 {
+-		gothrow("runtime·lock: lock count")
++		throw("runtime·lock: lock count")
+ 	}
+ 	gp.m.locks++
+ 
+@@ -112,7 +112,7 @@ func unlock(l *mutex) {
+ 	}
+ 	gp.m.locks--
+ 	if gp.m.locks < 0 {
+-		gothrow("runtime·unlock: lock count")
++		throw("runtime·unlock: lock count")
+ 	}
+ 	if gp.m.locks == 0 && gp.preempt { // restore the preemption request in case we've cleared it in newstack
+ 		gp.stackguard0 = stackPreempt
+@@ -140,7 +140,7 @@ func notewakeup(n *note) {
+ 		// Nothing was waiting. Done.
+ 	case v == locked:
+ 		// Two notewakeups!  Not allowed.
+-		gothrow("notewakeup - double wakeup")
++		throw("notewakeup - double wakeup")
+ 	default:
+ 		// Must be the waiting m.  Wake it up.
+ 		semawakeup((*m)(unsafe.Pointer(v)))
+@@ -150,7 +150,7 @@ func notewakeup(n *note) {
+ func notesleep(n *note) {
+ 	gp := getg()
+ 	if gp != gp.m.g0 {
+-		gothrow("notesleep not on g0")
++		throw("notesleep not on g0")
+ 	}
+ 	if gp.m.waitsema == 0 {
+ 		gp.m.waitsema = semacreate()
+@@ -158,7 +158,7 @@ func notesleep(n *note) {
+ 	if !casuintptr(&n.key, 0, uintptr(unsafe.Pointer(gp.m))) {
+ 		// Must be locked (got wakeup).
+ 		if n.key != locked {
+-			gothrow("notesleep - waitm out of sync")
++			throw("notesleep - waitm out of sync")
+ 		}
+ 		return
+ 	}
+@@ -180,7 +180,7 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
+ 	if !casuintptr(&n.key, 0, uintptr(unsafe.Pointer(gp.m))) {
+ 		// Must be locked (got wakeup).
+ 		if n.key != locked {
+-			gothrow("notetsleep - waitm out of sync")
++			throw("notetsleep - waitm out of sync")
+ 		}
+ 		return true
+ 	}
+@@ -228,12 +228,12 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
+ 			// Grab it to avoid getting out of sync.
+ 			gp.m.blocked = true
+ 			if semasleep(-1) < 0 {
+-				gothrow("runtime: unable to acquire - semaphore out of sync")
++				throw("runtime: unable to acquire - semaphore out of sync")
+ 			}
+ 			gp.m.blocked = false
+ 			return true
+ 		default:
+-			gothrow("runtime: unexpected waitm - semaphore out of sync")
++			throw("runtime: unexpected waitm - semaphore out of sync")
+ 		}
+ 	}
+ }
+@@ -241,7 +241,7 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
+ func notetsleep(n *note, ns int64) bool {
+ 	gp := getg()
+ 	if gp != gp.m.g0 && gp.m.gcing == 0 {
+-		gothrow("notetsleep not on g0")
++		throw("notetsleep not on g0")
+ 	}
+ 	if gp.m.waitsema == 0 {
+ 		gp.m.waitsema = semacreate()
+@@ -254,7 +254,7 @@ func notetsleep(n *note, ns int64) bool {
+ func notetsleepg(n *note, ns int64) bool {
+ 	gp := getg()
+ 	if gp == gp.m.g0 {
+-		gothrow("notetsleepg on g0")
++		throw("notetsleepg on g0")
+ 	}
+ 	if gp.m.waitsema == 0 {
+ 		gp.m.waitsema = semacreate()
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index d7fca7f906..9774cbf26f 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -49,7 +49,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 	size0 := size
+ 
+ 	if flags&flagNoScan == 0 && typ == nil {
+-		gothrow("malloc missing type")
++		throw("malloc missing type")
+ 	}
+ 
+ 	// This function must be atomic wrt GC, but for performance reasons
+@@ -60,7 +60,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 	if debugMalloc {
+ 		mp := acquirem()
+ 		if mp.mallocing != 0 {
+-			gothrow("malloc deadlock")
++			throw("malloc deadlock")
+ 		}
+ 		mp.mallocing = 1
+ 		if mp.curg != nil {
+@@ -123,7 +123,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 					if debugMalloc {
+ 						mp := acquirem()
+ 						if mp.mallocing == 0 {
+-							gothrow("bad malloc")
++							throw("bad malloc")
+ 						}
+ 						mp.mallocing = 0
+ 						if mp.curg != nil {
+@@ -222,7 +222,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 		shift := (off % wordsPerBitmapByte) * gcBits
+ 		if debugMalloc && ((*xbits>>shift)&(bitMask|bitPtrMask)) != bitBoundary {
+ 			println("runtime: bits =", (*xbits>>shift)&(bitMask|bitPtrMask))
+-			gothrow("bad bits in markallocated")
++			throw("bad bits in markallocated")
+ 		}
+ 
+ 		var ti, te uintptr
+@@ -242,7 +242,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 			masksize++                                // unroll flag in the beginning
+ 			if masksize > maxGCMask && typ.gc[1] != 0 {
+ 				// write barriers have not been updated to deal with this case yet.
+-				gothrow("maxGCMask too small for now")
++				throw("maxGCMask too small for now")
+ 				// If the mask is too large, unroll the program directly
+ 				// into the GC bitmap. It's 7 times slower than copying
+ 				// from the pre-unrolled mask, but saves 1/16 of type size
+@@ -315,7 +315,7 @@ marked:
+ 	if debugMalloc {
+ 		mp := acquirem()
+ 		if mp.mallocing == 0 {
+-			gothrow("bad malloc")
++			throw("bad malloc")
+ 		}
+ 		mp.mallocing = 0
+ 		if mp.curg != nil {
+@@ -360,7 +360,7 @@ func loadPtrMask(typ *_type) []uint8 {
+ 		masksize++                                // unroll flag in the beginning
+ 		if masksize > maxGCMask && typ.gc[1] != 0 {
+ 			// write barriers have not been updated to deal with this case yet.
+-			gothrow("maxGCMask too small for now")
++			throw("maxGCMask too small for now")
+ 		}
+ 		ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
+ 		// Check whether the program is already unrolled
+@@ -519,7 +519,7 @@ func gogc(force int32) {
+ 	}
+ 
+ 	if mp != acquirem() {
+-		gothrow("gogc: rescheduled")
++		throw("gogc: rescheduled")
+ 	}
+ 
+ 	clearpools()
+@@ -738,14 +738,14 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 	e := (*eface)(unsafe.Pointer(&obj))
+ 	etyp := e._type
+ 	if etyp == nil {
+-		gothrow("runtime.SetFinalizer: first argument is nil")
++		throw("runtime.SetFinalizer: first argument is nil")
+ 	}
+ 	if etyp.kind&kindMask != kindPtr {
+-		gothrow("runtime.SetFinalizer: first argument is " + *etyp._string + ", not pointer")
++		throw("runtime.SetFinalizer: first argument is " + *etyp._string + ", not pointer")
+ 	}
+ 	ot := (*ptrtype)(unsafe.Pointer(etyp))
+ 	if ot.elem == nil {
+-		gothrow("nil elem type!")
++		throw("nil elem type!")
+ 	}
+ 
+ 	// find the containing object
+@@ -771,14 +771,14 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 			uintptr(unsafe.Pointer(&noptrbss)) <= uintptr(e.data) && uintptr(e.data) < uintptr(unsafe.Pointer(&enoptrbss)) {
+ 			return
+ 		}
+-		gothrow("runtime.SetFinalizer: pointer not in allocated block")
++		throw("runtime.SetFinalizer: pointer not in allocated block")
+ 	}
+ 
+ 	if e.data != base {
+ 		// As an implementation detail we allow to set finalizers for an inner byte
+ 		// of an object if it could come from tiny alloc (see mallocgc for details).
+ 		if ot.elem == nil || ot.elem.kind&kindNoPointers == 0 || ot.elem.size >= maxTinySize {
+-			gothrow("runtime.SetFinalizer: pointer not at beginning of allocated block")
++			throw("runtime.SetFinalizer: pointer not at beginning of allocated block")
+ 		}
+ 	}
+ 
+@@ -793,12 +793,12 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 	}
+ 
+ 	if ftyp.kind&kindMask != kindFunc {
+-		gothrow("runtime.SetFinalizer: second argument is " + *ftyp._string + ", not a function")
++		throw("runtime.SetFinalizer: second argument is " + *ftyp._string + ", not a function")
+ 	}
+ 	ft := (*functype)(unsafe.Pointer(ftyp))
+ 	ins := *(*[]*_type)(unsafe.Pointer(&ft.in))
+ 	if ft.dotdotdot || len(ins) != 1 {
+-		gothrow("runtime.SetFinalizer: cannot pass " + *etyp._string + " to finalizer " + *ftyp._string)
++		throw("runtime.SetFinalizer: cannot pass " + *etyp._string + " to finalizer " + *ftyp._string)
+ 	}
+ 	fint := ins[0]
+ 	switch {
+@@ -821,7 +821,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 			goto okarg
+ 		}
+ 	}
+-	gothrow("runtime.SetFinalizer: cannot pass " + *etyp._string + " to finalizer " + *ftyp._string)
++	throw("runtime.SetFinalizer: cannot pass " + *etyp._string + " to finalizer " + *ftyp._string)
+ okarg:
+ 	// compute size needed for return parameters
+ 	nret := uintptr(0)
+@@ -835,7 +835,7 @@ okarg:
+ 
+ 	systemstack(func() {
+ 		if !addfinalizer(e.data, (*funcval)(f.data), nret, fint, ot) {
+-			gothrow("runtime.SetFinalizer: finalizer already set")
++			throw("runtime.SetFinalizer: finalizer already set")
+ 		}
+ 	})
+ }
+@@ -933,7 +933,7 @@ func runfinq() {
+ 				}
+ 
+ 				if f.fint == nil {
+-					gothrow("missing type in runfinq")
++					throw("missing type in runfinq")
+ 				}
+ 				switch f.fint.kind & kindMask {
+ 				case kindPtr:
+@@ -950,7 +950,7 @@ func runfinq() {
+ 						*(*fInterface)(frame) = assertE2I(ityp, *(*interface{})(frame))
+ 					}
+ 				default:
+-					gothrow("bad kind in runfinq")
++					throw("bad kind in runfinq")
+ 				}
+ 				reflectcall(unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz))
+ 
+@@ -988,10 +988,10 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
+ 
+ 	if align != 0 {
+ 		if align&(align-1) != 0 {
+-			gothrow("persistentalloc: align is not a power of 2")
++			throw("persistentalloc: align is not a power of 2")
+ 		}
+ 		if align > _PageSize {
+-			gothrow("persistentalloc: align is too large")
++			throw("persistentalloc: align is too large")
+ 		}
+ 	} else {
+ 		align = 8
+@@ -1007,7 +1007,7 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
+ 		persistent.pos = sysAlloc(chunk, &memstats.other_sys)
+ 		if persistent.pos == nil {
+ 			unlock(&persistent.lock)
+-			gothrow("runtime: cannot allocate memory")
++			throw("runtime: cannot allocate memory")
+ 		}
+ 		persistent.end = add(persistent.pos, chunk)
+ 	}
+diff --git a/src/runtime/malloc1.go b/src/runtime/malloc1.go
+index 3866f77873..50e272c1c1 100644
+--- a/src/runtime/malloc1.go
++++ b/src/runtime/malloc1.go
+@@ -89,7 +89,7 @@ func mallocinit() {
+ 	initSizes()
+ 
+ 	if class_to_size[_TinySizeClass] != _TinySize {
+-		gothrow("bad TinySizeClass")
++		throw("bad TinySizeClass")
+ 	}
+ 
+ 	var p, bitmapSize, spansSize, pSize, limit uintptr
+@@ -196,7 +196,7 @@ func mallocinit() {
+ 			}
+ 		}
+ 		if p == 0 {
+-			gothrow("runtime: cannot reserve arena virtual address space")
++			throw("runtime: cannot reserve arena virtual address space")
+ 		}
+ 	}
+ 
+@@ -214,7 +214,7 @@ func mallocinit() {
+ 
+ 	if mheap_.arena_start&(_PageSize-1) != 0 {
+ 		println("bad pagesize", hex(p), hex(p1), hex(spansSize), hex(bitmapSize), hex(_PageSize), "start", hex(mheap_.arena_start))
+-		gothrow("misrounded allocation in mallocinit")
++		throw("misrounded allocation in mallocinit")
+ 	}
+ 
+ 	// Initialize the rest of the allocator.
+@@ -262,7 +262,7 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
+ 		}
+ 
+ 		if uintptr(p)&(_PageSize-1) != 0 {
+-			gothrow("misrounded allocation in MHeap_SysAlloc")
++			throw("misrounded allocation in MHeap_SysAlloc")
+ 		}
+ 		return (unsafe.Pointer)(p)
+ 	}
+@@ -302,7 +302,7 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
+ 	}
+ 
+ 	if uintptr(p)&(_PageSize-1) != 0 {
+-		gothrow("misrounded allocation in MHeap_SysAlloc")
++		throw("misrounded allocation in MHeap_SysAlloc")
+ 	}
+ 	return (unsafe.Pointer)(p)
+ }
+@@ -313,7 +313,7 @@ func largeAlloc(size uintptr, flag uint32) *mspan {
+ 	// print("largeAlloc size=", size, "\n")
+ 
+ 	if size+_PageSize < size {
+-		gothrow("out of memory")
++		throw("out of memory")
+ 	}
+ 	npages := size >> _PageShift
+ 	if size&_PageMask != 0 {
+@@ -321,7 +321,7 @@ func largeAlloc(size uintptr, flag uint32) *mspan {
+ 	}
+ 	s := mHeap_Alloc(&mheap_, npages, 0, true, flag&_FlagNoZero == 0)
+ 	if s == nil {
+-		gothrow("out of memory")
++		throw("out of memory")
+ 	}
+ 	s.limit = uintptr(s.start)<<_PageShift + size
+ 	v := unsafe.Pointer(uintptr(s.start) << _PageShift)
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index f8389c5cb0..d93a50dea3 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -60,7 +60,7 @@ func mCache_Refill(c *mcache, sizeclass int32) *mspan {
+ 	// Return the current cached span to the central lists.
+ 	s := c.alloc[sizeclass]
+ 	if s.freelist.ptr() != nil {
+-		gothrow("refill on a nonempty span")
++		throw("refill on a nonempty span")
+ 	}
+ 	if s != &emptymspan {
+ 		s.incache = false
+@@ -69,11 +69,11 @@ func mCache_Refill(c *mcache, sizeclass int32) *mspan {
+ 	// Get a new cached span from the central lists.
+ 	s = mCentral_CacheSpan(&mheap_.central[sizeclass].mcentral)
+ 	if s == nil {
+-		gothrow("out of memory")
++		throw("out of memory")
+ 	}
+ 	if s.freelist.ptr() == nil {
+ 		println(s.ref, (s.npages<<_PageShift)/s.elemsize)
+-		gothrow("empty span")
++		throw("empty span")
+ 	}
+ 	c.alloc[sizeclass] = s
+ 	_g_.m.locks--
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index ae5c6f1d54..0580da4573 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -88,10 +88,10 @@ havespan:
+ 	cap := int32((s.npages << _PageShift) / s.elemsize)
+ 	n := cap - int32(s.ref)
+ 	if n == 0 {
+-		gothrow("empty span")
++		throw("empty span")
+ 	}
+ 	if s.freelist.ptr() == nil {
+-		gothrow("freelist empty")
++		throw("freelist empty")
+ 	}
+ 	s.incache = true
+ 	return s
+@@ -104,7 +104,7 @@ func mCentral_UncacheSpan(c *mcentral, s *mspan) {
+ 	s.incache = false
+ 
+ 	if s.ref == 0 {
+-		gothrow("uncaching full span")
++		throw("uncaching full span")
+ 	}
+ 
+ 	cap := int32((s.npages << _PageShift) / s.elemsize)
+@@ -124,7 +124,7 @@ func mCentral_UncacheSpan(c *mcentral, s *mspan) {
+ // caller takes care of it.
+ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gclinkptr, preserve bool) bool {
+ 	if s.incache {
+-		gothrow("freespan into cached span")
++		throw("freespan into cached span")
+ 	}
+ 
+ 	// Add the objects back to s's free list.
+@@ -137,7 +137,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
+ 		// preserve is set only when called from MCentral_CacheSpan above,
+ 		// the span must be in the empty list.
+ 		if s.next == nil {
+-			gothrow("can't preserve unlinked span")
++			throw("can't preserve unlinked span")
+ 		}
+ 		atomicstore(&s.sweepgen, mheap_.sweepgen)
+ 		return false
+@@ -194,7 +194,7 @@ func mCentral_Grow(c *mcentral) *mspan {
+ 		tail = gclinkptr(p)
+ 	}
+ 	if s.freelist.ptr() != nil {
+-		gothrow("freelist not empty")
++		throw("freelist not empty")
+ 	}
+ 	tail.ptr().next = 0
+ 	s.freelist = head
+diff --git a/src/runtime/mem.go b/src/runtime/mem.go
+index 03d80067fb..e74ad7163d 100644
+--- a/src/runtime/mem.go
++++ b/src/runtime/mem.go
+@@ -69,7 +69,7 @@ func init() {
+ 	var memStats MemStats
+ 	if sizeof_C_MStats != unsafe.Sizeof(memStats) {
+ 		println(sizeof_C_MStats, unsafe.Sizeof(memStats))
+-		gothrow("MStats vs MemStatsType size mismatch")
++		throw("MStats vs MemStatsType size mismatch")
+ 	}
+ }
+ 
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index e9be5ec8c9..c868977f86 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -69,20 +69,20 @@ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
+ 		}
+ 		p := mmap(v, n, _PROT_READ|_PROT_WRITE, flags, -1, 0)
+ 		if uintptr(p) == _ENOMEM {
+-			gothrow("runtime: out of memory")
++			throw("runtime: out of memory")
+ 		}
+ 		if p != v {
+ 			print("runtime: address space conflict: map(", v, ") = ", p, "\n")
+-			gothrow("runtime: address space conflict")
++			throw("runtime: address space conflict")
+ 		}
+ 		return
+ 	}
+ 
+ 	p := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+ 	if uintptr(p) == _ENOMEM {
+-		gothrow("runtime: out of memory")
++		throw("runtime: out of memory")
+ 	}
+ 	if p != v {
+-		gothrow("runtime: cannot map pages in arena address space")
++		throw("runtime: cannot map pages in arena address space")
+ 	}
+ }
+diff --git a/src/runtime/mem_darwin.go b/src/runtime/mem_darwin.go
+index 1bee933d07..e3b8845549 100644
+--- a/src/runtime/mem_darwin.go
++++ b/src/runtime/mem_darwin.go
+@@ -50,9 +50,9 @@ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
+ 	xadd64(stat, int64(n))
+ 	p := (unsafe.Pointer)(mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0))
+ 	if uintptr(p) == _ENOMEM {
+-		gothrow("runtime: out of memory")
++		throw("runtime: out of memory")
+ 	}
+ 	if p != v {
+-		gothrow("runtime: cannot map pages in arena address space")
++		throw("runtime: cannot map pages in arena address space")
+ 	}
+ }
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 0cb4b78f6b..aa99b762bf 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -116,20 +116,20 @@ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
+ 	if !reserved {
+ 		p := mmap_fixed(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 		if uintptr(p) == _ENOMEM {
+-			gothrow("runtime: out of memory")
++			throw("runtime: out of memory")
+ 		}
+ 		if p != v {
+ 			print("runtime: address space conflict: map(", v, ") = ", p, "\n")
+-			gothrow("runtime: address space conflict")
++			throw("runtime: address space conflict")
+ 		}
+ 		return
+ 	}
+ 
+ 	p := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+ 	if uintptr(p) == _ENOMEM {
+-		gothrow("runtime: out of memory")
++		throw("runtime: out of memory")
+ 	}
+ 	if p != v {
+-		gothrow("runtime: cannot map pages in arena address space")
++		throw("runtime: cannot map pages in arena address space")
+ 	}
+ }
+diff --git a/src/runtime/mem_windows.go b/src/runtime/mem_windows.go
+index a1dcad0136..d72d49b975 100644
+--- a/src/runtime/mem_windows.go
++++ b/src/runtime/mem_windows.go
+@@ -56,7 +56,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ 			small &^= 4096 - 1
+ 		}
+ 		if small < 4096 {
+-			gothrow("runtime: failed to decommit pages")
++			throw("runtime: failed to decommit pages")
+ 		}
+ 		v = add(v, small)
+ 		n -= small
+@@ -66,7 +66,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ func sysUsed(v unsafe.Pointer, n uintptr) {
+ 	r := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
+ 	if r != uintptr(v) {
+-		gothrow("runtime: failed to commit pages")
++		throw("runtime: failed to commit pages")
+ 	}
+ 
+ 	// Commit failed. See SysUnused.
+@@ -77,7 +77,7 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
+ 			small &^= 4096 - 1
+ 		}
+ 		if small < 4096 {
+-			gothrow("runtime: failed to decommit pages")
++			throw("runtime: failed to decommit pages")
+ 		}
+ 		v = add(v, small)
+ 		n -= small
+@@ -88,7 +88,7 @@ func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
+ 	xadd64(stat, -int64(n))
+ 	r := stdcall3(_VirtualFree, uintptr(v), 0, _MEM_RELEASE)
+ 	if r == 0 {
+-		gothrow("runtime: failed to release pages")
++		throw("runtime: failed to release pages")
+ 	}
+ }
+ 
+@@ -114,6 +114,6 @@ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
+ 	xadd64(stat, int64(n))
+ 	p := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
+ 	if p != uintptr(v) {
+-		gothrow("runtime: cannot map pages in arena address space")
++		throw("runtime: cannot map pages in arena address space")
+ 	}
+ }
+diff --git a/src/runtime/mfixalloc.go b/src/runtime/mfixalloc.go
+index b66a17e41c..3934a9e439 100644
+--- a/src/runtime/mfixalloc.go
++++ b/src/runtime/mfixalloc.go
+@@ -26,7 +26,7 @@ func fixAlloc_Init(f *fixalloc, size uintptr, first func(unsafe.Pointer, unsafe.
+ func fixAlloc_Alloc(f *fixalloc) unsafe.Pointer {
+ 	if f.size == 0 {
+ 		print("runtime: use of FixAlloc_Alloc before FixAlloc_Init\n")
+-		gothrow("runtime: internal error")
++		throw("runtime: internal error")
+ 	}
+ 
+ 	if f.list != nil {
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index b1099a9d35..252604296e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -307,7 +307,7 @@ func objectstart(b uintptr, mbits *markbits) uintptr {
+ 					print(" s.start=", hex(s.start<<_PageShift), " s.limit=", hex(s.limit), " s.state=", s.state, "\n")
+ 				}
+ 				printunlock()
+-				gothrow("objectstart: bad pointer in unexpected span")
++				throw("objectstart: bad pointer in unexpected span")
+ 			}
+ 			return 0
+ 		}
+@@ -320,7 +320,7 @@ func objectstart(b uintptr, mbits *markbits) uintptr {
+ 		}
+ 		if p == obj {
+ 			print("runtime: failed to find block beginning for ", hex(p), " s=", hex(s.start*_PageSize), " s.limit=", hex(s.limit), "\n")
+-			gothrow("failed to find block beginning")
++			throw("failed to find block beginning")
+ 		}
+ 		obj = p
+ 	}
+@@ -363,7 +363,7 @@ func docheckmark(mbits *markbits) {
+ //go:nowritebarrier
+ func ismarked(mbits *markbits) bool {
+ 	if mbits.bits&bitBoundary != bitBoundary {
+-		gothrow("ismarked: bits should have boundary bit set")
++		throw("ismarked: bits should have boundary bit set")
+ 	}
+ 	return mbits.bits&bitMarked == bitMarked
+ }
+@@ -372,7 +372,7 @@ func ismarked(mbits *markbits) bool {
+ //go:nowritebarrier
+ func ischeckmarked(mbits *markbits) bool {
+ 	if mbits.bits&bitBoundary != bitBoundary {
+-		gothrow("ischeckmarked: bits should have boundary bit set")
++		throw("ischeckmarked: bits should have boundary bit set")
+ 	}
+ 	return mbits.tbits == _BitsScalarMarked || mbits.tbits == _BitsPointerMarked
+ }
+@@ -381,10 +381,10 @@ func ischeckmarked(mbits *markbits) bool {
+ //go:nowritebarrier
+ func gcmarknewobject_m(obj uintptr) {
+ 	if gcphase != _GCmarktermination {
+-		gothrow("marking new object while not in mark termination phase")
++		throw("marking new object while not in mark termination phase")
+ 	}
+ 	if checkmark { // The world should be stopped so this should not happen.
+-		gothrow("gcmarknewobject called while doing checkmark")
++		throw("gcmarknewobject called while doing checkmark")
+ 	}
+ 
+ 	var mbits markbits
+@@ -412,7 +412,7 @@ func gcmarknewobject_m(obj uintptr) {
+ func greyobject(obj uintptr, mbits *markbits, wbuf *workbuf) *workbuf {
+ 	// obj should be start of allocation, and so must be at least pointer-aligned.
+ 	if obj&(ptrSize-1) != 0 {
+-		gothrow("greyobject: obj not pointer-aligned")
++		throw("greyobject: obj not pointer-aligned")
+ 	}
+ 
+ 	if checkmark {
+@@ -435,7 +435,7 @@ func greyobject(obj uintptr, mbits *markbits, wbuf *workbuf) *workbuf {
+ 					print(" *(obj+", i*ptrSize, ") = ", hex(*(*uintptr)(unsafe.Pointer(obj + uintptr(i)*ptrSize))), "\n")
+ 				}
+ 			}
+-			gothrow("checkmark found unmarked object")
++			throw("checkmark found unmarked object")
+ 		}
+ 		if ischeckmarked(mbits) {
+ 			return wbuf
+@@ -443,7 +443,7 @@ func greyobject(obj uintptr, mbits *markbits, wbuf *workbuf) *workbuf {
+ 		docheckmark(mbits)
+ 		if !ischeckmarked(mbits) {
+ 			print("mbits xbits=", hex(mbits.xbits), " bits=", hex(mbits.bits), " tbits=", hex(mbits.tbits), " shift=", mbits.shift, "\n")
+-			gothrow("docheckmark and ischeckmarked disagree")
++			throw("docheckmark and ischeckmarked disagree")
+ 		}
+ 	} else {
+ 		// If marked we have nothing to do.
+@@ -521,7 +521,7 @@ func scanobject(b, n uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
+ 			// Consult GC bitmap.
+ 			bits = uintptr(*(*byte)(ptrbitp))
+ 			if wordsPerBitmapByte != 2 {
+-				gothrow("alg doesn't work for wordsPerBitmapByte != 2")
++				throw("alg doesn't work for wordsPerBitmapByte != 2")
+ 			}
+ 			j := (uintptr(b) + i) / ptrSize & 1 // j indicates upper nibble or lower nibble
+ 			bits >>= gcBits * j
+@@ -546,7 +546,7 @@ func scanobject(b, n uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
+ 
+ 		if bits&_BitsPointer != _BitsPointer {
+ 			print("gc checkmark=", checkmark, " b=", hex(b), " ptrmask=", ptrmask, " mbits.bitp=", mbits.bitp, " mbits.xbits=", hex(mbits.xbits), " bits=", hex(bits), "\n")
+-			gothrow("unexpected garbage collection bits")
++			throw("unexpected garbage collection bits")
+ 		}
+ 
+ 		obj := *(*uintptr)(unsafe.Pointer(b + i))
+@@ -582,7 +582,7 @@ func scanblock(b, n uintptr, ptrmask *uint8) {
+ 		if gcphase == _GCscan {
+ 			if inheap(b) && ptrmask == nil {
+ 				// b is in heap, we are in GCscan so there should be a ptrmask.
+-				gothrow("scanblock: In GCscan phase and inheap is true.")
++				throw("scanblock: In GCscan phase and inheap is true.")
+ 			}
+ 			// GCscan only goes one level deep since mark wb not turned on.
+ 			putpartial(wbuf)
+@@ -590,7 +590,7 @@ func scanblock(b, n uintptr, ptrmask *uint8) {
+ 		}
+ 	}
+ 	if gcphase == _GCscan {
+-		gothrow("scanblock: In GCscan phase but no b passed in.")
++		throw("scanblock: In GCscan phase but no b passed in.")
+ 	}
+ 
+ 	keepworking := b == 0
+@@ -611,7 +611,7 @@ func scanblock(b, n uintptr, ptrmask *uint8) {
+ 			}
+ 
+ 			if wbuf.nobj <= 0 {
+-				gothrow("runtime:scanblock getfull returns empty buffer")
++				throw("runtime:scanblock getfull returns empty buffer")
+ 			}
+ 		}
+ 
+@@ -656,7 +656,7 @@ func markroot(desc *parfor, i uint32) {
+ 			if !checkmark && s.sweepgen != sg {
+ 				// sweepgen was updated (+2) during non-checkmark GC pass
+ 				print("sweep ", s.sweepgen, " ", sg, "\n")
+-				gothrow("gc: unswept span")
++				throw("gc: unswept span")
+ 			}
+ 			for sp := s.specials; sp != nil; sp = sp.next {
+ 				if sp.kind != _KindSpecialFinalizer {
+@@ -682,7 +682,7 @@ func markroot(desc *parfor, i uint32) {
+ 	default:
+ 		// the rest is scanning goroutine stacks
+ 		if uintptr(i-_RootCount) >= allglen {
+-			gothrow("markroot: bad index")
++			throw("markroot: bad index")
+ 		}
+ 		gp := allgs[i-_RootCount]
+ 
+@@ -743,7 +743,7 @@ func getempty(b *workbuf) *workbuf {
+ 	if b != nil && b.nobj != 0 {
+ 		_g_ := getg()
+ 		print("m", _g_.m.id, ": getempty: popped b=", b, " with non-zero b.nobj=", b.nobj, "\n")
+-		gothrow("getempty: workbuffer not empty, b->nobj not 0")
++		throw("getempty: workbuffer not empty, b->nobj not 0")
+ 	}
+ 	if b == nil {
+ 		b = (*workbuf)(persistentalloc(unsafe.Sizeof(*b), _CacheLineSize, &memstats.gc_sys))
+@@ -755,7 +755,7 @@ func getempty(b *workbuf) *workbuf {
+ //go:nowritebarrier
+ func putempty(b *workbuf) {
+ 	if b.nobj != 0 {
+-		gothrow("putempty: b->nobj not 0")
++		throw("putempty: b->nobj not 0")
+ 	}
+ 	lfstackpush(&work.empty, &b.node)
+ }
+@@ -763,7 +763,7 @@ func putempty(b *workbuf) {
+ //go:nowritebarrier
+ func putfull(b *workbuf) {
+ 	if b.nobj <= 0 {
+-		gothrow("putfull: b->nobj <= 0")
++		throw("putfull: b->nobj <= 0")
+ 	}
+ 	lfstackpush(&work.full, &b.node)
+ }
+@@ -789,7 +789,7 @@ func putpartial(b *workbuf) {
+ 		lfstackpush(&work.full, &b.node)
+ 	} else {
+ 		print("b=", b, " b.nobj=", b.nobj, " len(b.obj)=", len(b.obj), "\n")
+-		gothrow("putpartial: bad Workbuf b.nobj")
++		throw("putpartial: bad Workbuf b.nobj")
+ 	}
+ }
+ 
+@@ -869,7 +869,7 @@ func handoff(b *workbuf) *workbuf {
+ //go:nowritebarrier
+ func stackmapdata(stkmap *stackmap, n int32) bitvector {
+ 	if n < 0 || n >= stkmap.n {
+-		gothrow("stackmapdata: index out of range")
++		throw("stackmapdata: index out of range")
+ 	}
+ 	return bitvector{stkmap.nbit, (*byte)(add(unsafe.Pointer(&stkmap.bytedata), uintptr(n*((stkmap.nbit+31)/32*4))))}
+ }
+@@ -910,14 +910,14 @@ func scanframe(frame *stkframe, unused unsafe.Pointer) bool {
+ 		stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
+ 		if stkmap == nil || stkmap.n <= 0 {
+ 			print("runtime: frame ", gofuncname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
+-			gothrow("missing stackmap")
++			throw("missing stackmap")
+ 		}
+ 
+ 		// Locals bitmap information, scan just the pointers in locals.
+ 		if pcdata < 0 || pcdata >= stkmap.n {
+ 			// don't know where we are
+ 			print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " locals stack map entries for ", gofuncname(f), " (targetpc=", targetpc, ")\n")
+-			gothrow("scanframe: bad symbol table")
++			throw("scanframe: bad symbol table")
+ 		}
+ 		bv := stackmapdata(stkmap, pcdata)
+ 		size = (uintptr(bv.n) * ptrSize) / bitsPerPointer
+@@ -933,12 +933,12 @@ func scanframe(frame *stkframe, unused unsafe.Pointer) bool {
+ 			stkmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
+ 			if stkmap == nil || stkmap.n <= 0 {
+ 				print("runtime: frame ", gofuncname(f), " untyped args ", hex(frame.argp), "+", hex(frame.arglen), "\n")
+-				gothrow("missing stackmap")
++				throw("missing stackmap")
+ 			}
+ 			if pcdata < 0 || pcdata >= stkmap.n {
+ 				// don't know where we are
+ 				print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " args stack map entries for ", gofuncname(f), " (targetpc=", targetpc, ")\n")
+-				gothrow("scanframe: bad symbol table")
++				throw("scanframe: bad symbol table")
+ 			}
+ 			bv = stackmapdata(stkmap, pcdata)
+ 		}
+@@ -952,28 +952,28 @@ func scanstack(gp *g) {
+ 
+ 	if readgstatus(gp)&_Gscan == 0 {
+ 		print("runtime:scanstack: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", hex(readgstatus(gp)), "\n")
+-		gothrow("scanstack - bad status")
++		throw("scanstack - bad status")
+ 	}
+ 
+ 	switch readgstatus(gp) &^ _Gscan {
+ 	default:
+ 		print("runtime: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")
+-		gothrow("mark - bad status")
++		throw("mark - bad status")
+ 	case _Gdead:
+ 		return
+ 	case _Grunning:
+ 		print("runtime: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")
+-		gothrow("scanstack: goroutine not stopped")
++		throw("scanstack: goroutine not stopped")
+ 	case _Grunnable, _Gsyscall, _Gwaiting:
+ 		// ok
+ 	}
+ 
+ 	if gp == getg() {
+-		gothrow("can't scan our own stack")
++		throw("can't scan our own stack")
+ 	}
+ 	mp := gp.m
+ 	if mp != nil && mp.helpgc != 0 {
+-		gothrow("can't scan gchelper stack")
++		throw("can't scan gchelper stack")
+ 	}
+ 
+ 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
+@@ -1010,7 +1010,7 @@ func shaded(slot uintptr) bool {
+ //go:nowritebarrier
+ func shade(b uintptr) {
+ 	if !inheap(b) {
+-		gothrow("shade: passed an address not in the heap")
++		throw("shade: passed an address not in the heap")
+ 	}
+ 
+ 	wbuf := getpartialorempty()
+@@ -1062,7 +1062,7 @@ func shade(b uintptr) {
+ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
+ 	switch gcphase {
+ 	default:
+-		gothrow("gcphasework in bad gcphase")
++		throw("gcphasework in bad gcphase")
+ 
+ 	case _GCoff, _GCquiesce, _GCstw, _GCsweep, _GCscan:
+ 		// ok
+@@ -1080,7 +1080,7 @@ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
+ func gcphasework(gp *g) {
+ 	switch gcphase {
+ 	default:
+-		gothrow("gcphasework in bad gcphase")
++		throw("gcphasework in bad gcphase")
+ 	case _GCoff, _GCquiesce, _GCstw, _GCsweep:
+ 		// No work.
+ 	case _GCscan:
+@@ -1136,7 +1136,7 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
+ 					unsafe.Offsetof(finalizer{}.fint) != 3*ptrSize ||
+ 					unsafe.Offsetof(finalizer{}.ot) != 4*ptrSize ||
+ 					bitsPerPointer != 2) {
+-					gothrow("finalizer out of sync")
++					throw("finalizer out of sync")
+ 				}
+ 				for i := range finptrmask {
+ 					finptrmask[i] = finalizer1[i%len(finalizer1)]
+@@ -1177,7 +1177,7 @@ func mSpan_EnsureSwept(s *mspan) {
+ 	// (if GC is triggered on another goroutine).
+ 	_g_ := getg()
+ 	if _g_.m.locks == 0 && _g_.m.mallocing == 0 && _g_ != _g_.m.g0 {
+-		gothrow("MSpan_EnsureSwept: m is not locked")
++		throw("MSpan_EnsureSwept: m is not locked")
+ 	}
+ 
+ 	sg := mheap_.sweepgen
+@@ -1203,19 +1203,19 @@ func mSpan_EnsureSwept(s *mspan) {
+ //TODO go:nowritebarrier
+ func mSpan_Sweep(s *mspan, preserve bool) bool {
+ 	if checkmark {
+-		gothrow("MSpan_Sweep: checkmark only runs in STW and after the sweep")
++		throw("MSpan_Sweep: checkmark only runs in STW and after the sweep")
+ 	}
+ 
+ 	// It's critical that we enter this function with preemption disabled,
+ 	// GC must not start while we are in the middle of this function.
+ 	_g_ := getg()
+ 	if _g_.m.locks == 0 && _g_.m.mallocing == 0 && _g_ != _g_.m.g0 {
+-		gothrow("MSpan_Sweep: m is not locked")
++		throw("MSpan_Sweep: m is not locked")
+ 	}
+ 	sweepgen := mheap_.sweepgen
+ 	if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {
+ 		print("MSpan_Sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
+-		gothrow("MSpan_Sweep: bad span state")
++		throw("MSpan_Sweep: bad span state")
+ 	}
+ 	arena_start := mheap_.arena_start
+ 	cl := s.sizeclass
+@@ -1319,7 +1319,7 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
+ 		if cl == 0 {
+ 			// Free large span.
+ 			if preserve {
+-				gothrow("can't preserve large span")
++				throw("can't preserve large span")
+ 			}
+ 			unmarkspan(p, s.npages<<_PageShift)
+ 			s.needzero = 1
+@@ -1380,7 +1380,7 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
+ 		// check for potential races.
+ 		if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {
+ 			print("MSpan_Sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
+-			gothrow("MSpan_Sweep: bad span state after sweep")
++			throw("MSpan_Sweep: bad span state after sweep")
+ 		}
+ 		atomicstore(&s.sweepgen, sweepgen)
+ 	}
+@@ -1588,7 +1588,7 @@ func updatememstats(stats *gcstats) {
+ 
+ func gcinit() {
+ 	if unsafe.Sizeof(workbuf{}) != _WorkbufSize {
+-		gothrow("runtime: size of Workbuf is suboptimal")
++		throw("runtime: size of Workbuf is suboptimal")
+ 	}
+ 
+ 	work.markfor = parforalloc(_MaxGcproc)
+@@ -1622,7 +1622,7 @@ func gc_m(start_time int64, eagersweep bool) {
+ func clearcheckmarkbitsspan(s *mspan) {
+ 	if s.state != _MSpanInUse {
+ 		print("runtime:clearcheckmarkbitsspan: state=", s.state, "\n")
+-		gothrow("clearcheckmarkbitsspan: bad span state")
++		throw("clearcheckmarkbitsspan: bad span state")
+ 	}
+ 
+ 	arena_start := mheap_.arena_start
+@@ -1695,7 +1695,7 @@ func clearcheckmarkbitsspan(s *mspan) {
+ 		// updating top and bottom nibbles, all boundaries
+ 		for i := int32(0); i < n/2; i, bitp = i+1, addb(bitp, uintptrMask&-1) {
+ 			if *bitp&bitBoundary == 0 {
+-				gothrow("missing bitBoundary")
++				throw("missing bitBoundary")
+ 			}
+ 			b := (*bitp & bitPtrMask) >> 2
+ 			if !checkmark && (b == _BitsScalar || b == _BitsScalarMarked) {
+@@ -1705,7 +1705,7 @@ func clearcheckmarkbitsspan(s *mspan) {
+ 			}
+ 
+ 			if (*bitp>>gcBits)&bitBoundary == 0 {
+-				gothrow("missing bitBoundary")
++				throw("missing bitBoundary")
+ 			}
+ 			b = ((*bitp >> gcBits) & bitPtrMask) >> 2
+ 			if !checkmark && (b == _BitsScalar || b == _BitsScalarMarked) {
+@@ -1718,7 +1718,7 @@ func clearcheckmarkbitsspan(s *mspan) {
+ 		// updating bottom nibble for first word of each object
+ 		for i := int32(0); i < n; i, bitp = i+1, addb(bitp, -step) {
+ 			if *bitp&bitBoundary == 0 {
+-				gothrow("missing bitBoundary")
++				throw("missing bitBoundary")
+ 			}
+ 			b := (*bitp & bitPtrMask) >> 2
+ 
+@@ -1768,7 +1768,7 @@ func gccheckmark_m(startTime int64, eagersweep bool) {
+ 	}
+ 
+ 	if checkmark {
+-		gothrow("gccheckmark_m, entered with checkmark already true")
++		throw("gccheckmark_m, entered with checkmark already true")
+ 	}
+ 
+ 	checkmark = true
+@@ -1848,7 +1848,7 @@ func gcscan_m() {
+ 	for i := uintptr(0); i < local_allglen; i++ {
+ 		gp := allgs[i]
+ 		if !gp.gcworkdone {
+-			gothrow("scan missed a g")
++			throw("scan missed a g")
+ 		}
+ 	}
+ 	unlock(&allglock)
+@@ -1948,10 +1948,10 @@ func gc(start_time int64, eagersweep bool) {
+ 	scanblock(0, 0, nil)
+ 
+ 	if work.full != 0 {
+-		gothrow("work.full != 0")
++		throw("work.full != 0")
+ 	}
+ 	if work.partial != 0 {
+-		gothrow("work.partial != 0")
++		throw("work.partial != 0")
+ 	}
+ 
+ 	gcphase = oldphase
+@@ -1990,7 +1990,7 @@ func gc(start_time int64, eagersweep bool) {
+ 		updatememstats(&stats)
+ 		if heap1 != memstats.heap_alloc {
+ 			print("runtime: mstats skew: heap=", heap1, "/", memstats.heap_alloc, "\n")
+-			gothrow("mstats skew")
++			throw("mstats skew")
+ 		}
+ 		obj := memstats.nmalloc - memstats.nfree
+ 
+@@ -2087,7 +2087,7 @@ func readGCStats_m(pauses *[]uint64) {
+ 	p := *pauses
+ 	// Calling code in runtime/debug should make the slice large enough.
+ 	if cap(p) < len(memstats.pause_ns)+3 {
+-		gothrow("runtime: short slice passed to readGCStats")
++		throw("runtime: short slice passed to readGCStats")
+ 	}
+ 
+ 	// Pass back: pauses, pause ends, last gc (absolute time), number of gc, total pause ns.
+@@ -2131,10 +2131,10 @@ func gchelperstart() {
+ 	_g_ := getg()
+ 
+ 	if _g_.m.helpgc < 0 || _g_.m.helpgc >= _MaxGcproc {
+-		gothrow("gchelperstart: bad m->helpgc")
++		throw("gchelperstart: bad m->helpgc")
+ 	}
+ 	if _g_ != _g_.m.g0 {
+-		gothrow("gchelper not running on g0 stack")
++		throw("gchelper not running on g0 stack")
+ 	}
+ }
+ 
+@@ -2167,7 +2167,7 @@ func unrollgcprog1(maskp *byte, prog *byte, ppos *uintptr, inplace, sparse bool)
+ 	for {
+ 		switch *prog {
+ 		default:
+-			gothrow("unrollgcprog: unknown instruction")
++			throw("unrollgcprog: unknown instruction")
+ 
+ 		case insData:
+ 			prog = addb(prog, 1)
+@@ -2214,7 +2214,7 @@ func unrollgcprog1(maskp *byte, prog *byte, ppos *uintptr, inplace, sparse bool)
+ 				prog1 = unrollgcprog1(&mask[0], prog, &pos, inplace, sparse)
+ 			}
+ 			if *prog1 != insArrayEnd {
+-				gothrow("unrollgcprog: array does not end with insArrayEnd")
++				throw("unrollgcprog: array does not end with insArrayEnd")
+ 			}
+ 			prog = (*byte)(add(unsafe.Pointer(prog1), 1))
+ 
+@@ -2234,13 +2234,13 @@ func unrollglobgcprog(prog *byte, size uintptr) bitvector {
+ 	prog = unrollgcprog1(&mask[0], prog, &pos, false, false)
+ 	if pos != size/ptrSize*bitsPerPointer {
+ 		print("unrollglobgcprog: bad program size, got ", pos, ", expect ", size/ptrSize*bitsPerPointer, "\n")
+-		gothrow("unrollglobgcprog: bad program size")
++		throw("unrollglobgcprog: bad program size")
+ 	}
+ 	if *prog != insEnd {
+-		gothrow("unrollglobgcprog: program does not end with insEnd")
++		throw("unrollglobgcprog: program does not end with insEnd")
+ 	}
+ 	if mask[masksize] != 0xa1 {
+-		gothrow("unrollglobgcprog: overflow")
++		throw("unrollglobgcprog: overflow")
+ 	}
+ 	return bitvector{int32(masksize * 8), &mask[0]}
+ }
+@@ -2280,7 +2280,7 @@ func unrollgcprog_m(typ *_type) {
+ 		prog := (*byte)(unsafe.Pointer(uintptr(typ.gc[1])))
+ 		prog = unrollgcprog1(mask, prog, &pos, false, true)
+ 		if *prog != insEnd {
+-			gothrow("unrollgcprog: program does not end with insEnd")
++			throw("unrollgcprog: program does not end with insEnd")
+ 		}
+ 		if typ.size/ptrSize%2 != 0 {
+ 			// repeat the program
+@@ -2299,13 +2299,13 @@ func unrollgcprog_m(typ *_type) {
+ //go:nowritebarrier
+ func markspan(v unsafe.Pointer, size uintptr, n uintptr, leftover bool) {
+ 	if uintptr(v)+size*n > mheap_.arena_used || uintptr(v) < mheap_.arena_start {
+-		gothrow("markspan: bad pointer")
++		throw("markspan: bad pointer")
+ 	}
+ 
+ 	// Find bits of the beginning of the span.
+ 	off := (uintptr(v) - uintptr(mheap_.arena_start)) / ptrSize
+ 	if off%wordsPerBitmapByte != 0 {
+-		gothrow("markspan: unaligned length")
++		throw("markspan: unaligned length")
+ 	}
+ 	b := mheap_.arena_start - off/wordsPerBitmapByte - 1
+ 
+@@ -2317,14 +2317,14 @@ func markspan(v unsafe.Pointer, size uintptr, n uintptr, leftover bool) {
+ 		// Possible only on 64-bits (minimal size class is 8 bytes).
+ 		// Set memory to 0x11.
+ 		if (bitBoundary|bitsDead)<<gcBits|bitBoundary|bitsDead != 0x11 {
+-			gothrow("markspan: bad bits")
++			throw("markspan: bad bits")
+ 		}
+ 		if n%(wordsPerBitmapByte*ptrSize) != 0 {
+-			gothrow("markspan: unaligned length")
++			throw("markspan: unaligned length")
+ 		}
+ 		b = b - n/wordsPerBitmapByte + 1 // find first byte
+ 		if b%ptrSize != 0 {
+-			gothrow("markspan: unaligned pointer")
++			throw("markspan: unaligned pointer")
+ 		}
+ 		for i := uintptr(0); i < n; i, b = i+wordsPerBitmapByte*ptrSize, b+ptrSize {
+ 			*(*uintptr)(unsafe.Pointer(b)) = uintptrMask & 0x1111111111111111 // bitBoundary | bitsDead, repeated
+@@ -2345,18 +2345,18 @@ func markspan(v unsafe.Pointer, size uintptr, n uintptr, leftover bool) {
+ //go:nowritebarrier
+ func unmarkspan(v, n uintptr) {
+ 	if v+n > mheap_.arena_used || v < mheap_.arena_start {
+-		gothrow("markspan: bad pointer")
++		throw("markspan: bad pointer")
+ 	}
+ 
+ 	off := (v - mheap_.arena_start) / ptrSize // word offset
+ 	if off%(ptrSize*wordsPerBitmapByte) != 0 {
+-		gothrow("markspan: unaligned pointer")
++		throw("markspan: unaligned pointer")
+ 	}
+ 
+ 	b := mheap_.arena_start - off/wordsPerBitmapByte - 1
+ 	n /= ptrSize
+ 	if n%(ptrSize*wordsPerBitmapByte) != 0 {
+-		gothrow("unmarkspan: unaligned length")
++		throw("unmarkspan: unaligned length")
+ 	}
+ 
+ 	// Okay to use non-atomic ops here, because we control
+diff --git a/src/runtime/mgc0.go b/src/runtime/mgc0.go
+index 4900b26b58..10eaa9cf83 100644
+--- a/src/runtime/mgc0.go
++++ b/src/runtime/mgc0.go
+@@ -127,7 +127,7 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
+ 	}
+ 
+ 	if src != 0 && (src < _PageSize || src == _PoisonGC || src == _PoisonStack) {
+-		systemstack(func() { gothrow("bad pointer in write barrier") })
++		systemstack(func() { throw("bad pointer in write barrier") })
+ 	}
+ 
+ 	mp := acquirem()
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 30205d68da..1ff661c981 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -31,7 +31,7 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
+ 		sp := (*slice)(unsafe.Pointer(&new))
+ 		sp.array = (*byte)(sysAlloc(uintptr(n)*ptrSize, &memstats.other_sys))
+ 		if sp.array == nil {
+-			gothrow("runtime: cannot allocate memory")
++			throw("runtime: cannot allocate memory")
+ 		}
+ 		sp.len = uint(len(h_allspans))
+ 		sp.cap = uint(n)
+@@ -174,7 +174,7 @@ func mHeap_Reclaim(h *mheap, npage uintptr) {
+ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan {
+ 	_g_ := getg()
+ 	if _g_ != _g_.m.g0 {
+-		gothrow("_mheap_alloc not on g0 stack")
++		throw("_mheap_alloc not on g0 stack")
+ 	}
+ 	lock(&h.lock)
+ 
+@@ -242,7 +242,7 @@ func mHeap_Alloc(h *mheap, npage uintptr, sizeclass int32, large bool, needzero
+ func mHeap_AllocStack(h *mheap, npage uintptr) *mspan {
+ 	_g_ := getg()
+ 	if _g_ != _g_.m.g0 {
+-		gothrow("mheap_allocstack not on g0 stack")
++		throw("mheap_allocstack not on g0 stack")
+ 	}
+ 	lock(&h.lock)
+ 	s := mHeap_AllocSpanLocked(h, npage)
+@@ -285,14 +285,14 @@ func mHeap_AllocSpanLocked(h *mheap, npage uintptr) *mspan {
+ HaveSpan:
+ 	// Mark span in use.
+ 	if s.state != _MSpanFree {
+-		gothrow("MHeap_AllocLocked - MSpan not free")
++		throw("MHeap_AllocLocked - MSpan not free")
+ 	}
+ 	if s.npages < npage {
+-		gothrow("MHeap_AllocLocked - bad npages")
++		throw("MHeap_AllocLocked - bad npages")
+ 	}
+ 	mSpanList_Remove(s)
+ 	if s.next != nil || s.prev != nil {
+-		gothrow("still in list")
++		throw("still in list")
+ 	}
+ 	if s.npreleased > 0 {
+ 		sysUsed((unsafe.Pointer)(s.start<<_PageShift), s.npages<<_PageShift)
+@@ -332,7 +332,7 @@ HaveSpan:
+ 
+ 	//println("spanalloc", hex(s.start<<_PageShift))
+ 	if s.next != nil || s.prev != nil {
+-		gothrow("still in list")
++		throw("still in list")
+ 	}
+ 	return s
+ }
+@@ -447,7 +447,7 @@ func mHeap_Free(h *mheap, s *mspan, acct int32) {
+ func mHeap_FreeStack(h *mheap, s *mspan) {
+ 	_g_ := getg()
+ 	if _g_ != _g_.m.g0 {
+-		gothrow("mheap_freestack not on g0 stack")
++		throw("mheap_freestack not on g0 stack")
+ 	}
+ 	s.needzero = 1
+ 	lock(&h.lock)
+@@ -460,15 +460,15 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool) {
+ 	switch s.state {
+ 	case _MSpanStack:
+ 		if s.ref != 0 {
+-			gothrow("MHeap_FreeSpanLocked - invalid stack free")
++			throw("MHeap_FreeSpanLocked - invalid stack free")
+ 		}
+ 	case _MSpanInUse:
+ 		if s.ref != 0 || s.sweepgen != h.sweepgen {
+ 			print("MHeap_FreeSpanLocked - span ", s, " ptr ", hex(s.start<<_PageShift), " ref ", s.ref, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
+-			gothrow("MHeap_FreeSpanLocked - invalid free")
++			throw("MHeap_FreeSpanLocked - invalid free")
+ 		}
+ 	default:
+-		gothrow("MHeap_FreeSpanLocked - invalid span state")
++		throw("MHeap_FreeSpanLocked - invalid span state")
+ 	}
+ 
+ 	if acctinuse {
+@@ -608,7 +608,7 @@ func mSpanList_IsEmpty(list *mspan) bool {
+ func mSpanList_Insert(list *mspan, span *mspan) {
+ 	if span.next != nil || span.prev != nil {
+ 		println("failed MSpanList_Insert", span, span.next, span.prev)
+-		gothrow("MSpanList_Insert")
++		throw("MSpanList_Insert")
+ 	}
+ 	span.next = list.next
+ 	span.prev = list
+@@ -619,7 +619,7 @@ func mSpanList_Insert(list *mspan, span *mspan) {
+ func mSpanList_InsertBack(list *mspan, span *mspan) {
+ 	if span.next != nil || span.prev != nil {
+ 		println("failed MSpanList_InsertBack", span, span.next, span.prev)
+-		gothrow("MSpanList_InsertBack")
++		throw("MSpanList_InsertBack")
+ 	}
+ 	span.next = list
+ 	span.prev = list.prev
+@@ -636,7 +636,7 @@ func mSpanList_InsertBack(list *mspan, span *mspan) {
+ func addspecial(p unsafe.Pointer, s *special) bool {
+ 	span := mHeap_LookupMaybe(&mheap_, p)
+ 	if span == nil {
+-		gothrow("addspecial on invalid pointer")
++		throw("addspecial on invalid pointer")
+ 	}
+ 
+ 	// Ensure that the span is swept.
+@@ -683,7 +683,7 @@ func addspecial(p unsafe.Pointer, s *special) bool {
+ func removespecial(p unsafe.Pointer, kind uint8) *special {
+ 	span := mHeap_LookupMaybe(&mheap_, p)
+ 	if span == nil {
+-		gothrow("removespecial on invalid pointer")
++		throw("removespecial on invalid pointer")
+ 	}
+ 
+ 	// Ensure that the span is swept.
+@@ -755,7 +755,7 @@ func setprofilebucket(p unsafe.Pointer, b *bucket) {
+ 	s.special.kind = _KindSpecialProfile
+ 	s.b = b
+ 	if !addspecial(p, &s.special) {
+-		gothrow("setprofilebucket: profile already set")
++		throw("setprofilebucket: profile already set")
+ 	}
+ }
+ 
+@@ -779,7 +779,7 @@ func freespecial(s *special, p unsafe.Pointer, size uintptr, freed bool) bool {
+ 		unlock(&mheap_.speciallock)
+ 		return true
+ 	default:
+-		gothrow("bad special kind")
++		throw("bad special kind")
+ 		panic("not reached")
+ 	}
+ }
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 6435c0446a..7f9b6671f7 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -100,7 +100,7 @@ func newBucket(typ bucketType, nstk int) *bucket {
+ 	size := unsafe.Sizeof(bucket{}) + uintptr(nstk)*unsafe.Sizeof(uintptr(0))
+ 	switch typ {
+ 	default:
+-		gothrow("invalid profile bucket type")
++		throw("invalid profile bucket type")
+ 	case memProfile:
+ 		size += unsafe.Sizeof(memRecord{})
+ 	case blockProfile:
+@@ -123,7 +123,7 @@ func (b *bucket) stk() []uintptr {
+ // mp returns the memRecord associated with the memProfile bucket b.
+ func (b *bucket) mp() *memRecord {
+ 	if b.typ != memProfile {
+-		gothrow("bad use of bucket.mp")
++		throw("bad use of bucket.mp")
+ 	}
+ 	data := add(unsafe.Pointer(b), unsafe.Sizeof(*b)+b.nstk*unsafe.Sizeof(uintptr(0)))
+ 	return (*memRecord)(data)
+@@ -132,7 +132,7 @@ func (b *bucket) mp() *memRecord {
+ // bp returns the blockRecord associated with the blockProfile bucket b.
+ func (b *bucket) bp() *blockRecord {
+ 	if b.typ != blockProfile {
+-		gothrow("bad use of bucket.bp")
++		throw("bad use of bucket.bp")
+ 	}
+ 	data := add(unsafe.Pointer(b), unsafe.Sizeof(*b)+b.nstk*unsafe.Sizeof(uintptr(0)))
+ 	return (*blockRecord)(data)
+@@ -143,7 +143,7 @@ func stkbucket(typ bucketType, size uintptr, stk []uintptr, alloc bool) *bucket
+ 	if buckhash == nil {
+ 		buckhash = (*[buckHashSize]*bucket)(sysAlloc(unsafe.Sizeof(*buckhash), &memstats.buckhash_sys))
+ 		if buckhash == nil {
+-			gothrow("runtime: cannot allocate memory")
++			throw("runtime: cannot allocate memory")
+ 		}
+ 	}
+ 
+diff --git a/src/runtime/msize.go b/src/runtime/msize.go
+index aa2b43e90d..a113b0d963 100644
+--- a/src/runtime/msize.go
++++ b/src/runtime/msize.go
+@@ -43,7 +43,7 @@ package runtime
+ 
+ func sizeToClass(size int32) int32 {
+ 	if size > _MaxSmallSize {
+-		gothrow("SizeToClass - invalid size")
++		throw("SizeToClass - invalid size")
+ 	}
+ 	if size > 1024-8 {
+ 		return int32(size_to_class128[(size-1024+127)>>7])
+@@ -67,7 +67,7 @@ func initSizes() {
+ 			}
+ 		}
+ 		if align&(align-1) != 0 {
+-			gothrow("InitSizes - bug")
++			throw("InitSizes - bug")
+ 		}
+ 
+ 		// Make the allocnpages big enough that
+@@ -95,7 +95,7 @@ func initSizes() {
+ 	}
+ 	if sizeclass != _NumSizeClasses {
+ 		print("sizeclass=", sizeclass, " NumSizeClasses=", _NumSizeClasses, "\n")
+-		gothrow("InitSizes - bad NumSizeClasses")
++		throw("InitSizes - bad NumSizeClasses")
+ 	}
+ 
+ 	// Initialize the size_to_class tables.
+@@ -155,7 +155,7 @@ dump:
+ 		}
+ 		print("\n")
+ 	}
+-	gothrow("InitSizes failed")
++	throw("InitSizes failed")
+ }
+ 
+ // Returns size of the memory block that mallocgc will allocate if you ask for the size.
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index ba7a0f6931..0bd372319a 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -81,10 +81,10 @@ func net_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
+ 	pd := pollcache.alloc()
+ 	lock(&pd.lock)
+ 	if pd.wg != 0 && pd.wg != pdReady {
+-		gothrow("netpollOpen: blocked write on free descriptor")
++		throw("netpollOpen: blocked write on free descriptor")
+ 	}
+ 	if pd.rg != 0 && pd.rg != pdReady {
+-		gothrow("netpollOpen: blocked read on free descriptor")
++		throw("netpollOpen: blocked read on free descriptor")
+ 	}
+ 	pd.fd = fd
+ 	pd.closing = false
+@@ -103,13 +103,13 @@ func net_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
+ //go:linkname net_runtime_pollClose net.runtime_pollClose
+ func net_runtime_pollClose(pd *pollDesc) {
+ 	if !pd.closing {
+-		gothrow("netpollClose: close w/o unblock")
++		throw("netpollClose: close w/o unblock")
+ 	}
+ 	if pd.wg != 0 && pd.wg != pdReady {
+-		gothrow("netpollClose: blocked write on closing descriptor")
++		throw("netpollClose: blocked write on closing descriptor")
+ 	}
+ 	if pd.rg != 0 && pd.rg != pdReady {
+-		gothrow("netpollClose: blocked read on closing descriptor")
++		throw("netpollClose: blocked read on closing descriptor")
+ 	}
+ 	netpollclose(uintptr(pd.fd))
+ 	pollcache.free(pd)
+@@ -240,7 +240,7 @@ func net_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
+ func net_runtime_pollUnblock(pd *pollDesc) {
+ 	lock(&pd.lock)
+ 	if pd.closing {
+-		gothrow("netpollUnblock: already closing")
++		throw("netpollUnblock: already closing")
+ 	}
+ 	pd.closing = true
+ 	pd.seq++
+@@ -314,7 +314,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
+ 			return true
+ 		}
+ 		if old != 0 {
+-			gothrow("netpollblock: double wait")
++			throw("netpollblock: double wait")
+ 		}
+ 		if casuintptr(gpp, 0, pdWait) {
+ 			break
+@@ -330,7 +330,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
+ 	// be careful to not lose concurrent READY notification
+ 	old := xchguintptr(gpp, 0)
+ 	if old > pdWait {
+-		gothrow("netpollblock: corrupted state")
++		throw("netpollblock: corrupted state")
+ 	}
+ 	return old == pdReady
+ }
+@@ -376,7 +376,7 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
+ 	var rg *g
+ 	if read {
+ 		if pd.rd <= 0 || pd.rt.f == nil {
+-			gothrow("netpolldeadlineimpl: inconsistent read deadline")
++			throw("netpolldeadlineimpl: inconsistent read deadline")
+ 		}
+ 		pd.rd = -1
+ 		atomicstorep(unsafe.Pointer(&pd.rt.f), nil) // full memory barrier between store to rd and load of rg in netpollunblock
+@@ -385,7 +385,7 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
+ 	var wg *g
+ 	if write {
+ 		if pd.wd <= 0 || pd.wt.f == nil && !read {
+-			gothrow("netpolldeadlineimpl: inconsistent write deadline")
++			throw("netpolldeadlineimpl: inconsistent write deadline")
+ 		}
+ 		pd.wd = -1
+ 		atomicstorep(unsafe.Pointer(&pd.wt.f), nil) // full memory barrier between store to wd and load of wg in netpollunblock
+diff --git a/src/runtime/netpoll_epoll.go b/src/runtime/netpoll_epoll.go
+index ecfc9cdde8..4f9ccaf477 100644
+--- a/src/runtime/netpoll_epoll.go
++++ b/src/runtime/netpoll_epoll.go
+@@ -34,7 +34,7 @@ func netpollinit() {
+ 		return
+ 	}
+ 	println("netpollinit: failed to create epoll descriptor", -epfd)
+-	gothrow("netpollinit: failed to create descriptor")
++	throw("netpollinit: failed to create descriptor")
+ }
+ 
+ func netpollopen(fd uintptr, pd *pollDesc) int32 {
+@@ -50,7 +50,7 @@ func netpollclose(fd uintptr) int32 {
+ }
+ 
+ func netpollarm(pd *pollDesc, mode int) {
+-	gothrow("unused")
++	throw("unused")
+ }
+ 
+ // polls for ready network connections
+diff --git a/src/runtime/netpoll_kqueue.go b/src/runtime/netpoll_kqueue.go
+index d6d55b97b8..080964bb72 100644
+--- a/src/runtime/netpoll_kqueue.go
++++ b/src/runtime/netpoll_kqueue.go
+@@ -25,7 +25,7 @@ func netpollinit() {
+ 	kq = kqueue()
+ 	if kq < 0 {
+ 		println("netpollinit: kqueue failed with", -kq)
+-		gothrow("netpollinit: kqueue failed")
++		throw("netpollinit: kqueue failed")
+ 	}
+ 	closeonexec(kq)
+ }
+@@ -57,7 +57,7 @@ func netpollclose(fd uintptr) int32 {
+ }
+ 
+ func netpollarm(pd *pollDesc, mode int) {
+-	gothrow("unused")
++	throw("unused")
+ }
+ 
+ // Polls for ready network connections.
+diff --git a/src/runtime/netpoll_solaris.go b/src/runtime/netpoll_solaris.go
+index 40e8a1a651..d8f050e1e2 100644
+--- a/src/runtime/netpoll_solaris.go
++++ b/src/runtime/netpoll_solaris.go
+@@ -118,7 +118,7 @@ func netpollinit() {
+ 	}
+ 
+ 	print("netpollinit: failed to create port (", errno(), ")\n")
+-	gothrow("netpollinit: failed to create port")
++	throw("netpollinit: failed to create port")
+ }
+ 
+ func netpollopen(fd uintptr, pd *pollDesc) int32 {
+@@ -155,7 +155,7 @@ func netpollupdate(pd *pollDesc, set, clear uint32) {
+ 
+ 	if events != 0 && port_associate(portfd, _PORT_SOURCE_FD, pd.fd, events, uintptr(unsafe.Pointer(pd))) != 0 {
+ 		print("netpollupdate: failed to associate (", errno(), ")\n")
+-		gothrow("netpollupdate: failed to associate")
++		throw("netpollupdate: failed to associate")
+ 	}
+ 	pd.user = events
+ }
+@@ -169,7 +169,7 @@ func netpollarm(pd *pollDesc, mode int) {
+ 	case 'w':
+ 		netpollupdate(pd, _POLLOUT, 0)
+ 	default:
+-		gothrow("netpollarm: bad mode")
++		throw("netpollarm: bad mode")
+ 	}
+ 	unlock(&pd.lock)
+ }
+diff --git a/src/runtime/netpoll_windows.go b/src/runtime/netpoll_windows.go
+index 23d5dc00f0..8e0750d607 100644
+--- a/src/runtime/netpoll_windows.go
++++ b/src/runtime/netpoll_windows.go
+@@ -46,7 +46,7 @@ func netpollinit() {
+ 	iocphandle = uintptr(stdcall4(_CreateIoCompletionPort, _INVALID_HANDLE_VALUE, 0, 0, _DWORD_MAX))
+ 	if iocphandle == 0 {
+ 		println("netpoll: failed to create iocp handle (errno=", getlasterror(), ")")
+-		gothrow("netpoll: failed to create iocp handle")
++		throw("netpoll: failed to create iocp handle")
+ 	}
+ }
+ 
+@@ -63,7 +63,7 @@ func netpollclose(fd uintptr) int32 {
+ }
+ 
+ func netpollarm(pd *pollDesc, mode int) {
+-	gothrow("unused")
++	throw("unused")
+ }
+ 
+ // Polls for completed network IO.
+@@ -101,7 +101,7 @@ retry:
+ 				return nil
+ 			}
+ 			println("netpoll: GetQueuedCompletionStatusEx failed (errno=", errno, ")")
+-			gothrow("netpoll: GetQueuedCompletionStatusEx failed")
++			throw("netpoll: GetQueuedCompletionStatusEx failed")
+ 		}
+ 		mp.blocked = false
+ 		for i = 0; i < n; i++ {
+@@ -128,7 +128,7 @@ retry:
+ 			}
+ 			if op == nil {
+ 				println("netpoll: GetQueuedCompletionStatus failed (errno=", errno, ")")
+-				gothrow("netpoll: GetQueuedCompletionStatus failed")
++				throw("netpoll: GetQueuedCompletionStatus failed")
+ 			}
+ 			// dequeued failed IO packet, so report that
+ 		}
+@@ -143,12 +143,12 @@ retry:
+ 
+ func handlecompletion(gpp **g, op *net_op, errno int32, qty uint32) {
+ 	if op == nil {
+-		gothrow("netpoll: GetQueuedCompletionStatus returned op == nil")
++		throw("netpoll: GetQueuedCompletionStatus returned op == nil")
+ 	}
+ 	mode := op.mode
+ 	if mode != 'r' && mode != 'w' {
+ 		println("netpoll: GetQueuedCompletionStatus returned invalid mode=", mode)
+-		gothrow("netpoll: GetQueuedCompletionStatus returned invalid mode")
++		throw("netpoll: GetQueuedCompletionStatus returned invalid mode")
+ 	}
+ 	op.errno = errno
+ 	op.qty = qty
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index 984b88161c..3a5ed7c9a0 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -64,9 +64,9 @@ func goenvs() {
+ 	if !iscgo {
+ 		if bsdthread_register() != 0 {
+ 			if gogetenv("DYLD_INSERT_LIBRARIES") != "" {
+-				gothrow("runtime: bsdthread_register error (unset DYLD_INSERT_LIBRARIES)")
++				throw("runtime: bsdthread_register error (unset DYLD_INSERT_LIBRARIES)")
+ 			}
+-			gothrow("runtime: bsdthread_register error")
++			throw("runtime: bsdthread_register error")
+ 		}
+ 	}
+ }
+@@ -84,7 +84,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 
+ 	if errno < 0 {
+ 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -errno, ")\n")
+-		gothrow("runtime.newosproc")
++		throw("runtime.newosproc")
+ 	}
+ }
+ 
+@@ -114,7 +114,7 @@ func unminit() {
+ 
+ func macherror(r int32, fn string) {
+ 	print("mach error ", fn, ": ", r, "\n")
+-	gothrow("mach error")
++	throw("mach error")
+ }
+ 
+ const _DebugMach = false
+@@ -395,7 +395,7 @@ func setsig(i int32, fn uintptr, restart bool) {
+ }
+ 
+ func setsigstack(i int32) {
+-	gothrow("setsigstack")
++	throw("setsigstack")
+ }
+ 
+ func getsig(i int32) uintptr {
+diff --git a/src/runtime/os1_dragonfly.go b/src/runtime/os1_dragonfly.go
+index 0d241bde79..2a67da6fda 100644
+--- a/src/runtime/os1_dragonfly.go
++++ b/src/runtime/os1_dragonfly.go
+@@ -190,7 +190,7 @@ func setsig(i int32, fn uintptr, restart bool) {
+ }
+ 
+ func setsigstack(i int32) {
+-	gothrow("setsigstack")
++	throw("setsigstack")
+ }
+ 
+ func getsig(i int32) uintptr {
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index 83e98f45e4..5a5c3862d3 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -192,7 +192,7 @@ func setsig(i int32, fn uintptr, restart bool) {
+ }
+ 
+ func setsigstack(i int32) {
+-	gothrow("setsigstack")
++	throw("setsigstack")
+ }
+ 
+ func getsig(i int32) uintptr {
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index 0174856914..a10e4e9aa1 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -137,7 +137,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 
+ 	if ret < 0 {
+ 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
+-		gothrow("newosproc")
++		throw("newosproc")
+ 	}
+ }
+ 
+@@ -242,21 +242,21 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 	}
+ 	sa.sa_handler = fn
+ 	if rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask)) != 0 {
+-		gothrow("rt_sigaction failure")
++		throw("rt_sigaction failure")
+ 	}
+ }
+ 
+ func setsigstack(i int32) {
+ 	var sa sigactiont
+ 	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
+-		gothrow("rt_sigaction failure")
++		throw("rt_sigaction failure")
+ 	}
+ 	if sa.sa_handler == 0 || sa.sa_handler == _SIG_DFL || sa.sa_handler == _SIG_IGN || sa.sa_flags&_SA_ONSTACK != 0 {
+ 		return
+ 	}
+ 	sa.sa_flags |= _SA_ONSTACK
+ 	if rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask)) != 0 {
+-		gothrow("rt_sigaction failure")
++		throw("rt_sigaction failure")
+ 	}
+ }
+ 
+@@ -265,7 +265,7 @@ func getsig(i int32) uintptr {
+ 
+ 	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
+ 	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
+-		gothrow("rt_sigaction read failure")
++		throw("rt_sigaction read failure")
+ 	}
+ 	if sa.sa_handler == funcPC(sigtramp) {
+ 		return funcPC(sighandler)
+diff --git a/src/runtime/os1_nacl.go b/src/runtime/os1_nacl.go
+index 0a446c452a..c44d87645e 100644
+--- a/src/runtime/os1_nacl.go
++++ b/src/runtime/os1_nacl.go
+@@ -77,7 +77,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	ret := nacl_thread_create(funcPC(mstart_nacl), stk, unsafe.Pointer(&tls[2]), nil)
+ 	if ret < 0 {
+ 		print("nacl_thread_create: error ", -ret, "\n")
+-		gothrow("newosproc")
++		throw("newosproc")
+ 	}
+ }
+ 
+@@ -88,12 +88,12 @@ func semacreate() uintptr {
+ 		mu := nacl_mutex_create(0)
+ 		if mu < 0 {
+ 			print("nacl_mutex_create: error ", -mu, "\n")
+-			gothrow("semacreate")
++			throw("semacreate")
+ 		}
+ 		c := nacl_cond_create(0)
+ 		if c < 0 {
+ 			print("nacl_cond_create: error ", -cond, "\n")
+-			gothrow("semacreate")
++			throw("semacreate")
+ 		}
+ 		cond = uintptr(c)
+ 		_g_ := getg()
+@@ -109,13 +109,13 @@ func semasleep(ns int64) int32 {
+ 	systemstack(func() {
+ 		_g_ := getg()
+ 		if nacl_mutex_lock(int32(_g_.m.waitsemalock)) < 0 {
+-			gothrow("semasleep")
++			throw("semasleep")
+ 		}
+ 
+ 		for _g_.m.waitsemacount == 0 {
+ 			if ns < 0 {
+ 				if nacl_cond_wait(int32(_g_.m.waitsema), int32(_g_.m.waitsemalock)) < 0 {
+-					gothrow("semasleep")
++					throw("semasleep")
+ 				}
+ 			} else {
+ 				var ts timespec
+@@ -129,7 +129,7 @@ func semasleep(ns int64) int32 {
+ 					return
+ 				}
+ 				if r < 0 {
+-					gothrow("semasleep")
++					throw("semasleep")
+ 				}
+ 			}
+ 		}
+@@ -145,10 +145,10 @@ func semasleep(ns int64) int32 {
+ func semawakeup(mp *m) {
+ 	systemstack(func() {
+ 		if nacl_mutex_lock(int32(mp.waitsemalock)) < 0 {
+-			gothrow("semawakeup")
++			throw("semawakeup")
+ 		}
+ 		if mp.waitsemacount != 0 {
+-			gothrow("semawakeup")
++			throw("semawakeup")
+ 		}
+ 		mp.waitsemacount = 1
+ 		nacl_cond_signal(int32(mp.waitsema))
+diff --git a/src/runtime/os1_netbsd.go b/src/runtime/os1_netbsd.go
+index f4de988707..9b650abd48 100644
+--- a/src/runtime/os1_netbsd.go
++++ b/src/runtime/os1_netbsd.go
+@@ -162,7 +162,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	ret := lwp_create(unsafe.Pointer(&uc), 0, unsafe.Pointer(&mp.procid))
+ 	if ret < 0 {
+ 		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
+-		gothrow("runtime.newosproc")
++		throw("runtime.newosproc")
+ 	}
+ }
+ 
+@@ -234,7 +234,7 @@ func setsig(i int32, fn uintptr, restart bool) {
+ }
+ 
+ func setsigstack(i int32) {
+-	gothrow("setsigstack")
++	throw("setsigstack")
+ }
+ 
+ func getsig(i int32) uintptr {
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os1_openbsd.go
+index 07a9751fe0..87158f2b73 100644
+--- a/src/runtime/os1_openbsd.go
++++ b/src/runtime/os1_openbsd.go
+@@ -130,7 +130,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 		if ret == -ENOTSUP {
+ 			print("runtime: is kern.rthreads disabled?\n")
+ 		}
+-		gothrow("runtime.newosproc")
++		throw("runtime.newosproc")
+ 	}
+ }
+ 
+@@ -204,7 +204,7 @@ func setsig(i int32, fn uintptr, restart bool) {
+ }
+ 
+ func setsigstack(i int32) {
+-	gothrow("setsigstack")
++	throw("setsigstack")
+ }
+ 
+ func getsig(i int32) uintptr {
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index aa9d67fe1e..63bba7c34c 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -194,7 +194,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	}
+ 	pid := rfork(_RFPROC | _RFMEM | _RFNOWAIT)
+ 	if pid < 0 {
+-		gothrow("newosproc: rfork failed")
++		throw("newosproc: rfork failed")
+ 	}
+ 	if pid == 0 {
+ 		tstart_plan9(mp)
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index a78eeace15..9b76051634 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -246,7 +246,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
+ 	if thandle == 0 {
+ 		println("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")")
+-		gothrow("runtime.newosproc")
++		throw("runtime.newosproc")
+ 	}
+ }
+ 
+@@ -300,7 +300,7 @@ func systime(addr uintptr) int64 {
+ 		}
+ 	}
+ 	systemstack(func() {
+-		gothrow("interrupt/system time is changing too fast")
++		throw("interrupt/system time is changing too fast")
+ 	})
+ 	return 0
+ }
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 72db958f99..f045346c07 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -141,17 +141,17 @@ func newosproc(mp *m, _ unsafe.Pointer) {
+ 	)
+ 
+ 	if pthread_attr_init(&attr) != 0 {
+-		gothrow("pthread_attr_init")
++		throw("pthread_attr_init")
+ 	}
+ 	if pthread_attr_setstack(&attr, 0, 0x200000) != 0 {
+-		gothrow("pthread_attr_setstack")
++		throw("pthread_attr_setstack")
+ 	}
+ 	if pthread_attr_getstack(&attr, unsafe.Pointer(&mp.g0.stack.hi), &size) != 0 {
+-		gothrow("pthread_attr_getstack")
++		throw("pthread_attr_getstack")
+ 	}
+ 	mp.g0.stack.lo = mp.g0.stack.hi - uintptr(size)
+ 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
+-		gothrow("pthread_attr_setdetachstate")
++		throw("pthread_attr_setdetachstate")
+ 	}
+ 
+ 	// Disable signals during create, so that the new thread starts
+@@ -161,7 +161,7 @@ func newosproc(mp *m, _ unsafe.Pointer) {
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if ret != 0 {
+ 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
+-		gothrow("newosproc")
++		throw("newosproc")
+ 	}
+ }
+ 
+@@ -253,7 +253,7 @@ func setsig(i int32, fn uintptr, restart bool) {
+ }
+ 
+ func setsigstack(i int32) {
+-	gothrow("setsigstack")
++	throw("setsigstack")
+ }
+ 
+ func getsig(i int32) uintptr {
+@@ -296,7 +296,7 @@ func semacreate() uintptr {
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&_g_.m.libcall))
+ 	sem = (*semt)(unsafe.Pointer(_g_.m.libcall.r1))
+ 	if sem_init(sem, 0, 0) != 0 {
+-		gothrow("sem_init")
++		throw("sem_init")
+ 	}
+ 	return uintptr(unsafe.Pointer(sem))
+ }
+@@ -319,7 +319,7 @@ func semasleep(ns int64) int32 {
+ 			if *_m_.perrno == _ETIMEDOUT || *_m_.perrno == _EAGAIN || *_m_.perrno == _EINTR {
+ 				return -1
+ 			}
+-			gothrow("sem_reltimedwait_np")
++			throw("sem_reltimedwait_np")
+ 		}
+ 		return 0
+ 	}
+@@ -336,7 +336,7 @@ func semasleep(ns int64) int32 {
+ 		if *_m_.perrno == _EINTR {
+ 			continue
+ 		}
+-		gothrow("sem_wait")
++		throw("sem_wait")
+ 	}
+ 	return 0
+ }
+@@ -344,7 +344,7 @@ func semasleep(ns int64) int32 {
+ //go:nosplit
+ func semawakeup(mp *m) {
+ 	if sem_post((*semt)(unsafe.Pointer(mp.waitsema))) != 0 {
+-		gothrow("sem_post")
++		throw("sem_post")
+ 	}
+ }
+ 
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index d7d076fdc6..bbf339f4a4 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -36,13 +36,13 @@ func write(fd uintptr, p unsafe.Pointer, n int32) int32
+ 
+ //go:linkname os_sigpipe os.sigpipe
+ func os_sigpipe() {
+-	gothrow("too many writes on closed pipe")
++	throw("too many writes on closed pipe")
+ }
+ 
+ func sigpanic() {
+ 	g := getg()
+ 	if !canpanic(g) {
+-		gothrow("unexpected signal during runtime execution")
++		throw("unexpected signal during runtime execution")
+ 	}
+ 
+ 	// Native Client only invokes the exception handler for memory faults.
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index f1354df0d3..679bf34519 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -55,13 +55,13 @@ type _Plink uintptr
+ 
+ //go:linkname os_sigpipe os.sigpipe
+ func os_sigpipe() {
+-	gothrow("too many writes on closed pipe")
++	throw("too many writes on closed pipe")
+ }
+ 
+ func sigpanic() {
+ 	g := getg()
+ 	if !canpanic(g) {
+-		gothrow("unexpected signal during runtime execution")
++		throw("unexpected signal during runtime execution")
+ 	}
+ 
+ 	note := gostringnocopy((*byte)(unsafe.Pointer(g.m.notesig)))
+@@ -73,12 +73,12 @@ func sigpanic() {
+ 			panicmem()
+ 		}
+ 		print("unexpected fault address ", hex(g.sigcode1), "\n")
+-		gothrow("fault")
++		throw("fault")
+ 	case _SIGTRAP:
+ 		if g.paniconfault {
+ 			panicmem()
+ 		}
+-		gothrow(note)
++		throw(note)
+ 	case _SIGINTDIV:
+ 		panicdivide()
+ 	case _SIGFLOAT:
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 66e0d77b65..3cce67f5a7 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -10,13 +10,13 @@ type stdFunction *byte
+ 
+ //go:linkname os_sigpipe os.sigpipe
+ func os_sigpipe() {
+-	gothrow("too many writes on closed pipe")
++	throw("too many writes on closed pipe")
+ }
+ 
+ func sigpanic() {
+ 	g := getg()
+ 	if !canpanic(g) {
+-		gothrow("unexpected signal during runtime execution")
++		throw("unexpected signal during runtime execution")
+ 	}
+ 
+ 	switch uint32(g.sig) {
+@@ -25,7 +25,7 @@ func sigpanic() {
+ 			panicmem()
+ 		}
+ 		print("unexpected fault address ", hex(g.sigcode1), "\n")
+-		gothrow("fault")
++		throw("fault")
+ 	case _EXCEPTION_INT_DIVIDE_BY_ZERO:
+ 		panicdivide()
+ 	case _EXCEPTION_INT_OVERFLOW:
+@@ -37,5 +37,5 @@ func sigpanic() {
+ 		_EXCEPTION_FLT_UNDERFLOW:
+ 		panicfloat()
+ 	}
+-	gothrow("fault")
++	throw("fault")
+ }
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 07cdd4e1d6..ff1ef2a85e 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -43,11 +43,11 @@ func panicmem() {
+ }
+ 
+ func throwreturn() {
+-	gothrow("no return at end of a typed function - compiler is broken")
++	throw("no return at end of a typed function - compiler is broken")
+ }
+ 
+ func throwinit() {
+-	gothrow("recursive call during initialization - linker skew")
++	throw("recursive call during initialization - linker skew")
+ }
+ 
+ // Create a new deferred function fn with siz bytes of arguments.
+@@ -56,7 +56,7 @@ func throwinit() {
+ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
+ 	if getg().m.curg != getg() {
+ 		// go code on the system stack can't defer
+-		gothrow("defer on system stack")
++		throw("defer on system stack")
+ 	}
+ 
+ 	// the arguments of fn are in a perilous state.  The stack map
+@@ -71,7 +71,7 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
+ 	systemstack(func() {
+ 		d := newdefer(siz)
+ 		if d._panic != nil {
+-			gothrow("deferproc: d.panic != nil after newdefer")
++			throw("deferproc: d.panic != nil after newdefer")
+ 		}
+ 		d.fn = fn
+ 		d.pc = callerpc
+@@ -137,7 +137,7 @@ func testdefersizes() {
+ 		}
+ 		if m[defersc] != int32(siz) {
+ 			print("bad defer size class: i=", i, " siz=", siz, " defersc=", defersc, "\n")
+-			gothrow("bad defer size class")
++			throw("bad defer size class")
+ 		}
+ 	}
+ }
+@@ -209,12 +209,12 @@ func freedefer(d *_defer) {
+ // Windows otherwise runs out of stack space.
+ func freedeferpanic() {
+ 	// _panic must be cleared before d is unlinked from gp.
+-	gothrow("freedefer with d._panic != nil")
++	throw("freedefer with d._panic != nil")
+ }
+ 
+ func freedeferfn() {
+ 	// fn must be cleared before d is unlinked from gp.
+-	gothrow("freedefer with d.fn != nil")
++	throw("freedefer with d.fn != nil")
+ }
+ 
+ // Run a deferred function if there is one.
+@@ -287,7 +287,7 @@ func Goexit() {
+ 		d.started = true
+ 		reflectcall(unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
+ 		if gp._defer != d {
+-			gothrow("bad defer entry in Goexit")
++			throw("bad defer entry in Goexit")
+ 		}
+ 		d._panic = nil
+ 		d.fn = nil
+@@ -319,7 +319,7 @@ func gopanic(e interface{}) {
+ 		print("panic: ")
+ 		printany(e)
+ 		print("\n")
+-		gothrow("panic on system stack")
++		throw("panic on system stack")
+ 	}
+ 
+ 	// m.softfloat is set during software floating point.
+@@ -329,25 +329,25 @@ func gopanic(e interface{}) {
+ 	if gp.m.softfloat != 0 {
+ 		gp.m.locks--
+ 		gp.m.softfloat = 0
+-		gothrow("panic during softfloat")
++		throw("panic during softfloat")
+ 	}
+ 	if gp.m.mallocing != 0 {
+ 		print("panic: ")
+ 		printany(e)
+ 		print("\n")
+-		gothrow("panic during malloc")
++		throw("panic during malloc")
+ 	}
+ 	if gp.m.gcing != 0 {
+ 		print("panic: ")
+ 		printany(e)
+ 		print("\n")
+-		gothrow("panic during gc")
++		throw("panic during gc")
+ 	}
+ 	if gp.m.locks != 0 {
+ 		print("panic: ")
+ 		printany(e)
+ 		print("\n")
+-		gothrow("panic holding locks")
++		throw("panic holding locks")
+ 	}
+ 
+ 	var p _panic
+@@ -390,7 +390,7 @@ func gopanic(e interface{}) {
+ 
+ 		// reflectcall did not panic. Remove d.
+ 		if gp._defer != d {
+-			gothrow("bad defer entry in panic")
++			throw("bad defer entry in panic")
+ 		}
+ 		d._panic = nil
+ 		d.fn = nil
+@@ -416,7 +416,7 @@ func gopanic(e interface{}) {
+ 			gp.sigcode0 = uintptr(sp)
+ 			gp.sigcode1 = pc
+ 			mcall(recovery)
+-			gothrow("recovery failed") // mcall should not return
++			throw("recovery failed") // mcall should not return
+ 		}
+ 	}
+ 
+@@ -482,19 +482,7 @@ func dopanic(unused int) {
+ }
+ 
+ //go:nosplit
+-func throw(s *byte) {
+-	gp := getg()
+-	if gp.m.throwing == 0 {
+-		gp.m.throwing = 1
+-	}
+-	startpanic()
+-	print("fatal error: ", gostringnocopy(s), "\n")
+-	dopanic(0)
+-	*(*int)(nil) = 0 // not reached
+-}
+-
+-//go:nosplit
+-func gothrow(s string) {
++func throw(s string) {
+ 	print("fatal error: ", s, "\n")
+ 	gp := getg()
+ 	if gp.m.throwing == 0 {
+diff --git a/src/runtime/panic1.go b/src/runtime/panic1.go
+index 9756fab46e..880c3bac9b 100644
+--- a/src/runtime/panic1.go
++++ b/src/runtime/panic1.go
+@@ -23,7 +23,7 @@ func recovery(gp *g) {
+ 	// d's arguments need to be in the stack.
+ 	if sp != 0 && (sp < gp.stack.lo || gp.stack.hi < sp) {
+ 		print("recover: ", hex(sp), " not in [", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
+-		gothrow("bad recovery")
++		throw("bad recovery")
+ 	}
+ 
+ 	// Make the deferproc for this d return again,
+diff --git a/src/runtime/parfor.go b/src/runtime/parfor.go
+index 14870c9feb..3a377474dc 100644
+--- a/src/runtime/parfor.go
++++ b/src/runtime/parfor.go
+@@ -27,7 +27,7 @@ func desc_thr_index(desc *parfor, i uint32) *parforthread {
+ func parforsetup(desc *parfor, nthr, n uint32, ctx unsafe.Pointer, wait bool, body func(*parfor, uint32)) {
+ 	if desc == nil || nthr == 0 || nthr > desc.nthrmax || body == nil {
+ 		print("desc=", desc, " nthr=", nthr, " count=", n, " body=", body, "\n")
+-		gothrow("parfor: invalid args")
++		throw("parfor: invalid args")
+ 	}
+ 
+ 	desc.body = *(*unsafe.Pointer)(unsafe.Pointer(&body))
+@@ -48,7 +48,7 @@ func parforsetup(desc *parfor, nthr, n uint32, ctx unsafe.Pointer, wait bool, bo
+ 		end := uint32(uint64(n) * uint64(i+1) / uint64(nthr))
+ 		pos := &desc_thr_index(desc, i).pos
+ 		if uintptr(unsafe.Pointer(pos))&7 != 0 {
+-			gothrow("parforsetup: pos is not aligned")
++			throw("parforsetup: pos is not aligned")
+ 		}
+ 		*pos = uint64(begin) | uint64(end)<<32
+ 	}
+@@ -59,7 +59,7 @@ func parfordo(desc *parfor) {
+ 	tid := xadd(&desc.thrseq, 1) - 1
+ 	if tid >= desc.nthr {
+ 		print("tid=", tid, " nthr=", desc.nthr, "\n")
+-		gothrow("parfor: invalid tid")
++		throw("parfor: invalid tid")
+ 	}
+ 
+ 	// If single-threaded, just execute the for serially.
+@@ -141,7 +141,7 @@ func parfordo(desc *parfor) {
+ 			if begin < end {
+ 				// Has successfully stolen some work.
+ 				if idle {
+-					gothrow("parfor: should not be idle")
++					throw("parfor: should not be idle")
+ 				}
+ 				atomicstore64(mypos, uint64(begin)|uint64(end)<<32)
+ 				me.nsteal++
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 695fc4115b..03ba00fd97 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -43,7 +43,7 @@ func main() {
+ 	lockOSThread()
+ 
+ 	if g.m != &m0 {
+-		gothrow("runtime.main not on m0")
++		throw("runtime.main not on m0")
+ 	}
+ 
+ 	runtime_init() // must be before defer
+@@ -60,20 +60,20 @@ func main() {
+ 
+ 	if iscgo {
+ 		if _cgo_thread_start == nil {
+-			gothrow("_cgo_thread_start missing")
++			throw("_cgo_thread_start missing")
+ 		}
+ 		if _cgo_malloc == nil {
+-			gothrow("_cgo_malloc missing")
++			throw("_cgo_malloc missing")
+ 		}
+ 		if _cgo_free == nil {
+-			gothrow("_cgo_free missing")
++			throw("_cgo_free missing")
+ 		}
+ 		if GOOS != "windows" {
+ 			if _cgo_setenv == nil {
+-				gothrow("_cgo_setenv missing")
++				throw("_cgo_setenv missing")
+ 			}
+ 			if _cgo_unsetenv == nil {
+-				gothrow("_cgo_unsetenv missing")
++				throw("_cgo_unsetenv missing")
+ 			}
+ 		}
+ 	}
+@@ -114,7 +114,7 @@ func forcegchelper() {
+ 	for {
+ 		lock(&forcegc.lock)
+ 		if forcegc.idle != 0 {
+-			gothrow("forcegc: phase error")
++			throw("forcegc: phase error")
+ 		}
+ 		atomicstore(&forcegc.idle, 1)
+ 		goparkunlock(&forcegc.lock, "force gc (idle)")
+@@ -141,7 +141,7 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason s
+ 	gp := mp.curg
+ 	status := readgstatus(gp)
+ 	if status != _Grunning && status != _Gscanrunning {
+-		gothrow("gopark: bad g status")
++		throw("gopark: bad g status")
+ 	}
+ 	mp.waitlock = lock
+ 	mp.waitunlockf = *(*unsafe.Pointer)(unsafe.Pointer(&unlockf))
+@@ -169,7 +169,7 @@ func acquireSudog() *sudog {
+ 	s := c.sudogcache
+ 	if s != nil {
+ 		if s.elem != nil {
+-			gothrow("acquireSudog: found s.elem != nil in cache")
++			throw("acquireSudog: found s.elem != nil in cache")
+ 		}
+ 		c.sudogcache = s.next
+ 		s.next = nil
+@@ -187,7 +187,7 @@ func acquireSudog() *sudog {
+ 	mp := acquirem()
+ 	p := new(sudog)
+ 	if p.elem != nil {
+-		gothrow("acquireSudog: found p.elem != nil after new")
++		throw("acquireSudog: found p.elem != nil after new")
+ 	}
+ 	releasem(mp)
+ 	return p
+@@ -196,23 +196,23 @@ func acquireSudog() *sudog {
+ //go:nosplit
+ func releaseSudog(s *sudog) {
+ 	if s.elem != nil {
+-		gothrow("runtime: sudog with non-nil elem")
++		throw("runtime: sudog with non-nil elem")
+ 	}
+ 	if s.selectdone != nil {
+-		gothrow("runtime: sudog with non-nil selectdone")
++		throw("runtime: sudog with non-nil selectdone")
+ 	}
+ 	if s.next != nil {
+-		gothrow("runtime: sudog with non-nil next")
++		throw("runtime: sudog with non-nil next")
+ 	}
+ 	if s.prev != nil {
+-		gothrow("runtime: sudog with non-nil prev")
++		throw("runtime: sudog with non-nil prev")
+ 	}
+ 	if s.waitlink != nil {
+-		gothrow("runtime: sudog with non-nil waitlink")
++		throw("runtime: sudog with non-nil waitlink")
+ 	}
+ 	gp := getg()
+ 	if gp.param != nil {
+-		gothrow("runtime: releaseSudog with non-nil gp.param")
++		throw("runtime: releaseSudog with non-nil gp.param")
+ 	}
+ 	c := gomcache()
+ 	s.next = c.sudogcache
+@@ -228,11 +228,11 @@ func funcPC(f interface{}) uintptr {
+ 
+ // called from assembly
+ func badmcall(fn func(*g)) {
+-	gothrow("runtime: mcall called on m->g0 stack")
++	throw("runtime: mcall called on m->g0 stack")
+ }
+ 
+ func badmcall2(fn func(*g)) {
+-	gothrow("runtime: mcall function returned")
++	throw("runtime: mcall function returned")
+ }
+ 
+ func badreflectcall() {
+@@ -263,7 +263,7 @@ var (
+ 
+ func allgadd(gp *g) {
+ 	if readgstatus(gp) == _Gidle {
+-		gothrow("allgadd: bad status Gidle")
++		throw("allgadd: bad status Gidle")
+ 	}
+ 
+ 	lock(&allglock)
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 220f463f4b..cc4630088a 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -133,7 +133,7 @@ func schedinit() {
+ 		procs = n
+ 	}
+ 	if procresize(int32(procs)) != nil {
+-		gothrow("unknown runnable goroutine during bootstrap")
++		throw("unknown runnable goroutine during bootstrap")
+ 	}
+ 
+ 	if buildVersion == "" {
+@@ -157,7 +157,7 @@ func checkmcount() {
+ 	// sched lock is held
+ 	if sched.mcount > sched.maxmcount {
+ 		print("runtime: program exceeds ", sched.maxmcount, "-thread limit\n")
+-		gothrow("thread exhaustion")
++		throw("thread exhaustion")
+ 	}
+ }
+ 
+@@ -202,7 +202,7 @@ func ready(gp *g) {
+ 	_g_.m.locks++ // disable preemption because it can be holding p in a local var
+ 	if status&^_Gscan != _Gwaiting {
+ 		dumpgstatus(gp)
+-		gothrow("bad g->status in ready")
++		throw("bad g->status in ready")
+ 	}
+ 
+ 	// status is Gwaiting or Gscanwaiting, make Grunnable and put on runq
+@@ -259,7 +259,7 @@ func helpgc(nproc int32) {
+ 		}
+ 		mp := mget()
+ 		if mp == nil {
+-			gothrow("gcprocs inconsistency")
++			throw("gcprocs inconsistency")
+ 		}
+ 		mp.helpgc = n
+ 		mp.mcache = allp[pos].mcache
+@@ -297,7 +297,7 @@ func freezetheworld() {
+ 
+ func isscanstatus(status uint32) bool {
+ 	if status == _Gscan {
+-		gothrow("isscanstatus: Bad status Gscan")
++		throw("isscanstatus: Bad status Gscan")
+ 	}
+ 	return status&_Gscan == _Gscan
+ }
+@@ -321,7 +321,7 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
+ 	default:
+ 		print("runtime: casfrom_Gscanstatus bad oldval gp=", gp, ", oldval=", hex(oldval), ", newval=", hex(newval), "\n")
+ 		dumpgstatus(gp)
+-		gothrow("casfrom_Gscanstatus:top gp->status is not in scan state")
++		throw("casfrom_Gscanstatus:top gp->status is not in scan state")
+ 	case _Gscanrunnable,
+ 		_Gscanwaiting,
+ 		_Gscanrunning,
+@@ -337,7 +337,7 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
+ 	if !success {
+ 		print("runtime: casfrom_Gscanstatus failed gp=", gp, ", oldval=", hex(oldval), ", newval=", hex(newval), "\n")
+ 		dumpgstatus(gp)
+-		gothrow("casfrom_Gscanstatus: gp->status is not in scan state")
++		throw("casfrom_Gscanstatus: gp->status is not in scan state")
+ 	}
+ }
+ 
+@@ -357,7 +357,7 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
+ 		}
+ 	}
+ 	print("runtime: castogscanstatus oldval=", hex(oldval), " newval=", hex(newval), "\n")
+-	gothrow("castogscanstatus")
++	throw("castogscanstatus")
+ 	panic("not reached")
+ }
+ 
+@@ -370,7 +370,7 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 	if (oldval&_Gscan != 0) || (newval&_Gscan != 0) || oldval == newval {
+ 		systemstack(func() {
+ 			print("casgstatus: oldval=", hex(oldval), " newval=", hex(newval), "\n")
+-			gothrow("casgstatus: bad incoming values")
++			throw("casgstatus: bad incoming values")
+ 		})
+ 	}
+ 
+@@ -379,7 +379,7 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 	for !cas(&gp.atomicstatus, oldval, newval) {
+ 		if oldval == _Gwaiting && gp.atomicstatus == _Grunnable {
+ 			systemstack(func() {
+-				gothrow("casgstatus: waiting for Gwaiting but is Grunnable")
++				throw("casgstatus: waiting for Gwaiting but is Grunnable")
+ 			})
+ 		}
+ 		// Help GC if needed.
+@@ -402,7 +402,7 @@ func casgcopystack(gp *g) uint32 {
+ 	for {
+ 		oldstatus := readgstatus(gp) &^ _Gscan
+ 		if oldstatus != _Gwaiting && oldstatus != _Grunnable {
+-			gothrow("copystack: bad status, not Gwaiting or Grunnable")
++			throw("copystack: bad status, not Gwaiting or Grunnable")
+ 		}
+ 		if cas(&gp.atomicstatus, oldstatus, _Gcopystack) {
+ 			return oldstatus
+@@ -427,7 +427,7 @@ func stopg(gp *g) bool {
+ 		switch s := readgstatus(gp); s {
+ 		default:
+ 			dumpgstatus(gp)
+-			gothrow("stopg: gp->atomicstatus is not valid")
++			throw("stopg: gp->atomicstatus is not valid")
+ 
+ 		case _Gdead:
+ 			return false
+@@ -479,7 +479,7 @@ func restartg(gp *g) {
+ 	switch s {
+ 	default:
+ 		dumpgstatus(gp)
+-		gothrow("restartg: unexpected status")
++		throw("restartg: unexpected status")
+ 
+ 	case _Gdead:
+ 		// ok
+@@ -495,7 +495,7 @@ func restartg(gp *g) {
+ 	case _Gscanenqueue:
+ 		casfrom_Gscanstatus(gp, _Gscanenqueue, _Gwaiting)
+ 		if gp != getg().m.curg {
+-			gothrow("processing Gscanenqueue on wrong m")
++			throw("processing Gscanenqueue on wrong m")
+ 		}
+ 		dropg()
+ 		ready(gp)
+@@ -505,12 +505,12 @@ func restartg(gp *g) {
+ func stopscanstart(gp *g) {
+ 	_g_ := getg()
+ 	if _g_ == gp {
+-		gothrow("GC not moved to G0")
++		throw("GC not moved to G0")
+ 	}
+ 	if stopg(gp) {
+ 		if !isscanstatus(readgstatus(gp)) {
+ 			dumpgstatus(gp)
+-			gothrow("GC not in scan state")
++			throw("GC not in scan state")
+ 		}
+ 		restartg(gp)
+ 	}
+@@ -588,7 +588,7 @@ func stoptheworld() {
+ 	// If we hold a lock, then we won't be able to stop another M
+ 	// that is blocked trying to acquire the lock.
+ 	if _g_.m.locks > 0 {
+-		gothrow("stoptheworld: holding locks")
++		throw("stoptheworld: holding locks")
+ 	}
+ 
+ 	lock(&sched.lock)
+@@ -630,12 +630,12 @@ func stoptheworld() {
+ 		}
+ 	}
+ 	if sched.stopwait != 0 {
+-		gothrow("stoptheworld: not stopped")
++		throw("stoptheworld: not stopped")
+ 	}
+ 	for i := 0; i < int(gomaxprocs); i++ {
+ 		p := allp[i]
+ 		if p.status != _Pgcstop {
+-			gothrow("stoptheworld: not stopped")
++			throw("stoptheworld: not stopped")
+ 		}
+ 	}
+ }
+@@ -674,7 +674,7 @@ func starttheworld() {
+ 			mp := p.m
+ 			p.m = nil
+ 			if mp.nextp != nil {
+-				gothrow("starttheworld: inconsistent mp->nextp")
++				throw("starttheworld: inconsistent mp->nextp")
+ 			}
+ 			mp.nextp = p
+ 			notewakeup(&mp.park)
+@@ -734,7 +734,7 @@ func mstart1() {
+ 	_g_ := getg()
+ 
+ 	if _g_ != _g_.m.g0 {
+-		gothrow("bad runtime·mstart")
++		throw("bad runtime·mstart")
+ 	}
+ 
+ 	// Record top of stack for use by mcall.
+@@ -1013,7 +1013,7 @@ func _newm(fn func(), _p_ *p) {
+ 	if iscgo {
+ 		var ts cgothreadstart
+ 		if _cgo_thread_start == nil {
+-			gothrow("_cgo_thread_start missing")
++			throw("_cgo_thread_start missing")
+ 		}
+ 		ts.g = mp.g0
+ 		ts.tls = (*uint64)(unsafe.Pointer(&mp.tls[0]))
+@@ -1030,10 +1030,10 @@ func stopm() {
+ 	_g_ := getg()
+ 
+ 	if _g_.m.locks != 0 {
+-		gothrow("stopm holding locks")
++		throw("stopm holding locks")
+ 	}
+ 	if _g_.m.p != nil {
+-		gothrow("stopm holding p")
++		throw("stopm holding p")
+ 	}
+ 	if _g_.m.spinning {
+ 		_g_.m.spinning = false
+@@ -1085,10 +1085,10 @@ func startm(_p_ *p, spinning bool) {
+ 		return
+ 	}
+ 	if mp.spinning {
+-		gothrow("startm: m is spinning")
++		throw("startm: m is spinning")
+ 	}
+ 	if mp.nextp != nil {
+-		gothrow("startm: m has p")
++		throw("startm: m has p")
+ 	}
+ 	mp.spinning = spinning
+ 	mp.nextp = _p_
+@@ -1150,7 +1150,7 @@ func stoplockedm() {
+ 	_g_ := getg()
+ 
+ 	if _g_.m.lockedg == nil || _g_.m.lockedg.lockedm != _g_.m {
+-		gothrow("stoplockedm: inconsistent locking")
++		throw("stoplockedm: inconsistent locking")
+ 	}
+ 	if _g_.m.p != nil {
+ 		// Schedule another M to run this p.
+@@ -1165,7 +1165,7 @@ func stoplockedm() {
+ 	if status&^_Gscan != _Grunnable {
+ 		print("runtime:stoplockedm: g is not Grunnable or Gscanrunnable\n")
+ 		dumpgstatus(_g_)
+-		gothrow("stoplockedm: not runnable")
++		throw("stoplockedm: not runnable")
+ 	}
+ 	acquirep(_g_.m.nextp)
+ 	_g_.m.nextp = nil
+@@ -1177,10 +1177,10 @@ func startlockedm(gp *g) {
+ 
+ 	mp := gp.lockedm
+ 	if mp == _g_.m {
+-		gothrow("startlockedm: locked to me")
++		throw("startlockedm: locked to me")
+ 	}
+ 	if mp.nextp != nil {
+-		gothrow("startlockedm: m has p")
++		throw("startlockedm: m has p")
+ 	}
+ 	// directly handoff current P to the locked m
+ 	incidlelocked(-1)
+@@ -1196,7 +1196,7 @@ func gcstopm() {
+ 	_g_ := getg()
+ 
+ 	if sched.gcwaiting == 0 {
+-		gothrow("gcstopm: not waiting for gc")
++		throw("gcstopm: not waiting for gc")
+ 	}
+ 	if _g_.m.spinning {
+ 		_g_.m.spinning = false
+@@ -1338,10 +1338,10 @@ stop:
+ 	// poll network
+ 	if xchg64(&sched.lastpoll, 0) != 0 {
+ 		if _g_.m.p != nil {
+-			gothrow("findrunnable: netpoll with p")
++			throw("findrunnable: netpoll with p")
+ 		}
+ 		if _g_.m.spinning {
+-			gothrow("findrunnable: netpoll with spinning")
++			throw("findrunnable: netpoll with spinning")
+ 		}
+ 		gp := netpoll(true) // block until new work is available
+ 		atomicstore64(&sched.lastpoll, uint64(nanotime()))
+@@ -1370,7 +1370,7 @@ func resetspinning() {
+ 		_g_.m.spinning = false
+ 		nmspinning = xadd(&sched.nmspinning, -1)
+ 		if nmspinning < 0 {
+-			gothrow("findrunnable: negative nmspinning")
++			throw("findrunnable: negative nmspinning")
+ 		}
+ 	} else {
+ 		nmspinning = atomicload(&sched.nmspinning)
+@@ -1409,7 +1409,7 @@ func schedule() {
+ 	_g_ := getg()
+ 
+ 	if _g_.m.locks != 0 {
+-		gothrow("schedule: holding locks")
++		throw("schedule: holding locks")
+ 	}
+ 
+ 	if _g_.m.lockedg != nil {
+@@ -1441,7 +1441,7 @@ top:
+ 	if gp == nil {
+ 		gp = runqget(_g_.m.p)
+ 		if gp != nil && _g_.m.spinning {
+-			gothrow("schedule: spinning with local work")
++			throw("schedule: spinning with local work")
+ 		}
+ 	}
+ 	if gp == nil {
+@@ -1522,7 +1522,7 @@ func gosched_m(gp *g) {
+ 	status := readgstatus(gp)
+ 	if status&^_Gscan != _Grunning {
+ 		dumpgstatus(gp)
+-		gothrow("bad g status")
++		throw("bad g status")
+ 	}
+ 	casgstatus(gp, _Grunning, _Grunnable)
+ 	dropg()
+@@ -1562,7 +1562,7 @@ func goexit0(gp *g) {
+ 
+ 	if _g_.m.locked&^_LockExternal != 0 {
+ 		print("invalid m->locked = ", _g_.m.locked, "\n")
+-		gothrow("internal lockOSThread error")
++		throw("internal lockOSThread error")
+ 	}
+ 	_g_.m.locked = 0
+ 	gfput(_g_.m.p, gp)
+@@ -1628,7 +1628,7 @@ func reentersyscall(pc, sp uintptr) {
+ 	if _g_.syscallsp < _g_.stack.lo || _g_.stack.hi < _g_.syscallsp {
+ 		systemstack(func() {
+ 			print("entersyscall inconsistent ", hex(_g_.syscallsp), " [", hex(_g_.stack.lo), ",", hex(_g_.stack.hi), "]\n")
+-			gothrow("entersyscall")
++			throw("entersyscall")
+ 		})
+ 	}
+ 
+@@ -1700,14 +1700,14 @@ func entersyscallblock(dummy int32) {
+ 		sp3 := _g_.syscallsp
+ 		systemstack(func() {
+ 			print("entersyscallblock inconsistent ", hex(sp1), " ", hex(sp2), " ", hex(sp3), " [", hex(_g_.stack.lo), ",", hex(_g_.stack.hi), "]\n")
+-			gothrow("entersyscallblock")
++			throw("entersyscallblock")
+ 		})
+ 	}
+ 	casgstatus(_g_, _Grunning, _Gsyscall)
+ 	if _g_.syscallsp < _g_.stack.lo || _g_.stack.hi < _g_.syscallsp {
+ 		systemstack(func() {
+ 			print("entersyscallblock inconsistent ", hex(sp), " ", hex(_g_.sched.sp), " ", hex(_g_.syscallsp), " [", hex(_g_.stack.lo), ",", hex(_g_.stack.hi), "]\n")
+-			gothrow("entersyscallblock")
++			throw("entersyscallblock")
+ 		})
+ 	}
+ 
+@@ -1733,13 +1733,13 @@ func exitsyscall(dummy int32) {
+ 
+ 	_g_.m.locks++ // see comment in entersyscall
+ 	if getcallersp(unsafe.Pointer(&dummy)) > _g_.syscallsp {
+-		gothrow("exitsyscall: syscall frame is no longer valid")
++		throw("exitsyscall: syscall frame is no longer valid")
+ 	}
+ 
+ 	_g_.waitsince = 0
+ 	if exitsyscallfast() {
+ 		if _g_.m.mcache == nil {
+-			gothrow("lost mcache")
++			throw("lost mcache")
+ 		}
+ 		// There's a cpu for us, so we can run.
+ 		_g_.m.p.syscalltick++
+@@ -1767,7 +1767,7 @@ func exitsyscall(dummy int32) {
+ 	mcall(exitsyscall0)
+ 
+ 	if _g_.m.mcache == nil {
+-		gothrow("lost mcache")
++		throw("lost mcache")
+ 	}
+ 
+ 	// Scheduler returned, so we're allowed to run now.
+@@ -1941,7 +1941,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 
+ 	if fn == nil {
+ 		_g_.m.throwing = -1 // do not dump full stacks
+-		gothrow("go of nil func value")
++		throw("go of nil func value")
+ 	}
+ 	_g_.m.locks++ // disable preemption because it can be holding p in a local var
+ 	siz := narg + nret
+@@ -1952,7 +1952,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 	// 4*sizeof(uintreg): extra space added below
+ 	// sizeof(uintreg): caller's LR (arm) or return address (x86, in gostartcall).
+ 	if siz >= _StackMin-4*regSize-regSize {
+-		gothrow("newproc: function arguments too large for new goroutine")
++		throw("newproc: function arguments too large for new goroutine")
+ 	}
+ 
+ 	_p_ := _g_.m.p
+@@ -1963,11 +1963,11 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 		allgadd(newg) // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
+ 	}
+ 	if newg.stack.hi == 0 {
+-		gothrow("newproc1: newg missing stack")
++		throw("newproc1: newg missing stack")
+ 	}
+ 
+ 	if readgstatus(newg) != _Gdead {
+-		gothrow("newproc1: new g is not Gdead")
++		throw("newproc1: new g is not Gdead")
+ 	}
+ 
+ 	sp := newg.stack.hi
+@@ -2017,7 +2017,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ // If local list is too long, transfer a batch to the global list.
+ func gfput(_p_ *p, gp *g) {
+ 	if readgstatus(gp) != _Gdead {
+-		gothrow("gfput: bad status (not Gdead)")
++		throw("gfput: bad status (not Gdead)")
+ 	}
+ 
+ 	stksize := gp.stack.hi - gp.stack.lo
+@@ -2161,7 +2161,7 @@ func unlockOSThread() {
+ }
+ 
+ func badunlockosthread() {
+-	gothrow("runtime: internal error: misuse of lockOSThread/unlockOSThread")
++	throw("runtime: internal error: misuse of lockOSThread/unlockOSThread")
+ }
+ 
+ func gcount() int32 {
+@@ -2380,7 +2380,7 @@ func setcpuprofilerate_m(hz int32) {
+ func procresize(new int32) *p {
+ 	old := gomaxprocs
+ 	if old < 0 || old > _MaxGomaxprocs || new <= 0 || new > _MaxGomaxprocs {
+-		gothrow("procresize: invalid arg")
++		throw("procresize: invalid arg")
+ 	}
+ 
+ 	// initialize new P's
+@@ -2395,7 +2395,7 @@ func procresize(new int32) *p {
+ 		if p.mcache == nil {
+ 			if old == 0 && i == 0 {
+ 				if getg().m.mcache == nil {
+-					gothrow("missing mcache?")
++					throw("missing mcache?")
+ 				}
+ 				p.mcache = getg().m.mcache // bootstrap
+ 			} else {
+@@ -2468,7 +2468,7 @@ func acquirep(_p_ *p) {
+ 	_g_ := getg()
+ 
+ 	if _g_.m.p != nil || _g_.m.mcache != nil {
+-		gothrow("acquirep: already in go")
++		throw("acquirep: already in go")
+ 	}
+ 	if _p_.m != nil || _p_.status != _Pidle {
+ 		id := int32(0)
+@@ -2476,7 +2476,7 @@ func acquirep(_p_ *p) {
+ 			id = _p_.m.id
+ 		}
+ 		print("acquirep: p->m=", _p_.m, "(", id, ") p->status=", _p_.status, "\n")
+-		gothrow("acquirep: invalid p state")
++		throw("acquirep: invalid p state")
+ 	}
+ 	_g_.m.mcache = _p_.mcache
+ 	_g_.m.p = _p_
+@@ -2489,12 +2489,12 @@ func releasep() *p {
+ 	_g_ := getg()
+ 
+ 	if _g_.m.p == nil || _g_.m.mcache == nil {
+-		gothrow("releasep: invalid arg")
++		throw("releasep: invalid arg")
+ 	}
+ 	_p_ := _g_.m.p
+ 	if _p_.m != _g_.m || _p_.mcache != _g_.m.mcache || _p_.status != _Prunning {
+ 		print("releasep: m=", _g_.m, " m->p=", _g_.m.p, " p->m=", _p_.m, " m->mcache=", _g_.m.mcache, " p->mcache=", _p_.mcache, " p->status=", _p_.status, "\n")
+-		gothrow("releasep: invalid p state")
++		throw("releasep: invalid p state")
+ 	}
+ 	_g_.m.p = nil
+ 	_g_.m.mcache = nil
+@@ -2530,7 +2530,7 @@ func checkdead() {
+ 	}
+ 	if run < 0 {
+ 		print("runtime: checkdead: nmidle=", sched.nmidle, " nmidlelocked=", sched.nmidlelocked, " mcount=", sched.mcount, "\n")
+-		gothrow("checkdead: inconsistent counts")
++		throw("checkdead: inconsistent counts")
+ 	}
+ 
+ 	grunning := 0
+@@ -2549,12 +2549,12 @@ func checkdead() {
+ 			_Gsyscall:
+ 			unlock(&allglock)
+ 			print("runtime: checkdead: find g ", gp.goid, " in status ", s, "\n")
+-			gothrow("checkdead: runnable g")
++			throw("checkdead: runnable g")
+ 		}
+ 	}
+ 	unlock(&allglock)
+ 	if grunning == 0 { // possible if main goroutine calls runtime·Goexit()
+-		gothrow("no goroutines (main called runtime.Goexit) - deadlock!")
++		throw("no goroutines (main called runtime.Goexit) - deadlock!")
+ 	}
+ 
+ 	// Maybe jump time forward for playground.
+@@ -2564,7 +2564,7 @@ func checkdead() {
+ 		globrunqput(gp)
+ 		_p_ := pidleget()
+ 		if _p_ == nil {
+-			gothrow("checkdead: no p for timer")
++			throw("checkdead: no p for timer")
+ 		}
+ 		mp := mget()
+ 		if mp == nil {
+@@ -2577,7 +2577,7 @@ func checkdead() {
+ 	}
+ 
+ 	getg().m.throwing = -1 // do not dump full stacks
+-	gothrow("all goroutines are asleep - deadlock!")
++	throw("all goroutines are asleep - deadlock!")
+ }
+ 
+ func sysmon() {
+@@ -2999,7 +2999,7 @@ func runqputslow(_p_ *p, gp *g, h, t uint32) bool {
+ 	n := t - h
+ 	n = n / 2
+ 	if n != uint32(len(_p_.runq)/2) {
+-		gothrow("runqputslow: queue is not full")
++		throw("runqputslow: queue is not full")
+ 	}
+ 	for i := uint32(0); i < n; i++ {
+ 		batch[i] = _p_.runq[(h+i)%uint32(len(_p_.runq))]
+@@ -3079,7 +3079,7 @@ func runqsteal(_p_, p2 *p) *g {
+ 	h := atomicload(&_p_.runqhead) // load-acquire, synchronize with consumers
+ 	t := _p_.runqtail
+ 	if t-h+n >= uint32(len(_p_.runq)) {
+-		gothrow("runqsteal: runq overflow")
++		throw("runqsteal: runq overflow")
+ 	}
+ 	for i := uint32(0); i < n; i++ {
+ 		_p_.runq[(t+i)%uint32(len(_p_.runq))] = batch[i]
+@@ -3093,7 +3093,7 @@ func testSchedLocalQueue() {
+ 	gs := make([]g, len(_p_.runq))
+ 	for i := 0; i < len(_p_.runq); i++ {
+ 		if runqget(_p_) != nil {
+-			gothrow("runq is not empty initially")
++			throw("runq is not empty initially")
+ 		}
+ 		for j := 0; j < i; j++ {
+ 			runqput(_p_, &gs[i])
+@@ -3101,11 +3101,11 @@ func testSchedLocalQueue() {
+ 		for j := 0; j < i; j++ {
+ 			if runqget(_p_) != &gs[i] {
+ 				print("bad element at iter ", i, "/", j, "\n")
+-				gothrow("bad element")
++				throw("bad element")
+ 			}
+ 		}
+ 		if runqget(_p_) != nil {
+-			gothrow("runq is not empty afterwards")
++			throw("runq is not empty afterwards")
+ 		}
+ 	}
+ }
+@@ -3143,12 +3143,12 @@ func testSchedLocalQueueSteal() {
+ 		for j := 0; j < i; j++ {
+ 			if gs[j].sig != 1 {
+ 				print("bad element ", j, "(", gs[j].sig, ") at iter ", i, "\n")
+-				gothrow("bad element")
++				throw("bad element")
+ 			}
+ 		}
+ 		if s != i/2 && s != i/2+1 {
+ 			print("bad steal ", s, ", want ", i/2, " or ", i/2+1, ", iter ", i, "\n")
+-			gothrow("bad steal")
++			throw("bad steal")
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/race0.go b/src/runtime/race0.go
+index dadb6083fe..591d5d9c8a 100644
+--- a/src/runtime/race0.go
++++ b/src/runtime/race0.go
+@@ -16,22 +16,22 @@ const raceenabled = false
+ 
+ // Because raceenabled is false, none of these functions should be called.
+ 
+-func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr)  { gothrow("race") }
+-func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) { gothrow("race") }
+-func raceinit() uintptr                                                     { gothrow("race"); return 0 }
+-func racefini()                                                             { gothrow("race") }
+-func racemapshadow(addr unsafe.Pointer, size uintptr)                       { gothrow("race") }
+-func racewritepc(addr unsafe.Pointer, callerpc, pc uintptr)                 { gothrow("race") }
+-func racereadpc(addr unsafe.Pointer, callerpc, pc uintptr)                  { gothrow("race") }
+-func racereadrangepc(addr unsafe.Pointer, sz, callerpc, pc uintptr)         { gothrow("race") }
+-func racewriterangepc(addr unsafe.Pointer, sz, callerpc, pc uintptr)        { gothrow("race") }
+-func raceacquire(addr unsafe.Pointer)                                       { gothrow("race") }
+-func raceacquireg(gp *g, addr unsafe.Pointer)                               { gothrow("race") }
+-func racerelease(addr unsafe.Pointer)                                       { gothrow("race") }
+-func racereleaseg(gp *g, addr unsafe.Pointer)                               { gothrow("race") }
+-func racereleasemerge(addr unsafe.Pointer)                                  { gothrow("race") }
+-func racereleasemergeg(gp *g, addr unsafe.Pointer)                          { gothrow("race") }
+-func racefingo()                                                            { gothrow("race") }
+-func racemalloc(p unsafe.Pointer, sz uintptr)                               { gothrow("race") }
+-func racegostart(pc uintptr) uintptr                                        { gothrow("race"); return 0 }
+-func racegoend()                                                            { gothrow("race") }
++func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr)  { throw("race") }
++func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) { throw("race") }
++func raceinit() uintptr                                                     { throw("race"); return 0 }
++func racefini()                                                             { throw("race") }
++func racemapshadow(addr unsafe.Pointer, size uintptr)                       { throw("race") }
++func racewritepc(addr unsafe.Pointer, callerpc, pc uintptr)                 { throw("race") }
++func racereadpc(addr unsafe.Pointer, callerpc, pc uintptr)                  { throw("race") }
++func racereadrangepc(addr unsafe.Pointer, sz, callerpc, pc uintptr)         { throw("race") }
++func racewriterangepc(addr unsafe.Pointer, sz, callerpc, pc uintptr)        { throw("race") }
++func raceacquire(addr unsafe.Pointer)                                       { throw("race") }
++func raceacquireg(gp *g, addr unsafe.Pointer)                               { throw("race") }
++func racerelease(addr unsafe.Pointer)                                       { throw("race") }
++func racereleaseg(gp *g, addr unsafe.Pointer)                               { throw("race") }
++func racereleasemerge(addr unsafe.Pointer)                                  { throw("race") }
++func racereleasemergeg(gp *g, addr unsafe.Pointer)                          { throw("race") }
++func racefingo()                                                            { throw("race") }
++func racemalloc(p unsafe.Pointer, sz uintptr)                               { throw("race") }
++func racegostart(pc uintptr) uintptr                                        { throw("race"); return 0 }
++func racegoend()                                                            { throw("race") }
+diff --git a/src/runtime/race1.go b/src/runtime/race1.go
+index 2ec2bee65b..7e011fe247 100644
+--- a/src/runtime/race1.go
++++ b/src/runtime/race1.go
+@@ -110,7 +110,7 @@ func isvalidaddr(addr unsafe.Pointer) bool {
+ func raceinit() uintptr {
+ 	// cgo is required to initialize libc, which is used by race runtime
+ 	if !iscgo {
+-		gothrow("raceinit: race build must use cgo")
++		throw("raceinit: race build must use cgo")
+ 	}
+ 
+ 	var racectx uintptr
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 13fed93484..371275dbb8 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -102,36 +102,36 @@ func testAtomic64() {
+ 	prefetcht2(uintptr(unsafe.Pointer(&z64)))
+ 	prefetchnta(uintptr(unsafe.Pointer(&z64)))
+ 	if cas64(&z64, x64, 1) {
+-		gothrow("cas64 failed")
++		throw("cas64 failed")
+ 	}
+ 	if x64 != 0 {
+-		gothrow("cas64 failed")
++		throw("cas64 failed")
+ 	}
+ 	x64 = 42
+ 	if !cas64(&z64, x64, 1) {
+-		gothrow("cas64 failed")
++		throw("cas64 failed")
+ 	}
+ 	if x64 != 42 || z64 != 1 {
+-		gothrow("cas64 failed")
++		throw("cas64 failed")
+ 	}
+ 	if atomicload64(&z64) != 1 {
+-		gothrow("load64 failed")
++		throw("load64 failed")
+ 	}
+ 	atomicstore64(&z64, (1<<40)+1)
+ 	if atomicload64(&z64) != (1<<40)+1 {
+-		gothrow("store64 failed")
++		throw("store64 failed")
+ 	}
+ 	if xadd64(&z64, (1<<40)+1) != (2<<40)+2 {
+-		gothrow("xadd64 failed")
++		throw("xadd64 failed")
+ 	}
+ 	if atomicload64(&z64) != (2<<40)+2 {
+-		gothrow("xadd64 failed")
++		throw("xadd64 failed")
+ 	}
+ 	if xchg64(&z64, (3<<40)+3) != (2<<40)+2 {
+-		gothrow("xchg64 failed")
++		throw("xchg64 failed")
+ 	}
+ 	if atomicload64(&z64) != (3<<40)+3 {
+-		gothrow("xchg64 failed")
++		throw("xchg64 failed")
+ 	}
+ }
+ 
+@@ -162,78 +162,78 @@ func check() {
+ 	var y1 y1t
+ 
+ 	if unsafe.Sizeof(a) != 1 {
+-		gothrow("bad a")
++		throw("bad a")
+ 	}
+ 	if unsafe.Sizeof(b) != 1 {
+-		gothrow("bad b")
++		throw("bad b")
+ 	}
+ 	if unsafe.Sizeof(c) != 2 {
+-		gothrow("bad c")
++		throw("bad c")
+ 	}
+ 	if unsafe.Sizeof(d) != 2 {
+-		gothrow("bad d")
++		throw("bad d")
+ 	}
+ 	if unsafe.Sizeof(e) != 4 {
+-		gothrow("bad e")
++		throw("bad e")
+ 	}
+ 	if unsafe.Sizeof(f) != 4 {
+-		gothrow("bad f")
++		throw("bad f")
+ 	}
+ 	if unsafe.Sizeof(g) != 8 {
+-		gothrow("bad g")
++		throw("bad g")
+ 	}
+ 	if unsafe.Sizeof(h) != 8 {
+-		gothrow("bad h")
++		throw("bad h")
+ 	}
+ 	if unsafe.Sizeof(i) != 4 {
+-		gothrow("bad i")
++		throw("bad i")
+ 	}
+ 	if unsafe.Sizeof(j) != 8 {
+-		gothrow("bad j")
++		throw("bad j")
+ 	}
+ 	if unsafe.Sizeof(k) != ptrSize {
+-		gothrow("bad k")
++		throw("bad k")
+ 	}
+ 	if unsafe.Sizeof(l) != ptrSize {
+-		gothrow("bad l")
++		throw("bad l")
+ 	}
+ 	if unsafe.Sizeof(x1) != 1 {
+-		gothrow("bad unsafe.Sizeof x1")
++		throw("bad unsafe.Sizeof x1")
+ 	}
+ 	if unsafe.Offsetof(y1.y) != 1 {
+-		gothrow("bad offsetof y1.y")
++		throw("bad offsetof y1.y")
+ 	}
+ 	if unsafe.Sizeof(y1) != 2 {
+-		gothrow("bad unsafe.Sizeof y1")
++		throw("bad unsafe.Sizeof y1")
+ 	}
+ 
+ 	if timediv(12345*1000000000+54321, 1000000000, &e) != 12345 || e != 54321 {
+-		gothrow("bad timediv")
++		throw("bad timediv")
+ 	}
+ 
+ 	var z uint32
+ 	z = 1
+ 	if !cas(&z, 1, 2) {
+-		gothrow("cas1")
++		throw("cas1")
+ 	}
+ 	if z != 2 {
+-		gothrow("cas2")
++		throw("cas2")
+ 	}
+ 
+ 	z = 4
+ 	if cas(&z, 5, 6) {
+-		gothrow("cas3")
++		throw("cas3")
+ 	}
+ 	if z != 4 {
+-		gothrow("cas4")
++		throw("cas4")
+ 	}
+ 
+ 	z = 0xffffffff
+ 	if !cas(&z, 0xffffffff, 0xfffffffe) {
+-		gothrow("cas5")
++		throw("cas5")
+ 	}
+ 	if z != 0xfffffffe {
+-		gothrow("cas6")
++		throw("cas6")
+ 	}
+ 
+ 	k = unsafe.Pointer(uintptr(0xfedcb123))
+@@ -241,58 +241,58 @@ func check() {
+ 		k = unsafe.Pointer(uintptr(unsafe.Pointer(k)) << 10)
+ 	}
+ 	if casp(&k, nil, nil) {
+-		gothrow("casp1")
++		throw("casp1")
+ 	}
+ 	k1 = add(k, 1)
+ 	if !casp(&k, k, k1) {
+-		gothrow("casp2")
++		throw("casp2")
+ 	}
+ 	if k != k1 {
+-		gothrow("casp3")
++		throw("casp3")
+ 	}
+ 
+ 	m = [4]byte{1, 1, 1, 1}
+ 	atomicor8(&m[1], 0xf0)
+ 	if m[0] != 1 || m[1] != 0xf1 || m[2] != 1 || m[3] != 1 {
+-		gothrow("atomicor8")
++		throw("atomicor8")
+ 	}
+ 
+ 	*(*uint64)(unsafe.Pointer(&j)) = ^uint64(0)
+ 	if j == j {
+-		gothrow("float64nan")
++		throw("float64nan")
+ 	}
+ 	if !(j != j) {
+-		gothrow("float64nan1")
++		throw("float64nan1")
+ 	}
+ 
+ 	*(*uint64)(unsafe.Pointer(&j1)) = ^uint64(1)
+ 	if j == j1 {
+-		gothrow("float64nan2")
++		throw("float64nan2")
+ 	}
+ 	if !(j != j1) {
+-		gothrow("float64nan3")
++		throw("float64nan3")
+ 	}
+ 
+ 	*(*uint32)(unsafe.Pointer(&i)) = ^uint32(0)
+ 	if i == i {
+-		gothrow("float32nan")
++		throw("float32nan")
+ 	}
+ 	if i == i {
+-		gothrow("float32nan1")
++		throw("float32nan1")
+ 	}
+ 
+ 	*(*uint32)(unsafe.Pointer(&i1)) = ^uint32(1)
+ 	if i == i1 {
+-		gothrow("float32nan2")
++		throw("float32nan2")
+ 	}
+ 	if i == i1 {
+-		gothrow("float32nan3")
++		throw("float32nan3")
+ 	}
+ 
+ 	testAtomic64()
+ 
+ 	if _FixedStack != round2(_FixedStack) {
+-		gothrow("FixedStack is not power-of-2")
++		throw("FixedStack is not power-of-2")
+ 	}
+ }
+ 
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 39484e8360..1293a153e4 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -28,7 +28,7 @@ func selectsize(size uintptr) uintptr {
+ func newselect(sel *_select, selsize int64, size int32) {
+ 	if selsize != int64(selectsize(uintptr(size))) {
+ 		print("runtime: bad select size ", selsize, ", want ", selectsize(uintptr(size)), "\n")
+-		gothrow("bad select size")
++		throw("bad select size")
+ 	}
+ 	sel.tcase = uint16(size)
+ 	sel.ncase = 0
+@@ -53,7 +53,7 @@ func selectsend(sel *_select, c *hchan, elem unsafe.Pointer) (selected bool) {
+ func selectsendImpl(sel *_select, c *hchan, pc uintptr, elem unsafe.Pointer, so uintptr) {
+ 	i := sel.ncase
+ 	if i >= sel.tcase {
+-		gothrow("selectsend: too many cases")
++		throw("selectsend: too many cases")
+ 	}
+ 	sel.ncase = i + 1
+ 	cas := (*scase)(add(unsafe.Pointer(&sel.scase), uintptr(i)*unsafe.Sizeof(sel.scase[0])))
+@@ -90,7 +90,7 @@ func selectrecv2(sel *_select, c *hchan, elem unsafe.Pointer, received *bool) (s
+ func selectrecvImpl(sel *_select, c *hchan, pc uintptr, elem unsafe.Pointer, received *bool, so uintptr) {
+ 	i := sel.ncase
+ 	if i >= sel.tcase {
+-		gothrow("selectrecv: too many cases")
++		throw("selectrecv: too many cases")
+ 	}
+ 	sel.ncase = i + 1
+ 	cas := (*scase)(add(unsafe.Pointer(&sel.scase), uintptr(i)*unsafe.Sizeof(sel.scase[0])))
+@@ -115,7 +115,7 @@ func selectdefault(sel *_select) (selected bool) {
+ func selectdefaultImpl(sel *_select, callerpc uintptr, so uintptr) {
+ 	i := sel.ncase
+ 	if i >= sel.tcase {
+-		gothrow("selectdefault: too many cases")
++		throw("selectdefault: too many cases")
+ 	}
+ 	sel.ncase = i + 1
+ 	cas := (*scase)(add(unsafe.Pointer(&sel.scase), uintptr(i)*unsafe.Sizeof(sel.scase[0])))
+@@ -263,7 +263,7 @@ func selectgoImpl(sel *_select) (uintptr, uint16) {
+ 		for i := 0; i+1 < int(sel.ncase); i++ {
+ 			if lockorder[i].sortkey() > lockorder[i+1].sortkey() {
+ 				print("i=", i, " x=", lockorder[i], " y=", lockorder[i+1], "\n")
+-				gothrow("select: broken sort")
++				throw("select: broken sort")
+ 			}
+ 		}
+ 	*/
+@@ -412,7 +412,7 @@ loop:
+ 	c = cas._chan
+ 
+ 	if c.dataqsiz > 0 {
+-		gothrow("selectgo: shouldn't happen")
++		throw("selectgo: shouldn't happen")
+ 	}
+ 
+ 	if debugSelect {
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index 625445c912..35a1264762 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -62,7 +62,7 @@ func net_runtime_Semrelease(addr *uint32) {
+ func semacquire(addr *uint32, profile bool) {
+ 	gp := getg()
+ 	if gp != gp.m.curg {
+-		gothrow("semacquire not on the G stack")
++		throw("semacquire not on the G stack")
+ 	}
+ 
+ 	// Easy case.
+@@ -284,6 +284,6 @@ func syncsemrelease(s *syncSema, n uint32) {
+ func syncsemcheck(sz uintptr) {
+ 	if sz != unsafe.Sizeof(syncSema{}) {
+ 		print("runtime: bad syncSema size - sync=", sz, " runtime=", unsafe.Sizeof(syncSema{}), "\n")
+-		gothrow("bad syncSema size")
++		throw("bad syncSema size")
+ 	}
+ }
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index 9613e0ae33..253ee9f465 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -16,7 +16,7 @@ func initsig() {
+ 	// sigtable should describe what to do for all the possible signals.
+ 	if len(sigtable) != _NSIG {
+ 		print("runtime: len(sigtable)=", len(sigtable), " _NSIG=", _NSIG, "\n")
+-		gothrow("initsig")
++		throw("initsig")
+ 	}
+ 
+ 	// First call: basic setup.
+diff --git a/src/runtime/sigpanic_unix.go b/src/runtime/sigpanic_unix.go
+index 7bf2c15409..f1205dc965 100644
+--- a/src/runtime/sigpanic_unix.go
++++ b/src/runtime/sigpanic_unix.go
+@@ -9,7 +9,7 @@ package runtime
+ func sigpanic() {
+ 	g := getg()
+ 	if !canpanic(g) {
+-		gothrow("unexpected signal during runtime execution")
++		throw("unexpected signal during runtime execution")
+ 	}
+ 
+ 	switch g.sig {
+@@ -18,13 +18,13 @@ func sigpanic() {
+ 			panicmem()
+ 		}
+ 		print("unexpected fault address ", hex(g.sigcode1), "\n")
+-		gothrow("fault")
++		throw("fault")
+ 	case _SIGSEGV:
+ 		if (g.sigcode0 == 0 || g.sigcode0 == _SEGV_MAPERR || g.sigcode0 == _SEGV_ACCERR) && g.sigcode1 < 0x1000 || g.paniconfault {
+ 			panicmem()
+ 		}
+ 		print("unexpected fault address ", hex(g.sigcode1), "\n")
+-		gothrow("fault")
++		throw("fault")
+ 	case _SIGFPE:
+ 		switch g.sigcode0 {
+ 		case _FPE_INTDIV:
+@@ -37,7 +37,7 @@ func sigpanic() {
+ 
+ 	if g.sig >= uint32(len(sigtable)) {
+ 		// can't happen: we looked up g.sig in sigtable to decide to call sigpanic
+-		gothrow("unexpected signal value")
++		throw("unexpected signal value")
+ 	}
+ 	panic(errorString(sigtable[g.sig].name))
+ }
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index 82ead228fa..4b97745a23 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -67,7 +67,7 @@ Send:
+ 	for {
+ 		switch atomicload(&sig.state) {
+ 		default:
+-			gothrow("sigsend: inconsistent state")
++			throw("sigsend: inconsistent state")
+ 		case sigIdle:
+ 			if cas(&sig.state, sigIdle, sigSending) {
+ 				break Send
+@@ -103,7 +103,7 @@ func signal_recv() uint32 {
+ 		for {
+ 			switch atomicload(&sig.state) {
+ 			default:
+-				gothrow("signal_recv: inconsistent state")
++				throw("signal_recv: inconsistent state")
+ 			case sigIdle:
+ 				if cas(&sig.state, sigIdle, sigReceiving) {
+ 					notetsleepg(&sig.note, -1)
+diff --git a/src/runtime/softfloat_arm.go b/src/runtime/softfloat_arm.go
+index efee31c4c7..8f184ccf3b 100644
+--- a/src/runtime/softfloat_arm.go
++++ b/src/runtime/softfloat_arm.go
+@@ -21,7 +21,7 @@ const (
+ var fptrace = 0
+ 
+ func fabort() {
+-	gothrow("unsupported floating point instruction")
++	throw("unsupported floating point instruction")
+ }
+ 
+ func fputf(reg uint32, val uint32) {
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index 0ffba0dd85..198aa50a76 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -49,7 +49,7 @@ var stackfreequeue stack
+ 
+ func stackinit() {
+ 	if _StackCacheSize&_PageMask != 0 {
+-		gothrow("cache size must be a multiple of page size")
++		throw("cache size must be a multiple of page size")
+ 	}
+ 	for i := range stackpool {
+ 		mSpanList_Init(&stackpool[i])
+@@ -65,13 +65,13 @@ func stackpoolalloc(order uint8) gclinkptr {
+ 		// no free stacks.  Allocate another span worth.
+ 		s = mHeap_AllocStack(&mheap_, _StackCacheSize>>_PageShift)
+ 		if s == nil {
+-			gothrow("out of memory")
++			throw("out of memory")
+ 		}
+ 		if s.ref != 0 {
+-			gothrow("bad ref")
++			throw("bad ref")
+ 		}
+ 		if s.freelist.ptr() != nil {
+-			gothrow("bad freelist")
++			throw("bad freelist")
+ 		}
+ 		for i := uintptr(0); i < _StackCacheSize; i += _FixedStack << order {
+ 			x := gclinkptr(uintptr(s.start)<<_PageShift + i)
+@@ -82,7 +82,7 @@ func stackpoolalloc(order uint8) gclinkptr {
+ 	}
+ 	x := s.freelist
+ 	if x.ptr() == nil {
+-		gothrow("span has no free stacks")
++		throw("span has no free stacks")
+ 	}
+ 	s.freelist = x.ptr().next
+ 	s.ref++
+@@ -97,7 +97,7 @@ func stackpoolalloc(order uint8) gclinkptr {
+ func stackpoolfree(x gclinkptr, order uint8) {
+ 	s := mHeap_Lookup(&mheap_, (unsafe.Pointer)(x))
+ 	if s.state != _MSpanStack {
+-		gothrow("freeing stack not in a stack span")
++		throw("freeing stack not in a stack span")
+ 	}
+ 	if s.freelist.ptr() == nil {
+ 		// s will now have a free stack
+@@ -179,10 +179,10 @@ func stackalloc(n uint32) stack {
+ 	// Doing so would cause a deadlock (issue 1547).
+ 	thisg := getg()
+ 	if thisg != thisg.m.g0 {
+-		gothrow("stackalloc not on scheduler stack")
++		throw("stackalloc not on scheduler stack")
+ 	}
+ 	if n&(n-1) != 0 {
+-		gothrow("stack size not a power of 2")
++		throw("stack size not a power of 2")
+ 	}
+ 	if stackDebug >= 1 {
+ 		print("stackalloc ", n, "\n")
+@@ -191,7 +191,7 @@ func stackalloc(n uint32) stack {
+ 	if debug.efence != 0 || stackFromSystem != 0 {
+ 		v := sysAlloc(round(uintptr(n), _PageSize), &memstats.stacks_sys)
+ 		if v == nil {
+-			gothrow("out of memory (stackalloc)")
++			throw("out of memory (stackalloc)")
+ 		}
+ 		return stack{uintptr(v), uintptr(v) + uintptr(n)}
+ 	}
+@@ -230,7 +230,7 @@ func stackalloc(n uint32) stack {
+ 	} else {
+ 		s := mHeap_AllocStack(&mheap_, round(uintptr(n), _PageSize)>>_PageShift)
+ 		if s == nil {
+-			gothrow("out of memory")
++			throw("out of memory")
+ 		}
+ 		v = (unsafe.Pointer)(s.start << _PageShift)
+ 	}
+@@ -249,7 +249,7 @@ func stackfree(stk stack) {
+ 	n := stk.hi - stk.lo
+ 	v := (unsafe.Pointer)(stk.lo)
+ 	if n&(n-1) != 0 {
+-		gothrow("stack not a power of 2")
++		throw("stack not a power of 2")
+ 	}
+ 	if stackDebug >= 1 {
+ 		println("stackfree", v, n)
+@@ -288,7 +288,7 @@ func stackfree(stk stack) {
+ 		s := mHeap_Lookup(&mheap_, v)
+ 		if s.state != _MSpanStack {
+ 			println(hex(s.start<<_PageShift), v)
+-			gothrow("bad span state")
++			throw("bad span state")
+ 		}
+ 		mHeap_FreeStack(&mheap_, s)
+ 	}
+@@ -379,7 +379,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
+ 		}
+ 		switch ptrbits(&bv, i) {
+ 		default:
+-			gothrow("unexpected pointer bits")
++			throw("unexpected pointer bits")
+ 		case _BitsDead:
+ 			if debug.gcdead != 0 {
+ 				*(*unsafe.Pointer)(add(scanp, i*ptrSize)) = unsafe.Pointer(uintptr(poisonStack))
+@@ -394,7 +394,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
+ 				// Live analysis wrong?
+ 				getg().m.traceback = 2
+ 				print("runtime: bad pointer in frame ", gofuncname(f), " at ", add(scanp, i*ptrSize), ": ", p, "\n")
+-				gothrow("invalid stack pointer")
++				throw("invalid stack pointer")
+ 			}
+ 			if minp <= up && up < maxp {
+ 				if stackDebug >= 3 {
+@@ -445,13 +445,13 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 		stackmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
+ 		if stackmap == nil || stackmap.n <= 0 {
+ 			print("runtime: frame ", funcname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
+-			gothrow("missing stackmap")
++			throw("missing stackmap")
+ 		}
+ 		// Locals bitmap information, scan just the pointers in locals.
+ 		if pcdata < 0 || pcdata >= stackmap.n {
+ 			// don't know where we are
+ 			print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
+-			gothrow("bad symbol table")
++			throw("bad symbol table")
+ 		}
+ 		bv = stackmapdata(stackmap, pcdata)
+ 		size = (uintptr(bv.n) * ptrSize) / _BitsPerPointer
+@@ -470,12 +470,12 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 			stackmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
+ 			if stackmap == nil || stackmap.n <= 0 {
+ 				print("runtime: frame ", funcname(f), " untyped args ", frame.argp, "+", uintptr(frame.arglen), "\n")
+-				gothrow("missing stackmap")
++				throw("missing stackmap")
+ 			}
+ 			if pcdata < 0 || pcdata >= stackmap.n {
+ 				// don't know where we are
+ 				print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " args stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
+-				gothrow("bad symbol table")
++				throw("bad symbol table")
+ 			}
+ 			bv = stackmapdata(stackmap, pcdata)
+ 		}
+@@ -529,11 +529,11 @@ func fillstack(stk stack, b byte) {
+ // Caller must have changed gp status to Gcopystack.
+ func copystack(gp *g, newsize uintptr) {
+ 	if gp.syscallsp != 0 {
+-		gothrow("stack growth not allowed in system call")
++		throw("stack growth not allowed in system call")
+ 	}
+ 	old := gp.stack
+ 	if old.lo == 0 {
+-		gothrow("nil stackbase")
++		throw("nil stackbase")
+ 	}
+ 	used := old.hi - gp.sched.sp
+ 
+@@ -612,13 +612,13 @@ func newstack() {
+ 	thisg := getg()
+ 	// TODO: double check all gp. shouldn't be getg().
+ 	if thisg.m.morebuf.g.stackguard0 == stackFork {
+-		gothrow("stack growth after fork")
++		throw("stack growth after fork")
+ 	}
+ 	if thisg.m.morebuf.g != thisg.m.curg {
+ 		print("runtime: newstack called from g=", thisg.m.morebuf.g, "\n"+"\tm=", thisg.m, " m->curg=", thisg.m.curg, " m->g0=", thisg.m.g0, " m->gsignal=", thisg.m.gsignal, "\n")
+ 		morebuf := thisg.m.morebuf
+ 		traceback(morebuf.pc, morebuf.sp, morebuf.lr, morebuf.g)
+-		gothrow("runtime: wrong goroutine in newstack")
++		throw("runtime: wrong goroutine in newstack")
+ 	}
+ 	if thisg.m.curg.throwsplit {
+ 		gp := thisg.m.curg
+@@ -629,7 +629,7 @@ func newstack() {
+ 		print("runtime: newstack sp=", hex(gp.sched.sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n",
+ 			"\tmorebuf={pc:", hex(morebuf.pc), " sp:", hex(morebuf.sp), " lr:", hex(morebuf.lr), "}\n",
+ 			"\tsched={pc:", hex(gp.sched.pc), " sp:", hex(gp.sched.sp), " lr:", hex(gp.sched.lr), " ctxt:", gp.sched.ctxt, "}\n")
+-		gothrow("runtime: stack split at bad time")
++		throw("runtime: stack split at bad time")
+ 	}
+ 
+ 	// The goroutine must be executing in order to call newstack,
+@@ -648,7 +648,7 @@ func newstack() {
+ 	rewindmorestack(&gp.sched)
+ 
+ 	if gp.stack.lo == 0 {
+-		gothrow("missing stack in newstack")
++		throw("missing stack in newstack")
+ 	}
+ 	sp := gp.sched.sp
+ 	if thechar == '6' || thechar == '8' {
+@@ -663,7 +663,7 @@ func newstack() {
+ 	if sp < gp.stack.lo {
+ 		print("runtime: gp=", gp, ", gp->status=", hex(readgstatus(gp)), "\n ")
+ 		print("runtime: split stack overflow: ", hex(sp), " < ", hex(gp.stack.lo), "\n")
+-		gothrow("runtime: split stack overflow")
++		throw("runtime: split stack overflow")
+ 	}
+ 
+ 	if gp.sched.ctxt != nil {
+@@ -676,10 +676,10 @@ func newstack() {
+ 
+ 	if gp.stackguard0 == stackPreempt {
+ 		if gp == thisg.m.g0 {
+-			gothrow("runtime: preempt g0")
++			throw("runtime: preempt g0")
+ 		}
+ 		if thisg.m.p == nil && thisg.m.locks == 0 {
+-			gothrow("runtime: g is running but p is not")
++			throw("runtime: g is running but p is not")
+ 		}
+ 		if gp.preemptscan {
+ 			for !castogscanstatus(gp, _Gwaiting, _Gscanwaiting) {
+@@ -715,7 +715,7 @@ func newstack() {
+ 	newsize := oldsize * 2
+ 	if uintptr(newsize) > maxstacksize {
+ 		print("runtime: goroutine stack exceeds ", maxstacksize, "-byte limit\n")
+-		gothrow("stack overflow")
++		throw("stack overflow")
+ 	}
+ 
+ 	casgstatus(gp, _Gwaiting, _Gcopystack)
+@@ -761,7 +761,7 @@ func shrinkstack(gp *g) {
+ 		return
+ 	}
+ 	if gp.stack.lo == 0 {
+-		gothrow("missing stack in shrinkstack")
++		throw("missing stack in shrinkstack")
+ 	}
+ 
+ 	oldsize := gp.stack.hi - gp.stack.lo
+@@ -808,6 +808,6 @@ func shrinkfinish() {
+ //go:nosplit
+ func morestackc() {
+ 	systemstack(func() {
+-		gothrow("attempt to execute C code on Go stack")
++		throw("attempt to execute C code on Go stack")
+ 	})
+ }
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index 652c72eeed..17e33327ae 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -395,3 +395,21 @@ func TestStackPanic(t *testing.T) {
+ 	useStack(32)
+ 	panic("test panic")
+ }
++
++func BenchmarkStackCopy(b *testing.B) {
++	c := make(chan bool)
++	for i := 0; i < b.N; i++ {
++		go func() {
++			count(1000000)
++			c <- true
++		}()
++		<-c
++	}
++}
++
++func count(n int) int {
++	if n == 0 {
++		return 0
++	}
++	return 1 + count(n-1)
++}
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index e01bc3b846..78c4cb3e5e 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -18,7 +18,7 @@ func concatstrings(a []string) string {
+ 			continue
+ 		}
+ 		if l+n < l {
+-			gothrow("string concatenation too long")
++			throw("string concatenation too long")
+ 		}
+ 		l += n
+ 		count++
+@@ -222,7 +222,7 @@ func rawbyteslice(size int) (b []byte) {
+ // rawruneslice allocates a new rune slice. The rune slice is not zeroed.
+ func rawruneslice(size int) (b []rune) {
+ 	if uintptr(size) > _MaxMem/4 {
+-		gothrow("out of memory")
++		throw("out of memory")
+ 	}
+ 	mem := goroundupsize(uintptr(size) * 4)
+ 	p := mallocgc(mem, nil, flagNoScan|flagNoZero)
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 03e3ee98f8..591ece6b3a 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -59,7 +59,7 @@ func mcall(fn func(*g))
+ func systemstack(fn func())
+ 
+ func badsystemstack() {
+-	gothrow("systemstack called from unexpected goroutine")
++	throw("systemstack called from unexpected goroutine")
+ }
+ 
+ // memclr clears n bytes starting at ptr.
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 8a6ed0272f..03d394d268 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -50,7 +50,7 @@ func symtabinit() {
+ 	pcln32 := (*[2]uint32)(unsafe.Pointer(&pclntab))
+ 	if pcln32[0] != 0xfffffffb || pcln[4] != 0 || pcln[5] != 0 || pcln[6] != _PCQuantum || pcln[7] != ptrSize {
+ 		println("runtime: function symbol table header:", hex(pcln32[0]), hex(pcln[4]), hex(pcln[5]), hex(pcln[6]), hex(pcln[7]))
+-		gothrow("invalid function symbol table\n")
++		throw("invalid function symbol table\n")
+ 	}
+ 
+ 	// pclntable is all bytes of pclntab symbol.
+@@ -79,7 +79,7 @@ func symtabinit() {
+ 			for j := 0; j <= i; j++ {
+ 				print("\t", hex(ftab[j].entry), " ", gofuncname((*_func)(unsafe.Pointer(&pclntable[ftab[j].funcoff]))), "\n")
+ 			}
+-			gothrow("invalid runtime symbol table")
++			throw("invalid runtime symbol table")
+ 		}
+ 	}
+ 
+@@ -150,7 +150,7 @@ func findfunc(pc uintptr) *_func {
+ 		}
+ 	}
+ 
+-	gothrow("findfunc: binary search failed")
++	throw("findfunc: binary search failed")
+ 	return nil
+ }
+ 
+@@ -192,7 +192,7 @@ func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
+ 		print("\tvalue=", val, " until pc=", hex(pc), "\n")
+ 	}
+ 
+-	gothrow("invalid runtime symbol table")
++	throw("invalid runtime symbol table")
+ 	return -1
+ }
+ 
+diff --git a/src/runtime/sys_arm.go b/src/runtime/sys_arm.go
+index 81777c7106..324276e962 100644
+--- a/src/runtime/sys_arm.go
++++ b/src/runtime/sys_arm.go
+@@ -10,7 +10,7 @@ import "unsafe"
+ // and then did an immediate Gosave.
+ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+ 	if buf.lr != 0 {
+-		gothrow("invalid use of gostartcall")
++		throw("invalid use of gostartcall")
+ 	}
+ 	buf.lr = buf.pc
+ 	buf.pc = uintptr(fn)
+@@ -31,5 +31,5 @@ func rewindmorestack(buf *gobuf) {
+ 	}
+ 
+ 	print("runtime: pc=", hex(buf.pc), " ", hex(inst), "\n")
+-	gothrow("runtime: misuse of rewindmorestack")
++	throw("runtime: misuse of rewindmorestack")
+ }
+diff --git a/src/runtime/sys_ppc64x.go b/src/runtime/sys_ppc64x.go
+index b0c0331fcb..bd182e3a19 100644
+--- a/src/runtime/sys_ppc64x.go
++++ b/src/runtime/sys_ppc64x.go
+@@ -12,7 +12,7 @@ import "unsafe"
+ // and then did an immediate Gosave.
+ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+ 	if buf.lr != 0 {
+-		gothrow("invalid use of gostartcall")
++		throw("invalid use of gostartcall")
+ 	}
+ 	buf.lr = buf.pc
+ 	buf.pc = uintptr(fn)
+@@ -33,5 +33,5 @@ func rewindmorestack(buf *gobuf) {
+ 		}
+ 	}
+ 	print("runtime: pc=", hex(buf.pc), " ", hex(inst), "\n")
+-	gothrow("runtime: misuse of rewindmorestack")
++	throw("runtime: misuse of rewindmorestack")
+ }
+diff --git a/src/runtime/sys_x86.go b/src/runtime/sys_x86.go
+index 086af8ff10..30ddbfb5a7 100644
+--- a/src/runtime/sys_x86.go
++++ b/src/runtime/sys_x86.go
+@@ -50,5 +50,5 @@ func rewindmorestack(buf *gobuf) {
+ 		return
+ 	}
+ 	print("runtime: pc=", pc, " ", hex(pc[0]), " ", hex(pc[1]), " ", hex(pc[2]), " ", hex(pc[3]), " ", hex(pc[4]), "\n")
+-	gothrow("runtime: misuse of rewindmorestack")
++	throw("runtime: misuse of rewindmorestack")
+ }
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index 822e09e8e8..cd8b8847bd 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -70,7 +70,7 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
+ 		}
+ 	}
+ 	if n >= cb_max {
+-		gothrow("too many callback functions")
++		throw("too many callback functions")
+ 	}
+ 
+ 	c := new(wincallbackcontext)
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index a45507fc7c..76d63b95cf 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -77,7 +77,7 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
+ 			f := findfunc(frame.pc)
+ 			if f == nil {
+ 				print("runtime: unknown pc in defer ", hex(frame.pc), "\n")
+-				gothrow("unknown pc")
++				throw("unknown pc")
+ 			}
+ 			frame.fn = f
+ 			frame.argp = uintptr(deferArgs(d))
+@@ -96,7 +96,7 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
+ // duplicating the code and all its subtlety.
+ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
+ 	if goexitPC == 0 {
+-		gothrow("gentraceback before goexitPC initialization")
++		throw("gentraceback before goexitPC initialization")
+ 	}
+ 	g := getg()
+ 	if g == gp && g == g.m.curg {
+@@ -113,7 +113,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 		// accepts an sp for the current goroutine (typically obtained by
+ 		// calling getcallersp) must not run on that goroutine's stack but
+ 		// instead on the g0 stack.
+-		gothrow("gentraceback cannot trace user goroutine on its own stack")
++		throw("gentraceback cannot trace user goroutine on its own stack")
+ 	}
+ 	gotraceback := gotraceback(nil)
+ 	if pc0 == ^uintptr(0) && sp0 == ^uintptr(0) { // Signal to fetch saved values from gp.
+@@ -163,7 +163,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 	if f == nil {
+ 		if callback != nil {
+ 			print("runtime: unknown pc ", hex(frame.pc), "\n")
+-			gothrow("unknown pc")
++			throw("unknown pc")
+ 		}
+ 		return 0
+ 	}
+@@ -200,7 +200,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 			// to avoid that confusion.
+ 			// See golang.org/issue/8153.
+ 			if callback != nil {
+-				gothrow("traceback_arm: found jmpdefer when tracing with callback")
++				throw("traceback_arm: found jmpdefer when tracing with callback")
+ 			}
+ 			frame.lr = 0
+ 		} else {
+@@ -221,7 +221,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 				// get everything, so crash loudly.
+ 				if callback != nil {
+ 					print("runtime: unexpected return pc for ", gofuncname(f), " called from ", hex(frame.lr), "\n")
+-					gothrow("unknown caller pc")
++					throw("unknown caller pc")
+ 				}
+ 			}
+ 		}
+@@ -411,7 +411,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 		for _defer = gp._defer; _defer != nil; _defer = _defer.link {
+ 			print("\tdefer ", _defer, " sp=", hex(_defer.sp), " pc=", hex(_defer.pc), "\n")
+ 		}
+-		gothrow("traceback has leftover defers")
++		throw("traceback has leftover defers")
+ 	}
+ 
+ 	return n
+@@ -430,7 +430,7 @@ func setArgInfo(frame *stkframe, f *_func, needArgMap bool) {
+ 			fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
+ 			if fn[0] != f.entry {
+ 				print("runtime: confused by ", gofuncname(f), "\n")
+-				gothrow("reflect mismatch")
++				throw("reflect mismatch")
+ 			}
+ 			bv := (*bitvector)(unsafe.Pointer(fn[1]))
+ 			frame.arglen = uintptr(bv.n / 2 * ptrSize)

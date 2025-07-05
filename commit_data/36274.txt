@@ -17,9 +17,156 @@ Date:   Mon Apr 2 12:57:59 2018 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/build/deps_test.go                         | 14 ++++---
  src/net/http/httptest/recorder.go                 | 13 +++---
  src/net/http/server.go                            |  7 ++--
  src/vendor/golang_org/x/net/http/httpguts/guts.go | 50 +++++++++++++++++++++++
  4 files changed, 67 insertions(+), 17 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index af91fd662a..817984c3e2 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -400,6 +400,7 @@ var pkgDeps = map[string][]string{
+ 		"context",
+ 		"crypto/rand",
+ 		"crypto/tls",
++		"golang_org/x/net/http/httpguts",
+ 		"golang_org/x/net/http2/hpack",
+ 		"golang_org/x/net/idna",
+ 		"golang_org/x/net/lex/httplex",
+@@ -419,11 +420,14 @@ var pkgDeps = map[string][]string{
+ 	"net/http/cgi":       {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp"},
+ 	"net/http/cookiejar": {"L4", "NET", "net/http"},
+ 	"net/http/fcgi":      {"L4", "NET", "OS", "context", "net/http", "net/http/cgi"},
+-	"net/http/httptest":  {"L4", "NET", "OS", "crypto/tls", "flag", "net/http", "net/http/internal", "crypto/x509"},
+-	"net/http/httputil":  {"L4", "NET", "OS", "context", "net/http", "net/http/internal"},
+-	"net/http/pprof":     {"L4", "OS", "html/template", "net/http", "runtime/pprof", "runtime/trace"},
+-	"net/rpc":            {"L4", "NET", "encoding/gob", "html/template", "net/http"},
+-	"net/rpc/jsonrpc":    {"L4", "NET", "encoding/json", "net/rpc"},
++	"net/http/httptest": {
++		"L4", "NET", "OS", "crypto/tls", "flag", "net/http", "net/http/internal", "crypto/x509",
++		"golang_org/x/net/http/httpguts",
++	},
++	"net/http/httputil": {"L4", "NET", "OS", "context", "net/http", "net/http/internal"},
++	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof", "runtime/trace"},
++	"net/rpc":           {"L4", "NET", "encoding/gob", "html/template", "net/http"},
++	"net/rpc/jsonrpc":   {"L4", "NET", "encoding/json", "net/rpc"},
+ }
+ 
+ // isMacro reports whether p is a package dependency macro
+diff --git a/src/net/http/httptest/recorder.go b/src/net/http/httptest/recorder.go
+index 16f9736183..22170cf98b 100644
+--- a/src/net/http/httptest/recorder.go
++++ b/src/net/http/httptest/recorder.go
+@@ -11,6 +11,8 @@ import (
+ 	"net/http"
+ 	"strconv"
+ 	"strings"
++
++	"golang_org/x/net/http/httpguts"
+ )
+ 
+ // ResponseRecorder is an implementation of http.ResponseWriter that
+@@ -186,16 +188,11 @@ func (rw *ResponseRecorder) Result() *http.Response {
+ 	if trailers, ok := rw.snapHeader["Trailer"]; ok {
+ 		res.Trailer = make(http.Header, len(trailers))
+ 		for _, k := range trailers {
+-			// TODO: use http2.ValidTrailerHeader, but we can't
+-			// get at it easily because it's bundled into net/http
+-			// unexported. This is good enough for now:
+-			switch k {
+-			case "Transfer-Encoding", "Content-Length", "Trailer":
+-				// Ignore since forbidden by RFC 2616 14.40.
+-				// TODO: inconsistent with RFC 7230, section 4.1.2.
++			k = http.CanonicalHeaderKey(k)
++			if !httpguts.ValidTrailerHeader(k) {
++				// Ignore since forbidden by RFC 7230, section 4.1.2.
+ 				continue
+ 			}
+-			k = http.CanonicalHeaderKey(k)
+ 			vv, ok := rw.HeaderMap[k]
+ 			if !ok {
+ 				continue
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 1ae7e2dd43..1cc4ba6adb 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -28,6 +28,7 @@ import (
+ 	"sync/atomic"
+ 	"time"
+ 
++	"golang_org/x/net/http/httpguts"
+ 	"golang_org/x/net/lex/httplex"
+ )
+ 
+@@ -510,10 +511,8 @@ func (b *atomicBool) setTrue()    { atomic.StoreInt32((*int32)(b), 1) }
+ // written in the trailers at the end of the response.
+ func (w *response) declareTrailer(k string) {
+ 	k = CanonicalHeaderKey(k)
+-	switch k {
+-	case "Transfer-Encoding", "Content-Length", "Trailer":
+-		// Forbidden by RFC 2616 14.40.
+-		// TODO: inconsistent with RFC 7230, section 4.1.2
++	if !httpguts.ValidTrailerHeader(k) {
++		// Forbidden by RFC 7230, section 4.1.2
+ 		return
+ 	}
+ 	w.trailers = append(w.trailers, k)
+diff --git a/src/vendor/golang_org/x/net/http/httpguts/guts.go b/src/vendor/golang_org/x/net/http/httpguts/guts.go
+new file mode 100644
+index 0000000000..e6cd0ced39
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/http/httpguts/guts.go
+@@ -0,0 +1,50 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package httpguts provides functions implementing various details
++// of the HTTP specification.
++//
++// This package is shared by the standard library (which vendors it)
++// and x/net/http2. It comes with no API stability promise.
++package httpguts
++
++import (
++	"net/textproto"
++	"strings"
++)
++
++// ValidTrailerHeader reports whether name is a valid header field name to appear
++// in trailers.
++// See RFC 7230, Section 4.1.2
++func ValidTrailerHeader(name string) bool {
++	name = textproto.CanonicalMIMEHeaderKey(name)
++	if strings.HasPrefix(name, "If-") || badTrailer[name] {
++		return false
++	}
++	return true
++}
++
++var badTrailer = map[string]bool{
++	"Authorization":       true,
++	"Cache-Control":       true,
++	"Connection":          true,
++	"Content-Encoding":    true,
++	"Content-Length":      true,
++	"Content-Range":       true,
++	"Content-Type":        true,
++	"Expect":              true,
++	"Host":                true,
++	"Keep-Alive":          true,
++	"Max-Forwards":        true,
++	"Pragma":              true,
++	"Proxy-Authenticate":  true,
++	"Proxy-Authorization": true,
++	"Proxy-Connection":    true,
++	"Range":               true,
++	"Realm":               true,
++	"Te":                  true,
++	"Trailer":             true,
++	"Transfer-Encoding":   true,
++	"Www-Authenticate":    true,
++}

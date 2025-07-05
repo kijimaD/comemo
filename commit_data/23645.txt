@@ -12,7 +12,7 @@ Date:   Tue May 26 23:56:14 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10529
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go       | 11 +++++------
  src/cmd/compile/internal/gc/esc.go       |  2 +-
  src/cmd/compile/internal/gc/fmt.go       | 10 +++++-----
@@ -20,3 +20,181 @@ Date:   Tue May 26 23:56:14 2015 -0400
  src/cmd/compile/internal/gc/syntax.go    |  4 ++--
  src/cmd/compile/internal/gc/typecheck.go |  8 +++++---
  6 files changed, 22 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 2a88861dab..0c50cb4787 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -229,7 +229,7 @@ func declare(n *Node, ctxt uint8) {
+ 	s.Block = block
+ 	s.Lastlineno = int32(parserline())
+ 	s.Def = n
+-	n.Vargen = int32(gen)
++	n.Name.Vargen = int32(gen)
+ 	n.Funcdepth = Funcdepth
+ 	n.Class = uint8(ctxt)
+ 
+@@ -423,9 +423,8 @@ func oldname(s *Sym) *Node {
+ 		// walkdef will check s->def again once
+ 		// all the input source has been processed.
+ 		n = newname(s)
+-
+ 		n.Op = ONONAME
+-		n.Iota = iota_ // save current iota value in const declarations
++		n.Name.Iota = iota_ // save current iota value in const declarations
+ 	}
+ 
+ 	if Curfn != nil && n.Funcdepth > 0 && n.Funcdepth != Funcdepth && n.Op == ONAME {
+@@ -624,7 +623,7 @@ func funcargs(nt *Node) {
+ 			declare(n.Left, PPARAM)
+ 			if dclcontext == PAUTO {
+ 				vargen++
+-				n.Left.Vargen = int32(vargen)
++				n.Left.Name.Vargen = int32(vargen)
+ 			}
+ 		}
+ 	}
+@@ -641,7 +640,7 @@ func funcargs(nt *Node) {
+ 			declare(n.Left, PPARAM)
+ 			if dclcontext == PAUTO {
+ 				vargen++
+-				n.Left.Vargen = int32(vargen)
++				n.Left.Name.Vargen = int32(vargen)
+ 			}
+ 		}
+ 	}
+@@ -688,7 +687,7 @@ func funcargs(nt *Node) {
+ 		declare(n.Left, PPARAMOUT)
+ 		if dclcontext == PAUTO {
+ 			i++
+-			n.Left.Vargen = int32(i)
++			n.Left.Name.Vargen = int32(i)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 76fb4d1070..9e1e1313ea 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1627,7 +1627,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
+ 		if src.Esc&EscMask != EscReturn {
+ 			src.Esc = EscReturn | src.Esc&EscContentEscapes
+ 		}
+-		src.Esc = escNoteOutputParamFlow(src.Esc, dst.Vargen, level)
++		src.Esc = escNoteOutputParamFlow(src.Esc, dst.Name.Vargen, level)
+ 		goto recurse
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 95181ac357..8cbae2b8b5 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -205,8 +205,8 @@ func Jconv(n *Node, flag int) string {
+ 		fmt.Fprintf(&buf, " a(%v)", n.Addable)
+ 	}
+ 
+-	if c == 0 && n.Vargen != 0 {
+-		fmt.Fprintf(&buf, " g(%d)", n.Vargen)
++	if c == 0 && n.Name != nil && n.Name.Vargen != 0 {
++		fmt.Fprintf(&buf, " g(%d)", n.Name.Vargen)
+ 	}
+ 
+ 	if n.Lineno != 0 {
+@@ -1130,8 +1130,8 @@ func exprfmt(n *Node, prec int) string {
+ 		if (fmtmode == FExp || fmtmode == FErr) && n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
+ 			return "_"
+ 		}
+-		if fmtmode == FExp && n.Sym != nil && !isblank(n) && n.Vargen > 0 {
+-			return fmt.Sprintf("%v·%d", n.Sym, n.Vargen)
++		if fmtmode == FExp && n.Sym != nil && !isblank(n) && n.Name.Vargen > 0 {
++			return fmt.Sprintf("%v·%d", n.Sym, n.Name.Vargen)
+ 		}
+ 
+ 		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
+@@ -1538,7 +1538,7 @@ func nodedump(n *Node, flag int) string {
+ 	}
+ 
+ 	if n.Sym != nil && n.Op != ONAME {
+-		fmt.Fprintf(&buf, " %v G%d", n.Sym, n.Vargen)
++		fmt.Fprintf(&buf, " %v G%d", n.Sym, n.Name.Vargen)
+ 	}
+ 
+ 	if n.Type != nil {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index c674cc614f..5bd71848dd 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -771,12 +771,13 @@ func treecopy(n *Node, lineno int32) *Node {
+ 			// so that all the copies of this const definition
+ 			// don't have the same iota value.
+ 			m = Nod(OXXX, nil, nil)
+-
+ 			*m = *n
+-			m.Iota = iota_
+ 			if lineno != 0 {
+ 				m.Lineno = lineno
+ 			}
++			m.Name = new(Name)
++			*m.Name = *n.Name
++			m.Name.Iota = iota_
+ 			break
+ 		}
+ 		fallthrough
+@@ -1630,7 +1631,7 @@ func frame(context int) {
+ 		}
+ 		switch n.Op {
+ 		case ONAME:
+-			fmt.Printf("%v %v G%d %v width=%d\n", Oconv(int(n.Op), 0), n.Sym, n.Vargen, n.Type, w)
++			fmt.Printf("%v %v G%d %v width=%d\n", Oconv(int(n.Op), 0), n.Sym, n.Name.Vargen, n.Type, w)
+ 
+ 		case OTYPE:
+ 			fmt.Printf("%v %v width=%d\n", Oconv(int(n.Op), 0), n.Type, w)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index a410cf4d3d..4f362e45a8 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -42,9 +42,7 @@ type Node struct {
+ 
+ 	Xoffset int64
+ 
+-	Vargen  int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
+ 	Lineno  int32
+-	Iota    int32
+ 	Walkgen uint32
+ 
+ 	Funcdepth int32
+@@ -87,6 +85,8 @@ type Name struct {
+ 	Inlvar    *Node // ONAME substitute while inlining
+ 	Defn      *Node // initializing assignment
+ 	Decldepth int32 // declaration loop depth, increased for every loop or label
++	Vargen    int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
++	Iota      int32 // value if this name is iota
+ 	Method    bool  // OCALLMETH name
+ 	Readonly  bool
+ 	Captured  bool // is the variable captured by a closure
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 36088e791a..44501be7bb 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -29,8 +29,8 @@ func resolve(n *Node) *Node {
+ 		if r != nil {
+ 			if r.Op != OIOTA {
+ 				n = r
+-			} else if n.Iota >= 0 {
+-				n = Nodintconst(int64(n.Iota))
++			} else if n.Name.Iota >= 0 {
++				n = Nodintconst(int64(n.Name.Iota))
+ 			}
+ 		}
+ 	}
+@@ -3565,7 +3565,9 @@ func copytype(n *Node, t *Type) {
+ 	t = n.Type
+ 	t.Sym = n.Sym
+ 	t.Local = n.Local
+-	t.Vargen = n.Vargen
++	if n.Name != nil {
++		t.Vargen = n.Name.Vargen
++	}
+ 	t.Siggen = 0
+ 	t.Method = nil
+ 	t.Xmethod = nil

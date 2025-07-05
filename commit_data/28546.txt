@@ -7,6 +7,22 @@ Date:   Thu Jun 2 07:43:21 2016 +0200
     Change-Id: I82e35770b45ccd1433dfae0af423073c312c0859
     Reviewed-on: https://go-review.googlesource.com/23680
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/runtime/traceback.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index f9d9f21eea..96f154e213 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -844,8 +844,8 @@ func isSystemGoroutine(gp *g) bool {
+ // If the Context field is not 0, then it is a value returned by a
+ // previous call to the context function. This case is called when the
+ // context is no longer needed; that is, when the Go code is returning
+-// to its C code caller. This permits permits the context function to
+-// release any associated resources.
++// to its C code caller. This permits the context function to release
++// any associated resources.
+ //
+ // While it would be correct for the context function to record a
+ // complete a stack trace whenever it is called, and simply copy that

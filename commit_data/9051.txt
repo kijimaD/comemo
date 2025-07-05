@@ -7,7 +7,7 @@ Date:   Wed Jul 13 10:54:51 2011 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/4702046
-
+---
  src/cmd/godoc/godoc.go         | 2 +-
  src/cmd/godoc/index.go         | 2 +-
  src/cmd/ld/dwarf.c             | 4 ++--
@@ -15,3 +15,97 @@ Date:   Wed Jul 13 10:54:51 2011 -0700
  src/pkg/exp/datafmt/datafmt.go | 4 ++--
  src/pkg/net/fd_windows.go      | 2 +-
  6 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 20ebd31835..771c8e6165 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -170,7 +170,7 @@ func readDirList(filename string) ([]string, os.Error) {
+ 		return e == nil && isPkgDir(d)
+ 	}
+ 	list := canonicalizePaths(strings.Split(string(contents), "\n"), filter)
+-	// for each parent path, remove all it's children q
++	// for each parent path, remove all its children q
+ 	// (requirement for binary search to work when filtering)
+ 	i := 0
+ 	for _, q := range list {
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index e0c89e7949..c724d71fb2 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -633,7 +633,7 @@ func (x *Indexer) addFile(filename string, goFile bool) (file *token.File, ast *
+ 	// this permits the direct mapping of suffix array lookup results to
+ 	// to corresponding Pos values.
+ 	//
+-	// When a file is added to the file set, it's offset base increases by
++	// When a file is added to the file set, its offset base increases by
+ 	// the size of the file + 1; and the initial base offset is 1. Add an
+ 	// extra byte to the sources here.
+ 	x.sources.WriteByte(0)
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 1c10dc7967..4ceb36d1f9 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1209,7 +1209,7 @@ copychildren(DWDie *dst, DWDie *src)
+ }
+ 
+ // Search children (assumed to have DW_TAG_member) for the one named
+-// field and set it's DW_AT_type to dwtype
++// field and set its DW_AT_type to dwtype
+ static void
+ substitutetype(DWDie *structdie, char *field, DWDie* dwtype)
+ {
+@@ -1698,7 +1698,7 @@ inithist(Auto *a)
+ 			// We could just fixup the current
+ 			// linehist->line, but there doesn't appear to
+ 			// be a guarantee that every 'Z' is preceded
+-			// by it's own 'z', so do the safe thing and
++			// by its own 'z', so do the safe thing and
+ 			// update the stack and push a new Linehist
+ 			// entry
+ 			includestack[includetop].line =	 a->aoffset;
+diff --git a/src/pkg/encoding/pem/pem.go b/src/pkg/encoding/pem/pem.go
+index ebe57edc0e..12689b57b1 100644
+--- a/src/pkg/encoding/pem/pem.go
++++ b/src/pkg/encoding/pem/pem.go
+@@ -97,7 +97,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
+ 
+ 	for {
+ 		// This loop terminates because getLine's second result is
+-		// always smaller than it's argument.
++		// always smaller than its argument.
+ 		if len(rest) == 0 {
+ 			return nil, data
+ 		}
+diff --git a/src/pkg/exp/datafmt/datafmt.go b/src/pkg/exp/datafmt/datafmt.go
+index 10e4b54f94..b4f83a8edf 100644
+--- a/src/pkg/exp/datafmt/datafmt.go
++++ b/src/pkg/exp/datafmt/datafmt.go
+@@ -317,12 +317,12 @@ func newState(fmt Format, env Environment, errors chan os.Error) *State {
+ 	s.errors = errors
+ 	s.linePos = token.Position{Line: 1}
+ 
+-	// if we have a default rule, cache it's expression for fast access
++	// if we have a default rule, cache its expression for fast access
+ 	if x, found := fmt["default"]; found {
+ 		s.default_ = x
+ 	}
+ 
+-	// if we have a global separator rule, cache it's expression for fast access
++	// if we have a global separator rule, cache its expression for fast access
+ 	if x, found := fmt["/"]; found {
+ 		s.separator = x
+ 	}
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 41d06120a5..f727696740 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -155,7 +155,7 @@ func (s *ioSrv) ExecIO(oi anOpIface, deadline_delta int64) (n int, err os.Error)
+ 	case 0:
+ 		// IO completed immediately, but we need to get our completion message anyway.
+ 	case syscall.ERROR_IO_PENDING:
+-		// IO started, and we have to wait for it's completion.
++		// IO started, and we have to wait for its completion.
+ 	default:
+ 		return 0, &OpError{oi.Name(), o.fd.net, o.fd.laddr, os.Errno(e)}
+ 	}

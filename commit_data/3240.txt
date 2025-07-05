@@ -7,7 +7,61 @@ Date:   Wed Sep 9 01:31:10 2009 -0700
     R=ken
     OCL=34478
     CL=34480
-
+---
  src/cmd/gc/typecheck.c   |  6 ++++++
  test/fixedbugs/bug205.go | 18 ++++++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index d364e5fcc6..cf46414cab 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -500,18 +500,24 @@ reswitch:
+ 
+ 		case TARRAY:
+ 			defaultlit(&n->right, types[TUINT]);
++			if(n->right->type != T && !isint[n->right->type->etype])
++				yyerror("non-integer array index %#N", n->right);
+ 			n->type = t->type;
+ 			break;
+ 
+ 		case TMAP:
+ 			n->etype = 0;
+ 			defaultlit(&n->right, t->down);
++			if(n->right->type != T && !eqtype(n->right->type, t->down))
++				yyerror("invalid map index %#N - need type %T", n->right, t->down);
+ 			n->type = t->type;
+ 			n->op = OINDEXMAP;
+ 			break;
+ 
+ 		case TSTRING:
+ 			defaultlit(&n->right, types[TUINT]);
++			if(n->right->type != T && !isint[n->right->type->etype])
++				yyerror("non-integer string index %#N", n->right);
+ 			n->type = types[TUINT8];
+ 			n->op = OINDEXSTR;
+ 			break;
+diff --git a/test/fixedbugs/bug205.go b/test/fixedbugs/bug205.go
+new file mode 100644
+index 0000000000..5fb0a0d16b
+--- /dev/null
++++ b/test/fixedbugs/bug205.go
+@@ -0,0 +1,18 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var t []int
++var s string;
++var m map[string]int;
++
++func main() {
++	println(t["hi"]);	// ERROR "non-integer"
++	println(s["hi"]);	// ERROR "non-integer"
++	println(m[0]);	// ERROR "map index"
++}
++

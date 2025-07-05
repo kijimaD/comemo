@@ -36,7 +36,209 @@ Date:   Fri May 25 09:58:38 2012 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6251044
-
+---
  src/pkg/hash/adler32/adler32.go      | 62 +++++++++++++++-----------------
  src/pkg/hash/adler32/adler32_test.go | 69 ++++++++++++++++++++++++------------
  2 files changed, 76 insertions(+), 55 deletions(-)
+
+diff --git a/src/pkg/hash/adler32/adler32.go b/src/pkg/hash/adler32/adler32.go
+index 7e483b3f76..7c80796bf9 100644
+--- a/src/pkg/hash/adler32/adler32.go
++++ b/src/pkg/hash/adler32/adler32.go
+@@ -3,7 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package adler32 implements the Adler-32 checksum.
+-// Defined in RFC 1950:
++//
++// It is defined in RFC 1950:
+ //	Adler-32 is composed of two sums accumulated per byte: s1 is
+ //	the sum of all bytes, s2 is the sum of all s1 values. Both sums
+ //	are done modulo 65521. s1 is initialized to 1, s2 to zero.  The
+@@ -14,20 +15,22 @@ package adler32
+ import "hash"
+ 
+ const (
++	// mod is the largest prime that is less than 65536.
+ 	mod = 65521
++	// nmax is the largest n such that
++	// 255 * n * (n+1) / 2 + (n+1) * (mod-1) <= 2^32-1.
++	// It is mentioned in RFC 1950 (search for "5552").
++	nmax = 5552
+ )
+ 
+ // The size of an Adler-32 checksum in bytes.
+ const Size = 4
+ 
+ // digest represents the partial evaluation of a checksum.
+-type digest struct {
+-	// invariant: (a < mod && b < mod) || a <= b
+-	// invariant: a + b + 255 <= 0xffffffff
+-	a, b uint32
+-}
++// The low 16 bits are s1, the high 16 bits are s2.
++type digest uint32
+ 
+-func (d *digest) Reset() { d.a, d.b = 1, 0 }
++func (d *digest) Reset() { *d = 1 }
+ 
+ // New returns a new hash.Hash32 computing the Adler-32 checksum.
+ func New() hash.Hash32 {
+@@ -40,43 +43,36 @@ func (d *digest) Size() int { return Size }
+ 
+ func (d *digest) BlockSize() int { return 1 }
+ 
+-// Add p to the running checksum a, b.
+-func update(a, b uint32, p []byte) (aa, bb uint32) {
+-	for _, pi := range p {
+-		a += uint32(pi)
+-		b += a
+-		// invariant: a <= b
+-		if b > (0xffffffff-255)/2 {
+-			a %= mod
+-			b %= mod
+-			// invariant: a < mod && b < mod
+-		} else {
+-			// invariant: a + b + 255 <= 2 * b + 255 <= 0xffffffff
++// Add p to the running checksum d.
++func update(d digest, p []byte) digest {
++	s1, s2 := uint32(d&0xffff), uint32(d>>16)
++	for len(p) > 0 {
++		var q []byte
++		if len(p) > nmax {
++			p, q = p[:nmax], p[nmax:]
+ 		}
++		for _, x := range p {
++			s1 += uint32(x)
++			s2 += s1
++		}
++		s1 %= mod
++		s2 %= mod
++		p = q
+ 	}
+-	return a, b
+-}
+-
+-// Return the 32-bit checksum corresponding to a, b.
+-func finish(a, b uint32) uint32 {
+-	if b >= mod {
+-		a %= mod
+-		b %= mod
+-	}
+-	return b<<16 | a
++	return digest(s2<<16 | s1)
+ }
+ 
+ func (d *digest) Write(p []byte) (nn int, err error) {
+-	d.a, d.b = update(d.a, d.b, p)
++	*d = update(*d, p)
+ 	return len(p), nil
+ }
+ 
+-func (d *digest) Sum32() uint32 { return finish(d.a, d.b) }
++func (d *digest) Sum32() uint32 { return uint32(*d) }
+ 
+ func (d *digest) Sum(in []byte) []byte {
+-	s := d.Sum32()
++	s := uint32(*d)
+ 	return append(in, byte(s>>24), byte(s>>16), byte(s>>8), byte(s))
+ }
+ 
+ // Checksum returns the Adler-32 checksum of data.
+-func Checksum(data []byte) uint32 { return finish(update(1, 0, data)) }
++func Checksum(data []byte) uint32 { return uint32(update(1, data)) }
+diff --git a/src/pkg/hash/adler32/adler32_test.go b/src/pkg/hash/adler32/adler32_test.go
+index 31c6029774..0e9c938d80 100644
+--- a/src/pkg/hash/adler32/adler32_test.go
++++ b/src/pkg/hash/adler32/adler32_test.go
+@@ -5,25 +5,23 @@
+ package adler32
+ 
+ import (
+-	"io"
++	"strings"
+ 	"testing"
+ )
+ 
+-type _Adler32Test struct {
++var golden = []struct {
+ 	out uint32
+ 	in  string
+-}
+-
+-var golden = []_Adler32Test{
+-	{0x1, ""},
+-	{0x620062, "a"},
+-	{0x12600c4, "ab"},
+-	{0x24d0127, "abc"},
+-	{0x3d8018b, "abcd"},
+-	{0x5c801f0, "abcde"},
+-	{0x81e0256, "abcdef"},
+-	{0xadb02bd, "abcdefg"},
+-	{0xe000325, "abcdefgh"},
++}{
++	{0x00000001, ""},
++	{0x00620062, "a"},
++	{0x012600c4, "ab"},
++	{0x024d0127, "abc"},
++	{0x03d8018b, "abcd"},
++	{0x05c801f0, "abcde"},
++	{0x081e0256, "abcdef"},
++	{0x0adb02bd, "abcdefg"},
++	{0x0e000325, "abcdefgh"},
+ 	{0x118e038e, "abcdefghi"},
+ 	{0x158603f8, "abcdefghij"},
+ 	{0x3f090f02, "Discard medicine more than two years old."},
+@@ -47,17 +45,44 @@ var golden = []_Adler32Test{
+ 	{0x91dd304f, "The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule"},
+ 	{0x2e5d1316, "How can you write a big system without C++?  -Paul Glick"},
+ 	{0xd0201df6, "'Invariant assertions' is the most elegant programming technique!  -Tom Szymanski"},
++	{0x211297c8, strings.Repeat("\xff", 5548) + "8"},
++	{0xbaa198c8, strings.Repeat("\xff", 5549) + "9"},
++	{0x553499be, strings.Repeat("\xff", 5550) + "0"},
++	{0xf0c19abe, strings.Repeat("\xff", 5551) + "1"},
++	{0x8d5c9bbe, strings.Repeat("\xff", 5552) + "2"},
++	{0x2af69cbe, strings.Repeat("\xff", 5553) + "3"},
++	{0xc9809dbe, strings.Repeat("\xff", 5554) + "4"},
++	{0x69189ebe, strings.Repeat("\xff", 5555) + "5"},
++	{0x86af0001, strings.Repeat("\x00", 1e5)},
++	{0x79660b4d, strings.Repeat("a", 1e5)},
++	{0x110588ee, strings.Repeat("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 1e4)},
++}
++
++// checksum is a slow but simple implementation of the Adler-32 checksum.
++// It is a straight port of the sample code in RFC 1950 section 9.
++func checksum(p []byte) uint32 {
++	s1, s2 := uint32(1), uint32(0)
++	for _, x := range p {
++		s1 = (s1 + uint32(x)) % mod
++		s2 = (s2 + s1) % mod
++	}
++	return s2<<16 | s1
+ }
+ 
+ func TestGolden(t *testing.T) {
+-	for i := 0; i < len(golden); i++ {
+-		g := golden[i]
+-		c := New()
+-		io.WriteString(c, g.in)
+-		s := c.Sum32()
+-		if s != g.out {
+-			t.Errorf("adler32(%s) = 0x%x want 0x%x", g.in, s, g.out)
+-			t.FailNow()
++	for _, g := range golden {
++		in := g.in
++		if len(in) > 220 {
++			in = in[:100] + "..." + in[len(in)-100:]
++		}
++		p := []byte(g.in)
++		if got := checksum(p); got != g.out {
++			t.Errorf("simple implementation: checksum(%q) = 0x%x want 0x%x", in, got, g.out)
++			continue
++		}
++		if got := Checksum(p); got != g.out {
++			t.Errorf("optimized implementation: Checksum(%q) = 0x%x want 0x%x", in, got, g.out)
++			continue
+ 		}
+ 	}
+ }

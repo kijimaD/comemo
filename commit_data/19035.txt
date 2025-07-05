@@ -62,7 +62,7 @@ Date:   Thu Apr 3 20:33:25 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/83410044
-
+---
  src/cmd/gc/esc.c         | 38 ++++++++++++++--------------
  src/cmd/gc/plive.c       | 65 ++++++++++++++++++++++++++++++++----------------
  src/cmd/gc/sinit.c       |  2 +-
@@ -71,3 +71,491 @@ Date:   Thu Apr 3 20:33:25 2014 -0400
  src/pkg/runtime/stack.c  |  6 ++---
  test/live.go             | 39 ++++++++++++++++++++++++-----
  7 files changed, 135 insertions(+), 74 deletions(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 7429e25ecf..b1cf2b1602 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -185,12 +185,12 @@ visitcode(Node *n, uint32 min)
+ typedef struct EscState EscState;
+ 
+ static void escfunc(EscState*, Node *func);
+-static void esclist(EscState*, NodeList *l);
+-static void esc(EscState*, Node *n);
++static void esclist(EscState*, NodeList *l, Node *up);
++static void esc(EscState*, Node *n, Node *up);
+ static void escloopdepthlist(EscState*, NodeList *l);
+ static void escloopdepth(EscState*, Node *n);
+ static void escassign(EscState*, Node *dst, Node *src);
+-static void esccall(EscState*, Node*);
++static void esccall(EscState*, Node*, Node *up);
+ static void escflows(EscState*, Node *dst, Node *src);
+ static void escflood(EscState*, Node *dst);
+ static void escwalk(EscState*, int level, Node *dst, Node *src);
+@@ -347,7 +347,7 @@ escfunc(EscState *e, Node *func)
+ 				escflows(e, &e->theSink, ll->n);
+ 
+ 	escloopdepthlist(e, curfn->nbody);
+-	esclist(e, curfn->nbody);
++	esclist(e, curfn->nbody, curfn);
+ 	curfn = savefn;
+ 	e->loopdepth = saveld;
+ }
+@@ -405,14 +405,14 @@ escloopdepth(EscState *e, Node *n)
+ }
+ 
+ static void
+-esclist(EscState *e, NodeList *l)
++esclist(EscState *e, NodeList *l, Node *up)
+ {
+ 	for(; l; l=l->next)
+-		esc(e, l->n);
++		esc(e, l->n, up);
+ }
+ 
+ static void
+-esc(EscState *e, Node *n)
++esc(EscState *e, Node *n, Node *up)
+ {
+ 	int lno;
+ 	NodeList *ll, *lr;
+@@ -424,19 +424,19 @@ esc(EscState *e, Node *n)
+ 	lno = setlineno(n);
+ 
+ 	// ninit logically runs at a different loopdepth than the rest of the for loop.
+-	esclist(e, n->ninit);
++	esclist(e, n->ninit, n);
+ 
+ 	if(n->op == OFOR || n->op == ORANGE)
+ 		e->loopdepth++;
+ 
+-	esc(e, n->left);
+-	esc(e, n->right);
+-	esc(e, n->ntest);
+-	esc(e, n->nincr);
+-	esclist(e, n->nbody);
+-	esclist(e, n->nelse);
+-	esclist(e, n->list);
+-	esclist(e, n->rlist);
++	esc(e, n->left, n);
++	esc(e, n->right, n);
++	esc(e, n->ntest, n);
++	esc(e, n->nincr, n);
++	esclist(e, n->nbody, n);
++	esclist(e, n->nelse, n);
++	esclist(e, n->list, n);
++	esclist(e, n->rlist, n);
+ 
+ 	if(n->op == OFOR || n->op == ORANGE)
+ 		e->loopdepth--;
+@@ -522,7 +522,7 @@ esc(EscState *e, Node *n)
+ 	case OCALLMETH:
+ 	case OCALLFUNC:
+ 	case OCALLINTER:
+-		esccall(e, n);
++		esccall(e, n, up);
+ 		break;
+ 
+ 	case OAS2FUNC:	// x,y = f()
+@@ -843,7 +843,7 @@ escassignfromtag(EscState *e, Strlit *note, NodeList *dsts, Node *src)
+ // different for methods vs plain functions and for imported vs
+ // this-package
+ static void
+-esccall(EscState *e, Node *n)
++esccall(EscState *e, Node *n, Node *up)
+ {
+ 	NodeList *ll, *lr;
+ 	Node *a, *fn, *src;
+@@ -965,7 +965,7 @@ esccall(EscState *e, Node *n)
+ 			n->right = src;
+ 		}
+ 		if(haspointers(t->type)) {
+-			if(escassignfromtag(e, t->note, n->escretval, src) == EscNone) {
++			if(escassignfromtag(e, t->note, n->escretval, src) == EscNone && up->op != ODEFER && up->op != OPROC) {
+ 				a = src;
+ 				while(a->op == OCONVNOP)
+ 					a = a->left;
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index d68ed15e20..360e8ff552 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -69,6 +69,9 @@ struct BasicBlock {
+ 	// State to denote whether the block has been visited during a
+ 	// traversal.
+ 	int mark;
++	
++	// For use during livenessepilogue.
++	int lastbitmapindex;
+ };
+ 
+ // A collection of global state used by liveness analysis.
+@@ -273,13 +276,22 @@ getvariables(Node *fn)
+ 	result = arraynew(0, sizeof(Node*));
+ 	for(ll = fn->dcl; ll != nil; ll = ll->next) {
+ 		if(ll->n->op == ONAME) {
++			// In order for GODEBUG=gcdead=1 to work, each bitmap needs
++			// to contain information about all variables covered by the bitmap.
++			// For local variables, the bitmap only covers the stkptrsize
++			// bytes in the frame where variables containing pointers live.
++			// For arguments and results, the bitmap covers all variables,
++			// so we must include all the variables, even the ones without
++			// pointers.
+ 			switch(ll->n->class) {
+ 			case PAUTO:
+-			case PPARAM:
+-			case PPARAMOUT:
+ 				if(haspointers(ll->n->type))
+ 					arrayadd(result, &ll->n);
+ 				break;
++			case PPARAM:
++			case PPARAMOUT:
++				arrayadd(result, &ll->n);
++				break;
+ 			}
+ 		}
+ 	}
+@@ -1101,18 +1113,9 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
+ 			// struct { byte *array; uintgo len; uintgo cap; }
+ 			if((*xoffset & (widthptr-1)) != 0)
+ 				fatal("twobitwalktype1: invalid TARRAY alignment, %T", t);
+-			if(0) {
+-				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 0);
+-				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1);
+-				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 2); // 3:1 = multiword/slice
+-			} else {
+-				// Until bug 7564 is fixed, we consider a slice as
+-				// a separate pointer and integer.
+-				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1);  // 2 = live ptr
+-				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 2);  // 1 = live scalar
+-			}
+-			// mark capacity as live
+-			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 4);  // 1 = live scalar
++			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 0);
++			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1);
++			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 2); // 3:1 = multiword/slice
+ 			*xoffset += t->width;
+ 		} else
+ 			for(i = 0; i < t->bound; i++)
+@@ -1412,10 +1415,11 @@ static void
+ livenessepilogue(Liveness *lv)
+ {
+ 	BasicBlock *bb, *pred;
+-	Bvec *livein, *liveout, *uevar, *varkill, *args, *locals, *avarinit, *any, *all;
++	Bvec *ambig, *livein, *liveout, *uevar, *varkill, *args, *locals, *avarinit, *any, *all;
+ 	Node *n;
+ 	Prog *p, *next;
+ 	int32 i, j, numlive, startmsg, nmsg, nvars, pos;
++	int64 xoffset;
+ 	char **msg;
+ 	Fmt fmt;
+ 
+@@ -1427,6 +1431,7 @@ livenessepilogue(Liveness *lv)
+ 	avarinit = bvalloc(nvars);
+ 	any = bvalloc(nvars);
+ 	all = bvalloc(nvars);
++	ambig = bvalloc(localswords() * BitsPerPointer);
+ 	msg = nil;
+ 	nmsg = 0;
+ 	startmsg = 0;
+@@ -1471,14 +1476,17 @@ livenessepilogue(Liveness *lv)
+ 					bvandnot(liveout, any, all);
+ 					if(!bvisempty(liveout)) {
+ 						for(pos = 0; pos < liveout->n; pos++) {
+-							bvset(all, pos); // silence future warnings in this block
+ 							if(!bvget(liveout, pos))
+ 								continue;
++							bvset(all, pos); // silence future warnings in this block
+ 							n = *(Node**)arrayget(lv->vars, pos);
+ 							if(!n->needzero) {
+ 								n->needzero = 1;
+ 								if(debuglive >= 1)
+ 									warnl(p->lineno, "%N: %lN is ambiguously live", curfn->nname, n);
++								// Record in 'ambiguous' bitmap.
++								xoffset = n->xoffset + stkptrsize;
++								twobitwalktype1(n->type, &xoffset, ambig);
+ 							}
+ 						}
+ 					}
+@@ -1509,6 +1517,11 @@ livenessepilogue(Liveness *lv)
+ 			if(p == bb->last)
+ 				break;
+ 		}
++		bb->lastbitmapindex = arraylength(lv->livepointers) - 1;
++	}
++	
++	for(i = 0; i < arraylength(lv->cfg); i++) {
++		bb = *(BasicBlock**)arrayget(lv->cfg, i);
+ 		
+ 		if(debuglive >= 1 && strcmp(curfn->nname->sym->name, "init") != 0 && curfn->nname->sym->name[0] != '.') {
+ 			nmsg = arraylength(lv->livepointers);
+@@ -1519,7 +1532,7 @@ livenessepilogue(Liveness *lv)
+ 		}
+ 
+ 		// walk backward, emit pcdata and populate the maps
+-		pos = arraylength(lv->livepointers) - 1;
++		pos = bb->lastbitmapindex;
+ 		if(pos < 0) {
+ 			// the first block we encounter should have the ATEXT so
+ 			// at no point should pos ever be less than zero.
+@@ -1562,6 +1575,12 @@ livenessepilogue(Liveness *lv)
+ 				args = *(Bvec**)arrayget(lv->argslivepointers, pos);
+ 				locals = *(Bvec**)arrayget(lv->livepointers, pos);
+ 				twobitlivepointermap(lv, liveout, lv->vars, args, locals);
++				
++				// Ambiguously live variables are zeroed immediately after
++				// function entry. Mark them live for all the non-entry bitmaps
++				// so that GODEBUG=gcdead=1 mode does not poison them.
++				if(p->as == ACALL)
++					bvor(locals, locals, ambig);
+ 
+ 				// Show live pointer bitmaps.
+ 				// We're interpreting the args and locals bitmap instead of liveout so that we
+@@ -1628,6 +1647,7 @@ livenessepilogue(Liveness *lv)
+ 	free(avarinit);
+ 	free(any);
+ 	free(all);
++	free(ambig);
+ 	
+ 	flusherrors();
+ }
+@@ -1772,7 +1792,7 @@ printbitset(int printed, char *name, Array *vars, Bvec *bits)
+ static void
+ livenessprintdebug(Liveness *lv)
+ {
+-	int i, j, printed, nsafe;
++	int i, j, pcdata, printed;
+ 	BasicBlock *bb;
+ 	Prog *p;
+ 	Bvec *uevar, *varkill, *avarinit, *args, *locals;
+@@ -1784,7 +1804,7 @@ livenessprintdebug(Liveness *lv)
+ 	varkill = bvalloc(arraylength(lv->vars));
+ 	avarinit = bvalloc(arraylength(lv->vars));
+ 
+-	nsafe = 0;
++	pcdata = 0;
+ 	for(i = 0; i < arraylength(lv->cfg); i++) {
+ 		if(i > 0)
+ 			print("\n");
+@@ -1815,6 +1835,8 @@ livenessprintdebug(Liveness *lv)
+ 		// program listing, with individual effects listed
+ 		for(p = bb->first;; p = p->link) {
+ 			print("%P\n", p);
++			if(p->as == APCDATA && p->from.offset == PCDATA_StackMapIndex)
++				pcdata = p->to.offset;
+ 			progeffects(p, lv->vars, uevar, varkill, avarinit);
+ 			printed = 0;
+ 			printed = printbitset(printed, "uevar", lv->vars, uevar);
+@@ -1823,9 +1845,8 @@ livenessprintdebug(Liveness *lv)
+ 			if(printed)
+ 				print("\n");
+ 			if(issafepoint(p)) {
+-				args = *(Bvec**)arrayget(lv->argslivepointers, nsafe);
+-				locals = *(Bvec**)arrayget(lv->livepointers, nsafe);
+-				nsafe++;
++				args = *(Bvec**)arrayget(lv->argslivepointers, pcdata);
++				locals = *(Bvec**)arrayget(lv->livepointers, pcdata);
+ 				print("\tlive=");
+ 				printed = 0;
+ 				for(j = 0; j < arraylength(lv->vars); j++) {
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 83d6bad684..973f8efb03 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -1014,7 +1014,7 @@ ctxt = 0;
+ 		a = nod(OVARKILL, key, N);
+ 		typecheck(&a, Etop);
+ 		*init = list(*init, a);
+-		a = nod(OVARKILL, var, N);
++		a = nod(OVARKILL, val, N);
+ 		typecheck(&a, Etop);
+ 		*init = list(*init, a);
+ 	}
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index ec12a3e164..62e1f8f56e 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -637,4 +637,5 @@ void	runtime·memorydump(void);
+ int32	runtime·setgcpercent(int32);
+ 
+ // Value we use to mark dead pointers when GODEBUG=gcdead=1.
+-#define PoisonPtr ((uintptr)0x6969696969696969LL)
++#define PoisonGC ((uintptr)0xf969696969696969ULL)
++#define PoisonStack ((uintptr)0x6868686868686868ULL)
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index d6eedfaa93..9f92e99f44 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1455,14 +1455,14 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
+ 			switch(bits) {
+ 			case BitsDead:
+ 				if(runtime·debug.gcdead)
+-					*(uintptr*)scanp = PoisonPtr;
++					*(uintptr*)scanp = PoisonGC;
+ 				break;
+ 			case BitsScalar:
+ 				break;
+ 			case BitsPointer:
+ 				p = *(byte**)scanp;
+ 				if(p != nil) {
+-					if(precise && (p < (byte*)PageSize || (uintptr)p == PoisonPtr)) {
++					if(precise && (p < (byte*)PageSize || (uintptr)p == PoisonGC || (uintptr)p == PoisonStack)) {
+ 						// Looks like a junk value in a pointer slot.
+ 						// Liveness analysis wrong?
+ 						m->traceback = 2;
+@@ -1473,8 +1473,26 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
+ 				}
+ 				break;
+ 			case BitsMultiWord:
+-				p = *(byte**)scanp;
+-				if(p != nil) {
++				p = scanp;
++				word >>= BitsPerPointer;
++				scanp += PtrSize;
++				i--;
++				if(i == 0) {
++					// Get next chunk of bits
++					remptrs -= 32;
++					word = *wordp++;
++					if(remptrs < 32)
++						i = remptrs;
++					else
++						i = 32;
++					i /= BitsPerPointer;
++				}
++				switch(word & 3) {
++				case BitsString:
++					if(((String*)p)->len != 0)
++						markonly(((String*)p)->str);
++					break;
++				case BitsSlice:
+ 					word >>= BitsPerPointer;
+ 					scanp += PtrSize;
+ 					i--;
+@@ -1488,25 +1506,19 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
+ 							i = 32;
+ 						i /= BitsPerPointer;
+ 					}
+-					switch(word & 3) {
+-					case BitsString:
+-						if(((String*)(scanp - PtrSize))->len != 0)
+-							markonly(p);
+-						break;
+-					case BitsSlice:
+-						if(((Slice*)(scanp - PtrSize))->cap < ((Slice*)(scanp - PtrSize))->len) {
+-							m->traceback = 2;
+-							runtime·printf("bad slice in frame %s at %p: %p/%p/%p\n", runtime·funcname(f), scanp, ((byte**)scanp)[0], ((byte**)scanp)[1], ((byte**)scanp)[2]);
+-							runtime·throw("slice capacity smaller than length");
+-						}
+-						if(((Slice*)(scanp - PtrSize))->cap != 0)
+-							enqueue1(wbufp, (Obj){scanp - PtrSize, PtrSize, 0});
+-						break;
+-					case BitsIface:
+-					case BitsEface:
+-						scaninterfacedata(word & 3, scanp - PtrSize, afterprologue, wbufp);
+-						break;
++					if(((Slice*)p)->cap < ((Slice*)p)->len) {
++						m->traceback = 2;
++						runtime·printf("bad slice in frame %s at %p: %p/%p/%p\n", runtime·funcname(f), p, ((byte**)p)[0], ((byte**)p)[1], ((byte**)p)[2]);
++						runtime·throw("slice capacity smaller than length");
+ 					}
++					if(((Slice*)p)->cap != 0)
++						enqueue1(wbufp, (Obj){p, PtrSize, 0});
++					break;
++				case BitsIface:
++				case BitsEface:
++					if(*(byte**)p != nil)
++						scaninterfacedata(word & 3, p, afterprologue, wbufp);
++					break;
+ 				}
+ 			}
+ 			word >>= BitsPerPointer;
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 2c5e052365..5eddc14475 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -356,17 +356,17 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
+ 		switch(bv->data[i / (32 / BitsPerPointer)] >> (i * BitsPerPointer & 31) & 3) {
+ 		case BitsDead:
+ 			if(runtime·debug.gcdead)
+-				scanp[i] = (byte*)0x6868686868686868LL;
++				scanp[i] = (byte*)PoisonStack;
+ 			break;
+ 		case BitsScalar:
+ 			break;
+ 		case BitsPointer:
+ 			p = scanp[i];
+-			if(f != nil && (byte*)0 < p && (p < (byte*)PageSize || (uintptr)p == PoisonPtr)) {
++			if(f != nil && (byte*)0 < p && (p < (byte*)PageSize || (uintptr)p == PoisonGC || (uintptr)p == PoisonStack)) {
+ 				// Looks like a junk value in a pointer slot.
+ 				// Live analysis wrong?
+ 				m->traceback = 2;
+-				runtime·printf("%p: %p %s\n", &scanp[i], p, runtime·funcname(f));
++				runtime·printf("runtime: bad pointer in frame %s at %p: %p\n", runtime·funcname(f), &scanp[i], p);
+ 				runtime·throw("bad pointer!");
+ 			}
+ 			if(minp <= p && p < maxp) {
+diff --git a/test/live.go b/test/live.go
+index 43b3c3e4c5..21d3e6a5fa 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -23,20 +23,24 @@ func f2(b bool) {
+ }
+ 
+ func f3(b bool) {
+-	print(0)
++	// Because x and y are ambiguously live, they appear
++	// live throughout the function, to avoid being poisoned
++	// in GODEBUG=gcdead=1 mode.
++
++	print(0) // ERROR "live at call to printint: x y$"
+ 	if b == false {
+-		print(0) // nothing live here
++		print(0) // ERROR "live at call to printint: x y$"
+ 		return
+ 	}
+ 
+ 	if b {
+ 		var x *int
+-		print(&x) // ERROR "live at call to printpointer: x$"
+-		print(&x) // ERROR "live at call to printpointer: x$"
++		print(&x) // ERROR "live at call to printpointer: x y$"
++		print(&x) // ERROR "live at call to printpointer: x y$"
+ 	} else {
+ 		var y *int
+-		print(&y) // ERROR "live at call to printpointer: y$"
+-		print(&y) // ERROR "live at call to printpointer: y$"
++		print(&y) // ERROR "live at call to printpointer: x y$"
++		print(&y) // ERROR "live at call to printpointer: x y$"
+ 	}
+ 	print(0) // ERROR "live at call to printint: x y$" "x \(type \*int\) is ambiguously live" "y \(type \*int\) is ambiguously live"
+ }
+@@ -371,6 +375,29 @@ func f27(b bool) {
+ 	}
+ 	call27(func() {x++}) // ERROR "live at call to call27: autotmp_[0-9]+$"
+ 	call27(func() {x++}) // ERROR "live at call to call27: autotmp_[0-9]+$"
++	println()
++}
++
++// but defer does escape to later execution in the function
++
++func f27defer(b bool) {
++	x := 0
++	if b {
++		defer call27(func() {x++}) // ERROR "live at call to deferproc: autotmp_[0-9]+$" "live at call to deferreturn: autotmp_[0-9]+$"
++	}
++	defer call27(func() {x++}) // ERROR "live at call to deferproc: autotmp_[0-9]+ autotmp_[0-9]+$" "live at call to deferreturn: autotmp_[0-9]+ autotmp_[0-9]+$" "ambiguously live"
++	println() // ERROR "live at call to printnl: autotmp_[0-9]+ autotmp_[0-9]+$"
++} // ERROR "live at call to deferreturn: autotmp_[0-9]+ autotmp_[0-9]+$"
++
++// and newproc (go) escapes to the heap
++
++func f27go(b bool) {
++	x := 0
++	if b {
++		go call27(func() {x++}) // ERROR "live at call to new: &x" "live at call to newproc: &x$"
++	}
++	go call27(func() {x++}) // ERROR "live at call to new: &x"
++	println()
+ }
+ 
+ //go:noescape

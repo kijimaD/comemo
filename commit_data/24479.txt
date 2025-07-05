@@ -12,6 +12,24 @@ Date:   Thu Jul 30 09:01:22 2015 -0700
     Change-Id: Id09f2a489ea947a725ed12c9cf793e5daef07a06
     Reviewed-on: https://go-review.googlesource.com/12866
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  doc/go1.5.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 4e173d130a..12a8cca17a 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -598,6 +598,12 @@ invalid when the current working directory changes.
+ On Windows, cgo now uses external linking by default.
+ </p>
+ 
++<p>
++When a C struct ends with a zero-sized field, but the struct itself is
++not zero-sized, Go code can no longer refer to the zero-sized field.
++Any such references will have to be rewritten.
++</p>
++
+ <h2 id="performance">Performance</h2>
+ 
+ <p>

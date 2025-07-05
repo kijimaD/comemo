@@ -24,7 +24,7 @@ Date:   Wed Aug 3 23:31:29 2022 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go |  2 +-
  src/math/sqrt.go                       |  7 +------
  src/math/sqrt_386.s                    | 12 ------------
@@ -39,3 +39,254 @@ Date:   Wed Aug 3 23:31:29 2022 +0800
  src/math/sqrt_s390x.s                  | 12 ------------
  src/math/sqrt_wasm.s                   | 12 ------------
  13 files changed, 2 insertions(+), 157 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 26e69ad05d..835d1a803f 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4302,7 +4302,7 @@ func InitTables() {
+ 	alias("runtime/internal/atomic", "CasRel", "runtime/internal/atomic", "Cas", lwatomics...)
+ 
+ 	/******** math ********/
+-	addF("math", "Sqrt",
++	addF("math", "sqrt",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpSqrt, types.Types[types.TFLOAT64], args[0])
+ 		},
+diff --git a/src/math/sqrt.go b/src/math/sqrt.go
+index b6d80c2c6f..54929ebcaf 100644
+--- a/src/math/sqrt.go
++++ b/src/math/sqrt.go
+@@ -91,15 +91,10 @@ package math
+ //	Sqrt(x < 0) = NaN
+ //	Sqrt(NaN) = NaN
+ func Sqrt(x float64) float64 {
+-	if haveArchSqrt {
+-		return archSqrt(x)
+-	}
+ 	return sqrt(x)
+ }
+ 
+-// Note: Sqrt is implemented in assembly on some systems.
+-// Others have assembly stubs that jump to func sqrt below.
+-// On systems where Sqrt is a single instruction, the compiler
++// Note: On systems where Sqrt is a single instruction, the compiler
+ // may turn a direct call into a direct use of that instruction instead.
+ 
+ func sqrt(x float64) float64 {
+diff --git a/src/math/sqrt_386.s b/src/math/sqrt_386.s
+deleted file mode 100644
+index 90aec13b8d..0000000000
+--- a/src/math/sqrt_386.s
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func archSqrt(x float64) float64
+-TEXT ·archSqrt(SB),NOSPLIT,$0
+-	FMOVD   x+0(FP),F0
+-	FSQRT
+-	FMOVDP  F0,ret+8(FP)
+-	RET
+diff --git a/src/math/sqrt_amd64.s b/src/math/sqrt_amd64.s
+deleted file mode 100644
+index c3b110e7c0..0000000000
+--- a/src/math/sqrt_amd64.s
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func archSqrt(x float64) float64
+-TEXT ·archSqrt(SB), NOSPLIT, $0
+-	XORPS  X0, X0 // break dependency
+-	SQRTSD x+0(FP), X0
+-	MOVSD  X0, ret+8(FP)
+-	RET
+diff --git a/src/math/sqrt_arm.s b/src/math/sqrt_arm.s
+deleted file mode 100644
+index 64792ecaf7..0000000000
+--- a/src/math/sqrt_arm.s
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func archSqrt(x float64) float64
+-TEXT ·archSqrt(SB),NOSPLIT,$0
+-	MOVB	runtime·goarm(SB), R11
+-	CMP	$5, R11
+-	BEQ	arm5
+-	MOVD	x+0(FP),F0
+-	SQRTD	F0,F0
+-	MOVD	F0,ret+8(FP)
+-	RET
+-arm5:
+-	// Tail call to Go implementation.
+-	// Can't use JMP, as in softfloat mode SQRTD is rewritten
+-	// to a CALL, which makes this function have a frame.
+-	RET	·sqrt(SB)
+diff --git a/src/math/sqrt_arm64.s b/src/math/sqrt_arm64.s
+deleted file mode 100644
+index 36ba41ab4a..0000000000
+--- a/src/math/sqrt_arm64.s
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func archSqrt(x float64) float64
+-TEXT ·archSqrt(SB),NOSPLIT,$0
+-	FMOVD	x+0(FP), F0
+-	FSQRTD	F0, F0
+-	FMOVD	F0, ret+8(FP)
+-	RET
+diff --git a/src/math/sqrt_asm.go b/src/math/sqrt_asm.go
+deleted file mode 100644
+index 2cec1a5903..0000000000
+--- a/src/math/sqrt_asm.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build 386 || amd64 || arm64 || arm || mips || mipsle || ppc64 || ppc64le || s390x || riscv64 || wasm
+-
+-package math
+-
+-const haveArchSqrt = true
+-
+-func archSqrt(x float64) float64
+diff --git a/src/math/sqrt_mipsx.s b/src/math/sqrt_mipsx.s
+deleted file mode 100644
+index 291d4af39c..0000000000
+--- a/src/math/sqrt_mipsx.s
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build mips || mipsle
+-// +build mips mipsle
+-
+-#include "textflag.h"
+-
+-// func archSqrt(x float64) float64
+-TEXT ·archSqrt(SB),NOSPLIT,$0
+-#ifdef GOMIPS_softfloat
+-	JMP ·sqrt(SB)
+-#else
+-	MOVD	x+0(FP), F0
+-	SQRTD	F0, F0
+-	MOVD	F0, ret+8(FP)
+-#endif
+-	RET
+diff --git a/src/math/sqrt_noasm.go b/src/math/sqrt_noasm.go
+deleted file mode 100644
+index 3979622023..0000000000
+--- a/src/math/sqrt_noasm.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !386 && !amd64 && !arm64 && !arm && !mips && !mipsle && !ppc64 && !ppc64le && !s390x && !riscv64 && !wasm
+-
+-package math
+-
+-const haveArchSqrt = false
+-
+-func archSqrt(x float64) float64 {
+-	panic("not implemented")
+-}
+diff --git a/src/math/sqrt_ppc64x.s b/src/math/sqrt_ppc64x.s
+deleted file mode 100644
+index c929da2159..0000000000
+--- a/src/math/sqrt_ppc64x.s
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build ppc64 || ppc64le
+-// +build ppc64 ppc64le
+-
+-#include "textflag.h"
+-
+-// func archSqrt(x float64) float64
+-TEXT ·archSqrt(SB),NOSPLIT,$0
+-	FMOVD	x+0(FP), F0
+-	FSQRT	F0, F0
+-	FMOVD	F0, ret+8(FP)
+-	RET
+diff --git a/src/math/sqrt_riscv64.s b/src/math/sqrt_riscv64.s
+deleted file mode 100644
+index 0dbdbc99ed..0000000000
+--- a/src/math/sqrt_riscv64.s
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func archSqrt(x float64) float64
+-TEXT ·archSqrt(SB),NOSPLIT,$0
+-	MOVD	x+0(FP), F0
+-	FSQRTD	F0, F0
+-	MOVD	F0, ret+8(FP)
+-	RET
+diff --git a/src/math/sqrt_s390x.s b/src/math/sqrt_s390x.s
+deleted file mode 100644
+index fa31f75362..0000000000
+--- a/src/math/sqrt_s390x.s
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func archSqrt(x float64) float64
+-TEXT ·archSqrt(SB),NOSPLIT,$0
+-	FMOVD x+0(FP), F1
+-	FSQRT F1, F1
+-	FMOVD F1, ret+8(FP)
+-	RET
+diff --git a/src/math/sqrt_wasm.s b/src/math/sqrt_wasm.s
+deleted file mode 100644
+index fa6799ddc6..0000000000
+--- a/src/math/sqrt_wasm.s
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·archSqrt(SB),NOSPLIT,$0
+-	Get SP
+-	F64Load x+0(FP)
+-	F64Sqrt
+-	F64Store ret+8(FP)
+-	RET

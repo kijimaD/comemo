@@ -10,6 +10,24 @@ Date:   Thu May 3 16:39:57 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6175047
-
+---
  src/pkg/crypto/x509/x509.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 8dae7e7fcf..c4d85e67f0 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -388,10 +388,10 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature
+ 		return ErrUnsupportedAlgorithm
+ 	}
+ 
+-	h := hashType.New()
+-	if h == nil {
++	if !hashType.Available() {
+ 		return ErrUnsupportedAlgorithm
+ 	}
++	h := hashType.New()
+ 
+ 	h.Write(signed)
+ 	digest := h.Sum(nil)

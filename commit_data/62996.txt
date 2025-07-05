@@ -48,9 +48,225 @@ Date:   Tue May 13 00:45:25 2025 +0000
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Ian Stapleton Cordasco <graffatcolmingov@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/crypto/internal/fips140/sha256/sha256.go | 10 +++++
  src/crypto/md5/md5.go                        | 10 +++++
  src/crypto/md5/md5_test.go                   | 30 ++++++++++++-
  src/crypto/sha256/sha256_test.go             | 66 ++++++++++++++++++++++++++--
  4 files changed, 110 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/sha256/sha256.go b/src/crypto/internal/fips140/sha256/sha256.go
+index e8c7c25f06..bc157f9adb 100644
+--- a/src/crypto/internal/fips140/sha256/sha256.go
++++ b/src/crypto/internal/fips140/sha256/sha256.go
+@@ -21,6 +21,11 @@ const size224 = 28
+ // The block size of SHA-256 and SHA-224 in bytes.
+ const blockSize = 64
+ 
++// The maximum number of bytes that can be passed to block(). The limit exists
++// because implementations that rely on assembly routines are not preemptible.
++const maxAsmIters = 1024
++const maxAsmSize = blockSize * maxAsmIters // 64KiB
++
+ const (
+ 	chunk     = 64
+ 	init0     = 0x6A09E667
+@@ -172,6 +177,11 @@ func (d *Digest) Write(p []byte) (nn int, err error) {
+ 	}
+ 	if len(p) >= chunk {
+ 		n := len(p) &^ (chunk - 1)
++		for n > maxAsmSize {
++			block(d, p[:maxAsmSize])
++			p = p[maxAsmSize:]
++			n -= maxAsmSize
++		}
+ 		block(d, p[:n])
+ 		p = p[n:]
+ 	}
+diff --git a/src/crypto/md5/md5.go b/src/crypto/md5/md5.go
+index a0384e175f..dc586fb217 100644
+--- a/src/crypto/md5/md5.go
++++ b/src/crypto/md5/md5.go
+@@ -28,6 +28,11 @@ const Size = 16
+ // The blocksize of MD5 in bytes.
+ const BlockSize = 64
+ 
++// The maximum number of bytes that can be passed to block(). The limit exists
++// because implementations that rely on assembly routines are not preemptible.
++const maxAsmIters = 1024
++const maxAsmSize = BlockSize * maxAsmIters // 64KiB
++
+ const (
+ 	init0 = 0x67452301
+ 	init1 = 0xEFCDAB89
+@@ -138,6 +143,11 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 	if len(p) >= BlockSize {
+ 		n := len(p) &^ (BlockSize - 1)
+ 		if haveAsm {
++			for n > maxAsmSize {
++				block(d, p[:maxAsmSize])
++				p = p[maxAsmSize:]
++				n -= maxAsmSize
++			}
+ 			block(d, p[:n])
+ 		} else {
+ 			blockGeneric(d, p[:n])
+diff --git a/src/crypto/md5/md5_test.go b/src/crypto/md5/md5_test.go
+index 2353ea85b5..c0bb15f05b 100644
+--- a/src/crypto/md5/md5_test.go
++++ b/src/crypto/md5/md5_test.go
+@@ -133,10 +133,11 @@ func TestGoldenMarshal(t *testing.T) {
+ 
+ func TestLarge(t *testing.T) {
+ 	const N = 10000
++	const offsets = 4
+ 	ok := "2bb571599a4180e1d542f76904adc3df" // md5sum of "0123456789" * 1000
+-	block := make([]byte, 10004)
++	block := make([]byte, N+offsets)
+ 	c := New()
+-	for offset := 0; offset < 4; offset++ {
++	for offset := 0; offset < offsets; offset++ {
+ 		for i := 0; i < N; i++ {
+ 			block[offset+i] = '0' + byte(i%10)
+ 		}
+@@ -155,6 +156,31 @@ func TestLarge(t *testing.T) {
+ 	}
+ }
+ 
++func TestExtraLarge(t *testing.T) {
++	const N = 100000
++	const offsets = 4
++	ok := "13572e9e296cff52b79c52148313c3a5" // md5sum of "0123456789" * 10000
++	block := make([]byte, N+offsets)
++	c := New()
++	for offset := 0; offset < offsets; offset++ {
++		for i := 0; i < N; i++ {
++			block[offset+i] = '0' + byte(i%10)
++		}
++		for blockSize := 10; blockSize <= N; blockSize *= 10 {
++			blocks := N / blockSize
++			b := block[offset : offset+blockSize]
++			c.Reset()
++			for i := 0; i < blocks; i++ {
++				c.Write(b)
++			}
++			s := fmt.Sprintf("%x", c.Sum(nil))
++			if s != ok {
++				t.Fatalf("md5 TestExtraLarge offset=%d, blockSize=%d = %s want %s", offset, blockSize, s, ok)
++			}
++		}
++	}
++}
++
+ // Tests that blockGeneric (pure Go) and block (in assembly for amd64, 386, arm) match.
+ func TestBlockGeneric(t *testing.T) {
+ 	gen, asm := New().(*digest), New().(*digest)
+diff --git a/src/crypto/sha256/sha256_test.go b/src/crypto/sha256/sha256_test.go
+index b3b4e77f57..38a7f25afb 100644
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@ -200,6 +200,56 @@ func testGoldenMarshal(t *testing.T) {
+ 	}
+ }
+ 
++func TestLarge(t *testing.T) {
++	const N = 10000
++	const offsets = 4
++	ok := "4c207598af7a20db0e3334dd044399a40e467cb81b37f7ba05a4f76dcbd8fd59" // sha256sum of "0123456789" * 1000
++	block := make([]byte, N+offsets)
++	c := New()
++	for offset := 0; offset < offsets; offset++ {
++		for i := 0; i < N; i++ {
++			block[offset+i] = '0' + byte(i%10)
++		}
++		for blockSize := 10; blockSize <= N; blockSize *= 10 {
++			blocks := N / blockSize
++			b := block[offset : offset+blockSize]
++			c.Reset()
++			for i := 0; i < blocks; i++ {
++				c.Write(b)
++			}
++			s := fmt.Sprintf("%x", c.Sum(nil))
++			if s != ok {
++				t.Fatalf("sha256 TestLarge offset=%d, blockSize=%d = %s want %s", offset, blockSize, s, ok)
++			}
++		}
++	}
++}
++
++func TestExtraLarge(t *testing.T) {
++	const N = 100000
++	const offsets = 4
++	ok := "aca9e593cc629cbaa94cd5a07dc029424aad93e5129e5d11f8dcd2f139c16cc0" // sha256sum of "0123456789" * 10000
++	block := make([]byte, N+offsets)
++	c := New()
++	for offset := 0; offset < offsets; offset++ {
++		for i := 0; i < N; i++ {
++			block[offset+i] = '0' + byte(i%10)
++		}
++		for blockSize := 10; blockSize <= N; blockSize *= 10 {
++			blocks := N / blockSize
++			b := block[offset : offset+blockSize]
++			c.Reset()
++			for i := 0; i < blocks; i++ {
++				c.Write(b)
++			}
++			s := fmt.Sprintf("%x", c.Sum(nil))
++			if s != ok {
++				t.Fatalf("sha256 TestExtraLarge offset=%d, blockSize=%d = %s want %s", offset, blockSize, s, ok)
++			}
++		}
++	}
++}
++
+ func TestMarshalTypeMismatch(t *testing.T) {
+ 	h1 := New()
+ 	h2 := New224()
+@@ -366,16 +416,16 @@ func TestExtraMethods(t *testing.T) {
+ }
+ 
+ var bench = New()
+-var buf = make([]byte, 8192)
+ 
+ func benchmarkSize(b *testing.B, size int) {
++	buf := make([]byte, size)
+ 	sum := make([]byte, bench.Size())
+ 	b.Run("New", func(b *testing.B) {
+ 		b.ReportAllocs()
+ 		b.SetBytes(int64(size))
+ 		for i := 0; i < b.N; i++ {
+ 			bench.Reset()
+-			bench.Write(buf[:size])
++			bench.Write(buf)
+ 			bench.Sum(sum[:0])
+ 		}
+ 	})
+@@ -383,14 +433,14 @@ func benchmarkSize(b *testing.B, size int) {
+ 		b.ReportAllocs()
+ 		b.SetBytes(int64(size))
+ 		for i := 0; i < b.N; i++ {
+-			Sum224(buf[:size])
++			Sum224(buf)
+ 		}
+ 	})
+ 	b.Run("Sum256", func(b *testing.B) {
+ 		b.ReportAllocs()
+ 		b.SetBytes(int64(size))
+ 		for i := 0; i < b.N; i++ {
+-			Sum256(buf[:size])
++			Sum256(buf)
+ 		}
+ 	})
+ }
+@@ -406,3 +456,11 @@ func BenchmarkHash1K(b *testing.B) {
+ func BenchmarkHash8K(b *testing.B) {
+ 	benchmarkSize(b, 8192)
+ }
++
++func BenchmarkHash256K(b *testing.B) {
++	benchmarkSize(b, 256*1024)
++}
++
++func BenchmarkHash1M(b *testing.B) {
++	benchmarkSize(b, 1024*1024)
++}

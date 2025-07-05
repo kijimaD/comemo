@@ -9,7 +9,7 @@ Date:   Sat Dec 1 00:38:01 2012 +0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6844086
-
+---
  src/pkg/encoding/gob/timing_test.go | 2 ++
  src/pkg/fmt/fmt_test.go             | 1 +
  src/pkg/math/big/nat_test.go        | 1 +
@@ -22,3 +22,176 @@ Date:   Sat Dec 1 00:38:01 2012 +0800
  src/pkg/runtime/mallocrep1.go       | 1 +
  src/pkg/strconv/strconv_test.go     | 1 +
  11 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/encoding/gob/timing_test.go b/src/pkg/encoding/gob/timing_test.go
+index b9371c4230..9a0e51d1fe 100644
+--- a/src/pkg/encoding/gob/timing_test.go
++++ b/src/pkg/encoding/gob/timing_test.go
+@@ -50,6 +50,7 @@ func BenchmarkEndToEndByteBuffer(b *testing.B) {
+ }
+ 
+ func TestCountEncodeMallocs(t *testing.T) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	var buf bytes.Buffer
+ 	enc := NewEncoder(&buf)
+ 	bench := &Bench{7, 3.2, "now is the time", []byte("for all good men")}
+@@ -69,6 +70,7 @@ func TestCountEncodeMallocs(t *testing.T) {
+ }
+ 
+ func TestCountDecodeMallocs(t *testing.T) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	var buf bytes.Buffer
+ 	enc := NewEncoder(&buf)
+ 	bench := &Bench{7, 3.2, "now is the time", []byte("for all good men")}
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 210d8f8b3d..84fc380307 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -581,6 +581,7 @@ var mallocTest = []struct {
+ var _ bytes.Buffer
+ 
+ func TestCountMallocs(t *testing.T) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	for _, mt := range mallocTest {
+ 		const N = 100
+ 		memstats := new(runtime.MemStats)
+diff --git a/src/pkg/math/big/nat_test.go b/src/pkg/math/big/nat_test.go
+index 6244eeefc9..2dd7bf6396 100644
+--- a/src/pkg/math/big/nat_test.go
++++ b/src/pkg/math/big/nat_test.go
+@@ -180,6 +180,7 @@ func allocBytes(f func()) uint64 {
+ // does not cause deep recursion and in turn allocate too much memory.
+ // Test case for issue 3807.
+ func TestMulUnbalanced(t *testing.T) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	x := rndNat(50000)
+ 	y := rndNat(40)
+ 	allocSize := allocBytes(func() {
+diff --git a/src/pkg/net/http/header_test.go b/src/pkg/net/http/header_test.go
+index fd971a61d0..01bb4dce00 100644
+--- a/src/pkg/net/http/header_test.go
++++ b/src/pkg/net/http/header_test.go
+@@ -188,6 +188,7 @@ type errorfer interface {
+ }
+ 
+ func doHeaderWriteSubset(n int, t errorfer) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	h := Header(map[string][]string{
+ 		"Content-Length": {"123"},
+ 		"Content-Type":   {"text/plain"},
+@@ -204,7 +205,7 @@ func doHeaderWriteSubset(n int, t errorfer) {
+ 	var m1 runtime.MemStats
+ 	runtime.ReadMemStats(&m1)
+ 	if mallocs := m1.Mallocs - m0.Mallocs; n >= 100 && mallocs >= uint64(n) {
+-		// TODO(bradfitz,rsc): once we can sort with allocating,
++		// TODO(bradfitz,rsc): once we can sort without allocating,
+ 		// make this an error.  See http://golang.org/issue/3761
+ 		// t.Errorf("did %d mallocs (>= %d iterations); should have avoided mallocs", mallocs, n)
+ 	}
+diff --git a/src/pkg/net/rpc/server_test.go b/src/pkg/net/rpc/server_test.go
+index d9ebe71e5c..2c734a479f 100644
+--- a/src/pkg/net/rpc/server_test.go
++++ b/src/pkg/net/rpc/server_test.go
+@@ -446,6 +446,7 @@ func dialHTTP() (*Client, error) {
+ }
+ 
+ func countMallocs(dial func() (*Client, error), t *testing.T) uint64 {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	once.Do(startServer)
+ 	client, err := dial()
+ 	if err != nil {
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index ef554dd7fa..bd251a4ebb 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -91,6 +91,7 @@ var wincleantests = []PathTest{
+ }
+ 
+ func TestClean(t *testing.T) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	tests := cleantests
+ 	if runtime.GOOS == "windows" {
+ 		for i := range tests {
+@@ -897,7 +898,7 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
+ }
+ 
+ func TestBug3486(t *testing.T) { // http://code.google.com/p/go/issues/detail?id=3486
+-	root, err := filepath.EvalSymlinks(os.Getenv("GOROOT"))
++	root, err := filepath.EvalSymlinks(runtime.GOROOT())
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index 0f353be34d..52cbb494e8 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -64,6 +64,7 @@ var cleantests = []PathTest{
+ }
+ 
+ func TestClean(t *testing.T) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	for _, test := range cleantests {
+ 		if s := Clean(test.path); s != test.result {
+ 			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.result)
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 12cdbe1ca9..8dd24de28e 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -2012,6 +2012,7 @@ func TestAddr(t *testing.T) {
+ }
+ 
+ func noAlloc(t *testing.T, n int, f func(int)) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	// once to prime everything
+ 	f(-1)
+ 	memstats := new(runtime.MemStats)
+@@ -2021,12 +2022,9 @@ func noAlloc(t *testing.T, n int, f func(int)) {
+ 	for j := 0; j < n; j++ {
+ 		f(j)
+ 	}
+-	// A few allocs may happen in the testing package when GOMAXPROCS > 1, so don't
+-	// require zero mallocs.
+-	// A new thread, one of which will be created if GOMAXPROCS>1, does 6 allocations.
+ 	runtime.ReadMemStats(memstats)
+ 	mallocs := memstats.Mallocs - oldmallocs
+-	if mallocs > 10 {
++	if mallocs > 0 {
+ 		t.Fatalf("%d mallocs after %d iterations", mallocs, n)
+ 	}
+ }
+diff --git a/src/pkg/runtime/gc_test.go b/src/pkg/runtime/gc_test.go
+index 56dd93819e..283a6812e9 100644
+--- a/src/pkg/runtime/gc_test.go
++++ b/src/pkg/runtime/gc_test.go
+@@ -10,6 +10,7 @@ import (
+ )
+ 
+ func TestGcSys(t *testing.T) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	memstats := new(runtime.MemStats)
+ 	runtime.GC()
+ 	runtime.ReadMemStats(memstats)
+diff --git a/src/pkg/runtime/mallocrep1.go b/src/pkg/runtime/mallocrep1.go
+index 41c104c0ba..bc33e3a6b4 100644
+--- a/src/pkg/runtime/mallocrep1.go
++++ b/src/pkg/runtime/mallocrep1.go
+@@ -39,6 +39,7 @@ func OkAmount(size, n uintptr) bool {
+ }
+ 
+ func AllocAndFree(size, count int) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	if *chatty {
+ 		fmt.Printf("size=%d count=%d ...\n", size, count)
+ 	}
+diff --git a/src/pkg/strconv/strconv_test.go b/src/pkg/strconv/strconv_test.go
+index 5cab4bf42b..6a99522a61 100644
+--- a/src/pkg/strconv/strconv_test.go
++++ b/src/pkg/strconv/strconv_test.go
+@@ -44,6 +44,7 @@ var (
+ )
+ 
+ func TestCountMallocs(t *testing.T) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	for _, mt := range mallocTest {
+ 		const N = 100
+ 		memstats := new(runtime.MemStats)

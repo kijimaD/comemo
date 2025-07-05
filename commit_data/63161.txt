@@ -34,7 +34,43 @@ Date:   Fri May 16 13:08:16 2025 -0400
     Auto-Submit: Daniel McCarney <daniel@binaryparadox.net>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/tls/bogo_config.json | 1 -
  src/crypto/tls/key_agreement.go | 5 +++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index 191f48fc02..ba1dce8761 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -62,7 +62,6 @@
+         "BadRSAClientKeyExchange-5": "crypto/tls doesn't check the version number in the premaster secret - see processClientKeyExchange comment",
+         "CheckLeafCurve": "TODO: first pass, this should be fixed",
+         "DisabledCurve-HelloRetryRequest-TLS13": "TODO: first pass, this should be fixed",
+-        "UnsupportedCurve": "TODO: first pass, this should be fixed",
+         "SupportTicketsWithSessionID": "TODO: first pass, this should be fixed",
+         "NoNullCompression-TLS12": "TODO: first pass, this should be fixed",
+         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index 3e96242b97..d41bf43591 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -14,6 +14,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"slices"
+ )
+ 
+ // A keyAgreement implements the client and server side of a TLS 1.0–1.2 key
+@@ -293,6 +294,10 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
+ 		return errServerKeyExchange
+ 	}
+ 
++	if !slices.Contains(clientHello.supportedCurves, curveID) {
++		return errors.New("tls: server selected unoffered curve")
++	}
++
+ 	if _, ok := curveForCurveID(curveID); !ok {
+ 		return errors.New("tls: server selected unsupported curve")
+ 	}

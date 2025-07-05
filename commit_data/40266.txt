@@ -17,7 +17,7 @@ Date:   Mon Apr 29 13:50:49 2019 +0000
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/sigaltstack.go                       |  2 +-
  misc/cgo/testcarchive/carchive_test.go             |  2 +-
  misc/cgo/testcshared/cshared_test.go               |  2 +-
@@ -76,3 +76,948 @@ Date:   Mon Apr 29 13:50:49 2019 +0000
  src/syscall/sockcmsg_unix.go                       |  2 +-
  src/syscall/syscall_unix.go                        |  1 +
  57 files changed, 148 insertions(+), 66 deletions(-)
+
+diff --git a/misc/cgo/test/sigaltstack.go b/misc/cgo/test/sigaltstack.go
+index 2b7a1ec9ad..2c9b81ced7 100644
+--- a/misc/cgo/test/sigaltstack.go
++++ b/misc/cgo/test/sigaltstack.go
+@@ -55,7 +55,7 @@ import (
+ 
+ func testSigaltstack(t *testing.T) {
+ 	switch {
+-	case runtime.GOOS == "solaris", runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64"):
++	case runtime.GOOS == "solaris", runtime.GOOS == "illumos", runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64"):
+ 		t.Skipf("switching signal stack not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	case runtime.GOOS == "darwin" && runtime.GOARCH == "386":
+ 		t.Skipf("sigaltstack fails on darwin/386")
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 5fbe9caafb..085970f32a 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -124,7 +124,7 @@ func testMain(m *testing.M) int {
+ 			if GOARCH == "arm" || GOARCH == "arm64" {
+ 				libbase += "_shared"
+ 			}
+-		case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
++		case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris", "illumos":
+ 			libbase += "_shared"
+ 		}
+ 	}
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index 97f786e6c5..4b3968e417 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -105,7 +105,7 @@ func testMain(m *testing.M) int {
+ 		if GOARCH == "arm" || GOARCH == "arm64" {
+ 			libgodir += "_shared"
+ 		}
+-	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
++	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris", "illumos":
+ 		libgodir += "_shared"
+ 	}
+ 	cc = append(cc, "-I", filepath.Join("pkg", libgodir))
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 4c5f1c925e..e47f25dce6 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -80,6 +80,7 @@ var okgoarch = []string{
+ var okgoos = []string{
+ 	"darwin",
+ 	"dragonfly",
++	"illumos",
+ 	"js",
+ 	"linux",
+ 	"android",
+@@ -936,7 +937,7 @@ func matchtag(tag string) bool {
+ 		}
+ 		return !matchtag(tag[1:])
+ 	}
+-	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux")
++	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux") || (goos == "illumos" && tag == "solaris")
+ }
+ 
+ // shouldbuild reports whether we should build this file.
+@@ -950,7 +951,7 @@ func shouldbuild(file, dir string) bool {
+ 	name := filepath.Base(file)
+ 	excluded := func(list []string, ok string) bool {
+ 		for _, x := range list {
+-			if x == ok || ok == "android" && x == "linux" {
++			if x == ok || (ok == "android" && x == "linux") || (ok == "illumos" && x == "solaris") {
+ 				continue
+ 			}
+ 			i := strings.Index(name, x)
+@@ -1486,6 +1487,7 @@ var cgoEnabled = map[string]bool{
+ 	"freebsd/386":     true,
+ 	"freebsd/amd64":   true,
+ 	"freebsd/arm":     true,
++	"illumos/amd64":   true,
+ 	"linux/386":       true,
+ 	"linux/amd64":     true,
+ 	"linux/arm":       true,
+diff --git a/src/cmd/dist/main.go b/src/cmd/dist/main.go
+index 9be2fff37a..7a7ffe8f0c 100644
+--- a/src/cmd/dist/main.go
++++ b/src/cmd/dist/main.go
+@@ -81,8 +81,11 @@ func main() {
+ 		if gohostarch == "" {
+ 			fatalf("$objtype is unset")
+ 		}
+-	case "solaris":
+-		// Even on 64-bit platform, solaris uname -m prints i86pc.
++	case "solaris", "illumos":
++		// Solaris and illumos systems have multi-arch userlands, and
++		// "uname -m" reports the machine hardware name; e.g.,
++		// "i86pc" on both 32- and 64-bit x86 systems.  Check for the
++		// native (widest) instruction set on the running kernel:
+ 		out := run("", CheckExit, "isainfo", "-n")
+ 		if strings.Contains(out, "amd64") {
+ 			gohostarch = "amd64"
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 94417be0f2..3f7164dd50 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4139,7 +4139,7 @@ func TestCgoConsistentResults(t *testing.T) {
+ 		t.Skip("skipping because cgo not enabled")
+ 	}
+ 	switch runtime.GOOS {
+-	case "solaris":
++	case "solaris", "illumos":
+ 		testenv.SkipFlaky(t, 13247)
+ 	}
+ 
+diff --git a/src/cmd/go/internal/bug/bug.go b/src/cmd/go/internal/bug/bug.go
+index 468605c74a..77a1677125 100644
+--- a/src/cmd/go/internal/bug/bug.go
++++ b/src/cmd/go/internal/bug/bug.go
+@@ -102,7 +102,9 @@ func printOSDetails(w io.Writer) {
+ 		printGlibcVersion(w)
+ 	case "openbsd", "netbsd", "freebsd", "dragonfly":
+ 		printCmdOut(w, "uname -v: ", "uname", "-v")
+-	case "solaris":
++	case "illumos", "solaris":
++		// Be sure to use the OS-supplied uname, in "/usr/bin":
++		printCmdOut(w, "uname -srv: ", "/usr/bin/uname", "-srv")
+ 		out, err := ioutil.ReadFile("/etc/release")
+ 		if err == nil {
+ 			fmt.Fprintf(w, "/etc/release: %s\n", out)
+diff --git a/src/cmd/go/internal/imports/build.go b/src/cmd/go/internal/imports/build.go
+index fd0a300bc8..1e44a83c72 100644
+--- a/src/cmd/go/internal/imports/build.go
++++ b/src/cmd/go/internal/imports/build.go
+@@ -202,6 +202,7 @@ var KnownOS = map[string]bool{
+ 	"dragonfly": true,
+ 	"freebsd":   true,
+ 	"hurd":      true,
++	"illumos":   true,
+ 	"js":        true,
+ 	"linux":     true,
+ 	"nacl":      true,
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
+index aa67093a48..581a978ef8 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
+@@ -159,7 +159,9 @@ func TestRLockExcludesOnlyLock(t *testing.T) {
+ 	f2 := mustOpen(t, f.Name())
+ 	defer f2.Close()
+ 
+-	if runtime.GOOS == "solaris" || runtime.GOOS == "aix" {
++	doUnlockTF := false
++	switch runtime.GOOS {
++	case "aix", "illumos", "solaris":
+ 		// When using POSIX locks (as on Solaris), we can't safely read-lock the
+ 		// same inode through two different descriptors at the same time: when the
+ 		// first descriptor is closed, the second descriptor would still be open but
+@@ -167,8 +169,9 @@ func TestRLockExcludesOnlyLock(t *testing.T) {
+ 		lockF2 := mustBlock(t, "RLock", f2)
+ 		unlock(t, f)
+ 		lockF2(t)
+-	} else {
++	default:
+ 		rLock(t, f2)
++		doUnlockTF = true
+ 	}
+ 
+ 	other := mustOpen(t, f.Name())
+@@ -176,7 +179,7 @@ func TestRLockExcludesOnlyLock(t *testing.T) {
+ 	lockOther := mustBlock(t, "Lock", other)
+ 
+ 	unlock(t, f2)
+-	if runtime.GOOS != "solaris" && runtime.GOOS != "aix" {
++	if doUnlockTF {
+ 		unlock(t, f)
+ 	}
+ 	lockOther(t)
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 750bc3c6cd..894c260b29 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -326,7 +326,7 @@ func (b *Builder) gccgoBuildIDFile(a *Action) (string, error) {
+ 	var buf bytes.Buffer
+ 	if cfg.Goos == "aix" {
+ 		fmt.Fprintf(&buf, "\t.csect .go.buildid[XO]\n")
+-	} else if cfg.Goos != "solaris" || assemblerIsGas() {
++	} else if (cfg.Goos != "solaris" && cfg.Goos != "illumos") || assemblerIsGas() {
+ 		fmt.Fprintf(&buf, "\t"+`.section .go.buildid,"e"`+"\n")
+ 	} else if cfg.Goarch == "sparc" || cfg.Goarch == "sparc64" {
+ 		fmt.Fprintf(&buf, "\t"+`.section ".go.buildid",#exclude`+"\n")
+@@ -345,7 +345,7 @@ func (b *Builder) gccgoBuildIDFile(a *Action) (string, error) {
+ 		fmt.Fprintf(&buf, "%#02x", a.buildID[i])
+ 	}
+ 	fmt.Fprintf(&buf, "\n")
+-	if cfg.Goos != "solaris" && cfg.Goos != "aix" {
++	if cfg.Goos != "solaris" && cfg.Goos != "illumos" && cfg.Goos != "aix" {
+ 		secType := "@progbits"
+ 		if cfg.Goarch == "arm" {
+ 			secType = "%progbits"
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index d1a529d1e6..cb380d1702 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -713,7 +713,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 	// This is read by readGccgoArchive in cmd/internal/buildid/buildid.go.
+ 	if a.buildID != "" && cfg.BuildToolchainName == "gccgo" {
+ 		switch cfg.Goos {
+-		case "aix", "android", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
++		case "aix", "android", "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd", "solaris":
+ 			asmfile, err := b.gccgoBuildIDFile(a)
+ 			if err != nil {
+ 				return err
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index d60295ce53..35d3a505cc 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -95,7 +95,7 @@ func buildModeInit() {
+ 				codegenArg = "-shared"
+ 			default:
+ 				switch cfg.Goos {
+-				case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
++				case "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd", "solaris":
+ 					if platform == "linux/ppc64" {
+ 						base.Fatalf("-buildmode=c-archive not supported on %s\n", platform)
+ 					}
+diff --git a/src/cmd/internal/objabi/head.go b/src/cmd/internal/objabi/head.go
+index db2221d6b1..0a54228228 100644
+--- a/src/cmd/internal/objabi/head.go
++++ b/src/cmd/internal/objabi/head.go
+@@ -73,7 +73,7 @@ func (h *HeadType) Set(s string) error {
+ 		*h = Hopenbsd
+ 	case "plan9":
+ 		*h = Hplan9
+-	case "solaris":
++	case "illumos", "solaris":
+ 		*h = Hsolaris
+ 	case "windows":
+ 		*h = Hwindows
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 333680511a..f6ed8d3401 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -574,8 +574,8 @@ func TestInlinedRoutineRecords(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+-	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
+-		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
++	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
++		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
+ 	}
+ 
+ 	t.Parallel()
+@@ -801,8 +801,8 @@ func TestAbstractOriginSanity(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+-	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
+-		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
++	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
++		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
+ 	}
+ 
+ 	if wd, err := os.Getwd(); err == nil {
+@@ -819,8 +819,8 @@ func TestAbstractOriginSanityIssue25459(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+-	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
+-		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
++	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
++		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
+ 	}
+ 	if runtime.GOARCH != "amd64" && runtime.GOARCH != "x86" {
+ 		t.Skip("skipping on not-amd64 not-x86; location lists not supported")
+@@ -840,8 +840,8 @@ func TestAbstractOriginSanityIssue26237(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+-	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
+-		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
++	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
++		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
+ 	}
+ 	if wd, err := os.Getwd(); err == nil {
+ 		gopathdir := filepath.Join(wd, "testdata", "issue26237")
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go b/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
+index 723b7f1012..a79565a7ff 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
+@@ -21,9 +21,9 @@ func cmsgAlignOf(salen int) int {
+ 	case "aix":
+ 		// There is no alignment on AIX.
+ 		salign = 1
+-	case "darwin", "dragonfly", "solaris":
+-		// NOTE: It seems like 64-bit Darwin, DragonFly BSD and
+-		// Solaris kernels still require 32-bit aligned access to
++	case "darwin", "dragonfly", "solaris", "illumos":
++		// NOTE: It seems like 64-bit Darwin, DragonFly BSD, illumos,
++		// and Solaris kernels still require 32-bit aligned access to
+ 		// network subsystem.
+ 		if SizeofPtr == 8 {
+ 			salign = 4
+diff --git a/src/cmd/vet/all/whitelist/illumos_amd64.txt b/src/cmd/vet/all/whitelist/illumos_amd64.txt
+new file mode 100644
+index 0000000000..4525c03cd7
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/illumos_amd64.txt
+@@ -0,0 +1,6 @@
++// illumos/amd64-specific vet whitelist. See readme.txt for details.
++
++runtime/sys_solaris_amd64.s: [amd64] settls: function settls missing Go declaration
++runtime/sys_solaris_amd64.s: [amd64] pipe1: function pipe1 missing Go declaration
++runtime/sys_solaris_amd64.s: [amd64] asmsysvicall6: function asmsysvicall6 missing Go declaration
++runtime/sys_solaris_amd64.s: [amd64] usleep2: function usleep2 missing Go declaration
+diff --git a/src/debug/gosym/pclntab_test.go b/src/debug/gosym/pclntab_test.go
+index d21f0e24a8..ef644f8454 100644
+--- a/src/debug/gosym/pclntab_test.go
++++ b/src/debug/gosym/pclntab_test.go
+@@ -55,7 +55,7 @@ func endtest() {
+ // These tests open and examine the test binary, and use elf.Open to do so.
+ func skipIfNotELF(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
++	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris", "illumos":
+ 		// OK.
+ 	default:
+ 		t.Skipf("skipping on non-ELF system %s", runtime.GOOS)
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 1ad076089d..a91551bc22 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1685,6 +1685,9 @@ func (ctxt *Context) match(name string, allTags map[string]bool) bool {
+ 	if ctxt.GOOS == "android" && name == "linux" {
+ 		return true
+ 	}
++	if ctxt.GOOS == "illumos" && name == "solaris" {
++		return true
++	}
+ 
+ 	// other tags
+ 	for _, tag := range ctxt.BuildTags {
+diff --git a/src/go/build/doc.go b/src/go/build/doc.go
+index 7b044bc838..703825a45d 100644
+--- a/src/go/build/doc.go
++++ b/src/go/build/doc.go
+@@ -147,6 +147,9 @@
+ // Using GOOS=android matches build tags and files as for GOOS=linux
+ // in addition to android tags and files.
+ //
++// Using GOOS=illumos matches build tags and files as for GOOS=solaris
++// in addition to illumos tags and files.
++//
+ // Binary-Only Packages
+ //
+ // In Go 1.12 and earlier, it was possible to distribute packages in binary
+diff --git a/src/go/build/syslist.go b/src/go/build/syslist.go
+index d13fe9c4f9..197c646d5c 100644
+--- a/src/go/build/syslist.go
++++ b/src/go/build/syslist.go
+@@ -4,5 +4,5 @@
+ 
+ package build
+ 
+-const goosList = "aix android darwin dragonfly freebsd hurd js linux nacl netbsd openbsd plan9 solaris windows zos "
++const goosList = "aix android darwin dragonfly freebsd hurd illumos js linux nacl netbsd openbsd plan9 solaris windows zos "
+ const goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be ppc64 ppc64le mips mipsle mips64 mips64le mips64p32 mips64p32le ppc riscv riscv64 s390 s390x sparc sparc64 wasm "
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index b0622d7fd5..c4fee5aa5e 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -185,7 +185,7 @@ func TestDialError(t *testing.T) {
+ 
+ func TestProtocolDialError(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "nacl", "solaris":
++	case "nacl", "solaris", "illumos":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index e7ab9a45fd..dbe4a511ec 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -81,12 +81,12 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
+ 		runtime.KeepAlive(fd)
+ 		return nil, nil
+ 	case syscall.EINVAL:
+-		// On Solaris we can see EINVAL if the socket has
+-		// already been accepted and closed by the server.
+-		// Treat this as a successful connection--writes to
+-		// the socket will see EOF.  For details and a test
+-		// case in C see https://golang.org/issue/6828.
+-		if runtime.GOOS == "solaris" {
++		// On Solaris and illumos we can see EINVAL if the socket has
++		// already been accepted and closed by the server.  Treat this
++		// as a successful connection--writes to the socket will see
++		// EOF.  For details and a test case in C see
++		// https://golang.org/issue/6828.
++		if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
+ 			return nil, nil
+ 		}
+ 		fallthrough
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index c6b514abce..fb6032fbc0 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -61,7 +61,7 @@ func TestInterfaces(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 		switch runtime.GOOS {
+-		case "solaris":
++		case "solaris", "illumos":
+ 			if ifxi.Index != ifi.Index {
+ 				t.Errorf("got %v; want %v", ifxi, ifi)
+ 			}
+@@ -278,7 +278,7 @@ func checkUnicastStats(ifStats *ifStats, uniStats *routeStats) error {
+ 
+ func checkMulticastStats(ifStats *ifStats, uniStats, multiStats *routeStats) error {
+ 	switch runtime.GOOS {
+-	case "aix", "dragonfly", "nacl", "netbsd", "openbsd", "plan9", "solaris":
++	case "aix", "dragonfly", "nacl", "netbsd", "openbsd", "plan9", "solaris", "illumos":
+ 	default:
+ 		// Test the existence of connected multicast route
+ 		// clones for IPv4. Unlike IPv6, IPv4 multicast
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index 6c9b92a9fc..fef2b6405f 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -534,8 +534,8 @@ func TestIPv4MulticastListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "android", "nacl", "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+-	case "solaris":
+-		t.Skipf("not supported on solaris, see golang.org/issue/7399")
++	case "solaris", "illumos":
++		t.Skipf("not supported on solaris or illumos, see golang.org/issue/7399")
+ 	}
+ 	if !supportsIPv4() {
+ 		t.Skip("IPv4 is not supported")
+@@ -609,8 +609,8 @@ func TestIPv6MulticastListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+-	case "solaris":
+-		t.Skipf("not supported on solaris, see issue 7399")
++	case "solaris", "illumos":
++		t.Skipf("not supported on solaris or illumos, see issue 7399")
+ 	}
+ 	if !supportsIPv6() {
+ 		t.Skip("IPv6 is not supported")
+@@ -674,7 +674,7 @@ func checkMulticastListener(c *UDPConn, ip IP) error {
+ 
+ func multicastRIBContains(ip IP) (bool, error) {
+ 	switch runtime.GOOS {
+-	case "aix", "dragonfly", "netbsd", "openbsd", "plan9", "solaris", "windows":
++	case "aix", "dragonfly", "netbsd", "openbsd", "plan9", "solaris", "illumos", "windows":
+ 		return true, nil // not implemented yet
+ 	case "linux":
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "alpha" {
+diff --git a/src/net/tcpsock_test.go b/src/net/tcpsock_test.go
+index 36d2ccb09a..f78675b185 100644
+--- a/src/net/tcpsock_test.go
++++ b/src/net/tcpsock_test.go
+@@ -651,7 +651,7 @@ func TestTCPSelfConnect(t *testing.T) {
+ 		n = 1000
+ 	}
+ 	switch runtime.GOOS {
+-	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "solaris", "windows":
++	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "illumos", "solaris", "windows":
+ 		// Non-Linux systems take a long time to figure
+ 		// out that there is nothing listening on localhost.
+ 		n = 100
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index a157810eed..f9d73060a3 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -831,7 +831,7 @@ func TestHelperProcess(*testing.T) {
+ 			// the cloned file descriptors that result from opening
+ 			// /dev/urandom.
+ 			// https://golang.org/issue/3955
+-		case "solaris":
++		case "illumos", "solaris":
+ 			// TODO(aram): This fails on Solaris because libc opens
+ 			// its own files, as it sees fit. Darwin does the same,
+ 			// see: https://golang.org/issue/2603
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index b7e26f47b7..b6bbba287f 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2226,8 +2226,8 @@ func TestPipeThreads(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "freebsd":
+ 		t.Skip("skipping on FreeBSD; issue 19093")
+-	case "solaris":
+-		t.Skip("skipping on Solaris; issue 19111")
++	case "illumos", "solaris":
++		t.Skip("skipping on Solaris and illumos; issue 19111")
+ 	case "windows":
+ 		t.Skip("skipping on Windows; issue 19098")
+ 	case "plan9":
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 96e0fc5a55..4d556f977e 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -159,7 +159,7 @@ func TestRemoveAllLarge(t *testing.T) {
+ 
+ func TestRemoveAllLongPath(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "aix", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
++	case "aix", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "illumos", "solaris":
+ 		break
+ 	default:
+ 		t.Skip("skipping for not implemented platforms")
+diff --git a/src/os/user/user_test.go b/src/os/user/user_test.go
+index eeb24dd0e0..8c4c817c2b 100644
+--- a/src/os/user/user_test.go
++++ b/src/os/user/user_test.go
+@@ -132,7 +132,7 @@ func TestGroupIds(t *testing.T) {
+ 	if runtime.GOOS == "aix" {
+ 		t.Skip("skipping GroupIds, see golang.org/issue/30563")
+ 	}
+-	if runtime.GOOS == "solaris" {
++	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
+ 		t.Skip("skipping GroupIds, see golang.org/issue/14709")
+ 	}
+ 	user, err := Current()
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 1cca0c794b..2807f4c238 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -171,6 +171,10 @@ needtls:
+ 	// skip TLS setup on Solaris
+ 	JMP ok
+ #endif
++#ifdef GOOS_illumos
++	// skip TLS setup on illumos
++	JMP ok
++#endif
+ #ifdef GOOS_darwin
+ 	// skip TLS setup on Darwin
+ 	JMP ok
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 123607247a..a881ae1489 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -92,7 +92,7 @@ type cgoCallers [32]uintptr
+ // Call from Go to C.
+ //go:nosplit
+ func cgocall(fn, arg unsafe.Pointer) int32 {
+-	if !iscgo && GOOS != "solaris" && GOOS != "windows" {
++	if !iscgo && GOOS != "solaris" && GOOS != "illumos" && GOOS != "windows" {
+ 		throw("cgocall unavailable")
+ 	}
+ 
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index 987c7095a0..14f418cf97 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -35,7 +35,7 @@ func init() {
+ 
+ func TestCrashDumpsAllThreads(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
++	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "illumos", "solaris":
+ 	default:
+ 		t.Skipf("skipping; not supported on %v", runtime.GOOS)
+ 	}
+diff --git a/src/runtime/internal/sys/gengoos.go b/src/runtime/internal/sys/gengoos.go
+index d078921874..952b13649d 100644
+--- a/src/runtime/internal/sys/gengoos.go
++++ b/src/runtime/internal/sys/gengoos.go
+@@ -49,6 +49,9 @@ func main() {
+ 		if target == "linux" {
+ 			fmt.Fprintf(&buf, "// +build !android\n") // must explicitly exclude android for linux
+ 		}
++		if target == "solaris" {
++			fmt.Fprintf(&buf, "// +build !illumos\n") // must explicitly exclude illumos for solaris
++		}
+ 		fmt.Fprintf(&buf, "// +build %s\n\n", target) // must explicitly include target for bootstrapping purposes
+ 		fmt.Fprintf(&buf, "package sys\n\n")
+ 		fmt.Fprintf(&buf, "const GOOS = `%s`\n\n", target)
+diff --git a/src/runtime/internal/sys/zgoos_aix.go b/src/runtime/internal/sys/zgoos_aix.go
+index 909bfc5e93..d97485c43c 100644
+--- a/src/runtime/internal/sys/zgoos_aix.go
++++ b/src/runtime/internal/sys/zgoos_aix.go
+@@ -12,6 +12,7 @@ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
++const GoosIllumos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_android.go b/src/runtime/internal/sys/zgoos_android.go
+index 434ce46712..eec970b064 100644
+--- a/src/runtime/internal/sys/zgoos_android.go
++++ b/src/runtime/internal/sys/zgoos_android.go
+@@ -12,6 +12,7 @@ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
++const GoosIllumos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_darwin.go b/src/runtime/internal/sys/zgoos_darwin.go
+index b645d1cf5f..c40819ee55 100644
+--- a/src/runtime/internal/sys/zgoos_darwin.go
++++ b/src/runtime/internal/sys/zgoos_darwin.go
+@@ -12,6 +12,7 @@ const GoosDarwin = 1
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
++const GoosIllumos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_dragonfly.go b/src/runtime/internal/sys/zgoos_dragonfly.go
+index 154cec370f..3dc4edcc31 100644
+--- a/src/runtime/internal/sys/zgoos_dragonfly.go
++++ b/src/runtime/internal/sys/zgoos_dragonfly.go
+@@ -12,6 +12,7 @@ const GoosDarwin = 0
+ const GoosDragonfly = 1
+ const GoosFreebsd = 0
+ const GoosHurd = 0
++const GoosIllumos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_freebsd.go b/src/runtime/internal/sys/zgoos_freebsd.go
+index 5f41c03445..6c98b342f9 100644
+--- a/src/runtime/internal/sys/zgoos_freebsd.go
++++ b/src/runtime/internal/sys/zgoos_freebsd.go
+@@ -12,6 +12,7 @@ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 1
+ const GoosHurd = 0
++const GoosIllumos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_hurd.go b/src/runtime/internal/sys/zgoos_hurd.go
+index 53f7fc384b..d6dcc7bad4 100644
+--- a/src/runtime/internal/sys/zgoos_hurd.go
++++ b/src/runtime/internal/sys/zgoos_hurd.go
+@@ -12,6 +12,7 @@ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 1
++const GoosIllumos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_illumos.go b/src/runtime/internal/sys/zgoos_illumos.go
+new file mode 100644
+index 0000000000..17f4ecc34e
+--- /dev/null
++++ b/src/runtime/internal/sys/zgoos_illumos.go
+@@ -0,0 +1,24 @@
++// Code generated by gengoos.go using 'go generate'. DO NOT EDIT.
++
++// +build illumos
++
++package sys
++
++const GOOS = `illumos`
++
++const GoosAix = 0
++const GoosAndroid = 0
++const GoosDarwin = 0
++const GoosDragonfly = 0
++const GoosFreebsd = 0
++const GoosHurd = 0
++const GoosIllumos = 1
++const GoosJs = 0
++const GoosLinux = 0
++const GoosNacl = 0
++const GoosNetbsd = 0
++const GoosOpenbsd = 0
++const GoosPlan9 = 0
++const GoosSolaris = 0
++const GoosWindows = 0
++const GoosZos = 0
+diff --git a/src/runtime/internal/sys/zgoos_js.go b/src/runtime/internal/sys/zgoos_js.go
+index c6cca49bd9..74c9943d9b 100644
+--- a/src/runtime/internal/sys/zgoos_js.go
++++ b/src/runtime/internal/sys/zgoos_js.go
+@@ -12,6 +12,7 @@ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
++const GoosIllumos = 0
+ const GoosJs = 1
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_linux.go b/src/runtime/internal/sys/zgoos_linux.go
+index 088dbc105b..1d5fcb0685 100644
+--- a/src/runtime/internal/sys/zgoos_linux.go
++++ b/src/runtime/internal/sys/zgoos_linux.go
+@@ -13,6 +13,7 @@ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
++const GoosIllumos = 0
+ const GoosJs = 0
+ const GoosLinux = 1
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_nacl.go b/src/runtime/internal/sys/zgoos_nacl.go
+index 65bec4af9e..9e65b6f185 100644
+--- a/src/runtime/internal/sys/zgoos_nacl.go
++++ b/src/runtime/internal/sys/zgoos_nacl.go
+@@ -12,6 +12,7 @@ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
++const GoosIllumos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 1
+diff --git a/src/runtime/internal/sys/zgoos_netbsd.go b/src/runtime/internal/sys/zgoos_netbsd.go
+index 93d0fa7e11..194fa6e432 100644
+--- a/src/runtime/internal/sys/zgoos_netbsd.go
++++ b/src/runtime/internal/sys/zgoos_netbsd.go
+@@ -12,6 +12,7 @@ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
++const GoosIllumos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_openbsd.go b/src/runtime/internal/sys/zgoos_openbsd.go
+index 79193593f5..2108691679 100644
+--- a/src/runtime/internal/sys/zgoos_openbsd.go
++++ b/src/runtime/internal/sys/zgoos_openbsd.go
+@@ -12,6 +12,7 @@ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
++const GoosIllumos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_plan9.go b/src/runtime/internal/sys/zgoos_plan9.go
+index 2b95e08080..e632a90b2e 100644
+--- a/src/runtime/internal/sys/zgoos_plan9.go
++++ b/src/runtime/internal/sys/zgoos_plan9.go
+@@ -12,6 +12,7 @@ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
++const GoosIllumos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_solaris.go b/src/runtime/internal/sys/zgoos_solaris.go
+index 6e3988aed0..67b2ffbfcd 100644
+--- a/src/runtime/internal/sys/zgoos_solaris.go
++++ b/src/runtime/internal/sys/zgoos_solaris.go
+@@ -1,5 +1,6 @@
+ // Code generated by gengoos.go using 'go generate'. DO NOT EDIT.
+ 
++// +build !illumos
+ // +build solaris
+ 
+ package sys
+@@ -12,6 +13,7 @@ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
++const GoosIllumos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_windows.go b/src/runtime/internal/sys/zgoos_windows.go
+index a56e12544a..cf2d6f4fb0 100644
+--- a/src/runtime/internal/sys/zgoos_windows.go
++++ b/src/runtime/internal/sys/zgoos_windows.go
+@@ -12,6 +12,7 @@ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
++const GoosIllumos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_zos.go b/src/runtime/internal/sys/zgoos_zos.go
+index 0f56e46002..e5d79accb4 100644
+--- a/src/runtime/internal/sys/zgoos_zos.go
++++ b/src/runtime/internal/sys/zgoos_zos.go
+@@ -12,6 +12,7 @@ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
++const GoosIllumos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index cc70e806ea..3977e4ae9e 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -56,7 +56,7 @@ func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+ 	mSysStatInc(sysStat, n)
+ 
+ 	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+-	if err == _ENOMEM || (GOOS == "solaris" && err == _sunosEAGAIN) {
++	if err == _ENOMEM || ((GOOS == "solaris" || GOOS == "illumos") && err == _sunosEAGAIN) {
+ 		throw("runtime: out of memory")
+ 	}
+ 	if p != v || err != 0 {
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 0de67c63e7..73bbc5e3c7 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -177,8 +177,8 @@ func poll_runtime_pollWait(pd *pollDesc, mode int) int {
+ 	if err != 0 {
+ 		return err
+ 	}
+-	// As for now only Solaris and AIX use level-triggered IO.
+-	if GOOS == "solaris" || GOOS == "aix" {
++	// As for now only Solaris, illumos, and AIX use level-triggered IO.
++	if GOOS == "solaris" || GOOS == "illumos" || GOOS == "aix" {
+ 		netpollarm(pd, mode)
+ 	}
+ 	for !netpollblock(pd, int32(mode), false) {
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 39d171bd18..59dee26867 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -191,7 +191,7 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
+ 	}
+ 
+ 	switch runtime.GOOS {
+-	case "darwin", "dragonfly", "netbsd", "solaris":
++	case "darwin", "dragonfly", "netbsd", "illumos", "solaris":
+ 		t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
+ 	case "openbsd":
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index b8ee616eaa..035b71011f 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -486,7 +486,7 @@ func cpuinit() {
+ 	var env string
+ 
+ 	switch GOOS {
+-	case "aix", "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "solaris", "linux":
++	case "aix", "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "illumos", "solaris", "linux":
+ 		cpu.DebugOptions = true
+ 
+ 		// Similar to goenv_unix but extracts the environment value for
+@@ -638,7 +638,7 @@ func mcommoninit(mp *m) {
+ 	unlock(&sched.lock)
+ 
+ 	// Allocate memory to hold a cgo traceback if the cgo call crashes.
+-	if iscgo || GOOS == "solaris" || GOOS == "windows" {
++	if iscgo || GOOS == "solaris" || GOOS == "illumos" || GOOS == "windows" {
+ 		mp.cgoCallers = new(cgoCallers)
+ 	}
+ }
+@@ -1167,8 +1167,8 @@ func mstart() {
+ 	mstart1()
+ 
+ 	// Exit this thread.
+-	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" || GOOS == "darwin" || GOOS == "aix" {
+-		// Window, Solaris, Darwin, AIX and Plan 9 always system-allocate
++	if GOOS == "windows" || GOOS == "solaris" || GOOS == "illumos" || GOOS == "plan9" || GOOS == "darwin" || GOOS == "aix" {
++		// Windows, Solaris, illumos, Darwin, AIX and Plan 9 always system-allocate
+ 		// the stack, but put it in _g_.stack before mstart,
+ 		// so the logic above hasn't set osStack yet.
+ 		osStack = true
+@@ -1488,9 +1488,9 @@ func allocm(_p_ *p, fn func()) *m {
+ 	mp.mstartfn = fn
+ 	mcommoninit(mp)
+ 
+-	// In case of cgo or Solaris or Darwin, pthread_create will make us a stack.
++	// In case of cgo or Solaris or illumos or Darwin, pthread_create will make us a stack.
+ 	// Windows and Plan 9 will layout sched stack on OS stack.
+-	if iscgo || GOOS == "solaris" || GOOS == "windows" || GOOS == "plan9" || GOOS == "darwin" {
++	if iscgo || GOOS == "solaris" || GOOS == "illumos" || GOOS == "windows" || GOOS == "plan9" || GOOS == "darwin" {
+ 		mp.g0 = malg(-1)
+ 	} else {
+ 		mp.g0 = malg(8192 * sys.StackGuardMultiplier)
+@@ -3747,7 +3747,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 		// Normal traceback is impossible or has failed.
+ 		// See if it falls into several common cases.
+ 		n = 0
+-		if (GOOS == "windows" || GOOS == "solaris" || GOOS == "darwin" || GOOS == "aix") && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
++		if (GOOS == "windows" || GOOS == "solaris" || GOOS == "illumos" || GOOS == "darwin" || GOOS == "aix") && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
+ 			// Libcall, i.e. runtime syscall on windows.
+ 			// Collect Go stack that leads to the call.
+ 			n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[0], len(stk), nil, nil, 0)
+diff --git a/src/runtime/rt0_illumos_amd64.s b/src/runtime/rt0_illumos_amd64.s
+new file mode 100644
+index 0000000000..54d35b7796
+--- /dev/null
++++ b/src/runtime/rt0_illumos_amd64.s
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT _rt0_amd64_illumos(SB),NOSPLIT,$-8
++	JMP	_rt0_amd64(SB)
++
++TEXT _rt0_amd64_illumos_lib(SB),NOSPLIT,$0
++	JMP	_rt0_amd64_lib(SB)
+diff --git a/src/syscall/exec_unix.go b/src/syscall/exec_unix.go
+index 4421c449cf..b3798b6e04 100644
+--- a/src/syscall/exec_unix.go
++++ b/src/syscall/exec_unix.go
+@@ -275,8 +275,8 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
+ 	runtime_BeforeExec()
+ 
+ 	var err1 error
+-	if runtime.GOOS == "solaris" || runtime.GOOS == "aix" {
+-		// RawSyscall should never be used on Solaris or AIX.
++	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "aix" {
++		// RawSyscall should never be used on Solaris, illumos, or AIX.
+ 		err1 = execveLibc(
+ 			uintptr(unsafe.Pointer(argv0p)),
+ 			uintptr(unsafe.Pointer(&argvp[0])),
+diff --git a/src/syscall/sockcmsg_unix.go b/src/syscall/sockcmsg_unix.go
+index fd5bfaf549..71efd46470 100644
+--- a/src/syscall/sockcmsg_unix.go
++++ b/src/syscall/sockcmsg_unix.go
+@@ -21,7 +21,7 @@ func cmsgAlignOf(salen int) int {
+ 	case "aix":
+ 		// There is no alignment on AIX.
+ 		salign = 1
+-	case "darwin", "dragonfly", "solaris":
++	case "darwin", "dragonfly", "illumos", "solaris":
+ 		// NOTE: It seems like 64-bit Darwin, DragonFly BSD and
+ 		// Solaris kernels still require 32-bit aligned access to
+ 		// network subsystem.
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index f73f55462a..faaa432136 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -25,6 +25,7 @@ const (
+ 	dragonfly64Bit = runtime.GOOS == "dragonfly" && sizeofPtr == 8
+ 	netbsd32Bit    = runtime.GOOS == "netbsd" && sizeofPtr == 4
+ 	solaris64Bit   = runtime.GOOS == "solaris" && sizeofPtr == 8
++	illumos64Bit   = runtime.GOOS == "illumos" && sizeofPtr == 8
+ )
+ 
+ func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)

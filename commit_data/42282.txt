@@ -11,6 +11,19 @@ Date:   Thu Nov 21 13:24:51 2019 -0500
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/common.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 1e77d5c67b..c3de0b3dee 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -100,7 +100,6 @@ const (
+ 	extensionCertificateAuthorities  uint16 = 47
+ 	extensionSignatureAlgorithmsCert uint16 = 50
+ 	extensionKeyShare                uint16 = 51
+-	extensionNextProtoNeg            uint16 = 13172 // not IANA assigned
+ 	extensionRenegotiationInfo       uint16 = 0xff01
+ )
+ 

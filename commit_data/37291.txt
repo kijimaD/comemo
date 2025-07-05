@@ -7,6 +7,24 @@ Date:   Tue Jul 17 07:22:41 2018 +1000
     Change-Id: I60cb7010448757ca4c7a2973bee2277b3d5fc439
     Reviewed-on: https://go-review.googlesource.com/124175
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_faq.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 23df178feb..13dc43284e 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -2348,9 +2348,9 @@ simpler because they don't need to specify how memory is managed across them.
+ </p>
+ 
+ <p>
+-The current implementation is a mark-and-sweep collector that runs
+-in parallel with the main program on a separate CPU core if the
+-machine is a multiprocessor.
++The current implementation is a mark-and-sweep collector.
++If the machine is a multiprocessor, it runs on a separate CPU
++core in parallel with the main program.
+ Major work on the collector in recent years has reduced pause times
+ often to the sub-millisecond range, even for large heaps,
+ all but eliminating one of the major objections to garbage collection

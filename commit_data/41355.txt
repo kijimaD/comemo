@@ -9,6 +9,41 @@ Date:   Wed Sep 25 11:18:50 2019 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-on: https://go-review.googlesource.com/c/go/+/197504
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/devel/release.html | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 019c4e16af..f83e676ff4 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -30,6 +30,15 @@ Go 1.13 is a major release of Go.
+ Read the <a href="/doc/go1.13">Go 1.13 Release Notes</a> for more information.
+ </p>
+ 
++<h3 id="go1.13.minor">Minor revisions</h3>
++
++<p>
++go1.13.1 (released 2019/09/25) includes security fixes to the
++<code>net/http</code> and <code>net/textproto</code> packages.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.13.1">Go
++1.13.1 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.12">go1.12 (released 2019/02/25)</h2>
+ 
+ <p>
+@@ -105,6 +114,13 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.12.9+labe
+ 1.12.9 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.12.10 (released 2019/09/25) includes security fixes to the
++<code>net/http</code> and <code>net/textproto</code> packages.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.12.10">Go
++1.12.10 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.11">go1.11 (released 2018/08/24)</h2>
+ 
+ <p>

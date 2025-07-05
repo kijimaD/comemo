@@ -23,7 +23,41 @@ Date:   Sun Nov 3 17:04:28 2019 -0500
     Change-Id: Id6e3a594cb066d257d4f58fadb4a3ee4672529f7
     Reviewed-on: https://go-review.googlesource.com/c/go/+/205060
     Reviewed-by: Elias Naur <mail@eliasnaur.com>
-
+---
  src/cmd/link/internal/ld/lib.go   | 4 +---
  src/cmd/link/internal/ld/macho.go | 6 +++---
  2 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9d99aa6f28..f1b190deaf 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1209,10 +1209,8 @@ func (ctxt *Link) hostlink() {
+ 	switch ctxt.BuildMode {
+ 	case BuildModeExe:
+ 		if ctxt.HeadType == objabi.Hdarwin {
+-			if ctxt.Arch.Family != sys.ARM64 {
+-				argv = append(argv, "-Wl,-no_pie")
+-			}
+ 			if !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
++				argv = append(argv, "-Wl,-no_pie")
+ 				argv = append(argv, "-Wl,-pagezero_size,4000000")
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index e9e48768c1..8756da4fd8 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -488,9 +488,9 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string)
+ 
+ 	var msect *MachoSect
+ 	if sect.Rwx&1 == 0 && segname != "__DWARF" && (ctxt.Arch.Family == sys.ARM64 ||
+-		(ctxt.Arch.Family == sys.AMD64 && ctxt.BuildMode != BuildModeExe) ||
+-		(ctxt.Arch.Family == sys.ARM && ctxt.BuildMode != BuildModeExe)) {
+-		// Darwin external linker on arm64 and on amd64 and arm in c-shared/c-archive buildmode
++		ctxt.Arch.Family == sys.ARM ||
++		(ctxt.Arch.Family == sys.AMD64 && ctxt.BuildMode != BuildModeExe)) {
++		// Darwin external linker on arm and arm64, and on amd64 in c-shared/c-archive buildmode
+ 		// complains about absolute relocs in __TEXT, so if the section is not
+ 		// executable, put it in __DATA segment.
+ 		msect = newMachoSect(mseg, buf, "__DATA")

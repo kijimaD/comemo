@@ -32,6 +32,21 @@ Date:   Tue Oct 3 13:05:22 2017 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index b49496cc10..f1807ae1e0 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -385,6 +385,9 @@ func (s *lldbSession) wait(reason string, cond func(out *buf) bool, extraTimeout
+ 			}
+ 			return fmt.Errorf("test timeout (%s)", reason)
+ 		case <-doTimedout:
++			if p := s.cmd.Process; p != nil {
++				p.Kill()
++			}
+ 			return fmt.Errorf("command timeout (%s for %v)", reason, doTimeout)
+ 		case err := <-s.exited:
+ 			return fmt.Errorf("exited (%s: %v)", reason, err)

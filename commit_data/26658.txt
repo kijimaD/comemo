@@ -12,7 +12,7 @@ Date:   Fri Feb 19 17:45:22 2016 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/error_plan9_test.go   |  2 ++
  src/net/error_posix_test.go   | 10 --------
  src/net/error_unix_test.go    | 21 ++++++++++++++++
@@ -22,3 +22,222 @@ Date:   Fri Feb 19 17:45:22 2016 +0900
  src/net/main_windows_test.go  |  3 +++
  src/net/net_test.go           | 56 +++++++++++++++++++++++++++++++++++++++++++
  8 files changed, 108 insertions(+), 16 deletions(-)
+
+diff --git a/src/net/error_plan9_test.go b/src/net/error_plan9_test.go
+index 495ea96534..d7c7f1487f 100644
+--- a/src/net/error_plan9_test.go
++++ b/src/net/error_plan9_test.go
+@@ -9,6 +9,8 @@ import "syscall"
+ var (
+ 	errTimedout       = syscall.ETIMEDOUT
+ 	errOpNotSupported = syscall.EPLAN9
++
++	abortedConnRequestErrors []error
+ )
+ 
+ func isPlatformError(err error) bool {
+diff --git a/src/net/error_posix_test.go b/src/net/error_posix_test.go
+index 981cc837ba..b411a378df 100644
+--- a/src/net/error_posix_test.go
++++ b/src/net/error_posix_test.go
+@@ -12,16 +12,6 @@ import (
+ 	"testing"
+ )
+ 
+-var (
+-	errTimedout       = syscall.ETIMEDOUT
+-	errOpNotSupported = syscall.EOPNOTSUPP
+-)
+-
+-func isPlatformError(err error) bool {
+-	_, ok := err.(syscall.Errno)
+-	return ok
+-}
+-
+ func TestSpuriousENOTAVAIL(t *testing.T) {
+ 	for _, tt := range []struct {
+ 		error
+diff --git a/src/net/error_unix_test.go b/src/net/error_unix_test.go
+new file mode 100644
+index 0000000000..db66d0acf1
+--- /dev/null
++++ b/src/net/error_unix_test.go
+@@ -0,0 +1,21 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9,!windows
++
++package net
++
++import "syscall"
++
++var (
++	errTimedout       = syscall.ETIMEDOUT
++	errOpNotSupported = syscall.EOPNOTSUPP
++
++	abortedConnRequestErrors = []error{syscall.ECONNABORTED} // see accept in fd_unix.go
++)
++
++func isPlatformError(err error) bool {
++	_, ok := err.(syscall.Errno)
++	return ok
++}
+diff --git a/src/net/error_windows_test.go b/src/net/error_windows_test.go
+new file mode 100644
+index 0000000000..834a9de441
+--- /dev/null
++++ b/src/net/error_windows_test.go
+@@ -0,0 +1,19 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import "syscall"
++
++var (
++	errTimedout       = syscall.ETIMEDOUT
++	errOpNotSupported = syscall.EOPNOTSUPP
++
++	abortedConnRequestErrors = []error{syscall.ERROR_NETNAME_DELETED, syscall.WSAECONNRESET} // see accept in fd_windows.go
++)
++
++func isPlatformError(err error) bool {
++	_, ok := err.(syscall.Errno)
++	return ok
++}
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index fd50d772d6..abdee9d02c 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -579,7 +579,7 @@ func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD
+ 	o.handle = s
+ 	o.rsan = int32(unsafe.Sizeof(rawsa[0]))
+ 	_, err = rsrv.ExecIO(o, "AcceptEx", func(o *operation) error {
+-		return syscall.AcceptEx(o.fd.sysfd, o.handle, (*byte)(unsafe.Pointer(&rawsa[0])), 0, uint32(o.rsan), uint32(o.rsan), &o.qty, &o.o)
++		return acceptFunc(o.fd.sysfd, o.handle, (*byte)(unsafe.Pointer(&rawsa[0])), 0, uint32(o.rsan), uint32(o.rsan), &o.qty, &o.o)
+ 	})
+ 	if err != nil {
+ 		netfd.Close()
+diff --git a/src/net/hook_windows.go b/src/net/hook_windows.go
+index 126b0ebdd1..63ea35ab8c 100644
+--- a/src/net/hook_windows.go
++++ b/src/net/hook_windows.go
+@@ -13,9 +13,10 @@ var (
+ 	testHookDialChannel = func() { time.Sleep(time.Millisecond) } // see golang.org/issue/5349
+ 
+ 	// Placeholders for socket system calls.
+-	socketFunc    func(int, int, int) (syscall.Handle, error)                                               = syscall.Socket
+-	closeFunc     func(syscall.Handle) error                                                                = syscall.Closesocket
+-	connectFunc   func(syscall.Handle, syscall.Sockaddr) error                                              = syscall.Connect
+-	connectExFunc func(syscall.Handle, syscall.Sockaddr, *byte, uint32, *uint32, *syscall.Overlapped) error = syscall.ConnectEx
+-	listenFunc    func(syscall.Handle, int) error                                                           = syscall.Listen
++	socketFunc    func(int, int, int) (syscall.Handle, error)                                                             = syscall.Socket
++	closeFunc     func(syscall.Handle) error                                                                              = syscall.Closesocket
++	connectFunc   func(syscall.Handle, syscall.Sockaddr) error                                                            = syscall.Connect
++	connectExFunc func(syscall.Handle, syscall.Sockaddr, *byte, uint32, *uint32, *syscall.Overlapped) error               = syscall.ConnectEx
++	listenFunc    func(syscall.Handle, int) error                                                                         = syscall.Listen
++	acceptFunc    func(syscall.Handle, syscall.Handle, *byte, uint32, uint32, uint32, *uint32, *syscall.Overlapped) error = syscall.AcceptEx
+ )
+diff --git a/src/net/main_windows_test.go b/src/net/main_windows_test.go
+index 2d829743ec..b879717425 100644
+--- a/src/net/main_windows_test.go
++++ b/src/net/main_windows_test.go
+@@ -11,6 +11,7 @@ var (
+ 	origConnect     = connectFunc
+ 	origConnectEx   = connectExFunc
+ 	origListen      = listenFunc
++	origAccept      = acceptFunc
+ )
+ 
+ func installTestHooks() {
+@@ -19,6 +20,7 @@ func installTestHooks() {
+ 	connectFunc = sw.Connect
+ 	connectExFunc = sw.ConnectEx
+ 	listenFunc = sw.Listen
++	acceptFunc = sw.AcceptEx
+ }
+ 
+ func uninstallTestHooks() {
+@@ -27,6 +29,7 @@ func uninstallTestHooks() {
+ 	connectFunc = origConnect
+ 	connectExFunc = origConnectEx
+ 	listenFunc = origListen
++	acceptFunc = origAccept
+ }
+ 
+ func forceCloseSockets() {
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index cd62b4373e..94392928c2 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"io"
++	"net/internal/socktest"
+ 	"os"
+ 	"runtime"
+ 	"testing"
+@@ -304,3 +305,58 @@ func TestListenCloseListen(t *testing.T) {
+ 	}
+ 	t.Fatalf("failed to listen/close/listen on same address after %d tries", maxTries)
+ }
++
++// See golang.org/issue/6163, golang.org/issue/6987.
++func TestAcceptIgnoreAbortedConnRequest(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9":
++		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
++	}
++
++	syserr := make(chan error)
++	go func() {
++		defer close(syserr)
++		for _, err := range abortedConnRequestErrors {
++			syserr <- err
++		}
++	}()
++	sw.Set(socktest.FilterAccept, func(so *socktest.Status) (socktest.AfterFilter, error) {
++		if err, ok := <-syserr; ok {
++			return nil, err
++		}
++		return nil, nil
++	})
++	defer sw.Set(socktest.FilterAccept, nil)
++
++	operr := make(chan error, 1)
++	handler := func(ls *localServer, ln Listener) {
++		defer close(operr)
++		c, err := ln.Accept()
++		if err != nil {
++			if perr := parseAcceptError(err); perr != nil {
++				operr <- perr
++			}
++			operr <- err
++			return
++		}
++		c.Close()
++	}
++	ls, err := newLocalServer("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ls.teardown()
++	if err := ls.buildup(handler); err != nil {
++		t.Fatal(err)
++	}
++
++	c, err := Dial(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	c.Close()
++
++	for err := range operr {
++		t.Error(err)
++	}
++}

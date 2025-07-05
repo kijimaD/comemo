@@ -12,8 +12,106 @@ Date:   Tue Feb 18 23:03:54 2025 +0700
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/escape/solve.go | 19 ++-----------------
  src/cmd/compile/internal/inline/inl.go   | 15 ++++-----------
  src/cmd/compile/internal/ir/func.go      | 15 +++++++++++++++
  3 files changed, 21 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/solve.go b/src/cmd/compile/internal/escape/solve.go
+index 32f5a771a3..2002f2fbe4 100644
+--- a/src/cmd/compile/internal/escape/solve.go
++++ b/src/cmd/compile/internal/escape/solve.go
+@@ -278,7 +278,7 @@ func (b *batch) outlives(l, other *location) bool {
+ 		//	var u int  // okay to stack allocate
+ 		//	fn := func() *int { return &u }()
+ 		//	*fn() = 42
+-		if containsClosure(other.curfn, l.curfn) && !l.curfn.ClosureResultsLost() {
++		if ir.ContainsClosure(other.curfn, l.curfn) && !l.curfn.ClosureResultsLost() {
+ 			return false
+ 		}
+ 
+@@ -304,24 +304,9 @@ func (b *batch) outlives(l, other *location) bool {
+ 	//	func() {
+ 	//		l = new(int) // must heap allocate: outlives call frame (if not inlined)
+ 	//	}()
+-	if containsClosure(l.curfn, other.curfn) {
++	if ir.ContainsClosure(l.curfn, other.curfn) {
+ 		return true
+ 	}
+ 
+ 	return false
+ }
+-
+-// containsClosure reports whether c is a closure contained within f.
+-func containsClosure(f, c *ir.Func) bool {
+-	// Common cases.
+-	if f == c || c.OClosure == nil {
+-		return false
+-	}
+-
+-	for p := c.ClosureParent; p != nil; p = p.ClosureParent {
+-		if p == f {
+-			return true
+-		}
+-	}
+-	return false
+-}
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index a8809f3682..1b1a9cf338 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1009,26 +1009,19 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
+ 		return false, 0, false
+ 	}
+ 
+-	isClosureParent := func(closure, parent *ir.Func) bool {
+-		for p := closure.ClosureParent; p != nil; p = p.ClosureParent {
+-			if p == parent {
+-				return true
+-			}
+-		}
+-		return false
+-	}
+-	if isClosureParent(callerfn, callee) {
++	if ir.ContainsClosure(callee, callerfn) {
+ 		// Can't recursively inline a parent of the closure into itself.
+ 		if log && logopt.Enabled() {
+ 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to closure parent: %s, %s", ir.FuncName(callerfn), ir.FuncName(callee)))
+ 		}
+ 		return false, 0, false
+ 	}
+-	if isClosureParent(callee, callerfn) {
++
++	if ir.ContainsClosure(callerfn, callee) {
+ 		// Can't recursively inline a closure if there's a call to the parent in closure body.
+ 		if ir.Any(callee, func(node ir.Node) bool {
+ 			if call, ok := node.(*ir.CallExpr); ok {
+-				if name, ok := call.Fun.(*ir.Name); ok && isClosureParent(callerfn, name.Func) {
++				if name, ok := call.Fun.(*ir.Name); ok && ir.ContainsClosure(name.Func, callerfn) {
+ 					return true
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 6354da3556..668537c90e 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -627,3 +627,18 @@ func (fn *Func) DeclareParams(setNname bool) {
+ 	declareParams(params, PPARAM, "~p", 0)
+ 	declareParams(results, PPARAMOUT, "~r", len(params))
+ }
++
++// ContainsClosure reports whether c is a closure contained within f.
++func ContainsClosure(f, c *Func) bool {
++	// Common cases.
++	if f == c || c.OClosure == nil {
++		return false
++	}
++
++	for p := c.ClosureParent; p != nil; p = p.ClosureParent {
++		if p == f {
++			return true
++		}
++	}
++	return false
++}

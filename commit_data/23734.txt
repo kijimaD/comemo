@@ -8,6 +8,20 @@ Date:   Mon Jun 8 14:22:17 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/10808
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index bf4ca55020..ba906fbde3 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -877,7 +877,7 @@ func archive() {
+ 	}
+ 
+ 	os.Remove(outfile)
+-	argv := []string{"ar", "-q", "-c", outfile}
++	argv := []string{"ar", "-q", "-c", "-s", outfile}
+ 	argv = append(argv, hostobjCopy()...)
+ 	argv = append(argv, fmt.Sprintf("%s/go.o", tmpdir))
+ 

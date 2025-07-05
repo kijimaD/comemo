@@ -16,7 +16,34 @@ Date:   Fri Apr 20 14:43:17 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  misc/cgo/testcshared/main2.c              | 2 +-
  misc/cgo/testcshared/src/libgo2/libgo2.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testcshared/main2.c b/misc/cgo/testcshared/main2.c
+index ec5ec8f0d0..f89bcca474 100644
+--- a/misc/cgo/testcshared/main2.c
++++ b/misc/cgo/testcshared/main2.c
+@@ -9,7 +9,7 @@
+ #include <time.h>
+ #include <unistd.h>
+ 
+-#define fd (100)
++#define fd (30)
+ 
+ // Tests libgo2.so, which does not export any functions.
+ // Read a string from the file descriptor and print it.
+diff --git a/misc/cgo/testcshared/src/libgo2/libgo2.go b/misc/cgo/testcshared/src/libgo2/libgo2.go
+index 1b69d8f09f..e57c93b77d 100644
+--- a/misc/cgo/testcshared/src/libgo2/libgo2.go
++++ b/misc/cgo/testcshared/src/libgo2/libgo2.go
+@@ -21,7 +21,7 @@ import (
+ // that the C code can also use.
+ 
+ const (
+-	fd = 100
++	fd = 30
+ )
+ 
+ func init() {

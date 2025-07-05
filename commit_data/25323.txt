@@ -14,6 +14,21 @@ Date:   Tue Oct 20 13:56:16 2015 -0700
     Change-Id: Ifcd2c3e139aa16314f08aebc9079b2fb7aa60556
     Reviewed-on: https://go-review.googlesource.com/16132
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 70d32f75c6..c1165cde05 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1431,9 +1431,6 @@ func gen_as_init(n *Node, reportOnly bool) bool {
+ 	case OSLICEARR:
+ 		if nr.Right.Op == OKEY && nr.Right.Left == nil && nr.Right.Right == nil {
+ 			nr = nr.Left
+-			if !reportOnly {
+-				gused(nil) // in case the data is the dest of a goto
+-			}
+ 			nl := nr
+ 			if nr == nil || nr.Op != OADDR {
+ 				goto no

@@ -5,7 +5,135 @@ Date:   Sun Jun 8 16:11:14 2008 -0700
     floating point
     
     SVN=121607
-
+---
  src/cmd/6g/cgen.c | 49 +++++++++----------------------------------------
  src/cmd/gc/go.y   | 19 +++++++++++++++++++
  2 files changed, 28 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 16d8fef7e7..a103a0f580 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -14,7 +14,7 @@ cgen(Node *n, Node *res)
+ 	Prog *p1, *p2, *p3;
+ 
+ 	if(debug['g']) {
+-		dump("\ncgen-l", res);
++		dump("\ncgen-res", res);
+ 		dump("cgen-r", n);
+ 	}
+ 	if(n == N || n->type == T)
+@@ -441,9 +441,9 @@ void
+ bgen(Node *n, int true, Prog *to)
+ {
+ 	long lno;
+-	int et, a, b;
++	int et, a;
+ 	Node *nl, *nr, *r;
+-	Node n1, n2, tmp;
++	Node n1, n2;
+ 	Prog *p1, *p2;
+ 
+ 	if(n == N)
+@@ -560,48 +560,17 @@ bgen(Node *n, int true, Prog *to)
+ 		}
+ 		a = optoas(a, nr->type);
+ 
+-		if(nr->addable) {
+-			regalloc(&n1, nl->type, N);
+-			cgen(nl, &n1);
+-			b = optoas(OCMP, nr->type);
+-
+-			switch(b) {
+-			case ACMPQ:
+-				if(nr->op == OLITERAL)
+-				if(nr->val.vval >= (1LL<<32))
+-					goto dolit;
+-
+-			case AUCOMISS:
+-				if(nr->op == OLITERAL)
+-					goto dolit;
+-				if(nr->op == ONAME)
+-					goto dolit;
+-			}
+-
+-			gins(b, &n1, nr);
+-			patch(gbranch(a, nr->type), to);
+-			regfree(&n1);
+-			break;
+-
+-		dolit:
+-			regalloc(&n2, nr->type, N);
+-			cgen(nr, &n2);
+-			gins(b, &n1, &n2);
+-			patch(gbranch(a, nr->type), to);
+-			regfree(&n2);
+-			regfree(&n1);
+-			break;
+-		}
+-
+-		tempname(&tmp, nr->type);
+-		cgen(nr, &tmp);
+-
+ 		regalloc(&n1, nl->type, N);
+ 		cgen(nl, &n1);
+ 
+-		gins(optoas(OCMP, nr->type), &n1, &tmp);
++		regalloc(&n2, nr->type, N);
++		cgen(nr, &n2);
++
++		gins(optoas(OCMP, nr->type), &n1, &n2);
+ 		patch(gbranch(a, nr->type), to);
++
+ 		regfree(&n1);
++		regfree(&n2);
+ 		break;
+ 	}
+ 	goto ret;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index cfd4cc07fc..3d915a67aa 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1058,16 +1058,32 @@ arg_type_list_r:
+ 		$$ = nod(OLIST, $1, $3);
+ 	}
+ 
++/*
++ * need semi in front NO
++ * need semi in back  NO
++ */
+ Astmt:
+ 	complex_stmt
++|	compound_stmt
+ 
++/*
++ * need semi in front NO
++ * need semi in back  YES
++ */
+ Bstmt:
+ 	semi_stmt
+ |	common_dcl
+ 
++/*
++ * need semi in front YES
++ * need semi in back  YES
++ */
+ Cstmt:
+ 	simple_stmt
+ 
++/*
++ * statement list that need semi in back  NO
++ */
+ Astmt_list_r:
+ 	Astmt
+ |	Astmt_list_r Astmt
+@@ -1081,6 +1097,9 @@ Astmt_list_r:
+ 		$$ = N;
+ 	}
+ 
++/*
++ * statement list that need semi in back  YES
++ */
+ Bstmt_list_r:
+ 	Bstmt
+ |	Cstmt

@@ -25,7 +25,47 @@ Date:   Wed Dec 11 14:03:17 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64error.s | 2 ++
  src/cmd/internal/obj/riscv/obj.go                | 8 ++++++--
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64error.s b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+index e8855f6cd5..005b794612 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64error.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+@@ -30,6 +30,8 @@ TEXT errors(SB),$0
+ 	SLLI	$64, X5, X6			// ERROR "immediate out of range 0 to 63"
+ 	SRLI	$64, X5, X6			// ERROR "immediate out of range 0 to 63"
+ 	SRAI	$64, X5, X6			// ERROR "immediate out of range 0 to 63"
++	BEQ	X5, X6, $1			// ERROR "instruction with branch-like opcode lacks destination"
++	BEQ	X5, X6, 31(X10)			// ERROR "instruction with branch-like opcode lacks destination"
+ 	RORI	$-1, X5, X6			// ERROR "immediate out of range 0 to 63"
+ 	SLLI	$-1, X5, X6			// ERROR "immediate out of range 0 to 63"
+ 	SRLI	$-1, X5, X6			// ERROR "immediate out of range 0 to 63"
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index de9851519a..f9ae5fe677 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -769,7 +769,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			switch p.As {
+ 			case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:
+ 				if p.To.Type != obj.TYPE_BRANCH {
+-					panic("assemble: instruction with branch-like opcode lacks destination")
++					ctxt.Diag("%v: instruction with branch-like opcode lacks destination", p)
++					break
+ 				}
+ 				offset := p.To.Target().Pc - p.Pc
+ 				if offset < -4096 || 4096 <= offset {
+@@ -853,7 +854,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			case obj.TYPE_BRANCH:
+ 				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.To.Target().Pc-p.Pc
+ 			case obj.TYPE_MEM:
+-				panic("unhandled type")
++				if ctxt.Errors == 0 {
++					// An error should have already been reported for this instruction
++					panic("unhandled type")
++				}
+ 			}
+ 
+ 		case AJAL:

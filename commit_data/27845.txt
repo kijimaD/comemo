@@ -22,8 +22,197 @@ Date:   Wed Apr 13 06:19:53 2016 +0900
     Change-Id: I5ae2ef5058df1028bbb7f4ab32b13edfb330c3a7
     Reviewed-on: https://go-review.googlesource.com/21952
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/interface.go    | 81 +++++++++++++++++++++++++++++++++++++++++++++++--
  src/net/ipsock.go       | 21 -------------
  src/net/udpsock_test.go | 37 ++++++++++++++++++++++
  3 files changed, 115 insertions(+), 24 deletions(-)
+
+diff --git a/src/net/interface.go b/src/net/interface.go
+index c99f8fd216..52b857c65f 100644
+--- a/src/net/interface.go
++++ b/src/net/interface.go
+@@ -4,7 +4,11 @@
+ 
+ package net
+ 
+-import "errors"
++import (
++	"errors"
++	"sync"
++	"time"
++)
+ 
+ var (
+ 	errInvalidInterface         = errors.New("invalid network interface")
+@@ -88,9 +92,12 @@ func (ifi *Interface) MulticastAddrs() ([]Addr, error) {
+ func Interfaces() ([]Interface, error) {
+ 	ift, err := interfaceTable(0)
+ 	if err != nil {
+-		err = &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: err}
++		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: err}
+ 	}
+-	return ift, err
++	if len(ift) != 0 {
++		zoneCache.update(ift)
++	}
++	return ift, nil
+ }
+ 
+ // InterfaceAddrs returns a list of the system's network interface
+@@ -137,6 +144,9 @@ func InterfaceByName(name string) (*Interface, error) {
+ 	if err != nil {
+ 		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: err}
+ 	}
++	if len(ift) != 0 {
++		zoneCache.update(ift)
++	}
+ 	for _, ifi := range ift {
+ 		if name == ifi.Name {
+ 			return &ifi, nil
+@@ -144,3 +154,68 @@ func InterfaceByName(name string) (*Interface, error) {
+ 	}
+ 	return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: errNoSuchInterface}
+ }
++
++// An ipv6ZoneCache represents a cache holding partial network
++// interface information. It is used for reducing the cost of IPv6
++// addressing scope zone resolution.
++type ipv6ZoneCache struct {
++	sync.RWMutex                // guard the following
++	lastFetched  time.Time      // last time routing information was fetched
++	toIndex      map[string]int // interface name to its index
++	toName       map[int]string // interface index to its name
++}
++
++var zoneCache = ipv6ZoneCache{
++	toIndex: make(map[string]int),
++	toName:  make(map[int]string),
++}
++
++func (zc *ipv6ZoneCache) update(ift []Interface) {
++	zc.Lock()
++	defer zc.Unlock()
++	now := time.Now()
++	if zc.lastFetched.After(now.Add(-60 * time.Second)) {
++		return
++	}
++	zc.lastFetched = now
++	if len(ift) == 0 {
++		var err error
++		if ift, err = interfaceTable(0); err != nil {
++			return
++		}
++	}
++	zc.toIndex = make(map[string]int, len(ift))
++	zc.toName = make(map[int]string, len(ift))
++	for _, ifi := range ift {
++		zc.toIndex[ifi.Name] = ifi.Index
++		zc.toName[ifi.Index] = ifi.Name
++	}
++}
++
++func zoneToString(zone int) string {
++	if zone == 0 {
++		return ""
++	}
++	zoneCache.update(nil)
++	zoneCache.RLock()
++	defer zoneCache.RUnlock()
++	name, ok := zoneCache.toName[zone]
++	if !ok {
++		name = uitoa(uint(zone))
++	}
++	return name
++}
++
++func zoneToInt(zone string) int {
++	if zone == "" {
++		return 0
++	}
++	zoneCache.update(nil)
++	zoneCache.RLock()
++	defer zoneCache.RUnlock()
++	index, ok := zoneCache.toIndex[zone]
++	if !ok {
++		index, _, _ = dtoi(zone, 0)
++	}
++	return index
++}
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index f093b4926d..dc13c17439 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -249,24 +249,3 @@ func internetAddrList(net, addr string, deadline time.Time) (addrList, error) {
+ 	}
+ 	return filterAddrList(filter, ips, inetaddr)
+ }
+-
+-func zoneToString(zone int) string {
+-	if zone == 0 {
+-		return ""
+-	}
+-	if ifi, err := InterfaceByIndex(zone); err == nil {
+-		return ifi.Name
+-	}
+-	return uitoa(uint(zone))
+-}
+-
+-func zoneToInt(zone string) int {
+-	if zone == "" {
+-		return 0
+-	}
+-	if ifi, err := InterfaceByName(zone); err == nil {
+-		return ifi.Index
+-	}
+-	n, _, _ := dtoi(zone, 0)
+-	return n
+-}
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 1da24b2cc8..29d769c5a5 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -12,6 +12,43 @@ import (
+ 	"time"
+ )
+ 
++func BenchmarkUDP6LinkLocalUnicast(b *testing.B) {
++	testHookUninstaller.Do(uninstallTestHooks)
++
++	if !supportsIPv6 {
++		b.Skip("IPv6 is not supported")
++	}
++	ifi := loopbackInterface()
++	if ifi == nil {
++		b.Skip("loopback interface not found")
++	}
++	lla := ipv6LinkLocalUnicastAddr(ifi)
++	if lla == "" {
++		b.Skip("IPv6 link-local unicast address not found")
++	}
++
++	c1, err := ListenPacket("udp6", JoinHostPort(lla+"%"+ifi.Name, "0"))
++	if err != nil {
++		b.Fatal(err)
++	}
++	defer c1.Close()
++	c2, err := ListenPacket("udp6", JoinHostPort(lla+"%"+ifi.Name, "0"))
++	if err != nil {
++		b.Fatal(err)
++	}
++	defer c2.Close()
++
++	var buf [1]byte
++	for i := 0; i < b.N; i++ {
++		if _, err := c1.WriteTo(buf[:], c2.LocalAddr()); err != nil {
++			b.Fatal(err)
++		}
++		if _, _, err := c2.ReadFrom(buf[:]); err != nil {
++			b.Fatal(err)
++		}
++	}
++}
++
+ type resolveUDPAddrTest struct {
+ 	network       string
+ 	litAddrOrName string

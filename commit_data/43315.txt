@@ -15,6 +15,20 @@ Date:   Wed Mar 25 11:11:24 2020 +0800
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/arm64/l.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/arm64/l.go b/src/cmd/link/internal/arm64/l.go
+index 50b88e479f..5f3530335e 100644
+--- a/src/cmd/link/internal/arm64/l.go
++++ b/src/cmd/link/internal/arm64/l.go
+@@ -64,7 +64,7 @@ package arm64
+ const (
+ 	maxAlign  = 32 // max data alignment
+ 	minAlign  = 1  // min data alignment
+-	funcAlign = 8
++	funcAlign = 16
+ )
+ 
+ /* Used by ../internal/ld/dwarf.go */

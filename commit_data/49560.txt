@@ -40,7 +40,7 @@ Date:   Thu Aug 26 17:48:12 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/decl.go        |  4 ++--
  src/cmd/compile/internal/noder/stencil.go     |  8 ++++----
  src/cmd/compile/internal/noder/types.go       |  2 +-
@@ -50,3 +50,201 @@ Date:   Thu Aug 26 17:48:12 2021 -0700
  src/cmd/compile/internal/typecheck/subr.go    |  4 ++--
  src/cmd/compile/internal/types/type.go        |  6 +++---
  8 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index 54a13b498b..87a8667003 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -102,11 +102,11 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+ 		// the Fields to represent the receiver's method set.
+ 		if recv := fn.Type().Recv(); recv != nil {
+ 			typ := types.ReceiverBaseType(recv.Type)
+-			if typ.OrigSym != nil {
++			if typ.OrigSym() != nil {
+ 				// For a generic method, we mark the methods on the
+ 				// base generic type, since those are the methods
+ 				// that will be stenciled.
+-				typ = typ.OrigSym.Def.Type()
++				typ = typ.OrigSym().Def.Type()
+ 			}
+ 			meth := typecheck.Lookdot1(fn, typecheck.Lookup(decl.Name.Value), typ, typ.Methods(), 0)
+ 			meth.SetNointerface(true)
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 7b85a88830..00c4676530 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -151,7 +151,7 @@ func (g *irgen) stencil() {
+ 				targs := deref(meth.Type().Recv().Type).RParams()
+ 
+ 				t := meth.X.Type()
+-				baseSym := deref(t).OrigSym
++				baseSym := deref(t).OrigSym()
+ 				baseType := baseSym.Def.(*ir.Name).Type()
+ 				var gf *ir.Name
+ 				for _, m := range baseType.Methods().Slice() {
+@@ -309,7 +309,7 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 			// actually generic, so no need to build a closure.
+ 			return x
+ 		}
+-		baseType := recv.OrigSym.Def.Type()
++		baseType := recv.OrigSym().Def.Type()
+ 		var gf *ir.Name
+ 		for _, m := range baseType.Methods().Slice() {
+ 			if se.Sel == m.Sym {
+@@ -493,7 +493,7 @@ func (g *irgen) instantiateMethods() {
+ 		typecheck.NeedRuntimeType(typ)
+ 		// Lookup the method on the base generic type, since methods may
+ 		// not be set on imported instantiated types.
+-		baseSym := typ.OrigSym
++		baseSym := typ.OrigSym()
+ 		baseType := baseSym.Def.(*ir.Name).Type()
+ 		for j, _ := range typ.Methods().Slice() {
+ 			if baseType.Methods().Slice()[j].Nointerface() {
+@@ -1465,7 +1465,7 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool)
+ 					// instantiated type, so we need a
+ 					// sub-dictionary.
+ 					targs := recvType.RParams()
+-					genRecvType := recvType.OrigSym.Def.Type()
++					genRecvType := recvType.OrigSym().Def.Type()
+ 					nameNode = typecheck.Lookdot1(call.X, se.Sel, genRecvType, genRecvType.Methods(), 1).Nname.(*ir.Name)
+ 					sym = g.getDictionarySym(nameNode, targs, true)
+ 				} else {
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index e00a3a5da9..c549dffc46 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -162,7 +162,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 			//fmt.Printf("Saw new type %v %v\n", instName, ntyp.HasTParam())
+ 
+ 			// Save the symbol for the base generic type.
+-			ntyp.OrigSym = g.pkg(typ.Obj().Pkg()).Lookup(typ.Obj().Name())
++			ntyp.SetOrigSym(g.pkg(typ.Obj().Pkg()).Lookup(typ.Obj().Name()))
+ 			ntyp.SetUnderlying(g.typ1(typ.Underlying()))
+ 			if typ.NumMethods() != 0 {
+ 				// Save a delayed call to g.fillinMethods() (once
+diff --git a/src/cmd/compile/internal/typecheck/crawler.go b/src/cmd/compile/internal/typecheck/crawler.go
+index 9a348b9f37..9e523c3d14 100644
+--- a/src/cmd/compile/internal/typecheck/crawler.go
++++ b/src/cmd/compile/internal/typecheck/crawler.go
+@@ -222,9 +222,9 @@ func (p *crawler) markInlBody(n *ir.Name) {
+ // for export), so its methods will be available for inlining if needed.
+ func (p *crawler) checkGenericType(t *types.Type) {
+ 	if t != nil && t.HasTParam() {
+-		if t.OrigSym != nil {
++		if t.OrigSym() != nil {
+ 			// Convert to the base generic type.
+-			t = t.OrigSym.Def.Type()
++			t = t.OrigSym().Def.Type()
+ 		}
+ 		p.markType(t)
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 82006c3245..dbdf8eda35 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -878,7 +878,7 @@ func (w *exportWriter) startType(k itag) {
+ 
+ func (w *exportWriter) doTyp(t *types.Type) {
+ 	s := t.Sym()
+-	if s != nil && t.OrigSym != nil {
++	if s != nil && t.OrigSym() != nil {
+ 		assert(base.Flag.G > 0)
+ 		// This is an instantiated type - could be a re-instantiation like
+ 		// Value[T2] or a full instantiation like Value[int].
+@@ -895,7 +895,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ 		// types or existing typeparams from the function/method header.
+ 		w.typeList(t.RParams())
+ 		// Export a reference to the base type.
+-		baseType := t.OrigSym.Def.(*ir.Name).Type()
++		baseType := t.OrigSym().Def.(*ir.Name).Type()
+ 		w.typ(baseType)
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 87ad5d1c54..0dfc33db20 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -714,7 +714,7 @@ func (p *iimporter) typAt(off uint64) *types.Type {
+ 		// No need to calc sizes for re-instantiated generic types, and
+ 		// they are not necessarily resolved until the top-level type is
+ 		// defined (because of recursive types).
+-		if t.OrigSym == nil || !t.HasTParam() {
++		if t.OrigSym() == nil || !t.HasTParam() {
+ 			types.CheckSize(t)
+ 		}
+ 		p.typCache[off] = t
+@@ -1395,7 +1395,7 @@ func (r *importReader) node() ir.Node {
+ 					} else {
+ 						genType := types.ReceiverBaseType(n1.X.Type())
+ 						if genType.IsInstantiatedGeneric() {
+-							genType = genType.OrigSym.Def.Type()
++							genType = genType.OrigSym().Def.Type()
+ 						}
+ 						m = Lookdot1(n1, sel, genType, genType.Methods(), 1)
+ 					}
+@@ -1778,7 +1778,7 @@ func Instantiate(pos src.XPos, baseType *types.Type, targs []*types.Type) *types
+ 
+ 	t := NewIncompleteNamedType(baseType.Pos(), instSym)
+ 	t.SetRParams(targs)
+-	t.OrigSym = baseSym
++	t.SetOrigSym(baseSym)
+ 
+ 	// baseType may still be TFORW or its methods may not be fully filled in
+ 	// (since we are in the middle of importing it). So, delay call to
+@@ -1803,7 +1803,7 @@ func resumeDoInst() {
+ 		for len(deferredInstStack) > 0 {
+ 			t := deferredInstStack[0]
+ 			deferredInstStack = deferredInstStack[1:]
+-			substInstType(t, t.OrigSym.Def.(*ir.Name).Type(), t.RParams())
++			substInstType(t, t.OrigSym().Def.(*ir.Name).Type(), t.RParams())
+ 		}
+ 	}
+ 	deferInst--
+@@ -1814,7 +1814,7 @@ func resumeDoInst() {
+ // during a type substitution for an instantiation. This is needed for
+ // instantiations of mutually recursive types.
+ func doInst(t *types.Type) *types.Type {
+-	return Instantiate(t.Pos(), t.OrigSym.Def.(*ir.Name).Type(), t.RParams())
++	return Instantiate(t.Pos(), t.OrigSym().Def.(*ir.Name).Type(), t.RParams())
+ }
+ 
+ // substInstType completes the instantiation of a generic type by doing a
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 73f83f65e4..3ec2cc5d56 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1081,8 +1081,8 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
+ 		forw.SetRParams(neededTargs)
+ 		// Copy the OrigSym from the re-instantiated type (which is the sym of
+ 		// the base generic type).
+-		assert(t.OrigSym != nil)
+-		forw.OrigSym = t.OrigSym
++		assert(t.OrigSym() != nil)
++		forw.SetOrigSym(t.OrigSym())
+ 	}
+ 
+ 	var newt *types.Type
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index c7c8a53654..6f4bd0c114 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -198,7 +198,7 @@ type Type struct {
+ 	// For an instantiated generic type, the symbol for the base generic type.
+ 	// This backpointer is useful, because the base type is the type that has
+ 	// the method bodies.
+-	OrigSym *Sym
++	origSym *Sym
+ }
+ 
+ func (*Type) CanBeAnSSAAux() {}
+@@ -245,8 +245,8 @@ func (t *Type) SetSym(sym *Sym) { t.sym = sym }
+ 
+ // OrigSym returns the name of the original generic type that t is an
+ // instantiation of, if any.
+-func (t *Type) OrigSym_() *Sym      { return t.OrigSym }
+-func (t *Type) SetOrigSym(sym *Sym) { t.OrigSym = sym }
++func (t *Type) OrigSym() *Sym       { return t.origSym }
++func (t *Type) SetOrigSym(sym *Sym) { t.origSym = sym }
+ 
+ // Underlying returns the underlying type of type t.
+ func (t *Type) Underlying() *Type { return t.underlying }

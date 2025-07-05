@@ -7,8 +7,71 @@ Date:   Mon Jul 27 16:17:09 2009 -0700
     R=ken
     OCL=32252
     CL=32252
-
+---
  src/cmd/gc/const.c       |  2 +-
  src/cmd/gc/walk.c        |  7 ++++---
  test/fixedbugs/bug174.go | 12 ++++++++++++
  3 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index cc58a2c170..73a23bf83a 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -94,7 +94,7 @@ convlit1(Node **np, Type *t, int explicit)
+ 		break;
+ 	case OLSH:
+ 	case ORSH:
+-		convlit(&n->left, t);
++		convlit1(&n->left, t, explicit);
+ 		n->type = n->left->type;
+ 		return;
+ 	}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 31db1e7b4c..2402ef3b62 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -858,7 +858,8 @@ reswitch:
+ 		defaultlit(&n->right, types[TUINT]);
+ 		if(n->left->type == T || n->right->type == T)
+ 			goto ret;
+-		if(issigned[n->right->type->etype] || !isint[n->right->type->etype])
++		et = n->right->type->etype;
++		if(issigned[et] || !isint[et])
+ 			goto badt;
+ 		// check of n->left->type happens in second switch.
+ 		break;
+@@ -2500,14 +2501,14 @@ prcompat(NodeList *all, int fmt, int dopanic)
+ 			switch(n->val.ctype) {
+ 			case CTINT:
+ 				defaultlit(&n, types[TINT64]);
+-				l->n = n;
+ 				break;
+ 			case CTFLT:
+ 				defaultlit(&n, types[TFLOAT64]);
+-				l->n = n;
+ 				break;
+ 			}
+ 		}
++		defaultlit(&n, nil);
++		l->n = n;
+ 		if(n->type == T)
+ 			continue;
+ 
+diff --git a/test/fixedbugs/bug174.go b/test/fixedbugs/bug174.go
+new file mode 100644
+index 0000000000..7ff8655132
+--- /dev/null
++++ b/test/fixedbugs/bug174.go
+@@ -0,0 +1,12 @@
++// $G $D/$F.go || echo BUG: bug174
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var x uint;
++	println(1<<x);
++}

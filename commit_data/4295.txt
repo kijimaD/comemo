@@ -8,7 +8,87 @@ Date:   Wed Dec 2 23:54:51 2009 -0800
     
     R=ken2
     https://golang.org/cl/163097
-
+---
  src/cmd/gc/walk.c        | 10 +++++-----
  test/fixedbugs/bug221.go | 38 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 43 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 62bbf9f5ab..771c258d0c 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1875,7 +1875,7 @@ reorder1(NodeList *all)
+ {
+ 	Node *f, *a, *n;
+ 	NodeList *l, *r, *g;
+-	int c, t;
++	int c, d, t;
+ 
+ 	c = 0;	// function calls
+ 	t = 0;	// total parameters
+@@ -1891,17 +1891,17 @@ reorder1(NodeList *all)
+ 		return all;
+ 
+ 	g = nil;	// fncalls assigned to tempnames
+-	f = N;	// one fncall assigned to stack
++	f = N;	// last fncall assigned to stack
+ 	r = nil;	// non fncalls and tempnames assigned to stack
+-
++	d = 0;
+ 	for(l=all; l; l=l->next) {
+ 		n = l->n;
+-		ullmancalc(n);
+ 		if(n->ullman < UINF) {
+ 			r = list(r, n);
+ 			continue;
+ 		}
+-		if(f == N) {
++		d++;
++		if(d == c) {
+ 			f = n;
+ 			continue;
+ 		}
+diff --git a/test/fixedbugs/bug221.go b/test/fixedbugs/bug221.go
+new file mode 100644
+index 0000000000..39255d6f9c
+--- /dev/null
++++ b/test/fixedbugs/bug221.go
+@@ -0,0 +1,38 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// function call arg reordering was picking out 1 call that
++// didn't need to be in a temporary, but it was picking
++// out the first call instead of the last call.
++// http://code.google.com/p/go/issues/detail?id=370
++
++package main
++
++var gen = 'a'
++func f(n int) string {
++	s := string(gen) + string(n+'A'-1);
++	gen++;
++	return s;
++}
++
++func g(x, y string) string {
++	return x + y
++}
++
++func main() {
++	s := f(1) + f(2);
++	if s != "aAbB" {
++		panic("BUG: bug221a: ", s);
++	}
++	s = g(f(3), f(4));
++	if s != "cCdD" {
++		panic("BUG: bug221b: ", s);
++	}
++	s = f(5) + f(6) + f(7) + f(8) + f(9);
++	if s != "eEfFgGhHiI" {
++		panic("BUG: bug221c: ", s);
++	}
++}

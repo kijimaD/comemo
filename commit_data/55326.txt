@@ -10,10 +10,90 @@ Date:   Thu Jan 26 14:46:51 2023 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/mgcmark.go     | 2 +-
  src/runtime/mgcpacer.go    | 8 +-------
  src/runtime/mgcscavenge.go | 3 +--
  src/runtime/mheap.go       | 2 +-
  src/runtime/runtime1.go    | 2 +-
  5 files changed, 5 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index cfda7064cd..fa8c81d8ef 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -414,7 +414,7 @@ func gcAssistAlloc(gp *g) {
+ 
+ 	traced := false
+ retry:
+-	if go119MemoryLimitSupport && gcCPULimiter.limiting() {
++	if gcCPULimiter.limiting() {
+ 		// If the CPU limiter is enabled, intentionally don't
+ 		// assist to reduce the amount of CPU time spent in the GC.
+ 		if traced {
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 9d9840e80b..41b07d02a5 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -11,12 +11,6 @@ import (
+ 	_ "unsafe" // for go:linkname
+ )
+ 
+-// go119MemoryLimitSupport is a feature flag for a number of changes
+-// related to the memory limit feature (#48409). Disabling this flag
+-// disables those features, as well as the memory limit mechanism,
+-// which becomes a no-op.
+-const go119MemoryLimitSupport = true
+-
+ const (
+ 	// gcGoalUtilization is the goal CPU utilization for
+ 	// marking as a fraction of GOMAXPROCS.
+@@ -899,7 +893,7 @@ func (c *gcControllerState) heapGoalInternal() (goal, minTrigger uint64) {
+ 	goal = c.gcPercentHeapGoal.Load()
+ 
+ 	// Check if the memory-limit-based goal is smaller, and if so, pick that.
+-	if newGoal := c.memoryLimitHeapGoal(); go119MemoryLimitSupport && newGoal < goal {
++	if newGoal := c.memoryLimitHeapGoal(); newGoal < goal {
+ 		goal = newGoal
+ 	} else {
+ 		// We're not limited by the memory limit goal, so perform a series of
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index e59340ec7c..e0c04ffbc4 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -379,8 +379,7 @@ func (s *scavengerState) init() {
+ 		s.shouldStop = func() bool {
+ 			// If background scavenging is disabled or if there's no work to do just stop.
+ 			return heapRetained() <= scavenge.gcPercentGoal.Load() &&
+-				(!go119MemoryLimitSupport ||
+-					gcController.mappedReady.Load() <= scavenge.memoryLimitGoal.Load())
++				gcController.mappedReady.Load() <= scavenge.memoryLimitGoal.Load()
+ 		}
+ 	}
+ 	if s.gomaxprocs == nil {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 1401e92f4e..6fff43214c 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1270,7 +1270,7 @@ HaveSpan:
+ 	// pages not to get touched until we return. Simultaneously, it's important
+ 	// to do this before calling sysUsed because that may commit address space.
+ 	bytesToScavenge := uintptr(0)
+-	if limit := gcController.memoryLimit.Load(); go119MemoryLimitSupport && !gcCPULimiter.limiting() {
++	if limit := gcController.memoryLimit.Load(); !gcCPULimiter.limiting() {
+ 		// Assist with scavenging to maintain the memory limit by the amount
+ 		// that we expect to page in.
+ 		inuse := gcController.mappedReady.Load()
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 5f9555e404..f5d74b7aed 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -364,7 +364,7 @@ func parsedebugvars() {
+ 	// defaults
+ 	debug.cgocheck = 1
+ 	debug.invalidptr = 1
+-	debug.adaptivestackstart = 1 // go119 - set this to 0 to turn larger initial goroutine stacks off
++	debug.adaptivestackstart = 1 // set this to 0 to turn larger initial goroutine stacks off
+ 	if GOOS == "linux" {
+ 		// On Linux, MADV_FREE is faster than MADV_DONTNEED,
+ 		// but doesn't affect many of the statistics that

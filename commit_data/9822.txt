@@ -15,8 +15,192 @@ Date:   Wed Sep 28 09:34:26 2011 -0700
     R=r, rsc, rogpeppe
     CC=golang-dev
     https://golang.org/cl/5081042
-
+---
  src/pkg/strings/Makefile        |  1 +
  src/pkg/strings/replace.go      | 84 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/strings/replace_test.go | 75 ++++++++++++++++++++++++++++++++++++
  3 files changed, 160 insertions(+)
+
+diff --git a/src/pkg/strings/Makefile b/src/pkg/strings/Makefile
+index c1be582432..872bb43fac 100644
+--- a/src/pkg/strings/Makefile
++++ b/src/pkg/strings/Makefile
+@@ -7,6 +7,7 @@ include ../../Make.inc
+ TARG=strings
+ GOFILES=\
+ 	reader.go\
++	replace.go\
+ 	strings.go\
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/strings/replace.go b/src/pkg/strings/replace.go
+new file mode 100644
+index 0000000000..cf2c023be0
+--- /dev/null
++++ b/src/pkg/strings/replace.go
+@@ -0,0 +1,84 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strings
++
++import (
++	"io"
++	"os"
++)
++
++// Can't import ioutil for ioutil.Discard, due to ioutil/tempfile.go -> strconv -> strings
++var discard io.Writer = devNull(0)
++
++type devNull int
++
++func (devNull) Write(p []byte) (int, os.Error) {
++	return len(p), nil
++}
++
++type pair struct{ old, new string }
++
++// A Replacer replaces a list of strings with replacements.
++type Replacer struct {
++	p []pair
++}
++
++// NewReplacer returns a new Replacer from a list of old, new string pairs.
++// Replacements are performed in order, without overlapping matches.
++func NewReplacer(oldnew ...string) *Replacer {
++	if len(oldnew)%2 == 1 {
++		panic("strings.NewReplacer: odd argument count")
++	}
++	r := new(Replacer)
++	for len(oldnew) >= 2 {
++		r.p = append(r.p, pair{oldnew[0], oldnew[1]})
++		oldnew = oldnew[2:]
++	}
++	return r
++}
++
++type appendSliceWriter struct {
++	b []byte
++}
++
++func (w *appendSliceWriter) Write(p []byte) (int, os.Error) {
++	w.b = append(w.b, p...)
++	return len(p), nil
++}
++
++// Replace returns a copy of s with all replacements performed.
++func (r *Replacer) Replace(s string) string {
++	// TODO(bradfitz): optimized version
++	n, _ := r.WriteString(discard, s)
++	w := appendSliceWriter{make([]byte, 0, n)}
++	r.WriteString(&w, s)
++	return string(w.b)
++}
++
++// WriteString writes s to w with all replacements performed.
++func (r *Replacer) WriteString(w io.Writer, s string) (n int, err os.Error) {
++Input:
++	// TODO(bradfitz): optimized version
++	for i := 0; i < len(s); {
++		for _, p := range r.p {
++			if HasPrefix(s[i:], p.old) {
++				wn, err := w.Write([]byte(p.new))
++				n += wn
++				if err != nil {
++					return n, err
++				}
++				i += len(p.old)
++				continue Input
++			}
++		}
++		wn, err := w.Write([]byte{s[i]})
++		n += wn
++		if err != nil {
++			return n, err
++		}
++		i++
++	}
++	return n, nil
++}
+diff --git a/src/pkg/strings/replace_test.go b/src/pkg/strings/replace_test.go
+new file mode 100644
+index 0000000000..a7677a132b
+--- /dev/null
++++ b/src/pkg/strings/replace_test.go
+@@ -0,0 +1,75 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strings_test
++
++import (
++	. "strings"
++	"testing"
++)
++
++type ReplacerTest struct {
++	m   *Replacer
++	in  string
++	out string
++}
++
++var htmlEscaper = NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;")
++
++// The http package's old HTML escaping function.
++func oldhtmlEscape(s string) string {
++	s = Replace(s, "&", "&amp;", -1)
++	s = Replace(s, "<", "&lt;", -1)
++	s = Replace(s, ">", "&gt;", -1)
++	s = Replace(s, "\"", "&quot;", -1)
++	s = Replace(s, "'", "&apos;", -1)
++	return s
++}
++
++var replacer = NewReplacer("aaa", "3[aaa]", "aa", "2[aa]", "a", "1[a]", "i", "i",
++	"longerst", "most long", "longer", "medium", "long", "short",
++	"X", "Y", "Y", "Z")
++
++var ReplacerTests = []ReplacerTest{
++	{htmlEscaper, "No changes", "No changes"},
++	{htmlEscaper, "I <3 escaping & stuff", "I &lt;3 escaping &amp; stuff"},
++	{htmlEscaper, "&&&", "&amp;&amp;&amp;"},
++	{replacer, "fooaaabar", "foo3[aaa]b1[a]r"},
++	{replacer, "long, longerst, longer", "short, most long, medium"},
++	{replacer, "XiX", "YiY"},
++}
++
++func TestReplacer(t *testing.T) {
++	for i, tt := range ReplacerTests {
++		if s := tt.m.Replace(tt.in); s != tt.out {
++			t.Errorf("%d. Replace(%q) = %q, want %q", i, tt.in, s, tt.out)
++		}
++	}
++}
++
++var slowReplacer = NewReplacer("&&", "&amp;", "<<", "&lt;", ">>", "&gt;", "\"\"", "&quot;", "''", "&apos;")
++
++func BenchmarkReplacerSingleByte(b *testing.B) {
++	str := "I <3 benchmarking html & other stuff too >:D"
++	n := 0
++	for i := 0; i < b.N; i++ {
++		n += len(htmlEscaper.Replace(str))
++	}
++}
++
++func BenchmarkReplaceMap(b *testing.B) {
++	str := "I <<3 benchmarking html && other stuff too >>:D"
++	n := 0
++	for i := 0; i < b.N; i++ {
++		n += len(slowReplacer.Replace(str))
++	}
++}
++
++func BenchmarkOldHTTPHTMLReplace(b *testing.B) {
++	str := "I <3 benchmarking html & other stuff too >:D"
++	n := 0
++	for i := 0; i < b.N; i++ {
++		n += len(oldhtmlEscape(str))
++	}
++}

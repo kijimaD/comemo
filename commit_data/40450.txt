@@ -7,6 +7,25 @@ Date:   Tue May 14 15:49:27 2019 +0000
     Change-Id: I5db429c86e01b55ec3abc6ab4ca11c221b27f189
     Reviewed-on: https://go-review.googlesource.com/c/go/+/177039
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/database/sql/convert.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index 2149a8e700..7a3b5fa7da 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -98,10 +98,12 @@ func defaultCheckNamedValue(nv *driver.NamedValue) (err error) {
+ 	return err
+ }
+ 
+-// driverArgs converts arguments from callers of Stmt.Exec and
++// driverArgsConnLocked converts arguments from callers of Stmt.Exec and
+ // Stmt.Query into driver Values.
+ //
+ // The statement ds may be nil, if no statement is available.
++//
++// ci must be locked.
+ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []interface{}) ([]driver.NamedValue, error) {
+ 	nvargs := make([]driver.NamedValue, len(args))
+ 

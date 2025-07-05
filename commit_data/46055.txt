@@ -13,7 +13,7 @@ Date:   Thu Aug 27 18:36:42 2020 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  api/except.txt                       |   1 +
  api/next.txt                         |  33 ++++++
  src/cmd/go/internal/load/test.go     |  15 ++-
@@ -25,3 +25,529 @@ Date:   Thu Aug 27 18:36:42 2020 -0400
  src/testing/fuzz.go                  | 196 +++++++++++++++++++++++++++++++++++
  src/testing/testing.go               |  47 ++++++---
  10 files changed, 295 insertions(+), 23 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index 962bb14271..662fa16f81 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -350,6 +350,7 @@ pkg syscall (openbsd-amd64-cgo), type Timespec struct, Pad_cgo_0 [4]uint8
+ pkg syscall (openbsd-amd64-cgo), type Timespec struct, Sec int32
+ pkg testing, func RegisterCover(Cover)
+ pkg testing, func MainStart(func(string, string) (bool, error), []InternalTest, []InternalBenchmark, []InternalExample) *M
++pkg testing, func MainStart(testDeps, []InternalTest, []InternalBenchmark, []InternalExample) *M
+ pkg text/template/parse, type DotNode bool
+ pkg text/template/parse, type Node interface { Copy, String, Type }
+ pkg unicode, const Version = "6.2.0"
+diff --git a/api/next.txt b/api/next.txt
+index 076f39ec34..71fdaddc08 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -17,3 +17,36 @@ pkg text/template/parse, type CommentNode struct, embedded NodeType
+ pkg text/template/parse, type CommentNode struct, embedded Pos
+ pkg text/template/parse, type Mode uint
+ pkg text/template/parse, type Tree struct, Mode Mode
++pkg testing, func Fuzz(func(*F)) FuzzResult
++pkg testing, func MainStart(testDeps, []InternalTest, []InternalBenchmark, []InternalFuzzTarget, []InternalExample) *M
++pkg testing, func RunFuzzTargets(func(string, string) (bool, error), []InternalFuzzTarget) bool
++pkg testing, func RunFuzzing(func(string, string) (bool, error), []InternalFuzzTarget) bool
++pkg testing, method (*F) Add(...interface{})
++pkg testing, method (*F) Cleanup(func())
++pkg testing, method (*F) Error(...interface{})
++pkg testing, method (*F) Errorf(string, ...interface{})
++pkg testing, method (*F) Fail()
++pkg testing, method (*F) FailNow()
++pkg testing, method (*F) Failed() bool
++pkg testing, method (*F) Fatal(...interface{})
++pkg testing, method (*F) Fatalf(string, ...interface{})
++pkg testing, method (*F) Fuzz(interface{})
++pkg testing, method (*F) Helper()
++pkg testing, method (*F) Log(...interface{})
++pkg testing, method (*F) Logf(string, ...interface{})
++pkg testing, method (*F) Name() string
++pkg testing, method (*F) Skip(...interface{})
++pkg testing, method (*F) SkipNow()
++pkg testing, method (*F) Skipf(string, ...interface{})
++pkg testing, method (*F) Skipped() bool
++pkg testing, method (*F) TempDir() string
++pkg testing, method (FuzzResult) String() string
++pkg testing, type F struct
++pkg testing, type FuzzResult struct
++pkg testing, type FuzzResult struct, Crasher entry
++pkg testing, type FuzzResult struct, Error error
++pkg testing, type FuzzResult struct, N int
++pkg testing, type FuzzResult struct, T time.Duration
++pkg testing, type InternalFuzzTarget struct
++pkg testing, type InternalFuzzTarget struct, Fn func(*F)
++pkg testing, type InternalFuzzTarget struct, Name string
+\ No newline at end of file
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index e0f13323df..93ec5facc5 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -496,6 +496,7 @@ func formatTestmain(t *testFuncs) ([]byte, error) {
+ type testFuncs struct {
+ 	Tests       []testFunc
+ 	Benchmarks  []testFunc
++	FuzzTargets []testFunc
+ 	Examples    []testFunc
+ 	TestMain    *testFunc
+ 	Package     *Package
+@@ -588,6 +589,12 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
+ 			}
+ 			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, "", false})
+ 			*doImport, *seen = true, true
++		case isTest(name, "Fuzz"):
++			err := checkTestFunc(n, "F")
++			if err != nil {
++				return err
++			}
++			t.FuzzTargets = append(t.FuzzTargets, testFunc{pkg, name, "", false})
+ 		}
+ 	}
+ 	ex := doc.Examples(f)
+@@ -651,6 +658,12 @@ var benchmarks = []testing.InternalBenchmark{
+ {{end}}
+ }
+ 
++var fuzzTargets = []testing.InternalFuzzTarget{
++{{range .FuzzTargets}}
++	{"{{.Name}}", {{.Package}}.{{.Name}}},
++{{end}}
++}
++
+ var examples = []testing.InternalExample{
+ {{range .Examples}}
+ 	{"{{.Name}}", {{.Package}}.{{.Name}}, {{.Output | printf "%q"}}, {{.Unordered}}},
+@@ -709,7 +722,7 @@ func main() {
+ 		CoveredPackages: {{printf "%q" .Covered}},
+ 	})
+ {{end}}
+-	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, examples)
++	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, fuzzTargets, examples)
+ {{with .TestMain}}
+ 	{{.Package}}.{{.Name}}(m)
+ 	os.Exit(int(reflect.ValueOf(m).Elem().FieldByName("exitCode").Int()))
+diff --git a/src/cmd/go/internal/test/flagdefs.go b/src/cmd/go/internal/test/flagdefs.go
+index 8a0a07683b..57e60e2c0c 100644
+--- a/src/cmd/go/internal/test/flagdefs.go
++++ b/src/cmd/go/internal/test/flagdefs.go
+@@ -19,6 +19,7 @@ var passFlagToTest = map[string]bool{
+ 	"cpu":                  true,
+ 	"cpuprofile":           true,
+ 	"failfast":             true,
++	"fuzz":                 true,
+ 	"list":                 true,
+ 	"memprofile":           true,
+ 	"memprofilerate":       true,
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 1ea6d2881e..721236ca36 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -467,6 +467,7 @@ See the documentation of the testing package for more information.
+ `,
+ }
+ 
++// TODO(katiehockman): complete the testing here
+ var (
+ 	testBench        string                            // -bench flag
+ 	testC            bool                              // -c flag
+@@ -475,6 +476,7 @@ var (
+ 	testCoverPaths   []string                          // -coverpkg flag
+ 	testCoverPkgs    []*load.Package                   // -coverpkg flag
+ 	testCoverProfile string                            // -coverprofile flag
++	testFuzz         string                            // -fuzz flag
+ 	testJSON         bool                              // -json flag
+ 	testList         string                            // -list flag
+ 	testO            string                            // -o flag
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 4f0a8924f1..620dea646b 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -56,6 +56,7 @@ func init() {
+ 	cf.String("cpu", "", "")
+ 	cf.StringVar(&testCPUProfile, "cpuprofile", "", "")
+ 	cf.Bool("failfast", false, "")
++	cf.String("fuzz", "", "")
+ 	cf.StringVar(&testList, "list", "", "")
+ 	cf.StringVar(&testMemProfile, "memprofile", "", "")
+ 	cf.String("memprofilerate", "", "")
+diff --git a/src/go/doc/example.go b/src/go/doc/example.go
+index 125fd530b1..094d7ba61b 100644
+--- a/src/go/doc/example.go
++++ b/src/go/doc/example.go
+@@ -44,13 +44,13 @@ type Example struct {
+ //     identifiers from other packages (or predeclared identifiers, such as
+ //     "int") and the test file does not include a dot import.
+ //   - The entire test file is the example: the file contains exactly one
+-//     example function, zero test or benchmark functions, and at least one
+-//     top-level function, type, variable, or constant declaration other
+-//     than the example function.
++//     example function, zero test, fuzz target, or benchmark function, and at
++//     least one top-level function, type, variable, or constant declaration
++//     other than the example function.
+ func Examples(testFiles ...*ast.File) []*Example {
+ 	var list []*Example
+ 	for _, file := range testFiles {
+-		hasTests := false // file contains tests or benchmarks
++		hasTests := false // file contains tests, fuzz targets, or benchmarks
+ 		numDecl := 0      // number of non-import declarations in the file
+ 		var flist []*Example
+ 		for _, decl := range file.Decls {
+@@ -64,7 +64,7 @@ func Examples(testFiles ...*ast.File) []*Example {
+ 			}
+ 			numDecl++
+ 			name := f.Name.Name
+-			if isTest(name, "Test") || isTest(name, "Benchmark") {
++			if isTest(name, "Test") || isTest(name, "Benchmark") || isTest(name, "Fuzz") {
+ 				hasTests = true
+ 				continue
+ 			}
+@@ -133,9 +133,9 @@ func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) (output strin
+ 	return "", false, false // no suitable comment found
+ }
+ 
+-// isTest tells whether name looks like a test, example, or benchmark.
+-// It is a Test (say) if there is a character after Test that is not a
+-// lower-case letter. (We don't want Testiness.)
++// isTest tells whether name looks like a test, example, fuzz target, or
++// benchmark. It is a Test (say) if there is a character after Test that is not
++// a lower-case letter. (We don't want Testiness.)
+ func isTest(name, prefix string) bool {
+ 	if !strings.HasPrefix(name, prefix) {
+ 		return false
+diff --git a/src/go/doc/example_test.go b/src/go/doc/example_test.go
+index 7c96f0300a..2d9b95803b 100644
+--- a/src/go/doc/example_test.go
++++ b/src/go/doc/example_test.go
+@@ -307,6 +307,9 @@ func (X) TestBlah() {
+ func (X) BenchmarkFoo() {
+ }
+ 
++func (X) FuzzFoo() {
++}
++
+ func Example() {
+ 	fmt.Println("Hello, world!")
+ 	// Output: Hello, world!
+@@ -326,6 +329,9 @@ func (X) TestBlah() {
+ func (X) BenchmarkFoo() {
+ }
+ 
++func (X) FuzzFoo() {
++}
++
+ func main() {
+ 	fmt.Println("Hello, world!")
+ }
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+new file mode 100644
+index 0000000000..aaa4ad1931
+--- /dev/null
++++ b/src/testing/fuzz.go
+@@ -0,0 +1,196 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing
++
++import (
++	"flag"
++	"fmt"
++	"os"
++	"time"
++)
++
++func initFuzzFlags() {
++	matchFuzz = flag.String("test.fuzz", "", "run the fuzz target matching `regexp`")
++}
++
++var matchFuzz *string
++
++// InternalFuzzTarget is an internal type but exported because it is cross-package;
++// it is part of the implementation of the "go test" command.
++type InternalFuzzTarget struct {
++	Name string
++	Fn   func(f *F)
++}
++
++// F is a type passed to fuzz targets for fuzz testing.
++type F struct {
++	common
++	context  *fuzzContext
++	corpus   []corpusEntry // corpus is the in-memory corpus
++	result   FuzzResult    // result is the result of running the fuzz target
++	fuzzFunc func(f *F)    // fuzzFunc is the function which makes up the fuzz target
++	fuzz     bool          // fuzz indicates whether or not the fuzzing engine should run
++}
++
++// corpus corpusEntry
++type corpusEntry struct {
++	b []byte
++}
++
++// Add will add the arguments to the seed corpus for the fuzz target. This
++// cannot be invoked after or within the Fuzz function. The args must match
++// those in the Fuzz function.
++func (f *F) Add(args ...interface{}) {
++	return
++}
++
++// Fuzz runs the fuzz function, ff, for fuzz testing. It runs ff in a separate
++// goroutine. Only one call to Fuzz is allowed per fuzz target, and any
++// subsequent calls will panic. If ff fails for a set of arguments, those
++// arguments will be added to the seed corpus.
++func (f *F) Fuzz(ff interface{}) {
++	return
++}
++
++// FuzzResult contains the results of a fuzz run.
++type FuzzResult struct {
++	N       int           // The number of iterations.
++	T       time.Duration // The total time taken.
++	Crasher corpusEntry   // Crasher is the corpus entry that caused the crash
++	Error   error         // Error is the error from the crash
++}
++
++func (r FuzzResult) String() string {
++	s := ""
++	if len(r.Error.Error()) != 0 {
++		s = fmt.Sprintf("error: %s\ncrasher: %b", r.Error.Error(), r.Crasher)
++	}
++	return s
++}
++
++// fuzzContext holds all fields that are common to all fuzz targets.
++type fuzzContext struct {
++	runMatch  *matcher
++	fuzzMatch *matcher
++}
++
++// RunFuzzTargets is an internal function but exported because it is cross-package;
++// it is part of the implementation of the "go test" command.
++func RunFuzzTargets(matchString func(pat, str string) (bool, error), fuzzTargets []InternalFuzzTarget) (ok bool) {
++	_, ok = runFuzzTargets(matchString, fuzzTargets)
++	return ok
++}
++
++// runFuzzTargets runs the fuzz targets matching the pattern for -run. This will
++// only run the f.Fuzz function for each seed corpus without using the fuzzing
++// engine to generate or mutate inputs. If -fuzz matches a given fuzz target,
++// then such test will be skipped and run later during fuzzing.
++func runFuzzTargets(matchString func(pat, str string) (bool, error), fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
++	ran, ok = true, true
++	if len(fuzzTargets) == 0 {
++		return false, ok
++	}
++	for _, ft := range fuzzTargets {
++		ctx := &fuzzContext{runMatch: newMatcher(matchString, *match, "-test.run")}
++		f := &F{
++			common: common{
++				signal:  make(chan bool),
++				barrier: make(chan bool),
++				w:       os.Stdout,
++				name:    ft.Name,
++			},
++			context: ctx,
++		}
++		testName, matched, _ := ctx.runMatch.fullName(&f.common, f.name)
++		if !matched {
++			continue
++		}
++		if *matchFuzz != "" {
++			ctx.fuzzMatch = newMatcher(matchString, *matchFuzz, "-test.fuzz")
++			if _, doFuzz, partial := ctx.fuzzMatch.fullName(&f.common, f.name); doFuzz && !partial {
++				continue // this will be run later when fuzzed
++			}
++		}
++		if Verbose() {
++			f.chatty = newChattyPrinter(f.w)
++		}
++		if f.chatty != nil {
++			f.chatty.Updatef(f.name, "=== RUN  %s\n", testName)
++		}
++	}
++	return ran, ok
++}
++
++// RunFuzzing is an internal function but exported because it is cross-package;
++// it is part of the implementation of the "go test" command.
++func RunFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []InternalFuzzTarget) (ok bool) {
++	_, ok = runFuzzing(matchString, fuzzTargets)
++	return ok
++}
++
++// runFuzzing runs the fuzz target matching the pattern for -fuzz. Only one such
++// fuzz target must match. This will run the f.Fuzz function for each seed
++// corpus and will run the fuzzing engine to generate and mutate new inputs
++// against f.Fuzz.
++func runFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
++	ran, ok = true, true
++	if len(fuzzTargets) == 0 {
++		return false, ok
++	}
++	ctx := &fuzzContext{
++		fuzzMatch: newMatcher(matchString, *matchFuzz, "-test.fuzz"),
++	}
++	if *matchFuzz == "" {
++		return false, true
++	}
++	f := &F{
++		common: common{
++			signal:  make(chan bool),
++			barrier: make(chan bool),
++			w:       os.Stdout,
++		},
++		context: ctx,
++		fuzz:    true,
++	}
++	var (
++		ft    InternalFuzzTarget
++		found int
++	)
++	for _, ft = range fuzzTargets {
++		testName, matched, _ := ctx.fuzzMatch.fullName(&f.common, ft.Name)
++		if matched {
++			found++
++			if found > 1 {
++				fmt.Fprintf(f.w, "testing: warning: -fuzz matched more than one target, won't run\n")
++				return false, ok
++			}
++			f.name = testName
++		}
++	}
++	if Verbose() {
++		f.chatty = newChattyPrinter(f.w)
++	}
++	if f.chatty != nil {
++		f.chatty.Updatef(f.name, "--- FUZZ  %s\n", f.name)
++	}
++	return ran, ok
++}
++
++// Fuzz runs a single fuzz target. It is useful for creating
++// custom fuzz targets that do not use the "go test" command.
++//
++// If fn depends on testing flags, then Init must be used to register
++// those flags before calling Fuzz and before calling flag.Parse.
++func Fuzz(fn func(f *F)) FuzzResult {
++	f := &F{
++		common: common{
++			signal: make(chan bool),
++			w:      discard{},
++		},
++		fuzzFunc: fn,
++	}
++	// TODO(katiehockman): run the test
++	return f.result
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 66f296234a..3e0d2b689e 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -302,6 +302,7 @@ func Init() {
+ 	testlog = flag.String("test.testlogfile", "", "write test action log to `file` (for use only by cmd/go)")
+ 
+ 	initBenchmarkFlags()
++	initFuzzFlags()
+ }
+ 
+ var (
+@@ -1294,15 +1295,16 @@ func (f matchStringOnly) SetPanicOnExit0(bool)                        {}
+ // new functionality is added to the testing package.
+ // Systems simulating "go test" should be updated to use MainStart.
+ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
+-	os.Exit(MainStart(matchStringOnly(matchString), tests, benchmarks, examples).Run())
++	os.Exit(MainStart(matchStringOnly(matchString), tests, benchmarks, nil, examples).Run())
+ }
+ 
+ // M is a type passed to a TestMain function to run the actual tests.
+ type M struct {
+-	deps       testDeps
+-	tests      []InternalTest
+-	benchmarks []InternalBenchmark
+-	examples   []InternalExample
++	deps        testDeps
++	tests       []InternalTest
++	benchmarks  []InternalBenchmark
++	fuzzTargets []InternalFuzzTarget
++	examples    []InternalExample
+ 
+ 	timer     *time.Timer
+ 	afterOnce sync.Once
+@@ -1332,13 +1334,14 @@ type testDeps interface {
+ // MainStart is meant for use by tests generated by 'go test'.
+ // It is not meant to be called directly and is not subject to the Go 1 compatibility document.
+ // It may change signature from release to release.
+-func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) *M {
++func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, fuzzTargets []InternalFuzzTarget, examples []InternalExample) *M {
+ 	Init()
+ 	return &M{
+-		deps:       deps,
+-		tests:      tests,
+-		benchmarks: benchmarks,
+-		examples:   examples,
++		deps:        deps,
++		tests:       tests,
++		benchmarks:  benchmarks,
++		fuzzTargets: fuzzTargets,
++		examples:    examples,
+ 	}
+ }
+ 
+@@ -1367,7 +1370,7 @@ func (m *M) Run() (code int) {
+ 	}
+ 
+ 	if len(*matchList) != 0 {
+-		listTests(m.deps.MatchString, m.tests, m.benchmarks, m.examples)
++		listTests(m.deps.MatchString, m.tests, m.benchmarks, m.fuzzTargets, m.examples)
+ 		m.exitCode = 0
+ 		return
+ 	}
+@@ -1379,12 +1382,23 @@ func (m *M) Run() (code int) {
+ 	deadline := m.startAlarm()
+ 	haveExamples = len(m.examples) > 0
+ 	testRan, testOk := runTests(m.deps.MatchString, m.tests, deadline)
++	fuzzTargetsRan, fuzzTargetsOk := runFuzzTargets(m.deps.MatchString, m.fuzzTargets)
+ 	exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
+ 	m.stopAlarm()
+-	if !testRan && !exampleRan && *matchBenchmarks == "" {
++	if !testRan && !exampleRan && !fuzzTargetsRan && *matchBenchmarks == "" && *matchFuzz == "" {
+ 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+ 	}
+-	if !testOk || !exampleOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
++	if !testOk || !exampleOk || !fuzzTargetsOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
++		fmt.Println("FAIL")
++		m.exitCode = 1
++		return
++	}
++
++	fuzzingRan, fuzzingOk := runFuzzing(m.deps.MatchString, m.fuzzTargets)
++	if *matchFuzz != "" && !fuzzingRan {
++		fmt.Fprintln(os.Stderr, "testing: warning: no fuzz targets to run")
++	}
++	if !fuzzingOk {
+ 		fmt.Println("FAIL")
+ 		m.exitCode = 1
+ 		return
+@@ -1412,7 +1426,7 @@ func (t *T) report() {
+ 	}
+ }
+ 
+-func listTests(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
++func listTests(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, fuzzTargets []InternalFuzzTarget, examples []InternalExample) {
+ 	if _, err := matchString(*matchList, "non-empty"); err != nil {
+ 		fmt.Fprintf(os.Stderr, "testing: invalid regexp in -test.list (%q): %s\n", *matchList, err)
+ 		os.Exit(1)
+@@ -1428,6 +1442,11 @@ func listTests(matchString func(pat, str string) (bool, error), tests []Internal
+ 			fmt.Println(bench.Name)
+ 		}
+ 	}
++	for _, fuzzTarget := range fuzzTargets {
++		if ok, _ := matchString(*matchList, fuzzTarget.Name); ok {
++			fmt.Println(fuzzTarget.Name)
++		}
++	}
+ 	for _, example := range examples {
+ 		if ok, _ := matchString(*matchList, example.Name); ok {
+ 			fmt.Println(example.Name)

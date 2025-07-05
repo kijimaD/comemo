@@ -18,6 +18,11 @@ Date:   Thu Feb 13 10:58:23 2014 +1100
     R=golang-codereviews, gobot, dsymonds, iant
     CC=golang-codereviews
     https://golang.org/cl/61720044
-
+---
  .../debug/macho/testdata/fat-gcc-386-amd64-darwin-exec  | Bin 0 -> 28992 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/pkg/debug/macho/testdata/fat-gcc-386-amd64-darwin-exec b/src/pkg/debug/macho/testdata/fat-gcc-386-amd64-darwin-exec
+new file mode 100644
+index 0000000000..7efd19300b
+Binary files /dev/null and b/src/pkg/debug/macho/testdata/fat-gcc-386-amd64-darwin-exec differ

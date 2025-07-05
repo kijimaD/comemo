@@ -13,7 +13,7 @@ Date:   Thu Oct 28 13:24:40 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/crypto/boring/notboring_test.go        | 1 +
  src/crypto/internal/boring/aes.go          | 6 ++----
  src/crypto/internal/boring/boring.go       | 6 ++----
@@ -27,3 +27,183 @@ Date:   Thu Oct 28 13:24:40 2021 -0400
  src/crypto/sha1/boring.go                  | 1 +
  src/crypto/sha1/notboring.go               | 1 +
  12 files changed, 19 insertions(+), 28 deletions(-)
+
+diff --git a/src/crypto/boring/notboring_test.go b/src/crypto/boring/notboring_test.go
+index 385a384dd7..e69a3a93fd 100644
+--- a/src/crypto/boring/notboring_test.go
++++ b/src/crypto/boring/notboring_test.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !boringcrypto
+ // +build !boringcrypto
+ 
+ package boring_test
+diff --git a/src/crypto/internal/boring/aes.go b/src/crypto/internal/boring/aes.go
+index 504a841cd8..b5d360151c 100644
+--- a/src/crypto/internal/boring/aes.go
++++ b/src/crypto/internal/boring/aes.go
+@@ -2,10 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64
+-// +build !android
+-// +build !cmd_go_bootstrap
+-// +build !msan
++//go:build linux && amd64 && !android && !cmd_go_bootstrap && !msan
++// +build linux,amd64,!android,!cmd_go_bootstrap,!msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+index 9ccad7eb5d..f34243fe26 100644
+--- a/src/crypto/internal/boring/boring.go
++++ b/src/crypto/internal/boring/boring.go
+@@ -2,10 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64
+-// +build !android
+-// +build !cmd_go_bootstrap
+-// +build !msan
++//go:build linux && amd64 && !android && !cmd_go_bootstrap && !msan
++// +build linux,amd64,!android,!cmd_go_bootstrap,!msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/ecdsa.go b/src/crypto/internal/boring/ecdsa.go
+index 4fcba4be72..b9c68a97af 100644
+--- a/src/crypto/internal/boring/ecdsa.go
++++ b/src/crypto/internal/boring/ecdsa.go
+@@ -2,10 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64
+-// +build !android
+-// +build !cmd_go_bootstrap
+-// +build !msan
++//go:build linux && amd64 && !android && !cmd_go_bootstrap && !msan
++// +build linux,amd64,!android,!cmd_go_bootstrap,!msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/hmac.go b/src/crypto/internal/boring/hmac.go
+index 01b5844e5f..be0670c05a 100644
+--- a/src/crypto/internal/boring/hmac.go
++++ b/src/crypto/internal/boring/hmac.go
+@@ -2,10 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64
+-// +build !android
+-// +build !cmd_go_bootstrap
+-// +build !msan
++//go:build linux && amd64 && !android && !cmd_go_bootstrap && !msan
++// +build linux,amd64,!android,!cmd_go_bootstrap,!msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/notboring.go b/src/crypto/internal/boring/notboring.go
+index c21cb3cd55..2e2414c73b 100644
+--- a/src/crypto/internal/boring/notboring.go
++++ b/src/crypto/internal/boring/notboring.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !linux || !amd64 || !cgo || android || cmd_go_bootstrap || msan
+ // +build !linux !amd64 !cgo android cmd_go_bootstrap msan
+ 
+ package boring
+diff --git a/src/crypto/internal/boring/rand.go b/src/crypto/internal/boring/rand.go
+index c3fc27cc08..57937eb3c8 100644
+--- a/src/crypto/internal/boring/rand.go
++++ b/src/crypto/internal/boring/rand.go
+@@ -2,10 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64
+-// +build !android
+-// +build !cmd_go_bootstrap
+-// +build !msan
++//go:build linux && amd64 && !android && !cmd_go_bootstrap && !msan
++// +build linux,amd64,!android,!cmd_go_bootstrap,!msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/rsa.go b/src/crypto/internal/boring/rsa.go
+index a10831dd00..327dfa0309 100644
+--- a/src/crypto/internal/boring/rsa.go
++++ b/src/crypto/internal/boring/rsa.go
+@@ -2,10 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64
+-// +build !android
+-// +build !cmd_go_bootstrap
+-// +build !msan
++//go:build linux && amd64 && !android && !cmd_go_bootstrap && !msan
++// +build linux,amd64,!android,!cmd_go_bootstrap,!msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/sha.go b/src/crypto/internal/boring/sha.go
+index 5ca158ca32..4672119df1 100644
+--- a/src/crypto/internal/boring/sha.go
++++ b/src/crypto/internal/boring/sha.go
+@@ -2,10 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64
+-// +build !android
+-// +build !cmd_go_bootstrap
+-// +build !msan
++//go:build linux && amd64 && !android && !cmd_go_bootstrap && !msan
++// +build linux,amd64,!android,!cmd_go_bootstrap,!msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/sig/sig_other.s b/src/crypto/internal/boring/sig/sig_other.s
+index 2eb31734ef..2bbb1df301 100644
+--- a/src/crypto/internal/boring/sig/sig_other.s
++++ b/src/crypto/internal/boring/sig/sig_other.s
+@@ -7,6 +7,7 @@
+ // search a particular binary to see if they are present.
+ // On other platforms (those using this source file), they don't.
+ 
++//go:build !amd64
+ // +build !amd64
+ 
+ TEXT ·BoringCrypto(SB),$0
+diff --git a/src/crypto/sha1/boring.go b/src/crypto/sha1/boring.go
+index 44c26092ee..1cacf93f9b 100644
+--- a/src/crypto/sha1/boring.go
++++ b/src/crypto/sha1/boring.go
+@@ -6,6 +6,7 @@
+ // cmd/internal/boring is not even imported, so that we don't
+ // have to maintain changes to cmd/dist's deps graph.
+ 
++//go:build !cmd_go_bootstrap
+ // +build !cmd_go_bootstrap
+ 
+ package sha1
+diff --git a/src/crypto/sha1/notboring.go b/src/crypto/sha1/notboring.go
+index 9726fcd268..2412c9062d 100644
+--- a/src/crypto/sha1/notboring.go
++++ b/src/crypto/sha1/notboring.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cmd_go_bootstrap
+ // +build cmd_go_bootstrap
+ 
+ package sha1

@@ -16,6 +16,27 @@ Date:   Sat Feb 17 17:24:21 2018 -0500
     Change-Id: I63c52adbcd989afd4855e329e6c727f4c01f7881
     Reviewed-on: https://go-review.googlesource.com/94906
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go_spec.html | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 9a166ccdf4..dbd2307e29 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of February 1, 2018",
++	"Subtitle": "Version of February 18, 2018",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -3051,7 +3051,6 @@ used in an <a href="#Assignments">assignment</a> or initialization of the specia
+ v, ok = a[x]
+ v, ok := a[x]
+ var v, ok = a[x]
+-var v, ok T = a[x]
+ </pre>
+ 
+ <p>

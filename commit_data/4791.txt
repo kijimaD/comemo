@@ -8,7 +8,51 @@ Date:   Fri Feb 5 11:23:25 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/201058
-
+---
  src/pkg/fmt/fmt_test.go | 5 +++++
  src/pkg/fmt/print.go    | 9 +++++++--
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index ecceeb09ce..9fdf0ddb36 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -229,6 +229,11 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%#v", make(chan int), "(chan int)(PTR)"},
+ 	fmtTest{"%#v", uint64(1<<64 - 1), "0xffffffffffffffff"},
+ 	fmtTest{"%#v", 1000000000, "1000000000"},
++
++	// erroneous things
++	fmtTest{"%d", "hello", "%d(string=hello)"},
++	fmtTest{"no args", "hello", "no args?(extra string=hello)"},
++	fmtTest{"%s", nil, "%s(<nil>)"},
+ }
+ 
+ func TestSprintf(t *testing.T) {
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index de64179cc8..e4840b940b 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -378,6 +378,9 @@ func getInt(a interface{}) (val int64, signed, ok bool) {
+ }
+ 
+ func getString(a interface{}) (val string, ok bool) {
++	if a == nil {
++		return "<nil>", ok
++	}
+ 	// Is it a regular string or []byte type?
+ 	switch s := a.(type) {
+ 	case string:
+@@ -941,8 +944,10 @@ func (p *pp) doprintf(format string, a []interface{}) {
+ 			p.buf.WriteByte('%')
+ 			p.add(c)
+ 			p.buf.WriteByte('(')
+-			p.buf.WriteString(reflect.Typeof(field).String())
+-			p.buf.WriteByte('=')
++			if field != nil {
++				p.buf.WriteString(reflect.Typeof(field).String())
++				p.buf.WriteByte('=')
++			}
+ 			p.printField(field, false, false, 0)
+ 			p.buf.WriteByte(')')
+ 		}

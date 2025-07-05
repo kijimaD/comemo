@@ -11,6 +11,23 @@ Date:   Tue Feb 2 16:05:47 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/transport_test.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 3b2a5f978e..8cb89a4220 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2208,9 +2208,8 @@ func TestTransportTLSHandshakeTimeout(t *testing.T) {
+ // Trying to repro golang.org/issue/3514
+ func TestTLSServerClosesConnection(t *testing.T) {
+ 	defer afterTest(t)
+-	if runtime.GOOS == "windows" {
+-		t.Skip("skipping flaky test on Windows; golang.org/issue/7634")
+-	}
++	setFlaky(t, 7634)
++
+ 	closedc := make(chan bool, 1)
+ 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		if strings.Contains(r.URL.Path, "/keep-alive-then-die") {

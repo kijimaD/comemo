@@ -8,6 +8,20 @@ Date:   Tue Jul 8 17:04:18 2014 -0400
     R=golang-codereviews, minux
     CC=golang-codereviews
     https://golang.org/cl/108450044
-
+---
  src/pkg/go/build/deps_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index 7421e144f1..22ce8ff15a 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -360,7 +360,7 @@ func allowed(pkg string) map[string]bool {
+ }
+ 
+ var bools = []bool{false, true}
+-var geese = []string{"darwin", "dragonfly", "freebsd", "linux", "nacl", "netbsd", "openbsd", "plan9", "solaris", "windows"}
++var geese = []string{"android", "darwin", "dragonfly", "freebsd", "linux", "nacl", "netbsd", "openbsd", "plan9", "solaris", "windows"}
+ var goarches = []string{"386", "amd64", "arm"}
+ 
+ type osPkg struct {

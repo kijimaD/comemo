@@ -10,8 +10,62 @@ Date:   Tue Oct 7 16:27:40 2014 -0400
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/155990043
-
+---
  misc/cgo/test/callback_c_gc.c    | 10 ++++++++++
  misc/cgo/test/callback_c_gccgo.c |  7 +++++++
  src/runtime/cgocallback.go       |  3 +++
  3 files changed, 20 insertions(+)
+
+diff --git a/misc/cgo/test/callback_c_gc.c b/misc/cgo/test/callback_c_gc.c
+index 32bfed0c02..28a62c6dbc 100644
+--- a/misc/cgo/test/callback_c_gc.c
++++ b/misc/cgo/test/callback_c_gc.c
+@@ -39,6 +39,16 @@ callCgoAllocate(void)
+ 	int i;
+ 	struct { size_t n; void *ret; } a;
+ 	List *l, *head, **tail;
++
++	// Make sure this doesn't crash.
++	// And make sure it returns non-nil.
++	a.n = 0;
++	a.ret = 0;
++	crosscall2(_cgo_allocate, &a, sizeof a);
++	if(a.ret == 0) {
++		fprintf(stderr, "callCgoAllocate: alloc 0 returned nil\n");
++		exit(2);
++	}
+ 	
+ 	head = 0;
+ 	tail = &head;
+diff --git a/misc/cgo/test/callback_c_gccgo.c b/misc/cgo/test/callback_c_gccgo.c
+index d92dca0093..d367b7b68b 100644
+--- a/misc/cgo/test/callback_c_gccgo.c
++++ b/misc/cgo/test/callback_c_gccgo.c
+@@ -35,6 +35,13 @@ callCgoAllocate(void)
+ 	int i;
+ 	List *l, *head, **tail;
+ 	
++	// Make sure this doesn't crash.
++	// And make sure it returns non-nil.
++	if(_cgo_allocate(0) == 0) {
++		fprintf(stderr, "callCgoAllocate: alloc 0 returned nil\n");
++		exit(2);
++	}
++
+ 	head = 0;
+ 	tail = &head;
+ 	for(i=0; i<100; i++) {
+diff --git a/src/runtime/cgocallback.go b/src/runtime/cgocallback.go
+index 1e1b576072..2c89143208 100644
+--- a/src/runtime/cgocallback.go
++++ b/src/runtime/cgocallback.go
+@@ -21,6 +21,9 @@ import "unsafe"
+ // Either we need to add types or we need to stop using it.
+ 
+ func _cgo_allocate_internal(len uintptr) unsafe.Pointer {
++	if len == 0 {
++		len = 1
++	}
+ 	ret := unsafe.Pointer(&make([]unsafe.Pointer, (len+ptrSize-1)/ptrSize)[0])
+ 	c := new(cgomal)
+ 	c.alloc = ret

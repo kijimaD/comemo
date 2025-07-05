@@ -7,6 +7,22 @@ Date:   Mon Feb 29 22:01:38 2016 -0800
     Change-Id: I99c737415a082df883a9c12cdb43bdd5a1b9a8ad
     Reviewed-on: https://go-review.googlesource.com/20082
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/constant/value.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index 1b0938dda4..ab10ae3299 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -308,8 +308,8 @@ func MakeFloat64(x float64) Value {
+ 
+ // MakeFromLiteral returns the corresponding integer, floating-point,
+ // imaginary, character, or string value for a Go literal string. The
+-// tok value must be one of token.INT, token.FLOAT, toke.IMAG, token.
+-// CHAR, or token.STRING. The final argument must be zero.
++// tok value must be one of token.INT, token.FLOAT, token.IMAG,
++// token.CHAR, or token.STRING. The final argument must be zero.
+ // If the literal string syntax is invalid, the result is an Unknown.
+ func MakeFromLiteral(lit string, tok token.Token, zero uint) Value {
+ 	if zero != 0 {

@@ -16,7 +16,7 @@ Date:   Tue Aug 10 09:59:00 2021 -0500
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/asm/internal/arch/arch.go      |  3 +++
  src/cmd/asm/internal/arch/ppc64.go     |  4 ++++
  src/cmd/internal/obj/ppc64/a.out.go    | 13 +++++++++++++
@@ -25,3 +25,116 @@ Date:   Tue Aug 10 09:59:00 2021 -0500
  src/cmd/internal/obj/ppc64/asm_test.go |  1 +
  src/cmd/internal/obj/ppc64/list9.go    |  3 +++
  7 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index a724a3b6d9..e9c15a1218 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -336,6 +336,9 @@ func archPPC64(linkArch *obj.LinkArch) *Arch {
+ 	for i := ppc64.REG_VS0; i <= ppc64.REG_VS63; i++ {
+ 		register[obj.Rconv(i)] = int16(i)
+ 	}
++	for i := ppc64.REG_A0; i <= ppc64.REG_A7; i++ {
++		register[obj.Rconv(i)] = int16(i)
++	}
+ 	for i := ppc64.REG_CR0; i <= ppc64.REG_CR7; i++ {
+ 		register[obj.Rconv(i)] = int16(i)
+ 	}
+diff --git a/src/cmd/asm/internal/arch/ppc64.go b/src/cmd/asm/internal/arch/ppc64.go
+index 616e189b1a..76fe1d6525 100644
+--- a/src/cmd/asm/internal/arch/ppc64.go
++++ b/src/cmd/asm/internal/arch/ppc64.go
+@@ -77,6 +77,10 @@ func ppc64RegisterNumber(name string, n int16) (int16, bool) {
+ 		if 0 <= n && n <= 7 {
+ 			return ppc64.REG_CR0 + n, true
+ 		}
++	case "A":
++		if 0 <= n && n <= 8 {
++			return ppc64.REG_A0 + n, true
++		}
+ 	case "VS":
+ 		if 0 <= n && n <= 63 {
+ 			return ppc64.REG_VS0 + n, true
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 6b6e498fd2..38cab4ac75 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -258,6 +258,18 @@ const (
+ 	REG_CR6
+ 	REG_CR7
+ 
++	// MMA accumulator registers, these shadow VSR 0-31
++	// e.g MMAx shadows VSRx*4-VSRx*4+3 or
++	//     MMA0 shadows VSR0-VSR3
++	REG_A0
++	REG_A1
++	REG_A2
++	REG_A3
++	REG_A4
++	REG_A5
++	REG_A6
++	REG_A7
++
+ 	REG_MSR
+ 	REG_FPSCR
+ 	REG_CR
+@@ -399,6 +411,7 @@ const (
+ 	C_CREG     /* The condition registor (CR) */
+ 	C_CRBIT    /* A single bit of the CR register (0-31) */
+ 	C_SPR      /* special processor register */
++	C_AREG     /* MMA accumulator register */
+ 	C_ZCON     /* The constant zero */
+ 	C_U1CON    /* 1 bit unsigned constant */
+ 	C_U2CON    /* 2 bit unsigned constant */
+diff --git a/src/cmd/internal/obj/ppc64/anames9.go b/src/cmd/internal/obj/ppc64/anames9.go
+index c6cc923b80..ad6776aa89 100644
+--- a/src/cmd/internal/obj/ppc64/anames9.go
++++ b/src/cmd/internal/obj/ppc64/anames9.go
+@@ -16,6 +16,7 @@ var cnames9 = []string{
+ 	"CREG",
+ 	"CRBIT",
+ 	"SPR",
++	"MREG",
+ 	"ZCON",
+ 	"U1CON",
+ 	"U2CON",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index ecd108e117..15bf8c5ef9 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -882,6 +882,9 @@ func (c *ctxt9) aclassreg(reg int16) int {
+ 
+ 		return C_SPR
+ 	}
++	if REG_A0 <= reg && reg <= REG_A7 {
++		return C_AREG
++	}
+ 	if reg == REG_FPSCR {
+ 		return C_FPSCR
+ 	}
+diff --git a/src/cmd/internal/obj/ppc64/asm_test.go b/src/cmd/internal/obj/ppc64/asm_test.go
+index 15dde3a952..c96f991293 100644
+--- a/src/cmd/internal/obj/ppc64/asm_test.go
++++ b/src/cmd/internal/obj/ppc64/asm_test.go
+@@ -469,6 +469,7 @@ func TestAddrClassifier(t *testing.T) {
+ 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 8}, C_LR},
+ 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 9}, C_CTR},
+ 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_FPSCR}, C_FPSCR},
++		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_A1}, C_AREG},
+ 
+ 		// Memory type arguments.
+ 		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_GOTREF}, C_ADDR},
+diff --git a/src/cmd/internal/obj/ppc64/list9.go b/src/cmd/internal/obj/ppc64/list9.go
+index dda8d5abd0..4602b79b86 100644
+--- a/src/cmd/internal/obj/ppc64/list9.go
++++ b/src/cmd/internal/obj/ppc64/list9.go
+@@ -67,6 +67,9 @@ func rconv(r int) string {
+ 		crf := (r - REG_CR0LT) / 4
+ 		return fmt.Sprintf("CR%d%s", crf, bits[r%4])
+ 	}
++	if REG_A0 <= r && r <= REG_A7 {
++		return fmt.Sprintf("A%d", r-REG_A0)
++	}
+ 	if r == REG_CR {
+ 		return "CR"
+ 	}

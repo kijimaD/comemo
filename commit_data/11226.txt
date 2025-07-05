@@ -10,9 +10,97 @@ Date:   Wed Jan 18 17:51:28 2012 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5545047
-
+---
  src/cmd/gc/fmt.c                 | 18 +++++++++++++++---
  test/fixedbugs/bug396.dir/one.go |  9 +++++++++
  test/fixedbugs/bug396.dir/two.go | 14 ++++++++++++++
  test/fixedbugs/bug396.go         |  7 +++++++
  4 files changed, 45 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 15466844be..6f2041c1c5 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1062,6 +1062,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ {
+ 	int nprec;
+ 	NodeList *l;
++	Type *t;
+ 
+ 	while(n && n->implicit)
+ 		n = n->left;
+@@ -1160,11 +1161,22 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OSTRUCTLIT:
+ 		if (fmtmode == FExp) {   // requires special handling of field names
+ 			fmtprint(f, "%T{", n->type);
+-			for(l=n->list; l; l=l->next)
++			for(l=n->list; l; l=l->next) {
++				// another special case: if n->left is an embedded field of builtin type,
++				// it needs to be non-qualified.  Can't figure that out in %S, so do it here
++				if(l->n->left->type->embedded) {
++					t = l->n->left->type->type;
++					if(t->sym == S)
++						t = t->type;
++					fmtprint(f, " %T:%N", t, l->n->right);
++				} else
++					fmtprint(f, " %hhS:%N", l->n->left->sym, l->n->right);
++
+ 				if(l->next)
+-					fmtprint(f, " %hhS:%N,", l->n->left->sym, l->n->right);
++					fmtstrcpy(f, ",");
+ 				else
+-					fmtprint(f, " %hhS:%N ", l->n->left->sym, l->n->right);
++					fmtstrcpy(f, " ");
++			}
+ 			return fmtstrcpy(f, "}");
+ 		}
+ 		// fallthrough
+diff --git a/test/fixedbugs/bug396.dir/one.go b/test/fixedbugs/bug396.dir/one.go
+new file mode 100644
+index 0000000000..7902a07d53
+--- /dev/null
++++ b/test/fixedbugs/bug396.dir/one.go
+@@ -0,0 +1,9 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package one
++
++type T struct { int }
++
++func New(i int) T { return T{i} }
+diff --git a/test/fixedbugs/bug396.dir/two.go b/test/fixedbugs/bug396.dir/two.go
+new file mode 100644
+index 0000000000..9b32508fd4
+--- /dev/null
++++ b/test/fixedbugs/bug396.dir/two.go
+@@ -0,0 +1,14 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Use the functions in one.go so that the inlined
++// forms get type-checked.
++
++package two
++
++import "./one"
++
++func use() {
++	_ = one.New(1)
++}
+\ No newline at end of file
+diff --git a/test/fixedbugs/bug396.go b/test/fixedbugs/bug396.go
+new file mode 100644
+index 0000000000..50af6006fb
+--- /dev/null
++++ b/test/fixedbugs/bug396.go
+@@ -0,0 +1,7 @@
++// $G $D/$F.dir/one.go && $G $D/$F.dir/two.go
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

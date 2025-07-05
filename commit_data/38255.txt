@@ -7,6 +7,31 @@ Date:   Sat Oct 13 13:51:16 2018 +0300
     Change-Id: Ie7dce45d554fde69d682680f55abba6a7fc55036
     Reviewed-on: https://go-review.googlesource.com/c/142017
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/gcc.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 019ee64c8e..3058fc5f34 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1026,8 +1026,7 @@ func (p *Package) hasSideEffects(f *File, x ast.Expr) bool {
+ 	found := false
+ 	f.walk(x, ctxExpr,
+ 		func(f *File, x interface{}, context astContext) {
+-			switch x.(type) {
+-			case *ast.CallExpr:
++			if _, ok := x.(*ast.CallExpr); ok {
+ 				found = true
+ 			}
+ 		})
+@@ -1276,8 +1275,7 @@ func (p *Package) rewriteRef(f *File) {
+ 		// in case expression being replaced is first on line.
+ 		// See golang.org/issue/6563.
+ 		pos := (*r.Expr).Pos()
+-		switch x := expr.(type) {
+-		case *ast.Ident:
++		if x, ok := expr.(*ast.Ident); ok {
+ 			expr = &ast.Ident{NamePos: pos, Name: x.Name}
+ 		}
+ 

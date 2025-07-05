@@ -19,8 +19,77 @@ Date:   Fri Nov 20 14:09:03 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/base/flag.go           | 2 ++
  src/cmd/go/internal/work/build.go          | 7 +++++--
  src/cmd/go/testdata/script/mod_overlay.txt | 6 ++++++
  3 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/flag.go b/src/cmd/go/internal/base/flag.go
+index c97c744520..677f819682 100644
+--- a/src/cmd/go/internal/base/flag.go
++++ b/src/cmd/go/internal/base/flag.go
+@@ -8,6 +8,7 @@ import (
+ 	"flag"
+ 
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/str"
+ )
+ 
+@@ -66,4 +67,5 @@ func AddModFlag(flags *flag.FlagSet) {
+ func AddModCommonFlags(flags *flag.FlagSet) {
+ 	flags.BoolVar(&cfg.ModCacheRW, "modcacherw", false, "")
+ 	flags.StringVar(&cfg.ModFile, "modfile", "", "")
++	flags.StringVar(&fsys.OverlayFile, "overlay", "", "")
+ }
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index ca88f0efa1..21b2289dff 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -267,6 +267,11 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	}
+ 	if mask&OmitModCommonFlags == 0 {
+ 		base.AddModCommonFlags(&cmd.Flag)
++	} else {
++		// Add the overlay flag even when we don't add the rest of the mod common flags.
++		// This only affects 'go get' in GOPATH mode, but add the flag anyway for
++		// consistency.
++		cmd.Flag.StringVar(&fsys.OverlayFile, "overlay", "", "")
+ 	}
+ 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
+ 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
+@@ -279,8 +284,6 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
+ 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
+ 
+-	cmd.Flag.StringVar(&fsys.OverlayFile, "overlay", "", "")
+-
+ 	// Undocumented, unstable debugging flags.
+ 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
+ 	cmd.Flag.StringVar(&cfg.DebugTrace, "debug-trace", "", "")
+diff --git a/src/cmd/go/testdata/script/mod_overlay.txt b/src/cmd/go/testdata/script/mod_overlay.txt
+index 35bb30248b..92e79c725a 100644
+--- a/src/cmd/go/testdata/script/mod_overlay.txt
++++ b/src/cmd/go/testdata/script/mod_overlay.txt
+@@ -32,7 +32,10 @@ cmp $WORK/overlay/get_doesnt_add_dep_go_mod $WORK/want_go_mod
+ cd $WORK/gopath/src/overlay-sum-used
+ ! go get -d .
+ stderr 'SECURITY ERROR'
++! go mod verify
++stderr 'SECURITY ERROR'
+ go get -d -overlay overlay.json .
++go mod verify -overlay overlay.json
+ # Overlaid go.sum is not rewritten.
+ # Copy an incomplete file to the overlay file, and expect an error
+ # attempting to update the file
+@@ -40,6 +43,9 @@ cp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
+ ! go get -d -overlay overlay.json .
+ stderr 'overlaid files can''t be opened for write'
+ cmp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
++! go mod tidy -overlay overlay.json
++stderr 'overlaid files can''t be opened for write'
++cmp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
+ 
+ # -overlay works with -modfile.
+ # There's an empty go.mod file in the directory, and the file alternate.mod is

@@ -14,8 +14,69 @@ Date:   Thu Aug 22 12:00:10 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/607855
     Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/alldocs.go                         | 10 ++++++++++
  src/cmd/go/internal/help/helpdoc.go           |  5 +++++
  src/cmd/go/internal/telemetrycmd/telemetry.go |  5 +++++
  3 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index e28f9c30b4..7993420a8f 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1797,6 +1797,11 @@
+ // To enable both collection and uploading, run “go telemetry on”.
+ // To disable both collection and uploading, run "go telemetry off".
+ //
++// The current telemetry mode is also available as the value of the
++// non-settable "GOTELEMETRY" go env variable. The directory in the
++// local file system that telemetry data is written to is available
++// as the value of the non-settable "GOTELEMETRYDIR" go env variable.
++//
+ // See https://go.dev/doc/telemetry for more information on telemetry.
+ //
+ // # Test packages
+@@ -2450,6 +2455,11 @@
+ //		If module-aware mode is enabled, but there is no go.mod, GOMOD will be
+ //		os.DevNull ("/dev/null" on Unix-like systems, "NUL" on Windows).
+ //		If module-aware mode is disabled, GOMOD will be the empty string.
++//	GOTELEMETRY
++//		The current Go telemetry mode ("off", "local", or "on").
++//		See "go help telemetry" for more information.
++//	GOTELEMETRYDIR
++//		The directory Go telemetry data is written is written to.
+ //	GOTOOLDIR
+ //		The directory where the go tools (compile, cover, doc, etc...) are installed.
+ //	GOVERSION
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 29c0a56321..b1f3563280 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -678,6 +678,11 @@ Additional information available from 'go env' but not read from the environment
+ 		If module-aware mode is enabled, but there is no go.mod, GOMOD will be
+ 		os.DevNull ("/dev/null" on Unix-like systems, "NUL" on Windows).
+ 		If module-aware mode is disabled, GOMOD will be the empty string.
++	GOTELEMETRY
++		The current Go telemetry mode ("off", "local", or "on").
++		See "go help telemetry" for more information.
++	GOTELEMETRYDIR
++		The directory Go telemetry data is written is written to.
+ 	GOTOOLDIR
+ 		The directory where the go tools (compile, cover, doc, etc...) are installed.
+ 	GOVERSION
+diff --git a/src/cmd/go/internal/telemetrycmd/telemetry.go b/src/cmd/go/internal/telemetrycmd/telemetry.go
+index 5542a02162..404ef638b1 100644
+--- a/src/cmd/go/internal/telemetrycmd/telemetry.go
++++ b/src/cmd/go/internal/telemetrycmd/telemetry.go
+@@ -41,6 +41,11 @@ To disable telemetry uploading, but keep local data collection, run
+ To enable both collection and uploading, run “go telemetry on”.
+ To disable both collection and uploading, run "go telemetry off".
+ 
++The current telemetry mode is also available as the value of the
++non-settable "GOTELEMETRY" go env variable. The directory in the
++local file system that telemetry data is written to is available
++as the value of the non-settable "GOTELEMETRYDIR" go env variable.
++
+ See https://go.dev/doc/telemetry for more information on telemetry.
+ `,
+ 	Run: runTelemetry,

@@ -9,6 +9,20 @@ Date:   Wed Sep 16 10:54:31 2015 +0200
     Change-Id: I0b94437055b7d444f5caf7ea310e85357c467bdf
     Reviewed-on: https://go-review.googlesource.com/14612
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 8ebde89259..ef035c7130 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -286,7 +286,7 @@ func usage() {
+ 	// special case "go test -h"
+ 	if len(os.Args) > 1 && os.Args[1] == "test" {
+ 		os.Stdout.WriteString(testUsage + "\n\n" +
+-			strings.TrimSpace(testFlag1) + "\n\n" +
++			strings.TrimSpace(testFlag1) + "\n\n\t" +
+ 			strings.TrimSpace(testFlag2) + "\n")
+ 		os.Exit(2)
+ 	}

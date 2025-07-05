@@ -24,9 +24,69 @@ Date:   Tue Aug 8 13:45:41 2017 -0400
     Change-Id: I6e165e0d0716e73721bbbcc520e8302e4856e3ba
     Reviewed-on: https://go-review.googlesource.com/53890
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go               | 2 +-
  src/cmd/go/internal/work/build.go  | 2 +-
  src/cmd/link/internal/ld/config.go | 2 +-
  src/runtime/rt0_linux_ppc64le.s    | 2 --
  4 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 73432d31ea..6052904cbf 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -824,7 +824,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		return false
+ 	case "c-shared":
+ 		switch pair {
+-		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64",
++		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le",
+ 			"darwin-amd64", "darwin-386",
+ 			"android-arm", "android-arm64", "android-386":
+ 			return true
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 7d667ff552..8ac4f75985 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -293,7 +293,7 @@ func BuildModeInit() {
+ 			codegenArg = "-fPIC"
+ 		} else {
+ 			switch platform {
+-			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386",
++			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le",
+ 				"android/amd64", "android/arm", "android/arm64", "android/386":
+ 				codegenArg = "-shared"
+ 			case "darwin/amd64", "darwin/386":
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 342351b4bc..aae2a43723 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -63,7 +63,7 @@ func (mode *BuildMode) Set(s string) error {
+ 		*mode = BuildmodeCArchive
+ 	case "c-shared":
+ 		switch objabi.GOARCH {
+-		case "386", "amd64", "arm", "arm64":
++		case "386", "amd64", "arm", "arm64", "ppc64le":
+ 		default:
+ 			return badmode()
+ 		}
+diff --git a/src/runtime/rt0_linux_ppc64le.s b/src/runtime/rt0_linux_ppc64le.s
+index 81b991349a..134858bff8 100644
+--- a/src/runtime/rt0_linux_ppc64le.s
++++ b/src/runtime/rt0_linux_ppc64le.s
+@@ -10,7 +10,6 @@ TEXT _rt0_ppc64le_linux_lib(SB),NOSPLIT,$-8
+ 	MOVD	R0, 16(R1) // Save LR in caller's frame.
+ 	MOVW	CR, R0     // Save CR in caller's frame
+ 	MOVD	R0, 8(R1)
+-	MOVD	R2, 24(R1) // Save TOC in caller's frame.
+ 	MOVDU	R1, -320(R1) // Allocate frame.
+ 	
+ 	// Preserve callee-save registers.
+@@ -121,7 +120,6 @@ done:
+ 	FMOVD	304(R1), F31
+ 
+ 	ADD	$320, R1
+-	MOVD	24(R1), R2
+ 	MOVD	8(R1), R0
+ 	MOVFL	R0, $0xff
+ 	MOVD	16(R1), R0

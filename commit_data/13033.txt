@@ -7,6 +7,26 @@ Date:   Sat May 5 01:39:09 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6185047
-
+---
  src/pkg/runtime/vlrt_arm.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/vlrt_arm.c b/src/pkg/runtime/vlrt_arm.c
+index 50f33710b1..ab80501775 100644
+--- a/src/pkg/runtime/vlrt_arm.c
++++ b/src/pkg/runtime/vlrt_arm.c
+@@ -197,12 +197,14 @@ void
+ runtime·int64tofloat64(Vlong y, double d)
+ {
+ 	d = _v2d(y);
++	USED(&d); // FLUSH
+ }
+ 
+ void
+ runtime·uint64tofloat64(Vlong y, double d)
+ {
+ 	d = _ul2d(y.hi)*4294967296. + _ul2d(y.lo);
++	USED(&d); // FLUSH
+ }
+ 
+ static void

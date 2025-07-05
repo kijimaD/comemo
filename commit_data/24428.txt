@@ -9,7 +9,35 @@ Date:   Tue Jul 28 13:41:16 2015 -0400
     Change-Id: I9392fd2ef5951173ae275b3ab42db4f8bd2e1d7a
     Reviewed-on: https://go-review.googlesource.com/12747
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/arch1_arm64.go        | 2 +-
  src/runtime/debug/garbage_test.go | 3 ++-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/arch1_arm64.go b/src/runtime/arch1_arm64.go
+index 1a3165c8b7..29a87dbdb8 100644
+--- a/src/runtime/arch1_arm64.go
++++ b/src/runtime/arch1_arm64.go
+@@ -8,7 +8,7 @@ const (
+ 	thechar        = '7'
+ 	_BigEndian     = 0
+ 	_CacheLineSize = 32
+-	_PhysPageSize  = 4096*(1-goos_darwin) + 16384*goos_darwin
++	_PhysPageSize  = 65536
+ 	_PCQuantum     = 4
+ 	_Int64Align    = 8
+ 	hugePageSize   = 0
+diff --git a/src/runtime/debug/garbage_test.go b/src/runtime/debug/garbage_test.go
+index bf7f276be9..3e3483d418 100644
+--- a/src/runtime/debug/garbage_test.go
++++ b/src/runtime/debug/garbage_test.go
+@@ -88,7 +88,8 @@ func TestReadGCStats(t *testing.T) {
+ var big = make([]byte, 1<<20)
+ 
+ func TestFreeOSMemory(t *testing.T) {
+-	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || runtime.GOOS == "nacl" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") {
++	if runtime.GOARCH == "arm64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" ||
++		runtime.GOOS == "nacl" {
+ 		t.Skip("issue 9993; scavenger temporarily disabled on systems with physical pages larger than logical pages")
+ 	}
+ 	var ms1, ms2 runtime.MemStats

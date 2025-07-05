@@ -7,10 +7,378 @@ Date:   Wed Feb 8 16:54:48 2012 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5645053
-
+---
  src/pkg/go/doc/reader.go           | 10 +++--
  src/pkg/go/doc/testdata/e.0.golden | 67 ++++++++++++++++++++++++++++++
  src/pkg/go/doc/testdata/e.1.golden | 72 ++++++++++++++++++++++++++++++++
  src/pkg/go/doc/testdata/e.2.golden | 85 ++++++++++++++++++++++++++++++++++++++
  src/pkg/go/doc/testdata/e.go       | 68 ++++++++++++++++++++++++++++++
  5 files changed, 299 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index dcf49f68fd..13b465bbd7 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -543,7 +543,8 @@ func customizeRecv(f *Func, recvTypeName string, embeddedIsPtr bool, level int)
+ 
+ // collectEmbeddedMethods collects the embedded methods of typ in mset.
+ //
+-func (r *reader) collectEmbeddedMethods(mset methodSet, typ *namedType, recvTypeName string, embeddedIsPtr bool, level int) {
++func (r *reader) collectEmbeddedMethods(mset methodSet, typ *namedType, recvTypeName string, embeddedIsPtr bool, level int, visited map[*namedType]bool) {
++	visited[typ] = true
+ 	for embedded, isPtr := range typ.embedded {
+ 		// Once an embedded type is embedded as a pointer type
+ 		// all embedded types in those types are treated like
+@@ -557,8 +558,11 @@ func (r *reader) collectEmbeddedMethods(mset methodSet, typ *namedType, recvType
+ 				mset.add(customizeRecv(m, recvTypeName, thisEmbeddedIsPtr, level))
+ 			}
+ 		}
+-		r.collectEmbeddedMethods(mset, embedded, recvTypeName, thisEmbeddedIsPtr, level+1)
++		if !visited[embedded] {
++			r.collectEmbeddedMethods(mset, embedded, recvTypeName, thisEmbeddedIsPtr, level+1, visited)
++		}
+ 	}
++	delete(visited, typ)
+ }
+ 
+ // computeMethodSets determines the actual method sets for each type encountered.
+@@ -568,7 +572,7 @@ func (r *reader) computeMethodSets() {
+ 		// collect embedded methods for t
+ 		if t.isStruct {
+ 			// struct
+-			r.collectEmbeddedMethods(t.methods, t, t.name, false, 1)
++			r.collectEmbeddedMethods(t.methods, t, t.name, false, 1, make(map[*namedType]bool))
+ 		} else {
+ 			// interface
+ 			// TODO(gri) fix this
+diff --git a/src/pkg/go/doc/testdata/e.0.golden b/src/pkg/go/doc/testdata/e.0.golden
+index 096a50ff41..6987e5867c 100644
+--- a/src/pkg/go/doc/testdata/e.0.golden
++++ b/src/pkg/go/doc/testdata/e.0.golden
+@@ -40,3 +40,70 @@ TYPES
+ 		T4
+ 	}
+ 
++	// 
++	type U1 struct {
++		*U1
++	}
++
++	// U1.M should appear as method of U1. 
++	func (*U1) M()
++
++	// 
++	type U2 struct {
++		*U3
++	}
++
++	// U2.M should appear as method of U2 and as method of U3 only if ...
++	func (*U2) M()
++
++	// 
++	type U3 struct {
++		*U2
++	}
++
++	// U3.N should appear as method of U3 and as method of U2 only if ...
++	func (*U3) N()
++
++	// 
++	type U4 struct {
++		// contains filtered or unexported fields
++	}
++
++	// U4.M should appear as method of U4. 
++	func (*U4) M()
++
++	// 
++	type V1 struct {
++		*V2
++		*V5
++	}
++
++	// 
++	type V2 struct {
++		*V3
++	}
++
++	// 
++	type V3 struct {
++		*V4
++	}
++
++	// 
++	type V4 struct {
++		*V5
++	}
++
++	// V4.M should appear as method of V2 and V3 if AllMethods is set. 
++	func (*V4) M()
++
++	// 
++	type V5 struct {
++		*V6
++	}
++
++	// 
++	type V6 struct{}
++
++	// V6.M should appear as method of V1 and V5 if AllMethods is set. 
++	func (*V6) M()
++
+diff --git a/src/pkg/go/doc/testdata/e.1.golden b/src/pkg/go/doc/testdata/e.1.golden
+index 28be74a1fd..cbe22e0bf6 100644
+--- a/src/pkg/go/doc/testdata/e.1.golden
++++ b/src/pkg/go/doc/testdata/e.1.golden
+@@ -42,6 +42,73 @@ TYPES
+ 		T4
+ 	}
+ 
++	// 
++	type U1 struct {
++		*U1
++	}
++
++	// U1.M should appear as method of U1. 
++	func (*U1) M()
++
++	// 
++	type U2 struct {
++		*U3
++	}
++
++	// U2.M should appear as method of U2 and as method of U3 only if ...
++	func (*U2) M()
++
++	// 
++	type U3 struct {
++		*U2
++	}
++
++	// U3.N should appear as method of U3 and as method of U2 only if ...
++	func (*U3) N()
++
++	// 
++	type U4 struct {
++		*u5
++	}
++
++	// U4.M should appear as method of U4. 
++	func (*U4) M()
++
++	// 
++	type V1 struct {
++		*V2
++		*V5
++	}
++
++	// 
++	type V2 struct {
++		*V3
++	}
++
++	// 
++	type V3 struct {
++		*V4
++	}
++
++	// 
++	type V4 struct {
++		*V5
++	}
++
++	// V4.M should appear as method of V2 and V3 if AllMethods is set. 
++	func (*V4) M()
++
++	// 
++	type V5 struct {
++		*V6
++	}
++
++	// 
++	type V6 struct{}
++
++	// V6.M should appear as method of V1 and V5 if AllMethods is set. 
++	func (*V6) M()
++
+ 	// 
+ 	type t1 struct{}
+ 
+@@ -70,3 +137,8 @@ TYPES
+ 	// t2.M should not appear as method in a Tx type. 
+ 	func (t2e) M()
+ 
++	// 
++	type u5 struct {
++		*U4
++	}
++
+diff --git a/src/pkg/go/doc/testdata/e.2.golden b/src/pkg/go/doc/testdata/e.2.golden
+index f9a2b81677..e7b05e80fa 100644
+--- a/src/pkg/go/doc/testdata/e.2.golden
++++ b/src/pkg/go/doc/testdata/e.2.golden
+@@ -43,3 +43,88 @@ TYPES
+ 	// T4.M should appear as method of T5 only if AllMethods is set. 
+ 	func (*T5) M()
+ 
++	// 
++	type U1 struct {
++		*U1
++	}
++
++	// U1.M should appear as method of U1. 
++	func (*U1) M()
++
++	// 
++	type U2 struct {
++		*U3
++	}
++
++	// U2.M should appear as method of U2 and as method of U3 only if ...
++	func (*U2) M()
++
++	// U3.N should appear as method of U3 and as method of U2 only if ...
++	func (U2) N()
++
++	// 
++	type U3 struct {
++		*U2
++	}
++
++	// U2.M should appear as method of U2 and as method of U3 only if ...
++	func (U3) M()
++
++	// U3.N should appear as method of U3 and as method of U2 only if ...
++	func (*U3) N()
++
++	// 
++	type U4 struct {
++		// contains filtered or unexported fields
++	}
++
++	// U4.M should appear as method of U4. 
++	func (*U4) M()
++
++	// 
++	type V1 struct {
++		*V2
++		*V5
++	}
++
++	// V6.M should appear as method of V1 and V5 if AllMethods is set. 
++	func (V1) M()
++
++	// 
++	type V2 struct {
++		*V3
++	}
++
++	// V4.M should appear as method of V2 and V3 if AllMethods is set. 
++	func (V2) M()
++
++	// 
++	type V3 struct {
++		*V4
++	}
++
++	// V4.M should appear as method of V2 and V3 if AllMethods is set. 
++	func (V3) M()
++
++	// 
++	type V4 struct {
++		*V5
++	}
++
++	// V4.M should appear as method of V2 and V3 if AllMethods is set. 
++	func (*V4) M()
++
++	// 
++	type V5 struct {
++		*V6
++	}
++
++	// V6.M should appear as method of V1 and V5 if AllMethods is set. 
++	func (V5) M()
++
++	// 
++	type V6 struct{}
++
++	// V6.M should appear as method of V1 and V5 if AllMethods is set. 
++	func (*V6) M()
++
+diff --git a/src/pkg/go/doc/testdata/e.go b/src/pkg/go/doc/testdata/e.go
+index 526a91f4f0..62a1a40fd7 100644
+--- a/src/pkg/go/doc/testdata/e.go
++++ b/src/pkg/go/doc/testdata/e.go
+@@ -77,3 +77,71 @@ func (*T4) M() {}
+ type T5 struct {
+ 	T4
+ }
++
++// ----------------------------------------------------------------------------
++// Recursive type declarations must not lead to endless recursion.
++
++type U1 struct {
++	*U1
++}
++
++// U1.M should appear as method of U1.
++func (*U1) M() {}
++
++type U2 struct {
++	*U3
++}
++
++// U2.M should appear as method of U2 and as method of U3 only if AllMethods is set.
++func (*U2) M() {}
++
++type U3 struct {
++	*U2
++}
++
++// U3.N should appear as method of U3 and as method of U2 only if AllMethods is set.
++func (*U3) N() {}
++
++type U4 struct {
++	*u5
++}
++
++// U4.M should appear as method of U4. 
++func (*U4) M() {}
++
++type u5 struct {
++	*U4
++}
++
++// ----------------------------------------------------------------------------
++// A higher-level embedded type (and its methods) wins over the same type (and
++// its methods) embedded at a lower level.
++
++type V1 struct {
++	*V2
++	*V5
++}
++
++type V2 struct {
++	*V3
++}
++
++type V3 struct {
++	*V4
++}
++
++type V4 struct {
++	*V5
++}
++
++type V5 struct {
++	*V6
++}
++
++type V6 struct{}
++
++// V4.M should appear as method of V2 and V3 if AllMethods is set.
++func (*V4) M() {}
++
++// V6.M should appear as method of V1 and V5 if AllMethods is set.
++func (*V6) M() {}

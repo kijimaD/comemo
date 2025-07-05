@@ -119,7 +119,300 @@ Date:   Sat Feb 22 08:12:54 2020 +0000
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/big/arith_arm64.s | 113 +++++++++++++++++++++++++++++++++++++--------
  src/math/big/arith_test.go |  96 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 189 insertions(+), 20 deletions(-)
+
+diff --git a/src/math/big/arith_arm64.s b/src/math/big/arith_arm64.s
+index 18e513e2c3..da6e408e19 100644
+--- a/src/math/big/arith_arm64.s
++++ b/src/math/big/arith_arm64.s
+@@ -109,13 +109,59 @@ done:
+ 	MOVD	R0, c+72(FP)
+ 	RET
+ 
++#define vwOneOp(instr, op1)				\
++	MOVD.P	8(R1), R4;				\
++	instr	op1, R4;				\
++	MOVD.P	R4, 8(R3);
++
++// handle the first 1~4 elements before starting iteration in addVW/subVW
++#define vwPreIter(instr1, instr2, counter, target)	\
++	vwOneOp(instr1, R2);				\
++	SUB	$1, counter;				\
++	CBZ	counter, target;			\
++	vwOneOp(instr2, $0);				\
++	SUB	$1, counter;				\
++	CBZ	counter, target;			\
++	vwOneOp(instr2, $0);				\
++	SUB	$1, counter;				\
++	CBZ	counter, target;			\
++	vwOneOp(instr2, $0);
++
++// do one iteration of add or sub in addVW/subVW
++#define vwOneIter(instr, counter, exit)	\
++	CBZ	counter, exit;		\	// careful not to touch the carry flag
++	LDP.P	32(R1), (R4, R5);	\
++	LDP	-16(R1), (R6, R7);	\
++	instr	$0, R4, R8;		\
++	instr	$0, R5, R9;		\
++	instr	$0, R6, R10;		\
++	instr	$0, R7, R11;		\
++	STP.P	(R8, R9), 32(R3);	\
++	STP	(R10, R11), -16(R3);	\
++	SUB	$4, counter;
++
++// do one iteration of copy in addVW/subVW
++#define vwOneIterCopy(counter, exit)			\
++	CBZ	counter, exit;				\
++	LDP.P	32(R1), (R4, R5);			\
++	LDP	-16(R1), (R6, R7);			\
++	STP.P	(R4, R5), 32(R3);			\
++	STP	(R6, R7), -16(R3);			\
++	SUB	$4, counter;
+ 
+ // func addVW(z, x []Word, y Word) (c Word)
++// The 'large' branch handles large 'z'. It checks the carry flag on every iteration
++// and switches to copy if we are done with carries. The copying is skipped as well
++// if 'x' and 'z' happen to share the same underlying storage.
++// The overhead of the checking and branching is visible when 'z' are small (~5%),
++// so set a threshold of 32, and remain the small-sized part entirely untouched.
+ TEXT ·addVW(SB),NOSPLIT,$0
+ 	MOVD	z+0(FP), R3
+ 	MOVD	z_len+8(FP), R0
+ 	MOVD	x+24(FP), R1
+ 	MOVD	y+48(FP), R2
++	CMP	$32, R0
++	BGE	large		// large-sized 'z' and 'x'
+ 	CBZ	R0, len0	// the length of z is 0
+ 	MOVD.P	8(R1), R4
+ 	ADDS	R2, R4		// z[0] = x[0] + y, set carry
+@@ -135,29 +181,46 @@ two:				// do it twice
+ 	STP.P	(R8, R9), 16(R3)
+ 	SUB	$2, R0
+ loop:				// do four times per round
+-	CBZ	R0, len1	// careful not to touch the carry flag
+-	LDP.P	32(R1), (R4, R5)
+-	LDP	-16(R1), (R6, R7)
+-	ADCS	$0, R4, R8
+-	ADCS	$0, R5, R9
+-	ADCS	$0, R6, R10
+-	ADCS	$0, R7, R11
+-	STP.P	(R8, R9), 32(R3)
+-	STP	(R10, R11), -16(R3)
+-	SUB	$4, R0
++	vwOneIter(ADCS, R0, len1)
+ 	B	loop
+ len1:
+ 	CSET	HS, R2		// extract carry flag
+ len0:
+ 	MOVD	R2, c+56(FP)
++done:
+ 	RET
++large:
++	AND	$0x3, R0, R10
++	AND	$~0x3, R0
++	// unrolling for the first 1~4 elements to avoid saving the carry
++	// flag in each step, adjust $R0 if we unrolled 4 elements
++	vwPreIter(ADDS, ADCS, R10, add4)
++	SUB	$4, R0
++add4:
++	BCC	copy
++	vwOneIter(ADCS, R0, len1)
++	B	add4
++copy:
++	MOVD	ZR, c+56(FP)
++	CMP	R1, R3
++	BEQ	done
++copy_4:				// no carry flag, copy the rest
++	vwOneIterCopy(R0, done)
++	B	copy_4
+ 
+ // func subVW(z, x []Word, y Word) (c Word)
++// The 'large' branch handles large 'z'. It checks the carry flag on every iteration
++// and switches to copy if we are done with carries. The copying is skipped as well
++// if 'x' and 'z' happen to share the same underlying storage.
++// The overhead of the checking and branching is visible when 'z' are small (~5%),
++// so set a threshold of 32, and remain the small-sized part entirely untouched.
+ TEXT ·subVW(SB),NOSPLIT,$0
+ 	MOVD	z+0(FP), R3
+ 	MOVD	z_len+8(FP), R0
+ 	MOVD	x+24(FP), R1
+ 	MOVD	y+48(FP), R2
++	CMP	$32, R0
++	BGE	large		// large-sized 'z' and 'x'
+ 	CBZ	R0, len0	// the length of z is 0
+ 	MOVD.P	8(R1), R4
+ 	SUBS	R2, R4		// z[0] = x[0] - y, set carry
+@@ -177,22 +240,32 @@ two:				// do it twice
+ 	STP.P	(R8, R9), 16(R3)
+ 	SUB	$2, R0
+ loop:				// do four times per round
+-	CBZ	R0, len1	// careful not to touch the carry flag
+-	LDP.P	32(R1), (R4, R5)
+-	LDP	-16(R1), (R6, R7)
+-	SBCS	$0, R4, R8
+-	SBCS	$0, R5, R9
+-	SBCS	$0, R6, R10
+-	SBCS	$0, R7, R11
+-	STP.P	(R8, R9), 32(R3)
+-	STP	(R10, R11), -16(R3)
+-	SUB	$4, R0
++	vwOneIter(SBCS, R0, len1)
+ 	B	loop
+ len1:
+ 	CSET	LO, R2		// extract carry flag
+ len0:
+ 	MOVD	R2, c+56(FP)
++done:
+ 	RET
++large:
++	AND	$0x3, R0, R10
++	AND	$~0x3, R0
++	// unrolling for the first 1~4 elements to avoid saving the carry
++	// flag in each step, adjust $R0 if we unrolled 4 elements
++	vwPreIter(SUBS, SBCS, R10, sub4)
++	SUB	$4, R0
++sub4:
++	BCS	copy
++	vwOneIter(SBCS, R0, len1)
++	B	sub4
++copy:
++	MOVD	ZR, c+56(FP)
++	CMP	R1, R3
++	BEQ	done
++copy_4:				// no carry flag, copy the rest
++	vwOneIterCopy(R0, done)
++	B	copy_4
+ 
+ // func shlVU(z, x []Word, s uint) (c Word)
+ // This implementation handles the shift operation from the high word to the low word,
+diff --git a/src/math/big/arith_test.go b/src/math/big/arith_test.go
+index e2b982c89c..fc205934c5 100644
+--- a/src/math/big/arith_test.go
++++ b/src/math/big/arith_test.go
+@@ -179,6 +179,23 @@ func testFunVW(t *testing.T, msg string, f funVW, a argVW) {
+ 	}
+ }
+ 
++func testFunVWext(t *testing.T, msg string, f funVW, f_g funVW, a argVW) {
++	// using the result of addVW_g/subVW_g as golden
++	z_g := make(nat, len(a.z))
++	c_g := f_g(z_g, a.x, a.y)
++	c := f(a.z, a.x, a.y)
++
++	for i, zi := range a.z {
++		if zi != z_g[i] {
++			t.Errorf("%s\n\tgot z[%d] = %#x; want %#x", msg, i, zi, z_g[i])
++			break
++		}
++	}
++	if c != c_g {
++		t.Errorf("%s\n\tgot c = %#x; want %#x", msg, c, c_g)
++	}
++}
++
+ func makeFunVW(f func(z, x []Word, s uint) (c Word)) funVW {
+ 	return func(z, x []Word, s Word) (c Word) {
+ 		return f(z, x, uint(s))
+@@ -213,6 +230,49 @@ func TestFunVW(t *testing.T) {
+ 	}
+ }
+ 
++// Construct a vector comprising the same word, usually '0' or 'maximum uint'
++func makeWordVec(e Word, n int) []Word {
++	v := make([]Word, n)
++	for i := range v {
++		v[i] = e
++	}
++	return v
++}
++
++// Extended testing to addVW and subVW using various kinds of input data.
++// We utilize the results of addVW_g and subVW_g as golden reference to check
++// correctness.
++func TestFunVWExt(t *testing.T) {
++	// 32 is the current threshold that triggers an optimized version of
++	// calculation for large-sized vector, ensure we have sizes around it tested.
++	var vwSizes = []int{0, 1, 3, 4, 5, 8, 9, 23, 31, 32, 33, 34, 35, 36, 50, 120}
++	for _, n := range vwSizes {
++		// vector of random numbers, using the result of addVW_g/subVW_g as golden
++		x := rndV(n)
++		y := rndW()
++		z := make(nat, n)
++		arg := argVW{z, x, y, 0}
++		testFunVWext(t, "addVW, random inputs", addVW, addVW_g, arg)
++		testFunVWext(t, "subVW, random inputs", subVW, subVW_g, arg)
++
++		// vector of random numbers, but make 'x' and 'z' share storage
++		arg = argVW{x, x, y, 0}
++		testFunVWext(t, "addVW, random inputs, sharing storage", addVW, addVW_g, arg)
++		testFunVWext(t, "subVW, random inputs, sharing storage", subVW, subVW_g, arg)
++
++		// vector of maximum uint, to force carry flag set in each 'add'
++		y = ^Word(0)
++		x = makeWordVec(y, n)
++		arg = argVW{z, x, y, 0}
++		testFunVWext(t, "addVW, vector of max uint", addVW, addVW_g, arg)
++
++		// vector of '0', to force carry flag set in each 'sub'
++		x = makeWordVec(0, n)
++		arg = argVW{z, x, 1, 0}
++		testFunVWext(t, "subVW, vector of zero", subVW, subVW_g, arg)
++	}
++}
++
+ type argVU struct {
+ 	d  []Word // d is a Word slice, the input parameters x and z come from this array.
+ 	l  uint   // l is the length of the input parameters x and z.
+@@ -299,6 +359,24 @@ func BenchmarkAddVW(b *testing.B) {
+ 	}
+ }
+ 
++// Benchmarking addVW using vector of maximum uint to force carry flag set
++func BenchmarkAddVWext(b *testing.B) {
++	for _, n := range benchSizes {
++		if isRaceBuilder && n > 1e3 {
++			continue
++		}
++		y := ^Word(0)
++		x := makeWordVec(y, n)
++		z := make([]Word, n)
++		b.Run(fmt.Sprint(n), func(b *testing.B) {
++			b.SetBytes(int64(n * _S))
++			for i := 0; i < b.N; i++ {
++				addVW(z, x, y)
++			}
++		})
++	}
++}
++
+ func BenchmarkSubVW(b *testing.B) {
+ 	for _, n := range benchSizes {
+ 		if isRaceBuilder && n > 1e3 {
+@@ -316,6 +394,24 @@ func BenchmarkSubVW(b *testing.B) {
+ 	}
+ }
+ 
++// Benchmarking subVW using vector of zero to force carry flag set
++func BenchmarkSubVWext(b *testing.B) {
++	for _, n := range benchSizes {
++		if isRaceBuilder && n > 1e3 {
++			continue
++		}
++		x := makeWordVec(0, n)
++		y := Word(1)
++		z := make([]Word, n)
++		b.Run(fmt.Sprint(n), func(b *testing.B) {
++			b.SetBytes(int64(n * _S))
++			for i := 0; i < b.N; i++ {
++				subVW(z, x, y)
++			}
++		})
++	}
++}
++
+ type funVWW func(z, x []Word, y, r Word) (c Word)
+ type argVWW struct {
+ 	z, x nat

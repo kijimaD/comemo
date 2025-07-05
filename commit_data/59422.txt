@@ -10,8 +10,99 @@ Date:   Mon Mar 11 19:35:27 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/570775
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                    |  2 ++
  src/cmd/go/internal/modcmd/vendor.go               | 17 ++++++++++
  .../go/testdata/script/mod_vendor_collision.txt    | 38 ++++++++++++++++++++++
  3 files changed, 57 insertions(+)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 0e4b6797c6..4b40cc9ddb 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1937,6 +1937,8 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 	}
+ 
+ 	// Check for case-insensitive collisions of import paths.
++	// If modifying, consider changing checkPathCollisions() in
++	// src/cmd/go/internal/modcmd/vendor.go
+ 	fold := str.ToFold(p.ImportPath)
+ 	if other := foldPath[fold]; other == "" {
+ 		foldPath[fold] = p.ImportPath
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 44e0439f68..5b0b9bbea6 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -111,6 +111,7 @@ func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string)
+ 		}
+ 		modpkgs[m] = append(modpkgs[m], pkg)
+ 	}
++	checkPathCollisions(modpkgs)
+ 
+ 	includeAllReplacements := false
+ 	includeGoVersions := false
+@@ -492,3 +493,19 @@ func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, cop
+ 		}
+ 	}
+ }
++
++// checkPathCollisions will fail if case-insensitive collisions are present.
++// The reason why we do this check in go mod vendor is to keep consistentcy
++// with go build. If modifying, consider changing load() in
++// src/cmd/go/internal/load/pkg.go
++func checkPathCollisions(modpkgs map[module.Version][]string) {
++	var foldPath = make(map[string]string, len(modpkgs))
++	for m := range modpkgs {
++		fold := str.ToFold(m.Path)
++		if other := foldPath[fold]; other == "" {
++			foldPath[fold] = m.Path
++		} else if other != m.Path {
++			base.Fatalf("go.mod: case-insensitive import collision: %q and %q", m.Path, other)
++		}
++	}
++}
+diff --git a/src/cmd/go/testdata/script/mod_vendor_collision.txt b/src/cmd/go/testdata/script/mod_vendor_collision.txt
+new file mode 100644
+index 0000000000..e15b7ed478
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_vendor_collision.txt
+@@ -0,0 +1,38 @@
++! go build
++stderr 'case-insensitive import collision'
++
++! go mod vendor
++stderr 'case-insensitive import collision'
++
++-- foo.go --
++package main
++
++import (
++	_ "example.com/Foo"
++	_ "example.com/foo"
++)
++
++func main() {}
++-- go.mod --
++module play.ground
++
++go 1.14
++
++require (
++	example.com/foo v0.1.0
++	example.com/Foo v0.1.0
++)
++
++replace (
++	example.com/foo => ./foo
++	example.com/Foo => ./foo_alt
++)
++-- foo/go.mod --
++module example.com/foo
++-- foo/foo.go --
++package foo
++
++-- foo_alt/go.mod --
++module example.com/Foo
++-- foo_alt/foo.go --
++package Foo
+\ No newline at end of file

@@ -18,8 +18,149 @@ Date:   Wed Apr 21 18:22:35 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/builtins_test.go |  3 +++
  src/go/types/check_test.go    | 15 +++++++++---
  src/go/types/expr.go          | 56 +++++++++++++++++++++++++++----------------
  3 files changed, 51 insertions(+), 23 deletions(-)
+
+diff --git a/src/go/types/builtins_test.go b/src/go/types/builtins_test.go
+index cfd19d5e28..e9ffd28508 100644
+--- a/src/go/types/builtins_test.go
++++ b/src/go/types/builtins_test.go
+@@ -87,6 +87,9 @@ var builtinCalls = []struct {
+ 	{"make", `var    c int32; _ = make([]float64   , 0, c)`, `func([]float64, int, int32) []float64`},
+ 	{"make", `var l, c uint ; _ = make([]complex128, l, c)`, `func([]complex128, uint, uint) []complex128`},
+ 
++	// issue #45667
++	{"make", `const l uint = 1; _ = make([]int, l)`, `func([]int, uint) []int`},
++
+ 	{"new", `_ = new(int)`, `func(int) *int`},
+ 	{"new", `type T struct{}; _ = new(T)`, `func(p.T) *p.T`},
+ 
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 8a15841e37..422488744b 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -203,7 +203,7 @@ func asGoVersion(s string) string {
+ 	return ""
+ }
+ 
+-func checkFiles(t *testing.T, goVersion string, filenames []string, srcs [][]byte) {
++func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string, srcs [][]byte) {
+ 	if len(filenames) == 0 {
+ 		t.Fatal("no source files")
+ 	}
+@@ -239,6 +239,7 @@ func checkFiles(t *testing.T, goVersion string, filenames []string, srcs [][]byt
+ 
+ 	// typecheck and collect typechecker errors
+ 	var conf Config
++	conf.Sizes = sizes
+ 	conf.GoVersion = goVersion
+ 
+ 	// special case for importC.src
+@@ -310,7 +311,15 @@ func TestCheck(t *testing.T) {
+ func TestLongConstants(t *testing.T) {
+ 	format := "package longconst\n\nconst _ = %s\nconst _ = %s // ERROR excessively long constant"
+ 	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
+-	checkFiles(t, "", []string{"longconst.go"}, [][]byte{[]byte(src)})
++	checkFiles(t, nil, "", []string{"longconst.go"}, [][]byte{[]byte(src)})
++}
++
++// TestIndexRepresentability tests that constant index operands must
++// be representable as int even if they already have a type that can
++// represent larger values.
++func TestIndexRepresentability(t *testing.T) {
++	const src = "package index\n\nvar s []byte\nvar _ = s[int64 /* ERROR \"int64\\(1\\) << 40 \\(.*\\) overflows int\" */ (1) << 40]"
++	checkFiles(t, &StdSizes{4, 4}, "", []string{"index.go"}, [][]byte{[]byte(src)})
+ }
+ 
+ func TestTestdata(t *testing.T)  { DefPredeclaredTestFuncs(); testDir(t, "testdata") }
+@@ -358,5 +367,5 @@ func testPkg(t *testing.T, filenames []string, goVersion string) {
+ 		}
+ 		srcs[i] = src
+ 	}
+-	checkFiles(t, goVersion, filenames, srcs)
++	checkFiles(t, nil, goVersion, filenames, srcs)
+ }
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 57523e1d0f..b4eea229b8 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1012,19 +1012,7 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
+ 
+ 	var x operand
+ 	check.expr(&x, index)
+-	if x.mode == invalid {
+-		return
+-	}
+-
+-	// an untyped constant must be representable as Int
+-	check.convertUntyped(&x, Typ[Int])
+-	if x.mode == invalid {
+-		return
+-	}
+-
+-	// the index must be of integer type
+-	if !isInteger(x.typ) {
+-		check.invalidArg(&x, _InvalidIndex, "index %s must be integer", &x)
++	if !check.isValidIndex(&x, _InvalidIndex, "index", false) {
+ 		return
+ 	}
+ 
+@@ -1032,12 +1020,6 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
+ 		return x.typ, -1
+ 	}
+ 
+-	// a constant index i must be in bounds
+-	if constant.Sign(x.val) < 0 {
+-		check.invalidArg(&x, _InvalidIndex, "index %s must not be negative", &x)
+-		return
+-	}
+-
+ 	v, valid := constant.Int64Val(constant.ToInt(x.val))
+ 	if !valid || max >= 0 && v >= max {
+ 		check.errorf(&x, _InvalidIndex, "index %s is out of bounds", &x)
+@@ -1045,7 +1027,41 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
+ 	}
+ 
+ 	// 0 <= v [ && v < max ]
+-	return Typ[Int], v
++	return x.typ, v
++}
++
++func (check *Checker) isValidIndex(x *operand, code errorCode, what string, allowNegative bool) bool {
++	if x.mode == invalid {
++		return false
++	}
++
++	// spec: "a constant index that is untyped is given type int"
++	check.convertUntyped(x, Typ[Int])
++	if x.mode == invalid {
++		return false
++	}
++
++	// spec: "the index x must be of integer type or an untyped constant"
++	if !isInteger(x.typ) {
++		check.invalidArg(x, code, "%s %s must be integer", what, x)
++		return false
++	}
++
++	if x.mode == constant_ {
++		// spec: "a constant index must be non-negative ..."
++		if !allowNegative && constant.Sign(x.val) < 0 {
++			check.invalidArg(x, code, "%s %s must not be negative", what, x)
++			return false
++		}
++
++		// spec: "... and representable by a value of type int"
++		if !representableConst(x.val, check, Typ[Int], &x.val) {
++			check.invalidArg(x, code, "%s %s overflows int", what, x)
++			return false
++		}
++	}
++
++	return true
+ }
+ 
+ // indexElts checks the elements (elts) of an array or slice composite literal

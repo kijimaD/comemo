@@ -9,6 +9,46 @@ Date:   Tue Oct 31 11:19:48 2017 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/strings/example_test.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/src/strings/example_test.go b/src/strings/example_test.go
+index ba67458d1f..f7a78b4385 100644
+--- a/src/strings/example_test.go
++++ b/src/strings/example_test.go
+@@ -249,6 +249,12 @@ func ExampleToTitle() {
+ 	// ХЛЕБ
+ }
+ 
++func ExampleToTitleSpecial() {
++	fmt.Println(strings.ToTitleSpecial(unicode.TurkishCase, "dünyanın ilk borsa yapısı Aizonai kabul edilir"))
++	// Output:
++	// DÜNYANIN İLK BORSA YAPISI AİZONAİ KABUL EDİLİR
++}
++
+ func ExampleMap() {
+ 	rot13 := func(r rune) rune {
+ 		switch {
+@@ -274,11 +280,21 @@ func ExampleToUpper() {
+ 	// Output: GOPHER
+ }
+ 
++func ExampleToUpperSpecial() {
++	fmt.Println(strings.ToUpperSpecial(unicode.TurkishCase, "örnek iş"))
++	// Output: ÖRNEK İŞ
++}
++
+ func ExampleToLower() {
+ 	fmt.Println(strings.ToLower("Gopher"))
+ 	// Output: gopher
+ }
+ 
++func ExampleToLowerSpecial() {
++	fmt.Println(strings.ToLowerSpecial(unicode.TurkishCase, "Önnek İş"))
++	// Output: önnek iş
++}
++
+ func ExampleTrim() {
+ 	fmt.Print(strings.Trim("¡¡¡Hello, Gophers!!!", "!¡"))
+ 	// Output: Hello, Gophers

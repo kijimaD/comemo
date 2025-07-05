@@ -16,6 +16,22 @@ Date:   Thu Oct 1 16:06:03 2020 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/runtime/crash_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 34f30c9a37..eae4f538c1 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -667,7 +667,9 @@ func TestBadTraceback(t *testing.T) {
+ }
+ 
+ func TestTimePprof(t *testing.T) {
+-	fn := runTestProg(t, "testprog", "TimeProf")
++	// Pass GOTRACEBACK for issue #41120 to try to get more
++	// information on timeout.
++	fn := runTestProg(t, "testprog", "TimeProf", "GOTRACEBACK=crash")
+ 	fn = strings.TrimSpace(fn)
+ 	defer os.Remove(fn)
+ 

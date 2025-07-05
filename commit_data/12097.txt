@@ -8,6 +8,33 @@ Date:   Tue Feb 21 14:53:07 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5683057
-
+---
  src/pkg/net/tcpsock_posix.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index f972043eeb..28d1707308 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -230,6 +230,13 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+ 
+ 	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
+ 
++	checkRaddr := func(s string) {
++		if err == nil && fd.raddr == nil {
++			panic("nil raddr in DialTCP: " + s)
++		}
++	}
++	checkRaddr("early")
++
+ 	// TCP has a rarely used mechanism called a 'simultaneous connection' in
+ 	// which Dial("tcp", addr1, addr2) run on the machine at addr1 can
+ 	// connect to a simultaneous Dial("tcp", addr2, addr1) run on the machine
+@@ -250,6 +257,7 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+ 	for i := 0; i < 2 && err == nil && laddr == nil && selfConnect(fd); i++ {
+ 		fd.Close()
+ 		fd, err = internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
++		checkRaddr("after close")
+ 	}
+ 
+ 	if err != nil {

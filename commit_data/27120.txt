@@ -11,7 +11,108 @@ Date:   Thu Mar 10 19:32:04 2016 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/deadcode.go | 30 +++++++++++++++++-------------
  test/reflectmethod4.go               | 30 ++++++++++++++++++++++++++++++
  2 files changed, 47 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 3cc7b0f8db..a2286eb872 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -25,7 +25,7 @@ import (
+ //
+ //	1. direct call
+ //	2. through a reachable interface type
+-//	3. reflect.Value.Call / reflect.Method.Func
++//	3. reflect.Value.Call, .Method, or reflect.Method.Func
+ //
+ // The first case is handled by the flood fill, a directly called method
+ // is marked as reachable.
+@@ -35,11 +35,12 @@ import (
+ // against the interface method signatures, if it matches it is marked
+ // as reachable. This is extremely conservative, but easy and correct.
+ //
+-// The third case is handled by looking to see if reflect.Value.Call is
+-// ever marked reachable, or if a reflect.Method struct is ever
+-// constructed by a call to reflect.Type.Method or MethodByName. If it
+-// is, all bets are off and all exported methods of reachable types are
+-// marked reachable.
++// The third case is handled by looking to see if any of:
++//	- reflect.Value.Call is reachable
++//	- reflect.Value.Method is reachable
++// 	- reflect.Type.Method or MethodByName is called.
++// If any of these happen, all bets are off and all exported methods
++// of reachable types are marked reachable.
+ //
+ // Any unreached text symbols are removed from ctxt.Textp.
+ func deadcode(ctxt *Link) {
+@@ -58,14 +59,17 @@ func deadcode(ctxt *Link) {
+ 	d.flood()
+ 
+ 	callSym := Linkrlookup(ctxt, "reflect.Value.Call", 0)
+-	callSymSeen := false
++	methSym := Linkrlookup(ctxt, "reflect.Value.Method", 0)
++	reflectSeen := false
+ 
+ 	for {
+-		if callSym != nil && (callSym.Attr.Reachable() || d.reflectMethod) {
+-			// Methods are called via reflection. Give up on
+-			// static analysis, mark all exported methods of
+-			// all reachable types as reachable.
+-			callSymSeen = true
++		if !reflectSeen {
++			if d.reflectMethod || (callSym != nil && callSym.Attr.Reachable()) || (methSym != nil && methSym.Attr.Reachable()) {
++				// Methods might be called via reflection. Give up on
++				// static analysis, mark all exported methods of
++				// all reachable types as reachable.
++				reflectSeen = true
++			}
+ 		}
+ 
+ 		// Mark all methods that could satisfy a discovered
+@@ -74,7 +78,7 @@ func deadcode(ctxt *Link) {
+ 		// in the last pass.
+ 		var rem []methodref
+ 		for _, m := range d.markableMethods {
+-			if (callSymSeen && m.isExported()) || d.ifaceMethod[m.m] {
++			if (reflectSeen && m.isExported()) || d.ifaceMethod[m.m] {
+ 				d.markMethod(m)
+ 			} else {
+ 				rem = append(rem, m)
+diff --git a/test/reflectmethod4.go b/test/reflectmethod4.go
+new file mode 100644
+index 0000000000..037b3dada3
+--- /dev/null
++++ b/test/reflectmethod4.go
+@@ -0,0 +1,30 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The linker can prune methods that are not directly called or
++// assigned to interfaces, but only if reflect.Value.Method is
++// never used. Test it here.
++
++package main
++
++import "reflect"
++
++var called = false
++
++type M int
++
++func (m M) UniqueMethodName() {
++	called = true
++}
++
++var v M
++
++func main() {
++	reflect.ValueOf(v).Method(0).Interface().(func())()
++	if !called {
++		panic("UniqueMethodName not called")
++	}
++}

@@ -8,7 +8,208 @@ Date:   Tue May 12 14:57:44 2009 -0700
     DELTA=97  (96 added, 0 deleted, 1 changed)
     OCL=28596
     CL=28702
-
+---
  src/lib/reflect/all_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++
  src/lib/reflect/value.go    | 36 +++++++++++++++++++++++++-
  2 files changed, 97 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index cc61bbbf10..65c6ea289a 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -507,3 +507,65 @@ func TestAlignment(t *testing.T) {
+ 	x1 := T2{T2inner{2, 3}, 17};
+ 	check2ndField(x1, uintptr(unsafe.Pointer(&x1.f)) - uintptr(unsafe.Pointer(&x1)), t);
+ }
++
++type Nillable interface {
++	IsNil() bool
++}
++
++func Nil(a interface{}, t *testing.T) {
++	n := NewValue(a).(Nillable);
++	if !n.IsNil() {
++		t.Errorf("%v should be nil", a)
++	}
++}
++
++func NotNil(a interface{}, t *testing.T) {
++	n := NewValue(a).(Nillable);
++	if n.IsNil() {
++		t.Errorf("value of type %v should not be nil", NewValue(a).Type().String())
++	}
++}
++
++func TestIsNil(t *testing.T) {
++	// These do not implement IsNil
++	doNotNil := []string{"int", "float32", "struct { a int }"};
++	// These do implement IsNil
++	doNil := []string{"*int", "interface{}", "map[string]int", "func() bool", "chan int", "[]string"};
++	for i, ts := range doNotNil {
++		ty := reflect.ParseTypeString("", ts);
++		v := reflect.NewInitValue(ty);
++		if nilable, ok := v.(Nillable); ok {
++			t.Errorf("%s is nilable; should not be", ts)
++		}
++	}
++
++	for i, ts := range doNil {
++		ty := reflect.ParseTypeString("", ts);
++		v := reflect.NewInitValue(ty);
++		if nilable, ok := v.(Nillable); !ok {
++			t.Errorf("%s is not nilable; should be", ts)
++		}
++	}
++	// Check the implementations
++	var pi *int;
++	Nil(pi, t);
++	pi = new(int);
++	NotNil(pi, t);
++
++	var si []int;
++	Nil(si, t);
++	si = make([]int, 10);
++	NotNil(si, t);
++
++	// TODO: map and chan don't work yet
++
++	var ii interface {};
++	Nil(ii, t);
++	ii = pi;
++	NotNil(ii, t);
++
++	var fi func(t *testing.T);
++	Nil(fi, t);
++	fi = TestIsNil;
++	NotNil(fi, t);
++}
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index c3b50ae68b..c21f28e770 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -501,6 +501,7 @@ type PtrValue interface {
+ 	Sub()	Value;	// The Value pointed to.
+ 	Get()	Addr;	// Get the address stored in the pointer.
+ 	SetSub(Value);	// Set the the pointed-to Value.
++	IsNil() bool;
+ }
+ 
+ type ptrValueStruct struct {
+@@ -525,6 +526,10 @@ func (v *ptrValueStruct) SetSub(subv Value) {
+ 	*(*Addr)(v.addr) = subv.Addr();
+ }
+ 
++func (v *ptrValueStruct) IsNil() bool {
++	return uintptr(*(*Addr)(v.addr)) == 0
++}
++
+ func ptrCreator(typ Type, addr Addr) Value {
+ 	return &ptrValueStruct{ commonValue{PtrKind, typ, addr} };
+ }
+@@ -541,7 +546,8 @@ type ArrayValue interface {
+ 	Elem(i int)	Value;	// The Value of the i'th element.
+ 	SetLen(len int);	// Set the length; slice only.
+ 	Set(src ArrayValue);	// Set the underlying Value; slice only for src and dest both.
+-	CopyFrom(src ArrayValue, n int)	// Copy the elements from src; lengths must match.
++	CopyFrom(src ArrayValue, n int);	// Copy the elements from src; lengths must match.
++	IsNil() bool;
+ }
+ 
+ func copyArray(dst ArrayValue, src ArrayValue, n int);
+@@ -606,6 +612,10 @@ func (v *sliceValueStruct) CopyFrom(src ArrayValue, n int) {
+ 	copyArray(v, src, n);
+ }
+ 
++func (v *sliceValueStruct) IsNil() bool {
++	return uintptr(v.slice.data) == 0
++}
++
+ type arrayValueStruct struct {
+ 	commonValue;
+ 	elemtype	Type;
+@@ -643,6 +653,10 @@ func (v *arrayValueStruct) CopyFrom(src ArrayValue, n int) {
+ 	copyArray(v, src, n);
+ }
+ 
++func (v *arrayValueStruct) IsNil() bool {
++	return false
++}
++
+ func arrayCreator(typ Type, addr Addr) Value {
+ 	arraytype := typ.(ArrayType);
+ 	if arraytype.IsSlice() {
+@@ -673,6 +687,7 @@ type MapValue interface {
+ 	Value;
+ 	Len()	int;	// The number of elements; currently always returns 0.
+ 	Elem(key Value)	Value;	// The value indexed by key; unimplemented.
++	IsNil() bool;
+ }
+ 
+ type mapValueStruct struct {
+@@ -687,6 +702,10 @@ func (v *mapValueStruct) Len() int {
+ 	return 0	// TODO: probably want this to be dynamic
+ }
+ 
++func (v *mapValueStruct) IsNil() bool {
++	return false	// TODO: implement this properly
++}
++
+ func (v *mapValueStruct) Elem(key Value) Value {
+ 	panic("map value element");
+ 	return nil
+@@ -698,12 +717,17 @@ func (v *mapValueStruct) Elem(key Value) Value {
+ // Its implementation is incomplete.
+ type ChanValue interface {
+ 	Value;
++	IsNil() bool;
+ }
+ 
+ type chanValueStruct struct {
+ 	commonValue
+ }
+ 
++func (v *chanValueStruct) IsNil() bool {
++	return false	// TODO: implement this properly
++}
++
+ func chanCreator(typ Type, addr Addr) Value {
+ 	return &chanValueStruct{ commonValue{ChanKind, typ, addr} }
+ }
+@@ -750,6 +774,7 @@ type InterfaceValue interface {
+ 	Value;
+ 	Get()	interface {};	// Get the underlying interface{} value.
+ 	Value() Value;
++	IsNil() bool;
+ }
+ 
+ type interfaceValueStruct struct {
+@@ -768,6 +793,10 @@ func (v *interfaceValueStruct) Value() Value {
+ 	return NewValue(i);
+ }
+ 
++func (v *interfaceValueStruct) IsNil() bool {
++	return *(*interface{})(v.addr) == nil
++}
++
+ func interfaceCreator(typ Type, addr Addr) Value {
+ 	return &interfaceValueStruct{ commonValue{InterfaceKind, typ, addr} }
+ }
+@@ -780,6 +809,7 @@ func interfaceCreator(typ Type, addr Addr) Value {
+ type FuncValue interface {
+ 	Value;
+ 	Get()	Addr;	// The address of the function.
++	IsNil() bool;
+ }
+ 
+ type funcValueStruct struct {
+@@ -790,6 +820,10 @@ func (v *funcValueStruct) Get() Addr {
+ 	return *(*Addr)(v.addr)
+ }
+ 
++func (v *funcValueStruct) IsNil() bool {
++	return *(*Addr)(v.addr) == nil
++}
++
+ func funcCreator(typ Type, addr Addr) Value {
+ 	return &funcValueStruct{ commonValue{FuncKind, typ, addr} }
+ }

@@ -7,7 +7,59 @@ Date:   Thu Mar 17 13:46:05 2011 -0400
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/4291052
-
+---
  src/pkg/time/sleep.go |  5 ++---
  src/pkg/time/sys.go   | 14 +++++++++++---
  2 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index 7b3f01f01e..3bc253c94a 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -5,9 +5,8 @@
+ package time
+ 
+ import (
+-	"syscall"
+-	"sync"
+ 	"container/heap"
++	"sync"
+ )
+ 
+ // The Timer type represents a single event.
+@@ -126,7 +125,7 @@ func sleeper(sleeperId int64) {
+ 				dt = maxSleepTime
+ 			}
+ 			timerMutex.Unlock()
+-			syscall.Sleep(dt)
++			sysSleep(dt)
+ 			timerMutex.Lock()
+ 			if currentSleeper != sleeperId {
+ 				// Another sleeper has been started, making this one redundant.
+diff --git a/src/pkg/time/sys.go b/src/pkg/time/sys.go
+index 8a2e6fadc2..63f4cbf3d7 100644
+--- a/src/pkg/time/sys.go
++++ b/src/pkg/time/sys.go
+@@ -44,11 +44,19 @@ func sleep(t, ns int64) (int64, os.Error) {
+ 	// TODO(cw): use monotonic-time once it's available
+ 	end := t + ns
+ 	for t < end {
+-		errno := syscall.Sleep(end - t)
+-		if errno != 0 && errno != syscall.EINTR {
+-			return 0, os.NewSyscallError("sleep", errno)
++		err := sysSleep(end - t)
++		if err != nil {
++			return 0, err
+ 		}
+ 		t = Nanoseconds()
+ 	}
+ 	return t, nil
+ }
++
++func sysSleep(t int64) os.Error {
++	errno := syscall.Sleep(t)
++	if errno != 0 && errno != syscall.EINTR {
++		return os.NewSyscallError("sleep", errno)
++	}
++	return nil
++}

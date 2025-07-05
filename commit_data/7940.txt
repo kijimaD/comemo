@@ -10,6 +10,47 @@ Date:   Wed Mar 30 22:12:30 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4324043
-
+---
  src/pkg/fmt/print.go | 12 +++++++-----
  1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 4e14fdaa4a..4b68051188 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -520,12 +520,14 @@ func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int, value interf
+ }
+ 
+ func (p *pp) fmtPointer(field interface{}, value reflect.Value, verb int, goSyntax bool) {
+-	v, ok := value.(uintptrGetter)
+-	if !ok { // reflect.PtrValue is a uintptrGetter, so failure means it's not a pointer at all.
++	var u uintptr
++	switch value.(type) {
++	case *reflect.ChanValue, *reflect.FuncValue, *reflect.MapValue, *reflect.PtrValue, *reflect.SliceValue, *reflect.UnsafePointerValue:
++		u = value.(uintptrGetter).Get()
++	default:
+ 		p.badVerb(verb, field)
+ 		return
+ 	}
+-	u := v.Get()
+ 	if goSyntax {
+ 		p.add('(')
+ 		p.buf.WriteString(reflect.Typeof(field).String())
+@@ -534,7 +536,7 @@ func (p *pp) fmtPointer(field interface{}, value reflect.Value, verb int, goSynt
+ 		if u == 0 {
+ 			p.buf.Write(nilBytes)
+ 		} else {
+-			p.fmt0x64(uint64(v.Get()), true)
++			p.fmt0x64(uint64(u), true)
+ 		}
+ 		p.add(')')
+ 	} else {
+@@ -811,7 +813,7 @@ BigSwitch:
+ 			break
+ 		}
+ 		p.fmt0x64(uint64(v), true)
+-	case uintptrGetter:
++	case *reflect.ChanValue, *reflect.FuncValue, *reflect.UnsafePointerValue:
+ 		p.fmtPointer(field, value, verb, goSyntax)
+ 	default:
+ 		p.unknownType(f)

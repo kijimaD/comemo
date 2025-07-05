@@ -75,7 +75,7 @@ Date:   Sat Aug 10 19:27:45 2019 +0200
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/main.go           |  48 ++++++-
  src/cmd/compile/internal/ssa/gen/rulegen.go        | 159 ++++++++++-----------
  src/cmd/compile/internal/ssa/rewrite386.go         |  13 --
@@ -94,3 +94,850 @@ Date:   Sat Aug 10 19:27:45 2019 +0200
  src/cmd/compile/internal/ssa/rewritedecArgs.go     |  17 ---
  src/cmd/compile/internal/ssa/rewritegeneric.go     |  13 --
  17 files changed, 119 insertions(+), 300 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index bfecb9b29f..9c0e0904b2 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -15,10 +15,14 @@ import (
+ 	"go/format"
+ 	"io/ioutil"
+ 	"log"
++	"os"
+ 	"path"
+ 	"regexp"
++	"runtime"
++	"runtime/pprof"
+ 	"sort"
+ 	"strings"
++	"sync"
+ )
+ 
+ type arch struct {
+@@ -93,11 +97,36 @@ func (a arch) regMaskComment(r regMask) string {
+ 
+ var archs []arch
+ 
++var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
++var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
++
+ func main() {
+ 	flag.Parse()
++	if *cpuprofile != "" {
++		f, err := os.Create(*cpuprofile)
++		if err != nil {
++			log.Fatal("could not create CPU profile: ", err)
++		}
++		defer f.Close()
++		if err := pprof.StartCPUProfile(f); err != nil {
++			log.Fatal("could not start CPU profile: ", err)
++		}
++		defer pprof.StopCPUProfile()
++	}
+ 	sort.Sort(ArchsByName(archs))
+ 	genOp()
+ 	genLower()
++	if *memprofile != "" {
++		f, err := os.Create(*memprofile)
++		if err != nil {
++			log.Fatal("could not create memory profile: ", err)
++		}
++		defer f.Close()
++		runtime.GC() // get up-to-date statistics
++		if err := pprof.WriteHeapProfile(f); err != nil {
++			log.Fatal("could not write memory profile: ", err)
++		}
++	}
+ }
+ 
+ func genOp() {
+@@ -395,11 +424,26 @@ func (a arch) Name() string {
+ 	return s
+ }
+ 
++// genLower generates all arch-specific rewrite Go source files. The files are
++// generated and written concurrently, since it's a CPU-intensive task that can
++// easily make use of many cores on a machine.
++//
++// Note that there is no limit on the concurrency at the moment. On a four-core
++// laptop at the time of writing, peak RSS usually reached ~230MiB, which seems
++// doable by practially any machine nowadays. If that stops being the case, we
++// can cap this func to a fixed number of architectures being generated at once.
+ func genLower() {
++	var wg sync.WaitGroup
+ 	for _, a := range archs {
+-		genRules(a)
+-		genSplitLoadRules(a)
++		a := a
++		wg.Add(1)
++		go func() {
++			genRules(a)
++			genSplitLoadRules(a)
++			wg.Done()
++		}()
+ 	}
++	wg.Wait()
+ }
+ 
+ // countRegs returns the number of set bits in the register mask.
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 0e89af73e9..500d98431c 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -21,14 +21,15 @@ import (
+ 	"go/parser"
+ 	"go/printer"
+ 	"go/token"
++	"go/types"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+-	"math"
+ 	"os"
+ 	"regexp"
+ 	"sort"
+ 	"strings"
++
++	"golang.org/x/tools/go/ast/astutil"
+ )
+ 
+ // rule syntax:
+@@ -165,7 +166,7 @@ func genRulesSuffix(arch arch, suff string) {
+ 	}
+ 	sort.Strings(ops)
+ 
+-	file := &File{arch: arch, suffix: suff}
++	genFile := &File{arch: arch, suffix: suff}
+ 	const chunkSize = 10
+ 	// Main rewrite routine is a switch on v.Op.
+ 	fn := &Func{kind: "Value"}
+@@ -182,7 +183,7 @@ func genRulesSuffix(arch arch, suff string) {
+ 	}
+ 	fn.add(sw)
+ 	fn.add(stmtf("return false"))
+-	file.add(fn)
++	genFile.add(fn)
+ 
+ 	// Generate a routine per op. Note that we don't make one giant routine
+ 	// because it is too big for some compilers.
+@@ -201,7 +202,10 @@ func genRulesSuffix(arch arch, suff string) {
+ 				kind:   "Value",
+ 				suffix: fmt.Sprintf("_%s_%d", op, chunk),
+ 			}
+-			var rewrites bodyBase
++			fn.add(declf("b", "v.Block"))
++			fn.add(declf("config", "b.Func.Config"))
++			fn.add(declf("fe", "b.Func.fe"))
++			fn.add(declf("typ", "&b.Func.Config.Types"))
+ 			for _, rule := range rules[chunk:endchunk] {
+ 				if rr != nil && !rr.canFail {
+ 					log.Fatalf("unconditional rule %s is followed by other rules", rr.match)
+@@ -219,38 +223,12 @@ func genRulesSuffix(arch arch, suff string) {
+ 				if *genLog {
+ 					rr.add(stmtf("logRule(%q)", rule.loc))
+ 				}
+-				rewrites.add(rr)
+-			}
+-
+-			// TODO(mvdan): remove unused vars later instead
+-			uses := make(map[string]int)
+-			walk(&rewrites, func(node Node) {
+-				switch node := node.(type) {
+-				case *Declare:
+-					// work around var shadowing
+-					// TODO(mvdan): forbid it instead.
+-					uses[node.name] = math.MinInt32
+-				case *ast.Ident:
+-					uses[node.Name]++
+-				}
+-			})
+-			if uses["b"]+uses["config"]+uses["fe"]+uses["typ"] > 0 {
+-				fn.add(declf("b", "v.Block"))
+-			}
+-			if uses["config"] > 0 {
+-				fn.add(declf("config", "b.Func.Config"))
++				fn.add(rr)
+ 			}
+-			if uses["fe"] > 0 {
+-				fn.add(declf("fe", "b.Func.fe"))
+-			}
+-			if uses["typ"] > 0 {
+-				fn.add(declf("typ", "&b.Func.Config.Types"))
+-			}
+-			fn.add(rewrites.list...)
+ 			if rr.canFail {
+ 				fn.add(stmtf("return false"))
+ 			}
+-			file.add(fn)
++			genFile.add(fn)
+ 		}
+ 	}
+ 
+@@ -258,11 +236,8 @@ func genRulesSuffix(arch arch, suff string) {
+ 	// so we can make this one function with a switch.
+ 	fn = &Func{kind: "Block"}
+ 	fn.add(declf("config", "b.Func.Config"))
+-	// TODO(mvdan): declare these only if needed
+ 	fn.add(declf("typ", "&config.Types"))
+-	fn.add(stmtf("_ = typ"))
+ 	fn.add(declf("v", "b.Control"))
+-	fn.add(stmtf("_ = v"))
+ 
+ 	sw = &Switch{expr: exprf("b.Kind")}
+ 	ops = ops[:0]
+@@ -279,52 +254,69 @@ func genRulesSuffix(arch arch, suff string) {
+ 	}
+ 	fn.add(sw)
+ 	fn.add(stmtf("return false"))
+-	file.add(fn)
++	genFile.add(fn)
+ 
+-	// gofmt result
++	// Remove unused imports and variables.
+ 	buf := new(bytes.Buffer)
+-	fprint(buf, file)
+-	b := buf.Bytes()
+-	src, err := format.Source(b)
++	fprint(buf, genFile)
++	fset := token.NewFileSet()
++	file, err := parser.ParseFile(fset, "", buf, parser.ParseComments)
+ 	if err != nil {
+-		fmt.Printf("%s\n", b)
+-		panic(err)
++		log.Fatal(err)
+ 	}
+-	// Write to file
+-	if err := ioutil.WriteFile("../rewrite"+arch.name+suff+".go", src, 0666); err != nil {
+-		log.Fatalf("can't write output: %v\n", err)
+-	}
+-}
++	tfile := fset.File(file.Pos())
+ 
+-func walk(node Node, fn func(Node)) {
+-	fn(node)
+-	switch node := node.(type) {
+-	case *bodyBase:
+-	case *File:
+-	case *Func:
+-	case *Switch:
+-		walk(node.expr, fn)
+-	case *Case:
+-		walk(node.expr, fn)
+-	case *RuleRewrite:
+-	case *Declare:
+-		walk(node.value, fn)
+-	case *CondBreak:
+-		walk(node.expr, fn)
+-	case ast.Node:
+-		ast.Inspect(node, func(node ast.Node) bool {
+-			fn(node)
++	for n := 0; n < 3; n++ {
++		unused := make(map[token.Pos]bool)
++		conf := types.Config{Error: func(err error) {
++			if terr, ok := err.(types.Error); ok && strings.Contains(terr.Msg, "not used") {
++				unused[terr.Pos] = true
++			}
++		}}
++		_, _ = conf.Check("ssa", fset, []*ast.File{file}, nil)
++		if len(unused) == 0 {
++			break
++		}
++		pre := func(c *astutil.Cursor) bool {
++			if node := c.Node(); node != nil && unused[node.Pos()] {
++				c.Delete()
++				// Unused imports and declarations use exactly
++				// one line. Prevent leaving an empty line.
++				tfile.MergeLine(tfile.Position(node.Pos()).Line)
++				return false
++			}
++			return true
++		}
++		post := func(c *astutil.Cursor) bool {
++			switch node := c.Node().(type) {
++			case *ast.GenDecl:
++				if len(node.Specs) == 0 {
++					c.Delete()
++				}
++			}
+ 			return true
+-		})
+-	default:
+-		log.Fatalf("cannot walk %T", node)
+-	}
+-	if wb, ok := node.(interface{ body() []Statement }); ok {
+-		for _, node := range wb.body() {
+-			walk(node, fn)
+ 		}
++		file = astutil.Apply(file, pre, post).(*ast.File)
++	}
++
++	// Write the well-formatted source to file
++	f, err := os.Create("../rewrite" + arch.name + suff + ".go")
++	if err != nil {
++		log.Fatalf("can't write output: %v", err)
++	}
++	defer f.Close()
++	// gofmt result; use a buffered writer, as otherwise go/format spends
++	// far too much time in syscalls.
++	bw := bufio.NewWriter(f)
++	if err := format.Node(bw, fset, file); err != nil {
++		log.Fatalf("can't format output: %v", err)
++	}
++	if err := bw.Flush(); err != nil {
++		log.Fatalf("can't write output: %v", err)
++	}
++	if err := f.Close(); err != nil {
++		log.Fatalf("can't write output: %v", err)
+ 	}
+-	fn(nil)
+ }
+ 
+ func fprint(w io.Writer, n Node) {
+@@ -333,18 +325,13 @@ func fprint(w io.Writer, n Node) {
+ 		fmt.Fprintf(w, "// Code generated from gen/%s%s.rules; DO NOT EDIT.\n", n.arch.name, n.suffix)
+ 		fmt.Fprintf(w, "// generated with: cd gen; go run *.go\n")
+ 		fmt.Fprintf(w, "\npackage ssa\n")
+-		// TODO(mvdan): keep the needed imports only
+-		fmt.Fprintln(w, "import \"fmt\"")
+-		fmt.Fprintln(w, "import \"math\"")
+-		fmt.Fprintln(w, "import \"cmd/internal/obj\"")
+-		fmt.Fprintln(w, "import \"cmd/internal/objabi\"")
+-		fmt.Fprintln(w, "import \"cmd/compile/internal/types\"")
+-		fmt.Fprintln(w, "var _ = fmt.Println   // in case not otherwise used")
+-		fmt.Fprintln(w, "var _ = math.MinInt8  // in case not otherwise used")
+-		fmt.Fprintln(w, "var _ = obj.ANOP      // in case not otherwise used")
+-		fmt.Fprintln(w, "var _ = objabi.GOROOT // in case not otherwise used")
+-		fmt.Fprintln(w, "var _ = types.TypeMem // in case not otherwise used")
+-		fmt.Fprintln(w)
++		for _, path := range []string{
++			"fmt", "math",
++			"cmd/internal/obj", "cmd/internal/objabi",
++			"cmd/compile/internal/types",
++		} {
++			fmt.Fprintf(w, "import %q\n", path)
++		}
+ 		for _, f := range n.list {
+ 			f := f.(*Func)
+ 			fmt.Fprintf(w, "func rewrite%s%s%s%s(", f.kind, n.arch.name, n.suffix, f.suffix)
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 8f896ec0c7..812aa9420d 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -3,18 +3,9 @@
+ 
+ package ssa
+ 
+-import "fmt"
+ import "math"
+-import "cmd/internal/obj"
+-import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
+-var _ = fmt.Println   // in case not otherwise used
+-var _ = math.MinInt8  // in case not otherwise used
+-var _ = obj.ANOP      // in case not otherwise used
+-var _ = objabi.GOROOT // in case not otherwise used
+-var _ = types.TypeMem // in case not otherwise used
+-
+ func rewriteValue386(v *Value) bool {
+ 	switch v.Op {
+ 	case Op386ADCL:
+@@ -24539,11 +24530,7 @@ func rewriteValue386_OpZeromask_0(v *Value) bool {
+ 	}
+ }
+ func rewriteBlock386(b *Block) bool {
+-	config := b.Func.Config
+-	typ := &config.Types
+-	_ = typ
+ 	v := b.Control
+-	_ = v
+ 	switch b.Kind {
+ 	case Block386EQ:
+ 		// match: (EQ (InvertFlags cmp) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewrite386splitload.go b/src/cmd/compile/internal/ssa/rewrite386splitload.go
+index 1eaf2d9d48..b6c1989d52 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386splitload.go
++++ b/src/cmd/compile/internal/ssa/rewrite386splitload.go
+@@ -3,18 +3,6 @@
+ 
+ package ssa
+ 
+-import "fmt"
+-import "math"
+-import "cmd/internal/obj"
+-import "cmd/internal/objabi"
+-import "cmd/compile/internal/types"
+-
+-var _ = fmt.Println   // in case not otherwise used
+-var _ = math.MinInt8  // in case not otherwise used
+-var _ = obj.ANOP      // in case not otherwise used
+-var _ = objabi.GOROOT // in case not otherwise used
+-var _ = types.TypeMem // in case not otherwise used
+-
+ func rewriteValue386splitload(v *Value) bool {
+ 	switch v.Op {
+ 	case Op386CMPBconstload:
+@@ -168,11 +156,6 @@ func rewriteValue386splitload_Op386CMPWload_0(v *Value) bool {
+ 	}
+ }
+ func rewriteBlock386splitload(b *Block) bool {
+-	config := b.Func.Config
+-	typ := &config.Types
+-	_ = typ
+-	v := b.Control
+-	_ = v
+ 	switch b.Kind {
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 8c02897f71..1f888211ef 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -3,18 +3,9 @@
+ 
+ package ssa
+ 
+-import "fmt"
+ import "math"
+-import "cmd/internal/obj"
+-import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
+-var _ = fmt.Println   // in case not otherwise used
+-var _ = math.MinInt8  // in case not otherwise used
+-var _ = obj.ANOP      // in case not otherwise used
+-var _ = objabi.GOROOT // in case not otherwise used
+-var _ = types.TypeMem // in case not otherwise used
+-
+ func rewriteValueAMD64(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAMD64ADCQ:
+@@ -64753,10 +64744,7 @@ func rewriteValueAMD64_OpZeroExt8to64_0(v *Value) bool {
+ }
+ func rewriteBlockAMD64(b *Block) bool {
+ 	config := b.Func.Config
+-	typ := &config.Types
+-	_ = typ
+ 	v := b.Control
+-	_ = v
+ 	switch b.Kind {
+ 	case BlockAMD64EQ:
+ 		// match: (EQ (TESTL (SHLL (MOVLconst [1]) x) y))
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go b/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go
+index 0a0ff2dfbf..2cccc8d4a1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go
+@@ -3,18 +3,6 @@
+ 
+ package ssa
+ 
+-import "fmt"
+-import "math"
+-import "cmd/internal/obj"
+-import "cmd/internal/objabi"
+-import "cmd/compile/internal/types"
+-
+-var _ = fmt.Println   // in case not otherwise used
+-var _ = math.MinInt8  // in case not otherwise used
+-var _ = obj.ANOP      // in case not otherwise used
+-var _ = objabi.GOROOT // in case not otherwise used
+-var _ = types.TypeMem // in case not otherwise used
+-
+ func rewriteValueAMD64splitload(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAMD64CMPBconstload:
+@@ -217,11 +205,6 @@ func rewriteValueAMD64splitload_OpAMD64CMPWload_0(v *Value) bool {
+ 	}
+ }
+ func rewriteBlockAMD64splitload(b *Block) bool {
+-	config := b.Func.Config
+-	typ := &config.Types
+-	_ = typ
+-	v := b.Control
+-	_ = v
+ 	switch b.Kind {
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 72c07c94c8..6a3237497c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -3,18 +3,9 @@
+ 
+ package ssa
+ 
+-import "fmt"
+-import "math"
+-import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
+-var _ = fmt.Println   // in case not otherwise used
+-var _ = math.MinInt8  // in case not otherwise used
+-var _ = obj.ANOP      // in case not otherwise used
+-var _ = objabi.GOROOT // in case not otherwise used
+-var _ = types.TypeMem // in case not otherwise used
+-
+ func rewriteValueARM(v *Value) bool {
+ 	switch v.Op {
+ 	case OpARMADC:
+@@ -21785,11 +21776,7 @@ func rewriteValueARM_OpZeromask_0(v *Value) bool {
+ 	}
+ }
+ func rewriteBlockARM(b *Block) bool {
+-	config := b.Func.Config
+-	typ := &config.Types
+-	_ = typ
+ 	v := b.Control
+-	_ = v
+ 	switch b.Kind {
+ 	case BlockARMEQ:
+ 		// match: (EQ (FlagEQ) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 9dfd848bc4..fc677726dc 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -3,18 +3,8 @@
+ 
+ package ssa
+ 
+-import "fmt"
+-import "math"
+-import "cmd/internal/obj"
+-import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
+-var _ = fmt.Println   // in case not otherwise used
+-var _ = math.MinInt8  // in case not otherwise used
+-var _ = obj.ANOP      // in case not otherwise used
+-var _ = objabi.GOROOT // in case not otherwise used
+-var _ = types.TypeMem // in case not otherwise used
+-
+ func rewriteValueARM64(v *Value) bool {
+ 	switch v.Op {
+ 	case OpARM64ADCSflags:
+@@ -38293,11 +38283,7 @@ func rewriteValueARM64_OpZeroExt8to64_0(v *Value) bool {
+ 	}
+ }
+ func rewriteBlockARM64(b *Block) bool {
+-	config := b.Func.Config
+-	typ := &config.Types
+-	_ = typ
+ 	v := b.Control
+-	_ = v
+ 	switch b.Kind {
+ 	case BlockARM64EQ:
+ 		// match: (EQ (CMPWconst [0] x:(ANDconst [c] y)) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 6e0fa2b891..5ce0ec36f7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -3,18 +3,8 @@
+ 
+ package ssa
+ 
+-import "fmt"
+-import "math"
+-import "cmd/internal/obj"
+-import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
+-var _ = fmt.Println   // in case not otherwise used
+-var _ = math.MinInt8  // in case not otherwise used
+-var _ = obj.ANOP      // in case not otherwise used
+-var _ = objabi.GOROOT // in case not otherwise used
+-var _ = types.TypeMem // in case not otherwise used
+-
+ func rewriteValueMIPS(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAdd16:
+@@ -9452,11 +9442,7 @@ func rewriteValueMIPS_OpZeromask_0(v *Value) bool {
+ 	}
+ }
+ func rewriteBlockMIPS(b *Block) bool {
+-	config := b.Func.Config
+-	typ := &config.Types
+-	_ = typ
+ 	v := b.Control
+-	_ = v
+ 	switch b.Kind {
+ 	case BlockMIPSEQ:
+ 		// match: (EQ (FPFlagTrue cmp) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index db104504e9..8b75c032cc 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -3,18 +3,8 @@
+ 
+ package ssa
+ 
+-import "fmt"
+-import "math"
+-import "cmd/internal/obj"
+-import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
+-var _ = fmt.Println   // in case not otherwise used
+-var _ = math.MinInt8  // in case not otherwise used
+-var _ = obj.ANOP      // in case not otherwise used
+-var _ = objabi.GOROOT // in case not otherwise used
+-var _ = types.TypeMem // in case not otherwise used
+-
+ func rewriteValueMIPS64(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAdd16:
+@@ -10186,11 +10176,7 @@ func rewriteValueMIPS64_OpZeroExt8to64_0(v *Value) bool {
+ 	}
+ }
+ func rewriteBlockMIPS64(b *Block) bool {
+-	config := b.Func.Config
+-	typ := &config.Types
+-	_ = typ
+ 	v := b.Control
+-	_ = v
+ 	switch b.Kind {
+ 	case BlockMIPS64EQ:
+ 		// match: (EQ (FPFlagTrue cmp) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index d35cf6eeac..1bc16515d4 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -3,18 +3,10 @@
+ 
+ package ssa
+ 
+-import "fmt"
+ import "math"
+-import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
+-var _ = fmt.Println   // in case not otherwise used
+-var _ = math.MinInt8  // in case not otherwise used
+-var _ = obj.ANOP      // in case not otherwise used
+-var _ = objabi.GOROOT // in case not otherwise used
+-var _ = types.TypeMem // in case not otherwise used
+-
+ func rewriteValuePPC64(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAbs:
+@@ -30305,11 +30297,7 @@ func rewriteValuePPC64_OpZeroExt8to64_0(v *Value) bool {
+ 	}
+ }
+ func rewriteBlockPPC64(b *Block) bool {
+-	config := b.Func.Config
+-	typ := &config.Types
+-	_ = typ
+ 	v := b.Control
+-	_ = v
+ 	switch b.Kind {
+ 	case BlockPPC64EQ:
+ 		// match: (EQ (CMPconst [0] (ANDconst [c] x)) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index fa1de9a7a6..2de5e1b83f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -3,18 +3,8 @@
+ 
+ package ssa
+ 
+-import "fmt"
+-import "math"
+-import "cmd/internal/obj"
+-import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
+-var _ = fmt.Println   // in case not otherwise used
+-var _ = math.MinInt8  // in case not otherwise used
+-var _ = obj.ANOP      // in case not otherwise used
+-var _ = objabi.GOROOT // in case not otherwise used
+-var _ = types.TypeMem // in case not otherwise used
+-
+ func rewriteValueS390X(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAdd16:
+@@ -41547,9 +41537,7 @@ func rewriteValueS390X_OpZeroExt8to64_0(v *Value) bool {
+ func rewriteBlockS390X(b *Block) bool {
+ 	config := b.Func.Config
+ 	typ := &config.Types
+-	_ = typ
+ 	v := b.Control
+-	_ = v
+ 	switch b.Kind {
+ 	case BlockS390XEQ:
+ 		// match: (EQ (InvertFlags cmp) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index acfbb24f10..98ca6f69a3 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -3,18 +3,9 @@
+ 
+ package ssa
+ 
+-import "fmt"
+-import "math"
+-import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
+-var _ = fmt.Println   // in case not otherwise used
+-var _ = math.MinInt8  // in case not otherwise used
+-var _ = obj.ANOP      // in case not otherwise used
+-var _ = objabi.GOROOT // in case not otherwise used
+-var _ = types.TypeMem // in case not otherwise used
+-
+ func rewriteValueWasm(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAbs:
+@@ -6555,11 +6546,6 @@ func rewriteValueWasm_OpZeroExt8to64_0(v *Value) bool {
+ 	}
+ }
+ func rewriteBlockWasm(b *Block) bool {
+-	config := b.Func.Config
+-	typ := &config.Types
+-	_ = typ
+-	v := b.Control
+-	_ = v
+ 	switch b.Kind {
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/ssa/rewritedec.go b/src/cmd/compile/internal/ssa/rewritedec.go
+index fe135821eb..389e69213d 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec.go
++++ b/src/cmd/compile/internal/ssa/rewritedec.go
+@@ -3,18 +3,8 @@
+ 
+ package ssa
+ 
+-import "fmt"
+-import "math"
+-import "cmd/internal/obj"
+-import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
+-var _ = fmt.Println   // in case not otherwise used
+-var _ = math.MinInt8  // in case not otherwise used
+-var _ = obj.ANOP      // in case not otherwise used
+-var _ = objabi.GOROOT // in case not otherwise used
+-var _ = types.TypeMem // in case not otherwise used
+-
+ func rewriteValuedec(v *Value) bool {
+ 	switch v.Op {
+ 	case OpComplexImag:
+@@ -492,11 +482,6 @@ func rewriteValuedec_OpStringPtr_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteBlockdec(b *Block) bool {
+-	config := b.Func.Config
+-	typ := &config.Types
+-	_ = typ
+-	v := b.Control
+-	_ = v
+ 	switch b.Kind {
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/ssa/rewritedec64.go b/src/cmd/compile/internal/ssa/rewritedec64.go
+index a67ae1ed52..3c15ddefdd 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec64.go
++++ b/src/cmd/compile/internal/ssa/rewritedec64.go
+@@ -3,18 +3,8 @@
+ 
+ package ssa
+ 
+-import "fmt"
+-import "math"
+-import "cmd/internal/obj"
+-import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
+-var _ = fmt.Println   // in case not otherwise used
+-var _ = math.MinInt8  // in case not otherwise used
+-var _ = obj.ANOP      // in case not otherwise used
+-var _ = objabi.GOROOT // in case not otherwise used
+-var _ = types.TypeMem // in case not otherwise used
+-
+ func rewriteValuedec64(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAdd64:
+@@ -2726,11 +2716,6 @@ func rewriteValuedec64_OpZeroExt8to64_0(v *Value) bool {
+ 	}
+ }
+ func rewriteBlockdec64(b *Block) bool {
+-	config := b.Func.Config
+-	typ := &config.Types
+-	_ = typ
+-	v := b.Control
+-	_ = v
+ 	switch b.Kind {
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/ssa/rewritedecArgs.go b/src/cmd/compile/internal/ssa/rewritedecArgs.go
+index 6b811297b3..0f6d01f22b 100644
+--- a/src/cmd/compile/internal/ssa/rewritedecArgs.go
++++ b/src/cmd/compile/internal/ssa/rewritedecArgs.go
+@@ -3,18 +3,6 @@
+ 
+ package ssa
+ 
+-import "fmt"
+-import "math"
+-import "cmd/internal/obj"
+-import "cmd/internal/objabi"
+-import "cmd/compile/internal/types"
+-
+-var _ = fmt.Println   // in case not otherwise used
+-var _ = math.MinInt8  // in case not otherwise used
+-var _ = obj.ANOP      // in case not otherwise used
+-var _ = objabi.GOROOT // in case not otherwise used
+-var _ = types.TypeMem // in case not otherwise used
+-
+ func rewriteValuedecArgs(v *Value) bool {
+ 	switch v.Op {
+ 	case OpArg:
+@@ -270,11 +258,6 @@ func rewriteValuedecArgs_OpArg_10(v *Value) bool {
+ 	return false
+ }
+ func rewriteBlockdecArgs(b *Block) bool {
+-	config := b.Func.Config
+-	typ := &config.Types
+-	_ = typ
+-	v := b.Control
+-	_ = v
+ 	switch b.Kind {
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 7117f77d24..db0b1749a8 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -3,18 +3,9 @@
+ 
+ package ssa
+ 
+-import "fmt"
+ import "math"
+-import "cmd/internal/obj"
+-import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
+-var _ = fmt.Println   // in case not otherwise used
+-var _ = math.MinInt8  // in case not otherwise used
+-var _ = obj.ANOP      // in case not otherwise used
+-var _ = objabi.GOROOT // in case not otherwise used
+-var _ = types.TypeMem // in case not otherwise used
+-
+ func rewriteValuegeneric(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAdd16:
+@@ -49166,11 +49157,7 @@ func rewriteValuegeneric_OpZeroExt8to64_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteBlockgeneric(b *Block) bool {
+-	config := b.Func.Config
+-	typ := &config.Types
+-	_ = typ
+ 	v := b.Control
+-	_ = v
+ 	switch b.Kind {
+ 	case BlockIf:
+ 		// match: (If (Not cond) yes no)

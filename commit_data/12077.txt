@@ -11,8 +11,260 @@ Date:   Mon Feb 20 14:23:45 2012 +1100
     R=golang-dev, dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/5685049
-
+---
  src/pkg/html/template/content.go      | 18 ++++++-
  src/pkg/html/template/content_test.go | 40 +++++++++++++++
  src/pkg/html/template/escape.go       | 92 +++++++++++++++++------------------
  3 files changed, 103 insertions(+), 47 deletions(-)
+
+diff --git a/src/pkg/html/template/content.go b/src/pkg/html/template/content.go
+index 4de7ccde91..539664f972 100644
+--- a/src/pkg/html/template/content.go
++++ b/src/pkg/html/template/content.go
+@@ -85,6 +85,22 @@ func indirect(a interface{}) interface{} {
+ 	return v.Interface()
+ }
+ 
++var (
++	errorType       = reflect.TypeOf((*error)(nil)).Elem()
++	fmtStringerType = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
++)
++
++// indirectToStringerOrError returns the value, after dereferencing as many times
++// as necessary to reach the base type (or nil) or an implementation of fmt.Stringer
++// or error,
++func indirectToStringerOrError(a interface{}) interface{} {
++	v := reflect.ValueOf(a)
++	for !v.Type().Implements(fmtStringerType) && !v.Type().Implements(errorType) && v.Kind() == reflect.Ptr && !v.IsNil() {
++		v = v.Elem()
++	}
++	return v.Interface()
++}
++
+ // stringify converts its arguments to a string and the type of the content.
+ // All pointers are dereferenced, as in the text/template package.
+ func stringify(args ...interface{}) (string, contentType) {
+@@ -107,7 +123,7 @@ func stringify(args ...interface{}) (string, contentType) {
+ 		}
+ 	}
+ 	for i, arg := range args {
+-		args[i] = indirect(arg)
++		args[i] = indirectToStringerOrError(arg)
+ 	}
+ 	return fmt.Sprint(args...), contentTypePlain
+ }
+diff --git a/src/pkg/html/template/content_test.go b/src/pkg/html/template/content_test.go
+index c96a521a59..3c32e5e89c 100644
+--- a/src/pkg/html/template/content_test.go
++++ b/src/pkg/html/template/content_test.go
+@@ -6,6 +6,7 @@ package template
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"strings"
+ 	"testing"
+ )
+@@ -219,3 +220,42 @@ func TestTypedContent(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Test that we print using the String method. Was issue 3073.
++type stringer struct {
++	v int
++}
++
++func (s *stringer) String() string {
++	return fmt.Sprintf("string=%d", s.v)
++}
++
++type errorer struct {
++	v int
++}
++
++func (s *errorer) Error() string {
++	return fmt.Sprintf("error=%d", s.v)
++}
++
++func TestStringer(t *testing.T) {
++	s := &stringer{3}
++	b := new(bytes.Buffer)
++	tmpl := Must(New("x").Parse("{{.}}"))
++	if err := tmpl.Execute(b, s); err != nil {
++		t.Fatal(err)
++	}
++	var expect = "string=3"
++	if b.String() != expect {
++		t.Errorf("expected %q got %q", expect, b.String())
++	}
++	e := &errorer{7}
++	b.Reset()
++	if err := tmpl.Execute(b, e); err != nil {
++		t.Fatal(err)
++	}
++	expect = "error=7"
++	if b.String() != expect {
++		t.Errorf("expected %q got %q", expect, b.String())
++	}
++}
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index 8145987c9e..02fa3eaad6 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -46,30 +46,30 @@ func escapeTemplates(tmpl *Template, names ...string) error {
+ 
+ // funcMap maps command names to functions that render their inputs safe.
+ var funcMap = template.FuncMap{
+-	"exp_template_html_attrescaper":     attrEscaper,
+-	"exp_template_html_commentescaper":  commentEscaper,
+-	"exp_template_html_cssescaper":      cssEscaper,
+-	"exp_template_html_cssvaluefilter":  cssValueFilter,
+-	"exp_template_html_htmlnamefilter":  htmlNameFilter,
+-	"exp_template_html_htmlescaper":     htmlEscaper,
+-	"exp_template_html_jsregexpescaper": jsRegexpEscaper,
+-	"exp_template_html_jsstrescaper":    jsStrEscaper,
+-	"exp_template_html_jsvalescaper":    jsValEscaper,
+-	"exp_template_html_nospaceescaper":  htmlNospaceEscaper,
+-	"exp_template_html_rcdataescaper":   rcdataEscaper,
+-	"exp_template_html_urlescaper":      urlEscaper,
+-	"exp_template_html_urlfilter":       urlFilter,
+-	"exp_template_html_urlnormalizer":   urlNormalizer,
++	"html_template_attrescaper":     attrEscaper,
++	"html_template_commentescaper":  commentEscaper,
++	"html_template_cssescaper":      cssEscaper,
++	"html_template_cssvaluefilter":  cssValueFilter,
++	"html_template_htmlnamefilter":  htmlNameFilter,
++	"html_template_htmlescaper":     htmlEscaper,
++	"html_template_jsregexpescaper": jsRegexpEscaper,
++	"html_template_jsstrescaper":    jsStrEscaper,
++	"html_template_jsvalescaper":    jsValEscaper,
++	"html_template_nospaceescaper":  htmlNospaceEscaper,
++	"html_template_rcdataescaper":   rcdataEscaper,
++	"html_template_urlescaper":      urlEscaper,
++	"html_template_urlfilter":       urlFilter,
++	"html_template_urlnormalizer":   urlNormalizer,
+ }
+ 
+ // equivEscapers matches contextual escapers to equivalent template builtins.
+ var equivEscapers = map[string]string{
+-	"exp_template_html_attrescaper":    "html",
+-	"exp_template_html_htmlescaper":    "html",
+-	"exp_template_html_nospaceescaper": "html",
+-	"exp_template_html_rcdataescaper":  "html",
+-	"exp_template_html_urlescaper":     "urlquery",
+-	"exp_template_html_urlnormalizer":  "urlquery",
++	"html_template_attrescaper":    "html",
++	"html_template_htmlescaper":    "html",
++	"html_template_nospaceescaper": "html",
++	"html_template_rcdataescaper":  "html",
++	"html_template_urlescaper":     "urlquery",
++	"html_template_urlnormalizer":  "urlquery",
+ }
+ 
+ // escaper collects type inferences about templates and changes needed to make
+@@ -147,17 +147,17 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 	case stateURL, stateCSSDqStr, stateCSSSqStr, stateCSSDqURL, stateCSSSqURL, stateCSSURL:
+ 		switch c.urlPart {
+ 		case urlPartNone:
+-			s = append(s, "exp_template_html_urlfilter")
++			s = append(s, "html_template_urlfilter")
+ 			fallthrough
+ 		case urlPartPreQuery:
+ 			switch c.state {
+ 			case stateCSSDqStr, stateCSSSqStr:
+-				s = append(s, "exp_template_html_cssescaper")
++				s = append(s, "html_template_cssescaper")
+ 			default:
+-				s = append(s, "exp_template_html_urlnormalizer")
++				s = append(s, "html_template_urlnormalizer")
+ 			}
+ 		case urlPartQueryOrFrag:
+-			s = append(s, "exp_template_html_urlescaper")
++			s = append(s, "html_template_urlescaper")
+ 		case urlPartUnknown:
+ 			return context{
+ 				state: stateError,
+@@ -167,27 +167,27 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 			panic(c.urlPart.String())
+ 		}
+ 	case stateJS:
+-		s = append(s, "exp_template_html_jsvalescaper")
++		s = append(s, "html_template_jsvalescaper")
+ 		// A slash after a value starts a div operator.
+ 		c.jsCtx = jsCtxDivOp
+ 	case stateJSDqStr, stateJSSqStr:
+-		s = append(s, "exp_template_html_jsstrescaper")
++		s = append(s, "html_template_jsstrescaper")
+ 	case stateJSRegexp:
+-		s = append(s, "exp_template_html_jsregexpescaper")
++		s = append(s, "html_template_jsregexpescaper")
+ 	case stateCSS:
+-		s = append(s, "exp_template_html_cssvaluefilter")
++		s = append(s, "html_template_cssvaluefilter")
+ 	case stateText:
+-		s = append(s, "exp_template_html_htmlescaper")
++		s = append(s, "html_template_htmlescaper")
+ 	case stateRCDATA:
+-		s = append(s, "exp_template_html_rcdataescaper")
++		s = append(s, "html_template_rcdataescaper")
+ 	case stateAttr:
+ 		// Handled below in delim check.
+ 	case stateAttrName, stateTag:
+ 		c.state = stateAttrName
+-		s = append(s, "exp_template_html_htmlnamefilter")
++		s = append(s, "html_template_htmlnamefilter")
+ 	default:
+ 		if isComment(c.state) {
+-			s = append(s, "exp_template_html_commentescaper")
++			s = append(s, "html_template_commentescaper")
+ 		} else {
+ 			panic("unexpected state " + c.state.String())
+ 		}
+@@ -196,9 +196,9 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 	case delimNone:
+ 		// No extra-escaping needed for raw text content.
+ 	case delimSpaceOrTagEnd:
+-		s = append(s, "exp_template_html_nospaceescaper")
++		s = append(s, "html_template_nospaceescaper")
+ 	default:
+-		s = append(s, "exp_template_html_attrescaper")
++		s = append(s, "html_template_attrescaper")
+ 	}
+ 	e.editActionNode(n, s)
+ 	return c
+@@ -260,22 +260,22 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
+ // redundantFuncs[a][b] implies that funcMap[b](funcMap[a](x)) == funcMap[a](x)
+ // for all x.
+ var redundantFuncs = map[string]map[string]bool{
+-	"exp_template_html_commentescaper": {
+-		"exp_template_html_attrescaper":    true,
+-		"exp_template_html_nospaceescaper": true,
+-		"exp_template_html_htmlescaper":    true,
++	"html_template_commentescaper": {
++		"html_template_attrescaper":    true,
++		"html_template_nospaceescaper": true,
++		"html_template_htmlescaper":    true,
+ 	},
+-	"exp_template_html_cssescaper": {
+-		"exp_template_html_attrescaper": true,
++	"html_template_cssescaper": {
++		"html_template_attrescaper": true,
+ 	},
+-	"exp_template_html_jsregexpescaper": {
+-		"exp_template_html_attrescaper": true,
++	"html_template_jsregexpescaper": {
++		"html_template_attrescaper": true,
+ 	},
+-	"exp_template_html_jsstrescaper": {
+-		"exp_template_html_attrescaper": true,
++	"html_template_jsstrescaper": {
++		"html_template_attrescaper": true,
+ 	},
+-	"exp_template_html_urlescaper": {
+-		"exp_template_html_urlnormalizer": true,
++	"html_template_urlescaper": {
++		"html_template_urlnormalizer": true,
+ 	},
+ }
+ 

@@ -10,6 +10,20 @@ Date:   Sat Nov 5 10:05:27 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/32760
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/fd_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 40b4aa1d7a..a976f2ac7f 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -118,7 +118,7 @@ func (o *operation) InitBufs(buf *Buffers) {
+ 		if len(b) > 0 {
+ 			p = &b[0]
+ 		}
+-		o.bufs = append(o.bufs, syscall.WSABuf{uint32(len(b)), p})
++		o.bufs = append(o.bufs, syscall.WSABuf{Len: uint32(len(b)), Buf: p})
+ 	}
+ }
+ 

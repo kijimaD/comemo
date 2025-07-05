@@ -19,6 +19,34 @@ Date:   Sun May 28 06:45:23 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/file.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 806c1f2045..2f12c3bdae 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -725,10 +725,6 @@ func ReadFile(name string) ([]byte, error) {
+ 
+ 	data := make([]byte, 0, size)
+ 	for {
+-		if len(data) >= cap(data) {
+-			d := append(data[:cap(data)], 0)
+-			data = d[:len(data)]
+-		}
+ 		n, err := f.Read(data[len(data):cap(data)])
+ 		data = data[:len(data)+n]
+ 		if err != nil {
+@@ -737,6 +733,11 @@ func ReadFile(name string) ([]byte, error) {
+ 			}
+ 			return data, err
+ 		}
++
++		if len(data) >= cap(data) {
++			d := append(data[:cap(data)], 0)
++			data = d[:len(data)]
++		}
+ 	}
+ }
+ 

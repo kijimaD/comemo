@@ -14,7 +14,7 @@ Date:   Wed Feb 28 16:30:07 2018 -0500
     Change-Id: I130b251b65f18208294e129bb7ddc3f91d57d31d
     Reviewed-on: https://go-review.googlesource.com/97957
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/386Ops.go     |   4 +-
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   6 +-
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |   6 +-
@@ -28,3 +28,566 @@ Date:   Wed Feb 28 16:30:07 2018 -0500
  src/cmd/compile/internal/ssa/op.go             |   1 +
  src/cmd/compile/internal/ssa/opGen.go          | 108 ++++++++++++++++---------
  12 files changed, 107 insertions(+), 74 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index d9aaf5d63b..fe88b456f1 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -439,7 +439,7 @@ func init() {
+ 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+ 		// and sorts it to the very beginning of the block to prevent other
+ 		// use of DX (the closure pointer)
+-		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}},
++		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}, zeroWidth: true},
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+ 		// I.e., if f calls g "calls" getcallerpc,
+ 		// the result should be the PC within f that g will return to.
+@@ -459,7 +459,7 @@ func init() {
+ 		// (particularly stack maps).  It takes a memory arg so it
+ 		// gets correctly ordered with respect to GC safepoints.
+ 		// arg0=ptr/int arg1=mem, output=int/ptr
+-		{name: "MOVLconvert", argLength: 2, reg: gp11, asm: "MOVL", resultInArg0: true},
++		{name: "MOVLconvert", argLength: 2, reg: gp11, asm: "MOVL", resultInArg0: true, zeroWidth: true},
+ 
+ 		// Constant flag values. For any comparison, there are 5 possible
+ 		// outcomes: the three from the signed total order (<,==,>) and the
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index d3394606f4..c5c2e8ceac 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -568,7 +568,7 @@ func init() {
+ 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+ 		// and sorts it to the very beginning of the block to prevent other
+ 		// use of DX (the closure pointer)
+-		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}},
++		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}, zeroWidth: true},
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+ 		// I.e., if f calls g "calls" getcallerpc,
+ 		// the result should be the PC within f that g will return to.
+@@ -588,8 +588,8 @@ func init() {
+ 		// (particularly stack maps).  It takes a memory arg so it
+ 		// gets correctly ordered with respect to GC safepoints.
+ 		// arg0=ptr/int arg1=mem, output=int/ptr
+-		{name: "MOVQconvert", argLength: 2, reg: gp11, asm: "MOVQ", resultInArg0: true},
+-		{name: "MOVLconvert", argLength: 2, reg: gp11, asm: "MOVL", resultInArg0: true}, // amd64p32 equivalent
++		{name: "MOVQconvert", argLength: 2, reg: gp11, asm: "MOVQ", resultInArg0: true, zeroWidth: true},
++		{name: "MOVLconvert", argLength: 2, reg: gp11, asm: "MOVL", resultInArg0: true, zeroWidth: true}, // amd64p32 equivalent
+ 
+ 		// Constant flag values. For any comparison, there are 5 possible
+ 		// outcomes: the three from the signed total order (<,==,>) and the
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 0e458053cf..14b1c9afa4 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -217,8 +217,8 @@ func init() {
+ 		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"},       // count leading zero, 32-bit
+ 		{name: "VCNT", argLength: 1, reg: fp11, asm: "VCNT"},       // count set bits for each 8-bit unit and store the result in each 8-bit unit
+ 		{name: "VUADDLV", argLength: 1, reg: fp11, asm: "VUADDLV"}, // unsigned sum of eight bytes in a 64-bit value, zero extended to 64-bit.
+-		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true},
+-		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true},
++		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
++		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+ 
+ 		// 3-operand, the addend comes first
+ 		{name: "FMADDS", argLength: 3, reg: fp31, asm: "FMADDS"},   // +arg0 + (arg1 * arg2)
+@@ -459,7 +459,7 @@ func init() {
+ 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+ 		// and sorts it to the very beginning of the block to prevent other
+ 		// use of R26 (arm64.REGCTXT, the closure pointer)
+-		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R26")}}},
++		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R26")}}, zeroWidth: true},
+ 
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index de6c13cc97..d668ed8c02 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -514,7 +514,7 @@ func init() {
+ 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+ 		// and sorts it to the very beginning of the block to prevent other
+ 		// use of R7 (arm.REGCTXT, the closure pointer)
+-		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R7")}}},
++		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R7")}}, zeroWidth: true},
+ 
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index 163a88c8fe..d5cae59147 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -404,7 +404,7 @@ func init() {
+ 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+ 		// and sorts it to the very beginning of the block to prevent other
+ 		// use of R22 (mips.REGCTXT, the closure pointer)
+-		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R22")}}},
++		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R22")}}, zeroWidth: true},
+ 
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPSOps.go b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+index 868e4d90da..a38f3383b9 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+@@ -374,7 +374,7 @@ func init() {
+ 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+ 		// and sorts it to the very beginning of the block to prevent other
+ 		// use of R22 (mips.REGCTXT, the closure pointer)
+-		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R22")}}},
++		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R22")}}, zeroWidth: true},
+ 
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 2043887a78..ecd6944b1e 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -316,7 +316,7 @@ func init() {
+ 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+ 		// and sorts it to the very beginning of the block to prevent other
+ 		// use of the closure pointer.
+-		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{ctxt}}},
++		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{ctxt}}, zeroWidth: true},
+ 
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+@@ -324,8 +324,8 @@ func init() {
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
+ 		// Round ops to block fused-multiply-add extraction.
+-		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true},
+-		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true},
++		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
++		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+ 
+ 		// Convert pointer to integer, takes a memory operand for ordering.
+ 		{name: "MOVDconvert", argLength: 2, reg: gp11, asm: "MOVD"},
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 1d6fea00c7..673085dd2b 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -445,14 +445,14 @@ func init() {
+ 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+ 		// and sorts it to the very beginning of the block to prevent other
+ 		// use of R12 (the closure pointer)
+-		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R12")}}},
++		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R12")}}, zeroWidth: true},
+ 		// arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{ptrsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
+ 		// Round ops to block fused-multiply-add extraction.
+-		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true},
+-		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true},
++		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
++		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+ 
+ 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+ 		// It saves all GP registers if necessary,
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 17080fbb3d..49160ab7c4 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -285,8 +285,8 @@ var genericOps = []opData{
+ 
+ 	// Data movement, max argument length for Phi is indefinite so just pick
+ 	// a really large number
+-	{name: "Phi", argLength: -1}, // select an argument based on which predecessor block we came from
+-	{name: "Copy", argLength: 1}, // output = arg0
++	{name: "Phi", argLength: -1, zeroWidth: true}, // select an argument based on which predecessor block we came from
++	{name: "Copy", argLength: 1},                  // output = arg0
+ 	// Convert converts between pointers and integers.
+ 	// We have a special op for this so as to not confuse GC
+ 	// (particularly stack maps).  It takes a memory arg so it
+@@ -311,8 +311,8 @@ var genericOps = []opData{
+ 	{name: "ConstSlice"},               // nil slice
+ 
+ 	// Constant-like things
+-	{name: "InitMem"},                               // memory input to the function.
+-	{name: "Arg", aux: "SymOff", symEffect: "Read"}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
++	{name: "InitMem", zeroWidth: true},                               // memory input to the function.
++	{name: "Arg", aux: "SymOff", symEffect: "Read", zeroWidth: true}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
+ 
+ 	// The address of a variable.  arg0 is the base pointer.
+ 	// If the variable is a global, the base pointer will be SB and
+@@ -321,9 +321,9 @@ var genericOps = []opData{
+ 	// the Aux field will be a *gc.Node.
+ 	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
+ 
+-	{name: "SP"},                 // stack pointer
+-	{name: "SB", typ: "Uintptr"}, // static base pointer (a.k.a. globals pointer)
+-	{name: "Invalid"},            // unused value
++	{name: "SP", zeroWidth: true},                 // stack pointer
++	{name: "SB", typ: "Uintptr", zeroWidth: true}, // static base pointer (a.k.a. globals pointer)
++	{name: "Invalid"},                             // unused value
+ 
+ 	// Memory operations
+ 	{name: "Load", argLength: 2},                          // Load from arg0.  arg1=memory
+@@ -395,10 +395,10 @@ var genericOps = []opData{
+ 	{name: "NilCheck", argLength: 2, typ: "Void"},        // arg0=ptr, arg1=mem. Panics if arg0 is nil. Returns void.
+ 
+ 	// Pseudo-ops
+-	{name: "GetG", argLength: 1}, // runtime.getg() (read g pointer). arg0=mem
+-	{name: "GetClosurePtr"},      // get closure pointer from dedicated register
+-	{name: "GetCallerPC"},        // for getcallerpc intrinsic
+-	{name: "GetCallerSP"},        // for getcallersp intrinsic
++	{name: "GetG", argLength: 1, zeroWidth: true}, // runtime.getg() (read g pointer). arg0=mem
++	{name: "GetClosurePtr"},                       // get closure pointer from dedicated register
++	{name: "GetCallerPC"},                         // for getcallerpc intrinsic
++	{name: "GetCallerSP"},                         // for getcallersp intrinsic
+ 
+ 	// Indexing operations
+ 	{name: "PtrIndex", argLength: 2},             // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
+@@ -451,10 +451,10 @@ var genericOps = []opData{
+ 	// Unknown value. Used for Values whose values don't matter because they are dead code.
+ 	{name: "Unknown"},
+ 
+-	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
+-	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+-	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+-	{name: "KeepAlive", argLength: 2, typ: "Mem"},                             // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
++	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None", zeroWidth: true}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
++	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},                             // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
++	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
++	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                             // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+ 
+ 	// Ops for breaking 64-bit operations on 32-bit architectures
+ 	{name: "Int64Make", argLength: 2, typ: "UInt64"}, // arg0=hi, arg1=lo
+@@ -481,8 +481,8 @@ var genericOps = []opData{
+ 	{name: "Cvt64Fto64U", argLength: 1}, // float64 -> uint64, only used on archs that has the instruction
+ 
+ 	// pseudo-ops for breaking Tuple
+-	{name: "Select0", argLength: 1}, // the first component of a tuple
+-	{name: "Select1", argLength: 1}, // the second component of a tuple
++	{name: "Select0", argLength: 1, zeroWidth: true}, // the first component of a tuple
++	{name: "Select1", argLength: 1, zeroWidth: true}, // the second component of a tuple
+ 
+ 	// Atomic operations used for semantically inlining runtime/internal/atomic.
+ 	// Atomic loads return a new memory so that the loads are properly ordered
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 0966d4c39d..6b0ee41f64 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -54,6 +54,7 @@ type opData struct {
+ 	faultOnNilArg1    bool   // this op will fault if arg1 is nil (and aux encodes a small offset)
+ 	usesScratch       bool   // this op requires scratch memory space
+ 	hasSideEffects    bool   // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
++	zeroWidth         bool   // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
+ 	symEffect         string // effect this op has on symbol in aux
+ }
+ 
+@@ -216,6 +217,9 @@ func genOp() {
+ 			if v.hasSideEffects {
+ 				fmt.Fprintln(w, "hasSideEffects: true,")
+ 			}
++			if v.zeroWidth {
++				fmt.Fprintln(w, "zeroWidth: true,")
++			}
+ 			needEffect := strings.HasPrefix(v.aux, "Sym")
+ 			if v.symEffect != "" {
+ 				if !needEffect {
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 621063cbbb..610921808e 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -35,6 +35,7 @@ type opInfo struct {
+ 	faultOnNilArg1    bool      // this op will fault if arg1 is nil (and aux encodes a small offset)
+ 	usesScratch       bool      // this op requires scratch memory space
+ 	hasSideEffects    bool      // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
++	zeroWidth         bool      // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
+ 	symEffect         SymEffect // effect this op has on symbol in aux
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 586fe2218f..d074861544 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -4394,8 +4394,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredGetClosurePtr",
+-		argLen: 0,
++		name:      "LoweredGetClosurePtr",
++		argLen:    0,
++		zeroWidth: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+ 				{0, 4}, // DX
+@@ -4452,6 +4453,7 @@ var opcodeTable = [...]opInfo{
+ 		name:         "MOVLconvert",
+ 		argLen:       2,
+ 		resultInArg0: true,
++		zeroWidth:    true,
+ 		asm:          x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -8308,8 +8310,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredGetClosurePtr",
+-		argLen: 0,
++		name:      "LoweredGetClosurePtr",
++		argLen:    0,
++		zeroWidth: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+ 				{0, 4}, // DX
+@@ -8366,6 +8369,7 @@ var opcodeTable = [...]opInfo{
+ 		name:         "MOVQconvert",
+ 		argLen:       2,
+ 		resultInArg0: true,
++		zeroWidth:    true,
+ 		asm:          x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -8380,6 +8384,7 @@ var opcodeTable = [...]opInfo{
+ 		name:         "MOVLconvert",
+ 		argLen:       2,
+ 		resultInArg0: true,
++		zeroWidth:    true,
+ 		asm:          x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -12082,8 +12087,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredGetClosurePtr",
+-		argLen: 0,
++		name:      "LoweredGetClosurePtr",
++		argLen:    0,
++		zeroWidth: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+ 				{0, 128}, // R7
+@@ -12908,6 +12914,7 @@ var opcodeTable = [...]opInfo{
+ 		name:         "LoweredRound32F",
+ 		argLen:       1,
+ 		resultInArg0: true,
++		zeroWidth:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+@@ -12921,6 +12928,7 @@ var opcodeTable = [...]opInfo{
+ 		name:         "LoweredRound64F",
+ 		argLen:       1,
+ 		resultInArg0: true,
++		zeroWidth:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+@@ -14667,8 +14675,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredGetClosurePtr",
+-		argLen: 0,
++		name:      "LoweredGetClosurePtr",
++		argLen:    0,
++		zeroWidth: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+ 				{0, 67108864}, // R26
+@@ -16269,8 +16278,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredGetClosurePtr",
+-		argLen: 0,
++		name:      "LoweredGetClosurePtr",
++		argLen:    0,
++		zeroWidth: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+ 				{0, 4194304}, // R22
+@@ -17801,8 +17811,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredGetClosurePtr",
+-		argLen: 0,
++		name:      "LoweredGetClosurePtr",
++		argLen:    0,
++		zeroWidth: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+ 				{0, 4194304}, // R22
+@@ -19488,8 +19499,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredGetClosurePtr",
+-		argLen: 0,
++		name:      "LoweredGetClosurePtr",
++		argLen:    0,
++		zeroWidth: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+ 				{0, 2048}, // R11
+@@ -19523,6 +19535,7 @@ var opcodeTable = [...]opInfo{
+ 		name:         "LoweredRound32F",
+ 		argLen:       1,
+ 		resultInArg0: true,
++		zeroWidth:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+@@ -19536,6 +19549,7 @@ var opcodeTable = [...]opInfo{
+ 		name:         "LoweredRound64F",
+ 		argLen:       1,
+ 		resultInArg0: true,
++		zeroWidth:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+@@ -22594,8 +22608,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredGetClosurePtr",
+-		argLen: 0,
++		name:      "LoweredGetClosurePtr",
++		argLen:    0,
++		zeroWidth: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+ 				{0, 4096}, // R12
+@@ -22628,6 +22643,7 @@ var opcodeTable = [...]opInfo{
+ 		name:         "LoweredRound32F",
+ 		argLen:       1,
+ 		resultInArg0: true,
++		zeroWidth:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -22641,6 +22657,7 @@ var opcodeTable = [...]opInfo{
+ 		name:         "LoweredRound64F",
+ 		argLen:       1,
+ 		resultInArg0: true,
++		zeroWidth:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -24092,9 +24109,10 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Phi",
+-		argLen:  -1,
+-		generic: true,
++		name:      "Phi",
++		argLen:    -1,
++		zeroWidth: true,
++		generic:   true,
+ 	},
+ 	{
+ 		name:    "Copy",
+@@ -24170,14 +24188,16 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "InitMem",
+-		argLen:  0,
+-		generic: true,
++		name:      "InitMem",
++		argLen:    0,
++		zeroWidth: true,
++		generic:   true,
+ 	},
+ 	{
+ 		name:      "Arg",
+ 		auxType:   auxSymOff,
+ 		argLen:    0,
++		zeroWidth: true,
+ 		symEffect: SymRead,
+ 		generic:   true,
+ 	},
+@@ -24189,14 +24209,16 @@ var opcodeTable = [...]opInfo{
+ 		generic:   true,
+ 	},
+ 	{
+-		name:    "SP",
+-		argLen:  0,
+-		generic: true,
++		name:      "SP",
++		argLen:    0,
++		zeroWidth: true,
++		generic:   true,
+ 	},
+ 	{
+-		name:    "SB",
+-		argLen:  0,
+-		generic: true,
++		name:      "SB",
++		argLen:    0,
++		zeroWidth: true,
++		generic:   true,
+ 	},
+ 	{
+ 		name:    "Load",
+@@ -24439,9 +24461,10 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "GetG",
+-		argLen:  1,
+-		generic: true,
++		name:      "GetG",
++		argLen:    1,
++		zeroWidth: true,
++		generic:   true,
+ 	},
+ 	{
+ 		name:    "GetClosurePtr",
+@@ -24607,6 +24630,7 @@ var opcodeTable = [...]opInfo{
+ 		name:      "VarDef",
+ 		auxType:   auxSym,
+ 		argLen:    1,
++		zeroWidth: true,
+ 		symEffect: SymNone,
+ 		generic:   true,
+ 	},
+@@ -24621,13 +24645,15 @@ var opcodeTable = [...]opInfo{
+ 		name:      "VarLive",
+ 		auxType:   auxSym,
+ 		argLen:    1,
++		zeroWidth: true,
+ 		symEffect: SymRead,
+ 		generic:   true,
+ 	},
+ 	{
+-		name:    "KeepAlive",
+-		argLen:  2,
+-		generic: true,
++		name:      "KeepAlive",
++		argLen:    2,
++		zeroWidth: true,
++		generic:   true,
+ 	},
+ 	{
+ 		name:    "Int64Make",
+@@ -24722,14 +24748,16 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Select0",
+-		argLen:  1,
+-		generic: true,
++		name:      "Select0",
++		argLen:    1,
++		zeroWidth: true,
++		generic:   true,
+ 	},
+ 	{
+-		name:    "Select1",
+-		argLen:  1,
+-		generic: true,
++		name:      "Select1",
++		argLen:    1,
++		zeroWidth: true,
++		generic:   true,
+ 	},
+ 	{
+ 		name:    "AtomicLoad32",

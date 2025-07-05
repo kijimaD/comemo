@@ -32,7 +32,125 @@ Date:   Wed Aug 5 21:45:30 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/13254
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/net/url/url.go      | 23 ++++++++++++-----------
  src/net/url/url_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 56 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 1cec43b899..efbb4c36e9 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -75,6 +75,18 @@ func shouldEscape(c byte, mode encoding) bool {
+ 		return false
+ 	}
+ 
++	if mode == encodeHost {
++		// §3.2.2 Host allows
++		//	sub-delims = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
++		// as part of reg-name.
++		// We add : because we include :port as part of host.
++		// We add [ ] because we include [ipv6]:port as part of host
++		switch c {
++		case '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=', ':', '[', ']':
++			return false
++		}
++	}
++
+ 	switch c {
+ 	case '-', '_', '.', '~': // §2.3 Unreserved characters (mark)
+ 		return false
+@@ -97,10 +109,6 @@ func shouldEscape(c byte, mode encoding) bool {
+ 			// that too.
+ 			return c == '@' || c == '/' || c == '?' || c == ':'
+ 
+-		case encodeHost: // §3.2.1
+-			// The RFC allows ':'.
+-			return c != ':'
+-
+ 		case encodeQueryComponent: // §3.4
+ 			// The RFC reserves (so we must escape) everything.
+ 			return true
+@@ -110,13 +118,6 @@ func shouldEscape(c byte, mode encoding) bool {
+ 			// everything, so escape nothing.
+ 			return false
+ 		}
+-
+-	case '[', ']': // §2.2 Reserved characters (reserved)
+-		switch mode {
+-		case encodeHost: // §3.2.1
+-			// The RFC allows '[', ']'.
+-			return false
+-		}
+ 	}
+ 
+ 	// Everything else must be escaped.
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 2db2d72e7c..80a2b80efa 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -382,6 +382,26 @@ var urltests = []URLTest{
+ 		},
+ 		"",
+ 	},
++	// issue 12036
++	{
++		"mysql://a,b,c/bar",
++		&URL{
++			Scheme: "mysql",
++			Host:   "a,b,c",
++			Path:   "/bar",
++		},
++		"",
++	},
++	// worst case host
++	{
++		"scheme://!$&'()*+,;=hello!:port/path",
++		&URL{
++			Scheme: "scheme",
++			Host:   "!$&'()*+,;=hello!:port",
++			Path:   "/path",
++		},
++		"",
++	},
+ }
+ 
+ // more useful string for debugging than fmt's struct printer
+@@ -1130,6 +1150,7 @@ var shouldEscapeTests = []shouldEscapeTest{
+ 	{'a', encodeUserPassword, false},
+ 	{'a', encodeQueryComponent, false},
+ 	{'a', encodeFragment, false},
++	{'a', encodeHost, false},
+ 	{'z', encodePath, false},
+ 	{'A', encodePath, false},
+ 	{'Z', encodePath, false},
+@@ -1154,6 +1175,29 @@ var shouldEscapeTests = []shouldEscapeTest{
+ 	{',', encodeUserPassword, false},
+ 	{';', encodeUserPassword, false},
+ 	{'=', encodeUserPassword, false},
++
++	// Host (IP address, IPv6 address, registered name, port suffix; §3.2.2)
++	{'!', encodeHost, false},
++	{'$', encodeHost, false},
++	{'&', encodeHost, false},
++	{'\'', encodeHost, false},
++	{'(', encodeHost, false},
++	{')', encodeHost, false},
++	{'*', encodeHost, false},
++	{'+', encodeHost, false},
++	{',', encodeHost, false},
++	{';', encodeHost, false},
++	{'=', encodeHost, false},
++	{':', encodeHost, false},
++	{'[', encodeHost, false},
++	{']', encodeHost, false},
++	{'0', encodeHost, false},
++	{'9', encodeHost, false},
++	{'A', encodeHost, false},
++	{'z', encodeHost, false},
++	{'_', encodeHost, false},
++	{'-', encodeHost, false},
++	{'.', encodeHost, false},
+ }
+ 
+ func TestShouldEscape(t *testing.T) {

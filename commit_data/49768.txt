@@ -26,7 +26,121 @@ Date:   Thu Sep 9 11:02:30 2021 -0400
     Trust: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Katie Hockman <katie@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/internal/fuzz/minimize.go      | 13 ++++++++-----
  src/internal/fuzz/minimize_test.go | 37 ++++++++++++++++++++++++++++++++++---
  2 files changed, 42 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/fuzz/minimize.go b/src/internal/fuzz/minimize.go
+index b3cdd6a11b..974df369ee 100644
+--- a/src/internal/fuzz/minimize.go
++++ b/src/internal/fuzz/minimize.go
+@@ -19,6 +19,14 @@ func isMinimizable(t reflect.Type) bool {
+ }
+ 
+ func minimizeBytes(v []byte, try func(interface{}) bool, shouldStop func() bool) {
++	tmp := make([]byte, len(v))
++	// If minimization was successful at any point during minimizeBytes,
++	// then the vals slice in (*workerServer).minimizeInput will point to
++	// tmp. Since tmp is altered while making new candidates, we need to
++	// make sure that it is equal to the correct value, v, before exiting
++	// this function.
++	defer copy(tmp, v)
++
+ 	// First, try to cut the tail.
+ 	for n := 1024; n != 0; n /= 2 {
+ 		for len(v) > n {
+@@ -35,7 +43,6 @@ func minimizeBytes(v []byte, try func(interface{}) bool, shouldStop func() bool)
+ 	}
+ 
+ 	// Then, try to remove each individual byte.
+-	tmp := make([]byte, len(v))
+ 	for i := 0; i < len(v)-1; i++ {
+ 		if shouldStop() {
+ 			return
+@@ -72,8 +79,6 @@ func minimizeBytes(v []byte, try func(interface{}) bool, shouldStop func() bool)
+ 			j = len(v)
+ 		}
+ 	}
+-
+-	return
+ }
+ 
+ func minimizeInteger(v uint, try func(interface{}) bool, shouldStop func() bool) {
+@@ -90,7 +95,6 @@ func minimizeInteger(v uint, try func(interface{}) bool, shouldStop func() bool)
+ 		// re-trigger the crash.
+ 		try(v)
+ 	}
+-	return
+ }
+ 
+ func minimizeFloat(v float64, try func(interface{}) bool, shouldStop func() bool) {
+@@ -109,5 +113,4 @@ func minimizeFloat(v float64, try func(interface{}) bool, shouldStop func() bool
+ 			return
+ 		}
+ 	}
+-	return
+ }
+diff --git a/src/internal/fuzz/minimize_test.go b/src/internal/fuzz/minimize_test.go
+index fa84d2da63..410b78310b 100644
+--- a/src/internal/fuzz/minimize_test.go
++++ b/src/internal/fuzz/minimize_test.go
+@@ -8,6 +8,7 @@
+ package fuzz
+ 
+ import (
++	"bytes"
+ 	"context"
+ 	"errors"
+ 	"fmt"
+@@ -41,6 +42,36 @@ func TestMinimizeInput(t *testing.T) {
+ 			input:    []interface{}{[]byte{0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+ 			expected: []interface{}{[]byte{1, 1, 1}},
+ 		},
++		{
++			name: "single_bytes",
++			fn: func(e CorpusEntry) error {
++				b := e.Values[0].([]byte)
++				if len(b) < 2 {
++					return nil
++				}
++				if len(b) == 2 && b[0] == 1 && b[1] == 2 {
++					return nil
++				}
++				return fmt.Errorf("bad %v", e.Values[0])
++			},
++			input:    []interface{}{[]byte{1, 2, 3, 4, 5}},
++			expected: []interface{}{[]byte{2, 3}},
++		},
++		{
++			name: "set_of_bytes",
++			fn: func(e CorpusEntry) error {
++				b := e.Values[0].([]byte)
++				if len(b) < 3 {
++					return nil
++				}
++				if bytes.Equal(b, []byte{0, 1, 2, 3, 4, 5}) || bytes.Equal(b, []byte{0, 4, 5}) {
++					return fmt.Errorf("bad %v", e.Values[0])
++				}
++				return nil
++			},
++			input:    []interface{}{[]byte{0, 1, 2, 3, 4, 5}},
++			expected: []interface{}{[]byte{0, 4, 5}},
++		},
+ 		{
+ 			name: "ones_string",
+ 			fn: func(e CorpusEntry) error {
+@@ -219,10 +250,10 @@ func TestMinimizeInput(t *testing.T) {
+ 				t.Errorf("minimizeInput did not succeed")
+ 			}
+ 			if err == nil {
+-				t.Error("minimizeInput didn't fail")
++				t.Fatal("minimizeInput didn't provide an error")
+ 			}
+-			if expected := fmt.Sprintf("bad %v", tc.input[0]); err.Error() != expected {
+-				t.Errorf("unexpected error: got %s, want %s", err, expected)
++			if expected := fmt.Sprintf("bad %v", tc.expected[0]); err.Error() != expected {
++				t.Errorf("unexpected error: got %q, want %q", err, expected)
+ 			}
+ 			if !reflect.DeepEqual(vals, tc.expected) {
+ 				t.Errorf("unexpected results: got %v, want %v", vals, tc.expected)

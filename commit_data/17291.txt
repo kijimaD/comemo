@@ -12,8 +12,122 @@ Date:   Fri Aug 16 14:57:49 2013 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/13002044
-
+---
  src/pkg/time/export_test.go |  2 ++
  src/pkg/time/format.go      | 39 +++++++++++++++++++++++++++------------
  src/pkg/time/time_test.go   | 32 ++++++++++++++++++++++++++++++++
  3 files changed, 61 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/time/export_test.go b/src/pkg/time/export_test.go
+index 130ca8f7eb..dbd553af49 100644
+--- a/src/pkg/time/export_test.go
++++ b/src/pkg/time/export_test.go
+@@ -17,3 +17,5 @@ func ForceUSPacificForTesting() {
+ 	ResetLocalOnceForTest()
+ 	localOnce.Do(initTestingZone)
+ }
++
++var ParseTimeZone = parseTimeZone
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 3abe1c210d..0595640219 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -1027,8 +1027,11 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ // are human-generated and unpredictable. We can't do precise error checking.
+ // On the other hand, for a correct parse there must be a time zone at the
+ // beginning of the string, so it's almost always true that there's one
+-// there. We check: 3 or 4 upper case letters (with one exception). If 4, the
+-// last letter must be a T.
++// there. We look at the beginning of the string for a run of upper-case letters.
++// If there are more than 5, it's an error.
++// If there are 4 or 5 and the last is a T, it's a time zone.
++// If there are 3, it's a time zone.
++// Otherwise, other than special cases, it's not a time zone.
+ // GMT is special because it can have an hour offset.
+ func parseTimeZone(value string) (length int, ok bool) {
+ 	if len(value) < 3 {
+@@ -1043,19 +1046,31 @@ func parseTimeZone(value string) (length int, ok bool) {
+ 		length = parseGMT(value)
+ 		return length, true
+ 	}
+-	// There must be three upper-case letters.
+-	for i := 0; i < 3; i++ {
+-		c := value[i]
+-		if c < 'A' || 'Z' < c {
+-			return 0, false
++	// How many upper-case letters are there? Need at least three, at most five.
++	var nUpper int
++	for nUpper = 0; nUpper < 6; nUpper++ {
++		if nUpper >= len(value) {
++			break
++		}
++		if c := value[nUpper]; c < 'A' || 'Z' < c {
++			break
+ 		}
+ 	}
+-	// There may be a fourth upper case letter. If so, in a time zone it's always a 'T'.
+-	// (The last letter is often not a 'T' in three-letter zones: MSK, MSD, HAE, etc.)
+-	if len(value) >= 4 && value[3] == 'T' {
+-		return 4, true
++	switch nUpper {
++	case 0, 1, 2, 6:
++		return 0, false
++	case 5: // Must end in T to match.
++		if value[4] == 'T' {
++			return 5, true
++		}
++	case 4: // Must end in T to match.
++		if value[3] == 'T' {
++			return 4, true
++		}
++	case 3:
++		return 3, true
+ 	}
+-	return 3, true
++	return 0, false
+ }
+ 
+ // parseGMT parses a GMT time zone. The input string is known to start "GMT".
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index f059380d04..6d6e8ccd8a 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -666,6 +666,38 @@ func TestFormatAndParse(t *testing.T) {
+ 	}
+ }
+ 
++type ParseTimeZoneTest struct {
++	value  string
++	length int
++	ok     bool
++}
++
++var parseTimeZoneTests = []ParseTimeZoneTest{
++	{"gmt hi there", 0, false},
++	{"GMT hi there", 3, true},
++	{"GMT+12 hi there", 6, true},
++	{"GMT+00 hi there", 3, true}, // 0 or 00 is not a legal offset.
++	{"GMT-5 hi there", 5, true},
++	{"GMT-51 hi there", 3, true},
++	{"ChST hi there", 4, true},
++	{"MSDx", 3, true},
++	{"MSDY", 0, false}, // four letters must end in T.
++	{"ESAST hi", 5, true},
++	{"ESASTT hi", 0, false}, // run of upper-case letters too long.
++	{"ESATY hi", 0, false},  // five letters must end in T.
++}
++
++func TestParseTimeZone(t *testing.T) {
++	for _, test := range parseTimeZoneTests {
++		length, ok := ParseTimeZone(test.value)
++		if ok != test.ok {
++			t.Errorf("expected %t for %q got %t", test.ok, test.value, ok)
++		} else if length != test.length {
++			t.Errorf("expected %d for %q got %d", test.length, test.value, length)
++		}
++	}
++}
++
+ type ParseErrorTest struct {
+ 	format string
+ 	value  string

@@ -24,7 +24,40 @@ Date:   Wed Jan 5 09:20:06 2022 +0000
     Run-TryBot: Eric Fang <eric.fang@arm.com>
     Trust: Eric Fang <eric.fang@arm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/arm64/asm7.go | 2 +-
  src/cmd/internal/obj/arm64/doc.go  | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 68f0921d4d..f4111f4f5c 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1184,7 +1184,7 @@ func (c *ctxt7) addpool128(p *obj.Prog, al, ah *obj.Addr) {
+ 	q := c.newprog()
+ 	q.As = ADWORD
+ 	q.To.Type = obj.TYPE_CONST
+-	q.To.Offset = al.Offset
++	q.To.Offset = al.Offset // q.Pc is lower than t.Pc, so al.Offset is stored in q.
+ 
+ 	t := c.newprog()
+ 	t.As = ADWORD
+diff --git a/src/cmd/internal/obj/arm64/doc.go b/src/cmd/internal/obj/arm64/doc.go
+index 14f0f4c616..1234a3e818 100644
+--- a/src/cmd/internal/obj/arm64/doc.go
++++ b/src/cmd/internal/obj/arm64/doc.go
+@@ -89,12 +89,12 @@ In the following example, PCALIGN at the entry of the function Add will align it
+ 7. Move large constants to vector registers.
+ 
+ Go asm uses VMOVQ/VMOVD/VMOVS to move 128-bit, 64-bit and 32-bit constants into vector registers, respectively.
+-And for a 128-bit interger, it take two 64-bit operands, for the high and low parts separately.
++And for a 128-bit interger, it take two 64-bit operands, for the low and high parts separately.
+ 
+   Examples:
+     VMOVS $0x11223344, V0
+     VMOVD $0x1122334455667788, V1
+-    VMOVQ $0x1122334455667788, $8877665544332211, V2   // V2=0x11223344556677888877665544332211
++    VMOVQ $0x1122334455667788, $0x99aabbccddeeff00, V2   // V2=0x99aabbccddeeff001122334455667788
+ 
+ 8. Move an optionally-shifted 16-bit immediate value to a register.
+ 

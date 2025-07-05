@@ -13,8 +13,99 @@ Date:   Mon Oct 3 16:09:13 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go        | 13 +------------
  src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
  src/cmd/compile/internal/gc/syntax.go      | 29 ++++++++++++++---------------
  3 files changed, 16 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index e1e36f67de..180f72d122 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -262,12 +262,6 @@ func (s *ssaExport) AllocFrame(f *ssa.Func) {
+ 		}
+ 	}
+ 
+-	// To satisfy toolstash -cmp, preserve the unsorted
+-	// declaration order so we can emit the ATYPE instructions in
+-	// the same order.
+-	// TODO(mdempsky): Remove in followup CL.
+-	Curfn.Func.UnsortedDcls = append([]*Node(nil), Curfn.Func.Dcl...)
+-
+ 	if f.Config.NeedsFpScratch {
+ 		scratchFpMem = temp(Types[TUINT64])
+ 		scratchFpMem.Used = scratchUsed
+@@ -432,18 +426,13 @@ func compile(fn *Node) {
+ 		}
+ 	}
+ 
+-	for _, n := range fn.Func.UnsortedDcls {
++	for _, n := range fn.Func.Dcl {
+ 		if n.Op != ONAME { // might be OTYPE or OLITERAL
+ 			continue
+ 		}
+ 		switch n.Class {
+ 		case PAUTO:
+ 			if !n.Used {
+-				// Hacks to appease toolstash -cmp.
+-				// TODO(mdempsky): Remove in followup CL.
+-				pcloc++
+-				Pc.Pc++
+-				Linksym(ngotype(n))
+ 				continue
+ 			}
+ 			fallthrough
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index eeddea37f2..1a0e53057c 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -22,7 +22,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 108, 192}, // TODO(mdempsky): Change back to 96, 168 in followup CL.
++		{Func{}, 96, 168},
+ 		{Name{}, 52, 80},
+ 		{Node{}, 92, 144},
+ 		{Sym{}, 60, 112},
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 547188b354..7a230c0b74 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -271,21 +271,20 @@ type Param struct {
+ 
+ // Func holds Node fields used only with function-like nodes.
+ type Func struct {
+-	Shortname    *Node
+-	Enter        Nodes // for example, allocate and initialize memory for escaping parameters
+-	Exit         Nodes
+-	Cvars        Nodes   // closure params
+-	Dcl          []*Node // autodcl for this func/closure
+-	UnsortedDcls []*Node // autodcl for this func/closure
+-	Inldcl       Nodes   // copy of dcl for use in inlining
+-	Closgen      int
+-	Outerfunc    *Node // outer function (for closure)
+-	FieldTrack   map[*Sym]struct{}
+-	Ntype        *Node // signature
+-	Top          int   // top context (Ecall, Eproc, etc)
+-	Closure      *Node // OCLOSURE <-> ODCLFUNC
+-	FCurfn       *Node
+-	Nname        *Node
++	Shortname  *Node
++	Enter      Nodes // for example, allocate and initialize memory for escaping parameters
++	Exit       Nodes
++	Cvars      Nodes   // closure params
++	Dcl        []*Node // autodcl for this func/closure
++	Inldcl     Nodes   // copy of dcl for use in inlining
++	Closgen    int
++	Outerfunc  *Node // outer function (for closure)
++	FieldTrack map[*Sym]struct{}
++	Ntype      *Node // signature
++	Top        int   // top context (Ecall, Eproc, etc)
++	Closure    *Node // OCLOSURE <-> ODCLFUNC
++	FCurfn     *Node
++	Nname      *Node
+ 
+ 	Inl     Nodes // copy of the body for use in inlining
+ 	InlCost int32

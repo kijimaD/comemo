@@ -26,7 +26,36 @@ Date:   Thu Nov 3 10:11:06 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5319071
-
+---
  src/pkg/html/parse.go      | 4 ++++
  src/pkg/html/parse_test.go | 2 +-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index c9f016588d..4a21be925a 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -635,6 +635,10 @@ func inBodyIM(p *parser) (insertionMode, bool) {
+ 			p.inBodyEndTagFormatting(p.tok.Data)
+ 		case "address", "article", "aside", "blockquote", "button", "center", "details", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "listing", "menu", "nav", "ol", "pre", "section", "summary", "ul":
+ 			p.popUntil(defaultScopeStopTags, p.tok.Data)
++		case "applet", "marquee", "object":
++			if p.popUntil(defaultScopeStopTags, p.tok.Data) {
++				p.clearActiveFormattingElements()
++			}
+ 		default:
+ 			p.inBodyEndTagOther(p.tok.Data)
+ 		}
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 3fa40374ea..65fc8edaed 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -133,7 +133,7 @@ func TestParser(t *testing.T) {
+ 		rc := make(chan io.Reader)
+ 		go readDat(filename, rc)
+ 		// TODO(nigeltao): Process all test cases, not just a subset.
+-		for i := 0; i < 80; i++ {
++		for i := 0; i < 83; i++ {
+ 			// Parse the #data section.
+ 			b, err := ioutil.ReadAll(<-rc)
+ 			if err != nil {

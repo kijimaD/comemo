@@ -28,7 +28,7 @@ Date:   Sat Dec 30 19:35:46 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/export_test.go |  3 +-
  src/runtime/malloc.go      | 27 +++++++----------
  src/runtime/mem_bsd.go     | 36 ++--------------------
@@ -39,3 +39,401 @@ Date:   Sat Dec 30 19:35:46 2017 -0500
  src/runtime/mheap.go       | 11 +------
  src/runtime/os_linux.go    |  2 ++
  9 files changed, 24 insertions(+), 145 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 8a44cebc76..6d8f88d3a7 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -437,8 +437,7 @@ func MapNextArenaHint() (start, end uintptr) {
+ 	} else {
+ 		start, end = addr, addr+heapArenaBytes
+ 	}
+-	var reserved bool
+-	sysReserve(unsafe.Pointer(addr), physPageSize, &reserved)
++	sysReserve(unsafe.Pointer(addr), physPageSize)
+ 	return
+ }
+ 
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 02c0be6690..a397382291 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -235,18 +235,12 @@ var physPageSize uintptr
+ // SysReserve reserves address space without allocating memory.
+ // If the pointer passed to it is non-nil, the caller wants the
+ // reservation there, but SysReserve can still choose another
+-// location if that one is unavailable. On some systems and in some
+-// cases SysReserve will simply check that the address space is
+-// available and not actually reserve it. If SysReserve returns
+-// non-nil, it sets *reserved to true if the address space is
+-// reserved, false if it has merely been checked.
++// location if that one is unavailable.
+ // NOTE: SysReserve returns OS-aligned memory, but the heap allocator
+ // may use larger alignment, so the caller must be careful to realign the
+ // memory obtained by sysAlloc.
+ //
+ // SysMap maps previously reserved address space for use.
+-// The reserved argument is true if the address space was really
+-// reserved, not merely checked.
+ //
+ // SysFault marks a (already sysAlloc'd) region to fault
+ // if accessed. Used only for debugging the runtime.
+@@ -361,8 +355,7 @@ func mallocinit() {
+ 		// heap reservation.
+ 
+ 		const arenaMetaSize = unsafe.Sizeof(heapArena{}) * uintptr(len(*mheap_.arenas))
+-		var reserved bool
+-		meta := uintptr(sysReserve(nil, arenaMetaSize, &reserved))
++		meta := uintptr(sysReserve(nil, arenaMetaSize))
+ 		if meta != 0 {
+ 			mheap_.heapArenaAlloc.init(meta, arenaMetaSize)
+ 		}
+@@ -399,7 +392,7 @@ func mallocinit() {
+ 			128 << 20,
+ 		}
+ 		for _, arenaSize := range arenaSizes {
+-			a, size := sysReserveAligned(unsafe.Pointer(p), arenaSize, heapArenaBytes, &reserved)
++			a, size := sysReserveAligned(unsafe.Pointer(p), arenaSize, heapArenaBytes)
+ 			if a != nil {
+ 				mheap_.arena.init(uintptr(a), size)
+ 				p = uintptr(a) + size // For hint below
+@@ -440,7 +433,7 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+ 			// We can't use this, so don't ask.
+ 			v = nil
+ 		} else {
+-			v = sysReserve(unsafe.Pointer(p), n, &h.arena_reserved)
++			v = sysReserve(unsafe.Pointer(p), n)
+ 		}
+ 		if p == uintptr(v) {
+ 			// Success. Update the hint.
+@@ -468,7 +461,7 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+ 		// All of the hints failed, so we'll take any
+ 		// (sufficiently aligned) address the kernel will give
+ 		// us.
+-		v, size = sysReserveAligned(nil, n, heapArenaBytes, &h.arena_reserved)
++		v, size = sysReserveAligned(nil, n, heapArenaBytes)
+ 		if v == nil {
+ 			return nil, 0
+ 		}
+@@ -494,7 +487,7 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+ 	}
+ 
+ 	// Back the reservation.
+-	sysMap(v, size, h.arena_reserved, &memstats.heap_sys)
++	sysMap(v, size, &memstats.heap_sys)
+ 
+ mapped:
+ 	// Create arena metadata.
+@@ -529,13 +522,13 @@ mapped:
+ // sysReserveAligned is like sysReserve, but the returned pointer is
+ // aligned to align bytes. It may reserve either n or n+align bytes,
+ // so it returns the size that was reserved.
+-func sysReserveAligned(v unsafe.Pointer, size, align uintptr, reserved *bool) (unsafe.Pointer, uintptr) {
++func sysReserveAligned(v unsafe.Pointer, size, align uintptr) (unsafe.Pointer, uintptr) {
+ 	// Since the alignment is rather large in uses of this
+ 	// function, we're not likely to get it by chance, so we ask
+ 	// for a larger region and remove the parts we don't need.
+ 	retries := 0
+ retry:
+-	p := uintptr(sysReserve(v, size+align, reserved))
++	p := uintptr(sysReserve(v, size+align))
+ 	switch {
+ 	case p == 0:
+ 		return nil, 0
+@@ -550,7 +543,7 @@ retry:
+ 		// so we may have to try again.
+ 		sysFree(unsafe.Pointer(p), size+align, nil)
+ 		p = round(p, align)
+-		p2 := sysReserve(unsafe.Pointer(p), size, reserved)
++		p2 := sysReserve(unsafe.Pointer(p), size)
+ 		if p != uintptr(p2) {
+ 			// Must have raced. Try again.
+ 			sysFree(p2, size, nil)
+@@ -1095,7 +1088,7 @@ func (l *linearAlloc) alloc(size, align uintptr, sysStat *uint64) unsafe.Pointer
+ 	l.next = p + size
+ 	if pEnd := round(l.next-1, physPageSize); pEnd > l.mapped {
+ 		// We need to map more of the reserved space.
+-		sysMap(unsafe.Pointer(l.mapped), pEnd-l.mapped, true, sysStat)
++		sysMap(unsafe.Pointer(l.mapped), pEnd-l.mapped, sysStat)
+ 		l.mapped = pEnd
+ 	}
+ 	return unsafe.Pointer(p)
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index 23872b9a63..cc70e806ea 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -7,7 +7,6 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -42,51 +41,20 @@ func sysFault(v unsafe.Pointer, n uintptr) {
+ 	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+ }
+ 
+-func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+-	// On 64-bit, people with ulimit -v set complain if we reserve too
+-	// much address space. Instead, assume that the reservation is okay
+-	// and check the assumption in SysMap.
+-	if sys.PtrSize == 8 && uint64(n) > 1<<32 || sys.GoosNacl != 0 {
+-		*reserved = false
+-		return v
+-	}
+-
++func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		return nil
+ 	}
+-	*reserved = true
+ 	return p
+ }
+ 
+ const _sunosEAGAIN = 11
+ const _ENOMEM = 12
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
++func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+ 	mSysStatInc(sysStat, n)
+ 
+-	// On 64-bit, we don't actually have v reserved, so tread carefully.
+-	if !reserved {
+-		flags := int32(_MAP_ANON | _MAP_PRIVATE)
+-		if GOOS == "dragonfly" {
+-			// TODO(jsing): For some reason DragonFly seems to return
+-			// memory at a different address than we requested, even when
+-			// there should be no reason for it to do so. This can be
+-			// avoided by using MAP_FIXED, but I'm not sure we should need
+-			// to do this - we do not on other platforms.
+-			flags |= _MAP_FIXED
+-		}
+-		p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, flags, -1, 0)
+-		if err == _ENOMEM || (GOOS == "solaris" && err == _sunosEAGAIN) {
+-			throw("runtime: out of memory")
+-		}
+-		if p != v || err != 0 {
+-			print("runtime: address space conflict: map(", v, ") = ", p, "(err ", err, ")\n")
+-			throw("runtime: address space conflict")
+-		}
+-		return
+-	}
+-
+ 	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+ 	if err == _ENOMEM || (GOOS == "solaris" && err == _sunosEAGAIN) {
+ 		throw("runtime: out of memory")
+diff --git a/src/runtime/mem_darwin.go b/src/runtime/mem_darwin.go
+index e41452a2c0..75c59f9cdd 100644
+--- a/src/runtime/mem_darwin.go
++++ b/src/runtime/mem_darwin.go
+@@ -38,8 +38,7 @@ func sysFault(v unsafe.Pointer, n uintptr) {
+ 	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+ }
+ 
+-func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+-	*reserved = true
++func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		return nil
+@@ -51,7 +50,7 @@ const (
+ 	_ENOMEM = 12
+ )
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
++func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+ 	mSysStatInc(sysStat, n)
+ 	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+ 	if err == _ENOMEM {
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 16f44439f1..7aa48170a1 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -14,46 +14,6 @@ const (
+ 	_EINVAL = 22
+ )
+ 
+-// NOTE: vec must be just 1 byte long here.
+-// Mincore returns ENOMEM if any of the pages are unmapped,
+-// but we want to know that all of the pages are unmapped.
+-// To make these the same, we can only ask about one page
+-// at a time. See golang.org/issue/7476.
+-var addrspace_vec [1]byte
+-
+-func addrspace_free(v unsafe.Pointer, n uintptr) bool {
+-	for off := uintptr(0); off < n; off += physPageSize {
+-		// Use a length of 1 byte, which the kernel will round
+-		// up to one physical page regardless of the true
+-		// physical page size.
+-		errval := mincore(unsafe.Pointer(uintptr(v)+off), 1, &addrspace_vec[0])
+-		if errval == -_EINVAL {
+-			// Address is not a multiple of the physical
+-			// page size. Shouldn't happen, but just ignore it.
+-			continue
+-		}
+-		// ENOMEM means unmapped, which is what we want.
+-		// Anything else we assume means the pages are mapped.
+-		if errval != -_ENOMEM {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-func mmap_fixed(v unsafe.Pointer, n uintptr, prot, flags, fd int32, offset uint32) (unsafe.Pointer, int) {
+-	p, err := mmap(v, n, prot, flags, fd, offset)
+-	// On some systems, mmap ignores v without
+-	// MAP_FIXED, so retry if the address space is free.
+-	if p != v && addrspace_free(v, n) {
+-		if err == 0 {
+-			munmap(p, n)
+-		}
+-		p, err = mmap(v, n, prot, flags|_MAP_FIXED, fd, offset)
+-	}
+-	return p, err
+-}
+-
+ // Don't split the stack as this method may be invoked without a valid G, which
+ // prevents us from allocating more stack.
+ //go:nosplit
+@@ -180,48 +140,17 @@ func sysFault(v unsafe.Pointer, n uintptr) {
+ 	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+ }
+ 
+-func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+-	// On 64-bit, people with ulimit -v set complain if we reserve too
+-	// much address space. Instead, assume that the reservation is okay
+-	// if we can reserve at least 64K and check the assumption in SysMap.
+-	// Only user-mode Linux (UML) rejects these requests.
+-	if sys.PtrSize == 8 && uint64(n) > 1<<32 {
+-		p, err := mmap_fixed(v, 64<<10, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+-		if p != v || err != 0 {
+-			if err == 0 {
+-				munmap(p, 64<<10)
+-			}
+-			return nil
+-		}
+-		munmap(p, 64<<10)
+-		*reserved = false
+-		return v
+-	}
+-
++func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		return nil
+ 	}
+-	*reserved = true
+ 	return p
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
++func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+ 	mSysStatInc(sysStat, n)
+ 
+-	// On 64-bit, we don't actually have v reserved, so tread carefully.
+-	if !reserved {
+-		p, err := mmap_fixed(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+-		if err == _ENOMEM {
+-			throw("runtime: out of memory")
+-		}
+-		if p != v || err != 0 {
+-			print("runtime: address space conflict: map(", v, ") = ", p, " (err ", err, ")\n")
+-			throw("runtime: address space conflict")
+-		}
+-		return
+-	}
+-
+ 	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+ 	if err == _ENOMEM {
+ 		throw("runtime: out of memory")
+diff --git a/src/runtime/mem_plan9.go b/src/runtime/mem_plan9.go
+index 98bfc7f536..ca8c437d1a 100644
+--- a/src/runtime/mem_plan9.go
++++ b/src/runtime/mem_plan9.go
+@@ -160,7 +160,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ func sysUsed(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
++func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+ 	// sysReserve has already allocated all heap memory,
+ 	// but has not adjusted stats.
+ 	mSysStatInc(sysStat, n)
+@@ -169,8 +169,7 @@ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
+ func sysFault(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+-	*reserved = true
++func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	lock(&memlock)
+ 	p := memAlloc(n)
+ 	memCheck()
+diff --git a/src/runtime/mem_windows.go b/src/runtime/mem_windows.go
+index c7ee2950ea..690f55eb5c 100644
+--- a/src/runtime/mem_windows.go
++++ b/src/runtime/mem_windows.go
+@@ -98,8 +98,7 @@ func sysFault(v unsafe.Pointer, n uintptr) {
+ 	sysUnused(v, n)
+ }
+ 
+-func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+-	*reserved = true
++func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	// v is just a hint.
+ 	// First try at v.
+ 	// This will fail if any of [v, v+n) is already reserved.
+@@ -112,7 +111,7 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+ 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_RESERVE, _PAGE_READWRITE))
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
++func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+ 	mSysStatInc(sysStat, n)
+ 	p := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
+ 	if p != uintptr(v) {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 7c469b1049..8b2ed15dd9 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -96,15 +96,6 @@ type mheap struct {
+ 	nlargefree  uint64                  // number of frees for large objects (>maxsmallsize)
+ 	nsmallfree  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
+ 
+-	// arena_reserved indicates that the memory [arena_alloc,
+-	// arena_end) is reserved (e.g., mapped PROT_NONE). If this is
+-	// false, we have to be careful not to clobber existing
+-	// mappings here. If this is true, then we own the mapping
+-	// here and *must* clobber it to use it.
+-	//
+-	// TODO(austin): Remove.
+-	arena_reserved bool
+-
+ 	// arenas is the heap arena index. arenas[va/heapArenaBytes]
+ 	// points to the metadata for the heap arena containing va.
+ 	//
+@@ -135,7 +126,7 @@ type mheap struct {
+ 	// (the actual arenas). This is only used on 32-bit.
+ 	arena linearAlloc
+ 
+-	_ uint32 // ensure 64-bit alignment of central
++	//_ uint32 // ensure 64-bit alignment of central
+ 
+ 	// central free lists for small size classes.
+ 	// the padding makes sure that the MCentrals are
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 7231cf1226..69850a9ccb 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -194,6 +194,8 @@ const (
+ 
+ var procAuxv = []byte("/proc/self/auxv\x00")
+ 
++var addrspace_vec [1]byte
++
+ func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
+ 
+ func sysargs(argc int32, argv **byte) {

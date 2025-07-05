@@ -8,10 +8,182 @@ Date:   Thu Mar 25 11:50:07 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/755041
-
+---
  src/pkg/flag/flag.go         | 15 ++----------
  src/pkg/strconv/Makefile     |  1 +
  src/pkg/strconv/atob.go      | 28 ++++++++++++++++++++++
  src/pkg/strconv/atob_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/xml/read.go          | 11 +++++----
  5 files changed, 94 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index d57a59c033..e51bf7ddc6 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -53,17 +53,6 @@ import (
+ 	"strconv"
+ )
+ 
+-// TODO(r): BUG: atob belongs elsewhere
+-func atob(str string) (value bool, ok bool) {
+-	switch str {
+-	case "1", "t", "T", "true", "TRUE", "True":
+-		return true, true
+-	case "0", "f", "F", "false", "FALSE", "False":
+-		return false, true
+-	}
+-	return false, false
+-}
+-
+ // -- Bool Value
+ type boolValue struct {
+ 	p *bool
+@@ -75,9 +64,9 @@ func newBoolValue(val bool, p *bool) *boolValue {
+ }
+ 
+ func (b *boolValue) set(s string) bool {
+-	v, ok := atob(s)
++	v, err := strconv.Atob(s)
+ 	*b.p = v
+-	return ok
++	return err == nil
+ }
+ 
+ func (b *boolValue) String() string { return fmt.Sprintf("%v", *b.p) }
+diff --git a/src/pkg/strconv/Makefile b/src/pkg/strconv/Makefile
+index 8b20273b85..57849a8217 100644
+--- a/src/pkg/strconv/Makefile
++++ b/src/pkg/strconv/Makefile
+@@ -6,6 +6,7 @@ include ../../Make.$(GOARCH)
+ 
+ TARG=strconv
+ GOFILES=\
++	atob.go\
+ 	atof.go\
+ 	atoi.go\
+ 	decimal.go\
+diff --git a/src/pkg/strconv/atob.go b/src/pkg/strconv/atob.go
+new file mode 100644
+index 0000000000..69fa2292a1
+--- /dev/null
++++ b/src/pkg/strconv/atob.go
+@@ -0,0 +1,28 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strconv
++
++import "os"
++
++// Atob returns the boolean value represented by the string.
++// It accepts 1, t, T, TRUE, true, 0, f, F, FALSE, false.  Any other value returns
++// an error.
++func Atob(str string) (value bool, err os.Error) {
++	switch str {
++	case "1", "t", "T", "true", "TRUE", "True":
++		return true, nil
++	case "0", "f", "F", "false", "FALSE", "False":
++		return false, nil
++	}
++	return false, &NumError{str, os.EINVAL}
++}
++
++// Btoa returns "true" or "false" according to the value of the boolean argument
++func Btoa(b bool) string {
++	if b {
++		return "true"
++	}
++	return "false"
++}
+diff --git a/src/pkg/strconv/atob_test.go b/src/pkg/strconv/atob_test.go
+new file mode 100644
+index 0000000000..ffad4b21b1
+--- /dev/null
++++ b/src/pkg/strconv/atob_test.go
+@@ -0,0 +1,56 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strconv_test
++
++import (
++	"os"
++	. "strconv"
++	"testing"
++)
++
++type atobTest struct {
++	in  string
++	out bool
++	err os.Error
++}
++
++var atobtests = []atobTest{
++	atobTest{"", false, os.EINVAL},
++	atobTest{"asdf", false, os.EINVAL},
++	atobTest{"0", false, nil},
++	atobTest{"f", false, nil},
++	atobTest{"F", false, nil},
++	atobTest{"FALSE", false, nil},
++	atobTest{"false", false, nil},
++	atobTest{"1", true, nil},
++	atobTest{"t", true, nil},
++	atobTest{"T", true, nil},
++	atobTest{"TRUE", true, nil},
++	atobTest{"true", true, nil},
++}
++
++func TestAtob(t *testing.T) {
++	for _, test := range atobtests {
++		b, e := Atob(test.in)
++		if test.err != nil {
++			// expect an error
++			if e == nil {
++				t.Errorf("%s: expected %s but got nil", test.in, test.err)
++			} else {
++				// NumError assertion must succeed; it's the only thing we return.
++				if test.err != e.(*NumError).Error {
++					t.Errorf("%s: expected %s but got %s", test.in, test.err, e)
++				}
++			}
++		} else {
++			if e != nil {
++				t.Errorf("%s: expected no error but got %s", test.in, test.err, e)
++			}
++			if b != test.out {
++				t.Errorf("%s: expected %t but got %t", test.in, test.out, b)
++			}
++		}
++	}
++}
+diff --git a/src/pkg/xml/read.go b/src/pkg/xml/read.go
+index dedf689446..e3ae2c402d 100644
+--- a/src/pkg/xml/read.go
++++ b/src/pkg/xml/read.go
+@@ -105,8 +105,8 @@ import (
+ // Unmarshal maps an XML element to a slice by extending the length
+ // of the slice and mapping the element to the newly created value.
+ //
+-// Unmarshal maps an XML element to a bool by setting it true if the
+-// string value is "true" or "1", or false otherwise.
++// Unmarshal maps an XML element to a bool by setting it to the boolean
++// value represented by the string.
+ //
+ // Unmarshal maps an XML element to an integer or floating-point
+ // field by setting the field to the result of interpreting the string
+@@ -473,8 +473,11 @@ Loop:
+ 		}
+ 		t.Set(ftmp)
+ 	case *reflect.BoolValue:
+-		btmp := strings.TrimSpace(string(data))
+-		t.Set(strings.ToLower(btmp) == "true" || btmp == "1")
++		value, err := strconv.Atob(strings.TrimSpace(string(data)))
++		if err != nil {
++			return err
++		}
++		t.Set(value)
+ 	case *reflect.StringValue:
+ 		t.Set(string(data))
+ 	case *reflect.SliceValue:

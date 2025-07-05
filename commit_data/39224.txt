@@ -11,8 +11,58 @@ Date:   Tue Jan 29 16:36:25 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/path.go           | 8 ++++++++
  src/os/removeall_at.go   | 2 +-
  src/os/removeall_noat.go | 6 +-----
  3 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/path.go b/src/os/path.go
+index 30cc6c8b98..104b7ceaf7 100644
+--- a/src/os/path.go
++++ b/src/os/path.go
+@@ -58,6 +58,14 @@ func MkdirAll(path string, perm FileMode) error {
+ 	return nil
+ }
+ 
++// RemoveAll removes path and any children it contains.
++// It removes everything it can but returns the first error
++// it encounters. If the path does not exist, RemoveAll
++// returns nil (no error).
++func RemoveAll(path string) error {
++	return removeAll(path)
++}
++
+ // endsWithDot reports whether the final component of path is ".".
+ func endsWithDot(path string) bool {
+ 	if path == "." {
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index faee1287f1..fe8b1faf2b 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -13,7 +13,7 @@ import (
+ 	"syscall"
+ )
+ 
+-func RemoveAll(path string) error {
++func removeAll(path string) error {
+ 	if path == "" {
+ 		// fail silently to retain compatibility with previous behavior
+ 		// of RemoveAll. See issue 28830.
+diff --git a/src/os/removeall_noat.go b/src/os/removeall_noat.go
+index 80527e227c..5a7dc263f0 100644
+--- a/src/os/removeall_noat.go
++++ b/src/os/removeall_noat.go
+@@ -11,11 +11,7 @@ import (
+ 	"syscall"
+ )
+ 
+-// RemoveAll removes path and any children it contains.
+-// It removes everything it can but returns the first error
+-// it encounters. If the path does not exist, RemoveAll
+-// returns nil (no error).
+-func RemoveAll(path string) error {
++func removeAll(path string) error {
+ 	if path == "" {
+ 		// fail silently to retain compatibility with previous behavior
+ 		// of RemoveAll. See issue 28830.

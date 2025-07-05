@@ -30,7 +30,7 @@ Date:   Fri Oct 28 13:01:51 2016 -0400
     Run-TryBot: Quentin Smith <quentin@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/internal/testenv/testenv.go | 16 ++++++++++
  src/os/export_windows_test.go   |  1 +
  src/os/file.go                  |  2 +-
@@ -43,3 +43,410 @@ Date:   Fri Oct 28 13:01:51 2016 -0400
  src/os/path_windows_test.go     | 29 ++++++++++++++++++
  src/os/stat_windows.go          |  2 +-
  11 files changed, 196 insertions(+), 26 deletions(-)
+
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index a8aa2c7464..10384b6206 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -153,6 +153,22 @@ func MustHaveSymlink(t *testing.T) {
+ 	}
+ }
+ 
++// HasLink reports whether the current system can use os.Link.
++func HasLink() bool {
++	// From Android release M (Marshmallow), hard linking files is blocked
++	// and an attempt to call link() on a file will return EACCES.
++	// - https://code.google.com/p/android-developer-preview/issues/detail?id=3150
++	return runtime.GOOS != "plan9" && runtime.GOOS != "android"
++}
++
++// MustHaveLink reports whether the current system can use os.Link.
++// If not, MustHaveLink calls t.Skip with an explanation.
++func MustHaveLink(t *testing.T) {
++	if !HasLink() {
++		t.Skipf("skipping test: hardlinks are not supported on %s/%s", runtime.GOOS, runtime.GOARCH)
++	}
++}
++
+ var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
+ 
+ func SkipFlaky(t *testing.T, issue int) {
+diff --git a/src/os/export_windows_test.go b/src/os/export_windows_test.go
+index fbfb6b0ff6..444e499f71 100644
+--- a/src/os/export_windows_test.go
++++ b/src/os/export_windows_test.go
+@@ -11,4 +11,5 @@ var (
+ 	GetCPP                            = &getCP
+ 	ReadFileP                         = &readFile
+ 	ResetGetConsoleCPAndReadFileFuncs = resetGetConsoleCPAndReadFileFuncs
++	FixLongPath                       = fixLongPath
+ )
+diff --git a/src/os/file.go b/src/os/file.go
+index b9c10b2a28..de245c5479 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -203,7 +203,7 @@ func (f *File) WriteString(s string) (n int, err error) {
+ // Mkdir creates a new directory with the specified name and permission bits.
+ // If there is an error, it will be of type *PathError.
+ func Mkdir(name string, perm FileMode) error {
+-	e := syscall.Mkdir(name, syscallMode(perm))
++	e := syscall.Mkdir(fixLongPath(name), syscallMode(perm))
+ 
+ 	if e != nil {
+ 		return &PathError{"mkdir", name, e}
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 704e95b1e6..5276a7ec54 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -11,6 +11,11 @@ import (
+ 	"time"
+ )
+ 
++// fixLongPath is a noop on non-Windows platforms.
++func fixLongPath(path string) string {
++	return path
++}
++
+ // file is the real representation of *File.
+ // The extra level of indirection ensures that no clients of os
+ // can overwrite this data, which could cause the finalizer
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index 15bb77efb5..d817f34b1d 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -18,7 +18,7 @@ func sigpipe() // implemented in package runtime
+ func Readlink(name string) (string, error) {
+ 	for len := 128; ; len *= 2 {
+ 		b := make([]byte, len)
+-		n, e := fixCount(syscall.Readlink(name, b))
++		n, e := fixCount(syscall.Readlink(fixLongPath(name), b))
+ 		if e != nil {
+ 			return "", &PathError{"readlink", name, e}
+ 		}
+@@ -134,7 +134,7 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
+ 	var utimes [2]syscall.Timespec
+ 	utimes[0] = syscall.NsecToTimespec(atime.UnixNano())
+ 	utimes[1] = syscall.NsecToTimespec(mtime.UnixNano())
+-	if e := syscall.UtimesNano(name, utimes[0:]); e != nil {
++	if e := syscall.UtimesNano(fixLongPath(name), utimes[0:]); e != nil {
+ 		return &PathError{"chtimes", name, e}
+ 	}
+ 	return nil
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 00915acb75..1cff93a4d2 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -11,6 +11,11 @@ import (
+ 	"syscall"
+ )
+ 
++// fixLongPath is a noop on non-Windows platforms.
++func fixLongPath(path string) string {
++	return path
++}
++
+ func rename(oldname, newname string) error {
+ 	fi, err := Lstat(newname)
+ 	if err == nil && fi.IsDir() {
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 9bd5e5e9ff..8f2d4d3d29 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -86,7 +86,7 @@ const DevNull = "NUL"
+ func (f *file) isdir() bool { return f != nil && f.dirinfo != nil }
+ 
+ func openFile(name string, flag int, perm FileMode) (file *File, err error) {
+-	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
++	r, e := syscall.Open(fixLongPath(name), flag|syscall.O_CLOEXEC, syscallMode(perm))
+ 	if e != nil {
+ 		return nil, e
+ 	}
+@@ -95,10 +95,13 @@ func openFile(name string, flag int, perm FileMode) (file *File, err error) {
+ 
+ func openDir(name string) (file *File, err error) {
+ 	var mask string
+-	if len(name) == 2 && name[1] == ':' { // it is a drive letter, like C:
+-		mask = name + `*`
++
++	path := fixLongPath(name)
++
++	if len(path) == 2 && path[1] == ':' || (len(path) > 0 && path[len(path)-1] == '\\') { // it is a drive letter, like C:
++		mask = path + `*`
+ 	} else {
+-		mask = name + `\*`
++		mask = path + `\*`
+ 	}
+ 	maskp, e := syscall.UTF16PtrFromString(mask)
+ 	if e != nil {
+@@ -114,11 +117,11 @@ func openDir(name string) (file *File, err error) {
+ 			return nil, e
+ 		}
+ 		var fa syscall.Win32FileAttributeData
+-		namep, e := syscall.UTF16PtrFromString(name)
++		pathp, e := syscall.UTF16PtrFromString(path)
+ 		if e != nil {
+ 			return nil, e
+ 		}
+-		e = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
++		e = syscall.GetFileAttributesEx(pathp, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
+ 		if e != nil {
+ 			return nil, e
+ 		}
+@@ -127,7 +130,7 @@ func openDir(name string) (file *File, err error) {
+ 		}
+ 		d.isempty = true
+ 	}
+-	d.path = name
++	d.path = path
+ 	if !isAbs(d.path) {
+ 		d.path, e = syscall.FullPath(d.path)
+ 		if e != nil {
+@@ -439,7 +442,7 @@ func Truncate(name string, size int64) error {
+ // Remove removes the named file or directory.
+ // If there is an error, it will be of type *PathError.
+ func Remove(name string) error {
+-	p, e := syscall.UTF16PtrFromString(name)
++	p, e := syscall.UTF16PtrFromString(fixLongPath(name))
+ 	if e != nil {
+ 		return &PathError{"remove", name, e}
+ 	}
+@@ -476,7 +479,7 @@ func Remove(name string) error {
+ }
+ 
+ func rename(oldname, newname string) error {
+-	e := windows.Rename(oldname, newname)
++	e := windows.Rename(fixLongPath(oldname), fixLongPath(newname))
+ 	if e != nil {
+ 		return &LinkError{"rename", oldname, newname, e}
+ 	}
+@@ -521,11 +524,11 @@ func TempDir() string {
+ // Link creates newname as a hard link to the oldname file.
+ // If there is an error, it will be of type *LinkError.
+ func Link(oldname, newname string) error {
+-	n, err := syscall.UTF16PtrFromString(newname)
++	n, err := syscall.UTF16PtrFromString(fixLongPath(newname))
+ 	if err != nil {
+ 		return &LinkError{"link", oldname, newname, err}
+ 	}
+-	o, err := syscall.UTF16PtrFromString(oldname)
++	o, err := syscall.UTF16PtrFromString(fixLongPath(oldname))
+ 	if err != nil {
+ 		return &LinkError{"link", oldname, newname, err}
+ 	}
+@@ -556,11 +559,11 @@ func Symlink(oldname, newname string) error {
+ 	fi, err := Lstat(destpath)
+ 	isdir := err == nil && fi.IsDir()
+ 
+-	n, err := syscall.UTF16PtrFromString(newname)
++	n, err := syscall.UTF16PtrFromString(fixLongPath(newname))
+ 	if err != nil {
+ 		return &LinkError{"symlink", oldname, newname, err}
+ 	}
+-	o, err := syscall.UTF16PtrFromString(oldname)
++	o, err := syscall.UTF16PtrFromString(fixLongPath(oldname))
+ 	if err != nil {
+ 		return &LinkError{"symlink", oldname, newname, err}
+ 	}
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 84e72e5a52..705c44d143 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -600,15 +600,8 @@ func TestReaddirOfFile(t *testing.T) {
+ }
+ 
+ func TestHardLink(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9, hardlinks not supported")
+-	}
+-	// From Android release M (Marshmallow), hard linking files is blocked
+-	// and an attempt to call link() on a file will return EACCES.
+-	// - https://code.google.com/p/android-developer-preview/issues/detail?id=3150
+-	if runtime.GOOS == "android" {
+-		t.Skip("skipping on android, hardlinks not supported")
+-	}
++	testenv.MustHaveLink(t)
++
+ 	defer chtmpdir(t)()
+ 	from, to := "hardlinktestfrom", "hardlinktestto"
+ 	Remove(from) // Just in case.
+@@ -1708,6 +1701,61 @@ func TestReadAtEOF(t *testing.T) {
+ 	}
+ }
+ 
++func TestLongPath(t *testing.T) {
++	tmpdir := newDir("TestLongPath", t)
++	defer func() {
++		if err := RemoveAll(tmpdir); err != nil {
++			t.Fatalf("RemoveAll failed: %v", err)
++		}
++	}()
++	for len(tmpdir) < 400 {
++		tmpdir += "/dir3456789"
++	}
++	if err := MkdirAll(tmpdir, 0755); err != nil {
++		t.Fatalf("MkdirAll failed: %v", err)
++	}
++	data := []byte("hello world\n")
++	if err := ioutil.WriteFile(tmpdir+"/foo.txt", data, 0644); err != nil {
++		t.Fatalf("ioutil.WriteFile() failed: %v", err)
++	}
++	if err := Rename(tmpdir+"/foo.txt", tmpdir+"/bar.txt"); err != nil {
++		t.Fatalf("Rename failed: %v", err)
++	}
++	mtime := time.Now().Truncate(time.Minute)
++	if err := Chtimes(tmpdir+"/bar.txt", mtime, mtime); err != nil {
++		t.Fatalf("Chtimes failed: %v", err)
++	}
++	names := []string{"bar.txt"}
++	if testenv.HasSymlink() {
++		if err := Symlink(tmpdir+"/bar.txt", tmpdir+"/symlink.txt"); err != nil {
++			t.Fatalf("Symlink failed: %v", err)
++		}
++		names = append(names, "symlink.txt")
++	}
++	if testenv.HasLink() {
++		if err := Link(tmpdir+"/bar.txt", tmpdir+"/link.txt"); err != nil {
++			t.Fatalf("Link failed: %v", err)
++		}
++		names = append(names, "link.txt")
++	}
++	for _, wantSize := range []int64{int64(len(data)), 0} {
++		for _, name := range names {
++			path := tmpdir + "/" + name
++			dir, err := Stat(path)
++			if err != nil {
++				t.Fatalf("Stat(%q) failed: %v", path, err)
++			}
++			filesize := size(path, t)
++			if dir.Size() != filesize || filesize != wantSize {
++				t.Errorf("Size(%q) is %d, len(ReadFile()) is %d, want %d", path, dir.Size(), filesize, wantSize)
++			}
++		}
++		if err := Truncate(tmpdir+"/bar.txt", 0); err != nil {
++			t.Fatalf("Truncate failed: %v")
++		}
++	}
++}
++
+ func testKillProcess(t *testing.T, processKiller func(p *Process)) {
+ 	testenv.MustHaveExec(t)
+ 
+diff --git a/src/os/path_windows.go b/src/os/path_windows.go
+index ced28c3f0f..1a4223deab 100644
+--- a/src/os/path_windows.go
++++ b/src/os/path_windows.go
+@@ -127,3 +127,66 @@ func dirname(path string) string {
+ 	}
+ 	return vol + dir
+ }
++
++// fixLongPath returns the extended-length (\\?\-prefixed) form of
++// path if possible, in order to avoid the default 260 character file
++// path limit imposed by Windows.  If path is not easily converted to
++// the extended-length form (for example, if path is a relative path
++// or contains .. elements), fixLongPath returns path unmodified.
++func fixLongPath(path string) string {
++	// The extended form begins with \\?\, as in
++	// \\?\c:\windows\foo.txt or \\?\UNC\server\share\foo.txt.
++	// The extended form disables evaluation of . and .. path
++	// elements and disables the interpretation of / as equivalent
++	// to \.  The conversion here rewrites / to \ and elides
++	// . elements as well as trailing or duplicate separators. For
++	// simplicity it avoids the conversion entirely for relative
++	// paths or paths containing .. elements.  For now,
++	// \\server\share paths are not converted to
++	// \\?\UNC\server\share paths because the rules for doing so
++	// are less well-specified.
++	//
++	// For details of \\?\ paths, see:
++	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#maxpath
++	if len(path) == 0 || (len(path) >= 2 && path[:2] == `\\`) {
++		// Don't canonicalize UNC paths.
++		return path
++	}
++	if !isAbs(path) {
++		// Relative path
++		return path
++	}
++
++	const prefix = `\\?`
++
++	pathbuf := make([]byte, len(prefix)+len(path)+len(`\`))
++	copy(pathbuf, prefix)
++	n := len(path)
++	r, w := 0, len(prefix)
++	for r < n {
++		switch {
++		case IsPathSeparator(path[r]):
++			// empty block
++			r++
++		case path[r] == '.' && (r+1 == n || IsPathSeparator(path[r+1])):
++			// /./
++			r++
++		case r+1 < n && path[r] == '.' && path[r+1] == '.' && (r+2 == n || IsPathSeparator(path[r+2])):
++			// /../ is currently unhandled
++			return path
++		default:
++			pathbuf[w] = '\\'
++			w++
++			for ; r < n && !IsPathSeparator(path[r]); r++ {
++				pathbuf[w] = path[r]
++				w++
++			}
++		}
++	}
++	// A drive's root directory needs a trailing \
++	if w == len(`\\?\c:`) {
++		pathbuf[w] = '\\'
++		w++
++	}
++	return string(pathbuf[:w])
++}
+diff --git a/src/os/path_windows_test.go b/src/os/path_windows_test.go
+new file mode 100644
+index 0000000000..8fd515728e
+--- /dev/null
++++ b/src/os/path_windows_test.go
+@@ -0,0 +1,29 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os_test
++
++import (
++	"os"
++	"testing"
++)
++
++func TestFixLongPath(t *testing.T) {
++	for _, test := range []struct{ in, want string }{
++		{`C:\foo.txt`, `\\?\C:\foo.txt`},
++		{`C:/foo.txt`, `\\?\C:\foo.txt`},
++		{`C:\foo\\bar\.\baz\\`, `\\?\C:\foo\bar\baz`},
++		{`C:\`, `\\?\C:\`}, // drives must have a trailing slash
++		{`\\unc\path`, `\\unc\path`},
++		{`foo.txt`, `foo.txt`},
++		{`C:foo.txt`, `C:foo.txt`},
++		{`c:\foo\..\bar\baz`, `c:\foo\..\bar\baz`},
++		{`\\?\c:\windows\foo.txt`, `\\?\c:\windows\foo.txt`},
++		{`\\?\c:\windows/foo.txt`, `\\?\c:\windows/foo.txt`},
++	} {
++		if got := os.FixLongPath(test.in); got != test.want {
++			t.Errorf("fixLongPath(%q) = %q; want %q", test.in, got, test.want)
++		}
++	}
++}
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index 694ff540bb..fdabf73cba 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -90,7 +90,7 @@ func Lstat(name string) (FileInfo, error) {
+ 		return &devNullStat, nil
+ 	}
+ 	fs := &fileStat{name: basename(name)}
+-	namep, e := syscall.UTF16PtrFromString(name)
++	namep, e := syscall.UTF16PtrFromString(fixLongPath(name))
+ 	if e != nil {
+ 		return nil, &PathError{"Lstat", name, e}
+ 	}

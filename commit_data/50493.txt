@@ -14,6 +14,29 @@ Date:   Thu Oct 28 16:06:21 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/internal/goobj/objfile.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index 4dfea84539..9765058392 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -31,7 +31,7 @@ import (
+ // New object file format.
+ //
+ //    Header struct {
+-//       Magic       [...]byte   // "\x00go117ld"
++//       Magic       [...]byte   // "\x00go118ld"
+ //       Fingerprint [8]byte
+ //       Flags       uint32
+ //       Offsets     [...]uint32 // byte offset of each block below
+@@ -215,7 +215,7 @@ type Header struct {
+ 	Offsets     [NBlk]uint32
+ }
+ 
+-const Magic = "\x00go117ld"
++const Magic = "\x00go118ld"
+ 
+ func (h *Header) Write(w *Writer) {
+ 	w.RawString(h.Magic)

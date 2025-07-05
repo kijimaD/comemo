@@ -16,6 +16,55 @@ Date:   Fri Feb 24 01:46:09 2023 -0800
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/encoding/json/fuzz.go | 42 ------------------------------------------
  1 file changed, 42 deletions(-)
+
+diff --git a/src/encoding/json/fuzz.go b/src/encoding/json/fuzz.go
+deleted file mode 100644
+index b8f4ff2c1d..0000000000
+--- a/src/encoding/json/fuzz.go
++++ /dev/null
+@@ -1,42 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build gofuzz
+-
+-package json
+-
+-import (
+-	"fmt"
+-)
+-
+-func Fuzz(data []byte) (score int) {
+-	for _, ctor := range []func() any{
+-		func() any { return new(any) },
+-		func() any { return new(map[string]any) },
+-		func() any { return new([]any) },
+-	} {
+-		v := ctor()
+-		err := Unmarshal(data, v)
+-		if err != nil {
+-			continue
+-		}
+-		score = 1
+-
+-		m, err := Marshal(v)
+-		if err != nil {
+-			fmt.Printf("v=%#v\n", v)
+-			panic(err)
+-		}
+-
+-		u := ctor()
+-		err = Unmarshal(m, u)
+-		if err != nil {
+-			fmt.Printf("v=%#v\n", v)
+-			fmt.Printf("m=%s\n", m)
+-			panic(err)
+-		}
+-	}
+-
+-	return
+-}

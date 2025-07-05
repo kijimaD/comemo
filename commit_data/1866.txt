@@ -8,6 +8,19 @@ Date:   Sun Mar 22 21:53:40 2009 -0700
     DELTA=1090  (545 added, 545 deleted, 0 changed)
     OCL=26629
     CL=26629
-
+---
  doc/{mem.html => go_mem.html} | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/mem.html b/doc/go_mem.html
+similarity index 99%
+rename from doc/mem.html
+rename to doc/go_mem.html
+index 4f87dcb3ed..5228196d2c 100644
+--- a/doc/mem.html
++++ b/doc/go_mem.html
+@@ -1,3 +1,4 @@
++
+ <h1>The Go memory model</h1>
+ 
+ <h2>Introduction</h2>

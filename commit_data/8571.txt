@@ -9,9 +9,275 @@ Date:   Wed Jun 1 14:10:21 2011 +1000
     R=bradfitz, gary.burd, bsiegert, rsc
     CC=golang-dev
     https://golang.org/cl/4530079
-
+---
  src/pkg/Makefile             |   1 +
  src/pkg/mail/Makefile        |  11 ++++
  src/pkg/mail/message.go      |  95 +++++++++++++++++++++++++++++++
  src/pkg/mail/message_test.go | 129 +++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 236 insertions(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 6611fbf84a..fc5548e98e 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -116,6 +116,7 @@ DIRS=\
+ 	io/ioutil\
+ 	json\
+ 	log\
++	mail\
+ 	math\
+ 	mime\
+ 	mime/multipart\
+diff --git a/src/pkg/mail/Makefile b/src/pkg/mail/Makefile
+new file mode 100644
+index 0000000000..e4de5428ee
+--- /dev/null
++++ b/src/pkg/mail/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.inc
++
++TARG=mail
++GOFILES=\
++	message.go\
++
++include ../../Make.pkg
+diff --git a/src/pkg/mail/message.go b/src/pkg/mail/message.go
+new file mode 100644
+index 0000000000..9723863fee
+--- /dev/null
++++ b/src/pkg/mail/message.go
+@@ -0,0 +1,95 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package mail implements parsing of mail messages according to RFC 5322.
++package mail
++
++import (
++	"bufio"
++	"io"
++	"net/textproto"
++	"os"
++	"time"
++)
++
++// A Message represents a parsed mail message.
++type Message struct {
++	Header Header
++	Body   io.Reader
++}
++
++// ReadMessage reads a message from r.
++// The headers are parsed, and the body of the message will be reading from r.
++func ReadMessage(r io.Reader) (msg *Message, err os.Error) {
++	tp := textproto.NewReader(bufio.NewReader(r))
++
++	hdr, err := tp.ReadMIMEHeader()
++	if err != nil {
++		return nil, err
++	}
++
++	return &Message{
++		Header: Header(hdr),
++		Body:   tp.R,
++	}, nil
++}
++
++// Layouts suitable for passing to time.Parse.
++// These are tried in order.
++var dateLayouts []string
++
++func init() {
++	// Generate layouts based on RFC 5322, section 3.3.
++
++	dows := [...]string{"", "Mon, "}     // day-of-week
++	days := [...]string{"2", "02"}       // day = 1*2DIGIT
++	years := [...]string{"2006", "06"}   // year = 4*DIGIT / 2*DIGIT
++	seconds := [...]string{":05", ""}    // second
++	zones := [...]string{"-0700", "MST"} // zone = (("+" / "-") 4DIGIT) / "GMT" / ...
++
++	for _, dow := range dows {
++		for _, day := range days {
++			for _, year := range years {
++				for _, second := range seconds {
++					for _, zone := range zones {
++						s := dow + day + " Jan " + year + " 15:04" + second + " " + zone
++						dateLayouts = append(dateLayouts, s)
++					}
++				}
++			}
++		}
++	}
++}
++
++func parseDate(date string) (*time.Time, os.Error) {
++	for _, layout := range dateLayouts {
++		t, err := time.Parse(layout, date)
++		if err == nil {
++			return t, nil
++		}
++	}
++	return nil, os.ErrorString("mail: header could not be parsed")
++}
++
++// TODO(dsymonds): Parsers for more specific headers such as To, From, etc.
++
++// A Header represents the key-value pairs in a mail message header.
++type Header map[string][]string
++
++// Get gets the first value associated with the given key.
++// If there are no values associated with the key, Get returns "".
++func (h Header) Get(key string) string {
++	return textproto.MIMEHeader(h).Get(key)
++}
++
++var ErrHeaderNotPresent = os.ErrorString("mail: header not in message")
++
++// Date parses the Date header field.
++func (h Header) Date() (*time.Time, os.Error) {
++	hdr := h.Get("Date")
++	if hdr == "" {
++		return nil, ErrHeaderNotPresent
++	}
++	return parseDate(hdr)
++}
+diff --git a/src/pkg/mail/message_test.go b/src/pkg/mail/message_test.go
+new file mode 100644
+index 0000000000..1d1c6352ea
+--- /dev/null
++++ b/src/pkg/mail/message_test.go
+@@ -0,0 +1,129 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mail
++
++import (
++	"bytes"
++	"io/ioutil"
++	"reflect"
++	"testing"
++	"time"
++)
++
++var parseTests = []struct {
++	in     string
++	header Header
++	body   string
++}{
++	{
++		// RFC 5322, Appendix A.1.1
++		in: `From: John Doe <jdoe@machine.example>
++To: Mary Smith <mary@example.net>
++Subject: Saying Hello
++Date: Fri, 21 Nov 1997 09:55:06 -0600
++Message-ID: <1234@local.machine.example>
++
++This is a message just to say hello.
++So, "Hello".
++`,
++		header: Header{
++			"From":       []string{"John Doe <jdoe@machine.example>"},
++			"To":         []string{"Mary Smith <mary@example.net>"},
++			"Subject":    []string{"Saying Hello"},
++			"Date":       []string{"Fri, 21 Nov 1997 09:55:06 -0600"},
++			"Message-Id": []string{"<1234@local.machine.example>"},
++		},
++		body: "This is a message just to say hello.\nSo, \"Hello\".\n",
++	},
++}
++
++func TestParsing(t *testing.T) {
++	for i, test := range parseTests {
++		msg, err := ReadMessage(bytes.NewBuffer([]byte(test.in)))
++		if err != nil {
++			t.Errorf("test #%d: Failed parsing message: %v", i, err)
++			continue
++		}
++		if !headerEq(msg.Header, test.header) {
++			t.Errorf("test #%d: Incorrectly parsed message header.\nGot:\n%+v\nWant:\n%+v",
++				i, msg.Header, test.header)
++		}
++		body, err := ioutil.ReadAll(msg.Body)
++		if err != nil {
++			t.Errorf("test #%d: Failed reading body: %v", i, err)
++			continue
++		}
++		bodyStr := string(body)
++		if bodyStr != test.body {
++			t.Errorf("test #%d: Incorrectly parsed message body.\nGot:\n%+v\nWant:\n%+v",
++				i, bodyStr, test.body)
++		}
++	}
++}
++
++func headerEq(a, b Header) bool {
++	if len(a) != len(b) {
++		return false
++	}
++	for k, as := range a {
++		bs, ok := b[k]
++		if !ok {
++			return false
++		}
++		if !reflect.DeepEqual(as, bs) {
++			return false
++		}
++	}
++	return true
++}
++
++func TestDateParsing(t *testing.T) {
++	tests := []struct {
++		dateStr string
++		exp     *time.Time
++	}{
++		// RFC 5322, Appendix A.1.1
++		{
++			"Fri, 21 Nov 1997 09:55:06 -0600",
++			&time.Time{
++				Year:       1997,
++				Month:      11,
++				Day:        21,
++				Hour:       9,
++				Minute:     55,
++				Second:     6,
++				Weekday:    5, // Fri
++				ZoneOffset: -6 * 60 * 60,
++			},
++		},
++		// RFC5322, Appendix A.6.2
++		// Obsolete date.
++		{
++			"21 Nov 97 09:55:06 GMT",
++			&time.Time{
++				Year:   1997,
++				Month:  11,
++				Day:    21,
++				Hour:   9,
++				Minute: 55,
++				Second: 6,
++				Zone:   "GMT",
++			},
++		},
++	}
++	for _, test := range tests {
++		hdr := Header{
++			"Date": []string{test.dateStr},
++		}
++		date, err := hdr.Date()
++		if err != nil {
++			t.Errorf("Failed parsing %q: %v", test.dateStr, err)
++			continue
++		}
++		if !reflect.DeepEqual(date, test.exp) {
++			t.Errorf("Parse of %q: got %+v, want %+v", test.dateStr, date, test.exp)
++		}
++	}
++}

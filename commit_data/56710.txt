@@ -13,8 +13,129 @@ Date:   Thu May 11 16:09:38 2023 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/internal/coverage/decodemeta/decode.go       | 14 +++++++++---
  src/internal/coverage/slicereader/slicereader.go | 29 ++++++++++++++++++++++--
  src/internal/coverage/slicereader/slr_test.go    |  7 ++++--
  3 files changed, 43 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/coverage/decodemeta/decode.go b/src/internal/coverage/decodemeta/decode.go
+index 71f1c567ab..fa047c780b 100644
+--- a/src/internal/coverage/decodemeta/decode.go
++++ b/src/internal/coverage/decodemeta/decode.go
+@@ -14,6 +14,7 @@ import (
+ 	"internal/coverage"
+ 	"internal/coverage/slicereader"
+ 	"internal/coverage/stringtab"
++	"io"
+ 	"os"
+ )
+ 
+@@ -55,7 +56,9 @@ func (d *CoverageMetaDataDecoder) readHeader() error {
+ func (d *CoverageMetaDataDecoder) readStringTable() error {
+ 	// Seek to the correct location to read the string table.
+ 	stringTableLocation := int64(coverage.CovMetaHeaderSize + 4*d.hdr.NumFuncs)
+-	d.r.SeekTo(stringTableLocation)
++	if _, err := d.r.Seek(stringTableLocation, io.SeekStart); err != nil {
++		return err
++	}
+ 
+ 	// Read the table itself.
+ 	d.strtab = stringtab.NewReader(d.r)
+@@ -88,7 +91,9 @@ func (d *CoverageMetaDataDecoder) ReadFunc(fidx uint32, f *coverage.FuncDesc) er
+ 
+ 	// Seek to the correct location to read the function offset and read it.
+ 	funcOffsetLocation := int64(coverage.CovMetaHeaderSize + 4*fidx)
+-	d.r.SeekTo(funcOffsetLocation)
++	if _, err := d.r.Seek(funcOffsetLocation, io.SeekStart); err != nil {
++		return err
++	}
+ 	foff := d.r.ReadUint32()
+ 
+ 	// Check assumptions
+@@ -97,7 +102,10 @@ func (d *CoverageMetaDataDecoder) ReadFunc(fidx uint32, f *coverage.FuncDesc) er
+ 	}
+ 
+ 	// Seek to the correct location to read the function.
+-	d.r.SeekTo(int64(foff))
++	floc := int64(foff)
++	if _, err := d.r.Seek(floc, io.SeekStart); err != nil {
++		return err
++	}
+ 
+ 	// Preamble containing number of units, file, and function.
+ 	numUnits := uint32(d.r.ReadULEB128())
+diff --git a/src/internal/coverage/slicereader/slicereader.go b/src/internal/coverage/slicereader/slicereader.go
+index 3d117bae37..d9f2a7eac4 100644
+--- a/src/internal/coverage/slicereader/slicereader.go
++++ b/src/internal/coverage/slicereader/slicereader.go
+@@ -6,6 +6,8 @@ package slicereader
+ 
+ import (
+ 	"encoding/binary"
++	"fmt"
++	"io"
+ 	"unsafe"
+ )
+ 
+@@ -38,8 +40,31 @@ func (r *Reader) Read(b []byte) (int, error) {
+ 	return amt, nil
+ }
+ 
+-func (r *Reader) SeekTo(off int64) {
+-	r.off = off
++func (r *Reader) Seek(offset int64, whence int) (ret int64, err error) {
++	switch whence {
++	case io.SeekStart:
++		if offset < 0 || offset > int64(len(r.b)) {
++			return 0, fmt.Errorf("invalid seek: new offset %d (out of range [0 %d]", offset, len(r.b))
++		}
++		r.off = offset
++		return offset, nil
++	case io.SeekCurrent:
++		newoff := r.off + offset
++		if newoff < 0 || newoff > int64(len(r.b)) {
++			return 0, fmt.Errorf("invalid seek: new offset %d (out of range [0 %d]", newoff, len(r.b))
++		}
++		r.off = newoff
++		return r.off, nil
++	case io.SeekEnd:
++		newoff := int64(len(r.b)) + offset
++		if newoff < 0 || newoff > int64(len(r.b)) {
++			return 0, fmt.Errorf("invalid seek: new offset %d (out of range [0 %d]", newoff, len(r.b))
++		}
++		r.off = newoff
++		return r.off, nil
++	}
++	// other modes are not supported
++	return 0, fmt.Errorf("unsupported seek mode %d", whence)
+ }
+ 
+ func (r *Reader) Offset() int64 {
+diff --git a/src/internal/coverage/slicereader/slr_test.go b/src/internal/coverage/slicereader/slr_test.go
+index 2f7cef00f8..461436d5f5 100644
+--- a/src/internal/coverage/slicereader/slr_test.go
++++ b/src/internal/coverage/slicereader/slr_test.go
+@@ -6,6 +6,7 @@ package slicereader
+ 
+ import (
+ 	"encoding/binary"
++	"io"
+ 	"testing"
+ )
+ 
+@@ -64,10 +65,12 @@ func TestSliceReader(t *testing.T) {
+ 		if gs2 != s2 {
+ 			t.Fatalf("readStr got %s want %s", gs2, s2)
+ 		}
+-		slr.SeekTo(4)
++		if _, err := slr.Seek(4, io.SeekStart); err != nil {
++			t.Fatal(err)
++		}
+ 		off := slr.Offset()
+ 		if off != 4 {
+-			t.Fatalf("Offset(0 returned %d wanted 4", off)
++			t.Fatalf("Offset() returned %d wanted 4", off)
+ 		}
+ 		g64 = slr.ReadUint64()
+ 		if g64 != e64 {

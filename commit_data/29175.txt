@@ -13,7 +13,70 @@ Date:   Tue Aug 30 09:29:16 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go  | 10 +++++-----
  src/runtime/stubs.go |  2 +-
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index e693f7e05f..75e09b3ab7 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -543,7 +543,7 @@ func ready(gp *g, traceskip int, next bool) {
+ 	// status is Gwaiting or Gscanwaiting, make Grunnable and put on runq
+ 	casgstatus(gp, _Gwaiting, _Grunnable)
+ 	runqput(_g_.m.p.ptr(), gp, next)
+-	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 { // TODO: fast atomic
++	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
+ 		wakep()
+ 	}
+ 	_g_.m.locks--
+@@ -1901,7 +1901,7 @@ top:
+ 	// If number of spinning M's >= number of busy P's, block.
+ 	// This is necessary to prevent excessive CPU consumption
+ 	// when GOMAXPROCS>>1 but the program parallelism is low.
+-	if !_g_.m.spinning && 2*atomic.Load(&sched.nmspinning) >= procs-atomic.Load(&sched.npidle) { // TODO: fast atomic
++	if !_g_.m.spinning && 2*atomic.Load(&sched.nmspinning) >= procs-atomic.Load(&sched.npidle) {
+ 		goto stop
+ 	}
+ 	if !_g_.m.spinning {
+@@ -2341,7 +2341,7 @@ func reentersyscall(pc, sp uintptr) {
+ 		save(pc, sp)
+ 	}
+ 
+-	if atomic.Load(&sched.sysmonwait) != 0 { // TODO: fast atomic
++	if atomic.Load(&sched.sysmonwait) != 0 {
+ 		systemstack(entersyscall_sysmon)
+ 		save(pc, sp)
+ 	}
+@@ -2806,7 +2806,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 	}
+ 	runqput(_p_, newg, true)
+ 
+-	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 && unsafe.Pointer(fn.fn) != unsafe.Pointer(funcPC(main)) { // TODO: fast atomic
++	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 && unsafe.Pointer(fn.fn) != unsafe.Pointer(funcPC(main)) {
+ 		wakep()
+ 	}
+ 	_g_.m.locks--
+@@ -3604,7 +3604,7 @@ func sysmon() {
+ 			delay = 10 * 1000
+ 		}
+ 		usleep(delay)
+-		if debug.schedtrace <= 0 && (sched.gcwaiting != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs)) { // TODO: fast atomic
++		if debug.schedtrace <= 0 && (sched.gcwaiting != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs)) {
+ 			lock(&sched.lock)
+ 			if atomic.Load(&sched.gcwaiting) != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs) {
+ 				atomic.Store(&sched.sysmonwait, 1)
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 72951ae0b2..0f75663b9a 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -90,7 +90,7 @@ func memequal(a, b unsafe.Pointer, size uintptr) bool
+ // noescape hides a pointer from escape analysis.  noescape is
+ // the identity function but escape analysis doesn't think the
+ // output depends on the input.  noescape is inlined and currently
+-// compiles down to a single xor instruction.
++// compiles down to zero instructions.
+ // USE CAREFULLY!
+ //go:nosplit
+ func noescape(p unsafe.Pointer) unsafe.Pointer {

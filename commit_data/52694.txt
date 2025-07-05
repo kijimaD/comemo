@@ -17,6 +17,20 @@ Date:   Wed May 18 12:50:49 2022 -0400
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/test/inl_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 3fd45f21e7..49ee88eaec 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -275,7 +275,7 @@ func TestIntendedInlining(t *testing.T) {
+ 		}
+ 	}
+ 
+-	args := append([]string{"build", "-a", "-gcflags=all=-m -m", "-tags=math_big_pure_go"}, pkgs...)
++	args := append([]string{"build", "-gcflags=-m -m", "-tags=math_big_pure_go"}, pkgs...)
+ 	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), args...))
+ 	pr, pw := io.Pipe()
+ 	cmd.Stdout = pw

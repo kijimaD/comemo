@@ -7,7 +7,33 @@ Date:   Wed Jan 26 17:25:37 2011 +1000
     R=mattn
     CC=golang-dev
     https://golang.org/cl/4034046
-
+---
  doc/codelab/wiki/edit.html  | 2 +-
  doc/codelab/wiki/index.html | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/codelab/wiki/edit.html b/doc/codelab/wiki/edit.html
+index 66dfeb511e..7a5768ce96 100644
+--- a/doc/codelab/wiki/edit.html
++++ b/doc/codelab/wiki/edit.html
+@@ -1,6 +1,6 @@
+ <h1>Editing {Title}</h1>
+ 
+ <form action="/save/{Title}" method="POST">
+-<div><textarea name="Body" rows="20" cols="80">{Body|html}</textarea></div>
++<div><textarea name="body" rows="20" cols="80">{Body|html}</textarea></div>
+ <div><input type="submit" value="Save"></div>
+ </form>
+diff --git a/doc/codelab/wiki/index.html b/doc/codelab/wiki/index.html
+index e4273de7a6..fe99c32d1e 100644
+--- a/doc/codelab/wiki/index.html
++++ b/doc/codelab/wiki/index.html
+@@ -457,7 +457,7 @@ Open a new file named <code>edit.html</code>, and add the following lines:
+ &lt;h1&gt;Editing {Title}&lt;/h1&gt;
+ 
+ &lt;form action=&#34;/save/{Title}&#34; method=&#34;POST&#34;&gt;
+-&lt;div&gt;&lt;textarea name=&#34;Body&#34; rows=&#34;20&#34; cols=&#34;80&#34;&gt;{Body|html}&lt;/textarea&gt;&lt;/div&gt;
++&lt;div&gt;&lt;textarea name=&#34;body&#34; rows=&#34;20&#34; cols=&#34;80&#34;&gt;{Body|html}&lt;/textarea&gt;&lt;/div&gt;
+ &lt;div&gt;&lt;input type=&#34;submit&#34; value=&#34;Save&#34;&gt;&lt;/div&gt;
+ &lt;/form&gt;
+ </pre>

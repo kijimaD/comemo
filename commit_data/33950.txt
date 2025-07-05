@@ -35,7 +35,7 @@ Date:   Fri Sep 1 02:57:46 2017 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/common.go                          |  64 +++++++++-
  src/archive/tar/example_test.go                    | 110 ++++++++++++++++--
  src/archive/tar/sparse_unix.go                     |  68 +++++++++++
@@ -44,3 +44,578 @@ Date:   Fri Sep 1 02:57:46 2017 -0700
  .../tar/{stat_atimespec.go => stat_actime2.go}     |   0
  src/archive/tar/tar_test.go                        |  67 +++++++++--
  7 files changed, 416 insertions(+), 22 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index 8813d089d0..5855b8e84f 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -13,6 +13,7 @@ package tar
+ import (
+ 	"errors"
+ 	"fmt"
++	"io"
+ 	"math"
+ 	"os"
+ 	"path"
+@@ -525,6 +526,66 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
+ 	return format, paxHdrs, err
+ }
+ 
++var sysSparseDetect func(f *os.File) (sparseHoles, error)
++var sysSparsePunch func(f *os.File, sph sparseHoles) error
++
++// DetectSparseHoles searches for holes within f to populate SparseHoles
++// on supported operating systems and filesystems.
++// The file offset is cleared to zero.
++//
++// When packing a sparse file, DetectSparseHoles should be called prior to
++// serializing the header to the archive with Writer.WriteHeader.
++func (h *Header) DetectSparseHoles(f *os.File) (err error) {
++	defer func() {
++		if _, serr := f.Seek(0, io.SeekStart); err == nil {
++			err = serr
++		}
++	}()
++
++	h.SparseHoles = nil
++	if sysSparseDetect != nil {
++		sph, err := sysSparseDetect(f)
++		h.SparseHoles = sph
++		return err
++	}
++	return nil
++}
++
++// PunchSparseHoles destroys the contents of f, and prepares a sparse file
++// (on supported operating systems and filesystems)
++// with holes punched according to SparseHoles.
++// The file offset is cleared to zero.
++//
++// When extracting a sparse file, PunchSparseHoles should be called prior to
++// populating the content of a file with Reader.WriteTo.
++func (h *Header) PunchSparseHoles(f *os.File) (err error) {
++	defer func() {
++		if _, serr := f.Seek(0, io.SeekStart); err == nil {
++			err = serr
++		}
++	}()
++
++	if err := f.Truncate(0); err != nil {
++		return err
++	}
++
++	var size int64
++	if len(h.SparseHoles) > 0 {
++		size = h.SparseHoles[len(h.SparseHoles)-1].endOffset()
++	}
++	if !validateSparseEntries(h.SparseHoles, size) {
++		return errors.New("tar: invalid sparse holes")
++	}
++
++	if size == 0 {
++		return nil // For non-sparse files, do nothing (other than Truncate)
++	}
++	if sysSparsePunch != nil {
++		return sysSparsePunch(f, h.SparseHoles)
++	}
++	return f.Truncate(size)
++}
++
+ // FileInfo returns an os.FileInfo for the Header.
+ func (h *Header) FileInfo() os.FileInfo {
+ 	return headerFileInfo{h}
+@@ -627,7 +688,8 @@ const (
+ // the file it describes, it may be necessary to modify Header.Name
+ // to provide the full path name of the file.
+ //
+-// This function does not populate Header.SparseHoles.
++// This function does not populate Header.SparseHoles;
++// for sparse file support, additionally call Header.DetectSparseHoles.
+ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
+ 	if fi == nil {
+ 		return nil, errors.New("tar: FileInfo is nil")
+diff --git a/src/archive/tar/example_test.go b/src/archive/tar/example_test.go
+index b84950c797..47e39c05f6 100644
+--- a/src/archive/tar/example_test.go
++++ b/src/archive/tar/example_test.go
+@@ -16,11 +16,10 @@ import (
+ 	"strings"
+ )
+ 
+-func Example() {
+-	buf := new(bytes.Buffer)
+-
++func Example_minimal() {
+ 	// Create and add some files to the archive.
+-	tw := tar.NewWriter(buf)
++	var buf bytes.Buffer
++	tw := tar.NewWriter(&buf)
+ 	var files = []struct {
+ 		Name, Body string
+ 	}{
+@@ -46,7 +45,7 @@ func Example() {
+ 	}
+ 
+ 	// Open and iterate through the files in the archive.
+-	tr := tar.NewReader(buf)
++	tr := tar.NewReader(&buf)
+ 	for {
+ 		hdr, err := tr.Next()
+ 		if err == io.EOF {
+@@ -75,9 +74,101 @@ func Example() {
+ }
+ 
+ // A sparse file can efficiently represent a large file that is mostly empty.
+-func Example_sparse() {
+-	buf := new(bytes.Buffer)
++// When packing an archive, Header.DetectSparseHoles can be used to populate
++// the sparse map, while Header.PunchSparseHoles can be used to create a
++// sparse file on disk when extracting an archive.
++func Example_sparseAutomatic() {
++	// Create the source sparse file.
++	src, err := ioutil.TempFile("", "sparse.db")
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer os.Remove(src.Name()) // Best-effort cleanup
++	defer func() {
++		if err := src.Close(); err != nil {
++			log.Fatal(err)
++		}
++	}()
++	if err := src.Truncate(10e6); err != nil {
++		log.Fatal(err)
++	}
++	for i := 0; i < 10; i++ {
++		if _, err := src.Seek(1e6-1e3, io.SeekCurrent); err != nil {
++			log.Fatal(err)
++		}
++		if _, err := src.Write(bytes.Repeat([]byte{'0' + byte(i)}, 1e3)); err != nil {
++			log.Fatal(err)
++		}
++	}
++
++	// Create an archive and pack the source sparse file to it.
++	var buf bytes.Buffer
++	tw := tar.NewWriter(&buf)
++	fi, err := src.Stat()
++	if err != nil {
++		log.Fatal(err)
++	}
++	hdr, err := tar.FileInfoHeader(fi, "")
++	if err != nil {
++		log.Fatal(err)
++	}
++	if err := hdr.DetectSparseHoles(src); err != nil {
++		log.Fatal(err)
++	}
++	if err := tw.WriteHeader(hdr); err != nil {
++		log.Fatal(err)
++	}
++	if _, err := io.Copy(tw, src); err != nil {
++		log.Fatal(err)
++	}
++	if err := tw.Close(); err != nil {
++		log.Fatal(err)
++	}
++
++	// Create the destination sparse file.
++	dst, err := ioutil.TempFile("", "sparse.db")
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer os.Remove(dst.Name()) // Best-effort cleanup
++	defer func() {
++		if err := dst.Close(); err != nil {
++			log.Fatal(err)
++		}
++	}()
++
++	// Open the archive and extract the sparse file into the destination file.
++	tr := tar.NewReader(&buf)
++	hdr, err = tr.Next()
++	if err != nil {
++		log.Fatal(err)
++	}
++	if err := hdr.PunchSparseHoles(dst); err != nil {
++		log.Fatal(err)
++	}
++	if _, err := io.Copy(dst, tr); err != nil {
++		log.Fatal(err)
++	}
++
++	// Verify that the sparse files are identical.
++	want, err := ioutil.ReadFile(src.Name())
++	if err != nil {
++		log.Fatal(err)
++	}
++	got, err := ioutil.ReadFile(dst.Name())
++	if err != nil {
++		log.Fatal(err)
++	}
++	fmt.Printf("Src MD5: %08x\n", md5.Sum(want))
++	fmt.Printf("Dst MD5: %08x\n", md5.Sum(got))
++
++	// Output:
++	// Src MD5: 33820d648d42cb3da2515da229149f74
++	// Dst MD5: 33820d648d42cb3da2515da229149f74
++}
+ 
++// The SparseHoles can be manually constructed without Header.DetectSparseHoles.
++func Example_sparseManual() {
+ 	// Define a sparse file to add to the archive.
+ 	// This sparse files contains 5 data fragments, and 4 hole fragments.
+ 	// The logical size of the file is 16 KiB, while the physical size of the
+@@ -116,7 +207,8 @@ func Example_sparse() {
+ 	fmt.Printf("Write SparseHoles of %s:\n\t%v\n\n", hdr.Name, hdr.SparseHoles)
+ 
+ 	// Create a new archive and write the sparse file.
+-	tw := tar.NewWriter(buf)
++	var buf bytes.Buffer
++	tw := tar.NewWriter(&buf)
+ 	if err := tw.WriteHeader(hdr); err != nil {
+ 		log.Fatal(err)
+ 	}
+@@ -128,7 +220,7 @@ func Example_sparse() {
+ 	}
+ 
+ 	// Open and iterate through the files in the archive.
+-	tr := tar.NewReader(buf)
++	tr := tar.NewReader(&buf)
+ 	for {
+ 		hdr, err := tr.Next()
+ 		if err == io.EOF {
+diff --git a/src/archive/tar/sparse_unix.go b/src/archive/tar/sparse_unix.go
+new file mode 100644
+index 0000000000..76b4c6cc2b
+--- /dev/null
++++ b/src/archive/tar/sparse_unix.go
+@@ -0,0 +1,68 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux darwin dragonfly freebsd openbsd netbsd solaris
++
++package tar
++
++import (
++	"io"
++	"os"
++	"syscall"
++)
++
++func init() {
++	sysSparseDetect = sparseDetectUnix
++}
++
++func sparseDetectUnix(f *os.File) (sph sparseHoles, err error) {
++	// SEEK_DATA and SEEK_HOLE originated from Solaris and support for it
++	// has been added to most of the other major Unix systems.
++	const seekData = 3 // SEEK_DATA from unistd.h
++	const seekHole = 4 // SEEK_HOLE from unistd.h
++
++	// Check for seekData/seekHole support.
++	if _, err := f.Seek(0, seekHole); errno(err) == syscall.EINVAL {
++		return nil, nil // Either old kernel or FS does not support this
++	}
++
++	// Populate the SparseHoles.
++	var last, pos int64 = -1, 0
++	for {
++		// Get the location of the next hole section.
++		if pos, err = fseek(f, pos, seekHole); pos == last || err != nil {
++			return sph, err
++		}
++		offset := pos
++		last = pos
++
++		// Get the location of the next data section.
++		if pos, err = fseek(f, pos, seekData); pos == last || err != nil {
++			return sph, err
++		}
++		length := pos - offset
++		last = pos
++
++		if length > 0 {
++			sph = append(sph, SparseEntry{offset, length})
++		}
++	}
++}
++
++func fseek(f *os.File, pos int64, whence int) (int64, error) {
++	pos, err := f.Seek(pos, whence)
++	if errno(err) == syscall.ENXIO {
++		// SEEK_DATA returns ENXIO when past the last data fragment,
++		// which makes determining the size of the last hole difficult.
++		pos, err = f.Seek(0, io.SeekEnd)
++	}
++	return pos, err
++}
++
++func errno(err error) error {
++	if perr, ok := err.(*os.PathError); ok {
++		return perr.Err
++	}
++	return err
++}
+diff --git a/src/archive/tar/sparse_windows.go b/src/archive/tar/sparse_windows.go
+new file mode 100644
+index 0000000000..05bf1a90bb
+--- /dev/null
++++ b/src/archive/tar/sparse_windows.go
+@@ -0,0 +1,129 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build windows
++
++package tar
++
++import (
++	"os"
++	"syscall"
++	"unsafe"
++)
++
++var errInvalidFunc = syscall.Errno(1) // ERROR_INVALID_FUNCTION from WinError.h
++
++func init() {
++	sysSparseDetect = sparseDetectWindows
++	sysSparsePunch = sparsePunchWindows
++}
++
++func sparseDetectWindows(f *os.File) (sph sparseHoles, err error) {
++	const queryAllocRanges = 0x000940CF                  // FSCTL_QUERY_ALLOCATED_RANGES from WinIoCtl.h
++	type allocRangeBuffer struct{ offset, length int64 } // FILE_ALLOCATED_RANGE_BUFFER from WinIoCtl.h
++
++	s, err := f.Stat()
++	if err != nil {
++		return nil, err
++	}
++
++	queryRange := allocRangeBuffer{0, s.Size()}
++	allocRanges := make([]allocRangeBuffer, 64)
++
++	// Repeatedly query for ranges until the input buffer is large enough.
++	var bytesReturned uint32
++	for {
++		err := syscall.DeviceIoControl(
++			syscall.Handle(f.Fd()), queryAllocRanges,
++			(*byte)(unsafe.Pointer(&queryRange)), uint32(unsafe.Sizeof(queryRange)),
++			(*byte)(unsafe.Pointer(&allocRanges[0])), uint32(len(allocRanges)*int(unsafe.Sizeof(allocRanges[0]))),
++			&bytesReturned, nil,
++		)
++		if err == syscall.ERROR_MORE_DATA {
++			allocRanges = make([]allocRangeBuffer, 2*len(allocRanges))
++			continue
++		}
++		if err == errInvalidFunc {
++			return nil, nil // Sparse file not supported on this FS
++		}
++		if err != nil {
++			return nil, err
++		}
++		break
++	}
++	n := bytesReturned / uint32(unsafe.Sizeof(allocRanges[0]))
++	allocRanges = append(allocRanges[:n], allocRangeBuffer{s.Size(), 0})
++
++	// Invert the data fragments into hole fragments.
++	var pos int64
++	for _, r := range allocRanges {
++		if r.offset > pos {
++			sph = append(sph, SparseEntry{pos, r.offset - pos})
++		}
++		pos = r.offset + r.length
++	}
++	return sph, nil
++}
++
++func sparsePunchWindows(f *os.File, sph sparseHoles) error {
++	const setSparse = 0x000900C4                 // FSCTL_SET_SPARSE from WinIoCtl.h
++	const setZeroData = 0x000980C8               // FSCTL_SET_ZERO_DATA from WinIoCtl.h
++	type zeroDataInfo struct{ start, end int64 } // FILE_ZERO_DATA_INFORMATION from WinIoCtl.h
++
++	// Set the file as being sparse.
++	var bytesReturned uint32
++	devErr := syscall.DeviceIoControl(
++		syscall.Handle(f.Fd()), setSparse,
++		nil, 0, nil, 0,
++		&bytesReturned, nil,
++	)
++	if devErr != nil && devErr != errInvalidFunc {
++		return devErr
++	}
++
++	// Set the file to the right size.
++	var size int64
++	if len(sph) > 0 {
++		size = sph[len(sph)-1].endOffset()
++	}
++	if err := f.Truncate(size); err != nil {
++		return err
++	}
++	if devErr == errInvalidFunc {
++		// Sparse file not supported on this FS.
++		// Call sparsePunchManual since SetEndOfFile does not guarantee that
++		// the extended space is filled with zeros.
++		return sparsePunchManual(f, sph)
++	}
++
++	// Punch holes for all relevant fragments.
++	for _, s := range sph {
++		zdi := zeroDataInfo{s.Offset, s.endOffset()}
++		err := syscall.DeviceIoControl(
++			syscall.Handle(f.Fd()), setZeroData,
++			(*byte)(unsafe.Pointer(&zdi)), uint32(unsafe.Sizeof(zdi)),
++			nil, 0,
++			&bytesReturned, nil,
++		)
++		if err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++// sparsePunchManual writes zeros into each hole.
++func sparsePunchManual(f *os.File, sph sparseHoles) error {
++	const chunkSize = 32 << 10
++	zbuf := make([]byte, chunkSize)
++	for _, s := range sph {
++		for pos := s.Offset; pos < s.endOffset(); pos += chunkSize {
++			n := min(chunkSize, s.endOffset()-pos)
++			if _, err := f.WriteAt(zbuf[:n], pos); err != nil {
++				return err
++			}
++		}
++	}
++	return nil
++}
+diff --git a/src/archive/tar/stat_atim.go b/src/archive/tar/stat_actime1.go
+similarity index 100%
+rename from src/archive/tar/stat_atim.go
+rename to src/archive/tar/stat_actime1.go
+diff --git a/src/archive/tar/stat_atimespec.go b/src/archive/tar/stat_actime2.go
+similarity index 100%
+rename from src/archive/tar/stat_atimespec.go
+rename to src/archive/tar/stat_actime2.go
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index f2e1d75c78..37858fd765 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"path"
+ 	"path/filepath"
+ 	"reflect"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -767,6 +768,25 @@ func TestHeaderAllowedFormats(t *testing.T) {
+ }
+ 
+ func TestSparseFiles(t *testing.T) {
++	// Only perform the tests for hole-detection on the builders,
++	// where we have greater control over the filesystem.
++	sparseSupport := testenv.Builder() != ""
++	if runtime.GOOS == "linux" && runtime.GOARCH == "arm" {
++		// The "linux-arm" builder uses aufs for its root FS,
++		// which only supports hole-punching, but not hole-detection.
++		sparseSupport = false
++	}
++	if runtime.GOOS == "darwin" {
++		// The "darwin-*" builders use hfs+ for its root FS,
++		// which does not support sparse files.
++		sparseSupport = false
++	}
++	if runtime.GOOS == "openbsd" {
++		// The "openbsd-*" builders use ffs for its root FS,
++		// which does not support sparse files.
++		sparseSupport = false
++	}
++
+ 	vectors := []struct {
+ 		label     string
+ 		sparseMap sparseHoles
+@@ -779,11 +799,11 @@ func TestSparseFiles(t *testing.T) {
+ 		{"DataMiddle", sparseHoles{{0, 5e5 - 1e3}, {5e5, 5e5}}},
+ 		{"HoleMiddle", sparseHoles{{1e3, 1e6 - 2e3}, {1e6, 0}}},
+ 		{"Multiple", func() (sph []SparseEntry) {
+-			for i := 0; i < 20; i++ {
+-				sph = append(sph, SparseEntry{1e6 * int64(i), 1e6 - 1e3})
++			const chunkSize = 1e6
++			for i := 0; i < 100; i++ {
++				sph = append(sph, SparseEntry{chunkSize * int64(i), chunkSize - 1e3})
+ 			}
+-			sph = append(sph, SparseEntry{20e6, 0})
+-			return
++			return append(sph, SparseEntry{int64(len(sph) * chunkSize), 0})
+ 		}()},
+ 	}
+ 
+@@ -808,13 +828,16 @@ func TestSparseFiles(t *testing.T) {
+ 				Size:        sph[len(sph)-1].endOffset(),
+ 				SparseHoles: sph,
+ 			}
+-			// TODO: Explicitly punch holes in the sparse file.
+-			if err := src.Truncate(hdr.Size); err != nil {
+-				t.Fatalf("unexpected Truncate error: %v", err)
++			junk := bytes.Repeat([]byte{'Z'}, int(hdr.Size+1e3))
++			if _, err := src.Write(junk); err != nil {
++				t.Fatalf("unexpected Write error: %v", err)
++			}
++			if err := hdr.PunchSparseHoles(src); err != nil {
++				t.Fatalf("unexpected PunchSparseHoles error: %v", err)
+ 			}
+ 			var pos int64
+ 			for _, s := range sph {
+-				b := bytes.Repeat([]byte{'Y'}, int(s.Offset-pos))
++				b := bytes.Repeat([]byte{'X'}, int(s.Offset-pos))
+ 				if _, err := src.WriteAt(b, pos); err != nil {
+ 					t.Fatalf("unexpected WriteAt error: %v", err)
+ 				}
+@@ -837,9 +860,8 @@ func TestSparseFiles(t *testing.T) {
+ 			if _, err := tr.Next(); err != nil {
+ 				t.Fatalf("unexpected Next error: %v", err)
+ 			}
+-			// TODO: Explicitly punch holes in the sparse file.
+-			if err := dst.Truncate(hdr.Size); err != nil {
+-				t.Fatalf("unexpected Truncate error: %v", err)
++			if err := hdr.PunchSparseHoles(dst); err != nil {
++				t.Fatalf("unexpected PunchSparseHoles error: %v", err)
+ 			}
+ 			if _, err := tr.WriteTo(dst); err != nil {
+ 				t.Fatalf("unexpected Copy error: %v", err)
+@@ -860,7 +882,28 @@ func TestSparseFiles(t *testing.T) {
+ 				t.Fatal("sparse files mismatch")
+ 			}
+ 
+-			// TODO: Actually check that the file is sparse.
++			// Detect and compare the sparse holes.
++			if err := hdr.DetectSparseHoles(dst); err != nil {
++				t.Fatalf("unexpected DetectSparseHoles error: %v", err)
++			}
++			if sparseSupport && sysSparseDetect != nil {
++				if len(sph) > 0 && sph[len(sph)-1].Length == 0 {
++					sph = sph[:len(sph)-1]
++				}
++				if len(hdr.SparseHoles) != len(sph) {
++					t.Fatalf("len(SparseHoles) = %d, want %d", len(hdr.SparseHoles), len(sph))
++				}
++				for j, got := range hdr.SparseHoles {
++					// Each FS has their own block size, so these may not match.
++					want := sph[j]
++					if got.Offset < want.Offset {
++						t.Errorf("index %d, StartOffset = %d, want <%d", j, got.Offset, want.Offset)
++					}
++					if got.endOffset() > want.endOffset() {
++						t.Errorf("index %d, EndOffset = %d, want >%d", j, got.endOffset(), want.endOffset())
++					}
++				}
++			}
+ 		})
+ 	}
+ }

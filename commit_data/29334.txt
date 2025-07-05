@@ -12,6 +12,39 @@ Date:   Fri Sep 9 11:28:07 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/syntax/scanner.go | 14 +-------------
  1 file changed, 1 insertion(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index e78950ad1a..b84fcc5fd1 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -317,7 +317,7 @@ func (s *scanner) ident() {
+ 
+ 	// possibly a keyword
+ 	if len(lit) >= 2 {
+-		if tok := keywordMap[hash(lit)]; tok != 0 && strbyteseql(tokstrings[tok], lit) {
++		if tok := keywordMap[hash(lit)]; tok != 0 && tokstrings[tok] == string(lit) {
+ 			s.nlsemi = contains(1<<_Break|1<<_Continue|1<<_Fallthrough|1<<_Return, tok)
+ 			s.tok = tok
+ 			return
+@@ -347,18 +347,6 @@ func hash(s []byte) uint {
+ 	return (uint(s[0])<<4 ^ uint(s[1]) + uint(len(s))) & uint(len(keywordMap)-1)
+ }
+ 
+-func strbyteseql(s string, b []byte) bool {
+-	if len(s) == len(b) {
+-		for i, b := range b {
+-			if s[i] != b {
+-				return false
+-			}
+-		}
+-		return true
+-	}
+-	return false
+-}
+-
+ var keywordMap [1 << 6]token // size must be power of two
+ 
+ func init() {

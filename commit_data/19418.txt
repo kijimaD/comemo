@@ -8,6 +8,20 @@ Date:   Tue May 20 11:57:21 2014 -0700
     R=adg, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/95540045
-
+---
  doc/install.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index ecf29ede52..9aee55d878 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -228,7 +228,7 @@ You just need to do a little more setup.
+ </p>
+ 
+ <p>
+-<a href="/doc/code.html" class="download" id="start">
++<a href="/doc/code.html" class="download" id="writing">
+ <span class="big">How to Write Go Code</span>
+ <span class="desc">Learn how to set up and use the Go tools</span>
+ </a>

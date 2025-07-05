@@ -45,7 +45,7 @@ Date:   Sun Dec 6 18:13:43 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go       |  2 +-
  src/cmd/compile/internal/arm64/ssa.go     |  2 +-
  src/cmd/compile/internal/gc/pgen.go       |  2 +-
@@ -60,3 +60,372 @@ Date:   Sun Dec 6 18:13:43 2020 -0800
  src/cmd/compile/internal/ssa/regalloc.go  |  2 +-
  src/cmd/compile/internal/wasm/ssa.go      |  2 +-
  13 files changed, 38 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index b34e2973b2..8b155712aa 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -546,7 +546,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		case *obj.LSym:
+ 			wantreg = "SB"
+ 			gc.AddAux(&p.From, v)
+-		case ir.Node:
++		case *ir.Name:
+ 			wantreg = "SP"
+ 			gc.AddAux(&p.From, v)
+ 		case nil:
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index d5bd9687cf..3eb0ae6557 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -396,7 +396,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		case *obj.LSym:
+ 			wantreg = "SB"
+ 			gc.AddAux(&p.From, v)
+-		case ir.Node:
++		case *ir.Name:
+ 			wantreg = "SP"
+ 			gc.AddAux(&p.From, v)
+ 		case nil:
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 1da0929290..a7b19953ba 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -128,7 +128,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 	scratchUsed := false
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+-			if n, ok := v.Aux.(ir.Node); ok {
++			if n, ok := v.Aux.(*ir.Name); ok {
+ 				switch n.Class() {
+ 				case ir.PPARAM, ir.PPARAMOUT:
+ 					// Don't modify nodfp; it is a global.
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 06e423daa1..9952bfcf36 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -324,9 +324,9 @@ func affectedNode(v *ssa.Value) (ir.Node, ssa.SymEffect) {
+ 		return n, ssa.SymWrite
+ 
+ 	case ssa.OpVarLive:
+-		return v.Aux.(ir.Node), ssa.SymRead
++		return v.Aux.(*ir.Name), ssa.SymRead
+ 	case ssa.OpVarDef, ssa.OpVarKill:
+-		return v.Aux.(ir.Node), ssa.SymWrite
++		return v.Aux.(*ir.Name), ssa.SymWrite
+ 	case ssa.OpKeepAlive:
+ 		n, _ := AutoVar(v.Args[0])
+ 		return n, ssa.SymRead
+@@ -341,7 +341,7 @@ func affectedNode(v *ssa.Value) (ir.Node, ssa.SymEffect) {
+ 	case nil, *obj.LSym:
+ 		// ok, but no node
+ 		return nil, e
+-	case ir.Node:
++	case *ir.Name:
+ 		return a, e
+ 	default:
+ 		base.Fatalf("weird aux: %s", v.LongString())
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 90c7546042..e8f345d8f6 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1504,7 +1504,7 @@ func (s *state) stmt(n ir.Node) {
+ 
+ 	case ir.OVARDEF:
+ 		if !s.canSSA(n.Left()) {
+-			s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, n.Left(), s.mem(), false)
++			s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, n.Left().(*ir.Name), s.mem(), false)
+ 		}
+ 	case ir.OVARKILL:
+ 		// Insert a varkill op to record that a variable is no longer live.
+@@ -1512,7 +1512,7 @@ func (s *state) stmt(n ir.Node) {
+ 		// varkill in the store chain is enough to keep it correctly ordered
+ 		// with respect to call ops.
+ 		if !s.canSSA(n.Left()) {
+-			s.vars[memVar] = s.newValue1Apos(ssa.OpVarKill, types.TypeMem, n.Left(), s.mem(), false)
++			s.vars[memVar] = s.newValue1Apos(ssa.OpVarKill, types.TypeMem, n.Left().(*ir.Name), s.mem(), false)
+ 		}
+ 
+ 	case ir.OVARLIVE:
+@@ -1525,7 +1525,7 @@ func (s *state) stmt(n ir.Node) {
+ 		default:
+ 			s.Fatalf("VARLIVE variable %v must be Auto or Arg", n.Left())
+ 		}
+-		s.vars[memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, n.Left(), s.mem())
++		s.vars[memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, n.Left().(*ir.Name), s.mem())
+ 
+ 	case ir.OCHECKNIL:
+ 		p := s.expr(n.Left())
+@@ -1571,7 +1571,7 @@ func (s *state) exit() *ssa.Block {
+ 	for _, n := range s.returns {
+ 		addr := s.decladdrs[n]
+ 		val := s.variable(n, n.Type())
+-		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
++		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n.(*ir.Name), s.mem())
+ 		s.store(n.Type(), addr, val)
+ 		// TODO: if val is ever spilled, we'd like to use the
+ 		// PPARAMOUT slot for spilling it. That won't happen
+@@ -2866,7 +2866,7 @@ func (s *state) append(n ir.Node, inplace bool) *ssa.Value {
+ 	if inplace {
+ 		if sn.Op() == ir.ONAME && sn.Class() != ir.PEXTERN {
+ 			// Tell liveness we're about to build a new slice
+-			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, sn, s.mem())
++			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, sn.(*ir.Name), s.mem())
+ 		}
+ 		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, sliceCapOffset, addr)
+ 		s.store(types.Types[types.TINT], capaddr, r[2])
+@@ -3076,7 +3076,7 @@ func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask
+ 	// If this assignment clobbers an entire local variable, then emit
+ 	// OpVarDef so liveness analysis knows the variable is redefined.
+ 	if base := clobberBase(left); base.Op() == ir.ONAME && base.Class() != ir.PEXTERN && skip == 0 {
+-		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base, s.mem(), !ir.IsAutoTmp(base))
++		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base.(*ir.Name), s.mem(), !ir.IsAutoTmp(base))
+ 	}
+ 
+ 	// Left is not ssa-able. Compute its address.
+@@ -4236,7 +4236,7 @@ func (s *state) openDeferRecord(n ir.Node) {
+ 		// call the function directly if it is a static function.
+ 		closureVal := s.expr(fn)
+ 		closure := s.openDeferSave(nil, fn.Type(), closureVal)
+-		opendefer.closureNode = closure.Aux.(ir.Node)
++		opendefer.closureNode = closure.Aux.(*ir.Name)
+ 		if !(fn.Op() == ir.ONAME && fn.Class() == ir.PFUNC) {
+ 			opendefer.closure = closure
+ 		}
+@@ -4249,7 +4249,7 @@ func (s *state) openDeferRecord(n ir.Node) {
+ 		// runtime panic code to use. But in the defer exit code, we will
+ 		// call the method directly.
+ 		closure := s.openDeferSave(nil, fn.Type(), closureVal)
+-		opendefer.closureNode = closure.Aux.(ir.Node)
++		opendefer.closureNode = closure.Aux.(*ir.Name)
+ 	} else {
+ 		if fn.Op() != ir.ODOTINTER {
+ 			base.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op())
+@@ -4259,8 +4259,8 @@ func (s *state) openDeferRecord(n ir.Node) {
+ 		// Important to get the receiver type correct, so it is recognized
+ 		// as a pointer for GC purposes.
+ 		opendefer.rcvr = s.openDeferSave(nil, fn.Type().Recv().Type, rcvr)
+-		opendefer.closureNode = opendefer.closure.Aux.(ir.Node)
+-		opendefer.rcvrNode = opendefer.rcvr.Aux.(ir.Node)
++		opendefer.closureNode = opendefer.closure.Aux.(*ir.Name)
++		opendefer.rcvrNode = opendefer.rcvr.Aux.(*ir.Name)
+ 	}
+ 	for _, argn := range n.Rlist().Slice() {
+ 		var v *ssa.Value
+@@ -4270,7 +4270,7 @@ func (s *state) openDeferRecord(n ir.Node) {
+ 			v = s.openDeferSave(argn, argn.Type(), nil)
+ 		}
+ 		args = append(args, v)
+-		argNodes = append(argNodes, v.Aux.(ir.Node))
++		argNodes = append(argNodes, v.Aux.(*ir.Name))
+ 	}
+ 	opendefer.argVals = args
+ 	opendefer.argNodes = argNodes
+@@ -4458,16 +4458,16 @@ func (s *state) openDeferExit() {
+ 		// use the first call of the last defer exit to compute liveness
+ 		// for the deferreturn, so we want all stack slots to be live.
+ 		if r.closureNode != nil {
+-			s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.closureNode, s.mem(), false)
++			s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.closureNode.(*ir.Name), s.mem(), false)
+ 		}
+ 		if r.rcvrNode != nil {
+ 			if r.rcvrNode.Type().HasPointers() {
+-				s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.rcvrNode, s.mem(), false)
++				s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.rcvrNode.(*ir.Name), s.mem(), false)
+ 			}
+ 		}
+ 		for _, argNode := range r.argNodes {
+ 			if argNode.Type().HasPointers() {
+-				s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argNode, s.mem(), false)
++				s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argNode.(*ir.Name), s.mem(), false)
+ 			}
+ 		}
+ 
+@@ -4855,17 +4855,17 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 			}
+ 			if n == nodfp {
+ 				// Special arg that points to the frame pointer (Used by ORECOVER).
+-				return s.entryNewValue2A(ssa.OpLocalAddr, t, n, s.sp, s.startmem)
++				return s.entryNewValue2A(ssa.OpLocalAddr, t, n.(*ir.Name), s.sp, s.startmem)
+ 			}
+ 			s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
+ 			return nil
+ 		case ir.PAUTO:
+-			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), !ir.IsAutoTmp(n))
++			return s.newValue2Apos(ssa.OpLocalAddr, t, n.(*ir.Name), s.sp, s.mem(), !ir.IsAutoTmp(n))
+ 
+ 		case ir.PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
+ 			// ensure that we reuse symbols for out parameters so
+ 			// that cse works on their addresses
+-			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), true)
++			return s.newValue2Apos(ssa.OpLocalAddr, t, n.(*ir.Name), s.sp, s.mem(), true)
+ 		default:
+ 			s.Fatalf("variable address class %v not implemented", n.Class())
+ 			return nil
+@@ -5951,7 +5951,7 @@ func (s *state) dottype(n ir.Node, commaok bool) (res, resok *ssa.Value) {
+ 		// unSSAable type, use temporary.
+ 		// TODO: get rid of some of these temporaries.
+ 		tmp = tempAt(n.Pos(), s.curfn, n.Type())
+-		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, tmp, s.mem())
++		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, tmp.(*ir.Name), s.mem())
+ 		addr = s.addr(tmp)
+ 	}
+ 
+@@ -6027,7 +6027,7 @@ func (s *state) dottype(n ir.Node, commaok bool) (res, resok *ssa.Value) {
+ 		delete(s.vars, valVar)
+ 	} else {
+ 		res = s.load(n.Type(), addr)
+-		s.vars[memVar] = s.newValue1A(ssa.OpVarKill, types.TypeMem, tmp, s.mem())
++		s.vars[memVar] = s.newValue1A(ssa.OpVarKill, types.TypeMem, tmp.(*ir.Name), s.mem())
+ 	}
+ 	resok = s.variable(okVar, types.Types[types.TBOOL])
+ 	delete(s.vars, okVar)
+@@ -6680,7 +6680,7 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ 	case *obj.LSym:
+ 		a.Name = obj.NAME_EXTERN
+ 		a.Sym = n
+-	case ir.Node:
++	case *ir.Name:
+ 		if n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT {
+ 			a.Name = obj.NAME_PARAM
+ 			a.Sym = ir.Orig(n).Sym().Linksym()
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index bd71b2fcd8..10453c27d5 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -289,7 +289,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		case *obj.LSym:
+ 			wantreg = "SB"
+ 			gc.AddAux(&p.From, v)
+-		case ir.Node:
++		case *ir.Name:
+ 			wantreg = "SP"
+ 			gc.AddAux(&p.From, v)
+ 		case nil:
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index bcadebde4e..9aaf8715de 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -263,7 +263,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		case *obj.LSym:
+ 			wantreg = "SB"
+ 			gc.AddAux(&p.From, v)
+-		case ir.Node:
++		case *ir.Name:
+ 			wantreg = "SP"
+ 			gc.AddAux(&p.From, v)
+ 		case nil:
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index c81b6897a6..d382304d72 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -324,7 +324,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		case *obj.LSym:
+ 			wantreg = "SB"
+ 			gc.AddAux(&p.From, v)
+-		case ir.Node:
++		case *ir.Name:
+ 			wantreg = "SP"
+ 			gc.AddAux(&p.From, v)
+ 		case nil:
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index f3ef33d670..d0446a0311 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -147,7 +147,7 @@ func elimDeadAutosGeneric(f *Func) {
+ 		switch v.Op {
+ 		case OpAddr, OpLocalAddr:
+ 			// Propagate the address if it points to an auto.
+-			n, ok := v.Aux.(ir.Node)
++			n, ok := v.Aux.(*ir.Name)
+ 			if !ok || n.Class() != ir.PAUTO {
+ 				return
+ 			}
+@@ -158,7 +158,7 @@ func elimDeadAutosGeneric(f *Func) {
+ 			return
+ 		case OpVarDef, OpVarKill:
+ 			// v should be eliminated if we eliminate the auto.
+-			n, ok := v.Aux.(ir.Node)
++			n, ok := v.Aux.(*ir.Name)
+ 			if !ok || n.Class() != ir.PAUTO {
+ 				return
+ 			}
+@@ -174,7 +174,7 @@ func elimDeadAutosGeneric(f *Func) {
+ 			// for open-coded defers from being removed (since they
+ 			// may not be used by the inline code, but will be used by
+ 			// panic processing).
+-			n, ok := v.Aux.(ir.Node)
++			n, ok := v.Aux.(*ir.Name)
+ 			if !ok || n.Class() != ir.PAUTO {
+ 				return
+ 			}
+@@ -303,7 +303,7 @@ func elimUnreadAutos(f *Func) {
+ 	var stores []*Value
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+-			n, ok := v.Aux.(ir.Node)
++			n, ok := v.Aux.(*ir.Name)
+ 			if !ok {
+ 				continue
+ 			}
+@@ -335,7 +335,7 @@ func elimUnreadAutos(f *Func) {
+ 
+ 	// Eliminate stores to unread autos.
+ 	for _, store := range stores {
+-		n, _ := store.Aux.(ir.Node)
++		n, _ := store.Aux.(*ir.Name)
+ 		if seen[n] {
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 6123978e55..405817dbe1 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -718,7 +718,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
+ 
+ 	switch {
+ 	case v.Op == OpVarDef, v.Op == OpVarKill:
+-		n := v.Aux.(ir.Node)
++		n := v.Aux.(*ir.Name)
+ 		if ir.IsSynthetic(n) {
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index b36f6b97e1..bae50657c9 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -236,7 +236,7 @@ func nilcheckelim2(f *Func) {
+ 				continue
+ 			}
+ 			if v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
+-				if v.Op == OpVarKill || v.Op == OpVarLive || (v.Op == OpVarDef && !v.Aux.(ir.Node).Type().HasPointers()) {
++				if v.Op == OpVarKill || v.Op == OpVarLive || (v.Op == OpVarDef && !v.Aux.(*ir.Name).Type().HasPointers()) {
+ 					// These ops don't really change memory.
+ 					continue
+ 					// Note: OpVarDef requires that the defined variable not have pointers.
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 376ca97512..8c25b1c81d 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1249,7 +1249,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 					// This forces later liveness analysis to make the
+ 					// value live at this point.
+ 					v.SetArg(0, s.makeSpill(a, b))
+-				} else if _, ok := a.Aux.(ir.Node); ok && vi.rematerializeable {
++				} else if _, ok := a.Aux.(*ir.Name); ok && vi.rematerializeable {
+ 					// Rematerializeable value with a gc.Node. This is the address of
+ 					// a stack object (e.g. an LEAQ). Keep the object live.
+ 					// Change it to VarLive, which is what plive expects for locals.
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index e7451381b4..01ba721556 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -237,7 +237,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
+ 		switch v.Aux.(type) {
+ 		case *obj.LSym:
+ 			gc.AddAux(&p.From, v)
+-		case ir.Node:
++		case *ir.Name:
+ 			p.From.Reg = v.Args[0].Reg()
+ 			gc.AddAux(&p.From, v)
+ 		default:

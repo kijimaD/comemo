@@ -10,6 +10,45 @@ Date:   Mon Feb 9 11:45:36 2015 -0800
     Change-Id: Ib30ef4d94d5d8d44900276592edd7997e6f91e55
     Reviewed-on: https://go-review.googlesource.com/4260
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/parse.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 3e0fb32ee7..8ba0973d97 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -290,6 +290,9 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 			a.Type = obj.TYPE_ADDR
+ 		}
+ 		a.Reg = r1
++		if r1 == arch.RPC && prefix != 0 {
++			p.errorf("illegal addressing mode for PC")
++		}
+ 		a.Scale = scale
+ 		p.get(')')
+ 		if scale == 0 && p.peek() == '(' {
+@@ -363,14 +366,22 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
+ 	}
+ 	a.Sym = obj.Linklookup(p.linkCtxt, name, isStatic)
+ 	if p.peek() == scanner.EOF {
++		if prefix != 0 {
++			p.errorf("illegal addressing mode for symbol %s", name)
++		}
+ 		return
+ 	}
+-	// Expect (SB) or (FP) or (SP).
++	// Expect (SB) or (FP), (PC), (SB), or (SP)
+ 	p.get('(')
+ 	reg := p.get(scanner.Ident).String()
+ 	switch reg {
+ 	case "FP":
+ 		a.Name = obj.NAME_PARAM
++	case "PC":
++		// Fine as is.
++		if prefix != 0 {
++			p.errorf("illegal addressing mode for PC")
++		}
+ 	case "SB":
+ 		a.Name = obj.NAME_EXTERN
+ 		if isStatic != 0 {

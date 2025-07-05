@@ -20,10 +20,151 @@ Date:   Thu Mar 16 10:59:04 2023 +0100
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/testenv/testenv_unix.go |  5 -----
  src/syscall/syscall_js.go            |  7 +++++--
  src/syscall/syscall_plan9.go         |  4 ++--
  src/syscall/syscall_unix.go          |  7 +++++--
  src/syscall/syscall_windows.go       | 20 ++++++++++++++------
  5 files changed, 26 insertions(+), 17 deletions(-)
+
+diff --git a/src/internal/testenv/testenv_unix.go b/src/internal/testenv/testenv_unix.go
+index 92b5024f0b..a629078842 100644
+--- a/src/internal/testenv/testenv_unix.go
++++ b/src/internal/testenv/testenv_unix.go
+@@ -24,11 +24,6 @@ func syscallIsNotSupported(err error) bool {
+ 	var errno syscall.Errno
+ 	if errors.As(err, &errno) {
+ 		switch errno {
+-		case syscall.ENOSYS, syscall.ENOTSUP:
+-			// Explicitly not supported.
+-			// TODO(#41198): remove these cases when errors.Is reports that they are
+-			// equivalent to ErrUnsupported.
+-			return true
+ 		case syscall.EPERM, syscall.EROFS:
+ 			// User lacks permission: either the call requires root permission and the
+ 			// user is not root, or the call is denied by a container security policy.
+diff --git a/src/syscall/syscall_js.go b/src/syscall/syscall_js.go
+index c9c6522980..c1b28942e8 100644
+--- a/src/syscall/syscall_js.go
++++ b/src/syscall/syscall_js.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ import (
++	errorspkg "errors"
+ 	"internal/itoa"
+ 	"internal/oserror"
+ 	"sync"
+@@ -47,8 +48,8 @@ const PathMax = 256
+ //		err = errno
+ //	}
+ //
+-// Errno values can be tested against error values from the os package
+-// using errors.Is. For example:
++// Errno values can be tested against error values using errors.Is.
++// For example:
+ //
+ //	_, _, err := syscall.Syscall(...)
+ //	if errors.Is(err, fs.ErrNotExist) ...
+@@ -72,6 +73,8 @@ func (e Errno) Is(target error) bool {
+ 		return e == EEXIST || e == ENOTEMPTY
+ 	case oserror.ErrNotExist:
+ 		return e == ENOENT
++	case errorspkg.ErrUnsupported:
++		return e == ENOSYS || e == ENOTSUP || e == EOPNOTSUPP
+ 	}
+ 	return false
+ }
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index 759f8051e8..7af10ba322 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -23,8 +23,8 @@ const bitSize16 = 2
+ 
+ // ErrorString implements Error's String method by returning itself.
+ //
+-// ErrorString values can be tested against error values from the os package
+-// using errors.Is. For example:
++// ErrorString values can be tested against error values using errors.Is.
++// For example:
+ //
+ //	_, _, err := syscall.Syscall(...)
+ //	if errors.Is(err, fs.ErrNotExist) ...
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index c59d4fcf95..4c48f29744 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ import (
++	errorspkg "errors"
+ 	"internal/bytealg"
+ 	"internal/itoa"
+ 	"internal/oserror"
+@@ -97,8 +98,8 @@ func (m *mmapper) Munmap(data []byte) (err error) {
+ //		err = errno
+ //	}
+ //
+-// Errno values can be tested against error values from the os package
+-// using errors.Is. For example:
++// Errno values can be tested against error values using errors.Is.
++// For example:
+ //
+ //	_, _, err := syscall.Syscall(...)
+ //	if errors.Is(err, fs.ErrNotExist) ...
+@@ -122,6 +123,8 @@ func (e Errno) Is(target error) bool {
+ 		return e == EEXIST || e == ENOTEMPTY
+ 	case oserror.ErrNotExist:
+ 		return e == ENOENT
++	case errorspkg.ErrUnsupported:
++		return e == ENOSYS || e == ENOTSUP || e == EOPNOTSUPP
+ 	}
+ 	return false
+ }
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index ae9b49a28d..fe052d7e72 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -103,8 +103,8 @@ func UTF16PtrFromString(s string) (*uint16, error) {
+ 
+ // Errno is the Windows error number.
+ //
+-// Errno values can be tested against error values from the os package
+-// using errors.Is. For example:
++// Errno values can be tested against error values using errors.Is.
++// For example:
+ //
+ //	_, _, err := syscall.Syscall(...)
+ //	if errors.Is(err, fs.ErrNotExist) ...
+@@ -147,17 +147,25 @@ const _ERROR_BAD_NETPATH = Errno(53)
+ func (e Errno) Is(target error) bool {
+ 	switch target {
+ 	case oserror.ErrPermission:
+-		return e == ERROR_ACCESS_DENIED
++		return e == ERROR_ACCESS_DENIED ||
++			e == EACCES ||
++			e == EPERM
+ 	case oserror.ErrExist:
+ 		return e == ERROR_ALREADY_EXISTS ||
+ 			e == ERROR_DIR_NOT_EMPTY ||
+-			e == ERROR_FILE_EXISTS
++			e == ERROR_FILE_EXISTS ||
++			e == EEXIST ||
++			e == ENOTEMPTY
+ 	case oserror.ErrNotExist:
+ 		return e == ERROR_FILE_NOT_FOUND ||
+ 			e == _ERROR_BAD_NETPATH ||
+-			e == ERROR_PATH_NOT_FOUND
++			e == ERROR_PATH_NOT_FOUND ||
++			e == ENOENT
+ 	case errorspkg.ErrUnsupported:
+-		return e == EWINDOWS
++		return e == ENOSYS ||
++			e == ENOTSUP ||
++			e == EOPNOTSUPP ||
++			e == EWINDOWS
+ 	}
+ 	return false
+ }

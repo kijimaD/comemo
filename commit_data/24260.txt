@@ -12,6 +12,41 @@ Date:   Mon Jul 20 09:15:46 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/12366
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go | 12 +++++++-----
  1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index eb1690e2e7..aebb966b02 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1277,9 +1277,10 @@ func TestRejectRelativePathsInGOPATHCommandLinePackage(t *testing.T) {
+ func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+-	tg.run("test", "fmt", "fmt", "fmt", "fmt", "fmt")
++	tg.parallel()
++	tg.run("test", "errors", "errors", "errors", "errors", "errors")
+ 	if strings.Index(strings.TrimSpace(tg.getStdout()), "\n") != -1 {
+-		t.Error("go test fmt fmt fmt fmt fmt tested the same package multiple times")
++		t.Error("go test errors errors errors errors errors tested the same package multiple times")
+ 	}
+ }
+ 
+@@ -1779,12 +1780,13 @@ func TestCgoHandlesWlORIGIN(t *testing.T) {
+ 	tg.run("build", "origin")
+ }
+ 
+-// "go test -c -test.bench=XXX fmt" should not hang'
++// "go test -c -test.bench=XXX errors" should not hang
+ func TestIssue6480(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+-	tg.creatingTemp("fmt.test" + exeSuffix)
+-	tg.run("test", "-c", "-test.bench=XXX", "fmt")
++	tg.makeTempdir()
++	tg.cd(tg.path("."))
++	tg.run("test", "-c", "-test.bench=XXX", "errors")
+ }
+ 
+ // cmd/cgo: undefined reference when linking a C-library using gccgo

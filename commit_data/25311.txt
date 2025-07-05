@@ -19,7 +19,49 @@ Date:   Wed Oct 14 19:18:59 2015 +0000
     Change-Id: I178a7f615bae950dfc014ca8c0a038448cf0452a
     Reviewed-on: https://go-review.googlesource.com/15689
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/fmt/scan.go      | 4 ++--
  src/fmt/scan_test.go | 2 ++
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/fmt/scan.go b/src/fmt/scan.go
+index e3e0fd0b58..6bd8fd52e0 100644
+--- a/src/fmt/scan.go
++++ b/src/fmt/scan.go
+@@ -813,7 +813,7 @@ func (s *ss) scanComplex(verb rune, n int) complex128 {
+ // convertString returns the string represented by the next input characters.
+ // The format of the input is determined by the verb.
+ func (s *ss) convertString(verb rune) (str string) {
+-	if !s.okVerb(verb, "svqx", "string") {
++	if !s.okVerb(verb, "svqxX", "string") {
+ 		return ""
+ 	}
+ 	s.skipSpace(false)
+@@ -821,7 +821,7 @@ func (s *ss) convertString(verb rune) (str string) {
+ 	switch verb {
+ 	case 'q':
+ 		str = s.quotedString()
+-	case 'x':
++	case 'x', 'X':
+ 		str = s.hexString()
+ 	default:
+ 		str = string(s.token(true, notSpace)) // %s and %v just return the next word
+diff --git a/src/fmt/scan_test.go b/src/fmt/scan_test.go
+index 334c4a6b24..1924c02ac6 100644
+--- a/src/fmt/scan_test.go
++++ b/src/fmt/scan_test.go
+@@ -255,12 +255,14 @@ var scanfTests = []ScanfTest{
+ 	// Strings
+ 	{"%s", "using-%s\n", &stringVal, "using-%s"},
+ 	{"%x", "7573696e672d2578\n", &stringVal, "using-%x"},
++	{"%X", "7573696E672D2558\n", &stringVal, "using-%X"},
+ 	{"%q", `"quoted\twith\\do\u0075bl\x65s"` + "\n", &stringVal, "quoted\twith\\doubles"},
+ 	{"%q", "`quoted with backs`\n", &stringVal, "quoted with backs"},
+ 
+ 	// Byte slices
+ 	{"%s", "bytes-%s\n", &bytesVal, []byte("bytes-%s")},
+ 	{"%x", "62797465732d2578\n", &bytesVal, []byte("bytes-%x")},
++	{"%X", "62797465732D2558\n", &bytesVal, []byte("bytes-%X")},
+ 	{"%q", `"bytes\rwith\vdo\u0075bl\x65s"` + "\n", &bytesVal, []byte("bytes\rwith\vdoubles")},
+ 	{"%q", "`bytes with backs`\n", &bytesVal, []byte("bytes with backs")},
+ 

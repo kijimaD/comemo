@@ -18,7 +18,45 @@ Date:   Thu Apr 27 18:25:43 2017 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go             | 12 ++++++++++++
  src/cmd/go/internal/work/build.go |  6 ++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 8cb5867c1e..0b1fe70221 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3885,3 +3885,15 @@ func main() {
+ 	tg.creatingTemp(exe)
+ 	tg.run("build", "-o", exe, "p")
+ }
++
++func TestBuildTagsNoComma(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("go"))
++	tg.run("install", "-tags", "tag1 tag2", "math")
++	tg.runFail("install", "-tags", "tag1,tag2", "math")
++	tg.grepBoth("space-separated list contains comma", "-tags with a comma-separated list didn't error")
++	tg.runFail("build", "-tags", "tag1,tag2", "math")
++	tg.grepBoth("space-separated list contains comma", "-tags with a comma-separated list didn't error")
++}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 448aec7376..2f903adf3e 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -1102,6 +1102,12 @@ func (b *Builder) Do(root *Action) {
+ 		fmt.Fprintf(os.Stderr, "cmd/go: unsupported GOOS/GOARCH pair %s/%s\n", cfg.Goos, cfg.Goarch)
+ 		os.Exit(2)
+ 	}
++	for _, tag := range cfg.BuildContext.BuildTags {
++		if strings.Contains(tag, ",") {
++			fmt.Fprintf(os.Stderr, "cmd/go: -tags space-separated list contains comma\n")
++			os.Exit(2)
++		}
++	}
+ 
+ 	// Build list of all actions, assigning depth-first post-order priority.
+ 	// The original implementation here was a true queue

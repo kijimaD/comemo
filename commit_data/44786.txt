@@ -9,6 +9,26 @@ Date:   Wed May 13 17:03:36 2020 +0800
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/float.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index da964eef3e..42050e2c39 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -322,10 +322,11 @@ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
+ 		mant.validate()
+ 	}
+ 	z.Copy(mant)
+-	if z.form != finite {
+-		return z
++
++	if z.form == finite {
++		// 0 < |mant| < +Inf
++		z.setExpAndRound(int64(z.exp)+int64(exp), 0)
+ 	}
+-	z.setExpAndRound(int64(z.exp)+int64(exp), 0)
+ 	return z
+ }
+ 

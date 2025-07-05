@@ -9,7 +9,60 @@ Date:   Sun Aug 30 22:24:53 2015 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/gen.go | 12 +++++-------
  src/cmd/compile/internal/gc/go.go  |  2 +-
  2 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 1e9c68c210..355210b87a 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -135,7 +135,7 @@ func newlab(n *Node) *Label {
+ 			lab.Def = n
+ 		}
+ 	} else {
+-		lab.Use = list(lab.Use, n)
++		lab.Use = append(lab.Use, n)
+ 	}
+ 
+ 	return lab
+@@ -986,12 +986,10 @@ func CgenTemp(n *Node) *Node {
+ }
+ 
+ func checklabels() {
+-	var l *NodeList
+-
+ 	for lab := labellist; lab != nil; lab = lab.Link {
+ 		if lab.Def == nil {
+-			for l = lab.Use; l != nil; l = l.Next {
+-				yyerrorl(int(l.N.Lineno), "label %v not defined", lab.Sym)
++			for _, n := range lab.Use {
++				yyerrorl(int(n.Lineno), "label %v not defined", lab.Sym)
+ 			}
+ 			continue
+ 		}
+@@ -1004,8 +1002,8 @@ func checklabels() {
+ 		if lab.Gotopc != nil {
+ 			Fatalf("label %v never resolved", lab.Sym)
+ 		}
+-		for l = lab.Use; l != nil; l = l.Next {
+-			checkgoto(l.N, lab.Def)
++		for _, n := range lab.Use {
++			checkgoto(n, lab.Def)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index d31adb2181..b692fc826c 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -220,7 +220,7 @@ type Label struct {
+ 	Used uint8
+ 	Sym  *Sym
+ 	Def  *Node
+-	Use  *NodeList
++	Use  []*Node
+ 	Link *Label
+ 
+ 	// for use during gen

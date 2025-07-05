@@ -10,6 +10,26 @@ Date:   Thu Jul 7 10:49:03 2011 +1000
     R=golang-dev, r, agl
     CC=golang-dev
     https://golang.org/cl/4631088
-
+---
  src/pkg/crypto/openpgp/read.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/read.go b/src/pkg/crypto/openpgp/read.go
+index 6830147524..d95f613c62 100644
+--- a/src/pkg/crypto/openpgp/read.go
++++ b/src/pkg/crypto/openpgp/read.go
+@@ -250,11 +250,12 @@ FindLiteralData:
+ 			md.IsSigned = true
+ 			md.SignedByKeyId = p.KeyId
+ 			keys := keyring.KeysById(p.KeyId)
+-			for _, key := range keys {
++			for i, key := range keys {
+ 				if key.SelfSignature.FlagsValid && !key.SelfSignature.FlagSign {
+ 					continue
+ 				}
+-				md.SignedBy = &key
++				md.SignedBy = &keys[i]
++				break
+ 			}
+ 		case *packet.LiteralData:
+ 			md.LiteralData = p

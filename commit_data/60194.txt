@@ -10,6 +10,20 @@ Date:   Wed May 22 17:19:56 2024 +0900
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/errors/wrap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index 57060517b5..eec9591dae 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -85,7 +85,7 @@ func is(err, target error, targetComparable bool) bool {
+ // errors, As examines err followed by a depth-first traversal of its children.
+ //
+ // An error matches target if the error's concrete value is assignable to the value
+-// pointed to by target, or if the error has a method As(interface{}) bool such that
++// pointed to by target, or if the error has a method As(any) bool such that
+ // As(target) returns true. In the latter case, the As method is responsible for
+ // setting target.
+ //

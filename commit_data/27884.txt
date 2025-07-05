@@ -16,7 +16,70 @@ Date:   Mon Apr 18 07:24:48 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go | 10 +++++-----
  src/cmd/link/internal/ld/lib.go    | 11 ++++++++---
  2 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index abe831a324..c370f7b0d8 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -329,21 +329,21 @@ func readNotes(f *elf.File) ([]*note, error) {
+ 	return notes, nil
+ }
+ 
+-func dynStrings(path string, flag elf.DynTag) []string {
++func dynStrings(t *testing.T, path string, flag elf.DynTag) []string {
+ 	f, err := elf.Open(path)
+ 	defer f.Close()
+ 	if err != nil {
+-		log.Fatal("elf.Open failed: ", err)
++		t.Fatalf("elf.Open(%q) failed: %v", path, err)
+ 	}
+ 	dynstrings, err := f.DynString(flag)
+ 	if err != nil {
+-		log.Fatal("dynstring failed: ", err)
++		t.Fatalf("DynString(%s) failed on %s: %v", flag, path, err)
+ 	}
+ 	return dynstrings
+ }
+ 
+ func AssertIsLinkedToRegexp(t *testing.T, path string, re *regexp.Regexp) {
+-	for _, dynstring := range dynStrings(path, elf.DT_NEEDED) {
++	for _, dynstring := range dynStrings(t, path, elf.DT_NEEDED) {
+ 		if re.MatchString(dynstring) {
+ 			return
+ 		}
+@@ -357,7 +357,7 @@ func AssertIsLinkedTo(t *testing.T, path, lib string) {
+ 
+ func AssertHasRPath(t *testing.T, path, dir string) {
+ 	for _, tag := range []elf.DynTag{elf.DT_RPATH, elf.DT_RUNPATH} {
+-		for _, dynstring := range dynStrings(path, tag) {
++		for _, dynstring := range dynStrings(t, path, tag) {
+ 			for _, rpath := range strings.Split(dynstring, ":") {
+ 				if filepath.Clean(rpath) == filepath.Clean(dir) {
+ 					return
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 56a3736310..24cdca5a3b 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1123,10 +1123,15 @@ func hostlink() {
+ 		// from the beginning of the section (like STYPE).
+ 		argv = append(argv, "-Wl,-znocopyreloc")
+ 
+-		if SysArch.Family == sys.ARM {
+-			// The GNU linker will generate COPY relocations on ARM
+-			// even with -znocopyreloc set. Switch to gold.
++		if SysArch.InFamily(sys.ARM, sys.ARM64) {
++			// On ARM, the GNU linker will generate COPY relocations
++			// even with -znocopyreloc set.
+ 			// https://sourceware.org/bugzilla/show_bug.cgi?id=19962
++			//
++			// On ARM64, the GNU linker will fail instead of
++			// generating COPY relocations.
++			//
++			// In both cases, switch to gold.
+ 			argv = append(argv, "-fuse-ld=gold")
+ 		}
+ 	}

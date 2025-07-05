@@ -7,8 +7,88 @@ Date:   Mon Aug 24 17:06:10 2009 -0700
     R=ken
     OCL=33792
     CL=33803
-
+---
  src/cmd/gc/dcl.c                   | 11 ++++++++++-
  test/{bugs => fixedbugs}/bug132.go |  6 +++---
  test/golden.out                    |  3 ---
  3 files changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 559cd8d0ad..96a87eeff9 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -752,12 +752,13 @@ ok:
+ Type**
+ stotype(NodeList *l, int et, Type **t)
+ {
+-	Type *f, *t1;
++	Type *f, *t1, **t0;
+ 	Strlit *note;
+ 	int lno;
+ 	NodeList *init;
+ 	Node *n;
+ 
++	t0 = t;
+ 	init = nil;
+ 	lno = lineno;
+ 	for(; l; l=l->next) {
+@@ -837,6 +838,14 @@ stotype(NodeList *l, int et, Type **t)
+ 			f->sym = f->nname->sym;
+ 			if(pkgimportname != S && !exportname(f->sym->name))
+ 				f->sym = pkglookup(f->sym->name, structpkg);
++			if(f->sym) {
++				for(t1=*t0; t1!=T; t1=t1->down) {
++					if(t1->sym == f->sym) {
++						yyerror("duplicate field %s", t1->sym->name);
++						break;
++					}
++				}
++			}
+ 		}
+ 
+ 		*t = f;
+diff --git a/test/bugs/bug132.go b/test/fixedbugs/bug132.go
+similarity index 95%
+rename from test/bugs/bug132.go
+rename to test/fixedbugs/bug132.go
+index 58bbe077ec..13a054e1c2 100644
+--- a/test/bugs/bug132.go
++++ b/test/fixedbugs/bug132.go
+@@ -1,4 +1,4 @@
+-// ! $G $D/$F.go || echo BUG: compilation succeeds incorrectly
++// errchk $G $D/$F.go
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -7,7 +7,7 @@
+ package main
+ 
+ type T struct {
+-	x, x int  // this should be a compile-time error
++	x, x int  // ERROR "duplicate"
+ }
+ 
+ /*
+@@ -18,7 +18,7 @@ tume error at the declaration point.
+ 
+ /* Condensed e-mail thread:
+ 
+----------- Russ Cox	
++---------- Russ Cox
+ I don't think this is an error as long as you don't refer to x. I like the fact that you could name
+ multiple elements in the struct "pad".
+ 
+diff --git a/test/golden.out b/test/golden.out
+index f3d59679ba..7aac0e1fc5 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -141,9 +141,6 @@ panic PC=xxx
+ 
+ == bugs/
+ 
+-=========== bugs/bug132.go
+-BUG: compilation succeeds incorrectly
+-
+ =========== bugs/bug136.go
+ BUG: errchk: command succeeded unexpectedly
+ 

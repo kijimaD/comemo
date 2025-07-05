@@ -7,7 +7,34 @@ Date:   Tue Apr 7 11:37:29 2015 +0900
     Change-Id: I1f2d4e3b0351a7a47c3a6073833a17dbc0c7b05c
     Reviewed-on: https://go-review.googlesource.com/8520
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dial.go | 2 --
  src/net/hook.go | 5 ++++-
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index 0424ed250f..ec48d2d4e2 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -180,8 +180,6 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
+ 	return c, err
+ }
+ 
+-var testHookSetKeepAlive = func() {} // changed by dial_test.go
+-
+ // dialMulti attempts to establish connections to each destination of
+ // the list of addresses. It will return the first established
+ // connection and close the other connections. Otherwise it returns
+diff --git a/src/net/hook.go b/src/net/hook.go
+index 14dc19f68f..32ba15e15a 100644
+--- a/src/net/hook.go
++++ b/src/net/hook.go
+@@ -4,4 +4,7 @@
+ 
+ package net
+ 
+-var testHookLookupIP = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) { return fn(host) }
++var (
++	testHookLookupIP     = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) { return fn(host) }
++	testHookSetKeepAlive = func() {}
++)

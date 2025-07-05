@@ -23,7 +23,67 @@ Date:   Tue Oct 20 22:57:12 2015 +0000
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/h2_bundle.go | 3 ++-
  src/net/http/server.go    | 9 ++++++++-
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index b3ef7157c7..68e6d79861 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -1815,7 +1815,7 @@ func (s *http2Server) maxConcurrentStreams() uint32 {
+ // The configuration conf may be nil.
+ //
+ // ConfigureServer must be called before s begins serving.
+-func http2ConfigureServer(s *Server, conf *http2Server) {
++func http2ConfigureServer(s *Server, conf *http2Server) error {
+ 	if conf == nil {
+ 		conf = new(http2Server)
+ 	}
+@@ -1861,6 +1861,7 @@ func http2ConfigureServer(s *Server, conf *http2Server) {
+ 	}
+ 	s.TLSNextProto[http2NextProtoTLS] = protoHandler
+ 	s.TLSNextProto["h2-14"] = protoHandler
++	return nil // temporary manual edit to h2_bundle.go, to be deleted once we update from x/net again
+ }
+ 
+ func (srv *http2Server) handleConn(hs *Server, c net.Conn, h Handler) {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index dc4f100e01..a2245fe6bf 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1808,6 +1808,7 @@ type Server struct {
+ 
+ 	disableKeepAlives int32     // accessed atomically.
+ 	nextProtoOnce     sync.Once // guards initialization of TLSNextProto in Serve
++	nextProtoErr      error
+ }
+ 
+ // A ConnState represents the state of a client connection to a server.
+@@ -1898,6 +1899,10 @@ func (srv *Server) Serve(l net.Listener) error {
+ 	defer l.Close()
+ 	var tempDelay time.Duration // how long to sleep on accept failure
+ 	srv.nextProtoOnce.Do(srv.setNextProtoDefaults)
++	if srv.nextProtoErr != nil {
++		// Error from http2 ConfigureServer (e.g. bad ciphersuites)
++		return srv.nextProtoErr
++	}
+ 	for {
+ 		rw, e := l.Accept()
+ 		if e != nil {
+@@ -2054,11 +2059,13 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
+ 	return srv.Serve(tlsListener)
+ }
+ 
++// setNextProtoDefaults configures HTTP/2.
++// It must only be called via srv.nextProtoOnce.
+ func (srv *Server) setNextProtoDefaults() {
+ 	// Enable HTTP/2 by default if the user hasn't otherwise
+ 	// configured their TLSNextProto map.
+ 	if srv.TLSNextProto == nil {
+-		http2ConfigureServer(srv, nil)
++		srv.nextProtoErr = http2ConfigureServer(srv, nil)
+ 	}
+ }
+ 

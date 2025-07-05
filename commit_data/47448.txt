@@ -10,6 +10,38 @@ Date:   Wed Mar 17 22:44:16 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/302758
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/operand.go | 13 +++++--------
  1 file changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 8344c059c4..6463728cec 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -222,9 +222,10 @@ func (x *operand) isNil() bool {
+ 
+ // assignableTo reports whether x is assignable to a variable of type T. If the
+ // result is false and a non-nil reason is provided, it may be set to a more
+-// detailed explanation of the failure (result != ""). The check parameter may
+-// be nil if assignableTo is invoked through an exported API call, i.e., when
+-// all methods have been type-checked.
++// detailed explanation of the failure (result != ""). The returned error code
++// is only valid if the (first) result is false. The check parameter may be nil
++// if assignableTo is invoked through an exported API call, i.e., when all
++// methods have been type-checked.
+ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, errorCode) {
+ 	if x.mode == invalid || T == Typ[Invalid] {
+ 		return true, 0 // avoid spurious errors
+@@ -285,11 +286,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	// and at least one of V or T is not a named type
+ 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
+ 		if Tc, ok := Tu.(*Chan); ok && check.identical(Vc.elem, Tc.elem) {
+-			if !isNamed(V) || !isNamed(T) {
+-				return true, 0
+-			} else {
+-				return false, _InvalidChanAssign
+-			}
++			return !isNamed(V) || !isNamed(T), _InvalidChanAssign
+ 		}
+ 	}
+ 

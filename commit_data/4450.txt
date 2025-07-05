@@ -11,7 +11,7 @@ Date:   Wed Dec 16 20:20:50 2009 -0800
     R=dsymonds1
     CC=golang-dev, hoisie
     https://golang.org/cl/180064
-
+---
  src/pkg/os/signal/signal.go            |  1 +
  src/pkg/runtime/darwin/386/signal.c    |  5 +++--
  src/pkg/runtime/darwin/amd64/signal.c  |  5 +++--
@@ -26,3 +26,329 @@ Date:   Wed Dec 16 20:20:50 2009 -0800
  src/pkg/runtime/runtime.h              |  6 +++---
  src/pkg/runtime/sigqueue.cgo           | 14 +++++++++++---
  13 files changed, 82 insertions(+), 63 deletions(-)
+
+diff --git a/src/pkg/os/signal/signal.go b/src/pkg/os/signal/signal.go
+index df81e512ea..666c03e73c 100644
+--- a/src/pkg/os/signal/signal.go
++++ b/src/pkg/os/signal/signal.go
+@@ -41,6 +41,7 @@ func process(ch chan<- Signal) {
+ }
+ 
+ func init() {
++	runtime.Siginit()
+ 	ch := make(chan Signal) // Done here so Incoming can have type <-chan Signal
+ 	Incoming = ch
+ 	go process(ch)
+diff --git a/src/pkg/runtime/darwin/386/signal.c b/src/pkg/runtime/darwin/386/signal.c
+index 4023439b39..7978739a6d 100644
+--- a/src/pkg/runtime/darwin/386/signal.c
++++ b/src/pkg/runtime/darwin/386/signal.c
+@@ -41,8 +41,9 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 	Regs *r;
+ 
+ 	if(sigtab[sig].flags & SigQueue) {
+-		sigsend(sig);
+-		return;
++		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
++			return;
++		exit(2);	// SIGINT, SIGTERM, etc
+ 	}
+ 
+ 	if(panicking)	// traceback already printed
+diff --git a/src/pkg/runtime/darwin/amd64/signal.c b/src/pkg/runtime/darwin/amd64/signal.c
+index 5e26a713ee..bf1bca994f 100644
+--- a/src/pkg/runtime/darwin/amd64/signal.c
++++ b/src/pkg/runtime/darwin/amd64/signal.c
+@@ -49,8 +49,9 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 	Regs *r;
+ 
+ 	if(sigtab[sig].flags & SigQueue) {
+-		sigsend(sig);
+-		return;
++		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
++			return;
++		exit(2);	// SIGINT, SIGTERM, etc
+ 	}
+ 
+ 	if(panicking)	// traceback already printed
+diff --git a/src/pkg/runtime/darwin/signals.h b/src/pkg/runtime/darwin/signals.h
+index 48a5db12d8..449a6a7db8 100644
+--- a/src/pkg/runtime/darwin/signals.h
++++ b/src/pkg/runtime/darwin/signals.h
+@@ -22,24 +22,24 @@ static SigTab sigtab[] = {
+ 	/* 11 */	C, "SIGSEGV: segmentation violation",
+ 	/* 12 */	C, "SIGSYS: bad system call",
+ 	/* 13 */	I, "SIGPIPE: write to broken pipe",
+-	/* 14 */	Q+R, "SIGALRM: alarm clock",
++	/* 14 */	Q+I+R, "SIGALRM: alarm clock",
+ 	/* 15 */	Q+R, "SIGTERM: termination",
+-	/* 16 */	Q+R, "SIGURG: urgent condition on socket",
++	/* 16 */	Q+I+R, "SIGURG: urgent condition on socket",
+ 	/* 17 */	0, "SIGSTOP: stop",
+-	/* 18 */	Q+R, "SIGTSTP: keyboard stop",
++	/* 18 */	Q+I+R, "SIGTSTP: keyboard stop",
+ 	/* 19 */	0, "SIGCONT: continue after stop",
+ 	/* 20 */	I+R, "SIGCHLD: child status has changed",
+-	/* 21 */	Q+R, "SIGTTIN: background read from tty",
+-	/* 22 */	Q+R, "SIGTTOU: background write to tty",
+-	/* 23 */	Q+R, "SIGIO: i/o now possible",
+-	/* 24 */	Q+R, "SIGXCPU: cpu limit exceeded",
+-	/* 25 */	Q+R, "SIGXFSZ: file size limit exceeded",
+-	/* 26 */	Q+R, "SIGVTALRM: virtual alarm clock",
+-	/* 27 */	Q+R, "SIGPROF: profiling alarm clock",
+-	/* 28 */	Q+R, "SIGWINCH: window size change",
+-	/* 29 */	Q+R, "SIGINFO: status request from keyboard",
+-	/* 30 */	Q+R, "SIGUSR1: user-defined signal 1",
+-	/* 31 */	Q+R, "SIGUSR2: user-defined signal 2",
++	/* 21 */	Q+I+R, "SIGTTIN: background read from tty",
++	/* 22 */	Q+I+R, "SIGTTOU: background write to tty",
++	/* 23 */	Q+I+R, "SIGIO: i/o now possible",
++	/* 24 */	Q+I+R, "SIGXCPU: cpu limit exceeded",
++	/* 25 */	Q+I+R, "SIGXFSZ: file size limit exceeded",
++	/* 26 */	Q+I+R, "SIGVTALRM: virtual alarm clock",
++	/* 27 */	Q+I+R, "SIGPROF: profiling alarm clock",
++	/* 28 */	Q+I+R, "SIGWINCH: window size change",
++	/* 29 */	Q+I+R, "SIGINFO: status request from keyboard",
++	/* 30 */	Q+I+R, "SIGUSR1: user-defined signal 1",
++	/* 31 */	Q+I+R, "SIGUSR2: user-defined signal 2",
+ };
+ #undef C
+ #undef I
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 27cb73c558..85b165922b 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -66,3 +66,7 @@ func Sigrecv() uint32
+ 
+ // Signame returns a string describing the signal, or "" if the signal is unknown.
+ func Signame(sig int32) string
++
++// Siginit enables receipt of signals via Sigrecv.  It should typically
++// be called during initialization.
++func Siginit()
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index 7bad780844..d6877675a9 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -51,8 +51,9 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 	Mcontext *mc;
+ 
+ 	if(sigtab[sig].flags & SigQueue) {
+-		sigsend(sig);
+-		return;
++		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
++			return;
++		exit(2);	// SIGINT, SIGTERM, etc
+ 	}
+ 
+ 	if(panicking)	// traceback already printed
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+index ed03db1bcc..d59259b4f6 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -59,8 +59,9 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 	Mcontext *mc;
+ 
+ 	if(sigtab[sig].flags & SigQueue) {
+-		sigsend(sig);
+-		return;
++		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
++			return;
++		exit(2);	// SIGINT, SIGTERM, etc
+ 	}
+ 
+ 	if(panicking)	// traceback already printed
+diff --git a/src/pkg/runtime/freebsd/signals.h b/src/pkg/runtime/freebsd/signals.h
+index 91ddef8889..b986bcb3a3 100644
+--- a/src/pkg/runtime/freebsd/signals.h
++++ b/src/pkg/runtime/freebsd/signals.h
+@@ -22,25 +22,25 @@ static SigTab sigtab[] = {
+ 	/* 11 */	C, "SIGSEGV: segmentation violation",
+ 	/* 12 */	C, "SIGSYS: bad system call",
+ 	/* 13 */	I, "SIGPIPE: write to broken pipe",
+-	/* 14 */	Q+R, "SIGALRM: alarm clock",
++	/* 14 */	Q+I+R, "SIGALRM: alarm clock",
+ 	/* 15 */	Q+R, "SIGTERM: termination",
+-	/* 16 */	Q+R, "SIGURG: urgent condition on socket",
++	/* 16 */	Q+I+R, "SIGURG: urgent condition on socket",
+ 	/* 17 */	0, "SIGSTOP: stop, unblockable",
+-	/* 18 */	Q+R, "SIGTSTP: stop from tty",
++	/* 18 */	Q+I+R, "SIGTSTP: stop from tty",
+ 	/* 19 */	0, "SIGCONT: continue",
+ 	/* 20 */	I+R, "SIGCHLD: child status has changed",
+-	/* 21 */	Q+R, "SIGTTIN: background read from tty",
+-	/* 22 */	Q+R, "SIGTTOU: background write to tty",
+-	/* 23 */	Q+R, "SIGIO: i/o now possible",
+-	/* 24 */	Q+R, "SIGXCPU: cpu limit exceeded",
+-	/* 25 */	Q+R, "SIGXFSZ: file size limit exceeded",
+-	/* 26 */	Q+R, "SIGVTALRM: virtual alarm clock",
+-	/* 27 */	Q+R, "SIGPROF: profiling alarm clock",
+-	/* 28 */	I+R, "SIGWINCH: window size change",
+-	/* 29 */	Q+R, "SIGINFO: information request",
+-	/* 30 */	Q+R, "SIGUSR1: user-defined signal 1",
+-	/* 31 */	Q+R, "SIGUSR2: user-defined signal 2",
+-	/* 32 */	Q+R, "SIGTHR: reserved",
++	/* 21 */	Q+I+R, "SIGTTIN: background read from tty",
++	/* 22 */	Q+I+R, "SIGTTOU: background write to tty",
++	/* 23 */	Q+I+R, "SIGIO: i/o now possible",
++	/* 24 */	Q+I+R, "SIGXCPU: cpu limit exceeded",
++	/* 25 */	Q+I+R, "SIGXFSZ: file size limit exceeded",
++	/* 26 */	Q+I+R, "SIGVTALRM: virtual alarm clock",
++	/* 27 */	Q+I+R, "SIGPROF: profiling alarm clock",
++	/* 28 */	Q+I+R, "SIGWINCH: window size change",
++	/* 29 */	Q+I+R, "SIGINFO: information request",
++	/* 30 */	Q+I+R, "SIGUSR1: user-defined signal 1",
++	/* 31 */	Q+I+R, "SIGUSR2: user-defined signal 2",
++	/* 32 */	Q+I+R, "SIGTHR: reserved",
+ };
+ #undef C
+ #undef I
+diff --git a/src/pkg/runtime/linux/386/signal.c b/src/pkg/runtime/linux/386/signal.c
+index 2e6c7a5ff0..c540083021 100644
+--- a/src/pkg/runtime/linux/386/signal.c
++++ b/src/pkg/runtime/linux/386/signal.c
+@@ -48,8 +48,9 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 	Sigcontext *sc;
+ 
+ 	if(sigtab[sig].flags & SigQueue) {
+-		sigsend(sig);
+-		return;
++		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
++			return;
++		exit(2);	// SIGINT, SIGTERM, etc
+ 	}
+ 
+ 	if(panicking)	// traceback already printed
+diff --git a/src/pkg/runtime/linux/amd64/signal.c b/src/pkg/runtime/linux/amd64/signal.c
+index 693b8c7042..dba6fb10dc 100644
+--- a/src/pkg/runtime/linux/amd64/signal.c
++++ b/src/pkg/runtime/linux/amd64/signal.c
+@@ -57,8 +57,9 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 	Sigcontext *sc;
+ 
+ 	if(sigtab[sig].flags & SigQueue) {
+-		sigsend(sig);
+-		return;
++		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
++			return;
++		exit(2);	// SIGINT, SIGTERM, etc
+ 	}
+ 
+ 	if(panicking)	// traceback already printed
+diff --git a/src/pkg/runtime/linux/signals.h b/src/pkg/runtime/linux/signals.h
+index 883ac4e04a..3431cd2184 100644
+--- a/src/pkg/runtime/linux/signals.h
++++ b/src/pkg/runtime/linux/signals.h
+@@ -18,27 +18,27 @@ static SigTab sigtab[] = {
+ 	/* 7 */	C, "SIGBUS: bus error",
+ 	/* 8 */	C, "SIGFPE: floating-point exception",
+ 	/* 9 */	0, "SIGKILL: kill",
+-	/* 10 */	Q+R, "SIGUSR1: user-defined signal 1",
++	/* 10 */	Q+I+R, "SIGUSR1: user-defined signal 1",
+ 	/* 11 */	C, "SIGSEGV: segmentation violation",
+-	/* 12 */	Q+R, "SIGUSR2: user-defined signal 2",
++	/* 12 */	Q+I+R, "SIGUSR2: user-defined signal 2",
+ 	/* 13 */	I, "SIGPIPE: write to broken pipe",
+-	/* 14 */	Q+R, "SIGALRM: alarm clock",
++	/* 14 */	Q+I+R, "SIGALRM: alarm clock",
+ 	/* 15 */	Q+R, "SIGTERM: termination",
+-	/* 16 */	Q+R, "SIGSTKFLT: stack fault",
+-	/* 17 */	Q+R, "SIGCHLD: child status has changed",
++	/* 16 */	C, "SIGSTKFLT: stack fault",
++	/* 17 */	I+R, "SIGCHLD: child status has changed",
+ 	/* 18 */	0, "SIGCONT: continue",
+ 	/* 19 */	0, "SIGSTOP: stop, unblockable",
+-	/* 20 */	Q+R, "SIGTSTP: keyboard stop",
+-	/* 21 */	Q+R, "SIGTTIN: background read from tty",
+-	/* 22 */	Q+R, "SIGTTOU: background write to tty",
+-	/* 23 */	Q+R, "SIGURG: urgent condition on socket",
+-	/* 24 */	Q+R, "SIGXCPU: cpu limit exceeded",
+-	/* 25 */	Q+R, "SIGXFSZ: file size limit exceeded",
+-	/* 26 */	Q+R, "SIGVTALRM: virtual alarm clock",
+-	/* 27 */	Q+R, "SIGPROF: profiling alarm clock",
+-	/* 28 */	Q+R, "SIGWINCH: window size change",
+-	/* 29 */	Q+R, "SIGIO: i/o now possible",
+-	/* 30 */	Q+R, "SIGPWR: power failure restart",
++	/* 20 */	Q+I+R, "SIGTSTP: keyboard stop",
++	/* 21 */	Q+I+R, "SIGTTIN: background read from tty",
++	/* 22 */	Q+I+R, "SIGTTOU: background write to tty",
++	/* 23 */	Q+I+R, "SIGURG: urgent condition on socket",
++	/* 24 */	Q+I+R, "SIGXCPU: cpu limit exceeded",
++	/* 25 */	Q+I+R, "SIGXFSZ: file size limit exceeded",
++	/* 26 */	Q+I+R, "SIGVTALRM: virtual alarm clock",
++	/* 27 */	Q+I+R, "SIGPROF: profiling alarm clock",
++	/* 28 */	Q+I+R, "SIGWINCH: window size change",
++	/* 29 */	Q+I+R, "SIGIO: i/o now possible",
++	/* 30 */	Q+I+R, "SIGPWR: power failure restart",
+ 	/* 31 */	C, "SIGSYS: bad system call",
+ };
+ #undef C
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 46df412b39..91130a0052 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -374,10 +374,10 @@ void	breakpoint(void);
+ void	gosched(void);
+ void	goexit(void);
+ void	runcgo(void (*fn)(void*), void*);
+-void	entersyscall(void);
+-void	exitsyscall(void);
++void	runtime·entersyscall(void);
++void	runtime·exitsyscall(void);
+ void	siginit(void);
+-void	sigsend(int32 sig);
++bool	sigsend(int32 sig);
+ 
+ #pragma	varargck	argpos	printf	1
+ 
+diff --git a/src/pkg/runtime/sigqueue.cgo b/src/pkg/runtime/sigqueue.cgo
+index 059d3edd1c..c3751c5d27 100644
+--- a/src/pkg/runtime/sigqueue.cgo
++++ b/src/pkg/runtime/sigqueue.cgo
+@@ -43,6 +43,7 @@ package runtime
+ static struct {
+ 	Note;
+ 	uint32 mask;
++	bool inuse;
+ } sig;
+ 
+ void
+@@ -52,24 +53,27 @@ siginit(void)
+ }
+ 
+ // Called from sighandler to send a signal back out of the signal handling thread.
+-void
++bool
+ sigsend(int32 s)
+ {
+ 	uint32 bit, mask;
+ 
++	if(!sig.inuse)
++		return false;
+ 	bit = 1 << s;
+ 	for(;;) {
+ 		mask = sig.mask;
+ 		if(mask & bit)
+-			return;		// signal already in queue
++			break;		// signal already in queue
+ 		if(cas(&sig.mask, mask, mask|bit)) {
+ 			// Added to queue.
+ 			// Only send a wakeup for the first signal in each round.
+ 			if(mask == 0)
+ 				notewakeup(&sig);
+-			return;
++			break;
+ 		}
+ 	}
++	return true;
+ }
+ 
+ // Called to receive a bitmask of queued signals.
+@@ -88,3 +92,7 @@ func Sigrecv() (m uint32) {
+ func Signame(sig int32) (name String) {
+ 	name = signame(sig);
+ }
++
++func Siginit() {
++	sig.inuse = true;	// enable reception of signals; cannot disable
++}

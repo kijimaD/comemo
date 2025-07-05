@@ -21,7 +21,43 @@ Date:   Sun Oct 24 12:28:18 2021 +0200
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  misc/wasm/wasm_exec.js           | 4 ++--
  src/cmd/link/internal/ld/data.go | 7 ++++---
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 30044a6f85..9ce6a20c3f 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -519,9 +519,9 @@
+ 
+ 			// The linker guarantees global data starts from at least wasmMinDataAddr.
+ 			// Keep in sync with cmd/link/internal/ld/data.go:wasmMinDataAddr.
+-			const wasmMinDataAddr = 4096 + 4096;
++			const wasmMinDataAddr = 4096 + 8192;
+ 			if (offset >= wasmMinDataAddr) {
+-				throw new Error("command line too long");
++				throw new Error("total length of command line and environment variables exceeds limit");
+ 			}
+ 
+ 			this._inst.exports.run(argc, argv);
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 45e0e08793..0513a0d10b 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2442,10 +2442,11 @@ func splitTextSections(ctxt *Link) bool {
+ 	return (ctxt.IsPPC64() || (ctxt.IsARM64() && ctxt.IsDarwin())) && ctxt.IsExternal()
+ }
+ 
+-// On Wasm, we reserve 4096 bytes for zero page, then 4096 bytes for wasm_exec.js
+-// to store command line args. Data sections starts from at least address 8192.
++// On Wasm, we reserve 4096 bytes for zero page, then 8192 bytes for wasm_exec.js
++// to store command line args and environment variables.
++// Data sections starts from at least address 12288.
+ // Keep in sync with wasm_exec.js.
+-const wasmMinDataAddr = 4096 + 4096
++const wasmMinDataAddr = 4096 + 8192
+ 
+ // address assigns virtual addresses to all segments and sections and
+ // returns all segments in file order.

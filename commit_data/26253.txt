@@ -13,7 +13,7 @@ Date:   Wed Dec 23 18:38:18 2015 -0800
     Change-Id: I62aa3a6a4a1dc4040fca050757299c8e6736987c
     Reviewed-on: https://go-review.googlesource.com/18108
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/testcarchive/main4.c              | 194 +++++++++++++++++++++++++++++
  misc/cgo/testcarchive/src/libgo4/libgo4.go |  52 ++++++++
  misc/cgo/testcarchive/test.bash            |   8 ++
@@ -26,3 +26,559 @@ Date:   Wed Dec 23 18:38:18 2015 -0800
  src/runtime/os3_solaris.go                 |  20 ++-
  src/runtime/runtime2.go                    |   1 +
  11 files changed, 383 insertions(+), 14 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/main4.c b/misc/cgo/testcarchive/main4.c
+new file mode 100644
+index 0000000000..3d7b736115
+--- /dev/null
++++ b/misc/cgo/testcarchive/main4.c
+@@ -0,0 +1,194 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test a C thread that calls sigaltstack and then calls Go code.
++
++#include <signal.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sched.h>
++#include <pthread.h>
++
++#include "libgo4.h"
++
++static void die(const char* msg) {
++	perror(msg);
++	exit(EXIT_FAILURE);
++}
++
++static int ok = 1;
++
++static void ioHandler(int signo, siginfo_t* info, void* ctxt) {
++}
++
++// Set up the SIGIO signal handler in a high priority constructor, so
++// that it is installed before the Go code starts.
++
++static void init(void) __attribute__ ((constructor (200)));
++
++static void init() {
++	struct sigaction sa;
++
++	memset(&sa, 0, sizeof sa);
++	sa.sa_sigaction = ioHandler;
++	if (sigemptyset(&sa.sa_mask) < 0) {
++		die("sigemptyset");
++	}
++	sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
++	if (sigaction(SIGIO, &sa, NULL) < 0) {
++		die("sigaction");
++	}
++}
++
++// Test raising SIGIO on a C thread with an alternate signal stack
++// when there is a Go signal handler for SIGIO.
++static void* thread1(void* arg) {
++	pthread_t* ptid = (pthread_t*)(arg);
++	stack_t ss;
++	int i;
++	stack_t nss;
++
++	// Set up an alternate signal stack for this thread.
++	memset(&ss, 0, sizeof ss);
++	ss.ss_sp = malloc(SIGSTKSZ);
++	if (ss.ss_sp == NULL) {
++		die("malloc");
++	}
++	ss.ss_flags = 0;
++	ss.ss_size = SIGSTKSZ;
++	if (sigaltstack(&ss, NULL) < 0) {
++		die("sigaltstack");
++	}
++
++	// Send ourselves a SIGIO.  This will be caught by the Go
++	// signal handler which should forward to the C signal
++	// handler.
++	i = pthread_kill(*ptid, SIGIO);
++	if (i != 0) {
++		fprintf(stderr, "pthread_kill: %s\n", strerror(i));
++		exit(EXIT_FAILURE);
++	}
++
++	// Wait until the signal has been delivered.
++	i = 0;
++	while (SIGIOCount() == 0) {
++		if (sched_yield() < 0) {
++			perror("sched_yield");
++		}
++		i++;
++		if (i > 10000) {
++			fprintf(stderr, "looping too long waiting for signal\n");
++			exit(EXIT_FAILURE);
++		}
++	}
++
++	// We should still be on the same signal stack.
++	if (sigaltstack(NULL, &nss) < 0) {
++		die("sigaltstack check");
++	}
++	if ((nss.ss_flags & SS_DISABLE) != 0) {
++		fprintf(stderr, "sigaltstack disabled on return from Go\n");
++		ok = 0;
++	} else if (nss.ss_sp != ss.ss_sp) {
++		fprintf(stderr, "sigalstack changed on return from Go\n");
++		ok = 0;
++	}
++
++	return NULL;
++}
++
++// Test calling a Go function to raise SIGIO on a C thread with an
++// alternate signal stack when there is a Go signal handler for SIGIO.
++static void* thread2(void* arg) {
++	pthread_t* ptid = (pthread_t*)(arg);
++	stack_t ss;
++	int i;
++	int oldcount;
++	stack_t nss;
++
++	// Set up an alternate signal stack for this thread.
++	memset(&ss, 0, sizeof ss);
++	ss.ss_sp = malloc(SIGSTKSZ);
++	if (ss.ss_sp == NULL) {
++		die("malloc");
++	}
++	ss.ss_flags = 0;
++	ss.ss_size = SIGSTKSZ;
++	if (sigaltstack(&ss, NULL) < 0) {
++		die("sigaltstack");
++	}
++
++	oldcount = SIGIOCount();
++
++	// Call a Go function that will call a C function to send us a
++	// SIGIO.
++	GoRaiseSIGIO(ptid);
++
++	// Wait until the signal has been delivered.
++	i = 0;
++	while (SIGIOCount() == oldcount) {
++		if (sched_yield() < 0) {
++			perror("sched_yield");
++		}
++		i++;
++		if (i > 10000) {
++			fprintf(stderr, "looping too long waiting for signal\n");
++			exit(EXIT_FAILURE);
++		}
++	}
++
++	// We should still be on the same signal stack.
++	if (sigaltstack(NULL, &nss) < 0) {
++		die("sigaltstack check");
++	}
++	if ((nss.ss_flags & SS_DISABLE) != 0) {
++		fprintf(stderr, "sigaltstack disabled on return from Go\n");
++		ok = 0;
++	} else if (nss.ss_sp != ss.ss_sp) {
++		fprintf(stderr, "sigalstack changed on return from Go\n");
++		ok = 0;
++	}
++
++	return NULL;
++}
++
++int main(int argc, char **argv) {
++	pthread_t tid;
++	int i;
++
++	// Tell the Go library to start looking for SIGIO.
++	GoCatchSIGIO();
++
++	i = pthread_create(&tid, NULL, thread1, (void*)(&tid));
++	if (i != 0) {
++		fprintf(stderr, "pthread_create: %s\n", strerror(i));
++		exit(EXIT_FAILURE);
++	}
++
++	i = pthread_join(tid, NULL);
++	if (i != 0) {
++		fprintf(stderr, "pthread_join: %s\n", strerror(i));
++		exit(EXIT_FAILURE);
++	}
++
++	i = pthread_create(&tid, NULL, thread2, (void*)(&tid));
++	if (i != 0) {
++		fprintf(stderr, "pthread_create: %s\n", strerror(i));
++		exit(EXIT_FAILURE);
++	}
++
++	i = pthread_join(tid, NULL);
++	if (i != 0) {
++		fprintf(stderr, "pthread_join: %s\n", strerror(i));
++		exit(EXIT_FAILURE);
++	}
++
++	if (!ok) {
++		exit(EXIT_FAILURE);
++	}
++
++	printf("PASS\n");
++	return 0;
++}
+diff --git a/misc/cgo/testcarchive/src/libgo4/libgo4.go b/misc/cgo/testcarchive/src/libgo4/libgo4.go
+new file mode 100644
+index 0000000000..8cc1895f99
+--- /dev/null
++++ b/misc/cgo/testcarchive/src/libgo4/libgo4.go
+@@ -0,0 +1,52 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++#include <signal.h>
++#include <pthread.h>
++
++// Raise SIGIO.
++static void CRaiseSIGIO(pthread_t* p) {
++	pthread_kill(*p, SIGIO);
++}
++*/
++import "C"
++
++import (
++	"os"
++	"os/signal"
++	"sync/atomic"
++	"syscall"
++)
++
++var sigioCount int32
++
++// Catch SIGIO.
++//export GoCatchSIGIO
++func GoCatchSIGIO() {
++	c := make(chan os.Signal, 1)
++	signal.Notify(c, syscall.SIGIO)
++	go func() {
++		for range c {
++			atomic.AddInt32(&sigioCount, 1)
++		}
++	}()
++}
++
++// Raise SIGIO.
++//export GoRaiseSIGIO
++func GoRaiseSIGIO(p *C.pthread_t) {
++	C.CRaiseSIGIO(p)
++}
++
++// Return the number of SIGIO signals seen.
++//export SIGIOCount
++func SIGIOCount() C.int {
++	return C.int(atomic.LoadInt32(&sigioCount))
++}
++
++func main() {
++}
+diff --git a/misc/cgo/testcarchive/test.bash b/misc/cgo/testcarchive/test.bash
+index 053833ad94..f4b4a3079f 100755
+--- a/misc/cgo/testcarchive/test.bash
++++ b/misc/cgo/testcarchive/test.bash
+@@ -77,4 +77,12 @@ if ! $bin; then
+ fi
+ rm -rf libgo3.a libgo3.h testp pkg
+ 
++GOPATH=$(pwd) go build -buildmode=c-archive -o libgo4.a libgo4
++$(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main4.c libgo4.a
++if ! $bin; then
++    echo "FAIL test4"
++    status=1
++fi
++rm -rf libgo4.a libgo4.h testp pkg
++
+ exit $status
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index 831533235d..d34af6b216 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -152,7 +152,22 @@ func sigblock() {
+ func minit() {
+ 	// Initialize signal handling.
+ 	_g_ := getg()
+-	signalstack(&_g_.m.gsignal.stack)
++
++	var st stackt
++	sigaltstack(nil, &st)
++	if st.ss_flags&_SS_DISABLE != 0 {
++		signalstack(&_g_.m.gsignal.stack)
++		_g_.m.newSigstack = true
++	} else {
++		// Use existing signal stack.
++		stsp := uintptr(unsafe.Pointer(st.ss_sp))
++		_g_.m.gsignal.stack.lo = stsp
++		_g_.m.gsignal.stack.hi = stsp + st.ss_size
++		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
++		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
++		_g_.m.gsignal.stackAlloc = st.ss_size
++		_g_.m.newSigstack = false
++	}
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+ 	nmask := _g_.m.sigmask
+@@ -167,7 +182,9 @@ func minit() {
+ // Called from dropm to undo the effect of an minit.
+ //go:nosplit
+ func unminit() {
+-	signalstack(nil)
++	if getg().m.newSigstack {
++		signalstack(nil)
++	}
+ }
+ 
+ // Mach IPC, to get at semaphores
+diff --git a/src/runtime/os1_dragonfly.go b/src/runtime/os1_dragonfly.go
+index 56fb733467..5f0f00cb3c 100644
+--- a/src/runtime/os1_dragonfly.go
++++ b/src/runtime/os1_dragonfly.go
+@@ -141,7 +141,21 @@ func minit() {
+ 	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
+ 
+ 	// Initialize signal handling
+-	signalstack(&_g_.m.gsignal.stack)
++	var st sigaltstackt
++	sigaltstack(nil, &st)
++	if st.ss_flags&_SS_DISABLE != 0 {
++		signalstack(&_g_.m.gsignal.stack)
++		_g_.m.newSigstack = true
++	} else {
++		// Use existing signal stack.
++		stsp := uintptr(unsafe.Pointer(st.ss_sp))
++		_g_.m.gsignal.stack.lo = stsp
++		_g_.m.gsignal.stack.hi = stsp + st.ss_size
++		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
++		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
++		_g_.m.gsignal.stackAlloc = st.ss_size
++		_g_.m.newSigstack = false
++	}
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+ 	nmask := _g_.m.sigmask
+@@ -155,7 +169,9 @@ func minit() {
+ 
+ // Called from dropm to undo the effect of an minit.
+ func unminit() {
+-	signalstack(nil)
++	if getg().m.newSigstack {
++		signalstack(nil)
++	}
+ }
+ 
+ func memlimit() uintptr {
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index 347b57322a..52e8dcbc83 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -147,7 +147,21 @@ func minit() {
+ 	}
+ 
+ 	// Initialize signal handling.
+-	signalstack(&_g_.m.gsignal.stack)
++	var st stackt
++	sigaltstack(nil, &st)
++	if st.ss_flags&_SS_DISABLE != 0 {
++		signalstack(&_g_.m.gsignal.stack)
++		_g_.m.newSigstack = true
++	} else {
++		// Use existing signal stack.
++		stsp := uintptr(unsafe.Pointer(st.ss_sp))
++		_g_.m.gsignal.stack.lo = stsp
++		_g_.m.gsignal.stack.hi = stsp + st.ss_size
++		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
++		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
++		_g_.m.gsignal.stackAlloc = st.ss_size
++		_g_.m.newSigstack = false
++	}
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+ 	nmask := _g_.m.sigmask
+@@ -162,7 +176,9 @@ func minit() {
+ // Called from dropm to undo the effect of an minit.
+ //go:nosplit
+ func unminit() {
+-	signalstack(nil)
++	if getg().m.newSigstack {
++		signalstack(nil)
++	}
+ }
+ 
+ func memlimit() uintptr {
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index e6e3770194..961faddf10 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -221,7 +221,22 @@ func gettid() uint32
+ func minit() {
+ 	// Initialize signal handling.
+ 	_g_ := getg()
+-	signalstack(&_g_.m.gsignal.stack)
++
++	var st sigaltstackt
++	sigaltstack(nil, &st)
++	if st.ss_flags&_SS_DISABLE != 0 {
++		signalstack(&_g_.m.gsignal.stack)
++		_g_.m.newSigstack = true
++	} else {
++		// Use existing signal stack.
++		stsp := uintptr(unsafe.Pointer(st.ss_sp))
++		_g_.m.gsignal.stack.lo = stsp
++		_g_.m.gsignal.stack.hi = stsp + st.ss_size
++		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
++		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
++		_g_.m.gsignal.stackAlloc = st.ss_size
++		_g_.m.newSigstack = false
++	}
+ 
+ 	// for debuggers, in case cgo created the thread
+ 	_g_.m.procid = uint64(gettid())
+@@ -239,7 +254,9 @@ func minit() {
+ // Called from dropm to undo the effect of an minit.
+ //go:nosplit
+ func unminit() {
+-	signalstack(nil)
++	if getg().m.newSigstack {
++		signalstack(nil)
++	}
+ }
+ 
+ func memlimit() uintptr {
+diff --git a/src/runtime/os1_netbsd.go b/src/runtime/os1_netbsd.go
+index c769c87d05..2849b5aaf7 100644
+--- a/src/runtime/os1_netbsd.go
++++ b/src/runtime/os1_netbsd.go
+@@ -160,7 +160,21 @@ func minit() {
+ 	_g_.m.procid = uint64(lwp_self())
+ 
+ 	// Initialize signal handling
+-	signalstack(&_g_.m.gsignal.stack)
++	var st sigaltstackt
++	sigaltstack(nil, &st)
++	if st.ss_flags&_SS_DISABLE != 0 {
++		signalstack(&_g_.m.gsignal.stack)
++		_g_.m.newSigstack = true
++	} else {
++		// Use existing signal stack.
++		stsp := uintptr(unsafe.Pointer(st.ss_sp))
++		_g_.m.gsignal.stack.lo = stsp
++		_g_.m.gsignal.stack.hi = stsp + st.ss_size
++		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
++		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
++		_g_.m.gsignal.stackAlloc = st.ss_size
++		_g_.m.newSigstack = false
++	}
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+ 	nmask := _g_.m.sigmask
+@@ -175,7 +189,9 @@ func minit() {
+ // Called from dropm to undo the effect of an minit.
+ //go:nosplit
+ func unminit() {
+-	signalstack(nil)
++	if getg().m.newSigstack {
++		signalstack(nil)
++	}
+ }
+ 
+ func memlimit() uintptr {
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os1_openbsd.go
+index b93788e4c2..24d847747d 100644
+--- a/src/runtime/os1_openbsd.go
++++ b/src/runtime/os1_openbsd.go
+@@ -174,7 +174,21 @@ func minit() {
+ 	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
+ 
+ 	// Initialize signal handling
+-	signalstack(&_g_.m.gsignal.stack)
++	var st stackt
++	sigaltstack(nil, &st)
++	if st.ss_flags&_SS_DISABLE != 0 {
++		signalstack(&_g_.m.gsignal.stack)
++		_g_.m.newSigstack = true
++	} else {
++		// Use existing signal stack.
++		stsp := uintptr(unsafe.Pointer(st.ss_sp))
++		_g_.m.gsignal.stack.lo = stsp
++		_g_.m.gsignal.stack.hi = stsp + st.ss_size
++		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
++		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
++		_g_.m.gsignal.stackAlloc = st.ss_size
++		_g_.m.newSigstack = false
++	}
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+ 	nmask := _g_.m.sigmask
+@@ -189,7 +203,9 @@ func minit() {
+ // Called from dropm to undo the effect of an minit.
+ //go:nosplit
+ func unminit() {
+-	signalstack(nil)
++	if getg().m.newSigstack {
++		signalstack(nil)
++	}
+ }
+ 
+ func memlimit() uintptr {
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 598beffa09..940a841c10 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -213,7 +213,21 @@ func minit() {
+ 	_g_ := getg()
+ 	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
+ 	// Initialize signal handling
+-	signalstack(&_g_.m.gsignal.stack)
++	var st sigaltstackt
++	sigaltstack(nil, &st)
++	if st.ss_flags&_SS_DISABLE != 0 {
++		signalstack(&_g_.m.gsignal.stack)
++		_g_.m.newSigstack = true
++	} else {
++		// Use existing signal stack.
++		stsp := uintptr(unsafe.Pointer(st.ss_sp))
++		_g_.m.gsignal.stack.lo = stsp
++		_g_.m.gsignal.stack.hi = stsp + uintptr(st.ss_size)
++		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
++		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
++		_g_.m.gsignal.stackAlloc = uintptr(st.ss_size)
++		_g_.m.newSigstack = false
++	}
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+ 	nmask := _g_.m.sigmask
+@@ -227,7 +241,9 @@ func minit() {
+ 
+ // Called from dropm to undo the effect of an minit.
+ func unminit() {
+-	signalstack(nil)
++	if getg().m.newSigstack {
++		signalstack(nil)
++	}
+ }
+ 
+ func memlimit() uintptr {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index c357f6e6d5..d9a449b68b 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -303,6 +303,7 @@ type m struct {
+ 	spinning      bool // m is out of work and is actively looking for work
+ 	blocked       bool // m is blocked on a note
+ 	inwb          bool // m is executing a write barrier
++	newSigstack   bool // minit on C thread called sigaltstack
+ 	printlock     int8
+ 	fastrand      uint32
+ 	ncgocall      uint64 // number of cgo calls in total

@@ -22,8 +22,94 @@ Date:   Fri Dec 22 16:29:36 2017 -0800
     Change-Id: I816459d092bb9e27fdc85089b8f21d57ec3fd79a
     Reviewed-on: https://go-review.googlesource.com/85395
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/build/deps_test.go                  |  2 +-
  src/go/internal/srcimporter/srcimporter.go | 29 +++++++++++++----------------
  src/go/parser/interface.go                 |  6 +-----
  3 files changed, 15 insertions(+), 22 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 07a9cd3c82..db36a16450 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -223,7 +223,7 @@ var pkgDeps = map[string][]string{
+ 	"go/importer":               {"L4", "go/build", "go/internal/gccgoimporter", "go/internal/gcimporter", "go/internal/srcimporter", "go/token", "go/types"},
+ 	"go/internal/gcimporter":    {"L4", "OS", "go/build", "go/constant", "go/token", "go/types", "text/scanner"},
+ 	"go/internal/gccgoimporter": {"L4", "OS", "debug/elf", "go/constant", "go/token", "go/types", "text/scanner"},
+-	"go/internal/srcimporter":   {"L4", "fmt", "go/ast", "go/build", "go/parser", "go/token", "go/types", "path/filepath"},
++	"go/internal/srcimporter":   {"L4", "OS", "fmt", "go/ast", "go/build", "go/parser", "go/token", "go/types", "path/filepath"},
+ 	"go/types":                  {"L4", "GOPARSER", "container/heap", "go/constant"},
+ 
+ 	// One of a kind.
+diff --git a/src/go/internal/srcimporter/srcimporter.go b/src/go/internal/srcimporter/srcimporter.go
+index b0dc8abfc2..e00fbbd835 100644
+--- a/src/go/internal/srcimporter/srcimporter.go
++++ b/src/go/internal/srcimporter/srcimporter.go
+@@ -13,6 +13,8 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"go/types"
++	"io"
++	"os"
+ 	"path/filepath"
+ 	"sync"
+ )
+@@ -162,7 +164,11 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
+ }
+ 
+ func (p *Importer) parseFiles(dir string, filenames []string) ([]*ast.File, error) {
+-	open := p.ctxt.OpenFile // possibly nil
++	// use build.Context's OpenFile if there is one
++	open := p.ctxt.OpenFile
++	if open == nil {
++		open = func(name string) (io.ReadCloser, error) { return os.Open(name) }
++	}
+ 
+ 	files := make([]*ast.File, len(filenames))
+ 	errors := make([]error, len(filenames))
+@@ -172,22 +178,13 @@ func (p *Importer) parseFiles(dir string, filenames []string) ([]*ast.File, erro
+ 	for i, filename := range filenames {
+ 		go func(i int, filepath string) {
+ 			defer wg.Done()
+-			if open != nil {
+-				src, err := open(filepath)
+-				if err != nil {
+-					errors[i] = fmt.Errorf("opening package file %s failed (%v)", filepath, err)
+-					return
+-				}
+-				files[i], errors[i] = parser.ParseFile(p.fset, filepath, src, 0)
+-				src.Close() // ignore Close error - parsing may have succeeded which is all we need
+-			} else {
+-				// Special-case when ctxt doesn't provide a custom OpenFile and use the
+-				// parser's file reading mechanism directly. This appears to be quite a
+-				// bit faster than opening the file and providing an io.ReaderCloser in
+-				// both cases.
+-				// TODO(gri) investigate performance difference (issue #19281)
+-				files[i], errors[i] = parser.ParseFile(p.fset, filepath, nil, 0)
++			src, err := open(filepath)
++			if err != nil {
++				errors[i] = err // open provides operation and filename in error
++				return
+ 			}
++			files[i], errors[i] = parser.ParseFile(p.fset, filepath, src, 0)
++			src.Close() // ignore Close error - parsing may have succeeded which is all we need
+ 		}(i, p.joinPath(dir, filename))
+ 	}
+ 	wg.Wait()
+diff --git a/src/go/parser/interface.go b/src/go/parser/interface.go
+index 724d8658a7..9de160a798 100644
+--- a/src/go/parser/interface.go
++++ b/src/go/parser/interface.go
+@@ -35,11 +35,7 @@ func readSource(filename string, src interface{}) ([]byte, error) {
+ 				return s.Bytes(), nil
+ 			}
+ 		case io.Reader:
+-			var buf bytes.Buffer
+-			if _, err := io.Copy(&buf, s); err != nil {
+-				return nil, err
+-			}
+-			return buf.Bytes(), nil
++			return ioutil.ReadAll(s)
+ 		}
+ 		return nil, errors.New("invalid source")
+ 	}

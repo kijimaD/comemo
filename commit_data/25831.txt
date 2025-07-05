@@ -25,10 +25,945 @@ Date:   Tue Nov 24 08:55:43 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/17205
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/clientserver_test.go | 353 ++++++++++++++++++++++++++++++++++++++
  src/net/http/h2_bundle.go         | 152 +++++++++++++---
  src/net/http/main_test.go         |  42 -----
  src/net/http/serve_test.go        |  93 ----------
  src/net/http/transport_test.go    |  69 +-------
  5 files changed, 487 insertions(+), 222 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+new file mode 100644
+index 0000000000..5cb529104f
+--- /dev/null
++++ b/src/net/http/clientserver_test.go
+@@ -0,0 +1,353 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests that use both the client & server, in both HTTP/1 and HTTP/2 mode.
++
++package http_test
++
++import (
++	"bytes"
++	"crypto/tls"
++	"fmt"
++	"io"
++	"io/ioutil"
++	"log"
++	. "net/http"
++	"net/http/httptest"
++	"os"
++	"reflect"
++	"strings"
++	"sync"
++	"testing"
++)
++
++type clientServerTest struct {
++	t  *testing.T
++	h2 bool
++	h  Handler
++	ts *httptest.Server
++	tr *Transport
++	c  *Client
++}
++
++func (t *clientServerTest) close() {
++	t.tr.CloseIdleConnections()
++	t.ts.Close()
++}
++
++func newClientServerTest(t *testing.T, h2 bool, h Handler) *clientServerTest {
++	cst := &clientServerTest{
++		t:  t,
++		h2: h2,
++		h:  h,
++		tr: &Transport{},
++	}
++	cst.c = &Client{Transport: cst.tr}
++	if !h2 {
++		cst.ts = httptest.NewServer(h)
++		return cst
++	}
++	cst.ts = httptest.NewUnstartedServer(h)
++	ExportHttp2ConfigureServer(cst.ts.Config, nil)
++	cst.ts.TLS = cst.ts.Config.TLSConfig
++	cst.ts.StartTLS()
++
++	cst.tr.TLSClientConfig = &tls.Config{
++		InsecureSkipVerify: true,
++	}
++	if err := ExportHttp2ConfigureTransport(cst.tr); err != nil {
++		t.Fatal(err)
++	}
++	return cst
++}
++
++// Testing the newClientServerTest helper itself.
++func TestNewClientServerTest(t *testing.T) {
++	var got struct {
++		sync.Mutex
++		log []string
++	}
++	h := HandlerFunc(func(w ResponseWriter, r *Request) {
++		got.Lock()
++		defer got.Unlock()
++		got.log = append(got.log, r.Proto)
++	})
++	for _, v := range [2]bool{false, true} {
++		cst := newClientServerTest(t, v, h)
++		if _, err := cst.c.Head(cst.ts.URL); err != nil {
++			t.Fatal(err)
++		}
++		cst.close()
++	}
++	got.Lock() // no need to unlock
++	if want := []string{"HTTP/1.1", "HTTP/2.0"}; !reflect.DeepEqual(got.log, want) {
++		t.Errorf("got %q; want %q", got.log, want)
++	}
++}
++
++func TestChunkedResponseHeaders_h1(t *testing.T) { testChunkedResponseHeaders(t, false) }
++func TestChunkedResponseHeaders_h2(t *testing.T) { testChunkedResponseHeaders(t, true) }
++
++func testChunkedResponseHeaders(t *testing.T, h2 bool) {
++	defer afterTest(t)
++	log.SetOutput(ioutil.Discard) // is noisy otherwise
++	defer log.SetOutput(os.Stderr)
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Header().Set("Content-Length", "intentional gibberish") // we check that this is deleted
++		w.(Flusher).Flush()
++		fmt.Fprintf(w, "I am a chunked response.")
++	}))
++	defer cst.close()
++
++	res, err := cst.c.Get(cst.ts.URL)
++	if err != nil {
++		t.Fatalf("Get error: %v", err)
++	}
++	defer res.Body.Close()
++	if g, e := res.ContentLength, int64(-1); g != e {
++		t.Errorf("expected ContentLength of %d; got %d", e, g)
++	}
++	wantTE := []string{"chunked"}
++	if h2 {
++		wantTE = nil
++	}
++	if !reflect.DeepEqual(res.TransferEncoding, wantTE) {
++		t.Errorf("TransferEncoding = %v; want %v", res.TransferEncoding, wantTE)
++	}
++	if got, haveCL := res.Header["Content-Length"]; haveCL {
++		t.Errorf("Unexpected Content-Length: %q", got)
++	}
++}
++
++// h12Compare is a test that compares HTTP/1 and HTTP/2 behavior
++// against each other.
++type h12Compare struct {
++	Handler       func(ResponseWriter, *Request)                 // required
++	ReqFunc       func(c *Client, url string) (*Response, error) // optional
++	CheckResponse func(proto string, res *Response)              // optional
++}
++
++func (tt h12Compare) reqFunc() func(c *Client, url string) (*Response, error) {
++	if tt.ReqFunc == nil {
++		return (*Client).Get
++	}
++	return tt.ReqFunc
++}
++
++func (tt h12Compare) run(t *testing.T) {
++	cst1 := newClientServerTest(t, false, HandlerFunc(tt.Handler))
++	defer cst1.close()
++	cst2 := newClientServerTest(t, true, HandlerFunc(tt.Handler))
++	defer cst2.close()
++
++	res1, err := tt.reqFunc()(cst1.c, cst1.ts.URL)
++	if err != nil {
++		t.Errorf("HTTP/1 request: %v", err)
++		return
++	}
++	res2, err := tt.reqFunc()(cst2.c, cst2.ts.URL)
++	if err != nil {
++		t.Errorf("HTTP/2 request: %v", err)
++		return
++	}
++	tt.normalizeRes(t, res1, "HTTP/1.1")
++	tt.normalizeRes(t, res2, "HTTP/2.0")
++	res1body, res2body := res1.Body, res2.Body
++	res1.Body, res2.Body = nil, nil
++	if !reflect.DeepEqual(res1, res2) {
++		t.Errorf("Response headers to handler differed:\nhttp/1 (%v):\n\t%#v\nhttp/2 (%v):\n\t%#v",
++			cst1.ts.URL, res1, cst2.ts.URL, res2)
++	}
++	if !reflect.DeepEqual(res1body, res2body) {
++		t.Errorf("Response bodies to handler differed.\nhttp1: %v\nhttp2: %v\n", res1body, res2body)
++	}
++	if fn := tt.CheckResponse; fn != nil {
++		res1.Body, res2.Body = res1body, res2body
++		fn("HTTP/1.1", res1)
++		fn("HTTP/2.0", res2)
++	}
++}
++
++type slurpResult struct {
++	io.ReadCloser
++	body []byte
++	err  error
++}
++
++func (sr slurpResult) String() string { return fmt.Sprintf("body %q; err %v", sr.body, sr.err) }
++
++func (tt h12Compare) normalizeRes(t *testing.T, res *Response, wantProto string) {
++	if res.Proto == wantProto {
++		res.Proto, res.ProtoMajor, res.ProtoMinor = "", 0, 0
++	} else {
++		t.Errorf("got %q response; want %q", res.Proto, wantProto)
++	}
++	slurp, err := ioutil.ReadAll(res.Body)
++	res.Body.Close()
++	res.Body = slurpResult{
++		ReadCloser: ioutil.NopCloser(bytes.NewReader(slurp)),
++		body:       slurp,
++		err:        err,
++	}
++	for i, v := range res.Header["Date"] {
++		res.Header["Date"][i] = strings.Repeat("x", len(v))
++	}
++	res.Request = nil
++	if (res.TLS != nil) != (wantProto == "HTTP/2.0") {
++		t.Errorf("%d. TLS set = %v; want %v", res.TLS != nil, res.TLS == nil)
++	}
++	res.TLS = nil
++	// For now the HTTP/2 code isn't lying and saying
++	// things are "chunked", since that's an HTTP/1.1
++	// thing. I'd prefer not to lie and it shouldn't break
++	// people.  I hope nobody's relying on that as a
++	// heuristic for anything.
++	if wantProto == "HTTP/2.0" && res.ContentLength == -1 && res.TransferEncoding == nil {
++		res.TransferEncoding = []string{"chunked"}
++	}
++}
++
++func TestH12_200NoBody(t *testing.T) {
++	h12Compare{Handler: func(w ResponseWriter, r *Request) {}}.run(t)
++}
++
++func TestH2_204NoBody(t *testing.T) { testH12_noBody(t, 204) }
++func TestH2_304NoBody(t *testing.T) { testH12_noBody(t, 304) }
++func TestH2_404NoBody(t *testing.T) { testH12_noBody(t, 404) }
++
++func testH12_noBody(t *testing.T, status int) {
++	h12Compare{Handler: func(w ResponseWriter, r *Request) {
++		w.WriteHeader(status)
++	}}.run(t)
++}
++
++func TestH12_SmallBody(t *testing.T) {
++	h12Compare{Handler: func(w ResponseWriter, r *Request) {
++		io.WriteString(w, "small body")
++	}}.run(t)
++}
++
++func TestH12_ExplicitContentLength(t *testing.T) {
++	h12Compare{Handler: func(w ResponseWriter, r *Request) {
++		w.Header().Set("Content-Length", "3")
++		io.WriteString(w, "foo")
++	}}.run(t)
++}
++
++func TestH12_FlushBeforeBody(t *testing.T) {
++	h12Compare{Handler: func(w ResponseWriter, r *Request) {
++		w.(Flusher).Flush()
++		io.WriteString(w, "foo")
++	}}.run(t)
++}
++
++func TestH12_FlushMidBody(t *testing.T) {
++	h12Compare{Handler: func(w ResponseWriter, r *Request) {
++		io.WriteString(w, "foo")
++		w.(Flusher).Flush()
++		io.WriteString(w, "bar")
++	}}.run(t)
++}
++
++func TestH12_Head_ExplicitLen(t *testing.T) {
++	h12Compare{
++		ReqFunc: (*Client).Head,
++		Handler: func(w ResponseWriter, r *Request) {
++			if r.Method != "HEAD" {
++				t.Errorf("unexpected method %q", r.Method)
++			}
++			w.Header().Set("Content-Length", "1235")
++		},
++	}.run(t)
++}
++
++func TestH12_Head_ImplicitLen(t *testing.T) {
++	h12Compare{
++		ReqFunc: (*Client).Head,
++		Handler: func(w ResponseWriter, r *Request) {
++			if r.Method != "HEAD" {
++				t.Errorf("unexpected method %q", r.Method)
++			}
++			io.WriteString(w, "foo")
++		},
++	}.run(t)
++}
++
++func TestH12_HandlerWritesTooLittle(t *testing.T) {
++	h12Compare{
++		Handler: func(w ResponseWriter, r *Request) {
++			w.Header().Set("Content-Length", "3")
++			io.WriteString(w, "12") // one byte short
++		},
++		CheckResponse: func(proto string, res *Response) {
++			sr, ok := res.Body.(slurpResult)
++			if !ok {
++				t.Errorf("%s body is %T; want slurpResult", proto, res.Body)
++				return
++			}
++			if sr.err != io.ErrUnexpectedEOF {
++				t.Errorf("%s read error = %v; want io.ErrUnexpectedEOF", proto, sr.err)
++			}
++			if string(sr.body) != "12" {
++				t.Errorf("%s body = %q; want %q", proto, sr.body, "12")
++			}
++		},
++	}.run(t)
++}
++
++// Tests that the HTTP/1 and HTTP/2 servers prevent handlers from
++// writing more than they declared.  This test does not test whether
++// the transport deals with too much data, though, since the server
++// doesn't make it possible to send bogus data. For those tests, see
++// transport_test.go (for HTTP/1) or x/net/http2/transport_test.go
++// (for HTTP/2).
++func TestH12_HandlerWritesTooMuch(t *testing.T) {
++	h12Compare{
++		Handler: func(w ResponseWriter, r *Request) {
++			w.Header().Set("Content-Length", "3")
++			w.(Flusher).Flush()
++			io.WriteString(w, "123")
++			w.(Flusher).Flush()
++			n, err := io.WriteString(w, "x") // too many
++			if n > 0 || err == nil {
++				t.Errorf("for proto %q, final write = %v, %v; want 0, some error", r.Proto, n, err)
++			}
++		},
++	}.run(t)
++}
++
++// TODO: TestH12_Trailers
++// TODO: TestH12_AutoGzip (golang.org/issue/13298)
++
++// Test304Responses verifies that 304s don't declare that they're
++// chunking in their response headers and aren't allowed to produce
++// output.
++func Test304Responses_h1(t *testing.T) { test304Responses(t, false) }
++func Test304Responses_h2(t *testing.T) { test304Responses(t, true) }
++
++func test304Responses(t *testing.T, h2 bool) {
++	defer afterTest(t)
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.WriteHeader(StatusNotModified)
++		_, err := w.Write([]byte("illegal body"))
++		if err != ErrBodyNotAllowed {
++			t.Errorf("on Write, expected ErrBodyNotAllowed, got %v", err)
++		}
++	}))
++	defer cst.close()
++	res, err := cst.c.Get(cst.ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(res.TransferEncoding) > 0 {
++		t.Errorf("expected no TransferEncoding; got %v", res.TransferEncoding)
++	}
++	body, err := ioutil.ReadAll(res.Body)
++	if err != nil {
++		t.Error(err)
++	}
++	if len(body) > 0 {
++		t.Errorf("got unexpected body %q", string(body))
++	}
++}
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 7736f44dbe..1052868876 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -3,13 +3,15 @@
+ 
+ // Package http2 implements the HTTP/2 protocol.
+ //
+-// This is a work in progress. This package is low-level and intended
+-// to be used directly by very few people. Most users will use it
+-// indirectly through integration with the net/http package. See
+-// ConfigureServer. That ConfigureServer call will likely be automatic
+-// or available via an empty import in the future.
++// This package is low-level and intended to be used directly by very
++// few people. Most users will use it indirectly through the automatic
++// use by the net/http package (from Go 1.6 and later).
++// For use in earlier Go versions see ConfigureServer. (Transport support
++// requires Go 1.6 or later)
+ //
+-// See http://http2.github.io/
++// See https://http2.github.io/ for more information on HTTP/2.
++//
++// See https://http2.golang.org/ for a test server running this code.
+ //
+ package http
+ 
+@@ -1867,6 +1869,20 @@ func http2mustUint31(v int32) uint32 {
+ 	return uint32(v)
+ }
+ 
++// bodyAllowedForStatus reports whether a given response status code
++// permits a body. See RFC2616, section 4.4.
++func http2bodyAllowedForStatus(status int) bool {
++	switch {
++	case status >= 100 && status <= 199:
++		return false
++	case status == 204:
++		return false
++	case status == 304:
++		return false
++	}
++	return true
++}
++
+ // pipe is a goroutine-safe io.Reader/io.Writer pair.  It's like
+ // io.Pipe except there are no PipeReader/PipeWriter halves, and the
+ // underlying buffer is an interface. (io.Pipe is always unbuffered)
+@@ -3204,6 +3220,11 @@ func (sc *http2serverConn) newWriterAndRequest() (*http2responseWriter, *Request
+ 
+ 		return nil, nil, http2StreamError{rp.stream.id, http2ErrCodeProtocol}
+ 	}
++	bodyOpen := rp.stream.state == http2stateOpen
++	if rp.method == "HEAD" && bodyOpen {
++
++		return nil, nil, http2StreamError{rp.stream.id, http2ErrCodeProtocol}
++	}
+ 	var tlsState *tls.ConnectionState // nil if not scheme https
+ 	if rp.scheme == "https" {
+ 		tlsState = sc.tlsState
+@@ -3220,7 +3241,6 @@ func (sc *http2serverConn) newWriterAndRequest() (*http2responseWriter, *Request
+ 	if cookies := rp.header["Cookie"]; len(cookies) > 1 {
+ 		rp.header.Set("Cookie", strings.Join(cookies, "; "))
+ 	}
+-	bodyOpen := rp.stream.state == http2stateOpen
+ 	body := &http2requestBody{
+ 		conn:          sc,
+ 		stream:        rp.stream,
+@@ -3463,6 +3483,9 @@ type http2responseWriterState struct {
+ 	sentHeader    bool   // have we sent the header frame?
+ 	handlerDone   bool   // handler has finished
+ 
++	sentContentLen int64 // non-zero if handler set a Content-Length header
++	wroteBytes     int64
++
+ 	closeNotifierMu sync.Mutex // guards closeNotifierCh
+ 	closeNotifierCh chan bool  // nil until first used
+ }
+@@ -3481,16 +3504,31 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
+ 	if !rws.wroteHeader {
+ 		rws.writeHeader(200)
+ 	}
++	isHeadResp := rws.req.Method == "HEAD"
+ 	if !rws.sentHeader {
+ 		rws.sentHeader = true
+-		var ctype, clen string // implicit ones, if we can calculate it
+-		if rws.handlerDone && rws.snapHeader.Get("Content-Length") == "" {
++		var ctype, clen string
++		if clen = rws.snapHeader.Get("Content-Length"); clen != "" {
++			rws.snapHeader.Del("Content-Length")
++			clen64, err := strconv.ParseInt(clen, 10, 64)
++			if err == nil && clen64 >= 0 {
++				rws.sentContentLen = clen64
++			} else {
++				clen = ""
++			}
++		}
++		if clen == "" && rws.handlerDone && http2bodyAllowedForStatus(rws.status) {
+ 			clen = strconv.Itoa(len(p))
+ 		}
+-		if rws.snapHeader.Get("Content-Type") == "" {
++		if rws.snapHeader.Get("Content-Type") == "" && http2bodyAllowedForStatus(rws.status) {
+ 			ctype = DetectContentType(p)
+ 		}
+-		endStream := rws.handlerDone && len(p) == 0
++		var date string
++		if _, ok := rws.snapHeader["Date"]; !ok {
++
++			date = time.Now().UTC().Format(TimeFormat)
++		}
++		endStream := (rws.handlerDone && len(p) == 0) || isHeadResp
+ 		err = rws.conn.writeHeaders(rws.stream, &http2writeResHeaders{
+ 			streamID:      rws.stream.id,
+ 			httpResCode:   rws.status,
+@@ -3498,6 +3536,7 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
+ 			endStream:     endStream,
+ 			contentType:   ctype,
+ 			contentLength: clen,
++			date:          date,
+ 		})
+ 		if err != nil {
+ 			return 0, err
+@@ -3506,6 +3545,9 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
+ 			return 0, nil
+ 		}
+ 	}
++	if isHeadResp {
++		return len(p), nil
++	}
+ 	if len(p) == 0 && !rws.handlerDone {
+ 		return 0, nil
+ 	}
+@@ -3615,6 +3657,15 @@ func (w *http2responseWriter) write(lenData int, dataB []byte, dataS string) (n
+ 	if !rws.wroteHeader {
+ 		w.WriteHeader(200)
+ 	}
++	if !http2bodyAllowedForStatus(rws.status) {
++		return 0, ErrBodyNotAllowed
++	}
++	rws.wroteBytes += int64(len(dataB)) + int64(len(dataS))
++	if rws.sentContentLen != 0 && rws.wroteBytes > rws.sentContentLen {
++
++		return 0, errors.New("http2: handler wrote more than declared Content-Length")
++	}
++
+ 	if dataB != nil {
+ 		return rws.bw.Write(dataB)
+ 	} else {
+@@ -3734,12 +3785,15 @@ type http2ClientConn struct {
+ // is created for each Transport.RoundTrip call.
+ type http2clientStream struct {
+ 	cc      *http2ClientConn
++	req     *Request
+ 	ID      uint32
+ 	resc    chan http2resAndError
+ 	bufPipe http2pipe // buffered pipe with the flow-controlled response payload
+ 
+-	flow   http2flow // guarded by cc.mu
+-	inflow http2flow // guarded by cc.mu
++	flow        http2flow // guarded by cc.mu
++	inflow      http2flow // guarded by cc.mu
++	bytesRemain int64     // -1 means unknown; owned by transportResponseBody.Read
++	readErr     error     // sticky read error; owned by transportResponseBody.Read
+ 
+ 	peerReset chan struct{} // closed on peer reset
+ 	resetErr  error         // populated before peerReset is closed
+@@ -3807,7 +3861,7 @@ func (t *http2Transport) RoundTripOpt(req *Request, opt http2RoundTripOpt) (*Res
+ 			return nil, err
+ 		}
+ 		res, err := cc.RoundTrip(req)
+-		if http2shouldRetryRequest(err) {
++		if http2shouldRetryRequest(req, err) {
+ 			continue
+ 		}
+ 		if err != nil {
+@@ -3826,11 +3880,14 @@ func (t *http2Transport) CloseIdleConnections() {
+ 	}
+ }
+ 
+-var http2errClientConnClosed = errors.New("http2: client conn is closed")
++var (
++	http2errClientConnClosed   = errors.New("http2: client conn is closed")
++	http2errClientConnUnusable = errors.New("http2: client conn not usable")
++)
+ 
+-func http2shouldRetryRequest(err error) bool {
++func http2shouldRetryRequest(req *Request, err error) bool {
+ 
+-	return err == http2errClientConnClosed
++	return err == http2errClientConnUnusable
+ }
+ 
+ func (t *http2Transport) dialClientConn(addr string) (*http2ClientConn, error) {
+@@ -3966,6 +4023,10 @@ func (cc *http2ClientConn) setGoAway(f *http2GoAwayFrame) {
+ func (cc *http2ClientConn) CanTakeNewRequest() bool {
+ 	cc.mu.Lock()
+ 	defer cc.mu.Unlock()
++	return cc.canTakeNewRequestLocked()
++}
++
++func (cc *http2ClientConn) canTakeNewRequestLocked() bool {
+ 	return cc.goAway == nil &&
+ 		int64(len(cc.streams)+1) < int64(cc.maxConcurrentStreams) &&
+ 		cc.nextStreamID < 2147483647
+@@ -4027,12 +4088,13 @@ func (cc *http2ClientConn) putFrameScratchBuffer(buf []byte) {
+ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
+ 	cc.mu.Lock()
+ 
+-	if cc.closed {
++	if cc.closed || !cc.canTakeNewRequestLocked() {
+ 		cc.mu.Unlock()
+-		return nil, http2errClientConnClosed
++		return nil, http2errClientConnUnusable
+ 	}
+ 
+ 	cs := cc.newStream()
++	cs.req = req
+ 	hasBody := req.Body != nil
+ 
+ 	hdrs := cc.encodeHeaders(req)
+@@ -4406,13 +4468,29 @@ func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, strea
+ 	}
+ 
+ 	res := rl.nextRes
++
++	if !streamEnded || cs.req.Method == "HEAD" {
++		res.ContentLength = -1
++		if clens := res.Header["Content-Length"]; len(clens) == 1 {
++			if clen64, err := strconv.ParseInt(clens[0], 10, 64); err == nil {
++				res.ContentLength = clen64
++			} else {
++
++			}
++		} else if len(clens) > 1 {
++
++		}
++	}
++
+ 	if streamEnded {
+ 		res.Body = http2noBody
+ 	} else {
+ 		buf := new(bytes.Buffer)
+ 		cs.bufPipe = http2pipe{b: buf}
++		cs.bytesRemain = res.ContentLength
+ 		res.Body = http2transportResponseBody{cs}
+ 	}
++
+ 	rl.activeRes[cs.ID] = cs
+ 	cs.resc <- http2resAndError{res: res}
+ 	rl.nextRes = nil
+@@ -4427,13 +4505,35 @@ type http2transportResponseBody struct {
+ }
+ 
+ func (b http2transportResponseBody) Read(p []byte) (n int, err error) {
++	cs := b.cs
++	cc := cs.cc
++
++	if cs.readErr != nil {
++		return 0, cs.readErr
++	}
+ 	n, err = b.cs.bufPipe.Read(p)
++	if cs.bytesRemain != -1 {
++		if int64(n) > cs.bytesRemain {
++			n = int(cs.bytesRemain)
++			if err == nil {
++				err = errors.New("net/http: server replied with more than declared Content-Length; truncated")
++				cc.writeStreamReset(cs.ID, http2ErrCodeProtocol, err)
++			}
++			cs.readErr = err
++			return int(cs.bytesRemain), err
++		}
++		cs.bytesRemain -= int64(n)
++		if err == io.EOF && cs.bytesRemain > 0 {
++			err = io.ErrUnexpectedEOF
++			cs.readErr = err
++			return n, err
++		}
++	}
+ 	if n == 0 {
++
+ 		return
+ 	}
+ 
+-	cs := b.cs
+-	cc := cs.cc
+ 	cc.mu.Lock()
+ 	defer cc.mu.Unlock()
+ 
+@@ -4675,7 +4775,11 @@ type http2writeFramer interface {
+ // frame writing scheduler (see writeScheduler in writesched.go).
+ //
+ // This interface is implemented by *serverConn.
+-// TODO: use it from the client code too, once it exists.
++//
++// TODO: decide whether to a) use this in the client code (which didn't
++// end up using this yet, because it has a simpler design, not
++// currently implementing priorities), or b) delete this and
++// make the server code a bit more concrete.
+ type http2writeContext interface {
+ 	Framer() *http2Framer
+ 	Flush() error
+@@ -4765,6 +4869,7 @@ type http2writeResHeaders struct {
+ 	h           Header // may be nil
+ 	endStream   bool
+ 
++	date          string
+ 	contentType   string
+ 	contentLength string
+ }
+@@ -4789,6 +4894,9 @@ func (w *http2writeResHeaders) writeFrame(ctx http2writeContext) error {
+ 	if w.contentLength != "" {
+ 		enc.WriteField(hpack.HeaderField{Name: "content-length", Value: w.contentLength})
+ 	}
++	if w.date != "" {
++		enc.WriteField(hpack.HeaderField{Name: "date", Value: w.date})
++	}
+ 
+ 	headerBlock := buf.Bytes()
+ 	if len(headerBlock) == 0 {
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index e6eefe5695..12eea6f0e1 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -5,10 +5,8 @@
+ package http_test
+ 
+ import (
+-	"crypto/tls"
+ 	"fmt"
+ 	"net/http"
+-	"net/http/httptest"
+ 	"os"
+ 	"runtime"
+ 	"sort"
+@@ -113,43 +111,3 @@ func afterTest(t testing.TB) {
+ 	}
+ 	t.Errorf("Test appears to have leaked %s:\n%s", bad, stacks)
+ }
+-
+-type clientServerTest struct {
+-	t  *testing.T
+-	h2 bool
+-	h  http.Handler
+-	ts *httptest.Server
+-	tr *http.Transport
+-	c  *http.Client
+-}
+-
+-func (t *clientServerTest) close() {
+-	t.tr.CloseIdleConnections()
+-	t.ts.Close()
+-}
+-
+-func newClientServerTest(t *testing.T, h2 bool, h http.Handler) *clientServerTest {
+-	cst := &clientServerTest{
+-		t:  t,
+-		h2: h2,
+-		h:  h,
+-		tr: &http.Transport{},
+-	}
+-	cst.c = &http.Client{Transport: cst.tr}
+-	if !h2 {
+-		cst.ts = httptest.NewServer(h)
+-		return cst
+-	}
+-	cst.ts = httptest.NewUnstartedServer(h)
+-	http.ExportHttp2ConfigureServer(cst.ts.Config, nil)
+-	cst.ts.TLS = cst.ts.Config.TLSConfig
+-	cst.ts.StartTLS()
+-
+-	cst.tr.TLSClientConfig = &tls.Config{
+-		InsecureSkipVerify: true,
+-	}
+-	if err := http.ExportHttp2ConfigureTransport(cst.tr); err != nil {
+-		t.Fatal(err)
+-	}
+-	return cst
+-}
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 6d49a8a624..6c8b2c640a 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -856,40 +856,6 @@ func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
+ 		t.Fatalf("response 1 addr = %q; want %q", g, e)
+ 	}
+ }
+-
+-func TestChunkedResponseHeaders_h1(t *testing.T) { testChunkedResponseHeaders(t, false) }
+-func TestChunkedResponseHeaders_h2(t *testing.T) { testChunkedResponseHeaders(t, true) }
+-
+-func testChunkedResponseHeaders(t *testing.T, h2 bool) {
+-	if h2 {
+-		t.Skip("known failing test; golang.org/issue/13316")
+-	}
+-	defer afterTest(t)
+-	log.SetOutput(ioutil.Discard) // is noisy otherwise
+-	defer log.SetOutput(os.Stderr)
+-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+-		w.Header().Set("Content-Length", "intentional gibberish") // we check that this is deleted
+-		w.(Flusher).Flush()
+-		fmt.Fprintf(w, "I am a chunked response.")
+-	}))
+-	defer cst.close()
+-
+-	res, err := cst.c.Get(cst.ts.URL)
+-	if err != nil {
+-		t.Fatalf("Get error: %v", err)
+-	}
+-	defer res.Body.Close()
+-	if g, e := res.ContentLength, int64(-1); g != e {
+-		t.Errorf("expected ContentLength of %d; got %d", e, g)
+-	}
+-	if g, e := res.TransferEncoding, []string{"chunked"}; !reflect.DeepEqual(g, e) {
+-		t.Errorf("expected TransferEncoding of %v; got %v", e, g)
+-	}
+-	if got, haveCL := res.Header["Content-Length"]; haveCL {
+-		t.Errorf("Unexpected Content-Length: %q", got)
+-	}
+-}
+-
+ func TestIdentityResponseHeaders(t *testing.T) {
+ 	defer afterTest(t)
+ 	log.SetOutput(ioutil.Discard) // is noisy otherwise
+@@ -919,65 +885,6 @@ func TestIdentityResponseHeaders(t *testing.T) {
+ 	}
+ }
+ 
+-// Testing the newClientServerTest helper.
+-func TestNewClientServerTest(t *testing.T) {
+-	var got struct {
+-		sync.Mutex
+-		log []string
+-	}
+-	h := HandlerFunc(func(w ResponseWriter, r *Request) {
+-		got.Lock()
+-		defer got.Unlock()
+-		got.log = append(got.log, r.Proto)
+-	})
+-	for _, v := range [2]bool{false, true} {
+-		cst := newClientServerTest(t, v, h)
+-		if _, err := cst.c.Head(cst.ts.URL); err != nil {
+-			t.Fatal(err)
+-		}
+-		cst.close()
+-	}
+-	got.Lock() // no need to unlock
+-	if want := []string{"HTTP/1.1", "HTTP/2.0"}; !reflect.DeepEqual(got.log, want) {
+-		t.Errorf("got %q; want %q", got.log, want)
+-	}
+-}
+-
+-// Test304Responses verifies that 304s don't declare that they're
+-// chunking in their response headers and aren't allowed to produce
+-// output.
+-func Test304Responses_h1(t *testing.T) { test304Responses(t, false) }
+-func Test304Responses_h2(t *testing.T) { test304Responses(t, true) }
+-
+-func test304Responses(t *testing.T, h2 bool) {
+-	if h2 {
+-		t.Skip("known failing test; golang.org/issue/13317")
+-	}
+-	defer afterTest(t)
+-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+-		w.WriteHeader(StatusNotModified)
+-		_, err := w.Write([]byte("illegal body"))
+-		if err != ErrBodyNotAllowed {
+-			t.Errorf("on Write, expected ErrBodyNotAllowed, got %v", err)
+-		}
+-	}))
+-	defer cst.close()
+-	res, err := cst.c.Get(cst.ts.URL)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if len(res.TransferEncoding) > 0 {
+-		t.Errorf("expected no TransferEncoding; got %v", res.TransferEncoding)
+-	}
+-	body, err := ioutil.ReadAll(res.Body)
+-	if err != nil {
+-		t.Error(err)
+-	}
+-	if len(body) > 0 {
+-		t.Errorf("got unexpected body %q", string(body))
+-	}
+-}
+-
+ // TestHeadResponses verifies that all MIME type sniffing and Content-Length
+ // counting of GET requests also happens on HEAD requests.
+ func TestHeadResponses(t *testing.T) {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 4aaf318d3e..17cac85697 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2,7 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Tests for transport.go
++// Tests for transport.go.
++//
++// More tests are in clientserver_test.go (for things testing both client & server for both
++// HTTP/1 and HTTP/2). This
+ 
+ package http_test
+ 
+@@ -2844,70 +2847,6 @@ func TestTransportPrefersResponseOverWriteError(t *testing.T) {
+ 	}
+ }
+ 
+-func TestTransportResponse_h12(t *testing.T) {
+-	t.Skip("known failing test; golang.org/issue/13315")
+-	tests := []Handler{
+-		HandlerFunc(func(w ResponseWriter, r *Request) {
+-			// no body.
+-		}),
+-		HandlerFunc(func(w ResponseWriter, r *Request) {
+-			io.WriteString(w, "small body")
+-		}),
+-		HandlerFunc(func(w ResponseWriter, r *Request) {
+-			w.Header().Set("Content-Length", "3") // w/ content length
+-			io.WriteString(w, "foo")
+-		}),
+-		HandlerFunc(func(w ResponseWriter, r *Request) {
+-			w.(Flusher).Flush()
+-			io.WriteString(w, "foo")
+-		}),
+-	}
+-	handlerc := make(chan Handler, 1)
+-	testHandler := HandlerFunc(func(w ResponseWriter, r *Request) {
+-		(<-handlerc).ServeHTTP(w, r)
+-	})
+-
+-	normalizeRes := func(res *Response, wantProto string) {
+-		if res.Proto == wantProto {
+-			res.Proto, res.ProtoMajor, res.ProtoMinor = "", 0, 0
+-		} else {
+-			t.Errorf("got %q response; want %q", res.Proto, wantProto)
+-		}
+-		slurp, err := ioutil.ReadAll(res.Body)
+-		res.Body.Close()
+-		if err != nil {
+-			t.Errorf("ReadAll(Body) = %v", err)
+-		}
+-		res.Body = ioutil.NopCloser(bytes.NewReader(slurp))
+-	}
+-
+-	cst1 := newClientServerTest(t, false, testHandler)
+-	defer cst1.close()
+-	cst2 := newClientServerTest(t, true, testHandler)
+-	defer cst2.close()
+-	for i, h := range tests {
+-		handlerc <- h
+-		res1, err := cst1.c.Get(cst1.ts.URL)
+-		if err != nil {
+-			t.Errorf("%d. HTTP/1 get: %v", i, err)
+-			continue
+-		}
+-		normalizeRes(res1, "HTTP/1.1")
+-
+-		handlerc <- h
+-		res2, err := cst2.c.Get(cst2.ts.URL)
+-		if err != nil {
+-			t.Errorf("%d. HTTP/2 get: %v", i, err)
+-			continue
+-		}
+-		normalizeRes(res2, "HTTP/2.0")
+-
+-		if !reflect.DeepEqual(res1, res2) {
+-			t.Errorf("\nhttp/1 (%v): %#v\nhttp/2 (%v): %#v", cst1.ts.URL, res1, cst2.ts.URL, res2)
+-		}
+-	}
+-}
+-
+ func wantBody(res *Response, err error, want string) error {
+ 	if err != nil {
+ 		return err

@@ -14,7 +14,7 @@ Date:   Wed Jan 14 11:18:24 2015 -0500
     Change-Id: If7dd354f7f3a6e326d17c254afcf4f7681af2f8b
     Reviewed-on: https://go-review.googlesource.com/2811
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/defs_nacl_386.go      |  1 +
  src/runtime/defs_nacl_amd64p32.go |  1 +
  src/runtime/defs_nacl_arm.go      |  1 +
@@ -39,3 +39,422 @@ Date:   Wed Jan 14 11:18:24 2015 -0500
  src/runtime/sys_linux_arm.s       | 11 ++++++++++
  src/runtime/sys_linux_ppc64x.s    |  9 ++++++++
  23 files changed, 115 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/defs_nacl_386.go b/src/runtime/defs_nacl_386.go
+index 498882904d..b041336e43 100644
+--- a/src/runtime/defs_nacl_386.go
++++ b/src/runtime/defs_nacl_386.go
+@@ -3,6 +3,7 @@ package runtime
+ const (
+ 	// These values are referred to in the source code
+ 	// but really don't matter. Even so, use the standard numbers.
++	_SIGQUIT = 3
+ 	_SIGSEGV = 11
+ 	_SIGPROF = 27
+ )
+diff --git a/src/runtime/defs_nacl_amd64p32.go b/src/runtime/defs_nacl_amd64p32.go
+index add11fe068..7e0b8670a2 100644
+--- a/src/runtime/defs_nacl_amd64p32.go
++++ b/src/runtime/defs_nacl_amd64p32.go
+@@ -3,6 +3,7 @@ package runtime
+ const (
+ 	// These values are referred to in the source code
+ 	// but really don't matter. Even so, use the standard numbers.
++	_SIGQUIT = 3
+ 	_SIGSEGV = 11
+ 	_SIGPROF = 27
+ )
+diff --git a/src/runtime/defs_nacl_arm.go b/src/runtime/defs_nacl_arm.go
+index c983cffb9d..60321566c9 100644
+--- a/src/runtime/defs_nacl_arm.go
++++ b/src/runtime/defs_nacl_arm.go
+@@ -3,6 +3,7 @@ package runtime
+ const (
+ 	// These values are referred to in the source code
+ 	// but really don't matter. Even so, use the standard numbers.
++	_SIGQUIT = 3
+ 	_SIGSEGV = 11
+ 	_SIGPROF = 27
+ )
+diff --git a/src/runtime/defs_windows.go b/src/runtime/defs_windows.go
+index 5dfb83a7cf..7ce6797414 100644
+--- a/src/runtime/defs_windows.go
++++ b/src/runtime/defs_windows.go
+@@ -41,7 +41,6 @@ const (
+ 	DUPLICATE_SAME_ACCESS   = C.DUPLICATE_SAME_ACCESS
+ 	THREAD_PRIORITY_HIGHEST = C.THREAD_PRIORITY_HIGHEST
+ 
+-	SIGPROF          = 0 // dummy value for badsignal
+ 	SIGINT           = C.SIGINT
+ 	CTRL_C_EVENT     = C.CTRL_C_EVENT
+ 	CTRL_BREAK_EVENT = C.CTRL_BREAK_EVENT
+diff --git a/src/runtime/defs_windows_386.go b/src/runtime/defs_windows_386.go
+index 450a371769..abec2d839f 100644
+--- a/src/runtime/defs_windows_386.go
++++ b/src/runtime/defs_windows_386.go
+@@ -15,7 +15,6 @@ const (
+ 	_DUPLICATE_SAME_ACCESS   = 0x2
+ 	_THREAD_PRIORITY_HIGHEST = 0x2
+ 
+-	_SIGPROF          = 0 // dummy value for badsignal
+ 	_SIGINT           = 0x2
+ 	_CTRL_C_EVENT     = 0x0
+ 	_CTRL_BREAK_EVENT = 0x1
+diff --git a/src/runtime/defs_windows_amd64.go b/src/runtime/defs_windows_amd64.go
+index ed28576aac..81b13597b7 100644
+--- a/src/runtime/defs_windows_amd64.go
++++ b/src/runtime/defs_windows_amd64.go
+@@ -15,7 +15,6 @@ const (
+ 	_DUPLICATE_SAME_ACCESS   = 0x2
+ 	_THREAD_PRIORITY_HIGHEST = 0x2
+ 
+-	_SIGPROF          = 0 // dummy value for badsignal
+ 	_SIGINT           = 0x2
+ 	_CTRL_C_EVENT     = 0x0
+ 	_CTRL_BREAK_EVENT = 0x1
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 653a7b34c7..8655c083b2 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -575,6 +575,14 @@ func setBadSignalMsg() {
+ 	}
+ }
+ 
++const (
++	_SIGPROF = 0 // dummy value for badsignal
++	_SIGQUIT = 0 // dummy value for sighandler
++)
++
++func raiseproc(sig int32) {
++}
++
+ func crash() {
+ 	// TODO: This routine should do whatever is needed
+ 	// to make the Windows program abort/crash as it
+diff --git a/src/runtime/os2_plan9.go b/src/runtime/os2_plan9.go
+index ca9cee767f..58fb2be91f 100644
+--- a/src/runtime/os2_plan9.go
++++ b/src/runtime/os2_plan9.go
+@@ -69,6 +69,6 @@ const (
+ 	_SIGINTDIV = 4
+ 	_SIGFLOAT  = 5
+ 	_SIGTRAP   = 6
+-	// dummy value defined for badsignal
+-	_SIGPROF   = 0
++	_SIGPROF   = 0 // dummy value defined for badsignal
++	_SIGQUIT   = 0 // dummy value defined for sighandler
+ )
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index cd7dc83866..8c65567b83 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -418,6 +418,10 @@ func raise(sig int32) /* int32 */ {
+ 	sysvicall1(libc_raise, uintptr(sig))
+ }
+ 
++func raiseproc(sig int32) /* int32 */ {
++	sysvicall1(libc_raise, uintptr(sig))
++}
++
+ //go:nosplit
+ func read(fd int32, buf unsafe.Pointer, nbyte int32) int32 {
+ 	return int32(sysvicall3(libc_read, uintptr(fd), uintptr(buf), uintptr(nbyte)))
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index d8296e0563..15f8f44935 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -34,3 +34,4 @@ func sigtramp()
+ func setitimer(mode int32, new, old *itimerval)
+ 
+ func raise(int32)
++func raiseproc(int32)
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 0e00f874fb..8cffd2b9fd 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -28,6 +28,7 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
+ func getrlimit(kind int32, limit unsafe.Pointer) int32
+ 
+ func raise(sig int32)
++func raiseproc(sig int32)
+ 
+ //go:noescape
+ func sys_umtx_sleep(addr *uint32, val, timeout int32) int32
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 998fbca0f5..c274b39d92 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -27,6 +27,7 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
+ //go:noescape
+ func getrlimit(kind int32, limit unsafe.Pointer) int32
+ func raise(sig int32)
++func raiseproc(sig int32)
+ 
+ //go:noescape
+ func sys_umtx_op(addr *uint32, mode int32, val uint32, ptr2, ts *timespec) int32
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 113219aab0..abea5d61aa 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -27,6 +27,7 @@ func rtsigprocmask(sig uint32, new, old *sigset, size int32)
+ //go:noescape
+ func getrlimit(kind int32, limit unsafe.Pointer) int32
+ func raise(sig uint32)
++func raiseproc(sig uint32)
+ 
+ //go:noescape
+ func sched_getaffinity(pid, len uintptr, buf *uintptr) int32
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index bbf339f4a4..138b984625 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -49,3 +49,6 @@ func sigpanic() {
+ 	g.sig = _SIGSEGV
+ 	panicmem()
+ }
++
++func raiseproc(sig int32) {
++}
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index a153bf2ebc..4fa4a416bd 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -24,6 +24,7 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
+ func lwp_tramp()
+ 
+ func raise(sig int32)
++func raiseproc(sig int32)
+ 
+ //go:noescape
+ func getcontext(ctxt unsafe.Pointer)
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 9e5adcd3d2..c1a55d6477 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -20,6 +20,7 @@ func sigprocmask(mode int32, new uint32) uint32
+ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
+ 
+ func raise(sig int32)
++func raiseproc(sig int32)
+ 
+ //go:noescape
+ func tfork(param *tforkt, psize uintptr, mm *m, gg *g, fn uintptr) int32
+diff --git a/src/runtime/signal_amd64x.go b/src/runtime/signal_amd64x.go
+index de88d93a5e..8185e9ac12 100644
+--- a/src/runtime/signal_amd64x.go
++++ b/src/runtime/signal_amd64x.go
+@@ -7,7 +7,9 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"unsafe"
++)
+ 
+ func dumpregs(c *sigctxt) {
+ 	print("rax    ", hex(c.rax()), "\n")
+@@ -33,6 +35,8 @@ func dumpregs(c *sigctxt) {
+ 	print("gs     ", hex(c.gs()), "\n")
+ }
+ 
++var crashing int32
++
+ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	_g_ := getg()
+ 	c := &sigctxt{info, ctxt}
+@@ -131,7 +135,10 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 
+ 	_g_.m.throwing = 1
+ 	_g_.m.caughtsig = gp
+-	startpanic()
++
++	if crashing == 0 {
++		startpanic()
++	}
+ 
+ 	if sig < uint32(len(sigtable)) {
+ 		print(sigtable[sig].name, "\n")
+@@ -139,7 +146,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		print("Signal ", sig, "\n")
+ 	}
+ 
+-	print("PC=", hex(c.rip()), "\n")
++	print("PC=", hex(c.rip()), " m=", _g_.m.id, "\n")
+ 	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
+ 		print("signal arrived during cgo execution\n")
+ 		gp = _g_.m.lockedg
+@@ -150,12 +157,39 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	if gotraceback(&docrash) > 0 {
+ 		goroutineheader(gp)
+ 		tracebacktrap(uintptr(c.rip()), uintptr(c.rsp()), 0, gp)
+-		tracebackothers(gp)
+-		print("\n")
++		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
++			// tracebackothers on original m skipped this one; trace it now.
++			goroutineheader(_g_.m.curg)
++			traceback(^uintptr(0), ^uintptr(0), 0, gp)
++		} else if crashing == 0 {
++			tracebackothers(gp)
++			print("\n")
++		}
+ 		dumpregs(c)
+ 	}
+ 
+ 	if docrash {
++		// TODO(rsc): Implement raiseproc on other systems
++		// and then add to this switch.
++		switch GOOS {
++		case "darwin", "linux":
++			crashing++
++			if crashing < sched.mcount {
++				// There are other m's that need to dump their stacks.
++				// Relay SIGQUIT to the next m by sending it to the current process.
++				// All m's that have already received SIGQUIT have signal masks blocking
++				// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
++				// When the last m receives the SIGQUIT, it will fall through to the call to
++				// crash below. Just in case the relaying gets botched, each m involved in
++				// the relay sleeps for 5 seconds and then does the crash/exit itself.
++				// In expected operation, the last m has received the SIGQUIT and run
++				// crash/exit and the process is gone, all long before any of the
++				// 5-second sleeps have finished.
++				print("\n-----\n\n")
++				raiseproc(_SIGQUIT)
++				usleep(5 * 1000 * 1000)
++			}
++		}
+ 		crash()
+ 	}
+ 
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 7cb5695e7c..46857a6e1b 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -50,7 +50,12 @@ TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·raise(SB),NOSPLIT,$16
++TEXT runtime·raise(SB),NOSPLIT,$0
++	// Ideally we'd send the signal to the current thread,
++	// not the whole process, but that's too hard on OS X.
++	JMP	runtime·raiseproc(SB)
++
++TEXT runtime·raiseproc(SB),NOSPLIT,$16
+ 	MOVL	$20, AX // getpid
+ 	INT	$0x80
+ 	MOVL	AX, 4(SP)	// pid
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 0a955f9828..731147c93f 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -66,7 +66,12 @@ TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·raise(SB),NOSPLIT,$24
++TEXT runtime·raise(SB),NOSPLIT,$0
++	// Ideally we'd send the signal to the current thread,
++	// not the whole process, but that's too hard on OS X.
++	JMP	runtime·raiseproc(SB)
++
++TEXT runtime·raiseproc(SB),NOSPLIT,$24
+ 	MOVL	$(0x2000000+20), AX // getpid
+ 	SYSCALL
+ 	MOVQ	AX, DI	// arg 1 - pid
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 1861f237f5..2acce484cc 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -93,6 +93,15 @@ TEXT runtime·raise(SB),NOSPLIT,$12
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
++TEXT runtime·raiseproc(SB),NOSPLIT,$12
++	MOVL	$20, AX	// syscall - getpid
++	CALL	*runtime·_vdso(SB)
++	MOVL	AX, BX	// arg 1 pid
++	MOVL	sig+0(FP), CX	// arg 2 signal
++	MOVL	$37, AX	// syscall - kill
++	CALL	*runtime·_vdso(SB)
++	RET
++
+ TEXT runtime·setitimer(SB),NOSPLIT,$0-12
+ 	MOVL	$104, AX			// syscall - setitimer
+ 	MOVL	mode+0(FP), BX
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 6d4dfdbd2c..1125edd7fd 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -91,6 +91,15 @@ TEXT runtime·raise(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·raiseproc(SB),NOSPLIT,$0
++	MOVL	$39, AX	// syscall - getpid
++	SYSCALL
++	MOVL	AX, DI	// arg 1 pid
++	MOVL	sig+0(FP), SI	// arg 2
++	MOVL	$62, AX	// syscall - kill
++	SYSCALL
++	RET
++
+ TEXT runtime·setitimer(SB),NOSPLIT,$0-24
+ 	MOVL	mode+0(FP), DI
+ 	MOVQ	new+8(FP), SI
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 21d97fda9b..f7d08cae3c 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -18,6 +18,8 @@
+ #define SYS_write (SYS_BASE + 4)
+ #define SYS_open (SYS_BASE + 5)
+ #define SYS_close (SYS_BASE + 6)
++#define SYS_getpid (SYS_BASE + 20)
++#define SYS_kill (SYS_BASE + 37)
+ #define SYS_gettimeofday (SYS_BASE + 78)
+ #define SYS_clone (SYS_BASE + 120)
+ #define SYS_rt_sigreturn (SYS_BASE + 173)
+@@ -113,6 +115,15 @@ TEXT	runtime·raise(SB),NOSPLIT,$-4
+ 	SWI	$0
+ 	RET
+ 
++TEXT	runtime·raiseproc(SB),NOSPLIT,$-4
++	MOVW	$SYS_getpid, R7
++	SWI	$0
++	// arg 1 tid already in R0 from getpid
++	MOVW	sig+0(FP), R1	// arg 2 - signal
++	MOVW	$SYS_kill, R7
++	SWI	$0
++	RET
++
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index b9d8be11c5..1f2a5af50a 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -18,6 +18,8 @@
+ #define SYS_write		  4
+ #define SYS_open		  5
+ #define SYS_close		  6
++#define SYS_getpid		 20
++#define SYS_kill		 37
+ #define SYS_fcntl		 55
+ #define SYS_gettimeofday	 78
+ #define SYS_select		 82	// always return -ENOSYS
+@@ -118,6 +120,13 @@ TEXT runtime·raise(SB),NOSPLIT,$-8
+ 	SYSCALL	$SYS_tkill
+ 	RETURN
+ 
++TEXT runtime·raiseproc(SB),NOSPLIT,$-8
++	SYSCALL	$SYS_getpid
++	MOVW	R3, R3	// arg 1 pid
++	MOVW	sig+0(FP), R4	// arg 2
++	SYSCALL	$SYS_kill
++	RETURN
++
+ TEXT runtime·setitimer(SB),NOSPLIT,$-8-24
+ 	MOVW	mode+0(FP), R3
+ 	MOVD	new+8(FP), R4

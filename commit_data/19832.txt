@@ -10,6 +10,51 @@ Date:   Tue Jul 29 11:22:57 2014 +0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/114510043
-
+---
  src/cmd/ld/data.c | 12 ++++++++----
  1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index e8e697f15e..96eadd479a 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -815,7 +815,8 @@ proggenaddsym(ProgGen *g, LSym *s)
+ 	if(s->gotype == nil && s->size >= PtrSize) {
+ 		// conservative scan
+ 		if((s->size%PtrSize) || (g->pos%PtrSize))
+-			diag("proggenaddsym: unaligned symbol");
++			diag("proggenaddsym: unaligned conservative symbol %s: size=%lld pos=%lld",
++				s->name, s->size, g->pos);
+ 		size = (s->size+PtrSize-1)/PtrSize*PtrSize;
+ 		if(size < 32*PtrSize) {
+ 			// Emit small symbols as data.
+@@ -840,7 +841,8 @@ proggenaddsym(ProgGen *g, LSym *s)
+ 		} else {
+ 			// Emit large symbols as array.
+ 			if((s->size%PtrSize) || (g->pos%PtrSize))
+-				diag("proggenaddsym: unaligned symbol");
++				diag("proggenaddsym: unaligned noscan symbol %s: size=%lld pos=%lld",
++					s->name, s->size, g->pos);
+ 			proggenarray(g, s->size/PtrSize);
+ 			proggendata(g, BitsScalar);
+ 			proggenarrayend(g);
+@@ -852,7 +854,8 @@ proggenaddsym(ProgGen *g, LSym *s)
+ 		gcprog = decodetype_gcprog(s->gotype);
+ 		size = decodetype_size(s->gotype);
+ 		if((size%PtrSize) || (g->pos%PtrSize))
+-			diag("proggenaddsym: unaligned symbol");
++			diag("proggenaddsym: unaligned gcprog symbol %s: size=%lld pos=%lld",
++				s->name, s->size, g->pos);
+ 		for(i = 0; i < gcprog->np-1; i++)
+ 			proggenemit(g, gcprog->p[i]);
+ 		g->pos = s->value + size;
+@@ -861,7 +864,8 @@ proggenaddsym(ProgGen *g, LSym *s)
+ 		mask = decodetype_gcmask(s->gotype);
+ 		size = decodetype_size(s->gotype);
+ 		if((size%PtrSize) || (g->pos%PtrSize))
+-			diag("proggenaddsym: unaligned symbol");
++			diag("proggenaddsym: unaligned gcmask symbol %s: size=%lld pos=%lld",
++				s->name, s->size, g->pos);
+ 		for(i = 0; i < size; i += PtrSize)
+ 			proggendata(g, (mask[i/PtrSize/2]>>((i/PtrSize%2)*4+2))&BitsMask);
+ 		g->pos = s->value + size;

@@ -9,7 +9,69 @@ Date:   Tue May 22 12:44:24 2012 -0400
     R=r, rsc, dsymonds, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/6206090
-
+---
  src/pkg/net/url/url.go      |  5 +++--
  src/pkg/net/url/url_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index b6e79adc29..17bf0d3a34 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -401,11 +401,12 @@ Error:
+ }
+ 
+ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
+-	if strings.Index(authority, "@") < 0 {
++	i := strings.LastIndex(authority, "@")
++	if i < 0 {
+ 		host = authority
+ 		return
+ 	}
+-	userinfo, host := split(authority, '@', true)
++	userinfo, host := authority[:i], authority[i+1:]
+ 	if strings.Index(userinfo, ":") < 0 {
+ 		if userinfo, err = unescape(userinfo, encodeUserPassword); err != nil {
+ 			return
+diff --git a/src/pkg/net/url/url_test.go b/src/pkg/net/url/url_test.go
+index d8b253142f..75e8abe4eb 100644
+--- a/src/pkg/net/url/url_test.go
++++ b/src/pkg/net/url/url_test.go
+@@ -188,6 +188,37 @@ var urltests = []URLTest{
+ 		},
+ 		"http://user:password@google.com",
+ 	},
++	// unescaped @ in username should not confuse host
++	{
++		"http://j@ne:password@google.com",
++		&URL{
++			Scheme: "http",
++			User:   UserPassword("j@ne", "password"),
++			Host:   "google.com",
++		},
++		"http://j%40ne:password@google.com",
++	},
++	// unescaped @ in password should not confuse host
++	{
++		"http://jane:p@ssword@google.com",
++		&URL{
++			Scheme: "http",
++			User:   UserPassword("jane", "p@ssword"),
++			Host:   "google.com",
++		},
++		"http://jane:p%40ssword@google.com",
++	},
++	{
++		"http://j@ne:password@google.com/p@th?q=@go",
++		&URL{
++			Scheme:   "http",
++			User:     UserPassword("j@ne", "password"),
++			Host:     "google.com",
++			Path:     "/p@th",
++			RawQuery: "q=@go",
++		},
++		"http://j%40ne:password@google.com/p@th?q=@go",
++	},
+ 	{
+ 		"http://www.google.com/?q=go+language#foo",
+ 		&URL{

@@ -9,6 +9,19 @@ Date:   Fri Sep 23 18:16:13 2011 +1000
     R=golang-dev, hectorchu
     CC=golang-dev, vincent.vanackere
     https://golang.org/cl/5086050
-
+---
  src/pkg/syscall/syscall_windows.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 26939cc8dd..e7bae326d8 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -352,6 +352,7 @@ var (
+ 
+ func getStdHandle(h int) (fd Handle) {
+ 	r, _ := GetStdHandle(h)
++	CloseOnExec(r)
+ 	return r
+ }
+ 

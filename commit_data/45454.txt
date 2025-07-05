@@ -23,8 +23,192 @@ Date:   Thu Jul 23 22:07:44 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mcache.go   | 34 ++++++++++++++++++++++++++++++++++
  src/runtime/mcentral.go | 41 +----------------------------------------
  src/runtime/mstats.go   | 18 ++++++------------
  3 files changed, 41 insertions(+), 52 deletions(-)
+
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 3657c0b86a..4d2ba6dff0 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -51,6 +51,7 @@ type mcache struct {
+ 	// application.
+ 	local_largealloc  uintptr                  // bytes allocated for large objects
+ 	local_nlargealloc uintptr                  // number of large object allocations
++	local_nsmallalloc [_NumSizeClasses]uintptr // number of allocs for small objects
+ 	local_largefree   uintptr                  // bytes freed for large objects (>maxsmallsize)
+ 	local_nlargefree  uintptr                  // number of frees for large objects (>maxsmallsize)
+ 	local_nsmallfree  [_NumSizeClasses]uintptr // number of frees for small objects (<=maxsmallsize)
+@@ -138,6 +139,10 @@ func (c *mcache) donate(d *mcache) {
+ 	c.local_largealloc = 0
+ 	d.local_nlargealloc += c.local_nlargealloc
+ 	c.local_nlargealloc = 0
++	for i := range c.local_nsmallalloc {
++		d.local_nsmallalloc[i] += c.local_nsmallalloc[i]
++		c.local_nsmallalloc[i] = 0
++	}
+ 	d.local_largefree += c.local_largefree
+ 	c.local_largefree = 0
+ 	d.local_nlargefree += c.local_nlargefree
+@@ -182,6 +187,20 @@ func (c *mcache) refill(spc spanClass) {
+ 	// sweeping in the next sweep phase.
+ 	s.sweepgen = mheap_.sweepgen + 3
+ 
++	// Assume all objects from this span will be allocated in the
++	// mcache. If it gets uncached, we'll adjust this.
++	c.local_nsmallalloc[spc.sizeclass()] += uintptr(s.nelems) - uintptr(s.allocCount)
++	usedBytes := uintptr(s.allocCount) * s.elemsize
++	atomic.Xadd64(&memstats.heap_live, int64(s.npages*pageSize)-int64(usedBytes))
++	if trace.enabled {
++		// heap_live changed.
++		traceHeapAlloc()
++	}
++	if gcBlackenEnabled != 0 {
++		// heap_live changed.
++		gcController.revise()
++	}
++
+ 	c.alloc[spc] = s
+ }
+ 
+@@ -227,9 +246,24 @@ func (c *mcache) largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
+ }
+ 
+ func (c *mcache) releaseAll() {
++	sg := mheap_.sweepgen
+ 	for i := range c.alloc {
+ 		s := c.alloc[i]
+ 		if s != &emptymspan {
++			// Adjust nsmallalloc in case the span wasn't fully allocated.
++			n := uintptr(s.nelems) - uintptr(s.allocCount)
++			c.local_nsmallalloc[spanClass(i).sizeclass()] -= n
++			if s.sweepgen != sg+1 {
++				// refill conservatively counted unallocated slots in heap_live.
++				// Undo this.
++				//
++				// If this span was cached before sweep, then
++				// heap_live was totally recomputed since
++				// caching this span, so we don't do this for
++				// stale spans.
++				atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
++			}
++			// Release the span to the mcentral.
+ 			mheap_.central[i].mcentral.uncacheSpan(s)
+ 			c.alloc[i] = &emptymspan
+ 		}
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index ed49e01677..97fe92c2ab 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -44,11 +44,6 @@ type mcentral struct {
+ 	// encounter swept spans, and these should be ignored.
+ 	partial [2]spanSet // list of spans with a free object
+ 	full    [2]spanSet // list of spans with no free objects
+-
+-	// nmalloc is the cumulative count of objects allocated from
+-	// this mcentral, assuming all spans in mcaches are
+-	// fully-allocated. Written atomically, read under STW.
+-	nmalloc uint64
+ }
+ 
+ // Initialize a single central free list.
+@@ -178,19 +173,6 @@ havespan:
+ 	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {
+ 		throw("span has no free objects")
+ 	}
+-	// Assume all objects from this span will be allocated in the
+-	// mcache. If it gets uncached, we'll adjust this.
+-	atomic.Xadd64(&c.nmalloc, int64(n))
+-	usedBytes := uintptr(s.allocCount) * s.elemsize
+-	atomic.Xadd64(&memstats.heap_live, int64(spanBytes)-int64(usedBytes))
+-	if trace.enabled {
+-		// heap_live changed.
+-		traceHeapAlloc()
+-	}
+-	if gcBlackenEnabled != 0 {
+-		// heap_live changed.
+-		gcController.revise()
+-	}
+ 	freeByteBase := s.freeindex &^ (64 - 1)
+ 	whichByte := freeByteBase / 8
+ 	// Init alloc bits cache.
+@@ -228,27 +210,6 @@ func (c *mcentral) uncacheSpan(s *mspan) {
+ 		// Indicate that s is no longer cached.
+ 		atomic.Store(&s.sweepgen, sg)
+ 	}
+-	n := int(s.nelems) - int(s.allocCount)
+-
+-	// Fix up statistics.
+-	if n > 0 {
+-		// cacheSpan updated alloc assuming all objects on s
+-		// were going to be allocated. Adjust for any that
+-		// weren't. We must do this before potentially
+-		// sweeping the span.
+-		atomic.Xadd64(&c.nmalloc, -int64(n))
+-
+-		if !stale {
+-			// (*mcentral).cacheSpan conservatively counted
+-			// unallocated slots in heap_live. Undo this.
+-			//
+-			// If this span was cached before sweep, then
+-			// heap_live was totally recomputed since
+-			// caching this span, so we don't do this for
+-			// stale spans.
+-			atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
+-		}
+-	}
+ 
+ 	// Put the span in the appropriate place.
+ 	if stale {
+@@ -256,7 +217,7 @@ func (c *mcentral) uncacheSpan(s *mspan) {
+ 		// the right list.
+ 		s.sweep(false)
+ 	} else {
+-		if n > 0 {
++		if int(s.nelems)-int(s.allocCount) > 0 {
+ 			// Put it back on the partial swept list.
+ 			c.partialSwept(sg).push(s)
+ 		} else {
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index d9acb361d5..44cf17c85b 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -561,17 +561,6 @@ func updatememstats() {
+ 	// Collect allocation stats. This is safe and consistent
+ 	// because the world is stopped.
+ 	var smallFree, totalAlloc, totalFree uint64
+-	// Collect per-spanclass stats.
+-	for spc := range mheap_.central {
+-		// The mcaches are now empty, so mcentral stats are
+-		// up-to-date.
+-		c := &mheap_.central[spc].mcentral
+-		memstats.nmalloc += c.nmalloc
+-		i := spanClass(spc).sizeclass()
+-		memstats.by_size[i].nmalloc += c.nmalloc
+-		totalAlloc += c.nmalloc * uint64(class_to_size[i])
+-	}
+-
+ 	for _, p := range allp {
+ 		c := p.mcache
+ 		if c == nil {
+@@ -585,12 +574,17 @@ func updatememstats() {
+ 
+ 		// Collect per-sizeclass stats.
+ 		for i := 0; i < _NumSizeClasses; i++ {
++			// Malloc stats.
++			memstats.nmalloc += uint64(c.local_nsmallalloc[i])
++			memstats.by_size[i].nmalloc += uint64(c.local_nsmallalloc[i])
++			totalAlloc += uint64(c.local_nsmallalloc[i]) * uint64(class_to_size[i])
++
++			// Free stats.
+ 			memstats.nfree += uint64(c.local_nsmallfree[i])
+ 			memstats.by_size[i].nfree += uint64(c.local_nsmallfree[i])
+ 			smallFree += uint64(c.local_nsmallfree[i]) * uint64(class_to_size[i])
+ 		}
+ 	}
+-	// Collect remaining large allocation stats.
+ 
+ 	totalFree += smallFree
+ 

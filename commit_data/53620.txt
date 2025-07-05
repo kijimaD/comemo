@@ -25,8 +25,107 @@ Date:   Wed Aug 24 22:17:51 2022 +0800
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 +++
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 46 ++++++++++++++++++++++++++
  test/codegen/mathbits.go                       |  2 ++
  3 files changed, 52 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index dd20be2aeb..5bc47ee1cc 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -743,6 +743,10 @@
+ (SLTI  [x] (MOVDconst [y])) => (MOVDconst [b2i(int64(y) < int64(x))])
+ (SLTIU [x] (MOVDconst [y])) => (MOVDconst [b2i(uint64(y) < uint64(x))])
+ 
++// deadcode for LoweredMuluhilo
++(Select0 m:(LoweredMuluhilo x y)) && m.Uses == 1 => (MULHU x y)
++(Select1 m:(LoweredMuluhilo x y)) && m.Uses == 1 => (MUL x y)
++
+ // Merge negation into fused multiply-add and multiply-subtract.
+ //
+ // Key:
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 2677e99dc0..9253d2d729 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -605,6 +605,10 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		return rewriteValueRISCV64_OpRsh8x64(v)
+ 	case OpRsh8x8:
+ 		return rewriteValueRISCV64_OpRsh8x8(v)
++	case OpSelect0:
++		return rewriteValueRISCV64_OpSelect0(v)
++	case OpSelect1:
++		return rewriteValueRISCV64_OpSelect1(v)
+ 	case OpSignExt16to32:
+ 		v.Op = OpRISCV64MOVHreg
+ 		return true
+@@ -6030,6 +6034,48 @@ func rewriteValueRISCV64_OpRsh8x8(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueRISCV64_OpSelect0(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (Select0 m:(LoweredMuluhilo x y))
++	// cond: m.Uses == 1
++	// result: (MULHU x y)
++	for {
++		m := v_0
++		if m.Op != OpRISCV64LoweredMuluhilo {
++			break
++		}
++		y := m.Args[1]
++		x := m.Args[0]
++		if !(m.Uses == 1) {
++			break
++		}
++		v.reset(OpRISCV64MULHU)
++		v.AddArg2(x, y)
++		return true
++	}
++	return false
++}
++func rewriteValueRISCV64_OpSelect1(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (Select1 m:(LoweredMuluhilo x y))
++	// cond: m.Uses == 1
++	// result: (MUL x y)
++	for {
++		m := v_0
++		if m.Op != OpRISCV64LoweredMuluhilo {
++			break
++		}
++		y := m.Args[1]
++		x := m.Args[0]
++		if !(m.Uses == 1) {
++			break
++		}
++		v.reset(OpRISCV64MUL)
++		v.AddArg2(x, y)
++		return true
++	}
++	return false
++}
+ func rewriteValueRISCV64_OpSlicemask(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 20c945fbc3..a507d32843 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -800,12 +800,14 @@ func Mul64(x, y uint64) (hi, lo uint64) {
+ 
+ func Mul64HiOnly(x, y uint64) uint64 {
+ 	// arm64:"UMULH",-"MUL"
++	// riscv64:"MULHU",-"MUL\t"
+ 	hi, _ := bits.Mul64(x, y)
+ 	return hi
+ }
+ 
+ func Mul64LoOnly(x, y uint64) uint64 {
+ 	// arm64:"MUL",-"UMULH"
++	// riscv64:"MUL\t",-"MULHU"
+ 	_, lo := bits.Mul64(x, y)
+ 	return lo
+ }

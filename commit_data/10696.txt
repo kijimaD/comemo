@@ -7,7 +7,43 @@ Date:   Sat Dec 10 21:55:38 2011 +0000
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5448121
-
+---
  src/pkg/time/time.go      |  2 +-
  src/pkg/time/time_test.go | 11 +++++++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 4e9accfe58..9bd58aeb8a 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -548,7 +548,7 @@ func (d Duration) Hours() float64 {
+ func (t Time) Add(d Duration) Time {
+ 	t.sec += int64(d / 1e9)
+ 	t.nsec += int32(d % 1e9)
+-	if t.nsec > 1e9 {
++	if t.nsec >= 1e9 {
+ 		t.sec++
+ 		t.nsec -= 1e9
+ 	} else if t.nsec < 0 {
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 464e9bfa2c..ada3625078 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -655,6 +655,17 @@ func TestDaysIn(t *testing.T) {
+ 	}
+ }
+ 
++func TestAddToExactSecond(t *testing.T) {
++	// Add an amount to the current time to round it up to the next exact second.
++	// This test checks that the nsec field still lies within the range [0, 999999999].
++	t1 := Now()
++	t2 := t1.Add(Second - Duration(t1.Nanosecond()))
++	sec := (t1.Second() + 1) % 60
++	if t2.Second() != sec || t2.Nanosecond() != 0 {
++		t.Errorf("sec = %d, nsec = %d, want sec = %d, nsec = 0", t2.Second(), t2.Nanosecond(), sec)
++	}
++}
++
+ func BenchmarkNow(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Now()

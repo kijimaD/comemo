@@ -18,7 +18,77 @@ Date:   Wed Oct 4 10:26:17 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/go/printer/nodes.go        | 21 +++++++++++++++------
  src/go/printer/printer_test.go | 23 +++++++++++++++++++++++
  2 files changed, 38 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 97c2cab0f8..0a693b6667 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -974,15 +974,24 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 		if len(x.Args) > 1 {
+ 			depth++
+ 		}
+-		var wasIndented bool
+-		if _, ok := x.Fun.(*ast.FuncType); ok {
+-			// conversions to literal function types require parentheses around the type
++
++		// Conversions to literal function types or <-chan
++		// types require parentheses around the type.
++		paren := false
++		switch t := x.Fun.(type) {
++		case *ast.FuncType:
++			paren = true
++		case *ast.ChanType:
++			paren = t.Dir == ast.RECV
++		}
++		if paren {
+ 			p.print(token.LPAREN)
+-			wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
++		}
++		wasIndented := p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
++		if paren {
+ 			p.print(token.RPAREN)
+-		} else {
+-			wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
+ 		}
++
+ 		p.setPos(x.Lparen)
+ 		p.print(token.LPAREN)
+ 		if x.Ellipsis.IsValid() {
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index 3a8ce60431..8e78bc640e 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -604,6 +604,29 @@ func f()
+ 	}
+ }
+ 
++// TestChanType tests that the tree for <-(<-chan int), without
++// ParenExpr, is correctly formatted with parens.
++// Test case for issue #63362.
++func TestChanType(t *testing.T) {
++	expr := &ast.UnaryExpr{
++		Op: token.ARROW,
++		X: &ast.CallExpr{
++			Fun: &ast.ChanType{
++				Dir:   ast.RECV,
++				Value: &ast.Ident{Name: "int"},
++			},
++			Args: []ast.Expr{&ast.Ident{Name: "nil"}},
++		},
++	}
++	var buf bytes.Buffer
++	if err := Fprint(&buf, fset, expr); err != nil {
++		t.Fatal(err)
++	}
++	if got, want := buf.String(), `<-(<-chan int)(nil)`; got != want {
++		t.Fatalf("got:\n%s\nwant:\n%s\n", got, want)
++	}
++}
++
+ type limitWriter struct {
+ 	remaining int
+ 	errCount  int

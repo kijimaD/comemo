@@ -7,6 +7,27 @@ Date:   Wed Feb 15 08:42:16 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5647063
-
+---
  src/sudo.bash | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/sudo.bash b/src/sudo.bash
+index 3e1507b4e8..78cdb0b8a7 100755
+--- a/src/sudo.bash
++++ b/src/sudo.bash
+@@ -17,13 +17,14 @@ if [[ ! -d /usr/local/bin ]]; then
+ 	exit 2
+ fi
+ 
++eval $(go tool dist env)
+ cd $(dirname $0)
+ for i in prof cov
+ do
+ 	# Remove old binaries if present
+ 	sudo rm -f /usr/local/bin/6$i
+ 	# Install new binaries
+-	sudo cp ../bin/tool/$i /usr/local/bin/go$i
++	sudo cp $GOTOOLDIR/$i /usr/local/bin/go$i
+ 	sudo chgrp procmod /usr/local/bin/go$i
+ 	sudo chmod g+s /usr/local/bin/go$i
+ done

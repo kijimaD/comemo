@@ -11,7 +11,88 @@ Date:   Sun Oct 18 15:45:36 2015 -0700
     Change-Id: I458aac1616228747e62f92f823768d55e874877a
     Reviewed-on: https://go-review.googlesource.com/16050
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/cipher/ctr.go      |  5 +---
  src/crypto/cipher/ctr_test.go | 55 +++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 56 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/cipher/ctr.go b/src/crypto/cipher/ctr.go
+index 70ac40f6a7..16baa6d17d 100644
+--- a/src/crypto/cipher/ctr.go
++++ b/src/crypto/cipher/ctr.go
+@@ -41,13 +41,10 @@ func NewCTR(block Block, iv []byte) Stream {
+ 
+ func (x *ctr) refill() {
+ 	remain := len(x.out) - x.outUsed
+-	if remain > x.outUsed {
+-		return
+-	}
+ 	copy(x.out, x.out[x.outUsed:])
+ 	x.out = x.out[:cap(x.out)]
+ 	bs := x.b.BlockSize()
+-	for remain < len(x.out)-bs {
++	for remain <= len(x.out)-bs {
+ 		x.b.Encrypt(x.out[remain:], x.ctr)
+ 		remain += bs
+ 
+diff --git a/src/crypto/cipher/ctr_test.go b/src/crypto/cipher/ctr_test.go
+new file mode 100644
+index 0000000000..e5cce576c7
+--- /dev/null
++++ b/src/crypto/cipher/ctr_test.go
+@@ -0,0 +1,55 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cipher_test
++
++import (
++	"bytes"
++	"crypto/cipher"
++	"testing"
++)
++
++type noopBlock int
++
++func (b noopBlock) BlockSize() int        { return int(b) }
++func (noopBlock) Encrypt(dst, src []byte) { copy(dst, src) }
++func (noopBlock) Decrypt(dst, src []byte) { copy(dst, src) }
++
++func inc(b []byte) {
++	for i := len(b) - 1; i >= 0; i++ {
++		b[i]++
++		if b[i] != 0 {
++			break
++		}
++	}
++}
++
++func xor(a, b []byte) {
++	for i := range a {
++		a[i] ^= b[i]
++	}
++}
++
++func TestCTR(t *testing.T) {
++	for size := 64; size <= 1024; size *= 2 {
++		iv := make([]byte, size)
++		ctr := cipher.NewCTR(noopBlock(size), iv)
++		src := make([]byte, 1024)
++		for i := range src {
++			src[i] = 0xff
++		}
++		want := make([]byte, 1024)
++		copy(want, src)
++		counter := make([]byte, size)
++		for i := 1; i < len(want)/size; i++ {
++			inc(counter)
++			xor(want[i*size:(i+1)*size], counter)
++		}
++		dst := make([]byte, 1024)
++		ctr.XORKeyStream(dst, src)
++		if !bytes.Equal(dst, want) {
++			t.Errorf("for size %d\nhave %x\nwant %x", size, dst, want)
++		}
++	}
++}

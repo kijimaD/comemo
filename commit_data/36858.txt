@@ -17,7 +17,7 @@ Date:   Sun Mar 4 12:18:32 2018 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/poll/hook_unix.go                   |   2 +-
  src/net/conn_test.go                             |   2 +
  src/net/dial_test.go                             |   2 +
@@ -82,3 +82,1334 @@ Date:   Sun Mar 4 12:18:32 2018 +0100
  src/runtime/{netpoll_nacl.go => netpoll_fake.go} |   6 +-
  src/syscall/net_js.go                            | 121 ++++++++++
  63 files changed, 561 insertions(+), 59 deletions(-)
+
+diff --git a/src/internal/poll/hook_unix.go b/src/internal/poll/hook_unix.go
+index 85e102dd73..c2ad17eb1a 100644
+--- a/src/internal/poll/hook_unix.go
++++ b/src/internal/poll/hook_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package poll
+ 
+diff --git a/src/net/conn_test.go b/src/net/conn_test.go
+index 16cf69ee16..6854898da2 100644
+--- a/src/net/conn_test.go
++++ b/src/net/conn_test.go
+@@ -5,6 +5,8 @@
+ // This file implements API tests across platforms and will never have a build
+ // tag.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 3934ad8648..00a84d17d6 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/dnsname_test.go b/src/net/dnsname_test.go
+index e0f786dec8..806d8756cb 100644
+--- a/src/net/dnsname_test.go
++++ b/src/net/dnsname_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/error_posix.go b/src/net/error_posix.go
+index dd9754c841..0000700809 100644
+--- a/src/net/error_posix.go
++++ b/src/net/error_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 9791e6fe4d..e09670e5ce 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/error_unix.go b/src/net/error_unix.go
+index 633861e759..b5a5829eaa 100644
+--- a/src/net/error_unix.go
++++ b/src/net/error_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build darwin dragonfly freebsd js linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/external_test.go b/src/net/external_test.go
+index 38788efc3d..f3c69c407f 100644
+--- a/src/net/external_test.go
++++ b/src/net/external_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/fd_plan9.go b/src/net/fd_plan9.go
+index 46ee5d9740..da41bc0c34 100644
+--- a/src/net/fd_plan9.go
++++ b/src/net/fd_plan9.go
+@@ -9,6 +9,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"syscall"
++	"time"
+ )
+ 
+ // Network file descriptor.
+@@ -172,3 +173,15 @@ func setReadBuffer(fd *netFD, bytes int) error {
+ func setWriteBuffer(fd *netFD, bytes int) error {
+ 	return syscall.EPLAN9
+ }
++
++func (fd *netFD) SetDeadline(t time.Time) error {
++	return fd.pfd.SetDeadline(t)
++}
++
++func (fd *netFD) SetReadDeadline(t time.Time) error {
++	return fd.pfd.SetReadDeadline(t)
++}
++
++func (fd *netFD) SetWriteDeadline(t time.Time) error {
++	return fd.pfd.SetWriteDeadline(t)
++}
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 3dcbeb51c7..84613c778c 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -13,6 +13,7 @@ import (
+ 	"runtime"
+ 	"sync/atomic"
+ 	"syscall"
++	"time"
+ )
+ 
+ // Network file descriptor.
+@@ -298,3 +299,15 @@ func (fd *netFD) dup() (f *os.File, err error) {
+ 
+ 	return os.NewFile(uintptr(ns), fd.name()), nil
+ }
++
++func (fd *netFD) SetDeadline(t time.Time) error {
++	return fd.pfd.SetDeadline(t)
++}
++
++func (fd *netFD) SetReadDeadline(t time.Time) error {
++	return fd.pfd.SetReadDeadline(t)
++}
++
++func (fd *netFD) SetWriteDeadline(t time.Time) error {
++	return fd.pfd.SetWriteDeadline(t)
++}
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index e5f8da156a..8a91138a42 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -10,6 +10,7 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"syscall"
++	"time"
+ 	"unsafe"
+ )
+ 
+@@ -241,3 +242,15 @@ func (fd *netFD) dup() (*os.File, error) {
+ 	// TODO: Implement this
+ 	return nil, syscall.EWINDOWS
+ }
++
++func (fd *netFD) SetDeadline(t time.Time) error {
++	return fd.pfd.SetDeadline(t)
++}
++
++func (fd *netFD) SetReadDeadline(t time.Time) error {
++	return fd.pfd.SetReadDeadline(t)
++}
++
++func (fd *netFD) SetWriteDeadline(t time.Time) error {
++	return fd.pfd.SetWriteDeadline(t)
++}
+diff --git a/src/net/file_stub.go b/src/net/file_stub.go
+index 0f7460c757..2256608365 100644
+--- a/src/net/file_stub.go
++++ b/src/net/file_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl
++// +build nacl js,wasm
+ 
+ package net
+ 
+diff --git a/src/net/file_test.go b/src/net/file_test.go
+index abf8b3a699..9fb5f2fd26 100644
+--- a/src/net/file_test.go
++++ b/src/net/file_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/hook_unix.go b/src/net/hook_unix.go
+index fee62a972f..d672bd01b0 100644
+--- a/src/net/hook_unix.go
++++ b/src/net/hook_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/http/cgi/host_test.go b/src/net/http/cgi/host_test.go
+index ed8b919fb3..1790d5de98 100644
+--- a/src/net/http/cgi/host_test.go
++++ b/src/net/http/cgi/host_test.go
+@@ -502,6 +502,7 @@ func TestDirWindows(t *testing.T) {
+ }
+ 
+ func TestEnvOverride(t *testing.T) {
++	check(t)
+ 	cgifile, _ := filepath.Abs("testdata/test.cgi")
+ 
+ 	var perl string
+diff --git a/src/net/interface_stub.go b/src/net/interface_stub.go
+index 3b0a1aeacf..0afaa80d63 100644
+--- a/src/net/interface_stub.go
++++ b/src/net/interface_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl
++// +build nacl js,wasm
+ 
+ package net
+ 
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index 13b9485797..5d183c5638 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/internal/socktest/main_test.go b/src/net/internal/socktest/main_test.go
+index 60e581f463..3b0a48aef4 100644
+--- a/src/net/internal/socktest/main_test.go
++++ b/src/net/internal/socktest/main_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !plan9
++// +build !js,!plan9
+ 
+ package socktest_test
+ 
+diff --git a/src/net/internal/socktest/main_unix_test.go b/src/net/internal/socktest/main_unix_test.go
+index b8eebc2aa4..4d9d414356 100644
+--- a/src/net/internal/socktest/main_unix_test.go
++++ b/src/net/internal/socktest/main_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !plan9,!windows
++// +build !js,!plan9,!windows
+ 
+ package socktest_test
+ 
+diff --git a/src/net/internal/socktest/switch_unix.go b/src/net/internal/socktest/switch_unix.go
+index 14c0c228a2..d518f7b06f 100644
+--- a/src/net/internal/socktest/switch_unix.go
++++ b/src/net/internal/socktest/switch_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package socktest
+ 
+diff --git a/src/net/internal/socktest/sys_unix.go b/src/net/internal/socktest/sys_unix.go
+index 9fe86b55cf..139fc3ece4 100644
+--- a/src/net/internal/socktest/sys_unix.go
++++ b/src/net/internal/socktest/sys_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package socktest
+ 
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 95dd109e28..a5fc5e644a 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/iprawsock_posix.go b/src/net/iprawsock_posix.go
+index b2f5791643..b829368726 100644
+--- a/src/net/iprawsock_posix.go
++++ b/src/net/iprawsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/iprawsock_test.go b/src/net/iprawsock_test.go
+index 8972051f5d..8e3543dfc7 100644
+--- a/src/net/iprawsock_test.go
++++ b/src/net/iprawsock_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index eddd4118fa..cb7483cd1f 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index ffd38d7950..ffce8e22ec 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !plan9
++// +build !js,!plan9
+ 
+ package net
+ 
+diff --git a/src/net/lookup_nacl.go b/src/net/lookup_fake.go
+similarity index 98%
+rename from src/net/lookup_nacl.go
+rename to src/net/lookup_fake.go
+index 43cebad760..90c6d47183 100644
+--- a/src/net/lookup_nacl.go
++++ b/src/net/lookup_fake.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl
++// +build nacl js,wasm
+ 
+ package net
+ 
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 75fb303d38..02fbcd8bac 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/main_conf_test.go b/src/net/main_conf_test.go
+index 9875ceaf1f..b535046bda 100644
+--- a/src/net/main_conf_test.go
++++ b/src/net/main_conf_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !nacl,!plan9,!windows
++// +build !js,!nacl,!plan9,!windows
+ 
+ package net
+ 
+diff --git a/src/net/main_noconf_test.go b/src/net/main_noconf_test.go
+index 489477bc97..55e3770835 100644
+--- a/src/net/main_noconf_test.go
++++ b/src/net/main_noconf_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl plan9 windows
++// +build js,wasm nacl plan9 windows
+ 
+ package net
+ 
+diff --git a/src/net/main_posix_test.go b/src/net/main_posix_test.go
+index ead311c3cd..f2484f306d 100644
+--- a/src/net/main_posix_test.go
++++ b/src/net/main_posix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !plan9
++// +build !js,!plan9
+ 
+ package net
+ 
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index 3e7a85ad2d..85a269d0f4 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index 44581d9049..530293578a 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/net.go b/src/net/net.go
+index 94561dd749..48c5001670 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -229,7 +229,7 @@ func (c *conn) SetDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	if err := c.fd.pfd.SetDeadline(t); err != nil {
++	if err := c.fd.SetDeadline(t); err != nil {
+ 		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
+ 	}
+ 	return nil
+@@ -240,7 +240,7 @@ func (c *conn) SetReadDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	if err := c.fd.pfd.SetReadDeadline(t); err != nil {
++	if err := c.fd.SetReadDeadline(t); err != nil {
+ 		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
+ 	}
+ 	return nil
+@@ -251,7 +251,7 @@ func (c *conn) SetWriteDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	if err := c.fd.pfd.SetWriteDeadline(t); err != nil {
++	if err := c.fd.SetWriteDeadline(t); err != nil {
+ 		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
+ 	}
+ 	return nil
+diff --git a/src/net/net_fake.go b/src/net/net_fake.go
+new file mode 100644
+index 0000000000..f7595d9bb4
+--- /dev/null
++++ b/src/net/net_fake.go
+@@ -0,0 +1,284 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Fake networking for js/wasm. It is intended to allow tests of other package to pass.
++
++// +build js,wasm
++
++package net
++
++import (
++	"context"
++	"internal/poll"
++	"io"
++	"os"
++	"sync"
++	"syscall"
++	"time"
++)
++
++var listenersMu sync.Mutex
++var listeners = make(map[string]*netFD)
++
++var portCounterMu sync.Mutex
++var portCounter = 0
++
++func nextPort() int {
++	portCounterMu.Lock()
++	defer portCounterMu.Unlock()
++	portCounter++
++	return portCounter
++}
++
++// Network file descriptor.
++type netFD struct {
++	r        *bufferedPipe
++	w        *bufferedPipe
++	incoming chan *netFD
++
++	closedMu sync.Mutex
++	closed   bool
++
++	// immutable until Close
++	listener bool
++	family   int
++	sotype   int
++	net      string
++	laddr    Addr
++	raddr    Addr
++
++	// unused
++	pfd         poll.FD
++	isConnected bool
++}
++
++// socket returns a network file descriptor that is ready for
++// asynchronous I/O using the network poller.
++func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, ctrlFn func(string, string, syscall.RawConn) error) (*netFD, error) {
++	fd := &netFD{family: family, sotype: sotype, net: net}
++
++	if laddr != nil && raddr == nil { // listener
++		l := laddr.(*TCPAddr)
++		fd.laddr = &TCPAddr{
++			IP:   l.IP,
++			Port: nextPort(),
++			Zone: l.Zone,
++		}
++		fd.listener = true
++		fd.incoming = make(chan *netFD, 1024)
++		listenersMu.Lock()
++		listeners[fd.laddr.(*TCPAddr).String()] = fd
++		listenersMu.Unlock()
++		return fd, nil
++	}
++
++	fd.laddr = &TCPAddr{
++		IP:   IPv4(127, 0, 0, 1),
++		Port: nextPort(),
++	}
++	fd.raddr = raddr
++	fd.r = newBufferedPipe(65536)
++	fd.w = newBufferedPipe(65536)
++
++	fd2 := &netFD{family: fd.family, sotype: sotype, net: net}
++	fd2.laddr = fd.raddr
++	fd2.raddr = fd.laddr
++	fd2.r = fd.w
++	fd2.w = fd.r
++	listenersMu.Lock()
++	l, ok := listeners[fd.raddr.(*TCPAddr).String()]
++	if !ok {
++		listenersMu.Unlock()
++		return nil, syscall.ECONNREFUSED
++	}
++	l.incoming <- fd2
++	listenersMu.Unlock()
++
++	return fd, nil
++}
++
++func (fd *netFD) Read(p []byte) (n int, err error) {
++	return fd.r.Read(p)
++}
++
++func (fd *netFD) Write(p []byte) (nn int, err error) {
++	return fd.w.Write(p)
++}
++
++func (fd *netFD) Close() error {
++	fd.closedMu.Lock()
++	if fd.closed {
++		fd.closedMu.Unlock()
++		return nil
++	}
++	fd.closed = true
++	fd.closedMu.Unlock()
++
++	if fd.listener {
++		listenersMu.Lock()
++		delete(listeners, fd.laddr.String())
++		close(fd.incoming)
++		fd.listener = false
++		listenersMu.Unlock()
++		return nil
++	}
++
++	fd.r.Close()
++	fd.w.Close()
++	return nil
++}
++
++func (fd *netFD) closeRead() error {
++	fd.r.Close()
++	return nil
++}
++
++func (fd *netFD) closeWrite() error {
++	fd.w.Close()
++	return nil
++}
++
++func (fd *netFD) accept() (*netFD, error) {
++	c, ok := <-fd.incoming
++	if !ok {
++		return nil, syscall.EINVAL
++	}
++	return c, nil
++}
++
++func (fd *netFD) SetDeadline(t time.Time) error {
++	fd.r.SetReadDeadline(t)
++	fd.w.SetWriteDeadline(t)
++	return nil
++}
++
++func (fd *netFD) SetReadDeadline(t time.Time) error {
++	fd.r.SetReadDeadline(t)
++	return nil
++}
++
++func (fd *netFD) SetWriteDeadline(t time.Time) error {
++	fd.w.SetWriteDeadline(t)
++	return nil
++}
++
++func newBufferedPipe(softLimit int) *bufferedPipe {
++	p := &bufferedPipe{softLimit: softLimit}
++	p.rCond.L = &p.mu
++	p.wCond.L = &p.mu
++	return p
++}
++
++type bufferedPipe struct {
++	softLimit int
++	mu        sync.Mutex
++	buf       []byte
++	closed    bool
++	rCond     sync.Cond
++	wCond     sync.Cond
++	rDeadline time.Time
++	wDeadline time.Time
++}
++
++func (p *bufferedPipe) Read(b []byte) (int, error) {
++	p.mu.Lock()
++	defer p.mu.Unlock()
++
++	for {
++		if p.closed && len(p.buf) == 0 {
++			return 0, io.EOF
++		}
++		if !p.rDeadline.IsZero() {
++			d := time.Until(p.rDeadline)
++			if d <= 0 {
++				return 0, syscall.EAGAIN
++			}
++			time.AfterFunc(d, p.rCond.Broadcast)
++		}
++		if len(p.buf) > 0 {
++			break
++		}
++		p.rCond.Wait()
++	}
++
++	n := copy(b, p.buf)
++	p.buf = p.buf[n:]
++	p.wCond.Broadcast()
++	return n, nil
++}
++
++func (p *bufferedPipe) Write(b []byte) (int, error) {
++	p.mu.Lock()
++	defer p.mu.Unlock()
++
++	for {
++		if p.closed {
++			return 0, syscall.ENOTCONN
++		}
++		if !p.wDeadline.IsZero() {
++			d := time.Until(p.wDeadline)
++			if d <= 0 {
++				return 0, syscall.EAGAIN
++			}
++			time.AfterFunc(d, p.wCond.Broadcast)
++		}
++		if len(p.buf) <= p.softLimit {
++			break
++		}
++		p.wCond.Wait()
++	}
++
++	p.buf = append(p.buf, b...)
++	p.rCond.Broadcast()
++	return len(b), nil
++}
++
++func (p *bufferedPipe) Close() {
++	p.mu.Lock()
++	defer p.mu.Unlock()
++
++	p.closed = true
++	p.rCond.Broadcast()
++	p.wCond.Broadcast()
++}
++
++func (p *bufferedPipe) SetReadDeadline(t time.Time) {
++	p.mu.Lock()
++	defer p.mu.Unlock()
++
++	p.rDeadline = t
++	p.rCond.Broadcast()
++}
++
++func (p *bufferedPipe) SetWriteDeadline(t time.Time) {
++	p.mu.Lock()
++	defer p.mu.Unlock()
++
++	p.wDeadline = t
++	p.wCond.Broadcast()
++}
++
++func sysSocket(family, sotype, proto int) (int, error) {
++	return 0, syscall.ENOSYS
++}
++
++func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
++	return 0, nil, syscall.ENOSYS
++}
++
++func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
++	return 0, 0, 0, nil, syscall.ENOSYS
++}
++
++func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
++	return 0, syscall.ENOSYS
++}
++
++func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
++	return 0, 0, syscall.ENOSYS
++}
++
++func (fd *netFD) dup() (f *os.File, err error) {
++	return nil, syscall.ENOSYS
++}
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index c82aa070a2..facafcf12c 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/packetconn_test.go b/src/net/packetconn_test.go
+index 7d50489021..a377d333d6 100644
+--- a/src/net/packetconn_test.go
++++ b/src/net/packetconn_test.go
+@@ -5,6 +5,8 @@
+ // This file implements API tests across platforms and will never have a build
+ // tag.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/port_unix.go b/src/net/port_unix.go
+index 829f51fcf0..64c7f575c7 100644
+--- a/src/net/port_unix.go
++++ b/src/net/port_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris nacl
++// +build darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris nacl
+ 
+ // Read system port mappings from /etc/services
+ 
+diff --git a/src/net/protoconn_test.go b/src/net/protoconn_test.go
+index 05c45d02b9..9f6772c7d1 100644
+--- a/src/net/protoconn_test.go
++++ b/src/net/protoconn_test.go
+@@ -5,6 +5,8 @@
+ // This file implements API tests across platforms and will never have a build
+ // tag.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/rawconn_stub_test.go b/src/net/rawconn_stub_test.go
+index 3e3b6bf5b2..0a033c12fc 100644
+--- a/src/net/rawconn_stub_test.go
++++ b/src/net/rawconn_stub_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl plan9
++// +build js,wasm nacl plan9
+ 
+ package net
+ 
+diff --git a/src/net/rawconn_test.go b/src/net/rawconn_test.go
+index ecd9457c74..11900dff8d 100644
+--- a/src/net/rawconn_test.go
++++ b/src/net/rawconn_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/sendfile_stub.go b/src/net/sendfile_stub.go
+index 905f1d6cef..d5b8755af3 100644
+--- a/src/net/sendfile_stub.go
++++ b/src/net/sendfile_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin nacl netbsd openbsd
++// +build darwin js,wasm nacl netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/net/sendfile_test.go b/src/net/sendfile_test.go
+index 2255e7c478..75d4b4e9bf 100644
+--- a/src/net/sendfile_test.go
++++ b/src/net/sendfile_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/server_test.go b/src/net/server_test.go
+index 2e998e23a8..1608bebb00 100644
+--- a/src/net/server_test.go
++++ b/src/net/server_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/smtp/smtp_test.go b/src/net/smtp/smtp_test.go
+index e97aaa4486..000cac4fcb 100644
+--- a/src/net/smtp/smtp_test.go
++++ b/src/net/smtp/smtp_test.go
+@@ -725,7 +725,7 @@ QUIT
+ `
+ 
+ func TestTLSClient(t *testing.T) {
+-	if runtime.GOOS == "freebsd" && runtime.GOARCH == "amd64" {
++	if (runtime.GOOS == "freebsd" && runtime.GOARCH == "amd64") || runtime.GOOS == "js" {
+ 		testenv.SkipFlaky(t, 19229)
+ 	}
+ 	ln := newLocalListener(t)
+diff --git a/src/net/sock_posix.go b/src/net/sock_posix.go
+index 00ff3fd393..677e423ffa 100644
+--- a/src/net/sock_posix.go
++++ b/src/net/sock_posix.go
+@@ -13,29 +13,6 @@ import (
+ 	"syscall"
+ )
+ 
+-// A sockaddr represents a TCP, UDP, IP or Unix network endpoint
+-// address that can be converted into a syscall.Sockaddr.
+-type sockaddr interface {
+-	Addr
+-
+-	// family returns the platform-dependent address family
+-	// identifier.
+-	family() int
+-
+-	// isWildcard reports whether the address is a wildcard
+-	// address.
+-	isWildcard() bool
+-
+-	// sockaddr returns the address converted into a syscall
+-	// sockaddr type that implements syscall.Sockaddr
+-	// interface. It returns a nil interface when the address is
+-	// nil.
+-	sockaddr(family int) (syscall.Sockaddr, error)
+-
+-	// toLocal maps the zero address to a local system address (127.0.0.1 or ::1)
+-	toLocal(net string) sockaddr
+-}
+-
+ // socket returns a network file descriptor that is ready for
+ // asynchronous I/O using the network poller.
+ func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, ctrlFn func(string, string, syscall.RawConn) error) (fd *netFD, err error) {
+diff --git a/src/net/sock_stub.go b/src/net/sock_stub.go
+index 5ac1e864f7..38fc819199 100644
+--- a/src/net/sock_stub.go
++++ b/src/net/sock_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl solaris
++// +build nacl js,wasm solaris
+ 
+ package net
+ 
+diff --git a/src/net/sockaddr_posix.go b/src/net/sockaddr_posix.go
+new file mode 100644
+index 0000000000..4b8699d1f5
+--- /dev/null
++++ b/src/net/sockaddr_posix.go
+@@ -0,0 +1,34 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
++
++package net
++
++import (
++	"syscall"
++)
++
++// A sockaddr represents a TCP, UDP, IP or Unix network endpoint
++// address that can be converted into a syscall.Sockaddr.
++type sockaddr interface {
++	Addr
++
++	// family returns the platform-dependent address family
++	// identifier.
++	family() int
++
++	// isWildcard reports whether the address is a wildcard
++	// address.
++	isWildcard() bool
++
++	// sockaddr returns the address converted into a syscall
++	// sockaddr type that implements syscall.Sockaddr
++	// interface. It returns a nil interface when the address is
++	// nil.
++	sockaddr(family int) (syscall.Sockaddr, error)
++
++	// toLocal maps the zero address to a local system address (127.0.0.1 or ::1)
++	toLocal(net string) sockaddr
++}
+diff --git a/src/net/sockopt_stub.go b/src/net/sockopt_stub.go
+index 7e9e560e05..bc0667504a 100644
+--- a/src/net/sockopt_stub.go
++++ b/src/net/sockopt_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl
++// +build nacl js,wasm
+ 
+ package net
+ 
+diff --git a/src/net/sockoptip_stub.go b/src/net/sockoptip_stub.go
+index fc20a9fc33..3297969314 100644
+--- a/src/net/sockoptip_stub.go
++++ b/src/net/sockoptip_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl
++// +build nacl js,wasm
+ 
+ package net
+ 
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index e6e7144f20..936a255b88 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/tcpsock_test.go b/src/net/tcpsock_test.go
+index b85ffa62e1..c2f26b1770 100644
+--- a/src/net/tcpsock_test.go
++++ b/src/net/tcpsock_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/tcpsock_unix_test.go b/src/net/tcpsock_unix_test.go
+index 8d8e4e8eb8..2bd591b594 100644
+--- a/src/net/tcpsock_unix_test.go
++++ b/src/net/tcpsock_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !plan9,!windows
++// +build !js,!plan9,!windows
+ 
+ package net
+ 
+diff --git a/src/net/tcpsockopt_stub.go b/src/net/tcpsockopt_stub.go
+index 19c83e6a5f..fd7f57923b 100644
+--- a/src/net/tcpsockopt_stub.go
++++ b/src/net/tcpsockopt_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl
++// +build nacl js,wasm
+ 
+ package net
+ 
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 0ecf5a6d25..7c7d0c8993 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index 8f4b71c01e..b0adf9585b 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index d34c545096..494064444e 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index 2495da1d25..b31ad49f25 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package net
+ 
+diff --git a/src/net/unixsock_test.go b/src/net/unixsock_test.go
+index 3e5c8bc376..4828990310 100644
+--- a/src/net/unixsock_test.go
++++ b/src/net/unixsock_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !nacl,!plan9,!windows
++// +build !js,!nacl,!plan9,!windows
+ 
+ package net
+ 
+diff --git a/src/net/writev_test.go b/src/net/writev_test.go
+index 4c05be473d..c43be84418 100644
+--- a/src/net/writev_test.go
++++ b/src/net/writev_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !js
++
+ package net
+ 
+ import (
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index efcd2b855c..c8fb95d3aa 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package runtime
+ 
+diff --git a/src/runtime/netpoll_nacl.go b/src/runtime/netpoll_fake.go
+similarity index 73%
+rename from src/runtime/netpoll_nacl.go
+rename to src/runtime/netpoll_fake.go
+index dc5a55ec84..aab18dc846 100644
+--- a/src/runtime/netpoll_nacl.go
++++ b/src/runtime/netpoll_fake.go
+@@ -2,8 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Fake network poller for NaCl.
+-// Should never be used, because NaCl network connections do not honor "SetNonblock".
++// Fake network poller for NaCl and wasm/js.
++// Should never be used, because NaCl and wasm/js network connections do not honor "SetNonblock".
++
++// +build nacl js,wasm
+ 
+ package runtime
+ 
+diff --git a/src/syscall/net_js.go b/src/syscall/net_js.go
+new file mode 100644
+index 0000000000..0149e2bfc5
+--- /dev/null
++++ b/src/syscall/net_js.go
+@@ -0,0 +1,121 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// js/wasm uses fake networking directly implemented in the net package.
++// This file only exists to make the compiler happy.
++
++// +build js,wasm
++
++package syscall
++
++const (
++	AF_UNSPEC = iota
++	AF_UNIX
++	AF_INET
++	AF_INET6
++)
++
++const (
++	SOCK_STREAM = 1 + iota
++	SOCK_DGRAM
++	SOCK_RAW
++	SOCK_SEQPACKET
++)
++
++const (
++	IPPROTO_IP   = 0
++	IPPROTO_IPV4 = 4
++	IPPROTO_IPV6 = 0x29
++	IPPROTO_TCP  = 6
++	IPPROTO_UDP  = 0x11
++)
++
++const (
++	_ = iota
++	IPV6_V6ONLY
++	SOMAXCONN
++	SO_ERROR
++)
++
++type Sockaddr interface {
++}
++
++type SockaddrInet4 struct {
++	Port int
++	Addr [4]byte
++}
++
++type SockaddrInet6 struct {
++	Port   int
++	ZoneId uint32
++	Addr   [16]byte
++}
++
++type SockaddrUnix struct {
++	Name string
++}
++
++func Socket(proto, sotype, unused int) (fd int, err error) {
++	return 0, ENOSYS
++}
++
++func Bind(fd int, sa Sockaddr) error {
++	return ENOSYS
++}
++
++func StopIO(fd int) error {
++	return ENOSYS
++}
++
++func Listen(fd int, backlog int) error {
++	return ENOSYS
++}
++
++func Accept(fd int) (newfd int, sa Sockaddr, err error) {
++	return 0, nil, ENOSYS
++}
++
++func Connect(fd int, sa Sockaddr) error {
++	return ENOSYS
++}
++
++func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
++	return 0, nil, ENOSYS
++}
++
++func Sendto(fd int, p []byte, flags int, to Sockaddr) error {
++	return ENOSYS
++}
++
++func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn, recvflags int, from Sockaddr, err error) {
++	return 0, 0, 0, nil, ENOSYS
++}
++
++func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
++	return 0, ENOSYS
++}
++
++func GetsockoptInt(fd, level, opt int) (value int, err error) {
++	return 0, ENOSYS
++}
++
++func SetsockoptInt(fd, level, opt int, value int) error {
++	return nil
++}
++
++func SetReadDeadline(fd int, t int64) error {
++	return ENOSYS
++}
++
++func SetWriteDeadline(fd int, t int64) error {
++	return ENOSYS
++}
++
++func Shutdown(fd int, how int) error {
++	return ENOSYS
++}
++
++func SetNonblock(fd int, nonblocking bool) error {
++	return nil
++}

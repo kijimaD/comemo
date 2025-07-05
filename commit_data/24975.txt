@@ -9,6 +9,20 @@ Date:   Sat Sep 12 14:45:58 2015 -0700
     Change-Id: I3a8caced71f12dfb6c1d0c68b7a7d8d7a736ea23
     Reviewed-on: https://go-review.googlesource.com/14536
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/deadstore.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 982bd7fa70..89f7504341 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -30,7 +30,7 @@ func dse(f *Func) {
+ 				for _, a := range v.Args {
+ 					if a.Block == b && a.Type.IsMemory() {
+ 						storeUse.add(a.ID)
+-						if v.Op != OpStore && v.Op != OpZero {
++						if v.Op != OpStore && v.Op != OpZero && v.Op != OpVarDef && v.Op != OpVarKill {
+ 							// CALL, DUFFCOPY, etc. are both
+ 							// reads and writes.
+ 							loadUse.add(a.ID)

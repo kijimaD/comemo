@@ -17,7 +17,46 @@ Date:   Fri Feb 9 13:49:21 2024 -0500
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/trace2.go    | 3 +++
  src/runtime/trace2cpu.go | 6 +++---
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/trace2.go b/src/runtime/trace2.go
+index d40596f39b..673205dda8 100644
+--- a/src/runtime/trace2.go
++++ b/src/runtime/trace2.go
+@@ -516,6 +516,9 @@ func traceAdvance(stopTrace bool) {
+ 	}
+ 	statusWriter.flush().end()
+ 
++	// Read everything out of the last gen's CPU profile buffer.
++	traceReadCPU(gen)
++
+ 	systemstack(func() {
+ 		// Flush CPU samples, stacks, and strings for the last generation. This is safe,
+ 		// because we're now certain no M is writing to the last generation.
+diff --git a/src/runtime/trace2cpu.go b/src/runtime/trace2cpu.go
+index 95c62c44b4..4635662c08 100644
+--- a/src/runtime/trace2cpu.go
++++ b/src/runtime/trace2cpu.go
+@@ -112,6 +112,9 @@ func traceStopReadCPU() {
+ //
+ // No more than one goroutine may be in traceReadCPU for the same
+ // profBuf at a time.
++//
++// Must not run on the system stack because profBuf.read performs race
++// operations.
+ func traceReadCPU(gen uintptr) bool {
+ 	var pcBuf [traceStackSize]uintptr
+ 
+@@ -198,9 +201,6 @@ func traceReadCPU(gen uintptr) bool {
+ //
+ //go:systemstack
+ func traceCPUFlush(gen uintptr) {
+-	// Read everything out of the last gen's CPU profile buffer.
+-	traceReadCPU(gen)
+-
+ 	// Flush any remaining trace buffers containing CPU samples.
+ 	if buf := trace.cpuBuf[gen%2]; buf != nil {
+ 		lock(&trace.lock)

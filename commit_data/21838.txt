@@ -24,10 +24,164 @@ Date:   Wed Feb 4 17:31:37 2015 -0800
     Change-Id: I292874324b9bbd9d24f57a390cfff8b550cdd53c
     Reviewed-on: https://go-review.googlesource.com/3955
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/gc/walk.c          |  1 +
  src/runtime/asm_386.s      | 10 +++-------
  src/runtime/asm_amd64.s    | 10 +++-------
  src/runtime/asm_amd64p32.s | 10 +++-------
  src/runtime/asm_arm.s      | 12 +++++-------
  5 files changed, 15 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index efb283a1b8..89c4658691 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1273,6 +1273,7 @@ walkexpr(Node **np, NodeList **init)
+ 				conv(n->right, types[TSTRING]));
+ 
+ 			// quick check of len before full compare for == or !=
++			// eqstring assumes that the lengths are equal
+ 			if(n->etype == OEQ) {
+ 				// len(left) == len(right) && eqstring(left, right)
+ 				r = nod(OANDAND, nod(OEQ, nod(OLEN, n->left, N), nod(OLEN, n->right, N)), r);
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 49bba32ebe..58a0d502bd 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1298,26 +1298,22 @@ eq:
+ 	RET
+ 
+ // eqstring tests whether two strings are equal.
++// The compiler guarantees that strings passed
++// to eqstring have equal length.
+ // See runtime_test.go:eqstring_generic for
+ // equivalent Go code.
+ TEXT runtime·eqstring(SB),NOSPLIT,$0-17
+-	MOVL	s1len+4(FP), AX
+-	MOVL	s2len+12(FP), BX
+-	CMPL	AX, BX
+-	JNE	different
+ 	MOVL	s1str+0(FP), SI
+ 	MOVL	s2str+8(FP), DI
+ 	CMPL	SI, DI
+ 	JEQ	same
++	MOVL	s1len+4(FP), BX
+ 	CALL	runtime·memeqbody(SB)
+ 	MOVB	AX, v+16(FP)
+ 	RET
+ same:
+ 	MOVB	$1, v+16(FP)
+ 	RET
+-different:
+-	MOVB	$0, v+16(FP)
+-	RET
+ 
+ TEXT bytes·Equal(SB),NOSPLIT,$0-25
+ 	MOVL	a_len+4(FP), BX
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index f09e5ae250..f6c1c5f6e6 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1262,26 +1262,22 @@ eq:
+ 	RET
+ 
+ // eqstring tests whether two strings are equal.
++// The compiler guarantees that strings passed
++// to eqstring have equal length.
+ // See runtime_test.go:eqstring_generic for
+ // equivalent Go code.
+ TEXT runtime·eqstring(SB),NOSPLIT,$0-33
+-	MOVQ	s1len+8(FP), AX
+-	MOVQ	s2len+24(FP), BX
+-	CMPQ	AX, BX
+-	JNE	noteq
+ 	MOVQ	s1str+0(FP), SI
+ 	MOVQ	s2str+16(FP), DI
+ 	CMPQ	SI, DI
+ 	JEQ	eq
++	MOVQ	s1len+8(FP), BX
+ 	CALL	runtime·memeqbody(SB)
+ 	MOVB	AX, v+32(FP)
+ 	RET
+ eq:
+ 	MOVB	$1, v+32(FP)
+ 	RET
+-noteq:
+-	MOVB	$0, v+32(FP)
+-	RET
+ 
+ // a in SI
+ // b in DI
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 77355bb998..f2324285a5 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -704,26 +704,22 @@ eq:
+ 	RET
+ 
+ // eqstring tests whether two strings are equal.
++// The compiler guarantees that strings passed
++// to eqstring have equal length.
+ // See runtime_test.go:eqstring_generic for
+ // equivalent Go code.
+ TEXT runtime·eqstring(SB),NOSPLIT,$0-17
+-	MOVL	s1len+4(FP), AX
+-	MOVL	s2len+12(FP), BX
+-	CMPL	AX, BX
+-	JNE	different
+ 	MOVL	s1str+0(FP), SI
+ 	MOVL	s2str+8(FP), DI
+ 	CMPL	SI, DI
+ 	JEQ	same
++	MOVL	s1len+4(FP), BX
+ 	CALL	runtime·memeqbody(SB)
+ 	MOVB	AX, v+16(FP)
+ 	RET
+ same:
+ 	MOVB	$1, v+16(FP)
+ 	RET
+-different:
+-	MOVB	$0, v+16(FP)
+-	RET
+ 
+ // a in SI
+ // b in DI
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index f3ce1a8f17..a7c6c20cfe 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -806,21 +806,18 @@ eq:
+ 	RET
+ 
+ // eqstring tests whether two strings are equal.
++// The compiler guarantees that strings passed
++// to eqstring have equal length.
+ // See runtime_test.go:eqstring_generic for
+ // equivalent Go code.
+ TEXT runtime·eqstring(SB),NOSPLIT,$-4-17
+-	MOVW	s1len+4(FP), R0
+-	MOVW	s2len+12(FP), R1
+-	MOVW	$0, R7
+-	CMP	R0, R1
+-	MOVB.NE R7, v+16(FP)
+-	RET.NE
+ 	MOVW	s1str+0(FP), R2
+ 	MOVW	s2str+8(FP), R3
+ 	MOVW	$1, R8
+ 	MOVB	R8, v+16(FP)
+ 	CMP	R2, R3
+ 	RET.EQ
++	MOVW	s1len+4(FP), R0
+ 	ADD	R2, R0, R6
+ loop:
+ 	CMP	R2, R6
+@@ -829,7 +826,8 @@ loop:
+ 	MOVBU.P	1(R3), R5
+ 	CMP	R4, R5
+ 	BEQ	loop
+-	MOVB	R7, v+16(FP)
++	MOVW	$0, R8
++	MOVB	R8, v+16(FP)
+ 	RET
+ 
+ // void setg_gcc(G*); set g called from gcc.

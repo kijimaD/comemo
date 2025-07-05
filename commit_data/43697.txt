@@ -41,8 +41,67 @@ Date:   Sun Apr 19 13:59:16 2020 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.15.html         | 12 ++++++++++++
  src/reflect/all_test.go |  4 ++--
  src/reflect/value.go    |  2 +-
  3 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index bb5628cb19..e2c90f5ad2 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -177,6 +177,18 @@ TODO
+   </dd>
+ </dl>
+ 
++<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
++  <dd>
++    <p><!-- CL 228902 -->
++      Package reflect now disallows accessing methods of all
++      non-exported fields, whereas previously it allowed accessing
++      those of non-exported, embedded fields. Code that relies on the
++      previous behavior should be updated to instead access the
++      corresponding promoted method of the enclosing variable.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+   <dd>
+     <p><!-- CL 221779 -->
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index cb0c8344f3..3129ff8e5d 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -3567,7 +3567,7 @@ func TestCallPanic(t *testing.T) {
+ 
+ 	i := timp(0)
+ 	v := ValueOf(T{i, i, i, i, T2{i, i}, i, i, T2{i, i}})
+-	ok(func() { call(v.Field(0).Method(0)) })               // .t0.W
++	badCall(func() { call(v.Field(0).Method(0)) })          // .t0.W
+ 	badCall(func() { call(v.Field(0).Elem().Method(0)) })   // .t0.W
+ 	badCall(func() { call(v.Field(0).Method(1)) })          // .t0.w
+ 	badMethod(func() { call(v.Field(0).Elem().Method(2)) }) // .t0.w
+@@ -3588,7 +3588,7 @@ func TestCallPanic(t *testing.T) {
+ 
+ 	ok(func() { call(v.Field(4).Field(0).Method(0)) })             // .NamedT2.T1.Y
+ 	ok(func() { call(v.Field(4).Field(0).Elem().Method(0)) })      // .NamedT2.T1.W
+-	ok(func() { call(v.Field(4).Field(1).Method(0)) })             // .NamedT2.t0.W
++	badCall(func() { call(v.Field(4).Field(1).Method(0)) })        // .NamedT2.t0.W
+ 	badCall(func() { call(v.Field(4).Field(1).Elem().Method(0)) }) // .NamedT2.t0.W
+ 
+ 	badCall(func() { call(v.Field(5).Method(0)) })          // .namedT0.W
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 57ac65e084..de6f22b5b3 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1315,7 +1315,7 @@ func (v Value) Method(i int) Value {
+ 	if v.typ.Kind() == Interface && v.IsNil() {
+ 		panic("reflect: Method on nil interface value")
+ 	}
+-	fl := v.flag & (flagStickyRO | flagIndir) // Clear flagEmbedRO
++	fl := v.flag.ro() | (v.flag & flagIndir)
+ 	fl |= flag(Func)
+ 	fl |= flag(i)<<flagMethodShift | flagMethod
+ 	return Value{v.typ, v.ptr, fl}

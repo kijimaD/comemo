@@ -11,9 +11,113 @@ Date:   Tue May 3 19:54:49 2016 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bytes/reader.go        |  3 ---
  src/bytes/reader_test.go   | 11 ++++++-----
  src/strings/reader.go      |  3 ---
  src/strings/reader_test.go |  9 +++++----
  4 files changed, 11 insertions(+), 15 deletions(-)
+
+diff --git a/src/bytes/reader.go b/src/bytes/reader.go
+index aa39890f3b..83826c80c4 100644
+--- a/src/bytes/reader.go
++++ b/src/bytes/reader.go
+@@ -36,9 +36,6 @@ func (r *Reader) Len() int {
+ func (r *Reader) Size() int64 { return int64(len(r.s)) }
+ 
+ func (r *Reader) Read(b []byte) (n int, err error) {
+-	if len(b) == 0 {
+-		return 0, nil
+-	}
+ 	if r.i >= int64(len(r.s)) {
+ 		return 0, io.EOF
+ 	}
+diff --git a/src/bytes/reader_test.go b/src/bytes/reader_test.go
+index 9341cd5b45..b5c7850618 100644
+--- a/src/bytes/reader_test.go
++++ b/src/bytes/reader_test.go
+@@ -21,14 +21,15 @@ func TestReader(t *testing.T) {
+ 		n       int
+ 		want    string
+ 		wantpos int64
++		readerr error
+ 		seekerr string
+ 	}{
+ 		{seek: io.SeekStart, off: 0, n: 20, want: "0123456789"},
+ 		{seek: io.SeekStart, off: 1, n: 1, want: "1"},
+ 		{seek: io.SeekCurrent, off: 1, wantpos: 3, n: 2, want: "34"},
+ 		{seek: io.SeekStart, off: -1, seekerr: "bytes.Reader.Seek: negative position"},
+-		{seek: io.SeekStart, off: 1 << 33, wantpos: 1 << 33},
+-		{seek: io.SeekCurrent, off: 1, wantpos: 1<<33 + 1},
++		{seek: io.SeekStart, off: 1 << 33, wantpos: 1 << 33, readerr: io.EOF},
++		{seek: io.SeekCurrent, off: 1, wantpos: 1<<33 + 1, readerr: io.EOF},
+ 		{seek: io.SeekStart, n: 5, want: "01234"},
+ 		{seek: io.SeekCurrent, n: 5, want: "56789"},
+ 		{seek: io.SeekEnd, off: -1, n: 1, wantpos: 9, want: "9"},
+@@ -49,8 +50,8 @@ func TestReader(t *testing.T) {
+ 		}
+ 		buf := make([]byte, tt.n)
+ 		n, err := r.Read(buf)
+-		if err != nil {
+-			t.Errorf("%d. read = %v", i, err)
++		if err != tt.readerr {
++			t.Errorf("%d. read = %v; want %v", i, err, tt.readerr)
+ 			continue
+ 		}
+ 		got := string(buf[:n])
+@@ -173,7 +174,7 @@ func TestReaderLen(t *testing.T) {
+ 		t.Errorf("r.Len(): got %d, want %d", got, want)
+ 	}
+ 	if n, err := r.Read(make([]byte, 1)); err != nil || n != 1 {
+-		t.Errorf("Read failed: read %d %v", n, err)
++		t.Errorf("Read failed: read %d %v; want 1, nil", n, err)
+ 	}
+ 	if got, want := r.Len(), 0; got != want {
+ 		t.Errorf("r.Len(): got %d, want %d", got, want)
+diff --git a/src/strings/reader.go b/src/strings/reader.go
+index 74eed4d574..e254837c63 100644
+--- a/src/strings/reader.go
++++ b/src/strings/reader.go
+@@ -35,9 +35,6 @@ func (r *Reader) Len() int {
+ func (r *Reader) Size() int64 { return int64(len(r.s)) }
+ 
+ func (r *Reader) Read(b []byte) (n int, err error) {
+-	if len(b) == 0 {
+-		return 0, nil
+-	}
+ 	if r.i >= int64(len(r.s)) {
+ 		return 0, io.EOF
+ 	}
+diff --git a/src/strings/reader_test.go b/src/strings/reader_test.go
+index 6e9d904b9d..bf40eb1a31 100644
+--- a/src/strings/reader_test.go
++++ b/src/strings/reader_test.go
+@@ -22,14 +22,15 @@ func TestReader(t *testing.T) {
+ 		n       int
+ 		want    string
+ 		wantpos int64
++		readerr error
+ 		seekerr string
+ 	}{
+ 		{seek: io.SeekStart, off: 0, n: 20, want: "0123456789"},
+ 		{seek: io.SeekStart, off: 1, n: 1, want: "1"},
+ 		{seek: io.SeekCurrent, off: 1, wantpos: 3, n: 2, want: "34"},
+ 		{seek: io.SeekStart, off: -1, seekerr: "strings.Reader.Seek: negative position"},
+-		{seek: io.SeekStart, off: 1 << 33, wantpos: 1 << 33},
+-		{seek: io.SeekCurrent, off: 1, wantpos: 1<<33 + 1},
++		{seek: io.SeekStart, off: 1 << 33, wantpos: 1 << 33, readerr: io.EOF},
++		{seek: io.SeekCurrent, off: 1, wantpos: 1<<33 + 1, readerr: io.EOF},
+ 		{seek: io.SeekStart, n: 5, want: "01234"},
+ 		{seek: io.SeekCurrent, n: 5, want: "56789"},
+ 		{seek: io.SeekEnd, off: -1, n: 1, wantpos: 9, want: "9"},
+@@ -50,8 +51,8 @@ func TestReader(t *testing.T) {
+ 		}
+ 		buf := make([]byte, tt.n)
+ 		n, err := r.Read(buf)
+-		if err != nil {
+-			t.Errorf("%d. read = %v", i, err)
++		if err != tt.readerr {
++			t.Errorf("%d. read = %v; want %v", i, err, tt.readerr)
+ 			continue
+ 		}
+ 		got := string(buf[:n])

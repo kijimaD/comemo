@@ -10,9 +10,122 @@ Date:   Tue Mar 6 23:35:31 2012 -0500
     R=golang-dev, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/5753067
-
+---
  src/pkg/net/dial_test.go    |  2 +-
  src/pkg/net/net_test.go     |  8 --------
  src/pkg/net/server_test.go  |  2 +-
  src/pkg/net/unicast_test.go | 14 +++++++-------
  4 files changed, 9 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index 5f5aea146a..3881953bb5 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -32,7 +32,7 @@ func TestDialTimeout(t *testing.T) {
+ 	numConns := listenerBacklog + 10
+ 
+ 	// TODO(bradfitz): It's hard to test this in a portable
+-	// way. This is unforunate, but works for now.
++	// way. This is unfortunate, but works for now.
+ 	switch runtime.GOOS {
+ 	case "linux":
+ 		// The kernel will start accepting TCP connections before userspace
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index d4409cc491..fd145e1d70 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -11,14 +11,6 @@ import (
+ 	"time"
+ )
+ 
+-// avoidOSXFirewallDialogPopup avoids OS X, former konwn as MacOS X,
+-// firewall dialog popups during tests.  It looks like OS X checks
+-// wildcard listens by default for security reasons.  A listen with
+-// specific address doesn't make dialog popups for now.
+-var avoidOSXFirewallDialogPopup = func() bool {
+-	return testing.Short() && runtime.GOOS == "darwin"
+-}
+-
+ func TestShutdown(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Logf("skipping test on %q", runtime.GOOS)
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index d5ea789880..158b9477d0 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -28,7 +28,7 @@ func skipServerTest(net, unixsotype, addr string, ipv6, ipv4map, linuxonly bool)
+ 	}
+ 	switch addr {
+ 	case "", "0.0.0.0", "[::ffff:0.0.0.0]", "[::]":
+-		if avoidOSXFirewallDialogPopup() {
++		if testing.Short() || !*testExternal {
+ 			return true
+ 		}
+ 	}
+diff --git a/src/pkg/net/unicast_test.go b/src/pkg/net/unicast_test.go
+index fc6089414d..8bfe2796e0 100644
+--- a/src/pkg/net/unicast_test.go
++++ b/src/pkg/net/unicast_test.go
+@@ -50,7 +50,7 @@ func TestTCPListener(t *testing.T) {
+ 	}
+ 
+ 	for _, tt := range listenerTests {
+-		if tt.wildcard && avoidOSXFirewallDialogPopup() {
++		if tt.wildcard && (testing.Short() || !*testExternal) {
+ 			continue
+ 		}
+ 		if tt.ipv6 && !supportsIPv6 {
+@@ -98,7 +98,7 @@ func TestUDPListener(t *testing.T) {
+ 	}
+ 
+ 	for _, tt := range listenerTests {
+-		if tt.wildcard && avoidOSXFirewallDialogPopup() {
++		if tt.wildcard && (testing.Short() || !*testExternal) {
+ 			continue
+ 		}
+ 		if tt.ipv6 && !supportsIPv6 {
+@@ -132,7 +132,7 @@ func TestSimpleTCPListener(t *testing.T) {
+ 	}
+ 
+ 	for _, tt := range listenerTests {
+-		if tt.wildcard && avoidOSXFirewallDialogPopup() {
++		if tt.wildcard && (testing.Short() || !*testExternal) {
+ 			continue
+ 		}
+ 		if tt.ipv6 {
+@@ -170,7 +170,7 @@ func TestSimpleUDPListener(t *testing.T) {
+ 	}
+ 
+ 	for _, tt := range listenerTests {
+-		if tt.wildcard && avoidOSXFirewallDialogPopup() {
++		if tt.wildcard && (testing.Short() || !*testExternal) {
+ 			continue
+ 		}
+ 		if tt.ipv6 {
+@@ -267,7 +267,7 @@ func TestDualStackTCPListener(t *testing.T) {
+ 	}
+ 
+ 	for _, tt := range dualStackListenerTests {
+-		if tt.wildcard && avoidOSXFirewallDialogPopup() {
++		if tt.wildcard && (testing.Short() || !*testExternal) {
+ 			continue
+ 		}
+ 		switch runtime.GOOS {
+@@ -316,7 +316,7 @@ func TestDualStackUDPListener(t *testing.T) {
+ 	}
+ 
+ 	for _, tt := range dualStackListenerTests {
+-		if tt.wildcard && avoidOSXFirewallDialogPopup() {
++		if tt.wildcard && (testing.Short() || !*testExternal) {
+ 			continue
+ 		}
+ 		tt.net1 = toudpnet(tt.net1)
+@@ -531,7 +531,7 @@ func TestProhibitionaryDialArgs(t *testing.T) {
+ 		return
+ 	}
+ 	// This test requires both IPv6 and IPv6 IPv4-mapping functionality.
+-	if !supportsIPv4map || avoidOSXFirewallDialogPopup() {
++	if !supportsIPv4map || testing.Short() || !*testExternal {
+ 		return
+ 	}
+ 

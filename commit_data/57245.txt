@@ -10,6 +10,19 @@ Date:   Wed Jun 7 12:04:44 2023 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/signal_unix.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index ae842e9f79..87cb662e41 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -768,6 +768,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 			raiseproc(_SIGQUIT)
+ 			usleep(5 * 1000 * 1000)
+ 		}
++		printDebugLog()
+ 		crash()
+ 	}
+ 

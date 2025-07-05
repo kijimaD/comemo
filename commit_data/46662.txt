@@ -15,9 +15,145 @@ Date:   Sat Jan 16 04:38:50 2021 +1100
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/os_openbsd.go          |  8 --------
  src/runtime/os_openbsd_syscall1.go | 15 ++++++++++++++
  src/runtime/sys_openbsd1.go        | 34 ++++++++++++++++++++++++++++++++
  src/runtime/sys_openbsd_amd64.s    | 40 +++++++++++++++++++++-----------------
  4 files changed, 71 insertions(+), 26 deletions(-)
+
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 61be627c27..56b686a2fa 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -46,14 +46,6 @@ func raiseproc(sig uint32)
+ func getthrid() int32
+ func thrkill(tid int32, sig int)
+ 
+-//go:noescape
+-func thrsleep(ident uintptr, clock_id int32, tsp *timespec, lock uintptr, abort *uint32) int32
+-
+-//go:noescape
+-func thrwakeup(ident uintptr, n int32) int32
+-
+-func osyield()
+-
+ func kqueue() int32
+ 
+ //go:noescape
+diff --git a/src/runtime/os_openbsd_syscall1.go b/src/runtime/os_openbsd_syscall1.go
+new file mode 100644
+index 0000000000..08928cfef4
+--- /dev/null
++++ b/src/runtime/os_openbsd_syscall1.go
+@@ -0,0 +1,15 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build openbsd,!amd64
++
++package runtime
++
++//go:noescape
++func thrsleep(ident uintptr, clock_id int32, tsp *timespec, lock uintptr, abort *uint32) int32
++
++//go:noescape
++func thrwakeup(ident uintptr, n int32) int32
++
++func osyield()
+diff --git a/src/runtime/sys_openbsd1.go b/src/runtime/sys_openbsd1.go
+new file mode 100644
+index 0000000000..a201a16c53
+--- /dev/null
++++ b/src/runtime/sys_openbsd1.go
+@@ -0,0 +1,34 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build openbsd,amd64
++
++package runtime
++
++import "unsafe"
++
++//go:nosplit
++//go:cgo_unsafe_args
++func thrsleep(ident uintptr, clock_id int32, tsp *timespec, lock uintptr, abort *uint32) int32 {
++	return libcCall(unsafe.Pointer(funcPC(thrsleep_trampoline)), unsafe.Pointer(&ident))
++}
++func thrsleep_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func thrwakeup(ident uintptr, n int32) int32 {
++	return libcCall(unsafe.Pointer(funcPC(thrwakeup_trampoline)), unsafe.Pointer(&ident))
++}
++func thrwakeup_trampoline()
++
++func osyield() {
++	libcCall(unsafe.Pointer(funcPC(sched_yield_trampoline)), unsafe.Pointer(nil))
++}
++func sched_yield_trampoline()
++
++//go:cgo_import_dynamic libc_thrsleep __thrsleep "libc.so"
++//go:cgo_import_dynamic libc_thrwakeup __thrwakeup "libc.so"
++//go:cgo_import_dynamic libc_sched_yield sched_yield "libc.so"
++
++//go:cgo_import_dynamic _ _ "libc.so"
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index 455234d7cd..ac0ae27e45 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -168,28 +168,32 @@ TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·osyield(SB),NOSPLIT,$0
+-	MOVL	$298, AX		// sys_sched_yield
+-	SYSCALL
++TEXT runtime·thrsleep_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVL	8(DI), SI		// arg 2 - clock_id
++	MOVQ	16(DI), DX		// arg 3 - abstime
++	MOVQ	24(DI), CX		// arg 3 - lock
++	MOVQ	32(DI), R8		// arg 4 - abort
++	MOVQ	0(DI), DI		// arg 1 - id
++	CALL	libc_thrsleep(SB)
++	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·thrsleep(SB),NOSPLIT,$0
+-	MOVQ	ident+0(FP), DI		// arg 1 - ident
+-	MOVL	clock_id+8(FP), SI		// arg 2 - clock_id
+-	MOVQ	tsp+16(FP), DX		// arg 3 - tp
+-	MOVQ	lock+24(FP), R10		// arg 4 - lock
+-	MOVQ	abort+32(FP), R8		// arg 5 - abort
+-	MOVL	$94, AX			// sys___thrsleep
+-	SYSCALL
+-	MOVL	AX, ret+40(FP)
++TEXT runtime·thrwakeup_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVL	8(DI), SI		// arg 2 - count
++	MOVQ	0(DI), DI		// arg 1 - id
++	CALL	libc_thrwakeup(SB)
++	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·thrwakeup(SB),NOSPLIT,$0
+-	MOVQ	ident+0(FP), DI		// arg 1 - ident
+-	MOVL	n+8(FP), SI		// arg 2 - n
+-	MOVL	$301, AX		// sys___thrwakeup
+-	SYSCALL
+-	MOVL	AX, ret+16(FP)
++TEXT runtime·sched_yield_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	CALL	libc_sched_yield(SB)
++	POPQ	BP
+ 	RET
+ 
+ // Exit the entire program (like C exit)

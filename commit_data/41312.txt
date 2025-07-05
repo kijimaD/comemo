@@ -35,10 +35,147 @@ Date:   Thu Aug 1 15:39:40 2019 -0700
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go       |  8 +++++---
  src/cmd/gofmt/testdata/issue28082.golden | 13 +++++++++++++
  src/cmd/gofmt/testdata/issue28082.input  | 13 +++++++++++++
  src/go/printer/nodes.go                  | 27 ++++++++++++++++-----------
  src/strings/strings_test.go              | 10 ++++++----
  5 files changed, 53 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index cb6b571f83..e7a2def950 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -275,9 +275,11 @@ func (o fmtOpTypeId) Format(s fmt.State, verb rune)     { Op(o).format(s, verb,
+ func (o fmtOpTypeIdName) Format(s fmt.State, verb rune) { Op(o).format(s, verb, FTypeIdName) }
+ func (o Op) Format(s fmt.State, verb rune)              { o.format(s, verb, FErr) }
+ 
+-func (t *fmtTypeErr) Format(s fmt.State, verb rune)    { typeFormat((*types.Type)(t), s, verb, FErr) }
+-func (t *fmtTypeDbg) Format(s fmt.State, verb rune)    { typeFormat((*types.Type)(t), s, verb, FDbg) }
+-func (t *fmtTypeTypeId) Format(s fmt.State, verb rune) { typeFormat((*types.Type)(t), s, verb, FTypeId) }
++func (t *fmtTypeErr) Format(s fmt.State, verb rune) { typeFormat((*types.Type)(t), s, verb, FErr) }
++func (t *fmtTypeDbg) Format(s fmt.State, verb rune) { typeFormat((*types.Type)(t), s, verb, FDbg) }
++func (t *fmtTypeTypeId) Format(s fmt.State, verb rune) {
++	typeFormat((*types.Type)(t), s, verb, FTypeId)
++}
+ func (t *fmtTypeTypeIdName) Format(s fmt.State, verb rune) {
+ 	typeFormat((*types.Type)(t), s, verb, FTypeIdName)
+ }
+diff --git a/src/cmd/gofmt/testdata/issue28082.golden b/src/cmd/gofmt/testdata/issue28082.golden
+new file mode 100644
+index 0000000000..5837fd5291
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/issue28082.golden
+@@ -0,0 +1,13 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// testcase for issue #28082
++
++func foo() {}
++
++func main() {}
++
++func bar() {}
+diff --git a/src/cmd/gofmt/testdata/issue28082.input b/src/cmd/gofmt/testdata/issue28082.input
+new file mode 100644
+index 0000000000..ab7d2186ce
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/issue28082.input
+@@ -0,0 +1,13 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// testcase for issue #28082
++
++func foo(                                                                                                ) {}
++
++func main(                                                                                                      ) {}
++
++func bar() {}
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 44ec7f8665..e4cb58a87f 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -794,8 +794,11 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 		p.print(x)
+ 
+ 	case *ast.FuncLit:
+-		p.expr(x.Type)
+-		p.funcBody(p.distanceFrom(x.Type.Pos()), blank, x.Body)
++		p.print(x.Type.Pos(), token.FUNC)
++		// See the comment in funcDecl about how the header size is computed.
++		startCol := p.out.Column - len("func")
++		p.signature(x.Type.Params, x.Type.Results)
++		p.funcBody(p.distanceFrom(x.Type.Pos(), startCol), blank, x.Body)
+ 
+ 	case *ast.ParenExpr:
+ 		if _, hasParens := x.X.(*ast.ParenExpr); hasParens {
+@@ -1689,14 +1692,12 @@ func (p *printer) funcBody(headerSize int, sep whiteSpace, b *ast.BlockStmt) {
+ 	p.block(b, 1)
+ }
+ 
+-// distanceFrom returns the column difference between from and p.pos (the current
+-// estimated position) if both are on the same line; if they are on different lines
+-// (or unknown) the result is infinity.
+-func (p *printer) distanceFrom(from token.Pos) int {
+-	if from.IsValid() && p.pos.IsValid() {
+-		if f := p.posFor(from); f.Line == p.pos.Line {
+-			return p.pos.Column - f.Column
+-		}
++// distanceFrom returns the column difference between p.out (the current output
++// position) and startOutCol. If the start position is on a different line from
++// the current position (or either is unknown), the result is infinity.
++func (p *printer) distanceFrom(startPos token.Pos, startOutCol int) int {
++	if startPos.IsValid() && p.pos.IsValid() && p.posFor(startPos).Line == p.pos.Line {
++		return p.out.Column - startOutCol
+ 	}
+ 	return infinity
+ }
+@@ -1704,13 +1705,17 @@ func (p *printer) distanceFrom(from token.Pos) int {
+ func (p *printer) funcDecl(d *ast.FuncDecl) {
+ 	p.setComment(d.Doc)
+ 	p.print(d.Pos(), token.FUNC, blank)
++	// We have to save startCol only after emitting FUNC; otherwise it can be on a
++	// different line (all whitespace preceding the FUNC is emitted only when the
++	// FUNC is emitted).
++	startCol := p.out.Column - len("func ")
+ 	if d.Recv != nil {
+ 		p.parameters(d.Recv) // method: print receiver
+ 		p.print(blank)
+ 	}
+ 	p.expr(d.Name)
+ 	p.signature(d.Type.Params, d.Type.Results)
+-	p.funcBody(p.distanceFrom(d.Pos()), vtab, d.Body)
++	p.funcBody(p.distanceFrom(d.Pos(), startCol), vtab, d.Body)
+ }
+ 
+ func (p *printer) decl(decl ast.Decl) {
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index fb736b29d3..ad14a0574a 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -194,10 +194,12 @@ func runIndexTests(t *testing.T, f func(s, sep string) int, funcName string, tes
+ 	}
+ }
+ 
+-func TestIndex(t *testing.T)        { runIndexTests(t, Index, "Index", indexTests) }
+-func TestLastIndex(t *testing.T)    { runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
+-func TestIndexAny(t *testing.T)     { runIndexTests(t, IndexAny, "IndexAny", indexAnyTests) }
+-func TestLastIndexAny(t *testing.T) { runIndexTests(t, LastIndexAny, "LastIndexAny", lastIndexAnyTests) }
++func TestIndex(t *testing.T)     { runIndexTests(t, Index, "Index", indexTests) }
++func TestLastIndex(t *testing.T) { runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
++func TestIndexAny(t *testing.T)  { runIndexTests(t, IndexAny, "IndexAny", indexAnyTests) }
++func TestLastIndexAny(t *testing.T) {
++	runIndexTests(t, LastIndexAny, "LastIndexAny", lastIndexAnyTests)
++}
+ 
+ func TestIndexByte(t *testing.T) {
+ 	for _, tt := range indexTests {

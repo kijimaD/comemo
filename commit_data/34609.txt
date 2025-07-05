@@ -16,9 +16,158 @@ Date:   Wed Nov 1 17:38:07 2017 -0700
     Change-Id: I532369dc91c6adca1502d6aa456bb06b57e6c7ff
     Reviewed-on: https://go-review.googlesource.com/75310
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/align.go     |  1 +
  src/cmd/compile/internal/gc/main.go      |  2 ++
  src/cmd/compile/internal/gc/typecheck.go | 47 +++++++-------------------------
  test/fixedbugs/issue21273.go             | 28 +++++++++++++++++++
  4 files changed, 41 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 285d31dc6c..dc2d04a8ed 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -291,6 +291,7 @@ func dowidth(t *types.Type) {
+ 
+ 	case TFORW: // should have been filled in
+ 		if !t.Broke() {
++			t.SetBroke(true)
+ 			yyerror("invalid recursive type %v", t)
+ 		}
+ 		w = 1 // anything will do
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 553b7907ca..6f633a494f 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -513,6 +513,8 @@ func Main(archInit func(*Arch)) {
+ 			fcount++
+ 		}
+ 	}
++	// With all types ckecked, it's now safe to verify map keys.
++	checkMapKeys()
+ 	timings.AddEvent(fcount, "funcs")
+ 
+ 	// Phase 4: Decide how to capture closed variables.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 11da26f3bd..67bb00b8b6 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -7,7 +7,6 @@ package gc
+ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/objabi"
+-	"cmd/internal/src"
+ 	"fmt"
+ 	"math"
+ 	"strings"
+@@ -420,18 +419,7 @@ func typecheck1(n *Node, top int) *Node {
+ 		}
+ 		n.Op = OTYPE
+ 		n.Type = types.NewMap(l.Type, r.Type)
+-
+-		// map key validation
+-		alg, bad := algtype1(l.Type)
+-		if alg == ANOEQ {
+-			if bad.Etype == TFORW {
+-				// queue check for map until all the types are done settling.
+-				mapqueue = append(mapqueue, mapqueueval{l, n.Pos})
+-			} else if bad.Etype != TANY {
+-				// no need to queue, key is already bad
+-				yyerror("invalid map key type %v", l.Type)
+-			}
+-		}
++		mapqueue = append(mapqueue, n) // check map keys when all types are settled
+ 		n.Left = nil
+ 		n.Right = nil
+ 
+@@ -3496,16 +3484,18 @@ func stringtoarraylit(n *Node) *Node {
+ 	return nn
+ }
+ 
+-var ntypecheckdeftype int
++var mapqueue []*Node
+ 
+-type mapqueueval struct {
+-	n   *Node
+-	lno src.XPos
++func checkMapKeys() {
++	for _, n := range mapqueue {
++		k := n.Type.MapType().Key
++		if !k.Broke() && !IsComparable(k) {
++			yyerrorl(n.Pos, "invalid map key type %v", k)
++		}
++	}
++	mapqueue = nil
+ }
+ 
+-// tracks the line numbers at which forward types are first used as map keys
+-var mapqueue []mapqueueval
+-
+ func copytype(n *Node, t *types.Type) {
+ 	if t.Etype == TFORW {
+ 		// This type isn't computed yet; when it is, update n.
+@@ -3565,7 +3555,6 @@ func copytype(n *Node, t *types.Type) {
+ }
+ 
+ func typecheckdeftype(n *Node) {
+-	ntypecheckdeftype++
+ 	lno := lineno
+ 	setlineno(n)
+ 	n.Type.Sym = n.Sym
+@@ -3584,22 +3573,6 @@ func typecheckdeftype(n *Node) {
+ 	}
+ 
+ 	lineno = lno
+-
+-	// if there are no type definitions going on, it's safe to
+-	// try to validate the map key types for the interfaces
+-	// we just read.
+-	if ntypecheckdeftype == 1 {
+-		for _, e := range mapqueue {
+-			lineno = e.lno
+-			if !IsComparable(e.n.Type) {
+-				yyerror("invalid map key type %v", e.n.Type)
+-			}
+-		}
+-		mapqueue = nil
+-		lineno = lno
+-	}
+-
+-	ntypecheckdeftype--
+ }
+ 
+ func typecheckdef(n *Node) {
+diff --git a/test/fixedbugs/issue21273.go b/test/fixedbugs/issue21273.go
+new file mode 100644
+index 0000000000..7a790d14b5
+--- /dev/null
++++ b/test/fixedbugs/issue21273.go
+@@ -0,0 +1,28 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T0 T0 // ERROR "invalid recursive type"
++type _ map[T0]int
++
++type T1 struct{ T1 } // ERROR "invalid recursive type"
++type _ map[T1]int
++
++func f() {
++	type T2 T2 // ERROR "invalid recursive type"
++	type _ map[T2]int
++}
++
++func g() {
++	type T3 struct{ T3 } // ERROR "invalid recursive type"
++	type _ map[T3]int
++}
++
++func h() {
++	type T4 struct{ m map[T4]int } // ERROR "invalid map key"
++	type _ map[T4]int              // ERROR "invalid map key"
++}

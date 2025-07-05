@@ -17,8 +17,126 @@ Date:   Fri Jun 24 15:28:58 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go |  4 ++++
  src/reflect/type.go                    | 31 +++++--------------------------
  src/runtime/type.go                    | 24 +++---------------------
  3 files changed, 12 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index f1a7d3bc86..cff1acc343 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -799,6 +799,7 @@ func typeptrdata(t *Type) int64 {
+ const (
+ 	tflagUncommon  = 1 << 0
+ 	tflagExtraStar = 1 << 1
++	tflagNamed     = 1 << 2
+ )
+ 
+ var dcommontype_algarray *Sym
+@@ -852,6 +853,9 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	if uncommonSize(t) != 0 {
+ 		tflag |= tflagUncommon
+ 	}
++	if t.Sym != nil && t.Sym.Name != "" {
++		tflag |= tflagNamed
++	}
+ 
+ 	exported := false
+ 	p := Tconv(t, FmtLeft|FmtUnsigned)
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 1c30608cef..5b800fc341 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -268,6 +268,9 @@ const (
+ 	// a program, the type *T also exists and reusing the str data
+ 	// saves binary size.
+ 	tflagExtraStar tflag = 1 << 1
++
++	// tflagNamed means the type has a name.
++	tflagNamed tflag = 1 << 2
+ )
+ 
+ // rtype is the common implementation of most values.
+@@ -893,34 +896,10 @@ func hasPrefix(s, prefix string) bool {
+ }
+ 
+ func (t *rtype) Name() string {
+-	s := t.String()
+-	switch s[0] {
+-	case 'm':
+-		if hasPrefix(s, "map[") {
+-			return ""
+-		}
+-	case 's':
+-		if hasPrefix(s, "struct {") {
+-			return ""
+-		}
+-	case 'c':
+-		if hasPrefix(s, "chan ") {
+-			return ""
+-		}
+-		if hasPrefix(s, "chan<-") {
+-			return ""
+-		}
+-	case 'f':
+-		if hasPrefix(s, "func(") {
+-			return ""
+-		}
+-	case 'i':
+-		if hasPrefix(s, "interface {") {
+-			return ""
+-		}
+-	case '[', '*', '<':
++	if t.tflag&tflagNamed == 0 {
+ 		return ""
+ 	}
++	s := t.String()
+ 	i := len(s) - 1
+ 	for i >= 0 {
+ 		if s[i] == '.' {
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 5ae5c73a22..49d3855e4d 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -19,6 +19,7 @@ type tflag uint8
+ const (
+ 	tflagUncommon  tflag = 1 << 0
+ 	tflagExtraStar tflag = 1 << 1
++	tflagNamed     tflag = 1 << 2
+ )
+ 
+ // Needs to be in sync with ../cmd/compile/internal/ld/decodesym.go:/^func.commonsize,
+@@ -116,29 +117,10 @@ func hasPrefix(s, prefix string) bool {
+ }
+ 
+ func (t *_type) name() string {
+-	s := t.string()
+-	if hasPrefix(s, "map[") {
+-		return ""
+-	}
+-	if hasPrefix(s, "struct {") {
+-		return ""
+-	}
+-	if hasPrefix(s, "chan ") {
+-		return ""
+-	}
+-	if hasPrefix(s, "chan<-") {
+-		return ""
+-	}
+-	if hasPrefix(s, "func(") {
+-		return ""
+-	}
+-	if hasPrefix(s, "interface {") {
+-		return ""
+-	}
+-	switch s[0] {
+-	case '[', '*', '<':
++	if t.tflag&tflagNamed == 0 {
+ 		return ""
+ 	}
++	s := t.string()
+ 	i := len(s) - 1
+ 	for i >= 0 {
+ 		if s[i] == '.' {

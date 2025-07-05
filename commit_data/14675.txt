@@ -20,7 +20,7 @@ Date:   Mon Dec 17 14:32:26 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6938073
-
+---
  src/cmd/5g/gsubr.c | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/6g/gsubr.c | 38 +++++++++++++++++++++++++++++++++++
  src/cmd/8g/gsubr.c | 38 +++++++++++++++++++++++++++++++++++
@@ -28,3 +28,217 @@ Date:   Mon Dec 17 14:32:26 2012 -0500
  src/cmd/gc/lex.c   |  1 +
  src/cmd/gc/pgen.c  |  3 +++
  6 files changed, 140 insertions(+)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index f023b269c8..3d1c68f804 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -174,6 +174,64 @@ newplist(void)
+ 	return pl;
+ }
+ 
++void
++clearstk(void)
++{
++	Plist *pl;
++	Prog *p, *p1, *p2, *p3;
++	Node dst, end, zero, con;
++
++	if(plast->firstpc->to.offset <= 0)
++		return;
++
++	// reestablish context for inserting code
++	// at beginning of function.
++	pl = plast;
++	p1 = pl->firstpc;
++	p2 = p1->link;
++	pc = mal(sizeof(*pc));
++	clearp(pc);
++	p1->link = pc;
++	
++	// zero stack frame
++
++	// MOVW $4(SP), R1
++	nodreg(&dst, types[tptr], 1);
++	p = gins(AMOVW, N, &dst);
++	p->from.type = D_CONST;
++	p->from.reg = REGSP;
++	p->from.offset = 4;
++
++	// MOVW $n(R1), R2
++	nodreg(&end, types[tptr], 2);
++	p = gins(AMOVW, N, &end);
++	p->from.type = D_CONST;
++	p->from.reg = 1;
++	p->from.offset = p1->to.offset;
++	
++	// MOVW $0, R3
++	nodreg(&zero, types[TUINT32], 3);
++	nodconst(&con, types[TUINT32], 0);
++	gmove(&con, &zero);
++
++	// L:
++	//	MOVW.P R3, 0(R1) +4
++	//	CMP R1, R2
++	//	BNE L
++	p = gins(AMOVW, &zero, &dst);
++	p->to.type = D_OREG;
++	p->to.offset = 4;
++	p->scond |= C_PBIT;
++	p3 = p;
++	p = gins(ACMP, &dst, N);
++	raddr(&end, p);
++	patch(gbranch(ABNE, T, 0), p3);
++
++	// continue with original code.
++	gins(ANOP, N, N)->link = p2;
++	pc = P;
++}	
++
+ void
+ gused(Node *n)
+ {
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 65d5ad786f..cdc5fdae2e 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -172,6 +172,44 @@ newplist(void)
+ 	return pl;
+ }
+ 
++void
++clearstk(void)
++{
++	Plist *pl;
++	Prog *p1, *p2;
++	Node sp, di, cx, con, ax;
++
++	if((uint32)plast->firstpc->to.offset <= 0)
++		return;
++
++	// reestablish context for inserting code
++	// at beginning of function.
++	pl = plast;
++	p1 = pl->firstpc;
++	p2 = p1->link;
++	pc = mal(sizeof(*pc));
++	clearp(pc);
++	p1->link = pc;
++	
++	// zero stack frame
++	nodreg(&sp, types[tptr], D_SP);
++	nodreg(&di, types[tptr], D_DI);
++	nodreg(&cx, types[TUINT64], D_CX);
++	nodconst(&con, types[TUINT64], (uint32)p1->to.offset / widthptr);
++	gins(ACLD, N, N);
++	gins(AMOVQ, &sp, &di);
++	gins(AMOVQ, &con, &cx);
++	nodconst(&con, types[TUINT64], 0);
++	nodreg(&ax, types[TUINT64], D_AX);
++	gins(AMOVQ, &con, &ax);
++	gins(AREP, N, N);
++	gins(ASTOSQ, N, N);
++
++	// continue with original code.
++	gins(ANOP, N, N)->link = p2;
++	pc = P;
++}	
++
+ void
+ gused(Node *n)
+ {
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index dbea45a201..93cea21469 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -173,6 +173,44 @@ newplist(void)
+ 	return pl;
+ }
+ 
++void
++clearstk(void)
++{
++	Plist *pl;
++	Prog *p1, *p2;
++	Node sp, di, cx, con, ax;
++
++	if(plast->firstpc->to.offset <= 0)
++		return;
++
++	// reestablish context for inserting code
++	// at beginning of function.
++	pl = plast;
++	p1 = pl->firstpc;
++	p2 = p1->link;
++	pc = mal(sizeof(*pc));
++	clearp(pc);
++	p1->link = pc;
++	
++	// zero stack frame
++	nodreg(&sp, types[tptr], D_SP);
++	nodreg(&di, types[tptr], D_DI);
++	nodreg(&cx, types[TUINT32], D_CX);
++	nodconst(&con, types[TUINT32], p1->to.offset / widthptr);
++	gins(ACLD, N, N);
++	gins(AMOVL, &sp, &di);
++	gins(AMOVL, &con, &cx);
++	nodconst(&con, types[TUINT32], 0);
++	nodreg(&ax, types[TUINT32], D_AX);
++	gins(AMOVL, &con, &ax);
++	gins(AREP, N, N);
++	gins(ASTOSL, N, N);
++
++	// continue with original code.
++	gins(ANOP, N, N)->link = p2;
++	pc = P;
++}	
++
+ void
+ gused(Node *n)
+ {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 36bc4b2954..42319578a8 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -937,6 +937,7 @@ EXTERN	int	funcdepth;
+ EXTERN	int	typecheckok;
+ EXTERN	int	compiling_runtime;
+ EXTERN	int	compiling_wrappers;
++EXTERN	int	zerostack_enabled;
+ 
+ EXTERN	int	nointerface;
+ EXTERN	int	fieldtrack_enabled;
+@@ -1092,6 +1093,7 @@ void	genlist(NodeList *l);
+ Node*	sysfunc(char *name);
+ void	tempname(Node *n, Type *t);
+ Node*	temp(Type*);
++void	clearstk(void);
+ 
+ /*
+  *	init.c
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index eabeaeb646..8d6487dea7 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -41,6 +41,7 @@ static struct {
+ } exper[] = {
+ //	{"rune32", &rune32},
+ 	{"fieldtrack", &fieldtrack_enabled},
++	{"zerostack", &zerostack_enabled},
+ 	{nil, nil},
+ };
+ 
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 7be254fff1..e2cad14398 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -141,6 +141,9 @@ compile(Node *fn)
+ 	if(0)
+ 		frame(0);
+ 
++	if(zerostack_enabled)
++		clearstk();
++
+ ret:
+ 	lineno = lno;
+ }

@@ -7,6 +7,19 @@ Date:   Wed Mar 2 15:29:13 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4188043
-
+---
  src/pkg/runtime/mfinal.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+index 6501813fb6..f3138145b4 100644
+--- a/src/pkg/runtime/mfinal.c
++++ b/src/pkg/runtime/mfinal.c
+@@ -92,7 +92,6 @@ runtime·addfinalizer(void *p, void (*f)(void*), int32 nret)
+ {
+ 	Fintab newtab;
+ 	int32 i;
+-	uint32 *ref;
+ 	byte *base;
+ 	Finalizer *e;
+ 	

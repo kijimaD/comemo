@@ -16,7 +16,35 @@ Date:   Mon Jun 4 15:12:45 2018 -0400
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/constant/value_test.go | 1 +
  src/strconv/quote.go          | 4 ++++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/go/constant/value_test.go b/src/go/constant/value_test.go
+index 5ec4f4c418..e6fca76e18 100644
+--- a/src/go/constant/value_test.go
++++ b/src/go/constant/value_test.go
+@@ -431,6 +431,7 @@ func TestUnknown(t *testing.T) {
+ 		MakeBool(false), // token.ADD ok below, operation is never considered
+ 		MakeString(""),
+ 		MakeInt64(1),
++		MakeFromLiteral("''", token.CHAR, 0),
+ 		MakeFromLiteral("-1234567890123456789012345678901234567890", token.INT, 0),
+ 		MakeFloat64(1.2),
+ 		MakeImag(MakeFloat64(1.2)),
+diff --git a/src/strconv/quote.go b/src/strconv/quote.go
+index d514b5f552..9b7194a0f0 100644
+--- a/src/strconv/quote.go
++++ b/src/strconv/quote.go
+@@ -237,6 +237,10 @@ func unhex(b byte) (v rune, ok bool) {
+ // If set to zero, it does not permit either escape and allows both quote characters to appear unescaped.
+ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string, err error) {
+ 	// easy cases
++	if len(s) == 0 {
++		err = ErrSyntax
++		return
++	}
+ 	switch c := s[0]; {
+ 	case c == quote && (quote == '\'' || quote == '"'):
+ 		err = ErrSyntax

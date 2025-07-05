@@ -12,8 +12,65 @@ Date:   Tue May 14 09:30:13 2013 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/9269043
-
+---
  src/pkg/go/parser/parser.go       | 2 +-
  src/pkg/go/token/position.go      | 6 +++++-
  src/pkg/go/token/position_test.go | 8 +++++++-
  3 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index f4a690a6f2..db27a25b83 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -64,7 +64,7 @@ type parser struct {
+ }
+ 
+ func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mode) {
+-	p.file = fset.AddFile(filename, fset.Base(), len(src))
++	p.file = fset.AddFile(filename, -1, len(src))
+ 	var m scanner.Mode
+ 	if mode&ParseComments != 0 {
+ 		m = scanner.ScanComments
+diff --git a/src/pkg/go/token/position.go b/src/pkg/go/token/position.go
+index f5d9995618..c9acab1d44 100644
+--- a/src/pkg/go/token/position.go
++++ b/src/pkg/go/token/position.go
+@@ -314,7 +314,8 @@ func (s *FileSet) Base() int {
+ // AddFile adds a new file with a given filename, base offset, and file size
+ // to the file set s and returns the file. Multiple files may have the same
+ // name. The base offset must not be smaller than the FileSet's Base(), and
+-// size must not be negative.
++// size must not be negative. As a special case, if a negative base is provided,
++// the current value of the FileSet's Base() is used instead.
+ //
+ // Adding the file will set the file set's Base() value to base + size + 1
+ // as the minimum base value for the next file. The following relationship
+@@ -329,6 +330,9 @@ func (s *FileSet) Base() int {
+ func (s *FileSet) AddFile(filename string, base, size int) *File {
+ 	s.mutex.Lock()
+ 	defer s.mutex.Unlock()
++	if base < 0 {
++		base = s.base
++	}
+ 	if base < s.base || size < 0 {
+ 		panic("illegal base or size")
+ 	}
+diff --git a/src/pkg/go/token/position_test.go b/src/pkg/go/token/position_test.go
+index 1d36c22268..ef6cfd93c2 100644
+--- a/src/pkg/go/token/position_test.go
++++ b/src/pkg/go/token/position_test.go
+@@ -167,7 +167,13 @@ func TestLineInfo(t *testing.T) {
+ func TestFiles(t *testing.T) {
+ 	fset := NewFileSet()
+ 	for i, test := range tests {
+-		fset.AddFile(test.filename, fset.Base(), test.size)
++		base := fset.Base()
++		if i%2 == 1 {
++			// Setting a negative base is equivalent to
++			// fset.Base(), so test some of each.
++			base = -1
++		}
++		fset.AddFile(test.filename, base, test.size)
+ 		j := 0
+ 		fset.Iterate(func(f *File) bool {
+ 			if f.Name() != tests[j].filename {

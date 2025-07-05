@@ -8,10 +8,165 @@ Date:   Sun Jul 27 13:09:15 2008 -0700
     DELTA=18  (6 added, 1 deleted, 11 changed)
     OCL=13504
     CL=13504
-
+---
  src/cmd/6g/gen.c    |  1 -
  src/cmd/gc/const.c  |  3 +++
  src/cmd/gc/export.c | 22 +++++++++++-----------
  src/cmd/gc/go.y     |  2 +-
  src/cmd/gc/lex.c    |  3 +++
  5 files changed, 18 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index dfc343d158..7925c5352a 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -382,7 +382,6 @@ agen_inter(Node *n, Node *res)
+ 		if(!n->left->addable) {
+ 			agen(n->left, &nodr);
+ 			gmove(&nodr, &nodo);
+-			dump("xxx", n->left);
+ 			fatal("agen_inter i2s");
+ 		} else {
+ 			cgen(n->left, &nodo);
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 1d8b921c65..36d7b4936a 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -191,6 +191,9 @@ evconst(Node *n)
+ 	case TUP(OAND, Wlitint):
+ 		nl->val.vval &= nr->val.vval;
+ 		break;
++	case TUP(OXOR, Wlitint):
++		nl->val.vval ^= nr->val.vval;
++		break;
+ 
+ 	case TUP(OADD, Wlitfloat):
+ 		nl->val.dval += nr->val.dval;
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index c8bfe8c605..2a898f6607 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -49,7 +49,7 @@ reexport(Type *t)
+ 	Sym *s;
+ 
+ 	if(t == T)
+-		fatal("reexport: type nil\n");
++		fatal("reexport: type nil");
+ 
+ 	s = t->sym;
+ 	if(s == S/* || s->name[0] == '_'*/) {
+@@ -75,7 +75,7 @@ dumpexportconst(Sym *s)
+ 
+ 	n = s->oconst;
+ 	if(n == N || n->op != OLITERAL)
+-		fatal("dumpexportconst: oconst nil: %S\n", s);
++		fatal("dumpexportconst: oconst nil: %S", s);
+ 
+ 	t = n->type;	// may or may not be specified
+ 	if(t != T)
+@@ -90,7 +90,7 @@ dumpexportconst(Sym *s)
+ 
+ 	switch(n->val.ctype) {
+ 	default:
+-		fatal("dumpexportconst: unknown ctype: %S\n", s);
++		fatal("dumpexportconst: unknown ctype: %S", s);
+ 	case CTINT:
+ 	case CTSINT:
+ 	case CTUINT:
+@@ -149,13 +149,13 @@ dumpexporttype(Sym *s)
+ 	}
+ 
+ 	if(t->sym != s)
+-		fatal("dumpexporttype: cross reference: %S\n", s);
++		fatal("dumpexporttype: cross reference: %S", s);
+ 
+ 	et = t->etype;
+ 	switch(et) {
+ 	default:
+ 		if(et < 0 || et >= nelem(types) || types[et] == T)
+-			fatal("dumpexporttype: basic type: %S %E\n", s, et);
++			fatal("dumpexporttype: basic type: %S %E", s, et);
+ 		/* type 5 */
+ 		Bprint(bout, "\ttype %lS %d\n", s, et);
+ 		break;
+@@ -184,7 +184,7 @@ dumpexporttype(Sym *s)
+ 	case TFUNC:
+ 		for(f=t->type; f!=T; f=f->down) {
+ 			if(f->etype != TSTRUCT)
+-				fatal("dumpexporttype: funct not field: %T\n", f);
++				fatal("dumpexporttype: funct not field: %T", f);
+ 			reexport(f);
+ 		}
+ 
+@@ -205,7 +205,7 @@ dumpexporttype(Sym *s)
+ 	case TINTER:
+ 		for(f=t->type; f!=T; f=f->down) {
+ 			if(f->etype != TFIELD)
+-				fatal("dumpexporttype: funct not field: %lT\n", f);
++				fatal("dumpexporttype: funct not field: %lT", f);
+ 			reexport(f->type);
+ 		}
+ 
+@@ -316,7 +316,7 @@ getimportsym(Node *ss)
+ 	Sym *s;
+ 
+ 	if(ss->op != OIMPORT)
+-		fatal("getimportsym: oops1 %N\n", ss);
++		fatal("getimportsym: oops1 %N", ss);
+ 
+ 	pkg = ss->psym->name;
+ 	s = pkglookup(ss->sym->name, pkg);
+@@ -333,7 +333,7 @@ importlooktype(Node *n)
+ 
+ 	s = getimportsym(n);
+ 	if(s->otype == T)
+-		fatal("importlooktype: oops2 %S\n", s);
++		fatal("importlooktype: oops2 %S", s);
+ 	return s->otype;
+ }
+ 
+@@ -392,7 +392,7 @@ importfuncnam(Type *t)
+ 	Type *t1;
+ 
+ 	if(t->etype != TFUNC)
+-		fatal("importfuncnam: not func %T\n", t);
++		fatal("importfuncnam: not func %T", t);
+ 
+ 	if(t->thistuple > 0) {
+ 		t1 = t->type;
+@@ -591,7 +591,7 @@ doimport5(Node *ss, Val *v)
+ 
+ 	et = v->vval;
+ 	if(et <= 0 || et >= nelem(types) || types[et] == T)
+-		fatal("doimport5: bad type index: %E\n", et);
++		fatal("doimport5: bad type index: %E", et);
+ 
+ 	t = typ(et);
+ 	t->sym = S;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 769c95333f..0983ce9eb7 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -762,7 +762,7 @@ pexpr:
+  * from other packages
+  */
+ lpack:
+-	LPACK 
++	LPACK
+ 	{
+ 		context = $1->name;
+ 	}
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index b12ab05d68..a70186892c 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -93,6 +93,9 @@ mainlex(int argc, char *argv[])
+ 
+ 	dumpobj();
+ 
++	if(nerrors)
++		errorexit();
++
+ 	myexit(0);
+ 	return 0;
+ 

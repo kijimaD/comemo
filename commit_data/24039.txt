@@ -9,7 +9,54 @@ Date:   Mon Jun 29 16:22:54 2015 +1000
     Change-Id: Idad570a7e55ad903aab55372d390bc746c4e19cf
     Reviewed-on: https://go-review.googlesource.com/11661
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/compress/lzw/reader.go      | 2 ++
  src/compress/lzw/reader_test.go | 9 ++++++++-
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/compress/lzw/reader.go b/src/compress/lzw/reader.go
+index 28e9f7514f..1353831eca 100644
+--- a/src/compress/lzw/reader.go
++++ b/src/compress/lzw/reader.go
+@@ -139,6 +139,7 @@ func (d *decoder) decode() {
+ 				err = io.ErrUnexpectedEOF
+ 			}
+ 			d.err = err
++			d.flush()
+ 			return
+ 		}
+ 		switch {
+@@ -190,6 +191,7 @@ func (d *decoder) decode() {
+ 			}
+ 		default:
+ 			d.err = errors.New("lzw: invalid code")
++			d.flush()
+ 			return
+ 		}
+ 		d.last, d.hi = code, d.hi+1
+diff --git a/src/compress/lzw/reader_test.go b/src/compress/lzw/reader_test.go
+index 9006c91c23..c3a5c3a0aa 100644
+--- a/src/compress/lzw/reader_test.go
++++ b/src/compress/lzw/reader_test.go
+@@ -98,13 +98,20 @@ func TestReader(t *testing.T) {
+ 		defer rc.Close()
+ 		b.Reset()
+ 		n, err := io.Copy(&b, rc)
++		s := b.String()
+ 		if err != nil {
+ 			if err != tt.err {
+ 				t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err)
+ 			}
++			if err == io.ErrUnexpectedEOF {
++				// Even if the input is truncated, we should still return the
++				// partial decoded result.
++				if n == 0 || !strings.HasPrefix(tt.raw, s) {
++					t.Errorf("got %d bytes (%q), want a non-empty prefix of %q", n, s, tt.raw)
++				}
++			}
+ 			continue
+ 		}
+-		s := b.String()
+ 		if s != tt.raw {
+ 			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.desc, n, s, len(tt.raw), tt.raw)
+ 		}

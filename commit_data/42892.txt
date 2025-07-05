@@ -11,7 +11,53 @@ Date:   Thu Jan 23 14:28:40 2020 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/dec64.rules |  2 +-
  src/cmd/compile/internal/ssa/rewritedec64.go | 14 ++------------
  2 files changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/dec64.rules b/src/cmd/compile/internal/ssa/gen/dec64.rules
+index 874ee47154..edbe72189e 100644
+--- a/src/cmd/compile/internal/ssa/gen/dec64.rules
++++ b/src/cmd/compile/internal/ssa/gen/dec64.rules
+@@ -110,7 +110,7 @@
+ // Sadly, just because we know that x is non-zero,
+ // we don't know whether either component is,
+ // so just treat Ctz64NonZero the same as Ctz64.
+-(Ctz64NonZero x) -> (Ctz64 x)
++(Ctz64NonZero ...) -> (Ctz64 ...)
+ 
+ (Ctz64 x) ->
+ 	(Add32 <typ.UInt32>
+diff --git a/src/cmd/compile/internal/ssa/rewritedec64.go b/src/cmd/compile/internal/ssa/rewritedec64.go
+index 9059904d54..ae6d19142f 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec64.go
++++ b/src/cmd/compile/internal/ssa/rewritedec64.go
+@@ -24,7 +24,8 @@ func rewriteValuedec64(v *Value) bool {
+ 	case OpCtz64:
+ 		return rewriteValuedec64_OpCtz64(v)
+ 	case OpCtz64NonZero:
+-		return rewriteValuedec64_OpCtz64NonZero(v)
++		v.Op = OpCtz64
++		return true
+ 	case OpEq64:
+ 		return rewriteValuedec64_OpEq64(v)
+ 	case OpGeq64:
+@@ -431,17 +432,6 @@ func rewriteValuedec64_OpCtz64(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValuedec64_OpCtz64NonZero(v *Value) bool {
+-	v_0 := v.Args[0]
+-	// match: (Ctz64NonZero x)
+-	// result: (Ctz64 x)
+-	for {
+-		x := v_0
+-		v.reset(OpCtz64)
+-		v.AddArg(x)
+-		return true
+-	}
+-}
+ func rewriteValuedec64_OpEq64(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]

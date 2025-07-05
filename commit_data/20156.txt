@@ -9,7 +9,32 @@ Date:   Thu Aug 21 10:15:19 2014 -0700
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/126500044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 893c7945f3..fe0bdf9895 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -260,6 +260,7 @@ Luke Curley <qpingu@gmail.com>
+ Manuel Mendez <mmendez534@gmail.com>
+ Marc Weistroff <marc@weistroff.net>
+ Marco Hennings <marco.hennings@freiheit.com>
++Mark Theunissen <mark.theunissen@gmail.com>
+ Marko Juhani Silokunnas <marko.silokunnas@gmail.com>
+ Marko Tiikkaja <marko@joh.to>
+ Markover Inc. DBA Poptip
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 8ccecfee5d..b6b8d03a11 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -371,6 +371,7 @@ Manuel Mendez <mmendez534@gmail.com>
+ Marc Weistroff <marc@weistroff.net>
+ Marcel van Lohuizen <mpvl@golang.org>
+ Marco Hennings <marco.hennings@freiheit.com>
++Mark Theunissen <mark.theunissen@gmail.com>
+ Mark Zavislak <zavislak@google.com>
+ Marko Juhani Silokunnas <marko.silokunnas@gmail.com>
+ Marko Mikulicic <mkm@google.com>

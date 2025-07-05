@@ -25,7 +25,7 @@ Date:   Sun Aug 28 17:04:46 2016 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/gsubr.go  | 2 +-
  src/cmd/compile/internal/amd64/peep.go   | 2 +-
  src/cmd/compile/internal/amd64/reg.go    | 2 +-
@@ -102,3 +102,859 @@ Date:   Sun Aug 28 17:04:46 2016 -0700
  src/runtime/vlop_arm.s                   | 2 +-
  src/runtime/vlrt.go                      | 2 +-
  75 files changed, 83 insertions(+), 83 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/gsubr.go b/src/cmd/compile/internal/amd64/gsubr.go
+index 5d9070ca13..bab611347d 100644
+--- a/src/cmd/compile/internal/amd64/gsubr.go
++++ b/src/cmd/compile/internal/amd64/gsubr.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/txt.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/txt.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/txt.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/amd64/peep.go b/src/cmd/compile/internal/amd64/peep.go
+index 4ae5fcef8b..d74f670c5d 100644
+--- a/src/cmd/compile/internal/amd64/peep.go
++++ b/src/cmd/compile/internal/amd64/peep.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/peep.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/peep.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/peep.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/amd64/reg.go b/src/cmd/compile/internal/amd64/reg.go
+index 77720c855f..361b1e2d6c 100644
+--- a/src/cmd/compile/internal/amd64/reg.go
++++ b/src/cmd/compile/internal/amd64/reg.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/reg.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/reg.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/reg.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/arm/gsubr.go b/src/cmd/compile/internal/arm/gsubr.go
+index b5d7bc05c4..1a7ebbc0b1 100644
+--- a/src/cmd/compile/internal/arm/gsubr.go
++++ b/src/cmd/compile/internal/arm/gsubr.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/5c/txt.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5c/txt.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5c/txt.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/arm/peep.go b/src/cmd/compile/internal/arm/peep.go
+index 2c5896c2f7..12678dfebf 100644
+--- a/src/cmd/compile/internal/arm/peep.go
++++ b/src/cmd/compile/internal/arm/peep.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5c/peep.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5c/peep.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5c/peep.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/arm/reg.go b/src/cmd/compile/internal/arm/reg.go
+index 2313bc4eb9..729cab4b8d 100644
+--- a/src/cmd/compile/internal/arm/reg.go
++++ b/src/cmd/compile/internal/arm/reg.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5c/reg.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5c/reg.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5c/reg.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/arm64/gsubr.go b/src/cmd/compile/internal/arm64/gsubr.go
+index ddf2ed969d..2dcde169a0 100644
+--- a/src/cmd/compile/internal/arm64/gsubr.go
++++ b/src/cmd/compile/internal/arm64/gsubr.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/txt.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/txt.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/txt.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/arm64/peep.go b/src/cmd/compile/internal/arm64/peep.go
+index 9f07ae1479..6e0b527208 100644
+--- a/src/cmd/compile/internal/arm64/peep.go
++++ b/src/cmd/compile/internal/arm64/peep.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/peep.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/peep.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/peep.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/arm64/reg.go b/src/cmd/compile/internal/arm64/reg.go
+index 6e24dc2d5d..dfbbff5ff1 100644
+--- a/src/cmd/compile/internal/arm64/reg.go
++++ b/src/cmd/compile/internal/arm64/reg.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/reg.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/reg.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/reg.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 98cd03f656..92892ac1e0 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/txt.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/txt.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/txt.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/gc/popt.go b/src/cmd/compile/internal/gc/popt.go
+index 8e2a7ba446..d7a0c36206 100644
+--- a/src/cmd/compile/internal/gc/popt.go
++++ b/src/cmd/compile/internal/gc/popt.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/gc.h
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/gc.h
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/gc.h
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/gc/reg.go b/src/cmd/compile/internal/gc/reg.go
+index a80d72b9b8..ab45fe07c0 100644
+--- a/src/cmd/compile/internal/gc/reg.go
++++ b/src/cmd/compile/internal/gc/reg.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/reg.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/reg.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/reg.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/mips64/gsubr.go b/src/cmd/compile/internal/mips64/gsubr.go
+index eb56d8b82e..a667747bdd 100644
+--- a/src/cmd/compile/internal/mips64/gsubr.go
++++ b/src/cmd/compile/internal/mips64/gsubr.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/txt.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/txt.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/txt.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/mips64/peep.go b/src/cmd/compile/internal/mips64/peep.go
+index f6717e60f9..ce639ac9a6 100644
+--- a/src/cmd/compile/internal/mips64/peep.go
++++ b/src/cmd/compile/internal/mips64/peep.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/peep.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/peep.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/peep.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/mips64/reg.go b/src/cmd/compile/internal/mips64/reg.go
+index 2d2a77367d..0efa159218 100644
+--- a/src/cmd/compile/internal/mips64/reg.go
++++ b/src/cmd/compile/internal/mips64/reg.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/reg.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/reg.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/reg.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+index f875999718..8140d397c7 100644
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/txt.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/txt.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/txt.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/ppc64/peep.go b/src/cmd/compile/internal/ppc64/peep.go
+index 4b2b985d91..ebdcc03292 100644
+--- a/src/cmd/compile/internal/ppc64/peep.go
++++ b/src/cmd/compile/internal/ppc64/peep.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/peep.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/peep.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/peep.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/ppc64/reg.go b/src/cmd/compile/internal/ppc64/reg.go
+index 215c9b5cd6..d93eb5c080 100644
+--- a/src/cmd/compile/internal/ppc64/reg.go
++++ b/src/cmd/compile/internal/ppc64/reg.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/reg.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/reg.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/reg.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/s390x/gsubr.go b/src/cmd/compile/internal/s390x/gsubr.go
+index 7760812206..0da4e73a9e 100644
+--- a/src/cmd/compile/internal/s390x/gsubr.go
++++ b/src/cmd/compile/internal/s390x/gsubr.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/txt.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/txt.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/txt.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/s390x/peep.go b/src/cmd/compile/internal/s390x/peep.go
+index aca8218988..6400f6104a 100644
+--- a/src/cmd/compile/internal/s390x/peep.go
++++ b/src/cmd/compile/internal/s390x/peep.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/peep.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/peep.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/peep.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/s390x/reg.go b/src/cmd/compile/internal/s390x/reg.go
+index 4cb8a9da05..b42314d9f4 100644
+--- a/src/cmd/compile/internal/s390x/reg.go
++++ b/src/cmd/compile/internal/s390x/reg.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/reg.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/reg.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/reg.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/x86/gsubr.go b/src/cmd/compile/internal/x86/gsubr.go
+index 6406326b60..2fb45a7d07 100644
+--- a/src/cmd/compile/internal/x86/gsubr.go
++++ b/src/cmd/compile/internal/x86/gsubr.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/8c/txt.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/8c/txt.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/8c/txt.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/x86/peep.go b/src/cmd/compile/internal/x86/peep.go
+index e70c10f267..6a07fe24cd 100644
+--- a/src/cmd/compile/internal/x86/peep.go
++++ b/src/cmd/compile/internal/x86/peep.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/peep.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/peep.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/peep.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/compile/internal/x86/reg.go b/src/cmd/compile/internal/x86/reg.go
+index cc94d728b4..2d7bd221ad 100644
+--- a/src/cmd/compile/internal/x86/reg.go
++++ b/src/cmd/compile/internal/x86/reg.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6c/reg.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/reg.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/reg.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/arm/a.out.go b/src/cmd/internal/obj/arm/a.out.go
+index 9fcc483b9a..ad19f2d312 100644
+--- a/src/cmd/internal/obj/arm/a.out.go
++++ b/src/cmd/internal/obj/arm/a.out.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5c/5.out.h
+-// http://code.google.com/p/inferno-os/source/browse/utils/5c/5.out.h
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5c/5.out.h
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 02f2c57d05..2b561c4dd9 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/span.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/span.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/span.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/arm/list5.go b/src/cmd/internal/obj/arm/list5.go
+index a0c210e3ba..c25a8b7f08 100644
+--- a/src/cmd/internal/obj/arm/list5.go
++++ b/src/cmd/internal/obj/arm/list5.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5c/list.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5c/list.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5c/list.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index c4af78fe34..4ffe3c6138 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/5c/swt.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5c/swt.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5c/swt.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 29530fa2b0..0ccb053fdc 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -1,6 +1,6 @@
+ // Derived from Inferno utils/6l/obj.c and utils/6l/span.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/span.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/ld.go b/src/cmd/internal/obj/ld.go
+index 81a16d1a9b..54fde2f203 100644
+--- a/src/cmd/internal/obj/ld.go
++++ b/src/cmd/internal/obj/ld.go
+@@ -1,6 +1,6 @@
+ // Derived from Inferno utils/6l/obj.c and utils/6l/span.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/span.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index ed82e175fd..eaf33651d8 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6l/l.h and related files.
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/l.h
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/pass.go b/src/cmd/internal/obj/pass.go
+index ffbff746dd..1d2f74b9fe 100644
+--- a/src/cmd/internal/obj/pass.go
++++ b/src/cmd/internal/obj/pass.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/6l/pass.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/pass.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/pass.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index e974ca8c8a..d5f08f8cc0 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -1,6 +1,6 @@
+ // Derived from Inferno utils/6l/obj.c and utils/6l/span.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/span.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index ab1dabc2b8..9e7bbe4900 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/6c/6.out.h
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/6.out.h
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/6.out.h
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index d94bd60e8d..5d6a9d8c5a 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/6l/span.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/span.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/x86/list6.go b/src/cmd/internal/obj/x86/list6.go
+index fa9ddca7d2..a1a49ed39a 100644
+--- a/src/cmd/internal/obj/x86/list6.go
++++ b/src/cmd/internal/obj/x86/list6.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/6c/list.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/list.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/list.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 5e432774a7..5cd06c093f 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/6l/pass.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/pass.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/pass.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index ded3664328..69a3f50d61 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/6l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/asm.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/asm.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/amd64/l.go b/src/cmd/link/internal/amd64/l.go
+index 05f7fa36e4..2024f162be 100644
+--- a/src/cmd/link/internal/amd64/l.go
++++ b/src/cmd/link/internal/amd64/l.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/6l/l.h
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/l.h
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 5c1fafd56f..8a3bb1361e 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/6l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/obj.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 06a6d2d17d..8a2aa99f4e 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/arm/l.go b/src/cmd/link/internal/arm/l.go
+index 63b1165687..91718de545 100644
+--- a/src/cmd/link/internal/arm/l.go
++++ b/src/cmd/link/internal/arm/l.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+@@ -33,7 +33,7 @@ package arm
+ // Writing object files.
+ 
+ // Inferno utils/5l/l.h
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/l.h
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/l.h
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index 7af55f89c0..64c88934f1 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/obj.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/obj.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 9ec2224a65..fa3050b74b 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/arm64/l.go b/src/cmd/link/internal/arm64/l.go
+index cbee2a3d87..b0ece1670f 100644
+--- a/src/cmd/link/internal/arm64/l.go
++++ b/src/cmd/link/internal/arm64/l.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 8ee7dae459..18147a2923 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/obj.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/obj.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index ad517d6387..282630b87e 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/include/ar.h
+-// http://code.google.com/p/inferno-os/source/browse/utils/include/ar.h
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/include/ar.h
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index fdf99d602b..9c0daa1f3f 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1,6 +1,6 @@
+ // Derived from Inferno utils/6l/obj.c and utils/6l/span.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/span.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index f6ae51f733..aa08cbdbcb 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -1,6 +1,6 @@
+ // Derived from Inferno utils/6l/obj.c and utils/6l/span.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/span.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 3033258e77..9f906080e9 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/8l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/8l/asm.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/8l/asm.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+@@ -54,7 +54,7 @@ import (
+ // Data layout and relocation.
+ 
+ // Derived from Inferno utils/6l/l.h
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/l.h
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index c24bc198f0..07ef86edf8 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -1,5 +1,5 @@
+ // Derived from Inferno utils/6l/l.h and related files.
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/l.h
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 9c9bdb4b7f..b05afb6188 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/6l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/obj.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 163d5b07a6..8efa7f15d4 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -1,6 +1,6 @@
+ // Derived from Inferno utils/6l/obj.c and utils/6l/span.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/span.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 6a2ccd5d0b..4c969687b6 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/6l/span.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/span.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 81017319c7..5ff4125f4f 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/mips64/l.go b/src/cmd/link/internal/mips64/l.go
+index e3f4fb30c8..edf7170363 100644
+--- a/src/cmd/link/internal/mips64/l.go
++++ b/src/cmd/link/internal/mips64/l.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index d2b200dbe0..523db6c9a6 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/obj.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/obj.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index afbfca10d1..34ac6b46e0 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/ppc64/l.go b/src/cmd/link/internal/ppc64/l.go
+index 2e5c235661..64b05e035c 100644
+--- a/src/cmd/link/internal/ppc64/l.go
++++ b/src/cmd/link/internal/ppc64/l.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index e3bb1505f7..d17bc6ce58 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/obj.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/obj.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 1d36685853..cebcc75e35 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/s390x/l.go b/src/cmd/link/internal/s390x/l.go
+index 7c92bdb6d6..401dbbad4a 100644
+--- a/src/cmd/link/internal/s390x/l.go
++++ b/src/cmd/link/internal/s390x/l.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index 2a3d0fcb26..09b9710da9 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/5l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/obj.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/obj.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index d04e82447a..cc55c2101a 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/8l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/8l/asm.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/8l/asm.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/x86/l.go b/src/cmd/link/internal/x86/l.go
+index 065508eca3..80df96bece 100644
+--- a/src/cmd/link/internal/x86/l.go
++++ b/src/cmd/link/internal/x86/l.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/8l/l.h
+-// http://code.google.com/p/inferno-os/source/browse/utils/8l/l.h
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/8l/l.h
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index f5722780b7..48335d82f7 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -1,5 +1,5 @@
+ // Inferno utils/8l/obj.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/8l/obj.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/8l/obj.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+diff --git a/src/runtime/memclr_arm.s b/src/runtime/memclr_arm.s
+index c9b8586eae..6ad70fbfc0 100644
+--- a/src/runtime/memclr_arm.s
++++ b/src/runtime/memclr_arm.s
+@@ -1,5 +1,5 @@
+ // Inferno's libkern/memset-arm.s
+-// http://code.google.com/p/inferno-os/source/browse/libkern/memset-arm.s
++// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/memset-arm.s
+ //
+ //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
+ //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
+diff --git a/src/runtime/memmove_386.s b/src/runtime/memmove_386.s
+index 52b35a6ac7..b712ea182a 100644
+--- a/src/runtime/memmove_386.s
++++ b/src/runtime/memmove_386.s
+@@ -1,5 +1,5 @@
+ // Inferno's libkern/memmove-386.s
+-// http://code.google.com/p/inferno-os/source/browse/libkern/memmove-386.s
++// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/memmove-386.s
+ //
+ //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
+ //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index 39b4c3a2bb..5d23ce3e6c 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -1,5 +1,5 @@
+ // Derived from Inferno's libkern/memmove-386.s (adapted for amd64)
+-// http://code.google.com/p/inferno-os/source/browse/libkern/memmove-386.s
++// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/memmove-386.s
+ //
+ //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
+ //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
+diff --git a/src/runtime/memmove_arm.s b/src/runtime/memmove_arm.s
+index 6b880d5e6d..504ae04c13 100644
+--- a/src/runtime/memmove_arm.s
++++ b/src/runtime/memmove_arm.s
+@@ -1,5 +1,5 @@
+ // Inferno's libkern/memmove-arm.s
+-// http://code.google.com/p/inferno-os/source/browse/libkern/memmove-arm.s
++// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/memmove-arm.s
+ //
+ //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
+ //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
+diff --git a/src/runtime/memmove_plan9_386.s b/src/runtime/memmove_plan9_386.s
+index c4d62ec946..29d44b2f33 100644
+--- a/src/runtime/memmove_plan9_386.s
++++ b/src/runtime/memmove_plan9_386.s
+@@ -1,5 +1,5 @@
+ // Inferno's libkern/memmove-386.s
+-// http://code.google.com/p/inferno-os/source/browse/libkern/memmove-386.s
++// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/memmove-386.s
+ //
+ //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
+ //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
+diff --git a/src/runtime/memmove_plan9_amd64.s b/src/runtime/memmove_plan9_amd64.s
+index 9bef31d43e..a5e8dfa571 100644
+--- a/src/runtime/memmove_plan9_amd64.s
++++ b/src/runtime/memmove_plan9_amd64.s
+@@ -1,5 +1,5 @@
+ // Derived from Inferno's libkern/memmove-386.s (adapted for amd64)
+-// http://code.google.com/p/inferno-os/source/browse/libkern/memmove-386.s
++// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/memmove-386.s
+ //
+ //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
+ //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
+diff --git a/src/runtime/vlop_386.s b/src/runtime/vlop_386.s
+index 0a84bde55b..3387c519c8 100644
+--- a/src/runtime/vlop_386.s
++++ b/src/runtime/vlop_386.s
+@@ -1,5 +1,5 @@
+ // Inferno's libkern/vlop-386.s
+-// http://code.google.com/p/inferno-os/source/browse/libkern/vlop-386.s
++// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/vlop-386.s
+ //
+ //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
+ //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
+diff --git a/src/runtime/vlop_arm.s b/src/runtime/vlop_arm.s
+index 338d9d5d09..1eb23f005c 100644
+--- a/src/runtime/vlop_arm.s
++++ b/src/runtime/vlop_arm.s
+@@ -1,5 +1,5 @@
+ // Inferno's libkern/vlop-arm.s
+-// http://code.google.com/p/inferno-os/source/browse/libkern/vlop-arm.s
++// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/vlop-arm.s
+ //
+ //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
+ //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
+diff --git a/src/runtime/vlrt.go b/src/runtime/vlrt.go
+index 7300f55dad..f60457d084 100644
+--- a/src/runtime/vlrt.go
++++ b/src/runtime/vlrt.go
+@@ -1,5 +1,5 @@
+ // Inferno's libkern/vlrt-arm.c
+-// http://code.google.com/p/inferno-os/source/browse/libkern/vlrt-arm.c
++// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/vlrt-arm.c
+ //
+ //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
+ //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.

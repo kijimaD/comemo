@@ -15,8 +15,86 @@ Date:   Wed Oct 21 07:11:01 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/16161
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/link/doc.go              |  2 ++
  src/cmd/link/internal/ld/lib.go  | 13 +++++++++++++
  src/cmd/link/internal/ld/pobj.go |  1 +
  3 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/link/doc.go b/src/cmd/link/doc.go
+index 479988e8b1..6a16080f35 100644
+--- a/src/cmd/link/doc.go
++++ b/src/cmd/link/doc.go
+@@ -72,6 +72,8 @@ Flags:
+ 		Write memory profile to file.
+ 	-memprofilerate rate
+ 		Set runtime.MemProfileRate to rate.
++	-msan
++		Link with C/C++ memory sanitizer support.
+ 	-o file
+ 		Write output to file (default a.out, or a.out.exe on Windows).
+ 	-r dir1:dir2:...
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 5977bee7f1..9bcfcbf922 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -198,6 +198,7 @@ var (
+ 	elfglobalsymndx    int
+ 	flag_installsuffix string
+ 	flag_race          int
++	flag_msan          int
+ 	Buildmode          BuildMode
+ 	Linkshared         bool
+ 	tracksym           string
+@@ -373,6 +374,9 @@ func libinit() {
+ 	} else if flag_race != 0 {
+ 		suffixsep = "_"
+ 		suffix = "race"
++	} else if flag_msan != 0 {
++		suffixsep = "_"
++		suffix = "msan"
+ 	}
+ 
+ 	Lflag(fmt.Sprintf("%s/pkg/%s_%s%s%s", goroot, goos, goarch, suffixsep, suffix))
+@@ -483,6 +487,9 @@ func loadlib() {
+ 	if flag_race != 0 {
+ 		loadinternal("runtime/race")
+ 	}
++	if flag_msan != 0 {
++		loadinternal("runtime/msan")
++	}
+ 
+ 	var i int
+ 	for i = 0; i < len(Ctxt.Library); i++ {
+@@ -517,6 +524,11 @@ func loadlib() {
+ 		if (Thearch.Thechar == '5' || Thearch.Thechar == '7') && HEADTYPE == obj.Hdarwin && iscgo {
+ 			Linkmode = LinkExternal
+ 		}
++
++		// Force external linking for msan.
++		if flag_msan != 0 {
++			Linkmode = LinkExternal
++		}
+ 	}
+ 
+ 	// cmd/7l doesn't support cgo internal linking
+@@ -797,6 +809,7 @@ var internalpkg = []string{
+ 	"os/user",
+ 	"runtime/cgo",
+ 	"runtime/race",
++	"runtime/msan",
+ }
+ 
+ func ldhostobj(ld func(*obj.Biobuf, string, int64, string), f *obj.Biobuf, pkg string, length int64, pn string, file string) {
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+index f6c47ddc32..5ba5a68d74 100644
+--- a/src/cmd/link/internal/ld/pobj.go
++++ b/src/cmd/link/internal/ld/pobj.go
+@@ -98,6 +98,7 @@ func Ldmain() {
+ 	obj.Flagstr("k", "set field tracking `symbol`", &tracksym)
+ 	obj.Flagfn1("linkmode", "set link `mode` (internal, external, auto)", setlinkmode)
+ 	flag.BoolVar(&Linkshared, "linkshared", false, "link against installed Go shared libraries")
++	obj.Flagcount("msan", "enable MSan interface", &flag_msan)
+ 	obj.Flagcount("n", "dump symbol table", &Debug['n'])
+ 	obj.Flagstr("o", "write output to `file`", &outfile)
+ 	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")

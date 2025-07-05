@@ -38,7 +38,106 @@ Date:   Mon Jun 27 21:37:19 2016 -0400
     Change-Id: I4e0cc1cc2d271d47d5127b1ee1ca926faf34cabf
     Reviewed-on: https://go-review.googlesource.com/24510
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/type.go | 18 +++++-------------
  src/runtime/type.go | 41 +++++++++++++++++++----------------------
  2 files changed, 24 insertions(+), 35 deletions(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 5b800fc341..bedfba45b1 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -466,15 +466,13 @@ func (n name) tagLen() int {
+ 
+ func (n name) name() (s string) {
+ 	if n.bytes == nil {
+-		return ""
+-	}
+-	nl := n.nameLen()
+-	if nl == 0 {
+-		return ""
++		return
+ 	}
++	b := (*[4]byte)(unsafe.Pointer(n.bytes))
++
+ 	hdr := (*stringHeader)(unsafe.Pointer(&s))
+-	hdr.Data = unsafe.Pointer(n.data(3))
+-	hdr.Len = nl
++	hdr.Data = unsafe.Pointer(&b[3])
++	hdr.Len = int(b[1])<<8 | int(b[2])
+ 	return s
+ }
+ 
+@@ -662,16 +660,10 @@ type typeOff int32 // offset to an *rtype
+ type textOff int32 // offset from top of text section
+ 
+ func (t *rtype) nameOff(off nameOff) name {
+-	if off == 0 {
+-		return name{}
+-	}
+ 	return name{(*byte)(resolveNameOff(unsafe.Pointer(t), int32(off)))}
+ }
+ 
+ func (t *rtype) typeOff(off typeOff) *rtype {
+-	if off == 0 {
+-		return nil
+-	}
+ 	return (*rtype)(resolveTypeOff(unsafe.Pointer(t), int32(off)))
+ }
+ 
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 49d3855e4d..5ef11a4fc4 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -170,32 +170,29 @@ func resolveNameOff(ptrInModule unsafe.Pointer, off nameOff) name {
+ 		return name{}
+ 	}
+ 	base := uintptr(ptrInModule)
+-	var md *moduledata
+-	for next := &firstmoduledata; next != nil; next = next.next {
+-		if base >= next.types && base < next.etypes {
+-			md = next
+-			break
+-		}
+-	}
+-	if md == nil {
+-		reflectOffsLock()
+-		res, found := reflectOffs.m[int32(off)]
+-		reflectOffsUnlock()
+-		if !found {
+-			println("runtime: nameOff", hex(off), "base", hex(base), "not in ranges:")
+-			for next := &firstmoduledata; next != nil; next = next.next {
+-				println("\ttypes", hex(next.types), "etypes", hex(next.etypes))
++	for md := &firstmoduledata; md != nil; md = md.next {
++		if base >= md.types && base < md.etypes {
++			res := md.types + uintptr(off)
++			if res > md.etypes {
++				println("runtime: nameOff", hex(off), "out of range", hex(md.types), "-", hex(md.etypes))
++				throw("runtime: name offset out of range")
+ 			}
+-			throw("runtime: name offset base pointer out of range")
++			return name{(*byte)(unsafe.Pointer(res))}
+ 		}
+-		return name{(*byte)(res)}
+ 	}
+-	res := md.types + uintptr(off)
+-	if res > md.etypes {
+-		println("runtime: nameOff", hex(off), "out of range", hex(md.types), "-", hex(md.etypes))
+-		throw("runtime: name offset out of range")
++
++	// No module found. see if it is a run time name.
++	reflectOffsLock()
++	res, found := reflectOffs.m[int32(off)]
++	reflectOffsUnlock()
++	if !found {
++		println("runtime: nameOff", hex(off), "base", hex(base), "not in ranges:")
++		for next := &firstmoduledata; next != nil; next = next.next {
++			println("\ttypes", hex(next.types), "etypes", hex(next.etypes))
++		}
++		throw("runtime: name offset base pointer out of range")
+ 	}
+-	return name{(*byte)(unsafe.Pointer(res))}
++	return name{(*byte)(res)}
+ }
+ 
+ func (t *_type) nameOff(off nameOff) name {

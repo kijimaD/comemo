@@ -7,7 +7,7 @@ Date:   Thu Jan 19 12:25:37 2012 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5554058
-
+---
  src/pkg/net/iprawsock_plan9.go | 33 +++++++++++++++++----------------
  src/pkg/net/ipsock_plan9.go    | 22 +++++++---------------
  src/pkg/net/tcpsock_plan9.go   | 16 ++++++++++++++++
@@ -15,3 +15,250 @@ Date:   Thu Jan 19 12:25:37 2012 +0900
  src/pkg/net/unixsock_plan9.go  | 13 +++++++------
  src/pkg/net/unixsock_posix.go  |  2 +-
  6 files changed, 66 insertions(+), 40 deletions(-)
+
+diff --git a/src/pkg/net/iprawsock_plan9.go b/src/pkg/net/iprawsock_plan9.go
+index 3fd9dce05e..58df607e3b 100644
+--- a/src/pkg/net/iprawsock_plan9.go
++++ b/src/pkg/net/iprawsock_plan9.go
+@@ -8,12 +8,28 @@ package net
+ 
+ import (
+ 	"os"
++	"time"
+ )
+ 
+ // IPConn is the implementation of the Conn and PacketConn
+ // interfaces for IP network connections.
+ type IPConn bool
+ 
++// SetDeadline implements the net.Conn SetDeadline method.
++func (c *IPConn) SetDeadline(t time.Time) error {
++	return os.EPLAN9
++}
++
++// SetReadDeadline implements the net.Conn SetReadDeadline method.
++func (c *IPConn) SetReadDeadline(t time.Time) error {
++	return os.EPLAN9
++}
++
++// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
++func (c *IPConn) SetWriteDeadline(t time.Time) error {
++	return os.EPLAN9
++}
++
+ // Implementation of the Conn interface - see Conn for documentation.
+ 
+ // Read implements the net.Conn Read method.
+@@ -41,21 +57,6 @@ func (c *IPConn) RemoteAddr() Addr {
+ 	return nil
+ }
+ 
+-// SetTimeout implements the net.Conn SetTimeout method.
+-func (c *IPConn) SetTimeout(nsec int64) error {
+-	return os.EPLAN9
+-}
+-
+-// SetReadTimeout implements the net.Conn SetReadTimeout method.
+-func (c *IPConn) SetReadTimeout(nsec int64) error {
+-	return os.EPLAN9
+-}
+-
+-// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
+-func (c *IPConn) SetWriteTimeout(nsec int64) error {
+-	return os.EPLAN9
+-}
+-
+ // IP-specific methods.
+ 
+ // ReadFrom implements the net.PacketConn ReadFrom method.
+@@ -68,7 +69,7 @@ func (c *IPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
+ //
+ // WriteToIP can be made to time out and return
+ // an error with Timeout() == true after a fixed time limit;
+-// see SetTimeout and SetWriteTimeout.
++// see SetDeadline and SetWriteDeadline.
+ // On packet-oriented connections, write timeouts are rare.
+ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (n int, err error) {
+ 	return 0, os.EPLAN9
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index 42fb408041..09d8d6b4e0 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -10,6 +10,7 @@ import (
+ 	"errors"
+ 	"io"
+ 	"os"
++	"time"
+ )
+ 
+ // probeIPv6Stack returns two boolean values.  If the first boolean value is
+@@ -156,27 +157,18 @@ func (c *plan9Conn) RemoteAddr() Addr {
+ 	return c.raddr
+ }
+ 
+-// SetTimeout implements the net.Conn SetTimeout method.
+-func (c *plan9Conn) SetTimeout(nsec int64) error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
++// SetDeadline implements the net.Conn SetDeadline method.
++func (c *plan9Conn) SetDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+-// SetReadTimeout implements the net.Conn SetReadTimeout method.
+-func (c *plan9Conn) SetReadTimeout(nsec int64) error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
++// SetReadDeadline implements the net.Conn SetReadDeadline method.
++func (c *plan9Conn) SetReadDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+-// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
+-func (c *plan9Conn) SetWriteTimeout(nsec int64) error {
+-	if !c.ok() {
+-		return os.EINVAL
+-	}
++// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
++func (c *plan9Conn) SetWriteDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index 69fae03614..288ec056ab 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -8,6 +8,7 @@ package net
+ 
+ import (
+ 	"os"
++	"time"
+ )
+ 
+ // TCPConn is an implementation of the Conn interface
+@@ -16,6 +17,21 @@ type TCPConn struct {
+ 	plan9Conn
+ }
+ 
++// SetDeadline implements the net.Conn SetDeadline method.
++func (c *TCPConn) SetDeadline(t time.Time) error {
++	return os.EPLAN9
++}
++
++// SetReadDeadline implements the net.Conn SetReadDeadline method.
++func (c *TCPConn) SetReadDeadline(t time.Time) error {
++	return os.EPLAN9
++}
++
++// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
++func (c *TCPConn) SetWriteDeadline(t time.Time) error {
++	return os.EPLAN9
++}
++
+ // CloseRead shuts down the reading side of the TCP connection.
+ // Most callers should just use Close.
+ func (c *TCPConn) CloseRead() error {
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+index 60dec81228..246c9ad94b 100644
+--- a/src/pkg/net/udpsock_plan9.go
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -9,6 +9,7 @@ package net
+ import (
+ 	"errors"
+ 	"os"
++	"time"
+ )
+ 
+ // UDPConn is the implementation of the Conn and PacketConn
+@@ -17,6 +18,21 @@ type UDPConn struct {
+ 	plan9Conn
+ }
+ 
++// SetDeadline implements the net.Conn SetDeadline method.
++func (c *UDPConn) SetDeadline(t time.Time) error {
++	return os.EPLAN9
++}
++
++// SetReadDeadline implements the net.Conn SetReadDeadline method.
++func (c *UDPConn) SetReadDeadline(t time.Time) error {
++	return os.EPLAN9
++}
++
++// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
++func (c *UDPConn) SetWriteDeadline(t time.Time) error {
++	return os.EPLAN9
++}
++
+ // UDP-specific methods.
+ 
+ // ReadFromUDP reads a UDP packet from c, copying the payload into b.
+@@ -24,7 +40,7 @@ type UDPConn struct {
+ // that was on the packet.
+ //
+ // ReadFromUDP can be made to time out and return an error with Timeout() == true
+-// after a fixed time limit; see SetTimeout and SetReadTimeout.
++// after a fixed time limit; see SetDeadline and SetReadDeadline.
+ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+ 	if !c.ok() {
+ 		return 0, nil, os.EINVAL
+@@ -62,7 +78,7 @@ func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
+ //
+ // WriteToUDP can be made to time out and return
+ // an error with Timeout() == true after a fixed time limit;
+-// see SetTimeout and SetWriteTimeout.
++// see SetDeadline and SetWriteDeadline.
+ // On packet-oriented connections, write timeouts are rare.
+ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err error) {
+ 	if !c.ok() {
+diff --git a/src/pkg/net/unixsock_plan9.go b/src/pkg/net/unixsock_plan9.go
+index ac502d1d76..e8087d09a3 100644
+--- a/src/pkg/net/unixsock_plan9.go
++++ b/src/pkg/net/unixsock_plan9.go
+@@ -8,6 +8,7 @@ package net
+ 
+ import (
+ 	"os"
++	"time"
+ )
+ 
+ // UnixConn is an implementation of the Conn interface
+@@ -44,18 +45,18 @@ func (c *UnixConn) RemoteAddr() Addr {
+ 	return nil
+ }
+ 
+-// SetTimeout implements the net.Conn SetTimeout method.
+-func (c *UnixConn) SetTimeout(nsec int64) error {
++// SetDeadline implements the net.Conn SetDeadline method.
++func (c *UnixConn) SetDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+-// SetReadTimeout implements the net.Conn SetReadTimeout method.
+-func (c *UnixConn) SetReadTimeout(nsec int64) error {
++// SetReadDeadline implements the net.Conn SetReadDeadline method.
++func (c *UnixConn) SetReadDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+-// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
+-func (c *UnixConn) SetWriteTimeout(nsec int64) error {
++// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
++func (c *UnixConn) SetWriteDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 2f8ff19e7f..c1bb90b60a 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -387,7 +387,7 @@ func (l *UnixListener) Close() error {
+ // Addr returns the listener's network address.
+ func (l *UnixListener) Addr() Addr { return l.fd.laddr }
+ 
+-// SetTimeout sets the deadline associated with the listener.
++// SetDeadline sets the deadline associated with the listener.
+ // A zero time value disables the deadline.
+ func (l *UnixListener) SetDeadline(t time.Time) (err error) {
+ 	if l == nil || l.fd == nil {

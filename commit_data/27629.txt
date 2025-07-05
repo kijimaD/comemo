@@ -8,7 +8,46 @@ Date:   Wed Apr 6 11:53:26 2016 +1000
     Reviewed-on: https://go-review.googlesource.com/21529
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/expvar/expvar.go      |  6 ++++--
  src/expvar/expvar_test.go | 10 ++++++++--
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index 1ec85006b4..b7ea433014 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -219,8 +219,10 @@ type String struct {
+ 
+ func (v *String) String() string {
+ 	v.mu.RLock()
+-	defer v.mu.RUnlock()
+-	return strconv.Quote(v.s)
++	s := v.s
++	v.mu.RUnlock()
++	b, _ := json.Marshal(s)
++	return string(b)
+ }
+ 
+ func (v *String) Set(value string) {
+diff --git a/src/expvar/expvar_test.go b/src/expvar/expvar_test.go
+index 385fea81ad..7b1c9dfc4f 100644
+--- a/src/expvar/expvar_test.go
++++ b/src/expvar/expvar_test.go
+@@ -142,8 +142,14 @@ func TestString(t *testing.T) {
+ 		t.Errorf("name.s = %q, want \"Mike\"", name.s)
+ 	}
+ 
+-	if s := name.String(); s != "\"Mike\"" {
+-		t.Errorf("reqs.String() = %q, want \"\"Mike\"\"", s)
++	if s, want := name.String(), `"Mike"`; s != want {
++		t.Errorf("from %q, name.String() = %q, want %q", name.s, s, want)
++	}
++
++	// Make sure we produce safe JSON output.
++	name.Set(`<`)
++	if s, want := name.String(), "\"\\u003c\""; s != want {
++		t.Errorf("from %q, name.String() = %q, want %q", name.s, s, want)
+ 	}
+ }
+ 

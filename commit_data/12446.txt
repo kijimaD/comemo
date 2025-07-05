@@ -11,7 +11,7 @@ Date:   Tue Mar 6 23:27:11 2012 -0500
     R=bradfitz, rogpeppe, r, r, rsc
     CC=golang-dev
     https://golang.org/cl/5753055
-
+---
  src/pkg/fmt/export_test.go    |   7 ++
  src/pkg/fmt/fmt_test.go       |  11 ++
  src/pkg/fmt/format.go         |  19 ++-
@@ -20,3 +20,1082 @@ Date:   Tue Mar 6 23:27:11 2012 -0500
  src/pkg/go/build/deps_test.go | 267 ++++++++++++++++++++++--------------------
  src/pkg/log/log.go            |  54 ++++-----
  7 files changed, 313 insertions(+), 216 deletions(-)
+
+diff --git a/src/pkg/fmt/export_test.go b/src/pkg/fmt/export_test.go
+new file mode 100644
+index 0000000000..89d57ee6ce
+--- /dev/null
++++ b/src/pkg/fmt/export_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fmt
++
++var IsSpace = isSpace
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 86db9bc67c..8c5afccac5 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"strings"
+ 	"testing"
+ 	"time"
++	"unicode"
+ )
+ 
+ type (
+@@ -828,3 +829,13 @@ func TestBadVerbRecursion(t *testing.T) {
+ 		t.Error("fail with value")
+ 	}
+ }
++
++func TestIsSpace(t *testing.T) {
++	// This tests the internal isSpace function.
++	// IsSpace = isSpace is defined in export_test.go.
++	for i := rune(0); i <= unicode.MaxRune; i++ {
++		if IsSpace(i) != unicode.IsSpace(i) {
++			t.Errorf("isSpace(%U) = %v, want %v", IsSpace(i), unicode.IsSpace(i))
++		}
++	}
++}
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 78d9e998b1..2186f334b9 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -5,9 +5,7 @@
+ package fmt
+ 
+ import (
+-	"bytes"
+ 	"strconv"
+-	"unicode"
+ 	"unicode/utf8"
+ )
+ 
+@@ -36,10 +34,10 @@ func init() {
+ }
+ 
+ // A fmt is the raw formatter used by Printf etc.
+-// It prints into a bytes.Buffer that must be set up externally.
++// It prints into a buffer that must be set up separately.
+ type fmt struct {
+ 	intbuf [nByte]byte
+-	buf    *bytes.Buffer
++	buf    *buffer
+ 	// width, precision
+ 	wid  int
+ 	prec int
+@@ -69,7 +67,7 @@ func (f *fmt) clearflags() {
+ 	f.zero = false
+ }
+ 
+-func (f *fmt) init(buf *bytes.Buffer) {
++func (f *fmt) init(buf *buffer) {
+ 	f.buf = buf
+ 	f.clearflags()
+ }
+@@ -247,7 +245,7 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 	}
+ 
+ 	// If we want a quoted char for %#U, move the data up to make room.
+-	if f.unicode && f.uniQuote && a >= 0 && a <= unicode.MaxRune && unicode.IsPrint(rune(a)) {
++	if f.unicode && f.uniQuote && a >= 0 && a <= utf8.MaxRune && strconv.IsPrint(rune(a)) {
+ 		runeWidth := utf8.RuneLen(rune(a))
+ 		width := 1 + 1 + runeWidth + 1 // space, quote, rune, quote
+ 		copy(buf[i-width:], buf[i:])   // guaranteed to have enough room.
+@@ -290,16 +288,15 @@ func (f *fmt) fmt_s(s string) {
+ // fmt_sx formats a string as a hexadecimal encoding of its bytes.
+ func (f *fmt) fmt_sx(s, digits string) {
+ 	// TODO: Avoid buffer by pre-padding.
+-	var b bytes.Buffer
++	var b []byte
+ 	for i := 0; i < len(s); i++ {
+ 		if i > 0 && f.space {
+-			b.WriteByte(' ')
++			b = append(b, ' ')
+ 		}
+ 		v := s[i]
+-		b.WriteByte(digits[v>>4])
+-		b.WriteByte(digits[v&0xF])
++		b = append(b, digits[v>>4], digits[v&0xF])
+ 	}
+-	f.pad(b.Bytes())
++	f.pad(b)
+ }
+ 
+ // fmt_q formats a string as a double-quoted, escaped Go string constant.
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index c3ba2f339e..13438243cd 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -5,13 +5,11 @@
+ package fmt
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"io"
+ 	"os"
+ 	"reflect"
+ 	"sync"
+-	"unicode"
+ 	"unicode/utf8"
+ )
+ 
+@@ -71,11 +69,45 @@ type GoStringer interface {
+ 	GoString() string
+ }
+ 
++// Use simple []byte instead of bytes.Buffer to avoid large dependency.
++type buffer []byte
++
++func (b *buffer) Write(p []byte) (n int, err error) {
++	*b = append(*b, p...)
++	return len(p), nil
++}
++
++func (b *buffer) WriteString(s string) (n int, err error) {
++	*b = append(*b, s...)
++	return len(s), nil
++}
++
++func (b *buffer) WriteByte(c byte) error {
++	*b = append(*b, c)
++	return nil
++}
++
++func (bp *buffer) WriteRune(r rune) error {
++	if r < utf8.RuneSelf {
++		*bp = append(*bp, byte(r))
++		return nil
++	}
++
++	b := *bp
++	n := len(b)
++	for n+utf8.UTFMax > cap(b) {
++		b = append(b, 0)
++	}
++	w := utf8.EncodeRune(b[n:n+utf8.UTFMax], r)
++	*bp = b[:n+w]
++	return nil
++}
++
+ type pp struct {
+ 	n         int
+ 	panicking bool
+ 	erroring  bool // printing an error condition
+-	buf       bytes.Buffer
++	buf       buffer
+ 	// field holds the current item, as an interface{}.
+ 	field interface{}
+ 	// value holds the current item, as a reflect.Value, and will be
+@@ -133,10 +165,10 @@ func newPrinter() *pp {
+ // Save used pp structs in ppFree; avoids an allocation per invocation.
+ func (p *pp) free() {
+ 	// Don't hold on to pp structs with large buffers.
+-	if cap(p.buf.Bytes()) > 1024 {
++	if cap(p.buf) > 1024 {
+ 		return
+ 	}
+-	p.buf.Reset()
++	p.buf = p.buf[:0]
+ 	p.field = nil
+ 	p.value = reflect.Value{}
+ 	ppFree.put(p)
+@@ -179,7 +211,7 @@ func (p *pp) Write(b []byte) (ret int, err error) {
+ func Fprintf(w io.Writer, format string, a ...interface{}) (n int, err error) {
+ 	p := newPrinter()
+ 	p.doPrintf(format, a)
+-	n64, err := p.buf.WriteTo(w)
++	n64, err := w.Write(p.buf)
+ 	p.free()
+ 	return int(n64), err
+ }
+@@ -194,7 +226,7 @@ func Printf(format string, a ...interface{}) (n int, err error) {
+ func Sprintf(format string, a ...interface{}) string {
+ 	p := newPrinter()
+ 	p.doPrintf(format, a)
+-	s := p.buf.String()
++	s := string(p.buf)
+ 	p.free()
+ 	return s
+ }
+@@ -213,7 +245,7 @@ func Errorf(format string, a ...interface{}) error {
+ func Fprint(w io.Writer, a ...interface{}) (n int, err error) {
+ 	p := newPrinter()
+ 	p.doPrint(a, false, false)
+-	n64, err := p.buf.WriteTo(w)
++	n64, err := w.Write(p.buf)
+ 	p.free()
+ 	return int(n64), err
+ }
+@@ -230,7 +262,7 @@ func Print(a ...interface{}) (n int, err error) {
+ func Sprint(a ...interface{}) string {
+ 	p := newPrinter()
+ 	p.doPrint(a, false, false)
+-	s := p.buf.String()
++	s := string(p.buf)
+ 	p.free()
+ 	return s
+ }
+@@ -245,7 +277,7 @@ func Sprint(a ...interface{}) string {
+ func Fprintln(w io.Writer, a ...interface{}) (n int, err error) {
+ 	p := newPrinter()
+ 	p.doPrint(a, true, true)
+-	n64, err := p.buf.WriteTo(w)
++	n64, err := w.Write(p.buf)
+ 	p.free()
+ 	return int(n64), err
+ }
+@@ -262,7 +294,7 @@ func Println(a ...interface{}) (n int, err error) {
+ func Sprintln(a ...interface{}) string {
+ 	p := newPrinter()
+ 	p.doPrint(a, true, true)
+-	s := p.buf.String()
++	s := string(p.buf)
+ 	p.free()
+ 	return s
+ }
+@@ -352,7 +384,7 @@ func (p *pp) fmtInt64(v int64, verb rune) {
+ 	case 'o':
+ 		p.fmt.integer(v, 8, signed, ldigits)
+ 	case 'q':
+-		if 0 <= v && v <= unicode.MaxRune {
++		if 0 <= v && v <= utf8.MaxRune {
+ 			p.fmt.fmt_qc(v)
+ 		} else {
+ 			p.badVerb(verb)
+@@ -416,7 +448,7 @@ func (p *pp) fmtUint64(v uint64, verb rune, goSyntax bool) {
+ 	case 'o':
+ 		p.fmt.integer(int64(v), 8, unsigned, ldigits)
+ 	case 'q':
+-		if 0 <= v && v <= unicode.MaxRune {
++		if 0 <= v && v <= utf8.MaxRune {
+ 			p.fmt.fmt_qc(int64(v))
+ 		} else {
+ 			p.badVerb(verb)
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index fa9a5584a8..0b3e04069a 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -5,15 +5,12 @@
+ package fmt
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"io"
+ 	"math"
+ 	"os"
+ 	"reflect"
+ 	"strconv"
+-	"strings"
+-	"unicode"
+ 	"unicode/utf8"
+ )
+ 
+@@ -87,25 +84,36 @@ func Scanf(format string, a ...interface{}) (n int, err error) {
+ 	return Fscanf(os.Stdin, format, a...)
+ }
+ 
++type stringReader string
++
++func (r *stringReader) Read(b []byte) (n int, err error) {
++	n = copy(b, *r)
++	*r = (*r)[n:]
++	if n == 0 {
++		err = io.EOF
++	}
++	return
++}
++
+ // Sscan scans the argument string, storing successive space-separated
+ // values into successive arguments.  Newlines count as space.  It
+ // returns the number of items successfully scanned.  If that is less
+ // than the number of arguments, err will report why.
+ func Sscan(str string, a ...interface{}) (n int, err error) {
+-	return Fscan(strings.NewReader(str), a...)
++	return Fscan((*stringReader)(&str), a...)
+ }
+ 
+ // Sscanln is similar to Sscan, but stops scanning at a newline and
+ // after the final item there must be a newline or EOF.
+ func Sscanln(str string, a ...interface{}) (n int, err error) {
+-	return Fscanln(strings.NewReader(str), a...)
++	return Fscanln((*stringReader)(&str), a...)
+ }
+ 
+ // Sscanf scans the argument string, storing successive space-separated
+ // values into successive arguments as determined by the format.  It
+ // returns the number of items successfully parsed.
+ func Sscanf(str string, format string, a ...interface{}) (n int, err error) {
+-	return Fscanf(strings.NewReader(str), format, a...)
++	return Fscanf((*stringReader)(&str), format, a...)
+ }
+ 
+ // Fscan scans text read from r, storing successive space-separated
+@@ -149,7 +157,7 @@ const eof = -1
+ // ss is the internal implementation of ScanState.
+ type ss struct {
+ 	rr       io.RuneReader // where to read input
+-	buf      bytes.Buffer  // token accumulator
++	buf      buffer        // token accumulator
+ 	peekRune rune          // one-rune lookahead
+ 	prevRune rune          // last rune returned by ReadRune
+ 	count    int           // runes consumed so far.
+@@ -262,14 +270,46 @@ func (s *ss) Token(skipSpace bool, f func(rune) bool) (tok []byte, err error) {
+ 	if f == nil {
+ 		f = notSpace
+ 	}
+-	s.buf.Reset()
++	s.buf = s.buf[:0]
+ 	tok = s.token(skipSpace, f)
+ 	return
+ }
+ 
++// space is a copy of the unicode.White_Space ranges,
++// to avoid depending on package unicode.
++var space = [][2]uint16{
++	{0x0009, 0x000d},
++	{0x0020, 0x0020},
++	{0x0085, 0x0085},
++	{0x00a0, 0x00a0},
++	{0x1680, 0x1680},
++	{0x180e, 0x180e},
++	{0x2000, 0x200a},
++	{0x2028, 0x2029},
++	{0x202f, 0x202f},
++	{0x205f, 0x205f},
++	{0x3000, 0x3000},
++}
++
++func isSpace(r rune) bool {
++	if r >= 1<<16 {
++		return false
++	}
++	rx := uint16(r)
++	for _, rng := range space {
++		if rx < rng[0] {
++			return false
++		}
++		if rx <= rng[1] {
++			return true
++		}
++	}
++	return false
++}
++
+ // notSpace is the default scanning function used in Token.
+ func notSpace(r rune) bool {
+-	return !unicode.IsSpace(r)
++	return !isSpace(r)
+ }
+ 
+ // skipSpace provides Scan() methods the ability to skip space and newline characters 
+@@ -378,10 +418,10 @@ func (s *ss) free(old ssave) {
+ 		return
+ 	}
+ 	// Don't hold on to ss structs with large buffers.
+-	if cap(s.buf.Bytes()) > 1024 {
++	if cap(s.buf) > 1024 {
+ 		return
+ 	}
+-	s.buf.Reset()
++	s.buf = s.buf[:0]
+ 	s.rr = nil
+ 	ssFree.put(s)
+ }
+@@ -403,7 +443,7 @@ func (s *ss) skipSpace(stopAtNewline bool) {
+ 			s.errorString("unexpected newline")
+ 			return
+ 		}
+-		if !unicode.IsSpace(r) {
++		if !isSpace(r) {
+ 			s.UnreadRune()
+ 			break
+ 		}
+@@ -429,7 +469,7 @@ func (s *ss) token(skipSpace bool, f func(rune) bool) []byte {
+ 		}
+ 		s.buf.WriteRune(r)
+ 	}
+-	return s.buf.Bytes()
++	return s.buf
+ }
+ 
+ // typeError indicates that the type of the operand did not match the format
+@@ -440,6 +480,15 @@ func (s *ss) typeError(field interface{}, expected string) {
+ var complexError = errors.New("syntax error scanning complex number")
+ var boolError = errors.New("syntax error scanning boolean")
+ 
++func indexRune(s string, r rune) int {
++	for i, c := range s {
++		if c == r {
++			return i
++		}
++	}
++	return -1
++}
++
+ // consume reads the next rune in the input and reports whether it is in the ok string.
+ // If accept is true, it puts the character into the input token.
+ func (s *ss) consume(ok string, accept bool) bool {
+@@ -447,7 +496,7 @@ func (s *ss) consume(ok string, accept bool) bool {
+ 	if r == eof {
+ 		return false
+ 	}
+-	if strings.IndexRune(ok, r) >= 0 {
++	if indexRune(ok, r) >= 0 {
+ 		if accept {
+ 			s.buf.WriteRune(r)
+ 		}
+@@ -465,7 +514,7 @@ func (s *ss) peek(ok string) bool {
+ 	if r != eof {
+ 		s.UnreadRune()
+ 	}
+-	return strings.IndexRune(ok, r) >= 0
++	return indexRune(ok, r) >= 0
+ }
+ 
+ func (s *ss) notEOF() {
+@@ -560,7 +609,7 @@ func (s *ss) scanNumber(digits string, haveDigits bool) string {
+ 	}
+ 	for s.accept(digits) {
+ 	}
+-	return s.buf.String()
++	return string(s.buf)
+ }
+ 
+ // scanRune returns the next rune value in the input.
+@@ -660,16 +709,16 @@ func (s *ss) scanUint(verb rune, bitSize int) uint64 {
+ // if the width is specified. It's not rigorous about syntax because it doesn't check that
+ // we have at least some digits, but Atof will do that.
+ func (s *ss) floatToken() string {
+-	s.buf.Reset()
++	s.buf = s.buf[:0]
+ 	// NaN?
+ 	if s.accept("nN") && s.accept("aA") && s.accept("nN") {
+-		return s.buf.String()
++		return string(s.buf)
+ 	}
+ 	// leading sign?
+ 	s.accept(sign)
+ 	// Inf?
+ 	if s.accept("iI") && s.accept("nN") && s.accept("fF") {
+-		return s.buf.String()
++		return string(s.buf)
+ 	}
+ 	// digits?
+ 	for s.accept(decimalDigits) {
+@@ -688,7 +737,7 @@ func (s *ss) floatToken() string {
+ 		for s.accept(decimalDigits) {
+ 		}
+ 	}
+-	return s.buf.String()
++	return string(s.buf)
+ }
+ 
+ // complexTokens returns the real and imaginary parts of the complex number starting here.
+@@ -698,13 +747,13 @@ func (s *ss) complexTokens() (real, imag string) {
+ 	// TODO: accept N and Ni independently?
+ 	parens := s.accept("(")
+ 	real = s.floatToken()
+-	s.buf.Reset()
++	s.buf = s.buf[:0]
+ 	// Must now have a sign.
+ 	if !s.accept("+-") {
+ 		s.error(complexError)
+ 	}
+ 	// Sign is now in buffer
+-	imagSign := s.buf.String()
++	imagSign := string(s.buf)
+ 	imag = s.floatToken()
+ 	if !s.accept("i") {
+ 		s.error(complexError)
+@@ -717,7 +766,7 @@ func (s *ss) complexTokens() (real, imag string) {
+ 
+ // convertFloat converts the string to a float64value.
+ func (s *ss) convertFloat(str string, n int) float64 {
+-	if p := strings.Index(str, "p"); p >= 0 {
++	if p := indexRune(str, 'p'); p >= 0 {
+ 		// Atof doesn't handle power-of-2 exponents,
+ 		// but they're easy to evaluate.
+ 		f, err := strconv.ParseFloat(str[:p], n)
+@@ -794,7 +843,7 @@ func (s *ss) quotedString() string {
+ 			}
+ 			s.buf.WriteRune(r)
+ 		}
+-		return s.buf.String()
++		return string(s.buf)
+ 	case '"':
+ 		// Double-quoted: Include the quotes and let strconv.Unquote do the backslash escapes.
+ 		s.buf.WriteRune(quote)
+@@ -811,7 +860,7 @@ func (s *ss) quotedString() string {
+ 				break
+ 			}
+ 		}
+-		result, err := strconv.Unquote(s.buf.String())
++		result, err := strconv.Unquote(string(s.buf))
+ 		if err != nil {
+ 			s.error(err)
+ 		}
+@@ -844,7 +893,7 @@ func (s *ss) hexByte() (b byte, ok bool) {
+ 	if rune1 == eof {
+ 		return
+ 	}
+-	if unicode.IsSpace(rune1) {
++	if isSpace(rune1) {
+ 		s.UnreadRune()
+ 		return
+ 	}
+@@ -862,11 +911,11 @@ func (s *ss) hexString() string {
+ 		}
+ 		s.buf.WriteByte(b)
+ 	}
+-	if s.buf.Len() == 0 {
++	if len(s.buf) == 0 {
+ 		s.errorString("Scan: no hex data for %x string")
+ 		return ""
+ 	}
+-	return s.buf.String()
++	return string(s.buf)
+ }
+ 
+ const floatVerbs = "beEfFgGv"
+@@ -875,7 +924,7 @@ const hugeWid = 1 << 30
+ 
+ // scanOne scans a single value, deriving the scanner from the type of the argument.
+ func (s *ss) scanOne(verb rune, field interface{}) {
+-	s.buf.Reset()
++	s.buf = s.buf[:0]
+ 	var err error
+ 	// If the parameter has its own Scan method, use that.
+ 	if v, ok := field.(Scanner); ok {
+@@ -1004,7 +1053,7 @@ func (s *ss) doScan(a []interface{}) (numProcessed int, err error) {
+ 			if r == '\n' || r == eof {
+ 				break
+ 			}
+-			if !unicode.IsSpace(r) {
++			if !isSpace(r) {
+ 				s.errorString("Scan: expected newline")
+ 				break
+ 			}
+@@ -1032,7 +1081,7 @@ func (s *ss) advance(format string) (i int) {
+ 			i += w // skip the first %
+ 		}
+ 		sawSpace := false
+-		for unicode.IsSpace(fmtc) && i < len(format) {
++		for isSpace(fmtc) && i < len(format) {
+ 			sawSpace = true
+ 			i += w
+ 			fmtc, w = utf8.DecodeRuneInString(format[i:])
+@@ -1044,7 +1093,7 @@ func (s *ss) advance(format string) (i int) {
+ 			if inputc == eof {
+ 				return
+ 			}
+-			if !unicode.IsSpace(inputc) {
++			if !isSpace(inputc) {
+ 				// Space in format but not in input: error
+ 				s.errorString("expected space in input to match format")
+ 			}
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index 695af7da79..e2f1d95a23 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -43,56 +43,62 @@ var pkgDeps = map[string][]string{
+ 		"unsafe",
+ 	},
+ 
+-	// L1 adds simple data and functions, most notably
+-	// Unicode and strings processing.
+-	"bufio":         {"L0", "unicode/utf8", "bytes"},
+-	"bytes":         {"L0", "unicode", "unicode/utf8"},
++	// L1 adds simple functions and strings processing,
++	// but not Unicode tables.
+ 	"math":          {"unsafe"},
+ 	"math/cmplx":    {"math"},
+ 	"math/rand":     {"L0", "math"},
+-	"path":          {"L0", "unicode/utf8", "strings"},
+ 	"sort":          {"math"},
+ 	"strconv":       {"L0", "unicode/utf8", "math"},
+-	"strings":       {"L0", "unicode", "unicode/utf8"},
+-	"unicode":       {},
+ 	"unicode/utf16": {},
+ 	"unicode/utf8":  {},
+ 
+ 	"L1": {
+ 		"L0",
+-		"bufio",
+-		"bytes",
+ 		"math",
+ 		"math/cmplx",
+ 		"math/rand",
+-		"path",
+ 		"sort",
+ 		"strconv",
+-		"strings",
+-		"unicode",
+ 		"unicode/utf16",
+ 		"unicode/utf8",
+ 	},
+ 
+-	// L2 adds reflection and some basic utility packages
+-	// and interface definitions, but nothing that makes
+-	// system calls.
+-	"crypto":          {"L1", "hash"}, // interfaces
+-	"crypto/cipher":   {"L1"},         // interfaces
+-	"encoding/base32": {"L1"},
+-	"encoding/base64": {"L1"},
+-	"encoding/binary": {"L1", "reflect"},
+-	"hash":            {"L1"}, // interfaces
+-	"hash/adler32":    {"L1", "hash"},
+-	"hash/crc32":      {"L1", "hash"},
+-	"hash/crc64":      {"L1", "hash"},
+-	"hash/fnv":        {"L1", "hash"},
+-	"image":           {"L1", "image/color"}, // interfaces
+-	"image/color":     {"L1"},                // interfaces
+-	"reflect":         {"L1"},
++	// L2 adds Unicode and strings processing.
++	"bufio":   {"L0", "unicode/utf8", "bytes"},
++	"bytes":   {"L0", "unicode", "unicode/utf8"},
++	"path":    {"L0", "unicode/utf8", "strings"},
++	"strings": {"L0", "unicode", "unicode/utf8"},
++	"unicode": {},
+ 
+ 	"L2": {
+ 		"L1",
++		"bufio",
++		"bytes",
++		"path",
++		"strings",
++		"unicode",
++	},
++
++	// L3 adds reflection and some basic utility packages
++	// and interface definitions, but nothing that makes
++	// system calls.
++	"crypto":          {"L2", "hash"}, // interfaces
++	"crypto/cipher":   {"L2"},         // interfaces
++	"encoding/base32": {"L2"},
++	"encoding/base64": {"L2"},
++	"encoding/binary": {"L2", "reflect"},
++	"hash":            {"L2"}, // interfaces
++	"hash/adler32":    {"L2", "hash"},
++	"hash/crc32":      {"L2", "hash"},
++	"hash/crc64":      {"L2", "hash"},
++	"hash/fnv":        {"L2", "hash"},
++	"image":           {"L2", "image/color"}, // interfaces
++	"image/color":     {"L2"},                // interfaces
++	"reflect":         {"L2"},
++
++	"L3": {
++		"L2",
+ 		"crypto",
+ 		"crypto/cipher",
+ 		"encoding/base32",
+@@ -113,11 +119,11 @@ var pkgDeps = map[string][]string{
+ 	// Operating system access.
+ 	"syscall":       {"L0", "unicode/utf16"},
+ 	"time":          {"L0", "syscall"},
+-	"os":            {"L0", "os", "syscall", "time", "unicode/utf16"},
+-	"path/filepath": {"L1", "os"},
+-	"io/ioutil":     {"L1", "os", "path/filepath", "time"},
+-	"os/exec":       {"L1", "os", "syscall"},
+-	"os/signal":     {"L1", "os", "syscall"},
++	"os":            {"L1", "os", "syscall", "time"},
++	"path/filepath": {"L2", "os"},
++	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
++	"os/exec":       {"L2", "os", "syscall"},
++	"os/signal":     {"L2", "os", "syscall"},
+ 
+ 	// OS enables basic operating system functionality,
+ 	// but not direct use of package syscall, nor os/signal.
+@@ -129,37 +135,37 @@ var pkgDeps = map[string][]string{
+ 		"time",
+ 	},
+ 
+-	// Formatted I/O.
+-	"fmt": {"L1", "OS", "reflect"},
+-	"log": {"L1", "OS", "fmt"},
+-
+-	// Packages used by testing must be low-level (L1+fmt).
+-	"regexp":         {"L1", "regexp/syntax"},
+-	"regexp/syntax":  {"L1"},
+-	"runtime/debug":  {"L1", "fmt", "io/ioutil", "os"},
+-	"runtime/pprof":  {"L1", "fmt", "text/tabwriter"},
+-	"text/tabwriter": {"L1"},
+-
+-	"testing":        {"L1", "flag", "fmt", "os", "runtime/pprof", "time"},
+-	"testing/iotest": {"L1", "log"},
+-	"testing/quick":  {"L1", "flag", "fmt", "reflect"},
+-
+-	// L3 is defined as L2+fmt+log+time, because in general once
+-	// you're using L2 packages, use of fmt, log, or time is not a big deal.
+-	"L3": {
+-		"L2",
++	// Formatted I/O: few dependencies (L1) but we must add reflect.
++	"fmt": {"L1", "os", "reflect"},
++	"log": {"L1", "os", "fmt", "time"},
++
++	// Packages used by testing must be low-level (L2+fmt).
++	"regexp":         {"L2", "regexp/syntax"},
++	"regexp/syntax":  {"L2"},
++	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os"},
++	"runtime/pprof":  {"L2", "fmt", "text/tabwriter"},
++	"text/tabwriter": {"L2"},
++
++	"testing":        {"L2", "flag", "fmt", "os", "runtime/pprof", "time"},
++	"testing/iotest": {"L2", "log"},
++	"testing/quick":  {"L2", "flag", "fmt", "reflect"},
++
++	// L4 is defined as L3+fmt+log+time, because in general once
++	// you're using L3 packages, use of fmt, log, or time is not a big deal.
++	"L4": {
++		"L3",
+ 		"fmt",
+ 		"log",
+ 		"time",
+ 	},
+ 
+ 	// Go parser.
+-	"go/ast":     {"L3", "OS", "go/scanner", "go/token"},
+-	"go/doc":     {"L3", "go/ast", "go/token", "regexp", "text/template"},
+-	"go/parser":  {"L3", "OS", "go/ast", "go/scanner", "go/token"},
+-	"go/printer": {"L3", "OS", "go/ast", "go/scanner", "go/token", "text/tabwriter"},
+-	"go/scanner": {"L3", "OS", "go/token"},
+-	"go/token":   {"L3"},
++	"go/ast":     {"L4", "OS", "go/scanner", "go/token"},
++	"go/doc":     {"L4", "go/ast", "go/token", "regexp", "text/template"},
++	"go/parser":  {"L4", "OS", "go/ast", "go/scanner", "go/token"},
++	"go/printer": {"L4", "OS", "go/ast", "go/scanner", "go/token", "text/tabwriter"},
++	"go/scanner": {"L4", "OS", "go/token"},
++	"go/token":   {"L4"},
+ 
+ 	"GOPARSER": {
+ 		"go/ast",
+@@ -171,48 +177,48 @@ var pkgDeps = map[string][]string{
+ 	},
+ 
+ 	// One of a kind.
+-	"archive/tar":         {"L3", "OS"},
+-	"archive/zip":         {"L3", "OS", "compress/flate"},
+-	"compress/bzip2":      {"L3"},
+-	"compress/flate":      {"L3"},
+-	"compress/gzip":       {"L3", "compress/flate"},
+-	"compress/lzw":        {"L3"},
+-	"compress/zlib":       {"L3", "compress/flate"},
+-	"database/sql":        {"L3", "database/sql/driver"},
+-	"database/sql/driver": {"L3", "time"},
+-	"debug/dwarf":         {"L3"},
+-	"debug/elf":           {"L3", "OS", "debug/dwarf"},
+-	"debug/gosym":         {"L3"},
+-	"debug/macho":         {"L3", "OS", "debug/dwarf"},
+-	"debug/pe":            {"L3", "OS", "debug/dwarf"},
+-	"encoding/ascii85":    {"L3"},
+-	"encoding/asn1":       {"L3", "math/big"},
+-	"encoding/csv":        {"L3"},
+-	"encoding/gob":        {"L3", "OS"},
+-	"encoding/hex":        {"L3"},
+-	"encoding/json":       {"L3"},
+-	"encoding/pem":        {"L3"},
+-	"encoding/xml":        {"L3"},
+-	"flag":                {"L3", "OS"},
+-	"go/build":            {"L3", "OS", "GOPARSER"},
+-	"html":                {"L3"},
+-	"image/draw":          {"L3"},
+-	"image/gif":           {"L3", "compress/lzw"},
+-	"image/jpeg":          {"L3"},
+-	"image/png":           {"L3", "compress/zlib"},
+-	"index/suffixarray":   {"L3", "regexp"},
+-	"math/big":            {"L3"},
+-	"mime":                {"L3", "OS", "syscall"},
+-	"net/url":             {"L3"},
+-	"text/scanner":        {"L3", "OS"},
+-	"text/template/parse": {"L3"},
++	"archive/tar":         {"L4", "OS"},
++	"archive/zip":         {"L4", "OS", "compress/flate"},
++	"compress/bzip2":      {"L4"},
++	"compress/flate":      {"L4"},
++	"compress/gzip":       {"L4", "compress/flate"},
++	"compress/lzw":        {"L4"},
++	"compress/zlib":       {"L4", "compress/flate"},
++	"database/sql":        {"L4", "database/sql/driver"},
++	"database/sql/driver": {"L4", "time"},
++	"debug/dwarf":         {"L4"},
++	"debug/elf":           {"L4", "OS", "debug/dwarf"},
++	"debug/gosym":         {"L4"},
++	"debug/macho":         {"L4", "OS", "debug/dwarf"},
++	"debug/pe":            {"L4", "OS", "debug/dwarf"},
++	"encoding/ascii85":    {"L4"},
++	"encoding/asn1":       {"L4", "math/big"},
++	"encoding/csv":        {"L4"},
++	"encoding/gob":        {"L4", "OS"},
++	"encoding/hex":        {"L4"},
++	"encoding/json":       {"L4"},
++	"encoding/pem":        {"L4"},
++	"encoding/xml":        {"L4"},
++	"flag":                {"L4", "OS"},
++	"go/build":            {"L4", "OS", "GOPARSER"},
++	"html":                {"L4"},
++	"image/draw":          {"L4"},
++	"image/gif":           {"L4", "compress/lzw"},
++	"image/jpeg":          {"L4"},
++	"image/png":           {"L4", "compress/zlib"},
++	"index/suffixarray":   {"L4", "regexp"},
++	"math/big":            {"L4"},
++	"mime":                {"L4", "OS", "syscall"},
++	"net/url":             {"L4"},
++	"text/scanner":        {"L4", "OS"},
++	"text/template/parse": {"L4"},
+ 
+ 	"html/template": {
+-		"L3", "OS", "encoding/json", "html", "text/template",
++		"L4", "OS", "encoding/json", "html", "text/template",
+ 		"text/template/parse",
+ 	},
+ 	"text/template": {
+-		"L3", "OS", "net/url", "text/template/parse",
++		"L4", "OS", "net/url", "text/template/parse",
+ 	},
+ 
+ 	// Cgo.
+@@ -223,11 +229,12 @@ var pkgDeps = map[string][]string{
+ 	// that shows up in programs that use cgo.
+ 	"C": {},
+ 
+-	"os/user": {"L3", "CGO", "syscall"},
++	"os/user": {"L4", "CGO", "syscall"},
+ 
+ 	// Basic networking.
+-	// TODO: maybe remove math/rand.
+-	"net": {"L0", "CGO", "math/rand", "os", "sort", "syscall", "time"},
++	// Because net must be used by any package that wants to
++	// do networking portably, it must have a small dependency set: just L1+basic os.
++	"net": {"L1", "CGO", "os", "syscall", "time"},
+ 
+ 	// NET enables use of basic network-related packages.
+ 	"NET": {
+@@ -238,20 +245,20 @@ var pkgDeps = map[string][]string{
+ 	},
+ 
+ 	// Uses of networking.
+-	"log/syslog":    {"L3", "OS", "net"},
+-	"net/mail":      {"L3", "NET", "OS"},
+-	"net/textproto": {"L3", "OS", "net"},
++	"log/syslog":    {"L4", "OS", "net"},
++	"net/mail":      {"L4", "NET", "OS"},
++	"net/textproto": {"L4", "OS", "net"},
+ 
+ 	// Core crypto.
+-	"crypto/aes":    {"L2"},
+-	"crypto/des":    {"L2"},
+-	"crypto/hmac":   {"L2"},
+-	"crypto/md5":    {"L2"},
+-	"crypto/rc4":    {"L2"},
+-	"crypto/sha1":   {"L2"},
+-	"crypto/sha256": {"L2"},
+-	"crypto/sha512": {"L2"},
+-	"crypto/subtle": {"L2"},
++	"crypto/aes":    {"L3"},
++	"crypto/des":    {"L3"},
++	"crypto/hmac":   {"L3"},
++	"crypto/md5":    {"L3"},
++	"crypto/rc4":    {"L3"},
++	"crypto/sha1":   {"L3"},
++	"crypto/sha256": {"L3"},
++	"crypto/sha512": {"L3"},
++	"crypto/subtle": {"L3"},
+ 
+ 	"CRYPTO": {
+ 		"crypto/aes",
+@@ -268,14 +275,14 @@ var pkgDeps = map[string][]string{
+ 	// Random byte, number generation.
+ 	// This would be part of core crypto except that it imports
+ 	// math/big, which imports fmt.
+-	"crypto/rand": {"L3", "CRYPTO", "OS", "math/big", "syscall"},
++	"crypto/rand": {"L4", "CRYPTO", "OS", "math/big", "syscall"},
+ 
+-	// Mathematical crypto: dependencies on fmt (L3) and math/big.
++	// Mathematical crypto: dependencies on fmt (L4) and math/big.
+ 	// We could avoid some of the fmt, but math/big imports fmt anyway.
+-	"crypto/dsa":      {"L3", "CRYPTO", "math/big"},
+-	"crypto/ecdsa":    {"L3", "CRYPTO", "crypto/elliptic", "math/big"},
+-	"crypto/elliptic": {"L3", "CRYPTO", "math/big"},
+-	"crypto/rsa":      {"L3", "CRYPTO", "crypto/rand", "math/big"},
++	"crypto/dsa":      {"L4", "CRYPTO", "math/big"},
++	"crypto/ecdsa":    {"L4", "CRYPTO", "crypto/elliptic", "math/big"},
++	"crypto/elliptic": {"L4", "CRYPTO", "math/big"},
++	"crypto/rsa":      {"L4", "CRYPTO", "crypto/rand", "math/big"},
+ 
+ 	"CRYPTO-MATH": {
+ 		"CRYPTO",
+@@ -290,31 +297,31 @@ var pkgDeps = map[string][]string{
+ 
+ 	// SSL/TLS.
+ 	"crypto/tls": {
+-		"L3", "CRYPTO-MATH", "CGO", "OS",
++		"L4", "CRYPTO-MATH", "CGO", "OS",
+ 		"crypto/x509", "encoding/pem", "net", "syscall",
+ 	},
+-	"crypto/x509":      {"L3", "CRYPTO-MATH", "OS", "CGO", "crypto/x509/pkix", "encoding/pem"},
+-	"crypto/x509/pkix": {"L3", "CRYPTO-MATH"},
++	"crypto/x509":      {"L4", "CRYPTO-MATH", "OS", "CGO", "crypto/x509/pkix", "encoding/pem"},
++	"crypto/x509/pkix": {"L4", "CRYPTO-MATH"},
+ 
+ 	// Simple net+crypto-aware packages.
+-	"mime/multipart": {"L3", "OS", "mime", "crypto/rand", "net/textproto"},
+-	"net/smtp":       {"L3", "CRYPTO", "NET", "crypto/tls"},
++	"mime/multipart": {"L4", "OS", "mime", "crypto/rand", "net/textproto"},
++	"net/smtp":       {"L4", "CRYPTO", "NET", "crypto/tls"},
+ 
+ 	// HTTP, kingpin of dependencies.
+ 	"net/http": {
+-		"L3", "NET", "OS",
++		"L4", "NET", "OS",
+ 		"compress/gzip", "crypto/tls", "mime/multipart", "runtime/debug",
+ 	},
+ 
+ 	// HTTP-using packages.
+-	"expvar":            {"L3", "OS", "encoding/json", "net/http"},
+-	"net/http/cgi":      {"L3", "NET", "OS", "crypto/tls", "net/http", "regexp"},
+-	"net/http/fcgi":     {"L3", "NET", "OS", "net/http", "net/http/cgi"},
+-	"net/http/httptest": {"L3", "NET", "OS", "crypto/tls", "flag", "net/http"},
+-	"net/http/httputil": {"L3", "NET", "OS", "net/http"},
+-	"net/http/pprof":    {"L3", "OS", "html/template", "net/http", "runtime/pprof"},
+-	"net/rpc":           {"L3", "NET", "encoding/gob", "net/http", "text/template"},
+-	"net/rpc/jsonrpc":   {"L3", "NET", "encoding/json", "net/rpc"},
++	"expvar":            {"L4", "OS", "encoding/json", "net/http"},
++	"net/http/cgi":      {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp"},
++	"net/http/fcgi":     {"L4", "NET", "OS", "net/http", "net/http/cgi"},
++	"net/http/httptest": {"L4", "NET", "OS", "crypto/tls", "flag", "net/http"},
++	"net/http/httputil": {"L4", "NET", "OS", "net/http"},
++	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof"},
++	"net/rpc":           {"L4", "NET", "encoding/gob", "net/http", "text/template"},
++	"net/rpc/jsonrpc":   {"L4", "NET", "encoding/json", "net/rpc"},
+ }
+ 
+ // isMacro reports whether p is a package dependency macro
+diff --git a/src/pkg/log/log.go b/src/pkg/log/log.go
+index a5d88fd9b3..85374a0534 100644
+--- a/src/pkg/log/log.go
++++ b/src/pkg/log/log.go
+@@ -13,7 +13,6 @@
+ package log
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -41,11 +40,11 @@ const (
+ // the Writer's Write method.  A Logger can be used simultaneously from
+ // multiple goroutines; it guarantees to serialize access to the Writer.
+ type Logger struct {
+-	mu     sync.Mutex   // ensures atomic writes; protects the following fields
+-	prefix string       // prefix to write at beginning of each line
+-	flag   int          // properties
+-	out    io.Writer    // destination for output
+-	buf    bytes.Buffer // for accumulating text to write
++	mu     sync.Mutex // ensures atomic writes; protects the following fields
++	prefix string     // prefix to write at beginning of each line
++	flag   int        // properties
++	out    io.Writer  // destination for output
++	buf    []byte     // for accumulating text to write
+ }
+ 
+ // New creates a new Logger.   The out variable sets the
+@@ -60,10 +59,10 @@ var std = New(os.Stderr, "", LstdFlags)
+ 
+ // Cheap integer to fixed-width decimal ASCII.  Give a negative width to avoid zero-padding.
+ // Knows the buffer has capacity.
+-func itoa(buf *bytes.Buffer, i int, wid int) {
++func itoa(buf *[]byte, i int, wid int) {
+ 	var u uint = uint(i)
+ 	if u == 0 && wid <= 1 {
+-		buf.WriteByte('0')
++		*buf = append(*buf, '0')
+ 		return
+ 	}
+ 
+@@ -75,38 +74,33 @@ func itoa(buf *bytes.Buffer, i int, wid int) {
+ 		wid--
+ 		b[bp] = byte(u%10) + '0'
+ 	}
+-
+-	// avoid slicing b to avoid an allocation.
+-	for bp < len(b) {
+-		buf.WriteByte(b[bp])
+-		bp++
+-	}
++	*buf = append(*buf, b[bp:]...)
+ }
+ 
+-func (l *Logger) formatHeader(buf *bytes.Buffer, t time.Time, file string, line int) {
+-	buf.WriteString(l.prefix)
++func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
++	*buf = append(*buf, l.prefix...)
+ 	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
+ 		if l.flag&Ldate != 0 {
+ 			year, month, day := t.Date()
+ 			itoa(buf, year, 4)
+-			buf.WriteByte('/')
++			*buf = append(*buf, '/')
+ 			itoa(buf, int(month), 2)
+-			buf.WriteByte('/')
++			*buf = append(*buf, '/')
+ 			itoa(buf, day, 2)
+-			buf.WriteByte(' ')
++			*buf = append(*buf, ' ')
+ 		}
+ 		if l.flag&(Ltime|Lmicroseconds) != 0 {
+ 			hour, min, sec := t.Clock()
+ 			itoa(buf, hour, 2)
+-			buf.WriteByte(':')
++			*buf = append(*buf, ':')
+ 			itoa(buf, min, 2)
+-			buf.WriteByte(':')
++			*buf = append(*buf, ':')
+ 			itoa(buf, sec, 2)
+ 			if l.flag&Lmicroseconds != 0 {
+-				buf.WriteByte('.')
++				*buf = append(*buf, '.')
+ 				itoa(buf, t.Nanosecond()/1e3, 6)
+ 			}
+-			buf.WriteByte(' ')
++			*buf = append(*buf, ' ')
+ 		}
+ 	}
+ 	if l.flag&(Lshortfile|Llongfile) != 0 {
+@@ -120,10 +114,10 @@ func (l *Logger) formatHeader(buf *bytes.Buffer, t time.Time, file string, line
+ 			}
+ 			file = short
+ 		}
+-		buf.WriteString(file)
+-		buf.WriteByte(':')
++		*buf = append(*buf, file...)
++		*buf = append(*buf, ':')
+ 		itoa(buf, line, -1)
+-		buf.WriteString(": ")
++		*buf = append(*buf, ": "...)
+ 	}
+ }
+ 
+@@ -150,13 +144,13 @@ func (l *Logger) Output(calldepth int, s string) error {
+ 		}
+ 		l.mu.Lock()
+ 	}
+-	l.buf.Reset()
++	l.buf = l.buf[:0]
+ 	l.formatHeader(&l.buf, now, file, line)
+-	l.buf.WriteString(s)
++	l.buf = append(l.buf, s...)
+ 	if len(s) > 0 && s[len(s)-1] != '\n' {
+-		l.buf.WriteByte('\n')
++		l.buf = append(l.buf, '\n')
+ 	}
+-	_, err := l.out.Write(l.buf.Bytes())
++	_, err := l.out.Write(l.buf)
+ 	return err
+ }
+ 

@@ -15,6 +15,34 @@ Date:   Thu Oct 26 10:15:29 2017 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 377b4a4df2..81f8e4cb44 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1073,14 +1073,14 @@ func (ctxt *Link) hostlink() {
+ 	argv = append(argv, *flagExtld)
+ 	argv = append(argv, hostlinkArchArgs(ctxt.Arch)...)
+ 
+-	if !*FlagS && !debug_s {
+-		argv = append(argv, "-gdwarf-2")
+-	} else if ctxt.HeadType == objabi.Hdarwin {
+-		// Recent versions of macOS print
+-		//	ld: warning: option -s is obsolete and being ignored
+-		// so do not pass any arguments.
+-	} else {
+-		argv = append(argv, "-s")
++	if *FlagS || debug_s {
++		if ctxt.HeadType == objabi.Hdarwin {
++			// Recent versions of macOS print
++			//	ld: warning: option -s is obsolete and being ignored
++			// so do not pass any arguments.
++		} else {
++			argv = append(argv, "-s")
++		}
+ 	}
+ 
+ 	switch ctxt.HeadType {

@@ -10,8 +10,207 @@ Date:   Wed Mar 27 01:06:48 2013 +0900
     R=golang-dev, fullung, bradfitz
     CC=golang-dev
     https://golang.org/cl/8011043
-
+---
  src/pkg/net/ipraw_test.go | 33 ++++++++++++++-------------------
  src/pkg/net/tcp_test.go   | 36 ++++++++++++++----------------------
  src/pkg/net/udp_test.go   | 36 ++++++++++++++----------------------
  3 files changed, 42 insertions(+), 63 deletions(-)
+
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 841b57ab40..6cdb5ab847 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -14,12 +14,14 @@ import (
+ 	"time"
+ )
+ 
+-var resolveIPAddrTests = []struct {
++type resolveIPAddrTest struct {
+ 	net     string
+ 	litAddr string
+ 	addr    *IPAddr
+ 	err     error
+-}{
++}
++
++var resolveIPAddrTests = []resolveIPAddrTest{
+ 	{"ip", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
+ 	{"ip4", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
+ 	{"ip4:icmp", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
+@@ -30,8 +32,6 @@ var resolveIPAddrTests = []struct {
+ 
+ 	{"ip", "::1%en0", &IPAddr{IP: ParseIP("::1"), Zone: "en0"}, nil},
+ 	{"ip6", "::1%911", &IPAddr{IP: ParseIP("::1"), Zone: "911"}, nil},
+-	{"ip6", "fe80::1", &IPAddr{IP: ParseIP("fe80::1"), Zone: "name"}, nil},
+-	{"ip6", "fe80::1", &IPAddr{IP: ParseIP("fe80::1"), Zone: "index"}, nil},
+ 
+ 	{"", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil}, // Go 1.0 behavior
+ 	{"", "::1", &IPAddr{IP: ParseIP("::1")}, nil},           // Go 1.0 behavior
+@@ -41,23 +41,18 @@ var resolveIPAddrTests = []struct {
+ 	{"tcp", "1.2.3.4:123", nil, UnknownNetworkError("tcp")},
+ }
+ 
++func init() {
++	if ifi := loopbackInterface(); ifi != nil {
++		index := fmt.Sprintf("%v", ifi.Index)
++		resolveIPAddrTests = append(resolveIPAddrTests, []resolveIPAddrTest{
++			{"ip6", "fe80::1%" + ifi.Name, &IPAddr{IP: ParseIP("fe80::1"), Zone: zoneToString(ifi.Index)}, nil},
++			{"ip6", "fe80::1%" + index, &IPAddr{IP: ParseIP("fe80::1"), Zone: index}, nil},
++		}...)
++	}
++}
++
+ func TestResolveIPAddr(t *testing.T) {
+ 	for _, tt := range resolveIPAddrTests {
+-		if tt.addr != nil && (tt.addr.Zone == "name" || tt.addr.Zone == "index") {
+-			ifi := loopbackInterface()
+-			if ifi == nil {
+-				continue
+-			}
+-			switch tt.addr.Zone {
+-			case "name":
+-				tt.litAddr += "%" + ifi.Name
+-				tt.addr.Zone = zoneToString(ifi.Index)
+-			case "index":
+-				index := fmt.Sprintf("%v", ifi.Index)
+-				tt.litAddr += "%" + index
+-				tt.addr.Zone = index
+-			}
+-		}
+ 		addr, err := ResolveIPAddr(tt.net, tt.litAddr)
+ 		if err != tt.err {
+ 			t.Fatalf("ResolveIPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
+diff --git a/src/pkg/net/tcp_test.go b/src/pkg/net/tcp_test.go
+index b89202f506..a71b02b477 100644
+--- a/src/pkg/net/tcp_test.go
++++ b/src/pkg/net/tcp_test.go
+@@ -147,12 +147,14 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
+ 	}
+ }
+ 
+-var resolveTCPAddrTests = []struct {
++type resolveTCPAddrTest struct {
+ 	net     string
+ 	litAddr string
+ 	addr    *TCPAddr
+ 	err     error
+-}{
++}
++
++var resolveTCPAddrTests = []resolveTCPAddrTest{
+ 	{"tcp", "127.0.0.1:0", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil},
+ 	{"tcp4", "127.0.0.1:65535", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 65535}, nil},
+ 
+@@ -161,8 +163,6 @@ var resolveTCPAddrTests = []struct {
+ 
+ 	{"tcp", "[::1%en0]:1", &TCPAddr{IP: ParseIP("::1"), Port: 1, Zone: "en0"}, nil},
+ 	{"tcp6", "[::1%911]:2", &TCPAddr{IP: ParseIP("::1"), Port: 2, Zone: "911"}, nil},
+-	{"tcp6", "[fe80::1]:3", &TCPAddr{IP: ParseIP("fe80::1"), Port: 3, Zone: "name"}, nil},
+-	{"tcp6", "[fe80::1]:4", &TCPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: "index"}, nil},
+ 
+ 	{"", "127.0.0.1:0", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil}, // Go 1.0 behavior
+ 	{"", "[::1]:0", &TCPAddr{IP: ParseIP("::1"), Port: 0}, nil},         // Go 1.0 behavior
+@@ -170,26 +170,18 @@ var resolveTCPAddrTests = []struct {
+ 	{"http", "127.0.0.1:0", nil, UnknownNetworkError("http")},
+ }
+ 
++func init() {
++	if ifi := loopbackInterface(); ifi != nil {
++		index := fmt.Sprintf("%v", ifi.Index)
++		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
++			{"tcp6", "[fe80::1%" + ifi.Name + "]:3", &TCPAddr{IP: ParseIP("fe80::1"), Port: 3, Zone: zoneToString(ifi.Index)}, nil},
++			{"tcp6", "[fe80::1%" + index + "]:4", &TCPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: index}, nil},
++		}...)
++	}
++}
++
+ func TestResolveTCPAddr(t *testing.T) {
+ 	for _, tt := range resolveTCPAddrTests {
+-		if tt.addr != nil && (tt.addr.Zone == "name" || tt.addr.Zone == "index") {
+-			ifi := loopbackInterface()
+-			if ifi == nil {
+-				continue
+-			}
+-			i := last(tt.litAddr, ']')
+-			if i > 0 {
+-				switch tt.addr.Zone {
+-				case "name":
+-					tt.litAddr = tt.litAddr[:i] + "%" + ifi.Name + tt.litAddr[i:]
+-					tt.addr.Zone = zoneToString(ifi.Index)
+-				case "index":
+-					index := fmt.Sprintf("%v", ifi.Index)
+-					tt.litAddr = tt.litAddr[:i] + "%" + index + tt.litAddr[i:]
+-					tt.addr.Zone = index
+-				}
+-			}
+-		}
+ 		addr, err := ResolveTCPAddr(tt.net, tt.litAddr)
+ 		if err != tt.err {
+ 			t.Fatalf("ResolveTCPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
+diff --git a/src/pkg/net/udp_test.go b/src/pkg/net/udp_test.go
+index 7a64c19ff2..4278f6dd4b 100644
+--- a/src/pkg/net/udp_test.go
++++ b/src/pkg/net/udp_test.go
+@@ -11,12 +11,14 @@ import (
+ 	"testing"
+ )
+ 
+-var resolveUDPAddrTests = []struct {
++type resolveUDPAddrTest struct {
+ 	net     string
+ 	litAddr string
+ 	addr    *UDPAddr
+ 	err     error
+-}{
++}
++
++var resolveUDPAddrTests = []resolveUDPAddrTest{
+ 	{"udp", "127.0.0.1:0", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil},
+ 	{"udp4", "127.0.0.1:65535", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 65535}, nil},
+ 
+@@ -25,8 +27,6 @@ var resolveUDPAddrTests = []struct {
+ 
+ 	{"udp", "[::1%en0]:1", &UDPAddr{IP: ParseIP("::1"), Port: 1, Zone: "en0"}, nil},
+ 	{"udp6", "[::1%911]:2", &UDPAddr{IP: ParseIP("::1"), Port: 2, Zone: "911"}, nil},
+-	{"udp6", "[fe80::1]:3", &UDPAddr{IP: ParseIP("fe80::1"), Port: 3, Zone: "name"}, nil},
+-	{"udp6", "[fe80::1]:4", &UDPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: "index"}, nil},
+ 
+ 	{"", "127.0.0.1:0", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil}, // Go 1.0 behavior
+ 	{"", "[::1]:0", &UDPAddr{IP: ParseIP("::1"), Port: 0}, nil},         // Go 1.0 behavior
+@@ -34,26 +34,18 @@ var resolveUDPAddrTests = []struct {
+ 	{"sip", "127.0.0.1:0", nil, UnknownNetworkError("sip")},
+ }
+ 
++func init() {
++	if ifi := loopbackInterface(); ifi != nil {
++		index := fmt.Sprintf("%v", ifi.Index)
++		resolveUDPAddrTests = append(resolveUDPAddrTests, []resolveUDPAddrTest{
++			{"udp6", "[fe80::1%" + ifi.Name + "]:3", &UDPAddr{IP: ParseIP("fe80::1"), Port: 3, Zone: zoneToString(ifi.Index)}, nil},
++			{"udp6", "[fe80::1%" + index + "]:4", &UDPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: index}, nil},
++		}...)
++	}
++}
++
+ func TestResolveUDPAddr(t *testing.T) {
+ 	for _, tt := range resolveUDPAddrTests {
+-		if tt.addr != nil && (tt.addr.Zone == "name" || tt.addr.Zone == "index") {
+-			ifi := loopbackInterface()
+-			if ifi == nil {
+-				continue
+-			}
+-			i := last(tt.litAddr, ']')
+-			if i > 0 {
+-				switch tt.addr.Zone {
+-				case "name":
+-					tt.litAddr = tt.litAddr[:i] + "%" + ifi.Name + tt.litAddr[i:]
+-					tt.addr.Zone = zoneToString(ifi.Index)
+-				case "index":
+-					index := fmt.Sprintf("%v", ifi.Index)
+-					tt.litAddr = tt.litAddr[:i] + "%" + index + tt.litAddr[i:]
+-					tt.addr.Zone = index
+-				}
+-			}
+-		}
+ 		addr, err := ResolveUDPAddr(tt.net, tt.litAddr)
+ 		if err != tt.err {
+ 			t.Fatalf("ResolveUDPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)

@@ -56,7 +56,7 @@ Date:   Mon Jul 26 15:44:22 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/galign.go   |  1 -
  src/cmd/compile/internal/arm/galign.go     |  1 -
  src/cmd/compile/internal/arm64/galign.go   |  1 -
@@ -89,3 +89,762 @@ Date:   Mon Jul 26 15:44:22 2021 -0400
  src/runtime/stubs.go                       |  2 --
  src/runtime/symtab.go                      |  1 -
  31 files changed, 39 insertions(+), 324 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 3b13e123a7..ca44263afc 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -18,7 +18,6 @@ func Init(arch *ssagen.ArchInfo) {
+ 
+ 	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+-	arch.Ginsnopdefer = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index d68500280d..23e52bacbf 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -18,7 +18,6 @@ func Init(arch *ssagen.ArchInfo) {
+ 	arch.SoftFloat = buildcfg.GOARM == 5
+ 	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+-	arch.Ginsnopdefer = ginsnop
+ 
+ 	arch.SSAMarkMoves = func(s *ssagen.State, b *ssa.Block) {}
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index 2a61b9dd99..3ebd860de8 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -18,7 +18,6 @@ func Init(arch *ssagen.ArchInfo) {
+ 	arch.PadFrame = padframe
+ 	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+-	arch.Ginsnopdefer = ginsnop
+ 
+ 	arch.SSAMarkMoves = func(s *ssagen.State, b *ssa.Block) {}
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/mips/galign.go b/src/cmd/compile/internal/mips/galign.go
+index f892923ba0..4e6897042e 100644
+--- a/src/cmd/compile/internal/mips/galign.go
++++ b/src/cmd/compile/internal/mips/galign.go
+@@ -21,7 +21,6 @@ func Init(arch *ssagen.ArchInfo) {
+ 	arch.SoftFloat = (buildcfg.GOMIPS == "softfloat")
+ 	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+-	arch.Ginsnopdefer = ginsnop
+ 	arch.SSAMarkMoves = func(s *ssagen.State, b *ssa.Block) {}
+ 	arch.SSAGenValue = ssaGenValue
+ 	arch.SSAGenBlock = ssaGenBlock
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index af81366e51..412bc71aab 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -21,7 +21,6 @@ func Init(arch *ssagen.ArchInfo) {
+ 	arch.SoftFloat = buildcfg.GOMIPS64 == "softfloat"
+ 	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+-	arch.Ginsnopdefer = ginsnop
+ 
+ 	arch.SSAMarkMoves = func(s *ssagen.State, b *ssa.Block) {}
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 590290fa37..bff3e38f42 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -20,7 +20,6 @@ func Init(arch *ssagen.ArchInfo) {
+ 
+ 	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+-	arch.Ginsnopdefer = ginsnopdefer
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index c76962cfb8..3ae6422bf9 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -53,30 +53,3 @@ func ginsnop(pp *objw.Progs) *obj.Prog {
+ 	p.To.Reg = ppc64.REG_R0
+ 	return p
+ }
+-
+-func ginsnopdefer(pp *objw.Progs) *obj.Prog {
+-	// On PPC64 two nops are required in the defer case.
+-	//
+-	// (see gc/cgen.go, gc/plive.go -- copy of comment below)
+-	//
+-	// On ppc64, when compiling Go into position
+-	// independent code on ppc64le we insert an
+-	// instruction to reload the TOC pointer from the
+-	// stack as well. See the long comment near
+-	// jmpdefer in runtime/asm_ppc64.s for why.
+-	// If the MOVD is not needed, insert a hardware NOP
+-	// so that the same number of instructions are used
+-	// on ppc64 in both shared and non-shared modes.
+-
+-	ginsnop(pp)
+-	if base.Ctxt.Flag_shared {
+-		p := pp.Prog(ppc64.AMOVD)
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Offset = 24
+-		p.From.Reg = ppc64.REGSP
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = ppc64.REG_R2
+-		return p
+-	}
+-	return ginsnop(pp)
+-}
+diff --git a/src/cmd/compile/internal/riscv64/galign.go b/src/cmd/compile/internal/riscv64/galign.go
+index 338248a7cf..846ed8fb38 100644
+--- a/src/cmd/compile/internal/riscv64/galign.go
++++ b/src/cmd/compile/internal/riscv64/galign.go
+@@ -16,7 +16,6 @@ func Init(arch *ssagen.ArchInfo) {
+ 	arch.MAXWIDTH = 1 << 50
+ 
+ 	arch.Ginsnop = ginsnop
+-	arch.Ginsnopdefer = ginsnop
+ 	arch.ZeroRange = zeroRange
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+diff --git a/src/cmd/compile/internal/s390x/galign.go b/src/cmd/compile/internal/s390x/galign.go
+index b004a2db0a..d880834c22 100644
+--- a/src/cmd/compile/internal/s390x/galign.go
++++ b/src/cmd/compile/internal/s390x/galign.go
+@@ -16,7 +16,6 @@ func Init(arch *ssagen.ArchInfo) {
+ 
+ 	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+-	arch.Ginsnopdefer = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/ssagen/arch.go b/src/cmd/compile/internal/ssagen/arch.go
+index 957fb3e84a..483e45cad4 100644
+--- a/src/cmd/compile/internal/ssagen/arch.go
++++ b/src/cmd/compile/internal/ssagen/arch.go
+@@ -29,8 +29,7 @@ type ArchInfo struct {
+ 	// at function entry, and it is ok to clobber registers.
+ 	ZeroRange func(*objw.Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
+ 
+-	Ginsnop      func(*objw.Progs) *obj.Prog
+-	Ginsnopdefer func(*objw.Progs) *obj.Prog // special ginsnop for deferreturn
++	Ginsnop func(*objw.Progs) *obj.Prog
+ 
+ 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
+ 	SSAMarkMoves func(*State, *ssa.Block)
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 7e2f6a7471..161469ea67 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7335,18 +7335,6 @@ func (s *State) PrepareCall(v *ssa.Value) {
+ 
+ 	call, ok := v.Aux.(*ssa.AuxCall)
+ 
+-	if ok && call.Fn == ir.Syms.Deferreturn {
+-		// Deferred calls will appear to be returning to
+-		// the CALL deferreturn(SB) that we are about to emit.
+-		// However, the stack trace code will show the line
+-		// of the instruction byte before the return PC.
+-		// To avoid that being an unrelated instruction,
+-		// insert an actual hardware NOP that will have the right line number.
+-		// This is different from obj.ANOP, which is a virtual no-op
+-		// that doesn't make it into the instruction stream.
+-		Arch.Ginsnopdefer(s.pp)
+-	}
+-
+ 	if ok {
+ 		// Record call graph information for nowritebarrierrec
+ 		// analysis.
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index 31b09016eb..0b2ca3fdbb 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -24,7 +24,6 @@ func Init(arch *ssagen.ArchInfo) {
+ 
+ 	arch.ZeroRange = zeroRange
+ 	arch.Ginsnop = ginsnop
+-	arch.Ginsnopdefer = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+ 	arch.SSAGenValue = ssaGenValue
+@@ -126,7 +125,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 	case ssa.OpWasmLoweredStaticCall, ssa.OpWasmLoweredClosureCall, ssa.OpWasmLoweredInterCall:
+ 		s.PrepareCall(v)
+ 		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn == ir.Syms.Deferreturn {
+-			// add a resume point before call to deferreturn so it can be called again via jmpdefer
++			// The runtime needs to inject jumps to
++			// deferreturn calls using the address in
++			// _func.deferreturn. Hence, the call to
++			// deferreturn must itself be a resumption
++			// point so it gets a target PC.
+ 			s.Prog(wasm.ARESUMEPOINT)
+ 		}
+ 		if v.Op == ssa.OpWasmLoweredClosureCall {
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index 00a20e429f..5565bd32c7 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -34,7 +34,6 @@ func Init(arch *ssagen.ArchInfo) {
+ 
+ 	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+-	arch.Ginsnopdefer = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+ }
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index ccf5f9e7f8..7b1682776e 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -355,11 +355,10 @@ var oprange [ALAST & obj.AMask][]Optab
+ var xcmp [C_GOK + 1][C_GOK + 1]bool
+ 
+ var (
+-	deferreturn *obj.LSym
+-	symdiv      *obj.LSym
+-	symdivu     *obj.LSym
+-	symmod      *obj.LSym
+-	symmodu     *obj.LSym
++	symdiv  *obj.LSym
++	symdivu *obj.LSym
++	symmod  *obj.LSym
++	symmodu *obj.LSym
+ )
+ 
+ // Note about encoding: Prog.scond holds the condition encoding,
+@@ -1219,8 +1218,6 @@ func buildop(ctxt *obj.Link) {
+ 		return
+ 	}
+ 
+-	deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
+-
+ 	symdiv = ctxt.Lookup("runtime._div")
+ 	symdivu = ctxt.Lookup("runtime._divu")
+ 	symmod = ctxt.Lookup("runtime._mod")
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index ceeae7a257..4d276db678 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -129,8 +129,6 @@ var (
+ 	morestackNoCtxt *obj.LSym
+ 	gcWriteBarrier  *obj.LSym
+ 	sigpanic        *obj.LSym
+-	deferreturn     *obj.LSym
+-	jmpdefer        *obj.LSym
+ )
+ 
+ const (
+@@ -143,10 +141,6 @@ func instinit(ctxt *obj.Link) {
+ 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
+ 	gcWriteBarrier = ctxt.LookupABI("runtime.gcWriteBarrier", obj.ABIInternal)
+ 	sigpanic = ctxt.LookupABI("runtime.sigpanic", obj.ABIInternal)
+-	deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
+-	// jmpdefer is defined in assembly as ABI0. The compiler will
+-	// generate a direct ABI0 call from Go, so look for that.
+-	jmpdefer = ctxt.LookupABI(`"".jmpdefer`, obj.ABI0)
+ }
+ 
+ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+@@ -423,12 +417,6 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 				pcAfterCall-- // sigpanic expects to be called without advancing the pc
+ 			}
+ 
+-			// jmpdefer manipulates the return address on the stack so deferreturn gets called repeatedly.
+-			// Model this in WebAssembly with a loop.
+-			if call.To.Sym == deferreturn {
+-				p = appendp(p, ALoop)
+-			}
+-
+ 			// SP -= 8
+ 			p = appendp(p, AGet, regAddr(REG_SP))
+ 			p = appendp(p, AI32Const, constAddr(8))
+@@ -479,15 +467,6 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 				break
+ 			}
+ 
+-			// jmpdefer removes the frame of deferreturn from the Go stack.
+-			// However, its WebAssembly function still returns normally,
+-			// so we need to return from deferreturn without removing its
+-			// stack frame (no RET), because the frame is already gone.
+-			if call.To.Sym == jmpdefer {
+-				p = appendp(p, AReturn)
+-				break
+-			}
+-
+ 			// return value of call is on the top of the stack, indicating whether to unwind the WebAssembly stack
+ 			if call.As == ACALLNORESUME && call.To.Sym != sigpanic { // sigpanic unwinds the stack, but it never resumes
+ 				// trying to unwind WebAssembly stack but call has no resume point, terminate with error
+@@ -500,21 +479,6 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 				unwindExitBranches = append(unwindExitBranches, p)
+ 			}
+ 
+-			// jump to before the call if jmpdefer has reset the return address to the call's PC
+-			if call.To.Sym == deferreturn {
+-				// get PC_B from -8(SP)
+-				p = appendp(p, AGet, regAddr(REG_SP))
+-				p = appendp(p, AI32Const, constAddr(8))
+-				p = appendp(p, AI32Sub)
+-				p = appendp(p, AI32Load16U, constAddr(0))
+-				p = appendp(p, ATee, regAddr(REG_PC_B))
+-
+-				p = appendp(p, AI32Const, constAddr(call.Pc))
+-				p = appendp(p, AI32Eq)
+-				p = appendp(p, ABrIf, constAddr(0))
+-				p = appendp(p, AEnd) // end of Loop
+-			}
+-
+ 		case obj.ARET, ARETUNWIND:
+ 			ret := *p
+ 			p.As = obj.ANOP
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 17fa76727e..331a98dfef 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -43,7 +43,6 @@ import (
+ 
+ var (
+ 	plan9privates *obj.LSym
+-	deferreturn   *obj.LSym
+ )
+ 
+ // Instruction layout.
+diff --git a/src/cmd/internal/objabi/funcid.go b/src/cmd/internal/objabi/funcid.go
+index d881cdd061..68f6a26a76 100644
+--- a/src/cmd/internal/objabi/funcid.go
++++ b/src/cmd/internal/objabi/funcid.go
+@@ -34,7 +34,6 @@ const (
+ 	FuncID_gogo
+ 	FuncID_gopanic
+ 	FuncID_handleAsyncEvent
+-	FuncID_jmpdefer
+ 	FuncID_mcall
+ 	FuncID_morestack
+ 	FuncID_mstart
+@@ -60,7 +59,6 @@ var funcIDs = map[string]FuncID{
+ 	"gogo":             FuncID_gogo,
+ 	"gopanic":          FuncID_gopanic,
+ 	"handleAsyncEvent": FuncID_handleAsyncEvent,
+-	"jmpdefer":         FuncID_jmpdefer,
+ 	"main":             FuncID_runtime_main,
+ 	"mcall":            FuncID_mcall,
+ 	"morestack":        FuncID_morestack,
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 05fd302369..70e3e1284b 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -129,11 +129,10 @@ func computeDeferReturn(ctxt *Link, deferReturnSym, s loader.Sym) uint32 {
+ 	for ri := 0; ri < relocs.Count(); ri++ {
+ 		r := relocs.At(ri)
+ 		if target.IsWasm() && r.Type() == objabi.R_ADDR {
+-			// Wasm does not have a live variable set at the deferreturn
+-			// call itself. Instead it has one identified by the
+-			// resumption point immediately preceding the deferreturn.
+-			// The wasm code has a R_ADDR relocation which is used to
+-			// set the resumption point to PC_B.
++			// wasm/ssa.go generates an ARESUMEPOINT just
++			// before the deferreturn call. The "PC" of
++			// the deferreturn call is stored in the
++			// R_ADDR relocation on the ARESUMEPOINT.
+ 			lastWasmAddr = uint32(r.Add())
+ 		}
+ 		if r.Type().IsDirectCall() && (r.Sym() == deferReturnSym || ldr.IsDeferReturnTramp(r.Sym())) {
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index dd2ea458cc..11c60309f4 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -582,26 +582,6 @@ TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
+ 	// compile barrier.
+ 	RET
+ 
+-// void jmpdefer(fn, sp);
+-// called from deferreturn.
+-// 1. pop the caller
+-// 2. sub 5 bytes (the length of CALL & a 32 bit displacement) from the callers
+-//    return (when building for shared libraries, subtract 16 bytes -- 5 bytes
+-//    for CALL & displacement to call __x86.get_pc_thunk.cx, 6 bytes for the
+-//    LEAL to load the offset into BX, and finally 5 for the call & displacement)
+-// 3. jmp to the argument
+-TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
+-	MOVL	fv+0(FP), DX	// fn
+-	MOVL	argp+4(FP), BX	// caller sp
+-	LEAL	-4(BX), SP	// caller sp after CALL
+-#ifdef GOBUILDMODE_shared
+-	SUBL	$16, (SP)	// return to CALL again
+-#else
+-	SUBL	$5, (SP)	// return to CALL again
+-#endif
+-	MOVL	0(DX), BX
+-	JMP	BX	// but first run the deferred function
+-
+ // Save state of caller into g->sched,
+ // but using fake PC from systemstack_switch.
+ // Must only be called from functions with no locals ($0)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 0f719b2664..2d8f4c2412 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -662,21 +662,6 @@ TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
+ 	// compile barrier.
+ 	RET
+ 
+-// func jmpdefer(fv func(), argp uintptr)
+-// argp is a caller SP.
+-// called from deferreturn.
+-// 1. pop the caller
+-// 2. sub 5 bytes from the callers return
+-// 3. jmp to the argument
+-TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
+-	MOVQ	fv+0(FP), DX	// fn
+-	MOVQ	argp+8(FP), BX	// caller sp
+-	LEAQ	-8(BX), SP	// caller sp after CALL
+-	MOVQ	-8(SP), BP	// restore BP as if deferreturn returned (harmless if framepointers not in use)
+-	SUBQ	$5, (SP)	// return to CALL again
+-	MOVQ	0(DX), BX
+-	JMP	BX	// but first run the deferred function
+-
+ // Save state of caller into g->sched,
+ // but using fake PC from systemstack_switch.
+ // Must only be called from functions with no locals ($0)
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 5c2bc00fe8..a1164781d2 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -506,20 +506,6 @@ CALLFN(·call268435456, 268435456)
+ CALLFN(·call536870912, 536870912)
+ CALLFN(·call1073741824, 1073741824)
+ 
+-// void jmpdefer(fn, sp);
+-// called from deferreturn.
+-// 1. grab stored LR for caller
+-// 2. sub 4 bytes to get back to BL deferreturn
+-// 3. B to fn
+-TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
+-	MOVW	0(R13), LR
+-	MOVW	$-4(LR), LR	// BL deferreturn
+-	MOVW	fv+0(FP), R7
+-	MOVW	argp+4(FP), R13
+-	MOVW	$-4(R13), R13	// SP is 4 below argp, due to saved LR
+-	MOVW	0(R7), R1
+-	B	(R1)
+-
+ // Save state of caller into g->sched,
+ // but using fake PC from systemstack_switch.
+ // Must only be called from functions with no locals ($0)
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index e7c5fa3225..e51ce2f831 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -982,23 +982,6 @@ again:
+ 	CBNZ	R0, again
+ 	RET
+ 
+-// void jmpdefer(fv, sp);
+-// called from deferreturn.
+-// 1. grab stored LR for caller
+-// 2. sub 4 bytes to get back to BL deferreturn
+-// 3. BR to fn
+-TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
+-	MOVD	0(RSP), R0
+-	SUB	$4, R0
+-	MOVD	R0, LR
+-
+-	MOVD	fv+0(FP), R26
+-	MOVD	argp+8(FP), R0
+-	MOVD	R0, RSP
+-	SUB	$8, RSP
+-	MOVD	0(R26), R3
+-	B	(R3)
+-
+ // Save state of caller into g->sched,
+ // but using fake PC from systemstack_switch.
+ // Must only be called from functions with no locals ($0)
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index f3ac453d99..b2e2384c36 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -384,22 +384,6 @@ CALLFN(·call1073741824, 1073741824)
+ TEXT runtime·procyield(SB),NOSPLIT,$0-0
+ 	RET
+ 
+-// void jmpdefer(fv, sp);
+-// called from deferreturn.
+-// 1. grab stored LR for caller
+-// 2. sub 8 bytes to get back to JAL deferreturn
+-// 3. JMP to fn
+-TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
+-	MOVV	0(R29), R31
+-	ADDV	$-8, R31
+-
+-	MOVV	fv+0(FP), REGCTXT
+-	MOVV	argp+8(FP), R29
+-	ADDV	$-8, R29
+-	NOR	R0, R0	// prevent scheduling
+-	MOVV	0(REGCTXT), R4
+-	JMP	(R4)
+-
+ // Save state of caller into g->sched,
+ // but using fake PC from systemstack_switch.
+ // Must only be called from functions with no locals ($0)
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 4dc165849e..87a1344e8f 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -382,22 +382,6 @@ CALLFN(·call1073741824, 1073741824)
+ TEXT runtime·procyield(SB),NOSPLIT,$0-4
+ 	RET
+ 
+-// void jmpdefer(fv, sp);
+-// called from deferreturn.
+-// 1. grab stored LR for caller
+-// 2. sub 8 bytes to get back to JAL deferreturn
+-// 3. JMP to fn
+-TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
+-	MOVW	0(R29), R31
+-	ADDU	$-8, R31
+-
+-	MOVW	fv+0(FP), REGCTXT
+-	MOVW	argp+4(FP), R29
+-	ADDU	$-4, R29
+-	NOR	R0, R0	// prevent scheduling
+-	MOVW	0(REGCTXT), R4
+-	JMP	(R4)
+-
+ // Save state of caller into g->sched,
+ // but using fake PC from systemstack_switch.
+ // Must only be called from functions with no locals ($0)
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index a789d041e4..5dc96c5947 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -503,34 +503,6 @@ again:
+ 	OR	R6, R6, R6	// Set PPR priority back to medium-low
+ 	RET
+ 
+-// void jmpdefer(fv, sp);
+-// called from deferreturn.
+-// 1. grab stored LR for caller
+-// 2. sub 8 bytes to get back to either nop or toc reload before deferreturn
+-// 3. BR to fn
+-// When dynamically linking Go, it is not sufficient to rewind to the BL
+-// deferreturn -- we might be jumping between modules and so we need to reset
+-// the TOC pointer in r2. To do this, codegen inserts MOVD 24(R1), R2 *before*
+-// the BL deferreturn and jmpdefer rewinds to that.
+-TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
+-	MOVD	0(R1), R31
+-	SUB     $8, R31
+-	MOVD	R31, LR
+-
+-	MOVD	fv+0(FP), R11
+-	MOVD	argp+8(FP), R1
+-	SUB	$FIXED_FRAME, R1
+-#ifdef GOOS_aix
+-	// AIX won't trigger a SIGSEGV if R11 = nil
+-	// So it manually triggers it
+-	CMP	R0, R11
+-	BNE	2(PC)
+-	MOVD	R0, 0(R0)
+-#endif
+-	MOVD	0(R11), R12
+-	MOVD	R12, CTR
+-	BR	(CTR)
+-
+ // Save state of caller into g->sched,
+ // but using fake PC from systemstack_switch.
+ // Must only be called from functions with no locals ($0)
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 9957ae201b..9927a817f7 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -248,21 +248,6 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+ 	MOV	gobuf_pc(T0), T0
+ 	JALR	ZERO, T0
+ 
+-// func jmpdefer(fv func(), argp uintptr)
+-// called from deferreturn
+-// 1. grab stored return address from the caller's frame
+-// 2. sub 8 bytes to get back to JAL deferreturn
+-// 3. JMP to fn
+-TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
+-	MOV	0(X2), RA
+-	ADD	$-8, RA
+-
+-	MOV	fv+0(FP), CTXT
+-	MOV	argp+8(FP), X2
+-	ADD	$-8, X2
+-	MOV	0(CTXT), T0
+-	JALR	ZERO, T0
+-
+ // func procyield(cycles uint32)
+ TEXT runtime·procyield(SB),NOSPLIT,$0-0
+ 	RET
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 534cb6112c..d4110d563f 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -480,21 +480,6 @@ TEXT callfnMVC<>(SB),NOSPLIT|NOFRAME,$0-0
+ TEXT runtime·procyield(SB),NOSPLIT,$0-0
+ 	RET
+ 
+-// void jmpdefer(fv, sp);
+-// called from deferreturn.
+-// 1. grab stored LR for caller
+-// 2. sub 6 bytes to get back to BL deferreturn (size of BRASL instruction)
+-// 3. BR to fn
+-TEXT runtime·jmpdefer(SB),NOSPLIT|NOFRAME,$0-16
+-	MOVD	0(R15), R1
+-	SUB	$6, R1, LR
+-
+-	MOVD	fv+0(FP), R12
+-	MOVD	argp+8(FP), R15
+-	SUB	$8, R15
+-	MOVD	0(R12), R3
+-	BR	(R3)
+-
+ // Save state of caller into g->sched,
+ // but using fake PC from systemstack_switch.
+ // Must only be called from functions with no locals ($0)
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index 53c271aa70..d885da6e70 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -193,35 +193,6 @@ TEXT runtime·return0(SB), NOSPLIT, $0-0
+ 	MOVD $0, RET0
+ 	RET
+ 
+-TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
+-	MOVD fv+0(FP), CTXT
+-
+-	Get CTXT
+-	I64Eqz
+-	If
+-		CALLNORESUME runtime·sigpanic<ABIInternal>(SB)
+-	End
+-
+-	// caller sp after CALL
+-	I64Load argp+8(FP)
+-	I64Const $8
+-	I64Sub
+-	I32WrapI64
+-	Set SP
+-
+-	// decrease PC_B by 1 to CALL again
+-	Get SP
+-	I32Load16U (SP)
+-	I32Const $1
+-	I32Sub
+-	I32Store16 $0
+-
+-	// but first run the deferred function
+-	Get CTXT
+-	I32WrapI64
+-	I64Load $0
+-	JMP
+-
+ TEXT runtime·asminit(SB), NOSPLIT, $0-0
+ 	// No per-thread init.
+ 	RET
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index e66fe27be0..4b8bca6c56 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -396,47 +396,39 @@ func freedeferfn() {
+ 	throw("freedefer with d.fn != nil")
+ }
+ 
+-// Run a deferred function if there is one.
++// deferreturn runs deferred functions for the caller's frame.
+ // The compiler inserts a call to this at the end of any
+ // function which calls defer.
+-// If there is a deferred function, this will call runtime·jmpdefer,
+-// which will jump to the deferred function such that it appears
+-// to have been called by the caller of deferreturn at the point
+-// just before deferreturn was called. The effect is that deferreturn
+-// is called again and again until there are no more deferred functions.
+ func deferreturn() {
+ 	gp := getg()
+-	d := gp._defer
+-	if d == nil {
+-		return
+-	}
+-	sp := getcallersp()
+-	if d.sp != sp {
+-		return
+-	}
+-	if d.openDefer {
+-		done := runOpenDeferFrame(gp, d)
+-		if !done {
+-			throw("unfinished open-coded defers in deferreturn")
++	for {
++		d := gp._defer
++		if d == nil {
++			return
+ 		}
++		sp := getcallersp()
++		if d.sp != sp {
++			return
++		}
++		if d.openDefer {
++			done := runOpenDeferFrame(gp, d)
++			if !done {
++				throw("unfinished open-coded defers in deferreturn")
++			}
++			gp._defer = d.link
++			freedefer(d)
++			// If this frame uses open defers, then this
++			// must be the only defer record for the
++			// frame, so we can just return.
++			return
++		}
++
++		fn := d.fn
++		d.fn = nil
+ 		gp._defer = d.link
+ 		freedefer(d)
+-		return
++		fn()
+ 	}
+-
+-	fn := d.fn
+-	d.fn = nil
+-	gp._defer = d.link
+-	freedefer(d)
+-	// If the defer function pointer is nil, force the seg fault to happen
+-	// here rather than in jmpdefer. gentraceback() throws an error if it is
+-	// called with a callback on an LR architecture and jmpdefer is on the
+-	// stack, because jmpdefer manipulates SP (see issue #8153).
+-	_ = **(**funcval)(unsafe.Pointer(&fn))
+-	// We must not split the stack between computing argp and
+-	// calling jmpdefer because argp is a uintptr stack pointer.
+-	argp := getcallersp() + sys.MinFrameSize
+-	jmpdefer(fn, argp)
+ }
+ 
+ // Goexit terminates the goroutine that calls it. No other goroutine is affected.
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index b94acdea1f..fc29a1bac3 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -176,8 +176,6 @@ func cgocallback(fn, frame, ctxt uintptr)
+ 
+ func gogo(buf *gobuf)
+ 
+-//go:noescape
+-func jmpdefer(fv func(), argp uintptr)
+ func asminit()
+ func setg(gg *g)
+ func breakpoint()
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 44ea0710c6..d08aa0b320 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -331,7 +331,6 @@ const (
+ 	funcID_gogo
+ 	funcID_gopanic
+ 	funcID_handleAsyncEvent
+-	funcID_jmpdefer
+ 	funcID_mcall
+ 	funcID_morestack
+ 	funcID_mstart

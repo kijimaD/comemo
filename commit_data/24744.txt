@@ -7,6 +7,20 @@ Date:   Thu Aug 27 10:29:01 2015 -0700
     Change-Id: I113c07caf504cee66a81730da8830de6de098e49
     Reviewed-on: https://go-review.googlesource.com/13981
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/html.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 5c23320680..44e4e19b77 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -379,7 +379,7 @@ func (b *Block) HTML() string {
+ 
+ func (b *Block) LongHTML() string {
+ 	// TODO: improve this for HTML?
+-	s := b.Kind.String()
++	s := fmt.Sprintf("<span class=\"%s ssa-block\">%s</span>", html.EscapeString(b.String()), html.EscapeString(b.Kind.String()))
+ 	if b.Control != nil {
+ 		s += fmt.Sprintf(" %s", b.Control.HTML())
+ 	}

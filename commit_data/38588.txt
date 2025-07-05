@@ -33,7 +33,7 @@ Date:   Sun Nov 4 19:23:08 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/c/147361
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go | 14 +++++++++++---
  src/runtime/extern.go              |  1 +
  src/runtime/runtime-gdb_test.go    |  8 +++-----
@@ -43,3 +43,196 @@ Date:   Sun Nov 4 19:23:08 2018 -0800
  test/inline.go                     | 18 ++++++++++++++++++
  test/live_syscall.go               |  8 ++++----
  8 files changed, 43 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 0b91d49188..b26758a77e 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -38,9 +38,10 @@ import (
+ const (
+ 	inlineMaxBudget       = 80
+ 	inlineExtraAppendCost = 0
+-	inlineExtraCallCost   = inlineMaxBudget // default is do not inline, -l=4 enables by using 1 instead.
+-	inlineExtraPanicCost  = 1               // do not penalize inlining panics.
+-	inlineExtraThrowCost  = inlineMaxBudget // with current (2018-05/1.11) code, inlining runtime.throw does not help.
++	// default is to inline if there's at most one call. -l=4 overrides this by using 1 instead.
++	inlineExtraCallCost  = inlineMaxBudget * 3 / 4
++	inlineExtraPanicCost = 1               // do not penalize inlining panics.
++	inlineExtraThrowCost = inlineMaxBudget // with current (2018-05/1.11) code, inlining runtime.throw does not help.
+ 
+ 	inlineBigFunctionNodes   = 5000 // Functions with this many nodes are considered "big".
+ 	inlineBigFunctionMaxCost = 20   // Max cost of inlinee when inlining into a "big" function.
+@@ -141,6 +142,13 @@ func caninl(fn *Node) {
+ 		return
+ 	}
+ 
++	// If marked as "go:uintptrescapes", don't inline, since the
++	// escape information is lost during inlining.
++	if fn.Func.Pragma&UintptrEscapes != 0 {
++		reason = "marked as having an escaping uintptr argument"
++		return
++	}
++
+ 	// The nowritebarrierrec checker currently works at function
+ 	// granularity, so inlining yeswritebarrierrec functions can
+ 	// confuse it (#22342). As a workaround, disallow inlining
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 640688e004..997e1cb278 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -202,6 +202,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+ // directly is discouraged, as is using FuncForPC on any of the
+ // returned PCs, since these cannot account for inlining or return
+ // program counter adjustment.
++//go:noinline
+ func Callers(skip int, pc []uintptr) int {
+ 	// runtime.callers uses pc.array==nil as a signal
+ 	// to print a stack trace. Pick off 0-length pc here
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 5d35813708..2c1653172e 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -181,12 +181,11 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 	}
+ 	args = append(args,
+ 		"-ex", "set python print-stack full",
+-		"-ex", "br fmt.Println",
++		"-ex", "br main.go:15",
+ 		"-ex", "run",
+ 		"-ex", "echo BEGIN info goroutines\n",
+ 		"-ex", "info goroutines",
+ 		"-ex", "echo END\n",
+-		"-ex", "up", // up from fmt.Println to main
+ 		"-ex", "echo BEGIN print mapvar\n",
+ 		"-ex", "print mapvar",
+ 		"-ex", "echo END\n",
+@@ -196,14 +195,13 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		"-ex", "echo BEGIN info locals\n",
+ 		"-ex", "info locals",
+ 		"-ex", "echo END\n",
+-		"-ex", "down", // back to fmt.Println (goroutine 2 below only works at bottom of stack.  TODO: fix that)
+ 		"-ex", "echo BEGIN goroutine 1 bt\n",
+ 		"-ex", "goroutine 1 bt",
+ 		"-ex", "echo END\n",
+ 		"-ex", "echo BEGIN goroutine 2 bt\n",
+ 		"-ex", "goroutine 2 bt",
+ 		"-ex", "echo END\n",
+-		"-ex", "clear fmt.Println", // clear the previous break point
++		"-ex", "clear main.go:15", // clear the previous break point
+ 		"-ex", fmt.Sprintf("br main.go:%d", nLines), // new break point at the end of main
+ 		"-ex", "c",
+ 		"-ex", "echo BEGIN goroutine 1 bt at the end\n",
+@@ -274,7 +272,7 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		t.Fatalf("info locals failed: %s", bl)
+ 	}
+ 
+-	btGoroutine1Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?fmt\.Println.+at`)
++	btGoroutine1Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)
+ 	if bl := blocks["goroutine 1 bt"]; !btGoroutine1Re.MatchString(bl) {
+ 		t.Fatalf("goroutine 1 bt failed: %s", bl)
+ 	}
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index dc65395141..f52381710d 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -595,6 +595,9 @@ func (s structWithMethod) callers() []uintptr {
+ 	return pc[:Callers(0, pc)]
+ }
+ 
++// The noinline prevents this function from being inlined
++// into a wrapper. TODO: remove this when issue 28640 is fixed.
++//go:noinline
+ func (s structWithMethod) stack() string {
+ 	buf := make([]byte, 4<<10)
+ 	return string(buf[:Stack(buf, false)])
+diff --git a/test/closure3.dir/main.go b/test/closure3.dir/main.go
+index 59c36e3218..ae4bef79a6 100644
+--- a/test/closure3.dir/main.go
++++ b/test/closure3.dir/main.go
+@@ -238,6 +238,8 @@ func main() {
+ 				if c != 4 {
+ 					ppanic("c != 4")
+ 				}
++				for i := 0; i < 10; i++ { // prevent inlining
++				}
+ 			}()
+ 		}()
+ 		if c != 4 {
+diff --git a/test/fixedbugs/issue7921.go b/test/fixedbugs/issue7921.go
+index ac2b494ebc..08fef0f128 100644
+--- a/test/fixedbugs/issue7921.go
++++ b/test/fixedbugs/issue7921.go
+@@ -46,7 +46,7 @@ func bufferNoEscape4() []byte {
+ 	return b.Bytes() // ERROR "inlining call" "b does not escape"
+ }
+ 
+-func bufferNoEscape5() {
++func bufferNoEscape5() { // ERROR "can inline bufferNoEscape5"
+ 	b := bytes.NewBuffer(make([]byte, 0, 128)) // ERROR "inlining call" "make\(\[\]byte, 0, 128\) does not escape" "&bytes.Buffer literal does not escape"
+ 	useBuffer(b)
+ }
+diff --git a/test/inline.go b/test/inline.go
+index 2553230462..9428c1487b 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -11,6 +11,7 @@ package foo
+ 
+ import (
+ 	"errors"
++	"runtime"
+ 	"unsafe"
+ )
+ 
+@@ -162,3 +163,20 @@ func k() (T, int, int) { return T{}, 0, 0 } // ERROR "can inline k"
+ func _() { // ERROR "can inline _"
+ 	T.meth(k()) // ERROR "inlining call to k" "inlining call to T.meth"
+ }
++
++func small1() { // ERROR "can inline small1"
++	runtime.GC()
++}
++func small2() int { // ERROR "can inline small2"
++	return runtime.GOMAXPROCS(0)
++}
++func small3(t T) { // ERROR "can inline small3"
++	t.meth2(3, 5)
++}
++func small4(t T) { // not inlineable - has 2 calls.
++	t.meth2(runtime.GOMAXPROCS(0), 5)
++}
++func (T) meth2(int, int) { // not inlineable - has 2 calls.
++	runtime.GC()
++	runtime.GC()
++}
+diff --git a/test/live_syscall.go b/test/live_syscall.go
+index b7b85bcabf..7b44717350 100644
+--- a/test/live_syscall.go
++++ b/test/live_syscall.go
+@@ -17,23 +17,23 @@ import (
+ 
+ func f(uintptr) // ERROR "f assuming arg#1 is unsafe uintptr"
+ 
+-func g() {
++func g() { // ERROR "can inline g"
+ 	var t int
+ 	f(uintptr(unsafe.Pointer(&t))) // ERROR "live at call to f: .?autotmp" "g &t does not escape" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+ }
+ 
+-func h() {
++func h() { // ERROR "can inline h"
+ 	var v int
+ 	syscall.Syscall(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to Syscall: .?autotmp" "h &v does not escape" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+ }
+ 
+-func i() {
++func i() { // ERROR "can inline i"
+ 	var t int
+ 	p := unsafe.Pointer(&t) // ERROR "i &t does not escape"
+ 	f(uintptr(p))           // ERROR "live at call to f: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+ }
+ 
+-func j() {
++func j() { // ERROR "can inline j"
+ 	var v int
+ 	p := unsafe.Pointer(&v)              // ERROR "j &v does not escape"
+ 	syscall.Syscall(0, 1, uintptr(p), 2) // ERROR "live at call to Syscall: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"

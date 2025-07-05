@@ -15,7 +15,50 @@ Date:   Mon Mar 27 16:32:04 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Kevin Burke <kev@inburke.com>
-
+---
  src/net/http/httptest/server.go      |  6 ++++--
  src/net/http/httptest/server_test.go | 17 +++++++++++++++++
  2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/httptest/server.go b/src/net/http/httptest/server.go
+index b5b18c747d..549ef04623 100644
+--- a/src/net/http/httptest/server.go
++++ b/src/net/http/httptest/server.go
+@@ -209,8 +209,10 @@ func (s *Server) Close() {
+ 	}
+ 
+ 	// Also close the client idle connections.
+-	if t, ok := s.client.Transport.(closeIdleTransport); ok {
+-		t.CloseIdleConnections()
++	if s.client != nil {
++		if t, ok := s.client.Transport.(closeIdleTransport); ok {
++			t.CloseIdleConnections()
++		}
+ 	}
+ 
+ 	s.wg.Wait()
+diff --git a/src/net/http/httptest/server_test.go b/src/net/http/httptest/server_test.go
+index 62846de02c..d97cec5fdd 100644
+--- a/src/net/http/httptest/server_test.go
++++ b/src/net/http/httptest/server_test.go
+@@ -145,3 +145,20 @@ func TestTLSServerClientTransportType(t *testing.T) {
+ 		t.Errorf("got %T, want *http.Transport", client.Transport)
+ 	}
+ }
++
++type onlyCloseListener struct {
++	net.Listener
++}
++
++func (onlyCloseListener) Close() error { return nil }
++
++// Issue 19729: panic in Server.Close for values created directly
++// without a constructor (so the unexported client field is nil).
++func TestServerZeroValueClose(t *testing.T) {
++	ts := &Server{
++		Listener: onlyCloseListener{},
++		Config:   &http.Server{},
++	}
++
++	ts.Close() // tests that it doesn't panic
++}

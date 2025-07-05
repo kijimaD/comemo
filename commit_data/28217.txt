@@ -12,6 +12,22 @@ Date:   Fri Apr 29 21:02:59 2016 +0100
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/exec/exec_test.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 1151ca7d0f..0cff3bb926 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -660,10 +660,6 @@ func TestHelperProcess(*testing.T) {
+ 			// the cloned file descriptors that result from opening
+ 			// /dev/urandom.
+ 			// https://golang.org/issue/3955
+-		case "plan9":
+-			// TODO(0intro): Determine why Plan 9 is leaking
+-			// file descriptors.
+-			// https://golang.org/issue/7118
+ 		case "solaris":
+ 			// TODO(aram): This fails on Solaris because libc opens
+ 			// its own files, as it sees fit. Darwin does the same,

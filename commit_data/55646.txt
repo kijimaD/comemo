@@ -20,7 +20,78 @@ Date:   Sun Feb 12 22:27:35 2023 +0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/mime/multipart/formdata.go      |  3 +++
  src/mime/multipart/formdata_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+)
+
+diff --git a/src/mime/multipart/formdata.go b/src/mime/multipart/formdata.go
+index 41bc886d16..e62727dbb1 100644
+--- a/src/mime/multipart/formdata.go
++++ b/src/mime/multipart/formdata.go
+@@ -77,6 +77,9 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
+ 	// unconfigurable 10 MB added on to maxMemory, is unfortunate but difficult to change
+ 	// within the constraints of the API as documented.
+ 	maxFileMemoryBytes := maxMemory
++	if maxFileMemoryBytes == math.MaxInt64 {
++		maxFileMemoryBytes--
++	}
+ 	maxMemoryBytes := maxMemory + int64(10<<20)
+ 	if maxMemoryBytes <= 0 {
+ 		if maxMemory < 0 {
+diff --git a/src/mime/multipart/formdata_test.go b/src/mime/multipart/formdata_test.go
+index 8a862be717..9b3f9ec392 100644
+--- a/src/mime/multipart/formdata_test.go
++++ b/src/mime/multipart/formdata_test.go
+@@ -55,6 +55,23 @@ func TestReadFormWithNamelessFile(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 58384: Handle ReadForm(math.MaxInt64)
++func TestReadFormWitFileNameMaxMemoryOverflow(t *testing.T) {
++	b := strings.NewReader(strings.ReplaceAll(messageWithFileName, "\n", "\r\n"))
++	r := NewReader(b, boundary)
++	f, err := r.ReadForm(math.MaxInt64)
++	if err != nil {
++		t.Fatalf("ReadForm(MaxInt64): %v", err)
++	}
++	defer f.RemoveAll()
++
++	fd := testFile(t, f.File["filea"][0], "filea.txt", fileaContents)
++	if _, ok := fd.(*os.File); ok {
++		t.Error("file is *os.File, should not be")
++	}
++	fd.Close()
++}
++
+ // Issue 40430: Handle ReadForm(math.MaxInt64)
+ func TestReadFormMaxMemoryOverflow(t *testing.T) {
+ 	b := strings.NewReader(strings.ReplaceAll(messageWithTextContentType, "\n", "\r\n"))
+@@ -66,6 +83,11 @@ func TestReadFormMaxMemoryOverflow(t *testing.T) {
+ 	if f == nil {
+ 		t.Fatal("ReadForm(MaxInt64): missing form")
+ 	}
++	defer f.RemoveAll()
++
++	if g, e := f.Value["texta"][0], textaValue; g != e {
++		t.Errorf("texta value = %q, want %q", g, e)
++	}
+ }
+ 
+ func TestReadFormWithTextContentType(t *testing.T) {
+@@ -122,6 +144,15 @@ Content-Type: text/plain
+ --MyBoundary--
+ `
+ 
++const messageWithFileName = `
++--MyBoundary
++Content-Disposition: form-data; name="filea"; filename="filea.txt"
++Content-Type: text/plain
++
++` + fileaContents + `
++--MyBoundary--
++`
++
+ const messageWithTextContentType = `
+ --MyBoundary
+ Content-Disposition: form-data; name="texta"

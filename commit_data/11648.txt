@@ -13,6 +13,20 @@ Date:   Mon Feb 6 11:24:34 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5634047
-
+---
  src/pkg/runtime/alg.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/alg.c b/src/pkg/runtime/alg.c
+index eec523aad4..e3c42916e9 100644
+--- a/src/pkg/runtime/alg.c
++++ b/src/pkg/runtime/alg.c
+@@ -271,7 +271,7 @@ runtime·f64hash(uintptr *h, uintptr s, void *a)
+ 	else {
+ 		u = *(uint64*)a;
+ 		if(sizeof(uintptr) == 4)
+-			hash = ((uint32)(u>>32) ^ 2860486313) * (uint32)u;
++			hash = ((uint32)(u>>32) * 3267000013UL) ^ (uint32)u;
+ 		else
+ 			hash = u;
+ 	}

@@ -12,7 +12,102 @@ Date:   Mon Feb 6 15:52:36 2017 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/dwarf/dwarf.go | 13 ++++++++++---
  src/cmd/internal/obj/objfile.go | 29 ++++++++++++++++-------------
  2 files changed, 26 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 725f5027bb..3644146725 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -25,7 +25,6 @@ type Var struct {
+ 	Abbrev int // Either DW_ABRV_AUTO or DW_ABRV_PARAM
+ 	Offset int32
+ 	Type   Sym
+-	Link   *Var
+ }
+ 
+ // A Context specifies how to add data to a Sym.
+@@ -565,7 +564,7 @@ func HasChildren(die *DWDie) bool {
+ 
+ // PutFunc writes a DIE for a function to s.
+ // It also writes child DIEs for each variable in vars.
+-func PutFunc(ctxt Context, s Sym, name string, external bool, startPC Sym, size int64, vars *Var) {
++func PutFunc(ctxt Context, s Sym, name string, external bool, startPC Sym, size int64, vars []*Var) {
+ 	Uleb128put(ctxt, s, DW_ABRV_FUNCTION)
+ 	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
+ 	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, 0, startPC)
+@@ -576,7 +575,7 @@ func PutFunc(ctxt Context, s Sym, name string, external bool, startPC Sym, size
+ 	}
+ 	putattr(ctxt, s, DW_ABRV_FUNCTION, DW_FORM_flag, DW_CLS_FLAG, ev, 0)
+ 	names := make(map[string]bool)
+-	for v := vars; v != nil; v = v.Link {
++	for _, v := range vars {
+ 		if strings.Contains(v.Name, ".autotmp_") {
+ 			continue
+ 		}
+@@ -602,3 +601,11 @@ func PutFunc(ctxt Context, s Sym, name string, external bool, startPC Sym, size
+ 	}
+ 	Uleb128put(ctxt, s, 0)
+ }
++
++// VarsByOffset attaches the methods of sort.Interface to []*Var,
++// sorting in increasing Offset.
++type VarsByOffset []*Var
++
++func (s VarsByOffset) Len() int           { return len(s) }
++func (s VarsByOffset) Less(i, j int) bool { return s[i].Offset < s[j].Offset }
++func (s VarsByOffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index eb56c6f54c..96122fb233 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -561,7 +561,7 @@ func gendwarf(ctxt *Link, text []*LSym) []*LSym {
+ 		dw = append(dw, dsym)
+ 		dsym.Type = SDWARFINFO
+ 		dsym.Set(AttrDuplicateOK, s.DuplicateOK())
+-		var vars dwarf.Var
++		var vars []*dwarf.Var
+ 		var abbrev int
+ 		var offs int32
+ 		for a := s.Autom; a != nil; a = a.Link {
+@@ -583,23 +583,26 @@ func gendwarf(ctxt *Link, text []*LSym) []*LSym {
+ 			default:
+ 				continue
+ 			}
++
+ 			typename := dwarf.InfoPrefix + a.Gotype.Name[len("type."):]
+-			dwvar := &dwarf.Var{
++			vars = append(vars, &dwarf.Var{
+ 				Name:   a.Asym.Name,
+ 				Abbrev: abbrev,
+-				Offset: int32(offs),
++				Offset: offs,
+ 				Type:   Linklookup(ctxt, typename, 0),
+-			}
+-			dws := &vars.Link
+-			for ; *dws != nil; dws = &(*dws).Link {
+-				if offs <= (*dws).Offset {
+-					break
+-				}
+-			}
+-			dwvar.Link = *dws
+-			*dws = dwvar
++			})
+ 		}
+-		dwarf.PutFunc(dctxt, dsym, s.Name, s.Version == 0, s, s.Size, vars.Link)
++
++		// We want to sort variables by offset, breaking ties
++		// with declaration order. Autom holds variables in
++		// reverse declaration order, so we reverse the
++		// assembled slice and then apply a stable sort.
++		for i, j := 0, len(vars)-1; i < j; i, j = i+1, j-1 {
++			vars[i], vars[j] = vars[j], vars[i]
++		}
++		sort.Stable(dwarf.VarsByOffset(vars))
++
++		dwarf.PutFunc(dctxt, dsym, s.Name, s.Version == 0, s, s.Size, vars)
+ 	}
+ 	return dw
+ }

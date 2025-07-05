@@ -13,9 +13,126 @@ Date:   Mon Feb 6 21:27:37 2023 +0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/internal/sys/intrinsics.go        | 32 ---------------------------
  src/runtime/internal/sys/intrinsics_386.s     | 15 -------------
  src/runtime/internal/sys/intrinsics_common.go | 32 +++++++++++++++++++++++++++
  src/runtime/internal/sys/intrinsics_stubs.go  |  2 --
  4 files changed, 32 insertions(+), 49 deletions(-)
+
+diff --git a/src/runtime/internal/sys/intrinsics.go b/src/runtime/internal/sys/intrinsics.go
+index 902d893178..b68b3cd93d 100644
+--- a/src/runtime/internal/sys/intrinsics.go
++++ b/src/runtime/internal/sys/intrinsics.go
+@@ -76,35 +76,3 @@ func TrailingZeros64(x uint64) int {
+ func TrailingZeros8(x uint8) int {
+ 	return int(ntz8tab[x])
+ }
+-
+-// Bswap64 returns its input with byte order reversed
+-// 0x0102030405060708 -> 0x0807060504030201
+-func Bswap64(x uint64) uint64 {
+-	c8 := uint64(0x00ff00ff00ff00ff)
+-	a := x >> 8 & c8
+-	b := (x & c8) << 8
+-	x = a | b
+-	c16 := uint64(0x0000ffff0000ffff)
+-	a = x >> 16 & c16
+-	b = (x & c16) << 16
+-	x = a | b
+-	c32 := uint64(0x00000000ffffffff)
+-	a = x >> 32 & c32
+-	b = (x & c32) << 32
+-	x = a | b
+-	return x
+-}
+-
+-// Bswap32 returns its input with byte order reversed
+-// 0x01020304 -> 0x04030201
+-func Bswap32(x uint32) uint32 {
+-	c8 := uint32(0x00ff00ff)
+-	a := x >> 8 & c8
+-	b := (x & c8) << 8
+-	x = a | b
+-	c16 := uint32(0x0000ffff)
+-	a = x >> 16 & c16
+-	b = (x & c16) << 16
+-	x = a | b
+-	return x
+-}
+diff --git a/src/runtime/internal/sys/intrinsics_386.s b/src/runtime/internal/sys/intrinsics_386.s
+index f33ade0a3a..fe4c561b99 100644
+--- a/src/runtime/internal/sys/intrinsics_386.s
++++ b/src/runtime/internal/sys/intrinsics_386.s
+@@ -41,18 +41,3 @@ TEXT runtime∕internal∕sys·TrailingZeros8(SB), NOSPLIT, $0-8
+ 	MOVL	$8, AX
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+-
+-TEXT runtime∕internal∕sys·Bswap64(SB), NOSPLIT, $0-16
+-	MOVL	x_lo+0(FP), AX
+-	MOVL	x_hi+4(FP), BX
+-	BSWAPL	AX
+-	BSWAPL	BX
+-	MOVL	BX, ret_lo+8(FP)
+-	MOVL	AX, ret_hi+12(FP)
+-	RET
+-
+-TEXT runtime∕internal∕sys·Bswap32(SB), NOSPLIT, $0-8
+-	MOVL	x+0(FP), AX
+-	BSWAPL	AX
+-	MOVL	AX, ret+4(FP)
+-	RET
+diff --git a/src/runtime/internal/sys/intrinsics_common.go b/src/runtime/internal/sys/intrinsics_common.go
+index 1461551dda..78ba44485b 100644
+--- a/src/runtime/internal/sys/intrinsics_common.go
++++ b/src/runtime/internal/sys/intrinsics_common.go
+@@ -93,6 +93,38 @@ func Len8(x uint8) int {
+ 	return int(len8tab[x])
+ }
+ 
++// Bswap64 returns its input with byte order reversed
++// 0x0102030405060708 -> 0x0807060504030201
++func Bswap64(x uint64) uint64 {
++	c8 := uint64(0x00ff00ff00ff00ff)
++	a := x >> 8 & c8
++	b := (x & c8) << 8
++	x = a | b
++	c16 := uint64(0x0000ffff0000ffff)
++	a = x >> 16 & c16
++	b = (x & c16) << 16
++	x = a | b
++	c32 := uint64(0x00000000ffffffff)
++	a = x >> 32 & c32
++	b = (x & c32) << 32
++	x = a | b
++	return x
++}
++
++// Bswap32 returns its input with byte order reversed
++// 0x01020304 -> 0x04030201
++func Bswap32(x uint32) uint32 {
++	c8 := uint32(0x00ff00ff)
++	a := x >> 8 & c8
++	b := (x & c8) << 8
++	x = a | b
++	c16 := uint32(0x0000ffff)
++	a = x >> 16 & c16
++	b = (x & c16) << 16
++	x = a | b
++	return x
++}
++
+ // Prefetch prefetches data from memory addr to cache
+ //
+ // AMD64: Produce PREFETCHT0 instruction
+diff --git a/src/runtime/internal/sys/intrinsics_stubs.go b/src/runtime/internal/sys/intrinsics_stubs.go
+index 66cfcded40..375aac190a 100644
+--- a/src/runtime/internal/sys/intrinsics_stubs.go
++++ b/src/runtime/internal/sys/intrinsics_stubs.go
+@@ -9,5 +9,3 @@ package sys
+ func TrailingZeros64(x uint64) int
+ func TrailingZeros32(x uint32) int
+ func TrailingZeros8(x uint8) int
+-func Bswap64(x uint64) uint64
+-func Bswap32(x uint32) uint32

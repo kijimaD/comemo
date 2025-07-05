@@ -20,9 +20,94 @@ Date:   Thu Apr 29 21:49:15 2021 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/archive/archive.go |  11 ++++++++++-
  src/cmd/internal/objfile/objfile.go |   3 +++
  src/cmd/objdump/objdump_test.go     |  15 +++++++++++++++
  src/cmd/objdump/testdata/go116.o    | Bin 0 -> 478 bytes
  4 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/archive/archive.go b/src/cmd/internal/archive/archive.go
+index e9b25fe240..d1d51b2855 100644
+--- a/src/cmd/internal/archive/archive.go
++++ b/src/cmd/internal/archive/archive.go
+@@ -106,6 +106,12 @@ var (
+ 	errNotObject        = errors.New("unrecognized object file format")
+ )
+ 
++type ErrGoObjOtherVersion struct{ magic []byte }
++
++func (e ErrGoObjOtherVersion) Error() string {
++	return fmt.Sprintf("go object of a different version: %s", e.magic)
++}
++
+ // An objReader is an object file reader.
+ type objReader struct {
+ 	a      *Archive
+@@ -389,7 +395,7 @@ func (r *objReader) parseArchive(verbose bool) error {
+ // The object file consists of a textual header ending in "\n!\n"
+ // and then the part we want to parse begins.
+ // The format of that part is defined in a comment at the top
+-// of src/liblink/objfile.c.
++// of cmd/internal/goobj/objfile.go.
+ func (r *objReader) parseObject(o *GoObj, size int64) error {
+ 	h := make([]byte, 0, 256)
+ 	var c1, c2, c3 byte
+@@ -418,6 +424,9 @@ func (r *objReader) parseObject(o *GoObj, size int64) error {
+ 		return err
+ 	}
+ 	if !bytes.Equal(p, []byte(goobj.Magic)) {
++		if bytes.HasPrefix(p, []byte("\x00go1")) && bytes.HasSuffix(p, []byte("ld")) {
++			return r.error(ErrGoObjOtherVersion{p})
++		}
+ 		return r.error(errCorruptObject)
+ 	}
+ 	r.skip(o.Size)
+diff --git a/src/cmd/internal/objfile/objfile.go b/src/cmd/internal/objfile/objfile.go
+index a58e0e159c..dcfd158ec2 100644
+--- a/src/cmd/internal/objfile/objfile.go
++++ b/src/cmd/internal/objfile/objfile.go
+@@ -6,6 +6,7 @@
+ package objfile
+ 
+ import (
++	"cmd/internal/archive"
+ 	"debug/dwarf"
+ 	"debug/gosym"
+ 	"fmt"
+@@ -73,6 +74,8 @@ func Open(name string) (*File, error) {
+ 	}
+ 	if f, err := openGoFile(r); err == nil {
+ 		return f, nil
++	} else if _, ok := err.(archive.ErrGoObjOtherVersion); ok {
++		return nil, fmt.Errorf("open %s: %v", name, err)
+ 	}
+ 	for _, try := range openers {
+ 		if raw, err := try(r); err == nil {
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index ac184441ea..f231a7c6e0 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -345,3 +345,18 @@ func TestGoobjFileNumber(t *testing.T) {
+ 		t.Logf("output:\n%s", text)
+ 	}
+ }
++
++func TestGoObjOtherVersion(t *testing.T) {
++	testenv.MustHaveExec(t)
++	t.Parallel()
++
++	obj := filepath.Join("testdata", "go116.o")
++	cmd := exec.Command(exe, obj)
++	out, err := cmd.CombinedOutput()
++	if err == nil {
++		t.Fatalf("objdump go116.o succeeded unexpectly")
++	}
++	if !strings.Contains(string(out), "go object of a different version") {
++		t.Errorf("unexpected error message:\n%s", out)
++	}
++}
+diff --git a/src/cmd/objdump/testdata/go116.o b/src/cmd/objdump/testdata/go116.o
+new file mode 100644
+index 0000000000..6434d5c8cf
+Binary files /dev/null and b/src/cmd/objdump/testdata/go116.o differ

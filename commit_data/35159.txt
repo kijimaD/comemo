@@ -29,10 +29,104 @@ Date:   Thu Jan 4 13:07:44 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/86237
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                          | 11 +++++++++++
  src/cmd/go/internal/test/test.go               |  9 ++++++---
  src/cmd/go/testdata/src/coverdep2/p1/p.go      |  3 +++
  src/cmd/go/testdata/src/coverdep2/p1/p_test.go | 10 ++++++++++
  src/cmd/go/testdata/src/coverdep2/p2/p2.go     |  7 +++++++
  5 files changed, 37 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index ddf097d240..8cf9cfbb10 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2471,6 +2471,17 @@ func TestCoverageSyncAtomicImport(t *testing.T) {
+ 	tg.run("test", "-short", "-cover", "-covermode=atomic", "-coverpkg=coverdep/p1", "coverdep")
+ }
+ 
++func TestCoverageDepLoop(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	// coverdep2/p1's xtest imports coverdep2/p2 which imports coverdep2/p1.
++	// Make sure that coverage on coverdep2/p2 recompiles coverdep2/p2.
++	tg.run("test", "-short", "-cover", "coverdep2/p1")
++	tg.grepStdout("coverage: 100.0% of statements", "expected 100.0% coverage")
++}
++
+ func TestCoverageImportMainLoop(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 94844b5c68..7f8954a7d9 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1003,7 +1003,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 		// This will cause extra compilation, so for now we only do it
+ 		// when testCover is set. The conditions are more general, though,
+ 		// and we may find that we need to do it always in the future.
+-		recompileForTest(pmain, p, ptest)
++		recompileForTest(pmain, p, ptest, pxtest)
+ 	}
+ 
+ 	for _, cp := range pmain.Internal.Imports {
+@@ -1159,14 +1159,17 @@ Search:
+ 	return stk
+ }
+ 
+-func recompileForTest(pmain, preal, ptest *load.Package) {
++func recompileForTest(pmain, preal, ptest, pxtest *load.Package) {
+ 	// The "test copy" of preal is ptest.
+ 	// For each package that depends on preal, make a "test copy"
+ 	// that depends on ptest. And so on, up the dependency tree.
+ 	testCopy := map[*load.Package]*load.Package{preal: ptest}
+ 	for _, p := range load.PackageList([]*load.Package{pmain}) {
++		if p == preal {
++			continue
++		}
+ 		// Copy on write.
+-		didSplit := false
++		didSplit := p == pmain || p == pxtest
+ 		split := func() {
+ 			if didSplit {
+ 				return
+diff --git a/src/cmd/go/testdata/src/coverdep2/p1/p.go b/src/cmd/go/testdata/src/coverdep2/p1/p.go
+new file mode 100644
+index 0000000000..fd315272ea
+--- /dev/null
++++ b/src/cmd/go/testdata/src/coverdep2/p1/p.go
+@@ -0,0 +1,3 @@
++package p1
++
++func F() int { return 1 }
+diff --git a/src/cmd/go/testdata/src/coverdep2/p1/p_test.go b/src/cmd/go/testdata/src/coverdep2/p1/p_test.go
+new file mode 100644
+index 0000000000..c40256885c
+--- /dev/null
++++ b/src/cmd/go/testdata/src/coverdep2/p1/p_test.go
+@@ -0,0 +1,10 @@
++package p1_test
++
++import (
++	"coverdep2/p2"
++	"testing"
++)
++
++func Test(t *testing.T) {
++	p2.F()
++}
+diff --git a/src/cmd/go/testdata/src/coverdep2/p2/p2.go b/src/cmd/go/testdata/src/coverdep2/p2/p2.go
+new file mode 100644
+index 0000000000..33561bbb58
+--- /dev/null
++++ b/src/cmd/go/testdata/src/coverdep2/p2/p2.go
+@@ -0,0 +1,7 @@
++package p2
++
++import "coverdep2/p1"
++
++func F() {
++	p1.F()
++}

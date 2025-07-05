@@ -17,7 +17,7 @@ Date:   Tue Sep 8 22:22:44 2015 +0200
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/lex.go      | 150 +++++++++++++----------------
  src/cmd/compile/internal/gc/popt.go     |  88 +++++++----------
  src/cmd/compile/internal/gc/racewalk.go |   4 +-
@@ -25,3 +25,811 @@ Date:   Tue Sep 8 22:22:44 2015 +0200
  src/cmd/compile/internal/gc/subr.go     |   9 +-
  src/cmd/compile/internal/gc/util.go     |   6 +-
  6 files changed, 172 insertions(+), 247 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 5bd6688fb1..2fe96b7980 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -2162,32 +2162,22 @@ var syms = []struct {
+ 	{"insofaras", LIGNORE, Txxx, OXXX},
+ }
+ 
++// lexinit initializes known symbols and the basic types.
+ func lexinit() {
+-	var lex int
+-	var s *Sym
+-	var s1 *Sym
+-	var t *Type
+-	var etype int
++	for _, s := range syms {
++		lex := s.lexical
++		s1 := Lookup(s.name)
++		s1.Lexical = uint16(lex)
+ 
+-	/*
+-	 * initialize basic types array
+-	 * initialize known symbols
+-	 */
+-	for i := 0; i < len(syms); i++ {
+-		lex = syms[i].lexical
+-		s = Lookup(syms[i].name)
+-		s.Lexical = uint16(lex)
+-
+-		etype = syms[i].etype
+-		if etype != Txxx {
++		if etype := s.etype; etype != Txxx {
+ 			if etype < 0 || etype >= len(Types) {
+-				Fatalf("lexinit: %s bad etype", s.Name)
++				Fatalf("lexinit: %s bad etype", s.name)
+ 			}
+-			s1 = Pkglookup(syms[i].name, builtinpkg)
+-			t = Types[etype]
++			s2 := Pkglookup(s.name, builtinpkg)
++			t := Types[etype]
+ 			if t == nil {
+ 				t = typ(etype)
+-				t.Sym = s1
++				t.Sym = s2
+ 
+ 				if etype != TANY && etype != TSTRING {
+ 					dowidth(t)
+@@ -2195,19 +2185,18 @@ func lexinit() {
+ 				Types[etype] = t
+ 			}
+ 
+-			s1.Lexical = LNAME
+-			s1.Def = typenod(t)
+-			s1.Def.Name = new(Name)
++			s2.Lexical = LNAME
++			s2.Def = typenod(t)
++			s2.Def.Name = new(Name)
+ 			continue
+ 		}
+ 
+-		etype = syms[i].op
+-		if etype != OXXX {
+-			s1 = Pkglookup(syms[i].name, builtinpkg)
+-			s1.Lexical = LNAME
+-			s1.Def = Nod(ONAME, nil, nil)
+-			s1.Def.Sym = s1
+-			s1.Def.Etype = uint8(etype)
++		if etype := s.op; etype != OXXX {
++			s2 := Pkglookup(s.name, builtinpkg)
++			s2.Lexical = LNAME
++			s2.Def = Nod(ONAME, nil, nil)
++			s2.Def.Sym = s2
++			s2.Def.Etype = uint8(etype)
+ 		}
+ 	}
+ 
+@@ -2220,7 +2209,7 @@ func lexinit() {
+ 
+ 	idealbool = typ(TBOOL)
+ 
+-	s = Pkglookup("true", builtinpkg)
++	s := Pkglookup("true", builtinpkg)
+ 	s.Def = Nodbool(true)
+ 	s.Def.Sym = Lookup("true")
+ 	s.Def.Name = new(Name)
+@@ -2419,61 +2408,56 @@ func lexfini() {
+ 	nodfp.Sym = Lookup(".fp")
+ }
+ 
+-var lexn = []struct {
+-	lex  int
+-	name string
+-}{
+-	{LANDAND, "ANDAND"},
+-	{LANDNOT, "ANDNOT"},
+-	{LASOP, "ASOP"},
+-	{LBREAK, "BREAK"},
+-	{LCASE, "CASE"},
+-	{LCHAN, "CHAN"},
+-	{LCOLAS, "COLAS"},
+-	{LCOMM, "<-"},
+-	{LCONST, "CONST"},
+-	{LCONTINUE, "CONTINUE"},
+-	{LDDD, "..."},
+-	{LDEC, "DEC"},
+-	{LDEFAULT, "DEFAULT"},
+-	{LDEFER, "DEFER"},
+-	{LELSE, "ELSE"},
+-	{LEQ, "EQ"},
+-	{LFALL, "FALL"},
+-	{LFOR, "FOR"},
+-	{LFUNC, "FUNC"},
+-	{LGE, "GE"},
+-	{LGO, "GO"},
+-	{LGOTO, "GOTO"},
+-	{LGT, "GT"},
+-	{LIF, "IF"},
+-	{LIMPORT, "IMPORT"},
+-	{LINC, "INC"},
+-	{LINTERFACE, "INTERFACE"},
+-	{LLE, "LE"},
+-	{LLITERAL, "LITERAL"},
+-	{LLSH, "LSH"},
+-	{LLT, "LT"},
+-	{LMAP, "MAP"},
+-	{LNAME, "NAME"},
+-	{LNE, "NE"},
+-	{LOROR, "OROR"},
+-	{LPACKAGE, "PACKAGE"},
+-	{LRANGE, "RANGE"},
+-	{LRETURN, "RETURN"},
+-	{LRSH, "RSH"},
+-	{LSELECT, "SELECT"},
+-	{LSTRUCT, "STRUCT"},
+-	{LSWITCH, "SWITCH"},
+-	{LTYPE, "TYPE"},
+-	{LVAR, "VAR"},
++var lexn = map[int]string{
++	LANDAND:    "ANDAND",
++	LANDNOT:    "ANDNOT",
++	LASOP:      "ASOP",
++	LBREAK:     "BREAK",
++	LCASE:      "CASE",
++	LCHAN:      "CHAN",
++	LCOLAS:     "COLAS",
++	LCOMM:      "<-",
++	LCONST:     "CONST",
++	LCONTINUE:  "CONTINUE",
++	LDDD:       "...",
++	LDEC:       "DEC",
++	LDEFAULT:   "DEFAULT",
++	LDEFER:     "DEFER",
++	LELSE:      "ELSE",
++	LEQ:        "EQ",
++	LFALL:      "FALL",
++	LFOR:       "FOR",
++	LFUNC:      "FUNC",
++	LGE:        "GE",
++	LGO:        "GO",
++	LGOTO:      "GOTO",
++	LGT:        "GT",
++	LIF:        "IF",
++	LIMPORT:    "IMPORT",
++	LINC:       "INC",
++	LINTERFACE: "INTERFACE",
++	LLE:        "LE",
++	LLITERAL:   "LITERAL",
++	LLSH:       "LSH",
++	LLT:        "LT",
++	LMAP:       "MAP",
++	LNAME:      "NAME",
++	LNE:        "NE",
++	LOROR:      "OROR",
++	LPACKAGE:   "PACKAGE",
++	LRANGE:     "RANGE",
++	LRETURN:    "RETURN",
++	LRSH:       "RSH",
++	LSELECT:    "SELECT",
++	LSTRUCT:    "STRUCT",
++	LSWITCH:    "SWITCH",
++	LTYPE:      "TYPE",
++	LVAR:       "VAR",
+ }
+ 
+ func lexname(lex int) string {
+-	for i := 0; i < len(lexn); i++ {
+-		if lexn[i].lex == lex {
+-			return lexn[i].name
+-		}
++	if s, ok := lexn[lex]; ok {
++		return s
+ 	}
+ 	return fmt.Sprintf("LEX-%d", lex)
+ }
+diff --git a/src/cmd/compile/internal/gc/popt.go b/src/cmd/compile/internal/gc/popt.go
+index 94595d834e..985ebb6f70 100644
+--- a/src/cmd/compile/internal/gc/popt.go
++++ b/src/cmd/compile/internal/gc/popt.go
+@@ -572,22 +572,11 @@ func mergetemp(firstp *obj.Prog) {
+ 	}
+ 
+ 	// Build list of all mergeable variables.
+-	nvar := 0
++	var vars []*TempVar
+ 	for l := Curfn.Func.Dcl; l != nil; l = l.Next {
+-		if canmerge(l.N) {
+-			nvar++
+-		}
+-	}
+-
+-	var_ := make([]TempVar, nvar)
+-	nvar = 0
+-	var n *Node
+-	var v *TempVar
+-	for l := Curfn.Func.Dcl; l != nil; l = l.Next {
+-		n = l.N
+-		if canmerge(n) {
+-			v = &var_[nvar]
+-			nvar++
++		if n := l.N; canmerge(n) {
++			v := &TempVar{}
++			vars = append(vars, v)
+ 			n.SetOpt(v)
+ 			v.node = n
+ 		}
+@@ -602,8 +591,8 @@ func mergetemp(firstp *obj.Prog) {
+ 		if p.From.Node != nil && ((p.From.Node).(*Node)).Opt() != nil && p.To.Node != nil && ((p.To.Node).(*Node)).Opt() != nil {
+ 			Fatalf("double node %v", p)
+ 		}
+-		v = nil
+-		n, _ = p.From.Node.(*Node)
++		var v *TempVar
++		n, _ := p.From.Node.(*Node)
+ 		if n != nil {
+ 			v, _ = n.Opt().(*TempVar)
+ 		}
+@@ -632,8 +621,7 @@ func mergetemp(firstp *obj.Prog) {
+ 	nkill := 0
+ 
+ 	// Special case.
+-	for i := 0; i < len(var_); i++ {
+-		v = &var_[i]
++	for _, v := range vars {
+ 		if v.addr {
+ 			continue
+ 		}
+@@ -682,28 +670,24 @@ func mergetemp(firstp *obj.Prog) {
+ 	// Traverse live range of each variable to set start, end.
+ 	// Each flood uses a new value of gen so that we don't have
+ 	// to clear all the r->active words after each variable.
+-	gen := int32(0)
++	gen := uint32(0)
+ 
+-	for i := 0; i < len(var_); i++ {
+-		v = &var_[i]
++	for _, v := range vars {
+ 		gen++
+ 		for f := v.use; f != nil; f = f.Data.(*Flow) {
+-			mergewalk(v, f, uint32(gen))
++			mergewalk(v, f, gen)
+ 		}
+ 		if v.addr {
+ 			gen++
+ 			for f := v.use; f != nil; f = f.Data.(*Flow) {
+-				varkillwalk(v, f, uint32(gen))
++				varkillwalk(v, f, gen)
+ 			}
+ 		}
+ 	}
+ 
+ 	// Sort variables by start.
+-	bystart := make([]*TempVar, len(var_))
+-
+-	for i := 0; i < len(var_); i++ {
+-		bystart[i] = &var_[i]
+-	}
++	bystart := make([]*TempVar, len(vars))
++	copy(bystart, vars)
+ 	sort.Sort(startcmp(bystart))
+ 
+ 	// List of in-use variables, sorted by end, so that the ones that
+@@ -712,15 +696,11 @@ func mergetemp(firstp *obj.Prog) {
+ 	// In theory we should use a sorted tree so that insertions are
+ 	// guaranteed O(log n) and then the loop is guaranteed O(n log n).
+ 	// In practice, it doesn't really matter.
+-	inuse := make([]*TempVar, len(var_))
++	inuse := make([]*TempVar, len(bystart))
+ 
+ 	ninuse := 0
+-	nfree := len(var_)
+-	var t *Type
+-	var v1 *TempVar
+-	var j int
+-	for i := 0; i < len(var_); i++ {
+-		v = bystart[i]
++	nfree := len(bystart)
++	for _, v := range bystart {
+ 		if debugmerge > 0 && Debug['v'] != 0 {
+ 			fmt.Printf("consider %v: removed=%t\n", Nconv(v.node, obj.FmtSharp), v.removed)
+ 		}
+@@ -732,20 +712,19 @@ func mergetemp(firstp *obj.Prog) {
+ 		// Expire no longer in use.
+ 		for ninuse > 0 && inuse[ninuse-1].end < v.start {
+ 			ninuse--
+-			v1 = inuse[ninuse]
+ 			nfree--
+-			inuse[nfree] = v1
++			inuse[nfree] = inuse[ninuse]
+ 		}
+ 
+ 		if debugmerge > 0 && Debug['v'] != 0 {
+-			fmt.Printf("consider %v: removed=%t nfree=%d nvar=%d\n", Nconv(v.node, obj.FmtSharp), v.removed, nfree, len(var_))
++			fmt.Printf("consider %v: removed=%t nfree=%d nvar=%d\n", Nconv(v.node, obj.FmtSharp), v.removed, nfree, len(bystart))
+ 		}
+ 
+ 		// Find old temp to reuse if possible.
+-		t = v.node.Type
++		t := v.node.Type
+ 
+-		for j = nfree; j < len(var_); j++ {
+-			v1 = inuse[j]
++		for j := nfree; j < len(inuse); j++ {
++			v1 := inuse[j]
+ 			if debugmerge > 0 && Debug['v'] != 0 {
+ 				fmt.Printf("consider %v: maybe %v: type=%v,%v addrtaken=%v,%v\n", Nconv(v.node, obj.FmtSharp), Nconv(v1.node, obj.FmtSharp), t, v1.node.Type, v.node.Addrtaken, v1.node.Addrtaken)
+ 			}
+@@ -769,7 +748,7 @@ func mergetemp(firstp *obj.Prog) {
+ 		}
+ 
+ 		// Sort v into inuse.
+-		j = ninuse
++		j := ninuse
+ 		ninuse++
+ 
+ 		for j > 0 && inuse[j-1].end < v.end {
+@@ -781,10 +760,8 @@ func mergetemp(firstp *obj.Prog) {
+ 	}
+ 
+ 	if debugmerge > 0 && Debug['v'] != 0 {
+-		fmt.Printf("%v [%d - %d]\n", Curfn.Func.Nname.Sym, len(var_), nkill)
+-		var v *TempVar
+-		for i := 0; i < len(var_); i++ {
+-			v = &var_[i]
++		fmt.Printf("%v [%d - %d]\n", Curfn.Func.Nname.Sym, len(vars), nkill)
++		for _, v := range vars {
+ 			fmt.Printf("var %v %v %d-%d", Nconv(v.node, obj.FmtSharp), v.node.Type, v.start, v.end)
+ 			if v.addr {
+ 				fmt.Printf(" addr=true")
+@@ -809,16 +786,16 @@ func mergetemp(firstp *obj.Prog) {
+ 	// Update node references to use merged temporaries.
+ 	for f := g.Start; f != nil; f = f.Link {
+ 		p := f.Prog
+-		n, _ = p.From.Node.(*Node)
++		n, _ := p.From.Node.(*Node)
+ 		if n != nil {
+-			v, _ = n.Opt().(*TempVar)
++			v, _ := n.Opt().(*TempVar)
+ 			if v != nil && v.merge != nil {
+ 				p.From.Node = v.merge.node
+ 			}
+ 		}
+ 		n, _ = p.To.Node.(*Node)
+ 		if n != nil {
+-			v, _ = n.Opt().(*TempVar)
++			v, _ := n.Opt().(*TempVar)
+ 			if v != nil && v.merge != nil {
+ 				p.To.Node = v.merge.node
+ 			}
+@@ -826,16 +803,15 @@ func mergetemp(firstp *obj.Prog) {
+ 	}
+ 
+ 	// Delete merged nodes from declaration list.
+-	var l *NodeList
+ 	for lp := &Curfn.Func.Dcl; ; {
+-		l = *lp
++		l := *lp
+ 		if l == nil {
+ 			break
+ 		}
+ 
+ 		Curfn.Func.Dcl.End = l
+-		n = l.N
+-		v, _ = n.Opt().(*TempVar)
++		n := l.N
++		v, _ := n.Opt().(*TempVar)
+ 		if v != nil && (v.merge != nil || v.removed) {
+ 			*lp = l.Next
+ 			continue
+@@ -845,8 +821,8 @@ func mergetemp(firstp *obj.Prog) {
+ 	}
+ 
+ 	// Clear aux structures.
+-	for i := 0; i < len(var_); i++ {
+-		var_[i].node.SetOpt(nil)
++	for _, v := range vars {
++		v.node.SetOpt(nil)
+ 	}
+ 
+ 	Flowend(g)
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 9301d87d2e..2e33ef6d20 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -32,8 +32,8 @@ var noinst_pkgs = []string{"sync", "sync/atomic"}
+ 
+ func ispkgin(pkgs []string) bool {
+ 	if myimportpath != "" {
+-		for i := 0; i < len(pkgs); i++ {
+-			if myimportpath == pkgs[i] {
++		for _, p := range pkgs {
++			if myimportpath == p {
+ 				return true
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 74e8b55bf1..c63b775f00 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -329,13 +329,13 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
+ 			// copy slice
+ 			a := inittemps[r]
+ 
+-			n1 := *l
+-			n1.Xoffset = l.Xoffset + int64(Array_array)
+-			gdata(&n1, Nod(OADDR, a, nil), Widthptr)
+-			n1.Xoffset = l.Xoffset + int64(Array_nel)
+-			gdata(&n1, r.Right, Widthint)
+-			n1.Xoffset = l.Xoffset + int64(Array_cap)
+-			gdata(&n1, r.Right, Widthint)
++			n := *l
++			n.Xoffset = l.Xoffset + int64(Array_array)
++			gdata(&n, Nod(OADDR, a, nil), Widthptr)
++			n.Xoffset = l.Xoffset + int64(Array_nel)
++			gdata(&n, r.Right, Widthint)
++			n.Xoffset = l.Xoffset + int64(Array_cap)
++			gdata(&n, r.Right, Widthint)
+ 			return true
+ 		}
+ 		fallthrough
+@@ -344,24 +344,21 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
+ 	case OSTRUCTLIT:
+ 		p := initplans[r]
+ 
+-		n1 := *l
+-		var e *InitEntry
+-		var ll *Node
+-		var rr *Node
+-		for i := 0; i < len(p.E); i++ {
+-			e = &p.E[i]
+-			n1.Xoffset = l.Xoffset + e.Xoffset
+-			n1.Type = e.Expr.Type
++		n := *l
++		for i := range p.E {
++			e := &p.E[i]
++			n.Xoffset = l.Xoffset + e.Xoffset
++			n.Type = e.Expr.Type
+ 			if e.Expr.Op == OLITERAL {
+-				gdata(&n1, e.Expr, int(n1.Type.Width))
++				gdata(&n, e.Expr, int(n.Type.Width))
+ 			} else {
+-				ll = Nod(OXXX, nil, nil)
+-				*ll = n1
++				ll := Nod(OXXX, nil, nil)
++				*ll = n
+ 				ll.Orig = ll // completely separate copy
+ 				if !staticassign(ll, e.Expr, out) {
+ 					// Requires computation, but we're
+ 					// copying someone else's computation.
+-					rr = Nod(OXXX, nil, nil)
++					rr := Nod(OXXX, nil, nil)
+ 
+ 					*rr = *orig
+ 					rr.Orig = rr // completely separate copy
+@@ -380,8 +377,6 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
+ }
+ 
+ func staticassign(l *Node, r *Node, out **NodeList) bool {
+-	var n1 Node
+-
+ 	for r.Op == OCONVNOP {
+ 		r = r.Left
+ 	}
+@@ -404,9 +399,9 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 	case OADDR:
+ 		var nam Node
+ 		if stataddr(&nam, r.Left) {
+-			n1 := *r
+-			n1.Left = &nam
+-			gdata(l, &n1, int(l.Type.Width))
++			n := *r
++			n.Left = &nam
++			gdata(l, &n, int(l.Type.Width))
+ 			return true
+ 		}
+ 		fallthrough
+@@ -448,13 +443,13 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 			ta.Bound = Mpgetfix(r.Right.Val().U.(*Mpint))
+ 			a := staticname(ta, 1)
+ 			inittemps[r] = a
+-			n1 = *l
+-			n1.Xoffset = l.Xoffset + int64(Array_array)
+-			gdata(&n1, Nod(OADDR, a, nil), Widthptr)
+-			n1.Xoffset = l.Xoffset + int64(Array_nel)
+-			gdata(&n1, r.Right, Widthint)
+-			n1.Xoffset = l.Xoffset + int64(Array_cap)
+-			gdata(&n1, r.Right, Widthint)
++			n := *l
++			n.Xoffset = l.Xoffset + int64(Array_array)
++			gdata(&n, Nod(OADDR, a, nil), Widthptr)
++			n.Xoffset = l.Xoffset + int64(Array_nel)
++			gdata(&n, r.Right, Widthint)
++			n.Xoffset = l.Xoffset + int64(Array_cap)
++			gdata(&n, r.Right, Widthint)
+ 
+ 			// Fall through to init underlying array.
+ 			l = a
+@@ -466,19 +461,17 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 		initplan(r)
+ 
+ 		p := initplans[r]
+-		n1 = *l
+-		var e *InitEntry
+-		var a *Node
+-		for i := 0; i < len(p.E); i++ {
+-			e = &p.E[i]
+-			n1.Xoffset = l.Xoffset + e.Xoffset
+-			n1.Type = e.Expr.Type
++		n := *l
++		for i := range p.E {
++			e := &p.E[i]
++			n.Xoffset = l.Xoffset + e.Xoffset
++			n.Type = e.Expr.Type
+ 			if e.Expr.Op == OLITERAL {
+-				gdata(&n1, e.Expr, int(n1.Type.Width))
++				gdata(&n, e.Expr, int(n.Type.Width))
+ 			} else {
+ 				setlineno(e.Expr)
+-				a = Nod(OXXX, nil, nil)
+-				*a = n1
++				a := Nod(OXXX, nil, nil)
++				*a = n
+ 				a.Orig = a // completely separate copy
+ 				if !staticassign(a, e.Expr, out) {
+ 					*out = list(*out, Nod(OAS, a, e.Expr))
+@@ -569,9 +562,8 @@ func getdyn(n *Node, top int) int {
+ 		break
+ 	}
+ 
+-	var value *Node
+ 	for nl := n.List; nl != nil; nl = nl.Next {
+-		value = nl.N.Right
++		value := nl.N.Right
+ 		mode |= getdyn(value, 0)
+ 		if mode == MODEDYNAM|MODECONST {
+ 			break
+@@ -582,18 +574,15 @@ func getdyn(n *Node, top int) int {
+ }
+ 
+ func structlit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
+-	var r *Node
+-	var a *Node
+-	var index *Node
+-	var value *Node
+-
+ 	for nl := n.List; nl != nil; nl = nl.Next {
+-		r = nl.N
++		r := nl.N
+ 		if r.Op != OKEY {
+ 			Fatalf("structlit: rhs not OKEY: %v", r)
+ 		}
+-		index = r.Left
+-		value = r.Right
++		index := r.Left
++		value := r.Right
++
++		var a *Node
+ 
+ 		switch value.Op {
+ 		case OARRAYLIT:
+@@ -650,18 +639,15 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
+ }
+ 
+ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
+-	var r *Node
+-	var a *Node
+-	var index *Node
+-	var value *Node
+-
+ 	for l := n.List; l != nil; l = l.Next {
+-		r = l.N
++		r := l.N
+ 		if r.Op != OKEY {
+ 			Fatalf("arraylit: rhs not OKEY: %v", r)
+ 		}
+-		index = r.Left
+-		value = r.Right
++		index := r.Left
++		value := r.Right
++
++		var a *Node
+ 
+ 		switch value.Op {
+ 		case OARRAYLIT:
+@@ -828,17 +814,14 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 	*init = list(*init, a)
+ 
+ 	// put dynamics into slice (6)
+-	var value *Node
+-	var r *Node
+-	var index *Node
+ 	for l := n.List; l != nil; l = l.Next {
+-		r = l.N
++		r := l.N
+ 		if r.Op != OKEY {
+ 			Fatalf("slicelit: rhs not OKEY: %v", r)
+ 		}
+-		index = r.Left
+-		value = r.Right
+-		a = Nod(OINDEX, var_, index)
++		index := r.Left
++		value := r.Right
++		a := Nod(OINDEX, var_, index)
+ 		a.Bounded = true
+ 
+ 		// TODO need to check bounds?
+@@ -872,10 +855,6 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ }
+ 
+ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+-	var r *Node
+-	var index *Node
+-	var value *Node
+-
+ 	ctxt = 0
+ 
+ 	// make the map var
+@@ -889,13 +868,12 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 	b := int64(0)
+ 
+ 	for l := n.List; l != nil; l = l.Next {
+-		r = l.N
+-
++		r := l.N
+ 		if r.Op != OKEY {
+ 			Fatalf("maplit: rhs not OKEY: %v", r)
+ 		}
+-		index = r.Left
+-		value = r.Right
++		index := r.Left
++		value := r.Right
+ 
+ 		if isliteral(index) && isliteral(value) {
+ 			b++
+@@ -936,17 +914,14 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 		vstat := staticname(t, ctxt)
+ 
+ 		b := int64(0)
+-		var index *Node
+-		var r *Node
+-		var value *Node
+ 		for l := n.List; l != nil; l = l.Next {
+-			r = l.N
++			r := l.N
+ 
+ 			if r.Op != OKEY {
+ 				Fatalf("maplit: rhs not OKEY: %v", r)
+ 			}
+-			index = r.Left
+-			value = r.Right
++			index := r.Left
++			value := r.Right
+ 
+ 			if isliteral(index) && isliteral(value) {
+ 				// build vstat[b].a = key;
+@@ -981,13 +956,13 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 		// for i = 0; i < len(vstat); i++ {
+ 		//	map[vstat[i].a] = vstat[i].b
+ 		// }
+-		index = temp(Types[TINT])
++		index := temp(Types[TINT])
+ 
+ 		a = Nod(OINDEX, vstat, index)
+ 		a.Bounded = true
+ 		a = Nod(ODOT, a, newname(symb))
+ 
+-		r = Nod(OINDEX, vstat, index)
++		r := Nod(OINDEX, vstat, index)
+ 		r.Bounded = true
+ 		r = Nod(ODOT, r, newname(syma))
+ 		r = Nod(OINDEX, var_, r)
+@@ -1011,13 +986,13 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 
+ 	var val *Node
+ 	for l := n.List; l != nil; l = l.Next {
+-		r = l.N
++		r := l.N
+ 
+ 		if r.Op != OKEY {
+ 			Fatalf("maplit: rhs not OKEY: %v", r)
+ 		}
+-		index = r.Left
+-		value = r.Right
++		index := r.Left
++		value := r.Right
+ 
+ 		if isliteral(index) && isliteral(value) {
+ 			continue
+@@ -1290,9 +1265,8 @@ func initplan(n *Node) {
+ 		Fatalf("initplan")
+ 
+ 	case OARRAYLIT:
+-		var a *Node
+ 		for l := n.List; l != nil; l = l.Next {
+-			a = l.N
++			a := l.N
+ 			if a.Op != OKEY || !Smallintconst(a.Left) {
+ 				Fatalf("initplan arraylit")
+ 			}
+@@ -1300,9 +1274,8 @@ func initplan(n *Node) {
+ 		}
+ 
+ 	case OSTRUCTLIT:
+-		var a *Node
+ 		for l := n.List; l != nil; l = l.Next {
+-			a = l.N
++			a := l.N
+ 			if a.Op != OKEY || a.Left.Type == nil {
+ 				Fatalf("initplan structlit")
+ 			}
+@@ -1310,9 +1283,8 @@ func initplan(n *Node) {
+ 		}
+ 
+ 	case OMAPLIT:
+-		var a *Node
+ 		for l := n.List; l != nil; l = l.Next {
+-			a = l.N
++			a := l.N
+ 			if a.Op != OKEY {
+ 				Fatalf("initplan maplit")
+ 			}
+@@ -1332,13 +1304,11 @@ func addvalue(p *InitPlan, xoffset int64, key *Node, n *Node) {
+ 	if isvaluelit(n) {
+ 		initplan(n)
+ 		q := initplans[n]
+-		var e *InitEntry
+-		for i := 0; i < len(q.E); i++ {
+-			e = entry(p)
+-			*e = q.E[i]
++		for _, qe := range q.E {
++			e := entry(p)
++			*e = qe
+ 			e.Xoffset += xoffset
+ 		}
+-
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index b056023c0e..18ca5a336d 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -3358,7 +3358,6 @@ func ngotype(n *Node) *Sym {
+  * only in the last segment of the path, and it makes for happier
+  * users if we escape that as little as possible.
+  *
+- * If you edit this, edit ../ld/lib.c:/^pathtoprefix too.
+  * If you edit this, edit ../../debug/goobj/read.go:/importPathToPrefix too.
+  */
+ func pathtoprefix(s string) string {
+@@ -3430,17 +3429,13 @@ func isbadimport(path string) bool {
+ 		return true
+ 	}
+ 
+-	for i := 0; i < len(reservedimports); i++ {
+-		if path == reservedimports[i] {
++	for _, ri := range reservedimports {
++		if path == ri {
+ 			Yyerror("import path %q is reserved and cannot be used", path)
+ 			return true
+ 		}
+ 	}
+ 
+-	var s string
+-	_ = s
+-	var r uint
+-	_ = r
+ 	for _, r := range path {
+ 		if r == utf8.RuneError {
+ 			Yyerror("import path contains invalid UTF-8 sequence: %q", path)
+diff --git a/src/cmd/compile/internal/gc/util.go b/src/cmd/compile/internal/gc/util.go
+index d16cd38009..fc9173e383 100644
+--- a/src/cmd/compile/internal/gc/util.go
++++ b/src/cmd/compile/internal/gc/util.go
+@@ -36,10 +36,10 @@ func isDigit(c int) bool {
+ 
+ func plan9quote(s string) string {
+ 	if s == "" {
+-		return "'" + strings.Replace(s, "'", "''", -1) + "'"
++		return "''"
+ 	}
+-	for i := 0; i < len(s); i++ {
+-		if s[i] <= ' ' || s[i] == '\'' {
++	for _, c := range s {
++		if c <= ' ' || c == '\'' {
+ 			return "'" + strings.Replace(s, "'", "''", -1) + "'"
+ 		}
+ 	}

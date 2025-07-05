@@ -19,7 +19,7 @@ Date:   Thu Aug 25 16:25:10 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4971041
-
+---
  src/cmd/5g/cgen.c      | 2 ++
  src/cmd/5g/cgen64.c    | 2 ++
  src/cmd/5g/galign.c    | 2 ++
@@ -79,3 +79,762 @@ Date:   Thu Aug 25 16:25:10 2011 -0400
  src/cmd/gc/unsafe.c    | 2 ++
  src/cmd/gc/walk.c      | 2 ++
  58 files changed, 108 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 6e2fbe20ff..3d98191aa6 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ /*
+diff --git a/src/cmd/5g/cgen64.c b/src/cmd/5g/cgen64.c
+index b56df765ba..9ac4aa3ed1 100644
+--- a/src/cmd/5g/cgen64.c
++++ b/src/cmd/5g/cgen64.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ /*
+diff --git a/src/cmd/5g/galign.c b/src/cmd/5g/galign.c
+index 12766102f1..0708042179 100644
+--- a/src/cmd/5g/galign.c
++++ b/src/cmd/5g/galign.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ int	thechar	= '5';
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index b4667a3f6a..08e1e037be 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include <u.h>
+-#include <libc.h>
+-
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+ #endif
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 3f5f47e7bd..c03825aad4 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -4,6 +4,8 @@
+ 
+ #undef	EXTERN
+ #define	EXTERN
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ #include "opt.h"
+ 
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 27c8be67d7..4d1566a49c 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ void
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index ddaf52a882..d133c6a90c 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ // TODO(kaib): Can make this bigger if we move
+diff --git a/src/cmd/5g/list.c b/src/cmd/5g/list.c
+index 0c6dbbf718..fef9c85435 100644
+--- a/src/cmd/5g/list.c
++++ b/src/cmd/5g/list.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ // TODO(kaib): make 5g/list.c congruent with 5l/list.c
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 6cc93db12c..dddad5bd96 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -29,6 +29,8 @@
+ // THE SOFTWARE.
+ 
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ #include "opt.h"
+ 
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 2d2a6d01af..da8e1e1674 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -29,6 +29,8 @@
+ // THE SOFTWARE.
+ 
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ #include "opt.h"
+ 
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 24f88a416e..a4820cf2e3 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ /*
+diff --git a/src/cmd/6g/galign.c b/src/cmd/6g/galign.c
+index e366362b30..b03ac1ed67 100644
+--- a/src/cmd/6g/galign.c
++++ b/src/cmd/6g/galign.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ int	thechar	= '6';
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 3af8d3707f..47a92ad649 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include <u.h>
+-#include <libc.h>
+-
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+ #endif
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index a5f2783845..48e2588ded 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -4,6 +4,8 @@
+ 
+ #undef	EXTERN
+ #define	EXTERN
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ #include "opt.h"
+ 
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 5e57568c3e..5e704ce01f 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ void
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 88c7b132a1..546d69139f 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ // TODO(rsc): Can make this bigger if we move
+diff --git a/src/cmd/6g/list.c b/src/cmd/6g/list.c
+index c8077c97a1..4381a178a8 100644
+--- a/src/cmd/6g/list.c
++++ b/src/cmd/6g/list.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ static	int	sconsize;
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 4432203f2f..3fac3b7d16 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ #include "opt.h"
+ 
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 5d6bfb3ada..9006cf2b66 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ #include "opt.h"
+ 
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index b316e6e345..27c75eda9d 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -5,6 +5,8 @@
+ // TODO(rsc):
+ //	assume CLD?
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ void
+diff --git a/src/cmd/8g/cgen64.c b/src/cmd/8g/cgen64.c
+index ba99cec743..8e568a0f91 100644
+--- a/src/cmd/8g/cgen64.c
++++ b/src/cmd/8g/cgen64.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ /*
+diff --git a/src/cmd/8g/galign.c b/src/cmd/8g/galign.c
+index 7734603c4b..4526a2efbe 100644
+--- a/src/cmd/8g/galign.c
++++ b/src/cmd/8g/galign.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ int	thechar	= '8';
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 506345ef46..8a6ffdbfb9 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include <u.h>
+-#include <libc.h>
+-
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+ #endif
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 108c493aa3..0d29c05c52 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -4,6 +4,8 @@
+ 
+ #undef	EXTERN
+ #define	EXTERN
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ #include "opt.h"
+ 
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 31c42a3f27..2cf622830a 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ void
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index a35c81eb10..b523875504 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ // TODO(rsc): Can make this bigger if we move
+diff --git a/src/cmd/8g/list.c b/src/cmd/8g/list.c
+index edb1ece84a..efd9dbbc48 100644
+--- a/src/cmd/8g/list.c
++++ b/src/cmd/8g/list.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ static	int	sconsize;
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index 5ad29e1b21..89c2a7ae74 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ #include "opt.h"
+ 
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 4fb274fe04..70640ab04b 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ #include "opt.h"
+ 
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 14c1c4a8d2..f316c19e01 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "go.h"
+ 
+ /*
+diff --git a/src/cmd/gc/bits.c b/src/cmd/gc/bits.c
+index 7188ac4111..ed695e9087 100644
+--- a/src/cmd/gc/bits.c
++++ b/src/cmd/gc/bits.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "go.h"
+ 
+ /*
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 7b21bf3ab1..af42685564 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -6,6 +6,8 @@
+  * function literals aka closures
+  */
+ 
++#include <u.h>
++#include <libc.h>
+ #include "go.h"
+ 
+ void
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 36a64cb97c..e66056bb98 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include	<u.h>
++#include	<libc.h>
+ #include	"go.h"
+ #define	TUP(x,y)	(((x)<<16)|(y))
+ 
+diff --git a/src/cmd/gc/cplx.c b/src/cmd/gc/cplx.c
+index 890cf7f10c..5bc8d64aa2 100644
+--- a/src/cmd/gc/cplx.c
++++ b/src/cmd/gc/cplx.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "gg.h"
+ 
+ static	void	subnode(Node *nr, Node *ni, Node *nc);
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 0c593dac45..315f291a63 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include	<u.h>
++#include	<libc.h>
+ #include	"go.h"
+ #include	"y.tab.h"
+ 
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index d83a7f75b9..2cc7d7a486 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -29,6 +29,8 @@
+ // unsafe with -m, more detailed analysis output with -mm
+ //
+ 
++#include <u.h>
++#include <libc.h>
+ #include "go.h"
+ 
+ static void escfunc(Node *func);
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 014f0c5f07..421afda8b4 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include	<u.h>
++#include	<libc.h>
+ #include	"go.h"
+ #include	"y.tab.h"
+ 
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 9c1a2a9b12..ddd6cae6d2 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -7,6 +7,8 @@
+  * mainly statements and control flow.
+  */
+ 
++#include <u.h>
++#include <libc.h>
+ #include "go.h"
+ 
+ static void	cgen_dcl(Node *n);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 6252864ed8..f5c2c38750 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include	<u.h>
+-#include	<libc.h>
+ #include	<bio.h>
+ 
+ #undef OAPPEND
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 4c7fe6068b..373d42f136 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -18,7 +18,9 @@
+  */
+ 
+ %{
++#include <u.h>
+ #include <stdio.h>	/* if we don't, bison will, and go.h re-#defines getc */
++#include <libc.h>
+ #include "go.h"
+ 
+ static void fixlbrace(int);
+diff --git a/src/cmd/gc/init.c b/src/cmd/gc/init.c
+index 8818db08c7..da69e41ae3 100644
+--- a/src/cmd/gc/init.c
++++ b/src/cmd/gc/init.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "go.h"
+ 
+ /*
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 77667579fb..4d30dcde8b 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include	<u.h>
++#include	<libc.h>
+ #include	"go.h"
+ #include	"y.tab.h"
+ #include	<ar.h>
+diff --git a/src/cmd/gc/md5.c b/src/cmd/gc/md5.c
+index 7cea1a6cfa..5856aab511 100644
+--- a/src/cmd/gc/md5.c
++++ b/src/cmd/gc/md5.c
+@@ -5,6 +5,8 @@
+ // 64-bit MD5 (does full MD5 but returns 64 bits only).
+ // Translation of ../../pkg/crypto/md5/md5*.go.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "go.h"
+ #include "md5.h"
+ 
+diff --git a/src/cmd/gc/mparith1.c b/src/cmd/gc/mparith1.c
+index 6cd4e25000..2b7307e1a4 100644
+--- a/src/cmd/gc/mparith1.c
++++ b/src/cmd/gc/mparith1.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include	<u.h>
++#include	<libc.h>
+ #include	"go.h"
+ 
+ /// uses arithmetic
+diff --git a/src/cmd/gc/mparith2.c b/src/cmd/gc/mparith2.c
+index 4032550056..16eb4abaa2 100644
+--- a/src/cmd/gc/mparith2.c
++++ b/src/cmd/gc/mparith2.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include	<u.h>
++#include	<libc.h>
+ #include	"go.h"
+ 
+ //
+diff --git a/src/cmd/gc/mparith3.c b/src/cmd/gc/mparith3.c
+index b11a4f5f1a..0c6c5a03b9 100644
+--- a/src/cmd/gc/mparith3.c
++++ b/src/cmd/gc/mparith3.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include	<u.h>
++#include	<libc.h>
+ #include	"go.h"
+ 
+ /*
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 456aabb885..23b5e03b0d 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "go.h"
+ 
+ /*
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index abe8ea8925..78288e2223 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include	<u.h>
++#include	<libc.h>
+ #include	"gg.h"
+ #include	"opt.h"
+ 
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 18b8e12980..37e3e7ac05 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "go.h"
+ 
+ enum
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 5ce693ae35..26edf8c3a7 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -6,6 +6,8 @@
+  * range
+  */
+ 
++#include <u.h>
++#include <libc.h>
+ #include "go.h"
+ 
+ void
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 016722b7a1..4daa1499b8 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "go.h"
+ 
+ /*
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 973e9fe07c..cd6741ec8b 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -6,6 +6,8 @@
+  * select
+  */
+ 
++#include <u.h>
++#include <libc.h>
+ #include "go.h"
+ 
+ void
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 917e2ae6d5..2f5a44b404 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -6,6 +6,8 @@
+  * static initialization
+  */
+ 
++#include	<u.h>
++#include	<libc.h>
+ #include	"go.h"
+ 
+ static NodeList *initlist;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index c5d0ad8a73..2b7f5e1c91 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include	<u.h>
++#include	<libc.h>
+ #include	"go.h"
+ #include	"md5.h"
+ #include	"y.tab.h"
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index c2968c44bc..6f2028c7fc 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include	<u.h>
++#include	<libc.h>
+ #include	"go.h"
+ 
+ enum
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index ef900d0d41..7d67e1e73e 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -10,6 +10,8 @@
+  * rewrites n->op to be more specific in some cases.
+  */
+ 
++#include <u.h>
++#include <libc.h>
+ #include "go.h"
+ 
+ static void	implicitstar(Node**);
+diff --git a/src/cmd/gc/unsafe.c b/src/cmd/gc/unsafe.c
+index d304077c8e..6435492e02 100644
+--- a/src/cmd/gc/unsafe.c
++++ b/src/cmd/gc/unsafe.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <u.h>
++#include <libc.h>
+ #include "go.h"
+ 
+ /*
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 3a26b3988a..b172013aa8 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include	<u.h>
++#include	<libc.h>
+ #include	"go.h"
+ 
+ static	Node*	walkprint(Node*, NodeList**, int);

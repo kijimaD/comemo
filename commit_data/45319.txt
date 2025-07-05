@@ -19,7 +19,7 @@ Date:   Tue Jul 7 13:49:21 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/archive/tar/common.go                          | 68 ++++++++++----------
  src/archive/tar/stat_unix.go                       |  4 +-
  src/archive/tar/tar_test.go                        | 19 +++---
@@ -136,3 +136,4383 @@ Date:   Tue Jul 7 13:49:21 2020 -0400
  src/syscall/syscall_unix.go                        |  2 +-
  src/syscall/syscall_windows.go                     |  2 +-
  115 files changed, 529 insertions(+), 450 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index dee9e47e4a..c667cfc872 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -13,8 +13,8 @@ package tar
+ import (
+ 	"errors"
+ 	"fmt"
++	"io/fs"
+ 	"math"
+-	"os"
+ 	"path"
+ 	"reflect"
+ 	"strconv"
+@@ -525,12 +525,12 @@ func (h Header) allowedFormats() (format Format, paxHdrs map[string]string, err
+ 	return format, paxHdrs, err
+ }
+ 
+-// FileInfo returns an os.FileInfo for the Header.
+-func (h *Header) FileInfo() os.FileInfo {
++// FileInfo returns an fs.FileInfo for the Header.
++func (h *Header) FileInfo() fs.FileInfo {
+ 	return headerFileInfo{h}
+ }
+ 
+-// headerFileInfo implements os.FileInfo.
++// headerFileInfo implements fs.FileInfo.
+ type headerFileInfo struct {
+ 	h *Header
+ }
+@@ -549,57 +549,57 @@ func (fi headerFileInfo) Name() string {
+ }
+ 
+ // Mode returns the permission and mode bits for the headerFileInfo.
+-func (fi headerFileInfo) Mode() (mode os.FileMode) {
++func (fi headerFileInfo) Mode() (mode fs.FileMode) {
+ 	// Set file permission bits.
+-	mode = os.FileMode(fi.h.Mode).Perm()
++	mode = fs.FileMode(fi.h.Mode).Perm()
+ 
+ 	// Set setuid, setgid and sticky bits.
+ 	if fi.h.Mode&c_ISUID != 0 {
+-		mode |= os.ModeSetuid
++		mode |= fs.ModeSetuid
+ 	}
+ 	if fi.h.Mode&c_ISGID != 0 {
+-		mode |= os.ModeSetgid
++		mode |= fs.ModeSetgid
+ 	}
+ 	if fi.h.Mode&c_ISVTX != 0 {
+-		mode |= os.ModeSticky
++		mode |= fs.ModeSticky
+ 	}
+ 
+ 	// Set file mode bits; clear perm, setuid, setgid, and sticky bits.
+-	switch m := os.FileMode(fi.h.Mode) &^ 07777; m {
++	switch m := fs.FileMode(fi.h.Mode) &^ 07777; m {
+ 	case c_ISDIR:
+-		mode |= os.ModeDir
++		mode |= fs.ModeDir
+ 	case c_ISFIFO:
+-		mode |= os.ModeNamedPipe
++		mode |= fs.ModeNamedPipe
+ 	case c_ISLNK:
+-		mode |= os.ModeSymlink
++		mode |= fs.ModeSymlink
+ 	case c_ISBLK:
+-		mode |= os.ModeDevice
++		mode |= fs.ModeDevice
+ 	case c_ISCHR:
+-		mode |= os.ModeDevice
+-		mode |= os.ModeCharDevice
++		mode |= fs.ModeDevice
++		mode |= fs.ModeCharDevice
+ 	case c_ISSOCK:
+-		mode |= os.ModeSocket
++		mode |= fs.ModeSocket
+ 	}
+ 
+ 	switch fi.h.Typeflag {
+ 	case TypeSymlink:
+-		mode |= os.ModeSymlink
++		mode |= fs.ModeSymlink
+ 	case TypeChar:
+-		mode |= os.ModeDevice
+-		mode |= os.ModeCharDevice
++		mode |= fs.ModeDevice
++		mode |= fs.ModeCharDevice
+ 	case TypeBlock:
+-		mode |= os.ModeDevice
++		mode |= fs.ModeDevice
+ 	case TypeDir:
+-		mode |= os.ModeDir
++		mode |= fs.ModeDir
+ 	case TypeFifo:
+-		mode |= os.ModeNamedPipe
++		mode |= fs.ModeNamedPipe
+ 	}
+ 
+ 	return mode
+ }
+ 
+ // sysStat, if non-nil, populates h from system-dependent fields of fi.
+-var sysStat func(fi os.FileInfo, h *Header) error
++var sysStat func(fi fs.FileInfo, h *Header) error
+ 
+ const (
+ 	// Mode constants from the USTAR spec:
+@@ -623,10 +623,10 @@ const (
+ // If fi describes a symlink, FileInfoHeader records link as the link target.
+ // If fi describes a directory, a slash is appended to the name.
+ //
+-// Since os.FileInfo's Name method only returns the base name of
++// Since fs.FileInfo's Name method only returns the base name of
+ // the file it describes, it may be necessary to modify Header.Name
+ // to provide the full path name of the file.
+-func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
++func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
+ 	if fi == nil {
+ 		return nil, errors.New("archive/tar: FileInfo is nil")
+ 	}
+@@ -643,29 +643,29 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
+ 	case fi.IsDir():
+ 		h.Typeflag = TypeDir
+ 		h.Name += "/"
+-	case fm&os.ModeSymlink != 0:
++	case fm&fs.ModeSymlink != 0:
+ 		h.Typeflag = TypeSymlink
+ 		h.Linkname = link
+-	case fm&os.ModeDevice != 0:
+-		if fm&os.ModeCharDevice != 0 {
++	case fm&fs.ModeDevice != 0:
++		if fm&fs.ModeCharDevice != 0 {
+ 			h.Typeflag = TypeChar
+ 		} else {
+ 			h.Typeflag = TypeBlock
+ 		}
+-	case fm&os.ModeNamedPipe != 0:
++	case fm&fs.ModeNamedPipe != 0:
+ 		h.Typeflag = TypeFifo
+-	case fm&os.ModeSocket != 0:
++	case fm&fs.ModeSocket != 0:
+ 		return nil, fmt.Errorf("archive/tar: sockets not supported")
+ 	default:
+ 		return nil, fmt.Errorf("archive/tar: unknown file mode %v", fm)
+ 	}
+-	if fm&os.ModeSetuid != 0 {
++	if fm&fs.ModeSetuid != 0 {
+ 		h.Mode |= c_ISUID
+ 	}
+-	if fm&os.ModeSetgid != 0 {
++	if fm&fs.ModeSetgid != 0 {
+ 		h.Mode |= c_ISGID
+ 	}
+-	if fm&os.ModeSticky != 0 {
++	if fm&fs.ModeSticky != 0 {
+ 		h.Mode |= c_ISVTX
+ 	}
+ 	// If possible, populate additional fields from OS-specific
+diff --git a/src/archive/tar/stat_unix.go b/src/archive/tar/stat_unix.go
+index 8df3616990..581d87dca9 100644
+--- a/src/archive/tar/stat_unix.go
++++ b/src/archive/tar/stat_unix.go
+@@ -7,7 +7,7 @@
+ package tar
+ 
+ import (
+-	"os"
++	"io/fs"
+ 	"os/user"
+ 	"runtime"
+ 	"strconv"
+@@ -23,7 +23,7 @@ func init() {
+ // The downside is that renaming uname or gname by the OS never takes effect.
+ var userMap, groupMap sync.Map // map[int]string
+ 
+-func statUnix(fi os.FileInfo, h *Header) error {
++func statUnix(fi fs.FileInfo, h *Header) error {
+ 	sys, ok := fi.Sys().(*syscall.Stat_t)
+ 	if !ok {
+ 		return nil
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index 2676853122..f605dae904 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"math"
+ 	"os"
+@@ -338,7 +339,7 @@ func TestRoundTrip(t *testing.T) {
+ 
+ type headerRoundTripTest struct {
+ 	h  *Header
+-	fm os.FileMode
++	fm fs.FileMode
+ }
+ 
+ func TestHeaderRoundTrip(t *testing.T) {
+@@ -361,7 +362,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 			ModTime:  time.Unix(1360600852, 0),
+ 			Typeflag: TypeSymlink,
+ 		},
+-		fm: 0777 | os.ModeSymlink,
++		fm: 0777 | fs.ModeSymlink,
+ 	}, {
+ 		// character device node.
+ 		h: &Header{
+@@ -371,7 +372,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 			ModTime:  time.Unix(1360578951, 0),
+ 			Typeflag: TypeChar,
+ 		},
+-		fm: 0666 | os.ModeDevice | os.ModeCharDevice,
++		fm: 0666 | fs.ModeDevice | fs.ModeCharDevice,
+ 	}, {
+ 		// block device node.
+ 		h: &Header{
+@@ -381,7 +382,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 			ModTime:  time.Unix(1360578954, 0),
+ 			Typeflag: TypeBlock,
+ 		},
+-		fm: 0660 | os.ModeDevice,
++		fm: 0660 | fs.ModeDevice,
+ 	}, {
+ 		// directory.
+ 		h: &Header{
+@@ -391,7 +392,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 			ModTime:  time.Unix(1360601116, 0),
+ 			Typeflag: TypeDir,
+ 		},
+-		fm: 0755 | os.ModeDir,
++		fm: 0755 | fs.ModeDir,
+ 	}, {
+ 		// fifo node.
+ 		h: &Header{
+@@ -401,7 +402,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 			ModTime:  time.Unix(1360578949, 0),
+ 			Typeflag: TypeFifo,
+ 		},
+-		fm: 0600 | os.ModeNamedPipe,
++		fm: 0600 | fs.ModeNamedPipe,
+ 	}, {
+ 		// setuid.
+ 		h: &Header{
+@@ -411,7 +412,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 			ModTime:  time.Unix(1355405093, 0),
+ 			Typeflag: TypeReg,
+ 		},
+-		fm: 0755 | os.ModeSetuid,
++		fm: 0755 | fs.ModeSetuid,
+ 	}, {
+ 		// setguid.
+ 		h: &Header{
+@@ -421,7 +422,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 			ModTime:  time.Unix(1360602346, 0),
+ 			Typeflag: TypeReg,
+ 		},
+-		fm: 0750 | os.ModeSetgid,
++		fm: 0750 | fs.ModeSetgid,
+ 	}, {
+ 		// sticky.
+ 		h: &Header{
+@@ -431,7 +432,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 			ModTime:  time.Unix(1360602540, 0),
+ 			Typeflag: TypeReg,
+ 		},
+-		fm: 0600 | os.ModeSticky,
++		fm: 0600 | fs.ModeSticky,
+ 	}, {
+ 		// hard link.
+ 		h: &Header{
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index adca87a8b3..8a32d9c7dc 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"encoding/hex"
+ 	"internal/obscuretestdata"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -30,7 +31,7 @@ type ZipTest struct {
+ 
+ type ZipTestFile struct {
+ 	Name     string
+-	Mode     os.FileMode
++	Mode     fs.FileMode
+ 	NonUTF8  bool
+ 	ModTime  time.Time
+ 	Modified time.Time
+@@ -107,7 +108,7 @@ var tests = []ZipTest{
+ 				Name:     "symlink",
+ 				Content:  []byte("../target"),
+ 				Modified: time.Date(2012, 2, 3, 19, 56, 48, 0, timeZone(-2*time.Hour)),
+-				Mode:     0777 | os.ModeSymlink,
++				Mode:     0777 | fs.ModeSymlink,
+ 			},
+ 		},
+ 	},
+@@ -149,7 +150,7 @@ var tests = []ZipTest{
+ 				Name:     "dir/empty/",
+ 				Content:  []byte{},
+ 				Modified: time.Date(2011, 12, 8, 10, 8, 6, 0, time.UTC),
+-				Mode:     os.ModeDir | 0777,
++				Mode:     fs.ModeDir | 0777,
+ 			},
+ 			{
+ 				Name:     "readonly",
+@@ -179,7 +180,7 @@ var tests = []ZipTest{
+ 				Name:     "dir/empty/",
+ 				Content:  []byte{},
+ 				Modified: time.Date(2011, 12, 8, 10, 8, 6, 0, timeZone(0)),
+-				Mode:     os.ModeDir | 0777,
++				Mode:     fs.ModeDir | 0777,
+ 			},
+ 			{
+ 				Name:     "readonly",
+@@ -645,7 +646,7 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
+ 	}
+ }
+ 
+-func testFileMode(t *testing.T, f *File, want os.FileMode) {
++func testFileMode(t *testing.T, f *File, want fs.FileMode) {
+ 	mode := f.Mode()
+ 	if want == 0 {
+ 		t.Errorf("%s mode: got %v, want none", f.Name, mode)
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 686e79781a..355c57051b 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -20,7 +20,7 @@ fields must be used instead.
+ package zip
+ 
+ import (
+-	"os"
++	"io/fs"
+ 	"path"
+ 	"time"
+ )
+@@ -137,12 +137,12 @@ type FileHeader struct {
+ 	ExternalAttrs      uint32 // Meaning depends on CreatorVersion
+ }
+ 
+-// FileInfo returns an os.FileInfo for the FileHeader.
+-func (h *FileHeader) FileInfo() os.FileInfo {
++// FileInfo returns an fs.FileInfo for the FileHeader.
++func (h *FileHeader) FileInfo() fs.FileInfo {
+ 	return headerFileInfo{h}
+ }
+ 
+-// headerFileInfo implements os.FileInfo.
++// headerFileInfo implements fs.FileInfo.
+ type headerFileInfo struct {
+ 	fh *FileHeader
+ }
+@@ -161,17 +161,17 @@ func (fi headerFileInfo) ModTime() time.Time {
+ 	}
+ 	return fi.fh.Modified.UTC()
+ }
+-func (fi headerFileInfo) Mode() os.FileMode { return fi.fh.Mode() }
++func (fi headerFileInfo) Mode() fs.FileMode { return fi.fh.Mode() }
+ func (fi headerFileInfo) Sys() interface{}  { return fi.fh }
+ 
+ // FileInfoHeader creates a partially-populated FileHeader from an
+-// os.FileInfo.
+-// Because os.FileInfo's Name method returns only the base name of
++// fs.FileInfo.
++// Because fs.FileInfo's Name method returns only the base name of
+ // the file it describes, it may be necessary to modify the Name field
+ // of the returned header to provide the full path name of the file.
+ // If compression is desired, callers should set the FileHeader.Method
+ // field; it is unset by default.
+-func FileInfoHeader(fi os.FileInfo) (*FileHeader, error) {
++func FileInfoHeader(fi fs.FileInfo) (*FileHeader, error) {
+ 	size := fi.Size()
+ 	fh := &FileHeader{
+ 		Name:               fi.Name(),
+@@ -280,7 +280,7 @@ const (
+ )
+ 
+ // Mode returns the permission and mode bits for the FileHeader.
+-func (h *FileHeader) Mode() (mode os.FileMode) {
++func (h *FileHeader) Mode() (mode fs.FileMode) {
+ 	switch h.CreatorVersion >> 8 {
+ 	case creatorUnix, creatorMacOSX:
+ 		mode = unixModeToFileMode(h.ExternalAttrs >> 16)
+@@ -288,18 +288,18 @@ func (h *FileHeader) Mode() (mode os.FileMode) {
+ 		mode = msdosModeToFileMode(h.ExternalAttrs)
+ 	}
+ 	if len(h.Name) > 0 && h.Name[len(h.Name)-1] == '/' {
+-		mode |= os.ModeDir
++		mode |= fs.ModeDir
+ 	}
+ 	return mode
+ }
+ 
+ // SetMode changes the permission and mode bits for the FileHeader.
+-func (h *FileHeader) SetMode(mode os.FileMode) {
++func (h *FileHeader) SetMode(mode fs.FileMode) {
+ 	h.CreatorVersion = h.CreatorVersion&0xff | creatorUnix<<8
+ 	h.ExternalAttrs = fileModeToUnixMode(mode) << 16
+ 
+ 	// set MSDOS attributes too, as the original zip does.
+-	if mode&os.ModeDir != 0 {
++	if mode&fs.ModeDir != 0 {
+ 		h.ExternalAttrs |= msdosDir
+ 	}
+ 	if mode&0200 == 0 {
+@@ -312,9 +312,9 @@ func (h *FileHeader) isZip64() bool {
+ 	return h.CompressedSize64 >= uint32max || h.UncompressedSize64 >= uint32max
+ }
+ 
+-func msdosModeToFileMode(m uint32) (mode os.FileMode) {
++func msdosModeToFileMode(m uint32) (mode fs.FileMode) {
+ 	if m&msdosDir != 0 {
+-		mode = os.ModeDir | 0777
++		mode = fs.ModeDir | 0777
+ 	} else {
+ 		mode = 0666
+ 	}
+@@ -324,64 +324,64 @@ func msdosModeToFileMode(m uint32) (mode os.FileMode) {
+ 	return mode
+ }
+ 
+-func fileModeToUnixMode(mode os.FileMode) uint32 {
++func fileModeToUnixMode(mode fs.FileMode) uint32 {
+ 	var m uint32
+-	switch mode & os.ModeType {
++	switch mode & fs.ModeType {
+ 	default:
+ 		m = s_IFREG
+-	case os.ModeDir:
++	case fs.ModeDir:
+ 		m = s_IFDIR
+-	case os.ModeSymlink:
++	case fs.ModeSymlink:
+ 		m = s_IFLNK
+-	case os.ModeNamedPipe:
++	case fs.ModeNamedPipe:
+ 		m = s_IFIFO
+-	case os.ModeSocket:
++	case fs.ModeSocket:
+ 		m = s_IFSOCK
+-	case os.ModeDevice:
+-		if mode&os.ModeCharDevice != 0 {
++	case fs.ModeDevice:
++		if mode&fs.ModeCharDevice != 0 {
+ 			m = s_IFCHR
+ 		} else {
+ 			m = s_IFBLK
+ 		}
+ 	}
+-	if mode&os.ModeSetuid != 0 {
++	if mode&fs.ModeSetuid != 0 {
+ 		m |= s_ISUID
+ 	}
+-	if mode&os.ModeSetgid != 0 {
++	if mode&fs.ModeSetgid != 0 {
+ 		m |= s_ISGID
+ 	}
+-	if mode&os.ModeSticky != 0 {
++	if mode&fs.ModeSticky != 0 {
+ 		m |= s_ISVTX
+ 	}
+ 	return m | uint32(mode&0777)
+ }
+ 
+-func unixModeToFileMode(m uint32) os.FileMode {
+-	mode := os.FileMode(m & 0777)
++func unixModeToFileMode(m uint32) fs.FileMode {
++	mode := fs.FileMode(m & 0777)
+ 	switch m & s_IFMT {
+ 	case s_IFBLK:
+-		mode |= os.ModeDevice
++		mode |= fs.ModeDevice
+ 	case s_IFCHR:
+-		mode |= os.ModeDevice | os.ModeCharDevice
++		mode |= fs.ModeDevice | fs.ModeCharDevice
+ 	case s_IFDIR:
+-		mode |= os.ModeDir
++		mode |= fs.ModeDir
+ 	case s_IFIFO:
+-		mode |= os.ModeNamedPipe
++		mode |= fs.ModeNamedPipe
+ 	case s_IFLNK:
+-		mode |= os.ModeSymlink
++		mode |= fs.ModeSymlink
+ 	case s_IFREG:
+ 		// nothing to do
+ 	case s_IFSOCK:
+-		mode |= os.ModeSocket
++		mode |= fs.ModeSocket
+ 	}
+ 	if m&s_ISGID != 0 {
+-		mode |= os.ModeSetgid
++		mode |= fs.ModeSetgid
+ 	}
+ 	if m&s_ISUID != 0 {
+-		mode |= os.ModeSetuid
++		mode |= fs.ModeSetuid
+ 	}
+ 	if m&s_ISVTX != 0 {
+-		mode |= os.ModeSticky
++		mode |= fs.ModeSticky
+ 	}
+ 	return mode
+ }
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index 1fedfd85e8..282f9ec216 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -9,9 +9,9 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"math/rand"
+-	"os"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -23,7 +23,7 @@ type WriteTest struct {
+ 	Name   string
+ 	Data   []byte
+ 	Method uint16
+-	Mode   os.FileMode
++	Mode   fs.FileMode
+ }
+ 
+ var writeTests = []WriteTest{
+@@ -43,19 +43,19 @@ var writeTests = []WriteTest{
+ 		Name:   "setuid",
+ 		Data:   []byte("setuid file"),
+ 		Method: Deflate,
+-		Mode:   0755 | os.ModeSetuid,
++		Mode:   0755 | fs.ModeSetuid,
+ 	},
+ 	{
+ 		Name:   "setgid",
+ 		Data:   []byte("setgid file"),
+ 		Method: Deflate,
+-		Mode:   0755 | os.ModeSetgid,
++		Mode:   0755 | fs.ModeSetgid,
+ 	},
+ 	{
+ 		Name:   "symlink",
+ 		Data:   []byte("../link/target"),
+ 		Method: Deflate,
+-		Mode:   0755 | os.ModeSymlink,
++		Mode:   0755 | fs.ModeSymlink,
+ 	},
+ }
+ 
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index ffc302c78c..c2e06ebc8b 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -16,8 +16,8 @@ import (
+ 	"go/printer"
+ 	"go/token"
+ 	"io"
++	"io/fs"
+ 	"log"
+-	"os"
+ 	"path/filepath"
+ 	"strings"
+ 	"unicode"
+@@ -129,11 +129,10 @@ func (pkg *Package) Fatalf(format string, args ...interface{}) {
+ // parsePackage turns the build package we found into a parsed package
+ // we can then use to generate documentation.
+ func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Package {
+-	fs := token.NewFileSet()
+ 	// include tells parser.ParseDir which files to include.
+ 	// That means the file must be in the build package's GoFiles or CgoFiles
+ 	// list only (no tag-ignored files, tests, swig or other non-Go files).
+-	include := func(info os.FileInfo) bool {
++	include := func(info fs.FileInfo) bool {
+ 		for _, name := range pkg.GoFiles {
+ 			if name == info.Name() {
+ 				return true
+@@ -146,7 +145,8 @@ func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Packag
+ 		}
+ 		return false
+ 	}
+-	pkgs, err := parser.ParseDir(fs, pkg.Dir, include, parser.ParseComments)
++	fset := token.NewFileSet()
++	pkgs, err := parser.ParseDir(fset, pkg.Dir, include, parser.ParseComments)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+@@ -203,7 +203,7 @@ func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Packag
+ 		typedValue:  typedValue,
+ 		constructor: constructor,
+ 		build:       pkg,
+-		fs:          fs,
++		fs:          fset,
+ 	}
+ 	p.buf.pkg = p
+ 	return p
+diff --git a/src/cmd/fix/main.go b/src/cmd/fix/main.go
+index d19dde6b4a..dfba902f48 100644
+--- a/src/cmd/fix/main.go
++++ b/src/cmd/fix/main.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/parser"
+ 	"go/scanner"
+ 	"go/token"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -235,7 +236,7 @@ func walkDir(path string) {
+ 	filepath.Walk(path, visitFile)
+ }
+ 
+-func visitFile(path string, f os.FileInfo, err error) error {
++func visitFile(path string, f fs.FileInfo, err error) error {
+ 	if err == nil && isGoFile(f) {
+ 		err = processFile(path, false)
+ 	}
+@@ -245,7 +246,7 @@ func visitFile(path string, f os.FileInfo, err error) error {
+ 	return nil
+ }
+ 
+-func isGoFile(f os.FileInfo) bool {
++func isGoFile(f fs.FileInfo) bool {
+ 	// ignore non-Go files
+ 	name := f.Name()
+ 	return !f.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 093ea2ffa1..2c11d16959 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"internal/race"
+ 	"internal/testenv"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+@@ -813,7 +814,7 @@ func (tg *testgoData) cleanup() {
+ func removeAll(dir string) error {
+ 	// module cache has 0444 directories;
+ 	// make them writable in order to remove content.
+-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
++	filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
+ 		// chmod not only directories, but also things that we couldn't even stat
+ 		// due to permission errors: they may also be unreadable directories.
+ 		if err != nil || info.IsDir() {
+@@ -860,7 +861,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 		srcdir := filepath.Join(testGOROOT, copydir)
+ 		tg.tempDir(filepath.Join("goroot", copydir))
+ 		err := filepath.Walk(srcdir,
+-			func(path string, info os.FileInfo, err error) error {
++			func(path string, info fs.FileInfo, err error) error {
+ 				if err != nil {
+ 					return err
+ 				}
+@@ -2018,7 +2019,7 @@ func main() {
+ 	tg.run("build", "-o", exe, "p")
+ }
+ 
+-func copyFile(src, dst string, perm os.FileMode) error {
++func copyFile(src, dst string, perm fs.FileMode) error {
+ 	sf, err := os.Open(src)
+ 	if err != nil {
+ 		return err
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index 15545ac31f..5464fe5685 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -12,6 +12,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -54,7 +55,7 @@ func Open(dir string) (*Cache, error) {
+ 		return nil, err
+ 	}
+ 	if !info.IsDir() {
+-		return nil, &os.PathError{Op: "open", Path: dir, Err: fmt.Errorf("not a directory")}
++		return nil, &fs.PathError{Op: "open", Path: dir, Err: fmt.Errorf("not a directory")}
+ 	}
+ 	for i := 0; i < 256; i++ {
+ 		name := filepath.Join(dir, fmt.Sprintf("%02x", i))
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index 489af93496..67359ffb6d 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -6,6 +6,7 @@ import (
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -240,7 +241,7 @@ var errNotDir = errors.New("not a directory")
+ // readDir reads a dir on disk, returning an error that is errNotDir if the dir is not a directory.
+ // Unfortunately, the error returned by ioutil.ReadDir if dir is not a directory
+ // can vary depending on the OS (Linux, Mac, Windows return ENOTDIR; BSD returns EINVAL).
+-func readDir(dir string) ([]os.FileInfo, error) {
++func readDir(dir string) ([]fs.FileInfo, error) {
+ 	fis, err := ioutil.ReadDir(dir)
+ 	if err == nil {
+ 		return fis, nil
+@@ -249,25 +250,25 @@ func readDir(dir string) ([]os.FileInfo, error) {
+ 	if os.IsNotExist(err) {
+ 		return nil, err
+ 	} else if dirfi, staterr := os.Stat(dir); staterr == nil && !dirfi.IsDir() {
+-		return nil, &os.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
++		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
+ 	} else {
+ 		return nil, err
+ 	}
+ }
+ 
+-// ReadDir provides a slice of os.FileInfo entries corresponding
++// ReadDir provides a slice of fs.FileInfo entries corresponding
+ // to the overlaid files in the directory.
+-func ReadDir(dir string) ([]os.FileInfo, error) {
++func ReadDir(dir string) ([]fs.FileInfo, error) {
+ 	dir = canonicalize(dir)
+ 	if _, ok := parentIsOverlayFile(dir); ok {
+-		return nil, &os.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
++		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
+ 	}
+ 
+ 	dirNode := overlay[dir]
+ 	if dirNode == nil {
+ 		return readDir(dir)
+ 	} else if dirNode.isDeleted() {
+-		return nil, &os.PathError{Op: "ReadDir", Path: dir, Err: os.ErrNotExist}
++		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: fs.ErrNotExist}
+ 	}
+ 	diskfis, err := readDir(dir)
+ 	if err != nil && !os.IsNotExist(err) && !errors.Is(err, errNotDir) {
+@@ -275,7 +276,7 @@ func ReadDir(dir string) ([]os.FileInfo, error) {
+ 	}
+ 
+ 	// Stat files in overlay to make composite list of fileinfos
+-	files := make(map[string]os.FileInfo)
++	files := make(map[string]fs.FileInfo)
+ 	for _, f := range diskfis {
+ 		files[f.Name()] = f
+ 	}
+@@ -327,14 +328,14 @@ func Open(path string) (*os.File, error) {
+ 	cpath := canonicalize(path)
+ 	if node, ok := overlay[cpath]; ok {
+ 		if node.isDir() {
+-			return nil, &os.PathError{Op: "Open", Path: path, Err: errors.New("fsys.Open doesn't support opening directories yet")}
++			return nil, &fs.PathError{Op: "Open", Path: path, Err: errors.New("fsys.Open doesn't support opening directories yet")}
+ 		}
+ 		return os.Open(node.actualFilePath)
+ 	} else if parent, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
+ 		// The file is deleted explicitly in the Replace map,
+ 		// or implicitly because one of its parent directories was
+ 		// replaced by a file.
+-		return nil, &os.PathError{
++		return nil, &fs.PathError{
+ 			Op:   "Open",
+ 			Path: path,
+ 			Err:  fmt.Errorf("file %s does not exist: parent directory %s is replaced by a file in overlay", path, parent)}
+@@ -387,7 +388,7 @@ func IsDirWithGoFiles(dir string) (bool, error) {
+ 
+ // walk recursively descends path, calling walkFn. Copied, with some
+ // modifications from path/filepath.walk.
+-func walk(path string, info os.FileInfo, walkFn filepath.WalkFunc) error {
++func walk(path string, info fs.FileInfo, walkFn filepath.WalkFunc) error {
+ 	if !info.IsDir() {
+ 		return walkFn(path, info, nil)
+ 	}
+@@ -432,11 +433,11 @@ func Walk(root string, walkFn filepath.WalkFunc) error {
+ }
+ 
+ // lstat implements a version of os.Lstat that operates on the overlay filesystem.
+-func lstat(path string) (os.FileInfo, error) {
++func lstat(path string) (fs.FileInfo, error) {
+ 	cpath := canonicalize(path)
+ 
+ 	if _, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
+-		return nil, &os.PathError{Op: "lstat", Path: cpath, Err: os.ErrNotExist}
++		return nil, &fs.PathError{Op: "lstat", Path: cpath, Err: fs.ErrNotExist}
+ 	}
+ 
+ 	node, ok := overlay[cpath]
+@@ -447,7 +448,7 @@ func lstat(path string) (os.FileInfo, error) {
+ 
+ 	switch {
+ 	case node.isDeleted():
+-		return nil, &os.PathError{Op: "lstat", Path: cpath, Err: os.ErrNotExist}
++		return nil, &fs.PathError{Op: "lstat", Path: cpath, Err: fs.ErrNotExist}
+ 	case node.isDir():
+ 		return fakeDir(filepath.Base(cpath)), nil
+ 	default:
+@@ -459,22 +460,22 @@ func lstat(path string) (os.FileInfo, error) {
+ 	}
+ }
+ 
+-// fakeFile provides an os.FileInfo implementation for an overlaid file,
++// fakeFile provides an fs.FileInfo implementation for an overlaid file,
+ // so that the file has the name of the overlaid file, but takes all
+ // other characteristics of the replacement file.
+ type fakeFile struct {
+ 	name string
+-	real os.FileInfo
++	real fs.FileInfo
+ }
+ 
+ func (f fakeFile) Name() string       { return f.name }
+ func (f fakeFile) Size() int64        { return f.real.Size() }
+-func (f fakeFile) Mode() os.FileMode  { return f.real.Mode() }
++func (f fakeFile) Mode() fs.FileMode  { return f.real.Mode() }
+ func (f fakeFile) ModTime() time.Time { return f.real.ModTime() }
+ func (f fakeFile) IsDir() bool        { return f.real.IsDir() }
+ func (f fakeFile) Sys() interface{}   { return f.real.Sys() }
+ 
+-// missingFile provides an os.FileInfo for an overlaid file where the
++// missingFile provides an fs.FileInfo for an overlaid file where the
+ // destination file in the overlay doesn't exist. It returns zero values
+ // for the fileInfo methods other than Name, set to the file's name, and Mode
+ // set to ModeIrregular.
+@@ -482,19 +483,19 @@ type missingFile string
+ 
+ func (f missingFile) Name() string       { return string(f) }
+ func (f missingFile) Size() int64        { return 0 }
+-func (f missingFile) Mode() os.FileMode  { return os.ModeIrregular }
++func (f missingFile) Mode() fs.FileMode  { return fs.ModeIrregular }
+ func (f missingFile) ModTime() time.Time { return time.Unix(0, 0) }
+ func (f missingFile) IsDir() bool        { return false }
+ func (f missingFile) Sys() interface{}   { return nil }
+ 
+-// fakeDir provides an os.FileInfo implementation for directories that are
++// fakeDir provides an fs.FileInfo implementation for directories that are
+ // implicitly created by overlaid files. Each directory in the
+ // path of an overlaid file is considered to exist in the overlay filesystem.
+ type fakeDir string
+ 
+ func (f fakeDir) Name() string       { return string(f) }
+ func (f fakeDir) Size() int64        { return 0 }
+-func (f fakeDir) Mode() os.FileMode  { return os.ModeDir | 0500 }
++func (f fakeDir) Mode() fs.FileMode  { return fs.ModeDir | 0500 }
+ func (f fakeDir) ModTime() time.Time { return time.Unix(0, 0) }
+ func (f fakeDir) IsDir() bool        { return true }
+ func (f fakeDir) Sys() interface{}   { return nil }
+diff --git a/src/cmd/go/internal/fsys/fsys_test.go b/src/cmd/go/internal/fsys/fsys_test.go
+index 6cf59fba47..ba9f05d00b 100644
+--- a/src/cmd/go/internal/fsys/fsys_test.go
++++ b/src/cmd/go/internal/fsys/fsys_test.go
+@@ -6,6 +6,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"internal/testenv"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -291,8 +292,8 @@ x
+ 		_, gotErr := ReadDir(dir)
+ 		if gotErr == nil {
+ 			t.Errorf("ReadDir(%q): got no error, want error", dir)
+-		} else if _, ok := gotErr.(*os.PathError); !ok {
+-			t.Errorf("ReadDir(%q): got error with string %q and type %T, want os.PathError", dir, gotErr.Error(), gotErr)
++		} else if _, ok := gotErr.(*fs.PathError); !ok {
++			t.Errorf("ReadDir(%q): got error with string %q and type %T, want fs.PathError", dir, gotErr.Error(), gotErr)
+ 		}
+ 	}
+ }
+@@ -489,7 +490,7 @@ func TestWalk(t *testing.T) {
+ 		path  string
+ 		name  string
+ 		size  int64
+-		mode  os.FileMode
++		mode  fs.FileMode
+ 		isDir bool
+ 	}
+ 	testCases := []struct {
+@@ -504,7 +505,7 @@ func TestWalk(t *testing.T) {
+ `,
+ 			".",
+ 			[]file{
+-				{".", "root", 0, os.ModeDir | 0700, true},
++				{".", "root", 0, fs.ModeDir | 0700, true},
+ 				{"file.txt", "file.txt", 0, 0600, false},
+ 			},
+ 		},
+@@ -520,7 +521,7 @@ contents of other file
+ `,
+ 			".",
+ 			[]file{
+-				{".", "root", 0, os.ModeDir | 0500, true},
++				{".", "root", 0, fs.ModeDir | 0500, true},
+ 				{"file.txt", "file.txt", 23, 0600, false},
+ 				{"other.txt", "other.txt", 23, 0600, false},
+ 			},
+@@ -536,7 +537,7 @@ contents of other file
+ `,
+ 			".",
+ 			[]file{
+-				{".", "root", 0, os.ModeDir | 0500, true},
++				{".", "root", 0, fs.ModeDir | 0500, true},
+ 				{"file.txt", "file.txt", 23, 0600, false},
+ 				{"other.txt", "other.txt", 23, 0600, false},
+ 			},
+@@ -552,8 +553,8 @@ contents of other file
+ `,
+ 			".",
+ 			[]file{
+-				{".", "root", 0, os.ModeDir | 0500, true},
+-				{"dir", "dir", 0, os.ModeDir | 0500, true},
++				{".", "root", 0, fs.ModeDir | 0500, true},
++				{"dir", "dir", 0, fs.ModeDir | 0500, true},
+ 				{"dir" + string(filepath.Separator) + "file.txt", "file.txt", 23, 0600, false},
+ 				{"other.txt", "other.txt", 23, 0600, false},
+ 			},
+@@ -565,7 +566,7 @@ contents of other file
+ 			initOverlay(t, tc.overlay)
+ 
+ 			var got []file
+-			Walk(tc.root, func(path string, info os.FileInfo, err error) error {
++			Walk(tc.root, func(path string, info fs.FileInfo, err error) error {
+ 				got = append(got, file{path, info.Name(), info.Size(), info.Mode(), info.IsDir()})
+ 				return nil
+ 			})
+@@ -580,8 +581,8 @@ contents of other file
+ 				if got[i].name != tc.wantFiles[i].name {
+ 					t.Errorf("name of file #%v in walk, got %q, want %q", i, got[i].name, tc.wantFiles[i].name)
+ 				}
+-				if got[i].mode&(os.ModeDir|0700) != tc.wantFiles[i].mode {
+-					t.Errorf("mode&(os.ModeDir|0700) for mode of file #%v in walk, got %v, want %v", i, got[i].mode&(os.ModeDir|0700), tc.wantFiles[i].mode)
++				if got[i].mode&(fs.ModeDir|0700) != tc.wantFiles[i].mode {
++					t.Errorf("mode&(fs.ModeDir|0700) for mode of file #%v in walk, got %v, want %v", i, got[i].mode&(fs.ModeDir|0700), tc.wantFiles[i].mode)
+ 				}
+ 				if got[i].isDir != tc.wantFiles[i].isDir {
+ 					t.Errorf("isDir for file #%v in walk, got %v, want %v", i, got[i].isDir, tc.wantFiles[i].isDir)
+@@ -610,7 +611,7 @@ func TestWalk_SkipDir(t *testing.T) {
+ `)
+ 
+ 	var seen []string
+-	Walk(".", func(path string, info os.FileInfo, err error) error {
++	Walk(".", func(path string, info fs.FileInfo, err error) error {
+ 		seen = append(seen, path)
+ 		if path == "skipthisdir" || path == filepath.Join("dontskip", "skip") {
+ 			return filepath.SkipDir
+@@ -635,7 +636,7 @@ func TestWalk_Error(t *testing.T) {
+ 	initOverlay(t, "{}")
+ 
+ 	alreadyCalled := false
+-	err := Walk("foo", func(path string, info os.FileInfo, err error) error {
++	err := Walk("foo", func(path string, info fs.FileInfo, err error) error {
+ 		if alreadyCalled {
+ 			t.Fatal("expected walk function to be called exactly once, but it was called more than once")
+ 		}
+@@ -683,7 +684,7 @@ func TestWalk_Symlink(t *testing.T) {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			var got []string
+ 
+-			err := Walk(tc.dir, func(path string, info os.FileInfo, err error) error {
++			err := Walk(tc.dir, func(path string, info fs.FileInfo, err error) error {
+ 				got = append(got, path)
+ 				if err != nil {
+ 					t.Errorf("walkfn: got non nil err argument: %v, want nil err argument", err)
+@@ -706,7 +707,7 @@ func TestLstat(t *testing.T) {
+ 	type file struct {
+ 		name  string
+ 		size  int64
+-		mode  os.FileMode // mode & (os.ModeDir|0x700): only check 'user' permissions
++		mode  fs.FileMode // mode & (fs.ModeDir|0x700): only check 'user' permissions
+ 		isDir bool
+ 	}
+ 
+@@ -771,7 +772,7 @@ contents`,
+ -- dir/foo.txt --
+ `,
+ 			"dir",
+-			file{"dir", 0, 0700 | os.ModeDir, true},
++			file{"dir", 0, 0700 | fs.ModeDir, true},
+ 			false,
+ 		},
+ 		{
+@@ -780,7 +781,7 @@ contents`,
+ -- dummy.txt --
+ `,
+ 			"dir",
+-			file{"dir", 0, 0500 | os.ModeDir, true},
++			file{"dir", 0, 0500 | fs.ModeDir, true},
+ 			false,
+ 		},
+ 	}
+@@ -801,8 +802,8 @@ contents`,
+ 			if got.Name() != tc.want.name {
+ 				t.Errorf("lstat(%q).Name(): got %q, want %q", tc.path, got.Name(), tc.want.name)
+ 			}
+-			if got.Mode()&(os.ModeDir|0700) != tc.want.mode {
+-				t.Errorf("lstat(%q).Mode()&(os.ModeDir|0700): got %v, want %v", tc.path, got.Mode()&(os.ModeDir|0700), tc.want.mode)
++			if got.Mode()&(fs.ModeDir|0700) != tc.want.mode {
++				t.Errorf("lstat(%q).Mode()&(fs.ModeDir|0700): got %v, want %v", tc.path, got.Mode()&(fs.ModeDir|0700), tc.want.mode)
+ 			}
+ 			if got.IsDir() != tc.want.isDir {
+ 				t.Errorf("lstat(%q).IsDir(): got %v, want %v", tc.path, got.IsDir(), tc.want.isDir)
+diff --git a/src/cmd/go/internal/imports/scan.go b/src/cmd/go/internal/imports/scan.go
+index 42ee49aaaa..d45393f36c 100644
+--- a/src/cmd/go/internal/imports/scan.go
++++ b/src/cmd/go/internal/imports/scan.go
+@@ -6,6 +6,7 @@ package imports
+ 
+ import (
+ 	"fmt"
++	"io/fs"
+ 	"os"
+ 	"path/filepath"
+ 	"sort"
+@@ -26,7 +27,7 @@ func ScanDir(dir string, tags map[string]bool) ([]string, []string, error) {
+ 
+ 		// If the directory entry is a symlink, stat it to obtain the info for the
+ 		// link target instead of the link itself.
+-		if info.Mode()&os.ModeSymlink != 0 {
++		if info.Mode()&fs.ModeSymlink != 0 {
+ 			info, err = os.Stat(filepath.Join(dir, name))
+ 			if err != nil {
+ 				continue // Ignore broken symlinks.
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index f73b79d089..066ff6c981 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -14,6 +14,7 @@ import (
+ 	"go/build"
+ 	"go/scanner"
+ 	"go/token"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	pathpkg "path"
+@@ -2300,7 +2301,7 @@ func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
+ 	// to make it look like this is a standard package or
+ 	// command directory. So that local imports resolve
+ 	// consistently, the files must all be in the same directory.
+-	var dirent []os.FileInfo
++	var dirent []fs.FileInfo
+ 	var dir string
+ 	for _, file := range gofiles {
+ 		fi, err := os.Stat(file)
+@@ -2321,7 +2322,7 @@ func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
+ 		}
+ 		dirent = append(dirent, fi)
+ 	}
+-	ctxt.ReadDir = func(string) ([]os.FileInfo, error) { return dirent, nil }
++	ctxt.ReadDir = func(string) ([]fs.FileInfo, error) { return dirent, nil }
+ 
+ 	if cfg.ModulesEnabled {
+ 		modload.ImportFromFiles(ctx, gofiles)
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock.go
+index aba3eed776..05f27c321a 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock.go
+@@ -9,6 +9,7 @@ package filelock
+ 
+ import (
+ 	"errors"
++	"io/fs"
+ 	"os"
+ )
+ 
+@@ -24,7 +25,7 @@ type File interface {
+ 	Fd() uintptr
+ 
+ 	// Stat returns the FileInfo structure describing file.
+-	Stat() (os.FileInfo, error)
++	Stat() (fs.FileInfo, error)
+ }
+ 
+ // Lock places an advisory write lock on the file, blocking until it can be
+@@ -87,7 +88,7 @@ var ErrNotSupported = errors.New("operation not supported")
+ // underlyingError returns the underlying error for known os error types.
+ func underlyingError(err error) error {
+ 	switch err := err.(type) {
+-	case *os.PathError:
++	case *fs.PathError:
+ 		return err.Err
+ 	case *os.LinkError:
+ 		return err.Err
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go
+index 8776c5741c..1fa4327a89 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go
+@@ -18,8 +18,8 @@ package filelock
+ import (
+ 	"errors"
+ 	"io"
++	"io/fs"
+ 	"math/rand"
+-	"os"
+ 	"sync"
+ 	"syscall"
+ 	"time"
+@@ -61,7 +61,7 @@ func lock(f File, lt lockType) (err error) {
+ 	mu.Lock()
+ 	if i, dup := inodes[f]; dup && i != ino {
+ 		mu.Unlock()
+-		return &os.PathError{
++		return &fs.PathError{
+ 			Op:   lt.String(),
+ 			Path: f.Name(),
+ 			Err:  errors.New("inode for file changed since last Lock or RLock"),
+@@ -152,7 +152,7 @@ func lock(f File, lt lockType) (err error) {
+ 
+ 	if err != nil {
+ 		unlock(f)
+-		return &os.PathError{
++		return &fs.PathError{
+ 			Op:   lt.String(),
+ 			Path: f.Name(),
+ 			Err:  err,
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go
+index 107611e1ce..bc480343fc 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go
+@@ -6,7 +6,7 @@
+ 
+ package filelock
+ 
+-import "os"
++import "io/fs"
+ 
+ type lockType int8
+ 
+@@ -16,7 +16,7 @@ const (
+ )
+ 
+ func lock(f File, lt lockType) error {
+-	return &os.PathError{
++	return &fs.PathError{
+ 		Op:   lt.String(),
+ 		Path: f.Name(),
+ 		Err:  ErrNotSupported,
+@@ -24,7 +24,7 @@ func lock(f File, lt lockType) error {
+ }
+ 
+ func unlock(f File) error {
+-	return &os.PathError{
++	return &fs.PathError{
+ 		Op:   "Unlock",
+ 		Path: f.Name(),
+ 		Err:  ErrNotSupported,
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_plan9.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_plan9.go
+index afdffe323f..0798ee469a 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_plan9.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_plan9.go
+@@ -6,9 +6,7 @@
+ 
+ package filelock
+ 
+-import (
+-	"os"
+-)
++import "io/fs"
+ 
+ type lockType int8
+ 
+@@ -18,7 +16,7 @@ const (
+ )
+ 
+ func lock(f File, lt lockType) error {
+-	return &os.PathError{
++	return &fs.PathError{
+ 		Op:   lt.String(),
+ 		Path: f.Name(),
+ 		Err:  ErrNotSupported,
+@@ -26,7 +24,7 @@ func lock(f File, lt lockType) error {
+ }
+ 
+ func unlock(f File) error {
+-	return &os.PathError{
++	return &fs.PathError{
+ 		Op:   "Unlock",
+ 		Path: f.Name(),
+ 		Err:  ErrNotSupported,
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_unix.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_unix.go
+index 78f2c51129..ed07bac608 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_unix.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_unix.go
+@@ -7,7 +7,7 @@
+ package filelock
+ 
+ import (
+-	"os"
++	"io/fs"
+ 	"syscall"
+ )
+ 
+@@ -26,7 +26,7 @@ func lock(f File, lt lockType) (err error) {
+ 		}
+ 	}
+ 	if err != nil {
+-		return &os.PathError{
++		return &fs.PathError{
+ 			Op:   lt.String(),
+ 			Path: f.Name(),
+ 			Err:  err,
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_windows.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_windows.go
+index 43e85e450e..19de27eb9b 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_windows.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_windows.go
+@@ -8,7 +8,7 @@ package filelock
+ 
+ import (
+ 	"internal/syscall/windows"
+-	"os"
++	"io/fs"
+ 	"syscall"
+ )
+ 
+@@ -34,7 +34,7 @@ func lock(f File, lt lockType) error {
+ 
+ 	err := windows.LockFileEx(syscall.Handle(f.Fd()), uint32(lt), reserved, allBytes, allBytes, ol)
+ 	if err != nil {
+-		return &os.PathError{
++		return &fs.PathError{
+ 			Op:   lt.String(),
+ 			Path: f.Name(),
+ 			Err:  err,
+@@ -47,7 +47,7 @@ func unlock(f File) error {
+ 	ol := new(syscall.Overlapped)
+ 	err := windows.UnlockFileEx(syscall.Handle(f.Fd()), reserved, allBytes, allBytes, ol)
+ 	if err != nil {
+-		return &os.PathError{
++		return &fs.PathError{
+ 			Op:   "Unlock",
+ 			Path: f.Name(),
+ 			Err:  err,
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile.go b/src/cmd/go/internal/lockedfile/lockedfile.go
+index 59b2dba44c..503024da4b 100644
+--- a/src/cmd/go/internal/lockedfile/lockedfile.go
++++ b/src/cmd/go/internal/lockedfile/lockedfile.go
+@@ -9,6 +9,7 @@ package lockedfile
+ import (
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"runtime"
+@@ -35,7 +36,7 @@ type osFile struct {
+ // OpenFile is like os.OpenFile, but returns a locked file.
+ // If flag includes os.O_WRONLY or os.O_RDWR, the file is write-locked;
+ // otherwise, it is read-locked.
+-func OpenFile(name string, flag int, perm os.FileMode) (*File, error) {
++func OpenFile(name string, flag int, perm fs.FileMode) (*File, error) {
+ 	var (
+ 		f   = new(File)
+ 		err error
+@@ -82,10 +83,10 @@ func Edit(name string) (*File, error) {
+ // non-nil error.
+ func (f *File) Close() error {
+ 	if f.closed {
+-		return &os.PathError{
++		return &fs.PathError{
+ 			Op:   "close",
+ 			Path: f.Name(),
+-			Err:  os.ErrClosed,
++			Err:  fs.ErrClosed,
+ 		}
+ 	}
+ 	f.closed = true
+@@ -108,7 +109,7 @@ func Read(name string) ([]byte, error) {
+ 
+ // Write opens the named file (creating it with the given permissions if needed),
+ // then write-locks it and overwrites it with the given content.
+-func Write(name string, content io.Reader, perm os.FileMode) (err error) {
++func Write(name string, content io.Reader, perm fs.FileMode) (err error) {
+ 	f, err := OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+ 	if err != nil {
+ 		return err
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile_filelock.go b/src/cmd/go/internal/lockedfile/lockedfile_filelock.go
+index f63dd8664b..10e1240efd 100644
+--- a/src/cmd/go/internal/lockedfile/lockedfile_filelock.go
++++ b/src/cmd/go/internal/lockedfile/lockedfile_filelock.go
+@@ -7,12 +7,13 @@
+ package lockedfile
+ 
+ import (
++	"io/fs"
+ 	"os"
+ 
+ 	"cmd/go/internal/lockedfile/internal/filelock"
+ )
+ 
+-func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
++func openFile(name string, flag int, perm fs.FileMode) (*os.File, error) {
+ 	// On BSD systems, we could add the O_SHLOCK or O_EXLOCK flag to the OpenFile
+ 	// call instead of locking separately, but we have to support separate locking
+ 	// calls for Linux and Windows anyway, so it's simpler to use that approach
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile_plan9.go b/src/cmd/go/internal/lockedfile/lockedfile_plan9.go
+index 4a52c94976..51681381d7 100644
+--- a/src/cmd/go/internal/lockedfile/lockedfile_plan9.go
++++ b/src/cmd/go/internal/lockedfile/lockedfile_plan9.go
+@@ -7,6 +7,7 @@
+ package lockedfile
+ 
+ import (
++	"io/fs"
+ 	"math/rand"
+ 	"os"
+ 	"strings"
+@@ -41,7 +42,7 @@ func isLocked(err error) bool {
+ 	return false
+ }
+ 
+-func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
++func openFile(name string, flag int, perm fs.FileMode) (*os.File, error) {
+ 	// Plan 9 uses a mode bit instead of explicit lock/unlock syscalls.
+ 	//
+ 	// Per http://man.cat-v.org/plan_9/5/stat: “Exclusive use files may be open
+@@ -56,8 +57,8 @@ func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
+ 	// have the ModeExclusive bit set. Set it before we call OpenFile, so that we
+ 	// can be confident that a successful OpenFile implies exclusive use.
+ 	if fi, err := os.Stat(name); err == nil {
+-		if fi.Mode()&os.ModeExclusive == 0 {
+-			if err := os.Chmod(name, fi.Mode()|os.ModeExclusive); err != nil {
++		if fi.Mode()&fs.ModeExclusive == 0 {
++			if err := os.Chmod(name, fi.Mode()|fs.ModeExclusive); err != nil {
+ 				return nil, err
+ 			}
+ 		}
+@@ -68,7 +69,7 @@ func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
+ 	nextSleep := 1 * time.Millisecond
+ 	const maxSleep = 500 * time.Millisecond
+ 	for {
+-		f, err := os.OpenFile(name, flag, perm|os.ModeExclusive)
++		f, err := os.OpenFile(name, flag, perm|fs.ModeExclusive)
+ 		if err == nil {
+ 			return f, nil
+ 		}
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 1bc4ab3def..1b9ce60529 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -9,6 +9,7 @@ import (
+ 	"context"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -232,7 +233,7 @@ var metaPrefixes = []string{
+ }
+ 
+ // matchMetadata reports whether info is a metadata file.
+-func matchMetadata(dir string, info os.FileInfo) bool {
++func matchMetadata(dir string, info fs.FileInfo) bool {
+ 	name := info.Name()
+ 	for _, p := range metaPrefixes {
+ 		if strings.HasPrefix(name, p) {
+@@ -243,7 +244,7 @@ func matchMetadata(dir string, info os.FileInfo) bool {
+ }
+ 
+ // matchPotentialSourceFile reports whether info may be relevant to a build operation.
+-func matchPotentialSourceFile(dir string, info os.FileInfo) bool {
++func matchPotentialSourceFile(dir string, info fs.FileInfo) bool {
+ 	if strings.HasSuffix(info.Name(), "_test.go") {
+ 		return false
+ 	}
+@@ -269,7 +270,7 @@ func matchPotentialSourceFile(dir string, info os.FileInfo) bool {
+ }
+ 
+ // copyDir copies all regular files satisfying match(info) from src to dst.
+-func copyDir(dst, src string, match func(dir string, info os.FileInfo) bool) {
++func copyDir(dst, src string, match func(dir string, info fs.FileInfo) bool) {
+ 	files, err := ioutil.ReadDir(src)
+ 	if err != nil {
+ 		base.Fatalf("go mod vendor: %v", err)
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index bd591d3f32..ce24793929 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -9,6 +9,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"fmt"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"runtime"
+@@ -88,8 +89,8 @@ func verifyMod(mod module.Version) []error {
+ 	dir, dirErr := modfetch.DownloadDir(mod)
+ 	data, err := ioutil.ReadFile(zip + "hash")
+ 	if err != nil {
+-		if zipErr != nil && errors.Is(zipErr, os.ErrNotExist) &&
+-			dirErr != nil && errors.Is(dirErr, os.ErrNotExist) {
++		if zipErr != nil && errors.Is(zipErr, fs.ErrNotExist) &&
++			dirErr != nil && errors.Is(dirErr, fs.ErrNotExist) {
+ 			// Nothing downloaded yet. Nothing to verify.
+ 			return nil
+ 		}
+@@ -98,7 +99,7 @@ func verifyMod(mod module.Version) []error {
+ 	}
+ 	h := string(bytes.TrimSpace(data))
+ 
+-	if zipErr != nil && errors.Is(zipErr, os.ErrNotExist) {
++	if zipErr != nil && errors.Is(zipErr, fs.ErrNotExist) {
+ 		// ok
+ 	} else {
+ 		hZ, err := dirhash.HashZip(zip, dirhash.DefaultHash)
+@@ -109,7 +110,7 @@ func verifyMod(mod module.Version) []error {
+ 			errs = append(errs, fmt.Errorf("%s %s: zip has been modified (%v)", mod.Path, mod.Version, zip))
+ 		}
+ 	}
+-	if dirErr != nil && errors.Is(dirErr, os.ErrNotExist) {
++	if dirErr != nil && errors.Is(dirErr, fs.ErrNotExist) {
+ 		// ok
+ 	} else {
+ 		hD, err := dirhash.HashDir(dir, mod.Path+"@"+mod.Version, dirhash.DefaultHash)
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 6eadb026c9..b7aa670250 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -10,6 +10,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -60,7 +61,7 @@ func CachePath(m module.Version, suffix string) (string, error) {
+ 
+ // DownloadDir returns the directory to which m should have been downloaded.
+ // An error will be returned if the module path or version cannot be escaped.
+-// An error satisfying errors.Is(err, os.ErrNotExist) will be returned
++// An error satisfying errors.Is(err, fs.ErrNotExist) will be returned
+ // along with the directory if the directory does not exist or if the directory
+ // is not completely populated.
+ func DownloadDir(m module.Version) (string, error) {
+@@ -107,14 +108,14 @@ func DownloadDir(m module.Version) (string, error) {
+ // DownloadDirPartialError is returned by DownloadDir if a module directory
+ // exists but was not completely populated.
+ //
+-// DownloadDirPartialError is equivalent to os.ErrNotExist.
++// DownloadDirPartialError is equivalent to fs.ErrNotExist.
+ type DownloadDirPartialError struct {
+ 	Dir string
+ 	Err error
+ }
+ 
+ func (e *DownloadDirPartialError) Error() string     { return fmt.Sprintf("%s: %v", e.Dir, e.Err) }
+-func (e *DownloadDirPartialError) Is(err error) bool { return err == os.ErrNotExist }
++func (e *DownloadDirPartialError) Is(err error) bool { return err == fs.ErrNotExist }
+ 
+ // lockVersion locks a file within the module cache that guards the downloading
+ // and extraction of the zipfile for the given module version.
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index df4cfdab1a..c5fbb31b2b 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -11,6 +11,7 @@ import (
+ 	"crypto/sha256"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -105,7 +106,7 @@ type FileRev struct {
+ 	Err  error  // error if any; os.IsNotExist(Err)==true if rev exists but file does not exist in that rev
+ }
+ 
+-// UnknownRevisionError is an error equivalent to os.ErrNotExist, but for a
++// UnknownRevisionError is an error equivalent to fs.ErrNotExist, but for a
+ // revision rather than a file.
+ type UnknownRevisionError struct {
+ 	Rev string
+@@ -115,10 +116,10 @@ func (e *UnknownRevisionError) Error() string {
+ 	return "unknown revision " + e.Rev
+ }
+ func (UnknownRevisionError) Is(err error) bool {
+-	return err == os.ErrNotExist
++	return err == fs.ErrNotExist
+ }
+ 
+-// ErrNoCommits is an error equivalent to os.ErrNotExist indicating that a given
++// ErrNoCommits is an error equivalent to fs.ErrNotExist indicating that a given
+ // repository or module contains no commits.
+ var ErrNoCommits error = noCommitsError{}
+ 
+@@ -128,7 +129,7 @@ func (noCommitsError) Error() string {
+ 	return "no commits"
+ }
+ func (noCommitsError) Is(err error) bool {
+-	return err == os.ErrNotExist
++	return err == fs.ErrNotExist
+ }
+ 
+ // AllHex reports whether the revision rev is entirely lower-case hexadecimal digits.
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 5a35829c98..58b4b2f2d3 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -9,6 +9,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"net/url"
+ 	"os"
+@@ -34,13 +35,13 @@ func LocalGitRepo(remote string) (Repo, error) {
+ }
+ 
+ // A notExistError wraps another error to retain its original text
+-// but makes it opaquely equivalent to os.ErrNotExist.
++// but makes it opaquely equivalent to fs.ErrNotExist.
+ type notExistError struct {
+ 	err error
+ }
+ 
+ func (e notExistError) Error() string   { return e.err.Error() }
+-func (notExistError) Is(err error) bool { return err == os.ErrNotExist }
++func (notExistError) Is(err error) bool { return err == fs.ErrNotExist }
+ 
+ const gitWorkDirType = "git3"
+ 
+@@ -188,7 +189,7 @@ func (r *gitRepo) loadRefs() {
+ 		// For HTTP and HTTPS, that's easy to detect: we'll try to fetch the URL
+ 		// ourselves and see what code it serves.
+ 		if u, err := url.Parse(r.remoteURL); err == nil && (u.Scheme == "http" || u.Scheme == "https") {
+-			if _, err := web.GetBytes(u); errors.Is(err, os.ErrNotExist) {
++			if _, err := web.GetBytes(u); errors.Is(err, fs.ErrNotExist) {
+ 				gitErr = notExistError{gitErr}
+ 			}
+ 		}
+@@ -505,7 +506,7 @@ func (r *gitRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
+ 	}
+ 	out, err := Run(r.dir, "git", "cat-file", "blob", info.Name+":"+file)
+ 	if err != nil {
+-		return nil, os.ErrNotExist
++		return nil, fs.ErrNotExist
+ 	}
+ 	return out, nil
+ }
+@@ -629,9 +630,9 @@ func (r *gitRepo) readFileRevs(tags []string, file string, fileMap map[string]*F
+ 		case "tag", "commit":
+ 			switch fileType {
+ 			default:
+-				f.Err = &os.PathError{Path: tag + ":" + file, Op: "read", Err: fmt.Errorf("unexpected non-blob type %q", fileType)}
++				f.Err = &fs.PathError{Path: tag + ":" + file, Op: "read", Err: fmt.Errorf("unexpected non-blob type %q", fileType)}
+ 			case "missing":
+-				f.Err = &os.PathError{Path: tag + ":" + file, Op: "read", Err: os.ErrNotExist}
++				f.Err = &fs.PathError{Path: tag + ":" + file, Op: "read", Err: fs.ErrNotExist}
+ 			case "blob":
+ 				f.Data = fileData
+ 			}
+@@ -826,7 +827,7 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
+ 	archive, err := Run(r.dir, "git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", "--prefix=prefix/", info.Name, args)
+ 	if err != nil {
+ 		if bytes.Contains(err.(*RunError).Stderr, []byte("did not match any files")) {
+-			return nil, os.ErrNotExist
++			return nil, fs.ErrNotExist
+ 		}
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/codehost/git_test.go b/src/cmd/go/internal/modfetch/codehost/git_test.go
+index ba27c70f5a..16908b3e84 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git_test.go
++++ b/src/cmd/go/internal/modfetch/codehost/git_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/testenv"
++	"io/fs"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+@@ -210,7 +211,7 @@ var readFileTests = []struct {
+ 		repo: gitrepo1,
+ 		rev:  "v2.3.4",
+ 		file: "another.txt",
+-		err:  os.ErrNotExist.Error(),
++		err:  fs.ErrNotExist.Error(),
+ 	},
+ }
+ 
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 6278cb21e1..ec97fc7e1b 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"internal/lazyregexp"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -377,7 +378,7 @@ func (r *vcsRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
+ 
+ 	out, err := Run(r.dir, r.cmd.readFile(rev, file, r.remote))
+ 	if err != nil {
+-		return nil, os.ErrNotExist
++		return nil, fs.ErrNotExist
+ 	}
+ 	return out, nil
+ }
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index d99a31d360..7f44e18a70 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -10,6 +10,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path"
+@@ -1040,7 +1041,7 @@ type zipFile struct {
+ }
+ 
+ func (f zipFile) Path() string                 { return f.name }
+-func (f zipFile) Lstat() (os.FileInfo, error)  { return f.f.FileInfo(), nil }
++func (f zipFile) Lstat() (fs.FileInfo, error)  { return f.f.FileInfo(), nil }
+ func (f zipFile) Open() (io.ReadCloser, error) { return f.f.Open() }
+ 
+ type dataFile struct {
+@@ -1049,7 +1050,7 @@ type dataFile struct {
+ }
+ 
+ func (f dataFile) Path() string                { return f.name }
+-func (f dataFile) Lstat() (os.FileInfo, error) { return dataFileInfo{f}, nil }
++func (f dataFile) Lstat() (fs.FileInfo, error) { return dataFileInfo{f}, nil }
+ func (f dataFile) Open() (io.ReadCloser, error) {
+ 	return ioutil.NopCloser(bytes.NewReader(f.data)), nil
+ }
+@@ -1060,7 +1061,7 @@ type dataFileInfo struct {
+ 
+ func (fi dataFileInfo) Name() string       { return path.Base(fi.f.name) }
+ func (fi dataFileInfo) Size() int64        { return int64(len(fi.f.data)) }
+-func (fi dataFileInfo) Mode() os.FileMode  { return 0644 }
++func (fi dataFileInfo) Mode() fs.FileMode  { return 0644 }
+ func (fi dataFileInfo) ModTime() time.Time { return time.Time{} }
+ func (fi dataFileInfo) IsDir() bool        { return false }
+ func (fi dataFileInfo) Sys() interface{}   { return nil }
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 599419977a..6ff455e89c 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -11,6 +11,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -67,7 +68,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
+ 	if err == nil {
+ 		// The directory has already been completely extracted (no .partial file exists).
+ 		return dir, nil
+-	} else if dir == "" || !errors.Is(err, os.ErrNotExist) {
++	} else if dir == "" || !errors.Is(err, fs.ErrNotExist) {
+ 		return "", err
+ 	}
+ 
+@@ -314,10 +315,10 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
+ func makeDirsReadOnly(dir string) {
+ 	type pathMode struct {
+ 		path string
+-		mode os.FileMode
++		mode fs.FileMode
+ 	}
+ 	var dirs []pathMode // in lexical order
+-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
++	filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
+ 		if err == nil && info.Mode()&0222 != 0 {
+ 			if info.IsDir() {
+ 				dirs = append(dirs, pathMode{path, info.Mode()})
+@@ -336,7 +337,7 @@ func makeDirsReadOnly(dir string) {
+ // any permission changes needed to do so.
+ func RemoveAll(dir string) error {
+ 	// Module cache has 0555 directories; make them writable in order to remove content.
+-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
++	filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
+ 		if err != nil {
+ 			return nil // ignore errors walking in file system
+ 		}
+@@ -441,7 +442,7 @@ func checkMod(mod module.Version) {
+ 	}
+ 	data, err := renameio.ReadFile(ziphash)
+ 	if err != nil {
+-		if errors.Is(err, os.ErrNotExist) {
++		if errors.Is(err, fs.ErrNotExist) {
+ 			// This can happen if someone does rm -rf GOPATH/src/cache/download. So it goes.
+ 			return
+ 		}
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 4ac26650a9..819990b403 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -9,9 +9,9 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"net/url"
+-	"os"
+ 	"path"
+ 	pathpkg "path"
+ 	"path/filepath"
+@@ -186,7 +186,7 @@ func proxyList() ([]proxySpec, error) {
+ 
+ // TryProxies iterates f over each configured proxy (including "noproxy" and
+ // "direct" if applicable) until f returns no error or until f returns an
+-// error that is not equivalent to os.ErrNotExist on a proxy configured
++// error that is not equivalent to fs.ErrNotExist on a proxy configured
+ // not to fall back on errors.
+ //
+ // TryProxies then returns that final error.
+@@ -222,7 +222,7 @@ func TryProxies(f func(proxy string) error) error {
+ 		if err == nil {
+ 			return nil
+ 		}
+-		isNotExistErr := errors.Is(err, os.ErrNotExist)
++		isNotExistErr := errors.Is(err, fs.ErrNotExist)
+ 
+ 		if proxy.url == "direct" || (proxy.url == "noproxy" && err != errUseProxy) {
+ 			bestErr = err
+@@ -428,7 +428,7 @@ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
+ func (p *proxyRepo) Latest() (*RevInfo, error) {
+ 	data, err := p.getBytes("@latest")
+ 	if err != nil {
+-		if !errors.Is(err, os.ErrNotExist) {
++		if !errors.Is(err, fs.ErrNotExist) {
+ 			return nil, p.versionError("", err)
+ 		}
+ 		return p.latest()
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index c7cf5595bd..af9e24cefd 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -7,6 +7,7 @@ package modfetch
+ import (
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"os"
+ 	"sort"
+ 	"strconv"
+@@ -432,7 +433,7 @@ func (r errRepo) Latest() (*RevInfo, error)                         { return nil
+ func (r errRepo) GoMod(version string) ([]byte, error)              { return nil, r.err }
+ func (r errRepo) Zip(dst io.Writer, version string) error           { return r.err }
+ 
+-// A notExistError is like os.ErrNotExist, but with a custom message
++// A notExistError is like fs.ErrNotExist, but with a custom message
+ type notExistError struct {
+ 	err error
+ }
+@@ -446,7 +447,7 @@ func (e notExistError) Error() string {
+ }
+ 
+ func (notExistError) Is(target error) bool {
+-	return target == os.ErrNotExist
++	return target == fs.ErrNotExist
+ }
+ 
+ func (e notExistError) Unwrap() error {
+diff --git a/src/cmd/go/internal/modfetch/sumdb.go b/src/cmd/go/internal/modfetch/sumdb.go
+index 47a2571531..5108961a33 100644
+--- a/src/cmd/go/internal/modfetch/sumdb.go
++++ b/src/cmd/go/internal/modfetch/sumdb.go
+@@ -12,6 +12,7 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
++	"io/fs"
+ 	"io/ioutil"
+ 	"net/url"
+ 	"os"
+@@ -182,7 +183,7 @@ func (c *dbClient) initBase() {
+ 			return nil
+ 		}
+ 	})
+-	if errors.Is(err, os.ErrNotExist) {
++	if errors.Is(err, fs.ErrNotExist) {
+ 		// No proxies, or all proxies failed (with 404, 410, or were were allowed
+ 		// to fall back), or we reached an explicit "direct" or "off".
+ 		c.base = c.direct
+@@ -203,7 +204,7 @@ func (c *dbClient) ReadConfig(file string) (data []byte, err error) {
+ 	}
+ 	targ := filepath.Join(cfg.SumdbDir, file)
+ 	data, err = lockedfile.Read(targ)
+-	if errors.Is(err, os.ErrNotExist) {
++	if errors.Is(err, fs.ErrNotExist) {
+ 		// Treat non-existent as empty, to bootstrap the "latest" file
+ 		// the first time we connect to a given database.
+ 		return []byte{}, nil
+@@ -257,7 +258,7 @@ func (*dbClient) ReadCache(file string) ([]byte, error) {
+ 	// during which the empty file can be locked for reading.
+ 	// Treat observing an empty file as file not found.
+ 	if err == nil && len(data) == 0 {
+-		err = &os.PathError{Op: "read", Path: targ, Err: os.ErrNotExist}
++		err = &fs.PathError{Op: "read", Path: targ, Err: fs.ErrNotExist}
+ 	}
+ 	return data, err
+ }
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 6d0d8de944..bcbc9b0c3a 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"go/build"
+ 	"internal/goroot"
++	"io/fs"
+ 	"os"
+ 	"path/filepath"
+ 	"sort"
+@@ -347,7 +348,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 
+ 	candidates, err := QueryPattern(ctx, path, "latest", Selected, CheckAllowed)
+ 	if err != nil {
+-		if errors.Is(err, os.ErrNotExist) {
++		if errors.Is(err, fs.ErrNotExist) {
+ 			// Return "cannot find module providing package […]" instead of whatever
+ 			// low-level error QueryPattern produced.
+ 			return module.Version{}, &ImportMissingError{Path: path, QueryErr: err}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 4ddb817cf1..4b3ded8326 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -98,6 +98,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/build"
++	"io/fs"
+ 	"os"
+ 	"path"
+ 	pathpkg "path"
+@@ -364,7 +365,7 @@ func resolveLocalPackage(dir string) (string, error) {
+ 			if os.IsNotExist(err) {
+ 				// Canonicalize OS-specific errors to errDirectoryNotFound so that error
+ 				// messages will be easier for users to search for.
+-				return "", &os.PathError{Op: "stat", Path: absDir, Err: errDirectoryNotFound}
++				return "", &fs.PathError{Op: "stat", Path: absDir, Err: errDirectoryNotFound}
+ 			}
+ 			return "", err
+ 		}
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 3b27e66d01..6b14768388 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -8,6 +8,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"fmt"
++	"io/fs"
+ 	"os"
+ 	pathpkg "path"
+ 	"path/filepath"
+@@ -145,7 +146,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 			canonicalQuery := module.CanonicalVersion(query)
+ 			if canonicalQuery != "" && query != canonicalQuery {
+ 				info, err = repo.Stat(canonicalQuery)
+-				if err != nil && !errors.Is(err, os.ErrNotExist) {
++				if err != nil && !errors.Is(err, fs.ErrNotExist) {
+ 					return info, err
+ 				}
+ 			}
+@@ -230,7 +231,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 			if qm.allowsVersion(ctx, latest.Version) {
+ 				return lookup(latest.Version)
+ 			}
+-		} else if !errors.Is(err, os.ErrNotExist) {
++		} else if !errors.Is(err, fs.ErrNotExist) {
+ 			return nil, err
+ 		}
+ 	}
+@@ -701,7 +702,7 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
+ 				noVersion = rErr
+ 			}
+ 		default:
+-			if errors.Is(rErr, os.ErrNotExist) {
++			if errors.Is(rErr, fs.ErrNotExist) {
+ 				if notExistErr == nil {
+ 					notExistErr = rErr
+ 				}
+@@ -744,7 +745,7 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
+ // A NoMatchingVersionError indicates that Query found a module at the requested
+ // path, but not at any versions satisfying the query string and allow-function.
+ //
+-// NOTE: NoMatchingVersionError MUST NOT implement Is(os.ErrNotExist).
++// NOTE: NoMatchingVersionError MUST NOT implement Is(fs.ErrNotExist).
+ //
+ // If the module came from a proxy, that proxy had to return a successful status
+ // code for the versions it knows about, and thus did not have the opportunity
+@@ -765,7 +766,7 @@ func (e *NoMatchingVersionError) Error() string {
+ // module at the requested version, but that module did not contain any packages
+ // matching the requested pattern.
+ //
+-// NOTE: PackageNotInModuleError MUST NOT implement Is(os.ErrNotExist).
++// NOTE: PackageNotInModuleError MUST NOT implement Is(fs.ErrNotExist).
+ //
+ // If the module came from a proxy, that proxy had to return a successful status
+ // code for the versions it knows about, and thus did not have the opportunity
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index 0f82026732..19289ceb9c 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -7,6 +7,7 @@ package modload
+ import (
+ 	"context"
+ 	"fmt"
++	"io/fs"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+@@ -54,7 +55,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 
+ 	walkPkgs := func(root, importPathRoot string, prune pruning) {
+ 		root = filepath.Clean(root)
+-		err := fsys.Walk(root, func(path string, fi os.FileInfo, err error) error {
++		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
+ 			if err != nil {
+ 				m.AddError(err)
+ 				return nil
+@@ -85,7 +86,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 			}
+ 
+ 			if !fi.IsDir() {
+-				if fi.Mode()&os.ModeSymlink != 0 && want {
++				if fi.Mode()&fs.ModeSymlink != 0 && want {
+ 					if target, err := os.Stat(path); err == nil && target.IsDir() {
+ 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
+ 					}
+diff --git a/src/cmd/go/internal/modload/stat_openfile.go b/src/cmd/go/internal/modload/stat_openfile.go
+index 931aaf1577..7cdeaf47a2 100644
+--- a/src/cmd/go/internal/modload/stat_openfile.go
++++ b/src/cmd/go/internal/modload/stat_openfile.go
+@@ -13,12 +13,13 @@
+ package modload
+ 
+ import (
++	"io/fs"
+ 	"os"
+ )
+ 
+ // hasWritePerm reports whether the current user has permission to write to the
+ // file with the given info.
+-func hasWritePerm(path string, _ os.FileInfo) bool {
++func hasWritePerm(path string, _ fs.FileInfo) bool {
+ 	if f, err := os.OpenFile(path, os.O_WRONLY, 0); err == nil {
+ 		f.Close()
+ 		return true
+diff --git a/src/cmd/go/internal/modload/stat_unix.go b/src/cmd/go/internal/modload/stat_unix.go
+index ea3b801f2c..65068444d0 100644
+--- a/src/cmd/go/internal/modload/stat_unix.go
++++ b/src/cmd/go/internal/modload/stat_unix.go
+@@ -7,6 +7,7 @@
+ package modload
+ 
+ import (
++	"io/fs"
+ 	"os"
+ 	"syscall"
+ )
+@@ -17,7 +18,7 @@ import (
+ // Although the root user on most Unix systems can write to files even without
+ // permission, hasWritePerm reports false if no appropriate permission bit is
+ // set even if the current user is root.
+-func hasWritePerm(path string, fi os.FileInfo) bool {
++func hasWritePerm(path string, fi fs.FileInfo) bool {
+ 	if os.Getuid() == 0 {
+ 		// The root user can access any file, but we still want to default to
+ 		// read-only mode if the go.mod file is marked as globally non-writable.
+diff --git a/src/cmd/go/internal/modload/stat_windows.go b/src/cmd/go/internal/modload/stat_windows.go
+index d7826cfc6b..0ac2391347 100644
+--- a/src/cmd/go/internal/modload/stat_windows.go
++++ b/src/cmd/go/internal/modload/stat_windows.go
+@@ -6,13 +6,11 @@
+ 
+ package modload
+ 
+-import (
+-	"os"
+-)
++import "io/fs"
+ 
+ // hasWritePerm reports whether the current user has permission to write to the
+ // file with the given info.
+-func hasWritePerm(_ string, fi os.FileInfo) bool {
++func hasWritePerm(_ string, fi fs.FileInfo) bool {
+ 	// Windows has a read-only attribute independent of ACLs, so use that to
+ 	// determine whether the file is intended to be overwritten.
+ 	//
+diff --git a/src/cmd/go/internal/modload/vendor.go b/src/cmd/go/internal/modload/vendor.go
+index 9f34b829fc..ab29d4d014 100644
+--- a/src/cmd/go/internal/modload/vendor.go
++++ b/src/cmd/go/internal/modload/vendor.go
+@@ -7,8 +7,8 @@ package modload
+ import (
+ 	"errors"
+ 	"fmt"
++	"io/fs"
+ 	"io/ioutil"
+-	"os"
+ 	"path/filepath"
+ 	"strings"
+ 	"sync"
+@@ -42,7 +42,7 @@ func readVendorList() {
+ 		vendorMeta = make(map[module.Version]vendorMetadata)
+ 		data, err := ioutil.ReadFile(filepath.Join(ModRoot(), "vendor/modules.txt"))
+ 		if err != nil {
+-			if !errors.Is(err, os.ErrNotExist) {
++			if !errors.Is(err, fs.ErrNotExist) {
+ 				base.Fatalf("go: %s", err)
+ 			}
+ 			return
+diff --git a/src/cmd/go/internal/renameio/renameio.go b/src/cmd/go/internal/renameio/renameio.go
+index d573cc690d..60a7138a76 100644
+--- a/src/cmd/go/internal/renameio/renameio.go
++++ b/src/cmd/go/internal/renameio/renameio.go
+@@ -8,6 +8,7 @@ package renameio
+ import (
+ 	"bytes"
+ 	"io"
++	"io/fs"
+ 	"math/rand"
+ 	"os"
+ 	"path/filepath"
+@@ -29,13 +30,13 @@ func Pattern(filename string) string {
+ // final name.
+ //
+ // That ensures that the final location, if it exists, is always a complete file.
+-func WriteFile(filename string, data []byte, perm os.FileMode) (err error) {
++func WriteFile(filename string, data []byte, perm fs.FileMode) (err error) {
+ 	return WriteToFile(filename, bytes.NewReader(data), perm)
+ }
+ 
+ // WriteToFile is a variant of WriteFile that accepts the data as an io.Reader
+ // instead of a slice.
+-func WriteToFile(filename string, data io.Reader, perm os.FileMode) (err error) {
++func WriteToFile(filename string, data io.Reader, perm fs.FileMode) (err error) {
+ 	f, err := tempFile(filepath.Dir(filename), filepath.Base(filename), perm)
+ 	if err != nil {
+ 		return err
+@@ -80,7 +81,7 @@ func ReadFile(filename string) ([]byte, error) {
+ }
+ 
+ // tempFile creates a new temporary file with given permission bits.
+-func tempFile(dir, prefix string, perm os.FileMode) (f *os.File, err error) {
++func tempFile(dir, prefix string, perm fs.FileMode) (f *os.File, err error) {
+ 	for i := 0; i < 10000; i++ {
+ 		name := filepath.Join(dir, prefix+strconv.Itoa(rand.Intn(1000000000))+patternSuffix)
+ 		f, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, perm)
+diff --git a/src/cmd/go/internal/renameio/umask_test.go b/src/cmd/go/internal/renameio/umask_test.go
+index d75d67c9a9..19e217c548 100644
+--- a/src/cmd/go/internal/renameio/umask_test.go
++++ b/src/cmd/go/internal/renameio/umask_test.go
+@@ -7,6 +7,7 @@
+ package renameio
+ 
+ import (
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -36,7 +37,7 @@ func TestWriteFileModeAppliesUmask(t *testing.T) {
+ 		t.Fatalf("Stat %q (looking for mode %#o): %s", file, mode, err)
+ 	}
+ 
+-	if fi.Mode()&os.ModePerm != 0640 {
+-		t.Errorf("Stat %q: mode %#o want %#o", file, fi.Mode()&os.ModePerm, 0640)
++	if fi.Mode()&fs.ModePerm != 0640 {
++		t.Errorf("Stat %q: mode %#o want %#o", file, fi.Mode()&fs.ModePerm, 0640)
+ 	}
+ }
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index b1d2a9376b..e4784e9478 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/go/internal/fsys"
+ 	"fmt"
+ 	"go/build"
++	"io/fs"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+@@ -128,7 +129,7 @@ func (m *Match) MatchPackages() {
+ 		if m.pattern == "cmd" {
+ 			root += "cmd" + string(filepath.Separator)
+ 		}
+-		err := fsys.Walk(root, func(path string, fi os.FileInfo, err error) error {
++		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
+ 			if err != nil {
+ 				return err // Likely a permission error, which could interfere with matching.
+ 			}
+@@ -154,7 +155,7 @@ func (m *Match) MatchPackages() {
+ 			}
+ 
+ 			if !fi.IsDir() {
+-				if fi.Mode()&os.ModeSymlink != 0 && want {
++				if fi.Mode()&fs.ModeSymlink != 0 && want {
+ 					if target, err := os.Stat(path); err == nil && target.IsDir() {
+ 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
+ 					}
+@@ -264,7 +265,7 @@ func (m *Match) MatchDirs() {
+ 		}
+ 	}
+ 
+-	err := fsys.Walk(dir, func(path string, fi os.FileInfo, err error) error {
++	err := fsys.Walk(dir, func(path string, fi fs.FileInfo, err error) error {
+ 		if err != nil {
+ 			return err // Likely a permission error, which could interfere with matching.
+ 		}
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 51d333d866..00da9770df 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -12,6 +12,7 @@ import (
+ 	"fmt"
+ 	"go/build"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -1598,7 +1599,7 @@ func hashStat(name string) cache.ActionID {
+ 	return h.Sum()
+ }
+ 
+-func hashWriteStat(h io.Writer, info os.FileInfo) {
++func hashWriteStat(h io.Writer, info fs.FileInfo) {
+ 	fmt.Fprintf(h, "stat %d %x %v %v\n", info.Size(), uint64(info.Mode()), info.ModTime(), info.IsDir())
+ }
+ 
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index 90bf10244d..7812afd488 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"internal/lazyregexp"
+ 	"internal/singleflight"
++	"io/fs"
+ 	"log"
+ 	urlpkg "net/url"
+ 	"os"
+@@ -404,9 +405,9 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
+ 	if len(args) >= 2 && args[0] == "-go-internal-mkdir" {
+ 		var err error
+ 		if filepath.IsAbs(args[1]) {
+-			err = os.Mkdir(args[1], os.ModePerm)
++			err = os.Mkdir(args[1], fs.ModePerm)
+ 		} else {
+-			err = os.Mkdir(filepath.Join(dir, args[1]), os.ModePerm)
++			err = os.Mkdir(filepath.Join(dir, args[1]), fs.ModePerm)
+ 		}
+ 		if err != nil {
+ 			return nil, err
+diff --git a/src/cmd/go/internal/version/version.go b/src/cmd/go/internal/version/version.go
+index 5aa0f8e7ed..44ac24c62d 100644
+--- a/src/cmd/go/internal/version/version.go
++++ b/src/cmd/go/internal/version/version.go
+@@ -10,6 +10,7 @@ import (
+ 	"context"
+ 	"encoding/binary"
+ 	"fmt"
++	"io/fs"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -87,8 +88,8 @@ func runVersion(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ // scanDir scans a directory for executables to run scanFile on.
+ func scanDir(dir string) {
+-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+-		if info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
++	filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
++		if info.Mode().IsRegular() || info.Mode()&fs.ModeSymlink != 0 {
+ 			scanFile(path, info, *versionV)
+ 		}
+ 		return nil
+@@ -96,7 +97,7 @@ func scanDir(dir string) {
+ }
+ 
+ // isExe reports whether the file should be considered executable.
+-func isExe(file string, info os.FileInfo) bool {
++func isExe(file string, info fs.FileInfo) bool {
+ 	if runtime.GOOS == "windows" {
+ 		return strings.HasSuffix(strings.ToLower(file), ".exe")
+ 	}
+@@ -107,8 +108,8 @@ func isExe(file string, info os.FileInfo) bool {
+ // If mustPrint is true, scanFile will report any error reading file.
+ // Otherwise (mustPrint is false, because scanFile is being called
+ // by scanDir) scanFile prints nothing for non-Go executables.
+-func scanFile(file string, info os.FileInfo, mustPrint bool) {
+-	if info.Mode()&os.ModeSymlink != 0 {
++func scanFile(file string, info fs.FileInfo, mustPrint bool) {
++	if info.Mode()&fs.ModeSymlink != 0 {
+ 		// Accept file symlinks only.
+ 		i, err := os.Stat(file)
+ 		if err != nil || !i.Mode().IsRegular() {
+diff --git a/src/cmd/go/internal/web/api.go b/src/cmd/go/internal/web/api.go
+index 570818843b..f7d3ed60f6 100644
+--- a/src/cmd/go/internal/web/api.go
++++ b/src/cmd/go/internal/web/api.go
+@@ -13,9 +13,9 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"net/url"
+-	"os"
+ 	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+@@ -56,7 +56,7 @@ func (e *HTTPError) Error() string {
+ 	}
+ 
+ 	if err := e.Err; err != nil {
+-		if pErr, ok := e.Err.(*os.PathError); ok && strings.HasSuffix(e.URL, pErr.Path) {
++		if pErr, ok := e.Err.(*fs.PathError); ok && strings.HasSuffix(e.URL, pErr.Path) {
+ 			// Remove the redundant copy of the path.
+ 			err = pErr.Err
+ 		}
+@@ -67,7 +67,7 @@ func (e *HTTPError) Error() string {
+ }
+ 
+ func (e *HTTPError) Is(target error) bool {
+-	return target == os.ErrNotExist && (e.StatusCode == 404 || e.StatusCode == 410)
++	return target == fs.ErrNotExist && (e.StatusCode == 404 || e.StatusCode == 410)
+ }
+ 
+ func (e *HTTPError) Unwrap() error {
+diff --git a/src/cmd/go/internal/web/file_test.go b/src/cmd/go/internal/web/file_test.go
+index 6339469045..a1bb080e07 100644
+--- a/src/cmd/go/internal/web/file_test.go
++++ b/src/cmd/go/internal/web/file_test.go
+@@ -6,6 +6,7 @@ package web
+ 
+ import (
+ 	"errors"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -54,7 +55,7 @@ func TestGetNonexistentFile(t *testing.T) {
+ 	}
+ 
+ 	b, err := GetBytes(u)
+-	if !errors.Is(err, os.ErrNotExist) {
+-		t.Fatalf("GetBytes(%v) = %q, %v; want _, os.ErrNotExist", u, b, err)
++	if !errors.Is(err, fs.ErrNotExist) {
++		t.Fatalf("GetBytes(%v) = %q, %v; want _, fs.ErrNotExist", u, b, err)
+ 	}
+ }
+diff --git a/src/cmd/go/internal/work/build_test.go b/src/cmd/go/internal/work/build_test.go
+index 904aee0684..e941729734 100644
+--- a/src/cmd/go/internal/work/build_test.go
++++ b/src/cmd/go/internal/work/build_test.go
+@@ -7,6 +7,7 @@ package work
+ import (
+ 	"bytes"
+ 	"fmt"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -253,7 +254,7 @@ func TestRespectSetgidDir(t *testing.T) {
+ 	}
+ 
+ 	// Change setgiddir's permissions to include the SetGID bit.
+-	if err := os.Chmod(setgiddir, 0755|os.ModeSetgid); err != nil {
++	if err := os.Chmod(setgiddir, 0755|fs.ModeSetgid); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 824a4b5a0a..717b0cc3af 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -14,6 +14,7 @@ import (
+ 	"fmt"
+ 	"internal/lazyregexp"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"log"
+ 	"math/rand"
+@@ -1560,7 +1561,7 @@ func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
+ 		return err
+ 	}
+ 
+-	perm := os.FileMode(0666)
++	perm := fs.FileMode(0666)
+ 	if a1.Mode == "link" {
+ 		switch cfg.BuildBuildmode {
+ 		case "c-archive", "c-shared", "plugin":
+@@ -1609,7 +1610,7 @@ func (b *Builder) cleanup(a *Action) {
+ }
+ 
+ // moveOrCopyFile is like 'mv src dst' or 'cp src dst'.
+-func (b *Builder) moveOrCopyFile(dst, src string, perm os.FileMode, force bool) error {
++func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) error {
+ 	if cfg.BuildN {
+ 		b.Showcmd("", "mv %s %s", src, dst)
+ 		return nil
+@@ -1635,7 +1636,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm os.FileMode, force bool)
+ 	// we have to copy the file to retain the correct permissions.
+ 	// https://golang.org/issue/18878
+ 	if fi, err := os.Stat(filepath.Dir(dst)); err == nil {
+-		if fi.IsDir() && (fi.Mode()&os.ModeSetgid) != 0 {
++		if fi.IsDir() && (fi.Mode()&fs.ModeSetgid) != 0 {
+ 			return b.copyFile(dst, src, perm, force)
+ 		}
+ 	}
+@@ -1670,7 +1671,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm os.FileMode, force bool)
+ }
+ 
+ // copyFile is like 'cp src dst'.
+-func (b *Builder) copyFile(dst, src string, perm os.FileMode, force bool) error {
++func (b *Builder) copyFile(dst, src string, perm fs.FileMode, force bool) error {
+ 	if cfg.BuildN || cfg.BuildX {
+ 		b.Showcmd("", "cp %s %s", src, dst)
+ 		if cfg.BuildN {
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 42972f5b2a..8b0dbb74b2 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"log"
+ 	"net"
+@@ -335,7 +336,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 		if testing.Verbose() {
+ 			fmt.Fprintf(os.Stderr, "go proxy: no archive %s %s: %v\n", path, vers, err)
+ 		}
+-		if errors.Is(err, os.ErrNotExist) {
++		if errors.Is(err, fs.ErrNotExist) {
+ 			http.NotFound(w, r)
+ 		} else {
+ 			http.Error(w, "cannot load archive", 500)
+@@ -443,7 +444,7 @@ func readArchive(path, vers string) (*txtar.Archive, error) {
+ 		return a
+ 	}).(*txtar.Archive)
+ 	if a == nil {
+-		return nil, os.ErrNotExist
++		return nil, fs.ErrNotExist
+ 	}
+ 	return a, nil
+ }
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 986646252a..a31561cd86 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"fmt"
+ 	"go/build"
+ 	"internal/testenv"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -500,7 +501,7 @@ func (ts *testScript) cmdChmod(want simpleStatus, args []string) {
+ 		ts.fatalf("usage: chmod perm paths...")
+ 	}
+ 	perm, err := strconv.ParseUint(args[0], 0, 32)
+-	if err != nil || perm&uint64(os.ModePerm) != perm {
++	if err != nil || perm&uint64(fs.ModePerm) != perm {
+ 		ts.fatalf("invalid mode: %s", args[0])
+ 	}
+ 	for _, arg := range args[1:] {
+@@ -508,7 +509,7 @@ func (ts *testScript) cmdChmod(want simpleStatus, args []string) {
+ 		if !filepath.IsAbs(path) {
+ 			path = filepath.Join(ts.cd, arg)
+ 		}
+-		err := os.Chmod(path, os.FileMode(perm))
++		err := os.Chmod(path, fs.FileMode(perm))
+ 		ts.check(err)
+ 	}
+ }
+@@ -595,7 +596,7 @@ func (ts *testScript) cmdCp(want simpleStatus, args []string) {
+ 		var (
+ 			src  string
+ 			data []byte
+-			mode os.FileMode
++			mode fs.FileMode
+ 		)
+ 		switch arg {
+ 		case "stdout":
+diff --git a/src/cmd/go/testdata/addmod.go b/src/cmd/go/testdata/addmod.go
+index d9c3aab9c4..d1b6467c5d 100644
+--- a/src/cmd/go/testdata/addmod.go
++++ b/src/cmd/go/testdata/addmod.go
+@@ -22,6 +22,7 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
++	"io/fs"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+@@ -121,7 +122,7 @@ func main() {
+ 			{Name: ".info", Data: info},
+ 		}
+ 		dir = filepath.Clean(dir)
+-		err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
++		err = filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
+ 			if !info.Mode().IsRegular() {
+ 				return nil
+ 			}
+diff --git a/src/cmd/go/testdata/savedir.go b/src/cmd/go/testdata/savedir.go
+index 48a6318860..04902df61e 100644
+--- a/src/cmd/go/testdata/savedir.go
++++ b/src/cmd/go/testdata/savedir.go
+@@ -17,6 +17,7 @@ package main
+ import (
+ 	"flag"
+ 	"fmt"
++	"io/fs"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+@@ -48,7 +49,7 @@ func main() {
+ 
+ 	a := new(txtar.Archive)
+ 	dir = filepath.Clean(dir)
+-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
++	filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
+ 		if path == dir {
+ 			return nil
+ 		}
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 8c56af7559..48b6ad6f53 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -14,6 +14,7 @@ import (
+ 	"go/scanner"
+ 	"go/token"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -73,7 +74,7 @@ func initParserMode() {
+ 	}
+ }
+ 
+-func isGoFile(f os.FileInfo) bool {
++func isGoFile(f fs.FileInfo) bool {
+ 	// ignore non-Go files
+ 	name := f.Name()
+ 	return !f.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")
+@@ -81,7 +82,7 @@ func isGoFile(f os.FileInfo) bool {
+ 
+ // If in == nil, the source is the contents of the file with the given filename.
+ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error {
+-	var perm os.FileMode = 0644
++	var perm fs.FileMode = 0644
+ 	if in == nil {
+ 		f, err := os.Open(filename)
+ 		if err != nil {
+@@ -163,7 +164,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
+ 	return err
+ }
+ 
+-func visitFile(path string, f os.FileInfo, err error) error {
++func visitFile(path string, f fs.FileInfo, err error) error {
+ 	if err == nil && isGoFile(f) {
+ 		err = processFile(path, nil, os.Stdout, false)
+ 	}
+@@ -275,7 +276,7 @@ const chmodSupported = runtime.GOOS != "windows"
+ // backupFile writes data to a new file named filename<number> with permissions perm,
+ // with <number randomly chosen such that the file name is unique. backupFile returns
+ // the chosen file name.
+-func backupFile(filename string, data []byte, perm os.FileMode) (string, error) {
++func backupFile(filename string, data []byte, perm fs.FileMode) (string, error) {
+ 	// create backup file
+ 	f, err := ioutil.TempFile(filepath.Dir(filename), filepath.Base(filename))
+ 	if err != nil {
+diff --git a/src/cmd/gofmt/long_test.go b/src/cmd/gofmt/long_test.go
+index e2a6208f87..28306ce83e 100644
+--- a/src/cmd/gofmt/long_test.go
++++ b/src/cmd/gofmt/long_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"go/printer"
+ 	"go/token"
+ 	"io"
++	"io/fs"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -107,7 +108,7 @@ func testFiles(t *testing.T, filenames <-chan string, done chan<- int) {
+ func genFilenames(t *testing.T, filenames chan<- string) {
+ 	defer close(filenames)
+ 
+-	handleFile := func(filename string, fi os.FileInfo, err error) error {
++	handleFile := func(filename string, fi fs.FileInfo, err error) error {
+ 		if err != nil {
+ 			t.Error(err)
+ 			return nil
+diff --git a/src/cmd/internal/buildid/buildid.go b/src/cmd/internal/buildid/buildid.go
+index ac238d70ea..1d6563cafc 100644
+--- a/src/cmd/internal/buildid/buildid.go
++++ b/src/cmd/internal/buildid/buildid.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"internal/xcoff"
+ 	"io"
++	"io/fs"
+ 	"os"
+ 	"strconv"
+ 	"strings"
+@@ -109,7 +110,7 @@ func ReadFile(name string) (id string, err error) {
+ // in cmd/go/internal/work/exec.go.
+ func readGccgoArchive(name string, f *os.File) (string, error) {
+ 	bad := func() (string, error) {
+-		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
++		return "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+ 	}
+ 
+ 	off := int64(8)
+@@ -167,7 +168,7 @@ func readGccgoArchive(name string, f *os.File) (string, error) {
+ // in cmd/go/internal/work/exec.go.
+ func readGccgoBigArchive(name string, f *os.File) (string, error) {
+ 	bad := func() (string, error) {
+-		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
++		return "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+ 	}
+ 
+ 	// Read fixed-length header.
+@@ -309,13 +310,13 @@ func readRaw(name string, data []byte) (id string, err error) {
+ 
+ 	j := bytes.Index(data[i+len(goBuildPrefix):], goBuildEnd)
+ 	if j < 0 {
+-		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
++		return "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+ 	}
+ 
+ 	quoted := data[i+len(goBuildPrefix)-1 : i+len(goBuildPrefix)+j+1]
+ 	id, err = strconv.Unquote(string(quoted))
+ 	if err != nil {
+-		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
++		return "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+ 	}
+ 	return id, nil
+ }
+diff --git a/src/cmd/internal/buildid/note.go b/src/cmd/internal/buildid/note.go
+index 2d26ea9961..f5b6fc565f 100644
+--- a/src/cmd/internal/buildid/note.go
++++ b/src/cmd/internal/buildid/note.go
+@@ -11,6 +11,7 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"os"
+ )
+ 
+@@ -96,7 +97,7 @@ func readELF(name string, f *os.File, data []byte) (buildid string, err error) {
+ 
+ 	ef, err := elf.NewFile(bytes.NewReader(data))
+ 	if err != nil {
+-		return "", &os.PathError{Path: name, Op: "parse", Err: err}
++		return "", &fs.PathError{Path: name, Op: "parse", Err: err}
+ 	}
+ 	var gnu string
+ 	for _, p := range ef.Progs {
+@@ -181,13 +182,13 @@ func readMacho(name string, f *os.File, data []byte) (buildid string, err error)
+ 
+ 	mf, err := macho.NewFile(f)
+ 	if err != nil {
+-		return "", &os.PathError{Path: name, Op: "parse", Err: err}
++		return "", &fs.PathError{Path: name, Op: "parse", Err: err}
+ 	}
+ 
+ 	sect := mf.Section("__text")
+ 	if sect == nil {
+ 		// Every binary has a __text section. Something is wrong.
+-		return "", &os.PathError{Path: name, Op: "parse", Err: fmt.Errorf("cannot find __text section")}
++		return "", &fs.PathError{Path: name, Op: "parse", Err: fmt.Errorf("cannot find __text section")}
+ 	}
+ 
+ 	// It should be in the first few bytes, but read a lot just in case,
+diff --git a/src/cmd/internal/moddeps/moddeps_test.go b/src/cmd/internal/moddeps/moddeps_test.go
+index 2e6167322e..7362e7868b 100644
+--- a/src/cmd/internal/moddeps/moddeps_test.go
++++ b/src/cmd/internal/moddeps/moddeps_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"internal/testenv"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -32,7 +33,7 @@ func findGorootModules(t *testing.T) []gorootModule {
+ 	goBin := testenv.GoToolPath(t)
+ 
+ 	goroot.once.Do(func() {
+-		goroot.err = filepath.Walk(runtime.GOROOT(), func(path string, info os.FileInfo, err error) error {
++		goroot.err = filepath.Walk(runtime.GOROOT(), func(path string, info fs.FileInfo, err error) error {
+ 			if err != nil {
+ 				return err
+ 			}
+diff --git a/src/cmd/pack/pack.go b/src/cmd/pack/pack.go
+index c4e116becd..82546ea7dc 100644
+--- a/src/cmd/pack/pack.go
++++ b/src/cmd/pack/pack.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/internal/archive"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+@@ -221,7 +222,7 @@ func (ar *Archive) addFiles() {
+ // FileLike abstracts the few methods we need, so we can test without needing real files.
+ type FileLike interface {
+ 	Name() string
+-	Stat() (os.FileInfo, error)
++	Stat() (fs.FileInfo, error)
+ 	Read([]byte) (int, error)
+ 	Close() error
+ }
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index 2108330742..9f65705def 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -327,11 +328,11 @@ var goodbyeFile = &FakeFile{
+ 	mode:     0644,
+ }
+ 
+-// FakeFile implements FileLike and also os.FileInfo.
++// FakeFile implements FileLike and also fs.FileInfo.
+ type FakeFile struct {
+ 	name     string
+ 	contents string
+-	mode     os.FileMode
++	mode     fs.FileMode
+ 	offset   int
+ }
+ 
+@@ -348,7 +349,7 @@ func (f *FakeFile) Name() string {
+ 	return f.name
+ }
+ 
+-func (f *FakeFile) Stat() (os.FileInfo, error) {
++func (f *FakeFile) Stat() (fs.FileInfo, error) {
+ 	return f, nil
+ }
+ 
+@@ -365,13 +366,13 @@ func (f *FakeFile) Close() error {
+ 	return nil
+ }
+ 
+-// os.FileInfo methods.
++// fs.FileInfo methods.
+ 
+ func (f *FakeFile) Size() int64 {
+ 	return int64(len(f.contents))
+ }
+ 
+-func (f *FakeFile) Mode() os.FileMode {
++func (f *FakeFile) Mode() fs.FileMode {
+ 	return f.mode
+ }
+ 
+diff --git a/src/compress/gzip/issue14937_test.go b/src/compress/gzip/issue14937_test.go
+index 7a19672d57..24db3641aa 100644
+--- a/src/compress/gzip/issue14937_test.go
++++ b/src/compress/gzip/issue14937_test.go
+@@ -2,6 +2,7 @@ package gzip
+ 
+ import (
+ 	"internal/testenv"
++	"io/fs"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -30,7 +31,7 @@ func TestGZIPFilesHaveZeroMTimes(t *testing.T) {
+ 		t.Fatal("error evaluating GOROOT: ", err)
+ 	}
+ 	var files []string
+-	err = filepath.Walk(goroot, func(path string, info os.FileInfo, err error) error {
++	err = filepath.Walk(goroot, func(path string, info fs.FileInfo, err error) error {
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/crypto/rand/eagain.go b/src/crypto/rand/eagain.go
+index f251ba28fc..c9499715dc 100644
+--- a/src/crypto/rand/eagain.go
++++ b/src/crypto/rand/eagain.go
+@@ -7,7 +7,7 @@
+ package rand
+ 
+ import (
+-	"os"
++	"io/fs"
+ 	"syscall"
+ )
+ 
+@@ -18,7 +18,7 @@ func init() {
+ // unixIsEAGAIN reports whether err is a syscall.EAGAIN wrapped in a PathError.
+ // See golang.org/issue/9205
+ func unixIsEAGAIN(err error) bool {
+-	if pe, ok := err.(*os.PathError); ok {
++	if pe, ok := err.(*fs.PathError); ok {
+ 		if errno, ok := pe.Err.(syscall.Errno); ok && errno == syscall.EAGAIN {
+ 			return true
+ 		}
+diff --git a/src/crypto/x509/root_unix.go b/src/crypto/x509/root_unix.go
+index 2aa38751f3..ae72f025c3 100644
+--- a/src/crypto/x509/root_unix.go
++++ b/src/crypto/x509/root_unix.go
+@@ -7,6 +7,7 @@
+ package x509
+ 
+ import (
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -83,7 +84,7 @@ func loadSystemRoots() (*CertPool, error) {
+ 
+ // readUniqueDirectoryEntries is like ioutil.ReadDir but omits
+ // symlinks that point within the directory.
+-func readUniqueDirectoryEntries(dir string) ([]os.FileInfo, error) {
++func readUniqueDirectoryEntries(dir string) ([]fs.FileInfo, error) {
+ 	fis, err := ioutil.ReadDir(dir)
+ 	if err != nil {
+ 		return nil, err
+@@ -99,8 +100,8 @@ func readUniqueDirectoryEntries(dir string) ([]os.FileInfo, error) {
+ 
+ // isSameDirSymlink reports whether fi in dir is a symlink with a
+ // target not containing a slash.
+-func isSameDirSymlink(fi os.FileInfo, dir string) bool {
+-	if fi.Mode()&os.ModeSymlink == 0 {
++func isSameDirSymlink(fi fs.FileInfo, dir string) bool {
++	if fi.Mode()&fs.ModeSymlink == 0 {
+ 		return false
+ 	}
+ 	target, err := os.Readlink(filepath.Join(dir, fi.Name()))
+diff --git a/src/errors/errors.go b/src/errors/errors.go
+index d923ad4b70..f2fabacd4e 100644
+--- a/src/errors/errors.go
++++ b/src/errors/errors.go
+@@ -27,30 +27,30 @@
+ // second. It reports whether it finds a match. It should be used in preference to
+ // simple equality checks:
+ //
+-//	if errors.Is(err, os.ErrExist)
++//	if errors.Is(err, fs.ErrExist)
+ //
+ // is preferable to
+ //
+-//	if err == os.ErrExist
++//	if err == fs.ErrExist
+ //
+-// because the former will succeed if err wraps os.ErrExist.
++// because the former will succeed if err wraps fs.ErrExist.
+ //
+ // As unwraps its first argument sequentially looking for an error that can be
+ // assigned to its second argument, which must be a pointer. If it succeeds, it
+ // performs the assignment and returns true. Otherwise, it returns false. The form
+ //
+-//	var perr *os.PathError
++//	var perr *fs.PathError
+ //	if errors.As(err, &perr) {
+ //		fmt.Println(perr.Path)
+ //	}
+ //
+ // is preferable to
+ //
+-//	if perr, ok := err.(*os.PathError); ok {
++//	if perr, ok := err.(*fs.PathError); ok {
+ //		fmt.Println(perr.Path)
+ //	}
+ //
+-// because the former will succeed if err wraps an *os.PathError.
++// because the former will succeed if err wraps an *fs.PathError.
+ package errors
+ 
+ // New returns an error that formats as the given text.
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index b82ca34b46..7928fe673e 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -32,9 +32,9 @@ func Unwrap(err error) error {
+ // An error type might provide an Is method so it can be treated as equivalent
+ // to an existing error. For example, if MyError defines
+ //
+-//	func (m MyError) Is(target error) bool { return target == os.ErrExist }
++//	func (m MyError) Is(target error) bool { return target == fs.ErrExist }
+ //
+-// then Is(MyError{}, os.ErrExist) returns true. See syscall.Errno.Is for
++// then Is(MyError{}, fs.ErrExist) returns true. See syscall.Errno.Is for
+ // an example in the standard library.
+ func Is(err, target error) bool {
+ 	if target == nil {
+diff --git a/src/errors/wrap_test.go b/src/errors/wrap_test.go
+index 4a4a732c9b..6f66e99c4a 100644
+--- a/src/errors/wrap_test.go
++++ b/src/errors/wrap_test.go
+@@ -7,6 +7,7 @@ package errors_test
+ import (
+ 	"errors"
+ 	"fmt"
++	"io/fs"
+ 	"os"
+ 	"reflect"
+ 	"testing"
+@@ -61,7 +62,7 @@ type poser struct {
+ 	f   func(error) bool
+ }
+ 
+-var poserPathErr = &os.PathError{Op: "poser"}
++var poserPathErr = &fs.PathError{Op: "poser"}
+ 
+ func (p *poser) Error() string     { return p.msg }
+ func (p *poser) Is(err error) bool { return p.f(err) }
+@@ -71,7 +72,7 @@ func (p *poser) As(err interface{}) bool {
+ 		*x = p
+ 	case *errorT:
+ 		*x = errorT{"poser"}
+-	case **os.PathError:
++	case **fs.PathError:
+ 		*x = poserPathErr
+ 	default:
+ 		return false
+@@ -81,7 +82,7 @@ func (p *poser) As(err interface{}) bool {
+ 
+ func TestAs(t *testing.T) {
+ 	var errT errorT
+-	var errP *os.PathError
++	var errP *fs.PathError
+ 	var timeout interface{ Timeout() bool }
+ 	var p *poser
+ 	_, errF := os.Open("non-existing")
+@@ -240,7 +241,7 @@ func (errorUncomparable) Is(target error) bool {
+ 
+ func ExampleIs() {
+ 	if _, err := os.Open("non-existing"); err != nil {
+-		if errors.Is(err, os.ErrNotExist) {
++		if errors.Is(err, fs.ErrNotExist) {
+ 			fmt.Println("file does not exist")
+ 		} else {
+ 			fmt.Println(err)
+@@ -253,7 +254,7 @@ func ExampleIs() {
+ 
+ func ExampleAs() {
+ 	if _, err := os.Open("non-existing"); err != nil {
+-		var pathError *os.PathError
++		var pathError *fs.PathError
+ 		if errors.As(err, &pathError) {
+ 			fmt.Println("Failed at path:", pathError.Path)
+ 		} else {
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 7a96680e77..6141f4a90e 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -15,6 +15,7 @@ import (
+ 	"internal/goroot"
+ 	"internal/goversion"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -98,10 +99,10 @@ type Context struct {
+ 	// filepath.EvalSymlinks.
+ 	HasSubdir func(root, dir string) (rel string, ok bool)
+ 
+-	// ReadDir returns a slice of os.FileInfo, sorted by Name,
++	// ReadDir returns a slice of fs.FileInfo, sorted by Name,
+ 	// describing the content of the named directory.
+ 	// If ReadDir is nil, Import uses ioutil.ReadDir.
+-	ReadDir func(dir string) ([]os.FileInfo, error)
++	ReadDir func(dir string) ([]fs.FileInfo, error)
+ 
+ 	// OpenFile opens a file (not a directory) for reading.
+ 	// If OpenFile is nil, Import uses os.Open.
+@@ -183,7 +184,7 @@ func hasSubdir(root, dir string) (rel string, ok bool) {
+ }
+ 
+ // readDir calls ctxt.ReadDir (if not nil) or else ioutil.ReadDir.
+-func (ctxt *Context) readDir(path string) ([]os.FileInfo, error) {
++func (ctxt *Context) readDir(path string) ([]fs.FileInfo, error) {
+ 	if f := ctxt.ReadDir; f != nil {
+ 		return f(path)
+ 	}
+@@ -794,7 +795,7 @@ Found:
+ 		if d.IsDir() {
+ 			continue
+ 		}
+-		if (d.Mode() & os.ModeSymlink) != 0 {
++		if d.Mode()&fs.ModeSymlink != 0 {
+ 			if fi, err := os.Stat(filepath.Join(p.Dir, d.Name())); err == nil && fi.IsDir() {
+ 				// Symlinks to directories are not source files.
+ 				continue
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 96e239ad77..9e72c8f234 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/testenv"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -500,7 +501,7 @@ func listStdPkgs(goroot string) ([]string, error) {
+ 	var pkgs []string
+ 
+ 	src := filepath.Join(goroot, "src") + string(filepath.Separator)
+-	walkFn := func(path string, fi os.FileInfo, err error) error {
++	walkFn := func(path string, fi fs.FileInfo, err error) error {
+ 		if err != nil || !fi.IsDir() || path == src {
+ 			return nil
+ 		}
+diff --git a/src/go/doc/doc_test.go b/src/go/doc/doc_test.go
+index f1e612c18b..ab98bed62b 100644
+--- a/src/go/doc/doc_test.go
++++ b/src/go/doc/doc_test.go
+@@ -12,8 +12,8 @@ import (
+ 	"go/parser"
+ 	"go/printer"
+ 	"go/token"
++	"io/fs"
+ 	"io/ioutil"
+-	"os"
+ 	"path/filepath"
+ 	"regexp"
+ 	"strings"
+@@ -66,7 +66,7 @@ func indentFmt(indent, s string) string {
+ 	return indent + strings.ReplaceAll(s, "\n", "\n"+indent) + end
+ }
+ 
+-func isGoFile(fi os.FileInfo) bool {
++func isGoFile(fi fs.FileInfo) bool {
+ 	name := fi.Name()
+ 	return !fi.IsDir() &&
+ 		len(name) > 0 && name[0] != '.' && // ignore .files
+@@ -86,7 +86,7 @@ func test(t *testing.T, mode Mode) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		filter = func(fi os.FileInfo) bool {
++		filter = func(fi fs.FileInfo) bool {
+ 			return isGoFile(fi) && rx.MatchString(fi.Name())
+ 		}
+ 	}
+diff --git a/src/go/doc/headscan.go b/src/go/doc/headscan.go
+index 3f782cc1b4..8ea462366e 100644
+--- a/src/go/doc/headscan.go
++++ b/src/go/doc/headscan.go
+@@ -23,6 +23,7 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"internal/lazyregexp"
++	"io/fs"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -39,7 +40,7 @@ var html_h = lazyregexp.New(`<h3 id="[^"]*">`)
+ 
+ const html_endh = "</h3>\n"
+ 
+-func isGoFile(fi os.FileInfo) bool {
++func isGoFile(fi fs.FileInfo) bool {
+ 	return strings.HasSuffix(fi.Name(), ".go") &&
+ 		!strings.HasSuffix(fi.Name(), "_test.go")
+ }
+@@ -68,7 +69,7 @@ func main() {
+ 	flag.Parse()
+ 	fset := token.NewFileSet()
+ 	nheadings := 0
+-	err := filepath.Walk(*root, func(path string, fi os.FileInfo, err error) error {
++	err := filepath.Walk(*root, func(path string, fi fs.FileInfo, err error) error {
+ 		if !fi.IsDir() {
+ 			return nil
+ 		}
+diff --git a/src/go/parser/interface.go b/src/go/parser/interface.go
+index 54f9d7b80a..b2d834fdec 100644
+--- a/src/go/parser/interface.go
++++ b/src/go/parser/interface.go
+@@ -12,8 +12,8 @@ import (
+ 	"go/ast"
+ 	"go/token"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+-	"os"
+ 	"path/filepath"
+ 	"strings"
+ )
+@@ -123,7 +123,7 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
+ // directory specified by path and returns a map of package name -> package
+ // AST with all the packages found.
+ //
+-// If filter != nil, only the files with os.FileInfo entries passing through
++// If filter != nil, only the files with fs.FileInfo entries passing through
+ // the filter (and ending in ".go") are considered. The mode bits are passed
+ // to ParseFile unchanged. Position information is recorded in fset, which
+ // must not be nil.
+@@ -132,7 +132,7 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
+ // returned. If a parse error occurred, a non-nil but incomplete map and the
+ // first error encountered are returned.
+ //
+-func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, mode Mode) (pkgs map[string]*ast.Package, first error) {
++func ParseDir(fset *token.FileSet, path string, filter func(fs.FileInfo) bool, mode Mode) (pkgs map[string]*ast.Package, first error) {
+ 	list, err := ioutil.ReadDir(path)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/go/parser/parser_test.go b/src/go/parser/parser_test.go
+index 25a374eeef..7193a329fe 100644
+--- a/src/go/parser/parser_test.go
++++ b/src/go/parser/parser_test.go
+@@ -9,7 +9,7 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
+-	"os"
++	"io/fs"
+ 	"strings"
+ 	"testing"
+ )
+@@ -40,7 +40,7 @@ func nameFilter(filename string) bool {
+ 	return false
+ }
+ 
+-func dirFilter(f os.FileInfo) bool { return nameFilter(f.Name()) }
++func dirFilter(f fs.FileInfo) bool { return nameFilter(f.Name()) }
+ 
+ func TestParseFile(t *testing.T) {
+ 	src := "package p\nvar _=s[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]"
+diff --git a/src/index/suffixarray/suffixarray_test.go b/src/index/suffixarray/suffixarray_test.go
+index 28090de9aa..b6a81123b7 100644
+--- a/src/index/suffixarray/suffixarray_test.go
++++ b/src/index/suffixarray/suffixarray_test.go
+@@ -7,9 +7,9 @@ package suffixarray
+ import (
+ 	"bytes"
+ 	"fmt"
++	"io/fs"
+ 	"io/ioutil"
+ 	"math/rand"
+-	"os"
+ 	"path/filepath"
+ 	"regexp"
+ 	"sort"
+@@ -503,7 +503,7 @@ func makeText(name string) ([]byte, error) {
+ 			return nil, err
+ 		}
+ 	case "go":
+-		err := filepath.Walk("../..", func(path string, info os.FileInfo, err error) error {
++		err := filepath.Walk("../..", func(path string, info fs.FileInfo, err error) error {
+ 			if err == nil && strings.HasSuffix(path, ".go") && !info.IsDir() {
+ 				file, err := ioutil.ReadFile(path)
+ 				if err != nil {
+diff --git a/src/internal/poll/error_test.go b/src/internal/poll/error_test.go
+index 06b96f635a..abc8b1684f 100644
+--- a/src/internal/poll/error_test.go
++++ b/src/internal/poll/error_test.go
+@@ -6,6 +6,7 @@ package poll_test
+ 
+ import (
+ 	"fmt"
++	"io/fs"
+ 	"net"
+ 	"os"
+ 	"testing"
+@@ -37,7 +38,7 @@ func parseReadError(nestedErr error, verify func(error) (string, bool)) error {
+ 	if nerr, ok := err.(*net.OpError); ok {
+ 		err = nerr.Err
+ 	}
+-	if nerr, ok := err.(*os.PathError); ok {
++	if nerr, ok := err.(*fs.PathError); ok {
+ 		err = nerr.Err
+ 	}
+ 	if nerr, ok := err.(*os.SyscallError); ok {
+diff --git a/src/internal/reflectlite/reflect_mirror_test.go b/src/internal/reflectlite/reflect_mirror_test.go
+index fbb6fb397e..9b28b13550 100644
+--- a/src/internal/reflectlite/reflect_mirror_test.go
++++ b/src/internal/reflectlite/reflect_mirror_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/token"
++	"io/fs"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -71,7 +72,7 @@ func (v visitor) Visit(n ast.Node) ast.Visitor {
+ func loadTypes(path, pkgName string, v visitor) {
+ 	fset := token.NewFileSet()
+ 
+-	filter := func(fi os.FileInfo) bool {
++	filter := func(fi fs.FileInfo) bool {
+ 		return strings.HasSuffix(fi.Name(), ".go")
+ 	}
+ 	pkgs, err := parser.ParseDir(fset, path, filter, 0)
+diff --git a/src/io/ioutil/ioutil.go b/src/io/ioutil/ioutil.go
+index acc6ec3a40..cae41f0018 100644
+--- a/src/io/ioutil/ioutil.go
++++ b/src/io/ioutil/ioutil.go
+@@ -8,6 +8,7 @@ package ioutil
+ import (
+ 	"bytes"
+ 	"io"
++	"io/fs"
+ 	"os"
+ 	"sort"
+ 	"sync"
+@@ -76,7 +77,7 @@ func ReadFile(filename string) ([]byte, error) {
+ // WriteFile writes data to a file named by filename.
+ // If the file does not exist, WriteFile creates it with permissions perm
+ // (before umask); otherwise WriteFile truncates it before writing, without changing permissions.
+-func WriteFile(filename string, data []byte, perm os.FileMode) error {
++func WriteFile(filename string, data []byte, perm fs.FileMode) error {
+ 	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+ 	if err != nil {
+ 		return err
+@@ -90,7 +91,7 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
+ 
+ // ReadDir reads the directory named by dirname and returns
+ // a list of directory entries sorted by filename.
+-func ReadDir(dirname string) ([]os.FileInfo, error) {
++func ReadDir(dirname string) ([]fs.FileInfo, error) {
+ 	f, err := os.Open(dirname)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/io/ioutil/tempfile_test.go b/src/io/ioutil/tempfile_test.go
+index fcc5101fcc..440c7cffc6 100644
+--- a/src/io/ioutil/tempfile_test.go
++++ b/src/io/ioutil/tempfile_test.go
+@@ -5,6 +5,7 @@
+ package ioutil_test
+ 
+ import (
++	"io/fs"
+ 	. "io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -151,7 +152,7 @@ func TestTempDir_BadDir(t *testing.T) {
+ 
+ 	badDir := filepath.Join(dir, "not-exist")
+ 	_, err = TempDir(badDir, "foo")
+-	if pe, ok := err.(*os.PathError); !ok || !os.IsNotExist(err) || pe.Path != badDir {
++	if pe, ok := err.(*fs.PathError); !ok || !os.IsNotExist(err) || pe.Path != badDir {
+ 		t.Errorf("TempDir error = %#v; want PathError for path %q satisifying os.IsNotExist", err, badDir)
+ 	}
+ }
+diff --git a/src/net/conf_test.go b/src/net/conf_test.go
+index 3c7403eccc..4c21d56ba0 100644
+--- a/src/net/conf_test.go
++++ b/src/net/conf_test.go
+@@ -7,7 +7,7 @@
+ package net
+ 
+ import (
+-	"os"
++	"io/fs"
+ 	"strings"
+ 	"testing"
+ )
+@@ -26,7 +26,7 @@ var defaultResolvConf = &dnsConfig{
+ 	ndots:    1,
+ 	timeout:  5,
+ 	attempts: 2,
+-	err:      os.ErrNotExist,
++	err:      fs.ErrNotExist,
+ }
+ 
+ func TestConfHostLookupOrder(t *testing.T) {
+@@ -106,7 +106,7 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			name: "solaris_no_nsswitch",
+ 			c: &conf{
+ 				goos:   "solaris",
+-				nss:    &nssConf{err: os.ErrNotExist},
++				nss:    &nssConf{err: fs.ErrNotExist},
+ 				resolv: defaultResolvConf,
+ 			},
+ 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupCgo}},
+@@ -176,7 +176,7 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			name: "linux_no_nsswitch.conf",
+ 			c: &conf{
+ 				goos:   "linux",
+-				nss:    &nssConf{err: os.ErrNotExist},
++				nss:    &nssConf{err: fs.ErrNotExist},
+ 				resolv: defaultResolvConf,
+ 			},
+ 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupDNSFiles}},
+diff --git a/src/net/dnsconfig_unix_test.go b/src/net/dnsconfig_unix_test.go
+index 42880123c5..0d7897a813 100644
+--- a/src/net/dnsconfig_unix_test.go
++++ b/src/net/dnsconfig_unix_test.go
+@@ -8,6 +8,7 @@ package net
+ 
+ import (
+ 	"errors"
++	"io/fs"
+ 	"os"
+ 	"reflect"
+ 	"strings"
+@@ -183,7 +184,7 @@ func TestDNSReadMissingFile(t *testing.T) {
+ 
+ 	conf := dnsReadConfig("a-nonexistent-file")
+ 	if !os.IsNotExist(conf.err) {
+-		t.Errorf("missing resolv.conf:\ngot: %v\nwant: %v", conf.err, os.ErrNotExist)
++		t.Errorf("missing resolv.conf:\ngot: %v\nwant: %v", conf.err, fs.ErrNotExist)
+ 	}
+ 	conf.err = nil
+ 	want := &dnsConfig{
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 62dfb9c15d..7823fdf9d8 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"fmt"
+ 	"internal/poll"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"net/internal/socktest"
+ 	"os"
+@@ -97,7 +98,7 @@ second:
+ 	case *os.SyscallError:
+ 		nestedErr = err.Err
+ 		goto third
+-	case *os.PathError: // for Plan 9
++	case *fs.PathError: // for Plan 9
+ 		nestedErr = err.Err
+ 		goto third
+ 	}
+@@ -531,7 +532,7 @@ second:
+ 	case *os.SyscallError:
+ 		nestedErr = err.Err
+ 		goto third
+-	case *os.PathError: // for Plan 9
++	case *fs.PathError: // for Plan 9
+ 		nestedErr = err.Err
+ 		goto third
+ 	}
+@@ -546,7 +547,7 @@ third:
+ 		return nil
+ 	}
+ 	switch nestedErr {
+-	case os.ErrClosed: // for Plan 9
++	case fs.ErrClosed: // for Plan 9
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
+@@ -627,7 +628,7 @@ second:
+ 	case *os.SyscallError:
+ 		nestedErr = err.Err
+ 		goto third
+-	case *os.PathError: // for Plan 9
++	case *fs.PathError: // for Plan 9
+ 		nestedErr = err.Err
+ 		goto third
+ 	}
+@@ -706,7 +707,7 @@ second:
+ 	case *os.LinkError:
+ 		nestedErr = err.Err
+ 		goto third
+-	case *os.PathError:
++	case *fs.PathError:
+ 		nestedErr = err.Err
+ 		goto third
+ 	}
+@@ -799,7 +800,7 @@ func parseLookupPortError(nestedErr error) error {
+ 	switch nestedErr.(type) {
+ 	case *AddrError, *DNSError:
+ 		return nil
+-	case *os.PathError: // for Plan 9
++	case *fs.PathError: // for Plan 9
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)
+diff --git a/src/net/http/example_filesystem_test.go b/src/net/http/example_filesystem_test.go
+index e1fd42d049..0e81458a07 100644
+--- a/src/net/http/example_filesystem_test.go
++++ b/src/net/http/example_filesystem_test.go
+@@ -5,9 +5,9 @@
+ package http_test
+ 
+ import (
++	"io/fs"
+ 	"log"
+ 	"net/http"
+-	"os"
+ 	"strings"
+ )
+ 
+@@ -33,7 +33,7 @@ type dotFileHidingFile struct {
+ 
+ // Readdir is a wrapper around the Readdir method of the embedded File
+ // that filters out all files that start with a period in their name.
+-func (f dotFileHidingFile) Readdir(n int) (fis []os.FileInfo, err error) {
++func (f dotFileHidingFile) Readdir(n int) (fis []fs.FileInfo, err error) {
+ 	files, err := f.File.Readdir(n)
+ 	for _, file := range files { // Filters out the dot files
+ 		if !strings.HasPrefix(file.Name(), ".") {
+@@ -52,12 +52,12 @@ type dotFileHidingFileSystem struct {
+ // Open is a wrapper around the Open method of the embedded FileSystem
+ // that serves a 403 permission error when name has a file or directory
+ // with whose name starts with a period in its path.
+-func (fs dotFileHidingFileSystem) Open(name string) (http.File, error) {
++func (fsys dotFileHidingFileSystem) Open(name string) (http.File, error) {
+ 	if containsDotFile(name) { // If dot file, return 403 response
+-		return nil, os.ErrPermission
++		return nil, fs.ErrPermission
+ 	}
+ 
+-	file, err := fs.FileSystem.Open(name)
++	file, err := fsys.FileSystem.Open(name)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -65,7 +65,7 @@ func (fs dotFileHidingFileSystem) Open(name string) (http.File, error) {
+ }
+ 
+ func ExampleFileServer_dotFileHiding() {
+-	fs := dotFileHidingFileSystem{http.Dir(".")}
+-	http.Handle("/", http.FileServer(fs))
++	fsys := dotFileHidingFileSystem{http.Dir(".")}
++	http.Handle("/", http.FileServer(fsys))
+ 	log.Fatal(http.ListenAndServe(":8080", nil))
+ }
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index d718fffba0..0743b5b621 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -10,6 +10,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"mime"
+ 	"mime/multipart"
+ 	"net/textproto"
+@@ -43,7 +44,7 @@ type Dir string
+ 
+ // mapDirOpenError maps the provided non-nil error from opening name
+ // to a possibly better non-nil error. In particular, it turns OS-specific errors
+-// about opening files in non-directories into os.ErrNotExist. See Issue 18984.
++// about opening files in non-directories into fs.ErrNotExist. See Issue 18984.
+ func mapDirOpenError(originalErr error, name string) error {
+ 	if os.IsNotExist(originalErr) || os.IsPermission(originalErr) {
+ 		return originalErr
+@@ -59,7 +60,7 @@ func mapDirOpenError(originalErr error, name string) error {
+ 			return originalErr
+ 		}
+ 		if !fi.IsDir() {
+-			return os.ErrNotExist
++			return fs.ErrNotExist
+ 		}
+ 	}
+ 	return originalErr
+@@ -98,8 +99,8 @@ type File interface {
+ 	io.Closer
+ 	io.Reader
+ 	io.Seeker
+-	Readdir(count int) ([]os.FileInfo, error)
+-	Stat() (os.FileInfo, error)
++	Readdir(count int) ([]fs.FileInfo, error)
++	Stat() (fs.FileInfo, error)
+ }
+ 
+ func dirList(w ResponseWriter, r *Request, f File) {
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 4ac73b728f..de793b331e 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"mime"
+ 	"mime/multipart"
+@@ -629,9 +630,9 @@ func (f *fakeFileInfo) Sys() interface{}   { return nil }
+ func (f *fakeFileInfo) ModTime() time.Time { return f.modtime }
+ func (f *fakeFileInfo) IsDir() bool        { return f.dir }
+ func (f *fakeFileInfo) Size() int64        { return int64(len(f.contents)) }
+-func (f *fakeFileInfo) Mode() os.FileMode {
++func (f *fakeFileInfo) Mode() fs.FileMode {
+ 	if f.dir {
+-		return 0755 | os.ModeDir
++		return 0755 | fs.ModeDir
+ 	}
+ 	return 0644
+ }
+@@ -644,12 +645,12 @@ type fakeFile struct {
+ }
+ 
+ func (f *fakeFile) Close() error               { return nil }
+-func (f *fakeFile) Stat() (os.FileInfo, error) { return f.fi, nil }
+-func (f *fakeFile) Readdir(count int) ([]os.FileInfo, error) {
++func (f *fakeFile) Stat() (fs.FileInfo, error) { return f.fi, nil }
++func (f *fakeFile) Readdir(count int) ([]fs.FileInfo, error) {
+ 	if !f.fi.dir {
+-		return nil, os.ErrInvalid
++		return nil, fs.ErrInvalid
+ 	}
+-	var fis []os.FileInfo
++	var fis []fs.FileInfo
+ 
+ 	limit := f.entpos + count
+ 	if count <= 0 || limit > len(f.fi.ents) {
+@@ -668,11 +669,11 @@ func (f *fakeFile) Readdir(count int) ([]os.FileInfo, error) {
+ 
+ type fakeFS map[string]*fakeFileInfo
+ 
+-func (fs fakeFS) Open(name string) (File, error) {
++func (fsys fakeFS) Open(name string) (File, error) {
+ 	name = path.Clean(name)
+-	f, ok := fs[name]
++	f, ok := fsys[name]
+ 	if !ok {
+-		return nil, os.ErrNotExist
++		return nil, fs.ErrNotExist
+ 	}
+ 	if f.err != nil {
+ 		return nil, f.err
+@@ -747,7 +748,7 @@ func TestDirectoryIfNotModified(t *testing.T) {
+ 	res.Body.Close()
+ }
+ 
+-func mustStat(t *testing.T, fileName string) os.FileInfo {
++func mustStat(t *testing.T, fileName string) fs.FileInfo {
+ 	fi, err := os.Stat(fileName)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -1081,7 +1082,7 @@ func (issue12991FS) Open(string) (File, error) { return issue12991File{}, nil }
+ 
+ type issue12991File struct{ File }
+ 
+-func (issue12991File) Stat() (os.FileInfo, error) { return nil, os.ErrPermission }
++func (issue12991File) Stat() (fs.FileInfo, error) { return nil, fs.ErrPermission }
+ func (issue12991File) Close() error               { return nil }
+ 
+ func TestServeContentErrorMessages(t *testing.T) {
+@@ -1091,7 +1092,7 @@ func TestServeContentErrorMessages(t *testing.T) {
+ 			err: errors.New("random error"),
+ 		},
+ 		"/403": &fakeFileInfo{
+-			err: &os.PathError{Err: os.ErrPermission},
++			err: &fs.PathError{Err: fs.ErrPermission},
+ 		},
+ 	}
+ 	ts := httptest.NewServer(FileServer(fs))
+@@ -1289,7 +1290,7 @@ func (d fileServerCleanPathDir) Open(path string) (File, error) {
+ 		// Just return back something that's a directory.
+ 		return Dir(".").Open(".")
+ 	}
+-	return nil, os.ErrNotExist
++	return nil, fs.ErrNotExist
+ }
+ 
+ type panicOnSeek struct{ io.ReadSeeker }
+diff --git a/src/net/ipsock_plan9.go b/src/net/ipsock_plan9.go
+index 23082366aa..7a4b7a6041 100644
+--- a/src/net/ipsock_plan9.go
++++ b/src/net/ipsock_plan9.go
+@@ -7,6 +7,7 @@ package net
+ import (
+ 	"context"
+ 	"internal/bytealg"
++	"io/fs"
+ 	"os"
+ 	"syscall"
+ )
+@@ -164,7 +165,7 @@ func fixErr(err error) {
+ 	if nonNilInterface(oe.Addr) {
+ 		oe.Addr = nil
+ 	}
+-	if pe, ok := oe.Err.(*os.PathError); ok {
++	if pe, ok := oe.Err.(*fs.PathError); ok {
+ 		if _, ok = pe.Err.(syscall.ErrorString); ok {
+ 			oe.Err = pe.Err
+ 		}
+diff --git a/src/os/error_test.go b/src/os/error_test.go
+index 3d921578fd..060cf59875 100644
+--- a/src/os/error_test.go
++++ b/src/os/error_test.go
+@@ -7,6 +7,7 @@ package os_test
+ import (
+ 	"errors"
+ 	"fmt"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -27,7 +28,7 @@ func TestErrIsExist(t *testing.T) {
+ 		t.Fatal("Open should have failed")
+ 		return
+ 	}
+-	if s := checkErrorPredicate("os.IsExist", os.IsExist, err, os.ErrExist); s != "" {
++	if s := checkErrorPredicate("os.IsExist", os.IsExist, err, fs.ErrExist); s != "" {
+ 		t.Fatal(s)
+ 		return
+ 	}
+@@ -39,7 +40,7 @@ func testErrNotExist(name string) string {
+ 		f.Close()
+ 		return "Open should have failed"
+ 	}
+-	if s := checkErrorPredicate("os.IsNotExist", os.IsNotExist, err, os.ErrNotExist); s != "" {
++	if s := checkErrorPredicate("os.IsNotExist", os.IsNotExist, err, fs.ErrNotExist); s != "" {
+ 		return s
+ 	}
+ 
+@@ -47,7 +48,7 @@ func testErrNotExist(name string) string {
+ 	if err == nil {
+ 		return "Chdir should have failed"
+ 	}
+-	if s := checkErrorPredicate("os.IsNotExist", os.IsNotExist, err, os.ErrNotExist); s != "" {
++	if s := checkErrorPredicate("os.IsNotExist", os.IsNotExist, err, fs.ErrNotExist); s != "" {
+ 		return s
+ 	}
+ 	return ""
+@@ -91,18 +92,18 @@ type isExistTest struct {
+ }
+ 
+ var isExistTests = []isExistTest{
+-	{&os.PathError{Err: os.ErrInvalid}, false, false},
+-	{&os.PathError{Err: os.ErrPermission}, false, false},
+-	{&os.PathError{Err: os.ErrExist}, true, false},
+-	{&os.PathError{Err: os.ErrNotExist}, false, true},
+-	{&os.PathError{Err: os.ErrClosed}, false, false},
+-	{&os.LinkError{Err: os.ErrInvalid}, false, false},
+-	{&os.LinkError{Err: os.ErrPermission}, false, false},
+-	{&os.LinkError{Err: os.ErrExist}, true, false},
+-	{&os.LinkError{Err: os.ErrNotExist}, false, true},
+-	{&os.LinkError{Err: os.ErrClosed}, false, false},
+-	{&os.SyscallError{Err: os.ErrNotExist}, false, true},
+-	{&os.SyscallError{Err: os.ErrExist}, true, false},
++	{&fs.PathError{Err: fs.ErrInvalid}, false, false},
++	{&fs.PathError{Err: fs.ErrPermission}, false, false},
++	{&fs.PathError{Err: fs.ErrExist}, true, false},
++	{&fs.PathError{Err: fs.ErrNotExist}, false, true},
++	{&fs.PathError{Err: fs.ErrClosed}, false, false},
++	{&os.LinkError{Err: fs.ErrInvalid}, false, false},
++	{&os.LinkError{Err: fs.ErrPermission}, false, false},
++	{&os.LinkError{Err: fs.ErrExist}, true, false},
++	{&os.LinkError{Err: fs.ErrNotExist}, false, true},
++	{&os.LinkError{Err: fs.ErrClosed}, false, false},
++	{&os.SyscallError{Err: fs.ErrNotExist}, false, true},
++	{&os.SyscallError{Err: fs.ErrExist}, true, false},
+ 	{nil, false, false},
+ }
+ 
+@@ -111,14 +112,14 @@ func TestIsExist(t *testing.T) {
+ 		if is := os.IsExist(tt.err); is != tt.is {
+ 			t.Errorf("os.IsExist(%T %v) = %v, want %v", tt.err, tt.err, is, tt.is)
+ 		}
+-		if is := errors.Is(tt.err, os.ErrExist); is != tt.is {
+-			t.Errorf("errors.Is(%T %v, os.ErrExist) = %v, want %v", tt.err, tt.err, is, tt.is)
++		if is := errors.Is(tt.err, fs.ErrExist); is != tt.is {
++			t.Errorf("errors.Is(%T %v, fs.ErrExist) = %v, want %v", tt.err, tt.err, is, tt.is)
+ 		}
+ 		if isnot := os.IsNotExist(tt.err); isnot != tt.isnot {
+ 			t.Errorf("os.IsNotExist(%T %v) = %v, want %v", tt.err, tt.err, isnot, tt.isnot)
+ 		}
+-		if isnot := errors.Is(tt.err, os.ErrNotExist); isnot != tt.isnot {
+-			t.Errorf("errors.Is(%T %v, os.ErrNotExist) = %v, want %v", tt.err, tt.err, isnot, tt.isnot)
++		if isnot := errors.Is(tt.err, fs.ErrNotExist); isnot != tt.isnot {
++			t.Errorf("errors.Is(%T %v, fs.ErrNotExist) = %v, want %v", tt.err, tt.err, isnot, tt.isnot)
+ 		}
+ 	}
+ }
+@@ -130,8 +131,8 @@ type isPermissionTest struct {
+ 
+ var isPermissionTests = []isPermissionTest{
+ 	{nil, false},
+-	{&os.PathError{Err: os.ErrPermission}, true},
+-	{&os.SyscallError{Err: os.ErrPermission}, true},
++	{&fs.PathError{Err: fs.ErrPermission}, true},
++	{&os.SyscallError{Err: fs.ErrPermission}, true},
+ }
+ 
+ func TestIsPermission(t *testing.T) {
+@@ -139,8 +140,8 @@ func TestIsPermission(t *testing.T) {
+ 		if got := os.IsPermission(tt.err); got != tt.want {
+ 			t.Errorf("os.IsPermission(%#v) = %v; want %v", tt.err, got, tt.want)
+ 		}
+-		if got := errors.Is(tt.err, os.ErrPermission); got != tt.want {
+-			t.Errorf("errors.Is(%#v, os.ErrPermission) = %v; want %v", tt.err, got, tt.want)
++		if got := errors.Is(tt.err, fs.ErrPermission); got != tt.want {
++			t.Errorf("errors.Is(%#v, fs.ErrPermission) = %v; want %v", tt.err, got, tt.want)
+ 		}
+ 	}
+ }
+@@ -170,8 +171,8 @@ func TestErrPathNUL(t *testing.T) {
+ }
+ 
+ func TestPathErrorUnwrap(t *testing.T) {
+-	pe := &os.PathError{Err: os.ErrInvalid}
+-	if !errors.Is(pe, os.ErrInvalid) {
++	pe := &fs.PathError{Err: fs.ErrInvalid}
++	if !errors.Is(pe, fs.ErrInvalid) {
+ 		t.Error("errors.Is failed, wanted success")
+ 	}
+ }
+@@ -181,7 +182,7 @@ type myErrorIs struct{ error }
+ func (e myErrorIs) Is(target error) bool { return target == e.error }
+ 
+ func TestErrorIsMethods(t *testing.T) {
+-	if os.IsPermission(myErrorIs{os.ErrPermission}) {
+-		t.Error("os.IsPermission(err) = true when err.Is(os.ErrPermission), wanted false")
++	if os.IsPermission(myErrorIs{fs.ErrPermission}) {
++		t.Error("os.IsPermission(err) = true when err.Is(fs.ErrPermission), wanted false")
+ 	}
+ }
+diff --git a/src/os/error_unix_test.go b/src/os/error_unix_test.go
+index bfc83c9867..18bcf3f4e4 100644
+--- a/src/os/error_unix_test.go
++++ b/src/os/error_unix_test.go
+@@ -7,14 +7,15 @@
+ package os_test
+ 
+ import (
++	"io/fs"
+ 	"os"
+ 	"syscall"
+ )
+ 
+ func init() {
+ 	isExistTests = append(isExistTests,
+-		isExistTest{err: &os.PathError{Err: syscall.EEXIST}, is: true, isnot: false},
+-		isExistTest{err: &os.PathError{Err: syscall.ENOTEMPTY}, is: true, isnot: false},
++		isExistTest{err: &fs.PathError{Err: syscall.EEXIST}, is: true, isnot: false},
++		isExistTest{err: &fs.PathError{Err: syscall.ENOTEMPTY}, is: true, isnot: false},
+ 
+ 		isExistTest{err: &os.LinkError{Err: syscall.EEXIST}, is: true, isnot: false},
+ 		isExistTest{err: &os.LinkError{Err: syscall.ENOTEMPTY}, is: true, isnot: false},
+@@ -23,9 +24,9 @@ func init() {
+ 		isExistTest{err: &os.SyscallError{Err: syscall.ENOTEMPTY}, is: true, isnot: false},
+ 	)
+ 	isPermissionTests = append(isPermissionTests,
+-		isPermissionTest{err: &os.PathError{Err: syscall.EACCES}, want: true},
+-		isPermissionTest{err: &os.PathError{Err: syscall.EPERM}, want: true},
+-		isPermissionTest{err: &os.PathError{Err: syscall.EEXIST}, want: false},
++		isPermissionTest{err: &fs.PathError{Err: syscall.EACCES}, want: true},
++		isPermissionTest{err: &fs.PathError{Err: syscall.EPERM}, want: true},
++		isPermissionTest{err: &fs.PathError{Err: syscall.EEXIST}, want: false},
+ 
+ 		isPermissionTest{err: &os.LinkError{Err: syscall.EACCES}, want: true},
+ 		isPermissionTest{err: &os.LinkError{Err: syscall.EPERM}, want: true},
+diff --git a/src/os/error_windows_test.go b/src/os/error_windows_test.go
+index 1635c1088e..b8191c5ebc 100644
+--- a/src/os/error_windows_test.go
++++ b/src/os/error_windows_test.go
+@@ -7,6 +7,7 @@
+ package os_test
+ 
+ import (
++	"io/fs"
+ 	"os"
+ 	"syscall"
+ )
+@@ -15,24 +16,24 @@ func init() {
+ 	const _ERROR_BAD_NETPATH = syscall.Errno(53)
+ 
+ 	isExistTests = append(isExistTests,
+-		isExistTest{err: &os.PathError{Err: syscall.ERROR_FILE_NOT_FOUND}, is: false, isnot: true},
++		isExistTest{err: &fs.PathError{Err: syscall.ERROR_FILE_NOT_FOUND}, is: false, isnot: true},
+ 		isExistTest{err: &os.LinkError{Err: syscall.ERROR_FILE_NOT_FOUND}, is: false, isnot: true},
+ 		isExistTest{err: &os.SyscallError{Err: syscall.ERROR_FILE_NOT_FOUND}, is: false, isnot: true},
+ 
+-		isExistTest{err: &os.PathError{Err: _ERROR_BAD_NETPATH}, is: false, isnot: true},
++		isExistTest{err: &fs.PathError{Err: _ERROR_BAD_NETPATH}, is: false, isnot: true},
+ 		isExistTest{err: &os.LinkError{Err: _ERROR_BAD_NETPATH}, is: false, isnot: true},
+ 		isExistTest{err: &os.SyscallError{Err: _ERROR_BAD_NETPATH}, is: false, isnot: true},
+ 
+-		isExistTest{err: &os.PathError{Err: syscall.ERROR_PATH_NOT_FOUND}, is: false, isnot: true},
++		isExistTest{err: &fs.PathError{Err: syscall.ERROR_PATH_NOT_FOUND}, is: false, isnot: true},
+ 		isExistTest{err: &os.LinkError{Err: syscall.ERROR_PATH_NOT_FOUND}, is: false, isnot: true},
+ 		isExistTest{err: &os.SyscallError{Err: syscall.ERROR_PATH_NOT_FOUND}, is: false, isnot: true},
+ 
+-		isExistTest{err: &os.PathError{Err: syscall.ERROR_DIR_NOT_EMPTY}, is: true, isnot: false},
++		isExistTest{err: &fs.PathError{Err: syscall.ERROR_DIR_NOT_EMPTY}, is: true, isnot: false},
+ 		isExistTest{err: &os.LinkError{Err: syscall.ERROR_DIR_NOT_EMPTY}, is: true, isnot: false},
+ 		isExistTest{err: &os.SyscallError{Err: syscall.ERROR_DIR_NOT_EMPTY}, is: true, isnot: false},
+ 	)
+ 	isPermissionTests = append(isPermissionTests,
+-		isPermissionTest{err: &os.PathError{Err: syscall.ERROR_ACCESS_DENIED}, want: true},
++		isPermissionTest{err: &fs.PathError{Err: syscall.ERROR_ACCESS_DENIED}, want: true},
+ 		isPermissionTest{err: &os.LinkError{Err: syscall.ERROR_ACCESS_DENIED}, want: true},
+ 		isPermissionTest{err: &os.SyscallError{Err: syscall.ERROR_ACCESS_DENIED}, want: true},
+ 	)
+diff --git a/src/os/example_test.go b/src/os/example_test.go
+index 822886f70c..fbb277b6f1 100644
+--- a/src/os/example_test.go
++++ b/src/os/example_test.go
+@@ -6,6 +6,7 @@ package os_test
+ 
+ import (
+ 	"fmt"
++	"io/fs"
+ 	"log"
+ 	"os"
+ 	"time"
+@@ -62,9 +63,9 @@ func ExampleFileMode() {
+ 		fmt.Println("regular file")
+ 	case mode.IsDir():
+ 		fmt.Println("directory")
+-	case mode&os.ModeSymlink != 0:
++	case mode&fs.ModeSymlink != 0:
+ 		fmt.Println("symbolic link")
+-	case mode&os.ModeNamedPipe != 0:
++	case mode&fs.ModeNamedPipe != 0:
+ 		fmt.Println("named pipe")
+ 	}
+ }
+diff --git a/src/os/exec/exec_plan9.go b/src/os/exec/exec_plan9.go
+index d90bd04399..21ac7b765f 100644
+--- a/src/os/exec/exec_plan9.go
++++ b/src/os/exec/exec_plan9.go
+@@ -4,14 +4,14 @@
+ 
+ package exec
+ 
+-import "os"
++import "io/fs"
+ 
+ func init() {
+ 	skipStdinCopyError = func(err error) bool {
+ 		// Ignore hungup errors copying to stdin if the program
+ 		// completed successfully otherwise.
+ 		// See Issue 35753.
+-		pe, ok := err.(*os.PathError)
++		pe, ok := err.(*fs.PathError)
+ 		return ok &&
+ 			pe.Op == "write" && pe.Path == "|1" &&
+ 			pe.Err.Error() == "i/o on hungup channel"
+diff --git a/src/os/exec/exec_unix.go b/src/os/exec/exec_unix.go
+index 9c3e17d23a..51c52427c2 100644
+--- a/src/os/exec/exec_unix.go
++++ b/src/os/exec/exec_unix.go
+@@ -7,7 +7,7 @@
+ package exec
+ 
+ import (
+-	"os"
++	"io/fs"
+ 	"syscall"
+ )
+ 
+@@ -16,7 +16,7 @@ func init() {
+ 		// Ignore EPIPE errors copying to stdin if the program
+ 		// completed successfully otherwise.
+ 		// See Issue 9173.
+-		pe, ok := err.(*os.PathError)
++		pe, ok := err.(*fs.PathError)
+ 		return ok &&
+ 			pe.Op == "write" && pe.Path == "|1" &&
+ 			pe.Err == syscall.EPIPE
+diff --git a/src/os/exec/exec_windows.go b/src/os/exec/exec_windows.go
+index af8cd97218..bb937f8aed 100644
+--- a/src/os/exec/exec_windows.go
++++ b/src/os/exec/exec_windows.go
+@@ -5,7 +5,7 @@
+ package exec
+ 
+ import (
+-	"os"
++	"io/fs"
+ 	"syscall"
+ )
+ 
+@@ -15,7 +15,7 @@ func init() {
+ 		// to stdin if the program completed successfully otherwise.
+ 		// See Issue 20445.
+ 		const _ERROR_NO_DATA = syscall.Errno(0xe8)
+-		pe, ok := err.(*os.PathError)
++		pe, ok := err.(*fs.PathError)
+ 		return ok &&
+ 			pe.Op == "write" && pe.Path == "|1" &&
+ 			(pe.Err == syscall.ERROR_BROKEN_PIPE || pe.Err == _ERROR_NO_DATA)
+diff --git a/src/os/exec/lp_plan9.go b/src/os/exec/lp_plan9.go
+index 5860cbca4d..e8826a5083 100644
+--- a/src/os/exec/lp_plan9.go
++++ b/src/os/exec/lp_plan9.go
+@@ -6,6 +6,7 @@ package exec
+ 
+ import (
+ 	"errors"
++	"io/fs"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+@@ -22,7 +23,7 @@ func findExecutable(file string) error {
+ 	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
+ 		return nil
+ 	}
+-	return os.ErrPermission
++	return fs.ErrPermission
+ }
+ 
+ // LookPath searches for an executable named file in the
+diff --git a/src/os/exec/lp_unix.go b/src/os/exec/lp_unix.go
+index 93793e0eee..66c1df76fb 100644
+--- a/src/os/exec/lp_unix.go
++++ b/src/os/exec/lp_unix.go
+@@ -8,6 +8,7 @@ package exec
+ 
+ import (
+ 	"errors"
++	"io/fs"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+@@ -24,7 +25,7 @@ func findExecutable(file string) error {
+ 	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
+ 		return nil
+ 	}
+-	return os.ErrPermission
++	return fs.ErrPermission
+ }
+ 
+ // LookPath searches for an executable named file in the
+diff --git a/src/os/exec/lp_windows.go b/src/os/exec/lp_windows.go
+index 9ea3d76575..e7a2cdf142 100644
+--- a/src/os/exec/lp_windows.go
++++ b/src/os/exec/lp_windows.go
+@@ -6,6 +6,7 @@ package exec
+ 
+ import (
+ 	"errors"
++	"io/fs"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+@@ -20,7 +21,7 @@ func chkStat(file string) error {
+ 		return err
+ 	}
+ 	if d.IsDir() {
+-		return os.ErrPermission
++		return fs.ErrPermission
+ 	}
+ 	return nil
+ }
+@@ -47,7 +48,7 @@ func findExecutable(file string, exts []string) (string, error) {
+ 			return f, nil
+ 		}
+ 	}
+-	return "", os.ErrNotExist
++	return "", fs.ErrNotExist
+ }
+ 
+ // LookPath searches for an executable named file in the
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index c692ba099f..8f14263401 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2526,7 +2526,7 @@ func testDoubleCloseError(t *testing.T, path string) {
+ 	if err := file.Close(); err == nil {
+ 		t.Error("second Close did not fail")
+ 	} else if pe, ok := err.(*PathError); !ok {
+-		t.Errorf("second Close returned unexpected error type %T; expected os.PathError", pe)
++		t.Errorf("second Close returned unexpected error type %T; expected fs.PathError", pe)
+ 	} else if pe.Err != ErrClosed {
+ 		t.Errorf("second Close returned %q, wanted %q", err, ErrClosed)
+ 	} else {
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index f03ec750d0..e002774844 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"internal/syscall/windows/registry"
+ 	"internal/testenv"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	osexec "os/exec"
+@@ -164,11 +165,11 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
+ 			t.Errorf("failed to lstat link %v: %v", link, err)
+ 			continue
+ 		}
+-		if m := fi2.Mode(); m&os.ModeSymlink == 0 {
++		if m := fi2.Mode(); m&fs.ModeSymlink == 0 {
+ 			t.Errorf("%q should be a link, but is not (mode=0x%x)", link, uint32(m))
+ 			continue
+ 		}
+-		if m := fi2.Mode(); m&os.ModeDir != 0 {
++		if m := fi2.Mode(); m&fs.ModeDir != 0 {
+ 			t.Errorf("%q should be a link, not a directory (mode=0x%x)", link, uint32(m))
+ 			continue
+ 		}
+@@ -681,7 +682,7 @@ func TestStatSymlinkLoop(t *testing.T) {
+ 	defer os.Remove("x")
+ 
+ 	_, err = os.Stat("x")
+-	if _, ok := err.(*os.PathError); !ok {
++	if _, ok := err.(*fs.PathError); !ok {
+ 		t.Errorf("expected *PathError, got %T: %v\n", err, err)
+ 	}
+ }
+@@ -1291,9 +1292,9 @@ func TestWindowsReadlink(t *testing.T) {
+ // os.Mkdir(os.DevNull) fails.
+ func TestMkdirDevNull(t *testing.T) {
+ 	err := os.Mkdir(os.DevNull, 777)
+-	oserr, ok := err.(*os.PathError)
++	oserr, ok := err.(*fs.PathError)
+ 	if !ok {
+-		t.Fatalf("error (%T) is not *os.PathError", err)
++		t.Fatalf("error (%T) is not *fs.PathError", err)
+ 	}
+ 	errno, ok := oserr.Err.(syscall.Errno)
+ 	if !ok {
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index 429bd813c2..0593efec75 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	osexec "os/exec"
+@@ -46,7 +47,7 @@ func TestEPIPE(t *testing.T) {
+ 		if err == nil {
+ 			t.Fatal("unexpected success of Write to broken pipe")
+ 		}
+-		if pe, ok := err.(*os.PathError); ok {
++		if pe, ok := err.(*fs.PathError); ok {
+ 			err = pe.Err
+ 		}
+ 		if se, ok := err.(*os.SyscallError); ok {
+@@ -202,10 +203,10 @@ func testClosedPipeRace(t *testing.T, read bool) {
+ 	}
+ 	if err == nil {
+ 		t.Error("I/O on closed pipe unexpectedly succeeded")
+-	} else if pe, ok := err.(*os.PathError); !ok {
+-		t.Errorf("I/O on closed pipe returned unexpected error type %T; expected os.PathError", pe)
+-	} else if pe.Err != os.ErrClosed {
+-		t.Errorf("got error %q but expected %q", pe.Err, os.ErrClosed)
++	} else if pe, ok := err.(*fs.PathError); !ok {
++		t.Errorf("I/O on closed pipe returned unexpected error type %T; expected fs.PathError", pe)
++	} else if pe.Err != fs.ErrClosed {
++		t.Errorf("got error %q but expected %q", pe.Err, fs.ErrClosed)
+ 	} else {
+ 		t.Logf("I/O returned expected error %q", err)
+ 	}
+@@ -233,7 +234,7 @@ func TestReadNonblockingFd(t *testing.T) {
+ 		defer syscall.SetNonblock(fd, false)
+ 		_, err := os.Stdin.Read(make([]byte, 1))
+ 		if err != nil {
+-			if perr, ok := err.(*os.PathError); !ok || perr.Err != syscall.EAGAIN {
++			if perr, ok := err.(*fs.PathError); !ok || perr.Err != syscall.EAGAIN {
+ 				t.Fatalf("read on nonblocking stdin got %q, should have gotten EAGAIN", err)
+ 			}
+ 		}
+@@ -308,10 +309,10 @@ func testCloseWithBlockingRead(t *testing.T, r, w *os.File) {
+ 		if err == nil {
+ 			t.Error("I/O on closed pipe unexpectedly succeeded")
+ 		}
+-		if pe, ok := err.(*os.PathError); ok {
++		if pe, ok := err.(*fs.PathError); ok {
+ 			err = pe.Err
+ 		}
+-		if err != io.EOF && err != os.ErrClosed {
++		if err != io.EOF && err != fs.ErrClosed {
+ 			t.Errorf("got %v, expected EOF or closed", err)
+ 		}
+ 	}(c2)
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 1e5c650fe1..bc9c468ce3 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -359,7 +359,7 @@ func TestRemoveAllButReadOnlyAndPathError(t *testing.T) {
+ 			t.Errorf("got %q, expected pathErr.path %q", g, w)
+ 		}
+ 	} else {
+-		t.Errorf("got %T, expected *os.PathError", err)
++		t.Errorf("got %T, expected *fs.PathError", err)
+ 	}
+ 
+ 	for _, dir := range dirs {
+diff --git a/src/os/signal/signal_cgo_test.go b/src/os/signal/signal_cgo_test.go
+index a117221400..a8a485613f 100644
+--- a/src/os/signal/signal_cgo_test.go
++++ b/src/os/signal/signal_cgo_test.go
+@@ -17,6 +17,7 @@ import (
+ 	"context"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"os"
+ 	"os/exec"
+ 	ptypkg "os/signal/internal/pty"
+@@ -127,7 +128,7 @@ func TestTerminalSignal(t *testing.T) {
+ 				if len(line) > 0 || len(handled) > 0 {
+ 					t.Logf("%q", append(handled, line...))
+ 				}
+-				if perr, ok := err.(*os.PathError); ok {
++				if perr, ok := err.(*fs.PathError); ok {
+ 					err = perr.Err
+ 				}
+ 				// EOF means pty is closed.
+diff --git a/src/os/stat_test.go b/src/os/stat_test.go
+index 60f3b4c587..88b789080e 100644
+--- a/src/os/stat_test.go
++++ b/src/os/stat_test.go
+@@ -6,6 +6,7 @@ package os_test
+ 
+ import (
+ 	"internal/testenv"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -14,7 +15,7 @@ import (
+ )
+ 
+ // testStatAndLstat verifies that all os.Stat, os.Lstat os.File.Stat and os.Readdir work.
+-func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCheck func(*testing.T, string, os.FileInfo)) {
++func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCheck func(*testing.T, string, fs.FileInfo)) {
+ 	// test os.Stat
+ 	sfi, err := os.Stat(path)
+ 	if err != nil {
+@@ -70,7 +71,7 @@ func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCh
+ 		}
+ 	}
+ 
+-	// test os.FileInfo returned by os.Readdir
++	// test fs.FileInfo returned by os.Readdir
+ 	if len(path) > 0 && os.IsPathSeparator(path[len(path)-1]) {
+ 		// skip os.Readdir test of directories with slash at the end
+ 		return
+@@ -88,7 +89,7 @@ func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCh
+ 		t.Error(err)
+ 		return
+ 	}
+-	var lsfi2 os.FileInfo
++	var lsfi2 fs.FileInfo
+ 	base := filepath.Base(path)
+ 	for _, fi2 := range fis {
+ 		if fi2.Name() == base {
+@@ -108,34 +109,34 @@ func testStatAndLstat(t *testing.T, path string, isLink bool, statCheck, lstatCh
+ }
+ 
+ // testIsDir verifies that fi refers to directory.
+-func testIsDir(t *testing.T, path string, fi os.FileInfo) {
++func testIsDir(t *testing.T, path string, fi fs.FileInfo) {
+ 	t.Helper()
+ 	if !fi.IsDir() {
+ 		t.Errorf("%q should be a directory", path)
+ 	}
+-	if fi.Mode()&os.ModeSymlink != 0 {
++	if fi.Mode()&fs.ModeSymlink != 0 {
+ 		t.Errorf("%q should not be a symlink", path)
+ 	}
+ }
+ 
+ // testIsSymlink verifies that fi refers to symlink.
+-func testIsSymlink(t *testing.T, path string, fi os.FileInfo) {
++func testIsSymlink(t *testing.T, path string, fi fs.FileInfo) {
+ 	t.Helper()
+ 	if fi.IsDir() {
+ 		t.Errorf("%q should not be a directory", path)
+ 	}
+-	if fi.Mode()&os.ModeSymlink == 0 {
++	if fi.Mode()&fs.ModeSymlink == 0 {
+ 		t.Errorf("%q should be a symlink", path)
+ 	}
+ }
+ 
+ // testIsFile verifies that fi refers to file.
+-func testIsFile(t *testing.T, path string, fi os.FileInfo) {
++func testIsFile(t *testing.T, path string, fi fs.FileInfo) {
+ 	t.Helper()
+ 	if fi.IsDir() {
+ 		t.Errorf("%q should not be a directory", path)
+ 	}
+-	if fi.Mode()&os.ModeSymlink != 0 {
++	if fi.Mode()&fs.ModeSymlink != 0 {
+ 		t.Errorf("%q should not be a symlink", path)
+ 	}
+ }
+diff --git a/src/path/filepath/example_unix_walk_test.go b/src/path/filepath/example_unix_walk_test.go
+index fa8b8e393b..66dc7f6b53 100644
+--- a/src/path/filepath/example_unix_walk_test.go
++++ b/src/path/filepath/example_unix_walk_test.go
+@@ -8,6 +8,7 @@ package filepath_test
+ 
+ import (
+ 	"fmt"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -40,7 +41,7 @@ func ExampleWalk() {
+ 	subDirToSkip := "skip"
+ 
+ 	fmt.Println("On Unix:")
+-	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
++	err = filepath.Walk(".", func(path string, info fs.FileInfo, err error) error {
+ 		if err != nil {
+ 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
+ 			return err
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 26f1833189..dffd27db14 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -13,6 +13,7 @@ package filepath
+ 
+ import (
+ 	"errors"
++	"io/fs"
+ 	"os"
+ 	"sort"
+ 	"strings"
+@@ -339,7 +340,7 @@ var SkipDir = errors.New("skip this directory")
+ // visited by Walk. The path argument contains the argument to Walk as a
+ // prefix; that is, if Walk is called with "dir", which is a directory
+ // containing the file "a", the walk function will be called with argument
+-// "dir/a". The info argument is the os.FileInfo for the named path.
++// "dir/a". The info argument is the fs.FileInfo for the named path.
+ //
+ // If there was a problem walking to the file or directory named by path, the
+ // incoming error will describe the problem and the function can decide how
+@@ -350,12 +351,12 @@ var SkipDir = errors.New("skip this directory")
+ // Walk skips the directory's contents entirely. If the function returns SkipDir
+ // when invoked on a non-directory file, Walk skips the remaining files in the
+ // containing directory.
+-type WalkFunc func(path string, info os.FileInfo, err error) error
++type WalkFunc func(path string, info fs.FileInfo, err error) error
+ 
+ var lstat = os.Lstat // for testing
+ 
+ // walk recursively descends path, calling walkFn.
+-func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
++func walk(path string, info fs.FileInfo, walkFn WalkFunc) error {
+ 	if !info.IsDir() {
+ 		return walkFn(path, info, nil)
+ 	}
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 6a8700e413..7dc8b60c28 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"internal/testenv"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -393,7 +394,7 @@ func checkMarks(t *testing.T, report bool) {
+ // Assumes that each node name is unique. Good enough for a test.
+ // If clear is true, any incoming error is cleared before return. The errors
+ // are always accumulated, though.
+-func mark(info os.FileInfo, err error, errors *[]error, clear bool) error {
++func mark(info fs.FileInfo, err error, errors *[]error, clear bool) error {
+ 	name := info.Name()
+ 	walkTree(tree, tree.name, func(path string, n *Node) {
+ 		if n.name == name {
+@@ -454,7 +455,7 @@ func TestWalk(t *testing.T) {
+ 	makeTree(t)
+ 	errors := make([]error, 0, 10)
+ 	clear := true
+-	markFn := func(path string, info os.FileInfo, err error) error {
++	markFn := func(path string, info fs.FileInfo, err error) error {
+ 		return mark(info, err, &errors, clear)
+ 	}
+ 	// Expect no errors.
+@@ -543,7 +544,7 @@ func TestWalkSkipDirOnFile(t *testing.T) {
+ 	touch(t, filepath.Join(td, "dir/foo2"))
+ 
+ 	sawFoo2 := false
+-	walker := func(path string, info os.FileInfo, err error) error {
++	walker := func(path string, info fs.FileInfo, err error) error {
+ 		if strings.HasSuffix(path, "foo2") {
+ 			sawFoo2 = true
+ 		}
+@@ -589,14 +590,14 @@ func TestWalkFileError(t *testing.T) {
+ 		*filepath.LstatP = os.Lstat
+ 	}()
+ 	statErr := errors.New("some stat error")
+-	*filepath.LstatP = func(path string) (os.FileInfo, error) {
++	*filepath.LstatP = func(path string) (fs.FileInfo, error) {
+ 		if strings.HasSuffix(path, "stat-error") {
+ 			return nil, statErr
+ 		}
+ 		return os.Lstat(path)
+ 	}
+ 	got := map[string]error{}
+-	err = filepath.Walk(td, func(path string, fi os.FileInfo, err error) error {
++	err = filepath.Walk(td, func(path string, fi fs.FileInfo, err error) error {
+ 		rel, _ := filepath.Rel(td, path)
+ 		got[filepath.ToSlash(rel)] = err
+ 		return nil
+@@ -1289,7 +1290,7 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
+ 	ken := filepath.Join(root, "ken")
+ 	seenBugs := false
+ 	seenKen := false
+-	err = filepath.Walk(root, func(pth string, info os.FileInfo, err error) error {
++	err = filepath.Walk(root, func(pth string, info fs.FileInfo, err error) error {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -1338,7 +1339,7 @@ func testWalkSymlink(t *testing.T, mklink func(target, link string) error) {
+ 	}
+ 
+ 	var visited []string
+-	err = filepath.Walk(tmpdir, func(path string, info os.FileInfo, err error) error {
++	err = filepath.Walk(tmpdir, func(path string, info fs.FileInfo, err error) error {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index f7c454bf65..990f18614d 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/testenv"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -34,7 +35,7 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
+ 
+ 	const (
+ 		cmdfile             = `printdir.cmd`
+-		perm    os.FileMode = 0700
++		perm    fs.FileMode = 0700
+ 	)
+ 
+ 	tmp, err := ioutil.TempDir("", "testWinSplitListTestIsValid")
+diff --git a/src/path/filepath/symlink.go b/src/path/filepath/symlink.go
+index 335b315a20..6fefd15977 100644
+--- a/src/path/filepath/symlink.go
++++ b/src/path/filepath/symlink.go
+@@ -6,6 +6,7 @@ package filepath
+ 
+ import (
+ 	"errors"
++	"io/fs"
+ 	"os"
+ 	"runtime"
+ 	"syscall"
+@@ -85,7 +86,7 @@ func walkSymlinks(path string) (string, error) {
+ 			return "", err
+ 		}
+ 
+-		if fi.Mode()&os.ModeSymlink == 0 {
++		if fi.Mode()&fs.ModeSymlink == 0 {
+ 			if !fi.Mode().IsDir() && end < len(path) {
+ 				return "", syscall.ENOTDIR
+ 			}
+diff --git a/src/runtime/testdata/testprogcgo/exec.go b/src/runtime/testdata/testprogcgo/exec.go
+index 94da5dc526..15723c7369 100644
+--- a/src/runtime/testdata/testprogcgo/exec.go
++++ b/src/runtime/testdata/testprogcgo/exec.go
+@@ -31,6 +31,7 @@ import "C"
+ 
+ import (
+ 	"fmt"
++	"io/fs"
+ 	"os"
+ 	"os/exec"
+ 	"os/signal"
+@@ -98,7 +99,7 @@ func CgoExecSignalMask() {
+ 
+ // isEAGAIN reports whether err is an EAGAIN error from a process execution.
+ func isEAGAIN(err error) bool {
+-	if p, ok := err.(*os.PathError); ok {
++	if p, ok := err.(*fs.PathError); ok {
+ 		err = p.Err
+ 	}
+ 	return err == syscall.EAGAIN
+diff --git a/src/syscall/syscall_js.go b/src/syscall/syscall_js.go
+index dfb4a275e3..0ab8c3fba4 100644
+--- a/src/syscall/syscall_js.go
++++ b/src/syscall/syscall_js.go
+@@ -49,7 +49,7 @@ const PathMax = 256
+ // using errors.Is. For example:
+ //
+ //	_, _, err := syscall.Syscall(...)
+-//	if errors.Is(err, os.ErrNotExist) ...
++//	if errors.Is(err, fs.ErrNotExist) ...
+ type Errno uintptr
+ 
+ func (e Errno) Error() string {
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index c5008f2913..93a4d236d8 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -353,7 +354,7 @@ func TestSyscallNoError(t *testing.T) {
+ 		t.Fatalf("failed to chown test binary %q, %v", tmpBinary, err)
+ 	}
+ 
+-	err = os.Chmod(tmpBinary, 0755|os.ModeSetuid)
++	err = os.Chmod(tmpBinary, 0755|fs.ModeSetuid)
+ 	if err != nil {
+ 		t.Fatalf("failed to set setuid bit on test binary %q, %v", tmpBinary, err)
+ 	}
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index 1648e409b0..d16cad45d8 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -25,7 +25,7 @@ const bitSize16 = 2
+ // using errors.Is. For example:
+ //
+ //	_, _, err := syscall.Syscall(...)
+-//	if errors.Is(err, os.ErrNotExist) ...
++//	if errors.Is(err, fs.ErrNotExist) ...
+ type ErrorString string
+ 
+ func (e ErrorString) Error() string { return string(e) }
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 91c939e0ea..786ad34170 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -110,7 +110,7 @@ func (m *mmapper) Munmap(data []byte) (err error) {
+ // using errors.Is. For example:
+ //
+ //	_, _, err := syscall.Syscall(...)
+-//	if errors.Is(err, os.ErrNotExist) ...
++//	if errors.Is(err, fs.ErrNotExist) ...
+ type Errno uintptr
+ 
+ func (e Errno) Error() string {
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index f62c00d72f..40c43de84c 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -106,7 +106,7 @@ func UTF16PtrFromString(s string) (*uint16, error) {
+ // using errors.Is. For example:
+ //
+ //	_, _, err := syscall.Syscall(...)
+-//	if errors.Is(err, os.ErrNotExist) ...
++//	if errors.Is(err, fs.ErrNotExist) ...
+ type Errno uintptr
+ 
+ func langid(pri, sub uint16) uint32 { return uint32(sub)<<10 | uint32(pri) }

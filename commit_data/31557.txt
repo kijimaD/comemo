@@ -12,7 +12,44 @@ Date:   Wed Feb 8 12:47:43 2017 +1100
     Change-Id: Ia596a684132e3cdee59ce5539293eedc1752fe5a
     Reviewed-on: https://go-review.googlesource.com/36983
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 6 +++++-
  src/debug/pe/file_cgo_test.go     | 2 --
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 22d2c548c3..696a80bcdc 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1482,7 +1482,11 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
+ 	}
+ 
+ 	if Linkmode == LinkExternal {
+-		if !Iself && Headtype != obj.Hdarwin {
++		switch {
++		case Iself:
++		case Headtype == obj.Hdarwin:
++		case Headtype == obj.Hwindows:
++		default:
+ 			return
+ 		}
+ 	}
+diff --git a/src/debug/pe/file_cgo_test.go b/src/debug/pe/file_cgo_test.go
+index d09890fb7e..739671d73f 100644
+--- a/src/debug/pe/file_cgo_test.go
++++ b/src/debug/pe/file_cgo_test.go
+@@ -19,7 +19,6 @@ func testCgoDWARF(t *testing.T, linktype int) {
+ }
+ 
+ func TestDefaultLinkerDWARF(t *testing.T) {
+-	t.Skip("skipping broken test: see issue 10776")
+ 	testCgoDWARF(t, linkCgoDefault)
+ }
+ 
+@@ -28,6 +27,5 @@ func TestInternalLinkerDWARF(t *testing.T) {
+ }
+ 
+ func TestExternalLinkerDWARF(t *testing.T) {
+-	t.Skip("skipping broken test: see issue 10776")
+ 	testCgoDWARF(t, linkCgoExternal)
+ }

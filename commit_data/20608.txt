@@ -15,7 +15,7 @@ Date:   Wed Sep 24 15:10:38 2014 -0400
     R=iant
     CC=golang-codereviews, r
     https://golang.org/cl/149720043
-
+---
  misc/cgo/test/backdoor/backdoor.go       |  3 +--
  misc/cgo/test/backdoor/backdoor_gccgo.go | 11 -----------
  misc/cgo/test/backdoor/runtime.c         | 18 ------------------
@@ -27,3 +27,160 @@ Date:   Wed Sep 24 15:10:38 2014 -0400
  src/net/{empty.c => empty.s}             |  0
  src/runtime/debug/{debug.c => debug.s}   |  0
  10 files changed, 27 insertions(+), 61 deletions(-)
+
+diff --git a/misc/cgo/test/backdoor/backdoor.go b/misc/cgo/test/backdoor/backdoor.go
+index 7398772bd2..3a973494bc 100644
+--- a/misc/cgo/test/backdoor/backdoor.go
++++ b/misc/cgo/test/backdoor/backdoor.go
+@@ -4,5 +4,4 @@
+ 
+ package backdoor
+ 
+-func LockedOSThread() bool // in runtime.c
+-func Issue7695(x1, x2, x3, x4, x5, x6, x7, x8 uintptr)
++func LockedOSThread() bool // in thunk.s
+diff --git a/misc/cgo/test/backdoor/backdoor_gccgo.go b/misc/cgo/test/backdoor/backdoor_gccgo.go
+deleted file mode 100644
+index 514f76ec5e..0000000000
+--- a/misc/cgo/test/backdoor/backdoor_gccgo.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This is the gccgo version of the stub in runtime.c.
+-
+-// +build gccgo
+-
+-package backdoor
+-
+-func Issue7695(x1, x2, x3, x4, x5, x6, x7, x8 uintptr) {}
+diff --git a/misc/cgo/test/backdoor/runtime.c b/misc/cgo/test/backdoor/runtime.c
+deleted file mode 100644
+index 87ee44eb6f..0000000000
+--- a/misc/cgo/test/backdoor/runtime.c
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Expose some runtime functions for testing.
+-// Must be in a non-cgo-using package so that
+-// the go command compiles this file with 6c, not gcc.
+-
+-// +build gc
+-
+-typedef char bool;
+-
+-// This is what a cgo-compiled stub declaration looks like.
+-void
+-·Issue7695(struct{void *y[8*sizeof(void*)];}p)
+-{
+-	USED(p);
+-}
+diff --git a/misc/cgo/test/issue7695_test.go b/misc/cgo/test/issue7695_test.go
+deleted file mode 100644
+index de2fc03d42..0000000000
+--- a/misc/cgo/test/issue7695_test.go
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-// This test depends on running C code on Go stacks. Not allowed anymore.
+-
+-// Demo of deferred C function with untrue prototype
+-// breaking stack copying. See golang.org/issue/7695.
+-
+-package cgotest
+-
+-import (
+-	"testing"
+-
+-	"./backdoor"
+-)
+-
+-func TestIssue7695(t *testing.T) {
+-	defer backdoor.Issue7695(1, 0, 2, 0, 0, 3, 0, 4)
+-	recurse(100)
+-}
+-
+-func recurse(n int) {
+-	var x [128]int
+-	n += x[0]
+-	if n > 0 {
+-		recurse(n - 1)
+-	}
+-}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 63875aed5a..4bbcc2b971 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -614,6 +614,16 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 	}
+ 	p.Target = p.target
+ 
++	// Check for C code compiled with Plan 9 C compiler.
++	// No longer allowed except in runtime and runtime/cgo, for now.
++	if len(p.CFiles) > 0 && !p.usesCgo() && (!p.Standard || p.ImportPath != "runtime") {
++		p.Error = &PackageError{
++			ImportStack: stk.copy(),
++			Err:         fmt.Sprintf("C source files not allowed when not using cgo: %s", strings.Join(p.CFiles, " ")),
++		}
++		return p
++	}
++
+ 	// In the absence of errors lower in the dependency tree,
+ 	// check for case-insensitive collisions of import paths.
+ 	if len(p.DepsErrors) == 0 {
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 13886e158b..9ae17e1054 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -157,6 +157,20 @@ fi
+ rm -f ./testdata/err
+ unset GOPATH
+ 
++export GOPATH=$(pwd)/testdata/src
++TEST disallowed C source files
++export GOPATH=$(pwd)/testdata
++if ./testgo build badc 2>testdata/err; then
++	echo 'go build badc succeeded'
++	ok=false
++elif ! grep 'C source files not allowed' testdata/err >/dev/null; then
++	echo 'go test did not say C source files not allowed:'
++	cat testdata/err
++	ok=false
++fi
++rm -f ./testdata/err
++unset GOPATH
++
+ TEST error message for syntax error in test go file says FAIL
+ export GOPATH=$(pwd)/testdata
+ if ./testgo test syntaxerror 2>testdata/err; then
+diff --git a/src/cmd/go/testdata/src/badc/x.c b/src/cmd/go/testdata/src/badc/x.c
+new file mode 100644
+index 0000000000..f6cbf6924d
+--- /dev/null
++++ b/src/cmd/go/testdata/src/badc/x.c
+@@ -0,0 +1 @@
++// C code!
+diff --git a/src/cmd/go/testdata/src/badc/x.go b/src/cmd/go/testdata/src/badc/x.go
+new file mode 100644
+index 0000000000..bfa1de28bd
+--- /dev/null
++++ b/src/cmd/go/testdata/src/badc/x.go
+@@ -0,0 +1 @@
++package badc
+diff --git a/src/net/empty.c b/src/net/empty.s
+similarity index 100%
+rename from src/net/empty.c
+rename to src/net/empty.s
+diff --git a/src/runtime/debug/debug.c b/src/runtime/debug/debug.s
+similarity index 100%
+rename from src/runtime/debug/debug.c
+rename to src/runtime/debug/debug.s

@@ -8,7 +8,7 @@ Date:   Thu Aug 7 18:36:42 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/121380043
-
+---
  src/cmd/ld/data.c   |  4 +++-
  src/cmd/ld/doc.go   |  6 +++---
  src/cmd/ld/dwarf.c  |  4 ++--
@@ -19,3 +19,283 @@ Date:   Thu Aug 7 18:36:42 2014 -0400
  src/cmd/ld/macho.c  |  1 +
  src/cmd/ld/symtab.c |  1 +
  9 files changed, 37 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 96eadd479a..702f559a88 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -441,11 +441,11 @@ blk(LSym *start, int32 addr, int32 size)
+ 			continue;
+ 		if(sym->value >= eaddr)
+ 			break;
++		ctxt->cursym = sym;
+ 		if(sym->value < addr) {
+ 			diag("phase error: addr=%#llx but sym=%#llx type=%d", (vlong)addr, (vlong)sym->value, sym->type);
+ 			errorexit();
+ 		}
+-		ctxt->cursym = sym;
+ 		for(; addr < sym->value; addr++)
+ 			cput(0);
+ 		p = sym->p;
+@@ -459,6 +459,8 @@ blk(LSym *start, int32 addr, int32 size)
+ 			diag("phase error: addr=%#llx value+size=%#llx", (vlong)addr, (vlong)sym->value+sym->size);
+ 			errorexit();
+ 		}
++		if(sym->value+sym->size >= eaddr)
++			break;
+ 	}
+ 
+ 	for(; addr < eaddr; addr++)
+diff --git a/src/cmd/ld/doc.go b/src/cmd/ld/doc.go
+index 8135bd549c..cea809715d 100644
+--- a/src/cmd/ld/doc.go
++++ b/src/cmd/ld/doc.go
+@@ -10,8 +10,8 @@ Ld is the portable code for a modified version of the Plan 9 linker.  The origin
+ 
+ 	http://plan9.bell-labs.com/magic/man2html/1/8l
+ 
+-It reads object files (.5, .6, or .8 files) and writes a binary named for the
+-architecture (5.out, 6.out, 8.out) by default (if $GOOS is windows, a .exe suffix
++It reads object files (.5, .6, .8, .9 files) and writes a binary named for the
++architecture (5.out, 6.out, 8.out, 9.out) by default (if $GOOS is windows, a .exe suffix
+ will be appended).
+ 
+ Major changes include:
+@@ -22,7 +22,7 @@ Original options are listed on the manual page linked above.
+ 
+ Usage:
+ 	go tool 6l [flags] mainObj
+-Substitute 6l with 8l or 5l as appropriate.
++Substitute 6l with 5l, 8l or 9l as appropriate.
+ 
+ Options new in this version:
+ 
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 3f93f58184..702d4dfcbb 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -2179,7 +2179,7 @@ dwarfaddshstrings(LSym *shstrtab)
+ 	elfstrdbg[ElfStrDebugStr]      = addstring(shstrtab, ".debug_str");
+ 	elfstrdbg[ElfStrGDBScripts]    = addstring(shstrtab, ".debug_gdb_scripts");
+ 	if(linkmode == LinkExternal) {
+-		if(thechar == '6') {
++		if(thechar == '6' || thechar == '9') {
+ 			elfstrdbg[ElfStrRelDebugInfo] = addstring(shstrtab, ".rela.debug_info");
+ 			elfstrdbg[ElfStrRelDebugAranges] = addstring(shstrtab, ".rela.debug_aranges");
+ 			elfstrdbg[ElfStrRelDebugLine] = addstring(shstrtab, ".rela.debug_line");
+@@ -2234,7 +2234,7 @@ dwarfaddelfrelocheader(int elfstr, ElfShdr *shdata, vlong off, vlong size)
+ 	ElfShdr *sh;
+ 
+ 	sh = newElfShdr(elfstrdbg[elfstr]);
+-	if(thechar == '6') {
++	if(thechar == '6' || thechar == '9') {
+ 		sh->type = SHT_RELA;
+ 	} else {
+ 		sh->type = SHT_REL;
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 3196961f35..6ac6b6ee82 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -45,6 +45,7 @@ elfinit(void)
+ 	switch(thechar) {
+ 	// 64-bit architectures
+ 	case '6':
++	case '9':
+ 		elf64 = 1;
+ 		hdr.phoff = ELF64HDRSIZE;	/* Must be be ELF64HDRSIZE: first PHdr must follow ELF header */
+ 		hdr.shoff = ELF64HDRSIZE;	/* Will move as we add PHeaders */
+@@ -678,7 +679,7 @@ elfdynhash(void)
+ 		elfwritedynentsym(s, DT_VERSYM, linklookup(ctxt, ".gnu.version", 0));
+ 	}
+ 
+-	if(thechar == '6') {
++	if(thechar == '6' || thechar == '9') {
+ 		sy = linklookup(ctxt, ".rela.plt", 0);
+ 		if(sy->size > 0) {
+ 			elfwritedynent(s, DT_PLTREL, DT_RELA);
+@@ -804,7 +805,7 @@ elfshreloc(Section *sect)
+ 	if(strcmp(sect->name, ".shstrtab") == 0 || strcmp(sect->name, ".tbss") == 0)
+ 		return nil;
+ 
+-	if(thechar == '6') {
++	if(thechar == '6' || thechar == '9') {
+ 		prefix = ".rela";
+ 		typ = SHT_RELA;
+ 	} else {
+@@ -931,7 +932,7 @@ doelf(void)
+ 		debug['s'] = 0;
+ 		debug['d'] = 1;
+ 
+-		if(thechar == '6') {
++		if(thechar == '6' || thechar == '9') {
+ 			addstring(shstrtab, ".rela.text");
+ 			addstring(shstrtab, ".rela.rodata");
+ 			addstring(shstrtab, ".rela.typelink");
+@@ -954,7 +955,7 @@ doelf(void)
+ 
+ 	if(flag_shared) {
+ 		addstring(shstrtab, ".init_array");
+-		if(thechar == '6')
++		if(thechar == '6' || thechar == '9')
+ 			addstring(shstrtab, ".rela.init_array");
+ 		else
+ 			addstring(shstrtab, ".rel.init_array");
+@@ -975,7 +976,7 @@ doelf(void)
+ 		addstring(shstrtab, ".dynamic");
+ 		addstring(shstrtab, ".dynsym");
+ 		addstring(shstrtab, ".dynstr");
+-		if(thechar == '6') {
++		if(thechar == '6' || thechar == '9') {
+ 			addstring(shstrtab, ".rela");
+ 			addstring(shstrtab, ".rela.plt");
+ 		} else {
+@@ -990,7 +991,7 @@ doelf(void)
+ 		s = linklookup(ctxt, ".dynsym", 0);
+ 		s->type = SELFROSECT;
+ 		s->reachable = 1;
+-		if(thechar == '6')
++		if(thechar == '6' || thechar == '9')
+ 			s->size += ELF64SYMSIZE;
+ 		else
+ 			s->size += ELF32SYMSIZE;
+@@ -1004,7 +1005,7 @@ doelf(void)
+ 		dynstr = s;
+ 
+ 		/* relocation table */
+-		if(thechar == '6')
++		if(thechar == '6' || thechar == '9')
+ 			s = linklookup(ctxt, ".rela", 0);
+ 		else
+ 			s = linklookup(ctxt, ".rel", 0);
+@@ -1031,7 +1032,7 @@ doelf(void)
+ 		
+ 		elfsetupplt();
+ 		
+-		if(thechar == '6')
++		if(thechar == '6' || thechar == '9')
+ 			s = linklookup(ctxt, ".rela.plt", 0);
+ 		else
+ 			s = linklookup(ctxt, ".rel.plt", 0);
+@@ -1056,13 +1057,13 @@ doelf(void)
+ 		 */
+ 		elfwritedynentsym(s, DT_HASH, linklookup(ctxt, ".hash", 0));
+ 		elfwritedynentsym(s, DT_SYMTAB, linklookup(ctxt, ".dynsym", 0));
+-		if(thechar == '6')
++		if(thechar == '6' || thechar == '9')
+ 			elfwritedynent(s, DT_SYMENT, ELF64SYMSIZE);
+ 		else
+ 			elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE);
+ 		elfwritedynentsym(s, DT_STRTAB, linklookup(ctxt, ".dynstr", 0));
+ 		elfwritedynentsymsize(s, DT_STRSZ, linklookup(ctxt, ".dynstr", 0));
+-		if(thechar == '6') {
++		if(thechar == '6' || thechar == '9') {
+ 			elfwritedynentsym(s, DT_RELA, linklookup(ctxt, ".rela", 0));
+ 			elfwritedynentsymsize(s, DT_RELASZ, linklookup(ctxt, ".rela", 0));
+ 			elfwritedynent(s, DT_RELAENT, ELF64RELASIZE);
+@@ -1148,6 +1149,9 @@ asmbelf(vlong symo)
+ 	case '8':
+ 		eh->machine = EM_386;
+ 		break;
++	case '9':
++		eh->machine = EM_PPC64;
++		break;
+ 	}
+ 
+ 	startva = INITTEXT - HEADR;
+@@ -1488,7 +1492,10 @@ elfobj:
+ 		eh->ident[EI_CLASS] = ELFCLASS64;
+ 	else
+ 		eh->ident[EI_CLASS] = ELFCLASS32;
+-	eh->ident[EI_DATA] = ELFDATA2LSB;
++	if(ctxt->arch->endian == BigEndian)
++		eh->ident[EI_DATA] = ELFDATA2MSB;
++	else
++		eh->ident[EI_DATA] = ELFDATA2LSB;
+ 	eh->ident[EI_VERSION] = EV_CURRENT;
+ 
+ 	if(linkmode == LinkExternal)
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index 38e4147556..284f7b21d6 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -436,6 +436,12 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			return;
+ 		}
+ 		break;
++	case '9':
++		if(obj->machine != ElfMachPower64 || hdr->ident[4] != ElfClass64) {
++			diag("%s: elf object but not power64", pn);
++			return;
++		}
++		break;
+ 	}
+ 
+ 	// load section list into memory.
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 0a5d8d99f2..bdba217478 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -586,6 +586,7 @@ hostlink(void)
+ 		argv[argc++] = "-m32";
+ 		break;
+ 	case '6':
++	case '9':
+ 		argv[argc++] = "-m64";
+ 		break;
+ 	case '5':
+@@ -1146,6 +1147,7 @@ stkcheck(Chain *up, int depth)
+ 			switch(r->type) {
+ 			case R_CALL:
+ 			case R_CALLARM:
++			case R_CALLPOWER:
+ 				// Direct call.
+ 				ch.limit = limit - pcsp.value - callsize();
+ 				ch.sym = r->sym;
+@@ -1525,7 +1527,7 @@ callgraph(void)
+ 			r = &s->r[i];
+ 			if(r->sym == nil)
+ 				continue;
+-			if((r->type == R_CALL || r->type == R_CALLARM) && r->sym->type == STEXT)
++			if((r->type == R_CALL || r->type == R_CALLARM || r->type == R_CALLPOWER) && r->sym->type == STEXT)
+ 				Bprint(&bso, "%s calls %s\n", s->name, r->sym->name);
+ 		}
+ 	}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 4094dfa6b1..6ce880ea9e 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -33,10 +33,6 @@
+ // A section further describes the pieces of that block for
+ // use in debuggers and such.
+ 
+-enum {
+-	MAXIO		= 8192,
+-};
+-
+ typedef struct Segment Segment;
+ typedef struct Section Section;
+ 
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index 61306bb7ca..c645e64097 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -44,6 +44,7 @@ machoinit(void)
+ 	switch(thechar) {
+ 	// 64-bit architectures
+ 	case '6':
++	case '9':
+ 		macho64 = 1;
+ 		break;
+ 
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 1805f97d3a..8149a67167 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -78,6 +78,7 @@ putelfsyment(int off, vlong addr, vlong size, int info, int shndx, int other)
+ {
+ 	switch(thechar) {
+ 	case '6':
++	case '9':
+ 		LPUT(off);
+ 		cput(info);
+ 		cput(other);

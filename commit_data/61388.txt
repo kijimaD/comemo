@@ -158,8 +158,109 @@ Date:   Wed Oct 9 15:42:23 2024 +0800
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-
+---
  src/cmd/compile/internal/ssa/_gen/LOONG64.rules | 10 +++++++
  src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 36 +++++++++++++++++++++++++
  test/codegen/copy.go                            |  3 +++
  3 files changed, 49 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index c1067c8272..674529ea37 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -796,3 +796,13 @@
+ (GTZ (MOVVconst [c]) yes no) && c <= 0 => (First no yes)
+ (GEZ (MOVVconst [c]) yes no) && c >= 0 => (First yes no)
+ (GEZ (MOVVconst [c]) yes no) && c <  0 => (First no yes)
++
++// Arch-specific inlining for small or disjoint runtime.memmove
++// Match post-lowering calls, register version.
++(SelectN [0] call:(CALLstatic {sym} dst src (MOVVconst [sz]) mem))
++	&& sz >= 0
++	&& isSameCall(sym, "runtime.memmove")
++	&& call.Uses == 1
++	&& isInlinableMemmove(dst, src, sz, config)
++	&& clobber(call)
++	=> (Move [sz] dst src mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 95fa7cd30e..8e696cb94b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -652,6 +652,8 @@ func rewriteValueLOONG64(v *Value) bool {
+ 		return rewriteValueLOONG64_OpSelect0(v)
+ 	case OpSelect1:
+ 		return rewriteValueLOONG64_OpSelect1(v)
++	case OpSelectN:
++		return rewriteValueLOONG64_OpSelectN(v)
+ 	case OpSignExt16to32:
+ 		v.Op = OpLOONG64MOVHreg
+ 		return true
+@@ -8933,6 +8935,40 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueLOONG64_OpSelectN(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	config := b.Func.Config
++	// match: (SelectN [0] call:(CALLstatic {sym} dst src (MOVVconst [sz]) mem))
++	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && call.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(call)
++	// result: (Move [sz] dst src mem)
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		call := v_0
++		if call.Op != OpLOONG64CALLstatic || len(call.Args) != 4 {
++			break
++		}
++		sym := auxToCall(call.Aux)
++		mem := call.Args[3]
++		dst := call.Args[0]
++		src := call.Args[1]
++		call_2 := call.Args[2]
++		if call_2.Op != OpLOONG64MOVVconst {
++			break
++		}
++		sz := auxIntToInt64(call_2.AuxInt)
++		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && call.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(call)) {
++			break
++		}
++		v.reset(OpMove)
++		v.AuxInt = int64ToAuxInt(sz)
++		v.AddArg3(dst, src, mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueLOONG64_OpSlicemask(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+diff --git a/test/codegen/copy.go b/test/codegen/copy.go
+index 17ee8bc807..4329c6d78f 100644
+--- a/test/codegen/copy.go
++++ b/test/codegen/copy.go
+@@ -95,6 +95,7 @@ func moveArchLowering1(b []byte, x *[1]byte) {
+ 	_ = b[1]
+ 	// amd64:-".*memmove"
+ 	// arm64:-".*memmove"
++	// loong64:-".*memmove"
+ 	// ppc64x:-".*memmove"
+ 	copy(b, x[:])
+ }
+@@ -103,6 +104,7 @@ func moveArchLowering2(b []byte, x *[2]byte) {
+ 	_ = b[2]
+ 	// amd64:-".*memmove"
+ 	// arm64:-".*memmove"
++	// loong64:-".*memmove"
+ 	// ppc64x:-".*memmove"
+ 	copy(b, x[:])
+ }
+@@ -111,6 +113,7 @@ func moveArchLowering4(b []byte, x *[4]byte) {
+ 	_ = b[4]
+ 	// amd64:-".*memmove"
+ 	// arm64:-".*memmove"
++	// loong64:-".*memmove"
+ 	// ppc64x:-".*memmove"
+ 	copy(b, x[:])
+ }

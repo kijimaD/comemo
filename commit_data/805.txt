@@ -8,7 +8,71 @@ Date:   Fri Oct 3 17:06:24 2008 -0700
     DELTA=43  (43 added, 0 deleted, 0 changed)
     OCL=16468
     CL=16475
-
+---
  test/bugs/bug110.go | 19 +++++++++++++++++++
  test/bugs/bug111.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 51 insertions(+)
+
+diff --git a/test/bugs/bug110.go b/test/bugs/bug110.go
+new file mode 100644
+index 0000000000..84273b4758
+--- /dev/null
++++ b/test/bugs/bug110.go
+@@ -0,0 +1,19 @@
++// $G $D/$F.go && $L $F.$A || echo BUG: const bug
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++const A = 0
++
++func f() {
++	const A = 5
++}
++
++func main() {
++	if A != 0 {
++		panic("A=", A)
++	}
++}
+diff --git a/test/bugs/bug111.go b/test/bugs/bug111.go
+new file mode 100644
+index 0000000000..e49357aa9a
+--- /dev/null
++++ b/test/bugs/bug111.go
+@@ -0,0 +1,32 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG should compile and run
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var ncall int;
++
++export type Iffy interface {
++	Me() Iffy
++}
++
++export type Stucky struct {
++	n int
++}
++
++func (s *Stucky) Me() Iffy {
++	ncall++
++	return s
++}
++
++func main() {
++	s := new(Stucky);
++	i := s.Me();
++	j := i.Me();
++	j.Me();
++	if ncall != 3 {
++		panic("bug111")
++	}
++}

@@ -13,6 +13,23 @@ Date:   Mon Oct 19 12:13:25 2020 +0000
     Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 68d0327cdb..85e710086a 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -1438,11 +1438,6 @@ func (p *noder) mkname(name *syntax.Name) *Node {
+ 	return mkname(p.name(name))
+ }
+ 
+-func (p *noder) newname(name *syntax.Name) *Node {
+-	// TODO(mdempsky): Set line number?
+-	return newname(p.name(name))
+-}
+-
+ func (p *noder) wrapname(n syntax.Node, x *Node) *Node {
+ 	// These nodes do not carry line numbers.
+ 	// Introduce a wrapper node to give them the correct line.

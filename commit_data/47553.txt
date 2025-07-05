@@ -194,9 +194,276 @@ Date:   Tue Jul 28 10:29:06 2020 +0800
     Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/bench_test.go |  32 +++++++
  src/cmd/compile/internal/ssa/phiopt.go     | 149 ++++++++++++++++++++++++++++-
  src/cmd/compile/internal/ssa/sparsetree.go |   6 ++
  test/phiopt.go                             |  26 ++++-
  4 files changed, 211 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/bench_test.go b/src/cmd/compile/internal/ssa/bench_test.go
+new file mode 100644
+index 0000000000..0971667507
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/bench_test.go
+@@ -0,0 +1,32 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package ssa
++
++import (
++	"math/rand"
++	"testing"
++)
++
++var d int
++
++//go:noinline
++func fn(a, b int) bool {
++	c := false
++	if a > 0 {
++		if b < 0 {
++			d = d + 1
++		}
++		c = true
++	}
++	return c
++}
++
++func BenchmarkPhioptPass(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		a := rand.Perm(i/10 + 10)
++		for i := 1; i < len(a)/2; i++ {
++			fn(a[i]-a[i-1], a[i+len(a)/2-2]-a[i+len(a)/2-1])
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/phiopt.go b/src/cmd/compile/internal/ssa/phiopt.go
+index db7b02275c..ee583d0225 100644
+--- a/src/cmd/compile/internal/ssa/phiopt.go
++++ b/src/cmd/compile/internal/ssa/phiopt.go
+@@ -46,7 +46,6 @@ func phiopt(f *Func) {
+ 			continue
+ 		}
+ 		// b0 is the if block giving the boolean value.
+-
+ 		// reverse is the predecessor from which the truth value comes.
+ 		var reverse int
+ 		if b0.Succs[0].b == pb0 && b0.Succs[1].b == pb1 {
+@@ -120,6 +119,141 @@ func phiopt(f *Func) {
+ 			}
+ 		}
+ 	}
++	// strengthen phi optimization.
++	// Main use case is to transform:
++	//   x := false
++	//   if c {
++	//     x = true
++	//     ...
++	//   }
++	// into
++	//   x := c
++	//   if x { ... }
++	//
++	// For example, in SSA code a case appears as
++	// b0
++	//   If c -> b, sb0
++	// sb0
++	//   If d -> sd0, sd1
++	// sd1
++	//   ...
++	// sd0
++	//   Plain -> b
++	// b
++	//   x = (OpPhi (ConstBool [true]) (ConstBool [false]))
++	//
++	// In this case we can also replace x with a copy of c.
++	//
++	// The optimization idea:
++	// 1. block b has a phi value x, x = OpPhi (ConstBool [true]) (ConstBool [false]),
++	//    and len(b.Preds) is equal to 2.
++	// 2. find the common dominator(b0) of the predecessors(pb0, pb1) of block b, and the
++	//    dominator(b0) is a If block.
++	//    Special case: one of the predecessors(pb0 or pb1) is the dominator(b0).
++	// 3. the successors(sb0, sb1) of the dominator need to dominate the predecessors(pb0, pb1)
++	//    of block b respectively.
++	// 4. replace this boolean Phi based on dominator block.
++	//
++	//     b0(pb0)            b0(pb1)          b0
++	//    |  \               /  |             /  \
++	//    |  sb1           sb0  |           sb0  sb1
++	//    |  ...           ...  |           ...   ...
++	//    |  pb1           pb0  |           pb0  pb1
++	//    |  /               \  |            \   /
++	//     b                   b               b
++	//
++	var lca *lcaRange
++	for _, b := range f.Blocks {
++		if len(b.Preds) != 2 || len(b.Values) == 0 {
++			// TODO: handle more than 2 predecessors, e.g. a || b || c.
++			continue
++		}
++
++		for _, v := range b.Values {
++			// find a phi value v = OpPhi (ConstBool [true]) (ConstBool [false]).
++			// TODO: v = OpPhi (ConstBool [true]) (Arg <bool> {value})
++			if v.Op != OpPhi {
++				continue
++			}
++			if v.Args[0].Op != OpConstBool || v.Args[1].Op != OpConstBool {
++				continue
++			}
++			if v.Args[0].AuxInt == v.Args[1].AuxInt {
++				continue
++			}
++
++			pb0 := b.Preds[0].b
++			pb1 := b.Preds[1].b
++			if pb0.Kind == BlockIf && pb0 == sdom.Parent(b) {
++				// special case: pb0 is the dominator block b0.
++				//     b0(pb0)
++				//    |  \
++				//    |  sb1
++				//    |  ...
++				//    |  pb1
++				//    |  /
++				//     b
++				// if another successor sb1 of b0(pb0) dominates pb1, do replace.
++				ei := b.Preds[0].i
++				sb1 := pb0.Succs[1-ei].b
++				if sdom.IsAncestorEq(sb1, pb1) {
++					convertPhi(pb0, v, ei)
++					break
++				}
++			} else if pb1.Kind == BlockIf && pb1 == sdom.Parent(b) {
++				// special case: pb1 is the dominator block b0.
++				//       b0(pb1)
++				//     /   |
++				//    sb0  |
++				//    ...  |
++				//    pb0  |
++				//      \  |
++				//        b
++				// if another successor sb0 of b0(pb0) dominates pb0, do replace.
++				ei := b.Preds[1].i
++				sb0 := pb1.Succs[1-ei].b
++				if sdom.IsAncestorEq(sb0, pb0) {
++					convertPhi(pb1, v, ei-1)
++					break
++				}
++			} else {
++				//      b0
++				//     /   \
++				//    sb0  sb1
++				//    ...  ...
++				//    pb0  pb1
++				//      \   /
++				//        b
++				//
++				// Build data structure for fast least-common-ancestor queries.
++				if lca == nil {
++					lca = makeLCArange(f)
++				}
++				b0 := lca.find(pb0, pb1)
++				if b0.Kind != BlockIf {
++					break
++				}
++				sb0 := b0.Succs[0].b
++				sb1 := b0.Succs[1].b
++				var reverse int
++				if sdom.IsAncestorEq(sb0, pb0) && sdom.IsAncestorEq(sb1, pb1) {
++					reverse = 0
++				} else if sdom.IsAncestorEq(sb1, pb0) && sdom.IsAncestorEq(sb0, pb1) {
++					reverse = 1
++				} else {
++					break
++				}
++				if len(sb0.Preds) != 1 || len(sb1.Preds) != 1 {
++					// we can not replace phi value x in the following case.
++					//   if gp == nil || sp < lo { x = true}
++					//   if a || b { x = true }
++					// so the if statement can only have one condition.
++					break
++				}
++				convertPhi(b0, v, reverse)
++			}
++		}
++	}
+ }
+ 
+ func phioptint(v *Value, b0 *Block, reverse int) {
+@@ -174,3 +308,16 @@ func phioptint(v *Value, b0 *Block, reverse int) {
+ 		f.Warnl(v.Block.Pos, "converted OpPhi bool -> int%d", v.Type.Size()*8)
+ 	}
+ }
++
++// b is the If block giving the boolean value.
++// v is the phi value v = (OpPhi (ConstBool [true]) (ConstBool [false])).
++// reverse is the predecessor from which the truth value comes.
++func convertPhi(b *Block, v *Value, reverse int) {
++	f := b.Func
++	ops := [2]Op{OpNot, OpCopy}
++	v.reset(ops[v.Args[reverse].AuxInt])
++	v.AddArg(b.Controls[0])
++	if f.pass.debug > 0 {
++		f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/sparsetree.go b/src/cmd/compile/internal/ssa/sparsetree.go
+index 1be20b2cda..be914c8644 100644
+--- a/src/cmd/compile/internal/ssa/sparsetree.go
++++ b/src/cmd/compile/internal/ssa/sparsetree.go
+@@ -178,6 +178,12 @@ func (t SparseTree) Child(x *Block) *Block {
+ 	return t[x.ID].child
+ }
+ 
++// Parent returns the parent of x in the dominator tree, or
++// nil if x is the function's entry.
++func (t SparseTree) Parent(x *Block) *Block {
++	return t[x.ID].parent
++}
++
+ // isAncestorEq reports whether x is an ancestor of or equal to y.
+ func (t SparseTree) IsAncestorEq(x, y *Block) bool {
+ 	if x == y {
+diff --git a/test/phiopt.go b/test/phiopt.go
+index 98a7b75d10..e04373eb72 100644
+--- a/test/phiopt.go
++++ b/test/phiopt.go
+@@ -1,4 +1,4 @@
+-// +build amd64 s390x
++// +build amd64 s390x arm64
+ // errorcheck -0 -d=ssa/phiopt/debug=3
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+@@ -104,5 +104,29 @@ func f7and(a bool, b bool) bool {
+ 	return a && b // ERROR "converted OpPhi to AndB$"
+ }
+ 
++//go:noinline
++func f8(s string) (string, bool) {
++	neg := false
++	if s[0] == '-' {    // ERROR "converted OpPhi to Copy$"
++		neg = true
++		s = s[1:]
++	}
++	return s, neg
++}
++
++var d int
++
++//go:noinline
++func f9(a, b int) bool {
++	c := false
++	if a < 0 {          // ERROR "converted OpPhi to Copy$"
++		if b < 0 {
++			d = d + 1
++		}
++		c = true
++	}
++	return c
++}
++
+ func main() {
+ }

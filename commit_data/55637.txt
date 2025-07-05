@@ -14,8 +14,48 @@ Date:   Mon Feb 27 12:07:57 2023 +0800
     Run-TryBot: Andy Pan <panjf2000@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/net/sendfile_linux.go | 2 +-
  src/net/splice_linux.go   | 2 +-
  src/os/readfrom_linux.go  | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/sendfile_linux.go b/src/net/sendfile_linux.go
+index 0299fdc3b5..9a7d005803 100644
+--- a/src/net/sendfile_linux.go
++++ b/src/net/sendfile_linux.go
+@@ -18,7 +18,7 @@ import (
+ //
+ // if handled == false, sendFile performed no work.
+ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+-	var remain int64 = 1 << 62 // by default, copy until EOF
++	var remain int64 = 1<<63 - 1 // by default, copy until EOF
+ 
+ 	lr, ok := r.(*io.LimitedReader)
+ 	if ok {
+diff --git a/src/net/splice_linux.go b/src/net/splice_linux.go
+index 69c3f65770..ab2ab70b28 100644
+--- a/src/net/splice_linux.go
++++ b/src/net/splice_linux.go
+@@ -15,7 +15,7 @@ import (
+ //
+ // If splice returns handled == false, it has performed no work.
+ func splice(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+-	var remain int64 = 1 << 62 // by default, copy until EOF
++	var remain int64 = 1<<63 - 1 // by default, copy until EOF
+ 	lr, ok := r.(*io.LimitedReader)
+ 	if ok {
+ 		remain, r = lr.N, lr.R
+diff --git a/src/os/readfrom_linux.go b/src/os/readfrom_linux.go
+index 514d873ece..7e8024028e 100644
+--- a/src/os/readfrom_linux.go
++++ b/src/os/readfrom_linux.go
+@@ -112,7 +112,7 @@ func (f *File) copyFileRange(r io.Reader) (written int64, handled bool, err erro
+ // the underlying io.Reader and the remaining amount of bytes if the assertion succeeds,
+ // otherwise it just returns the original io.Reader and the theoretical unlimited remaining amount of bytes.
+ func tryLimitedReader(r io.Reader) (*io.LimitedReader, io.Reader, int64) {
+-	remain := int64(1 << 62)
++	var remain int64 = 1<<63 - 1 // by default, copy until EOF
+ 
+ 	lr, ok := r.(*io.LimitedReader)
+ 	if !ok {

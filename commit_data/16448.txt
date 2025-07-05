@@ -9,7 +9,58 @@ Date:   Fri May 31 23:03:22 2013 +1000
     R=golang-dev, r, minux.ma
     CC=golang-dev
     https://golang.org/cl/9738052
-
+---
  src/pkg/testing/benchmark_test.go | 31 +++++++++++++++++++++++++++++++
  src/pkg/testing/export_test.go    |  7 +++++++
  2 files changed, 38 insertions(+)
+
+diff --git a/src/pkg/testing/benchmark_test.go b/src/pkg/testing/benchmark_test.go
+new file mode 100644
+index 0000000000..5ed4e03a4a
+--- /dev/null
++++ b/src/pkg/testing/benchmark_test.go
+@@ -0,0 +1,31 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing_test
++
++import (
++	"testing"
++)
++
++var roundDownTests = []struct {
++	v, expected int
++}{
++	{1, 1},
++	{9, 1},
++	{10, 1},
++	{11, 10},
++	{100, 10},
++	//	{101, 100}, // issue 5599
++	{1000, 100},
++	//	{1001, 1000}, // issue 5599
++}
++
++func TestRoundDown10(t *testing.T) {
++	for _, tt := range roundDownTests {
++		actual := testing.RoundDown10(tt.v)
++		if tt.expected != actual {
++			t.Errorf("roundDown10: expected %v, actual %v", tt.expected, actual)
++		}
++	}
++}
+diff --git a/src/pkg/testing/export_test.go b/src/pkg/testing/export_test.go
+new file mode 100644
+index 0000000000..3084efd87d
+--- /dev/null
++++ b/src/pkg/testing/export_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing
++
++var RoundDown10 = roundDown10

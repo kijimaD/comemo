@@ -48,8 +48,137 @@ Date:   Tue May 6 14:07:09 2025 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s        | 60 +++++++++++-----------
  .../asm/internal/asm/testdata/riscv64validation.s  | 14 ++---
  src/cmd/internal/obj/riscv/obj.go                  |  6 +--
  3 files changed, 40 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 4e0226a2b6..75abcefa10 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -830,38 +830,38 @@ start:
+ 	VWMULSUVX	X10, V2, V0, V3			// d76125e8
+ 
+ 	// 31.11.13: Vector Single-Width Integer Multiply-Add Instructions
+-	VMACCVV		V1, V2, V3			// d7a120b6
+-	VMACCVV		V1, V2, V0, V3			// d7a120b4
+-	VMACCVX		X10, V2, V3			// d76125b6
+-	VMACCVX		X10, V2, V0, V3			// d76125b4
+-	VNMSACVV	V1, V2, V3			// d7a120be
+-	VNMSACVV	V1, V2, V0, V3			// d7a120bc
+-	VNMSACVX	X10, V2, V3			// d76125be
+-	VNMSACVX	X10, V2, V0, V3			// d76125bc
+-	VMADDVV		V1, V2, V3			// d7a120a6
+-	VMADDVV		V1, V2, V0, V3			// d7a120a4
+-	VMADDVX		X10, V2, V3			// d76125a6
+-	VMADDVX		X10, V2, V0, V3			// d76125a4
+-	VNMSUBVV	V1, V2, V3			// d7a120ae
+-	VNMSUBVV	V1, V2, V0, V3			// d7a120ac
+-	VNMSUBVX	X10, V2, V3			// d76125ae
+-	VNMSUBVX	X10, V2, V0, V3			// d76125ac
++	VMACCVV		V2, V1, V3			// d7a120b6
++	VMACCVV		V2, V1, V0, V3			// d7a120b4
++	VMACCVX		V2, X10, V3			// d76125b6
++	VMACCVX		V2, X10, V0, V3			// d76125b4
++	VNMSACVV	V2, V1, V3			// d7a120be
++	VNMSACVV	V2, V1, V0, V3			// d7a120bc
++	VNMSACVX	V2, X10, V3			// d76125be
++	VNMSACVX	V2, X10, V0, V3			// d76125bc
++	VMADDVV		V2, V1, V3			// d7a120a6
++	VMADDVV		V2, V1, V0, V3			// d7a120a4
++	VMADDVX		V2, X10, V3			// d76125a6
++	VMADDVX		V2, X10, V0, V3			// d76125a4
++	VNMSUBVV	V2, V1, V3			// d7a120ae
++	VNMSUBVV	V2, V1, V0, V3			// d7a120ac
++	VNMSUBVX	V2, X10, V3			// d76125ae
++	VNMSUBVX	V2, X10, V0, V3			// d76125ac
+ 
+ 	// 31.11.14: Vector Widening Integer Multiply-Add Instructions
+-	VWMACCUVV	V1, V2, V3			// d7a120f2
+-	VWMACCUVV	V1, V2, V0, V3			// d7a120f0
+-	VWMACCUVX	X10, V2, V3			// d76125f2
+-	VWMACCUVX	X10, V2, V0, V3			// d76125f0
+-	VWMACCVV	V1, V2, V3			// d7a120f6
+-	VWMACCVV	V1, V2, V0, V3			// d7a120f4
+-	VWMACCVX	X10, V2, V3			// d76125f6
+-	VWMACCVX	X10, V2, V0, V3			// d76125f4
+-	VWMACCSUVV	V1, V2, V3			// d7a120fe
+-	VWMACCSUVV	V1, V2, V0, V3			// d7a120fc
+-	VWMACCSUVX	X10, V2, V3			// d76125fe
+-	VWMACCSUVX	X10, V2, V0, V3			// d76125fc
+-	VWMACCUSVX	X10, V2, V3			// d76125fa
+-	VWMACCUSVX	X10, V2, V0, V3			// d76125f8
++	VWMACCUVV	V2, V1, V3			// d7a120f2
++	VWMACCUVV	V2, V1, V0, V3			// d7a120f0
++	VWMACCUVX	V2, X10, V3			// d76125f2
++	VWMACCUVX	V2, X10, V0, V3			// d76125f0
++	VWMACCVV	V2, V1, V3			// d7a120f6
++	VWMACCVV	V2, V1, V0, V3			// d7a120f4
++	VWMACCVX	V2, X10, V3			// d76125f6
++	VWMACCVX	V2, X10, V0, V3			// d76125f4
++	VWMACCSUVV	V2, V1, V3			// d7a120fe
++	VWMACCSUVV	V2, V1, V0, V3			// d7a120fc
++	VWMACCSUVX	V2, X10, V3			// d76125fe
++	VWMACCSUVX	V2, X10, V0, V3			// d76125fc
++	VWMACCUSVX	V2, X10, V3			// d76125fa
++	VWMACCUSVX	V2, X10, V0, V3			// d76125f8
+ 
+ 	// 31.11.15: Vector Integer Merge Instructions
+ 	VMERGEVVM	V1, V2, V0, V3			// d781205c
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64validation.s b/src/cmd/asm/internal/asm/testdata/riscv64validation.s
+index 374a97dcfe..55bf518e68 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64validation.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64validation.s
+@@ -214,19 +214,19 @@ TEXT validation(SB),$0
+ 	VWMULUVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
+ 	VWMULSUVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
+ 	VWMULSUVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
+-	VMACCVV		X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMACCVV		V2, X10, V3			// ERROR "expected vector register in vs1 position"
+ 	VMACCVX		V1, V2, V3			// ERROR "expected integer register in rs1 position"
+-	VNMSACVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VNMSACVV	V2, X10, V3			// ERROR "expected vector register in vs1 position"
+ 	VNMSACVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
+-	VMADDVV		X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMADDVV		V2, X10, V3			// ERROR "expected vector register in vs1 position"
+ 	VMADDVX		V1, V2, V3			// ERROR "expected integer register in rs1 position"
+-	VNMSUBVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VNMSUBVV	V2, X10, V3			// ERROR "expected vector register in vs1 position"
+ 	VNMSUBVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
+-	VWMACCUVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWMACCUVV	V2, X10, V3			// ERROR "expected vector register in vs1 position"
+ 	VWMACCUVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
+-	VWMACCVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWMACCVV	V2, X10, V3			// ERROR "expected vector register in vs1 position"
+ 	VWMACCVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
+-	VWMACCSUVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWMACCSUVV	V2, X10, V3			// ERROR "expected vector register in vs1 position"
+ 	VWMACCSUVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
+ 	VWMACCUSVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
+ 	VMERGEVVM	X10, V2, V0, V3			// ERROR "expected vector register in vs1 position"
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 3c91a1f02c..5b598b5757 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -3697,8 +3697,6 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		AVMULVV, AVMULVX, AVMULHVV, AVMULHVX, AVMULHUVV, AVMULHUVX, AVMULHSUVV, AVMULHSUVX,
+ 		AVDIVUVV, AVDIVUVX, AVDIVVV, AVDIVVX, AVREMUVV, AVREMUVX, AVREMVV, AVREMVX,
+ 		AVWMULVV, AVWMULVX, AVWMULUVV, AVWMULUVX, AVWMULSUVV, AVWMULSUVX, AVNSRLWV, AVNSRLWX, AVNSRAWV, AVNSRAWX,
+-		AVMACCVV, AVMACCVX, AVNMSACVV, AVNMSACVX, AVMADDVV, AVMADDVX, AVNMSUBVV, AVNMSUBVX,
+-		AVWMACCUVV, AVWMACCUVX, AVWMACCVV, AVWMACCVX, AVWMACCSUVV, AVWMACCSUVX, AVWMACCUSVX,
+ 		AVSADDUVV, AVSADDUVX, AVSADDUVI, AVSADDVV, AVSADDVX, AVSADDVI, AVSSUBUVV, AVSSUBUVX, AVSSUBVV, AVSSUBVX,
+ 		AVAADDUVV, AVAADDUVX, AVAADDVV, AVAADDVX, AVASUBUVV, AVASUBUVX, AVASUBVV, AVASUBVX,
+ 		AVSMULVV, AVSMULVX, AVSSRLVV, AVSSRLVX, AVSSRLVI, AVSSRAVV, AVSSRAVX, AVSSRAVI,
+@@ -3724,7 +3722,9 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 
+ 	case AVFMACCVV, AVFMACCVF, AVFNMACCVV, AVFNMACCVF, AVFMSACVV, AVFMSACVF, AVFNMSACVV, AVFNMSACVF,
+ 		AVFMADDVV, AVFMADDVF, AVFNMADDVV, AVFNMADDVF, AVFMSUBVV, AVFMSUBVF, AVFNMSUBVV, AVFNMSUBVF,
+-		AVFWMACCVV, AVFWMACCVF, AVFWNMACCVV, AVFWNMACCVF, AVFWMSACVV, AVFWMSACVF, AVFWNMSACVV, AVFWNMSACVF:
++		AVFWMACCVV, AVFWMACCVF, AVFWNMACCVV, AVFWNMACCVF, AVFWMSACVV, AVFWMSACVF, AVFWNMSACVV, AVFWNMSACVF,
++		AVMACCVV, AVMACCVX, AVNMSACVV, AVNMSACVX, AVMADDVV, AVMADDVX, AVNMSUBVV, AVNMSUBVX,
++		AVWMACCUVV, AVWMACCUVX, AVWMACCVV, AVWMACCVX, AVWMACCSUVV, AVWMACCSUVX, AVWMACCUSVX:
+ 		switch {
+ 		case ins.rs3 == obj.REG_NONE:
+ 			ins.funct7 |= 1 // unmasked

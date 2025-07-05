@@ -10,7 +10,52 @@ Date:   Thu Feb 21 12:53:25 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7391045
-
+---
  src/cmd/5g/cgen.c | 4 ++--
  src/cmd/6g/cgen.c | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index e6c92f68f6..9e35f9566a 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -193,7 +193,7 @@ cgen(Node *n, Node *res)
+ 	switch(n->op) {
+ 	default:
+ 		dump("cgen", n);
+-		fatal("cgen: unknown op %N", n);
++		fatal("cgen: unknown op %+hN", n);
+ 		break;
+ 
+ 	case OREAL:
+@@ -598,7 +598,7 @@ agen(Node *n, Node *res)
+ 
+ 	switch(n->op) {
+ 	default:
+-		fatal("agen: unknown op %N", n);
++		fatal("agen: unknown op %+hN", n);
+ 		break;
+ 
+ 	case OCALLMETH:
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 0fa7730521..a51c0ca58c 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -191,7 +191,7 @@ cgen(Node *n, Node *res)
+ 	switch(n->op) {
+ 	default:
+ 		dump("cgen", n);
+-		fatal("cgen: unknown op %N", n);
++		fatal("cgen: unknown op %+hN", n);
+ 		break;
+ 
+ 	// these call bgen to get a bool value
+@@ -820,7 +820,7 @@ agen(Node *n, Node *res)
+ 
+ 	switch(n->op) {
+ 	default:
+-		fatal("agen: unknown op %N", n);
++		fatal("agen: unknown op %+hN", n);
+ 		break;
+ 
+ 	case OCALLMETH:

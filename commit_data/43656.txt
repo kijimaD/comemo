@@ -11,8 +11,58 @@ Date:   Sun Apr 19 22:18:15 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/go.go   | 12 ++++++++++++
  src/cmd/compile/internal/gc/inl.go  |  2 +-
  src/cmd/compile/internal/gc/walk.go |  2 +-
  3 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index a7fdfd5b7a..758c90931f 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -45,6 +45,18 @@ func isRuntimePkg(p *types.Pkg) bool {
+ 	return p.Path == "runtime"
+ }
+ 
++// isReflectPkg reports whether p is package reflect.
++func isReflectPkg(p *types.Pkg) bool {
++	// TODO(cuonglm): how to get rid this check.
++	if p == nil {
++		return false
++	}
++	if p == localpkg {
++		return myimportpath == "reflect"
++	}
++	return p.Path == "reflect"
++}
++
+ // The Class of a variable/function describes the "storage class"
+ // of a variable or function. During parsing, storage classes are
+ // called declaration contexts.
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 272d0bdab7..fa5b3ec698 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -585,7 +585,7 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ 	case OCALLMETH:
+ 		// Prevent inlining some reflect.Value methods when using checkptr,
+ 		// even when package reflect was compiled without it (#35073).
+-		if s := n.Left.Sym; Debug_checkptr != 0 && s.Pkg.Path == "reflect" && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
++		if s := n.Left.Sym; Debug_checkptr != 0 && isReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
+ 			return n
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 8ad7f6ace8..3a2a97373d 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3659,7 +3659,7 @@ func usemethod(n *Node) {
+ 	// Note: Don't rely on res0.Type.String() since its formatting depends on multiple factors
+ 	//       (including global variables such as numImports - was issue #19028).
+ 	// Also need to check for reflect package itself (see Issue #38515).
+-	if s := res0.Type.Sym; s != nil && s.Name == "Method" && s.Pkg != nil && (s.Pkg.Path == "reflect" || s.Pkg == localpkg && myimportpath == "reflect") {
++	if s := res0.Type.Sym; s != nil && s.Name == "Method" && isReflectPkg(s.Pkg) {
+ 		Curfn.Func.SetReflectMethod(true)
+ 	}
+ }

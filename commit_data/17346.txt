@@ -7,6 +7,19 @@ Date:   Wed Aug 21 09:53:17 2013 +0900
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/12975044
-
+---
  doc/go1.2.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.2.txt b/doc/go1.2.txt
+index 85dd2e2c56..90f3432cb9 100644
+--- a/doc/go1.2.txt
++++ b/doc/go1.2.txt
+@@ -13,6 +13,7 @@ compress/bzip2: faster decompression by 30% (CL 9915043).
+ crypto/des: 5x faster encoding/decoding (CL 11874043, 12072045).
+ encoding/json: faster encoding (CL 9129044).
+ net: improve windows performance by up to 30% (CL 8670044).
++net: improve performance on BSD by up to 30% (CL 8264043, 12927048, 13080043).
+ 
+ Breaking change:
+ archive/tar,archive/zip: fix os.FileInfo implementation to provide base name only (CL 13118043).

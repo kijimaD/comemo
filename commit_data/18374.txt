@@ -10,7 +10,66 @@ Date:   Wed Jan 29 09:51:31 2014 +0900
     R=golang-codereviews, gobot, iant
     CC=golang-codereviews
     https://golang.org/cl/57520043
-
+---
  src/pkg/net/conn_test.go      | 16 +++++++++++-----
  src/pkg/net/unixsock_posix.go |  6 +++++-
  2 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/conn_test.go b/src/pkg/net/conn_test.go
+index 98bd695499..7250dcb85a 100644
+--- a/src/pkg/net/conn_test.go
++++ b/src/pkg/net/conn_test.go
+@@ -53,7 +53,9 @@ func TestConnAndListener(t *testing.T) {
+ 				os.Remove(addr)
+ 			}
+ 		}(ln, tt.net, addr)
+-		ln.Addr()
++		if ln.Addr().Network() != tt.net {
++			t.Fatalf("got %v; expected %v", ln.Addr().Network(), tt.net)
++		}
+ 
+ 		done := make(chan int)
+ 		go transponder(t, ln, done)
+@@ -63,8 +65,9 @@ func TestConnAndListener(t *testing.T) {
+ 			t.Fatalf("Dial failed: %v", err)
+ 		}
+ 		defer c.Close()
+-		c.LocalAddr()
+-		c.RemoteAddr()
++		if c.LocalAddr().Network() != tt.net || c.LocalAddr().Network() != tt.net {
++			t.Fatalf("got %v->%v; expected %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), tt.net, tt.net)
++		}
+ 		c.SetDeadline(time.Now().Add(someTimeout))
+ 		c.SetReadDeadline(time.Now().Add(someTimeout))
+ 		c.SetWriteDeadline(time.Now().Add(someTimeout))
+@@ -96,8 +99,11 @@ func transponder(t *testing.T, ln Listener, done chan<- int) {
+ 		return
+ 	}
+ 	defer c.Close()
+-	c.LocalAddr()
+-	c.RemoteAddr()
++	network := ln.Addr().Network()
++	if c.LocalAddr().Network() != network || c.LocalAddr().Network() != network {
++		t.Errorf("got %v->%v; expected %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
++		return
++	}
+ 	c.SetDeadline(time.Now().Add(someTimeout))
+ 	c.SetReadDeadline(time.Now().Add(someTimeout))
+ 	c.SetWriteDeadline(time.Now().Add(someTimeout))
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index b82f3cee0b..54d9d16c99 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -280,7 +280,11 @@ func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
+ 	if l == nil || l.fd == nil {
+ 		return nil, syscall.EINVAL
+ 	}
+-	fd, err := l.fd.accept(sockaddrToUnix)
++	toAddr := sockaddrToUnix
++	if l.fd.sotype == syscall.SOCK_SEQPACKET {
++		toAddr = sockaddrToUnixpacket
++	}
++	fd, err := l.fd.accept(toAddr)
+ 	if err != nil {
+ 		return nil, err
+ 	}

@@ -14,6 +14,22 @@ Date:   Mon Jul 11 09:49:14 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/request.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index d091f3c056..cead91d3d4 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -1126,8 +1126,8 @@ func readRequest(b *bufio.Reader) (req *Request, err error) {
+ // MaxBytesReader is similar to io.LimitReader but is intended for
+ // limiting the size of incoming request bodies. In contrast to
+ // io.LimitReader, MaxBytesReader's result is a ReadCloser, returns a
+-// MaxBytesError for a Read beyond the limit, and closes the
+-// underlying reader when its Close method is called.
++// non-nil error of type *MaxBytesError for a Read beyond the limit,
++// and closes the underlying reader when its Close method is called.
+ //
+ // MaxBytesReader prevents clients from accidentally or maliciously
+ // sending a large request and wasting server resources. If possible,

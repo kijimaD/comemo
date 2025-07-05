@@ -45,7 +45,259 @@ Date:   Sun Mar 13 12:16:43 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/20645
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/obj.go | 144 +++++++++++++++++--------------------
  src/cmd/internal/obj/data.go       |  58 +++++++++++++++
  2 files changed, 122 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 52f3354227..021343868f 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -300,113 +300,97 @@ func dgostrlitptr(s *Sym, off int, lit *string) int {
+ 		return duintptr(s, off, 0)
+ 	}
+ 	off = int(Rnd(int64(off), int64(Widthptr)))
+-	p := Thearch.Gins(obj.ADATA, nil, nil)
+-	p.From.Type = obj.TYPE_MEM
+-	p.From.Name = obj.NAME_EXTERN
+-	p.From.Sym = Linksym(s)
+-	p.From.Offset = int64(off)
+-	p.From3 = new(obj.Addr)
+-	p.From3.Type = obj.TYPE_CONST
+-	p.From3.Offset = int64(Widthptr)
+-	datagostring(*lit, &p.To)
+-	p.To.Type = obj.TYPE_ADDR
+-	p.To.Etype = uint8(Simtype[TINT])
++	symhdr, _ := stringsym(*lit)
++	Linksym(s).WriteAddr(Ctxt, int64(off), int64(Widthptr), Linksym(symhdr), 0)
+ 	off += Widthptr
+-
+ 	return off
+ }
+ 
+ func dsname(s *Sym, off int, t string) int {
+-	p := Thearch.Gins(obj.ADATA, nil, nil)
+-	p.From.Type = obj.TYPE_MEM
+-	p.From.Name = obj.NAME_EXTERN
+-	p.From.Offset = int64(off)
+-	p.From.Sym = Linksym(s)
+-	p.From3 = new(obj.Addr)
+-	p.From3.Type = obj.TYPE_CONST
+-	p.From3.Offset = int64(len(t))
+-
+-	p.To.Type = obj.TYPE_SCONST
+-	p.To.Val = t
++	Linksym(s).WriteString(Ctxt, int64(off), int64(len(t)), t)
+ 	return off + len(t)
+ }
+ 
+ func dsymptr(s *Sym, off int, x *Sym, xoff int) int {
+ 	off = int(Rnd(int64(off), int64(Widthptr)))
+-
+-	p := Thearch.Gins(obj.ADATA, nil, nil)
+-	p.From.Type = obj.TYPE_MEM
+-	p.From.Name = obj.NAME_EXTERN
+-	p.From.Sym = Linksym(s)
+-	p.From.Offset = int64(off)
+-	p.From3 = new(obj.Addr)
+-	p.From3.Type = obj.TYPE_CONST
+-	p.From3.Offset = int64(Widthptr)
+-	p.To.Type = obj.TYPE_ADDR
+-	p.To.Name = obj.NAME_EXTERN
+-	p.To.Sym = Linksym(x)
+-	p.To.Offset = int64(xoff)
++	Linksym(s).WriteAddr(Ctxt, int64(off), int64(Widthptr), Linksym(x), int64(xoff))
+ 	off += Widthptr
+-
+ 	return off
+ }
+ 
+ func gdata(nam *Node, nr *Node, wid int) {
+-	if nr.Op == OLITERAL {
++	if nam.Op != ONAME {
++		Fatalf("gdata nam op %v", opnames[nam.Op])
++	}
++	if nam.Sym == nil {
++		Fatalf("gdata nil nam sym")
++	}
++
++	switch nr.Op {
++	case OLITERAL:
+ 		switch nr.Val().Ctype() {
+ 		case CTCPLX:
+ 			gdatacomplex(nam, nr.Val().U.(*Mpcplx))
+-			return
+ 
+ 		case CTSTR:
+ 			gdatastring(nam, nr.Val().U.(string))
+-			return
++
++		case CTINT, CTRUNE, CTBOOL:
++			i, _ := nr.IntLiteral()
++			Linksym(nam.Sym).WriteInt(Ctxt, nam.Xoffset, int64(wid), i)
++
++		case CTFLT:
++			s := Linksym(nam.Sym)
++			f := mpgetflt(nr.Val().U.(*Mpflt))
++			switch nam.Type.Etype {
++			case TFLOAT32:
++				s.WriteFloat32(Ctxt, nam.Xoffset, float32(f))
++			case TFLOAT64:
++				s.WriteFloat64(Ctxt, nam.Xoffset, f)
++			}
++
++		default:
++			// CTNILs don't reach gdata; search for CTNIL in sinit.go. Probably they should, eventually.
++			Fatalf("gdata unhandled OLITERAL %v", nr)
+ 		}
+-	}
+ 
+-	p := Thearch.Gins(obj.ADATA, nam, nr)
+-	p.From3 = new(obj.Addr)
+-	p.From3.Type = obj.TYPE_CONST
+-	p.From3.Offset = int64(wid)
++	case OADDR:
++		if nr.Left.Op != ONAME {
++			Fatalf("gdata ADDR left op %s", opnames[nr.Left.Op])
++		}
++		to := nr.Left
++		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, int64(wid), Linksym(to.Sym), to.Xoffset)
++
++	case ONAME:
++		if nr.Class != PFUNC {
++			Fatalf("gdata NAME not PFUNC %d", nr.Class)
++		}
++		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, int64(wid), Linksym(funcsym(nr.Sym)), nr.Xoffset)
++
++	default:
++		Fatalf("gdata unhandled op %v %v\n", nr, opnames[nr.Op])
++	}
+ }
+ 
+ func gdatacomplex(nam *Node, cval *Mpcplx) {
+-	cst := cplxsubtype(nam.Type.Etype)
+-	w := int(Types[cst].Width)
+-
+-	p := Thearch.Gins(obj.ADATA, nam, nil)
+-	p.From3 = new(obj.Addr)
+-	p.From3.Type = obj.TYPE_CONST
+-	p.From3.Offset = int64(w)
+-	p.To.Type = obj.TYPE_FCONST
+-	p.To.Val = mpgetflt(&cval.Real)
+-
+-	p = Thearch.Gins(obj.ADATA, nam, nil)
+-	p.From3 = new(obj.Addr)
+-	p.From3.Type = obj.TYPE_CONST
+-	p.From3.Offset = int64(w)
+-	p.From.Offset += int64(w)
+-	p.To.Type = obj.TYPE_FCONST
+-	p.To.Val = mpgetflt(&cval.Imag)
++	t := Types[cplxsubtype(nam.Type.Etype)]
++	r := mpgetflt(&cval.Real)
++	i := mpgetflt(&cval.Imag)
++	s := Linksym(nam.Sym)
++
++	switch t.Etype {
++	case TFLOAT32:
++		s.WriteFloat32(Ctxt, nam.Xoffset, float32(r))
++		s.WriteFloat32(Ctxt, nam.Xoffset+4, float32(i))
++	case TFLOAT64:
++		s.WriteFloat64(Ctxt, nam.Xoffset, r)
++		s.WriteFloat64(Ctxt, nam.Xoffset+8, i)
++	}
+ }
+ 
+ func gdatastring(nam *Node, sval string) {
+-	var nod1 Node
+-
+-	p := Thearch.Gins(obj.ADATA, nam, nil)
+-	Datastring(sval, &p.To)
+-	p.From3 = new(obj.Addr)
+-	p.From3.Type = obj.TYPE_CONST
+-	p.From3.Offset = Types[Tptr].Width
+-	p.To.Type = obj.TYPE_ADDR
+-
+-	//print("%v\n", p);
+-
+-	Nodconst(&nod1, Types[TINT], int64(len(sval)))
+-
+-	p = Thearch.Gins(obj.ADATA, nam, &nod1)
+-	p.From3 = new(obj.Addr)
+-	p.From3.Type = obj.TYPE_CONST
+-	p.From3.Offset = int64(Widthint)
+-	p.From.Offset += int64(Widthptr)
++	s := Linksym(nam.Sym)
++	_, symdata := stringsym(sval)
++	s.WriteAddr(Ctxt, nam.Xoffset, Types[Tptr].Width, Linksym(symdata), 0)
++	s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), int64(Widthint), int64(len(sval)))
+ }
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index f4562d9938..ad31aee7f0 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -52,6 +52,64 @@ func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
+ 	s.P = s.P[:siz]
+ }
+ 
++// prepwrite prepares to write data of size siz into s at offset off.
++func (s *LSym) prepwrite(ctxt *Link, off, siz int64) {
++	if off < 0 || siz < 0 || off >= 1<<30 || siz >= 100 {
++		log.Fatalf("prepwrite: bad off=%d siz=%d", off, siz)
++	}
++	if s.Type == SBSS || s.Type == STLSBSS {
++		ctxt.Diag("cannot supply data for BSS var")
++	}
++	Symgrow(ctxt, s, off+siz)
++}
++
++// WriteFloat32 writes f into s at offset off.
++func (s *LSym) WriteFloat32(ctxt *Link, off int64, f float32) {
++	s.prepwrite(ctxt, off, 4)
++	ctxt.Arch.ByteOrder.PutUint32(s.P[off:], math.Float32bits(f))
++}
++
++// WriteFloat64 writes f into s at offset off.
++func (s *LSym) WriteFloat64(ctxt *Link, off int64, f float64) {
++	s.prepwrite(ctxt, off, 8)
++	ctxt.Arch.ByteOrder.PutUint64(s.P[off:], math.Float64bits(f))
++}
++
++// WriteInt writes an integer i of size siz into s at offset off.
++func (s *LSym) WriteInt(ctxt *Link, off, siz int64, i int64) {
++	s.prepwrite(ctxt, off, siz)
++	switch siz {
++	default:
++		ctxt.Diag("WriteInt bad integer: %d", siz)
++	case 1:
++		s.P[off] = byte(i)
++	case 2:
++		ctxt.Arch.ByteOrder.PutUint16(s.P[off:], uint16(i))
++	case 4:
++		ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(i))
++	case 8:
++		ctxt.Arch.ByteOrder.PutUint64(s.P[off:], uint64(i))
++	}
++}
++
++// WriteAddr writes an address of size siz into s at offset off.
++// rsym and roff specify the relocation for the address.
++func (s *LSym) WriteAddr(ctxt *Link, off, siz int64, rsym *LSym, roff int64) {
++	s.prepwrite(ctxt, off, siz)
++	r := Addrel(s)
++	r.Off = int32(off)
++	r.Siz = uint8(siz)
++	r.Sym = rsym
++	r.Type = R_ADDR
++	r.Add = roff
++}
++
++// WriteString writes a string of size siz into s at offset off.
++func (s *LSym) WriteString(ctxt *Link, off, siz int64, str string) {
++	s.prepwrite(ctxt, off, siz)
++	copy(s.P[off:off+siz], str)
++}
++
+ func savedata(ctxt *Link, p *Prog) {
+ 	s := p.From.Sym
+ 	off := int32(p.From.Offset)

@@ -7,6 +7,40 @@ Date:   Tue Oct 12 15:16:47 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2465041
-
+---
  src/pkg/syscall/ztypes_linux_arm.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/syscall/ztypes_linux_arm.go b/src/pkg/syscall/ztypes_linux_arm.go
+index 9f4a55bd74..a845985a8b 100644
+--- a/src/pkg/syscall/ztypes_linux_arm.go
++++ b/src/pkg/syscall/ztypes_linux_arm.go
+@@ -2,6 +2,10 @@
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
++// Manual corrections: UGH
++//	remove duplicate PtraceRegs type
++//	change RawSockaddrUnix field to Path [108]int8 (was uint8()
++
+ package syscall
+ 
+ // Constants
+@@ -181,7 +185,7 @@ type RawSockaddrInet6 struct {
+ 
+ type RawSockaddrUnix struct {
+ 	Family uint16
+-	Path   [108]uint8
++	Path   [108]int8
+ }
+ 
+ type RawSockaddrLinklayer struct {
+@@ -247,8 +251,6 @@ type InotifyEvent struct {
+ 
+ type PtraceRegs struct{}
+ 
+-type PtraceRegs struct{}
+-
+ type FdSet struct {
+ 	Bits [32]int32
+ }

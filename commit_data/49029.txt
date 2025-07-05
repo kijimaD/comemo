@@ -18,8 +18,59 @@ Date:   Thu Jul 8 12:07:01 2021 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/irgen.go     |  4 ++++
  src/cmd/compile/internal/noder/transform.go | 10 +++++++++-
  test/run.go                                 |  3 +--
  3 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 64c29435b5..880073a89e 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -219,6 +219,10 @@ Outer:
+ 		}
+ 	}
+ 
++	// Check for unusual case where noder2 encounters a type error that types2
++	// doesn't check for (e.g. notinheap incompatibility).
++	base.ExitIfErrors()
++
+ 	typecheck.DeclareUniverse()
+ 
+ 	for _, p := range noders {
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index e02b7e758d..efbc8f68ce 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -85,7 +85,15 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
+ // etc.  Corresponds to typecheck.tcConv.
+ func transformConv(n *ir.ConvExpr) ir.Node {
+ 	t := n.X.Type()
+-	op, _ := typecheck.Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
++	op, why := typecheck.Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
++	if op == ir.OXXX {
++		// types2 currently ignores pragmas, so a 'notinheap' mismatch is the
++		// one type-related error that it does not catch. This error will be
++		// caught here by Convertop (see two checks near beginning of
++		// Convertop) and reported at the end of noding.
++		base.ErrorfAt(n.Pos(), "cannot convert %L to type %v%s", n.X, n.Type(), why)
++		return n
++	}
+ 	n.SetOp(op)
+ 	switch n.Op() {
+ 	case ir.OCONVNOP:
+diff --git a/test/run.go b/test/run.go
+index 90861786df..d6209c2591 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2204,8 +2204,7 @@ var g3Failures = setOf(
+ 
+ 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
+ 
+-	"typeparam/mdempsky/4.go",  // -G=3 can't export functions with labeled breaks in loops
+-	"typeparam/mdempsky/11.go", // types2/noder2 should give conversion error, because of "notinheap" mismatch
++	"typeparam/mdempsky/4.go", // -G=3 can't export functions with labeled breaks in loops
+ )
+ 
+ var unifiedFailures = setOf(

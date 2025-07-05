@@ -9,7 +9,52 @@ Date:   Tue Feb 1 14:00:36 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4125043
-
+---
  src/cmd/gc/go.y       | 11 +++++++++--
  test/syntax/typesw.go | 13 +++++++++++++
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index b711d360d2..994840ee83 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -422,11 +422,18 @@ simple_stmt:
+ |	expr_list LCOLAS expr_list
+ 	{
+ 		if($3->n->op == OTYPESW) {
++			Node *n;
++			
++			n = N;
+ 			if($3->next != nil)
+ 				yyerror("expr.(type) must be alone in list");
+-			else if($1->next != nil)
++			if($1->next != nil)
+ 				yyerror("argument count mismatch: %d = %d", count($1), 1);
+-			$$ = nod(OTYPESW, $1->n, $3->n->right);
++			else if($1->n->op != ONAME && $1->n->op != OTYPE && $1->n->op != ONONAME)
++				yyerror("invalid variable name %#N in type switch", $1->n);
++			else
++				n = $1->n;
++			$$ = nod(OTYPESW, n, $3->n->right);
+ 			break;
+ 		}
+ 		$$ = colas($1, $3);
+diff --git a/test/syntax/typesw.go b/test/syntax/typesw.go
+new file mode 100644
+index 0000000000..47f683cdf2
+--- /dev/null
++++ b/test/syntax/typesw.go
+@@ -0,0 +1,13 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	switch main() := interface{}(nil).(type) {	// ERROR "invalid variable name"
++	default:
++	}
++}

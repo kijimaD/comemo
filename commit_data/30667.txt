@@ -12,6 +12,22 @@ Date:   Tue Nov 22 01:43:38 2016 +0000
     Change-Id: I78b6b7e8dede414769be97898e29f969bc2a9651
     Reviewed-on: https://go-review.googlesource.com/33430
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/net/http/fs_test.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 83f81e3efb..17a0e4a9af 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -1091,9 +1091,7 @@ func TestLinuxSendfile(t *testing.T) {
+ 		// and will error out if we specify that with `-e trace='.
+ 		syscalls = "sendfile"
+ 	case "mips64":
+-		// TODO: minimize this set once golang.org/issue/18008
+-		// is understood.
+-		syscalls = "network,file"
++		t.Skip("TODO: update this test to be robust against various versions of strace on mips64. See golang.org/issue/33430")
+ 	}
+ 
+ 	var buf bytes.Buffer

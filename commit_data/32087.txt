@@ -14,10 +14,373 @@ Date:   Mon Apr 3 10:17:48 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go        |  29 +++++
  src/cmd/compile/internal/gc/float_test.go      |  21 ++++
  src/cmd/compile/internal/ssa/gen/generic.rules |   8 +-
  src/cmd/compile/internal/ssa/rewrite.go        |  44 ++++++++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 144 +++++++++++++++++--------
  5 files changed, 198 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 7737d338b9..b904c44fe6 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -719,6 +719,35 @@ var linuxAMD64Tests = []*asmTest{
+ 		}`,
+ 		[]string{"\tADDQ\t[A-Z]"},
+ 	},
++	// Floating-point strength reduction
++	{
++		`
++		func f60(f float64) float64 {
++			return f * 2.0
++		}`,
++		[]string{"\tADDSD\t"},
++	},
++	{
++		`
++		func f62(f float64) float64 {
++			return f / 16.0
++		}`,
++		[]string{"\tMULSD\t"},
++	},
++	{
++		`
++		func f63(f float64) float64 {
++			return f / 0.125
++		}`,
++		[]string{"\tMULSD\t"},
++	},
++	{
++		`
++		func f64(f float64) float64 {
++			return f / 0.5
++		}`,
++		[]string{"\tADDSD\t"},
++	},
+ }
+ 
+ var linux386Tests = []*asmTest{
+diff --git a/src/cmd/compile/internal/gc/float_test.go b/src/cmd/compile/internal/gc/float_test.go
+index 4fdcc7ef91..f906f3a228 100644
+--- a/src/cmd/compile/internal/gc/float_test.go
++++ b/src/cmd/compile/internal/gc/float_test.go
+@@ -133,3 +133,24 @@ func TestFloatConvert(t *testing.T) {
+ 		t.Errorf("cvt12 got %d, wanted 3", got)
+ 	}
+ }
++
++var sinkFloat float64
++
++func BenchmarkMul2(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		var m float64 = 1
++		for j := 0; j < 500; j++ {
++			m *= 2
++		}
++		sinkFloat = m
++	}
++}
++func BenchmarkMulNeg2(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		var m float64 = 1
++		for j := 0; j < 500; j++ {
++			m *= -2
++		}
++		sinkFloat = m
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 86d0fcab32..6163c093d2 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1392,10 +1392,10 @@
+ (Mul32F (Const32F [f2i(-1)]) x) -> (Neg32F x)
+ (Mul64F x (Const64F [f2i(-1)])) -> (Neg64F x)
+ (Mul64F (Const64F [f2i(-1)]) x) -> (Neg64F x)
+-(Div32F x (Const32F [f2i(1)])) -> x
+-(Div64F x (Const64F [f2i(1)])) -> x
+-(Div32F x (Const32F [f2i(-1)])) -> (Neg32F x)
+-(Div64F x (Const64F [f2i(-1)])) -> (Neg32F x)
++(Mul32F x (Const32F [f2i(2)])) -> (Add32F x x)
++(Mul64F x (Const64F [f2i(2)])) -> (Add64F x x)
++(Div32F x (Const32F <t> [c])) && reciprocalExact32(float32(i2f(c))) -> (Mul32F x (Const32F <t> [f2i(1/i2f(c))]))
++(Div64F x (Const64F <t> [c])) && reciprocalExact64(i2f(c))          -> (Mul64F x (Const64F <t> [f2i(1/i2f(c))]))
+ 
+ (Sqrt (Const64F [c])) -> (Const64F [f2i(math.Sqrt(i2f(c)))])
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index d0c1eb3286..e74370c8cc 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -596,3 +596,47 @@ func isConstZero(v *Value) bool {
+ 	}
+ 	return false
+ }
++
++// reciprocalExact64 reports whether 1/c is exactly representable.
++func reciprocalExact64(c float64) bool {
++	b := math.Float64bits(c)
++	man := b & (1<<52 - 1)
++	if man != 0 {
++		return false // not a power of 2, denormal, or NaN
++	}
++	exp := b >> 52 & (1<<11 - 1)
++	// exponent bias is 0x3ff.  So taking the reciprocal of a number
++	// changes the exponent to 0x7fe-exp.
++	switch exp {
++	case 0:
++		return false // ±0
++	case 0x7ff:
++		return false // ±inf
++	case 0x7fe:
++		return false // exponent is not representable
++	default:
++		return true
++	}
++}
++
++// reciprocalExact32 reports whether 1/c is exactly representable.
++func reciprocalExact32(c float32) bool {
++	b := math.Float32bits(c)
++	man := b & (1<<23 - 1)
++	if man != 0 {
++		return false // not a power of 2, denormal, or NaN
++	}
++	exp := b >> 23 & (1<<8 - 1)
++	// exponent bias is 0x7f.  So taking the reciprocal of a number
++	// changes the exponent to 0xfe-exp.
++	switch exp {
++	case 0:
++		return false // ±0
++	case 0xff:
++		return false // ±inf
++	case 0xfe:
++		return false // exponent is not representable
++	default:
++		return true
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index bcef89cbc7..eb4761ae94 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -3990,6 +3990,8 @@ func rewriteValuegeneric_OpDiv32(v *Value) bool {
+ 	return false
+ }
+ func rewriteValuegeneric_OpDiv32F(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (Div32F (Const32F [c]) (Const32F [d]))
+ 	// cond:
+ 	// result: (Const32F [f2i(float64(i2f32(c) / i2f32(d)))])
+@@ -4008,37 +4010,25 @@ func rewriteValuegeneric_OpDiv32F(v *Value) bool {
+ 		v.AuxInt = f2i(float64(i2f32(c) / i2f32(d)))
+ 		return true
+ 	}
+-	// match: (Div32F x (Const32F [f2i(1)]))
+-	// cond:
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConst32F {
+-			break
+-		}
+-		if v_1.AuxInt != f2i(1) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (Div32F x (Const32F [f2i(-1)]))
+-	// cond:
+-	// result: (Neg32F x)
++	// match: (Div32F x (Const32F <t> [c]))
++	// cond: reciprocalExact32(float32(i2f(c)))
++	// result: (Mul32F x (Const32F <t> [f2i(1/i2f(c))]))
+ 	for {
+ 		x := v.Args[0]
+ 		v_1 := v.Args[1]
+ 		if v_1.Op != OpConst32F {
+ 			break
+ 		}
+-		if v_1.AuxInt != f2i(-1) {
++		t := v_1.Type
++		c := v_1.AuxInt
++		if !(reciprocalExact32(float32(i2f(c)))) {
+ 			break
+ 		}
+-		v.reset(OpNeg32F)
++		v.reset(OpMul32F)
+ 		v.AddArg(x)
++		v0 := b.NewValue0(v.Pos, OpConst32F, t)
++		v0.AuxInt = f2i(1 / i2f(c))
++		v.AddArg(v0)
+ 		return true
+ 	}
+ 	return false
+@@ -4465,6 +4455,8 @@ func rewriteValuegeneric_OpDiv64(v *Value) bool {
+ 	return false
+ }
+ func rewriteValuegeneric_OpDiv64F(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (Div64F (Const64F [c]) (Const64F [d]))
+ 	// cond:
+ 	// result: (Const64F [f2i(i2f(c) / i2f(d))])
+@@ -4483,37 +4475,25 @@ func rewriteValuegeneric_OpDiv64F(v *Value) bool {
+ 		v.AuxInt = f2i(i2f(c) / i2f(d))
+ 		return true
+ 	}
+-	// match: (Div64F x (Const64F [f2i(1)]))
+-	// cond:
+-	// result: x
++	// match: (Div64F x (Const64F <t> [c]))
++	// cond: reciprocalExact64(i2f(c))
++	// result: (Mul64F x (Const64F <t> [f2i(1/i2f(c))]))
+ 	for {
+ 		x := v.Args[0]
+ 		v_1 := v.Args[1]
+ 		if v_1.Op != OpConst64F {
+ 			break
+ 		}
+-		if v_1.AuxInt != f2i(1) {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (Div64F x (Const64F [f2i(-1)]))
+-	// cond:
+-	// result: (Neg32F x)
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConst64F {
+-			break
+-		}
+-		if v_1.AuxInt != f2i(-1) {
++		t := v_1.Type
++		c := v_1.AuxInt
++		if !(reciprocalExact64(i2f(c))) {
+ 			break
+ 		}
+-		v.reset(OpNeg32F)
++		v.reset(OpMul64F)
+ 		v.AddArg(x)
++		v0 := b.NewValue0(v.Pos, OpConst64F, t)
++		v0.AuxInt = f2i(1 / i2f(c))
++		v.AddArg(v0)
+ 		return true
+ 	}
+ 	return false
+@@ -8975,6 +8955,8 @@ func rewriteValuegeneric_OpMul32(v *Value) bool {
+ 	return false
+ }
+ func rewriteValuegeneric_OpMul32F(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (Mul32F (Const32F [c]) (Const32F [d]))
+ 	// cond:
+ 	// result: (Const32F [f2i(float64(i2f32(c) * i2f32(d)))])
+@@ -9059,6 +9041,42 @@ func rewriteValuegeneric_OpMul32F(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (Mul32F x (Const32F [f2i(2)]))
++	// cond:
++	// result: (Add32F x x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32F {
++			break
++		}
++		if v_1.AuxInt != f2i(2) {
++			break
++		}
++		v.reset(OpAdd32F)
++		v.AddArg(x)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Mul32F x (Const32F [f2i(-2)]))
++	// cond:
++	// result: (Neg32F (Add32F <v.Type> x x))
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32F {
++			break
++		}
++		if v_1.AuxInt != f2i(-2) {
++			break
++		}
++		v.reset(OpNeg32F)
++		v0 := b.NewValue0(v.Pos, OpAdd32F, v.Type)
++		v0.AddArg(x)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpMul64(v *Value) bool {
+@@ -9286,6 +9304,8 @@ func rewriteValuegeneric_OpMul64(v *Value) bool {
+ 	return false
+ }
+ func rewriteValuegeneric_OpMul64F(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (Mul64F (Const64F [c]) (Const64F [d]))
+ 	// cond:
+ 	// result: (Const64F [f2i(i2f(c) * i2f(d))])
+@@ -9370,6 +9390,42 @@ func rewriteValuegeneric_OpMul64F(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (Mul64F x (Const64F [f2i(2)]))
++	// cond:
++	// result: (Add64F x x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64F {
++			break
++		}
++		if v_1.AuxInt != f2i(2) {
++			break
++		}
++		v.reset(OpAdd64F)
++		v.AddArg(x)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Mul64F x (Const64F [f2i(-2)]))
++	// cond:
++	// result: (Neg64F (Add64F <v.Type> x x))
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64F {
++			break
++		}
++		if v_1.AuxInt != f2i(-2) {
++			break
++		}
++		v.reset(OpNeg64F)
++		v0 := b.NewValue0(v.Pos, OpAdd64F, v.Type)
++		v0.AddArg(x)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpMul8(v *Value) bool {

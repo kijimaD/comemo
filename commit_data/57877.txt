@@ -17,7 +17,84 @@ Date:   Wed Sep 6 15:52:55 2023 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go     | 28 +++++++++-------------------
  src/cmd/compile/internal/ir/node_gen.go | 19 -------------------
  2 files changed, 9 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 7204451364..573021a554 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -148,6 +148,15 @@ func NewBasicLit(pos src.XPos, val constant.Value) Node {
+ func (n *BasicLit) Val() constant.Value       { return n.val }
+ func (n *BasicLit) SetVal(val constant.Value) { n.val = val }
+ 
++// NewConstExpr returns an OLITERAL representing val, copying the
++// position and type from orig.
++func NewConstExpr(val constant.Value, orig Node) Node {
++	n := NewBasicLit(orig.Pos(), val)
++	n.SetType(orig.Type())
++	n.SetTypecheck(orig.Typecheck())
++	return n
++}
++
+ // A BinaryExpr is a binary expression X Op Y,
+ // or Op(X, Y) for builtin functions that do not become calls.
+ type BinaryExpr struct {
+@@ -258,25 +267,6 @@ func (n *CompLitExpr) SetOp(op Op) {
+ 	}
+ }
+ 
+-type ConstExpr struct {
+-	miniExpr
+-	origNode
+-	val constant.Value
+-}
+-
+-func NewConstExpr(val constant.Value, orig Node) Node {
+-	n := &ConstExpr{val: val}
+-	n.op = OLITERAL
+-	n.pos = orig.Pos()
+-	n.orig = orig
+-	n.SetType(orig.Type())
+-	n.SetTypecheck(orig.Typecheck())
+-	return n
+-}
+-
+-func (n *ConstExpr) Sym() *types.Sym     { return n.orig.Sym() }
+-func (n *ConstExpr) Val() constant.Value { return n.val }
+-
+ // A ConvExpr is a conversion Type(X).
+ // It may end up being a value or a type.
+ type ConvExpr struct {
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 1274431b14..1fd8e89936 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -471,25 +471,6 @@ func (n *CompLitExpr) editChildrenWithHidden(edit func(Node) Node) {
+ 	}
+ }
+ 
+-func (n *ConstExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+-func (n *ConstExpr) copy() Node {
+-	c := *n
+-	c.init = copyNodes(c.init)
+-	return &c
+-}
+-func (n *ConstExpr) doChildren(do func(Node) bool) bool {
+-	if doNodes(n.init, do) {
+-		return true
+-	}
+-	return false
+-}
+-func (n *ConstExpr) editChildren(edit func(Node) Node) {
+-	editNodes(n.init, edit)
+-}
+-func (n *ConstExpr) editChildrenWithHidden(edit func(Node) Node) {
+-	editNodes(n.init, edit)
+-}
+-
+ func (n *ConvExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *ConvExpr) copy() Node {
+ 	c := *n

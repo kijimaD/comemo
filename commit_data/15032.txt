@@ -19,7 +19,7 @@ Date:   Wed Jan 30 08:46:56 2013 -0800
     R=rsc, iant
     CC=golang-dev
     https://golang.org/cl/6926049
-
+---
  src/cmd/5l/asm.c    | 62 ++++++++++++++++++++++++++++++++++++---
  src/cmd/5l/l.h      |  6 ++++
  src/cmd/5l/list.c   |  1 +
@@ -41,3 +41,914 @@ Date:   Wed Jan 30 08:46:56 2013 -0800
  src/cmd/ld/lib.h    |  4 +++
  src/cmd/ld/symtab.c |  5 ++++
  20 files changed, 289 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index a38c063d54..f412490561 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -93,6 +93,19 @@ braddoff(int32 a, int32 b)
+ 	return (((uint32)a) & 0xff000000U) | (0x00ffffffU & (uint32)(a + b));
+ }
+ 
++Sym *
++lookuprel(void)
++{
++	return lookup(".rel", 0);
++}
++
++void
++adddynrela(Sym *rel, Sym *s, Reloc *r)
++{
++	addaddrplus(rel, s, r->off);
++	adduint32(rel, R_ARM_RELATIVE);
++}
++
+ void
+ adddynrel(Sym *s, Reloc *r)
+ {
+@@ -859,15 +872,22 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
+ 			rel = addrel(cursym);
+ 			rel->off = pc - cursym->value;
+ 			rel->siz = 4;
+-			rel->type = D_ADDR;
+ 			rel->sym = p->to.sym;
+ 			rel->add = p->to.offset;
++			if(flag_shared) {
++				rel->type = D_PCREL;
++				rel->add += pc - p->pcrel->pc - 8;
++			} else
++				rel->type = D_ADDR;
+ 			o1 = 0;
+ 		}
+ 		break;
+ 
+ 	case 12:	/* movw $lcon, reg */
+ 		o1 = omvl(p, &p->from, p->to.reg);
++		if(o->flag & LPCREL) {
++			o2 = oprrr(AADD, p->scond) | p->to.reg | REGPC << 16 | p->to.reg << 12;
++		}
+ 		break;
+ 
+ 	case 13:	/* op $lcon, [R], R */
+@@ -1172,13 +1192,23 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
+ 		break;
+ 
+ 	case 62:	/* case R -> movw	R<<2(PC),PC */
+-		o1 = olrr(p->from.reg, REGPC, REGPC, p->scond);
+-		o1 |= 2<<7;
++		if(o->flag & LPCREL) {
++			o1 = oprrr(AADD, p->scond) | immrot(1) | p->from.reg << 16 | REGTMP << 12;
++			o2 = olrr(REGTMP, REGPC, REGTMP, p->scond);
++			o2 |= 2<<7;
++			o3 = oprrr(AADD, p->scond) | REGTMP | REGPC << 16 | REGPC << 12;
++		} else {
++			o1 = olrr(p->from.reg, REGPC, REGPC, p->scond);
++			o1 |= 2<<7;
++		}
+ 		break;
+ 
+ 	case 63:	/* bcase */
+-		if(p->cond != P)
++		if(p->cond != P) {
+ 			o1 = p->cond->pc;
++			if(flag_shared)
++				o1 = o1 - p->pcrel->pc - 16;
++		}
+ 		break;
+ 
+ 	/* reloc ops */
+@@ -1187,6 +1217,10 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
+ 		if(!o1)
+ 			break;
+ 		o2 = osr(p->as, p->from.reg, 0, REGTMP, p->scond);
++		if(o->flag & LPCREL) {
++			o3 = o2;
++			o2 = oprrr(AADD, p->scond) | REGTMP | REGPC << 16 | REGTMP << 12;
++		}
+ 		break;
+ 
+ 	case 65:	/* mov/movbu addr,R */
+@@ -1196,6 +1230,10 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
+ 		o2 = olr(0, REGTMP, p->to.reg, p->scond);
+ 		if(p->as == AMOVBU || p->as == AMOVB)
+ 			o2 |= 1<<22;
++		if(o->flag & LPCREL) {
++			o3 = o2;
++			o2 = oprrr(AADD, p->scond) | REGTMP | REGPC << 16 | REGTMP << 12;
++		}
+ 		break;
+ 
+ 	case 68:	/* floating point store -> ADDR */
+@@ -1203,6 +1241,10 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
+ 		if(!o1)
+ 			break;
+ 		o2 = ofsr(p->as, p->from.reg, 0, REGTMP, p->scond, p);
++		if(o->flag & LPCREL) {
++			o3 = o2;
++			o2 = oprrr(AADD, p->scond) | REGTMP | REGPC << 16 | REGTMP << 12;
++		}
+ 		break;
+ 
+ 	case 69:	/* floating point load <- ADDR */
+@@ -1210,6 +1252,10 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
+ 		if(!o1)
+ 			break;
+ 		o2 = ofsr(p->as, p->to.reg, 0, REGTMP, p->scond, p) | (1<<20);
++		if(o->flag & LPCREL) {
++			o3 = o2;
++			o2 = oprrr(AADD, p->scond) | REGTMP | REGPC << 16 | REGTMP << 12;
++		}
+ 		break;
+ 
+ 	/* ArmV4 ops: */
+@@ -1406,12 +1452,20 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
+ 			o2 ^= (1<<5)|(1<<6);
+ 		else if(p->as == AMOVH)
+ 			o2 ^= (1<<6);
++		if(o->flag & LPCREL) {
++			o3 = o2;
++			o2 = oprrr(AADD, p->scond) | REGTMP | REGPC << 16 | REGTMP << 12;
++		}
+ 		break;
+ 	case 94:	/* movh/movhu R,addr -> strh */
+ 		o1 = omvl(p, &p->to, REGTMP);
+ 		if(!o1)
+ 			break;
+ 		o2 = oshr(p->from.reg, 0, REGTMP, p->scond);
++		if(o->flag & LPCREL) {
++			o3 = o2;
++			o2 = oprrr(AADD, p->scond) | REGTMP | REGPC << 16 | REGTMP << 12;
++		}
+ 		break;
+ 	case 95:	/* PLD off(reg) */
+ 		o1 = 0xf5d0f000;
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index dfa86df6e2..abfd7e12ab 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -111,6 +111,7 @@ struct	Prog
+ 	} u0;
+ 	Prog*	cond;
+ 	Prog*	link;
++	Prog*	pcrel;
+ 	int32	pc;
+ 	int32	line;
+ 	int32	spadj;
+@@ -175,6 +176,7 @@ struct	Sym
+ 	Reloc*	r;
+ 	int32	nr;
+ 	int32	maxr;
++	int 	rel_ro;
+ };
+ 
+ #define SIGNINTERN	(1729*325*1729)
+@@ -197,6 +199,7 @@ struct	Optab
+ 	char	size;
+ 	char	param;
+ 	char	flag;
++	uchar	pcrelsiz;
+ };
+ struct	Oprang
+ {
+@@ -214,6 +217,7 @@ enum
+ 	LFROM		= 1<<0,
+ 	LTO		= 1<<1,
+ 	LPOOL		= 1<<2,
++	LPCREL		= 1<<3,
+ 
+ 	C_NONE		= 0,
+ 	C_REG,
+@@ -228,6 +232,7 @@ enum
+ 	C_NCON,		/* ~RCON */
+ 	C_SCON,		/* 0xffff */
+ 	C_LCON,
++	C_LCONADDR,
+ 	C_ZFCON,
+ 	C_SFCON,
+ 	C_LFCON,
+@@ -281,6 +286,7 @@ EXTERN	int32	INITDAT;		/* data location */
+ EXTERN	int32	INITRND;		/* data round above text location */
+ EXTERN	int32	INITTEXT;		/* text location */
+ EXTERN	char*	INITENTRY;		/* entry point */
++EXTERN	char*	LIBINITENTRY;		/* shared library entry point */
+ EXTERN	int32	autosize;
+ EXTERN	Auto*	curauto;
+ EXTERN	Auto*	curhist;
+diff --git a/src/cmd/5l/list.c b/src/cmd/5l/list.c
+index d05ec3b95d..a051774b41 100644
+--- a/src/cmd/5l/list.c
++++ b/src/cmd/5l/list.c
+@@ -435,6 +435,7 @@ cnames[] =
+ 	[C_LAUTO]	= "C_LAUTO",
+ 	[C_LBRA]	= "C_LBRA",
+ 	[C_LCON]	= "C_LCON",
++	[C_LCONADDR]	= "C_LCONADDR",
+ 	[C_LOREG]	= "C_LOREG",
+ 	[C_NCON]	= "C_NCON",
+ 	[C_NONE]	= "C_NONE",
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index c50a108f38..99a096a31f 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -45,6 +45,20 @@ static	Sym*	sym_divu;
+ static	Sym*	sym_mod;
+ static	Sym*	sym_modu;
+ 
++static void
++linkcase(Prog *casep)
++{
++	Prog *p;
++
++	for(p = casep; p != P; p = p->link){
++		if(p->as == ABCASE) {
++			for(; p != P && p->as == ABCASE; p = p->link)
++				p->pcrel = casep;
++			break;
++		}
++	}
++}
++
+ void
+ noops(void)
+ {
+@@ -76,6 +90,11 @@ noops(void)
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+ 		for(p = cursym->text; p != P; p = p->link) {
+ 			switch(p->as) {
++			case ACASE:
++				if(flag_shared)
++					linkcase(p);
++				break;
++
+ 			case ATEXT:
+ 				p->mark |= LEAF;
+ 				break;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 6a95a5e572..1f961748d5 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -80,6 +80,7 @@ main(int argc, char *argv[])
+ 	INITDAT = -1;
+ 	INITRND = -1;
+ 	INITENTRY = 0;
++	LIBINITENTRY = 0;
+ 	nuxiinit();
+ 	
+ 	p = getgoarm();
+@@ -123,6 +124,7 @@ main(int argc, char *argv[])
+ 	flagcount("u", "reject unsafe packages", &debug['u']);
+ 	flagcount("v", "print link trace", &debug['v']);
+ 	flagcount("w", "disable DWARF generation", &debug['w']);
++	flagcount("shared", "generate shared object", &flag_shared);
+ 	
+ 	flagparse(&argc, &argv, usage);
+ 
+diff --git a/src/cmd/5l/optab.c b/src/cmd/5l/optab.c
+index 9e95c096de..1e93a3113b 100644
+--- a/src/cmd/5l/optab.c
++++ b/src/cmd/5l/optab.c
+@@ -77,10 +77,12 @@ Optab	optab[] =
+ 	{ ASWI,		C_NONE,	C_NONE,	C_LCON,		10, 4, 0 },
+ 
+ 	{ AWORD,	C_NONE,	C_NONE,	C_LCON,		11, 4, 0 },
++	{ AWORD,	C_NONE,	C_NONE,	C_LCONADDR,	11, 4, 0 },
+ 	{ AWORD,	C_NONE,	C_NONE,	C_ADDR,		11, 4, 0 },
+ 
+ 	{ AMOVW,	C_NCON,	C_NONE,	C_REG,		12, 4, 0 },
+ 	{ AMOVW,	C_LCON,	C_NONE,	C_REG,		12, 4, 0,	LFROM },
++	{ AMOVW,	C_LCONADDR,	C_NONE,	C_REG,	12, 4, 0,	LFROM | LPCREL, 4},
+ 
+ 	{ AADD,		C_NCON,	C_REG,	C_REG,		13, 8, 0 },
+ 	{ AADD,		C_NCON,	C_NONE,	C_REG,		13, 8, 0 },
+@@ -119,20 +121,20 @@ Optab	optab[] =
+ 
+ 	{ AMOVW,	C_REG,	C_NONE,	C_LAUTO,	30, 8, REGSP,	LTO },
+ 	{ AMOVW,	C_REG,	C_NONE,	C_LOREG,	30, 8, 0,	LTO },
+-	{ AMOVW,	C_REG,	C_NONE,	C_ADDR,		64, 8, 0,	LTO },
++	{ AMOVW,	C_REG,	C_NONE,	C_ADDR,		64, 8, 0,	LTO | LPCREL, 4 },
+ 	{ AMOVB,	C_REG,	C_NONE,	C_LAUTO,	30, 8, REGSP,	LTO },
+ 	{ AMOVB,	C_REG,	C_NONE,	C_LOREG,	30, 8, 0,	LTO },
+-	{ AMOVB,	C_REG,	C_NONE,	C_ADDR,		64, 8, 0,	LTO },
++	{ AMOVB,	C_REG,	C_NONE,	C_ADDR,		64, 8, 0,	LTO | LPCREL, 4 },
+ 	{ AMOVBU,	C_REG,	C_NONE,	C_LAUTO,	30, 8, REGSP,	LTO },
+ 	{ AMOVBU,	C_REG,	C_NONE,	C_LOREG,	30, 8, 0,	LTO },
+-	{ AMOVBU,	C_REG,	C_NONE,	C_ADDR,		64, 8, 0,	LTO },
++	{ AMOVBU,	C_REG,	C_NONE,	C_ADDR,		64, 8, 0,	LTO | LPCREL, 4 },
+ 
+ 	{ AMOVW,	C_LAUTO,C_NONE,	C_REG,		31, 8, REGSP,	LFROM },
+ 	{ AMOVW,	C_LOREG,C_NONE,	C_REG,		31, 8, 0,	LFROM },
+-	{ AMOVW,	C_ADDR,	C_NONE,	C_REG,		65, 8, 0,	LFROM },
++	{ AMOVW,	C_ADDR,	C_NONE,	C_REG,		65, 8, 0,	LFROM | LPCREL, 4 },
+ 	{ AMOVBU,	C_LAUTO,C_NONE,	C_REG,		31, 8, REGSP,	LFROM },
+ 	{ AMOVBU,	C_LOREG,C_NONE,	C_REG,		31, 8, 0,	LFROM },
+-	{ AMOVBU,	C_ADDR,	C_NONE,	C_REG,		65, 8, 0,	LFROM },
++	{ AMOVBU,	C_ADDR,	C_NONE,	C_REG,		65, 8, 0,	LFROM | LPCREL, 4 },
+ 
+ 	{ AMOVW,	C_LACON,C_NONE,	C_REG,		34, 8, REGSP,	LFROM },
+ 
+@@ -159,8 +161,8 @@ Optab	optab[] =
+ 	{ AMOVF,	C_LAUTO,C_NONE,	C_FREG,		53, 12, REGSP,	LFROM },
+ 	{ AMOVF,	C_LOREG,C_NONE,	C_FREG,		53, 12, 0,	LFROM },
+ 
+-	{ AMOVF,	C_FREG,	C_NONE,	C_ADDR,		68, 8, 0,	LTO },
+-	{ AMOVF,	C_ADDR,	C_NONE,	C_FREG,		69, 8, 0,	LFROM },
++	{ AMOVF,	C_FREG,	C_NONE,	C_ADDR,		68, 8, 0,	LTO | LPCREL, 4 },
++	{ AMOVF,	C_ADDR,	C_NONE,	C_FREG,		69, 8, 0,	LFROM | LPCREL, 4},
+ 
+ 	{ AADDF,	C_FREG,	C_NONE,	C_FREG,		54, 4, 0 },
+ 	{ AADDF,	C_FREG,	C_REG,	C_FREG,		54, 4, 0 },
+@@ -178,7 +180,7 @@ Optab	optab[] =
+ 	{ AMOVB,	C_REG,	C_NONE,	C_SHIFT,	61, 4, 0 },
+ 	{ AMOVBU,	C_REG,	C_NONE,	C_SHIFT,	61, 4, 0 },
+ 
+-	{ ACASE,	C_REG,	C_NONE,	C_NONE,		62, 4, 0 },
++	{ ACASE,	C_REG,	C_NONE,	C_NONE,		62, 4, 0, LPCREL, 8 },
+ 	{ ABCASE,	C_NONE, C_NONE, C_SBRA,		63, 4, 0 },
+ 
+ 	{ AMOVH,	C_REG,	C_NONE, C_HAUTO,	70, 4, REGSP,	0 },
+@@ -195,20 +197,20 @@ Optab	optab[] =
+ 
+ 	{ AMOVH,	C_REG,	C_NONE, C_LAUTO,	72, 8, REGSP,	LTO },
+ 	{ AMOVH,	C_REG,	C_NONE,	C_LOREG,	72, 8, 0,	LTO },
+-	{ AMOVH,	C_REG,	C_NONE,	C_ADDR,	94, 8, 0,	LTO },
++	{ AMOVH,	C_REG,	C_NONE,	C_ADDR,	94, 8, 0,	LTO | LPCREL, 4 },
+ 	{ AMOVHU,	C_REG,	C_NONE, C_LAUTO,	72, 8, REGSP,	LTO },
+ 	{ AMOVHU,	C_REG,	C_NONE,	C_LOREG,	72, 8, 0,	LTO },
+-	{ AMOVHU,	C_REG,	C_NONE,	C_ADDR,	94, 8, 0,	LTO },
++	{ AMOVHU,	C_REG,	C_NONE,	C_ADDR,	94, 8, 0,	LTO | LPCREL, 4 },
+ 
+ 	{ AMOVB,	C_LAUTO,C_NONE,	C_REG,		73, 8, REGSP,	LFROM },
+ 	{ AMOVB,	C_LOREG,C_NONE,	C_REG,		73, 8, 0,	LFROM },
+-	{ AMOVB,	C_ADDR,	C_NONE,	C_REG,		93, 8, 0,	LFROM },
++	{ AMOVB,	C_ADDR,	C_NONE,	C_REG,		93, 8, 0,	LFROM | LPCREL, 4 },
+ 	{ AMOVH,	C_LAUTO,C_NONE, C_REG,		73, 8, REGSP,	LFROM },
+ 	{ AMOVH,	C_LOREG,C_NONE,	C_REG,		73, 8, 0,	LFROM },
+-	{ AMOVH,	C_ADDR,	C_NONE,	C_REG,		93, 8, 0,	LFROM },
++	{ AMOVH,	C_ADDR,	C_NONE,	C_REG,		93, 8, 0,	LFROM | LPCREL, 4 },
+ 	{ AMOVHU,	C_LAUTO,C_NONE, C_REG,		73, 8, REGSP,	LFROM },
+ 	{ AMOVHU,	C_LOREG,C_NONE,	C_REG,		73, 8, 0,	LFROM },
+-	{ AMOVHU,	C_ADDR,	C_NONE,	C_REG,		93, 8, 0,	LFROM },
++	{ AMOVHU,	C_ADDR,	C_NONE,	C_REG,		93, 8, 0,	LFROM | LPCREL, 4 },
+ 
+ 	{ ALDREX,	C_SOREG,C_NONE,	C_REG,		77, 4, 0 },
+ 	{ ASTREX,	C_SOREG,C_REG,	C_REG,		78, 4, 0 },
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index 8266e5d2ae..ece1ff89ce 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -330,9 +330,11 @@ addpool(Prog *p, Adr *a)
+ 	switch(c) {
+ 	default:
+ 		t.to = *a;
++		if(flag_shared && t.to.sym != S)
++			t.pcrel = p;
+ 		break;
+ 
+-	case	C_SROREG:
++	case C_SROREG:
+ 	case C_LOREG:
+ 	case C_ROREG:
+ 	case C_FOREG:
+@@ -347,11 +349,13 @@ addpool(Prog *p, Adr *a)
+ 		break;
+ 	}
+ 
+-	for(q = blitrl; q != P; q = q->link)	/* could hash on t.t0.offset */
+-		if(memcmp(&q->to, &t.to, sizeof(t.to)) == 0) {
+-			p->cond = q;
+-			return;
+-		}
++	if(t.pcrel == P) {
++		for(q = blitrl; q != P; q = q->link)	/* could hash on t.t0.offset */
++			if(q->pcrel == P && memcmp(&q->to, &t.to, sizeof(t.to)) == 0) {
++				p->cond = q;
++				return;
++			}
++	}
+ 
+ 	q = prg();
+ 	*q = t;
+@@ -570,7 +574,10 @@ aclass(Adr *a)
+ 			if(s == S)
+ 				break;
+ 			instoffset = 0;	// s.b. unused but just in case
+-			return C_LCON;
++			if(flag_shared)
++				return C_LCONADDR;
++			else
++				return C_LCON;
+ 
+ 		case D_AUTO:
+ 			instoffset = autosize + a->offset;
+@@ -736,8 +743,14 @@ buildop(void)
+ 	for(i=0; i<C_GOK; i++)
+ 		for(n=0; n<C_GOK; n++)
+ 			xcmp[i][n] = cmp(n, i);
+-	for(n=0; optab[n].as != AXXX; n++)
+-		;
++	for(n=0; optab[n].as != AXXX; n++) {
++		if((optab[n].flag & LPCREL) != 0) {
++			if(flag_shared)
++				optab[n].size += optab[n].pcrelsiz;
++			else
++				optab[n].flag &= ~LPCREL;
++		}
++	}
+ 	qsort(optab, n, sizeof(optab[0]), ocmp);
+ 	for(i=0; i<n; i++) {
+ 		r = optab[i].as;
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index ebe412074c..eb2c79ca15 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -99,6 +99,20 @@ int nelfsym = 1;
+ static void addpltsym(Sym*);
+ static void addgotsym(Sym*);
+ 
++Sym *
++lookuprel(void)
++{
++	return lookup(".rela", 0);
++}
++
++void
++adddynrela(Sym *rela, Sym *s, Reloc *r)
++{
++	addaddrplus(rela, s, r->off);
++	adduint64(rela, R_X86_64_RELATIVE);
++	addaddrplus(rela, r->sym, r->add); // Addend
++}
++
+ void
+ adddynrel(Sym *s, Reloc *r)
+ {
+@@ -463,7 +477,7 @@ adddynsym(Sym *s)
+ 			addaddr(d, s);
+ 	
+ 		/* size of object */
+-		adduint64(d, 0);
++		adduint64(d, s->size);
+ 	
+ 		if(!s->dynexport && s->dynimplib && needlib(s->dynimplib)) {
+ 			elfwritedynent(lookup(".dynamic", 0), DT_NEEDED,
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 054ae5e02c..b8b7913308 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -181,6 +181,7 @@ struct	Sym
+ 	Reloc*	r;
+ 	int32	nr;
+ 	int32	maxr;
++	int 	rel_ro;
+ };
+ struct	Optab
+ {
+@@ -320,6 +321,7 @@ EXTERN	int32	INITRND;
+ EXTERN	int64	INITTEXT;
+ EXTERN	int64	INITDAT;
+ EXTERN	char*	INITENTRY;		/* entry point */
++EXTERN	char*	LIBINITENTRY;		/* shared library entry point */
+ EXTERN	char*	pcstr;
+ EXTERN	Auto*	curauto;
+ EXTERN	Auto*	curhist;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 433044e22c..e381b90a76 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -82,6 +82,7 @@ main(int argc, char *argv[])
+ 	INITDAT = -1;
+ 	INITRND = -1;
+ 	INITENTRY = 0;
++	LIBINITENTRY = 0;
+ 	nuxiinit();
+ 
+ 	flagcount("1", "use alternate profiling code", &debug['1']);
+@@ -117,6 +118,7 @@ main(int argc, char *argv[])
+ 	flagcount("u", "reject unsafe packages", &debug['u']);
+ 	flagcount("v", "print link trace", &debug['v']);
+ 	flagcount("w", "disable DWARF generation", &debug['w']);
++	flagcount("shared", "generate shared object", &flag_shared);
+ 	
+ 	flagparse(&argc, &argv, usage);
+ 
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index a181178680..283a0e3495 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -372,7 +372,10 @@ oclass(Adr *a)
+ 				switch(a->index) {
+ 				case D_EXTERN:
+ 				case D_STATIC:
+-					return Yi32;	/* TO DO: Yi64 */
++					if(flag_shared)
++						return Yiauto;
++					else
++						return Yi32;	/* TO DO: Yi64 */
+ 				case D_AUTO:
+ 				case D_PARAM:
+ 					return Yiauto;
+@@ -731,7 +734,10 @@ vaddr(Adr *a, Reloc *r)
+ 			diag("need reloc for %D", a);
+ 			errorexit();
+ 		}
+-		r->type = D_ADDR;
++		if(flag_shared)
++			r->type = D_PCREL;
++		else
++			r->type = D_ADDR;
+ 		r->siz = 4;	// TODO: 8 for external symbols
+ 		r->off = -1;	// caller must fill in
+ 		r->sym = s;
+@@ -760,6 +766,8 @@ asmandsz(Adr *a, int r, int rex, int m64)
+ 				goto bad;
+ 			case D_STATIC:
+ 			case D_EXTERN:
++				if(flag_shared)
++					goto bad;
+ 				t = D_NONE;
+ 				v = vaddr(a, &rel);
+ 				break;
+@@ -820,7 +828,7 @@ asmandsz(Adr *a, int r, int rex, int m64)
+ 
+ 	rexflag |= (regrex[t] & Rxb) | rex;
+ 	if(t == D_NONE || (D_CS <= t && t <= D_GS)) {
+-		if(asmode != 64){
++		if(flag_shared && t == D_NONE && (a->type == D_STATIC || a->type == D_EXTERN) || asmode != 64) {
+ 			*andptr++ = (0 << 6) | (5 << 0) | (r << 3);
+ 			goto putrelv;
+ 		}
+@@ -1776,13 +1784,17 @@ asmins(Prog *p)
+ 			if(c != 0xf2 && c != 0xf3 && (c < 0x64 || c > 0x67) && c != 0x2e && c != 0x3e && c != 0x26)
+ 				break;
+ 		}
+-		for(r=cursym->r+cursym->nr; r-- > cursym->r; ) {
+-			if(r->off < p->pc)
+-				break;
+-			r->off++;
+-		}
+ 		memmove(and+np+1, and+np, n-np);
+ 		and[np] = 0x40 | rexflag;
+ 		andptr++;
+ 	}
++	n = andptr - and;
++	for(r=cursym->r+cursym->nr; r-- > cursym->r; ) {
++		if(r->off < p->pc)
++			break;
++		if(rexflag)
++			r->off++;
++		if(r->type == D_PCREL)
++			r->add -= p->pc + n - (r->off + r->siz);
++	}
+ }
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index c5121f0b96..2cdf4ff2ab 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -95,6 +95,18 @@ int	nelfsym = 1;
+ static void	addpltsym(Sym*);
+ static void	addgotsym(Sym*);
+ 
++Sym *
++lookuprel(void)
++{
++	return lookup(".rel", 0);
++}
++
++void
++adddynrela(Sym *rela, Sym *s, Reloc *r)
++{
++	sysfatal("adddynrela not implemented");
++}
++
+ void
+ adddynrel(Sym *s, Reloc *r)
+ {
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 8452e4bd4d..8b172f4047 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -163,6 +163,7 @@ struct	Sym
+ 	Reloc*	r;
+ 	int32	nr;
+ 	int32	maxr;
++	int 	rel_ro;
+ };
+ struct	Optab
+ {
+@@ -275,6 +276,7 @@ EXTERN	int32	INITRND;
+ EXTERN	int32	INITTEXT;
+ EXTERN	int32	INITDAT;
+ EXTERN	char*	INITENTRY;		/* entry point */
++EXTERN	char*	LIBINITENTRY;		/* shared library entry point */
+ EXTERN	int32	casepc;
+ EXTERN	char*	pcstr;
+ EXTERN	Auto*	curauto;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 3336764af7..74820e6334 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -89,6 +89,7 @@ main(int argc, char *argv[])
+ 	INITDAT = -1;
+ 	INITRND = -1;
+ 	INITENTRY = 0;
++	LIBINITENTRY = 0;
+ 	nuxiinit();
+ 
+ 	flagcount("1", "use alternate profiling code", &debug['1']);
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 28e3848fd9..30e1309d24 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -232,7 +232,9 @@ void
+ dynrelocsym(Sym *s)
+ {
+ 	Reloc *r;
+-
++	Sym *rel;
++	Sym *got;
++	
+ 	if(HEADTYPE == Hwindows) {
+ 		Sym *rel, *targ;
+ 
+@@ -268,9 +270,23 @@ dynrelocsym(Sym *s)
+ 		return;
+ 	}
+ 
+-	for(r=s->r; r<s->r+s->nr; r++)
++	got = rel = nil;
++	if(flag_shared) {
++		rel = lookuprel();
++		got = lookup(".got", 0);
++	}
++	s->rel_ro = 0;
++	for(r=s->r; r<s->r+s->nr; r++) {
+ 		if(r->sym != S && r->sym->type == SDYNIMPORT || r->type >= 256)
+ 			adddynrel(s, r);
++		if(flag_shared && r->sym != S && (r->sym->dynimpname == nil || r->sym->dynexport) && r->type == D_ADDR
++				&& (s == got || s->type == SDATA || s->type == SGOSTRING || s->type == STYPE || s->type == SRODATA)) {
++			// Create address based RELATIVE relocation
++			adddynrela(rel, s, r);
++			if(s->type < SNOPTRDATA)
++				s->rel_ro = 1;
++		}
++	}
+ }
+ 
+ void
+@@ -714,6 +730,29 @@ setuint64(Sym *s, vlong r, uint64 v)
+ 	setuintxx(s, r, v, 8);
+ }
+ 
++/*
++static vlong
++addaddrpcrelplus(Sym *s, Sym *t, int32 add)
++{
++	vlong i;
++	Reloc *r;
++
++	if(s->type == 0)
++		s->type = SDATA;
++	s->reachable = 1;
++	i = s->size;
++	s->size += PtrSize;
++	symgrow(s, s->size);
++	r = addrel(s);
++	r->sym = t;
++	r->off = i;
++	r->siz = PtrSize;
++	r->type = D_PCREL;
++	r->add = add;
++	return i;
++}
++*/
++
+ vlong
+ addaddrplus(Sym *s, Sym *t, int32 add)
+ {
+@@ -968,6 +1007,12 @@ dodata(void)
+ 	}
+ 	*l = nil;
+ 
++	if(flag_shared) {
++		for(s=datap; s != nil; s = s->next) {
++			if(s->rel_ro)
++				s->type = SDATARELRO;
++		}
++	}
+ 	datap = datsort(datap);
+ 
+ 	/*
+@@ -1004,7 +1049,7 @@ dodata(void)
+ 	sect->vaddr = datsize;
+ 	lookup("noptrdata", 0)->sect = sect;
+ 	lookup("enoptrdata", 0)->sect = sect;
+-	for(; s != nil && s->type < SDATA; s = s->next) {
++	for(; s != nil && s->type < SDATARELRO; s = s->next) {
+ 		s->sect = sect;
+ 		s->type = SDATA;
+ 		t = alignsymsize(s->size);
+@@ -1015,12 +1060,34 @@ dodata(void)
+ 	sect->len = datsize - sect->vaddr;
+ 	datsize = rnd(datsize, PtrSize);
+ 
++	/* dynamic relocated rodata */
++	if(flag_shared) {
++		sect = addsection(&segdata, ".data.rel.ro", 06);
++		sect->vaddr = datsize;
++		lookup("datarelro", 0)->sect = sect;
++		lookup("edatarelro", 0)->sect = sect;
++		for(; s != nil && s->type == SDATARELRO; s = s->next) {
++			if(s->align != 0)
++				datsize = rnd(datsize, s->align);
++			s->sect = sect;
++			s->type = SDATA;
++			s->value = datsize;
++			datsize += rnd(s->size, PtrSize);
++		}
++		sect->len = datsize - sect->vaddr;
++		datsize = rnd(datsize, PtrSize);
++	}
++
+ 	/* data */
+ 	sect = addsection(&segdata, ".data", 06);
+ 	sect->vaddr = datsize;
+ 	lookup("data", 0)->sect = sect;
+ 	lookup("edata", 0)->sect = sect;
+ 	for(; s != nil && s->type < SBSS; s = s->next) {
++		if(s->type == SDATARELRO) {
++			cursym = s;
++			diag("unexpected symbol type %d", s->type);
++		}
+ 		s->sect = sect;
+ 		s->type = SDATA;
+ 		t = alignsymsize(s->size);
+@@ -1080,6 +1147,7 @@ dodata(void)
+ 	sect->vaddr = 0;
+ 	lookup("rodata", 0)->sect = sect;
+ 	lookup("erodata", 0)->sect = sect;
++	lookup("reloffset", 0)->sect = sect;
+ 	datsize = 0;
+ 	s = datap;
+ 	for(; s != nil && s->type < STYPELINK; s = s->next) {
+@@ -1227,7 +1295,7 @@ textaddress(void)
+ void
+ address(void)
+ {
+-	Section *s, *text, *data, *rodata, *symtab, *pclntab, *noptr, *bss, *noptrbss;
++	Section *s, *text, *data, *rodata, *symtab, *pclntab, *noptr, *bss, *noptrbss, *datarelro;
+ 	Section *gcdata, *gcbss, *typelink;
+ 	Sym *sym, *sub;
+ 	uvlong va;
+@@ -1257,6 +1325,7 @@ address(void)
+ 	noptr = nil;
+ 	bss = nil;
+ 	noptrbss = nil;
++	datarelro = nil;
+ 	for(s=segdata.sect; s != nil; s=s->next) {
+ 		s->vaddr = va;
+ 		va += s->len;
+@@ -1270,6 +1339,8 @@ address(void)
+ 			bss = s;
+ 		if(strcmp(s->name, ".noptrbss") == 0)
+ 			noptrbss = s;
++		if(strcmp(s->name, ".data.rel.ro") == 0)
++			datarelro = s;
+ 	}
+ 	segdata.filelen -= bss->len + noptrbss->len; // deduct .bss
+ 
+@@ -1297,6 +1368,10 @@ address(void)
+ 	xdefine("erodata", SRODATA, rodata->vaddr + rodata->len);
+ 	xdefine("typelink", SRODATA, typelink->vaddr);
+ 	xdefine("etypelink", SRODATA, typelink->vaddr + typelink->len);
++	if(datarelro != nil) {
++		xdefine("datarelro", SRODATA, datarelro->vaddr);
++		xdefine("edatarelro", SRODATA, datarelro->vaddr + datarelro->len);
++	}
+ 	xdefine("gcdata", SGCDATA, gcdata->vaddr);
+ 	xdefine("egcdata", SGCDATA, gcdata->vaddr + gcdata->len);
+ 	xdefine("gcbss", SGCBSS, gcbss->vaddr);
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 485d74c6a3..d0b5fa8304 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -794,6 +794,8 @@ doelf(void)
+ 	addstring(shstrtab, ".elfdata");
+ 	addstring(shstrtab, ".rodata");
+ 	addstring(shstrtab, ".typelink");
++	if(flag_shared)
++		addstring(shstrtab, ".data.rel.ro");
+ 	addstring(shstrtab, ".gcdata");
+ 	addstring(shstrtab, ".gcbss");
+ 	addstring(shstrtab, ".gosymtab");
+@@ -927,6 +929,13 @@ doelf(void)
+ 		
+ 		elfwritedynent(s, DT_DEBUG, 0);
+ 
++		if(flag_shared) {
++			Sym *init_sym = lookup(LIBINITENTRY, 0);
++			if(init_sym->type != STEXT)
++				diag("entry not text: %s", init_sym->name);
++			elfwritedynentsym(s, DT_INIT, init_sym);
++		}
++
+ 		// Do not write DT_NULL.  elfdynhash will finish it.
+ 	}
+ }
+@@ -1277,7 +1286,11 @@ asmbelf(vlong symo)
+ 	eh->ident[EI_DATA] = ELFDATA2LSB;
+ 	eh->ident[EI_VERSION] = EV_CURRENT;
+ 
+-	eh->type = ET_EXEC;
++	if(flag_shared)
++		eh->type = ET_DYN;
++	else
++		eh->type = ET_EXEC;
++
+ 	eh->version = EV_CURRENT;
+ 	eh->entry = entryvalue();
+ 
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index b2c5243dfd..c5b9aa5384 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -732,6 +732,8 @@ deadcode(void)
+ 		Bprint(&bso, "%5.2f deadcode\n", cputime());
+ 
+ 	mark(lookup(INITENTRY, 0));
++	if(flag_shared)
++		mark(lookup(LIBINITENTRY, 0));
+ 	for(i=0; i<nelem(morename); i++)
+ 		mark(lookup(morename[i], 0));
+ 
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 70c2b5540d..152cd052c5 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -104,6 +104,13 @@ libinit(void)
+ 		sprint(INITENTRY, "_rt0_%s_%s", goarch, goos);
+ 	}
+ 	lookup(INITENTRY, 0)->type = SXREF;
++	if(flag_shared) {
++		if(LIBINITENTRY == nil) {
++			LIBINITENTRY = mal(strlen(goarch)+strlen(goos)+20);
++			sprint(LIBINITENTRY, "_rt0_%s_%s_lib", goarch, goos);
++		}
++		lookup(LIBINITENTRY, 0)->type = SXREF;
++	}
+ }
+ 
+ void
+@@ -305,7 +312,7 @@ loadlib(void)
+ 	//
+ 	// Exception: on OS X, programs such as Shark only work with dynamic
+ 	// binaries, so leave it enabled on OS X (Mach-O) binaries.
+-	if(!havedynamic && HEADTYPE != Hdarwin)
++	if(!flag_shared && !havedynamic && HEADTYPE != Hdarwin)
+ 		debug['d'] = 1;
+ 	
+ 	importcycles();
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 05363fc14d..0f3ce7f693 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -47,6 +47,7 @@ enum
+ 	SELFROSECT,
+ 	SELFSECT,
+ 	SNOPTRDATA,
++	SDATARELRO,
+ 	SDATA,
+ 	SMACHO,	/* Mach-O __nl_symbol_ptr */
+ 	SMACHOGOT,
+@@ -138,6 +139,7 @@ EXTERN	int	havedynamic;
+ EXTERN	int	iscgo;
+ EXTERN	int	elfglobalsymndx;
+ EXTERN	int	flag_race;
++EXTERN	int flag_shared;
+ EXTERN	char*	tracksym;
+ EXTERN	char*	interpreter;
+ 
+@@ -176,6 +178,8 @@ void	symtab(void);
+ void	Lflag(char *arg);
+ void	usage(void);
+ void	adddynrel(Sym*, Reloc*);
++void	adddynrela(Sym*, Sym*, Reloc*);
++Sym*	lookuprel();
+ void	ldobj1(Biobuf *f, char*, int64 len, char *pn);
+ void	ldobj(Biobuf*, char*, int64, char*, int);
+ void	ldelf(Biobuf*, char*, int64, char*);
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 87b72659b1..12fad085d6 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -387,6 +387,11 @@ symtab(void)
+ 	xdefine("etypelink", SRODATA, 0);
+ 	xdefine("rodata", SRODATA, 0);
+ 	xdefine("erodata", SRODATA, 0);
++	xdefine("reloffset", SRODATA, 0);
++	if(flag_shared) {
++		xdefine("datarelro", SDATARELRO, 0);
++		xdefine("edatarelro", SDATARELRO, 0);
++	}
+ 	xdefine("gcdata", SGCDATA, 0);
+ 	xdefine("egcdata", SGCDATA, 0);
+ 	xdefine("gcbss", SGCBSS, 0);

@@ -16,8 +16,96 @@ Date:   Sat Jul 28 09:08:09 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/sha1/sha1block_arm64.go     |  4 +---
  src/crypto/sha256/sha256block_arm64.go |  4 +---
  src/hash/crc32/crc32_arm64.go          | 14 ++++++--------
  3 files changed, 8 insertions(+), 14 deletions(-)
+
+diff --git a/src/crypto/sha1/sha1block_arm64.go b/src/crypto/sha1/sha1block_arm64.go
+index 173c40fec8..08d3df0000 100644
+--- a/src/crypto/sha1/sha1block_arm64.go
++++ b/src/crypto/sha1/sha1block_arm64.go
+@@ -13,13 +13,11 @@ var k = []uint32{
+ 	0xCA62C1D6,
+ }
+ 
+-var hasSHA1 = cpu.ARM64.HasSHA1
+-
+ //go:noescape
+ func sha1block(h []uint32, p []byte, k []uint32)
+ 
+ func block(dig *digest, p []byte) {
+-	if !hasSHA1 {
++	if !cpu.ARM64.HasSHA1 {
+ 		blockGeneric(dig, p)
+ 	} else {
+ 		h := dig.h[:]
+diff --git a/src/crypto/sha256/sha256block_arm64.go b/src/crypto/sha256/sha256block_arm64.go
+index 75bbcbe0eb..e5da566363 100644
+--- a/src/crypto/sha256/sha256block_arm64.go
++++ b/src/crypto/sha256/sha256block_arm64.go
+@@ -8,13 +8,11 @@ import "internal/cpu"
+ 
+ var k = _K
+ 
+-var hasSHA2 = cpu.ARM64.HasSHA2
+-
+ //go:noescape
+ func sha256block(h []uint32, p []byte, k []uint32)
+ 
+ func block(dig *digest, p []byte) {
+-	if !hasSHA2 {
++	if !cpu.ARM64.HasSHA2 {
+ 		blockGeneric(dig, p)
+ 	} else {
+ 		h := dig.h[:]
+diff --git a/src/hash/crc32/crc32_arm64.go b/src/hash/crc32/crc32_arm64.go
+index 1f8779d506..0242d1d8a7 100644
+--- a/src/hash/crc32/crc32_arm64.go
++++ b/src/hash/crc32/crc32_arm64.go
+@@ -13,20 +13,18 @@ import "internal/cpu"
+ func castagnoliUpdate(crc uint32, p []byte) uint32
+ func ieeeUpdate(crc uint32, p []byte) uint32
+ 
+-var hasCRC32 = cpu.ARM64.HasCRC32
+-
+ func archAvailableCastagnoli() bool {
+-	return hasCRC32
++	return cpu.ARM64.HasCRC32
+ }
+ 
+ func archInitCastagnoli() {
+-	if !hasCRC32 {
++	if !cpu.ARM64.HasCRC32 {
+ 		panic("arch-specific crc32 instruction for Catagnoli not available")
+ 	}
+ }
+ 
+ func archUpdateCastagnoli(crc uint32, p []byte) uint32 {
+-	if !hasCRC32 {
++	if !cpu.ARM64.HasCRC32 {
+ 		panic("arch-specific crc32 instruction for Castagnoli not available")
+ 	}
+ 
+@@ -34,17 +32,17 @@ func archUpdateCastagnoli(crc uint32, p []byte) uint32 {
+ }
+ 
+ func archAvailableIEEE() bool {
+-	return hasCRC32
++	return cpu.ARM64.HasCRC32
+ }
+ 
+ func archInitIEEE() {
+-	if !hasCRC32 {
++	if !cpu.ARM64.HasCRC32 {
+ 		panic("arch-specific crc32 instruction for IEEE not available")
+ 	}
+ }
+ 
+ func archUpdateIEEE(crc uint32, p []byte) uint32 {
+-	if !hasCRC32 {
++	if !cpu.ARM64.HasCRC32 {
+ 		panic("arch-specific crc32 instruction for IEEE not available")
+ 	}
+ 

@@ -14,7 +14,7 @@ Date:   Thu Aug 1 06:26:48 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/next/6-stdlib/99-minor/crypto/md5/62384.md    |  1 +
  doc/next/6-stdlib/99-minor/crypto/sha1/62384.md   |  1 +
  doc/next/6-stdlib/99-minor/crypto/sha256/62384.md |  1 +
@@ -29,3 +29,450 @@ Date:   Thu Aug 1 06:26:48 2024 +0000
  src/crypto/sha512/sha512.go                       | 27 +++++++++++++----
  src/crypto/sha512/sha512_test.go                  | 12 ++++++++
  13 files changed, 127 insertions(+), 31 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/crypto/md5/62384.md b/doc/next/6-stdlib/99-minor/crypto/md5/62384.md
+new file mode 100644
+index 0000000000..5ff3b58bb8
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/md5/62384.md
+@@ -0,0 +1 @@
++The value returned by [md5.New] now also implements the [encoding.BinaryAppender] interface.
+diff --git a/doc/next/6-stdlib/99-minor/crypto/sha1/62384.md b/doc/next/6-stdlib/99-minor/crypto/sha1/62384.md
+new file mode 100644
+index 0000000000..1b4a36aaad
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/sha1/62384.md
+@@ -0,0 +1 @@
++The value returned by [sha1.New] now also implements the [encoding.BinaryAppender] interface.
+diff --git a/doc/next/6-stdlib/99-minor/crypto/sha256/62384.md b/doc/next/6-stdlib/99-minor/crypto/sha256/62384.md
+new file mode 100644
+index 0000000000..d5efbc9152
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/sha256/62384.md
+@@ -0,0 +1 @@
++The values returned by [sha256.New] and [sha256.New224] now also implement the [encoding.BinaryAppender] interface
+diff --git a/doc/next/6-stdlib/99-minor/crypto/sha512/62384.md b/doc/next/6-stdlib/99-minor/crypto/sha512/62384.md
+new file mode 100644
+index 0000000000..5f4a44c144
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/sha512/62384.md
+@@ -0,0 +1 @@
++The values returned by [sha512.New], [sha512.New384], [sha512.New512_224] and [sha512.New512_256] now also implement the [encoding.BinaryAppender] interface.
+diff --git a/src/crypto/internal/boring/sha.go b/src/crypto/internal/boring/sha.go
+index a49c119738..524069db4f 100644
+--- a/src/crypto/internal/boring/sha.go
++++ b/src/crypto/internal/boring/sha.go
+@@ -159,8 +159,11 @@ const (
+ )
+ 
+ func (h *sha1Hash) MarshalBinary() ([]byte, error) {
++	return h.AppendBinary(make([]byte, 0, sha1MarshaledSize))
++}
++
++func (h *sha1Hash) AppendBinary(b []byte) ([]byte, error) {
+ 	d := (*sha1Ctx)(unsafe.Pointer(&h.ctx))
+-	b := make([]byte, 0, sha1MarshaledSize)
+ 	b = append(b, sha1Magic...)
+ 	b = appendUint32(b, d.h[0])
+ 	b = appendUint32(b, d.h[1])
+@@ -168,7 +171,7 @@ func (h *sha1Hash) MarshalBinary() ([]byte, error) {
+ 	b = appendUint32(b, d.h[3])
+ 	b = appendUint32(b, d.h[4])
+ 	b = append(b, d.x[:d.nx]...)
+-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
++	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
+ 	b = appendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
+ 	return b, nil
+ }
+@@ -285,8 +288,11 @@ type sha256Ctx struct {
+ }
+ 
+ func (h *sha224Hash) MarshalBinary() ([]byte, error) {
++	return h.AppendBinary(make([]byte, 0, marshaledSize256))
++}
++
++func (h *sha224Hash) AppendBinary(b []byte) ([]byte, error) {
+ 	d := (*sha256Ctx)(unsafe.Pointer(&h.ctx))
+-	b := make([]byte, 0, marshaledSize256)
+ 	b = append(b, magic224...)
+ 	b = appendUint32(b, d.h[0])
+ 	b = appendUint32(b, d.h[1])
+@@ -297,14 +303,17 @@ func (h *sha224Hash) MarshalBinary() ([]byte, error) {
+ 	b = appendUint32(b, d.h[6])
+ 	b = appendUint32(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
++	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
+ 	b = appendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
+ 	return b, nil
+ }
+ 
+ func (h *sha256Hash) MarshalBinary() ([]byte, error) {
++	return h.AppendBinary(make([]byte, 0, marshaledSize256))
++}
++
++func (h *sha256Hash) AppendBinary(b []byte) ([]byte, error) {
+ 	d := (*sha256Ctx)(unsafe.Pointer(&h.ctx))
+-	b := make([]byte, 0, marshaledSize256)
+ 	b = append(b, magic256...)
+ 	b = appendUint32(b, d.h[0])
+ 	b = appendUint32(b, d.h[1])
+@@ -315,7 +324,7 @@ func (h *sha256Hash) MarshalBinary() ([]byte, error) {
+ 	b = appendUint32(b, d.h[6])
+ 	b = appendUint32(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
++	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
+ 	b = appendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
+ 	return b, nil
+ }
+@@ -462,8 +471,11 @@ const (
+ )
+ 
+ func (h *sha384Hash) MarshalBinary() ([]byte, error) {
++	return h.AppendBinary(make([]byte, 0, marshaledSize512))
++}
++
++func (h *sha384Hash) AppendBinary(b []byte) ([]byte, error) {
+ 	d := (*sha512Ctx)(unsafe.Pointer(&h.ctx))
+-	b := make([]byte, 0, marshaledSize512)
+ 	b = append(b, magic384...)
+ 	b = appendUint64(b, d.h[0])
+ 	b = appendUint64(b, d.h[1])
+@@ -474,14 +486,17 @@ func (h *sha384Hash) MarshalBinary() ([]byte, error) {
+ 	b = appendUint64(b, d.h[6])
+ 	b = appendUint64(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
++	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
+ 	b = appendUint64(b, d.nl>>3|d.nh<<61)
+ 	return b, nil
+ }
+ 
+ func (h *sha512Hash) MarshalBinary() ([]byte, error) {
++	return h.AppendBinary(make([]byte, 0, marshaledSize512))
++}
++
++func (h *sha512Hash) AppendBinary(b []byte) ([]byte, error) {
+ 	d := (*sha512Ctx)(unsafe.Pointer(&h.ctx))
+-	b := make([]byte, 0, marshaledSize512)
+ 	b = append(b, magic512...)
+ 	b = appendUint64(b, d.h[0])
+ 	b = appendUint64(b, d.h[1])
+@@ -492,7 +507,7 @@ func (h *sha512Hash) MarshalBinary() ([]byte, error) {
+ 	b = appendUint64(b, d.h[6])
+ 	b = appendUint64(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
++	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
+ 	b = appendUint64(b, d.nl>>3|d.nh<<61)
+ 	return b, nil
+ }
+diff --git a/src/crypto/md5/md5.go b/src/crypto/md5/md5.go
+index 843678702b..c984c3f496 100644
+--- a/src/crypto/md5/md5.go
++++ b/src/crypto/md5/md5.go
+@@ -57,14 +57,17 @@ const (
+ )
+ 
+ func (d *digest) MarshalBinary() ([]byte, error) {
+-	b := make([]byte, 0, marshaledSize)
++	return d.AppendBinary(make([]byte, 0, marshaledSize))
++}
++
++func (d *digest) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic...)
+ 	b = byteorder.BeAppendUint32(b, d.s[0])
+ 	b = byteorder.BeAppendUint32(b, d.s[1])
+ 	b = byteorder.BeAppendUint32(b, d.s[2])
+ 	b = byteorder.BeAppendUint32(b, d.s[3])
+ 	b = append(b, d.x[:d.nx]...)
+-	b = b[:len(b)+len(d.x)-d.nx] // already zero
++	b = append(b, make([]byte, len(d.x)-d.nx)...)
+ 	b = byteorder.BeAppendUint64(b, d.len)
+ 	return b, nil
+ }
+@@ -95,9 +98,10 @@ func consumeUint32(b []byte) ([]byte, uint32) {
+ 	return b[4:], byteorder.BeUint32(b[0:4])
+ }
+ 
+-// New returns a new hash.Hash computing the MD5 checksum. The Hash also
+-// implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
+-// marshal and unmarshal the internal state of the hash.
++// New returns a new [hash.Hash] computing the MD5 checksum. The Hash
++// also implements [encoding.BinaryMarshaler], [encoding.AppendBinary] and
++// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
++// state of the hash.
+ func New() hash.Hash {
+ 	d := new(digest)
+ 	d.Reset()
+diff --git a/src/crypto/md5/md5_test.go b/src/crypto/md5/md5_test.go
+index a5b661126d..c445b10832 100644
+--- a/src/crypto/md5/md5_test.go
++++ b/src/crypto/md5/md5_test.go
+@@ -100,11 +100,23 @@ func TestGoldenMarshal(t *testing.T) {
+ 			continue
+ 		}
+ 
++		stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
++		if err != nil {
++			t.Errorf("could not marshal: %v", err)
++			continue
++		}
++		stateAppend = stateAppend[4:]
++
+ 		if string(state) != g.halfState {
+ 			t.Errorf("md5(%q) state = %q, want %q", g.in, state, g.halfState)
+ 			continue
+ 		}
+ 
++		if string(stateAppend) != g.halfState {
++			t.Errorf("md5(%q) stateAppend = %q, want %q", g.in, stateAppend, g.halfState)
++			continue
++		}
++
+ 		if err := h2.(encoding.BinaryUnmarshaler).UnmarshalBinary(state); err != nil {
+ 			t.Errorf("could not unmarshal: %v", err)
+ 			continue
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index c0742b9d83..8189d1946d 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -49,7 +49,10 @@ const (
+ )
+ 
+ func (d *digest) MarshalBinary() ([]byte, error) {
+-	b := make([]byte, 0, marshaledSize)
++	return d.AppendBinary(make([]byte, 0, marshaledSize))
++}
++
++func (d *digest) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic...)
+ 	b = byteorder.BeAppendUint32(b, d.h[0])
+ 	b = byteorder.BeAppendUint32(b, d.h[1])
+@@ -57,7 +60,7 @@ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	b = byteorder.BeAppendUint32(b, d.h[3])
+ 	b = byteorder.BeAppendUint32(b, d.h[4])
+ 	b = append(b, d.x[:d.nx]...)
+-	b = b[:len(b)+len(d.x)-d.nx] // already zero
++	b = append(b, make([]byte, len(d.x)-d.nx)...)
+ 	b = byteorder.BeAppendUint64(b, d.len)
+ 	return b, nil
+ }
+@@ -99,9 +102,10 @@ func (d *digest) Reset() {
+ 	d.len = 0
+ }
+ 
+-// New returns a new hash.Hash computing the SHA1 checksum. The Hash also
+-// implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
+-// marshal and unmarshal the internal state of the hash.
++// New512_224 returns a new [hash.Hash] computing the SHA1 checksum. The Hash
++// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
++// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
++// state of the hash.
+ func New() hash.Hash {
+ 	if boring.Enabled {
+ 		return boring.NewSHA1()
+diff --git a/src/crypto/sha1/sha1_test.go b/src/crypto/sha1/sha1_test.go
+index 634ab9de1b..32b01d4dee 100644
+--- a/src/crypto/sha1/sha1_test.go
++++ b/src/crypto/sha1/sha1_test.go
+@@ -111,11 +111,23 @@ func TestGoldenMarshal(t *testing.T) {
+ 			continue
+ 		}
+ 
++		stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
++		if err != nil {
++			t.Errorf("could not marshal: %v", err)
++			continue
++		}
++		stateAppend = stateAppend[4:]
++
+ 		if string(state) != g.halfState {
+ 			t.Errorf("sha1(%q) state = %+q, want %+q", g.in, state, g.halfState)
+ 			continue
+ 		}
+ 
++		if string(stateAppend) != g.halfState {
++			t.Errorf("sha1(%q) stateAppend = %+q, want %+q", g.in, stateAppend, g.halfState)
++			continue
++		}
++
+ 		if err := h2.(encoding.BinaryUnmarshaler).UnmarshalBinary(state); err != nil {
+ 			t.Errorf("could not unmarshal: %v", err)
+ 			continue
+diff --git a/src/crypto/sha256/sha256.go b/src/crypto/sha256/sha256.go
+index 68244fd63b..7844f191e1 100644
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@ -64,7 +64,10 @@ const (
+ )
+ 
+ func (d *digest) MarshalBinary() ([]byte, error) {
+-	b := make([]byte, 0, marshaledSize)
++	return d.AppendBinary(make([]byte, 0, marshaledSize))
++}
++
++func (d *digest) AppendBinary(b []byte) ([]byte, error) {
+ 	if d.is224 {
+ 		b = append(b, magic224...)
+ 	} else {
+@@ -79,7 +82,7 @@ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	b = byteorder.BeAppendUint32(b, d.h[6])
+ 	b = byteorder.BeAppendUint32(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+-	b = b[:len(b)+len(d.x)-d.nx] // already zero
++	b = append(b, make([]byte, len(d.x)-d.nx)...)
+ 	b = byteorder.BeAppendUint64(b, d.len)
+ 	return b, nil
+ }
+@@ -138,8 +141,8 @@ func (d *digest) Reset() {
+ 	d.len = 0
+ }
+ 
+-// New returns a new hash.Hash computing the SHA256 checksum. The Hash
+-// also implements [encoding.BinaryMarshaler] and
++// New returns a new [hash.Hash] computing the SHA256 checksum. The Hash
++// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
+ // [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+ // state of the hash.
+ func New() hash.Hash {
+@@ -151,7 +154,10 @@ func New() hash.Hash {
+ 	return d
+ }
+ 
+-// New224 returns a new hash.Hash computing the SHA224 checksum.
++// New224 returns a new [hash.Hash] computing the SHA224 checksum. The Hash
++// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
++// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
++// state of the hash.
+ func New224() hash.Hash {
+ 	if boring.Enabled {
+ 		return boring.NewSHA224()
+diff --git a/src/crypto/sha256/sha256_test.go b/src/crypto/sha256/sha256_test.go
+index d91f01e9ba..92268f32da 100644
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@ -163,11 +163,23 @@ func TestGoldenMarshal(t *testing.T) {
+ 					continue
+ 				}
+ 
++				stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
++				if err != nil {
++					t.Errorf("could not marshal: %v", err)
++					continue
++				}
++				stateAppend = stateAppend[4:]
++
+ 				if string(state) != g.halfState {
+ 					t.Errorf("sha%s(%q) state = %q, want %q", tt.name, g.in, state, g.halfState)
+ 					continue
+ 				}
+ 
++				if string(stateAppend) != g.halfState {
++					t.Errorf("sha%s(%q) stateAppend = %q, want %q", tt.name, g.in, stateAppend, g.halfState)
++					continue
++				}
++
+ 				if err := h2.(encoding.BinaryUnmarshaler).UnmarshalBinary(state); err != nil {
+ 					t.Errorf("could not unmarshal: %v", err)
+ 					continue
+diff --git a/src/crypto/sha512/sha512.go b/src/crypto/sha512/sha512.go
+index dde83625f7..0e2a34a1e3 100644
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@ -140,7 +140,10 @@ const (
+ )
+ 
+ func (d *digest) MarshalBinary() ([]byte, error) {
+-	b := make([]byte, 0, marshaledSize)
++	return d.AppendBinary(make([]byte, 0, marshaledSize))
++}
++
++func (d *digest) AppendBinary(b []byte) ([]byte, error) {
+ 	switch d.function {
+ 	case crypto.SHA384:
+ 		b = append(b, magic384...)
+@@ -162,7 +165,7 @@ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	b = byteorder.BeAppendUint64(b, d.h[6])
+ 	b = byteorder.BeAppendUint64(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+-	b = b[:len(b)+len(d.x)-d.nx] // already zero
++	b = append(b, make([]byte, len(d.x)-d.nx)...)
+ 	b = byteorder.BeAppendUint64(b, d.len)
+ 	return b, nil
+ }
+@@ -201,7 +204,10 @@ func consumeUint64(b []byte) ([]byte, uint64) {
+ 	return b[8:], byteorder.BeUint64(b)
+ }
+ 
+-// New returns a new hash.Hash computing the SHA-512 checksum.
++// New returns a new [hash.Hash] computing the SHA-512 checksum. The Hash
++// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
++// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
++// state of the hash.
+ func New() hash.Hash {
+ 	if boring.Enabled {
+ 		return boring.NewSHA512()
+@@ -211,21 +217,30 @@ func New() hash.Hash {
+ 	return d
+ }
+ 
+-// New512_224 returns a new hash.Hash computing the SHA-512/224 checksum.
++// New512_224 returns a new [hash.Hash] computing the SHA-512/224 checksum. The Hash
++// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
++// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
++// state of the hash.
+ func New512_224() hash.Hash {
+ 	d := &digest{function: crypto.SHA512_224}
+ 	d.Reset()
+ 	return d
+ }
+ 
+-// New512_256 returns a new hash.Hash computing the SHA-512/256 checksum.
++// New512_256 returns a new [hash.Hash] computing the SHA-512/256 checksum. The Hash
++// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
++// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
++// state of the hash.
+ func New512_256() hash.Hash {
+ 	d := &digest{function: crypto.SHA512_256}
+ 	d.Reset()
+ 	return d
+ }
+ 
+-// New384 returns a new hash.Hash computing the SHA-384 checksum.
++// New384 returns a new [hash.Hash] computing the SHA-384 checksum. The Hash
++// also implements [encoding.BinaryMarshaler], [encoding.AppendBinary] and
++// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
++// state of the hash.
+ func New384() hash.Hash {
+ 	if boring.Enabled {
+ 		return boring.NewSHA384()
+diff --git a/src/crypto/sha512/sha512_test.go b/src/crypto/sha512/sha512_test.go
+index a1ff571383..cfe6b57197 100644
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@ -745,11 +745,23 @@ func TestGoldenMarshal(t *testing.T) {
+ 					return
+ 				}
+ 
++				stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
++				if err != nil {
++					t.Errorf("could not marshal: %v", err)
++					return
++				}
++				stateAppend = stateAppend[4:]
++
+ 				if string(state) != test.halfState {
+ 					t.Errorf("New%s(%q) state = %q, want %q", tt.name, test.in, state, test.halfState)
+ 					continue
+ 				}
+ 
++				if string(stateAppend) != test.halfState {
++					t.Errorf("New%s(%q) stateAppend = %q, want %q", tt.name, test.in, stateAppend, test.halfState)
++					continue
++				}
++
+ 				if err := h2.(encoding.BinaryUnmarshaler).UnmarshalBinary(state); err != nil {
+ 					t.Errorf("could not unmarshal: %v", err)
+ 					return

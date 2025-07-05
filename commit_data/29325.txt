@@ -20,7 +20,69 @@ Date:   Thu Jul 14 10:51:30 2016 +1000
     Change-Id: I52ec6d5fcd0fbc6710cef0e973a21ee7827c0dd9
     Reviewed-on: https://go-review.googlesource.com/28790
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/image/draw/bench_test.go |  2 +-
  src/image/draw/draw.go       | 16 ++++++++++------
  2 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/image/draw/bench_test.go b/src/image/draw/bench_test.go
+index 7b89f95d11..a41d7e7dfb 100644
+--- a/src/image/draw/bench_test.go
++++ b/src/image/draw/bench_test.go
+@@ -74,7 +74,7 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
+ 	var src image.Image
+ 	switch scm {
+ 	case nil:
+-		src = &image.Uniform{C: color.RGBA{0x11, 0x22, 0x33, 0xff}}
++		src = &image.Uniform{C: color.RGBA{0x11, 0x22, 0x33, 0x44}}
+ 	case color.CMYKModel:
+ 		src1 := image.NewCMYK(image.Rect(0, 0, srcw, srch))
+ 		for y := 0; y < srch; y++ {
+diff --git a/src/image/draw/draw.go b/src/image/draw/draw.go
+index 6a16cd39cf..a31dd427ce 100644
+--- a/src/image/draw/draw.go
++++ b/src/image/draw/draw.go
+@@ -116,7 +116,12 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 			if mask == nil {
+ 				switch src0 := src.(type) {
+ 				case *image.Uniform:
+-					drawFillOver(dst0, r, src0)
++					sr, sg, sb, sa := src0.RGBA()
++					if sa == 0xffff {
++						drawFillSrc(dst0, r, sr, sg, sb, sa)
++					} else {
++						drawFillOver(dst0, r, sr, sg, sb, sa)
++					}
+ 					return
+ 				case *image.RGBA:
+ 					drawCopyOver(dst0, r, src0, sp)
+@@ -150,7 +155,8 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 			if mask == nil {
+ 				switch src0 := src.(type) {
+ 				case *image.Uniform:
+-					drawFillSrc(dst0, r, src0)
++					sr, sg, sb, sa := src0.RGBA()
++					drawFillSrc(dst0, r, sr, sg, sb, sa)
+ 					return
+ 				case *image.RGBA:
+ 					drawCopySrc(dst0, r, src0, sp)
+@@ -232,8 +238,7 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 	}
+ }
+ 
+-func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.Uniform) {
+-	sr, sg, sb, sa := src.RGBA()
++func drawFillOver(dst *image.RGBA, r image.Rectangle, sr, sg, sb, sa uint32) {
+ 	// The 0x101 is here for the same reason as in drawRGBA.
+ 	a := (m - sa) * 0x101
+ 	i0 := dst.PixOffset(r.Min.X, r.Min.Y)
+@@ -255,8 +260,7 @@ func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.Uniform) {
+ 	}
+ }
+ 
+-func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.Uniform) {
+-	sr, sg, sb, sa := src.RGBA()
++func drawFillSrc(dst *image.RGBA, r image.Rectangle, sr, sg, sb, sa uint32) {
+ 	sr8 := uint8(sr >> 8)
+ 	sg8 := uint8(sg >> 8)
+ 	sb8 := uint8(sb >> 8)

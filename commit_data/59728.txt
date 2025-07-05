@@ -17,6 +17,21 @@ Date:   Mon Apr 15 17:53:14 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/579295
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/pprof/vminfo_darwin_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/pprof/vminfo_darwin_test.go b/src/runtime/pprof/vminfo_darwin_test.go
+index ac180826b1..641587200c 100644
+--- a/src/runtime/pprof/vminfo_darwin_test.go
++++ b/src/runtime/pprof/vminfo_darwin_test.go
+@@ -79,6 +79,9 @@ func useVMMap(t *testing.T) (hi, lo uint64, retryable bool, err error) {
+ 		t.Logf("vmmap output: %s", out)
+ 		if ee, ok := cmdErr.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+ 			t.Logf("%v: %v\n%s", cmd, cmdErr, ee.Stderr)
++			if testing.Short() && strings.Contains(string(ee.Stderr), "No process corpse slots currently available, waiting to get one") {
++				t.Skipf("Skipping knwn flake in short test mode")
++			}
+ 			retryable = bytes.Contains(ee.Stderr, []byte("resource shortage"))
+ 		}
+ 		t.Logf("%v: %v\n", cmd, cmdErr)

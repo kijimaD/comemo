@@ -9,6 +9,20 @@ Date:   Thu Nov 12 11:28:07 2015 -0500
     Change-Id: Id8fbb252b8beadb0b41f839dcd85d6165dea86a3
     Reviewed-on: https://go-review.googlesource.com/16845
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/build.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 3fdefbc890..212dd172a3 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -909,6 +909,8 @@ func clean() {
+ 		// Remove installed packages and tools.
+ 		xremoveall(pathf("%s/pkg/%s_%s", goroot, gohostos, gohostarch))
+ 		xremoveall(pathf("%s/pkg/%s_%s", goroot, goos, goarch))
++		xremoveall(pathf("%s/pkg/%s_%s_race", goroot, gohostos, gohostarch))
++		xremoveall(pathf("%s/pkg/%s_%s_race", goroot, goos, goarch))
+ 		xremoveall(tooldir)
+ 
+ 		// Remove cached version info.

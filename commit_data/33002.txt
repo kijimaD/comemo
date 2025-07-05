@@ -9,6 +9,20 @@ Date:   Fri Jun 23 12:31:48 2017 +0800
     Change-Id: I11234393c3beb669f87976a4f0b424bec7372b82
     Reviewed-on: https://go-review.googlesource.com/46434
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index c1b98daabf..5447e5f89a 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2360,7 +2360,7 @@ type Server struct {
+ 	// IdleTimeout is the maximum amount of time to wait for the
+ 	// next request when keep-alives are enabled. If IdleTimeout
+ 	// is zero, the value of ReadTimeout is used. If both are
+-	// zero, there is no timeout.
++	// zero, ReadHeaderTimeout is used.
+ 	IdleTimeout time.Duration
+ 
+ 	// MaxHeaderBytes controls the maximum number of bytes the

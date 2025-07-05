@@ -9,6 +9,21 @@ Date:   Mon Aug 3 12:43:25 2015 +0900
     Change-Id: I6c58923a1b5a3805acfb6e333e3c9e87f4edf4ba
     Reviewed-on: https://go-review.googlesource.com/13050
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index d1322340ca..2e65e4c754 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -40,6 +40,9 @@ func TestCgoCallbackGC(t *testing.T) {
+ 	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
+ 		t.Skipf("no pthreads on %s", runtime.GOOS)
+ 	}
++	if testing.Short() && runtime.GOOS == "dragonfly" {
++		t.Skip("see golang.org/issue/11990")
++	}
+ 	got := executeTest(t, cgoCallbackGCSource, nil)
+ 	want := "OK\n"
+ 	if got != want {

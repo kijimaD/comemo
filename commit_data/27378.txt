@@ -11,8 +11,112 @@ Date:   Fri Mar 18 13:00:26 2016 +0900
     Change-Id: Ibf7d1ae7b9f3dc43f6ed7c905ea2c5102e1971cc
     Reviewed-on: https://go-review.googlesource.com/20845
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/os/os_test.go       | 35 +++++++++++++++++++++++++++++++++++
  src/os/stat_windows.go  | 16 +++++++++++++---
  src/os/types_windows.go |  4 ++++
  3 files changed, 52 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index a878e40fd2..606496b00a 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1583,6 +1583,41 @@ func TestStatDirModeExec(t *testing.T) {
+ 	}
+ }
+ 
++func TestStatStdin(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skipf("skipping test on plan9")
++	}
++
++	testenv.MustHaveExec(t)
++
++	if Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		st, err := Stdin.Stat()
++		if err != nil {
++			t.Fatalf("Stat failed: %v", err)
++		}
++		fmt.Println(st.Mode() & ModeNamedPipe)
++		Exit(0)
++	}
++
++	var cmd *osexec.Cmd
++	if runtime.GOOS == "windows" {
++		cmd = osexec.Command("cmd", "/c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
++	} else {
++		cmd = osexec.Command("/bin/sh", "-c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
++	}
++	cmd.Env = append(Environ(), "GO_WANT_HELPER_PROCESS=1")
++
++	output, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("Failed to spawn child process: %v %q", err, string(output))
++	}
++
++	// result will be like "prw-rw-rw"
++	if len(output) < 1 || output[0] != 'p' {
++		t.Fatalf("Child process reports stdin is not pipe '%v'", string(output))
++	}
++}
++
+ func TestReadAtEOF(t *testing.T) {
+ 	f := newFile("TestReadAtEOF", t)
+ 	defer Remove(f.Name())
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index d65c58200f..b8f97ad60a 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -25,10 +25,19 @@ func (file *File) Stat() (FileInfo, error) {
+ 	if file.name == DevNull {
+ 		return &devNullStat, nil
+ 	}
++
++	ft, err := syscall.GetFileType(file.fd)
++	if err != nil {
++		return nil, &PathError{"GetFileType", file.name, err}
++	}
++	if ft == syscall.FILE_TYPE_PIPE {
++		return &fileStat{name: basename(file.name), pipe: true}, nil
++	}
++
+ 	var d syscall.ByHandleFileInformation
+-	e := syscall.GetFileInformationByHandle(syscall.Handle(file.fd), &d)
+-	if e != nil {
+-		return nil, &PathError{"GetFileInformationByHandle", file.name, e}
++	err = syscall.GetFileInformationByHandle(syscall.Handle(file.fd), &d)
++	if err != nil {
++		return nil, &PathError{"GetFileInformationByHandle", file.name, err}
+ 	}
+ 	return &fileStat{
+ 		name: basename(file.name),
+@@ -43,6 +52,7 @@ func (file *File) Stat() (FileInfo, error) {
+ 		vol:   d.VolumeSerialNumber,
+ 		idxhi: d.FileIndexHigh,
+ 		idxlo: d.FileIndexLow,
++		pipe:  false,
+ 	}, nil
+ }
+ 
+diff --git a/src/os/types_windows.go b/src/os/types_windows.go
+index 7b2e54698c..900d444b0e 100644
+--- a/src/os/types_windows.go
++++ b/src/os/types_windows.go
+@@ -14,6 +14,7 @@ import (
+ type fileStat struct {
+ 	name string
+ 	sys  syscall.Win32FileAttributeData
++	pipe bool
+ 
+ 	// used to implement SameFile
+ 	sync.Mutex
+@@ -42,6 +43,9 @@ func (fs *fileStat) Mode() (m FileMode) {
+ 	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+ 		m |= ModeSymlink
+ 	}
++	if fs.pipe {
++		m |= ModeNamedPipe
++	}
+ 	return m
+ }
+ 

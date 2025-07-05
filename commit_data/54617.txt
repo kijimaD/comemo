@@ -17,8 +17,92 @@ Date:   Thu Nov 3 11:02:51 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/os/exec/env_test.go  |  9 ++++++++-
  src/os/exec/exec.go      | 14 +++++++++-----
  src/os/exec/exec_test.go |  3 +++
  3 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/exec/env_test.go b/src/os/exec/env_test.go
+index 8a4824282f..ea06af3885 100644
+--- a/src/os/exec/env_test.go
++++ b/src/os/exec/env_test.go
+@@ -14,6 +14,7 @@ func TestDedupEnv(t *testing.T) {
+ 
+ 	tests := []struct {
+ 		noCase  bool
++		nulOK   bool
+ 		in      []string
+ 		want    []string
+ 		wantErr bool
+@@ -50,9 +51,15 @@ func TestDedupEnv(t *testing.T) {
+ 			want:    []string{"B=b"},
+ 			wantErr: true,
+ 		},
++		{
++			// Plan 9 needs to preserve environment variables with NUL (#56544).
++			nulOK: true,
++			in:    []string{"path=one\x00two"},
++			want:  []string{"path=one\x00two"},
++		},
+ 	}
+ 	for _, tt := range tests {
+-		got, err := dedupEnvCase(tt.noCase, tt.in)
++		got, err := dedupEnvCase(tt.noCase, tt.nulOK, tt.in)
+ 		if !reflect.DeepEqual(got, tt.want) || (err != nil) != tt.wantErr {
+ 			t.Errorf("Dedup(%v, %q) = %q, %v; want %q, error:%v", tt.noCase, tt.in, got, err, tt.want, tt.wantErr)
+ 		}
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 18f265ee4e..46b09b9c0c 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -1208,15 +1208,16 @@ func (c *Cmd) Environ() []string {
+ // dedupEnv returns a copy of env with any duplicates removed, in favor of
+ // later values.
+ // Items not of the normal environment "key=value" form are preserved unchanged.
+-// Items containing NUL characters are removed, and an error is returned along with
+-// the remaining values.
++// Except on Plan 9, items containing NUL characters are removed, and
++// an error is returned along with the remaining values.
+ func dedupEnv(env []string) ([]string, error) {
+-	return dedupEnvCase(runtime.GOOS == "windows", env)
++	return dedupEnvCase(runtime.GOOS == "windows", runtime.GOOS == "plan9", env)
+ }
+ 
+ // dedupEnvCase is dedupEnv with a case option for testing.
+ // If caseInsensitive is true, the case of keys is ignored.
+-func dedupEnvCase(caseInsensitive bool, env []string) ([]string, error) {
++// If nulOK is false, items containing NUL characters are allowed.
++func dedupEnvCase(caseInsensitive, nulOK bool, env []string) ([]string, error) {
+ 	// Construct the output in reverse order, to preserve the
+ 	// last occurrence of each key.
+ 	var err error
+@@ -1225,10 +1226,13 @@ func dedupEnvCase(caseInsensitive bool, env []string) ([]string, error) {
+ 	for n := len(env); n > 0; n-- {
+ 		kv := env[n-1]
+ 
+-		if strings.IndexByte(kv, 0) != -1 {
++		// Reject NUL in environment variables to prevent security issues (#56284);
++		// except on Plan 9, which uses NUL as os.PathListSeparator (#56544).
++		if !nulOK && strings.IndexByte(kv, 0) != -1 {
+ 			err = errors.New("exec: environment variable contains NUL")
+ 			continue
+ 		}
++
+ 		i := strings.Index(kv, "=")
+ 		if i == 0 {
+ 			// We observe in practice keys with a single leading "=" on Windows.
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 7f1f99330d..cb1545a651 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -1038,6 +1038,9 @@ func TestDedupEnvEcho(t *testing.T) {
+ }
+ 
+ func TestEnvNULCharacter(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("plan9 explicitly allows NUL in the enviroment")
++	}
+ 	cmd := helperCommand(t, "echoenv", "FOO", "BAR")
+ 	cmd.Env = append(cmd.Environ(), "FOO=foo\x00BAR=bar")
+ 	out, err := cmd.CombinedOutput()

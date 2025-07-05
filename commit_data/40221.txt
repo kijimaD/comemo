@@ -15,8 +15,99 @@ Date:   Fri Apr 26 11:46:26 2019 -0700
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/fakedb_test.go |  4 ++++
  src/database/sql/sql.go         | 26 ++++++++++++++++++++++++++
  src/database/sql/sql_test.go    | 13 +++++++++++++
  3 files changed, 43 insertions(+)
+
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index f30edc00ea..c0371f3e78 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -1141,6 +1141,8 @@ func converterForType(typ string) driver.ValueConverter {
+ 		return driver.Null{Converter: driver.Bool}
+ 	case "int32":
+ 		return driver.Int32
++	case "nullint32":
++		return driver.Null{Converter: driver.DefaultParameterConverter}
+ 	case "string":
+ 		return driver.NotNull{Converter: fakeDriverString{}}
+ 	case "nullstring":
+@@ -1175,6 +1177,8 @@ func colTypeToReflectType(typ string) reflect.Type {
+ 		return reflect.TypeOf(NullBool{})
+ 	case "int32":
+ 		return reflect.TypeOf(int32(0))
++	case "nullint32":
++		return reflect.TypeOf(NullInt32{})
+ 	case "string":
+ 		return reflect.TypeOf("")
+ 	case "nullstring":
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 5013505cd9..27adf69122 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -234,6 +234,32 @@ func (n NullInt64) Value() (driver.Value, error) {
+ 	return n.Int64, nil
+ }
+ 
++// NullInt32 represents an int32 that may be null.
++// NullInt32 implements the Scanner interface so
++// it can be used as a scan destination, similar to NullString.
++type NullInt32 struct {
++	Int32 int32
++	Valid bool // Valid is true if Int32 is not NULL
++}
++
++// Scan implements the Scanner interface.
++func (n *NullInt32) Scan(value interface{}) error {
++	if value == nil {
++		n.Int32, n.Valid = 0, false
++		return nil
++	}
++	n.Valid = true
++	return convertAssign(&n.Int32, value)
++}
++
++// Value implements the driver Valuer interface.
++func (n NullInt32) Value() (driver.Value, error) {
++	if !n.Valid {
++		return nil, nil
++	}
++	return int64(n.Int32), nil
++}
++
+ // NullFloat64 represents a float64 that may be null.
+ // NullFloat64 implements the Scanner interface so
+ // it can be used as a scan destination, similar to NullString.
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index cc30ad3daa..260374d413 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -131,6 +131,7 @@ func TestDriverPanic(t *testing.T) {
+ }
+ 
+ func exec(t testing.TB, db *DB, query string, args ...interface{}) {
++	t.Helper()
+ 	_, err := db.Exec(query, args...)
+ 	if err != nil {
+ 		t.Fatalf("Exec of %q: %v", query, err)
+@@ -1671,6 +1672,18 @@ func TestNullInt64Param(t *testing.T) {
+ 	nullTestRun(t, spec)
+ }
+ 
++func TestNullInt32Param(t *testing.T) {
++	spec := nullTestSpec{"nullint32", "int32", [6]nullTestRow{
++		{NullInt32{31, true}, 1, NullInt32{31, true}},
++		{NullInt32{-22, false}, 1, NullInt32{0, false}},
++		{22, 1, NullInt32{22, true}},
++		{NullInt32{33, true}, 1, NullInt32{33, true}},
++		{NullInt32{222, false}, 1, NullInt32{0, false}},
++		{0, NullInt32{31, false}, nil},
++	}}
++	nullTestRun(t, spec)
++}
++
+ func TestNullFloat64Param(t *testing.T) {
+ 	spec := nullTestSpec{"nullfloat64", "float64", [6]nullTestRow{
+ 		{NullFloat64{31.2, true}, 1, NullFloat64{31.2, true}},

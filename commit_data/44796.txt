@@ -17,8 +17,63 @@ Date:   Sat Aug 29 03:25:21 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/select.go |  4 +---
  src/runtime/select.go                 |  1 +
  test/codegen/select.go                | 20 ++++++++++++++++++++
  3 files changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 3812a0e1fa..97e0424ce0 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -251,10 +251,8 @@ func walkselectcases(cases *Nodes) []*Node {
+ 	r = typecheck(r, ctxStmt)
+ 	init = append(init, r)
+ 
++	// No initialization for order; runtime.selectgo is responsible for that.
+ 	order := temp(types.NewArray(types.Types[TUINT16], 2*int64(ncas)))
+-	r = nod(OAS, order, nil)
+-	r = typecheck(r, ctxStmt)
+-	init = append(init, r)
+ 
+ 	var pc0, pcs *Node
+ 	if flag_race {
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 80768b285b..a506747910 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -118,6 +118,7 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
+ 	scases := cas1[:ncases:ncases]
+ 	pollorder := order1[:ncases:ncases]
+ 	lockorder := order1[ncases:][:ncases:ncases]
++	// NOTE: pollorder/lockorder's underlying array was not zero-initialized by compiler.
+ 
+ 	// Even when raceenabled is true, there might be select
+ 	// statements in packages compiled without -race (e.g.,
+diff --git a/test/codegen/select.go b/test/codegen/select.go
+new file mode 100644
+index 0000000000..4426924b36
+--- /dev/null
++++ b/test/codegen/select.go
+@@ -0,0 +1,20 @@
++// asmcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++func f() {
++	ch1 := make(chan int)
++	ch2 := make(chan int)
++	for {
++		// amd64:-`MOVQ\t[$]0, ""..autotmp_3`
++		select {
++		case <-ch1:
++		case <-ch2:
++		default:
++		}
++	}
++}

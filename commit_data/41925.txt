@@ -14,6 +14,23 @@ Date:   Thu Oct 10 21:54:18 2019 +0300
     Change-Id: I7781189855c3bf2ea979dfa07f86c283eed27091
     Reviewed-on: https://go-review.googlesource.com/c/go/+/200457
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/zoneinfo.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index e6cac620fb..558803f24e 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -65,6 +65,11 @@ var UTC *Location = &utcLoc
+ var utcLoc = Location{name: "UTC"}
+ 
+ // Local represents the system's local time zone.
++// On Unix systems, Local consults the TZ environment
++// variable to find the time zone to use. No TZ means
++// use the system default /etc/localtime.
++// TZ="" means use UTC.
++// TZ="foo" means use file foo in the system timezone directory.
+ var Local *Location = &localLoc
+ 
+ // localLoc is separate so that initLocal can initialize

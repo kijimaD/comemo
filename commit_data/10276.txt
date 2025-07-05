@@ -7,6 +7,20 @@ Date:   Mon Nov 7 14:16:00 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5362045
-
+---
  src/lib9/ctime.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib9/ctime.c b/src/lib9/ctime.c
+index d4ab6b21ae..1bc29fbf9c 100644
+--- a/src/lib9/ctime.c
++++ b/src/lib9/ctime.c
+@@ -22,7 +22,7 @@ p9ctime(long t)
+ 		tm->tm_hour,
+ 		tm->tm_min,
+ 		tm->tm_sec,
+-		tm->tm_zone,
++		"XXX",  // tm_zone is unavailable on windows, and no one cares
+ 		tm->tm_year + 1900);
+ 	return buf;
+ }

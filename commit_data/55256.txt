@@ -18,7 +18,74 @@ Date:   Mon Dec 26 04:07:03 2022 +0000
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/go.go  | 45 -----------------------------------------
  src/cmd/link/internal/ld/lib.go |  2 --
  2 files changed, 47 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 9dfb0f756e..ef73924914 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -452,48 +452,3 @@ func (ctxt *Link) addexport() {
+ 		adddynlib(ctxt, lib)
+ 	}
+ }
+-
+-type Pkg struct {
+-	mark    bool
+-	checked bool
+-	path    string
+-	impby   []*Pkg
+-}
+-
+-var pkgall []*Pkg
+-
+-func (p *Pkg) cycle() *Pkg {
+-	if p.checked {
+-		return nil
+-	}
+-
+-	if p.mark {
+-		nerrors++
+-		fmt.Printf("import cycle:\n")
+-		fmt.Printf("\t%s\n", p.path)
+-		return p
+-	}
+-
+-	p.mark = true
+-	for _, q := range p.impby {
+-		if bad := q.cycle(); bad != nil {
+-			p.mark = false
+-			p.checked = true
+-			fmt.Printf("\timports %s\n", p.path)
+-			if bad == p {
+-				return nil
+-			}
+-			return bad
+-		}
+-	}
+-
+-	p.checked = true
+-	p.mark = false
+-	return nil
+-}
+-
+-func importcycles() {
+-	for _, p := range pkgall {
+-		p.cycle()
+-	}
+-}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index c0730179db..22c764ada5 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -646,8 +646,6 @@ func (ctxt *Link) loadlib() {
+ 	// We've loaded all the code now.
+ 	ctxt.Loaded = true
+ 
+-	importcycles()
+-
+ 	strictDupMsgCount = ctxt.loader.NStrictDupMsgs()
+ }
+ 

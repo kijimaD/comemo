@@ -21,6 +21,20 @@ Date:   Wed Jul 4 16:43:19 2018 +0100
     Change-Id: I0e44948957a7faff51c7d27c0b7746ed6e2d47bb
     Reviewed-on: https://go-review.googlesource.com/122235
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/s390x/asmz.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 52cfc0e1e6..ce3fe6af73 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -427,7 +427,7 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	changed := true
+ 	loop := 0
+ 	for changed {
+-		if loop > 10 {
++		if loop > 100 {
+ 			c.ctxt.Diag("stuck in spanz loop")
+ 			break
+ 		}

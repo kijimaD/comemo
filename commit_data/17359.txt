@@ -9,6 +9,40 @@ Date:   Thu Aug 22 11:12:44 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12884046
-
+---
  doc/root.html | 22 +++++++++++++---------
  1 file changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index e952a76bb3..8e69eea998 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -117,15 +117,19 @@ function feedLoaded(result) {
+ }
+ 
+ window.initFuncs.push(function() {
+-	// Set up playground.
+-	playground({
+-		"codeEl":        "#learn .code",
+-		"outputEl":      "#learn .output",
+-		"runEl":         "#learn .run",
+-		"shareEl":       "#learn .share",
+-		"shareRedirect": "http://play.golang.org/p/",
+-		"toysEl":        "#learn .toys select"
+-	});
++	// Set up playground if enabled.
++	if (window.playground) {
++		window.playground({
++			"codeEl":        "#learn .code",
++			"outputEl":      "#learn .output",
++			"runEl":         "#learn .run",
++			"shareEl":       "#learn .share",
++			"shareRedirect": "http://play.golang.org/p/",
++			"toysEl":        "#learn .toys select"
++		});
++	} else {
++		$('#learn').hide()
++	}
+ 
+ 	// Load blog feed.
+ 	$('<script/>').attr('text', 'text/javascript')

@@ -8,6 +8,15 @@ Date:   Thu Jul 7 19:32:35 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/24816
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  VERSION | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/VERSION b/VERSION
+new file mode 100644
+index 0000000000..e0b63c7e62
+--- /dev/null
++++ b/VERSION
+@@ -0,0 +1 @@
++go1.7rc1
+\ No newline at end of file

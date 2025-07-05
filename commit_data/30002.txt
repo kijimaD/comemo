@@ -14,6 +14,19 @@ Date:   Wed Oct 19 12:26:55 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/sql.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index defe960742..d363008993 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -814,6 +814,7 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
+ 	}
+ 	// Check if the context is expired.
+ 	if err := ctx.Err(); err != nil {
++		db.mu.Unlock()
+ 		return nil, err
+ 	}
+ 	lifetime := db.maxLifetime

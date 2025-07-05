@@ -17,7 +17,70 @@ Date:   Fri Jul 21 18:49:09 2023 +0000
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/test_skip.txt | 10 ++++++++++
  src/testing/example.go                   | 10 +++-------
  2 files changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_skip.txt b/src/cmd/go/testdata/script/test_skip.txt
+index 94d20b9644..73e4195f78 100644
+--- a/src/cmd/go/testdata/script/test_skip.txt
++++ b/src/cmd/go/testdata/script/test_skip.txt
+@@ -13,13 +13,19 @@ stdout RUN.*Test2/3
+ go test -v -skip 2/3 skip_test.go
+ stdout RUN.*Test1
+ stdout RUN.*Test2
++stdout RUN.*ExampleTest1
+ ! stdout Test2/3
+ 
+ go test -v -skip 2/4 skip_test.go
+ stdout RUN.*Test1
+ stdout RUN.*Test2
+ stdout RUN.*Test2/3
++stdout RUN.*ExampleTest1
+ 
++go test -v -skip Example skip_test.go
++stdout RUN.*Test1
++stdout RUN.*Test2
++stdout RUN.*Test2/3
+ 
+ -- skip_test.go --
+ package skip_test
+@@ -32,3 +38,7 @@ func Test1(t *testing.T) {
+ func Test2(t *testing.T) {
+ 	t.Run("3", func(t *testing.T) {})
+ }
++
++func ExampleTest1() {
++	// Output:
++}
+diff --git a/src/testing/example.go b/src/testing/example.go
+index 42ee555cb2..07aa5cb66c 100644
+--- a/src/testing/example.go
++++ b/src/testing/example.go
+@@ -6,7 +6,6 @@ package testing
+ 
+ import (
+ 	"fmt"
+-	"os"
+ 	"sort"
+ 	"strings"
+ 	"time"
+@@ -29,14 +28,11 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
+ func runExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ran, ok bool) {
+ 	ok = true
+ 
+-	var eg InternalExample
++	m := newMatcher(matchString, *match, "-test.run", *skip)
+ 
++	var eg InternalExample
+ 	for _, eg = range examples {
+-		matched, err := matchString(*match, eg.Name)
+-		if err != nil {
+-			fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.run: %s\n", err)
+-			os.Exit(1)
+-		}
++		_, matched, _ := m.fullName(nil, eg.Name)
+ 		if !matched {
+ 			continue
+ 		}

@@ -13,7 +13,74 @@ Date:   Tue Mar 3 20:53:40 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6733
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/dwarf/entry.go | 17 ++++++-----------
  src/debug/dwarf/unit.go  | 22 +++++++++++++++++++++-
  2 files changed, 27 insertions(+), 12 deletions(-)
+
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index 665c6840d4..d459f30519 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -308,18 +308,13 @@ func (r *Reader) Seek(off Offset) {
+ 		return
+ 	}
+ 
+-	// TODO(rsc): binary search (maybe a new package)
+-	var i int
+-	var u *unit
+-	for i = range d.unit {
+-		u = &d.unit[i]
+-		if u.off <= off && off < u.off+Offset(len(u.data)) {
+-			r.unit = i
+-			r.b = makeBuf(r.d, u, "info", off, u.data[off-u.off:])
+-			return
+-		}
++	i := d.offsetToUnit(off)
++	if i == -1 {
++		r.err = errors.New("offset out of range")
+ 	}
+-	r.err = errors.New("offset out of range")
++	u := &d.unit[i]
++	r.unit = i
++	r.b = makeBuf(r.d, u, "info", off, u.data[off-u.off:])
+ }
+ 
+ // maybeNextUnit advances to the next unit if this one is finished.
+diff --git a/src/debug/dwarf/unit.go b/src/debug/dwarf/unit.go
+index 0fbc8e0825..85c44bbdda 100644
+--- a/src/debug/dwarf/unit.go
++++ b/src/debug/dwarf/unit.go
+@@ -4,7 +4,10 @@
+ 
+ package dwarf
+ 
+-import "strconv"
++import (
++	"sort"
++	"strconv"
++)
+ 
+ // DWARF debug info is split into a sequence of compilation units.
+ // Each unit has its own abbreviation table and address size.
+@@ -88,3 +91,20 @@ func (d *Data) parseUnits() ([]unit, error) {
+ 	}
+ 	return units, nil
+ }
++
++// offsetToUnit returns the index of the unit containing offset off.
++// It returns -1 if no unit contains this offset.
++func (d *Data) offsetToUnit(off Offset) int {
++	// Find the unit after off
++	next := sort.Search(len(d.unit), func(i int) bool {
++		return d.unit[i].off > off
++	})
++	if next == 0 {
++		return -1
++	}
++	u := &d.unit[next-1]
++	if u.off <= off && off < u.off+Offset(len(u.data)) {
++		return next - 1
++	}
++	return -1
++}

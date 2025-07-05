@@ -9,7 +9,7 @@ Date:   Thu Feb 16 15:56:03 2012 +1100
     R=golang-dev, r, r
     CC=golang-dev
     https://golang.org/cl/5671061
-
+---
  doc/go1.html                |  4 ++++
  doc/go1.tmpl                |  4 ++++
  src/cmd/fix/url2.go         | 46 +++++++++++++++++++++++++++++++++++++++++++++
@@ -17,3 +17,197 @@ Date:   Thu Feb 16 15:56:03 2012 +1100
  src/pkg/net/url/url.go      | 10 +++++-----
  src/pkg/net/url/url_test.go | 14 +++++++-------
  6 files changed, 97 insertions(+), 12 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index a2cd0456a6..b1f92338da 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1779,6 +1779,10 @@ A new <a href="/pkg/net/url/#URL.RequestURI"><code>RequestURI</code></a> method
+ added to <code>URL</code>.
+ </p>
+ 
++<p>
++The <code>ParseWithReference</code> function has been renamed to <code>ParseWithFragment</code>.
++</p>
++
+ <p>
+ <em>Updating</em>:
+ Code that uses the old fields will fail to compile and must be updated by hand.
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 90bc9fc7f6..32b166a8b1 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1669,6 +1669,10 @@ A new <a href="/pkg/net/url/#URL.RequestURI"><code>RequestURI</code></a> method
+ added to <code>URL</code>.
+ </p>
+ 
++<p>
++The <code>ParseWithReference</code> function has been renamed to <code>ParseWithFragment</code>.
++</p>
++
+ <p>
+ <em>Updating</em>:
+ Code that uses the old fields will fail to compile and must be updated by hand.
+diff --git a/src/cmd/fix/url2.go b/src/cmd/fix/url2.go
+new file mode 100644
+index 0000000000..5fd05ad2a7
+--- /dev/null
++++ b/src/cmd/fix/url2.go
+@@ -0,0 +1,46 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "go/ast"
++
++func init() {
++	register(url2Fix)
++}
++
++var url2Fix = fix{
++	"url2",
++	"2012-02-16",
++	url2,
++	`Rename some functions in net/url.
++
++http://codereview.appspot.com/5671061
++`,
++}
++
++func url2(f *ast.File) bool {
++	if !imports(f, "net/url") {
++		return false
++	}
++
++	fixed := false
++
++	walk(f, func(n interface{}) {
++		// Rename functions and methods.
++		sel, ok := n.(*ast.SelectorExpr)
++		if !ok {
++			return
++		}
++		if !isTopName(sel.X, "url") {
++			return
++		}
++		if sel.Sel.Name == "ParseWithReference" {
++			sel.Sel.Name = "ParseWithFragment"
++			fixed = true
++		}
++	})
++
++	return fixed
++}
+diff --git a/src/cmd/fix/url2_test.go b/src/cmd/fix/url2_test.go
+new file mode 100644
+index 0000000000..c68dd88f18
+--- /dev/null
++++ b/src/cmd/fix/url2_test.go
+@@ -0,0 +1,31 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(url2Tests, url2)
++}
++
++var url2Tests = []testCase{
++	{
++		Name: "url2.0",
++		In: `package main
++
++import "net/url"
++
++func f() {
++	url.ParseWithReference("foo")
++}
++`,
++		Out: `package main
++
++import "net/url"
++
++func f() {
++	url.ParseWithFragment("foo")
++}
++`,
++	},
++}
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 834247bd76..cdfb16ceda 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -415,18 +415,18 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
+ 	return
+ }
+ 
+-// ParseWithReference is like Parse but allows a trailing #fragment.
+-func ParseWithReference(rawurlref string) (url *URL, err error) {
++// ParseWithFragment is like Parse but allows a trailing #fragment.
++func ParseWithFragment(rawurl string) (url *URL, err error) {
+ 	// Cut off #frag
+-	rawurl, frag := split(rawurlref, '#', true)
+-	if url, err = Parse(rawurl); err != nil {
++	u, frag := split(rawurl, '#', true)
++	if url, err = Parse(u); err != nil {
+ 		return nil, err
+ 	}
+ 	if frag == "" {
+ 		return url, nil
+ 	}
+ 	if url.Fragment, err = unescape(frag, encodeFragment); err != nil {
+-		return nil, &Error{"parse", rawurlref, err}
++		return nil, &Error{"parse", rawurl, err}
+ 	}
+ 	return url, nil
+ }
+diff --git a/src/pkg/net/url/url_test.go b/src/pkg/net/url/url_test.go
+index 9fe5ff886b..72d734461f 100644
+--- a/src/pkg/net/url/url_test.go
++++ b/src/pkg/net/url/url_test.go
+@@ -260,9 +260,9 @@ func TestParse(t *testing.T) {
+ 	DoTest(t, Parse, "Parse", urlnofragtests)
+ }
+ 
+-func TestParseWithReference(t *testing.T) {
+-	DoTest(t, ParseWithReference, "ParseWithReference", urltests)
+-	DoTest(t, ParseWithReference, "ParseWithReference", urlfragtests)
++func TestParseWithFragment(t *testing.T) {
++	DoTest(t, ParseWithFragment, "ParseWithFragment", urltests)
++	DoTest(t, ParseWithFragment, "ParseWithFragment", urlfragtests)
+ }
+ 
+ const pathThatLooksSchemeRelative = "//not.a.user@not.a.host/just/a/path"
+@@ -320,8 +320,8 @@ func DoTestString(t *testing.T, parse func(string) (*URL, error), name string, t
+ func TestURLString(t *testing.T) {
+ 	DoTestString(t, Parse, "Parse", urltests)
+ 	DoTestString(t, Parse, "Parse", urlnofragtests)
+-	DoTestString(t, ParseWithReference, "ParseWithReference", urltests)
+-	DoTestString(t, ParseWithReference, "ParseWithReference", urlfragtests)
++	DoTestString(t, ParseWithFragment, "ParseWithFragment", urltests)
++	DoTestString(t, ParseWithFragment, "ParseWithFragment", urlfragtests)
+ }
+ 
+ type EscapeTest struct {
+@@ -538,7 +538,7 @@ var resolveReferenceTests = []struct {
+ 
+ func TestResolveReference(t *testing.T) {
+ 	mustParse := func(url string) *URL {
+-		u, err := ParseWithReference(url)
++		u, err := ParseWithFragment(url)
+ 		if err != nil {
+ 			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
+ 		}
+@@ -589,7 +589,7 @@ func TestResolveReference(t *testing.T) {
+ 
+ func TestResolveReferenceOpaque(t *testing.T) {
+ 	mustParse := func(url string) *URL {
+-		u, err := ParseWithReference(url)
++		u, err := ParseWithFragment(url)
+ 		if err != nil {
+ 			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
+ 		}

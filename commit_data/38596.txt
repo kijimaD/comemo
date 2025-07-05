@@ -11,7 +11,51 @@ Date:   Thu Nov 8 18:46:34 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/mime/multipart/multipart.go      |  3 ++-
  src/mime/multipart/multipart_test.go | 10 +++++++++-
  2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/mime/multipart/multipart.go b/src/mime/multipart/multipart.go
+index 0993fb7e91..a222409d3c 100644
+--- a/src/mime/multipart/multipart.go
++++ b/src/mime/multipart/multipart.go
+@@ -21,6 +21,7 @@ import (
+ 	"mime"
+ 	"mime/quotedprintable"
+ 	"net/textproto"
++	"strings"
+ )
+ 
+ var emptyParams = make(map[string]string)
+@@ -135,7 +136,7 @@ func newPart(mr *Reader) (*Part, error) {
+ 	}
+ 	bp.r = partReader{bp}
+ 	const cte = "Content-Transfer-Encoding"
+-	if bp.Header.Get(cte) == "quoted-printable" {
++	if strings.EqualFold(bp.Header.Get(cte), "quoted-printable") {
+ 		bp.Header.Del(cte)
+ 		bp.r = quotedprintable.NewReader(bp.r)
+ 	}
+diff --git a/src/mime/multipart/multipart_test.go b/src/mime/multipart/multipart_test.go
+index 7bf606765c..5a8102b822 100644
+--- a/src/mime/multipart/multipart_test.go
++++ b/src/mime/multipart/multipart_test.go
+@@ -419,8 +419,16 @@ func TestLineContinuation(t *testing.T) {
+ }
+ 
+ func TestQuotedPrintableEncoding(t *testing.T) {
++	for _, cte := range []string{"quoted-printable", "Quoted-PRINTABLE"} {
++		t.Run(cte, func(t *testing.T) {
++			testQuotedPrintableEncoding(t, cte)
++		})
++	}
++}
++
++func testQuotedPrintableEncoding(t *testing.T, cte string) {
+ 	// From https://golang.org/issue/4411
+-	body := "--0016e68ee29c5d515f04cedf6733\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Disposition: form-data; name=text\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nwords words words words words words words words words words words words wor=\r\nds words words words words words words words words words words words words =\r\nwords words words words words words words words words words words words wor=\r\nds words words words words words words words words words words words words =\r\nwords words words words words words words words words\r\n--0016e68ee29c5d515f04cedf6733\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Disposition: form-data; name=submit\r\n\r\nSubmit\r\n--0016e68ee29c5d515f04cedf6733--"
++	body := "--0016e68ee29c5d515f04cedf6733\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Disposition: form-data; name=text\r\nContent-Transfer-Encoding: " + cte + "\r\n\r\nwords words words words words words words words words words words words wor=\r\nds words words words words words words words words words words words words =\r\nwords words words words words words words words words words words words wor=\r\nds words words words words words words words words words words words words =\r\nwords words words words words words words words words\r\n--0016e68ee29c5d515f04cedf6733\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Disposition: form-data; name=submit\r\n\r\nSubmit\r\n--0016e68ee29c5d515f04cedf6733--"
+ 	r := NewReader(strings.NewReader(body), "0016e68ee29c5d515f04cedf6733")
+ 	part, err := r.NextPart()
+ 	if err != nil {

@@ -11,7 +11,70 @@ Date:   Thu Aug 29 16:48:44 2013 +0200
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13326045
-
+---
  src/cmd/gc/fmt.c            |  5 ++++-
  test/fixedbugs/issue6269.go | 39 +++++++++++++++++++++++++++++++++++++++
  2 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 8673b39ce6..0db7ed22d2 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -604,8 +604,11 @@ typefmt(Fmt *fp, Type *t)
+ 	if(!(fp->flags&FmtLong) && t->sym && t->etype != TFIELD && t != types[t->etype]) {
+ 		switch(fmtmode) {
+ 		case FTypeId:
+-			if(fp->flags&FmtShort)
++			if(fp->flags&FmtShort) {
++				if(t->vargen)
++					return fmtprint(fp, "%hS·%d", t->sym, t->vargen);
+ 				return fmtprint(fp, "%hS", t->sym);
++			}
+ 			if(fp->flags&FmtUnsigned)
+ 				return fmtprint(fp, "%uS", t->sym);
+ 			// fallthrough
+diff --git a/test/fixedbugs/issue6269.go b/test/fixedbugs/issue6269.go
+new file mode 100644
+index 0000000000..af5feb7286
+--- /dev/null
++++ b/test/fixedbugs/issue6269.go
+@@ -0,0 +1,39 @@
++// run
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 6269: name collision on method names for function local types.
++
++package main
++
++type foo struct{}
++
++func (foo) Error() string {
++	return "ok"
++}
++
++type bar struct{}
++
++func (bar) Error() string {
++	return "fail"
++}
++
++func unused() {
++	type collision struct {
++		bar
++	}
++	_ = collision{}
++}
++
++func main() {
++	type collision struct {
++		foo
++	}
++	s := error(collision{})
++	if str := s.Error(); str != "ok" {
++		println("s.Error() ==", str)
++		panic(`s.Error() != "ok"`)
++	}
++}

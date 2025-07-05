@@ -7,6 +7,23 @@ Date:   Fri May 20 15:32:01 2011 +1000
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/4551051
-
+---
  lib/godoc/godoc.html | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 24fce22cdc..bd53f2615e 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -56,11 +56,9 @@
+     <span class="subtitle">{@|html-esc}</span>
+   {.end}
+ 
+-  <p>
+   <!-- The Table of Contents is automatically inserted in this <div>.
+        Do not delete this <div>. -->
+   <div id="nav"></div>
+-  </p>
+ 
+   <!-- Content is HTML-escaped elsewhere -->
+   {Content}

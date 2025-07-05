@@ -15,6 +15,17 @@ Date:   Sun Jan 19 20:05:15 2020 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/issue36516.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue36516.go b/test/fixedbugs/issue36516.go
+index 1472d4c222..d4e28b636d 100644
+--- a/test/fixedbugs/issue36516.go
++++ b/test/fixedbugs/issue36516.go
+@@ -1,4 +1,4 @@
+-// +build linux,amd64
++// +build cgo,linux,amd64
+ // run -race
+ 
+ // Copyright 2020 The Go Authors. All rights reserved.

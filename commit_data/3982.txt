@@ -8,9 +8,67 @@ Date:   Wed Nov 11 12:00:15 2009 -0800
     
     R=r1, r
     https://golang.org/cl/152072
-
+---
  src/pkg/crypto/md5/md5.go       | 2 +-
  src/pkg/crypto/sha1/sha1.go     | 2 +-
  src/pkg/hash/adler32/adler32.go | 2 +-
  src/pkg/hash/crc32/crc32.go     | 4 ++--
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/crypto/md5/md5.go b/src/pkg/crypto/md5/md5.go
+index 5194ccd7cc..209cd5973a 100644
+--- a/src/pkg/crypto/md5/md5.go
++++ b/src/pkg/crypto/md5/md5.go
+@@ -38,7 +38,7 @@ func (d *digest) Reset() {
+ 	d.len = 0;
+ }
+ 
+-// New returns a Hash computing the SHA1 checksum.
++// New returns a hash.Hash computing the SHA1 checksum.
+ func New() hash.Hash {
+ 	d := new(digest);
+ 	d.Reset();
+diff --git a/src/pkg/crypto/sha1/sha1.go b/src/pkg/crypto/sha1/sha1.go
+index 3201a2faad..6569f5aef1 100644
+--- a/src/pkg/crypto/sha1/sha1.go
++++ b/src/pkg/crypto/sha1/sha1.go
+@@ -40,7 +40,7 @@ func (d *digest) Reset() {
+ 	d.len = 0;
+ }
+ 
+-// New returns a Hash computing the SHA1 checksum.
++// New returns a new hash.Hash computing the SHA1 checksum.
+ func New() hash.Hash {
+ 	d := new(digest);
+ 	d.Reset();
+diff --git a/src/pkg/hash/adler32/adler32.go b/src/pkg/hash/adler32/adler32.go
+index 673d5edd47..ec7c6dc304 100644
+--- a/src/pkg/hash/adler32/adler32.go
++++ b/src/pkg/hash/adler32/adler32.go
+@@ -32,7 +32,7 @@ type digest struct {
+ 
+ func (d *digest) Reset()	{ d.a, d.b = 1, 0 }
+ 
+-// New returns a new Hash32 computing the Adler-32 checksum.
++// New returns a new hash.Hash32 computing the Adler-32 checksum.
+ func New() hash.Hash32 {
+ 	d := new(digest);
+ 	d.Reset();
+diff --git a/src/pkg/hash/crc32/crc32.go b/src/pkg/hash/crc32/crc32.go
+index 57297abce8..9330f98124 100644
+--- a/src/pkg/hash/crc32/crc32.go
++++ b/src/pkg/hash/crc32/crc32.go
+@@ -60,11 +60,11 @@ type digest struct {
+ 	tab	*Table;
+ }
+ 
+-// New creates a new Hash computing the CRC-32 checksum
++// New creates a new hash.Hash32 computing the CRC-32 checksum
+ // using the polynomial represented by the Table.
+ func New(tab *Table) hash.Hash32	{ return &digest{0, tab} }
+ 
+-// NewIEEE creates a new Hash computing the CRC-32 checksum
++// NewIEEE creates a new hash.Hash32 computing the CRC-32 checksum
+ // using the IEEE polynomial.
+ func NewIEEE() hash.Hash32	{ return New(IEEETable) }
+ 

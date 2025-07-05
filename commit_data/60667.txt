@@ -15,7 +15,7 @@ Date:   Tue Aug 13 11:25:31 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/cgo/gcc_darwin_amd64.c    | 1 +
  src/runtime/cgo/gcc_darwin_arm64.c    | 1 +
  src/runtime/cgo/gcc_dragonfly_amd64.c | 1 +
@@ -30,3 +30,174 @@ Date:   Tue Aug 13 11:25:31 2024 -0700
  src/runtime/cgo/gcc_openbsd.c         | 1 +
  src/runtime/cgo/gcc_ppc64x.c          | 1 +
  13 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_darwin_amd64.c b/src/runtime/cgo/gcc_darwin_amd64.c
+index 5b5e369f26..1ffbbd75f2 100644
+--- a/src/runtime/cgo/gcc_darwin_amd64.c
++++ b/src/runtime/cgo/gcc_darwin_amd64.c
+@@ -34,6 +34,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	size = pthread_get_stacksize_np(pthread_self());
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_setstacksize(&attr, size);
++	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+diff --git a/src/runtime/cgo/gcc_darwin_arm64.c b/src/runtime/cgo/gcc_darwin_arm64.c
+index f1344de8e1..4b34692957 100644
+--- a/src/runtime/cgo/gcc_darwin_arm64.c
++++ b/src/runtime/cgo/gcc_darwin_arm64.c
+@@ -39,6 +39,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	size = pthread_get_stacksize_np(pthread_self());
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_setstacksize(&attr, size);
++	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+diff --git a/src/runtime/cgo/gcc_dragonfly_amd64.c b/src/runtime/cgo/gcc_dragonfly_amd64.c
+index 009d4b4fb9..646e9e653a 100644
+--- a/src/runtime/cgo/gcc_dragonfly_amd64.c
++++ b/src/runtime/cgo/gcc_dragonfly_amd64.c
+@@ -33,6 +33,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
++	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+diff --git a/src/runtime/cgo/gcc_freebsd.c b/src/runtime/cgo/gcc_freebsd.c
+index a94121138d..1cc582a3bb 100644
+--- a/src/runtime/cgo/gcc_freebsd.c
++++ b/src/runtime/cgo/gcc_freebsd.c
+@@ -45,6 +45,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
++	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+diff --git a/src/runtime/cgo/gcc_freebsd_amd64.c b/src/runtime/cgo/gcc_freebsd_amd64.c
+index 31905f2aa3..ec23a00fee 100644
+--- a/src/runtime/cgo/gcc_freebsd_amd64.c
++++ b/src/runtime/cgo/gcc_freebsd_amd64.c
+@@ -43,6 +43,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
++	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+diff --git a/src/runtime/cgo/gcc_libinit.c b/src/runtime/cgo/gcc_libinit.c
+index 33a9ff93ca..2fe76e4360 100644
+--- a/src/runtime/cgo/gcc_libinit.c
++++ b/src/runtime/cgo/gcc_libinit.c
+@@ -37,8 +37,12 @@ static void (*cgo_context_function)(struct context_arg*);
+ 
+ void
+ x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
++	pthread_attr_t attr;
+ 	pthread_t p;
+-	int err = _cgo_try_pthread_create(&p, NULL, func, arg);
++
++	pthread_attr_init(&attr);
++	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
++	int err = _cgo_try_pthread_create(&p, &attr, func, arg);
+ 	if (err != 0) {
+ 		fprintf(stderr, "pthread_create failed: %s", strerror(err));
+ 		abort();
+@@ -153,7 +157,6 @@ _cgo_try_pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*p
+ 	for (tries = 0; tries < 20; tries++) {
+ 		err = pthread_create(thread, attr, pfn, arg);
+ 		if (err == 0) {
+-			pthread_detach(*thread);
+ 			return 0;
+ 		}
+ 		if (err != EAGAIN) {
+diff --git a/src/runtime/cgo/gcc_linux.c b/src/runtime/cgo/gcc_linux.c
+index 9624df596f..fbdb5e652a 100644
+--- a/src/runtime/cgo/gcc_linux.c
++++ b/src/runtime/cgo/gcc_linux.c
+@@ -40,6 +40,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
++	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+diff --git a/src/runtime/cgo/gcc_linux_amd64.c b/src/runtime/cgo/gcc_linux_amd64.c
+index dcb596e213..c81fde2887 100644
+--- a/src/runtime/cgo/gcc_linux_amd64.c
++++ b/src/runtime/cgo/gcc_linux_amd64.c
+@@ -63,6 +63,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
++	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+diff --git a/src/runtime/cgo/gcc_linux_arm64.c b/src/runtime/cgo/gcc_linux_arm64.c
+index 0dcff2c090..ce46804ba2 100644
+--- a/src/runtime/cgo/gcc_linux_arm64.c
++++ b/src/runtime/cgo/gcc_linux_arm64.c
+@@ -28,6 +28,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
++	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+diff --git a/src/runtime/cgo/gcc_linux_s390x.c b/src/runtime/cgo/gcc_linux_s390x.c
+index 4b9f76c39e..1fae4e7d44 100644
+--- a/src/runtime/cgo/gcc_linux_s390x.c
++++ b/src/runtime/cgo/gcc_linux_s390x.c
+@@ -33,6 +33,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
++	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+diff --git a/src/runtime/cgo/gcc_netbsd.c b/src/runtime/cgo/gcc_netbsd.c
+index 16819ce8b4..98b629e805 100644
+--- a/src/runtime/cgo/gcc_netbsd.c
++++ b/src/runtime/cgo/gcc_netbsd.c
+@@ -35,6 +35,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
++	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+diff --git a/src/runtime/cgo/gcc_openbsd.c b/src/runtime/cgo/gcc_openbsd.c
+index 3a4e545496..b31c312f59 100644
+--- a/src/runtime/cgo/gcc_openbsd.c
++++ b/src/runtime/cgo/gcc_openbsd.c
+@@ -34,6 +34,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
++	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+diff --git a/src/runtime/cgo/gcc_ppc64x.c b/src/runtime/cgo/gcc_ppc64x.c
+index 98a654957b..e1a5c14ff9 100644
+--- a/src/runtime/cgo/gcc_ppc64x.c
++++ b/src/runtime/cgo/gcc_ppc64x.c
+@@ -35,6 +35,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
++	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;

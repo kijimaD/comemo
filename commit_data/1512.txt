@@ -8,7 +8,7 @@ Date:   Fri Jan 16 14:16:31 2009 -0800
     DELTA=97  (0 added, 0 deleted, 97 changed)
     OCL=22971
     CL=22973
-
+---
  src/lib/net/fd_linux.go       | 50 ++++++++++++++++++-------------------
  src/lib/net/ip_test.go        | 24 +++++++++---------
  src/lib/net/net_linux.go      | 30 +++++++++++-----------
@@ -16,3 +16,440 @@ Date:   Fri Jan 16 14:16:31 2009 -0800
  src/lib/net/tcpserver_test.go | 24 +++++++++---------
  src/lib/sync/mutex_test.go    |  8 +++---
  6 files changed, 97 insertions(+), 97 deletions(-)
+
+diff --git a/src/lib/net/fd_linux.go b/src/lib/net/fd_linux.go
+index 77c27473f4..5060e99cb6 100644
+--- a/src/lib/net/fd_linux.go
++++ b/src/lib/net/fd_linux.go
+@@ -13,8 +13,8 @@ import (
+ )
+ 
+ const (
+-	Read = syscall.EPOLLIN | syscall.EPOLLRDHUP;
+-	Write = syscall.EPOLLOUT
++	readFlags = syscall.EPOLLIN | syscall.EPOLLRDHUP;
++	writeFlags = syscall.EPOLLOUT
+ )
+ 
+ export type Pollster struct {
+@@ -31,7 +31,7 @@ export func NewPollster() (p *Pollster, err *os.Error) {
+ 	// The arg to epoll_create is a hint to the kernel
+ 	// about the number of FDs we will care about.
+ 	// We don't know.
+-	if p.epfd, e = syscall.epoll_create(16); e != 0 {
++	if p.epfd, e = syscall.Epoll_create(16); e != 0 {
+ 		return nil, os.ErrnoToError(e)
+ 	}
+ 	p.events = make(map[int64] uint32);
+@@ -41,15 +41,15 @@ export func NewPollster() (p *Pollster, err *os.Error) {
+ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
+ 	var ev syscall.EpollEvent;
+ 	var already bool;
+-	ev.fd = int32(fd);
+-	ev.events, already = p.events[fd];
++	ev.Fd = int32(fd);
++	ev.Events, already = p.events[fd];
+ 	if !repeat {
+-		ev.events |= syscall.EPOLLONESHOT
++		ev.Events |= syscall.EPOLLONESHOT
+ 	}
+ 	if mode == 'r' {
+-		ev.events |= Read
++		ev.Events |= readFlags
+ 	} else {
+-		ev.events |= Write
++		ev.Events |= writeFlags
+ 	}
+ 
+ 	var op int64;
+@@ -58,10 +58,10 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
+ 	} else {
+ 		op = syscall.EPOLL_CTL_ADD
+ 	}
+-	if e := syscall.epoll_ctl(p.epfd, op, fd, &ev); e != 0 {
++	if e := syscall.Epoll_ctl(p.epfd, op, fd, &ev); e != 0 {
+ 		return os.ErrnoToError(e)
+ 	}
+-	p.events[fd] = ev.events;
++	p.events[fd] = ev.Events;
+ 	return nil
+ }
+ 
+@@ -84,14 +84,14 @@ func (p *Pollster) StopWaiting(fd int64, bits uint) {
+ 	events &= ^uint32(bits);
+ 	if int32(events) & ^syscall.EPOLLONESHOT != 0 {
+ 		var ev syscall.EpollEvent;
+-		ev.fd = int32(fd);
+-		ev.events = events;
+-		if e := syscall.epoll_ctl(p.epfd, syscall.EPOLL_CTL_MOD, fd, &ev); e != 0 {
++		ev.Fd = int32(fd);
++		ev.Events = events;
++		if e := syscall.Epoll_ctl(p.epfd, syscall.EPOLL_CTL_MOD, fd, &ev); e != 0 {
+ 			print("Epoll modify fd=", fd, ": ", os.ErrnoToError(e).String(), "\n")
+ 		}
+ 		p.events[fd] = events
+ 	} else {
+-		if e := syscall.epoll_ctl(p.epfd, syscall.EPOLL_CTL_DEL, fd, nil); e != 0 {
++		if e := syscall.Epoll_ctl(p.epfd, syscall.EPOLL_CTL_DEL, fd, nil); e != 0 {
+ 			print("Epoll delete fd=", fd, ": ", os.ErrnoToError(e).String(), "\n")
+ 		}
+ 		p.events[fd] = 0, false
+@@ -102,35 +102,35 @@ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
+ 	// Get an event.
+ 	var evarray [1]syscall.EpollEvent;
+ 	ev := &evarray[0];
+-	n, e := syscall.epoll_wait(p.epfd, evarray, -1);
++	n, e := syscall.Epoll_wait(p.epfd, evarray, -1);
+ 	for e == syscall.EAGAIN || e == syscall.EINTR {
+-		n, e = syscall.epoll_wait(p.epfd, evarray, -1)
++		n, e = syscall.Epoll_wait(p.epfd, evarray, -1)
+ 	}
+ 	if e != 0 {
+ 		return -1, 0, os.ErrnoToError(e)
+ 	}
+-	fd = int64(ev.fd);
++	fd = int64(ev.Fd);
+ 
+-	if ev.events & Write != 0 {
+-		p.StopWaiting(fd, Write);
++	if ev.Events & writeFlags != 0 {
++		p.StopWaiting(fd, writeFlags);
+ 		return fd, 'w', nil
+ 	}
+-	if ev.events & Read != 0 {
+-		p.StopWaiting(fd, Read);
++	if ev.Events & readFlags != 0 {
++		p.StopWaiting(fd, readFlags);
+ 		return fd, 'r', nil
+ 	}
+ 
+ 	// Other events are error conditions - wake whoever is waiting.
+ 	events, already := p.events[fd];
+-	if events & Write != 0 {
+-		p.StopWaiting(fd, Write);
++	if events & writeFlags != 0 {
++		p.StopWaiting(fd, writeFlags);
+ 		return fd, 'w', nil
+ 	}
+-	p.StopWaiting(fd, Read);
++	p.StopWaiting(fd, readFlags);
+ 	return fd, 'r', nil
+ }
+ 
+ func (p *Pollster) Close() *os.Error {
+-	r, e := syscall.close(p.epfd);
++	r, e := syscall.Close(p.epfd);
+ 	return os.ErrnoToError(e)
+ }
+diff --git a/src/lib/net/ip_test.go b/src/lib/net/ip_test.go
+index 131c844326..a6b6c6f2d5 100644
+--- a/src/lib/net/ip_test.go
++++ b/src/lib/net/ip_test.go
+@@ -9,11 +9,11 @@ import (
+ 	"testing"
+ )
+ 
+-func IPv4(a, b, c, d byte) []byte {
++func _IPv4(a, b, c, d byte) []byte {
+ 	return []byte{ 0,0,0,0, 0,0,0,0, 0,0,255,255, a,b,c,d }
+ }
+ 
+-func Equal(a []byte, b []byte) bool {
++func isEqual(a []byte, b []byte) bool {
+ 	if a == nil && b == nil {
+ 		return true
+ 	}
+@@ -28,25 +28,25 @@ func Equal(a []byte, b []byte) bool {
+ 	return true
+ }
+ 
+-type ParseIPTest struct {
++type parseIPTest struct {
+ 	in string;
+ 	out []byte;
+ }
+-var parseiptests = []ParseIPTest {
+-	ParseIPTest{"127.0.1.2", IPv4(127, 0, 1, 2)},
+-	ParseIPTest{"127.0.0.1", IPv4(127, 0, 0, 1)},
+-	ParseIPTest{"127.0.0.256", nil},
+-	ParseIPTest{"abc", nil},
+-	ParseIPTest{"::ffff:127.0.0.1", IPv4(127, 0, 0, 1)},
+-	ParseIPTest{"2001:4860:0:2001::68",
++var parseiptests = []parseIPTest {
++	parseIPTest{"127.0.1.2", _IPv4(127, 0, 1, 2)},
++	parseIPTest{"127.0.0.1", _IPv4(127, 0, 0, 1)},
++	parseIPTest{"127.0.0.256", nil},
++	parseIPTest{"abc", nil},
++	parseIPTest{"::ffff:127.0.0.1", _IPv4(127, 0, 0, 1)},
++	parseIPTest{"2001:4860:0:2001::68",
+ 		[]byte{0x20,0x01, 0x48,0x60, 0,0, 0x20,0x01, 0,0, 0,0, 0,0, 0x00,0x68}},
+-	ParseIPTest{"::ffff:4a7d:1363", IPv4(74, 125, 19, 99)},
++	parseIPTest{"::ffff:4a7d:1363", _IPv4(74, 125, 19, 99)},
+ }
+ 
+ export func TestParseIP(t *testing.T) {
+ 	for i := 0; i < len(parseiptests); i++ {
+ 		tt := parseiptests[i];
+-		if out := ParseIP(tt.in); !Equal(out, tt.out) {
++		if out := ParseIP(tt.in); !isEqual(out, tt.out) {
+ 			t.Errorf("ParseIP(%#q) = %v, want %v", tt.in, out, tt.out);
+ 		}
+ 	}
+diff --git a/src/lib/net/net_linux.go b/src/lib/net/net_linux.go
+index 19ae0b6aeb..c384711b15 100644
+--- a/src/lib/net/net_linux.go
++++ b/src/lib/net/net_linux.go
+@@ -17,16 +17,16 @@ export func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
+ 		return nil, os.EINVAL
+ 	}
+ 	sa := new(syscall.SockaddrInet4);
+-	sa.family = syscall.AF_INET;
+-	sa.port[0] = byte(port>>8);
+-	sa.port[1] = byte(port);
++	sa.Family = syscall.AF_INET;
++	sa.Port[0] = byte(port>>8);
++	sa.Port[1] = byte(port);
+ 	for i := 0; i < IPv4len; i++ {
+-		sa.addr[i] = p[i]
++		sa.Addr[i] = p[i]
+ 	}
+ 	return unsafe.pointer(sa).(*syscall.Sockaddr), nil
+ }
+ 
+-var IPv6zero [16]byte;
++var _IPv6zero [16]byte;
+ 
+ export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+ 	p = ToIPv6(p);
+@@ -38,35 +38,35 @@ export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
+ 	// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
+ 	// which it refuses to do.  Rewrite to the IPv6 all zeros.
+ 	if p4 := ToIPv4(p); p4 != nil && p4[0] == 0 && p4[1] == 0 && p4[2] == 0 && p4[3] == 0 {
+-		p = IPv6zero;
++		p = _IPv6zero;
+ 	}
+ 
+ 	sa := new(syscall.SockaddrInet6);
+-	sa.family = syscall.AF_INET6;
+-	sa.port[0] = byte(port>>8);
+-	sa.port[1] = byte(port);
++	sa.Family = syscall.AF_INET6;
++	sa.Port[0] = byte(port>>8);
++	sa.Port[1] = byte(port);
+ 	for i := 0; i < IPv6len; i++ {
+-		sa.addr[i] = p[i]
++		sa.Addr[i] = p[i]
+ 	}
+ 	return unsafe.pointer(sa).(*syscall.Sockaddr), nil
+ }
+ 
+ export func SockaddrToIP(sa1 *syscall.Sockaddr) (p []byte, port int, err *os.Error) {
+-	switch sa1.family {
++	switch sa1.Family {
+ 	case syscall.AF_INET:
+ 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet4);
+-		a := ToIPv6(sa.addr);
++		a := ToIPv6(sa.Addr);
+ 		if a == nil {
+ 			return nil, 0, os.EINVAL
+ 		}
+-		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil;
++		return a, int(sa.Port[0])<<8 + int(sa.Port[1]), nil;
+ 	case syscall.AF_INET6:
+ 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet6);
+-		a := ToIPv6(sa.addr);
++		a := ToIPv6(sa.Addr);
+ 		if a == nil {
+ 			return nil, 0, os.EINVAL
+ 		}
+-		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil;
++		return a, int(sa.Port[0])<<8 + int(sa.Port[1]), nil;
+ 	default:
+ 		return nil, 0, os.EINVAL
+ 	}
+diff --git a/src/lib/net/port_test.go b/src/lib/net/port_test.go
+index 1d7b4c2c30..0bfff496db 100644
+--- a/src/lib/net/port_test.go
++++ b/src/lib/net/port_test.go
+@@ -9,43 +9,43 @@ import (
+ 	"testing";
+ )
+ 
+-type PortTest struct {
++type portTest struct {
+ 	netw string;
+ 	name string;
+ 	port int;
+ 	ok bool;
+ }
+ 
+-var porttests = []PortTest {
+-	PortTest{ "tcp", "echo", 7, true },
+-	PortTest{ "tcp", "discard", 9, true },
+-	PortTest{ "tcp", "systat", 11, true },
+-	PortTest{ "tcp", "daytime", 13, true },
+-	PortTest{ "tcp", "chargen", 19, true },
+-	PortTest{ "tcp", "ftp-data", 20, true },
+-	PortTest{ "tcp", "ftp", 21, true },
+-	PortTest{ "tcp", "ssh", 22, true },
+-	PortTest{ "tcp", "telnet", 23, true },
+-	PortTest{ "tcp", "smtp", 25, true },
+-	PortTest{ "tcp", "time", 37, true },
+-	PortTest{ "tcp", "domain", 53, true },
+-	PortTest{ "tcp", "gopher", 70, true },
+-	PortTest{ "tcp", "finger", 79, true },
+-	PortTest{ "tcp", "http", 80, true },
++var porttests = []portTest {
++	portTest{ "tcp", "echo", 7, true },
++	portTest{ "tcp", "discard", 9, true },
++	portTest{ "tcp", "systat", 11, true },
++	portTest{ "tcp", "daytime", 13, true },
++	portTest{ "tcp", "chargen", 19, true },
++	portTest{ "tcp", "ftp-data", 20, true },
++	portTest{ "tcp", "ftp", 21, true },
++	portTest{ "tcp", "ssh", 22, true },
++	portTest{ "tcp", "telnet", 23, true },
++	portTest{ "tcp", "smtp", 25, true },
++	portTest{ "tcp", "time", 37, true },
++	portTest{ "tcp", "domain", 53, true },
++	portTest{ "tcp", "gopher", 70, true },
++	portTest{ "tcp", "finger", 79, true },
++	portTest{ "tcp", "http", 80, true },
+ 
+-	PortTest{ "udp", "echo", 7, true },
+-	PortTest{ "udp", "tacacs", 49, true },
+-	PortTest{ "udp", "tftp", 69, true },
+-	PortTest{ "udp", "bootpc", 68, true },
+-	PortTest{ "udp", "bootps", 67, true },
+-	PortTest{ "udp", "domain", 53, true },
+-	PortTest{ "udp", "ntp", 123, true },
+-	PortTest{ "udp", "snmp", 161, true },
+-	PortTest{ "udp", "syslog", 514, true },
+-	PortTest{ "udp", "nfs", 2049, true },
++	portTest{ "udp", "echo", 7, true },
++	portTest{ "udp", "tacacs", 49, true },
++	portTest{ "udp", "tftp", 69, true },
++	portTest{ "udp", "bootpc", 68, true },
++	portTest{ "udp", "bootps", 67, true },
++	portTest{ "udp", "domain", 53, true },
++	portTest{ "udp", "ntp", 123, true },
++	portTest{ "udp", "snmp", 161, true },
++	portTest{ "udp", "syslog", 514, true },
++	portTest{ "udp", "nfs", 2049, true },
+ 
+-	PortTest{ "--badnet--", "zzz", 0, false },
+-	PortTest{ "tcp", "--badport--", 0, false },
++	portTest{ "--badnet--", "zzz", 0, false },
++	portTest{ "tcp", "--badport--", 0, false },
+ }
+ 
+ export func TestLookupPort(t *testing.T) {
+diff --git a/src/lib/net/tcpserver_test.go b/src/lib/net/tcpserver_test.go
+index 730764c809..400374732b 100644
+--- a/src/lib/net/tcpserver_test.go
++++ b/src/lib/net/tcpserver_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"testing";
+ )
+ 
+-func Echo(fd io.ReadWrite, done chan<- int) {
++func runEcho(fd io.ReadWrite, done chan<- int) {
+ 	var buf [1024]byte;
+ 
+ 	for {
+@@ -24,7 +24,7 @@ func Echo(fd io.ReadWrite, done chan<- int) {
+ 	done <- 1
+ }
+ 
+-func Serve(t *testing.T, network, addr string, listening, done chan<- int) {
++func runServe(t *testing.T, network, addr string, listening, done chan<- int) {
+ 	l, err := net.Listen(network, addr);
+ 	if err != nil {
+ 		t.Fatalf("net.Listen(%q, %q) = _, %v", network, addr, err);
+@@ -37,14 +37,14 @@ func Serve(t *testing.T, network, addr string, listening, done chan<- int) {
+ 			break;
+ 		}
+ 		echodone := make(chan int);
+-		go Echo(fd, echodone);
++		go runEcho(fd, echodone);
+ 		<-echodone;	// make sure Echo stops
+ 		l.Close();
+ 	}
+ 	done <- 1
+ }
+ 
+-func Connect(t *testing.T, network, addr string) {
++func connect(t *testing.T, network, addr string) {
+ 	fd, err := net.Dial(network, "", addr);
+ 	if err != nil {
+ 		t.Fatalf("net.Dial(%q, %q, %q) = _, %v", network, "", addr, err);
+@@ -65,21 +65,21 @@ func Connect(t *testing.T, network, addr string) {
+ 	fd.Close();
+ }
+ 
+-func DoTest(t *testing.T, network, listenaddr, dialaddr string) {
++func doTest(t *testing.T, network, listenaddr, dialaddr string) {
+ 	t.Logf("Test %s %s %s\n", network, listenaddr, dialaddr);
+ 	listening := make(chan int);
+ 	done := make(chan int);
+-	go Serve(t, network, listenaddr, listening, done);
++	go runServe(t, network, listenaddr, listening, done);
+ 	<-listening;	// wait for server to start
+-	Connect(t, network, dialaddr);
++	connect(t, network, dialaddr);
+ 	<-done;	// make sure server stopped
+ }
+ 
+ export func TestTcpServer(t *testing.T) {
+-	DoTest(t,  "tcp", "0.0.0.0:9997", "127.0.0.1:9997");
+-	DoTest(t, "tcp", "[::]:9997", "[::ffff:127.0.0.1]:9997");
+-	DoTest(t, "tcp", "[::]:9997", "127.0.0.1:9997");
+-	DoTest(t, "tcp", ":9997", "127.0.0.1:9997");
+-	DoTest(t, "tcp", "0.0.0.0:9997", "[::ffff:127.0.0.1]:9997");
++	doTest(t,  "tcp", "0.0.0.0:9997", "127.0.0.1:9997");
++	doTest(t, "tcp", "[::]:9997", "[::ffff:127.0.0.1]:9997");
++	doTest(t, "tcp", "[::]:9997", "127.0.0.1:9997");
++	doTest(t, "tcp", ":9997", "127.0.0.1:9997");
++	doTest(t, "tcp", "0.0.0.0:9997", "[::ffff:127.0.0.1]:9997");
+ }
+ 
+diff --git a/src/lib/sync/mutex_test.go b/src/lib/sync/mutex_test.go
+index 876cb0f14d..1c4e73056d 100644
+--- a/src/lib/sync/mutex_test.go
++++ b/src/lib/sync/mutex_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"testing"
+ )
+ 
+-func HammerSemaphore(s *int32, cdone chan bool) {
++func hammerSemaphore(s *int32, cdone chan bool) {
+ 	for i := 0; i < 1000; i++ {
+ 		sys.semacquire(s);
+ 		sys.semrelease(s);
+@@ -24,7 +24,7 @@ export func TestSemaphore(t *testing.T) {
+ 	*s = 1;
+ 	c := make(chan bool);
+ 	for i := 0; i < 10; i++ {
+-		go HammerSemaphore(s, c);
++		go hammerSemaphore(s, c);
+ 	}
+ 	for i := 0; i < 10; i++ {
+ 		<-c;
+@@ -32,7 +32,7 @@ export func TestSemaphore(t *testing.T) {
+ }
+ 
+ 
+-func HammerMutex(m *Mutex, cdone chan bool) {
++func hammerMutex(m *Mutex, cdone chan bool) {
+ 	for i := 0; i < 1000; i++ {
+ 		m.Lock();
+ 		m.Unlock();
+@@ -44,7 +44,7 @@ export func TestMutex(t *testing.T) {
+ 	m := new(Mutex);
+ 	c := make(chan bool);
+ 	for i := 0; i < 10; i++ {
+-		go HammerMutex(m, c);
++		go hammerMutex(m, c);
+ 	}
+ 	for i := 0; i < 10; i++ {
+ 		<-c;

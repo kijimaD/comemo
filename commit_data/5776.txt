@@ -7,6 +7,20 @@ Date:   Fri Jul 9 13:03:25 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1791041
-
+---
  src/cmd/gofmt/test.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index bed46532b8..d2b7752c72 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -41,7 +41,7 @@ apply1() {
+ 	bug106.go | bug121.go | bug125.go | bug133.go | bug160.go | \
+ 	bug163.go | bug166.go | bug169.go | bug217.go | bug222.go | \
+ 	bug226.go | bug228.go | bug248.go | bug274.go | bug280.go | \
+-	bug282.go ) return ;;
++	bug282.go | bug287.go ) return ;;
+ 	esac
+ 	# the following directories are skipped because they contain test
+ 	# cases for syntax errors and thus won't parse in the first place:

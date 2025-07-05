@@ -15,9 +15,154 @@ Date:   Fri Feb 20 16:02:11 2015 -0800
     Change-Id: I5b52ad25d177a74cf07e089dddfeeab21863c424
     Reviewed-on: https://go-review.googlesource.com/5422
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/arch/arm.go         |  6 +++---
  src/cmd/asm/internal/asm/asm.go          | 11 +++++++---
  src/cmd/asm/internal/asm/operand_test.go |  4 +++-
  src/cmd/asm/internal/asm/parse.go        | 36 ++++++++++++++++++++++++++++++--
  4 files changed, 48 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm.go b/src/cmd/asm/internal/arch/arm.go
+index 75bb0be168..fab896a79f 100644
+--- a/src/cmd/asm/internal/arch/arm.go
++++ b/src/cmd/asm/internal/arch/arm.go
+@@ -150,7 +150,7 @@ func ARMConditionCodes(prog *obj.Prog, cond string) bool {
+ 	if cond == "" {
+ 		return true
+ 	}
+-	bits, ok := parseARMCondition(cond)
++	bits, ok := ParseARMCondition(cond)
+ 	if !ok {
+ 		return false
+ 	}
+@@ -163,10 +163,10 @@ func ARMConditionCodes(prog *obj.Prog, cond string) bool {
+ 	return true
+ }
+ 
+-// parseARMCondition parses the conditions attached to an ARM instruction.
++// ParseARMCondition parses the conditions attached to an ARM instruction.
+ // The input is a single string consisting of period-separated condition
+ // codes, such as ".P.W". An initial period is ignored.
+-func parseARMCondition(cond string) (uint8, bool) {
++func ParseARMCondition(cond string) (uint8, bool) {
+ 	if strings.HasPrefix(cond, ".") {
+ 		cond = cond[1:]
+ 	}
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 31e643ffb9..5d0d080190 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -586,10 +586,15 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 			// Strange special case: MCR, MRC.
+ 			// TODO: Move this to arch? (It will be hard to disentangle.)
+ 			prog.To.Type = obj.TYPE_CONST
++			bits, ok := uint8(0), false
+ 			if cond != "" {
+-				p.errorf("TODO: can't handle ARM condition code for instruction %s", p.arch.Aconv(op))
++				// Cond is handled specially for this instruction.
++				bits, ok = arch.ParseARMCondition(cond)
++				if !ok {
++					p.errorf("unrecognized condition code .%q", cond)
++				}
++				cond = ""
+ 			}
+-			cond = ""
+ 			// First argument is a condition code as a constant.
+ 			x0 := p.getConstant(prog, op, &a[0])
+ 			x1 := p.getConstant(prog, op, &a[1])
+@@ -605,7 +610,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 			prog.To.Offset =
+ 				(0xe << 24) | // opcode
+ 					(op1 << 20) | // MCR/MRC
+-					((0 ^ arm.C_SCOND_XOR) << 28) | // scond TODO; should use cond.
++					((int64(bits) ^ arm.C_SCOND_XOR) << 28) | // scond
+ 					((x0 & 15) << 8) | //coprocessor number
+ 					((x1 & 7) << 21) | // coprocessor operation
+ 					((x2 & 15) << 12) | // ARM register
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index 0e3d844954..4437b7d5a6 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -155,6 +155,7 @@ var amd64OperandTests = []operandTest{
+ 	{"DI", "DI"},
+ 	{"DX", "DX"},
+ 	{"R10", "R10"},
++	{"R10", "R10"},
+ 	{"R11", "R11"},
+ 	{"R12", "R12"},
+ 	{"R13", "R13"},
+@@ -282,7 +283,8 @@ var armOperandTests = []operandTest{
+ 	{"R13", "R13"},
+ 	{"R14", "R14"},
+ 	{"R15", "R15"},
+-	{"R1<<2(R0)", "R1<<2(R0)"},
++	{"R1<<2(R3)", "R1<<2(R3)"},
++	{"R(1)<<2(R(3))", "R1<<2(R3)"},
+ 	{"R2", "R2"},
+ 	{"R3", "R3"},
+ 	{"R4", "R4"},
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 05db95b420..14539dc911 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -273,7 +273,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 
+ 	// Register: R1
+ 	if tok.ScanToken == scanner.Ident && p.atStartOfRegister(name) {
+-		if lex.IsRegisterShift(p.peek()) {
++		if p.atRegisterShift() {
+ 			// ARM shifted register such as R1<<R2 or R1>>2.
+ 			a.Type = obj.TYPE_SHIFT
+ 			a.Offset = p.registerShift(tok.String(), prefix)
+@@ -381,6 +381,25 @@ func (p *Parser) atStartOfRegister(name string) bool {
+ 	return p.arch.RegisterPrefix[name] && p.peek() == '('
+ }
+ 
++// atRegisterShift reports whether we are at the start of an ARM shifted register.
++// We have consumed the register or R prefix.
++func (p *Parser) atRegisterShift() bool {
++	// ARM only.
++	if p.arch.Thechar != '5' {
++		return false
++	}
++	// R1<<...
++	if lex.IsRegisterShift(p.peek()) {
++		return true
++	}
++	// R(1)<<...   Ugly check. TODO: Rethink how we handle ARM register shifts to be
++	// less special.
++	if p.peek() != '(' || len(p.input)-p.inputPos < 4 {
++		return false
++	}
++	return p.at('(', scanner.Int, ')') && lex.IsRegisterShift(p.input[p.inputPos+3].ScanToken)
++}
++
+ // registerReference parses a register given either the name, R10, or a parenthesized form, SPR(10).
+ func (p *Parser) registerReference(name string) (int16, bool) {
+ 	r, present := p.arch.Register[name]
+@@ -655,7 +674,7 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
+ 
+ // registerList parses an ARM register list expression, a list of registers in [].
+ // There may be comma-separated ranges or individual registers, as in
+-// [R1,R3-R5,R7]. Only R0 through R15 may appear.
++// [R1,R3-R5]. Only R0 through R15 may appear.
+ // The opening bracket has been consumed.
+ func (p *Parser) registerList(a *obj.Addr) {
+ 	// One range per loop.
+@@ -917,3 +936,16 @@ func (p *Parser) have(token lex.ScanToken) bool {
+ 	}
+ 	return false
+ }
++
++// at reports whether the next tokens are as requested.
++func (p *Parser) at(next ...lex.ScanToken) bool {
++	if len(p.input)-p.inputPos < len(next) {
++		return false
++	}
++	for i, r := range next {
++		if p.input[p.inputPos+i].ScanToken != r {
++			return false
++		}
++	}
++	return true
++}

@@ -7,6 +7,20 @@ Date:   Thu Sep 4 01:05:32 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/137130043
-
+---
  src/pkg/runtime/asm_arm.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 6acf3f73db..3f3b9b7bee 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -198,7 +198,7 @@ TEXT runtime·onM(SB), NOSPLIT, $0-4
+ 	CMP	g, R2
+ 	B.EQ	onm
+ 
+-	MOVW	m_g0(R1), R3
++	MOVW	m_curg(R1), R3
+ 	CMP	g, R3
+ 	B.EQ	oncurg
+ 

@@ -19,10 +19,242 @@ Date:   Thu Aug 24 14:40:14 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Joedian Reid <joedian@golang.org>
-
+---
  .../internal/edwards25519/field/fe_alias_test.go   |  4 ++--
  src/crypto/internal/edwards25519/field/fe_test.go  | 22 +++++++++++-------
  .../internal/edwards25519/scalar_alias_test.go     |  2 +-
  src/crypto/internal/edwards25519/scalar_test.go    | 26 +++++++++++++---------
  .../internal/edwards25519/scalarmult_test.go       | 12 ++++------
  5 files changed, 37 insertions(+), 29 deletions(-)
+
+diff --git a/src/crypto/internal/edwards25519/field/fe_alias_test.go b/src/crypto/internal/edwards25519/field/fe_alias_test.go
+index bf1efdcead..0c81239458 100644
+--- a/src/crypto/internal/edwards25519/field/fe_alias_test.go
++++ b/src/crypto/internal/edwards25519/field/fe_alias_test.go
+@@ -129,9 +129,9 @@ func TestAliasing(t *testing.T) {
+ 		var err error
+ 		switch {
+ 		case tt.oneArgF != nil:
+-			err = quick.Check(checkAliasingOneArg(tt.oneArgF), &quick.Config{MaxCountScale: 1 << 8})
++			err = quick.Check(checkAliasingOneArg(tt.oneArgF), quickCheckConfig(256))
+ 		case tt.twoArgsF != nil:
+-			err = quick.Check(checkAliasingTwoArgs(tt.twoArgsF), &quick.Config{MaxCountScale: 1 << 8})
++			err = quick.Check(checkAliasingTwoArgs(tt.twoArgsF), quickCheckConfig(256))
+ 		}
+ 		if err != nil {
+ 			t.Errorf("%v: %v", tt.name, err)
+diff --git a/src/crypto/internal/edwards25519/field/fe_test.go b/src/crypto/internal/edwards25519/field/fe_test.go
+index 945a024a41..a24fbfeb90 100644
+--- a/src/crypto/internal/edwards25519/field/fe_test.go
++++ b/src/crypto/internal/edwards25519/field/fe_test.go
+@@ -21,9 +21,15 @@ func (v Element) String() string {
+ 	return hex.EncodeToString(v.Bytes())
+ }
+ 
+-// quickCheckConfig1024 will make each quickcheck test run (1024 * -quickchecks)
+-// times. The default value of -quickchecks is 100.
+-var quickCheckConfig1024 = &quick.Config{MaxCountScale: 1 << 10}
++// quickCheckConfig returns a quick.Config that scales the max count by the
++// given factor if the -short flag is not set.
++func quickCheckConfig(slowScale int) *quick.Config {
++	cfg := new(quick.Config)
++	if !testing.Short() {
++		cfg.MaxCountScale = float64(slowScale)
++	}
++	return cfg
++}
+ 
+ func generateFieldElement(rand *mathrand.Rand) Element {
+ 	const maskLow52Bits = (1 << 52) - 1
+@@ -114,7 +120,7 @@ func TestMultiplyDistributesOverAdd(t *testing.T) {
+ 		return t1.Equal(t2) == 1 && isInBounds(t1) && isInBounds(t2)
+ 	}
+ 
+-	if err := quick.Check(multiplyDistributesOverAdd, quickCheckConfig1024); err != nil {
++	if err := quick.Check(multiplyDistributesOverAdd, quickCheckConfig(1024)); err != nil {
+ 		t.Error(err)
+ 	}
+ }
+@@ -419,7 +425,7 @@ func TestMult32(t *testing.T) {
+ 		return t1.Equal(t2) == 1 && isInBounds(t1) && isInBounds(t2)
+ 	}
+ 
+-	if err := quick.Check(mult32EquivalentToMul, quickCheckConfig1024); err != nil {
++	if err := quick.Check(mult32EquivalentToMul, quickCheckConfig(1024)); err != nil {
+ 		t.Error(err)
+ 	}
+ }
+@@ -498,7 +504,7 @@ func TestCarryPropagate(t *testing.T) {
+ 		return *t1 == *t2 && isInBounds(t2)
+ 	}
+ 
+-	if err := quick.Check(asmLikeGeneric, quickCheckConfig1024); err != nil {
++	if err := quick.Check(asmLikeGeneric, quickCheckConfig(1024)); err != nil {
+ 		t.Error(err)
+ 	}
+ 
+@@ -522,7 +528,7 @@ func TestFeSquare(t *testing.T) {
+ 		return t1 == t2 && isInBounds(&t2)
+ 	}
+ 
+-	if err := quick.Check(asmLikeGeneric, quickCheckConfig1024); err != nil {
++	if err := quick.Check(asmLikeGeneric, quickCheckConfig(1024)); err != nil {
+ 		t.Error(err)
+ 	}
+ }
+@@ -546,7 +552,7 @@ func TestFeMul(t *testing.T) {
+ 			b1 == b2 && isInBounds(&b2)
+ 	}
+ 
+-	if err := quick.Check(asmLikeGeneric, quickCheckConfig1024); err != nil {
++	if err := quick.Check(asmLikeGeneric, quickCheckConfig(1024)); err != nil {
+ 		t.Error(err)
+ 	}
+ }
+diff --git a/src/crypto/internal/edwards25519/scalar_alias_test.go b/src/crypto/internal/edwards25519/scalar_alias_test.go
+index 4d83441a48..1893a7fc0c 100644
+--- a/src/crypto/internal/edwards25519/scalar_alias_test.go
++++ b/src/crypto/internal/edwards25519/scalar_alias_test.go
+@@ -100,7 +100,7 @@ func TestScalarAliasing(t *testing.T) {
+ 			}, v, x, y)
+ 		},
+ 	} {
+-		err := quick.Check(f, &quick.Config{MaxCountScale: 1 << 5})
++		err := quick.Check(f, quickCheckConfig(32))
+ 		if err != nil {
+ 			t.Errorf("%v: %v", name, err)
+ 		}
+diff --git a/src/crypto/internal/edwards25519/scalar_test.go b/src/crypto/internal/edwards25519/scalar_test.go
+index 67bcdafe91..05551ef771 100644
+--- a/src/crypto/internal/edwards25519/scalar_test.go
++++ b/src/crypto/internal/edwards25519/scalar_test.go
+@@ -14,6 +14,16 @@ import (
+ 	"testing/quick"
+ )
+ 
++// quickCheckConfig returns a quick.Config that scales the max count by the
++// given factor if the -short flag is not set.
++func quickCheckConfig(slowScale int) *quick.Config {
++	cfg := new(quick.Config)
++	if !testing.Short() {
++		cfg.MaxCountScale = float64(slowScale)
++	}
++	return cfg
++}
++
+ var scOneBytes = [32]byte{1}
+ var scOne, _ = new(Scalar).SetCanonicalBytes(scOneBytes[:])
+ var scMinusOne, _ = new(Scalar).SetCanonicalBytes(scalarMinusOneBytes[:])
+@@ -53,15 +63,11 @@ func (Scalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
+ 	return reflect.ValueOf(val)
+ }
+ 
+-// quickCheckConfig1024 will make each quickcheck test run (1024 * -quickchecks)
+-// times. The default value of -quickchecks is 100.
+-var quickCheckConfig1024 = &quick.Config{MaxCountScale: 1 << 10}
+-
+ func TestScalarGenerate(t *testing.T) {
+ 	f := func(sc Scalar) bool {
+ 		return isReduced(sc.Bytes())
+ 	}
+-	if err := quick.Check(f, quickCheckConfig1024); err != nil {
++	if err := quick.Check(f, quickCheckConfig(1024)); err != nil {
+ 		t.Errorf("generated unreduced scalar: %v", err)
+ 	}
+ }
+@@ -76,7 +82,7 @@ func TestScalarSetCanonicalBytes(t *testing.T) {
+ 		repr := sc.Bytes()
+ 		return bytes.Equal(in[:], repr) && isReduced(repr)
+ 	}
+-	if err := quick.Check(f1, quickCheckConfig1024); err != nil {
++	if err := quick.Check(f1, quickCheckConfig(1024)); err != nil {
+ 		t.Errorf("failed bytes->scalar->bytes round-trip: %v", err)
+ 	}
+ 
+@@ -86,7 +92,7 @@ func TestScalarSetCanonicalBytes(t *testing.T) {
+ 		}
+ 		return sc1 == sc2
+ 	}
+-	if err := quick.Check(f2, quickCheckConfig1024); err != nil {
++	if err := quick.Check(f2, quickCheckConfig(1024)); err != nil {
+ 		t.Errorf("failed scalar->bytes->scalar round-trip: %v", err)
+ 	}
+ 
+@@ -115,7 +121,7 @@ func TestScalarSetUniformBytes(t *testing.T) {
+ 		inBig := bigIntFromLittleEndianBytes(in[:])
+ 		return inBig.Mod(inBig, mod).Cmp(scBig) == 0
+ 	}
+-	if err := quick.Check(f, quickCheckConfig1024); err != nil {
++	if err := quick.Check(f, quickCheckConfig(1024)); err != nil {
+ 		t.Error(err)
+ 	}
+ }
+@@ -175,7 +181,7 @@ func TestScalarMultiplyDistributesOverAdd(t *testing.T) {
+ 		return t1 == t2 && isReduced(reprT1) && isReduced(reprT2)
+ 	}
+ 
+-	if err := quick.Check(multiplyDistributesOverAdd, quickCheckConfig1024); err != nil {
++	if err := quick.Check(multiplyDistributesOverAdd, quickCheckConfig(1024)); err != nil {
+ 		t.Error(err)
+ 	}
+ }
+@@ -194,7 +200,7 @@ func TestScalarAddLikeSubNeg(t *testing.T) {
+ 		return t1 == t2 && isReduced(t1.Bytes())
+ 	}
+ 
+-	if err := quick.Check(addLikeSubNeg, quickCheckConfig1024); err != nil {
++	if err := quick.Check(addLikeSubNeg, quickCheckConfig(1024)); err != nil {
+ 		t.Error(err)
+ 	}
+ }
+diff --git a/src/crypto/internal/edwards25519/scalarmult_test.go b/src/crypto/internal/edwards25519/scalarmult_test.go
+index 6c92ab3167..4a00c79ace 100644
+--- a/src/crypto/internal/edwards25519/scalarmult_test.go
++++ b/src/crypto/internal/edwards25519/scalarmult_test.go
+@@ -10,10 +10,6 @@ import (
+ )
+ 
+ var (
+-	// quickCheckConfig32 will make each quickcheck test run (32 * -quickchecks)
+-	// times. The default value of -quickchecks is 100.
+-	quickCheckConfig32 = &quick.Config{MaxCountScale: 1 << 5}
+-
+ 	// a random scalar generated using dalek.
+ 	dalekScalar, _ = (&Scalar{}).SetCanonicalBytes([]byte{219, 106, 114, 9, 174, 249, 155, 89, 69, 203, 201, 93, 92, 116, 234, 187, 78, 115, 103, 172, 182, 98, 62, 103, 187, 136, 13, 100, 248, 110, 12, 4})
+ 	// the above, times the edwards25519 basepoint.
+@@ -83,7 +79,7 @@ func TestScalarMultDistributesOverAdd(t *testing.T) {
+ 		return check.Equal(&r) == 1
+ 	}
+ 
+-	if err := quick.Check(scalarMultDistributesOverAdd, quickCheckConfig32); err != nil {
++	if err := quick.Check(scalarMultDistributesOverAdd, quickCheckConfig(32)); err != nil {
+ 		t.Error(err)
+ 	}
+ }
+@@ -105,7 +101,7 @@ func TestScalarMultNonIdentityPoint(t *testing.T) {
+ 		return p.Equal(&q) == 1
+ 	}
+ 
+-	if err := quick.Check(scalarMultNonIdentityPoint, quickCheckConfig32); err != nil {
++	if err := quick.Check(scalarMultNonIdentityPoint, quickCheckConfig(32)); err != nil {
+ 		t.Error(err)
+ 	}
+ }
+@@ -149,7 +145,7 @@ func TestScalarMultMatchesBaseMult(t *testing.T) {
+ 		return p.Equal(&q) == 1
+ 	}
+ 
+-	if err := quick.Check(scalarMultMatchesBaseMult, quickCheckConfig32); err != nil {
++	if err := quick.Check(scalarMultMatchesBaseMult, quickCheckConfig(32)); err != nil {
+ 		t.Error(err)
+ 	}
+ }
+@@ -177,7 +173,7 @@ func TestVarTimeDoubleBaseMultMatchesBaseMult(t *testing.T) {
+ 		return p.Equal(&check) == 1
+ 	}
+ 
+-	if err := quick.Check(varTimeDoubleBaseMultMatchesBaseMult, quickCheckConfig32); err != nil {
++	if err := quick.Check(varTimeDoubleBaseMultMatchesBaseMult, quickCheckConfig(32)); err != nil {
+ 		t.Error(err)
+ 	}
+ }

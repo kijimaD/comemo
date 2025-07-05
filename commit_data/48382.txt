@@ -28,7 +28,38 @@ Date:   Fri May 14 09:59:20 2021 +1200
     Trust: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go             | 4 ++--
  src/cmd/go/internal/work/build.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 052b61c03d..fcc7f36335 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -174,8 +174,8 @@
+ // 		a build will run as if the disk file path exists with the contents
+ // 		given by the backing file paths, or as if the disk file path does not
+ // 		exist if its backing file path is empty. Support for the -overlay flag
+-// 		has some limitations:importantly, cgo files included from outside the
+-// 		include path must be  in the same directory as the Go package they are
++// 		has some limitations: importantly, cgo files included from outside the
++// 		include path must be in the same directory as the Go package they are
+ // 		included from, and overlays will not appear when binaries and tests are
+ // 		run through go run and go test respectively.
+ // 	-pkgdir dir
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 1babbda889..0ed2389cd5 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -128,8 +128,8 @@ and test commands:
+ 		a build will run as if the disk file path exists with the contents
+ 		given by the backing file paths, or as if the disk file path does not
+ 		exist if its backing file path is empty. Support for the -overlay flag
+-		has some limitations:importantly, cgo files included from outside the
+-		include path must be  in the same directory as the Go package they are
++		has some limitations: importantly, cgo files included from outside the
++		include path must be in the same directory as the Go package they are
+ 		included from, and overlays will not appear when binaries and tests are
+ 		run through go run and go test respectively.
+ 	-pkgdir dir

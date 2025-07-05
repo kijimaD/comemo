@@ -9,6 +9,30 @@ Date:   Thu Mar 28 15:04:25 2013 -0700
     R=golang-dev, franciscossouza
     CC=golang-dev
     https://golang.org/cl/8120043
-
+---
  src/cmd/ld/lib.c | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 1bd2d4ff88..541b03c736 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -31,6 +31,7 @@
+ 
+ #include	"l.h"
+ #include	"lib.h"
++#include	"../ld/elf.h"
+ #include	"../../pkg/runtime/stack.h"
+ 
+ #include	<ar.h>
+@@ -640,8 +641,8 @@ hostlink(void)
+ 		argv[argc++] = smprint("-Wl,-rpath,%s", rpath);
+ 
+ 	// Force global symbols to be exported for dlopen, etc.
+-	// NOTE: May not work on OS X or Windows. We'll see.
+-	argv[argc++] = "-rdynamic";
++	if(iself)
++		argv[argc++] = "-rdynamic";
+ 
+ 	// already wrote main object file
+ 	// copy host objects to temporary directory

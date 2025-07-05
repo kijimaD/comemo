@@ -15,6 +15,27 @@ Date:   Sun Dec 8 21:45:48 2024 +0100
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/proflabel.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/runtime/proflabel.go b/src/runtime/proflabel.go
+index 1a5e7e5e2f..f9b9dd16a5 100644
+--- a/src/runtime/proflabel.go
++++ b/src/runtime/proflabel.go
+@@ -12,7 +12,6 @@ var labelSync uintptr
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/cloudwego/localsession
+-//   - github.com/DataDog/datadog-agent
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+@@ -47,7 +46,6 @@ func runtime_setProfLabel(labels unsafe.Pointer) {
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/cloudwego/localsession
+-//   - github.com/DataDog/datadog-agent
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.

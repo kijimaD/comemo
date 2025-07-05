@@ -9,7 +9,34 @@ Date:   Fri Jun 13 11:45:23 2025 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/runtime/trace.go     | 2 +-
  src/runtime/tracetime.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 139cbba6a9..7d47ae02a9 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -331,7 +331,7 @@ func StopTrace() {
+ //
+ // traceAdvanceSema must not be held.
+ //
+-// traceAdvance is called by golang.org/x/exp/trace using linkname.
++// traceAdvance is called by runtime/trace and golang.org/x/exp/trace using linkname.
+ //
+ //go:linkname traceAdvance
+ func traceAdvance(stopTrace bool) {
+diff --git a/src/runtime/tracetime.go b/src/runtime/tracetime.go
+index 7ffab79bad..8be5c3d130 100644
+--- a/src/runtime/tracetime.go
++++ b/src/runtime/tracetime.go
+@@ -51,7 +51,7 @@ type traceTime uint64
+ // nosplit because it's called from exitsyscall and various trace writing functions,
+ // which are nosplit.
+ //
+-// traceClockNow is called by golang.org/x/exp/trace using linkname.
++// traceClockNow is called by runtime/trace and golang.org/x/exp/trace using linkname.
+ //
+ //go:linkname traceClockNow
+ //go:nosplit

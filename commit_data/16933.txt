@@ -15,8 +15,61 @@ Date:   Tue Jul 30 22:52:10 2013 -0400
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/12041051
-
+---
  src/cmd/go/signal_notunix.go |  4 ++++
  src/cmd/go/signal_unix.go    |  4 ++++
  src/cmd/go/test.go           | 13 +++++++++++++
  3 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/go/signal_notunix.go b/src/cmd/go/signal_notunix.go
+index ef13c19195..29aa9d8c20 100644
+--- a/src/cmd/go/signal_notunix.go
++++ b/src/cmd/go/signal_notunix.go
+@@ -11,3 +11,7 @@ import (
+ )
+ 
+ var signalsToIgnore = []os.Signal{os.Interrupt}
++
++// signalTrace is the signal to send to make a Go program
++// crash with a stack trace.
++var signalTrace os.Signal = nil
+diff --git a/src/cmd/go/signal_unix.go b/src/cmd/go/signal_unix.go
+index 489a73b83b..124f356bf8 100644
+--- a/src/cmd/go/signal_unix.go
++++ b/src/cmd/go/signal_unix.go
+@@ -12,3 +12,7 @@ import (
+ )
+ 
+ var signalsToIgnore = []os.Signal{os.Interrupt, syscall.SIGQUIT}
++
++// signalTrace is the signal to send to make a Go program
++// crash with a stack trace.
++var signalTrace os.Signal = syscall.SIGQUIT
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index e51b5a45d1..c197007c43 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -896,10 +896,23 @@ func (b *builder) runTest(a *action) error {
+ 		go func() {
+ 			done <- cmd.Wait()
+ 		}()
++	Outer:
+ 		select {
+ 		case err = <-done:
+ 			// ok
+ 		case <-tick.C:
++			if signalTrace != nil {
++				// Send a quit signal in the hope that the program will print
++				// a stack trace and exit. Give it five seconds before resorting
++				// to Kill.
++				cmd.Process.Signal(signalTrace)
++				select {
++				case err = <-done:
++					fmt.Fprintf(&buf, "*** Test killed with %v: ran too long (%v).\n", signalTrace, testKillTimeout)
++					break Outer
++				case <-time.After(5 * time.Second):
++				}
++			}
+ 			cmd.Process.Kill()
+ 			err = <-done
+ 			fmt.Fprintf(&buf, "*** Test killed: ran too long (%v).\n", testKillTimeout)

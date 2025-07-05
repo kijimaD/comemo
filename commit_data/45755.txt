@@ -15,8 +15,97 @@ Date:   Thu Oct 29 19:28:07 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/work/gc.go               |  6 ++++--
  src/cmd/go/internal/work/gccgo.go            |  2 +-
  src/cmd/go/testdata/script/build_overlay.txt | 17 +++++++++++++++++
  3 files changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 56711b52d8..3a53c714e3 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -370,9 +370,10 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
+ 
+ 	var ofiles []string
+ 	for _, sfile := range sfiles {
++		overlayPath, _ := fsys.OverlayPath(mkAbs(p.Dir, sfile))
+ 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
+ 		ofiles = append(ofiles, ofile)
+-		args1 := append(args, "-o", ofile, mkAbs(p.Dir, sfile))
++		args1 := append(args, "-o", ofile, overlayPath)
+ 		if err := b.run(a, p.Dir, p.ImportPath, nil, args1...); err != nil {
+ 			return nil, err
+ 		}
+@@ -388,7 +389,8 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
+ 			if p.ImportPath == "runtime/cgo" && strings.HasPrefix(sfile, "gcc_") {
+ 				continue
+ 			}
+-			args = append(args, mkAbs(p.Dir, sfile))
++			op, _ := fsys.OverlayPath(mkAbs(p.Dir, sfile))
++			args = append(args, op)
+ 		}
+ 
+ 		// Supply an empty go_asm.h as if the compiler had been run.
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 6be3821f75..01d2b89159 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -199,7 +199,7 @@ func (tools gccgoToolchain) asm(b *Builder, a *Action, sfiles []string) ([]strin
+ 		base := filepath.Base(sfile)
+ 		ofile := a.Objdir + base[:len(base)-len(".s")] + ".o"
+ 		ofiles = append(ofiles, ofile)
+-		sfile = mkAbs(p.Dir, sfile)
++		sfile, _ = fsys.OverlayPath(mkAbs(p.Dir, sfile))
+ 		defs := []string{"-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch}
+ 		if pkgpath := tools.gccgoCleanPkgpath(b, p); pkgpath != "" {
+ 			defs = append(defs, `-D`, `GOPKGPATH=`+pkgpath)
+diff --git a/src/cmd/go/testdata/script/build_overlay.txt b/src/cmd/go/testdata/script/build_overlay.txt
+index 58c0de9a55..2e558874fd 100644
+--- a/src/cmd/go/testdata/script/build_overlay.txt
++++ b/src/cmd/go/testdata/script/build_overlay.txt
+@@ -43,6 +43,10 @@ go build -overlay overlay.json -o main_cgo_angle$GOEXE ./cgo_hello_angle
+ exec ./main_cgo_angle$GOEXE
+ stdout '^hello cgo\r?\n'
+ 
++go build -overlay overlay.json -o main_call_asm$GOEXE ./call_asm
++exec ./main_call_asm$GOEXE
++! stdout .
++
+ go list -compiled -overlay overlay.json -f '{{range .CompiledGoFiles}}{{. | printf "%s\n"}}{{end}}' ./cgo_hello_replace
+ cp stdout compiled_cgo_sources.txt
+ go run ../print_line_comments.go compiled_cgo_sources.txt
+@@ -79,6 +83,10 @@ go build -compiler=gccgo  -overlay overlay.json -o main_cgo_angle_gccgo$GOEXE ./
+ exec ./main_cgo_angle_gccgo$GOEXE
+ stdout '^hello cgo\r?\n'
+ 
++go build -compiler=gccgo -overlay overlay.json -o main_call_asm_gccgo$GOEXE ./call_asm
++exec ./main_call_asm_gccgo$GOEXE
++! stdout .
++
+ -- m/go.mod --
+ // TODO(matloob): how do overlays work with go.mod (especially if mod=readonly)
+ module m
+@@ -105,6 +113,7 @@ the actual code is in the overlay
+ 		"dir2/i.go": "overlay/dir2_i.go",
+ 		"printpath/main.go": "overlay/printpath.go",
+ 		"printpath/other.go": "overlay2/printpath2.go",
++		"call_asm/asm.s": "overlay/asm_file.s",
+ 		"cgo_hello_replace/cgo_header.h": "overlay/cgo_head.h",
+ 		"cgo_hello_replace/hello.c": "overlay/hello.c",
+ 		"cgo_hello_quote/cgo_hello.go": "overlay/cgo_hello_quote.go",
+@@ -139,6 +148,14 @@ import "m/dir2"
+ func main() {
+ 	dir2.PrintMessage()
+ }
++-- m/call_asm/main.go --
++package main
++
++func foo() // There will be a "missing function body" error if the assembly file isn't found.
++
++func main() {
++	foo()
++}
+ -- m/overlay/dir_g.go --
+ package dir
+ 

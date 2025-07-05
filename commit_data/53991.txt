@@ -16,7 +16,7 @@ Date:   Mon Aug 15 14:58:02 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/go/build/deps_test.go                                   |   7 ++++++-
  src/runtime/race/internal/amd64v1/doc.go                    |   8 ++++++++
  .../amd64v1/race_darwin.syso}                               | Bin
@@ -29,3 +29,106 @@ Date:   Mon Aug 15 14:58:02 2022 -0700
  src/runtime/race/race_v1_amd64.go                           |  10 ++++++++++
  src/runtime/race/race_v3_amd64.go                           |  10 ++++++++++
  11 files changed, 42 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 19b886875c..efd28dfc21 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -301,7 +301,12 @@ var depsRules = `
+ 	< C
+ 	< runtime/cgo
+ 	< CGO
+-	< runtime/race, runtime/msan, runtime/asan;
++	< runtime/msan, runtime/asan;
++
++	# runtime/race
++	NONE < runtime/race/internal/amd64v1;
++	NONE < runtime/race/internal/amd64v3;
++	CGO, runtime/race/internal/amd64v1, runtime/race/internal/amd64v3 < runtime/race;
+ 
+ 	# Bulk of the standard library must not use cgo.
+ 	# The prohibition stops at net and os/user.
+diff --git a/src/runtime/race/internal/amd64v1/doc.go b/src/runtime/race/internal/amd64v1/doc.go
+new file mode 100644
+index 0000000000..130b290bdb
+--- /dev/null
++++ b/src/runtime/race/internal/amd64v1/doc.go
+@@ -0,0 +1,8 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This package holds the race detector .syso for
++// amd64 architectures with GOAMD64<v3.
++
++package amd64v1
+diff --git a/src/runtime/race/race_darwin_amd64.syso b/src/runtime/race/internal/amd64v1/race_darwin.syso
+similarity index 100%
+rename from src/runtime/race/race_darwin_amd64.syso
+rename to src/runtime/race/internal/amd64v1/race_darwin.syso
+diff --git a/src/runtime/race/race_freebsd_amd64.syso b/src/runtime/race/internal/amd64v1/race_freebsd.syso
+similarity index 100%
+rename from src/runtime/race/race_freebsd_amd64.syso
+rename to src/runtime/race/internal/amd64v1/race_freebsd.syso
+diff --git a/src/runtime/race/race_linux_amd64.syso b/src/runtime/race/internal/amd64v1/race_linux.syso
+similarity index 100%
+rename from src/runtime/race/race_linux_amd64.syso
+rename to src/runtime/race/internal/amd64v1/race_linux.syso
+diff --git a/src/runtime/race/race_netbsd_amd64.syso b/src/runtime/race/internal/amd64v1/race_netbsd.syso
+similarity index 100%
+rename from src/runtime/race/race_netbsd_amd64.syso
+rename to src/runtime/race/internal/amd64v1/race_netbsd.syso
+diff --git a/src/runtime/race/race_openbsd_amd64.syso b/src/runtime/race/internal/amd64v1/race_openbsd.syso
+similarity index 100%
+rename from src/runtime/race/race_openbsd_amd64.syso
+rename to src/runtime/race/internal/amd64v1/race_openbsd.syso
+diff --git a/src/runtime/race/race_windows_amd64.syso b/src/runtime/race/internal/amd64v1/race_windows.syso
+similarity index 100%
+rename from src/runtime/race/race_windows_amd64.syso
+rename to src/runtime/race/internal/amd64v1/race_windows.syso
+diff --git a/src/runtime/race/internal/amd64v3/doc.go b/src/runtime/race/internal/amd64v3/doc.go
+new file mode 100644
+index 0000000000..6983335281
+--- /dev/null
++++ b/src/runtime/race/internal/amd64v3/doc.go
+@@ -0,0 +1,8 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This package holds the race detector .syso for
++// amd64 architectures with GOAMD64>=v3.
++
++package amd64v3
+diff --git a/src/runtime/race/race_v1_amd64.go b/src/runtime/race/race_v1_amd64.go
+new file mode 100644
+index 0000000000..8dcd54905f
+--- /dev/null
++++ b/src/runtime/race/race_v1_amd64.go
+@@ -0,0 +1,10 @@
++//go:build linux || darwin || freebsd || netbsd || openbsd || windows
++// +build linux darwin freebsd netbsd openbsd windows
++
++package race
++
++import _ "runtime/race/internal/amd64v1"
++
++// Note: the build line above will eventually be something
++// like go:build linux && !amd64.v3 || darwin && !amd64.v3 || ...
++// as we build v3 versions for each OS.
+diff --git a/src/runtime/race/race_v3_amd64.go b/src/runtime/race/race_v3_amd64.go
+new file mode 100644
+index 0000000000..da8759340a
+--- /dev/null
++++ b/src/runtime/race/race_v3_amd64.go
+@@ -0,0 +1,10 @@
++//go:build none
++// +build none
++
++package race
++
++import _ "runtime/race/internal/amd64v3"
++
++// Note: the build line above will eventually be something
++// like go:build linux && amd64.v3 || darwin && amd64.v3 || ...
++// as we build v3 versions for each OS.

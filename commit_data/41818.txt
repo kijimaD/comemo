@@ -13,10 +13,165 @@ Date:   Tue Jun 25 10:38:21 2019 +0000
     Change-Id: Ib7eb80836bc074e2e6a46ae4602ba8a3b96c5456
     Reviewed-on: https://go-review.googlesource.com/c/go/+/183777
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/sys_darwin_arm.s  | 20 ++++----------------
  src/runtime/sys_freebsd_arm.s | 11 ++++++++++-
  src/runtime/sys_linux_arm.s   | 11 ++++++++++-
  src/runtime/sys_netbsd_arm.s  | 11 ++++++++++-
  src/runtime/sys_openbsd_arm.s | 11 ++++++++++-
  5 files changed, 44 insertions(+), 20 deletions(-)
+
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 4e201fca09..c08a29e7e0 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -182,14 +182,8 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	// Reserve space for callee-save registers and arguments.
+-	SUB	$40, R13
+-
+-	MOVW	R4, 16(R13)
+-	MOVW	R5, 20(R13)
+-	MOVW	R6, 24(R13)
+-	MOVW	R7, 28(R13)
+-	MOVW	R8, 32(R13)
+-	MOVW	R11, 36(R13)
++	MOVM.DB.W [R4-R11], (R13)
++	SUB	$16, R13
+ 
+ 	// Save arguments.
+ 	MOVW	R0, 4(R13)	// sig
+@@ -238,14 +232,8 @@ nog:
+ 	MOVW	R5, R13
+ 
+ 	// Restore callee-save registers.
+-	MOVW	16(R13), R4
+-	MOVW	20(R13), R5
+-	MOVW	24(R13), R6
+-	MOVW	28(R13), R7
+-	MOVW	32(R13), R8
+-	MOVW	36(R13), R11
+-
+-	ADD	$40, R13
++	ADD	$16, R13
++	MOVM.IA.W (R13), [R4-R11]
+ 
+ 	RET
+ 
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 8dcdbb56bd..1e12f9cfcb 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -246,7 +246,11 @@ TEXT runtime·asmSigaction(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$12
++TEXT runtime·sigtramp(SB),NOSPLIT,$0
++	// Reserve space for callee-save registers and arguments.
++	MOVM.DB.W [R4-R11], (R13)
++	SUB	$16, R13
++
+ 	// this might be called in external code context,
+ 	// where g is not set.
+ 	// first save R0, because runtime·load_g will clobber it
+@@ -258,6 +262,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	MOVW	R1, 8(R13)
+ 	MOVW	R2, 12(R13)
+ 	BL	runtime·sigtrampgo(SB)
++
++	// Restore callee-save registers.
++	ADD	$16, R13
++	MOVM.IA.W (R13), [R4-R11]
++
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$16
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index a787440a15..9ef8c9258b 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -493,7 +493,11 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+ 	MOVW	R4, R13
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$12
++TEXT runtime·sigtramp(SB),NOSPLIT,$0
++	// Reserve space for callee-save registers and arguments.
++	MOVM.DB.W [R4-R11], (R13)
++	SUB	$16, R13
++
+ 	// this might be called in external code context,
+ 	// where g is not set.
+ 	// first save R0, because runtime·load_g will clobber it
+@@ -506,6 +510,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	MOVW	R2, 12(R13)
+ 	MOVW  	$runtime·sigtrampgo(SB), R11
+ 	BL	(R11)
++
++	// Restore callee-save registers.
++	ADD	$16, R13
++	MOVM.IA.W (R13), [R4-R11]
++
+ 	RET
+ 
+ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index 64428bee4d..678dea57c6 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -300,7 +300,11 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+ 	MOVW	R4, R13
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$12
++TEXT runtime·sigtramp(SB),NOSPLIT,$0
++	// Reserve space for callee-save registers and arguments.
++	MOVM.DB.W [R4-R11], (R13)
++	SUB	$16, R13
++
+ 	// this might be called in external code context,
+ 	// where g is not set.
+ 	// first save R0, because runtime·load_g will clobber it
+@@ -312,6 +316,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	MOVW	R1, 8(R13)
+ 	MOVW	R2, 12(R13)
+ 	BL	runtime·sigtrampgo(SB)
++
++	// Restore callee-save registers.
++	ADD	$16, R13
++	MOVM.IA.W (R13), [R4-R11]
++
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$12
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index 2177a7308c..11f6e00100 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -247,7 +247,11 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+ 	MOVW	R4, R13
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$12
++TEXT runtime·sigtramp(SB),NOSPLIT,$0
++	// Reserve space for callee-save registers and arguments.
++	MOVM.DB.W [R4-R11], (R13)
++	SUB	$16, R13
++
+ 	// If called from an external code context, g will not be set.
+ 	// Save R0, since runtime·load_g will clobber it.
+ 	MOVW	R0, 4(R13)		// signum
+@@ -258,6 +262,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	MOVW	R1, 8(R13)
+ 	MOVW	R2, 12(R13)
+ 	BL	runtime·sigtrampgo(SB)
++
++	// Restore callee-save registers.
++	ADD	$16, R13
++	MOVM.IA.W (R13), [R4-R11]
++
+ 	RET
+ 
+ // int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));

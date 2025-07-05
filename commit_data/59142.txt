@@ -10,7 +10,7 @@ Date:   Fri Feb 16 14:32:27 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/internal/syscall/defs_linux.go         | 12 +++++++++++-
  src/runtime/internal/syscall/defs_linux_386.go     | 12 +-----------
  src/runtime/internal/syscall/defs_linux_amd64.go   | 12 +-----------
@@ -23,3 +23,255 @@ Date:   Fri Feb 16 14:32:27 2024 +0800
  src/runtime/internal/syscall/defs_linux_riscv64.go | 12 +-----------
  src/runtime/internal/syscall/defs_linux_s390x.go   | 12 +-----------
  11 files changed, 21 insertions(+), 111 deletions(-)
+
+diff --git a/src/runtime/internal/syscall/defs_linux.go b/src/runtime/internal/syscall/defs_linux.go
+index 242a67b4bc..b2e36a244f 100644
+--- a/src/runtime/internal/syscall/defs_linux.go
++++ b/src/runtime/internal/syscall/defs_linux.go
+@@ -5,5 +5,15 @@
+ package syscall
+ 
+ const (
+-	EFD_CLOEXEC = 0x80000
++	EPOLLIN       = 0x1
++	EPOLLOUT      = 0x4
++	EPOLLERR      = 0x8
++	EPOLLHUP      = 0x10
++	EPOLLRDHUP    = 0x2000
++	EPOLLET       = 0x80000000
++	EPOLL_CLOEXEC = 0x80000
++	EPOLL_CTL_ADD = 0x1
++	EPOLL_CTL_DEL = 0x2
++	EPOLL_CTL_MOD = 0x3
++	EFD_CLOEXEC   = 0x80000
+ )
+diff --git a/src/runtime/internal/syscall/defs_linux_386.go b/src/runtime/internal/syscall/defs_linux_386.go
+index fa0ca5ed0a..613dc77d59 100644
+--- a/src/runtime/internal/syscall/defs_linux_386.go
++++ b/src/runtime/internal/syscall/defs_linux_386.go
+@@ -12,17 +12,7 @@ const (
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 328
+ 
+-	EPOLLIN       = 0x1
+-	EPOLLOUT      = 0x4
+-	EPOLLERR      = 0x8
+-	EPOLLHUP      = 0x10
+-	EPOLLRDHUP    = 0x2000
+-	EPOLLET       = 0x80000000
+-	EPOLL_CLOEXEC = 0x80000
+-	EPOLL_CTL_ADD = 0x1
+-	EPOLL_CTL_DEL = 0x2
+-	EPOLL_CTL_MOD = 0x3
+-	EFD_NONBLOCK  = 0x800
++	EFD_NONBLOCK = 0x800
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_amd64.go b/src/runtime/internal/syscall/defs_linux_amd64.go
+index 71bd906ed4..2ba3128813 100644
+--- a/src/runtime/internal/syscall/defs_linux_amd64.go
++++ b/src/runtime/internal/syscall/defs_linux_amd64.go
+@@ -12,17 +12,7 @@ const (
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 290
+ 
+-	EPOLLIN       = 0x1
+-	EPOLLOUT      = 0x4
+-	EPOLLERR      = 0x8
+-	EPOLLHUP      = 0x10
+-	EPOLLRDHUP    = 0x2000
+-	EPOLLET       = 0x80000000
+-	EPOLL_CLOEXEC = 0x80000
+-	EPOLL_CTL_ADD = 0x1
+-	EPOLL_CTL_DEL = 0x2
+-	EPOLL_CTL_MOD = 0x3
+-	EFD_NONBLOCK  = 0x800
++	EFD_NONBLOCK = 0x800
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_arm.go b/src/runtime/internal/syscall/defs_linux_arm.go
+index 146cda5fcb..af3e0510b1 100644
+--- a/src/runtime/internal/syscall/defs_linux_arm.go
++++ b/src/runtime/internal/syscall/defs_linux_arm.go
+@@ -12,17 +12,7 @@ const (
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 356
+ 
+-	EPOLLIN       = 0x1
+-	EPOLLOUT      = 0x4
+-	EPOLLERR      = 0x8
+-	EPOLLHUP      = 0x10
+-	EPOLLRDHUP    = 0x2000
+-	EPOLLET       = 0x80000000
+-	EPOLL_CLOEXEC = 0x80000
+-	EPOLL_CTL_ADD = 0x1
+-	EPOLL_CTL_DEL = 0x2
+-	EPOLL_CTL_MOD = 0x3
+-	EFD_NONBLOCK  = 0x800
++	EFD_NONBLOCK = 0x800
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_arm64.go b/src/runtime/internal/syscall/defs_linux_arm64.go
+index 0500b317e9..c924f6211a 100644
+--- a/src/runtime/internal/syscall/defs_linux_arm64.go
++++ b/src/runtime/internal/syscall/defs_linux_arm64.go
+@@ -12,17 +12,7 @@ const (
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 19
+ 
+-	EPOLLIN       = 0x1
+-	EPOLLOUT      = 0x4
+-	EPOLLERR      = 0x8
+-	EPOLLHUP      = 0x10
+-	EPOLLRDHUP    = 0x2000
+-	EPOLLET       = 0x80000000
+-	EPOLL_CLOEXEC = 0x80000
+-	EPOLL_CTL_ADD = 0x1
+-	EPOLL_CTL_DEL = 0x2
+-	EPOLL_CTL_MOD = 0x3
+-	EFD_NONBLOCK  = 0x800
++	EFD_NONBLOCK = 0x800
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_loong64.go b/src/runtime/internal/syscall/defs_linux_loong64.go
+index 2c67b7b568..c1a5649a42 100644
+--- a/src/runtime/internal/syscall/defs_linux_loong64.go
++++ b/src/runtime/internal/syscall/defs_linux_loong64.go
+@@ -12,17 +12,7 @@ const (
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 19
+ 
+-	EPOLLIN       = 0x1
+-	EPOLLOUT      = 0x4
+-	EPOLLERR      = 0x8
+-	EPOLLHUP      = 0x10
+-	EPOLLRDHUP    = 0x2000
+-	EPOLLET       = 0x80000000
+-	EPOLL_CLOEXEC = 0x80000
+-	EPOLL_CTL_ADD = 0x1
+-	EPOLL_CTL_DEL = 0x2
+-	EPOLL_CTL_MOD = 0x3
+-	EFD_NONBLOCK  = 0x800
++	EFD_NONBLOCK = 0x800
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_mips64x.go b/src/runtime/internal/syscall/defs_linux_mips64x.go
+index 3031af241b..07c0aba539 100644
+--- a/src/runtime/internal/syscall/defs_linux_mips64x.go
++++ b/src/runtime/internal/syscall/defs_linux_mips64x.go
+@@ -14,17 +14,7 @@ const (
+ 	SYS_EPOLL_PWAIT2  = 5441
+ 	SYS_EVENTFD2      = 5284
+ 
+-	EPOLLIN       = 0x1
+-	EPOLLOUT      = 0x4
+-	EPOLLERR      = 0x8
+-	EPOLLHUP      = 0x10
+-	EPOLLRDHUP    = 0x2000
+-	EPOLLET       = 0x80000000
+-	EPOLL_CLOEXEC = 0x80000
+-	EPOLL_CTL_ADD = 0x1
+-	EPOLL_CTL_DEL = 0x2
+-	EPOLL_CTL_MOD = 0x3
+-	EFD_NONBLOCK  = 0x80
++	EFD_NONBLOCK = 0x80
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_mipsx.go b/src/runtime/internal/syscall/defs_linux_mipsx.go
+index 4d51921abd..a1bb5d720a 100644
+--- a/src/runtime/internal/syscall/defs_linux_mipsx.go
++++ b/src/runtime/internal/syscall/defs_linux_mipsx.go
+@@ -14,17 +14,7 @@ const (
+ 	SYS_EPOLL_PWAIT2  = 4441
+ 	SYS_EVENTFD2      = 4325
+ 
+-	EPOLLIN       = 0x1
+-	EPOLLOUT      = 0x4
+-	EPOLLERR      = 0x8
+-	EPOLLHUP      = 0x10
+-	EPOLLRDHUP    = 0x2000
+-	EPOLLET       = 0x80000000
+-	EPOLL_CLOEXEC = 0x80000
+-	EPOLL_CTL_ADD = 0x1
+-	EPOLL_CTL_DEL = 0x2
+-	EPOLL_CTL_MOD = 0x3
+-	EFD_NONBLOCK  = 0x80
++	EFD_NONBLOCK = 0x80
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_ppc64x.go b/src/runtime/internal/syscall/defs_linux_ppc64x.go
+index fcd15e60a2..78558b360f 100644
+--- a/src/runtime/internal/syscall/defs_linux_ppc64x.go
++++ b/src/runtime/internal/syscall/defs_linux_ppc64x.go
+@@ -14,17 +14,7 @@ const (
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 314
+ 
+-	EPOLLIN       = 0x1
+-	EPOLLOUT      = 0x4
+-	EPOLLERR      = 0x8
+-	EPOLLHUP      = 0x10
+-	EPOLLRDHUP    = 0x2000
+-	EPOLLET       = 0x80000000
+-	EPOLL_CLOEXEC = 0x80000
+-	EPOLL_CTL_ADD = 0x1
+-	EPOLL_CTL_DEL = 0x2
+-	EPOLL_CTL_MOD = 0x3
+-	EFD_NONBLOCK  = 0x800
++	EFD_NONBLOCK = 0x800
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_riscv64.go b/src/runtime/internal/syscall/defs_linux_riscv64.go
+index 2c67b7b568..c1a5649a42 100644
+--- a/src/runtime/internal/syscall/defs_linux_riscv64.go
++++ b/src/runtime/internal/syscall/defs_linux_riscv64.go
+@@ -12,17 +12,7 @@ const (
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 19
+ 
+-	EPOLLIN       = 0x1
+-	EPOLLOUT      = 0x4
+-	EPOLLERR      = 0x8
+-	EPOLLHUP      = 0x10
+-	EPOLLRDHUP    = 0x2000
+-	EPOLLET       = 0x80000000
+-	EPOLL_CLOEXEC = 0x80000
+-	EPOLL_CTL_ADD = 0x1
+-	EPOLL_CTL_DEL = 0x2
+-	EPOLL_CTL_MOD = 0x3
+-	EFD_NONBLOCK  = 0x800
++	EFD_NONBLOCK = 0x800
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/runtime/internal/syscall/defs_linux_s390x.go b/src/runtime/internal/syscall/defs_linux_s390x.go
+index c1deed6c74..b539b2d22a 100644
+--- a/src/runtime/internal/syscall/defs_linux_s390x.go
++++ b/src/runtime/internal/syscall/defs_linux_s390x.go
+@@ -12,17 +12,7 @@ const (
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 323
+ 
+-	EPOLLIN       = 0x1
+-	EPOLLOUT      = 0x4
+-	EPOLLERR      = 0x8
+-	EPOLLHUP      = 0x10
+-	EPOLLRDHUP    = 0x2000
+-	EPOLLET       = 0x80000000
+-	EPOLL_CLOEXEC = 0x80000
+-	EPOLL_CTL_ADD = 0x1
+-	EPOLL_CTL_DEL = 0x2
+-	EPOLL_CTL_MOD = 0x3
+-	EFD_NONBLOCK  = 0x800
++	EFD_NONBLOCK = 0x800
+ )
+ 
+ type EpollEvent struct {

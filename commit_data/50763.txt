@@ -12,6 +12,20 @@ Date:   Mon Nov 8 13:57:50 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/bufio/bufio.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 063a7785f3..9ea058db3e 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -593,6 +593,8 @@ func NewWriterSize(w io.Writer, size int) *Writer {
+ }
+ 
+ // NewWriter returns a new Writer whose buffer has the default size.
++// If the argument io.Writer is already a Writer with large enough buffer size,
++// it returns the underlying Writer.
+ func NewWriter(w io.Writer) *Writer {
+ 	return NewWriterSize(w, defaultBufSize)
+ }

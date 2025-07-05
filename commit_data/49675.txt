@@ -10,7 +10,41 @@ Date:   Thu Sep 2 14:38:58 2021 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/internal/fuzz/fuzz.go   | 3 ++-
  src/internal/fuzz/worker.go | 5 +++++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 722933a0bf..5b940e4929 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -341,10 +341,11 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 					if printDebugInfo() {
+ 						fmt.Fprintf(
+ 							c.opts.Log,
+-							"DEBUG worker reported interesting input that doesn't expand coverage, elapsed: %s, id: %s, parent: %s\n",
++							"DEBUG worker reported interesting input that doesn't expand coverage, elapsed: %s, id: %s, parent: %s, minimized: %t\n",
+ 							time.Since(c.startTime),
+ 							result.entry.Name,
+ 							result.entry.Parent,
++							result.minimizeAttempted,
+ 						)
+ 					}
+ 				}
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 2f5704094e..32b13662c8 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -1017,6 +1017,11 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args
+ 		return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
+ 	}
+ 	entryOut.Data = mem.valueCopy()
++	h := sha256.Sum256(entryOut.Data)
++	name := fmt.Sprintf("%x", h[:4])
++	entryOut.Name = name
++	entryOut.Parent = entryIn.Parent
++	entryOut.Generation = entryIn.Generation
+ 	resp.Count = mem.header().count
+ 
+ 	return entryOut, resp, callErr

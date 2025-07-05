@@ -29,7 +29,7 @@ Date:   Tue Nov 17 11:41:06 2015 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/os1_darwin.go    | 24 +++++++++++-------------
  src/runtime/os1_dragonfly.go | 11 +++--------
  src/runtime/os1_freebsd.go   | 11 +++--------
@@ -44,3 +44,391 @@ Date:   Tue Nov 17 11:41:06 2015 +0100
  src/runtime/os_openbsd.go    |  2 +-
  src/runtime/runtime2.go      |  2 +-
  13 files changed, 45 insertions(+), 67 deletions(-)
+
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index fd5637f953..e0bfaa9f77 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -8,7 +8,9 @@ import "unsafe"
+ 
+ //extern SigTabTT runtime·sigtab[];
+ 
+-var sigset_all = ^uint32(0)
++type sigset uint32
++
++var sigset_all = ^sigset(0)
+ 
+ func unimplemented(name string) {
+ 	println(name, "not implemented")
+@@ -83,7 +85,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
+ 	}
+ 
+-	var oset uint32
++	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+ 	errno := bsdthread_create(stk, unsafe.Pointer(mp), funcPC(mstart))
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+@@ -109,7 +111,7 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer, fnarg uintptr) {
+ 	}
+ 	stk := unsafe.Pointer(uintptr(stack) + stacksize)
+ 
+-	var oset uint32
++	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+ 	errno := bsdthread_create(stk, fn, fnarg)
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+@@ -132,17 +134,12 @@ func mpreinit(mp *m) {
+ 
+ //go:nosplit
+ func msigsave(mp *m) {
+-	smask := (*uint32)(unsafe.Pointer(&mp.sigmask))
+-	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
+-		throw("insufficient storage for signal mask")
+-	}
+-	sigprocmask(_SIG_SETMASK, nil, smask)
++	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
+ }
+ 
+ //go:nosplit
+ func msigrestore(mp *m) {
+-	smask := (*uint32)(unsafe.Pointer(&mp.sigmask))
+-	sigprocmask(_SIG_SETMASK, smask, nil)
++	sigprocmask(_SIG_SETMASK, &mp.sigmask, nil)
+ }
+ 
+ //go:nosplit
+@@ -158,7 +155,7 @@ func minit() {
+ 	signalstack(&_g_.m.gsignal.stack)
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+-	nmask := *(*uint32)(unsafe.Pointer(&_g_.m.sigmask))
++	nmask := _g_.m.sigmask
+ 	for i := range sigtable {
+ 		if sigtable[i].flags&_SigUnblock != 0 {
+ 			nmask &^= 1 << (uint32(i) - 1)
+@@ -483,10 +480,11 @@ func signalstack(s *stack) {
+ }
+ 
+ func updatesigmask(m sigmask) {
+-	sigprocmask(_SIG_SETMASK, &m[0], nil)
++	s := sigset(m[0])
++	sigprocmask(_SIG_SETMASK, &s, nil)
+ }
+ 
+ func unblocksig(sig int32) {
+-	mask := uint32(1) << (uint32(sig) - 1)
++	mask := sigset(1) << (uint32(sig) - 1)
+ 	sigprocmask(_SIG_UNBLOCK, &mask, nil)
+ }
+diff --git a/src/runtime/os1_dragonfly.go b/src/runtime/os1_dragonfly.go
+index 3f17da279e..56fb733467 100644
+--- a/src/runtime/os1_dragonfly.go
++++ b/src/runtime/os1_dragonfly.go
+@@ -119,17 +119,12 @@ func mpreinit(mp *m) {
+ 
+ //go:nosplit
+ func msigsave(mp *m) {
+-	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
+-	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
+-		throw("insufficient storage for signal mask")
+-	}
+-	sigprocmask(_SIG_SETMASK, nil, smask)
++	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
+ }
+ 
+ //go:nosplit
+ func msigrestore(mp *m) {
+-	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
+-	sigprocmask(_SIG_SETMASK, smask, nil)
++	sigprocmask(_SIG_SETMASK, &mp.sigmask, nil)
+ }
+ 
+ //go:nosplit
+@@ -149,7 +144,7 @@ func minit() {
+ 	signalstack(&_g_.m.gsignal.stack)
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+-	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
++	nmask := _g_.m.sigmask
+ 	for i := range sigtable {
+ 		if sigtable[i].flags&_SigUnblock != 0 {
+ 			nmask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index 7aa705ed06..347b57322a 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -122,17 +122,12 @@ func mpreinit(mp *m) {
+ 
+ //go:nosplit
+ func msigsave(mp *m) {
+-	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
+-	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
+-		throw("insufficient storage for signal mask")
+-	}
+-	sigprocmask(_SIG_SETMASK, nil, smask)
++	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
+ }
+ 
+ //go:nosplit
+ func msigrestore(mp *m) {
+-	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
+-	sigprocmask(_SIG_SETMASK, smask, nil)
++	sigprocmask(_SIG_SETMASK, &mp.sigmask, nil)
+ }
+ 
+ //go:nosplit
+@@ -155,7 +150,7 @@ func minit() {
+ 	signalstack(&_g_.m.gsignal.stack)
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+-	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
++	nmask := _g_.m.sigmask
+ 	for i := range sigtable {
+ 		if sigtable[i].flags&_SigUnblock != 0 {
+ 			nmask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index cb73500a2f..e6e3770194 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -199,16 +199,13 @@ func mpreinit(mp *m) {
+ 
+ //go:nosplit
+ func msigsave(mp *m) {
+-	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
+-	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
+-		throw("insufficient storage for signal mask")
+-	}
++	smask := &mp.sigmask
+ 	rtsigprocmask(_SIG_SETMASK, nil, smask, int32(unsafe.Sizeof(*smask)))
+ }
+ 
+ //go:nosplit
+ func msigrestore(mp *m) {
+-	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
++	smask := &mp.sigmask
+ 	rtsigprocmask(_SIG_SETMASK, smask, nil, int32(unsafe.Sizeof(*smask)))
+ }
+ 
+@@ -230,7 +227,7 @@ func minit() {
+ 	_g_.m.procid = uint64(gettid())
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+-	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
++	nmask := _g_.m.sigmask
+ 	for i := range sigtable {
+ 		if sigtable[i].flags&_SigUnblock != 0 {
+ 			sigdelset(&nmask, i)
+diff --git a/src/runtime/os1_nacl.go b/src/runtime/os1_nacl.go
+index c2ceb1724e..c721261369 100644
+--- a/src/runtime/os1_nacl.go
++++ b/src/runtime/os1_nacl.go
+@@ -6,6 +6,8 @@ package runtime
+ 
+ import "unsafe"
+ 
++type sigset struct{}
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+ func mpreinit(mp *m) {
+diff --git a/src/runtime/os1_netbsd.go b/src/runtime/os1_netbsd.go
+index 767c535eec..c769c87d05 100644
+--- a/src/runtime/os1_netbsd.go
++++ b/src/runtime/os1_netbsd.go
+@@ -140,17 +140,12 @@ func mpreinit(mp *m) {
+ 
+ //go:nosplit
+ func msigsave(mp *m) {
+-	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
+-	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
+-		throw("insufficient storage for signal mask")
+-	}
+-	sigprocmask(_SIG_SETMASK, nil, smask)
++	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
+ }
+ 
+ //go:nosplit
+ func msigrestore(mp *m) {
+-	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
+-	sigprocmask(_SIG_SETMASK, smask, nil)
++	sigprocmask(_SIG_SETMASK, &mp.sigmask, nil)
+ }
+ 
+ //go:nosplit
+@@ -168,7 +163,7 @@ func minit() {
+ 	signalstack(&_g_.m.gsignal.stack)
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+-	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
++	nmask := _g_.m.sigmask
+ 	for i := range sigtable {
+ 		if sigtable[i].flags&_SigUnblock != 0 {
+ 			nmask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os1_openbsd.go
+index 0cfb1348af..b93788e4c2 100644
+--- a/src/runtime/os1_openbsd.go
++++ b/src/runtime/os1_openbsd.go
+@@ -22,9 +22,11 @@ const (
+ 	_CLOCK_MONOTONIC = 3
+ )
+ 
++type sigset uint32
++
+ const (
+-	sigset_none = uint32(0)
+-	sigset_all  = ^uint32(0)
++	sigset_none = sigset(0)
++	sigset_all  = ^sigset(0)
+ )
+ 
+ // From OpenBSD's <sys/sysctl.h>
+@@ -150,17 +152,12 @@ func mpreinit(mp *m) {
+ 
+ //go:nosplit
+ func msigsave(mp *m) {
+-	smask := (*uint32)(unsafe.Pointer(&mp.sigmask))
+-	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
+-		throw("insufficient storage for signal mask")
+-	}
+-	*smask = sigprocmask(_SIG_BLOCK, 0)
++	mp.sigmask = sigprocmask(_SIG_BLOCK, 0)
+ }
+ 
+ //go:nosplit
+ func msigrestore(mp *m) {
+-	smask := *(*uint32)(unsafe.Pointer(&mp.sigmask))
+-	sigprocmask(_SIG_SETMASK, smask)
++	sigprocmask(_SIG_SETMASK, mp.sigmask)
+ }
+ 
+ //go:nosplit
+@@ -180,7 +177,7 @@ func minit() {
+ 	signalstack(&_g_.m.gsignal.stack)
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+-	nmask := *(*uint32)(unsafe.Pointer(&_g_.m.sigmask))
++	nmask := _g_.m.sigmask
+ 	for i := range sigtable {
+ 		if sigtable[i].flags&_SigUnblock != 0 {
+ 			nmask &^= 1 << (uint32(i) - 1)
+@@ -213,7 +210,7 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 	if restart {
+ 		sa.sa_flags |= _SA_RESTART
+ 	}
+-	sa.sa_mask = sigset_all
++	sa.sa_mask = uint32(sigset_all)
+ 	if fn == funcPC(sighandler) {
+ 		fn = funcPC(sigtramp)
+ 	}
+@@ -248,10 +245,10 @@ func signalstack(s *stack) {
+ }
+ 
+ func updatesigmask(m sigmask) {
+-	sigprocmask(_SIG_SETMASK, m[0])
++	sigprocmask(_SIG_SETMASK, sigset(m[0]))
+ }
+ 
+ func unblocksig(sig int32) {
+-	mask := uint32(1) << (uint32(sig) - 1)
++	mask := sigset(1) << (uint32(sig) - 1)
+ 	sigprocmask(_SIG_UNBLOCK, mask)
+ }
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index 70cd158470..a75e956d17 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -9,6 +9,8 @@ import (
+ 	"unsafe"
+ )
+ 
++type sigset struct{}
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+ func mpreinit(mp *m) {
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 90e03674a4..a59e9ec88c 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -97,6 +97,8 @@ var (
+ 	_GetQueuedCompletionStatusEx stdFunction
+ )
+ 
++type sigset struct{}
++
+ // Call a Windows function with stdcall conventions,
+ // and switch to os stack during the call.
+ func asmstdcall(fn unsafe.Pointer)
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index ad697487b0..0e6d2e55da 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -194,17 +194,12 @@ func miniterrno()
+ 
+ //go:nosplit
+ func msigsave(mp *m) {
+-	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
+-	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
+-		throw("insufficient storage for signal mask")
+-	}
+-	sigprocmask(_SIG_SETMASK, nil, smask)
++	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
+ }
+ 
+ //go:nosplit
+ func msigrestore(mp *m) {
+-	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
+-	sigprocmask(_SIG_SETMASK, smask, nil)
++	sigprocmask(_SIG_SETMASK, &mp.sigmask, nil)
+ }
+ 
+ //go:nosplit
+@@ -221,7 +216,7 @@ func minit() {
+ 	signalstack(&_g_.m.gsignal.stack)
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+-	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
++	nmask := _g_.m.sigmask
+ 	for i := range sigtable {
+ 		if sigtable[i].flags&_SigUnblock != 0 {
+ 			nmask.__sigbits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 7a70639b02..75a6eebb70 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -24,7 +24,7 @@ func mach_thread_self() uint32
+ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
+ 
+ //go:noescape
+-func sigprocmask(how uint32, new, old *uint32)
++func sigprocmask(how uint32, new, old *sigset)
+ 
+ //go:noescape
+ func sigaction(mode uint32, new, old *sigactiont)
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 12f4cd1a24..b6285e4972 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -18,7 +18,7 @@ func sigaction(sig int32, new, old *sigactiont)
+ func sigaltstack(new, old *stackt)
+ 
+ //go:noescape
+-func sigprocmask(mode int32, new uint32) uint32
++func sigprocmask(mode int32, new sigset) sigset
+ 
+ //go:noescape
+ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 05300106f6..cfe4589448 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -284,7 +284,7 @@ type m struct {
+ 	// Fields not known to debuggers.
+ 	procid        uint64     // for debuggers, but offset not hard-coded
+ 	gsignal       *g         // signal-handling g
+-	sigmask       [4]uintptr // storage for saved signal mask
++	sigmask       sigset     // storage for saved signal mask
+ 	tls           [6]uintptr // thread-local storage (for x86 extern register)
+ 	mstartfn      func()
+ 	curg          *g       // current running goroutine

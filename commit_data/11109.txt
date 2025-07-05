@@ -11,10 +11,173 @@ Date:   Wed Jan 11 10:06:44 2012 -0800
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/5528077
-
+---
  src/cmd/godoc/format.go            |  2 +-
  src/pkg/exp/types/check_test.go    |  8 +++++++-
  src/pkg/go/parser/parser.go        |  2 +-
  src/pkg/go/scanner/scanner.go      |  8 ++++----
  src/pkg/go/scanner/scanner_test.go | 20 ++++++++++----------
  5 files changed, 23 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/godoc/format.go b/src/cmd/godoc/format.go
+index 1855072c01..3b1b9a8226 100644
+--- a/src/cmd/godoc/format.go
++++ b/src/cmd/godoc/format.go
+@@ -231,7 +231,7 @@ func commentSelection(src []byte) Selection {
+ 	var s scanner.Scanner
+ 	fset := token.NewFileSet()
+ 	file := fset.AddFile("", fset.Base(), len(src))
+-	s.Init(file, src, nil, scanner.ScanComments+scanner.InsertSemis)
++	s.Init(file, src, nil, scanner.ScanComments)
+ 	return func() (seg []int) {
+ 		for {
+ 			pos, tok, lit := s.Scan()
+diff --git a/src/pkg/exp/types/check_test.go b/src/pkg/exp/types/check_test.go
+index 35535ea406..ea9218ff51 100644
+--- a/src/pkg/exp/types/check_test.go
++++ b/src/pkg/exp/types/check_test.go
+@@ -111,7 +111,7 @@ func expectedErrors(t *testing.T, testname string, files map[string]*ast.File) m
+ 		// set otherwise the position information returned here will
+ 		// not match the position information collected by the parser
+ 		s.Init(getFile(filename), src, nil, scanner.ScanComments)
+-		var prev token.Pos // position of last non-comment token
++		var prev token.Pos // position of last non-comment, non-semicolon token
+ 
+ 	scanFile:
+ 		for {
+@@ -124,6 +124,12 @@ func expectedErrors(t *testing.T, testname string, files map[string]*ast.File) m
+ 				if len(s) == 2 {
+ 					errors[prev] = string(s[1])
+ 				}
++			case token.SEMICOLON:
++				// ignore automatically inserted semicolon
++				if lit == "\n" {
++					break
++				}
++				fallthrough
+ 			default:
+ 				prev = pos
+ 			}
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 9fbed2d2ca..8467b0e4e4 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -67,7 +67,7 @@ type parser struct {
+ 
+ // scannerMode returns the scanner mode bits given the parser's mode bits.
+ func scannerMode(mode uint) uint {
+-	var m uint = scanner.InsertSemis
++	var m uint
+ 	if mode&ParseComments != 0 {
+ 		m |= scanner.ScanComments
+ 	}
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 34d0442635..c5d83eba58 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -90,8 +90,8 @@ func (S *Scanner) next() {
+ // They control scanner behavior.
+ //
+ const (
+-	ScanComments = 1 << iota // return comments as COMMENT tokens
+-	InsertSemis              // automatically insert semicolons
++	ScanComments    = 1 << iota // return comments as COMMENT tokens
++	dontInsertSemis             // do not automatically insert semicolons - for testing only
+ )
+ 
+ // Init prepares the scanner S to tokenize the text src by setting the
+@@ -104,7 +104,7 @@ const (
+ // Calls to Scan will use the error handler err if they encounter a
+ // syntax error and err is not nil. Also, for each error encountered,
+ // the Scanner field ErrorCount is incremented by one. The mode parameter
+-// determines how comments and semicolons are handled.
++// determines how comments are handled.
+ //
+ // Note that Init may call err if there is an error in the first character
+ // of the file.
+@@ -673,7 +673,7 @@ scanAgain:
+ 		}
+ 	}
+ 
+-	if S.mode&InsertSemis != 0 {
++	if S.mode&dontInsertSemis == 0 {
+ 		S.insertSemi = insertSemi
+ 	}
+ 
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index dc8ab2a748..fd3a7cf660 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -223,7 +223,7 @@ func TestScan(t *testing.T) {
+ 
+ 	// verify scan
+ 	var s Scanner
+-	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), &testErrorHandler{t}, ScanComments)
++	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), &testErrorHandler{t}, ScanComments|dontInsertSemis)
+ 	index := 0
+ 	epos := token.Position{"", 0, 1, 1} // expected position
+ 	for {
+@@ -430,14 +430,14 @@ var lines = []string{
+ 
+ func TestSemis(t *testing.T) {
+ 	for _, line := range lines {
+-		checkSemi(t, line, InsertSemis)
+-		checkSemi(t, line, InsertSemis|ScanComments)
++		checkSemi(t, line, 0)
++		checkSemi(t, line, ScanComments)
+ 
+ 		// if the input ended in newlines, the input must tokenize the
+ 		// same with or without those newlines
+ 		for i := len(line) - 1; i >= 0 && line[i] == '\n'; i-- {
+-			checkSemi(t, line[0:i], InsertSemis)
+-			checkSemi(t, line[0:i], InsertSemis|ScanComments)
++			checkSemi(t, line[0:i], 0)
++			checkSemi(t, line[0:i], ScanComments)
+ 		}
+ 	}
+ }
+@@ -492,7 +492,7 @@ func TestLineComments(t *testing.T) {
+ 	// verify scan
+ 	var S Scanner
+ 	file := fset.AddFile(filepath.Join("dir", "TestLineComments"), fset.Base(), len(src))
+-	S.Init(file, []byte(src), nil, 0)
++	S.Init(file, []byte(src), nil, dontInsertSemis)
+ 	for _, s := range segs {
+ 		p, _, lit := S.Scan()
+ 		pos := file.Position(p)
+@@ -511,7 +511,7 @@ func TestInit(t *testing.T) {
+ 	// 1st init
+ 	src1 := "if true { }"
+ 	f1 := fset.AddFile("src1", fset.Base(), len(src1))
+-	s.Init(f1, []byte(src1), nil, 0)
++	s.Init(f1, []byte(src1), nil, dontInsertSemis)
+ 	if f1.Size() != len(src1) {
+ 		t.Errorf("bad file size: got %d, expected %d", f1.Size(), len(src1))
+ 	}
+@@ -525,7 +525,7 @@ func TestInit(t *testing.T) {
+ 	// 2nd init
+ 	src2 := "go true { ]"
+ 	f2 := fset.AddFile("src2", fset.Base(), len(src2))
+-	s.Init(f2, []byte(src2), nil, 0)
++	s.Init(f2, []byte(src2), nil, dontInsertSemis)
+ 	if f2.Size() != len(src2) {
+ 		t.Errorf("bad file size: got %d, expected %d", f2.Size(), len(src2))
+ 	}
+@@ -551,7 +551,7 @@ func TestStdErrorHander(t *testing.T) {
+ 
+ 	v := new(ErrorVector)
+ 	var s Scanner
+-	s.Init(fset.AddFile("File1", fset.Base(), len(src)), []byte(src), v, 0)
++	s.Init(fset.AddFile("File1", fset.Base(), len(src)), []byte(src), v, dontInsertSemis)
+ 	for {
+ 		if _, tok, _ := s.Scan(); tok == token.EOF {
+ 			break
+@@ -596,7 +596,7 @@ func (h *errorCollector) Error(pos token.Position, msg string) {
+ func checkError(t *testing.T, src string, tok token.Token, pos int, err string) {
+ 	var s Scanner
+ 	var h errorCollector
+-	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), &h, ScanComments)
++	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), &h, ScanComments|dontInsertSemis)
+ 	_, tok0, _ := s.Scan()
+ 	_, tok1, _ := s.Scan()
+ 	if tok0 != tok {

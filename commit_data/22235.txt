@@ -18,6 +18,22 @@ Date:   Sun Mar 1 16:23:55 2015 +0300
     Change-Id: I4ca54dd2926c6986b2908023ac65e5e65630ed26
     Reviewed-on: https://go-review.googlesource.com/6383
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/fcgi/fcgi_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/fcgi/fcgi_test.go b/src/net/http/fcgi/fcgi_test.go
+index 74d91bf134..de0f7f831f 100644
+--- a/src/net/http/fcgi/fcgi_test.go
++++ b/src/net/http/fcgi/fcgi_test.go
+@@ -233,7 +233,9 @@ func (nopWriteCloser) Close() error {
+ // isn't met. See issue 6934.
+ func TestChildServeCleansUp(t *testing.T) {
+ 	for _, tt := range cleanUpTests {
+-		rc := nopWriteCloser{bytes.NewBuffer(tt.input)}
++		input := make([]byte, len(tt.input))
++		copy(input, tt.input)
++		rc := nopWriteCloser{bytes.NewBuffer(input)}
+ 		done := make(chan bool)
+ 		c := newChild(rc, http.HandlerFunc(func(
+ 			w http.ResponseWriter,

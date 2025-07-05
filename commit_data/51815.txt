@@ -18,10 +18,119 @@ Date:   Wed Mar 16 13:07:57 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  misc/cgo/testplugin/plugin_test.go             |  6 +++++
  misc/cgo/testplugin/testdata/method3/main.go   | 32 ++++++++++++++++++++++++++
  misc/cgo/testplugin/testdata/method3/p/p.go    | 17 ++++++++++++++
  misc/cgo/testplugin/testdata/method3/plugin.go | 11 +++++++++
  src/cmd/link/internal/ld/deadcode.go           |  2 +-
  5 files changed, 67 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testplugin/plugin_test.go b/misc/cgo/testplugin/plugin_test.go
+index 10c5db2646..53e79a4626 100644
+--- a/misc/cgo/testplugin/plugin_test.go
++++ b/misc/cgo/testplugin/plugin_test.go
+@@ -283,6 +283,12 @@ func TestMethod2(t *testing.T) {
+ 	run(t, "./method2.exe")
+ }
+ 
++func TestMethod3(t *testing.T) {
++	goCmd(t, "build", "-buildmode=plugin", "-o", "method3.so", "./method3/plugin.go")
++	goCmd(t, "build", "-o", "method3.exe", "./method3/main.go")
++	run(t, "./method3.exe")
++}
++
+ func TestIssue44956(t *testing.T) {
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue44956p1.so", "./issue44956/plugin1.go")
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue44956p2.so", "./issue44956/plugin2.go")
+diff --git a/misc/cgo/testplugin/testdata/method3/main.go b/misc/cgo/testplugin/testdata/method3/main.go
+new file mode 100644
+index 0000000000..a3a51711cd
+--- /dev/null
++++ b/misc/cgo/testplugin/testdata/method3/main.go
+@@ -0,0 +1,32 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// An unexported method can be reachable from the plugin via interface
++// when a package is shared. So it need to be live.
++
++package main
++
++import (
++	"plugin"
++
++	"testplugin/method3/p"
++)
++
++var i p.I
++
++func main() {
++	pl, err := plugin.Open("method3.so")
++	if err != nil {
++		panic(err)
++	}
++
++	f, err := pl.Lookup("F")
++	if err != nil {
++		panic(err)
++	}
++
++	f.(func())()
++
++	i = p.T(123)
++}
+diff --git a/misc/cgo/testplugin/testdata/method3/p/p.go b/misc/cgo/testplugin/testdata/method3/p/p.go
+new file mode 100644
+index 0000000000..3846bc07f5
+--- /dev/null
++++ b/misc/cgo/testplugin/testdata/method3/p/p.go
+@@ -0,0 +1,17 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T int
++
++func (T) m() { println("m") }
++
++type I interface { m() }
++
++func F() {
++	i.m()
++}
++
++var i I = T(123)
+diff --git a/misc/cgo/testplugin/testdata/method3/plugin.go b/misc/cgo/testplugin/testdata/method3/plugin.go
+new file mode 100644
+index 0000000000..bd25b31857
+--- /dev/null
++++ b/misc/cgo/testplugin/testdata/method3/plugin.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "testplugin/method3/p"
++
++func main() {}
++
++func F() { p.F() }
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index dba22323b0..3ba4b06f4a 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -355,7 +355,7 @@ func deadcode(ctxt *Link) {
+ 		// in the last pass.
+ 		rem := d.markableMethods[:0]
+ 		for _, m := range d.markableMethods {
+-			if (d.reflectSeen && m.isExported()) || d.ifaceMethod[m.m] || d.genericIfaceMethod[m.m.name] {
++			if (d.reflectSeen && (m.isExported() || d.dynlink)) || d.ifaceMethod[m.m] || d.genericIfaceMethod[m.m.name] {
+ 				d.markMethod(m)
+ 			} else {
+ 				rem = append(rem, m)

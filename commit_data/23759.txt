@@ -9,7 +9,35 @@ Date:   Thu Jun 11 07:26:44 2015 -0700
     Change-Id: I08f97156a687abe5a3d95203922f4ffd84fbb212
     Reviewed-on: https://go-review.googlesource.com/10924
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/note_test.go | 3 +++
  src/cmd/vet/vet_test.go | 2 ++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/cmd/go/note_test.go b/src/cmd/go/note_test.go
+index efe8198c73..f2390cbae5 100644
+--- a/src/cmd/go/note_test.go
++++ b/src/cmd/go/note_test.go
+@@ -18,6 +18,9 @@ func TestNoteReading(t *testing.T) {
+ 	case "darwin/arm", "darwin/arm64", "nacl/386", "nacl/amd64p32", "nacl/arm":
+ 		t.Skipf("skipping on %s/%s - no file system", runtime.GOOS, runtime.GOARCH)
+ 	}
++	if runtime.GOOS == "android" {
++		t.Skipf("skipping; requires go tool")
++	}
+ 
+ 	// TODO: Replace with new test scaffolding by iant.
+ 	d, err := ioutil.TempDir("", "go-test-")
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 00fcb02754..ae4af6e104 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -35,6 +35,8 @@ func TestVet(t *testing.T) {
+ 		if strings.HasPrefix(runtime.GOARCH, "arm") {
+ 			t.Skipf("skipping test; no command execution on darwin/%s", runtime.GOARCH)
+ 		}
++	case "android":
++		t.Skip("skipping test; no go toolchain available")
+ 	}
+ 
+ 	// go build

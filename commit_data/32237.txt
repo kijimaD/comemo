@@ -35,9 +35,181 @@ Date:   Mon Mar 20 17:25:59 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go      | 11 ++++++++
  src/runtime/mgcsweep.go |  3 +++
  src/runtime/mgcwork.go  | 68 +++++++++++++++++++++++++++++++++++++++++++------
  src/runtime/mheap.go    | 25 ++++++++++++++++++
  4 files changed, 99 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index d537aaf67e..097b742a7b 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -797,6 +797,9 @@ var work struct {
+ 
+ 	wbufSpans struct {
+ 		lock mutex
++		// free is a list of spans dedicated to workbufs, but
++		// that don't currently contain any workbufs.
++		free mSpanList
+ 		// busy is a list of all spans containing workbufs on
+ 		// one of the workbuf lists.
+ 		busy mSpanList
+@@ -1480,6 +1483,10 @@ func gcMarkTermination() {
+ 	// world stopped.
+ 	mProf_Flush()
+ 
++	// Prepare workbufs for freeing by the sweeper. We do this
++	// asynchronously because it can take non-trivial time.
++	prepareFreeWorkbufs()
++
+ 	// Free stack spans. This must be done between GC cycles.
+ 	systemstack(freeStackSpans)
+ 
+@@ -1923,6 +1930,10 @@ func gcSweep(mode gcMode) {
+ 		for sweepone() != ^uintptr(0) {
+ 			sweep.npausesweep++
+ 		}
++		// Free workbufs eagerly.
++		prepareFreeWorkbufs()
++		for freeSomeWbufs(false) {
++		}
+ 		// All "free" events for this mark/sweep cycle have
+ 		// now happened, so we can make this profile cycle
+ 		// available immediately.
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 474eabda79..bdd9e517d4 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -56,6 +56,9 @@ func bgsweep(c chan int) {
+ 			sweep.nbgsweep++
+ 			Gosched()
+ 		}
++		for freeSomeWbufs(true) {
++			Gosched()
++		}
+ 		lock(&sweep.lock)
+ 		if !gosweepdone() {
+ 			// This can happen if a GC runs between
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index a9559230de..461679b934 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -334,16 +334,27 @@ func getempty() *workbuf {
+ 	if b == nil {
+ 		// Allocate more workbufs.
+ 		var s *mspan
+-		systemstack(func() {
+-			s = mheap_.allocManual(workbufAlloc/pageSize, &memstats.gc_sys)
+-		})
++		if work.wbufSpans.free.first != nil {
++			lock(&work.wbufSpans.lock)
++			s = work.wbufSpans.free.first
++			if s != nil {
++				work.wbufSpans.free.remove(s)
++				work.wbufSpans.busy.insert(s)
++			}
++			unlock(&work.wbufSpans.lock)
++		}
+ 		if s == nil {
+-			throw("out of memory")
++			systemstack(func() {
++				s = mheap_.allocManual(workbufAlloc/pageSize, &memstats.gc_sys)
++			})
++			if s == nil {
++				throw("out of memory")
++			}
++			// Record the new span in the busy list.
++			lock(&work.wbufSpans.lock)
++			work.wbufSpans.busy.insert(s)
++			unlock(&work.wbufSpans.lock)
+ 		}
+-		// Record the new span in the busy list.
+-		lock(&work.wbufSpans.lock)
+-		work.wbufSpans.busy.insert(s)
+-		unlock(&work.wbufSpans.lock)
+ 		// Slice up the span into new workbufs. Return one and
+ 		// put the rest on the empty list.
+ 		for i := uintptr(0); i+_WorkbufSize <= workbufAlloc; i += _WorkbufSize {
+@@ -456,3 +467,44 @@ func handoff(b *workbuf) *workbuf {
+ 	putfull(b)
+ 	return b1
+ }
++
++// prepareFreeWorkbufs moves busy workbuf spans to free list so they
++// can be freed to the heap. This must only be called when all
++// workbufs are on the empty list.
++func prepareFreeWorkbufs() {
++	lock(&work.wbufSpans.lock)
++	if work.full != 0 {
++		throw("cannot free workbufs when work.full != 0")
++	}
++	// Since all workbufs are on the empty list, we don't care
++	// which ones are in which spans. We can wipe the entire empty
++	// list and move all workbuf spans to the free list.
++	work.empty = 0
++	work.wbufSpans.free.takeAll(&work.wbufSpans.busy)
++	unlock(&work.wbufSpans.lock)
++}
++
++// freeSomeWbufs frees some workbufs back to the heap and returns
++// true if it should be called again to free more.
++func freeSomeWbufs(preemptible bool) bool {
++	const batchSize = 64 // ~1–2 µs per span.
++	lock(&work.wbufSpans.lock)
++	if gcphase != _GCoff || work.wbufSpans.free.isEmpty() {
++		unlock(&work.wbufSpans.lock)
++		return false
++	}
++	systemstack(func() {
++		gp := getg().m.curg
++		for i := 0; i < batchSize && !(preemptible && gp.preempt); i++ {
++			span := work.wbufSpans.free.first
++			if span == nil {
++				break
++			}
++			work.wbufSpans.free.remove(span)
++			mheap_.freeManual(span, &memstats.gc_sys)
++		}
++	})
++	more := !work.wbufSpans.free.isEmpty()
++	unlock(&work.wbufSpans.lock)
++	return more
++}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index bf0ae785a9..80d925cac6 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1204,6 +1204,31 @@ func (list *mSpanList) insertBack(span *mspan) {
+ 	span.list = list
+ }
+ 
++// takeAll removes all spans from other and inserts them at the front
++// of list.
++func (list *mSpanList) takeAll(other *mSpanList) {
++	if other.isEmpty() {
++		return
++	}
++
++	// Reparent everything in other to list.
++	for s := other.first; s != nil; s = s.next {
++		s.list = list
++	}
++
++	// Concatenate the lists.
++	if list.isEmpty() {
++		*list = *other
++	} else {
++		// Neither list is empty. Put other before list.
++		other.last.next = list.first
++		list.first.prev = other.last
++		list.first = other.first
++	}
++
++	other.first, other.last = nil, nil
++}
++
+ const (
+ 	_KindSpecialFinalizer = 1
+ 	_KindSpecialProfile   = 2

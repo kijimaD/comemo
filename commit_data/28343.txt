@@ -15,6 +15,22 @@ Date:   Tue May 17 13:09:11 2016 -0700
     Change-Id: I2c5bfea46bfd682449c6e847fc972a1a131f51b7
     Reviewed-on: https://go-review.googlesource.com/23170
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/reflect/type.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 3bfff4a7cc..dd7b797c04 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2314,10 +2314,6 @@ type structTypeFixed32 struct {
+ // StructOf returns the struct type containing fields.
+ // The Offset and Index fields are ignored and computed as they would be
+ // by the compiler.
+-//
+-// StructOf does not support creating structs with UTF-8 field names or
+-// UTF-8 (embedded) type names.
+-// This limitation may be lifted eventually.
+ func StructOf(fields []StructField) Type {
+ 	var (
+ 		hash       = fnv1(0, []byte("struct {")...)

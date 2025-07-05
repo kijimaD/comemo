@@ -11,6 +11,24 @@ Date:   Tue May 22 11:35:03 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/114077
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/plive.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index f42094a0f5..cb5eecf430 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -530,10 +530,11 @@ func (lv *Liveness) markUnsafePoints() {
+ 					v = v.Args[0]
+ 					continue
+ 				}
+-			case ssa.OpPPC64MOVWZload, ssa.Op386MOVLload:
++			case ssa.Op386MOVLload, ssa.OpARM64MOVWUload, ssa.OpPPC64MOVWZload:
+ 				// Args[0] is the address of the write
+ 				// barrier control. Ignore Args[1],
+ 				// which is the mem operand.
++				// TODO: Just ignore mem operands?
+ 				v = v.Args[0]
+ 				continue
+ 			}

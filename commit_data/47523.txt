@@ -20,6 +20,49 @@ Date:   Tue Mar 23 11:57:36 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go | 27 +++++++++++++++------------
  1 file changed, 15 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 66b6d0dc46..a6d730d0d8 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -672,22 +672,25 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
+ 		pre.preloadImports(ctx, bp.Imports, bp)
+ 	}
+ 	if bp == nil {
+-		if importErr, ok := err.(ImportPathError); !ok || importErr.ImportPath() != path {
+-			// Only add path to the error's import stack if it's not already present on the error.
+-			stk.Push(path)
+-			defer stk.Pop()
+-		}
+-		// TODO(bcmills): Why are we constructing Error inline here instead of
+-		// calling setLoadPackageDataError?
+-		return &Package{
++		p := &Package{
+ 			PackagePublic: PackagePublic{
+ 				ImportPath: path,
+-				Error: &PackageError{
+-					ImportStack: stk.Copy(),
+-					Err:         err,
+-				},
++				Incomplete: true,
+ 			},
+ 		}
++		if importErr, ok := err.(ImportPathError); !ok || importErr.ImportPath() != path {
++			// Only add path to the error's import stack if it's not already present
++			// in the error.
++			//
++			// TODO(bcmills): setLoadPackageDataError itself has a similar Push / Pop
++			// sequence that empirically doesn't trigger for these errors, guarded by
++			// a somewhat complex condition. Figure out how to generalize that
++			// condition and eliminate the explicit calls here.
++			stk.Push(path)
++			defer stk.Pop()
++		}
++		p.setLoadPackageDataError(err, path, stk, nil)
++		return p
+ 	}
+ 
+ 	importPath := bp.ImportPath

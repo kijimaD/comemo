@@ -11,6 +11,37 @@ Date:   Wed Nov 8 11:06:09 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go | 14 ++++++++++++--
  1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index b2cfc8c26d..27684fa1f3 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -958,13 +958,23 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 
+ 	// Cgo translation adds imports of "runtime/cgo" and "syscall",
+ 	// except for certain packages, to avoid circular dependencies.
+-	if len(p.CgoFiles) > 0 && (!p.Standard || !cgoExclude[p.ImportPath]) {
++	if p.UsesCgo() && (!p.Standard || !cgoExclude[p.ImportPath]) {
+ 		addImport("runtime/cgo")
+ 	}
+-	if len(p.CgoFiles) > 0 && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
++	if p.UsesCgo() && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
+ 		addImport("syscall")
+ 	}
+ 
++	// SWIG adds imports of some standard packages.
++	if p.UsesSwig() {
++		addImport("runtime/cgo")
++		addImport("syscall")
++		addImport("sync")
++
++		// TODO: The .swig and .swigcxx files can use
++		// %go_import directives to import other packages.
++	}
++
+ 	// The linker loads implicit dependencies.
+ 	if p.Name == "main" && !p.Internal.ForceLibrary {
+ 		for _, dep := range LinkerDeps(p) {

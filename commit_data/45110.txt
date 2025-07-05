@@ -12,6 +12,30 @@ Date:   Tue Aug 25 20:19:55 2020 +1000
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/mips64/obj.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index d2dc20f5c1..01d89a209c 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -60,7 +60,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 
+ 		Linuxdynld:     "/lib64/ld64.so.1",
+ 		Freebsddynld:   "XXX",
+-		Openbsddynld:   "XXX",
++		Openbsddynld:   "/usr/libexec/ld.so",
+ 		Netbsddynld:    "XXX",
+ 		Dragonflydynld: "XXX",
+ 		Solarisdynld:   "XXX",
+@@ -84,7 +84,8 @@ func archinit(ctxt *ld.Link) {
+ 			*ld.FlagRound = 16 * 1024
+ 		}
+ 
+-	case objabi.Hlinux: /* mips64 elf */
++	case objabi.Hlinux, /* mips64 elf */
++		objabi.Hopenbsd:
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+ 		if *ld.FlagTextAddr == -1 {

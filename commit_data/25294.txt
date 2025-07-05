@@ -15,6 +15,22 @@ Date:   Fri Oct 16 01:33:28 2015 -0700
     Change-Id: I019277c7c6439095bab83e5536aa06403638aa51
     Reviewed-on: https://go-review.googlesource.com/15952
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/fmt/doc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 20a09c5f5b..4eea48eb6b 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -138,8 +138,8 @@
+ 	formatting considerations apply for operands that implement
+ 	certain interfaces. In order of application:
+ 
+-	1. If the operand is a reflect.Value, the concrete value it
+-	holds is printed as if it was the operand.
++	1. If the operand is a reflect.Value, the operand is replaced by the
++	concrete value that it holds, and printing continues with the next rule.
+ 
+ 	2. If an operand implements the Formatter interface, it will
+ 	be invoked. Formatter provides fine control of formatting.

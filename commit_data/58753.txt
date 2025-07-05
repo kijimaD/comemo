@@ -51,9 +51,124 @@ Date:   Thu Dec 7 11:09:29 2023 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssa/block.go    | 17 ++++++++++++++++-
  src/cmd/compile/internal/ssa/deadcode.go |  2 ++
  src/cmd/compile/internal/ssa/sccp.go     |  8 ++++----
  test/fixedbugs/issue64606.go             | 32 ++++++++++++++++++++++++++++++++
  4 files changed, 54 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 4a24a181e5..26af10b59c 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -297,6 +297,8 @@ func (b *Block) removePred(i int) {
+ // removeSucc removes the ith output edge from b.
+ // It is the responsibility of the caller to remove
+ // the corresponding predecessor edge.
++// Note that this potentially reorders successors of b, so it
++// must be used very carefully.
+ func (b *Block) removeSucc(i int) {
+ 	n := len(b.Succs) - 1
+ 	if i != n {
+@@ -323,6 +325,19 @@ func (b *Block) swapSuccessors() {
+ 	b.Likely *= -1
+ }
+ 
++// Swaps b.Succs[x] and b.Succs[y].
++func (b *Block) swapSuccessorsByIdx(x, y int) {
++	if x == y {
++		return
++	}
++	ex := b.Succs[x]
++	ey := b.Succs[y]
++	b.Succs[x] = ey
++	b.Succs[y] = ex
++	ex.b.Preds[ex.i].i = y
++	ey.b.Preds[ey.i].i = x
++}
++
+ // removePhiArg removes the ith arg from phi.
+ // It must be called after calling b.removePred(i) to
+ // adjust the corresponding phi value of the block:
+@@ -339,7 +354,7 @@ func (b *Block) swapSuccessors() {
+ func (b *Block) removePhiArg(phi *Value, i int) {
+ 	n := len(b.Preds)
+ 	if numPhiArgs := len(phi.Args); numPhiArgs-1 != n {
+-		b.Fatalf("inconsistent state, num predecessors: %d, num phi args: %d", n, numPhiArgs)
++		b.Fatalf("inconsistent state for %v, num predecessors: %d, num phi args: %d", phi, n, numPhiArgs)
+ 	}
+ 	phi.Args[i].Uses--
+ 	phi.Args[i] = phi.Args[n]
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index ae9fd2ef24..3bd1737bab 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -312,6 +312,8 @@ func deadcode(f *Func) {
+ 
+ // removeEdge removes the i'th outgoing edge from b (and
+ // the corresponding incoming edge from b.Succs[i].b).
++// Note that this potentially reorders successors of b, so it
++// must be used very carefully.
+ func (b *Block) removeEdge(i int) {
+ 	e := b.Succs[i]
+ 	c := e.b
+diff --git a/src/cmd/compile/internal/ssa/sccp.go b/src/cmd/compile/internal/ssa/sccp.go
+index 3c109548ab..86c6117d87 100644
+--- a/src/cmd/compile/internal/ssa/sccp.go
++++ b/src/cmd/compile/internal/ssa/sccp.go
+@@ -533,12 +533,12 @@ func rewireSuccessor(block *Block, constVal *Value) bool {
+ 		block.ResetControls()
+ 		return true
+ 	case BlockJumpTable:
++		// Remove everything but the known taken branch.
+ 		idx := int(constVal.AuxInt)
+-		targetBlock := block.Succs[idx].b
+-		for len(block.Succs) > 0 {
+-			block.removeEdge(0)
++		block.swapSuccessorsByIdx(0, idx)
++		for len(block.Succs) > 1 {
++			block.removeEdge(1)
+ 		}
+-		block.AddEdgeTo(targetBlock)
+ 		block.Kind = BlockPlain
+ 		block.Likely = BranchUnknown
+ 		block.ResetControls()
+diff --git a/test/fixedbugs/issue64606.go b/test/fixedbugs/issue64606.go
+new file mode 100644
+index 0000000000..9b53c1041f
+--- /dev/null
++++ b/test/fixedbugs/issue64606.go
+@@ -0,0 +1,32 @@
++// build -race
++
++//go:build race
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var o any = uint64(5)
++	switch o.(type) {
++	case int:
++		goto ret
++	case int8:
++		goto ret
++	case int16:
++		goto ret
++	case int32:
++		goto ret
++	case int64:
++		goto ret
++	case float32:
++		goto ret
++	case float64:
++		goto ret
++	default:
++		goto ret
++	}
++ret:
++}

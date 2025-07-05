@@ -19,6 +19,23 @@ Date:   Tue Jun 24 20:35:36 2025 -0700
     Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/encoding/json/jsontext/encode.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/encoding/json/jsontext/encode.go b/src/encoding/json/jsontext/encode.go
+index 1e0861e9f0..bb9a41f0f6 100644
+--- a/src/encoding/json/jsontext/encode.go
++++ b/src/encoding/json/jsontext/encode.go
+@@ -900,11 +900,6 @@ func (e *Encoder) OutputOffset() int64 {
+ 	return e.s.previousOffsetEnd()
+ }
+ 
+-// Deprecated: Use [Encoder.AvailableBuffer] instead.
+-func (e *Encoder) UnusedBuffer() []byte {
+-	return e.AvailableBuffer()
+-}
+-
+ // AvailableBuffer returns a zero-length buffer with a possible non-zero capacity.
+ // This buffer is intended to be used to populate a [Value]
+ // being passed to an immediately succeeding [Encoder.WriteValue] call.

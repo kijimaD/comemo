@@ -10,7 +10,54 @@ Date:   Tue Nov 2 09:58:12 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/360795
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/conversions.go              | 11 +++++++++--
  .../compile/internal/types2/testdata/spec/conversions.go2   | 13 +++++++++++++
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index 4d0ed79c38..5798bacca7 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -49,8 +49,15 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 		// converted.
+ 		ok = under(T).(*TypeParam).underIs(func(u Type) bool {
+ 			// t is nil if there are no specific type terms
+-			// TODO(gri) add a cause in case of failure
+-			return u != nil && constConvertibleTo(u, nil)
++			if u == nil {
++				cause = check.sprintf("%s does not contain specific types", T)
++				return false
++			}
++			if !constConvertibleTo(u, nil) {
++				cause = check.sprintf("cannot convert %s to %s (in %s)", x, u, T)
++				return false
++			}
++			return true
+ 		})
+ 		x.mode = value // type parameters are not constants
+ 	case x.convertibleTo(check, T, &cause):
+diff --git a/src/cmd/compile/internal/types2/testdata/spec/conversions.go2 b/src/cmd/compile/internal/types2/testdata/spec/conversions.go2
+index 942d9c0f6f..fde332f34b 100644
+--- a/src/cmd/compile/internal/types2/testdata/spec/conversions.go2
++++ b/src/cmd/compile/internal/types2/testdata/spec/conversions.go2
+@@ -27,6 +27,19 @@ func _[T ~string]() {
+ 	var _ T = 0 // ERROR cannot use .* as T value
+ }
+ 
++// failing const conversions of constants to type parameters report a cause
++func _[
++	T1 any,
++	T2 interface{ m() },
++	T3 ~int | ~float64 | ~bool,
++	T4 ~int | ~string,
++]() {
++	_ = T1(0 /* ERROR cannot convert 0 .* to T1\n\tT1 does not contain specific types */ )
++	_ = T2(1 /* ERROR cannot convert 1 .* to T2\n\tT2 does not contain specific types */ )
++	_ = T3(2 /* ERROR cannot convert 2 .* to T3\n\tcannot convert 2 .* to bool \(in T3\) */ )
++	_ = T4(3.14 /* ERROR cannot convert 3.14 .* to T4\n\tcannot convert 3.14 .* to int \(in T4\) */ )
++}
++
+ // "x is assignable to T"
+ // - tested via assignability tests
+ 

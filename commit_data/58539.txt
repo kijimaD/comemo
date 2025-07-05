@@ -29,8 +29,85 @@ Date:   Wed Nov 15 15:21:23 2023 +0000
     Reviewed-by: Klaus Post <klauspost@gmail.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/zstd/fuzz_test.go |  1 +
  src/internal/zstd/zstd.go      | 28 +++++++++++++++++++++++++---
  src/internal/zstd/zstd_test.go | 11 +++++++++++
  3 files changed, 37 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/zstd/fuzz_test.go b/src/internal/zstd/fuzz_test.go
+index 4c0e9cf7b9..4b5c9961d8 100644
+--- a/src/internal/zstd/fuzz_test.go
++++ b/src/internal/zstd/fuzz_test.go
+@@ -24,6 +24,7 @@ var badStrings = []string{
+ 	"(\xb5/\xfd001\x00\x0000000000000000000",
+ 	"(\xb5/\xfd00\xec\x00\x00&@\x05\x05A7002\x02\x00\x02\x00\x02\x0000000000000000",
+ 	"(\xb5/\xfd00\xec\x00\x00V@\x05\x0517002\x02\x00\x02\x00\x02\x0000000000000000",
++	"\x50\x2a\x4d\x18\x02\x00\x00\x00",
+ }
+ 
+ // This is a simple fuzzer to see if the decompressor panics.
+diff --git a/src/internal/zstd/zstd.go b/src/internal/zstd/zstd.go
+index 9cf62a6bac..0230076f50 100644
+--- a/src/internal/zstd/zstd.go
++++ b/src/internal/zstd/zstd.go
+@@ -326,12 +326,34 @@ func (r *Reader) skipFrame() error {
+ 	relativeOffset += 4
+ 
+ 	size := binary.LittleEndian.Uint32(r.scratch[:4])
++	if size == 0 {
++		r.blockOffset += int64(relativeOffset)
++		return nil
++	}
+ 
+ 	if seeker, ok := r.r.(io.Seeker); ok {
+-		if _, err := seeker.Seek(int64(size), io.SeekCurrent); err != nil {
+-			return err
++		r.blockOffset += int64(relativeOffset)
++		// Implementations of Seeker do not always detect invalid offsets,
++		// so check that the new offset is valid by comparing to the end.
++		prev, err := seeker.Seek(0, io.SeekCurrent)
++		if err != nil {
++			return r.wrapError(0, err)
++		}
++		end, err := seeker.Seek(0, io.SeekEnd)
++		if err != nil {
++			return r.wrapError(0, err)
++		}
++		if prev > end-int64(size) {
++			r.blockOffset += end - prev
++			return r.makeEOFError(0)
++		}
++
++		// The new offset is valid, so seek to it.
++		_, err = seeker.Seek(prev+int64(size), io.SeekStart)
++		if err != nil {
++			return r.wrapError(0, err)
+ 		}
+-		r.blockOffset += int64(relativeOffset) + int64(size)
++		r.blockOffset += int64(size)
+ 		return nil
+ 	}
+ 
+diff --git a/src/internal/zstd/zstd_test.go b/src/internal/zstd/zstd_test.go
+index 4ae6f2b398..f2a2e1b585 100644
+--- a/src/internal/zstd/zstd_test.go
++++ b/src/internal/zstd/zstd_test.go
+@@ -304,6 +304,17 @@ func TestFileSamples(t *testing.T) {
+ 	}
+ }
+ 
++func TestReaderBad(t *testing.T) {
++	for i, s := range badStrings {
++		t.Run(fmt.Sprintf("badStrings#%d", i), func(t *testing.T) {
++			_, err := io.Copy(io.Discard, NewReader(strings.NewReader(s)))
++			if err == nil {
++				t.Error("expected error")
++			}
++		})
++	}
++}
++
+ func BenchmarkLarge(b *testing.B) {
+ 	b.StopTimer()
+ 	b.ReportAllocs()

@@ -7,7 +7,7 @@ Date:   Wed Nov 30 12:04:16 2011 -0500
     R=golang-dev, r, r, gri, bradfitz, iant, iant, nigeltao, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/5416060
-
+---
  misc/dashboard/builder/main.go       |   4 +-
  misc/dashboard/builder/package.go    |  10 +--
  src/cmd/godoc/codewalk.go            |   4 +-
@@ -59,3 +59,2427 @@ Date:   Wed Nov 30 12:04:16 2011 -0500
  src/pkg/path/filepath/path_test.go   |   9 +--
  src/pkg/time/zoneinfo_plan9.go       |   8 +--
  50 files changed, 620 insertions(+), 525 deletions(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index baffc807dc..101b77ed76 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -410,12 +410,12 @@ func (b *Builder) envvWindows() []string {
+ 
+ func isDirectory(name string) bool {
+ 	s, err := os.Stat(name)
+-	return err == nil && s.IsDirectory()
++	return err == nil && s.IsDir()
+ }
+ 
+ func isFile(name string) bool {
+ 	s, err := os.Stat(name)
+-	return err == nil && (s.IsRegular() || s.IsSymlink())
++	return err == nil && !s.IsDir()
+ }
+ 
+ // commitWatcher polls hg for new commits and tells the dashboard about them.
+diff --git a/misc/dashboard/builder/package.go b/misc/dashboard/builder/package.go
+index 565fec614e..c7708472c2 100644
+--- a/misc/dashboard/builder/package.go
++++ b/misc/dashboard/builder/package.go
+@@ -81,11 +81,11 @@ func (b *Builder) buildPackages(workpath string, hash string) error {
+ 	return nil
+ }
+ 
+-func isGoFile(fi *os.FileInfo) bool {
+-	return fi.IsRegular() && // exclude directories
+-		!strings.HasPrefix(fi.Name, ".") && // ignore .files
+-		!strings.HasSuffix(fi.Name, "_test.go") && // ignore tests
+-		filepath.Ext(fi.Name) == ".go"
++func isGoFile(fi os.FileInfo) bool {
++	return !fi.IsDir() && // exclude directories
++		!strings.HasPrefix(fi.Name(), ".") && // ignore .files
++		!strings.HasSuffix(fi.Name(), "_test.go") && // ignore tests
++		filepath.Ext(fi.Name()) == ".go"
+ }
+ 
+ func packageComment(pkg, pkgpath string) (info string, err error) {
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+index 0162dc55d7..7eaad2f94c 100644
+--- a/src/cmd/godoc/codewalk.go
++++ b/src/cmd/godoc/codewalk.go
+@@ -41,7 +41,7 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
+ 
+ 	// If directory exists, serve list of code walks.
+ 	dir, err := fs.Lstat(abspath)
+-	if err == nil && dir.IsDirectory() {
++	if err == nil && dir.IsDir() {
+ 		codewalkDir(w, r, relpath, abspath)
+ 		return
+ 	}
+@@ -186,7 +186,7 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
+ 	var v []interface{}
+ 	for _, fi := range dir {
+ 		name := fi.Name()
+-		if fi.IsDirectory() {
++		if fi.IsDir() {
+ 			v = append(v, &elem{name + "/", ""})
+ 		} else if strings.HasSuffix(name, ".xml") {
+ 			cw, err := loadCodewalk(abspath + "/" + name)
+diff --git a/src/cmd/godoc/dirtrees.go b/src/cmd/godoc/dirtrees.go
+index 7a9abdd83a..7f06348938 100644
+--- a/src/cmd/godoc/dirtrees.go
++++ b/src/cmd/godoc/dirtrees.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"log"
++	"os"
+ 	"path/filepath"
+ 	"strings"
+ 	"unicode"
+@@ -25,21 +26,21 @@ type Directory struct {
+ 	Dirs  []*Directory // subdirectories
+ }
+ 
+-func isGoFile(fi FileInfo) bool {
++func isGoFile(fi os.FileInfo) bool {
+ 	name := fi.Name()
+-	return fi.IsRegular() &&
++	return !fi.IsDir() &&
+ 		len(name) > 0 && name[0] != '.' && // ignore .files
+ 		filepath.Ext(name) == ".go"
+ }
+ 
+-func isPkgFile(fi FileInfo) bool {
++func isPkgFile(fi os.FileInfo) bool {
+ 	return isGoFile(fi) &&
+ 		!strings.HasSuffix(fi.Name(), "_test.go") // ignore test files
+ }
+ 
+-func isPkgDir(fi FileInfo) bool {
++func isPkgDir(fi os.FileInfo) bool {
+ 	name := fi.Name()
+-	return fi.IsDirectory() && len(name) > 0 &&
++	return fi.IsDir() && len(name) > 0 &&
+ 		name[0] != '_' && name[0] != '.' // ignore _files and .files
+ }
+ 
+diff --git a/src/cmd/godoc/filesystem.go b/src/cmd/godoc/filesystem.go
+index aa79b3693f..4e48c9e683 100644
+--- a/src/cmd/godoc/filesystem.go
++++ b/src/cmd/godoc/filesystem.go
+@@ -13,25 +13,15 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+-	"time"
+ )
+ 
+-// The FileInfo interface provides access to file information.
+-type FileInfo interface {
+-	Name() string
+-	Size() int64
+-	ModTime() time.Time
+-	IsRegular() bool
+-	IsDirectory() bool
+-}
+-
+ // The FileSystem interface specifies the methods godoc is using
+ // to access the file system for which it serves documentation.
+ type FileSystem interface {
+ 	Open(path string) (io.ReadCloser, error)
+-	Lstat(path string) (FileInfo, error)
+-	Stat(path string) (FileInfo, error)
+-	ReadDir(path string) ([]FileInfo, error)
++	Lstat(path string) (os.FileInfo, error)
++	Stat(path string) (os.FileInfo, error)
++	ReadDir(path string) ([]os.FileInfo, error)
+ }
+ 
+ // ReadFile reads the file named by path from fs and returns the contents.
+@@ -49,26 +39,6 @@ func ReadFile(fs FileSystem, path string) ([]byte, error) {
+ 
+ var OS FileSystem = osFS{}
+ 
+-// osFI is the OS-specific implementation of FileInfo.
+-type osFI struct {
+-	*os.FileInfo
+-}
+-
+-func (fi osFI) Name() string {
+-	return fi.FileInfo.Name
+-}
+-
+-func (fi osFI) Size() int64 {
+-	if fi.IsDirectory() {
+-		return 0
+-	}
+-	return fi.FileInfo.Size
+-}
+-
+-func (fi osFI) ModTime() time.Time {
+-	return fi.FileInfo.ModTime
+-}
+-
+ // osFS is the OS-specific implementation of FileSystem
+ type osFS struct{}
+ 
+@@ -81,30 +51,20 @@ func (osFS) Open(path string) (io.ReadCloser, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	if fi.IsDirectory() {
++	if fi.IsDir() {
+ 		return nil, fmt.Errorf("Open: %s is a directory", path)
+ 	}
+ 	return f, nil
+ }
+ 
+-func (osFS) Lstat(path string) (FileInfo, error) {
+-	fi, err := os.Lstat(path)
+-	return osFI{fi}, err
++func (osFS) Lstat(path string) (os.FileInfo, error) {
++	return os.Lstat(path)
+ }
+ 
+-func (osFS) Stat(path string) (FileInfo, error) {
+-	fi, err := os.Stat(path)
+-	return osFI{fi}, err
++func (osFS) Stat(path string) (os.FileInfo, error) {
++	return os.Stat(path)
+ }
+ 
+-func (osFS) ReadDir(path string) ([]FileInfo, error) {
+-	l0, err := ioutil.ReadDir(path) // l0 is sorted
+-	if err != nil {
+-		return nil, err
+-	}
+-	l1 := make([]FileInfo, len(l0))
+-	for i, e := range l0 {
+-		l1[i] = osFI{e}
+-	}
+-	return l1, nil
++func (osFS) ReadDir(path string) ([]os.FileInfo, error) {
++	return ioutil.ReadDir(path) // is sorted
+ }
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index e3413544a9..1ce4c9679a 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -381,15 +381,15 @@ func filenameFunc(path string) string {
+ 	return localname
+ }
+ 
+-func fileInfoNameFunc(fi FileInfo) string {
++func fileInfoNameFunc(fi os.FileInfo) string {
+ 	name := fi.Name()
+-	if fi.IsDirectory() {
++	if fi.IsDir() {
+ 		name += "/"
+ 	}
+ 	return name
+ }
+ 
+-func fileInfoTimeFunc(fi FileInfo) string {
++func fileInfoTimeFunc(fi os.FileInfo) string {
+ 	if t := fi.ModTime(); t.Unix() != 0 {
+ 		return t.Local().String()
+ 	}
+@@ -789,7 +789,7 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 
+-	if dir != nil && dir.IsDirectory() {
++	if dir != nil && dir.IsDir() {
+ 		if redirect(w, r) {
+ 			return
+ 		}
+@@ -894,22 +894,8 @@ type httpHandler struct {
+ }
+ 
+ // fsReadDir implements ReadDir for the go/build package.
+-func fsReadDir(dir string) ([]*os.FileInfo, error) {
+-	fi, err := fs.ReadDir(dir)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	// Convert []FileInfo to []*os.FileInfo.
+-	osfi := make([]*os.FileInfo, len(fi))
+-	for i, f := range fi {
+-		mode := uint32(S_IFREG)
+-		if f.IsDirectory() {
+-			mode = S_IFDIR
+-		}
+-		osfi[i] = &os.FileInfo{Name: f.Name(), Size: f.Size(), ModTime: f.ModTime(), Mode: mode}
+-	}
+-	return osfi, nil
++func fsReadDir(dir string) ([]os.FileInfo, error) {
++	return fs.ReadDir(dir)
+ }
+ 
+ // fsReadFile implements ReadFile for the go/build package.
+@@ -969,7 +955,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 	}
+ 
+ 	// filter function to select the desired .go files
+-	filter := func(d FileInfo) bool {
++	filter := func(d os.FileInfo) bool {
+ 		// Only Go files.
+ 		if !isPkgFile(d) {
+ 			return false
+@@ -1048,7 +1034,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 
+ 	// get examples from *_test.go files
+ 	var examples []*doc.Example
+-	filter = func(d FileInfo) bool {
++	filter = func(d os.FileInfo) bool {
+ 		return isGoFile(d) && strings.HasSuffix(d.Name(), "_test.go")
+ 	}
+ 	if testpkgs, err := parseDir(fset, abspath, filter); err != nil {
+diff --git a/src/cmd/godoc/httpzip.go b/src/cmd/godoc/httpzip.go
+index 88b2e8f423..198a348cbf 100644
+--- a/src/cmd/godoc/httpzip.go
++++ b/src/cmd/godoc/httpzip.go
+@@ -35,13 +35,18 @@ import (
+ 	"time"
+ )
+ 
+-// We cannot import syscall on app engine.
+-// TODO(gri) Once we have a truly abstract FileInfo implementation
+-//           this won't be needed anymore.
+-const (
+-	S_IFDIR = 0x4000 // == syscall.S_IFDIR
+-	S_IFREG = 0x8000 // == syscall.S_IFREG
+-)
++type fileInfo struct {
++	name  string
++	mode  os.FileMode
++	size  int64
++	mtime time.Time
++}
++
++func (fi *fileInfo) Name() string       { return fi.name }
++func (fi *fileInfo) Mode() os.FileMode  { return fi.mode }
++func (fi *fileInfo) Size() int64        { return fi.size }
++func (fi *fileInfo) ModTime() time.Time { return fi.mtime }
++func (fi *fileInfo) IsDir() bool        { return fi.mode.IsDir() }
+ 
+ // httpZipFile is the zip-file based implementation of http.File
+ type httpZipFile struct {
+@@ -52,15 +57,15 @@ type httpZipFile struct {
+ }
+ 
+ func (f *httpZipFile) Close() error {
+-	if f.info.IsRegular() {
++	if !f.info.IsDir() {
+ 		return f.ReadCloser.Close()
+ 	}
+ 	f.list = nil
+ 	return nil
+ }
+ 
+-func (f *httpZipFile) Stat() (*os.FileInfo, error) {
+-	return &f.info, nil
++func (f *httpZipFile) Stat() (os.FileInfo, error) {
++	return f.info, nil
+ }
+ 
+ func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, error) {
+@@ -77,17 +82,17 @@ func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, error) {
+ 			break // not in the same directory anymore
+ 		}
+ 		name := e.Name[len(dirname):] // local name
+-		var mode uint32
++		var mode os.FileMode
+ 		var size int64
+ 		var mtime time.Time
+ 		if i := strings.IndexRune(name, '/'); i >= 0 {
+ 			// We infer directories from files in subdirectories.
+ 			// If we have x/y, return a directory entry for x.
+ 			name = name[0:i] // keep local directory name only
+-			mode = S_IFDIR
++			mode = os.ModeDir
+ 			// no size or mtime for directories
+ 		} else {
+-			mode = S_IFREG
++			mode = 0
+ 			size = int64(e.UncompressedSize)
+ 			mtime = e.ModTime()
+ 		}
+@@ -96,11 +101,11 @@ func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, error) {
+ 		// by determining the (fs.list) range of local directory entries
+ 		// (via two binary searches).
+ 		if name != prevname {
+-			list = append(list, os.FileInfo{
+-				Name:    name,
+-				Mode:    mode,
+-				Size:    size,
+-				ModTime: mtime,
++			list = append(list, &fileInfo{
++				name,
++				mode,
++				size,
++				mtime,
+ 			})
+ 			prevname = name
+ 			count--
+@@ -115,7 +120,7 @@ func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, error) {
+ }
+ 
+ func (f *httpZipFile) Seek(offset int64, whence int) (int64, error) {
+-	return 0, fmt.Errorf("Seek not implemented for zip file entry: %s", f.info.Name)
++	return 0, fmt.Errorf("Seek not implemented for zip file entry: %s", f.info.Name())
+ }
+ 
+ // httpZipFS is the zip-file based implementation of http.FileSystem
+@@ -143,11 +148,11 @@ func (fs *httpZipFS) Open(name string) (http.File, error) {
+ 		}
+ 		return &httpZipFile{
+ 			path,
+-			os.FileInfo{
+-				Name:    name,
+-				Mode:    S_IFREG,
+-				Size:    int64(f.UncompressedSize),
+-				ModTime: f.ModTime(),
++			&fileInfo{
++				name,
++				0,
++				int64(f.UncompressedSize),
++				f.ModTime(),
+ 			},
+ 			rc,
+ 			nil,
+@@ -157,10 +162,11 @@ func (fs *httpZipFS) Open(name string) (http.File, error) {
+ 	// not an exact match - must be a directory
+ 	return &httpZipFile{
+ 		path,
+-		os.FileInfo{
+-			Name: name,
+-			Mode: S_IFDIR,
+-			// no size or mtime for directories
++		&fileInfo{
++			name,
++			os.ModeDir,
++			0,  // no size for directory
++			time.Time{},  // no mtime for directory
+ 		},
+ 		nil,
+ 		fs.list[index:],
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 27dd4feec1..e07cc2b0db 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -48,6 +48,7 @@ import (
+ 	"go/token"
+ 	"index/suffixarray"
+ 	"io"
++	"os"
+ 	"path/filepath"
+ 	"regexp"
+ 	"sort"
+@@ -701,8 +702,8 @@ func isWhitelisted(filename string) bool {
+ 	return whitelisted[key]
+ }
+ 
+-func (x *Indexer) visitFile(dirname string, f FileInfo, fulltextIndex bool) {
+-	if !f.IsRegular() {
++func (x *Indexer) visitFile(dirname string, f os.FileInfo, fulltextIndex bool) {
++	if f.IsDir() {
+ 		return
+ 	}
+ 
+@@ -781,7 +782,7 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool, throttle float64) *Ind
+ 			continue // ignore this directory
+ 		}
+ 		for _, f := range list {
+-			if !f.IsDirectory() {
++			if !f.IsDir() {
+ 				x.visitFile(dirname, f, fulltextIndex)
+ 			}
+ 			th.Throttle()
+diff --git a/src/cmd/godoc/parser.go b/src/cmd/godoc/parser.go
+index 7597a00e79..fa303e904e 100644
+--- a/src/cmd/godoc/parser.go
++++ b/src/cmd/godoc/parser.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/token"
++	"os"
+ 	"path/filepath"
+ )
+ 
+@@ -47,7 +48,7 @@ func parseFiles(fset *token.FileSet, filenames []string) (pkgs map[string]*ast.P
+ 	return
+ }
+ 
+-func parseDir(fset *token.FileSet, path string, filter func(FileInfo) bool) (map[string]*ast.Package, error) {
++func parseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool) (map[string]*ast.Package, error) {
+ 	list, err := fs.ReadDir(path)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/cmd/godoc/zip.go b/src/cmd/godoc/zip.go
+index 274999ba00..cd38ed92bc 100644
+--- a/src/cmd/godoc/zip.go
++++ b/src/cmd/godoc/zip.go
+@@ -22,6 +22,7 @@ import (
+ 	"archive/zip"
+ 	"fmt"
+ 	"io"
++	"os"
+ 	"path"
+ 	"sort"
+ 	"strings"
+@@ -52,12 +53,16 @@ func (fi zipFI) ModTime() time.Time {
+ 	return time.Time{} // directory has no modified time entry
+ }
+ 
+-func (fi zipFI) IsDirectory() bool {
+-	return fi.file == nil
++func (fi zipFI) Mode() os.FileMode {
++	if fi.file == nil {
++		// Unix directories typically are executable, hence 555.
++		return os.ModeDir | 0555
++	}
++	return 0444
+ }
+ 
+-func (fi zipFI) IsRegular() bool {
+-	return fi.file != nil
++func (fi zipFI) IsDir() bool {
++	return fi.file == nil
+ }
+ 
+ // zipFS is the zip-file based implementation of FileSystem
+@@ -98,33 +103,33 @@ func (fs *zipFS) Open(abspath string) (io.ReadCloser, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	if fi.IsDirectory() {
++	if fi.IsDir() {
+ 		return nil, fmt.Errorf("Open: %s is a directory", abspath)
+ 	}
+ 	return fi.file.Open()
+ }
+ 
+-func (fs *zipFS) Lstat(abspath string) (FileInfo, error) {
++func (fs *zipFS) Lstat(abspath string) (os.FileInfo, error) {
+ 	_, fi, err := fs.stat(zipPath(abspath))
+ 	return fi, err
+ }
+ 
+-func (fs *zipFS) Stat(abspath string) (FileInfo, error) {
++func (fs *zipFS) Stat(abspath string) (os.FileInfo, error) {
+ 	_, fi, err := fs.stat(zipPath(abspath))
+ 	return fi, err
+ }
+ 
+-func (fs *zipFS) ReadDir(abspath string) ([]FileInfo, error) {
++func (fs *zipFS) ReadDir(abspath string) ([]os.FileInfo, error) {
+ 	path := zipPath(abspath)
+ 	i, fi, err := fs.stat(path)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	if !fi.IsDirectory() {
++	if !fi.IsDir() {
+ 		return nil, fmt.Errorf("ReadDir: %s is not a directory", abspath)
+ 	}
+ 
+-	var list []FileInfo
++	var list []os.FileInfo
+ 	dirname := path + "/"
+ 	prevname := ""
+ 	for _, e := range fs.list[i:] {
+diff --git a/src/cmd/gofix/main.go b/src/cmd/gofix/main.go
+index c8096b3976..dfa756799a 100644
+--- a/src/cmd/gofix/main.go
++++ b/src/cmd/gofix/main.go
+@@ -82,12 +82,12 @@ func main() {
+ 		switch dir, err := os.Stat(path); {
+ 		case err != nil:
+ 			report(err)
+-		case dir.IsRegular():
++		case dir.IsDir():
++			walkDir(path)
++		default:
+ 			if err := processFile(path, false); err != nil {
+ 				report(err)
+ 			}
+-		case dir.IsDirectory():
+-			walkDir(path)
+ 		}
+ 	}
+ 
+@@ -219,7 +219,7 @@ func walkDir(path string) {
+ 	filepath.Walk(path, visitFile)
+ }
+ 
+-func visitFile(path string, f *os.FileInfo, err error) error {
++func visitFile(path string, f os.FileInfo, err error) error {
+ 	if err == nil && isGoFile(f) {
+ 		err = processFile(path, false)
+ 	}
+@@ -229,9 +229,10 @@ func visitFile(path string, f *os.FileInfo, err error) error {
+ 	return nil
+ }
+ 
+-func isGoFile(f *os.FileInfo) bool {
++func isGoFile(f os.FileInfo) bool {
+ 	// ignore non-Go files
+-	return f.IsRegular() && !strings.HasPrefix(f.Name, ".") && strings.HasSuffix(f.Name, ".go")
++	name := f.Name()
++	return !f.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")
+ }
+ 
+ func diff(b1, b2 []byte) (data []byte, err error) {
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 2c52250c2e..b9042271ab 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -80,9 +80,10 @@ func initPrinterMode() {
+ 	}
+ }
+ 
+-func isGoFile(f *os.FileInfo) bool {
++func isGoFile(f os.FileInfo) bool {
+ 	// ignore non-Go files
+-	return f.IsRegular() && !strings.HasPrefix(f.Name, ".") && strings.HasSuffix(f.Name, ".go")
++	name := f.Name()
++	return !f.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")
+ }
+ 
+ // If in == nil, the source is the contents of the file with the given filename.
+@@ -158,7 +159,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
+ 	return err
+ }
+ 
+-func visitFile(path string, f *os.FileInfo, err error) error {
++func visitFile(path string, f os.FileInfo, err error) error {
+ 	if err == nil && isGoFile(f) {
+ 		err = processFile(path, nil, os.Stdout, false)
+ 	}
+@@ -217,12 +218,12 @@ func gofmtMain() {
+ 		switch dir, err := os.Stat(path); {
+ 		case err != nil:
+ 			report(err)
+-		case dir.IsRegular():
++		case dir.IsDir():
++			walkDir(path)
++		default:
+ 			if err := processFile(path, nil, os.Stdout, false); err != nil {
+ 				report(err)
+ 			}
+-		case dir.IsDirectory():
+-			walkDir(path)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 0954439e38..13f7f2b251 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -525,5 +525,5 @@ func selectTag(goVersion string, tags []string) (match string) {
+ 
+ func isDir(dir string) bool {
+ 	fi, err := os.Stat(dir)
+-	return err == nil && fi.IsDirectory()
++	return err == nil && fi.IsDir()
+ }
+diff --git a/src/cmd/govet/govet.go b/src/cmd/govet/govet.go
+index ae00e49a64..fccf08ffcf 100644
+--- a/src/cmd/govet/govet.go
++++ b/src/cmd/govet/govet.go
+@@ -82,7 +82,7 @@ func main() {
+ 	} else {
+ 		for _, name := range flag.Args() {
+ 			// Is it a directory?
+-			if fi, err := os.Stat(name); err == nil && fi.IsDirectory() {
++			if fi, err := os.Stat(name); err == nil && fi.IsDir() {
+ 				walkDir(name)
+ 			} else {
+ 				doFile(name, nil)
+@@ -105,12 +105,12 @@ func doFile(name string, reader io.Reader) {
+ 	file.checkFile(name, parsedFile)
+ }
+ 
+-func visit(path string, f *os.FileInfo, err error) error {
++func visit(path string, f os.FileInfo, err error) error {
+ 	if err != nil {
+ 		errorf("walk error: %s", err)
+ 		return nil
+ 	}
+-	if f.IsRegular() && strings.HasSuffix(path, ".go") {
++	if !f.IsDir() && strings.HasSuffix(path, ".go") {
+ 		doFile(path, nil)
+ 	}
+ 	return nil
+diff --git a/src/cmd/hgpatch/main.go b/src/cmd/hgpatch/main.go
+index edde6cba08..05dc61eb95 100644
+--- a/src/cmd/hgpatch/main.go
++++ b/src/cmd/hgpatch/main.go
+@@ -192,7 +192,7 @@ func makeParent(name string) {
+ func mkdirAll(path string, perm uint32) error {
+ 	dir, err := os.Lstat(path)
+ 	if err == nil {
+-		if dir.IsDirectory() {
++		if dir.IsDir() {
+ 			return nil
+ 		}
+ 		return &os.PathError{"mkdir", path, os.ENOTDIR}
+@@ -220,7 +220,7 @@ func mkdirAll(path string, perm uint32) error {
+ 		// Handle arguments like "foo/." by
+ 		// double-checking that directory doesn't exist.
+ 		dir, err1 := os.Lstat(path)
+-		if err1 == nil && dir.IsDirectory() {
++		if err1 == nil && dir.IsDir() {
+ 			return nil
+ 		}
+ 		return err
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index cfbe5498a1..4365009a30 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -56,7 +56,7 @@ func OpenReader(name string) (*ReadCloser, error) {
+ 		return nil, err
+ 	}
+ 	r := new(ReadCloser)
+-	if err := r.init(f, fi.Size); err != nil {
++	if err := r.init(f, fi.Size()); err != nil {
+ 		f.Close()
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/exp/gotype/gotype.go b/src/pkg/exp/gotype/gotype.go
+index bc4a112c98..a2a9361866 100644
+--- a/src/pkg/exp/gotype/gotype.go
++++ b/src/pkg/exp/gotype/gotype.go
+@@ -150,15 +150,15 @@ func processFiles(filenames []string, allFiles bool) {
+ 		switch info, err := os.Stat(filename); {
+ 		case err != nil:
+ 			report(err)
+-		case info.IsRegular():
+-			if allFiles || isGoFilename(info.Name) {
+-				filenames[i] = filename
+-				i++
+-			}
+-		case info.IsDirectory():
++		case info.IsDir():
+ 			if allFiles || *recursive {
+ 				processDirectory(filename)
+ 			}
++		default:
++			if allFiles || isGoFilename(info.Name()) {
++				filenames[i] = filename
++				i++
++			}
+ 		}
+ 	}
+ 	fset := token.NewFileSet()
+diff --git a/src/pkg/exp/types/check_test.go b/src/pkg/exp/types/check_test.go
+index 4a30acf231..35535ea406 100644
+--- a/src/pkg/exp/types/check_test.go
++++ b/src/pkg/exp/types/check_test.go
+@@ -202,7 +202,7 @@ func TestCheck(t *testing.T) {
+ 	// For easy debugging w/o changing the testing code,
+ 	// if there is a local test file, only test that file.
+ 	const testfile = "test.go"
+-	if fi, err := os.Stat(testfile); err == nil && fi.IsRegular() {
++	if fi, err := os.Stat(testfile); err == nil && !fi.IsDir() {
+ 		fmt.Printf("WARNING: Testing only %s (remove it to run all tests)\n", testfile)
+ 		check(t, testfile, []string{testfile})
+ 		return
+diff --git a/src/pkg/exp/types/gcimporter.go b/src/pkg/exp/types/gcimporter.go
+index 4167caf3f0..16a8667ff6 100644
+--- a/src/pkg/exp/types/gcimporter.go
++++ b/src/pkg/exp/types/gcimporter.go
+@@ -59,7 +59,7 @@ func findPkg(path string) (filename, id string) {
+ 	// try extensions
+ 	for _, ext := range pkgExts {
+ 		filename = noext + ext
+-		if f, err := os.Stat(filename); err == nil && f.IsRegular() {
++		if f, err := os.Stat(filename); err == nil && !f.IsDir() {
+ 			return
+ 		}
+ 	}
+diff --git a/src/pkg/exp/types/gcimporter_test.go b/src/pkg/exp/types/gcimporter_test.go
+index adac072f85..7475d35220 100644
+--- a/src/pkg/exp/types/gcimporter_test.go
++++ b/src/pkg/exp/types/gcimporter_test.go
+@@ -72,18 +72,18 @@ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
+ 			return
+ 		}
+ 		switch {
+-		case f.IsRegular():
++		case !f.IsDir():
+ 			// try extensions
+ 			for _, ext := range pkgExts {
+-				if strings.HasSuffix(f.Name, ext) {
+-					name := f.Name[0 : len(f.Name)-len(ext)] // remove extension
++				if strings.HasSuffix(f.Name(), ext) {
++					name := f.Name()[0 : len(f.Name())-len(ext)] // remove extension
+ 					if testPath(t, filepath.Join(dir, name)) {
+ 						nimports++
+ 					}
+ 				}
+ 			}
+-		case f.IsDirectory():
+-			nimports += testDir(t, filepath.Join(dir, f.Name), endTime)
++		case f.IsDir():
++			nimports += testDir(t, filepath.Join(dir, f.Name()), endTime)
+ 		}
+ 	}
+ 	return
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 9b3ab02d1d..5301ab53e5 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -159,13 +159,13 @@ func (s *Script) Stale() bool {
+ 			// any error reading output files means stale
+ 			return true
+ 		}
+-		if fi.ModTime.After(latest) {
+-			latest = fi.ModTime
++		if mtime := fi.ModTime(); mtime.After(latest) {
++			latest = mtime
+ 		}
+ 	}
+ 	for _, file := range s.Input {
+ 		fi, err := os.Stat(file)
+-		if err != nil || fi.ModTime.After(latest) {
++		if err != nil || fi.ModTime().After(latest) {
+ 			// any error reading input files means stale
+ 			// (attempt to rebuild to figure out why)
+ 			return true
+diff --git a/src/pkg/go/build/dir.go b/src/pkg/go/build/dir.go
+index 0d175c75de..12dc99942a 100644
+--- a/src/pkg/go/build/dir.go
++++ b/src/pkg/go/build/dir.go
+@@ -38,16 +38,16 @@ type Context struct {
+ 	// format of the strings dir and file: they can be
+ 	// slash-separated, backslash-separated, even URLs.
+ 
+-	// ReadDir returns a slice of *os.FileInfo, sorted by Name,
++	// ReadDir returns a slice of os.FileInfo, sorted by Name,
+ 	// describing the content of the named directory.
+ 	// The dir argument is the argument to ScanDir.
+ 	// If ReadDir is nil, ScanDir uses io.ReadDir.
+-	ReadDir func(dir string) (fi []*os.FileInfo, err error)
++	ReadDir func(dir string) (fi []os.FileInfo, err error)
+ 
+ 	// ReadFile returns the content of the file named file
+ 	// in the directory named dir.  The dir argument is the
+ 	// argument to ScanDir, and the file argument is the
+-	// Name field from an *os.FileInfo returned by ReadDir.
++	// Name field from an os.FileInfo returned by ReadDir.
+ 	// The returned path is the full name of the file, to be
+ 	// used in error messages.
+ 	//
+@@ -56,7 +56,7 @@ type Context struct {
+ 	ReadFile func(dir, file string) (path string, content []byte, err error)
+ }
+ 
+-func (ctxt *Context) readDir(dir string) ([]*os.FileInfo, error) {
++func (ctxt *Context) readDir(dir string) ([]os.FileInfo, error) {
+ 	if f := ctxt.ReadDir; f != nil {
+ 		return f(dir)
+ 	}
+@@ -140,18 +140,19 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 	testImported := make(map[string]bool)
+ 	fset := token.NewFileSet()
+ 	for _, d := range dirs {
+-		if !d.IsRegular() {
++		if d.IsDir() {
+ 			continue
+ 		}
+-		if strings.HasPrefix(d.Name, "_") ||
+-			strings.HasPrefix(d.Name, ".") {
++		name := d.Name()
++		if strings.HasPrefix(name, "_") ||
++			strings.HasPrefix(name, ".") {
+ 			continue
+ 		}
+-		if !ctxt.goodOSArchFile(d.Name) {
++		if !ctxt.goodOSArchFile(name) {
+ 			continue
+ 		}
+ 
+-		ext := path.Ext(d.Name)
++		ext := path.Ext(name)
+ 		switch ext {
+ 		case ".go", ".c", ".s":
+ 			// tentatively okay
+@@ -161,7 +162,7 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 		}
+ 
+ 		// Look for +build comments to accept or reject the file.
+-		filename, data, err := ctxt.readFile(dir, d.Name)
++		filename, data, err := ctxt.readFile(dir, name)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+@@ -172,10 +173,10 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 		// Going to save the file.  For non-Go files, can stop here.
+ 		switch ext {
+ 		case ".c":
+-			di.CFiles = append(di.CFiles, d.Name)
++			di.CFiles = append(di.CFiles, name)
+ 			continue
+ 		case ".s":
+-			di.SFiles = append(di.SFiles, d.Name)
++			di.SFiles = append(di.SFiles, name)
+ 			continue
+ 		}
+ 
+@@ -192,7 +193,7 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 			continue
+ 		}
+ 
+-		isTest := strings.HasSuffix(d.Name, "_test.go")
++		isTest := strings.HasSuffix(name, "_test.go")
+ 		if isTest && strings.HasSuffix(pkg, "_test") {
+ 			pkg = pkg[:len(pkg)-len("_test")]
+ 		}
+@@ -255,15 +256,15 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 			}
+ 		}
+ 		if isCgo {
+-			di.CgoFiles = append(di.CgoFiles, d.Name)
++			di.CgoFiles = append(di.CgoFiles, name)
+ 		} else if isTest {
+ 			if pkg == string(pf.Name.Name) {
+-				di.TestGoFiles = append(di.TestGoFiles, d.Name)
++				di.TestGoFiles = append(di.TestGoFiles, name)
+ 			} else {
+-				di.XTestGoFiles = append(di.XTestGoFiles, d.Name)
++				di.XTestGoFiles = append(di.XTestGoFiles, name)
+ 			}
+ 		} else {
+-			di.GoFiles = append(di.GoFiles, d.Name)
++			di.GoFiles = append(di.GoFiles, name)
+ 		}
+ 	}
+ 	if di.Package == "" {
+diff --git a/src/pkg/go/build/path.go b/src/pkg/go/build/path.go
+index 7ccb12993b..91d6c430a9 100644
+--- a/src/pkg/go/build/path.go
++++ b/src/pkg/go/build/path.go
+@@ -70,7 +70,7 @@ func (t *Tree) HasSrc(pkg string) bool {
+ 	if err != nil {
+ 		return false
+ 	}
+-	return fi.IsDirectory()
++	return fi.IsDir()
+ }
+ 
+ // HasPkg returns whether the given package's
+@@ -80,7 +80,7 @@ func (t *Tree) HasPkg(pkg string) bool {
+ 	if err != nil {
+ 		return false
+ 	}
+-	return fi.IsRegular()
++	return !fi.IsDir()
+ 	// TODO(adg): check object version is consistent
+ }
+ 
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index d3bab31c5a..be11f461c3 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -188,7 +188,7 @@ func ParseFiles(fset *token.FileSet, filenames []string, mode uint) (pkgs map[st
+ // returned. If a parse error occurred, a non-nil but incomplete map and the
+ // error are returned.
+ //
+-func ParseDir(fset *token.FileSet, path string, filter func(*os.FileInfo) bool, mode uint) (map[string]*ast.Package, error) {
++func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, mode uint) (map[string]*ast.Package, error) {
+ 	fd, err := os.Open(path)
+ 	if err != nil {
+ 		return nil, err
+@@ -202,10 +202,9 @@ func ParseDir(fset *token.FileSet, path string, filter func(*os.FileInfo) bool,
+ 
+ 	filenames := make([]string, len(list))
+ 	n := 0
+-	for i := 0; i < len(list); i++ {
+-		d := &list[i]
++	for _, d := range list {
+ 		if filter == nil || filter(d) {
+-			filenames[n] = filepath.Join(path, d.Name)
++			filenames[n] = filepath.Join(path, d.Name())
+ 			n++
+ 		}
+ 	}
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index dee90fbcf4..f602db8896 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -113,7 +113,7 @@ func nameFilter(filename string) bool {
+ 	return true
+ }
+ 
+-func dirFilter(f *os.FileInfo) bool { return nameFilter(f.Name) }
++func dirFilter(f os.FileInfo) bool { return nameFilter(f.Name()) }
+ 
+ func TestParse4(t *testing.T) {
+ 	path := "."
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index f6c8cd8a87..be7fa5f2bc 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -36,8 +36,8 @@ func ReadFile(filename string) ([]byte, error) {
+ 	// read, so let's try it but be prepared for the answer to be wrong.
+ 	fi, err := f.Stat()
+ 	var n int64
+-	if err == nil && fi.Size < 2e9 { // Don't preallocate a huge buffer, just in case.
+-		n = fi.Size
++	if size := fi.Size(); err == nil && size < 2e9 { // Don't preallocate a huge buffer, just in case.
++		n = size
+ 	}
+ 	// As initial capacity for readAll, use n + a little extra in case Size is zero,
+ 	// and to avoid another allocation after Read has filled the buffer.  The readAll
+@@ -63,16 +63,16 @@ func WriteFile(filename string, data []byte, perm uint32) error {
+ 	return err
+ }
+ 
+-// A fileInfoList implements sort.Interface.
+-type fileInfoList []*os.FileInfo
++// byName implements sort.Interface.
++type byName []os.FileInfo
+ 
+-func (f fileInfoList) Len() int           { return len(f) }
+-func (f fileInfoList) Less(i, j int) bool { return f[i].Name < f[j].Name }
+-func (f fileInfoList) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
++func (f byName) Len() int           { return len(f) }
++func (f byName) Less(i, j int) bool { return f[i].Name() < f[j].Name() }
++func (f byName) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+ 
+ // ReadDir reads the directory named by dirname and returns
+ // a list of sorted directory entries.
+-func ReadDir(dirname string) ([]*os.FileInfo, error) {
++func ReadDir(dirname string) ([]os.FileInfo, error) {
+ 	f, err := os.Open(dirname)
+ 	if err != nil {
+ 		return nil, err
+@@ -82,12 +82,8 @@ func ReadDir(dirname string) ([]*os.FileInfo, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	fi := make(fileInfoList, len(list))
+-	for i := range list {
+-		fi[i] = &list[i]
+-	}
+-	sort.Sort(fi)
+-	return fi, nil
++	sort.Sort(byName(list))
++	return list, nil
+ }
+ 
+ type nopCloser struct {
+diff --git a/src/pkg/io/ioutil/ioutil_test.go b/src/pkg/io/ioutil/ioutil_test.go
+index 55e4b2c2bc..89d6815ad5 100644
+--- a/src/pkg/io/ioutil/ioutil_test.go
++++ b/src/pkg/io/ioutil/ioutil_test.go
+@@ -15,8 +15,8 @@ func checkSize(t *testing.T, path string, size int64) {
+ 	if err != nil {
+ 		t.Fatalf("Stat %q (looking for size %d): %s", path, size, err)
+ 	}
+-	if dir.Size != size {
+-		t.Errorf("Stat %q: size %d want %d", path, dir.Size, size)
++	if dir.Size() != size {
++		t.Errorf("Stat %q: size %d want %d", path, dir.Size(), size)
+ 	}
+ }
+ 
+@@ -76,9 +76,9 @@ func TestReadDir(t *testing.T) {
+ 	foundTestDir := false
+ 	for _, dir := range list {
+ 		switch {
+-		case dir.IsRegular() && dir.Name == "ioutil_test.go":
++		case !dir.IsDir() && dir.Name() == "ioutil_test.go":
+ 			foundTest = true
+-		case dir.IsDirectory() && dir.Name == "_test":
++		case dir.IsDir() && dir.Name() == "_test":
+ 			foundTestDir = true
+ 		}
+ 	}
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index 7f22188653..70e7849f16 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -52,7 +52,7 @@ type FileSystem interface {
+ // served by the FileServer implementation.
+ type File interface {
+ 	Close() error
+-	Stat() (*os.FileInfo, error)
++	Stat() (os.FileInfo, error)
+ 	Readdir(count int) ([]os.FileInfo, error)
+ 	Read([]byte) (int, error)
+ 	Seek(offset int64, whence int) (int64, error)
+@@ -93,8 +93,8 @@ func dirList(w ResponseWriter, f File) {
+ 			break
+ 		}
+ 		for _, d := range dirs {
+-			name := d.Name
+-			if d.IsDirectory() {
++			name := d.Name()
++			if d.IsDir() {
+ 				name += "/"
+ 			}
+ 			// TODO htmlescape
+@@ -135,7 +135,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 		// redirect to canonical path: / at end of directory url
+ 		// r.URL.Path always begins with /
+ 		url := r.URL.Path
+-		if d.IsDirectory() {
++		if d.IsDir() {
+ 			if url[len(url)-1] != '/' {
+ 				localRedirect(w, r, path.Base(url)+"/")
+ 				return
+@@ -148,14 +148,14 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 		}
+ 	}
+ 
+-	if t, err := time.Parse(TimeFormat, r.Header.Get("If-Modified-Since")); err == nil && !d.ModTime.After(t) {
++	if t, err := time.Parse(TimeFormat, r.Header.Get("If-Modified-Since")); err == nil && !d.ModTime().After(t) {
+ 		w.WriteHeader(StatusNotModified)
+ 		return
+ 	}
+-	w.Header().Set("Last-Modified", d.ModTime.UTC().Format(TimeFormat))
++	w.Header().Set("Last-Modified", d.ModTime().UTC().Format(TimeFormat))
+ 
+ 	// use contents of index.html for directory, if present
+-	if d.IsDirectory() {
++	if d.IsDir() {
+ 		index := name + indexPage
+ 		ff, err := fs.Open(index)
+ 		if err == nil {
+@@ -169,13 +169,13 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 		}
+ 	}
+ 
+-	if d.IsDirectory() {
++	if d.IsDir() {
+ 		dirList(w, f)
+ 		return
+ 	}
+ 
+ 	// serve file
+-	size := d.Size
++	size := d.Size()
+ 	code := StatusOK
+ 
+ 	// If Content-Type isn't set, use the file's extension to find it.
+@@ -215,7 +215,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 		}
+ 		size = ra.length
+ 		code = StatusPartialContent
+-		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", ra.start, ra.start+ra.length-1, d.Size))
++		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", ra.start, ra.start+ra.length-1, d.Size()))
+ 	}
+ 
+ 	w.Header().Set("Accept-Ranges", "bytes")
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index 6697189900..976ee75c7d 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -190,8 +190,8 @@ func TestDirJoin(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("stat of %s: %v", name, err)
+ 		}
+-		if gfi.Ino != wfi.Ino {
+-			t.Errorf("%s got different inode", name)
++		if !gfi.(*os.FileStat).SameFile(wfi.(*os.FileStat)) {
++			t.Errorf("%s got different file", name)
+ 		}
+ 	}
+ 	test(Dir("/etc/"), "/hosts")
+diff --git a/src/pkg/os/dir_windows.go b/src/pkg/os/dir_windows.go
+index ec06d24168..6f999c0b0d 100644
+--- a/src/pkg/os/dir_windows.go
++++ b/src/pkg/os/dir_windows.go
+@@ -8,7 +8,7 @@ func (file *File) Readdirnames(n int) (names []string, err error) {
+ 	fis, err := file.Readdir(n)
+ 	names = make([]string, len(fis))
+ 	for i, fi := range fis {
+-		names[i] = fi.Name
++		names[i] = fi.Name()
+ 	}
+ 	return names, err
+ }
+diff --git a/src/pkg/os/exec/lp_unix.go b/src/pkg/os/exec/lp_unix.go
+index d234641acc..9665ea8f41 100644
+--- a/src/pkg/os/exec/lp_unix.go
++++ b/src/pkg/os/exec/lp_unix.go
+@@ -20,7 +20,7 @@ func findExecutable(file string) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	if d.IsRegular() && d.Permission()&0111 != 0 {
++	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
+ 		return nil
+ 	}
+ 	return os.EPERM
+diff --git a/src/pkg/os/exec/lp_windows.go b/src/pkg/os/exec/lp_windows.go
+index db326236ee..ef5bd92166 100644
+--- a/src/pkg/os/exec/lp_windows.go
++++ b/src/pkg/os/exec/lp_windows.go
+@@ -18,10 +18,10 @@ func chkStat(file string) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	if d.IsRegular() {
+-		return nil
++	if d.IsDir() {
++		return os.EPERM
+ 	}
+-	return os.EPERM
++	return nil
+ }
+ 
+ func findExecutable(file string, exts []string) (string, error) {
+diff --git a/src/pkg/os/export_test.go b/src/pkg/os/export_test.go
+new file mode 100644
+index 0000000000..29f051162a
+--- /dev/null
++++ b/src/pkg/os/export_test.go
+@@ -0,0 +1,10 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++// Export for testing.
++
++var TimespecToTime = timespecToTime
++var Atime = atime
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index f3e0d1f9be..6e08eb6134 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -99,50 +99,43 @@ func (file *file) close() error {
+ 
+ // Stat returns the FileInfo structure describing file.
+ // It returns the FileInfo and an error, if any.
+-func (file *File) Stat() (fi *FileInfo, err error) {
++func (file *File) Stat() (fi FileInfo, err error) {
+ 	var stat syscall.Stat_t
+-	e := syscall.Fstat(file.fd, &stat)
+-	if e != nil {
+-		return nil, &PathError{"stat", file.name, e}
++	err = syscall.Fstat(file.fd, &stat)
++	if err != nil {
++		return nil, &PathError{"stat", file.name, err}
+ 	}
+-	return fileInfoFromStat(file.name, new(FileInfo), &stat, &stat), nil
++	return fileInfoFromStat(&stat, file.name), nil
+ }
+ 
+-// Stat returns a FileInfo structure describing the named file and an error, if any.
++// Stat returns a FileInfo describing the named file and an error, if any.
+ // If name names a valid symbolic link, the returned FileInfo describes
+ // the file pointed at by the link and has fi.FollowedSymlink set to true.
+ // If name names an invalid symbolic link, the returned FileInfo describes
+ // the link itself and has fi.FollowedSymlink set to false.
+-func Stat(name string) (fi *FileInfo, err error) {
+-	var lstat, stat syscall.Stat_t
+-	e := syscall.Lstat(name, &lstat)
+-	if e != nil {
+-		return nil, &PathError{"stat", name, e}
+-	}
+-	statp := &lstat
+-	if lstat.Mode&syscall.S_IFMT == syscall.S_IFLNK {
+-		e := syscall.Stat(name, &stat)
+-		if e == nil {
+-			statp = &stat
+-		}
++func Stat(name string) (fi FileInfo, err error) {
++	var stat syscall.Stat_t
++	err = syscall.Stat(name, &stat)
++	if err != nil {
++		return nil, &PathError{"stat", name, err}
+ 	}
+-	return fileInfoFromStat(name, new(FileInfo), &lstat, statp), nil
++	return fileInfoFromStat(&stat, name), nil
+ }
+ 
+-// Lstat returns the FileInfo structure describing the named file and an
++// Lstat returns a FileInfo describing the named file and an
+ // error, if any.  If the file is a symbolic link, the returned FileInfo
+ // describes the symbolic link.  Lstat makes no attempt to follow the link.
+-func Lstat(name string) (fi *FileInfo, err error) {
++func Lstat(name string) (fi FileInfo, err error) {
+ 	var stat syscall.Stat_t
+-	e := syscall.Lstat(name, &stat)
+-	if e != nil {
+-		return nil, &PathError{"lstat", name, e}
++	err = syscall.Lstat(name, &stat)
++	if err != nil {
++		return nil, &PathError{"lstat", name, err}
+ 	}
+-	return fileInfoFromStat(name, new(FileInfo), &stat, &stat), nil
++	return fileInfoFromStat(&stat, name), nil
+ }
+ 
+ // Readdir reads the contents of the directory associated with file and
+-// returns an array of up to n FileInfo structures, as would be returned
++// returns an array of up to n FileInfo values, as would be returned
+ // by Lstat, in directory order. Subsequent calls on the same file will yield
+ // further FileInfos.
+ //
+@@ -166,13 +159,13 @@ func (file *File) Readdir(n int) (fi []FileInfo, err error) {
+ 	fi = make([]FileInfo, len(names))
+ 	for i, filename := range names {
+ 		fip, err := Lstat(dirname + filename)
+-		if fip == nil || err != nil {
+-			fi[i].Name = filename // rest is already zeroed out
++		if err == nil {
++			fi[i] = fip
+ 		} else {
+-			fi[i] = *fip
++			fi[i] = &FileStat{name: filename}
+ 		}
+ 	}
+-	return
++	return fi, err
+ }
+ 
+ // read reads up to len(b) bytes from the File.
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 81fdbe3051..bdb5d1d29c 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -180,12 +180,12 @@ func (file *File) Readdir(n int) (fi []FileInfo, err error) {
+ 				}
+ 			}
+ 		}
+-		var f FileInfo
+-		setFileInfo(&f, string(syscall.UTF16ToString(d.FileName[0:])), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime)
+ 		file.dirinfo.needdata = true
+-		if f.Name == "." || f.Name == ".." { // Useless names
++		name := string(syscall.UTF16ToString(d.FileName[0:]))
++		if name == "." || name == ".." { // Useless names
+ 			continue
+ 		}
++		f := toFileInfo(name, d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime)
+ 		n--
+ 		fi = append(fi, f)
+ 	}
+diff --git a/src/pkg/os/getwd.go b/src/pkg/os/getwd.go
+index d5f5ae6bed..a0d3c99a50 100644
+--- a/src/pkg/os/getwd.go
++++ b/src/pkg/os/getwd.go
+@@ -12,7 +12,7 @@ import (
+ // current directory.  If the current directory can be
+ // reached via multiple paths (due to symbolic links),
+ // Getwd may return any one of them.
+-func Getwd() (string, error) {
++func Getwd() (pwd string, err error) {
+ 	// If the operating system provides a Getwd call, use it.
+ 	if syscall.ImplementsGetwd {
+ 		s, e := syscall.Getwd()
+@@ -27,10 +27,10 @@ func Getwd() (string, error) {
+ 
+ 	// Clumsy but widespread kludge:
+ 	// if $PWD is set and matches ".", use it.
+-	pwd := Getenv("PWD")
++	pwd = Getenv("PWD")
+ 	if len(pwd) > 0 && pwd[0] == '/' {
+ 		d, err := Stat(pwd)
+-		if err == nil && d.Dev == dot.Dev && d.Ino == dot.Ino {
++		if err == nil && dot.(*FileStat).SameFile(d.(*FileStat)) {
+ 			return pwd, nil
+ 		}
+ 	}
+@@ -42,7 +42,7 @@ func Getwd() (string, error) {
+ 		// Can't stat root - no hope.
+ 		return "", err
+ 	}
+-	if root.Dev == dot.Dev && root.Ino == dot.Ino {
++	if root.(*FileStat).SameFile(dot.(*FileStat)) {
+ 		return "/", nil
+ 	}
+ 
+@@ -67,7 +67,7 @@ func Getwd() (string, error) {
+ 			}
+ 			for _, name := range names {
+ 				d, _ := Lstat(parent + "/" + name)
+-				if d.Dev == dot.Dev && d.Ino == dot.Ino {
++				if d.(*FileStat).SameFile(dot.(*FileStat)) {
+ 					pwd = "/" + name + pwd
+ 					goto Found
+ 				}
+@@ -82,7 +82,7 @@ func Getwd() (string, error) {
+ 			return "", err
+ 		}
+ 		fd.Close()
+-		if pd.Dev == root.Dev && pd.Ino == root.Ino {
++		if pd.(*FileStat).SameFile(root.(*FileStat)) {
+ 			break
+ 		}
+ 		// Set up for next round.
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 2439f03348..d107020449 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -122,12 +122,12 @@ func TestStat(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("stat failed:", err)
+ 	}
+-	if !equal(sfname, dir.Name) {
+-		t.Error("name should be ", sfname, "; is", dir.Name)
++	if !equal(sfname, dir.Name()) {
++		t.Error("name should be ", sfname, "; is", dir.Name())
+ 	}
+ 	filesize := size(path, t)
+-	if dir.Size != filesize {
+-		t.Error("size should be", filesize, "; is", dir.Size)
++	if dir.Size() != filesize {
++		t.Error("size should be", filesize, "; is", dir.Size())
+ 	}
+ }
+ 
+@@ -142,12 +142,12 @@ func TestFstat(t *testing.T) {
+ 	if err2 != nil {
+ 		t.Fatal("fstat failed:", err2)
+ 	}
+-	if !equal(sfname, dir.Name) {
+-		t.Error("name should be ", sfname, "; is", dir.Name)
++	if !equal(sfname, dir.Name()) {
++		t.Error("name should be ", sfname, "; is", dir.Name())
+ 	}
+ 	filesize := size(path, t)
+-	if dir.Size != filesize {
+-		t.Error("size should be", filesize, "; is", dir.Size)
++	if dir.Size() != filesize {
++		t.Error("size should be", filesize, "; is", dir.Size())
+ 	}
+ }
+ 
+@@ -157,12 +157,12 @@ func TestLstat(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("lstat failed:", err)
+ 	}
+-	if !equal(sfname, dir.Name) {
+-		t.Error("name should be ", sfname, "; is", dir.Name)
++	if !equal(sfname, dir.Name()) {
++		t.Error("name should be ", sfname, "; is", dir.Name())
+ 	}
+ 	filesize := size(path, t)
+-	if dir.Size != filesize {
+-		t.Error("size should be", filesize, "; is", dir.Size)
++	if dir.Size() != filesize {
++		t.Error("size should be", filesize, "; is", dir.Size())
+ 	}
+ }
+ 
+@@ -229,7 +229,7 @@ func testReaddir(dir string, contents []string, t *testing.T) {
+ 	for _, m := range contents {
+ 		found := false
+ 		for _, n := range s {
+-			if equal(m, n.Name) {
++			if equal(m, n.Name()) {
+ 				if found {
+ 					t.Error("present twice:", m)
+ 				}
+@@ -408,7 +408,7 @@ func TestHardLink(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("stat %q failed: %v", from, err)
+ 	}
+-	if tostat.Dev != fromstat.Dev || tostat.Ino != fromstat.Ino {
++	if !tostat.(*FileStat).SameFile(fromstat.(*FileStat)) {
+ 		t.Errorf("link %q, %q did not create hard link", to, from)
+ 	}
+ }
+@@ -433,32 +433,32 @@ func TestSymLink(t *testing.T) {
+ 		t.Fatalf("symlink %q, %q failed: %v", to, from, err)
+ 	}
+ 	defer Remove(from)
+-	tostat, err := Stat(to)
++	tostat, err := Lstat(to)
+ 	if err != nil {
+ 		t.Fatalf("stat %q failed: %v", to, err)
+ 	}
+-	if tostat.FollowedSymlink {
+-		t.Fatalf("stat %q claims to have followed a symlink", to)
++	if tostat.Mode()&ModeSymlink != 0 {
++		t.Fatalf("stat %q claims to have found a symlink", to)
+ 	}
+ 	fromstat, err := Stat(from)
+ 	if err != nil {
+ 		t.Fatalf("stat %q failed: %v", from, err)
+ 	}
+-	if tostat.Dev != fromstat.Dev || tostat.Ino != fromstat.Ino {
++	if !tostat.(*FileStat).SameFile(fromstat.(*FileStat)) {
+ 		t.Errorf("symlink %q, %q did not create symlink", to, from)
+ 	}
+ 	fromstat, err = Lstat(from)
+ 	if err != nil {
+ 		t.Fatalf("lstat %q failed: %v", from, err)
+ 	}
+-	if !fromstat.IsSymlink() {
++	if fromstat.Mode()&ModeSymlink == 0 {
+ 		t.Fatalf("symlink %q, %q did not create symlink", to, from)
+ 	}
+ 	fromstat, err = Stat(from)
+ 	if err != nil {
+ 		t.Fatalf("stat %q failed: %v", from, err)
+ 	}
+-	if !fromstat.FollowedSymlink {
++	if fromstat.Mode()&ModeSymlink != 0 {
+ 		t.Fatalf("stat %q did not follow symlink", from)
+ 	}
+ 	s, err := Readlink(from)
+@@ -566,13 +566,13 @@ func TestStartProcess(t *testing.T) {
+ 	exec(t, cmddir, cmdbase, args, filepath.Clean(cmddir)+le)
+ }
+ 
+-func checkMode(t *testing.T, path string, mode uint32) {
++func checkMode(t *testing.T, path string, mode FileMode) {
+ 	dir, err := Stat(path)
+ 	if err != nil {
+ 		t.Fatalf("Stat %q (looking for mode %#o): %s", path, mode, err)
+ 	}
+-	if dir.Mode&0777 != mode {
+-		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode, mode)
++	if dir.Mode()&0777 != mode {
++		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode(), mode)
+ 	}
+ }
+ 
+@@ -596,73 +596,13 @@ func TestChmod(t *testing.T) {
+ 	checkMode(t, f.Name(), 0123)
+ }
+ 
+-func checkUidGid(t *testing.T, path string, uid, gid int) {
+-	dir, err := Stat(path)
+-	if err != nil {
+-		t.Fatalf("Stat %q (looking for uid/gid %d/%d): %s", path, uid, gid, err)
+-	}
+-	if dir.Uid != uid {
+-		t.Errorf("Stat %q: uid %d want %d", path, dir.Uid, uid)
+-	}
+-	if dir.Gid != gid {
+-		t.Errorf("Stat %q: gid %d want %d", path, dir.Gid, gid)
+-	}
+-}
+-
+-func TestChown(t *testing.T) {
+-	// Chown is not supported under windows or Plan 9.
+-	// Plan9 provides a native ChownPlan9 version instead.
+-	if syscall.OS == "windows" || syscall.OS == "plan9" {
+-		return
+-	}
+-	// Use TempDir() to make sure we're on a local file system,
+-	// so that the group ids returned by Getgroups will be allowed
+-	// on the file.  On NFS, the Getgroups groups are
+-	// basically useless.
+-	f := newFile("TestChown", t)
+-	defer Remove(f.Name())
+-	defer f.Close()
+-	dir, err := f.Stat()
+-	if err != nil {
+-		t.Fatalf("stat %s: %s", f.Name(), err)
+-	}
+-
+-	// Can't change uid unless root, but can try
+-	// changing the group id.  First try our current group.
+-	gid := Getgid()
+-	t.Log("gid:", gid)
+-	if err = Chown(f.Name(), -1, gid); err != nil {
+-		t.Fatalf("chown %s -1 %d: %s", f.Name(), gid, err)
+-	}
+-	checkUidGid(t, f.Name(), dir.Uid, gid)
+-
+-	// Then try all the auxiliary groups.
+-	groups, err := Getgroups()
+-	if err != nil {
+-		t.Fatalf("getgroups: %s", err)
+-	}
+-	t.Log("groups: ", groups)
+-	for _, g := range groups {
+-		if err = Chown(f.Name(), -1, g); err != nil {
+-			t.Fatalf("chown %s -1 %d: %s", f.Name(), g, err)
+-		}
+-		checkUidGid(t, f.Name(), dir.Uid, g)
+-
+-		// change back to gid to test fd.Chown
+-		if err = f.Chown(-1, gid); err != nil {
+-			t.Fatalf("fchown %s -1 %d: %s", f.Name(), gid, err)
+-		}
+-		checkUidGid(t, f.Name(), dir.Uid, gid)
+-	}
+-}
+-
+ func checkSize(t *testing.T, f *File, size int64) {
+ 	dir, err := f.Stat()
+ 	if err != nil {
+ 		t.Fatalf("Stat %q (looking for size %d): %s", f.Name(), size, err)
+ 	}
+-	if dir.Size != size {
+-		t.Errorf("Stat %q: size %d want %d", f.Name(), dir.Size, size)
++	if dir.Size() != size {
++		t.Errorf("Stat %q: size %d want %d", f.Name(), dir.Size(), size)
+ 	}
+ }
+ 
+@@ -714,36 +654,38 @@ func TestChtimes(t *testing.T) {
+ 	f.Write([]byte("hello, world\n"))
+ 	f.Close()
+ 
+-	preStat, err := Stat(f.Name())
++	st, err := Stat(f.Name())
+ 	if err != nil {
+ 		t.Fatalf("Stat %s: %s", f.Name(), err)
+ 	}
++	preStat := st.(*FileStat)
+ 
+ 	// Move access and modification time back a second
+-	err = Chtimes(f.Name(), preStat.AccessTime.Add(-time.Second), preStat.ModTime.Add(-time.Second))
++	at := Atime(preStat)
++	mt := preStat.ModTime()
++	err = Chtimes(f.Name(), at.Add(-time.Second), mt.Add(-time.Second))
+ 	if err != nil {
+ 		t.Fatalf("Chtimes %s: %s", f.Name(), err)
+ 	}
+ 
+-	postStat, err := Stat(f.Name())
++	st, err = Stat(f.Name())
+ 	if err != nil {
+ 		t.Fatalf("second Stat %s: %s", f.Name(), err)
+ 	}
++	postStat := st.(*FileStat)
+ 
+ 	/* Plan 9:
+ 		Mtime is the time of the last change of content.  Similarly, atime is set whenever the
+ 	    contents are accessed; also, it is set whenever mtime is set.
+ 	*/
+-	if !postStat.AccessTime.Before(preStat.AccessTime) && syscall.OS != "plan9" {
+-		t.Errorf("AccessTime didn't go backwards; was=%d, after=%d",
+-			preStat.AccessTime,
+-			postStat.AccessTime)
++	pat := Atime(postStat)
++	pmt := postStat.ModTime()
++	if !pat.Before(at) && syscall.OS != "plan9" {
++		t.Errorf("AccessTime didn't go backwards; was=%d, after=%d", at, pat)
+ 	}
+ 
+-	if !postStat.ModTime.Before(preStat.ModTime) {
+-		t.Errorf("ModTime didn't go backwards; was=%d, after=%d",
+-			preStat.ModTime,
+-			postStat.ModTime)
++	if !pmt.Before(mt) {
++		t.Errorf("ModTime didn't go backwards; was=%d, after=%d", mt, pmt)
+ 	}
+ }
+ 
+@@ -885,7 +827,7 @@ func TestOpenError(t *testing.T) {
+ 		}
+ 		perr, ok := err.(*PathError)
+ 		if !ok {
+-			t.Errorf("Open(%q, %d) returns error of %T type; want *os.PathError", tt.path, tt.mode, err)
++			t.Errorf("Open(%q, %d) returns error of %T type; want *PathError", tt.path, tt.mode, err)
+ 		}
+ 		if perr.Err != tt.error {
+ 			if syscall.OS == "plan9" {
+diff --git a/src/pkg/os/os_unix_test.go b/src/pkg/os/os_unix_test.go
+new file mode 100644
+index 0000000000..3109a8171a
+--- /dev/null
++++ b/src/pkg/os/os_unix_test.go
+@@ -0,0 +1,75 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd linux openbsd
++
++package os_test
++
++import (
++	. "os"
++	"syscall"
++	"testing"
++)
++
++func checkUidGid(t *testing.T, path string, uid, gid int) {
++	dir, err := Stat(path)
++	if err != nil {
++		t.Fatalf("Stat %q (looking for uid/gid %d/%d): %s", path, uid, gid, err)
++	}
++	sys := dir.(*FileStat).Sys.(*syscall.Stat_t)
++	if int(sys.Uid) != uid {
++		t.Errorf("Stat %q: uid %d want %d", path, sys.Uid, uid)
++	}
++	if int(sys.Gid) != gid {
++		t.Errorf("Stat %q: gid %d want %d", path, sys.Gid, gid)
++	}
++}
++
++func TestChown(t *testing.T) {
++	// Chown is not supported under windows or Plan 9.
++	// Plan9 provides a native ChownPlan9 version instead.
++	if syscall.OS == "windows" || syscall.OS == "plan9" {
++		return
++	}
++	// Use TempDir() to make sure we're on a local file system,
++	// so that the group ids returned by Getgroups will be allowed
++	// on the file.  On NFS, the Getgroups groups are
++	// basically useless.
++	f := newFile("TestChown", t)
++	defer Remove(f.Name())
++	defer f.Close()
++	dir, err := f.Stat()
++	if err != nil {
++		t.Fatalf("stat %s: %s", f.Name(), err)
++	}
++
++	// Can't change uid unless root, but can try
++	// changing the group id.  First try our current group.
++	gid := Getgid()
++	t.Log("gid:", gid)
++	if err = Chown(f.Name(), -1, gid); err != nil {
++		t.Fatalf("chown %s -1 %d: %s", f.Name(), gid, err)
++	}
++	sys := dir.(*FileStat).Sys.(*syscall.Stat_t)
++	checkUidGid(t, f.Name(), int(sys.Uid), gid)
++
++	// Then try all the auxiliary groups.
++	groups, err := Getgroups()
++	if err != nil {
++		t.Fatalf("getgroups: %s", err)
++	}
++	t.Log("groups: ", groups)
++	for _, g := range groups {
++		if err = Chown(f.Name(), -1, g); err != nil {
++			t.Fatalf("chown %s -1 %d: %s", f.Name(), g, err)
++		}
++		checkUidGid(t, f.Name(), int(sys.Uid), g)
++
++		// change back to gid to test fd.Chown
++		if err = f.Chown(-1, gid); err != nil {
++			t.Fatalf("fchown %s -1 %d: %s", f.Name(), gid, err)
++		}
++		checkUidGid(t, f.Name(), int(sys.Uid), gid)
++	}
++}
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index 82fade63ae..bc14a78318 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -17,7 +17,7 @@ func MkdirAll(path string, perm uint32) error {
+ 	// If path exists, stop with success or error.
+ 	dir, err := Stat(path)
+ 	if err == nil {
+-		if dir.IsDirectory() {
++		if dir.IsDir() {
+ 			return nil
+ 		}
+ 		return &PathError{"mkdir", path, ENOTDIR}
+@@ -48,7 +48,7 @@ func MkdirAll(path string, perm uint32) error {
+ 		// Handle arguments like "foo/." by
+ 		// double-checking that directory doesn't exist.
+ 		dir, err1 := Lstat(path)
+-		if err1 == nil && dir.IsDirectory() {
++		if err1 == nil && dir.IsDir() {
+ 			return nil
+ 		}
+ 		return err
+@@ -75,7 +75,7 @@ func RemoveAll(path string) error {
+ 		}
+ 		return serr
+ 	}
+-	if !dir.IsDirectory() {
++	if !dir.IsDir() {
+ 		// Not a directory; return the error from Remove.
+ 		return err
+ 	}
+diff --git a/src/pkg/os/stat_darwin.go b/src/pkg/os/stat_darwin.go
+index 00bf612746..81d6cd57c7 100644
+--- a/src/pkg/os/stat_darwin.go
++++ b/src/pkg/os/stat_darwin.go
+@@ -9,31 +9,48 @@ import (
+ 	"time"
+ )
+ 
+-func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
++func sameFile(fs1, fs2 *FileStat) bool {
++	sys1 := fs1.Sys.(*syscall.Stat_t)
++	sys2 := fs2.Sys.(*syscall.Stat_t)
++	return sys1.Dev == sys2.Dev && sys1.Ino == sys2.Ino
+ }
+ 
+-func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
+-	fi.Dev = uint64(stat.Dev)
+-	fi.Ino = stat.Ino
+-	fi.Nlink = uint64(stat.Nlink)
+-	fi.Mode = uint32(stat.Mode)
+-	fi.Uid = int(stat.Uid)
+-	fi.Gid = int(stat.Gid)
+-	fi.Rdev = uint64(stat.Rdev)
+-	fi.Size = stat.Size
+-	fi.Blksize = int64(stat.Blksize)
+-	fi.Blocks = stat.Blocks
+-	fi.AccessTime = timespecToTime(stat.Atimespec)
+-	fi.ModTime = timespecToTime(stat.Mtimespec)
+-	fi.ChangeTime = timespecToTime(stat.Ctimespec)
+-	fi.Name = basename(name)
+-	if isSymlink(lstat) && !isSymlink(stat) {
+-		fi.FollowedSymlink = true
++func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
++	fs := &FileStat{
++		name:    basename(name),
++		size:    int64(st.Size),
++		modTime: timespecToTime(st.Mtimespec),
++		Sys:     st,
+ 	}
+-	return fi
++	fs.mode = FileMode(st.Mode & 0777)
++	switch st.Mode & syscall.S_IFMT {
++	case syscall.S_IFBLK, syscall.S_IFCHR, syscall.S_IFWHT:
++		fs.mode |= ModeDevice
++	case syscall.S_IFDIR:
++		fs.mode |= ModeDir
++	case syscall.S_IFIFO:
++		fs.mode |= ModeNamedPipe
++	case syscall.S_IFLNK:
++		fs.mode |= ModeSymlink
++	case syscall.S_IFREG:
++		// nothing to do
++	case syscall.S_IFSOCK:
++		fs.mode |= ModeSocket
++	}
++	if st.Mode&syscall.S_ISGID != 0 {
++		fs.mode |= ModeSetgid
++	}
++	if st.Mode&syscall.S_ISUID != 0 {
++		fs.mode |= ModeSetuid
++	}
++	return fs
+ }
+ 
+ func timespecToTime(ts syscall.Timespec) time.Time {
+ 	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
+ }
++
++// For testing.
++func atime(fi FileInfo) time.Time {
++	return timespecToTime(fi.(*FileStat).Sys.(*syscall.Stat_t).Atimespec)
++}
+diff --git a/src/pkg/os/stat_freebsd.go b/src/pkg/os/stat_freebsd.go
+index a82a0b7bb1..c142edffab 100644
+--- a/src/pkg/os/stat_freebsd.go
++++ b/src/pkg/os/stat_freebsd.go
+@@ -9,31 +9,48 @@ import (
+ 	"time"
+ )
+ 
+-func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
++func sameFile(fs1, fs2 *FileStat) bool {
++	sys1 := fs1.Sys.(*syscall.Stat_t)
++	sys2 := fs2.Sys.(*syscall.Stat_t)
++	return sys1.Dev == sys2.Dev && sys1.Ino == sys2.Ino
+ }
+ 
+-func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
+-	fi.Dev = uint64(stat.Dev)
+-	fi.Ino = uint64(stat.Ino)
+-	fi.Nlink = uint64(stat.Nlink)
+-	fi.Mode = uint32(stat.Mode)
+-	fi.Uid = int(stat.Uid)
+-	fi.Gid = int(stat.Gid)
+-	fi.Rdev = uint64(stat.Rdev)
+-	fi.Size = int64(stat.Size)
+-	fi.Blksize = int64(stat.Blksize)
+-	fi.Blocks = stat.Blocks
+-	fi.AccessTime = timespecToTime(stat.Atimespec)
+-	fi.ModTime = timespecToTime(stat.Mtimespec)
+-	fi.ChangeTime = timespecToTime(stat.Ctimespec)
+-	fi.Name = basename(name)
+-	if isSymlink(lstat) && !isSymlink(stat) {
+-		fi.FollowedSymlink = true
++func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
++	fs := &FileStat{
++		name:    basename(name),
++		size:    int64(st.Size),
++		modTime: timespecToTime(st.Mtimespec),
++		Sys:     st,
+ 	}
+-	return fi
++	fs.mode = FileMode(st.Mode & 0777)
++	switch st.Mode & syscall.S_IFMT {
++	case syscall.S_IFBLK, syscall.S_IFCHR:
++		fs.mode |= ModeDevice
++	case syscall.S_IFDIR:
++		fs.mode |= ModeDir
++	case syscall.S_IFIFO:
++		fs.mode |= ModeNamedPipe
++	case syscall.S_IFLNK:
++		fs.mode |= ModeSymlink
++	case syscall.S_IFREG:
++		// nothing to do
++	case syscall.S_IFSOCK:
++		fs.mode |= ModeSocket
++	}
++	if st.Mode&syscall.S_ISGID != 0 {
++		fs.mode |= ModeSetgid
++	}
++	if st.Mode&syscall.S_ISUID != 0 {
++		fs.mode |= ModeSetuid
++	}
++	return fs
+ }
+ 
+ func timespecToTime(ts syscall.Timespec) time.Time {
+ 	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
+ }
++
++// For testing.
++func atime(fi FileInfo) time.Time {
++	return timespecToTime(fi.(*FileStat).Sys.(*syscall.Stat_t).Atimespec)
++}
+diff --git a/src/pkg/os/stat_linux.go b/src/pkg/os/stat_linux.go
+index 5f9c115e29..66189a6b9b 100644
+--- a/src/pkg/os/stat_linux.go
++++ b/src/pkg/os/stat_linux.go
+@@ -9,31 +9,48 @@ import (
+ 	"time"
+ )
+ 
+-func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
++func sameFile(fs1, fs2 *FileStat) bool {
++	sys1 := fs1.Sys.(*syscall.Stat_t)
++	sys2 := fs2.Sys.(*syscall.Stat_t)
++	return sys1.Dev == sys2.Dev && sys1.Ino == sys2.Ino
+ }
+ 
+-func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
+-	fi.Dev = stat.Dev
+-	fi.Ino = stat.Ino
+-	fi.Nlink = uint64(stat.Nlink)
+-	fi.Mode = stat.Mode
+-	fi.Uid = int(stat.Uid)
+-	fi.Gid = int(stat.Gid)
+-	fi.Rdev = stat.Rdev
+-	fi.Size = stat.Size
+-	fi.Blksize = int64(stat.Blksize)
+-	fi.Blocks = stat.Blocks
+-	fi.AccessTime = timespecToTime(stat.Atim)
+-	fi.ModTime = timespecToTime(stat.Mtim)
+-	fi.ChangeTime = timespecToTime(stat.Ctim)
+-	fi.Name = basename(name)
+-	if isSymlink(lstat) && !isSymlink(stat) {
+-		fi.FollowedSymlink = true
++func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
++	fs := &FileStat{
++		name:    basename(name),
++		size:    int64(st.Size),
++		modTime: timespecToTime(st.Mtim),
++		Sys:     st,
+ 	}
+-	return fi
++	fs.mode = FileMode(st.Mode & 0777)
++	switch st.Mode & syscall.S_IFMT {
++	case syscall.S_IFBLK, syscall.S_IFCHR:
++		fs.mode |= ModeDevice
++	case syscall.S_IFDIR:
++		fs.mode |= ModeDir
++	case syscall.S_IFIFO:
++		fs.mode |= ModeNamedPipe
++	case syscall.S_IFLNK:
++		fs.mode |= ModeSymlink
++	case syscall.S_IFREG:
++		// nothing to do
++	case syscall.S_IFSOCK:
++		fs.mode |= ModeSocket
++	}
++	if st.Mode&syscall.S_ISGID != 0 {
++		fs.mode |= ModeSetgid
++	}
++	if st.Mode&syscall.S_ISUID != 0 {
++		fs.mode |= ModeSetuid
++	}
++	return fs
+ }
+ 
+ func timespecToTime(ts syscall.Timespec) time.Time {
+ 	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
+ }
++
++// For testing.
++func atime(fi FileInfo) time.Time {
++	return timespecToTime(fi.(*FileStat).Sys.(*syscall.Stat_t).Atim)
++}
+diff --git a/src/pkg/os/stat_openbsd.go b/src/pkg/os/stat_openbsd.go
+index 943d34c402..66189a6b9b 100644
+--- a/src/pkg/os/stat_openbsd.go
++++ b/src/pkg/os/stat_openbsd.go
+@@ -9,31 +9,48 @@ import (
+ 	"time"
+ )
+ 
+-func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
++func sameFile(fs1, fs2 *FileStat) bool {
++	sys1 := fs1.Sys.(*syscall.Stat_t)
++	sys2 := fs2.Sys.(*syscall.Stat_t)
++	return sys1.Dev == sys2.Dev && sys1.Ino == sys2.Ino
+ }
+ 
+-func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
+-	fi.Dev = uint64(stat.Dev)
+-	fi.Ino = uint64(stat.Ino)
+-	fi.Nlink = uint64(stat.Nlink)
+-	fi.Mode = uint32(stat.Mode)
+-	fi.Uid = int(stat.Uid)
+-	fi.Gid = int(stat.Gid)
+-	fi.Rdev = uint64(stat.Rdev)
+-	fi.Size = int64(stat.Size)
+-	fi.Blksize = int64(stat.Blksize)
+-	fi.Blocks = stat.Blocks
+-	fi.AccessTime = timespecToTime(stat.Atim)
+-	fi.ModTime = timespecToTime(stat.Mtim)
+-	fi.ChangeTime = timespecToTime(stat.Ctim)
+-	fi.Name = basename(name)
+-	if isSymlink(lstat) && !isSymlink(stat) {
+-		fi.FollowedSymlink = true
++func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
++	fs := &FileStat{
++		name:    basename(name),
++		size:    int64(st.Size),
++		modTime: timespecToTime(st.Mtim),
++		Sys:     st,
+ 	}
+-	return fi
++	fs.mode = FileMode(st.Mode & 0777)
++	switch st.Mode & syscall.S_IFMT {
++	case syscall.S_IFBLK, syscall.S_IFCHR:
++		fs.mode |= ModeDevice
++	case syscall.S_IFDIR:
++		fs.mode |= ModeDir
++	case syscall.S_IFIFO:
++		fs.mode |= ModeNamedPipe
++	case syscall.S_IFLNK:
++		fs.mode |= ModeSymlink
++	case syscall.S_IFREG:
++		// nothing to do
++	case syscall.S_IFSOCK:
++		fs.mode |= ModeSocket
++	}
++	if st.Mode&syscall.S_ISGID != 0 {
++		fs.mode |= ModeSetgid
++	}
++	if st.Mode&syscall.S_ISUID != 0 {
++		fs.mode |= ModeSetuid
++	}
++	return fs
+ }
+ 
+ func timespecToTime(ts syscall.Timespec) time.Time {
+ 	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
+ }
++
++// For testing.
++func atime(fi FileInfo) time.Time {
++	return timespecToTime(fi.(*FileStat).Sys.(*syscall.Stat_t).Atim)
++}
+diff --git a/src/pkg/os/stat_windows.go b/src/pkg/os/stat_windows.go
+index b226b2913b..d024915ee0 100644
+--- a/src/pkg/os/stat_windows.go
++++ b/src/pkg/os/stat_windows.go
+@@ -12,7 +12,7 @@ import (
+ 
+ // Stat returns the FileInfo structure describing file.
+ // It returns the FileInfo and an error, if any.
+-func (file *File) Stat() (fi *FileInfo, err error) {
++func (file *File) Stat() (fi FileInfo, err error) {
+ 	if file == nil || file.fd < 0 {
+ 		return nil, EINVAL
+ 	}
+@@ -25,7 +25,7 @@ func (file *File) Stat() (fi *FileInfo, err error) {
+ 	if e != nil {
+ 		return nil, &PathError{"GetFileInformationByHandle", file.name, e}
+ 	}
+-	return setFileInfo(new(FileInfo), basename(file.name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
++	return toFileInfo(basename(file.name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
+ }
+ 
+ // Stat returns a FileInfo structure describing the named file and an error, if any.
+@@ -33,7 +33,7 @@ func (file *File) Stat() (fi *FileInfo, err error) {
+ // the file pointed at by the link and has fi.FollowedSymlink set to true.
+ // If name names an invalid symbolic link, the returned FileInfo describes
+ // the link itself and has fi.FollowedSymlink set to false.
+-func Stat(name string) (fi *FileInfo, err error) {
++func Stat(name string) (fi FileInfo, err error) {
+ 	if len(name) == 0 {
+ 		return nil, &PathError{"Stat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
+ 	}
+@@ -42,13 +42,13 @@ func Stat(name string) (fi *FileInfo, err error) {
+ 	if e != nil {
+ 		return nil, &PathError{"GetFileAttributesEx", name, e}
+ 	}
+-	return setFileInfo(new(FileInfo), basename(name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
++	return toFileInfo(basename(name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
+ }
+ 
+ // Lstat returns the FileInfo structure describing the named file and an
+ // error, if any.  If the file is a symbolic link, the returned FileInfo
+ // describes the symbolic link.  Lstat makes no attempt to follow the link.
+-func Lstat(name string) (fi *FileInfo, err error) {
++func Lstat(name string) (fi FileInfo, err error) {
+ 	// No links on Windows
+ 	return Stat(name)
+ }
+@@ -77,23 +77,23 @@ func basename(name string) string {
+ 	return name
+ }
+ 
+-func setFileInfo(fi *FileInfo, name string, fa, sizehi, sizelo uint32, ctime, atime, wtime syscall.Filetime) *FileInfo {
+-	fi.Mode = 0
++func toFileInfo(name string, fa, sizehi, sizelo uint32, ctime, atime, wtime syscall.Filetime) FileInfo {
++	fs := new(FileStat)
++	fs.mode = 0
+ 	if fa&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
+-		fi.Mode = fi.Mode | syscall.S_IFDIR
+-	} else {
+-		fi.Mode = fi.Mode | syscall.S_IFREG
++		fs.mode |= ModeDir
+ 	}
+ 	if fa&syscall.FILE_ATTRIBUTE_READONLY != 0 {
+-		fi.Mode = fi.Mode | 0444
++		fs.mode |= 0444
+ 	} else {
+-		fi.Mode = fi.Mode | 0666
++		fs.mode |= 0666
+ 	}
+-	fi.Size = int64(sizehi)<<32 + int64(sizelo)
+-	fi.Name = name
+-	fi.FollowedSymlink = false
+-	fi.AccessTime = time.Unix(0, atime.Nanoseconds())
+-	fi.ModTime = time.Unix(0, wtime.Nanoseconds())
+-	fi.ChangeTime = time.Unix(0, ctime.Nanoseconds())
+-	return fi
++	fs.size = int64(sizehi)<<32 + int64(sizelo)
++	fs.name = name
++	fs.modTime = time.Unix(0, wtime.Nanoseconds())
++	return fs
++}
++
++func sameFile(fs1, fs2 *FileStat) bool {
++	return false
+ }
+diff --git a/src/pkg/os/types.go b/src/pkg/os/types.go
+index 3f8ac78350..dff7090cdb 100644
+--- a/src/pkg/os/types.go
++++ b/src/pkg/os/types.go
+@@ -9,51 +9,103 @@ import (
+ 	"time"
+ )
+ 
+-// An operating-system independent representation of Unix data structures.
+-// OS-specific routines in this directory convert the OS-local versions to these.
+-
+ // Getpagesize returns the underlying system's memory page size.
+ func Getpagesize() int { return syscall.Getpagesize() }
+ 
+-// A FileInfo describes a file and is returned by Stat, Fstat, and Lstat
+-type FileInfo struct {
+-	Dev             uint64    // device number of file system holding file.
+-	Ino             uint64    // inode number.
+-	Nlink           uint64    // number of hard links.
+-	Mode            uint32    // permission and mode bits.
+-	Uid             int       // user id of owner.
+-	Gid             int       // group id of owner.
+-	Rdev            uint64    // device type for special file.
+-	Size            int64     // length in bytes.
+-	Blksize         int64     // size of blocks, in bytes.
+-	Blocks          int64     // number of blocks allocated for file.
+-	AccessTime      time.Time // access time
+-	ModTime         time.Time // modification time
+-	ChangeTime      time.Time // status change time
+-	Name            string    // base name of the file name provided in Open, Stat, etc.
+-	FollowedSymlink bool      // followed a symlink to get this information
++// A FileInfo describes a file and is returned by Stat and Lstat
++type FileInfo interface {
++	Name() string       // base name of the file
++	Size() int64        // length in bytes
++	Mode() FileMode     // file mode bits
++	ModTime() time.Time // modification time
++	IsDir() bool        // abbreviation for Mode().IsDir()
+ }
+ 
+-// IsFifo reports whether the FileInfo describes a FIFO file.
+-func (f *FileInfo) IsFifo() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFIFO }
++// A FileMode represents a file's mode and permission bits.
++// The bits have the same definition on all systems, so that
++// information about files can be moved from one system
++// to another portably.  Not all bits apply to all systems.
++// The only required bit is ModeDir for directories.
++type FileMode uint32
+ 
+-// IsChar reports whether the FileInfo describes a character special file.
+-func (f *FileInfo) IsChar() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFCHR }
++// The defined file mode bits are the most significant bits of the FileMode.
++// The nine least-significant bits are the standard Unix rwxrwxrwx permissions.
++const (
++	// The single letters are the abbreviations
++	// used by the String method's formatting.
++	ModeDir       FileMode = 1 << (32 - 1 - iota) // d: is a directory
++	ModeAppend                                    // a: append-only
++	ModeExclusive                                 // l: exclusive use
++	ModeTemporary                                 // t: temporary file (not backed up)
++	ModeSymlink                                   // L: symbolic link
++	ModeDevice                                    // D: device file
++	ModeNamedPipe                                 // p: named pipe (FIFO)
++	ModeSocket                                    // S: Unix domain socket
++	ModeSetuid                                    // u: setuid
++	ModeSetgid                                    // g: setgid
+ 
+-// IsDirectory reports whether the FileInfo describes a directory.
+-func (f *FileInfo) IsDirectory() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFDIR }
++	ModePerm FileMode = 0777 // permission bits
++)
+ 
+-// IsBlock reports whether the FileInfo describes a block special file.
+-func (f *FileInfo) IsBlock() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFBLK }
++func (m FileMode) String() string {
++	const str = "daltLDpSug"
++	var buf [20]byte
++	w := 0
++	for i, c := range str {
++		if m&(1<<uint(32-1-i)) != 0 {
++			buf[w] = byte(c)
++			w++
++		}
++	}
++	if w == 0 {
++		buf[w] = '-'
++		w++
++	}
++	const rwx = "rwxrwxrwx"
++	for i, c := range rwx {
++		if m&(1<<uint(9-1-i)) != 0 {
++			buf[w] = byte(c)
++		} else {
++			buf[w] = '-'
++		}
++		w++
++	}
++	return string(buf[:w])
++}
+ 
+-// IsRegular reports whether the FileInfo describes a regular file.
+-func (f *FileInfo) IsRegular() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFREG }
++// IsDir reports whether m describes a directory.
++// That is, it tests for the ModeDir bit being set in m.
++func (m FileMode) IsDir() bool {
++	return m&ModeDir != 0
++}
+ 
+-// IsSymlink reports whether the FileInfo describes a symbolic link.
+-func (f *FileInfo) IsSymlink() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFLNK }
++// Perm returns the Unix permission bits in m.
++func (m FileMode) Perm() FileMode {
++	return m & ModePerm
++}
+ 
+-// IsSocket reports whether the FileInfo describes a socket.
+-func (f *FileInfo) IsSocket() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFSOCK }
++// A FileStat is the implementation of FileInfo returned by Stat and Lstat.
++// Clients that need access to the underlying system-specific stat information
++// can test for *os.FileStat and then consult the Sys field.
++type FileStat struct {
++	name    string
++	size    int64
++	mode    FileMode
++	modTime time.Time
+ 
+-// Permission returns the file permission bits.
+-func (f *FileInfo) Permission() uint32 { return f.Mode & 0777 }
++	Sys interface{}
++}
++
++func (fs *FileStat) Name() string       { return fs.name }
++func (fs *FileStat) Size() int64        { return fs.size }
++func (fs *FileStat) Mode() FileMode     { return fs.mode }
++func (fs *FileStat) ModTime() time.Time { return fs.modTime }
++func (fs *FileStat) IsDir() bool        { return fs.mode.IsDir() }
++
++// SameFile reports whether fs and other describe the same file.
++// For example, on Unix this means that the device and inode fields
++// of the two underlying structures are identical; on other systems
++// the decision may be based on the path names.
++func (fs *FileStat) SameFile(other *FileStat) bool {
++	return sameFile(fs, other)
++}
+diff --git a/src/pkg/os/user/user_test.go b/src/pkg/os/user/user_test.go
+index 59f15e4c67..f9f44af8a9 100644
+--- a/src/pkg/os/user/user_test.go
++++ b/src/pkg/os/user/user_test.go
+@@ -41,8 +41,8 @@ func TestLookup(t *testing.T) {
+ 		t.Errorf("expected Uid of %d; got %d", e, g)
+ 	}
+ 	fi, err := os.Stat(u.HomeDir)
+-	if err != nil || !fi.IsDirectory() {
+-		t.Errorf("expected a valid HomeDir; stat(%q): err=%v, IsDirectory=%v", u.HomeDir, err, fi.IsDirectory())
++	if err != nil || !fi.IsDir() {
++		t.Errorf("expected a valid HomeDir; stat(%q): err=%v, IsDir=%v", u.HomeDir, err, fi.IsDir())
+ 	}
+ 	if u.Username == "" {
+ 		t.Fatalf("didn't get a username")
+diff --git a/src/pkg/path/filepath/match.go b/src/pkg/path/filepath/match.go
+index 8cf1f9ad10..c3678f541d 100644
+--- a/src/pkg/path/filepath/match.go
++++ b/src/pkg/path/filepath/match.go
+@@ -260,7 +260,7 @@ func glob(dir, pattern string, matches []string) (m []string, e error) {
+ 	if err != nil {
+ 		return
+ 	}
+-	if !fi.IsDirectory() {
++	if !fi.IsDir() {
+ 		return
+ 	}
+ 	d, err := os.Open(dir)
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index 3656227ff0..e3d6c342ca 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -223,7 +223,7 @@ func EvalSymlinks(path string) (string, error) {
+ 		if err != nil {
+ 			return "", err
+ 		}
+-		if !fi.IsSymlink() {
++		if fi.Mode()&os.ModeSymlink == 0 {
+ 			b.WriteString(p)
+ 			if path != "" {
+ 				b.WriteRune(Separator)
+@@ -345,19 +345,19 @@ var SkipDir = errors.New("skip this directory")
+ // sole exception is that if path is a directory and the function returns the
+ // special value SkipDir, the contents of the directory are skipped
+ // and processing continues as usual on the next file.
+-type WalkFunc func(path string, info *os.FileInfo, err error) error
++type WalkFunc func(path string, info os.FileInfo, err error) error
+ 
+ // walk recursively descends path, calling w.
+-func walk(path string, info *os.FileInfo, walkFn WalkFunc) error {
++func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
+ 	err := walkFn(path, info, nil)
+ 	if err != nil {
+-		if info.IsDirectory() && err == SkipDir {
++		if info.IsDir() && err == SkipDir {
+ 			return nil
+ 		}
+ 		return err
+ 	}
+ 
+-	if !info.IsDirectory() {
++	if !info.IsDir() {
+ 		return nil
+ 	}
+ 
+@@ -367,7 +367,7 @@ func walk(path string, info *os.FileInfo, walkFn WalkFunc) error {
+ 	}
+ 
+ 	for _, fileInfo := range list {
+-		if err = walk(Join(path, fileInfo.Name), fileInfo, walkFn); err != nil {
++		if err = walk(Join(path, fileInfo.Name()), fileInfo, walkFn); err != nil {
+ 			return err
+ 		}
+ 	}
+@@ -390,7 +390,7 @@ func Walk(root string, walkFn WalkFunc) error {
+ // readDir reads the directory named by dirname and returns
+ // a sorted list of directory entries.
+ // Copied from io/ioutil to avoid the circular import.
+-func readDir(dirname string) ([]*os.FileInfo, error) {
++func readDir(dirname string) ([]os.FileInfo, error) {
+ 	f, err := os.Open(dirname)
+ 	if err != nil {
+ 		return nil, err
+@@ -400,20 +400,16 @@ func readDir(dirname string) ([]*os.FileInfo, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	fi := make(fileInfoList, len(list))
+-	for i := range list {
+-		fi[i] = &list[i]
+-	}
+-	sort.Sort(fi)
+-	return fi, nil
++	sort.Sort(byName(list))
++	return list, nil
+ }
+ 
+-// A dirList implements sort.Interface.
+-type fileInfoList []*os.FileInfo
++// byName implements sort.Interface.
++type byName []os.FileInfo
+ 
+-func (f fileInfoList) Len() int           { return len(f) }
+-func (f fileInfoList) Less(i, j int) bool { return f[i].Name < f[j].Name }
+-func (f fileInfoList) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
++func (f byName) Len() int           { return len(f) }
++func (f byName) Less(i, j int) bool { return f[i].Name() < f[j].Name() }
++func (f byName) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+ 
+ // Base returns the last element of path.
+ // Trailing path separators are removed before extracting the last element.
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 983cc85c8e..fab5adc102 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -318,7 +318,7 @@ func checkMarks(t *testing.T, report bool) {
+ // Assumes that each node name is unique. Good enough for a test.
+ // If clear is true, any incoming error is cleared before return. The errors
+ // are always accumulated, though.
+-func mark(path string, info *os.FileInfo, err error, errors *[]error, clear bool) error {
++func mark(path string, info os.FileInfo, err error, errors *[]error, clear bool) error {
+ 	if err != nil {
+ 		*errors = append(*errors, err)
+ 		if clear {
+@@ -326,8 +326,9 @@ func mark(path string, info *os.FileInfo, err error, errors *[]error, clear bool
+ 		}
+ 		return err
+ 	}
++	name := info.Name()
+ 	walkTree(tree, tree.name, func(path string, n *Node) {
+-		if n.name == info.Name {
++		if n.name == name {
+ 			n.mark++
+ 		}
+ 	})
+@@ -338,7 +339,7 @@ func TestWalk(t *testing.T) {
+ 	makeTree(t)
+ 	errors := make([]error, 0, 10)
+ 	clear := true
+-	markFn := func(path string, info *os.FileInfo, err error) error {
++	markFn := func(path string, info os.FileInfo, err error) error {
+ 		return mark(path, info, err, &errors, clear)
+ 	}
+ 	// Expect no errors.
+@@ -600,7 +601,7 @@ func TestAbs(t *testing.T) {
+ 			t.Errorf("Abs(%q) error: %v", path, err)
+ 		}
+ 		absinfo, err := os.Stat(abspath)
+-		if err != nil || absinfo.Ino != info.Ino {
++		if err != nil || !absinfo.(*os.FileStat).SameFile(info.(*os.FileStat)) {
+ 			t.Errorf("Abs(%q)=%q, not the same file", path, abspath)
+ 		}
+ 		if !filepath.IsAbs(abspath) {
+diff --git a/src/pkg/time/zoneinfo_plan9.go b/src/pkg/time/zoneinfo_plan9.go
+index 915303b926..38aefc7a97 100644
+--- a/src/pkg/time/zoneinfo_plan9.go
++++ b/src/pkg/time/zoneinfo_plan9.go
+@@ -6,10 +6,10 @@
+ 
+ package time
+ 
+-import (
+-	"strconv"
+-	"strings"
+-)
++//import (
++//	"strconv"
++//	"strings"
++//)
+ 
+ func parseZones(s string) (zt []zonetime) {
+ 	f := strings.Fields(s)

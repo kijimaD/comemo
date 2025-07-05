@@ -13,9 +13,117 @@ Date:   Wed Mar 7 15:11:54 2018 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go         | 10 ----------
  src/cmd/compile/internal/gc/esc.go         | 32 ++++++++++--------------------
  src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
  src/cmd/compile/internal/gc/syntax.go      |  3 ---
  4 files changed, 12 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index ce1033cf25..1fa68e9f4a 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -668,11 +668,6 @@ func tofunargs(l []*Node, funarg types.Funarg) *types.Type {
+ 	for i, n := range l {
+ 		f := structfield(n)
+ 		f.Funarg = funarg
+-
+-		// esc.go needs to find f given a PPARAM to add the tag.
+-		if n.Left != nil && n.Left.Class() == PPARAM {
+-			n.Left.Name.Param.Field = f
+-		}
+ 		if f.Broke() {
+ 			t.SetBroke(true)
+ 		}
+@@ -688,11 +683,6 @@ func tofunargsfield(fields []*types.Field, funarg types.Funarg) *types.Type {
+ 
+ 	for _, f := range fields {
+ 		f.Funarg = funarg
+-
+-		// esc.go needs to find f given a PPARAM to add the tag.
+-		if asNode(f.Nname) != nil && asNode(f.Nname).Class() == PPARAM {
+-			asNode(f.Nname).Name.Param.Field = f
+-		}
+ 	}
+ 	t.SetFields(fields)
+ 	return t
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index eed863aa13..48945e2868 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -2238,27 +2238,6 @@ func (e *EscState) esctag(fn *Node) {
+ 		}
+ 	}
+ 
+-	for _, ln := range fn.Func.Dcl {
+-		if ln.Op != ONAME {
+-			continue
+-		}
+-
+-		switch ln.Esc & EscMask {
+-		case EscNone, // not touched by escflood
+-			EscReturn:
+-			if types.Haspointers(ln.Type) { // don't bother tagging for scalars
+-				if ln.Name.Param.Field.Note != uintptrEscapesTag {
+-					ln.Name.Param.Field.Note = mktag(int(ln.Esc))
+-				}
+-			}
+-
+-		case EscHeap: // touched by escflood, moved to heap
+-		}
+-	}
+-
+-	// Unnamed parameters are unused and therefore do not escape.
+-	// (Unnamed parameters are not in the Dcl list in the loop above
+-	// so we need to mark them separately.)
+ 	for _, fs := range types.RecvsParams {
+ 		for _, f := range fs(fn.Type).Fields().Slice() {
+ 			if !types.Haspointers(f.Type) { // don't bother tagging for scalars
+@@ -2268,8 +2247,19 @@ func (e *EscState) esctag(fn *Node) {
+ 				// Note is already set in the loop above.
+ 				continue
+ 			}
++
++			// Unnamed parameters are unused and therefore do not escape.
+ 			if f.Sym == nil || f.Sym.IsBlank() {
+ 				f.Note = mktag(EscNone)
++				continue
++			}
++
++			switch esc := asNode(f.Nname).Esc; esc & EscMask {
++			case EscNone, // not touched by escflood
++				EscReturn:
++				f.Note = mktag(int(esc))
++
++			case EscHeap: // touched by escflood, moved to heap
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index d649fd58d3..358814c5ce 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -24,7 +24,7 @@ func TestSizeof(t *testing.T) {
+ 	}{
+ 		{Func{}, 128, 232},
+ 		{Name{}, 32, 56},
+-		{Param{}, 28, 56},
++		{Param{}, 24, 48},
+ 		{Node{}, 76, 128},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 65ecbeede2..edc9e4ea03 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -279,9 +279,6 @@ type Param struct {
+ 	// ONAME PAUTOHEAP
+ 	Stackcopy *Node // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
+ 
+-	// ONAME PPARAM
+-	Field *types.Field // TFIELD in arg struct
+-
+ 	// ONAME closure linkage
+ 	// Consider:
+ 	//

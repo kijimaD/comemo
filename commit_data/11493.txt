@@ -10,6 +10,20 @@ Date:   Mon Jan 30 23:17:11 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5600053
-
+---
  src/pkg/runtime/mkasmh.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index eaabe07085..5eeff5065b 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-trap "rm -f arch_GOARCH.h defs_GOOS_GOARCH.h os_GOOS.h signals_GOOS.h" EXIT SIGINT SIGTERM
++trap "rm -f arch_GOARCH.h defs_GOOS_GOARCH.h os_GOOS.h signals_GOOS.h" EXIT INT TERM
+ set -e
+ 
+ SYS=$1

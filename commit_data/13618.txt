@@ -8,9 +8,115 @@ Date:   Fri Aug 10 10:05:26 2012 +0800
     R=iant
     CC=golang-dev
     https://golang.org/cl/6448132
-
+---
  src/pkg/runtime/sys_linux_386.s   |  8 ++++++++
  src/pkg/runtime/sys_linux_amd64.s |  8 ++++++++
  src/pkg/runtime/sys_linux_arm.s   |  9 +++++++++
  src/pkg/runtime/thread_linux.c    | 32 +++++++++++---------------------
  4 files changed, 36 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_linux_386.s b/src/pkg/runtime/sys_linux_386.s
+index 602d9ddac1..d9f979f509 100644
+--- a/src/pkg/runtime/sys_linux_386.s
++++ b/src/pkg/runtime/sys_linux_386.s
+@@ -423,3 +423,11 @@ TEXT runtime·osyield(SB),7,$0
+ 	MOVL	$158, AX
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
++
++TEXT runtime·sched_getaffinity(SB),7,$0
++	MOVL	$242, AX		// syscall - sched_getaffinity
++	MOVL	4(SP), BX
++	MOVL	8(SP), CX
++	MOVL	12(SP), DX
++	CALL	*runtime·_vdso(SB)
++	RET
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index 657ab7e0bb..e0ca6583c6 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -310,3 +310,11 @@ TEXT runtime·osyield(SB),7,$0
+ 	MOVL	$24, AX
+ 	SYSCALL
+ 	RET
++
++TEXT runtime·sched_getaffinity(SB),7,$0
++	MOVQ	8(SP), DI
++	MOVL	16(SP), SI
++	MOVQ	24(SP), DX
++	MOVL	$204, AX			// syscall entry
++	SYSCALL
++	RET
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index 220f9adac7..0112cf9158 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -34,6 +34,7 @@
+ #define SYS_sched_yield (SYS_BASE + 158)
+ #define SYS_select (SYS_BASE + 142) // newselect
+ #define SYS_ugetrlimit (SYS_BASE + 191)
++#define SYS_sched_getaffinity (SYS_BASE + 242)
+ 
+ #define ARM_BASE (SYS_BASE + 0x0f0000)
+ #define SYS_ARM_cacheflush (ARM_BASE + 2)
+@@ -393,3 +394,11 @@ TEXT runtime·osyield(SB),7,$0
+ 	MOVW	$SYS_sched_yield, R7
+ 	SWI	$0
+ 	RET
++
++TEXT runtime·sched_getaffinity(SB),7,$0
++	MOVW	0(FP), R0
++	MOVW	4(FP), R1
++	MOVW	8(FP), R2
++	MOVW	$SYS_sched_getaffinity, R7
++	SWI	$0
++	RET
+diff --git a/src/pkg/runtime/thread_linux.c b/src/pkg/runtime/thread_linux.c
+index 5db074175c..f66d2dd4d2 100644
+--- a/src/pkg/runtime/thread_linux.c
++++ b/src/pkg/runtime/thread_linux.c
+@@ -80,33 +80,23 @@ runtime·futexwakeup(uint32 *addr, uint32 cnt)
+ 	*(int32*)0x1006 = 0x1006;
+ }
+ 
++extern runtime·sched_getaffinity(uintptr pid, uintptr len, uintptr *buf);
+ static int32
+ getproccount(void)
+ {
+-	int32 fd, rd, cnt, cpustrlen;
+-	byte *cpustr, *pos, *bufpos;
+-	byte buf[256];
++	uintptr buf[16], t;
++	int32 r, cnt, i;
+ 
+-	fd = runtime·open((byte*)"/proc/stat", O_RDONLY|O_CLOEXEC, 0);
+-	if(fd == -1)
+-		return 1;
+ 	cnt = 0;
+-	bufpos = buf;
+-	cpustr = (byte*)"\ncpu";
+-	cpustrlen = runtime·findnull(cpustr);
+-	for(;;) {
+-		rd = runtime·read(fd, bufpos, sizeof(buf)-cpustrlen);
+-		if(rd == -1)
+-			break;
+-		bufpos[rd] = 0;
+-		for(pos=buf; pos=runtime·strstr(pos, cpustr); cnt++, pos++) {
+-		}
+-		if(rd < cpustrlen)
+-			break;
+-		runtime·memmove(buf, bufpos+rd-cpustrlen+1, cpustrlen-1);
+-		bufpos = buf+cpustrlen-1;
++	r = runtime·sched_getaffinity(0, sizeof(buf), buf);
++	if(r > 0)
++	for(i = 0; i < r/sizeof(buf[0]); i++) {
++		t = buf[i];
++		t = t - ((t >> 1) & 0x5555555555555555ULL);
++		t = (t & 0x3333333333333333ULL) + ((t >> 2) & 0x3333333333333333ULL);
++		cnt += (int32)((((t + (t >> 4)) & 0xF0F0F0F0F0F0F0FULL) * 0x101010101010101ULL) >> 56);
+ 	}
+-	runtime·close(fd);
++
+ 	return cnt ? cnt : 1;
+ }
+ 

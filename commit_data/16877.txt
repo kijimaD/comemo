@@ -9,6 +9,28 @@ Date:   Thu Jul 25 09:35:55 2013 -0700
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/11812043
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 14903f0b3c..3f6ea8668c 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of July 11, 2013",
++	"Subtitle": "Version of July 25, 2013",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -539,7 +539,7 @@ literal.
+ <i>rune constants</i>,
+ <i>integer constants</i>,
+ <i>floating-point constants</i>, <i>complex constants</i>,
+-and <i>string constants</i>. Character, integer, floating-point,
++and <i>string constants</i>. Rune, integer, floating-point,
+ and complex constants are
+ collectively called <i>numeric constants</i>.
+ </p>

@@ -11,6 +11,26 @@ Date:   Sat Sep 9 19:09:07 2017 +0900
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/goobj/goobj_test.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/goobj_test.go b/src/cmd/internal/goobj/goobj_test.go
+index 37fdcbb5cc..5375c4e712 100644
+--- a/src/cmd/internal/goobj/goobj_test.go
++++ b/src/cmd/internal/goobj/goobj_test.go
+@@ -27,8 +27,12 @@ func TestMain(m *testing.M) {
+ 		return
+ 	}
+ 
+-	if runtime.GOOS == "linux" && runtime.GOARCH == "arm" {
+-		return // skip tests due to #19811
++	if runtime.GOARCH == "arm" {
++		switch runtime.GOOS {
++		case "darwin", "android", "nacl":
++		default:
++			return // skip tests due to #19811
++		}
+ 	}
+ 
+ 	if err := buildGoobj(); err != nil {

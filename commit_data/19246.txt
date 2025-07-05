@@ -8,6 +8,27 @@ Date:   Mon Apr 28 13:38:23 2014 +0900
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/90810045
-
+---
  src/pkg/syscall/syscall_solaris.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_solaris.go b/src/pkg/syscall/syscall_solaris.go
+index bf7ffd7ede..adc52b1f7a 100644
+--- a/src/pkg/syscall/syscall_solaris.go
++++ b/src/pkg/syscall/syscall_solaris.go
+@@ -333,6 +333,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ }
+ 
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) = libsocket.accept
++
+ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
+ 	var rsa RawSockaddrAny
+ 	var len _Socklen = SizeofSockaddrAny
+@@ -386,6 +387,7 @@ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+ }
+ 
+ //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error) = libsocket.sendmsg
++
+ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
+ 	var ptr unsafe.Pointer
+ 	var salen _Socklen

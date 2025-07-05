@@ -16,9 +16,136 @@ Date:   Tue Feb 17 14:25:49 2015 +0300
     Change-Id: I3c1ffbf129fdfdd388bd5b7911b392b319248e68
     Reviewed-on: https://go-review.googlesource.com/5033
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/asm_386.s   | 25 +++++++++++++++++++++++--
  src/runtime/asm_amd64.s | 22 +++++++++++++++++++++-
  src/runtime/runtime1.go |  7 -------
  src/runtime/runtime2.go |  8 ++++++--
  4 files changed, 50 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 58a0d502bd..1574b3060d 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -30,6 +30,19 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	CPUID
+ 	CMPL	AX, $0
+ 	JE	nocpuinfo
++
++	// Figure out how to serialize RDTSC.
++	// On Intel processors LFENCE is enough. AMD requires MFENCE.
++	// Don't know about the rest, so let's do MFENCE.
++	CMPL	BX, $0x756E6547  // "Genu"
++	JNE	notintel
++	CMPL	DX, $0x49656E69  // "ineI"
++	JNE	notintel
++	CMPL	CX, $0x6C65746E  // "ntel"
++	JNE	notintel
++	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
++notintel:
++
+ 	MOVL	$1, AX
+ 	CPUID
+ 	MOVL	CX, runtime·cpuid_ecx(SB)
+@@ -868,9 +881,17 @@ TEXT runtime·gogetcallersp(SB),NOSPLIT,$0-8
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+-// int64 runtime·cputicks(void), so really
+-// void runtime·cputicks(int64 *ticks)
++// func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
++	TESTL	$0x4000000, runtime·cpuid_edx(SB) // no sse2, no mfence
++	JEQ	done
++	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
++	JNE	mfence
++	BYTE	$0x0f; BYTE $0xae; BYTE $0xe8 // LFENCE
++	JMP	done
++mfence:
++	BYTE	$0x0f; BYTE $0xae; BYTE $0xf0 // MFENCE
++done:
+ 	RDTSC
+ 	MOVL	AX, ret_lo+0(FP)
+ 	MOVL	DX, ret_hi+4(FP)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index f6c1c5f6e6..270fdc1823 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -30,6 +30,19 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	CPUID
+ 	CMPQ	AX, $0
+ 	JE	nocpuinfo
++
++	// Figure out how to serialize RDTSC.
++	// On Intel processors LFENCE is enough. AMD requires MFENCE.
++	// Don't know about the rest, so let's do MFENCE.
++	CMPL	BX, $0x756E6547  // "Genu"
++	JNE	notintel
++	CMPL	DX, $0x49656E69  // "ineI"
++	JNE	notintel
++	CMPL	CX, $0x6C65746E  // "ntel"
++	JNE	notintel
++	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
++notintel:
++
+ 	MOVQ	$1, AX
+ 	CPUID
+ 	MOVL	CX, runtime·cpuid_ecx(SB)
+@@ -865,8 +878,15 @@ TEXT runtime·gogetcallersp(SB),NOSPLIT,$0-16
+ 	MOVQ	AX, ret+8(FP)
+ 	RET
+ 
+-// int64 runtime·cputicks(void)
++// func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
++	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
++	JNE	mfence
++	BYTE	$0x0f; BYTE $0xae; BYTE $0xe8 // LFENCE
++	JMP	done
++mfence:
++	BYTE	$0x0f; BYTE $0xae; BYTE $0xf0 // MFENCE
++done:
+ 	RDTSC
+ 	SHLQ	$32, DX
+ 	ADDQ	DX, AX
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index c056bfcdbf..f0d26c8edc 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -58,13 +58,6 @@ var (
+ 	iswindows int32
+ )
+ 
+-// Information about what cpu features are available.
+-// Set on startup in asm_{x86/amd64}.s.
+-var (
+-//cpuid_ecx uint32
+-//cpuid_edx uint32
+-)
+-
+ func goargs() {
+ 	if GOOS == "windows" {
+ 		return
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index ca3e7d564e..ea2d55dbb6 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -562,12 +562,16 @@ var (
+ 	goos        *int8
+ 	ncpu        int32
+ 	iscgo       bool
+-	cpuid_ecx   uint32
+-	cpuid_edx   uint32
+ 	signote     note
+ 	forcegc     forcegcstate
+ 	sched       schedt
+ 	newprocs    int32
++
++	// Information about what cpu features are available.
++	// Set on startup in asm_{x86,amd64}.s.
++	cpuid_ecx         uint32
++	cpuid_edx         uint32
++	lfenceBeforeRdtsc bool
+ )
+ 
+ /*

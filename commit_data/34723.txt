@@ -12,7 +12,38 @@ Date:   Fri Nov 10 13:37:28 2017 -0500
     Reviewed-by: Caleb Spare <cespare@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go            | 4 ++++
  src/cmd/go/internal/test/test.go | 4 ++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index ddda393f47..cc2f3cf8d8 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -813,6 +813,10 @@
+ // 	    Install packages that are dependencies of the test.
+ // 	    Do not run the test.
+ //
++// 	-json
++// 	    Convert test output to JSON suitable for automated processing.
++// 	    See 'go doc test2json' for the encoding details.
++//
+ // 	-o file
+ // 	    Compile the test binary to the named file.
+ // 	    The test still runs (unless -c or -i is specified).
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 0a0f149e7d..15c43581e6 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -143,6 +143,10 @@ In addition to the build flags, the flags handled by 'go test' itself are:
+ 	    Install packages that are dependencies of the test.
+ 	    Do not run the test.
+ 
++	-json
++	    Convert test output to JSON suitable for automated processing.
++	    See 'go doc test2json' for the encoding details.
++
+ 	-o file
+ 	    Compile the test binary to the named file.
+ 	    The test still runs (unless -c or -i is specified).

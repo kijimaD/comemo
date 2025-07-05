@@ -13,7 +13,7 @@ Date:   Tue May 14 14:48:52 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/585455
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +-
  .../x/telemetry/internal/counter/file.go           | 26 ++---------
@@ -22,3 +22,216 @@ Date:   Tue May 14 14:48:52 2024 -0400
  .../golang.org/x/telemetry/internal/upload/run.go  | 10 ++--
  src/cmd/vendor/modules.txt                         |  2 +-
  7 files changed, 73 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 7773088514..cb48582676 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/mod v0.17.1-0.20240514174713-c0bdc7bd01c9
+ 	golang.org/x/sync v0.7.0
+ 	golang.org/x/sys v0.20.0
+-	golang.org/x/telemetry v0.0.0-20240510223629-51e8b5d718eb
++	golang.org/x/telemetry v0.0.0-20240514182607-7d78a974cc44
+ 	golang.org/x/term v0.18.0
+ 	golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index a53cc50859..48561550ab 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -32,8 +32,8 @@ golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.20.0 h1:Od9JTbYCk261bKm4M/mw7AklTlFYIa0bIp9BgSm1S8Y=
+ golang.org/x/sys v0.20.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240510223629-51e8b5d718eb h1:UTGVF0T+nFaQu6f7USlW8TktAybpMdEjJcF5HyX4dxo=
+-golang.org/x/telemetry v0.0.0-20240510223629-51e8b5d718eb/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
++golang.org/x/telemetry v0.0.0-20240514182607-7d78a974cc44 h1:aVJH+bdTb68otvUnahQ3CwIZTrJdYAW/gji9t6wuqcE=
++golang.org/x/telemetry v0.0.0-20240514182607-7d78a974cc44/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
+ golang.org/x/term v0.18.0 h1:FcHjZXDMxI8mM3nwhX9HlKop4C0YQvCVCdwYl2wOtE8=
+ golang.org/x/term v0.18.0/go.mod h1:ILwASektA3OnRv7amZ1xhE/KTR+u50pbXfZ03+6Nx58=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+index 43297f9b74..a0a1bd4cfb 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+@@ -14,13 +14,11 @@ import (
+ 	"path/filepath"
+ 	"runtime"
+ 	"runtime/debug"
+-	"strings"
+ 	"sync"
+ 	"sync/atomic"
+ 	"time"
+ 	"unsafe"
+ 
+-	"golang.org/x/mod/module"
+ 	"golang.org/x/telemetry/internal/mmap"
+ 	"golang.org/x/telemetry/internal/telemetry"
+ )
+@@ -135,10 +133,10 @@ func (f *file) init(begin, end time.Time) {
+ 		return
+ 	}
+ 
+-	goVers, progPkgPath, prog, progVers := programInfo(info)
++	goVers, progPath, progVers := telemetry.ProgramInfo(info)
+ 	f.meta = fmt.Sprintf("TimeBegin: %s\nTimeEnd: %s\nProgram: %s\nVersion: %s\nGoVersion: %s\nGOOS: %s\nGOARCH: %s\n\n",
+ 		begin.Format(time.RFC3339), end.Format(time.RFC3339),
+-		progPkgPath, progVers, goVers, runtime.GOOS, runtime.GOARCH)
++		progPath, progVers, goVers, runtime.GOOS, runtime.GOARCH)
+ 	if len(f.meta) > maxMetaLen { // should be impossible for our use
+ 		f.err = fmt.Errorf("metadata too long")
+ 		return
+@@ -146,28 +144,10 @@ func (f *file) init(begin, end time.Time) {
+ 	if progVers != "" {
+ 		progVers = "@" + progVers
+ 	}
+-	prefix := fmt.Sprintf("%s%s-%s-%s-%s-", prog, progVers, goVers, runtime.GOOS, runtime.GOARCH)
++	prefix := fmt.Sprintf("%s%s-%s-%s-%s-", path.Base(progPath), progVers, goVers, runtime.GOOS, runtime.GOARCH)
+ 	f.namePrefix = filepath.Join(dir, prefix)
+ }
+ 
+-func programInfo(info *debug.BuildInfo) (goVers, progPkgPath, prog, progVers string) {
+-	goVers = info.GoVersion
+-	if strings.Contains(goVers, "devel") || strings.Contains(goVers, "-") {
+-		goVers = "devel"
+-	}
+-	progPkgPath = info.Path
+-	if progPkgPath == "" {
+-		progPkgPath = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
+-	}
+-	prog = path.Base(progPkgPath)
+-	progVers = info.Main.Version
+-	if strings.Contains(progVers, "devel") || module.IsPseudoVersion(progVers) {
+-		// we don't want to track pseudo versions, but may want to track prereleases.
+-		progVers = "devel"
+-	}
+-	return goVers, progPkgPath, prog, progVers
+-}
+-
+ // filename returns the name of the file to use for f,
+ // given the current time now.
+ // It also returns the time when that name will no longer be valid
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/proginfo.go b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/proginfo.go
+new file mode 100644
+index 0000000000..20be9664fc
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/proginfo.go
+@@ -0,0 +1,53 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package telemetry
++
++import (
++	"os"
++	"path/filepath"
++	"runtime/debug"
++	"strings"
++
++	"golang.org/x/mod/module"
++)
++
++// IsToolchainProgram reports whether a program with the given path is a Go
++// toolchain program.
++func IsToolchainProgram(progPath string) bool {
++	return strings.HasPrefix(progPath, "cmd/")
++}
++
++// ProgramInfo extracts the go version, program package path, and program
++// version to use for counter files.
++//
++// For programs in the Go toolchain, the program version will be the same as
++// the Go version, and will typically be of the form "go1.2.3", not a semantic
++// version of the form "v1.2.3". Go versions may also include spaces and
++// special characters.
++func ProgramInfo(info *debug.BuildInfo) (goVers, progPath, progVers string) {
++	goVers = info.GoVersion
++	if strings.Contains(goVers, "devel") || strings.Contains(goVers, "-") {
++		goVers = "devel"
++	}
++
++	progPath = info.Path
++	if progPath == "" {
++		progPath = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
++	}
++
++	// Main module version information is not populated for the cmd module, but
++	// we can re-use the Go version here.
++	if IsToolchainProgram(progPath) {
++		progVers = goVers
++	} else {
++		progVers = info.Main.Version
++		if strings.Contains(progVers, "devel") || module.IsPseudoVersion(progVers) {
++			// We don't want to track pseudo versions, but may want to track prereleases.
++			progVers = "devel"
++		}
++	}
++
++	return goVers, progPath, progVers
++}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+index bb95971932..a335132602 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+@@ -147,6 +147,7 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, countFiles [
+ 	}
+ 	var succeeded bool
+ 	for _, f := range countFiles {
++		fok := false
+ 		x, err := u.parseCountFile(f)
+ 		if err != nil {
+ 			u.logger.Printf("Unparseable count file %s: %v", filepath.Base(f), err)
+@@ -162,12 +163,14 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, countFiles [
+ 				prog.Counters[k] += int64(v)
+ 			}
+ 			succeeded = true
++			fok = true
++		}
++		if !fok {
++			u.logger.Printf("no counters found in %s", f)
+ 		}
+ 	}
+ 	if !succeeded {
+-		// TODO(rfindley): this isn't right: a count file is not unparseable just
+-		// because it has no counters
+-		return "", fmt.Errorf("all %d count files for %s were unparseable", len(countFiles), expiryDate)
++		return "", fmt.Errorf("none of the %d count files for %s contained counters", len(countFiles), expiryDate)
+ 	}
+ 	// 1. generate the local report
+ 	localContents, err := json.MarshalIndent(report, "", " ")
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go
+index 2fb9fa670a..714617a196 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go
+@@ -174,9 +174,13 @@ func debugLogFile(debugDir string) (*os.File, error) {
+ 	}
+ 	prog := path.Base(progPkgPath)
+ 	progVers := info.Main.Version
+-	fname := filepath.Join(debugDir, fmt.Sprintf("%s-%s-%s-%4d%02d%02d-%d.log",
+-		prog, progVers, goVers, year, month, day, os.Getpid()))
+-	fname = strings.ReplaceAll(fname, " ", "")
++	if progVers == "(devel)" { // avoid special characters in created file names
++		progVers = "devel"
++	}
++	logBase := strings.ReplaceAll(
++		fmt.Sprintf("%s-%s-%s-%4d%02d%02d-%d.log", prog, progVers, goVers, year, month, day, os.Getpid()),
++		" ", "")
++	fname := filepath.Join(debugDir, logBase)
+ 	if _, err := os.Stat(fname); err == nil {
+ 		// This process previously called upload.Run
+ 		return nil, nil
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 648b89f4d2..17d0ed0fe1 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240510223629-51e8b5d718eb
++# golang.org/x/telemetry v0.0.0-20240514182607-7d78a974cc44
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter

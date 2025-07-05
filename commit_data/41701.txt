@@ -13,7 +13,52 @@ Date:   Mon Oct 21 12:44:42 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go |  4 ++++
  test/fixedbugs/issue35027.go        | 23 +++++++++++++++++++++++
  2 files changed, 27 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 4f5fa38a33..8f6da25471 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3941,6 +3941,10 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
+ 		return n
+ 	}
+ 
++	if n.Left.Op == ODOTPTR && isReflectHeaderDataField(n.Left) {
++		return n
++	}
++
+ 	// Find original unsafe.Pointer operands involved in this
+ 	// arithmetic expression.
+ 	//
+diff --git a/test/fixedbugs/issue35027.go b/test/fixedbugs/issue35027.go
+new file mode 100644
+index 0000000000..d4b0be52c1
+--- /dev/null
++++ b/test/fixedbugs/issue35027.go
+@@ -0,0 +1,23 @@
++// run -gcflags=-d=checkptr
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"reflect"
++	"unsafe"
++)
++
++var s []int
++
++func main() {
++	s = []int{42}
++	h := (*reflect.SliceHeader)(unsafe.Pointer(&s))
++	x := *(*int)(unsafe.Pointer(h.Data))
++	if x != 42 {
++		panic(x)
++	}
++}

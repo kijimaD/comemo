@@ -8,6 +8,36 @@ Date:   Thu Jul 30 10:28:57 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/12932
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 7a7b9926ed..001530ae80 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -4,7 +4,10 @@
+ 
+ package ssa
+ 
+-import "log"
++import (
++	"log"
++	"runtime"
++)
+ 
+ // Compile is the main entry point for this package.
+ // Compile modifies f so that on return:
+@@ -21,7 +24,11 @@ func Compile(f *Func) {
+ 	phaseName := "init"
+ 	defer func() {
+ 		if phaseName != "" {
+-			f.Fatalf("panic during %s while compiling %s\n", phaseName, f.Name)
++			err := recover()
++			stack := make([]byte, 16384)
++			n := runtime.Stack(stack, false)
++			stack = stack[:n]
++			f.Fatalf("panic during %s while compiling %s:\n\n%v\n\n%s\n", phaseName, f.Name, err, stack)
+ 		}
+ 	}()
+ 

@@ -10,7 +10,202 @@ Date:   Tue Mar 26 08:27:18 2013 +0100
     R=dvyukov, golang-dev
     CC=golang-dev
     https://golang.org/cl/7942045
-
+---
  src/cmd/gc/racewalk.c                     | 24 ++++----
  src/pkg/runtime/race/testdata/mop_test.go | 92 +++++++++++++++++++++++++++++++
  2 files changed, 106 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index b8bff5c834..80257985dd 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -312,6 +312,10 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 		racewalknode(&n->right, init, 0, 0);
+ 		goto ret;
+ 
++	case OITAB:
++		racewalknode(&n->left, init, 0, 0);
++		goto ret;
++
+ 	// should not appear in AST by now
+ 	case OSEND:
+ 	case ORECV:
+@@ -323,6 +327,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OPANIC:
+ 	case ORECOVER:
+ 	case OCONVIFACE:
++	case OCMPIFACE:
+ 	case OMAKECHAN:
+ 	case OMAKEMAP:
+ 	case OMAKESLICE:
+@@ -338,6 +343,12 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OADDSTR:
+ 	case ODOTTYPE:
+ 	case ODOTTYPE2:
++	case OCALLPART: // lowered to PTRLIT
++	case OCLOSURE:  // lowered to PTRLIT
++	case ORANGE:    // lowered to ordinary for loop
++	case OARRAYLIT: // lowered to assignments
++	case OMAPLIT:
++	case OSTRUCTLIT:
+ 		yyerror("racewalk: %O must be lowered by now", n->op);
+ 		goto ret;
+ 
+@@ -364,30 +375,23 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	// does not require instrumentation
+ 	case OPRINT:     // don't bother instrumenting it
+ 	case OPRINTN:    // don't bother instrumenting it
++	case OCHECKNOTNIL: // always followed by a read.
+ 	case OPARAM:     // it appears only in fn->exit to copy heap params back
++	case OCLOSUREVAR:// immutable pointer to captured variable
++	case ODOTMETH:   // either part of CALLMETH or CALLPART (lowered to PTRLIT)
+ 		goto ret;
+ 
+ 	// unimplemented
+ 	case OSLICESTR:
+ 	case OAPPEND:
+-	case OCMPIFACE:
+-	case OARRAYLIT:
+-	case OMAPLIT:
+-	case OSTRUCTLIT:
+-	case OCLOSURE:
+ 	case ODCL:
+ 	case ODCLCONST:
+ 	case ODCLTYPE:
+ 	case OLITERAL:
+-	case ORANGE:
+ 	case OTYPE:
+ 	case ONONAME:
+ 	case OINDREG:
+-	case ODOTMETH:
+-	case OITAB:
+ 	case OHMUL:
+-	case OCHECKNOTNIL:
+-	case OCLOSUREVAR:
+ 		goto ret;
+ 	}
+ 
+diff --git a/src/pkg/runtime/race/testdata/mop_test.go b/src/pkg/runtime/race/testdata/mop_test.go
+index 3ae593580b..f0fe868ccb 100644
+--- a/src/pkg/runtime/race/testdata/mop_test.go
++++ b/src/pkg/runtime/race/testdata/mop_test.go
+@@ -576,6 +576,30 @@ func TestRaceIfaceWW(t *testing.T) {
+ 	a = b
+ }
+ 
++func TestRaceIfaceCmp(t *testing.T) {
++	var a, b Writer
++	a = DummyWriter{1}
++	ch := make(chan bool, 1)
++	go func() {
++		a = DummyWriter{1}
++		ch <- true
++	}()
++	_ = a == b
++	<-ch
++}
++
++func TestRaceIfaceCmpNil(t *testing.T) {
++	var a Writer
++	a = DummyWriter{1}
++	ch := make(chan bool, 1)
++	go func() {
++		a = DummyWriter{1}
++		ch <- true
++	}()
++	_ = a == nil
++	<-ch
++}
++
+ func TestRaceEfaceConv(t *testing.T) {
+ 	c := make(chan bool)
+ 	v := 0
+@@ -1151,6 +1175,15 @@ func (p InterImpl) Foo(x int) {
+ 	_, _, _ = x, y, z
+ }
+ 
++type InterImpl2 InterImpl
++
++func (p *InterImpl2) Foo(x int) {
++	if p == nil {
++		InterImpl{}.Foo(x)
++	}
++	InterImpl(*p).Foo(x)
++}
++
+ func TestRaceInterCall(t *testing.T) {
+ 	c := make(chan bool, 1)
+ 	p := InterImpl{}
+@@ -1212,6 +1245,54 @@ func TestRaceMethodCall2(t *testing.T) {
+ 	<-c
+ }
+ 
++// Method value with concrete value receiver.
++func TestRaceMethodValue(t *testing.T) {
++	c := make(chan bool, 1)
++	i := InterImpl{}
++	go func() {
++		i = InterImpl{}
++		c <- true
++	}()
++	_ = i.Foo
++	<-c
++}
++
++// Method value with interface receiver.
++func TestRaceMethodValue2(t *testing.T) {
++	c := make(chan bool, 1)
++	var i Inter = InterImpl{}
++	go func() {
++		i = InterImpl{}
++		c <- true
++	}()
++	_ = i.Foo
++	<-c
++}
++
++// Method value with implicit dereference.
++func TestRaceMethodValue3(t *testing.T) {
++	c := make(chan bool, 1)
++	i := &InterImpl{}
++	go func() {
++		*i = InterImpl{}
++		c <- true
++	}()
++	_ = i.Foo // dereferences i.
++	<-c
++}
++
++// Method value implicitly taking receiver address.
++func TestNoRaceMethodValue(t *testing.T) {
++	c := make(chan bool, 1)
++	i := InterImpl2{}
++	go func() {
++		i = InterImpl2{}
++		c <- true
++	}()
++	_ = i.Foo // takes the address of i only.
++	<-c
++}
++
+ func TestRacePanicArg(t *testing.T) {
+ 	c := make(chan bool, 1)
+ 	err := errors.New("err")
+@@ -1338,6 +1419,17 @@ func TestRaceSliceSlice2(t *testing.T) {
+ 	<-c
+ }
+ 
++func TestRaceSliceString(t *testing.T) {
++	c := make(chan bool, 1)
++	x := "hello"
++	go func() {
++		x = "world"
++		c <- true
++	}()
++	_ = x[2:3]
++	<-c
++}
++
+ // http://golang.org/issue/4453
+ func TestRaceFailingSliceStruct(t *testing.T) {
+ 	type X struct {

@@ -9,6 +9,21 @@ Date:   Fri Mar 1 05:02:41 2013 -0800
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/7449045
-
+---
  src/pkg/runtime/cgo/asm_arm.s | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/cgo/asm_arm.s b/src/pkg/runtime/cgo/asm_arm.s
+index 1aa760e8b7..40f0300841 100644
+--- a/src/pkg/runtime/cgo/asm_arm.s
++++ b/src/pkg/runtime/cgo/asm_arm.s
+@@ -16,7 +16,8 @@ TEXT crosscall2(SB),7,$-4
+ 	 *  nevertheless.
+ 	 */
+ 	MOVM.WP	[R0, R1, R2, R4, R5, R6, R7, R8, R9, R10, R11, R12, R14], (R13)
+-	BL	x_cgo_load_gm(SB)
++	MOVW	_cgo_load_gm(SB), R0
++	BL	(R0)
+ 	MOVW	PC, R14
+ 	MOVW	-4(R13), PC
+ 	MOVM.IAW	(R13), [R0, R1, R2, R4, R5, R6, R7, R8, R9, R10, R11, R12, PC]

@@ -7,6 +7,19 @@ Date:   Sun Aug 14 09:35:01 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4901041
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 475dc58d82..b97eafbc14 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -215,6 +215,7 @@ Spring Mc <heresy.mc@gmail.com>
+ Stefan Nilsson <snilsson@nada.kth.se>
+ Stephen Ma <stephenm@golang.org>
+ Stephen Weinberg <stephen@q5comm.com>
++Sugu Sougoumarane <ssougou@gmail.com>
+ Sven Almgren <sven@tras.se>
+ Tarmigan Casebolt <tarmigan@gmail.com>
+ Timo Savola <timo.savola@gmail.com>

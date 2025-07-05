@@ -32,8 +32,102 @@ Date:   Mon Dec 12 16:43:37 2022 -0800
     Reviewed-by: Than McIntosh <thanm@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/path/filepath/path.go              | 27 ++++++++++++++-------------
  src/path/filepath/path_test.go         |  8 ++++++++
  src/path/filepath/path_windows_test.go |  2 +-
  3 files changed, 23 insertions(+), 14 deletions(-)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index a6578cbb72..32dd887998 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -15,6 +15,7 @@ import (
+ 	"errors"
+ 	"io/fs"
+ 	"os"
++	"runtime"
+ 	"sort"
+ 	"strings"
+ )
+@@ -117,21 +118,9 @@ func Clean(path string) string {
+ 		case os.IsPathSeparator(path[r]):
+ 			// empty path element
+ 			r++
+-		case path[r] == '.' && r+1 == n:
++		case path[r] == '.' && (r+1 == n || os.IsPathSeparator(path[r+1])):
+ 			// . element
+ 			r++
+-		case path[r] == '.' && os.IsPathSeparator(path[r+1]):
+-			// ./ element
+-			r++
+-
+-			for r < len(path) && os.IsPathSeparator(path[r]) {
+-				r++
+-			}
+-			if out.w == 0 && volumeNameLen(path[r:]) > 0 {
+-				// When joining prefix "." and an absolute path on Windows,
+-				// the prefix should not be removed.
+-				out.append('.')
+-			}
+ 		case path[r] == '.' && path[r+1] == '.' && (r+2 == n || os.IsPathSeparator(path[r+2])):
+ 			// .. element: remove to last separator
+ 			r += 2
+@@ -157,6 +146,18 @@ func Clean(path string) string {
+ 			if rooted && out.w != 1 || !rooted && out.w != 0 {
+ 				out.append(Separator)
+ 			}
++			// If a ':' appears in the path element at the start of a Windows path,
++			// insert a .\ at the beginning to avoid converting relative paths
++			// like a/../c: into c:.
++			if runtime.GOOS == "windows" && out.w == 0 && out.volLen == 0 && r != 0 {
++				for i := r; i < n && !os.IsPathSeparator(path[i]); i++ {
++					if path[i] == ':' {
++						out.append('.')
++						out.append(Separator)
++						break
++					}
++				}
++			}
+ 			// copy element
+ 			for ; r < n && !os.IsPathSeparator(path[r]); r++ {
+ 				out.append(path[r])
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 672d7e6261..9adf641013 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -106,6 +106,13 @@ var wincleantests = []PathTest{
+ 	{`//abc`, `\\abc`},
+ 	{`///abc`, `\\\abc`},
+ 	{`//abc//`, `\\abc\\`},
++
++	// Don't allow cleaning to move an element with a colon to the start of the path.
++	{`a/../c:`, `.\c:`},
++	{`a\..\c:`, `.\c:`},
++	{`a/../c:/a`, `.\c:\a`},
++	{`a/../../c:`, `..\c:`},
++	{`foo:bar`, `foo:bar`},
+ }
+ 
+ func TestClean(t *testing.T) {
+@@ -174,6 +181,7 @@ var winislocaltests = []IsLocalTest{
+ 	{`C:`, false},
+ 	{`C:\a`, false},
+ 	{`..\a`, false},
++	{`a/../c:`, false},
+ 	{`CONIN$`, false},
+ 	{`conin$`, false},
+ 	{`CONOUT$`, false},
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index 8553485a2d..42aeb4f619 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -548,7 +548,7 @@ func TestIssue52476(t *testing.T) {
+ 	}{
+ 		{`..\.`, `C:`, `..\C:`},
+ 		{`..`, `C:`, `..\C:`},
+-		{`.`, `:`, `:`},
++		{`.`, `:`, `.\:`},
+ 		{`.`, `C:`, `.\C:`},
+ 		{`.`, `C:/a/b/../c`, `.\C:\a\c`},
+ 		{`.`, `\C:`, `.\C:`},

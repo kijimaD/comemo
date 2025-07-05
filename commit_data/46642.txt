@@ -23,7 +23,7 @@ Date:   Fri Jan 15 13:01:37 2021 +0100
     Reviewed-by: Austin Clements <austin@google.com>
     Trust: Alex Brainman <alex.brainman@gmail.com>
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  src/runtime/os3_solaris.go  |  5 +++++
  src/runtime/os_aix.go       |  5 +++++
  src/runtime/os_darwin.go    |  5 +++++
@@ -37,3 +37,244 @@ Date:   Fri Jan 15 13:01:37 2021 +0100
  src/runtime/os_windows.go   | 38 ++++++++++++++++++++++++++------------
  src/runtime/proc.go         |  4 ++++
  12 files changed, 80 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index d6e36fbfbb..6ba11afd93 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -227,6 +227,11 @@ func unminit() {
+ 	unminitSignals()
+ }
+ 
++// Called from exitm, but not from drop, to undo the effect of thread-owned
++// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++func mdestroy(mp *m) {
++}
++
+ func sigtramp()
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 0c501be96a..303f0876de 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -180,6 +180,11 @@ func unminit() {
+ 	unminitSignals()
+ }
+ 
++// Called from exitm, but not from drop, to undo the effect of thread-owned
++// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++func mdestroy(mp *m) {
++}
++
+ // tstart is a function descriptor to _tstart defined in assembly.
+ var tstart funcDescriptor
+ 
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index e0a43c28aa..9ca17c20df 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -325,6 +325,11 @@ func unminit() {
+ 	}
+ }
+ 
++// Called from exitm, but not from drop, to undo the effect of thread-owned
++// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++func mdestroy(mp *m) {
++}
++
+ //go:nosplit
+ func osyield() {
+ 	usleep(1)
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 6578fcbeb1..383df54bd4 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -203,6 +203,11 @@ func unminit() {
+ 	unminitSignals()
+ }
+ 
++// Called from exitm, but not from drop, to undo the effect of thread-owned
++// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++func mdestroy(mp *m) {
++}
++
+ func sigtramp()
+ 
+ type sigactiont struct {
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 1c60ee2a57..09065ccb68 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -319,6 +319,11 @@ func unminit() {
+ 	unminitSignals()
+ }
+ 
++// Called from exitm, but not from drop, to undo the effect of thread-owned
++// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++func mdestroy(mp *m) {
++}
++
+ func sigtramp()
+ 
+ type sigactiont struct {
+diff --git a/src/runtime/os_js.go b/src/runtime/os_js.go
+index 91d18a078f..24261e88a2 100644
+--- a/src/runtime/os_js.go
++++ b/src/runtime/os_js.go
+@@ -84,6 +84,11 @@ func minit() {
+ func unminit() {
+ }
+ 
++// Called from exitm, but not from drop, to undo the effect of thread-owned
++// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++func mdestroy(mp *m) {
++}
++
+ func osinit() {
+ 	ncpu = 1
+ 	getg().m.procid = 2
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index f122d2c2ef..058c7daf9c 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -375,6 +375,11 @@ func unminit() {
+ 	unminitSignals()
+ }
+ 
++// Called from exitm, but not from drop, to undo the effect of thread-owned
++// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++func mdestroy(mp *m) {
++}
++
+ //#ifdef GOARCH_386
+ //#define sa_handler k_sa_handler
+ //#endif
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index f7f90cedc1..2b742a3711 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -290,6 +290,11 @@ func unminit() {
+ 	unminitSignals()
+ }
+ 
++// Called from exitm, but not from drop, to undo the effect of thread-owned
++// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++func mdestroy(mp *m) {
++}
++
+ func sigtramp()
+ 
+ type sigactiont struct {
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index d7960f4c91..490077bc29 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -257,6 +257,11 @@ func unminit() {
+ 	unminitSignals()
+ }
+ 
++// Called from exitm, but not from drop, to undo the effect of thread-owned
++// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++func mdestroy(mp *m) {
++}
++
+ func sigtramp()
+ 
+ type sigactiont struct {
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index a035526937..2a84a73716 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -213,6 +213,11 @@ func minit() {
+ func unminit() {
+ }
+ 
++// Called from exitm, but not from drop, to undo the effect of thread-owned
++// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++func mdestroy(mp *m) {
++}
++
+ var sysstat = []byte("/dev/sysstat\x00")
+ 
+ func getproccount() int32 {
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 16ff285e88..83d0d63e5d 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -898,20 +898,18 @@ func minit() {
+ 		throw("runtime.minit: duplicatehandle failed")
+ 	}
+ 
++	mp := getg().m
++	lock(&mp.threadLock)
++	mp.thread = thandle
++
+ 	// Configure usleep timer, if possible.
+-	var timer uintptr
+-	if haveHighResTimer {
+-		timer = createHighResTimer()
+-		if timer == 0 {
++	if mp.highResTimer == 0 && haveHighResTimer {
++		mp.highResTimer = createHighResTimer()
++		if mp.highResTimer == 0 {
+ 			print("runtime: CreateWaitableTimerEx failed; errno=", getlasterror(), "\n")
+ 			throw("CreateWaitableTimerEx when creating timer failed")
+ 		}
+ 	}
+-
+-	mp := getg().m
+-	lock(&mp.threadLock)
+-	mp.thread = thandle
+-	mp.highResTimer = timer
+ 	unlock(&mp.threadLock)
+ 
+ 	// Query the true stack base from the OS. Currently we're
+@@ -947,13 +945,29 @@ func minit() {
+ func unminit() {
+ 	mp := getg().m
+ 	lock(&mp.threadLock)
+-	stdcall1(_CloseHandle, mp.thread)
+-	mp.thread = 0
++	if mp.thread != 0 {
++		stdcall1(_CloseHandle, mp.thread)
++		mp.thread = 0
++	}
++	unlock(&mp.threadLock)
++}
++
++// Called from exitm, but not from drop, to undo the effect of thread-owned
++// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++//go:nosplit
++func mdestroy(mp *m) {
+ 	if mp.highResTimer != 0 {
+ 		stdcall1(_CloseHandle, mp.highResTimer)
+ 		mp.highResTimer = 0
+ 	}
+-	unlock(&mp.threadLock)
++	if mp.waitsema != 0 {
++		stdcall1(_CloseHandle, mp.waitsema)
++		mp.waitsema = 0
++	}
++	if mp.resumesema != 0 {
++		stdcall1(_CloseHandle, mp.resumesema)
++		mp.resumesema = 0
++	}
+ }
+ 
+ // Calling stdcall on os stack.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 5a942a6831..b776f88936 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1407,6 +1407,10 @@ found:
+ 		}
+ 	}
+ 
++	// Destroy all allocated resources. After this is called, we may no
++	// longer take any locks.
++	mdestroy(m)
++
+ 	if osStack {
+ 		// Return from mstart and let the system thread
+ 		// library free the g0 stack and terminate the thread.

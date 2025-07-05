@@ -15,7 +15,73 @@ Date:   Sun Jun 10 17:17:49 2018 -0700
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 13 +++++++++++--
  test/fixedbugs/issue25727.go             | 21 +++++++++++++++++++++
  2 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index fd134e9f12..8f0d6050c3 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -919,7 +919,7 @@ func typecheck1(n *Node, top int) *Node {
+ 				yyerror("%v undefined (cannot refer to unexported field or method %v)", n, n.Sym)
+ 
+ 			default:
+-				if mt := lookdot(n, t, 2); mt != nil { // Case-insensitive lookup.
++				if mt := lookdot(n, t, 2); mt != nil && visible(mt.Sym) { // Case-insensitive lookup.
+ 					yyerror("%v undefined (type %v has no field or method %v, but does have %v)", n, n.Left.Type, n.Sym, mt.Sym)
+ 				} else {
+ 					yyerror("%v undefined (type %v has no field or method %v)", n, n.Left.Type, n.Sym)
+@@ -3132,7 +3132,11 @@ func typecheckcomplit(n *Node) *Node {
+ 				f := lookdot1(nil, l.Sym, t, t.Fields(), 0)
+ 				if f == nil {
+ 					if ci := lookdot1(nil, l.Sym, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
+-						yyerror("unknown field '%v' in struct literal of type %v (but does have %v)", l.Sym, t, ci.Sym)
++						if visible(ci.Sym) {
++							yyerror("unknown field '%v' in struct literal of type %v (but does have %v)", l.Sym, t, ci.Sym)
++						} else {
++							yyerror("unknown field '%v' in struct literal of type %v", l.Sym, t)
++						}
+ 						continue
+ 					}
+ 					p, _ := dotpath(l.Sym, t, nil, true)
+@@ -3179,6 +3183,11 @@ func typecheckcomplit(n *Node) *Node {
+ 	return n
+ }
+ 
++// visible reports whether sym is exported or locally defined.
++func visible(sym *types.Sym) bool {
++	return sym != nil && (types.IsExported(sym.Name) || sym.Pkg == localpkg)
++}
++
+ // lvalue etc
+ func islvalue(n *Node) bool {
+ 	switch n.Op {
+diff --git a/test/fixedbugs/issue25727.go b/test/fixedbugs/issue25727.go
+new file mode 100644
+index 0000000000..9b7c804a0e
+--- /dev/null
++++ b/test/fixedbugs/issue25727.go
+@@ -0,0 +1,21 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "net/http"
++
++var s = http.Server{}
++var _ = s.doneChan // ERROR "s.doneChan undefined .cannot refer to unexported field or method doneChan.$"
++var _ = s.DoneChan // ERROR "s.DoneChan undefined .type http.Server has no field or method DoneChan.$"
++var _ = http.Server{tlsConfig: nil} // ERROR "unknown field 'tlsConfig' in struct literal.+ .but does have TLSConfig.$"
++var _ = http.Server{DoneChan: nil} // ERROR "unknown field 'DoneChan' in struct literal of type http.Server$"
++
++type foo struct {
++    bar int
++}
++
++var _ = &foo{bAr: 10} // ERROR "unknown field 'bAr' in struct literal.+ .but does have bar.$"

@@ -19,7 +19,7 @@ Date:   Tue Mar 9 20:43:49 2021 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go |  7 +++--
  src/reflect/abi_test.go                |  7 +++--
  test/abi/fibish2.go                    | 40 --------------------------
@@ -27,3 +27,166 @@ Date:   Tue Mar 9 20:43:49 2021 -0500
  test/abi/methods.go                    | 52 ----------------------------------
  test/abi/methods.out                   |  2 --
  6 files changed, 9 insertions(+), 100 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index c65e738188..75973c46a6 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -223,9 +223,10 @@ func AbiForBodylessFuncStackMap(fn *ir.Func) *abi.ABIConfig {
+ 	return ssaConfig.ABI0.Copy() // No idea what races will result, be safe
+ }
+ 
+-// TODO (NLT 2021-04-15) This must be changed to a name that cannot match; it may be helpful to other register ABI work to keep the trigger-logic
+-const magicNameDotSuffix = ".MagicMethodNameForTestingRegisterABI"
+-const magicLastTypeName = "MagicLastTypeNameForTestingRegisterABI"
++// These are disabled but remain ready for use in case they are needed for the next regabi port.
++// TODO if they are not needed for 1.18 / next register abi port, delete them.
++const magicNameDotSuffix = ".*disabled*MagicMethodNameForTestingRegisterABI"
++const magicLastTypeName = "*disabled*MagicLastTypeNameForTestingRegisterABI"
+ 
+ // abiForFunc implements ABI policy for a function, but does not return a copy of the ABI.
+ // Passing a nil function returns the default ABI based on experiment configuration.
+diff --git a/src/reflect/abi_test.go b/src/reflect/abi_test.go
+index 224143c9bf..1a2a48b5ed 100644
+--- a/src/reflect/abi_test.go
++++ b/src/reflect/abi_test.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build goexperiment.regabi
+-//go:build goexperiment.regabi
++//go:build goexperiment.regabireflect
++// +build goexperiment.regabireflect
+ 
+ package reflect_test
+ 
+@@ -16,6 +16,9 @@ import (
+ 	"testing/quick"
+ )
+ 
++// As of early May 2021 this is no longer necessary for amd64,
++// but it remains in case this is needed for the next register abi port.
++// TODO (1.18) If enabling register ABI on additional architectures turns out not to need this, remove it.
+ type MagicLastTypeNameForTestingRegisterABI struct{}
+ 
+ func TestMethodValueCallABI(t *testing.T) {
+diff --git a/test/abi/fibish2.go b/test/abi/fibish2.go
+deleted file mode 100644
+index 388aabc8b0..0000000000
+--- a/test/abi/fibish2.go
++++ /dev/null
+@@ -1,40 +0,0 @@
+-// run
+-
+-//go:build !wasm
+-// +build !wasm
+-
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "fmt"
+-
+-// Test that register results are correctly returned (and passed)
+-
+-type MagicLastTypeNameForTestingRegisterABI func(int, MagicLastTypeNameForTestingRegisterABI) int
+-
+-//go:registerparams
+-//go:noinline
+-func minus(decrement int) MagicLastTypeNameForTestingRegisterABI {
+-	return MagicLastTypeNameForTestingRegisterABI(func(x int, _ MagicLastTypeNameForTestingRegisterABI) int { return x - decrement })
+-}
+-
+-//go:noinline
+-func f(x int, sub1 MagicLastTypeNameForTestingRegisterABI) (int, int) {
+-
+-	if x < 3 {
+-		return 0, x
+-	}
+-
+-	a, b := f(sub1(sub1(x, sub1), sub1), sub1)
+-	c, d := f(sub1(x, sub1), sub1)
+-	return a + d, b + c
+-}
+-
+-func main() {
+-	x := 40
+-	a, b := f(x, minus(1))
+-	fmt.Printf("f(%d)=%d,%d\n", x, a, b)
+-}
+diff --git a/test/abi/fibish2.out b/test/abi/fibish2.out
+deleted file mode 100644
+index 9bd80c32c9..0000000000
+--- a/test/abi/fibish2.out
++++ /dev/null
+@@ -1 +0,0 @@
+-f(40)=39088169,126491972
+diff --git a/test/abi/methods.go b/test/abi/methods.go
+deleted file mode 100644
+index 3dcd3e327a..0000000000
+--- a/test/abi/methods.go
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// run
+-
+-//go:build !wasm
+-// +build !wasm
+-
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"fmt"
+-)
+-
+-type toobig struct {
+-	a, b, c string
+-}
+-
+-//go:registerparams
+-//go:noinline
+-func (x *toobig) MagicMethodNameForTestingRegisterABI(y toobig, z toobig) toobig {
+-	return toobig{x.a, y.b, z.c}
+-}
+-
+-type AnInterface interface {
+-	MagicMethodNameForTestingRegisterABI(y toobig, z toobig) toobig
+-}
+-
+-//go:registerparams
+-//go:noinline
+-func I(a, b, c string) toobig {
+-	return toobig{a, b, c}
+-}
+-
+-// AnIid prevents the compiler from figuring out what the interface really is.
+-//go:noinline
+-func AnIid(x AnInterface) AnInterface {
+-	return x
+-}
+-
+-var tmp toobig
+-
+-func main() {
+-	x := I("Ahoy", "1,", "2")
+-	y := I("3", "there,", "4")
+-	z := I("5", "6,", "Matey")
+-	tmp = x.MagicMethodNameForTestingRegisterABI(y, z)
+-	fmt.Println(tmp.a, tmp.b, tmp.c)
+-	tmp = AnIid(&x).MagicMethodNameForTestingRegisterABI(y, z)
+-	fmt.Println(tmp.a, tmp.b, tmp.c)
+-}
+diff --git a/test/abi/methods.out b/test/abi/methods.out
+deleted file mode 100644
+index 5a72b0edf7..0000000000
+--- a/test/abi/methods.out
++++ /dev/null
+@@ -1,2 +0,0 @@
+-Ahoy there, Matey
+-Ahoy there, Matey

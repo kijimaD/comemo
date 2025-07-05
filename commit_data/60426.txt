@@ -24,10 +24,112 @@ Date:   Thu Jul 18 14:51:34 2024 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go |  9 +++++++++
  src/cmd/compile/internal/types/type.go |  5 +++++
  src/cmd/internal/objabi/pkgspecial.go  |  2 ++
  src/strings/builder.go                 | 14 +-------------
  test/fixedbugs/issue68415.go           |  6 +++++-
  5 files changed, 22 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 1b438f9ef0..31b3bdfa25 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1007,6 +1007,15 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
+ 		return false, 0, false
+ 	}
+ 
++	if base.Debug.Checkptr != 0 && types.IsRuntimePkg(callee.Sym().Pkg) {
++		// We don't intrument runtime packages for checkptr (see base/flag.go).
++		if log && logopt.Enabled() {
++			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
++				fmt.Sprintf(`call to into runtime package function %s in -d=checkptr build`, ir.PkgFuncName(callee)))
++		}
++		return false, 0, false
++	}
++
+ 	// Check if we've already inlined this function at this particular
+ 	// call site, in order to stop inlining when we reach the beginning
+ 	// of a recursion cycle again. We don't inline immediately recursive
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index b29b2aca06..88052dc97b 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1927,6 +1927,11 @@ func IsNoRacePkg(p *Pkg) bool {
+ 	return objabi.LookupPkgSpecial(p.Path).NoRaceFunc
+ }
+ 
++// IsRuntimePkg reports whether p is a runtime package.
++func IsRuntimePkg(p *Pkg) bool {
++	return objabi.LookupPkgSpecial(p.Path).Runtime
++}
++
+ // ReceiverBaseType returns the underlying type, if any,
+ // that owns methods with receiver parameter t.
+ // The result is either a named type or an anonymous struct.
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+index 3e99ce9224..c34ede53fe 100644
+--- a/src/cmd/internal/objabi/pkgspecial.go
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -18,6 +18,8 @@ type PkgSpecial struct {
+ 	//
+ 	// - Optimizations are always enabled.
+ 	//
++	// - Checkptr is always disabled.
++	//
+ 	// This should be set for runtime and all packages it imports, and may be
+ 	// set for additional packages.
+ 	Runtime bool
+diff --git a/src/strings/builder.go b/src/strings/builder.go
+index 3b37888cbf..e6df08c6f4 100644
+--- a/src/strings/builder.go
++++ b/src/strings/builder.go
+@@ -23,18 +23,6 @@ type Builder struct {
+ 	buf []byte
+ }
+ 
+-// This is just a wrapper around abi.NoEscape.
+-//
+-// This wrapper is necessary because internal/abi is a runtime package,
+-// so it can not be built with -d=checkptr, causing incorrect inlining
+-// decision when building with checkptr enabled, see issue #68415.
+-//
+-//go:nosplit
+-//go:nocheckptr
+-func noescape(p unsafe.Pointer) unsafe.Pointer {
+-	return abi.NoEscape(p)
+-}
+-
+ func (b *Builder) copyCheck() {
+ 	if b.addr == nil {
+ 		// This hack works around a failing of Go's escape analysis
+@@ -42,7 +30,7 @@ func (b *Builder) copyCheck() {
+ 		// See issue 23382.
+ 		// TODO: once issue 7921 is fixed, this should be reverted to
+ 		// just "b.addr = b".
+-		b.addr = (*Builder)(noescape(unsafe.Pointer(b)))
++		b.addr = (*Builder)(abi.NoEscape(unsafe.Pointer(b)))
+ 	} else if b.addr != b {
+ 		panic("strings: illegal use of non-zero Builder copied by value")
+ 	}
+diff --git a/test/fixedbugs/issue68415.go b/test/fixedbugs/issue68415.go
+index cf278ac603..f23cab2e7c 100644
+--- a/test/fixedbugs/issue68415.go
++++ b/test/fixedbugs/issue68415.go
+@@ -6,10 +6,14 @@
+ 
+ package main
+ 
+-import "regexp"
++import (
++	"regexp"
++	"unique"
++)
+ 
+ var dataFileRegexp = regexp.MustCompile(`^data\.\d+\.bin$`)
+ 
+ func main() {
+ 	_ = dataFileRegexp
++	unique.Make("")
+ }

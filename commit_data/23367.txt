@@ -22,7 +22,7 @@ Date:   Tue Apr 28 00:28:47 2015 -0400
     Change-Id: If61e67950c16a293b0b516a6fd9a1c755b6d5549
     Reviewed-on: https://go-review.googlesource.com/9702
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/gc/reflect.go |  80 ++++++---------------
  src/cmd/internal/ld/data.go    |  42 ++++-------
  src/cmd/internal/obj/mgc0.go   |  10 ---
@@ -34,3 +34,1052 @@ Date:   Tue Apr 28 00:28:47 2015 -0400
  src/runtime/mbarrier.go        |  86 +++++++++++++----------
  src/runtime/mbitmap.go         | 154 ++++++++++++++++++-----------------------
  10 files changed, 205 insertions(+), 302 deletions(-)
+
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index 9979fe85fd..6ff9df2cfc 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -1430,11 +1430,7 @@ func usegcprog(t *Type) bool {
+ 	// Calculate size of the unrolled GC mask.
+ 	nptr := (t.Width + int64(Widthptr) - 1) / int64(Widthptr)
+ 
+-	size := nptr
+-	if size%2 != 0 {
+-		size *= 2 // repeated
+-	}
+-	size = size * obj.GcBits / 8 // 4 bits per word
++	size := (nptr + 7) / 8
+ 
+ 	// Decide whether to use unrolled GC mask or GC program.
+ 	// We could use a more elaborate condition, but this seems to work well in practice.
+@@ -1445,7 +1441,7 @@ func usegcprog(t *Type) bool {
+ 	return size > int64(2*Widthptr)
+ }
+ 
+-// Generates sparse GC bitmask (4 bits per word).
++// Generates GC bitmask (1 bit per word).
+ func gengcmask(t *Type, gcmask []byte) {
+ 	for i := int64(0); i < 16; i++ {
+ 		gcmask[i] = 0
+@@ -1454,40 +1450,14 @@ func gengcmask(t *Type, gcmask []byte) {
+ 		return
+ 	}
+ 
+-	// Generate compact mask as stacks use.
+-	xoffset := int64(0)
+-
+ 	vec := bvalloc(2 * int32(Widthptr) * 8)
++	xoffset := int64(0)
+ 	onebitwalktype1(t, &xoffset, vec)
+ 
+-	// Unfold the mask for the GC bitmap format:
+-	// 4 bits per word, 2 high bits encode pointer info.
+-	pos := gcmask
+-
+ 	nptr := (t.Width + int64(Widthptr) - 1) / int64(Widthptr)
+-	half := false
+-
+-	// If number of words is odd, repeat the mask.
+-	// This makes simpler handling of arrays in runtime.
+-	var i int64
+-	var bits uint8
+-	for j := int64(0); j <= (nptr % 2); j++ {
+-		for i = 0; i < nptr; i++ {
+-			// convert 0=scalar / 1=pointer to GC bit encoding
+-			if bvget(vec, int32(i)) == 0 {
+-				bits = obj.BitsScalar
+-			} else {
+-				bits = obj.BitsPointer
+-			}
+-			bits <<= 2
+-			if half {
+-				bits <<= 4
+-			}
+-			pos[0] |= byte(bits)
+-			half = !half
+-			if !half {
+-				pos = pos[1:]
+-			}
++	for i := int64(0); i < nptr; i++ {
++		if bvget(vec, int32(i)) == 1 {
++			gcmask[i/8] |= 1 << (uint(i) % 8)
+ 		}
+ 	}
+ }
+@@ -1496,7 +1466,7 @@ func gengcmask(t *Type, gcmask []byte) {
+ type ProgGen struct {
+ 	s        *Sym
+ 	datasize int32
+-	data     [256 / obj.PointersPerByte]uint8
++	data     [256 / 8]uint8
+ 	ot       int64
+ }
+ 
+@@ -1504,7 +1474,7 @@ func proggeninit(g *ProgGen, s *Sym) {
+ 	g.s = s
+ 	g.datasize = 0
+ 	g.ot = 0
+-	g.data = [256 / obj.PointersPerByte]uint8{}
++	g.data = [256 / 8]uint8{}
+ }
+ 
+ func proggenemit(g *ProgGen, v uint8) {
+@@ -1518,16 +1488,16 @@ func proggendataflush(g *ProgGen) {
+ 	}
+ 	proggenemit(g, obj.InsData)
+ 	proggenemit(g, uint8(g.datasize))
+-	s := (g.datasize + obj.PointersPerByte - 1) / obj.PointersPerByte
++	s := (g.datasize + 7) / 8
+ 	for i := int32(0); i < s; i++ {
+ 		proggenemit(g, g.data[i])
+ 	}
+ 	g.datasize = 0
+-	g.data = [256 / obj.PointersPerByte]uint8{}
++	g.data = [256 / 8]uint8{}
+ }
+ 
+ func proggendata(g *ProgGen, d uint8) {
+-	g.data[g.datasize/obj.PointersPerByte] |= d << uint((g.datasize%obj.PointersPerByte)*obj.BitsPerPointer)
++	g.data[g.datasize/8] |= d << uint(g.datasize%8)
+ 	g.datasize++
+ 	if g.datasize == 255 {
+ 		proggendataflush(g)
+@@ -1538,7 +1508,7 @@ func proggendata(g *ProgGen, d uint8) {
+ func proggenskip(g *ProgGen, off int64, v int64) {
+ 	for i := off; i < off+v; i++ {
+ 		if (i % int64(Widthptr)) == 0 {
+-			proggendata(g, obj.BitsScalar)
++			proggendata(g, 0)
+ 		}
+ 	}
+ }
+@@ -1566,12 +1536,7 @@ func proggenfini(g *ProgGen) int64 {
+ // Generates GC program for large types.
+ func gengcprog(t *Type, pgc0 **Sym, pgc1 **Sym) {
+ 	nptr := (t.Width + int64(Widthptr) - 1) / int64(Widthptr)
+-	size := nptr
+-	if size%2 != 0 {
+-		size *= 2 // repeated twice
+-	}
+-	size = size * obj.PointersPerByte / 8 // 4 bits per word
+-	size++                                // unroll flag in the beginning, used by runtime (see runtime.markallocated)
++	size := nptr + 1 // unroll flag in the beginning, used by runtime (see runtime.markallocated)
+ 
+ 	// emity space in BSS for unrolled program
+ 	*pgc0 = nil
+@@ -1623,26 +1588,25 @@ func gengcprog1(g *ProgGen, t *Type, xoffset *int64) {
+ 		TFUNC,
+ 		TCHAN,
+ 		TMAP:
+-		proggendata(g, obj.BitsPointer)
++		proggendata(g, 1)
+ 		*xoffset += t.Width
+ 
+ 	case TSTRING:
+-		proggendata(g, obj.BitsPointer)
+-		proggendata(g, obj.BitsScalar)
++		proggendata(g, 1)
++		proggendata(g, 0)
+ 		*xoffset += t.Width
+ 
+ 		// Assuming IfacePointerOnly=1.
+ 	case TINTER:
+-		proggendata(g, obj.BitsPointer)
+-
+-		proggendata(g, obj.BitsPointer)
++		proggendata(g, 1)
++		proggendata(g, 1)
+ 		*xoffset += t.Width
+ 
+ 	case TARRAY:
+ 		if Isslice(t) {
+-			proggendata(g, obj.BitsPointer)
+-			proggendata(g, obj.BitsScalar)
+-			proggendata(g, obj.BitsScalar)
++			proggendata(g, 1)
++			proggendata(g, 0)
++			proggendata(g, 0)
+ 		} else {
+ 			t1 := t.Type
+ 			if t1.Width == 0 {
+@@ -1656,7 +1620,7 @@ func gengcprog1(g *ProgGen, t *Type, xoffset *int64) {
+ 				n := t.Width
+ 				n -= -*xoffset & (int64(Widthptr) - 1) // skip to next ptr boundary
+ 				proggenarray(g, (n+int64(Widthptr)-1)/int64(Widthptr))
+-				proggendata(g, obj.BitsScalar)
++				proggendata(g, 0)
+ 				proggenarrayend(g)
+ 				*xoffset -= (n+int64(Widthptr)-1)/int64(Widthptr)*int64(Widthptr) - t.Width
+ 			} else {
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index 3194bd568e..676c8856de 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -1032,7 +1032,7 @@ func maxalign(s *LSym, type_ int) int32 {
+ type ProgGen struct {
+ 	s        *LSym
+ 	datasize int32
+-	data     [256 / obj.PointersPerByte]uint8
++	data     [256 / 8]uint8
+ 	pos      int64
+ }
+ 
+@@ -1040,7 +1040,7 @@ func proggeninit(g *ProgGen, s *LSym) {
+ 	g.s = s
+ 	g.datasize = 0
+ 	g.pos = 0
+-	g.data = [256 / obj.PointersPerByte]uint8{}
++	g.data = [256 / 8]uint8{}
+ }
+ 
+ func proggenemit(g *ProgGen, v uint8) {
+@@ -1054,16 +1054,16 @@ func proggendataflush(g *ProgGen) {
+ 	}
+ 	proggenemit(g, obj.InsData)
+ 	proggenemit(g, uint8(g.datasize))
+-	s := (g.datasize + obj.PointersPerByte - 1) / obj.PointersPerByte
++	s := (g.datasize + 7) / 8
+ 	for i := int32(0); i < s; i++ {
+ 		proggenemit(g, g.data[i])
+ 	}
+ 	g.datasize = 0
+-	g.data = [256 / obj.PointersPerByte]uint8{}
++	g.data = [256 / 8]uint8{}
+ }
+ 
+ func proggendata(g *ProgGen, d uint8) {
+-	g.data[g.datasize/obj.PointersPerByte] |= d << uint((g.datasize%obj.PointersPerByte)*obj.BitsPerPointer)
++	g.data[g.datasize/8] |= d << uint(g.datasize%8)
+ 	g.datasize++
+ 	if g.datasize == 255 {
+ 		proggendataflush(g)
+@@ -1074,7 +1074,7 @@ func proggendata(g *ProgGen, d uint8) {
+ func proggenskip(g *ProgGen, off int64, v int64) {
+ 	for i := off; i < off+v; i++ {
+ 		if (i % int64(Thearch.Ptrsize)) == 0 {
+-			proggendata(g, obj.BitsScalar)
++			proggendata(g, 0)
+ 		}
+ 	}
+ }
+@@ -1119,35 +1119,18 @@ func proggenaddsym(g *ProgGen, s *LSym) {
+ 	// Leave debugging the SDATA issue for the Go rewrite.
+ 
+ 	if s.Gotype == nil && s.Size >= int64(Thearch.Ptrsize) && s.Name[0] != '.' {
+-		// conservative scan
+ 		Diag("missing Go type information for global symbol: %s size %d", s.Name, int(s.Size))
++		return
++	}
+ 
+-		if (s.Size%int64(Thearch.Ptrsize) != 0) || (g.pos%int64(Thearch.Ptrsize) != 0) {
+-			Diag("proggenaddsym: unaligned conservative symbol %s: size=%d pos=%d", s.Name, s.Size, g.pos)
+-		}
+-		size := (s.Size + int64(Thearch.Ptrsize) - 1) / int64(Thearch.Ptrsize) * int64(Thearch.Ptrsize)
+-		if size < int64(32*Thearch.Ptrsize) {
+-			// Emit small symbols as data.
+-			for i := int64(0); i < size/int64(Thearch.Ptrsize); i++ {
+-				proggendata(g, obj.BitsPointer)
+-			}
+-		} else {
+-			// Emit large symbols as array.
+-			proggenarray(g, size/int64(Thearch.Ptrsize))
+-
+-			proggendata(g, obj.BitsPointer)
+-			proggenarrayend(g)
+-		}
+-
+-		g.pos = s.Value + size
+-	} else if s.Gotype == nil || decodetype_noptr(s.Gotype) != 0 || s.Size < int64(Thearch.Ptrsize) || s.Name[0] == '.' {
++	if s.Gotype == nil || decodetype_noptr(s.Gotype) != 0 || s.Size < int64(Thearch.Ptrsize) || s.Name[0] == '.' {
+ 		// no scan
+ 		if s.Size < int64(32*Thearch.Ptrsize) {
+ 			// Emit small symbols as data.
+ 			// This case also handles unaligned and tiny symbols, so tread carefully.
+ 			for i := s.Value; i < s.Value+s.Size; i++ {
+ 				if (i % int64(Thearch.Ptrsize)) == 0 {
+-					proggendata(g, obj.BitsScalar)
++					proggendata(g, 0)
+ 				}
+ 			}
+ 		} else {
+@@ -1156,7 +1139,7 @@ func proggenaddsym(g *ProgGen, s *LSym) {
+ 				Diag("proggenaddsym: unaligned noscan symbol %s: size=%d pos=%d", s.Name, s.Size, g.pos)
+ 			}
+ 			proggenarray(g, s.Size/int64(Thearch.Ptrsize))
+-			proggendata(g, obj.BitsScalar)
++			proggendata(g, 0)
+ 			proggenarrayend(g)
+ 		}
+ 
+@@ -1183,7 +1166,8 @@ func proggenaddsym(g *ProgGen, s *LSym) {
+ 			Diag("proggenaddsym: unaligned gcmask symbol %s: size=%d pos=%d", s.Name, s.Size, g.pos)
+ 		}
+ 		for i := int64(0); i < size; i += int64(Thearch.Ptrsize) {
+-			proggendata(g, uint8((mask[i/int64(Thearch.Ptrsize)/2]>>uint64((i/int64(Thearch.Ptrsize)%2)*4+2))&obj.BitsMask))
++			word := uint(i / int64(Thearch.Ptrsize))
++			proggendata(g, (mask[word/8]>>(word%8))&1)
+ 		}
+ 		g.pos = s.Value + size
+ 	}
+diff --git a/src/cmd/internal/obj/mgc0.go b/src/cmd/internal/obj/mgc0.go
+index 2407deaf32..a385d607bb 100644
+--- a/src/cmd/internal/obj/mgc0.go
++++ b/src/cmd/internal/obj/mgc0.go
+@@ -21,16 +21,6 @@ package obj
+ 
+ // Used by cmd/gc.
+ 
+-const (
+-	GcBits          = 4
+-	BitsPerPointer  = 2
+-	BitsDead        = 0
+-	BitsScalar      = 1
+-	BitsPointer     = 2
+-	BitsMask        = 3
+-	PointersPerByte = 8 / BitsPerPointer
+-)
+-
+ const (
+ 	InsData = 1 + iota
+ 	InsArray
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 877b2efd84..373583d471 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4388,7 +4388,7 @@ func TestCallGC(t *testing.T) {
+ type funcLayoutTest struct {
+ 	rcvr, t                  Type
+ 	size, argsize, retOffset uintptr
+-	stack                    []byte
++	stack                    []byte // pointer bitmap: 1 is pointer, 0 is scalar (or uninitialized)
+ 	gc                       []byte
+ }
+ 
+@@ -4399,7 +4399,7 @@ func init() {
+ 	var naclExtra []byte
+ 	if runtime.GOARCH == "amd64p32" {
+ 		argAlign = 2 * PtrSize
+-		naclExtra = append(naclExtra, BitsScalar)
++		naclExtra = append(naclExtra, 0)
+ 	}
+ 	roundup := func(x uintptr, a uintptr) uintptr {
+ 		return (x + a - 1) / a * a
+@@ -4412,17 +4412,17 @@ func init() {
+ 			6 * PtrSize,
+ 			4 * PtrSize,
+ 			4 * PtrSize,
+-			[]byte{BitsPointer, BitsScalar, BitsPointer},
+-			[]byte{BitsPointer, BitsScalar, BitsPointer, BitsScalar, BitsPointer, BitsScalar},
++			[]byte{1, 0, 1},
++			[]byte{1, 0, 1, 0, 1, 0},
+ 		})
+ 
+ 	var r, s []byte
+ 	if PtrSize == 4 {
+-		r = []byte{BitsScalar, BitsScalar, BitsScalar, BitsPointer}
+-		s = append([]byte{BitsScalar, BitsScalar, BitsScalar, BitsPointer, BitsScalar}, naclExtra...)
++		r = []byte{0, 0, 0, 1}
++		s = append([]byte{0, 0, 0, 1, 0}, naclExtra...)
+ 	} else {
+-		r = []byte{BitsScalar, BitsScalar, BitsPointer}
+-		s = []byte{BitsScalar, BitsScalar, BitsPointer, BitsScalar}
++		r = []byte{0, 0, 1}
++		s = []byte{0, 0, 1, 0}
+ 	}
+ 	funcLayoutTests = append(funcLayoutTests,
+ 		funcLayoutTest{
+@@ -4442,8 +4442,8 @@ func init() {
+ 			4 * PtrSize,
+ 			4 * PtrSize,
+ 			4 * PtrSize,
+-			[]byte{BitsPointer, BitsScalar, BitsPointer, BitsPointer},
+-			[]byte{BitsPointer, BitsScalar, BitsPointer, BitsPointer},
++			[]byte{1, 0, 1, 1},
++			[]byte{1, 0, 1, 1},
+ 		})
+ 
+ 	type S struct {
+@@ -4457,8 +4457,8 @@ func init() {
+ 			4 * PtrSize,
+ 			4 * PtrSize,
+ 			4 * PtrSize,
+-			[]byte{BitsScalar, BitsScalar, BitsPointer, BitsPointer},
+-			[]byte{BitsScalar, BitsScalar, BitsPointer, BitsPointer},
++			[]byte{0, 0, 1, 1},
++			[]byte{0, 0, 1, 1},
+ 		})
+ 
+ 	funcLayoutTests = append(funcLayoutTests,
+@@ -4468,8 +4468,8 @@ func init() {
+ 			roundup(3*PtrSize, argAlign),
+ 			3 * PtrSize,
+ 			roundup(3*PtrSize, argAlign),
+-			[]byte{BitsPointer, BitsScalar, BitsPointer},
+-			append([]byte{BitsPointer, BitsScalar, BitsPointer}, naclExtra...),
++			[]byte{1, 0, 1},
++			append([]byte{1, 0, 1}, naclExtra...),
+ 		})
+ 
+ 	funcLayoutTests = append(funcLayoutTests,
+@@ -4480,7 +4480,7 @@ func init() {
+ 			PtrSize,
+ 			roundup(PtrSize, argAlign),
+ 			[]byte{},
+-			append([]byte{BitsScalar}, naclExtra...),
++			append([]byte{0}, naclExtra...),
+ 		})
+ 
+ 	funcLayoutTests = append(funcLayoutTests,
+@@ -4491,7 +4491,7 @@ func init() {
+ 			0,
+ 			0,
+ 			[]byte{},
+-			[]byte{BitsScalar},
++			[]byte{0},
+ 		})
+ 
+ 	funcLayoutTests = append(funcLayoutTests,
+@@ -4501,8 +4501,8 @@ func init() {
+ 			2 * PtrSize,
+ 			2 * PtrSize,
+ 			2 * PtrSize,
+-			[]byte{BitsPointer},
+-			[]byte{BitsPointer, BitsScalar},
++			[]byte{1},
++			[]byte{1, 0},
+ 			// Note: this one is tricky, as the receiver is not a pointer.  But we
+ 			// pass the receiver by reference to the autogenerated pointer-receiver
+ 			// version of the function.
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index c89e9c1298..6748eba3d1 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -18,8 +18,6 @@ func IsRO(v Value) bool {
+ var CallGC = &callGC
+ 
+ const PtrSize = ptrSize
+-const BitsPointer = bitsPointer
+-const BitsScalar = bitsScalar
+ 
+ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, stack []byte, gc []byte, ptrs bool) {
+ 	var ft *rtype
+@@ -38,7 +36,7 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr,
+ 	}
+ 	gcdata := (*[1000]byte)(ft.gc[0])
+ 	for i := uintptr(0); i < ft.size/ptrSize; i++ {
+-		gc = append(gc, gcdata[i/2]>>(i%2*4+2)&3)
++		gc = append(gc, gcdata[i/8]>>(i%8)&1)
+ 	}
+ 	ptrs = ft.kind&kindNoPointers == 0
+ 	return
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 5315bd3971..5a43805626 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1701,14 +1701,14 @@ func (gc *gcProg) appendProg(t *rtype) {
+ 	default:
+ 		panic("reflect: non-pointer type marked as having pointers")
+ 	case Ptr, UnsafePointer, Chan, Func, Map:
+-		gc.appendWord(bitsPointer)
++		gc.appendWord(1)
+ 	case Slice:
+-		gc.appendWord(bitsPointer)
+-		gc.appendWord(bitsScalar)
+-		gc.appendWord(bitsScalar)
++		gc.appendWord(1)
++		gc.appendWord(0)
++		gc.appendWord(0)
+ 	case String:
+-		gc.appendWord(bitsPointer)
+-		gc.appendWord(bitsScalar)
++		gc.appendWord(1)
++		gc.appendWord(0)
+ 	case Array:
+ 		c := t.Len()
+ 		e := t.Elem().common()
+@@ -1716,8 +1716,8 @@ func (gc *gcProg) appendProg(t *rtype) {
+ 			gc.appendProg(e)
+ 		}
+ 	case Interface:
+-		gc.appendWord(bitsPointer)
+-		gc.appendWord(bitsPointer)
++		gc.appendWord(1)
++		gc.appendWord(1)
+ 	case Struct:
+ 		oldsize := gc.size
+ 		c := t.NumField()
+@@ -1737,13 +1737,12 @@ func (gc *gcProg) appendWord(v byte) {
+ 		panic("reflect: unaligned GC program")
+ 	}
+ 	nptr := gc.size / ptrsize
+-	for uintptr(len(gc.gc)) < nptr/2+1 {
+-		gc.gc = append(gc.gc, 0x44) // BitsScalar
++	for uintptr(len(gc.gc)) <= nptr/8 {
++		gc.gc = append(gc.gc, 0)
+ 	}
+-	gc.gc[nptr/2] &= ^(3 << ((nptr%2)*4 + 2))
+-	gc.gc[nptr/2] |= v << ((nptr%2)*4 + 2)
++	gc.gc[nptr/8] |= v << (nptr % 8)
+ 	gc.size += ptrsize
+-	if v == bitsPointer {
++	if v == 1 {
+ 		gc.hasPtr = true
+ 	}
+ }
+@@ -1758,33 +1757,20 @@ func (gc *gcProg) finalize() (unsafe.Pointer, bool) {
+ 	ptrsize := unsafe.Sizeof(uintptr(0))
+ 	gc.align(ptrsize)
+ 	nptr := gc.size / ptrsize
+-	for uintptr(len(gc.gc)) < nptr/2+1 {
+-		gc.gc = append(gc.gc, 0x44) // BitsScalar
+-	}
+-	// If number of words is odd, repeat the mask twice.
+-	// Compiler does the same.
+-	if nptr%2 != 0 {
+-		for i := uintptr(0); i < nptr; i++ {
+-			gc.appendWord(extractGCWord(gc.gc, i))
+-		}
++	for uintptr(len(gc.gc)) <= nptr/8 {
++		gc.gc = append(gc.gc, 0)
+ 	}
+ 	return unsafe.Pointer(&gc.gc[0]), gc.hasPtr
+ }
+ 
+ func extractGCWord(gc []byte, i uintptr) byte {
+-	return (gc[i/2] >> ((i%2)*4 + 2)) & 3
++	return gc[i/8] >> (i % 8) & 1
+ }
+ 
+ func (gc *gcProg) align(a uintptr) {
+ 	gc.size = align(gc.size, a)
+ }
+ 
+-// These constants must stay in sync with ../runtime/mbitmap.go.
+-const (
+-	bitsScalar  = 1
+-	bitsPointer = 2
+-)
+-
+ // Make sure these routines stay in sync with ../../runtime/hashmap.go!
+ // These types exist only for GC, so we only fill out GC relevant info.
+ // Currently, that's just size and the GC program.  We also fill in string
+@@ -1814,7 +1800,7 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 	var gc gcProg
+ 	// topbits
+ 	for i := 0; i < int(bucketSize*unsafe.Sizeof(uint8(0))/ptrsize); i++ {
+-		gc.append(bitsScalar)
++		gc.append(0)
+ 	}
+ 	// keys
+ 	for i := 0; i < bucketSize; i++ {
+@@ -1825,10 +1811,10 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 		gc.appendProg(etyp)
+ 	}
+ 	// overflow
+-	gc.append(bitsPointer)
++	gc.append(1)
+ 	ptrdata := gc.size
+ 	if runtime.GOARCH == "amd64p32" {
+-		gc.append(bitsScalar)
++		gc.append(0)
+ 	}
+ 
+ 	b := new(rtype)
+@@ -2058,16 +2044,16 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
+ 		// space no matter how big they actually are.
+ 		if ifaceIndir(rcvr) {
+ 			// we pass a pointer to the receiver.
+-			gc.append(bitsPointer)
+-			stack.append2(bitsPointer)
++			gc.append(1)
++			stack.append2(1)
+ 		} else if rcvr.pointers() {
+ 			// rcvr is a one-word pointer object.  Its gc program
+ 			// is just what we need here.
+-			gc.append(bitsPointer)
+-			stack.append2(bitsPointer)
++			gc.append(1)
++			stack.append2(1)
+ 		} else {
+-			gc.append(bitsScalar)
+-			stack.append2(bitsScalar)
++			gc.append(0)
++			stack.append2(0)
+ 		}
+ 		offset += ptrSize
+ 	}
+@@ -2154,17 +2140,17 @@ func addTypeBits(bv *bitVector, offset *uintptr, t *rtype) {
+ 	case Chan, Func, Map, Ptr, Slice, String, UnsafePointer:
+ 		// 1 pointer at start of representation
+ 		for bv.n < 2*uint32(*offset/uintptr(ptrSize)) {
+-			bv.append2(bitsScalar)
++			bv.append2(0)
+ 		}
+-		bv.append2(bitsPointer)
++		bv.append2(1)
+ 
+ 	case Interface:
+ 		// 2 pointers
+ 		for bv.n < 2*uint32(*offset/uintptr(ptrSize)) {
+-			bv.append2(bitsScalar)
++			bv.append2(0)
+ 		}
+-		bv.append2(bitsPointer)
+-		bv.append2(bitsPointer)
++		bv.append2(1)
++		bv.append2(1)
+ 
+ 	case Array:
+ 		// repeat inner type
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 1efe24c61a..817622abd0 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -76,15 +76,8 @@ func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
+ }
+ 
+ func GCMask(x interface{}) (ret []byte) {
+-	e := (*eface)(unsafe.Pointer(&x))
+-	s := (*slice)(unsafe.Pointer(&ret))
+ 	systemstack(func() {
+-		var len uintptr
+-		var a *byte
+-		getgcmask(e.data, e._type, &a, &len)
+-		s.array = unsafe.Pointer(a)
+-		s.len = int(len)
+-		s.cap = s.len
++		ret = getgcmask(x)
+ 	})
+ 	return
+ }
+diff --git a/src/runtime/gcinfo_test.go b/src/runtime/gcinfo_test.go
+index 66b0353f08..b4ab9134aa 100644
+--- a/src/runtime/gcinfo_test.go
++++ b/src/runtime/gcinfo_test.go
+@@ -28,13 +28,13 @@ func TestGCInfo(t *testing.T) {
+ 	verifyGCInfo(t, "data eface", &dataEface, infoEface)
+ 	verifyGCInfo(t, "data iface", &dataIface, infoIface)
+ 
+-	verifyGCInfo(t, "stack ScalarPtr", new(ScalarPtr), infoScalarPtr)
+-	verifyGCInfo(t, "stack PtrScalar", new(PtrScalar), infoPtrScalar)
+-	verifyGCInfo(t, "stack BigStruct", new(BigStruct), infoBigStruct())
+-	verifyGCInfo(t, "stack string", new(string), infoString)
+-	verifyGCInfo(t, "stack slice", new([]string), infoSlice)
+-	verifyGCInfo(t, "stack eface", new(interface{}), infoEface)
+-	verifyGCInfo(t, "stack iface", new(Iface), infoIface)
++	verifyGCInfo(t, "stack ScalarPtr", new(ScalarPtr), nonStackInfo(infoScalarPtr))
++	verifyGCInfo(t, "stack PtrScalar", new(PtrScalar), nonStackInfo(infoPtrScalar))
++	verifyGCInfo(t, "stack BigStruct", new(BigStruct), nonStackInfo(infoBigStruct()))
++	verifyGCInfo(t, "stack string", new(string), nonStackInfo(infoString))
++	verifyGCInfo(t, "stack slice", new([]string), nonStackInfo(infoSlice))
++	verifyGCInfo(t, "stack eface", new(interface{}), nonStackInfo(infoEface))
++	verifyGCInfo(t, "stack iface", new(Iface), nonStackInfo(infoIface))
+ 
+ 	for i := 0; i < 10; i++ {
+ 		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), infoScalarPtr)
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index eb5881707b..4162483ade 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -223,29 +223,25 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	}
+ 
+ 	systemstack(func() {
+-		mask := typeBitmapInHeapBitmapFormat(typ)
++		dst := dst // make local copies
++		src := src
+ 		nptr := typ.size / ptrSize
+-		for i := uintptr(0); i < nptr; i += 2 {
+-			bits := mask[i/2]
+-			if (bits>>2)&typeMask == typePointer {
+-				writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
+-			} else {
+-				*(*uintptr)(dst) = *(*uintptr)(src)
+-			}
+-			// TODO(rsc): The noescape calls should be unnecessary.
+-			dst = add(noescape(dst), ptrSize)
+-			src = add(noescape(src), ptrSize)
+-			if i+1 == nptr {
+-				break
+-			}
+-			bits >>= 4
+-			if (bits>>2)&typeMask == typePointer {
+-				writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
+-			} else {
+-				*(*uintptr)(dst) = *(*uintptr)(src)
++		i := uintptr(0)
++	Copy:
++		for _, bits := range ptrBitmapForType(typ) {
++			for j := 0; j < 8; j++ {
++				if bits&1 != 0 {
++					writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
++				} else {
++					*(*uintptr)(dst) = *(*uintptr)(src)
++				}
++				if i++; i >= nptr {
++					break Copy
++				}
++				dst = add(dst, ptrSize)
++				src = add(src, ptrSize)
++				bits >>= 1
+ 			}
+-			dst = add(noescape(dst), ptrSize)
+-			src = add(noescape(src), ptrSize)
+ 		}
+ 	})
+ }
+@@ -274,18 +270,25 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size
+ 		off += frag
+ 	}
+ 
+-	mask := typeBitmapInHeapBitmapFormat(typ)
++	mask := ptrBitmapForType(typ)
+ 	nptr := (off + size) / ptrSize
+-	for i := uintptr(off / ptrSize); i < nptr; i++ {
+-		bits := mask[i/2] >> ((i & 1) << 2)
+-		if (bits>>2)&typeMask == typePointer {
+-			writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
+-		} else {
+-			*(*uintptr)(dst) = *(*uintptr)(src)
++	i := uintptr(off / ptrSize)
++Copy:
++	for {
++		bits := mask[i/8] >> (i % 8)
++		for j := i % 8; j < 8; j++ {
++			if bits&1 != 0 {
++				writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
++			} else {
++				*(*uintptr)(dst) = *(*uintptr)(src)
++			}
++			if i++; i >= nptr {
++				break Copy
++			}
++			dst = add(dst, ptrSize)
++			src = add(src, ptrSize)
++			bits >>= 1
+ 		}
+-		// TODO(rsc): The noescape calls should be unnecessary.
+-		dst = add(noescape(dst), ptrSize)
+-		src = add(noescape(src), ptrSize)
+ 	}
+ 	size &= ptrSize - 1
+ 	if size > 0 {
+@@ -307,18 +310,25 @@ func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uin
+ 	}
+ 
+ 	systemstack(func() {
+-		mask := typeBitmapInHeapBitmapFormat(typ)
++		mask := ptrBitmapForType(typ)
+ 		// retoffset is known to be pointer-aligned (at least).
+ 		// TODO(rsc): The noescape call should be unnecessary.
+ 		dst := add(noescape(frame), retoffset)
+ 		nptr := framesize / ptrSize
+-		for i := uintptr(retoffset / ptrSize); i < nptr; i++ {
+-			bits := mask[i/2] >> ((i & 1) << 2)
+-			if (bits>>2)&typeMask == typePointer {
+-				writebarrierptr_nostore((*uintptr)(dst), *(*uintptr)(dst))
++		i := uintptr(retoffset / ptrSize)
++	Copy:
++		for {
++			bits := mask[i/8] >> (i % 8)
++			for j := i % 8; j < 8; j++ {
++				if bits&1 != 0 {
++					writebarrierptr_nostore((*uintptr)(dst), *(*uintptr)(dst))
++				}
++				if i++; i >= nptr {
++					break Copy
++				}
++				dst = add(dst, ptrSize)
++				bits >>= 1
+ 			}
+-			// TODO(rsc): The noescape call should be unnecessary.
+-			dst = add(noescape(dst), ptrSize)
+ 		}
+ 	})
+ }
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index f0c7520e38..cfdd259371 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -446,25 +446,23 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 	// and storing type info in the GC bitmap.
+ 	h := heapBitsForAddr(x)
+ 
+-	var ti, te uintptr
+ 	var ptrmask *uint8
+ 	if size == ptrSize {
+ 		// It's one word and it has pointers, it must be a pointer.
+ 		// The bitmap byte is shared with the one-word object
+ 		// next to it, and concurrent GC might be marking that
+ 		// object, so we must use an atomic update.
++		// TODO(rsc): It may make sense to set all the pointer bits
++		// when initializing the span, and then the atomicor8 here
++		// goes away - heapBitsSetType would be a no-op
++		// in that case.
+ 		atomicor8(h.bitp, typePointer<<(typeShift+h.shift))
+ 		return
+ 	}
+ 	if typ.kind&kindGCProg != 0 {
+ 		nptr := (uintptr(typ.size) + ptrSize - 1) / ptrSize
+-		masksize := nptr
+-		if masksize%2 != 0 {
+-			masksize *= 2 // repeated
+-		}
+-		const typeBitsPerByte = 8 / typeBitsWidth
+-		masksize = masksize * typeBitsPerByte / 8 // 4 bits per word
+-		masksize++                                // unroll flag in the beginning
++		masksize := (nptr + 7) / 8
++		masksize++ // unroll flag in the beginning
+ 		if masksize > maxGCMask && typ.gc[1] != 0 {
+ 			// write barriers have not been updated to deal with this case yet.
+ 			throw("maxGCMask too small for now")
+@@ -490,64 +488,55 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 	} else {
+ 		ptrmask = (*uint8)(unsafe.Pointer(typ.gc[0])) // pointer to unrolled mask
+ 	}
+-	if size == 2*ptrSize {
+-		// h.shift is 0 for all sizes > ptrSize.
+-		*h.bitp = *ptrmask
+-		return
+-	}
+-	te = uintptr(typ.size) / ptrSize
+-	// If the type occupies odd number of words, its mask is repeated.
+-	if te%2 == 0 {
+-		te /= 2
+-	}
+-	// Copy pointer bitmask into the bitmap.
+-	// TODO(rlh): add comment addressing the following concerns:
+-	// If size > 2*ptrSize, is x guaranteed to be at least 2*ptrSize-aligned?
+-	// And if type occupies and odd number of words, why are we only going through half
+-	// of ptrmask and why don't we have to shift everything by 4 on odd iterations?
+-
+-	for i := uintptr(0); i < dataSize; i += 2 * ptrSize {
+-		v := *(*uint8)(add(unsafe.Pointer(ptrmask), ti))
+-		ti++
+-		if ti == te {
+-			ti = 0
+-		}
+-		if i+ptrSize == dataSize {
+-			v &^= typeMask << (4 + typeShift)
++
++	// Copy from 1-bit ptrmask into 4-bit bitmap.
++	elemSize := typ.size
++	var v uint32 // pending byte of 4-bit bitmap; uint32 for better code gen
++	nv := 0      // number of bits added to v
++	for i := uintptr(0); i < dataSize; i += elemSize {
++		// At each word, b holds the pending bits from the 1-bit bitmap,
++		// with a sentinel 1 bit above all the actual bits.
++		// When b == 1, that means it is out of bits and needs to be refreshed.
++		// *(p+1) is the next byte to read.
++		p := ptrmask
++		b := uint32(*p) | 0x100
++		for j := uintptr(0); j < elemSize; j += ptrSize {
++			if b == 1 {
++				p = addb(p, 1)
++				b = uint32(*p) | 0x100
++			}
++			// b&1 is 1 for pointer, 0 for scalar.
++			// We want typePointer (2) or typeScalar (1), so add 1.
++			v |= ((b & 1) + 1) << (uint(nv) + typeShift)
++			b >>= 1
++			if nv += heapBitsWidth; nv == 8 {
++				*h.bitp = uint8(v)
++				h.bitp = subtractb(h.bitp, 1)
++				v = 0
++				nv = 0
++			}
+ 		}
++	}
+ 
+-		*h.bitp = v
++	// Finish final byte of bitmap and mark next word (if any) with typeDead (0)
++	if nv != 0 {
++		*h.bitp = uint8(v)
+ 		h.bitp = subtractb(h.bitp, 1)
+-	}
+-	if dataSize%(2*ptrSize) == 0 && dataSize < size {
+-		// Mark the word after last object's word as typeDead.
++	} else if dataSize < size {
+ 		*h.bitp = 0
+ 	}
+ }
+ 
+-// typeBitmapInHeapBitmapFormat returns a bitmap holding
+-// the type bits for the type typ, but expanded into heap bitmap format
+-// to make it easier to copy them into the heap bitmap.
+-// TODO(rsc): Change clients to use the type bitmap format instead,
+-// which can be stored more densely (especially if we drop to 1 bit per pointer).
+-//
+-// To make it easier to replicate the bits when filling out the heap
+-// bitmap for an array of typ, if typ holds an odd number of words
+-// (meaning the heap bitmap would stop halfway through a byte),
+-// typeBitmapInHeapBitmapFormat returns the bitmap for two instances
+-// of typ in a row.
+-// TODO(rsc): Remove doubling.
+-func typeBitmapInHeapBitmapFormat(typ *_type) []uint8 {
++// ptrBitmapForType returns a bitmap indicating where pointers are
++// in the memory representation of the type typ.
++// The bit x[i/8]&(1<<(i%8)) is 1 if the i'th word in a value of type typ
++// is a pointer.
++func ptrBitmapForType(typ *_type) []uint8 {
+ 	var ptrmask *uint8
+ 	nptr := (uintptr(typ.size) + ptrSize - 1) / ptrSize
+ 	if typ.kind&kindGCProg != 0 {
+-		masksize := nptr
+-		if masksize%2 != 0 {
+-			masksize *= 2 // repeated
+-		}
+-		const typeBitsPerByte = 8 / typeBitsWidth
+-		masksize = masksize * typeBitsPerByte / 8 // 4 bits per word
+-		masksize++                                // unroll flag in the beginning
++		masksize := (nptr + 7) / 8
++		masksize++ // unroll flag in the beginning
+ 		if masksize > maxGCMask && typ.gc[1] != 0 {
+ 			// write barriers have not been updated to deal with this case yet.
+ 			throw("maxGCMask too small for now")
+@@ -565,7 +554,7 @@ func typeBitmapInHeapBitmapFormat(typ *_type) []uint8 {
+ 	} else {
+ 		ptrmask = (*uint8)(unsafe.Pointer(typ.gc[0])) // pointer to unrolled mask
+ 	}
+-	return (*[1 << 30]byte)(unsafe.Pointer(ptrmask))[:(nptr+1)/2]
++	return (*[1 << 30]byte)(unsafe.Pointer(ptrmask))[:(nptr+7)/8]
+ }
+ 
+ // GC type info programs
+@@ -625,10 +614,7 @@ func unrollgcprog1(maskp *byte, prog *byte, ppos *uintptr, inplace, sparse bool)
+ 			prog = addb(prog, 1)
+ 			p := (*[1 << 30]byte)(unsafe.Pointer(prog))
+ 			for i := 0; i < siz; i++ {
+-				const typeBitsPerByte = 8 / typeBitsWidth
+-				v := p[i/typeBitsPerByte]
+-				v >>= (uint(i) % typeBitsPerByte) * typeBitsWidth
+-				v &= typeMask
++				v := p[i/8] >> (uint(i) % 8) & 1
+ 				if inplace {
+ 					// Store directly into GC bitmap.
+ 					h := heapBitsForAddr(uintptr(unsafe.Pointer(&mask[pos])))
+@@ -639,18 +625,18 @@ func unrollgcprog1(maskp *byte, prog *byte, ppos *uintptr, inplace, sparse bool)
+ 					}
+ 					pos += ptrSize
+ 				} else if sparse {
++					throw("sparse")
+ 					// 4-bits per word, type bits in high bits
+ 					v <<= (pos % 8) + typeShift
+ 					mask[pos/8] |= v
+ 					pos += heapBitsWidth
+ 				} else {
+ 					// 1 bit per word, for data/bss bitmap
+-					v >>= 1 // convert typePointer to 1, others to 0
+ 					mask[pos/8] |= v << (pos % 8)
+ 					pos++
+ 				}
+ 			}
+-			prog = addb(prog, round(uintptr(siz)*typeBitsWidth, 8)/8)
++			prog = addb(prog, (uintptr(siz)+7)/8)
+ 
+ 		case insArray:
+ 			prog = (*byte)(add(unsafe.Pointer(prog), 1))
+@@ -675,7 +661,7 @@ func unrollgcprog1(maskp *byte, prog *byte, ppos *uintptr, inplace, sparse bool)
+ 	}
+ }
+ 
+-// Unrolls GC program prog for data/bss, returns dense GC mask.
++// Unrolls GC program prog for data/bss, returns 1-bit GC mask.
+ func unrollglobgcprog(prog *byte, size uintptr) bitvector {
+ 	masksize := round(round(size, ptrSize)/ptrSize, 8) / 8
+ 	mask := (*[1 << 30]byte)(persistentalloc(masksize+1, 0, &memstats.gc_sys))
+@@ -721,16 +707,10 @@ func unrollgcprog_m(typ *_type) {
+ 	if *mask == 0 {
+ 		pos := uintptr(8) // skip the unroll flag
+ 		prog := (*byte)(unsafe.Pointer(uintptr(typ.gc[1])))
+-		prog = unrollgcprog1(mask, prog, &pos, false, true)
++		prog = unrollgcprog1(mask, prog, &pos, false, false)
+ 		if *prog != insEnd {
+ 			throw("unrollgcprog: program does not end with insEnd")
+ 		}
+-		if typ.size/ptrSize%2 != 0 {
+-			// repeat the program
+-			prog := (*byte)(unsafe.Pointer(uintptr(typ.gc[1])))
+-			unrollgcprog1(mask, prog, &pos, false, true)
+-		}
+-
+ 		// atomic way to say mask[0] = 1
+ 		atomicor8(mask, 1)
+ 	}
+@@ -749,21 +729,21 @@ func getgcmaskcb(frame *stkframe, ctxt unsafe.Pointer) bool {
+ }
+ 
+ // Returns GC type info for object p for testing.
+-func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
+-	*mask = nil
+-	*len = 0
+-
+-	// data
++func getgcmask(ep interface{}) (mask []byte) {
++	e := *(*eface)(unsafe.Pointer(&ep))
++	p := e.data
++	t := e._type
++	// data or bss
+ 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
++		// data
+ 		if datap.data <= uintptr(p) && uintptr(p) < datap.edata {
+ 			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+-			*len = n / ptrSize
+-			*mask = &make([]byte, *len)[0]
++			mask = make([]byte, n/ptrSize)
+ 			for i := uintptr(0); i < n; i += ptrSize {
+ 				off := (uintptr(p) + i - datap.data) / ptrSize
+ 				bits := (*addb(datap.gcdatamask.bytedata, off/8) >> (off % 8)) & 1
+ 				bits += 1 // convert 1-bit to 2-bit
+-				*addb(*mask, i/ptrSize) = bits
++				mask[i/ptrSize] = bits
+ 			}
+ 			return
+ 		}
+@@ -771,13 +751,12 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
+ 		// bss
+ 		if datap.bss <= uintptr(p) && uintptr(p) < datap.ebss {
+ 			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+-			*len = n / ptrSize
+-			*mask = &make([]byte, *len)[0]
++			mask = make([]byte, n/ptrSize)
+ 			for i := uintptr(0); i < n; i += ptrSize {
+ 				off := (uintptr(p) + i - datap.bss) / ptrSize
+ 				bits := (*addb(datap.gcbssmask.bytedata, off/8) >> (off % 8)) & 1
+ 				bits += 1 // convert 1-bit to 2-bit
+-				*addb(*mask, i/ptrSize) = bits
++				mask[i/ptrSize] = bits
+ 			}
+ 			return
+ 		}
+@@ -787,11 +766,10 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
+ 	var n uintptr
+ 	var base uintptr
+ 	if mlookup(uintptr(p), &base, &n, nil) != 0 {
+-		*len = n / ptrSize
+-		*mask = &make([]byte, *len)[0]
++		mask = make([]byte, n/ptrSize)
+ 		for i := uintptr(0); i < n; i += ptrSize {
+ 			bits := heapBitsForAddr(base + i).typeBits()
+-			*addb(*mask, i/ptrSize) = bits
++			mask[i/ptrSize] = bits
+ 		}
+ 		return
+ 	}
+@@ -821,13 +799,13 @@ func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
+ 		bv := stackmapdata(stkmap, pcdata)
+ 		size := uintptr(bv.n) * ptrSize
+ 		n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+-		*len = n / ptrSize
+-		*mask = &make([]byte, *len)[0]
++		mask = make([]byte, n/ptrSize)
+ 		for i := uintptr(0); i < n; i += ptrSize {
+ 			off := (uintptr(p) + i - frame.varp + size) / ptrSize
+ 			bits := (*addb(bv.bytedata, off/8) >> (off % 8)) & 1
+ 			bits += 1 // convert 1-bit to 2-bit
+-			*addb(*mask, i/ptrSize) = bits
++			mask[i/ptrSize] = bits
+ 		}
+ 	}
++	return
+ }

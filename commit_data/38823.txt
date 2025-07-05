@@ -13,7 +13,68 @@ Date:   Wed Nov 28 11:28:47 2018 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modcmd/download.go      | 10 ++++++++++
  src/cmd/go/testdata/script/mod_download.txt | 21 +++++++++++++++++++++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 8678caea51..bbaba444f5 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -128,6 +128,16 @@ func runDownload(cmd *base.Command, args []string) {
+ 				base.Fatalf("%v", err)
+ 			}
+ 			os.Stdout.Write(append(b, '\n'))
++			if m.Error != "" {
++				base.SetExitStatus(1)
++			}
++		}
++	} else {
++		for _, m := range mods {
++			if m.Error != "" {
++				base.Errorf("%s@%s: %s\n", m.Path, m.Version, m.Error)
++			}
+ 		}
++		base.ExitIfErrors()
+ 	}
+ }
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+index 6be6acb360..22f07c33c7 100644
+--- a/src/cmd/go/testdata/script/mod_download.txt
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -8,6 +8,12 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
+ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
+ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
+ 
++# download of an invalid path should report the error
++! go mod download this.domain.is.invalid/somemodule@v1.0.0
++stderr 'this.domain.is.invalid'
++! go mod download -json this.domain.is.invalid/somemodule@v1.0.0
++stdout '"Error": ".*this.domain.is.invalid.*"'
++
+ # download -json with version should print JSON
+ go mod download -json 'rsc.io/quote@<=v1.5.0'
+ stdout '^\t"Path": "rsc.io/quote"'
+@@ -42,6 +48,21 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+ exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+ 
++# download repopulates deleted files and directories independently.
++rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
++go mod download
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
++rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
++go mod download
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
++rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
++go mod download
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
++rm -r $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
++go mod download
++exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
++
++# download reports the locations of downloaded files
+ go mod download -json
+ stdout '^\t"Path": "rsc.io/quote"'
+ stdout '^\t"Version": "v1.5.2"'

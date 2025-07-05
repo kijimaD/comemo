@@ -20,7 +20,7 @@ Date:   Wed Oct 4 15:22:49 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  .../compile/internal/devirtualize/devirtualize.go  |  6 ++---
  src/cmd/compile/internal/devirtualize/pgo.go       | 10 ++++----
  src/cmd/compile/internal/escape/call.go            | 16 ++++++------
@@ -54,3 +54,1057 @@ Date:   Wed Oct 4 15:22:49 2023 -0700
  src/cmd/compile/internal/walk/order.go             |  4 +--
  src/cmd/compile/internal/walk/stmt.go              |  8 +++---
  32 files changed, 121 insertions(+), 121 deletions(-)
+
+diff --git a/src/cmd/compile/internal/devirtualize/devirtualize.go b/src/cmd/compile/internal/devirtualize/devirtualize.go
+index 5e91104eeb..7b3a869d8e 100644
+--- a/src/cmd/compile/internal/devirtualize/devirtualize.go
++++ b/src/cmd/compile/internal/devirtualize/devirtualize.go
+@@ -51,7 +51,7 @@ func staticCall(call *ir.CallExpr) {
+ 	if call.Op() != ir.OCALLINTER {
+ 		return
+ 	}
+-	sel := call.X.(*ir.SelectorExpr)
++	sel := call.Fun.(*ir.SelectorExpr)
+ 	r := ir.StaticValue(sel.X)
+ 	if r.Op() != ir.OCONVIFACE {
+ 		return
+@@ -120,14 +120,14 @@ func staticCall(call *ir.CallExpr) {
+ 			base.WarnfAt(call.Pos(), "devirtualizing %v to %v", sel, typ)
+ 		}
+ 		call.SetOp(ir.OCALLMETH)
+-		call.X = x
++		call.Fun = x
+ 	case ir.ODOTINTER:
+ 		// Promoted method from embedded interface-typed field (#42279).
+ 		if base.Flag.LowerM != 0 {
+ 			base.WarnfAt(call.Pos(), "partially devirtualizing %v to %v", sel, typ)
+ 		}
+ 		call.SetOp(ir.OCALLINTER)
+-		call.X = x
++		call.Fun = x
+ 	default:
+ 		base.FatalfAt(call.Pos(), "failed to devirtualize %v (%v)", x, x.Op())
+ 	}
+diff --git a/src/cmd/compile/internal/devirtualize/pgo.go b/src/cmd/compile/internal/devirtualize/pgo.go
+index a04ff16d60..24d1634215 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo.go
++++ b/src/cmd/compile/internal/devirtualize/pgo.go
+@@ -260,7 +260,7 @@ func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallEx
+ 	case ir.OCALLFUNC:
+ 		stat.Interface = false
+ 
+-		callee := pgo.DirectCallee(call.X)
++		callee := pgo.DirectCallee(call.Fun)
+ 		if callee != nil {
+ 			stat.Direct = true
+ 			if stat.Hottest == "" {
+@@ -283,7 +283,7 @@ func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallEx
+ // concretetyp.
+ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *types.Type) ir.Node {
+ 	if base.Flag.LowerM != 0 {
+-		fmt.Printf("%v: PGO devirtualizing %v to %v\n", ir.Line(call), call.X, callee)
++		fmt.Printf("%v: PGO devirtualizing %v to %v\n", ir.Line(call), call.Fun, callee)
+ 	}
+ 
+ 	// We generate an OINCALL of:
+@@ -316,13 +316,13 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
+ 
+ 	var retvars []ir.Node
+ 
+-	sig := call.X.Type()
++	sig := call.Fun.Type()
+ 
+ 	for _, ret := range sig.Results() {
+ 		retvars = append(retvars, typecheck.TempAt(base.Pos, curfn, ret.Type))
+ 	}
+ 
+-	sel := call.X.(*ir.SelectorExpr)
++	sel := call.Fun.(*ir.SelectorExpr)
+ 	method := sel.Sel
+ 	pos := call.Pos()
+ 	init := ir.TakeInit(call)
+@@ -421,7 +421,7 @@ func interfaceCallRecvTypeAndMethod(call *ir.CallExpr) (*types.Type, *types.Sym)
+ 		base.Fatalf("Call isn't OCALLINTER: %+v", call)
+ 	}
+ 
+-	sel, ok := call.X.(*ir.SelectorExpr)
++	sel, ok := call.Fun.(*ir.SelectorExpr)
+ 	if !ok {
+ 		base.Fatalf("OCALLINTER doesn't contain SelectorExpr: %+v", call)
+ 	}
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 2bc87d4f8e..bf40de0544 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -39,11 +39,11 @@ func (e *escape) call(ks []hole, call ir.Node) {
+ 		var fn *ir.Name
+ 		switch call.Op() {
+ 		case ir.OCALLFUNC:
+-			v := ir.StaticValue(call.X)
++			v := ir.StaticValue(call.Fun)
+ 			fn = ir.StaticCalleeName(v)
+ 		}
+ 
+-		fntype := call.X.Type()
++		fntype := call.Fun.Type()
+ 		if fn != nil {
+ 			fntype = fn.Type()
+ 		}
+@@ -70,9 +70,9 @@ func (e *escape) call(ks []hole, call ir.Node) {
+ 					}
+ 				}
+ 			}
+-			e.expr(calleeK, call.X)
++			e.expr(calleeK, call.Fun)
+ 		} else {
+-			recvArg = call.X.(*ir.SelectorExpr).X
++			recvArg = call.Fun.(*ir.SelectorExpr).X
+ 		}
+ 
+ 		// argumentParam handles escape analysis of assigning a call
+@@ -155,7 +155,7 @@ func (e *escape) call(ks []hole, call ir.Node) {
+ 		e.discard(call.X)
+ 		e.discard(call.Y)
+ 
+-	case ir.ODELETE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
++	case ir.ODELETE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
+ 		call := call.(*ir.CallExpr)
+ 		for i := range call.Args {
+ 			e.discard(call.Args[i])
+@@ -206,15 +206,15 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
+ 	if !ok || call.Op() != ir.OCALLFUNC {
+ 		base.FatalfAt(n.Pos(), "expected function call: %v", n.Call)
+ 	}
+-	if sig := call.X.Type(); sig.NumParams()+sig.NumResults() != 0 {
++	if sig := call.Fun.Type(); sig.NumParams()+sig.NumResults() != 0 {
+ 		base.FatalfAt(n.Pos(), "expected signature without parameters or results: %v", sig)
+ 	}
+ 
+-	if clo, ok := call.X.(*ir.ClosureExpr); ok && n.Op() == ir.OGO {
++	if clo, ok := call.Fun.(*ir.ClosureExpr); ok && n.Op() == ir.OGO {
+ 		clo.IsGoWrap = true
+ 	}
+ 
+-	e.expr(k, call.X)
++	e.expr(k, call.Fun)
+ }
+ 
+ // rewriteArgument rewrites the argument arg of the given call expression.
+diff --git a/src/cmd/compile/internal/escape/stmt.go b/src/cmd/compile/internal/escape/stmt.go
+index bbd5113d5d..b766864a30 100644
+--- a/src/cmd/compile/internal/escape/stmt.go
++++ b/src/cmd/compile/internal/escape/stmt.go
+@@ -183,7 +183,7 @@ func (e *escape) stmt(n ir.Node) {
+ 			dsts[i] = res.Nname.(*ir.Name)
+ 		}
+ 		e.assignList(dsts, n.Results, "return", n)
+-	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OINLCALL, ir.OCLEAR, ir.OCLOSE, ir.OCOPY, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
++	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OINLCALL, ir.OCLEAR, ir.OCLOSE, ir.OCOPY, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
+ 		e.call(nil, n)
+ 	case ir.OGO, ir.ODEFER:
+ 		n := n.(*ir.GoDeferStmt)
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index cd5adc1421..14a2030995 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -536,8 +536,8 @@ opSwitch:
+ 		//
+ 		// runtime.throw is a "cheap call" like panic in normal code.
+ 		var cheap bool
+-		if n.X.Op() == ir.ONAME {
+-			name := n.X.(*ir.Name)
++		if n.Fun.Op() == ir.ONAME {
++			name := n.Fun.(*ir.Name)
+ 			if name.Class == ir.PFUNC {
+ 				switch fn := types.RuntimeSymName(name.Sym()); fn {
+ 				case "getcallerpc", "getcallersp":
+@@ -568,8 +568,8 @@ opSwitch:
+ 				return false
+ 			}
+ 		}
+-		if n.X.Op() == ir.OMETHEXPR {
+-			if meth := ir.MethodExprName(n.X); meth != nil {
++		if n.Fun.Op() == ir.OMETHEXPR {
++			if meth := ir.MethodExprName(n.Fun); meth != nil {
+ 				if fn := meth.Func; fn != nil {
+ 					s := fn.Sym()
+ 					if types.RuntimeSymName(s) == "heapBits.nextArena" {
+@@ -602,7 +602,7 @@ opSwitch:
+ 
+ 		// Determine if the callee edge is for an inlinable hot callee or not.
+ 		if v.profile != nil && v.curFunc != nil {
+-			if fn := inlCallee(v.curFunc, n.X, v.profile); fn != nil && typecheck.HaveInlineBody(fn) {
++			if fn := inlCallee(v.curFunc, n.Fun, v.profile); fn != nil && typecheck.HaveInlineBody(fn) {
+ 				lineOffset := pgo.NodeLineOffset(n, fn)
+ 				csi := pgo.CallSiteInfo{LineOffset: lineOffset, Caller: v.curFunc}
+ 				if _, o := candHotEdgeMap[csi]; o {
+@@ -618,7 +618,7 @@ opSwitch:
+ 			break
+ 		}
+ 
+-		if fn := inlCallee(v.curFunc, n.X, v.profile); fn != nil && typecheck.HaveInlineBody(fn) {
++		if fn := inlCallee(v.curFunc, n.Fun, v.profile); fn != nil && typecheck.HaveInlineBody(fn) {
+ 			// In the existing inliner, it makes sense to use fn.Inl.Cost
+ 			// here due to the fact that an "inline F everywhere if F inlinable"
+ 			// strategy is used. With the new inliner, however, it is not
+@@ -902,10 +902,10 @@ func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.Inlin
+ 		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
+ 	case ir.OCALLFUNC:
+ 		n := n.(*ir.CallExpr)
+-		if n.X.Op() == ir.OMETHEXPR {
++		if n.Fun.Op() == ir.OMETHEXPR {
+ 			// Prevent inlining some reflect.Value methods when using checkptr,
+ 			// even when package reflect was compiled without it (#35073).
+-			if meth := ir.MethodExprName(n.X); meth != nil {
++			if meth := ir.MethodExprName(n.Fun); meth != nil {
+ 				s := meth.Sym()
+ 				if base.Debug.Checkptr != 0 {
+ 					switch types.ReflectSymName(s) {
+@@ -934,12 +934,12 @@ func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.Inlin
+ 			break
+ 		}
+ 		if base.Flag.LowerM > 3 {
+-			fmt.Printf("%v:call to func %+v\n", ir.Line(n), call.X)
++			fmt.Printf("%v:call to func %+v\n", ir.Line(n), call.Fun)
+ 		}
+ 		if ir.IsIntrinsicCall(call) {
+ 			break
+ 		}
+-		if fn := inlCallee(callerfn, call.X, profile); fn != nil && typecheck.HaveInlineBody(fn) {
++		if fn := inlCallee(callerfn, call.Fun, profile); fn != nil && typecheck.HaveInlineBody(fn) {
+ 			n = mkinlcall(callerfn, call, fn, bigCaller, inlCalls)
+ 		}
+ 	}
+@@ -1151,12 +1151,12 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool, i
+ 			// Not a standard call.
+ 			return
+ 		}
+-		if n.X.Op() != ir.OCLOSURE {
++		if n.Fun.Op() != ir.OCLOSURE {
+ 			// Not a direct closure call.
+ 			return
+ 		}
+ 
+-		clo := n.X.(*ir.ClosureExpr)
++		clo := n.Fun.(*ir.ClosureExpr)
+ 		if ir.IsTrivialClosure(clo) {
+ 			// enqueueFunc will handle trivial closures anyways.
+ 			return
+@@ -1276,10 +1276,10 @@ func isIndexingCoverageCounter(n ir.Node) bool {
+ // determine whether it represents a call to sync/atomic.AddUint32 to
+ // increment a coverage counter.
+ func isAtomicCoverageCounterUpdate(cn *ir.CallExpr) bool {
+-	if cn.X.Op() != ir.ONAME {
++	if cn.Fun.Op() != ir.ONAME {
+ 		return false
+ 	}
+-	name := cn.X.(*ir.Name)
++	name := cn.Fun.(*ir.Name)
+ 	if name.Class != ir.PFUNC {
+ 		return false
+ 	}
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+index c785dd0a40..85e287083d 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+@@ -234,7 +234,7 @@ func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {
+ 		}
+ 	case ir.OCALLFUNC:
+ 		ce := n.(*ir.CallExpr)
+-		callee := pgo.DirectCallee(ce.X)
++		callee := pgo.DirectCallee(ce.Fun)
+ 		if callee != nil && callee.Inl != nil {
+ 			csa.addCallSite(callee, ce)
+ 		}
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+index 15f5bd5f35..305e07fd9a 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+@@ -180,7 +180,7 @@ func isExitCall(n ir.Node) bool {
+ 		return false
+ 	}
+ 	cx := n.(*ir.CallExpr)
+-	name := ir.StaticCalleeName(cx.X)
++	name := ir.StaticCalleeName(cx.Fun)
+ 	if name == nil {
+ 		return false
+ 	}
+@@ -330,7 +330,7 @@ func (ffa *funcFlagsAnalyzer) nodeVisitPost(n ir.Node) {
+ 	case ir.OFALL:
+ 		// Not important.
+ 	case ir.ODCLFUNC, ir.ORECOVER, ir.OAS, ir.OAS2, ir.OAS2FUNC, ir.OASOP,
+-		ir.OPRINTN, ir.OPRINT, ir.OLABEL, ir.OCALLINTER, ir.ODEFER,
++		ir.OPRINTLN, ir.OPRINT, ir.OLABEL, ir.OCALLINTER, ir.ODEFER,
+ 		ir.OSEND, ir.ORECV, ir.OSELRECV2, ir.OGO, ir.OAPPEND, ir.OAS2DOTTYPE,
+ 		ir.OAS2MAPR, ir.OGETG, ir.ODELETE, ir.OINLMARK, ir.OAS2RECV,
+ 		ir.OMIN, ir.OMAX, ir.OMAKE, ir.ORECOVERFP, ir.OGETCALLERSP:
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+index 03ac3fd957..6665ee54f0 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+@@ -131,7 +131,7 @@ func (pa *paramsAnalyzer) callCheckParams(ce *ir.CallExpr) {
+ 		if ce.Op() != ir.OCALLINTER {
+ 			return
+ 		}
+-		sel := ce.X.(*ir.SelectorExpr)
++		sel := ce.Fun.(*ir.SelectorExpr)
+ 		r := ir.StaticValue(sel.X)
+ 		if r.Op() != ir.ONAME {
+ 			return
+@@ -147,10 +147,10 @@ func (pa *paramsAnalyzer) callCheckParams(ce *ir.CallExpr) {
+ 				return name == p, false
+ 			})
+ 	case ir.OCALLFUNC:
+-		if ce.X.Op() != ir.ONAME {
++		if ce.Fun.Op() != ir.ONAME {
+ 			return
+ 		}
+-		called := ir.StaticValue(ce.X)
++		called := ir.StaticValue(ce.Fun)
+ 		if called.Op() != ir.ONAME {
+ 			return
+ 		}
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
+index c157e5cc48..e015961474 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
+@@ -247,10 +247,10 @@ func deriveReturnFlagsFromCallee(n ir.Node) (ResultPropBits, bool) {
+ 		return 0, false
+ 	}
+ 	ce := n.(*ir.CallExpr)
+-	if ce.X.Op() != ir.ONAME {
++	if ce.Fun.Op() != ir.ONAME {
+ 		return 0, false
+ 	}
+-	called := ir.StaticValue(ce.X)
++	called := ir.StaticValue(ce.Fun)
+ 	if called.Op() != ir.ONAME {
+ 		return 0, false
+ 	}
+diff --git a/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go b/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
+index b83bc4fd20..76e250a33b 100644
+--- a/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
++++ b/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
+@@ -386,10 +386,10 @@ func (rua *resultUseAnalyzer) returnHasProp(name *ir.Name, prop ResultPropBits)
+ 
+ func (rua *resultUseAnalyzer) getCallResultName(ce *ir.CallExpr) *ir.Name {
+ 	var callTarg ir.Node
+-	if sel, ok := ce.X.(*ir.SelectorExpr); ok {
++	if sel, ok := ce.Fun.(*ir.SelectorExpr); ok {
+ 		// method call
+ 		callTarg = sel.X
+-	} else if ctarg, ok := ce.X.(*ir.Name); ok {
++	} else if ctarg, ok := ce.Fun.(*ir.Name); ok {
+ 		// regular call
+ 		callTarg = ctarg
+ 	} else {
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 02d762b11a..e20c342bfb 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -184,7 +184,7 @@ func (n *BinaryExpr) SetOp(op Op) {
+ // A CallExpr is a function call X(Args).
+ type CallExpr struct {
+ 	miniExpr
+-	X         Node
++	Fun       Node
+ 	Args      Nodes
+ 	DeferAt   Node
+ 	RType     Node    `mknode:"-"` // see reflectdata/helpers.go
+@@ -194,7 +194,7 @@ type CallExpr struct {
+ }
+ 
+ func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
+-	n := &CallExpr{X: fun}
++	n := &CallExpr{Fun: fun}
+ 	n.pos = pos
+ 	n.SetOp(op)
+ 	n.Args = args
+@@ -211,7 +211,7 @@ func (n *CallExpr) SetOp(op Op) {
+ 		OCALL, OCALLFUNC, OCALLINTER, OCALLMETH,
+ 		ODELETE,
+ 		OGETG, OGETCALLERPC, OGETCALLERSP,
+-		OMAKE, OMAX, OMIN, OPRINT, OPRINTN,
++		OMAKE, OMAX, OMIN, OPRINT, OPRINTLN,
+ 		ORECOVER, ORECOVERFP:
+ 		n.op = op
+ 	}
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 35bfbc7a1c..31c610348b 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -73,7 +73,7 @@ var OpNames = []string{
+ 	OOR:               "|",
+ 	OPANIC:            "panic",
+ 	OPLUS:             "+",
+-	OPRINTN:           "println",
++	OPRINTLN:          "println",
+ 	OPRINT:            "print",
+ 	ORANGE:            "range",
+ 	OREAL:             "real",
+@@ -203,7 +203,7 @@ var OpPrec = []int{
+ 	ONONAME:           8,
+ 	OPANIC:            8,
+ 	OPAREN:            8,
+-	OPRINTN:           8,
++	OPRINTLN:          8,
+ 	OPRINT:            8,
+ 	ORUNESTR:          8,
+ 	OSLICE2ARR:        8,
+@@ -741,7 +741,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 		OMIN,
+ 		ORECOVER,
+ 		OPRINT,
+-		OPRINTN:
++		OPRINTLN:
+ 		n := n.(*CallExpr)
+ 		if n.IsDDD {
+ 			fmt.Fprintf(s, "%v(%.v...)", n.Op(), n.Args)
+@@ -751,7 +751,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 
+ 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
+ 		n := n.(*CallExpr)
+-		exprFmt(n.X, s, nprec)
++		exprFmt(n.Fun, s, nprec)
+ 		if n.IsDDD {
+ 			fmt.Fprintf(s, "(%.v...)", n.Args)
+ 			return
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 5a71a73c15..c693850d4a 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -435,10 +435,10 @@ func NewClosureFunc(fpos, cpos src.XPos, why Op, typ *types.Type, outerfn *Func,
+ 
+ // IsFuncPCIntrinsic returns whether n is a direct call of internal/abi.FuncPCABIxxx functions.
+ func IsFuncPCIntrinsic(n *CallExpr) bool {
+-	if n.Op() != OCALLFUNC || n.X.Op() != ONAME {
++	if n.Op() != OCALLFUNC || n.Fun.Op() != ONAME {
+ 		return false
+ 	}
+-	fn := n.X.(*Name).Sym()
++	fn := n.Fun.(*Name).Sym()
+ 	return (fn.Name == "FuncPCABI0" || fn.Name == "FuncPCABIInternal") &&
+ 		fn.Pkg.Path == "internal/abi"
+ }
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 954b7bc782..a6e8f0e3e5 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -223,7 +223,7 @@ const (
+ 	OOROR             // X || Y
+ 	OPANIC            // panic(X)
+ 	OPRINT            // print(List)
+-	OPRINTN           // println(List)
++	OPRINTLN          // println(List)
+ 	OPAREN            // (X)
+ 	OSEND             // Chan <- Value
+ 	OSLICE            // X[Low : High] (X is untypechecked or slice)
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 1fd8e89936..d24c6dbd38 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -295,7 +295,7 @@ func (n *CallExpr) doChildren(do func(Node) bool) bool {
+ 	if doNodes(n.init, do) {
+ 		return true
+ 	}
+-	if n.X != nil && do(n.X) {
++	if n.Fun != nil && do(n.Fun) {
+ 		return true
+ 	}
+ 	if doNodes(n.Args, do) {
+@@ -308,16 +308,16 @@ func (n *CallExpr) doChildren(do func(Node) bool) bool {
+ }
+ func (n *CallExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+-	if n.X != nil {
+-		n.X = edit(n.X).(Node)
++	if n.Fun != nil {
++		n.Fun = edit(n.Fun).(Node)
+ 	}
+ 	editNodes(n.Args, edit)
+ 	editNames(n.KeepAlive, edit)
+ }
+ func (n *CallExpr) editChildrenWithHidden(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+-	if n.X != nil {
+-		n.X = edit(n.X).(Node)
++	if n.Fun != nil {
++		n.Fun = edit(n.Fun).(Node)
+ 	}
+ 	editNodes(n.Args, edit)
+ 	if n.RType != nil {
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index cf8f10d829..6c3f666c87 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -97,7 +97,7 @@ func _() {
+ 	_ = x[OOROR-86]
+ 	_ = x[OPANIC-87]
+ 	_ = x[OPRINT-88]
+-	_ = x[OPRINTN-89]
++	_ = x[OPRINTLN-89]
+ 	_ = x[OPAREN-90]
+ 	_ = x[OSEND-91]
+ 	_ = x[OSLICE-92]
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index f25c4afb2d..1c0d0a9acc 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -3401,7 +3401,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
+ 	// may contain side effects. Make sure to preserve these,
+ 	// if necessary (#42703).
+ 	if call.Op() == ir.OCALLFUNC {
+-		inline.CalleeEffects(&init, call.X)
++		inline.CalleeEffects(&init, call.Fun)
+ 	}
+ 
+ 	var args ir.Nodes
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index 9f59fd6d07..f8f59acafe 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -436,14 +436,14 @@ func (p *Profile) createIRGraphEdge(fn *ir.Func, callernode *IRNode, name string
+ 		case ir.OCALLFUNC:
+ 			call := n.(*ir.CallExpr)
+ 			// Find the callee function from the call site and add the edge.
+-			callee := DirectCallee(call.X)
++			callee := DirectCallee(call.Fun)
+ 			if callee != nil {
+ 				p.addIREdge(callernode, name, n, callee)
+ 			}
+ 		case ir.OCALLMETH:
+ 			call := n.(*ir.CallExpr)
+ 			// Find the callee method from the call site and add the edge.
+-			callee := ir.MethodExprName(call.X).Func
++			callee := ir.MethodExprName(call.Fun).Func
+ 			p.addIREdge(callernode, name, n, callee)
+ 		}
+ 	})
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index a0eb93861b..b92be26e0b 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1826,7 +1826,7 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
+ 	if ir.CurFunc.LSym == nil {
+ 		return
+ 	}
+-	dot := n.X.(*ir.SelectorExpr)
++	dot := n.Fun.(*ir.SelectorExpr)
+ 	ityp := dot.X.Type()
+ 	if ityp.HasShape() {
+ 		// Here we're calling a method on a generic interface. Something like:
+diff --git a/src/cmd/compile/internal/ssagen/nowb.go b/src/cmd/compile/internal/ssagen/nowb.go
+index 68da39f352..b8756eea61 100644
+--- a/src/cmd/compile/internal/ssagen/nowb.go
++++ b/src/cmd/compile/internal/ssagen/nowb.go
+@@ -75,10 +75,10 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
+ 		return
+ 	}
+ 	n := nn.(*ir.CallExpr)
+-	if n.X == nil || n.X.Op() != ir.ONAME {
++	if n.Fun == nil || n.Fun.Op() != ir.ONAME {
+ 		return
+ 	}
+-	fn := n.X.(*ir.Name)
++	fn := n.Fun.(*ir.Name)
+ 	if fn.Class != ir.PFUNC || fn.Defn == nil {
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 366a9b3caa..84ea74aec5 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1480,9 +1480,9 @@ func (s *state) stmt(n ir.Node) {
+ 	case ir.OCALLINTER:
+ 		n := n.(*ir.CallExpr)
+ 		s.callResult(n, callNormal)
+-		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class == ir.PFUNC {
+-			if fn := n.X.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
+-				n.X.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" || fn == "panicunsafeslicenilptr" || fn == "panicunsafestringlen" || fn == "panicunsafestringnilptr") {
++		if n.Op() == ir.OCALLFUNC && n.Fun.Op() == ir.ONAME && n.Fun.(*ir.Name).Class == ir.PFUNC {
++			if fn := n.Fun.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
++				n.Fun.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" || fn == "panicunsafeslicenilptr" || fn == "panicunsafestringlen" || fn == "panicunsafestringnilptr") {
+ 				m := s.mem()
+ 				b := s.endBlock()
+ 				b.Kind = ssa.BlockExit
+@@ -3498,7 +3498,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 
+ 	// Call growslice
+ 	s.startBlock(grow)
+-	taddr := s.expr(n.X)
++	taddr := s.expr(n.Fun)
+ 	r := s.rtcall(ir.Syms.Growslice, true, []*types.Type{n.Type()}, p, l, c, nargs, taddr)
+ 
+ 	// Decompose output slice
+@@ -5007,7 +5007,7 @@ func IsIntrinsicCall(n *ir.CallExpr) bool {
+ 	if n == nil {
+ 		return false
+ 	}
+-	name, ok := n.X.(*ir.Name)
++	name, ok := n.Fun.(*ir.Name)
+ 	if !ok {
+ 		return false
+ 	}
+@@ -5016,7 +5016,7 @@ func IsIntrinsicCall(n *ir.CallExpr) bool {
+ 
+ // intrinsicCall converts a call to a recognized intrinsic function into the intrinsic SSA operation.
+ func (s *state) intrinsicCall(n *ir.CallExpr) *ssa.Value {
+-	v := findIntrinsic(n.X.Sym())(s, n, s.intrinsicArgs(n))
++	v := findIntrinsic(n.Fun.Sym())(s, n, s.intrinsicArgs(n))
+ 	if ssa.IntrinsicsDebug > 0 {
+ 		x := v
+ 		if x == nil {
+@@ -5025,7 +5025,7 @@ func (s *state) intrinsicCall(n *ir.CallExpr) *ssa.Value {
+ 		if x.Op == ssa.OpSelect0 || x.Op == ssa.OpSelect1 {
+ 			x = x.Args[0]
+ 		}
+-		base.WarnfAt(n.Pos(), "intrinsic substitution for %v with %s", n.X.Sym().Name, x.LongString())
++		base.WarnfAt(n.Pos(), "intrinsic substitution for %v with %s", n.Fun.Sym().Name, x.LongString())
+ 	}
+ 	return v
+ }
+@@ -5046,14 +5046,14 @@ func (s *state) intrinsicArgs(n *ir.CallExpr) []*ssa.Value {
+ // (as well as the deferBits variable), and this will enable us to run the proper
+ // defer calls during panics.
+ func (s *state) openDeferRecord(n *ir.CallExpr) {
+-	if len(n.Args) != 0 || n.Op() != ir.OCALLFUNC || n.X.Type().NumResults() != 0 {
++	if len(n.Args) != 0 || n.Op() != ir.OCALLFUNC || n.Fun.Type().NumResults() != 0 {
+ 		s.Fatalf("defer call with arguments or results: %v", n)
+ 	}
+ 
+ 	opendefer := &openDeferInfo{
+ 		n: n,
+ 	}
+-	fn := n.X
++	fn := n.Fun
+ 	// We must always store the function value in a stack slot for the
+ 	// runtime panic code to use. But in the defer exit code, we will
+ 	// call the function directly if it is a static function.
+@@ -5167,7 +5167,7 @@ func (s *state) openDeferExit() {
+ 		// Generate code to call the function call of the defer, using the
+ 		// closure that were stored in argtmps at the point of the defer
+ 		// statement.
+-		fn := r.n.X
++		fn := r.n.Fun
+ 		stksize := fn.Type().ArgWidth()
+ 		var callArgs []*ssa.Value
+ 		var call *ssa.Value
+@@ -5215,14 +5215,14 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
+ 	var codeptr *ssa.Value // ptr to target code (if dynamic)
+ 	var dextra *ssa.Value  // defer extra arg
+ 	var rcvr *ssa.Value    // receiver to set
+-	fn := n.X
++	fn := n.Fun
+ 	var ACArgs []*types.Type    // AuxCall args
+ 	var ACResults []*types.Type // AuxCall results
+ 	var callArgs []*ssa.Value   // For late-expansion, the args themselves (not stored, args to the call instead).
+ 
+ 	callABI := s.f.ABIDefault
+ 
+-	if k != callNormal && k != callTail && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
++	if k != callNormal && k != callTail && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.Fun.Type().NumResults() != 0) {
+ 		s.Fatalf("go/defer call with arguments: %v", n)
+ 	}
+ 
+@@ -5273,11 +5273,11 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
+ 		dextra = s.expr(deferExtra)
+ 	}
+ 
+-	params := callABI.ABIAnalyze(n.X.Type(), false /* Do not set (register) nNames from caller side -- can cause races. */)
++	params := callABI.ABIAnalyze(n.Fun.Type(), false /* Do not set (register) nNames from caller side -- can cause races. */)
+ 	types.CalcSize(fn.Type())
+ 	stksize := params.ArgWidth() // includes receiver, args, and results
+ 
+-	res := n.X.Type().Results()
++	res := n.Fun.Type().Results()
+ 	if k == callNormal || k == callTail {
+ 		for _, p := range params.OutParams() {
+ 			ACResults = append(ACResults, p.Type)
+@@ -5329,7 +5329,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
+ 		}
+ 
+ 		// Write args.
+-		t := n.X.Type()
++		t := n.Fun.Type()
+ 		args := n.Args
+ 
+ 		for _, p := range params.InParams() { // includes receiver for interface calls
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index 119cc37ad6..e7f9ec5cd8 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -470,7 +470,7 @@ func callOrChan(n ir.Node) bool {
+ 		ir.ONEW,
+ 		ir.OPANIC,
+ 		ir.OPRINT,
+-		ir.OPRINTN,
++		ir.OPRINTLN,
+ 		ir.OREAL,
+ 		ir.ORECOVER,
+ 		ir.ORECOVERFP,
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index f76b5573e9..5c54a5bd49 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -35,7 +35,7 @@ func MakeDotArgs(pos src.XPos, typ *types.Type, args []ir.Node) ir.Node {
+ // FixVariadicCall rewrites calls to variadic functions to use an
+ // explicit ... argument if one is not already present.
+ func FixVariadicCall(call *ir.CallExpr) {
+-	fntype := call.X.Type()
++	fntype := call.Fun.Type()
+ 	if !fntype.IsVariadic() || call.IsDDD {
+ 		return
+ 	}
+@@ -56,11 +56,11 @@ func FixVariadicCall(call *ir.CallExpr) {
+ 
+ // FixMethodCall rewrites a method call t.M(...) into a function call T.M(t, ...).
+ func FixMethodCall(call *ir.CallExpr) {
+-	if call.X.Op() != ir.ODOTMETH {
++	if call.Fun.Op() != ir.ODOTMETH {
+ 		return
+ 	}
+ 
+-	dot := call.X.(*ir.SelectorExpr)
++	dot := call.Fun.(*ir.SelectorExpr)
+ 
+ 	fn := NewMethodExpr(dot.Pos(), dot.X.Type(), dot.Selection.Sym)
+ 
+@@ -69,12 +69,12 @@ func FixMethodCall(call *ir.CallExpr) {
+ 	copy(args[1:], call.Args)
+ 
+ 	call.SetOp(ir.OCALLFUNC)
+-	call.X = fn
++	call.Fun = fn
+ 	call.Args = args
+ }
+ 
+ func AssertFixedCall(call *ir.CallExpr) {
+-	if call.X.Type().IsVariadic() && !call.IsDDD {
++	if call.Fun.Type().IsVariadic() && !call.IsDDD {
+ 		base.FatalfAt(call.Pos(), "missed FixVariadicCall")
+ 	}
+ 	if call.Op() == ir.OCALLMETH {
+@@ -144,9 +144,9 @@ func tcFunc(n *ir.Func) {
+ // tcCall typechecks an OCALL node.
+ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 	Stmts(n.Init()) // imported rewritten f(g()) calls (#30907)
+-	n.X = typecheck(n.X, ctxExpr|ctxType|ctxCallee)
++	n.Fun = typecheck(n.Fun, ctxExpr|ctxType|ctxCallee)
+ 
+-	l := n.X
++	l := n.Fun
+ 
+ 	if l.Op() == ir.ONAME && l.(*ir.Name).BuiltinOp != 0 {
+ 		l := l.(*ir.Name)
+@@ -159,9 +159,9 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 		default:
+ 			base.Fatalf("unknown builtin %v", l)
+ 
+-		case ir.OAPPEND, ir.ODELETE, ir.OMAKE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
++		case ir.OAPPEND, ir.ODELETE, ir.OMAKE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTLN, ir.ORECOVER:
+ 			n.SetOp(l.BuiltinOp)
+-			n.X = nil
++			n.Fun = nil
+ 			n.SetTypecheck(0) // re-typechecking new op is OK, not a loop
+ 			return typecheck(n, top)
+ 
+@@ -190,8 +190,8 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 		panic("unreachable")
+ 	}
+ 
+-	n.X = DefaultLit(n.X, nil)
+-	l = n.X
++	n.Fun = DefaultLit(n.Fun, nil)
++	l = n.Fun
+ 	if l.Op() == ir.OTYPE {
+ 		if n.IsDDD {
+ 			base.Fatalf("invalid use of ... in type conversion to %v", l.Type())
+@@ -252,7 +252,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 		}
+ 	}
+ 
+-	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args, func() string { return fmt.Sprintf("argument to %v", n.X) })
++	typecheckaste(ir.OCALL, n.Fun, n.IsDDD, t.Params(), n.Args, func() string { return fmt.Sprintf("argument to %v", n.Fun) })
+ 	FixVariadicCall(n)
+ 	FixMethodCall(n)
+ 	if t.NumResults() == 0 {
+@@ -261,8 +261,8 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 	if t.NumResults() == 1 {
+ 		n.SetType(l.Type().Result(0).Type)
+ 
+-		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME {
+-			if sym := n.X.(*ir.Name).Sym(); types.RuntimeSymName(sym) == "getg" {
++		if n.Op() == ir.OCALLFUNC && n.Fun.Op() == ir.ONAME {
++			if sym := n.Fun.(*ir.Name).Sym(); types.RuntimeSymName(sym) == "getg" {
+ 				// Emit code for runtime.getg() directly instead of calling function.
+ 				// Most such rewrites (for example the similar one for math.Sqrt) should be done in walk,
+ 				// so that the ordering pass can make sure to preserve the semantics of the original code
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 89380ec387..8642e0d14d 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -121,7 +121,7 @@ assignOK:
+ 	if len(lhs) != cr {
+ 		if r, ok := rhs[0].(*ir.CallExpr); ok && len(rhs) == 1 {
+ 			if r.Type() != nil {
+-				base.ErrorfAt(stmt.Pos(), errors.WrongAssignCount, "assignment mismatch: %d variable%s but %v returns %d value%s", len(lhs), plural(len(lhs)), r.X, cr, plural(cr))
++				base.ErrorfAt(stmt.Pos(), errors.WrongAssignCount, "assignment mismatch: %d variable%s but %v returns %d value%s", len(lhs), plural(len(lhs)), r.Fun, cr, plural(cr))
+ 			}
+ 		} else {
+ 			base.ErrorfAt(stmt.Pos(), errors.WrongAssignCount, "assignment mismatch: %d variable%s but %v value%s", len(lhs), plural(len(lhs)), len(rhs), plural(len(rhs)))
+@@ -217,7 +217,7 @@ func tcGoDefer(n *ir.GoDeferStmt) {
+ 	init.Append(ir.TakeInit(call)...)
+ 
+ 	if call, ok := n.Call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
+-		if sig := call.X.Type(); sig.NumParams()+sig.NumResults() == 0 {
++		if sig := call.Fun.Type(); sig.NumParams()+sig.NumResults() == 0 {
+ 			return // already in normal form
+ 		}
+ 	}
+@@ -303,19 +303,19 @@ func tcGoDefer(n *ir.GoDeferStmt) {
+ 		call := call.(*ir.CallExpr)
+ 
+ 		// If the callee is a named function, link to the original callee.
+-		if wrapped := ir.StaticCalleeName(call.X); wrapped != nil {
++		if wrapped := ir.StaticCalleeName(call.Fun); wrapped != nil {
+ 			wrapperFn.WrappedFunc = wrapped.Func
+ 		}
+ 
+-		visit(&call.X)
++		visit(&call.Fun)
+ 		visitList(call.Args)
+ 
+ 	case ir.OCALLINTER:
+ 		call := call.(*ir.CallExpr)
+-		argps = append(argps, &call.X.(*ir.SelectorExpr).X) // must be first for OCHECKNIL; see below
++		argps = append(argps, &call.Fun.(*ir.SelectorExpr).X) // must be first for OCHECKNIL; see below
+ 		visitList(call.Args)
+ 
+-	case ir.OAPPEND, ir.ODELETE, ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
++	case ir.OAPPEND, ir.ODELETE, ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
+ 		call := call.(*ir.CallExpr)
+ 		visitList(call.Args)
+ 		visit(&call.RType)
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index ed25be6f2a..74dc09fdb6 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -438,7 +438,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 		n := n.(*ir.UnaryExpr)
+ 		return tcNew(n)
+ 
+-	case ir.OPRINT, ir.OPRINTN:
++	case ir.OPRINT, ir.OPRINTLN:
+ 		n := n.(*ir.CallExpr)
+ 		return tcPrint(n)
+ 
+@@ -626,7 +626,7 @@ func typecheckargs(n ir.InitNode) {
+ // RewriteNonNameCall replaces non-Name call expressions with temps,
+ // rewriting f()(...) to t0 := f(); t0(...).
+ func RewriteNonNameCall(n *ir.CallExpr) {
+-	np := &n.X
++	np := &n.Fun
+ 	if dot, ok := (*np).(*ir.SelectorExpr); ok && (dot.Op() == ir.ODOTMETH || dot.Op() == ir.ODOTINTER || dot.Op() == ir.OMETHVALUE) {
+ 		np = &dot.X // peel away method selector
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index 9f917d09a8..4c4487c649 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -46,7 +46,7 @@ var builtinFuncs = [...]struct {
+ 	{"new", ir.ONEW},
+ 	{"panic", ir.OPANIC},
+ 	{"print", ir.OPRINT},
+-	{"println", ir.OPRINTN},
++	{"println", ir.OPRINTLN},
+ 	{"real", ir.OREAL},
+ 	{"recover", ir.ORECOVER},
+ }
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 8f3ff340c4..afd1a326d3 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -103,7 +103,7 @@ func walkAssign(init *ir.Nodes, n ir.Node) ir.Node {
+ 			// Left in place for back end.
+ 			// Do not add a new write barrier.
+ 			// Set up address of type for back end.
+-			r.X = reflectdata.AppendElemRType(base.Pos, r)
++			r.Fun = reflectdata.AppendElemRType(base.Pos, r)
+ 			return as
+ 		}
+ 		// Otherwise, lowered for race detector.
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index fe2473b936..90c32154b9 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -546,7 +546,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	walkExprListCheap(nn.Args, init)
+ 
+ 	// For println, add " " between elements and "\n" at the end.
+-	if nn.Op() == ir.OPRINTN {
++	if nn.Op() == ir.OPRINTLN {
+ 		s := nn.Args
+ 		t := make([]ir.Node, 0, len(s)*2)
+ 		for i, n := range s {
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index ca8adb5943..6fc2317afb 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -30,7 +30,7 @@ import (
+ //		(*&byref)++
+ //	}(byval, &byref, 42)
+ func directClosureCall(n *ir.CallExpr) {
+-	clo := n.X.(*ir.ClosureExpr)
++	clo := n.Fun.(*ir.ClosureExpr)
+ 	clofn := clo.Func
+ 
+ 	if ir.IsTrivialClosure(clo) {
+@@ -72,7 +72,7 @@ func directClosureCall(n *ir.CallExpr) {
+ 	clofn.Dcl = append(decls, clofn.Dcl...)
+ 
+ 	// Rewrite call.
+-	n.X = f
++	n.Fun = f
+ 	n.Args.Prepend(closureArgs(clo)...)
+ 
+ 	// Update the call expression's type. We need to do this
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index f033d66884..45a6e43527 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -172,7 +172,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		n := n.(*ir.LogicalExpr)
+ 		return walkLogical(n, init)
+ 
+-	case ir.OPRINT, ir.OPRINTN:
++	case ir.OPRINT, ir.OPRINTLN:
+ 		return walkPrint(n.(*ir.CallExpr), init)
+ 
+ 	case ir.OPANIC:
+@@ -532,7 +532,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	if n.Op() == ir.OCALLMETH {
+ 		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
+ 	}
+-	if n.Op() == ir.OCALLINTER || n.X.Op() == ir.OMETHEXPR {
++	if n.Op() == ir.OCALLINTER || n.Fun.Op() == ir.OMETHEXPR {
+ 		// We expect both interface call reflect.Type.Method and concrete
+ 		// call reflect.(*rtype).Method.
+ 		usemethod(n)
+@@ -541,14 +541,14 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		reflectdata.MarkUsedIfaceMethod(n)
+ 	}
+ 
+-	if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.OCLOSURE {
++	if n.Op() == ir.OCALLFUNC && n.Fun.Op() == ir.OCLOSURE {
+ 		directClosureCall(n)
+ 	}
+ 
+ 	if ir.IsFuncPCIntrinsic(n) {
+ 		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function, rewrite
+ 		// it to the address of the function of the ABI fn is defined.
+-		name := n.X.(*ir.Name).Sym().Name
++		name := n.Fun.(*ir.Name).Sym().Name
+ 		arg := n.Args[0]
+ 		var wantABI obj.ABI
+ 		switch name {
+@@ -583,7 +583,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		return e
+ 	}
+ 
+-	if name, ok := n.X.(*ir.Name); ok {
++	if name, ok := n.Fun.(*ir.Name); ok {
+ 		sym := name.Sym()
+ 		if sym.Pkg.Path == "go.runtime" && sym.Name == "deferrangefunc" {
+ 			// Call to runtime.deferrangefunc is being shared with a range-over-func
+@@ -609,9 +609,9 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+ 	}
+ 
+ 	args := n.Args
+-	params := n.X.Type().Params()
++	params := n.Fun.Type().Params()
+ 
+-	n.X = walkExpr(n.X, init)
++	n.Fun = walkExpr(n.Fun, init)
+ 	walkExprList(args, init)
+ 
+ 	for i, arg := range args {
+@@ -633,7 +633,7 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+ 		}
+ 	}
+ 
+-	funSym := n.X.Sym()
++	funSym := n.Fun.Sym()
+ 	if base.Debug.Libfuzzer != 0 && funSym != nil {
+ 		if hook, found := hooks[funSym.Pkg.Path+"."+funSym.Name]; found {
+ 			if len(args) != hook.argsNum {
+@@ -971,7 +971,7 @@ func usemethod(n *ir.CallExpr) {
+ 		}
+ 	}
+ 
+-	dot, ok := n.X.(*ir.SelectorExpr)
++	dot, ok := n.Fun.(*ir.SelectorExpr)
+ 	if !ok {
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 2517023908..828a1537e2 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -545,7 +545,7 @@ func (o *orderState) call(nn ir.Node) {
+ 		return
+ 	}
+ 
+-	n.X = o.expr(n.X, nil)
++	n.Fun = o.expr(n.Fun, nil)
+ 	o.exprList(n.Args)
+ }
+ 
+@@ -753,7 +753,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 		o.out = append(o.out, n)
+ 		o.popTemp(t)
+ 
+-	case ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
++	case ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
+ 		n := n.(*ir.CallExpr)
+ 		t := o.markTemp()
+ 		o.call(n)
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index 6a22bfcb87..15f097f3cb 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -48,7 +48,7 @@ func walkStmt(n ir.Node) ir.Node {
+ 		ir.ODELETE,
+ 		ir.OSEND,
+ 		ir.OPRINT,
+-		ir.OPRINTN,
++		ir.OPRINTLN,
+ 		ir.OPANIC,
+ 		ir.ORECOVERFP,
+ 		ir.OGETG:
+@@ -138,7 +138,7 @@ func walkStmt(n ir.Node) ir.Node {
+ 		n := n.(*ir.TailCallStmt)
+ 
+ 		var init ir.Nodes
+-		n.Call.X = walkExpr(n.Call.X, &init)
++		n.Call.Fun = walkExpr(n.Call.Fun, &init)
+ 
+ 		if len(init) > 0 {
+ 			init.Append(n)
+@@ -195,7 +195,7 @@ func walkFor(n *ir.ForStmt) ir.Node {
+ // call without arguments or results.
+ func validGoDeferCall(call ir.Node) bool {
+ 	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC && len(call.KeepAlive) == 0 {
+-		sig := call.X.Type()
++		sig := call.Fun.Type()
+ 		return sig.NumParams()+sig.NumResults() == 0
+ 	}
+ 	return false
+@@ -210,7 +210,7 @@ func walkGoDefer(n *ir.GoDeferStmt) ir.Node {
+ 	var init ir.Nodes
+ 
+ 	call := n.Call.(*ir.CallExpr)
+-	call.X = walkExpr(call.X, &init)
++	call.Fun = walkExpr(call.Fun, &init)
+ 
+ 	if len(init) > 0 {
+ 		init.Append(n)

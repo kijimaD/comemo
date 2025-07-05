@@ -13,6 +13,20 @@ Date:   Mon Apr 11 18:38:08 2022 +0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/lex/tokenizer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/lex/tokenizer.go b/src/cmd/asm/internal/lex/tokenizer.go
+index 861a2d421d..4db88e20c3 100644
+--- a/src/cmd/asm/internal/lex/tokenizer.go
++++ b/src/cmd/asm/internal/lex/tokenizer.go
+@@ -109,7 +109,7 @@ func (t *Tokenizer) Next() ScanToken {
+ 		}
+ 		text := s.TokenText()
+ 		t.line += strings.Count(text, "\n")
+-		// TODO: Use constraint.IsGoBuild once it exists.
++		// TODO: Use constraint.IsGoBuild once #44505 fixed.
+ 		if strings.HasPrefix(text, "//go:build") {
+ 			t.tok = BuildComment
+ 			break

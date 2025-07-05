@@ -9,6 +9,21 @@ Date:   Tue Sep 4 15:26:51 2012 +1000
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6492078
-
+---
  doc/docs.html | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index 8f54efe78b..4c06e8249e 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -56,6 +56,9 @@ A must read for any new Go programmer. It augments the tour and
+ the language specification, both of which should be read first.
+ </p>
+ 
++<h3 id="ref"><a href="/ref/">Go References</a></h3>
++<p>Language specification, memory model, and detailed documentation for the commands and packages.</p>
++
+ <h3 id="appengine"><a href="https://developers.google.com/appengine/docs/go/gettingstarted/">Getting Started with Go on App Engine</a></h3>
+ <p>
+ How to develop and deploy a simple Go project with

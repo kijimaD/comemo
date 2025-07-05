@@ -15,6 +15,22 @@ Date:   Tue Dec 11 14:57:59 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/c/153719
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index a1089c8fdf..6d82b69a9d 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -321,6 +321,10 @@ func TestCPUProfileWithFork(t *testing.T) {
+ 		// Use smaller size for Android to avoid crash.
+ 		heap = 100 << 20
+ 	}
++	if runtime.GOOS == "windows" && runtime.GOARCH == "arm" {
++		// Use smaller heap for Windows/ARM to avoid crash.
++		heap = 100 << 20
++	}
+ 	if testing.Short() {
+ 		heap = 100 << 20
+ 	}

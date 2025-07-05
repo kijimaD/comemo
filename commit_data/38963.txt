@@ -9,6 +9,20 @@ Date:   Wed Dec 12 22:28:50 2018 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/strings/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/strings/example_test.go b/src/strings/example_test.go
+index 103ef51f29..607e4a0a70 100644
+--- a/src/strings/example_test.go
++++ b/src/strings/example_test.go
+@@ -199,7 +199,7 @@ func ExampleRepeat() {
+ 
+ func ExampleReplace() {
+ 	fmt.Println(strings.Replace("oink oink oink", "k", "ky", 2))
+-	fmt.Println(strings.ReplaceAll("oink oink oink", "oink", "moo"))
++	fmt.Println(strings.Replace("oink oink oink", "oink", "moo", -1))
+ 	// Output:
+ 	// oinky oinky oink
+ 	// moo moo moo

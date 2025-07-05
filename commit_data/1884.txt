@@ -9,7 +9,7 @@ Date:   Tue Mar 24 18:04:50 2009 -0700
     DELTA=452  (365 added, 29 deleted, 58 changed)
     OCL=26696
     CL=26712
-
+---
  src/libmach_amd64/8.c          |   2 +-
  src/libmach_amd64/8obj.c       | 172 ++++++++++++++++++++++++++++++++
  src/libmach_amd64/Makefile     |   2 +-
@@ -18,3 +18,820 @@ Date:   Tue Mar 24 18:04:50 2009 -0700
  src/libmach_amd64/linux.c      | 100 ++++++++++++++-----
  src/libmach_amd64/macho.h      |  32 +++++-
  7 files changed, 446 insertions(+), 82 deletions(-)
+
+diff --git a/src/libmach_amd64/8.c b/src/libmach_amd64/8.c
+index 301678fa0b..63c3f98f4c 100644
+--- a/src/libmach_amd64/8.c
++++ b/src/libmach_amd64/8.c
+@@ -98,7 +98,7 @@ Mach mi386 =
+ 	0x1000,		/* page size */
+ 	0x80100000ULL,	/* kernel base */
+ 	0xF0000000ULL,	/* kernel text mask */
+-	0x7FFFFFFFULL,	/* user stack top */
++	0xFFFFFFFFULL,	/* user stack top */
+ 	1,		/* quantization of pc */
+ 	4,		/* szaddr */
+ 	4,		/* szreg */
+diff --git a/src/libmach_amd64/8obj.c b/src/libmach_amd64/8obj.c
+new file mode 100644
+index 0000000000..211936ebbc
+--- /dev/null
++++ b/src/libmach_amd64/8obj.c
+@@ -0,0 +1,172 @@
++// Inferno libmach/8obj.c
++// http://code.google.com/p/inferno-os/source/browse/utils/libmach/8obj.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.
++//	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
++//	Portions Copyright © 1997-1999 Vita Nuova Limited.
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
++//	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++/*
++ * 8obj.c - identify and parse a 386 object file
++ */
++#include <u.h>
++#include <libc.h>
++#include <bio.h>
++#include <mach_amd64.h>
++#include "../cmd/8l/8.out.h"
++#include "obj.h"
++
++typedef struct Addr	Addr;
++struct Addr
++{
++	char	sym;
++	char	flags;
++};
++static	Addr	addr(Biobuf*);
++static	char	type2char(int);
++static	void	skip(Biobuf*, int);
++
++int
++_is8(char *t)
++{
++	uchar *s = (uchar*)t;
++
++	return  s[0] == (ANAME&0xff)			/* aslo = ANAME */
++		&& s[1] == ((ANAME>>8)&0xff)
++		&& s[2] == D_FILE			/* type */
++		&& s[3] == 1				/* sym */
++		&& s[4] == '<';				/* name of file */
++}
++
++int
++_read8(Biobuf *bp, Prog* p)
++{
++	int as, n, c;
++	Addr a;
++
++	as = Bgetc(bp);		/* as(low) */
++	if(as < 0)
++		return 0;
++	c = Bgetc(bp);		/* as(high) */
++	if(c < 0)
++		return 0;
++	as |= ((c & 0xff) << 8);
++	p->kind = aNone;
++	p->sig = 0;
++	if(as == ANAME || as == ASIGNAME){
++		if(as == ASIGNAME){
++			Bread(bp, &p->sig, 4);
++			p->sig = leswal(p->sig);
++		}
++		p->kind = aName;
++		p->type = type2char(Bgetc(bp));		/* type */
++		p->sym = Bgetc(bp);			/* sym */
++		n = 0;
++		for(;;) {
++			as = Bgetc(bp);
++			if(as < 0)
++				return 0;
++			n++;
++			if(as == 0)
++				break;
++		}
++		p->id = malloc(n);
++		if(p->id == 0)
++			return 0;
++		Bseek(bp, -n, 1);
++		if(Bread(bp, p->id, n) != n)
++			return 0;
++		return 1;
++	}
++	if(as == ATEXT)
++		p->kind = aText;
++	if(as == AGLOBL)
++		p->kind = aData;
++	skip(bp, 4);		/* lineno(4) */
++	a = addr(bp);
++	addr(bp);
++	if(!(a.flags & T_SYM))
++		p->kind = aNone;
++	p->sym = a.sym;
++	return 1;
++}
++
++static Addr
++addr(Biobuf *bp)
++{
++	Addr a;
++	int t;
++	long off;
++
++	off = 0;
++	a.sym = -1;
++	a.flags = Bgetc(bp);			/* flags */
++	if(a.flags & T_INDEX)
++		skip(bp, 2);
++	if(a.flags & T_OFFSET){
++		off = Bgetc(bp);
++		off |= Bgetc(bp) << 8;
++		off |= Bgetc(bp) << 16;
++		off |= Bgetc(bp) << 24;
++		if(off < 0)
++			off = -off;
++	}
++	if(a.flags & T_OFFSET2){
++		Bgetc(bp);
++		Bgetc(bp);
++		Bgetc(bp);
++		Bgetc(bp);
++	}
++	if(a.flags & T_SYM)
++		a.sym = Bgetc(bp);
++	if(a.flags & T_FCONST)
++		skip(bp, 8);
++	else
++	if(a.flags & T_SCONST)
++		skip(bp, NSNAME);
++	if(a.flags & T_TYPE) {
++		t = Bgetc(bp);
++		if(a.sym > 0 && (t==D_PARAM || t==D_AUTO))
++			_offset(a.sym, off);
++	}
++	return a;
++}
++
++static char
++type2char(int t)
++{
++	switch(t){
++	case D_EXTERN:		return 'U';
++	case D_STATIC:		return 'b';
++	case D_AUTO:		return 'a';
++	case D_PARAM:		return 'p';
++	default:		return UNKNOWN;
++	}
++}
++
++static void
++skip(Biobuf *bp, int n)
++{
++	while (n-- > 0)
++		Bgetc(bp);
++}
+diff --git a/src/libmach_amd64/Makefile b/src/libmach_amd64/Makefile
+index de564a03b5..83c077da4f 100644
+--- a/src/libmach_amd64/Makefile
++++ b/src/libmach_amd64/Makefile
+@@ -43,6 +43,7 @@ OFILES=\
+ 	8.$O\
+ 	8db.$O\
+ 	6obj.$O\
++	8obj.$O\
+ 	$(GOOS).$O\
+ #	v.$O\
+ #	k.$O\
+@@ -66,7 +67,6 @@ OFILES=\
+ #	2obj.$O\
+ #	5obj.$O\
+ #	7obj.$O\
+-#	8obj.$O\
+ #	9obj.$O\
+ #	qobj.$O\
+ #	vcodas.$O\
+diff --git a/src/libmach_amd64/executable.c b/src/libmach_amd64/executable.c
+index deca13cd87..d1ad1fe6c5 100644
+--- a/src/libmach_amd64/executable.c
++++ b/src/libmach_amd64/executable.c
+@@ -259,13 +259,22 @@ ExecTable exectab[] =
+ 		sizeof(Ehdr64),
+ 		nil,
+ 		elfdotout },
+-	{ MACH_MAG,			/* 64-bit MACH (apple mac) */
++	{ MACH64_MAG,			/* 64-bit MACH (apple mac) */
+ 		"mach executable",
+ 		nil,
+ 		FAMD64,
+ 		0,
++		&mamd64,
++		sizeof(Machhdr),
++		nil,
++		machdotout },
++	{ MACH32_MAG,			/* 64-bit MACH (apple mac) */
++		"mach executable",
++		nil,
++		FI386,
++		0,
+ 		&mi386,
+-		sizeof(Ehdr64),
++		sizeof(Machhdr),
+ 		nil,
+ 		machdotout },
+ 	{ E_MAGIC,			/* Arm 5.out and boot image */
+@@ -680,30 +689,10 @@ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 	fp->magic = ELF_MAG;
+ 	fp->hdrsz = (ep->ehsize+ep->phnum*ep->phentsize+16)&~15;
+ 	switch(ep->machine) {
+-	case I386:
+-		mach = &mi386;
+-		fp->type = FI386;
+-		break;
+-	case MIPS:
+-		mach = &mmips;
+-		fp->type = FMIPS;
+-		break;
+-	case SPARC64:
+-		mach = &msparc64;
+-		fp->type = FSPARC64;
+-		break;
+-	case POWER:
+-		mach = &mpower;
+-		fp->type = FPOWER;
+-		break;
+ 	case AMD64:
+ 		mach = &mamd64;
+ 		fp->type = FAMD64;
+ 		break;
+-	case ARM:
+-		mach = &marm;
+-		fp->type = FARM;
+-		break;
+ 	default:
+ 		return 0;
+ 	}
+@@ -731,7 +720,7 @@ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 			free(sh);
+ 			sh = 0;
+ 		} else
+-			hswal(ph, phsz/sizeof(uint32), swal);
++			hswal(sh, shsz/sizeof(uint32), swal);
+ 	}
+ 
+ 	/* find text, data and symbols and install them */
+@@ -781,7 +770,7 @@ error:
+ 	setdata(fp, ph[id].vaddr, ph[id].filesz, ph[id].offset, ph[id].memsz - ph[id].filesz);
+ 	if(is != -1)
+ 		setsym(fp, ph[is].filesz, 0, ph[is].memsz, ph[is].offset);
+-	else if(ep->machine == AMD64 && sh != 0){
++	else if(sh != 0){
+ 		char *buf;
+ 		uvlong symsize = 0;
+ 		uvlong symoff = 0;
+@@ -826,7 +815,8 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 	ushort (*swab)(ushort);
+ 	Ehdr32 *ep;
+ 	Phdr32 *ph;
+-	int i, it, id, is, phsz;
++	int i, it, id, is, phsz, shsz;
++	Shdr32 *sh;
+ 
+ 	/* bitswap the header according to the DATA format */
+ 	ep = &hp->e.elfhdr32;
+@@ -880,10 +870,6 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 		mach = &mpower;
+ 		fp->type = FPOWER;
+ 		break;
+-	case AMD64:
+-		mach = &mamd64;
+-		fp->type = FAMD64;
+-		break;
+ 	case ARM:
+ 		mach = &marm;
+ 		fp->type = FARM;
+@@ -907,6 +893,17 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 	}
+ 	hswal(ph, phsz/sizeof(uint32), swal);
+ 
++	shsz = sizeof(Shdr32)*ep->shnum;
++	sh = malloc(shsz);
++	if(sh) {
++		seek(fd, ep->shoff, 0);
++		if(read(fd, sh, shsz) < 0) {
++			free(sh);
++			sh = 0;
++		} else
++			hswal(sh, shsz/sizeof(uint32), swal);
++	}
++
+ 	/* find text, data and symbols and install them */
+ 	it = id = is = -1;
+ 	for(i = 0; i < ep->phnum; i++) {
+@@ -944,6 +941,8 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 		}
+ 
+ 		werrstr("No TEXT or DATA sections");
++error:
++		free(sh);
+ 		free(ph);
+ 		return 0;
+ 	}
+@@ -952,6 +951,39 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 	setdata(fp, ph[id].vaddr, ph[id].filesz, ph[id].offset, ph[id].memsz - ph[id].filesz);
+ 	if(is != -1)
+ 		setsym(fp, ph[is].filesz, 0, ph[is].memsz, ph[is].offset);
++	else if(sh != 0){
++		char *buf;
++		uvlong symsize = 0;
++		uvlong symoff = 0;
++		uvlong pclnsz = 0;
++
++		/* load shstrtab names */
++		buf = malloc(sh[ep->shstrndx].size);
++		if (buf == 0)
++			goto done;
++		memset(buf, 0, sizeof buf);
++		seek(fd, sh[ep->shstrndx].offset, 0);
++		read(fd, buf, sh[ep->shstrndx].size);
++
++		for(i = 0; i < ep->shnum; i++) {
++			if (strcmp(&buf[sh[i].name], ".gosymtab") == 0) {
++				symsize = sh[i].size;
++				symoff = sh[i].offset;
++			}
++			if (strcmp(&buf[sh[i].name], ".gopclntab") == 0) {
++				if (sh[i].offset != symoff+symsize) {
++					werrstr("pc line table not contiguous with symbol table");
++					free(buf);
++					goto error;
++				}
++				pclnsz = sh[i].size;
++			}
++		}
++		setsym(fp, symsize, 0, pclnsz, symoff);
++		free(buf);
++	}
++done:
++	free(sh);
+ 	free(ph);
+ 	return 1;
+ }
+@@ -964,23 +996,24 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 	ushort (*swab)(ushort);
+ 	Machhdr *mp;
+ 	MachCmd **cmd;
+-	MachSeg64 *text;
+-	MachSeg64 *data;
+ 	MachSymSeg *symtab;
+ 	MachSymSeg *pclntab;
+ 	MachSeg64 *seg;
+ 	MachSect64 *sect;
++	MachSeg32 *seg32;
++	MachSect32 *sect32;
+ 	uvlong textsize, datasize, bsssize;
+ 	uchar *cmdbuf;
+ 	uchar *cmdp;
+-	int i;
++	int i, hdrsize;
++	uint32 textva, textoff, datava, dataoff;
+ 
+-	/* bitswap the header according to the DATA format */
+ 	mp = &hp->e.machhdr;
+-	if (mp->cputype != leswal(MACH_CPU_TYPE_X86_64)) {
+-		werrstr("bad MACH cpu type - not amd64");
++	if (leswal(mp->filetype) != MACH_EXECUTABLE_TYPE) {
++		werrstr("bad MACH executable type %#ux", leswal(mp->filetype));
+ 		return 0;
+ 	}
++
+ 	swab = leswab;
+ 	swal = leswal;
+ 	swav = leswav;
+@@ -993,27 +1026,59 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 	mp->sizeofcmds = swal(mp->sizeofcmds);
+ 	mp->flags = swal(mp->flags);
+ 	mp->reserved = swal(mp->reserved);
+-	if (mp->cpusubtype != MACH_CPU_SUBTYPE_X86) {
+-		werrstr("bad MACH cpu subtype - not amd64");
+-		return 0;
+-	}
+-	if (mp->filetype != MACH_EXECUTABLE_TYPE) {
+-		werrstr("bad MACH cpu subtype - not amd64");
++	hdrsize = 0;
++
++	switch(mp->magic) {
++	case 0xFEEDFACE:	// 32-bit mach
++		if (mp->cputype != MACH_CPU_TYPE_X86) {
++			werrstr("bad MACH cpu type - not 386");
++			return 0;
++		}
++		if (mp->cpusubtype != MACH_CPU_SUBTYPE_X86) {
++			werrstr("bad MACH cpu subtype - not 386");
++			return 0;
++		}
++		if (mp->filetype != MACH_EXECUTABLE_TYPE) {
++			werrstr("bad MACH executable type");
++			return 0;
++		}
++		mach = &mi386;
++		fp->type = FI386;
++		hdrsize = 28;
++		break;
++
++	case 0xFEEDFACF:	// 64-bit mach
++		if (mp->cputype != MACH_CPU_TYPE_X86_64) {
++			werrstr("bad MACH cpu type - not amd64");
++			return 0;
++		}
++
++		if (mp->cpusubtype != MACH_CPU_SUBTYPE_X86) {
++			werrstr("bad MACH cpu subtype - not amd64");
++			return 0;
++		}
++		mach = &mamd64;
++		fp->type = FAMD64;
++		hdrsize = 32;
++		break;
++
++	default:
++		werrstr("not mach %#ux", mp->magic);
+ 		return 0;
+ 	}
+-	mach = &mamd64;
+-	fp->type = FAMD64;
+ 
+ 	cmdbuf = malloc(mp->sizeofcmds);
+-	seek(fd, sizeof(Machhdr), 0);
++	seek(fd, hdrsize, 0);
+ 	if(read(fd, cmdbuf, mp->sizeofcmds) != mp->sizeofcmds) {
+ 		free(cmdbuf);
+ 		return 0;
+ 	}
+ 	cmd = malloc(mp->ncmds * sizeof(MachCmd*));
+ 	cmdp = cmdbuf;
+-	text = 0;
+-	data = 0;
++	textva = 0;
++	textoff = 0;
++	dataoff = 0;
++	datava = 0;
+ 	symtab = 0;
+ 	pclntab = 0;
+ 	textsize = datasize = bsssize = 0;
+@@ -1025,7 +1090,56 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 		c->type = swal(c->type);
+ 		c->size = swal(c->size);
+ 		switch(c->type) {
++		case MACH_SEGMENT_32:
++			if(mp->magic != 0xFEEDFACE) {
++				werrstr("segment 32 in mach 64");
++				goto bad;
++			}
++			seg32 = (MachSeg32*)c;
++			seg32->vmaddr = swav(seg32->vmaddr);
++			seg32->vmsize = swav(seg32->vmsize);
++			seg32->fileoff = swav(seg32->fileoff);
++			seg32->filesize = swav(seg32->filesize);
++			seg32->maxprot = swal(seg32->maxprot);
++			seg32->initprot = swal(seg32->initprot);
++			seg32->nsects = swal(seg32->nsects);
++			seg32->flags = swal(seg32->flags);
++			if (strcmp(seg32->segname, "__TEXT") == 0) {
++				textva = seg32->vmaddr;
++				textoff = seg32->fileoff;
++				sect32 = (MachSect32*)(cmdp + sizeof(MachSeg32));
++				if (strcmp(sect32->sectname, "__text") == 0) {
++					textsize = swal(sect32->size);
++				} else {
++					werrstr("no text section");
++					goto bad;
++				}
++			}
++			if (strcmp(seg32->segname, "__DATA") == 0) {
++				datava = seg32->vmaddr;
++				dataoff = seg32->fileoff;
++				sect32 = (MachSect32*)(cmdp + sizeof(MachSeg32));
++				if (strcmp(sect32->sectname, "__data") == 0) {
++					datasize = swal(sect32->size);
++				} else {
++					werrstr("no data section");
++					goto bad;
++				}
++				sect32++;
++				if (strcmp(sect32->sectname, "__bss") == 0) {
++					bsssize = swal(sect32->size);
++				} else {
++					werrstr("no bss section");
++					goto bad;
++				}
++			}
++			break;
++
+ 		case MACH_SEGMENT_64:
++			if(mp->magic != 0xFEEDFACF) {
++				werrstr("segment 32 in mach 64");
++				goto bad;
++			}
+ 			seg = (MachSeg64*)c;
+ 			seg->vmaddr = swav(seg->vmaddr);
+ 			seg->vmsize = swav(seg->vmsize);
+@@ -1036,7 +1150,8 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 			seg->nsects = swal(seg->nsects);
+ 			seg->flags = swal(seg->flags);
+ 			if (strcmp(seg->segname, "__TEXT") == 0) {
+-				text = seg;
++				textva = seg->vmaddr;
++				textoff = seg->fileoff;
+ 				sect = (MachSect64*)(cmdp + sizeof(MachSeg64));
+ 				if (strcmp(sect->sectname, "__text") == 0) {
+ 					textsize = swav(sect->size);
+@@ -1046,7 +1161,8 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 				}
+ 			}
+ 			if (strcmp(seg->segname, "__DATA") == 0) {
+-				data = seg;
++				datava = seg->vmaddr;
++				dataoff = seg->fileoff;
+ 				sect = (MachSect64*)(cmdp + sizeof(MachSeg64));
+ 				if (strcmp(sect->sectname, "__data") == 0) {
+ 					datasize = swav(sect->size);
+@@ -1074,14 +1190,14 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 		}
+ 		cmdp += c->size;
+ 	}
+-	if (text == 0 || data == 0) {
++	if (textva == 0 || datava == 0) {
+ 		free(cmd);
+ 		free(cmdbuf);
+ 		return 0;
+ 	}
+ 	/* compute entry by taking address after header - weird - BUG? */
+-	settext(fp, text->vmaddr+sizeof(Machhdr) + mp->sizeofcmds, text->vmaddr, textsize, text->fileoff);
+-	setdata(fp, data->vmaddr, datasize, data->fileoff, bsssize);
++	settext(fp, textva+sizeof(Machhdr) + mp->sizeofcmds, textva, textsize, textoff);
++	setdata(fp, datava, datasize, dataoff, bsssize);
+ 	if(symtab != 0)
+ 		setsym(fp, symtab->filesize, 0, pclntab? pclntab->filesize : 0, symtab->fileoff);
+ 	free(cmd);
+diff --git a/src/libmach_amd64/fakeobj.c b/src/libmach_amd64/fakeobj.c
+index 6e5e38aa1c..95e2202423 100644
+--- a/src/libmach_amd64/fakeobj.c
++++ b/src/libmach_amd64/fakeobj.c
+@@ -16,7 +16,6 @@
+ int _is2(char* x) { return 0; }
+ int _is5(char* x) { return 0; }
+ int _is7(char* x) { return 0; }
+-int _is8(char* x) { return 0; }
+ int _is9(char* x) { return 0; }
+ int _isk(char* x) { return 0; }
+ int _isq(char* x) { return 0; }
+@@ -25,7 +24,6 @@ int _isu(char* x) { return 0; }
+ int _read2(Biobuf* b, Prog* p) { return 0; }
+ int _read5(Biobuf* b, Prog* p) { return 0; }
+ int _read7(Biobuf* b, Prog* p) { return 0; }
+-int _read8(Biobuf* b, Prog* p) { return 0; }
+ int _read9(Biobuf* b, Prog* p) { return 0; }
+ int _readk(Biobuf* b, Prog* p) { return 0; }
+ int _readq(Biobuf* b, Prog* p) { return 0; }
+diff --git a/src/libmach_amd64/linux.c b/src/libmach_amd64/linux.c
+index 3e156c97ff..69890f09b4 100644
+--- a/src/libmach_amd64/linux.c
++++ b/src/libmach_amd64/linux.c
+@@ -38,7 +38,12 @@
+ #include <libc.h>
+ #include <bio.h>
+ #include <mach_amd64.h>
++#define Ureg Ureg32
++#include <ureg_x86.h>
++#undef Ureg
++#define Ureg Ureg64
+ #include <ureg_amd64.h>
++#undef Ureg
+ #undef waitpid
+ 
+ // The old glibc used with crosstool compilers on thresher
+@@ -66,7 +71,7 @@
+ #define PTRACE_EVENT_EXIT 0x6
+ #endif
+ 
+-typedef struct Ureg Ureg;
++typedef struct Ureg64 Ureg64;
+ 
+ static Maprw ptracesegrw;
+ static Maprw ptraceregrw;
+@@ -787,57 +792,100 @@ ptracesegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
+ 		isr, map->pid, addr, v, n);
+ }
+ 
++// If the debugger is compiled as an x86-64 program,
++// then all the ptrace register read/writes are done on
++// a 64-bit register set.  If the target program
++// is a 32-bit program, the debugger is expected to
++// read the bottom half of the relevant registers
++// out of the 64-bit set.
++
++// Linux 32-bit is
++//	BX CX DX SI DI BP AX DS ES FS GS OrigAX IP CS EFLAGS SP SS
++
++// Linux 64-bit is
++//	R15 R14 R13 R12 BP BX R11 R10 R9 R8 AX CX DX SI DI OrigAX IP CS EFLAGS SP SS FSBase GSBase DS ES FS GS
++
++// Go 32-bit is
++//	DI SI BP NSP BX DX CX AX GS FS ES DS TRAP ECODE PC CS EFLAGS SP SS
++
++// uint go32tolinux32tab[] = {
++//	4, 3, 5, 15, 0, 2, 1, 6, 10, 9, 8, 7, -1, -1, 12, 13, 14, 15, 16
++// };
++uint go32tolinux64tab[] = {
++	14, 13, 4, 19, 5, 12, 11, 10, 26, 25, 24, 23, -1, -1, 16, 17, 18, 19, 20
++};
++static int
++go32tolinux64(uvlong addr)
++{
++	int r;
++
++	if(addr%4 || addr/4 >= nelem(go32tolinux64tab))
++		return -1;
++	r = go32tolinux64tab[addr/4];
++	if(r < 0)
++		return -1;
++	return r*8;
++}
++
++extern Mach mi386;
++
+ static int
+ go2linux(uvlong addr)
+ {
++	// TODO(rsc): If this file is being compiled in 32-bit mode,
++	// need to use the go32tolinux32 table instead.
++
++	if(mach == &mi386)
++		return go32tolinux64(addr);
++
+ 	switch(addr){
+-	case offsetof(Ureg, ax):
++	case offsetof(Ureg64, ax):
+ 		return offsetof(struct user_regs_struct, rax);
+-	case offsetof(Ureg, bx):
++	case offsetof(Ureg64, bx):
+ 		return offsetof(struct user_regs_struct, rbx);
+-	case offsetof(Ureg, cx):
++	case offsetof(Ureg64, cx):
+ 		return offsetof(struct user_regs_struct, rcx);
+-	case offsetof(Ureg, dx):
++	case offsetof(Ureg64, dx):
+ 		return offsetof(struct user_regs_struct, rdx);
+-	case offsetof(Ureg, si):
++	case offsetof(Ureg64, si):
+ 		return offsetof(struct user_regs_struct, rsi);
+-	case offsetof(Ureg, di):
++	case offsetof(Ureg64, di):
+ 		return offsetof(struct user_regs_struct, rdi);
+-	case offsetof(Ureg, bp):
++	case offsetof(Ureg64, bp):
+ 		return offsetof(struct user_regs_struct, rbp);
+-	case offsetof(Ureg, r8):
++	case offsetof(Ureg64, r8):
+ 		return offsetof(struct user_regs_struct, r8);
+-	case offsetof(Ureg, r9):
++	case offsetof(Ureg64, r9):
+ 		return offsetof(struct user_regs_struct, r9);
+-	case offsetof(Ureg, r10):
++	case offsetof(Ureg64, r10):
+ 		return offsetof(struct user_regs_struct, r10);
+-	case offsetof(Ureg, r11):
++	case offsetof(Ureg64, r11):
+ 		return offsetof(struct user_regs_struct, r11);
+-	case offsetof(Ureg, r12):
++	case offsetof(Ureg64, r12):
+ 		return offsetof(struct user_regs_struct, r12);
+-	case offsetof(Ureg, r13):
++	case offsetof(Ureg64, r13):
+ 		return offsetof(struct user_regs_struct, r13);
+-	case offsetof(Ureg, r14):
++	case offsetof(Ureg64, r14):
+ 		return offsetof(struct user_regs_struct, r14);
+-	case offsetof(Ureg, r15):
++	case offsetof(Ureg64, r15):
+ 		return offsetof(struct user_regs_struct, r15);
+-	case offsetof(Ureg, ds):
++	case offsetof(Ureg64, ds):
+ 		return offsetof(struct user_regs_struct, ds);
+-	case offsetof(Ureg, es):
++	case offsetof(Ureg64, es):
+ 		return offsetof(struct user_regs_struct, es);
+-	case offsetof(Ureg, fs):
++	case offsetof(Ureg64, fs):
+ 		return offsetof(struct user_regs_struct, fs);
+-	case offsetof(Ureg, gs):
++	case offsetof(Ureg64, gs):
+ 		return offsetof(struct user_regs_struct, gs);
+-	case offsetof(Ureg, ip):
++	case offsetof(Ureg64, ip):
+ 		return offsetof(struct user_regs_struct, rip);
+-	case offsetof(Ureg, cs):
++	case offsetof(Ureg64, cs):
+ 		return offsetof(struct user_regs_struct, cs);
+-	case offsetof(Ureg, flags):
++	case offsetof(Ureg64, flags):
+ 		return offsetof(struct user_regs_struct, eflags);
+-	case offsetof(Ureg, sp):
++	case offsetof(Ureg64, sp):
+ 		return offsetof(struct user_regs_struct, rsp);
+-	case offsetof(Ureg, ss):
++	case offsetof(Ureg64, ss):
+ 		return offsetof(struct user_regs_struct, ss);
+ 	}
+ 	return -1;
+@@ -904,7 +952,7 @@ ptraceregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
+ 	return 0;
+ 
+ ptraceerr:
+-	werrstr("ptrace %s register laddr=%d pid=%d: %r", isr ? "read" : "write", laddr, map->pid);
++	werrstr("ptrace %s register laddr=%d pid=%d n=%d: %r", isr ? "read" : "write", laddr, map->pid, n);
+ 	return -1;
+ }
+ 
+diff --git a/src/libmach_amd64/macho.h b/src/libmach_amd64/macho.h
+index d391fc959f..df039d0485 100644
+--- a/src/libmach_amd64/macho.h
++++ b/src/libmach_amd64/macho.h
+@@ -22,6 +22,19 @@ typedef struct {
+ 	uint32	size;	/* total size in bytes */
+ } MachCmd;
+ 
++typedef struct  {
++	MachCmd	cmd;
++	char		segname[16];	/* segment name */
++	uint32	vmaddr;		/* memory address of this segment */
++	uint32	vmsize;		/* memory size of this segment */
++	uint32	fileoff;	/* file offset of this segment */
++	uint32	filesize;	/* amount to map from the file */
++	uint32	maxprot;	/* maximum VM protection */
++	uint32	initprot;	/* initial VM protection */
++	uint32	nsects;		/* number of sections in segment */
++	uint32	flags;		/* flags */
++} MachSeg32; /* for 32-bit architectures */
++
+ typedef struct  {
+ 	MachCmd	cmd;
+ 	char		segname[16];	/* segment name */
+@@ -41,6 +54,20 @@ typedef struct  {
+ 	uint32	filesize;	/* amount to map from the file */
+ } MachSymSeg;
+ 
++typedef struct  {
++	char		sectname[16];	/* name of this section */
++	char		segname[16];	/* segment this section goes in */
++	uint32	addr;		/* memory address of this section */
++	uint32	size;		/* size in bytes of this section */
++	uint32	offset;		/* file offset of this section */
++	uint32	align;		/* section alignment (power of 2) */
++	uint32	reloff;		/* file offset of relocation entries */
++	uint32	nreloc;		/* number of relocation entries */
++	uint32	flags;		/* flags (section type and attributes)*/
++	uint32	reserved1;	/* reserved (for offset or index) */
++	uint32	reserved2;	/* reserved (for count or sizeof) */
++} MachSect32; /* for 32-bit architectures */
++
+ typedef struct  {
+ 	char		sectname[16];	/* name of this section */
+ 	char		segname[16];	/* segment this section goes in */
+@@ -58,12 +85,15 @@ typedef struct  {
+ 
+ enum {
+ 	MACH_CPU_TYPE_X86_64 = (1<<24)|7,
++	MACH_CPU_TYPE_X86 = 7,
+ 	MACH_CPU_SUBTYPE_X86 = 3,
+ 	MACH_EXECUTABLE_TYPE = 2,
++	MACH_SEGMENT_32 = 1,	/* 32-bit mapped segment */
+ 	MACH_SEGMENT_64 = 0x19,	/* 64-bit mapped segment */
+ 	MACH_SYMSEG = 3,	/* obsolete gdb symtab, reused by go */
+ 	MACH_UNIXTHREAD = 0x5,	/* thread (for stack) */
+ };
+ 
+ 
+-#define	MACH_MAG		((0xcf<<24) | (0xfa<<16) | (0xed<<8) | 0xfe)
++#define	MACH64_MAG		((0xcf<<24) | (0xfa<<16) | (0xed<<8) | 0xfe)
++#define	MACH32_MAG		((0xce<<24) | (0xfa<<16) | (0xed<<8) | 0xfe)

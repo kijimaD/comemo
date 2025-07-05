@@ -16,7 +16,7 @@ Date:   Wed Feb 20 11:10:17 2013 -0800
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/7357046
-
+---
  src/pkg/exp/ssa/builder.go             |   8 +--
  src/pkg/exp/ssa/importer.go            |   2 +-
  src/pkg/go/types/api.go                |  55 +++++++--------
@@ -33,3 +33,785 @@ Date:   Wed Feb 20 11:10:17 2013 -0800
  src/pkg/go/types/testdata/builtins.src |  31 ++++++++
  src/pkg/go/types/types.go              |   7 +-
  15 files changed, 244 insertions(+), 105 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/builder.go b/src/pkg/exp/ssa/builder.go
+index 810f7840c4..79052b0a68 100644
+--- a/src/pkg/exp/ssa/builder.go
++++ b/src/pkg/exp/ssa/builder.go
+@@ -162,13 +162,7 @@ func NewBuilder(mode BuilderMode, loader SourceLoader, errh func(error)) *Builde
+ 	// constants/idents/types maps associated with the containing
+ 	// package so we can discard them once that package is built.
+ 	b.typechecker = types.Context{
+-		// TODO(adonovan): permit the client to specify these
+-		// values.  Perhaps expose the types.Context parameter
+-		// directly (though of course we'll have to override
+-		// the Expr/Ident/Import callbacks).
+-		IntSize: 8,
+-		PtrSize: 8,
+-		Error:   errh,
++		Error: errh,
+ 		Expr: func(x ast.Expr, typ types.Type, val interface{}) {
+ 			b.types[x] = typ
+ 			if val != nil {
+diff --git a/src/pkg/exp/ssa/importer.go b/src/pkg/exp/ssa/importer.go
+index ce73323d44..bb7691a293 100644
+--- a/src/pkg/exp/ssa/importer.go
++++ b/src/pkg/exp/ssa/importer.go
+@@ -45,7 +45,7 @@ func (b *Builder) doImport(imports map[string]*types.Package, path string) (typk
+ 	}
+ 	var files []*ast.File
+ 	if b.mode&UseGCImporter != 0 {
+-		typkg, err = types.GcImport(imports, path)
++		typkg, err = types.GcImport(&b.typechecker, imports, path)
+ 	} else {
+ 		files, err = b.loader(b.Prog.Files, path)
+ 		if err == nil {
+diff --git a/src/pkg/go/types/api.go b/src/pkg/go/types/api.go
+index e5b6aa12c0..5782c6df30 100644
+--- a/src/pkg/go/types/api.go
++++ b/src/pkg/go/types/api.go
+@@ -15,17 +15,15 @@ import (
+ )
+ 
+ // A Context specifies the supporting context for type checking.
++// An empty Context is a ready-to-use default context.
+ type Context struct {
+-	IntSize int64 // size in bytes of int and uint values
+-	PtrSize int64 // size in bytes of pointers
+-
+-	// If Error is not nil, it is called with each error found
+-	// during type checking. Most error messages have accurate
+-	// position information; those error strings are formatted
+-	// filename:line:column: message.
++	// If Error != nil, it is called with each error found
++	// during type checking. The error strings of errors with
++	// detailed position information are formatted as follows:
++	// filename:line:column: message
+ 	Error func(err error)
+ 
+-	// If Ident is not nil, it is called for each identifier id
++	// If Ident != nil, it is called for each identifier id
+ 	// denoting an Object in the files provided to Check, and
+ 	// obj is the denoted object.
+ 	// Ident is not called for fields and methods in struct or
+@@ -35,7 +33,7 @@ type Context struct {
+ 	// Objects - than we could lift this restriction.
+ 	Ident func(id *ast.Ident, obj Object)
+ 
+-	// If Expr is not nil, it is called for each expression x that is
++	// If Expr != nil, it is called for each expression x that is
+ 	// type-checked: typ is the expression type, and val is the value
+ 	// if x is constant, val is nil otherwise.
+ 	//
+@@ -52,8 +50,23 @@ type Context struct {
+ 	// represented accurately as an int64.
+ 	Expr func(x ast.Expr, typ Type, val interface{})
+ 
+-	// If Import is not nil, it is used instead of GcImport.
++	// If Import != nil, it is called for each imported package.
++	// Otherwise, GcImporter is called.
+ 	Import Importer
++
++	// If Alignof != nil, it is called to determine alignment.
++	// Otherwise DefaultAlignmentof is called.
++	// Alignof must return a size > 0, in bytes. It is not called
++	// for arrays and structs (those alignments are based on the
++	// alignment of the array elements or struct fields, respectively).
++	Alignof func(Type) int64
++
++	// If Sizeof != nil, it is called to determine sizes of types.
++	// Otherwise, DefaultSizeof is called.
++	// Sizeof must return a size >= 0, in bytes. It is not called
++	// for arrays and structs (those sizes are based on the sizes
++	// of the array elements or struct fields, respectively).
++	Sizeof func(Type) int64
+ }
+ 
+ // An Importer resolves import paths to Package objects.
+@@ -67,30 +80,16 @@ type Context struct {
+ // return pkg.
+ type Importer func(imports map[string]*Package, path string) (pkg *Package, err error)
+ 
+-// Default is the default context for type checking.
+-var Default = Context{
+-	// TODO(gri) Perhaps this should depend on GOARCH?
+-	IntSize: 8,
+-	PtrSize: 8,
+-}
+-
+ // Check resolves and typechecks a set of package files within the given
+-// context. The package files' ASTs are augmented by assigning types to
+-// ast.Objects. If there are no errors, Check returns the package, otherwise
++// context. If there are no errors, Check returns the package, otherwise
+ // it returns the first error. If the context's Error handler is nil,
+ // Check terminates as soon as the first error is encountered.
+-//
+-// CAUTION: At the moment, the returned *ast.Package only contains the package
+-//          name and scope - the other fields are not set up. The returned
+-//          *Package contains the name and imports (but no scope yet). Once
+-//          we have the scope moved from *ast.Scope to *Scope, only *Package
+-//          will be returned.
+-//
+ func (ctxt *Context) Check(fset *token.FileSet, files []*ast.File) (*Package, error) {
+ 	return check(ctxt, fset, files)
+ }
+ 
+-// Check is shorthand for Default.Check.
++// Check is shorthand for ctxt.Check where ctxt is a default (empty) context.
+ func Check(fset *token.FileSet, files []*ast.File) (*Package, error) {
+-	return Default.Check(fset, files)
++	var ctxt Context
++	return ctxt.Check(fset, files)
+ }
+diff --git a/src/pkg/go/types/builtins.go b/src/pkg/go/types/builtins.go
+index 544f7610bb..53e6e49f5d 100644
+--- a/src/pkg/go/types/builtins.go
++++ b/src/pkg/go/types/builtins.go
+@@ -41,7 +41,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 	if n > 0 {
+ 		arg0 = args[0]
+ 		switch id {
+-		case _Make, _New, _Print, _Println, _Trace:
++		case _Make, _New, _Print, _Println, _Offsetof, _Trace:
+ 			// respective cases below do the work
+ 		default:
+ 			// argument must be an expression
+@@ -319,27 +319,32 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 
+ 	case _Alignof:
+ 		x.mode = constant
++		x.val = check.ctxt.alignof(x.typ)
+ 		x.typ = Typ[Uintptr]
+-		// For now we return 1 always as it satisfies the spec's alignment guarantees.
+-		// TODO(gri) Extend typechecker API so that platform-specific values can be
+-		//           provided.
+-		x.val = int64(1)
+ 
+ 	case _Offsetof:
+-		if _, ok := unparen(x.expr).(*ast.SelectorExpr); !ok {
+-			check.invalidArg(x.pos(), "%s is not a selector", x)
++		arg, ok := unparen(arg0).(*ast.SelectorExpr)
++		if !ok {
++			check.invalidArg(arg0.Pos(), "%s is not a selector expression", arg0)
++			goto Error
++		}
++		check.expr(x, arg.X, nil, -1)
++		if x.mode == invalid {
++			goto Error
++		}
++		sel := arg.Sel.Name
++		res := lookupField(x.typ, QualifiedName{check.pkg, arg.Sel.Name})
++		if res.mode != variable {
++			check.invalidArg(x.pos(), "%s has no single field %s", x, sel)
+ 			goto Error
+ 		}
+ 		x.mode = constant
++		x.val = res.offset
+ 		x.typ = Typ[Uintptr]
+-		// because of the size guarantees for basic types (> 0 for some),
+-		// returning 0 is only correct if two distinct non-zero size
+-		// structs can have the same address (the spec permits that)
+-		x.val = int64(0)
+ 
+ 	case _Sizeof:
+ 		x.mode = constant
+-		x.val = sizeof(check.ctxt, x.typ)
++		x.val = check.ctxt.sizeof(x.typ)
+ 		x.typ = Typ[Uintptr]
+ 
+ 	case _Assert:
+@@ -444,24 +449,92 @@ func (check *checker) complexArg(x *operand) bool {
+ 	return false
+ }
+ 
+-func sizeof(ctxt *Context, typ Type) int64 {
++func (ctxt *Context) alignof(typ Type) int64 {
++	// For arrays and structs, alignment is defined in terms
++	// of alignment of the elements and fields, respectively.
+ 	switch typ := underlying(typ).(type) {
+-	case *Basic:
+-		switch typ.Kind {
+-		case Int, Uint:
+-			return ctxt.IntSize
+-		case Uintptr:
+-			return ctxt.PtrSize
++	case *Array:
++		// spec: "For a variable x of array type: unsafe.Alignof(x)
++		// is the same as unsafe.Alignof(x[0]), but at least 1."
++		return ctxt.alignof(typ.Elt)
++	case *Struct:
++		// spec: "For a variable x of struct type: unsafe.Alignof(x)
++		// is the largest of of the values unsafe.Alignof(x.f) for
++		// each field f of x, but at least 1."
++		return typ.Alignment
++	}
++	// externally defined Alignof
++	if f := ctxt.Alignof; f != nil {
++		if a := f(typ); a > 0 {
++			return a
+ 		}
+-		return typ.Size
++		panic("Context.Alignof returned value < 1")
++	}
++	// all other cases
++	return DefaultAlignof(typ)
++}
++
++// DefaultMaxAlign is the default maximum alignment, in bytes,
++// used by DefaultAlignof.
++const DefaultMaxAlign = 8
++
++// DefaultAlignof implements the default alignment computation
++// for unsafe.Alignof. It is used if Context.Alignof == nil.
++func DefaultAlignof(typ Type) int64 {
++	a := DefaultSizeof(typ) // may be 0
++	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
++	if a < 1 {
++		return 1
++	}
++	if a > DefaultMaxAlign {
++		return DefaultMaxAlign
++	}
++	return a
++}
++
++func (ctxt *Context) sizeof(typ Type) int64 {
++	// For arrays and structs, size is defined in terms
++	// of size of the elements and fields, respectively.
++	switch typ := underlying(typ).(type) {
+ 	case *Array:
+-		return sizeof(ctxt, typ.Elt) * typ.Len
++		return ctxt.sizeof(typ.Elt) * typ.Len // may be 0
+ 	case *Struct:
+-		var size int64
+-		for _, f := range typ.Fields {
+-			size += sizeof(ctxt, f.Type)
++		return typ.Size
++	}
++	// externally defined Sizeof
++	if f := ctxt.Sizeof; f != nil {
++		if s := f(typ); s >= 0 {
++			return s
++		}
++		panic("Context.Sizeof returned value < 0")
++	}
++	// all other cases
++	return DefaultSizeof(typ)
++}
++
++// DefaultPtrSize is the default size of pointers, in bytes,
++// used by DefaultSizeof.
++const DefaultPtrSize = 8
++
++// DefaultSizeof implements the default size computation
++// for unsafe.Sizeof. It is used if Context.Sizeof == nil.
++func DefaultSizeof(typ Type) int64 {
++	switch typ := underlying(typ).(type) {
++	case *Basic:
++		if s := typ.size; s > 0 {
++			return s
++		}
++		if typ.Kind == String {
++			return DefaultPtrSize * 2
+ 		}
+-		return size
++	case *Array:
++		return DefaultSizeof(typ.Elt) * typ.Len // may be 0
++	case *Slice:
++		return DefaultPtrSize * 3
++	case *Struct:
++		return typ.Size // may be 0
++	case *Signature:
++		return DefaultPtrSize * 2
+ 	}
+-	return ctxt.PtrSize // good enough
++	return DefaultPtrSize // catch-all
+ }
+diff --git a/src/pkg/go/types/check.go b/src/pkg/go/types/check.go
+index 1a0fb04ae2..becf0b17df 100644
+--- a/src/pkg/go/types/check.go
++++ b/src/pkg/go/types/check.go
+@@ -421,7 +421,9 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
+ 	// resolve identifiers
+ 	imp := ctxt.Import
+ 	if imp == nil {
+-		imp = GcImport
++		imp = func(imports map[string]*Package, path string) (pkg *Package, err error) {
++			return GcImport(ctxt, imports, path)
++		}
+ 	}
+ 	methods := check.resolve(imp)
+ 
+diff --git a/src/pkg/go/types/check_test.go b/src/pkg/go/types/check_test.go
+index d68a8452a6..470f3a1a93 100644
+--- a/src/pkg/go/types/check_test.go
++++ b/src/pkg/go/types/check_test.go
+@@ -200,7 +200,7 @@ func checkFiles(t *testing.T, testname string, testfiles []string) {
+ 	files, errlist := parseFiles(t, testname, testfiles)
+ 
+ 	// typecheck and collect typechecker errors
+-	ctxt := Default
++	var ctxt Context
+ 	ctxt.Error = func(err error) { errlist = append(errlist, err) }
+ 	ctxt.Check(fset, files)
+ 
+diff --git a/src/pkg/go/types/const.go b/src/pkg/go/types/const.go
+index a6c807c432..b953485cb6 100644
+--- a/src/pkg/go/types/const.go
++++ b/src/pkg/go/types/const.go
+@@ -422,7 +422,7 @@ func unaryOpConst(x interface{}, op token.Token, typ *Basic) interface{} {
+ 		// thus "too large": We must limit the result size to
+ 		// the type's size.
+ 		if typ.Info&IsUnsigned != 0 {
+-			s := uint(typ.Size) * 8
++			s := uint(typ.size) * 8
+ 			if s == 0 {
+ 				// platform-specific type
+ 				// TODO(gri) this needs to be factored out
+diff --git a/src/pkg/go/types/expr.go b/src/pkg/go/types/expr.go
+index 0caa90a1d3..e7ea2843a0 100644
+--- a/src/pkg/go/types/expr.go
++++ b/src/pkg/go/types/expr.go
+@@ -131,21 +131,28 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
+ 	if list == nil {
+ 		return
+ 	}
++
++	var typ Type   // current field typ
++	var tag string // current field tag
++	add := func(name string, isAnonymous bool) {
++		fields = append(fields, &Field{QualifiedName{check.pkg, name}, typ, tag, 0, isAnonymous})
++	}
++
+ 	for _, f := range list.List {
+-		typ := check.typ(f.Type, cycleOk)
+-		tag := check.tag(f.Tag)
++		typ = check.typ(f.Type, cycleOk)
++		tag = check.tag(f.Tag)
+ 		if len(f.Names) > 0 {
+ 			// named fields
+ 			for _, name := range f.Names {
+-				fields = append(fields, &Field{QualifiedName{check.pkg, name.Name}, typ, tag, false})
++				add(name.Name, false)
+ 			}
+ 		} else {
+ 			// anonymous field
+ 			switch t := deref(typ).(type) {
+ 			case *Basic:
+-				fields = append(fields, &Field{QualifiedName{check.pkg, t.Name}, typ, tag, true})
++				add(t.Name, true)
+ 			case *NamedType:
+-				fields = append(fields, &Field{QualifiedName{check.pkg, t.Obj.GetName()}, typ, tag, true})
++				add(t.Obj.GetName(), true)
+ 			default:
+ 				if typ != Typ[Invalid] {
+ 					check.invalidAST(f.Type.Pos(), "anonymous field type %s must be named", typ)
+@@ -153,9 +160,33 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
+ 			}
+ 		}
+ 	}
++
+ 	return
+ }
+ 
++// align returns the smallest y >= x such that y % a == 0.
++func align(x, a int64) int64 {
++	y := x + a - 1
++	return y - y%a
++}
++
++func (ctxt *Context) newStruct(fields []*Field) *Struct {
++	// spec: "For a variable x of struct type: unsafe.Alignof(x) is the largest of
++	// of the values unsafe.Alignof(x.f) for each field f of x, but at least 1."
++	maxAlign := int64(1)
++	var offset int64
++	for _, f := range fields {
++		a := ctxt.alignof(f.Type)
++		if a > maxAlign {
++			maxAlign = a
++		}
++		offset = align(offset, a)
++		f.Offset = offset
++		offset += ctxt.sizeof(f.Type)
++	}
++	return &Struct{fields, maxAlign, offset}
++}
++
+ type opPredicates map[token.Token]func(Type) bool
+ 
+ var unaryOpPredicates = opPredicates{
+@@ -902,14 +933,14 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
+-		mode, typ := lookupField(x.typ, QualifiedName{check.pkg, sel})
+-		if mode == invalid {
++		res := lookupField(x.typ, QualifiedName{check.pkg, sel})
++		if res.mode == invalid {
+ 			check.invalidOp(e.Pos(), "%s has no single field or method %s", x, sel)
+ 			goto Error
+ 		}
+ 		if x.mode == typexpr {
+ 			// method expression
+-			sig, ok := typ.(*Signature)
++			sig, ok := res.typ.(*Signature)
+ 			if !ok {
+ 				check.invalidOp(e.Pos(), "%s has no method %s", x, sel)
+ 				goto Error
+@@ -926,8 +957,8 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 			}
+ 		} else {
+ 			// regular selector
+-			x.mode = mode
+-			x.typ = typ
++			x.mode = res.mode
++			x.typ = res.typ
+ 		}
+ 
+ 	case *ast.IndexExpr:
+@@ -1242,7 +1273,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 
+ 	case *ast.StructType:
+ 		x.mode = typexpr
+-		x.typ = &Struct{Fields: check.collectFields(e.Fields, cycleOk)}
++		x.typ = check.ctxt.newStruct(check.collectFields(e.Fields, cycleOk))
+ 
+ 	case *ast.FuncType:
+ 		params, isVariadic := check.collectParams(e.Params, true)
+diff --git a/src/pkg/go/types/gcimporter.go b/src/pkg/go/types/gcimporter.go
+index d6b603cb8f..614ad2e179 100644
+--- a/src/pkg/go/types/gcimporter.go
++++ b/src/pkg/go/types/gcimporter.go
+@@ -82,7 +82,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ // can be used directly, and there is no need to call this function (but
+ // there is also no harm but for extra time used).
+ //
+-func GcImportData(imports map[string]*Package, filename, id string, data *bufio.Reader) (pkg *Package, err error) {
++func GcImportData(ctxt *Context, imports map[string]*Package, filename, id string, data *bufio.Reader) (pkg *Package, err error) {
+ 	// support for gcParser error handling
+ 	defer func() {
+ 		if r := recover(); r != nil {
+@@ -91,7 +91,7 @@ func GcImportData(imports map[string]*Package, filename, id string, data *bufio.
+ 	}()
+ 
+ 	var p gcParser
+-	p.init(filename, id, data, imports)
++	p.init(ctxt, filename, id, data, imports)
+ 	pkg = p.parseExport()
+ 
+ 	return
+@@ -103,7 +103,7 @@ func GcImportData(imports map[string]*Package, filename, id string, data *bufio.
+ // The imports map must contains all packages already imported.
+ // GcImport satisfies the ast.Importer signature.
+ //
+-func GcImport(imports map[string]*Package, path string) (pkg *Package, err error) {
++func GcImport(ctxt *Context, imports map[string]*Package, path string) (pkg *Package, err error) {
+ 	if path == "unsafe" {
+ 		return Unsafe, nil
+ 	}
+@@ -145,7 +145,7 @@ func GcImport(imports map[string]*Package, path string) (pkg *Package, err error
+ 		return
+ 	}
+ 
+-	pkg, err = GcImportData(imports, filename, id, buf)
++	pkg, err = GcImportData(ctxt, imports, filename, id, buf)
+ 
+ 	return
+ }
+@@ -156,6 +156,7 @@ func GcImport(imports map[string]*Package, path string) (pkg *Package, err error
+ // gcParser parses the exports inside a gc compiler-produced
+ // object/archive file and populates its scope with the results.
+ type gcParser struct {
++	ctxt    *Context
+ 	scanner scanner.Scanner
+ 	tok     rune                // current token
+ 	lit     string              // literal string; only valid for Ident, Int, String tokens
+@@ -163,7 +164,8 @@ type gcParser struct {
+ 	imports map[string]*Package // package id -> package object
+ }
+ 
+-func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*Package) {
++func (p *gcParser) init(ctxt *Context, filename, id string, src io.Reader, imports map[string]*Package) {
++	p.ctxt = ctxt
+ 	p.scanner.Init(src)
+ 	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
+ 	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanChars | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
+@@ -492,7 +494,7 @@ func (p *gcParser) parseStructType() Type {
+ 	}
+ 	p.expect('}')
+ 
+-	return &Struct{Fields: fields}
++	return p.ctxt.newStruct(fields)
+ }
+ 
+ // Parameter = ( identifier | "?" ) [ "..." ] Type [ string_lit ] .
+diff --git a/src/pkg/go/types/gcimporter_test.go b/src/pkg/go/types/gcimporter_test.go
+index b793eb4cb3..c902b6a3c0 100644
+--- a/src/pkg/go/types/gcimporter_test.go
++++ b/src/pkg/go/types/gcimporter_test.go
+@@ -55,7 +55,7 @@ var imports = make(map[string]*Package)
+ 
+ func testPath(t *testing.T, path string) bool {
+ 	t0 := time.Now()
+-	_, err := GcImport(imports, path)
++	_, err := GcImport(&Context{}, imports, path)
+ 	if err != nil {
+ 		t.Errorf("testPath(%s): %s", path, err)
+ 		return false
+@@ -140,7 +140,7 @@ func TestGcImportedTypes(t *testing.T) {
+ 		importPath := s[0]
+ 		objName := s[1]
+ 
+-		pkg, err := GcImport(imports, importPath)
++		pkg, err := GcImport(&Context{}, imports, importPath)
+ 		if err != nil {
+ 			t.Error(err)
+ 			continue
+diff --git a/src/pkg/go/types/operand.go b/src/pkg/go/types/operand.go
+index 6c2281027c..6b902e3015 100644
+--- a/src/pkg/go/types/operand.go
++++ b/src/pkg/go/types/operand.go
+@@ -211,9 +211,13 @@ func (x *operand) isInteger() bool {
+ 		x.mode == constant && isRepresentableConst(x.val, UntypedInt)
+ }
+ 
++// lookupResult represents the result of a struct field/method lookup.
++// TODO(gri) mode (variable for fields vs value for methods) and offset
++//           (>= 0 vs <0) provide redundant data - simplify!
+ type lookupResult struct {
+-	mode operandMode
+-	typ  Type
++	mode   operandMode
++	typ    Type
++	offset int64 // byte offset for struct fields, <0 for methods
+ }
+ 
+ type embeddedType struct {
+@@ -234,7 +238,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
+ 	var next []embeddedType
+ 
+ 	// potentialMatch is invoked every time a match is found.
+-	potentialMatch := func(multiples bool, mode operandMode, typ Type) bool {
++	potentialMatch := func(multiples bool, mode operandMode, typ Type, offset int64) bool {
+ 		if multiples || res.mode != invalid {
+ 			// name appeared already at this level - annihilate
+ 			res.mode = invalid
+@@ -243,6 +247,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
+ 		// first appearance of name
+ 		res.mode = mode
+ 		res.typ = typ
++		res.offset = offset
+ 		return true
+ 	}
+ 
+@@ -268,7 +273,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
+ 			for _, m := range typ.Methods {
+ 				if name.IsSame(m.QualifiedName) {
+ 					assert(m.Type != nil)
+-					if !potentialMatch(e.multiples, value, m.Type) {
++					if !potentialMatch(e.multiples, value, m.Type, -1) {
+ 						return // name collision
+ 					}
+ 				}
+@@ -280,7 +285,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
+ 				for _, f := range t.Fields {
+ 					if name.IsSame(f.QualifiedName) {
+ 						assert(f.Type != nil)
+-						if !potentialMatch(e.multiples, variable, f.Type) {
++						if !potentialMatch(e.multiples, variable, f.Type, f.Offset) {
+ 							return // name collision
+ 						}
+ 						continue
+@@ -304,7 +309,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
+ 				for _, m := range t.Methods {
+ 					if name.IsSame(m.QualifiedName) {
+ 						assert(m.Type != nil)
+-						if !potentialMatch(e.multiples, value, m.Type) {
++						if !potentialMatch(e.multiples, value, m.Type, -1) {
+ 							return // name collision
+ 						}
+ 					}
+@@ -348,14 +353,14 @@ func findType(list []embeddedType, typ *NamedType) *embeddedType {
+ 	return nil
+ }
+ 
+-func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
++func lookupField(typ Type, name QualifiedName) lookupResult {
+ 	typ = deref(typ)
+ 
+ 	if t, ok := typ.(*NamedType); ok {
+ 		for _, m := range t.Methods {
+ 			if name.IsSame(m.QualifiedName) {
+ 				assert(m.Type != nil)
+-				return value, m.Type
++				return lookupResult{value, m.Type, -1}
+ 			}
+ 		}
+ 		typ = t.Underlying
+@@ -366,7 +371,7 @@ func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
+ 		var next []embeddedType
+ 		for _, f := range t.Fields {
+ 			if name.IsSame(f.QualifiedName) {
+-				return variable, f.Type
++				return lookupResult{variable, f.Type, f.Offset}
+ 			}
+ 			if f.IsAnonymous {
+ 				// Possible optimization: If the embedded type
+@@ -376,18 +381,17 @@ func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
+ 			}
+ 		}
+ 		if len(next) > 0 {
+-			res := lookupFieldBreadthFirst(next, name)
+-			return res.mode, res.typ
++			return lookupFieldBreadthFirst(next, name)
+ 		}
+ 
+ 	case *Interface:
+ 		for _, m := range t.Methods {
+ 			if name.IsSame(m.QualifiedName) {
+-				return value, m.Type
++				return lookupResult{value, m.Type, -1}
+ 			}
+ 		}
+ 	}
+ 
+ 	// not found
+-	return invalid, nil
++	return lookupResult{mode: invalid}
+ }
+diff --git a/src/pkg/go/types/predicates.go b/src/pkg/go/types/predicates.go
+index 3468da5a57..a99c91a4ef 100644
+--- a/src/pkg/go/types/predicates.go
++++ b/src/pkg/go/types/predicates.go
+@@ -281,8 +281,8 @@ func missingMethod(typ Type, T *Interface) (method *Method, wrongType bool) {
+ 	// Note: This is stronger than the current spec. Should the spec require this?
+ 	if ityp, _ := underlying(typ).(*Interface); ityp != nil {
+ 		for _, m := range T.Methods {
+-			mode, sig := lookupField(ityp, m.QualifiedName) // TODO(gri) no need to go via lookupField
+-			if mode != invalid && !IsIdentical(sig, m.Type) {
++			res := lookupField(ityp, m.QualifiedName) // TODO(gri) no need to go via lookupField
++			if res.mode != invalid && !IsIdentical(res.typ, m.Type) {
+ 				return m, true
+ 			}
+ 		}
+@@ -291,11 +291,11 @@ func missingMethod(typ Type, T *Interface) (method *Method, wrongType bool) {
+ 
+ 	// a concrete type implements T if it implements all methods of T.
+ 	for _, m := range T.Methods {
+-		mode, sig := lookupField(typ, m.QualifiedName)
+-		if mode == invalid {
++		res := lookupField(typ, m.QualifiedName)
++		if res.mode == invalid {
+ 			return m, false
+ 		}
+-		if !IsIdentical(sig, m.Type) {
++		if !IsIdentical(res.typ, m.Type) {
+ 			return m, true
+ 		}
+ 	}
+diff --git a/src/pkg/go/types/resolver_test.go b/src/pkg/go/types/resolver_test.go
+index 37251d4ba4..d4e364451d 100644
+--- a/src/pkg/go/types/resolver_test.go
++++ b/src/pkg/go/types/resolver_test.go
+@@ -64,7 +64,7 @@ func TestResolveQualifiedIdents(t *testing.T) {
+ 
+ 	// resolve and type-check package AST
+ 	idents := make(map[*ast.Ident]Object)
+-	ctxt := Default
++	var ctxt Context
+ 	ctxt.Ident = func(id *ast.Ident, obj Object) { idents[id] = obj }
+ 	pkg, err := ctxt.Check(fset, files)
+ 	if err != nil {
+diff --git a/src/pkg/go/types/testdata/builtins.src b/src/pkg/go/types/testdata/builtins.src
+index 8c07f6e458..535b99aac2 100644
+--- a/src/pkg/go/types/testdata/builtins.src
++++ b/src/pkg/go/types/testdata/builtins.src
+@@ -269,6 +269,15 @@ func _recover() {
+ 	recover()
+ }
+ 
++// assuming types.DefaultPtrSize == 8
++type S struct{       // offset
++	a bool       //  0
++	b rune       //  4
++	c *int       //  8
++	d bool       // 16
++	e complex128 // 24
++}                    // 40
++
+ func _Alignof() {
+ 	var x int
+ 	_ = unsafe /* ERROR "argument" */ .Alignof()
+@@ -277,6 +286,13 @@ func _Alignof() {
+ 	_ = unsafe.Alignof(42)
+ 	_ = unsafe.Alignof(new(struct{}))
+ 	unsafe /* ERROR "not used" */ .Alignof(x)
++
++	var y S
++	assert(unsafe.Alignof(y.a) == 1)
++	assert(unsafe.Alignof(y.b) == 4)
++	assert(unsafe.Alignof(y.c) == 8)
++	assert(unsafe.Alignof(y.d) == 1)
++	assert(unsafe.Alignof(y.e) == 8)
+ }
+ 
+ func _Offsetof() {
+@@ -289,6 +305,13 @@ func _Offsetof() {
+ 	_ = unsafe.Offsetof((x.f))
+ 	_ = unsafe.Offsetof((((((((x))).f)))))
+ 	unsafe /* ERROR "not used" */ .Offsetof(x.f)
++
++	var y S
++	assert(unsafe.Offsetof(y.a) == 0)
++	assert(unsafe.Offsetof(y.b) == 4)
++	assert(unsafe.Offsetof(y.c) == 8)
++	assert(unsafe.Offsetof(y.d) == 16)
++	assert(unsafe.Offsetof(y.e) == 24)
+ }
+ 
+ func _Sizeof() {
+@@ -314,6 +337,14 @@ func _Sizeof() {
+ 	assert(unsafe.Sizeof(float64(0)) == 8)
+ 	assert(unsafe.Sizeof(complex64(0)) == 8)
+ 	assert(unsafe.Sizeof(complex128(0)) == 16)
++
++	var y S
++	assert(unsafe.Sizeof(y.a) == 1)
++	assert(unsafe.Sizeof(y.b) == 4)
++	assert(unsafe.Sizeof(y.c) == 8)
++	assert(unsafe.Sizeof(y.d) == 1)
++	assert(unsafe.Sizeof(y.e) == 16)
++	assert(unsafe.Sizeof(y) == 40)
+ }
+ 
+ // self-testing only
+diff --git a/src/pkg/go/types/types.go b/src/pkg/go/types/types.go
+index 422de00bc4..0cb803376f 100644
+--- a/src/pkg/go/types/types.go
++++ b/src/pkg/go/types/types.go
+@@ -74,7 +74,7 @@ const (
+ type Basic struct {
+ 	Kind BasicKind
+ 	Info BasicInfo
+-	Size int64
++	size int64 // use DefaultSizeof to get size
+ 	Name string
+ }
+ 
+@@ -116,12 +116,15 @@ type Field struct {
+ 	QualifiedName
+ 	Type        Type
+ 	Tag         string
++	Offset      int64 // offset within struct, in bytes
+ 	IsAnonymous bool
+ }
+ 
+ // A Struct represents a struct type struct{...}.
+ type Struct struct {
+-	Fields []*Field
++	Fields    []*Field
++	Alignment int64 // struct alignment in bytes
++	Size      int64 // struct size in bytes
+ }
+ 
+ func (typ *Struct) fieldIndex(name string) int {

@@ -19,6 +19,53 @@ Date:   Thu Jan 7 11:22:42 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/run.go | 14 +++++++++++---
  1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index db3e9f6c2f..624f2236a1 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -467,6 +467,8 @@ func goGcflagsIsEmpty() bool {
+ 	return "" == os.Getenv("GO_GCFLAGS")
+ }
+ 
++var errTimeout = errors.New("command exceeded time limit")
++
+ // run runs a test.
+ func (t *test) run() {
+ 	start := time.Now()
+@@ -642,16 +644,18 @@ func (t *test) run() {
+ 				case err = <-done:
+ 					// ok
+ 				case <-tick.C:
++					cmd.Process.Signal(os.Interrupt)
++					time.Sleep(1 * time.Second)
+ 					cmd.Process.Kill()
+-					err = <-done
+-					// err = errors.New("Test timeout")
++					<-done
++					err = errTimeout
+ 				}
+ 				tick.Stop()
+ 			}
+ 		} else {
+ 			err = cmd.Run()
+ 		}
+-		if err != nil {
++		if err != nil && err != errTimeout {
+ 			err = fmt.Errorf("%s\n%s", err, buf.Bytes())
+ 		}
+ 		return buf.Bytes(), err
+@@ -731,6 +735,10 @@ func (t *test) run() {
+ 				t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
+ 				return
+ 			}
++			if err == errTimeout {
++				t.err = fmt.Errorf("compilation timed out")
++				return
++			}
+ 		} else {
+ 			if err != nil {
+ 				t.err = err

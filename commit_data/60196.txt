@@ -14,6 +14,40 @@ Date:   Fri May 24 10:07:54 2024 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/syscall/mksyscall.pl | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/mksyscall.pl b/src/syscall/mksyscall.pl
+index 47efbffcbc..b46a3f9438 100755
+--- a/src/syscall/mksyscall.pl
++++ b/src/syscall/mksyscall.pl
+@@ -33,6 +33,7 @@ my $arm = 0; # 64-bit value should use (even, odd)-pair
+ my $libc = 0;
+ my $tags = "";  # build tags
+ my $newtags = ""; # new style build tags
++my $stdimports = 'import "unsafe"';
+ my $extraimports = "";
+ 
+ if($ARGV[0] eq "-b32") {
+@@ -390,6 +391,10 @@ if($errors) {
+ 	exit 1;
+ }
+ 
++if($extraimports ne "") {
++    $stdimports .= "\n$extraimports";
++}
++
+ # TODO: this assumes tags are just simply comma separated. For now this is all the uses.
+ $newtags = $tags =~ s/,/ && /r;
+ 
+@@ -401,8 +406,7 @@ print <<EOF;
+ 
+ package syscall
+ 
+-import "unsafe"
+-$extraimports
++$stdimports
+ 
+ $text
+ EOF

@@ -7,7 +7,7 @@ Date:   Mon Jan 23 09:28:32 2012 +1100
     R=adg
     CC=golang-dev
     https://golang.org/cl/5554073
-
+---
  doc/codelab/wiki/final-noclosure.go     | 4 ++++
  doc/codelab/wiki/final-noerror.go       | 4 ++++
  doc/codelab/wiki/final-parsetemplate.go | 4 ++++
@@ -21,3 +21,148 @@ Date:   Mon Jan 23 09:28:32 2012 +1100
  doc/codelab/wiki/part2.go               | 4 ++++
  doc/codelab/wiki/srcextract.go          | 4 ++++
  12 files changed, 48 insertions(+)
+
+diff --git a/doc/codelab/wiki/final-noclosure.go b/doc/codelab/wiki/final-noclosure.go
+index bc08f25ebf..a0428d42dc 100644
+--- a/doc/codelab/wiki/final-noclosure.go
++++ b/doc/codelab/wiki/final-noclosure.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+diff --git a/doc/codelab/wiki/final-noerror.go b/doc/codelab/wiki/final-noerror.go
+index 535550b979..e86bc1a3ca 100644
+--- a/doc/codelab/wiki/final-noerror.go
++++ b/doc/codelab/wiki/final-noerror.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+diff --git a/doc/codelab/wiki/final-parsetemplate.go b/doc/codelab/wiki/final-parsetemplate.go
+index aca4fbb12b..c068a616ff 100644
+--- a/doc/codelab/wiki/final-parsetemplate.go
++++ b/doc/codelab/wiki/final-parsetemplate.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+diff --git a/doc/codelab/wiki/final-template.go b/doc/codelab/wiki/final-template.go
+index f8ab1c6784..5386210a5c 100644
+--- a/doc/codelab/wiki/final-template.go
++++ b/doc/codelab/wiki/final-template.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+diff --git a/doc/codelab/wiki/final.go b/doc/codelab/wiki/final.go
+index 94e685b151..97f0a16a66 100644
+--- a/doc/codelab/wiki/final.go
++++ b/doc/codelab/wiki/final.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+diff --git a/doc/codelab/wiki/get.go b/doc/codelab/wiki/get.go
+index 383935378d..c6e9bf28b7 100644
+--- a/doc/codelab/wiki/get.go
++++ b/doc/codelab/wiki/get.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+diff --git a/doc/codelab/wiki/htmlify.go b/doc/codelab/wiki/htmlify.go
+index 1f9023f437..2a845a1740 100644
+--- a/doc/codelab/wiki/htmlify.go
++++ b/doc/codelab/wiki/htmlify.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+diff --git a/doc/codelab/wiki/notemplate.go b/doc/codelab/wiki/notemplate.go
+index 2b2aa685f6..33006ac958 100644
+--- a/doc/codelab/wiki/notemplate.go
++++ b/doc/codelab/wiki/notemplate.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+diff --git a/doc/codelab/wiki/part1-noerror.go b/doc/codelab/wiki/part1-noerror.go
+index c70318a8b5..7577b7b468 100644
+--- a/doc/codelab/wiki/part1-noerror.go
++++ b/doc/codelab/wiki/part1-noerror.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+diff --git a/doc/codelab/wiki/part1.go b/doc/codelab/wiki/part1.go
+index b3fb750f1f..d7bf1be974 100644
+--- a/doc/codelab/wiki/part1.go
++++ b/doc/codelab/wiki/part1.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+diff --git a/doc/codelab/wiki/part2.go b/doc/codelab/wiki/part2.go
+index 96359a17e2..dd4365c822 100644
+--- a/doc/codelab/wiki/part2.go
++++ b/doc/codelab/wiki/part2.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (
+diff --git a/doc/codelab/wiki/srcextract.go b/doc/codelab/wiki/srcextract.go
+index 74c33a2d64..813e252833 100644
+--- a/doc/codelab/wiki/srcextract.go
++++ b/doc/codelab/wiki/srcextract.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import (

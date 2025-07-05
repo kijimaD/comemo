@@ -11,7 +11,52 @@ Date:   Wed Sep 30 14:28:18 2009 -0700
     DELTA=12  (3 added, 9 deleted, 0 changed)
     OCL=35178
     CL=35180
-
+---
  src/cmd/5g/cgen.c | 10 +---------
  test/arm-pass.txt |  2 ++
  2 files changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 28b9631119..e6b632864c 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -364,18 +364,10 @@ sbop:	// symmetric binary
+ 	}
+ 
+ abop:	// asymmetric binary
++	// TODO(kaib): use fewer registers here.
+ 	if(nl->ullman >= nr->ullman) {
+ 		regalloc(&n1, nl->type, res);
+ 		cgen(nl, &n1);
+-
+-		if(sudoaddable(a, nr, &addr, &w)) {
+-			p1 = gins(a, N, &n1);
+-			p1->from = addr;
+-			gmove(&n1, res);
+-			sudoclean();
+-			regfree(&n1);
+-			goto ret;
+-		}
+ 		regalloc(&n2, nr->type, N);
+ 		cgen(nr, &n2);
+ 	} else {
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 0baa67e742..de9e8db55a 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -213,6 +213,7 @@ ken/complit.go
+ ken/for.go
+ ken/label.go
+ ken/mfunc.go
++ken/ptrvar.go
+ ken/rob2.go
+ ken/robfor.go
+ ken/robif.go
+@@ -221,6 +222,7 @@ ken/simpfun.go
+ ken/simpprint.go
+ ken/simpswitch.go
+ ken/simpvar.go
++ken/strvar.go
+ method1.go
+ method2.go
+ method3.go

@@ -15,8 +15,293 @@ Date:   Tue Apr 17 14:40:56 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go |  39 +++-------
  src/cmd/compile/internal/gc/export.go  | 125 +++++++++++++++++++--------------
  src/cmd/compile/internal/gc/main.go    |   7 +-
  3 files changed, 84 insertions(+), 87 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 41a9ce41bd..9ccc549e69 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -197,6 +197,7 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
+ 				Cost: int32(inlCost),
+ 				Body: body,
+ 			}
++			importlist = append(importlist, f)
+ 			if Debug['E'] > 0 && Debug['m'] > 2 {
+ 				if Debug['m'] > 3 {
+ 					fmt.Printf("inl body for %v: %+v\n", f, asNodes(body))
+@@ -351,13 +352,13 @@ func (p *importer) obj(tag int) {
+ 		sym := p.qualifiedName()
+ 		typ := p.typ()
+ 		val := p.value(typ)
+-		importconst(pos, p.imp, sym, idealType(typ), val)
++		importconst(p.imp, pos, sym, idealType(typ), val)
+ 
+ 	case aliasTag:
+ 		pos := p.pos()
+ 		sym := p.qualifiedName()
+ 		typ := p.typ()
+-		importalias(pos, p.imp, sym, typ)
++		importalias(p.imp, pos, sym, typ)
+ 
+ 	case typeTag:
+ 		p.typ()
+@@ -366,7 +367,7 @@ func (p *importer) obj(tag int) {
+ 		pos := p.pos()
+ 		sym := p.qualifiedName()
+ 		typ := p.typ()
+-		importvar(pos, p.imp, sym, typ)
++		importvar(p.imp, pos, sym, typ)
+ 
+ 	case funcTag:
+ 		pos := p.pos()
+@@ -375,28 +376,8 @@ func (p *importer) obj(tag int) {
+ 		result := p.paramList()
+ 
+ 		sig := functypefield(nil, params, result)
+-		importsym(p.imp, sym, ONAME)
+-		if old := asNode(sym.Def); old != nil && old.Op == ONAME {
+-			// function was imported before (via another import)
+-			if !eqtype(sig, old.Type) {
+-				p.formatErrorf("inconsistent definition for func %v during import\n\t%v\n\t%v", sym, old.Type, sig)
+-			}
+-			n := asNode(old.Type.Nname())
+-			p.funcList = append(p.funcList, n)
+-			break
+-		}
+-
+-		n := newfuncnamel(pos, sym)
+-		n.Type = sig
+-		declare(n, PFUNC)
+-		p.funcList = append(p.funcList, n)
+-		importlist = append(importlist, n)
+-
+-		sig.SetNname(asTypesNode(n))
+-
+-		if Debug['E'] > 0 {
+-			fmt.Printf("import [%q] func %v \n", p.imp.Path, n)
+-		}
++		importfunc(p.imp, pos, sym, sig)
++		p.funcList = append(p.funcList, asNode(sym.Def))
+ 
+ 	default:
+ 		p.formatErrorf("unexpected object (tag = %d)", tag)
+@@ -468,10 +449,7 @@ func (p *importer) newtyp(etype types.EType) *types.Type {
+ // importtype declares that pt, an imported named type, has underlying type t.
+ func (p *importer) importtype(pt, t *types.Type) {
+ 	if pt.Etype == TFORW {
+-		copytype(asNode(pt.Nod), t)
+-		pt.Sym.Importdef = p.imp
+-		pt.Sym.Lastlineno = lineno
+-		declare(asNode(pt.Nod), PEXTERN)
++		copytype(typenod(pt), t)
+ 		checkwidth(pt)
+ 	} else {
+ 		// pt.Orig and t must be identical.
+@@ -503,7 +481,7 @@ func (p *importer) typ() *types.Type {
+ 		pos := p.pos()
+ 		tsym := p.qualifiedName()
+ 
+-		t = pkgtype(pos, p.imp, tsym)
++		t = importtype(p.imp, pos, tsym)
+ 		p.typList = append(p.typList, t)
+ 		dup := !t.IsKind(types.TFORW) // type already imported
+ 
+@@ -552,7 +530,6 @@ func (p *importer) typ() *types.Type {
+ 			n.SetClass(PFUNC)
+ 			checkwidth(n.Type)
+ 			p.funcList = append(p.funcList, n)
+-			importlist = append(importlist, n)
+ 
+ 			// (comment from parser.go)
+ 			// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index a72747fa5b..1747ccc29e 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -105,66 +105,98 @@ func dumpexport(bout *bio.Writer) {
+ 	}
+ }
+ 
+-// importsym declares symbol s as an imported object representable by op.
+-// pkg is the package being imported
+-func importsym(pkg *types.Pkg, s *types.Sym, op Op) {
+-	if asNode(s.Def) != nil && asNode(s.Def).Op != op {
+-		pkgstr := fmt.Sprintf("during import %q", pkg.Path)
+-		redeclare(lineno, s, pkgstr)
++func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op) *Node {
++	n := asNode(s.Def)
++	if n == nil {
++		n = dclname(s)
++		s.Def = asTypesNode(n)
++		s.Importdef = ipkg
+ 	}
++	if n.Op != ONONAME && n.Op != op {
++		redeclare(lineno, s, fmt.Sprintf("during import %q", ipkg.Path))
++	}
++	return n
+ }
+ 
+ // pkgtype returns the named type declared by symbol s.
+ // If no such type has been declared yet, a forward declaration is returned.
+-// pkg is the package being imported
+-func pkgtype(pos src.XPos, pkg *types.Pkg, s *types.Sym) *types.Type {
+-	importsym(pkg, s, OTYPE)
+-	if asNode(s.Def) == nil || asNode(s.Def).Op != OTYPE {
++// ipkg is the package being imported
++func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
++	n := importsym(ipkg, pos, s, OTYPE)
++	if n.Op != OTYPE {
+ 		t := types.New(TFORW)
+ 		t.Sym = s
+-		s.Def = asTypesNode(typenodl(pos, t))
+-		asNode(s.Def).Name = new(Name)
++		t.Nod = asTypesNode(n)
++
++		n.Op = OTYPE
++		n.Pos = pos
++		n.Type = t
++		n.SetClass(PEXTERN)
+ 	}
+ 
+-	if asNode(s.Def).Type == nil {
+-		Fatalf("pkgtype %v", s)
++	t := n.Type
++	if t == nil {
++		Fatalf("importtype %v", s)
+ 	}
+-	return asNode(s.Def).Type
++	return t
++}
++
++// importobj declares symbol s as an imported object representable by op.
++// ipkg is the package being imported
++func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op, ctxt Class, t *types.Type) *Node {
++	n := importsym(ipkg, pos, s, op)
++	if n.Op != ONONAME {
++		if n.Op == op && (n.Class() != ctxt || !eqtype(n.Type, t)) {
++			redeclare(lineno, s, fmt.Sprintf("during import %q", ipkg.Path))
++		}
++		return nil
++	}
++
++	n.Op = op
++	n.Pos = pos
++	n.SetClass(ctxt)
++	n.Type = t
++	return n
+ }
+ 
+ // importconst declares symbol s as an imported constant with type t and value val.
+-// pkg is the package being imported
+-func importconst(pos src.XPos, pkg *types.Pkg, s *types.Sym, t *types.Type, val Val) {
+-	importsym(pkg, s, OLITERAL)
+-	if asNode(s.Def) != nil { // TODO: check if already the same.
++// ipkg is the package being imported
++func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val Val) {
++	n := importobj(ipkg, pos, s, OLITERAL, PEXTERN, t)
++	if n == nil { // TODO: Check that value matches.
+ 		return
+ 	}
+ 
+-	n := npos(pos, nodlit(val))
+-	n.Type = t
+-	n.Sym = s
+-	declare(n, PEXTERN)
++	n.SetVal(val)
+ 
+ 	if Debug['E'] != 0 {
+-		fmt.Printf("import const %v\n", s)
++		fmt.Printf("import const %v %L = %v\n", s, t, val)
+ 	}
+ }
+ 
+-// importvar declares symbol s as an imported variable with type t.
+-// pkg is the package being imported
+-func importvar(pos src.XPos, pkg *types.Pkg, s *types.Sym, t *types.Type) {
+-	importsym(pkg, s, ONAME)
+-	if asNode(s.Def) != nil && asNode(s.Def).Op == ONAME {
+-		if eqtype(t, asNode(s.Def).Type) {
+-			return
+-		}
+-		yyerror("inconsistent definition for var %v during import\n\t%v (in %q)\n\t%v (in %q)", s, asNode(s.Def).Type, s.Importdef.Path, t, pkg.Path)
++// importfunc declares symbol s as an imported function with type t.
++// ipkg is the package being imported
++func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
++	n := importobj(ipkg, pos, s, ONAME, PFUNC, t)
++	if n == nil {
++		return
+ 	}
+ 
+-	n := newnamel(pos, s)
+-	s.Importdef = pkg
+-	n.Type = t
+-	declare(n, PEXTERN)
++	n.Func = new(Func)
++	t.SetNname(asTypesNode(n))
++
++	if Debug['E'] != 0 {
++		fmt.Printf("import func %v%S\n", s, t)
++	}
++}
++
++// importvar declares symbol s as an imported variable with type t.
++// ipkg is the package being imported
++func importvar(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
++	n := importobj(ipkg, pos, s, ONAME, PEXTERN, t)
++	if n == nil {
++		return
++	}
+ 
+ 	if Debug['E'] != 0 {
+ 		fmt.Printf("import var %v %L\n", s, t)
+@@ -172,22 +204,13 @@ func importvar(pos src.XPos, pkg *types.Pkg, s *types.Sym, t *types.Type) {
+ }
+ 
+ // importalias declares symbol s as an imported type alias with type t.
+-// pkg is the package being imported
+-func importalias(pos src.XPos, pkg *types.Pkg, s *types.Sym, t *types.Type) {
+-	importsym(pkg, s, OTYPE)
+-	if asNode(s.Def) != nil && asNode(s.Def).Op == OTYPE {
+-		if eqtype(t, asNode(s.Def).Type) {
+-			return
+-		}
+-		yyerror("inconsistent definition for type alias %v during import\n\t%v (in %q)\n\t%v (in %q)", s, asNode(s.Def).Type, s.Importdef.Path, t, pkg.Path)
++// ipkg is the package being imported
++func importalias(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
++	n := importobj(ipkg, pos, s, OTYPE, PEXTERN, t)
++	if n == nil {
++		return
+ 	}
+ 
+-	n := newnamel(pos, s)
+-	n.Op = OTYPE
+-	s.Importdef = pkg
+-	n.Type = t
+-	declare(n, PEXTERN)
+-
+ 	if Debug['E'] != 0 {
+ 		fmt.Printf("import type %v = %L\n", s, t)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 8990428605..80c7db5357 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -915,12 +915,9 @@ func loadsys() {
+ 		typ := typs[d.typ]
+ 		switch d.tag {
+ 		case funcTag:
+-			importsym(Runtimepkg, sym, ONAME)
+-			n := newfuncname(sym)
+-			n.Type = typ
+-			declare(n, PFUNC)
++			importfunc(Runtimepkg, src.NoXPos, sym, typ)
+ 		case varTag:
+-			importvar(lineno, Runtimepkg, sym, typ)
++			importvar(Runtimepkg, src.NoXPos, sym, typ)
+ 		default:
+ 			Fatalf("unhandled declaration tag %v", d.tag)
+ 		}

@@ -11,6 +11,20 @@ Date:   Tue May 3 15:40:40 2022 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/403755
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/export_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 0d17ddfe30..380bf9cb13 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1414,7 +1414,7 @@ func NewGCCPULimiter(now int64, gomaxprocs int32) *GCCPULimiter {
+ 	// do 64-bit atomics on it, and if it gets stack-allocated
+ 	// on a 32-bit architecture, it may get allocated unaligned
+ 	// space.
+-	l := escape(new(GCCPULimiter))
++	l := Escape(new(GCCPULimiter))
+ 	l.limiter.resetCapacity(now, gomaxprocs)
+ 	return l
+ }

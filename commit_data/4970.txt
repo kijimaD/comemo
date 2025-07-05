@@ -8,6 +8,20 @@ Date:   Mon Mar 1 16:22:22 2010 -0800
     R=adg
     CC=golang-dev
     https://golang.org/cl/224090
-
+---
  doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 044a880f6d..f7fa4490b5 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -44,7 +44,7 @@ tree to make sure the changes don't break other packages or programs:
+ 
+ <pre>
+ cd $GOROOT/src
+-make all
++./all.bash
+ </pre>
+ 
+ <p>

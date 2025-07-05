@@ -29,10 +29,303 @@ Date:   Wed Mar 30 16:33:52 2016 +1100
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/export_windows_test.go  |   1 +
  src/runtime/os1_windows.go          |  15 +++-
  src/runtime/sys_windows_386.s       |  17 ++++-
  src/runtime/sys_windows_amd64.s     |  20 ++++-
  src/runtime/syscall_windows_test.go | 144 ++++++++++++++++++++++++++++++++++++
  5 files changed, 186 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/export_windows_test.go b/src/runtime/export_windows_test.go
+index dbca8d636e..66c103709c 100644
+--- a/src/runtime/export_windows_test.go
++++ b/src/runtime/export_windows_test.go
+@@ -9,6 +9,7 @@ package runtime
+ import "unsafe"
+ 
+ var TestingWER = &testingWER
++var OsYield = osyield
+ 
+ func NumberOfProcessors() int32 {
+ 	var info systeminfo
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index e6b1a30ecf..724fe463a3 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -41,6 +41,7 @@ import (
+ //go:cgo_import_dynamic runtime._SetUnhandledExceptionFilter SetUnhandledExceptionFilter%1 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer%6 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._SuspendThread SuspendThread%1 "kernel32.dll"
++//go:cgo_import_dynamic runtime._SwitchToThread SwitchToThread%0 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc%4 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._VirtualFree VirtualFree%3 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult%5 "ws2_32.dll"
+@@ -84,6 +85,7 @@ var (
+ 	_SetUnhandledExceptionFilter,
+ 	_SetWaitableTimer,
+ 	_SuspendThread,
++	_SwitchToThread,
+ 	_VirtualAlloc,
+ 	_VirtualFree,
+ 	_WSAGetOverlappedResult,
+@@ -189,6 +191,8 @@ var useLoadLibraryEx bool
+ 
+ func osinit() {
+ 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
++	usleep2Addr = unsafe.Pointer(funcPC(usleep2))
++	switchtothreadAddr = unsafe.Pointer(funcPC(switchtothread))
+ 
+ 	setBadSignalMsg()
+ 
+@@ -586,17 +590,22 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
+ }
+ 
+ // in sys_windows_386.s and sys_windows_amd64.s
+-func usleep1(usec uint32)
++func onosstack(fn unsafe.Pointer, arg uint32)
++func usleep2(usec uint32)
++func switchtothread()
++
++var usleep2Addr unsafe.Pointer
++var switchtothreadAddr unsafe.Pointer
+ 
+ //go:nosplit
+ func osyield() {
+-	usleep1(1)
++	onosstack(switchtothreadAddr, 0)
+ }
+ 
+ //go:nosplit
+ func usleep(us uint32) {
+ 	// Have 1us units; want 100ns units.
+-	usleep1(10 * us)
++	onosstack(usleep2Addr, 10*us)
+ }
+ 
+ func ctrlhandler1(_type uint32) uint32 {
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 55cdcf407f..95130b733d 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -358,10 +358,11 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
+ 	MOVL	CX, 0x14(FS)
+ 	RET
+ 
+-// Sleep duration is in 100ns units.
+-TEXT runtime·usleep1(SB),NOSPLIT,$0
+-	MOVL	usec+0(FP), BX
+-	MOVL	$runtime·usleep2(SB), AX // to hide from 8l
++// onosstack calls fn on OS stack.
++// func onosstack(fn unsafe.Pointer, arg uint32)
++TEXT runtime·onosstack(SB),NOSPLIT,$0
++	MOVL	fn+0(FP), AX		// to hide from 8l
++	MOVL	arg+4(FP), BX
+ 
+ 	// Execute call on m->g0 stack, in case we are not actually
+ 	// calling a system call wrapper, like when running under WINE.
+@@ -423,6 +424,14 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20
+ 	MOVL	BP, SP
+ 	RET
+ 
++// Runs on OS stack.
++TEXT runtime·switchtothread(SB),NOSPLIT,$0
++	MOVL	SP, BP
++	MOVL	runtime·_SwitchToThread(SB), AX
++	CALL	AX
++	MOVL	BP, SP
++	RET
++
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB),NOSPLIT,$8-12
+ 	CALL	runtime·unixnano(SB)
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index caa18e68e9..d550a818ce 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -381,10 +381,10 @@ TEXT runtime·settls(SB),NOSPLIT,$0
+ 	MOVQ	DI, 0x28(GS)
+ 	RET
+ 
+-// Sleep duration is in 100ns units.
+-TEXT runtime·usleep1(SB),NOSPLIT,$0
+-	MOVL	usec+0(FP), BX
+-	MOVQ	$runtime·usleep2(SB), AX // to hide from 6l
++// func onosstack(fn unsafe.Pointer, arg uint32)
++TEXT runtime·onosstack(SB),NOSPLIT,$0
++	MOVQ	fn+0(FP), AX		// to hide from 6l
++	MOVL	arg+8(FP), BX
+ 
+ 	// Execute call on m->g0 stack, in case we are not actually
+ 	// calling a system call wrapper, like when running under WINE.
+@@ -445,6 +445,18 @@ TEXT runtime·usleep2(SB),NOSPLIT,$48
+ 	MOVQ	40(SP), SP
+ 	RET
+ 
++// Runs on OS stack.
++TEXT runtime·switchtothread(SB),NOSPLIT,$0
++	MOVQ	SP, AX
++	ANDQ	$~15, SP	// alignment as per Windows requirement
++	SUBQ	$(48), SP	// room for SP and 4 args as per Windows requirement
++				// plus one extra word to keep stack 16 bytes aligned
++	MOVQ	AX, 32(SP)
++	MOVQ	runtime·_SwitchToThread(SB), AX
++	CALL	AX
++	MOVQ	32(SP), SP
++	RET
++
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB),NOSPLIT,$8-12
+ 	CALL	runtime·unixnano(SB)
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index e069eec64c..730b6d6d9c 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -864,3 +864,147 @@ func TestLoadLibraryEx(t *testing.T) {
+ 	t.Skipf("LoadLibraryEx not usable, but not expected. (LoadLibraryEx=%v; flags=%v)",
+ 		have, flags)
+ }
++
++var (
++	modwinmm    = syscall.NewLazyDLL("winmm.dll")
++	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
++
++	proctimeBeginPeriod = modwinmm.NewProc("timeBeginPeriod")
++	proctimeEndPeriod   = modwinmm.NewProc("timeEndPeriod")
++
++	procCreateEvent = modkernel32.NewProc("CreateEventW")
++	procSetEvent    = modkernel32.NewProc("SetEvent")
++)
++
++func timeBeginPeriod(period uint32) {
++	syscall.Syscall(proctimeBeginPeriod.Addr(), 1, uintptr(period), 0, 0)
++}
++
++func timeEndPeriod(period uint32) {
++	syscall.Syscall(proctimeEndPeriod.Addr(), 1, uintptr(period), 0, 0)
++}
++
++func createEvent() (syscall.Handle, error) {
++	r0, _, e0 := syscall.Syscall6(procCreateEvent.Addr(), 4, 0, 0, 0, 0, 0, 0)
++	if r0 == 0 {
++		return 0, syscall.Errno(e0)
++	}
++	return syscall.Handle(r0), nil
++}
++
++func setEvent(h syscall.Handle) error {
++	r0, _, e0 := syscall.Syscall(procSetEvent.Addr(), 1, uintptr(h), 0, 0)
++	if r0 == 0 {
++		return syscall.Errno(e0)
++	}
++	return nil
++}
++
++func benchChanToSyscallPing(b *testing.B) {
++	ch := make(chan int)
++	event, err := createEvent()
++	if err != nil {
++		b.Fatal(err)
++	}
++	go func() {
++		for i := 0; i < b.N; i++ {
++			syscall.WaitForSingleObject(event, syscall.INFINITE)
++			ch <- 1
++		}
++	}()
++	for i := 0; i < b.N; i++ {
++		err := setEvent(event)
++		if err != nil {
++			b.Fatal(err)
++		}
++		<-ch
++	}
++}
++
++func BenchmarkChanToSyscallPing1ms(b *testing.B) {
++	timeBeginPeriod(1)
++	benchChanToSyscallPing(b)
++	timeEndPeriod(1)
++}
++
++func BenchmarkChanToSyscallPing15ms(b *testing.B) {
++	benchChanToSyscallPing(b)
++}
++
++func benchSyscallToSyscallPing(b *testing.B) {
++	event1, err := createEvent()
++	if err != nil {
++		b.Fatal(err)
++	}
++	event2, err := createEvent()
++	if err != nil {
++		b.Fatal(err)
++	}
++	go func() {
++		for i := 0; i < b.N; i++ {
++			syscall.WaitForSingleObject(event1, syscall.INFINITE)
++			err := setEvent(event2)
++			if err != nil {
++				b.Fatal(err)
++			}
++		}
++	}()
++	for i := 0; i < b.N; i++ {
++		err := setEvent(event1)
++		if err != nil {
++			b.Fatal(err)
++		}
++		syscall.WaitForSingleObject(event2, syscall.INFINITE)
++	}
++}
++
++func BenchmarkSyscallToSyscallPing1ms(b *testing.B) {
++	timeBeginPeriod(1)
++	benchSyscallToSyscallPing(b)
++	timeEndPeriod(1)
++}
++
++func BenchmarkSyscallToSyscallPing15ms(b *testing.B) {
++	benchSyscallToSyscallPing(b)
++}
++
++func benchChanToChanPing(b *testing.B) {
++	ch1 := make(chan int)
++	ch2 := make(chan int)
++	go func() {
++		for i := 0; i < b.N; i++ {
++			<-ch1
++			ch2 <- 1
++		}
++	}()
++	for i := 0; i < b.N; i++ {
++		ch1 <- 1
++		<-ch2
++	}
++}
++
++func BenchmarkChanToChanPing1ms(b *testing.B) {
++	timeBeginPeriod(1)
++	benchChanToChanPing(b)
++	timeEndPeriod(1)
++}
++
++func BenchmarkChanToChanPing15ms(b *testing.B) {
++	benchChanToChanPing(b)
++}
++
++func benchOsYield(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		runtime.OsYield()
++	}
++}
++
++func BenchmarkOsYield1ms(b *testing.B) {
++	timeBeginPeriod(1)
++	benchOsYield(b)
++	timeEndPeriod(1)
++}
++
++func BenchmarkOsYield15ms(b *testing.B) {
++	benchOsYield(b)
++}

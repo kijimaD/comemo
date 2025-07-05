@@ -9,6 +9,20 @@ Date:   Wed Sep 19 10:11:24 2012 -0700
     R=adg, r, dave
     CC=golang-dev
     https://golang.org/cl/6535055
-
+---
  src/pkg/encoding/gob/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/gob/doc.go b/src/pkg/encoding/gob/doc.go
+index 821d9a3fe8..6d77c171f4 100644
+--- a/src/pkg/encoding/gob/doc.go
++++ b/src/pkg/encoding/gob/doc.go
+@@ -118,7 +118,7 @@ elements using the standard gob encoding for their type, recursively.
+ 
+ Maps are sent as an unsigned count followed by that many key, element
+ pairs. Empty but non-nil maps are sent, so if the sender has allocated
+-a map, the receiver will allocate a map even no elements are
++a map, the receiver will allocate a map even if no elements are
+ transmitted.
+ 
+ Structs are sent as a sequence of (field number, field value) pairs.  The field

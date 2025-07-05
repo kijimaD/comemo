@@ -14,8 +14,95 @@ Date:   Fri May 20 16:17:27 2016 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/build.go   | 12 +++++++++++-
  src/cmd/go/get.go     |  2 +-
  src/cmd/go/go_test.go | 11 +++++++++++
  3 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 1c9d3b2ba2..bb76465ce7 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -579,6 +579,10 @@ func libname(args []string, pkgs []*Package) (string, error) {
+ }
+ 
+ func runInstall(cmd *Command, args []string) {
++	installPackages(args, false)
++}
++
++func installPackages(args []string, forGet bool) {
+ 	if gobin != "" && !filepath.IsAbs(gobin) {
+ 		fatalf("cannot install, GOBIN must be an absolute path")
+ 	}
+@@ -606,6 +610,8 @@ func runInstall(cmd *Command, args []string) {
+ 
+ 	var b builder
+ 	b.init()
++	// Set the behavior for `go get` to not error on packages with test files only.
++	b.testFilesOnlyOK = forGet
+ 	var a *action
+ 	if buildBuildmode == "shared" {
+ 		if libName, err := libname(args, pkgs); err != nil {
+@@ -696,6 +702,8 @@ type builder struct {
+ 	flagCache   map[string]bool      // a cache of supported compiler flags
+ 	print       func(args ...interface{}) (int, error)
+ 
++	testFilesOnlyOK bool // do not error if the packages only have test files
++
+ 	output    sync.Mutex
+ 	scriptDir string // current directory in printed script
+ 
+@@ -1279,6 +1287,8 @@ func (b *builder) do(root *action) {
+ 		if err != nil {
+ 			if err == errPrintedOutput {
+ 				setExitStatus(2)
++			} else if _, ok := err.(*build.NoGoError); ok && len(a.p.TestGoFiles) > 0 && b.testFilesOnlyOK {
++				// Ignore the "no buildable Go source files" error for a package with only test files.
+ 			} else {
+ 				errorf("%s", err)
+ 			}
+@@ -1365,7 +1375,7 @@ func (b *builder) build(a *action) (err error) {
+ 	}
+ 
+ 	defer func() {
+-		if err != nil && err != errPrintedOutput {
++		if _, ok := err.(*build.NoGoError); err != nil && err != errPrintedOutput && !(ok && b.testFilesOnlyOK && len(a.p.TestGoFiles) > 0) {
+ 			err = fmt.Errorf("go build %s: %v", a.p.ImportPath, err)
+ 		}
+ 	}()
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index d30d612c72..05b6cb787e 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -139,7 +139,7 @@ func runGet(cmd *Command, args []string) {
+ 		return
+ 	}
+ 
+-	runInstall(cmd, args)
++	installPackages(args, true)
+ }
+ 
+ // downloadPaths prepares the list of paths to pass to download.
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 66c641347c..5d7e2e9f3a 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1430,6 +1430,17 @@ func TestGoGetNonPkg(t *testing.T) {
+ 	tg.grepStderr("golang.org/x/tools: no buildable Go source files", "missing error")
+ }
+ 
++func TestGoGetTestOnlyPkg(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.tempDir("gopath")
++	tg.setenv("GOPATH", tg.path("gopath"))
++	tg.run("get", "golang.org/x/tour/content")
++	tg.run("get", "-t", "golang.org/x/tour/content")
++}
++
+ func TestInstalls(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("don't install into GOROOT in short mode")

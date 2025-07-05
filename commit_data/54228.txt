@@ -12,8 +12,118 @@ Date:   Wed Sep 28 22:08:28 2022 +0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: hopehook <hopehook@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/encoding/pem/pem_test.go         | 12 ++++++------
  src/os/signal/signal_windows_test.go | 10 +++++-----
  src/runtime/syscall_windows_test.go  |  5 ++---
  3 files changed, 13 insertions(+), 14 deletions(-)
+
+diff --git a/src/encoding/pem/pem_test.go b/src/encoding/pem/pem_test.go
+index c94b5ca53b..56a7754b22 100644
+--- a/src/encoding/pem/pem_test.go
++++ b/src/encoding/pem/pem_test.go
+@@ -192,7 +192,7 @@ var lineBreakerTests = []lineBreakerTest{
+ 
+ func TestLineBreaker(t *testing.T) {
+ 	for i, test := range lineBreakerTests {
+-		buf := new(bytes.Buffer)
++		buf := new(strings.Builder)
+ 		var breaker lineBreaker
+ 		breaker.out = buf
+ 		_, err := breaker.Write([]byte(test.in))
+@@ -206,13 +206,13 @@ func TestLineBreaker(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		if string(buf.Bytes()) != test.out {
+-			t.Errorf("#%d: got:%s want:%s", i, string(buf.Bytes()), test.out)
++		if got := buf.String(); got != test.out {
++			t.Errorf("#%d: got:%s want:%s", i, got, test.out)
+ 		}
+ 	}
+ 
+ 	for i, test := range lineBreakerTests {
+-		buf := new(bytes.Buffer)
++		buf := new(strings.Builder)
+ 		var breaker lineBreaker
+ 		breaker.out = buf
+ 
+@@ -229,8 +229,8 @@ func TestLineBreaker(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		if string(buf.Bytes()) != test.out {
+-			t.Errorf("#%d: (byte by byte) got:%s want:%s", i, string(buf.Bytes()), test.out)
++		if got := buf.String(); got != test.out {
++			t.Errorf("#%d: (byte by byte) got:%s want:%s", i, got, test.out)
+ 		}
+ 	}
+ }
+diff --git a/src/os/signal/signal_windows_test.go b/src/os/signal/signal_windows_test.go
+index 9b14551572..02803e5808 100644
+--- a/src/os/signal/signal_windows_test.go
++++ b/src/os/signal/signal_windows_test.go
+@@ -5,11 +5,11 @@
+ package signal
+ 
+ import (
+-	"bytes"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"strings"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+@@ -78,9 +78,9 @@ func main() {
+ 
+ 	// run it
+ 	cmd := exec.Command(exe)
+-	var b bytes.Buffer
+-	cmd.Stdout = &b
+-	cmd.Stderr = &b
++	var buf strings.Builder
++	cmd.Stdout = &buf
++	cmd.Stderr = &buf
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{
+ 		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
+ 	}
+@@ -94,6 +94,6 @@ func main() {
+ 	}()
+ 	err = cmd.Wait()
+ 	if err != nil {
+-		t.Fatalf("Program exited with error: %v\n%v", err, string(b.Bytes()))
++		t.Fatalf("Program exited with error: %v\n%v", err, buf.String())
+ 	}
+ }
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 37f8f40cfb..c0d3379e65 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -5,7 +5,6 @@
+ package runtime_test
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"internal/abi"
+ 	"internal/syscall/windows/sysdll"
+@@ -1044,7 +1043,7 @@ func TestNumCPU(t *testing.T) {
+ 
+ 	cmd := exec.Command(os.Args[0], "-test.run=TestNumCPU")
+ 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	cmd.Stdout = &buf
+ 	cmd.Stderr = &buf
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: _CREATE_SUSPENDED}
+@@ -1054,7 +1053,7 @@ func TestNumCPU(t *testing.T) {
+ 	}
+ 	defer func() {
+ 		err = cmd.Wait()
+-		childOutput := string(buf.Bytes())
++		childOutput := buf.String()
+ 		if err != nil {
+ 			t.Fatalf("child failed: %v: %v", err, childOutput)
+ 		}

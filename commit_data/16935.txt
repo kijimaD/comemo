@@ -11,6 +11,20 @@ Date:   Wed Jul 31 13:04:57 2013 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12107044
-
+---
  src/pkg/text/template/exec_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index 0ab20acc93..b898565931 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -24,7 +24,7 @@ type T struct {
+ 	U16         uint16
+ 	X           string
+ 	FloatZero   float64
+-	ComplexZero float64
++	ComplexZero complex128
+ 	// Nested structs.
+ 	U *U
+ 	// Struct with String method.

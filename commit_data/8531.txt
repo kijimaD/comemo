@@ -9,7 +9,43 @@ Date:   Sun May 29 00:23:32 2011 -0300
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4539093
-
+---
  src/pkg/template/template.go      | 9 +++++----
  src/pkg/template/template_test.go | 4 ++++
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index c00f72ac94..1eb0295a55 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -395,10 +395,11 @@ func words(buf []byte) []string {
+ 			} else {
+ 				i++
+ 			}
+-		} else {
+-			for i < len(buf) && !white(buf[i]) {
+-				i++
+-			}
++		}
++		// Even with quotes, break on whitespace only.  This will
++		// work with e.g. {""|} and catch quoting mistakes properly.
++		for i < len(buf) && !white(buf[i]) {
++			i++
+ 		}
+ 		s = append(s, string(buf[start:i]))
+ 	}
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index a5e6a4ecc8..147a1ca217 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -762,6 +762,10 @@ var formatterTests = []Test{
+ 		in:  `{"%.02f 0x%02X" 1.1 10|printf}`,
+ 		out: "1.10 0x0A",
+ 	},
++	{
++		in:  `{""|}{""||}{""|printf}`, // Issue #1896.
++		out: "",
++	},
+ }
+ 
+ func TestFormatters(t *testing.T) {

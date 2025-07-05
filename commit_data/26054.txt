@@ -77,7 +77,7 @@ Date:   Fri Dec 11 17:49:14 2015 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/malloc.go   |  1 -
  src/runtime/mcache.go   |  5 ++---
  src/runtime/mcentral.go | 12 ++++++++++++
@@ -85,3 +85,195 @@ Date:   Fri Dec 11 17:49:14 2015 -0500
  src/runtime/mheap.go    | 10 ++--------
  src/runtime/mstats.go   | 31 +++++++++++++++++++++++--------
  6 files changed, 47 insertions(+), 21 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index f9be28d6e6..d4487eed6d 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -653,7 +653,6 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 				}
+ 			}
+ 		}
+-		c.local_cachealloc += size
+ 	} else {
+ 		var s *mspan
+ 		shouldhelpgc = true
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index c843fb2096..b06d354eb6 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -14,9 +14,8 @@ import "unsafe"
+ type mcache struct {
+ 	// The following members are accessed on every malloc,
+ 	// so they are grouped here for better caching.
+-	next_sample      int32   // trigger heap sample after allocating this many bytes
+-	local_cachealloc uintptr // bytes allocated from cache since last lock of heap
+-	local_scan       uintptr // bytes of scannable heap allocated
++	next_sample int32   // trigger heap sample after allocating this many bytes
++	local_scan  uintptr // bytes of scannable heap allocated
+ 
+ 	// Allocator cache for tiny objects w/o pointers.
+ 	// See "Tiny allocator" comment in malloc.go.
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 159079b1f0..29a7b77376 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -106,6 +106,15 @@ havespan:
+ 	if usedBytes > 0 {
+ 		reimburseSweepCredit(usedBytes)
+ 	}
++	atomic.Xadd64(&memstats.heap_live, int64(spanBytes)-int64(usedBytes))
++	if trace.enabled {
++		// heap_live changed.
++		traceHeapAlloc()
++	}
++	if gcBlackenEnabled != 0 {
++		// heap_live changed.
++		gcController.revise()
++	}
+ 	if s.freelist.ptr() == nil {
+ 		throw("freelist empty")
+ 	}
+@@ -128,6 +137,9 @@ func (c *mcentral) uncacheSpan(s *mspan) {
+ 	if n > 0 {
+ 		c.empty.remove(s)
+ 		c.nonempty.insert(s)
++		// mCentral_CacheSpan conservatively counted
++		// unallocated slots in heap_live. Undo this.
++		atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
+ 	}
+ 	unlock(&c.lock)
+ }
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 5710cd4bd7..9f8c505c6b 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1570,6 +1570,11 @@ func gcMark(start_time int64) {
+ 	// is approximately the amount of heap that was allocated
+ 	// since marking began).
+ 	allocatedDuringCycle := memstats.heap_live - work.initialHeapLive
++	if memstats.heap_live < work.initialHeapLive {
++		// This can happen if mCentral_UncacheSpan tightens
++		// the heap_live approximation.
++		allocatedDuringCycle = 0
++	}
+ 	if work.bytesMarked >= allocatedDuringCycle {
+ 		memstats.heap_reachable = work.bytesMarked - allocatedDuringCycle
+ 	} else {
+@@ -1593,7 +1598,9 @@ func gcMark(start_time int64) {
+ 		throw("next_gc underflow")
+ 	}
+ 
+-	// Update other GC heap size stats.
++	// Update other GC heap size stats. This must happen after
++	// cachestats (which flushes local statistics to these) and
++	// flushallmcaches (which modifies heap_live).
+ 	memstats.heap_live = work.bytesMarked
+ 	memstats.heap_marked = work.bytesMarked
+ 	memstats.heap_scan = uint64(gcController.scanWork)
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index d04297cc80..e8189547f8 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -429,8 +429,6 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
+ 	}
+ 
+ 	// transfer stats from cache to global
+-	memstats.heap_live += uint64(_g_.m.mcache.local_cachealloc)
+-	_g_.m.mcache.local_cachealloc = 0
+ 	memstats.heap_scan += uint64(_g_.m.mcache.local_scan)
+ 	_g_.m.mcache.local_scan = 0
+ 	memstats.tinyallocs += uint64(_g_.m.mcache.local_tinyallocs)
+@@ -464,7 +462,7 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
+ 		h.pagesInUse += uint64(npage)
+ 		if large {
+ 			memstats.heap_objects++
+-			memstats.heap_live += uint64(npage << _PageShift)
++			atomic.Xadd64(&memstats.heap_live, int64(npage<<_PageShift))
+ 			// Swept spans are at the end of lists.
+ 			if s.npages < uintptr(len(h.free)) {
+ 				h.busy[s.npages].insertBack(s)
+@@ -713,8 +711,6 @@ func (h *mheap) freeSpan(s *mspan, acct int32) {
+ 	systemstack(func() {
+ 		mp := getg().m
+ 		lock(&h.lock)
+-		memstats.heap_live += uint64(mp.mcache.local_cachealloc)
+-		mp.mcache.local_cachealloc = 0
+ 		memstats.heap_scan += uint64(mp.mcache.local_scan)
+ 		mp.mcache.local_scan = 0
+ 		memstats.tinyallocs += uint64(mp.mcache.local_tinyallocs)
+@@ -723,12 +719,10 @@ func (h *mheap) freeSpan(s *mspan, acct int32) {
+ 			memstats.heap_objects--
+ 		}
+ 		if gcBlackenEnabled != 0 {
++			// heap_scan changed.
+ 			gcController.revise()
+ 		}
+ 		h.freeSpanLocked(s, true, true, 0)
+-		if trace.enabled {
+-			traceHeapAlloc()
+-		}
+ 		unlock(&h.lock)
+ 	})
+ }
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 2db01da375..368687d006 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -46,7 +46,7 @@ type mstats struct {
+ 
+ 	// Statistics about garbage collector.
+ 	// Protected by mheap or stopping the world during GC.
+-	next_gc         uint64 // next gc (in heap_alloc time)
++	next_gc         uint64 // next gc (in heap_live time)
+ 	last_gc         uint64 // last gc (in absolute time)
+ 	pause_total_ns  uint64
+ 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
+@@ -70,13 +70,33 @@ type mstats struct {
+ 
+ 	// heap_live is the number of bytes considered live by the GC.
+ 	// That is: retained by the most recent GC plus allocated
+-	// since then. heap_live <= heap_alloc, since heap_live
+-	// excludes unmarked objects that have not yet been swept.
++	// since then. heap_live <= heap_alloc, since heap_alloc
++	// includes unmarked objects that have not yet been swept (and
++	// hence goes up as we allocate and down as we sweep) while
++	// heap_live excludes these objects (and hence only goes up
++	// between GCs).
++	//
++	// This is updated atomically without locking. To reduce
++	// contention, this is updated only when obtaining a span from
++	// an mcentral and at this point it counts all of the
++	// unallocated slots in that span (which will be allocated
++	// before that mcache obtains another span from that
++	// mcentral). Hence, it slightly overestimates the "true" live
++	// heap size. It's better to overestimate than to
++	// underestimate because 1) this triggers the GC earlier than
++	// necessary rather than potentially too late and 2) this
++	// leads to a conservative GC rate rather than a GC rate that
++	// is potentially too low.
++	//
++	// Whenever this is updated, call traceHeapAlloc() and
++	// gcController.revise().
+ 	heap_live uint64
+ 
+ 	// heap_scan is the number of bytes of "scannable" heap. This
+ 	// is the live heap (as counted by heap_live), but omitting
+ 	// no-scan objects and no-scan tails of objects.
++	//
++	// Whenever this is updated, call gcController.revise().
+ 	heap_scan uint64
+ 
+ 	// heap_marked is the number of bytes marked by the previous
+@@ -335,11 +355,6 @@ func flushallmcaches() {
+ func purgecachedstats(c *mcache) {
+ 	// Protected by either heap or GC lock.
+ 	h := &mheap_
+-	memstats.heap_live += uint64(c.local_cachealloc)
+-	c.local_cachealloc = 0
+-	if trace.enabled {
+-		traceHeapAlloc()
+-	}
+ 	memstats.heap_scan += uint64(c.local_scan)
+ 	c.local_scan = 0
+ 	memstats.tinyallocs += uint64(c.local_tinyallocs)

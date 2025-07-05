@@ -13,9 +13,186 @@ Date:   Tue Sep 12 17:09:46 2017 +0200
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/pprof/pprof.go | 20 +++++++++-----------
  src/text/template/exec.go  | 39 ++++++++++++---------------------------
  src/time/genzabbrs.go      | 16 ++++++----------
  src/unicode/maketables.go  | 10 +++-------
  4 files changed, 30 insertions(+), 55 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 21ea25ce36..7b875fc488 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -319,7 +319,15 @@ func (p *Profile) WriteTo(w io.Writer, debug int) error {
+ 	p.mu.Unlock()
+ 
+ 	// Map order is non-deterministic; make output deterministic.
+-	sort.Sort(stackProfile(all))
++	sort.Slice(all, func(i, j int) bool {
++		t, u := all[i], all[j]
++		for k := 0; k < len(t) && k < len(u); k++ {
++			if t[k] != u[k] {
++				return t[k] < u[k]
++			}
++		}
++		return len(t) < len(u)
++	})
+ 
+ 	return printCountProfile(w, debug, p.name, stackProfile(all))
+ }
+@@ -328,16 +336,6 @@ type stackProfile [][]uintptr
+ 
+ func (x stackProfile) Len() int              { return len(x) }
+ func (x stackProfile) Stack(i int) []uintptr { return x[i] }
+-func (x stackProfile) Swap(i, j int)         { x[i], x[j] = x[j], x[i] }
+-func (x stackProfile) Less(i, j int) bool {
+-	t, u := x[i], x[j]
+-	for k := 0; k < len(t) && k < len(u); k++ {
+-		if t[k] != u[k] {
+-			return t[k] < u[k]
+-		}
+-	}
+-	return len(t) < len(u)
+-}
+ 
+ // A countProfile is a set of stack traces to be printed as counts
+ // grouped by stack trace. There are multiple implementations:
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 1c361ed13e..83c38cdf13 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -927,29 +927,6 @@ func printableValue(v reflect.Value) (interface{}, bool) {
+ 	return v.Interface(), true
+ }
+ 
+-// Types to help sort the keys in a map for reproducible output.
+-
+-type rvs []reflect.Value
+-
+-func (x rvs) Len() int      { return len(x) }
+-func (x rvs) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+-
+-type rvInts struct{ rvs }
+-
+-func (x rvInts) Less(i, j int) bool { return x.rvs[i].Int() < x.rvs[j].Int() }
+-
+-type rvUints struct{ rvs }
+-
+-func (x rvUints) Less(i, j int) bool { return x.rvs[i].Uint() < x.rvs[j].Uint() }
+-
+-type rvFloats struct{ rvs }
+-
+-func (x rvFloats) Less(i, j int) bool { return x.rvs[i].Float() < x.rvs[j].Float() }
+-
+-type rvStrings struct{ rvs }
+-
+-func (x rvStrings) Less(i, j int) bool { return x.rvs[i].String() < x.rvs[j].String() }
+-
+ // sortKeys sorts (if it can) the slice of reflect.Values, which is a slice of map keys.
+ func sortKeys(v []reflect.Value) []reflect.Value {
+ 	if len(v) <= 1 {
+@@ -957,13 +934,21 @@ func sortKeys(v []reflect.Value) []reflect.Value {
+ 	}
+ 	switch v[0].Kind() {
+ 	case reflect.Float32, reflect.Float64:
+-		sort.Sort(rvFloats{v})
++		sort.Slice(v, func(i, j int) bool {
++			return v[i].Float() < v[j].Float()
++		})
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+-		sort.Sort(rvInts{v})
++		sort.Slice(v, func(i, j int) bool {
++			return v[i].Int() < v[j].Int()
++		})
+ 	case reflect.String:
+-		sort.Sort(rvStrings{v})
++		sort.Slice(v, func(i, j int) bool {
++			return v[i].String() < v[j].String()
++		})
+ 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+-		sort.Sort(rvUints{v})
++		sort.Slice(v, func(i, j int) bool {
++			return v[i].Uint() < v[j].Uint()
++		})
+ 	}
+ 	return v
+ }
+diff --git a/src/time/genzabbrs.go b/src/time/genzabbrs.go
+index 824a67f15a..e062cc2efd 100644
+--- a/src/time/genzabbrs.go
++++ b/src/time/genzabbrs.go
+@@ -52,12 +52,6 @@ type zone struct {
+ 	DSTime   string
+ }
+ 
+-type zones []*zone
+-
+-func (zs zones) Len() int           { return len(zs) }
+-func (zs zones) Swap(i, j int)      { zs[i], zs[j] = zs[j], zs[i] }
+-func (zs zones) Less(i, j int) bool { return zs[i].UnixName < zs[j].UnixName }
+-
+ const wzURL = "http://unicode.org/cldr/data/common/supplemental/windowsZones.xml"
+ 
+ type MapZone struct {
+@@ -70,7 +64,7 @@ type SupplementalData struct {
+ 	Zones []MapZone `xml:"windowsZones>mapTimezones>mapZone"`
+ }
+ 
+-func readWindowsZones() (zones, error) {
++func readWindowsZones() ([]*zone, error) {
+ 	r, err := http.Get(wzURL)
+ 	if err != nil {
+ 		return nil, err
+@@ -87,7 +81,7 @@ func readWindowsZones() (zones, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	zs := make(zones, 0)
++	zs := make([]*zone, 0)
+ 	for _, z := range sd.Zones {
+ 		if z.Territory != "001" {
+ 			// to avoid dups. I don't know why.
+@@ -114,10 +108,12 @@ func main() {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	sort.Sort(zs)
++	sort.Slice(zs, func(i, j int) bool {
++		return zs[i].UnixName < zs[j].UnixName
++	})
+ 	var v = struct {
+ 		URL string
+-		Zs  zones
++		Zs  []*zone
+ 	}{
+ 		wzURL,
+ 		zs,
+diff --git a/src/unicode/maketables.go b/src/unicode/maketables.go
+index 3fcf8af6bf..9a92a0130a 100644
+--- a/src/unicode/maketables.go
++++ b/src/unicode/maketables.go
+@@ -1132,12 +1132,6 @@ func printLatinProperties() {
+ 	printf("}\n\n")
+ }
+ 
+-type runeSlice []rune
+-
+-func (p runeSlice) Len() int           { return len(p) }
+-func (p runeSlice) Less(i, j int) bool { return p[i] < p[j] }
+-func (p runeSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+-
+ func printCasefold() {
+ 	// Build list of case-folding groups attached to each canonical folded char (typically lower case).
+ 	var caseOrbit = make([][]rune, MaxChar+1)
+@@ -1184,7 +1178,9 @@ func printCasefold() {
+ 		if orb == nil {
+ 			continue
+ 		}
+-		sort.Sort(runeSlice(orb))
++		sort.Slice(orb, func(i, j int) bool {
++			return orb[i] < orb[j]
++		})
+ 		c := orb[len(orb)-1]
+ 		for _, d := range orb {
+ 			chars[c].caseOrbit = d

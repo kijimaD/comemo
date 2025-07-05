@@ -9,6 +9,20 @@ Date:   Thu Feb 18 11:43:52 2016 -0800
     Change-Id: I325b283a1d53e73a6d862611c446820ab94a161c
     Reviewed-on: https://go-review.googlesource.com/19622
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/text/scanner/scanner.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/text/scanner/scanner.go b/src/text/scanner/scanner.go
+index 0155800f34..dd87850fcd 100644
+--- a/src/text/scanner/scanner.go
++++ b/src/text/scanner/scanner.go
+@@ -333,7 +333,7 @@ func (s *Scanner) error(msg string) {
+ 	if !pos.IsValid() {
+ 		pos = s.Pos()
+ 	}
+-	fmt.Fprintf(os.Stderr, "%s: %s\n", pos, msg)
++	fmt.Fprintf(os.Stderr, "text/scanner: %s: %s\n", pos, msg)
+ }
+ 
+ func (s *Scanner) isIdentRune(ch rune, i int) bool {

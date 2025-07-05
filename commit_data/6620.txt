@@ -7,6 +7,20 @@ Date:   Mon Oct 25 16:54:59 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/2704042
-
+---
  src/pkg/runtime/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 643f4572b5..4c8d549811 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -116,7 +116,7 @@ $(pkgdir)/%.h: %.h
+ clean: clean-local
+ 
+ clean-local:
+-	rm -f goc2c mkversion version.go */asm.h runtime.acid.*
++	rm -f goc2c mkversion version.go */asm.h runtime.acid.* $$(ls *.goc | sed 's/goc$$/c/')
+ 
+ $(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
+ 	./mkasmh.sh >$@.x

@@ -14,8 +14,87 @@ Date:   Mon May 15 13:53:21 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/file_windows.go         |  3 ++-
  src/os/os_test.go              | 26 ++++++++++++++++++++++++++
  src/syscall/syscall_windows.go |  7 +++++--
  3 files changed, 33 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 37db3f931c..c77d182fae 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -14,7 +14,8 @@ import (
+ 	"unsafe"
+ )
+ 
+-const _UTIME_OMIT = 0
++// This matches the value in syscall/syscall_windows.go.
++const _UTIME_OMIT = -1
+ 
+ // file is the real representation of *File.
+ // The extra level of indirection ensures that no clients of os
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 3f4fbabb2d..09d923a338 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1568,6 +1568,32 @@ func testChtimes(t *testing.T, name string) {
+ 	}
+ }
+ 
++func TestChtimesToUnixZero(t *testing.T) {
++	file := newFile("chtimes-to-unix-zero", t)
++	fn := file.Name()
++	defer Remove(fn)
++	if _, err := file.Write([]byte("hi")); err != nil {
++		t.Fatal(err)
++	}
++	if err := file.Close(); err != nil {
++		t.Fatal(err)
++	}
++
++	unixZero := time.Unix(0, 0)
++	if err := Chtimes(fn, unixZero, unixZero); err != nil {
++		t.Fatalf("Chtimes failed: %v", err)
++	}
++
++	st, err := Stat(fn)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if mt := st.ModTime(); mt != unixZero {
++		t.Errorf("mtime is %v, want %v", mt, unixZero)
++	}
++}
++
+ func TestFileChdir(t *testing.T) {
+ 	wd, err := Getwd()
+ 	if err != nil {
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index c3fa415832..d721309781 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -658,6 +658,9 @@ func Utimes(path string, tv []Timeval) (err error) {
+ 	return SetFileTime(h, nil, &a, &w)
+ }
+ 
++// This matches the value in os/file_windows.go.
++const _UTIME_OMIT = -1
++
+ func UtimesNano(path string, ts []Timespec) (err error) {
+ 	if len(ts) != 2 {
+ 		return EINVAL
+@@ -675,10 +678,10 @@ func UtimesNano(path string, ts []Timespec) (err error) {
+ 	defer Close(h)
+ 	a := Filetime{}
+ 	w := Filetime{}
+-	if TimespecToNsec(ts[0]) != 0 {
++	if ts[0].Nsec != _UTIME_OMIT {
+ 		a = NsecToFiletime(TimespecToNsec(ts[0]))
+ 	}
+-	if TimespecToNsec(ts[1]) != 0 {
++	if ts[1].Nsec != _UTIME_OMIT {
+ 		w = NsecToFiletime(TimespecToNsec(ts[1]))
+ 	}
+ 	return SetFileTime(h, nil, &a, &w)

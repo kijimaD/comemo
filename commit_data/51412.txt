@@ -26,7 +26,7 @@ Date:   Tue Jan 25 17:31:52 2022 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Tim King <taking@google.com>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  .../go/analysis/passes/ifaceassert/ifaceassert.go  |   6 ++
@@ -41,3 +41,491 @@ Date:   Tue Jan 25 17:31:52 2022 -0500
  .../tools/internal/typeparams/typeparams_go118.go  |  50 ---------
  src/cmd/vendor/modules.txt                         |   2 +-
  13 files changed, 208 insertions(+), 116 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 6684fbf95d..48fc888f94 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,7 +8,7 @@ require (
+ 	golang.org/x/mod v0.6.0-dev.0.20211102181907-3a5865c02020
+ 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+ 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+-	golang.org/x/tools v0.1.9-0.20211207220608-fd2bfb79a16a
++	golang.org/x/tools v0.1.9-0.20220124164225-97de9ec46646
+ )
+ 
+ require (
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 9e20235497..4a5479f881 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -18,7 +18,7 @@ golang.org/x/sys v0.0.0-20211205182925-97ca703d548d h1:FjkYO/PPp4Wi0EAUOVLxePm7q
+ golang.org/x/sys v0.0.0-20211205182925-97ca703d548d/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 h1:JGgROgKl9N8DuW20oFS5gxc+lE67/N3FcwmBPMe7ArY=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+-golang.org/x/tools v0.1.9-0.20211207220608-fd2bfb79a16a h1:G+TZ7v63o8mn+LBWOdnHaiypIhcgFZ6BDDnyX+RXDYg=
+-golang.org/x/tools v0.1.9-0.20211207220608-fd2bfb79a16a/go.mod h1:nABZi5QlRsZVlzPpHl034qft6wpY4eDcsTt5AaioBiU=
++golang.org/x/tools v0.1.9-0.20220124164225-97de9ec46646 h1:f8aekWvlQQ8ZhD8SL7lOu18dtWslZYl029PN2F0VnS4=
++golang.org/x/tools v0.1.9-0.20220124164225-97de9ec46646/go.mod h1:nABZi5QlRsZVlzPpHl034qft6wpY4eDcsTt5AaioBiU=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/ifaceassert.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/ifaceassert.go
+index fd2285332c..30130f63ea 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/ifaceassert.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/ifaceassert.go
+@@ -51,6 +51,12 @@ func assertableTo(v, t types.Type) *types.Func {
+ 	if V == nil || T == nil {
+ 		return nil
+ 	}
++
++	// Mitigations for interface comparisons and generics.
++	// TODO(https://github.com/golang/go/issues/50658): Support more precise conclusion.
++	if isParameterized(V) || isParameterized(T) {
++		return nil
++	}
+ 	if f, wrongType := types.MissingMethod(V, T, false); wrongType {
+ 		return f
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/parameterized.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/parameterized.go
+new file mode 100644
+index 0000000000..1285ecf136
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/parameterized.go
+@@ -0,0 +1,112 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package ifaceassert
++
++import (
++	"go/types"
++
++	"golang.org/x/tools/internal/typeparams"
++)
++
++// isParameterized reports whether typ contains any of the type parameters of tparams.
++//
++// NOTE: Adapted from go/types/infer.go. If that is exported in a future release remove this copy.
++func isParameterized(typ types.Type) bool {
++	w := tpWalker{
++		seen: make(map[types.Type]bool),
++	}
++	return w.isParameterized(typ)
++}
++
++type tpWalker struct {
++	seen map[types.Type]bool
++}
++
++func (w *tpWalker) isParameterized(typ types.Type) (res bool) {
++	// detect cycles
++	if x, ok := w.seen[typ]; ok {
++		return x
++	}
++	w.seen[typ] = false
++	defer func() {
++		w.seen[typ] = res
++	}()
++
++	switch t := typ.(type) {
++	case nil, *types.Basic: // TODO(gri) should nil be handled here?
++		break
++
++	case *types.Array:
++		return w.isParameterized(t.Elem())
++
++	case *types.Slice:
++		return w.isParameterized(t.Elem())
++
++	case *types.Struct:
++		for i, n := 0, t.NumFields(); i < n; i++ {
++			if w.isParameterized(t.Field(i).Type()) {
++				return true
++			}
++		}
++
++	case *types.Pointer:
++		return w.isParameterized(t.Elem())
++
++	case *types.Tuple:
++		n := t.Len()
++		for i := 0; i < n; i++ {
++			if w.isParameterized(t.At(i).Type()) {
++				return true
++			}
++		}
++
++	case *types.Signature:
++		// t.tparams may not be nil if we are looking at a signature
++		// of a generic function type (or an interface method) that is
++		// part of the type we're testing. We don't care about these type
++		// parameters.
++		// Similarly, the receiver of a method may declare (rather then
++		// use) type parameters, we don't care about those either.
++		// Thus, we only need to look at the input and result parameters.
++		return w.isParameterized(t.Params()) || w.isParameterized(t.Results())
++
++	case *types.Interface:
++		for i, n := 0, t.NumMethods(); i < n; i++ {
++			if w.isParameterized(t.Method(i).Type()) {
++				return true
++			}
++		}
++		terms, err := typeparams.InterfaceTermSet(t)
++		if err != nil {
++			panic(err)
++		}
++		for _, term := range terms {
++			if w.isParameterized(term.Type()) {
++				return true
++			}
++		}
++
++	case *types.Map:
++		return w.isParameterized(t.Key()) || w.isParameterized(t.Elem())
++
++	case *types.Chan:
++		return w.isParameterized(t.Elem())
++
++	case *types.Named:
++		list := typeparams.NamedTypeArgs(t)
++		for i, n := 0, list.Len(); i < n; i++ {
++			if w.isParameterized(list.At(i)) {
++				return true
++			}
++		}
++
++	case *typeparams.TypeParam:
++		return true
++
++	default:
++		panic(t) // unreachable
++	}
++
++	return false
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
+index 850f6f8fae..e4c66df6d6 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
+@@ -62,7 +62,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			obj = pass.TypesInfo.Uses[v.Sel]
+ 		case *ast.IndexExpr, *typeparams.IndexListExpr:
+ 			// Check generic functions such as "f[T1,T2]".
+-			if id, ok := typeparams.GetIndexExprData(v).X.(*ast.Ident); ok {
++			x, _, _, _ := typeparams.UnpackIndexExpr(v)
++			if id, ok := x.(*ast.Ident); ok {
+ 				obj = pass.TypesInfo.Uses[id]
+ 			}
+ 		default:
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
+index 3d4bd49085..7ea8f77e33 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
+@@ -127,11 +127,8 @@ func typeIsTestingDotTOrB(expr ast.Expr) (string, bool) {
+ func goStmtFun(goStmt *ast.GoStmt) ast.Node {
+ 	switch fun := goStmt.Call.Fun.(type) {
+ 	case *ast.IndexExpr, *typeparams.IndexListExpr:
+-		ix := typeparams.GetIndexExprData(fun)
+-		if ix == nil {
+-			break
+-		}
+-		id, _ := ix.X.(*ast.Ident)
++		x, _, _, _ := typeparams.UnpackIndexExpr(fun)
++		id, _ := x.(*ast.Ident)
+ 		if id == nil {
+ 			break
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go
+index fd94508f88..06747ba72b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go
+@@ -71,9 +71,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			return // a conversion, not a call
+ 		}
+ 
+-		index := typeparams.GetIndexExprData(fun)
+-		if index != nil {
+-			fun = index.X // If this is generic function or method call, skip the instantiation arguments
++		x, _, _, _ := typeparams.UnpackIndexExpr(fun)
++		if x != nil {
++			fun = x // If this is generic function or method call, skip the instantiation arguments
+ 		}
+ 
+ 		selector, ok := fun.(*ast.SelectorExpr)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go
+index 2b8960332d..90b3ab0e21 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/callee.go
+@@ -27,8 +27,7 @@ func Callee(info *types.Info, call *ast.CallExpr) types.Object {
+ 		// it is a *types.Func and not a *types.Var.
+ 		// Example: Don't match a slice m within the expression `m[0]()`.
+ 		isInstance = true
+-		ix := typeparams.GetIndexExprData(fun)
+-		fun = ix.X
++		fun, _, _, _ = typeparams.UnpackIndexExpr(fun)
+ 	}
+ 
+ 	var obj types.Object
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/symbol.go b/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/symbol.go
+index 062f491fb5..df9fbd5141 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/symbol.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/symbol.go
+@@ -49,11 +49,6 @@ const (
+ //
+ // Currently this matcher only accepts case-insensitive fuzzy patterns.
+ //
+-// TODO(rfindley):
+-//  - implement smart-casing
+-//  - implement space-separated groups
+-//  - implement ', ^, and $ modifiers
+-//
+ // An empty pattern matches no input.
+ func NewSymbolMatcher(pattern string) *SymbolMatcher {
+ 	m := &SymbolMatcher{}
+@@ -176,7 +171,12 @@ input:
+ 	//   1. 1.0 if the character starts a segment, .8 if the character start a
+ 	//      mid-segment word, otherwise 0.6. This carries over to immediately
+ 	//      following characters.
+-	//   2. 1.0 if the character is part of the last segment, otherwise
++	//   2. For the final character match, the multiplier from (1) is reduced to
++	//     .8 if the next character in the input is a mid-segment word, or 0.6 if
++	//      the next character in the input is not a word or segment start. This
++	//      ensures that we favor whole-word or whole-segment matches over prefix
++	//      matches.
++	//   3. 1.0 if the character is part of the last segment, otherwise
+ 	//      1.0-.2*<segments from the right>, with a max segment count of 3.
+ 	//
+ 	// This is a very naive algorithm, but it is fast. There's lots of prior art
+@@ -211,8 +211,20 @@ input:
+ 			case m.roles[ii]&wordStart != 0 && wordStreak > streakBonus:
+ 				streakBonus = wordStreak
+ 			}
++			finalChar := pi >= m.patternLen
++			// finalCost := 1.0
++			if finalChar && streakBonus > noStreak {
++				switch {
++				case ii == inputLen-1 || m.roles[ii+1]&segmentStart != 0:
++					// Full segment: no reduction
++				case m.roles[ii+1]&wordStart != 0:
++					streakBonus = wordStreak
++				default:
++					streakBonus = noStreak
++				}
++			}
+ 			totScore += streakBonus * (1.0 - float64(m.segments[ii])*perSegment)
+-			if pi >= m.patternLen {
++			if finalChar {
+ 				break
+ 			}
+ 		} else {
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+index 961d036fdb..1222764b6a 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+@@ -2,12 +2,25 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package typeparams provides functions to work indirectly with type parameter
+-// data stored in go/ast and go/types objects, while these API are guarded by a
+-// build constraint.
++// Package typeparams contains common utilities for writing tools that interact
++// with generic Go code, as introduced with Go 1.18.
+ //
+-// This package exists to make it easier for tools to work with generic code,
+-// while also compiling against older Go versions.
++// Many of the types and functions in this package are proxies for the new APIs
++// introduced in the standard library with Go 1.18. For example, the
++// typeparams.Union type is an alias for go/types.Union, and the ForTypeSpec
++// function returns the value of the go/ast.TypeSpec.TypeParams field. At Go
++// versions older than 1.18 these helpers are implemented as stubs, allowing
++// users of this package to write code that handles generic constructs inline,
++// even if the Go version being used to compile does not support generics.
++//
++// Additionally, this package contains common utilities for working with the
++// new generic constructs, to supplement the standard library APIs. Notably,
++// the StructuralTerms API computes a minimal representation of the structural
++// restrictions on a type parameter. In the future, this API may be available
++// from go/types.
++//
++// See the example/README.md for a more detailed guide on how to update tools
++// to support generics.
+ package typeparams
+ 
+ import (
+@@ -16,13 +29,47 @@ import (
+ 	"go/types"
+ )
+ 
+-// A IndexExprData holds data from both ast.IndexExpr and the new
+-// ast.MultiIndexExpr, which was introduced in Go 1.18.
+-type IndexExprData struct {
+-	X       ast.Expr   // expression
+-	Lbrack  token.Pos  // position of "["
+-	Indices []ast.Expr // index expressions
+-	Rbrack  token.Pos  // position of "]"
++// UnpackIndexExpr extracts data from AST nodes that represent index
++// expressions.
++//
++// For an ast.IndexExpr, the resulting indices slice will contain exactly one
++// index expression. For an ast.IndexListExpr (go1.18+), it may have a variable
++// number of index expressions.
++//
++// For nodes that don't represent index expressions, the first return value of
++// UnpackIndexExpr will be nil.
++func UnpackIndexExpr(n ast.Node) (x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack token.Pos) {
++	switch e := n.(type) {
++	case *ast.IndexExpr:
++		return e.X, e.Lbrack, []ast.Expr{e.Index}, e.Rbrack
++	case *IndexListExpr:
++		return e.X, e.Lbrack, e.Indices, e.Rbrack
++	}
++	return nil, token.NoPos, nil, token.NoPos
++}
++
++// PackIndexExpr returns an *ast.IndexExpr or *ast.IndexListExpr, depending on
++// the cardinality of indices. Calling PackIndexExpr with len(indices) == 0
++// will panic.
++func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack token.Pos) ast.Expr {
++	switch len(indices) {
++	case 0:
++		panic("empty indices")
++	case 1:
++		return &ast.IndexExpr{
++			X:      x,
++			Lbrack: lbrack,
++			Index:  indices[0],
++			Rbrack: rbrack,
++		}
++	default:
++		return &IndexListExpr{
++			X:       x,
++			Lbrack:  lbrack,
++			Indices: indices,
++			Rbrack:  rbrack,
++		}
++	}
+ }
+ 
+ // IsTypeParam reports whether t is a type parameter.
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
+index e509daf7be..5fd3fc3515 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
+@@ -17,38 +17,6 @@ func unsupported() {
+ 	panic("type parameters are unsupported at this go version")
+ }
+ 
+-// GetIndexExprData extracts data from *ast.IndexExpr nodes.
+-// For other nodes, GetIndexExprData returns nil.
+-func GetIndexExprData(n ast.Node) *IndexExprData {
+-	if e, _ := n.(*ast.IndexExpr); e != nil {
+-		return &IndexExprData{
+-			X:       e.X,
+-			Lbrack:  e.Lbrack,
+-			Indices: []ast.Expr{e.Index},
+-			Rbrack:  e.Rbrack,
+-		}
+-	}
+-	return nil
+-}
+-
+-// PackIndexExpr returns an *ast.IndexExpr with the given index.
+-// Calling PackIndexExpr with len(indices) != 1 will panic.
+-func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack token.Pos) ast.Expr {
+-	switch len(indices) {
+-	case 0:
+-		panic("empty indices")
+-	case 1:
+-		return &ast.IndexExpr{
+-			X:      x,
+-			Lbrack: lbrack,
+-			Index:  indices[0],
+-			Rbrack: rbrack,
+-		}
+-	default:
+-		panic("cannot pack multiple indices at this go version")
+-	}
+-}
+-
+ // IndexListExpr is a placeholder type, as type parameters are not supported at
+ // this Go version. Its methods panic on use.
+ type IndexListExpr struct {
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go
+index e45896fb02..7470aed8c9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go
+@@ -9,59 +9,9 @@ package typeparams
+ 
+ import (
+ 	"go/ast"
+-	"go/token"
+ 	"go/types"
+ )
+ 
+-// GetIndexExprData extracts data from AST nodes that represent index
+-// expressions.
+-//
+-// For an ast.IndexExpr, the resulting IndexExprData will have exactly one
+-// index expression. For an ast.IndexListExpr (go1.18+), it may have a
+-// variable number of index expressions.
+-//
+-// For nodes that don't represent index expressions, GetIndexExprData returns
+-// nil.
+-// TODO(rfindley): remove this function in favor of using the alias below.
+-func GetIndexExprData(n ast.Node) *IndexExprData {
+-	switch e := n.(type) {
+-	case *ast.IndexExpr:
+-		return &IndexExprData{
+-			X:       e.X,
+-			Lbrack:  e.Lbrack,
+-			Indices: []ast.Expr{e.Index},
+-			Rbrack:  e.Rbrack,
+-		}
+-	case *ast.IndexListExpr:
+-		return (*IndexExprData)(e)
+-	}
+-	return nil
+-}
+-
+-// PackIndexExpr returns an *ast.IndexExpr or *ast.IndexListExpr, depending on
+-// the cardinality of indices. Calling PackIndexExpr with len(indices) == 0
+-// will panic.
+-func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack token.Pos) ast.Expr {
+-	switch len(indices) {
+-	case 0:
+-		panic("empty indices")
+-	case 1:
+-		return &ast.IndexExpr{
+-			X:      x,
+-			Lbrack: lbrack,
+-			Index:  indices[0],
+-			Rbrack: rbrack,
+-		}
+-	default:
+-		return &ast.IndexListExpr{
+-			X:       x,
+-			Lbrack:  lbrack,
+-			Indices: indices,
+-			Rbrack:  rbrack,
+-		}
+-	}
+-}
+-
+ // IndexListExpr is an alias for ast.IndexListExpr.
+ type IndexListExpr = ast.IndexListExpr
+ 
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 0762dee8f2..f2cd884b82 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -51,7 +51,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.1.9-0.20211207220608-fd2bfb79a16a
++# golang.org/x/tools v0.1.9-0.20220124164225-97de9ec46646
+ ## explicit; go 1.17
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis

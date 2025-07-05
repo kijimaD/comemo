@@ -10,7 +10,243 @@ Date:   Wed Nov 17 12:17:40 2010 -0800
     R=rsc
     CC=golang-dev, r
     https://golang.org/cl/3079041
-
+---
  src/pkg/go/token/position.go      |  41 +++++++++---
  src/pkg/go/token/position_test.go | 136 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 167 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/go/token/position.go b/src/pkg/go/token/position.go
+index 85d490b060..00e9bbf801 100644
+--- a/src/pkg/go/token/position.go
++++ b/src/pkg/go/token/position.go
+@@ -94,7 +94,14 @@ func (p Pos) IsValid() bool {
+ 
+ 
+ func searchFiles(a []*File, x int) int {
+-	return sort.Search(len(a), func(i int) bool { return a[i].base <= x })
++	i := sort.Search(len(a), func(i int) bool { return a[i].base < x })
++	// TODO(gri) The code below is really unfortunate. With the old
++	//           semantics of sort.Search, it was possible to simply
++	//           return i! Need to rethink the Search API.
++	if i == 0 || i < len(a) && a[i].base == x {
++		return i
++	}
++	return i - 1
+ }
+ 
+ 
+@@ -150,9 +157,9 @@ func (f *File) AddLineInfo(offset int, filename string, line int) {
+ //
+ type File struct {
+ 	set  *FileSet
+-	base int
+-	size int
+-	name string
++	name string // file name as provided to AddFile
++	base int    // Pos value range for this file is [base...base+size]
++	size int    // file size as provided to AddFile
+ 
+ 	// lines and infos are protected by set.mutex
+ 	lines []int
+@@ -187,7 +194,7 @@ func (f *File) LineCount() int {
+ //
+ func (f *File) AddLine(offset int) {
+ 	f.set.mutex.Lock()
+-	if i := len(f.lines); i == 0 || f.lines[i-1] < offset && offset <= f.size {
++	if i := len(f.lines); (i == 0 || f.lines[i-1] < offset) && offset <= f.size {
+ 		f.lines = append(f.lines, offset)
+ 	}
+ 	f.set.mutex.Unlock()
+@@ -252,12 +259,26 @@ func (f *File) Position(offset int) Position {
+ 
+ 
+ func searchUints(a []int, x int) int {
+-	return sort.Search(len(a), func(i int) bool { return a[i] <= x })
++	i := sort.Search(len(a), func(i int) bool { return a[i] < x })
++	// TODO(gri) The code below is really unfortunate. With the old
++	//           semantics of sort.Search, it was possible to simply
++	//           return i! Need to rethink the Search API.
++	if i == 0 || i < len(a) && a[i] == x {
++		return i
++	}
++	return i - 1
+ }
+ 
+ 
+ func searchLineInfos(a []lineInfo, x int) int {
+-	return sort.Search(len(a), func(i int) bool { return a[i].offset <= x })
++	i := sort.Search(len(a), func(i int) bool { return a[i].offset < x })
++	// TODO(gri) The code below is really unfortunate. With the old
++	//           semantics of sort.Search, it was possible to simply
++	//           return i! Need to rethink the Search API.
++	if i == 0 || i < len(a) && a[i].offset == x {
++		return i
++	}
++	return i - 1
+ }
+ 
+ 
+@@ -298,18 +319,18 @@ func NewFileSet() *FileSet {
+ 
+ // AddFile adds a new file with a given filename and file size to a the
+ // file set s and returns the file. Multiple files may have the same name.
+-// File.Pos may be used to create file-specifiction position values from a
++// File.Pos may be used to create file-specific position values from a
+ // file offset.
+ //
+ func (s *FileSet) AddFile(filename string, size int) *File {
+ 	s.mutex.Lock()
+-	f := &File{s, s.base, size, filename, []int{0}, nil}
++	defer s.mutex.Unlock()
++	f := &File{s, filename, s.base, size, []int{0}, nil}
+ 	s.base += size + 1 // +1 because EOF also has a position
+ 	if s.base < 0 {
+ 		panic("token.Pos offset overflow (> 2G of source code in file set)")
+ 	}
+ 	s.index[f] = len(s.files)
+ 	s.files = append(s.files, f)
+-	s.mutex.Unlock()
+ 	return f
+ }
+diff --git a/src/pkg/go/token/position_test.go b/src/pkg/go/token/position_test.go
+new file mode 100644
+index 0000000000..286819e267
+--- /dev/null
++++ b/src/pkg/go/token/position_test.go
+@@ -0,0 +1,136 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package token
++
++import (
++	"fmt"
++	"testing"
++)
++
++
++func checkPos(t *testing.T, msg string, p, q Position) {
++	if p.Filename != q.Filename {
++		t.Errorf("%s: expected filename = %q; got %q", msg, q.Filename, p.Filename)
++	}
++	if p.Offset != q.Offset {
++		t.Errorf("%s: expected offset = %d; got %d", msg, q.Offset, p.Offset)
++	}
++	if p.Line != q.Line {
++		t.Errorf("%s: expected line = %d; got %d", msg, q.Line, p.Line)
++	}
++	if p.Column != q.Column {
++		t.Errorf("%s: expected column = %d; got %d", msg, q.Column, p.Column)
++	}
++}
++
++
++func TestNoPos(t *testing.T) {
++	if NoPos.IsValid() {
++		t.Errorf("NoPos should not be valid")
++	}
++	var fset *FileSet
++	checkPos(t, "nil NoPos", fset.Position(NoPos), Position{})
++	fset = NewFileSet()
++	checkPos(t, "fset NoPos", fset.Position(NoPos), Position{})
++}
++
++
++var tests = []struct {
++	filename string
++	size     int
++	lines    []int
++}{
++	{"a", 0, []int{}},
++	{"b", 5, []int{0}},
++	{"c", 10, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
++	{"d", 100, []int{0, 5, 10, 20, 30, 70, 71, 72, 80, 85, 90, 99}},
++	{"e", 777, []int{0, 80, 100, 120, 130, 180, 267, 455, 500, 567, 620}},
++}
++
++
++func linecol(lines []int, offs int) (int, int) {
++	prevLineOffs := 0
++	for line, lineOffs := range lines {
++		if offs < lineOffs {
++			return line, offs - prevLineOffs + 1
++		}
++		prevLineOffs = lineOffs
++	}
++	return len(lines), offs - prevLineOffs + 1
++}
++
++
++func verifyPositions(t *testing.T, fset *FileSet, f *File, lines []int) {
++	for offs := 0; offs < f.Size(); offs++ {
++		p := f.Pos(offs)
++		offs2 := f.Offset(p)
++		if offs2 != offs {
++			t.Errorf("%s, Offset: expected offset %d; got %d", f.Name(), offs, offs2)
++		}
++		line, col := linecol(lines, offs)
++		msg := fmt.Sprintf("%s (offs = %d, p = %d)", f.Name(), offs, p)
++		checkPos(t, msg, f.Position(offs), Position{f.Name(), offs, line, col})
++		checkPos(t, msg, fset.Position(p), Position{f.Name(), offs, line, col})
++	}
++}
++
++
++func TestPositions(t *testing.T) {
++	fset := NewFileSet()
++	for _, test := range tests {
++		// add file and verify name and size
++		f := fset.AddFile(test.filename, test.size)
++		if f.Name() != test.filename {
++			t.Errorf("expected filename %q; got %q", test.filename, f.Name())
++		}
++		if f.Size() != test.size {
++			t.Errorf("%s: expected file size %d; got %d", f.Name(), test.size, f.Size())
++		}
++
++		// add lines individually and verify all positions
++		for i, offset := range test.lines {
++			f.AddLine(offset)
++			if f.LineCount() != i+1 {
++				t.Errorf("%s, AddLine: expected line count %d; got %d", f.Name(), i+1, f.LineCount())
++			}
++			// adding the same offset again should be ignored
++			f.AddLine(offset)
++			if f.LineCount() != i+1 {
++				t.Errorf("%s, AddLine: expected unchanged line count %d; got %d", f.Name(), i+1, f.LineCount())
++			}
++			verifyPositions(t, fset, f, test.lines[0:i+1])
++		}
++
++		// add lines at once and verify all positions
++		ok := f.SetLines(test.lines)
++		if !ok {
++			t.Errorf("%s: SetLines failed", f.Name())
++		}
++		if f.LineCount() != len(test.lines) {
++			t.Errorf("%s, SetLines: expected line count %d; got %d", f.Name(), len(test.lines), f.LineCount())
++		}
++		verifyPositions(t, fset, f, test.lines)
++	}
++}
++
++
++func TestLineInfo(t *testing.T) {
++	fset := NewFileSet()
++	f := fset.AddFile("foo", 500)
++	lines := []int{0, 42, 77, 100, 210, 220, 277, 300, 333, 401}
++	// add lines individually and provide alternative line information
++	for _, offs := range lines {
++		f.AddLine(offs)
++		f.AddLineInfo(offs, "bar", 42)
++	}
++	// verify positions for all offsets
++	for offs := 0; offs <= f.Size(); offs++ {
++		p := f.Pos(offs)
++		_, col := linecol(lines, offs)
++		msg := fmt.Sprintf("%s (offs = %d, p = %d)", f.Name(), offs, p)
++		checkPos(t, msg, f.Position(offs), Position{"bar", offs, 42, col})
++		checkPos(t, msg, fset.Position(p), Position{"bar", offs, 42, col})
++	}
++}

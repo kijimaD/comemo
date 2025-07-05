@@ -14,10 +14,84 @@ Date:   Fri Apr 12 05:20:15 2013 -0700
     R=golang-dev, bradfitz, r, ality
     CC=golang-dev
     https://golang.org/cl/8699043
-
+---
  src/pkg/runtime/defs_freebsd.go      | 4 ++--
  src/pkg/runtime/defs_freebsd_386.h   | 4 ++--
  src/pkg/runtime/defs_freebsd_amd64.h | 4 ++--
  src/pkg/runtime/defs_freebsd_arm.h   | 4 ++--
  src/pkg/runtime/os_freebsd.c         | 2 +-
  5 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_freebsd.go b/src/pkg/runtime/defs_freebsd.go
+index 0840227155..93f0703e3a 100644
+--- a/src/pkg/runtime/defs_freebsd.go
++++ b/src/pkg/runtime/defs_freebsd.go
+@@ -45,8 +45,8 @@ const (
+ 	SA_RESTART = C.SA_RESTART
+ 	SA_ONSTACK = C.SA_ONSTACK
+ 
+-	UMTX_OP_WAIT = C.UMTX_OP_WAIT
+-	UMTX_OP_WAKE = C.UMTX_OP_WAKE
++	UMTX_OP_WAIT_UINT = C.UMTX_OP_WAIT_UINT
++	UMTX_OP_WAKE      = C.UMTX_OP_WAKE
+ 
+ 	EINTR = C.EINTR
+ 
+diff --git a/src/pkg/runtime/defs_freebsd_386.h b/src/pkg/runtime/defs_freebsd_386.h
+index d00c852c69..8fa37c5d67 100644
+--- a/src/pkg/runtime/defs_freebsd_386.h
++++ b/src/pkg/runtime/defs_freebsd_386.h
+@@ -18,8 +18,8 @@ enum {
+ 	SA_RESTART	= 0x2,
+ 	SA_ONSTACK	= 0x1,
+ 
+-	UMTX_OP_WAIT	= 0x2,
+-	UMTX_OP_WAKE	= 0x3,
++	UMTX_OP_WAIT_UINT	= 0xb,
++	UMTX_OP_WAKE		= 0x3,
+ 
+ 	EINTR	= 0x4,
+ 
+diff --git a/src/pkg/runtime/defs_freebsd_amd64.h b/src/pkg/runtime/defs_freebsd_amd64.h
+index 6348c0482d..56d849bce3 100644
+--- a/src/pkg/runtime/defs_freebsd_amd64.h
++++ b/src/pkg/runtime/defs_freebsd_amd64.h
+@@ -18,8 +18,8 @@ enum {
+ 	SA_RESTART	= 0x2,
+ 	SA_ONSTACK	= 0x1,
+ 
+-	UMTX_OP_WAIT	= 0x2,
+-	UMTX_OP_WAKE	= 0x3,
++	UMTX_OP_WAIT_UINT	= 0xb,
++	UMTX_OP_WAKE		= 0x3,
+ 
+ 	EINTR	= 0x4,
+ 
+diff --git a/src/pkg/runtime/defs_freebsd_arm.h b/src/pkg/runtime/defs_freebsd_arm.h
+index a744b808f5..334652eeca 100644
+--- a/src/pkg/runtime/defs_freebsd_arm.h
++++ b/src/pkg/runtime/defs_freebsd_arm.h
+@@ -18,8 +18,8 @@ enum {
+ 	SA_RESTART	= 0x2,
+ 	SA_ONSTACK	= 0x1,
+ 
+-	UMTX_OP_WAIT	= 0x2,
+-	UMTX_OP_WAKE	= 0x3,
++	UMTX_OP_WAIT_UINT	= 0xb,
++	UMTX_OP_WAKE		= 0x3,
+ 
+ 	EINTR	= 0x4,
+ 
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 68c0f4750b..357ad80dc1 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -60,7 +60,7 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ 		tsp = &ts;
+ 	}
+ 
+-	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT, val, nil, tsp);
++	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT, val, nil, tsp);
+ 	if(ret >= 0 || ret == -EINTR)
+ 		return;
+ 

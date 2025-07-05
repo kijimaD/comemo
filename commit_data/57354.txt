@@ -16,6 +16,20 @@ Date:   Mon Jun 12 12:09:44 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/archive/tar/strconv.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/archive/tar/strconv.go b/src/archive/tar/strconv.go
+index ac3196370e..ac8105efad 100644
+--- a/src/archive/tar/strconv.go
++++ b/src/archive/tar/strconv.go
+@@ -73,7 +73,7 @@ func (f *formatter) formatString(b []byte, s string) {
+ 	// in the V7 path field as a directory even though the full path
+ 	// recorded elsewhere (e.g., via PAX record) contains no trailing slash.
+ 	if len(s) > len(b) && b[len(b)-1] == '/' {
+-		n := len(strings.TrimRight(s[:len(b)], "/"))
++		n := len(strings.TrimRight(s[:len(b)-1], "/"))
+ 		b[n] = 0 // Replace trailing slash with NUL terminator
+ 	}
+ }

@@ -15,6 +15,52 @@ Date:   Thu Nov 26 17:45:09 2015 -0500
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/cover/html.go | 24 +++++++++++++++++++-----
  1 file changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/cover/html.go b/src/cmd/cover/html.go
+index bb0a495ae7..d0ac4476ba 100644
+--- a/src/cmd/cover/html.go
++++ b/src/cmd/cover/html.go
+@@ -258,21 +258,35 @@ const tmplHTML = `
+ 		</div>
+ 		<div id="content">
+ 		{{range $i, $f := .Files}}
+-		<pre class="file" id="file{{$i}}" {{if $i}}style="display: none"{{end}}>{{$f.Body}}</pre>
++		<pre class="file" id="file{{$i}}" style="display: none">{{$f.Body}}</pre>
+ 		{{end}}
+ 		</div>
+ 	</body>
+ 	<script>
+ 	(function() {
+ 		var files = document.getElementById('files');
+-		var visible = document.getElementById('file0');
++		var visible;
+ 		files.addEventListener('change', onChange, false);
+-		function onChange() {
+-			visible.style.display = 'none';
+-			visible = document.getElementById(files.value);
++		function select(part) {
++			if (visible)
++				visible.style.display = 'none';
++			visible = document.getElementById(part);
++			if (!visible)
++				return;
++			files.value = part;
+ 			visible.style.display = 'block';
++			location.hash = part;
++		}
++		function onChange() {
++			select(files.value);
+ 			window.scrollTo(0, 0);
+ 		}
++		if (location.hash != "") {
++			select(location.hash.substr(1));
++		}
++		if (!visible) {
++			select("file0");
++		}
+ 	})();
+ 	</script>
+ </html>

@@ -52,9 +52,470 @@ Date:   Wed Apr 15 11:05:01 2015 -0700
     Change-Id: Ic786406d9b3cab68d5a231688f9e66fcd1bd7103
     Reviewed-on: https://go-review.googlesource.com/2585
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/6g/ggen.go          |  61 ++++++++-
  src/runtime/duff_amd64.s    | 310 ++++++++++++++++++++++++++------------------
  src/runtime/memmove_test.go |  18 +++
  src/runtime/mkduff.go       |  10 +-
  4 files changed, 269 insertions(+), 130 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.go b/src/cmd/6g/ggen.go
+index 9034469814..17dbb48fa4 100644
+--- a/src/cmd/6g/ggen.go
++++ b/src/cmd/6g/ggen.go
+@@ -62,6 +62,55 @@ func defframe(ptxt *obj.Prog) {
+ 	zerorange(p, int64(frame), lo, hi, &ax)
+ }
+ 
++// DUFFZERO consists of repeated blocks of 4 MOVs + ADD,
++// with 4 STOSQs at the very end.
++// The trailing STOSQs prevent the need for a DI preadjustment
++// for small numbers of words to clear.
++// See runtime/mkduff.go.
++const (
++	dzBlocks    = 31 // number of MOV/ADD blocks
++	dzBlockLen  = 4  // number of clears per block
++	dzBlockSize = 19 // size of instructions in a single block
++	dzMovSize   = 4  // size of single MOV instruction w/ offset
++	dzAddSize   = 4  // size of single ADD instruction
++	dzDIStep    = 8  // number of bytes cleared by each MOV instruction
++
++	dzTailLen  = 4 // number of final STOSQ instructions
++	dzTailSize = 2 // size of single STOSQ instruction
++
++	dzSize = dzBlocks*dzBlockSize + dzTailLen*dzTailSize // total size of DUFFZERO routine
++)
++
++// duffzeroDI returns the pre-adjustment to DI for a call to DUFFZERO.
++// q is the number of words to zero.
++func dzDI(q int64) int64 {
++	if q < dzTailLen {
++		return 0
++	}
++	q -= dzTailLen
++	if q%dzBlockLen == 0 {
++		return 0
++	}
++	return -dzDIStep * (dzBlockLen - q%dzBlockLen)
++}
++
++// dzOff returns the offset for a jump into DUFFZERO.
++// q is the number of words to zero.
++func dzOff(q int64) int64 {
++	off := int64(dzSize)
++	if q < dzTailLen {
++		return off - q*dzTailSize
++	}
++	off -= dzTailLen * dzTailSize
++	q -= dzTailLen
++	blocks, steps := q/dzBlockLen, q%dzBlockLen
++	off -= dzBlockSize * blocks
++	if steps > 0 {
++		off -= dzAddSize + dzMovSize*steps
++	}
++	return off
++}
++
+ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Prog {
+ 	cnt := hi - lo
+ 	if cnt == 0 {
+@@ -87,8 +136,9 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Pr
+ 			p = appendpp(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo+i)
+ 		}
+ 	} else if !gc.Nacl && (cnt <= int64(128*gc.Widthreg)) {
+-		p = appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
+-		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, 2*(128-cnt/int64(gc.Widthreg)))
++		q := cnt / int64(gc.Widthreg)
++		p = appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, frame+lo+dzDI(q), obj.TYPE_REG, x86.REG_DI, 0)
++		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, dzOff(q))
+ 		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
+ 	} else {
+ 		p = appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
+@@ -562,12 +612,13 @@ func clearfat(nl *gc.Node) {
+ 		gins(x86.AREP, nil, nil)   // repeat
+ 		gins(x86.ASTOSQ, nil, nil) // STOQ AL,*(DI)+
+ 	} else {
++		if di := dzDI(q); di != 0 {
++			gconreg(addptr, di, x86.REG_DI)
++		}
+ 		p := gins(obj.ADUFFZERO, nil, nil)
+ 		p.To.Type = obj.TYPE_ADDR
+ 		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
+-
+-		// 2 and 128 = magic constants: see ../../runtime/asm_amd64.s
+-		p.To.Offset = 2 * (128 - q)
++		p.To.Offset = dzOff(q)
+ 	}
+ 
+ 	z := ax
+diff --git a/src/runtime/duff_amd64.s b/src/runtime/duff_amd64.s
+index f28d0dc69d..0b51228f0a 100644
+--- a/src/runtime/duff_amd64.s
++++ b/src/runtime/duff_amd64.s
+@@ -5,130 +5,192 @@
+ #include "textflag.h"
+ 
+ TEXT runtime·duffzero(SB), NOSPLIT, $0-0
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
++	MOVQ	AX,(DI)
++	MOVQ	AX,8(DI)
++	MOVQ	AX,16(DI)
++	MOVQ	AX,24(DI)
++	ADDQ	$32,DI
++
+ 	STOSQ
+ 	STOSQ
+ 	STOSQ
+diff --git a/src/runtime/memmove_test.go b/src/runtime/memmove_test.go
+index 29c62cc37d..857f99bc4c 100644
+--- a/src/runtime/memmove_test.go
++++ b/src/runtime/memmove_test.go
+@@ -206,6 +206,24 @@ func BenchmarkClearFat32(b *testing.B) {
+ 		_ = x
+ 	}
+ }
++func BenchmarkClearFat40(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		var x [40 / 4]uint32
++		_ = x
++	}
++}
++func BenchmarkClearFat48(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		var x [48 / 4]uint32
++		_ = x
++	}
++}
++func BenchmarkClearFat56(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		var x [56 / 4]uint32
++		_ = x
++	}
++}
+ func BenchmarkClearFat64(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		var x [64 / 4]uint32
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+index d0f1e1ba9f..c0e46f9f85 100644
+--- a/src/runtime/mkduff.go
++++ b/src/runtime/mkduff.go
+@@ -64,7 +64,15 @@ func zeroAMD64(w io.Writer) {
+ 	// DI: ptr to memory to be zeroed
+ 	// DI is updated as a side effect.
+ 	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $0-0")
+-	for i := 0; i < 128; i++ {
++	for i := 0; i < 31; i++ {
++		fmt.Fprintln(w, "\tMOVQ\tAX,(DI)")
++		fmt.Fprintln(w, "\tMOVQ\tAX,8(DI)")
++		fmt.Fprintln(w, "\tMOVQ\tAX,16(DI)")
++		fmt.Fprintln(w, "\tMOVQ\tAX,24(DI)")
++		fmt.Fprintln(w, "\tADDQ\t$32,DI")
++		fmt.Fprintln(w)
++	}
++	for i := 0; i < 4; i++ {
+ 		fmt.Fprintln(w, "\tSTOSQ")
+ 	}
+ 	fmt.Fprintln(w, "\tRET")

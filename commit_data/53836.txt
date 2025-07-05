@@ -19,6 +19,45 @@ Date:   Mon Sep 5 08:30:02 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: hopehook <hopehook@golangcn.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/debug_test.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/debug_test.go b/src/runtime/debug_test.go
+index b231be344c..75fe07ec2a 100644
+--- a/src/runtime/debug_test.go
++++ b/src/runtime/debug_test.go
+@@ -224,7 +224,7 @@ func TestDebugCallGrowStack(t *testing.T) {
+ }
+ 
+ //go:nosplit
+-func debugCallUnsafePointWorker(gpp **runtime.G, ready, stop *atomic.Bool) {
++func debugCallUnsafePointWorker(gpp **runtime.G, ready, stop *uint32) {
+ 	// The nosplit causes this function to not contain safe-points
+ 	// except at calls.
+ 	runtime.LockOSThread()
+@@ -232,8 +232,8 @@ func debugCallUnsafePointWorker(gpp **runtime.G, ready, stop *atomic.Bool) {
+ 
+ 	*gpp = runtime.Getg()
+ 
+-	for !stop.Load() {
+-		ready.Store(true)
++	for atomic.LoadUint32(stop) == 0 {
++		atomic.StoreUint32(ready, 1)
+ 	}
+ }
+ 
+@@ -253,10 +253,10 @@ func TestDebugCallUnsafePoint(t *testing.T) {
+ 
+ 	// Test that the runtime refuses call injection at unsafe points.
+ 	var g *runtime.G
+-	var ready, stop atomic.Bool
+-	defer stop.Store(true)
++	var ready, stop uint32
++	defer atomic.StoreUint32(&stop, 1)
+ 	go debugCallUnsafePointWorker(&g, &ready, &stop)
+-	for !ready.Load() {
++	for atomic.LoadUint32(&ready) == 0 {
+ 		runtime.Gosched()
+ 	}
+ 

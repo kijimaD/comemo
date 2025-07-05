@@ -17,6 +17,19 @@ Date:   Fri Nov 10 10:26:05 2017 +1100
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/buildid.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index d7cc7a263b..caf6195abb 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -448,6 +448,7 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
+ 		r, err := os.Open(target)
+ 		if err == nil {
+ 			c.Put(a.actionID, r)
++			r.Close()
+ 		}
+ 	}
+ 

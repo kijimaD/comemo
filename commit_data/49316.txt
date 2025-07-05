@@ -15,6 +15,20 @@ Date:   Tue Aug 3 13:41:49 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/fmt.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 3c5a928590..d19fe453ef 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -1006,7 +1006,7 @@ func (l Nodes) Format(s fmt.State, verb rune) {
+ 
+ // Dump prints the message s followed by a debug dump of n.
+ func Dump(s string, n Node) {
+-	fmt.Printf("%s [%p]%+v\n", s, n, n)
++	fmt.Printf("%s%+v\n", s, n)
+ }
+ 
+ // DumpList prints the message s followed by a debug dump of each node in the list.

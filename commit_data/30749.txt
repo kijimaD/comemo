@@ -14,10 +14,81 @@ Date:   Tue Nov 29 23:29:49 2016 -0500
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/util.go       | 8 ++++++++
  src/cmd/dist/util_gc.go    | 5 +++++
  src/cmd/dist/util_gccgo.go | 2 ++
  src/cmd/dist/vfp_arm.s     | 9 +++++++++
  src/cmd/dist/vfp_default.s | 3 +++
  5 files changed, 27 insertions(+)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index e2f22dfe44..511978f2f5 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -393,6 +393,14 @@ func errprintf(format string, args ...interface{}) {
+ func main() {
+ 	os.Setenv("TERM", "dumb") // disable escape codes in clang errors
+ 
++	// provide -check-armv6k first, before checking for $GOROOT so that
++	// it is possible to run this check without having $GOROOT available.
++	if len(os.Args) > 1 && os.Args[1] == "-check-armv6k" {
++		useARMv6K() // might fail with SIGILL
++		println("ARMv6K supported.")
++		os.Exit(0)
++	}
++
+ 	slash = string(filepath.Separator)
+ 
+ 	gohostos = runtime.GOOS
+diff --git a/src/cmd/dist/util_gc.go b/src/cmd/dist/util_gc.go
+index 6e099e5f9c..698beef704 100644
+--- a/src/cmd/dist/util_gc.go
++++ b/src/cmd/dist/util_gc.go
+@@ -25,3 +25,8 @@ func useVFPv1()
+ // useVFPv3 tries to execute one VFPv3 instruction on ARM.
+ // It will crash the current process if VFPv3 is missing.
+ func useVFPv3()
++
++// useARMv6K tries to run ARMv6K instructions on ARM.
++// It will crash the current process if it doesn't implement
++// ARMv6K or above.
++func useARMv6K()
+diff --git a/src/cmd/dist/util_gccgo.go b/src/cmd/dist/util_gccgo.go
+index 5edb4734f9..f9f01dc048 100644
+--- a/src/cmd/dist/util_gccgo.go
++++ b/src/cmd/dist/util_gccgo.go
+@@ -22,3 +22,5 @@ func cansse2() bool { return C.supports_sse2() != 0 }
+ func useVFPv1() {}
+ 
+ func useVFPv3() {}
++
++func useARMv6K() {}
+diff --git a/src/cmd/dist/vfp_arm.s b/src/cmd/dist/vfp_arm.s
+index c42b593aec..d571f8b82a 100644
+--- a/src/cmd/dist/vfp_arm.s
++++ b/src/cmd/dist/vfp_arm.s
+@@ -15,3 +15,12 @@ TEXT ·useVFPv1(SB),NOSPLIT,$0
+ TEXT ·useVFPv3(SB),NOSPLIT,$0
+ 	WORD $0xeeb70b00	// vmov.f64 d0, #112
+ 	RET
++
++// try to run ARMv6K (or above) "ldrexd" instruction
++TEXT ·useARMv6K(SB),NOSPLIT,$32
++	MOVW R13, R2
++	BIC  $15, R13
++	WORD $0xe1bd0f9f	// ldrexd r0, r1, [sp]
++	WORD $0xf57ff01f	// clrex
++	MOVW R2, R13
++	RET
+diff --git a/src/cmd/dist/vfp_default.s b/src/cmd/dist/vfp_default.s
+index 95ccbe3e44..84829beeff 100644
+--- a/src/cmd/dist/vfp_default.s
++++ b/src/cmd/dist/vfp_default.s
+@@ -11,3 +11,6 @@ TEXT ·useVFPv1(SB),NOSPLIT,$0
+ 
+ TEXT ·useVFPv3(SB),NOSPLIT,$0
+ 	RET
++
++TEXT ·useARMv6K(SB),NOSPLIT,$0
++	RET

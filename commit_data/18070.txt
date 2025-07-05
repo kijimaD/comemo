@@ -31,7 +31,54 @@ Date:   Wed Dec 18 15:52:05 2013 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/37720047
-
+---
  src/pkg/encoding/json/encode.go | 17 ++++-------------
  src/pkg/encoding/json/stream.go |  2 +-
  2 files changed, 5 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 8c71770ca4..4a77ba1cd2 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -241,24 +241,15 @@ type encodeState struct {
+ 	scratch      [64]byte
+ }
+ 
+-// TODO(bradfitz): use a sync.Cache here
+-var encodeStatePool = make(chan *encodeState, 8)
++var encodeStatePool sync.Pool
+ 
+ func newEncodeState() *encodeState {
+-	select {
+-	case e := <-encodeStatePool:
++	if v := encodeStatePool.Get(); v != nil {
++		e := v.(*encodeState)
+ 		e.Reset()
+ 		return e
+-	default:
+-		return new(encodeState)
+-	}
+-}
+-
+-func putEncodeState(e *encodeState) {
+-	select {
+-	case encodeStatePool <- e:
+-	default:
+ 	}
++	return new(encodeState)
+ }
+ 
+ func (e *encodeState) marshal(v interface{}) (err error) {
+diff --git a/src/pkg/encoding/json/stream.go b/src/pkg/encoding/json/stream.go
+index 1928abadb7..e8d6bd4c2c 100644
+--- a/src/pkg/encoding/json/stream.go
++++ b/src/pkg/encoding/json/stream.go
+@@ -173,7 +173,7 @@ func (enc *Encoder) Encode(v interface{}) error {
+ 	if _, err = enc.w.Write(e.Bytes()); err != nil {
+ 		enc.err = err
+ 	}
+-	putEncodeState(e)
++	encodeStatePool.Put(e)
+ 	return err
+ }
+ 

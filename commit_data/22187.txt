@@ -7,6 +7,22 @@ Date:   Fri Feb 27 07:06:34 2015 -0500
     Change-Id: I1d1eb71014381452d1ef368431cb2556245a35ab
     Reviewed-on: https://go-review.googlesource.com/6250
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/objdump/objdump_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 513efbf96f..63c0063d33 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -18,6 +18,10 @@ func buildObjdump(t *testing.T) (tmp, exe string) {
+ 	switch runtime.GOOS {
+ 	case "android", "nacl":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
++	case "darwin":
++		if runtime.GOARCH == "arm" {
++			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++		}
+ 	}
+ 
+ 	tmp, err := ioutil.TempDir("", "TestObjDump")

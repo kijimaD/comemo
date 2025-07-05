@@ -14,7 +14,53 @@ Date:   Tue Oct 23 10:03:59 2018 +0200
     Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl_test.go |  1 -
  src/runtime/slice.go                    | 22 ----------------------
  2 files changed, 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index 2f15cc3828..ac86cda2b8 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -54,7 +54,6 @@ func TestIntendedInlining(t *testing.T) {
+ 			"getm",
+ 			"isDirectIface",
+ 			"itabHashFunc",
+-			"maxSliceCap",
+ 			"noescape",
+ 			"readUnaligned32",
+ 			"readUnaligned64",
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 095ddc5bbd..9a081043b0 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -23,28 +23,6 @@ type notInHeapSlice struct {
+ 	cap   int
+ }
+ 
+-// maxElems is a lookup table containing the maximum capacity for a slice.
+-// The index is the size of the slice element.
+-var maxElems = [...]uintptr{
+-	^uintptr(0),
+-	maxAlloc / 1, maxAlloc / 2, maxAlloc / 3, maxAlloc / 4,
+-	maxAlloc / 5, maxAlloc / 6, maxAlloc / 7, maxAlloc / 8,
+-	maxAlloc / 9, maxAlloc / 10, maxAlloc / 11, maxAlloc / 12,
+-	maxAlloc / 13, maxAlloc / 14, maxAlloc / 15, maxAlloc / 16,
+-	maxAlloc / 17, maxAlloc / 18, maxAlloc / 19, maxAlloc / 20,
+-	maxAlloc / 21, maxAlloc / 22, maxAlloc / 23, maxAlloc / 24,
+-	maxAlloc / 25, maxAlloc / 26, maxAlloc / 27, maxAlloc / 28,
+-	maxAlloc / 29, maxAlloc / 30, maxAlloc / 31, maxAlloc / 32,
+-}
+-
+-// maxSliceCap returns the maximum capacity for a slice.
+-func maxSliceCap(elemsize uintptr) uintptr {
+-	if elemsize < uintptr(len(maxElems)) {
+-		return maxElems[elemsize]
+-	}
+-	return maxAlloc / elemsize
+-}
+-
+ func panicmakeslicelen() {
+ 	panic(errorString("makeslice: len out of range"))
+ }

@@ -15,6 +15,37 @@ Date:   Sun Mar 3 20:16:13 2019 +0000
     Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/roundtrip_js.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/net/http/roundtrip_js.go b/src/net/http/roundtrip_js.go
+index 1e38b908d3..21d19515fa 100644
+--- a/src/net/http/roundtrip_js.go
++++ b/src/net/http/roundtrip_js.go
+@@ -33,6 +33,14 @@ const jsFetchMode = "js.fetch:mode"
+ // Reference: https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters
+ const jsFetchCreds = "js.fetch:credentials"
+ 
++// jsFetchRedirect is a Request.Header map key that, if present,
++// signals that the map entry is actually an option to the Fetch API redirect setting.
++// Valid values are: "follow", "error", "manual"
++// The default is "follow".
++//
++// Reference: https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters
++const jsFetchRedirect = "js.fetch:redirect"
++
+ // RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
+ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 	if useFakeNetwork() {
+@@ -60,6 +68,10 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		opt.Set("mode", h)
+ 		req.Header.Del(jsFetchMode)
+ 	}
++	if h := req.Header.Get(jsFetchRedirect); h != "" {
++		opt.Set("redirect", h)
++		req.Header.Del(jsFetchRedirect)
++	}
+ 	if ac != js.Undefined() {
+ 		opt.Set("signal", ac.Get("signal"))
+ 	}

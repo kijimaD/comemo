@@ -19,7 +19,40 @@ Date:   Tue Nov 30 19:35:47 2021 +0100
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/alldocs.go          | 5 ++---
  src/cmd/go/internal/doc/doc.go | 5 ++---
  2 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 12b64d309c..b9fca791be 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -368,9 +368,8 @@
+ // path. The go tool's usual package mechanism does not apply: package path
+ // elements like . and ... are not implemented by go doc.
+ //
+-// When run with two arguments, the first must be a full package path (not just a
+-// suffix), and the second is a symbol, or symbol with method or struct field.
+-// This is similar to the syntax accepted by godoc:
++// When run with two arguments, the first is a package path (full path or suffix),
++// and the second is a symbol, or symbol with method or struct field:
+ //
+ // 	go doc <pkg> <sym>[.<methodOrField>]
+ //
+diff --git a/src/cmd/go/internal/doc/doc.go b/src/cmd/go/internal/doc/doc.go
+index 8580a5dc4d..7741a9022c 100644
+--- a/src/cmd/go/internal/doc/doc.go
++++ b/src/cmd/go/internal/doc/doc.go
+@@ -60,9 +60,8 @@ The package path must be either a qualified path or a proper suffix of a
+ path. The go tool's usual package mechanism does not apply: package path
+ elements like . and ... are not implemented by go doc.
+ 
+-When run with two arguments, the first must be a full package path (not just a
+-suffix), and the second is a symbol, or symbol with method or struct field.
+-This is similar to the syntax accepted by godoc:
++When run with two arguments, the first is a package path (full path or suffix),
++and the second is a symbol, or symbol with method or struct field:
+ 
+ 	go doc <pkg> <sym>[.<methodOrField>]
+ 

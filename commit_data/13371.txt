@@ -7,6 +7,20 @@ Date:   Fri Jun 22 14:43:41 2012 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6325053
-
+---
  src/pkg/encoding/json/encode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index b6e1cb16e5..d2c1c4424c 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -55,7 +55,7 @@ import (
+ // nil pointer or interface value, and any array, slice, map, or string of
+ // length zero. The object's default key string is the struct field name
+ // but can be specified in the struct field's tag value. The "json" key in
+-// struct field's tag value is the key name, followed by an optional comma
++// the struct field's tag value is the key name, followed by an optional comma
+ // and options. Examples:
+ //
+ //   // Field is ignored by this package.

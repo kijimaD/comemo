@@ -18,7 +18,68 @@ Date:   Thu Jun 30 14:49:28 2022 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ir/stmt.go    |  8 ++++++++
  src/cmd/compile/internal/walk/range.go | 20 ++++++++++++++++++--
  2 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 10f8b5e394..cae773b722 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -350,6 +350,14 @@ type RangeStmt struct {
+ 	Body     Nodes
+ 	HasBreak bool
+ 	Prealloc *Name
++
++	// When desugaring the RangeStmt during walk, the assignments to Key
++	// and Value may require OCONVIFACE operations. If so, these fields
++	// will be copied to their respective ConvExpr fields.
++	KeyTypeWord   Node `mknode:"-"`
++	KeySrcRType   Node `mknode:"-"`
++	ValueTypeWord Node `mknode:"-"`
++	ValueSrcRType Node `mknode:"-"`
+ }
+ 
+ func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node) *RangeStmt {
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index 60eec25bcf..b697c243c7 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -305,7 +305,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 
+ // rangeAssign returns "n.Key = key".
+ func rangeAssign(n *ir.RangeStmt, key ir.Node) ir.Node {
+-	// TODO(mdempsky): Implicit conversions for test/typeparam/mdempsky/17.go.
++	key = rangeConvert(n, n.Key.Type(), key, n.KeyTypeWord, n.KeySrcRType)
+ 	return ir.NewAssignStmt(n.Pos(), n.Key, key)
+ }
+ 
+@@ -313,10 +313,26 @@ func rangeAssign(n *ir.RangeStmt, key ir.Node) ir.Node {
+ func rangeAssign2(n *ir.RangeStmt, key, value ir.Node) ir.Node {
+ 	// Use OAS2 to correctly handle assignments
+ 	// of the form "v1, a[v1] = range".
+-	// TODO(mdempsky): Implicit conversions for test/typeparam/mdempsky/17.go.
++	key = rangeConvert(n, n.Key.Type(), key, n.KeyTypeWord, n.KeySrcRType)
++	value = rangeConvert(n, n.Value.Type(), value, n.ValueTypeWord, n.ValueSrcRType)
+ 	return ir.NewAssignListStmt(n.Pos(), ir.OAS2, []ir.Node{n.Key, n.Value}, []ir.Node{key, value})
+ }
+ 
++// rangeConvert returns src, converted to dst if necessary. If a
++// conversion is necessary, then typeWord and srcRType are copied to
++// their respective ConvExpr fields.
++func rangeConvert(nrange *ir.RangeStmt, dst *types.Type, src, typeWord, srcRType ir.Node) ir.Node {
++	src = typecheck.Expr(src)
++	if dst.Kind() == types.TBLANK || types.Identical(dst, src.Type()) {
++		return src
++	}
++
++	n := ir.NewConvExpr(nrange.Pos(), ir.OCONV, dst, src)
++	n.TypeWord = typeWord
++	n.SrcRType = srcRType
++	return typecheck.Expr(n)
++}
++
+ // isMapClear checks if n is of the form:
+ //
+ //	for k := range m {

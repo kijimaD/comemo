@@ -38,6 +38,25 @@ Date:   Thu Apr 26 21:23:24 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/data.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index c04539423c..1c1681d128 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -46,12 +46,7 @@ func (s *LSym) Grow(lsiz int64) {
+ 	if len(s.P) >= siz {
+ 		return
+ 	}
+-	// TODO(dfc) append cap-len at once, rather than
+-	// one byte at a time.
+-	for cap(s.P) < siz {
+-		s.P = append(s.P[:cap(s.P)], 0)
+-	}
+-	s.P = s.P[:siz]
++	s.P = append(s.P, make([]byte, siz-len(s.P))...)
+ }
+ 
+ // GrowCap increases the capacity of s.P to c.

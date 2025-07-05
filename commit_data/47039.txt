@@ -25,8 +25,56 @@ Date:   Mon Feb 22 15:39:00 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/parser/parser.go               |  3 ++-
  src/go/parser/testdata/issue44504.src | 13 +++++++++++++
  src/go/types/fixedbugs/issue39634.go2 |  2 +-
  3 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 41c3f2943e..5c4cea8638 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1485,8 +1485,9 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
+ 		// empty index, slice or index expressions are not permitted;
+ 		// accept them for parsing tolerance, but complain
+ 		p.errorExpected(p.pos, "operand")
++		rbrack := p.pos
+ 		p.next()
+-		return x
++		return &ast.BadExpr{From: x.Pos(), To: rbrack}
+ 	}
+ 	p.exprLev++
+ 
+diff --git a/src/go/parser/testdata/issue44504.src b/src/go/parser/testdata/issue44504.src
+new file mode 100644
+index 0000000000..7791f4a809
+--- /dev/null
++++ b/src/go/parser/testdata/issue44504.src
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case for issue 44504: panic due to duplicate resolution of slice/index
++// operands. We should not try to resolve a LHS expression with invalid syntax.
++
++package p
++
++func _() {
++  var items []bool
++  items[] /* ERROR "operand" */ = false
++}
+diff --git a/src/go/types/fixedbugs/issue39634.go2 b/src/go/types/fixedbugs/issue39634.go2
+index 249542d541..78dee00383 100644
+--- a/src/go/types/fixedbugs/issue39634.go2
++++ b/src/go/types/fixedbugs/issue39634.go2
+@@ -84,7 +84,7 @@ var x T25 /* ERROR without instantiation */ .m1
+ 
+ // crash 26
+ type T26 = interface{ F26[ /* ERROR methods cannot have type parameters */ Z any]() }
+-func F26[Z any]() T26 { return F26 /* ERROR without instantiation */ /* ERROR missing method */ [] /* ERROR operand */ }
++func F26[Z any]() T26 { return F26[] /* ERROR operand */ }
+ 
+ // crash 27
+ func e27[T any]() interface{ x27 /* ERROR not a type */ }

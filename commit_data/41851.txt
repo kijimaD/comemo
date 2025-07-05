@@ -11,7 +11,7 @@ Date:   Wed Oct 23 10:20:49 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |  2 +-
  src/cmd/compile/internal/arm64/ssa.go          |  1 +
  src/cmd/compile/internal/gc/ssa.go             |  8 ++-
@@ -36,3 +36,596 @@ Date:   Wed Oct 23 10:20:49 2019 -0400
  src/cmd/compile/internal/ssa/rewritePPC64.go   | 17 ++++++
  src/cmd/compile/internal/ssa/rewriteS390X.go   | 19 ++++++
  23 files changed, 206 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 480ff6523a..088a4a16c7 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1091,7 +1091,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg0()
+-	case ssa.OpAMD64XCHGL, ssa.OpAMD64XCHGQ:
++	case ssa.OpAMD64XCHGB, ssa.OpAMD64XCHGL, ssa.OpAMD64XCHGQ:
+ 		r := v.Reg0()
+ 		if r != v.Args[0].Reg() {
+ 			v.Fatalf("input[0] and output[0] not in same register %s", v.LongString())
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 252e875669..24b6383bbc 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -452,6 +452,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARM64MOVDstore,
+ 		ssa.OpARM64FMOVSstore,
+ 		ssa.OpARM64FMOVDstore,
++		ssa.OpARM64STLRB,
+ 		ssa.OpARM64STLR,
+ 		ssa.OpARM64STLRW:
+ 		p := s.Prog(v.Op.Asm())
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index dff559a7ba..d1eef69189 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3337,7 +3337,7 @@ func init() {
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT8], v)
+ 		},
+-		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS64, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
+ 	addF("runtime/internal/atomic", "Load64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoad64, types.NewTuple(types.Types[TUINT64], types.TypeMem), args[0], s.mem())
+@@ -3366,6 +3366,12 @@ func init() {
+ 			return nil
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
++	addF("runtime/internal/atomic", "Store8",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore8, types.TypeMem, args[0], args[1], s.mem())
++			return nil
++		},
++		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
+ 	addF("runtime/internal/atomic", "Store64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore64, types.TypeMem, args[0], args[1], s.mem())
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index a70db3576c..28652f0cc4 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -516,9 +516,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg0()
+ 		s.Prog(mips.ASYNC)
+-	case ssa.OpMIPS64LoweredAtomicStore32, ssa.OpMIPS64LoweredAtomicStore64:
++	case ssa.OpMIPS64LoweredAtomicStore8, ssa.OpMIPS64LoweredAtomicStore32, ssa.OpMIPS64LoweredAtomicStore64:
+ 		as := mips.AMOVV
+-		if v.Op == ssa.OpMIPS64LoweredAtomicStore32 {
++		switch v.Op {
++		case ssa.OpMIPS64LoweredAtomicStore8:
++			as = mips.AMOVB
++		case ssa.OpMIPS64LoweredAtomicStore32:
+ 			as = mips.AMOVW
+ 		}
+ 		s.Prog(mips.ASYNC)
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 4f852b883a..4af6e9d5ed 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -335,12 +335,16 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		pisync.To.Type = obj.TYPE_NONE
+ 		gc.Patch(p2, pisync)
+ 
+-	case ssa.OpPPC64LoweredAtomicStore32,
++	case ssa.OpPPC64LoweredAtomicStore8,
++		ssa.OpPPC64LoweredAtomicStore32,
+ 		ssa.OpPPC64LoweredAtomicStore64:
+ 		// SYNC or LWSYNC
+-		// MOVD/MOVW arg1,(arg0)
++		// MOVB/MOVW/MOVD arg1,(arg0)
+ 		st := ppc64.AMOVD
+-		if v.Op == ssa.OpPPC64LoweredAtomicStore32 {
++		switch v.Op {
++		case ssa.OpPPC64LoweredAtomicStore8:
++			st = ppc64.AMOVB
++		case ssa.OpPPC64LoweredAtomicStore32:
+ 			st = ppc64.AMOVW
+ 		}
+ 		arg0 := v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 2be6c1ab94..af45a561c6 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -725,7 +725,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg0()
+-	case ssa.OpS390XMOVWatomicstore, ssa.OpS390XMOVDatomicstore:
++	case ssa.OpS390XMOVBatomicstore, ssa.OpS390XMOVWatomicstore, ssa.OpS390XMOVDatomicstore:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[1].Reg()
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index d4484084a1..c4f8757021 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -533,6 +533,7 @@
+ 
+ // Atomic stores.  We use XCHG to prevent the hardware reordering a subsequent load.
+ // TODO: most runtime uses of atomic stores don't need that property.  Use normal stores for those?
++(AtomicStore8 ptr val mem) -> (Select1 (XCHGB <types.NewTuple(typ.UInt8,types.TypeMem)> val ptr mem))
+ (AtomicStore32 ptr val mem) -> (Select1 (XCHGL <types.NewTuple(typ.UInt32,types.TypeMem)> val ptr mem))
+ (AtomicStore64 ptr val mem) -> (Select1 (XCHGQ <types.NewTuple(typ.UInt64,types.TypeMem)> val ptr mem))
+ (AtomicStorePtrNoWB ptr val mem) && config.PtrSize == 8 -> (Select1 (XCHGQ <types.NewTuple(typ.BytePtr,types.TypeMem)> val ptr mem))
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 5924fa497a..cd2d0d61d1 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -746,6 +746,7 @@ func init() {
+ 		// store arg0 to arg1+auxint+aux, arg2=mem.
+ 		// These ops return a tuple of <old contents of *(arg1+auxint+aux), memory>.
+ 		// Note: arg0 and arg1 are backwards compared to MOVLstore (to facilitate resultInArg0)!
++		{name: "XCHGB", argLength: 3, reg: gpstorexchg, asm: "XCHGB", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, hasSideEffects: true, symEffect: "RdWr"},
+ 		{name: "XCHGL", argLength: 3, reg: gpstorexchg, asm: "XCHGL", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, hasSideEffects: true, symEffect: "RdWr"},
+ 		{name: "XCHGQ", argLength: 3, reg: gpstorexchg, asm: "XCHGQ", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, hasSideEffects: true, symEffect: "RdWr"},
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 26ae004572..f0033a0526 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -589,6 +589,7 @@
+ (AtomicLoad64  ptr mem) -> (LDAR  ptr mem)
+ (AtomicLoadPtr ptr mem) -> (LDAR  ptr mem)
+ 
++(AtomicStore8       ptr val mem) -> (STLRB ptr val mem)
+ (AtomicStore32      ptr val mem) -> (STLRW ptr val mem)
+ (AtomicStore64      ptr val mem) -> (STLR  ptr val mem)
+ (AtomicStorePtrNoWB ptr val mem) -> (STLR  ptr val mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index e1f045fcf8..59a6004b97 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -611,6 +611,7 @@ func init() {
+ 
+ 		// atomic stores.
+ 		// store arg1 to arg0. arg2=mem. returns memory. auxint must be zero.
++		{name: "STLRB", argLength: 3, reg: gpstore, asm: "STLRB", faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "STLR", argLength: 3, reg: gpstore, asm: "STLR", faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "STLRW", argLength: 3, reg: gpstore, asm: "STLRW", faultOnNilArg0: true, hasSideEffects: true},
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index f3d0a08e28..4e5b9d8104 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -403,6 +403,7 @@
+ (AtomicLoad64  ptr mem) -> (LoweredAtomicLoad64 ptr mem)
+ (AtomicLoadPtr ptr mem) -> (LoweredAtomicLoad64 ptr mem)
+ 
++(AtomicStore8       ptr val mem) -> (LoweredAtomicStore8  ptr val mem)
+ (AtomicStore32      ptr val mem) -> (LoweredAtomicStore32 ptr val mem)
+ (AtomicStore64      ptr val mem) -> (LoweredAtomicStore64 ptr val mem)
+ (AtomicStorePtrNoWB ptr val mem) -> (LoweredAtomicStore64 ptr val mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index 184b119f89..a5eabcf9eb 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -367,6 +367,7 @@ func init() {
+ 
+ 		// atomic stores.
+ 		// store arg1 to arg0. arg2=mem. returns memory.
++		{name: "LoweredAtomicStore8", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+ 		// store zero to arg0. arg1=mem. returns memory.
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 239414f01b..13fe1ab2e9 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -931,7 +931,7 @@
+ (AtomicLoad(8|32|64|Ptr)  ptr mem) -> (LoweredAtomicLoad(8|32|64|Ptr) [1] ptr mem)
+ (AtomicLoadAcq32        ptr mem) -> (LoweredAtomicLoad32 [0] ptr mem)
+ 
+-(AtomicStore(32|64)      ptr val mem) -> (LoweredAtomicStore(32|64) [1] ptr val mem)
++(AtomicStore(8|32|64)    ptr val mem) -> (LoweredAtomicStore(8|32|64) [1] ptr val mem)
+ (AtomicStoreRel32        ptr val mem) -> (LoweredAtomicStore32 [0] ptr val mem)
+ //(AtomicStorePtrNoWB ptr val mem) -> (STLR  ptr val mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index a6bcc26543..b72563b53c 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -495,6 +495,7 @@ func init() {
+ 			faultOnNilArg1: true,
+ 		},
+ 
++		{name: "LoweredAtomicStore8", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index d7cb972b81..2c56c66581 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -146,7 +146,7 @@
+ // reordering. Other sequences of memory operations (load-load,
+ // store-store and load-store) are already guaranteed not to be reordered.
+ (AtomicLoad(8|32|Acq32|64|Ptr) ptr mem) -> (MOV(BZ|WZ|WZ|D|D)atomicload ptr mem)
+-(AtomicStore(32|64|PtrNoWB) ptr val mem) -> (SYNC (MOV(W|D|D)atomicstore ptr val mem))
++(AtomicStore(8|32|64|PtrNoWB) ptr val mem) -> (SYNC (MOV(B|W|D|D)atomicstore ptr val mem))
+ 
+ // Store-release doesn't require store-load ordering.
+ (AtomicStoreRel32 ptr val mem) -> (MOVWatomicstore ptr val mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 4689102c43..4adaeae242 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -495,6 +495,7 @@ func init() {
+ 
+ 		// Atomic stores. These are just normal stores.
+ 		// store arg1 to arg0+auxint+aux. arg2=mem.
++		{name: "MOVBatomicstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "Write"},
+ 		{name: "MOVWatomicstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "Write"},
+ 		{name: "MOVDatomicstore", argLength: 3, reg: gpstore, asm: "MOVD", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "Write"},
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 748805f369..1ffca8118f 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -545,6 +545,7 @@ var genericOps = []opData{
+ 	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+ 	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},                                // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+ 	{name: "AtomicLoadAcq32", argLength: 2, typ: "(UInt32,Mem)"},                               // Load from arg0.  arg1=memory.  Lock acquisition, returns loaded value and new memory.
++	{name: "AtomicStore8", argLength: 3, typ: "Mem", hasSideEffects: true},                     // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+ 	{name: "AtomicStore32", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+ 	{name: "AtomicStore64", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+ 	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem", hasSideEffects: true},               // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 1bac391914..5077e80a15 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -877,6 +877,7 @@ const (
+ 	OpAMD64MOVBatomicload
+ 	OpAMD64MOVLatomicload
+ 	OpAMD64MOVQatomicload
++	OpAMD64XCHGB
+ 	OpAMD64XCHGL
+ 	OpAMD64XCHGQ
+ 	OpAMD64XADDLlock
+@@ -1434,6 +1435,7 @@ const (
+ 	OpARM64LDAR
+ 	OpARM64LDARB
+ 	OpARM64LDARW
++	OpARM64STLRB
+ 	OpARM64STLR
+ 	OpARM64STLRW
+ 	OpARM64LoweredAtomicExchange64
+@@ -1655,6 +1657,7 @@ const (
+ 	OpMIPS64LoweredAtomicLoad8
+ 	OpMIPS64LoweredAtomicLoad32
+ 	OpMIPS64LoweredAtomicLoad64
++	OpMIPS64LoweredAtomicStore8
+ 	OpMIPS64LoweredAtomicStore32
+ 	OpMIPS64LoweredAtomicStore64
+ 	OpMIPS64LoweredAtomicStorezero32
+@@ -1848,6 +1851,7 @@ const (
+ 	OpPPC64CALLinter
+ 	OpPPC64LoweredZero
+ 	OpPPC64LoweredMove
++	OpPPC64LoweredAtomicStore8
+ 	OpPPC64LoweredAtomicStore32
+ 	OpPPC64LoweredAtomicStore64
+ 	OpPPC64LoweredAtomicLoad8
+@@ -2068,6 +2072,7 @@ const (
+ 	OpS390XMOVBZatomicload
+ 	OpS390XMOVWZatomicload
+ 	OpS390XMOVDatomicload
++	OpS390XMOVBatomicstore
+ 	OpS390XMOVWatomicstore
+ 	OpS390XMOVDatomicstore
+ 	OpS390XLAA
+@@ -2553,6 +2558,7 @@ const (
+ 	OpAtomicLoad64
+ 	OpAtomicLoadPtr
+ 	OpAtomicLoadAcq32
++	OpAtomicStore8
+ 	OpAtomicStore32
+ 	OpAtomicStore64
+ 	OpAtomicStorePtrNoWB
+@@ -11406,6 +11412,25 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "XCHGB",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		faultOnNilArg1: true,
++		hasSideEffects: true,
++		symEffect:      SymRdWr,
++		asm:            x86.AXCHGB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:           "XCHGL",
+ 		auxType:        auxSymOff,
+@@ -18876,6 +18901,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "STLRB",
++		argLen:         3,
++		faultOnNilArg0: true,
++		hasSideEffects: true,
++		asm:            arm64.ASTLRB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
++			},
++		},
++	},
+ 	{
+ 		name:           "STLR",
+ 		argLen:         3,
+@@ -21882,6 +21920,18 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "LoweredAtomicStore8",
++		argLen:         3,
++		faultOnNilArg0: true,
++		hasSideEffects: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 234881022},           // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
++				{0, 4611686018695823358}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g R31 SB
++			},
++		},
++	},
+ 	{
+ 		name:           "LoweredAtomicStore32",
+ 		argLen:         3,
+@@ -24489,6 +24539,19 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 16408, // R3 R4 R14
+ 		},
+ 	},
++	{
++		name:           "LoweredAtomicStore8",
++		auxType:        auxInt64,
++		argLen:         3,
++		faultOnNilArg0: true,
++		hasSideEffects: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:           "LoweredAtomicStore32",
+ 		auxType:        auxInt64,
+@@ -27632,6 +27695,22 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "MOVBatomicstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		hasSideEffects: true,
++		symEffect:      SymWrite,
++		asm:            s390x.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
++				{1, 56319},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
++			},
++		},
++	},
+ 	{
+ 		name:           "MOVWatomicstore",
+ 		auxType:        auxSymOff,
+@@ -31347,6 +31426,12 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  2,
+ 		generic: true,
+ 	},
++	{
++		name:           "AtomicStore8",
++		argLen:         3,
++		hasSideEffects: true,
++		generic:        true,
++	},
+ 	{
+ 		name:           "AtomicStore32",
+ 		argLen:         3,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 45634a25eb..bacfced207 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -646,6 +646,8 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAtomicStore32_0(v)
+ 	case OpAtomicStore64:
+ 		return rewriteValueAMD64_OpAtomicStore64_0(v)
++	case OpAtomicStore8:
++		return rewriteValueAMD64_OpAtomicStore8_0(v)
+ 	case OpAtomicStorePtrNoWB:
+ 		return rewriteValueAMD64_OpAtomicStorePtrNoWB_0(v)
+ 	case OpAvg64u:
+@@ -50391,6 +50393,24 @@ func rewriteValueAMD64_OpAtomicStore64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpAtomicStore8_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (AtomicStore8 ptr val mem)
++	// result: (Select1 (XCHGB <types.NewTuple(typ.UInt8,types.TypeMem)> val ptr mem))
++	for {
++		mem := v.Args[2]
++		ptr := v.Args[0]
++		val := v.Args[1]
++		v.reset(OpSelect1)
++		v0 := b.NewValue0(v.Pos, OpAMD64XCHGB, types.NewTuple(typ.UInt8, types.TypeMem))
++		v0.AddArg(val)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpAtomicStorePtrNoWB_0(v *Value) bool {
+ 	b := v.Block
+ 	config := b.Func.Config
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index a5f74fab51..e9bde5ec8a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -431,6 +431,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpAtomicStore32_0(v)
+ 	case OpAtomicStore64:
+ 		return rewriteValueARM64_OpAtomicStore64_0(v)
++	case OpAtomicStore8:
++		return rewriteValueARM64_OpAtomicStore8_0(v)
+ 	case OpAtomicStorePtrNoWB:
+ 		return rewriteValueARM64_OpAtomicStorePtrNoWB_0(v)
+ 	case OpAvg64u:
+@@ -27669,6 +27671,20 @@ func rewriteValueARM64_OpAtomicStore64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpAtomicStore8_0(v *Value) bool {
++	// match: (AtomicStore8 ptr val mem)
++	// result: (STLRB ptr val mem)
++	for {
++		mem := v.Args[2]
++		ptr := v.Args[0]
++		val := v.Args[1]
++		v.reset(OpARM64STLRB)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueARM64_OpAtomicStorePtrNoWB_0(v *Value) bool {
+ 	// match: (AtomicStorePtrNoWB ptr val mem)
+ 	// result: (STLR ptr val mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 08b1f43841..869ccd3b19 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -57,6 +57,8 @@ func rewriteValueMIPS64(v *Value) bool {
+ 		return rewriteValueMIPS64_OpAtomicStore32_0(v)
+ 	case OpAtomicStore64:
+ 		return rewriteValueMIPS64_OpAtomicStore64_0(v)
++	case OpAtomicStore8:
++		return rewriteValueMIPS64_OpAtomicStore8_0(v)
+ 	case OpAtomicStorePtrNoWB:
+ 		return rewriteValueMIPS64_OpAtomicStorePtrNoWB_0(v)
+ 	case OpAvg64u:
+@@ -938,6 +940,20 @@ func rewriteValueMIPS64_OpAtomicStore64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueMIPS64_OpAtomicStore8_0(v *Value) bool {
++	// match: (AtomicStore8 ptr val mem)
++	// result: (LoweredAtomicStore8 ptr val mem)
++	for {
++		mem := v.Args[2]
++		ptr := v.Args[0]
++		val := v.Args[1]
++		v.reset(OpMIPS64LoweredAtomicStore8)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueMIPS64_OpAtomicStorePtrNoWB_0(v *Value) bool {
+ 	// match: (AtomicStorePtrNoWB ptr val mem)
+ 	// result: (LoweredAtomicStore64 ptr val mem)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 1b462b28bb..a95364ece4 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -71,6 +71,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpAtomicStore32_0(v)
+ 	case OpAtomicStore64:
+ 		return rewriteValuePPC64_OpAtomicStore64_0(v)
++	case OpAtomicStore8:
++		return rewriteValuePPC64_OpAtomicStore8_0(v)
+ 	case OpAtomicStoreRel32:
+ 		return rewriteValuePPC64_OpAtomicStoreRel32_0(v)
+ 	case OpAvg64u:
+@@ -1132,6 +1134,21 @@ func rewriteValuePPC64_OpAtomicStore64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpAtomicStore8_0(v *Value) bool {
++	// match: (AtomicStore8 ptr val mem)
++	// result: (LoweredAtomicStore8 [1] ptr val mem)
++	for {
++		mem := v.Args[2]
++		ptr := v.Args[0]
++		val := v.Args[1]
++		v.reset(OpPPC64LoweredAtomicStore8)
++		v.AuxInt = 1
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpAtomicStoreRel32_0(v *Value) bool {
+ 	// match: (AtomicStoreRel32 ptr val mem)
+ 	// result: (LoweredAtomicStore32 [0] ptr val mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 343a7381ea..645e8f2d9a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -60,6 +60,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpAtomicStore32_0(v)
+ 	case OpAtomicStore64:
+ 		return rewriteValueS390X_OpAtomicStore64_0(v)
++	case OpAtomicStore8:
++		return rewriteValueS390X_OpAtomicStore8_0(v)
+ 	case OpAtomicStorePtrNoWB:
+ 		return rewriteValueS390X_OpAtomicStorePtrNoWB_0(v)
+ 	case OpAtomicStoreRel32:
+@@ -1153,6 +1155,23 @@ func rewriteValueS390X_OpAtomicStore64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpAtomicStore8_0(v *Value) bool {
++	b := v.Block
++	// match: (AtomicStore8 ptr val mem)
++	// result: (SYNC (MOVBatomicstore ptr val mem))
++	for {
++		mem := v.Args[2]
++		ptr := v.Args[0]
++		val := v.Args[1]
++		v.reset(OpS390XSYNC)
++		v0 := b.NewValue0(v.Pos, OpS390XMOVBatomicstore, types.TypeMem)
++		v0.AddArg(ptr)
++		v0.AddArg(val)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueS390X_OpAtomicStorePtrNoWB_0(v *Value) bool {
+ 	b := v.Block
+ 	// match: (AtomicStorePtrNoWB ptr val mem)

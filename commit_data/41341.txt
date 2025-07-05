@@ -21,7 +21,7 @@ Date:   Thu Aug 15 20:43:46 2019 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/s390x.go        |  11 ++-
  src/cmd/asm/internal/asm/asm.go           |  15 +++-
  src/cmd/asm/internal/asm/testdata/s390x.s |  14 ++++
@@ -30,3 +30,390 @@ Date:   Thu Aug 15 20:43:46 2019 +0100
  src/cmd/internal/obj/s390x/asmz.go        | 115 +++++++++++++++++++++++++-----
  src/cmd/internal/obj/s390x/objz.go        |   9 +++
  7 files changed, 164 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/s390x.go b/src/cmd/asm/internal/arch/s390x.go
+index d6d46f86f2..6efae26e1c 100644
+--- a/src/cmd/asm/internal/arch/s390x.go
++++ b/src/cmd/asm/internal/arch/s390x.go
+@@ -15,7 +15,8 @@ import (
+ 
+ func jumpS390x(word string) bool {
+ 	switch word {
+-	case "BC",
++	case "BRC",
++		"BC",
+ 		"BCL",
+ 		"BEQ",
+ 		"BGE",
+@@ -41,6 +42,14 @@ func jumpS390x(word string) bool {
+ 		"CMPUBLE",
+ 		"CMPUBLT",
+ 		"CMPUBNE",
++		"CRJ",
++		"CGRJ",
++		"CLRJ",
++		"CLGRJ",
++		"CIJ",
++		"CGIJ",
++		"CLIJ",
++		"CLGIJ",
+ 		"CALL",
+ 		"JMP":
+ 		return true
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index c6f07832a7..26b355dee1 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -450,8 +450,19 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
+ 			target = &a[2]
+ 			break
+ 		}
+-
+-		fallthrough
++		p.errorf("wrong number of arguments to %s instruction", op)
++		return
++	case 4:
++		if p.arch.Family == sys.S390X {
++			// 4-operand compare-and-branch.
++			prog.From = a[0]
++			prog.Reg = p.getRegister(prog, op, &a[1])
++			prog.SetFrom3(a[2])
++			target = &a[3]
++			break
++		}
++		p.errorf("wrong number of arguments to %s instruction", op)
++		return
+ 	default:
+ 		p.errorf("wrong number of arguments to %s instruction", op)
+ 		return
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 62563d885e..4fc599416f 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -22,6 +22,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	MOVDLT	R8, R9                // b9e24098
+ 	MOVDNE	R10, R11              // b9e270ba
+ 
++	LOCR	$3, R2, R1            // b9f23012
++	LOCGR	$7, R5, R6            // b9e27065
++
+ 	MOVD	(R15), R1             // e310f0000004
+ 	MOVW	(R15), R2             // e320f0000014
+ 	MOVH	(R15), R3             // e330f0000015
+@@ -253,6 +256,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	IPM	R3                     // b2220030
+ 	IPM	R12                    // b22200c0
+ 
++	BRC	$7, 0(PC)              // a7740000
+ 	BNE	0(PC)                  // a7740000
+ 	BEQ	0(PC)                  // a7840000
+ 	BLT	0(PC)                  // a7440000
+@@ -290,6 +294,16 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	CMPUBGT	R9, $256, 0(PC)        // ec920000007d
+ 	CMPUBGE	R2, $0, 0(PC)          // ec2a0000007d
+ 
++	CRJ	$15, R1, R2, 0(PC)     // ec120000f076
++	CGRJ	$12, R3, R4, 0(PC)     // ec340000c064
++	CLRJ	$3, R5, R6, 0(PC)      // ec5600003077
++	CLGRJ	$0, R7, R8, 0(PC)      // ec7800000065
++
++	CIJ	$4, R9, $127, 0(PC)    // ec9400007f7e
++	CGIJ	$8, R11, $-128, 0(PC)  // ecb80000807c
++	CLIJ	$1, R1, $255, 0(PC)    // ec110000ff7f
++	CLGIJ	$2, R3, $0, 0(PC)      // ec320000007d
++
+ 	LGDR	F1, R12                // b3cd00c1
+ 	LDGR	R2, F15                // b3c100f2
+ 
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index cc0bfab26b..b44531cfe6 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -268,6 +268,8 @@ const (
+ 	AMOVDLE
+ 	AMOVDLT
+ 	AMOVDNE
++	ALOCR
++	ALOCGR
+ 
+ 	// find leftmost one
+ 	AFLOGR
+@@ -394,6 +396,7 @@ const (
+ 	// branch
+ 	ABC
+ 	ABCL
++	ABRC
+ 	ABEQ
+ 	ABGE
+ 	ABGT
+@@ -407,6 +410,14 @@ const (
+ 	ASYSCALL
+ 
+ 	// compare and branch
++	ACRJ
++	ACGRJ
++	ACLRJ
++	ACLGRJ
++	ACIJ
++	ACGIJ
++	ACLIJ
++	ACLGIJ
+ 	ACMPBEQ
+ 	ACMPBGE
+ 	ACMPBGT
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index c9e44e3f7a..dad710bc45 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -45,6 +45,8 @@ var Anames = []string{
+ 	"MOVDLE",
+ 	"MOVDLT",
+ 	"MOVDNE",
++	"LOCR",
++	"LOCGR",
+ 	"FLOGR",
+ 	"POPCNT",
+ 	"AND",
+@@ -141,6 +143,7 @@ var Anames = []string{
+ 	"SYNC",
+ 	"BC",
+ 	"BCL",
++	"BRC",
+ 	"BEQ",
+ 	"BGE",
+ 	"BGT",
+@@ -152,6 +155,14 @@ var Anames = []string{
+ 	"BVC",
+ 	"BVS",
+ 	"SYSCALL",
++	"CRJ",
++	"CGRJ",
++	"CLRJ",
++	"CLGRJ",
++	"CIJ",
++	"CGIJ",
++	"CLIJ",
++	"CLGIJ",
+ 	"CMPBEQ",
+ 	"CMPBGE",
+ 	"CMPBGT",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 2ba3d12969..dae4d1c784 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -236,21 +236,32 @@ var optab = []Optab{
+ 
+ 	// branch
+ 	{i: 16, as: ABEQ, a6: C_SBRA},
++	{i: 16, as: ABRC, a1: C_SCON, a6: C_SBRA},
+ 	{i: 11, as: ABR, a6: C_LBRA},
+ 	{i: 16, as: ABC, a1: C_SCON, a2: C_REG, a6: C_LBRA},
+ 	{i: 18, as: ABR, a6: C_REG},
+ 	{i: 18, as: ABR, a1: C_REG, a6: C_REG},
+ 	{i: 15, as: ABR, a6: C_ZOREG},
+ 	{i: 15, as: ABC, a6: C_ZOREG},
++
++	// compare and branch
++	{i: 89, as: ACGRJ, a1: C_SCON, a2: C_REG, a3: C_REG, a6: C_SBRA},
+ 	{i: 89, as: ACMPBEQ, a1: C_REG, a2: C_REG, a6: C_SBRA},
++	{i: 89, as: ACLGRJ, a1: C_SCON, a2: C_REG, a3: C_REG, a6: C_SBRA},
++	{i: 89, as: ACMPUBEQ, a1: C_REG, a2: C_REG, a6: C_SBRA},
++	{i: 90, as: ACGIJ, a1: C_SCON, a2: C_REG, a3: C_ADDCON, a6: C_SBRA},
++	{i: 90, as: ACGIJ, a1: C_SCON, a2: C_REG, a3: C_SCON, a6: C_SBRA},
+ 	{i: 90, as: ACMPBEQ, a1: C_REG, a3: C_ADDCON, a6: C_SBRA},
+ 	{i: 90, as: ACMPBEQ, a1: C_REG, a3: C_SCON, a6: C_SBRA},
+-	{i: 89, as: ACMPUBEQ, a1: C_REG, a2: C_REG, a6: C_SBRA},
++	{i: 90, as: ACLGIJ, a1: C_SCON, a2: C_REG, a3: C_ADDCON, a6: C_SBRA},
+ 	{i: 90, as: ACMPUBEQ, a1: C_REG, a3: C_ANDCON, a6: C_SBRA},
+ 
+ 	// move on condition
+ 	{i: 17, as: AMOVDEQ, a1: C_REG, a6: C_REG},
+ 
++	// load on condition
++	{i: 25, as: ALOCGR, a1: C_SCON, a2: C_REG, a6: C_REG},
++
+ 	// find leftmost one
+ 	{i: 8, as: AFLOGR, a1: C_REG, a6: C_REG},
+ 
+@@ -1022,12 +1033,22 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ACMPUBLE, r)
+ 			opset(ACMPUBLT, r)
+ 			opset(ACMPUBNE, r)
++		case ACGRJ:
++			opset(ACRJ, r)
++		case ACLGRJ:
++			opset(ACLRJ, r)
++		case ACGIJ:
++			opset(ACIJ, r)
++		case ACLGIJ:
++			opset(ACLIJ, r)
+ 		case AMOVDEQ:
+ 			opset(AMOVDGE, r)
+ 			opset(AMOVDGT, r)
+ 			opset(AMOVDLE, r)
+ 			opset(AMOVDLT, r)
+ 			opset(AMOVDNE, r)
++		case ALOCGR:
++			opset(ALOCR, r)
+ 		case ALTDBR:
+ 			opset(ALTEBR, r)
+ 		case ATCDB:
+@@ -2620,6 +2641,10 @@ func (c *ctxtz) addcallreloc(sym *obj.LSym, add int64) *obj.Reloc {
+ 
+ func (c *ctxtz) branchMask(p *obj.Prog) uint32 {
+ 	switch p.As {
++	case ABRC, ALOCR, ALOCGR,
++		ACRJ, ACGRJ, ACIJ, ACGIJ,
++		ACLRJ, ACLGRJ, ACLIJ, ACLGIJ:
++		return uint32(p.From.Offset)
+ 	case ABEQ, ACMPBEQ, ACMPUBEQ, AMOVDEQ:
+ 		return 0x8
+ 	case ABGE, ACMPBGE, ACMPUBGE, AMOVDGE:
+@@ -3207,6 +3232,17 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 			zRIL(_a, op_XILF, uint32(p.To.Reg), uint32(v), asm)
+ 		}
+ 
++	case 25: // load on condition (register)
++		m3 := c.branchMask(p)
++		var opcode uint32
++		switch p.As {
++		case ALOCR:
++			opcode = op_LOCR
++		case ALOCGR:
++			opcode = op_LOCGR
++		}
++		zRRF(opcode, m3, 0, uint32(p.To.Reg), uint32(p.Reg), asm)
++
+ 	case 26: // MOVD $offset(base)(index), reg
+ 		v := c.regoff(&p.From)
+ 		r := p.From.Reg
+@@ -3788,21 +3824,44 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 		if p.Pcond != nil {
+ 			v = int32((p.Pcond.Pc - p.Pc) >> 1)
+ 		}
+-		var opcode, opcode2 uint32
++
++		// Some instructions take a mask as the first argument.
++		r1, r2 := p.From.Reg, p.Reg
++		if p.From.Type == obj.TYPE_CONST {
++			r1, r2 = p.Reg, p.RestArgs[0].Reg
++		}
++		m3 := c.branchMask(p)
++
++		var opcode uint32
+ 		switch p.As {
+-		case ACMPBEQ, ACMPBGE, ACMPBGT, ACMPBLE, ACMPBLT, ACMPBNE:
++		case ACRJ:
++			// COMPARE AND BRANCH RELATIVE (32)
++			opcode = op_CRJ
++		case ACGRJ, ACMPBEQ, ACMPBGE, ACMPBGT, ACMPBLE, ACMPBLT, ACMPBNE:
++			// COMPARE AND BRANCH RELATIVE (64)
+ 			opcode = op_CGRJ
+-			opcode2 = op_CGR
+-		case ACMPUBEQ, ACMPUBGE, ACMPUBGT, ACMPUBLE, ACMPUBLT, ACMPUBNE:
++		case ACLRJ:
++			// COMPARE LOGICAL AND BRANCH RELATIVE (32)
++			opcode = op_CLRJ
++		case ACLGRJ, ACMPUBEQ, ACMPUBGE, ACMPUBGT, ACMPUBLE, ACMPUBLT, ACMPUBNE:
++			// COMPARE LOGICAL AND BRANCH RELATIVE (64)
+ 			opcode = op_CLGRJ
+-			opcode2 = op_CLGR
+ 		}
+-		mask := c.branchMask(p)
++
+ 		if int32(int16(v)) != v {
+-			zRRE(opcode2, uint32(p.From.Reg), uint32(p.Reg), asm)
+-			zRIL(_c, op_BRCL, mask, uint32(v-sizeRRE/2), asm)
++			// The branch is too far for one instruction so crack
++			// `CMPBEQ x, y, target` into:
++			//
++			//     CMPBNE x, y, 2(PC)
++			//     BR     target
++			//
++			// Note that the instruction sequence MUST NOT clobber
++			// the condition code.
++			m3 ^= 0xe // invert 3-bit mask
++			zRIE(_b, opcode, uint32(r1), uint32(r2), uint32(sizeRIE+sizeRIL)/2, 0, 0, m3, 0, asm)
++			zRIL(_c, op_BRCL, 0xf, uint32(v-sizeRIE/2), asm)
+ 		} else {
+-			zRIE(_b, opcode, uint32(p.From.Reg), uint32(p.Reg), uint32(v), 0, 0, mask, 0, asm)
++			zRIE(_b, opcode, uint32(r1), uint32(r2), uint32(v), 0, 0, m3, 0, asm)
+ 		}
+ 
+ 	case 90: // compare and branch reg $constant
+@@ -3810,21 +3869,39 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 		if p.Pcond != nil {
+ 			v = int32((p.Pcond.Pc - p.Pc) >> 1)
+ 		}
+-		var opcode, opcode2 uint32
++
++		// Some instructions take a mask as the first argument.
++		r1, i2 := p.From.Reg, p.RestArgs[0].Offset
++		if p.From.Type == obj.TYPE_CONST {
++			r1 = p.Reg
++		}
++		m3 := c.branchMask(p)
++
++		var opcode uint32
+ 		switch p.As {
+-		case ACMPBEQ, ACMPBGE, ACMPBGT, ACMPBLE, ACMPBLT, ACMPBNE:
++		case ACIJ:
++			opcode = op_CIJ
++		case ACGIJ, ACMPBEQ, ACMPBGE, ACMPBGT, ACMPBLE, ACMPBLT, ACMPBNE:
+ 			opcode = op_CGIJ
+-			opcode2 = op_CGFI
+-		case ACMPUBEQ, ACMPUBGE, ACMPUBGT, ACMPUBLE, ACMPUBLT, ACMPUBNE:
++		case ACLIJ:
++			opcode = op_CLIJ
++		case ACLGIJ, ACMPUBEQ, ACMPUBGE, ACMPUBGT, ACMPUBLE, ACMPUBLT, ACMPUBNE:
+ 			opcode = op_CLGIJ
+-			opcode2 = op_CLGFI
+ 		}
+-		mask := c.branchMask(p)
+ 		if int32(int16(v)) != v {
+-			zRIL(_a, opcode2, uint32(p.From.Reg), uint32(c.regoff(p.GetFrom3())), asm)
+-			zRIL(_c, op_BRCL, mask, uint32(v-sizeRIL/2), asm)
++			// The branch is too far for one instruction so crack
++			// `CMPBEQ x, $0, target` into:
++			//
++			//     CMPBNE x, $0, 2(PC)
++			//     BR     target
++			//
++			// Note that the instruction sequence MUST NOT clobber
++			// the condition code.
++			m3 ^= 0xe // invert 3-bit mask
++			zRIE(_c, opcode, uint32(r1), m3, uint32(sizeRIE+sizeRIL)/2, 0, 0, 0, uint32(i2), asm)
++			zRIL(_c, op_BRCL, 0xf, uint32(v-sizeRIE/2), asm)
+ 		} else {
+-			zRIE(_c, opcode, uint32(p.From.Reg), mask, uint32(v), 0, 0, 0, uint32(c.regoff(p.GetFrom3())), asm)
++			zRIE(_c, opcode, uint32(r1), m3, uint32(v), 0, 0, 0, uint32(i2), asm)
+ 		}
+ 
+ 	case 91: // test under mask (immediate)
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index b7a2873106..0e0d7a2c63 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -249,6 +249,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			fallthrough
+ 
+ 		case ABC,
++			ABRC,
+ 			ABEQ,
+ 			ABGE,
+ 			ABGT,
+@@ -260,6 +261,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			ABR,
+ 			ABVC,
+ 			ABVS,
++			ACRJ,
++			ACGRJ,
++			ACLRJ,
++			ACLGRJ,
++			ACIJ,
++			ACGIJ,
++			ACLIJ,
++			ACLGIJ,
+ 			ACMPBEQ,
+ 			ACMPBGE,
+ 			ACMPBGT,

@@ -7,6 +7,20 @@ Date:   Fri Jun 26 18:24:15 2020 +0200
     Change-Id: Ie81579cbb1873349a91280f5aebe59624fcb1ef8
     Reviewed-on: https://go-review.googlesource.com/c/go/+/240157
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  doc/go1.15.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 6e98826de2..7a78ab8069 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -440,7 +440,7 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- crypto/rsa -->
+ 
+-<dl id="crypto/tls"><dt><a href="/crypto/tls/">crypto/tls</a></dt>
++<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+   <dd>
+     <p><!-- CL 214977 -->
+       The new

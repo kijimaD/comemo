@@ -24,8 +24,70 @@ Date:   Thu May 30 13:01:03 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/plive.go | 14 +++++++++++++-
  test/live.go                         |  2 +-
  test/live2.go                        |  4 ++--
  3 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 7d3377f40c..591e2d14e2 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1453,9 +1453,21 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
+ func isfat(t *types.Type) bool {
+ 	if t != nil {
+ 		switch t.Etype {
+-		case TSTRUCT, TARRAY, TSLICE, TSTRING,
++		case TSLICE, TSTRING,
+ 			TINTER: // maybe remove later
+ 			return true
++		case TARRAY:
++			// Array of 1 element, check if element is fat
++			if t.NumElem() == 1 {
++				return isfat(t.Elem())
++			}
++			return true
++		case TSTRUCT:
++			// Struct with 1 field, check if field is fat
++			if t.NumFields() == 1 {
++				return isfat(t.Field(0).Type)
++			}
++			return true
+ 		}
+ 	}
+ 
+diff --git a/test/live.go b/test/live.go
+index ec51193725..2c8972ef4f 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -659,7 +659,7 @@ func bad40() {
+ 
+ func good40() {
+ 	ret := T40{}              // ERROR "stack object ret T40$"
+-	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+ ret$" "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
++	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
+ 	t := &ret
+ 	printnl() // ERROR "live at call to printnl: ret$"
+ 	// Note: ret is live at the printnl because the compiler moves &ret
+diff --git a/test/live2.go b/test/live2.go
+index cea312f075..83a6cb7db6 100644
+--- a/test/live2.go
++++ b/test/live2.go
+@@ -27,14 +27,14 @@ func newT40() *T40 {
+ }
+ 
+ func bad40() {
+-	t := newT40() // ERROR "live at call to makemap: ret$" "stack object ret T40$" "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
++	t := newT40() // ERROR "stack object ret T40$" "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
+ 	printnl()     // ERROR "live at call to printnl: ret$"
+ 	useT40(t)
+ }
+ 
+ func good40() {
+ 	ret := T40{}                  // ERROR "stack object ret T40$"
+-	ret.m = make(map[int]int, 42) // ERROR "live at call to makemap: ret$" "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
++	ret.m = make(map[int]int, 42) // ERROR "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
+ 	t := &ret
+ 	printnl() // ERROR "live at call to printnl: ret$"
+ 	useT40(t)

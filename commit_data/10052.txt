@@ -7,9 +7,47 @@ Date:   Wed Oct 19 10:54:45 2011 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5295044
-
+---
  src/pkg/Makefile                                  | 2 +-
  src/pkg/{os => exp}/inotify/Makefile              | 2 +-
  src/pkg/{os => exp}/inotify/inotify_linux.go      | 0
  src/pkg/{os => exp}/inotify/inotify_linux_test.go | 0
  4 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 7fce462c36..e784b26333 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -184,7 +184,7 @@ DIRS=\
+ 
+ ifeq ($(GOOS),linux)
+ DIRS+=\
+-	os/inotify\
++	exp/inotify\
+ 
+ endif
+ 
+diff --git a/src/pkg/os/inotify/Makefile b/src/pkg/exp/inotify/Makefile
+similarity index 94%
+rename from src/pkg/os/inotify/Makefile
+rename to src/pkg/exp/inotify/Makefile
+index 90e18da57c..1e822fb8f0 100644
+--- a/src/pkg/os/inotify/Makefile
++++ b/src/pkg/exp/inotify/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=os/inotify
++TARG=exp/inotify
+ 
+ GOFILES_linux=\
+ 	inotify_linux.go\
+diff --git a/src/pkg/os/inotify/inotify_linux.go b/src/pkg/exp/inotify/inotify_linux.go
+similarity index 100%
+rename from src/pkg/os/inotify/inotify_linux.go
+rename to src/pkg/exp/inotify/inotify_linux.go
+diff --git a/src/pkg/os/inotify/inotify_linux_test.go b/src/pkg/exp/inotify/inotify_linux_test.go
+similarity index 100%
+rename from src/pkg/os/inotify/inotify_linux_test.go
+rename to src/pkg/exp/inotify/inotify_linux_test.go

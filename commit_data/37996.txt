@@ -17,7 +17,42 @@ Date:   Tue Jun 19 21:19:47 2018 +0300
     Change-Id: I5e02bbf9c42f753a6eb31399b8d20315af991490
     Reviewed-on: https://go-review.googlesource.com/119795
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/mediatype.go      | 2 +-
  src/mime/mediatype_test.go | 3 +++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/mime/mediatype.go b/src/mime/mediatype.go
+index ea2bbac189..3d480a9d7e 100644
+--- a/src/mime/mediatype.go
++++ b/src/mime/mediatype.go
+@@ -280,7 +280,7 @@ func consumeValue(v string) (value, rest string) {
+ 		// and intended as a literal backslash. This makes Go servers deal better
+ 		// with MSIE without affecting the way they handle conforming MIME
+ 		// generators.
+-		if r == '\\' && i+1 < len(v) && !isTokenChar(rune(v[i+1])) {
++		if r == '\\' && i+1 < len(v) && isTSpecial(rune(v[i+1])) {
+ 			buffer.WriteByte(v[i+1])
+ 			i++
+ 			continue
+diff --git a/src/mime/mediatype_test.go b/src/mime/mediatype_test.go
+index 88d742f0aa..35b311a4a5 100644
+--- a/src/mime/mediatype_test.go
++++ b/src/mime/mediatype_test.go
+@@ -40,6 +40,8 @@ func TestConsumeValue(t *testing.T) {
+ 		{`"\\" rest`, "\\", " rest"},
+ 		{`"My \" value"end`, "My \" value", "end"},
+ 		{`"\" rest`, "", `"\" rest`},
++		{`"C:\dev\go\robots.txt"`, `C:\dev\go\robots.txt`, ""},
++		{`"C:\新建文件件\中文第二次测试.mp4"`, `C:\新建文件件\中文第二次测试.mp4`, ""},
+ 	}
+ 	for _, test := range tests {
+ 		value, rest := consumeValue(test[0])
+@@ -393,6 +395,7 @@ func TestParseMediaType(t *testing.T) {
+ 
+ 		// Microsoft browers in intranet mode do not think they need to escape \ in file name.
+ 		{`form-data; name="file"; filename="C:\dev\go\robots.txt"`, "form-data", m("name", "file", "filename", `C:\dev\go\robots.txt`)},
++		{`form-data; name="file"; filename="C:\新建文件件\中文第二次测试.mp4"`, "form-data", m("name", "file", "filename", `C:\新建文件件\中文第二次测试.mp4`)},
+ 	}
+ 	for _, test := range tests {
+ 		mt, params, err := ParseMediaType(test.in)

@@ -18,7 +18,44 @@ Date:   Thu Aug 10 12:58:10 2017 +0200
     Reviewed-by: Avelino <t@avelino.xxx>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  test/escape2.go  |  2 +-
  test/escape2n.go | 15 +++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/test/escape2.go b/test/escape2.go
+index e10dbc2acc..ef3d6a88bf 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1204,7 +1204,7 @@ func foo126() {
+ 		// loopdepth 1
+ 		var i int // ERROR "moved to heap: i$"
+ 		func() {  // ERROR "foo126 func literal does not escape$"
+-			px = &i // ERROR "&i escapes to heap$"  "leaking closure reference i"
++			px = &i // ERROR "&i escapes to heap$" "leaking closure reference i"
+ 		}()
+ 	}
+ 	_ = px
+diff --git a/test/escape2n.go b/test/escape2n.go
+index 74f6f8dd65..b1130d3c3c 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -1824,3 +1824,18 @@ func issue11387(x int) func() int {
+ 	copy(slice2, slice1)
+ 	return slice2[0]
+ }
++
++func issue12397(x, y int) { // ERROR "moved to heap: y$"
++	// x does not escape below, because all relevant code is dead.
++	if false {
++		gxx = &x
++	} else {
++		gxx = &y // ERROR "&y escapes to heap$"
++	}
++
++	if true {
++		gxx = &y // ERROR "&y escapes to heap$"
++	} else {
++		gxx = &x
++	}
++}

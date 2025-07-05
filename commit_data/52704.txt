@@ -31,6 +31,20 @@ Date:   Thu May 19 10:41:32 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  misc/cgo/testplugin/plugin_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testplugin/plugin_test.go b/misc/cgo/testplugin/plugin_test.go
+index d373642e45..e8587e69ba 100644
+--- a/misc/cgo/testplugin/plugin_test.go
++++ b/misc/cgo/testplugin/plugin_test.go
+@@ -218,7 +218,7 @@ func TestIssue18676(t *testing.T) {
+ 
+ func TestIssue19534(t *testing.T) {
+ 	// Test that we can load a plugin built in a path with non-alpha characters.
+-	goCmd(t, "build", "-buildmode=plugin", "-ldflags='-pluginpath=issue.19534'", "-o", "plugin.so", "./issue19534/plugin.go")
++	goCmd(t, "build", "-buildmode=plugin", "-gcflags=-p=issue.19534", "-ldflags=-pluginpath=issue.19534", "-o", "plugin.so", "./issue19534/plugin.go")
+ 	goCmd(t, "build", "-o", "issue19534.exe", "./issue19534/main.go")
+ 	run(t, "./issue19534.exe")
+ }

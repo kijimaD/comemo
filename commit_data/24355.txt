@@ -12,6 +12,21 @@ Date:   Thu Jul 23 15:45:23 2015 +0200
     Change-Id: I8fe72e449507847c4bd9d77de40947ded7f2ff9d
     Reviewed-on: https://go-review.googlesource.com/12515
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/crypto/rand/rand.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index 4da3adb701..ee32fa0bd6 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -10,7 +10,9 @@ import "io"
+ 
+ // Reader is a global, shared instance of a cryptographically
+ // strong pseudo-random generator.
++//
+ // On Unix-like systems, Reader reads from /dev/urandom.
++// On Linux, Reader uses getrandom(2) if available, /dev/urandom otherwise.
+ // On Windows systems, Reader uses the CryptGenRandom API.
+ var Reader io.Reader
+ 

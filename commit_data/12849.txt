@@ -7,7 +7,7 @@ Date:   Fri Apr 6 14:01:12 2012 -0400
     R=rsc, golang-dev
     CC=golang-dev
     https://golang.org/cl/5994043
-
+---
  src/pkg/math/acosh.go    | 2 +-
  src/pkg/math/asinh.go    | 2 +-
  src/pkg/math/atanh.go    | 2 +-
@@ -19,3 +19,152 @@ Date:   Fri Apr 6 14:01:12 2012 -0400
  src/pkg/math/logb.go     | 4 ++--
  src/pkg/math/sincos.go   | 2 +-
  10 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/math/acosh.go b/src/pkg/math/acosh.go
+index c6c8645e1a..e394008b07 100644
+--- a/src/pkg/math/acosh.go
++++ b/src/pkg/math/acosh.go
+@@ -33,7 +33,7 @@ package math
+ //	acosh(NaN) is NaN without signal.
+ //
+ 
+-// Acosh(x) calculates the inverse hyperbolic cosine of x.
++// Acosh returns the inverse hyperbolic cosine of x.
+ //
+ // Special cases are:
+ //	Acosh(+Inf) = +Inf
+diff --git a/src/pkg/math/asinh.go b/src/pkg/math/asinh.go
+index 0defbb9bef..ff2de0215f 100644
+--- a/src/pkg/math/asinh.go
++++ b/src/pkg/math/asinh.go
+@@ -30,7 +30,7 @@ package math
+ //	         := sign(x)*log1p(|x| + x**2/(1 + sqrt(1+x**2)))
+ //
+ 
+-// Asinh(x) calculates the inverse hyperbolic sine of x.
++// Asinh returns the inverse hyperbolic sine of x.
+ //
+ // Special cases are:
+ //	Asinh(±0) = ±0
+diff --git a/src/pkg/math/atanh.go b/src/pkg/math/atanh.go
+index 5b5d468559..113d5c103c 100644
+--- a/src/pkg/math/atanh.go
++++ b/src/pkg/math/atanh.go
+@@ -36,7 +36,7 @@ package math
+ //	atanh(+-1) is +-INF with signal.
+ //
+ 
+-// Atanh(x) calculates the inverse hyperbolic tangent of x.
++// Atanh returns the inverse hyperbolic tangent of x.
+ //
+ // Special cases are:
+ //	Atanh(1) = +Inf
+diff --git a/src/pkg/math/cbrt.go b/src/pkg/math/cbrt.go
+index 8c43f0afbc..272e309231 100644
+--- a/src/pkg/math/cbrt.go
++++ b/src/pkg/math/cbrt.go
+@@ -12,7 +12,7 @@ package math
+ 	(http://www.jstor.org/stable/2006387?seq=9, accessed 11-Feb-2010)
+ */
+ 
+-// Cbrt returns the cube root of its argument.
++// Cbrt returns the cube root of x.
+ //
+ // Special cases are:
+ //	Cbrt(±0) = ±0
+diff --git a/src/pkg/math/copysign.go b/src/pkg/math/copysign.go
+index ee65456a1c..719c64b9eb 100644
+--- a/src/pkg/math/copysign.go
++++ b/src/pkg/math/copysign.go
+@@ -4,7 +4,7 @@
+ 
+ package math
+ 
+-// Copysign(x, y) returns a value with the magnitude
++// Copysign returns a value with the magnitude
+ // of x and the sign of y.
+ func Copysign(x, y float64) float64 {
+ 	const sign = 1 << 63
+diff --git a/src/pkg/math/erf.go b/src/pkg/math/erf.go
+index c6f32bdbe2..4cd80f80c3 100644
+--- a/src/pkg/math/erf.go
++++ b/src/pkg/math/erf.go
+@@ -179,7 +179,7 @@ const (
+ 	sb7 = -2.24409524465858183362e+01 // 0xC03670E242712D62
+ )
+ 
+-// Erf(x) returns the error function of x.
++// Erf returns the error function of x.
+ //
+ // Special cases are:
+ //	Erf(+Inf) = 1
+@@ -256,7 +256,7 @@ func Erf(x float64) float64 {
+ 	return 1 - r/x
+ }
+ 
+-// Erfc(x) returns the complementary error function of x.
++// Erfc returns the complementary error function of x.
+ //
+ // Special cases are:
+ //	Erfc(+Inf) = 0
+diff --git a/src/pkg/math/gamma.go b/src/pkg/math/gamma.go
+index 8b053cb85f..164f54f332 100644
+--- a/src/pkg/math/gamma.go
++++ b/src/pkg/math/gamma.go
+@@ -110,7 +110,7 @@ func stirling(x float64) float64 {
+ 	return y
+ }
+ 
+-// Gamma(x) returns the Gamma function of x.
++// Gamma returns the Gamma function of x.
+ //
+ // Special cases are:
+ //	Gamma(+Inf) = +Inf
+diff --git a/src/pkg/math/hypot.go b/src/pkg/math/hypot.go
+index df4d3eb709..3846e6d87d 100644
+--- a/src/pkg/math/hypot.go
++++ b/src/pkg/math/hypot.go
+@@ -8,7 +8,7 @@ package math
+ 	Hypot -- sqrt(p*p + q*q), but overflows only if the result does.
+ */
+ 
+-// Hypot computes Sqrt(p*p + q*q), taking care to avoid
++// Hypot returns Sqrt(p*p + q*q), taking care to avoid
+ // unnecessary overflow and underflow.
+ //
+ // Special cases are:
+diff --git a/src/pkg/math/logb.go b/src/pkg/math/logb.go
+index d32f9f1000..f2769d4fd7 100644
+--- a/src/pkg/math/logb.go
++++ b/src/pkg/math/logb.go
+@@ -4,7 +4,7 @@
+ 
+ package math
+ 
+-// Logb(x) returns the binary exponent of x.
++// Logb returns the binary exponent of x.
+ //
+ // Special cases are:
+ //	Logb(±Inf) = +Inf
+@@ -23,7 +23,7 @@ func Logb(x float64) float64 {
+ 	return float64(ilogb(x))
+ }
+ 
+-// Ilogb(x) returns the binary exponent of x as an integer.
++// Ilogb returns the binary exponent of x as an integer.
+ //
+ // Special cases are:
+ //	Ilogb(±Inf) = MaxInt32
+diff --git a/src/pkg/math/sincos.go b/src/pkg/math/sincos.go
+index 7300429207..7180303199 100644
+--- a/src/pkg/math/sincos.go
++++ b/src/pkg/math/sincos.go
+@@ -6,7 +6,7 @@ package math
+ 
+ // Coefficients _sin[] and _cos[] are found in pkg/math/sin.go.
+ 
+-// Sincos(x) returns Sin(x), Cos(x).
++// Sincos returns Sin(x), Cos(x).
+ //
+ // Special cases are:
+ //	Sincos(±0) = ±0, 1

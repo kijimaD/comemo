@@ -13,7 +13,7 @@ Date:   Tue Nov 1 16:46:43 2022 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Bypass: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go           |   4 +-
  src/cmd/compile/internal/arm/ssa.go             |   3 +-
  src/cmd/compile/internal/arm64/ssa.go           |   4 +-
@@ -57,3 +57,2093 @@ Date:   Tue Nov 1 16:46:43 2022 -0700
  src/runtime/mwbbuf.go                           |   2 +-
  src/runtime/stubs.go                            |   9 +-
  42 files changed, 711 insertions(+), 394 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index e256c0979a..9d730b0cd8 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1116,8 +1116,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		// arg0 is in DI. Set sym to match where regalloc put arg1.
+-		p.To.Sym = ssagen.GCWriteBarrierReg[v.Args[1].Reg()]
++		// AuxInt encodes how many buffer entries we need.
++		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
+ 
+ 	case ssa.OpAMD64LoweredPanicBoundsA, ssa.OpAMD64LoweredPanicBoundsB, ssa.OpAMD64LoweredPanicBoundsC:
+ 		p := s.Prog(obj.ACALL)
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index fd0da34418..1a0a6d8b39 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -710,7 +710,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
++		// AuxInt encodes how many buffer entries we need.
++		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
+ 	case ssa.OpARMLoweredPanicBoundsA, ssa.OpARMLoweredPanicBoundsB, ssa.OpARMLoweredPanicBoundsC:
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 88856558aa..f32f923a84 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -1065,7 +1065,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
++		// AuxInt encodes how many buffer entries we need.
++		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
++
+ 	case ssa.OpARM64LoweredPanicBoundsA, ssa.OpARM64LoweredPanicBoundsB, ssa.OpARM64LoweredPanicBoundsC:
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+index ebcdc0775b..6ee832e18d 100644
+--- a/src/cmd/compile/internal/ir/symtab.go
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -25,7 +25,7 @@ var Syms struct {
+ 	Deferreturn       *obj.LSym
+ 	Duffcopy          *obj.LSym
+ 	Duffzero          *obj.LSym
+-	GCWriteBarrier    *obj.LSym
++	GCWriteBarrier    [8]*obj.LSym
+ 	Goschedguarded    *obj.LSym
+ 	Growslice         *obj.LSym
+ 	Memmove           *obj.LSym
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index 59f9e189bd..81ea25781e 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -516,7 +516,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
++		// AuxInt encodes how many buffer entries we need.
++		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
+ 	case ssa.OpLOONG64LoweredPanicBoundsA, ssa.OpLOONG64LoweredPanicBoundsB, ssa.OpLOONG64LoweredPanicBoundsC:
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 2ad75207e1..c42eba5786 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -481,7 +481,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
++		// AuxInt encodes how many buffer entries we need.
++		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
+ 	case ssa.OpMIPSLoweredPanicBoundsA, ssa.OpMIPSLoweredPanicBoundsB, ssa.OpMIPSLoweredPanicBoundsC:
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 8612763ced..7ce4005e6d 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -500,7 +500,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
++		// AuxInt encodes how many buffer entries we need.
++		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
+ 	case ssa.OpMIPS64LoweredPanicBoundsA, ssa.OpMIPS64LoweredPanicBoundsB, ssa.OpMIPS64LoweredPanicBoundsC:
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 03b6ca733b..3c2a771306 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -1886,7 +1886,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
++		// AuxInt encodes how many buffer entries we need.
++		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
+ 
+ 	case ssa.OpPPC64LoweredPanicBoundsA, ssa.OpPPC64LoweredPanicBoundsB, ssa.OpPPC64LoweredPanicBoundsC:
+ 		p := s.Prog(obj.ACALL)
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 984779f0ea..0785641a7e 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -433,7 +433,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
++		// AuxInt encodes how many buffer entries we need.
++		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
+ 	case ssa.OpRISCV64LoweredPanicBoundsA, ssa.OpRISCV64LoweredPanicBoundsB, ssa.OpRISCV64LoweredPanicBoundsC:
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index fc42557b03..0833f2657a 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -8,6 +8,7 @@ import (
+ 	"math"
+ 
+ 	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/ssagen"
+@@ -566,7 +567,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
++		// AuxInt encodes how many buffer entries we need.
++		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
+ 	case ssa.OpS390XLoweredPanicBoundsA, ssa.OpS390XLoweredPanicBoundsB, ssa.OpS390XLoweredPanicBoundsC:
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/ssa/_gen/386Ops.go b/src/cmd/compile/internal/ssa/_gen/386Ops.go
+index 589bf133a5..6f19ea6427 100644
+--- a/src/cmd/compile/internal/ssa/_gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/386Ops.go
+@@ -516,9 +516,10 @@ func init() {
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
+ 
+-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		// LoweredWB invokes runtime.gcWriteBarrier. arg0=mem, auxint=# of write barrier slots
+ 		// It saves all GP registers if necessary, but may clobber others.
+-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), ax}, clobbers: callerSave &^ gp}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++		// Returns a pointer to a write barrier buffer in DI.
++		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: callerSave &^ gp, outputs: []regMask{buildReg("DI")}}, clobberFlags: true, aux: "Int64"},
+ 
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+index 23daebf131..d8d0225fc3 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+@@ -934,9 +934,10 @@ func init() {
+ 		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
+-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		// LoweredWB invokes runtime.gcWriteBarrier{auxint}. arg0=mem, auxint=# of buffer entries needed.
+ 		// It saves all GP registers if necessary, but may clobber others.
+-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), buildReg("AX CX DX BX BP SI R8 R9")}, clobbers: callerSave &^ (gp | g)}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++		// Returns a pointer to a write barrier buffer in R11.
++		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: callerSave &^ (gp | g), outputs: []regMask{buildReg("R11")}}, clobberFlags: true, aux: "Int64"},
+ 
+ 		{name: "LoweredHasCPUFeature", argLength: 0, reg: gp01, rematerializeable: true, typ: "UInt64", aux: "Sym", symEffect: "None"},
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+index badaf95e9a..2a9c2ae486 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+@@ -723,11 +723,12 @@ func init() {
+ 		{name: "LoweredAtomicOr8Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicOr32Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, typ: "(UInt32,Mem)", faultOnNilArg0: true, hasSideEffects: true},
+ 
+-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		// LoweredWB invokes runtime.gcWriteBarrier. arg0=mem, auxint=# of buffer entries needed
+ 		// It saves all GP registers if necessary,
+ 		// but clobbers R30 (LR) because it's a call.
+ 		// R16 and R17 may be clobbered by linker trampoline.
+-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R16 R17 R30")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++		// Returns a pointer to a write barrier buffer in R25.
++		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R16 R17 R30"), outputs: []regMask{buildReg("R25")}}, clobberFlags: true, aux: "Int64"},
+ 
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARMOps.go b/src/cmd/compile/internal/ssa/_gen/ARMOps.go
+index f4a400b35b..39d24694e7 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/ARMOps.go
+@@ -562,11 +562,11 @@ func init() {
+ 		// InvertFlags is a pseudo-op which can't appear in assembly output.
+ 		{name: "InvertFlags", argLength: 1}, // reverse direction of arg0
+ 
+-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		// LoweredWB invokes runtime.gcWriteBarrier. arg0=mem, auxint=# of buffer entries needed
+ 		// It saves all GP registers if necessary,
+ 		// but clobbers R14 (LR) because it's a call, and R12 which is linker trampoline scratch register.
+-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R12 R14")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+-	}
++		// Returns a pointer to a write barrier buffer in R8.
++		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R12 R14"), outputs: []regMask{buildReg("R8")}}, clobberFlags: true, aux: "Int64"}}
+ 
+ 	blocks := []blockData{
+ 		{name: "EQ", controls: 1},
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index 40e7a6801e..b104660767 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -441,11 +441,12 @@ func init() {
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+ 
+-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		// LoweredWB invokes runtime.gcWriteBarrier. arg0=mem, auxint=# of buffer entries needed
+ 		// It saves all GP registers if necessary,
+ 		// but clobbers R1 (LR) because it's a call
+ 		// and R30 (REGTMP).
+-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R27"), buildReg("R28")}, clobbers: (callerSave &^ gpg) | buildReg("R1")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++		// Returns a pointer to a write barrier buffer in R29.
++		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R1"), outputs: []regMask{buildReg("R29")}}, clobberFlags: true, aux: "Int64"},
+ 
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
+index 58ea40f86e..cc8b4ae155 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
+@@ -441,11 +441,12 @@ func init() {
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+ 
+-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		// LoweredWB invokes runtime.gcWriteBarrier. arg0=mem, auxint=# of buffer entries needed
+ 		// It saves all GP registers if necessary,
+ 		// but clobbers R31 (LR) because it's a call
+ 		// and R23 (REGTMP).
+-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ gpg) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++		// Returns a pointer to a write barrier buffer in R25.
++		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R31"), outputs: []regMask{buildReg("R25")}}, clobberFlags: true, aux: "Int64"},
+ 
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPSOps.go b/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
+index 4b7741a6cd..ac209bbdda 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
+@@ -394,11 +394,12 @@ func init() {
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+ 
+-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		// LoweredWB invokes runtime.gcWriteBarrier. arg0=mem, auxint=# of buffer entries needed
+ 		// It saves all GP registers if necessary,
+ 		// but clobbers R31 (LR) because it's a call
+ 		// and R23 (REGTMP).
+-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ gpg) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++		// Returns a pointer to a write barrier buffer in R25.
++		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R31"), outputs: []regMask{buildReg("R25")}}, clobberFlags: true, aux: "Int64"},
+ 
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+index c1ea789a56..3e644478c4 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+@@ -681,10 +681,11 @@ func init() {
+ 		{name: "LoweredAtomicOr8", argLength: 3, reg: gpstore, asm: "OR", faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicOr32", argLength: 3, reg: gpstore, asm: "OR", faultOnNilArg0: true, hasSideEffects: true},
+ 
+-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+-		// It preserves R0 through R17 (except special registers R1, R2, R11, R12, R13), g, and its arguments R20 and R21,
++		// LoweredWB invokes runtime.gcWriteBarrier. arg0=mem, auxint=# of buffer entries needed
++		// It preserves R0 through R17 (except special registers R1, R2, R11, R12, R13), g, and R20 and R21,
+ 		// but may clobber anything else, including R31 (REGTMP).
+-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ buildReg("R0 R3 R4 R5 R6 R7 R8 R9 R10 R14 R15 R16 R17 R20 R21 g")) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++		// Returns a pointer to a write barrier buffer in R29.
++		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ buildReg("R0 R3 R4 R5 R6 R7 R8 R9 R10 R14 R15 R16 R17 R20 R21 g")) | buildReg("R31"), outputs: []regMask{buildReg("R29")}}, clobberFlags: true, aux: "Int64"},
+ 
+ 		{name: "LoweredPubBarrier", argLength: 1, asm: "LWSYNC", hasSideEffects: true}, // Do data barrier. arg0=memory
+ 		// There are three of these functions so that they can have three different register inputs.
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+index bc47e1b441..52e87cbe72 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+@@ -388,11 +388,12 @@ func init() {
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+ 
+-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		// LoweredWB invokes runtime.gcWriteBarrier. arg0=mem, auxint=# of buffer entries needed
+ 		// It saves all GP registers if necessary,
+ 		// but clobbers RA (LR) because it's a call
+ 		// and T6 (REG_TMP).
+-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{regNamed["X5"], regNamed["X6"]}, clobbers: (callerSave &^ (gpMask | regNamed["g"])) | regNamed["X1"]}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++		// Returns a pointer to a write barrier buffer in X24.
++		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ (gpMask | regNamed["g"])) | regNamed["X1"], outputs: []regMask{regNamed["X24"]}}, clobberFlags: true, aux: "Int64"},
+ 
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+diff --git a/src/cmd/compile/internal/ssa/_gen/S390XOps.go b/src/cmd/compile/internal/ssa/_gen/S390XOps.go
+index 636893a3c5..c4766c12f5 100644
+--- a/src/cmd/compile/internal/ssa/_gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/S390XOps.go
+@@ -130,6 +130,7 @@ func init() {
+ 		r1         = buildReg("R1")
+ 		r2         = buildReg("R2")
+ 		r3         = buildReg("R3")
++		r9         = buildReg("R9")
+ 	)
+ 	// Common slices of register masks
+ 	var (
+@@ -504,11 +505,12 @@ func init() {
+ 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+ 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+ 
+-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		// LoweredWB invokes runtime.gcWriteBarrier. arg0=mem, aux=# of buffer entries needed
+ 		// It saves all GP registers if necessary,
+ 		// but clobbers R14 (LR) because it's a call,
+ 		// and also clobbers R1 as the PLT stub does.
+-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R14") | r1}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++		// Returns a pointer to a write barrier buffer in R9.
++		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R14") | r1, outputs: []regMask{r9}}, clobberFlags: true, aux: "Int64"},
+ 
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+diff --git a/src/cmd/compile/internal/ssa/_gen/WasmOps.go b/src/cmd/compile/internal/ssa/_gen/WasmOps.go
+index c9409bcfcc..45bbed5f52 100644
+--- a/src/cmd/compile/internal/ssa/_gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/WasmOps.go
+@@ -133,7 +133,7 @@ func init() {
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},                                                   // returns the PC of the caller of the current function
+ 		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},                                     // returns the SP of the caller of the current function. arg0=mem.
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil. arg1=mem
+-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp}}, aux: "Sym", symEffect: "None"},          // invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: callerSave, outputs: []regMask{gp}}, aux: "Int64"},        // invokes runtime.gcWriteBarrier{auxint}. arg0=mem, auxint=# of buffer entries needed. Returns a pointer to a write barrier buffer.
+ 
+ 		// LoweredConvert converts between pointers and integers.
+ 		// We have a special op for this so as to not confuse GCCallOff
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index deb2cb8bd5..53ff57f6b1 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -381,11 +381,11 @@ var genericOps = []opData{
+ 	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
+ 	{name: "WBend", argLength: 1, typ: "Mem"},                  // Write barrier code is done, interrupting is now allowed.
+ 
+-	// WB invokes runtime.gcWriteBarrier. This is not a normal
++	// WB invokes runtime.gcWriteBarrier.  This is not a normal
+ 	// call: it takes arguments in registers, doesn't clobber
+ 	// general-purpose registers (the exact clobber set is
+ 	// arch-dependent), and is not a safe-point.
+-	{name: "WB", argLength: 3, typ: "Mem", aux: "Sym", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++	{name: "WB", argLength: 1, typ: "(BytePtr,Mem)", aux: "Int64"}, // arg0=mem, auxint=# of buffer entries needed. Returns buffer pointer and memory.
+ 
+ 	{name: "HasCPUFeature", argLength: 0, typ: "bool", aux: "Sym", symEffect: "None"}, // aux=place that this feature flag can be loaded from
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 76ca9e059d..26ed4e552f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -6324,16 +6324,14 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "LoweredWB",
+-		auxType:      auxSym,
+-		argLen:       3,
++		auxType:      auxInt64,
++		argLen:       1,
+ 		clobberFlags: true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+-			inputs: []inputInfo{
++			clobbers: 65280, // X0 X1 X2 X3 X4 X5 X6 X7
++			outputs: []outputInfo{
+ 				{0, 128}, // DI
+-				{1, 1},   // AX
+ 			},
+-			clobbers: 65280, // X0 X1 X2 X3 X4 X5 X6 X7
+ 		},
+ 	},
+ 	{
+@@ -13529,16 +13527,14 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "LoweredWB",
+-		auxType:      auxSym,
+-		argLen:       3,
++		auxType:      auxInt64,
++		argLen:       1,
+ 		clobberFlags: true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 128}, // DI
+-				{1, 879}, // AX CX DX BX BP SI R8 R9
+-			},
+ 			clobbers: 2147418112, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			outputs: []outputInfo{
++				{0, 2048}, // R11
++			},
+ 		},
+ 	},
+ 	{
+@@ -18475,16 +18471,14 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "LoweredWB",
+-		auxType:      auxSym,
+-		argLen:       3,
++		auxType:      auxInt64,
++		argLen:       1,
+ 		clobberFlags: true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 4}, // R2
+-				{1, 8}, // R3
+-			},
+ 			clobbers: 4294922240, // R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			outputs: []outputInfo{
++				{0, 256}, // R8
++			},
+ 		},
+ 	},
+ 
+@@ -22793,16 +22787,14 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "LoweredWB",
+-		auxType:      auxSym,
+-		argLen:       3,
++		auxType:      auxInt64,
++		argLen:       1,
+ 		clobberFlags: true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 4}, // R2
+-				{1, 8}, // R3
+-			},
+ 			clobbers: 9223372035244359680, // R16 R17 R30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			outputs: []outputInfo{
++				{0, 33554432}, // R25
++			},
+ 		},
+ 	},
+ 	{
+@@ -24533,16 +24525,14 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "LoweredWB",
+-		auxType:      auxSym,
+-		argLen:       3,
++		auxType:      auxInt64,
++		argLen:       1,
+ 		clobberFlags: true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 67108864},  // R27
+-				{1, 134217728}, // R28
+-			},
+ 			clobbers: 4611686017353646082, // R1 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			outputs: []outputInfo{
++				{0, 268435456}, // R29
++			},
+ 		},
+ 	},
+ 	{
+@@ -26013,16 +26003,14 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "LoweredWB",
+-		auxType:      auxSym,
+-		argLen:       3,
++		auxType:      auxInt64,
++		argLen:       1,
+ 		clobberFlags: true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1048576}, // R20
+-				{1, 2097152}, // R21
+-			},
+ 			clobbers: 140737219919872, // R31 F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30 HI LO
++			outputs: []outputInfo{
++				{0, 16777216}, // R25
++			},
+ 		},
+ 	},
+ 	{
+@@ -27688,16 +27676,14 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "LoweredWB",
+-		auxType:      auxSym,
+-		argLen:       3,
++		auxType:      auxInt64,
++		argLen:       1,
+ 		clobberFlags: true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1048576}, // R20
+-				{1, 2097152}, // R21
+-			},
+ 			clobbers: 4611686018293170176, // R31 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 HI LO
++			outputs: []outputInfo{
++				{0, 16777216}, // R25
++			},
+ 		},
+ 	},
+ 	{
+@@ -30720,16 +30706,14 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "LoweredWB",
+-		auxType:      auxSym,
+-		argLen:       3,
++		auxType:      auxInt64,
++		argLen:       1,
+ 		clobberFlags: true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1048576}, // R20
+-				{1, 2097152}, // R21
+-			},
+ 			clobbers: 18446744072632408064, // R11 R12 R18 R19 R22 R23 R24 R25 R26 R27 R28 R29 R31 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 XER
++			outputs: []outputInfo{
++				{0, 536870912}, // R29
++			},
+ 		},
+ 	},
+ 	{
+@@ -32069,16 +32053,14 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "LoweredWB",
+-		auxType:      auxSym,
+-		argLen:       3,
++		auxType:      auxInt64,
++		argLen:       1,
+ 		clobberFlags: true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 16}, // X5
+-				{1, 32}, // X6
+-			},
+ 			clobbers: 9223372034707292160, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			outputs: []outputInfo{
++				{0, 8388608}, // X24
++			},
+ 		},
+ 	},
+ 	{
+@@ -35624,16 +35606,14 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "LoweredWB",
+-		auxType:      auxSym,
+-		argLen:       3,
++		auxType:      auxInt64,
++		argLen:       1,
+ 		clobberFlags: true,
+-		symEffect:    SymNone,
+ 		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 4}, // R2
+-				{1, 8}, // R3
+-			},
+ 			clobbers: 4294918146, // R1 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			outputs: []outputInfo{
++				{0, 512}, // R9
++			},
+ 		},
+ 	},
+ 	{
+@@ -36293,14 +36273,13 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:      "LoweredWB",
+-		auxType:   auxSym,
+-		argLen:    3,
+-		symEffect: SymNone,
++		name:    "LoweredWB",
++		auxType: auxInt64,
++		argLen:  1,
+ 		reg: regInfo{
+-			inputs: []inputInfo{
++			clobbers: 844424930131967, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 g
++			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+-				{1, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 		},
+ 	},
+@@ -38935,11 +38914,10 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:      "WB",
+-		auxType:   auxSym,
+-		argLen:    3,
+-		symEffect: SymNone,
+-		generic:   true,
++		name:    "WB",
++		auxType: auxInt64,
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+ 		name:      "HasCPUFeature",
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index b42caec24b..1ff18dd057 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -114,15 +114,47 @@ func needwb(v *Value, zeroes map[ID]ZeroRegion) bool {
+ 	return true
+ }
+ 
++// needWBsrc reports whether GC needs to see v when it is the source of a store.
++func needWBsrc(v *Value) bool {
++	return !IsGlobalAddr(v)
++}
++
++// needWBdst reports whether GC needs to see what used to be in *ptr when ptr is
++// the target of a pointer store.
++func needWBdst(ptr, mem *Value, zeroes map[ID]ZeroRegion) bool {
++	// Detect storing to zeroed memory.
++	var off int64
++	for ptr.Op == OpOffPtr {
++		off += ptr.AuxInt
++		ptr = ptr.Args[0]
++	}
++	ptrSize := ptr.Block.Func.Config.PtrSize
++	if off%ptrSize != 0 {
++		ptr.Fatalf("unaligned pointer write")
++	}
++	if off < 0 || off >= 64*ptrSize {
++		// write goes off end of tracked offsets
++		return true
++	}
++	z := zeroes[mem.ID]
++	if ptr != z.base {
++		return true
++	}
++	// If destination is known to be zeroed, we don't need the write barrier
++	// to record the old value in *ptr.
++	return z.mask>>uint(off/ptrSize)&1 == 0
++}
++
+ // writebarrier pass inserts write barriers for store ops (Store, Move, Zero)
+ // when necessary (the condition above). It rewrites store ops to branches
+ // and runtime calls, like
+ //
+ //	if writeBarrier.enabled {
+-//		gcWriteBarrier(ptr, val)	// Not a regular Go call
+-//	} else {
+-//		*ptr = val
++//		buf := gcWriteBarrier2()	// Not a regular Go call
++//		buf[0] = val
++//		buf[1] = *ptr
+ //	}
++//	*ptr = val
+ //
+ // A sequence of WB stores for many pointer fields of a single type will
+ // be emitted together, with a single branch.
+@@ -131,11 +163,16 @@ func writebarrier(f *Func) {
+ 		return
+ 	}
+ 
++	// Number of write buffer entries we can request at once.
++	// Must match runtime/mwbbuf.go:wbMaxEntriesPerCall.
++	// It must also match the number of instances of runtime.gcWriteBarrier{X}.
++	const maxEntries = 8
++
+ 	var sb, sp, wbaddr, const0 *Value
+-	var gcWriteBarrier, cgoCheckPtrWrite, cgoCheckMemmove *obj.LSym
++	var cgoCheckPtrWrite, cgoCheckMemmove *obj.LSym
+ 	var wbZero, wbMove *obj.LSym
+ 	var stores, after []*Value
+-	var sset *sparseSet
++	var sset, sset2 *sparseSet
+ 	var storeNumber []int32
+ 
+ 	// Compute map from a value to the SelectN [1] value that uses it.
+@@ -185,7 +222,6 @@ func writebarrier(f *Func) {
+ 			sp, sb = f.spSb()
+ 			wbsym := f.fe.Syslook("writeBarrier")
+ 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
+-			gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
+ 			wbZero = f.fe.Syslook("wbZero")
+ 			wbMove = f.fe.Syslook("wbMove")
+ 			if buildcfg.Experiment.CgoCheck2 {
+@@ -197,6 +233,8 @@ func writebarrier(f *Func) {
+ 			// allocate auxiliary data structures for computing store order
+ 			sset = f.newSparseSet(f.NumValues())
+ 			defer f.retSparseSet(sset)
++			sset2 = f.newSparseSet(f.NumValues())
++			defer f.retSparseSet(sset2)
+ 			storeNumber = f.Cache.allocInt32Slice(f.NumValues())
+ 			defer f.Cache.freeInt32Slice(storeNumber)
+ 		}
+@@ -282,14 +320,12 @@ func writebarrier(f *Func) {
+ 
+ 		// Build branch point.
+ 		bThen := f.NewBlock(BlockPlain)
+-		bElse := f.NewBlock(BlockPlain)
+ 		bEnd := f.NewBlock(b.Kind)
+ 		bThen.Pos = pos
+-		bElse.Pos = pos
+ 		bEnd.Pos = b.Pos
+ 		b.Pos = pos
+ 
+-		// set up control flow for end block
++		// Set up control flow for end block.
+ 		bEnd.CopyControls(b)
+ 		bEnd.Likely = b.Likely
+ 		for _, e := range b.Succs {
+@@ -307,30 +343,76 @@ func writebarrier(f *Func) {
+ 		b.Likely = BranchUnlikely
+ 		b.Succs = b.Succs[:0]
+ 		b.AddEdgeTo(bThen)
+-		b.AddEdgeTo(bElse)
+-		// TODO: For OpStoreWB and the buffered write barrier,
+-		// we could move the write out of the write barrier,
+-		// which would lead to fewer branches. We could do
+-		// something similar to OpZeroWB, since the runtime
+-		// could provide just the barrier half and then we
+-		// could unconditionally do an OpZero (which could
+-		// also generate better zeroing code). OpMoveWB is
+-		// trickier and would require changing how
+-		// cgoCheckMemmove works.
++		b.AddEdgeTo(bEnd)
+ 		bThen.AddEdgeTo(bEnd)
+-		bElse.AddEdgeTo(bEnd)
+ 
+-		// then block: emit write barrier calls
++		// For each write barrier store, append write barrier code to bThen.
+ 		memThen := mem
++		var curCall *Value
++		var curPtr *Value
++		addEntry := func(v *Value) {
++			if curCall == nil || curCall.AuxInt == maxEntries {
++				t := types.NewTuple(types.Types[types.TUINTPTR].PtrTo(), types.TypeMem)
++				curCall = bThen.NewValue1(pos, OpWB, t, memThen)
++				curPtr = bThen.NewValue1(pos, OpSelect0, types.Types[types.TUINTPTR].PtrTo(), curCall)
++				memThen = bThen.NewValue1(pos, OpSelect1, types.TypeMem, curCall)
++			}
++			// Store value in write buffer
++			num := curCall.AuxInt
++			curCall.AuxInt = num + 1
++			wbuf := bThen.NewValue1I(pos, OpOffPtr, types.Types[types.TUINTPTR].PtrTo(), num*f.Config.PtrSize, curPtr)
++			memThen = bThen.NewValue3A(pos, OpStore, types.TypeMem, types.Types[types.TUINTPTR], wbuf, v, memThen)
++		}
++
++		// Note: we can issue the write barrier code in any order. In particular,
++		// it doesn't matter if they are in a different order *even if* they end
++		// up referring to overlapping memory regions. For instance if an OpStore
++		// stores to a location that is later read by an OpMove. In all cases
++		// any pointers we must get into the write barrier buffer still make it,
++		// possibly in a different order and possibly a different (but definitely
++		// more than 0) number of times.
++		// In light of that, we process all the OpStoreWBs first. This minimizes
++		// the amount of spill/restore code we need around the Zero/Move calls.
++
++		// srcs contains the value IDs of pointer values we've put in the write barrier buffer.
++		srcs := sset
++		srcs.clear()
++		// dsts contains the value IDs of locations which we've read a pointer out of
++		// and put the result in the write barrier buffer.
++		dsts := sset2
++		dsts.clear()
++
++		for _, w := range stores {
++			if w.Op != OpStoreWB {
++				continue
++			}
++			pos := w.Pos
++			ptr := w.Args[0]
++			val := w.Args[1]
++			if !srcs.contains(val.ID) && needWBsrc(val) {
++				srcs.add(val.ID)
++				addEntry(val)
++			}
++			if !dsts.contains(ptr.ID) && needWBdst(ptr, w.Args[2], zeroes) {
++				dsts.add(ptr.ID)
++				// Load old value from store target.
++				// Note: This turns bad pointer writes into bad
++				// pointer reads, which could be confusing. We could avoid
++				// reading from obviously bad pointers, which would
++				// take care of the vast majority of these. We could
++				// patch this up in the signal handler, or use XCHG to
++				// combine the read and the write.
++				oldVal := bThen.NewValue2(pos, OpLoad, types.Types[types.TUINTPTR], ptr, memThen)
++				// Save old value to write buffer.
++				addEntry(oldVal)
++			}
++			f.fe.SetWBPos(pos)
++			nWBops--
++		}
++
+ 		for _, w := range stores {
+ 			pos := w.Pos
+ 			switch w.Op {
+-			case OpStoreWB:
+-				ptr := w.Args[0]
+-				val := w.Args[1]
+-				memThen = bThen.NewValue3A(pos, OpWB, types.TypeMem, gcWriteBarrier, ptr, val, memThen)
+-				f.fe.SetWBPos(pos)
+-				nWBops--
+ 			case OpZeroWB:
+ 				dst := w.Args[0]
+ 				typ := reflectdata.TypeLinksym(w.Aux.(*types.Type))
+@@ -358,8 +440,9 @@ func writebarrier(f *Func) {
+ 				nWBops--
+ 			}
+ 		}
++
+ 		// merge memory
+-		mem = bEnd.NewValue2(pos, OpPhi, types.TypeMem, memThen, mem)
++		mem = bEnd.NewValue2(pos, OpPhi, types.TypeMem, mem, memThen)
+ 
+ 		// Do raw stores after merge point.
+ 		for _, w := range stores {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index e483c3da41..3a4c24084e 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -27,7 +27,6 @@ import (
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+-	"cmd/internal/obj/x86"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+@@ -104,7 +103,14 @@ func InitConfig() {
+ 	ir.Syms.Deferreturn = typecheck.LookupRuntimeFunc("deferreturn")
+ 	ir.Syms.Duffcopy = typecheck.LookupRuntimeFunc("duffcopy")
+ 	ir.Syms.Duffzero = typecheck.LookupRuntimeFunc("duffzero")
+-	ir.Syms.GCWriteBarrier = typecheck.LookupRuntimeFunc("gcWriteBarrier")
++	ir.Syms.GCWriteBarrier[0] = typecheck.LookupRuntimeFunc("gcWriteBarrier1")
++	ir.Syms.GCWriteBarrier[1] = typecheck.LookupRuntimeFunc("gcWriteBarrier2")
++	ir.Syms.GCWriteBarrier[2] = typecheck.LookupRuntimeFunc("gcWriteBarrier3")
++	ir.Syms.GCWriteBarrier[3] = typecheck.LookupRuntimeFunc("gcWriteBarrier4")
++	ir.Syms.GCWriteBarrier[4] = typecheck.LookupRuntimeFunc("gcWriteBarrier5")
++	ir.Syms.GCWriteBarrier[5] = typecheck.LookupRuntimeFunc("gcWriteBarrier6")
++	ir.Syms.GCWriteBarrier[6] = typecheck.LookupRuntimeFunc("gcWriteBarrier7")
++	ir.Syms.GCWriteBarrier[7] = typecheck.LookupRuntimeFunc("gcWriteBarrier8")
+ 	ir.Syms.Goschedguarded = typecheck.LookupRuntimeFunc("goschedguarded")
+ 	ir.Syms.Growslice = typecheck.LookupRuntimeFunc("growslice")
+ 	ir.Syms.Memmove = typecheck.LookupRuntimeFunc("memmove")
+@@ -138,20 +144,6 @@ func InitConfig() {
+ 	ir.Syms.WriteBarrier = typecheck.LookupRuntimeVar("writeBarrier") // struct { bool; ... }
+ 	ir.Syms.Zerobase = typecheck.LookupRuntimeVar("zerobase")
+ 
+-	// asm funcs with special ABI
+-	if base.Ctxt.Arch.Name == "amd64" {
+-		GCWriteBarrierReg = map[int16]*obj.LSym{
+-			x86.REG_AX: typecheck.LookupRuntimeFunc("gcWriteBarrier"),
+-			x86.REG_CX: typecheck.LookupRuntimeFunc("gcWriteBarrierCX"),
+-			x86.REG_DX: typecheck.LookupRuntimeFunc("gcWriteBarrierDX"),
+-			x86.REG_BX: typecheck.LookupRuntimeFunc("gcWriteBarrierBX"),
+-			x86.REG_BP: typecheck.LookupRuntimeFunc("gcWriteBarrierBP"),
+-			x86.REG_SI: typecheck.LookupRuntimeFunc("gcWriteBarrierSI"),
+-			x86.REG_R8: typecheck.LookupRuntimeFunc("gcWriteBarrierR8"),
+-			x86.REG_R9: typecheck.LookupRuntimeFunc("gcWriteBarrierR9"),
+-		}
+-	}
+-
+ 	if Arch.LinkArch.Family == sys.Wasm {
+ 		BoundsCheckFunc[ssa.BoundsIndex] = typecheck.LookupRuntimeFunc("goPanicIndex")
+ 		BoundsCheckFunc[ssa.BoundsIndexU] = typecheck.LookupRuntimeFunc("goPanicIndexU")
+@@ -7914,8 +7906,6 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
+ 		return ir.Syms.Goschedguarded
+ 	case "writeBarrier":
+ 		return ir.Syms.WriteBarrier
+-	case "gcWriteBarrier":
+-		return ir.Syms.GCWriteBarrier
+ 	case "wbZero":
+ 		return ir.Syms.WBZero
+ 	case "wbMove":
+@@ -8036,6 +8026,3 @@ var (
+ 	BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym
+ 	ExtendCheckFunc [ssa.BoundsKindCount]*obj.LSym
+ )
+-
+-// GCWriteBarrierReg maps from registers to gcWriteBarrier implementation LSyms.
+-var GCWriteBarrierReg map[int16]*obj.LSym
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index 0578c20d16..85f34a7707 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -285,10 +285,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		}
+ 
+ 	case ssa.OpWasmLoweredWB:
+-		getValue64(s, v.Args[0])
+-		getValue64(s, v.Args[1])
+-		p := s.Prog(wasm.ACALLNORESUME) // TODO(neelance): If possible, turn this into a simple wasm.ACall).
+-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: v.Aux.(*obj.LSym)}
++		p := s.Prog(wasm.ACall)
++		// AuxInt encodes how many buffer entries we need.
++		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.GCWriteBarrier[v.AuxInt-1]}
++		setReg(s, v.Reg0()) // move result from wasm stack to register local
+ 
+ 	case ssa.OpWasmI64Store8, ssa.OpWasmI64Store16, ssa.OpWasmI64Store32, ssa.OpWasmI64Store, ssa.OpWasmF32Store, ssa.OpWasmF64Store:
+ 		getValue32(s, v.Args[0])
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index ee95a4acaf..6c92ca1f56 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -737,7 +737,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
++		// AuxInt encodes how many buffer entries we need.
++		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
+ 
+ 	case ssa.Op386LoweredPanicBoundsA, ssa.Op386LoweredPanicBoundsB, ssa.Op386LoweredPanicBoundsC:
+ 		p := s.Prog(obj.ACALL)
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index 9b0aabe919..96a2ef4a6f 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -127,7 +127,6 @@ var Linkwasm = obj.LinkArch{
+ var (
+ 	morestack       *obj.LSym
+ 	morestackNoCtxt *obj.LSym
+-	gcWriteBarrier  *obj.LSym
+ 	sigpanic        *obj.LSym
+ )
+ 
+@@ -139,7 +138,6 @@ const (
+ func instinit(ctxt *obj.Link) {
+ 	morestack = ctxt.Lookup("runtime.morestack")
+ 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
+-	gcWriteBarrier = ctxt.LookupABI("runtime.gcWriteBarrier", obj.ABIInternal)
+ 	sigpanic = ctxt.LookupABI("runtime.sigpanic", obj.ABIInternal)
+ }
+ 
+@@ -514,11 +512,6 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 				panic("bad target for CALL")
+ 			}
+ 
+-			// gcWriteBarrier has no return value, it never unwinds the stack
+-			if call.To.Sym == gcWriteBarrier {
+-				break
+-			}
+-
+ 			// return value of call is on the top of the stack, indicating whether to unwind the WebAssembly stack
+ 			if call.As == ACALLNORESUME && call.To.Sym != sigpanic { // sigpanic unwinds the stack, but it never resumes
+ 				// trying to unwind WebAssembly stack but call has no resume point, terminate with error
+@@ -794,19 +787,27 @@ func regAddr(reg int16) obj.Addr {
+ // Most of the Go functions has a single parameter (PC_B) in
+ // Wasm ABI. This is a list of exceptions.
+ var notUsePC_B = map[string]bool{
+-	"_rt0_wasm_js":           true,
+-	"wasm_export_run":        true,
+-	"wasm_export_resume":     true,
+-	"wasm_export_getsp":      true,
+-	"wasm_pc_f_loop":         true,
+-	"runtime.wasmDiv":        true,
+-	"runtime.wasmTruncS":     true,
+-	"runtime.wasmTruncU":     true,
+-	"runtime.gcWriteBarrier": true,
+-	"cmpbody":                true,
+-	"memeqbody":              true,
+-	"memcmp":                 true,
+-	"memchr":                 true,
++	"_rt0_wasm_js":            true,
++	"wasm_export_run":         true,
++	"wasm_export_resume":      true,
++	"wasm_export_getsp":       true,
++	"wasm_pc_f_loop":          true,
++	"gcWriteBarrier":          true,
++	"runtime.gcWriteBarrier1": true,
++	"runtime.gcWriteBarrier2": true,
++	"runtime.gcWriteBarrier3": true,
++	"runtime.gcWriteBarrier4": true,
++	"runtime.gcWriteBarrier5": true,
++	"runtime.gcWriteBarrier6": true,
++	"runtime.gcWriteBarrier7": true,
++	"runtime.gcWriteBarrier8": true,
++	"runtime.wasmDiv":         true,
++	"runtime.wasmTruncS":      true,
++	"runtime.wasmTruncU":      true,
++	"cmpbody":                 true,
++	"memeqbody":               true,
++	"memcmp":                  true,
++	"memchr":                  true,
+ }
+ 
+ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+@@ -851,8 +852,18 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	case "cmpbody":
+ 		varDecls = []*varDecl{{count: 2, typ: i64}}
+ 		useAssemblyRegMap()
+-	case "runtime.gcWriteBarrier":
+-		varDecls = []*varDecl{{count: 4, typ: i64}}
++	case "gcWriteBarrier":
++		varDecls = []*varDecl{{count: 5, typ: i64}}
++		useAssemblyRegMap()
++	case "runtime.gcWriteBarrier1",
++		"runtime.gcWriteBarrier2",
++		"runtime.gcWriteBarrier3",
++		"runtime.gcWriteBarrier4",
++		"runtime.gcWriteBarrier5",
++		"runtime.gcWriteBarrier6",
++		"runtime.gcWriteBarrier7",
++		"runtime.gcWriteBarrier8":
++		// no locals
+ 		useAssemblyRegMap()
+ 	default:
+ 		// Normal calling convention: PC_B as WebAssembly parameter. First local variable is local SP cache.
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 99018c8079..b5685701f2 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -55,19 +55,27 @@ type wasmFuncType struct {
+ }
+ 
+ var wasmFuncTypes = map[string]*wasmFuncType{
+-	"_rt0_wasm_js":           {Params: []byte{}},                                         //
+-	"wasm_export_run":        {Params: []byte{I32, I32}},                                 // argc, argv
+-	"wasm_export_resume":     {Params: []byte{}},                                         //
+-	"wasm_export_getsp":      {Results: []byte{I32}},                                     // sp
+-	"wasm_pc_f_loop":         {Params: []byte{}},                                         //
+-	"runtime.wasmDiv":        {Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
+-	"runtime.wasmTruncS":     {Params: []byte{F64}, Results: []byte{I64}},                // x -> int(x)
+-	"runtime.wasmTruncU":     {Params: []byte{F64}, Results: []byte{I64}},                // x -> uint(x)
+-	"runtime.gcWriteBarrier": {Params: []byte{I64, I64}},                                 // ptr, val
+-	"cmpbody":                {Params: []byte{I64, I64, I64, I64}, Results: []byte{I64}}, // a, alen, b, blen -> -1/0/1
+-	"memeqbody":              {Params: []byte{I64, I64, I64}, Results: []byte{I64}},      // a, b, len -> 0/1
+-	"memcmp":                 {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // a, b, len -> <0/0/>0
+-	"memchr":                 {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // s, c, len -> index
++	"_rt0_wasm_js":            {Params: []byte{}},                                         //
++	"wasm_export_run":         {Params: []byte{I32, I32}},                                 // argc, argv
++	"wasm_export_resume":      {Params: []byte{}},                                         //
++	"wasm_export_getsp":       {Results: []byte{I32}},                                     // sp
++	"wasm_pc_f_loop":          {Params: []byte{}},                                         //
++	"runtime.wasmDiv":         {Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
++	"runtime.wasmTruncS":      {Params: []byte{F64}, Results: []byte{I64}},                // x -> int(x)
++	"runtime.wasmTruncU":      {Params: []byte{F64}, Results: []byte{I64}},                // x -> uint(x)
++	"gcWriteBarrier":          {Params: []byte{I64}, Results: []byte{I64}},                // #bytes -> bufptr
++	"runtime.gcWriteBarrier1": {Results: []byte{I64}},                                     // -> bufptr
++	"runtime.gcWriteBarrier2": {Results: []byte{I64}},                                     // -> bufptr
++	"runtime.gcWriteBarrier3": {Results: []byte{I64}},                                     // -> bufptr
++	"runtime.gcWriteBarrier4": {Results: []byte{I64}},                                     // -> bufptr
++	"runtime.gcWriteBarrier5": {Results: []byte{I64}},                                     // -> bufptr
++	"runtime.gcWriteBarrier6": {Results: []byte{I64}},                                     // -> bufptr
++	"runtime.gcWriteBarrier7": {Results: []byte{I64}},                                     // -> bufptr
++	"runtime.gcWriteBarrier8": {Results: []byte{I64}},                                     // -> bufptr
++	"cmpbody":                 {Params: []byte{I64, I64, I64, I64}, Results: []byte{I64}}, // a, alen, b, blen -> -1/0/1
++	"memeqbody":               {Params: []byte{I64, I64, I64}, Results: []byte{I64}},      // a, b, len -> 0/1
++	"memcmp":                  {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // a, b, len -> <0/0/>0
++	"memchr":                  {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // s, c, len -> index
+ }
+ 
+ func assignAddress(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, va uint64, isTramp bool) (*sym.Section, int, uint64) {
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 8865f5502e..f07fc6bdb4 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1365,14 +1365,25 @@ TEXT runtime·float64touint32(SB),NOSPLIT,$12-12
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-// gcWriteBarrier performs a heap pointer write and informs the GC.
++// gcWriteBarrier informs the GC about heap pointer writes.
+ //
+-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+-// - DI is the destination of the write
+-// - AX is the value being written at DI
++// gcWriteBarrier returns space in a write barrier buffer which
++// should be filled in by the caller.
++// gcWriteBarrier does NOT follow the Go ABI. It accepts the
++// number of bytes of buffer needed in DI, and returns a pointer
++// to the buffer space in DI.
+ // It clobbers FLAGS. It does not clobber any general-purpose registers,
+ // but may clobber others (e.g., SSE registers).
+-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$28
++// Typical use would be, when doing *(CX+88) = AX
++//     CMPL    $0, runtime.writeBarrier(SB)
++//     JEQ     dowrite
++//     CALL    runtime.gcBatchBarrier2(SB)
++//     MOVL    AX, (DI)
++//     MOVL    88(CX), DX
++//     MOVL    DX, 4(DI)
++// dowrite:
++//     MOVL    AX, 88(CX)
++TEXT gcWriteBarrier<>(SB),NOSPLIT,$28
+ 	// Save the registers clobbered by the fast path. This is slightly
+ 	// faster than having the caller spill these.
+ 	MOVL	CX, 20(SP)
+@@ -1384,18 +1395,18 @@ retry:
+ 	MOVL	g(BX), BX
+ 	MOVL	g_m(BX), BX
+ 	MOVL	m_p(BX), BX
+-	MOVL	(p_wbBuf+wbBuf_next)(BX), CX
+-	// Increment wbBuf.next position.
+-	LEAL	8(CX), CX
++	// Get current buffer write position.
++	MOVL	(p_wbBuf+wbBuf_next)(BX), CX	// original next position
++	ADDL	DI, CX				// new next position
+ 	// Is the buffer full?
+ 	CMPL	CX, (p_wbBuf+wbBuf_end)(BX)
+ 	JA	flush
+ 	// Commit to the larger buffer.
+ 	MOVL	CX, (p_wbBuf+wbBuf_next)(BX)
+-	// Record the write.
+-	MOVL	AX, -8(CX)	// Record value
+-	MOVL	(DI), BX	// TODO: This turns bad writes into bad reads.
+-	MOVL	BX, -4(CX)	// Record *slot
++	// Make return value (the original next position)
++	SUBL	DI, CX
++	MOVL	CX, DI
++	// Restore registers.
+ 	MOVL	20(SP), CX
+ 	MOVL	24(SP), BX
+ 	RET
+@@ -1421,6 +1432,31 @@ flush:
+ 	MOVL	16(SP), SI
+ 	JMP	retry
+ 
++TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
++	MOVL	$4, DI
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
++	MOVL	$8, DI
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
++	MOVL	$12, DI
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
++	MOVL	$16, DI
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
++	MOVL	$20, DI
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
++	MOVL	$24, DI
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
++	MOVL	$28, DI
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
++	MOVL	$32, DI
++	JMP	gcWriteBarrier<>(SB)
++
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers, but the space for those arguments are allocated
+ // in the caller's stack frame. These stubs write the args into that stack space and
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 69a363320d..8051b269d6 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1621,15 +1621,25 @@ TEXT ·sigpanic0(SB),NOSPLIT,$0-0
+ #endif
+ 	JMP	·sigpanic<ABIInternal>(SB)
+ 
+-// gcWriteBarrier performs a heap pointer write and informs the GC.
++// gcWriteBarrier informs the GC about heap pointer writes.
+ //
+-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+-// - DI is the destination of the write
+-// - AX is the value being written at DI
++// gcWriteBarrier returns space in a write barrier buffer which
++// should be filled in by the caller.
++// gcWriteBarrier does NOT follow the Go ABI. It accepts the
++// number of bytes of buffer needed in R11, and returns a pointer
++// to the buffer space in R11.
+ // It clobbers FLAGS. It does not clobber any general-purpose registers,
+ // but may clobber others (e.g., SSE registers).
+-// Defined as ABIInternal since it does not use the stack-based Go ABI.
+-TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
++// Typical use would be, when doing *(CX+88) = AX
++//     CMPL    $0, runtime.writeBarrier(SB)
++//     JEQ     dowrite
++//     CALL    runtime.gcBatchBarrier2(SB)
++//     MOVQ    AX, (R11)
++//     MOVQ    88(CX), DX
++//     MOVQ    DX, 8(R11)
++// dowrite:
++//     MOVQ    AX, 88(CX)
++TEXT gcWriteBarrier<>(SB),NOSPLIT,$112
+ 	// Save the registers clobbered by the fast path. This is slightly
+ 	// faster than having the caller spill these.
+ 	MOVQ	R12, 96(SP)
+@@ -1640,24 +1650,17 @@ retry:
+ 	MOVQ	g_m(R14), R13
+ 	MOVQ	m_p(R13), R13
+ 	// Get current buffer write position.
+-	MOVQ	(p_wbBuf+wbBuf_next)(R13), R12
+-	// Increment wbBuf.next position.
+-	LEAQ	16(R12), R12
++	MOVQ	(p_wbBuf+wbBuf_next)(R13), R12	// original next position
++	ADDQ	R11, R12			// new next position
+ 	// Is the buffer full?
+ 	CMPQ	R12, (p_wbBuf+wbBuf_end)(R13)
+ 	JA	flush
+ 	// Commit to the larger buffer.
+ 	MOVQ	R12, (p_wbBuf+wbBuf_next)(R13)
+-	// Record the write.
+-	MOVQ	AX, -16(R12)	// Record value
+-	// Note: This turns bad pointer writes into bad
+-	// pointer reads, which could be confusing. We could avoid
+-	// reading from obviously bad pointers, which would
+-	// take care of the vast majority of these. We could
+-	// patch this up in the signal handler, or use XCHG to
+-	// combine the read and the write.
+-	MOVQ	(DI), R13
+-	MOVQ	R13, -8(R12)	// Record *slot
++	// Make return value (the original next position)
++	SUBQ	R11, R12
++	MOVQ	R12, R11
++	// Restore registers.
+ 	MOVQ	96(SP), R12
+ 	MOVQ	104(SP), R13
+ 	RET
+@@ -1708,61 +1711,30 @@ flush:
+ 	MOVQ	88(SP), R15
+ 	JMP	retry
+ 
+-// gcWriteBarrierCX is gcWriteBarrier, but with args in DI and CX.
+-// Defined as ABIInternal since it does not use the stable Go ABI.
+-TEXT runtime·gcWriteBarrierCX<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+-	XCHGQ CX, AX
+-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+-	XCHGQ CX, AX
+-	RET
+-
+-// gcWriteBarrierDX is gcWriteBarrier, but with args in DI and DX.
+-// Defined as ABIInternal since it does not use the stable Go ABI.
+-TEXT runtime·gcWriteBarrierDX<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+-	XCHGQ DX, AX
+-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+-	XCHGQ DX, AX
+-	RET
+-
+-// gcWriteBarrierBX is gcWriteBarrier, but with args in DI and BX.
+-// Defined as ABIInternal since it does not use the stable Go ABI.
+-TEXT runtime·gcWriteBarrierBX<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+-	XCHGQ BX, AX
+-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+-	XCHGQ BX, AX
+-	RET
+-
+-// gcWriteBarrierBP is gcWriteBarrier, but with args in DI and BP.
+-// Defined as ABIInternal since it does not use the stable Go ABI.
+-TEXT runtime·gcWriteBarrierBP<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+-	XCHGQ BP, AX
+-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+-	XCHGQ BP, AX
+-	RET
+-
+-// gcWriteBarrierSI is gcWriteBarrier, but with args in DI and SI.
+-// Defined as ABIInternal since it does not use the stable Go ABI.
+-TEXT runtime·gcWriteBarrierSI<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+-	XCHGQ SI, AX
+-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+-	XCHGQ SI, AX
+-	RET
+-
+-// gcWriteBarrierR8 is gcWriteBarrier, but with args in DI and R8.
+-// Defined as ABIInternal since it does not use the stable Go ABI.
+-TEXT runtime·gcWriteBarrierR8<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+-	XCHGQ R8, AX
+-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+-	XCHGQ R8, AX
+-	RET
+-
+-// gcWriteBarrierR9 is gcWriteBarrier, but with args in DI and R9.
+-// Defined as ABIInternal since it does not use the stable Go ABI.
+-TEXT runtime·gcWriteBarrierR9<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+-	XCHGQ R9, AX
+-	CALL runtime·gcWriteBarrier<ABIInternal>(SB)
+-	XCHGQ R9, AX
+-	RET
++TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++	MOVL   $8, R11
++	JMP     gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++	MOVL   $16, R11
++	JMP     gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++	MOVL   $24, R11
++	JMP     gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++	MOVL   $32, R11
++	JMP     gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++	MOVL   $40, R11
++	JMP     gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++	MOVL   $48, R11
++	JMP     gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++	MOVL   $56, R11
++	JMP     gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++	MOVL   $64, R11
++	JMP     gcWriteBarrier<>(SB)
+ 
+ DATA	debugCallFrameTooLarge<>+0x00(SB)/20, $"call frame too large"
+ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 3cabe748cd..569165ed19 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -870,16 +870,16 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVB	R3, ret+0(FP)
+ 	RET
+ 
+-// gcWriteBarrier performs a heap pointer write and informs the GC.
++// gcWriteBarrier informs the GC about heap pointer writes.
+ //
+-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+-// - R2 is the destination of the write
+-// - R3 is the value being written at R2
++// gcWriteBarrier does NOT follow the Go ABI. It accepts the
++// number of bytes of buffer needed in R8, and returns a pointer
++// to the buffer space in R8.
+ // It clobbers condition codes.
+ // It does not clobber any other general-purpose registers,
+ // but may clobber others (e.g., floating point registers).
+ // The act of CALLing gcWriteBarrier will clobber R14 (LR).
+-TEXT runtime·gcWriteBarrier(SB),NOSPLIT|NOFRAME,$0
++TEXT gcWriteBarrier<>(SB),NOSPLIT|NOFRAME,$0
+ 	// Save the registers clobbered by the fast path.
+ 	MOVM.DB.W	[R0,R1], (R13)
+ retry:
+@@ -888,16 +888,15 @@ retry:
+ 	MOVW	(p_wbBuf+wbBuf_next)(R0), R1
+ 	MOVW	(p_wbBuf+wbBuf_end)(R0), R11
+ 	// Increment wbBuf.next position.
+-	ADD	$8, R1
++	ADD	R8, R1
+ 	// Is the buffer full?
+ 	CMP	R11, R1
+ 	BHI	flush
+ 	// Commit to the larger buffer.
+ 	MOVW	R1, (p_wbBuf+wbBuf_next)(R0)
+-	// Record the write.
+-	MOVW	R3, -8(R1)	// Record value
+-	MOVW	(R2), R0	// TODO: This turns bad writes into bad reads.
+-	MOVW	R0, -4(R1)	// Record *slot
++	// Make return value (the original next position)
++	SUB	R8, R1, R8
++	// Restore registers.
+ 	MOVM.IA.W	(R13), [R0,R1]
+ 	RET
+ 
+@@ -921,6 +920,31 @@ flush:
+ 	MOVM.IA.W	(R13), [R2-R9,R12]
+ 	JMP	retry
+ 
++TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$4, R8
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$8, R8
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$12, R8
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$16, R8
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$20, R8
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$24, R8
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$28, R8
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$32, R8
++	JMP	gcWriteBarrier<>(SB)
++
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers, but the space for those arguments are allocated
+ // in the caller's stack frame. These stubs write the args into that stack space and
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index e8399712de..d0dd73cc00 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1188,37 +1188,33 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVB	R3, ret+0(FP)
+ 	RET
+ 
+-// gcWriteBarrier performs a heap pointer write and informs the GC.
++// gcWriteBarrier informs the GC about heap pointer writes.
+ //
+-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+-// - R2 is the destination of the write
+-// - R3 is the value being written at R2
++// gcWriteBarrier does NOT follow the Go ABI. It accepts the
++// number of bytes of buffer needed in R25, and returns a pointer
++// to the buffer space in R25.
+ // It clobbers condition codes.
+ // It does not clobber any general-purpose registers except R27,
+ // but may clobber others (e.g., floating point registers)
+ // The act of CALLing gcWriteBarrier will clobber R30 (LR).
+-//
+-// Defined as ABIInternal since the compiler generates ABIInternal
+-// calls to it directly and it does not use the stack-based Go ABI.
+-TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$200
++TEXT gcWriteBarrier<>(SB),NOSPLIT,$200
+ 	// Save the registers clobbered by the fast path.
+ 	STP	(R0, R1), 184(RSP)
+ retry:
+ 	MOVD	g_m(g), R0
+ 	MOVD	m_p(R0), R0
+-        MOVD	(p_wbBuf+wbBuf_next)(R0), R1
+-        MOVD	(p_wbBuf+wbBuf_end)(R0), R27
++	MOVD	(p_wbBuf+wbBuf_next)(R0), R1
++	MOVD	(p_wbBuf+wbBuf_end)(R0), R27
+ 	// Increment wbBuf.next position.
+-	ADD	$16, R1
++	ADD	R25, R1
+ 	// Is the buffer full?
+ 	CMP	R27, R1
+ 	BHI	flush
+ 	// Commit to the larger buffer.
+ 	MOVD	R1, (p_wbBuf+wbBuf_next)(R0)
+-	// Record the write.
+-	MOVD	R3, -16(R1)	// Record value
+-	MOVD	(R2), R0	// TODO: This turns bad writes into bad reads.
+-	MOVD	R0, -8(R1)	// Record *slot
++	// Make return value (the original next position)
++	SUB	R25, R1, R25
++	// Restore registers.
+ 	LDP	184(RSP), (R0, R1)
+ 	RET
+ 
+@@ -1259,6 +1255,31 @@ flush:
+ 	LDP	21*8(RSP), (R25, R26)
+ 	JMP	retry
+ 
++TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$8, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$16, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$24, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$32, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$40, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$48, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$56, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$64, R25
++	JMP	gcWriteBarrier<>(SB)
++
+ DATA	debugCallFrameTooLarge<>+0x00(SB)/20, $"call frame too large"
+ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
+ 
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index dfa3497b69..58e6286385 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -615,16 +615,16 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVB	R19, ret+0(FP)
+ 	RET
+ 
+-// gcWriteBarrier performs a heap pointer write and informs the GC.
++// gcWriteBarrier informs the GC about heap pointer writes.
+ //
+-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+-// - R27 is the destination of the write
+-// - R28 is the value being written at R27.
++// gcWriteBarrier does NOT follow the Go ABI. It accepts the
++// number of bytes of buffer needed in R29, and returns a pointer
++// to the buffer space in R29.
+ // It clobbers R30 (the linker temp register).
+ // The act of CALLing gcWriteBarrier will clobber R1 (LR).
+ // It does not clobber any other general-purpose registers,
+ // but may clobber others (e.g., floating point registers).
+-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$216
++TEXT gcWriteBarrier<>(SB),NOSPLIT,$216
+ 	// Save the registers clobbered by the fast path.
+ 	MOVV	R19, 208(R3)
+ 	MOVV	R13, 216(R3)
+@@ -634,15 +634,14 @@ retry:
+ 	MOVV	(p_wbBuf+wbBuf_next)(R19), R13
+ 	MOVV	(p_wbBuf+wbBuf_end)(R19), R30 // R30 is linker temp register
+ 	// Increment wbBuf.next position.
+-	ADDV	$16, R13
++	ADDV	R29, R13
+ 	// Is the buffer full?
+ 	BLTU	R30, R13, flush
+ 	// Commit to the larger buffer.
+ 	MOVV	R13, (p_wbBuf+wbBuf_next)(R19)
+-	// Record the write.
+-	MOVV	R28, -16(R13)	// Record value
+-	MOVV	(R27), R19	// TODO: This turns bad writes into bad reads.
+-	MOVV	R19, -8(R13)	// Record *slot
++	// Make return value (the original next position)
++	SUBV	R29, R13, R29
++	// Restore registers.
+ 	MOVV	208(R3), R19
+ 	MOVV	216(R3), R13
+ 	RET
+@@ -713,6 +712,31 @@ flush:
+ 	MOVV	200(R3), R31
+ 	JMP	retry
+ 
++TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$8, R29
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$16, R29
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$24, R29
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$32, R29
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$40, R29
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$48, R29
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$56, R29
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$64, R29
++	JMP	gcWriteBarrier<>(SB)
++
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers, but the space for those arguments are allocated
+ // in the caller's stack frame. These stubs write the args into that stack space and
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index c6677d0014..53944ec892 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -631,16 +631,16 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVB	R1, ret+0(FP)
+ 	RET
+ 
+-// gcWriteBarrier performs a heap pointer write and informs the GC.
++// gcWriteBarrier informs the GC about heap pointer writes.
+ //
+-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+-// - R20 is the destination of the write
+-// - R21 is the value being written at R20.
++// gcWriteBarrier does NOT follow the Go ABI. It accepts the
++// number of bytes of buffer needed in R25, and returns a pointer
++// to the buffer space in R25.
+ // It clobbers R23 (the linker temp register).
+ // The act of CALLing gcWriteBarrier will clobber R31 (LR).
+ // It does not clobber any other general-purpose registers,
+ // but may clobber others (e.g., floating point registers).
+-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$192
++TEXT gcWriteBarrier<>(SB),NOSPLIT,$192
+ 	// Save the registers clobbered by the fast path.
+ 	MOVV	R1, 184(R29)
+ 	MOVV	R2, 192(R29)
+@@ -650,16 +650,15 @@ retry:
+ 	MOVV	(p_wbBuf+wbBuf_next)(R1), R2
+ 	MOVV	(p_wbBuf+wbBuf_end)(R1), R23 // R23 is linker temp register
+ 	// Increment wbBuf.next position.
+-	ADDV	$16, R2
++	ADDV	R25, R2
+ 	// Is the buffer full?
+         SGTU	R2, R23, R23
+ 	BNE	R23, flush
+ 	// Commit to the larger buffer.
+ 	MOVV	R2, (p_wbBuf+wbBuf_next)(R1)
+-	// Record the write.
+-	MOVV	R21, -16(R2)	// Record value
+-	MOVV	(R20), R1	// TODO: This turns bad writes into bad reads.
+-	MOVV	R1, -8(R2)	// Record *slot
++	// Make return value (the original next position)
++	SUBV	R25, R2, R25
++	// Restore registers.
+ 	MOVV	184(R29), R1
+ 	MOVV	192(R29), R2
+ 	RET
+@@ -727,6 +726,31 @@ flush:
+ 	MOVV	176(R29), R25
+ 	JMP	retry
+ 
++TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$8, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$16, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$24, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$32, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$40, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$48, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$56, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
++	MOVV	$64, R25
++	JMP	gcWriteBarrier<>(SB)
++
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers, but the space for those arguments are allocated
+ // in the caller's stack frame. These stubs write the args into that stack space and
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index a43177ec13..33d37b2d02 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -624,16 +624,16 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVB	R1, ret+0(FP)
+ 	RET
+ 
+-// gcWriteBarrier performs a heap pointer write and informs the GC.
++// gcWriteBarrier informs the GC about heap pointer writes.
+ //
+-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+-// - R20 is the destination of the write
+-// - R21 is the value being written at R20.
++// gcWriteBarrier does NOT follow the Go ABI. It accepts the
++// number of bytes of buffer needed in R25, and returns a pointer
++// to the buffer space in R25.
+ // It clobbers R23 (the linker temp register).
+ // The act of CALLing gcWriteBarrier will clobber R31 (LR).
+ // It does not clobber any other general-purpose registers,
+ // but may clobber others (e.g., floating point registers).
+-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$104
++TEXT gcWriteBarrier<>(SB),NOSPLIT,$104
+ 	// Save the registers clobbered by the fast path.
+ 	MOVW	R1, 100(R29)
+ 	MOVW	R2, 104(R29)
+@@ -643,16 +643,15 @@ retry:
+ 	MOVW	(p_wbBuf+wbBuf_next)(R1), R2
+ 	MOVW	(p_wbBuf+wbBuf_end)(R1), R23 // R23 is linker temp register
+ 	// Increment wbBuf.next position.
+-	ADD	$8, R2
++	ADD	R25, R2
+ 	// Is the buffer full?
+ 	SGTU	R2, R23, R23
+ 	BNE	R23, flush
+ 	// Commit to the larger buffer.
+ 	MOVW	R2, (p_wbBuf+wbBuf_next)(R1)
+-	// Record the write.
+-	MOVW	R21, -8(R2)	// Record value
+-	MOVW	(R20), R1	// TODO: This turns bad writes into bad reads.
+-	MOVW	R1, -4(R2)	// Record *slot
++	// Make return value (the original next position)
++	SUB	R25, R2, R25
++	// Restore registers.
+ 	MOVW	100(R29), R1
+ 	MOVW	104(R29), R2
+ 	RET
+@@ -723,6 +722,31 @@ flush:
+ 	MOVW	96(R29), R28
+ 	JMP	retry
+ 
++TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$4, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$8, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$12, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$16, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$20, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$24, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$28, R25
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
++	MOVW	$32, R25
++	JMP	gcWriteBarrier<>(SB)
++
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers, but the space for those arguments are allocated
+ // in the caller's stack frame. These stubs write the args into that stack space and
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 0f6421f6f5..37472c0f79 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -928,15 +928,15 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVB	R3, ret+0(FP)
+ 	RET
+ 
+-// gcWriteBarrier performs a heap pointer write and informs the GC.
++// gcWriteBarrier informs the GC about heap pointer writes.
+ //
+-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+-// - R20 is the destination of the write
+-// - R21 is the value being written at R20.
++// gcWriteBarrier does NOT follow the Go ABI. It accepts the
++// number of bytes of buffer needed in R29, and returns a pointer
++// to the buffer space in R29.
+ // It clobbers condition codes.
+ // It does not clobber R0 through R17 (except special registers),
+ // but may clobber any other register, *including* R31.
+-TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
++TEXT gcWriteBarrier<>(SB),NOSPLIT,$112
+ 	// The standard prologue clobbers R31.
+ 	// We use R18, R19, and R31 as scratch registers.
+ retry:
+@@ -945,16 +945,14 @@ retry:
+ 	MOVD	(p_wbBuf+wbBuf_next)(R18), R19
+ 	MOVD	(p_wbBuf+wbBuf_end)(R18), R31
+ 	// Increment wbBuf.next position.
+-	ADD	$16, R19
++	ADD	R29, R19
+ 	// Is the buffer full?
+ 	CMPU	R31, R19
+ 	BLT	flush
+ 	// Commit to the larger buffer.
+ 	MOVD	R19, (p_wbBuf+wbBuf_next)(R18)
+-	// Record the write.
+-	MOVD	R21, -16(R19)	// Record value
+-	MOVD	(R20), R18	// TODO: This turns bad writes into bad reads.
+-	MOVD	R18, -8(R19)	// Record *slot
++	// Make return value (the original next position)
++	SUB	R29, R19, R29
+ 	RET
+ 
+ flush:
+@@ -998,6 +996,31 @@ flush:
+ 	MOVD	(FIXED_FRAME+104)(R1), R17
+ 	JMP	retry
+ 
++TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$8, R29
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$16, R29
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$24, R29
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$32, R29
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$40, R29
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$48, R29
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$56, R29
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$64, R29
++	JMP	gcWriteBarrier<>(SB)
++
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers, but the space for those arguments are allocated
+ // in the caller's stack frame. These stubs write the args into that stack space and
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 4fd9c427e3..7626f69684 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -712,7 +712,7 @@ TEXT ·unspillArgs(SB),NOSPLIT,$0-0
+ 	MOVD	(31*8)(X25), F23
+ 	RET
+ 
+-// gcWriteBarrier performs a heap pointer write and informs the GC.
++// gcWriteBarrier informs the GC about heap pointer writes.
+ //
+ // gcWriteBarrier does NOT follow the Go ABI. It accepts the
+ // number of bytes of buffer needed in X24, and returns a pointer
+@@ -721,7 +721,7 @@ TEXT ·unspillArgs(SB),NOSPLIT,$0-0
+ // The act of CALLing gcWriteBarrier will clobber RA (LR).
+ // It does not clobber any other general-purpose registers,
+ // but may clobber others (e.g., floating point registers).
+-TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$208
++TEXT gcWriteBarrier<>(SB),NOSPLIT,$208
+ 	// Save the registers clobbered by the fast path.
+ 	MOV	A0, 24*8(X2)
+ 	MOV	A1, 25*8(X2)
+@@ -731,15 +731,14 @@ retry:
+ 	MOV	(p_wbBuf+wbBuf_next)(A0), A1
+ 	MOV	(p_wbBuf+wbBuf_end)(A0), T6 // T6 is linker temp register (REG_TMP)
+ 	// Increment wbBuf.next position.
+-	ADD	$16, A1
++	ADD	X24, A1
+ 	// Is the buffer full?
+ 	BLTU	T6, A1, flush
+ 	// Commit to the larger buffer.
+ 	MOV	A1, (p_wbBuf+wbBuf_next)(A0)
+-	// Record the write.
+-	MOV	T1, -16(A1)	// Record value
+-	MOV	(T0), A0	// TODO: This turns bad writes into bad reads.
+-	MOV	A0, -8(A1)	// Record *slot
++	// Make the return value (the original next position)
++	SUB	X24, A1, X24
++	// Restore registers.
+ 	MOV	24*8(X2), A0
+ 	MOV	25*8(X2), A1
+ 	RET
+@@ -808,6 +807,31 @@ flush:
+ 
+ 	JMP	retry
+ 
++TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
++	MOV	$8, X24
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
++	MOV	$16, X24
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
++	MOV	$24, X24
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
++	MOV	$32, X24
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
++	MOV	$40, X24
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
++	MOV	$48, X24
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
++	MOV	$56, X24
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
++	MOV	$64, X24
++	JMP	gcWriteBarrier<>(SB)
++
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers (ssa/gen/RISCV64Ops.go), but the space for those
+ // arguments are allocated in the caller's stack frame.
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 094e25c40f..e8fa10dee6 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -779,32 +779,31 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVB	$1, ret+0(FP)
+ 	RET
+ 
+-// gcWriteBarrier performs a heap pointer write and informs the GC.
++// gcWriteBarrier informs the GC about heap pointer writes.
+ //
+-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+-// - R2 is the destination of the write
+-// - R3 is the value being written at R2.
++// gcWriteBarrier does NOT follow the Go ABI. It accepts the
++// number of bytes of buffer needed in R9, and returns a pointer
++// to the buffer space in R9.
+ // It clobbers R10 (the temp register) and R1 (used by PLT stub).
+ // It does not clobber any other general-purpose registers,
+ // but may clobber others (e.g., floating point registers).
+-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$96
++TEXT gcWriteBarrier<>(SB),NOSPLIT,$96
+ 	// Save the registers clobbered by the fast path.
+ 	MOVD	R4, 96(R15)
+ retry:
+ 	MOVD	g_m(g), R1
+ 	MOVD	m_p(R1), R1
+ 	// Increment wbBuf.next position.
+-	MOVD	$16, R4
++	MOVD	R9, R4
+ 	ADD	(p_wbBuf+wbBuf_next)(R1), R4
+ 	// Is the buffer full?
+ 	MOVD	(p_wbBuf+wbBuf_end)(R1), R10
+ 	CMPUBGT	R4, R10, flush
+ 	// Commit to the larger buffer.
+ 	MOVD	R4, (p_wbBuf+wbBuf_next)(R1)
+-	// Record the write.
+-	MOVD	R3, -16(R4) // Record value
+-	MOVD	(R2), R10   // TODO: This turns bad writes into bad reads.
+-	MOVD	R10, -8(R4) // Record *slot
++	// Make return value (the original next position)
++	SUB	R9, R4, R9
++	// Restore registers.
+ 	MOVD	96(R15), R4
+ 	RET
+ 
+@@ -827,6 +826,31 @@ flush:
+ 	LMG	32(R15), R5, R12 // restore R5 - R12
+ 	JMP	retry
+ 
++TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$8, R9
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$16, R9
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$24, R9
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$32, R9
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$40, R9
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$48, R9
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$56, R9
++	JMP	gcWriteBarrier<>(SB)
++TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
++	MOVD	$64, R9
++	JMP	gcWriteBarrier<>(SB)
++
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers, but the space for those arguments are allocated
+ // in the caller's stack frame. These stubs write the args into that stack space and
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index e108bb4362..330c10cc0c 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -404,12 +404,15 @@ TEXT runtime·goexit(SB), NOSPLIT|TOPFRAME, $0-0
+ TEXT runtime·cgocallback(SB), NOSPLIT, $0-24
+ 	UNDEF
+ 
+-// gcWriteBarrier performs a heap pointer write and informs the GC.
++// gcWriteBarrier informs the GC about heap pointer writes.
+ //
+-// gcWriteBarrier does NOT follow the Go ABI. It has two WebAssembly parameters:
+-// R0: the destination of the write (i64)
+-// R1: the value being written (i64)
+-TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
++// gcWriteBarrier does NOT follow the Go ABI. It accepts the
++// number of bytes of buffer needed as a wasm argument
++// (put on the TOS by the caller, lives in local R0 in this body)
++// and returns a pointer to the buffer space as a wasm result
++// (left on the TOS in this body, appears on the wasm stack
++// in the caller).
++TEXT gcWriteBarrier<>(SB), NOSPLIT, $0
+ 	Loop
+ 		// R3 = g.m
+ 		MOVD g_m(g), R3
+@@ -420,7 +423,7 @@ TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
+ 
+ 		// Increment wbBuf.next
+ 		Get R5
+-		I64Const $16
++		Get R0
+ 		I64Add
+ 		Set R5
+ 
+@@ -432,27 +435,50 @@ TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
+ 			// Commit to the larger buffer.
+ 			MOVD R5, p_wbBuf+wbBuf_next(R4)
+ 
+-			// Back up to write position (wasm stores can't use negative offsets)
++			// Make return value (the original next position)
+ 			Get R5
+-			I64Const $16
++			Get R0
+ 			I64Sub
+-			Set R5
+ 
+-			// Record value
+-			MOVD R1, 0(R5)
+-			// Record *slot
+-			MOVD (R0), 8(R5)
+-
+-			RET
++			Return
+ 		End
+ 
+ 		// Flush
+-		MOVD R0, 0(SP)
+-		MOVD R1, 8(SP)
+ 		CALLNORESUME runtime·wbBufFlush(SB)
+-		MOVD 0(SP), R0
+-		MOVD 8(SP), R1
+ 
+ 		// Retry
+ 		Br $0
+ 	End
++
++TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
++	I64Const $8
++	Call	gcWriteBarrier<>(SB)
++	Return
++TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
++	I64Const $16
++	Call	gcWriteBarrier<>(SB)
++	Return
++TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
++	I64Const $24
++	Call	gcWriteBarrier<>(SB)
++	Return
++TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
++	I64Const $32
++	Call	gcWriteBarrier<>(SB)
++	Return
++TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
++	I64Const $40
++	Call	gcWriteBarrier<>(SB)
++	Return
++TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
++	I64Const $48
++	Call	gcWriteBarrier<>(SB)
++	Return
++TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
++	I64Const $56
++	Call	gcWriteBarrier<>(SB)
++	Return
++TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
++	I64Const $64
++	Call	gcWriteBarrier<>(SB)
++	Return
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index 4236cfb838..7419bd291d 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -71,7 +71,7 @@ const (
+ 
+ 	// Maximum number of entries that we need to ask from the
+ 	// buffer in a single call.
+-	wbMaxEntriesPerCall = 2
++	wbMaxEntriesPerCall = 8
+ )
+ 
+ // reset empties b by resetting its next and end pointers.
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 42c2612e68..5fe3506d5e 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -445,7 +445,14 @@ func bool2int(x bool) int {
+ func abort()
+ 
+ // Called from compiled code; declared for vet; do NOT call from Go.
+-func gcWriteBarrier()
++func gcWriteBarrier1()
++func gcWriteBarrier2()
++func gcWriteBarrier3()
++func gcWriteBarrier4()
++func gcWriteBarrier5()
++func gcWriteBarrier6()
++func gcWriteBarrier7()
++func gcWriteBarrier8()
+ func duffzero()
+ func duffcopy()
+ 

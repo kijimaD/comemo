@@ -10,7 +10,7 @@ Date:   Tue Mar 3 18:25:07 2009 -0800
     R=r
     OCL=25665
     CL=25665
-
+---
  usr/gri/pretty/Makefile       |  12 +-
  usr/gri/pretty/ast.go         |  12 +-
  usr/gri/pretty/parser.go      | 408 +++++++++++++++++++++---------------------
@@ -19,3 +19,2590 @@ Date:   Tue Mar 3 18:25:07 2009 -0800
  usr/gri/pretty/token.go       | 286 +++++++++++++++++++++++++++++
  usr/gri/pretty/typechecker.go |  25 +--
  7 files changed, 691 insertions(+), 614 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index a3b99ef928..96ac84278a 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -32,21 +32,21 @@ gds.6:	 utils.6 platform.6 compilation.6 printer.6
+ 
+ pretty.6:	 platform.6 printer.6 compilation.6
+ 
+-compilation.6:	 platform.6 scanner.6 parser.6 ast.6 typechecker.6
++compilation.6:	 platform.6 token.6 scanner.6 parser.6 ast.6 typechecker.6
+ 
+-typechecker.6:	 ast.6 scanner.6
++typechecker.6:	 ast.6 token.6
+ 
+-scanner.6:	 utils.6
++scanner.6:	 token.6 utils.6
+ 
+-ast.6:	 scanner.6 symboltable.6
++ast.6:	 token.6 symboltable.6
+ 
+ symboltable.6:	
+ 
+-parser.6:	 scanner.6 ast.6 symboltable.6
++parser.6:	 token.6 scanner.6 ast.6 symboltable.6
+ 
+ platform.6:	 utils.6
+ 
+-printer.6:	 utils.6 scanner.6 ast.6 symboltable.6
++printer.6:	 utils.6 token.6 ast.6 symboltable.6
+ 
+ %.6:	%.go
+ 	$(G) $(F) $<
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index d618a1bf41..adf9b59085 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -6,7 +6,7 @@ package AST
+ 
+ import (
+ 	"vector";
+-	Scanner "scanner";
++	"token";
+ 	SymbolTable "symboltable";
+ )
+ 
+@@ -259,7 +259,7 @@ func ExprLen(x Expr) int {
+ 	}
+ 	n := 1;
+ 	for {
+-		if p, ok := x.(*BinaryExpr); ok && p.Tok == Scanner.COMMA {
++		if p, ok := x.(*BinaryExpr); ok && p.Tok == token.COMMA {
+ 			n++;
+ 			x = p.Y;
+ 		} else {
+@@ -272,10 +272,10 @@ func ExprLen(x Expr) int {
+ 
+ func ExprAt(x Expr, i int) Expr {
+ 	for j := 0; j < i; j++ {
+-		assert(x.(*BinaryExpr).Tok == Scanner.COMMA);
++		assert(x.(*BinaryExpr).Tok == token.COMMA);
+ 		x = x.(*BinaryExpr).Y;
+ 	}
+-	if t, is_binary := x.(*BinaryExpr); is_binary && t.Tok == Scanner.COMMA {
++	if t, is_binary := x.(*BinaryExpr); is_binary && t.Tok == token.COMMA {
+ 		x = t.X;
+ 	}
+ 	return x;
+@@ -298,7 +298,7 @@ type Block struct {
+ 
+ 
+ func NewBlock(pos, tok int) *Block {
+-	assert(tok == Scanner.LBRACE || tok == Scanner.COLON);
++	assert(tok == token.LBRACE || tok == token.COLON);
+ 	b := new(Block);
+ 	b.Pos, b.Tok, b.List = pos, tok, vector.New(0);
+ 	return b;
+@@ -509,7 +509,7 @@ func NewComment(pos int, text string) *Comment {
+ 
+ 
+ type Program struct {
+-	Pos int;  // tok is Scanner.PACKAGE
++	Pos int;  // tok is token.PACKAGE
+ 	Ident Expr;
+ 	Decls []Decl;
+ 	Comments *vector.Vector;
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index ad72d47dd6..4b000b4463 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -8,7 +8,8 @@ import (
+ 	"flag";
+ 	"fmt";
+ 	"vector";
+-	Scanner "scanner";
++	"token";
++	"scanner";
+ 	AST "ast";
+ 	SymbolTable "symboltable";
+ )
+@@ -20,7 +21,7 @@ type ErrorHandler interface {
+ 
+ 
+ type Parser struct {
+-	scanner *Scanner.Scanner;
++	scanner *scanner.Scanner;
+ 	err ErrorHandler;
+ 
+ 	// Tracing/debugging
+@@ -29,7 +30,7 @@ type Parser struct {
+ 
+ 	comments *vector.Vector;
+ 
+-	// Scanner.Token
++	// The next token
+ 	pos int;  // token source position
+ 	tok int;  // one token look-ahead
+ 	val string;  // token value (for IDENT, NUMBER, STRING only)
+@@ -106,29 +107,29 @@ func (P *Parser) next0() {
+ 	if P.trace {
+ 		P.printIndent();
+ 		switch P.tok {
+-		case Scanner.IDENT, Scanner.INT, Scanner.FLOAT, Scanner.STRING:
+-			fmt.Printf("[%d] %s = %s\n", P.pos, Scanner.TokenString(P.tok), P.val);
+-		case Scanner.LPAREN:
++		case token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING:
++			fmt.Printf("[%d] %s = %s\n", P.pos, token.TokenString(P.tok), P.val);
++		case token.LPAREN:
+ 			// don't print '(' - screws up selection in terminal window
+ 			fmt.Printf("[%d] LPAREN\n", P.pos);
+-		case Scanner.RPAREN:
++		case token.RPAREN:
+ 			// don't print ')' - screws up selection in terminal window
+ 			fmt.Printf("[%d] RPAREN\n", P.pos);
+ 		default:
+-			fmt.Printf("[%d] %s\n", P.pos, Scanner.TokenString(P.tok));
++			fmt.Printf("[%d] %s\n", P.pos, token.TokenString(P.tok));
+ 		}
+ 	}
+ }
+ 
+ 
+ func (P *Parser) next() {
+-	for P.next0(); P.tok == Scanner.COMMENT; P.next0() {
++	for P.next0(); P.tok == token.COMMENT; P.next0() {
+ 		P.comments.Push(AST.NewComment(P.pos, P.val));
+ 	}
+ }
+ 
+ 
+-func (P *Parser) Open(scanner *Scanner.Scanner, err ErrorHandler, trace, sixg, deps bool) {
++func (P *Parser) Open(scanner *scanner.Scanner, err ErrorHandler, trace, sixg, deps bool) {
+ 	P.scanner = scanner;
+ 	P.err = err;
+ 
+@@ -152,9 +153,8 @@ func (P *Parser) error(pos int, msg string) {
+ 
+ func (P *Parser) expect(tok int) {
+ 	if P.tok != tok {
+-		msg := "expected '" + Scanner.TokenString(tok) + "', found '" + Scanner.TokenString(P.tok) + "'";
+-		switch P.tok {
+-		case Scanner.IDENT, Scanner.INT, Scanner.FLOAT, Scanner.STRING:
++		msg := "expected '" + token.TokenString(tok) + "', found '" + token.TokenString(P.tok) + "'";
++		if token.IsLiteral(P.tok) {
+ 			msg += " " + P.val;
+ 		}
+ 		P.error(P.pos, msg);
+@@ -164,7 +164,7 @@ func (P *Parser) expect(tok int) {
+ 
+ 
+ func (P *Parser) OptSemicolon() {
+-	if P.tok == Scanner.SEMICOLON {
++	if P.tok == token.SEMICOLON {
+ 		P.next();
+ 	}
+ }
+@@ -212,7 +212,7 @@ func (P *Parser) declareInScope(scope *SymbolTable.Scope, x AST.Expr, kind int,
+ func (P *Parser) declare(x AST.Expr, kind int, typ *AST.Type) {
+ 	for {
+ 		p, ok := x.(*AST.BinaryExpr);
+-		if ok && p.Tok == Scanner.COMMA {
++		if ok && p.Tok == token.COMMA {
+ 			P.declareInScope(P.top_scope, p.X, kind, typ);
+ 			x = p.Y;
+ 		} else {
+@@ -239,7 +239,7 @@ func (P *Parser) parseIdent(scope *SymbolTable.Scope) *AST.Ident {
+ 		defer un(trace(P, "Ident"));
+ 	}
+ 
+-	if P.tok == Scanner.IDENT {
++	if P.tok == token.IDENT {
+ 		var obj *SymbolTable.Object;
+ 		if scope != nil {
+ 			obj = scope.Lookup(P.val);
+@@ -254,7 +254,7 @@ func (P *Parser) parseIdent(scope *SymbolTable.Scope) *AST.Ident {
+ 		return x;
+ 	}
+ 
+-	P.expect(Scanner.IDENT);  // use expect() error handling
++	P.expect(token.IDENT);  // use expect() error handling
+ 	return &AST.Ident{P.pos, nil};
+ }
+ 
+@@ -268,15 +268,15 @@ func (P *Parser) parseIdentList(x AST.Expr) AST.Expr {
+ 	if x == nil {
+ 		x = P.parseIdent(nil);
+ 	}
+-	for P.tok == Scanner.COMMA {
++	for P.tok == token.COMMA {
+ 		pos := P.pos;
+ 		P.next();
+ 		y := P.parseIdent(nil);
+ 		if last == nil {
+-			last = &AST.BinaryExpr{pos, Scanner.COMMA, x, y};
++			last = &AST.BinaryExpr{pos, token.COMMA, x, y};
+ 			x = last;
+ 		} else {
+-			last.Y = &AST.BinaryExpr{pos, Scanner.COMMA, last.Y, y};
++			last.Y = &AST.BinaryExpr{pos, token.COMMA, last.Y, y};
+ 			last = last.Y.(*AST.BinaryExpr);
+ 		}
+ 	}
+@@ -295,7 +295,7 @@ func (P *Parser) parseIdentList2(x AST.Expr) []*AST.Ident {
+ 		x = P.parseIdent(nil);
+ 	}
+ 	list.Push(x);
+-	for P.tok == Scanner.COMMA {
++	for P.tok == token.COMMA {
+ 		P.next();
+ 		list.Push(P.parseIdent(nil));
+ 	}
+@@ -342,7 +342,7 @@ func (P *Parser) parseQualifiedIdent() AST.Expr {
+ 	}
+ 
+ 	var x AST.Expr = P.parseIdent(P.top_scope);
+-	for P.tok == Scanner.PERIOD {
++	for P.tok == token.PERIOD {
+ 		pos := P.pos;
+ 		P.next();
+ 		y := P.parseIdent(nil);
+@@ -368,15 +368,15 @@ func (P *Parser) parseArrayType() *AST.ArrayType {
+ 	}
+ 
+ 	pos := P.pos;
+-	P.expect(Scanner.LBRACK);
++	P.expect(token.LBRACK);
+ 	var len AST.Expr;
+-	if P.tok == Scanner.ELLIPSIS {
++	if P.tok == token.ELLIPSIS {
+ 		len = &AST.Ellipsis{P.pos};
+ 		P.next();
+-	} else if P.tok != Scanner.RBRACK {
++	} else if P.tok != token.RBRACK {
+ 		len = P.parseExpression(1);
+ 	}
+-	P.expect(Scanner.RBRACK);
++	P.expect(token.RBRACK);
+ 	elt := P.parseType();
+ 
+ 	return &AST.ArrayType{pos, len, elt};
+@@ -390,15 +390,15 @@ func (P *Parser) parseChannelType() *AST.ChannelType {
+ 
+ 	pos := P.pos;
+ 	mode := AST.FULL;
+-	if P.tok == Scanner.CHAN {
++	if P.tok == token.CHAN {
+ 		P.next();
+-		if P.tok == Scanner.ARROW {
++		if P.tok == token.ARROW {
+ 			P.next();
+ 			mode = AST.SEND;
+ 		}
+ 	} else {
+-		P.expect(Scanner.ARROW);
+-		P.expect(Scanner.CHAN);
++		P.expect(token.ARROW);
++		P.expect(token.CHAN);
+ 		mode = AST.RECV;
+ 	}
+ 	val := P.parseVarType();
+@@ -408,7 +408,7 @@ func (P *Parser) parseChannelType() *AST.ChannelType {
+ 
+ 
+ func (P *Parser) tryParameterType() AST.Expr {
+-	if P.tok == Scanner.ELLIPSIS {
++	if P.tok == token.ELLIPSIS {
+ 		pos := P.tok;
+ 		P.next();
+ 		return &AST.Ellipsis{pos};
+@@ -437,7 +437,7 @@ func (P *Parser) parseParameterDecl(ellipsis_ok bool) (*vector.Vector, AST.Expr)
+ 	for {
+ 		// TODO do not allow ()'s here
+ 		list.Push(P.parseParameterType());
+-		if P.tok == Scanner.COMMA {
++		if P.tok == token.COMMA {
+ 			P.next();
+ 		} else {
+ 			break;
+@@ -467,7 +467,7 @@ func (P *Parser) parseParameterList(ellipsis_ok bool) []*AST.Field {
+ 		list.Init(0);
+ 		list.Push(&AST.Field{idents, typ, nil});
+ 		
+-		for P.tok == Scanner.COMMA {
++		for P.tok == token.COMMA {
+ 			P.next();
+ 			idents := P.parseIdentList2(nil);
+ 			typ := P.parseParameterType();
+@@ -499,11 +499,11 @@ func (P *Parser) parseParameters(ellipsis_ok bool) []*AST.Field {
+ 	}
+ 
+ 	var params []*AST.Field;
+-	P.expect(Scanner.LPAREN);
+-	if P.tok != Scanner.RPAREN {
++	P.expect(token.LPAREN);
++	if P.tok != token.RPAREN {
+ 		params = P.parseParameterList(ellipsis_ok);
+ 	}
+-	P.expect(Scanner.RPAREN);
++	P.expect(token.RPAREN);
+ 
+ 	return params;
+ }
+@@ -515,9 +515,9 @@ func (P *Parser) parseResult() []*AST.Field {
+ 	}
+ 
+ 	var result []*AST.Field;
+-	if P.tok == Scanner.LPAREN {
++	if P.tok == token.LPAREN {
+ 		result = P.parseParameters(false);
+-	} else if P.tok != Scanner.FUNC {
++	} else if P.tok != token.FUNC {
+ 		typ := P.tryType();
+ 		if typ != nil {
+ 			result = make([]*AST.Field, 1);
+@@ -561,7 +561,7 @@ func (P *Parser) parseFunctionType() *AST.FunctionType {
+ 	}
+ 
+ 	pos := P.pos;
+-	P.expect(Scanner.FUNC);
++	P.expect(token.FUNC);
+ 	sig := P.parseSignature();
+ 	
+ 	return &AST.FunctionType{pos, sig};
+@@ -576,7 +576,7 @@ func (P *Parser) parseMethodSpec() *AST.Field {
+ 	var idents []*AST.Ident;
+ 	var typ AST.Expr;
+ 	x := P.parseQualifiedIdent();
+-	if tmp, is_ident := x.(*AST.Ident); is_ident && (P.tok == Scanner.COMMA || P.tok == Scanner.LPAREN) {
++	if tmp, is_ident := x.(*AST.Ident); is_ident && (P.tok == token.COMMA || P.tok == token.LPAREN) {
+ 		// method(s)
+ 		idents = P.parseIdentList2(x);
+ 		typ = &AST.FunctionType{0, P.parseSignature()};
+@@ -598,17 +598,17 @@ func (P *Parser) parseInterfaceType() *AST.InterfaceType {
+ 	end := 0;
+ 	var methods []*AST.Field;
+ 
+-	P.expect(Scanner.INTERFACE);
+-	if P.tok == Scanner.LBRACE {
++	P.expect(token.INTERFACE);
++	if P.tok == token.LBRACE {
+ 		P.next();
+ 		//P.openScope();
+ 		//P.scope_lev++;
+ 
+ 		list := vector.New(0);
+-		for P.tok == Scanner.IDENT {
++		for P.tok == token.IDENT {
+ 			list.Push(P.parseMethodSpec());
+-			if P.tok != Scanner.RBRACE {
+-				P.expect(Scanner.SEMICOLON);
++			if P.tok != token.RBRACE {
++				P.expect(token.SEMICOLON);
+ 			}
+ 		}
+ 		//t.End = P.pos;
+@@ -616,7 +616,7 @@ func (P *Parser) parseInterfaceType() *AST.InterfaceType {
+ 		//P.scope_lev--;
+ 		//P.closeScope();
+ 		end = P.pos;
+-		P.expect(Scanner.RBRACE);
++		P.expect(token.RBRACE);
+ 		P.opt_semi = true;
+ 		
+ 		// convert vector
+@@ -636,10 +636,10 @@ func (P *Parser) parseMapType() *AST.MapType {
+ 	}
+ 
+ 	pos := P.pos;
+-	P.expect(Scanner.MAP);
+-	P.expect(Scanner.LBRACK);
++	P.expect(token.MAP);
++	P.expect(token.LBRACK);
+ 	key := P.parseVarType();
+-	P.expect(Scanner.RBRACK);
++	P.expect(token.RBRACK);
+ 	val := P.parseVarType();
+ 
+ 	return &AST.MapType{pos, key, val};
+@@ -659,7 +659,7 @@ func (P *Parser) parseFieldDecl() *AST.Field {
+ 	for {
+ 		// TODO do not allow ()'s here
+ 		list.Push(P.parseType());
+-		if P.tok == Scanner.COMMA {
++		if P.tok == token.COMMA {
+ 			P.next();
+ 		} else {
+ 			break;
+@@ -671,7 +671,7 @@ func (P *Parser) parseFieldDecl() *AST.Field {
+ 
+ 	// optional tag
+ 	var tag AST.Expr;
+-	if P.tok == Scanner.STRING {
++	if P.tok == token.STRING {
+ 		// ParseOperand takes care of string concatenation
+ 		tag = P.parseOperand();
+ 	}
+@@ -711,14 +711,14 @@ func (P *Parser) parseStructType() AST.Expr {
+ 	end := 0;
+ 	var fields []*AST.Field;
+ 	
+-	P.expect(Scanner.STRUCT);
+-	if P.tok == Scanner.LBRACE {
++	P.expect(token.STRUCT);
++	if P.tok == token.LBRACE {
+ 		P.next();
+ 
+ 		list := vector.New(0);
+-		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
++		for P.tok != token.RBRACE && P.tok != token.EOF {
+ 			list.Push(P.parseFieldDecl());
+-			if P.tok == Scanner.SEMICOLON {
++			if P.tok == token.SEMICOLON {
+ 				P.next();
+ 			} else {
+ 				break;
+@@ -727,7 +727,7 @@ func (P *Parser) parseStructType() AST.Expr {
+ 		P.OptSemicolon();
+ 
+ 		end = P.pos;
+-		P.expect(Scanner.RBRACE);
++		P.expect(token.RBRACE);
+ 		P.opt_semi = true;
+ 
+ 		// convert vector
+@@ -747,7 +747,7 @@ func (P *Parser) parsePointerType() AST.Expr {
+ 	}
+ 
+ 	pos := P.pos;
+-	P.expect(Scanner.MUL);
++	P.expect(token.MUL);
+ 	base := P.parseType();
+ 
+ 	return &AST.PointerType{pos, base};
+@@ -760,19 +760,19 @@ func (P *Parser) tryType() AST.Expr {
+ 	}
+ 
+ 	switch P.tok {
+-	case Scanner.IDENT: return P.parseTypeName();
+-	case Scanner.LBRACK: return P.parseArrayType();
+-	case Scanner.CHAN, Scanner.ARROW: return P.parseChannelType();
+-	case Scanner.INTERFACE: return P.parseInterfaceType();
+-	case Scanner.FUNC: return P.parseFunctionType();
+-	case Scanner.MAP: return P.parseMapType();
+-	case Scanner.STRUCT: return P.parseStructType();
+-	case Scanner.MUL: return P.parsePointerType();
+-	case Scanner.LPAREN:
++	case token.IDENT: return P.parseTypeName();
++	case token.LBRACK: return P.parseArrayType();
++	case token.CHAN, token.ARROW: return P.parseChannelType();
++	case token.INTERFACE: return P.parseInterfaceType();
++	case token.FUNC: return P.parseFunctionType();
++	case token.MAP: return P.parseMapType();
++	case token.STRUCT: return P.parseStructType();
++	case token.MUL: return P.parsePointerType();
++	case token.LPAREN:
+ 		pos := P.pos;
+ 		P.next();
+ 		t := P.parseType();
+-		P.expect(Scanner.RPAREN);
++		P.expect(token.RPAREN);
+ 		return &AST.Group{pos, t};
+ 	}
+ 
+@@ -791,13 +791,13 @@ func (P *Parser) parseStatementList(list *vector.Vector) {
+ 	}
+ 
+ 	expect_semi := false;
+-	for P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
++	for P.tok != token.CASE && P.tok != token.DEFAULT && P.tok != token.RBRACE && P.tok != token.EOF {
+ 		if expect_semi {
+-			P.expect(Scanner.SEMICOLON);
++			P.expect(token.SEMICOLON);
+ 			expect_semi = false;
+ 		}
+ 		list.Push(P.parseStatement());
+-		if P.tok == Scanner.SEMICOLON {
++		if P.tok == token.SEMICOLON {
+ 			P.next();
+ 		} else if P.opt_semi {
+ 			P.opt_semi = false;  // "consume" optional semicolon
+@@ -839,9 +839,9 @@ func (P *Parser) parseBlock(tok int) *AST.Block {
+ 	P.closeScope();
+ 	*/
+ 
+-	if tok == Scanner.LBRACE {
++	if tok == token.LBRACE {
+ 		b.End = P.pos;
+-		P.expect(Scanner.RBRACE);
++		P.expect(token.RBRACE);
+ 		P.opt_semi = true;
+ 	}
+ 
+@@ -858,15 +858,15 @@ func (P *Parser) parseExpressionList() AST.Expr {
+ 	}
+ 
+ 	x := P.parseExpression(1);
+-	for first := true; P.tok == Scanner.COMMA; {
++	for first := true; P.tok == token.COMMA; {
+ 		pos := P.pos;
+ 		P.next();
+ 		y := P.parseExpression(1);
+ 		if first {
+-			x = &AST.BinaryExpr{pos, Scanner.COMMA, x, y};
++			x = &AST.BinaryExpr{pos, token.COMMA, x, y};
+ 			first = false;
+ 		} else {
+-			x.(*AST.BinaryExpr).Y = &AST.BinaryExpr{pos, Scanner.COMMA, x.(*AST.BinaryExpr).Y, y};
++			x.(*AST.BinaryExpr).Y = &AST.BinaryExpr{pos, token.COMMA, x.(*AST.BinaryExpr).Y, y};
+ 		}
+ 	}
+ 
+@@ -880,11 +880,11 @@ func (P *Parser) parseFunctionLit() AST.Expr {
+ 	}
+ 
+ 	pos := P.pos;
+-	P.expect(Scanner.FUNC);
++	P.expect(token.FUNC);
+ 	typ := P.parseSignature();
+ 	P.expr_lev++;
+ 	P.scope_lev++;
+-	body := P.parseBlock(Scanner.LBRACE);
++	body := P.parseBlock(token.LBRACE);
+ 	P.scope_lev--;
+ 	P.expr_lev--;
+ 
+@@ -898,31 +898,31 @@ func (P *Parser) parseOperand() AST.Expr {
+ 	}
+ 
+ 	switch P.tok {
+-	case Scanner.IDENT:
++	case token.IDENT:
+ 		return P.parseIdent(P.top_scope);
+ 
+-	case Scanner.LPAREN:
+-		pos := P.pos;
+-		P.next();
+-		P.expr_lev++;
+-		x := P.parseExpression(1);
+-		P.expr_lev--;
+-		P.expect(Scanner.RPAREN);
+-		return &AST.Group{pos, x};
+-
+-	case Scanner.INT, Scanner.FLOAT, Scanner.STRING:
++	case token.INT, token.FLOAT, token.CHAR, token.STRING:
+ 		x := &AST.BasicLit{P.pos, P.tok, P.val};
+ 		P.next();
+-		if x.Tok == Scanner.STRING {
++		if x.Tok == token.STRING {
+ 			// TODO should remember the list instead of
+ 			//      concatenate the strings here
+-			for ; P.tok == Scanner.STRING; P.next() {
++			for ; P.tok == token.STRING; P.next() {
+ 				x.Val += P.val;
+ 			}
+ 		}
+ 		return x;
+ 
+-	case Scanner.FUNC:
++	case token.LPAREN:
++		pos := P.pos;
++		P.next();
++		P.expr_lev++;
++		x := P.parseExpression(1);
++		P.expr_lev--;
++		P.expect(token.RPAREN);
++		return &AST.Group{pos, x};
++
++	case token.FUNC:
+ 		return P.parseFunctionLit();
+ 
+ 	default:
+@@ -945,15 +945,15 @@ func (P *Parser) parseSelectorOrTypeGuard(x AST.Expr) AST.Expr {
+ 	}
+ 
+ 	pos := P.pos;
+-	P.expect(Scanner.PERIOD);
++	P.expect(token.PERIOD);
+ 
+-	if P.tok == Scanner.IDENT {
++	if P.tok == token.IDENT {
+ 		x = &AST.Selector{pos, x, P.parseIdent(nil)};
+ 
+ 	} else {
+-		P.expect(Scanner.LPAREN);
++		P.expect(token.LPAREN);
+ 		x = &AST.TypeGuard{pos, x, P.parseType()};
+-		P.expect(Scanner.RPAREN);
++		P.expect(token.RPAREN);
+ 	}
+ 
+ 	return x;
+@@ -966,11 +966,11 @@ func (P *Parser) parseIndex(x AST.Expr) AST.Expr {
+ 	}
+ 
+ 	pos := P.pos;
+-	P.expect(Scanner.LBRACK);
++	P.expect(token.LBRACK);
+ 	P.expr_lev++;
+ 	i := P.parseExpression(0);
+ 	P.expr_lev--;
+-	P.expect(Scanner.RBRACK);
++	P.expect(token.RBRACK);
+ 
+ 	return &AST.Index{pos, x, i};
+ }
+@@ -980,39 +980,39 @@ func (P *Parser) parseBinaryExpr(prec1 int) AST.Expr
+ 
+ func (P *Parser) parseCompositeElements(close int) AST.Expr {
+ 	x := P.parseExpression(0);
+-	if P.tok == Scanner.COMMA {
++	if P.tok == token.COMMA {
+ 		pos := P.pos;
+ 		P.next();
+ 
+ 		// first element determines mode
+ 		singles := true;
+-		if t, is_binary := x.(*AST.BinaryExpr); is_binary && t.Tok == Scanner.COLON {
++		if t, is_binary := x.(*AST.BinaryExpr); is_binary && t.Tok == token.COLON {
+ 			singles = false;
+ 		}
+ 
+ 		var last *AST.BinaryExpr;
+-		for P.tok != close && P.tok != Scanner.EOF {
++		for P.tok != close && P.tok != token.EOF {
+ 			y := P.parseExpression(0);
+ 
+ 			if singles {
+-				if t, is_binary := y.(*AST.BinaryExpr); is_binary && t.Tok == Scanner.COLON {
++				if t, is_binary := y.(*AST.BinaryExpr); is_binary && t.Tok == token.COLON {
+ 					P.error(t.X.Pos(), "single value expected; found pair");
+ 				}
+ 			} else {
+-				if t, is_binary := y.(*AST.BinaryExpr); !is_binary || t.Tok != Scanner.COLON {
++				if t, is_binary := y.(*AST.BinaryExpr); !is_binary || t.Tok != token.COLON {
+ 					P.error(y.Pos(), "key:value pair expected; found single value");
+ 				}
+ 			}
+ 
+ 			if last == nil {
+-				last = &AST.BinaryExpr{pos, Scanner.COMMA, x, y};
++				last = &AST.BinaryExpr{pos, token.COMMA, x, y};
+ 				x = last;
+ 			} else {
+-				last.Y = &AST.BinaryExpr{pos, Scanner.COMMA, last.Y, y};
++				last.Y = &AST.BinaryExpr{pos, token.COMMA, last.Y, y};
+ 				last = last.Y.(*AST.BinaryExpr);
+ 			}
+ 
+-			if P.tok == Scanner.COMMA {
++			if P.tok == token.COMMA {
+ 				pos = P.pos;
+ 				P.next();
+ 			} else {
+@@ -1050,13 +1050,13 @@ func (P *Parser) parsePrimaryExpr() AST.Expr {
+ 	x := P.parseOperand();
+ 	for {
+ 		switch P.tok {
+-		case Scanner.PERIOD: x = P.parseSelectorOrTypeGuard(x);
+-		case Scanner.LBRACK: x = P.parseIndex(x);
++		case token.PERIOD: x = P.parseSelectorOrTypeGuard(x);
++		case token.LBRACK: x = P.parseIndex(x);
+ 		// TODO fix once we have decided on literal/conversion syntax
+-		case Scanner.LPAREN: x = P.parseCallOrCompositeLit(x, Scanner.LPAREN, Scanner.RPAREN);
+-		case Scanner.LBRACE:
++		case token.LPAREN: x = P.parseCallOrCompositeLit(x, token.LPAREN, token.RPAREN);
++		case token.LBRACE:
+ 			if P.expr_lev >= 0 {
+-				x = P.parseCallOrCompositeLit(x, Scanner.LBRACE, Scanner.RBRACE);
++				x = P.parseCallOrCompositeLit(x, token.LBRACE, token.RBRACE);
+ 			} else {
+ 				return x;
+ 			}
+@@ -1076,13 +1076,13 @@ func (P *Parser) parseUnaryExpr() AST.Expr {
+ 	}
+ 
+ 	switch P.tok {
+-	case Scanner.ADD, Scanner.SUB, Scanner.MUL, Scanner.NOT, Scanner.XOR, Scanner.ARROW, Scanner.AND:
++	case token.ADD, token.SUB, token.MUL, token.NOT, token.XOR, token.ARROW, token.AND:
+ 		pos, tok := P.pos, P.tok;
+ 		P.next();
+ 		y := P.parseUnaryExpr();
+ 		return &AST.UnaryExpr{pos, tok, y};
+ 		/*
+-		if lit, ok := y.(*AST.TypeLit); ok && tok == Scanner.MUL {
++		if lit, ok := y.(*AST.TypeLit); ok && tok == token.MUL {
+ 			// pointer type
+ 			t := AST.NewType(pos, AST.POINTER);
+ 			t.Elt = lit.Typ;
+@@ -1103,8 +1103,8 @@ func (P *Parser) parseBinaryExpr(prec1 int) AST.Expr {
+ 	}
+ 
+ 	x := P.parseUnaryExpr();
+-	for prec := Scanner.Precedence(P.tok); prec >= prec1; prec-- {
+-		for Scanner.Precedence(P.tok) == prec {
++	for prec := token.Precedence(P.tok); prec >= prec1; prec-- {
++		for token.Precedence(P.tok) == prec {
+ 			pos, tok := P.pos, P.tok;
+ 			P.next();
+ 			y := P.parseBinaryExpr(prec + 1);
+@@ -1140,7 +1140,7 @@ func (P *Parser) parseSimpleStat(range_ok bool) AST.Stat {
+ 	x := P.parseExpressionList();
+ 
+ 	switch P.tok {
+-	case Scanner.COLON:
++	case token.COLON:
+ 		// label declaration
+ 		pos := P.pos;
+ 		P.next();  // consume ":"
+@@ -1154,20 +1154,20 @@ func (P *Parser) parseSimpleStat(range_ok bool) AST.Stat {
+ 		return nil;
+ 
+ 	case
+-		Scanner.DEFINE, Scanner.ASSIGN, Scanner.ADD_ASSIGN,
+-		Scanner.SUB_ASSIGN, Scanner.MUL_ASSIGN, Scanner.QUO_ASSIGN,
+-		Scanner.REM_ASSIGN, Scanner.AND_ASSIGN, Scanner.OR_ASSIGN,
+-		Scanner.XOR_ASSIGN, Scanner.SHL_ASSIGN, Scanner.SHR_ASSIGN:
++		token.DEFINE, token.ASSIGN, token.ADD_ASSIGN,
++		token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN,
++		token.REM_ASSIGN, token.AND_ASSIGN, token.OR_ASSIGN,
++		token.XOR_ASSIGN, token.SHL_ASSIGN, token.SHR_ASSIGN:
+ 		// declaration/assignment
+ 		pos, tok := P.pos, P.tok;
+ 		P.next();
+ 		var y AST.Expr;
+-		if range_ok && P.tok == Scanner.RANGE {
++		if range_ok && P.tok == token.RANGE {
+ 			range_pos := P.pos;
+ 			P.next();
+-			y = &AST.UnaryExpr{range_pos, Scanner.RANGE, P.parseExpression(1)};
+-			if tok != Scanner.DEFINE && tok != Scanner.ASSIGN {
+-				P.error(pos, "expected '=' or ':=', found '" + Scanner.TokenString(tok) + "'");
++			y = &AST.UnaryExpr{range_pos, token.RANGE, P.parseExpression(1)};
++			if tok != token.DEFINE && tok != token.ASSIGN {
++				P.error(pos, "expected '=' or ':=', found '" + token.TokenString(tok) + "'");
+ 			}
+ 		} else {
+ 			y = P.parseExpressionList();
+@@ -1176,21 +1176,21 @@ func (P *Parser) parseSimpleStat(range_ok bool) AST.Stat {
+ 			}
+ 		}
+ 		// TODO changed ILLEGAL -> NONE
+-		return &AST.ExpressionStat{x.Pos(), Scanner.ILLEGAL, &AST.BinaryExpr{pos, tok, x, y}};
++		return &AST.ExpressionStat{x.Pos(), token.ILLEGAL, &AST.BinaryExpr{pos, tok, x, y}};
+ 
+ 	default:
+ 		if AST.ExprLen(x) != 1 {
+ 			P.error(x.Pos(), "only one expression allowed");
+ 		}
+ 
+-		if P.tok == Scanner.INC || P.tok == Scanner.DEC {
++		if P.tok == token.INC || P.tok == token.DEC {
+ 			s := &AST.ExpressionStat{P.pos, P.tok, x};
+ 			P.next();  // consume "++" or "--"
+ 			return s;
+ 		}
+ 
+ 		// TODO changed ILLEGAL -> NONE
+-		return &AST.ExpressionStat{x.Pos(), Scanner.ILLEGAL, x};
++		return &AST.ExpressionStat{x.Pos(), token.ILLEGAL, x};
+ 	}
+ 
+ 	unreachable();
+@@ -1215,13 +1215,13 @@ func (P *Parser) parseReturnStat() *AST.ExpressionStat {
+ 	}
+ 
+ 	pos := P.pos;
+-	P.expect(Scanner.RETURN);
++	P.expect(token.RETURN);
+ 	var x AST.Expr;
+-	if P.tok != Scanner.SEMICOLON && P.tok != Scanner.RBRACE {
++	if P.tok != token.SEMICOLON && P.tok != token.RBRACE {
+ 		x = P.parseExpressionList();
+ 	}
+ 
+-	return &AST.ExpressionStat{pos, Scanner.RETURN, x};
++	return &AST.ExpressionStat{pos, token.RETURN, x};
+ }
+ 
+ 
+@@ -1232,7 +1232,7 @@ func (P *Parser) parseControlFlowStat(tok int) *AST.ControlFlowStat {
+ 
+ 	s := &AST.ControlFlowStat{P.pos, tok, nil};
+ 	P.expect(tok);
+-	if tok != Scanner.FALLTHROUGH && P.tok == Scanner.IDENT {
++	if tok != token.FALLTHROUGH && P.tok == token.IDENT {
+ 		s.Label = P.parseIdent(P.top_scope);
+ 	}
+ 
+@@ -1245,21 +1245,21 @@ func (P *Parser) parseControlClause(isForStat bool) (init AST.Stat, expr AST.Exp
+ 		defer un(trace(P, "ControlClause"));
+ 	}
+ 
+-	if P.tok != Scanner.LBRACE {
++	if P.tok != token.LBRACE {
+ 		prev_lev := P.expr_lev;
+ 		P.expr_lev = -1;	
+-		if P.tok != Scanner.SEMICOLON {
++		if P.tok != token.SEMICOLON {
+ 			init = P.parseSimpleStat(isForStat);
+ 			// TODO check for range clause and exit if found
+ 		}
+-		if P.tok == Scanner.SEMICOLON {
++		if P.tok == token.SEMICOLON {
+ 			P.next();
+-			if P.tok != Scanner.SEMICOLON && P.tok != Scanner.LBRACE {
++			if P.tok != token.SEMICOLON && P.tok != token.LBRACE {
+ 				expr = P.parseExpression(1);
+ 			}
+ 			if isForStat {
+-				P.expect(Scanner.SEMICOLON);
+-				if P.tok != Scanner.LBRACE {
++				P.expect(token.SEMICOLON);
++				if P.tok != token.LBRACE {
+ 					post = P.parseSimpleStat(false);
+ 				}
+ 			}
+@@ -1286,17 +1286,17 @@ func (P *Parser) parseIfStat() *AST.IfStat {
+ 
+ 	P.openScope();
+ 	pos := P.pos;
+-	P.expect(Scanner.IF);
++	P.expect(token.IF);
+ 	init, cond, dummy := P.parseControlClause(false);
+-	body := P.parseBlock(Scanner.LBRACE);
++	body := P.parseBlock(token.LBRACE);
+ 	var else_ AST.Stat;
+-	if P.tok == Scanner.ELSE {
++	if P.tok == token.ELSE {
+ 		P.next();
+-		if ok := P.tok == Scanner.IF || P.tok == Scanner.LBRACE; ok || P.sixg {
++		if ok := P.tok == token.IF || P.tok == token.LBRACE; ok || P.sixg {
+ 			else_ = P.parseStatement();
+ 			if !ok {
+ 				// wrap in a block since we don't have one
+-				body := AST.NewBlock(0, Scanner.LBRACE);
++				body := AST.NewBlock(0, token.LBRACE);
+ 				body.List.Push(else_);
+ 				else_ = &AST.CompositeStat{body};
+ 			}
+@@ -1317,9 +1317,9 @@ func (P *Parser) parseForStat() *AST.ForStat {
+ 
+ 	P.openScope();
+ 	pos := P.pos;
+-	P.expect(Scanner.FOR);
++	P.expect(token.FOR);
+ 	init, cond, post := P.parseControlClause(true);
+-	body := P.parseBlock(Scanner.LBRACE);
++	body := P.parseBlock(token.LBRACE);
+ 	P.closeScope();
+ 
+ 	return &AST.ForStat{pos, init, cond, post, body};
+@@ -1334,14 +1334,14 @@ func (P *Parser) parseCaseClause() *AST.CaseClause {
+ 	// SwitchCase
+ 	pos := P.pos;
+ 	var expr AST.Expr;
+-	if P.tok == Scanner.CASE {
++	if P.tok == token.CASE {
+ 		P.next();
+ 		expr = P.parseExpressionList();
+ 	} else {
+-		P.expect(Scanner.DEFAULT);
++		P.expect(token.DEFAULT);
+ 	}
+ 
+-	return &AST.CaseClause{pos, expr, P.parseBlock(Scanner.COLON)};
++	return &AST.CaseClause{pos, expr, P.parseBlock(token.COLON)};
+ }
+ 
+ 
+@@ -1352,15 +1352,15 @@ func (P *Parser) parseSwitchStat() *AST.SwitchStat {
+ 
+ 	P.openScope();
+ 	pos := P.pos;
+-	P.expect(Scanner.SWITCH);
++	P.expect(token.SWITCH);
+ 	init, tag, post := P.parseControlClause(false);
+-	body := AST.NewBlock(P.pos, Scanner.LBRACE);
+-	P.expect(Scanner.LBRACE);
+-	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
++	body := AST.NewBlock(P.pos, token.LBRACE);
++	P.expect(token.LBRACE);
++	for P.tok != token.RBRACE && P.tok != token.EOF {
+ 		body.List.Push(P.parseCaseClause());
+ 	}
+ 	body.End = P.pos;
+-	P.expect(Scanner.RBRACE);
++	P.expect(token.RBRACE);
+ 	P.opt_semi = true;
+ 	P.closeScope();
+ 
+@@ -1376,25 +1376,25 @@ func (P *Parser) parseCommClause() *AST.CaseClause {
+ 	// CommCase
+ 	pos := P.pos;
+ 	var expr AST.Expr;
+-	if P.tok == Scanner.CASE {
++	if P.tok == token.CASE {
+ 		P.next();
+ 		x := P.parseExpression(1);
+-		if P.tok == Scanner.ASSIGN || P.tok == Scanner.DEFINE {
++		if P.tok == token.ASSIGN || P.tok == token.DEFINE {
+ 			pos, tok := P.pos, P.tok;
+ 			P.next();
+-			if P.tok == Scanner.ARROW {
++			if P.tok == token.ARROW {
+ 				y := P.parseExpression(1);
+ 				x = &AST.BinaryExpr{pos, tok, x, y};
+ 			} else {
+-				P.expect(Scanner.ARROW);  // use expect() error handling
++				P.expect(token.ARROW);  // use expect() error handling
+ 			}
+ 		}
+ 		expr = x;
+ 	} else {
+-		P.expect(Scanner.DEFAULT);
++		P.expect(token.DEFAULT);
+ 	}
+ 
+-	return &AST.CaseClause{pos, expr, P.parseBlock(Scanner.COLON)};
++	return &AST.CaseClause{pos, expr, P.parseBlock(token.COLON)};
+ }
+ 
+ 
+@@ -1405,14 +1405,14 @@ func (P *Parser) parseSelectStat() *AST.SelectStat {
+ 
+ 	P.openScope();
+ 	pos := P.pos;
+-	P.expect(Scanner.SELECT);
+-	body := AST.NewBlock(P.pos, Scanner.LBRACE);
+-	P.expect(Scanner.LBRACE);
+-	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
++	P.expect(token.SELECT);
++	body := AST.NewBlock(P.pos, token.LBRACE);
++	P.expect(token.LBRACE);
++	for P.tok != token.RBRACE && P.tok != token.EOF {
+ 		body.List.Push(P.parseCommClause());
+ 	}
+ 	body.End = P.pos;
+-	P.expect(Scanner.RBRACE);
++	P.expect(token.RBRACE);
+ 	P.opt_semi = true;
+ 	P.closeScope();
+ 
+@@ -1426,35 +1426,35 @@ func (P *Parser) parseStatement() AST.Stat {
+ 	}
+ 
+ 	switch P.tok {
+-	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
++	case token.CONST, token.TYPE, token.VAR:
+ 		return &AST.DeclarationStat{P.parseDeclaration()};
+-	case Scanner.FUNC:
++	case token.FUNC:
+ 		// for now we do not allow local function declarations,
+ 		// instead we assume this starts a function literal
+ 		fallthrough;
+ 	case
+ 		// only the tokens that are legal top-level expression starts
+-		Scanner.IDENT, Scanner.INT, Scanner.FLOAT, Scanner.STRING, Scanner.LPAREN,  // operand
+-		Scanner.LBRACK, Scanner.STRUCT,  // composite type
+-		Scanner.MUL, Scanner.AND, Scanner.ARROW:  // unary
++		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.LPAREN,  // operand
++		token.LBRACK, token.STRUCT,  // composite type
++		token.MUL, token.AND, token.ARROW:  // unary
+ 		return P.parseSimpleStat(false);
+-	case Scanner.GO, Scanner.DEFER:
++	case token.GO, token.DEFER:
+ 		return P.parseInvocationStat(P.tok);
+-	case Scanner.RETURN:
++	case token.RETURN:
+ 		return P.parseReturnStat();
+-	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO, Scanner.FALLTHROUGH:
++	case token.BREAK, token.CONTINUE, token.GOTO, token.FALLTHROUGH:
+ 		return P.parseControlFlowStat(P.tok);
+-	case Scanner.LBRACE:
+-		return &AST.CompositeStat{P.parseBlock(Scanner.LBRACE)};
+-	case Scanner.IF:
++	case token.LBRACE:
++		return &AST.CompositeStat{P.parseBlock(token.LBRACE)};
++	case token.IF:
+ 		return P.parseIfStat();
+-	case Scanner.FOR:
++	case token.FOR:
+ 		return P.parseForStat();
+-	case Scanner.SWITCH:
++	case token.SWITCH:
+ 		return P.parseSwitchStat();
+-	case Scanner.SELECT:
++	case token.SELECT:
+ 		return P.parseSelectStat();
+-	case Scanner.SEMICOLON:
++	case token.SEMICOLON:
+ 		// don't consume the ";", it is the separator following the empty statement
+ 		return &AST.EmptyStat{P.pos};
+ 	}
+@@ -1474,20 +1474,20 @@ func (P *Parser) parseImportSpec(pos int) *AST.ImportDecl {
+ 	}
+ 
+ 	var ident *AST.Ident;
+-	if P.tok == Scanner.PERIOD {
++	if P.tok == token.PERIOD {
+ 		P.error(P.pos, `"import ." not yet handled properly`);
+ 		P.next();
+-	} else if P.tok == Scanner.IDENT {
++	} else if P.tok == token.IDENT {
+ 		ident = P.parseIdent(nil);
+ 	}
+ 
+ 	var path AST.Expr;
+-	if P.tok == Scanner.STRING {
++	if P.tok == token.STRING {
+ 		// TODO eventually the scanner should strip the quotes
+-		path = &AST.BasicLit{P.pos, Scanner.STRING, P.val};
++		path = &AST.BasicLit{P.pos, token.STRING, P.val};
+ 		P.next();
+ 	} else {
+-		P.expect(Scanner.STRING);  // use expect() error handling
++		P.expect(token.STRING);  // use expect() error handling
+ 	}
+ 	
+ 	return &AST.ImportDecl{pos, ident, path};
+@@ -1502,7 +1502,7 @@ func (P *Parser) parseConstSpec(pos int) *AST.ConstDecl {
+ 	idents := P.parseIdentList2(nil);
+ 	typ := P.tryType();
+ 	var vals AST.Expr;
+-	if P.tok == Scanner.ASSIGN {
++	if P.tok == token.ASSIGN {
+ 		P.next();
+ 		vals = P.parseExpressionList();
+ 	}
+@@ -1531,12 +1531,12 @@ func (P *Parser) parseVarSpec(pos int) *AST.VarDecl {
+ 	idents := P.parseIdentList2(nil);
+ 	var typ AST.Expr;
+ 	var vals AST.Expr;
+-	if P.tok == Scanner.ASSIGN {
++	if P.tok == token.ASSIGN {
+ 		P.next();
+ 		vals = P.parseExpressionList();
+ 	} else {
+ 		typ = P.parseVarType();
+-		if P.tok == Scanner.ASSIGN {
++		if P.tok == token.ASSIGN {
+ 			P.next();
+ 			vals = P.parseExpressionList();
+ 		}
+@@ -1550,10 +1550,10 @@ func (P *Parser) parseSpec(pos, keyword int) AST.Decl {
+ 	kind := SymbolTable.NONE;
+ 
+ 	switch keyword {
+-	case Scanner.IMPORT: return P.parseImportSpec(pos);
+-	case Scanner.CONST: return P.parseConstSpec(pos);
+-	case Scanner.TYPE: return P.parseTypeSpec(pos);
+-	case Scanner.VAR: return P.parseVarSpec(pos);
++	case token.IMPORT: return P.parseImportSpec(pos);
++	case token.CONST: return P.parseConstSpec(pos);
++	case token.TYPE: return P.parseTypeSpec(pos);
++	case token.VAR: return P.parseVarSpec(pos);
+ 	}
+ 	
+ 	unreachable();
+@@ -1561,7 +1561,7 @@ func (P *Parser) parseSpec(pos, keyword int) AST.Decl {
+ 
+ 	/*
+ 	// semantic checks
+-	if d.Tok == Scanner.IMPORT {
++	if d.Tok == token.IMPORT {
+ 		if d.Ident != nil {
+ 			//P.declare(d.Ident, kind, nil);
+ 		}
+@@ -1597,19 +1597,19 @@ func (P *Parser) parseDecl(keyword int) AST.Decl {
+ 
+ 	pos := P.pos;
+ 	P.expect(keyword);
+-	if P.tok == Scanner.LPAREN {
++	if P.tok == token.LPAREN {
+ 		P.next();
+ 		list := vector.New(0);
+-		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
++		for P.tok != token.RPAREN && P.tok != token.EOF {
+ 			list.Push(P.parseSpec(0, keyword));
+-			if P.tok == Scanner.SEMICOLON {
++			if P.tok == token.SEMICOLON {
+ 				P.next();
+ 			} else {
+ 				break;
+ 			}
+ 		}
+ 		end := P.pos;
+-		P.expect(Scanner.RPAREN);
++		P.expect(token.RPAREN);
+ 		P.opt_semi = true;
+ 		
+ 		// convert vector
+@@ -1640,10 +1640,10 @@ func (P *Parser) parseFunctionDecl() *AST.FuncDecl {
+ 	}
+ 
+ 	pos := P.pos;
+-	P.expect(Scanner.FUNC);
++	P.expect(token.FUNC);
+ 
+ 	var recv *AST.Field;
+-	if P.tok == Scanner.LPAREN {
++	if P.tok == token.LPAREN {
+ 		pos := P.pos;
+ 		tmp := P.parseParameters(true);
+ 		if len(tmp) == 1 {
+@@ -1657,8 +1657,8 @@ func (P *Parser) parseFunctionDecl() *AST.FuncDecl {
+ 	sig := P.parseSignature();
+ 
+ 	var body *AST.Block;
+-	if P.tok == Scanner.LBRACE {
+-		body = P.parseBlock(Scanner.LBRACE);
++	if P.tok == token.LBRACE {
++		body = P.parseBlock(token.LBRACE);
+ 	}
+ 
+ 	return &AST.FuncDecl{pos, recv, ident, sig, body};
+@@ -1671,9 +1671,9 @@ func (P *Parser) parseDeclaration() AST.Decl {
+ 	}
+ 
+ 	switch P.tok {
+-	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
++	case token.CONST, token.TYPE, token.VAR:
+ 		return P.parseDecl(P.tok);
+-	case Scanner.FUNC:
++	case token.FUNC:
+ 		return P.parseFunctionDecl();
+ 	}
+ 	
+@@ -1694,18 +1694,18 @@ func (P *Parser) ParseProgram() *AST.Program {
+ 
+ 	P.openScope();
+ 	p := AST.NewProgram(P.pos);
+-	P.expect(Scanner.PACKAGE);
++	P.expect(token.PACKAGE);
+ 	p.Ident = P.parseIdent(nil);
+ 
+ 	// package body
+ 	{	P.openScope();
+ 		list := vector.New(0);
+-		for P.tok == Scanner.IMPORT {
+-			list.Push(P.parseDecl(Scanner.IMPORT));
++		for P.tok == token.IMPORT {
++			list.Push(P.parseDecl(token.IMPORT));
+ 			P.OptSemicolon();
+ 		}
+ 		if !P.deps {
+-			for P.tok != Scanner.EOF {
++			for P.tok != token.EOF {
+ 				list.Push(P.parseDeclaration());
+ 				P.OptSemicolon();
+ 			}
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 0a7741500a..b9cd56f806 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -12,7 +12,7 @@ import (
+ 	"flag";
+ 	"fmt";
+ 	Utils "utils";
+-	Scanner "scanner";
++	"token";
+ 	AST "ast";
+ 	SymbolTable "symboltable";
+ )
+@@ -136,7 +136,7 @@ func (P *Printer) Init(text io.Write, html bool, comments *vector.Vector) {
+ 	// formatting parameters & semantic state initialized correctly by default
+ 	
+ 	// expression precedence
+-	P.prec = Scanner.LowestPrec;
++	P.prec = token.LowestPrec;
+ }
+ 
+ 
+@@ -374,13 +374,13 @@ func (P *Printer) String(pos int, s string) {
+ 
+ 
+ func (P *Printer) Token(pos int, tok int) {
+-	P.String(pos, Scanner.TokenString(tok));
+-	//P.TaggedString(pos, "<b>", Scanner.TokenString(tok), "</b>");
++	P.String(pos, token.TokenString(tok));
++	//P.TaggedString(pos, "<b>", token.TokenString(tok), "</b>");
+ }
+ 
+ 
+ func (P *Printer) Error(pos int, tok int, msg string) {
+-	fmt.Printf("\ninternal printing error: pos = %d, tok = %s, %s\n", pos, Scanner.TokenString(tok), msg);
++	fmt.Printf("\ninternal printing error: pos = %d, tok = %s, %s\n", pos, token.TokenString(tok), msg);
+ 	panic();
+ }
+ 
+@@ -456,7 +456,7 @@ func (P *Printer) Expr(x AST.Expr)
+ func (P *Printer) Idents(list []*AST.Ident) {
+ 	for i, x := range list {
+ 		if i > 0 {
+-			P.Token(0, Scanner.COMMA);
++			P.Token(0, token.COMMA);
+ 			P.separator = blank;
+ 			P.state = inside_list;
+ 		}
+@@ -466,7 +466,7 @@ func (P *Printer) Idents(list []*AST.Ident) {
+ 
+ 
+ func (P *Printer) Parameters(list []*AST.Field) {
+-	P.Token(0, Scanner.LPAREN);
++	P.Token(0, token.LPAREN);
+ 	if len(list) > 0 {
+ 		for i, par := range list {
+ 			if i > 0 {
+@@ -479,7 +479,7 @@ func (P *Printer) Parameters(list []*AST.Field) {
+ 			P.Expr(par.Typ);
+ 		}
+ 	}
+-	P.Token(0, Scanner.RPAREN);
++	P.Token(0, token.RPAREN);
+ }
+ 
+ 
+@@ -508,7 +508,7 @@ func (P *Printer) Signature(sig *AST.Signature) {
+ func (P *Printer) Fields(list []*AST.Field, end int, is_interface bool) {
+ 	P.state = opening_scope;
+ 	P.separator = blank;
+-	P.Token(0, Scanner.LBRACE);
++	P.Token(0, token.LBRACE);
+ 
+ 	if len(list) > 0 {
+ 		P.newlines = 1;
+@@ -539,7 +539,7 @@ func (P *Printer) Fields(list []*AST.Field, end int, is_interface bool) {
+ 	}
+ 
+ 	P.state = closing_scope;
+-	P.Token(end, Scanner.RBRACE);
++	P.Token(end, token.RBRACE);
+ 	P.opt_semi = true;
+ }
+ 
+@@ -562,17 +562,17 @@ func (P *Printer) DoIdent(x *AST.Ident) {
+ 
+ 
+ func (P *Printer) DoBinaryExpr(x *AST.BinaryExpr) {
+-	if x.Tok == Scanner.COMMA {
++	if x.Tok == token.COMMA {
+ 		// (don't use binary expression printing because of different spacing)
+ 		P.Expr(x.X);
+-		P.Token(x.Pos_, Scanner.COMMA);
++		P.Token(x.Pos_, token.COMMA);
+ 		P.separator = blank;
+ 		P.state = inside_list;
+ 		P.Expr(x.Y);
+ 	} else {
+-		prec := Scanner.Precedence(x.Tok);
++		prec := token.Precedence(x.Tok);
+ 		if prec < P.prec {
+-			P.Token(0, Scanner.LPAREN);
++			P.Token(0, token.LPAREN);
+ 		}
+ 		P.Expr1(x.X, prec);
+ 		P.separator = blank;
+@@ -580,24 +580,24 @@ func (P *Printer) DoBinaryExpr(x *AST.BinaryExpr) {
+ 		P.separator = blank;
+ 		P.Expr1(x.Y, prec);
+ 		if prec < P.prec {
+-			P.Token(0, Scanner.RPAREN);
++			P.Token(0, token.RPAREN);
+ 		}
+ 	}
+ }
+ 
+ 
+ func (P *Printer) DoUnaryExpr(x *AST.UnaryExpr) {
+-	prec := Scanner.UnaryPrec;
++	prec := token.UnaryPrec;
+ 	if prec < P.prec {
+-		P.Token(0, Scanner.LPAREN);
++		P.Token(0, token.LPAREN);
+ 	}
+ 	P.Token(x.Pos_, x.Tok);
+-	if x.Tok == Scanner.RANGE {
++	if x.Tok == token.RANGE {
+ 		P.separator = blank;
+ 	}
+ 	P.Expr1(x.X, prec);
+ 	if prec < P.prec {
+-		P.Token(0, Scanner.RPAREN);
++		P.Token(0, token.RPAREN);
+ 	}
+ }
+ 
+@@ -608,7 +608,7 @@ func (P *Printer) DoBasicLit(x *AST.BasicLit) {
+ 
+ 
+ func (P *Printer) DoFunctionLit(x *AST.FunctionLit) {
+-	P.Token(x.Pos_, Scanner.FUNC);
++	P.Token(x.Pos_, token.FUNC);
+ 	P.Signature(x.Typ);
+ 	P.separator = blank;
+ 	P.Block(x.Body, true);
+@@ -617,64 +617,64 @@ func (P *Printer) DoFunctionLit(x *AST.FunctionLit) {
+ 
+ 
+ func (P *Printer) DoGroup(x *AST.Group) {
+-	P.Token(x.Pos_, Scanner.LPAREN);
++	P.Token(x.Pos_, token.LPAREN);
+ 	P.Expr(x.X);
+-	P.Token(0, Scanner.RPAREN);
++	P.Token(0, token.RPAREN);
+ }
+ 
+ 
+ func (P *Printer) DoSelector(x *AST.Selector) {
+-	P.Expr1(x.X, Scanner.HighestPrec);
+-	P.Token(x.Pos_, Scanner.PERIOD);
+-	P.Expr1(x.Sel, Scanner.HighestPrec);
++	P.Expr1(x.X, token.HighestPrec);
++	P.Token(x.Pos_, token.PERIOD);
++	P.Expr1(x.Sel, token.HighestPrec);
+ }
+ 
+ 
+ func (P *Printer) DoTypeGuard(x *AST.TypeGuard) {
+-	P.Expr1(x.X, Scanner.HighestPrec);
+-	P.Token(x.Pos_, Scanner.PERIOD);
+-	P.Token(0, Scanner.LPAREN);
++	P.Expr1(x.X, token.HighestPrec);
++	P.Token(x.Pos_, token.PERIOD);
++	P.Token(0, token.LPAREN);
+ 	P.Expr(x.Typ);
+-	P.Token(0, Scanner.RPAREN);
++	P.Token(0, token.RPAREN);
+ }
+ 
+ 
+ func (P *Printer) DoIndex(x *AST.Index) {
+-	P.Expr1(x.X, Scanner.HighestPrec);
+-	P.Token(x.Pos_, Scanner.LBRACK);
++	P.Expr1(x.X, token.HighestPrec);
++	P.Token(x.Pos_, token.LBRACK);
+ 	P.Expr1(x.I, 0);
+-	P.Token(0, Scanner.RBRACK);
++	P.Token(0, token.RBRACK);
+ }
+ 
+ 
+ func (P *Printer) DoCall(x *AST.Call) {
+-	P.Expr1(x.F, Scanner.HighestPrec);
++	P.Expr1(x.F, token.HighestPrec);
+ 	P.Token(x.Pos_, x.Tok);
+ 	P.Expr(x.Args);
+ 	switch x.Tok {
+-	case Scanner.LPAREN: P.Token(0, Scanner.RPAREN);
+-	case Scanner.LBRACE: P.Token(0, Scanner.RBRACE);
++	case token.LPAREN: P.Token(0, token.RPAREN);
++	case token.LBRACE: P.Token(0, token.RBRACE);
+ 	}
+ }
+ 
+ 
+ func (P *Printer) DoEllipsis(x *AST.Ellipsis) {
+-	P.Token(x.Pos_, Scanner.ELLIPSIS);
++	P.Token(x.Pos_, token.ELLIPSIS);
+ }
+ 
+ 
+ func (P *Printer) DoArrayType(x *AST.ArrayType) {
+-	P.Token(x.Pos_, Scanner.LBRACK);
++	P.Token(x.Pos_, token.LBRACK);
+ 	if x.Len != nil {
+ 		P.Expr(x.Len);
+ 	}
+-	P.Token(0, Scanner.RBRACK);
++	P.Token(0, token.RBRACK);
+ 	P.Expr(x.Elt);
+ }
+ 
+ 
+ func (P *Printer) DoStructType(x *AST.StructType) {
+-	P.Token(x.Pos_, Scanner.STRUCT);
++	P.Token(x.Pos_, token.STRUCT);
+ 	if x.End > 0 {
+ 		P.Fields(x.Fields, x.End, false);
+ 	}
+@@ -682,19 +682,19 @@ func (P *Printer) DoStructType(x *AST.StructType) {
+ 
+ 
+ func (P *Printer) DoPointerType(x *AST.PointerType) {
+-	P.Token(x.Pos_, Scanner.MUL);
++	P.Token(x.Pos_, token.MUL);
+ 	P.Expr(x.Base);
+ }
+ 
+ 
+ func (P *Printer) DoFunctionType(x *AST.FunctionType) {
+-	P.Token(x.Pos_, Scanner.FUNC);
++	P.Token(x.Pos_, token.FUNC);
+ 	P.Signature(x.Sig);
+ }
+ 
+ 
+ func (P *Printer) DoInterfaceType(x *AST.InterfaceType) {
+-	P.Token(x.Pos_, Scanner.INTERFACE);
++	P.Token(x.Pos_, token.INTERFACE);
+ 	if x.End > 0 {
+ 		P.Fields(x.Methods, x.End, true);
+ 	}
+@@ -707,11 +707,11 @@ func (P *Printer) DoSliceType(x *AST.SliceType) {
+ 
+ 
+ func (P *Printer) DoMapType(x *AST.MapType) {
+-	P.Token(x.Pos_, Scanner.MAP);
++	P.Token(x.Pos_, token.MAP);
+ 	P.separator = blank;
+-	P.Token(0, Scanner.LBRACK);
++	P.Token(0, token.LBRACK);
+ 	P.Expr(x.Key);
+-	P.Token(0, Scanner.RBRACK);
++	P.Token(0, token.RBRACK);
+ 	P.Expr(x.Val);
+ }
+ 
+@@ -719,14 +719,14 @@ func (P *Printer) DoMapType(x *AST.MapType) {
+ func (P *Printer) DoChannelType(x *AST.ChannelType) {
+ 	switch x.Mode {
+ 	case AST.FULL:
+-		P.Token(x.Pos_, Scanner.CHAN);
++		P.Token(x.Pos_, token.CHAN);
+ 	case AST.RECV:
+-		P.Token(x.Pos_, Scanner.ARROW);
+-		P.Token(0, Scanner.CHAN);
++		P.Token(x.Pos_, token.ARROW);
++		P.Token(0, token.CHAN);
+ 	case AST.SEND:
+-		P.Token(x.Pos_, Scanner.CHAN);
++		P.Token(x.Pos_, token.CHAN);
+ 		P.separator = blank;
+-		P.Token(0, Scanner.ARROW);
++		P.Token(0, token.ARROW);
+ 	}
+ 	P.separator = blank;
+ 	P.Expr(x.Val);
+@@ -746,7 +746,7 @@ func (P *Printer) Expr1(x AST.Expr, prec1 int) {
+ 
+ 
+ func (P *Printer) Expr(x AST.Expr) {
+-	P.Expr1(x, Scanner.LowestPrec);
++	P.Expr1(x, token.LowestPrec);
+ }
+ 
+ 
+@@ -789,8 +789,8 @@ func (P *Printer) Block(b *AST.Block, indent bool) {
+ 		P.separator = none;
+ 	}
+ 	P.state = closing_scope;
+-	if b.Tok == Scanner.LBRACE {
+-		P.Token(b.End, Scanner.RBRACE);
++	if b.Tok == token.LBRACE {
++		P.Token(b.End, token.RBRACE);
+ 		P.opt_semi = true;
+ 	} else {
+ 		P.String(0, "");  // process closing_scope state transition!
+@@ -808,7 +808,7 @@ func (P *Printer) DoBadStat(s *AST.BadStat) {
+ func (P *Printer) DoLabelDecl(s *AST.LabelDecl) {
+ 	P.indentation--;
+ 	P.Expr(s.Label);
+-	P.Token(s.Pos, Scanner.COLON);
++	P.Token(s.Pos, token.COLON);
+ 	// TODO not quite correct:
+ 	// - we must not print this optional semicolon, as it may invalidate code.
+ 	// - this will change once the AST reflects the LabelStatement change
+@@ -824,12 +824,12 @@ func (P *Printer) DoDeclarationStat(s *AST.DeclarationStat) {
+ 
+ func (P *Printer) DoExpressionStat(s *AST.ExpressionStat) {
+ 	switch s.Tok {
+-	case Scanner.ILLEGAL:
++	case token.ILLEGAL:
+ 		P.Expr(s.Expr);
+-	case Scanner.INC, Scanner.DEC:
++	case token.INC, token.DEC:
+ 		P.Expr(s.Expr);
+ 		P.Token(s.Pos, s.Tok);
+-	case Scanner.RETURN, Scanner.GO, Scanner.DEFER:
++	case token.RETURN, token.GO, token.DEFER:
+ 		P.Token(s.Pos, s.Tok);
+ 		if s.Expr != nil {
+ 			P.separator = blank;
+@@ -861,14 +861,14 @@ func (P *Printer) ControlClause(isForStat bool, init AST.Stat, expr AST.Expr, po
+ 			P.Stat(init);
+ 			P.separator = none;
+ 		}
+-		P.Token(0, Scanner.SEMICOLON);
++		P.Token(0, token.SEMICOLON);
+ 		P.separator = blank;
+ 		if expr != nil {
+ 			P.Expr(expr);
+ 			P.separator = none;
+ 		}
+ 		if isForStat {
+-			P.Token(0, Scanner.SEMICOLON);
++			P.Token(0, token.SEMICOLON);
+ 			P.separator = blank;
+ 			if post != nil {
+ 				P.Stat(post);
+@@ -880,12 +880,12 @@ func (P *Printer) ControlClause(isForStat bool, init AST.Stat, expr AST.Expr, po
+ 
+ 
+ func (P *Printer) DoIfStat(s *AST.IfStat) {
+-	P.Token(s.Pos, Scanner.IF);
++	P.Token(s.Pos, token.IF);
+ 	P.ControlClause(false, s.Init, s.Cond, nil);
+ 	P.Block(s.Body, true);
+ 	if s.Else != nil {
+ 		P.separator = blank;
+-		P.Token(0, Scanner.ELSE);
++		P.Token(0, token.ELSE);
+ 		P.separator = blank;
+ 		P.Stat(s.Else);
+ 	}
+@@ -893,7 +893,7 @@ func (P *Printer) DoIfStat(s *AST.IfStat) {
+ 
+ 
+ func (P *Printer) DoForStat(s *AST.ForStat) {
+-	P.Token(s.Pos, Scanner.FOR);
++	P.Token(s.Pos, token.FOR);
+ 	P.ControlClause(true, s.Init, s.Cond, s.Post);
+ 	P.Block(s.Body, true);
+ }
+@@ -901,15 +901,15 @@ func (P *Printer) DoForStat(s *AST.ForStat) {
+ 
+ func (P *Printer) DoCaseClause(s *AST.CaseClause) {
+ 	if s.Expr != nil {
+-		P.Token(s.Pos, Scanner.CASE);
++		P.Token(s.Pos, token.CASE);
+ 		P.separator = blank;
+ 		P.Expr(s.Expr);
+ 	} else {
+-		P.Token(s.Pos, Scanner.DEFAULT);
++		P.Token(s.Pos, token.DEFAULT);
+ 	}
+ 	// TODO: try to use P.Block instead
+ 	// P.Block(s.Body, true);
+-	P.Token(s.Body.Pos, Scanner.COLON);
++	P.Token(s.Body.Pos, token.COLON);
+ 	P.indentation++;
+ 	P.StatementList(s.Body.List);
+ 	P.indentation--;
+@@ -918,14 +918,14 @@ func (P *Printer) DoCaseClause(s *AST.CaseClause) {
+ 
+ 
+ func (P *Printer) DoSwitchStat(s *AST.SwitchStat) {
+-	P.Token(s.Pos, Scanner.SWITCH);
++	P.Token(s.Pos, token.SWITCH);
+ 	P.ControlClause(false, s.Init, s.Tag, nil);
+ 	P.Block(s.Body, false);
+ }
+ 
+ 
+ func (P *Printer) DoSelectStat(s *AST.SelectStat) {
+-	P.Token(s.Pos, Scanner.SELECT);
++	P.Token(s.Pos, token.SELECT);
+ 	P.separator = blank;
+ 	P.Block(s.Body, false);
+ }
+@@ -955,7 +955,7 @@ func (P *Printer) DoBadDecl(d *AST.BadDecl) {
+ 
+ func (P *Printer) DoImportDecl(d *AST.ImportDecl) {
+ 	if d.Pos > 0 {
+-		P.Token(d.Pos, Scanner.IMPORT);
++		P.Token(d.Pos, token.IMPORT);
+ 		P.separator = blank;
+ 	}
+ 	if d.Ident != nil {
+@@ -964,7 +964,7 @@ func (P *Printer) DoImportDecl(d *AST.ImportDecl) {
+ 		P.String(d.Path.Pos(), "");  // flush pending ';' separator/newlines
+ 	}
+ 	P.separator = tab;
+-	if lit, is_lit := d.Path.(*AST.BasicLit); is_lit && lit.Tok == Scanner.STRING {
++	if lit, is_lit := d.Path.(*AST.BasicLit); is_lit && lit.Tok == token.STRING {
+ 		P.HtmlPackageName(lit.Pos_, lit.Val);
+ 	} else {
+ 		// we should only reach here for strange imports
+@@ -977,7 +977,7 @@ func (P *Printer) DoImportDecl(d *AST.ImportDecl) {
+ 
+ func (P *Printer) DoConstDecl(d *AST.ConstDecl) {
+ 	if d.Pos > 0 {
+-		P.Token(d.Pos, Scanner.CONST);
++		P.Token(d.Pos, token.CONST);
+ 		P.separator = blank;
+ 	}
+ 	P.Idents(d.Idents);
+@@ -987,7 +987,7 @@ func (P *Printer) DoConstDecl(d *AST.ConstDecl) {
+ 	}
+ 	if d.Vals != nil {
+ 		P.separator = tab;
+-		P.Token(0, Scanner.ASSIGN);
++		P.Token(0, token.ASSIGN);
+ 		P.separator = blank;
+ 		P.Expr(d.Vals);
+ 	}
+@@ -997,7 +997,7 @@ func (P *Printer) DoConstDecl(d *AST.ConstDecl) {
+ 
+ func (P *Printer) DoTypeDecl(d *AST.TypeDecl) {
+ 	if d.Pos > 0 {
+-		P.Token(d.Pos, Scanner.TYPE);
++		P.Token(d.Pos, token.TYPE);
+ 		P.separator = blank;
+ 	}
+ 	P.Expr(d.Ident);
+@@ -1009,7 +1009,7 @@ func (P *Printer) DoTypeDecl(d *AST.TypeDecl) {
+ 
+ func (P *Printer) DoVarDecl(d *AST.VarDecl) {
+ 	if d.Pos > 0 {
+-		P.Token(d.Pos, Scanner.VAR);
++		P.Token(d.Pos, token.VAR);
+ 		P.separator = blank;
+ 	}
+ 	P.Idents(d.Idents);
+@@ -1020,7 +1020,7 @@ func (P *Printer) DoVarDecl(d *AST.VarDecl) {
+ 	}
+ 	if d.Vals != nil {
+ 		P.separator = tab;
+-		P.Token(0, Scanner.ASSIGN);
++		P.Token(0, token.ASSIGN);
+ 		P.separator = blank;
+ 		P.Expr(d.Vals);
+ 	}
+@@ -1029,17 +1029,17 @@ func (P *Printer) DoVarDecl(d *AST.VarDecl) {
+ 
+ 
+ func (P *Printer) DoFuncDecl(d *AST.FuncDecl) {
+-	P.Token(d.Pos_, Scanner.FUNC);
++	P.Token(d.Pos_, token.FUNC);
+ 	P.separator = blank;
+ 	if recv := d.Recv; recv != nil {
+ 		// method: print receiver
+-		P.Token(0, Scanner.LPAREN);
++		P.Token(0, token.LPAREN);
+ 		if len(recv.Idents) > 0 {
+ 			P.Expr(recv.Idents[0]);
+ 			P.separator = blank;
+ 		}
+ 		P.Expr(recv.Typ);
+-		P.Token(0, Scanner.RPAREN);
++		P.Token(0, token.RPAREN);
+ 		P.separator = blank;
+ 	}
+ 	P.Expr(d.Ident);
+@@ -1053,7 +1053,7 @@ func (P *Printer) DoFuncDecl(d *AST.FuncDecl) {
+ 
+ 
+ func (P *Printer) DoDeclList(d *AST.DeclList) {
+-	if !*def || d.Tok == Scanner.IMPORT || d.Tok == Scanner.VAR {
++	if !*def || d.Tok == token.IMPORT || d.Tok == token.VAR {
+ 		P.Token(d.Pos, d.Tok);
+ 	} else {
+ 		P.String(d.Pos, "def");
+@@ -1062,7 +1062,7 @@ func (P *Printer) DoDeclList(d *AST.DeclList) {
+ 
+ 	// group of parenthesized declarations
+ 	P.state = opening_scope;
+-	P.Token(0, Scanner.LPAREN);
++	P.Token(0, token.LPAREN);
+ 	if len(d.List) > 0 {
+ 		P.newlines = 1;
+ 		for i := 0; i < len(d.List); i++ {
+@@ -1074,7 +1074,7 @@ func (P *Printer) DoDeclList(d *AST.DeclList) {
+ 		}
+ 	}
+ 	P.state = closing_scope;
+-	P.Token(d.End, Scanner.RPAREN);
++	P.Token(d.End, token.RPAREN);
+ 	P.opt_semi = true;
+ 	P.newlines = 2;
+ }
+@@ -1089,7 +1089,7 @@ func (P *Printer) Decl(d AST.Decl) {
+ // Program
+ 
+ func (P *Printer) Program(p *AST.Program) {
+-	P.Token(p.Pos, Scanner.PACKAGE);
++	P.Token(p.Pos, token.PACKAGE);
+ 	P.separator = blank;
+ 	P.Expr(p.Ident);
+ 	P.newlines = 1;
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 1c3094597a..85ae2a0f51 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -4,247 +4,48 @@
+ 
+ package scanner
+ 
++// A Go scanner. Takes a []byte as source which can then be
++// tokenized through repeated calls to the Scan() function.
++//
++// Sample use:
++//
++//  import "token"
++//  import "scanner"
++//
++//	func tokenize(src []byte) {
++//		var s scanner.Scanner;
++//		s.Init(src, nil, false);
++//		for {
++//			pos, tok, lit := s.Scan();
++//			if tok == Scanner.EOF {
++//				return;
++//			}
++//			println(pos, token.TokenString(tok), string(lit));
++//		}
++//	}
++
+ import (
+ 	"utf8";
+ 	"unicode";
+ 	"strconv";
++	"token";
+ )
+ 
+-const (
+-	ILLEGAL = iota;
+-	EOF;
+-	
+-	INT;
+-	FLOAT;
+-	STRING;
+-	IDENT;
+-	COMMENT;
+-
+-	ADD;
+-	SUB;
+-	MUL;
+-	QUO;
+-	REM;
+-
+-	AND;
+-	OR;
+-	XOR;
+-	SHL;
+-	SHR;
+-
+-	ADD_ASSIGN;
+-	SUB_ASSIGN;
+-	MUL_ASSIGN;
+-	QUO_ASSIGN;
+-	REM_ASSIGN;
+-
+-	AND_ASSIGN;
+-	OR_ASSIGN;
+-	XOR_ASSIGN;
+-	SHL_ASSIGN;
+-	SHR_ASSIGN;
+-
+-	LAND;
+-	LOR;
+-	ARROW;
+-	INC;
+-	DEC;
+-
+-	EQL;
+-	LSS;
+-	GTR;
+-	ASSIGN;
+-	NOT;
+-
+-	NEQ;
+-	LEQ;
+-	GEQ;
+-	DEFINE;
+-	ELLIPSIS;
+-
+-	LPAREN;
+-	LBRACK;
+-	LBRACE;
+-	COMMA;
+-	PERIOD;
+-
+-	RPAREN;
+-	RBRACK;
+-	RBRACE;
+-	SEMICOLON;
+-	COLON;
+-
+-	// keywords
+-	keywords_beg;
+-	BREAK;
+-	CASE;
+-	CHAN;
+-	CONST;
+-	CONTINUE;
+-
+-	DEFAULT;
+-	DEFER;
+-	ELSE;
+-	FALLTHROUGH;
+-	FOR;
+-
+-	FUNC;
+-	GO;
+-	GOTO;
+-	IF;
+-	IMPORT;
+-
+-	INTERFACE;
+-	MAP;
+-	PACKAGE;
+-	RANGE;
+-	RETURN;
+-
+-	SELECT;
+-	STRUCT;
+-	SWITCH;
+-	TYPE;
+-	VAR;
+-	keywords_end;
+-)
+-
+-
+-func TokenString(tok int) string {
+-	switch tok {
+-	case ILLEGAL: return "ILLEGAL";
+-	case EOF: return "EOF";
+-
+-	case INT: return "INT";
+-	case FLOAT: return "FLOAT";
+-	case STRING: return "STRING";
+-	case IDENT: return "IDENT";
+-	case COMMENT: return "COMMENT";
+-
+-	case ADD: return "+";
+-	case SUB: return "-";
+-	case MUL: return "*";
+-	case QUO: return "/";
+-	case REM: return "%";
+-
+-	case AND: return "&";
+-	case OR: return "|";
+-	case XOR: return "^";
+-	case SHL: return "<<";
+-	case SHR: return ">>";
+-
+-	case ADD_ASSIGN: return "+=";
+-	case SUB_ASSIGN: return "-=";
+-	case MUL_ASSIGN: return "+=";
+-	case QUO_ASSIGN: return "/=";
+-	case REM_ASSIGN: return "%=";
+-
+-	case AND_ASSIGN: return "&=";
+-	case OR_ASSIGN: return "|=";
+-	case XOR_ASSIGN: return "^=";
+-	case SHL_ASSIGN: return "<<=";
+-	case SHR_ASSIGN: return ">>=";
+-
+-	case LAND: return "&&";
+-	case LOR: return "||";
+-	case ARROW: return "<-";
+-	case INC: return "++";
+-	case DEC: return "--";
+-
+-	case EQL: return "==";
+-	case LSS: return "<";
+-	case GTR: return ">";
+-	case ASSIGN: return "=";
+-	case NOT: return "!";
+-
+-	case NEQ: return "!=";
+-	case LEQ: return "<=";
+-	case GEQ: return ">=";
+-	case DEFINE: return ":=";
+-	case ELLIPSIS: return "...";
+-
+-	case LPAREN: return "(";
+-	case LBRACK: return "[";
+-	case LBRACE: return "{";
+-	case COMMA: return ",";
+-	case PERIOD: return ".";
+-
+-	case RPAREN: return ")";
+-	case RBRACK: return "]";
+-	case RBRACE: return "}";
+-	case SEMICOLON: return ";";
+-	case COLON: return ":";
+-
+-	case BREAK: return "break";
+-	case CASE: return "case";
+-	case CHAN: return "chan";
+-	case CONST: return "const";
+-	case CONTINUE: return "continue";
+-
+-	case DEFAULT: return "default";
+-	case DEFER: return "defer";
+-	case ELSE: return "else";
+-	case FALLTHROUGH: return "fallthrough";
+-	case FOR: return "for";
+-
+-	case FUNC: return "func";
+-	case GO: return "go";
+-	case GOTO: return "goto";
+-	case IF: return "if";
+-	case IMPORT: return "import";
+-
+-	case INTERFACE: return "interface";
+-	case MAP: return "map";
+-	case PACKAGE: return "package";
+-	case RANGE: return "range";
+-	case RETURN: return "return";
+-
+-	case SELECT: return "select";
+-	case STRUCT: return "struct";
+-	case SWITCH: return "switch";
+-	case TYPE: return "type";
+-	case VAR: return "var";
+-	}
+-
+-	return "token(" + strconv.Itoa(tok) + ")";
+-}
+-
+-
+-const (
+-	LowestPrec = -1;
+-	UnaryPrec = 7;
+-	HighestPrec = 8;
+-)
+-
+-
+-func Precedence(tok int) int {
+-	switch tok {
+-	case COLON:
+-		return 0;
+-	case LOR:
+-		return 1;
+-	case LAND:
+-		return 2;
+-	case ARROW:
+-		return 3;
+-	case EQL, NEQ, LSS, LEQ, GTR, GEQ:
+-		return 4;
+-	case ADD, SUB, OR, XOR:
+-		return 5;
+-	case MUL, QUO, REM, SHL, SHR, AND:
+-		return 6;
+-	}
+-	return LowestPrec;
++type ErrorHandler interface {
++	Error(pos int, msg string);
+ }
+ 
+ 
+-var keywords map [string] int;
+-
++type Scanner struct {
++	// setup
++	src []byte;  // source
++	err ErrorHandler;
++	scan_comments bool;
+ 
+-func init() {
+-	keywords = make(map [string] int);
+-	for i := keywords_beg + 1; i < keywords_end; i++ {
+-		keywords[TokenString(i)] = i;
+-	}
++	// scanning
++	pos int;  // current reading position
++	ch int;  // one char look-ahead
++	chpos int;  // position of ch
+ }
+ 
+ 
+@@ -256,7 +57,7 @@ func is_letter(ch int) bool {
+ 
+ 
+ func digit_val(ch int) int {
+-	// TODO: spec permits other Unicode digits as well
++	// TODO spec permits other Unicode digits as well
+ 	if '0' <= ch && ch <= '9' {
+ 		return ch - '0';
+ 	}
+@@ -270,24 +71,6 @@ func digit_val(ch int) int {
+ }
+ 
+ 
+-type ErrorHandler interface {
+-	Error(pos int, msg string);
+-}
+-
+-
+-type Scanner struct {
+-	// setup
+-	src []byte;  // source
+-	err ErrorHandler;
+-	scan_comments bool;
+-
+-	// scanning
+-	pos int;  // current reading position
+-	ch int;  // one char look-ahead
+-	chpos int;  // position of ch
+-}
+-
+-
+ // Read the next Unicode char into S.ch.
+ // S.ch < 0 means end-of-file.
+ func (S *Scanner) next() {
+@@ -308,10 +91,12 @@ func (S *Scanner) next() {
+ }
+ 
+ 
+-func (S *Scanner) error(pos int, msg string) {
+-	S.err.Error(pos, msg);
+-}
+-
++// Initialize the scanner.
++//
++// The error handler (err) is called when an illegal token is encountered.
++// If scan_comments is set to true, newline characters ('\n') and comments
++// are recognized as token.COMMENT, otherwise they are treated as white
++// space and ignored.
+ 
+ func (S *Scanner) Init(src []byte, err ErrorHandler, scan_comments bool) {
+ 	S.src = src;
+@@ -338,6 +123,11 @@ func charString(ch int) string {
+ }
+ 
+ 
++func (S *Scanner) error(pos int, msg string) {
++	S.err.Error(pos, msg);
++}
++
++
+ func (S *Scanner) expect(ch int) {
+ 	if S.ch != ch {
+ 		S.error(S.chpos, "expected " + charString(ch) + ", found " + charString(S.ch));
+@@ -400,20 +190,13 @@ exit:
+ }
+ 
+ 
+-func (S *Scanner) scanIdentifier() (tok int, val []byte) {
++func (S *Scanner) scanIdentifier() (tok int, lit []byte) {
+ 	pos := S.chpos;
+ 	for is_letter(S.ch) || digit_val(S.ch) < 10 {
+ 		S.next();
+ 	}
+-	val = S.src[pos : S.chpos];
+-
+-	var present bool;
+-	tok, present = keywords[string(val)];
+-	if !present {
+-		tok = IDENT;
+-	}
+-
+-	return tok, val;
++	lit = S.src[pos : S.chpos];
++	return token.Lookup(lit), lit;
+ }
+ 
+ 
+@@ -424,12 +207,12 @@ func (S *Scanner) scanMantissa(base int) {
+ }
+ 
+ 
+-func (S *Scanner) scanNumber(seen_decimal_point bool) (tok int, val []byte) {
++func (S *Scanner) scanNumber(seen_decimal_point bool) (tok int, lit []byte) {
+ 	pos := S.chpos;
+-	tok = INT;
++	tok = token.INT;
+ 
+ 	if seen_decimal_point {
+-		tok = FLOAT;
++		tok = token.FLOAT;
+ 		pos--;  // '.' is one byte
+ 		S.scanMantissa(10);
+ 		goto exponent;
+@@ -447,7 +230,7 @@ func (S *Scanner) scanNumber(seen_decimal_point bool) (tok int, val []byte) {
+ 			S.scanMantissa(8);
+ 			if digit_val(S.ch) < 10 || S.ch == '.' || S.ch == 'e' || S.ch == 'E' {
+ 				// float
+-				tok = FLOAT;
++				tok = token.FLOAT;
+ 				goto mantissa;
+ 			}
+ 			// octal int
+@@ -461,7 +244,7 @@ mantissa:
+ 
+ 	if S.ch == '.' {
+ 		// float
+-		tok = FLOAT;
++		tok = token.FLOAT;
+ 		S.next();
+ 		S.scanMantissa(10)
+ 	}
+@@ -469,7 +252,7 @@ mantissa:
+ exponent:
+ 	if S.ch == 'e' || S.ch == 'E' {
+ 		// float
+-		tok = FLOAT;
++		tok = token.FLOAT;
+ 		S.next();
+ 		if S.ch == '-' || S.ch == '+' {
+ 			S.next();
+@@ -607,75 +390,78 @@ func (S *Scanner) select4(tok0, tok1, ch2, tok2, tok3 int) int {
+ }
+ 
+ 
+-func (S *Scanner) Scan() (pos, tok int, val []byte) {
++// Scans the next token. Returns the token byte position in the source,
++// its token value, and the corresponding literal text if the token is
++// an identifier or basic type literals (token.IsLiteral(tok) == true).
++
++func (S *Scanner) Scan() (pos, tok int, lit []byte) {
+ loop:
+ 	S.skipWhitespace();
+ 
+-	pos, tok = S.chpos, ILLEGAL;
++	pos, tok = S.chpos, token.ILLEGAL;
+ 
+ 	switch ch := S.ch; {
+-	case is_letter(ch): tok, val = S.scanIdentifier();
+-	case digit_val(ch) < 10: tok, val = S.scanNumber(false);
++	case is_letter(ch): tok, lit = S.scanIdentifier();
++	case digit_val(ch) < 10: tok, lit = S.scanNumber(false);
+ 	default:
+ 		S.next();  // always make progress
+ 		switch ch {
+-		case -1: tok = EOF;
+-		case '\n': tok, val = COMMENT, []byte{'\n'};
+-		case '"': tok, val = STRING, S.scanString();
+-		case '\'': tok, val = INT, S.scanChar();
+-		case '`': tok, val = STRING, S.scanRawString();
+-		case ':': tok = S.select2(COLON, DEFINE);
++		case -1: tok = token.EOF;
++		case '\n': tok, lit = token.COMMENT, []byte{'\n'};
++		case '"': tok, lit = token.STRING, S.scanString();
++		case '\'': tok, lit = token.CHAR, S.scanChar();
++		case '`': tok, lit = token.STRING, S.scanRawString();
++		case ':': tok = S.select2(token.COLON, token.DEFINE);
+ 		case '.':
+ 			if digit_val(S.ch) < 10 {
+-				tok, val = S.scanNumber(true);
++				tok, lit = S.scanNumber(true);
+ 			} else if S.ch == '.' {
+ 				S.next();
+ 				if S.ch == '.' {
+ 					S.next();
+-					tok = ELLIPSIS;
++					tok = token.ELLIPSIS;
+ 				}
+ 			} else {
+-				tok = PERIOD;
++				tok = token.PERIOD;
+ 			}
+-		case ',': tok = COMMA;
+-		case ';': tok = SEMICOLON;
+-		case '(': tok = LPAREN;
+-		case ')': tok = RPAREN;
+-		case '[': tok = LBRACK;
+-		case ']': tok = RBRACK;
+-		case '{': tok = LBRACE;
+-		case '}': tok = RBRACE;
+-		case '+': tok = S.select3(ADD, ADD_ASSIGN, '+', INC);
+-		case '-': tok = S.select3(SUB, SUB_ASSIGN, '-', DEC);
+-		case '*': tok = S.select2(MUL, MUL_ASSIGN);
++		case ',': tok = token.COMMA;
++		case ';': tok = token.SEMICOLON;
++		case '(': tok = token.LPAREN;
++		case ')': tok = token.RPAREN;
++		case '[': tok = token.LBRACK;
++		case ']': tok = token.RBRACK;
++		case '{': tok = token.LBRACE;
++		case '}': tok = token.RBRACE;
++		case '+': tok = S.select3(token.ADD, token.ADD_ASSIGN, '+', token.INC);
++		case '-': tok = S.select3(token.SUB, token.SUB_ASSIGN, '-', token.DEC);
++		case '*': tok = S.select2(token.MUL, token.MUL_ASSIGN);
+ 		case '/':
+ 			if S.ch == '/' || S.ch == '*' {
+-				tok, val = COMMENT, S.scanComment();
++				tok, lit = token.COMMENT, S.scanComment();
+ 				if !S.scan_comments {
+ 					goto loop;
+ 				}
+ 			} else {
+-				tok = S.select2(QUO, QUO_ASSIGN);
++				tok = S.select2(token.QUO, token.QUO_ASSIGN);
+ 			}
+-		case '%': tok = S.select2(REM, REM_ASSIGN);
+-		case '^': tok = S.select2(XOR, XOR_ASSIGN);
++		case '%': tok = S.select2(token.REM, token.REM_ASSIGN);
++		case '^': tok = S.select2(token.XOR, token.XOR_ASSIGN);
+ 		case '<':
+ 			if S.ch == '-' {
+ 				S.next();
+-				tok = ARROW;
++				tok = token.ARROW;
+ 			} else {
+-				tok = S.select4(LSS, LEQ, '<', SHL, SHL_ASSIGN);
++				tok = S.select4(token.LSS, token.LEQ, '<', token.SHL, token.SHL_ASSIGN);
+ 			}
+-		case '>': tok = S.select4(GTR, GEQ, '>', SHR, SHR_ASSIGN);
+-		case '=': tok = S.select2(ASSIGN, EQL);
+-		case '!': tok = S.select2(NOT, NEQ);
+-		case '&': tok = S.select3(AND, AND_ASSIGN, '&', LAND);
+-		case '|': tok = S.select3(OR, OR_ASSIGN, '|', LOR);
++		case '>': tok = S.select4(token.GTR, token.GEQ, '>', token.SHR, token.SHR_ASSIGN);
++		case '=': tok = S.select2(token.ASSIGN, token.EQL);
++		case '!': tok = S.select2(token.NOT, token.NEQ);
++		case '&': tok = S.select3(token.AND, token.AND_ASSIGN, '&', token.LAND);
++		case '|': tok = S.select3(token.OR, token.OR_ASSIGN, '|', token.LOR);
+ 		default:
+ 			S.error(pos, "illegal character " + charString(ch));
+-			tok = ILLEGAL;
+ 		}
+ 	}
+ 
+-	return pos, tok, val;
++	return pos, tok, lit;
+ }
+diff --git a/usr/gri/pretty/token.go b/usr/gri/pretty/token.go
+new file mode 100644
+index 0000000000..7aa186f062
+--- /dev/null
++++ b/usr/gri/pretty/token.go
+@@ -0,0 +1,286 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package token
++
++// Defines Go tokens and basic token operations.
++
++import "strconv";
++
++const (
++	// Special tokens
++	ILLEGAL = iota;
++	EOF;
++	COMMENT;
++	
++	// Identifiers and basic type literals
++	// (these tokens stand for classes of literals)
++	literal_beg;
++	IDENT;
++	INT;
++	FLOAT;
++	CHAR;
++	STRING;
++	literal_end;
++
++	// Operators and delimiters
++	operator_beg;
++	ADD;
++	SUB;
++	MUL;
++	QUO;
++	REM;
++
++	AND;
++	OR;
++	XOR;
++	SHL;
++	SHR;
++
++	ADD_ASSIGN;
++	SUB_ASSIGN;
++	MUL_ASSIGN;
++	QUO_ASSIGN;
++	REM_ASSIGN;
++
++	AND_ASSIGN;
++	OR_ASSIGN;
++	XOR_ASSIGN;
++	SHL_ASSIGN;
++	SHR_ASSIGN;
++
++	LAND;
++	LOR;
++	ARROW;
++	INC;
++	DEC;
++
++	EQL;
++	LSS;
++	GTR;
++	ASSIGN;
++	NOT;
++
++	NEQ;
++	LEQ;
++	GEQ;
++	DEFINE;
++	ELLIPSIS;
++
++	LPAREN;
++	LBRACK;
++	LBRACE;
++	COMMA;
++	PERIOD;
++
++	RPAREN;
++	RBRACK;
++	RBRACE;
++	SEMICOLON;
++	COLON;
++	operator_end;
++
++	// Keywords
++	keyword_beg;
++	BREAK;
++	CASE;
++	CHAN;
++	CONST;
++	CONTINUE;
++
++	DEFAULT;
++	DEFER;
++	ELSE;
++	FALLTHROUGH;
++	FOR;
++
++	FUNC;
++	GO;
++	GOTO;
++	IF;
++	IMPORT;
++
++	INTERFACE;
++	MAP;
++	PACKAGE;
++	RANGE;
++	RETURN;
++
++	SELECT;
++	STRUCT;
++	SWITCH;
++	TYPE;
++	VAR;
++	keyword_end;
++)
++
++
++func TokenString(tok int) string {
++	switch tok {
++	case ILLEGAL: return "ILLEGAL";
++
++	case EOF: return "EOF";
++	case COMMENT: return "COMMENT";
++
++	case IDENT: return "IDENT";
++	case INT: return "INT";
++	case FLOAT: return "FLOAT";
++	case CHAR: return "CHAR";
++	case STRING: return "STRING";
++
++	case ADD: return "+";
++	case SUB: return "-";
++	case MUL: return "*";
++	case QUO: return "/";
++	case REM: return "%";
++
++	case AND: return "&";
++	case OR: return "|";
++	case XOR: return "^";
++	case SHL: return "<<";
++	case SHR: return ">>";
++
++	case ADD_ASSIGN: return "+=";
++	case SUB_ASSIGN: return "-=";
++	case MUL_ASSIGN: return "+=";
++	case QUO_ASSIGN: return "/=";
++	case REM_ASSIGN: return "%=";
++
++	case AND_ASSIGN: return "&=";
++	case OR_ASSIGN: return "|=";
++	case XOR_ASSIGN: return "^=";
++	case SHL_ASSIGN: return "<<=";
++	case SHR_ASSIGN: return ">>=";
++
++	case LAND: return "&&";
++	case LOR: return "||";
++	case ARROW: return "<-";
++	case INC: return "++";
++	case DEC: return "--";
++
++	case EQL: return "==";
++	case LSS: return "<";
++	case GTR: return ">";
++	case ASSIGN: return "=";
++	case NOT: return "!";
++
++	case NEQ: return "!=";
++	case LEQ: return "<=";
++	case GEQ: return ">=";
++	case DEFINE: return ":=";
++	case ELLIPSIS: return "...";
++
++	case LPAREN: return "(";
++	case LBRACK: return "[";
++	case LBRACE: return "{";
++	case COMMA: return ",";
++	case PERIOD: return ".";
++
++	case RPAREN: return ")";
++	case RBRACK: return "]";
++	case RBRACE: return "}";
++	case SEMICOLON: return ";";
++	case COLON: return ":";
++
++	case BREAK: return "break";
++	case CASE: return "case";
++	case CHAN: return "chan";
++	case CONST: return "const";
++	case CONTINUE: return "continue";
++
++	case DEFAULT: return "default";
++	case DEFER: return "defer";
++	case ELSE: return "else";
++	case FALLTHROUGH: return "fallthrough";
++	case FOR: return "for";
++
++	case FUNC: return "func";
++	case GO: return "go";
++	case GOTO: return "goto";
++	case IF: return "if";
++	case IMPORT: return "import";
++
++	case INTERFACE: return "interface";
++	case MAP: return "map";
++	case PACKAGE: return "package";
++	case RANGE: return "range";
++	case RETURN: return "return";
++
++	case SELECT: return "select";
++	case STRUCT: return "struct";
++	case SWITCH: return "switch";
++	case TYPE: return "type";
++	case VAR: return "var";
++	}
++
++	return "token(" + strconv.Itoa(tok) + ")";
++}
++
++
++const (
++	LowestPrec = -1;
++	UnaryPrec = 7;
++	HighestPrec = 8;
++)
++
++
++func Precedence(tok int) int {
++	switch tok {
++	case COLON:
++		return 0;
++	case LOR:
++		return 1;
++	case LAND:
++		return 2;
++	case ARROW:
++		return 3;
++	case EQL, NEQ, LSS, LEQ, GTR, GEQ:
++		return 4;
++	case ADD, SUB, OR, XOR:
++		return 5;
++	case MUL, QUO, REM, SHL, SHR, AND:
++		return 6;
++	}
++	return LowestPrec;
++}
++
++
++var keywords map [string] int;
++
++func init() {
++	keywords = make(map [string] int);
++	for i := keyword_beg + 1; i < keyword_end; i++ {
++		keywords[TokenString(i)] = i;
++	}
++}
++
++
++// Map an identifier to its keyword token or IDENT (if not a keyword).
++func Lookup(ident []byte) int {
++	// TODO should not have to convert every ident into a string
++	//      for lookup - but at the moment maps of []byte don't
++	//      seem to work - gri 3/3/09
++	if tok, is_keyword := keywords[string(ident)]; is_keyword {
++		return tok;
++	}
++	return IDENT;
++}
++
++
++// Predicates
++
++// Identifiers and basic type literals
++func IsLiteral(tok int) bool {
++	return literal_beg < tok && tok < literal_end;
++}
++
++
++// Operators and delimiters
++func IsOperator(tok int) bool {
++	return operator_beg < tok && tok < operator_end;
++}
++
++func IsKeyword(tok int) bool {
++	return keyword_beg < tok && tok < keyword_end;
++}
+diff --git a/usr/gri/pretty/typechecker.go b/usr/gri/pretty/typechecker.go
+index a35a5b3513..890bbe0405 100644
+--- a/usr/gri/pretty/typechecker.go
++++ b/usr/gri/pretty/typechecker.go
+@@ -5,18 +5,23 @@
+ package TypeChecker
+ 
+ import (
++	"token";
+ 	AST "ast";
+-	Scanner "scanner";
+ )
+ 
+ 
++type ErrorHandler interface {
++	Error(pos int, msg string);
++}
++
++
+ type state struct {
+ 	// setup
+-	err Scanner.ErrorHandler;
++	err ErrorHandler;
+ }
+ 
+ 
+-func (s *state) Init(err Scanner.ErrorHandler) {
++func (s *state) Init(err ErrorHandler) {
+ 	s.err = err;
+ }
+ 
+@@ -54,7 +59,7 @@ func (s *state) CheckType() {
+ 
+ /*
+ func (s *state) CheckDeclaration(d *AST.Decl) {
+-	if d.Tok != Scanner.FUNC && d.List != nil {
++	if d.Tok != token.FUNC && d.List != nil {
+ 		// group of parenthesized declarations
+ 		for i := 0; i < d.List.Len(); i++ {
+ 			s.CheckDeclaration(d.List.At(i).(*AST.Decl))
+@@ -63,11 +68,11 @@ func (s *state) CheckDeclaration(d *AST.Decl) {
+ 	} else {
+ 		// single declaration
+ 		switch d.Tok {
+-		case Scanner.IMPORT:
+-		case Scanner.CONST:
+-		case Scanner.VAR:
+-		case Scanner.TYPE:
+-		case Scanner.FUNC:
++		case token.IMPORT:
++		case token.CONST:
++		case token.VAR:
++		case token.TYPE:
++		case token.FUNC:
+ 		default:
+ 			unreachable();
+ 		}
+@@ -85,7 +90,7 @@ func (s *state) CheckProgram(p *AST.Program) {
+ 
+ // ----------------------------------------------------------------------------
+ 
+-func CheckProgram(err Scanner.ErrorHandler, p *AST.Program) {
++func CheckProgram(err ErrorHandler, p *AST.Program) {
+ 	var s state;
+ 	s.Init(err);
+ 	s.CheckProgram(p);

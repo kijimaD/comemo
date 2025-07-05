@@ -19,7 +19,7 @@ Date:   Fri May 23 18:04:36 2025 +0200
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/crypto/tls/auth.go                   |  23 ++---
  src/crypto/tls/bogo_config.json          |  34 +++----
  src/crypto/tls/bogo_shim_test.go         | 170 +++++++++++++++++++++++++------
@@ -33,3 +33,856 @@ Date:   Fri May 23 18:04:36 2025 +0200
  src/crypto/tls/handshake_server_tls13.go |   1 +
  src/crypto/tls/key_agreement.go          |  41 ++++----
  12 files changed, 253 insertions(+), 155 deletions(-)
+
+diff --git a/src/crypto/tls/auth.go b/src/crypto/tls/auth.go
+index 2d0596689f..f5de7b3069 100644
+--- a/src/crypto/tls/auth.go
++++ b/src/crypto/tls/auth.go
+@@ -149,20 +149,18 @@ func legacyTypeAndHashFromPublicKey(pub crypto.PublicKey) (sigType uint8, hash c
+ var rsaSignatureSchemes = []struct {
+ 	scheme          SignatureScheme
+ 	minModulusBytes int
+-	maxVersion      uint16
+ }{
+ 	// RSA-PSS is used with PSSSaltLengthEqualsHash, and requires
+ 	//    emLen >= hLen + sLen + 2
+-	{PSSWithSHA256, crypto.SHA256.Size()*2 + 2, VersionTLS13},
+-	{PSSWithSHA384, crypto.SHA384.Size()*2 + 2, VersionTLS13},
+-	{PSSWithSHA512, crypto.SHA512.Size()*2 + 2, VersionTLS13},
++	{PSSWithSHA256, crypto.SHA256.Size()*2 + 2},
++	{PSSWithSHA384, crypto.SHA384.Size()*2 + 2},
++	{PSSWithSHA512, crypto.SHA512.Size()*2 + 2},
+ 	// PKCS #1 v1.5 uses prefixes from hashPrefixes in crypto/rsa, and requires
+ 	//    emLen >= len(prefix) + hLen + 11
+-	// TLS 1.3 dropped support for PKCS #1 v1.5 in favor of RSA-PSS.
+-	{PKCS1WithSHA256, 19 + crypto.SHA256.Size() + 11, VersionTLS12},
+-	{PKCS1WithSHA384, 19 + crypto.SHA384.Size() + 11, VersionTLS12},
+-	{PKCS1WithSHA512, 19 + crypto.SHA512.Size() + 11, VersionTLS12},
+-	{PKCS1WithSHA1, 15 + crypto.SHA1.Size() + 11, VersionTLS12},
++	{PKCS1WithSHA256, 19 + crypto.SHA256.Size() + 11},
++	{PKCS1WithSHA384, 19 + crypto.SHA384.Size() + 11},
++	{PKCS1WithSHA512, 19 + crypto.SHA512.Size() + 11},
++	{PKCS1WithSHA1, 15 + crypto.SHA1.Size() + 11},
+ }
+ 
+ // signatureSchemesForCertificate returns the list of supported SignatureSchemes
+@@ -202,7 +200,7 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
+ 		size := pub.Size()
+ 		sigAlgs = make([]SignatureScheme, 0, len(rsaSignatureSchemes))
+ 		for _, candidate := range rsaSignatureSchemes {
+-			if size >= candidate.minModulusBytes && version <= candidate.maxVersion {
++			if size >= candidate.minModulusBytes {
+ 				sigAlgs = append(sigAlgs, candidate.scheme)
+ 			}
+ 		}
+@@ -219,10 +217,9 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
+ 	}
+ 
+ 	// Filter out any unsupported signature algorithms, for example due to
+-	// FIPS 140-3 policy, tlssha1=0, or any downstream changes to defaults.go.
+-	supportedAlgs := supportedSignatureAlgorithms(version)
++	// FIPS 140-3 policy, tlssha1=0, or protocol version.
+ 	sigAlgs = slices.DeleteFunc(sigAlgs, func(sigAlg SignatureScheme) bool {
+-		return !isSupportedSignatureAlgorithm(sigAlg, supportedAlgs)
++		return isDisabledSignatureAlgorithm(version, sigAlg, false)
+ 	})
+ 
+ 	return sigAlgs
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index 1bc647ce60..9e3990ecb5 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -20,8 +20,6 @@
+         "TLS-ECH-Client-Reject-NoChannelID-TLS13": "We don't support sending channel ID",
+         "TLS-ECH-Client-Reject-NoChannelID-TLS12": "We don't support sending channel ID",
+ 
+-        "ServerAuth-SHA1-Fallback*": "We don't ever support SHA-1 in TLS 1.2, so we fail if there are no signature_algorithms",
+-
+         "TLS-ECH-Client-GREASE-IgnoreHRRExtension": "We don't support ECH GREASE because we don't fallback to plaintext",
+         "TLS-ECH-Client-NoSupportedConfigs-GREASE": "We don't support ECH GREASE because we don't fallback to plaintext",
+         "TLS-ECH-Client-GREASEExtensions": "We don't support ECH GREASE because we don't fallback to plaintext",
+@@ -40,7 +38,19 @@
+         "PostQuantumNotEnabledByDefaultInClients": "We do enable it by default!",
+         "*-Kyber-TLS13": "We don't support Kyber, only ML-KEM (BoGo bug ignoring AllCurves?)",
+ 
+-        "*-SignDefault-*": "TODO, partially it encodes BoringSSL defaults, partially we might be missing some implicit behavior of a missing flag",
++        "*-RSA_PKCS1_SHA256_LEGACY-TLS13": "We don't support the legacy PKCS#1 v1.5 codepoint for TLS 1.3",
++        "*-Verify-RSA_PKCS1_SHA256_LEGACY-TLS12": "Likewise, we don't know how to handle it in TLS 1.2, so we send the wrong alert",
++        "*-VerifyDefault-*": "Our signature algorithms are not configurable, so there is no difference between default and supported",
++        "Ed25519DefaultDisable-*": "We support Ed25519 by default",
++        "NoCommonSignatureAlgorithms-TLS12-Fallback": "We don't support the legacy RSA exchange (without tlsrsakex=1)",
++
++        "*_SHA1-TLS12": "We don't support SHA-1 in TLS 1.2 (without tlssha1=1)",
++        "Agree-Digest-SHA1": "We don't support SHA-1 in TLS 1.2 (without tlssha1=1)",
++        "ServerAuth-SHA1-Fallback*": "We don't support SHA-1 in TLS 1.2 (without tlssha1=1), so we fail if there are no signature_algorithms",
++
++        "Agree-Digest-SHA256": "We select signature algorithms in peer preference order. We should consider changing this.",
++        "ECDSACurveMismatch-Verify-TLS13": "We don't enforce the curve when verifying. This is a bug. We need to fix this.",
++        "*-Verify-ECDSA_P224_SHA256-TLS13": "Side effect of the bug above. BoGo sends a P-256 sigAlg with a P-224 key, and we allow it.",
+ 
+         "V2ClientHello-*": "We don't support SSLv2",
+         "SendV2ClientHello*": "We don't support SSLv2",
+@@ -62,8 +72,10 @@
+         "CurveID-Resume*": "unexposed curveID is not stored in the ticket yet",
+         "BadRSAClientKeyExchange-4": "crypto/tls doesn't check the version number in the premaster secret - see processClientKeyExchange comment",
+         "BadRSAClientKeyExchange-5": "crypto/tls doesn't check the version number in the premaster secret - see processClientKeyExchange comment",
+-        "CheckLeafCurve": "TODO: first pass, this should be fixed",
+         "SupportTicketsWithSessionID": "We don't support session ID resumption",
++        "ResumeTLS12SessionID-TLS13": "We don't support session ID resumption",
++
++        "CheckLeafCurve": "TODO: first pass, this should be fixed",
+         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
+         "SupportedVersionSelection-TLS12": "TODO: first pass, this should be fixed",
+         "UnsolicitedServerNameAck-TLS-TLS1": "TODO: first pass, this should be fixed",
+@@ -88,19 +100,6 @@
+         "Resume-Server-OmitPSKsOnSecondClientHello": "TODO: first pass, this should be fixed",
+         "Renegotiate-Server-Forbidden": "TODO: first pass, this should be fixed",
+         "Renegotiate-Client-Forbidden-1": "TODO: first pass, this should be fixed",
+-        "Client-Sign-RSA_PKCS1_SHA1-TLS13": "TODO: first pass, this should be fixed",
+-        "Client-Sign-RSA_PKCS1_SHA256-TLS13": "TODO: first pass, this should be fixed",
+-        "Client-Sign-RSA_PKCS1_SHA384-TLS13": "TODO: first pass, this should be fixed",
+-        "Client-Sign-RSA_PKCS1_SHA512-TLS13": "TODO: first pass, this should be fixed",
+-        "Client-Sign-ECDSA_SHA1-TLS13": "TODO: first pass, this should be fixed",
+-        "Client-Sign-ECDSA_P224_SHA256-TLS13": "TODO: first pass, this should be fixed",
+-        "ClientAuth-NoFallback-TLS13": "TODO: first pass, this should be fixed",
+-        "ClientAuth-NoFallback-ECDSA": "TODO: first pass, this should be fixed",
+-        "ClientAuth-NoFallback-RSA": "TODO: first pass, this should be fixed",
+-        "ECDSACurveMismatch-Verify-TLS13": "TODO: first pass, this should be fixed",
+-        "Ed25519DefaultDisable-NoAdvertise": "TODO: first pass, this should be fixed",
+-        "Ed25519DefaultDisable-NoAccept": "TODO: first pass, this should be fixed",
+-        "NoCommonSignatureAlgorithms-TLS12-Fallback": "TODO: first pass, this should be fixed",
+         "UnknownExtension-Client": "TODO: first pass, this should be fixed",
+         "UnknownUnencryptedExtension-Client-TLS13": "TODO: first pass, this should be fixed",
+         "UnofferedExtension-Client-TLS13": "TODO: first pass, this should be fixed",
+@@ -153,7 +152,6 @@
+         "TrailingMessageData-TLS13-ClientCertificate-TLS": "TODO: first pass, this should be fixed",
+         "TrailingMessageData-TLS13-ClientCertificateVerify-TLS": "TODO: first pass, this should be fixed",
+         "TrailingMessageData-TLS13-ServerCertificate-TLS": "TODO: first pass, this should be fixed",
+-        "ResumeTLS12SessionID-TLS13": "We don't support session ID resumption",
+         "SkipEarlyData-TLS13": "TODO: first pass, this should be fixed",
+         "DuplicateKeyShares-TLS13": "TODO: first pass, this should be fixed",
+         "Server-TooLongSessionID-TLS13": "TODO: first pass, this should be fixed",
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+index fff276979e..2e88d539c4 100644
+--- a/src/crypto/tls/bogo_shim_test.go
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -35,8 +35,10 @@ var (
+ 
+ 	isHandshakerSupported = flag.Bool("is-handshaker-supported", false, "")
+ 
+-	keyfile  = flag.String("key-file", "", "")
+-	certfile = flag.String("cert-file", "", "")
++	keyfile      = flag.String("key-file", "", "")
++	certfile     = flag.String("cert-file", "", "")
++	ocspResponse = flagBase64("ocsp-response", "")
++	signingPrefs = flagIntSlice("signing-prefs", "")
+ 
+ 	trustCert = flag.String("trust-cert", "", "")
+ 
+@@ -55,13 +57,17 @@ var (
+ 
+ 	resumeCount = flag.Int("resume-count", 0, "")
+ 
+-	curves        = flagStringSlice("curves", "")
++	curves        = flagIntSlice("curves", "")
+ 	expectedCurve = flag.String("expect-curve-id", "", "")
+ 
++	verifyPrefs        = flagIntSlice("verify-prefs", "")
++	expectedSigAlg     = flag.String("expect-peer-signature-algorithm", "", "")
++	expectedPeerSigAlg = flagIntSlice("expect-peer-verify-pref", "")
++
+ 	shimID = flag.Uint64("shim-id", 0, "")
+ 	_      = flag.Bool("ipv6", false, "")
+ 
+-	echConfigListB64           = flag.String("ech-config-list", "", "")
++	echConfigList              = flagBase64("ech-config-list", "")
+ 	expectECHAccepted          = flag.Bool("expect-ech-accept", false, "")
+ 	expectHRR                  = flag.Bool("expect-hrr", false, "")
+ 	expectNoHRR                = flag.Bool("expect-no-hrr", false, "")
+@@ -71,7 +77,7 @@ var (
+ 	_                          = flag.Bool("expect-no-ech-name-override", false, "")
+ 	_                          = flag.String("expect-ech-name-override", "", "")
+ 	_                          = flag.Bool("reverify-on-resume", false, "")
+-	onResumeECHConfigListB64   = flag.String("on-resume-ech-config-list", "", "")
++	onResumeECHConfigList      = flagBase64("on-resume-ech-config-list", "")
+ 	_                          = flag.Bool("on-resume-expect-reject-early-data", false, "")
+ 	onResumeExpectECHAccepted  = flag.Bool("on-resume-expect-ech-accept", false, "")
+ 	_                          = flag.Bool("on-resume-expect-no-ech-name-override", false, "")
+@@ -105,7 +111,7 @@ var (
+ type stringSlice []string
+ 
+ func flagStringSlice(name, usage string) *stringSlice {
+-	f := &stringSlice{}
++	f := new(stringSlice)
+ 	flag.Var(f, name, usage)
+ 	return f
+ }
+@@ -119,12 +125,59 @@ func (saf *stringSlice) Set(s string) error {
+ 	return nil
+ }
+ 
++type intSlice []int64
++
++func flagIntSlice(name, usage string) *intSlice {
++	f := new(intSlice)
++	flag.Var(f, name, usage)
++	return f
++}
++
++func (sf *intSlice) String() string {
++	return strings.Join(strings.Split(fmt.Sprint(*sf), " "), ",")
++}
++
++func (sf *intSlice) Set(s string) error {
++	i, err := strconv.ParseInt(s, 10, 64)
++	if err != nil {
++		return err
++	}
++	*sf = append(*sf, i)
++	return nil
++}
++
++type base64Flag []byte
++
++func flagBase64(name, usage string) *base64Flag {
++	f := new(base64Flag)
++	flag.Var(f, name, usage)
++	return f
++}
++
++func (f *base64Flag) String() string {
++	return base64.StdEncoding.EncodeToString(*f)
++}
++
++func (f *base64Flag) Set(s string) error {
++	if *f != nil {
++		return fmt.Errorf("multiple base64 values not supported")
++	}
++	b, err := base64.StdEncoding.DecodeString(s)
++	if err != nil {
++		return err
++	}
++	*f = b
++	return nil
++}
++
+ func bogoShim() {
+ 	if *isHandshakerSupported {
+ 		fmt.Println("No")
+ 		return
+ 	}
+ 
++	fmt.Printf("BoGo shim flags: %q", os.Args[1:])
++
+ 	// Test with both the default and insecure cipher suites.
+ 	var ciphersuites []uint16
+ 	for _, s := range append(CipherSuites(), InsecureCipherSuites()...) {
+@@ -218,7 +271,39 @@ func bogoShim() {
+ 		if err != nil {
+ 			log.Fatalf("load key-file err: %s", err)
+ 		}
+-		cfg.Certificates = []Certificate{pair}
++		for _, id := range *signingPrefs {
++			pair.SupportedSignatureAlgorithms = append(pair.SupportedSignatureAlgorithms, SignatureScheme(id))
++		}
++		pair.OCSPStaple = *ocspResponse
++		// Use Get[Client]Certificate to force the use of the certificate, which
++		// more closely matches the BoGo expectations (e.g. handshake failure if
++		// no client certificates are compatible).
++		cfg.GetCertificate = func(chi *ClientHelloInfo) (*Certificate, error) {
++			if *expectedPeerSigAlg != nil {
++				if len(chi.SignatureSchemes) != len(*expectedPeerSigAlg) {
++					return nil, fmt.Errorf("unexpected signature algorithms: got %s, want %v", chi.SignatureSchemes, *expectedPeerSigAlg)
++				}
++				for i := range *expectedPeerSigAlg {
++					if chi.SignatureSchemes[i] != SignatureScheme((*expectedPeerSigAlg)[i]) {
++						return nil, fmt.Errorf("unexpected signature algorithms: got %s, want %v", chi.SignatureSchemes, *expectedPeerSigAlg)
++					}
++				}
++			}
++			return &pair, nil
++		}
++		cfg.GetClientCertificate = func(cri *CertificateRequestInfo) (*Certificate, error) {
++			if *expectedPeerSigAlg != nil {
++				if len(cri.SignatureSchemes) != len(*expectedPeerSigAlg) {
++					return nil, fmt.Errorf("unexpected signature algorithms: got %s, want %v", cri.SignatureSchemes, *expectedPeerSigAlg)
++				}
++				for i := range *expectedPeerSigAlg {
++					if cri.SignatureSchemes[i] != SignatureScheme((*expectedPeerSigAlg)[i]) {
++						return nil, fmt.Errorf("unexpected signature algorithms: got %s, want %v", cri.SignatureSchemes, *expectedPeerSigAlg)
++					}
++				}
++			}
++			return &pair, nil
++		}
+ 	}
+ 	if *trustCert != "" {
+ 		pool := x509.NewCertPool()
+@@ -242,26 +327,24 @@ func bogoShim() {
+ 		cfg.ClientAuth = VerifyClientCertIfGiven
+ 	}
+ 
+-	if *echConfigListB64 != "" {
+-		echConfigList, err := base64.StdEncoding.DecodeString(*echConfigListB64)
+-		if err != nil {
+-			log.Fatalf("parse ech-config-list err: %s", err)
+-		}
+-		cfg.EncryptedClientHelloConfigList = echConfigList
++	if *echConfigList != nil {
++		cfg.EncryptedClientHelloConfigList = *echConfigList
+ 		cfg.MinVersion = VersionTLS13
+ 	}
+ 
+-	if len(*curves) != 0 {
+-		for _, curveStr := range *curves {
+-			id, err := strconv.Atoi(curveStr)
+-			if err != nil {
+-				log.Fatalf("failed to parse curve id %q: %s", curveStr, err)
+-			}
++	if *curves != nil {
++		for _, id := range *curves {
+ 			cfg.CurvePreferences = append(cfg.CurvePreferences, CurveID(id))
+ 		}
+ 	}
+ 
+-	if len(*echServerConfig) != 0 {
++	if *verifyPrefs != nil {
++		for _, id := range *verifyPrefs {
++			testingOnlySupportedSignatureAlgorithms = append(testingOnlySupportedSignatureAlgorithms, SignatureScheme(id))
++		}
++	}
++
++	if *echServerConfig != nil {
+ 		if len(*echServerConfig) != len(*echServerKey) || len(*echServerConfig) != len(*echServerRetryConfig) {
+ 			log.Fatal("-ech-server-config, -ech-server-key, and -ech-is-retry-config mismatch")
+ 		}
+@@ -285,12 +368,8 @@ func bogoShim() {
+ 	}
+ 
+ 	for i := 0; i < *resumeCount+1; i++ {
+-		if i > 0 && (*onResumeECHConfigListB64 != "") {
+-			echConfigList, err := base64.StdEncoding.DecodeString(*onResumeECHConfigListB64)
+-			if err != nil {
+-				log.Fatalf("parse ech-config-list err: %s", err)
+-			}
+-			cfg.EncryptedClientHelloConfigList = echConfigList
++		if i > 0 && *onResumeECHConfigList != nil {
++			cfg.EncryptedClientHelloConfigList = *onResumeECHConfigList
+ 		}
+ 
+ 		conn, err := net.Dial("tcp", net.JoinHostPort("localhost", *port))
+@@ -343,7 +422,7 @@ func bogoShim() {
+ 		if err != io.EOF {
+ 			retryErr, ok := err.(*ECHRejectionError)
+ 			if !ok {
+-				log.Fatalf("unexpected error type returned: %v", err)
++				log.Fatal(err)
+ 			}
+ 			if *expectNoECHRetryConfigs && len(retryErr.RetryConfigList) > 0 {
+ 				log.Fatalf("expected no ECH retry configs, got some")
+@@ -408,10 +487,21 @@ func bogoShim() {
+ 			if err != nil {
+ 				log.Fatalf("failed to parse -expect-curve-id: %s", err)
+ 			}
+-			if tlsConn.curveID != CurveID(expectedCurveID) {
++			if cs.CurveID != CurveID(expectedCurveID) {
+ 				log.Fatalf("unexpected curve id: want %d, got %d", expectedCurveID, tlsConn.curveID)
+ 			}
+ 		}
++
++		// TODO: implement testingOnlyPeerSignatureAlgorithm on resumption.
++		if *expectedSigAlg != "" && !cs.DidResume {
++			expectedSigAlgID, err := strconv.Atoi(*expectedSigAlg)
++			if err != nil {
++				log.Fatalf("failed to parse -expect-peer-signature-algorithm: %s", err)
++			}
++			if cs.testingOnlyPeerSignatureAlgorithm != SignatureScheme(expectedSigAlgID) {
++				log.Fatalf("unexpected peer signature algorithm: want %s, got %s", SignatureScheme(expectedSigAlgID), cs.testingOnlyPeerSignatureAlgorithm)
++			}
++		}
+ 	}
+ }
+ 
+@@ -491,20 +581,36 @@ func TestBogoSuite(t *testing.T) {
+ 	assertResults := map[string]string{
+ 		"CurveTest-Client-MLKEM-TLS13": "PASS",
+ 		"CurveTest-Server-MLKEM-TLS13": "PASS",
++
++		// Various signature algorithm tests checking that we enforce our
++		// preferences on the peer.
++		"ClientAuth-Enforced":                    "PASS",
++		"ServerAuth-Enforced":                    "PASS",
++		"ClientAuth-Enforced-TLS13":              "PASS",
++		"ServerAuth-Enforced-TLS13":              "PASS",
++		"VerifyPreferences-Advertised":           "PASS",
++		"VerifyPreferences-Enforced":             "PASS",
++		"Client-TLS12-NoSign-RSA_PKCS1_MD5_SHA1": "PASS",
++		"Server-TLS12-NoSign-RSA_PKCS1_MD5_SHA1": "PASS",
++		"Client-TLS13-NoSign-RSA_PKCS1_MD5_SHA1": "PASS",
++		"Server-TLS13-NoSign-RSA_PKCS1_MD5_SHA1": "PASS",
+ 	}
+ 
+ 	for name, result := range results.Tests {
+ 		// This is not really the intended way to do this... but... it works?
+ 		t.Run(name, func(t *testing.T) {
+ 			if result.Actual == "FAIL" && result.IsUnexpected {
+-				t.Fatal(result.Error)
++				t.Fail()
++			}
++			if result.Error != "" {
++				t.Log(result.Error)
+ 			}
+-			if expectedResult, ok := assertResults[name]; ok && expectedResult != result.Actual {
+-				t.Fatalf("unexpected result: got %s, want %s", result.Actual, assertResults[name])
++			if exp, ok := assertResults[name]; ok && exp != result.Actual {
++				t.Errorf("unexpected result: got %s, want %s", result.Actual, exp)
+ 			}
+ 			delete(assertResults, name)
+ 			if result.Actual == "SKIP" {
+-				t.Skip()
++				t.SkipNow()
+ 			}
+ 		})
+ 	}
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 6a1c53fe9c..6fe6f34cd2 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -309,6 +309,10 @@ type ConnectionState struct {
+ 
+ 	// testingOnlyDidHRR is true if a HelloRetryRequest was sent/received.
+ 	testingOnlyDidHRR bool
++
++	// testingOnlyPeerSignatureAlgorithm is the signature algorithm used by the
++	// peer to sign the handshake. It is not set for resumed connections.
++	testingOnlyPeerSignatureAlgorithm SignatureScheme
+ }
+ 
+ // ExportKeyingMaterial returns length bytes of exported key material in a new
+@@ -1684,35 +1688,62 @@ func unexpectedMessageError(wanted, got any) error {
+ 	return fmt.Errorf("tls: received unexpected handshake message of type %T when waiting for %T", got, wanted)
+ }
+ 
++var testingOnlySupportedSignatureAlgorithms []SignatureScheme
++
+ // supportedSignatureAlgorithms returns the supported signature algorithms for
+ // the given minimum TLS version, to advertise in ClientHello and
+ // CertificateRequest messages.
+ func supportedSignatureAlgorithms(minVers uint16) []SignatureScheme {
+ 	sigAlgs := defaultSupportedSignatureAlgorithms()
+-	if fips140tls.Required() {
+-		sigAlgs = slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
+-			return !slices.Contains(allowedSignatureAlgorithmsFIPS, s)
+-		})
++	if testingOnlySupportedSignatureAlgorithms != nil {
++		sigAlgs = slices.Clone(testingOnlySupportedSignatureAlgorithms)
+ 	}
+-	if minVers > VersionTLS12 {
+-		sigAlgs = slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
+-			sigType, sigHash, _ := typeAndHashFromSignatureScheme(s)
+-			return sigType == signaturePKCS1v15 || sigHash == crypto.SHA1
+-		})
++	return slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
++		return isDisabledSignatureAlgorithm(minVers, s, false)
++	})
++}
++
++var tlssha1 = godebug.New("tlssha1")
++
++func isDisabledSignatureAlgorithm(version uint16, s SignatureScheme, isCert bool) bool {
++	if fips140tls.Required() && !slices.Contains(allowedSignatureAlgorithmsFIPS, s) {
++		return true
++	}
++
++	// For the _cert extension we include all algorithms, including SHA-1 and
++	// PKCS#1 v1.5, because it's more likely that something on our side will be
++	// willing to accept a *-with-SHA1 certificate (e.g. with a custom
++	// VerifyConnection or by a direct match with the CertPool), than that the
++	// peer would have a better certificate but is just choosing not to send it.
++	// crypto/x509 will refuse to verify important SHA-1 signatures anyway.
++	if isCert {
++		return false
+ 	}
+-	return sigAlgs
++
++	// TLS 1.3 removed support for PKCS#1 v1.5 and SHA-1 signatures,
++	// and Go 1.25 removed support for SHA-1 signatures in TLS 1.2.
++	if version > VersionTLS12 {
++		sigType, sigHash, _ := typeAndHashFromSignatureScheme(s)
++		if sigType == signaturePKCS1v15 || sigHash == crypto.SHA1 {
++			return true
++		}
++	} else if tlssha1.Value() != "1" {
++		_, sigHash, _ := typeAndHashFromSignatureScheme(s)
++		if sigHash == crypto.SHA1 {
++			return true
++		}
++	}
++
++	return false
+ }
+ 
+ // supportedSignatureAlgorithmsCert returns the supported algorithms for
+ // signatures in certificates.
+ func supportedSignatureAlgorithmsCert() []SignatureScheme {
+-	sigAlgs := defaultSupportedSignatureAlgorithmsCert()
+-	if fips140tls.Required() {
+-		sigAlgs = slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
+-			return !slices.Contains(allowedSignatureAlgorithmsFIPS, s)
+-		})
+-	}
+-	return sigAlgs
++	sigAlgs := defaultSupportedSignatureAlgorithms()
++	return slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
++		return isDisabledSignatureAlgorithm(0, s, true)
++	})
+ }
+ 
+ func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlgorithms []SignatureScheme) bool {
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index cd9b9778fd..b36fcaa648 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -51,6 +51,7 @@ type Conn struct {
+ 	didHRR           bool // whether a HelloRetryRequest was sent/received
+ 	cipherSuite      uint16
+ 	curveID          CurveID
++	peerSigAlg       SignatureScheme
+ 	ocspResponse     []byte   // stapled OCSP response
+ 	scts             [][]byte // signed certificate timestamps from server
+ 	peerCertificates []*x509.Certificate
+@@ -1630,6 +1631,7 @@ func (c *Conn) connectionStateLocked() ConnectionState {
+ 	state.NegotiatedProtocol = c.clientProtocol
+ 	state.DidResume = c.didResume
+ 	state.testingOnlyDidHRR = c.didHRR
++	state.testingOnlyPeerSignatureAlgorithm = c.peerSigAlg
+ 	state.CurveID = c.curveID
+ 	state.NegotiatedProtocolIsMutual = true
+ 	state.ServerName = c.serverName
+diff --git a/src/crypto/tls/defaults.go b/src/crypto/tls/defaults.go
+index 3aa1bc2e4c..489a2750df 100644
+--- a/src/crypto/tls/defaults.go
++++ b/src/crypto/tls/defaults.go
+@@ -24,53 +24,11 @@ func defaultCurvePreferences() []CurveID {
+ 	return []CurveID{X25519MLKEM768, X25519, CurveP256, CurveP384, CurveP521}
+ }
+ 
+-var tlssha1 = godebug.New("tlssha1")
+-
+ // defaultSupportedSignatureAlgorithms returns the signature and hash algorithms that
+ // the code advertises and supports in a TLS 1.2+ ClientHello and in a TLS 1.2+
+ // CertificateRequest. The two fields are merged to match with TLS 1.3.
+ // Note that in TLS 1.2, the ECDSA algorithms are not constrained to P-256, etc.
+ func defaultSupportedSignatureAlgorithms() []SignatureScheme {
+-	if tlssha1.Value() == "1" {
+-		return []SignatureScheme{
+-			PSSWithSHA256,
+-			ECDSAWithP256AndSHA256,
+-			Ed25519,
+-			PSSWithSHA384,
+-			PSSWithSHA512,
+-			PKCS1WithSHA256,
+-			PKCS1WithSHA384,
+-			PKCS1WithSHA512,
+-			ECDSAWithP384AndSHA384,
+-			ECDSAWithP521AndSHA512,
+-			PKCS1WithSHA1,
+-			ECDSAWithSHA1,
+-		}
+-	}
+-	return []SignatureScheme{
+-		PSSWithSHA256,
+-		ECDSAWithP256AndSHA256,
+-		Ed25519,
+-		PSSWithSHA384,
+-		PSSWithSHA512,
+-		PKCS1WithSHA256,
+-		PKCS1WithSHA384,
+-		PKCS1WithSHA512,
+-		ECDSAWithP384AndSHA384,
+-		ECDSAWithP521AndSHA512,
+-	}
+-}
+-
+-// defaultSupportedSignatureAlgorithmsCert returns the signature algorithms that
+-// the code advertises as supported for signatures in certificates.
+-//
+-// We include all algorithms, including SHA-1 and PKCS#1 v1.5, because it's more
+-// likely that something on our side will be willing to accept a *-with-SHA1
+-// certificate (e.g. with a custom VerifyConnection or by a direct match with
+-// the CertPool), than that the peer would have a better certificate but is just
+-// choosing not to send it. crypto/x509 will refuse to verify important SHA-1
+-// signatures anyway.
+-func defaultSupportedSignatureAlgorithmsCert() []SignatureScheme {
+ 	return []SignatureScheme{
+ 		PSSWithSHA256,
+ 		ECDSAWithP256AndSHA256,
+diff --git a/src/crypto/tls/fips140_test.go b/src/crypto/tls/fips140_test.go
+index 46d3076864..d3fa61dc97 100644
+--- a/src/crypto/tls/fips140_test.go
++++ b/src/crypto/tls/fips140_test.go
+@@ -18,6 +18,7 @@ import (
+ 	"internal/testenv"
+ 	"math/big"
+ 	"net"
++	"os"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+@@ -262,15 +263,19 @@ func fipsHandshake(t *testing.T, clientConfig, serverConfig *Config) (clientErr,
+ 
+ func TestFIPSServerSignatureAndHash(t *testing.T) {
+ 	defer func() {
+-		testingOnlyForceClientHelloSignatureAlgorithms = nil
++		testingOnlySupportedSignatureAlgorithms = nil
+ 	}()
++	defer func(godebug string) {
++		os.Setenv("GODEBUG", godebug)
++	}(os.Getenv("GODEBUG"))
++	os.Setenv("GODEBUG", "tlssha1=1")
+ 
+ 	for _, sigHash := range defaultSupportedSignatureAlgorithms() {
+ 		t.Run(fmt.Sprintf("%v", sigHash), func(t *testing.T) {
+ 			serverConfig := testConfig.Clone()
+ 			serverConfig.Certificates = make([]Certificate, 1)
+ 
+-			testingOnlyForceClientHelloSignatureAlgorithms = []SignatureScheme{sigHash}
++			testingOnlySupportedSignatureAlgorithms = []SignatureScheme{sigHash}
+ 
+ 			sigType, _, _ := typeAndHashFromSignatureScheme(sigHash)
+ 			switch sigType {
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 2d3a2ef25b..90c5bdacd8 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -20,7 +20,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"hash"
+-	"internal/byteorder"
+ 	"internal/godebug"
+ 	"io"
+ 	"net"
+@@ -42,8 +41,6 @@ type clientHandshakeState struct {
+ 	ticket       []byte        // a fresh ticket received during this handshake
+ }
+ 
+-var testingOnlyForceClientHelloSignatureAlgorithms []SignatureScheme
+-
+ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echClientContext, error) {
+ 	config := c.config
+ 	if len(config.ServerName) == 0 && !config.InsecureSkipVerify {
+@@ -126,9 +123,6 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
+ 		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms(minVersion)
+ 		hello.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithmsCert()
+ 	}
+-	if testingOnlyForceClientHelloSignatureAlgorithms != nil {
+-		hello.supportedSignatureAlgorithms = testingOnlyForceClientHelloSignatureAlgorithms
+-	}
+ 
+ 	var keyShareKeys *keySharePrivateKeys
+ 	if maxVersion >= VersionTLS13 {
+@@ -732,8 +726,9 @@ func (hs *clientHandshakeState) doFullHandshake() error {
+ 			c.sendAlert(alertIllegalParameter)
+ 			return err
+ 		}
+-		if len(skx.key) >= 3 && skx.key[0] == 3 /* named curve */ {
+-			c.curveID = CurveID(byteorder.BEUint16(skx.key[1:]))
++		if keyAgreement, ok := keyAgreement.(*ecdheKeyAgreement); ok {
++			c.curveID = keyAgreement.curveID
++			c.peerSigAlg = keyAgreement.signatureAlgorithm
+ 		}
+ 
+ 		msg, err = c.readHandshake(&hs.finishedHash)
+@@ -819,7 +814,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
+ 		if c.vers >= VersionTLS12 {
+ 			signatureAlgorithm, err := selectSignatureScheme(c.vers, chainToSend, certReq.supportedSignatureAlgorithms)
+ 			if err != nil {
+-				c.sendAlert(alertIllegalParameter)
++				c.sendAlert(alertHandshakeFailure)
+ 				return err
+ 			}
+ 			sigType, sigHash, err = typeAndHashFromSignatureScheme(signatureAlgorithm)
+diff --git a/src/crypto/tls/handshake_client_tls13.go b/src/crypto/tls/handshake_client_tls13.go
+index bf3cab97b8..4f4966904f 100644
+--- a/src/crypto/tls/handshake_client_tls13.go
++++ b/src/crypto/tls/handshake_client_tls13.go
+@@ -694,6 +694,7 @@ func (hs *clientHandshakeStateTLS13) readServerCertificate() error {
+ 		c.sendAlert(alertDecryptError)
+ 		return errors.New("tls: invalid signature by the server certificate: " + err.Error())
+ 	}
++	c.peerSigAlg = certVerify.signatureAlgorithm
+ 
+ 	if err := transcriptMsg(certVerify, hs.transcript); err != nil {
+ 		return err
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 6848407e74..8240e6afae 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -16,7 +16,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"hash"
+-	"internal/byteorder"
+ 	"io"
+ 	"time"
+ )
+@@ -632,8 +631,9 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 		return err
+ 	}
+ 	if skx != nil {
+-		if len(skx.key) >= 3 && skx.key[0] == 3 /* named curve */ {
+-			c.curveID = CurveID(byteorder.BEUint16(skx.key[1:]))
++		if keyAgreement, ok := keyAgreement.(*ecdheKeyAgreement); ok {
++			c.curveID = keyAgreement.curveID
++			c.peerSigAlg = keyAgreement.signatureAlgorithm
+ 		}
+ 		if _, err := hs.c.writeHandshakeRecord(skx, &hs.finishedHash); err != nil {
+ 			return err
+@@ -789,6 +789,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 			c.sendAlert(alertDecryptError)
+ 			return errors.New("tls: invalid signature by the client certificate: " + err.Error())
+ 		}
++		c.peerSigAlg = certVerify.signatureAlgorithm
+ 
+ 		if err := transcriptMsg(certVerify, &hs.finishedHash); err != nil {
+ 			return err
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index 090ff67fb7..dbd6ff2c4f 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -1115,6 +1115,7 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
+ 			c.sendAlert(alertDecryptError)
+ 			return errors.New("tls: invalid signature by the client certificate: " + err.Error())
+ 		}
++		c.peerSigAlg = certVerify.signatureAlgorithm
+ 
+ 		if err := transcriptMsg(certVerify, hs.transcript); err != nil {
+ 			return err
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index 3daa1aa40b..88116f941e 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -165,25 +165,29 @@ type ecdheKeyAgreement struct {
+ 	// and returned in generateClientKeyExchange.
+ 	ckx             *clientKeyExchangeMsg
+ 	preMasterSecret []byte
++
++	// curveID and signatureAlgorithm are set by processServerKeyExchange and
++	// generateServerKeyExchange.
++	curveID            CurveID
++	signatureAlgorithm SignatureScheme
+ }
+ 
+ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Certificate, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, error) {
+-	var curveID CurveID
+ 	for _, c := range clientHello.supportedCurves {
+ 		if config.supportsCurve(ka.version, c) {
+-			curveID = c
++			ka.curveID = c
+ 			break
+ 		}
+ 	}
+ 
+-	if curveID == 0 {
++	if ka.curveID == 0 {
+ 		return nil, errors.New("tls: no supported elliptic curves offered")
+ 	}
+-	if _, ok := curveForCurveID(curveID); !ok {
++	if _, ok := curveForCurveID(ka.curveID); !ok {
+ 		return nil, errors.New("tls: CurvePreferences includes unsupported curve")
+ 	}
+ 
+-	key, err := generateECDHEKey(config.rand(), curveID)
++	key, err := generateECDHEKey(config.rand(), ka.curveID)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -193,8 +197,8 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
+ 	ecdhePublic := key.PublicKey().Bytes()
+ 	serverECDHEParams := make([]byte, 1+2+1+len(ecdhePublic))
+ 	serverECDHEParams[0] = 3 // named curve
+-	serverECDHEParams[1] = byte(curveID >> 8)
+-	serverECDHEParams[2] = byte(curveID)
++	serverECDHEParams[1] = byte(ka.curveID >> 8)
++	serverECDHEParams[2] = byte(ka.curveID)
+ 	serverECDHEParams[3] = byte(len(ecdhePublic))
+ 	copy(serverECDHEParams[4:], ecdhePublic)
+ 
+@@ -203,15 +207,14 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
+ 		return nil, fmt.Errorf("tls: certificate private key of type %T does not implement crypto.Signer", cert.PrivateKey)
+ 	}
+ 
+-	var signatureAlgorithm SignatureScheme
+ 	var sigType uint8
+ 	var sigHash crypto.Hash
+ 	if ka.version >= VersionTLS12 {
+-		signatureAlgorithm, err = selectSignatureScheme(ka.version, cert, clientHello.supportedSignatureAlgorithms)
++		ka.signatureAlgorithm, err = selectSignatureScheme(ka.version, cert, clientHello.supportedSignatureAlgorithms)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		sigType, sigHash, err = typeAndHashFromSignatureScheme(signatureAlgorithm)
++		sigType, sigHash, err = typeAndHashFromSignatureScheme(ka.signatureAlgorithm)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+@@ -249,8 +252,8 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
+ 	copy(skx.key, serverECDHEParams)
+ 	k := skx.key[len(serverECDHEParams):]
+ 	if ka.version >= VersionTLS12 {
+-		k[0] = byte(signatureAlgorithm >> 8)
+-		k[1] = byte(signatureAlgorithm)
++		k[0] = byte(ka.signatureAlgorithm >> 8)
++		k[1] = byte(ka.signatureAlgorithm)
+ 		k = k[2:]
+ 	}
+ 	k[0] = byte(len(sig) >> 8)
+@@ -284,7 +287,7 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
+ 	if skx.key[0] != 3 { // named curve
+ 		return errors.New("tls: server selected unsupported curve")
+ 	}
+-	curveID := CurveID(skx.key[1])<<8 | CurveID(skx.key[2])
++	ka.curveID = CurveID(skx.key[1])<<8 | CurveID(skx.key[2])
+ 
+ 	publicLen := int(skx.key[3])
+ 	if publicLen+4 > len(skx.key) {
+@@ -298,15 +301,15 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
+ 		return errServerKeyExchange
+ 	}
+ 
+-	if !slices.Contains(clientHello.supportedCurves, curveID) {
++	if !slices.Contains(clientHello.supportedCurves, ka.curveID) {
+ 		return errors.New("tls: server selected unoffered curve")
+ 	}
+ 
+-	if _, ok := curveForCurveID(curveID); !ok {
++	if _, ok := curveForCurveID(ka.curveID); !ok {
+ 		return errors.New("tls: server selected unsupported curve")
+ 	}
+ 
+-	key, err := generateECDHEKey(config.rand(), curveID)
++	key, err := generateECDHEKey(config.rand(), ka.curveID)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -330,16 +333,16 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
+ 	var sigType uint8
+ 	var sigHash crypto.Hash
+ 	if ka.version >= VersionTLS12 {
+-		signatureAlgorithm := SignatureScheme(sig[0])<<8 | SignatureScheme(sig[1])
++		ka.signatureAlgorithm = SignatureScheme(sig[0])<<8 | SignatureScheme(sig[1])
+ 		sig = sig[2:]
+ 		if len(sig) < 2 {
+ 			return errServerKeyExchange
+ 		}
+ 
+-		if !isSupportedSignatureAlgorithm(signatureAlgorithm, clientHello.supportedSignatureAlgorithms) {
++		if !isSupportedSignatureAlgorithm(ka.signatureAlgorithm, clientHello.supportedSignatureAlgorithms) {
+ 			return errors.New("tls: certificate used with invalid signature algorithm")
+ 		}
+-		sigType, sigHash, err = typeAndHashFromSignatureScheme(signatureAlgorithm)
++		sigType, sigHash, err = typeAndHashFromSignatureScheme(ka.signatureAlgorithm)
+ 		if err != nil {
+ 			return err
+ 		}

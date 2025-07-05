@@ -11,6 +11,20 @@ Date:   Fri Mar 15 12:30:14 2013 -0400
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7813045
-
+---
  include/libc.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/libc.h b/include/libc.h
+index 5fd56b8bfe..fab1532f22 100644
+--- a/include/libc.h
++++ b/include/libc.h
+@@ -308,7 +308,7 @@ extern	void	flagprint(int);
+ 
+ #ifdef _WIN32
+ 
+-#ifndef _WIN64
++#if !defined(_WIN64) && !defined(__MINGW64_VERSION_MAJOR)
+ struct timespec {
+ 	int tv_sec;
+ 	long tv_nsec;

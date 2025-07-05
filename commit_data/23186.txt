@@ -20,7 +20,39 @@ Date:   Wed Apr 29 02:42:43 2015 -0400
     Change-Id: I57cd63232022b113b6cd61e987b0684ebcce930a
     Reviewed-on: https://go-review.googlesource.com/9457
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/norace_linux_test.go | 7 +------
  src/runtime/sys_linux_arm.s      | 1 +
  2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/norace_linux_test.go b/src/runtime/norace_linux_test.go
+index c355ccc0f8..bbf9d0b413 100644
+--- a/src/runtime/norace_linux_test.go
++++ b/src/runtime/norace_linux_test.go
+@@ -24,13 +24,8 @@ func newOSProcCreated() {
+ // Can't be run with -race because it inserts calls into newOSProcCreated()
+ // that require a valid G/M.
+ func TestNewOSProc0(t *testing.T) {
+-	if runtime.GOOS == "android" && runtime.GOARCH == "arm" {
+-		// newosproc0 does not work for android/arm.
+-		// See issue 10548.
+-		t.Skipf("skipping on %v", runtime.GOOS)
+-	}
+ 	runtime.NewOSProc0(0x800000, unsafe.Pointer(runtime.FuncPC(newOSProcCreated)))
+-	check := time.NewTicker(1 * time.Second)
++	check := time.NewTicker(100 * time.Millisecond)
+ 	defer check.Stop()
+ 	end := time.After(5 * time.Second)
+ 	for {
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 3936cd93a8..50f074a234 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -308,6 +308,7 @@ nog:
+ 	BL	(R0)
+ 
+ 	// It shouldn't return.  If it does, exit that thread.
++	SUB	$16, R13 // restore the stack pointer to avoid memory corruption
+ 	MOVW	$0, R0
+ 	MOVW	R0, 4(R13)
+ 	BL	runtime·exit1(SB)

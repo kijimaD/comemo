@@ -33,8 +33,54 @@ Date:   Fri Apr 5 22:28:31 2019 +0200
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/bench_test.go   | 2 +-
  src/encoding/json/example_test.go | 1 -
  src/encoding/json/stream_test.go  | 2 --
  3 files changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/encoding/json/bench_test.go b/src/encoding/json/bench_test.go
+index c81ab8e993..f2592e3dbd 100644
+--- a/src/encoding/json/bench_test.go
++++ b/src/encoding/json/bench_test.go
+@@ -242,7 +242,7 @@ func BenchmarkCodeUnmarshalReuse(b *testing.B) {
+ 			}
+ 		}
+ 	})
+-	// TODO(bcmills): Is there a missing b.SetBytes here?
++	b.SetBytes(int64(len(codeJSON)))
+ }
+ 
+ func BenchmarkUnmarshalString(b *testing.B) {
+diff --git a/src/encoding/json/example_test.go b/src/encoding/json/example_test.go
+index 4c075ddaa6..2088c34297 100644
+--- a/src/encoding/json/example_test.go
++++ b/src/encoding/json/example_test.go
+@@ -170,7 +170,6 @@ func ExampleDecoder_Decode_stream() {
+ 	// Sam: Go fmt who?
+ 	// Ed: Go fmt yourself!
+ 	// json.Delim: ]
+-
+ }
+ 
+ // This example uses RawMessage to delay parsing part of a JSON message.
+diff --git a/src/encoding/json/stream_test.go b/src/encoding/json/stream_test.go
+index 8dc74e5466..1d1999da25 100644
+--- a/src/encoding/json/stream_test.go
++++ b/src/encoding/json/stream_test.go
+@@ -368,7 +368,6 @@ var tokenStreamCases = []tokenStreamCase{
+ }
+ 
+ func TestDecodeInStream(t *testing.T) {
+-
+ 	for ci, tcase := range tokenStreamCases {
+ 
+ 		dec := NewDecoder(strings.NewReader(tcase.json))
+@@ -401,7 +400,6 @@ func TestDecodeInStream(t *testing.T) {
+ 			}
+ 		}
+ 	}
+-
+ }
+ 
+ // Test from golang.org/issue/11893

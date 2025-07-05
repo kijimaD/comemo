@@ -12,6 +12,25 @@ Date:   Wed Sep 28 21:25:56 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 754139c566..6925d73834 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -897,13 +897,6 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 	p.append(prog, cond, true)
+ }
+ 
+-// newAddr returns a new(Addr) initialized to x.
+-func newAddr(x obj.Addr) *obj.Addr {
+-	p := new(obj.Addr)
+-	*p = x
+-	return p
+-}
+-
+ // symbolName returns the symbol name, or an error string if none if available.
+ func symbolName(addr *obj.Addr) string {
+ 	if addr.Sym != nil {

@@ -17,6 +17,24 @@ Date:   Wed Aug 26 15:06:43 2015 -0400
     Change-Id: If824d95191d07e2512dc5dba0d9978cfd9f54e02
     Reviewed-on: https://go-review.googlesource.com/13948
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/asm_amd64.s | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index d165e08333..dc975bebc2 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -346,7 +346,12 @@ TEXT runtime·stackBarrier(SB),NOSPLIT,$0
+ 	MOVQ	(g_stkbar+slice_array)(CX), DX
+ 	MOVQ	g_stkbarPos(CX), BX
+ 	IMULQ	$stkbar__size, BX	// Too big for SIB.
++	MOVQ	stkbar_savedLRPtr(DX)(BX*1), R8
+ 	MOVQ	stkbar_savedLRVal(DX)(BX*1), BX
++	// Assert that we're popping the right saved LR.
++	CMPQ	R8, SP
++	JNE	2(PC)
++	MOVL	$0, 0
+ 	// Record that this stack barrier was hit.
+ 	ADDQ	$1, g_stkbarPos(CX)
+ 	// Jump to the original return PC.

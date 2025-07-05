@@ -63,7 +63,81 @@ Date:   Tue Feb 7 16:00:39 2017 -0600
     Change-Id: Ia76b247372b6f5b5d23a9f10253a86536a5153b3
     Reviewed-on: https://go-review.googlesource.com/36489
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/bytes.go     | 32 +++++++++-----------------------
  src/strings/strings.go |  7 +++----
  2 files changed, 12 insertions(+), 27 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 406a38257a..a273a91911 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -49,33 +49,19 @@ func explode(s []byte, n int) [][]byte {
+ // Count counts the number of non-overlapping instances of sep in s.
+ // If sep is an empty slice, Count returns 1 + the number of Unicode code points in s.
+ func Count(s, sep []byte) int {
+-	n := len(sep)
+-	if n == 0 {
++	n := 0
++	// special case
++	if len(sep) == 0 {
+ 		return utf8.RuneCount(s) + 1
+ 	}
+-	if n > len(s) {
+-		return 0
+-	}
+-	count := 0
+-	c := sep[0]
+-	i := 0
+-	t := s[:len(s)-n+1]
+-	for i < len(t) {
+-		if t[i] != c {
+-			o := IndexByte(t[i:], c)
+-			if o < 0 {
+-				break
+-			}
+-			i += o
+-		}
+-		if n == 1 || Equal(s[i:i+n], sep) {
+-			count++
+-			i += n
+-			continue
++	for {
++		i := Index(s, sep)
++		if i == -1 {
++			return n
+ 		}
+-		i++
++		n++
++		s = s[i+len(sep):]
+ 	}
+-	return count
+ }
+ 
+ // Contains reports whether subslice is within b.
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 60a281a6ac..2b1fbab5b2 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -76,18 +76,17 @@ func hashStrRev(sep string) (uint32, uint32) {
+ // If sep is an empty string, Count returns 1 + the number of Unicode code points in s.
+ func Count(s, sep string) int {
+ 	n := 0
+-	// special cases
++	// special case
+ 	if len(sep) == 0 {
+ 		return utf8.RuneCountInString(s) + 1
+ 	}
+-	offset := 0
+ 	for {
+-		i := Index(s[offset:], sep)
++		i := Index(s, sep)
+ 		if i == -1 {
+ 			return n
+ 		}
+ 		n++
+-		offset += i + len(sep)
++		s = s[i+len(sep):]
+ 	}
+ }
+ 

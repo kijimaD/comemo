@@ -13,7 +13,7 @@ Date:   Sat Aug 22 14:07:30 2020 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go       |  4 ++--
  src/cmd/compile/internal/gc/escape.go    | 12 ++++++------
  src/cmd/compile/internal/gc/gsubr.go     |  3 +--
@@ -27,3 +27,422 @@ Date:   Sat Aug 22 14:07:30 2020 -0700
  src/cmd/compile/internal/gc/walk.go      | 14 +++++++-------
  src/cmd/compile/internal/types/type.go   | 16 ++++++++--------
  12 files changed, 45 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 628953741a..4b843aba35 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -384,7 +384,7 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
+ 			return unsafeUintptrTag
+ 		}
+ 
+-		if !types.Haspointers(f.Type) { // don't bother tagging for scalars
++		if !f.Type.HasPointers() { // don't bother tagging for scalars
+ 			return ""
+ 		}
+ 
+@@ -422,7 +422,7 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
+ 		}
+ 	}
+ 
+-	if !types.Haspointers(f.Type) { // don't bother tagging for scalars
++	if !f.Type.HasPointers() { // don't bother tagging for scalars
+ 		return ""
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 5dc755186e..ddf89f6159 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -326,7 +326,7 @@ func (e *Escape) stmt(n *Node) {
+ 			if typesw && n.Left.Left != nil {
+ 				cv := cas.Rlist.First()
+ 				k := e.dcl(cv) // type switch variables have no ODCL.
+-				if types.Haspointers(cv.Type) {
++				if cv.Type.HasPointers() {
+ 					ks = append(ks, k.dotType(cv.Type, cas, "switch case"))
+ 				}
+ 			}
+@@ -433,7 +433,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
+ 
+ 	if uintptrEscapesHack && n.Op == OCONVNOP && n.Left.Type.IsUnsafePtr() {
+ 		// nop
+-	} else if k.derefs >= 0 && !types.Haspointers(n.Type) {
++	} else if k.derefs >= 0 && !n.Type.HasPointers() {
+ 		k = e.discardHole()
+ 	}
+ 
+@@ -698,7 +698,7 @@ func (e *Escape) addr(n *Node) EscHole {
+ 		e.assignHeap(n.Right, "key of map put", n)
+ 	}
+ 
+-	if !types.Haspointers(n.Type) {
++	if !n.Type.HasPointers() {
+ 		k = e.discardHole()
+ 	}
+ 
+@@ -811,14 +811,14 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
+ 		// slice might be allocated, and all slice elements
+ 		// might flow to heap.
+ 		appendeeK := ks[0]
+-		if types.Haspointers(args[0].Type.Elem()) {
++		if args[0].Type.Elem().HasPointers() {
+ 			appendeeK = e.teeHole(appendeeK, e.heapHole().deref(call, "appendee slice"))
+ 		}
+ 		argument(appendeeK, args[0])
+ 
+ 		if call.IsDDD() {
+ 			appendedK := e.discardHole()
+-			if args[1].Type.IsSlice() && types.Haspointers(args[1].Type.Elem()) {
++			if args[1].Type.IsSlice() && args[1].Type.Elem().HasPointers() {
+ 				appendedK = e.heapHole().deref(call, "appended slice...")
+ 			}
+ 			argument(appendedK, args[1])
+@@ -832,7 +832,7 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
+ 		argument(e.discardHole(), call.Left)
+ 
+ 		copiedK := e.discardHole()
+-		if call.Right.Type.IsSlice() && types.Haspointers(call.Right.Type.Elem()) {
++		if call.Right.Type.IsSlice() && call.Right.Type.Elem().HasPointers() {
+ 			copiedK = e.heapHole().deref(call, "copied slice")
+ 		}
+ 		argument(copiedK, call.Right)
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 336e870bbd..15a84a8a43 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -32,7 +32,6 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/ssa"
+-	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+@@ -316,7 +315,7 @@ func ggloblnod(nam *Node) {
+ 	if nam.Name.Readonly() {
+ 		flags = obj.RODATA
+ 	}
+-	if nam.Type != nil && !types.Haspointers(nam.Type) {
++	if nam.Type != nil && !nam.Type.HasPointers() {
+ 		flags |= obj.NOPTR
+ 	}
+ 	Ctxt.Globl(s, nam.Type.Width, flags)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 50d1a2a1b0..aa91160e5c 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -927,7 +927,7 @@ func (o *Order) stmt(n *Node) {
+ 						n2.Ninit.Append(tmp2)
+ 					}
+ 
+-					r.Left = o.newTemp(r.Right.Left.Type.Elem(), types.Haspointers(r.Right.Left.Type.Elem()))
++					r.Left = o.newTemp(r.Right.Left.Type.Elem(), r.Right.Left.Type.Elem().HasPointers())
+ 					tmp2 := nod(OAS, tmp1, r.Left)
+ 					tmp2 = typecheck(tmp2, ctxStmt)
+ 					n2.Ninit.Append(tmp2)
+@@ -1406,7 +1406,7 @@ func (o *Order) as2(n *Node) {
+ 	left := []*Node{}
+ 	for ni, l := range n.List.Slice() {
+ 		if !l.isBlank() {
+-			tmp := o.newTemp(l.Type, types.Haspointers(l.Type))
++			tmp := o.newTemp(l.Type, l.Type.HasPointers())
+ 			n.List.SetIndex(ni, tmp)
+ 			tmplist = append(tmplist, tmp)
+ 			left = append(left, l)
+@@ -1428,7 +1428,7 @@ func (o *Order) okAs2(n *Node) {
+ 	var tmp1, tmp2 *Node
+ 	if !n.List.First().isBlank() {
+ 		typ := n.Right.Type
+-		tmp1 = o.newTemp(typ, types.Haspointers(typ))
++		tmp1 = o.newTemp(typ, typ.HasPointers())
+ 	}
+ 
+ 	if !n.List.Second().isBlank() {
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index f80d0c179d..ca8cccf4ae 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -80,8 +80,8 @@ func cmpstackvarlt(a, b *Node) bool {
+ 		return a.Name.Used()
+ 	}
+ 
+-	ap := types.Haspointers(a.Type)
+-	bp := types.Haspointers(b.Type)
++	ap := a.Type.HasPointers()
++	bp := b.Type.HasPointers()
+ 	if ap != bp {
+ 		return ap
+ 	}
+@@ -176,7 +176,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		}
+ 		s.stksize += w
+ 		s.stksize = Rnd(s.stksize, int64(n.Type.Align))
+-		if types.Haspointers(n.Type) {
++		if n.Type.HasPointers() {
+ 			s.stkptrsize = s.stksize
+ 			lastHasPtr = true
+ 		} else {
+diff --git a/src/cmd/compile/internal/gc/pgen_test.go b/src/cmd/compile/internal/gc/pgen_test.go
+index 89b977de85..41f0808a1c 100644
+--- a/src/cmd/compile/internal/gc/pgen_test.go
++++ b/src/cmd/compile/internal/gc/pgen_test.go
+@@ -185,8 +185,8 @@ func TestStackvarSort(t *testing.T) {
+ 	// exercise this function on all inputs so that reflect.DeepEqual
+ 	// doesn't produce false positives.
+ 	for i := range want {
+-		types.Haspointers(want[i].Type)
+-		types.Haspointers(inp[i].Type)
++		want[i].Type.HasPointers()
++		inp[i].Type.HasPointers()
+ 	}
+ 
+ 	sort.Sort(byStackVar(inp))
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 0cb2661997..398bfe5baa 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -259,7 +259,7 @@ func (v *varRegVec) AndNot(v1, v2 varRegVec) {
+ // nor do we care about empty structs (handled by the pointer check),
+ // nor do we care about the fake PAUTOHEAP variables.
+ func livenessShouldTrack(n *Node) bool {
+-	return n.Op == ONAME && (n.Class() == PAUTO || n.Class() == PPARAM || n.Class() == PPARAMOUT) && types.Haspointers(n.Type)
++	return n.Op == ONAME && (n.Class() == PAUTO || n.Class() == PPARAM || n.Class() == PPARAMOUT) && n.Type.HasPointers()
+ }
+ 
+ // getvariables returns the list of on-stack variables that we need to track
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 1cf0a0862f..d78a5f0d8d 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -334,7 +334,7 @@ func walkrange(n *Node) *Node {
+ 
+ 		hv1 := temp(t.Elem())
+ 		hv1.SetTypecheck(1)
+-		if types.Haspointers(t.Elem()) {
++		if t.Elem().HasPointers() {
+ 			init = append(init, nod(OAS, hv1, nil))
+ 		}
+ 		hb := temp(types.Types[TBOOL])
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 59b00168e0..49b2a0ed49 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -119,7 +119,7 @@ func bmap(t *types.Type) *types.Type {
+ 	// the type of the overflow field to uintptr in this case.
+ 	// See comment on hmap.overflow in runtime/map.go.
+ 	otyp := types.NewPtr(bucket)
+-	if !types.Haspointers(elemtype) && !types.Haspointers(keytype) {
++	if !elemtype.HasPointers() && !keytype.HasPointers() {
+ 		otyp = types.Types[TUINTPTR]
+ 	}
+ 	overflow := makefield("overflow", otyp)
+@@ -754,7 +754,7 @@ var kinds = []int{
+ // typeptrdata returns the length in bytes of the prefix of t
+ // containing pointer data. Anything after this offset is scalar data.
+ func typeptrdata(t *types.Type) int64 {
+-	if !types.Haspointers(t) {
++	if !t.HasPointers() {
+ 		return 0
+ 	}
+ 
+@@ -788,7 +788,7 @@ func typeptrdata(t *types.Type) int64 {
+ 		// Find the last field that has pointers.
+ 		var lastPtrField *types.Field
+ 		for _, t1 := range t.Fields().Slice() {
+-			if types.Haspointers(t1.Type) {
++			if t1.Type.HasPointers() {
+ 				lastPtrField = t1
+ 			}
+ 		}
+@@ -1734,7 +1734,7 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
+ 	for i := range ptrmask {
+ 		ptrmask[i] = 0
+ 	}
+-	if !types.Haspointers(t) {
++	if !t.HasPointers() {
+ 		return
+ 	}
+ 
+@@ -1803,7 +1803,7 @@ func (p *GCProg) end() {
+ 
+ func (p *GCProg) emit(t *types.Type, offset int64) {
+ 	dowidth(t)
+-	if !types.Haspointers(t) {
++	if !t.HasPointers() {
+ 		return
+ 	}
+ 	if t.Width == int64(Widthptr) {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4124655b79..956569b86f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4207,7 +4207,7 @@ func (s *state) openDeferSave(n *Node, t *types.Type, val *ssa.Value) *ssa.Value
+ 		s.vars[&memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argTemp, s.mem(), false)
+ 		addrArgTemp = s.newValue2Apos(ssa.OpLocalAddr, types.NewPtr(argTemp.Type), argTemp, s.sp, s.mem(), false)
+ 	}
+-	if types.Haspointers(t) {
++	if t.HasPointers() {
+ 		// Since we may use this argTemp during exit depending on the
+ 		// deferBits, we must define it unconditionally on entry.
+ 		// Therefore, we must make sure it is zeroed out in the entry
+@@ -4309,12 +4309,12 @@ func (s *state) openDeferExit() {
+ 			s.vars[&memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.closureNode, s.mem(), false)
+ 		}
+ 		if r.rcvrNode != nil {
+-			if types.Haspointers(r.rcvrNode.Type) {
++			if r.rcvrNode.Type.HasPointers() {
+ 				s.vars[&memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.rcvrNode, s.mem(), false)
+ 			}
+ 		}
+ 		for _, argNode := range r.argNodes {
+-			if types.Haspointers(argNode.Type) {
++			if argNode.Type.HasPointers() {
+ 				s.vars[&memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argNode, s.mem(), false)
+ 			}
+ 		}
+@@ -4954,7 +4954,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ func (s *state) storeType(t *types.Type, left, right *ssa.Value, skip skipMask, leftIsStmt bool) {
+ 	s.instrument(t, left, true)
+ 
+-	if skip == 0 && (!types.Haspointers(t) || ssa.IsStackAddr(left)) {
++	if skip == 0 && (!t.HasPointers() || ssa.IsStackAddr(left)) {
+ 		// Known to not have write barrier. Store the whole type.
+ 		s.vars[&memVar] = s.newValue3Apos(ssa.OpStore, types.TypeMem, t, left, right, s.mem(), leftIsStmt)
+ 		return
+@@ -4966,7 +4966,7 @@ func (s *state) storeType(t *types.Type, left, right *ssa.Value, skip skipMask,
+ 	// TODO: if the writebarrier pass knows how to reorder stores,
+ 	// we can do a single store here as long as skip==0.
+ 	s.storeTypeScalars(t, left, right, skip)
+-	if skip&skipPtr == 0 && types.Haspointers(t) {
++	if skip&skipPtr == 0 && t.HasPointers() {
+ 		s.storeTypePtrs(t, left, right)
+ 	}
+ }
+@@ -5038,7 +5038,7 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
+ 		n := t.NumFields()
+ 		for i := 0; i < n; i++ {
+ 			ft := t.FieldType(i)
+-			if !types.Haspointers(ft) {
++			if !ft.HasPointers() {
+ 				continue
+ 			}
+ 			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 74ed0411bd..77f88d8996 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -381,9 +381,9 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
+ 		switch {
+ 		case from.Size() == 2 && from.Align == 2:
+ 			return "convT16", false
+-		case from.Size() == 4 && from.Align == 4 && !types.Haspointers(from):
++		case from.Size() == 4 && from.Align == 4 && !from.HasPointers():
+ 			return "convT32", false
+-		case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
++		case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !from.HasPointers():
+ 			return "convT64", false
+ 		}
+ 		if sc := from.SoleComponent(); sc != nil {
+@@ -397,12 +397,12 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
+ 
+ 		switch tkind {
+ 		case 'E':
+-			if !types.Haspointers(from) {
++			if !from.HasPointers() {
+ 				return "convT2Enoptr", true
+ 			}
+ 			return "convT2E", true
+ 		case 'I':
+-			if !types.Haspointers(from) {
++			if !from.HasPointers() {
+ 				return "convT2Inoptr", true
+ 			}
+ 			return "convT2I", true
+@@ -1410,7 +1410,7 @@ opswitch:
+ 		copylen := nod(OLEN, n.Right, nil)
+ 		copyptr := nod(OSPTR, n.Right, nil)
+ 
+-		if !types.Haspointers(t.Elem()) && n.Bounded() {
++		if !t.Elem().HasPointers() && n.Bounded() {
+ 			// When len(to)==len(from) and elements have no pointers:
+ 			// replace make+copy with runtime.mallocgc+runtime.memmove.
+ 
+@@ -2865,7 +2865,7 @@ func isAppendOfMake(n *Node) bool {
+ //     s = s[:n]
+ //     lptr := &l1[0]
+ //     sptr := &s[0]
+-//     if lptr == sptr || !hasPointers(T) {
++//     if lptr == sptr || !T.HasPointers() {
+ //       // growslice did not clear the whole underlying array (or did not get called)
+ //       hp := &s[len(l1)]
+ //       hn := l2 * sizeof(T)
+@@ -2946,7 +2946,7 @@ func extendslice(n *Node, init *Nodes) *Node {
+ 	hn = conv(hn, types.Types[TUINTPTR])
+ 
+ 	clrname := "memclrNoHeapPointers"
+-	hasPointers := types.Haspointers(elemtype)
++	hasPointers := elemtype.HasPointers()
+ 	if hasPointers {
+ 		clrname = "memclrHasPointers"
+ 		Curfn.Func.setWBPos(n.Pos)
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 91b54b43d4..20ae856bba 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1401,11 +1401,11 @@ func (t *Type) IsUntyped() bool {
+ // TODO(austin): We probably only need HasHeapPointer. See
+ // golang.org/cl/73412 for discussion.
+ 
+-func Haspointers(t *Type) bool {
+-	return Haspointers1(t, false)
++func (t *Type) HasPointers() bool {
++	return t.hasPointers1(false)
+ }
+ 
+-func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
++func (t *Type) hasPointers1(ignoreNotInHeap bool) bool {
+ 	switch t.Etype {
+ 	case TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64,
+ 		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL, TSSA:
+@@ -1415,11 +1415,11 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
+ 		if t.NumElem() == 0 { // empty array has no pointers
+ 			return false
+ 		}
+-		return Haspointers1(t.Elem(), ignoreNotInHeap)
++		return t.Elem().hasPointers1(ignoreNotInHeap)
+ 
+ 	case TSTRUCT:
+ 		for _, t1 := range t.Fields().Slice() {
+-			if Haspointers1(t1.Type, ignoreNotInHeap) {
++			if t1.Type.hasPointers1(ignoreNotInHeap) {
+ 				return true
+ 			}
+ 		}
+@@ -1430,7 +1430,7 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
+ 
+ 	case TTUPLE:
+ 		ttup := t.Extra.(*Tuple)
+-		return Haspointers1(ttup.first, ignoreNotInHeap) || Haspointers1(ttup.second, ignoreNotInHeap)
++		return ttup.first.hasPointers1(ignoreNotInHeap) || ttup.second.hasPointers1(ignoreNotInHeap)
+ 	}
+ 
+ 	return true
+@@ -1440,7 +1440,7 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
+ // This is used for write barrier insertion, so it ignores
+ // pointers to go:notinheap types.
+ func (t *Type) HasHeapPointer() bool {
+-	return Haspointers1(t, true)
++	return t.hasPointers1(true)
+ }
+ 
+ func (t *Type) Symbol() *obj.LSym {
+@@ -1471,7 +1471,7 @@ func FakeRecvType() *Type {
+ }
+ 
+ var (
+-	// TSSA types. Haspointers assumes these are pointer-free.
++	// TSSA types. HasPointers assumes these are pointer-free.
+ 	TypeInvalid = newSSA("invalid")
+ 	TypeMem     = newSSA("mem")
+ 	TypeFlags   = newSSA("flags")

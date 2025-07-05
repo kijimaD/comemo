@@ -13,10 +13,160 @@ Date:   Wed Feb 25 17:28:52 2015 +0900
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/asm_386.s      | 12 ------------
  src/runtime/asm_amd64.s    | 12 ------------
  src/runtime/asm_amd64p32.s | 12 ------------
  src/runtime/asm_arm.s      | 11 -----------
  src/runtime/asm_ppc64x.s   | 12 ------------
  5 files changed, 59 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 1574b3060d..f559b0fd5a 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -858,12 +858,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$0-8
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+-TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-8
+-	MOVL	p+0(FP),AX		// addr of first arg
+-	MOVL	-4(AX),AX		// get calling pc
+-	MOVL	AX, ret+4(FP)
+-	RET
+-
+ TEXT runtime·setcallerpc(SB),NOSPLIT,$0-8
+ 	MOVL	argp+0(FP),AX		// addr of first arg
+ 	MOVL	pc+4(FP), BX
+@@ -875,12 +869,6 @@ TEXT runtime·getcallersp(SB), NOSPLIT, $0-8
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+-// func gogetcallersp(p unsafe.Pointer) uintptr
+-TEXT runtime·gogetcallersp(SB),NOSPLIT,$0-8
+-	MOVL	p+0(FP),AX		// addr of first arg
+-	MOVL	AX, ret+4(FP)
+-	RET
+-
+ // func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+ 	TESTL	$0x4000000, runtime·cpuid_edx(SB) // no sse2, no mfence
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index d3f88037ff..68bf38464e 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -855,12 +855,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$0-16
+ 	MOVQ	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-16
+-	MOVQ	p+0(FP),AX		// addr of first arg
+-	MOVQ	-8(AX),AX		// get calling pc
+-	MOVQ	AX,ret+8(FP)
+-	RET
+-
+ TEXT runtime·setcallerpc(SB),NOSPLIT,$0-16
+ 	MOVQ	argp+0(FP),AX		// addr of first arg
+ 	MOVQ	pc+8(FP), BX
+@@ -872,12 +866,6 @@ TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
+ 	MOVQ	AX, ret+8(FP)
+ 	RET
+ 
+-// func gogetcallersp(p unsafe.Pointer) uintptr
+-TEXT runtime·gogetcallersp(SB),NOSPLIT,$0-16
+-	MOVQ	p+0(FP),AX		// addr of first arg
+-	MOVQ	AX, ret+8(FP)
+-	RET
+-
+ // func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index f2324285a5..a1af9e36c9 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -611,12 +611,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$0-12
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-12
+-	MOVL	p+0(FP),AX		// addr of first arg
+-	MOVL	-8(AX),AX		// get calling pc
+-	MOVL	AX, ret+8(FP)
+-	RET
+-
+ TEXT runtime·setcallerpc(SB),NOSPLIT,$0-8
+ 	MOVL	argp+0(FP),AX		// addr of first arg
+ 	MOVL	pc+4(FP), BX		// pc to set
+@@ -628,12 +622,6 @@ TEXT runtime·getcallersp(SB),NOSPLIT,$0-12
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-// func gogetcallersp(p unsafe.Pointer) uintptr
+-TEXT runtime·gogetcallersp(SB),NOSPLIT,$0-12
+-	MOVL	p+0(FP),AX		// addr of first arg
+-	MOVL	AX, ret+8(FP)
+-	RET
+-
+ // int64 runtime·cputicks(void)
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	RDTSC
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 2b55f89098..ec85c82b24 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -650,10 +650,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-8
+ 	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+-TEXT runtime·gogetcallerpc(SB),NOSPLIT,$-4-8
+-	MOVW	R14, ret+4(FP)
+-	RET
+-
+ TEXT runtime·setcallerpc(SB),NOSPLIT,$-4-8
+ 	MOVW	pc+4(FP), R0
+ 	MOVW	R0, 0(R13)
+@@ -665,13 +661,6 @@ TEXT runtime·getcallersp(SB),NOSPLIT,$-4-8
+ 	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+-// func gogetcallersp(p unsafe.Pointer) uintptr
+-TEXT runtime·gogetcallersp(SB),NOSPLIT,$-4-8
+-	MOVW	addr+0(FP), R0
+-	MOVW	$-4(R0), R0
+-	MOVW	R0, ret+4(FP)
+-	RET
+-
+ TEXT runtime·emptyfunc(SB),0,$0-0
+ 	RET
+ 
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 694dfcc24e..ccb6754631 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -858,11 +858,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$-8-16
+ 	MOVD	R3, ret+8(FP)
+ 	RETURN
+ 
+-TEXT runtime·gogetcallerpc(SB),NOSPLIT,$-8-16
+-	MOVD	0(R1), R3
+-	MOVD	R3,ret+8(FP)
+-	RETURN
+-
+ TEXT runtime·setcallerpc(SB),NOSPLIT,$-8-16
+ 	MOVD	pc+8(FP), R3
+ 	MOVD	R3, 0(R1)		// set calling pc
+@@ -874,13 +869,6 @@ TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
+ 	MOVD	R3, ret+8(FP)
+ 	RETURN
+ 
+-// func gogetcallersp(p unsafe.Pointer) uintptr
+-TEXT runtime·gogetcallersp(SB),NOSPLIT,$0-16
+-	MOVD	sp+0(FP), R3
+-	SUB	$8, R3
+-	MOVD	R3,ret+8(FP)
+-	RETURN
+-
+ TEXT runtime·abort(SB),NOSPLIT,$-8-0
+ 	MOVW	(R0), R0
+ 	UNDEF

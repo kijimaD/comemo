@@ -22,7 +22,99 @@ Date:   Thu Dec 18 11:40:48 2014 -0500
     Change-Id: I8e87def8cc4cc5b75498b0fb543ac7666cf2964e
     Reviewed-on: https://go-review.googlesource.com/1758
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/9l/9.out.h |  7 ++++---
  src/liblink/asm9.c | 20 +++++++-------------
  2 files changed, 11 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/9l/9.out.h b/src/cmd/9l/9.out.h
+index 016163b6fa..e7601f0279 100644
+--- a/src/cmd/9l/9.out.h
++++ b/src/cmd/9l/9.out.h
+@@ -101,15 +101,16 @@ enum
+ 	C_SPR,		/* special processor register */
+ 	C_ZCON,
+ 	C_SCON,		/* 16 bit signed */
+-	C_UCON,		/* low 16 bits 0 */
++	C_UCON,		/* 32 bit signed, low 16 bits 0 */
+ 	C_ADDCON,	/* -0x8000 <= v < 0 */
+ 	C_ANDCON,	/* 0 < v <= 0xFFFF */
+ 	C_LCON,		/* other 32 */
+ 	C_DCON,		/* other 64 (could subdivide further) */
+-	C_SACON,	/* $n(REG) where n is small */
++	C_SACON,	/* $n(REG) where n <= int16 */
+ 	C_SECON,
+-	C_LACON,	/* $n(REG) where n is large */
++	C_LACON,	/* $n(REG) where int16 < n <= int32 */
+ 	C_LECON,
++	C_DACON,	/* $n(REG) where int32 < n */
+ 	C_SBRA,
+ 	C_LBRA,
+ 	C_SAUTO,
+diff --git a/src/liblink/asm9.c b/src/liblink/asm9.c
+index 5a379270d1..64fc651207 100644
+--- a/src/liblink/asm9.c
++++ b/src/liblink/asm9.c
+@@ -683,7 +683,9 @@ aclass(Link *ctxt, Addr *a)
+ 			if(a->reg != NREG) {
+ 				if(-BIG <= ctxt->instoffset && ctxt->instoffset <= BIG)
+ 					return C_SACON;
+-				return C_LACON;
++				if(isint32(ctxt->instoffset))
++					return C_LACON;
++				return C_DACON;
+ 			}
+ 		consize:
+ 			if(ctxt->instoffset >= 0) {
+@@ -1800,12 +1802,10 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+ 		if(p->to.reg == REGTMP)
+ 			ctxt->diag("can't synthesize large constant\n%P", p);
+ 		v = regoff(ctxt, &p->from);
+-		if(v & 0x8000L)
+-			v += 0x10000L;
+ 		r = p->from.reg;
+ 		if(r == NREG)
+ 			r = o->param;
+-		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, v>>16);
++		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, high16adjusted(v));
+ 		o2 = AOP_IRR(OP_ADDI, p->to.reg, REGTMP, v);
+ 		break;
+ 
+@@ -1913,34 +1913,28 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+ 
+ 	case 35:	/* mov r,lext/lauto/loreg ==> cau $(v>>16),sb,r'; store o(r') */
+ 		v = regoff(ctxt, &p->to);
+-		if(v & 0x8000L)
+-			v += 0x10000L;
+ 		r = p->to.reg;
+ 		if(r == NREG)
+ 			r = o->param;
+-		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, v>>16);
++		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, high16adjusted(v));
+ 		o2 = AOP_IRR(opstore(ctxt, p->as), p->from.reg, REGTMP, v);
+ 		break;
+ 
+ 	case 36:	/* mov bz/h/hz lext/lauto/lreg,r ==> lbz/lha/lhz etc */
+ 		v = regoff(ctxt, &p->from);
+-		if(v & 0x8000L)
+-			v += 0x10000L;
+ 		r = p->from.reg;
+ 		if(r == NREG)
+ 			r = o->param;
+-		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, v>>16);
++		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, high16adjusted(v));
+ 		o2 = AOP_IRR(opload(ctxt, p->as), p->to.reg, REGTMP, v);
+ 		break;
+ 
+ 	case 37:	/* movb lext/lauto/lreg,r ==> lbz o(reg),r; extsb r */
+ 		v = regoff(ctxt, &p->from);
+-		if(v & 0x8000L)
+-			v += 0x10000L;
+ 		r = p->from.reg;
+ 		if(r == NREG)
+ 			r = o->param;
+-		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, v>>16);
++		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, high16adjusted(v));
+ 		o2 = AOP_IRR(opload(ctxt, p->as), p->to.reg, REGTMP, v);
+ 		o3 = LOP_RRR(OP_EXTSB, p->to.reg, p->to.reg, 0);
+ 		break;

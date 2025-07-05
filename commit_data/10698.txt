@@ -7,6 +7,20 @@ Date:   Sun Dec 11 09:11:57 2011 -0800
     R=golang-dev, r, r
     CC=golang-dev
     https://golang.org/cl/5479061
-
+---
  src/pkg/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 6df00ddaea..a0614eb564 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -1027,7 +1027,7 @@ func (srv *Server) Serve(l net.Listener) error {
+ //		http.HandleFunc("/hello", HelloServer)
+ //		err := http.ListenAndServe(":12345", nil)
+ //		if err != nil {
+-//			log.Fatal("ListenAndServe: ", err.String())
++//			log.Fatal("ListenAndServe: ", err.Error())
+ //		}
+ //	}
+ func ListenAndServe(addr string, handler Handler) error {

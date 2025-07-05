@@ -8,7 +8,65 @@ Date:   Fri Dec 16 09:43:58 2011 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5490048
-
+---
  src/pkg/bytes/example_test.go | 24 ++++++++++++++++++++++++
  src/pkg/testing/example.go    |  9 ++++-----
  2 files changed, 28 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/bytes/example_test.go b/src/pkg/bytes/example_test.go
+new file mode 100644
+index 0000000000..02da1ac082
+--- /dev/null
++++ b/src/pkg/bytes/example_test.go
+@@ -0,0 +1,24 @@
++package bytes_test
++
++import (
++	. "bytes"
++	"encoding/base64"
++	"io"
++	"os"
++)
++
++// Hello world!
++func ExampleBuffer() {
++	var b Buffer // A Buffer needs no initialization.
++	b.Write([]byte("Hello "))
++	b.Write([]byte("world!"))
++	b.WriteTo(os.Stdout)
++}
++
++// Gophers rule!
++func ExampleBuffer_reader() {
++	// A Buffer can turn a string or a []byte into an io.Reader.
++	buf := NewBufferString("R29waGVycyBydWxlIQ==")
++	dec := base64.NewDecoder(base64.StdEncoding, buf)
++	io.Copy(os.Stdout, dec)
++}
+diff --git a/src/pkg/testing/example.go b/src/pkg/testing/example.go
+index e23f13b6f1..fdeda137e7 100644
+--- a/src/pkg/testing/example.go
++++ b/src/pkg/testing/example.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"os"
++	"strings"
+ 	"time"
+ )
+ 
+@@ -67,11 +68,9 @@ func RunExamples(examples []InternalExample) (ok bool) {
+ 
+ 		// report any errors
+ 		tstr := fmt.Sprintf("(%.2f seconds)", dt.Seconds())
+-		if out != eg.Output {
+-			fmt.Printf(
+-				"--- FAIL: %s %s\ngot:\n%s\nwant:\n%s\n",
+-				eg.Name, tstr, out, eg.Output,
+-			)
++		if g, e := strings.TrimSpace(out), strings.TrimSpace(eg.Output); g != e {
++			fmt.Printf("--- FAIL: %s %s\ngot:\n%s\nwant:\n%s\n",
++				eg.Name, tstr, g, e)
+ 			ok = false
+ 		} else if *chatty {
+ 			fmt.Printf("--- PASS: %s %s\n", eg.Name, tstr)

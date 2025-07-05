@@ -11,7 +11,36 @@ Date:   Thu Jul 15 23:53:47 2021 +0900
     Trust: Alex Brainman <alex.brainman@gmail.com>
     Trust: Hajime Hoshi <hajimehoshi@gmail.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/path/filepath/path_test.go    | 2 ++
  src/path/filepath/path_windows.go | 4 ++++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index bc5509b49c..55b27f1af8 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -791,6 +791,8 @@ var winisabstests = []IsAbsTest{
+ 	{`c:a\b`, false},
+ 	{`c:\a\b`, true},
+ 	{`c:/a/b`, true},
++	{`\\host\share`, true},
++	{`\\host\share\`, true},
+ 	{`\\host\share\foo`, true},
+ 	{`//host/share/foo/bar`, true},
+ }
+diff --git a/src/path/filepath/path_windows.go b/src/path/filepath/path_windows.go
+index 445c868e41..b4d8ac3301 100644
+--- a/src/path/filepath/path_windows.go
++++ b/src/path/filepath/path_windows.go
+@@ -45,6 +45,10 @@ func IsAbs(path string) (b bool) {
+ 	if l == 0 {
+ 		return false
+ 	}
++	// If the volume name starts with a double slash, this is a UNC path.
++	if isSlash(path[0]) && isSlash(path[1]) {
++		return true
++	}
+ 	path = path[l:]
+ 	if path == "" {
+ 		return false

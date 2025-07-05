@@ -9,6 +9,20 @@ Date:   Sun Feb 18 15:45:24 2018 +0200
     Change-Id: Ia834819f3260691a1a0181034ef4b4b945965688
     Reviewed-on: https://go-review.googlesource.com/94761
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/text/template/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/text/template/doc.go b/src/text/template/doc.go
+index d174ebd9cf..e64d27a757 100644
+--- a/src/text/template/doc.go
++++ b/src/text/template/doc.go
+@@ -121,7 +121,7 @@ data, defined in detail in the corresponding sections that follow.
+ 		A block is shorthand for defining a template
+ 			{{define "name"}} T1 {{end}}
+ 		and then executing it in place
+-			{{template "name" .}}
++			{{template "name" pipeline}}
+ 		The typical use is to define a set of root templates that are
+ 		then customized by redefining the block templates within.
+ 

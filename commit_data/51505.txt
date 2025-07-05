@@ -22,7 +22,7 @@ Date:   Mon Feb 7 11:28:14 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/383834
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/instantiate.go                |  2 ++
  .../compile/internal/types2/testdata/fixedbugs/issue51048.go2 | 11 +++++++++++
  src/cmd/compile/internal/types2/typeparam.go                  |  5 +++--
@@ -30,3 +30,104 @@ Date:   Mon Feb 7 11:28:14 2022 -0800
  src/go/types/testdata/fixedbugs/issue51048.go2                | 11 +++++++++++
  src/go/types/typeparam.go                                     |  6 +++---
  6 files changed, 32 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 90a669f754..f54938b6e1 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -135,6 +135,8 @@ func (check *Checker) validateTArgLen(pos syntax.Pos, ntparams, ntargs int) bool
+ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type) (int, error) {
+ 	smap := makeSubstMap(tparams, targs)
+ 	for i, tpar := range tparams {
++		// Ensure that we have a (possibly implicit) interface as type bound (issue #51048).
++		tpar.iface()
+ 		// The type parameter bound is parameterized with the same type parameters
+ 		// as the instantiated type; before we can use it for bounds checking we
+ 		// need to instantiate it with the type arguments with which we instantiated
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51048.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51048.go2
+new file mode 100644
+index 0000000000..58308370ea
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51048.go2
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[P int]() {
++	_ = f[P]
++}
++
++func f[T int]() {}
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index e32063a0af..971fdaec73 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -124,8 +124,9 @@ func (t *TypeParam) iface() *Interface {
+ 
+ 	// compute type set if necessary
+ 	if ityp.tset == nil {
+-		// use the (original) type bound position if we have one
+-		pos := nopos
++		// pos is used for tracing output; start with the type parameter position.
++		pos := t.obj.pos
++		// use the (original or possibly instantiated) type bound position if we have one
+ 		if n, _ := bound.(*Named); n != nil {
+ 			pos = n.obj.pos
+ 		}
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index aeb30fa412..4aeaeb7f11 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -135,6 +135,8 @@ func (check *Checker) validateTArgLen(pos token.Pos, ntparams, ntargs int) bool
+ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type) (int, error) {
+ 	smap := makeSubstMap(tparams, targs)
+ 	for i, tpar := range tparams {
++		// Ensure that we have a (possibly implicit) interface as type bound (issue #51048).
++		tpar.iface()
+ 		// The type parameter bound is parameterized with the same type parameters
+ 		// as the instantiated type; before we can use it for bounds checking we
+ 		// need to instantiate it with the type arguments with which we instantiated
+diff --git a/src/go/types/testdata/fixedbugs/issue51048.go2 b/src/go/types/testdata/fixedbugs/issue51048.go2
+new file mode 100644
+index 0000000000..58308370ea
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51048.go2
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[P int]() {
++	_ = f[P]
++}
++
++func f[T int]() {}
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 03ba9be55c..71e6861b87 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -5,7 +5,6 @@
+ package types
+ 
+ import (
+-	"go/token"
+ 	"sync/atomic"
+ )
+ 
+@@ -127,8 +126,9 @@ func (t *TypeParam) iface() *Interface {
+ 
+ 	// compute type set if necessary
+ 	if ityp.tset == nil {
+-		// use the (original) type bound position if we have one
+-		pos := token.NoPos
++		// pos is used for tracing output; start with the type parameter position.
++		pos := t.obj.pos
++		// use the (original or possibly instantiated) type bound position if we have one
+ 		if n, _ := bound.(*Named); n != nil {
+ 			pos = n.obj.pos
+ 		}

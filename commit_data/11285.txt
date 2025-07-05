@@ -19,7 +19,7 @@ Date:   Fri Jan 20 12:59:44 2012 +1100
     R=golang-dev, vcc.163, rsc
     CC=golang-dev
     https://golang.org/cl/5500094
-
+---
  misc/cgo/test/Makefile         | 17 +++++++++++++++++
  misc/cgo/test/basic.go         | 25 +++++++++++--------------
  misc/cgo/test/env.go           |  9 +++++++++
@@ -28,3 +28,170 @@ Date:   Fri Jan 20 12:59:44 2012 +1100
  src/pkg/runtime/asm_amd64.s    |  6 ++++--
  src/run.bash                   |  1 -
  7 files changed, 59 insertions(+), 17 deletions(-)
+
+diff --git a/misc/cgo/test/Makefile b/misc/cgo/test/Makefile
+index c05482e4a2..4c1680d94c 100644
+--- a/misc/cgo/test/Makefile
++++ b/misc/cgo/test/Makefile
+@@ -25,4 +25,21 @@ CGO_OFILES=\
+ OFILES=\
+ 	runtime.$O\
+ 
++ifeq ($(GOOS),windows)
++GCCVERSION=$(shell gcc -dumpversion)
++ifeq ($(GOARCH),386)
++GCCLIBDIR=/mingw/lib/gcc/mingw32/$(GCCVERSION)
++CHKSTK=_chkstk.o
++else
++GCCLIBDIR=/mingw/lib/gcc/x86_64-w64-mingw32/$(GCCVERSION)
++CHKSTK=_chkstk_ms.o
++endif
++
++CGOFILES+=sleep_windows.go
++CGO_OFILES+=$(CHKSTK)
++
++$(CHKSTK):
++	ar -x "$(GCCLIBDIR)/libgcc.a" $@
++endif
++
+ include ../../../src/Make.pkg
+diff --git a/misc/cgo/test/basic.go b/misc/cgo/test/basic.go
+index bdcee5ca0a..7aaae15222 100644
+--- a/misc/cgo/test/basic.go
++++ b/misc/cgo/test/basic.go
+@@ -69,17 +69,6 @@ func uuidgen() {
+ 	C.uuid_generate(&uuid[0])
+ }
+ 
+-func Size(name string) (int64, error) {
+-	var st C.struct_stat
+-	p := C.CString(name)
+-	_, err := C.stat(p, &st)
+-	C.free(unsafe.Pointer(p))
+-	if err != nil {
+-		return 0, err
+-	}
+-	return int64(C.ulong(st.st_size)), nil
+-}
+-
+ func Strtol(s string, base int) (int, error) {
+ 	p := C.CString(s)
+ 	n, err := C.strtol(p, nil, C.int(base))
+@@ -112,9 +101,17 @@ func testAtol(t *testing.T) {
+ }
+ 
+ func testErrno(t *testing.T) {
+-	n, err := Strtol("asdf", 123)
+-	if n != 0 || err != os.EINVAL {
+-		t.Error("Strtol: ", n, err)
++	p := C.CString("no-such-file")
++	m := C.CString("r")
++	f, err := C.fopen(p, m)
++	C.free(unsafe.Pointer(p))
++	C.free(unsafe.Pointer(m))
++	if err == nil {
++		C.fclose(f)
++		t.Fatalf("C.fopen: should fail")
++	}
++	if err != os.ENOENT {
++		t.Fatalf("C.fopen: unexpected error: ", err)
+ 	}
+ }
+ 
+diff --git a/misc/cgo/test/env.go b/misc/cgo/test/env.go
+index 1fb4e684cb..8d3ba5877b 100644
+--- a/misc/cgo/test/env.go
++++ b/misc/cgo/test/env.go
+@@ -10,12 +10,21 @@ package cgotest
+ import "C"
+ import (
+ 	"os"
++	"runtime"
+ 	"testing"
+ 	"unsafe"
+ )
+ 
+ // This is really an os package test but here for convenience.
+ func testSetEnv(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		// Go uses SetEnvironmentVariable on windows. Howerver,
++		// C runtime takes a *copy* at process startup of thei
++		// OS environment, and stores it in environ/envp.
++		// It is this copy that	getenv/putenv manipulate.
++		t.Logf("skipping test")
++		return
++	}
+ 	const key = "CGO_OS_TEST_KEY"
+ 	const val = "CGO_OS_TEST_VALUE"
+ 	os.Setenv(key, val)
+diff --git a/misc/cgo/test/issue1560.go b/misc/cgo/test/issue1560.go
+index 7168f1cf7b..833b14ae62 100644
+--- a/misc/cgo/test/issue1560.go
++++ b/misc/cgo/test/issue1560.go
+@@ -7,6 +7,8 @@ package cgotest
+ /*
+ #include <unistd.h>
+ 
++unsigned int sleep(unsigned int seconds);
++
+ extern void BackgroundSleep(int);
+ void twoSleep(int n) {
+ 	BackgroundSleep(n);
+diff --git a/misc/cgo/test/sleep_windows.go b/misc/cgo/test/sleep_windows.go
+new file mode 100644
+index 0000000000..007a1bb4c8
+--- /dev/null
++++ b/misc/cgo/test/sleep_windows.go
+@@ -0,0 +1,16 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++#include <windows.h>
++
++unsigned int sleep(unsigned int seconds) {
++	Sleep(1000 * seconds);
++	return 0;
++}
++
++*/
++import "C"
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 9053334993..308a66036e 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -16,7 +16,7 @@ TEXT _rt0_amd64(SB),7,$-8
+ 	// create istack out of the given (operating system) stack.
+ 	// initcgo may update stackguard.
+ 	MOVQ	$runtime·g0(SB), DI
+-	LEAQ	(-8192+104)(SP), BX
++	LEAQ	(-64*1024+104)(SP), BX
+ 	MOVQ	BX, g_stackguard(DI)
+ 	MOVQ	SP, g_stackbase(DI)
+ 
+@@ -24,7 +24,9 @@ TEXT _rt0_amd64(SB),7,$-8
+ 	MOVQ	initcgo(SB), AX
+ 	TESTQ	AX, AX
+ 	JZ	needtls
+-	CALL	AX  // g0 already in DI
++	// g0 already in DI
++	MOVQ	DI, CX	// Win64 uses CX for first parameter
++	CALL	AX
+ 	CMPL	runtime·iswindows(SB), $0
+ 	JEQ ok
+ 
+diff --git a/src/run.bash b/src/run.bash
+index 2741637a80..8cc04a71fc 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -97,7 +97,6 @@ gomake clean
+ ) || exit $?
+ 
+ [ "$CGO_ENABLED" != 1 ] ||
+-[ "$GOHOSTOS" == windows ] ||
+ (xcd ../misc/cgo/test
+ gomake clean
+ gotest

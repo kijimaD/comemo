@@ -15,6 +15,21 @@ Date:   Wed May 29 17:35:52 2024 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/stdlib_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 405af78572..ed79b92c46 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -396,7 +396,8 @@ func typecheckFiles(path string, filenames []string, importer Importer) (*Packag
+ 		Error: func(err error) {
+ 			errs = append(errs, err)
+ 		},
+-		Importer: importer,
++		Importer:    importer,
++		EnableAlias: true,
+ 	}
+ 	info := Info{Uses: make(map[*syntax.Name]Object)}
+ 	pkg, _ := conf.Check(path, files, &info)

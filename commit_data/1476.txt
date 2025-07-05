@@ -9,7 +9,7 @@ Date:   Thu Jan 15 13:48:11 2009 -0800
     DELTA=157  (0 added, 0 deleted, 157 changed)
     OCL=22851
     CL=22851
-
+---
  doc/progs/print.go         |   8 +--
  doc/progs/print_string.go  |   4 +-
  doc/progs/printf.go        |   2 +-
@@ -31,3 +31,1034 @@ Date:   Thu Jan 15 13:48:11 2009 -0800
  test/map.go                | 170 ++++++++++++++++++++++-----------------------
  usr/gri/pretty/printer.go  |   2 +-
  20 files changed, 154 insertions(+), 154 deletions(-)
+
+diff --git a/doc/progs/print.go b/doc/progs/print.go
+index ed3f4e2692..cc146fed8c 100644
+--- a/doc/progs/print.go
++++ b/doc/progs/print.go
+@@ -8,13 +8,13 @@ import "fmt"
+ 
+ func main() {
+ 	var u64 uint64 = 1<<64-1;
+-	fmt.printf("%d %d\n", u64, int64(u64));
++	fmt.Printf("%d %d\n", u64, int64(u64));
+ 
+ 	// harder stuff
+ 	type T struct { a int; b string };
+ 	t := T{77, "Sunset Strip"};
+ 	a := []int{1, 2, 3, 4};
+-	fmt.printf("%v %v %v\n", u64, t, a);
+-	fmt.print(u64, " ", t, " ", a, "\n");
+-	fmt.println(u64, t, a);
++	fmt.Printf("%v %v %v\n", u64, t, a);
++	fmt.Print(u64, " ", t, " ", a, "\n");
++	fmt.Println(u64, t, a);
+ }
+diff --git a/doc/progs/print_string.go b/doc/progs/print_string.go
+index 47d4a4b9d5..c435d4eaeb 100644
+--- a/doc/progs/print_string.go
++++ b/doc/progs/print_string.go
+@@ -9,10 +9,10 @@ import "fmt"
+ type T struct { a int; b string }
+ 
+ func (t *T) String() string {
+-	return fmt.sprint(t.a) + " " + t.b
++	return fmt.Sprint(t.a) + " " + t.b
+ }
+ 
+ func main() {
+ 	t := &T{77, "Sunset Strip"};
+-	fmt.println(t)
++	fmt.Println(t)
+ }
+diff --git a/doc/progs/printf.go b/doc/progs/printf.go
+index be1ac97318..3bd70f2640 100644
+--- a/doc/progs/printf.go
++++ b/doc/progs/printf.go
+@@ -7,5 +7,5 @@ package main
+ import "fmt"
+ 
+ func main() {
+-	fmt.printf("hello, %s\n", "world");
++	fmt.Printf("hello, %s\n", "world");
+ }
+diff --git a/src/lib/bignum.go b/src/lib/bignum.go
+index 60d3b87c1e..d5cd21ba6b 100755
+--- a/src/lib/bignum.go
++++ b/src/lib/bignum.go
+@@ -662,7 +662,7 @@ func FmtBase(c int) uint {
+ 
+ 
+ func (x Natural) Format(h Fmt.Formatter, c int) {
+-	Fmt.fprintf(h, "%s", x.ToString(FmtBase(c)));
++	Fmt.Fprintf(h, "%s", x.ToString(FmtBase(c)));
+ }
+ 
+ 
+@@ -1096,7 +1096,7 @@ func (x *Integer) String() string {
+ 
+ 
+ func (x *Integer) Format(h Fmt.Formatter, c int) {
+-	Fmt.fprintf(h, "%s", x.ToString(FmtBase(c)));
++	Fmt.Fprintf(h, "%s", x.ToString(FmtBase(c)));
+ }
+ 
+ 
+@@ -1226,7 +1226,7 @@ func (x *Rational) String() string {
+ 
+ 
+ func (x *Rational) Format(h Fmt.Formatter, c int) {
+-	Fmt.fprintf(h, "%s", x.ToString(FmtBase(c)));
++	Fmt.Fprintf(h, "%s", x.ToString(FmtBase(c)));
+ }
+ 
+ 
+diff --git a/src/lib/bignum_test.go b/src/lib/bignum_test.go
+index 0ededd6f62..417af5b245 100644
+--- a/src/lib/bignum_test.go
++++ b/src/lib/bignum_test.go
+@@ -117,7 +117,7 @@ export func TestNatConv(t *testing.T) {
+ 
+ 	test_msg = "NatConvD";
+ 	x := bignum.Nat(100);
+-	y, b := bignum.NatFromString(fmt.sprintf("%b", &x), 2, nil);
++	y, b := bignum.NatFromString(fmt.Sprintf("%b", &x), 2, nil);
+ 	NAT_EQ(100, y, x);
+ }
+ 
+diff --git a/src/lib/bufio_test.go b/src/lib/bufio_test.go
+index 272b8b65c5..b728027fbc 100644
+--- a/src/lib/bufio_test.go
++++ b/src/lib/bufio_test.go
+@@ -309,7 +309,7 @@ export func TestBufWrite(t *testing.T) {
+ 
+ 				write := writers[k].fn();
+ 				buf, e := NewBufWriteSize(write, bs);
+-				context := fmt.sprintf("write=%s nwrite=%d bufsize=%d", writers[k].name, nwrite, bs);
++				context := fmt.Sprintf("write=%s nwrite=%d bufsize=%d", writers[k].name, nwrite, bs);
+ 				if e != nil {
+ 					t.Errorf("%s: NewBufWriteSize %d: %v", context, bs, e);
+ 					continue;
+diff --git a/src/lib/flag.go b/src/lib/flag.go
+index 49294bc4e4..2f9c7fcfe7 100644
+--- a/src/lib/flag.go
++++ b/src/lib/flag.go
+@@ -119,7 +119,7 @@ func (b *BoolValue) Set(val bool) {
+ }
+ 
+ func (b *BoolValue) Str() string {
+-	return fmt.sprintf("%v", *b.p)
++	return fmt.Sprintf("%v", *b.p)
+ }
+ 
+ // -- Int Value
+@@ -137,7 +137,7 @@ func (i *IntValue) Set(val int) {
+ }
+ 
+ func (i *IntValue) Str() string {
+-	return fmt.sprintf("%v", *i.p)
++	return fmt.Sprintf("%v", *i.p)
+ }
+ 
+ // -- Int64 Value
+@@ -155,7 +155,7 @@ func (i *Int64Value) Set(val int64) {
+ }
+ 
+ func (i *Int64Value) Str() string {
+-	return fmt.sprintf("%v", *i.p)
++	return fmt.Sprintf("%v", *i.p)
+ }
+ 
+ // -- Uint Value
+@@ -173,7 +173,7 @@ func (i *UintValue) Set(val uint) {
+ }
+ 
+ func (i *UintValue) Str() string {
+-	return fmt.sprintf("%v", *i.p)
++	return fmt.Sprintf("%v", *i.p)
+ }
+ 
+ // -- Uint64 Value
+@@ -191,7 +191,7 @@ func (i *Uint64Value) Set(val uint64) {
+ }
+ 
+ func (i *Uint64Value) Str() string {
+-	return fmt.sprintf("%v", *i.p)
++	return fmt.Sprintf("%v", *i.p)
+ }
+ 
+ // -- String Value
+@@ -209,7 +209,7 @@ func (s *StringValue) Set(val string) {
+ }
+ 
+ func (s *StringValue) Str() string {
+-	return fmt.sprintf("%#q", *s.p)
++	return fmt.Sprintf("%#q", *s.p)
+ }
+ 
+ // -- Value interface
+diff --git a/src/lib/fmt/fmt_test.go b/src/lib/fmt/fmt_test.go
+index 8eb70b3519..acb7ce86a0 100644
+--- a/src/lib/fmt/fmt_test.go
++++ b/src/lib/fmt/fmt_test.go
+@@ -14,9 +14,9 @@ import (
+ export func TestFmtInterface(t *testing.T) {
+ 	var i1 interface{};
+ 	i1 = "abc";
+-	s := fmt.sprintf("%s", i1);
++	s := fmt.Sprintf("%s", i1);
+ 	if s != "abc" {
+-		t.Errorf(`fmt.sprintf("%%s", empty("abc")) = %q want %q`, s, "abc");
++		t.Errorf(`fmt.Sprintf("%%s", empty("abc")) = %q want %q`, s, "abc");
+ 	}
+ }
+ 
+@@ -153,14 +153,14 @@ var fmttests = []FmtTest{
+ export func TestSprintf(t *testing.T) {
+ 	for i := 0; i < len(fmttests); i++ {
+ 		tt := fmttests[i];
+-		s := fmt.sprintf(tt.fmt, tt.val);
++		s := fmt.Sprintf(tt.fmt, tt.val);
+ 		if s != tt.out {
+ 			if ss, ok := tt.val.(string); ok {
+ 				// Don't requote the already-quoted strings.
+ 				// It's too confusing to read the errors.
+-				t.Errorf("fmt.sprintf(%q, %q) = %s want %s", tt.fmt, tt.val, s, tt.out);
++				t.Errorf("fmt.Sprintf(%q, %q) = %s want %s", tt.fmt, tt.val, s, tt.out);
+ 			} else {
+-				t.Errorf("fmt.sprintf(%q, %v) = %q want %q", tt.fmt, tt.val, s, tt.out);
++				t.Errorf("fmt.Sprintf(%q, %v) = %q want %q", tt.fmt, tt.val, s, tt.out);
+ 			}
+ 		}
+ 	}
+@@ -175,10 +175,10 @@ func (*FlagPrinter) Format(f fmt.Formatter, c int) {
+ 		}
+ 	}
+ 	if w, ok := f.Width(); ok {
+-		s += fmt.sprintf("%d", w);
++		s += fmt.Sprintf("%d", w);
+ 	}
+ 	if p, ok := f.Precision(); ok {
+-		s += fmt.sprintf(".%d", p);
++		s += fmt.Sprintf(".%d", p);
+ 	}
+ 	s += string(c);
+ 	io.WriteString(f, "["+s+"]");
+@@ -208,9 +208,9 @@ export func TestFlagParser(t *testing.T) {
+ 	var flagprinter FlagPrinter;
+ 	for i := 0; i < len(flagtests); i++ {
+ 		tt := flagtests[i];
+-		s := fmt.sprintf(tt.in, &flagprinter);
++		s := fmt.Sprintf(tt.in, &flagprinter);
+ 		if s != tt.out {
+-			t.Errorf("sprintf(%q, &flagprinter) => %q, want %q", tt.in, s, tt.out);
++			t.Errorf("Sprintf(%q, &flagprinter) => %q, want %q", tt.in, s, tt.out);
+ 		}
+ 	}
+ }
+@@ -234,9 +234,9 @@ export func TestStructPrinter(t *testing.T) {
+ 	};
+ 	for i := 0; i < len(tests); i++ {
+ 		tt := tests[i];
+-		out := fmt.sprintf(tt.fmt, s);
++		out := fmt.Sprintf(tt.fmt, s);
+ 		if out != tt.out {
+-			t.Errorf("sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out);
++			t.Errorf("Sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out);
+ 		}
+ 	}
+ }
+@@ -244,13 +244,13 @@ export func TestStructPrinter(t *testing.T) {
+ export func TestArrayPrinter(t *testing.T) {
+ 	a := []int{1, 2, 3, 4, 5};
+ 	want := "[1 2 3 4 5]";
+-	out := fmt.sprintf("%v", a);
++	out := fmt.Sprintf("%v", a);
+ 	if out != want {
+-		t.Errorf("sprintf(%%v, array) = %q, want %q", out, want);
++		t.Errorf("Sprintf(%%v, array) = %q, want %q", out, want);
+ 	}
+ 	want = "&" + want;
+-	out = fmt.sprintf("%v", &a);
++	out = fmt.Sprintf("%v", &a);
+ 	if out != want {
+-		t.Errorf("sprintf(%%v, &array) = %q, want %q", out, want);
++		t.Errorf("Sprintf(%%v, &array) = %q, want %q", out, want);
+ 	}
+ }
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index 6f0b0cf15a..06d6789f9f 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -128,7 +128,7 @@ func (p *P) doprint(v reflect.StructValue, addspace, addnewline bool);
+ 
+ // These routines end in 'f' and take a format string.
+ 
+-export func fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
++export func Fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
+ 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+ 	p := Printer();
+ 	p.doprintf(format, v);
+@@ -136,12 +136,12 @@ export func fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
+ 	return n, error;
+ }
+ 
+-export func printf(format string, v ...) (n int, errno *os.Error) {
+-	n, errno = fprintf(os.Stdout, format, v);
++export func Printf(format string, v ...) (n int, errno *os.Error) {
++	n, errno = Fprintf(os.Stdout, format, v);
+ 	return n, errno;
+ }
+ 
+-export func sprintf(format string, a ...) string {
++export func Sprintf(format string, a ...) string {
+ 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+ 	p := Printer();
+ 	p.doprintf(format, v);
+@@ -152,7 +152,7 @@ export func sprintf(format string, a ...) string {
+ // These routines do not take a format string and add spaces only
+ // when the operand on neither side is a string.
+ 
+-export func fprint(w io.Write, a ...) (n int, error *os.Error) {
++export func Fprint(w io.Write, a ...) (n int, error *os.Error) {
+ 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+ 	p := Printer();
+ 	p.doprint(v, false, false);
+@@ -160,12 +160,12 @@ export func fprint(w io.Write, a ...) (n int, error *os.Error) {
+ 	return n, error;
+ }
+ 
+-export func print(v ...) (n int, errno *os.Error) {
+-	n, errno = fprint(os.Stdout, v);
++export func Print(v ...) (n int, errno *os.Error) {
++	n, errno = Fprint(os.Stdout, v);
+ 	return n, errno;
+ }
+ 
+-export func sprint(a ...) string {
++export func Sprint(a ...) string {
+ 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+ 	p := Printer();
+ 	p.doprint(v, false, false);
+@@ -177,7 +177,7 @@ export func sprint(a ...) string {
+ // always add spaces between operands, and add a newline
+ // after the last operand.
+ 
+-export func fprintln(w io.Write, a ...) (n int, error *os.Error) {
++export func Fprintln(w io.Write, a ...) (n int, error *os.Error) {
+ 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+ 	p := Printer();
+ 	p.doprint(v, true, true);
+@@ -185,12 +185,12 @@ export func fprintln(w io.Write, a ...) (n int, error *os.Error) {
+ 	return n, error;
+ }
+ 
+-export func println(v ...) (n int, errno *os.Error) {
+-	n, errno = fprintln(os.Stdout, v);
++export func Println(v ...) (n int, errno *os.Error) {
++	n, errno = Fprintln(os.Stdout, v);
+ 	return n, errno;
+ }
+ 
+-export func sprintln(a ...) string {
++export func Sprintln(a ...) string {
+ 	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
+ 	p := Printer();
+ 	p.doprint(v, true, true);
+diff --git a/src/lib/json/generic.go b/src/lib/json/generic.go
+index b62f8d96db..bedfe6f6bb 100644
+--- a/src/lib/json/generic.go
++++ b/src/lib/json/generic.go
+@@ -63,9 +63,9 @@ func (j *Number) Kind() int { return NumberKind }
+ func (j *Number) Number() float64 { return j.f }
+ func (j *Number) String() string {
+ 	if math.Floor(j.f) == j.f {
+-		return fmt.sprintf("%.0f", j.f);
++		return fmt.Sprintf("%.0f", j.f);
+ 	}
+-	return fmt.sprintf("%g", j.f);
++	return fmt.Sprintf("%g", j.f);
+ }
+ 
+ type Array struct { a *array.Array; Null }
+diff --git a/src/lib/net/dnsclient.go b/src/lib/net/dnsclient.go
+index f9ca002dd4..2066c2886d 100644
+--- a/src/lib/net/dnsclient.go
++++ b/src/lib/net/dnsclient.go
+@@ -115,7 +115,7 @@ Cname:
+ 					n := len(addrs);
+ 					a := rr.(*DNS_RR_A).a;
+ 					addrs = addrs[0:n+1];
+-					addrs[n] = fmt.sprintf("%d.%d.%d.%d", (a>>24), (a>>16)&0xFF, (a>>8)&0xFF, a&0xFF);
++					addrs[n] = fmt.Sprintf("%d.%d.%d.%d", (a>>24), (a>>16)&0xFF, (a>>8)&0xFF, a&0xFF);
+ 				case DNS_TypeCNAME:
+ 					// redirect to cname
+ 					name = rr.(*DNS_RR_CNAME).cname;
+diff --git a/src/lib/net/dnsmsg.go b/src/lib/net/dnsmsg.go
+index 76cdd904ad..e497fa9b82 100644
+--- a/src/lib/net/dnsmsg.go
++++ b/src/lib/net/dnsmsg.go
+@@ -323,7 +323,7 @@ func PackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, ok
+ 		name, typ, tag, xxx := val.Type().(reflect.StructType).Field(i);
+ 		switch fld.Kind() {
+ 		default:
+-			fmt.fprintf(os.Stderr, "net: dns: unknown packing type %v", fld.Type());
++			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", fld.Type());
+ 			return len(msg), false;
+ 		case reflect.StructKind:
+ 			off, ok = PackStructValue(fld.(reflect.StructValue), msg, off);
+@@ -351,7 +351,7 @@ func PackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, ok
+ 			s := fld.(reflect.StringValue).Get();
+ 			switch tag {
+ 			default:
+-				fmt.fprintf(os.Stderr, "net: dns: unknown string tag %v", tag);
++				fmt.Fprintf(os.Stderr, "net: dns: unknown string tag %v", tag);
+ 				return len(msg), false;
+ 			case "domain-name":
+ 				off, ok = PackDomainName(s, msg, off);
+@@ -389,7 +389,7 @@ func UnpackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int,
+ 		fld := val.Field(i);
+ 		switch fld.Kind() {
+ 		default:
+-			fmt.fprintf(os.Stderr, "net: dns: unknown packing type %v", fld.Type());
++			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", fld.Type());
+ 			return len(msg), false;
+ 		case reflect.StructKind:
+ 			off, ok = UnpackStructValue(fld.(reflect.StructValue), msg, off);
+@@ -411,7 +411,7 @@ func UnpackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int,
+ 			var s string;
+ 			switch tag {
+ 			default:
+-				fmt.fprintf(os.Stderr, "net: dns: unknown string tag %v", tag);
++				fmt.Fprintf(os.Stderr, "net: dns: unknown string tag %v", tag);
+ 				return len(msg), false;
+ 			case "domain-name":
+ 				s, off, ok = UnpackDomainName(msg, off);
+@@ -464,9 +464,9 @@ func PrintStructValue(val reflect.StructValue) string {
+ 			s += PrintStructValue(fld.(reflect.StructValue));
+ 		case kind == reflect.Uint32Kind && tag == "ipv4":
+ 			i := fld.(reflect.Uint32Value).Get();
+-			s += fmt.sprintf("%d.%d.%d.%d", (i>>24)&0xFF, (i>>16)&0xFF, (i>>8)&0xFF, i&0xFF);
++			s += fmt.Sprintf("%d.%d.%d.%d", (i>>24)&0xFF, (i>>16)&0xFF, (i>>8)&0xFF, i&0xFF);
+ 		default:
+-			s += fmt.sprint(fld.Interface())
++			s += fmt.Sprint(fld.Interface())
+ 		}
+ 	}
+ 	s += "}";
+diff --git a/src/lib/sort_test.go b/src/lib/sort_test.go
+index 65d5c9b690..6684d93dab 100644
+--- a/src/lib/sort_test.go
++++ b/src/lib/sort_test.go
+@@ -213,7 +213,7 @@ export func TestBentleyMcIlroy(t *testing.T) {
+ 						}
+ 					}
+ 
+-					desc := fmt.sprintf("n=%d m=%d dist=%s mode=%s", n, m, dists[dist], modes[mode]);
++					desc := fmt.Sprintf("n=%d m=%d dist=%s mode=%s", n, m, dists[dist], modes[mode]);
+ 					d := &TestingData{desc, t, mdata[0:n], n*Lg(n)*12/10, 0};
+ 					sort.Sort(d);
+ 
+diff --git a/src/lib/strconv/fp_test.go b/src/lib/strconv/fp_test.go
+index 1b60d3f770..ef82d369f6 100644
+--- a/src/lib/strconv/fp_test.go
++++ b/src/lib/strconv/fp_test.go
+@@ -131,14 +131,14 @@ export func TestFp(t *testing.T) {
+ 				t.Error("testfp.txt:", lineno, ": cannot atof64 ", a[2]);
+ 				continue;
+ 			}
+-			s = fmt.sprintf(a[1], v);
++			s = fmt.Sprintf(a[1], v);
+ 		case "float32":
+ 			v1, ok := myatof32(a[2]);
+ 			if !ok {
+ 				t.Error("testfp.txt:", lineno, ": cannot atof32 ", a[2]);
+ 				continue;
+ 			}
+-			s = fmt.sprintf(a[1], v1);
++			s = fmt.Sprintf(a[1], v1);
+ 			v = float64(v1);
+ 		}
+ 		if s != a[3] {
+diff --git a/src/lib/testing.go b/src/lib/testing.go
+index 12512f5d28..b19367da61 100644
+--- a/src/lib/testing.go
++++ b/src/lib/testing.go
+@@ -38,11 +38,11 @@ func (t *T) FailNow() {
+ }
+ 
+ func (t *T) Log(args ...) {
+-	t.errors += "\t" + Tabify(fmt.sprintln(args));
++	t.errors += "\t" + Tabify(fmt.Sprintln(args));
+ }
+ 
+ func (t *T) Logf(format string, args ...) {
+-	t.errors += Tabify(fmt.sprintf("\t" + format, args));
++	t.errors += Tabify(fmt.Sprintf("\t" + format, args));
+ 	l := len(t.errors);
+ 	if l > 0 && t.errors[l-1] != '\n' {
+ 		t.errors += "\n"
+diff --git a/test/hilbert.go b/test/hilbert.go
+index 5410db9ca9..163313e852 100644
+--- a/test/hilbert.go
++++ b/test/hilbert.go
+@@ -142,7 +142,7 @@ func (a *Matrix) String() string {
+ 	s := "";
+ 	for i := 0; i < a.n; i++ {
+ 		for j := 0; j < a.m; j++ {
+-			s += Fmt.sprintf("\t%s", a.at(i, j));
++			s += Fmt.Sprintf("\t%s", a.at(i, j));
+ 		}
+ 		s += "\n";
+ 	}
+@@ -157,10 +157,10 @@ func main() {
+ 	I := NewUnit(n);
+ 	ab := a.Mul(b);
+ 	if !ab.Eql(I) {
+-		Fmt.println("a =", a);
+-		Fmt.println("b =", b);
+-		Fmt.println("a*b =", ab);
+-		Fmt.println("I =", I);
++		Fmt.Println("a =", a);
++		Fmt.Println("b =", b);
++		Fmt.Println("a*b =", ab);
++		Fmt.Println("I =", I);
+ 		panic("FAILED");
+ 	}
+ }
+diff --git a/test/malloc1.go b/test/malloc1.go
+index eee596e3c6..62329fe57f 100644
+--- a/test/malloc1.go
++++ b/test/malloc1.go
+@@ -19,7 +19,7 @@ var chatty = flag.Bool("v", false, "chatty");
+ func main() {
+ 	malloc.Free(malloc.Alloc(1));
+ 	if *chatty {
+-		fmt.printf("%+v %v\n", *malloc.GetStats(), uint64(0));
++		fmt.Printf("%+v %v\n", *malloc.GetStats(), uint64(0));
+ 	}
+ }
+ 
+diff --git a/test/mallocrep1.go b/test/mallocrep1.go
+index 26d28715b5..8c90ee94e4 100644
+--- a/test/mallocrep1.go
++++ b/test/mallocrep1.go
+@@ -40,7 +40,7 @@ func OkAmount(size, n uint64) bool {
+ 
+ func AllocAndFree(size, count int) {
+ 	if *chatty {
+-		fmt.printf("size=%d count=%d ...\n", size, count);
++		fmt.Printf("size=%d count=%d ...\n", size, count);
+ 	}
+ 	n1 := stats.alloc;
+ 	for i := 0; i < count; i++ {
+@@ -55,7 +55,7 @@ func AllocAndFree(size, count int) {
+ 	}
+ 	n2 := stats.alloc;
+ 	if *chatty {
+-		fmt.printf("size=%d count=%d stats=%+v\n", size, count, *stats);
++		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats);
+ 	}
+ 	n3 := stats.alloc;
+ 	for j := 0; j < count; j++ {
+@@ -79,7 +79,7 @@ func AllocAndFree(size, count int) {
+ 	n4 := stats.alloc;
+ 
+ 	if *chatty {
+-		fmt.printf("size=%d count=%d stats=%+v\n", size, count, *stats);
++		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats);
+ 	}
+ 	if n2-n1 != n3-n4 {
+ 		panicln("wrong alloc count: ", n2-n1, n3-n4);
+diff --git a/test/map.go b/test/map.go
+index caa764d2d8..21d4fd773d 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -31,7 +31,7 @@ func main() {
+ 	for i := 0; i < len(mlit); i++ {
+ 		s := string([]byte{byte(i)+'0'});
+ 		if mlit[s] != i {
+-			fmt.printf("mlit[%s] = %d\n", s, mlit[s])
++			fmt.Printf("mlit[%s] = %d\n", s, mlit[s])
+ 		}
+ 	}
+ 
+@@ -93,46 +93,46 @@ func main() {
+ 
+ 	// test len
+ 	if len(mib) != count {
+-		fmt.printf("len(mib) = %d\n", len(mib));
++		fmt.Printf("len(mib) = %d\n", len(mib));
+ 	}
+ 	if len(mii) != count {
+-		fmt.printf("len(mii) = %d\n", len(mii));
++		fmt.Printf("len(mii) = %d\n", len(mii));
+ 	}
+ 	if len(mfi) != count {
+-		fmt.printf("len(mfi) = %d\n", len(mfi));
++		fmt.Printf("len(mfi) = %d\n", len(mfi));
+ 	}
+ 	if len(mif) != count {
+-		fmt.printf("len(mif) = %d\n", len(mif));
++		fmt.Printf("len(mif) = %d\n", len(mif));
+ 	}
+ 	if len(msi) != count {
+-		fmt.printf("len(msi) = %d\n", len(msi));
++		fmt.Printf("len(msi) = %d\n", len(msi));
+ 	}
+ 	if len(mis) != count {
+-		fmt.printf("len(mis) = %d\n", len(mis));
++		fmt.Printf("len(mis) = %d\n", len(mis));
+ 	}
+ 	if len(mss) != count {
+-		fmt.printf("len(mss) = %d\n", len(mss));
++		fmt.Printf("len(mss) = %d\n", len(mss));
+ 	}
+ 	if len(mspa) != count {
+-		fmt.printf("len(mspa) = %d\n", len(mspa));
++		fmt.Printf("len(mspa) = %d\n", len(mspa));
+ 	}
+ 	if len(mipT) != count {
+-		fmt.printf("len(mipT) = %d\n", len(mipT));
++		fmt.Printf("len(mipT) = %d\n", len(mipT));
+ 	}
+ 	if len(mpTi) != count {
+-		fmt.printf("len(mpTi) = %d\n", len(mpTi));
++		fmt.Printf("len(mpTi) = %d\n", len(mpTi));
+ 	}
+ 	if len(mti) != count {
+-		fmt.printf("len(mti) = %d\n", len(mti));
++		fmt.Printf("len(mti) = %d\n", len(mti));
+ 	}
+ 	if len(mipM) != count {
+-		fmt.printf("len(mipM) = %d\n", len(mipM));
++		fmt.Printf("len(mipM) = %d\n", len(mipM));
+ 	}
+ 	if len(mti) != count {
+-		fmt.printf("len(mti) = %d\n", len(mti));
++		fmt.Printf("len(mti) = %d\n", len(mti));
+ 	}
+ 	if len(mit) != count {
+-		fmt.printf("len(mit) = %d\n", len(mit));
++		fmt.Printf("len(mit) = %d\n", len(mit));
+ 	}
+ 
+ 	// test construction directly
+@@ -143,48 +143,48 @@ func main() {
+ 		t := T{int64(i), f};
+ 		// BUG m := M(i, i+1);
+ 		if mib[i] != (i != 0) {
+-			fmt.printf("mib[%d] = %t\n", i, mib[i]);
++			fmt.Printf("mib[%d] = %t\n", i, mib[i]);
+ 		}
+ 		if(mii[i] != 10*i) {
+-			fmt.printf("mii[%d] = %d\n", i, mii[i]);
++			fmt.Printf("mii[%d] = %d\n", i, mii[i]);
+ 		}
+ 		if(mfi[f] != 10*i) {
+-			fmt.printf("mfi[%d] = %d\n", i, mfi[f]);
++			fmt.Printf("mfi[%d] = %d\n", i, mfi[f]);
+ 		}
+ 		if(mif[i] != 10.0*f) {
+-			fmt.printf("mif[%d] = %g\n", i, mif[i]);
++			fmt.Printf("mif[%d] = %g\n", i, mif[i]);
+ 		}
+ 		if(mis[i] != s) {
+-			fmt.printf("mis[%d] = %s\n", i, mis[i]);
++			fmt.Printf("mis[%d] = %s\n", i, mis[i]);
+ 		}
+ 		if(msi[s] != i) {
+-			fmt.printf("msi[%s] = %d\n", s, msi[s]);
++			fmt.Printf("msi[%s] = %d\n", s, msi[s]);
+ 		}
+ 		if mss[s] != s10 {
+-			fmt.printf("mss[%s] = %g\n", s, mss[s]);
++			fmt.Printf("mss[%s] = %g\n", s, mss[s]);
+ 		}
+ 		for j := 0; j < arraylen; j++ {
+ 			if mspa[s][j] != s10 {
+-				fmt.printf("mspa[%s][%d] = %s\n", s, j, mspa[s][j]);
++				fmt.Printf("mspa[%s][%d] = %s\n", s, j, mspa[s][j]);
+ 			}
+ 		}
+ 		if(mipT[i].i != int64(i) || mipT[i].f != f) {
+-			fmt.printf("mipT[%d] = %v\n", i, mipT[i]);
++			fmt.Printf("mipT[%d] = %v\n", i, mipT[i]);
+ 		}
+ 		if(mpTi[apT[i]] != i) {
+-			fmt.printf("mpTi[apT[%d]] = %d\n", i, mpTi[apT[i]]);
++			fmt.Printf("mpTi[apT[%d]] = %d\n", i, mpTi[apT[i]]);
+ 		}
+ 		if(mti[t] != i) {
+-			fmt.printf("mti[%s] = %s\n", s, mti[t]);
++			fmt.Printf("mti[%s] = %s\n", s, mti[t]);
+ 		}
+ 		if (mipM[i][i] != i + 1) {
+-			fmt.printf("mipM[%d][%d] = %d\n", i, i, mipM[i][i]);
++			fmt.Printf("mipM[%d][%d] = %d\n", i, i, mipM[i][i]);
+ 		}
+ 		if(mti[t] != i) {
+-			fmt.printf("mti[%v] = %d\n", t, mti[t]);
++			fmt.Printf("mti[%v] = %d\n", t, mti[t]);
+ 		}
+ 		if(mit[i].i != int64(i) || mit[i].f != f) {
+-			fmt.printf("mit[%d] = {%d %g}\n", i, mit[i].i, mit[i].f);
++			fmt.Printf("mit[%d] = {%d %g}\n", i, mit[i].i, mit[i].f);
+ 		}
+ 	}
+ 
+@@ -197,131 +197,131 @@ func main() {
+ 		{
+ 			a, b := mib[i];
+ 			if !b {
+-				fmt.printf("tuple existence decl: mib[%d]\n", i);
++				fmt.Printf("tuple existence decl: mib[%d]\n", i);
+ 			}
+ 			a, b = mib[i];
+ 			if !b {
+-				fmt.printf("tuple existence assign: mib[%d]\n", i);
++				fmt.Printf("tuple existence assign: mib[%d]\n", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mii[i];
+ 			if !b {
+-				fmt.printf("tuple existence decl: mii[%d]\n", i);
++				fmt.Printf("tuple existence decl: mii[%d]\n", i);
+ 			}
+ 			a, b = mii[i];
+ 			if !b {
+-				fmt.printf("tuple existence assign: mii[%d]\n", i);
++				fmt.Printf("tuple existence assign: mii[%d]\n", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mfi[f];
+ 			if !b {
+-				fmt.printf("tuple existence decl: mfi[%d]\n", i);
++				fmt.Printf("tuple existence decl: mfi[%d]\n", i);
+ 			}
+ 			a, b = mfi[f];
+ 			if !b {
+-				fmt.printf("tuple existence assign: mfi[%d]\n", i);
++				fmt.Printf("tuple existence assign: mfi[%d]\n", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mif[i];
+ 			if !b {
+-				fmt.printf("tuple existence decl: mif[%d]\n", i);
++				fmt.Printf("tuple existence decl: mif[%d]\n", i);
+ 			}
+ 			a, b = mif[i];
+ 			if !b {
+-				fmt.printf("tuple existence assign: mif[%d]\n", i);
++				fmt.Printf("tuple existence assign: mif[%d]\n", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mis[i];
+ 			if !b {
+-				fmt.printf("tuple existence decl: mis[%d]\n", i);
++				fmt.Printf("tuple existence decl: mis[%d]\n", i);
+ 			}
+ 			a, b = mis[i];
+ 			if !b {
+-				fmt.printf("tuple existence assign: mis[%d]\n", i);
++				fmt.Printf("tuple existence assign: mis[%d]\n", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := msi[s];
+ 			if !b {
+-				fmt.printf("tuple existence decl: msi[%d]\n", i);
++				fmt.Printf("tuple existence decl: msi[%d]\n", i);
+ 			}
+ 			a, b = msi[s];
+ 			if !b {
+-				fmt.printf("tuple existence assign: msi[%d]\n", i);
++				fmt.Printf("tuple existence assign: msi[%d]\n", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mss[s];
+ 			if !b {
+-				fmt.printf("tuple existence decl: mss[%d]\n", i);
++				fmt.Printf("tuple existence decl: mss[%d]\n", i);
+ 			}
+ 			a, b = mss[s];
+ 			if !b {
+-				fmt.printf("tuple existence assign: mss[%d]\n", i);
++				fmt.Printf("tuple existence assign: mss[%d]\n", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mspa[s];
+ 			if !b {
+-				fmt.printf("tuple existence decl: mspa[%d]\n", i);
++				fmt.Printf("tuple existence decl: mspa[%d]\n", i);
+ 			}
+ 			a, b = mspa[s];
+ 			if !b {
+-				fmt.printf("tuple existence assign: mspa[%d]\n", i);
++				fmt.Printf("tuple existence assign: mspa[%d]\n", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mipT[i];
+ 			if !b {
+-				fmt.printf("tuple existence decl: mipT[%d]\n", i);
++				fmt.Printf("tuple existence decl: mipT[%d]\n", i);
+ 			}
+ 			a, b = mipT[i];
+ 			if !b {
+-				fmt.printf("tuple existence assign: mipT[%d]\n", i);
++				fmt.Printf("tuple existence assign: mipT[%d]\n", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mpTi[apT[i]];
+ 			if !b {
+-				fmt.printf("tuple existence decl: mpTi[apT[%d]]\n", i);
++				fmt.Printf("tuple existence decl: mpTi[apT[%d]]\n", i);
+ 			}
+ 			a, b = mpTi[apT[i]];
+ 			if !b {
+-				fmt.printf("tuple existence assign: mpTi[apT[%d]]\n", i);
++				fmt.Printf("tuple existence assign: mpTi[apT[%d]]\n", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mipM[i];
+ 			if !b {
+-				fmt.printf("tuple existence decl: mipM[%d]\n", i);
++				fmt.Printf("tuple existence decl: mipM[%d]\n", i);
+ 			}
+ 			a, b = mipM[i];
+ 			if !b {
+-				fmt.printf("tuple existence assign: mipM[%d]\n", i);
++				fmt.Printf("tuple existence assign: mipM[%d]\n", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mit[i];
+ 			if !b {
+-				fmt.printf("tuple existence decl: mit[%d]\n", i);
++				fmt.Printf("tuple existence decl: mit[%d]\n", i);
+ 			}
+ 			a, b = mit[i];
+ 			if !b {
+-				fmt.printf("tuple existence assign: mit[%d]\n", i);
++				fmt.Printf("tuple existence assign: mit[%d]\n", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mti[t];
+ 			if !b {
+-				fmt.printf("tuple existence decl: mti[%d]\n", i);
++				fmt.Printf("tuple existence decl: mti[%d]\n", i);
+ 			}
+ 			a, b = mti[t];
+ 			if !b {
+-				fmt.printf("tuple existence assign: mti[%d]\n", i);
++				fmt.Printf("tuple existence assign: mti[%d]\n", i);
+ 			}
+ 		}
+ 	}
+@@ -335,131 +335,131 @@ func main() {
+ 		{
+ 			a, b := mib[i];
+ 			if b {
+-				fmt.printf("tuple nonexistence decl: mib[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mib[%d]", i);
+ 			}
+ 			a, b = mib[i];
+ 			if b {
+-				fmt.printf("tuple nonexistence assign: mib[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mib[%d]", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mii[i];
+ 			if b {
+-				fmt.printf("tuple nonexistence decl: mii[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mii[%d]", i);
+ 			}
+ 			a, b = mii[i];
+ 			if b {
+-				fmt.printf("tuple nonexistence assign: mii[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mii[%d]", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mfi[f];
+ 			if b {
+-				fmt.printf("tuple nonexistence decl: mfi[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mfi[%d]", i);
+ 			}
+ 			a, b = mfi[f];
+ 			if b {
+-				fmt.printf("tuple nonexistence assign: mfi[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mfi[%d]", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mif[i];
+ 			if b {
+-				fmt.printf("tuple nonexistence decl: mif[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mif[%d]", i);
+ 			}
+ 			a, b = mif[i];
+ 			if b {
+-				fmt.printf("tuple nonexistence assign: mif[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mif[%d]", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mis[i];
+ 			if b {
+-				fmt.printf("tuple nonexistence decl: mis[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mis[%d]", i);
+ 			}
+ 			a, b = mis[i];
+ 			if b {
+-				fmt.printf("tuple nonexistence assign: mis[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mis[%d]", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := msi[s];
+ 			if b {
+-				fmt.printf("tuple nonexistence decl: msi[%d]", i);
++				fmt.Printf("tuple nonexistence decl: msi[%d]", i);
+ 			}
+ 			a, b = msi[s];
+ 			if b {
+-				fmt.printf("tuple nonexistence assign: msi[%d]", i);
++				fmt.Printf("tuple nonexistence assign: msi[%d]", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mss[s];
+ 			if b {
+-				fmt.printf("tuple nonexistence decl: mss[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mss[%d]", i);
+ 			}
+ 			a, b = mss[s];
+ 			if b {
+-				fmt.printf("tuple nonexistence assign: mss[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mss[%d]", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mspa[s];
+ 			if b {
+-				fmt.printf("tuple nonexistence decl: mspa[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mspa[%d]", i);
+ 			}
+ 			a, b = mspa[s];
+ 			if b {
+-				fmt.printf("tuple nonexistence assign: mspa[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mspa[%d]", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mipT[i];
+ 			if b {
+-				fmt.printf("tuple nonexistence decl: mipT[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mipT[%d]", i);
+ 			}
+ 			a, b = mipT[i];
+ 			if b {
+-				fmt.printf("tuple nonexistence assign: mipT[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mipT[%d]", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mpTi[apT[i]];
+ 			if b {
+-				fmt.printf("tuple nonexistence decl: mpTi[apt[%d]]", i);
++				fmt.Printf("tuple nonexistence decl: mpTi[apt[%d]]", i);
+ 			}
+ 			a, b = mpTi[apT[i]];
+ 			if b {
+-				fmt.printf("tuple nonexistence assign: mpTi[apT[%d]]", i);
++				fmt.Printf("tuple nonexistence assign: mpTi[apT[%d]]", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mipM[i];
+ 			if b {
+-				fmt.printf("tuple nonexistence decl: mipM[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mipM[%d]", i);
+ 			}
+ 			a, b = mipM[i];
+ 			if b {
+-				fmt.printf("tuple nonexistence assign: mipM[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mipM[%d]", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mti[t];
+ 			if b {
+-				fmt.printf("tuple nonexistence decl: mti[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mti[%d]", i);
+ 			}
+ 			a, b = mti[t];
+ 			if b {
+-				fmt.printf("tuple nonexistence assign: mti[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mti[%d]", i);
+ 			}
+ 		}
+ 		{
+ 			a, b := mit[i];
+ 			if b {
+-				fmt.printf("tuple nonexistence decl: mit[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mit[%d]", i);
+ 			}
+ 			a, b = mit[i];
+ 			if b {
+-				fmt.printf("tuple nonexistence assign: mit[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mit[%d]", i);
+ 			}
+ 		}
+ 	}
+@@ -470,21 +470,21 @@ func main() {
+ 		s := strconv.itoa(i);
+ 		mspa[s][i % 2] = "deleted";
+ 		if mspa[s][i % 2] != "deleted" {
+-			fmt.printf("update mspa[%s][%d] = %s\n", s, i %2, mspa[s][i % 2]);
++			fmt.Printf("update mspa[%s][%d] = %s\n", s, i %2, mspa[s][i % 2]);
+ 		}
+ 
+ 		mipT[i].i += 1;
+ 		if mipT[i].i != int64(i)+1 {
+-			fmt.printf("update mipT[%d].i = %d\n", i, mipT[i].i);
++			fmt.Printf("update mipT[%d].i = %d\n", i, mipT[i].i);
+ 		}
+ 		mipT[i].f = float(i + 1);
+ 		if (mipT[i].f != float(i + 1)) {
+-			fmt.printf("update mipT[%d].f = %g\n", i, mipT[i].f);
++			fmt.Printf("update mipT[%d].f = %g\n", i, mipT[i].f);
+ 		}
+ 
+ 		mipM[i][i]++;
+ 		if mipM[i][i] != (i + 1) + 1 {
+-			fmt.printf("update mipM[%d][%d] = %i\n", i, i, mipM[i][i]);
++			fmt.Printf("update mipM[%d][%d] = %i\n", i, i, mipM[i][i]);
+ 		}
+ 	}
+ }
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 5beff8a0a6..de4a601cc6 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -143,7 +143,7 @@ func Untabify(s string) string {
+ 
+ 
+ func (P *Printer) Printf(format string, s ...) {
+-	n, err := fmt.fprintf(P.text, format, s);
++	n, err := fmt.Fprintf(P.text, format, s);
+ 	if err != nil {
+ 		panic("print error - exiting");
+ 	}

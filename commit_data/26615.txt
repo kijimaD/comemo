@@ -19,8 +19,134 @@ Date:   Mon Feb 8 17:20:59 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/19363
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Damien Neil <dneil@google.com>
-
+---
  src/cmd/go/build.go                | 40 ++++++++++++++++++++++++++------------
  src/cmd/go/go_test.go              | 27 +++++++++++++++++++++++++
  src/cmd/link/internal/ld/symtab.go |  5 +++++
  3 files changed, 60 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index f2a2a6014f..1932f324ea 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -686,6 +686,7 @@ type builder struct {
+ 	work        string               // the temporary work directory (ends in filepath.Separator)
+ 	actionCache map[cacheKey]*action // a cache of already-constructed actions
+ 	mkdirCache  map[string]bool      // a cache of created directories
++	flagCache   map[string]bool      // a cache of supported compiler flags
+ 	print       func(args ...interface{}) (int, error)
+ 
+ 	output    sync.Mutex
+@@ -2927,6 +2928,14 @@ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
+ 	// disable word wrapping in error messages
+ 	a = append(a, "-fmessage-length=0")
+ 
++	// Tell gcc not to include the work directory in object files.
++	if b.gccSupportsFlag("-fdebug-prefix-map=a=b") {
++		// -gno-record-gcc-switches is supported by all gcc/clang
++		// versions that support -fdebug-prefix-map.
++		a = append(a, "-gno-record-gcc-switches")
++		a = append(a, "-fdebug-prefix-map="+b.work+"=/tmp/go-build")
++	}
++
+ 	// On OS X, some of the compilers behave as if -fno-common
+ 	// is always set, and the Mach-O linker in 6l/8l assumes this.
+ 	// See https://golang.org/issue/3253.
+@@ -2941,19 +2950,24 @@ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
+ // -no-pie must be passed when doing a partial link with -Wl,-r. But -no-pie is
+ // not supported by all compilers.
+ func (b *builder) gccSupportsNoPie() bool {
+-	if goos != "linux" {
+-		// On some BSD platforms, error messages from the
+-		// compiler make it to the console despite cmd.Std*
+-		// all being nil. As -no-pie is only required on linux
+-		// systems so far, we only test there.
+-		return false
++	return b.gccSupportsFlag("-no-pie")
++}
++
++// gccSupportsFlag checks to see if the compiler supports a flag.
++func (b *builder) gccSupportsFlag(flag string) bool {
++	b.exec.Lock()
++	defer b.exec.Unlock()
++	if b, ok := b.flagCache[flag]; ok {
++		return b
+ 	}
+-	src := filepath.Join(b.work, "trivial.c")
+-	if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
+-		return false
++	if b.flagCache == nil {
++		src := filepath.Join(b.work, "trivial.c")
++		if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
++			return false
++		}
++		b.flagCache = make(map[string]bool)
+ 	}
+-	cmdArgs := b.gccCmd(b.work)
+-	cmdArgs = append(cmdArgs, "-no-pie", "-c", "trivial.c")
++	cmdArgs := append(envList("CC", defaultCC), flag, "-c", "trivial.c")
+ 	if buildN || buildX {
+ 		b.showcmd(b.work, "%s", joinUnambiguously(cmdArgs))
+ 		if buildN {
+@@ -2964,7 +2978,9 @@ func (b *builder) gccSupportsNoPie() bool {
+ 	cmd.Dir = b.work
+ 	cmd.Env = envForDir(cmd.Dir, os.Environ())
+ 	out, err := cmd.CombinedOutput()
+-	return err == nil && !bytes.Contains(out, []byte("unrecognized"))
++	supported := err == nil && !bytes.Contains(out, []byte("unrecognized"))
++	b.flagCache[flag] = supported
++	return supported
+ }
+ 
+ // gccArchArgs returns arguments to pass to gcc based on the architecture.
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 39e0f3e56d..e55fc360de 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2759,3 +2759,30 @@ func TestParallelTest(t *testing.T) {
+ 	tg.setenv("GOPATH", tg.path("."))
+ 	tg.run("test", "-p=4", "p1", "p2", "p3", "p4")
+ }
++
++func TestCgoConsistentResults(t *testing.T) {
++	if !canCgo {
++		t.Skip("skipping because cgo not enabled")
++	}
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	exe1 := tg.path("cgotest1" + exeSuffix)
++	exe2 := tg.path("cgotest2" + exeSuffix)
++	tg.run("build", "-o", exe1, "cgotest")
++	tg.run("build", "-x", "-o", exe2, "cgotest")
++	b1, err := ioutil.ReadFile(exe1)
++	tg.must(err)
++	b2, err := ioutil.ReadFile(exe2)
++	tg.must(err)
++
++	if !tg.doGrepMatch(`-fdebug-prefix-map=\$WORK`, &tg.stderr) {
++		t.Skip("skipping because C compiler does not support -fdebug-prefix-map")
++	}
++	if !bytes.Equal(b1, b2) {
++		t.Error("building cgotest twice did not produce the same output")
++	}
++}
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 3e6169e453..b87ca81007 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -215,6 +215,11 @@ func Asmelfsym() {
+ 
+ 	dwarfaddelfsectionsyms()
+ 
++	// Some linkers will add a FILE sym if one is not present.
++	// Avoid having the working directory inserted into the symbol table.
++	putelfsyment(0, 0, 0, STB_LOCAL<<4|STT_FILE, SHN_ABS, 0)
++	numelfsym++
++
+ 	elfbind = STB_LOCAL
+ 	genasmsym(putelfsym)
+ 

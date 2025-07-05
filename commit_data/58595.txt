@@ -15,6 +15,32 @@ Date:   Tue Aug 15 19:38:33 2023 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/internal/abi/abi_loong64.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/src/internal/abi/abi_loong64.go b/src/internal/abi/abi_loong64.go
+new file mode 100644
+index 0000000000..c2306ae8d8
+--- /dev/null
++++ b/src/internal/abi/abi_loong64.go
+@@ -0,0 +1,19 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.regabiargs
++
++package abi
++
++const (
++	// See abi_generic.go.
++
++	// R4 - R19
++	IntArgRegs = 16
++
++	// F0 - F15
++	FloatArgRegs = 16
++
++	EffectiveFloatRegSize = 8
++)

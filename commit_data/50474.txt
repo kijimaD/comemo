@@ -26,7 +26,236 @@ Date:   Wed Oct 27 18:53:02 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go    |  47 +++++------------
  src/cmd/dist/buildtag.go | 133 +++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 146 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 39f016e315..d37c3f83ef 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -812,6 +812,9 @@ func runInstall(pkg string, ch chan struct{}) {
+ 	importMap := make(map[string]string)
+ 	for _, p := range gofiles {
+ 		for _, imp := range readimports(p) {
++			if imp == "C" {
++				fatalf("%s imports C", p)
++			}
+ 			importMap[imp] = resolveVendor(imp, dir)
+ 		}
+ 	}
+@@ -822,6 +825,9 @@ func runInstall(pkg string, ch chan struct{}) {
+ 	sort.Strings(sortedImports)
+ 
+ 	for _, dep := range importMap {
++		if dep == "C" {
++			fatalf("%s imports C", pkg)
++		}
+ 		startInstall(dep)
+ 	}
+ 	for _, dep := range importMap {
+@@ -970,28 +976,8 @@ func packagefile(pkg string) string {
+ 	return pathf("%s/pkg/%s_%s/%s.a", goroot, goos, goarch, pkg)
+ }
+ 
+-// matchfield reports whether the field (x,y,z) matches this build.
+-// all the elements in the field must be satisfied.
+-func matchfield(f string) bool {
+-	for _, tag := range strings.Split(f, ",") {
+-		if !matchtag(tag) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-// matchtag reports whether the tag (x or !x) matches this build.
++// matchtag reports whether the tag matches this build.
+ func matchtag(tag string) bool {
+-	if tag == "" {
+-		return false
+-	}
+-	if tag[0] == '!' {
+-		if len(tag) == 1 || tag[1] == '!' {
+-			return false
+-		}
+-		return !matchtag(tag[1:])
+-	}
+ 	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" ||
+ 		(goos == "android" && tag == "linux") ||
+ 		(goos == "illumos" && tag == "solaris") ||
+@@ -1032,7 +1018,7 @@ func shouldbuild(file, pkg string) bool {
+ 		return false
+ 	}
+ 
+-	// Check file contents for // +build lines.
++	// Check file contents for //go:build lines.
+ 	for _, p := range strings.Split(readfile(file), "\n") {
+ 		p = strings.TrimSpace(p)
+ 		if p == "" {
+@@ -1052,20 +1038,13 @@ func shouldbuild(file, pkg string) bool {
+ 		if !strings.HasPrefix(p, "//") {
+ 			break
+ 		}
+-		if !strings.Contains(p, "+build") {
+-			continue
+-		}
+-		fields := strings.Fields(p[2:])
+-		if len(fields) < 1 || fields[0] != "+build" {
+-			continue
+-		}
+-		for _, p := range fields[1:] {
+-			if matchfield(p) {
+-				goto fieldmatch
++		if strings.HasPrefix(p, "//go:build ") {
++			matched, err := matchexpr(p[len("//go:build "):])
++			if err != nil {
++				errprintf("%s: %v", file, err)
+ 			}
++			return matched
+ 		}
+-		return false
+-	fieldmatch:
+ 	}
+ 
+ 	return true
+diff --git a/src/cmd/dist/buildtag.go b/src/cmd/dist/buildtag.go
+new file mode 100644
+index 0000000000..24776a0aaf
+--- /dev/null
++++ b/src/cmd/dist/buildtag.go
+@@ -0,0 +1,133 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"strings"
++)
++
++// exprParser is a //go:build expression parser and evaluator.
++// The parser is a trivial precedence-based parser which is still
++// almost overkill for these very simple expressions.
++type exprParser struct {
++	x string
++	t exprToken // upcoming token
++}
++
++// val is the value type result of parsing.
++// We don't keep a parse tree, just the value of the expression.
++type val bool
++
++// exprToken describes a single token in the input.
++// Prefix operators define a prefix func that parses the
++// upcoming value. Binary operators define an infix func
++// that combines two values according to the operator.
++// In that case, the parsing loop parses the two values.
++type exprToken struct {
++	tok    string
++	prec   int
++	prefix func(*exprParser) val
++	infix  func(val, val) val
++}
++
++var exprTokens []exprToken
++
++func init() { // init to break init cycle
++	exprTokens = []exprToken{
++		{tok: "&&", prec: 1, infix: func(x, y val) val { return x && y }},
++		{tok: "||", prec: 2, infix: func(x, y val) val { return x || y }},
++		{tok: "!", prec: 3, prefix: (*exprParser).not},
++		{tok: "(", prec: 3, prefix: (*exprParser).paren},
++		{tok: ")"},
++	}
++}
++
++// matchexpr parses and evaluates the //go:build expression x.
++func matchexpr(x string) (matched bool, err error) {
++	defer func() {
++		if e := recover(); e != nil {
++			matched = false
++			err = fmt.Errorf("parsing //go:build line: %v", e)
++		}
++	}()
++
++	p := &exprParser{x: x}
++	p.next()
++	v := p.parse(0)
++	if p.t.tok != "end of expression" {
++		panic("unexpected " + p.t.tok)
++	}
++	return bool(v), nil
++}
++
++// parse parses an expression, including binary operators at precedence >= prec.
++func (p *exprParser) parse(prec int) val {
++	if p.t.prefix == nil {
++		panic("unexpected " + p.t.tok)
++	}
++	v := p.t.prefix(p)
++	for p.t.prec >= prec && p.t.infix != nil {
++		t := p.t
++		p.next()
++		v = t.infix(v, p.parse(t.prec+1))
++	}
++	return v
++}
++
++// not is the prefix parser for a ! token.
++func (p *exprParser) not() val {
++	p.next()
++	return !p.parse(100)
++}
++
++// paren is the prefix parser for a ( token.
++func (p *exprParser) paren() val {
++	p.next()
++	v := p.parse(0)
++	if p.t.tok != ")" {
++		panic("missing )")
++	}
++	p.next()
++	return v
++}
++
++// next advances the parser to the next token,
++// leaving the token in p.t.
++func (p *exprParser) next() {
++	p.x = strings.TrimSpace(p.x)
++	if p.x == "" {
++		p.t = exprToken{tok: "end of expression"}
++		return
++	}
++	for _, t := range exprTokens {
++		if strings.HasPrefix(p.x, t.tok) {
++			p.x = p.x[len(t.tok):]
++			p.t = t
++			return
++		}
++	}
++
++	i := 0
++	for i < len(p.x) && validtag(p.x[i]) {
++		i++
++	}
++	if i == 0 {
++		panic(fmt.Sprintf("syntax error near %#q", rune(p.x[i])))
++	}
++	tag := p.x[:i]
++	p.x = p.x[i:]
++	p.t = exprToken{
++		tok: "tag",
++		prefix: func(p *exprParser) val {
++			p.next()
++			return val(matchtag(tag))
++		},
++	}
++}
++
++func validtag(c byte) bool {
++	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' || c == '.' || c == '_'
++}

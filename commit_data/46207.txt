@@ -38,7 +38,7 @@ Date:   Sun Dec 13 10:35:20 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go            | 13 +++----
  src/cmd/compile/internal/gc/iimport.go        | 35 +++++++++----------
  src/cmd/compile/internal/gc/init.go           |  4 +--
@@ -57,3 +57,509 @@ Date:   Sun Dec 13 10:35:20 2020 -0800
  test/fixedbugs/issue43167.go                  | 13 +++++++
  test/fixedbugs/issue6428.go                   | 15 ++++++++
  17 files changed, 159 insertions(+), 79 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 1ebadd9213..89873e2fac 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -28,12 +28,9 @@ func testdclstack() {
+ // redeclare emits a diagnostic about symbol s being redeclared at pos.
+ func redeclare(pos src.XPos, s *types.Sym, where string) {
+ 	if !s.Lastlineno.IsKnown() {
+-		pkg := s.Origpkg
+-		if pkg == nil {
+-			pkg = s.Pkg
+-		}
++		pkgName := dotImportRefs[s.Def.(*ir.Ident)]
+ 		base.ErrorfAt(pos, "%v redeclared %s\n"+
+-			"\tprevious declaration during import %q", s, where, pkg.Path)
++			"\t%v: previous declaration during import %q", s, where, base.FmtPos(pkgName.Pos()), pkgName.Pkg.Path)
+ 	} else {
+ 		prevPos := s.Lastlineno
+ 
+@@ -46,7 +43,7 @@ func redeclare(pos src.XPos, s *types.Sym, where string) {
+ 		}
+ 
+ 		base.ErrorfAt(pos, "%v redeclared %s\n"+
+-			"\tprevious declaration at %v", s, where, base.FmtPos(prevPos))
++			"\t%v: previous declaration", s, where, base.FmtPos(prevPos))
+ 	}
+ }
+ 
+@@ -210,6 +207,10 @@ func symfield(s *types.Sym, typ *types.Type) *ir.Field {
+ // Automatically creates a new closure variable if the referenced symbol was
+ // declared in a different (containing) function.
+ func oldname(s *types.Sym) ir.Node {
++	if s.Pkg != types.LocalPkg {
++		return ir.NewIdent(base.Pos, s)
++	}
++
+ 	n := ir.AsNode(s.Def)
+ 	if n == nil {
+ 		// Maybe a top-level declaration will come along later to
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 194c7427f3..0e2af562d0 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -165,17 +165,9 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
+ 			s := pkg.Lookup(p.stringAt(ird.uint64()))
+ 			off := ird.uint64()
+ 
+-			if _, ok := declImporter[s]; ok {
+-				continue
++			if _, ok := declImporter[s]; !ok {
++				declImporter[s] = iimporterAndOffset{p, off}
+ 			}
+-			declImporter[s] = iimporterAndOffset{p, off}
+-
+-			// Create stub declaration. If used, this will
+-			// be overwritten by expandDecl.
+-			if s.Def != nil {
+-				base.Fatalf("unexpected definition for %v: %v", s, ir.AsNode(s.Def))
+-			}
+-			s.Def = ir.NewDeclNameAt(src.NoXPos, s)
+ 		}
+ 	}
+ 
+@@ -187,10 +179,9 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
+ 			s := pkg.Lookup(p.stringAt(ird.uint64()))
+ 			off := ird.uint64()
+ 
+-			if _, ok := inlineImporter[s]; ok {
+-				continue
++			if _, ok := inlineImporter[s]; !ok {
++				inlineImporter[s] = iimporterAndOffset{p, off}
+ 			}
+-			inlineImporter[s] = iimporterAndOffset{p, off}
+ 		}
+ 	}
+ 
+@@ -442,10 +433,16 @@ func (r *importReader) ident() *types.Sym {
+ 	return pkg.Lookup(name)
+ }
+ 
+-func (r *importReader) qualifiedIdent() *types.Sym {
++func (r *importReader) qualifiedIdent() *ir.Name {
+ 	name := r.string()
+ 	pkg := r.pkg()
+-	return pkg.Lookup(name)
++	sym := pkg.Lookup(name)
++	n := sym.PkgDef()
++	if n == nil {
++		n = ir.NewDeclNameAt(src.NoXPos, sym)
++		sym.SetPkgDef(n)
++	}
++	return n.(*ir.Name)
+ }
+ 
+ func (r *importReader) pos() src.XPos {
+@@ -501,9 +498,9 @@ func (r *importReader) typ1() *types.Type {
+ 		// support inlining functions with local defined
+ 		// types. Therefore, this must be a package-scope
+ 		// type.
+-		n := ir.AsNode(r.qualifiedIdent().PkgDef())
++		n := r.qualifiedIdent()
+ 		if n.Op() == ir.ONONAME {
+-			expandDecl(n.(*ir.Name))
++			expandDecl(n)
+ 		}
+ 		if n.Op() != ir.OTYPE {
+ 			base.Fatalf("expected OTYPE, got %v: %v, %v", n.Op(), n.Sym(), n)
+@@ -821,10 +818,10 @@ func (r *importReader) node() ir.Node {
+ 		return n
+ 
+ 	case ir.ONONAME:
+-		return mkname(r.qualifiedIdent())
++		return r.qualifiedIdent()
+ 
+ 	case ir.ONAME:
+-		return mkname(r.ident())
++		return r.ident().Def.(*ir.Name)
+ 
+ 	// case OPACK, ONONAME:
+ 	// 	unreachable - should have been resolved by typechecking
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index e0907f952c..2ef9d1ad35 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -44,8 +44,8 @@ func fninit(n []ir.Node) {
+ 
+ 	// Find imported packages with init tasks.
+ 	for _, pkg := range sourceOrderImports {
+-		n := resolve(ir.AsNode(pkg.Lookup(".inittask").Def))
+-		if n == nil {
++		n := resolve(oldname(pkg.Lookup(".inittask")))
++		if n.Op() == ir.ONONAME {
+ 			continue
+ 		}
+ 		if n.Op() != ir.ONAME || n.Class() != ir.PEXTERN {
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index fa4dba4935..77b11c5d5d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -293,8 +293,10 @@ func Main(archInit func(*Arch)) {
+ 		}
+ 	}
+ 
+-	// Phase 3.14: With all user code type-checked, it's now safe to verify map keys.
++	// Phase 3.14: With all user code type-checked, it's now safe to verify map keys
++	// and unused dot imports.
+ 	checkMapKeys()
++	checkDotImports()
+ 	base.ExitIfErrors()
+ 
+ 	timings.AddEvent(fcount, "funcs")
+@@ -953,10 +955,7 @@ func clearImports() {
+ 		if IsAlias(s) {
+ 			// throw away top-level name left over
+ 			// from previous import . "x"
+-			if name := n.Name(); name != nil && name.PkgName != nil && !name.PkgName.Used && base.SyntaxErrors() == 0 {
+-				unused = append(unused, importedPkg{name.PkgName.Pos(), name.PkgName.Pkg.Path, ""})
+-				name.PkgName.Used = true
+-			}
++			// We'll report errors after type checking in checkDotImports.
+ 			s.Def = nil
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 8c765f9dfc..55628352bd 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -369,7 +369,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 
+ 	switch my.Name {
+ 	case ".":
+-		importdot(ipkg, pack)
++		importDot(pack)
+ 		return
+ 	case "init":
+ 		base.ErrorfAt(pack.Pos(), "cannot import package as init - init must be a func")
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 42f8982c80..2082544d08 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -100,13 +100,26 @@ func autolabel(prefix string) *types.Sym {
+ 	return lookupN(prefix, int(n))
+ }
+ 
+-// find all the exported symbols in package opkg
++// dotImports tracks all PkgNames that have been dot-imported.
++var dotImports []*ir.PkgName
++
++// dotImportRefs maps idents introduced by importDot back to the
++// ir.PkgName they were dot-imported through.
++var dotImportRefs map[*ir.Ident]*ir.PkgName
++
++// find all the exported symbols in package referenced by PkgName,
+ // and make them available in the current package
+-func importdot(opkg *types.Pkg, pack *ir.PkgName) {
+-	n := 0
++func importDot(pack *ir.PkgName) {
++	if dotImportRefs == nil {
++		dotImportRefs = make(map[*ir.Ident]*ir.PkgName)
++	}
++
++	opkg := pack.Pkg
+ 	for _, s := range opkg.Syms {
+ 		if s.Def == nil {
+-			continue
++			if _, ok := declImporter[s]; !ok {
++				continue
++			}
+ 		}
+ 		if !types.IsExported(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
+ 			continue
+@@ -118,21 +131,26 @@ func importdot(opkg *types.Pkg, pack *ir.PkgName) {
+ 			continue
+ 		}
+ 
+-		s1.Def = s.Def
+-		s1.Block = s.Block
+-		if ir.AsNode(s1.Def).Name() == nil {
+-			ir.Dump("s1def", ir.AsNode(s1.Def))
+-			base.Fatalf("missing Name")
+-		}
+-		ir.AsNode(s1.Def).Name().PkgName = pack
+-		s1.Origpkg = opkg
+-		n++
++		id := ir.NewIdent(src.NoXPos, s)
++		dotImportRefs[id] = pack
++		s1.Def = id
++		s1.Block = 1
+ 	}
+ 
+-	if n == 0 {
+-		// can't possibly be used - there were no symbols
+-		base.ErrorfAt(pack.Pos(), "imported and not used: %q", opkg.Path)
++	dotImports = append(dotImports, pack)
++}
++
++// checkDotImports reports errors for any unused dot imports.
++func checkDotImports() {
++	for _, pack := range dotImports {
++		if !pack.Used {
++			base.ErrorfAt(pack.Pos(), "imported and not used: %q", pack.Pkg.Path)
++		}
+ 	}
++
++	// No longer needed; release memory.
++	dotImports = nil
++	dotImportRefs = nil
+ }
+ 
+ // nodAddr returns a node representing &n.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index ad161b59f0..49e4289f14 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/src"
+ 	"fmt"
+ 	"go/constant"
+ 	"go/token"
+@@ -90,11 +91,24 @@ func resolve(n ir.Node) (res ir.Node) {
+ 		defer tracePrint("resolve", n)(&res)
+ 	}
+ 
+-	// Stub ir.Name left for us by iimport.
+-	if n, ok := n.(*ir.Name); ok {
+-		if n.Sym().Pkg == types.LocalPkg {
+-			base.Fatalf("unexpected Name: %+v", n)
++	if sym := n.Sym(); sym.Pkg != types.LocalPkg {
++		// We might have an ir.Ident from oldname or importDot.
++		if id, ok := n.(*ir.Ident); ok {
++			if pkgName := dotImportRefs[id]; pkgName != nil {
++				pkgName.Used = true
++			}
++
++			if sym.Def == nil {
++				if _, ok := declImporter[sym]; !ok {
++					return n // undeclared name
++				}
++				sym.Def = ir.NewDeclNameAt(src.NoXPos, sym)
++			}
++			n = ir.AsNode(sym.Def)
+ 		}
++
++		// Stub ir.Name left for us by iimport.
++		n := n.(*ir.Name)
+ 		if inimport {
+ 			base.Fatalf("recursive inimport")
+ 		}
+@@ -2885,31 +2899,25 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
+ 				if l.Op() == ir.OKEY {
+ 					key := l.Left()
+ 
+-					sk := ir.NewStructKeyExpr(l.Pos(), nil, l.Right())
+-					ls[i] = sk
+-					l = sk
++					// Sym might have resolved to name in other top-level
++					// package, because of import dot. Redirect to correct sym
++					// before we do the lookup.
++					s := key.Sym()
++					if id, ok := key.(*ir.Ident); ok && dotImportRefs[id] != nil {
++						s = lookup(s.Name)
++					}
+ 
+ 					// An OXDOT uses the Sym field to hold
+ 					// the field to the right of the dot,
+ 					// so s will be non-nil, but an OXDOT
+ 					// is never a valid struct literal key.
+-					if key.Sym() == nil || key.Op() == ir.OXDOT || key.Sym().IsBlank() {
++					if s == nil || s.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || s.IsBlank() {
+ 						base.Errorf("invalid field name %v in struct initializer", key)
+-						sk.SetLeft(typecheck(sk.Left(), ctxExpr))
+ 						continue
+ 					}
+ 
+-					// Sym might have resolved to name in other top-level
+-					// package, because of import dot. Redirect to correct sym
+-					// before we do the lookup.
+-					s := key.Sym()
+-					if s.Pkg != types.LocalPkg && types.IsExported(s.Name) {
+-						s1 := lookup(s.Name)
+-						if s1.Origpkg == s.Pkg {
+-							s = s1
+-						}
+-					}
+-					sk.SetSym(s)
++					l = ir.NewStructKeyExpr(l.Pos(), s, l.Right())
++					ls[i] = l
+ 				}
+ 
+ 				if l.Op() != ir.OSTRUCTKEY {
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 2330838f1c..7f1a47e13c 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -16,8 +16,7 @@ import (
+ // An Ident is an identifier, possibly qualified.
+ type Ident struct {
+ 	miniExpr
+-	sym  *types.Sym
+-	Used bool
++	sym *types.Sym
+ }
+ 
+ func NewIdent(pos src.XPos, sym *types.Sym) *Ident {
+diff --git a/src/cmd/compile/internal/types/sizeof_test.go b/src/cmd/compile/internal/types/sizeof_test.go
+index 72a35bc7da..1ca07b12c8 100644
+--- a/src/cmd/compile/internal/types/sizeof_test.go
++++ b/src/cmd/compile/internal/types/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Sym{}, 52, 88},
++		{Sym{}, 48, 80},
+ 		{Type{}, 56, 96},
+ 		{Map{}, 20, 40},
+ 		{Forward{}, 20, 32},
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index fcb095c53c..19f06fcf5b 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -38,8 +38,7 @@ type Sym struct {
+ 	Block      int32    // blocknumber to catch redeclaration
+ 	Lastlineno src.XPos // last declaration for diagnostic
+ 
+-	flags   bitset8
+-	Origpkg *Pkg // original package for . import
++	flags bitset8
+ }
+ 
+ const (
+diff --git a/test/fixedbugs/bug462.go b/test/fixedbugs/bug462.go
+index 3df63b091d..bae5ee0aeb 100644
+--- a/test/fixedbugs/bug462.go
++++ b/test/fixedbugs/bug462.go
+@@ -13,7 +13,7 @@ type T struct {
+ }
+ 
+ func main() {
+-	_ = T {
+-		os.File: 1, // ERROR "unknown T? ?field"
++	_ = T{
++		os.File: 1, // ERROR "invalid field name os.File|unknown field"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue20415.go b/test/fixedbugs/issue20415.go
+index 6f2c342ce4..5ad085564b 100644
+--- a/test/fixedbugs/issue20415.go
++++ b/test/fixedbugs/issue20415.go
+@@ -11,7 +11,7 @@ package p
+ // 1
+ var f byte
+ 
+-var f interface{} // ERROR "previous declaration at issue20415.go:12"
++var f interface{} // ERROR "issue20415.go:12: previous declaration"
+ 
+ func _(f int) {
+ }
+@@ -22,7 +22,7 @@ var g byte
+ func _(g int) {
+ }
+ 
+-var g interface{} // ERROR "previous declaration at issue20415.go:20"
++var g interface{} // ERROR "issue20415.go:20: previous declaration"
+ 
+ // 3
+ func _(h int) {
+@@ -30,4 +30,4 @@ func _(h int) {
+ 
+ var h byte
+ 
+-var h interface{} // ERROR "previous declaration at issue20415.go:31"
++var h interface{} // ERROR "issue20415.go:31: previous declaration"
+diff --git a/test/fixedbugs/issue43164.dir/a.go b/test/fixedbugs/issue43164.dir/a.go
+new file mode 100644
+index 0000000000..fa10e85061
+--- /dev/null
++++ b/test/fixedbugs/issue43164.dir/a.go
+@@ -0,0 +1,13 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import . "strings"
++
++var _ = Index // use strings
++
++type t struct{ Index int }
++
++var _ = t{Index: 0}
+diff --git a/test/fixedbugs/issue43164.dir/b.go b/test/fixedbugs/issue43164.dir/b.go
+new file mode 100644
+index 0000000000..b025927a05
+--- /dev/null
++++ b/test/fixedbugs/issue43164.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import . "bytes"
++
++var _ = Index // use bytes
++
++var _ = t{Index: 0}
+diff --git a/test/fixedbugs/issue43164.go b/test/fixedbugs/issue43164.go
+new file mode 100644
+index 0000000000..f21d1d5c58
+--- /dev/null
++++ b/test/fixedbugs/issue43164.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/fixedbugs/issue43167.go b/test/fixedbugs/issue43167.go
+new file mode 100644
+index 0000000000..1d1b69af58
+--- /dev/null
++++ b/test/fixedbugs/issue43167.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import . "bytes"
++
++var _ Buffer // use package bytes
++
++var Index byte // ERROR "Index redeclared.*\n\tLINE-4: previous declaration during import .bytes.|already declared|redefinition"
+diff --git a/test/fixedbugs/issue6428.go b/test/fixedbugs/issue6428.go
+new file mode 100644
+index 0000000000..c3f7b20a98
+--- /dev/null
++++ b/test/fixedbugs/issue6428.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import . "testing" // ERROR "imported and not used"
++
++type S struct {
++	T int
++}
++
++var _ = S{T: 0}

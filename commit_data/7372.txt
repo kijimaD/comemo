@@ -11,8 +11,73 @@ Date:   Fri Feb 4 14:33:08 2011 -0500
     R=niemeyer
     CC=golang-dev
     https://golang.org/cl/4023065
-
+---
  src/clean.bash     |  4 ++--
  src/cmd/clean.bash |  7 ++++++-
  src/pkg/Makefile   | 10 +++++-----
  3 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index d96eb52df0..5c1dded565 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -25,8 +25,8 @@ for i in lib9 libbio libmach cmd pkg \
+ do(
+ 	cd "$GOROOT"/src/$i || exit 1
+ 	if test -f clean.bash; then
+-		bash clean.bash
++		bash clean.bash --gomake $MAKE
+ 	else
+-		gomake clean
++		$MAKE clean
+ 	fi
+ )done
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 6349919a8a..b451670974 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,9 +3,14 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++gomake=gomake
++if [ $1 == "--gomake" -a "$2" != "" ]; then
++	gomake=$2
++fi
++
+ for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g gopack nm cgo cov ebnflint godefs godoc gofmt goinstall gotest goyacc hgpatch prof
+ do
+ 	cd $i
+-	gomake clean
++	$gomake clean
+ 	cd ..
+ done
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 6ba6951afc..2ca68f3e93 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -211,19 +211,19 @@ test.dirs: $(addsuffix .test, $(TEST))
+ bench.dirs: $(addsuffix .bench, $(BENCH))
+ 
+ %.clean:
+-	+cd $* && gomake clean
++	+cd $* && $(MAKE) clean
+ 
+ %.install:
+-	+cd $* && gomake install
++	+cd $* && $(MAKE) install
+ 
+ %.nuke:
+-	+cd $* && gomake nuke
++	+cd $* && $(MAKE) nuke
+ 
+ %.test:
+-	+cd $* && gomake test
++	+cd $* && $(MAKE) test
+ 
+ %.bench:
+-	+cd $* && gomake bench
++	+cd $* && $(MAKE) bench
+ 
+ clean: clean.dirs
+ 

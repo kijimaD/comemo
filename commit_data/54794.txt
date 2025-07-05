@@ -13,6 +13,47 @@ Date:   Tue Nov 15 10:14:28 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/internal/archive/archive_test.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/archive/archive_test.go b/src/cmd/internal/archive/archive_test.go
+index f5315856c1..0e2c7bca75 100644
+--- a/src/cmd/internal/archive/archive_test.go
++++ b/src/cmd/internal/archive/archive_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"internal/xcoff"
+ 	"io"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"sync"
+@@ -116,15 +115,15 @@ func buildGoobj(t *testing.T) goobjPaths {
+ 			importcfgfile := filepath.Join(buildDir, "importcfg")
+ 			testenv.WriteImportcfg(t, importcfgfile, nil)
+ 
+-			out, err := exec.Command(gotool, "tool", "compile", "-importcfg="+importcfgfile, "-p=p", "-o", go1obj, go1src).CombinedOutput()
++			out, err := testenv.Command(t, gotool, "tool", "compile", "-importcfg="+importcfgfile, "-p=p", "-o", go1obj, go1src).CombinedOutput()
+ 			if err != nil {
+ 				return fmt.Errorf("go tool compile -o %s %s: %v\n%s", go1obj, go1src, err, out)
+ 			}
+-			out, err = exec.Command(gotool, "tool", "compile", "-importcfg="+importcfgfile, "-p=p", "-o", go2obj, go2src).CombinedOutput()
++			out, err = testenv.Command(t, gotool, "tool", "compile", "-importcfg="+importcfgfile, "-p=p", "-o", go2obj, go2src).CombinedOutput()
+ 			if err != nil {
+ 				return fmt.Errorf("go tool compile -o %s %s: %v\n%s", go2obj, go2src, err, out)
+ 			}
+-			out, err = exec.Command(gotool, "tool", "pack", "c", goarchive, go1obj, go2obj).CombinedOutput()
++			out, err = testenv.Command(t, gotool, "tool", "pack", "c", goarchive, go1obj, go2obj).CombinedOutput()
+ 			if err != nil {
+ 				return fmt.Errorf("go tool pack c %s %s %s: %v\n%s", goarchive, go1obj, go2obj, err, out)
+ 			}
+@@ -139,7 +138,7 @@ func buildGoobj(t *testing.T) goobjPaths {
+ 				if err != nil {
+ 					return err
+ 				}
+-				cmd := exec.Command(gotool, "build", "-buildmode=archive", "-o", cgoarchive, "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "mycgo")
++				cmd := testenv.Command(t, gotool, "build", "-buildmode=archive", "-o", cgoarchive, "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "mycgo")
+ 				cmd.Dir = filepath.Join(gopath, "src", "mycgo")
+ 				cmd.Env = append(os.Environ(), "GOPATH="+gopath)
+ 				out, err = cmd.CombinedOutput()

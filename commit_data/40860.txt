@@ -12,7 +12,45 @@ Date:   Tue Jul 30 17:03:16 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/net/http/header.go      | 6 +++++-
  src/net/http/header_test.go | 8 ++++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/header.go b/src/net/http/header.go
+index 1e1ed981ec..230ca03d4f 100644
+--- a/src/net/http/header.go
++++ b/src/net/http/header.go
+@@ -78,8 +78,12 @@ func (h Header) write(w io.Writer, trace *httptrace.ClientTrace) error {
+ 	return h.writeSubset(w, nil, trace)
+ }
+ 
+-// Clone returns a copy of h.
++// Clone returns a copy of h or nil if h is nil.
+ func (h Header) Clone() Header {
++	if h == nil {
++		return nil
++	}
++
+ 	// Find total number of values.
+ 	nv := 0
+ 	for _, vv := range h {
+diff --git a/src/net/http/header_test.go b/src/net/http/header_test.go
+index 48158d313a..51fcab103b 100644
+--- a/src/net/http/header_test.go
++++ b/src/net/http/header_test.go
+@@ -176,6 +176,14 @@ func TestHasToken(t *testing.T) {
+ 	}
+ }
+ 
++func TestNilHeaderClone(t *testing.T) {
++	t1 := Header(nil)
++	t2 := t1.Clone()
++	if t2 != nil {
++		t.Errorf("cloned header does not match original: got: %+v; want: %+v", t2, nil)
++	}
++}
++
+ var testHeader = Header{
+ 	"Content-Length": {"123"},
+ 	"Content-Type":   {"text/plain"},

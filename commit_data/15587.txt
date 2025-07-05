@@ -7,6 +7,19 @@ Date:   Tue Mar 5 11:16:58 2013 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7431054
-
+---
  src/pkg/text/template/parse/parse.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/text/template/parse/parse.go b/src/pkg/text/template/parse/parse.go
+index c0fb9274a3..03bd22d95c 100644
+--- a/src/pkg/text/template/parse/parse.go
++++ b/src/pkg/text/template/parse/parse.go
+@@ -445,7 +445,6 @@ func (t *Tree) parseControl(context string) (pos Pos, line int, pipe *PipeNode,
+ 		if next.Type() != nodeEnd {
+ 			t.errorf("expected end; found %s", next)
+ 		}
+-		elseList = elseList
+ 	}
+ 	return pipe.Position(), line, pipe, list, elseList
+ }

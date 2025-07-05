@@ -11,7 +11,7 @@ Date:   Sat Apr 25 22:08:50 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go     |  4 ++--
  src/cmd/link/internal/ld/data.go       | 35 +++++++++++++++++-----------------
  src/cmd/link/internal/ld/data2.go      | 35 +++++++++++++++++++++++++++++++++-
@@ -19,3 +19,290 @@ Date:   Sat Apr 25 22:08:50 2020 -0400
  src/cmd/link/internal/ld/main.go       | 20 +++++++++++++++----
  src/cmd/link/internal/loader/loader.go | 34 +++++++++++++++++++--------------
  6 files changed, 92 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 24134adc27..f3b3d703b5 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -841,7 +841,7 @@ func asmb2(ctxt *ld.Link) {
+ 	}
+ }
+ 
+-func tlsIEtoLE(s *sym.Symbol, off, size int) {
++func tlsIEtoLE(P []byte, off, size int) {
+ 	// Transform the PC-relative instruction into a constant load.
+ 	// That is,
+ 	//
+@@ -852,7 +852,7 @@ func tlsIEtoLE(s *sym.Symbol, off, size int) {
+ 	if off < 3 {
+ 		log.Fatal("R_X86_64_GOTTPOFF reloc not preceded by MOVQ or ADDQ instruction")
+ 	}
+-	op := s.P[off-3 : off]
++	op := P[off-3 : off]
+ 	reg := op[2] >> 3
+ 
+ 	if op[1] == 0x8b || reg == 4 {
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index d44d590623..44e9b884ff 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -271,7 +271,6 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arch
+ 				log.Fatalf("unexpected R_TLS_LE relocation for %v", target.HeadType)
+ 			}
+ 		case objabi.R_TLS_IE:
+-			panic("not implemented")
+ 			//if target.IsExternal() && target.IsElf() {
+ 			//	r.Done = false
+ 			//	if r.Sym == nil {
+@@ -285,17 +284,17 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arch
+ 			//	}
+ 			//	break
+ 			//}
+-			//if target.IsPIE() && target.IsElf() {
+-			//	// We are linking the final executable, so we
+-			//	// can optimize any TLS IE relocation to LE.
+-			//	if thearch.TLSIEtoLE == nil {
+-			//		log.Fatalf("internal linking of TLS IE not supported on %v", target.Arch.Family)
+-			//	}
+-			//	thearch.TLSIEtoLE(ldr, s, int(off), int(siz))
+-			//	o = int64(syms.Tlsoffset)
+-			//} else {
+-			//	log.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
+-			//}
++			if target.IsPIE() && target.IsElf() {
++				// We are linking the final executable, so we
++				// can optimize any TLS IE relocation to LE.
++				if thearch.TLSIEtoLE == nil {
++					log.Fatalf("internal linking of TLS IE not supported on %v", target.Arch.Family)
++				}
++				thearch.TLSIEtoLE(P, int(off), int(siz))
++				o = int64(syms.Tlsoffset)
++			} else {
++				log.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
++			}
+ 		case objabi.R_ADDR:
+ 			//if target.IsExternal() && r.Sym.Type != sym.SCONST {
+ 			//	r.Done = false
+@@ -562,22 +561,22 @@ func (ctxt *Link) reloc() {
+ 	wg.Add(3)
+ 	go func() {
+ 		if !ctxt.IsWasm() { // On Wasm, text relocations are applied in Asmb2.
+-			for _, s := range ctxt.Textp {
+-				relocsym2(target, ldr, reporter, syms, s)
++			for _, s := range ctxt.Textp2 {
++				relocsym(target, ldr, reporter, syms, s, ldr.OutData(s))
+ 			}
+ 		}
+ 		wg.Done()
+ 	}()
+ 	go func() {
+-		for _, s := range ctxt.datap {
+-			relocsym2(target, ldr, reporter, syms, s)
++		for _, s := range ctxt.datap2 {
++			relocsym(target, ldr, reporter, syms, s, ldr.OutData(s))
+ 		}
+ 		wg.Done()
+ 	}()
+ 	go func() {
+-		for _, si := range dwarfp {
++		for _, si := range dwarfp2 {
+ 			for _, s := range si.syms {
+-				relocsym2(target, ldr, reporter, syms, s)
++				relocsym(target, ldr, reporter, syms, s, ldr.OutData(s))
+ 			}
+ 		}
+ 		wg.Done()
+diff --git a/src/cmd/link/internal/ld/data2.go b/src/cmd/link/internal/ld/data2.go
+index b9c8cd83de..d4503a4b0a 100644
+--- a/src/cmd/link/internal/ld/data2.go
++++ b/src/cmd/link/internal/ld/data2.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"log"
+ 	"strings"
++	"sync"
+ )
+ 
+ // Temporary dumping around for sym.Symbol version of helper
+@@ -199,7 +200,7 @@ func relocsym2(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arc
+ 				if thearch.TLSIEtoLE == nil {
+ 					log.Fatalf("internal linking of TLS IE not supported on %v", target.Arch.Family)
+ 				}
+-				thearch.TLSIEtoLE(s, int(off), int(r.Siz))
++				thearch.TLSIEtoLE(s.P, int(off), int(r.Siz))
+ 				o = int64(syms.Tlsoffset)
+ 				// TODO: o += r.Add when !target.IsAmd64()?
+ 				// Why do we treat r.Add differently on AMD64?
+@@ -483,3 +484,35 @@ func relocsym2(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arc
+ 		}
+ 	}
+ }
++
++func (ctxt *Link) reloc2() {
++	var wg sync.WaitGroup
++	target := &ctxt.Target
++	ldr := ctxt.loader
++	reporter := &ctxt.ErrorReporter
++	syms := &ctxt.ArchSyms
++	wg.Add(3)
++	go func() {
++		if !ctxt.IsWasm() { // On Wasm, text relocations are applied in Asmb2.
++			for _, s := range ctxt.Textp {
++				relocsym2(target, ldr, reporter, syms, s)
++			}
++		}
++		wg.Done()
++	}()
++	go func() {
++		for _, s := range ctxt.datap {
++			relocsym2(target, ldr, reporter, syms, s)
++		}
++		wg.Done()
++	}()
++	go func() {
++		for _, si := range dwarfp {
++			for _, s := range si.syms {
++				relocsym2(target, ldr, reporter, syms, s)
++			}
++		}
++		wg.Done()
++	}()
++	wg.Wait()
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index e1f89858b6..618faf2233 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -282,7 +282,7 @@ type Arch struct {
+ 	// This is possible when a TLS IE relocation refers to a local
+ 	// symbol in an executable, which is typical when internally
+ 	// linking PIE binaries.
+-	TLSIEtoLE func(s *sym.Symbol, off, size int)
++	TLSIEtoLE func(P []byte, off, size int)
+ 
+ 	// optional override for assignAddress
+ 	AssignAddress func(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, va uint64, isTramp bool) (*sym.Section, int, uint64)
+@@ -2824,10 +2824,9 @@ func addToTextp(ctxt *Link) {
+ 	ctxt.Textp = textp
+ }
+ 
+-func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind) {
+-
++func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind, needReloc bool) {
+ 	// Load full symbol contents, resolve indexed references.
+-	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms)
++	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms, needReloc)
+ 
+ 	// Convert ctxt.Moduledata2 to ctxt.Moduledata, etc
+ 	if ctxt.Moduledata2 != 0 {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index a4526230c9..84f40d9b81 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -325,10 +325,22 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	bench.Start("Asmb")
+ 	ctxt.loader.InitOutData()
+ 	thearch.Asmb(ctxt, ctxt.loader)
+-	bench.Start("loadlibfull")
+-	ctxt.loadlibfull(symGroupType) // XXX do it here for now
+-	bench.Start("reloc")
+-	ctxt.reloc()
++
++	newreloc := ctxt.IsInternal() && ctxt.IsAMD64()
++	if newreloc {
++		bench.Start("reloc")
++		ctxt.reloc()
++		bench.Start("loadlibfull")
++		// We don't need relocations at this point.
++		// An exception is Windows, see pe.go:addPEBaseRelocSym
++		needReloc := ctxt.IsWindows()
++		ctxt.loadlibfull(symGroupType, needReloc) // XXX do it here for now
++	} else {
++		bench.Start("loadlibfull")
++		ctxt.loadlibfull(symGroupType, true) // XXX do it here for now
++		bench.Start("reloc")
++		ctxt.reloc2()
++	}
+ 	bench.Start("Asmb2")
+ 	thearch.Asmb2(ctxt)
+ 
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 775a2cb522..2abd0e60e1 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2016,7 +2016,7 @@ func (l *Loader) preprocess(arch *sys.Arch, s Sym, name string) {
+ }
+ 
+ // Load full contents.
+-func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
++func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
+ 	// create all Symbols first.
+ 	l.growSyms(l.NSym())
+ 	l.growSects(l.NSym())
+@@ -2049,7 +2049,9 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
+ 	}
+ 
+ 	// allocate a single large slab of relocations for all live symbols
+-	l.relocBatch = make([]sym.Reloc, nr)
++	if needReloc {
++		l.relocBatch = make([]sym.Reloc, nr)
++	}
+ 
+ 	// convert payload-based external symbols into sym.Symbol-based
+ 	for _, i := range toConvert {
+@@ -2062,11 +2064,13 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
+ 		s.Size = pp.size
+ 
+ 		// Copy relocations
+-		batch := l.relocBatch
+-		s.R = batch[:len(pp.relocs):len(pp.relocs)]
+-		l.relocBatch = batch[len(pp.relocs):]
+-		relocs := l.Relocs(i)
+-		l.convertRelocations(i, &relocs, s, false)
++		if needReloc {
++			batch := l.relocBatch
++			s.R = batch[:len(pp.relocs):len(pp.relocs)]
++			l.relocBatch = batch[len(pp.relocs):]
++			relocs := l.Relocs(i)
++			l.convertRelocations(i, &relocs, s, false)
++		}
+ 
+ 		// Copy data
+ 		s.P = pp.data
+@@ -2077,7 +2081,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
+ 
+ 	// load contents of defined symbols
+ 	for _, o := range l.objs[1:] {
+-		loadObjFull(l, o.r)
++		loadObjFull(l, o.r, needReloc)
+ 	}
+ 
+ 	// Note: resolution of ABI aliases is now also handled in
+@@ -2598,7 +2602,7 @@ func (l *Loader) CreateStaticSym(name string) Sym {
+ 	return l.newExtSym(name, l.anonVersion)
+ }
+ 
+-func loadObjFull(l *Loader, r *oReader) {
++func loadObjFull(l *Loader, r *oReader, needReloc bool) {
+ 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
+ 		// A symbol may be a dup or overwritten. In this case, its
+ 		// content will actually be provided by a different object
+@@ -2623,11 +2627,13 @@ func loadObjFull(l *Loader, r *oReader) {
+ 		s.P = l.OutData(gi)
+ 
+ 		// Relocs
+-		relocs := l.relocs(r, i)
+-		batch := l.relocBatch
+-		s.R = batch[:relocs.Count():relocs.Count()]
+-		l.relocBatch = batch[relocs.Count():]
+-		l.convertRelocations(gi, &relocs, s, false)
++		if needReloc {
++			relocs := l.relocs(r, i)
++			batch := l.relocBatch
++			s.R = batch[:relocs.Count():relocs.Count()]
++			l.relocBatch = batch[relocs.Count():]
++			l.convertRelocations(gi, &relocs, s, false)
++		}
+ 
+ 		// Aux symbol info
+ 		auxs := r.Auxs(i)

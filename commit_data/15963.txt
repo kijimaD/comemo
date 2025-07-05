@@ -9,6 +9,19 @@ Date:   Tue Mar 26 23:08:08 2013 -0700
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/7749049
-
+---
  src/pkg/net/textproto/reader.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/net/textproto/reader.go b/src/pkg/net/textproto/reader.go
+index 35e27acb5a..5bd26ac8d6 100644
+--- a/src/pkg/net/textproto/reader.go
++++ b/src/pkg/net/textproto/reader.go
+@@ -574,6 +574,7 @@ var commonHeaders = []string{
+ 	"Content-Length",
+ 	"Content-Transfer-Encoding",
+ 	"Content-Type",
++	"Cookie",
+ 	"Date",
+ 	"Dkim-Signature",
+ 	"Etag",

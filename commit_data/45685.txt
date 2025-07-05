@@ -13,6 +13,21 @@ Date:   Thu Nov 5 16:41:32 2020 +1100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/267606
     Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/dist/build.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 20cb04d797..c8c3212d16 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1580,8 +1580,7 @@ var cgoEnabled = map[string]bool{
+ // List of platforms which are supported but not complete yet. These get
+ // filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
+ var incomplete = map[string]bool{
+-	"linux/sparc64":  true,
+-	"openbsd/mips64": true,
++	"linux/sparc64": true,
+ }
+ 
+ func needCC() bool {

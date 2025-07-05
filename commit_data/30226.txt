@@ -9,6 +9,28 @@ Date:   Fri Oct 28 09:54:20 2016 -0700
     Change-Id: I51b603a6c4877b571e83cd7c4e78a8988cc831ca
     Reviewed-on: https://go-review.googlesource.com/32310
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 6e745bc312..0819b758e6 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of October 27, 2016",
++	"Subtitle": "Version of October 28, 2016",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -265,7 +265,7 @@ The following character sequences represent <a href="#Operators">operators</a>,
+ *    ^     *=    ^=     &lt;-    &gt;     &gt;=    {    }
+ /    &lt;&lt;    /=    &lt;&lt;=    ++    =     :=    ,    ;
+ %    &gt;&gt;    %=    &gt;&gt;=    --    !     ...   .    :
+-     &amp;^          &amp;^=
++     &amp;^          &amp;^=    =&gt;
+ </pre>
+ 
+ <h3 id="Integer_literals">Integer literals</h3>

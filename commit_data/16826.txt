@@ -11,6 +11,20 @@ Date:   Fri Jul 19 15:40:32 2013 -0400
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/11595043
-
+---
  src/cmd/dist/buildruntime.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index a9c341c93a..675ef2f58f 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -248,6 +248,8 @@ ok:
+ 				aggr = "g";
+ 			else if(streq(fields.p[1], "M"))
+ 				aggr = "m";
++			else if(streq(fields.p[1], "P"))
++				aggr = "p";
+ 			else if(streq(fields.p[1], "Gobuf"))
+ 				aggr = "gobuf";
+ 			else if(streq(fields.p[1], "WinCall"))

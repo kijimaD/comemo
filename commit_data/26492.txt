@@ -11,9 +11,60 @@ Date:   Wed Jan 27 15:58:52 2016 -0500
     Reviewed-on: https://go-review.googlesource.com/19001
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/cgo/gcc_darwin_amd64.c | 2 ++
  src/runtime/cgo/gcc_libinit.c      | 1 +
  src/runtime/cgo/gcc_setenv.c       | 1 +
  src/runtime/cgo/gcc_util.c         | 2 ++
  4 files changed, 6 insertions(+)
+
+diff --git a/src/runtime/cgo/gcc_darwin_amd64.c b/src/runtime/cgo/gcc_darwin_amd64.c
+index dc679acab9..b70c83345f 100644
+--- a/src/runtime/cgo/gcc_darwin_amd64.c
++++ b/src/runtime/cgo/gcc_darwin_amd64.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build cgo
++
+ #include <string.h> /* for strerror */
+ #include <pthread.h>
+ #include <signal.h>
+diff --git a/src/runtime/cgo/gcc_libinit.c b/src/runtime/cgo/gcc_libinit.c
+index c3e94f58d2..5b9558aabc 100644
+--- a/src/runtime/cgo/gcc_libinit.c
++++ b/src/runtime/cgo/gcc_libinit.c
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build cgo
+ // +build darwin dragonfly freebsd linux netbsd solaris
+ // +build !ppc64,!ppc64le
+ 
+diff --git a/src/runtime/cgo/gcc_setenv.c b/src/runtime/cgo/gcc_setenv.c
+index ca29dcb05f..c976ac3d37 100644
+--- a/src/runtime/cgo/gcc_setenv.c
++++ b/src/runtime/cgo/gcc_setenv.c
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build cgo
+ // +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ #include "libcgo.h"
+diff --git a/src/runtime/cgo/gcc_util.c b/src/runtime/cgo/gcc_util.c
+index 143734e94b..d5efec396b 100644
+--- a/src/runtime/cgo/gcc_util.c
++++ b/src/runtime/cgo/gcc_util.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build cgo
++
+ #include "libcgo.h"
+ 
+ /* Stub for calling malloc from Go */

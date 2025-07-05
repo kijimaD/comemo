@@ -8,9 +8,158 @@ Date:   Tue Sep 16 13:14:44 2008 -0700
     DELTA=75  (57 added, 4 deleted, 14 changed)
     OCL=15394
     CL=15398
-
+---
  doc/go_tutorial.txt  | 65 +++++++++++++++++++++++++++++++++++++++++++++++-----
  doc/progs/server.go  |  4 ++--
  doc/progs/server1.go |  6 ++---
  doc/progs/sieve1.go  |  2 +-
  4 files changed, 65 insertions(+), 12 deletions(-)
+
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index f9f28d2175..fb6717ed0a 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -51,7 +51,10 @@ program that doesn't depend on "print()":
+ --PROG progs/helloworld2.go
+ 
+ This version imports the ''os'' package to acess its "Stdout" variable, of type
+-"*OS.FD"; given "OS.Stdout" we can use its "WriteString" method to print the string.
++"*OS.FD".  The "import" statement is a declaration: it names the identifier ("OS")
++that will be used to access members of the package imported from the file (&quot;os&quot;),
++found in the current directory or in a standard location.
++Given "OS.Stdout" we can use its "WriteString" method to print the string.
+ 
+ The comment convention is the same as in C++:
+ 
+@@ -517,14 +520,64 @@ Now "main"'s interface to the prime sieve is a channel of primes:
+ 
+ --PROG progs/sieve1.go /func.main/ /^}/
+ 
+-Service
++Multiplexing
+ ----
+ 
+-here we will describe this server:
++With channels, it's possible to serve multiple independent client goroutines without
++writing an actual multiplexer.  The trick is to send the server a channel in the message,
++which it will then use to reply to the original sender.
++A realistic client-server program is a lot of code, so here is a very simple substitute
++to illustrate the idea.  It starts by defining "Request" type, which embeds a channel
++that will be used for the reply.
+ 
+---PROG progs/server.go
++--PROG progs/server.go /type.Request/ /^}/
+ 
+-and this modification, which exits cleanly
++The server will be trivial: it will do simple binary operations on integers.  Here's the
++code that invokes the operation and responds to the request:
+ 
+---PROG progs/server1.go /func.Server/ END
++--PROG progs/server.go /type.BinOp/ /^}/
+ 
++The "Server" routine loops forever, receiving requests and, to avoid blocking due to
++a long-running operation, starting a goroutine to do the actual work.
++
++--PROG progs/server.go /func.Server/ /^}/
++
++We construct a server in a familiar way, starting it up and returning a channel to
++connect to it:
++
++--PROG progs/server.go /func.StartServer/ /^}/
++
++Here's a simple test.  It starts a server with an addition operator, and sends out
++lots of requests but doesn't wait for the reply.  Only after all the requests are sent
++does it check the results.
++
++--PROG progs/server.go /func.main/ /^}/
++
++One annoyance with this program is that it doesn't exit cleanly; when "main" returns
++there are a number of lingering goroutines blocked on communication.  To solve this,
++we provide a second, "quit" channel to the server:
++
++--PROG progs/server1.go /func.StartServer/ /^}/
++
++It passes the quit channel to the "Server" function, which uses it like this:
++
++--PROG progs/server1.go /func.Server/ /^}/
++
++Inside "Server", a "select" statement chooses which of the multiple communications
++listed by its cases can proceed.  If all are blocked, it waits until one can proceed; if
++multiple can proceed, it chooses one at random.  In this instance, the "select" allows
++the server to honor requests until it receives a quit message, at which point it
++returns, terminating its execution.  (The language doesn't yet allow the ":="
++syntax in "select" statements, although it might one day.  Also, observe the use
++of the binary, infix form of the receive operator.)
++
++
++All that's left is to strobe the "quit" channel
++at the end of main:
++
++--PROG progs/server1.go /adder,.quit/
++...
++--PROG progs/server1.go /quit....true/
++
++There's a lot more to Go programming and concurrent programming in general but this
++quick tour should give you some of the basics.
+diff --git a/doc/progs/server.go b/doc/progs/server.go
+index 3f64e9df00..00bc3b96d5 100644
+--- a/doc/progs/server.go
++++ b/doc/progs/server.go
+@@ -4,13 +4,13 @@
+ 
+ package main
+ 
+-type BinOp (a, b int) int;
+-
+ type Request struct {
+ 	a, b	int;
+ 	replyc	*chan int;
+ }
+ 
++type BinOp (a, b int) int;
++
+ func Run(op *BinOp, request *Request) {
+ 	result := op(request.a, request.b);
+ 	request.replyc -< result;
+diff --git a/doc/progs/server1.go b/doc/progs/server1.go
+index 5d24d8a4af..9f6c709b38 100644
+--- a/doc/progs/server1.go
++++ b/doc/progs/server1.go
+@@ -4,13 +4,13 @@
+ 
+ package main
+ 
+-type BinOp (a, b int) int;
+-
+ type Request struct {
+ 	a, b	int;
+ 	replyc	*chan int;
+ }
+ 
++type BinOp (a, b int) int;
++
+ func Run(op *BinOp, request *Request) {
+ 	result := op(request.a, request.b);
+ 	request.replyc -< result;
+@@ -20,7 +20,7 @@ func Server(op *BinOp, service *chan *Request, quit *chan bool) {
+ 	for {
+ 		var request *Request;
+ 		select {
+-		case request <- service:      // can't say request := <-service here yet
++		case request <- service:
+ 			go Run(op, request);  // don't wait for it
+ 		case <-quit:
+ 			return;
+diff --git a/doc/progs/sieve1.go b/doc/progs/sieve1.go
+index 2cb90600b8..2d6e069f40 100644
+--- a/doc/progs/sieve1.go
++++ b/doc/progs/sieve1.go
+@@ -16,7 +16,7 @@ func Generate() *chan int {
+ }
+ 
+ // Filter out input values divisible by 'prime', send rest to returned channel
+-func Filter(in *chan int, prime int) *chan int{
++func Filter(in *chan int, prime int) *chan int {
+ 	out := new(chan int);
+ 	go func(in *chan int, out *chan int, prime int) {
+ 		for {

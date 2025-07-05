@@ -13,8 +13,156 @@ Date:   Fri Oct 9 09:33:29 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/15654
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 39 +++++++++++++-------------
  src/cmd/compile/internal/ssa/gen/generic.rules |  4 +--
  src/cmd/compile/internal/ssa/rewritegeneric.go | 22 +++++++++------
  3 files changed, 36 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 45ae132cde..b568c58fba 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1732,8 +1732,9 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
+ 
+ 	case ODOT:
+-		v := s.expr(n.Left)
+-		return s.newValue1I(ssa.OpStructSelect, n.Type, n.Xoffset, v)
++		// TODO: fix when we can SSA struct types.
++		p := s.addr(n)
++		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
+ 
+ 	case ODOTPTR:
+ 		p := s.expr(n.Left)
+@@ -1742,29 +1743,29 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
+ 
+ 	case OINDEX:
+-		if n.Left.Type.Bound >= 0 { // array or string
++		switch {
++		case n.Left.Type.IsString():
+ 			a := s.expr(n.Left)
+ 			i := s.expr(n.Right)
+ 			i = s.extendIndex(i)
+-			if n.Left.Type.IsString() {
+-				if !n.Bounded {
+-					len := s.newValue1(ssa.OpStringLen, Types[TINT], a)
+-					s.boundsCheck(i, len)
+-				}
+-				ptrtyp := Ptrto(Types[TUINT8])
+-				ptr := s.newValue1(ssa.OpStringPtr, ptrtyp, a)
+-				ptr = s.newValue2(ssa.OpAddPtr, ptrtyp, ptr, i)
+-				return s.newValue2(ssa.OpLoad, Types[TUINT8], ptr, s.mem())
+-			} else {
+-				if !n.Bounded {
+-					len := s.constInt(Types[TINT], n.Left.Type.Bound)
+-					s.boundsCheck(i, len)
+-				}
+-				return s.newValue2(ssa.OpArrayIndex, n.Left.Type.Type, a, i)
++			if !n.Bounded {
++				len := s.newValue1(ssa.OpStringLen, Types[TINT], a)
++				s.boundsCheck(i, len)
+ 			}
+-		} else { // slice
++			ptrtyp := Ptrto(Types[TUINT8])
++			ptr := s.newValue1(ssa.OpStringPtr, ptrtyp, a)
++			ptr = s.newValue2(ssa.OpAddPtr, ptrtyp, ptr, i)
++			return s.newValue2(ssa.OpLoad, Types[TUINT8], ptr, s.mem())
++		case n.Left.Type.IsSlice():
++			p := s.addr(n)
++			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
++		case n.Left.Type.IsArray():
++			// TODO: fix when we can SSA arrays of length 1.
+ 			p := s.addr(n)
+ 			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
++		default:
++			s.Fatalf("bad type for index %v", n.Left.Type)
++			return nil
+ 		}
+ 
+ 	case OLEN, OCAP:
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 8195d6b010..1de7a6b00f 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -75,9 +75,9 @@
+ 
+ // indexing operations
+ // Note: bounds check has already been done
+-(ArrayIndex (Load ptr mem) idx) -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
++(ArrayIndex (Load ptr mem) idx) && b == v.Args[0].Block -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
+ (PtrIndex <t> ptr idx) -> (AddPtr ptr (MulPtr idx (ConstPtr [t.Elem().Size()])))
+-(StructSelect [idx] (Load ptr mem)) -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
++(StructSelect [idx] (Load ptr mem)) && b == v.Args[0].Block -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
+ 
+ // complex ops
+ (ComplexReal (ComplexMake real _  )) -> real
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 8534e2a865..99c49a8c79 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -136,15 +136,18 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		;
+ 	case OpArrayIndex:
+ 		// match: (ArrayIndex (Load ptr mem) idx)
+-		// cond:
++		// cond: b == v.Args[0].Block
+ 		// result: (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
+ 		{
+ 			if v.Args[0].Op != OpLoad {
+-				goto end4894dd7b58383fee5f8a92be08437c33
++				goto end68b373270d9d605c420497edefaa71df
+ 			}
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
+ 			idx := v.Args[1]
++			if !(b == v.Args[0].Block) {
++				goto end68b373270d9d605c420497edefaa71df
++			}
+ 			v.Op = OpLoad
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -157,8 +160,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end4894dd7b58383fee5f8a92be08437c33
+-	end4894dd7b58383fee5f8a92be08437c33:
++		goto end68b373270d9d605c420497edefaa71df
++	end68b373270d9d605c420497edefaa71df:
+ 		;
+ 	case OpCom16:
+ 		// match: (Com16 (Com16 x))
+@@ -1510,15 +1513,18 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		;
+ 	case OpStructSelect:
+ 		// match: (StructSelect [idx] (Load ptr mem))
+-		// cond:
++		// cond: b == v.Args[0].Block
+ 		// result: (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
+ 		{
+ 			idx := v.AuxInt
+ 			if v.Args[0].Op != OpLoad {
+-				goto end16fdb45e1dd08feb36e3cc3fb5ed8935
++				goto endd1a92da3e00c16a8f5bd3bd30deca298
+ 			}
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
++			if !(b == v.Args[0].Block) {
++				goto endd1a92da3e00c16a8f5bd3bd30deca298
++			}
+ 			v.Op = OpLoad
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -1531,8 +1537,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end16fdb45e1dd08feb36e3cc3fb5ed8935
+-	end16fdb45e1dd08feb36e3cc3fb5ed8935:
++		goto endd1a92da3e00c16a8f5bd3bd30deca298
++	endd1a92da3e00c16a8f5bd3bd30deca298:
+ 		;
+ 	case OpSub16:
+ 		// match: (Sub16 x x)

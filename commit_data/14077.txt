@@ -9,9 +9,152 @@ Date:   Sun Oct 7 17:56:10 2012 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6619066
-
+---
  misc/chrome/gophertool/background.html | 14 +----------
  misc/chrome/gophertool/background.js   |  9 +++++++
  misc/chrome/gophertool/popup.html      | 43 ++++------------------------------
  misc/chrome/gophertool/popup.js        | 38 ++++++++++++++++++++++++++++++
  4 files changed, 52 insertions(+), 52 deletions(-)
+
+diff --git a/misc/chrome/gophertool/background.html b/misc/chrome/gophertool/background.html
+index 058c18142b..06daa98b14 100644
+--- a/misc/chrome/gophertool/background.html
++++ b/misc/chrome/gophertool/background.html
+@@ -6,19 +6,7 @@
+ -->
+ <head>
+ <script src="gopher.js"></script>
+-<script>
+-    
+-chrome.omnibox.onInputEntered.addListener(function(t) {
+-  var url = urlForInput(t);
+-  if (url) {
+-    chrome.tabs.getSelected(null, function(tab) {
+-      if (!tab) return;
+-      chrome.tabs.update(tab.id, { "url": url, "selected": true });
+-    });
+-  }
+-});
+-
+-</script>
++<script src="background.js"></script>
+ </head>
+ </html>
+ 
+diff --git a/misc/chrome/gophertool/background.js b/misc/chrome/gophertool/background.js
+new file mode 100644
+index 0000000000..d18faa986f
+--- /dev/null
++++ b/misc/chrome/gophertool/background.js
+@@ -0,0 +1,9 @@
++chrome.omnibox.onInputEntered.addListener(function(t) {
++  var url = urlForInput(t);
++  if (url) {
++    chrome.tabs.getSelected(null, function(tab) {
++      if (!tab) return;
++      chrome.tabs.update(tab.id, { "url": url, "selected": true });
++    });
++  }
++});
+diff --git a/misc/chrome/gophertool/popup.html b/misc/chrome/gophertool/popup.html
+index a569392d0d..aec10048a3 100644
+--- a/misc/chrome/gophertool/popup.html
++++ b/misc/chrome/gophertool/popup.html
+@@ -6,49 +6,14 @@
+ -->
+ <head>
+ <script src="gopher.js"></script>
+-<script>
+-    
+-function focusinput() {
+-  document.getElementById("inputbox").focus();
+-}
+-
+-function navigate() {
+-  var box = document.getElementById("inputbox");
+-  box.focus();
+-
+-  var t = box.value;
+-  if (t == "") {
+-    return false;
+-  }
+-
+-  var success = function(url) {
+-    console.log("matched " + t + " to: " + url)
+-    box.value = "";
+-    openURL(url);
+-    return false;  // cancel form submission
+-  };
+-
+-  var url = urlForInput(t);
+-  if (url) {
+-    return success(url);
+-  }
+-
+-  console.log("no match for text: " + t)
+-  return false;
+-}
+-
+-function openURL(url) {
+-  chrome.tabs.create({ "url": url })
+-}
+-
+-</script>
++<script src="popup.js"></script>
+ </head>
+-<body onload="focusinput()" style='margin: 0.5em; font-family: sans;'>
++<body style='margin: 0.5em; font-family: sans;'>
+ <small><a href="#" onclick="openURL('http://code.google.com/p/go/issues/list')">issue</a>,
+ <a href="#" onclick="openURL('http://codereview.appspot.com/')">codereview</a>,
+ <a href="#" onclick="openURL('http://code.google.com/p/go/source/list')">commit</a>, or
+ <a href="#" onclick="openURL('http://golang.org/pkg/')">pkg</a> id/name:</small>
+-<form style='margin: 0' onsubmit="return navigate();"><nobr><input id="inputbox" size=10 tabindex=1 /><input type="submit" value="go" /></nobr></form>
+-<small>Also: <a href="#" onclick="openURL('http://build.golang.org/')">buildbots</small>
++<form style='margin: 0' id='navform'><nobr><input id="inputbox" size=10 tabindex=1 /><input type="submit" value="go" /></nobr></form>
++<small>Also: <a href="#" id='buildbotslink'>buildbots</small>
+ </body>
+ </html>
+diff --git a/misc/chrome/gophertool/popup.js b/misc/chrome/gophertool/popup.js
+new file mode 100644
+index 0000000000..717fc169cd
+--- /dev/null
++++ b/misc/chrome/gophertool/popup.js
+@@ -0,0 +1,38 @@
++function openURL(url) {
++  chrome.tabs.create({ "url": url })
++}
++
++window.addEventListener("load", function () {
++  console.log("hacking gopher pop-up loaded.");
++  document.getElementById("inputbox").focus();
++});
++
++window.addEventListener("submit", function () {
++  console.log("submitting form");
++  var box = document.getElementById("inputbox");
++  box.focus();
++
++  var t = box.value;
++  if (t == "") {
++    return false;
++  }
++
++  var success = function(url) {
++    console.log("matched " + t + " to: " + url)
++    box.value = "";
++    openURL(url);
++    return false;  // cancel form submission
++  };
++
++  var url = urlForInput(t);
++  if (url) {
++    return success(url);
++  }
++
++  console.log("no match for text: " + t)
++  return false;
++});
++
++window.addEventListener("click", function () {
++  openURL("http://build.golang.org/");
++});

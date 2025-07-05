@@ -16,6 +16,23 @@ Date:   Sun Apr 9 10:31:41 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/net/platform_test.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index 12be367b1a..71e90821ce 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -57,11 +57,6 @@ func testableNetwork(network string) bool {
+ 		switch runtime.GOOS {
+ 		case "aix", "android", "darwin", "ios", "plan9", "windows":
+ 			return false
+-		case "netbsd":
+-			// It passes on amd64 at least. 386 fails (Issue 22927). arm is unknown.
+-			if runtime.GOARCH == "386" {
+-				return false
+-			}
+ 		}
+ 	}
+ 	switch net {

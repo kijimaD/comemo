@@ -9,6 +9,24 @@ Date:   Thu Jun 29 10:55:48 2017 +0200
     Change-Id: Ic60000db6b8ae489a5cedbdc938d9ca1dc34c6d4
     Reviewed-on: https://go-review.googlesource.com/47151
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.9.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index 32acf25253..c1ea504d42 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -580,6 +580,12 @@ CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS gener
+ <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+   <dd>
+ 
++    <p><!-- CL 37328 -->
++      The <a href="/pkg/net/http/#Cookie.String"><code>Cookie.String</code></a> method, used for
++      <code>Cookie</code> and <code>Set-Cookie</code> headers, now encloses values in double quotes
++      if the value contains either a space or a comma.
++    </p>
++
+     <p>Server changes:</p>
+     <ul>
+       <li><!-- CL 38194 -->

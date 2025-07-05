@@ -338,3 +338,4 @@ Date:   Fri Feb 28 15:28:43 2020 -0500
  test/syntax/chan1.go                               |    2 +-
  test/syntax/typesw.go                              |    2 +-
  328 files changed, 11782 insertions(+), 23814 deletions(-)
+

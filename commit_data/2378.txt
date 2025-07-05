@@ -10,7 +10,7 @@ Date:   Thu Jun 4 11:16:03 2009 -0700
     DELTA=122  (83 added, 8 deleted, 31 changed)
     OCL=29872
     CL=29876
-
+---
  src/cmd/clean.bash                      |  2 +-
  src/cmd/gobuild/Makefile                | 10 +++--
  src/cmd/make.bash                       | 13 ++++++-
@@ -24,3 +24,341 @@ Date:   Thu Jun 4 11:16:03 2009 -0700
  src/runtime/runtime.h                   |  3 +-
  test/env.go                             |  2 +-
  12 files changed, 107 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 81cbbec1e7..262bcca1fd 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in cc 6l 6a 6c 8l 8a 8c 5l 5a 5c gc 6g ar db nm acid cov gobuild godefs prof gotest
++for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g ar db nm acid cov gobuild godefs prof gotest
+ do
+ 	cd $i
+ 	make clean
+diff --git a/src/cmd/gobuild/Makefile b/src/cmd/gobuild/Makefile
+index 8c0eb523b0..cb326c24f7 100644
+--- a/src/cmd/gobuild/Makefile
++++ b/src/cmd/gobuild/Makefile
+@@ -2,10 +2,14 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-# sadly, not auto-generated
++# ironically, not auto-generated
+ 
+-O=6
+-OS=568vqo
++O_arm=5
++O_amd64=6
++O_386=8
++OS=568vq
++
++O=$(O_$(GOARCH))
+ GC=$(O)g
+ CC=$(O)c -FVw
+ AS=$(O)a
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index 08cffbb9b0..f406e358af 100644
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -7,12 +7,21 @@ set -e
+ 
+ bash clean.bash
+ 
+-cd 6l
++case "$GOARCH" in
++386)	O=8;;
++amd64)	O=6;;
++arm)	O=5;;
++*)
++	echo 'unknown $GOARCH' 1>&2
++	exit 1
++esac
++
++cd ${O}l
+ bash mkenam
+ make enam.o
+ cd ..
+ 
+-for i in cc 6l 6a 6c gc 6g ar db nm acid cov godefs prof gotest
++for i in cc ${O}l ${O}a ${O}c gc ${O}g ar db nm acid cov godefs prof gotest
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i
+diff --git a/src/lib/net/fd_darwin.go b/src/lib/net/fd_darwin.go
+index 3d1025d516..42bf512210 100644
+--- a/src/lib/net/fd_darwin.go
++++ b/src/lib/net/fd_darwin.go
+@@ -31,7 +31,7 @@ func newpollster() (p *pollster, err os.Error) {
+ }
+ 
+ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+-	var kmode int16;
++	var kmode int;
+ 	if mode == 'r' {
+ 		kmode = syscall.EVFILT_READ
+ 	} else {
+@@ -39,23 +39,21 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+ 	}
+ 	var events [1]syscall.Kevent_t;
+ 	ev := &events[0];
+-	ev.Ident = uint64(fd);
+-	ev.Filter = kmode;
+-
+ 	// EV_ADD - add event to kqueue list
+ 	// EV_RECEIPT - generate fake EV_ERROR as result of add,
+ 	//	rather than waiting for real event
+ 	// EV_ONESHOT - delete the event the first time it triggers
+-	ev.Flags = syscall.EV_ADD | syscall.EV_RECEIPT;
++	flags := syscall.EV_ADD | syscall.EV_RECEIPT;
+ 	if !repeat {
+-		ev.Flags |= syscall.EV_ONESHOT
++		flags |= syscall.EV_ONESHOT
+ 	}
++	syscall.SetKevent(ev, fd, kmode, flags);
+ 
+ 	n, e := syscall.Kevent(p.kq, &events, &events, nil);
+ 	if e != 0 {
+ 		return os.ErrnoToError(e)
+ 	}
+-	if n != 1 || (ev.Flags & syscall.EV_ERROR) == 0 || ev.Ident != uint64(fd) || ev.Filter != kmode {
++	if n != 1 || (ev.Flags & syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
+ 		return kqueuePhaseError
+ 	}
+ 	if ev.Data != 0 {
+@@ -65,7 +63,7 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+ }
+ 
+ func (p *pollster) DelFD(fd int, mode int) {
+-	var kmode int16;
++	var kmode int;
+ 	if mode == 'r' {
+ 		kmode = syscall.EVFILT_READ
+ 	} else {
+@@ -73,13 +71,10 @@ func (p *pollster) DelFD(fd int, mode int) {
+ 	}
+ 	var events [1]syscall.Kevent_t;
+ 	ev := &events[0];
+-	ev.Ident = uint64(fd);
+-	ev.Filter = kmode;
+-
+ 	// EV_DELETE - delete event from kqueue list
+ 	// EV_RECEIPT - generate fake EV_ERROR as result of add,
+ 	//	rather than waiting for real event
+-	ev.Flags = syscall.EV_DELETE | syscall.EV_RECEIPT;
++	syscall.SetKevent(ev, fd, kmode, syscall.EV_DELETE | syscall.EV_RECEIPT);
+ 	syscall.Kevent(p.kq, &events, &events, nil);
+ }
+ 
+@@ -90,9 +85,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
+ 			if t == nil {
+ 				t = new(syscall.Timespec);
+ 			}
+-			t.Sec = nsec / 1e9;
+-			t.Nsec = int64(nsec % 1e9);
+-//			*t = syscall.NsecToTimespec(nsec);
++			*t = syscall.NsecToTimespec(nsec);
+ 		}
+ 		nn, e := syscall.Kevent(p.kq, nil, &p.eventbuf, t);
+ 		if e != 0 {
+diff --git a/src/lib/syscall/asm_darwin_386.s b/src/lib/syscall/asm_darwin_386.s
+index 7fb90c28a5..a8ec5b00cf 100644
+--- a/src/lib/syscall/asm_darwin_386.s
++++ b/src/lib/syscall/asm_darwin_386.s
+@@ -48,7 +48,7 @@ TEXT	syscall·Syscall6(SB),7,$0
+ 	MOVSL
+ 	MOVSL
+ 	INT	$0x80
+-	JAE	ok
++	JAE	ok6
+ 	MOVL	$-1, 32(SP)	// r1
+ 	MOVL	$-1, 36(SP)	// r2
+ 	MOVL	AX, 40(SP)		// errno
+diff --git a/src/lib/syscall/syscall_darwin_386.go b/src/lib/syscall/syscall_darwin_386.go
+index 6f82e04e48..5633d7c034 100644
+--- a/src/lib/syscall/syscall_darwin_386.go
++++ b/src/lib/syscall/syscall_darwin_386.go
+@@ -6,6 +6,10 @@ package syscall
+ 
+ import "syscall"
+ 
++func Getpagesize() int {
++	return 4096
++}
++
+ func TimespecToNsec(ts Timespec) int64 {
+ 	return int64(ts.Sec)*1e9 + int64(ts.Nsec);
+ }
+@@ -38,3 +42,8 @@ func Gettimeofday(tv *Timeval) (errno int) {
+ 	return err;
+ }
+ 
++func SetKevent(k *Kevent_t, fd, mode, flags int) {
++	k.Ident = uint32(fd);
++	k.Filter = int16(mode);
++	k.Flags = uint16(flags);
++}
+diff --git a/src/lib/syscall/syscall_darwin_amd64.go b/src/lib/syscall/syscall_darwin_amd64.go
+index 8620232230..f7a93f1216 100644
+--- a/src/lib/syscall/syscall_darwin_amd64.go
++++ b/src/lib/syscall/syscall_darwin_amd64.go
+@@ -42,3 +42,8 @@ func Gettimeofday(tv *Timeval) (errno int) {
+ 	return err;
+ }
+ 
++func SetKevent(k *Kevent_t, fd, mode, flags int) {
++	k.Ident = uint64(fd);
++	k.Filter = int16(mode);
++	k.Flags = uint16(flags);
++}
+diff --git a/src/runtime/darwin/386/sys.s b/src/runtime/darwin/386/sys.s
+index 1ad6d2aceb..bbcb622d5f 100644
+--- a/src/runtime/darwin/386/sys.s
++++ b/src/runtime/darwin/386/sys.s
+@@ -88,25 +88,76 @@ TEXT sigaltstack(SB),7,$0
+ 	CALL	notok(SB)
+ 	RET
+ 
+-TEXT bsdthread_create(SB),7,$0
++// void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
++// System call args are: func arg stack pthread flags.
++TEXT bsdthread_create(SB),7,$32
+ 	MOVL	$360, AX
++	// 0(SP) is where the caller PC would be; kernel skips it
++	MOVL	func+12(FP), BX
++	MOVL	BX, 4(SP)	// func
++	MOVL	m+4(FP), BX
++	MOVL	BX, 8(SP)	// arg
++	MOVL	stk+0(FP), BX
++	MOVL	BX, 12(SP)	// stack
++	MOVL	g+8(FP), BX
++	MOVL	BX, 16(SP)	// pthread
++	MOVL	$0x1000000, 20(SP)	// flags = PTHREAD_START_CUSTOM
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	CALL	notok(SB)
+ 	RET
+ 
++// The thread that bsdthread_create creates starts executing here,
++// because we registered this function using bsdthread_register
++// at startup.
++//	AX = "pthread" (= g)
++//	BX = mach thread port
++//	CX = "func" (= fn)
++//	DX = "arg" (= m)
++//	DI = stack top
++//	SI = flags (= 0x1000000)
++//	SP = stack - C_32_STK_ALIGN
+ TEXT bsdthread_start(SB),7,$0
+-	CALL	notok(SB)
++	// set up ldt 7+id to point at m->tls.
++	// m->tls is at m+40.  newosproc left
++	// the m->id in tls[0].
++	LEAL	40(DX), BP
++	MOVL	0(BP), DI
++	ADDL	$7, DI	// m0 is LDT#7. count up.
++	// setldt(tls#, &tls, sizeof tls)
++	PUSHAL	// save registers
++	PUSHL	$32	// sizeof tls
++	PUSHL	BP	// &tls
++	PUSHL	DI	// tls #
++	CALL	setldt(SB)
++	POPL	AX
++	POPL	AX
++	POPL	AX
++	POPAL
++	SHLL	$3, DI	// segment# is ldt*8 + 7.
++	ADDL	$7, DI
++	MOVW	DI, FS
++
++	// Now segment is established.  Initialize m, g.
++	MOVL	AX, 0(FS)	// g
++	MOVL	DX, 4(FS)	// m
++	MOVL	BX, 20(DX)	// m->procid = thread port (for debuggers)
++	CALL	CX	// fn()
++	CALL	exit1(SB)
+ 	RET
+ 
++// void bsdthread_register(void)
++// registers callbacks for threadstart (see bsdthread_create above
++// and wqthread and pthsize (not used).  returns 0 on success.
+ TEXT bsdthread_register(SB),7,$40
+ 	MOVL	$366, AX
+-	MOVL	$bsdthread_start(SB), 0(SP)	// threadstart
+-	MOVL	$0, 4(SP)	// wqthread, not used by us
+-	MOVL	$0, 8(SP)	// pthsize, not used by us
+-	MOVL	$0, 12(SP)	// paranoia
+-	MOVL	$0, 16(SP)
++	// 0(SP) is where kernel expects caller PC; ignored
++	MOVL	$bsdthread_start(SB), 4(SP)	// threadstart
++	MOVL	$0, 8(SP)	// wqthread, not used by us
++	MOVL	$0, 12(SP)	// pthsize, not used by us
++	MOVL	$0, 16(SP)	// paranoia
+ 	MOVL	$0, 20(SP)
++	MOVL	$0, 24(SP)
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	CALL	notok(SB)
+diff --git a/src/runtime/darwin/amd64/sys.s b/src/runtime/darwin/amd64/sys.s
+index 4238cd1858..b46c823ae4 100644
+--- a/src/runtime/darwin/amd64/sys.s
++++ b/src/runtime/darwin/amd64/sys.s
+@@ -157,6 +157,7 @@ TEXT bsdthread_create(SB),7,$-8
+ 	MOVQ	m+16(SP), SI	// "arg"
+ 	MOVQ	stk+8(SP), DX	// stack
+ 	MOVQ	g+24(SP), R10	// "pthread"
++// TODO(rsc): why do we get away with 0 flags here but not on 386?
+ 	MOVQ	$0, R8	// flags
+ 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
+ 	SYSCALL
+diff --git a/src/runtime/darwin/thread.c b/src/runtime/darwin/thread.c
+index c780e16197..79267085ed 100644
+--- a/src/runtime/darwin/thread.c
++++ b/src/runtime/darwin/thread.c
+@@ -144,13 +144,15 @@ notewakeup(Note *n)
+ void
+ osinit(void)
+ {
+-	// Register our thread-creation callback (see sys_amd64_darwin.s).
++	// Register our thread-creation callback (see {amd64,386}/sys.s).
+ 	bsdthread_register();
+ }
+ 
+ void
+ newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ {
++	// printf("newosproc m=%p g=%p stk=%p fn=%p\n", m, g, stk, fn);
++	m->tls[0] = m->id;	// so 386 asm can find it
+ 	bsdthread_create(stk, m, g, fn);
+ }
+ 
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 8b92c446c8..8c20c1d021 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -168,7 +168,8 @@ struct	M
+ 	uint64	procid;		// for debuggers - must not move
+ 	G*	gsignal;	// signal-handling G - must not move
+ 	G*	curg;		// current running goroutine - must not move
+-	G*	lastg;		// last running goroutine - to emulate fifo
++	G*	lastg;		// last running goroutine - to emulate fifo - must not move
++	uint32	tls[8];		// thread-local storage (for 386 extern register) - must not move
+ 	Gobuf	sched;
+ 	Gobuf	morestack;
+ 	byte*	moresp;
+diff --git a/test/env.go b/test/env.go
+index 88cec4546b..db76ee49f3 100644
+--- a/test/env.go
++++ b/test/env.go
+@@ -14,7 +14,7 @@ func main() {
+ 		print("$GOARCH: ", e0.String(), "\n");
+ 		os.Exit(1);
+ 	}
+-	if ga != "amd64" {
++	if ga != "amd64" && ga != "386" && ga != "arm" {
+ 		print("$GOARCH=", ga, "\n");
+ 		os.Exit(1);
+ 	}

@@ -61,7 +61,7 @@ Date:   Mon Jul 16 04:45:25 2018 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        |   2 +
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  13 +-
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   2 +
@@ -70,3 +70,462 @@ Date:   Mon Jul 16 04:45:25 2018 +0000
  src/math/all_test.go                         |  38 ++++++
  test/codegen/math.go                         |   6 +
  7 files changed, 256 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index ce6d32f536..482442cd22 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -701,6 +701,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARM64FABSD,
+ 		ssa.OpARM64FMOVDfpgp,
+ 		ssa.OpARM64FMOVDgpfp,
++		ssa.OpARM64FMOVSfpgp,
++		ssa.OpARM64FMOVSgpfp,
+ 		ssa.OpARM64FNEGS,
+ 		ssa.OpARM64FNEGD,
+ 		ssa.OpARM64FSQRTD,
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index b2ce875a05..8fb39538c2 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -110,8 +110,17 @@
+ (FMOVDfpgp <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
+ 
+ // Similarly for stores, if we see a store after FPR <-> GPR move, then redirect store to use the other register set.
+-(MOVDstore ptr (FMOVDfpgp val) mem) -> (FMOVDstore ptr val mem)
+-(FMOVDstore ptr (FMOVDgpfp val) mem) -> (MOVDstore ptr val mem)
++(MOVDstore [off] {sym} ptr (FMOVDfpgp val) mem) -> (FMOVDstore [off] {sym} ptr val mem)
++(FMOVDstore [off] {sym} ptr (FMOVDgpfp val) mem) -> (MOVDstore [off] {sym} ptr val mem)
++(MOVWstore [off] {sym} ptr (FMOVSfpgp val) mem) -> (FMOVSstore [off] {sym} ptr val mem)
++(FMOVSstore [off] {sym} ptr (FMOVSgpfp val) mem) -> (MOVWstore [off] {sym} ptr val mem)
++
++// float <-> int register moves, with no conversion.
++// These come up when compiling math.{Float64bits, Float64frombits, Float32bits, Float32frombits}.
++(MOVDload [off] {sym} ptr (FMOVDstore [off] {sym} ptr val _)) -> (FMOVDfpgp val)
++(FMOVDload [off] {sym} ptr (MOVDstore [off] {sym} ptr val _)) -> (FMOVDgpfp val)
++(MOVWUload [off] {sym} ptr (FMOVSstore [off] {sym} ptr val _)) -> (FMOVSfpgp val)
++(FMOVSload [off] {sym} ptr (MOVWstore [off] {sym} ptr val _)) -> (FMOVSgpfp val)
+ 
+ (BitLen64 x) -> (SUB (MOVDconst [64]) (CLZ <typ.Int> x))
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index da078517d4..4381c081b7 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -391,6 +391,8 @@ func init() {
+ 
+ 		{name: "FMOVDgpfp", argLength: 1, reg: gpfp, asm: "FMOVD"}, // move int64 to float64 (no conversion)
+ 		{name: "FMOVDfpgp", argLength: 1, reg: fpgp, asm: "FMOVD"}, // move float64 to int64 (no conversion)
++		{name: "FMOVSgpfp", argLength: 1, reg: gpfp, asm: "FMOVS"}, // move 32bits from int to float reg (no conversion)
++		{name: "FMOVSfpgp", argLength: 1, reg: fpgp, asm: "FMOVS"}, // move 32bits from float to int reg, zero extend (no conversion)
+ 
+ 		// conversions
+ 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},   // move from arg0, sign-extended from byte
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index b32dca4103..77b9875fd6 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1250,6 +1250,8 @@ const (
+ 	OpARM64MOVDstorezeroidx8
+ 	OpARM64FMOVDgpfp
+ 	OpARM64FMOVDfpgp
++	OpARM64FMOVSgpfp
++	OpARM64FMOVSfpgp
+ 	OpARM64MOVBreg
+ 	OpARM64MOVBUreg
+ 	OpARM64MOVHreg
+@@ -16616,6 +16618,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FMOVSgpfp",
++		argLen: 1,
++		asm:    arm64.AFMOVS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "FMOVSfpgp",
++		argLen: 1,
++		asm:    arm64.AFMOVS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
+ 	{
+ 		name:   "MOVBreg",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 2108452c03..5bf165df48 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -4950,6 +4950,33 @@ func rewriteValueARM64_OpARM64FMOVDload_0(v *Value) bool {
+ 	_ = b
+ 	config := b.Func.Config
+ 	_ = config
++	// match: (FMOVDload [off] {sym} ptr (MOVDstore [off] {sym} ptr val _))
++	// cond:
++	// result: (FMOVDgpfp val)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVDstore {
++			break
++		}
++		if v_1.AuxInt != off {
++			break
++		}
++		if v_1.Aux != sym {
++			break
++		}
++		_ = v_1.Args[2]
++		if ptr != v_1.Args[0] {
++			break
++		}
++		val := v_1.Args[1]
++		v.reset(OpARM64FMOVDgpfp)
++		v.AddArg(val)
++		return true
++	}
+ 	// match: (FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem)
+ 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVDload [off1+off2] {sym} ptr mem)
+@@ -5069,10 +5096,12 @@ func rewriteValueARM64_OpARM64FMOVDstore_0(v *Value) bool {
+ 	_ = b
+ 	config := b.Func.Config
+ 	_ = config
+-	// match: (FMOVDstore ptr (FMOVDgpfp val) mem)
++	// match: (FMOVDstore [off] {sym} ptr (FMOVDgpfp val) mem)
+ 	// cond:
+-	// result: (MOVDstore ptr val mem)
++	// result: (MOVDstore [off] {sym} ptr val mem)
+ 	for {
++		off := v.AuxInt
++		sym := v.Aux
+ 		_ = v.Args[2]
+ 		ptr := v.Args[0]
+ 		v_1 := v.Args[1]
+@@ -5082,6 +5111,8 @@ func rewriteValueARM64_OpARM64FMOVDstore_0(v *Value) bool {
+ 		val := v_1.Args[0]
+ 		mem := v.Args[2]
+ 		v.reset(OpARM64MOVDstore)
++		v.AuxInt = off
++		v.Aux = sym
+ 		v.AddArg(ptr)
+ 		v.AddArg(val)
+ 		v.AddArg(mem)
+@@ -5216,6 +5247,33 @@ func rewriteValueARM64_OpARM64FMOVSload_0(v *Value) bool {
+ 	_ = b
+ 	config := b.Func.Config
+ 	_ = config
++	// match: (FMOVSload [off] {sym} ptr (MOVWstore [off] {sym} ptr val _))
++	// cond:
++	// result: (FMOVSgpfp val)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVWstore {
++			break
++		}
++		if v_1.AuxInt != off {
++			break
++		}
++		if v_1.Aux != sym {
++			break
++		}
++		_ = v_1.Args[2]
++		if ptr != v_1.Args[0] {
++			break
++		}
++		val := v_1.Args[1]
++		v.reset(OpARM64FMOVSgpfp)
++		v.AddArg(val)
++		return true
++	}
+ 	// match: (FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem)
+ 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVSload [off1+off2] {sym} ptr mem)
+@@ -5335,6 +5393,28 @@ func rewriteValueARM64_OpARM64FMOVSstore_0(v *Value) bool {
+ 	_ = b
+ 	config := b.Func.Config
+ 	_ = config
++	// match: (FMOVSstore [off] {sym} ptr (FMOVSgpfp val) mem)
++	// cond:
++	// result: (MOVWstore [off] {sym} ptr val mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64FMOVSgpfp {
++			break
++		}
++		val := v_1.Args[0]
++		mem := v.Args[2]
++		v.reset(OpARM64MOVWstore)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (FMOVSstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+ 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVSstore [off1+off2] {sym} ptr val mem)
+@@ -11106,6 +11186,33 @@ func rewriteValueARM64_OpARM64MOVDload_0(v *Value) bool {
+ 	_ = b
+ 	config := b.Func.Config
+ 	_ = config
++	// match: (MOVDload [off] {sym} ptr (FMOVDstore [off] {sym} ptr val _))
++	// cond:
++	// result: (FMOVDfpgp val)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64FMOVDstore {
++			break
++		}
++		if v_1.AuxInt != off {
++			break
++		}
++		if v_1.Aux != sym {
++			break
++		}
++		_ = v_1.Args[2]
++		if ptr != v_1.Args[0] {
++			break
++		}
++		val := v_1.Args[1]
++		v.reset(OpARM64FMOVDfpgp)
++		v.AddArg(val)
++		return true
++	}
+ 	// match: (MOVDload [off1] {sym} (ADDconst [off2] ptr) mem)
+ 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVDload [off1+off2] {sym} ptr mem)
+@@ -11408,10 +11515,12 @@ func rewriteValueARM64_OpARM64MOVDstore_0(v *Value) bool {
+ 	_ = b
+ 	config := b.Func.Config
+ 	_ = config
+-	// match: (MOVDstore ptr (FMOVDfpgp val) mem)
++	// match: (MOVDstore [off] {sym} ptr (FMOVDfpgp val) mem)
+ 	// cond:
+-	// result: (FMOVDstore ptr val mem)
++	// result: (FMOVDstore [off] {sym} ptr val mem)
+ 	for {
++		off := v.AuxInt
++		sym := v.Aux
+ 		_ = v.Args[2]
+ 		ptr := v.Args[0]
+ 		v_1 := v.Args[1]
+@@ -11421,6 +11530,8 @@ func rewriteValueARM64_OpARM64MOVDstore_0(v *Value) bool {
+ 		val := v_1.Args[0]
+ 		mem := v.Args[2]
+ 		v.reset(OpARM64FMOVDstore)
++		v.AuxInt = off
++		v.Aux = sym
+ 		v.AddArg(ptr)
+ 		v.AddArg(val)
+ 		v.AddArg(mem)
+@@ -14620,6 +14731,33 @@ func rewriteValueARM64_OpARM64MOVWUload_0(v *Value) bool {
+ 	_ = b
+ 	config := b.Func.Config
+ 	_ = config
++	// match: (MOVWUload [off] {sym} ptr (FMOVSstore [off] {sym} ptr val _))
++	// cond:
++	// result: (FMOVSfpgp val)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64FMOVSstore {
++			break
++		}
++		if v_1.AuxInt != off {
++			break
++		}
++		if v_1.Aux != sym {
++			break
++		}
++		_ = v_1.Args[2]
++		if ptr != v_1.Args[0] {
++			break
++		}
++		val := v_1.Args[1]
++		v.reset(OpARM64FMOVSfpgp)
++		v.AddArg(val)
++		return true
++	}
+ 	// match: (MOVWUload [off1] {sym} (ADDconst [off2] ptr) mem)
+ 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVWUload [off1+off2] {sym} ptr mem)
+@@ -15644,6 +15782,28 @@ func rewriteValueARM64_OpARM64MOVWstore_0(v *Value) bool {
+ 	_ = b
+ 	config := b.Func.Config
+ 	_ = config
++	// match: (MOVWstore [off] {sym} ptr (FMOVSfpgp val) mem)
++	// cond:
++	// result: (FMOVSstore [off] {sym} ptr val mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64FMOVSfpgp {
++			break
++		}
++		val := v_1.Args[0]
++		mem := v.Args[2]
++		v.reset(OpARM64FMOVSstore)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+ 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVWstore [off1+off2] {sym} ptr val mem)
+@@ -15907,6 +16067,11 @@ func rewriteValueARM64_OpARM64MOVWstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueARM64_OpARM64MOVWstore_10(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (MOVWstore [4] {s} (ADDshiftLL [2] ptr0 idx0) (SRLconst [32] w) x:(MOVWstoreidx4 ptr1 idx1 w mem))
+ 	// cond: x.Uses == 1 && s == nil && isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) && clobber(x)
+ 	// result: (MOVDstoreidx ptr1 (SLLconst <idx1.Type> [2] idx1) w mem)
+@@ -15958,11 +16123,6 @@ func rewriteValueARM64_OpARM64MOVWstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValueARM64_OpARM64MOVWstore_10(v *Value) bool {
+-	b := v.Block
+-	_ = b
+ 	// match: (MOVWstore [i] {s} ptr0 (SRLconst [j] w) x:(MOVWstore [i-4] {s} ptr1 w0:(SRLconst [j-32] w) mem))
+ 	// cond: x.Uses == 1 && isSamePtr(ptr0, ptr1) && clobber(x)
+ 	// result: (MOVDstore [i-4] {s} ptr0 w0 mem)
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 00f2058ea6..6a6d8bf6d0 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -3635,3 +3635,41 @@ func BenchmarkYn(b *testing.B) {
+ 	}
+ 	GlobalF = x
+ }
++
++func BenchmarkFloat64bits(b *testing.B) {
++	y := uint64(0)
++	for i := 0; i < b.N; i++ {
++		y = Float64bits(roundNeg)
++	}
++	GlobalI = int(y)
++}
++
++var roundUint64 = uint64(5)
++
++func BenchmarkFloat64frombits(b *testing.B) {
++	x := 0.0
++	for i := 0; i < b.N; i++ {
++		x = Float64frombits(roundUint64)
++	}
++	GlobalF = x
++}
++
++var roundFloat32 = float32(-2.5)
++
++func BenchmarkFloat32bits(b *testing.B) {
++	y := uint32(0)
++	for i := 0; i < b.N; i++ {
++		y = Float32bits(roundFloat32)
++	}
++	GlobalI = int(y)
++}
++
++var roundUint32 = uint32(5)
++
++func BenchmarkFloat32frombits(b *testing.B) {
++	x := float32(0.0)
++	for i := 0; i < b.N; i++ {
++		x = Float32frombits(roundUint32)
++	}
++	GlobalF = float64(x)
++}
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index 6afe183345..78e7bfa110 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -92,21 +92,25 @@ func copysign(a, b, c float64) {
+ 
+ func fromFloat64(f64 float64) uint64 {
+ 	// amd64:"MOVQ\tX.*, [^X].*"
++	// arm64:"FMOVD\tF.*, R.*"
+ 	return math.Float64bits(f64+1) + 1
+ }
+ 
+ func fromFloat32(f32 float32) uint32 {
+ 	// amd64:"MOVL\tX.*, [^X].*"
++	// arm64:"FMOVS\tF.*, R.*"
+ 	return math.Float32bits(f32+1) + 1
+ }
+ 
+ func toFloat64(u64 uint64) float64 {
+ 	// amd64:"MOVQ\t[^X].*, X.*"
++	// arm64:"FMOVD\tR.*, F.*"
+ 	return math.Float64frombits(u64+1) + 1
+ }
+ 
+ func toFloat32(u32 uint32) float32 {
+ 	// amd64:"MOVL\t[^X].*, X.*"
++	// arm64:"FMOVS\tR.*, F.*"
+ 	return math.Float32frombits(u32+1) + 1
+ }
+ 
+@@ -132,6 +136,7 @@ func constantConvert32(x float32) float32 {
+ 	// amd64:"MOVSS\t[$]f32.3f800000\\(SB\\)"
+ 	// s390x:"FMOVS\t[$]f32.3f800000\\(SB\\)"
+ 	// ppc64le:"FMOVS\t[$]f32.3f800000\\(SB\\)"
++	// arm64:"FMOVS\t[$]\\(1.0\\)"
+ 	if x > math.Float32frombits(0x3f800000) {
+ 		return -x
+ 	}
+@@ -142,6 +147,7 @@ func constantConvertInt32(x uint32) uint32 {
+ 	// amd64:-"MOVSS"
+ 	// s390x:-"FMOVS"
+ 	// ppc64le:-"FMOVS"
++	// arm64:-"FMOVS"
+ 	if x > math.Float32bits(1) {
+ 		return -x
+ 	}

@@ -12,7 +12,34 @@ Date:   Wed Mar 7 15:30:54 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5781045
-
+---
  src/pkg/runtime/sys_freebsd_386.s   | 2 --
  src/pkg/runtime/sys_freebsd_amd64.s | 2 --
  2 files changed, 4 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index aab4444942..80a8be8a99 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -220,8 +220,6 @@ TEXT runtime·usleep(SB),7,$20
+ 	MOVL	$0, 8(SP)		// arg 2 - rmtp
+ 	MOVL	$240, AX		// sys_nanosleep
+ 	INT	$0x80
+-	JAE	2(PC)
+-	CALL	runtime·notok(SB)
+ 	RET
+ 
+ /*
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index 3984ef40ea..6ef8b50453 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -205,8 +205,6 @@ TEXT runtime·usleep(SB),7,$16
+ 	MOVQ	$0, SI			// arg 2 - rmtp
+ 	MOVL	$240, AX		// sys_nanosleep
+ 	SYSCALL
+-	JCC	2(PC)
+-	CALL	runtime·notok(SB)
+ 	RET
+ 
+ // set tls base to DI

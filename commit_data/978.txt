@@ -8,7 +8,7 @@ Date:   Wed Oct 29 12:46:44 2008 -0700
     R=r
     OCL=18023
     CL=18023
-
+---
  src/cmd/6g/align.c               |  90 +++++++++++++++++++-------------
  src/cmd/6g/gen.c                 |   7 ++-
  src/cmd/6g/gsubr.c               |  13 ++---
@@ -26,3 +26,1178 @@ Date:   Wed Oct 29 12:46:44 2008 -0700
  src/lib/syscall/socket_darwin.go |   4 +-
  src/lib/syscall/socket_linux.go  |   2 +-
  16 files changed, 292 insertions(+), 184 deletions(-)
+
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index 208796c2be..64992ab6b9 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -22,31 +22,6 @@ main(int argc, char *argv[])
+ static	int	wptr	= 8;	// width of a pointer
+ static	int	wmax	= 8;	// max rounding
+ 
+-/*
+- * additionally, go declares several platform-specific type aliases:
+- * ushort, short, uint, int, uint32, int32, float, and double.  The bit
+- */
+-static char*
+-typedefs[] =
+-{
+-	"short",	"int16",	// shorts
+-	"ushort",	"uint16",
+-
+-	"int",		"int32",	// ints
+-	"uint",		"uint32",
+-//	"rune",		"uint32",
+-
+-	"long",		"int64",	// longs
+-	"ulong",	"uint64",
+-
+-//	"vlong",	"int64",	// vlongs
+-//	"uvlong",	"uint64",
+-
+-	"float",	"float32",	// floats
+-	"double",	"float64",
+-
+-};
+-
+ uint32
+ rnd(uint32 o, uint32 r)
+ {
+@@ -114,11 +89,12 @@ dowidth(Type *t)
+ 	t->width = -2;
+ 
+ 	w = 0;
+-	switch(t->etype) {
++	switch(simtype[t->etype]) {
+ 	default:
+ 		fatal("dowidth: unknown type: %E", t->etype);
+ 		break;
+ 
++	/* compiler-specific stuff */
+ 	case TINT8:
+ 	case TUINT8:
+ 	case TBOOL:		// bool is int8
+@@ -208,11 +184,30 @@ besetptr(void)
+ 		tptr = TPTR64;
+ }
+ 
++/*
++ * additionally, go declares several platform-specific type aliases:
++ * int, uint, float, and uptrint
++ */
++static	struct
++{
++	char*	name;
++	int	etype;
++	int	sameas;
++}
++typedefs[] =
++{
++	"int",		TINT,		TINT32,
++	"uint",		TUINT,		TUINT32,
++	"uptrint",	TUINTPTR,	TUINT64,
++	"float",	TFLOAT,		TFLOAT32,
++};
++
+ void
+ belexinit(int lextype)
+ {
+-	int i;
+-	Sym *s0, *s1;
++	int i, etype, sameas;
++	Sym *s;
++	Type *t;
+ 
+ 	zprog.link = P;
+ 	zprog.as = AGOK;
+@@ -221,14 +216,37 @@ belexinit(int lextype)
+ 	zprog.from.scale = 0;
+ 	zprog.to = zprog.from;
+ 
+-	for(i=0; i<nelem(typedefs); i+=2) {
+-		s1 = lookup(typedefs[i+1]);
+-		if(s1->lexical != lextype)
+-			yyerror("need %s to define %s",
+-				typedefs[i+1], typedefs[i+0]);
+-		s0 = lookup(typedefs[i+0]);
+-		s0->lexical = s1->lexical;
+-		s0->otype = s1->otype;
++	for(i=0; i<nelem(typedefs); i++) {
++		s = lookup(typedefs[i].name);
++		s->lexical = lextype;
++
++		etype = typedefs[i].etype;
++		if(etype < 0 || etype >= nelem(types))
++			fatal("lexinit: %s bad etype", s->name);
++		sameas = typedefs[i].sameas;
++		if(sameas < 0 || sameas >= nelem(types))
++			fatal("lexinit: %s bad sameas", s->name);
++		simtype[etype] = sameas;
++
++		t = types[etype];
++		if(t != T)
++			fatal("lexinit: %s already defined", s->name);
++
++		t = typ(etype);
++		t->sym = s;
++
++		dowidth(t);
++		types[etype] = t;
++		s->otype = t;
++
++		if(minfltval[sameas] != nil)
++			minfltval[etype] = minfltval[sameas];
++		if(maxfltval[sameas] != nil)
++			maxfltval[etype] = maxfltval[sameas];
++		if(minintval[sameas] != nil)
++			minintval[etype] = minintval[sameas];
++		if(maxintval[sameas] != nil)
++			maxintval[etype] = maxintval[sameas];
+ 	}
+ 
+ 	symstringo = lookup(".stringo");	// strings
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 6a60c74f03..39c9d6f38b 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -839,6 +839,8 @@ cgen_as(Node *nl, Node *nr, int op)
+ 			fatal("cgen_as: tl %T", tl);
+ 			break;
+ 
++		case TINT:
++		case TUINT:
+ 		case TINT8:
+ 		case TUINT8:
+ 		case TINT16:
+@@ -847,11 +849,13 @@ cgen_as(Node *nl, Node *nr, int op)
+ 		case TUINT32:
+ 		case TINT64:
+ 		case TUINT64:
++		case TUINTPTR:
+ 			nr->val.u.xval = mal(sizeof(*nr->val.u.xval));
+ 			mpmovecfix(nr->val.u.xval, 0);
+ 			nr->val.ctype = CTINT;
+ 			break;
+ 
++		case TFLOAT:
+ 		case TFLOAT32:
+ 		case TFLOAT64:
+ 		case TFLOAT80:
+@@ -1029,7 +1033,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 	a = optoas(op, nl->type);
+ 
+ 	if(nr->op == OLITERAL) {
+-		regalloc(&n1, nr->type, res);
++		regalloc(&n1, nl->type, res);
+ 		cgen(nl, &n1);
+ 		gins(a, nr, &n1);
+ 		gmove(&n1, res);
+@@ -1065,7 +1069,6 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 		cgen(nr, &n1);
+ 		cgen(nl, &n2);
+ 	}
+-
+ 	// test and fix up large shifts
+ 	nodconst(&n3, types[TUINT32], nl->type->width*8);
+ 	gins(optoas(OCMP, types[TUINT32]), &n1, &n3);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index b158f09b9c..d8135e21e7 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -133,12 +133,13 @@ gclean(void)
+ void
+ regalloc(Node *n, Type *t, Node *o)
+ {
+-	int i;
++	int i, et;
+ 
+ 	if(t == T)
+ 		fatal("regalloc: t nil");
+-
+-	switch(t->etype) {
++	et = simtype[t->etype];
++	
++	switch(et) {
+ 	case TINT8:
+ 	case TUINT8:
+ 	case TINT16:
+@@ -313,8 +314,8 @@ gmove(Node *f, Node *t)
+ 	Node nod, nod1, nod2, nod3, nodc;
+ 	Prog *p1, *p2;
+ 
+-	ft = f->type->etype;
+-	tt = t->type->etype;
++	ft = simtype[f->type->etype];
++	tt = simtype[t->type->etype];
+ 
+ 	t64 = 0;
+ 	if(tt == TINT64 || tt == TUINT64 || tt == TPTR64)
+@@ -1106,7 +1107,7 @@ optoas(int op, Type *t)
+ 		fatal("optoas: t is nil");
+ 
+ 	a = AGOK;
+-	switch(CASE(op, t->etype)) {
++	switch(CASE(op, simtype[t->etype])) {
+ 	default:
+ 		fatal("optoas: no entry %O-%T", op, t);
+ 		break;
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 9ee33ad11d..aff4a09a30 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -444,10 +444,10 @@ defaultlit(Node *n)
+ 	case CTINT:
+ 	case CTSINT:
+ 	case CTUINT:
+-		n->type = types[TINT32];
++		n->type = types[TINT];
+ 		break;
+ 	case CTFLT:
+-		n->type = types[TFLOAT64];
++		n->type = types[TFLOAT];
+ 		break;
+ 	case CTBOOL:
+ 		n->type = types[TBOOL];
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 7c1d06ee72..b670be685d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -302,15 +302,18 @@ enum
+ 	TINT16,	TUINT16,
+ 	TINT32,	TUINT32,
+ 	TINT64,	TUINT64,
++	TINT, TUINT, TUINTPTR,
+ 
+-	TFLOAT32,		// 9
++	TFLOAT32,		// 12
+ 	TFLOAT64,
+ 	TFLOAT80,
++	TFLOAT,
+ 
+-	TBOOL,			// 12
++	TBOOL,			// 16
+ 
+-	TPTR32, TPTR64,		// 13
++	TPTR32, TPTR64,		// 17
+ 
++	TDDD,			// 19
+ 	TFUNC,
+ 	TARRAY,
+ 	T_old_DARRAY,
+@@ -325,7 +328,7 @@ enum
+ 	TFORWSTRUCT,
+ 	TFORWINTER,
+ 
+-	NTYPE,			// 28
++	NTYPE,
+ };
+ enum
+ {
+@@ -396,6 +399,7 @@ struct	Io
+ 	Biobuf*	bin;
+ 	int32	ilineno;
+ 	int	peekc;
++	int	peekc1;	// second peekc for ...
+ 	char*	cp;	// used for content when bin==nil
+ };
+ 
+@@ -433,6 +437,7 @@ EXTERN	char*	filename;	// name to uniqify names
+ EXTERN	int	exportadj;	// declaration is being exported
+ 
+ EXTERN	Type*	types[NTYPE];
++EXTERN	uchar	simtype[NTYPE];
+ EXTERN	uchar	isptr[NTYPE];
+ EXTERN	uchar	isint[NTYPE];
+ EXTERN	uchar	isfloat[NTYPE];
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index c86c1b9ae5..35dbec66cf 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -17,7 +17,7 @@
+ %token	<sym>		LNAME LBASETYPE LATYPE LPACK LACONST
+ %token	<sym>		LPACKAGE LIMPORT LEXPORT
+ %token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
+-%token	<sym>		LCOLAS LFALL LRETURN
++%token	<sym>		LCOLAS LFALL LRETURN LDDD
+ %token	<sym>		LNEW LLEN LCAP LTYPEOF LPANIC LPANICN LPRINT LPRINTN
+ %token	<sym>		LVAR LTYPE LCONST LCONVERT LSELECT
+ %token	<sym>		LFOR LIF LELSE LSWITCH LCASE LDEFAULT
+@@ -71,7 +71,7 @@
+ %type	<type>		nametype structtype interfacetype convtype
+ %type	<type>		non_name_type Anon_fn_type Bnon_fn_type
+ %type	<type>		Anon_chan_type Bnon_chan_type
+-%type	<type>		indcl fnlitdcl
++%type	<type>		indcl fnlitdcl dotdotdot
+ 
+ %type	<val>		hidden_constant
+ %type	<node>		hidden_dcl hidden_structdcl
+@@ -1047,6 +1047,13 @@ non_name_type:
+ 	chantype
+ |	fntype
+ |	othertype
++|	dotdotdot
++
++dotdotdot:
++	LDDD
++	{
++		$$ = typ(TDDD);
++	}
+ 
+ Anon_chan_type:
+ 	Afntype
+@@ -1447,6 +1454,10 @@ arg_chunk:
+ 	{
+ 		$$ = nametodcl($1, $2);
+ 	}
++|	new_name_list_r dotdotdot
++	{
++		$$ = nametodcl($1, $2);
++	}
+ |	non_name_type
+ 	{
+ 		$$ = anondcl($1);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 239efca67a..99a8d7914f 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -69,6 +69,7 @@ mainlex(int argc, char *argv[])
+ 	if(curio.bin == nil)
+ 		fatal("cant open: %s", infile);
+ 	curio.peekc = 0;
++	curio.peekc1 = 0;
+ 
+ 	externdcl = mal(sizeof(*externdcl));
+ 	externdcl->back = externdcl;
+@@ -235,6 +236,7 @@ importfile(Val *f)
+ 	pushedio = curio;
+ 	curio.bin = imp;
+ 	curio.peekc = 0;
++	curio.peekc1 = 0;
+ 	curio.infile = file;
+ 	for(;;) {
+ 		c = getc();
+@@ -280,6 +282,7 @@ cannedimports(void)
+ 	pushedio = curio;
+ 	curio.bin = nil;
+ 	curio.peekc = 0;
++	curio.peekc1 = 0;
+ 	curio.infile = file;
+ 	curio.cp = sysimport;
+ 
+@@ -290,7 +293,7 @@ cannedimports(void)
+ int32
+ yylex(void)
+ {
+-	int c, c1;
++	int c, c1, clen;
+ 	vlong v;
+ 	char *cp;
+ 	Rune rune;
+@@ -334,28 +337,37 @@ l0:
+ 			c1 = 0;
+ 			goto casedot;
+ 		}
++		if(c1 == '.') {
++			c1 = getc();
++			if(c1 == '.') {
++				c = LDDD;
++				goto lx;
++			}
++			ungetc(c1);
++			c1 = '.';
++		}
+ 		break;
+ 
+ 	case '"':
+ 		/* "..." */
+ 		strcpy(namebuf, "\"<string>\"");
+ 		cp = mal(sizeof(int32));
+-		c1 = sizeof(int32);
++		clen = sizeof(int32);
+ 
+ 	caseq:
+ 		for(;;) {
+ 			if(escchar('"', &escflag, &v))
+ 				break;
+ 			if(v < Runeself || escflag) {
+-				cp = remal(cp, c1, 1);
+-				cp[c1++] = v;
++				cp = remal(cp, clen, 1);
++				cp[clen++] = v;
+ 			} else {
+ 				// botch - this limits size of runes
+ 				rune = v;
+ 				c = runelen(rune);
+-				cp = remal(cp, c1, c);
+-				runetochar(cp+c1, &rune);
+-				c1 += c;
++				cp = remal(cp, clen, c);
++				runetochar(cp+clen, &rune);
++				clen += c;
+ 			}
+ 		}
+ 		goto catem;
+@@ -364,36 +376,66 @@ l0:
+ 		/* `...` */
+ 		strcpy(namebuf, "`<string>`");
+ 		cp = mal(sizeof(int32));
+-		c1 = sizeof(int32);
++		clen = sizeof(int32);
+ 
+ 	casebq:
+ 		for(;;) {
+ 			c = getc();
+ 			if(c == EOF || c == '`')
+ 				break;
+-			cp = remal(cp, c1, 1);
+-			cp[c1++] = c;
++			cp = remal(cp, clen, 1);
++			cp[clen++] = c;
+ 		}
++		goto catem;
+ 
+ 	catem:
+-		for(;;) {
+-			/* it takes 2 peekc's to skip comments */
+-			c = getc();
+-			if(isspace(c))
+-				continue;
+-			if(c == '"')
+-				goto caseq;
+-			if(c == '`')
+-				goto casebq;
+-			ungetc(c);
+-			break;
++		c = getc();
++		if(isspace(c))
++			goto catem;
++
++		// skip comments
++		if(c == '/') {
++			c1 = getc();
++			if(c1 == '*') {
++				for(;;) {
++					c = getr();
++					while(c == '*') {
++						c = getr();
++						if(c == '/')
++							goto catem;
++					}
++					if(c == EOF) {
++						yyerror("eof in comment");
++						errorexit();
++					}
++				}
++			}
++			if(c1 == '/') {
++				for(;;) {
++					c = getr();
++					if(c == '\n')
++						goto catem;
++					if(c == EOF) {
++						yyerror("eof in comment");
++						errorexit();
++					}
++				}
++			}
++			ungetc(c1);
+ 		}
+ 
+-		*(int32*)cp = c1-sizeof(int32);	// length
++		// cat adjacent strings
++		if(c == '"')
++			goto caseq;
++		if(c == '`')
++			goto casebq;
++		ungetc(c);
++
++		*(int32*)cp = clen-sizeof(int32);	// length
+ 		do {
+-			cp = remal(cp, c1, 1);
+-			cp[c1++] = 0;
+-		} while(c1 & MAXALIGN);
++			cp = remal(cp, clen, 1);
++			cp[clen++] = 0;
++		} while(clen & MAXALIGN);
+ 		yylval.val.u.sval = (String*)cp;
+ 		yylval.val.ctype = CTSTR;
+ 		DBG("lex: string literal\n");
+@@ -753,7 +795,8 @@ getc(void)
+ 
+ 	c = curio.peekc;
+ 	if(c != 0) {
+-		curio.peekc = 0;
++		curio.peekc = curio.peekc1;
++		curio.peekc1 = 0;
+ 		if(c == '\n')
+ 			lineno++;
+ 		return c;
+@@ -783,6 +826,7 @@ getc(void)
+ void
+ ungetc(int c)
+ {
++	curio.peekc1 = curio.peekc;
+ 	curio.peekc = c;
+ 	if(c == '\n')
+ 		lineno--;
+@@ -968,7 +1012,6 @@ static	struct
+ 
+ 	"bool",		LBASETYPE,	TBOOL,
+ 	"byte",		LBASETYPE,	TUINT8,
+-	"char",		LBASETYPE,	TUINT8,		// temp??
+ 	"string",	LBASETYPE,	TSTRING,
+ 
+ 	"any",		LBASETYPE,	TANY,
+@@ -1028,15 +1071,25 @@ lexinit(void)
+ 	Type *t;
+ 	Sym *s;
+ 
++	for(i=0; i<NTYPE; i++)
++		simtype[i] = i;
++
+ 	besetptr();
+ 
+ 	for(i=TINT8; i<=TUINT64; i++)
+ 		isint[i] = 1;
++	isint[TINT] = 1;
++	isint[TUINT] = 1;
++	isint[TUINTPTR] = 1;
++
+ 	for(i=TFLOAT32; i<=TFLOAT80; i++)
+ 		isfloat[i] = 1;
++	isfloat[TFLOAT] = 1;
++
+ 	isptr[TPTR32] = 1;
+ 	isptr[TPTR64] = 1;
+ 
++	issigned[TINT] = 1;
+ 	issigned[TINT8] = 1;
+ 	issigned[TINT16] = 1;
+ 	issigned[TINT32] = 1;
+@@ -1092,7 +1145,6 @@ lexinit(void)
+ 	mpatoflt(maxfltval[TFLOAT64], "1.7976931348623157e+308");
+ 	mpatoflt(minfltval[TFLOAT64], "-1.7976931348623157e+308");
+ 
+-
+ 	/*
+ 	 * initialize basic types array
+ 	 * initialize known symbols
+diff --git a/src/cmd/gc/mparith1.c b/src/cmd/gc/mparith1.c
+index a787f7d895..b9ecea04bd 100644
+--- a/src/cmd/gc/mparith1.c
++++ b/src/cmd/gc/mparith1.c
+@@ -4,7 +4,7 @@
+ 
+ #include "go.h"
+ 
+-/// uses arihmetic
++/// uses arithmetic
+ 
+ int
+ mpcmpfixflt(Mpint *a, Mpflt *b)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index d4b46a4415..1a45d4ce53 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -340,7 +340,7 @@ nodintconst(int32 v)
+ 	c->val.u.xval = mal(sizeof(*c->val.u.xval));
+ 	mpmovecfix(c->val.u.xval, v);
+ 	c->val.ctype = CTINT;
+-	c->type = types[TINT32];
++	c->type = types[TINT];
+ 	ullmancalc(c);
+ 	return c;
+ }
+@@ -578,15 +578,19 @@ whatis(Node *n)
+ 		return Wtnil;
+ 
+ 	switch(t->etype) {
++	case TINT:
+ 	case TINT8:
+ 	case TINT16:
+ 	case TINT32:
+ 	case TINT64:
++	case TUINT:
+ 	case TUINT8:
+ 	case TUINT16:
+ 	case TUINT32:
+ 	case TUINT64:
++	case TUINTPTR:
+ 		return Wtint;
++	case TFLOAT:
+ 	case TFLOAT32:
+ 	case TFLOAT64:
+ 	case TFLOAT80:
+@@ -796,6 +800,8 @@ s%~	%%g
+ static char*
+ etnames[] =
+ {
++	[TINT]		= "INT",
++	[TUINT]		= "UINT",
+ 	[TINT8]		= "INT8",
+ 	[TUINT8]	= "UINT8",
+ 	[TINT16]	= "INT16",
+@@ -804,6 +810,8 @@ etnames[] =
+ 	[TUINT32]	= "UINT32",
+ 	[TINT64]	= "INT64",
+ 	[TUINT64]	= "UINT64",
++	[TUINTPTR]	= "UINTPTR",
++	[TFLOAT]	= "FLOAT",
+ 	[TFLOAT32]	= "FLOAT32",
+ 	[TFLOAT64]	= "FLOAT64",
+ 	[TFLOAT80]	= "FLOAT80",
+@@ -939,20 +947,26 @@ out:
+ 	return fmtstrcpy(fp, buf);
+ }
+ 
+-static char *basicnames[] = {
+-[TINT8]	"int8",
+-[TUINT8]	"uint8",
+-[TINT16]	"int16",
+-[TUINT16]	"uint16",
+-[TINT32]	"int32",
+-[TUINT32]	"uint32",
+-[TINT64]	"int64",
+-[TUINT64]	"uint64",
+-[TFLOAT32]	"float32",
+-[TFLOAT64]	"float64",
+-[TFLOAT80]	"float80",
+-[TBOOL]	"bool",
+-[TANY]	"any",
++static char*
++basicnames[] =
++{
++	[TINT]		= "int",
++	[TUINT]		= "uint",
++	[TINT8]		= "int8",
++	[TUINT8]	= "uint8",
++	[TINT16]	= "int16",
++	[TUINT16]	= "uint16",
++	[TINT32]	= "int32",
++	[TUINT32]	= "uint32",
++	[TINT64]	= "int64",
++	[TUINT64]	= "uint64",
++	[TUINTPTR]	= "uintptr",
++	[TFLOAT]	= "float",
++	[TFLOAT32]	= "float32",
++	[TFLOAT64]	= "float64",
++	[TFLOAT80]	= "float80",
++	[TBOOL]		= "bool",
++	[TANY]		= "any",
+ };
+ 
+ int
+@@ -1609,16 +1623,20 @@ globalsig(Type *t)
+ 		}
+ 		return S;
+ 
++	case TINT:
+ 	case TINT8:
+ 	case TINT16:
+ 	case TINT32:
+ 	case TINT64:
+ 
++	case TUINT:
+ 	case TUINT8:
+ 	case TUINT16:
+ 	case TUINT32:
+ 	case TUINT64:
++	case TUINTPTR:
+ 
++	case TFLOAT:
+ 	case TFLOAT32:
+ 	case TFLOAT64:
+ 	case TFLOAT80:
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 7aba0668b2..abbb6261f4 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -5,14 +5,14 @@
+ 
+ package SYS	// rename to avoid redeclaration
+ 
+-export func	mal(uint32) *any;
++export func	mal(int32) *any;
+ export func	breakpoint();
+ export func	throwindex();
+ export func	throwreturn();
+ export func	panicl(int32);
+ 
+ export func	printbool(bool);
+-export func	printfloat(double);
++export func	printfloat(float64);
+ export func	printint(int64);
+ export func	printstring(string);
+ export func	printpointer(*any);
+@@ -21,11 +21,11 @@ export func	printnl();
+ export func	printsp();
+ 
+ export func	catstring(string, string) string;
+-export func	cmpstring(string, string) int32;
+-export func	slicestring(string, int32, int32) string;
+-export func	indexstring(string, int32) byte;
++export func	cmpstring(string, string) int;
++export func	slicestring(string, int, int) string;
++export func	indexstring(string, int) byte;
+ export func	intstring(int64) string;
+-export func	byteastring(*byte, int32) string;
++export func	byteastring(*byte, int) string;
+ export func	arraystring(*[]byte) string;
+ 
+ export func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
+@@ -34,50 +34,50 @@ export func	ifaceI2I(sigi *byte, iface any) (ret any);
+ export func	ifaceeq(i1 any, i2 any) (ret bool);
+ export func	reflect(i interface { }) (uint64, string);
+ 
+-export func	argc() int32;
+-export func	envc() int32;
+-export func	argv(int32) string;
+-export func	envv(int32) string;
++export func	argc() int;
++export func	envc() int;
++export func	argv(int) string;
++export func	envv(int) string;
+ 
+-export func	frexp(float64) (float64, int32);	// break fp into exp,fract
+-export func	ldexp(float64, int32) float64;		// make fp from exp,fract
++export func	frexp(float64) (float64, int);		// break fp into exp,fract
++export func	ldexp(float64, int) float64;		// make fp from exp,fract
+ export func	modf(float64) (float64, float64);	// break fp into double.double
+-export func	isInf(float64, int32) bool;		// test for infinity
++export func	isInf(float64, int) bool;		// test for infinity
+ export func	isNaN(float64) bool;			// test for not-a-number
+-export func	Inf(int32) float64;			// return signed Inf
++export func	Inf(int) float64;			// return signed Inf
+ export func	NaN() float64;				// return a NaN
+ 
+-export func	newmap(keysize uint32, valsize uint32,
+-			keyalg uint32, valalg uint32,
+-			hint uint32) (hmap *map[any]any);
++export func	newmap(keysize int, valsize int,
++			keyalg int, valalg int,
++			hint int) (hmap *map[any]any);
+ export func	mapaccess1(hmap *map[any]any, key any) (val any);
+ export func	mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
+ export func	mapassign1(hmap *map[any]any, key any, val any);
+ export func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
+ 
+-export func	newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
++export func	newchan(elemsize int, elemalg int, hint int) (hchan *chan any);
+ export func	chanrecv1(hchan *chan any) (elem any);
+ export func	chanrecv2(hchan *chan any) (elem any, pres bool);
+ export func	chanrecv3(hchan *chan any, elem *any) (pres bool);
+ export func	chansend1(hchan *chan any, elem any);
+ export func	chansend2(hchan *chan any, elem any) (pres bool);
+ 
+-export func	newselect(size uint32) (sel *byte);
++export func	newselect(size int) (sel *byte);
+ export func	selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
+ export func	selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+ export func	selectgo(sel *byte);
+ 
+-export func	newarray(nel uint32, cap uint32, width uint32) (ary *[]any);
+-export func	arraysliced(old *[]any, lb uint32, hb uint32, width uint32) (ary *[]any);
+-export func	arrayslices(old *any, nel uint32, lb uint32, hb uint32, width uint32) (ary *[]any);
+-export func	arrays2d(old *any, nel uint32) (ary *[]any);
++export func	newarray(nel int, cap int, width int) (ary *[]any);
++export func	arraysliced(old *[]any, lb int, hb int, width int) (ary *[]any);
++export func	arrayslices(old *any, nel int, lb int, hb int, width int) (ary *[]any);
++export func	arrays2d(old *any, nel int) (ary *[]any);
+ 
+ export func	gosched();
+ export func	goexit();
+ 
+ export func	readfile(string) (string, bool);	// read file into string; boolean status
+ export func	writefile(string, string) (bool);	// write string into file; boolean status
+-export func	bytestorune(*byte, int32, int32) (int32, int32);	// convert bytes to runes
+-export func	stringtorune(string, int32) (int32, int32);	// convert bytes to runes
++export func	bytestorune(*byte, int, int) (int, int);	// convert bytes to runes
++export func	stringtorune(string, int) (int, int);	// convert bytes to runes
+ 
+-export func	exit(int32);
++export func	exit(int);
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 2c16bc1e91..8d4866c28c 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -1,6 +1,6 @@
+ char *sysimport = 
+ 	"package sys\n"
+-	"export func sys.mal (? uint32) (? *any)\n"
++	"export func sys.mal (? int32) (? *any)\n"
+ 	"export func sys.breakpoint ()\n"
+ 	"export func sys.throwindex ()\n"
+ 	"export func sys.throwreturn ()\n"
+@@ -14,53 +14,53 @@ char *sysimport =
+ 	"export func sys.printnl ()\n"
+ 	"export func sys.printsp ()\n"
+ 	"export func sys.catstring (? string, ? string) (? string)\n"
+-	"export func sys.cmpstring (? string, ? string) (? int32)\n"
+-	"export func sys.slicestring (? string, ? int32, ? int32) (? string)\n"
+-	"export func sys.indexstring (? string, ? int32) (? uint8)\n"
++	"export func sys.cmpstring (? string, ? string) (? int)\n"
++	"export func sys.slicestring (? string, ? int, ? int) (? string)\n"
++	"export func sys.indexstring (? string, ? int) (? uint8)\n"
+ 	"export func sys.intstring (? int64) (? string)\n"
+-	"export func sys.byteastring (? *uint8, ? int32) (? string)\n"
++	"export func sys.byteastring (? *uint8, ? int) (? string)\n"
+ 	"export func sys.arraystring (? *[]uint8) (? string)\n"
+ 	"export func sys.ifaceT2I (sigi *uint8, sigt *uint8, elem any) (ret any)\n"
+ 	"export func sys.ifaceI2T (sigt *uint8, iface any) (ret any)\n"
+ 	"export func sys.ifaceI2I (sigi *uint8, iface any) (ret any)\n"
+ 	"export func sys.ifaceeq (i1 any, i2 any) (ret bool)\n"
+ 	"export func sys.reflect (i interface { }) (? uint64, ? string)\n"
+-	"export func sys.argc () (? int32)\n"
+-	"export func sys.envc () (? int32)\n"
+-	"export func sys.argv (? int32) (? string)\n"
+-	"export func sys.envv (? int32) (? string)\n"
+-	"export func sys.frexp (? float64) (? float64, ? int32)\n"
+-	"export func sys.ldexp (? float64, ? int32) (? float64)\n"
++	"export func sys.argc () (? int)\n"
++	"export func sys.envc () (? int)\n"
++	"export func sys.argv (? int) (? string)\n"
++	"export func sys.envv (? int) (? string)\n"
++	"export func sys.frexp (? float64) (? float64, ? int)\n"
++	"export func sys.ldexp (? float64, ? int) (? float64)\n"
+ 	"export func sys.modf (? float64) (? float64, ? float64)\n"
+-	"export func sys.isInf (? float64, ? int32) (? bool)\n"
++	"export func sys.isInf (? float64, ? int) (? bool)\n"
+ 	"export func sys.isNaN (? float64) (? bool)\n"
+-	"export func sys.Inf (? int32) (? float64)\n"
++	"export func sys.Inf (? int) (? float64)\n"
+ 	"export func sys.NaN () (? float64)\n"
+-	"export func sys.newmap (keysize uint32, valsize uint32, keyalg uint32, valalg uint32, hint uint32) (hmap *map[any] any)\n"
++	"export func sys.newmap (keysize int, valsize int, keyalg int, valalg int, hint int) (hmap *map[any] any)\n"
+ 	"export func sys.mapaccess1 (hmap *map[any] any, key any) (val any)\n"
+ 	"export func sys.mapaccess2 (hmap *map[any] any, key any) (val any, pres bool)\n"
+ 	"export func sys.mapassign1 (hmap *map[any] any, key any, val any)\n"
+ 	"export func sys.mapassign2 (hmap *map[any] any, key any, val any, pres bool)\n"
+-	"export func sys.newchan (elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any)\n"
++	"export func sys.newchan (elemsize int, elemalg int, hint int) (hchan *chan any)\n"
+ 	"export func sys.chanrecv1 (hchan *chan any) (elem any)\n"
+ 	"export func sys.chanrecv2 (hchan *chan any) (elem any, pres bool)\n"
+ 	"export func sys.chanrecv3 (hchan *chan any, elem *any) (pres bool)\n"
+ 	"export func sys.chansend1 (hchan *chan any, elem any)\n"
+ 	"export func sys.chansend2 (hchan *chan any, elem any) (pres bool)\n"
+-	"export func sys.newselect (size uint32) (sel *uint8)\n"
++	"export func sys.newselect (size int) (sel *uint8)\n"
+ 	"export func sys.selectsend (sel *uint8, hchan *chan any, elem any) (selected bool)\n"
+ 	"export func sys.selectrecv (sel *uint8, hchan *chan any, elem *any) (selected bool)\n"
+ 	"export func sys.selectgo (sel *uint8)\n"
+-	"export func sys.newarray (nel uint32, cap uint32, width uint32) (ary *[]any)\n"
+-	"export func sys.arraysliced (old *[]any, lb uint32, hb uint32, width uint32) (ary *[]any)\n"
+-	"export func sys.arrayslices (old *any, nel uint32, lb uint32, hb uint32, width uint32) (ary *[]any)\n"
+-	"export func sys.arrays2d (old *any, nel uint32) (ary *[]any)\n"
++	"export func sys.newarray (nel int, cap int, width int) (ary *[]any)\n"
++	"export func sys.arraysliced (old *[]any, lb int, hb int, width int) (ary *[]any)\n"
++	"export func sys.arrayslices (old *any, nel int, lb int, hb int, width int) (ary *[]any)\n"
++	"export func sys.arrays2d (old *any, nel int) (ary *[]any)\n"
+ 	"export func sys.gosched ()\n"
+ 	"export func sys.goexit ()\n"
+ 	"export func sys.readfile (? string) (? string, ? bool)\n"
+ 	"export func sys.writefile (? string, ? string) (? bool)\n"
+-	"export func sys.bytestorune (? *uint8, ? int32, ? int32) (? int32, ? int32)\n"
+-	"export func sys.stringtorune (? string, ? int32) (? int32, ? int32)\n"
+-	"export func sys.exit (? int32)\n"
++	"export func sys.bytestorune (? *uint8, ? int, ? int) (? int, ? int)\n"
++	"export func sys.stringtorune (? string, ? int) (? int, ? int)\n"
++	"export func sys.exit (? int)\n"
+ 	"\n"
+ 	"$$\n";
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 094c4e34fa..5df07aab57 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -353,7 +353,7 @@ loop:
+ 		case 0:
+ 			if(top == Erv) {
+ 				yyerror("function requires a return type");
+-				n->type = types[TINT32];
++				n->type = types[TINT];
+ 			}
+ 			break;
+ 
+@@ -645,8 +645,8 @@ loop:
+ 		evconst(n);
+ 		if(n->op == OLITERAL)
+ 			goto ret;
+-		convlit(n->right, types[TUINT32]);
+-		convlit(n->left, types[TINT32]);
++		convlit(n->right, types[TUINT]);
++		convlit(n->left, types[TINT]);
+ 		if(n->left->type == T || n->right->type == T)
+ 			goto ret;
+ 		if(issigned[n->right->type->etype])
+@@ -734,10 +734,10 @@ loop:
+ 			break;
+ 		case TARRAY:
+ 			if(t->bound >= 0)
+-				nodconst(n, types[TINT32], t->bound);
++				nodconst(n, types[TINT], t->bound);
+ 			break;
+ 		}
+-		n->type = types[TINT32];
++		n->type = types[TINT];
+ 		goto ret;
+ 
+ 	case OCAP:
+@@ -755,10 +755,10 @@ loop:
+ 			goto badt;
+ 		case TARRAY:
+ 			if(t->bound >= 0)
+-				nodconst(n, types[TINT32], t->bound);
++				nodconst(n, types[TINT], t->bound);
+ 			break;
+ 		}
+-		n->type = types[TINT32];
++		n->type = types[TINT];
+ 		goto ret;
+ 
+ 	case OINDEX:
+@@ -785,7 +785,7 @@ loop:
+ 			if(top != Erv)
+ 				goto nottop;
+ 			if(n->right->type == T) {
+-				convlit(n->right, types[TINT32]);
++				convlit(n->right, types[TINT]);
+ 				if(n->right->type == T)
+ 					goto ret;
+ 			}
+@@ -825,7 +825,7 @@ loop:
+ 		case TARRAY:
+ 			// right side must be an int
+ 			if(n->right->type == T) {
+-				convlit(n->right, types[TINT32]);
++				convlit(n->right, types[TINT]);
+ 				if(n->right->type == T)
+ 					break;
+ 			}
+@@ -1110,7 +1110,7 @@ sw1(Node *c, Type *place)
+ Type*
+ sw2(Node *c, Type *place)
+ {
+-	return types[TINT32];	// botch
++	return types[TINT];	// botch
+ }
+ 
+ /*
+@@ -1406,7 +1406,7 @@ walkselect(Node *sel)
+ 	on = syslook("newselect", 0);
+ 
+ 	r = nod(OXXX, N, N);
+-	nodconst(r, types[TINT32], count);	// count
++	nodconst(r, types[TINT], count);	// count
+ 	r = nod(OCALL, on, r);
+ 	r = nod(OAS, var, r);
+ 
+@@ -1870,10 +1870,10 @@ stringop(Node *n, int top)
+ 	case OSLICE:
+ 		// sys_slicestring(s, lb, hb)
+ 		r = nod(OCONV, n->right->left, N);
+-		r->type = types[TINT32];
++		r->type = types[TINT];
+ 
+ 		c = nod(OCONV, n->right->right, N);
+-		c->type = types[TINT32];
++		c->type = types[TINT];
+ 
+ 		r = list(r, c);
+ 		r = list(n->left, r);
+@@ -1890,7 +1890,7 @@ stringop(Node *n, int top)
+ 			c->type = c->left->type->type;
+ 		}
+ 		r = nod(OCONV, n->right, N);
+-		r->type = types[TINT32];
++		r->type = types[TINT];
+ 		r = list(c, r);
+ 		on = syslook("indexstring", 0);
+ 		r = nod(OCALL, on, r);
+@@ -1984,9 +1984,9 @@ mapop(Node *n, int top)
+ 		if(top != Erv)
+ 			goto nottop;
+ 
+-		// newmap(keysize uint32, valsize uint32,
+-		//	keyalg uint32, valalg uint32,
+-		//	hint uint32) (hmap *map[any-1]any-2);
++		// newmap(keysize int, valsize int,
++		//	keyalg int, valalg int,
++		//	hint int) (hmap *map[any-1]any-2);
+ 
+ 		t = fixmap(n->type);
+ 		if(t == T)
+@@ -2194,8 +2194,8 @@ chanop(Node *n, int top)
+ 		fatal("chanop: unknown op %O", n->op);
+ 
+ 	case ONEW:
+-		// newchan(elemsize uint32, elemalg uint32,
+-		//	hint uint32) (hmap *chan[any-1]);
++		// newchan(elemsize int, elemalg int,
++		//	hint int) (hmap *chan[any-1]);
+ 
+ 		t = fixchan(n->type);
+ 		if(t == T)
+@@ -2380,12 +2380,12 @@ arrayop(Node *n, int top)
+ 		fatal("darrayop: unknown op %O", n->op);
+ 
+ 	case ONEW:
+-		// newarray(nel uint32, max uint32, width uint32) (ary *[]any)
++		// newarray(nel int, max int, width int) (ary *[]any)
+ 		t = fixarray(n->type);
+ 
+ 		a = nodintconst(t->type->width);	// width
+ 		a = nod(OCONV, a, N);
+-		a->type = types[TUINT32];
++		a->type = types[TINT];
+ 		r = a;
+ 
+ 		a = listfirst(&save, &n->left);		// max
+@@ -2393,7 +2393,7 @@ arrayop(Node *n, int top)
+ 		if(a == N)
+ 			a = nodintconst(0);
+ 		a = nod(OCONV, a, N);
+-		a->type = types[TUINT32];
++		a->type = types[TINT];
+ 		r = list(a, r);
+ 
+ 		a = listfirst(&save, &n->left);		// nel
+@@ -2403,7 +2403,7 @@ arrayop(Node *n, int top)
+ 			a = nodintconst(t->bound);
+ 		}
+ 		a = nod(OCONV, a, N);
+-		a->type = types[TUINT32];
++		a->type = types[TINT];
+ 		r = list(a, r);
+ 
+ 		on = syslook("newarray", 1);
+@@ -2421,12 +2421,12 @@ arrayop(Node *n, int top)
+ 		break;
+ 
+ 	case OAS:
+-		// arrays2d(old *any, nel uint32) (ary *[]any)
++		// arrays2d(old *any, nel int) (ary *[]any)
+ 		t = fixarray(n->right->type);
+ 
+ 		a = nodintconst(t->bound);		// nel
+ 		a = nod(OCONV, a, N);
+-		a->type = types[TUINT32];
++		a->type = types[TINT];
+ 		r = a;
+ 
+ 		a = n->right;				// old
+@@ -2445,20 +2445,20 @@ arrayop(Node *n, int top)
+ 		if(isptrarray(n->left->type))
+ 			goto slicestatic;
+ 
+-		// arrayslices(old *[]any, lb uint32, hb uint32, width uint32) (ary *[]any)
++		// arrayslices(old *[]any, lb int, hb int, width int) (ary *[]any)
+ 		t = fixarray(n->left->type);
+ 
+ 		a = nodintconst(t->type->width);	// width
+ 		a = nod(OCONV, a, N);
+-		a->type = types[TUINT32];
++		a->type = types[TINT];
+ 		r = a;
+ 
+ 		a = nod(OCONV, n->right->right, N);	// hb
+-		a->type = types[TUINT32];
++		a->type = types[TINT];
+ 		r = list(a, r);
+ 
+ 		a = nod(OCONV, n->right->left, N);	// lb
+-		a->type = types[TUINT32];
++		a->type = types[TINT];
+ 		r = list(a, r);
+ 
+ 		a = n->left;				// old
+@@ -2472,25 +2472,25 @@ arrayop(Node *n, int top)
+ 		break;
+ 
+ 	slicestatic:
+-		// arrayslices(old *any, nel uint32, lb uint32, hb uint32, width uint32) (ary *[]any)
++		// arrayslices(old *any, nel int, lb int, hb int, width int) (ary *[]any)
+ 		t = fixarray(n->left->type);
+ 
+ 		a = nodintconst(t->type->width);	// width
+ 		a = nod(OCONV, a, N);
+-		a->type = types[TUINT32];
++		a->type = types[TINT];
+ 		r = a;
+ 
+ 		a = nod(OCONV, n->right->right, N);	// hb
+-		a->type = types[TUINT32];
++		a->type = types[TINT];
+ 		r = list(a, r);
+ 
+ 		a = nod(OCONV, n->right->left, N);	// lb
+-		a->type = types[TUINT32];
++		a->type = types[TINT];
+ 		r = list(a, r);
+ 
+ 		a = nodintconst(t->bound);		// nel
+ 		a = nod(OCONV, a, N);
+-		a->type = types[TUINT32];
++		a->type = types[TINT];
+ 		r = list(a, r);
+ 
+ 		a = n->left;				// old
+diff --git a/src/lib/strings.go b/src/lib/strings.go
+index 98650b5475..5f27d42acd 100644
+--- a/src/lib/strings.go
++++ b/src/lib/strings.go
+@@ -164,7 +164,7 @@ export func atol(s string) (i int64, ok bool) {
+ 
+ export func atoi(s string) (i int, ok bool) {
+ 	ii, okok := atol(s);
+-	i = int32(ii);
++	i = int(ii);
+ 	return i, okok
+ }
+ 
+diff --git a/src/lib/syscall/file_linux.go b/src/lib/syscall/file_linux.go
+index af7728a6b1..6b56cc6ab5 100644
+--- a/src/lib/syscall/file_linux.go
++++ b/src/lib/syscall/file_linux.go
+@@ -44,7 +44,7 @@ export func write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
+ }
+ 
+ export func pipe(fds *[2]int64) (ret int64, errno int64) {
+-	var t [2] int32;
++	var t [2] int;
+ 	r1, r2, err := Syscall(SYS_PIPE, Int32Ptr(&t[0]), 0, 0);
+ 	if r1 < 0 {
+ 		return r1, err;
+diff --git a/src/lib/syscall/socket_darwin.go b/src/lib/syscall/socket_darwin.go
+index b11ba5713c..9995595c38 100644
+--- a/src/lib/syscall/socket_darwin.go
++++ b/src/lib/syscall/socket_darwin.go
+@@ -49,7 +49,7 @@ export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err i
+ }
+ 
+ export func setsockopt_int(fd, level, opt int64, value int) int64 {
+-	n := int32(opt);
++	n := int(opt);
+ 	r1, e := setsockopt(fd, level, opt, Int32Ptr(&n), 4);
+ 	return e
+ }
+@@ -58,7 +58,7 @@ export func setsockopt_tv(fd, level, opt, nsec int64) int64 {
+ 	var tv Timeval;
+ 	nsec += 999;
+ 	tv.sec = int64(nsec/1000000000);
+-	tv.usec = uint32(nsec%1000000000);
++	tv.usec = uint(nsec%1000000000);
+ 	r1, e := setsockopt(fd, level, opt, TimevalPtr(&tv), 4);
+ 	return e
+ }
+diff --git a/src/lib/syscall/socket_linux.go b/src/lib/syscall/socket_linux.go
+index 47f9aa7688..e7e6f743d4 100644
+--- a/src/lib/syscall/socket_linux.go
++++ b/src/lib/syscall/socket_linux.go
+@@ -61,7 +61,7 @@ export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err i
+ }
+ 
+ export func setsockopt_int(fd, level, opt int64, value int) int64 {
+-	n := int32(opt);
++	n := int(opt);
+ 	r1, e := setsockopt(fd, level, opt, Int32Ptr(&n), 4);
+ 	return e
+ }

@@ -11,6 +11,23 @@ Date:   Sat Apr 20 17:42:14 2013 +1000
     R=golang-dev, r, iant
     CC=golang-dev
     https://golang.org/cl/8676050
-
+---
  src/cmd/ld/ldpe.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index c1195a857d..7a5bc0c608 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -257,6 +257,11 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			continue;
+ 		if(rsect->sh.Characteristics&IMAGE_SCN_MEM_DISCARDABLE)
+ 			continue;
++		if((sect->sh.Characteristics&(IMAGE_SCN_CNT_CODE|IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_CNT_UNINITIALIZED_DATA)) == 0) {
++			// This has been seen for .idata sections, which we
++			// want to ignore.  See issues 5106 and 5273.
++			continue;
++		}
+ 		r = mal(rsect->sh.NumberOfRelocations*sizeof r[0]);
+ 		Bseek(f, obj->base+rsect->sh.PointerToRelocations, 0);
+ 		for(j=0; j<rsect->sh.NumberOfRelocations; j++) {

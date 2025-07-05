@@ -8,7 +8,43 @@ Date:   Fri Feb 6 16:45:37 2009 -0800
     DELTA=14  (14 added, 0 deleted, 0 changed)
     OCL=24610
     CL=24610
-
+---
  test/bugs/bug136.go | 15 +++++++++++++++
  test/golden.out     |  3 +++
  2 files changed, 18 insertions(+)
+
+diff --git a/test/bugs/bug136.go b/test/bugs/bug136.go
+new file mode 100644
+index 0000000000..5846c654b9
+--- /dev/null
++++ b/test/bugs/bug136.go
+@@ -0,0 +1,15 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	L: ;  // ';' terminates empty statement => L does not apply to for loop
++	for i := 0; i < 10; i++ {
++		println(i);
++		break L  // L does not apply to for loop
++	}
++}
+diff --git a/test/golden.out b/test/golden.out
+index fb9b82709e..c427f423dc 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -163,6 +163,9 @@ BUG: should not compile
+ =========== bugs/bug132.go
+ BUG: compilation succeeds incorrectly
+ 
++=========== bugs/bug136.go
++BUG: should not compile
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 

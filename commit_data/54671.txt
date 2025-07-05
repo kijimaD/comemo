@@ -22,8 +22,107 @@ Date:   Tue Nov 8 14:04:24 2022 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Bypass: Russ Cox <rsc@golang.org>
-
+---
  src/net/cgo_unix.go         | 16 ++++++++--------
  src/net/cgo_unix_cgo.go     |  8 +++++++-
  src/net/cgo_unix_syscall.go | 17 +++++++++++++++++
  3 files changed, 32 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 77939640d2..8cf3b87d84 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -345,17 +345,17 @@ func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmes
+ 	// giving us no way to find out how big the packet is.
+ 	// For now, we are willing to take res_search's word that there's nothing
+ 	// useful in the response, even though there *is* a response.
+-	var buf [1500]byte
+-	s, err := syscall.BytePtrFromString(hostname)
+-	if err != nil {
+-		return nil, err
+-	}
+-	size, err := _C_res_nsearch(&state, (*_C_char)(unsafe.Pointer(s)), class, rtype, (*_C_uchar)(unsafe.Pointer(&buf[0])), len(buf))
+-	if size <= 0 {
++	const bufSize = 1500
++	buf := (*_C_uchar)(_C_malloc(bufSize))
++	defer _C_free(unsafe.Pointer(buf))
++	s := _C_CString(hostname)
++	defer _C_FreeCString(s)
++	size, err := _C_res_nsearch(&state, s, class, rtype, buf, bufSize)
++	if size <= 0 || size > bufSize {
+ 		return nil, errors.New("res_nsearch failure")
+ 	}
+ 	var p dnsmessage.Parser
+-	if _, err := p.Start(buf[:size]); err != nil {
++	if _, err := p.Start(unsafe.Slice((*byte)(unsafe.Pointer(buf)), size)); err != nil {
+ 		return nil, err
+ 	}
+ 	p.SkipAllQuestions()
+diff --git a/src/net/cgo_unix_cgo.go b/src/net/cgo_unix_cgo.go
+index 7ff8154aeb..3e7282b579 100644
+--- a/src/net/cgo_unix_cgo.go
++++ b/src/net/cgo_unix_cgo.go
+@@ -13,6 +13,7 @@ package net
+ #include <netdb.h>
+ #include <unistd.h>
+ #include <string.h>
++#include <stdlib.h>
+ 
+ // If nothing else defined EAI_OVERFLOW, make sure it has a value.
+ #ifndef EAI_OVERFLOW
+@@ -20,6 +21,7 @@ package net
+ #endif
+ */
+ import "C"
++import "unsafe"
+ 
+ const (
+ 	_C_AF_INET      = C.AF_INET
+@@ -45,7 +47,11 @@ type (
+ 	_C_struct_sockaddr = C.struct_sockaddr
+ )
+ 
+-func _C_GoString(p *_C_char) string { return C.GoString(p) }
++func _C_GoString(p *_C_char) string      { return C.GoString(p) }
++func _C_CString(s string) *_C_char       { return C.CString(s) }
++func _C_FreeCString(p *_C_char)          { C.free(unsafe.Pointer(p)) }
++func _C_malloc(n uintptr) unsafe.Pointer { return C.malloc(C.size_t(n)) }
++func _C_free(p unsafe.Pointer)           { C.free(p) }
+ 
+ func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.ai_addr }
+ func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.ai_canonname }
+diff --git a/src/net/cgo_unix_syscall.go b/src/net/cgo_unix_syscall.go
+index c0317f4d11..0d20a52464 100644
+--- a/src/net/cgo_unix_syscall.go
++++ b/src/net/cgo_unix_syscall.go
+@@ -8,6 +8,7 @@ package net
+ 
+ import (
+ 	"internal/syscall/unix"
++	"runtime"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -41,6 +42,22 @@ func _C_GoString(p *_C_char) string {
+ 	return unix.GoString(p)
+ }
+ 
++func _C_CString(s string) *_C_char {
++	p := make([]byte, len(s)+1)
++	copy(p, s)
++	return &p[0]
++}
++
++func _C_FreeCString(p *_C_char) { _C_free(unsafe.Pointer(p)) }
++func _C_free(p unsafe.Pointer)  { runtime.KeepAlive(p) }
++
++func _C_malloc(n uintptr) unsafe.Pointer {
++	if n <= 0 {
++		n = 1
++	}
++	return unsafe.Pointer(&make([]byte, n)[0])
++}
++
+ func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.Addr }
+ func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.Canonname }
+ func _C_ai_family(ai *_C_struct_addrinfo) *_C_int            { return &ai.Family }

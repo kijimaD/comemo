@@ -14,10 +14,149 @@ Date:   Fri May 22 22:01:01 2015 -0400
     Change-Id: Iffb767a745093fb89aa08bf8a7692c2f0122be98
     Reviewed-on: https://go-review.googlesource.com/10334
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go      |  5 +++--
  src/cmd/compile/internal/gc/order.go    |  2 +-
  src/cmd/compile/internal/gc/racewalk.go |  2 +-
  src/cmd/compile/internal/gc/subr.go     | 23 +++++++++++++++++------
  test/fixedbugs/issue8183.go             | 23 +++++++++++++++++++++++
  5 files changed, 45 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 85a33bec3f..346b3beaeb 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -313,18 +313,19 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
+  * new_name_list [[type] = expr_list]
+  */
+ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
++	lno := int32(0) // default is to leave line number alone in listtreecopy
+ 	if cl == nil {
+ 		if t != nil {
+ 			Yyerror("const declaration cannot have type without expression")
+ 		}
+ 		cl = lastconst
+ 		t = lasttype
++		lno = vl.N.Lineno
+ 	} else {
+ 		lastconst = cl
+ 		lasttype = t
+ 	}
+-
+-	cl = listtreecopy(cl)
++	cl = listtreecopy(cl, lno)
+ 
+ 	var v *Node
+ 	var c *Node
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index b3fd282a68..8b99ed0895 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -498,7 +498,7 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 		orderexpr(&n.Left, order, nil)
+ 		n.Left = ordersafeexpr(n.Left, order)
+-		tmp1 := treecopy(n.Left)
++		tmp1 := treecopy(n.Left, 0)
+ 		if tmp1.Op == OINDEXMAP {
+ 			tmp1.Etype = 0 // now an rvalue not an lvalue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 6e384682fd..05a902e8c1 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -483,7 +483,7 @@ func callinstr(np **Node, init **NodeList, wr int, skip int) bool {
+ 			*np = n
+ 		}
+ 
+-		n = treecopy(n)
++		n = treecopy(n, 0)
+ 		makeaddable(n)
+ 		var f *Node
+ 		if t.Etype == TSTRUCT || Isfixedarray(t) {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index b10a6b3d3d..08fafa819f 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -736,7 +736,12 @@ func aindex(b *Node, t *Type) *Type {
+ 	return r
+ }
+ 
+-func treecopy(n *Node) *Node {
++// treecopy recursively copies n, with the exception of
++// ONAME, OLITERAL, OTYPE, and non-iota ONONAME leaves.
++// Copies of iota ONONAME nodes are assigned the current
++// value of iota_. If lineno != 0, it sets the line number
++// of newly allocated nodes to lineno.
++func treecopy(n *Node, lineno int32) *Node {
+ 	if n == nil {
+ 		return nil
+ 	}
+@@ -747,9 +752,12 @@ func treecopy(n *Node) *Node {
+ 		m = Nod(OXXX, nil, nil)
+ 		*m = *n
+ 		m.Orig = m
+-		m.Left = treecopy(n.Left)
+-		m.Right = treecopy(n.Right)
+-		m.List = listtreecopy(n.List)
++		m.Left = treecopy(n.Left, lineno)
++		m.Right = treecopy(n.Right, lineno)
++		m.List = listtreecopy(n.List, lineno)
++		if lineno != -1 {
++			m.Lineno = lineno
++		}
+ 		if m.Defn != nil {
+ 			panic("abort")
+ 		}
+@@ -764,6 +772,9 @@ func treecopy(n *Node) *Node {
+ 
+ 			*m = *n
+ 			m.Iota = iota_
++			if lineno != 0 {
++				m.Lineno = lineno
++			}
+ 			break
+ 		}
+ 		fallthrough
+@@ -3092,10 +3103,10 @@ func Simsimtype(t *Type) int {
+ 	return et
+ }
+ 
+-func listtreecopy(l *NodeList) *NodeList {
++func listtreecopy(l *NodeList, lineno int32) *NodeList {
+ 	var out *NodeList
+ 	for ; l != nil; l = l.Next {
+-		out = list(out, treecopy(l.N))
++		out = list(out, treecopy(l.N, lineno))
+ 	}
+ 	return out
+ }
+diff --git a/test/fixedbugs/issue8183.go b/test/fixedbugs/issue8183.go
+new file mode 100644
+index 0000000000..7104f1e00c
+--- /dev/null
++++ b/test/fixedbugs/issue8183.go
+@@ -0,0 +1,23 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests correct reporting of line numbers for errors involving iota,
++// Issue #8183.
++package foo
++
++const (
++	ok = byte(iota + 253)
++	bad
++	barn
++	bard // ERROR "constant 256 overflows byte"
++)
++
++const (
++	c = len([1 - iota]int{})
++	d
++	e // ERROR "array bound must be non-negative" "const initializer len\(composite literal\) is not a constant"
++	f // ERROR "array bound must be non-negative" "const initializer len\(composite literal\) is not a constant"
++)

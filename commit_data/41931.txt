@@ -12,9 +12,125 @@ Date:   Fri Nov 1 17:53:53 2019 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204957
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  misc/cgo/testcarchive/carchive_test.go        | 49 +++++++++++++++++++++++++++
  misc/cgo/testcarchive/testdata/libgo7/sink.go | 17 ++++++++++
  misc/cgo/testcarchive/testdata/main7.c        | 17 ++++++++++
  src/runtime/proc.go                           |  1 +
  4 files changed, 84 insertions(+)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 739bfe42bf..cf2c6264dd 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -813,3 +813,52 @@ func TestCachedInstall(t *testing.T) {
+ 		t.Errorf("p.h not installed in second run: %v", err)
+ 	}
+ }
++
++// Issue 35294.
++func TestManyCalls(t *testing.T) {
++	t.Parallel()
++
++	defer func() {
++		os.Remove("testp7" + exeSuffix)
++		os.Remove("libgo7.a")
++		os.Remove("libgo7.h")
++	}()
++
++	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo7.a", "./libgo7")
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++	checkLineComments(t, "libgo7.h")
++
++	ccArgs := append(cc, "-o", "testp7"+exeSuffix, "main7.c", "libgo7.a")
++	if runtime.Compiler == "gccgo" {
++		ccArgs = append(ccArgs, "-lgo")
++	}
++	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	argv := cmdToRun("./testp7")
++	cmd = exec.Command(argv[0], argv[1:]...)
++	var sb strings.Builder
++	cmd.Stdout = &sb
++	cmd.Stderr = &sb
++	if err := cmd.Start(); err != nil {
++		t.Fatal(err)
++	}
++
++	timer := time.AfterFunc(time.Minute,
++		func() {
++			t.Error("test program timed out")
++			cmd.Process.Kill()
++		},
++	)
++	defer timer.Stop()
++
++	if err := cmd.Wait(); err != nil {
++		t.Log(sb.String())
++		t.Error(err)
++	}
++}
+diff --git a/misc/cgo/testcarchive/testdata/libgo7/sink.go b/misc/cgo/testcarchive/testdata/libgo7/sink.go
+new file mode 100644
+index 0000000000..d61638b38e
+--- /dev/null
++++ b/misc/cgo/testcarchive/testdata/libgo7/sink.go
+@@ -0,0 +1,17 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "C"
++
++var sink []byte
++
++//export GoFunction7
++func GoFunction7() {
++	sink = make([]byte, 4096)
++}
++
++func main() {
++}
+diff --git a/misc/cgo/testcarchive/testdata/main7.c b/misc/cgo/testcarchive/testdata/main7.c
+new file mode 100644
+index 0000000000..3d101094d5
+--- /dev/null
++++ b/misc/cgo/testcarchive/testdata/main7.c
+@@ -0,0 +1,17 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that lots of calls don't deadlock.
++
++#include <stdio.h>
++
++#include "libgo7.h"
++
++int main() {
++	int i;
++
++	for (i = 0; i < 100000; i++) {
++		GoFunction7();
++	}
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index f9a22ca5e3..6740169cf8 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1625,6 +1625,7 @@ func dropm() {
+ 
+ 	// Return mp.curg to dead state.
+ 	casgstatus(mp.curg, _Gsyscall, _Gdead)
++	mp.curg.preemptStop = false
+ 	atomic.Xadd(&sched.ngsys, +1)
+ 
+ 	// Block signals before unminit.

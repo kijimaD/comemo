@@ -7,7 +7,33 @@ Date:   Tue Dec 7 15:28:26 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2515043
-
+---
  src/Make.clib | 2 +-
  src/Make.inc  | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/Make.clib b/src/Make.clib
+index 9f72bcb626..ebe4f84b96 100644
+--- a/src/Make.clib
++++ b/src/Make.clib
+@@ -19,7 +19,7 @@ $(QUOTED_GOROOT)/lib/$(LIB): $(LIB)
+ 	cp $(LIB) "$(GOROOT)/lib/$(LIB)"
+ 
+ $(LIB): $(OFILES)
+-	ar rsc $(LIB) $(OFILES)
++	$(HOST_AR) rsc $(LIB) $(OFILES)
+ 
+ CLEANFILES+=y.tab.[ch] y.output a.out $(LIB)
+ 
+diff --git a/src/Make.inc b/src/Make.inc
+index 8096253d02..2d9ee29058 100644
+--- a/src/Make.inc
++++ b/src/Make.inc
+@@ -101,6 +101,7 @@ HOST_CC=quietgcc
+ HOST_LD=quietgcc
+ HOST_O=o
+ HOST_YFLAGS=-d
++HOST_AR?=ar
+ 
+ # These two variables can be overridden in the environment
+ # to build with other flags.  They are like $CFLAGS and $LDFLAGS

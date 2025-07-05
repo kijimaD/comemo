@@ -9,7 +9,7 @@ Date:   Wed Oct 12 13:07:55 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/5232052
-
+---
  src/pkg/Makefile                           |   1 -
  src/pkg/go/typechecker/Makefile            |  14 -
  src/pkg/go/typechecker/scope.go            |  69 -----
@@ -22,3 +22,1103 @@ Date:   Wed Oct 12 13:07:55 2011 -0700
  src/pkg/go/typechecker/typechecker_test.go | 163 ----------
  src/pkg/go/typechecker/universe.go         |  36 ---
  11 files changed, 1028 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 79f9882d08..ae5859ab44 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -95,7 +95,6 @@ DIRS=\
+ 	go/printer\
+ 	go/scanner\
+ 	go/token\
+-	go/typechecker\
+ 	go/types\
+ 	gob\
+ 	hash\
+diff --git a/src/pkg/go/typechecker/Makefile b/src/pkg/go/typechecker/Makefile
+deleted file mode 100644
+index 83af3ef4e4..0000000000
+--- a/src/pkg/go/typechecker/Makefile
++++ /dev/null
+@@ -1,14 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=go/typechecker
+-GOFILES=\
+-	scope.go\
+-	type.go\
+-	typechecker.go\
+-	universe.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/go/typechecker/scope.go b/src/pkg/go/typechecker/scope.go
+deleted file mode 100644
+index d73d1a4504..0000000000
+--- a/src/pkg/go/typechecker/scope.go
++++ /dev/null
+@@ -1,69 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// DEPRECATED FILE - WILL GO AWAY EVENTUALLY.
+-//
+-// Scope handling is now done in go/parser.
+-// The functionality here is only present to
+-// keep the typechecker running for now.
+-
+-package typechecker
+-
+-import "go/ast"
+-
+-func (tc *typechecker) openScope() *ast.Scope {
+-	tc.topScope = ast.NewScope(tc.topScope)
+-	return tc.topScope
+-}
+-
+-func (tc *typechecker) closeScope() {
+-	tc.topScope = tc.topScope.Outer
+-}
+-
+-// declInScope declares an object of a given kind and name in scope and sets the object's Decl and N fields.
+-// It returns the newly allocated object. If an object with the same name already exists in scope, an error
+-// is reported and the object is not inserted.
+-func (tc *typechecker) declInScope(scope *ast.Scope, kind ast.ObjKind, name *ast.Ident, decl interface{}, n int) *ast.Object {
+-	obj := ast.NewObj(kind, name.Name)
+-	obj.Decl = decl
+-	//obj.N = n
+-	name.Obj = obj
+-	if name.Name != "_" {
+-		if alt := scope.Insert(obj); alt != nil {
+-			tc.Errorf(name.Pos(), "%s already declared at %s", name.Name, tc.fset.Position(alt.Pos()).String())
+-		}
+-	}
+-	return obj
+-}
+-
+-// decl is the same as declInScope(tc.topScope, ...)
+-func (tc *typechecker) decl(kind ast.ObjKind, name *ast.Ident, decl interface{}, n int) *ast.Object {
+-	return tc.declInScope(tc.topScope, kind, name, decl, n)
+-}
+-
+-// find returns the object with the given name if visible in the current scope hierarchy.
+-// If no such object is found, an error is reported and a bad object is returned instead.
+-func (tc *typechecker) find(name *ast.Ident) (obj *ast.Object) {
+-	for s := tc.topScope; s != nil && obj == nil; s = s.Outer {
+-		obj = s.Lookup(name.Name)
+-	}
+-	if obj == nil {
+-		tc.Errorf(name.Pos(), "%s not declared", name.Name)
+-		obj = ast.NewObj(ast.Bad, name.Name)
+-	}
+-	name.Obj = obj
+-	return
+-}
+-
+-// findField returns the object with the given name if visible in the type's scope.
+-// If no such object is found, an error is reported and a bad object is returned instead.
+-func (tc *typechecker) findField(typ *Type, name *ast.Ident) (obj *ast.Object) {
+-	// TODO(gri) This is simplistic at the moment and ignores anonymous fields.
+-	obj = typ.Scope.Lookup(name.Name)
+-	if obj == nil {
+-		tc.Errorf(name.Pos(), "%s not declared", name.Name)
+-		obj = ast.NewObj(ast.Bad, name.Name)
+-	}
+-	return
+-}
+diff --git a/src/pkg/go/typechecker/testdata/test0.src b/src/pkg/go/typechecker/testdata/test0.src
+deleted file mode 100644
+index 4e317f2146..0000000000
+--- a/src/pkg/go/typechecker/testdata/test0.src
++++ /dev/null
+@@ -1,94 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// type declarations
+-
+-package P0
+-
+-type (
+-	B bool
+-	I int32
+-	A [10]P
+-	T struct {
+-		x, y P
+-	}
+-	P *T
+-	R *R
+-	F func(A) I
+-	Y interface {
+-		f(A) I
+-	}
+-	S []P
+-	M map[I]F
+-	C chan<- I
+-)
+-
+-type (
+-	a/* ERROR "illegal cycle" */ a
+-	a/* ERROR "already declared" */ int
+-
+-	b/* ERROR "illegal cycle" */ c
+-	c d
+-	d e
+-	e b /* ERROR "not a type" */
+-
+-	t *t
+-
+-	U V
+-	V W
+-	W *U
+-
+-	P1 *S2
+-	P2 P1
+-
+-	S1 struct {
+-		a, b, c int
+-		u, v, a/* ERROR "already declared" */ float
+-	}
+-	S2/* ERROR "illegal cycle" */ struct {
+-		x S2
+-	}
+-
+-	L1 []L1
+-	L2 []int
+-
+-	A1 [10]int
+-	A2/* ERROR "illegal cycle" */ [10]A2
+-	A3/* ERROR "illegal cycle" */ [10]struct {
+-		x A4
+-	}
+-	A4 [10]A3
+-
+-	F1 func()
+-	F2 func(x, y, z float)
+-	F3 func(x, y, x /* ERROR "already declared" */ float)
+-	F4 func() (x, y, x /* ERROR "already declared" */ float)
+-	F5 func(x int) (x /* ERROR "already declared" */ float)
+-
+-	I1 interface{}
+-	I2 interface {
+-		m1()
+-	}
+-	I3 interface {
+-		m1()
+-		m1 /* ERROR "already declared" */ ()
+-	}
+-	I4 interface {
+-		m1(x, y, x /* ERROR "already declared" */ float)
+-		m2() (x, y, x /* ERROR "already declared" */ float)
+-		m3(x int) (x /* ERROR "already declared" */ float)
+-	}
+-	I5 interface {
+-		m1(I5)
+-	}
+-
+-	C1 chan int
+-	C2 <-chan int
+-	C3 chan<- C3
+-
+-	M1 map[Last]string
+-	M2 map[string]M2
+-
+-	Last int
+-)
+diff --git a/src/pkg/go/typechecker/testdata/test1.src b/src/pkg/go/typechecker/testdata/test1.src
+deleted file mode 100644
+index b5531fb9f5..0000000000
+--- a/src/pkg/go/typechecker/testdata/test1.src
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// const and var declarations
+-
+-package P1
+-
+-const (
+-	c1 = 0
+-	c2     int = 0
+-	c3, c4 = 0
+-)
+diff --git a/src/pkg/go/typechecker/testdata/test3.src b/src/pkg/go/typechecker/testdata/test3.src
+deleted file mode 100644
+index 2e1a9fa8f5..0000000000
+--- a/src/pkg/go/typechecker/testdata/test3.src
++++ /dev/null
+@@ -1,41 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package P3
+-
+-// function and method signatures
+-
+-func _()                                        {}
+-func _()                                        {}
+-func _(x, x /* ERROR "already declared" */ int) {}
+-
+-func f()                                 {}
+-func f /* ERROR "already declared" */ () {}
+-
+-func (*foo /* ERROR "invalid receiver" */ ) m() {}
+-func (bar /* ERROR "not a type" */ ) m()        {}
+-
+-func f1(x, _, _ int) (_, _ float)                              {}
+-func f2(x, y, x /* ERROR "already declared" */ int)            {}
+-func f3(x, y int) (a, b, x /* ERROR "already declared" */ int) {}
+-
+-func (x *T) m1()                                 {}
+-func (x *T) m1 /* ERROR "already declared" */ () {}
+-func (x T) m1 /* ERROR "already declared" */ ()  {}
+-func (T) m1 /* ERROR "already declared" */ ()    {}
+-
+-func (x *T) m2(u, x /* ERROR "already declared" */ int)               {}
+-func (x *T) m3(a, b, c int) (u, x /* ERROR "already declared" */ int) {}
+-// The following are disabled for now because the typechecker
+-// in in the process of being rewritten and cannot handle them
+-// at the moment
+-//func (T) _(x, x /* "already declared" */ int)                   {}
+-//func (T) _() (x, x /* "already declared" */ int)                {}
+-
+-//func (PT) _() {}
+-
+-var bar int
+-
+-type T struct{}
+-type PT (T)
+diff --git a/src/pkg/go/typechecker/testdata/test4.src b/src/pkg/go/typechecker/testdata/test4.src
+deleted file mode 100644
+index 94d3558f9c..0000000000
+--- a/src/pkg/go/typechecker/testdata/test4.src
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Constant declarations
+-
+-package P4
+-
+-const (
+-	c0 = 0
+-)
+diff --git a/src/pkg/go/typechecker/type.go b/src/pkg/go/typechecker/type.go
+deleted file mode 100644
+index 1b88eb54b8..0000000000
+--- a/src/pkg/go/typechecker/type.go
++++ /dev/null
+@@ -1,118 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package typechecker
+-
+-import "go/ast"
+-
+-// A Type represents a Go type.
+-type Type struct {
+-	Form     Form
+-	Obj      *ast.Object // corresponding type name, or nil
+-	Scope    *ast.Scope  // fields and methods, always present
+-	N        uint        // basic type id, array length, number of function results, or channel direction
+-	Key, Elt *Type       // map key and array, pointer, slice, map or channel element
+-	Params   *ast.Scope  // function (receiver, input and result) parameters, tuple expressions (results of function calls), or nil
+-	Expr     ast.Expr    // corresponding AST expression
+-}
+-
+-// NewType creates a new type of a given form.
+-func NewType(form Form) *Type {
+-	return &Type{Form: form, Scope: ast.NewScope(nil)}
+-}
+-
+-// Form describes the form of a type.
+-type Form int
+-
+-// The list of possible type forms.
+-const (
+-	BadType    Form = iota // for error handling
+-	Unresolved             // type not fully setup
+-	Basic
+-	Array
+-	Struct
+-	Pointer
+-	Function
+-	Method
+-	Interface
+-	Slice
+-	Map
+-	Channel
+-	Tuple
+-)
+-
+-var formStrings = [...]string{
+-	BadType:    "badType",
+-	Unresolved: "unresolved",
+-	Basic:      "basic",
+-	Array:      "array",
+-	Struct:     "struct",
+-	Pointer:    "pointer",
+-	Function:   "function",
+-	Method:     "method",
+-	Interface:  "interface",
+-	Slice:      "slice",
+-	Map:        "map",
+-	Channel:    "channel",
+-	Tuple:      "tuple",
+-}
+-
+-func (form Form) String() string { return formStrings[form] }
+-
+-// The list of basic type id's.
+-const (
+-	Bool = iota
+-	Byte
+-	Uint
+-	Int
+-	Float
+-	Complex
+-	Uintptr
+-	String
+-
+-	Uint8
+-	Uint16
+-	Uint32
+-	Uint64
+-
+-	Int8
+-	Int16
+-	Int32
+-	Int64
+-
+-	Float32
+-	Float64
+-
+-	Complex64
+-	Complex128
+-
+-	// TODO(gri) ideal types are missing
+-)
+-
+-var BasicTypes = map[uint]string{
+-	Bool:    "bool",
+-	Byte:    "byte",
+-	Uint:    "uint",
+-	Int:     "int",
+-	Float:   "float",
+-	Complex: "complex",
+-	Uintptr: "uintptr",
+-	String:  "string",
+-
+-	Uint8:  "uint8",
+-	Uint16: "uint16",
+-	Uint32: "uint32",
+-	Uint64: "uint64",
+-
+-	Int8:  "int8",
+-	Int16: "int16",
+-	Int32: "int32",
+-	Int64: "int64",
+-
+-	Float32: "float32",
+-	Float64: "float64",
+-
+-	Complex64:  "complex64",
+-	Complex128: "complex128",
+-}
+diff --git a/src/pkg/go/typechecker/typechecker.go b/src/pkg/go/typechecker/typechecker.go
+deleted file mode 100644
+index 24480165bd..0000000000
+--- a/src/pkg/go/typechecker/typechecker.go
++++ /dev/null
+@@ -1,468 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// DEPRECATED PACKAGE - SEE go/types INSTEAD.
+-// This package implements typechecking of a Go AST.
+-// The result of the typecheck is an augmented AST
+-// with object and type information for each identifier.
+-//
+-package typechecker
+-
+-import (
+-	"fmt"
+-	"go/ast"
+-	"go/token"
+-	"go/scanner"
+-	"os"
+-)
+-
+-// TODO(gri) don't report errors for objects/types that are marked as bad.
+-
+-
+-const debug = true // set for debugging output
+-
+-// An importer takes an import path and returns the data describing the
+-// respective package's exported interface. The data format is TBD.
+-//
+-type Importer func(path string) ([]byte, os.Error)
+-
+-// CheckPackage typechecks a package and augments the AST by setting
+-// *ast.Object, *ast.Type, and *ast.Scope fields accordingly. If an
+-// importer is provided, it is used to handle imports, otherwise they
+-// are ignored (likely leading to typechecking errors).
+-//
+-// If errors are reported, the AST may be incompletely augmented (fields
+-// may be nil) or contain incomplete object, type, or scope information.
+-//
+-func CheckPackage(fset *token.FileSet, pkg *ast.Package, importer Importer) os.Error {
+-	var tc typechecker
+-	tc.fset = fset
+-	tc.importer = importer
+-	tc.checkPackage(pkg)
+-	return tc.GetError(scanner.Sorted)
+-}
+-
+-// CheckFile typechecks a single file, but otherwise behaves like
+-// CheckPackage. If the complete package consists of more than just
+-// one file, the file may not typecheck without errors.
+-//
+-func CheckFile(fset *token.FileSet, file *ast.File, importer Importer) os.Error {
+-	// create a single-file dummy package
+-	pkg := &ast.Package{file.Name.Name, nil, nil, map[string]*ast.File{fset.Position(file.Name.NamePos).Filename: file}}
+-	return CheckPackage(fset, pkg, importer)
+-}
+-
+-// ----------------------------------------------------------------------------
+-// Typechecker state
+-
+-type typechecker struct {
+-	fset *token.FileSet
+-	scanner.ErrorVector
+-	importer Importer
+-	globals  []*ast.Object        // list of global objects
+-	topScope *ast.Scope           // current top-most scope
+-	cyclemap map[*ast.Object]bool // for cycle detection
+-	iota     int                  // current value of iota
+-}
+-
+-func (tc *typechecker) Errorf(pos token.Pos, format string, args ...interface{}) {
+-	tc.Error(tc.fset.Position(pos), fmt.Sprintf(format, args...))
+-}
+-
+-func assert(pred bool) {
+-	if !pred {
+-		panic("internal error")
+-	}
+-}
+-
+-/*
+-Typechecking is done in several phases:
+-
+-phase 1: declare all global objects; also collect all function and method declarations
+-	- all objects have kind, name, decl fields; the decl field permits
+-	  quick lookup of an object's declaration
+-	- constant objects have an iota value
+-	- type objects have unresolved types with empty scopes, all others have nil types
+-	- report global double declarations
+-
+-phase 2: bind methods to their receiver base types
+-	- receiver base types must be declared in the package, thus for
+-	  each method a corresponding (unresolved) type must exist
+-	- report method double declarations and errors with base types
+-
+-phase 3: resolve all global objects
+-	- sequentially iterate through all objects in the global scope
+-	- resolve types for all unresolved types and assign types to
+-	  all attached methods
+-	- assign types to all other objects, possibly by evaluating
+-	  constant and initializer expressions
+-	- resolution may recurse; a cyclemap is used to detect cycles
+-	- report global typing errors
+-
+-phase 4: sequentially typecheck function and method bodies
+-	- all global objects are declared and have types and values;
+-	  all methods have types
+-	- sequentially process statements in each body; any object
+-	  referred to must be fully defined at this point
+-	- report local typing errors
+-*/
+-
+-func (tc *typechecker) checkPackage(pkg *ast.Package) {
+-	// setup package scope
+-	tc.topScope = Universe
+-	tc.openScope()
+-	defer tc.closeScope()
+-
+-	// TODO(gri) there's no file scope at the moment since we ignore imports
+-
+-	// phase 1: declare all global objects; also collect all function and method declarations
+-	var funcs []*ast.FuncDecl
+-	for _, file := range pkg.Files {
+-		for _, decl := range file.Decls {
+-			tc.declGlobal(decl)
+-			if f, isFunc := decl.(*ast.FuncDecl); isFunc {
+-				funcs = append(funcs, f)
+-			}
+-		}
+-	}
+-
+-	// phase 2: bind methods to their receiver base types
+-	for _, m := range funcs {
+-		if m.Recv != nil {
+-			tc.bindMethod(m)
+-		}
+-	}
+-
+-	// phase 3: resolve all global objects
+-	tc.cyclemap = make(map[*ast.Object]bool)
+-	for _, obj := range tc.globals {
+-		tc.resolve(obj)
+-	}
+-	assert(len(tc.cyclemap) == 0)
+-
+-	// 4: sequentially typecheck function and method bodies
+-	for _, f := range funcs {
+-		ftype, _ := f.Name.Obj.Type.(*Type)
+-		tc.checkBlock(f.Body.List, ftype)
+-	}
+-
+-	pkg.Scope = tc.topScope
+-}
+-
+-func (tc *typechecker) declGlobal(global ast.Decl) {
+-	switch d := global.(type) {
+-	case *ast.BadDecl:
+-		// ignore
+-
+-	case *ast.GenDecl:
+-		iota := 0
+-		var prev *ast.ValueSpec
+-		for _, spec := range d.Specs {
+-			switch s := spec.(type) {
+-			case *ast.ImportSpec:
+-				// TODO(gri) imports go into file scope
+-			case *ast.ValueSpec:
+-				switch d.Tok {
+-				case token.CONST:
+-					if s.Values == nil {
+-						// create a new spec with type and values from the previous one
+-						if prev != nil {
+-							s = &ast.ValueSpec{s.Doc, s.Names, prev.Type, prev.Values, s.Comment}
+-						} else {
+-							// TODO(gri) this should probably go into the const decl code
+-							tc.Errorf(s.Pos(), "missing initializer for const %s", s.Names[0].Name)
+-						}
+-					}
+-					for _, name := range s.Names {
+-						tc.globals = append(tc.globals, tc.decl(ast.Con, name, s, iota))
+-					}
+-				case token.VAR:
+-					for _, name := range s.Names {
+-						tc.globals = append(tc.globals, tc.decl(ast.Var, name, s, 0))
+-					}
+-				default:
+-					panic("unreachable")
+-				}
+-				prev = s
+-				iota++
+-			case *ast.TypeSpec:
+-				obj := tc.decl(ast.Typ, s.Name, s, 0)
+-				tc.globals = append(tc.globals, obj)
+-				// give all type objects an unresolved type so
+-				// that we can collect methods in the type scope
+-				typ := NewType(Unresolved)
+-				obj.Type = typ
+-				typ.Obj = obj
+-			default:
+-				panic("unreachable")
+-			}
+-		}
+-
+-	case *ast.FuncDecl:
+-		if d.Recv == nil {
+-			tc.globals = append(tc.globals, tc.decl(ast.Fun, d.Name, d, 0))
+-		}
+-
+-	default:
+-		panic("unreachable")
+-	}
+-}
+-
+-// If x is of the form *T, deref returns T, otherwise it returns x.
+-func deref(x ast.Expr) ast.Expr {
+-	if p, isPtr := x.(*ast.StarExpr); isPtr {
+-		x = p.X
+-	}
+-	return x
+-}
+-
+-func (tc *typechecker) bindMethod(method *ast.FuncDecl) {
+-	// a method is declared in the receiver base type's scope
+-	var scope *ast.Scope
+-	base := deref(method.Recv.List[0].Type)
+-	if name, isIdent := base.(*ast.Ident); isIdent {
+-		// if base is not an *ast.Ident, we had a syntax
+-		// error and the parser reported an error already
+-		obj := tc.topScope.Lookup(name.Name)
+-		if obj == nil {
+-			tc.Errorf(name.Pos(), "invalid receiver: %s is not declared in this package", name.Name)
+-		} else if obj.Kind != ast.Typ {
+-			tc.Errorf(name.Pos(), "invalid receiver: %s is not a type", name.Name)
+-		} else {
+-			typ := obj.Type.(*Type)
+-			assert(typ.Form == Unresolved)
+-			scope = typ.Scope
+-		}
+-	}
+-	if scope == nil {
+-		// no receiver type found; use a dummy scope
+-		// (we still want to type-check the method
+-		// body, so make sure there is a name object
+-		// and type)
+-		// TODO(gri) should we record the scope so
+-		// that we don't lose the receiver for type-
+-		// checking of the method body?
+-		scope = ast.NewScope(nil)
+-	}
+-	tc.declInScope(scope, ast.Fun, method.Name, method, 0)
+-}
+-
+-func (tc *typechecker) resolve(obj *ast.Object) {
+-	// check for declaration cycles
+-	if tc.cyclemap[obj] {
+-		tc.Errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name)
+-		obj.Kind = ast.Bad
+-		return
+-	}
+-	tc.cyclemap[obj] = true
+-	defer func() {
+-		tc.cyclemap[obj] = false, false
+-	}()
+-
+-	// resolve non-type objects
+-	typ, _ := obj.Type.(*Type)
+-	if typ == nil {
+-		switch obj.Kind {
+-		case ast.Bad:
+-			// ignore
+-
+-		case ast.Con:
+-			tc.declConst(obj)
+-
+-		case ast.Var:
+-			tc.declVar(obj)
+-			obj.Type = tc.typeFor(nil, obj.Decl.(*ast.ValueSpec).Type, false)
+-
+-		case ast.Fun:
+-			obj.Type = NewType(Function)
+-			t := obj.Decl.(*ast.FuncDecl).Type
+-			tc.declSignature(obj.Type.(*Type), nil, t.Params, t.Results)
+-
+-		default:
+-			// type objects have non-nil types when resolve is called
+-			if debug {
+-				fmt.Printf("kind = %s\n", obj.Kind)
+-			}
+-			panic("unreachable")
+-		}
+-		return
+-	}
+-
+-	// resolve type objects
+-	if typ.Form == Unresolved {
+-		tc.typeFor(typ, typ.Obj.Decl.(*ast.TypeSpec).Type, false)
+-
+-		// provide types for all methods
+-		for _, obj := range typ.Scope.Objects {
+-			if obj.Kind == ast.Fun {
+-				assert(obj.Type == nil)
+-				obj.Type = NewType(Method)
+-				f := obj.Decl.(*ast.FuncDecl)
+-				t := f.Type
+-				tc.declSignature(obj.Type.(*Type), f.Recv, t.Params, t.Results)
+-			}
+-		}
+-	}
+-}
+-
+-func (tc *typechecker) checkBlock(body []ast.Stmt, ftype *Type) {
+-	tc.openScope()
+-	defer tc.closeScope()
+-
+-	// inject function/method parameters into block scope, if any
+-	if ftype != nil {
+-		for _, par := range ftype.Params.Objects {
+-			if par.Name != "_" {
+-				alt := tc.topScope.Insert(par)
+-				assert(alt == nil) // ftype has no double declarations
+-			}
+-		}
+-	}
+-
+-	for _, stmt := range body {
+-		tc.checkStmt(stmt)
+-	}
+-}
+-
+-// ----------------------------------------------------------------------------
+-// Types
+-
+-// unparen removes parentheses around x, if any.
+-func unparen(x ast.Expr) ast.Expr {
+-	if ux, hasParens := x.(*ast.ParenExpr); hasParens {
+-		return unparen(ux.X)
+-	}
+-	return x
+-}
+-
+-func (tc *typechecker) declFields(scope *ast.Scope, fields *ast.FieldList, ref bool) (n uint) {
+-	if fields != nil {
+-		for _, f := range fields.List {
+-			typ := tc.typeFor(nil, f.Type, ref)
+-			for _, name := range f.Names {
+-				fld := tc.declInScope(scope, ast.Var, name, f, 0)
+-				fld.Type = typ
+-				n++
+-			}
+-		}
+-	}
+-	return n
+-}
+-
+-func (tc *typechecker) declSignature(typ *Type, recv, params, results *ast.FieldList) {
+-	assert((typ.Form == Method) == (recv != nil))
+-	typ.Params = ast.NewScope(nil)
+-	tc.declFields(typ.Params, recv, true)
+-	tc.declFields(typ.Params, params, true)
+-	typ.N = tc.declFields(typ.Params, results, true)
+-}
+-
+-func (tc *typechecker) typeFor(def *Type, x ast.Expr, ref bool) (typ *Type) {
+-	x = unparen(x)
+-
+-	// type name
+-	if t, isIdent := x.(*ast.Ident); isIdent {
+-		obj := tc.find(t)
+-
+-		if obj.Kind != ast.Typ {
+-			tc.Errorf(t.Pos(), "%s is not a type", t.Name)
+-			if def == nil {
+-				typ = NewType(BadType)
+-			} else {
+-				typ = def
+-				typ.Form = BadType
+-			}
+-			typ.Expr = x
+-			return
+-		}
+-
+-		if !ref {
+-			tc.resolve(obj) // check for cycles even if type resolved
+-		}
+-		typ = obj.Type.(*Type)
+-
+-		if def != nil {
+-			// new type declaration: copy type structure
+-			def.Form = typ.Form
+-			def.N = typ.N
+-			def.Key, def.Elt = typ.Key, typ.Elt
+-			def.Params = typ.Params
+-			def.Expr = x
+-			typ = def
+-		}
+-		return
+-	}
+-
+-	// type literal
+-	typ = def
+-	if typ == nil {
+-		typ = NewType(BadType)
+-	}
+-	typ.Expr = x
+-
+-	switch t := x.(type) {
+-	case *ast.SelectorExpr:
+-		if debug {
+-			fmt.Println("qualified identifier unimplemented")
+-		}
+-		typ.Form = BadType
+-
+-	case *ast.StarExpr:
+-		typ.Form = Pointer
+-		typ.Elt = tc.typeFor(nil, t.X, true)
+-
+-	case *ast.ArrayType:
+-		if t.Len != nil {
+-			typ.Form = Array
+-			// TODO(gri) compute the real length
+-			// (this may call resolve recursively)
+-			(*typ).N = 42
+-		} else {
+-			typ.Form = Slice
+-		}
+-		typ.Elt = tc.typeFor(nil, t.Elt, t.Len == nil)
+-
+-	case *ast.StructType:
+-		typ.Form = Struct
+-		tc.declFields(typ.Scope, t.Fields, false)
+-
+-	case *ast.FuncType:
+-		typ.Form = Function
+-		tc.declSignature(typ, nil, t.Params, t.Results)
+-
+-	case *ast.InterfaceType:
+-		typ.Form = Interface
+-		tc.declFields(typ.Scope, t.Methods, true)
+-
+-	case *ast.MapType:
+-		typ.Form = Map
+-		typ.Key = tc.typeFor(nil, t.Key, true)
+-		typ.Elt = tc.typeFor(nil, t.Value, true)
+-
+-	case *ast.ChanType:
+-		typ.Form = Channel
+-		typ.N = uint(t.Dir)
+-		typ.Elt = tc.typeFor(nil, t.Value, true)
+-
+-	default:
+-		if debug {
+-			fmt.Printf("x is %T\n", x)
+-		}
+-		panic("unreachable")
+-	}
+-
+-	return
+-}
+-
+-// ----------------------------------------------------------------------------
+-// TODO(gri) implement these place holders
+-
+-func (tc *typechecker) declConst(*ast.Object) {
+-}
+-
+-func (tc *typechecker) declVar(*ast.Object) {
+-}
+-
+-func (tc *typechecker) checkStmt(ast.Stmt) {
+-}
+diff --git a/src/pkg/go/typechecker/typechecker_test.go b/src/pkg/go/typechecker/typechecker_test.go
+deleted file mode 100644
+index 4bad4499a4..0000000000
+--- a/src/pkg/go/typechecker/typechecker_test.go
++++ /dev/null
+@@ -1,163 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file implements a simple typechecker test harness. Packages found
+-// in the testDir directory are typechecked. Error messages reported by
+-// the typechecker are compared against the error messages expected for
+-// the test files.
+-//
+-// Expected errors are indicated in the test files by putting a comment
+-// of the form /* ERROR "rx" */ immediately following an offending token.
+-// The harness will verify that an error matching the regular expression
+-// rx is reported at that source position. Consecutive comments may be
+-// used to indicate multiple errors for the same token position.
+-//
+-// For instance, the following test file indicates that a "not declared"
+-// error should be reported for the undeclared variable x:
+-//
+-//	package P0
+-//	func f() {
+-//		_ = x /* ERROR "not declared" */ + 1
+-//	}
+-// 
+-// If the -pkg flag is set, only packages with package names matching
+-// the regular expression provided via the flag value are tested.
+-
+-package typechecker
+-
+-import (
+-	"flag"
+-	"fmt"
+-	"go/ast"
+-	"go/parser"
+-	"go/scanner"
+-	"go/token"
+-	"io/ioutil"
+-	"os"
+-	"regexp"
+-	"sort"
+-	"strings"
+-	"testing"
+-)
+-
+-const testDir = "./testdata" // location of test packages
+-
+-var fset = token.NewFileSet()
+-
+-var (
+-	pkgPat = flag.String("pkg", ".*", "regular expression to select test packages by package name")
+-	trace  = flag.Bool("trace", false, "print package names")
+-)
+-
+-// ERROR comments must be of the form /* ERROR "rx" */ and rx is
+-// a regular expression that matches the expected error message.
+-var errRx = regexp.MustCompile(`^/\* *ERROR *"([^"]*)" *\*/$`)
+-
+-// expectedErrors collects the regular expressions of ERROR comments
+-// found in the package files of pkg and returns them in sorted order
+-// (by filename and position).
+-func expectedErrors(t *testing.T, pkg *ast.Package) (list scanner.ErrorList) {
+-	// scan all package files
+-	for filename := range pkg.Files {
+-		src, err := ioutil.ReadFile(filename)
+-		if err != nil {
+-			t.Fatalf("expectedErrors(%s): %v", pkg.Name, err)
+-		}
+-
+-		var s scanner.Scanner
+-		file := fset.AddFile(filename, fset.Base(), len(src))
+-		s.Init(file, src, nil, scanner.ScanComments)
+-		var prev token.Pos // position of last non-comment token
+-	loop:
+-		for {
+-			pos, tok, lit := s.Scan()
+-			switch tok {
+-			case token.EOF:
+-				break loop
+-			case token.COMMENT:
+-				s := errRx.FindStringSubmatch(lit)
+-				if len(s) == 2 {
+-					list = append(list, &scanner.Error{fset.Position(prev), string(s[1])})
+-				}
+-			default:
+-				prev = pos
+-			}
+-		}
+-	}
+-	sort.Sort(list) // multiple files may not be sorted
+-	return
+-}
+-
+-func testFilter(f *os.FileInfo) bool {
+-	return strings.HasSuffix(f.Name, ".src") && f.Name[0] != '.'
+-}
+-
+-func checkError(t *testing.T, expected, found *scanner.Error) {
+-	rx, err := regexp.Compile(expected.Msg)
+-	if err != nil {
+-		t.Errorf("%s: %v", expected.Pos, err)
+-		return
+-	}
+-
+-	match := rx.MatchString(found.Msg)
+-
+-	if expected.Pos.Offset != found.Pos.Offset {
+-		if match {
+-			t.Errorf("%s: expected error should have been at %s", expected.Pos, found.Pos)
+-		} else {
+-			t.Errorf("%s: error matching %q expected", expected.Pos, expected.Msg)
+-			return
+-		}
+-	}
+-
+-	if !match {
+-		t.Errorf("%s: %q does not match %q", expected.Pos, expected.Msg, found.Msg)
+-	}
+-}
+-
+-func TestTypeCheck(t *testing.T) {
+-	flag.Parse()
+-	pkgRx, err := regexp.Compile(*pkgPat)
+-	if err != nil {
+-		t.Fatalf("illegal flag value %q: %s", *pkgPat, err)
+-	}
+-
+-	pkgs, err := parser.ParseDir(fset, testDir, testFilter, 0)
+-	if err != nil {
+-		scanner.PrintError(os.Stderr, err)
+-		t.Fatalf("packages in %s contain syntax errors", testDir)
+-	}
+-
+-	for _, pkg := range pkgs {
+-		if !pkgRx.MatchString(pkg.Name) {
+-			continue // only test selected packages
+-		}
+-
+-		if *trace {
+-			fmt.Println(pkg.Name)
+-		}
+-
+-		xlist := expectedErrors(t, pkg)
+-		err := CheckPackage(fset, pkg, nil)
+-		if err != nil {
+-			if elist, ok := err.(scanner.ErrorList); ok {
+-				// verify that errors match
+-				for i := 0; i < len(xlist) && i < len(elist); i++ {
+-					checkError(t, xlist[i], elist[i])
+-				}
+-				// the correct number or errors must have been found
+-				if len(xlist) != len(elist) {
+-					fmt.Fprintf(os.Stderr, "%s\n", pkg.Name)
+-					scanner.PrintError(os.Stderr, elist)
+-					fmt.Fprintln(os.Stderr)
+-					t.Errorf("TypeCheck(%s): %d errors expected but %d reported", pkg.Name, len(xlist), len(elist))
+-				}
+-			} else {
+-				t.Errorf("TypeCheck(%s): %v", pkg.Name, err)
+-			}
+-		} else if len(xlist) > 0 {
+-			t.Errorf("TypeCheck(%s): %d errors expected but 0 reported", pkg.Name, len(xlist))
+-		}
+-	}
+-}
+diff --git a/src/pkg/go/typechecker/universe.go b/src/pkg/go/typechecker/universe.go
+deleted file mode 100644
+index 81c14a05e5..0000000000
+--- a/src/pkg/go/typechecker/universe.go
++++ /dev/null
+@@ -1,36 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package typechecker
+-
+-import "go/ast"
+-
+-// TODO(gri) should this be in package ast?
+-
+-// The Universe scope contains all predeclared identifiers.
+-var Universe *ast.Scope
+-
+-func def(obj *ast.Object) {
+-	alt := Universe.Insert(obj)
+-	if alt != nil {
+-		panic("object declared twice")
+-	}
+-}
+-
+-func init() {
+-	Universe = ast.NewScope(nil)
+-
+-	// basic types
+-	for n, name := range BasicTypes {
+-		typ := NewType(Basic)
+-		typ.N = n
+-		obj := ast.NewObj(ast.Typ, name)
+-		obj.Type = typ
+-		typ.Obj = obj
+-		def(obj)
+-	}
+-
+-	// built-in functions
+-	// TODO(gri) implement this
+-}

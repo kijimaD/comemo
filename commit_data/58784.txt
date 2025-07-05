@@ -10,6 +10,23 @@ Date:   Mon Dec 11 17:50:08 2023 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/548882
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  doc/go1.22.html | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index f1e713cb9e..a7a51a1ffd 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -492,7 +492,10 @@ defer func() {
+     </p>
+ 
+     <p><!-- https://go.dev/issue/60061 -->
+-      TODO: <a href="https://go.dev/issue/60061">https://go.dev/issue/60061</a>: go/ast: add func Unparen(Expr) Expr
++      The new <a href='https://pkg.go.dev/go/ast#Unparen'><code>ast.Unparen</code></a>
++      function removes any enclosing
++      <a href='https://pkg.go.dev/go/ast#ParenExpr'>parentheses</a> from
++      an <a href='https://pkg.go.dev/go/ast#Expr'>expression</a>.
+     </p>
+   </dd>
+ </dl><!-- go/ast -->

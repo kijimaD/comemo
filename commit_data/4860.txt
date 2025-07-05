@@ -7,7 +7,33 @@ Date:   Tue Feb 16 11:54:12 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/207111
-
+---
  src/cmd/godoc/godoc.go | 2 +-
  src/cmd/godoc/main.go  | 1 -
  2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 9cc194435e..176e33949f 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -100,7 +100,7 @@ var (
+ )
+ 
+ 
+-func initRoots() {
++func init() {
+ 	goroot = os.Getenv("GOROOT")
+ 	if goroot == "" {
+ 		goroot = pathutil.Join(os.Getenv("HOME"), "go")
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index ef08551ce7..4bff23f0df 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -152,7 +152,6 @@ func main() {
+ 		log.Exitf("negative tabwidth %d", *tabwidth)
+ 	}
+ 
+-	initRoots()
+ 	readTemplates()
+ 
+ 	if *httpaddr != "" {

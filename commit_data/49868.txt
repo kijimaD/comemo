@@ -18,7 +18,83 @@ Date:   Wed Sep 15 17:18:37 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/instantiate_test.go | 43 ++++++++++++++++++++++++++++++++++++++++
  src/go/types/named.go            |  6 ++++++
  2 files changed, 49 insertions(+)
+
+diff --git a/src/go/types/instantiate_test.go b/src/go/types/instantiate_test.go
+index 851800e76d..0c66acb875 100644
+--- a/src/go/types/instantiate_test.go
++++ b/src/go/types/instantiate_test.go
+@@ -6,6 +6,7 @@ package types_test
+ 
+ import (
+ 	. "go/types"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -109,3 +110,45 @@ var X T[int]
+ 		}
+ 	}
+ }
++
++func TestImmutableSignatures(t *testing.T) {
++	const src = genericPkg + `p
++
++type T[P any] struct{}
++
++func (T[P]) m() {}
++
++var _ T[int]
++`
++	pkg, err := pkgFor(".", src, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	typ := pkg.Scope().Lookup("T").Type().(*Named)
++	obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
++	if obj == nil {
++		t.Fatalf(`LookupFieldOrMethod(%s, "m") = %v, want func m`, typ, obj)
++	}
++
++	// Verify that the original method is not mutated by instantiating T (this
++	// bug manifested when subst did not return a new signature).
++	want := "func (T[P]).m()"
++	if got := stripAnnotations(ObjectString(obj, RelativeTo(pkg))); got != want {
++		t.Errorf("instantiated %q, want %q", got, want)
++	}
++}
++
++// Copied from errors.go.
++func stripAnnotations(s string) string {
++	var b strings.Builder
++	for _, r := range s {
++		// strip #'s and subscript digits
++		if r < '₀' || '₀'+10 <= r { // '₀' == U+2080
++			b.WriteRune(r)
++		}
++	}
++	if b.Len() < len(s) {
++		return b.String()
++	}
++	return s
++}
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 00fde16445..4a263410fc 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -309,6 +309,12 @@ func (check *Checker) completeMethod(env *Environment, m *Func) {
+ 
+ 	smap := makeSubstMap(origSig.RecvTypeParams().list(), rtyp.targs.list())
+ 	sig := check.subst(orig.pos, origSig, smap, env).(*Signature)
++	if sig == origSig {
++		// No substitution occurred, but we still need to create a copy to hold the
++		// instantiated receiver.
++		copy := *origSig
++		sig = &copy
++	}
+ 	sig.recv = NewParam(origSig.recv.pos, origSig.recv.pkg, origSig.recv.name, rtyp)
+ 
+ 	m.typ = sig

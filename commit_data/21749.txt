@@ -11,6 +11,29 @@ Date:   Wed Jan 28 11:51:04 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/3664
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 2bbe097d0e..01f02f26bd 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1390,7 +1390,7 @@ func gcinit() {
+ 	memstats.next_gc = heapminimum
+ }
+ 
+-// Called from malloc.go using onM, stopping and starting the world handled in caller.
++// Called from malloc.go using systemstack, stopping and starting the world handled in caller.
+ //go:nowritebarrier
+ func gc_m(start_time int64, eagersweep bool) {
+ 	_g_ := getg()
+@@ -1419,7 +1419,7 @@ func clearCheckmarks() {
+ 	}
+ }
+ 
+-// Called from malloc.go using onM.
++// Called from malloc.go using systemstack.
+ // The world is stopped. Rerun the scan and mark phases
+ // using the bitMarkedCheck bit instead of the
+ // bitMarked bit. If the marking encounters an

@@ -14,9 +14,115 @@ Date:   Wed Mar 10 10:26:20 2021 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/rand/rand_batched.go                |  4 +-
  src/crypto/rand/rand_batched_test.go           |  4 +-
  src/crypto/rand/rand_solaris.go                | 10 +++++
  src/internal/syscall/unix/getrandom_solaris.go | 53 ++++++++++++++++++++++++++
  4 files changed, 67 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/rand/rand_batched.go b/src/crypto/rand/rand_batched.go
+index 538769a868..d7c5bf3562 100644
+--- a/src/crypto/rand/rand_batched.go
++++ b/src/crypto/rand/rand_batched.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux || freebsd || dragonfly
+-// +build linux freebsd dragonfly
++//go:build linux || freebsd || dragonfly || solaris
++// +build linux freebsd dragonfly solaris
+ 
+ package rand
+ 
+diff --git a/src/crypto/rand/rand_batched_test.go b/src/crypto/rand/rand_batched_test.go
+index 814f15201a..2d20922c82 100644
+--- a/src/crypto/rand/rand_batched_test.go
++++ b/src/crypto/rand/rand_batched_test.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux || freebsd || dragonfly
+-// +build linux freebsd dragonfly
++//go:build linux || freebsd || dragonfly || solaris
++// +build linux freebsd dragonfly solaris
+ 
+ package rand
+ 
+diff --git a/src/crypto/rand/rand_solaris.go b/src/crypto/rand/rand_solaris.go
+new file mode 100644
+index 0000000000..bbad0fe557
+--- /dev/null
++++ b/src/crypto/rand/rand_solaris.go
+@@ -0,0 +1,10 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rand
++
++// maxGetRandomRead is the maximum number of bytes to ask for in one call to the
++// getrandom() syscall. Across all the Solaris platforms, 256 bytes is the
++// lowest number of bytes returned atomically per call.
++const maxGetRandomRead = 1 << 8
+diff --git a/src/internal/syscall/unix/getrandom_solaris.go b/src/internal/syscall/unix/getrandom_solaris.go
+new file mode 100644
+index 0000000000..d86775cd98
+--- /dev/null
++++ b/src/internal/syscall/unix/getrandom_solaris.go
+@@ -0,0 +1,53 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"sync/atomic"
++	"syscall"
++	"unsafe"
++)
++
++//go:cgo_import_dynamic libc_getrandom getrandom "libc.so"
++
++//go:linkname procGetrandom libc_getrandom
++
++var procGetrandom uintptr
++
++var getrandomUnsupported int32 // atomic
++
++// GetRandomFlag is a flag supported by the getrandom system call.
++type GetRandomFlag uintptr
++
++const (
++	// GRND_NONBLOCK means return EAGAIN rather than blocking.
++	GRND_NONBLOCK GetRandomFlag = 0x0001
++
++	// GRND_RANDOM means use the /dev/random pool instead of /dev/urandom.
++	GRND_RANDOM GetRandomFlag = 0x0002
++)
++
++// GetRandom calls the getrandom system call.
++func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
++	if len(p) == 0 {
++		return 0, nil
++	}
++	if atomic.LoadInt32(&getrandomUnsupported) != 0 {
++		return 0, syscall.ENOSYS
++	}
++	r1, _, errno := syscall6(uintptr(unsafe.Pointer(&procGetrandom)),
++		3,
++		uintptr(unsafe.Pointer(&p[0])),
++		uintptr(len(p)),
++		uintptr(flags),
++		0, 0, 0)
++	if errno != 0 {
++		if errno == syscall.ENOSYS {
++			atomic.StoreInt32(&getrandomUnsupported, 1)
++		}
++		return 0, errno
++	}
++	return int(r1), nil
++}

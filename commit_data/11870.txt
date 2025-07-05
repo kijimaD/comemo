@@ -31,6 +31,21 @@ Date:   Mon Feb 13 22:23:04 2012 -0500
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5661052
-
+---
  src/pkg/net/http/transport_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 82e3882eb3..a68a4d7225 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -635,6 +635,9 @@ func TestTransportGzipRecursive(t *testing.T) {
+ 
+ // tests that persistent goroutine connections shut down when no longer desired.
+ func TestTransportPersistConnLeak(t *testing.T) {
++	t.Logf("test is buggy - appears to leak fds")
++	return
++
+ 	gotReqCh := make(chan bool)
+ 	unblockCh := make(chan bool)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {

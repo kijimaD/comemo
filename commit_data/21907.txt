@@ -10,6 +10,19 @@ Date:   Wed Feb 11 23:20:15 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/4681
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/runtime/mem_linux.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index aa99b762bf..920fbcf6d6 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -54,7 +54,6 @@ func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
+ 	if uintptr(p) < 4096 {
+ 		if uintptr(p) == _EACCES {
+ 			print("runtime: mmap: access denied\n")
+-			print("if you're running SELinux, enable execmem for this process.\n")
+ 			exit(2)
+ 		}
+ 		if uintptr(p) == _EAGAIN {

@@ -9,6 +9,20 @@ Date:   Fri Sep 10 15:39:45 2010 +1000
     R=golang-dev, r2
     CC=golang-dev
     https://golang.org/cl/2121048
-
+---
  src/pkg/syscall/syscall_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 366a482d29..62990440b5 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -393,7 +393,7 @@ func Gettimeofday(tv *Timeval) (errno int) {
+ 	ms := ft.Microseconds()
+ 	// split into sec / usec
+ 	tv.Sec = int32(ms / 1e6)
+-	tv.Usec = int32(ms) - tv.Sec
++	tv.Usec = int32(ms) - tv.Sec*1e6
+ 	return 0
+ }
+ 

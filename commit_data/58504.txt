@@ -18,7 +18,7 @@ Date:   Tue Nov 7 17:20:35 2023 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/codes.go            |    1 +
  src/cmd/compile/internal/noder/reader.go           |    4 +
  src/cmd/compile/internal/noder/writer.go           |    9 +
@@ -30,3 +30,1921 @@ Date:   Tue Nov 7 17:20:35 2023 -0500
  src/cmd/internal/goobj/builtinlist.go              |    9 +-
  src/runtime/panic.go                               |    7 +
  10 files changed, 1521 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/codes.go b/src/cmd/compile/internal/noder/codes.go
+index 88c10a74e7..8bdbfc9a88 100644
+--- a/src/cmd/compile/internal/noder/codes.go
++++ b/src/cmd/compile/internal/noder/codes.go
+@@ -62,6 +62,7 @@ const (
+ 	exprFuncInst
+ 	exprRecv
+ 	exprReshape
++	exprRuntimeBuiltin // a reference to a runtime function from transformed syntax. Followed by string name, e.g., "panicrangeexit"
+ )
+ 
+ type codeAssign int
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 3cd7b7c683..b4c2801e53 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -2442,6 +2442,10 @@ func (r *reader) expr() (res ir.Node) {
+ 			n.SetTypecheck(1)
+ 		}
+ 		return n
++
++	case exprRuntimeBuiltin:
++		builtin := typecheck.LookupRuntime(r.String())
++		return builtin
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index ddbe2f84e4..46d5213694 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1715,6 +1715,15 @@ func (w *writer) expr(expr syntax.Expr) {
+ 	targs := inst.TypeArgs
+ 
+ 	if tv, ok := w.p.maybeTypeAndValue(expr); ok {
++		if tv.IsRuntimeHelper() {
++			if pkg := obj.Pkg(); pkg != nil && pkg.Name() == "runtime" {
++				objName := obj.Name()
++				w.Code(exprRuntimeBuiltin)
++				w.String(objName)
++				return
++			}
++		}
++
+ 		if tv.IsType() {
+ 			w.p.fatalf(expr, "unexpected type expression %v", syntax.String(expr))
+ 		}
+diff --git a/src/cmd/compile/internal/rangefunc/rangefunc_test.go b/src/cmd/compile/internal/rangefunc/rangefunc_test.go
+new file mode 100644
+index 0000000000..16856c648c
+--- /dev/null
++++ b/src/cmd/compile/internal/rangefunc/rangefunc_test.go
+@@ -0,0 +1,1297 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.rangefunc
++
++package rangefunc_test
++
++import (
++	"slices"
++	"testing"
++)
++
++type Seq2[T1, T2 any] func(yield func(T1, T2) bool)
++
++// OfSliceIndex returns a Seq over the elements of s. It is equivalent
++// to range s.
++func OfSliceIndex[T any, S ~[]T](s S) Seq2[int, T] {
++	return func(yield func(int, T) bool) {
++		for i, v := range s {
++			if !yield(i, v) {
++				return
++			}
++		}
++		return
++	}
++}
++
++// BadOfSliceIndex is "bad" because it ignores the return value from yield
++// and just keeps on iterating.
++func BadOfSliceIndex[T any, S ~[]T](s S) Seq2[int, T] {
++	return func(yield func(int, T) bool) {
++		for i, v := range s {
++			yield(i, v)
++		}
++		return
++	}
++}
++
++// VeryBadOfSliceIndex is "very bad" because it ignores the return value from yield
++// and just keeps on iterating, and also wraps that call in a defer-recover so it can
++// keep on trying after the first panic.
++func VeryBadOfSliceIndex[T any, S ~[]T](s S) Seq2[int, T] {
++	return func(yield func(int, T) bool) {
++		for i, v := range s {
++			func() {
++				defer func() {
++					recover()
++				}()
++				yield(i, v)
++			}()
++		}
++		return
++	}
++}
++
++// CooperativeBadOfSliceIndex calls the loop body from a goroutine after
++// a ping on a channel, and returns recover()on that same channel.
++func CooperativeBadOfSliceIndex[T any, S ~[]T](s S, proceed chan any) Seq2[int, T] {
++	return func(yield func(int, T) bool) {
++		for i, v := range s {
++			if !yield(i, v) {
++				// if the body breaks, call yield just once in a goroutine
++				go func() {
++					<-proceed
++					defer func() {
++						proceed <- recover()
++					}()
++					yield(0, s[0])
++				}()
++				return
++			}
++		}
++		return
++	}
++}
++
++// TrickyIterator is a type intended to test whether an iterator that
++// calls a yield function after loop exit must inevitably escape the
++// closure; this might be relevant to future checking/optimization.
++type TrickyIterator struct {
++	yield func(int, int) bool
++}
++
++func (ti *TrickyIterator) iterAll(s []int) Seq2[int, int] {
++	return func(yield func(int, int) bool) {
++		ti.yield = yield // Save yield for future abuse
++		for i, v := range s {
++			if !yield(i, v) {
++				return
++			}
++		}
++		return
++	}
++}
++
++func (ti *TrickyIterator) iterOne(s []int) Seq2[int, int] {
++	return func(yield func(int, int) bool) {
++		ti.yield = yield // Save yield for future abuse
++		if len(s) > 0 {  // Not in a loop might escape differently
++			yield(0, s[0])
++		}
++		return
++	}
++}
++
++func (ti *TrickyIterator) iterZero(s []int) Seq2[int, int] {
++	return func(yield func(int, int) bool) {
++		ti.yield = yield // Save yield for future abuse
++		// Don't call it at all, maybe it won't escape
++		return
++	}
++}
++
++func (ti *TrickyIterator) fail() {
++	if ti.yield != nil {
++		ti.yield(1, 1)
++	}
++}
++
++// Check wraps the function body passed to iterator forall
++// in code that ensures that it cannot (successfully) be called
++// either after body return false (control flow out of loop) or
++// forall itself returns (the iteration is now done).
++//
++// Note that this can catch errors before the inserted checks.
++func Check[U, V any](forall Seq2[U, V]) Seq2[U, V] {
++	return func(body func(U, V) bool) {
++		ret := true
++		forall(func(u U, v V) bool {
++			if !ret {
++				panic("Checked iterator access after exit")
++			}
++			ret = body(u, v)
++			return ret
++		})
++		ret = false
++	}
++}
++
++func TestCheck(t *testing.T) {
++	i := 0
++	defer func() {
++		if r := recover(); r != nil {
++			t.Logf("Saw expected panic '%v'", r)
++		} else {
++			t.Error("Wanted to see a failure")
++		}
++	}()
++	for _, x := range Check(BadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})) {
++		i += x
++		if i > 4*9 {
++			break
++		}
++	}
++}
++
++func TestCooperativeBadOfSliceIndex(t *testing.T) {
++	i := 0
++	proceed := make(chan any)
++	for _, x := range CooperativeBadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, proceed) {
++		i += x
++		if i >= 36 {
++			break
++		}
++	}
++	proceed <- true
++	if r := <-proceed; r != nil {
++		t.Logf("Saw expected panic '%v'", r)
++	} else {
++		t.Error("Wanted to see a failure")
++	}
++	if i != 36 {
++		t.Errorf("Expected i == 36, saw %d instead", i)
++	} else {
++		t.Logf("i = %d", i)
++	}
++}
++
++func TestCheckCooperativeBadOfSliceIndex(t *testing.T) {
++	i := 0
++	proceed := make(chan any)
++	for _, x := range Check(CooperativeBadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, proceed)) {
++		i += x
++		if i >= 36 {
++			break
++		}
++	}
++	proceed <- true
++	if r := <-proceed; r != nil {
++		t.Logf("Saw expected panic '%v'", r)
++	} else {
++		t.Error("Wanted to see a failure")
++	}
++	if i != 36 {
++		t.Errorf("Expected i == 36, saw %d instead", i)
++	} else {
++		t.Logf("i = %d", i)
++	}
++}
++
++func TestTrickyIterAll(t *testing.T) {
++	trickItAll := TrickyIterator{}
++	i := 0
++	for _, x := range trickItAll.iterAll([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++		i += x
++		if i >= 36 {
++			break
++		}
++	}
++
++	if i != 36 {
++		t.Errorf("Expected i == 36, saw %d instead", i)
++	} else {
++		t.Logf("i = %d", i)
++	}
++
++	defer func() {
++		if r := recover(); r != nil {
++			t.Logf("Saw expected panic '%v'", r)
++		} else {
++			t.Error("Wanted to see a failure")
++		}
++	}()
++
++	trickItAll.fail()
++}
++
++func TestTrickyIterOne(t *testing.T) {
++	trickItOne := TrickyIterator{}
++	i := 0
++	for _, x := range trickItOne.iterOne([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++		i += x
++		if i >= 36 {
++			break
++		}
++	}
++
++	// Don't care about value, ought to be 36 anyhow.
++	t.Logf("i = %d", i)
++
++	defer func() {
++		if r := recover(); r != nil {
++			t.Logf("Saw expected panic '%v'", r)
++		} else {
++			t.Error("Wanted to see a failure")
++		}
++	}()
++
++	trickItOne.fail()
++}
++
++func TestTrickyIterZero(t *testing.T) {
++	trickItZero := TrickyIterator{}
++	i := 0
++	for _, x := range trickItZero.iterZero([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++		i += x
++		if i >= 36 {
++			break
++		}
++	}
++
++	// Don't care about value, ought to be 0 anyhow.
++	t.Logf("i = %d", i)
++
++	defer func() {
++		if r := recover(); r != nil {
++			t.Logf("Saw expected panic '%v'", r)
++		} else {
++			t.Error("Wanted to see a failure")
++		}
++	}()
++
++	trickItZero.fail()
++}
++
++func TestCheckTrickyIterZero(t *testing.T) {
++	trickItZero := TrickyIterator{}
++	i := 0
++	for _, x := range Check(trickItZero.iterZero([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})) {
++		i += x
++		if i >= 36 {
++			break
++		}
++	}
++
++	// Don't care about value, ought to be 0 anyhow.
++	t.Logf("i = %d", i)
++
++	defer func() {
++		if r := recover(); r != nil {
++			t.Logf("Saw expected panic '%v'", r)
++		} else {
++			t.Error("Wanted to see a failure")
++		}
++	}()
++
++	trickItZero.fail()
++}
++
++// TestBreak1 should just work, with well-behaved iterators.
++// (The misbehaving iterator detector should not trigger.)
++func TestBreak1(t *testing.T) {
++	var result []int
++	var expect = []int{1, 2, -1, 1, 2, -2, 1, 2, -3}
++	for _, x := range OfSliceIndex([]int{-1, -2, -3, -4}) {
++		if x == -4 {
++			break
++		}
++		for _, y := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				break
++			}
++			result = append(result, y)
++		}
++		result = append(result, x)
++	}
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// TestBreak2 should just work, with well-behaved iterators.
++// (The misbehaving iterator detector should not trigger.)
++func TestBreak2(t *testing.T) {
++	var result []int
++	var expect = []int{1, 2, -1, 1, 2, -2, 1, 2, -3}
++outer:
++	for _, x := range OfSliceIndex([]int{-1, -2, -3, -4}) {
++		for _, y := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				break
++			}
++			if x == -4 {
++				break outer
++			}
++
++			result = append(result, y)
++		}
++		result = append(result, x)
++	}
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// TestContinue should just work, with well-behaved iterators.
++// (The misbehaving iterator detector should not trigger.)
++func TestContinue(t *testing.T) {
++	var result []int
++	var expect = []int{-1, 1, 2, -2, 1, 2, -3, 1, 2, -4}
++outer:
++	for _, x := range OfSliceIndex([]int{-1, -2, -3, -4}) {
++		result = append(result, x)
++		for _, y := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				continue outer
++			}
++			if x == -4 {
++				break outer
++			}
++
++			result = append(result, y)
++		}
++		result = append(result, x-10)
++	}
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// TestBreak3 should just work, with well-behaved iterators.
++// (The misbehaving iterator detector should not trigger.)
++func TestBreak3(t *testing.T) {
++	var result []int
++	var expect = []int{100, 10, 2, 4, 200, 10, 2, 4, 20, 2, 4, 300, 10, 2, 4, 20, 2, 4, 30}
++X:
++	for _, x := range OfSliceIndex([]int{100, 200, 300, 400}) {
++	Y:
++		for _, y := range OfSliceIndex([]int{10, 20, 30, 40}) {
++			if 10*y >= x {
++				break
++			}
++			result = append(result, y)
++			if y == 30 {
++				continue X
++			}
++		Z:
++			for _, z := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++				if z&1 == 1 {
++					continue Z
++				}
++				result = append(result, z)
++				if z >= 4 {
++					continue Y
++				}
++			}
++			result = append(result, -y) // should never be executed
++		}
++		result = append(result, x)
++	}
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// TestBreak1BadA should end in a panic when the outer-loop's
++// single-level break is ignore by BadOfSliceIndex
++func TestBreak1BadA(t *testing.T) {
++	var result []int
++	var expect = []int{1, 2, -1, 1, 2, -2, 1, 2, -3}
++
++	defer func() {
++		if r := recover(); r != nil {
++			t.Logf("Saw expected panic '%v'", r)
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Error("Wanted to see a failure")
++		}
++	}()
++
++	for _, x := range BadOfSliceIndex([]int{-1, -2, -3, -4, -5}) {
++		if x == -4 {
++			break
++		}
++		for _, y := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				break
++			}
++			result = append(result, y)
++		}
++		result = append(result, x)
++	}
++}
++
++// TestBreak1BadB should end in a panic, sooner, when the inner-loop's
++// (nested) single-level break is ignored by BadOfSliceIndex
++func TestBreak1BadB(t *testing.T) {
++	var result []int
++	var expect = []int{1, 2} // inner breaks, panics, after before outer appends
++
++	defer func() {
++		if r := recover(); r != nil {
++			t.Logf("Saw expected panic '%v'", r)
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Error("Wanted to see a failure")
++		}
++	}()
++
++	for _, x := range OfSliceIndex([]int{-1, -2, -3, -4, -5}) {
++		if x == -4 {
++			break
++		}
++		for _, y := range BadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				break
++			}
++			result = append(result, y)
++		}
++		result = append(result, x)
++	}
++}
++
++// TestMultiCont0 tests multilevel continue with no bad iterators
++// (it should just work)
++func TestMultiCont0(t *testing.T) {
++	var result []int
++	var expect = []int{1000, 10, 2, 4, 2000}
++
++W:
++	for _, w := range OfSliceIndex([]int{1000, 2000}) {
++		result = append(result, w)
++		if w == 2000 {
++			break
++		}
++		for _, x := range OfSliceIndex([]int{100, 200, 300, 400}) {
++			for _, y := range OfSliceIndex([]int{10, 20, 30, 40}) {
++				result = append(result, y)
++				for _, z := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++					if z&1 == 1 {
++						continue
++					}
++					result = append(result, z)
++					if z >= 4 {
++						continue W // modified to be multilevel
++					}
++				}
++				result = append(result, -y) // should never be executed
++			}
++			result = append(result, x)
++		}
++	}
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// TestMultiCont1 tests multilevel continue with a bad iterator
++// in the outermost loop exited by the continue.
++func TestMultiCont1(t *testing.T) {
++	var result []int
++	var expect = []int{1000, 10, 2, 4}
++	defer func() {
++		if r := recover(); r != nil {
++			t.Logf("Saw expected panic '%v'", r)
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Errorf("Wanted to see a failure, result was %v", result)
++		}
++	}()
++
++W:
++	for _, w := range OfSliceIndex([]int{1000, 2000}) {
++		result = append(result, w)
++		if w == 2000 {
++			break
++		}
++		for _, x := range BadOfSliceIndex([]int{100, 200, 300, 400}) {
++			for _, y := range OfSliceIndex([]int{10, 20, 30, 40}) {
++				result = append(result, y)
++				for _, z := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++					if z&1 == 1 {
++						continue
++					}
++					result = append(result, z)
++					if z >= 4 {
++						continue W
++					}
++				}
++				result = append(result, -y) // should never be executed
++			}
++			result = append(result, x)
++		}
++	}
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// TestMultiCont2 tests multilevel continue with a bad iterator
++// in a middle loop exited by the continue.
++func TestMultiCont2(t *testing.T) {
++	var result []int
++	var expect = []int{1000, 10, 2, 4}
++	defer func() {
++		if r := recover(); r != nil {
++			t.Logf("Saw expected panic '%v'", r)
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Errorf("Wanted to see a failure, result was %v", result)
++		}
++	}()
++
++W:
++	for _, w := range OfSliceIndex([]int{1000, 2000}) {
++		result = append(result, w)
++		if w == 2000 {
++			break
++		}
++		for _, x := range OfSliceIndex([]int{100, 200, 300, 400}) {
++			for _, y := range BadOfSliceIndex([]int{10, 20, 30, 40}) {
++				result = append(result, y)
++				for _, z := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++					if z&1 == 1 {
++						continue
++					}
++					result = append(result, z)
++					if z >= 4 {
++						continue W
++					}
++				}
++				result = append(result, -y) // should never be executed
++			}
++			result = append(result, x)
++		}
++	}
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// TestMultiCont3 tests multilevel continue with a bad iterator
++// in the innermost loop exited by the continue.
++func TestMultiCont3(t *testing.T) {
++	var result []int
++	var expect = []int{1000, 10, 2, 4}
++	defer func() {
++		if r := recover(); r != nil {
++			t.Logf("Saw expected panic '%v'", r)
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Errorf("Wanted to see a failure, result was %v", result)
++		}
++	}()
++
++W:
++	for _, w := range OfSliceIndex([]int{1000, 2000}) {
++		result = append(result, w)
++		if w == 2000 {
++			break
++		}
++		for _, x := range OfSliceIndex([]int{100, 200, 300, 400}) {
++			for _, y := range OfSliceIndex([]int{10, 20, 30, 40}) {
++				result = append(result, y)
++				for _, z := range BadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++					if z&1 == 1 {
++						continue
++					}
++					result = append(result, z)
++					if z >= 4 {
++						continue W
++					}
++				}
++				result = append(result, -y) // should never be executed
++			}
++			result = append(result, x)
++		}
++	}
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// TestMultiBreak0 tests multilevel break with a bad iterator
++// in the outermost loop exited by the break (the outermost loop).
++func TestMultiBreak0(t *testing.T) {
++	var result []int
++	var expect = []int{1000, 10, 2, 4}
++	defer func() {
++		if r := recover(); r != nil {
++			t.Logf("Saw expected panic '%v'", r)
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Errorf("Wanted to see a failure, result was %v", result)
++		}
++	}()
++
++W:
++	for _, w := range BadOfSliceIndex([]int{1000, 2000}) {
++		result = append(result, w)
++		if w == 2000 {
++			break
++		}
++		for _, x := range OfSliceIndex([]int{100, 200, 300, 400}) {
++			for _, y := range OfSliceIndex([]int{10, 20, 30, 40}) {
++				result = append(result, y)
++				for _, z := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++					if z&1 == 1 {
++						continue
++					}
++					result = append(result, z)
++					if z >= 4 {
++						break W
++					}
++				}
++				result = append(result, -y) // should never be executed
++			}
++			result = append(result, x)
++		}
++	}
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// TestMultiBreak1 tests multilevel break with a bad iterator
++// in an intermediate loop exited by the break.
++func TestMultiBreak1(t *testing.T) {
++	var result []int
++	var expect = []int{1000, 10, 2, 4}
++	defer func() {
++		if r := recover(); r != nil {
++			t.Logf("Saw expected panic '%v'", r)
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Errorf("Wanted to see a failure, result was %v", result)
++		}
++	}()
++
++W:
++	for _, w := range OfSliceIndex([]int{1000, 2000}) {
++		result = append(result, w)
++		if w == 2000 {
++			break
++		}
++		for _, x := range BadOfSliceIndex([]int{100, 200, 300, 400}) {
++			for _, y := range OfSliceIndex([]int{10, 20, 30, 40}) {
++				result = append(result, y)
++				for _, z := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++					if z&1 == 1 {
++						continue
++					}
++					result = append(result, z)
++					if z >= 4 {
++						break W
++					}
++				}
++				result = append(result, -y) // should never be executed
++			}
++			result = append(result, x)
++		}
++	}
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// TestMultiBreak2 tests multilevel break with two bad iterators
++// in intermediate loops exited by the break.
++func TestMultiBreak2(t *testing.T) {
++	var result []int
++	var expect = []int{1000, 10, 2, 4}
++	defer func() {
++		if r := recover(); r != nil {
++			t.Logf("Saw expected panic '%v'", r)
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Errorf("Wanted to see a failure, result was %v", result)
++		}
++	}()
++
++W:
++	for _, w := range OfSliceIndex([]int{1000, 2000}) {
++		result = append(result, w)
++		if w == 2000 {
++			break
++		}
++		for _, x := range BadOfSliceIndex([]int{100, 200, 300, 400}) {
++			for _, y := range BadOfSliceIndex([]int{10, 20, 30, 40}) {
++				result = append(result, y)
++				for _, z := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++					if z&1 == 1 {
++						continue
++					}
++					result = append(result, z)
++					if z >= 4 {
++						break W
++					}
++				}
++				result = append(result, -y) // should never be executed
++			}
++			result = append(result, x)
++		}
++	}
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// TestMultiBreak3 tests multilevel break with the bad iterator
++// in the innermost loop exited by the break.
++func TestMultiBreak3(t *testing.T) {
++	var result []int
++	var expect = []int{1000, 10, 2, 4}
++	defer func() {
++		if r := recover(); r != nil {
++			t.Logf("Saw expected panic '%v'", r)
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Errorf("Wanted to see a failure, result was %v", result)
++		}
++	}()
++
++W:
++	for _, w := range OfSliceIndex([]int{1000, 2000}) {
++		result = append(result, w)
++		if w == 2000 {
++			break
++		}
++		for _, x := range OfSliceIndex([]int{100, 200, 300, 400}) {
++			for _, y := range OfSliceIndex([]int{10, 20, 30, 40}) {
++				result = append(result, y)
++				for _, z := range BadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++					if z&1 == 1 {
++						continue
++					}
++					result = append(result, z)
++					if z >= 4 {
++						break W
++					}
++				}
++				result = append(result, -y) // should never be executed
++			}
++			result = append(result, x)
++		}
++	}
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// veryBad tests that a loop nest behaves sensibly in the face of a
++// "very bad" iterator.  In this case, "sensibly" means that the
++// break out of X still occurs after the very bad iterator finally
++// quits running (the control flow bread crumbs remain.)
++func veryBad(s []int) []int {
++	var result []int
++X:
++	for _, x := range OfSliceIndex([]int{1, 2, 3}) {
++
++		result = append(result, x)
++
++		for _, y := range VeryBadOfSliceIndex(s) {
++			result = append(result, y)
++			break X
++		}
++		for _, z := range OfSliceIndex([]int{100, 200, 300}) {
++			result = append(result, z)
++			if z == 100 {
++				break
++			}
++		}
++	}
++	return result
++}
++
++// checkVeryBad wraps a "very bad" iterator with Check,
++// demonstrating that the very bad iterator also hides panics
++// thrown by Check.
++func checkVeryBad(s []int) []int {
++	var result []int
++X:
++	for _, x := range OfSliceIndex([]int{1, 2, 3}) {
++
++		result = append(result, x)
++
++		for _, y := range Check(VeryBadOfSliceIndex(s)) {
++			result = append(result, y)
++			break X
++		}
++		for _, z := range OfSliceIndex([]int{100, 200, 300}) {
++			result = append(result, z)
++			if z == 100 {
++				break
++			}
++		}
++	}
++	return result
++}
++
++// okay is the not-bad version of veryBad.
++// They should behave the same.
++func okay(s []int) []int {
++	var result []int
++X:
++	for _, x := range OfSliceIndex([]int{1, 2, 3}) {
++
++		result = append(result, x)
++
++		for _, y := range OfSliceIndex(s) {
++			result = append(result, y)
++			break X
++		}
++		for _, z := range OfSliceIndex([]int{100, 200, 300}) {
++			result = append(result, z)
++			if z == 100 {
++				break
++			}
++		}
++	}
++	return result
++}
++
++// TestVeryBad1 checks the behavior of an extremely poorly behaved iterator.
++func TestVeryBad1(t *testing.T) {
++	result := veryBad([]int{10, 20, 30, 40, 50}) // odd length
++	expect := []int{1, 10}
++
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// TestVeryBad2 checks the behavior of an extremely poorly behaved iterator.
++func TestVeryBad2(t *testing.T) {
++	result := veryBad([]int{10, 20, 30, 40}) // even length
++	expect := []int{1, 10}
++
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// TestCheckVeryBad checks the behavior of an extremely poorly behaved iterator,
++// which also suppresses the exceptions from "Check"
++func TestCheckVeryBad(t *testing.T) {
++	result := checkVeryBad([]int{10, 20, 30, 40}) // even length
++	expect := []int{1, 10}
++
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// TestOk is the nice version of the very bad iterator.
++func TestOk(t *testing.T) {
++	result := okay([]int{10, 20, 30, 40, 50}) // odd length
++	expect := []int{1, 10}
++
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++}
++
++// testBreak1BadDefer checks that defer behaves properly even in
++// the presence of loop bodies panicking out of bad iterators.
++// (i.e., the instrumentation did not break defer in these loops)
++func testBreak1BadDefer(t *testing.T) (result []int) {
++	var expect = []int{1, 2, -1, 1, 2, -2, 1, 2, -3, -30, -20, -10}
++
++	defer func() {
++		if r := recover(); r != nil {
++			t.Logf("Saw expected panic '%v'", r)
++			if !slices.Equal(expect, result) {
++				t.Errorf("(Inner) Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Error("Wanted to see a failure")
++		}
++	}()
++
++	for _, x := range BadOfSliceIndex([]int{-1, -2, -3, -4, -5}) {
++		if x == -4 {
++			break
++		}
++		defer func() {
++			result = append(result, x*10)
++		}()
++		for _, y := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				break
++			}
++			result = append(result, y)
++		}
++		result = append(result, x)
++	}
++	return
++}
++
++func TestBreak1BadDefer(t *testing.T) {
++	var result []int
++	var expect = []int{1, 2, -1, 1, 2, -2, 1, 2, -3, -30, -20, -10}
++	result = testBreak1BadDefer(t)
++	if !slices.Equal(expect, result) {
++		t.Errorf("(Outer) Expected %v, got %v", expect, result)
++	}
++}
++
++// testReturn1 has no bad iterators.
++func testReturn1(t *testing.T) (result []int, err any) {
++	defer func() {
++		err = recover()
++	}()
++	for _, x := range OfSliceIndex([]int{-1, -2, -3, -4, -5}) {
++		result = append(result, x)
++		if x == -4 {
++			break
++		}
++		defer func() {
++			result = append(result, x*10)
++		}()
++		for _, y := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				return
++			}
++			result = append(result, y)
++		}
++		result = append(result, x)
++	}
++	return
++}
++
++// testReturn2 has an outermost bad iterator
++func testReturn2(t *testing.T) (result []int, err any) {
++	defer func() {
++		err = recover()
++	}()
++	for _, x := range BadOfSliceIndex([]int{-1, -2, -3, -4, -5}) {
++		result = append(result, x)
++		if x == -4 {
++			break
++		}
++		defer func() {
++			result = append(result, x*10)
++		}()
++		for _, y := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				return
++			}
++			result = append(result, y)
++		}
++		result = append(result, x)
++	}
++	return
++}
++
++// testReturn3 has an innermost bad iterator
++func testReturn3(t *testing.T) (result []int, err any) {
++	defer func() {
++		err = recover()
++	}()
++	for _, x := range OfSliceIndex([]int{-1, -2, -3, -4, -5}) {
++		result = append(result, x)
++		if x == -4 {
++			break
++		}
++		defer func() {
++			result = append(result, x*10)
++		}()
++		for _, y := range BadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				return
++			}
++			result = append(result, y)
++		}
++	}
++	return
++}
++
++// TestReturns checks that returns through bad iterators behave properly,
++// for inner and outer bad iterators.
++func TestReturns(t *testing.T) {
++	var result []int
++	var expect = []int{-1, 1, 2, -10}
++	var err any
++
++	result, err = testReturn1(t)
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++	if err != nil {
++		t.Errorf("Unexpected error %v", err)
++	}
++
++	result, err = testReturn2(t)
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++	if err == nil {
++		t.Errorf("Missing expected error")
++	} else {
++		t.Logf("Saw expected panic '%v'", err)
++	}
++
++	result, err = testReturn3(t)
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++	if err == nil {
++		t.Errorf("Missing expected error")
++	} else {
++		t.Logf("Saw expected panic '%v'", err)
++	}
++
++}
++
++// testGotoA1 tests loop-nest-internal goto, no bad iterators.
++func testGotoA1(t *testing.T) (result []int, err any) {
++	defer func() {
++		err = recover()
++	}()
++	for _, x := range OfSliceIndex([]int{-1, -2, -3, -4, -5}) {
++		result = append(result, x)
++		if x == -4 {
++			break
++		}
++		defer func() {
++			result = append(result, x*10)
++		}()
++		for _, y := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				goto A
++			}
++			result = append(result, y)
++		}
++		result = append(result, x)
++	A:
++	}
++	return
++}
++
++// testGotoA2 tests loop-nest-internal goto, outer bad iterator.
++func testGotoA2(t *testing.T) (result []int, err any) {
++	defer func() {
++		err = recover()
++	}()
++	for _, x := range BadOfSliceIndex([]int{-1, -2, -3, -4, -5}) {
++		result = append(result, x)
++		if x == -4 {
++			break
++		}
++		defer func() {
++			result = append(result, x*10)
++		}()
++		for _, y := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				goto A
++			}
++			result = append(result, y)
++		}
++		result = append(result, x)
++	A:
++	}
++	return
++}
++
++// testGotoA3 tests loop-nest-internal goto, inner bad iterator.
++func testGotoA3(t *testing.T) (result []int, err any) {
++	defer func() {
++		err = recover()
++	}()
++	for _, x := range OfSliceIndex([]int{-1, -2, -3, -4, -5}) {
++		result = append(result, x)
++		if x == -4 {
++			break
++		}
++		defer func() {
++			result = append(result, x*10)
++		}()
++		for _, y := range BadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				goto A
++			}
++			result = append(result, y)
++		}
++		result = append(result, x)
++	A:
++	}
++	return
++}
++
++func TestGotoA(t *testing.T) {
++	var result []int
++	var expect = []int{-1, 1, 2, -2, 1, 2, -3, 1, 2, -4, -30, -20, -10}
++	var expect3 = []int{-1, 1, 2, -10} // first goto becomes a panic
++	var err any
++
++	result, err = testGotoA1(t)
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++	if err != nil {
++		t.Errorf("Unexpected error %v", err)
++	}
++
++	result, err = testGotoA2(t)
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++	if err == nil {
++		t.Errorf("Missing expected error")
++	} else {
++		t.Logf("Saw expected panic '%v'", err)
++	}
++
++	result, err = testGotoA3(t)
++	if !slices.Equal(expect3, result) {
++		t.Errorf("Expected %v, got %v", expect3, result)
++	}
++	if err == nil {
++		t.Errorf("Missing expected error")
++	} else {
++		t.Logf("Saw expected panic '%v'", err)
++	}
++}
++
++// testGotoB1 tests loop-nest-exiting goto, no bad iterators.
++func testGotoB1(t *testing.T) (result []int, err any) {
++	defer func() {
++		err = recover()
++	}()
++	for _, x := range OfSliceIndex([]int{-1, -2, -3, -4, -5}) {
++		result = append(result, x)
++		if x == -4 {
++			break
++		}
++		defer func() {
++			result = append(result, x*10)
++		}()
++		for _, y := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				goto B
++			}
++			result = append(result, y)
++		}
++		result = append(result, x)
++	}
++B:
++	result = append(result, 999)
++	return
++}
++
++// testGotoB2 tests loop-nest-exiting goto, outer bad iterator.
++func testGotoB2(t *testing.T) (result []int, err any) {
++	defer func() {
++		err = recover()
++	}()
++	for _, x := range BadOfSliceIndex([]int{-1, -2, -3, -4, -5}) {
++		result = append(result, x)
++		if x == -4 {
++			break
++		}
++		defer func() {
++			result = append(result, x*10)
++		}()
++		for _, y := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				goto B
++			}
++			result = append(result, y)
++		}
++		result = append(result, x)
++	}
++B:
++	result = append(result, 999)
++	return
++}
++
++// testGotoB3 tests loop-nest-exiting goto, inner bad iterator.
++func testGotoB3(t *testing.T) (result []int, err any) {
++	defer func() {
++		err = recover()
++	}()
++	for _, x := range OfSliceIndex([]int{-1, -2, -3, -4, -5}) {
++		result = append(result, x)
++		if x == -4 {
++			break
++		}
++		defer func() {
++			result = append(result, x*10)
++		}()
++		for _, y := range BadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				goto B
++			}
++			result = append(result, y)
++		}
++		result = append(result, x)
++	}
++B:
++	result = append(result, 999)
++	return
++}
++
++func TestGotoB(t *testing.T) {
++	var result []int
++	var expect = []int{-1, 1, 2, 999, -10}
++	var expectX = []int{-1, 1, 2, -10}
++	var err any
++
++	result, err = testGotoB1(t)
++	if !slices.Equal(expect, result) {
++		t.Errorf("Expected %v, got %v", expect, result)
++	}
++	if err != nil {
++		t.Errorf("Unexpected error %v", err)
++	}
++
++	result, err = testGotoB2(t)
++	if !slices.Equal(expectX, result) {
++		t.Errorf("Expected %v, got %v", expectX, result)
++	}
++	if err == nil {
++		t.Errorf("Missing expected error")
++	} else {
++		t.Logf("Saw expected panic '%v'", err)
++	}
++
++	result, err = testGotoB3(t)
++	if !slices.Equal(expectX, result) {
++		t.Errorf("Expected %v, got %v", expectX, result)
++	}
++	if err == nil {
++		t.Errorf("Missing expected error")
++	} else {
++		t.Logf("Saw expected panic '%v'", err)
++	}
++}
+diff --git a/src/cmd/compile/internal/rangefunc/rewrite.go b/src/cmd/compile/internal/rangefunc/rewrite.go
+index c28c9a1207..460efc69d1 100644
+--- a/src/cmd/compile/internal/rangefunc/rewrite.go
++++ b/src/cmd/compile/internal/rangefunc/rewrite.go
+@@ -141,6 +141,37 @@ TODO: What about:
+ With this rewrite the "return true" is not visible after yield returns,
+ but maybe it should be?
+ 
++# Checking
++
++To permit checking that an iterator is well-behaved -- that is, that
++it does not call the loop body again after it has returned false or
++after the entire loop has exited (it might retain a copy of the body
++function, or pass it to another goroutine) -- each generated loop has
++its own #exitK flag that is checked before each iteration, and set both
++at any early exit and after the iteration completes.
++
++For example:
++
++	for x := range f {
++		...
++		if ... { break }
++		...
++	}
++
++becomes
++
++	{
++		var #exit1 bool
++		f(func(x T1) bool {
++			if #exit1 { runtime.panicrangeexit() }
++			...
++			if ... { #exit1 = true ; return false }
++			...
++			return true
++		})
++		#exit1 = true
++	}
++
+ # Nested Loops
+ 
+ So far we've only considered a single loop. If a function contains a
+@@ -175,23 +206,30 @@ becomes
+ 			#r1 type1
+ 			#r2 type2
+ 		)
++		var #exit1 bool
+ 		f(func() {
++			if #exit1 { runtime.panicrangeexit() }
++			var #exit2 bool
+ 			g(func() {
++				if #exit2 { runtime.panicrangeexit() }
+ 				...
+ 				{
+ 					// return a, b
+ 					#r1, #r2 = a, b
+ 					#next = -2
++					#exit1, #exit2 = true, true
+ 					return false
+ 				}
+ 				...
+ 				return true
+ 			})
++			#exit2 = true
+ 			if #next < 0 {
+ 				return false
+ 			}
+ 			return true
+ 		})
++		#exit1 = true
+ 		if #next == -2 {
+ 			return #r1, #r2
+ 		}
+@@ -205,7 +243,8 @@ return with a single check.
+ For a labeled break or continue of an outer range-over-func, we
+ use positive #next values. Any such labeled break or continue
+ really means "do N breaks" or "do N breaks and 1 continue".
+-We encode that as 2*N or 2*N+1 respectively.
++We encode that as perLoopStep*N or perLoopStep*N+1 respectively.
++
+ Loops that might need to propagate a labeled break or continue
+ add one or both of these to the #next checks:
+ 
+@@ -239,30 +278,40 @@ becomes
+ 
+ 	{
+ 		var #next int
++		var #exit1 bool
+ 		f(func() {
++			if #exit1 { runtime.panicrangeexit() }
++			var #exit2 bool
+ 			g(func() {
++				if #exit2 { runtime.panicrangeexit() }
++				var #exit3 bool
+ 				h(func() {
++					if #exit3 { runtime.panicrangeexit() }
+ 					...
+ 					{
+ 						// break F
+ 						#next = 4
++						#exit1, #exit2, #exit3 = true, true, true
+ 						return false
+ 					}
+ 					...
+ 					{
+ 						// continue F
+ 						#next = 3
++						#exit2, #exit3 = true, true
+ 						return false
+ 					}
+ 					...
+ 					return true
+ 				})
++				#exit3 = true
+ 				if #next >= 2 {
+ 					#next -= 2
+ 					return false
+ 				}
+ 				return true
+ 			})
++			#exit2 = true
+ 			if #next >= 2 {
+ 				#next -= 2
+ 				return false
+@@ -274,6 +323,7 @@ becomes
+ 			...
+ 			return true
+ 		})
++		#exit1 = true
+ 	}
+ 
+ Note that the post-h checks only consider a break,
+@@ -299,6 +349,7 @@ For example
+ 	Top: print("start\n")
+ 	for range f {
+ 		for range g {
++			...
+ 			for range h {
+ 				...
+ 				goto Top
+@@ -312,28 +363,39 @@ becomes
+ 	Top: print("start\n")
+ 	{
+ 		var #next int
++		var #exit1 bool
+ 		f(func() {
++			if #exit1 { runtime.panicrangeexit() }
++			var #exit2 bool
+ 			g(func() {
++				if #exit2 { runtime.panicrangeexit() }
++				...
++				var #exit3 bool
+ 				h(func() {
++				if #exit3 { runtime.panicrangeexit() }
+ 					...
+ 					{
+ 						// goto Top
+ 						#next = -3
++						#exit1, #exit2, #exit3 = true, true, true
+ 						return false
+ 					}
+ 					...
+ 					return true
+ 				})
++				#exit3 = true
+ 				if #next < 0 {
+ 					return false
+ 				}
+ 				return true
+ 			})
++			#exit2 = true
+ 			if #next < 0 {
+ 				return false
+ 			}
+ 			return true
+ 		})
++		#exit1 = true
+ 		if #next == -3 {
+ 			#next = 0
+ 			goto Top
+@@ -431,10 +493,11 @@ type rewriter struct {
+ 	rewritten map[*syntax.ForStmt]syntax.Stmt
+ 
+ 	// Declared variables in generated code for outermost loop.
+-	declStmt *syntax.DeclStmt
+-	nextVar  types2.Object
+-	retVars  []types2.Object
+-	defers   types2.Object
++	declStmt     *syntax.DeclStmt
++	nextVar      types2.Object
++	retVars      []types2.Object
++	defers       types2.Object
++	exitVarCount int // exitvars are referenced from their respective loops
+ }
+ 
+ // A branch is a single labeled branch.
+@@ -445,7 +508,9 @@ type branch struct {
+ 
+ // A forLoop describes a single range-over-func loop being processed.
+ type forLoop struct {
+-	nfor *syntax.ForStmt // actual syntax
++	nfor         *syntax.ForStmt // actual syntax
++	exitFlag     *types2.Var     // #exit variable for this loop
++	exitFlagDecl *syntax.VarDecl
+ 
+ 	checkRet      bool     // add check for "return" after loop
+ 	checkRetArgs  bool     // add check for "return args" after loop
+@@ -556,6 +621,7 @@ func (r *rewriter) startLoop(loop *forLoop) {
+ 		r.false = types2.Universe.Lookup("false")
+ 		r.rewritten = make(map[*syntax.ForStmt]syntax.Stmt)
+ 	}
++	loop.exitFlag, loop.exitFlagDecl = r.exitVar(loop.nfor.Pos())
+ }
+ 
+ // editStmt returns the replacement for the statement x,
+@@ -605,6 +671,19 @@ func (r *rewriter) editDefer(x *syntax.CallStmt) syntax.Stmt {
+ 	return x
+ }
+ 
++func (r *rewriter) exitVar(pos syntax.Pos) (*types2.Var, *syntax.VarDecl) {
++	r.exitVarCount++
++
++	name := fmt.Sprintf("#exit%d", r.exitVarCount)
++	typ := r.bool.Type()
++	obj := types2.NewVar(pos, r.pkg, name, typ)
++	n := syntax.NewName(pos, name)
++	setValueType(n, typ)
++	r.info.Defs[n] = obj
++
++	return obj, &syntax.VarDecl{NameList: []*syntax.Name{n}}
++}
++
+ // editReturn returns the replacement for the return statement x.
+ // See the "Return" section in the package doc comment above for more context.
+ func (r *rewriter) editReturn(x *syntax.ReturnStmt) syntax.Stmt {
+@@ -635,6 +714,9 @@ func (r *rewriter) editReturn(x *syntax.ReturnStmt) syntax.Stmt {
+ 		bl.List = append(bl.List, &syntax.AssignStmt{Lhs: r.useList(r.retVars), Rhs: x.Results})
+ 	}
+ 	bl.List = append(bl.List, &syntax.AssignStmt{Lhs: r.next(), Rhs: r.intConst(next)})
++	for i := 0; i < len(r.forStack); i++ {
++		bl.List = append(bl.List, r.setExitedAt(i))
++	}
+ 	bl.List = append(bl.List, &syntax.ReturnStmt{Results: r.useVar(r.false)})
+ 	setPos(bl, x.Pos())
+ 	return bl
+@@ -667,6 +749,9 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
+ 	for i >= 0 && r.forStack[i].nfor != targ {
+ 		i--
+ 	}
++	// exitFrom is the index of the loop interior to the target of the control flow,
++	// if such a loop exists (it does not if i == len(r.forStack) - 1)
++	exitFrom := i + 1
+ 
+ 	// Compute the value to assign to #next and the specific return to use.
+ 	var next int
+@@ -695,6 +780,7 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
+ 		for i >= 0 && r.forStack[i].nfor != targ {
+ 			i--
+ 		}
++		exitFrom = i + 1
+ 
+ 		// Mark loop we exit to get to targ to check for that branch.
+ 		// When i==-1 that's the outermost func body
+@@ -714,28 +800,35 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
+ 
+ 		// For continue of innermost loop, use "return true".
+ 		// Otherwise we are breaking the innermost loop, so "return false".
+-		retVal := r.false
++
+ 		if depth == 0 && x.Tok == syntax.Continue {
+-			retVal = r.true
++			ret = &syntax.ReturnStmt{Results: r.useVar(r.true)}
++			setPos(ret, x.Pos())
++			return ret
+ 		}
+-		ret = &syntax.ReturnStmt{Results: r.useVar(retVal)}
++		ret = &syntax.ReturnStmt{Results: r.useVar(r.false)}
+ 
+-		// If we're only operating on the innermost loop, the return is all we need.
++		// If this is a simple break, mark this loop as exited and return false.
++		// No adjustments to #next.
+ 		if depth == 0 {
+-			setPos(ret, x.Pos())
+-			return ret
++			bl := &syntax.BlockStmt{
++				List: []syntax.Stmt{r.setExited(), ret},
++			}
++			setPos(bl, x.Pos())
++			return bl
+ 		}
+ 
+ 		// The loop inside the one we are break/continue-ing
+ 		// needs to make that happen when we break out of it.
+ 		if x.Tok == syntax.Continue {
+-			r.forStack[i+1].checkContinue = true
++			r.forStack[exitFrom].checkContinue = true
+ 		} else {
+-			r.forStack[i+1].checkBreak = true
++			exitFrom = i
++			r.forStack[exitFrom].checkBreak = true
+ 		}
+ 
+ 		// The loops along the way just need to break.
+-		for j := i + 2; j < len(r.forStack); j++ {
++		for j := exitFrom + 1; j < len(r.forStack); j++ {
+ 			r.forStack[j].checkBreak = true
+ 		}
+ 
+@@ -750,8 +843,15 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
+ 	// Assign #next = next and do the return.
+ 	as := &syntax.AssignStmt{Lhs: r.next(), Rhs: r.intConst(next)}
+ 	bl := &syntax.BlockStmt{
+-		List: []syntax.Stmt{as, ret},
++		List: []syntax.Stmt{as},
+ 	}
++
++	// Set #exitK for this loop and those exited by the control flow.
++	for i := exitFrom; i < len(r.forStack); i++ {
++		bl.List = append(bl.List, r.setExitedAt(i))
++	}
++
++	bl.List = append(bl.List, ret)
+ 	setPos(bl, x.Pos())
+ 	return bl
+ }
+@@ -851,7 +951,14 @@ func (r *rewriter) endLoop(loop *forLoop) {
+ 		setPos(r.declStmt, start)
+ 		block.List = append(block.List, r.declStmt)
+ 	}
++
++	// declare the exitFlag here so it has proper scope and zeroing
++	exitFlagDecl := &syntax.DeclStmt{DeclList: []syntax.Decl{loop.exitFlagDecl}}
++	block.List = append(block.List, exitFlagDecl)
++
+ 	block.List = append(block.List, call)
++
++	block.List = append(block.List, r.setExited())
+ 	block.List = append(block.List, checks...)
+ 
+ 	if len(r.forStack) == 1 { // ending an outermost loop
+@@ -864,6 +971,18 @@ func (r *rewriter) endLoop(loop *forLoop) {
+ 	r.rewritten[nfor] = block
+ }
+ 
++func (r *rewriter) setExited() *syntax.AssignStmt {
++	return r.setExitedAt(len(r.forStack) - 1)
++}
++
++func (r *rewriter) setExitedAt(index int) *syntax.AssignStmt {
++	loop := r.forStack[index]
++	return &syntax.AssignStmt{
++		Lhs: r.useVar(loop.exitFlag),
++		Rhs: r.useVar(r.true),
++	}
++}
++
+ // bodyFunc converts the loop body (control flow has already been updated)
+ // to a func literal that can be passed to the range function.
+ //
+@@ -916,6 +1035,10 @@ func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, fty
+ 	tv.SetIsValue()
+ 	bodyFunc.SetTypeInfo(tv)
+ 
++	loop := r.forStack[len(r.forStack)-1]
++
++	bodyFunc.Body.List = append(bodyFunc.Body.List, r.assertNotExited(start, loop))
++
+ 	// Original loop body (already rewritten by editStmt during inspect).
+ 	bodyFunc.Body.List = append(bodyFunc.Body.List, body...)
+ 
+@@ -1010,6 +1133,36 @@ func (r *rewriter) ifNext(op syntax.Operator, c int, then syntax.Stmt) syntax.St
+ 	return nif
+ }
+ 
++// setValueType marks x as a value with type typ.
++func setValueType(x syntax.Expr, typ syntax.Type) {
++	tv := syntax.TypeAndValue{Type: typ}
++	tv.SetIsValue()
++	x.SetTypeInfo(tv)
++}
++
++// assertNotExited returns the statement:
++//
++//	if #exitK { runtime.panicrangeexit() }
++//
++// where #exitK is the exit guard for loop.
++func (r *rewriter) assertNotExited(start syntax.Pos, loop *forLoop) syntax.Stmt {
++	callPanicExpr := &syntax.CallExpr{
++		Fun: runtimeSym(r.info, "panicrangeexit"),
++	}
++	setValueType(callPanicExpr, nil) // no result type
++
++	callPanic := &syntax.ExprStmt{X: callPanicExpr}
++
++	nif := &syntax.IfStmt{
++		Cond: r.useVar(loop.exitFlag),
++		Then: &syntax.BlockStmt{
++			List: []syntax.Stmt{callPanic},
++		},
++	}
++	setPos(nif, start)
++	return nif
++}
++
+ // next returns a reference to the #next variable.
+ func (r *rewriter) next() *syntax.Name {
+ 	if r.nextVar == nil {
+@@ -1106,7 +1259,11 @@ var runtimePkg = func() *types2.Package {
+ 	anyType := types2.Universe.Lookup("any").Type()
+ 
+ 	// func deferrangefunc() unsafe.Pointer
+-	obj := types2.NewVar(nopos, pkg, "deferrangefunc", types2.NewSignatureType(nil, nil, nil, nil, types2.NewTuple(types2.NewParam(nopos, pkg, "extra", anyType)), false))
++	obj := types2.NewFunc(nopos, pkg, "deferrangefunc", types2.NewSignatureType(nil, nil, nil, nil, types2.NewTuple(types2.NewParam(nopos, pkg, "extra", anyType)), false))
++	pkg.Scope().Insert(obj)
++
++	// func panicrangeexit()
++	obj = types2.NewFunc(nopos, pkg, "panicrangeexit", types2.NewSignatureType(nil, nil, nil, nil, nil, false))
+ 	pkg.Scope().Insert(obj)
+ 
+ 	return pkg
+@@ -1118,6 +1275,7 @@ func runtimeSym(info *types2.Info, name string) *syntax.Name {
+ 	n := syntax.NewName(nopos, "runtime."+name)
+ 	tv := syntax.TypeAndValue{Type: obj.Type()}
+ 	tv.SetIsValue()
++	tv.SetIsRuntimeHelper()
+ 	n.SetTypeInfo(tv)
+ 	info.Uses[n] = obj
+ 	return n
+diff --git a/src/cmd/compile/internal/syntax/type.go b/src/cmd/compile/internal/syntax/type.go
+index 01eab7ad04..53132a442d 100644
+--- a/src/cmd/compile/internal/syntax/type.go
++++ b/src/cmd/compile/internal/syntax/type.go
+@@ -39,25 +39,27 @@ type TypeAndValue struct {
+ 	exprFlags
+ }
+ 
+-type exprFlags uint8
++type exprFlags uint16
+ 
+-func (f exprFlags) IsVoid() bool      { return f&1 != 0 }
+-func (f exprFlags) IsType() bool      { return f&2 != 0 }
+-func (f exprFlags) IsBuiltin() bool   { return f&4 != 0 }
+-func (f exprFlags) IsValue() bool     { return f&8 != 0 }
+-func (f exprFlags) IsNil() bool       { return f&16 != 0 }
+-func (f exprFlags) Addressable() bool { return f&32 != 0 }
+-func (f exprFlags) Assignable() bool  { return f&64 != 0 }
+-func (f exprFlags) HasOk() bool       { return f&128 != 0 }
++func (f exprFlags) IsVoid() bool          { return f&1 != 0 }
++func (f exprFlags) IsType() bool          { return f&2 != 0 }
++func (f exprFlags) IsBuiltin() bool       { return f&4 != 0 } // a language builtin that resembles a function call, e.g., "make, append, new"
++func (f exprFlags) IsValue() bool         { return f&8 != 0 }
++func (f exprFlags) IsNil() bool           { return f&16 != 0 }
++func (f exprFlags) Addressable() bool     { return f&32 != 0 }
++func (f exprFlags) Assignable() bool      { return f&64 != 0 }
++func (f exprFlags) HasOk() bool           { return f&128 != 0 }
++func (f exprFlags) IsRuntimeHelper() bool { return f&256 != 0 } // a runtime function called from transformed syntax
+ 
+-func (f *exprFlags) SetIsVoid()      { *f |= 1 }
+-func (f *exprFlags) SetIsType()      { *f |= 2 }
+-func (f *exprFlags) SetIsBuiltin()   { *f |= 4 }
+-func (f *exprFlags) SetIsValue()     { *f |= 8 }
+-func (f *exprFlags) SetIsNil()       { *f |= 16 }
+-func (f *exprFlags) SetAddressable() { *f |= 32 }
+-func (f *exprFlags) SetAssignable()  { *f |= 64 }
+-func (f *exprFlags) SetHasOk()       { *f |= 128 }
++func (f *exprFlags) SetIsVoid()          { *f |= 1 }
++func (f *exprFlags) SetIsType()          { *f |= 2 }
++func (f *exprFlags) SetIsBuiltin()       { *f |= 4 }
++func (f *exprFlags) SetIsValue()         { *f |= 8 }
++func (f *exprFlags) SetIsNil()           { *f |= 16 }
++func (f *exprFlags) SetAddressable()     { *f |= 32 }
++func (f *exprFlags) SetAssignable()      { *f |= 64 }
++func (f *exprFlags) SetHasOk()           { *f |= 128 }
++func (f *exprFlags) SetIsRuntimeHelper() { *f |= 256 }
+ 
+ // a typeAndValue contains the results of typechecking an expression.
+ // It is embedded in expression nodes.
+diff --git a/src/cmd/compile/internal/typecheck/_builtin/runtime.go b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+index f16d0d48e5..f27a773a88 100644
+--- a/src/cmd/compile/internal/typecheck/_builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+@@ -116,6 +116,9 @@ func interfaceSwitch(s *byte, t *byte) (int, *byte)
+ func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
+ func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
+ 
++// panic for iteration after exit in range func
++func panicrangeexit()
++
+ // defer in range over func
+ func deferrangefunc() interface{}
+ 
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 96ddba8151..142fc26d2e 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -102,6 +102,7 @@ var runtimeDecls = [...]struct {
+ 	{"interfaceSwitch", funcTag, 70},
+ 	{"ifaceeq", funcTag, 72},
+ 	{"efaceeq", funcTag, 72},
++	{"panicrangeexit", funcTag, 9},
+ 	{"deferrangefunc", funcTag, 73},
+ 	{"fastrand", funcTag, 74},
+ 	{"makemap64", funcTag, 76},
+diff --git a/src/cmd/internal/goobj/builtinlist.go b/src/cmd/internal/goobj/builtinlist.go
+index 883e13dbc5..03982d54f2 100644
+--- a/src/cmd/internal/goobj/builtinlist.go
++++ b/src/cmd/internal/goobj/builtinlist.go
+@@ -65,7 +65,6 @@ var builtins = [...]struct {
+ 	{"runtime.slicecopy", 1},
+ 	{"runtime.decoderune", 1},
+ 	{"runtime.countrunes", 1},
+-	{"runtime.convI2I", 1},
+ 	{"runtime.convT", 1},
+ 	{"runtime.convTnoptr", 1},
+ 	{"runtime.convT16", 1},
+@@ -75,13 +74,15 @@ var builtins = [...]struct {
+ 	{"runtime.convTslice", 1},
+ 	{"runtime.assertE2I", 1},
+ 	{"runtime.assertE2I2", 1},
+-	{"runtime.assertI2I", 1},
+-	{"runtime.assertI2I2", 1},
+ 	{"runtime.panicdottypeE", 1},
+ 	{"runtime.panicdottypeI", 1},
+ 	{"runtime.panicnildottype", 1},
++	{"runtime.typeAssert", 1},
++	{"runtime.interfaceSwitch", 1},
+ 	{"runtime.ifaceeq", 1},
+ 	{"runtime.efaceeq", 1},
++	{"runtime.panicrangeexit", 1},
++	{"runtime.deferrangefunc", 1},
+ 	{"runtime.fastrand", 1},
+ 	{"runtime.makemap64", 1},
+ 	{"runtime.makemap", 1},
+@@ -134,7 +135,6 @@ var builtins = [...]struct {
+ 	{"runtime.unsafestringcheckptr", 1},
+ 	{"runtime.panicunsafestringlen", 1},
+ 	{"runtime.panicunsafestringnilptr", 1},
+-	{"runtime.mulUintptr", 1},
+ 	{"runtime.memmove", 1},
+ 	{"runtime.memclrNoHeapPointers", 1},
+ 	{"runtime.memclrHasPointers", 1},
+@@ -210,6 +210,7 @@ var builtins = [...]struct {
+ 	{"runtime.x86HasFMA", 0},
+ 	{"runtime.armHasVFPv4", 0},
+ 	{"runtime.arm64HasATOMICS", 0},
++	{"runtime.asanregisterglobals", 1},
+ 	{"runtime.deferproc", 1},
+ 	{"runtime.deferprocStack", 1},
+ 	{"runtime.deferreturn", 1},
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 5f54ee4b01..36d658aa4c 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -296,6 +296,13 @@ func deferproc(fn func()) {
+ 	// been set and must not be clobbered.
+ }
+ 
++var rangeExitError = error(errorString("range function continued iteration after exit"))
++
++//go:noinline
++func panicrangeexit() {
++	panic(rangeExitError)
++}
++
+ // deferrangefunc is called by functions that are about to
+ // execute a range-over-function loop in which the loop body
+ // may execute a defer statement. That defer needs to add to

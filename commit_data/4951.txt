@@ -7,7 +7,7 @@ Date:   Thu Feb 25 15:11:07 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/224060
-
+---
  src/cmd/gc/builtin.c.boot  |  2 ++
  src/cmd/gc/go.h            |  5 ++--
  src/cmd/gc/runtime.go      |  2 ++
@@ -17,3 +17,419 @@ Date:   Thu Feb 25 15:11:07 2010 -0800
  test/convlit.go            | 27 +++++++++++++++++++++
  test/string_lit.go         | 30 +++++++++++++++++++++++
  8 files changed, 175 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 6eed40230d..3114d75807 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -26,6 +26,8 @@ char *runtimeimport =
+ 	"func \"\".intstring (? int64) string\n"
+ 	"func \"\".slicebytetostring (? []uint8) string\n"
+ 	"func \"\".sliceinttostring (? []int) string\n"
++	"func \"\".stringtoslicebyte (? string) []uint8\n"
++	"func \"\".stringtosliceint (? string) []int\n"
+ 	"func \"\".stringiter (? string, ? int) int\n"
+ 	"func \"\".stringiter2 (? string, ? int) (retk int, retv int)\n"
+ 	"func \"\".slicecopy (to any, fr any, wid uint32) int\n"
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 753de0399a..cbcdc9c39d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -351,6 +351,7 @@ enum
+ 	OAPPENDSTR,
+ 	OARRAY,
+ 	OARRAYBYTESTR, OARRAYRUNESTR,
++	OSTRARRAYBYTE, OSTRARRAYRUNE,
+ 	OAS, OAS2, OAS2MAPW, OAS2FUNC, OAS2RECV, OAS2MAPR, OAS2DOTTYPE, OASOP,
+ 	OBAD,
+ 	OCALL, OCALLFUNC, OCALLMETH, OCALLINTER,
+@@ -411,7 +412,7 @@ enum
+ 	OTINTER,
+ 	OTFUNC,
+ 	OTARRAY,
+-	
++
+ 	// misc
+ 	ODDD,
+ 
+@@ -458,7 +459,7 @@ enum
+ 	TIDEAL,			// 32
+ 	TNIL,
+ 	TBLANK,
+-	
++
+ 	// pseudo-type for frame layout
+ 	TFUNCARGS,
+ 	TCHANARGS,
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index e350c282dd..ca3b6a1bc1 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -38,6 +38,8 @@ func indexstring(string, int) byte
+ func intstring(int64) string
+ func slicebytetostring([]byte) string
+ func sliceinttostring([]int) string
++func stringtoslicebyte(string) []byte
++func stringtosliceint(string) []int
+ func stringiter(string, int) int
+ func stringiter2(string, int) (retk int, retv int)
+ func slicecopy(to any, fr any, wid uint32) int
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 158dee6738..4c4c928338 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -32,6 +32,7 @@ static void	checklvalue(Node*, char*);
+ static void	checkassign(Node*);
+ static void	checkassignlist(NodeList*);
+ static void	toslice(Node**);
++static void stringtoarraylit(Node**);
+ 
+ void
+ typechecklist(NodeList *l, int top)
+@@ -835,6 +836,13 @@ reswitch:
+ 		n = typecheckconv(n, n->left, n->type, 1, "conversion");
+ 		if(n->type == T)
+ 			goto error;
++		switch(n->op) {
++		case OSTRARRAYBYTE:
++		case OSTRARRAYRUNE:
++			if(n->left->op == OLITERAL)
++				stringtoarraylit(&n);
++			break;
++		}
+ 		goto ret;
+ 
+ 	case OMAKE:
+@@ -1406,6 +1414,18 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et, char *desc)
+ 		}
+ 	}
+ 
++	// from string
++	if(istype(nt, TSTRING) && isslice(t) && t->sym == S) {
++		switch(t->type->etype) {
++		case TUINT8:
++			*op = OSTRARRAYBYTE;
++			return 1;
++		case TINT:
++			*op = OSTRARRAYRUNE;
++			return 1;
++		}
++	}
++
+ 	// convert to unsafe pointer
+ 	if(isptrto(t, TANY)
+ 	&& (isptr[nt->etype] || nt->etype == TUINTPTR))
+@@ -1534,7 +1554,7 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
+ 				// TODO(rsc): drop first if in DDD cleanup
+ 				if(t->etype != TINTER)
+ 				if(checkconv(nl->n->type, t->type, 0, &xx, &yy, desc) < 0)
+-					yyerror("cannot use %+N as type %T in %s", nl->n, t->type, desc);					
++					yyerror("cannot use %+N as type %T in %s", nl->n, t->type, desc);
+ 			}
+ 			goto out;
+ 		}
+@@ -1587,7 +1607,7 @@ exportassignok(Type *t, char *desc)
+ 			// it only happens for fields in a ... struct.
+ 			if(s != nil && !exportname(s->name) && s->pkg != localpkg) {
+ 				char *prefix;
+-				
++
+ 				prefix = "";
+ 				if(desc != nil)
+ 					prefix = " in ";
+@@ -2164,3 +2184,39 @@ typecheckfunc(Node *n)
+ 	if(rcvr != nil && n->shortname != N && !isblank(n->shortname))
+ 		addmethod(n->shortname->sym, t, 1);
+ }
++
++static void
++stringtoarraylit(Node **np)
++{
++	int32 i;
++	NodeList *l;
++	Strlit *s;
++	char *p, *ep;
++	Rune r;
++	Node *nn, *n;
++
++	n = *np;
++	if(n->left->op != OLITERAL || n->left->val.ctype != CTSTR)
++		fatal("stringtoarraylit %N", n);
++
++	s = n->left->val.u.sval;
++	l = nil;
++	p = s->s;
++	ep = s->s + s->len;
++	i = 0;
++	if(n->type->type->etype == TUINT8) {
++		// raw []byte
++		while(p < ep)
++			l = list(l, nod(OKEY, nodintconst(i++), nodintconst((uchar)*p++)));
++	} else {
++		// utf-8 []int
++		while(p < ep) {
++			p += chartorune(&r, p);
++			l = list(l, nod(OKEY, nodintconst(i++), nodintconst(r)));
++		}
++	}
++	nn = nod(OCOMPLIT, N, typenod(n->type));
++	nn->list = l;
++	typecheck(&nn, Erv);
++	*np = nn;
++}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index e902600ba0..fa63646c50 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -8,6 +8,7 @@ static	Node*	walkprint(Node*, NodeList**, int);
+ static	Node*	conv(Node*, Type*);
+ static	Node*	mapfn(char*, Type*);
+ static	Node*	makenewvar(Type*, NodeList**, Node**);
++
+ enum
+ {
+ 	Inone,
+@@ -122,7 +123,7 @@ static void
+ domethod(Node *n)
+ {
+ 	Node *nt;
+-	
++
+ 	nt = n->type->nname;
+ 	typecheck(&nt, Etype);
+ 	if(nt->type == T) {
+@@ -142,7 +143,7 @@ walkdeftype(Node *n)
+ 	int maplineno, embedlineno, lno;
+ 	Type *t;
+ 	NodeList *l;
+-	
++
+ 	nwalkdeftype++;
+ 	lno = lineno;
+ 	setlineno(n);
+@@ -183,7 +184,7 @@ walkdeftype(Node *n)
+ 
+ ret:
+ 	lineno = lno;
+-	
++
+ 	// if there are no type definitions going on, it's safe to
+ 	// try to resolve the method types for the interfaces
+ 	// we just read.
+@@ -868,7 +869,7 @@ walkexpr(Node **np, NodeList **init)
+ 	case OINDEX:
+ 		walkexpr(&n->left, init);
+ 		walkexpr(&n->right, init);
+-		
++
+ 		// if range of type cannot exceed static array bound,
+ 		// disable bounds check
+ 		if(!isslice(n->left->type))
+@@ -1092,10 +1093,20 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OARRAYRUNESTR:
+-		// sliceinttostring([]byte) string;
++		// sliceinttostring([]int) string;
+ 		n = mkcall("sliceinttostring", n->type, init, n->left);
+ 		goto ret;
+ 
++	case OSTRARRAYBYTE:
++		// stringtoslicebyte(string) []byte;
++		n = mkcall("stringtoslicebyte", n->type, init, n->left);
++		goto ret;
++
++	case OSTRARRAYRUNE:
++		// stringtosliceint(string) []int
++		n = mkcall("stringtosliceint", n->type, init, n->left);
++		goto ret;
++
+ 	case OCMPIFACE:
+ 		// ifaceeq(i1 any-1, i2 any-2) (ret bool);
+ 		if(!eqtype(n->left->type, n->right->type))
+@@ -1117,6 +1128,7 @@ walkexpr(Node **np, NodeList **init)
+ 	case OARRAYLIT:
+ 	case OMAPLIT:
+ 	case OSTRUCTLIT:
++	arraylit:
+ 		nvar = nod(OXXX, N, N);
+ 		tempname(nvar, n->type);
+ 		anylit(n, nvar, init);
+@@ -1448,18 +1460,18 @@ mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
+ {
+ 	Node *a, *n;
+ 	Type *tslice;
+-	
++
+ 	tslice = typ(TARRAY);
+ 	tslice->type = l->type->type;
+ 	tslice->bound = -1;
+-	
++
+ 	n = nod(OCOMPLIT, N, typenod(tslice));
+ 	n->list = lr0;
+ 	typecheck(&n, Erv);
+ 	if(n->type == T)
+ 		fatal("mkdotargslice: typecheck failed");
+ 	walkexpr(&n, init);
+-	
++
+ 	a = nod(OAS, nodarg(l, fp), n);
+ 	nn = list(nn, convas(a, init));
+ 	return nn;
+@@ -1758,7 +1770,7 @@ walkprint(Node *nn, NodeList **init, int defer)
+ 			n = nod(OCONV, n, N);
+ 			n->type = t;
+ 		}
+-		
++
+ 		if(defer) {
+ 			intypes = list(intypes, nod(ODCLFIELD, N, typenod(t)));
+ 			args = list(args, n);
+@@ -1788,7 +1800,7 @@ walkprint(Node *nn, NodeList **init, int defer)
+ 			calls = list(calls, mkcall("printnl", T, nil));
+ 		typechecklist(calls, Etop);
+ 		walkexprlist(calls, init);
+-	
++
+ 		if(op == OPANIC || op == OPANICN)
+ 			r = mkcall("panicl", T, nil);
+ 		else
+diff --git a/src/pkg/runtime/string.cgo b/src/pkg/runtime/string.cgo
+index 4c85766c2f..2cb518c6f8 100644
+--- a/src/pkg/runtime/string.cgo
++++ b/src/pkg/runtime/string.cgo
+@@ -4,6 +4,7 @@
+ 
+ package runtime
+ #include "runtime.h"
++#include "malloc.h"
+ 
+ String	emptystring;
+ 
+@@ -210,6 +211,12 @@ func slicebytetostring(b Slice) (s String) {
+ 	mcpy(s.str, b.array, s.len);
+ }
+ 
++func stringtoslicebyte(s String) (b Slice) {
++	b.array = mallocgc(s.len, RefNoPointers, 1, 1);
++	b.len = s.len;
++	b.cap = s.len;
++	mcpy(b.array, s.str, s.len);
++}
+ 
+ func sliceinttostring(b Slice) (s String) {
+ 	int32 siz1, siz2, i;
+@@ -233,6 +240,30 @@ func sliceinttostring(b Slice) (s String) {
+ 	s.len = siz2;
+ }
+ 
++func stringtosliceint(s String) (b Slice) {
++	int32 n;
++	int32 dum, *r;
++	uint8 *p, *ep;
++
++	// two passes.
++	// unlike sliceinttostring, no race because strings are immutable.
++	p = s.str;
++	ep = s.str+s.len;
++	n = 0;
++	while(p < ep) {
++		p += charntorune(&dum, p, ep-p);
++		n++;
++	}
++
++	b.array = mallocgc(n*sizeof(r[0]), RefNoPointers, 1, 1);
++	b.len = n;
++	b.cap = n;
++	p = s.str;
++	r = (int32*)b.array;
++	while(p < ep)
++		p += charntorune(r++, p, ep-p);
++}
++
+ enum
+ {
+ 	Runeself	= 0x80,
+diff --git a/test/convlit.go b/test/convlit.go
+index e65dad3df6..22415bb324 100644
+--- a/test/convlit.go
++++ b/test/convlit.go
+@@ -35,3 +35,30 @@ var good2 int = 1.0;
+ var good3 int = 1e9;
+ var good4 float = 1e20;
+ 
++// explicit conversion of string is okay
++var _ = []int("abc")
++var _ = []byte("abc")
++
++// implicit is not
++var _ []int = "abc"	// ERROR "cannot use|incompatible|invalid"
++var _ []byte = "abc"	// ERROR "cannot use|incompatible|invalid"
++
++// named string is okay
++type Tstring string
++var ss Tstring = "abc"
++var _ = []int(ss)
++var _ = []byte(ss)
++
++// implicit is still not
++var _ []int = ss	// ERROR "cannot use|incompatible|invalid"
++var _ []byte = ss	// ERROR "cannot use|incompatible|invalid"
++
++// named slice is not
++type Tint []int
++type Tbyte []byte
++var _ = Tint("abc")	// ERROR "convert|incompatible|invalid"
++var _ = Tbyte("abc")	// ERROR "convert|incompatible|invalid"
++
++// implicit is still not
++var _ Tint = "abc"	// ERROR "cannot use|incompatible|invalid"
++var _ Tbyte = "abc"	// ERROR "cannot use|incompatible|invalid"
+diff --git a/test/string_lit.go b/test/string_lit.go
+index 547be8003a..88b5d251ff 100644
+--- a/test/string_lit.go
++++ b/test/string_lit.go
+@@ -34,6 +34,19 @@ func assert(a, b, c string) {
+ 	}
+ }
+ 
++const (
++	gx1 = "aä本☺"
++	gx2 = "aä\xFF\xFF本☺"
++	gx2fix = "aä\uFFFD\uFFFD本☺"
++)
++
++var (
++	gr1 = []int(gx1)
++	gr2 = []int(gx2)
++	gb1 = []byte(gx1)
++	gb2 = []byte(gx2)
++)
++
+ func main() {
+ 	ecode = 0;
+ 	s :=
+@@ -86,5 +99,22 @@ func main() {
+ 	r = 0x10ffff + 1;
+ 	s = string(r);
+ 	assert(s, "\xef\xbf\xbd", "too-large rune");
++
++	assert(string(gr1), gx1, "global ->[]int")
++	assert(string(gr2), gx2fix, "global invalid ->[]int")
++	assert(string(gb1), gx1, "->[]byte")
++	assert(string(gb2), gx2, "global invalid ->[]byte")
++
++	var (
++		r1 = []int(gx1)
++		r2 = []int(gx2)
++		b1 = []byte(gx1)
++		b2 = []byte(gx2)
++	)
++	assert(string(r1), gx1, "->[]int")
++	assert(string(r2), gx2fix, "invalid ->[]int")
++	assert(string(b1), gx1, "->[]byte")
++	assert(string(b2), gx2, "invalid ->[]byte")
++
+ 	os.Exit(ecode);
+ }

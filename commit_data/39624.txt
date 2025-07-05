@@ -47,10 +47,158 @@ Date:   Fri Nov 9 22:49:38 2018 +0900
     Change-Id: I98171006dce14069b1a62da07c3d165455a7906b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/148959
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/sema.go | 16 ++++++++--------
  src/sync/mutex.go   |  6 +++++-
  src/sync/runtime.go |  4 +++-
  src/sync/rwmutex.go |  4 ++--
  test/inline_sync.go | 11 ++++++++++-
  5 files changed, 28 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index f848515ae2..30c8959473 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -53,12 +53,12 @@ var semtable [semTabSize]struct {
+ 
+ //go:linkname sync_runtime_Semacquire sync.runtime_Semacquire
+ func sync_runtime_Semacquire(addr *uint32) {
+-	semacquire1(addr, false, semaBlockProfile)
++	semacquire1(addr, false, semaBlockProfile, 0)
+ }
+ 
+ //go:linkname poll_runtime_Semacquire internal/poll.runtime_Semacquire
+ func poll_runtime_Semacquire(addr *uint32) {
+-	semacquire1(addr, false, semaBlockProfile)
++	semacquire1(addr, false, semaBlockProfile, 0)
+ }
+ 
+ //go:linkname sync_runtime_Semrelease sync.runtime_Semrelease
+@@ -67,8 +67,8 @@ func sync_runtime_Semrelease(addr *uint32, handoff bool, skipframes int) {
+ }
+ 
+ //go:linkname sync_runtime_SemacquireMutex sync.runtime_SemacquireMutex
+-func sync_runtime_SemacquireMutex(addr *uint32, lifo bool) {
+-	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile)
++func sync_runtime_SemacquireMutex(addr *uint32, lifo bool, skipframes int) {
++	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile, skipframes)
+ }
+ 
+ //go:linkname poll_runtime_Semrelease internal/poll.runtime_Semrelease
+@@ -92,10 +92,10 @@ const (
+ 
+ // Called from runtime.
+ func semacquire(addr *uint32) {
+-	semacquire1(addr, false, 0)
++	semacquire1(addr, false, 0, 0)
+ }
+ 
+-func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
++func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes int) {
+ 	gp := getg()
+ 	if gp != gp.m.curg {
+ 		throw("semacquire not on the G stack")
+@@ -141,13 +141,13 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
+ 		// Any semrelease after the cansemacquire knows we're waiting
+ 		// (we set nwait above), so go to sleep.
+ 		root.queue(addr, s, lifo)
+-		goparkunlock(&root.lock, waitReasonSemacquire, traceEvGoBlockSync, 4)
++		goparkunlock(&root.lock, waitReasonSemacquire, traceEvGoBlockSync, 4+skipframes)
+ 		if s.ticket != 0 || cansemacquire(addr) {
+ 			break
+ 		}
+ 	}
+ 	if s.releasetime > 0 {
+-		blockevent(s.releasetime-t0, 3)
++		blockevent(s.releasetime-t0, 3+skipframes)
+ 	}
+ 	releaseSudog(s)
+ }
+diff --git a/src/sync/mutex.go b/src/sync/mutex.go
+index a809993fe0..11ad20c975 100644
+--- a/src/sync/mutex.go
++++ b/src/sync/mutex.go
+@@ -77,7 +77,11 @@ func (m *Mutex) Lock() {
+ 		}
+ 		return
+ 	}
++	// Slow path (outlined so that the fast path can be inlined)
++	m.lockSlow()
++}
+ 
++func (m *Mutex) lockSlow() {
+ 	var waitStartTime int64
+ 	starving := false
+ 	awoke := false
+@@ -131,7 +135,7 @@ func (m *Mutex) Lock() {
+ 			if waitStartTime == 0 {
+ 				waitStartTime = runtime_nanotime()
+ 			}
+-			runtime_SemacquireMutex(&m.sema, queueLifo)
++			runtime_SemacquireMutex(&m.sema, queueLifo, 1)
+ 			starving = starving || runtime_nanotime()-waitStartTime > starvationThresholdNs
+ 			old = m.state
+ 			if old&mutexStarving != 0 {
+diff --git a/src/sync/runtime.go b/src/sync/runtime.go
+index 8b20b0f6f7..3ad44e786f 100644
+--- a/src/sync/runtime.go
++++ b/src/sync/runtime.go
+@@ -15,7 +15,9 @@ func runtime_Semacquire(s *uint32)
+ 
+ // SemacquireMutex is like Semacquire, but for profiling contended Mutexes.
+ // If lifo is true, queue waiter at the head of wait queue.
+-func runtime_SemacquireMutex(s *uint32, lifo bool)
++// skipframes is the number of frames to omit during tracing, counting from
++// runtime_SemacquireMutex's caller.
++func runtime_SemacquireMutex(s *uint32, lifo bool, skipframes int)
+ 
+ // Semrelease atomically increments *s and notifies a waiting goroutine
+ // if one is blocked in Semacquire.
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index 24dd78cbe7..aafd6a7010 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -47,7 +47,7 @@ func (rw *RWMutex) RLock() {
+ 	}
+ 	if atomic.AddInt32(&rw.readerCount, 1) < 0 {
+ 		// A writer is pending, wait for it.
+-		runtime_SemacquireMutex(&rw.readerSem, false)
++		runtime_SemacquireMutex(&rw.readerSem, false, 0)
+ 	}
+ 	if race.Enabled {
+ 		race.Enable()
+@@ -95,7 +95,7 @@ func (rw *RWMutex) Lock() {
+ 	r := atomic.AddInt32(&rw.readerCount, -rwmutexMaxReaders) + rwmutexMaxReaders
+ 	// Wait for active readers.
+ 	if r != 0 && atomic.AddInt32(&rw.readerWait, r) != 0 {
+-		runtime_SemacquireMutex(&rw.writerSem, false)
++		runtime_SemacquireMutex(&rw.writerSem, false, 0)
+ 	}
+ 	if race.Enabled {
+ 		race.Enable()
+diff --git a/test/inline_sync.go b/test/inline_sync.go
+index b25e56447b..a14f58c432 100644
+--- a/test/inline_sync.go
++++ b/test/inline_sync.go
+@@ -8,7 +8,11 @@
+ // Test, using compiler diagnostic flags, that inlining of functions
+ // imported from the sync package is working.
+ // Compiles but does not run.
+-// FIXME: nacl-386 is excluded as inlining currently does not work there.
++
++// FIXME: This test is disabled on architectures where atomic operations
++// are function calls rather than intrinsics, since this prevents inlining
++// of the sync fast paths. This test should be re-enabled once the problem
++// is solved.
+ 
+ package foo
+ 
+@@ -22,3 +26,8 @@ func small5() { // ERROR "can inline small5"
+ 	// the Unlock fast path should be inlined
+ 	mutex.Unlock() // ERROR "inlining call to sync\.\(\*Mutex\)\.Unlock" "&sync\.m\.state escapes to heap"
+ }
++
++func small6() { // ERROR "can inline small6"
++	// the Lock fast path should be inlined
++	mutex.Lock() // ERROR "inlining call to sync\.\(\*Mutex\)\.Lock" "&sync\.m\.state escapes to heap"
++}

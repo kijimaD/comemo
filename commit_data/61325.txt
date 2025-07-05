@@ -12,7 +12,38 @@ Date:   Mon Oct 28 14:15:13 2024 -0700
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/bytes/buffer.go   | 4 ++--
  src/runtime/string.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index 4176d670ec..f90d9eca0f 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -247,8 +247,8 @@ func growSlice(b []byte, n int) []byte {
+ 		c = 2 * cap(b)
+ 	}
+ 	b2 := append([]byte(nil), make([]byte, c)...)
+-	copy(b2, b)
+-	return b2[:len(b)]
++	i := copy(b2, b)
++	return b2[:i]
+ }
+ 
+ // WriteTo writes data to w until the buffer is drained or an error occurs.
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 640ee02a3c..e43f4cca51 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -51,8 +51,8 @@ func concatstrings(buf *tmpBuf, a []string) string {
+ 	}
+ 	s, b := rawstringtmp(buf, l)
+ 	for _, x := range a {
+-		copy(b, x)
+-		b = b[len(x):]
++		n := copy(b, x)
++		b = b[n:]
+ 	}
+ 	return s
+ }

@@ -9,7 +9,48 @@ Date:   Thu Mar 14 10:10:12 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7522046
-
+---
  src/pkg/runtime/mfixalloc.c | 5 +++++
  src/pkg/runtime/panic.c     | 6 +++++-
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/mfixalloc.c b/src/pkg/runtime/mfixalloc.c
+index c916d588fd..c7dab8aea8 100644
+--- a/src/pkg/runtime/mfixalloc.c
++++ b/src/pkg/runtime/mfixalloc.c
+@@ -30,6 +30,11 @@ void*
+ runtime·FixAlloc_Alloc(FixAlloc *f)
+ {
+ 	void *v;
++	
++	if(f->size == 0) {
++		runtime·printf("runtime: use of FixAlloc_Alloc before FixAlloc_Init\n");
++		runtime·throw("runtime: internal error");
++	}
+ 
+ 	if(f->list) {
+ 		v = f->list;
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 2f553f417e..fbcf6a572d 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -5,6 +5,7 @@
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ #include "stack.h"
++#include "malloc.h"
+ 
+ // Code related to defer, panic and recover.
+ 
+@@ -383,7 +384,10 @@ nomatch:
+ void
+ runtime·startpanic(void)
+ {
+-	if(m->mcache == nil)  // can happen if called from signal handler or throw
++	if(runtime·mheap == 0 || runtime·mheap->cachealloc.size == 0) { // very early
++		runtime·printf("runtime: panic before malloc heap initialized\n");
++		m->mallocing = 1; // tell rest of panic not to try to malloc
++	} else if(m->mcache == nil) // can happen if called from signal handler or throw
+ 		m->mcache = runtime·allocmcache();
+ 	if(m->dying) {
+ 		runtime·printf("panic during panic\n");

@@ -9,6 +9,24 @@ Date:   Thu Jun 22 19:33:42 2017 -0700
     Change-Id: Ic61dcb6d101ad1491dca535aebb6ee8ee740d013
     Reviewed-on: https://go-review.googlesource.com/46468
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/fs.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 90a3729cbd..5819334b5f 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -30,6 +30,12 @@ import (
+ // value is a filename on the native file system, not a URL, so it is separated
+ // by filepath.Separator, which isn't necessarily '/'.
+ //
++// Note that Dir will allow access to files and directories starting with a
++// period, which could expose sensitive directories like a .git directory or
++// sensitive files like .htpasswd. To exclude files with a leading period,
++// remove the files/directories from the server or create a custom FileSystem
++// implementation.
++//
+ // An empty Dir is treated as ".".
+ type Dir string
+ 

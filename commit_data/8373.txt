@@ -13,8 +13,96 @@ Date:   Thu May 12 20:14:58 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4528060
-
+---
  src/pkg/go/ast/ast.go       |  8 ++++----
  src/pkg/go/ast/resolve.go   | 10 +++++-----
  src/pkg/go/parser/parser.go |  1 +
  3 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 2fc1a60323..d7221b3321 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -121,7 +121,7 @@ func (f *Field) End() token.Pos {
+ // A FieldList represents a list of Fields, enclosed by parentheses or braces.
+ type FieldList struct {
+ 	Opening token.Pos // position of opening parenthesis/brace, if any
+-	List    []*Field  // field list
++	List    []*Field  // field list; or nil
+ 	Closing token.Pos // position of closing parenthesis/brace, if any
+ }
+ 
+@@ -334,7 +334,7 @@ type (
+ 	// A FuncType node represents a function type.
+ 	FuncType struct {
+ 		Func    token.Pos  // position of "func" keyword
+-		Params  *FieldList // (incoming) parameters
++		Params  *FieldList // (incoming) parameters; or nil
+ 		Results *FieldList // (outgoing) results; or nil
+ 	}
+ 
+@@ -946,8 +946,8 @@ func (f *File) End() token.Pos {
+ //
+ type Package struct {
+ 	Name    string            // package name
+-	Scope   *Scope            // package scope
+-	Imports map[string]*Scope // map of import path -> package scope across all files
++	Scope   *Scope            // package scope across all files
++	Imports map[string]*Scope // map of import path -> package scope
+ 	Files   map[string]*File  // Go source files by filename
+ }
+ 
+diff --git a/src/pkg/go/ast/resolve.go b/src/pkg/go/ast/resolve.go
+index fddc3baab8..a2ff620dae 100644
+--- a/src/pkg/go/ast/resolve.go
++++ b/src/pkg/go/ast/resolve.go
+@@ -11,6 +11,7 @@ import (
+ 	"go/scanner"
+ 	"go/token"
+ 	"os"
++	"strconv"
+ )
+ 
+ 
+@@ -70,7 +71,7 @@ type Importer func(path string) (name string, scope *Scope, err os.Error)
+ // used to resolve identifiers not declared in any of the package files. Any
+ // remaining unresolved identifiers are reported as undeclared. If the files
+ // belong to different packages, one package name is selected and files with
+-// different package name are reported and then ignored.
++// different package names are reported and then ignored.
+ // The result is a package node and a scanner.ErrorList if there were errors.
+ //
+ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer, universe *Scope) (*Package, os.Error) {
+@@ -118,8 +119,7 @@ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer,
+ 		fileScope := NewScope(pkgScope)
+ 		for _, spec := range file.Imports {
+ 			// add import to global map of imports
+-			path := string(spec.Path.Value)
+-			path = path[1 : len(path)-1] // strip ""'s
++			path, _ := strconv.Unquote(string(spec.Path.Value))
+ 			pkg := imports[path]
+ 			if pkg == nil {
+ 				if importer == nil {
+@@ -161,8 +161,8 @@ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer,
+ 		if importErrors {
+ 			// don't use the universe scope without correct imports
+ 			// (objects in the universe may be shadowed by imports;
+-			// with missing imports identifiers might get resolved
+-			// wrongly)
++			// with missing imports, identifiers might get resolved
++			// incorrectly to universe objects)
+ 			pkgScope.Outer = nil
+ 		}
+ 		i := 0
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 6329cc918e..2bc550bac7 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -818,6 +818,7 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
+ 	} else {
+ 		// embedded interface
+ 		typ = x
++		p.resolve(typ)
+ 	}
+ 	p.expectSemi() // call before accessing p.linecomment
+ 

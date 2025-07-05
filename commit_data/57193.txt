@@ -14,7 +14,7 @@ Date:   Wed Jul 12 22:26:57 2023 +0930
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/internal/coverage/cmerge/merge.go | 2 +-
  src/internal/diff/diff.go             | 2 +-
  src/internal/testenv/exec.go          | 4 ++--
@@ -22,3 +22,84 @@ Date:   Wed Jul 12 22:26:57 2023 +0930
  src/runtime/metrics.go                | 2 +-
  src/runtime/mgcscavenge.go            | 2 +-
  6 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/coverage/cmerge/merge.go b/src/internal/coverage/cmerge/merge.go
+index 16fa1e8c38..1339803d08 100644
+--- a/src/internal/coverage/cmerge/merge.go
++++ b/src/internal/coverage/cmerge/merge.go
+@@ -68,7 +68,7 @@ func (m *Merger) SaturatingAdd(dst, src uint32) uint32 {
+ 	return result
+ }
+ 
+-// Saturating add does a saturing addition of 'dst' and 'src',
++// Saturating add does a saturating addition of 'dst' and 'src',
+ // returning added value or math.MaxUint32 plus an overflow flag.
+ func SaturatingAdd(dst, src uint32) (uint32, bool) {
+ 	d, s := uint64(dst), uint64(src)
+diff --git a/src/internal/diff/diff.go b/src/internal/diff/diff.go
+index 47b2856714..0aeeb75eb0 100644
+--- a/src/internal/diff/diff.go
++++ b/src/internal/diff/diff.go
+@@ -76,7 +76,7 @@ func Diff(oldName string, old []byte, newName string, new []byte) []byte {
+ 
+ 		// Expand matching lines as far possible,
+ 		// establishing that x[start.x:end.x] == y[start.y:end.y].
+-		// Note that on the first (or last) iteration we may (or definitey do)
++		// Note that on the first (or last) iteration we may (or definitely do)
+ 		// have an empty match: start.x==end.x and start.y==end.y.
+ 		start := m
+ 		for start.x > done.x && start.y > done.y && x[start.x-1] == y[start.y-1] {
+diff --git a/src/internal/testenv/exec.go b/src/internal/testenv/exec.go
+index c67ff53a72..50d3b0dc73 100644
+--- a/src/internal/testenv/exec.go
++++ b/src/internal/testenv/exec.go
+@@ -163,8 +163,8 @@ func CommandContext(t testing.TB, ctx context.Context, name string, args ...stri
+ 			// grace periods to clean up: one for the delay between the first
+ 			// termination signal being sent (via the Cancel callback when the Context
+ 			// expires) and the process being forcibly terminated (via the WaitDelay
+-			// field), and a second one for the delay becween the process being
+-			// terminated and and the test logging its output for debugging.
++			// field), and a second one for the delay between the process being
++			// terminated and the test logging its output for debugging.
+ 			//
+ 			// (We want to ensure that the test process itself has enough time to
+ 			// log the output before it is also terminated.)
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index dc3e099c83..9c0d592061 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -8007,7 +8007,7 @@ func (cc *http2ClientConn) canTakeNewRequestLocked() bool {
+ 	return st.canTakeNewRequest
+ }
+ 
+-// tooIdleLocked reports whether this connection has been been sitting idle
++// tooIdleLocked reports whether this connection has been sitting idle
+ // for too much wall time.
+ func (cc *http2ClientConn) tooIdleLocked() bool {
+ 	// The Round(0) strips the monontonic clock reading so the
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 4cd447a70c..8ef1b022cf 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -660,7 +660,7 @@ type cpuStatsAggregate struct {
+ // compute populates the cpuStatsAggregate with values from the runtime.
+ func (a *cpuStatsAggregate) compute() {
+ 	a.cpuStats = work.cpuStats
+-	// TODO(mknyszek): Update the the CPU stats again so that we're not
++	// TODO(mknyszek): Update the CPU stats again so that we're not
+ 	// just relying on the STW snapshot. The issue here is that currently
+ 	// this will cause non-monotonicity in the "user" CPU time metric.
+ 	//
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 10e93a13d3..82a94be22a 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -884,7 +884,7 @@ func fillAligned(x uint64, m uint) uint64 {
+ // segment which represents a contiguous region of free and unscavenged memory.
+ //
+ // searchIdx indicates the page index within this chunk to start the search, but
+-// note that findScavengeCandidate searches backwards through the pallocData. As a
++// note that findScavengeCandidate searches backwards through the pallocData. As
+ // a result, it will return the highest scavenge candidate in address order.
+ //
+ // min indicates a hard minimum size and alignment for runs of pages. That is,

@@ -11,9 +11,62 @@ Date:   Wed May 15 17:39:28 2024 -0400
     Auto-Submit: Alan Donovan <adonovan@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go.mod                                                        | 2 +-
  src/cmd/go.sum                                                        | 4 ++--
  .../golang.org/x/telemetry/internal/crashmonitor/crash_go123.go       | 2 +-
  src/cmd/vendor/modules.txt                                            | 2 +-
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 684191a6e4..05d9a1b62b 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/mod v0.17.1-0.20240514174713-c0bdc7bd01c9
+ 	golang.org/x/sync v0.7.0
+ 	golang.org/x/sys v0.20.0
+-	golang.org/x/telemetry v0.0.0-20240515190011-ac8fed89e775
++	golang.org/x/telemetry v0.0.0-20240515213752-9ff3ad9b3e68
+ 	golang.org/x/term v0.18.0
+ 	golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 551fcdf4c5..41c50d7a2b 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -32,8 +32,8 @@ golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.20.0 h1:Od9JTbYCk261bKm4M/mw7AklTlFYIa0bIp9BgSm1S8Y=
+ golang.org/x/sys v0.20.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240515190011-ac8fed89e775 h1:rWPDGnFE+SjKc7S5CrkYqx8I7hiwWV9oYcnZhmHAcm0=
+-golang.org/x/telemetry v0.0.0-20240515190011-ac8fed89e775/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
++golang.org/x/telemetry v0.0.0-20240515213752-9ff3ad9b3e68 h1:UpbHwFpoVYf6i5cMzwsNuPGNsZzfJXFr8R4uUv2HVgk=
++golang.org/x/telemetry v0.0.0-20240515213752-9ff3ad9b3e68/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
+ golang.org/x/term v0.18.0 h1:FcHjZXDMxI8mM3nwhX9HlKop4C0YQvCVCdwYl2wOtE8=
+ golang.org/x/term v0.18.0/go.mod h1:ILwASektA3OnRv7amZ1xhE/KTR+u50pbXfZ03+6Nx58=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/crashmonitor/crash_go123.go b/src/cmd/vendor/golang.org/x/telemetry/internal/crashmonitor/crash_go123.go
+index a2706d3abc..8f00c4856b 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/crashmonitor/crash_go123.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/crashmonitor/crash_go123.go
+@@ -13,5 +13,5 @@ import (
+ )
+ 
+ func init() {
+-	setCrashOutput = func(f *os.File) error { return debug.SetCrashOutput(f) }
++	setCrashOutput = func(f *os.File) error { return debug.SetCrashOutput(f, debug.CrashOptions{}) }
+ }
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 240a26aab3..5c691b1fe6 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240515190011-ac8fed89e775
++# golang.org/x/telemetry v0.0.0-20240515213752-9ff3ad9b3e68
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter

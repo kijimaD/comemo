@@ -12,8 +12,188 @@ Date:   Mon Aug 7 12:57:58 2017 +1000
     Change-Id: I5062c0e65a817571d755397d60762c175f9791ce
     Reviewed-on: https://go-review.googlesource.com/53530
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/export_windows_test.go |  17 +++++
  src/internal/poll/fd_windows.go          |  14 +++-
  src/internal/poll/fd_windows_test.go     | 111 +++++++++++++++++++++++++++++++
  3 files changed, 139 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/poll/export_windows_test.go b/src/internal/poll/export_windows_test.go
+new file mode 100644
+index 0000000000..88ed71ad84
+--- /dev/null
++++ b/src/internal/poll/export_windows_test.go
+@@ -0,0 +1,17 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Export guts for testing on windows.
++// Since testing imports os and os imports internal/poll,
++// the internal/poll tests can not be in package poll.
++
++package poll
++
++var (
++	LogInitFD = &logInitFD
++)
++
++func (fd *FD) IsPartOfNetpoll() bool {
++	return fd.pd.runtimeCtx != 0
++}
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 655f9348c6..f416158bbc 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -295,6 +295,9 @@ type FD struct {
+ 	isDir bool
+ }
+ 
++// logInitFD is set by tests to enable file descriptor initialization logging.
++var logInitFD func(net string, fd *FD, err error)
++
+ // Init initializes the FD. The Sysfd field should already be set.
+ // This can be called multiple times on a single FD.
+ // The net argument is a network name from the net package (e.g., "tcp"),
+@@ -319,6 +322,7 @@ func (fd *FD) Init(net string) (string, error) {
+ 		return "", errors.New("internal error: unknown network type " + net)
+ 	}
+ 
++	var err error
+ 	if !fd.isFile && !fd.isConsole && !fd.isDir {
+ 		// Only call init for a network socket.
+ 		// This means that we don't add files to the runtime poller.
+@@ -331,9 +335,13 @@ func (fd *FD) Init(net string) (string, error) {
+ 		// somehow call ExecIO, then ExecIO, and therefore the
+ 		// calling method, will return an error, because
+ 		// fd.pd.runtimeCtx will be 0.
+-		if err := fd.pd.init(fd); err != nil {
+-			return "", err
+-		}
++		err = fd.pd.init(fd)
++	}
++	if logInitFD != nil {
++		logInitFD(net, fd, err)
++	}
++	if err != nil {
++		return "", err
+ 	}
+ 	if hasLoadSetFileCompletionNotificationModes {
+ 		// We do not use events, so we can skip them always.
+diff --git a/src/internal/poll/fd_windows_test.go b/src/internal/poll/fd_windows_test.go
+new file mode 100644
+index 0000000000..e3ca0e26ac
+--- /dev/null
++++ b/src/internal/poll/fd_windows_test.go
+@@ -0,0 +1,111 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package poll_test
++
++import (
++	"fmt"
++	"internal/poll"
++	"os"
++	"sync"
++	"syscall"
++	"testing"
++)
++
++type loggedFD struct {
++	Net string
++	FD  *poll.FD
++	Err error
++}
++
++var (
++	logMu     sync.Mutex
++	loggedFDs map[syscall.Handle]*loggedFD
++)
++
++func logFD(net string, fd *poll.FD, err error) {
++	logMu.Lock()
++	defer logMu.Unlock()
++
++	loggedFDs[fd.Sysfd] = &loggedFD{
++		Net: net,
++		FD:  fd,
++		Err: err,
++	}
++}
++
++func init() {
++	loggedFDs = make(map[syscall.Handle]*loggedFD)
++	*poll.LogInitFD = logFD
++}
++
++func findLoggedFD(h syscall.Handle) (lfd *loggedFD, found bool) {
++	logMu.Lock()
++	defer logMu.Unlock()
++
++	lfd, found = loggedFDs[h]
++	return lfd, found
++}
++
++// checkFileIsNotPartOfNetpoll verifies that f is not managed by netpoll.
++// It returns error, if check fails.
++func checkFileIsNotPartOfNetpoll(f *os.File) error {
++	lfd, found := findLoggedFD(syscall.Handle(f.Fd()))
++	if !found {
++		return fmt.Errorf("%v fd=%v: is not found in the log", f.Name(), f.Fd())
++	}
++	if lfd.FD.IsPartOfNetpoll() {
++		return fmt.Errorf("%v fd=%v: is part of netpoll, but should not be (logged: net=%v err=%v)", f.Name(), f.Fd(), lfd.Net, lfd.Err)
++	}
++	return nil
++}
++
++func TestFileFdsAreInitialised(t *testing.T) {
++	exe, err := os.Executable()
++	if err != nil {
++		t.Fatal(err)
++	}
++	f, err := os.Open(exe)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++
++	err = checkFileIsNotPartOfNetpoll(f)
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
++func TestSerialFdsAreInitialised(t *testing.T) {
++	for _, name := range []string{"COM1", "COM2", "COM3", "COM4"} {
++		t.Run(name, func(t *testing.T) {
++			h, err := syscall.CreateFile(syscall.StringToUTF16Ptr(name),
++				syscall.GENERIC_READ|syscall.GENERIC_WRITE,
++				0,
++				nil,
++				syscall.OPEN_EXISTING,
++				syscall.FILE_ATTRIBUTE_NORMAL|syscall.FILE_FLAG_OVERLAPPED,
++				0)
++			if err != nil {
++				if errno, ok := err.(syscall.Errno); ok {
++					switch errno {
++					case syscall.ERROR_FILE_NOT_FOUND,
++						syscall.ERROR_ACCESS_DENIED:
++						t.Log("Skipping: ", err)
++						return
++					}
++				}
++				t.Fatal(err)
++			}
++			f := os.NewFile(uintptr(h), name)
++			defer f.Close()
++
++			err = checkFileIsNotPartOfNetpoll(f)
++			if err != nil {
++				t.Fatal(err)
++			}
++		})
++	}
++}

@@ -18,7 +18,7 @@ Date:   Wed Sep 8 22:20:35 2010 -0400
     R=rsc, brainman, vcc
     CC=golang-dev
     https://golang.org/cl/2168043
-
+---
  src/cmd/cc/lex.c      | 2 +-
  src/cmd/godefs/main.c | 2 +-
  src/lib9/dirfwstat.c  | 2 +-
@@ -28,3 +28,117 @@ Date:   Wed Sep 8 22:20:35 2010 -0400
  src/libcgo/386.S      | 2 +-
  src/libcgo/amd64.S    | 2 +-
  8 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index c9facc667e..fd74edb9d2 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -38,7 +38,7 @@
+ int
+ systemtype(int sys)
+ {
+-#ifdef __MINGW32__
++#ifdef _WIN32
+ 	return sys&Windows;
+ #else
+ 	return sys&Plan9;
+diff --git a/src/cmd/godefs/main.c b/src/cmd/godefs/main.c
+index 6ff542f489..d31d298a5e 100644
+--- a/src/cmd/godefs/main.c
++++ b/src/cmd/godefs/main.c
+@@ -82,7 +82,7 @@
+ 
+ #include "a.h"
+ 
+-#ifdef __MINGW32__
++#ifdef _WIN32
+ int
+ spawn(char *prog, char **argv)
+ {
+diff --git a/src/lib9/dirfwstat.c b/src/lib9/dirfwstat.c
+index 15f1c12520..fe9153b9b7 100644
+--- a/src/lib9/dirfwstat.c
++++ b/src/lib9/dirfwstat.c
+@@ -61,7 +61,7 @@ dirfwstat(int fd, Dir *dir)
+ 	struct timeval tv[2];
+ 
+ 	ret = 0;
+-#ifndef __MINGW32__
++#ifndef _WIN32
+ 	if(~dir->mode != 0){
+ 		if(fchmod(fd, dir->mode) < 0)
+ 			ret = -1;
+diff --git a/src/lib9/dirstat.c b/src/lib9/dirstat.c
+index 6c476753b0..6d804ca7c7 100644
+--- a/src/lib9/dirstat.c
++++ b/src/lib9/dirstat.c
+@@ -39,7 +39,7 @@ dirstat(char *file)
+ 	Dir *d;
+ 	char *str;
+ 
+-#ifdef __MINGW32__
++#ifdef _WIN32
+ 	if(stat(file, &st) < 0)
+ 		return nil;
+ 	lst = st;
+diff --git a/src/lib9/time.c b/src/lib9/time.c
+index 720dd702eb..7394e9e603 100644
+--- a/src/lib9/time.c
++++ b/src/lib9/time.c
+@@ -25,7 +25,7 @@ THE SOFTWARE.
+ #include <u.h>
+ #include <sys/time.h>
+ #include <time.h>
+-#ifndef __MINGW32__
++#ifndef _WIN32
+ #include <sys/resource.h>
+ #endif
+ #define NOPLAN9DEFINES
+@@ -34,7 +34,7 @@ THE SOFTWARE.
+ long
+ p9times(long *t)
+ {
+-#ifdef __MINGW32__
++#ifdef _WIN32
+ 	memset(t, 0, 4*sizeof(long));
+ #else
+ 	struct rusage ru, cru;
+diff --git a/src/libbio/bseek.c b/src/libbio/bseek.c
+index be00ab1a7d..2914981089 100644
+--- a/src/libbio/bseek.c
++++ b/src/libbio/bseek.c
+@@ -33,7 +33,7 @@ Bseek(Biobuf *bp, vlong offset, int base)
+ 	vlong n, d;
+ 	int bufsz;
+ 
+-#ifndef __MINGW32__
++#ifndef _WIN32
+ 	if(sizeof(offset) != sizeof(off_t)) {
+ 		fprint(2, "Bseek: libbio compiled with %d-byte offset\n", sizeof(off_t));
+ 		abort();
+diff --git a/src/libcgo/386.S b/src/libcgo/386.S
+index cca79cdd51..02cbe34534 100755
+--- a/src/libcgo/386.S
++++ b/src/libcgo/386.S
+@@ -5,7 +5,7 @@
+ /*
+  * Apple still insists on underscore prefixes for C function names.
+  */
+-#if defined(__APPLE__) || defined(__MINGW32__)
++#if defined(__APPLE__) || defined(_WIN32)
+ #define EXT(s) _##s
+ #else
+ #define EXT(s) s
+diff --git a/src/libcgo/amd64.S b/src/libcgo/amd64.S
+index 178c33cde0..083c2bc941 100644
+--- a/src/libcgo/amd64.S
++++ b/src/libcgo/amd64.S
+@@ -5,7 +5,7 @@
+ /*
+  * Apple still insists on underscore prefixes for C function names.
+  */
+-#if defined(__APPLE__) || defined(__MINGW64__)
++#if defined(__APPLE__) || defined(_WIN32)
+ #define EXT(s) _##s
+ #else
+ #define EXT(s) s

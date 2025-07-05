@@ -24,9 +24,204 @@ Date:   Tue Dec 5 22:38:36 2017 -0800
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/json/decode.go      | 13 ++++++
  src/encoding/json/decode_test.go | 97 ++++++++++++++++++++++++++++++++--------
  src/encoding/json/encode.go      | 13 ++----
  src/encoding/json/encode_test.go |  7 ++-
  4 files changed, 97 insertions(+), 33 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 4f98916105..536f25dc7c 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -707,6 +707,19 @@ func (d *decodeState) object(v reflect.Value) {
+ 				for _, i := range f.index {
+ 					if subv.Kind() == reflect.Ptr {
+ 						if subv.IsNil() {
++							// If a struct embeds a pointer to an unexported type,
++							// it is not possible to set a newly allocated value
++							// since the field is unexported.
++							//
++							// See https://golang.org/issue/21357
++							if !subv.CanSet() {
++								d.saveError(fmt.Errorf("json: cannot set embedded pointer to unexported struct: %v", subv.Type().Elem()))
++								// Invalidate subv to ensure d.value(subv) skips over
++								// the JSON value without assigning it to subv.
++								subv = reflect.Value{}
++								destring = false
++								break
++							}
+ 							subv.Set(reflect.New(subv.Type().Elem()))
+ 						}
+ 						subv = subv.Elem()
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 27ceee471a..34b7ec6d97 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -195,11 +195,6 @@ type embed struct {
+ 	Q int
+ }
+ 
+-type Issue21357 struct {
+-	*embed
+-	R int
+-}
+-
+ type Loop struct {
+ 	Loop1 int `json:",omitempty"`
+ 	Loop2 int `json:",omitempty"`
+@@ -871,20 +866,6 @@ var unmarshalTests = []unmarshalTest{
+ 		err: fmt.Errorf("json: unknown field \"extra\""),
+ 		disallowUnknownFields: true,
+ 	},
+-
+-	// Issue 21357.
+-	// Ignore any embedded fields that are pointers to unexported structs.
+-	{
+-		in:  `{"Q":1,"R":2}`,
+-		ptr: new(Issue21357),
+-		out: Issue21357{R: 2},
+-	},
+-	{
+-		in:  `{"Q":1,"R":2}`,
+-		ptr: new(Issue21357),
+-		err: fmt.Errorf("json: unknown field \"Q\""),
+-		disallowUnknownFields: true,
+-	},
+ }
+ 
+ func TestMarshal(t *testing.T) {
+@@ -2107,3 +2088,81 @@ func TestInvalidStringOption(t *testing.T) {
+ 		t.Fatalf("Unmarshal: %v", err)
+ 	}
+ }
++
++// Test unmarshal behavior with regards to embedded pointers to unexported structs.
++// If unallocated, this returns an error because unmarshal cannot set the field.
++// Issue 21357.
++func TestUnmarshalEmbeddedPointerUnexported(t *testing.T) {
++	type (
++		embed1 struct{ Q int }
++		embed2 struct{ Q int }
++		embed3 struct {
++			Q int64 `json:",string"`
++		}
++		S1 struct {
++			*embed1
++			R int
++		}
++		S2 struct {
++			*embed1
++			Q int
++		}
++		S3 struct {
++			embed1
++			R int
++		}
++		S4 struct {
++			*embed1
++			embed2
++		}
++		S5 struct {
++			*embed3
++			R int
++		}
++	)
++
++	tests := []struct {
++		in  string
++		ptr interface{}
++		out interface{}
++		err error
++	}{{
++		// Error since we cannot set S1.embed1, but still able to set S1.R.
++		in:  `{"R":2,"Q":1}`,
++		ptr: new(S1),
++		out: &S1{R: 2},
++		err: fmt.Errorf("json: cannot set embedded pointer to unexported struct: json.embed1"),
++	}, {
++		// The top level Q field takes precedence.
++		in:  `{"Q":1}`,
++		ptr: new(S2),
++		out: &S2{Q: 1},
++	}, {
++		// No issue with non-pointer variant.
++		in:  `{"R":2,"Q":1}`,
++		ptr: new(S3),
++		out: &S3{embed1: embed1{Q: 1}, R: 2},
++	}, {
++		// No error since both embedded structs have field R, which annihilate each other.
++		// Thus, no attempt is made at setting S4.embed1.
++		in:  `{"R":2}`,
++		ptr: new(S4),
++		out: new(S4),
++	}, {
++		// Error since we cannot set S5.embed1, but still able to set S5.R.
++		in:  `{"R":2,"Q":1}`,
++		ptr: new(S5),
++		out: &S5{R: 2},
++		err: fmt.Errorf("json: cannot set embedded pointer to unexported struct: json.embed3"),
++	}}
++
++	for i, tt := range tests {
++		err := Unmarshal([]byte(tt.in), tt.ptr)
++		if !reflect.DeepEqual(err, tt.err) {
++			t.Errorf("#%d: %v, want %v", i, err, tt.err)
++		}
++		if !reflect.DeepEqual(tt.ptr, tt.out) {
++			t.Errorf("#%d: mismatch\ngot:  %#+v\nwant: %#+v", i, tt.ptr, tt.out)
++		}
++	}
++}
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 0522c43495..1e45e445d9 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -1094,18 +1094,11 @@ func typeFields(t reflect.Type) []field {
+ 				isUnexported := sf.PkgPath != ""
+ 				if sf.Anonymous {
+ 					t := sf.Type
+-					isPointer := t.Kind() == reflect.Ptr
+-					if isPointer {
++					if t.Kind() == reflect.Ptr {
+ 						t = t.Elem()
+ 					}
+-					isStruct := t.Kind() == reflect.Struct
+-					if isUnexported && (!isStruct || isPointer) {
+-						// Ignore embedded fields of unexported non-struct types
+-						// or pointers to unexported struct types.
+-						//
+-						// The latter is forbidden because unmarshal is unable
+-						// to assign a new struct to the unexported field.
+-						// See https://golang.org/issue/21357
++					if isUnexported && t.Kind() != reflect.Struct {
++						// Ignore embedded fields of unexported non-struct types.
+ 						continue
+ 					}
+ 					// Do not ignore embedded fields of unexported struct types
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index df7338c98d..0f194e13d2 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -364,9 +364,8 @@ func TestAnonymousFields(t *testing.T) {
+ 		want: `{"X":2,"Y":4}`,
+ 	}, {
+ 		// Exported fields of pointers to embedded structs should have their
+-		// exported fields be serialized only for exported struct types.
+-		// Pointers to unexported structs are not allowed since the decoder
+-		// is unable to allocate a struct for that field
++		// exported fields be serialized regardless of whether the struct types
++		// themselves are exported.
+ 		label: "EmbeddedStructPointer",
+ 		makeInput: func() interface{} {
+ 			type (
+@@ -379,7 +378,7 @@ func TestAnonymousFields(t *testing.T) {
+ 			)
+ 			return S{&s1{1, 2}, &S2{3, 4}}
+ 		},
+-		want: `{"Y":4}`,
++		want: `{"X":2,"Y":4}`,
+ 	}, {
+ 		// Exported fields on embedded unexported structs at multiple levels
+ 		// of nesting should still be serialized.

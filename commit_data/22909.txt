@@ -9,7 +9,7 @@ Date:   Mon Apr 13 09:52:02 2015 -0700
     Change-Id: I4fba0c248645c3910ee3f7fc99dacafb676c5dc2
     Reviewed-on: https://go-review.googlesource.com/8911
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/7g/gsubr.go              | 2 +-
  src/cmd/9g/gsubr.go              | 2 +-
  src/cmd/internal/gc/cgen.go      | 2 +-
@@ -22,3 +22,178 @@ Date:   Mon Apr 13 09:52:02 2015 -0700
  src/cmd/internal/gc/swt.go       | 2 +-
  src/cmd/internal/gc/typecheck.go | 4 ++--
  11 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/7g/gsubr.go b/src/cmd/7g/gsubr.go
+index 02554b01db..d2e83ad20d 100644
+--- a/src/cmd/7g/gsubr.go
++++ b/src/cmd/7g/gsubr.go
+@@ -447,7 +447,7 @@ func intLiteral(n *gc.Node) (x int64, ok bool) {
+ 	case gc.CTINT, gc.CTRUNE:
+ 		return gc.Mpgetfix(n.Val.U.Xval), true
+ 	case gc.CTBOOL:
+-		return int64(n.Val.U.Bval), true
++		return int64(bool2int(n.Val.U.Bval)), true
+ 	}
+ 	return
+ }
+diff --git a/src/cmd/9g/gsubr.go b/src/cmd/9g/gsubr.go
+index 86b6f86361..5ad528185e 100644
+--- a/src/cmd/9g/gsubr.go
++++ b/src/cmd/9g/gsubr.go
+@@ -526,7 +526,7 @@ func intLiteral(n *gc.Node) (x int64, ok bool) {
+ 	case gc.CTINT, gc.CTRUNE:
+ 		return gc.Mpgetfix(n.Val.U.Xval), true
+ 	case gc.CTBOOL:
+-		return int64(n.Val.U.Bval), true
++		return int64(bool2int(n.Val.U.Bval)), true
+ 	}
+ 	return
+ }
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index 886a2d12f4..9c73300f46 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -1690,7 +1690,7 @@ func Bgen(n *Node, true_ bool, likely int, to *obj.Prog) {
+ 
+ 		// need to ask if it is bool?
+ 	case OLITERAL:
+-		if !true_ == (n.Val.U.Bval == 0) {
++		if true_ == n.Val.U.Bval {
+ 			Patch(Gbranch(obj.AJMP, nil, likely), to)
+ 		}
+ 		return
+diff --git a/src/cmd/internal/gc/const.go b/src/cmd/internal/gc/const.go
+index e81db1da9c..5d44c552cf 100644
+--- a/src/cmd/internal/gc/const.go
++++ b/src/cmd/internal/gc/const.go
+@@ -650,7 +650,7 @@ func evconst(n *Node) {
+ 			mpnegflt(&v.U.Cval.Imag)
+ 
+ 		case ONOT<<16 | CTBOOL:
+-			if v.U.Bval == 0 {
++			if !v.U.Bval {
+ 				goto settrue
+ 			}
+ 			goto setfalse
+@@ -990,13 +990,13 @@ func evconst(n *Node) {
+ 		goto setfalse
+ 
+ 	case OOROR<<16 | CTBOOL:
+-		if v.U.Bval != 0 || rv.U.Bval != 0 {
++		if v.U.Bval || rv.U.Bval {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OANDAND<<16 | CTBOOL:
+-		if v.U.Bval != 0 && rv.U.Bval != 0 {
++		if v.U.Bval && rv.U.Bval {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+@@ -1418,7 +1418,7 @@ func Convconst(con *Node, t *Type, val *Val) {
+ 			i = Mpgetfix(val.U.Xval)
+ 
+ 		case CTBOOL:
+-			i = int64(val.U.Bval)
++			i = int64(bool2int(val.U.Bval))
+ 
+ 		case CTNIL:
+ 			i = 0
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index 589f20cff4..6720d5cef5 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -344,7 +344,7 @@ func Vconv(v *Val, flag int) string {
+ 		return strconv.Quote(v.U.Sval)
+ 
+ 	case CTBOOL:
+-		if v.U.Bval != 0 {
++		if v.U.Bval {
+ 			return "true"
+ 		}
+ 		return "false"
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 803703e818..5803f39ec2 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -85,7 +85,7 @@ type Val struct {
+ 	Ctype int16
+ 	U     struct {
+ 		Reg  int16   // OREGISTER
+-		Bval int16   // bool value CTBOOL
++		Bval bool    // bool value CTBOOL
+ 		Xval *Mpint  // int CTINT, rune CTRUNE
+ 		Fval *Mpflt  // float CTFLT
+ 		Cval *Mpcplx // float CTCPLX
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index 6ca8c75a83..36a4a95d83 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -417,7 +417,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		case CTBOOL:
+ 			a.Sym = nil
+ 			a.Type = obj.TYPE_CONST
+-			a.Offset = int64(n.Val.U.Bval)
++			a.Offset = int64(bool2int(n.Val.U.Bval))
+ 
+ 		case CTNIL:
+ 			a.Sym = nil
+diff --git a/src/cmd/internal/gc/sinit.go b/src/cmd/internal/gc/sinit.go
+index 96743b861c..14aca86fa0 100644
+--- a/src/cmd/internal/gc/sinit.go
++++ b/src/cmd/internal/gc/sinit.go
+@@ -1363,7 +1363,7 @@ func iszero(n *Node) bool {
+ 			return n.Val.U.Sval == ""
+ 
+ 		case CTBOOL:
+-			return n.Val.U.Bval == 0
++			return !n.Val.U.Bval
+ 
+ 		case CTINT, CTRUNE:
+ 			return mpcmpfixc(n.Val.U.Xval, 0) == 0
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index 3b8ced9c53..c18f1e9339 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -710,7 +710,7 @@ func nodnil() *Node {
+ func Nodbool(b bool) *Node {
+ 	c := Nodintconst(0)
+ 	c.Val.Ctype = CTBOOL
+-	c.Val.U.Bval = int16(bool2int(b))
++	c.Val.U.Bval = b
+ 	c.Type = idealbool
+ 	return c
+ }
+diff --git a/src/cmd/internal/gc/swt.go b/src/cmd/internal/gc/swt.go
+index 991f3ac904..793a0d6235 100644
+--- a/src/cmd/internal/gc/swt.go
++++ b/src/cmd/internal/gc/swt.go
+@@ -218,7 +218,7 @@ func (s *exprSwitch) walk(sw *Node) {
+ 	s.kind = switchKindExpr
+ 	if Isconst(sw.Ntest, CTBOOL) {
+ 		s.kind = switchKindTrue
+-		if sw.Ntest.Val.U.Bval == 0 {
++		if !sw.Ntest.Val.U.Bval {
+ 			s.kind = switchKindFalse
+ 		}
+ 	}
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index 08262b15d4..5c31e3e401 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -2826,12 +2826,12 @@ func keydup(n *Node, hash []*Node) {
+ 			if Eqtype(a.Left.Type, n.Type) {
+ 				cmp.Right = a.Left
+ 				evconst(&cmp)
+-				b = uint32(cmp.Val.U.Bval)
++				b = uint32(bool2int(cmp.Val.U.Bval))
+ 			}
+ 		} else if Eqtype(a.Type, n.Type) {
+ 			cmp.Right = a
+ 			evconst(&cmp)
+-			b = uint32(cmp.Val.U.Bval)
++			b = uint32(bool2int(cmp.Val.U.Bval))
+ 		}
+ 
+ 		if b != 0 {

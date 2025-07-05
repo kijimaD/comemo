@@ -9,6 +9,20 @@ Date:   Sat Jul 15 14:53:44 2017 -0600
     Change-Id: Ifb0aed8f1dc854f85751ce0495967a3c4315128d
     Reviewed-on: https://go-review.googlesource.com/49016
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/symtab.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 3bba87db5a..8e410c4560 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -382,7 +382,7 @@ type moduledata struct {
+ // at link time and a pointer to the runtime abi hash. These are checked in
+ // moduledataverify1 below.
+ //
+-// For each loaded plugin, the the pkghashes slice has a modulehash of the
++// For each loaded plugin, the pkghashes slice has a modulehash of the
+ // newly loaded package that can be used to check the plugin's version of
+ // a package against any previously loaded version of the package.
+ // This is done in plugin.lastmoduleinit.

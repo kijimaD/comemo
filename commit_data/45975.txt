@@ -29,3 +29,25 @@ Date:   Tue Dec 1 17:16:25 2020 -0500
  src/crypto/x509/root_omit.go                      |   3 -
  src/go/build/deps_test.go                         |   2 +-
  21 files changed, 236 insertions(+), 419 deletions(-)
+
+diff --cc src/go/build/deps_test.go
+index 3a0726a293,bf1367355d..89bae9fd51
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@@ -388,12 -390,12 +388,12 @@@ var depsRules = 
+  	< golang.org/x/crypto/curve25519
+  	< crypto/dsa, crypto/elliptic, crypto/rsa
+  	< crypto/ecdsa
+ -	< CRYPTO-MATH;
+ +	< CRYPTO-BORING;
+  
+ -	CGO, net !< CRYPTO-MATH;
+ +	net !< CRYPTO-BORING;
+  
+  	# TLS, Prince of Dependencies.
+- 	CGO, CRYPTO-BORING, NET, container/list, encoding/hex, encoding/pem
+ -	CRYPTO-MATH, NET, container/list, encoding/hex, encoding/pem
+++	CRYPTO-BORING, NET, container/list, encoding/hex, encoding/pem
+  	< golang.org/x/crypto/internal/subtle
+  	< golang.org/x/crypto/chacha20
+  	< golang.org/x/crypto/poly1305

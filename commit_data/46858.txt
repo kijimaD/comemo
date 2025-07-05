@@ -13,10 +13,251 @@ Date:   Thu Feb 4 12:24:10 2021 -0500
     Trust: Robert Findley <rfindley@google.com>
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check.go                              | 36 ++++++------
  src/go/types/resolver.go                           | 67 ++++++++++------------
  src/go/types/testdata/importdecl0/importdecl0b.src |  2 +-
  src/go/types/testdata/importdecl1/importdecl1b.src |  2 +-
  src/go/types/typexpr.go                            |  8 +--
  5 files changed, 54 insertions(+), 61 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 280792e838..03798587e7 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -69,6 +69,12 @@ type importKey struct {
+ 	path, dir string
+ }
+ 
++// A dotImportKey describes a dot-imported object in the given scope.
++type dotImportKey struct {
++	scope *Scope
++	obj   Object
++}
++
+ // A Checker maintains the state of the type checker.
+ // It must be created with NewChecker.
+ type Checker struct {
+@@ -86,8 +92,9 @@ type Checker struct {
+ 	// information collected during type-checking of a set of package files
+ 	// (initialized by Files, valid only for the duration of check.Files;
+ 	// maps and lists are allocated on demand)
+-	files            []*ast.File                             // package files
+-	unusedDotImports map[*Scope]map[*Package]*ast.ImportSpec // unused dot-imported packages
++	files        []*ast.File               // package files
++	imports      []*PkgName                // list of imported packages
++	dotImportMap map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
+ 
+ 	firstErr error                 // first error encountered
+ 	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
+@@ -104,22 +111,6 @@ type Checker struct {
+ 	indent int // indentation for tracing
+ }
+ 
+-// addUnusedImport adds the position of a dot-imported package
+-// pkg to the map of dot imports for the given file scope.
+-func (check *Checker) addUnusedDotImport(scope *Scope, pkg *Package, spec *ast.ImportSpec) {
+-	mm := check.unusedDotImports
+-	if mm == nil {
+-		mm = make(map[*Scope]map[*Package]*ast.ImportSpec)
+-		check.unusedDotImports = mm
+-	}
+-	m := mm[scope]
+-	if m == nil {
+-		m = make(map[*Package]*ast.ImportSpec)
+-		mm[scope] = m
+-	}
+-	m[pkg] = spec
+-}
+-
+ // addDeclDep adds the dependency edge (check.decl -> to) if check.decl exists
+ func (check *Checker) addDeclDep(to Object) {
+ 	from := check.decl
+@@ -202,7 +193,8 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ func (check *Checker) initFiles(files []*ast.File) {
+ 	// start with a clean slate (check.Files may be called multiple times)
+ 	check.files = nil
+-	check.unusedDotImports = nil
++	check.imports = nil
++	check.dotImportMap = nil
+ 
+ 	check.firstErr = nil
+ 	check.methods = nil
+@@ -272,10 +264,16 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 	if !check.conf.DisableUnusedImportCheck {
+ 		check.unusedImports()
+ 	}
++	// no longer needed - release memory
++	check.imports = nil
++	check.dotImportMap = nil
+ 
+ 	check.recordUntyped()
+ 
+ 	check.pkg.complete = true
++
++	// TODO(rFindley) There's more memory we should release at this point.
++
+ 	return
+ }
+ 
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index b637f8b8ca..cb66871883 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -275,21 +275,26 @@ func (check *Checker) collectObjects() {
+ 					}
+ 				}
+ 
+-				obj := NewPkgName(d.spec.Pos(), pkg, name, imp)
++				pkgName := NewPkgName(d.spec.Pos(), pkg, name, imp)
+ 				if d.spec.Name != nil {
+ 					// in a dot-import, the dot represents the package
+-					check.recordDef(d.spec.Name, obj)
++					check.recordDef(d.spec.Name, pkgName)
+ 				} else {
+-					check.recordImplicit(d.spec, obj)
++					check.recordImplicit(d.spec, pkgName)
+ 				}
+ 
+ 				if path == "C" {
+ 					// match cmd/compile (not prescribed by spec)
+-					obj.used = true
++					pkgName.used = true
+ 				}
+ 
+ 				// add import to file scope
++				check.imports = append(check.imports, pkgName)
+ 				if name == "." {
++					// dot-import
++					if check.dotImportMap == nil {
++						check.dotImportMap = make(map[dotImportKey]*PkgName)
++					}
+ 					// merge imported scope with file scope
+ 					for _, obj := range imp.scope.elems {
+ 						// A package scope may contain non-exported objects,
+@@ -303,16 +308,15 @@ func (check *Checker) collectObjects() {
+ 							if alt := fileScope.Insert(obj); alt != nil {
+ 								check.errorf(d.spec.Name, _DuplicateDecl, "%s redeclared in this block", obj.Name())
+ 								check.reportAltDecl(alt)
++							} else {
++								check.dotImportMap[dotImportKey{fileScope, obj}] = pkgName
+ 							}
+ 						}
+ 					}
+-					// add position to set of dot-import positions for this file
+-					// (this is only needed for "imported but not used" errors)
+-					check.addUnusedDotImport(fileScope, imp, d.spec)
+ 				} else {
+ 					// declare imported package object in file scope
+ 					// (no need to provide s.Name since we called check.recordDef earlier)
+-					check.declare(fileScope, nil, obj, token.NoPos)
++					check.declare(fileScope, nil, pkgName, token.NoPos)
+ 				}
+ 			case constDecl:
+ 				// declare all constants
+@@ -566,39 +570,30 @@ func (check *Checker) unusedImports() {
+ 	// any of its exported identifiers. To import a package solely for its side-effects
+ 	// (initialization), use the blank identifier as explicit package name."
+ 
+-	// check use of regular imported packages
+-	for _, scope := range check.pkg.scope.children /* file scopes */ {
+-		for _, obj := range scope.elems {
+-			if obj, ok := obj.(*PkgName); ok {
+-				// Unused "blank imports" are automatically ignored
+-				// since _ identifiers are not entered into scopes.
+-				if !obj.used {
+-					path := obj.imported.path
+-					base := pkgName(path)
+-					if obj.name == base {
+-						check.softErrorf(obj, _UnusedImport, "%q imported but not used", path)
+-					} else {
+-						check.softErrorf(obj, _UnusedImport, "%q imported but not used as %s", path, obj.name)
+-					}
+-				}
+-			}
+-		}
+-	}
+-
+-	// check use of dot-imported packages
+-	for _, unusedDotImports := range check.unusedDotImports {
+-		for pkg, pos := range unusedDotImports {
+-			check.softErrorf(pos, _UnusedImport, "%q imported but not used", pkg.path)
++	for _, obj := range check.imports {
++		if !obj.used && obj.name != "_" {
++			check.errorUnusedPkg(obj)
+ 		}
+ 	}
+ }
+ 
+-// pkgName returns the package name (last element) of an import path.
+-func pkgName(path string) string {
+-	if i := strings.LastIndex(path, "/"); i >= 0 {
+-		path = path[i+1:]
++func (check *Checker) errorUnusedPkg(obj *PkgName) {
++	// If the package was imported with a name other than the final
++	// import path element, show it explicitly in the error message.
++	// Note that this handles both renamed imports and imports of
++	// packages containing unconventional package declarations.
++	// Note that this uses / always, even on Windows, because Go import
++	// paths always use forward slashes.
++	path := obj.imported.path
++	elem := path
++	if i := strings.LastIndex(elem, "/"); i >= 0 {
++		elem = elem[i+1:]
++	}
++	if obj.name == "" || obj.name == "." || obj.name == elem {
++		check.softErrorf(obj, _UnusedImport, "%q imported but not used", path)
++	} else {
++		check.softErrorf(obj, _UnusedImport, "%q imported but not used as %s", path, obj.name)
+ 	}
+-	return path
+ }
+ 
+ // dir makes a good-faith attempt to return the directory
+diff --git a/src/go/types/testdata/importdecl0/importdecl0b.src b/src/go/types/testdata/importdecl0/importdecl0b.src
+index 6844e70982..55690423b6 100644
+--- a/src/go/types/testdata/importdecl0/importdecl0b.src
++++ b/src/go/types/testdata/importdecl0/importdecl0b.src
+@@ -8,7 +8,7 @@ import "math"
+ import m "math"
+ 
+ import . "testing" // declares T in file scope
+-import . /* ERROR "imported but not used" */ "unsafe"
++import . /* ERROR .unsafe. imported but not used */ "unsafe"
+ import . "fmt"     // declares Println in file scope
+ 
+ import (
+diff --git a/src/go/types/testdata/importdecl1/importdecl1b.src b/src/go/types/testdata/importdecl1/importdecl1b.src
+index ee70bbd8e7..43a7bcd753 100644
+--- a/src/go/types/testdata/importdecl1/importdecl1b.src
++++ b/src/go/types/testdata/importdecl1/importdecl1b.src
+@@ -4,7 +4,7 @@
+ 
+ package importdecl1
+ 
+-import . /* ERROR "imported but not used" */ "unsafe"
++import . /* ERROR .unsafe. imported but not used */ "unsafe"
+ 
+ type B interface {
+ 	A
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 311a970051..6e89ccb027 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -51,12 +51,12 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
+ 	}
+ 	assert(typ != nil)
+ 
+-	// The object may be dot-imported: If so, remove its package from
+-	// the map of unused dot imports for the respective file scope.
++	// The object may have been dot-imported.
++	// If so, mark the respective package as used.
+ 	// (This code is only needed for dot-imports. Without them,
+ 	// we only have to mark variables, see *Var case below).
+-	if pkg := obj.Pkg(); pkg != check.pkg && pkg != nil {
+-		delete(check.unusedDotImports[scope], pkg)
++	if pkgName := check.dotImportMap[dotImportKey{scope, obj}]; pkgName != nil {
++		pkgName.used = true
+ 	}
+ 
+ 	switch obj := obj.(type) {

@@ -13,6 +13,25 @@ Date:   Mon Apr 3 16:14:26 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/bv.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/bv.go b/src/cmd/compile/internal/gc/bv.go
+index 993ab1e542..72f29e8253 100644
+--- a/src/cmd/compile/internal/gc/bv.go
++++ b/src/cmd/compile/internal/gc/bv.go
+@@ -29,8 +29,12 @@ type bulkBvec struct {
+ 
+ func bvbulkalloc(nbit int32, count int32) bulkBvec {
+ 	nword := (nbit + WORDBITS - 1) / WORDBITS
++	size := int64(nword) * int64(count)
++	if int64(int32(size*4)) != size*4 {
++		Fatalf("bvbulkalloc too big: nbit=%d count=%d nword=%d size=%d", nbit, count, nword, size)
++	}
+ 	return bulkBvec{
+-		words: make([]uint32, nword*count),
++		words: make([]uint32, size),
+ 		nbit:  nbit,
+ 		nword: nword,
+ 	}

@@ -10,6 +10,43 @@ Date:   Mon Jun 8 22:04:09 2020 +0430
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/reflect/example_test.go | 28 ++++++++++++++++++++++++++++
  1 file changed, 28 insertions(+)
+
+diff --git a/src/reflect/example_test.go b/src/reflect/example_test.go
+index 23c08e4950..684bafd648 100644
+--- a/src/reflect/example_test.go
++++ b/src/reflect/example_test.go
+@@ -166,3 +166,31 @@ func ExampleStructOf() {
+ 	// json:  {"height":0.4,"age":2}
+ 	// value: &{Height:1.5 Age:10}
+ }
++
++func ExampleValue_FieldByIndex() {
++	// This example shows a case in which the name of a promoted field
++	// is hidden by another field: FieldByName will not work, so
++	// FieldByIndex must be used instead.
++	type user struct {
++		firstName string
++		lastName  string
++	}
++
++	type data struct {
++		user
++		firstName string
++		lastName  string
++	}
++
++	u := data{
++		user:      user{"Embedded John", "Embedded Doe"},
++		firstName: "John",
++		lastName:  "Doe",
++	}
++
++	s := reflect.ValueOf(u).FieldByIndex([]int{0, 1})
++	fmt.Println("embedded last name:", s)
++
++	// Output:
++	// embedded last name: Embedded Doe
++}

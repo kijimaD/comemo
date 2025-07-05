@@ -10,7 +10,34 @@ Date:   Wed Feb 4 16:03:57 2015 -0500
     Change-Id: I90946119a0901e24063b190d1a074594af7654c7
     Reviewed-on: https://go-review.googlesource.com/3888
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/build.go   | 2 +-
  src/liblink/objfile.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 0cb7dbb239..2d3ba41cba 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1675,7 +1675,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool,
+ // verifyAsm specifies whether to check the assemblers written in Go
+ // against the assemblers written in C. If set, asm will run both (say) 6a and new6a
+ // and fail if the two produce different output files.
+-const verifyAsm = true
++const verifyAsm = false
+ 
+ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index 8c2257de8a..a238fce57d 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -143,7 +143,7 @@ writeobj(Link *ctxt, Biobuf *b)
+ 	// we will hard code the GOOBJ=1 behavior.
+ 	env = getenv("GOOBJ");
+ 	if(env == nil)
+-		env = "2";
++		env = "0";
+ 	if(atoi(env) == 0) {
+ 		writeobjdirect(ctxt, b);
+ 		return;

@@ -20,6 +20,25 @@ Date:   Fri Feb 27 10:46:42 2015 -0800
     Change-Id: I3f644a72e94c3341f3360dfee58db5ec3a591e26
     Reviewed-on: https://go-review.googlesource.com/6280
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/run.bash | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/run.bash b/src/run.bash
+index 4177124e1b..90afaaa4e6 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -158,6 +158,13 @@ android-arm | dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | fr
+ 			go test -ldflags '-linkmode=external' ../nocgo || exit 1
+ 			go test -ldflags '-linkmode=external -extldflags "-static -pthread"' ../nocgo || exit 1
+ 		fi
++		if ! $CC -xc -o /dev/null -pie - 2>/dev/null <<<'int main() {}' ; then
++			echo "No support for -pie found, skip cgo PIE test."
++		else
++			go test -ldflags '-linkmode=external -extldflags "-pie"' || exit 1
++			go test -ldflags '-linkmode=external -extldflags "-pie"' ../testtls || exit 1
++			go test -ldflags '-linkmode=external -extldflags "-pie"' ../nocgo || exit 1
++		fi
+ 		;;
+ 	esac
+ 	;;

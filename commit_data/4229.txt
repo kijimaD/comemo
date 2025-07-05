@@ -8,6 +8,22 @@ Date:   Sun Nov 29 14:22:07 2009 -0800
     
     R=rsc
     https://golang.org/cl/160070
-
+---
  misc/emacs/go-mode.el | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index 50a1c5c154..88198e3c4d 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -462,8 +462,8 @@ functions, and some types.  It also provides indentation that is
+   (add-hook 'after-change-functions #'go-mode-delayed-electric-hook nil t)
+ 
+   ;; Comments
+-  (setq comment-start "// "
+-        comment-end   "")
++  (set (make-local-variable 'comment-start) "// ")
++  (set (make-local-variable 'comment-end)   "")
+ 
+   ;; Go style
+   (setq indent-tabs-mode t))

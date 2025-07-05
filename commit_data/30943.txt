@@ -13,6 +13,26 @@ Date:   Thu Dec 22 08:59:52 2016 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 88c54432fb..5665eb745a 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3357,9 +3357,11 @@ func TestCgoConsistentResults(t *testing.T) {
+ 	if !canCgo {
+ 		t.Skip("skipping because cgo not enabled")
+ 	}
+-	if runtime.GOOS == "solaris" {
+-		// See https://golang.org/issue/13247
+-		t.Skip("skipping because Solaris builds are known to be inconsistent; see #13247")
++	switch runtime.GOOS {
++	case "freebsd":
++		testenv.SkipFlaky(t, 15405)
++	case "solaris":
++		testenv.SkipFlaky(t, 13247)
+ 	}
+ 
+ 	tg := testgo(t)

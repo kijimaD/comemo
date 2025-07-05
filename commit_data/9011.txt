@@ -17,9 +17,174 @@ Date:   Mon Jul 11 15:59:27 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4675081
-
+---
  src/pkg/exec/exec.go               |  6 ++-
  src/pkg/http/cgi/host.go           |  1 +
  src/pkg/http/cgi/host_test.go      | 76 +++++++++++++++++++++++++++++++++++++-
  src/pkg/http/cgi/testdata/test.cgi |  8 ++++
  4 files changed, 87 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index 4ddefae24e..3b20f2008c 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -338,7 +338,8 @@ func (c *Cmd) StdinPipe() (io.WriteCloser, os.Error) {
+ 
+ // StdoutPipe returns a pipe that will be connected to the command's
+ // standard output when the command starts.
+-func (c *Cmd) StdoutPipe() (io.Reader, os.Error) {
++// The pipe will be closed automatically after Wait sees the command exit.
++func (c *Cmd) StdoutPipe() (io.ReadCloser, os.Error) {
+ 	if c.Stdout != nil {
+ 		return nil, os.NewError("exec: Stdout already set")
+ 	}
+@@ -357,7 +358,8 @@ func (c *Cmd) StdoutPipe() (io.Reader, os.Error) {
+ 
+ // StderrPipe returns a pipe that will be connected to the command's
+ // standard error when the command starts.
+-func (c *Cmd) StderrPipe() (io.Reader, os.Error) {
++// The pipe will be closed automatically after Wait sees the command exit.
++func (c *Cmd) StderrPipe() (io.ReadCloser, os.Error) {
+ 	if c.Stderr != nil {
+ 		return nil, os.NewError("exec: Stderr already set")
+ 	}
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index 059fc758e3..93825b3919 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -187,6 +187,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		return
+ 	}
+ 	defer cmd.Wait()
++	defer stdoutRead.Close()
+ 
+ 	linebody, _ := bufio.NewReaderSize(stdoutRead, 1024)
+ 	headers := make(http.Header)
+diff --git a/src/pkg/http/cgi/host_test.go b/src/pkg/http/cgi/host_test.go
+index b08d8bbf68..250324a512 100644
+--- a/src/pkg/http/cgi/host_test.go
++++ b/src/pkg/http/cgi/host_test.go
+@@ -12,10 +12,14 @@ import (
+ 	"fmt"
+ 	"http"
+ 	"http/httptest"
++	"io"
+ 	"os"
++	"net"
+ 	"path/filepath"
++	"strconv"
+ 	"strings"
+ 	"testing"
++	"time"
+ 	"runtime"
+ )
+ 
+@@ -304,8 +308,76 @@ func TestInternalRedirect(t *testing.T) {
+ 	runCgiTest(t, h, "GET /test.cgi?loc=/foo HTTP/1.0\nHost: example.com\n\n", expectedMap)
+ }
+ 
++// TestCopyError tests that we kill the process if there's an error copying
++// its output. (for example, from the client having gone away)
++func TestCopyError(t *testing.T) {
++	if skipTest(t) || runtime.GOOS == "windows" {
++		return
++	}
++	h := &Handler{
++		Path: "testdata/test.cgi",
++		Root: "/test.cgi",
++	}
++	ts := httptest.NewServer(h)
++	defer ts.Close()
++
++	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	req, _ := http.NewRequest("GET", "http://example.com/test.cgi?bigresponse=1", nil)
++	err = req.Write(conn)
++	if err != nil {
++		t.Fatalf("Write: %v", err)
++	}
++
++	res, err := http.ReadResponse(bufio.NewReader(conn), req)
++	if err != nil {
++		t.Fatalf("ReadResponse: %v", err)
++	}
++
++	pidstr := res.Header.Get("X-CGI-Pid")
++	if pidstr == "" {
++		t.Fatalf("expected an X-CGI-Pid header in response")
++	}
++	pid, err := strconv.Atoi(pidstr)
++	if err != nil {
++		t.Fatalf("invalid X-CGI-Pid value")
++	}
++
++	var buf [5000]byte
++	n, err := io.ReadFull(res.Body, buf[:])
++	if err != nil {
++		t.Fatalf("ReadFull: %d bytes, %v", n, err)
++	}
++
++	childRunning := func() bool {
++		p, err := os.FindProcess(pid)
++		if err != nil {
++			return false
++		}
++		return p.Signal(os.UnixSignal(0)) == nil
++	}
++
++	if !childRunning() {
++		t.Fatalf("pre-conn.Close, expected child to be running")
++	}
++	conn.Close()
++
++	if tries := 0; childRunning() {
++		for tries < 5 && childRunning() {
++			time.Sleep(50e6 * int64(tries))
++			tries++
++		}
++		if childRunning() {
++			t.Fatalf("post-conn.Close, expected child to be gone")
++		}
++	}
++}
++
++
+ func TestDirUnix(t *testing.T) {
+-	if runtime.GOOS == "windows" {
++	if skipTest(t) || runtime.GOOS == "windows" {
+ 		return
+ 	}
+ 
+@@ -333,7 +405,7 @@ func TestDirUnix(t *testing.T) {
+ }
+ 
+ func TestDirWindows(t *testing.T) {
+-	if runtime.GOOS != "windows" {
++	if skipTest(t) || runtime.GOOS != "windows" {
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/http/cgi/testdata/test.cgi b/src/pkg/http/cgi/testdata/test.cgi
+index 36c107f76b..b46b1330f3 100755
+--- a/src/pkg/http/cgi/testdata/test.cgi
++++ b/src/pkg/http/cgi/testdata/test.cgi
+@@ -25,9 +25,17 @@ my $p = sub {
+ 
+ # With carriage returns
+ $p->("Content-Type: text/html");
++$p->("X-CGI-Pid: $$");
+ $p->("X-Test-Header: X-Test-Value");
+ $p->("");
+ 
++if ($params->{"bigresponse"}) {
++    for (1..1024) {
++        print "A" x 1024, "\n";
++    }
++    exit 0;
++}
++
+ print "test=Hello CGI\n";
+ 
+ foreach my $k (sort keys %$params) {

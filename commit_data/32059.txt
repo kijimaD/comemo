@@ -16,9 +16,173 @@ Date:   Fri Mar 31 09:57:38 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/39170
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go       | 54 ++++++++++++--------------------
  src/cmd/compile/internal/gc/reflect.go   |  6 ++--
  src/cmd/compile/internal/gc/subr.go      |  2 +-
  src/cmd/compile/internal/gc/typecheck.go |  6 ++--
  4 files changed, 27 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index b66231ab88..8f548895d4 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -956,56 +956,48 @@ func functypefield0(t *Type, this *Field, in, out []*Field) {
+ 
+ var methodsym_toppkg *Pkg
+ 
+-func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
+-	var s *Sym
+-	var p string
+-	var suffix string
+-	var spkg *Pkg
++func methodsym(nsym *Sym, t0 *Type, iface bool) *Sym {
++	if t0 == nil {
++		Fatalf("methodsym: nil receiver type")
++	}
+ 
+ 	t := t0
+-	if t == nil {
+-		goto bad
+-	}
+-	s = t.Sym
++	s := t.Sym
+ 	if s == nil && t.IsPtr() {
+ 		t = t.Elem()
+ 		if t == nil {
+-			goto bad
++			Fatalf("methodsym: ptrto nil")
+ 		}
+ 		s = t.Sym
+ 	}
+ 
+-	spkg = nil
+-	if s != nil {
+-		spkg = s.Pkg
+-	}
+-
+ 	// if t0 == *t and t0 has a sym,
+ 	// we want to see *t, not t0, in the method name.
+ 	if t != t0 && t0.Sym != nil {
+ 		t0 = typPtr(t)
+ 	}
+ 
+-	suffix = ""
+-	if iface != 0 {
++	suffix := ""
++	if iface {
+ 		dowidth(t0)
+ 		if t0.Width < int64(Widthptr) {
+ 			suffix = "·i"
+ 		}
+ 	}
+ 
++	var spkg *Pkg
++	if s != nil {
++		spkg = s.Pkg
++	}
++	pkgprefix := ""
+ 	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) {
+-		if t0.Sym == nil && t0.IsPtr() {
+-			p = fmt.Sprintf("(%-S).%s.%s%s", t0, nsym.Pkg.Prefix, nsym.Name, suffix)
+-		} else {
+-			p = fmt.Sprintf("%-S.%s.%s%s", t0, nsym.Pkg.Prefix, nsym.Name, suffix)
+-		}
++		pkgprefix = "." + nsym.Pkg.Prefix
++	}
++	var p string
++	if t0.Sym == nil && t0.IsPtr() {
++		p = fmt.Sprintf("(%-S)%s.%s%s", t0, pkgprefix, nsym.Name, suffix)
+ 	} else {
+-		if t0.Sym == nil && t0.IsPtr() {
+-			p = fmt.Sprintf("(%-S).%s%s", t0, nsym.Name, suffix)
+-		} else {
+-			p = fmt.Sprintf("%-S.%s%s", t0, nsym.Name, suffix)
+-		}
++		p = fmt.Sprintf("%-S%s.%s%s", t0, pkgprefix, nsym.Name, suffix)
+ 	}
+ 
+ 	if spkg == nil {
+@@ -1015,13 +1007,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
+ 		spkg = methodsym_toppkg
+ 	}
+ 
+-	s = spkg.Lookup(p)
+-
+-	return s
+-
+-bad:
+-	yyerror("illegal receiver type: %v", t0)
+-	return nil
++	return spkg.Lookup(p)
+ }
+ 
+ // methodname is a misnomer because this now returns a Sym, rather
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 1da20b67a1..66b19988d8 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -356,8 +356,8 @@ func methods(t *Type) []*Sig {
+ 			sig.pkg = method.Pkg
+ 		}
+ 
+-		sig.isym = methodsym(method, it, 1)
+-		sig.tsym = methodsym(method, t, 0)
++		sig.isym = methodsym(method, it, true)
++		sig.tsym = methodsym(method, t, false)
+ 		sig.type_ = methodfunc(f.Type, t)
+ 		sig.mtype = methodfunc(f.Type, nil)
+ 
+@@ -423,7 +423,7 @@ func imethods(t *Type) []*Sig {
+ 		// IfaceType.Method is not in the reflect data.
+ 		// Generate the method body, so that compiled
+ 		// code can refer to it.
+-		isym := methodsym(method, t, 0)
++		isym := methodsym(method, t, false)
+ 		if !isym.Siggen() {
+ 			isym.SetSiggen(true)
+ 			genwrapper(t, f, isym, 0)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index fb56d4eb3a..a61f339a1b 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1783,7 +1783,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 		as.Right.Type = rcvr
+ 		fn.Nbody.Append(as)
+ 		n := nod(ORETJMP, nil, nil)
+-		n.Left = newname(methodsym(method.Sym, methodrcvr, 0))
++		n.Left = newname(methodsym(method.Sym, methodrcvr, false))
+ 		fn.Nbody.Append(n)
+ 		// When tail-calling, we can't use a frame pointer.
+ 		fn.Func.SetNoFramePointer(true)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 00045930eb..17301ea820 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2384,7 +2384,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+ 			return false
+ 		}
+ 
+-		n.Sym = methodsym(n.Sym, t, 0)
++		n.Sym = methodsym(n.Sym, t, false)
+ 		n.Xoffset = f1.Offset
+ 		n.Type = f1.Type
+ 		n.Op = ODOTINTER
+@@ -2410,7 +2410,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+ 		return false
+ 	}
+ 
+-	n.Sym = methodsym(n.Sym, t, 0)
++	n.Sym = methodsym(n.Sym, t, false)
+ 	n.Xoffset = f2.Offset
+ 	n.Type = f2.Type
+ 	n.Op = ODOTMETH
+@@ -2529,7 +2529,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 			return nil
+ 		}
+ 
+-		n.Sym = methodsym(n.Sym, n.Left.Type, 0)
++		n.Sym = methodsym(n.Sym, n.Left.Type, false)
+ 		n.Xoffset = f2.Offset
+ 		n.Type = f2.Type
+ 

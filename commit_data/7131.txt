@@ -7,7 +7,132 @@ Date:   Mon Jan 17 13:27:05 2011 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/4004042
-
+---
  src/cmd/5g/peep.c |  4 +++-
  src/cmd/5g/reg.c  | 34 +++++++++++++++++++++++-----------
  2 files changed, 26 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index b60d6befa5..da46f8dda5 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -336,6 +336,7 @@ subprop(Reg *r0)
+ 		case ACMN:
+ 		case AADD:
+ 		case ASUB:
++		case ASBC:
+ 		case ARSB:
+ 		case ASLL:
+ 		case ASRL:
+@@ -621,8 +622,8 @@ shiftprop(Reg *r)
+ 	case AADC:
+ 	case AORR:
+ 	case ASUB:
+-	case ARSB:
+ 	case ASBC:
++	case ARSB:
+ 	case ARSC:
+ 		if(p1->reg == n || (p1->reg == NREG && p1->to.type == D_REG && p1->to.reg == n)) {
+ 			if(p1->from.type != D_REG)
+@@ -1006,6 +1007,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 
+ 	case AADD:	/* read, read, write */
+ 	case ASUB:
++	case ASBC:
+ 	case ARSB:
+ 	case ASLL:
+ 	case ASRL:
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 04933a873e..1d814d2c66 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -253,8 +253,7 @@ regopt(Prog *firstp)
+ 		 * funny
+ 		 */
+ 		case ABL:
+-			for(z=0; z<BITS; z++)
+-				addrs.b[z] |= bit.b[z];
++			setaddrs(bit);
+ 			break;
+ 		}
+ 
+@@ -272,6 +271,18 @@ regopt(Prog *firstp)
+ 	if(firstr == R)
+ 		return;
+ 
++	for(i=0; i<nvar; i++) {
++		Var *v = var+i;
++		if(v->addr) {
++			bit = blsh(i);
++			for(z=0; z<BITS; z++)
++				addrs.b[z] |= bit.b[z];
++		}
++
++//		print("bit=%2d addr=%d et=%-6E w=%-2d s=%S + %lld\n",
++//			i, v->addr, v->etype, v->width, v->sym, v->offset);
++	}
++
+ 	/*
+ 	 * pass 2
+ 	 * turn branch references to pointers
+@@ -637,6 +648,10 @@ mkvar(Reg *r, Adr *a, int docon)
+ 	t = a->type;
+ 	n = D_NONE;
+ 
++	flag = 0;
++//	if(a->pun)
++//		flag = 1;
++
+ 	switch(t) {
+ 	default:
+ 		print("type %d %d %D\n", t, a->name, a);
+@@ -647,15 +662,19 @@ mkvar(Reg *r, Adr *a, int docon)
+ 	case D_BRANCH:
+ 		break;
+ 
++	case D_CONST:
++		flag = 1;
++		goto onereg;
++
+ 	case D_REGREG:
+ 		if(a->offset != NREG)
+ 			r->regu |= RtoB(a->offset);
+-		// fallthrough
++		goto onereg;
+ 
+-	case D_CONST:
+ 	case D_REG:
+ 	case D_SHIFT:
+ 	case D_OREG:
++	onereg:
+ 		if(a->reg != NREG)
+ 			r->regu |= RtoB(a->reg);
+ 		break;
+@@ -678,10 +697,6 @@ mkvar(Reg *r, Adr *a, int docon)
+ 		break;
+ 	}
+ 
+-	flag = 0;
+-//	if(a->pun)
+-//		flag = 1;
+-
+ 	s = a->sym;
+ 	if(s == S)
+ 		goto none;
+@@ -736,7 +751,6 @@ mkvar(Reg *r, Adr *a, int docon)
+ 	if(debug['R'])
+ 		print("bit=%2d et=%E pun=%d %D\n", i, et, flag, a);
+ 
+-out:
+ 	bit = blsh(i);
+ 	if(n == D_EXTERN || n == D_STATIC)
+ 		for(z=0; z<BITS; z++)
+@@ -744,8 +758,6 @@ out:
+ 	if(n == D_PARAM)
+ 		for(z=0; z<BITS; z++)
+ 			params.b[z] |= bit.b[z];
+-	if(t == D_CONST)
+-		setaddrs(bit);
+ 
+ 	return bit;
+ 

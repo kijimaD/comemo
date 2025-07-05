@@ -24,6 +24,24 @@ Date:   Mon Mar 7 10:12:19 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index cd6018e736..37a0b2d440 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -484,11 +484,8 @@ func compile(fn *Node) {
+ 
+ 	if ssafn != nil {
+ 		genssa(ssafn, ptxt, gcargs, gclocals)
+-		if Curfn.Func.Endlineno != 0 {
+-			lineno = Curfn.Func.Endlineno
+-		}
+ 		ssafn.Free()
+-		return
++		goto ret
+ 	}
+ 	Genlist(Curfn.Func.Enter)
+ 	Genlist(Curfn.Nbody)

@@ -35,8 +35,107 @@ Date:   Tue Mar 27 16:11:10 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/gsubr.go | 14 ++++++++++++++
  src/cmd/compile/internal/gc/plive.go |  8 +++++++-
  src/cmd/compile/internal/gc/ssa.go   |  9 +++++----
  3 files changed, 26 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 55b16792f9..70b5cd3366 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -49,6 +49,9 @@ type Progs struct {
+ 	curfn     *Node      // fn these Progs are for
+ 	progcache []obj.Prog // local progcache
+ 	cacheidx  int        // first free element of progcache
++
++	nextLive LivenessIndex // liveness index for the next Prog
++	prevLive LivenessIndex // last emitted liveness index
+ }
+ 
+ // newProgs returns a new Progs for fn.
+@@ -67,6 +70,8 @@ func newProgs(fn *Node, worker int) *Progs {
+ 
+ 	pp.pos = fn.Pos
+ 	pp.settext(fn)
++	pp.nextLive = LivenessInvalid
++	pp.prevLive = LivenessInvalid
+ 	return pp
+ }
+ 
+@@ -103,6 +108,15 @@ func (pp *Progs) Free() {
+ 
+ // Prog adds a Prog with instruction As to pp.
+ func (pp *Progs) Prog(as obj.As) *obj.Prog {
++	if pp.nextLive.stackMapIndex != pp.prevLive.stackMapIndex {
++		// Emit stack map index change.
++		idx := pp.nextLive.stackMapIndex
++		pp.prevLive.stackMapIndex = idx
++		p := pp.Prog(obj.APCDATA)
++		Addrconst(&p.From, objabi.PCDATA_StackMapIndex)
++		Addrconst(&p.To, int64(idx))
++	}
++
+ 	p := pp.next
+ 	pp.next = pp.NewProg()
+ 	pp.clearp(pp.next)
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 456a2f7652..7a953546dc 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -153,7 +153,13 @@ type LivenessIndex struct {
+ }
+ 
+ // LivenessInvalid indicates an unsafe point.
+-var LivenessInvalid = LivenessIndex{-1}
++//
++// We use index -2 because PCDATA tables conventionally start at -1,
++// so -1 is used to mean the entry liveness map (which is actually at
++// index 0; sigh). TODO(austin): Maybe we should use PCDATA+1 as the
++// index into the liveness map so -1 uniquely refers to the entry
++// liveness map.
++var LivenessInvalid = LivenessIndex{-2}
+ 
+ func (idx LivenessIndex) Valid() bool {
+ 	return idx.stackMapIndex >= 0
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 09d12cba1e..b280fb7397 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -15,7 +15,6 @@ import (
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+-	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ )
+@@ -4818,12 +4817,17 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 	// Emit basic blocks
+ 	for i, b := range f.Blocks {
+ 		s.bstart[b.ID] = s.pp.next
++		s.pp.nextLive = LivenessInvalid
+ 		s.lineRunStart = nil
++
+ 		// Emit values in block
+ 		thearch.SSAMarkMoves(&s, b)
+ 		for _, v := range b.Values {
+ 			x := s.pp.next
+ 			s.DebugFriendlySetPosFrom(v)
++			// Attach this safe point to the next
++			// instruction.
++			s.pp.nextLive = s.livenessMap.Get(v)
+ 			switch v.Op {
+ 			case ssa.OpInitMem:
+ 				// memory arg needs no code
+@@ -5279,9 +5283,6 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
+ 			Fatalf("missing stack map index for %v", v.LongString())
+ 		}
+ 	}
+-	p := s.Prog(obj.APCDATA)
+-	Addrconst(&p.From, objabi.PCDATA_StackMapIndex)
+-	Addrconst(&p.To, int64(idx.stackMapIndex))
+ 
+ 	if sym, _ := v.Aux.(*obj.LSym); sym == Deferreturn {
+ 		// Deferred calls will appear to be returning to

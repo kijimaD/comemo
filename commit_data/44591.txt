@@ -9,6 +9,20 @@ Date:   Sun Jul 26 19:04:37 2020 +0900
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index a817e6fcd7..397b3bb88f 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1209,7 +1209,7 @@ func timelog(op, name string) {
+ 		}
+ 		i := strings.Index(s, " start")
+ 		if i < 0 {
+-			log.Fatalf("time log %s does not begin with start line", os.Getenv("GOBULDTIMELOGFILE"))
++			log.Fatalf("time log %s does not begin with start line", os.Getenv("GOBUILDTIMELOGFILE"))
+ 		}
+ 		t, err := time.Parse(time.UnixDate, s[:i])
+ 		if err != nil {

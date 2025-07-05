@@ -11,6 +11,20 @@ Date:   Thu Oct 20 15:51:26 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/log/log.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/log/log.go b/src/log/log.go
+index 26cdb532df..58b8788be4 100644
+--- a/src/log/log.go
++++ b/src/log/log.go
+@@ -8,6 +8,8 @@
+ // Panic[f|ln], which are easier to use than creating a Logger manually.
+ // That logger writes to standard error and prints the date and time
+ // of each logged message.
++// Every log message is output on a separate line: if the message being
++// printed does not end in a newline, the logger will add one.
+ // The Fatal functions call os.Exit(1) after writing the log message.
+ // The Panic functions call panic after writing the log message.
+ package log

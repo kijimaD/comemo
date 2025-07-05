@@ -7,6 +7,19 @@ Date:   Thu Feb 5 13:33:07 2009 -0800
     R=ken
     OCL=24442
     CL=24442
-
+---
  src/cmd/gc/subr.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index e37dce60ae..593d07cd38 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1547,6 +1547,7 @@ dclmethod(Type *t)
+ 	case TMAP:
+ 	case TCHAN:
+ 	case TSTRING:
++	case TFUNC:
+ 		break;
+ 	}
+ 

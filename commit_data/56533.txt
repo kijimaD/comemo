@@ -17,6 +17,43 @@ Date:   Tue May 2 18:40:56 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/main_conf_test.go | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/src/net/main_conf_test.go b/src/net/main_conf_test.go
+index e5994f5e5f..28a1cb8351 100644
+--- a/src/net/main_conf_test.go
++++ b/src/net/main_conf_test.go
+@@ -6,6 +6,8 @@
+ 
+ package net
+ 
++import "testing"
++
+ // forceGoDNS forces the resolver configuration to use the pure Go resolver
+ // and returns a fixup function to restore the old settings.
+ func forceGoDNS() func() {
+@@ -36,3 +38,22 @@ func forceCgoDNS() func() {
+ 	c.netCgo = true
+ 	return fixup
+ }
++
++func TestForceCgoDNS(t *testing.T) {
++	if !cgoAvailable {
++		t.Skip("cgo resolver not available")
++	}
++	defer forceCgoDNS()()
++	order, _ := systemConf().hostLookupOrder(nil, "go.dev")
++	if order != hostLookupCgo {
++		t.Fatalf("hostLookupOrder returned: %v, want cgo", order)
++	}
++}
++
++func TestForceGoDNS(t *testing.T) {
++	defer forceGoDNS()()
++	order, _ := systemConf().hostLookupOrder(nil, "go.dev")
++	if order == hostLookupCgo {
++		t.Fatalf("hostLookupOrder returned: %v, want go resolver order", order)
++	}
++}

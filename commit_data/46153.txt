@@ -29,9 +29,125 @@ Date:   Thu Dec 10 12:50:55 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/go.mod                |  2 +-
  src/go.sum                |  8 ++++----
  src/net/http/h2_bundle.go | 12 ++++++++++--
  src/vendor/modules.txt    |  2 +-
  4 files changed, 16 insertions(+), 8 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index 1fcd02f9ba..4ae14eea5c 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.16
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
+-	golang.org/x/net v0.0.0-20201029221708-28c70e62bb1d
++	golang.org/x/net v0.0.0-20201209123823-ac852fbbde11
+ 	golang.org/x/sys v0.0.0-20201204225414-ed752295db88 // indirect
+ 	golang.org/x/text v0.3.4 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 913e6ea68d..5586aa9a4e 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,15 +1,15 @@
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+-golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897 h1:pLI5jrR7OSLijeIDcmRxNmw2api+jEfxLoykJVice/E=
+ golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+-golang.org/x/net v0.0.0-20201029221708-28c70e62bb1d h1:dOiJ2n2cMwGLce/74I/QHMbnpk5GfY7InR8rczoMqRM=
+-golang.org/x/net v0.0.0-20201029221708-28c70e62bb1d/go.mod h1:sp8m0HH+o8qH0wwXwYZr8TS3Oi6o0r6Gce1SSxlDquU=
++golang.org/x/net v0.0.0-20201209123823-ac852fbbde11 h1:lwlPPsmjDKK0J6eG6xDWd5XPehI0R024zxjDnw3esPA=
++golang.org/x/net v0.0.0-20201209123823-ac852fbbde11/go.mod h1:m0MpNAwzfU5UDzcl9v0D8zg8gWTRqZa9RBIspLL5mdg=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20201204225414-ed752295db88 h1:KmZPnMocC93w341XZp26yTJg8Za7lhb2KhkYmixoeso=
+ golang.org/x/sys v0.0.0-20201204225414-ed752295db88/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+ golang.org/x/text v0.3.4 h1:0YWbFKbhXG/wIiuHDSKpS0Iy7FSA+u45VtBMfQcFTTc=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index e52903ffe9..6bef310feb 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -7651,6 +7651,9 @@ func (cc *http2ClientConn) roundTrip(req *Request) (res *Response, gotErrAfterRe
+ 			// we can keep it.
+ 			bodyWriter.cancel()
+ 			cs.abortRequestBodyWrite(http2errStopReqBodyWrite)
++			if hasBody && !bodyWritten {
++				<-bodyWriter.resc
++			}
+ 		}
+ 		if re.err != nil {
+ 			cc.forgetStreamID(cs.ID)
+@@ -7671,6 +7674,7 @@ func (cc *http2ClientConn) roundTrip(req *Request) (res *Response, gotErrAfterRe
+ 			} else {
+ 				bodyWriter.cancel()
+ 				cs.abortRequestBodyWrite(http2errStopReqBodyWriteAndCancel)
++				<-bodyWriter.resc
+ 			}
+ 			cc.forgetStreamID(cs.ID)
+ 			return nil, cs.getStartedWrite(), http2errTimeout
+@@ -7680,6 +7684,7 @@ func (cc *http2ClientConn) roundTrip(req *Request) (res *Response, gotErrAfterRe
+ 			} else {
+ 				bodyWriter.cancel()
+ 				cs.abortRequestBodyWrite(http2errStopReqBodyWriteAndCancel)
++				<-bodyWriter.resc
+ 			}
+ 			cc.forgetStreamID(cs.ID)
+ 			return nil, cs.getStartedWrite(), ctx.Err()
+@@ -7689,6 +7694,7 @@ func (cc *http2ClientConn) roundTrip(req *Request) (res *Response, gotErrAfterRe
+ 			} else {
+ 				bodyWriter.cancel()
+ 				cs.abortRequestBodyWrite(http2errStopReqBodyWriteAndCancel)
++				<-bodyWriter.resc
+ 			}
+ 			cc.forgetStreamID(cs.ID)
+ 			return nil, cs.getStartedWrite(), http2errRequestCanceled
+@@ -7698,6 +7704,7 @@ func (cc *http2ClientConn) roundTrip(req *Request) (res *Response, gotErrAfterRe
+ 			// forgetStreamID.
+ 			return nil, cs.getStartedWrite(), cs.resetErr
+ 		case err := <-bodyWriter.resc:
++			bodyWritten = true
+ 			// Prefer the read loop's response, if available. Issue 16102.
+ 			select {
+ 			case re := <-readLoopResCh:
+@@ -7708,7 +7715,6 @@ func (cc *http2ClientConn) roundTrip(req *Request) (res *Response, gotErrAfterRe
+ 				cc.forgetStreamID(cs.ID)
+ 				return nil, cs.getStartedWrite(), err
+ 			}
+-			bodyWritten = true
+ 			if d := cc.responseHeaderTimeout(); d != 0 {
+ 				timer := time.NewTimer(d)
+ 				defer timer.Stop()
+@@ -9130,7 +9136,9 @@ func (t *http2Transport) getBodyWriterState(cs *http2clientStream, body io.Reade
+ 
+ func (s http2bodyWriterState) cancel() {
+ 	if s.timer != nil {
+-		s.timer.Stop()
++		if s.timer.Stop() {
++			s.resc <- nil
++		}
+ 	}
+ }
+ 
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index de727ef71f..04bb67e58d 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -8,7 +8,7 @@ golang.org/x/crypto/curve25519
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+-# golang.org/x/net v0.0.0-20201029221708-28c70e62bb1d
++# golang.org/x/net v0.0.0-20201209123823-ac852fbbde11
+ ## explicit
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

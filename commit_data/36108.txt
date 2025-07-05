@@ -32,7 +32,7 @@ Date:   Tue Feb 13 17:39:38 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/93664
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go                |  2 +-
  .../internal/ssa/testdata/hist.dlv-dbg.nexts       |  1 +
  .../internal/ssa/testdata/hist.dlv-opt.nexts       |  1 +
@@ -45,3 +45,345 @@ Date:   Tue Feb 13 17:39:38 2018 -0500
  src/cmd/link/internal/ld/dwarf.go                  | 65 +++++++++++++++-------
  src/cmd/link/internal/sym/symkind.go               |  4 ++
  11 files changed, 98 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 7bf4fb227a..e9271149a1 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -265,7 +265,7 @@ func compileSSA(fn *Node, worker int) {
+ 	}
+ 	pp := newProgs(fn, worker)
+ 	genssa(f, pp)
+-	pp.Flush()
++	pp.Flush() // assemble, fill in boilerplate, etc.
+ 	// fieldtrack must be called after pp.Flush. See issue 20014.
+ 	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
+ 	pp.Free()
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.dlv-dbg.nexts b/src/cmd/compile/internal/ssa/testdata/hist.dlv-dbg.nexts
+index ec79b77de2..9c70bb587a 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.dlv-dbg.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/hist.dlv-dbg.nexts
+@@ -96,4 +96,5 @@
+ 87:			if a == 0 { //gdb-opt=(a,n,t)
+ 88:				continue
+ 86:		for i, a := range hist {
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+ 98:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts b/src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts
+index a7bcbb1ade..988e3938f8 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts
+@@ -97,4 +97,5 @@
+ 86:		for i, a := range hist {
+ 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+ 87:			if a == 0 { //gdb-opt=(a,n,t)
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
+ 98:	}
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 303499db7c..37fdba585a 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -23,6 +23,9 @@ const LocPrefix = "go.loc."
+ // RangePrefix is the prefix for all the symbols containing DWARF range lists.
+ const RangePrefix = "go.range."
+ 
++// IsStmtPrefix is the prefix for all the symbols containing DWARF is_stmt info for the line number table.
++const IsStmtPrefix = "go.isstmt."
++
+ // ConstInfoPrefix is the prefix for all symbols containing DWARF info
+ // entries that contain constants.
+ const ConstInfoPrefix = "go.constinfo."
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index a3a9c9ffe8..16e4e1410d 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -395,6 +395,7 @@ type FuncInfo struct {
+ 	dwarfLocSym    *LSym
+ 	dwarfRangesSym *LSym
+ 	dwarfAbsFnSym  *LSym
++	dwarfIsStmtSym *LSym
+ 
+ 	GCArgs   LSym
+ 	GCLocals LSym
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index b5f5790a50..91b48b5e08 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -497,7 +497,7 @@ func (c dwCtxt) Logf(format string, args ...interface{}) {
+ 	c.Link.Logf(format, args...)
+ }
+ 
+-func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym *LSym) {
++func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym, dwarfIsStmtSym *LSym) {
+ 	if s.Type != objabi.STEXT {
+ 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
+ 	}
+@@ -510,9 +510,10 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym,
+ 		if s.WasInlined() {
+ 			s.Func.dwarfAbsFnSym = ctxt.DwFixups.AbsFuncDwarfSym(s)
+ 		}
++		s.Func.dwarfIsStmtSym = ctxt.LookupDerived(s, dwarf.IsStmtPrefix+s.Name)
+ 
+ 	}
+-	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym
++	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym, s.Func.dwarfIsStmtSym
+ }
+ 
+ func (s *LSym) Len() int64 {
+@@ -536,13 +537,14 @@ func (ctxt *Link) fileSymbol(fn *LSym) *LSym {
+ // TEXT symbol 's'. The various DWARF symbols must already have been
+ // initialized in InitTextSym.
+ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string) {
+-	info, loc, ranges, absfunc := ctxt.dwarfSym(s)
++	info, loc, ranges, absfunc, _ := ctxt.dwarfSym(s)
+ 	if info.Size != 0 {
+ 		ctxt.Diag("makeFuncDebugEntry double process %v", s)
+ 	}
+ 	var scopes []dwarf.Scope
+ 	var inlcalls dwarf.InlCalls
+ 	if ctxt.DebugInfo != nil {
++		stmtData(ctxt, s)
+ 		scopes, inlcalls = ctxt.DebugInfo(s, curfn)
+ 	}
+ 	var err error
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index d1d36cf685..1d5831d3cb 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -4,7 +4,10 @@
+ 
+ package obj
+ 
+-import "log"
++import (
++	"cmd/internal/src"
++	"log"
++)
+ 
+ func addvarint(d *Pcdata, v uint32) {
+ 	for ; v >= 0x80; v >>= 7 {
+@@ -230,6 +233,25 @@ func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg in
+ 	return oldval + p.Spadj
+ }
+ 
++// pctostmt returns either,
++// if phase==0, then whether the current instruction is a step-target (Dwarf is_stmt)
++// else (phase == 1), zero.
++//
++func pctostmt(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
++	if phase == 1 {
++		return 0 // Ignored; also different from initial value of -1, if that ever matters.
++	}
++	s := p.Pos.IsStmt()
++	if s == src.PosIsStmt {
++		return 1
++	}
++	if s == src.PosNotStmt { // includes NoSrcPos case
++		return 0
++	}
++	// Line numbers in .s files will have no special setting, therefore default to is_stmt=1.
++	return 1
++}
++
+ // pctopcdata computes the pcdata value in effect at p.
+ // A PCDATA instruction sets the value in effect at future
+ // non-PCDATA instructions.
+@@ -248,6 +270,13 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
+ 	return int32(p.To.Offset)
+ }
+ 
++// stmtData writes out pc-linked is_stmt data for eventual use in the DWARF line numbering table.
++func stmtData(ctxt *Link, cursym *LSym) {
++	var pctostmtData Pcdata
++	funcpctab(ctxt, &pctostmtData, cursym, "pctostmt", pctostmt, nil)
++	cursym.Func.dwarfIsStmtSym.P = pctostmtData.P
++}
++
+ func linkpcln(ctxt *Link, cursym *LSym) {
+ 	pcln := &cursym.Func.Pcln
+ 
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index e2609da35d..8e70404774 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -136,7 +136,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	ctxt.Text = append(ctxt.Text, s)
+ 
+ 	// Set up DWARF entries for s.
+-	info, loc, ranges, _ := ctxt.dwarfSym(s)
++	info, loc, ranges, _, isstmt := ctxt.dwarfSym(s)
+ 	info.Type = objabi.SDWARFINFO
+ 	info.Set(AttrDuplicateOK, s.DuplicateOK())
+ 	if loc != nil {
+@@ -147,6 +147,9 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	ranges.Type = objabi.SDWARFRANGE
+ 	ranges.Set(AttrDuplicateOK, s.DuplicateOK())
+ 	ctxt.Data = append(ctxt.Data, info, ranges)
++	isstmt.Type = objabi.SDWARFMISC
++	isstmt.Set(AttrDuplicateOK, s.DuplicateOK())
++	ctxt.Data = append(ctxt.Data, isstmt)
+ 
+ 	// Set up the function's gcargs and gclocals.
+ 	// They will be filled in later if needed.
+diff --git a/src/cmd/internal/objabi/symkind.go b/src/cmd/internal/objabi/symkind.go
+index ea180d0bf8..b95a0d3c70 100644
+--- a/src/cmd/internal/objabi/symkind.go
++++ b/src/cmd/internal/objabi/symkind.go
+@@ -34,6 +34,7 @@ package objabi
+ type SymKind uint8
+ 
+ // Defined SymKind values.
++// These are used to index into cmd/link/internal/sym/AbiSymKindToSymKind
+ //
+ // TODO(rsc): Give idiomatic Go names.
+ //go:generate stringer -type=SymKind
+@@ -58,4 +59,7 @@ const (
+ 	SDWARFINFO
+ 	SDWARFRANGE
+ 	SDWARFLOC
++	SDWARFMISC
++	// Update cmd/link/internal/sym/AbiSymKindToSymKind for new SymKind values.
++
+ )
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index cd71ed3515..5dedcc19ca 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1113,6 +1113,7 @@ func collectAbstractFunctions(ctxt *Link, fn *sym.Symbol, dsym *sym.Symbol, absf
+ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbol) (dwinfo *dwarf.DWDie, funcs []*sym.Symbol, absfuncs []*sym.Symbol) {
+ 
+ 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
++	is_stmt := uint8(1) // initially = recommended default_is_stmt = 1, tracks is_stmt toggles.
+ 
+ 	unitstart := int64(-1)
+ 	headerstart := int64(-1)
+@@ -1154,7 +1155,7 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 
+ 	// cpos == unitstart + 4 + 2 + 4
+ 	ls.AddUint8(1)                // minimum_instruction_length
+-	ls.AddUint8(1)                // default_is_stmt
++	ls.AddUint8(is_stmt)          // default_is_stmt
+ 	ls.AddUint8(LINE_BASE & 0xFF) // line_base
+ 	ls.AddUint8(LINE_RANGE)       // line_range
+ 	ls.AddUint8(OPCODE_BASE)      // opcode_base
+@@ -1172,7 +1173,7 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 	// Create the file table. fileNums maps from global file
+ 	// indexes (created by numberfile) to CU-local indexes.
+ 	fileNums := make(map[int]int)
+-	for _, s := range textp {
++	for _, s := range textp { // textp has been dead-code-eliminated already.
+ 		for _, f := range s.FuncInfo.File {
+ 			if _, ok := fileNums[int(f.Value)]; ok {
+ 				continue
+@@ -1224,27 +1225,25 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 
+ 	var pcfile Pciter
+ 	var pcline Pciter
+-	for _, s := range textp {
++	var pcstmt Pciter
++	for i, s := range textp {
+ 		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+ 		funcs = append(funcs, dsym)
+ 		absfuncs = collectAbstractFunctions(ctxt, s, dsym, absfuncs)
+ 
+ 		finddebugruntimepath(s)
+ 
++		isStmtsSym := ctxt.Syms.ROLookup(dwarf.IsStmtPrefix+s.Name, int(s.Version))
++		pctostmtData := sym.Pcdata{P: isStmtsSym.P}
++
+ 		pciterinit(ctxt, &pcfile, &s.FuncInfo.Pcfile)
+ 		pciterinit(ctxt, &pcline, &s.FuncInfo.Pcline)
+-		epc := pc
+-		for pcfile.done == 0 && pcline.done == 0 {
+-			if epc-s.Value >= int64(pcfile.nextpc) {
+-				pciternext(&pcfile)
+-				continue
+-			}
+-
+-			if epc-s.Value >= int64(pcline.nextpc) {
+-				pciternext(&pcline)
+-				continue
+-			}
++		pciterinit(ctxt, &pcstmt, &pctostmtData)
+ 
++		var thispc uint32
++		// TODO this loop looks like it could exit with work remaining.
++		for pcfile.done == 0 && pcline.done == 0 && pcstmt.done == 0 {
++			// Only changed if it advanced
+ 			if int32(file) != pcfile.value {
+ 				ls.AddUint8(dwarf.DW_LNS_set_file)
+ 				idx, ok := fileNums[int(pcfile.value)]
+@@ -1255,16 +1254,40 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 				file = int(pcfile.value)
+ 			}
+ 
+-			putpclcdelta(ctxt, dwarfctxt, ls, uint64(s.Value+int64(pcline.pc)-pc), int64(pcline.value)-int64(line))
++			// Only changed if it advanced
++			if is_stmt != uint8(pcstmt.value) {
++				is_stmt = uint8(pcstmt.value)
++				ls.AddUint8(uint8(dwarf.DW_LNS_negate_stmt))
++			}
++
++			// putpcldelta makes a row in the DWARF matrix, always, even if line is unchanged.
++			putpclcdelta(ctxt, dwarfctxt, ls, uint64(s.Value+int64(thispc)-pc), int64(pcline.value)-int64(line))
+ 
+-			pc = s.Value + int64(pcline.pc)
++			pc = s.Value + int64(thispc)
+ 			line = int(pcline.value)
+-			if pcfile.nextpc < pcline.nextpc {
+-				epc = int64(pcfile.nextpc)
+-			} else {
+-				epc = int64(pcline.nextpc)
++
++			// Take the minimum step forward for the three iterators
++			thispc = pcfile.nextpc
++			if pcline.nextpc < thispc {
++				thispc = pcline.nextpc
++			}
++			if pcstmt.nextpc < thispc {
++				thispc = pcstmt.nextpc
++			}
++
++			if pcfile.nextpc == thispc {
++				pciternext(&pcfile)
++			}
++			if pcstmt.nextpc == thispc {
++				pciternext(&pcstmt)
+ 			}
+-			epc += s.Value
++			if pcline.nextpc == thispc {
++				pciternext(&pcline)
++			}
++		}
++		if is_stmt == 0 && i < len(textp)-1 {
++			// If there is more than one function, ensure default value is established.
++			ls.AddUint8(uint8(dwarf.DW_LNS_negate_stmt))
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index 1c409a673c..2e21cc1f00 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -101,10 +101,13 @@ const (
+ 	SCONST
+ 	SDYNIMPORT
+ 	SHOSTOBJ
++
++	// Sections for debugging information
+ 	SDWARFSECT
+ 	SDWARFINFO
+ 	SDWARFRANGE
+ 	SDWARFLOC
++	SDWARFMISC // Not really a section; informs/affects other DWARF section generation
+ )
+ 
+ // AbiSymKindToSymKind maps values read from object files (which are
+@@ -121,6 +124,7 @@ var AbiSymKindToSymKind = [...]SymKind{
+ 	SDWARFINFO,
+ 	SDWARFRANGE,
+ 	SDWARFLOC,
++	SDWARFMISC,
+ }
+ 
+ // ReadOnly are the symbol kinds that form read-only sections. In some

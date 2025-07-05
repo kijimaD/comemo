@@ -19,10 +19,171 @@ Date:   Fri Apr 16 13:34:37 2021 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go                    | 32 ++++++++++++++++++----
  src/cmd/go/internal/run/run.go                     |  7 ++---
  .../go/testdata/script/mod_install_pkg_version.txt |  2 +-
  src/cmd/go/testdata/script/mod_outside.txt         |  4 ---
  src/cmd/go/testdata/script/mod_run_pkg_version.txt |  5 ++++
  5 files changed, 34 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 98a695ca24..79c3a71f07 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -480,6 +480,7 @@ type ImportPathError interface {
+ 
+ var (
+ 	_ ImportPathError = (*importError)(nil)
++	_ ImportPathError = (*mainPackageError)(nil)
+ 	_ ImportPathError = (*modload.ImportMissingError)(nil)
+ 	_ ImportPathError = (*modload.ImportMissingSumError)(nil)
+ 	_ ImportPathError = (*modload.DirectImportFromImplicitDependencyError)(nil)
+@@ -2545,7 +2546,8 @@ func CheckPackageErrors(pkgs []*Package) {
+ // mainPackagesOnly filters out non-main packages matched only by arguments
+ // containing "..." and returns the remaining main packages.
+ //
+-// mainPackagesOnly sets a package's error if it is named by a literal argument.
++// mainPackagesOnly sets a non-main package's Error field and returns it if it
++// is named by a literal argument.
+ //
+ // mainPackagesOnly prints warnings for non-literal arguments that only match
+ // non-main packages.
+@@ -2557,12 +2559,12 @@ func mainPackagesOnly(pkgs []*Package, patterns []string) []*Package {
+ 		}
+ 	}
+ 
+-	mainPkgs := make([]*Package, 0, len(pkgs))
++	matchedPkgs := make([]*Package, 0, len(pkgs))
+ 	mainCount := make([]int, len(patterns))
+ 	nonMainCount := make([]int, len(patterns))
+ 	for _, pkg := range pkgs {
+ 		if pkg.Name == "main" {
+-			mainPkgs = append(mainPkgs, pkg)
++			matchedPkgs = append(matchedPkgs, pkg)
+ 			for i := range patterns {
+ 				if matchers[i] != nil && matchers[i](pkg.ImportPath) {
+ 					mainCount[i]++
+@@ -2570,8 +2572,11 @@ func mainPackagesOnly(pkgs []*Package, patterns []string) []*Package {
+ 			}
+ 		} else {
+ 			for i := range patterns {
+-				if matchers[i] == nil && patterns[i] == pkg.ImportPath && pkg.Error == nil {
+-					pkg.Error = &PackageError{Err: ImportErrorf(pkg.ImportPath, "package %s is not a main package", pkg.ImportPath)}
++				if matchers[i] == nil && patterns[i] == pkg.ImportPath {
++					if pkg.Error == nil {
++						pkg.Error = &PackageError{Err: &mainPackageError{importPath: pkg.ImportPath}}
++					}
++					matchedPkgs = append(matchedPkgs, pkg)
+ 				} else if matchers[i] != nil && matchers[i](pkg.ImportPath) {
+ 					nonMainCount[i]++
+ 				}
+@@ -2584,7 +2589,19 @@ func mainPackagesOnly(pkgs []*Package, patterns []string) []*Package {
+ 		}
+ 	}
+ 
+-	return mainPkgs
++	return matchedPkgs
++}
++
++type mainPackageError struct {
++	importPath string
++}
++
++func (e *mainPackageError) Error() string {
++	return fmt.Sprintf("package %s is not a main package", e.importPath)
++}
++
++func (e *mainPackageError) ImportPath() string {
++	return e.importPath
+ }
+ 
+ func setToolFlags(pkgs ...*Package) {
+@@ -2679,6 +2696,9 @@ func GoFilesPackage(ctx context.Context, opts PackageOpts, gofiles []string) *Pa
+ 		}
+ 	}
+ 
++	if opts.MainOnly && pkg.Name != "main" && pkg.Error == nil {
++		pkg.Error = &PackageError{Err: &mainPackageError{importPath: pkg.ImportPath}}
++	}
+ 	setToolFlags(pkg)
+ 
+ 	return pkg
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 914e5edc6f..784f7162df 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -92,6 +92,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 	for i < len(args) && strings.HasSuffix(args[i], ".go") {
+ 		i++
+ 	}
++	pkgOpts := load.PackageOpts{MainOnly: true}
+ 	var p *load.Package
+ 	if i > 0 {
+ 		files := args[:i]
+@@ -102,10 +103,9 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 				base.Fatalf("go run: cannot run *_test.go files (%s)", file)
+ 			}
+ 		}
+-		p = load.GoFilesPackage(ctx, load.PackageOpts{}, files)
++		p = load.GoFilesPackage(ctx, pkgOpts, files)
+ 	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+ 		arg := args[0]
+-		pkgOpts := load.PackageOpts{MainOnly: true}
+ 		var pkgs []*load.Package
+ 		if strings.Contains(arg, "@") && !build.IsLocalImport(arg) && !filepath.IsAbs(arg) {
+ 			var err error
+@@ -133,9 +133,6 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 		base.Fatalf("go run: no go files listed")
+ 	}
+ 	cmdArgs := args[i:]
+-	if p.Name != "main" {
+-		base.Fatalf("go run: cannot run non-main package")
+-	}
+ 	load.CheckPackageErrors([]*load.Package{p})
+ 
+ 	p.Internal.OmitDebug = true
+diff --git a/src/cmd/go/testdata/script/mod_install_pkg_version.txt b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+index 3b387cd8b6..9a803c4218 100644
+--- a/src/cmd/go/testdata/script/mod_install_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+@@ -118,7 +118,7 @@ stderr '^package rsc.io/fortune provided by module rsc.io/fortune@v1.0.0\n\tAll
+ # 'go install pkg@version' should report an error if an argument is not
+ # a main package.
+ ! go install example.com/cmd/a@v1.0.0 example.com/cmd/err@v1.0.0
+-stderr '^go: package example.com/cmd/err is not a main package$'
++stderr '^package example.com/cmd/err is not a main package$'
+ 
+ # Wildcards should match only main packages. This module has a non-main package
+ # with an error, so we'll know if that gets built.
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index 0b01492cde..33341f7d4b 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -207,10 +207,6 @@ stderr 'needmod[/\\]needmod.go:10:2: no required module provides package example
+ go install cmd/addr2line
+ ! stderr .
+ 
+-# 'go run' with a version should fail due to syntax.
+-! go run example.com/printversion@v1.0.0
+-stderr 'can only use path@version syntax with'
+-
+ # 'go run' should fail if a package argument must be resolved to a module.
+ ! go run example.com/printversion
+ stderr '^no required module provides package example.com/printversion: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+diff --git a/src/cmd/go/testdata/script/mod_run_pkg_version.txt b/src/cmd/go/testdata/script/mod_run_pkg_version.txt
+index d96d3fc213..48462230b6 100644
+--- a/src/cmd/go/testdata/script/mod_run_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_run_pkg_version.txt
+@@ -36,6 +36,11 @@ stderr '^go: found rsc.io/quote in rsc.io/quote v1.5.2$'
+ stderr '^Hello, world.$'
+ 
+ 
++# 'go run pkg@version' should report an error if pkg is not a main package.
++! go run example.com/cmd/err@v1.0.0
++stderr '^package example.com/cmd/err is not a main package$'
++
++
+ # 'go run pkg@version' should report errors if the module contains
+ # replace or exclude directives.
+ go mod download example.com/cmd@v1.0.0-replace

@@ -12,6 +12,20 @@ Date:   Fri Aug 4 14:39:48 2023 -0400
     Reviewed-by: Patrick Ohly <patrick.ohly@googlemail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/testing/slogtest/slogtest.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/slogtest/slogtest.go b/src/testing/slogtest/slogtest.go
+index b16d1227dc..6f6fa902d5 100644
+--- a/src/testing/slogtest/slogtest.go
++++ b/src/testing/slogtest/slogtest.go
+@@ -163,7 +163,7 @@ func TestHandler(h slog.Handler, results func() []map[string]any) error {
+ 			},
+ 		},
+ 		{
+-			explanation: withSource("a Handler should not output groups for an empty Record"),
++			explanation: withSource("a Handler should not output groups if there are no attributes"),
+ 			f: func(l *slog.Logger) {
+ 				l.With("a", "b").WithGroup("G").With("c", "d").WithGroup("H").Info("msg")
+ 			},

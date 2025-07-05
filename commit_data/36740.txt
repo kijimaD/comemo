@@ -12,6 +12,42 @@ Date:   Mon May 21 10:45:59 2018 -0400
     Change-Id: Ibd0824d0acd7644484d536b1a754a0da156fac3d
     Reviewed-on: https://go-review.googlesource.com/113721
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/internal/trace/order.go | 17 +++++++++++++++--
  1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/trace/order.go b/src/internal/trace/order.go
+index 36ed58d675..d0b58301d6 100644
+--- a/src/internal/trace/order.go
++++ b/src/internal/trace/order.go
+@@ -133,7 +133,7 @@ func order1007(m map[int][]*Event) (events []*Event, err error) {
+ 			ev.Ts = ts
+ 		}
+ 	}
+-	sort.Stable(eventList(events))
++	sort.Sort(eventList(events))
+ 
+ 	return
+ }
+@@ -243,7 +243,20 @@ func (l orderEventList) Len() int {
+ }
+ 
+ func (l orderEventList) Less(i, j int) bool {
+-	return l[i].ev.Ts < l[j].ev.Ts
++	a, b := l[i].ev, l[j].ev
++	if a.Ts != b.Ts {
++		return a.Ts < b.Ts
++	}
++	if a.Type != b.Type {
++		return a.Type < b.Type
++	}
++	if a.P != b.P {
++		return a.P < b.P
++	}
++	if a.G != b.G {
++		return a.G < b.G
++	}
++	return a.Args[0] < b.Args[0]
+ }
+ 
+ func (l orderEventList) Swap(i, j int) {

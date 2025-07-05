@@ -25,9 +25,84 @@ Date:   Fri Oct 21 11:37:54 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/generate.go                       |  2 ++
  src/cmd/go/go_test.go                        | 14 ++++++++++++++
  src/cmd/go/pkg.go                            |  7 +++++++
  src/cmd/go/testdata/src/gencycle/gencycle.go |  5 +++++
  4 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/go/generate.go b/src/cmd/go/generate.go
+index d5b955af92..2d92a0c100 100644
+--- a/src/cmd/go/generate.go
++++ b/src/cmd/go/generate.go
+@@ -136,6 +136,8 @@ func init() {
+ }
+ 
+ func runGenerate(cmd *Command, args []string) {
++	ignoreImports = true
++
+ 	if generateRunFlag != "" {
+ 		var err error
+ 		generateRunRE, err = regexp.Compile(generateRunFlag)
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f445aef5bd..2f883c94df 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2349,6 +2349,20 @@ func TestGoGenerateEnv(t *testing.T) {
+ 	}
+ }
+ 
++func TestGoGenerateBadImports(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skip("skipping because windows has no echo command")
++	}
++
++	// This package has an invalid import causing an import cycle,
++	// but go generate is supposed to still run.
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.run("generate", "gencycle")
++	tg.grepStdout("hello world", "go generate gencycle did not run generator")
++}
++
+ func TestGoGetCustomDomainWildcard(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index a3018bce45..2f5e90faf4 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -24,6 +24,8 @@ import (
+ 	"unicode"
+ )
+ 
++var ignoreImports bool // control whether we ignore imports in packages
++
+ // A Package describes a single package found in a directory.
+ type Package struct {
+ 	// Note: These fields are part of the go command's public API.
+@@ -181,6 +183,11 @@ func (p *Package) copyBuild(pp *build.Package) {
+ 	p.TestImports = pp.TestImports
+ 	p.XTestGoFiles = pp.XTestGoFiles
+ 	p.XTestImports = pp.XTestImports
++	if ignoreImports {
++		p.Imports = nil
++		p.TestImports = nil
++		p.XTestImports = nil
++	}
+ }
+ 
+ // isStandardImportPath reports whether $GOROOT/src/path should be considered
+diff --git a/src/cmd/go/testdata/src/gencycle/gencycle.go b/src/cmd/go/testdata/src/gencycle/gencycle.go
+new file mode 100644
+index 0000000000..600afd93e9
+--- /dev/null
++++ b/src/cmd/go/testdata/src/gencycle/gencycle.go
+@@ -0,0 +1,5 @@
++//go:generate echo hello world
++
++package gencycle
++
++import _ "gencycle"

@@ -12,9 +12,154 @@ Date:   Tue Oct 25 11:28:07 2011 +1100
     R=gri, andybalholm
     CC=golang-dev
     https://golang.org/cl/5321043
-
+---
  src/pkg/html/doc.go        |  3 ---
  src/pkg/html/parse.go      |  1 -
  src/pkg/html/token.go      | 50 +++++++++++++++++++---------------------------
  src/pkg/html/token_test.go |  1 -
  4 files changed, 21 insertions(+), 34 deletions(-)
+
+diff --git a/src/pkg/html/doc.go b/src/pkg/html/doc.go
+index 5bc0630861..ba9d188486 100644
+--- a/src/pkg/html/doc.go
++++ b/src/pkg/html/doc.go
+@@ -70,9 +70,6 @@ call to Next. For example, to extract an HTML page's anchor text:
+ 		}
+ 	}
+ 
+-A Tokenizer typically skips over HTML comments. To return comment tokens, set
+-Tokenizer.ReturnComments to true before looping over calls to Next.
+-
+ Parsing is done by calling Parse with an io.Reader, which returns the root of
+ the parse tree (the document element) as a *Node. It is the caller's
+ responsibility to ensure that the Reader provides UTF-8 encoded HTML. For
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 2c7294b4f3..d1d4e483c5 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -1067,7 +1067,6 @@ func Parse(r io.Reader) (*Node, os.Error) {
+ 		scripting:  true,
+ 		framesetOK: true,
+ 	}
+-	p.tokenizer.ReturnComments = true
+ 	// Iterate until EOF. Any other error will cause an early return.
+ 	im, consumed := initialIM, true
+ 	for {
+diff --git a/src/pkg/html/token.go b/src/pkg/html/token.go
+index 2826f95f17..952d17468b 100644
+--- a/src/pkg/html/token.go
++++ b/src/pkg/html/token.go
+@@ -116,10 +116,6 @@ type span struct {
+ 
+ // A Tokenizer returns a stream of HTML Tokens.
+ type Tokenizer struct {
+-	// If ReturnComments is set, Next returns comment tokens;
+-	// otherwise it skips over comments (default).
+-	ReturnComments bool
+-
+ 	// r is the source of the HTML text.
+ 	r io.Reader
+ 	// tt is the TokenType of the current token.
+@@ -546,17 +542,19 @@ func (z *Tokenizer) readTagAttrVal() {
+ 	}
+ }
+ 
+-// next scans the next token and returns its type.
+-func (z *Tokenizer) next() TokenType {
++// Next scans the next token and returns its type.
++func (z *Tokenizer) Next() TokenType {
+ 	if z.err != nil {
+-		return ErrorToken
++		z.tt = ErrorToken
++		return z.tt
+ 	}
+ 	z.raw.start = z.raw.end
+ 	z.data.start = z.raw.end
+ 	z.data.end = z.raw.end
+ 	if z.rawTag != "" {
+ 		z.readRawOrRCDATA()
+-		return TextToken
++		z.tt = TextToken
++		return z.tt
+ 	}
+ 	z.textIsRaw = false
+ 
+@@ -596,11 +594,13 @@ loop:
+ 		if x := z.raw.end - len("<a"); z.raw.start < x {
+ 			z.raw.end = x
+ 			z.data.end = x
+-			return TextToken
++			z.tt = TextToken
++			return z.tt
+ 		}
+ 		switch tokenType {
+ 		case StartTagToken:
+-			return z.readStartTag()
++			z.tt = z.readStartTag()
++			return z.tt
+ 		case EndTagToken:
+ 			c = z.readByte()
+ 			if z.err != nil {
+@@ -616,39 +616,31 @@ loop:
+ 			}
+ 			if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
+ 				z.readEndTag()
+-				return EndTagToken
++				z.tt = EndTagToken
++				return z.tt
+ 			}
+ 			z.raw.end--
+ 			z.readUntilCloseAngle()
+-			return CommentToken
++			z.tt = CommentToken
++			return z.tt
+ 		case CommentToken:
+ 			if c == '!' {
+-				return z.readMarkupDeclaration()
++				z.tt = z.readMarkupDeclaration()
++				return z.tt
+ 			}
+ 			z.raw.end--
+ 			z.readUntilCloseAngle()
+-			return CommentToken
++			z.tt = CommentToken
++			return z.tt
+ 		}
+ 	}
+ 	if z.raw.start < z.raw.end {
+ 		z.data.end = z.raw.end
+-		return TextToken
+-	}
+-	return ErrorToken
+-}
+-
+-// Next scans the next token and returns its type.
+-func (z *Tokenizer) Next() TokenType {
+-	for {
+-		z.tt = z.next()
+-		// TODO: remove the ReturnComments option. A tokenizer should
+-		// always return comment tags.
+-		if z.tt == CommentToken && !z.ReturnComments {
+-			continue
+-		}
++		z.tt = TextToken
+ 		return z.tt
+ 	}
+-	panic("unreachable")
++	z.tt = ErrorToken
++	return z.tt
+ }
+ 
+ // Raw returns the unmodified text of the current token. Calling Next, Token,
+diff --git a/src/pkg/html/token_test.go b/src/pkg/html/token_test.go
+index 310cd97d67..45ce85e911 100644
+--- a/src/pkg/html/token_test.go
++++ b/src/pkg/html/token_test.go
+@@ -424,7 +424,6 @@ func TestTokenizer(t *testing.T) {
+ loop:
+ 	for _, tt := range tokenTests {
+ 		z := NewTokenizer(strings.NewReader(tt.html))
+-		z.ReturnComments = true
+ 		if tt.golden != "" {
+ 			for i, s := range strings.Split(tt.golden, "$") {
+ 				if z.Next() == ErrorToken {

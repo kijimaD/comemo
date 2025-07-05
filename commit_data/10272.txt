@@ -11,9 +11,92 @@ Date:   Mon Nov 7 11:57:34 2011 -0500
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/5360042
-
+---
  src/pkg/runtime/openbsd/386/defs.h   |  6 ++++++
  src/pkg/runtime/openbsd/amd64/defs.h |  7 +++++++
  src/pkg/runtime/openbsd/defs.c       |  1 +
  src/pkg/runtime/openbsd/thread.c     | 12 +++++++++---
  4 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/openbsd/386/defs.h b/src/pkg/runtime/openbsd/386/defs.h
+index d61462c6f9..aff87fb3b1 100644
+--- a/src/pkg/runtime/openbsd/386/defs.h
++++ b/src/pkg/runtime/openbsd/386/defs.h
+@@ -97,6 +97,12 @@ struct StackT {
+ 	int32 ss_flags;
+ };
+ 
++typedef struct Timespec Timespec;
++struct Timespec {
++	int32 tv_sec;
++	int32 tv_nsec;
++};
++
+ typedef struct Timeval Timeval;
+ struct Timeval {
+ 	int32 tv_sec;
+diff --git a/src/pkg/runtime/openbsd/amd64/defs.h b/src/pkg/runtime/openbsd/amd64/defs.h
+index 968f22d586..27bf4b9d65 100644
+--- a/src/pkg/runtime/openbsd/amd64/defs.h
++++ b/src/pkg/runtime/openbsd/amd64/defs.h
+@@ -100,6 +100,13 @@ struct StackT {
+ 	byte pad_godefs_0[4];
+ };
+ 
++typedef struct Timespec Timespec;
++struct Timespec {
++	int32 tv_sec;
++	byte pad_godefs_0[4];
++	int64 tv_nsec;
++};
++
+ typedef struct Timeval Timeval;
+ struct Timeval {
+ 	int64 tv_sec;
+diff --git a/src/pkg/runtime/openbsd/defs.c b/src/pkg/runtime/openbsd/defs.c
+index d0e0a19c35..9806c80b69 100644
+--- a/src/pkg/runtime/openbsd/defs.c
++++ b/src/pkg/runtime/openbsd/defs.c
+@@ -93,6 +93,7 @@ typedef union sigval $Sigval;
+ 
+ typedef stack_t $StackT;
+ 
++typedef struct timespec $Timespec;
+ typedef struct timeval $Timeval;
+ typedef struct itimerval $Itimerval;
+ 
+diff --git a/src/pkg/runtime/openbsd/thread.c b/src/pkg/runtime/openbsd/thread.c
+index e6419bf86a..e16bc47627 100644
+--- a/src/pkg/runtime/openbsd/thread.c
++++ b/src/pkg/runtime/openbsd/thread.c
+@@ -18,13 +18,19 @@ enum
+ 
+ 	ESRCH = 3,
+ 	ENOTSUP = 91,
++
++	// From OpenBSD's sys/time.h
++	CLOCK_REALTIME = 0,
++	CLOCK_VIRTUAL = 1,
++	CLOCK_PROF = 2,
++	CLOCK_MONOTONIC = 3
+ };
+ 
+ extern SigTab runtime·sigtab[];
+ 
+ extern int64 runtime·rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+-extern int32 runtime·thrsleep(void *, void *, void*, void *);
+-extern int32 runtime·thrwakeup(void *, int32);
++extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock);
++extern int32 runtime·thrwakeup(void *ident, int32 n);
+ 
+ // From OpenBSD's <sys/sysctl.h>
+ #define	CTL_HW	6
+@@ -65,7 +71,7 @@ retry:
+ 		runtime·osyield();
+ 	if(m->waitsemacount == 0) {
+ 		// the function unlocks the spinlock
+-		runtime·thrsleep(&m->waitsemacount, 0, 0, &m->waitsemalock);
++		runtime·thrsleep(&m->waitsemacount, 0, nil, &m->waitsemalock);
+ 		goto retry;
+ 	}
+ 	m->waitsemacount--;

@@ -11,7 +11,34 @@ Date:   Thu May 12 15:27:30 2016 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/types/resolver.go | 2 +-
  src/go/types/stmt.go     | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 1536df5bf1..992188f0ff 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -67,7 +67,7 @@ func (check *Checker) arityMatch(s, init *ast.ValueSpec) {
+ 			// TODO(gri) avoid declared but not used error here
+ 		} else {
+ 			// init exprs "inherited"
+-			check.errorf(s.Pos(), "extra init expr at %s", init.Pos())
++			check.errorf(s.Pos(), "extra init expr at %s", check.fset.Position(init.Pos()))
+ 			// TODO(gri) avoid declared but not used error here
+ 		}
+ 	case l > r && (init != nil || r != 1):
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index e301f71159..5764430b1b 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -123,7 +123,7 @@ func (check *Checker) multipleDefaults(list []ast.Stmt) {
+ 		}
+ 		if d != nil {
+ 			if first != nil {
+-				check.errorf(d.Pos(), "multiple defaults (first at %s)", first.Pos())
++				check.errorf(d.Pos(), "multiple defaults (first at %s)", check.fset.Position(first.Pos()))
+ 			} else {
+ 				first = d
+ 			}

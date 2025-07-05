@@ -10,6 +10,20 @@ Date:   Fri Sep 30 19:43:42 2016 -0500
     Change-Id: Iddb3614c41e1989096d6caf77d6c0d5781005181
     Reviewed-on: https://go-review.googlesource.com/30157
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/sleep.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index 73114f5eec..3868378227 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -12,7 +12,7 @@ func Sleep(d Duration)
+ func runtimeNano() int64
+ 
+ // Interface to timers implemented in package runtime.
+-// Must be in sync with ../runtime/runtime.h:/^struct.Timer$
++// Must be in sync with ../runtime/time.go:/^type timer
+ type runtimeTimer struct {
+ 	i      int
+ 	when   int64

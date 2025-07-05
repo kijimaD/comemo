@@ -50,7 +50,45 @@ Date:   Mon Nov 6 11:00:51 2023 +0000
     Run-TryBot: t hepudds <thepudds1460@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/fs.go      | 4 +---
  src/net/http/fs_test.go | 4 ++--
  2 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index c605fe3aca..20da56001c 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -343,9 +343,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 	}
+ 
+ 	w.Header().Set("Accept-Ranges", "bytes")
+-	if w.Header().Get("Content-Encoding") == "" {
+-		w.Header().Set("Content-Length", strconv.FormatInt(sendSize, 10))
+-	}
++	w.Header().Set("Content-Length", strconv.FormatInt(sendSize, 10))
+ 
+ 	w.WriteHeader(code)
+ 
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index cfabaae353..d29664c16a 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -571,7 +571,7 @@ func testServeDirWithoutTrailingSlash(t *testing.T, mode testMode) {
+ 	}
+ }
+ 
+-// Tests that ServeFile doesn't add a Content-Length if a Content-Encoding is
++// Tests that ServeFile adds a Content-Length even if a Content-Encoding is
+ // specified.
+ func TestServeFileWithContentEncoding(t *testing.T) { run(t, testServeFileWithContentEncoding) }
+ func testServeFileWithContentEncoding(t *testing.T, mode testMode) {
+@@ -593,7 +593,7 @@ func testServeFileWithContentEncoding(t *testing.T, mode testMode) {
+ 		t.Fatal(err)
+ 	}
+ 	resp.Body.Close()
+-	if g, e := resp.ContentLength, int64(-1); g != e {
++	if g, e := resp.ContentLength, int64(11); g != e {
+ 		t.Errorf("Content-Length mismatch: got %d, want %d", g, e)
+ 	}
+ }

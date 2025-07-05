@@ -15,7 +15,7 @@ Date:   Wed Dec 26 12:48:26 2012 -0800
     R=adonovan, rsc
     CC=golang-dev
     https://golang.org/cl/6948071
-
+---
  src/pkg/exp/gotype/gotype.go            |   7 +-
  src/pkg/exp/gotype/gotype_test.go       |  37 ++++---
  src/pkg/exp/types/api.go                |  65 +++++++++++
@@ -35,3 +35,1644 @@ Date:   Wed Dec 26 12:48:26 2012 -0800
  src/pkg/exp/types/types.go              |  22 +---
  src/pkg/exp/types/types_test.go         |  10 +-
  18 files changed, 529 insertions(+), 298 deletions(-)
+
+diff --git a/src/pkg/exp/gotype/gotype.go b/src/pkg/exp/gotype/gotype.go
+index fc0bdb44ed..67475e664a 100644
+--- a/src/pkg/exp/gotype/gotype.go
++++ b/src/pkg/exp/gotype/gotype.go
+@@ -170,14 +170,9 @@ func processFiles(filenames []string, allFiles bool) {
+ }
+ 
+ func processPackage(fset *token.FileSet, files map[string]*ast.File) {
+-	// make a package (resolve all identifiers)
+-	pkg, err := ast.NewPackage(fset, files, types.GcImport, types.Universe)
++	_, err := types.Check(fset, files)
+ 	if err != nil {
+ 		report(err)
+-		return
+-	}
+-	if err = types.Check(fset, pkg, nil, nil); err != nil {
+-		report(err)
+ 	}
+ }
+ 
+diff --git a/src/pkg/exp/gotype/gotype_test.go b/src/pkg/exp/gotype/gotype_test.go
+index c0c2e329bf..addce418d3 100644
+--- a/src/pkg/exp/gotype/gotype_test.go
++++ b/src/pkg/exp/gotype/gotype_test.go
+@@ -51,17 +51,20 @@ var tests = []string{
+ 	"exp/gotype/testdata/test1.go",
+ 
+ 	// directories
+-	// Note: packages that don't typecheck yet are commented out
++	// Note: Packages that don't typecheck yet are commented out.
++	// Unless there is comment next to the commented out packages,
++	// the package does't typecheck due to errors in the shift
++	// expression checker.
+ 	"archive/tar",
+ 	"archive/zip",
+ 
+ 	"bufio",
+ 	"bytes",
+ 
+-	"compress/bzip2",
++	// "compress/bzip2",
+ 	"compress/flate",
+ 	"compress/gzip",
+-	"compress/lzw",
++	// "compress/lzw",
+ 	"compress/zlib",
+ 
+ 	"container/heap",
+@@ -77,7 +80,7 @@ var tests = []string{
+ 	"crypto/elliptic",
+ 	"crypto/hmac",
+ 	"crypto/md5",
+-	"crypto/rand",
++	// "crypto/rand",
+ 	"crypto/rc4",
+ 	// "crypto/rsa", // intermittent failure: /home/gri/go2/src/pkg/crypto/rsa/pkcs1v15.go:21:27: undeclared name: io
+ 	"crypto/sha1",
+@@ -91,14 +94,14 @@ var tests = []string{
+ 	"database/sql",
+ 	"database/sql/driver",
+ 
+-	"debug/dwarf",
++	// "debug/dwarf",
+ 	"debug/elf",
+ 	"debug/gosym",
+ 	"debug/macho",
+ 	"debug/pe",
+ 
+ 	"encoding/ascii85",
+-	"encoding/asn1",
++	// "encoding/asn1",
+ 	"encoding/base32",
+ 	"encoding/base64",
+ 	"encoding/binary",
+@@ -124,7 +127,7 @@ var tests = []string{
+ 	"go/parser",
+ 	"go/printer",
+ 	"go/scanner",
+-	"go/token",
++	// "go/token",
+ 
+ 	"hash/adler32",
+ 	"hash/crc32",
+@@ -135,7 +138,7 @@ var tests = []string{
+ 	"image/color",
+ 	"image/draw",
+ 	"image/gif",
+-	"image/jpeg",
++	// "image/jpeg",
+ 	"image/png",
+ 
+ 	"index/suffixarray",
+@@ -146,7 +149,7 @@ var tests = []string{
+ 	"log",
+ 	"log/syslog",
+ 
+-	"math",
++	// "math",
+ 	"math/big",
+ 	"math/cmplx",
+ 	"math/rand",
+@@ -154,7 +157,7 @@ var tests = []string{
+ 	"mime",
+ 	"mime/multipart",
+ 
+-	// "net", // c:\go\root\src\pkg\net\interface_windows.go:54:13: invalid operation: division by zero
++	// "net",
+ 	"net/http",
+ 	"net/http/cgi",
+ 	"net/http/fcgi",
+@@ -165,41 +168,41 @@ var tests = []string{
+ 	"net/rpc",
+ 	"net/rpc/jsonrpc",
+ 	"net/smtp",
+-	"net/textproto",
++	// "net/textproto",
+ 	"net/url",
+ 
+ 	"path",
+ 	"path/filepath",
+ 
+-	// "reflect", // unsafe.Sizeof must return size > 0 for pointer types
++	"reflect",
+ 
+ 	"regexp",
+ 	"regexp/syntax",
+ 
+-	"runtime",
++	// "runtime",
+ 	"runtime/cgo",
+ 	"runtime/debug",
+ 	"runtime/pprof",
+ 
+ 	"sort",
+-	// "strconv", // bug in switch case duplicate detection
++	// "strconv",
+ 	"strings",
+ 
+ 	"sync",
+ 	"sync/atomic",
+ 
+-	// "syscall", c:\go\root\src\pkg\syscall\syscall_windows.go:35:16: cannot convert EINVAL (constant 536870951) to error
++	// "syscall",
+ 
+ 	"testing",
+ 	"testing/iotest",
+ 	"testing/quick",
+ 
+-	"text/scanner",
++	// "text/scanner",
+ 	"text/tabwriter",
+ 	"text/template",
+ 	"text/template/parse",
+ 
+-	// "time", // local const decls without initialization expressions
++	"time",
+ 	"unicode",
+ 	"unicode/utf16",
+ 	"unicode/utf8",
+diff --git a/src/pkg/exp/types/api.go b/src/pkg/exp/types/api.go
+new file mode 100644
+index 0000000000..a4f6af7847
+--- /dev/null
++++ b/src/pkg/exp/types/api.go
+@@ -0,0 +1,65 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package types declares the data structures for representing
++// Go types and implements typechecking of package files.
++//
++package types
++
++import (
++	"go/ast"
++	"go/token"
++)
++
++// A Context specifies the supporting context for type checking.
++type Context struct {
++	IntSize int64 // size in bytes of int and uint values
++	PtrSize int64 // size in bytes of pointers
++
++	// If Error is not nil, it is called with each error found
++	// during type checking.
++	Error func(err error)
++
++	// If Expr is not nil, it is called for each expression x that is
++	// type-checked: typ is the expression type, and val is the value
++	// if x is constant, val is nil otherwise.
++	//
++	// Constants are represented as follows:
++	//
++	//	bool     ->  bool
++	//	numeric  ->  int64, *big.Int, *big.Rat, Complex
++	//	string   ->  string
++	//	nil      ->  NilType
++	//
++	// Constant values are normalized, that is, they are represented
++	// using the "smallest" possible type that can represent the value.
++	// For instance, 1.0 is represented as an int64 because it can be
++	// represented accurately as an int64.
++	Expr func(x ast.Expr, typ Type, val interface{})
++
++	// If Import is not nil, it is used instead of GcImport.
++	Import ast.Importer
++}
++
++// Default is the default context for type checking.
++var Default = Context{
++	// TODO(gri) Perhaps this should depend on GOARCH?
++	IntSize: 8,
++	PtrSize: 8,
++}
++
++// Check resolves and typechecks a set of package files within the given
++// context. The package files' ASTs are augmented by assigning types to
++// ast.Objects. If there are no errors, Check returns the package, otherwise
++// it returns the first error. If the context's Error handler is nil,
++// Check terminates as soon as the first error is encountered.
++//
++func (ctxt *Context) Check(fset *token.FileSet, files map[string]*ast.File) (*ast.Package, error) {
++	return check(ctxt, fset, files)
++}
++
++// Check is shorthand for Default.Check.
++func Check(fset *token.FileSet, files map[string]*ast.File) (*ast.Package, error) {
++	return Default.Check(fset, files)
++}
+diff --git a/src/pkg/exp/types/builtins.go b/src/pkg/exp/types/builtins.go
+index ed636ee2a4..2ae6f56662 100644
+--- a/src/pkg/exp/types/builtins.go
++++ b/src/pkg/exp/types/builtins.go
+@@ -33,7 +33,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 		msg = "too many"
+ 	}
+ 	if msg != "" {
+-		check.invalidOp(call.Pos(), msg+"arguments for %s (expected %d, found %d)", call, bin.nargs, n)
++		check.invalidOp(call.Pos(), msg+" arguments for %s (expected %d, found %d)", call, bin.nargs, n)
+ 		goto Error
+ 	}
+ 
+@@ -175,8 +175,35 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 		}
+ 
+ 	case _Copy:
+-		// TODO(gri) implements checks
+-		unimplemented()
++		var y operand
++		check.expr(&y, args[1], nil, iota)
++		if y.mode == invalid {
++			goto Error
++		}
++
++		var dst, src Type
++		if t, ok := typ0.(*Slice); ok {
++			dst = t.Elt
++		}
++		switch t := underlying(y.typ).(type) {
++		case *Basic:
++			if isString(y.typ) {
++				src = Typ[Byte]
++			}
++		case *Slice:
++			src = t.Elt
++		}
++
++		if dst == nil || src == nil {
++			check.invalidArg(x.pos(), "copy expects slice arguments; found %s and %s", x, &y)
++			goto Error
++		}
++
++		if !isIdentical(dst, src) {
++			check.invalidArg(x.pos(), "arguments to copy %s and %s have different element types %s and %s", x, &y, dst, src)
++			goto Error
++		}
++
+ 		x.mode = value
+ 		x.typ = Typ[Int]
+ 
+@@ -204,11 +231,11 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 		if x.mode == constant {
+ 			// nothing to do for x.val == 0
+ 			if !isZeroConst(x.val) {
+-				c := x.val.(complex)
++				c := x.val.(Complex)
+ 				if id == _Real {
+-					x.val = c.re
++					x.val = c.Re
+ 				} else {
+-					x.val = c.im
++					x.val = c.Im
+ 				}
+ 			}
+ 		} else {
+@@ -271,6 +298,9 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 		x.typ = &Pointer{Base: typ0}
+ 
+ 	case _Panic, _Print, _Println:
++		for _, arg := range args[1:] {
++			check.expr(x, arg, nil, -1)
++		}
+ 		x.mode = novalue
+ 
+ 	case _Recover:
+@@ -298,14 +328,9 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 		x.val = int64(0)
+ 
+ 	case _Sizeof:
+-		// basic types with specified sizes have size guarantees; for all others we use 0
+-		var size int64
+-		if typ, ok := typ0.(*Basic); ok {
+-			size = typ.Size
+-		}
+ 		x.mode = constant
+ 		x.typ = Typ[Uintptr]
+-		x.val = size
++		x.val = sizeof(check.ctxt, typ0)
+ 
+ 	case _Assert:
+ 		// assert(pred) causes a typechecker error if pred is false.
+@@ -408,3 +433,25 @@ func (check *checker) complexArg(x *operand) bool {
+ 	check.invalidArg(x.pos(), "%s must be a float32, float64, or an untyped non-complex numeric constant", x)
+ 	return false
+ }
++
++func sizeof(ctxt *Context, typ Type) int64 {
++	switch typ := underlying(typ).(type) {
++	case *Basic:
++		switch typ.Kind {
++		case Int, Uint:
++			return ctxt.IntSize
++		case Uintptr:
++			return ctxt.PtrSize
++		}
++		return typ.Size
++	case *Array:
++		return sizeof(ctxt, typ.Elt) * typ.Len
++	case *Struct:
++		var size int64
++		for _, f := range typ.Fields {
++			size += sizeof(ctxt, f.Type)
++		}
++		return size
++	}
++	return ctxt.PtrSize // good enough
++}
+diff --git a/src/pkg/exp/types/check.go b/src/pkg/exp/types/check.go
+index af2d0c64d1..3708a0af62 100644
+--- a/src/pkg/exp/types/check.go
++++ b/src/pkg/exp/types/check.go
+@@ -9,6 +9,7 @@ package types
+ import (
+ 	"fmt"
+ 	"go/ast"
++	"go/scanner"
+ 	"go/token"
+ 	"sort"
+ )
+@@ -17,19 +18,35 @@ import (
+ const trace = false
+ 
+ type checker struct {
+-	fset *token.FileSet
+-	pkg  *ast.Package
+-	errh func(token.Pos, string)
+-	mapf func(ast.Expr, Type)
++	ctxt  *Context
++	fset  *token.FileSet
++	files []*ast.File
+ 
+ 	// lazily initialized
+ 	firsterr  error
+-	filenames []string                      // sorted list of package file names for reproducible iteration order
+ 	initexprs map[*ast.ValueSpec][]ast.Expr // "inherited" initialization expressions for constant declarations
+-	functypes []*Signature                  // stack of function signatures; actively typechecked function on top
++	funclist  []function                    // list of functions/methods with correct signatures and non-empty bodies
++	funcsig   *Signature                    // signature of currently typechecked function
+ 	pos       []token.Pos                   // stack of expr positions; debugging support, used if trace is set
+ }
+ 
++type function struct {
++	obj  *ast.Object // for debugging/tracing only
++	sig  *Signature
++	body *ast.BlockStmt
++}
++
++// later adds a function with non-empty body to the list of functions
++// that need to be processed after all package-level declarations
++// are typechecked.
++//
++func (check *checker) later(obj *ast.Object, sig *Signature, body *ast.BlockStmt) {
++	// functions implemented elsewhere (say in assembly) have no body
++	if body != nil {
++		check.funclist = append(check.funclist, function{obj, sig, body})
++	}
++}
++
+ // declare declares an object of the given kind and name (ident) in scope;
+ // decl is the corresponding declaration in the AST. An error is reported
+ // if the object was declared before.
+@@ -110,12 +127,6 @@ func (check *checker) valueSpec(pos token.Pos, obj *ast.Object, lhs []*ast.Ident
+ 	}
+ }
+ 
+-func (check *checker) function(typ *Signature, body *ast.BlockStmt) {
+-	check.functypes = append(check.functypes, typ)
+-	check.stmt(body)
+-	check.functypes = check.functypes[0 : len(check.functypes)-1]
+-}
+-
+ // object typechecks an object by assigning it a type; obj.Type must be nil.
+ // Callers must check obj.Type before calling object; this eliminates a call
+ // for each identifier that has been typechecked already, a common scenario.
+@@ -164,36 +175,39 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
+ 				for _, f := range t.Fields {
+ 					if m := scope.Lookup(f.Name); m != nil {
+ 						check.errorf(m.Pos(), "type %s has both field and method named %s", obj.Name, f.Name)
++						// ok to continue
+ 					}
+ 				}
+-				// ok to continue
+ 			case *Interface:
+ 				// methods cannot be associated with an interface type
+ 				for _, m := range scope.Objects {
+ 					recv := m.Decl.(*ast.FuncDecl).Recv.List[0].Type
+ 					check.errorf(recv.Pos(), "invalid receiver type %s (%s is an interface type)", obj.Name, obj.Name)
++					// ok to continue
+ 				}
+-				// ok to continue
+ 			}
+ 			// typecheck method signatures
+-			for _, m := range scope.Objects {
+-				mdecl := m.Decl.(*ast.FuncDecl)
+-				// TODO(gri) At the moment, the receiver is type-checked when checking
+-				// the method body. Also, we don't properly track if the receiver is
+-				// a pointer (i.e., currently, method sets are too large). FIX THIS.
+-				mtyp := check.typ(mdecl.Type, cycleOk).(*Signature)
+-				m.Type = mtyp
++			for _, obj := range scope.Objects {
++				mdecl := obj.Decl.(*ast.FuncDecl)
++				sig := check.typ(mdecl.Type, cycleOk).(*Signature)
++				params, _ := check.collectParams(mdecl.Recv, false)
++				sig.Recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
++				obj.Type = sig
++				check.later(obj, sig, mdecl.Body)
+ 			}
+ 		}
+ 
+ 	case ast.Fun:
+ 		fdecl := obj.Decl.(*ast.FuncDecl)
+-		check.collectParams(fdecl.Recv, false) // ensure method base is type-checked
+-		ftyp := check.typ(fdecl.Type, cycleOk).(*Signature)
+-		obj.Type = ftyp
+-		// functions implemented elsewhere (say in assembly) have no body
+-		if fdecl.Body != nil {
+-			check.function(ftyp, fdecl.Body)
++		// methods are typechecked when their receivers are typechecked
++		if fdecl.Recv == nil {
++			sig := check.typ(fdecl.Type, cycleOk).(*Signature)
++			if obj.Name == "init" && (len(sig.Params) != 0 || len(sig.Results) != 0) {
++				check.errorf(fdecl.Pos(), "func init must have no arguments and no return values")
++				// ok to continue
++			}
++			obj.Type = sig
++			check.later(obj, sig, fdecl.Body)
+ 		}
+ 
+ 	default:
+@@ -233,40 +247,33 @@ func (check *checker) assocMethod(meth *ast.FuncDecl) {
+ 	if ptr, ok := typ.(*ast.StarExpr); ok {
+ 		typ = ptr.X
+ 	}
+-	// determine receiver base type object (or nil if error)
++	// determine receiver base type object
+ 	var obj *ast.Object
+ 	if ident, ok := typ.(*ast.Ident); ok && ident.Obj != nil {
+ 		obj = ident.Obj
+ 		if obj.Kind != ast.Typ {
+ 			check.errorf(ident.Pos(), "%s is not a type", ident.Name)
+-			obj = nil
++			return // ignore this method
+ 		}
+ 		// TODO(gri) determine if obj was defined in this package
+ 		/*
+ 			if check.notLocal(obj) {
+ 				check.errorf(ident.Pos(), "cannot define methods on non-local type %s", ident.Name)
+-				obj = nil
++				return // ignore this method
+ 			}
+ 		*/
+ 	} else {
+ 		// If it's not an identifier or the identifier wasn't declared/resolved,
+ 		// the parser/resolver already reported an error. Nothing to do here.
++		return // ignore this method
+ 	}
+-	// determine base type scope (or nil if error)
++	// declare method in receiver base type scope
+ 	var scope *ast.Scope
+-	if obj != nil {
+-		if obj.Data != nil {
+-			scope = obj.Data.(*ast.Scope)
+-		} else {
+-			scope = ast.NewScope(nil)
+-			obj.Data = scope
+-		}
++	if obj.Data != nil {
++		scope = obj.Data.(*ast.Scope)
+ 	} else {
+-		// use a dummy scope so that meth can be declared in
+-		// presence of an error and get an associated object
+-		// (always use a new scope so that we don't get double
+-		// declaration errors)
+ 		scope = ast.NewScope(nil)
++		obj.Data = scope
+ 	}
+ 	check.declare(scope, ast.Fun, meth.Name, meth)
+ }
+@@ -308,13 +315,20 @@ func (check *checker) decl(decl ast.Decl) {
+ 			}
+ 		}
+ 	case *ast.FuncDecl:
+-		if d.Name.Name == "init" {
+-			// initialization function
+-			// TODO(gri) ignore for now (has no object associated with it)
+-			// (should probably collect in a first phase and properly initialize)
++		// methods are checked when their respective base types are checked
++		if d.Recv != nil {
+ 			return
+ 		}
+-		if obj := d.Name.Obj; obj.Type == nil {
++		obj := d.Name.Obj
++		// Initialization functions don't have an object associated with them
++		// since they are not in any scope. Create a dummy object for them.
++		if d.Name.Name == "init" {
++			assert(obj == nil) // all other functions should have an object
++			obj = ast.NewObj(ast.Fun, d.Name.Name)
++			obj.Decl = d
++			d.Name.Obj = obj
++		}
++		if obj.Type == nil {
+ 			check.object(obj, false)
+ 		}
+ 	default:
+@@ -324,35 +338,42 @@ func (check *checker) decl(decl ast.Decl) {
+ 
+ // iterate calls f for each package-level declaration.
+ func (check *checker) iterate(f func(*checker, ast.Decl)) {
+-	list := check.filenames
+-
+-	if list == nil {
+-		// initialize lazily
+-		for filename := range check.pkg.Files {
+-			list = append(list, filename)
++	for _, file := range check.files {
++		for _, decl := range file.Decls {
++			f(check, decl)
+ 		}
+-		sort.Strings(list)
+-		check.filenames = list
+ 	}
++}
+ 
+-	for _, filename := range list {
+-		for _, decl := range check.pkg.Files[filename].Decls {
+-			f(check, decl)
+-		}
++// sortedFiles returns the sorted list of package files given a package file map.
++func sortedFiles(m map[string]*ast.File) []*ast.File {
++	keys := make([]string, len(m))
++	i := 0
++	for k, _ := range m {
++		keys[i] = k
++		i++
+ 	}
++	sort.Strings(keys)
++
++	files := make([]*ast.File, len(m))
++	for i, k := range keys {
++		files[i] = m[k]
++	}
++
++	return files
+ }
+ 
+ // A bailout panic is raised to indicate early termination.
+ type bailout struct{}
+ 
+-func check(fset *token.FileSet, pkg *ast.Package, errh func(token.Pos, string), f func(ast.Expr, Type)) (err error) {
++func check(ctxt *Context, fset *token.FileSet, files map[string]*ast.File) (pkg *ast.Package, err error) {
+ 	// initialize checker
+-	var check checker
+-	check.fset = fset
+-	check.pkg = pkg
+-	check.errh = errh
+-	check.mapf = f
+-	check.initexprs = make(map[*ast.ValueSpec][]ast.Expr)
++	check := checker{
++		ctxt:      ctxt,
++		fset:      fset,
++		files:     sortedFiles(files),
++		initexprs: make(map[*ast.ValueSpec][]ast.Expr),
++	}
+ 
+ 	// handle panics
+ 	defer func() {
+@@ -365,10 +386,27 @@ func check(fset *token.FileSet, pkg *ast.Package, errh func(token.Pos, string),
+ 		default:
+ 			// unexpected panic: don't crash clients
+ 			// panic(p) // enable for debugging
+-			err = fmt.Errorf("types.check internal error: %v", p)
++			// TODO(gri) add a test case for this scenario
++			err = fmt.Errorf("types internal error: %v", p)
+ 		}
+ 	}()
+ 
++	// resolve identifiers
++	imp := ctxt.Import
++	if imp == nil {
++		imp = GcImport
++	}
++	pkg, err = ast.NewPackage(fset, files, imp, Universe)
++	if err != nil {
++		if list, _ := err.(scanner.ErrorList); len(list) > 0 {
++			for _, err := range list {
++				check.err(err)
++			}
++		} else {
++			check.err(err)
++		}
++	}
++
+ 	// determine missing constant initialization expressions
+ 	// and associate methods with types
+ 	check.iterate((*checker).assocInitvalsOrMethod)
+@@ -376,5 +414,20 @@ func check(fset *token.FileSet, pkg *ast.Package, errh func(token.Pos, string),
+ 	// typecheck all declarations
+ 	check.iterate((*checker).decl)
+ 
++	// typecheck all function/method bodies
++	// (funclist may grow when checking statements - do not use range clause!)
++	for i := 0; i < len(check.funclist); i++ {
++		f := check.funclist[i]
++		if trace {
++			s := "<function literal>"
++			if f.obj != nil {
++				s = f.obj.Name
++			}
++			fmt.Println("---", s)
++		}
++		check.funcsig = f.sig
++		check.stmtList(f.body.List)
++	}
++
+ 	return
+ }
+diff --git a/src/pkg/exp/types/check_test.go b/src/pkg/exp/types/check_test.go
+index 3a0cc044f0..4e73d93baf 100644
+--- a/src/pkg/exp/types/check_test.go
++++ b/src/pkg/exp/types/check_test.go
+@@ -72,16 +72,25 @@ func getFile(filename string) (file *token.File) {
+ 	return file
+ }
+ 
+-func getPos(filename string, offset int) token.Pos {
+-	if f := getFile(filename); f != nil {
+-		return f.Pos(offset)
++// Positioned errors are of the form filename:line:column: message .
++var posMsgRx = regexp.MustCompile(`^(.*:[0-9]+:[0-9]+): *(.*)`)
++
++// splitError splits an error's error message into a position string
++// and the actual error message. If there's no position information,
++// pos is the empty string, and msg is the entire error message.
++//
++func splitError(err error) (pos, msg string) {
++	msg = err.Error()
++	if m := posMsgRx.FindStringSubmatch(msg); len(m) == 3 {
++		pos = m[1]
++		msg = m[2]
+ 	}
+-	return token.NoPos
++	return
+ }
+ 
+-func parseFiles(t *testing.T, testname string, filenames []string) (map[string]*ast.File, error) {
++func parseFiles(t *testing.T, testname string, filenames []string) (map[string]*ast.File, []error) {
+ 	files := make(map[string]*ast.File)
+-	var errors scanner.ErrorList
++	var errlist []error
+ 	for _, filename := range filenames {
+ 		if _, exists := files[filename]; exists {
+ 			t.Fatalf("%s: duplicate file %s", testname, filename)
+@@ -92,14 +101,16 @@ func parseFiles(t *testing.T, testname string, filenames []string) (map[string]*
+ 		}
+ 		files[filename] = file
+ 		if err != nil {
+-			// if the parser returns a non-scanner.ErrorList error
+-			// the file couldn't be read in the first place and
+-			// file == nil; in that case we shouldn't reach here
+-			errors = append(errors, err.(scanner.ErrorList)...)
++			if list, _ := err.(scanner.ErrorList); len(list) > 0 {
++				for _, err := range list {
++					errlist = append(errlist, err)
++				}
++			} else {
++				errlist = append(errlist, err)
++			}
+ 		}
+-
+ 	}
+-	return files, errors
++	return files, errlist
+ }
+ 
+ // ERROR comments must be of the form /* ERROR "rx" */ and rx is
+@@ -107,11 +118,11 @@ func parseFiles(t *testing.T, testname string, filenames []string) (map[string]*
+ //
+ var errRx = regexp.MustCompile(`^/\* *ERROR *"([^"]*)" *\*/$`)
+ 
+-// expectedErrors collects the regular expressions of ERROR comments found
++// errMap collects the regular expressions of ERROR comments found
+ // in files and returns them as a map of error positions to error messages.
+ //
+-func expectedErrors(t *testing.T, testname string, files map[string]*ast.File) map[token.Pos][]string {
+-	errors := make(map[token.Pos][]string)
++func errMap(t *testing.T, testname string, files map[string]*ast.File) map[string][]string {
++	errmap := make(map[string][]string)
+ 
+ 	for filename := range files {
+ 		src, err := ioutil.ReadFile(filename)
+@@ -124,7 +135,7 @@ func expectedErrors(t *testing.T, testname string, files map[string]*ast.File) m
+ 		// set otherwise the position information returned here will
+ 		// not match the position information collected by the parser
+ 		s.Init(getFile(filename), src, nil, scanner.ScanComments)
+-		var prev token.Pos // position of last non-comment, non-semicolon token
++		var prev string // position string of last non-comment, non-semicolon token
+ 
+ 	scanFile:
+ 		for {
+@@ -135,102 +146,88 @@ func expectedErrors(t *testing.T, testname string, files map[string]*ast.File) m
+ 			case token.COMMENT:
+ 				s := errRx.FindStringSubmatch(lit)
+ 				if len(s) == 2 {
+-					list := errors[prev]
+-					errors[prev] = append(list, string(s[1]))
++					errmap[prev] = append(errmap[prev], string(s[1]))
+ 				}
+ 			case token.SEMICOLON:
+ 				// ignore automatically inserted semicolon
+ 				if lit == "\n" {
+-					break
++					continue scanFile
+ 				}
+ 				fallthrough
+ 			default:
+-				prev = pos
++				prev = fset.Position(pos).String()
+ 			}
+ 		}
+ 	}
+ 
+-	return errors
++	return errmap
+ }
+ 
+-func eliminate(t *testing.T, expected map[token.Pos][]string, errors error) {
+-	if *listErrors || errors == nil {
+-		return
+-	}
+-	for _, error := range errors.(scanner.ErrorList) {
+-		// error.Pos is a token.Position, but we want
+-		// a token.Pos so we can do a map lookup
+-		pos := getPos(error.Pos.Filename, error.Pos.Offset)
+-		list := expected[pos]
++func eliminate(t *testing.T, errmap map[string][]string, errlist []error) {
++	for _, err := range errlist {
++		pos, msg := splitError(err)
++		list := errmap[pos]
+ 		index := -1 // list index of matching message, if any
+ 		// we expect one of the messages in list to match the error at pos
+ 		for i, msg := range list {
+ 			rx, err := regexp.Compile(msg)
+ 			if err != nil {
+-				t.Errorf("%s: %v", error.Pos, err)
++				t.Errorf("%s: %v", pos, err)
+ 				continue
+ 			}
+-			if match := rx.MatchString(error.Msg); match {
++			if rx.MatchString(msg) {
+ 				index = i
+ 				break
+ 			}
+ 		}
+ 		if index >= 0 {
+ 			// eliminate from list
+-			n := len(list) - 1
+-			if n > 0 {
++			if n := len(list) - 1; n > 0 {
+ 				// not the last entry - swap in last element and shorten list by 1
+ 				list[index] = list[n]
+-				expected[pos] = list[:n]
++				errmap[pos] = list[:n]
+ 			} else {
+ 				// last entry - remove list from map
+-				delete(expected, pos)
++				delete(errmap, pos)
+ 			}
+ 		} else {
+-			t.Errorf("%s: no error expected: %q", error.Pos, error.Msg)
+-			continue
++			t.Errorf("%s: no error expected: %q", pos, msg)
+ 		}
++
+ 	}
+ }
+ 
+ func checkFiles(t *testing.T, testname string, testfiles []string) {
+-	// TODO(gri) Eventually all these different phases should be
+-	//           subsumed into a single function call that takes
+-	//           a set of files and creates a fully resolved and
+-	//           type-checked AST.
++	// parse files and collect parser errors
++	files, errlist := parseFiles(t, testname, testfiles)
+ 
+-	files, err := parseFiles(t, testname, testfiles)
+-
+-	// we are expecting the following errors
+-	// (collect these after parsing the files so that
+-	// they are found in the file set)
+-	errors := expectedErrors(t, testname, files)
+-
+-	// verify errors returned by the parser
+-	eliminate(t, errors, err)
+-
+-	// verify errors returned after resolving identifiers
+-	pkg, err := ast.NewPackage(fset, files, GcImport, Universe)
+-	eliminate(t, errors, err)
+-
+-	// verify errors returned by the typechecker
+-	var list scanner.ErrorList
+-	errh := func(pos token.Pos, msg string) {
+-		list.Add(fset.Position(pos), msg)
+-	}
+-	err = Check(fset, pkg, errh, nil)
+-	eliminate(t, errors, list)
++	// typecheck and collect typechecker errors
++	ctxt := Default
++	ctxt.Error = func(err error) { errlist = append(errlist, err) }
++	ctxt.Check(fset, files)
+ 
+ 	if *listErrors {
+-		scanner.PrintError(os.Stdout, err)
++		t.Errorf("--- %s: %d errors found:", testname, len(errlist))
++		for _, err := range errlist {
++			t.Error(err)
++		}
+ 		return
+ 	}
+ 
++	// match and eliminate errors
++	// we are expecting the following errors
++	// (collect these after parsing the files so that
++	// they are found in the file set)
++	errmap := errMap(t, testname, files)
++	eliminate(t, errmap, errlist)
++
+ 	// there should be no expected errors left
+-	if len(errors) > 0 {
+-		t.Errorf("%s: %d errors not reported:", testname, len(errors))
+-		for pos, msg := range errors {
+-			t.Errorf("%s: %s\n", fset.Position(pos), msg)
++	if len(errmap) > 0 {
++		t.Errorf("--- %s: %d source positions with expected (but not reported) errors:", testname, len(errmap))
++		for pos, list := range errmap {
++			for _, rx := range list {
++				t.Errorf("%s: %q", pos, rx)
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/exp/types/const.go b/src/pkg/exp/types/const.go
+index d44c8fb61d..a6c807c432 100644
+--- a/src/pkg/exp/types/const.go
++++ b/src/pkg/exp/types/const.go
+@@ -20,9 +20,9 @@ import (
+ // Representation of constant values.
+ //
+ // bool     ->  bool (true, false)
+-// numeric  ->  int64, *big.Int, *big.Rat, complex (ordered by increasing data structure "size")
++// numeric  ->  int64, *big.Int, *big.Rat, Complex (ordered by increasing data structure "size")
+ // string   ->  string
+-// nil      ->  nilType (nilConst)
++// nil      ->  NilType (nilConst)
+ //
+ // Numeric constants are normalized after each operation such
+ // that they are represented by the "smallest" data structure
+@@ -30,22 +30,22 @@ import (
+ // type. Non-numeric constants are always normalized.
+ 
+ // Representation of complex numbers.
+-type complex struct {
+-	re, im *big.Rat
++type Complex struct {
++	Re, Im *big.Rat
+ }
+ 
+-func (c complex) String() string {
+-	if c.re.Sign() == 0 {
+-		return fmt.Sprintf("%si", c.im)
++func (c Complex) String() string {
++	if c.Re.Sign() == 0 {
++		return fmt.Sprintf("%si", c.Im)
+ 	}
+ 	// normalized complex values always have an imaginary part
+-	return fmt.Sprintf("(%s + %si)", c.re, c.im)
++	return fmt.Sprintf("(%s + %si)", c.Re, c.Im)
+ }
+ 
+ // Representation of nil.
+-type nilType struct{}
++type NilType struct{}
+ 
+-func (nilType) String() string {
++func (NilType) String() string {
+ 	return "nil"
+ }
+ 
+@@ -58,7 +58,7 @@ const (
+ 
+ // Frequently used values.
+ var (
+-	nilConst  = nilType{}
++	nilConst  = NilType{}
+ 	zeroConst = int64(0)
+ )
+ 
+@@ -97,7 +97,7 @@ func newComplex(re, im *big.Rat) interface{} {
+ 	if im.Sign() == 0 {
+ 		return normalizeRatConst(re)
+ 	}
+-	return complex{re, im}
++	return Complex{re, im}
+ }
+ 
+ // makeRuneConst returns the int64 code point for the rune literal
+@@ -137,7 +137,7 @@ func makeFloatConst(lit string) interface{} {
+ 	return nil
+ }
+ 
+-// makeComplexConst returns the complex constant representation (complex) for
++// makeComplexConst returns the complex constant representation (Complex) for
+ // the imaginary literal lit. The result is nil if lit is not a correct imaginary
+ // literal.
+ //
+@@ -162,7 +162,7 @@ func makeStringConst(lit string) interface{} {
+ 	return nil
+ }
+ 
+-// toImagConst returns the constant complex(0, x) for a non-complex x.
++// toImagConst returns the constant Complex(0, x) for a non-complex x.
+ func toImagConst(x interface{}) interface{} {
+ 	var im *big.Rat
+ 	switch x := x.(type) {
+@@ -175,7 +175,7 @@ func toImagConst(x interface{}) interface{} {
+ 	default:
+ 		unreachable()
+ 	}
+-	return complex{rat0, im}
++	return Complex{rat0, im}
+ }
+ 
+ // isZeroConst reports whether the value of constant x is 0.
+@@ -282,7 +282,7 @@ func isRepresentableConst(x interface{}, as BasicKind) bool {
+ 			return true
+ 		}
+ 
+-	case complex:
++	case Complex:
+ 		switch as {
+ 		case Complex64:
+ 			return true // TODO(gri) fix this
+@@ -295,7 +295,7 @@ func isRepresentableConst(x interface{}, as BasicKind) bool {
+ 	case string:
+ 		return as == String || as == UntypedString
+ 
+-	case nilType:
++	case NilType:
+ 		return as == UntypedNil || as == UnsafePointer
+ 
+ 	default:
+@@ -313,7 +313,7 @@ var (
+ // complexity returns a measure of representation complexity for constant x.
+ func complexity(x interface{}) int {
+ 	switch x.(type) {
+-	case bool, string, nilType:
++	case bool, string, NilType:
+ 		return 1
+ 	case int64:
+ 		return 2
+@@ -321,7 +321,7 @@ func complexity(x interface{}) int {
+ 		return 3
+ 	case *big.Rat:
+ 		return 4
+-	case complex:
++	case Complex:
+ 		return 5
+ 	}
+ 	unreachable()
+@@ -330,7 +330,7 @@ func complexity(x interface{}) int {
+ 
+ // matchConst returns the matching representation (same type) with the
+ // smallest complexity for two constant values x and y. They must be
+-// of the same "kind" (boolean, numeric, string, or nilType).
++// of the same "kind" (boolean, numeric, string, or NilType).
+ //
+ func matchConst(x, y interface{}) (_, _ interface{}) {
+ 	if complexity(x) > complexity(y) {
+@@ -340,7 +340,7 @@ func matchConst(x, y interface{}) (_, _ interface{}) {
+ 	// complexity(x) <= complexity(y)
+ 
+ 	switch x := x.(type) {
+-	case bool, complex, string, nilType:
++	case bool, Complex, string, NilType:
+ 		return x, y
+ 
+ 	case int64:
+@@ -351,8 +351,8 @@ func matchConst(x, y interface{}) (_, _ interface{}) {
+ 			return big.NewInt(x), y
+ 		case *big.Rat:
+ 			return big.NewRat(x, 1), y
+-		case complex:
+-			return complex{big.NewRat(x, 1), rat0}, y
++		case Complex:
++			return Complex{big.NewRat(x, 1), rat0}, y
+ 		}
+ 
+ 	case *big.Int:
+@@ -361,16 +361,16 @@ func matchConst(x, y interface{}) (_, _ interface{}) {
+ 			return x, y
+ 		case *big.Rat:
+ 			return new(big.Rat).SetFrac(x, int1), y
+-		case complex:
+-			return complex{new(big.Rat).SetFrac(x, int1), rat0}, y
++		case Complex:
++			return Complex{new(big.Rat).SetFrac(x, int1), rat0}, y
+ 		}
+ 
+ 	case *big.Rat:
+ 		switch y := y.(type) {
+ 		case *big.Rat:
+ 			return x, y
+-		case complex:
+-			return complex{x, rat0}, y
++		case Complex:
++			return Complex{x, rat0}, y
+ 		}
+ 	}
+ 
+@@ -405,8 +405,8 @@ func unaryOpConst(x interface{}, op token.Token, typ *Basic) interface{} {
+ 			return normalizeIntConst(new(big.Int).Neg(x))
+ 		case *big.Rat:
+ 			return normalizeRatConst(new(big.Rat).Neg(x))
+-		case complex:
+-			return newComplex(new(big.Rat).Neg(x.re), new(big.Rat).Neg(x.im))
++		case Complex:
++			return newComplex(new(big.Rat).Neg(x.Re), new(big.Rat).Neg(x.Im))
+ 		}
+ 	case token.XOR:
+ 		var z big.Int
+@@ -551,10 +551,10 @@ func binaryOpConst(x, y interface{}, op token.Token, typ *Basic) interface{} {
+ 		}
+ 		return normalizeRatConst(&z)
+ 
+-	case complex:
+-		y := y.(complex)
+-		a, b := x.re, x.im
+-		c, d := y.re, y.im
++	case Complex:
++		y := y.(Complex)
++		a, b := x.Re, x.Im
++		c, d := y.Re, y.Im
+ 		var re, im big.Rat
+ 		switch op {
+ 		case token.ADD:
+@@ -632,7 +632,7 @@ func shiftConst(x interface{}, s uint, op token.Token) interface{} {
+ 
+ // compareConst returns the result of the constant comparison x op y;
+ // both operands must be of the same "kind" (boolean, numeric, string,
+-// or nilType).
++// or NilType).
+ //
+ func compareConst(x, y interface{}, op token.Token) (z bool) {
+ 	x, y = matchConst(x, y)
+@@ -707,10 +707,10 @@ func compareConst(x, y interface{}, op token.Token) (z bool) {
+ 			return s < 0
+ 		}
+ 
+-	case complex:
+-		y := y.(complex)
++	case Complex:
++		y := y.(Complex)
+ 		if op == token.EQL {
+-			return x.re.Cmp(y.re) == 0 && x.im.Cmp(y.im) == 0
++			return x.Re.Cmp(y.Re) == 0 && x.Im.Cmp(y.Im) == 0
+ 		}
+ 
+ 	case string:
+@@ -722,9 +722,9 @@ func compareConst(x, y interface{}, op token.Token) (z bool) {
+ 			return x < y
+ 		}
+ 
+-	case nilType:
++	case NilType:
+ 		if op == token.EQL {
+-			return x == y.(nilType)
++			return x == y.(NilType)
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/exp/types/errors.go b/src/pkg/exp/types/errors.go
+index b1b6436968..f0ca69af5c 100644
+--- a/src/pkg/exp/types/errors.go
++++ b/src/pkg/exp/types/errors.go
+@@ -30,15 +30,15 @@ func unreachable() {
+ }
+ 
+ func (check *checker) printTrace(format string, args []interface{}) {
+-	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
++	const dots = ".  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  "
+ 	n := len(check.pos) - 1
+-	i := 2 * n
++	i := 3 * n
+ 	for i > len(dots) {
+ 		fmt.Print(dots)
+ 		i -= len(dots)
+ 	}
+ 	// i <= len(dots)
+-	fmt.Printf("%s: ", check.fset.Position(check.pos[n]))
++	fmt.Printf("%s:\t", check.fset.Position(check.pos[n]))
+ 	fmt.Print(dots[0:i])
+ 	fmt.Println(check.formatMsg(format, args))
+ }
+@@ -76,15 +76,19 @@ func (check *checker) dump(format string, args ...interface{}) {
+ 	fmt.Println(check.formatMsg(format, args))
+ }
+ 
+-func (check *checker) errorf(pos token.Pos, format string, args ...interface{}) {
+-	msg := check.formatMsg(format, args)
++func (check *checker) err(err error) {
+ 	if check.firsterr == nil {
+-		check.firsterr = fmt.Errorf("%s: %s", check.fset.Position(pos), msg)
++		check.firsterr = err
+ 	}
+-	if check.errh == nil {
++	f := check.ctxt.Error
++	if f == nil {
+ 		panic(bailout{}) // report only first error
+ 	}
+-	check.errh(pos, msg)
++	f(err)
++}
++
++func (check *checker) errorf(pos token.Pos, format string, args ...interface{}) {
++	check.err(fmt.Errorf("%s: %s", check.fset.Position(pos), check.formatMsg(format, args)))
+ }
+ 
+ func (check *checker) invalidAST(pos token.Pos, format string, args ...interface{}) {
+diff --git a/src/pkg/exp/types/expr.go b/src/pkg/exp/types/expr.go
+index 2f5f2b3f1e..1ac0e91db4 100644
+--- a/src/pkg/exp/types/expr.go
++++ b/src/pkg/exp/types/expr.go
+@@ -19,12 +19,8 @@ import (
+ // - at the moment, iota is passed around almost everywhere - in many places we know it cannot be used
+ 
+ // TODO(gri) API issues
+-// - clients need access to constant values
+-// - clients need access to built-in type information
+-
+-// TODO(gri) Bugs
+-// - expression hints are (correctly) used untyped for composite literal components, but also
+-//   in possibly overlapping use as hints for shift expressions - investigate
++// - clients need access to builtins type information
++// - API tests are missing (e.g., identifiers should be handled as expressions in callbacks)
+ 
+ func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (params ObjList, isVariadic bool) {
+ 	if list == nil {
+@@ -183,7 +179,14 @@ func (check *checker) op(m opPredicates, x *operand, op token.Token) bool {
+ func (check *checker) unary(x *operand, op token.Token) {
+ 	switch op {
+ 	case token.AND:
+-		// TODO(gri) need to check for composite literals, somehow (they are not variables, in general)
++		// spec: "As an exception to the addressability
++		// requirement x may also be a composite literal."
++		// (The spec doesn't specify whether the literal
++		// can be parenthesized or not, but all compilers
++		// accept parenthesized literals.)
++		if _, ok := unparen(x.expr).(*ast.CompositeLit); ok {
++			x.mode = variable
++		}
+ 		if x.mode != variable {
+ 			check.invalidOp(x.pos(), "cannot take address of %s", x)
+ 			goto Error
+@@ -338,41 +341,45 @@ func (check *checker) comparison(x, y *operand, op token.Token) {
+ }
+ 
+ // untyped lhs shift operands convert to the hint type
+-// TODO(gri) shift hinting is not correct
+ func (check *checker) shift(x, y *operand, op token.Token, hint Type) {
+-	// The right operand in a shift expression must have unsigned integer type
+-	// or be an untyped constant that can be converted to unsigned integer type.
+-	if y.mode == constant && isUntyped(y.typ) {
+-		if isRepresentableConst(y.val, UntypedInt) {
+-			y.typ = Typ[UntypedInt]
+-		}
+-	}
+-	if !isInteger(y.typ) || !isUnsigned(y.typ) && !isUntyped(y.typ) {
++	// spec: "The right operand in a shift expression must have unsigned
++	// integer type or be an untyped constant that can be converted to
++	// unsigned integer type."
++	switch {
++	case isInteger(y.typ) && isUnsigned(y.typ):
++		// nothing to do
++	case y.mode == constant && isUntyped(y.typ) && isRepresentableConst(y.val, UntypedInt):
++		y.typ = Typ[UntypedInt]
++	default:
+ 		check.invalidOp(y.pos(), "shift count %s must be unsigned integer", y)
+ 		x.mode = invalid
+ 		return
+ 	}
+ 
+-	// If the left operand of a non-constant shift expression is an untyped
+-	// constant, the type of the constant is what it would be if the shift
+-	// expression were replaced by its left operand alone; the type is int
+-	// if it cannot be determined from the context (for instance, if the
+-	// shift expression is an operand in a comparison against an untyped
+-	// constant)
++	// spec: "If the left operand of a non-constant shift expression is
++	// an untyped constant, the type of the constant is what it would be
++	// if the shift expression were replaced by its left operand alone;
++	// the type is int if it cannot be determined from the context (for
++	// instance, if the shift expression is an operand in a comparison
++	// against an untyped constant)".
+ 	if x.mode == constant && isUntyped(x.typ) {
+ 		if y.mode == constant {
+ 			// constant shift - accept values of any (untyped) type
+ 			// as long as the value is representable as an integer
+-			if isRepresentableConst(x.val, UntypedInt) {
+-				x.typ = Typ[UntypedInt]
++			if x.mode == constant && isUntyped(x.typ) {
++				if isRepresentableConst(x.val, UntypedInt) {
++					x.typ = Typ[UntypedInt]
++				}
+ 			}
+ 		} else {
+ 			// non-constant shift
+-			if hint != nil {
+-				check.convertUntyped(x, hint)
+-				if x.mode == invalid {
+-					return
+-				}
++			if hint == nil {
++				// TODO(gri) need to check for x.isNil (see other uses of defaultType)
++				hint = defaultType(x.typ)
++			}
++			check.convertUntyped(x, hint)
++			if x.mode == invalid {
++				return
+ 			}
+ 		}
+ 	}
+@@ -395,10 +402,10 @@ func (check *checker) shift(x, y *operand, op token.Token, hint Type) {
+ 			x.val = shiftConst(x.val, uint(s), op)
+ 			return
+ 		}
+-		x.mode = value
+ 	}
+ 
+-	// x.mode, x.Typ are unchanged
++	x.mode = value
++	// x.typ is already set
+ }
+ 
+ var binaryOpPredicates = opPredicates{
+@@ -591,10 +598,23 @@ func (check *checker) argument(sig *Signature, i int, arg ast.Expr, x *operand,
+ 	check.assignOperand(&z, x)
+ }
+ 
+-func (check *checker) recordType(x *operand) {
+-	if x.mode != invalid {
+-		check.mapf(x.expr, x.typ)
++var emptyResult Result
++
++func (check *checker) callExpr(x *operand) {
++	var typ Type
++	var val interface{}
++	switch x.mode {
++	case invalid:
++		return // nothing to do
++	case novalue:
++		typ = &emptyResult
++	case constant:
++		typ = x.typ
++		val = x.val
++	default:
++		typ = x.typ
+ 	}
++	check.ctxt.Expr(x.expr, typ, val)
+ }
+ 
+ // rawExpr typechecks expression e and initializes x with the expression
+@@ -605,12 +625,16 @@ func (check *checker) recordType(x *operand) {
+ //
+ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycleOk bool) {
+ 	if trace {
+-		check.trace(e.Pos(), "expr(%s, iota = %d, cycleOk = %v)", e, iota, cycleOk)
++		c := ""
++		if cycleOk {
++			c = " ⨁"
++		}
++		check.trace(e.Pos(), "%s (%s, %d%s)", e, typeString(hint), iota, c)
+ 		defer check.untrace("=> %s", x)
+ 	}
+ 
+-	if check.mapf != nil {
+-		defer check.recordType(x)
++	if check.ctxt.Expr != nil {
++		defer check.callExpr(x)
+ 	}
+ 
+ 	switch e := e.(type) {
+@@ -680,10 +704,10 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		}
+ 
+ 	case *ast.FuncLit:
+-		if typ, ok := check.typ(e.Type, false).(*Signature); ok {
++		if sig, ok := check.typ(e.Type, false).(*Signature); ok {
+ 			x.mode = value
+-			x.typ = typ
+-			check.function(typ, e.Body)
++			x.typ = sig
++			check.later(nil, sig, e.Body)
+ 		} else {
+ 			check.invalidAST(e.Pos(), "invalid function literal %s", e)
+ 			goto Error
+@@ -767,7 +791,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 					// i < len(fields)
+ 					etyp := fields[i].Type
+ 					if !x.isAssignable(etyp) {
+-						check.errorf(x.pos(), "cannot use %s as an element of type %s in struct literal", x, etyp)
++						check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
+ 						continue
+ 					}
+ 				}
+@@ -819,7 +843,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 			goto Error
+ 		}
+ 
+-		x.mode = variable // TODO(gri) mode is really a value - keep for now to get going
++		x.mode = value
+ 		x.typ = typ
+ 
+ 	case *ast.ParenExpr:
+diff --git a/src/pkg/exp/types/operand.go b/src/pkg/exp/types/operand.go
+index f8ddd84b54..e232f356e6 100644
+--- a/src/pkg/exp/types/operand.go
++++ b/src/pkg/exp/types/operand.go
+@@ -169,7 +169,11 @@ func (x *operand) isAssignable(T Type) bool {
+ 	// x is the predeclared identifier nil and T is a pointer,
+ 	// function, slice, map, channel, or interface type
+ 	if x.isNil() {
+-		switch Tu.(type) {
++		switch t := Tu.(type) {
++		case *Basic:
++			if t.Kind == UnsafePointer {
++				return true
++			}
+ 		case *Pointer, *Signature, *Slice, *Map, *Chan, *Interface:
+ 			return true
+ 		}
+diff --git a/src/pkg/exp/types/stmt.go b/src/pkg/exp/types/stmt.go
+index 7f9d45eb98..c4d05b2e16 100644
+--- a/src/pkg/exp/types/stmt.go
++++ b/src/pkg/exp/types/stmt.go
+@@ -270,7 +270,15 @@ func (check *checker) stmt(s ast.Stmt) {
+ 		// ignore
+ 
+ 	case *ast.DeclStmt:
+-		check.decl(s.Decl)
++		d, _ := s.Decl.(*ast.GenDecl)
++		if d == nil || (d.Tok != token.CONST && d.Tok != token.TYPE && d.Tok != token.VAR) {
++			check.invalidAST(token.NoPos, "const, type, or var declaration expected")
++			return
++		}
++		if d.Tok == token.CONST {
++			check.assocInitvals(d)
++		}
++		check.decl(d)
+ 
+ 	case *ast.LabeledStmt:
+ 		// TODO(gri) anything to do with label itself?
+@@ -378,8 +386,14 @@ func (check *checker) stmt(s ast.Stmt) {
+ 			}
+ 			var x, y operand
+ 			check.expr(&x, s.Lhs[0], nil, -1)
++			if x.mode == invalid {
++				return
++			}
+ 			check.expr(&y, s.Rhs[0], nil, -1)
+-			check.binary(&x, &y, op, nil)
++			if y.mode == invalid {
++				return
++			}
++			check.binary(&x, &y, op, x.typ)
+ 			check.assign1to1(s.Lhs[0], nil, &x, false, -1)
+ 		}
+ 
+@@ -390,7 +404,7 @@ func (check *checker) stmt(s ast.Stmt) {
+ 		check.call(s.Call)
+ 
+ 	case *ast.ReturnStmt:
+-		sig := check.functypes[len(check.functypes)-1]
++		sig := check.funcsig
+ 		if n := len(sig.Results); n > 0 {
+ 			// TODO(gri) should not have to compute lhs, named every single time - clean this up
+ 			lhs := make([]ast.Expr, n)
+@@ -459,6 +473,7 @@ func (check *checker) stmt(s ast.Stmt) {
+ 					// duplicate entry, but only report an error if there are
+ 					// no other errors.
+ 					var dupl token.Pos
++					var yy operand
+ 					if y.mode == constant {
+ 						// TODO(gri) This code doesn't work correctly for
+ 						//           large integer, floating point, or
+@@ -467,6 +482,7 @@ func (check *checker) stmt(s ast.Stmt) {
+ 						//           hash function to index the map.
+ 						dupl = seen[y.val]
+ 						seen[y.val] = y.pos()
++						yy = y // remember y
+ 					}
+ 					// TODO(gri) The convertUntyped call pair below appears in other places. Factor!
+ 					// Order matters: By comparing y against x, error positions are at the case values.
+@@ -480,8 +496,8 @@ func (check *checker) stmt(s ast.Stmt) {
+ 					}
+ 					check.comparison(&y, &x, token.EQL)
+ 					if y.mode != invalid && dupl.IsValid() {
+-						check.errorf(y.pos(), "%s is duplicate case (previous at %s)",
+-							&y, check.fset.Position(dupl))
++						check.errorf(yy.pos(), "%s is duplicate case (previous at %s)",
++							&yy, check.fset.Position(dupl))
+ 					}
+ 				}
+ 			}
+@@ -664,6 +680,7 @@ func (check *checker) stmt(s ast.Stmt) {
+ 		//           they refer to the expression in the range clause.
+ 		//           Should give better messages w/o too much code
+ 		//           duplication (assignment checking).
++		x.mode = value
+ 		if s.Key != nil {
+ 			x.typ = key
+ 			check.assign1to1(s.Key, nil, &x, decl, -1)
+diff --git a/src/pkg/exp/types/testdata/builtins.src b/src/pkg/exp/types/testdata/builtins.src
+index a9518530de..6c848fc277 100644
+--- a/src/pkg/exp/types/testdata/builtins.src
++++ b/src/pkg/exp/types/testdata/builtins.src
+@@ -76,6 +76,22 @@ func _complex() {
+ 	complex /* ERROR "not used" */ (1, 2)
+ }
+ 
++func _copy() {
++	copy /* ERROR "not enough arguments" */ ()
++	copy /* ERROR "not enough arguments" */ ("foo")
++	copy([ /* ERROR "copy expects slice arguments" */ ...]int{}, []int{})
++	copy([ /* ERROR "copy expects slice arguments" */ ]int{}, [...]int{})
++	copy([ /* ERROR "different element types" */ ]int8{}, "foo")
++
++	// spec examples
++	var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7}
++	var s = make([]int, 6)
++	var b = make([]byte, 5)
++	n1 := copy(s, a[0:])            // n1 == 6, s == []int{0, 1, 2, 3, 4, 5}
++	n2 := copy(s, s[2:])            // n2 == 4, s == []int{2, 3, 4, 5, 4, 5}
++	n3 := copy(b, "Hello, World!")  // n3 == 5, b == []byte("Hello")
++}
++
+ func _delete() {
+ 	var m map[string]int
+ 	var s string
+diff --git a/src/pkg/exp/types/testdata/decls1.src b/src/pkg/exp/types/testdata/decls1.src
+index 3baed67505..dd63ba9809 100644
+--- a/src/pkg/exp/types/testdata/decls1.src
++++ b/src/pkg/exp/types/testdata/decls1.src
+@@ -122,3 +122,11 @@ func (T) m0() {}
+ func (*T) m1() {}
+ func (x T) m2() {}
+ func (x *T) m3() {}
++
++
++// Initialization functions
++func init() {}
++func /* ERROR "no arguments and no return values" */ init(int) {}
++func /* ERROR "no arguments and no return values" */ init() int { return 0 }
++func /* ERROR "no arguments and no return values" */ init(int) int {}
++func (T) init(int) int { return 0 }
+diff --git a/src/pkg/exp/types/testdata/decls2a.src b/src/pkg/exp/types/testdata/decls2a.src
+index 8323829f35..5ad864828a 100644
+--- a/src/pkg/exp/types/testdata/decls2a.src
++++ b/src/pkg/exp/types/testdata/decls2a.src
+@@ -29,9 +29,9 @@ func (undeclared /* ERROR "undeclared" */) m() {}
+ func (x *undeclared /* ERROR "undeclared" */) m() {}
+ 
+ // TODO(gri) try to get rid of double error reporting here
+-func (pi /* ERROR "not a type" */ /* ERROR "not a type" */) m1() {}
+-func (x pi /* ERROR "not a type" */ /* ERROR "not a type" */) m2() {}
+-func (x *pi /* ERROR "not a type" */ /* ERROR "cannot indirect" */) m3() {} // TODO(gri) not closing the last /* comment crashes the system
++func (pi /* ERROR "not a type" */) m1() {}
++func (x pi /* ERROR "not a type" */) m2() {}
++func (x *pi /* ERROR "not a type" */ ) m3() {} // TODO(gri) not closing the last /* comment crashes the system
+ 
+ // Blank types.
+ type _ struct { m int }
+diff --git a/src/pkg/exp/types/testdata/expr0.src b/src/pkg/exp/types/testdata/expr0.src
+index 8b2eb04f29..c3233d36fe 100644
+--- a/src/pkg/exp/types/testdata/expr0.src
++++ b/src/pkg/exp/types/testdata/expr0.src
+@@ -133,3 +133,19 @@ var (
+ 	ch8 = <-rc
+ 	ch9 = <-sc /* ERROR "cannot receive" */
+ )
++
++// address of composite literals
++type T struct{x, y int}
++
++func f() T { return T{} }
++
++var (
++	_ = &T{1, 2}
++	_ = &[...]int{}
++	_ = &[]int{}
++	_ = &[]int{}
++	_ = &map[string]T{}
++	_ = &(T{1, 2})
++	_ = &((((T{1, 2}))))
++	_ = &f /* ERROR "cannot take address" */ ()
++)
+diff --git a/src/pkg/exp/types/testdata/stmt0.src b/src/pkg/exp/types/testdata/stmt0.src
+index c0e023671b..ca36834fde 100644
+--- a/src/pkg/exp/types/testdata/stmt0.src
++++ b/src/pkg/exp/types/testdata/stmt0.src
+@@ -261,4 +261,14 @@ func _rangeloops() {
+ 	}
+ 	for _ = range sc /* ERROR "cannot range over send-only channel" */ {}
+ 	for _ = range rc {}
++
++	// constant strings
++	const cs = "foo"
++	for i, x := range cs {}
++	for i, x := range "" {
++		var ii int
++		ii = i
++		var xx rune
++		xx = x
++	}
+ }
+\ No newline at end of file
+diff --git a/src/pkg/exp/types/types.go b/src/pkg/exp/types/types.go
+index 6e4a98783e..87df029564 100644
+--- a/src/pkg/exp/types/types.go
++++ b/src/pkg/exp/types/types.go
+@@ -2,31 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package types declares the data structures for representing
+-// Go types and implements typechecking of an *ast.Package.
+-//
+-// PACKAGE UNDER CONSTRUCTION. ANY AND ALL PARTS MAY CHANGE.
+-//
+ package types
+ 
+ import (
+ 	"go/ast"
+-	"go/token"
+ 	"sort"
+ )
+ 
+-// Check typechecks a package pkg. It returns the first error, or nil.
+-//
+-// Check augments the AST by assigning types to ast.Objects. It
+-// calls err with the error position and message for each error.
+-// It calls f with each valid AST expression and corresponding
+-// type. If err == nil, Check terminates as soon as the first error
+-// is found. If f is nil, it is not invoked.
+-//
+-func Check(fset *token.FileSet, pkg *ast.Package, err func(token.Pos, string), f func(ast.Expr, Type)) error {
+-	return check(fset, pkg, err, f)
+-}
+-
+ // All types implement the Type interface.
+ // TODO(gri) Eventually determine what common Type functionality should be exported.
+ type Type interface {
+@@ -96,7 +78,7 @@ type Basic struct {
+ 	implementsType
+ 	Kind BasicKind
+ 	Info BasicInfo
+-	Size int64 // > 0 if valid
++	Size int64
+ 	Name string
+ }
+ 
+@@ -142,8 +124,6 @@ type Pointer struct {
+ }
+ 
+ // A Result represents a (multi-value) function call result.
+-// TODO(gri) consider using an empty Result (Values == nil)
+-//           as representation for the novalue operand mode.
+ type Result struct {
+ 	implementsType
+ 	Values ObjList // Signature.Results of the function called
+diff --git a/src/pkg/exp/types/types_test.go b/src/pkg/exp/types/types_test.go
+index 361f63634e..3345a63d96 100644
+--- a/src/pkg/exp/types/types_test.go
++++ b/src/pkg/exp/types/types_test.go
+@@ -20,15 +20,7 @@ func makePkg(t *testing.T, src string) (*ast.Package, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	files := map[string]*ast.File{filename: file}
+-	pkg, err := ast.NewPackage(fset, files, GcImport, Universe)
+-	if err != nil {
+-		return nil, err
+-	}
+-	if err := Check(fset, pkg, nil, nil); err != nil {
+-		return nil, err
+-	}
+-	return pkg, nil
++	return Check(fset, map[string]*ast.File{filename: file})
+ }
+ 
+ type testEntry struct {

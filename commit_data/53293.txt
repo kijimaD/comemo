@@ -15,8 +15,49 @@ Date:   Fri Aug 5 10:20:12 2022 +0800
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-
+---
  api/next/54251.txt   | 6 ++++++
  src/debug/pe/file.go | 3 +++
  src/debug/pe/pe.go   | 3 +++
  3 files changed, 12 insertions(+)
+
+diff --git a/api/next/54251.txt b/api/next/54251.txt
+new file mode 100644
+index 0000000000..bfc3baa6e0
+--- /dev/null
++++ b/api/next/54251.txt
+@@ -0,0 +1,6 @@
++pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV128 = 20776 #54251
++pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV128 ideal-int #54251
++pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV32 = 20530 #54251
++pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV32 ideal-int #54251
++pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV64 = 20580 #54251
++pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV64 ideal-int #54251
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index e8b1a4f5e2..9181ebdf15 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -90,6 +90,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		IMAGE_FILE_MACHINE_ARM64,
+ 		IMAGE_FILE_MACHINE_ARMNT,
+ 		IMAGE_FILE_MACHINE_I386,
++		IMAGE_FILE_MACHINE_RISCV32,
++		IMAGE_FILE_MACHINE_RISCV64,
++		IMAGE_FILE_MACHINE_RISCV128,
+ 		IMAGE_FILE_MACHINE_UNKNOWN:
+ 		// ok
+ 	default:
+diff --git a/src/debug/pe/pe.go b/src/debug/pe/pe.go
+index 9d55c40f9c..51001bd2b3 100644
+--- a/src/debug/pe/pe.go
++++ b/src/debug/pe/pe.go
+@@ -111,6 +111,9 @@ const (
+ 	IMAGE_FILE_MACHINE_SH5         = 0x1a8
+ 	IMAGE_FILE_MACHINE_THUMB       = 0x1c2
+ 	IMAGE_FILE_MACHINE_WCEMIPSV2   = 0x169
++	IMAGE_FILE_MACHINE_RISCV32     = 0x5032
++	IMAGE_FILE_MACHINE_RISCV64     = 0x5064
++	IMAGE_FILE_MACHINE_RISCV128    = 0x5128
+ )
+ 
+ // IMAGE_DIRECTORY_ENTRY constants

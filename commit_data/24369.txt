@@ -9,7 +9,74 @@ Date:   Mon Jul 27 12:19:00 2015 +0900
     Change-Id: Ibc7d8438374c9d90fd4cbefb61426c7f4f96af0d
     Reviewed-on: https://go-review.googlesource.com/12691
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/dial_test.go    | 24 ++++++++++++++++++++----
  src/net/timeout_test.go | 13 +++++++++++++
  2 files changed, 33 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index cfd7e092e4..aa916d4dcb 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -124,7 +124,24 @@ func TestDialTimeoutFDLeak(t *testing.T) {
+ 		defer sw.Set(socktest.FilterConnect, nil)
+ 	}
+ 
+-	before := sw.Sockets()
++	// Avoid tracking open-close jitterbugs between netFD and
++	// socket that leads to confusion of information inside
++	// socktest.Switch.
++	// It may happen when the Dial call bumps against TCP
++	// simultaneous open. See selfConnect in tcpsock_posix.go.
++	defer func() {
++		sw.Set(socktest.FilterClose, nil)
++		forceCloseSockets()
++	}()
++	var mu sync.Mutex
++	var attempts int
++	sw.Set(socktest.FilterClose, func(so *socktest.Status) (socktest.AfterFilter, error) {
++		mu.Lock()
++		attempts++
++		mu.Unlock()
++		return nil, errTimedout
++	})
++
+ 	const N = 100
+ 	var wg sync.WaitGroup
+ 	wg.Add(N)
+@@ -142,9 +159,8 @@ func TestDialTimeoutFDLeak(t *testing.T) {
+ 		}()
+ 	}
+ 	wg.Wait()
+-	after := sw.Sockets()
+-	if len(after) != len(before) {
+-		t.Errorf("got %d; want %d", len(after), len(before))
++	if attempts < N {
++		t.Errorf("got %d; want >= %d", attempts, N)
+ 	}
+ }
+ 
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 9688c21699..ca94e24c81 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -37,6 +37,19 @@ func TestDialTimeout(t *testing.T) {
+ 	defer func() { testHookDialChannel = origTestHookDialChannel }()
+ 	defer sw.Set(socktest.FilterConnect, nil)
+ 
++	// Avoid tracking open-close jitterbugs between netFD and
++	// socket that leads to confusion of information inside
++	// socktest.Switch.
++	// It may happen when the Dial call bumps against TCP
++	// simultaneous open. See selfConnect in tcpsock_posix.go.
++	defer func() {
++		sw.Set(socktest.FilterClose, nil)
++		forceCloseSockets()
++	}()
++	sw.Set(socktest.FilterClose, func(so *socktest.Status) (socktest.AfterFilter, error) {
++		return nil, errTimedout
++	})
++
+ 	for i, tt := range dialTimeoutTests {
+ 		switch runtime.GOOS {
+ 		case "plan9", "windows":

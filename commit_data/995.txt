@@ -7,6 +7,18 @@ Date:   Wed Oct 29 16:41:01 2008 -0700
     R=ken
     OCL=18079
     CL=18079
-
+---
  src/lib/reflect/test.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/reflect/test.bash b/src/lib/reflect/test.bash
+index 55862e6fe6..1e9e0c9560 100755
+--- a/src/lib/reflect/test.bash
++++ b/src/lib/reflect/test.bash
+@@ -8,5 +8,5 @@ set -e
+ make
+ 6g test.go
+ 6l test.6
+-6.out
++./6.out
+ rm -f *.6 6.out

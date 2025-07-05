@@ -7,6 +7,43 @@ Date:   Mon Sep 19 13:19:07 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/5056049
-
+---
  src/pkg/json/decode.go | 18 ++++++++++--------
  1 file changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index e0cc408cbf..5ac01e8598 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -26,8 +26,16 @@ import (
+ // Marshal uses, allocating maps, slices, and pointers as necessary,
+ // with the following additional rules:
+ //
+-// To unmarshal JSON into a nil interface value, the
+-// type stored in the interface value is one of:
++// To unmarshal JSON into a pointer, Unmarshal first handles the case of
++// the JSON being the JSON literal null.  In that case, Unmarshal sets
++// the pointer to nil.  Otherwise, Unmarshal unmarshals the JSON into
++// the value pointed at by the pointer.  If the pointer is nil, Unmarshal
++// allocates a new value for it to point to.
++//
++// To unmarshal JSON into an interface value, Unmarshal unmarshals
++// the JSON into the concrete value contained in the interface value.
++// If the interface value is nil, that is, has no concrete value stored in it,
++// Unmarshal stores one of these in the interface value:
+ //
+ //	bool, for JSON booleans
+ //	float64, for JSON numbers
+@@ -36,12 +44,6 @@ import (
+ //	map[string]interface{}, for JSON objects
+ //	nil for JSON null
+ //
+-// To unmarshal JSON into a pointer, Unmarshal first handles the case of
+-// the JSON being the JSON literal null.  In that case, Unmarshal sets
+-// the pointer to nil.  Otherwise, Unmarshal unmarshals the JSON into
+-// the value pointed at by the pointer.  If the pointer is nil, Unmarshal
+-// allocates a new value for it to point to.
+-//
+ // If a JSON value is not appropriate for a given target type,
+ // or if a JSON number overflows the target type, Unmarshal
+ // skips that field and completes the unmarshalling as best it can.

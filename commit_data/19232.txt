@@ -10,6 +10,25 @@ Date:   Fri Apr 25 20:09:04 2014 -0700
     R=iant, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/97770043
-
+---
  doc/contribute.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index b0a1de301d..3927349850 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -606,6 +606,13 @@ $ hg submit 99999
+ local repository out of date; must sync before submit
+ </pre>
+ 
++<h3>More information</h3>
++
++<p>
++In addition to the information here, the Go community maintains a <a href="https://code.google.com/p/go-wiki/wiki/CodeReview">CodeReview</a> wiki page.
++Feel free to contribute to this page as you learn the review process.
++</p>
++
+ <h2 id="copyright">Copyright</h2>
+ 
+ <p>Files in the Go repository don't list author names,

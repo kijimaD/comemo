@@ -19,7 +19,7 @@ Date:   Tue Aug 21 12:01:32 2018 -0700
     Change-Id: I2100adc8d66d5da9de9277dee94a1f08e5a88487
     Reviewed-on: https://go-review.googlesource.com/130476
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/check.go      |  5 ----
  src/go/types/decl.go       | 20 +++++++--------
  src/go/types/expr.go       |  6 ++---
@@ -27,3 +27,372 @@ Date:   Tue Aug 21 12:01:32 2018 -0700
  src/go/types/resolver.go   | 25 ++++++++++++++++---
  src/go/types/typexpr.go    | 62 ++++++++++++++--------------------------------
  6 files changed, 54 insertions(+), 66 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 5b796be40d..91df94dcbc 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -160,11 +160,6 @@ func (check *Checker) pop() Object {
+ 	return obj
+ }
+ 
+-// pathString returns a string of the form a->b-> ... ->g for an object path [a, b, ... g].
+-func (check *Checker) pathString() string {
+-	return objPathString(check.objPath)
+-}
+-
+ // NewChecker returns a new Checker instance for a given package.
+ // Package files may be added incrementally via checker.Files.
+ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Checker {
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index d845789143..6eeec40ae6 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -66,9 +66,9 @@ func objPathString(path []Object) string {
+ 
+ // objDecl type-checks the declaration of obj in its respective (file) context.
+ // See check.typ for the details on def and path.
+-func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
++func (check *Checker) objDecl(obj Object, def *Named) {
+ 	if trace {
+-		check.trace(obj.Pos(), "-- checking %s %s (path = %s, objPath = %s)", obj.color(), obj, pathString(path), check.pathString())
++		check.trace(obj.Pos(), "-- checking %s %s (objPath = %s)", obj.color(), obj, objPathString(check.objPath))
+ 		check.indent++
+ 		defer func() {
+ 			check.indent--
+@@ -237,7 +237,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+ 		check.varDecl(obj, d.lhs, d.typ, d.init)
+ 	case *TypeName:
+ 		// invalid recursive types are detected via path
+-		check.typeDecl(obj, d.typ, def, path, d.alias)
++		check.typeDecl(obj, d.typ, def, d.alias)
+ 	case *Func:
+ 		// functions may be recursive - no need to track dependencies
+ 		check.funcDecl(obj, d)
+@@ -388,7 +388,7 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
+ 
+ 	// determine type, if any
+ 	if typ != nil {
+-		t := check.typExpr(typ, nil, nil)
++		t := check.typExpr(typ, nil)
+ 		if !isConstType(t) {
+ 			// don't report an error if the type is an invalid C (defined) type
+ 			// (issue #22090)
+@@ -414,7 +414,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
+ 
+ 	// determine type, if any
+ 	if typ != nil {
+-		obj.typ = check.typExpr(typ, nil, nil)
++		obj.typ = check.typExpr(typ, nil)
+ 		// We cannot spread the type to all lhs variables if there
+ 		// are more than one since that would mark them as checked
+ 		// (see Checker.objDecl) and the assignment of init exprs,
+@@ -489,13 +489,13 @@ func (n *Named) setUnderlying(typ Type) {
+ 	}
+ }
+ 
+-func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*TypeName, alias bool) {
++func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, alias bool) {
+ 	assert(obj.typ == nil)
+ 
+ 	if alias {
+ 
+ 		obj.typ = Typ[Invalid]
+-		obj.typ = check.typExpr(typ, nil, append(path, obj))
++		obj.typ = check.typExpr(typ, nil)
+ 
+ 	} else {
+ 
+@@ -504,7 +504,7 @@ func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*
+ 		obj.typ = named // make sure recursive type declarations terminate
+ 
+ 		// determine underlying type of named
+-		check.typExpr(typ, named, append(path, obj))
++		check.typExpr(typ, named)
+ 
+ 		// The underlying type of named may be itself a named type that is
+ 		// incomplete:
+@@ -594,7 +594,7 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
+ 		}
+ 
+ 		// type-check
+-		check.objDecl(m, nil, nil)
++		check.objDecl(m, nil)
+ 
+ 		if base != nil {
+ 			base.methods = append(base.methods, m)
+@@ -745,7 +745,7 @@ func (check *Checker) declStmt(decl ast.Decl) {
+ 				check.declare(check.scope, s.Name, obj, scopePos)
+ 				// mark and unmark type before calling typeDecl; its type is still nil (see Checker.objDecl)
+ 				obj.setColor(grey + color(check.push(obj)))
+-				check.typeDecl(obj, s.Type, nil, nil, s.Assign.IsValid())
++				check.typeDecl(obj, s.Type, nil, s.Assign.IsValid())
+ 				check.pop().setColor(black)
+ 			default:
+ 				check.invalidAST(s.Pos(), "const, type, or var declaration expected")
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 143a958182..3feb67ee19 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1010,7 +1010,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		goto Error // error was reported before
+ 
+ 	case *ast.Ident:
+-		check.ident(x, e, nil, nil)
++		check.ident(x, e, nil)
+ 
+ 	case *ast.Ellipsis:
+ 		// ellipses are handled explicitly where they are legal
+@@ -1064,7 +1064,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 					break
+ 				}
+ 			}
+-			typ = check.typExpr(e.Type, nil, nil)
++			typ = check.typExpr(e.Type, nil)
+ 			base = typ
+ 
+ 		case hint != nil:
+@@ -1439,7 +1439,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			check.invalidAST(e.Pos(), "use of .(type) outside type switch")
+ 			goto Error
+ 		}
+-		T := check.typExpr(e.Type, nil, nil)
++		T := check.typExpr(e.Type, nil)
+ 		if T == Typ[Invalid] {
+ 			goto Error
+ 		}
+diff --git a/src/go/types/interfaces.go b/src/go/types/interfaces.go
+index e4b42dc5a3..57dc1bccdc 100644
+--- a/src/go/types/interfaces.go
++++ b/src/go/types/interfaces.go
+@@ -144,7 +144,7 @@ func (check *Checker) infoFromTypeLit(scope *Scope, iface *ast.InterfaceType, tn
+ 	}
+ 
+ 	if trace {
+-		check.trace(iface.Pos(), "-- collect methods for %v (path = %s, objPath = %s)", iface, pathString(path), check.pathString())
++		check.trace(iface.Pos(), "-- collect methods for %v (path = %s, objPath = %s)", iface, pathString(path), objPathString(check.objPath))
+ 		check.indent++
+ 		defer func() {
+ 			check.indent--
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index a462912cd1..ec7e4ed1c5 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -521,6 +521,26 @@ func (check *Checker) resolveBaseTypeName(name *ast.Ident) *TypeName {
+ 	}
+ }
+ 
++// cycle reports whether obj appears in path or not.
++// If it does, and report is set, it also reports a cycle error.
++func (check *Checker) cycle(obj *TypeName, path []*TypeName, report bool) bool {
++	// (it's ok to iterate forward because each named type appears at most once in path)
++	for i, prev := range path {
++		if prev == obj {
++			if report {
++				check.errorf(obj.pos, "illegal cycle in declaration of %s", obj.name)
++				// print cycle
++				for _, obj := range path[i:] {
++					check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
++				}
++				check.errorf(obj.Pos(), "\t%s", obj.Name())
++			}
++			return true
++		}
++	}
++	return false
++}
++
+ // packageObjects typechecks all package objects, but not function bodies.
+ func (check *Checker) packageObjects() {
+ 	// process package objects in source order for reproducible results
+@@ -539,11 +559,8 @@ func (check *Checker) packageObjects() {
+ 		}
+ 	}
+ 
+-	// pre-allocate space for type declaration paths so that the underlying array is reused
+-	typePath := make([]*TypeName, 0, 8)
+-
+ 	for _, obj := range objList {
+-		check.objDecl(obj, nil, typePath)
++		check.objDecl(obj, nil)
+ 	}
+ 
+ 	// At this point we may have a non-empty check.methods map; this means that not all
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 1da1f01956..3ab4702f74 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -16,9 +16,9 @@ import (
+ 
+ // ident type-checks identifier e and initializes x with the value or type of e.
+ // If an error occurred, x.mode is set to invalid.
+-// For the meaning of def and path, see check.typ, below.
++// For the meaning of def, see check.typExpr, below.
+ //
+-func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeName) {
++func (check *Checker) ident(x *operand, e *ast.Ident, def *Named) {
+ 	x.mode = invalid
+ 	x.expr = e
+ 
+@@ -35,7 +35,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
+ 	}
+ 	check.recordUse(e, obj)
+ 
+-	check.objDecl(obj, def, path)
++	check.objDecl(obj, def)
+ 	typ := obj.Type()
+ 	assert(typ != nil)
+ 
+@@ -103,37 +103,12 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
+ 	x.typ = typ
+ }
+ 
+-// cycle reports whether obj appears in path or not.
+-// If it does, and report is set, it also reports a cycle error.
+-func (check *Checker) cycle(obj *TypeName, path []*TypeName, report bool) bool {
+-	// (it's ok to iterate forward because each named type appears at most once in path)
+-	for i, prev := range path {
+-		if prev == obj {
+-			if report {
+-				check.errorf(obj.pos, "illegal cycle in declaration of %s", obj.name)
+-				// print cycle
+-				for _, obj := range path[i:] {
+-					check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
+-				}
+-				check.errorf(obj.Pos(), "\t%s", obj.Name())
+-			}
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ // typExpr type-checks the type expression e and returns its type, or Typ[Invalid].
+ // If def != nil, e is the type specification for the named type def, declared
+ // in a type declaration, and def.underlying will be set to the type of e before
+-// any components of e are type-checked. Path contains the path of named types
+-// referring to this type; i.e. it is the path of named types directly containing
+-// each other and leading to the current type e. Indirect containment (e.g. via
+-// pointer indirection, function parameter, etc.) breaks the path (leads to a new
+-// path, and usually via calling Checker.typ below) and those types are not found
+-// in the path.
++// any components of e are type-checked.
+ //
+-func (check *Checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type) {
++func (check *Checker) typExpr(e ast.Expr, def *Named) (T Type) {
+ 	if trace {
+ 		check.trace(e.Pos(), "%s", e)
+ 		check.indent++
+@@ -143,7 +118,7 @@ func (check *Checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type)
+ 		}()
+ 	}
+ 
+-	T = check.typExprInternal(e, def, path)
++	T = check.typExprInternal(e, def)
+ 	assert(isTyped(T))
+ 	check.recordTypeAndValue(e, typexpr, T, nil)
+ 
+@@ -156,11 +131,10 @@ func (check *Checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type)
+ // element types, etc. See the comment in typExpr for details.
+ //
+ func (check *Checker) typ(e ast.Expr) Type {
+-	// typExpr is called with a nil path indicating an indirection:
+-	// push indir sentinel on object path
++	// push indir sentinel on object path to indicate an indirection
+ 	check.push(indir)
+ 	defer check.pop()
+-	return check.typExpr(e, nil, nil)
++	return check.typExpr(e, nil)
+ }
+ 
+ // funcType type-checks a function or method type.
+@@ -231,14 +205,14 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ // typExprInternal drives type checking of types.
+ // Must only be called by typExpr.
+ //
+-func (check *Checker) typExprInternal(e ast.Expr, def *Named, path []*TypeName) Type {
++func (check *Checker) typExprInternal(e ast.Expr, def *Named) Type {
+ 	switch e := e.(type) {
+ 	case *ast.BadExpr:
+ 		// ignore - error reported before
+ 
+ 	case *ast.Ident:
+ 		var x operand
+-		check.ident(&x, e, def, path)
++		check.ident(&x, e, def)
+ 
+ 		switch x.mode {
+ 		case typexpr:
+@@ -271,14 +245,14 @@ func (check *Checker) typExprInternal(e ast.Expr, def *Named, path []*TypeName)
+ 		}
+ 
+ 	case *ast.ParenExpr:
+-		return check.typExpr(e.X, def, path)
++		return check.typExpr(e.X, def)
+ 
+ 	case *ast.ArrayType:
+ 		if e.Len != nil {
+ 			typ := new(Array)
+ 			def.setUnderlying(typ)
+ 			typ.len = check.arrayLength(e.Len)
+-			typ.elem = check.typExpr(e.Elt, nil, path)
++			typ.elem = check.typExpr(e.Elt, nil)
+ 			return typ
+ 
+ 		} else {
+@@ -291,7 +265,7 @@ func (check *Checker) typExprInternal(e ast.Expr, def *Named, path []*TypeName)
+ 	case *ast.StructType:
+ 		typ := new(Struct)
+ 		def.setUnderlying(typ)
+-		check.structType(typ, e, path)
++		check.structType(typ, e)
+ 		return typ
+ 
+ 	case *ast.StarExpr:
+@@ -309,7 +283,7 @@ func (check *Checker) typExprInternal(e ast.Expr, def *Named, path []*TypeName)
+ 	case *ast.InterfaceType:
+ 		typ := new(Interface)
+ 		def.setUnderlying(typ)
+-		check.interfaceType(typ, e, def, path)
++		check.interfaceType(typ, e, def)
+ 		return typ
+ 
+ 	case *ast.MapType:
+@@ -479,7 +453,7 @@ func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool
+ 	return true
+ }
+ 
+-func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named, path []*TypeName) {
++func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named) {
+ 	// fast-track empty interface
+ 	if iface.Methods.List == nil {
+ 		ityp.allMethods = markComplete
+@@ -542,8 +516,10 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 
+ 	// compute method set
+ 	var tname *TypeName
++	var path []*TypeName
+ 	if def != nil {
+ 		tname = def.obj
++		path = []*TypeName{tname}
+ 	}
+ 	info := check.infoFromTypeLit(check.scope, iface, tname, path)
+ 	if info == nil || info == &emptyIfaceInfo {
+@@ -652,7 +628,7 @@ func (check *Checker) tag(t *ast.BasicLit) string {
+ 	return ""
+ }
+ 
+-func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeName) {
++func (check *Checker) structType(styp *Struct, e *ast.StructType) {
+ 	list := e.Fields
+ 	if list == nil {
+ 		return
+@@ -696,7 +672,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
+ 	}
+ 
+ 	for _, f := range list.List {
+-		typ = check.typExpr(f.Type, nil, path)
++		typ = check.typExpr(f.Type, nil)
+ 		tag = check.tag(f.Tag)
+ 		if len(f.Names) > 0 {
+ 			// named fields

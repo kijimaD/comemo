@@ -76,6 +76,21 @@ Date:   Fri Dec 11 12:33:34 2015 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mcentral.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 418a5ff36b..159079b1f0 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -32,7 +32,8 @@ func (c *mcentral) init(sizeclass int32) {
+ // Allocate a span to use in an MCache.
+ func (c *mcentral) cacheSpan() *mspan {
+ 	// Deduct credit for this span allocation and sweep if necessary.
+-	deductSweepCredit(uintptr(class_to_size[c.sizeclass]), 0)
++	spanBytes := uintptr(class_to_allocnpages[c.sizeclass]) * _PageSize
++	deductSweepCredit(spanBytes, 0)
+ 
+ 	lock(&c.lock)
+ 	sg := mheap_.sweepgen

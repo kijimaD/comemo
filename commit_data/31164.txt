@@ -14,7 +14,7 @@ Date:   Thu Feb 2 16:20:58 2017 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Caleb Spare <cespare@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/tar_test.go        |  15 +-
  src/encoding/gob/gobencdec_test.go |   2 +-
  src/go/types/testdata/expr3.src    |   2 +-
@@ -59,3 +59,1462 @@ Date:   Thu Feb 2 16:20:58 2017 -0500
  src/time/zoneinfo_read.go          |   2 +-
  src/time/zoneinfo_windows.go       |   2 +-
  43 files changed, 629 insertions(+), 129 deletions(-)
+
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index cf8337c2ad..1b211f8bd2 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -94,13 +94,16 @@ func TestRoundTrip(t *testing.T) {
+ 	var b bytes.Buffer
+ 	tw := NewWriter(&b)
+ 	hdr := &Header{
+-		Name:    "file.txt",
+-		Uid:     1 << 21, // too big for 8 octal digits
+-		Size:    int64(len(data)),
+-		ModTime: time.Now(),
++		Name: "file.txt",
++		Uid:  1 << 21, // too big for 8 octal digits
++		Size: int64(len(data)),
++		// AddDate to strip monotonic clock reading,
++		// and Round to discard sub-second precision,
++		// both of which are not included in the tar header
++		// and would otherwise break the round-trip check
++		// below.
++		ModTime: time.Now().AddDate(0, 0, 0).Round(1 * time.Second),
+ 	}
+-	// tar only supports second precision.
+-	hdr.ModTime = hdr.ModTime.Add(-time.Duration(hdr.ModTime.Nanosecond()) * time.Nanosecond)
+ 	if err := tw.WriteHeader(hdr); err != nil {
+ 		t.Fatalf("tw.WriteHeader: %v", err)
+ 	}
+diff --git a/src/encoding/gob/gobencdec_test.go b/src/encoding/gob/gobencdec_test.go
+index ecc91eef1f..41a06b26c8 100644
+--- a/src/encoding/gob/gobencdec_test.go
++++ b/src/encoding/gob/gobencdec_test.go
+@@ -746,7 +746,7 @@ func (i *isZeroBugInterface) GobDecode(data []byte) error {
+ }
+ 
+ func TestGobEncodeIsZero(t *testing.T) {
+-	x := isZeroBug{time.Now(), "hello", -55, isZeroBugArray{1, 2}, isZeroBugInterface{}}
++	x := isZeroBug{time.Unix(1e9, 0), "hello", -55, isZeroBugArray{1, 2}, isZeroBugInterface{}}
+ 	b := new(bytes.Buffer)
+ 	enc := NewEncoder(b)
+ 	err := enc.Encode(x)
+diff --git a/src/go/types/testdata/expr3.src b/src/go/types/testdata/expr3.src
+index ab1a9f684b..95d5c09be0 100644
+--- a/src/go/types/testdata/expr3.src
++++ b/src/go/types/testdata/expr3.src
+@@ -207,7 +207,7 @@ func struct_literals() {
+ 	_ = time.Time{}
+ 	_ = time.Time{sec /* ERROR "unknown field" */ : 0}
+ 	_ = time.Time{
+-		0 /* ERROR implicit assignment to unexported field sec in time.Time literal */,
++		0 /* ERROR implicit assignment to unexported field wall in time.Time literal */,
+ 		0 /* ERROR implicit assignment */ ,
+ 		nil /* ERROR implicit assignment */ ,
+ 	}
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 107f2604b1..616b7167ef 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -241,8 +241,7 @@ func stackBarrier()
+ // in asm_*.s
+ func return0()
+ 
+-//go:linkname time_now time.now
+-func time_now() (sec int64, nsec int32)
++func walltime() (sec int64, nsec int32)
+ 
+ // in asm_*.s
+ // not called directly; definitions here supply type information for traceback.
+@@ -281,7 +280,7 @@ func prefetcht2(addr uintptr)
+ func prefetchnta(addr uintptr)
+ 
+ func unixnanotime() int64 {
+-	sec, nsec := time_now()
++	sec, nsec := walltime()
+ 	return sec*1e9 + int64(nsec)
+ }
+ 
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 200961f225..e911339c84 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -217,8 +217,8 @@ inreg:
+ 	ADCL	$0, DX
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$0
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$0
+ 	CALL	runtime·now(SB)
+ 	MOVL	$1000000000, CX
+ 	DIVL	CX
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index f94482856c..de8e9e37c9 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -198,8 +198,8 @@ TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+ 	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$0-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$0-12
+ 	CALL	nanotime<>(SB)
+ 
+ 	// generated code for
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 2c03c91683..490a410fa4 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -159,7 +159,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT time·now(SB), 7, $32
++TEXT runtime·walltime(SB), 7, $32
+ 	MOVW	$8(R13), R0  // timeval
+ 	MOVW	$0, R1  // zone
+ 	MOVW	$0, R2	// see issue 16570
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index c02d000774..0e91d5bd10 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -151,7 +151,7 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
+ 	SVC	$0x80
+ 	RET
+ 
+-TEXT time·now(SB),NOSPLIT,$40-12
++TEXT runtime·walltime(SB),NOSPLIT,$40-12
+ 	MOVD	RSP, R0	// timeval
+ 	MOVD	R0, R9	// this is how dyld calls gettimeofday
+ 	MOVW	$0, R1	// zone
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index b950b69fe0..f355268b99 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -148,8 +148,8 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-8
+ 	SYSCALL
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVL	$232, AX // clock_gettime
+ 	MOVQ	$0, DI  	// CLOCK_REALTIME
+ 	LEAQ	8(SP), SI
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index 8b6ee1f2a6..2c056feb46 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -159,8 +159,8 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-4
+ 	INT	$0x80
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVL	$232, AX // clock_gettime
+ 	LEAL	12(SP), BX
+ 	MOVL	$0, 4(SP)	// CLOCK_REALTIME
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 158a60dec2..43aafe56b8 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -142,8 +142,8 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-8
+ 	SYSCALL
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVL	$232, AX // clock_gettime
+ 	MOVQ	$0, DI		// CLOCK_REALTIME
+ 	LEAQ	8(SP), SI
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 3c5a5cbbb0..97aea65074 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -166,8 +166,8 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-8
+ 	SWI $0
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVW $0, R0 // CLOCK_REALTIME
+ 	MOVW $8(R13), R1
+ 	MOVW $SYS_clock_gettime, R7
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 45320c068a..5c5afac990 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -151,8 +151,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVL	$265, AX			// syscall - clock_gettime
+ 	MOVL	$0, BX		// CLOCK_REALTIME
+ 	LEAL	8(SP), CX
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 6ddcb30ae2..be6f396cfa 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -135,8 +135,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-28
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$16
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$16
+ 	// Be careful. We're calling a function with gcc calling convention here.
+ 	// We're guaranteed 128 bytes on entry, and we've taken 16, and the
+ 	// call uses another 8.
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 666b879f02..1712e9d76c 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -197,7 +197,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT time·now(SB), NOSPLIT, $32
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVW	$0, R0  // CLOCK_REALTIME
+ 	MOVW	$8(R13), R1  // timespec
+ 	MOVW	$SYS_clock_gettime, R7
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 1b91b4499d..204aee7c51 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -182,8 +182,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$-8-28
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$24-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$24-12
+ 	MOVW	$0, R0 // CLOCK_REALTIME
+ 	MOVD	RSP, R1
+ 	MOVD	$SYS_clock_gettime, R8
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 5a75bb81ae..a4bcc72dd8 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -172,8 +172,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$-8-28
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$16
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$16
+ 	MOVW	$0, R4 // CLOCK_REALTIME
+ 	MOVV	$0(R29), R5
+ 	MOVV	$SYS_clock_gettime, R2
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index 73ce06114c..3b446b15ef 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -175,8 +175,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
+ 	MOVW	R2, ret+12(FP)
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$8-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$8-12
+ 	MOVW	$0, R4	// CLOCK_REALTIME
+ 	MOVW	$4(R29), R5
+ 	MOVW	$SYS_clock_gettime, R2
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index a40fe3bc00..b43bda1ef2 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -157,8 +157,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	R3, ret+24(FP)
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$16
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$16
+ 	MOVD	$0, R3 // CLOCK_REALTIME
+ 	MOVD	$0(R1), R4
+ 	SYSCALL	$SYS_clock_gettime
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index 47f34d9ea4..2291718074 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -169,8 +169,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$16
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$16
+ 	MOVW	$0, R2 // CLOCK_REALTIME
+ 	MOVD	$tp-16(SP), R3
+ 	MOVW	$SYS_clock_gettime, R1
+diff --git a/src/runtime/sys_nacl_386.s b/src/runtime/sys_nacl_386.s
+index 05de20c546..31e9b97a09 100644
+--- a/src/runtime/sys_nacl_386.s
++++ b/src/runtime/sys_nacl_386.s
+@@ -233,7 +233,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$32
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT time·now(SB),NOSPLIT,$20
++TEXT runtime·walltime(SB),NOSPLIT,$20
+ 	MOVL $0, 0(SP) // real time clock
+ 	LEAL 8(SP), AX
+ 	MOVL AX, 4(SP) // timespec
+@@ -249,7 +249,7 @@ TEXT time·now(SB),NOSPLIT,$20
+ 	RET
+ 
+ TEXT syscall·now(SB),NOSPLIT,$0
+-	JMP time·now(SB)
++	JMP runtime·walltime(SB)
+ 
+ TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$8
+ 	MOVL arg1+0(FP), AX
+diff --git a/src/runtime/sys_nacl_amd64p32.s b/src/runtime/sys_nacl_amd64p32.s
+index c2a24e8a62..db07ae51fd 100644
+--- a/src/runtime/sys_nacl_amd64p32.s
++++ b/src/runtime/sys_nacl_amd64p32.s
+@@ -242,7 +242,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$8
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT time·now(SB),NOSPLIT,$16
++TEXT runtime·walltime(SB),NOSPLIT,$16
+ 	MOVQ runtime·faketime(SB), AX
+ 	CMPQ AX, $0
+ 	JEQ realtime
+@@ -268,7 +268,7 @@ realtime:
+ 	RET
+ 
+ TEXT syscall·now(SB),NOSPLIT,$0
+-	JMP time·now(SB)
++	JMP runtime·walltime(SB)
+ 
+ TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$0
+ 	MOVL arg1+0(FP), DI
+diff --git a/src/runtime/sys_nacl_arm.s b/src/runtime/sys_nacl_arm.s
+index 6cbc23fd7d..aa3a09876a 100644
+--- a/src/runtime/sys_nacl_arm.s
++++ b/src/runtime/sys_nacl_arm.s
+@@ -196,7 +196,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$8
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+-TEXT time·now(SB),NOSPLIT,$16
++TEXT runtime·walltime(SB),NOSPLIT,$16
+ 	MOVW	$0, R0 // real time clock
+ 	MOVW	$4(R13), R1
+ 	NACL_SYSCALL(SYS_clock_gettime)
+@@ -209,7 +209,7 @@ TEXT time·now(SB),NOSPLIT,$16
+ 	RET
+ 
+ TEXT syscall·now(SB),NOSPLIT,$0
+-	B time·now(SB)
++	B runtime·walltime(SB)
+ 
+ TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$0
+ 	MOVW	arg1+0(FP), R0
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index 8c4f004a4b..5c15794d5f 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -134,8 +134,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-4
+ 	INT	$0x80
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	LEAL	12(SP), BX
+ 	MOVL	$0, 4(SP)		// arg 1 - clock_id
+ 	MOVL	BX, 8(SP)		// arg 2 - tp
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index 7c7771bcba..c632a0b969 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -169,8 +169,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
+ 	SYSCALL
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVQ	$0, DI			// arg 1 - clock_id
+ 	LEAQ	8(SP), SI		// arg 2 - tp
+ 	MOVL	$427, AX		// sys_clock_gettime
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index a8914c11cb..789b12ef5b 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -137,8 +137,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-4
+ 	SWI $0xa001a9	// sys_setitimer
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVW $0, R0	// CLOCK_REALTIME
+ 	MOVW $8(R13), R1
+ 	SWI $0xa001ab	// clock_gettime
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 76d22b0131..b86875fd7d 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -140,8 +140,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-4
+ 	INT	$0x80
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	LEAL	12(SP), BX
+ 	MOVL	$0, 4(SP)		// arg 1 - clock_id
+ 	MOVL	BX, 8(SP)		// arg 2 - tp
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index cf7a3fb7a9..9a52e5d9ef 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -180,8 +180,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
+ 	SYSCALL
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVQ	$0, DI			// arg 1 - clock_id
+ 	LEAQ	8(SP), SI		// arg 2 - tp
+ 	MOVL	$87, AX			// sys_clock_gettime
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index f573a028a0..93a5d5b7f6 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -150,8 +150,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
+ 	SWI	$0
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVW	CLOCK_REALTIME, R0	// arg 1 - clock_id
+ 	MOVW	$8(R13), R1		// arg 2 - tp
+ 	MOVW	$87, R12		// sys_clock_gettime
+diff --git a/src/runtime/sys_plan9_386.s b/src/runtime/sys_plan9_386.s
+index 41aa2fd982..6baa8138d6 100644
+--- a/src/runtime/sys_plan9_386.s
++++ b/src/runtime/sys_plan9_386.s
+@@ -102,8 +102,8 @@ TEXT runtime·nsec(SB),NOSPLIT,$8
+ 	MOVL	$-1, ret_hi+8(FP)
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$8-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$8-12
+ 	CALL	runtime·nanotime(SB)
+ 	MOVL	0(SP), AX
+ 	MOVL	4(SP), DX
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index 149505fa7e..d7bd92c1b4 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -92,8 +92,8 @@ TEXT runtime·nsec(SB),NOSPLIT,$0
+ 	MOVQ	AX, ret+8(FP)
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$8-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$8-12
+ 	CALL	runtime·nanotime(SB)
+ 	MOVQ	0(SP), AX
+ 
+diff --git a/src/runtime/sys_plan9_arm.s b/src/runtime/sys_plan9_arm.s
+index d54f56f132..f5c5e18de0 100644
+--- a/src/runtime/sys_plan9_arm.s
++++ b/src/runtime/sys_plan9_arm.s
+@@ -139,7 +139,7 @@ TEXT runtime·nsec(SB),NOSPLIT,$-4-12
+ 	RET
+ 
+ // time.now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$12-12
++TEXT runtime·walltime(SB),NOSPLIT,$12-12
+ 	// use nsec system call to get current time in nanoseconds
+ 	MOVW	$sysnsec_lo-8(SP), R0	// destination addr
+ 	MOVW	R0,res-12(SP)
+diff --git a/src/runtime/sys_solaris_amd64.s b/src/runtime/sys_solaris_amd64.s
+index c542db3986..aeb2e2c897 100644
+--- a/src/runtime/sys_solaris_amd64.s
++++ b/src/runtime/sys_solaris_amd64.s
+@@ -354,8 +354,8 @@ TEXT runtime·osyield1(SB),NOSPLIT,$0
+ 	CALL	AX
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$8-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$8-12
+ 	CALL	runtime·nanotime(SB)
+ 	MOVQ	0(SP), AX
+ 
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index bd5de33946..42583dd106 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -432,8 +432,8 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$0
+ 	MOVL	BP, SP
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$8-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$8-12
+ 	CALL	runtime·unixnano(SB)
+ 	MOVL	0(SP), AX
+ 	MOVL	4(SP), DX
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index c61b79d24f..56079f6aa3 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -465,8 +465,8 @@ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
+ 	MOVQ	32(SP), SP
+ 	RET
+ 
+-// func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$8-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$8-12
+ 	CALL	runtime·unixnano(SB)
+ 	MOVQ	0(SP), AX
+ 
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 604ccded89..98057534c0 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -301,3 +301,11 @@ func net_runtimeNano() int64 {
+ func time_runtimeNano() int64 {
+ 	return nanotime()
+ }
++
++var startNano = nanotime()
++
++//go:linkname time_now time.now
++func time_now() (sec int64, nsec int32, mono uint64) {
++	sec, nsec = walltime()
++	return sec, nsec, uint64(nanotime() - startNano + 1)
++}
+diff --git a/src/time/export_test.go b/src/time/export_test.go
+index 38f2f45063..26584b5454 100644
+--- a/src/time/export_test.go
++++ b/src/time/export_test.go
+@@ -30,4 +30,6 @@ func ResetZoneinfoForTesting() {
+ var (
+ 	ForceZipFileForTesting = forceZipFileForTesting
+ 	ParseTimeZone          = parseTimeZone
++	SetMono                = (*Time).setMono
++	GetMono                = (*Time).mono
+ )
+diff --git a/src/time/format.go b/src/time/format.go
+index b903e1485c..2da9a5eca0 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -424,8 +424,41 @@ func formatNano(b []byte, nanosec uint, n int, trim bool) []byte {
+ 
+ // String returns the time formatted using the format string
+ //	"2006-01-02 15:04:05.999999999 -0700 MST"
++// 
++// If the time has a monotonic clock reading, the returned string
++// includes a final field "m±<value>", where value is the monotonic
++// clock reading formatted as a decimal number of seconds.
+ func (t Time) String() string {
+-	return t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
++	s := t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
++
++	// Format monotonic clock reading as m=±ddd.nnnnnnnnn.
++	if t.wall&hasMonotonic != 0 {
++		m2 := t.ext
++		m1, m2 := m2/1e9, m2%1e9
++		if m2 < 0 {
++			m2 += 1e9
++			m1--
++		}
++		sign := byte('+')
++		if m1 < 0 {
++			sign = '-'
++			m1 = -m1
++		}
++		m0, m1 := m1/1e9, m1%1e9
++		var buf []byte
++		buf = append(buf, " m="...)
++		buf = append(buf, sign)
++		wid := 0
++		if m0 != 0 {
++			buf = appendInt(buf, int(m0), 0)
++			wid = 9
++		}
++		buf = appendInt(buf, int(m1), wid)
++		buf = append(buf, '.')
++		buf = appendInt(buf, int(m2), 9)
++		s += string(buf)
++	}
++	return s
+ }
+ 
+ // Format returns a textual representation of the time value formatted
+@@ -1022,11 +1055,11 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 
+ 	if zoneOffset != -1 {
+ 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
+-		t.sec -= int64(zoneOffset)
++		t.addSec(-int64(zoneOffset))
+ 
+ 		// Look for local zone with the given offset.
+ 		// If that zone was in effect at the given time, use it.
+-		name, offset, _, _, _ := local.lookup(t.sec + internalToUnix)
++		name, offset, _, _, _ := local.lookup(t.unixSec())
+ 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
+ 			t.setLoc(local)
+ 			return t, nil
+@@ -1041,9 +1074,9 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
+ 		// Look for local zone with the given offset.
+ 		// If that zone was in effect at the given time, use it.
+-		offset, _, ok := local.lookupName(zoneName, t.sec+internalToUnix)
++		offset, _, ok := local.lookupName(zoneName, t.unixSec())
+ 		if ok {
+-			t.sec -= int64(offset)
++			t.addSec(-int64(offset))
+ 			t.setLoc(local)
+ 			return t, nil
+ 		}
+diff --git a/src/time/mono_test.go b/src/time/mono_test.go
+new file mode 100644
+index 0000000000..0bbb5c11f0
+--- /dev/null
++++ b/src/time/mono_test.go
+@@ -0,0 +1,252 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package time_test
++
++import (
++	"regexp"
++	"testing"
++	. "time"
++)
++
++func TestHasMonotonicClock(t *testing.T) {
++	yes := func(expr string, tt Time) {
++		if GetMono(&tt) == 0 {
++			t.Errorf("%s: missing monotonic clock reading", expr)
++		}
++	}
++	no := func(expr string, tt Time) {
++		if GetMono(&tt) != 0 {
++			t.Errorf("%s: unexpected monotonic clock reading", expr)
++		}
++	}
++
++	yes("<-After(1)", <-After(1))
++	ticker := NewTicker(1)
++	yes("<-Tick(1)", <-ticker.C)
++	ticker.Stop()
++	no("Date(2009, 11, 23, 0, 0, 0, 0, UTC)", Date(2009, 11, 23, 0, 0, 0, 0, UTC))
++	tp, _ := Parse(UnixDate, "Sat Mar  7 11:06:39 PST 2015")
++	no(`Parse(UnixDate, "Sat Mar  7 11:06:39 PST 2015")`, tp)
++	no("Unix(1486057371, 0)", Unix(1486057371, 0))
++
++	yes("Now()", Now())
++
++	tu := Unix(1486057371, 0)
++	tm := tu
++	SetMono(&tm, 123456)
++	no("tu", tu)
++	yes("tm", tm)
++
++	no("tu.Add(1)", tu.Add(1))
++	no("tu.In(UTC)", tu.In(UTC))
++	no("tu.AddDate(1, 1, 1)", tu.AddDate(1, 1, 1))
++	no("tu.AddDate(0, 0, 0)", tu.AddDate(0, 0, 0))
++	no("tu.Local()", tu.Local())
++	no("tu.UTC()", tu.UTC())
++	no("tu.Round(2)", tu.Round(2))
++	no("tu.Truncate(2)", tu.Truncate(2))
++
++	yes("tm.Add(1)", tm.Add(1))
++	no("tm.AddDate(1, 1, 1)", tm.AddDate(1, 1, 1))
++	no("tm.AddDate(0, 0, 0)", tm.AddDate(0, 0, 0))
++	yes("tm.In(UTC)", tm.In(UTC))
++	yes("tm.Local()", tm.Local())
++	yes("tm.UTC()", tm.UTC())
++	yes("tm.Round(2)", tm.Round(2))
++	yes("tm.Truncate(2)", tm.Truncate(2))
++}
++
++func TestMonotonicAdd(t *testing.T) {
++	tm := Unix(1486057371, 123456)
++	SetMono(&tm, 123456789012345)
++
++	t2 := tm.Add(1e8)
++	if t2.Nanosecond() != 100123456 {
++		t.Errorf("t2.Nanosecond() = %d, want 100123456", t2.Nanosecond())
++	}
++	if GetMono(&t2) != 123456889012345 {
++		t.Errorf("t2.mono = %d, want 123456889012345", GetMono(&t2))
++	}
++
++	t3 := tm.Add(-9e18) // wall now out of range
++	if t3.Nanosecond() != 123456 {
++		t.Errorf("t3.Nanosecond() = %d, want 123456", t3.Nanosecond())
++	}
++	if GetMono(&t3) != 0 {
++		t.Errorf("t3.mono = %d, want 0 (wall time out of range for monotonic reading)", GetMono(&t3))
++	}
++
++	t4 := tm.Add(+9e18) // wall now out of range
++	if t4.Nanosecond() != 123456 {
++		t.Errorf("t4.Nanosecond() = %d, want 123456", t4.Nanosecond())
++	}
++	if GetMono(&t4) != 0 {
++		t.Errorf("t4.mono = %d, want 0 (wall time out of range for monotonic reading)", GetMono(&t4))
++	}
++
++	tn := Now()
++	tn1 := tn.Add(1 * Hour)
++	Sleep(100 * Millisecond)
++	d := Until(tn1)
++	if d < 59*Minute {
++		t.Errorf("Until(Now().Add(1*Hour)) = %v, wanted at least 59m", d)
++	}
++	now := Now()
++	if now.After(tn1) {
++		t.Errorf("Now().After(Now().Add(1*Hour)) = true, want false")
++	}
++	if !tn1.After(now) {
++		t.Errorf("Now().Add(1*Hour).After(now) = false, want true")
++	}
++	if tn1.Before(now) {
++		t.Errorf("Now().Add(1*Hour).Before(Now()) = true, want false")
++	}
++	if !now.Before(tn1) {
++		t.Errorf("Now().Before(Now().Add(1*Hour)) = false, want true")
++	}
++}
++
++func TestMonotonicSub(t *testing.T) {
++	t1 := Unix(1483228799, 995e6)
++	SetMono(&t1, 123456789012345)
++
++	t2 := Unix(1483228799, 5e6)
++	SetMono(&t2, 123456789012345+10e6)
++
++	t3 := Unix(1483228799, 995e6)
++	SetMono(&t3, 123456789012345+1e9)
++
++	t1w := t1.AddDate(0, 0, 0)
++	if GetMono(&t1w) != 0 {
++		t.Fatalf("AddDate didn't strip monotonic clock reading")
++	}
++	t2w := t2.AddDate(0, 0, 0)
++	if GetMono(&t2w) != 0 {
++		t.Fatalf("AddDate didn't strip monotonic clock reading")
++	}
++	t3w := t3.AddDate(0, 0, 0)
++	if GetMono(&t3w) != 0 {
++		t.Fatalf("AddDate didn't strip monotonic clock reading")
++	}
++
++	sub := func(txs, tys string, tx, txw, ty, tyw Time, d, dw Duration) {
++		check := func(expr string, d, want Duration) {
++			if d != want {
++				t.Errorf("%s = %v, want %v", expr, d, want)
++			}
++		}
++		check(txs+".Sub("+tys+")", tx.Sub(ty), d)
++		check(txs+"w.Sub("+tys+")", txw.Sub(ty), dw)
++		check(txs+".Sub("+tys+"w)", tx.Sub(tyw), dw)
++		check(txs+"w.Sub("+tys+"w)", txw.Sub(tyw), dw)
++	}
++	sub("t1", "t1", t1, t1w, t1, t1w, 0, 0)
++	sub("t1", "t2", t1, t1w, t2, t2w, -10*Millisecond, 990*Millisecond)
++	sub("t1", "t3", t1, t1w, t3, t3w, -1000*Millisecond, 0)
++
++	sub("t2", "t1", t2, t2w, t1, t1w, 10*Millisecond, -990*Millisecond)
++	sub("t2", "t2", t2, t2w, t2, t2w, 0, 0)
++	sub("t2", "t3", t2, t2w, t3, t3w, -990*Millisecond, -990*Millisecond)
++
++	sub("t3", "t1", t3, t3w, t1, t1w, 1000*Millisecond, 0)
++	sub("t3", "t2", t3, t3w, t2, t2w, 990*Millisecond, 990*Millisecond)
++	sub("t3", "t3", t3, t3w, t3, t3w, 0, 0)
++
++	cmp := func(txs, tys string, tx, txw, ty, tyw Time, c, cw int) {
++		check := func(expr string, b, want bool) {
++			if b != want {
++				t.Errorf("%s = %v, want %v", expr, b, want)
++			}
++		}
++		check(txs+".After("+tys+")", tx.After(ty), c > 0)
++		check(txs+"w.After("+tys+")", txw.After(ty), cw > 0)
++		check(txs+".After("+tys+"w)", tx.After(tyw), cw > 0)
++		check(txs+"w.After("+tys+"w)", txw.After(tyw), cw > 0)
++
++		check(txs+".Before("+tys+")", tx.Before(ty), c < 0)
++		check(txs+"w.Before("+tys+")", txw.Before(ty), cw < 0)
++		check(txs+".Before("+tys+"w)", tx.Before(tyw), cw < 0)
++		check(txs+"w.Before("+tys+"w)", txw.Before(tyw), cw < 0)
++
++		check(txs+".Equal("+tys+")", tx.Equal(ty), c == 0)
++		check(txs+"w.Equal("+tys+")", txw.Equal(ty), cw == 0)
++		check(txs+".Equal("+tys+"w)", tx.Equal(tyw), cw == 0)
++		check(txs+"w.Equal("+tys+"w)", txw.Equal(tyw), cw == 0)
++	}
++
++	cmp("t1", "t1", t1, t1w, t1, t1w, 0, 0)
++	cmp("t1", "t2", t1, t1w, t2, t2w, -1, +1)
++	cmp("t1", "t3", t1, t1w, t3, t3w, -1, 0)
++
++	cmp("t2", "t1", t2, t2w, t1, t1w, +1, -1)
++	cmp("t2", "t2", t2, t2w, t2, t2w, 0, 0)
++	cmp("t2", "t3", t2, t2w, t3, t3w, -1, -1)
++
++	cmp("t3", "t1", t3, t3w, t1, t1w, +1, 0)
++	cmp("t3", "t2", t3, t3w, t2, t2w, +1, +1)
++	cmp("t3", "t3", t3, t3w, t3, t3w, 0, 0)
++}
++
++func TestMonotonicOverflow(t *testing.T) {
++	t1 := Now().Add(-30 * Second)
++	d := Until(t1)
++	if d < -35*Second || -30*Second < d {
++		t.Errorf("Until(Now().Add(-30s)) = %v, want roughly -30s (-35s to -30s)", d)
++	}
++
++	t1 = Now().Add(30 * Second)
++	d = Until(t1)
++	if d < 25*Second || 30*Second < d {
++		t.Errorf("Until(Now().Add(-30s)) = %v, want roughly 30s (25s to 30s)", d)
++	}
++
++	t0 := Now()
++	t1 = t0.Add(Duration(1<<63 - 1))
++	if GetMono(&t1) != 0 {
++		t.Errorf("Now().Add(maxDuration) has monotonic clock reading (%v => %v %d %d)", t0.String(), t1.String(), t0.Unix(), t1.Unix())
++	}
++	t2 := t1.Add(-Duration(1<<63 - 1))
++	d = Since(t2)
++	if d < -10*Second || 10*Second < d {
++		t.Errorf("Since(Now().Add(max).Add(-max)) = %v, want [-10s, 10s]", d)
++	}
++
++	t0 = Now()
++	t1 = t0.Add(1 * Hour)
++	Sleep(100 * Millisecond)
++	t2 = Now().Add(-5 * Second)
++	if !t1.After(t2) {
++		t.Errorf("Now().Add(1*Hour).After(Now().Add(-5*Second)) = false, want true\nt1=%v\nt2=%v", t1, t2)
++	}
++	if t2.After(t1) {
++		t.Errorf("Now().Add(-5*Second).After(Now().Add(1*Hour)) = true, want false\nt1=%v\nt2=%v", t1, t2)
++	}
++	if t1.Before(t2) {
++		t.Errorf("Now().Add(1*Hour).Before(Now().Add(-5*Second)) = true, want false\nt1=%v\nt2=%v", t1, t2)
++	}
++	if !t2.Before(t1) {
++		t.Errorf("Now().Add(-5*Second).Before(Now().Add(1*Hour)) = false, want true\nt1=%v\nt2=%v", t1, t2)
++	}
++}
++
++func TestMonotonicString(t *testing.T) {
++	t1 := Now()
++	re := regexp.MustCompile(` m=\+[0-9]+\.[0-9]{9}$`)
++	if !re.MatchString(t1.String()) {
++		t.Errorf("Now().String() = %q, want match for /%s/", t1.String(), re)
++	}
++
++	t2 := Now().Add(-5 * Hour)
++	re = regexp.MustCompile(` m=-[0-9]+\.[0-9]{9}$`)
++	if !re.MatchString(t2.String()) {
++		t.Errorf("Now().Add(-5*Hour).String() = %q, want match for /%s/", t2.String(), re)
++	}
++
++	t3 := Now().Add(1.2e18)
++	re = regexp.MustCompile(` m=\+120[0-9]{7}\.[0-9]{9}$`)
++	if !re.MatchString(t3.String()) {
++		t.Errorf("Now().Add(12e17).String() = %q, want match for /%s/", t3.String(), re)
++	}
++}
+diff --git a/src/time/time.go b/src/time/time.go
+index 10b32461e1..8a0e1695f4 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -6,6 +6,74 @@
+ //
+ // The calendrical calculations always assume a Gregorian calendar, with
+ // no leap seconds.
++//
++// Monotonic Clocks
++//
++// Operating systems provide both a “wall clock,” which is subject to
++// changes for clock synchronization, and a “monotonic clock,” which is
++// not. The general rule is that the wall clock is for telling time and
++// the monotonic clock is for measuring time. Rather than split the API,
++// in this package the Time returned by time.Now contains both a wall
++// clock reading and a monotonic clock reading; later time-telling
++// operations use the wall clock reading, but later time-measuring
++// operations, specifically comparisons and subtractions, use the
++// monotonic clock reading.
++//
++// For example, this code always computes a positive elapsed time of
++// approximately 20 milliseconds, even if the wall clock is changed during
++// the operation being timed:
++//
++//	t := time.Now()
++//	... operation that takes 20 milliseconds ...
++//	u := time.Now()
++//	elapsed := t.Sub(u)
++//
++// Other idioms, such as time.Since(start), time.Until(deadline), and
++// time.Now().Before(deadline), are similarly robust against wall clock
++// resets.
++//
++// The rest of this section gives the precise details of how operations
++// use monotonic clocks, but understanding those details is not required
++// to use this package.
++//
++// The Time returned by time.Now contains a monotonic clock reading.
++// If Time t has a monotonic clock reading, t.Add, t.Round, and
++// t.Truncate add the same duration to both the wall clock and
++// monotonic clock readings to compute the result. Similarly, t.In,
++// t.Local, and t.UTC, which are defined to change only the Time's
++// Location, pass any monotonic clock reading through unmodified.
++// Because t.AddDate(y, m, d) is a wall time computation, it always
++// strips any monotonic clock reading from its result.
++//
++// If Times t and u both contain monotonic clock readings, the operations
++// t.After(u), t.Before(u), t.Equal(u), and t.Sub(u) are carried out
++// using the monotonic clock readings alone, ignoring the wall clock
++// readings. If either t or u contains no monotonic clock reading, these
++// operations fall back to using the wall clock readings.
++//
++// Because the monotonic clock reading has no meaning outside
++// the current process, the serialized forms generated by t.GobEncode,
++// t.MarshalBinary, t.MarshalJSON, and t.MarshalText omit the monotonic
++// clock reading, and t.Format provides no format for it. Similarly, the
++// constructors time.Date, time.Parse, time.ParseInLocation, and time.Unix,
++// as well as the unmarshalers t.GobDecode, t.UnmarshalBinary.
++// t.UnmarshalJSON, and t.UnmarshalText always create times with
++// no monotonic clock reading.
++//
++// Note that the Go == operator includes the monotonic clock reading in
++// its comparison. If time values returned from time.Now and time values
++// constructed by other means (for example, by time.Parse or time.Unix)
++// are meant to compare equal when used as map keys, the times returned
++// by time.Now must have the monotonic clock reading stripped, by setting
++// t = t.AddDate(0, 0, 0). In general, prefer t.Equal(u) to t == u, since
++// t.Equal uses the most accurate comparison available and correctly
++// handles the case when only one of its arguments has a monotonic clock
++// reading.
++//
++// For debugging, the result of t.String does include the monotonic
++// clock reading if present. If t != u because of different monotonic clock readings,
++// that difference will be visible when printing t.String() and u.String().
++//
+ package time
+ 
+ import "errors"
+@@ -37,15 +105,25 @@ import "errors"
+ // without first guaranteeing that the identical Location has been set for all
+ // values, which can be achieved through use of the UTC or Local method.
+ //
++// In addition to the required “wall clock” reading, a Time may contain an optional
++// reading of the current process's monotonic clock, to provide additional precision
++// for comparison or subtraction.
++// See the “Monotonic Clocks” section in the package documentation for details.
++//
+ type Time struct {
+-	// sec gives the number of seconds elapsed since
+-	// January 1, year 1 00:00:00 UTC.
+-	sec int64
+-
+-	// nsec specifies a non-negative nanosecond
+-	// offset within the second named by Seconds.
+-	// It must be in the range [0, 999999999].
+-	nsec int32
++	// wall and ext encode the wall time seconds, wall time nanoseconds,
++	// and optional monotonic clock reading in nanoseconds.
++	//
++	// From high to low bit position, wall encodes a 1-bit flag (hasMonotonic),
++	// a 33-bit seconds field, and a 30-bit wall time nanoseconds field.
++	// The nanoseconds field is in the range [0, 999999999].
++	// If the hasMonotonic bit is 0, then the 33-bit field must be zero
++	// and the full signed 64-bit wall seconds since Jan 1 year 1 is stored in ext.
++	// If the hasMonotonic bit is 1, then the 33-bit field holds a 33-bit
++	// unsigned wall seconds since Jan 1 year 1885, and ext holds a
++	// signed 64-bit monotonic clock reading, nanoseconds since process start.
++	wall uint64
++	ext  int64
+ 
+ 	// loc specifies the Location that should be used to
+ 	// determine the minute, hour, month, day, and year
+@@ -55,6 +133,54 @@ type Time struct {
+ 	loc *Location
+ }
+ 
++const (
++	hasMonotonic = 1 << 63
++	maxWall      = wallToInternal + (1<<33 - 1) // year 2157
++	minWall      = wallToInternal               // year 1885
++	nsecMask     = 1<<30 - 1
++	nsecShift    = 30
++)
++
++// These helpers for manipulating the wall and monotonic clock readings
++// take pointer receivers, even when they don't modify the time,
++// to make them cheaper to call.
++
++// nsec returns the time's nanoseconds.
++func (t *Time) nsec() int32 {
++	return int32(t.wall & nsecMask)
++}
++
++// sec returns the time's seconds since Jan 1 year 1.
++func (t *Time) sec() int64 {
++	if t.wall&hasMonotonic != 0 {
++		return wallToInternal + int64(t.wall<<1>>(nsecShift+1))
++	}
++	return int64(t.ext)
++}
++
++// unixSec returns the time's seconds since Jan 1 1970 (Unix time).
++func (t *Time) unixSec() int64 { return t.sec() + internalToUnix }
++
++// addSec adds d seconds to the time.
++func (t *Time) addSec(d int64) {
++	if t.wall&hasMonotonic != 0 {
++		sec := int64(t.wall << 1 >> (nsecShift + 1))
++		dsec := sec + d
++		if 0 <= dsec && dsec <= 1<<33-1 {
++			t.wall = t.wall&nsecMask | uint64(dsec)<<nsecShift | hasMonotonic
++			return
++		}
++		// Wall second now out of range for packed field.
++		// Move to ext.
++		t.ext = t.sec()
++		t.wall &= nsecMask
++	}
++
++	// TODO: Check for overflow.
++	t.ext += d
++}
++
++// setLoc sets the location associated with the time.
+ func (t *Time) setLoc(loc *Location) {
+ 	if loc == &utcLoc {
+ 		loc = nil
+@@ -62,14 +188,49 @@ func (t *Time) setLoc(loc *Location) {
+ 	t.loc = loc
+ }
+ 
++// setMono sets the monotonic clock reading in t.
++// If t cannot hold a monotonic clock reading,
++// because its wall time is too large,
++// setMono is a no-op.
++func (t *Time) setMono(m int64) {
++	if t.wall&hasMonotonic == 0 {
++		sec := int64(t.ext)
++		if sec < minWall || maxWall < sec {
++			return
++		}
++		t.wall |= hasMonotonic | uint64(sec-minWall)<<nsecShift
++	}
++	t.ext = m
++}
++
++// mono returns t's monotonic clock reading.
++// It returns 0 for a missing reading.
++// This function is used only for testing,
++// so it's OK that technically 0 is a valid
++// monotonic clock reading as well.
++func (t *Time) mono() int64 {
++	if t.wall&hasMonotonic == 0 {
++		return 0
++	}
++	return t.ext
++}
++
+ // After reports whether the time instant t is after u.
+ func (t Time) After(u Time) bool {
+-	return t.sec > u.sec || t.sec == u.sec && t.nsec > u.nsec
++	if t.wall&u.wall&hasMonotonic != 0 {
++		return t.ext > u.ext
++	}
++	ts := t.sec()
++	us := u.sec()
++	return ts > us || ts == us && t.nsec() > u.nsec()
+ }
+ 
+ // Before reports whether the time instant t is before u.
+ func (t Time) Before(u Time) bool {
+-	return t.sec < u.sec || t.sec == u.sec && t.nsec < u.nsec
++	if t.wall&u.wall&hasMonotonic != 0 {
++		return t.ext < u.ext
++	}
++	return t.sec() < u.sec() || t.sec() == u.sec() && t.nsec() < u.nsec()
+ }
+ 
+ // Equal reports whether t and u represent the same time instant.
+@@ -77,7 +238,10 @@ func (t Time) Before(u Time) bool {
+ // For example, 6:00 +0200 CEST and 4:00 UTC are Equal.
+ // Do not use == with Time values.
+ func (t Time) Equal(u Time) bool {
+-	return t.sec == u.sec && t.nsec == u.nsec
++	if t.wall&u.wall&hasMonotonic != 0 {
++		return t.ext == u.ext
++	}
++	return t.sec() == u.sec() && t.nsec() == u.nsec()
+ }
+ 
+ // A Month specifies a month of the year (January = 1, ...).
+@@ -245,12 +409,15 @@ const (
+ 
+ 	unixToInternal int64 = (1969*365 + 1969/4 - 1969/100 + 1969/400) * secondsPerDay
+ 	internalToUnix int64 = -unixToInternal
++
++	wallToInternal int64 = (1884*365 + 1884/4 - 1884/100 + 1884/400) * secondsPerDay
++	internalToWall int64 = -wallToInternal
+ )
+ 
+ // IsZero reports whether t represents the zero time instant,
+ // January 1, year 1, 00:00:00 UTC.
+ func (t Time) IsZero() bool {
+-	return t.sec == 0 && t.nsec == 0
++	return t.sec() == 0 && t.nsec() == 0
+ }
+ 
+ // abs returns the time t as an absolute time, adjusted by the zone offset.
+@@ -261,7 +428,7 @@ func (t Time) abs() uint64 {
+ 	if l == nil || l == &localLoc {
+ 		l = l.get()
+ 	}
+-	sec := t.sec + internalToUnix
++	sec := t.unixSec()
+ 	if l != &utcLoc {
+ 		if l.cacheZone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
+ 			sec += int64(l.cacheZone.offset)
+@@ -281,7 +448,7 @@ func (t Time) locabs() (name string, offset int, abs uint64) {
+ 		l = l.get()
+ 	}
+ 	// Avoid function call if we hit the local time cache.
+-	sec := t.sec + internalToUnix
++	sec := t.unixSec()
+ 	if l != &utcLoc {
+ 		if l.cacheZone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
+ 			name = l.cacheZone.name
+@@ -425,7 +592,7 @@ func (t Time) Second() int {
+ // Nanosecond returns the nanosecond offset within the second specified by t,
+ // in the range [0, 999999999].
+ func (t Time) Nanosecond() int {
+-	return int(t.nsec)
++	return int(t.nsec())
+ }
+ 
+ // YearDay returns the day of the year specified by t, in the range [1,365] for non-leap years,
+@@ -618,16 +785,27 @@ func (d Duration) Hours() float64 {
+ 
+ // Add returns the time t+d.
+ func (t Time) Add(d Duration) Time {
+-	t.sec += int64(d / 1e9)
+-	nsec := t.nsec + int32(d%1e9)
++	dsec := int64(d / 1e9)
++	nsec := t.nsec() + int32(d%1e9)
+ 	if nsec >= 1e9 {
+-		t.sec++
++		dsec++
+ 		nsec -= 1e9
+ 	} else if nsec < 0 {
+-		t.sec--
++		dsec--
+ 		nsec += 1e9
+ 	}
+-	t.nsec = nsec
++	t.wall = t.wall&^nsecMask | uint64(nsec) // update nsec
++	t.addSec(dsec)
++	if t.wall&hasMonotonic != 0 {
++		te := t.ext + int64(d)
++		if d < 0 && te > int64(t.ext) || d > 0 && te < int64(t.ext) {
++			// Monotonic clock reading now out of range; degrade to wall-only.
++			t.ext = t.sec()
++			t.wall &= nsecMask
++		} else {
++			t.ext = te
++		}
++	}
+ 	return t
+ }
+ 
+@@ -636,7 +814,19 @@ func (t Time) Add(d Duration) Time {
+ // will be returned.
+ // To compute t-d for a duration d, use t.Add(-d).
+ func (t Time) Sub(u Time) Duration {
+-	d := Duration(t.sec-u.sec)*Second + Duration(t.nsec-u.nsec)
++	if t.wall&u.wall&hasMonotonic != 0 {
++		te := int64(t.ext)
++		ue := int64(u.ext)
++		d := Duration(te - ue)
++		if d < 0 && te > ue {
++			return maxDuration // t - u is positive out of range
++		}
++		if d > 0 && te < ue {
++			return minDuration // t - u is negative out of range
++		}
++		return d
++	}
++	d := Duration(t.sec()-u.sec())*Second + Duration(t.nsec()-u.nsec())
+ 	// Check for overflow or underflow.
+ 	switch {
+ 	case u.Add(d).Equal(t):
+@@ -671,7 +861,7 @@ func Until(t Time) Duration {
+ func (t Time) AddDate(years int, months int, days int) Time {
+ 	year, month, day := t.Date()
+ 	hour, min, sec := t.Clock()
+-	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec), t.Location())
++	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec()), t.Location())
+ }
+ 
+ const (
+@@ -791,12 +981,18 @@ func daysIn(m Month, year int) int {
+ }
+ 
+ // Provided by package runtime.
+-func now() (sec int64, nsec int32)
++func now() (sec int64, nsec int32, mono uint64)
+ 
+ // Now returns the current local time.
+ func Now() Time {
+-	sec, nsec := now()
+-	return Time{sec + unixToInternal, nsec, Local}
++	sec, nsec, mono := now()
++	t := unixTime(sec, nsec)
++	t.setMono(int64(mono))
++	return t
++}
++
++func unixTime(sec int64, nsec int32) Time {
++	return Time{uint64(nsec), sec + unixToInternal, Local}
+ }
+ 
+ // UTC returns t with the location set to UTC.
+@@ -834,14 +1030,14 @@ func (t Time) Location() *Location {
+ // Zone computes the time zone in effect at time t, returning the abbreviated
+ // name of the zone (such as "CET") and its offset in seconds east of UTC.
+ func (t Time) Zone() (name string, offset int) {
+-	name, offset, _, _, _ = t.loc.lookup(t.sec + internalToUnix)
++	name, offset, _, _, _ = t.loc.lookup(t.unixSec())
+ 	return
+ }
+ 
+ // Unix returns t as a Unix time, the number of seconds elapsed
+ // since January 1, 1970 UTC.
+ func (t Time) Unix() int64 {
+-	return t.sec + internalToUnix
++	return t.unixSec()
+ }
+ 
+ // UnixNano returns t as a Unix time, the number of nanoseconds elapsed
+@@ -850,7 +1046,7 @@ func (t Time) Unix() int64 {
+ // 1678 or after 2262). Note that this means the result of calling UnixNano
+ // on the zero Time is undefined.
+ func (t Time) UnixNano() int64 {
+-	return (t.sec+internalToUnix)*1e9 + int64(t.nsec)
++	return (t.unixSec())*1e9 + int64(t.nsec())
+ }
+ 
+ const timeBinaryVersion byte = 1
+@@ -873,20 +1069,22 @@ func (t Time) MarshalBinary() ([]byte, error) {
+ 		offsetMin = int16(offset)
+ 	}
+ 
++	sec := t.sec()
++	nsec := t.nsec()
+ 	enc := []byte{
+ 		timeBinaryVersion, // byte 0 : version
+-		byte(t.sec >> 56), // bytes 1-8: seconds
+-		byte(t.sec >> 48),
+-		byte(t.sec >> 40),
+-		byte(t.sec >> 32),
+-		byte(t.sec >> 24),
+-		byte(t.sec >> 16),
+-		byte(t.sec >> 8),
+-		byte(t.sec),
+-		byte(t.nsec >> 24), // bytes 9-12: nanoseconds
+-		byte(t.nsec >> 16),
+-		byte(t.nsec >> 8),
+-		byte(t.nsec),
++		byte(sec >> 56),   // bytes 1-8: seconds
++		byte(sec >> 48),
++		byte(sec >> 40),
++		byte(sec >> 32),
++		byte(sec >> 24),
++		byte(sec >> 16),
++		byte(sec >> 8),
++		byte(sec),
++		byte(nsec >> 24), // bytes 9-12: nanoseconds
++		byte(nsec >> 16),
++		byte(nsec >> 8),
++		byte(nsec),
+ 		byte(offsetMin >> 8), // bytes 13-14: zone offset in minutes
+ 		byte(offsetMin),
+ 	}
+@@ -910,18 +1108,22 @@ func (t *Time) UnmarshalBinary(data []byte) error {
+ 	}
+ 
+ 	buf = buf[1:]
+-	t.sec = int64(buf[7]) | int64(buf[6])<<8 | int64(buf[5])<<16 | int64(buf[4])<<24 |
++	sec := int64(buf[7]) | int64(buf[6])<<8 | int64(buf[5])<<16 | int64(buf[4])<<24 |
+ 		int64(buf[3])<<32 | int64(buf[2])<<40 | int64(buf[1])<<48 | int64(buf[0])<<56
+ 
+ 	buf = buf[8:]
+-	t.nsec = int32(buf[3]) | int32(buf[2])<<8 | int32(buf[1])<<16 | int32(buf[0])<<24
++	nsec := int32(buf[3]) | int32(buf[2])<<8 | int32(buf[1])<<16 | int32(buf[0])<<24
+ 
+ 	buf = buf[4:]
+ 	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
+ 
++	*t = Time{}
++	t.wall = uint64(nsec)
++	t.ext = sec
++
+ 	if offset == -1*60 {
+ 		t.setLoc(&utcLoc)
+-	} else if _, localoff, _, _, _ := Local.lookup(t.sec + internalToUnix); offset == localoff {
++	} else if _, localoff, _, _, _ := Local.lookup(t.unixSec()); offset == localoff {
+ 		t.setLoc(Local)
+ 	} else {
+ 		t.setLoc(FixedZone("", offset))
+@@ -1008,7 +1210,7 @@ func Unix(sec int64, nsec int64) Time {
+ 			sec--
+ 		}
+ 	}
+-	return Time{sec + unixToInternal, int32(nsec), Local}
++	return unixTime(sec, int32(nsec))
+ }
+ 
+ func isLeap(year int) bool {
+@@ -1117,7 +1319,7 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
+ 		unix -= int64(offset)
+ 	}
+ 
+-	t := Time{unix + unixToInternal, int32(nsec), nil}
++	t := unixTime(unix, int32(nsec))
+ 	t.setLoc(loc)
+ 	return t
+ }
+@@ -1161,15 +1363,16 @@ func (t Time) Round(d Duration) Time {
+ // but it's still here in case we change our minds.
+ func div(t Time, d Duration) (qmod2 int, r Duration) {
+ 	neg := false
+-	nsec := t.nsec
+-	if t.sec < 0 {
++	nsec := t.nsec()
++	sec := t.sec()
++	if sec < 0 {
+ 		// Operate on absolute value.
+ 		neg = true
+-		t.sec = -t.sec
++		sec = -sec
+ 		nsec = -nsec
+ 		if nsec < 0 {
+ 			nsec += 1e9
+-			t.sec-- // t.sec >= 1 before the -- so safe
++			sec-- // sec >= 1 before the -- so safe
+ 		}
+ 	}
+ 
+@@ -1182,8 +1385,8 @@ func div(t Time, d Duration) (qmod2 int, r Duration) {
+ 	// Special case: d is a multiple of 1 second.
+ 	case d%Second == 0:
+ 		d1 := int64(d / Second)
+-		qmod2 = int(t.sec/d1) & 1
+-		r = Duration(t.sec%d1)*Second + Duration(nsec)
++		qmod2 = int(sec/d1) & 1
++		r = Duration(sec%d1)*Second + Duration(nsec)
+ 
+ 	// General case.
+ 	// This could be faster if more cleverness were applied,
+@@ -1191,7 +1394,7 @@ func div(t Time, d Duration) (qmod2 int, r Duration) {
+ 	// No one will care about these cases.
+ 	default:
+ 		// Compute nanoseconds as 128-bit number.
+-		sec := uint64(t.sec)
++		sec := uint64(sec)
+ 		tmp := (sec >> 32) * 1e9
+ 		u1 := tmp >> 32
+ 		u0 := tmp << 32
+diff --git a/src/time/zoneinfo_plan9.go b/src/time/zoneinfo_plan9.go
+index 0694f0a990..26637a151f 100644
+--- a/src/time/zoneinfo_plan9.go
++++ b/src/time/zoneinfo_plan9.go
+@@ -95,7 +95,7 @@ func loadZoneDataPlan9(s string) (l *Location, err error) {
+ 
+ 	// Fill in the cache with information about right now,
+ 	// since that will be the most common lookup.
+-	sec, _ := now()
++	sec, _, _ := now()
+ 	for i := range tx {
+ 		if tx[i].when <= sec && (i+1 == len(tx) || sec < tx[i+1].when) {
+ 			l.cacheStart = tx[i].when
+diff --git a/src/time/zoneinfo_read.go b/src/time/zoneinfo_read.go
+index 19cd40d847..1b3356e48c 100644
+--- a/src/time/zoneinfo_read.go
++++ b/src/time/zoneinfo_read.go
+@@ -188,7 +188,7 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
+ 
+ 	// Fill in the cache with information about right now,
+ 	// since that will be the most common lookup.
+-	sec, _ := now()
++	sec, _, _ := now()
+ 	for i := range tx {
+ 		if tx[i].when <= sec && (i+1 == len(tx) || sec < tx[i+1].when) {
+ 			l.cacheStart = tx[i].when
+diff --git a/src/time/zoneinfo_windows.go b/src/time/zoneinfo_windows.go
+index a6e227b5b0..c201f4b55e 100644
+--- a/src/time/zoneinfo_windows.go
++++ b/src/time/zoneinfo_windows.go
+@@ -132,7 +132,7 @@ func pseudoUnix(year int, d *syscall.Systemtime) int64 {
+ 			day -= 7
+ 		}
+ 	}
+-	return t.sec + int64(day-1)*secondsPerDay + internalToUnix
++	return t.sec() + int64(day-1)*secondsPerDay + internalToUnix
+ }
+ 
+ func initLocalFromTZI(i *syscall.Timezoneinformation) {

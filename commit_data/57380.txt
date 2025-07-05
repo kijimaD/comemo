@@ -13,9 +13,129 @@ Date:   Wed Aug 2 14:39:11 2023 +0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  doc/go1.17_spec.html | 5 ++++-
  doc/go1.21.html      | 6 +++++-
  doc/go_mem.html      | 1 +
  doc/go_spec.html     | 7 ++++---
  4 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go1.17_spec.html b/doc/go1.17_spec.html
+index 0b374e7bfb..15e73c3867 100644
+--- a/doc/go1.17_spec.html
++++ b/doc/go1.17_spec.html
+@@ -914,7 +914,7 @@ are required when different numeric types are mixed in an expression
+ or assignment. For instance, <code>int32</code> and <code>int</code>
+ are not the same type even though they may have the same size on a
+ particular architecture.
+-
++</p>
+ 
+ <h3 id="String_types">String types</h3>
+ 
+@@ -1451,6 +1451,7 @@ maps grow to accommodate the number of items
+ stored in them, with the exception of <code>nil</code> maps.
+ A <code>nil</code> map is equivalent to an empty map except that no elements
+ may be added.
++</p>
+ 
+ <h3 id="Channel_types">Channel types</h3>
+ 
+@@ -3641,6 +3642,8 @@ As the  <code>++</code> and <code>--</code> operators form
+ statements, not expressions, they fall
+ outside the operator hierarchy.
+ As a consequence, statement <code>*p++</code> is the same as <code>(*p)++</code>.
++</p>
++
+ <p>
+ There are five precedence levels for binary operators.
+ Multiplication operators bind strongest, followed by addition
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 5ecc07ddcf..45b037a204 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -484,6 +484,7 @@ Do not send CLs removing the interior tags from such phrases.
+       <a href="/pkg/context/#Context"><code>Context</code></a> values
+       for equality has never been well-defined, so this is not
+       considered to be an incompatible change.
++    </p>
+   </dd>
+ </dl>
+ 
+@@ -581,7 +582,7 @@ Do not send CLs removing the interior tags from such phrases.
+     </p>
+ 
+     <p><!-- https://go.dev/issue/46308, CL 497377 -->
+-      The new <a href="/pkg/crypto/tls/#VersionName"></code>VersionName</code></a> function
++      The new <a href="/pkg/crypto/tls/#VersionName"><code>VersionName</code></a> function
+       returns the name for a TLS version number.
+     </p>
+   </dd>
+@@ -1037,6 +1038,8 @@ Do not send CLs removing the interior tags from such phrases.
+       is no longer available as a <a href="/pkg/runtime#hdr-Environment_Variables">debug option</a>.
+       Instead, it is available as an experiment using <code>GOEXPERIMENT=cgocheck2</code>.
+       In particular this means that this mode has to be selected at build time instead of startup time.
++    </p>
++
+     <p>
+       <code>GODEBUG=cgocheck=1</code> is still available (and is still the default).
+     </p>
+@@ -1171,6 +1174,7 @@ Do not send CLs removing the interior tags from such phrases.
+       associated support throughout the system has been upgraded to
+       <a href="https://www.unicode.org/versions/Unicode15.0.0/">Unicode 15.0.0</a>.
+     </p>
++  </dd>
+ </dl><!-- unicode -->
+ 
+ <h2 id="ports">Ports</h2>
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index e0a7539472..026c1172e3 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -159,6 +159,7 @@ union of the sequenced before and synchronized before relations.
+ For an ordinary (non-synchronizing) data read <i>r</i> on a memory location <i>x</i>,
+ <i>W</i>(<i>r</i>) must be a write <i>w</i> that is <i>visible</i> to <i>r</i>,
+ where visible means that both of the following hold:
++</p>
+ 
+ <ol>
+ <li><i>w</i> happens before <i>r</i>.
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index d1b8bf2a91..371db8c28f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -884,7 +884,7 @@ are required when different numeric types are mixed in an expression
+ or assignment. For instance, <code>int32</code> and <code>int</code>
+ are not the same type even though they may have the same size on a
+ particular architecture.
+-
++</p>
+ 
+ <h3 id="String_types">String types</h3>
+ 
+@@ -3910,7 +3910,7 @@ For <code>a</code> of <a href="#Type_parameter_declarations">type parameter type
+ 	    that <code>P</code> is instantiated with, and the type of <code>a[x]</code> is
+ 	    the type of the (identical) element types.</li>
+ 	<li><code>a[x]</code> may not be assigned to if <code>P</code>'s type set
+-	    includes string types.
++	    includes string types.</li>
+ </ul>
+ 
+ <p>
+@@ -4639,7 +4639,7 @@ Type inference succeeds if no unification step fails and the map has
+ an entry for each type parameter.
+ </p>
+ 
+-</pre>
++<p>
+ For example, given the type equation with the bound type parameter
+ <code>P</code>
+ </p>
+@@ -4803,6 +4803,7 @@ As the  <code>++</code> and <code>--</code> operators form
+ statements, not expressions, they fall
+ outside the operator hierarchy.
+ As a consequence, statement <code>*p++</code> is the same as <code>(*p)++</code>.
++</p>
+ <p>
+ There are five precedence levels for binary operators.
+ Multiplication operators bind strongest, followed by addition

@@ -10,7 +10,32 @@ Date:   Mon Jan 27 15:24:40 2014 -0800
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/57420043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index f8e7690ab3..567ef69bd7 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -137,6 +137,7 @@ Florian Uekermann <florian@uekermann-online.de>
+ Florian Weimer <fw@deneb.enyo.de>
+ Francisco Souza <franciscossouza@gmail.com>
+ Frederick Kelly Mayle III <frederickmayle@gmail.com>
++Fredrik Enestad <fredrik.enestad@soundtrackyourbrand.com>
+ Frithjof Schulze <schulze@math.uni-hannover.de> <sfrithjof@gmail.com>
+ Gary Burd <gary@beagledreams.com>
+ Gautham Thambidorai <gautham.dorai@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f2650eb4ac..e01fe3d0eb 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -202,6 +202,7 @@ Folke Behrens <folke@google.com>
+ Francesc Campoy <campoy@golang.org>
+ Francisco Souza <franciscossouza@gmail.com>
+ Frederick Kelly Mayle III <frederickmayle@gmail.com>
++Fredrik Enestad <fredrik.enestad@soundtrackyourbrand.com>
+ Frithjof Schulze <schulze@math.uni-hannover.de> <sfrithjof@gmail.com>
+ Fumitoshi Ukai <ukai@google.com>
+ Gaal Yahas <gaal@google.com>

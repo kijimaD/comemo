@@ -15,7 +15,76 @@ Date:   Sat Oct 16 02:19:20 2021 +0000
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/internal/chunked.go      |  7 +++++++
  src/net/http/internal/chunked_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+)
+
+diff --git a/src/net/http/internal/chunked.go b/src/net/http/internal/chunked.go
+index 923e6a6d2c..37a72e9031 100644
+--- a/src/net/http/internal/chunked.go
++++ b/src/net/http/internal/chunked.go
+@@ -81,6 +81,11 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
+ 					cr.err = errors.New("malformed chunked encoding")
+ 					break
+ 				}
++			} else {
++				if cr.err == io.EOF {
++					cr.err = io.ErrUnexpectedEOF
++				}
++				break
+ 			}
+ 			cr.checkEnd = false
+ 		}
+@@ -109,6 +114,8 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
+ 		// bytes to verify they are "\r\n".
+ 		if cr.n == 0 && cr.err == nil {
+ 			cr.checkEnd = true
++		} else if cr.err == io.EOF {
++			cr.err = io.ErrUnexpectedEOF
+ 		}
+ 	}
+ 	return n, cr.err
+diff --git a/src/net/http/internal/chunked_test.go b/src/net/http/internal/chunked_test.go
+index 08152ed1e2..5e29a786dd 100644
+--- a/src/net/http/internal/chunked_test.go
++++ b/src/net/http/internal/chunked_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"io"
+ 	"strings"
+ 	"testing"
++	"testing/iotest"
+ )
+ 
+ func TestChunk(t *testing.T) {
+@@ -211,3 +212,30 @@ func TestChunkReadPartial(t *testing.T) {
+ 	}
+ 
+ }
++
++// Issue 48861: ChunkedReader should report incomplete chunks
++func TestIncompleteChunk(t *testing.T) {
++	const valid = "4\r\nabcd\r\n" + "5\r\nabc\r\n\r\n" + "0\r\n"
++
++	for i := 0; i < len(valid); i++ {
++		incomplete := valid[:i]
++		r := NewChunkedReader(strings.NewReader(incomplete))
++		if _, err := io.ReadAll(r); err != io.ErrUnexpectedEOF {
++			t.Errorf("expected io.ErrUnexpectedEOF for %q, got %v", incomplete, err)
++		}
++	}
++
++	r := NewChunkedReader(strings.NewReader(valid))
++	if _, err := io.ReadAll(r); err != nil {
++		t.Errorf("unexpected error for %q: %v", valid, err)
++	}
++}
++
++func TestChunkEndReadError(t *testing.T) {
++	readErr := fmt.Errorf("chunk end read error")
++
++	r := NewChunkedReader(io.MultiReader(strings.NewReader("4\r\nabcd"), iotest.ErrReader(readErr)))
++	if _, err := io.ReadAll(r); err != readErr {
++		t.Errorf("expected %v, got %v", readErr, err)
++	}
++}

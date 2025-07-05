@@ -28,6 +28,54 @@ Date:   Wed Jan 6 17:07:58 2016 -0500
     Change-Id: I9cb531fb873bab4b69ce9c1617e30df6c49cdcfe
     Reviewed-on: https://go-review.googlesource.com/18341
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgcmark.go | 18 ++++++++++++++----
  1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index e9f673abc8..91b76a8a67 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -796,7 +796,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 	}
+ 
+ 	gp := getg()
+-	preemtible := flags&gcDrainUntilPreempt != 0
++	preemptible := flags&gcDrainUntilPreempt != 0
+ 	blocking := flags&(gcDrainUntilPreempt|gcDrainNoBlock) == 0
+ 	flushBgCredit := flags&gcDrainFlushBgCredit != 0
+ 
+@@ -815,9 +815,13 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 	initScanWork := gcw.scanWork
+ 
+ 	// Drain heap marking jobs.
+-	for !(preemtible && gp.preempt) {
+-		// If another proc wants a pointer, give it some.
+-		if work.nwait > 0 && work.full == 0 {
++	for !(preemptible && gp.preempt) {
++		// Try to keep work available on the global queue. We used to
++		// check if there were waiting workers, but it's better to
++		// just keep work available than to make workers wait. In the
++		// worst case, we'll do O(log(_WorkbufSize)) unnecessary
++		// balances.
++		if work.full == 0 {
+ 			gcw.balance()
+ 		}
+ 
+@@ -884,10 +888,16 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
+ 
+ 	gp := getg().m.curg
+ 	for !gp.preempt && workFlushed+gcw.scanWork < scanWork {
++		// See gcDrain comment.
++		if work.full == 0 {
++			gcw.balance()
++		}
++
+ 		// This might be a good place to add prefetch code...
+ 		// if(wbuf.nobj > 4) {
+ 		//         PREFETCH(wbuf->obj[wbuf.nobj - 3];
+ 		//  }
++		//
+ 		b := gcw.tryGet()
+ 		if b == 0 {
+ 			break

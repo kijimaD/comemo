@@ -14,7 +14,7 @@ Date:   Thu Jun 17 19:10:18 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/alg.go                | 2 +-
  src/runtime/cgocall.go            | 2 +-
  src/runtime/export_test.go        | 2 +-
@@ -46,3 +46,440 @@ Date:   Thu Jun 17 19:10:18 2021 +0000
  src/runtime/trace.go              | 2 +-
  src/runtime/traceback.go          | 2 +-
  30 files changed, 30 insertions(+), 30 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 493499f2c5..fe6258cadd 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -6,8 +6,8 @@ package runtime
+ 
+ import (
+ 	"internal/cpu"
+-	"runtime/internal/sys"
+ 	"internal/goarch"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 2dafda6ca4..34eec02d07 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -85,9 +85,9 @@
+ package runtime
+ 
+ import (
++	"internal/goarch"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+-	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index ae329746fe..9a471bd9d6 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -7,9 +7,9 @@
+ package runtime
+ 
+ import (
++	"internal/goarch"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+-	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 67c0582363..9d10deee9c 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -6,9 +6,9 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/goarch"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+-	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 9f8e04d760..205e25ed88 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -101,10 +101,10 @@
+ package runtime
+ 
+ import (
++	"internal/goarch"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/math"
+ 	"runtime/internal/sys"
+-	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index ca65d3e77f..0cad1a354d 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -55,9 +55,9 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/goarch"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/math"
+-	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 583be21eb3..24556b4093 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -6,11 +6,11 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"internal/goarch"
+ 	"math"
+ 	"reflect"
+ 	"runtime"
+ 	"sort"
+-	"internal/goarch"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 124ac8f050..9363409e36 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -46,9 +46,9 @@
+ package runtime
+ 
+ import (
++	"internal/goarch"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+-	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mcheckmark.go b/src/runtime/mcheckmark.go
+index 6a43142508..1dd28585f1 100644
+--- a/src/runtime/mcheckmark.go
++++ b/src/runtime/mcheckmark.go
+@@ -13,8 +13,8 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 98f7cf793f..c07ea5e375 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -8,8 +8,8 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/atomic"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 85c78f05a7..874d910720 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -7,8 +7,8 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 9454ac46f3..8787d93d87 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -5,8 +5,8 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 87716a4b53..b78f752ded 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -10,8 +10,8 @@ package runtime
+ 
+ import (
+ 	"internal/cpu"
+-	"runtime/internal/atomic"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mspanset.go b/src/runtime/mspanset.go
+index 9b0fb99c4c..29f14910cc 100644
+--- a/src/runtime/mspanset.go
++++ b/src/runtime/mspanset.go
+@@ -6,8 +6,8 @@ package runtime
+ 
+ import (
+ 	"internal/cpu"
+-	"runtime/internal/atomic"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 3ac88438bc..341ba9a936 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -7,8 +7,8 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index 7862dfbd9e..78d9382620 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -23,8 +23,8 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index bd936d3735..2c20ee2173 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -6,8 +6,8 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/atomic"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 1cca0876a9..648239fb36 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -6,8 +6,8 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/atomic"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index cfec196a09..a38ab79398 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -54,8 +54,8 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/atomic"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/print.go b/src/runtime/print.go
+index fe32fbb08e..59a91203b9 100644
+--- a/src/runtime/print.go
++++ b/src/runtime/print.go
+@@ -5,8 +5,8 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 3b1e067371..f13f7d20a3 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -7,9 +7,9 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/cpu"
++	"internal/goarch"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+-	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index eda6aaa401..b6c3cbfff4 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -6,8 +6,8 @@ package runtime
+ 
+ import (
+ 	"internal/bytealg"
+-	"runtime/internal/atomic"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index e2f0d5910f..5795929301 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -5,8 +5,8 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/signal_linux_s390x.go b/src/runtime/signal_linux_s390x.go
+index bba8169ded..18c3b115ef 100644
+--- a/src/runtime/signal_linux_s390x.go
++++ b/src/runtime/signal_linux_s390x.go
+@@ -6,8 +6,8 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
+ 	"internal/goarch"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index ff59fa6278..66e3aff1a4 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -6,9 +6,9 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/goarch"
+ 	"runtime/internal/math"
+ 	"runtime/internal/sys"
+-	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index c37e8e76eb..0c862e5d08 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -7,9 +7,9 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/cpu"
++	"internal/goarch"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+-	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 36e0bfa9c4..0167d51d60 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -5,9 +5,9 @@
+ package runtime
+ 
+ import (
++	"internal/goarch"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+-	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/sys_wasm.go b/src/runtime/sys_wasm.go
+index 1bf80289f2..e6e7f471ee 100644
+--- a/src/runtime/sys_wasm.go
++++ b/src/runtime/sys_wasm.go
+@@ -5,8 +5,8 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
+ 	"internal/goarch"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 1864e81a42..72e95947db 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -13,9 +13,9 @@
+ package runtime
+ 
+ import (
++	"internal/goarch"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+-	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 27e187f4ed..0bea20bf4d 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -6,9 +6,9 @@ package runtime
+ 
+ import (
+ 	"internal/bytealg"
++	"internal/goarch"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+-	"internal/goarch"
+ 	"unsafe"
+ )
+ 

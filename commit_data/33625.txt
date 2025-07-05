@@ -55,7 +55,7 @@ Date:   Fri Aug 25 15:15:41 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/59190
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/archive/tar/common.go                       |  35 +++++++++++---
  src/archive/tar/reader.go                       |  36 +++++++-------
  src/archive/tar/reader_test.go                  |  51 ++++++++++++++++++--
@@ -64,3 +64,396 @@ Date:   Fri Aug 25 15:15:41 2017 -0700
  src/archive/tar/writer.go                       |  19 ++++++--
  src/archive/tar/writer_test.go                  |  60 ++++++++++++++++++++++++
  7 files changed, 169 insertions(+), 35 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index dfea49bd89..ae62973726 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -13,6 +13,7 @@ import (
+ 	"math"
+ 	"os"
+ 	"path"
++	"reflect"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -336,6 +337,9 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
+ 				paxHdrs[paxKey] = s
+ 			}
+ 		}
++		if v, ok := h.PAXRecords[paxKey]; ok && v == s {
++			paxHdrs[paxKey] = v
++		}
+ 	}
+ 	verifyNumeric := func(n int64, size int, name, paxKey string) {
+ 		if !fitsInBase256(size, n) {
+@@ -352,6 +356,9 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
+ 				paxHdrs[paxKey] = strconv.FormatInt(n, 10)
+ 			}
+ 		}
++		if v, ok := h.PAXRecords[paxKey]; ok && v == strconv.FormatInt(n, 10) {
++			paxHdrs[paxKey] = v
++		}
+ 	}
+ 	verifyTime := func(ts time.Time, size int, name, paxKey string) {
+ 		if ts.IsZero() {
+@@ -373,6 +380,9 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
+ 				paxHdrs[paxKey] = formatPAXTime(ts)
+ 			}
+ 		}
++		if v, ok := h.PAXRecords[paxKey]; ok && v == formatPAXTime(ts) {
++			paxHdrs[paxKey] = v
++		}
+ 	}
+ 
+ 	// Check basic fields.
+@@ -396,6 +406,16 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
+ 
+ 	// Check for header-only types.
+ 	var whyOnlyPAX, whyOnlyGNU string
++	switch h.Typeflag {
++	case TypeXHeader, TypeGNULongName, TypeGNULongLink:
++		return FormatUnknown, nil, headerError{"cannot manually encode TypeXHeader, TypeGNULongName, or TypeGNULongLink headers"}
++	case TypeXGlobalHeader:
++		if !reflect.DeepEqual(h, &Header{Typeflag: h.Typeflag, Xattrs: h.Xattrs, PAXRecords: h.PAXRecords, Format: h.Format}) {
++			return FormatUnknown, nil, headerError{"only PAXRecords may be set for TypeXGlobalHeader"}
++		}
++		whyOnlyPAX = "only PAX supports TypeXGlobalHeader"
++		format.mayOnlyBe(FormatPAX)
++	}
+ 	if !isHeaderOnlyType(h.Typeflag) && h.Size < 0 {
+ 		return FormatUnknown, nil, headerError{"negative size on header-only type"}
+ 	}
+@@ -410,19 +430,20 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
+ 	}
+ 	if len(h.PAXRecords) > 0 {
+ 		for k, v := range h.PAXRecords {
+-			_, exists := paxHdrs[k]
+-			ignore := exists || basicKeys[k] || strings.HasPrefix(k, paxGNUSparse)
+-			if !ignore {
+-				paxHdrs[k] = v
++			switch _, exists := paxHdrs[k]; {
++			case exists:
++				continue // Do not overwrite existing records
++			case h.Typeflag == TypeXGlobalHeader:
++				paxHdrs[k] = v // Copy all records
++			case !basicKeys[k] && !strings.HasPrefix(k, paxGNUSparse):
++				paxHdrs[k] = v // Ignore local records that may conflict
+ 			}
+ 		}
+ 		whyOnlyPAX = "only PAX supports PAXRecords"
+ 		format.mayOnlyBe(FormatPAX)
+ 	}
+ 	for k, v := range paxHdrs {
+-		// Forbid empty values (which represent deletion) since usage of
+-		// them are non-sensible without global PAX record support.
+-		if !validPAXRecord(k, v) || v == "" {
++		if !validPAXRecord(k, v) {
+ 			return FormatUnknown, nil, headerError{fmt.Sprintf("invalid PAX record: %q", k+" = "+v)}
+ 		}
+ 	}
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index e4e694e0b8..c0d4ea6940 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -85,12 +85,21 @@ loop:
+ 
+ 		// Check for PAX/GNU special headers and files.
+ 		switch hdr.Typeflag {
+-		case TypeXHeader:
++		case TypeXHeader, TypeXGlobalHeader:
+ 			format.mayOnlyBe(FormatPAX)
+ 			paxHdrs, err = parsePAX(tr)
+ 			if err != nil {
+ 				return nil, err
+ 			}
++			if hdr.Typeflag == TypeXGlobalHeader {
++				mergePAX(hdr, paxHdrs)
++				return &Header{
++					Typeflag:   hdr.Typeflag,
++					Xattrs:     hdr.Xattrs,
++					PAXRecords: hdr.PAXRecords,
++					Format:     format,
++				}, nil
++			}
+ 			continue loop // This is a meta header affecting the next header
+ 		case TypeGNULongName, TypeGNULongLink:
+ 			format.mayOnlyBe(FormatGNU)
+@@ -230,14 +239,13 @@ func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header) (sparseDatas, error) {
+ 	}
+ }
+ 
+-// mergePAX merges well known headers according to PAX standard.
+-// In general headers with the same name as those found
+-// in the header struct overwrite those found in the header
+-// struct with higher precision or longer values. Esp. useful
+-// for name and linkname fields.
+-func mergePAX(hdr *Header, headers map[string]string) (err error) {
+-	var id64 int64
+-	for k, v := range headers {
++// mergePAX merges paxHdrs into hdr for all relevant fields of Header.
++func mergePAX(hdr *Header, paxHdrs map[string]string) (err error) {
++	for k, v := range paxHdrs {
++		if v == "" {
++			continue // Keep the original USTAR value
++		}
++		var id64 int64
+ 		switch k {
+ 		case paxPath:
+ 			hdr.Name = v
+@@ -273,7 +281,7 @@ func mergePAX(hdr *Header, headers map[string]string) (err error) {
+ 			return ErrHeader
+ 		}
+ 	}
+-	hdr.PAXRecords = headers
++	hdr.PAXRecords = paxHdrs
+ 	return nil
+ }
+ 
+@@ -309,13 +317,7 @@ func parsePAX(r io.Reader) (map[string]string, error) {
+ 			}
+ 			sparseMap = append(sparseMap, value)
+ 		default:
+-			// According to PAX specification, a value is stored only if it is
+-			// non-empty. Otherwise, the key is deleted.
+-			if len(value) > 0 {
+-				paxHdrs[key] = value
+-			} else {
+-				delete(paxHdrs, key)
+-			}
++			paxHdrs[key] = value
+ 		}
+ 	}
+ 	if len(sparseMap) > 0 {
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index bb0b2b112a..3b9903eb7a 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -348,6 +348,39 @@ func TestReader(t *testing.T) {
+ 			},
+ 			Format: FormatPAX,
+ 		}},
++	}, {
++		file: "testdata/pax-global-records.tar",
++		headers: []*Header{{
++			Typeflag:   TypeXGlobalHeader,
++			PAXRecords: map[string]string{"path": "global1", "mtime": "1500000000.0"},
++			Format:     FormatPAX,
++		}, {
++			Typeflag: TypeReg,
++			Name:     "file1",
++			ModTime:  time.Unix(0, 0),
++			Format:   FormatUSTAR,
++		}, {
++			Typeflag:   TypeReg,
++			Name:       "file2",
++			PAXRecords: map[string]string{"path": "file2"},
++			ModTime:    time.Unix(0, 0),
++			Format:     FormatPAX,
++		}, {
++			Typeflag:   TypeXGlobalHeader,
++			PAXRecords: map[string]string{"path": ""},
++			Format:     FormatPAX,
++		}, {
++			Typeflag: TypeReg,
++			Name:     "file3",
++			ModTime:  time.Unix(0, 0),
++			Format:   FormatUSTAR,
++		}, {
++			Typeflag:   TypeReg,
++			Name:       "file4",
++			ModTime:    time.Unix(1400000000, 0),
++			PAXRecords: map[string]string{"mtime": "1400000000"},
++			Format:     FormatPAX,
++		}},
+ 	}, {
+ 		file: "testdata/nil-uid.tar", // golang.org/issue/5290
+ 		headers: []*Header{{
+@@ -965,12 +998,18 @@ func TestMergePAX(t *testing.T) {
+ 			Name:    "a/b/c",
+ 			Uid:     1000,
+ 			ModTime: time.Unix(1350244992, 23960108),
++			PAXRecords: map[string]string{
++				"path":  "a/b/c",
++				"uid":   "1000",
++				"mtime": "1350244992.023960108",
++			},
+ 		},
+ 		ok: true,
+ 	}, {
+ 		in: map[string]string{
+ 			"gid": "gtgergergersagersgers",
+ 		},
++		ok: false,
+ 	}, {
+ 		in: map[string]string{
+ 			"missing":          "missing",
+@@ -978,6 +1017,10 @@ func TestMergePAX(t *testing.T) {
+ 		},
+ 		want: &Header{
+ 			Xattrs: map[string]string{"key": "value"},
++			PAXRecords: map[string]string{
++				"missing":          "missing",
++				"SCHILY.xattr.key": "value",
++			},
+ 		},
+ 		ok: true,
+ 	}}
+@@ -985,8 +1028,6 @@ func TestMergePAX(t *testing.T) {
+ 	for i, v := range vectors {
+ 		got := new(Header)
+ 		err := mergePAX(got, v.in)
+-		// TODO(dsnet): Test more combinations with global record support.
+-		got.PAXRecords = nil
+ 		if v.ok && !reflect.DeepEqual(*got, *v.want) {
+ 			t.Errorf("test %d, mergePAX(...):\ngot  %+v\nwant %+v", i, *got, *v.want)
+ 		}
+@@ -1012,7 +1053,7 @@ func TestParsePAX(t *testing.T) {
+ 		{"13 key1=haha\n13 key2=nana\n13 key3=kaka\n",
+ 			map[string]string{"key1": "haha", "key2": "nana", "key3": "kaka"}, true},
+ 		{"13 key1=val1\n13 key2=val2\n8 key1=\n",
+-			map[string]string{"key2": "val2"}, true},
++			map[string]string{"key1": "", "key2": "val2"}, true},
+ 		{"22 GNU.sparse.size=10\n26 GNU.sparse.numblocks=2\n" +
+ 			"23 GNU.sparse.offset=1\n25 GNU.sparse.numbytes=2\n" +
+ 			"23 GNU.sparse.offset=3\n25 GNU.sparse.numbytes=4\n",
+@@ -1029,10 +1070,10 @@ func TestParsePAX(t *testing.T) {
+ 		r := strings.NewReader(v.in)
+ 		got, err := parsePAX(r)
+ 		if !reflect.DeepEqual(got, v.want) && !(len(got) == 0 && len(v.want) == 0) {
+-			t.Errorf("test %d, parsePAX(...):\ngot  %v\nwant %v", i, got, v.want)
++			t.Errorf("test %d, parsePAX():\ngot  %v\nwant %v", i, got, v.want)
+ 		}
+ 		if ok := err == nil; ok != v.ok {
+-			t.Errorf("test %d, parsePAX(...): got %v, want %v", i, ok, v.ok)
++			t.Errorf("test %d, parsePAX(): got %v, want %v", i, ok, v.ok)
+ 		}
+ 	}
+ }
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index 93196e9126..189a1762fa 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -559,7 +559,8 @@ func TestHeaderAllowedFormats(t *testing.T) {
+ 		formats: FormatUnknown,
+ 	}, {
+ 		header:  &Header{Xattrs: map[string]string{"foo": ""}},
+-		formats: FormatUnknown,
++		paxHdrs: map[string]string{paxSchilyXattr + "foo": ""},
++		formats: FormatPAX,
+ 	}, {
+ 		header:  &Header{ModTime: time.Unix(0, 0)},
+ 		formats: FormatUSTAR | FormatPAX | FormatGNU,
+diff --git a/src/archive/tar/testdata/pax-global-records.tar b/src/archive/tar/testdata/pax-global-records.tar
+new file mode 100644
+index 0000000000..3d3d241e65
+Binary files /dev/null and b/src/archive/tar/testdata/pax-global-records.tar differ
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index c04b30ad45..38ebc5906b 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -141,7 +141,8 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
+ 	}
+ 
+ 	// Write PAX records to the output.
+-	if len(paxHdrs) > 0 {
++	isGlobal := hdr.Typeflag == TypeXGlobalHeader
++	if len(paxHdrs) > 0 || isGlobal {
+ 		// Sort keys for deterministic ordering.
+ 		var keys []string
+ 		for k := range paxHdrs {
+@@ -160,11 +161,19 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
+ 		}
+ 
+ 		// Write the extended header file.
+-		dir, file := path.Split(realName)
+-		name := path.Join(dir, "PaxHeaders.0", file)
++		var name string
++		var flag byte
++		if isGlobal {
++			name = "GlobalHead.0.0"
++			flag = TypeXGlobalHeader
++		} else {
++			dir, file := path.Split(realName)
++			name = path.Join(dir, "PaxHeaders.0", file)
++			flag = TypeXHeader
++		}
+ 		data := buf.String()
+-		if err := tw.writeRawFile(name, data, TypeXHeader, FormatPAX); err != nil {
+-			return err
++		if err := tw.writeRawFile(name, data, flag, FormatPAX); err != nil || isGlobal {
++			return err // Global headers return here
+ 		}
+ 	}
+ 
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 36308f2510..42b0a201ca 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -247,6 +247,66 @@ func TestWriter(t *testing.T) {
+ 			}, nil},
+ 			testClose{nil},
+ 		},
++	}, {
++		// Craft a theoretically valid PAX archive with global headers.
++		// The GNU and BSD tar tools do not parse these the same way.
++		//
++		// BSD tar v3.1.2 parses and ignores all global headers;
++		// the behavior is verified by researching the source code.
++		//
++		//	$ bsdtar -tvf pax-global-records.tar
++		//	----------  0 0      0           0 Dec 31  1969 file1
++		//	----------  0 0      0           0 Dec 31  1969 file2
++		//	----------  0 0      0           0 Dec 31  1969 file3
++		//	----------  0 0      0           0 May 13  2014 file4
++		//
++		// GNU tar v1.27.1 applies global headers to subsequent records,
++		// but does not do the following properly:
++		//	* It does not treat an empty record as deletion.
++		//	* It does not use subsequent global headers to update previous ones.
++		//
++		//	$ gnutar -tvf pax-global-records.tar
++		//	---------- 0/0               0 2017-07-13 19:40 global1
++		//	---------- 0/0               0 2017-07-13 19:40 file2
++		//	gnutar: Substituting `.' for empty member name
++		//	---------- 0/0               0 1969-12-31 16:00
++		//	gnutar: Substituting `.' for empty member name
++		//	---------- 0/0               0 2014-05-13 09:53
++		//
++		// According to the PAX specification, this should have been the result:
++		//	---------- 0/0               0 2017-07-13 19:40 global1
++		//	---------- 0/0               0 2017-07-13 19:40 file2
++		//	---------- 0/0               0 2017-07-13 19:40 file3
++		//	---------- 0/0               0 2014-05-13 09:53 file4
++		file: "testdata/pax-global-records.tar",
++		tests: []testFnc{
++			testHeader{Header{
++				Typeflag:   TypeXGlobalHeader,
++				PAXRecords: map[string]string{"path": "global1", "mtime": "1500000000.0"},
++			}, nil},
++			testHeader{Header{
++				Typeflag: TypeReg, Name: "file1",
++			}, nil},
++			testHeader{Header{
++				Typeflag:   TypeReg,
++				Name:       "file2",
++				PAXRecords: map[string]string{"path": "file2"},
++			}, nil},
++			testHeader{Header{
++				Typeflag:   TypeXGlobalHeader,
++				PAXRecords: map[string]string{"path": ""}, // Should delete "path", but keep "mtime"
++			}, nil},
++			testHeader{Header{
++				Typeflag: TypeReg, Name: "file3",
++			}, nil},
++			testHeader{Header{
++				Typeflag:   TypeReg,
++				Name:       "file4",
++				ModTime:    time.Unix(1400000000, 0),
++				PAXRecords: map[string]string{"mtime": "1400000000"},
++			}, nil},
++			testClose{nil},
++		},
+ 	}, {
+ 		file: "testdata/gnu-utf8.tar",
+ 		tests: []testFnc{

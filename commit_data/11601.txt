@@ -9,7 +9,7 @@ Date:   Sat Feb 4 07:03:20 2012 +1100
     R=golang-dev, rsc, r
     CC=golang-dev
     https://golang.org/cl/5608053
-
+---
  src/cmd/cgo/doc.go               |  2 +-
  src/cmd/go/doc.go                | 12 ++++++------
  src/cmd/go/fix.go                |  2 +-
@@ -20,3 +20,175 @@ Date:   Sat Feb 4 07:03:20 2012 +1100
  src/pkg/exp/ebnflint/doc.go      |  2 +-
  src/pkg/exp/ebnflint/ebnflint.go |  2 +-
  9 files changed, 15 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 6282c0bbfa..1d64c75ada 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -6,7 +6,7 @@
+ 
+ Cgo enables the creation of Go packages that call C code.
+ 
+-Usage: cgo [compiler options] file.go
++Usage: go tool cgo [compiler options] file.go
+ 
+ The compiler options are passed through uninterpreted when
+ invoking gcc to compile the C parts of the package.
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 55eb4f7275..e2df7beb1c 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -12,7 +12,7 @@ The commands are:
+     build       compile packages and dependencies
+     clean       remove object files
+     doc         run godoc on package sources
+-    fix         run gofix on packages
++    fix         run go tool fix on packages
+     fmt         run gofmt on package sources
+     get         download and install packages and dependencies
+     install     compile and install packages and dependencies
+@@ -21,7 +21,7 @@ The commands are:
+     test        test packages
+     tool        run specified go tool
+     version     print Go version
+-    vet         run govet on packages
++    vet         run go tool vet on packages
+ 
+ Use "go help [command]" for more information about a command.
+ 
+@@ -128,7 +128,7 @@ To run godoc with specific options, run godoc itself.
+ See also: go fix, go fmt, go vet.
+ 
+ 
+-Run gofix on packages
++Run go tool fix on packages
+ 
+ Usage:
+ 
+@@ -176,7 +176,7 @@ and 'go install'.  See 'go help install'.
+ The -d flag instructs get to stop after downloading the packages; that is,
+ it instructs get not to install the packages.
+ 
+-The -fix flag instructs get to run gofix on the downloaded packages
++The -fix flag instructs get to run the fix tool on the downloaded packages
+ before resolving dependencies or building the code.
+ 
+ The -u flag instructs get to use the network to update the named packages
+@@ -350,7 +350,7 @@ Usage:
+ Version prints the Go version, as reported by runtime.Version.
+ 
+ 
+-Run govet on packages
++Run go tool vet on packages
+ 
+ Usage:
+ 
+@@ -361,7 +361,7 @@ Vet runs the Go vet command on the packages named by the import paths.
+ For more about vet, see 'godoc vet'.
+ For more about import paths, see 'go help importpath'.
+ 
+-To run govet with specific options, run 'go tool vet'.
++To run the vet tool with specific options, run 'go tool vet'.
+ 
+ See also: go fmt, go fix.
+ 
+diff --git a/src/cmd/go/fix.go b/src/cmd/go/fix.go
+index 19091f35bf..6a0ad0774c 100644
+--- a/src/cmd/go/fix.go
++++ b/src/cmd/go/fix.go
+@@ -7,7 +7,7 @@ package main
+ var cmdFix = &Command{
+ 	Run:       runFix,
+ 	UsageLine: "fix [importpath...]",
+-	Short:     "run gofix on packages",
++	Short:     "run go tool fix on packages",
+ 	Long: `
+ Fix runs the Go fix command on the packages named by the import paths.
+ 
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index f9f8542393..e66810cb3f 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -29,7 +29,7 @@ and 'go install'.  See 'go help install'.
+ The -d flag instructs get to stop after downloading the packages; that is,
+ it instructs get not to install the packages.
+ 
+-The -fix flag instructs get to run gofix on the downloaded packages
++The -fix flag instructs get to run the fix tool on the downloaded packages
+ before resolving dependencies or building the code.
+ 
+ The -u flag instructs get to use the network to update the named packages
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+index 6609ac8ef0..51dcec2bef 100644
+--- a/src/cmd/go/vet.go
++++ b/src/cmd/go/vet.go
+@@ -7,14 +7,14 @@ package main
+ var cmdVet = &Command{
+ 	Run:       runVet,
+ 	UsageLine: "vet [importpath...]",
+-	Short:     "run govet on packages",
++	Short:     "run go tool vet on packages",
+ 	Long: `
+ Vet runs the Go vet command on the packages named by the import paths.
+ 
+ For more about vet, see 'godoc vet'.
+ For more about import paths, see 'go help importpath'.
+ 
+-To run govet with specific options, run 'go tool vet'.
++To run the vet tool with specific options, run 'go tool vet'.
+ 
+ See also: go fmt, go fix.
+ 	`,
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index c18987f4d1..65601b1013 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-eval $(gomake --no-print-directory -f ../../Make.inc go-env)
++eval $(go tool make --no-print-directory -f ../../Make.inc go-env)
+ if [ -z "$O" ]; then
+ 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+ 	exit 1
+diff --git a/src/cmd/prof/doc.go b/src/cmd/prof/doc.go
+index 1f2209f04b..08aa086291 100644
+--- a/src/cmd/prof/doc.go
++++ b/src/cmd/prof/doc.go
+@@ -41,8 +41,7 @@ Flag -t sets the maximum real time to sample, in seconds, and -d
+ sets the sampling interval in milliseconds.  The default is to sample
+ every 100ms until the program completes.
+ 
+-For reasons of disambiguation it is installed as 6prof although it also serves
+-as an 8prof and a 5prof.
++It is installed as go tool prof and is architecture-independent.
+ 
+ */
+ package documentation
+diff --git a/src/pkg/exp/ebnflint/doc.go b/src/pkg/exp/ebnflint/doc.go
+index 408227f71e..4bb22a4cb8 100644
+--- a/src/pkg/exp/ebnflint/doc.go
++++ b/src/pkg/exp/ebnflint/doc.go
+@@ -13,7 +13,7 @@ Grammar productions are grouped in boxes demarcated by the HTML elements
+ 
+ 
+ Usage:
+-	ebnflint [--start production] [file]
++	go tool ebnflint [--start production] [file]
+ 
+ The --start flag specifies the name of the start production for
+ the grammar; it defaults to "Start".
+diff --git a/src/pkg/exp/ebnflint/ebnflint.go b/src/pkg/exp/ebnflint/ebnflint.go
+index 2cb5aa6ed6..d54fb229d0 100644
+--- a/src/pkg/exp/ebnflint/ebnflint.go
++++ b/src/pkg/exp/ebnflint/ebnflint.go
+@@ -21,7 +21,7 @@ var fset = token.NewFileSet()
+ var start = flag.String("start", "Start", "name of start production")
+ 
+ func usage() {
+-	fmt.Fprintf(os.Stderr, "usage: ebnflint [flags] [filename]\n")
++	fmt.Fprintf(os.Stderr, "usage: go tool ebnflint [flags] [filename]\n")
+ 	flag.PrintDefaults()
+ 	os.Exit(1)
+ }

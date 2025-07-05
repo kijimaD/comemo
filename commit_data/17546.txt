@@ -9,9 +9,62 @@ Date:   Tue Sep 10 14:54:55 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13441051
-
+---
  src/cmd/6g/gsubr.c | 2 +-
  src/cmd/6l/obj.c   | 2 +-
  src/cmd/6l/span.c  | 2 ++
  src/libbio/bgetc.c | 2 +-
  4 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 0e45cc0ebe..e68a0899e9 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -540,7 +540,7 @@ ginscon(int as, vlong c, Node *n2)
+ 
+ 	nodconst(&n1, types[TINT64], c);
+ 
+-	if(as != AMOVQ && (c < -1LL<<31 || c >= 1LL<<31)) {
++	if(as != AMOVQ && (c < -(1LL<<31) || c >= 1LL<<31)) {
+ 		// cannot have 64-bit immediokate in ADD, etc.
+ 		// instead, MOV into register first.
+ 		regalloc(&ntmp, types[TINT64], N);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 12ca0f6350..a12b6e6f9b 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -346,7 +346,7 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 		a->offset = BGETLE4(f);
+ 		if(t & T_64) {
+ 			a->offset &= 0xFFFFFFFFULL;
+-			a->offset |= (vlong)BGETLE4(f) << 32;
++			a->offset |= (uvlong)BGETLE4(f) << 32;
+ 		}
+ 	}
+ 	a->sym = S;
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 9fad0eed0a..74f11d635a 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -1237,6 +1237,8 @@ found:
+ 		break;
+ 	}
+ 
++	if(z >= nelem(o->op))
++		sysfatal("asmins bad table %P", p);
+ 	op = o->op[z];
+ 	if(op == 0x0f) {
+ 		*andptr++ = op;
+diff --git a/src/libbio/bgetc.c b/src/libbio/bgetc.c
+index f3db0f3029..3399fb16b3 100644
+--- a/src/libbio/bgetc.c
++++ b/src/libbio/bgetc.c
+@@ -83,7 +83,7 @@ Bgetle4(Biobuf *bp)
+ 
+ 	l = Bgetle2(bp);
+ 	h = Bgetle2(bp);
+-	return l|(h<<16);
++	return l|((uint32)h<<16);
+ }
+ 
+ int

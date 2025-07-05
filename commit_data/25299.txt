@@ -11,6 +11,20 @@ Date:   Mon Oct 19 14:41:38 2015 -0400
     Change-Id: I001c8fb5ce22f9ff8d7433f881d0dccbf6ab969d
     Reviewed-on: https://go-review.googlesource.com/16056
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/net/platform_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index c9415d1038..76c53138cd 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -32,7 +32,7 @@ func testableNetwork(network string) bool {
+ 		}
+ 	case "unix", "unixgram":
+ 		switch runtime.GOOS {
+-		case "nacl", "plan9", "windows":
++		case "android", "nacl", "plan9", "windows":
+ 			return false
+ 		}
+ 		// iOS does not support unix, unixgram.

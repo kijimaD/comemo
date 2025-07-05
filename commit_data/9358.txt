@@ -17,7 +17,36 @@ Date:   Mon Aug 15 00:22:28 2011 -0300
     R=golang-dev, r, gustavo
     CC=golang-dev
     https://golang.org/cl/4876046
-
+---
  src/pkg/exp/template/exec.go      | 4 +++-
  src/pkg/exp/template/exec_test.go | 1 +
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index ff4e3876af..06e5d2b3b8 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -233,8 +233,10 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
+ 			s.pop(mark)
+ 		}
+ 		return
++	case reflect.Invalid:
++		break // An invalid value is likely a nil map, etc. and acts like an empty map.
+ 	default:
+-		s.errorf("range can't iterate over value of type %T", val.Interface())
++		s.errorf("range can't iterate over %v", val)
+ 	}
+ 	if r.ElseList != nil {
+ 		s.walk(dot, r.ElseList)
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index a8ef64d2e0..8a610da63b 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -372,6 +372,7 @@ var execTests = []execTest{
+ 	{"range map else", "{{range .MSI | .MSort}}-{{.}}-{{else}}EMPTY{{end}}", "-one--three--two-", tVal, true},
+ 	{"range empty map else", "{{range .MSIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+ 	{"range empty interface", "{{range .Empty3}}-{{.}}-{{else}}EMPTY{{end}}", "-7--8-", tVal, true},
++	{"range empty nil", "{{range .Empty0}}-{{.}}-{{end}}", "", tVal, true},
+ 	{"range $x SI", "{{range $x := .SI}}<{{$x}}>{{end}}", "<3><4><5>", tVal, true},
+ 	{"range $x $y SI", "{{range $x, $y := .SI}}<{{$x}}={{$y}}>{{end}}", "<0=3><1=4><2=5>", tVal, true},
+ 	{"range $x MSIone", "{{range $x := .MSIone}}<{{$x}}>{{end}}", "<1>", tVal, true},

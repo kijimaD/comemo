@@ -7,6 +7,20 @@ Date:   Mon Jul 19 11:43:33 2010 +0300
     R=dho
     CC=golang-dev
     https://golang.org/cl/1777041
-
+---
  misc/arm/a | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/arm/a b/misc/arm/a
+index 140b47e296..7d810a30f7 100755
+--- a/misc/arm/a
++++ b/misc/arm/a
+@@ -29,7 +29,7 @@ exp ()
+ rloc=/data/local/tmp/retval
+ rsize=$(adb shell "ls -l $rloc"|tr -s ' '|cut -d' ' -f4)
+ rcheck=38
+-if [ $rsize != $rcheck ] ; then
++if [ "$rsize" != "$rcheck" ]; then
+ #	echo "debug: retval size incorrect want $rcheck, got $rsize. uploading"
+ 	echo  >/tmp/adb.retval '#!/system/bin/sh
+ "$@"

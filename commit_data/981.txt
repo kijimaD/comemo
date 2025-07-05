@@ -7,6 +7,20 @@ Date:   Wed Oct 29 13:18:21 2008 -0700
     R=r
     OCL=18027
     CL=18027
-
+---
  src/cmd/gc/walk.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 5df07aab57..ef80c5240f 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2204,7 +2204,7 @@ chanop(Node *n, int top)
+ 		if(n->left != N) {
+ 			// async buf size
+ 			a = nod(OCONV, n->left, N);
+-			a->type = types[TUINT32];
++			a->type = types[TINT];
+ 		} else
+ 			a = nodintconst(0);
+ 

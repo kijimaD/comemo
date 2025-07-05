@@ -26,7 +26,7 @@ Date:   Fri Aug 26 08:45:23 2022 +0000
     Reviewed-by: Ryan Schuster <shuey19831@gmail.com>
     Reviewed-by: Jianwei Mao <maojianwei2020@gmail.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  api/next/53482.txt           | 2 ++
  src/net/interface.go         | 4 +++-
  src/net/interface_aix.go     | 3 +++
@@ -36,3 +36,122 @@ Date:   Fri Aug 26 08:45:23 2022 +0000
  src/net/interface_solaris.go | 3 +++
  src/net/interface_windows.go | 1 +
  8 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/api/next/53482.txt b/api/next/53482.txt
+new file mode 100644
+index 0000000000..a54894498f
+--- /dev/null
++++ b/api/next/53482.txt
+@@ -0,0 +1,2 @@
++pkg net, const FlagRunning = 32 #53482
++pkg net, const FlagRunning Flags #53482
+diff --git a/src/net/interface.go b/src/net/interface.go
+index 0e5d3202c9..e1c9a2e2ff 100644
+--- a/src/net/interface.go
++++ b/src/net/interface.go
+@@ -39,11 +39,12 @@ type Interface struct {
+ type Flags uint
+ 
+ const (
+-	FlagUp           Flags = 1 << iota // interface is up
++	FlagUp           Flags = 1 << iota // interface is administratively up
+ 	FlagBroadcast                      // interface supports broadcast access capability
+ 	FlagLoopback                       // interface is a loopback interface
+ 	FlagPointToPoint                   // interface belongs to a point-to-point link
+ 	FlagMulticast                      // interface supports multicast access capability
++	FlagRunning                        // interface is in running state
+ )
+ 
+ var flagNames = []string{
+@@ -52,6 +53,7 @@ var flagNames = []string{
+ 	"loopback",
+ 	"pointtopoint",
+ 	"multicast",
++	"running",
+ }
+ 
+ func (f Flags) String() string {
+diff --git a/src/net/interface_aix.go b/src/net/interface_aix.go
+index 7ad45d1175..f2e967b1e8 100644
+--- a/src/net/interface_aix.go
++++ b/src/net/interface_aix.go
+@@ -101,6 +101,9 @@ func linkFlags(rawFlags int32) Flags {
+ 	if rawFlags&syscall.IFF_UP != 0 {
+ 		f |= FlagUp
+ 	}
++	if rawFlags&syscall.IFF_RUNNING != 0 {
++		f |= FlagRunning
++	}
+ 	if rawFlags&syscall.IFF_BROADCAST != 0 {
+ 		f |= FlagBroadcast
+ 	}
+diff --git a/src/net/interface_bsd.go b/src/net/interface_bsd.go
+index db7bc756d8..9b2b42addb 100644
+--- a/src/net/interface_bsd.go
++++ b/src/net/interface_bsd.go
+@@ -59,6 +59,9 @@ func linkFlags(rawFlags int) Flags {
+ 	if rawFlags&syscall.IFF_UP != 0 {
+ 		f |= FlagUp
+ 	}
++	if rawFlags&syscall.IFF_RUNNING != 0 {
++		f |= FlagRunning
++	}
+ 	if rawFlags&syscall.IFF_BROADCAST != 0 {
+ 		f |= FlagBroadcast
+ 	}
+diff --git a/src/net/interface_linux.go b/src/net/interface_linux.go
+index 441ab2f880..9112ecc854 100644
+--- a/src/net/interface_linux.go
++++ b/src/net/interface_linux.go
+@@ -99,6 +99,9 @@ func linkFlags(rawFlags uint32) Flags {
+ 	if rawFlags&syscall.IFF_UP != 0 {
+ 		f |= FlagUp
+ 	}
++	if rawFlags&syscall.IFF_RUNNING != 0 {
++		f |= FlagRunning
++	}
+ 	if rawFlags&syscall.IFF_BROADCAST != 0 {
+ 		f |= FlagBroadcast
+ 	}
+diff --git a/src/net/interface_plan9.go b/src/net/interface_plan9.go
+index 957975c265..92b2eed259 100644
+--- a/src/net/interface_plan9.go
++++ b/src/net/interface_plan9.go
+@@ -95,9 +95,9 @@ func readInterface(i int) (*Interface, error) {
+ 			}
+ 		}
+ 
+-		ifc.Flags = FlagUp | FlagBroadcast | FlagMulticast
++		ifc.Flags = FlagUp | FlagRunning | FlagBroadcast | FlagMulticast
+ 	} else {
+-		ifc.Flags = FlagUp | FlagMulticast | FlagLoopback
++		ifc.Flags = FlagUp | FlagRunning | FlagMulticast | FlagLoopback
+ 	}
+ 
+ 	return ifc, nil
+diff --git a/src/net/interface_solaris.go b/src/net/interface_solaris.go
+index f8d1571b90..32f503f45b 100644
+--- a/src/net/interface_solaris.go
++++ b/src/net/interface_solaris.go
+@@ -37,6 +37,9 @@ func linkFlags(rawFlags int) Flags {
+ 	if rawFlags&syscall.IFF_UP != 0 {
+ 		f |= FlagUp
+ 	}
++	if rawFlags&syscall.IFF_RUNNING != 0 {
++		f |= FlagRunning
++	}
+ 	if rawFlags&syscall.IFF_BROADCAST != 0 {
+ 		f |= FlagBroadcast
+ 	}
+diff --git a/src/net/interface_windows.go b/src/net/interface_windows.go
+index 30e90b83c1..22a1312849 100644
+--- a/src/net/interface_windows.go
++++ b/src/net/interface_windows.go
+@@ -62,6 +62,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ 			}
+ 			if aa.OperStatus == windows.IfOperStatusUp {
+ 				ifi.Flags |= FlagUp
++				ifi.Flags |= FlagRunning
+ 			}
+ 			// For now we need to infer link-layer service
+ 			// capabilities from media types.

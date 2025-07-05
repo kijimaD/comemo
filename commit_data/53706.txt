@@ -17,9 +17,126 @@ Date:   Sun Aug 7 23:12:53 2022 +0700
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/reflect/all_test.go  | 22 ----------------------
  src/reflect/deepequal.go |  6 +++---
  src/reflect/nih_test.go  | 38 ++++++++++++++++++++++++++++++++++++++
  src/reflect/value.go     |  4 ++--
  4 files changed, 43 insertions(+), 27 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 0398a5099d..69d5378049 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -8003,28 +8003,6 @@ func TestSetIter(t *testing.T) {
+ 	}
+ }
+ 
+-//go:notinheap
+-type nih struct{ x int }
+-
+-var global_nih = nih{x: 7}
+-
+-func TestNotInHeapDeref(t *testing.T) {
+-	// See issue 48399.
+-	v := ValueOf((*nih)(nil))
+-	v.Elem()
+-	shouldPanic("reflect: call of reflect.Value.Field on zero Value", func() { v.Elem().Field(0) })
+-
+-	v = ValueOf(&global_nih)
+-	if got := v.Elem().Field(0).Int(); got != 7 {
+-		t.Fatalf("got %d, want 7", got)
+-	}
+-
+-	v = ValueOf((*nih)(unsafe.Pointer(new(int))))
+-	shouldPanic("reflect: reflect.Value.Elem on an invalid notinheap pointer", func() { v.Elem() })
+-	shouldPanic("reflect: reflect.Value.Pointer on an invalid notinheap pointer", func() { v.Pointer() })
+-	shouldPanic("reflect: reflect.Value.UnsafePointer on an invalid notinheap pointer", func() { v.UnsafePointer() })
+-}
+-
+ func TestMethodCallValueCodePtr(t *testing.T) {
+ 	m := ValueOf(Point{}).Method(1)
+ 	want := MethodValueCallCodePtr()
+diff --git a/src/reflect/deepequal.go b/src/reflect/deepequal.go
+index 50b436e5f6..c898bc834a 100644
+--- a/src/reflect/deepequal.go
++++ b/src/reflect/deepequal.go
+@@ -40,9 +40,9 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
+ 		switch v1.Kind() {
+ 		case Pointer:
+ 			if v1.typ.ptrdata == 0 {
+-				// go:notinheap pointers can't be cyclic.
+-				// At least, all of our current uses of go:notinheap have
+-				// that property. The runtime ones aren't cyclic (and we don't use
++				// not-in-heap pointers can't be cyclic.
++				// At least, all of our current uses of runtime/internal/sys.NotInHeap
++				// have that property. The runtime ones aren't cyclic (and we don't use
+ 				// DeepEqual on them anyway), and the cgo-generated ones are
+ 				// all empty structs.
+ 				return false
+diff --git a/src/reflect/nih_test.go b/src/reflect/nih_test.go
+new file mode 100644
+index 0000000000..f503939299
+--- /dev/null
++++ b/src/reflect/nih_test.go
+@@ -0,0 +1,38 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build cgo
++
++package reflect_test
++
++import (
++	. "reflect"
++	"runtime/cgo"
++	"testing"
++	"unsafe"
++)
++
++type nih struct {
++	_ cgo.Incomplete
++	x int
++}
++
++var global_nih = nih{x: 7}
++
++func TestNotInHeapDeref(t *testing.T) {
++	// See issue 48399.
++	v := ValueOf((*nih)(nil))
++	v.Elem()
++	shouldPanic("reflect: call of reflect.Value.Field on zero Value", func() { v.Elem().Field(0) })
++
++	v = ValueOf(&global_nih)
++	if got := v.Elem().Field(1).Int(); got != 7 {
++		t.Fatalf("got %d, want 7", got)
++	}
++
++	v = ValueOf((*nih)(unsafe.Pointer(new(int))))
++	shouldPanic("reflect: reflect.Value.Elem on an invalid notinheap pointer", func() { v.Elem() })
++	shouldPanic("reflect: reflect.Value.Pointer on an invalid notinheap pointer", func() { v.Pointer() })
++	shouldPanic("reflect: reflect.Value.UnsafePointer on an invalid notinheap pointer", func() { v.UnsafePointer() })
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 3611a5a66c..2589a6dd18 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -92,7 +92,7 @@ func (f flag) ro() flag {
+ 
+ // pointer returns the underlying pointer represented by v.
+ // v.Kind() must be Pointer, Map, Chan, Func, or UnsafePointer
+-// if v.Kind() == Pointer, the base type must not be go:notinheap.
++// if v.Kind() == Pointer, the base type must not be not-in-heap.
+ func (v Value) pointer() unsafe.Pointer {
+ 	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
+ 		panic("can't call pointer on a non-pointer Value")
+@@ -3156,7 +3156,7 @@ func New(typ Type) Value {
+ 	t := typ.(*rtype)
+ 	pt := t.ptrTo()
+ 	if ifaceIndir(pt) {
+-		// This is a pointer to a go:notinheap type.
++		// This is a pointer to a not-in-heap type.
+ 		panic("reflect: New of type that may not be allocated in heap (possibly undefined cgo C type)")
+ 	}
+ 	ptr := unsafe_New(t)

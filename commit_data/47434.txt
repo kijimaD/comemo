@@ -13,9 +13,165 @@ Date:   Thu Mar 18 03:32:32 2021 +1100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/302609
     Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s    | 25 ++++++++------
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  9 -----
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 47 --------------------------
  src/cmd/internal/obj/riscv/obj.go              |  9 +++++
  4 files changed, 23 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 9a49d96ca0..77c0764c48 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -280,6 +280,9 @@ start:
+ 	MOV	$2047, X5				// 9b02f07f
+ 	MOV	$-2048, X5				// 9b020080
+ 
++	// Converted to load of symbol.
++	MOV	$4294967296, X5				// 97020000
++
+ 	MOV	(X5), X6				// 03b30200
+ 	MOV	4(X5), X6				// 03b34200
+ 	MOVB	(X5), X6				// 03830200
+@@ -325,7 +328,7 @@ start:
+ 	// These jumps can get printed as jumps to 2 because they go to the
+ 	// second instruction in the function (the first instruction is an
+ 	// invisible stack pointer adjustment).
+-	JMP	start		// JMP	2		// 6ff09fc2
++	JMP	start		// JMP	2		// 6ff01fc2
+ 	JMP	(X5)					// 67800200
+ 	JMP	4(X5)					// 67804200
+ 
+@@ -338,16 +341,16 @@ start:
+ 	JMP	asmtest(SB)				// 970f0000
+ 
+ 	// Branch pseudo-instructions
+-	BEQZ	X5, start	// BEQZ	X5, 2		// e38602c0
+-	BGEZ	X5, start	// BGEZ	X5, 2		// e3d402c0
+-	BGT	X5, X6, start	// BGT	X5, X6, 2	// e34253c0
+-	BGTU	X5, X6, start	// BGTU	X5, X6, 2	// e36053c0
+-	BGTZ	X5, start	// BGTZ	X5, 2		// e34e50be
+-	BLE	X5, X6, start	// BLE	X5, X6, 2	// e35c53be
+-	BLEU	X5, X6, start	// BLEU	X5, X6, 2	// e37a53be
+-	BLEZ	X5, start	// BLEZ	X5, 2		// e35850be
+-	BLTZ	X5, start	// BLTZ	X5, 2		// e3c602be
+-	BNEZ	X5, start	// BNEZ	X5, 2		// e39402be
++	BEQZ	X5, start	// BEQZ	X5, 2		// e38202c0
++	BGEZ	X5, start	// BGEZ	X5, 2		// e3d002c0
++	BGT	X5, X6, start	// BGT	X5, X6, 2	// e34e53be
++	BGTU	X5, X6, start	// BGTU	X5, X6, 2	// e36c53be
++	BGTZ	X5, start	// BGTZ	X5, 2		// e34a50be
++	BLE	X5, X6, start	// BLE	X5, X6, 2	// e35853be
++	BLEU	X5, X6, start	// BLEU	X5, X6, 2	// e37653be
++	BLEZ	X5, start	// BLEZ	X5, 2		// e35450be
++	BLTZ	X5, start	// BLTZ	X5, 2		// e3c202be
++	BNEZ	X5, start	// BNEZ	X5, 2		// e39002be
+ 
+ 	// Set pseudo-instructions
+ 	SEQZ	X15, X15				// 93b71700
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index c66109cc44..ec013c11ed 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -531,15 +531,6 @@
+ (ConstNil) => (MOVDconst [0])
+ (ConstBool [val]) => (MOVDconst [int64(b2i(val))])
+ 
+-// Convert 64 bit immediate to two 32 bit immediates, combine with add and shift.
+-// The lower 32 bit immediate will be treated as signed,
+-// so if it is negative, adjust for the borrow by incrementing the top half.
+-// We don't have to worry about overflow from the increment,
+-// because if the top half is all 1s, and int32(c) is negative,
+-// then the overall constant fits in an int32.
+-(MOVDconst <t> [c]) && !is32Bit(c) && int32(c) <  0 => (ADD (SLLI <t> [32] (MOVDconst [c>>32+1])) (MOVDconst [int64(int32(c))]))
+-(MOVDconst <t> [c]) && !is32Bit(c) && int32(c) >= 0 => (ADD (SLLI <t> [32] (MOVDconst [c>>32+0])) (MOVDconst [int64(int32(c))]))
+-
+ (Addr {sym} base) => (MOVaddr {sym} [0] base)
+ (LocalAddr {sym} base _) => (MOVaddr {sym} base)
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 69ae8f5df9..767c7dda1f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -438,8 +438,6 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		return rewriteValueRISCV64_OpRISCV64MOVBstore(v)
+ 	case OpRISCV64MOVBstorezero:
+ 		return rewriteValueRISCV64_OpRISCV64MOVBstorezero(v)
+-	case OpRISCV64MOVDconst:
+-		return rewriteValueRISCV64_OpRISCV64MOVDconst(v)
+ 	case OpRISCV64MOVDload:
+ 		return rewriteValueRISCV64_OpRISCV64MOVDload(v)
+ 	case OpRISCV64MOVDnop:
+@@ -3262,51 +3260,6 @@ func rewriteValueRISCV64_OpRISCV64MOVBstorezero(v *Value) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueRISCV64_OpRISCV64MOVDconst(v *Value) bool {
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+-	// match: (MOVDconst <t> [c])
+-	// cond: !is32Bit(c) && int32(c) < 0
+-	// result: (ADD (SLLI <t> [32] (MOVDconst [c>>32+1])) (MOVDconst [int64(int32(c))]))
+-	for {
+-		t := v.Type
+-		c := auxIntToInt64(v.AuxInt)
+-		if !(!is32Bit(c) && int32(c) < 0) {
+-			break
+-		}
+-		v.reset(OpRISCV64ADD)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, t)
+-		v0.AuxInt = int64ToAuxInt(32)
+-		v1 := b.NewValue0(v.Pos, OpRISCV64MOVDconst, typ.UInt64)
+-		v1.AuxInt = int64ToAuxInt(c>>32 + 1)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpRISCV64MOVDconst, typ.UInt64)
+-		v2.AuxInt = int64ToAuxInt(int64(int32(c)))
+-		v.AddArg2(v0, v2)
+-		return true
+-	}
+-	// match: (MOVDconst <t> [c])
+-	// cond: !is32Bit(c) && int32(c) >= 0
+-	// result: (ADD (SLLI <t> [32] (MOVDconst [c>>32+0])) (MOVDconst [int64(int32(c))]))
+-	for {
+-		t := v.Type
+-		c := auxIntToInt64(v.AuxInt)
+-		if !(!is32Bit(c) && int32(c) >= 0) {
+-			break
+-		}
+-		v.reset(OpRISCV64ADD)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, t)
+-		v0.AuxInt = int64ToAuxInt(32)
+-		v1 := b.NewValue0(v.Pos, OpRISCV64MOVDconst, typ.UInt64)
+-		v1.AuxInt = int64ToAuxInt(c>>32 + 0)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpRISCV64MOVDconst, typ.UInt64)
+-		v2.AuxInt = int64ToAuxInt(int64(int32(c)))
+-		v.AddArg2(v0, v2)
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValueRISCV64_OpRISCV64MOVDload(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 391c2486ca..ee6fb0909b 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -151,6 +151,15 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	case ASBREAK:
+ 		// SBREAK is the old name for EBREAK.
+ 		p.As = AEBREAK
++
++	case AMOV:
++		// Put >32-bit constants in memory and load them.
++		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && int64(int32(p.From.Offset)) != p.From.Offset {
++			p.From.Type = obj.TYPE_MEM
++			p.From.Sym = ctxt.Int64Sym(p.From.Offset)
++			p.From.Name = obj.NAME_EXTERN
++			p.From.Offset = 0
++		}
+ 	}
+ }
+ 

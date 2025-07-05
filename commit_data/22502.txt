@@ -16,7 +16,208 @@ Date:   Thu Mar 12 13:09:30 2015 -0400
     Change-Id: I6e633e96db7cb23a64fbadbfc4607e3ad32bcfb3
     Reviewed-on: https://go-review.googlesource.com/7733
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcmark.go | 18 ++++++------
  src/runtime/mgcwork.go | 74 +++++++++++++++++---------------------------------
  2 files changed, 34 insertions(+), 58 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index a5ec31c30c..197b6a808d 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -55,7 +55,7 @@ var oneptr = [...]uint8{typePointer}
+ 
+ //go:nowritebarrier
+ func markroot(desc *parfor, i uint32) {
+-	var gcw gcWorkProducer
++	var gcw gcWork
+ 
+ 	// Note: if you add a case here, please also update heapdump.go:dumproots.
+ 	switch i {
+@@ -246,7 +246,7 @@ func scanstack(gp *g) {
+ 		throw("can't scan gchelper stack")
+ 	}
+ 
+-	var gcw gcWorkProducer
++	var gcw gcWork
+ 	gcw.initFromCache()
+ 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
+ 		// Pick up gcw as free variable so gentraceback and friends can
+@@ -262,7 +262,7 @@ func scanstack(gp *g) {
+ 
+ // Scan a stack frame: local variables and function arguments/results.
+ //go:nowritebarrier
+-func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWorkProducer) {
++func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
+ 
+ 	f := frame.fn
+ 	targetpc := frame.continpc
+@@ -360,7 +360,7 @@ func gcDrain(gcw *gcWork) {
+ 		// out of the wbuf passed in + a single object placed
+ 		// into an empty wbuf in scanobject so there could be
+ 		// a performance hit as we keep fetching fresh wbufs.
+-		scanobject(b, 0, nil, &gcw.gcWorkProducer)
++		scanobject(b, 0, nil, gcw)
+ 	}
+ 	checknocurrentwbuf()
+ }
+@@ -378,14 +378,14 @@ func gcDrainN(gcw *gcWork, n int) {
+ 		if b == 0 {
+ 			return
+ 		}
+-		scanobject(b, 0, nil, &gcw.gcWorkProducer)
++		scanobject(b, 0, nil, gcw)
+ 	}
+ }
+ 
+ // scanblock scans b as scanobject would.
+ // If the gcphase is GCscan, scanblock performs additional checks.
+ //go:nowritebarrier
+-func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
++func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ 	// Use local copies of original parameters, so that a stack trace
+ 	// due to one of the throws below shows the original block
+ 	// base and extent.
+@@ -411,7 +411,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
+ // In this case, n may be an overestimate of the size; the GC bitmap
+ // must also be used to make sure the scan stops at the end of b.
+ //go:nowritebarrier
+-func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWorkProducer) {
++func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
+ 	arena_start := mheap_.arena_start
+ 	arena_used := mheap_.arena_used
+ 
+@@ -489,7 +489,7 @@ func shade(b uintptr) {
+ 		//	throw("shade during harvest")
+ 		// }
+ 
+-		var gcw gcWorkProducer
++		var gcw gcWork
+ 		greyobject(obj, 0, 0, hbits, &gcw)
+ 		// This is part of the write barrier so put the wbuf back.
+ 		if gcphase == _GCmarktermination {
+@@ -512,7 +512,7 @@ func shade(b uintptr) {
+ // Return possibly new workbuf to use.
+ // base and off are for debugging only and could be removed.
+ //go:nowritebarrier
+-func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWorkProducer) {
++func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWork) {
+ 	// obj should be start of allocation, and so must be at least pointer-aligned.
+ 	if obj&(ptrSize-1) != 0 {
+ 		throw("greyobject: obj not pointer-aligned")
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 5d725a5c82..970020ece4 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -35,36 +35,25 @@ func (wp wbufptr) ptr() *workbuf {
+ 	return (*workbuf)(unsafe.Pointer(wp))
+ }
+ 
+-// A gcWorkProducer provides the interface to produce work for the
++// A gcWork provides the interface to produce and consume work for the
+ // garbage collector.
+ //
+-// The usual pattern for using gcWorkProducer is:
++// The usual pattern for using gcWork is:
+ //
+-//     var gcw gcWorkProducer
+-//     .. call gcw.put() ..
++//     var gcw gcWork
++//     .. call gcw.put() to produce and gcw.get() to consume ..
+ //     gcw.dispose()
+-type gcWorkProducer struct {
++type gcWork struct {
+ 	// Invariant: wbuf is never full or empty
+ 	wbuf wbufptr
+ }
+ 
+-// A gcWork provides the interface to both produce and consume work
+-// for the garbage collector.
+-//
+-// The pattern for using gcWork is the same as gcWorkProducer.
+-type gcWork struct {
+-	gcWorkProducer
+-}
+-
+-// Note that there is no need for a gcWorkConsumer because everything
+-// that consumes pointers also produces them.
+-
+ // initFromCache fetches work from this M's currentwbuf cache.
+ //go:nowritebarrier
+-func (w *gcWorkProducer) initFromCache() {
+-	// TODO: Instead of making gcWorkProducer pull from the
+-	// currentwbuf cache, use a gcWorkProducer as the cache and
+-	// make shade pass around that gcWorkProducer.
++func (w *gcWork) initFromCache() {
++	// TODO: Instead of making gcWork pull from the currentwbuf
++	// cache, use a gcWork as the cache and make shade pass around
++	// that gcWork.
+ 	if w.wbuf == 0 {
+ 		w.wbuf = wbufptr(xchguintptr(&getg().m.currentwbuf, 0))
+ 	}
+@@ -72,8 +61,8 @@ func (w *gcWorkProducer) initFromCache() {
+ 
+ // put enqueues a pointer for the garbage collector to trace.
+ //go:nowritebarrier
+-func (ww *gcWorkProducer) put(obj uintptr) {
+-	w := (*gcWorkProducer)(noescape(unsafe.Pointer(ww))) // TODO: remove when escape analysis is fixed
++func (ww *gcWork) put(obj uintptr) {
++	w := (*gcWork)(noescape(unsafe.Pointer(ww))) // TODO: remove when escape analysis is fixed
+ 
+ 	wbuf := w.wbuf.ptr()
+ 	if wbuf == nil {
+@@ -90,28 +79,6 @@ func (ww *gcWorkProducer) put(obj uintptr) {
+ 	}
+ }
+ 
+-// dispose returns any cached pointers to the global queue.
+-//go:nowritebarrier
+-func (w *gcWorkProducer) dispose() {
+-	if wbuf := w.wbuf; wbuf != 0 {
+-		putpartial(wbuf.ptr(), 58)
+-		w.wbuf = 0
+-	}
+-}
+-
+-// disposeToCache returns any cached pointers to this M's currentwbuf.
+-// It calls throw if currentwbuf is non-nil.
+-//go:nowritebarrier
+-func (w *gcWorkProducer) disposeToCache() {
+-	if wbuf := w.wbuf; wbuf != 0 {
+-		wbuf = wbufptr(xchguintptr(&getg().m.currentwbuf, uintptr(wbuf)))
+-		if wbuf != 0 {
+-			throw("m.currentwbuf non-nil in disposeToCache")
+-		}
+-		w.wbuf = 0
+-	}
+-}
+-
+ // tryGet dequeues a pointer for the garbage collector to trace.
+ //
+ // If there are no pointers remaining in this gcWork or in the global
+@@ -175,11 +142,20 @@ func (ww *gcWork) get() uintptr {
+ //go:nowritebarrier
+ func (w *gcWork) dispose() {
+ 	if wbuf := w.wbuf; wbuf != 0 {
+-		// Even though wbuf may only be partially full, we
+-		// want to keep it on the consumer's queues rather
+-		// than putting it back on the producer's queues.
+-		// Hence, we use putfull here.
+-		putfull(wbuf.ptr(), 133)
++		putpartial(wbuf.ptr(), 167)
++		w.wbuf = 0
++	}
++}
++
++// disposeToCache returns any cached pointers to this M's currentwbuf.
++// It calls throw if currentwbuf is non-nil.
++//go:nowritebarrier
++func (w *gcWork) disposeToCache() {
++	if wbuf := w.wbuf; wbuf != 0 {
++		wbuf = wbufptr(xchguintptr(&getg().m.currentwbuf, uintptr(wbuf)))
++		if wbuf != 0 {
++			throw("m.currentwbuf non-nil in disposeToCache")
++		}
+ 		w.wbuf = 0
+ 	}
+ }

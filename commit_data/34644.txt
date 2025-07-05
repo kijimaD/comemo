@@ -23,8 +23,67 @@ Date:   Fri Nov 3 18:14:37 2017 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/deps.go              |  1 +
  src/cmd/go/go_test.go             |  8 ++++++++
  src/cmd/go/internal/fmtcmd/fmt.go | 12 +++++++++++-
  3 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index ffc3b4788c..294ca22a70 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -167,6 +167,7 @@ var builddeps = map[string][]string{
+ 		"os",            // cmd/go/internal/fmtcmd
+ 		"path/filepath", // cmd/go/internal/fmtcmd
+ 		"runtime",       // cmd/go/internal/fmtcmd
++		"strings",       // cmd/go/internal/fmtcmd
+ 		"sync",          // cmd/go/internal/fmtcmd
+ 	},
+ 
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 25cc18fa61..854de7968f 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4906,3 +4906,11 @@ func TestInstallDeps(t *testing.T) {
+ 	tg.run("install", "-i", "p2")
+ 	tg.mustExist(p1)
+ }
++
++func TestFmtLoadErrors(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.runFail("fmt", "does-not-exist")
++	tg.run("fmt", "-n", "exclude")
++}
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index 2ff6dd5356..eb96823fa6 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -9,6 +9,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"strings"
+ 	"sync"
+ 
+ 	"cmd/go/internal/base"
+@@ -55,7 +56,16 @@ func runFmt(cmd *base.Command, args []string) {
+ 			}
+ 		}()
+ 	}
+-	for _, pkg := range load.Packages(args) {
++	for _, pkg := range load.PackagesAndErrors(args) {
++		if pkg.Error != nil {
++			if strings.HasPrefix(pkg.Error.Err, "build constraints exclude all Go files") {
++				// Skip this error, as we will format
++				// all files regardless.
++			} else {
++				base.Errorf("can't load package: %s", pkg.Error)
++				continue
++			}
++		}
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.

@@ -9,6 +9,41 @@ Date:   Tue Oct 18 12:47:34 2011 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5298042
-
+---
  src/pkg/reflect/all_test.go | 19 ++++++++++---------
  1 file changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 915c84d3e7..2080548d75 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -877,19 +877,20 @@ func TestMap(t *testing.T) {
+ 		t.Errorf("Len = %d, want %d", n, len(m))
+ 	}
+ 	keys := mv.MapKeys()
+-	i := 0
+ 	newmap := MakeMap(mv.Type())
+ 	for k, v := range m {
+ 		// Check that returned Keys match keys in range.
+-		// These aren't required to be in the same order,
+-		// but they are in this implementation, which makes
+-		// the test easier.
+-		if i >= len(keys) {
+-			t.Errorf("Missing key #%d %q", i, k)
+-		} else if kv := keys[i]; kv.String() != k {
+-			t.Errorf("Keys[%q] = %q, want %q", i, kv.String(), k)
++		// These aren't required to be in the same order.
++		seen := false
++		for _, kv := range keys {
++			if kv.String() == k {
++				seen = true
++				break
++			}
++		}
++		if !seen {
++			t.Errorf("Missing key %q", k)
+ 		}
+-		i++
+ 
+ 		// Check that value lookup is correct.
+ 		vv := mv.MapIndex(ValueOf(k))

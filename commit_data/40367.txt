@@ -11,6 +11,19 @@ Date:   Wed May 8 09:21:06 2019 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/macho_combine_dwarf.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/ld/macho_combine_dwarf.go b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+index 1e8ee48b04..dd2ab4c5b0 100644
+--- a/src/cmd/link/internal/ld/macho_combine_dwarf.go
++++ b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+@@ -99,6 +99,7 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
+ 	if err != nil {
+ 		return err
+ 	}
++	defer dwarff.Close()
+ 	outf, err := os.Create(outexe)
+ 	if err != nil {
+ 		return err

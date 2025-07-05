@@ -11,6 +11,43 @@ Date:   Mon Oct 29 18:11:12 2018 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/tls/tls.go | 11 ++---------
  1 file changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index 51932882c0..8fd4294315 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -11,7 +11,6 @@ package tls
+ // https://www.imperialviolet.org/2013/02/04/luckythirteen.html.
+ 
+ import (
+-	"bytes"
+ 	"crypto"
+ 	"crypto/ecdsa"
+ 	"crypto/rsa"
+@@ -30,10 +29,7 @@ import (
+ // The configuration config must be non-nil and must include
+ // at least one certificate or else set GetCertificate.
+ func Server(conn net.Conn, config *Config) *Conn {
+-	return &Conn{
+-		conn: conn, config: config,
+-		input: *bytes.NewReader(nil), // Issue 28269
+-	}
++	return &Conn{conn: conn, config: config}
+ }
+ 
+ // Client returns a new TLS client side connection
+@@ -41,10 +37,7 @@ func Server(conn net.Conn, config *Config) *Conn {
+ // The config cannot be nil: users must set either ServerName or
+ // InsecureSkipVerify in the config.
+ func Client(conn net.Conn, config *Config) *Conn {
+-	return &Conn{
+-		conn: conn, config: config, isClient: true,
+-		input: *bytes.NewReader(nil), // Issue 28269
+-	}
++	return &Conn{conn: conn, config: config, isClient: true}
+ }
+ 
+ // A listener implements a network listener (net.Listener) for TLS connections.

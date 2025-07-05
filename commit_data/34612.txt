@@ -28,6 +28,20 @@ Date:   Thu Nov 2 10:22:19 2017 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/make.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index e1c3d92610..93a5c43d11 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -70,7 +70,7 @@ if [ ! -f run.bash ]; then
+ fi
+ 
+ if [ "$GOBUILDTIMELOGFILE" != "" ]; then
+-	echo $(date) start make.bash >"$GOBUILDTIMELOGFILE"
++	echo $(LC_TIME=C date) start make.bash >"$GOBUILDTIMELOGFILE"
+ fi
+ 
+ # Test for Windows.

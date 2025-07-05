@@ -7,6 +7,20 @@ Date:   Mon Mar 11 13:23:47 2013 -0700
     R=golang-dev, daniel.morsing
     CC=golang-dev
     https://golang.org/cl/7722043
-
+---
  src/pkg/net/http/httputil/reverseproxy_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/httputil/reverseproxy_test.go b/src/pkg/net/http/httputil/reverseproxy_test.go
+index 3bcaa7f5c5..1c0444ec48 100644
+--- a/src/pkg/net/http/httputil/reverseproxy_test.go
++++ b/src/pkg/net/http/httputil/reverseproxy_test.go
+@@ -30,7 +30,7 @@ func TestReverseProxy(t *testing.T) {
+ 			t.Errorf("handler got Connection header value %q", c)
+ 		}
+ 		if c := r.Header.Get("Upgrade"); c != "" {
+-			t.Errorf("handler got Keep-Alive header value %q", c)
++			t.Errorf("handler got Upgrade header value %q", c)
+ 		}
+ 		if g, e := r.Host, "some-name"; g != e {
+ 			t.Errorf("backend got Host header %q, want %q", g, e)

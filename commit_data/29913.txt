@@ -25,7 +25,47 @@ Date:   Mon Oct 17 13:29:31 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/buildgo.go | 4 +++-
  src/go/build/build.go   | 6 +++++-
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/buildgo.go b/src/cmd/dist/buildgo.go
+index dc478f87fe..27976fb820 100644
+--- a/src/cmd/dist/buildgo.go
++++ b/src/cmd/dist/buildgo.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"bytes"
+ 	"fmt"
++	"os"
+ 	"sort"
+ )
+ 
+@@ -85,7 +86,8 @@ func mkzcgo(dir, file string) {
+ 			"\n"+
+ 			"package build\n"+
+ 			"\n"+
+-			"var cgoEnabled = map[string]bool{\n")
++			"const defaultCGO_ENABLED = %q\n\n"+
++			"var cgoEnabled = map[string]bool{\n", os.Getenv("CGO_ENABLED"))
+ 	for _, plat := range list {
+ 		fmt.Fprintf(&buf, "\t%q: true,\n", plat)
+ 	}
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 5d87d9fb9e..9bd211521d 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -272,7 +272,11 @@ func defaultContext() Context {
+ 	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
+ 	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3", "go1.4", "go1.5", "go1.6", "go1.7", "go1.8"}
+ 
+-	switch os.Getenv("CGO_ENABLED") {
++	env := os.Getenv("CGO_ENABLED")
++	if env == "" {
++		env = defaultCGO_ENABLED
++	}
++	switch env {
+ 	case "1":
+ 		c.CgoEnabled = true
+ 	case "0":

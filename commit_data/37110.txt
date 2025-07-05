@@ -9,7 +9,82 @@ Date:   Wed Jun 27 15:38:29 2018 -0700
     Change-Id: Ibe534271d75b6961d00ebfd7d42c43a3ac650d79
     Reviewed-on: https://go-review.googlesource.com/121335
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go | 18 +++++++++++-------
  test/fixedbugs/issue24763.go         | 21 +++++++++++++++++++++
  2 files changed, 32 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 8d841b94dd..2827543e31 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -243,15 +243,20 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
+ 			n.Type = t
+ 		}
+ 
+-		if n.Type.Etype == TIDEAL {
+-			n.Left = convlit(n.Left, t)
+-			n.Right = convlit(n.Right, t)
+-			n.Type = t
++		if n.Type.IsUntyped() {
++			if t.IsInterface() {
++				n.Left, n.Right = defaultlit2(n.Left, n.Right, true)
++				n.Type = n.Left.Type // same as n.Right.Type per defaultlit2
++			} else {
++				n.Left = convlit(n.Left, t)
++				n.Right = convlit(n.Right, t)
++				n.Type = t
++			}
+ 		}
+ 
+ 		return n
+ 
+-		// target is invalid type for a constant? leave alone.
++	// target is invalid type for a constant? leave alone.
+ 	case OLITERAL:
+ 		if !okforconst[t.Etype] && n.Type.Etype != TNIL {
+ 			return defaultlitreuse(n, nil, reuse)
+@@ -294,7 +299,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
+ 		return n
+ 	}
+ 
+-	// avoided repeated calculations, errors
++	// avoid repeated calculations, errors
+ 	if eqtype(n.Type, t) {
+ 		return n
+ 	}
+@@ -1266,7 +1271,6 @@ func idealkind(n *Node) Ctype {
+ 		OOR,
+ 		OPLUS:
+ 		k1 := idealkind(n.Left)
+-
+ 		k2 := idealkind(n.Right)
+ 		if k1 > k2 {
+ 			return k1
+diff --git a/test/fixedbugs/issue24763.go b/test/fixedbugs/issue24763.go
+new file mode 100644
+index 0000000000..623ab489e8
+--- /dev/null
++++ b/test/fixedbugs/issue24763.go
+@@ -0,0 +1,21 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var s uint
++	var x = interface{}(1<<s + 1<<s) // compiler must not crash here
++	if x.(int) != 2 {
++		panic("x not int or not 2")
++	}
++
++	var y interface{}
++	y = 1<<s + 1 // compiler must not crash here
++	if y.(int) != 2 {
++		panic("y not int or not 2")
++	}
++}

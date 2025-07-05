@@ -16,9 +16,248 @@ Date:   Tue Jan 23 14:10:08 2018 -0500
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go                |  2 +-
  .../internal/ssa/testdata/hist.gdb-dbg.nexts       | 36 +++++++--------
  .../internal/ssa/testdata/hist.gdb-opt.nexts       | 54 +++++++++++-----------
  src/cmd/compile/internal/ssa/testdata/hist.go      |  6 +--
  4 files changed, 49 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 802e02896d..79017d2721 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -405,7 +405,7 @@ func Main(archInit func(*Arch)) {
+ 		Debug['l'] = 1 - Debug['l']
+ 	}
+ 
+-	trackScopes = flagDWARF && ((Debug['l'] == 0 && Debug['N'] != 0) || Ctxt.Flag_locationlists)
++	trackScopes = flagDWARF && (Debug['l'] == 0 && Debug['N'] != 0)
+ 
+ 	Widthptr = thearch.LinkArch.PtrSize
+ 	Widthreg = thearch.LinkArch.RegSize
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.gdb-dbg.nexts b/src/cmd/compile/internal/ssa/testdata/hist.gdb-dbg.nexts
+index fe000147bd..91b4f2d23f 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.gdb-dbg.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/hist.gdb-dbg.nexts
+@@ -14,64 +14,64 @@ hist =  []int = {0, 0, 0, 0, 0, 0, 0}
+ 73:		scanner := bufio.NewScanner(reader)
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+ i = 1
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+ i = 1
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+ i = 1
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+ i = 2
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+ i = 2
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+ i = 2
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+ i = 4
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+ i = 4
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
+ i = 5
+ 81:			hist = ensure(int(i), hist)
+ 82:			hist[int(i)]++
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts b/src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts
+index e4dc280869..9ca178492a 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/hist.gdb-opt.nexts
+@@ -22,9 +22,9 @@ dy = <Optimized out, as expected>
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+-err = {tab = 0x0, data = 0x0}
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++err2 = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 0, 0, 0, 0, 0, 0}
+ i = 1
+ 81:			hist = ensure(int(i), hist)
+@@ -32,9 +32,9 @@ i = 1
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+-err = {tab = 0x0, data = 0x0}
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++err2 = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 1, 0, 0, 0, 0, 0}
+ i = 1
+ 81:			hist = ensure(int(i), hist)
+@@ -42,9 +42,9 @@ i = 1
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+-err = {tab = 0x0, data = 0x0}
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++err2 = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 2, 0, 0, 0, 0, 0}
+ i = 1
+ 81:			hist = ensure(int(i), hist)
+@@ -52,9 +52,9 @@ i = 1
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+-err = {tab = 0x0, data = 0x0}
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++err2 = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 3, 0, 0, 0, 0, 0}
+ i = 2
+ 81:			hist = ensure(int(i), hist)
+@@ -62,9 +62,9 @@ i = 2
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+-err = {tab = 0x0, data = 0x0}
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++err2 = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 3, 1, 0, 0, 0, 0}
+ i = 2
+ 81:			hist = ensure(int(i), hist)
+@@ -72,9 +72,9 @@ i = 2
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+-err = {tab = 0x0, data = 0x0}
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++err2 = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 3, 2, 0, 0, 0, 0}
+ i = 2
+ 81:			hist = ensure(int(i), hist)
+@@ -82,9 +82,9 @@ i = 2
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+-err = {tab = 0x0, data = 0x0}
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++err2 = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 3, 3, 0, 0, 0, 0}
+ i = 4
+ 81:			hist = ensure(int(i), hist)
+@@ -92,9 +92,9 @@ i = 4
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+-err = {tab = 0x0, data = 0x0}
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++err2 = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 3, 3, 0, 1, 0, 0}
+ i = 4
+ 81:			hist = ensure(int(i), hist)
+@@ -102,9 +102,9 @@ i = 4
+ 74:		for scanner.Scan() { //gdb-opt=(scanner/A)
+ scanner = (struct bufio.Scanner *) <A>
+ 75:			s := scanner.Text()
+-76:			i, err := strconv.ParseInt(s, 10, 64)
+-77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+-err = {tab = 0x0, data = 0x0}
++76:			i, err2 := strconv.ParseInt(s, 10, 64)
++77:			if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++err2 = {tab = 0x0, data = 0x0}
+ hist =  []int = {0, 3, 3, 0, 2, 0, 0}
+ i = 5
+ 81:			hist = ensure(int(i), hist)
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.go b/src/cmd/compile/internal/ssa/testdata/hist.go
+index 8a0cc27280..1462ff64de 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.go
++++ b/src/cmd/compile/internal/ssa/testdata/hist.go
+@@ -73,9 +73,9 @@ func test() {
+ 	scanner := bufio.NewScanner(reader)
+ 	for scanner.Scan() { //gdb-opt=(scanner/A)
+ 		s := scanner.Text()
+-		i, err := strconv.ParseInt(s, 10, 64)
+-		if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+-			fmt.Fprintf(os.Stderr, "There was an error: %v\n", err)
++		i, err2 := strconv.ParseInt(s, 10, 64)
++		if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
++			fmt.Fprintf(os.Stderr, "There was an error: %v\n", err2)
+ 			return
+ 		}
+ 		hist = ensure(int(i), hist)

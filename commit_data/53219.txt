@@ -10,7 +10,7 @@ Date:   Wed Jul 20 13:18:06 2022 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/418591
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/cgocheck.go             |  6 +++---
  src/runtime/debug.go                | 16 ++++++++--------
  src/runtime/export_debuglog_test.go |  8 ++++----
@@ -21,3 +21,236 @@ Date:   Wed Jul 20 13:18:06 2022 -0400
  src/runtime/os_plan9.go             | 18 +++++++++---------
  src/runtime/signal_windows.go       | 12 ++++++------
  9 files changed, 40 insertions(+), 40 deletions(-)
+
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index 74a2ec09bc..6b492093ea 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -32,14 +32,14 @@ func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
+ 
+ 	// If we are running on the system stack then dst might be an
+ 	// address on the stack, which is OK.
+-	g := getg()
+-	if g == g.m.g0 || g == g.m.gsignal {
++	gp := getg()
++	if gp == gp.m.g0 || gp == gp.m.gsignal {
+ 		return
+ 	}
+ 
+ 	// Allocating memory can write to various mfixalloc structs
+ 	// that look like they are non-Go memory.
+-	if g.m.mallocing != 0 {
++	if gp.m.mallocing != 0 {
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index 0ab23e0eb7..669c36f0d5 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -85,13 +85,13 @@ func debug_modinfo() string {
+ //go:linkname mayMoreStackPreempt
+ func mayMoreStackPreempt() {
+ 	// Don't do anything on the g0 or gsignal stack.
+-	g := getg()
+-	if g == g.m.g0 || g == g.m.gsignal {
++	gp := getg()
++	if gp == gp.m.g0 || gp == gp.m.gsignal {
+ 		return
+ 	}
+ 	// Force a preemption, unless the stack is already poisoned.
+-	if g.stackguard0 < stackPoisonMin {
+-		g.stackguard0 = stackPreempt
++	if gp.stackguard0 < stackPoisonMin {
++		gp.stackguard0 = stackPreempt
+ 	}
+ }
+ 
+@@ -104,12 +104,12 @@ func mayMoreStackPreempt() {
+ //go:linkname mayMoreStackMove
+ func mayMoreStackMove() {
+ 	// Don't do anything on the g0 or gsignal stack.
+-	g := getg()
+-	if g == g.m.g0 || g == g.m.gsignal {
++	gp := getg()
++	if gp == gp.m.g0 || gp == gp.m.gsignal {
+ 		return
+ 	}
+ 	// Force stack movement, unless the stack is already poisoned.
+-	if g.stackguard0 < stackPoisonMin {
+-		g.stackguard0 = stackForceMove
++	if gp.stackguard0 < stackPoisonMin {
++		gp.stackguard0 = stackForceMove
+ 	}
+ }
+diff --git a/src/runtime/export_debuglog_test.go b/src/runtime/export_debuglog_test.go
+index 1a9074e646..c9dfdcb393 100644
+--- a/src/runtime/export_debuglog_test.go
++++ b/src/runtime/export_debuglog_test.go
+@@ -25,11 +25,11 @@ func (l *dlogger) S(x string) *dlogger   { return l.s(x) }
+ func (l *dlogger) PC(x uintptr) *dlogger { return l.pc(x) }
+ 
+ func DumpDebugLog() string {
+-	g := getg()
+-	g.writebuf = make([]byte, 0, 1<<20)
++	gp := getg()
++	gp.writebuf = make([]byte, 0, 1<<20)
+ 	printDebugLog()
+-	buf := g.writebuf
+-	g.writebuf = nil
++	buf := gp.writebuf
++	gp.writebuf = nil
+ 
+ 	return string(buf)
+ }
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index e60bcedf14..ab0537d8b2 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -460,17 +460,17 @@ func MapBucketsPointerIsNil(m map[int]int) bool {
+ }
+ 
+ func LockOSCounts() (external, internal uint32) {
+-	g := getg()
+-	if g.m.lockedExt+g.m.lockedInt == 0 {
+-		if g.lockedm != 0 {
++	gp := getg()
++	if gp.m.lockedExt+gp.m.lockedInt == 0 {
++		if gp.lockedm != 0 {
+ 			panic("lockedm on non-locked goroutine")
+ 		}
+ 	} else {
+-		if g.lockedm == 0 {
++		if gp.lockedm == 0 {
+ 			panic("nil lockedm on locked goroutine")
+ 		}
+ 	}
+-	return g.m.lockedExt, g.m.lockedInt
++	return gp.m.lockedExt, gp.m.lockedInt
+ }
+ 
+ //go:noinline
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index eb24fdb0e8..5866a4597b 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1245,7 +1245,7 @@ func nextSample() uintptr {
+ 	}
+ 	if GOOS == "plan9" {
+ 		// Plan 9 doesn't support floating point in note handler.
+-		if g := getg(); g == g.m.gsignal {
++		if gp := getg(); gp == gp.m.gsignal {
+ 			return nextSampleNoFP()
+ 		}
+ 	}
+diff --git a/src/runtime/msan.go b/src/runtime/msan.go
+index c485216583..5e2aae1bd1 100644
+--- a/src/runtime/msan.go
++++ b/src/runtime/msan.go
+@@ -31,8 +31,8 @@ const msanenabled = true
+ //
+ //go:nosplit
+ func msanread(addr unsafe.Pointer, sz uintptr) {
+-	g := getg()
+-	if g == nil || g.m == nil || g == g.m.g0 || g == g.m.gsignal {
++	gp := getg()
++	if gp == nil || gp.m == nil || gp == gp.m.g0 || gp == gp.m.gsignal {
+ 		return
+ 	}
+ 	domsanread(addr, sz)
+diff --git a/src/runtime/os_js.go b/src/runtime/os_js.go
+index 7fbeb5a832..7ae0e8d3ec 100644
+--- a/src/runtime/os_js.go
++++ b/src/runtime/os_js.go
+@@ -49,13 +49,13 @@ func osyield_no_g() {
+ const _SIGSEGV = 0xb
+ 
+ func sigpanic() {
+-	g := getg()
++	gp := getg()
+ 	if !canpanic() {
+ 		throw("unexpected signal during runtime execution")
+ 	}
+ 
+ 	// js only invokes the exception handler for memory faults.
+-	g.sig = _SIGSEGV
++	gp.sig = _SIGSEGV
+ 	panicmem()
+ }
+ 
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index ab768825f3..6f4578ff48 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -75,13 +75,13 @@ func os_sigpipe() {
+ }
+ 
+ func sigpanic() {
+-	g := getg()
++	gp := getg()
+ 	if !canpanic() {
+ 		throw("unexpected signal during runtime execution")
+ 	}
+ 
+-	note := gostringnocopy((*byte)(unsafe.Pointer(g.m.notesig)))
+-	switch g.sig {
++	note := gostringnocopy((*byte)(unsafe.Pointer(gp.m.notesig)))
++	switch gp.sig {
+ 	case _SIGRFAULT, _SIGWFAULT:
+ 		i := indexNoFloat(note, "addr=")
+ 		if i >= 0 {
+@@ -92,17 +92,17 @@ func sigpanic() {
+ 			panicmem()
+ 		}
+ 		addr := note[i:]
+-		g.sigcode1 = uintptr(atolwhex(addr))
+-		if g.sigcode1 < 0x1000 {
++		gp.sigcode1 = uintptr(atolwhex(addr))
++		if gp.sigcode1 < 0x1000 {
+ 			panicmem()
+ 		}
+-		if g.paniconfault {
+-			panicmemAddr(g.sigcode1)
++		if gp.paniconfault {
++			panicmemAddr(gp.sigcode1)
+ 		}
+-		print("unexpected fault address ", hex(g.sigcode1), "\n")
++		print("unexpected fault address ", hex(gp.sigcode1), "\n")
+ 		throw("fault")
+ 	case _SIGTRAP:
+-		if g.paniconfault {
++		if gp.paniconfault {
+ 			panicmem()
+ 		}
+ 		throw(note)
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index b20cac8a8b..4a0287dcfd 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -245,20 +245,20 @@ func winthrow(info *exceptionrecord, r *context, gp *g) {
+ }
+ 
+ func sigpanic() {
+-	g := getg()
++	gp := getg()
+ 	if !canpanic() {
+ 		throw("unexpected signal during runtime execution")
+ 	}
+ 
+-	switch g.sig {
++	switch gp.sig {
+ 	case _EXCEPTION_ACCESS_VIOLATION:
+-		if g.sigcode1 < 0x1000 {
++		if gp.sigcode1 < 0x1000 {
+ 			panicmem()
+ 		}
+-		if g.paniconfault {
+-			panicmemAddr(g.sigcode1)
++		if gp.paniconfault {
++			panicmemAddr(gp.sigcode1)
+ 		}
+-		print("unexpected fault address ", hex(g.sigcode1), "\n")
++		print("unexpected fault address ", hex(gp.sigcode1), "\n")
+ 		throw("fault")
+ 	case _EXCEPTION_INT_DIVIDE_BY_ZERO:
+ 		panicdivide()

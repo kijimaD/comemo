@@ -9,7 +9,111 @@ Date:   Wed Dec 18 11:09:07 2013 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/43990043
-
+---
  src/pkg/fmt/print.go | 40 ++++------------------------------------
  src/pkg/fmt/scan.go  |  9 ++++++---
  2 files changed, 10 insertions(+), 39 deletions(-)
+
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 1ea816d6d5..2f13bcd95e 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -124,45 +124,13 @@ type pp struct {
+ 	fmt        fmt
+ }
+ 
+-// A cache holds a set of reusable objects.
+-// The slice is a stack (LIFO).
+-// If more are needed, the cache creates them by calling new.
+-type cache struct {
+-	mu    sync.Mutex
+-	saved []interface{}
+-	new   func() interface{}
++var ppFree = sync.Pool{
++	New: func() interface{} { return new(pp) },
+ }
+ 
+-func (c *cache) put(x interface{}) {
+-	c.mu.Lock()
+-	if len(c.saved) < cap(c.saved) {
+-		c.saved = append(c.saved, x)
+-	}
+-	c.mu.Unlock()
+-}
+-
+-func (c *cache) get() interface{} {
+-	c.mu.Lock()
+-	n := len(c.saved)
+-	if n == 0 {
+-		c.mu.Unlock()
+-		return c.new()
+-	}
+-	x := c.saved[n-1]
+-	c.saved = c.saved[0 : n-1]
+-	c.mu.Unlock()
+-	return x
+-}
+-
+-func newCache(f func() interface{}) *cache {
+-	return &cache{saved: make([]interface{}, 0, 100), new: f}
+-}
+-
+-var ppFree = newCache(func() interface{} { return new(pp) })
+-
+ // newPrinter allocates a new pp struct or grab a cached one.
+ func newPrinter() *pp {
+-	p := ppFree.get().(*pp)
++	p := ppFree.Get().(*pp)
+ 	p.panicking = false
+ 	p.erroring = false
+ 	p.fmt.init(&p.buf)
+@@ -178,7 +146,7 @@ func (p *pp) free() {
+ 	p.buf = p.buf[:0]
+ 	p.arg = nil
+ 	p.value = reflect.Value{}
+-	ppFree.put(p)
++	ppFree.Put(p)
+ }
+ 
+ func (p *pp) Width() (wid int, ok bool) { return p.fmt.wid, p.fmt.widPresent }
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 5b1be5891b..c73b8b6028 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -11,6 +11,7 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"strconv"
++	"sync"
+ 	"unicode/utf8"
+ )
+ 
+@@ -380,7 +381,9 @@ func (r *readRune) ReadRune() (rr rune, size int, err error) {
+ 	return
+ }
+ 
+-var ssFree = newCache(func() interface{} { return new(ss) })
++var ssFree = sync.Pool{
++	New: func() interface{} { return new(ss) },
++}
+ 
+ // newScanState allocates a new ss struct or grab a cached one.
+ func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) (s *ss, old ssave) {
+@@ -395,7 +398,7 @@ func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) (s *ss, old ssave) {
+ 		return
+ 	}
+ 
+-	s = ssFree.get().(*ss)
++	s = ssFree.Get().(*ss)
+ 	if rr, ok := r.(io.RuneReader); ok {
+ 		s.rr = rr
+ 	} else {
+@@ -427,7 +430,7 @@ func (s *ss) free(old ssave) {
+ 	}
+ 	s.buf = s.buf[:0]
+ 	s.rr = nil
+-	ssFree.put(s)
++	ssFree.Put(s)
+ }
+ 
+ // skipSpace skips spaces and maybe newlines.

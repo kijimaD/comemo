@@ -16,6 +16,24 @@ Date:   Fri Jun 19 14:43:09 2015 -0400
     Change-Id: I7f3e8fb20cd16cac5ed24de6fd952003bc5e08d4
     Reviewed-on: https://go-review.googlesource.com/11301
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 0ba72b0486..450be9779c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1403,9 +1403,9 @@ func TestGoGetDashTIssue8181(t *testing.T) {
+ 	tg.parallel()
+ 	tg.makeTempdir()
+ 	tg.setenv("GOPATH", tg.path("."))
+-	tg.run("get", "-t", "code.google.com/p/go-get-issue-8181/a", "code.google.com/p/go-get-issue-8181/b")
+-	tg.runFail("list", "...")
+-	tg.grepStdout("go.tools/godoc", "missing expected go.tools/godoc")
++	tg.run("get", "-v", "-t", "github.com/rsc/go-get-issue-8181/a", "github.com/rsc/go-get-issue-8181/b")
++	tg.run("list", "...")
++	tg.grepStdout("x/build/cmd/cl", "missing expected x/build/cmd/cl")
+ }
+ 
+ func TestShadowingLogic(t *testing.T) {

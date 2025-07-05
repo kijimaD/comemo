@@ -7,6 +7,26 @@ Date:   Wed Apr 20 09:16:00 2016 +1000
     Change-Id: Ib3063719cf90dfad139dd723b3b16ef0b45e312e
     Reviewed-on: https://go-review.googlesource.com/22251
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 125e89def2..7e7312d6e7 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -45,6 +45,14 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.6.1">Go
+ 1.6.1 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.6.2 (released 2016/04/20) includes fixes to the compiler, runtime, tools,
++documentation, and the <code>mime/multipart</code>, <code>net/http</code>, and
++<code>sort</code> packages.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.6.2">Go
++1.6.2 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.5">go1.5 (released 2015/08/19)</h2>
+ 
+ <p>

@@ -9,8 +9,92 @@ Date:   Sun Apr 12 02:31:28 2015 +0200
     Change-Id: Ib40d7bf93a6e9ef21985c4a05b5703e4fbd1cd1b
     Reviewed-on: https://go-review.googlesource.com/8806
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/ld/elf.go  |  4 ++--
  src/cmd/internal/ld/lib.go  | 25 +++++++++++++++++++++----
  src/cmd/internal/ld/pobj.go |  2 +-
  3 files changed, 24 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/internal/ld/elf.go
+index 0de24fa6fd..eb2c28fada 100644
+--- a/src/cmd/internal/ld/elf.go
++++ b/src/cmd/internal/ld/elf.go
+@@ -1818,8 +1818,8 @@ func doelf() {
+ 			Elfwritedynent(s, DT_RELENT, ELF32RELSIZE)
+ 		}
+ 
+-		if rpath != "" {
+-			Elfwritedynent(s, DT_RUNPATH, uint64(Addstring(dynstr, rpath)))
++		if rpath.val != "" {
++			Elfwritedynent(s, DT_RUNPATH, uint64(Addstring(dynstr, rpath.val)))
+ 		}
+ 
+ 		if Thearch.Thechar == '9' {
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index b87f83c177..aa382717fd 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -108,12 +108,27 @@ type Arch struct {
+ 	Vput             func(uint64)
+ }
+ 
++type Rpath struct {
++	set bool
++	val string
++}
++
++func (r *Rpath) Set(val string) error {
++	r.set = true
++	r.val = val
++	return nil
++}
++
++func (r *Rpath) String() string {
++	return r.val
++}
++
+ var (
+ 	Thearch Arch
+ 	datap   *LSym
+ 	Debug   [128]int
+ 	Lcsize  int32
+-	rpath   string
++	rpath   Rpath
+ 	Spsize  int32
+ 	Symsize int32
+ )
+@@ -935,8 +950,8 @@ func hostlink() {
+ 	argv = append(argv, "-o")
+ 	argv = append(argv, outfile)
+ 
+-	if rpath != "" {
+-		argv = append(argv, fmt.Sprintf("-Wl,-rpath,%s", rpath))
++	if rpath.val != "" {
++		argv = append(argv, fmt.Sprintf("-Wl,-rpath,%s", rpath.val))
+ 	}
+ 
+ 	// Force global symbols to be exported for dlopen, etc.
+@@ -955,7 +970,9 @@ func hostlink() {
+ 		for _, shlib := range Ctxt.Shlibs {
+ 			dir, base := filepath.Split(shlib)
+ 			argv = append(argv, "-L"+dir)
+-			argv = append(argv, "-Wl,-rpath="+dir)
++			if !rpath.set {
++				argv = append(argv, "-Wl,-rpath="+dir)
++			}
+ 			base = strings.TrimSuffix(base, ".so")
+ 			base = strings.TrimPrefix(base, "lib")
+ 			argv = append(argv, "-l"+base)
+diff --git a/src/cmd/internal/ld/pobj.go b/src/cmd/internal/ld/pobj.go
+index f5dd2d7944..e6fb635690 100644
+--- a/src/cmd/internal/ld/pobj.go
++++ b/src/cmd/internal/ld/pobj.go
+@@ -115,7 +115,7 @@ func Ldmain() {
+ 	flag.BoolVar(&Linkshared, "linkshared", false, "link against installed Go shared libraries")
+ 	obj.Flagcount("n", "dump symbol table", &Debug['n'])
+ 	obj.Flagstr("o", "outfile: set output file", &outfile)
+-	obj.Flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath)
++	flag.Var(&rpath, "r", "dir1:dir2:...: set ELF dynamic linker search path")
+ 	obj.Flagcount("race", "enable race detector", &flag_race)
+ 	obj.Flagcount("s", "disable symbol table", &Debug['s'])
+ 	var flagShared int

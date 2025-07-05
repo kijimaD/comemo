@@ -12,6 +12,23 @@ Date:   Wed Sep 1 08:33:42 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 93f974c5e0..fb75c761a1 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -2025,6 +2025,11 @@ func asmbElf(ctxt *Link) {
+ 		ph := newElfPhdr()
+ 		ph.Type = elf.PT_SUNWSTACK
+ 		ph.Flags = elf.PF_W + elf.PF_R
++	} else if ctxt.HeadType == objabi.Hfreebsd {
++		ph := newElfPhdr()
++		ph.Type = elf.PT_GNU_STACK
++		ph.Flags = elf.PF_W + elf.PF_R
++		ph.Align = uint64(ctxt.Arch.RegSize)
+ 	}
+ 
+ elfobj:

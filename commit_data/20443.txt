@@ -23,7 +23,187 @@ Date:   Mon Sep 8 16:56:46 2014 -0400
     TBR=brainman, iant
     CC=golang-codereviews
     https://golang.org/cl/140380043
-
+---
  src/runtime/sys_windows_386.s   | 47 +++++++++++++++++++++++++++++++++++------
  src/runtime/sys_windows_amd64.s | 47 +++++++++++++++++++++++++++++++++++------
  2 files changed, 81 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index a9e096f018..7d4dc6a69c 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -76,7 +76,7 @@ TEXT runtime·setlasterror(SB),NOSPLIT,$0
+ // Return 0 for 'not handled', -1 for handled.
+ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+ 	MOVL	ptrs+0(FP), CX
+-	SUBL	$32, SP
++	SUBL	$40, SP
+ 
+ 	// save callee-saved registers
+ 	MOVL	BX, 28(SP)
+@@ -84,10 +84,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+ 	MOVL	SI, 20(SP)
+ 	MOVL	DI, 24(SP)
+ 
+-	MOVL	0(CX), BX // ExceptionRecord*
+-	MOVL	4(CX), CX // Context*
+-
+-	// fetch g
++	// find g
+ 	get_tls(DX)
+ 	CMPL	DX, $0
+ 	JNE	3(PC)
+@@ -97,6 +94,35 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+ 	CMPL	DX, $0
+ 	JNE	2(PC)
+ 	CALL	runtime·badsignal2(SB)
++
++	// save g and SP in case of stack switch
++	MOVL	DX, 32(SP)	// g
++	MOVL	SP, 36(SP)
++
++	// do we need to switch to the g0 stack?
++	MOVL	g_m(DX), BX
++	MOVL	m_g0(BX), BX
++	CMPL	DX, BX
++	JEQ	sigtramp_g0
++
++	// switch to the g0 stack
++	get_tls(BP)
++	MOVL	BX, g(BP)
++	MOVL	(g_sched+gobuf_sp)(BX), DI
++	// make it look like mstart called us on g0, to stop traceback
++	SUBL	$4, DI
++	MOVL	$runtime·mstart(SB), 0(DI)
++	// traceback will think that we've done SUBL
++	// on this stack, so subtract them here to match.
++	// (we need room for sighandler arguments anyway).
++	// and re-save old SP for restoring later.
++	SUBL	$40, DI
++	MOVL	SP, 36(DI)
++	MOVL	DI, SP
++
++sigtramp_g0:
++	MOVL	0(CX), BX // ExceptionRecord*
++	MOVL	4(CX), CX // Context*
+ 	// call sighandler(ExceptionRecord*, Context*, G*)
+ 	MOVL	BX, 0(SP)
+ 	MOVL	CX, 4(SP)
+@@ -105,6 +131,13 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+ 	// AX is set to report result back to Windows
+ 	MOVL	12(SP), AX
+ 
++	// switch back to original stack and g
++	// no-op if we never left.
++	MOVL	36(SP), SP
++	MOVL	32(SP), DX
++	get_tls(BP)
++	MOVL	DX, g(BP)
++
+ done:
+ 	// restore callee-saved registers
+ 	MOVL	24(SP), DI
+@@ -112,7 +145,7 @@ done:
+ 	MOVL	16(SP), BP
+ 	MOVL	28(SP), BX
+ 
+-	ADDL	$32, SP
++	ADDL	$40, SP
+ 	// RET 4 (return and pop 4 bytes parameters)
+ 	BYTE $0xC2; WORD $4
+ 	RET // unreached; make assembler happy
+@@ -128,7 +161,7 @@ TEXT runtime·profileloop(SB),NOSPLIT,$0
+ 	PUSHL	$runtime·profileloop1(SB)
+ 	CALL	runtime·externalthreadhandler(SB)
+ 	MOVL	4(SP), CX
+-	ADDL	$12, SP
++	ADDL	$40, SP
+ 	JMP	CX
+ 
+ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 21f73daf09..3d63a04de9 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -106,7 +106,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+ 	// DI SI BP BX R12 R13 R14 R15 registers and DF flag are preserved
+ 	// as required by windows callback convention.
+ 	PUSHFQ
+-	SUBQ	$96, SP
++	SUBQ	$112, SP
+ 	MOVQ	DI, 80(SP)
+ 	MOVQ	SI, 72(SP)
+ 	MOVQ	BP, 64(SP)
+@@ -116,10 +116,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+ 	MOVQ	R14, 32(SP)
+ 	MOVQ	R15, 88(SP)
+ 
+-	MOVQ	0(CX), BX // ExceptionRecord*
+-	MOVQ	8(CX), CX // Context*
+-
+-	// fetch g
++	// find g
+ 	get_tls(DX)
+ 	CMPQ	DX, $0
+ 	JNE	3(PC)
+@@ -129,6 +126,37 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+ 	CMPQ	DX, $0
+ 	JNE	2(PC)
+ 	CALL	runtime·badsignal2(SB)
++
++	// save g and SP in case of stack switch
++	MOVQ	DX, 96(SP) // g
++	MOVQ	SP, 104(SP)
++
++	// do we need to switch to the g0 stack?
++	MOVQ	g_m(DX), BX
++	MOVQ	m_g0(BX), BX
++	CMPQ	DX, BX
++	JEQ	sigtramp_g0
++
++	// switch to g0 stack
++	get_tls(BP)
++	MOVQ	BX, g(BP)
++	MOVQ	(g_sched+gobuf_sp)(BX), DI
++	// make it look like mstart called us on g0, to stop traceback
++	SUBQ	$8, DI
++	MOVQ	$runtime·mstart(SB), SI
++	MOVQ	SI, 0(DI)
++	// traceback will think that we've done PUSHFQ and SUBQ
++	// on this stack, so subtract them here to match.
++	// (we need room for sighandler arguments anyway).
++	// and re-save old SP for restoring later.
++	SUBQ	$(112+8), DI
++	// save g, save old stack pointer.
++	MOVQ	SP, 104(DI)
++	MOVQ	DI, SP
++
++sigtramp_g0:
++	MOVQ	0(CX), BX // ExceptionRecord*
++	MOVQ	8(CX), CX // Context*
+ 	// call sighandler(ExceptionRecord*, Context*, G*)
+ 	MOVQ	BX, 0(SP)
+ 	MOVQ	CX, 8(SP)
+@@ -137,6 +165,13 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-0
+ 	// AX is set to report result back to Windows
+ 	MOVL	24(SP), AX
+ 
++	// switch back to original stack and g
++	// no-op if we never left.
++	MOVQ	104(SP), SP
++	MOVQ	96(SP), DX
++	get_tls(BP)
++	MOVQ	DX, g(BP)
++
+ done:
+ 	// restore registers as required for windows callback
+ 	MOVQ	88(SP), R15
+@@ -147,7 +182,7 @@ done:
+ 	MOVQ	64(SP), BP
+ 	MOVQ	72(SP), SI
+ 	MOVQ	80(SP), DI
+-	ADDQ	$96, SP
++	ADDQ	$112, SP
+ 	POPFQ
+ 
+ 	RET

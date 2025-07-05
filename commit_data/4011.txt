@@ -9,8 +9,106 @@ Date:   Thu Nov 12 11:05:20 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/152098
-
+---
  doc/go_spec.html     |  2 +-
  doc/go_tutorial.html | 22 ++++++++++++++++++++--
  doc/go_tutorial.txt  | 18 ++++++++++++++++--
  3 files changed, 37 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 203f036a82..bd98c42903 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3010,7 +3010,7 @@ yields a function value representing <code>Mv</code> with signature
+ </p>
+ 
+ <pre>
+-func (tv *T, f int) int
++func (tv *T, a int) int
+ </pre>
+ 
+ <p>
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index 77ceb35419..bbd87bb61c 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -1,4 +1,4 @@
+-<!-- Let's Go -->
++<!-- A Tutorial for the Go Programming Language -->
+ <h2>Introduction</h2>
+ <p>
+ This document is a tutorial introduction to the basics of the Go programming
+@@ -340,6 +340,24 @@ The built-in function <code>len()</code>, which returns number of elements,
+ makes its first appearance in <code>sum</code>.  It works on strings, arrays,
+ slices, maps, and channels.
+ <p>
++By the way, another thing that works on strings, arrays, slices, maps
++and channels is the <code>range</code> clause on <code>for</code> loops.  Instead of writing
++<p>
++<pre>
++    for i := 0; i < len(a); i++ { ... }
++</pre>
++<p>
++to loop over the elements of a slice (or map or ...) , we could write
++<p>
++<pre>
++    for i, v := range a { ... }
++</pre>
++<p>
++This assigns <code>i</code> to the index and <code>v</code> to the value of the successive
++elements of the target of the range.   See
++<a href='/doc/effective_go.html'>Effective Go</a>
++for more examples of its use.
++<p>
+ <p>
+ <h2>An Interlude about Allocation</h2>
+ <p>
+@@ -511,7 +529,7 @@ exported factory to use is <code>Open</code>:
+ </pre>
+ <p>
+ There are a number of new things in these few lines.  First, <code>Open</code> returns
+-multiple values, an <code>File</code> and an error (more about errors in a moment).
++multiple values, a <code>File</code> and an error (more about errors in a moment).
+ We declare the
+ multi-value return as a parenthesized list of declarations; syntactically
+ they look just like a second parameter list.  The function
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index 8e2effd33f..8d57dffb6f 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -1,4 +1,4 @@
+-<!-- Let's Go -->
++<!-- A Tutorial for the Go Programming Language -->
+ Introduction
+ ----
+ 
+@@ -264,6 +264,20 @@ The built-in function "len()", which returns number of elements,
+ makes its first appearance in "sum".  It works on strings, arrays,
+ slices, maps, and channels.
+ 
++By the way, another thing that works on strings, arrays, slices, maps
++and channels is the "range" clause on "for" loops.  Instead of writing
++
++	for i := 0; i < len(a); i++ { ... }
++
++to loop over the elements of a slice (or map or ...) , we could write
++
++	for i, v := range a { ... }
++
++This assigns "i" to the index and "v" to the value of the successive
++elements of the target of the range.   See
++<a href='/doc/effective_go.html'>Effective Go</a>
++for more examples of its use.
++
+ 
+ An Interlude about Allocation
+ ----
+@@ -391,7 +405,7 @@ exported factory to use is "Open":
+ --PROG progs/file.go /func.Open/ /^}/
+ 
+ There are a number of new things in these few lines.  First, "Open" returns
+-multiple values, an "File" and an error (more about errors in a moment).
++multiple values, a "File" and an error (more about errors in a moment).
+ We declare the
+ multi-value return as a parenthesized list of declarations; syntactically
+ they look just like a second parameter list.  The function

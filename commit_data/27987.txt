@@ -9,9 +9,102 @@ Date:   Fri Apr 22 15:45:24 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go     | 9 ++-------
  src/cmd/compile/internal/gc/init.go      | 2 --
  src/cmd/compile/internal/gc/sinit.go     | 4 ----
  src/cmd/compile/internal/gc/typecheck.go | 5 -----
  4 files changed, 2 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 68bcae3f4c..99b48f5ffe 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -226,16 +226,13 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
+ 	case OCOMPLEX:
+ 		if n.Type.Etype == TIDEAL {
+ 			switch t.Etype {
+-			// If trying to convert to non-complex type,
+-			// leave as complex128 and let typechecker complain.
+ 			default:
++				// If trying to convert to non-complex type,
++				// leave as complex128 and let typechecker complain.
+ 				t = Types[TCOMPLEX128]
+ 				fallthrough
+-
+-				//fallthrough
+ 			case TCOMPLEX128:
+ 				n.Type = t
+-
+ 				n.Left = convlit(n.Left, Types[TFLOAT64])
+ 				n.Right = convlit(n.Right, Types[TFLOAT64])
+ 
+@@ -711,8 +708,6 @@ func evconst(n *Node) {
+ 				break
+ 			}
+ 			fallthrough
+-
+-			// fall through
+ 		case OCONV_ | CTINT_,
+ 			OCONV_ | CTRUNE_,
+ 			OCONV_ | CTFLT_,
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index d355a46557..6c9223b57a 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -58,8 +58,6 @@ func anyinit(n []*Node) bool {
+ 				break
+ 			}
+ 			fallthrough
+-
+-			// fall through
+ 		default:
+ 			return true
+ 		}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 5560415cab..2c2ade06f5 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -342,8 +342,6 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
+ 			return true
+ 		}
+ 		fallthrough
+-
+-		// fall through
+ 	case OSTRUCTLIT:
+ 		p := initplans[r]
+ 
+@@ -1332,8 +1330,6 @@ func iszero(n *Node) bool {
+ 			break
+ 		}
+ 		fallthrough
+-
+-		// fall through
+ 	case OSTRUCTLIT:
+ 		for _, n1 := range n.List.Slice() {
+ 			if !iszero(n1.Right) {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 7a8c65dc58..9bf4f58412 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3153,8 +3153,6 @@ func islvalue(n *Node) bool {
+ 			return false
+ 		}
+ 		fallthrough
+-
+-		// fall through
+ 	case OIND, ODOTPTR, OCLOSUREVAR, OPARAM:
+ 		return true
+ 
+@@ -3858,11 +3856,8 @@ func markbreak(n *Node, implicit *Node) {
+ 		ORANGE:
+ 		implicit = n
+ 		fallthrough
+-
+-		// fall through
+ 	default:
+ 		markbreak(n.Left, implicit)
+-
+ 		markbreak(n.Right, implicit)
+ 		markbreaklist(n.Ninit, implicit)
+ 		markbreaklist(n.Nbody, implicit)

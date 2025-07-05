@@ -20,7 +20,61 @@ Date:   Fri Oct 22 17:05:35 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/walk/closure.go | 11 ++++++++++-
  test/fixedbugs/issue49029.go             | 25 +++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 40535afa7a..4d1c5621fe 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -107,7 +107,16 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
+ 	// The closure is not trivial or directly called, so it's going to stay a closure.
+ 	ir.ClosureDebugRuntimeCheck(clo)
+ 	clofn.SetNeedctxt(true)
+-	ir.CurFunc.Closures = append(ir.CurFunc.Closures, clofn)
++
++	// The closure expression may be walked more than once if it appeared in composite
++	// literal initialization (e.g, see issue #49029).
++	//
++	// Don't add the closure function to compilation queue more than once, since when
++	// compiling a function twice would lead to an ICE.
++	if !clofn.Walked() {
++		clofn.SetWalked(true)
++		ir.CurFunc.Closures = append(ir.CurFunc.Closures, clofn)
++	}
+ 
+ 	typ := typecheck.ClosureType(clo)
+ 
+diff --git a/test/fixedbugs/issue49029.go b/test/fixedbugs/issue49029.go
+new file mode 100644
+index 0000000000..51c9a78cfc
+--- /dev/null
++++ b/test/fixedbugs/issue49029.go
+@@ -0,0 +1,25 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type s struct {
++	f func()
++}
++
++func f() {
++	ch := make(chan struct{}, 1)
++	_ = [...]struct{ slice []s }{
++		{}, {}, {}, {},
++		{
++			slice: []s{
++				{
++					f: func() { ch <- struct{}{} },
++				},
++			},
++		},
++	}
++}

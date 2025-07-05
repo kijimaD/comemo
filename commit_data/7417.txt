@@ -11,6 +11,54 @@ Date:   Wed Feb 9 14:08:19 2011 -0800
     R=r, adg
     CC=golang-dev
     https://golang.org/cl/4171042
-
+---
  doc/codelab/wiki/srcextract.go | 17 +++++++++--------
  1 file changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/doc/codelab/wiki/srcextract.go b/doc/codelab/wiki/srcextract.go
+index c30a0b760f..67294784e0 100644
+--- a/doc/codelab/wiki/srcextract.go
++++ b/doc/codelab/wiki/srcextract.go
+@@ -9,6 +9,7 @@ import (
+ 	"go/token"
+ 	"log"
+ 	"os"
++	"template"
+ )
+ 
+ var (
+@@ -31,11 +32,6 @@ func main() {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	// create printer
+-	p := &printer.Config{
+-		Mode:     0,
+-		Tabwidth: 8,
+-	}
+ 	// create filter
+ 	filter := func(name string) bool {
+ 		return name == *getName
+@@ -44,8 +40,9 @@ func main() {
+ 	if !ast.FilterFile(file, filter) {
+ 		os.Exit(1)
+ 	}
+-	b := new(bytes.Buffer)
+-	p.Fprint(b, fs, file)
++	// print the AST
++	var b bytes.Buffer
++	printer.Fprint(&b, fs, file)
+ 	// drop package declaration
+ 	if !*showPkg {
+ 		for {
+@@ -67,5 +64,9 @@ func main() {
+ 		}
+ 	}
+ 	// output
+-	b.WriteTo(os.Stdout)
++	if *html {
++		template.HTMLEscape(os.Stdout, b.Bytes())
++	} else {
++		b.WriteTo(os.Stdout)
++	}
+ }

@@ -11,6 +11,20 @@ Date:   Tue Aug 29 12:21:15 2017 +1000
     Reviewed-on: https://go-review.googlesource.com/59711
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/cmd/link/internal/ld/pe.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 549f7d19a5..2add05f67f 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -495,7 +495,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
+ 			}
+ 			for ri := 0; ri < len(sym.R); ri++ {
+ 				r := &sym.R[ri]
+-				if r.Done != 0 {
++				if r.Done {
+ 					continue
+ 				}
+ 				if r.Xsym == nil {

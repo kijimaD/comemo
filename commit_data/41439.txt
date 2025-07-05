@@ -13,6 +13,20 @@ Date:   Thu Oct 3 11:48:34 2019 -0700
     Change-Id: I2b52e8f5ff33b7ccb6c25b18e464513344bd9ad9
     Reviewed-on: https://go-review.googlesource.com/c/go/+/198698
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 31e6ab5b6d..44bea2b1fd 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -71,7 +71,7 @@ func dumpexport(bout *bio.Writer) {
+ 	exportf(bout, "\n$$\n")
+ 
+ 	if Debug_export != 0 {
+-		fmt.Printf("export data size = %d bytes\n", size)
++		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", myimportpath, size)
+ 	}
+ }
+ 

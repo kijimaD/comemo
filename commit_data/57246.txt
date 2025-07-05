@@ -13,7 +13,7 @@ Date:   Thu Jul 20 11:41:04 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/base/mapfile_mmap.go    |  2 +-
  src/cmd/compile/internal/base/mapfile_read.go    |  2 +-
  src/cmd/dist/{exec_119.go => exec.go}            |  3 --
@@ -29,3 +29,322 @@ Date:   Thu Jul 20 11:41:04 2023 -0700
  src/internal/abi/unsafestring_go119.go           | 32 ----------------
  src/internal/abi/unsafestring_go120.go           | 18 ---------
  14 files changed, 15 insertions(+), 139 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/mapfile_mmap.go b/src/cmd/compile/internal/base/mapfile_mmap.go
+index bbcfda244f..b66c9eb260 100644
+--- a/src/cmd/compile/internal/base/mapfile_mmap.go
++++ b/src/cmd/compile/internal/base/mapfile_mmap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ 
+ package base
+ 
+diff --git a/src/cmd/compile/internal/base/mapfile_read.go b/src/cmd/compile/internal/base/mapfile_read.go
+index c1b84db96f..783f8c4602 100644
+--- a/src/cmd/compile/internal/base/mapfile_read.go
++++ b/src/cmd/compile/internal/base/mapfile_read.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !(solaris && go1.20)
++//go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !solaris
+ 
+ package base
+ 
+diff --git a/src/cmd/dist/exec_119.go b/src/cmd/dist/exec.go
+similarity index 96%
+rename from src/cmd/dist/exec_119.go
+rename to src/cmd/dist/exec.go
+index 0b4baa0065..602b812b00 100644
+--- a/src/cmd/dist/exec_119.go
++++ b/src/cmd/dist/exec.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build go1.19
+-// +build go1.19
+-
+ package main
+ 
+ import (
+diff --git a/src/cmd/dist/exec_118.go b/src/cmd/dist/exec_118.go
+deleted file mode 100644
+index a1c3c64d9e..0000000000
+--- a/src/cmd/dist/exec_118.go
++++ /dev/null
+@@ -1,47 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !go1.19
+-// +build !go1.19
+-
+-package main
+-
+-import (
+-	"os"
+-	"os/exec"
+-	"strings"
+-)
+-
+-// setDir sets cmd.Dir to dir, and also adds PWD=dir to cmd's environment.
+-func setDir(cmd *exec.Cmd, dir string) {
+-	cmd.Dir = dir
+-	setEnv(cmd, "PWD", dir)
+-}
+-
+-// setEnv sets cmd.Env so that key = value.
+-func setEnv(cmd *exec.Cmd, key, value string) {
+-	kv := key + "=" + value
+-	if cmd.Env == nil {
+-		cmd.Env = os.Environ()
+-	}
+-	cmd.Env = append(cmd.Env, kv)
+-}
+-
+-// unsetEnv sets cmd.Env so that key is not present in the environment.
+-func unsetEnv(cmd *exec.Cmd, key string) {
+-	if cmd.Env == nil {
+-		cmd.Env = os.Environ()
+-	}
+-
+-	prefix := key + "="
+-	newEnv := []string{}
+-	for _, entry := range cmd.Env {
+-		if strings.HasPrefix(entry, prefix) {
+-			continue
+-		}
+-		newEnv = append(newEnv, entry)
+-		// key may appear multiple times, so keep going.
+-	}
+-	cmd.Env = newEnv
+-}
+diff --git a/src/cmd/dist/notgo117.go b/src/cmd/dist/notgo120.go
+similarity index 75%
+rename from src/cmd/dist/notgo117.go
+rename to src/cmd/dist/notgo120.go
+index 8d551df24b..dd7657112f 100644
+--- a/src/cmd/dist/notgo117.go
++++ b/src/cmd/dist/notgo120.go
+@@ -2,13 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Go 1.20 and later requires Go 1.17 as the bootstrap toolchain.
++// Go 1.22 and later requires Go 1.20 as the bootstrap toolchain.
+ // If cmd/dist is built using an earlier Go version, this file will be
+ // included in the build and cause an error like:
+ //
+ // % GOROOT_BOOTSTRAP=$HOME/sdk/go1.16 ./make.bash
+ // Building Go cmd/dist using /Users/rsc/sdk/go1.16. (go1.16 darwin/amd64)
+-// found packages main (build.go) and building_Go_requires_Go_1_17_13_or_later (notgo117.go) in /Users/rsc/go/src/cmd/dist
++// found packages main (build.go) and building_Go_requires_Go_1_20_6_or_later (notgo120.go) in /Users/rsc/go/src/cmd/dist
+ // %
+ //
+ // which is the best we can do under the circumstances.
+@@ -16,7 +16,7 @@
+ // See go.dev/issue/44505 for more background on
+ // why Go moved on from Go 1.4 for bootstrap.
+ 
+-//go:build !go1.17
+-// +build !go1.17
++//go:build !go1.20
++// +build !go1.20
+ 
+-package building_Go_requires_Go_1_17_13_or_later
++package building_Go_requires_Go_1_20_6_or_later
+diff --git a/src/cmd/internal/bio/buf_mmap.go b/src/cmd/internal/bio/buf_mmap.go
+index d089efa45e..65b245cc55 100644
+--- a/src/cmd/internal/bio/buf_mmap.go
++++ b/src/cmd/internal/bio/buf_mmap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ 
+ package bio
+ 
+diff --git a/src/cmd/internal/bio/buf_nommap.go b/src/cmd/internal/bio/buf_nommap.go
+index 5ebe906beb..674144e781 100644
+--- a/src/cmd/internal/bio/buf_nommap.go
++++ b/src/cmd/internal/bio/buf_nommap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !(solaris && go1.20)
++//go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !solaris
+ 
+ package bio
+ 
+diff --git a/src/cmd/link/internal/ld/msync_darwin_libc.go b/src/cmd/link/internal/ld/msync_darwin_libc.go
+index eb2a526835..6627ecaabb 100644
+--- a/src/cmd/link/internal/ld/msync_darwin_libc.go
++++ b/src/cmd/link/internal/ld/msync_darwin_libc.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin && go1.20
++//go:build darwin
+ 
+ package ld
+ 
+diff --git a/src/cmd/link/internal/ld/msync_darwin_syscall.go b/src/cmd/link/internal/ld/msync_darwin_syscall.go
+deleted file mode 100644
+index 270d9f3383..0000000000
+--- a/src/cmd/link/internal/ld/msync_darwin_syscall.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build darwin && !go1.20
+-
+-package ld
+-
+-import (
+-	"syscall"
+-	"unsafe"
+-)
+-
+-func msync(b []byte, flags int) (err error) {
+-	var p unsafe.Pointer
+-	if len(b) > 0 {
+-		p = unsafe.Pointer(&b[0])
+-	}
+-	_, _, errno := syscall.Syscall(syscall.SYS_MSYNC, uintptr(p), uintptr(len(b)), uintptr(flags))
+-	if errno != 0 {
+-		return errno
+-	}
+-	return nil
+-}
+diff --git a/src/cmd/link/internal/ld/outbuf_mmap.go b/src/cmd/link/internal/ld/outbuf_mmap.go
+index 7bb728a1f8..2972d8a3fa 100644
+--- a/src/cmd/link/internal/ld/outbuf_mmap.go
++++ b/src/cmd/link/internal/ld/outbuf_mmap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ 
+ package ld
+ 
+diff --git a/src/cmd/link/internal/ld/outbuf_nommap.go b/src/cmd/link/internal/ld/outbuf_nommap.go
+index b1d3d2724f..6a40b97c65 100644
+--- a/src/cmd/link/internal/ld/outbuf_nommap.go
++++ b/src/cmd/link/internal/ld/outbuf_nommap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !(solaris && go1.20) && !windows
++//go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !solaris && !windows
+ 
+ package ld
+ 
+diff --git a/src/internal/abi/type.go b/src/internal/abi/type.go
+index 4794f5a51e..b3f9d448d9 100644
+--- a/src/internal/abi/type.go
++++ b/src/internal/abi/type.go
+@@ -179,7 +179,7 @@ func (t *Type) IsDirectIface() bool {
+ }
+ 
+ func (t *Type) GcSlice(begin, end uintptr) []byte {
+-	return unsafeSliceFor(t.GCData, int(end))[begin:]
++	return unsafe.Slice(t.GCData, int(end))[begin:]
+ }
+ 
+ // Method on non-interface type
+@@ -660,7 +660,7 @@ func (n Name) Name() string {
+ 		return ""
+ 	}
+ 	i, l := n.ReadVarint(1)
+-	return unsafeStringFor(n.DataChecked(1+i, "non-empty string"), l)
++	return unsafe.String(n.DataChecked(1+i, "non-empty string"), l)
+ }
+ 
+ // Tag returns the tag string for n, or empty if there is none.
+@@ -670,7 +670,7 @@ func (n Name) Tag() string {
+ 	}
+ 	i, l := n.ReadVarint(1)
+ 	i2, l2 := n.ReadVarint(1 + i + l)
+-	return unsafeStringFor(n.DataChecked(1+i+l+i2, "non-empty string"), l2)
++	return unsafe.String(n.DataChecked(1+i+l+i2, "non-empty string"), l2)
+ }
+ 
+ func NewName(n, tag string, exported, embedded bool) Name {
+diff --git a/src/internal/abi/unsafestring_go119.go b/src/internal/abi/unsafestring_go119.go
+deleted file mode 100644
+index a7103849a4..0000000000
+--- a/src/internal/abi/unsafestring_go119.go
++++ /dev/null
+@@ -1,32 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !go1.20
+-// +build !go1.20
+-
+-package abi
+-
+-import "unsafe"
+-
+-type (
+-	stringHeader struct {
+-		Data *byte
+-		Len  int
+-	}
+-	sliceHeader struct {
+-		Data *byte
+-		Len  int
+-		Cap  int
+-	}
+-)
+-
+-func unsafeStringFor(b *byte, l int) string {
+-	h := stringHeader{Data: b, Len: l}
+-	return *(*string)(unsafe.Pointer(&h))
+-}
+-
+-func unsafeSliceFor(b *byte, l int) []byte {
+-	h := sliceHeader{Data: b, Len: l, Cap: l}
+-	return *(*[]byte)(unsafe.Pointer(&h))
+-}
+diff --git a/src/internal/abi/unsafestring_go120.go b/src/internal/abi/unsafestring_go120.go
+deleted file mode 100644
+index 93ff8eacc8..0000000000
+--- a/src/internal/abi/unsafestring_go120.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build go1.20
+-// +build go1.20
+-
+-package abi
+-
+-import "unsafe"
+-
+-func unsafeStringFor(b *byte, l int) string {
+-	return unsafe.String(b, l)
+-}
+-
+-func unsafeSliceFor(b *byte, l int) []byte {
+-	return unsafe.Slice(b, l)
+-}

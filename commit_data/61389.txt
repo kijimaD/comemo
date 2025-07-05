@@ -17,6 +17,39 @@ Date:   Mon Nov 4 17:36:26 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Eric Grosse <grosse@gmail.com>
-
+---
  src/time/time_test.go | 14 ++++++++++----
  1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 88b8f7fa0d..2d719acde2 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"math/rand"
+ 	"os"
+ 	"runtime"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -1124,10 +1125,15 @@ func TestLoadFixed(t *testing.T) {
+ 	// So GMT+1 corresponds to -3600 in the Go zone, not +3600.
+ 	name, offset := Now().In(loc).Zone()
+ 	// The zone abbreviation is "-01" since tzdata-2016g, and "GMT+1"
+-	// on earlier versions; we accept both. (Issue #17276).
+-	if !(name == "GMT+1" || name == "-01") || offset != -1*60*60 {
+-		t.Errorf("Now().In(loc).Zone() = %q, %d, want %q or %q, %d",
+-			name, offset, "GMT+1", "-01", -1*60*60)
++	// on earlier versions; we accept both. (Issue 17276.)
++	wantName := []string{"GMT+1", "-01"}
++	// The zone abbreviation may be "+01" on OpenBSD. (Issue 69840.)
++	if runtime.GOOS == "openbsd" {
++		wantName = append(wantName, "+01")
++	}
++	if !slices.Contains(wantName, name) || offset != -1*60*60 {
++		t.Errorf("Now().In(loc).Zone() = %q, %d, want %q (one of), %d",
++			name, offset, wantName, -1*60*60)
+ 	}
+ }
+ 

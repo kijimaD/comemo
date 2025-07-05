@@ -17,7 +17,7 @@ Date:   Sun Feb 19 22:21:41 2012 -0600
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5673099
-
+---
  misc/dist/windows/LICENSE         | Bin 0 -> 1687 bytes
  misc/dist/windows/README          |  49 ++++++++++++++++------------
  misc/dist/windows/dist.bat        |  21 ++++++------
@@ -25,3 +25,318 @@ Date:   Sun Feb 19 22:21:41 2012 -0600
  misc/dist/windows/goenv.bat       |  29 -----------------
  misc/dist/windows/installer.wxs   |  66 +++++++++++++++++---------------------
  6 files changed, 71 insertions(+), 108 deletions(-)
+
+diff --git a/misc/dist/windows/LICENSE b/misc/dist/windows/LICENSE
+new file mode 100644
+index 0000000000..b2b0be62c0
+Binary files /dev/null and b/misc/dist/windows/LICENSE differ
+diff --git a/misc/dist/windows/README b/misc/dist/windows/README
+index c345d4570f..898940edf5 100644
+--- a/misc/dist/windows/README
++++ b/misc/dist/windows/README
+@@ -1,20 +1,29 @@
+-package.bash packages the Go toolchain for Windows in 
+-zip and installer (msi) format. 
+-
+-Dependencies
+-============
+-- WiX Installer XML (WiX) toolset: http://wix.sourceforge.net/
+-- 7Zip command-line: http://www.7-zip.org/download.html
+-- MinGW/Msys tools
+-
+-Unzip and place 7za.exe in msys' bin directory.
+-Add the WiX bin directory to PATH.
+-
+-Packaging
+-=========
+-- have a go tree at $GOROOT
+-- make sure $GOBIN=$GOROOT\bin or is empty
+-- make sure $GOARCH=386 or $GOARCH=amd64
+-- select appropriate version "hg up -r ..."
+-- build go "cd $GOROOT/src; ./all.bash"
+-- create Windows packages "cd $GOROOT/misc/windows; ./package.bash"
++dist.bat packages the Go toolchain for Windows in both zip
++and installer (msi) format.
++
++Dependencies
++============
++- Windows Installer XML (WiX) toolset: http://wix.sourceforge.net/
++- 7Zip (command-line version): http://www.7-zip.org/download.html
++- Mercurial (hg): http://mercurial.selenic.com/
++
++
++Packaging
++=========
++The dependencies must be callable from dist.bat, therefore,
++they'll need to be in/added to the system's search PATH.
++
++Ensure the working directory reflects the toolset version;
++the packager clones the Go directory it resides in and copies the
++pre-built toolchain over into the cloned folder.
++
++To create an i386 distribution package on a 64 bit system, set
++GOARCH=386 prior to calling dist.bat.
++
++Run dist.bat from a command prompt or click on the batch file.
++
++TODO
++----
++- Documentation server shortcut checkbox option
++
++
+diff --git a/misc/dist/windows/dist.bat b/misc/dist/windows/dist.bat
+old mode 100755
+new mode 100644
+index ec8841dbb7..0903577ef1
+--- a/misc/dist/windows/dist.bat
++++ b/misc/dist/windows/dist.bat
+@@ -5,31 +5,32 @@
+ 
+ setlocal
+ 
+-:: Requires WiX (candle light heat), 7zip, and hg
++:: Requires Windows Installer XML (WiX), 7zip, and Mercurial (hg)
+ 
+-echo # Setting variable info
++echo # Setting some variables
+ for /f %%i in ('hg.exe root') do set ROOT=%%i
+ for /f %%i in ('hg.exe id -n') do set ID=%%i
+ for /f "tokens=3" %%i in ('%ROOT%\bin\go.exe version') do set VER=%%i
+ if errorlevel 1 goto end
+ 
+ echo # Getting GOARCH
+-%ROOT%\bin\go tool dist env > env.txt
+-set GOARCH /p = find "GOARCH" "env.txt">NUL
+-del /F /Q /S env.txt>NUL
++%ROOT%\bin\go tool dist env -w>env.bat
++call env.bat
++del /F /Q /S env.bat>NUL
+ if errorlevel 1 goto end
+ 
++
+ rmdir /S /Q go>NUL
+ mkdir go
+ 
+-echo # Cloning the go tree
++echo # Cloning the Go tree
+ hg clone -r %ID% %ROOT% go
+ if errorlevel 1 goto end
+ 
+ rmdir /S /Q  go\.hg>NUL
+ del /F /Q /S go\.hgignore go\.hgtags>NUL
+ 
+-echo # Copying pkg, bin and src/pkg/runtime/z*
++echo # Copying pkg, bin, and src/pkg/runtime/z*
+ xcopy %ROOT%\pkg                   go\pkg /V /E /Y /I
+ xcopy %ROOT%\bin                   go\bin /V /E /Y /I
+ xcopy %ROOT%\src\pkg\runtime\z*.c  go\src\pkg\runtime  /V /E /Y
+@@ -37,18 +38,20 @@ xcopy %ROOT%\src\pkg\runtime\z*.go go\src\pkg\runtime  /V /E /Y
+ xcopy %ROOT%\src\pkg\runtime\z*.h  go\src\pkg\runtime  /V /E /T
+ 
+ echo # Starting zip packaging
+-7za a -tzip -mx=9 gowin%GOARCH%"_"%VER%.zip "go/"
++7za a -tzip -mx=9 go.%VER%.windows-%GOARCH%.zip "go/"
+ if errorlevel 1 goto end
+ 
++
+ echo # Starting Go directory file harvesting
+ heat dir go -nologo -cg AppFiles -gg -g1 -srd -sfrag -template fragment -dr INSTALLDIR -var var.SourceDir -out AppFiles.wxs
+ if errorlevel 1 goto end
+ 
+ echo # Starting installer packaging
+ candle -nologo -dVersion=%VER% -dArch=%GOARCH% -dSourceDir=go installer.wxs AppFiles.wxs
+-light -nologo -ext WixUIExtension -ext WixUtilExtension installer.wixobj AppFiles.wixobj -o gowin%GOARCH%"_"%VER%.msi
++light -nologo -ext WixUIExtension -ext WixUtilExtension installer.wixobj AppFiles.wixobj -o go.%VER%.windows-%GOARCH%.msi
+ if errorlevel 1 goto end
+ 
+ del /F /Q /S *.wixobj AppFiles.wxs *.wixpdb>NUL
+ 
+ :end
++endlocal
+diff --git a/misc/dist/windows/godocserver.bat b/misc/dist/windows/godocserver.bat
+deleted file mode 100644
+index 70b35dec71..0000000000
+--- a/misc/dist/windows/godocserver.bat
++++ /dev/null
+@@ -1,14 +0,0 @@
+-@echo off
+-setlocal
+-for /f "delims=" %%i in ('cd') do set cwd=%%i
+-
+-if exist bin\godoc.exe goto ok
+-echo Unable to find the godoc executable
+-echo This batch file must run from the root Go folder
+-pause
+-exit
+-
+-:ok
+-start bin\godoc -http=localhost:6060 -goroot="%cwd%"
+-start http://localhost:6060
+-endlocal
+diff --git a/misc/dist/windows/goenv.bat b/misc/dist/windows/goenv.bat
+deleted file mode 100644
+index e6ae164624..0000000000
+--- a/misc/dist/windows/goenv.bat
++++ /dev/null
+@@ -1,29 +0,0 @@
+-@echo off
+-setlocal
+-for /f %%i in ("%0") do set cwd=%%~dpi
+-cd /d %cwd%
+-
+-:: sanity checks
+-if exist "%cwd%"\bin\6g.exe (
+-set GOARCH=amd64
+-goto ok
+-)
+-
+-if exist "%cwd%"\bin\8g.exe (
+-set GOARCH=386
+-goto ok
+-)
+-
+-echo Unable to find the Go compiler
+-echo This batch file must run from the root Go folder
+-pause
+-exit
+-
+-:ok
+-set GOROOT=%cwd%
+-set GOBIN=%GOROOT%\bin
+-set PATH=%GOBIN%;%PATH%
+-
+-@CMD /F:ON
+-endlocal
+-
+diff --git a/misc/dist/windows/installer.wxs b/misc/dist/windows/installer.wxs
+index e15bfcfc1b..62a5e7cc0b 100644
+--- a/misc/dist/windows/installer.wxs
++++ b/misc/dist/windows/installer.wxs
+@@ -16,8 +16,9 @@
+ 
+ <Product
+     Id="FF5B30B2-08C2-11E1-85A2-6ACA4824019B"
+-    Name="The Go Programming Language $(var.Arch) $(var.Version)"
++    Name="Go Programming Language $(var.Arch) $(var.Version)"
+     Language="1033"
++    Codepage="1252"
+     Version="0.0.0.0"
+     Manufacturer="http://golang.org"
+     UpgradeCode="1C3114EA-08C3-11E1-9095-7FCA4824019B" >
+@@ -29,10 +30,17 @@
+     Comments="The Go programming language is an open source project to make programmers more productive."
+     InstallerVersion="300"
+     Compressed="yes"
+-    Manufacturer="http://golang.org"
+     InstallScope="perMachine"
++    SummaryCodepage="1252"
+     Languages="1033" />
+-     <!--    Platform="x86 or x64" -->
++    <!--    Platform="x86 or x64" -->
++
++    <Property Id="ARPCOMMENTS" Value="The Go programming language is a fast, statically typed, compiled language that feels like a dynamically typed, interpreted language." />
++    <Property Id="ARPCONTACT" Value="golang-nuts@googlegroups.com" />
++    <Property Id="ARPHELPLINK" Value="golang.org/doc/community.html" />
++    <Property Id="ARPREADME" Value="golang.org" />
++    <Property Id="ARPURLINFOABOUT" Value="golang.org" />
++
+ <!--
+ <Upgrade Id="">
+     <UpgradeVersion
+@@ -44,6 +52,7 @@
+         Property="" />
+ </Upgrade>
+ -->
++
+ <Media Id='1' Cabinet="go.cab" EmbedCab="yes" CompressionLevel="high" />
+ <Condition Message="Windows 2000 or greater required."> VersionNT >= 500</Condition>
+ <SetDirectory Id="INSTALLDIRROOT" Value="C:\"/>
+@@ -59,36 +68,29 @@
+     <Directory Id="INSTALLDIR" Name="Go"/>
+   </Directory>
+   <Directory Id="ProgramMenuFolder">
+-    <Directory Id="GoProgramShortcutsDir" Name="Go Programming"/>
++    <Directory Id="GoProgramShortcutsDir" Name="Go Programming Language"/>
+   </Directory>
+   <Directory Id="DesktopFolder" Name="Desktop"/>
+ </Directory>
+ 
+-<!-- Programs Menu & Desktop Shortcuts -->
++<!-- Programs Menu & Desktop Shortcuts, Registry & Environment Settings -->
+ <DirectoryRef Id="GoProgramShortcutsDir">
+   <Component Id="Component_GoShortCuts" Guid="f5fbfb5e-6c5c-423b-9298-21b0e3c98f4b">
+-    <Shortcut
+-        Id="GoEnvStartMenuShortcut"
+-        Name="GoEnv"
+-        Description="Sets the Go environment and spawns a shell window"
+-        Target="[INSTALLDIR]goenv.bat" />
+-    <Shortcut
+-        Id="GoEnvDesktopShortcut"
+-        Directory="DesktopFolder"
+-        Name="GoEnv"
+-        Description="Sets the Go environment and spawns a shell window"
+-        Target="[INSTALLDIR]goenv.bat" />
+     <Shortcut
+         Id="GoDocServerStartMenuShortcut"
+         Name="GoDocServer"
+-        Description="Starts the godoc server on localhost:6060"
+-        Target="[INSTALLDIR]godocserver.bat" />
++        Description="Starts the Go documentation server (http://localhost:6060)"
++        Show="minimized"
++        Arguments='/c "start /d[INSTALLDIR]bin godoc.exe -http=:6060 &amp;&amp; start http://localhost:6060"'
++        Target="[%ComSpec]" />
+     <Shortcut
+         Id="GoDocServerDesktopShortcut"
+         Directory="DesktopFolder"
+         Name="GoDocServer"
+-        Description="Starts the godoc server on localhost:6060"
+-        Target="[INSTALLDIR]godocserver.bat" />
++        Description="Starts the godoc server (http://localhost:6060)"
++        Show="minimized"
++        Arguments='/c "start /d[INSTALLDIR]bin godoc.exe -http=:6060 &amp;&amp; start http://localhost:6060"'
++        Target="[%ComSpec]" />
+     <Shortcut
+         Id="UninstallShortcut"
+         Name="Uninstall Go"
+@@ -105,24 +107,18 @@
+         Type="integer"
+         Value="1"
+         KeyPath="yes" />
++    <Environment
++        Id="Environment"
++        Action="set"
++        Part="last"
++        Name="PATH"
++        Permanent="no"
++        System="yes"
++        Value="[INSTALLDIR]bin" />
+   </Component>
+ </DirectoryRef>
+ 
+ <!-- Components -->
+-<DirectoryRef Id="INSTALLDIR">
+-  <Component Id="Component_GoDocServerBAT" Guid="c40ea60a-4290-4a91-864d-e1d8eb5cf693">
+-    <File
+-        Id="FILE_GoDocServerBat"
+-        Source="godocserver.bat"
+-        KeyPath="yes" />
+-  </Component>
+-  <Component Id="Component_GoEnvBAT" Guid="ee4587d3-fba3-47f9-b45e-ec9ca9c8a9c3">
+-    <File
+-        Id="FILE_GoEnvBat"
+-        Source="goenv.bat"
+-        KeyPath="yes" />
+-  </Component>
+-</DirectoryRef>
+ 
+ <!-- Install the files -->
+ <Feature
+@@ -131,8 +127,6 @@
+     Level="1">
+ 
+       <ComponentGroupRef Id="AppFiles" />
+-      <ComponentRef Id="Component_GoDocServerBAT" />
+-      <ComponentRef Id="Component_GoEnvBAT" />
+       <ComponentRef Id="Component_GoShortCuts" />
+ </Feature>
+ 

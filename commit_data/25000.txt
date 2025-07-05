@@ -16,8 +16,87 @@ Date:   Fri Jul 10 15:28:01 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/12047
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/netpoll_epoll.go   | 7 +++----
  src/runtime/netpoll_kqueue.go  | 7 +++----
  src/runtime/netpoll_solaris.go | 7 ++-----
  3 files changed, 8 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/netpoll_epoll.go b/src/runtime/netpoll_epoll.go
+index 7b4052a262..e06eff83be 100644
+--- a/src/runtime/netpoll_epoll.go
++++ b/src/runtime/netpoll_epoll.go
+@@ -19,8 +19,7 @@ func epollwait(epfd int32, ev *epollevent, nev, timeout int32) int32
+ func closeonexec(fd int32)
+ 
+ var (
+-	epfd           int32 = -1 // epoll descriptor
+-	netpolllasterr int32
++	epfd int32 = -1 // epoll descriptor
+ )
+ 
+ func netpollinit() {
+@@ -67,9 +66,9 @@ func netpoll(block bool) *g {
+ retry:
+ 	n := epollwait(epfd, &events[0], int32(len(events)), waitms)
+ 	if n < 0 {
+-		if n != -_EINTR && n != netpolllasterr {
+-			netpolllasterr = n
++		if n != -_EINTR {
+ 			println("runtime: epollwait on fd", epfd, "failed with", -n)
++			throw("epollwait failed")
+ 		}
+ 		goto retry
+ 	}
+diff --git a/src/runtime/netpoll_kqueue.go b/src/runtime/netpoll_kqueue.go
+index 01445dc231..36956bae71 100644
+--- a/src/runtime/netpoll_kqueue.go
++++ b/src/runtime/netpoll_kqueue.go
+@@ -17,8 +17,7 @@ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timesp
+ func closeonexec(fd int32)
+ 
+ var (
+-	kq             int32 = -1
+-	netpolllasterr int32
++	kq int32 = -1
+ )
+ 
+ func netpollinit() {
+@@ -75,9 +74,9 @@ func netpoll(block bool) *g {
+ retry:
+ 	n := kevent(kq, nil, 0, &events[0], int32(len(events)), tp)
+ 	if n < 0 {
+-		if n != -_EINTR && n != netpolllasterr {
+-			netpolllasterr = n
++		if n != -_EINTR {
+ 			println("runtime: kevent on fd", kq, "failed with", -n)
++			throw("kevent failed")
+ 		}
+ 		goto retry
+ 	}
+diff --git a/src/runtime/netpoll_solaris.go b/src/runtime/netpoll_solaris.go
+index e4652d8ebd..86e9b997ef 100644
+--- a/src/runtime/netpoll_solaris.go
++++ b/src/runtime/netpoll_solaris.go
+@@ -174,9 +174,6 @@ func netpollarm(pd *pollDesc, mode int) {
+ 	unlock(&pd.lock)
+ }
+ 
+-// netpolllasterr holds the last error code returned by port_getn to prevent log spamming
+-var netpolllasterr int32
+-
+ // polls for ready network connections
+ // returns list of goroutines that become runnable
+ func netpoll(block bool) *g {
+@@ -194,9 +191,9 @@ func netpoll(block bool) *g {
+ retry:
+ 	var n uint32 = 1
+ 	if port_getn(portfd, &events[0], uint32(len(events)), &n, wait) < 0 {
+-		if e := errno(); e != _EINTR && e != netpolllasterr {
+-			netpolllasterr = e
++		if e := errno(); e != _EINTR {
+ 			print("runtime: port_getn on fd ", portfd, " failed with ", e, "\n")
++			throw("port_getn failed")
+ 		}
+ 		goto retry
+ 	}

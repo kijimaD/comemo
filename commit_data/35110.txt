@@ -22,8 +22,110 @@ Date:   Wed Dec 13 14:39:40 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/vet/vet.go     |  8 ++++++++
  src/cmd/go/internal/vet/vetflag.go | 12 ++++++++++--
  src/cmd/go/internal/work/exec.go   | 12 +++++++++++-
  3 files changed, 29 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index db734c9d84..8b4f9264ac 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/work"
++	"path/filepath"
+ )
+ 
+ var CmdVet = &base.Command{
+@@ -38,6 +39,13 @@ func runVet(cmd *base.Command, args []string) {
+ 
+ 	work.BuildInit()
+ 	work.VetFlags = vetFlags
++	if vetTool != "" {
++		var err error
++		work.VetTool, err = filepath.Abs(vetTool)
++		if err != nil {
++			base.Fatalf("%v", err)
++		}
++	}
+ 
+ 	pkgs := load.PackagesForBuild(pkgArgs)
+ 	if len(pkgs) == 0 {
+diff --git a/src/cmd/go/internal/vet/vetflag.go b/src/cmd/go/internal/vet/vetflag.go
+index 36ee04ede7..d4664cc7e9 100644
+--- a/src/cmd/go/internal/vet/vetflag.go
++++ b/src/cmd/go/internal/vet/vetflag.go
+@@ -55,10 +55,13 @@ var vetFlagDefn = []*cmdflag.Defn{
+ 	{Name: "unusedstringmethods"},
+ }
+ 
++var vetTool string
++
+ // add build flags to vetFlagDefn.
+ func init() {
+ 	var cmd base.Command
+ 	work.AddBuildFlags(&cmd)
++	cmd.Flag.StringVar(&vetTool, "vettool", "", "path to vet tool binary") // for cmd/vet tests; undocumented for now
+ 	cmd.Flag.VisitAll(func(f *flag.Flag) {
+ 		vetFlagDefn = append(vetFlagDefn, &cmdflag.Defn{
+ 			Name:  f.Name,
+@@ -87,8 +90,13 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
+ 			}
+ 			switch f.Name {
+ 			// Flags known to the build but not to vet, so must be dropped.
+-			case "x", "n":
+-				args = append(args[:i], args[i+1:]...)
++			case "x", "n", "vettool":
++				if extraWord {
++					args = append(args[:i], args[i+2:]...)
++					extraWord = false
++				} else {
++					args = append(args[:i], args[i+1:]...)
++				}
+ 				i--
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index fc4a36ddf4..60e2a3aa48 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -495,6 +495,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 			Compiler:    cfg.BuildToolchainName,
+ 			Dir:         a.Package.Dir,
+ 			GoFiles:     mkAbsFiles(a.Package.Dir, gofiles),
++			ImportPath:  a.Package.ImportPath,
+ 			ImportMap:   make(map[string]string),
+ 			PackageFile: make(map[string]string),
+ 		}
+@@ -643,10 +644,15 @@ type vetConfig struct {
+ 	GoFiles     []string
+ 	ImportMap   map[string]string
+ 	PackageFile map[string]string
++	ImportPath  string
+ 
+ 	SucceedOnTypecheckFailure bool
+ }
+ 
++// VetTool is the path to an alternate vet tool binary.
++// The caller is expected to set it (if needed) before executing any vet actions.
++var VetTool string
++
+ // VetFlags are the flags to pass to vet.
+ // The caller is expected to set them before executing any vet actions.
+ var VetFlags []string
+@@ -687,7 +693,11 @@ func (b *Builder) vet(a *Action) error {
+ 	}
+ 
+ 	p := a.Package
+-	return b.run(a, p.Dir, p.ImportPath, nil, cfg.BuildToolexec, base.Tool("vet"), VetFlags, a.Objdir+"vet.cfg")
++	tool := VetTool
++	if tool == "" {
++		tool = base.Tool("vet")
++	}
++	return b.run(a, p.Dir, p.ImportPath, nil, cfg.BuildToolexec, tool, VetFlags, a.Objdir+"vet.cfg")
+ }
+ 
+ // linkActionID computes the action ID for a link action.

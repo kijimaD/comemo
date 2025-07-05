@@ -13,7 +13,52 @@ Date:   Tue Sep 27 09:38:17 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/x509/internal/macos/corefoundation.go | 2 +-
  src/crypto/x509/root_windows.go                  | 9 ++++-----
  2 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/x509/internal/macos/corefoundation.go b/src/crypto/x509/internal/macos/corefoundation.go
+index d1295daee1..b27a9172e1 100644
+--- a/src/crypto/x509/internal/macos/corefoundation.go
++++ b/src/crypto/x509/internal/macos/corefoundation.go
+@@ -30,7 +30,7 @@ type CFRef uintptr
+ func CFDataToSlice(data CFRef) []byte {
+ 	length := CFDataGetLength(data)
+ 	ptr := CFDataGetBytePtr(data)
+-	src := (*[1 << 20]byte)(unsafe.Pointer(ptr))[:length:length]
++	src := unsafe.Slice((*byte)(unsafe.Pointer(ptr)), length)
+ 	out := make([]byte, length)
+ 	copy(out, src)
+ 	return out
+diff --git a/src/crypto/x509/root_windows.go b/src/crypto/x509/root_windows.go
+index d65d8768d9..5515c439c7 100644
+--- a/src/crypto/x509/root_windows.go
++++ b/src/crypto/x509/root_windows.go
+@@ -69,13 +69,13 @@ func extractSimpleChain(simpleChain **syscall.CertSimpleChain, count int) (chain
+ 		return nil, errors.New("x509: invalid simple chain")
+ 	}
+ 
+-	simpleChains := (*[1 << 20]*syscall.CertSimpleChain)(unsafe.Pointer(simpleChain))[:count:count]
++	simpleChains := unsafe.Slice(simpleChain, count)
+ 	lastChain := simpleChains[count-1]
+-	elements := (*[1 << 20]*syscall.CertChainElement)(unsafe.Pointer(lastChain.Elements))[:lastChain.NumElements:lastChain.NumElements]
++	elements := unsafe.Slice(lastChain.Elements, lastChain.NumElements)
+ 	for i := 0; i < int(lastChain.NumElements); i++ {
+ 		// Copy the buf, since ParseCertificate does not create its own copy.
+ 		cert := elements[i].CertContext
+-		encodedCert := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:cert.Length:cert.Length]
++		encodedCert := unsafe.Slice(cert.EncodedCert, cert.Length)
+ 		buf := make([]byte, cert.Length)
+ 		copy(buf, encodedCert)
+ 		parsedCert, err := ParseCertificate(buf)
+@@ -258,8 +258,7 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
+ 	}
+ 
+ 	if lqCtxCount := topCtx.LowerQualityChainCount; lqCtxCount > 0 {
+-		lqCtxs := (*[1 << 20]*syscall.CertChainContext)(unsafe.Pointer(topCtx.LowerQualityChains))[:lqCtxCount:lqCtxCount]
+-
++		lqCtxs := unsafe.Slice(topCtx.LowerQualityChains, lqCtxCount)
+ 		for _, ctx := range lqCtxs {
+ 			chain, err := verifyChain(c, ctx, opts)
+ 			if err == nil {

@@ -26,7 +26,7 @@ Date:   Fri Oct 4 22:05:41 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode.go      |  10 +-
  src/cmd/link/internal/ld/deadcode2.go     |  18 +--
  src/cmd/link/internal/ld/go.go            |  48 +++++--
@@ -34,3 +34,742 @@ Date:   Fri Oct 4 22:05:41 2019 -0400
  src/cmd/link/internal/ld/link.go          |  40 ++----
  src/cmd/link/internal/objfile/objfile2.go | 221 +++++++++++++-----------------
  6 files changed, 217 insertions(+), 238 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index d0896fcf2c..1ff34fec5f 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -65,8 +65,8 @@ func deadcode(ctxt *Link) {
+ 	d.init()
+ 	d.flood()
+ 
+-	callSym := ctxt.Lookup("reflect.Value.Call", sym.SymVerABIInternal)
+-	methSym := ctxt.Lookup("reflect.Value.Method", sym.SymVerABIInternal)
++	callSym := ctxt.Syms.ROLookup("reflect.Value.Call", sym.SymVerABIInternal)
++	methSym := ctxt.Syms.ROLookup("reflect.Value.Method", sym.SymVerABIInternal)
+ 	reflectSeen := false
+ 
+ 	if ctxt.DynlinkingGo() {
+@@ -292,7 +292,7 @@ func (d *deadcodepass) init() {
+ 
+ 				// We don't keep the go.plugin.exports symbol,
+ 				// but we do keep the symbols it refers to.
+-				exports := d.ctxt.Lookup("go.plugin.exports", 0)
++				exports := d.ctxt.Syms.ROLookup("go.plugin.exports", 0)
+ 				if exports != nil {
+ 					for i := range exports.R {
+ 						d.mark(exports.R[i].Sym, nil)
+@@ -307,9 +307,9 @@ func (d *deadcodepass) init() {
+ 
+ 	for _, name := range names {
+ 		// Mark symbol as an data/ABI0 symbol.
+-		d.mark(d.ctxt.Lookup(name, 0), nil)
++		d.mark(d.ctxt.Syms.ROLookup(name, 0), nil)
+ 		// Also mark any Go functions (internal ABI).
+-		d.mark(d.ctxt.Lookup(name, sym.SymVerABIInternal), nil)
++		d.mark(d.ctxt.Syms.ROLookup(name, sym.SymVerABIInternal), nil)
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/deadcode2.go b/src/cmd/link/internal/ld/deadcode2.go
+index a7a17d5097..3067d40c29 100644
+--- a/src/cmd/link/internal/ld/deadcode2.go
++++ b/src/cmd/link/internal/ld/deadcode2.go
+@@ -76,8 +76,12 @@ func (d *deadcodePass2) init() {
+ 			}
+ 		}
+ 	}
+-	for _, s := range dynexp {
+-		d.mark(d.loader.Lookup(s.Name, int(s.Version)))
++	dynexpMap := d.ctxt.cgo_export_dynamic
++	if d.ctxt.LinkMode == LinkExternal {
++		dynexpMap = d.ctxt.cgo_export_static
++	}
++	for exp := range dynexpMap {
++		names = append(names, exp)
+ 	}
+ 
+ 	for _, name := range names {
+@@ -215,16 +219,6 @@ func deadcode2(ctxt *Link) {
+ 			}
+ 		}
+ 	}
+-
+-	// Set reachable attr for now.
+-	for i := 1; i < n; i++ {
+-		if loader.Reachable.Has(objfile.Sym(i)) {
+-			s := loader.Syms[i]
+-			if s != nil && s.Name != "" {
+-				s.Attr.Set(sym.AttrReachable, true)
+-			}
+-		}
+-	}
+ }
+ 
+ // methodref2 holds the relocations from a receiver type symbol to its
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 13fbbed10f..15d4f9e50f 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -110,13 +110,7 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
+ 			return
+ 		}
+ 		p1 += p0
+-
+-		if *flagNewobj {
+-			// loadcgo creates sym.Symbol. Delay this until all the symbols are added.
+-			ctxt.cgodata = append(ctxt.cgodata, [3]string{filename, objabi.PathToPrefix(lib.Pkg), data[p0:p1]})
+-		} else {
+-			loadcgo(ctxt, filename, objabi.PathToPrefix(lib.Pkg), data[p0:p1])
+-		}
++		loadcgo(ctxt, filename, objabi.PathToPrefix(lib.Pkg), data[p0:p1])
+ 	}
+ }
+ 
+@@ -128,6 +122,39 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 		return
+ 	}
+ 
++	// Find cgo_export symbols. They are roots in the deadcode pass.
++	for _, f := range directives {
++		switch f[0] {
++		case "cgo_export_static", "cgo_export_dynamic":
++			if len(f) < 2 || len(f) > 3 {
++				continue
++			}
++			local := f[1]
++			switch ctxt.BuildMode {
++			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
++				if local == "main" {
++					continue
++				}
++			}
++			local = expandpkg(local, pkg)
++			if f[0] == "cgo_export_static" {
++				ctxt.cgo_export_static[local] = true
++			} else {
++				ctxt.cgo_export_dynamic[local] = true
++			}
++		}
++	}
++
++	if *flagNewobj {
++		// Record the directives. We'll process them later after Symbols are created.
++		ctxt.cgodata = append(ctxt.cgodata, cgodata{file, pkg, directives})
++	} else {
++		setCgoAttr(ctxt, file, pkg, directives)
++	}
++}
++
++// Set symbol attributes or flags based on cgo directives.
++func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string) {
+ 	for _, f := range directives {
+ 		switch f[0] {
+ 		case "cgo_import_dynamic":
+@@ -169,7 +196,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 			if i := strings.Index(remote, "#"); i >= 0 {
+ 				remote, q = remote[:i], remote[i+1:]
+ 			}
+-			s := ctxt.LookupOrCreate(local, 0)
++			s := ctxt.Syms.Lookup(local, 0)
+ 			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SHOSTOBJ {
+ 				s.SetDynimplib(lib)
+ 				s.SetExtname(remote)
+@@ -188,7 +215,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 			}
+ 			local := f[1]
+ 
+-			s := ctxt.LookupOrCreate(local, 0)
++			s := ctxt.Syms.Lookup(local, 0)
+ 			s.Type = sym.SHOSTOBJ
+ 			s.Size = 0
+ 			continue
+@@ -209,7 +236,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 			// functions. Link.loadlib will resolve any
+ 			// ABI aliases we find here (since we may not
+ 			// yet know it's an alias).
+-			s := ctxt.LookupOrCreate(local, 0)
++			s := ctxt.Syms.Lookup(local, 0)
+ 
+ 			switch ctxt.BuildMode {
+ 			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
+@@ -228,7 +255,6 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 
+ 			if !s.Attr.CgoExport() {
+ 				s.SetExtname(remote)
+-				dynexp = append(dynexp, s)
+ 			} else if s.Extname() != remote {
+ 				fmt.Fprintf(os.Stderr, "%s: conflicting cgo_export directives: %s as %s and %s\n", os.Args[0], s.Name, s.Extname(), remote)
+ 				nerrors++
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index dd759a0ab1..98748eb6fd 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -379,6 +379,9 @@ func (ctxt *Link) loadlib() {
+ 		ctxt.loader = objfile.NewLoader()
+ 	}
+ 
++	ctxt.cgo_export_static = make(map[string]bool)
++	ctxt.cgo_export_dynamic = make(map[string]bool)
++
+ 	loadinternal(ctxt, "runtime")
+ 	if ctxt.Arch.Family == sys.ARM {
+ 		loadinternal(ctxt, "math")
+@@ -402,60 +405,16 @@ func (ctxt *Link) loadlib() {
+ 	}
+ 
+ 	if *flagNewobj {
+-		// Add references of externally defined symbols.
+-		objfile.LoadRefs(ctxt.loader, ctxt.Arch, ctxt.Syms)
+-
+-		// Load cgo directives.
+-		for _, p := range ctxt.cgodata {
+-			loadcgo(ctxt, p[0], p[1], p[2])
+-		}
++		iscgo = ctxt.loader.Lookup("x_cgo_init", 0) != 0
++		ctxt.canUsePlugins = ctxt.loader.Lookup("plugin.Open", sym.SymVerABIInternal) != 0
++	} else {
++		iscgo = ctxt.Syms.ROLookup("x_cgo_init", 0) != nil
++		ctxt.canUsePlugins = ctxt.Syms.ROLookup("plugin.Open", sym.SymVerABIInternal) != nil
+ 	}
+ 
+-	iscgo = ctxt.Lookup("x_cgo_init", 0) != nil
+-
+-	// Record whether we can use plugins.
+-	ctxt.canUsePlugins = (ctxt.Lookup("plugin.Open", sym.SymVerABIInternal) != nil)
+-
+ 	// We now have enough information to determine the link mode.
+ 	determineLinkMode(ctxt)
+ 
+-	// Now that we know the link mode, trim the dynexp list.
+-	x := sym.AttrCgoExportDynamic
+-
+-	if ctxt.LinkMode == LinkExternal {
+-		x = sym.AttrCgoExportStatic
+-	}
+-	w := 0
+-	for i := range dynexp {
+-		if dynexp[i].Attr&x != 0 {
+-			dynexp[w] = dynexp[i]
+-			w++
+-		}
+-	}
+-	dynexp = dynexp[:w]
+-
+-	// Resolve ABI aliases in the list of cgo-exported functions.
+-	// This is necessary because we load the ABI0 symbol for all
+-	// cgo exports.
+-	for i, s := range dynexp {
+-		if s.Type != sym.SABIALIAS {
+-			continue
+-		}
+-		t := resolveABIAlias(s)
+-		t.Attr |= s.Attr
+-		t.SetExtname(s.Extname())
+-		dynexp[i] = t
+-	}
+-
+-	for _, lib := range ctxt.Library {
+-		if lib.Shlib != "" {
+-			if ctxt.Debugvlog > 1 {
+-				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), lib.Shlib, lib.Objref)
+-			}
+-			ldshlibsyms(ctxt, lib.Shlib)
+-		}
+-	}
+-
+ 	if ctxt.LinkMode == LinkExternal && !iscgo && ctxt.LibraryByPkg["runtime/cgo"] == nil && !(objabi.GOOS == "darwin" && (ctxt.Arch.Family == sys.AMD64 || ctxt.Arch.Family == sys.I386)) {
+ 		// This indicates a user requested -linkmode=external.
+ 		// The startup code uses an import of runtime/cgo to decide
+@@ -473,6 +432,25 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 	}
+ 
++	if *flagNewobj {
++		// Add references of externally defined symbols.
++		objfile.LoadRefs(ctxt.loader, ctxt.Arch, ctxt.Syms)
++	}
++
++	// Now that we know the link mode, set the dynexp list.
++	if !*flagNewobj { // set this later in newobj mode
++		setupdynexp(ctxt)
++	}
++
++	for _, lib := range ctxt.Library {
++		if lib.Shlib != "" {
++			if ctxt.Debugvlog > 1 {
++				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), lib.Shlib, lib.Objref)
++			}
++			ldshlibsyms(ctxt, lib.Shlib)
++		}
++	}
++
+ 	// In internal link mode, read the host object files.
+ 	if ctxt.LinkMode == LinkInternal && len(hostobj) != 0 {
+ 		// Drop all the cgo_import_static declarations.
+@@ -545,6 +523,35 @@ func (ctxt *Link) loadlib() {
+ 	importcycles()
+ }
+ 
++// Set up dynexp list.
++func setupdynexp(ctxt *Link) {
++	dynexpMap := ctxt.cgo_export_dynamic
++	if ctxt.LinkMode == LinkExternal {
++		dynexpMap = ctxt.cgo_export_static
++	}
++	dynexp = make([]*sym.Symbol, 0, len(dynexpMap))
++	for exp := range dynexpMap {
++		s := ctxt.Syms.Lookup(exp, 0)
++		dynexp = append(dynexp, s)
++	}
++
++	// Resolve ABI aliases in the list of cgo-exported functions.
++	// This is necessary because we load the ABI0 symbol for all
++	// cgo exports.
++	for i, s := range dynexp {
++		if s.Type != sym.SABIALIAS {
++			continue
++		}
++		t := resolveABIAlias(s)
++		t.Attr |= s.Attr
++		t.SetExtname(s.Extname())
++		dynexp[i] = t
++	}
++
++	ctxt.cgo_export_static = nil
++	ctxt.cgo_export_dynamic = nil
++}
++
+ // Set up flags and special symbols depending on the platform build mode.
+ func (ctxt *Link) linksetup() {
+ 	switch ctxt.BuildMode {
+@@ -1923,7 +1930,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 			ver = sym.SymVerABIInternal
+ 		}
+ 
+-		lsym := ctxt.LookupOrCreate(elfsym.Name, ver)
++		lsym := ctxt.Syms.Lookup(elfsym.Name, ver)
+ 		// Because loadlib above loads all .a files before loading any shared
+ 		// libraries, any non-dynimport symbols we find that duplicate symbols
+ 		// already loaded should be ignored (the symbols from the .a files
+@@ -2543,8 +2550,7 @@ func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library
+ 
+ func (ctxt *Link) loadlibfull() {
+ 	// Load full symbol contents, resolve indexed references.
+-	objfile.LoadReloc(ctxt.loader)
+-	objfile.LoadFull(ctxt.loader)
++	objfile.LoadFull(ctxt.loader, ctxt.Arch, ctxt.Syms)
+ 
+ 	// For now, add all symbols to ctxt.Syms.
+ 	for _, s := range ctxt.loader.Syms {
+@@ -2553,8 +2559,16 @@ func (ctxt *Link) loadlibfull() {
+ 		}
+ 	}
+ 
++	// Load cgo directives.
++	for _, d := range ctxt.cgodata {
++		setCgoAttr(ctxt, d.file, d.pkg, d.directives)
++	}
++
++	setupdynexp(ctxt)
++
+ 	// Drop the reference.
+ 	ctxt.loader = nil
++	ctxt.cgodata = nil
+ 
+ 	addToTextp(ctxt)
+ }
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index dfb686f038..46bf08bb1c 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -99,7 +99,16 @@ type Link struct {
+ 	relocbuf []byte // temporary buffer for applying relocations
+ 
+ 	loader  *objfile.Loader
+-	cgodata [][3]string // cgo directives to load, three strings are args for loadcgo
++	cgodata []cgodata // cgo directives to load, three strings are args for loadcgo
++
++	cgo_export_static  map[string]bool
++	cgo_export_dynamic map[string]bool
++}
++
++type cgodata struct {
++	file       string
++	pkg        string
++	directives [][]string
+ }
+ 
+ type unresolvedSymKey struct {
+@@ -176,32 +185,3 @@ func addImports(ctxt *Link, l *sym.Library, pn string) {
+ 	}
+ 	l.ImportStrings = nil
+ }
+-
+-// convenient helper during the transition period.
+-func (ctxt *Link) Lookup(name string, ver int) *sym.Symbol {
+-	if *flagNewobj {
+-		i := ctxt.loader.Lookup(name, ver)
+-		if i == 0 {
+-			return nil
+-		}
+-		return ctxt.loader.Syms[i]
+-	} else {
+-		return ctxt.Syms.ROLookup(name, ver)
+-	}
+-}
+-
+-// convenient helper during the transition period.
+-func (ctxt *Link) LookupOrCreate(name string, ver int) *sym.Symbol {
+-	if *flagNewobj {
+-		i := ctxt.loader.Lookup(name, ver)
+-		if i != 0 {
+-			return ctxt.loader.Syms[i]
+-		}
+-		ctxt.loader.AddExtSym(name, ver)
+-		s := ctxt.Syms.Newsym(name, ver)
+-		ctxt.loader.Syms = append(ctxt.loader.Syms, s)
+-		return s
+-	} else {
+-		return ctxt.Syms.Lookup(name, ver)
+-	}
+-}
+diff --git a/src/cmd/link/internal/objfile/objfile2.go b/src/cmd/link/internal/objfile/objfile2.go
+index 00c996c341..a099eaba92 100644
+--- a/src/cmd/link/internal/objfile/objfile2.go
++++ b/src/cmd/link/internal/objfile/objfile2.go
+@@ -94,6 +94,7 @@ type Loader struct {
+ 	objs     []objIdx         // sorted by start index (i.e. objIdx.i)
+ 	max      Sym              // current max index
+ 	extStart Sym              // from this index on, the symbols are externally defined
++	extSyms  []nameVer        // externally defined symbols
+ 
+ 	symsByName map[nameVer]Sym // map symbol name to index
+ 
+@@ -110,7 +111,6 @@ func NewLoader() *Loader {
+ 		objs:       []objIdx{{nil, 0}},
+ 		symsByName: make(map[nameVer]Sym),
+ 		objByPkg:   make(map[string]*oReader),
+-		Syms:       []*sym.Symbol{nil},
+ 	}
+ }
+ 
+@@ -165,6 +165,7 @@ func (l *Loader) AddExtSym(name string, ver int) Sym {
+ 	if l.extStart == 0 {
+ 		l.extStart = i
+ 	}
++	l.extSyms = append(l.extSyms, nv)
+ 	return i
+ }
+ 
+@@ -379,9 +380,6 @@ func LoadNew(l *Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *s
+ 
+ 	ndef := r.NSym()
+ 	nnonpkgdef := r.NNonpkgdef()
+-
+-	// XXX add all symbols for now
+-	l.Syms = append(l.Syms, make([]*sym.Symbol, ndef+nnonpkgdef)...)
+ 	for i, n := 0, ndef+nnonpkgdef; i < n; i++ {
+ 		osym := goobj2.Sym{}
+ 		osym.Read(r, r.SymOff(i))
+@@ -391,11 +389,7 @@ func LoadNew(l *Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *s
+ 		}
+ 		v := abiToVer(osym.ABI, localSymVersion)
+ 		dupok := osym.Flag&goobj2.SymFlagDupok != 0
+-		if l.AddSym(name, v, istart+Sym(i), dupok) {
+-			s := syms.Newsym(name, v)
+-			preprocess(arch, s) // TODO: put this at a better place
+-			l.Syms[istart+Sym(i)] = s
+-		}
++		l.AddSym(name, v, istart+Sym(i), dupok)
+ 	}
+ 
+ 	// The caller expects us consuming all the data
+@@ -411,22 +405,13 @@ func LoadRefs(l *Loader, arch *sys.Arch, syms *sym.Symbols) {
+ }
+ 
+ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch, syms *sym.Symbols) {
+-	lib := r.unit.Lib
+-	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
+ 	ndef := r.NSym() + r.NNonpkgdef()
+ 	for i, n := 0, r.NNonpkgref(); i < n; i++ {
+ 		osym := goobj2.Sym{}
+ 		osym.Read(r.Reader, r.SymOff(ndef+i))
+-		name := strings.Replace(osym.Name, "\"\".", pkgprefix, -1)
++		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
+ 		v := abiToVer(osym.ABI, r.version)
+-		if ii := l.AddExtSym(name, v); ii != 0 {
+-			s := syms.Newsym(name, v)
+-			preprocess(arch, s) // TODO: put this at a better place
+-			if ii != Sym(len(l.Syms)) {
+-				panic("AddExtSym returned bad index")
+-			}
+-			l.Syms = append(l.Syms, s)
+-		}
++		l.AddExtSym(name, v)
+ 	}
+ }
+ 
+@@ -463,45 +448,47 @@ func preprocess(arch *sys.Arch, s *sym.Symbol) {
+ 		default:
+ 			log.Panicf("unrecognized $-symbol: %s", s.Name)
+ 		}
+-		s.Attr.Set(sym.AttrReachable, false)
+ 	}
+ }
+ 
+-// Load relocations for building the dependency graph in deadcode pass.
+-// For now, we load symbol types, relocations, gotype, and the contents
+-// of type symbols, which are needed in deadcode.
+-func LoadReloc(l *Loader) {
++// Load full contents.
++func LoadFull(l *Loader, arch *sys.Arch, syms *sym.Symbols) {
++	// create all Symbols first.
++	l.Syms = make([]*sym.Symbol, l.NSym())
++	for _, o := range l.objs[1:] {
++		loadObjSyms(l, syms, o.r)
++	}
++
++	// external symbols
++	for i := l.extStart; i <= l.max; i++ {
++		nv := l.extSyms[i-l.extStart]
++		if l.Reachable.Has(i) || strings.HasPrefix(nv.name, "go.info.") || strings.HasPrefix(nv.name, "gofile..") { // XXX some go.info and file symbols are used but not marked
++			s := syms.Newsym(nv.name, nv.v)
++			preprocess(arch, s)
++			s.Attr.Set(sym.AttrReachable, true)
++			l.Syms[i] = s
++		}
++	}
++
++	// load contents of defined symbols
+ 	for _, o := range l.objs[1:] {
+-		loadObjReloc(l, o.r)
++		loadObjFull(l, o.r)
+ 	}
+ }
+ 
+-func loadObjReloc(l *Loader, r *oReader) {
++func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) {
+ 	lib := r.unit.Lib
+-	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
+ 	istart := l.StartIndex(r)
+ 
+-	resolveSymRef := func(s goobj2.SymRef) *sym.Symbol {
+-		i := l.Resolve(r, s)
+-		return l.Syms[i]
+-	}
+-
+ 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
+-		s := l.Syms[istart+Sym(i)]
+-		if s == nil || s.Name == "" {
+-			continue
+-		}
+-
+ 		osym := goobj2.Sym{}
+ 		osym.Read(r.Reader, r.SymOff(i))
+-		name := strings.Replace(osym.Name, "\"\".", pkgprefix, -1)
+-		if s.Name != name { // Sanity check. We can remove it in the final version.
+-			fmt.Println("name mismatch:", lib, i, s.Name, name)
+-			panic("name mismatch")
++		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
++		if name == "" {
++			continue
+ 		}
+-
+-		if s.Type != 0 && s.Type != sym.SXREF {
+-			// We've already seen this symbol, it likely came from a host object.
++		ver := abiToVer(osym.ABI, r.version)
++		if l.symsByName[nameVer{name, ver}] != istart+Sym(i) {
+ 			continue
+ 		}
+ 
+@@ -510,19 +497,63 @@ func loadObjReloc(l *Loader, r *oReader) {
+ 			log.Fatalf("bad sxref")
+ 		}
+ 		if t == 0 {
+-			log.Fatalf("missing type for %s in %s", s.Name, lib)
++			log.Fatalf("missing type for %s in %s", name, lib)
+ 		}
+-		if !s.Attr.Reachable() && (t < sym.SDWARFSECT || t > sym.SDWARFLINES) && !(t == sym.SRODATA && strings.HasPrefix(name, "type.")) {
++		if !l.Reachable.Has(istart+Sym(i)) && (t < sym.SDWARFSECT || t > sym.SDWARFLINES) && !(t == sym.SRODATA && strings.HasPrefix(name, "type.")) && name != "runtime.addmoduledata" && name != "runtime.lastmoduledatap" {
+ 			// No need to load unreachable symbols.
+ 			// XXX DWARF symbols may be used but are not marked reachable.
+ 			// XXX type symbol's content may be needed in DWARF code, but they are not marked.
++			// XXX reference to runtime.addmoduledata may be generated later by the linker in plugin mode.
+ 			continue
+ 		}
++
++		s := syms.Newsym(name, ver)
++		if s.Type != 0 && s.Type != sym.SXREF {
++			fmt.Println("symbol already processed:", lib, i, s)
++			panic("symbol already processed")
++		}
+ 		if t == sym.SBSS && (s.Type == sym.SRODATA || s.Type == sym.SNOPTRBSS) {
+ 			t = s.Type
+ 		}
+ 		s.Type = t
+ 		s.Unit = r.unit
++		s.Attr.Set(sym.AttrReachable, l.Reachable.Has(istart+Sym(i)))
++		l.Syms[istart+Sym(i)] = s
++	}
++}
++
++func loadObjFull(l *Loader, r *oReader) {
++	lib := r.unit.Lib
++	istart := l.StartIndex(r)
++
++	resolveSymRef := func(s goobj2.SymRef) *sym.Symbol {
++		i := l.Resolve(r, s)
++		return l.Syms[i]
++	}
++
++	pcdataBase := r.PcdataBase()
++	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
++		s := l.Syms[istart+Sym(i)]
++		if s == nil || s.Name == "" {
++			continue
++		}
++
++		osym := goobj2.Sym{}
++		osym.Read(r.Reader, r.SymOff(i))
++		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
++		if s.Name != name { // Sanity check. We can remove it in the final version.
++			fmt.Println("name mismatch:", lib, i, s.Name, name)
++			panic("name mismatch")
++		}
++
++		dupok := osym.Flag&goobj2.SymFlagDupok != 0
++		local := osym.Flag&goobj2.SymFlagLocal != 0
++		makeTypelink := osym.Flag&goobj2.SymFlagTypelink != 0
++		size := osym.Siz
++
++		// Symbol data
++		s.P = r.Data(i)
++		s.Attr.Set(sym.AttrReadOnly, r.ReadOnly())
+ 
+ 		// Relocs
+ 		relocs := l.relocs(r, i)
+@@ -557,7 +588,8 @@ func loadObjReloc(l *Loader, r *oReader) {
+ 			}
+ 		}
+ 
+-		// Aux symbol
++		// Aux symbol info
++		isym := -1
+ 		naux := r.NAux(i)
+ 		for j := 0; j < naux; j++ {
+ 			a := goobj2.Aux{}
+@@ -575,85 +607,6 @@ func loadObjReloc(l *Loader, r *oReader) {
+ 					s.FuncInfo = pc
+ 				}
+ 				pc.Funcdata = append(pc.Funcdata, resolveSymRef(a.Sym))
+-			}
+-		}
+-
+-		if s.Type == sym.STEXT {
+-			dupok := osym.Flag&goobj2.SymFlagDupok != 0
+-			if !dupok {
+-				if s.Attr.OnList() {
+-					log.Fatalf("symbol %s listed multiple times", s.Name)
+-				}
+-				s.Attr |= sym.AttrOnList
+-				lib.Textp = append(lib.Textp, s)
+-			} else {
+-				// there may ba a dup in another package
+-				// put into a temp list and add to text later
+-				lib.DupTextSyms = append(lib.DupTextSyms, s)
+-			}
+-		}
+-	}
+-}
+-
+-// Load full contents.
+-// TODO: For now, some contents are already load in LoadReloc. Maybe
+-// we should combine LoadReloc back into this, once we rewrite deadcode
+-// pass to use index directly.
+-func LoadFull(l *Loader) {
+-	for _, o := range l.objs[1:] {
+-		loadObjFull(l, o.r)
+-	}
+-}
+-
+-func loadObjFull(l *Loader, r *oReader) {
+-	lib := r.unit.Lib
+-	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
+-	istart := l.StartIndex(r)
+-
+-	resolveSymRef := func(s goobj2.SymRef) *sym.Symbol {
+-		i := l.Resolve(r, s)
+-		return l.Syms[i]
+-	}
+-
+-	pcdataBase := r.PcdataBase()
+-	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
+-		s := l.Syms[istart+Sym(i)]
+-		if s == nil || s.Name == "" {
+-			continue
+-		}
+-		if !s.Attr.Reachable() && (s.Type < sym.SDWARFSECT || s.Type > sym.SDWARFLINES) && !(s.Type == sym.SRODATA && strings.HasPrefix(s.Name, "type.")) {
+-			// No need to load unreachable symbols.
+-			// XXX DWARF symbols may be used but are not marked reachable.
+-			// XXX type symbol's content may be needed in DWARF code, but they are not marked.
+-			continue
+-		}
+-
+-		osym := goobj2.Sym{}
+-		osym.Read(r.Reader, r.SymOff(i))
+-		name := strings.Replace(osym.Name, "\"\".", pkgprefix, -1)
+-		if s.Name != name { // Sanity check. We can remove it in the final version.
+-			fmt.Println("name mismatch:", lib, i, s.Name, name)
+-			panic("name mismatch")
+-		}
+-
+-		dupok := osym.Flag&goobj2.SymFlagDupok != 0
+-		local := osym.Flag&goobj2.SymFlagLocal != 0
+-		makeTypelink := osym.Flag&goobj2.SymFlagTypelink != 0
+-		size := osym.Siz
+-
+-		// Symbol data
+-		s.P = r.Data(i)
+-		s.Attr.Set(sym.AttrReadOnly, r.ReadOnly())
+-
+-		// Aux symbol info
+-		isym := -1
+-		naux := r.NAux(i)
+-		for j := 0; j < naux; j++ {
+-			a := goobj2.Aux{}
+-			a.Read(r.Reader, r.AuxOff(i, j))
+-			switch a.Type {
+-			case goobj2.AuxGotype, goobj2.AuxFuncdata:
+-				// already loaded
+ 			case goobj2.AuxFuncInfo:
+ 				if a.Sym.PkgIdx != goobj2.PkgIdxSelf {
+ 					panic("funcinfo symbol not defined in current package")
+@@ -664,7 +617,7 @@ func loadObjFull(l *Loader, r *oReader) {
+ 			}
+ 		}
+ 
+-		s.File = pkgprefix[:len(pkgprefix)-1]
++		s.File = r.pkgprefix[:len(r.pkgprefix)-1]
+ 		if dupok {
+ 			s.Attr |= sym.AttrDuplicateOK
+ 		}
+@@ -731,6 +684,18 @@ func loadObjFull(l *Loader, r *oReader) {
+ 		for k := range pc.File {
+ 			pc.File[k] = resolveSymRef(info.File[k])
+ 		}
++
++		if !dupok {
++			if s.Attr.OnList() {
++				log.Fatalf("symbol %s listed multiple times", s.Name)
++			}
++			s.Attr.Set(sym.AttrOnList, true)
++			lib.Textp = append(lib.Textp, s)
++		} else {
++			// there may ba a dup in another package
++			// put into a temp list and add to text later
++			lib.DupTextSyms = append(lib.DupTextSyms, s)
++		}
+ 	}
+ }
+ 

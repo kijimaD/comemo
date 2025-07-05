@@ -9,6 +9,23 @@ Date:   Sat Sep 5 19:28:15 2015 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9a9834f3e1..fef3e61301 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1621,6 +1621,11 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case OADDR:
+ 		return s.addr(n.Left)
+ 
++	case OCHECKNIL:
++		p := s.expr(n.Left)
++		s.nilCheck(p)
++		return p
++
+ 	case OINDREG:
+ 		if int(n.Reg) != Thearch.REGSP {
+ 			s.Unimplementedf("OINDREG of non-SP register %s in expr: %v", obj.Rconv(int(n.Reg)), n)

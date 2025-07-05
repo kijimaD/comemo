@@ -24,6 +24,26 @@ Date:   Thu Jan 21 12:43:34 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/sys_netbsd_amd64.s | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index 35a1b5dd00..fb21f1155a 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -245,11 +245,13 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	CALL	AX
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$24
++TEXT runtime·sigtramp(SB),NOSPLIT,$32
+ 	MOVQ	DI, 0(SP)   // signum
+ 	MOVQ	SI, 8(SP)   // info
+ 	MOVQ	DX, 16(SP)  // ctx
++	MOVQ	R15, 24(SP) // for sigreturn
+ 	CALL	runtime·sigtrampgo(SB)
++	MOVQ	24(SP), R15
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0

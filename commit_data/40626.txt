@@ -24,7 +24,7 @@ Date:   Fri May 31 16:38:56 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/asm.s                            |  8 --------
  src/runtime/internal/atomic/atomic_386.go    |  4 ++++
  src/runtime/internal/atomic/atomic_amd64x.go |  5 +++++
@@ -39,3 +39,454 @@ Date:   Fri May 31 16:38:56 2019 -0400
  src/runtime/syscall_aix.go                   | 14 ++++++++++++++
  src/runtime/syscall_solaris.go               | 29 ++++++++++++++++++++++++++++
  13 files changed, 106 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index 314f99d69b..6b209b2d1f 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -38,11 +38,3 @@ GLOBL runtime·memstats(SB), NOPTR, $0
+ // This function must be sizeofSkipFunction bytes.
+ TEXT runtime·skipPleaseUseCallersFrames(SB),NOSPLIT,$0-0
+ 	SKIP64; SKIP64; SKIP64; SKIP64
+-
+-// abi0Syms is a dummy symbol that creates ABI0 wrappers for Go
+-// functions called from assembly in other packages.
+-TEXT abi0Syms<>(SB),NOSPLIT,$0-0
+-	// obj assumes it can call morestack* using ABI0, but
+-	// morestackc is actually defined in Go.
+-	CALL ·morestackc(SB)
+-	// References from syscall are automatically collected by cmd/go.
+diff --git a/src/runtime/internal/atomic/atomic_386.go b/src/runtime/internal/atomic/atomic_386.go
+index 143cd45e61..d7f82cc752 100644
+--- a/src/runtime/internal/atomic/atomic_386.go
++++ b/src/runtime/internal/atomic/atomic_386.go
+@@ -8,6 +8,10 @@ package atomic
+ 
+ import "unsafe"
+ 
++// Export some functions via linkname to assembly in sync/atomic.
++//go:linkname Load
++//go:linkname Loadp
++
+ //go:nosplit
+ //go:noinline
+ func Load(ptr *uint32) uint32 {
+diff --git a/src/runtime/internal/atomic/atomic_amd64x.go b/src/runtime/internal/atomic/atomic_amd64x.go
+index b7e01a3ad5..31c1636b2e 100644
+--- a/src/runtime/internal/atomic/atomic_amd64x.go
++++ b/src/runtime/internal/atomic/atomic_amd64x.go
+@@ -8,6 +8,11 @@ package atomic
+ 
+ import "unsafe"
+ 
++// Export some functions via linkname to assembly in sync/atomic.
++//go:linkname Load
++//go:linkname Loadp
++//go:linkname Load64
++
+ //go:nosplit
+ //go:noinline
+ func Load(ptr *uint32) uint32 {
+diff --git a/src/runtime/internal/atomic/atomic_mipsx.go b/src/runtime/internal/atomic/atomic_mipsx.go
+index 210fc27d9b..6e39262c15 100644
+--- a/src/runtime/internal/atomic/atomic_mipsx.go
++++ b/src/runtime/internal/atomic/atomic_mipsx.go
+@@ -4,6 +4,13 @@
+ 
+ // +build mips mipsle
+ 
++// Export some functions via linkname to assembly in sync/atomic.
++//go:linkname Xadd64
++//go:linkname Xchg64
++//go:linkname Cas64
++//go:linkname Load64
++//go:linkname Store64
++
+ package atomic
+ 
+ import (
+diff --git a/src/runtime/internal/atomic/atomic_s390x.go b/src/runtime/internal/atomic/atomic_s390x.go
+index 5a1f411ca1..f6758082a9 100644
+--- a/src/runtime/internal/atomic/atomic_s390x.go
++++ b/src/runtime/internal/atomic/atomic_s390x.go
+@@ -6,6 +6,13 @@ package atomic
+ 
+ import "unsafe"
+ 
++// Export some functions via linkname to assembly in sync/atomic.
++//go:linkname Load
++//go:linkname Loadp
++//go:linkname Load64
++//go:linkname Store
++//go:linkname Store64
++
+ //go:nosplit
+ //go:noinline
+ func Load(ptr *uint32) uint32 {
+diff --git a/src/runtime/internal/atomic/atomic_wasm.go b/src/runtime/internal/atomic/atomic_wasm.go
+index 9ce4892cb6..0731763ac1 100644
+--- a/src/runtime/internal/atomic/atomic_wasm.go
++++ b/src/runtime/internal/atomic/atomic_wasm.go
+@@ -5,6 +5,24 @@
+ // TODO(neelance): implement with actual atomic operations as soon as threads are available
+ // See https://github.com/WebAssembly/design/issues/1073
+ 
++// Export some functions via linkname to assembly in sync/atomic.
++//go:linkname Load
++//go:linkname Loadp
++//go:linkname Load64
++//go:linkname Loaduintptr
++//go:linkname Xadd
++//go:linkname Xadd64
++//go:linkname Xadduintptr
++//go:linkname Xchg
++//go:linkname Xchg64
++//go:linkname Xchguintptr
++//go:linkname Cas
++//go:linkname Cas64
++//go:linkname Casuintptr
++//go:linkname Store
++//go:linkname Store64
++//go:linkname Storeuintptr
++
+ package atomic
+ 
+ import "unsafe"
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index e9eca23138..b5cf9d442d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2850,7 +2850,11 @@ func reentersyscall(pc, sp uintptr) {
+ }
+ 
+ // Standard syscall entry used by the go syscall library and normal cgo calls.
++//
++// This is exported via linkname to assembly in the syscall package.
++//
+ //go:nosplit
++//go:linkname entersyscall
+ func entersyscall() {
+ 	reentersyscall(getcallerpc(), getcallersp())
+ }
+@@ -2940,8 +2944,11 @@ func entersyscallblock_handoff() {
+ //
+ // Write barriers are not allowed because our P may have been stolen.
+ //
++// This is exported via linkname to assembly in the syscall package.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
++//go:linkname exitsyscall
+ func exitsyscall() {
+ 	_g_ := getg()
+ 
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index f34008ff5f..ad51dc1800 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -369,6 +369,9 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ //
+ // The signal handler must not inject a call to sigpanic if
+ // getg().throwsplit, since sigpanic may need to grow the stack.
++//
++// This is exported via linkname to assembly in runtime/cgo.
++//go:linkname sigpanic
+ func sigpanic() {
+ 	g := getg()
+ 	if !canpanic(g) {
+@@ -843,7 +846,11 @@ func signalstack(s *stack) {
+ }
+ 
+ // setsigsegv is used on darwin/arm{,64} to fake a segmentation fault.
++//
++// This is exported via linkname to assembly in runtime/cgo.
++//
+ //go:nosplit
++//go:linkname setsigsegv
+ func setsigsegv(pc uintptr) {
+ 	g := getg()
+ 	g.sig = _SIGSEGV
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index d5d09ba7d7..22a0053fdb 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1295,7 +1295,10 @@ type stackObjectRecord struct {
+ 	typ *_type
+ }
+ 
++// This is exported as ABI0 via linkname so obj can call it.
++//
+ //go:nosplit
++//go:linkname morestackc
+ func morestackc() {
+ 	throw("attempt to execute system stack code on user stack")
+ }
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 839e882cdc..d198f73756 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -310,6 +310,8 @@ func gobytes(p *byte, n int) (b []byte) {
+ 	return
+ }
+ 
++// This is exported via linkname to assembly in syscall (for Plan9).
++//go:linkname gostring
+ func gostring(p *byte) string {
+ 	l := findnull(p)
+ 	if l == 0 {
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 0bf17c47af..b50d441d92 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -206,6 +206,9 @@ func close_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
++//
++// This is exported via linkname to assembly in runtime/cgo.
++//go:linkname exit
+ func exit(code int32) {
+ 	libcCall(unsafe.Pointer(funcPC(exit_trampoline)), unsafe.Pointer(&code))
+ }
+diff --git a/src/runtime/syscall_aix.go b/src/runtime/syscall_aix.go
+index 1ed1dfa0bb..79b51240e9 100644
+--- a/src/runtime/syscall_aix.go
++++ b/src/runtime/syscall_aix.go
+@@ -57,19 +57,30 @@ var (
+ // Syscall is needed because some packages (like net) need it too.
+ // The best way is to return EINVAL and let Golang handles its failure
+ // If the syscall can't fail, this function can redirect it to a real syscall.
++//
++// This is exported via linkname to assembly in the syscall package.
++//
+ //go:nosplit
++//go:linkname syscall_Syscall
+ func syscall_Syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 	return 0, 0, _EINVAL
+ }
+ 
+ // This is syscall.RawSyscall, it exists to satisfy some build dependency,
+ // but it doesn't work.
++//
++// This is exported via linkname to assembly in the syscall package.
++//
++//go:linkname syscall_RawSyscall
+ func syscall_RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 	panic("RawSyscall not available on AIX")
+ }
+ 
++// This is exported via linkname to assembly in the syscall package.
++//
+ //go:nosplit
+ //go:cgo_unsafe_args
++//go:linkname syscall_syscall6
+ func syscall_syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+ 	c := libcall{
+ 		fn:   fn,
+@@ -83,8 +94,11 @@ func syscall_syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err ui
+ 	return c.r1, 0, c.err
+ }
+ 
++// This is exported via linkname to assembly in the syscall package.
++//
+ //go:nosplit
+ //go:cgo_unsafe_args
++//go:linkname syscall_rawSyscall6
+ func syscall_rawSyscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+ 	c := libcall{
+ 		fn:   fn,
+diff --git a/src/runtime/syscall_solaris.go b/src/runtime/syscall_solaris.go
+index b1592c511a..35381801c5 100644
+--- a/src/runtime/syscall_solaris.go
++++ b/src/runtime/syscall_solaris.go
+@@ -31,7 +31,11 @@ var pipe1x libcFunc // name to take addr of pipe1
+ 
+ func pipe1() // declared for vet; do NOT call
+ 
++// Many of these are exported via linkname to assembly in the syscall
++// package.
++
+ //go:nosplit
++//go:linkname syscall_sysvicall6
+ func syscall_sysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+ 	call := libcall{
+ 		fn:   fn,
+@@ -45,6 +49,7 @@ func syscall_sysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err
+ }
+ 
+ //go:nosplit
++//go:linkname syscall_rawsysvicall6
+ func syscall_rawsysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+ 	call := libcall{
+ 		fn:   fn,
+@@ -60,6 +65,7 @@ func syscall_rawsysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, e
+ // with calls to sysvicallN.
+ 
+ //go:nosplit
++//go:linkname syscall_chdir
+ func syscall_chdir(path uintptr) (err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_chdir)),
+@@ -71,6 +77,7 @@ func syscall_chdir(path uintptr) (err uintptr) {
+ }
+ 
+ //go:nosplit
++//go:linkname syscall_chroot
+ func syscall_chroot(path uintptr) (err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_chroot)),
+@@ -83,6 +90,7 @@ func syscall_chroot(path uintptr) (err uintptr) {
+ 
+ // like close, but must not split stack, for forkx.
+ //go:nosplit
++//go:linkname syscall_close
+ func syscall_close(fd int32) int32 {
+ 	return int32(sysvicall1(&libc_close, uintptr(fd)))
+ }
+@@ -90,11 +98,13 @@ func syscall_close(fd int32) int32 {
+ const _F_DUP2FD = 0x9
+ 
+ //go:nosplit
++//go:linkname syscall_dup2
+ func syscall_dup2(oldfd, newfd uintptr) (val, err uintptr) {
+ 	return syscall_fcntl(oldfd, _F_DUP2FD, newfd)
+ }
+ 
+ //go:nosplit
++//go:linkname syscall_execve
+ func syscall_execve(path, argv, envp uintptr) (err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_execve)),
+@@ -107,11 +117,13 @@ func syscall_execve(path, argv, envp uintptr) (err uintptr) {
+ 
+ // like exit, but must not split stack, for forkx.
+ //go:nosplit
++//go:linkname syscall_exit
+ func syscall_exit(code uintptr) {
+ 	sysvicall1(&libc_exit, code)
+ }
+ 
+ //go:nosplit
++//go:linkname syscall_fcntl
+ func syscall_fcntl(fd, cmd, arg uintptr) (val, err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_fcntl)),
+@@ -123,6 +135,7 @@ func syscall_fcntl(fd, cmd, arg uintptr) (val, err uintptr) {
+ }
+ 
+ //go:nosplit
++//go:linkname syscall_forkx
+ func syscall_forkx(flags uintptr) (pid uintptr, err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_forkx)),
+@@ -133,6 +146,7 @@ func syscall_forkx(flags uintptr) (pid uintptr, err uintptr) {
+ 	return call.r1, call.err
+ }
+ 
++//go:linkname syscall_gethostname
+ func syscall_gethostname() (name string, err uintptr) {
+ 	cname := new([_MAXHOSTNAMELEN]byte)
+ 	var args = [2]uintptr{uintptr(unsafe.Pointer(&cname[0])), _MAXHOSTNAMELEN}
+@@ -152,6 +166,7 @@ func syscall_gethostname() (name string, err uintptr) {
+ }
+ 
+ //go:nosplit
++//go:linkname syscall_getpid
+ func syscall_getpid() (pid, err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_getpid)),
+@@ -163,6 +178,7 @@ func syscall_getpid() (pid, err uintptr) {
+ }
+ 
+ //go:nosplit
++//go:linkname syscall_ioctl
+ func syscall_ioctl(fd, req, arg uintptr) (err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_ioctl)),
+@@ -173,6 +189,7 @@ func syscall_ioctl(fd, req, arg uintptr) (err uintptr) {
+ 	return call.err
+ }
+ 
++//go:linkname syscall_pipe
+ func syscall_pipe() (r, w, err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&pipe1x)),
+@@ -187,17 +204,22 @@ func syscall_pipe() (r, w, err uintptr) {
+ 
+ // This is syscall.RawSyscall, it exists to satisfy some build dependency,
+ // but it doesn't work.
++//
++//go:linkname syscall_rawsyscall
+ func syscall_rawsyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 	panic("RawSyscall not available on Solaris")
+ }
+ 
+ // This is syscall.RawSyscall6, it exists to avoid a linker error because
+ // syscall.RawSyscall6 is already declared. See golang.org/issue/24357
++//
++//go:linkname syscall_rawsyscall6
+ func syscall_rawsyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+ 	panic("RawSyscall6 not available on Solaris")
+ }
+ 
+ //go:nosplit
++//go:linkname syscall_setgid
+ func syscall_setgid(gid uintptr) (err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_setgid)),
+@@ -209,6 +231,7 @@ func syscall_setgid(gid uintptr) (err uintptr) {
+ }
+ 
+ //go:nosplit
++//go:linkname syscall_setgroups
+ func syscall_setgroups(ngid, gid uintptr) (err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_setgroups)),
+@@ -220,6 +243,7 @@ func syscall_setgroups(ngid, gid uintptr) (err uintptr) {
+ }
+ 
+ //go:nosplit
++//go:linkname syscall_setsid
+ func syscall_setsid() (pid, err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_setsid)),
+@@ -231,6 +255,7 @@ func syscall_setsid() (pid, err uintptr) {
+ }
+ 
+ //go:nosplit
++//go:linkname syscall_setuid
+ func syscall_setuid(uid uintptr) (err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_setuid)),
+@@ -242,6 +267,7 @@ func syscall_setuid(uid uintptr) (err uintptr) {
+ }
+ 
+ //go:nosplit
++//go:linkname syscall_setpgid
+ func syscall_setpgid(pid, pgid uintptr) (err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_setpgid)),
+@@ -252,6 +278,7 @@ func syscall_setpgid(pid, pgid uintptr) (err uintptr) {
+ 	return call.err
+ }
+ 
++//go:linkname syscall_syscall
+ func syscall_syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_syscall)),
+@@ -264,6 +291,7 @@ func syscall_syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 	return call.r1, call.r2, call.err
+ }
+ 
++//go:linkname syscall_wait4
+ func syscall_wait4(pid uintptr, wstatus *uint32, options uintptr, rusage unsafe.Pointer) (wpid int, err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_wait4)),
+@@ -277,6 +305,7 @@ func syscall_wait4(pid uintptr, wstatus *uint32, options uintptr, rusage unsafe.
+ }
+ 
+ //go:nosplit
++//go:linkname syscall_write
+ func syscall_write(fd, buf, nbyte uintptr) (n, err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_write)),

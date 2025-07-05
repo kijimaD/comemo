@@ -14,6 +14,33 @@ Date:   Sat Dec 29 16:19:16 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/c/155923
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/syscall_windows_test.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 0882e9cb73..3ad6512976 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -157,7 +157,7 @@ func TestEnumWindows(t *testing.T) {
+ 	}
+ }
+ 
+-func callback(hwnd syscall.Handle, lparam uintptr) uintptr {
++func callback(timeFormatString unsafe.Pointer, lparam uintptr) uintptr {
+ 	(*(*func())(unsafe.Pointer(&lparam)))()
+ 	return 0 // stop enumeration
+ }
+@@ -165,9 +165,10 @@ func callback(hwnd syscall.Handle, lparam uintptr) uintptr {
+ // nestedCall calls into Windows, back into Go, and finally to f.
+ func nestedCall(t *testing.T, f func()) {
+ 	c := syscall.NewCallback(callback)
+-	d := GetDLL(t, "user32.dll")
++	d := GetDLL(t, "kernel32.dll")
+ 	defer d.Release()
+-	d.Proc("EnumWindows").Call(c, uintptr(*(*unsafe.Pointer)(unsafe.Pointer(&f))))
++	const LOCALE_NAME_USER_DEFAULT = 0
++	d.Proc("EnumTimeFormatsEx").Call(c, LOCALE_NAME_USER_DEFAULT, 0, uintptr(*(*unsafe.Pointer)(unsafe.Pointer(&f))))
+ }
+ 
+ func TestCallback(t *testing.T) {

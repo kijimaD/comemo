@@ -14,7 +14,7 @@ Date:   Fri Apr 6 21:41:06 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go     | 10 ++++------
  src/cmd/link/internal/ld/deadcode.go |  2 +-
  src/cmd/link/internal/ld/dwarf.go    | 26 +++++++++-----------------
@@ -24,3 +24,390 @@ Date:   Fri Apr 6 21:41:06 2018 +0100
  src/cmd/link/internal/ld/pcln.go     |  9 +++------
  src/cmd/link/internal/ld/pe.go       | 20 ++++++++------------
  8 files changed, 47 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 74faa7f8b2..77acfaf7b9 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -504,7 +504,7 @@ func windynrelocsym(ctxt *Link, s *sym.Symbol) {
+ 	if s == rel {
+ 		return
+ 	}
+-	for ri := 0; ri < len(s.R); ri++ {
++	for ri := range s.R {
+ 		r := &s.R[ri]
+ 		targ := r.Sym
+ 		if targ == nil {
+@@ -550,7 +550,7 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
+ 		return
+ 	}
+ 
+-	for ri := 0; ri < len(s.R); ri++ {
++	for ri := range s.R {
+ 		r := &s.R[ri]
+ 		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
+ 			// It's expected that some relocations will be done
+@@ -620,7 +620,6 @@ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
+ 	}
+ 
+ 	eaddr := addr + size
+-	var q []byte
+ 	for _, s := range syms {
+ 		if !s.Attr.Reachable() {
+ 			continue
+@@ -638,7 +637,7 @@ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
+ 		}
+ 
+ 		ctxt.Logf("%.6x\t%-20s\n", uint64(addr), s.Name)
+-		q = s.P
++		q := s.P
+ 
+ 		for len(q) >= 16 {
+ 			ctxt.Logf("%.6x\t% x\n", uint64(addr), q[:16])
+@@ -1195,7 +1194,6 @@ func (ctxt *Link) dodata() {
+ 		sect.Align = dataMaxAlign[sym.SELFGOT]
+ 		datsize = Rnd(datsize, int64(sect.Align))
+ 		sect.Vaddr = uint64(datsize)
+-		var toc *sym.Symbol
+ 		for _, s := range data[sym.SELFGOT] {
+ 			datsize = aligndatsize(datsize, s)
+ 			s.Sect = sect
+@@ -1203,7 +1201,7 @@ func (ctxt *Link) dodata() {
+ 			s.Value = int64(uint64(datsize) - sect.Vaddr)
+ 
+ 			// Resolve .TOC. symbol for this object file (ppc64)
+-			toc = ctxt.Syms.ROLookup(".TOC.", int(s.Version))
++			toc := ctxt.Syms.ROLookup(".TOC.", int(s.Version))
+ 			if toc != nil {
+ 				toc.Sect = sect
+ 				toc.Outer = s
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index c5c48e5c85..ce0fe1f7a1 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -295,7 +295,7 @@ func (d *deadcodepass) flood() {
+ 
+ 		mpos := 0 // 0-3, the R_METHODOFF relocs of runtime.uncommontype
+ 		var methods []methodref
+-		for i := 0; i < len(s.R); i++ {
++		for i := range s.R {
+ 			r := &s.R[i]
+ 			if r.Sym == nil {
+ 				continue
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index f18d13e910..c90609feef 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -463,11 +463,9 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
+ 		dotypedef(ctxt, &dwtypes, name, die)
+ 		newrefattr(die, dwarf.DW_AT_type, mustFind(ctxt, "void"))
+ 		nfields := decodetypeFuncInCount(ctxt.Arch, gotype)
+-		var fld *dwarf.DWDie
+-		var s *sym.Symbol
+ 		for i := 0; i < nfields; i++ {
+-			s = decodetypeFuncInType(ctxt.Arch, gotype, i)
+-			fld = newdie(ctxt, die, dwarf.DW_ABRV_FUNCTYPEPARAM, s.Name[5:], 0)
++			s := decodetypeFuncInType(ctxt.Arch, gotype, i)
++			fld := newdie(ctxt, die, dwarf.DW_ABRV_FUNCTYPEPARAM, s.Name[5:], 0)
+ 			newrefattr(fld, dwarf.DW_AT_type, defgotype(ctxt, s))
+ 		}
+ 
+@@ -476,8 +474,8 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
+ 		}
+ 		nfields = decodetypeFuncOutCount(ctxt.Arch, gotype)
+ 		for i := 0; i < nfields; i++ {
+-			s = decodetypeFuncOutType(ctxt.Arch, gotype, i)
+-			fld = newdie(ctxt, die, dwarf.DW_ABRV_FUNCTYPEPARAM, s.Name[5:], 0)
++			s := decodetypeFuncOutType(ctxt.Arch, gotype, i)
++			fld := newdie(ctxt, die, dwarf.DW_ABRV_FUNCTYPEPARAM, s.Name[5:], 0)
+ 			newrefattr(fld, dwarf.DW_AT_type, defptrto(ctxt, defgotype(ctxt, s)))
+ 		}
+ 
+@@ -667,15 +665,10 @@ func synthesizeslicetypes(ctxt *Link, die *dwarf.DWDie) {
+ }
+ 
+ func mkinternaltypename(base string, arg1 string, arg2 string) string {
+-	var buf string
+-
+ 	if arg2 == "" {
+-		buf = fmt.Sprintf("%s<%s>", base, arg1)
+-	} else {
+-		buf = fmt.Sprintf("%s<%s,%s>", base, arg1, arg2)
++		return fmt.Sprintf("%s<%s>", base, arg1)
+ 	}
+-	n := buf
+-	return n
++	return fmt.Sprintf("%s<%s,%s>", base, arg1, arg2)
+ }
+ 
+ // synthesizemaptypes is way too closely married to runtime/hashmap.c
+@@ -1208,7 +1201,7 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 		// example, files mentioned only in an inlined subroutine).
+ 		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+ 		importInfoSymbol(ctxt, dsym)
+-		for ri := 0; ri < len(dsym.R); ri++ {
++		for ri := range dsym.R {
+ 			r := &dsym.R[ri]
+ 			if r.Type != objabi.R_DWARFFILEREF {
+ 				continue
+@@ -1321,9 +1314,8 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 	// DIE flavors (ex: variables) then those DIEs would need to
+ 	// be included below.
+ 	missing := make(map[int]interface{})
+-	for fidx := 0; fidx < len(funcs); fidx++ {
+-		f := funcs[fidx]
+-		for ri := 0; ri < len(f.R); ri++ {
++	for _, f := range funcs {
++		for ri := range f.R {
+ 			r := &f.R[ri]
+ 			if r.Type != objabi.R_DWARFFILEREF {
+ 				continue
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 231c00d3c1..60d387c193 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1349,7 +1349,7 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
+ 		if s.Value >= int64(eaddr) {
+ 			break
+ 		}
+-		for ri := 0; ri < len(s.R); ri++ {
++		for ri := range s.R {
+ 			r := &s.R[ri]
+ 			if r.Done {
+ 				continue
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a27f29af46..1909aad918 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -275,9 +275,9 @@ func loadinternal(ctxt *Link, name string) *sym.Library {
+ 		return nil
+ 	}
+ 
+-	for i := 0; i < len(ctxt.Libdir); i++ {
++	for _, libdir := range ctxt.Libdir {
+ 		if ctxt.linkShared {
+-			shlibname := filepath.Join(ctxt.Libdir[i], name+".shlibname")
++			shlibname := filepath.Join(libdir, name+".shlibname")
+ 			if ctxt.Debugvlog != 0 {
+ 				ctxt.Logf("searching for %s.a in %s\n", name, shlibname)
+ 			}
+@@ -285,7 +285,7 @@ func loadinternal(ctxt *Link, name string) *sym.Library {
+ 				return addlibpath(ctxt, "internal", "internal", "", name, shlibname)
+ 			}
+ 		}
+-		pname := filepath.Join(ctxt.Libdir[i], name+".a")
++		pname := filepath.Join(libdir, name+".a")
+ 		if ctxt.Debugvlog != 0 {
+ 			ctxt.Logf("searching for %s.a in %s\n", name, pname)
+ 		}
+@@ -484,7 +484,7 @@ func (ctxt *Link) loadlib() {
+ 		x = sym.AttrCgoExportStatic
+ 	}
+ 	w := 0
+-	for i := 0; i < len(dynexp); i++ {
++	for i := range dynexp {
+ 		if dynexp[i].Attr&x != 0 {
+ 			dynexp[w] = dynexp[i]
+ 			w++
+@@ -868,8 +868,8 @@ var internalpkg = []string{
+ 
+ func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), headType objabi.HeadType, f *bio.Reader, pkg string, length int64, pn string, file string) *Hostobj {
+ 	isinternal := false
+-	for i := 0; i < len(internalpkg); i++ {
+-		if pkg == internalpkg[i] {
++	for _, intpkg := range internalpkg {
++		if pkg == intpkg {
+ 			isinternal = true
+ 			break
+ 		}
+@@ -1955,22 +1955,18 @@ func usage() {
+ 	Exit(2)
+ }
+ 
+-func doversion() {
+-	Exitf("version %s", objabi.Version)
+-}
+-
+ type SymbolType int8
+ 
+ const (
+ 	// see also http://9p.io/magic/man2html/1/nm
+ 	TextSym      SymbolType = 'T'
+-	DataSym                 = 'D'
+-	BSSSym                  = 'B'
+-	UndefinedSym            = 'U'
+-	TLSSym                  = 't'
+-	FrameSym                = 'm'
+-	ParamSym                = 'p'
+-	AutoSym                 = 'a'
++	DataSym      SymbolType = 'D'
++	BSSSym       SymbolType = 'B'
++	UndefinedSym SymbolType = 'U'
++	TLSSym       SymbolType = 't'
++	FrameSym     SymbolType = 'm'
++	ParamSym     SymbolType = 'p'
++	AutoSym      SymbolType = 'a'
+ 
+ 	// Deleted auto (not a real sym, just placeholder for type)
+ 	DeletedAutoSym = 'x'
+@@ -2256,7 +2252,7 @@ func bgetc(r *bio.Reader) int {
+ 
+ type markKind uint8 // for postorder traversal
+ const (
+-	unvisited markKind = iota
++	_ markKind = iota
+ 	visiting
+ 	visited
+ )
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index db933a6767..8643fef043 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -234,7 +234,7 @@ func machowrite(arch *sys.Arch, out *OutBuf, linkmode LinkMode) int {
+ 	o1 := out.Offset()
+ 
+ 	loadsize := 4 * 4 * ndebug
+-	for i := 0; i < len(load); i++ {
++	for i := range load {
+ 		loadsize += 4 * (len(load[i].data) + 2)
+ 	}
+ 	if arch.PtrSize == 8 {
+@@ -327,7 +327,7 @@ func machowrite(arch *sys.Arch, out *OutBuf, linkmode LinkMode) int {
+ 		}
+ 	}
+ 
+-	for i := 0; i < len(load); i++ {
++	for i := range load {
+ 		l := &load[i]
+ 		out.Write32(l.type_)
+ 		out.Write32(4 * (uint32(len(l.data)) + 2))
+@@ -621,13 +621,13 @@ func Asmbmacho(ctxt *Link) {
+ 			ml.data[0] = 12 /* offset to string */
+ 			stringtouint32(ml.data[1:], "/usr/lib/dyld")
+ 
+-			for i := 0; i < len(dylib); i++ {
+-				ml = newMachoLoad(ctxt.Arch, LC_LOAD_DYLIB, 4+(uint32(len(dylib[i]))+1+7)/8*2)
++			for _, lib := range dylib {
++				ml = newMachoLoad(ctxt.Arch, LC_LOAD_DYLIB, 4+(uint32(len(lib))+1+7)/8*2)
+ 				ml.data[0] = 24 /* offset of string from beginning of load */
+ 				ml.data[1] = 0  /* time stamp */
+ 				ml.data[2] = 0  /* version */
+ 				ml.data[3] = 0  /* compatibility version */
+-				stringtouint32(ml.data[4:], dylib[i])
++				stringtouint32(ml.data[4:], lib)
+ 			}
+ 		}
+ 	}
+@@ -721,7 +721,7 @@ func machosymorder(ctxt *Link) {
+ 	// On Mac OS X Mountain Lion, we must sort exported symbols
+ 	// So we sort them here and pre-allocate dynid for them
+ 	// See https://golang.org/issue/4029
+-	for i := 0; i < len(dynexp); i++ {
++	for i := range dynexp {
+ 		dynexp[i].Attr |= sym.AttrReachable
+ 	}
+ 	machogenasmsym(ctxt)
+@@ -919,7 +919,7 @@ func machorelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
+ 		if s.Value >= int64(eaddr) {
+ 			break
+ 		}
+-		for ri := 0; ri < len(s.R); ri++ {
++		for ri := range s.R {
+ 			r := &s.R[ri]
+ 			if r.Done {
+ 				continue
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 8708924d92..446f64bdbc 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -122,11 +122,8 @@ func numberfile(ctxt *Link, file *sym.Symbol) {
+ }
+ 
+ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
+-	var f *sym.Symbol
+-
+ 	// Give files numbers.
+-	for i := 0; i < len(files); i++ {
+-		f = files[i]
++	for _, f := range files {
+ 		numberfile(ctxt, f)
+ 	}
+ 
+@@ -399,7 +396,7 @@ func (ctxt *Link) pclntab() {
+ 		off = addpctab(ctxt, ftab, off, &pcln.Pcline)
+ 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcln.Pcdata))))
+ 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcln.Funcdata))))
+-		for i := 0; i < len(pcln.Pcdata); i++ {
++		for i := range pcln.Pcdata {
+ 			off = addpctab(ctxt, ftab, off, &pcln.Pcdata[i])
+ 		}
+ 
+@@ -409,7 +406,7 @@ func (ctxt *Link) pclntab() {
+ 			if off&int32(ctxt.Arch.PtrSize-1) != 0 {
+ 				off += 4
+ 			}
+-			for i := 0; i < len(pcln.Funcdata); i++ {
++			for i := range pcln.Funcdata {
+ 				if pcln.Funcdata[i] == nil {
+ 					ftab.SetUint(ctxt.Arch, int64(off)+int64(ctxt.Arch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]))
+ 				} else {
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index d07f201557..66b1463086 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -526,7 +526,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
+ 			if sym.Value >= int64(eaddr) {
+ 				break
+ 			}
+-			for ri := 0; ri < len(sym.R); ri++ {
++			for ri := range sym.R {
+ 				r := &sym.R[ri]
+ 				if r.Done {
+ 					continue
+@@ -1082,9 +1082,8 @@ func addimports(ctxt *Link, datsect *peSection) {
+ 	}
+ 
+ 	// write function names
+-	var m *Imp
+ 	for d := dr; d != nil; d = d.next {
+-		for m = d.ms; m != nil; m = m.next {
++		for m := d.ms; m != nil; m = m.next {
+ 			m.off = uint64(pefile.nextSectOffset) + uint64(ctxt.Out.Offset()) - uint64(startoff)
+ 			ctxt.Out.Write16(0) // hint
+ 			strput(ctxt.Out, m.s.Extname)
+@@ -1097,7 +1096,7 @@ func addimports(ctxt *Link, datsect *peSection) {
+ 	n = uint64(ctxt.Out.Offset())
+ 	for d := dr; d != nil; d = d.next {
+ 		d.thunkoff = uint64(ctxt.Out.Offset()) - n
+-		for m = d.ms; m != nil; m = m.next {
++		for m := d.ms; m != nil; m = m.next {
+ 			if pe64 != 0 {
+ 				ctxt.Out.Write64(m.off)
+ 			} else {
+@@ -1126,7 +1125,7 @@ func addimports(ctxt *Link, datsect *peSection) {
+ 
+ 	ctxt.Out.SeekSet(int64(uint64(datsect.pointerToRawData) + ftbase))
+ 	for d := dr; d != nil; d = d.next {
+-		for m = d.ms; m != nil; m = m.next {
++		for m := d.ms; m != nil; m = m.next {
+ 			if pe64 != 0 {
+ 				ctxt.Out.Write64(m.off)
+ 			} else {
+@@ -1287,13 +1286,10 @@ func addpersrc(ctxt *Link) {
+ 	h.checkOffset(ctxt.Out.Offset())
+ 
+ 	// relocation
+-	var p []byte
+-	var r *sym.Reloc
+-	var val uint32
+-	for ri := 0; ri < len(rsrcsym.R); ri++ {
+-		r = &rsrcsym.R[ri]
+-		p = rsrcsym.P[r.Off:]
+-		val = uint32(int64(h.virtualAddress) + r.Add)
++	for ri := range rsrcsym.R {
++		r := &rsrcsym.R[ri]
++		p := rsrcsym.P[r.Off:]
++		val := uint32(int64(h.virtualAddress) + r.Add)
+ 
+ 		// 32-bit little-endian
+ 		p[0] = byte(val)

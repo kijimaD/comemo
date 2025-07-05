@@ -13,8 +13,81 @@ Date:   Mon Jul 13 09:15:38 2020 +0000
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/asm.s        | 21 ---------------------
  src/runtime/proc.go      |  1 -
  src/runtime/traceback.go | 13 -------------
  3 files changed, 35 deletions(-)
+
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index 95a3424de2..27d8df9e06 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -11,24 +11,3 @@
+ DATA runtime·no_pointers_stackmap+0x00(SB)/4, $2
+ DATA runtime·no_pointers_stackmap+0x04(SB)/4, $0
+ GLOBL runtime·no_pointers_stackmap(SB),RODATA, $8
+-
+-// NaCl requires that these skips be verifiable machine code.
+-#ifdef GOARCH_amd64
+-#define SKIP4 BYTE $0x90; BYTE $0x90; BYTE $0x90; BYTE $0x90
+-#endif
+-#ifdef GOARCH_386
+-#define SKIP4 BYTE $0x90; BYTE $0x90; BYTE $0x90; BYTE $0x90
+-#endif
+-#ifdef GOARCH_wasm
+-#define SKIP4 UNDEF; UNDEF; UNDEF; UNDEF
+-#endif
+-#ifndef SKIP4
+-#define SKIP4 WORD $0
+-#endif
+-
+-#define SKIP16 SKIP4; SKIP4; SKIP4; SKIP4
+-#define SKIP64 SKIP16; SKIP16; SKIP16; SKIP16
+-
+-// This function must be sizeofSkipFunction bytes.
+-TEXT runtime·skipPleaseUseCallersFrames(SB),NOSPLIT,$0-0
+-	SKIP64; SKIP64; SKIP64; SKIP64
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ed7e2128ae..9a358cd529 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -558,7 +558,6 @@ func schedinit() {
+ 
+ 	sched.maxmcount = 10000
+ 
+-	tracebackinit()
+ 	moduledataverify()
+ 	stackinit()
+ 	mallocinit()
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 96e552524e..7850eceafa 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -36,16 +36,6 @@ import (
+ 
+ const usesLR = sys.MinFrameSize > 0
+ 
+-var skipPC uintptr
+-
+-func tracebackinit() {
+-	// Go variable initialization happens late during runtime startup.
+-	// Instead of initializing the variables above in the declarations,
+-	// schedinit calls this function so that the variables are
+-	// initialized and available earlier in the startup sequence.
+-	skipPC = funcPC(skipPleaseUseCallersFrames)
+-}
+-
+ // Traceback over the deferred function calls.
+ // Report them like calls that have been invoked but not started executing yet.
+ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer) {
+@@ -83,9 +73,6 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
+ 
+ const sizeofSkipFunction = 256
+ 
+-// This function is defined in asm.s to be sizeofSkipFunction bytes long.
+-func skipPleaseUseCallersFrames()
+-
+ // Generic traceback. Handles runtime stack prints (pcbuf == nil),
+ // the runtime.Callers function (pcbuf != nil), as well as the garbage
+ // collector (callback != nil).  A little clunky to merge these, but avoids

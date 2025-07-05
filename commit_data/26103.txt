@@ -9,7 +9,44 @@ Date:   Thu Dec 17 08:04:21 2015 -0800
     Change-Id: I7cbd4105338ff896bd0c8f69a0b126b6272be2e5
     Reviewed-on: https://go-review.googlesource.com/17914
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/hook.go      | 3 ---
  src/net/hook_unix.go | 6 +++++-
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/hook.go b/src/net/hook.go
+index 81e061f372..9ab34c0e36 100644
+--- a/src/net/hook.go
++++ b/src/net/hook.go
+@@ -4,11 +4,8 @@
+ 
+ package net
+ 
+-import "time"
+-
+ var (
+ 	testHookDialTCP      = dialTCP
+-	testHookDNSDialer    = func(d time.Duration) dnsDialer { return &Dialer{Timeout: d} }
+ 	testHookHostsPath    = "/etc/hosts"
+ 	testHookLookupIP     = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) { return fn(host) }
+ 	testHookSetKeepAlive = func() {}
+diff --git a/src/net/hook_unix.go b/src/net/hook_unix.go
+index 361ca5980c..15c6a18a8a 100644
+--- a/src/net/hook_unix.go
++++ b/src/net/hook_unix.go
+@@ -6,10 +6,14 @@
+ 
+ package net
+ 
+-import "syscall"
++import (
++	"syscall"
++	"time"
++)
+ 
+ var (
+ 	testHookDialChannel = func() {} // see golang.org/issue/5349
++	testHookDNSDialer   = func(d time.Duration) dnsDialer { return &Dialer{Timeout: d} }
+ 
+ 	// Placeholders for socket system calls.
+ 	socketFunc        func(int, int, int) (int, error)         = syscall.Socket

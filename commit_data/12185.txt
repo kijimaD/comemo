@@ -11,6 +11,49 @@ Date:   Fri Feb 24 12:52:15 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5694060
-
+---
  test/run.go | 13 +++++++------
  1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index 67ff413717..4d4488a457 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -32,6 +32,7 @@ var (
+ 	verbose     = flag.Bool("v", false, "verbose. if set, parallelism is set to 1.")
+ 	numParallel = flag.Int("n", 8, "number of parallel tests to run")
+ 	summary     = flag.Bool("summary", false, "show summary of results")
++	showSkips   = flag.Bool("show_skips", false, "show skipped tests")
+ )
+ 
+ var (
+@@ -98,13 +99,10 @@ func main() {
+ 	for _, test := range tests {
+ 		<-test.donec
+ 		_, isSkip := test.err.(skipError)
++		errStr := "pass"
+ 		if isSkip {
+-			resCount["skip"]++
+-			if !*verbose {
+-				continue
+-			}
++			errStr = "skip"
+ 		}
+-		errStr := "pass"
+ 		if test.err != nil {
+ 			errStr = test.err.Error()
+ 			if !isSkip {
+@@ -112,9 +110,12 @@ func main() {
+ 			}
+ 		}
+ 		resCount[errStr]++
++		if isSkip && !*verbose && !*showSkips {
++			continue
++		}
+ 		if !*verbose && test.err == nil {
+ 			continue
+-	}
++		}
+ 		fmt.Printf("%-10s %-20s: %s\n", test.action, test.goFileName(), errStr)
+ 	}
+ 

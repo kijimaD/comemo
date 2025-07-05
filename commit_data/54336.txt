@@ -13,6 +13,36 @@ Date:   Wed Sep 28 14:02:18 2022 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/netip/netip_test.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index b0915bd8e9..bd1fe0c837 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -559,9 +559,6 @@ func TestIPProperties(t *testing.T) {
+ 		private4b = mustIP("172.16.0.1")
+ 		private4c = mustIP("192.168.1.1")
+ 		private6  = mustIP("fd00::1")
+-
+-		unspecified4 = AddrFrom4([4]byte{})
+-		unspecified6 = IPv6Unspecified()
+ 	)
+ 
+ 	tests := []struct {
+@@ -686,12 +683,12 @@ func TestIPProperties(t *testing.T) {
+ 		},
+ 		{
+ 			name:        "unspecified v4Addr",
+-			ip:          unspecified4,
++			ip:          IPv4Unspecified(),
+ 			unspecified: true,
+ 		},
+ 		{
+ 			name:        "unspecified v6Addr",
+-			ip:          unspecified6,
++			ip:          IPv6Unspecified(),
+ 			unspecified: true,
+ 		},
+ 	}

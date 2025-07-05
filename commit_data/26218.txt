@@ -7,6 +7,22 @@ Date:   Wed Dec 30 11:10:47 2015 -0500
     Change-Id: I45b026f4b4bf23b222a81669280cbe245048022b
     Reviewed-on: https://go-review.googlesource.com/18212
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/util.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index c29e781226..d52c7113f6 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -73,8 +73,8 @@ const (
+ var outputLock sync.Mutex
+ 
+ // run runs the command line cmd in dir.
+-// If mode has ShowOutput set, run collects cmd's output and returns it as a string;
+-// otherwise, run prints cmd's output to standard output after the command finishes.
++// If mode has ShowOutput set and Background unset, run passes cmd's output to
++// stdout/stderr directly. Otherwise, run returns cmd's output as a string.
+ // If mode has CheckExit set and the command fails, run calls fatal.
+ // If mode has Background set, this command is being run as a
+ // Background job. Only bgrun should use the Background mode,

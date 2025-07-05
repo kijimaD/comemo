@@ -11,6 +11,26 @@ Date:   Tue Jan 26 17:23:33 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/18949
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/unsafe/unsafe.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/unsafe/unsafe.go b/src/unsafe/unsafe.go
+index 34ca77965b..3c8cd34ae2 100644
+--- a/src/unsafe/unsafe.go
++++ b/src/unsafe/unsafe.go
+@@ -183,7 +183,12 @@ func Sizeof(x ArbitraryType) uintptr
+ // number of bytes between the start of the struct and the start of the field.
+ func Offsetof(x ArbitraryType) uintptr
+ 
+-// Alignof takes an expression x of any type and returns the alignment
++// Alignof takes an expression x of any type and returns the required alignment
+ // of a hypothetical variable v as if v was declared via var v = x.
+-// It is the largest value m such that the address of v is zero mod m.
++// It is the largest value m such that the address of v is always zero mod m.
++// It is the same as the value returned by reflect.TypeOf(x).Align().
++// As a special case, if s has a struct type and f is a field within that
++// struct, then Alignof(s.f) will return the required alignment of a field
++// of that type within a struct.  This case is the same as the value returned
++// by reflect.TypeOf(s.f).FieldAlign().
+ func Alignof(x ArbitraryType) uintptr

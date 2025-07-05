@@ -7,6 +7,22 @@ Date:   Wed Feb 9 12:46:34 2011 -0800
     R=gri, adg
     CC=golang-dev
     https://golang.org/cl/4169041
-
+---
  doc/codelab/wiki/srcextract.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/codelab/wiki/srcextract.go b/doc/codelab/wiki/srcextract.go
+index cab092f58b..c30a0b760f 100644
+--- a/doc/codelab/wiki/srcextract.go
++++ b/doc/codelab/wiki/srcextract.go
+@@ -35,10 +35,6 @@ func main() {
+ 	p := &printer.Config{
+ 		Mode:     0,
+ 		Tabwidth: 8,
+-		Styler:   nil,
+-	}
+-	if *html {
+-		p.Mode = printer.GenHTML
+ 	}
+ 	// create filter
+ 	filter := func(name string) bool {

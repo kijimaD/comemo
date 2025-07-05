@@ -8,7 +8,80 @@ Date:   Thu Jun 23 10:19:29 2011 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4638058
-
+---
  src/pkg/exp/template/parse.go      | 12 ++++++++----
  src/pkg/exp/template/parse_test.go |  3 ++-
  2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/exp/template/parse.go b/src/pkg/exp/template/parse.go
+index 74d4b1df2f..57ddb0084f 100644
+--- a/src/pkg/exp/template/parse.go
++++ b/src/pkg/exp/template/parse.go
+@@ -68,6 +68,7 @@ const (
+ 	nodeEnd
+ 	nodeField
+ 	nodeIdentifier
++	nodeList
+ 	nodeNumber
+ 	nodeRange
+ 	nodeString
+@@ -82,7 +83,7 @@ type listNode struct {
+ }
+ 
+ func newList() *listNode {
+-	return &listNode{nodeType: nodeText}
++	return &listNode{nodeType: nodeList}
+ }
+ 
+ func (l *listNode) append(n node) {
+@@ -178,8 +179,7 @@ func (f *fieldNode) String() string {
+ }
+ 
+ // numberNode holds a number, signed or unsigned, integer, floating, or imaginary.
+-// The value is parsed and stored under all the types that can represent the value
+-// (although for simplicity -0 is not considered a valid unsigned integer).
++// The value is parsed and stored under all the types that can represent the value.
+ // This simulates in a small amount of code the behavior of Go's ideal constants.
+ // TODO: booleans, complex numbers.
+ type numberNode struct {
+@@ -207,7 +207,7 @@ func newNumber(text string) (*numberNode, os.Error) {
+ 		}
+ 	}
+ 	// Do integer test first so we get 0x123 etc.
+-	u, err := strconv.Btoui64(text, 0) // will fail for -0; tough.
++	u, err := strconv.Btoui64(text, 0) // will fail for -0; fixed below.
+ 	if err == nil {
+ 		n.isUint = true
+ 		n.uint64 = u
+@@ -216,6 +216,10 @@ func newNumber(text string) (*numberNode, os.Error) {
+ 	if err == nil {
+ 		n.isInt = true
+ 		n.int64 = i
++		if i == 0 {
++			n.isUint = true // in case of -0.
++			n.uint64 = u
++		}
+ 	}
+ 	// If an integer extraction succeeded, promote the float.
+ 	if n.isInt {
+diff --git a/src/pkg/exp/template/parse_test.go b/src/pkg/exp/template/parse_test.go
+index 5c694f256a..f89eaa6ce3 100644
+--- a/src/pkg/exp/template/parse_test.go
++++ b/src/pkg/exp/template/parse_test.go
+@@ -25,6 +25,7 @@ type numberTest struct {
+ var numberTests = []numberTest{
+ 	// basics
+ 	{"0", true, true, true, false, 0, 0, 0},
++	{"-0", true, true, true, false, 0, 0, 0}, // check that -0 is a uint.
+ 	{"73", true, true, true, false, 73, 73, 73},
+ 	{"-73", true, false, true, false, -73, 0, -73},
+ 	{"+73", true, false, true, false, 73, 0, 73},
+@@ -37,7 +38,7 @@ var numberTests = []numberTest{
+ 	{"4i", false, false, true, true, 0, 0, 4},
+ 	// funny bases
+ 	{"0123", true, true, true, false, 0123, 0123, 0123},
+-	{"-0x0", true, false, true, false, 0, 0, 0},
++	{"-0x0", true, true, true, false, 0, 0, 0},
+ 	{"0xdeadbeef", true, true, true, false, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef},
+ 	// some broken syntax
+ 	{text: "+-2"},

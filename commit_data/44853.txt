@@ -22,7 +22,75 @@ Date:   Wed Sep 9 16:52:18 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/export_test.go | 17 ++++++++++-------
  src/runtime/mpagealloc.go  | 13 +++++++++++++
  2 files changed, 23 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 3307000c51..929bb35db6 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -358,7 +358,11 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 		}
+ 
+ 		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
+-			pg := mheap_.pages.chunkOf(i).scavenged.popcntRange(0, pallocChunkPages)
++			chunk := mheap_.pages.tryChunkOf(i)
++			if chunk == nil {
++				continue
++			}
++			pg := chunk.scavenged.popcntRange(0, pallocChunkPages)
+ 			slow.HeapReleased += uint64(pg) * pageSize
+ 		}
+ 		for _, p := range allp {
+@@ -756,11 +760,7 @@ func (p *PageAlloc) InUse() []AddrRange {
+ // Returns nil if the PallocData's L2 is missing.
+ func (p *PageAlloc) PallocData(i ChunkIdx) *PallocData {
+ 	ci := chunkIdx(i)
+-	l2 := (*pageAlloc)(p).chunks[ci.l1()]
+-	if l2 == nil {
+-		return nil
+-	}
+-	return (*PallocData)(&l2[ci.l2()])
++	return (*PallocData)((*pageAlloc)(p).tryChunkOf(ci))
+ }
+ 
+ // AddrRange represents a range over addresses.
+@@ -900,7 +900,10 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
+ 		lock(&mheap_.lock)
+ 	chunkLoop:
+ 		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
+-			chunk := mheap_.pages.chunkOf(i)
++			chunk := mheap_.pages.tryChunkOf(i)
++			if chunk == nil {
++				continue
++			}
+ 			for j := 0; j < pallocChunkPages/64; j++ {
+ 				// Run over each 64-bit bitmap section and ensure
+ 				// scavenged is being cleared properly on allocation.
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index 8b3c62c375..c90a6378bd 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -326,7 +326,20 @@ func (s *pageAlloc) init(mheapLock *mutex, sysStat *uint64) {
+ 	s.scav.scavLWM = maxSearchAddr
+ }
+ 
++// tryChunkOf returns the bitmap data for the given chunk.
++//
++// Returns nil if the chunk data has not been mapped.
++func (s *pageAlloc) tryChunkOf(ci chunkIdx) *pallocData {
++	l2 := s.chunks[ci.l1()]
++	if l2 == nil {
++		return nil
++	}
++	return &l2[ci.l2()]
++}
++
+ // chunkOf returns the chunk at the given chunk index.
++//
++// The chunk index must be valid or this method may throw.
+ func (s *pageAlloc) chunkOf(ci chunkIdx) *pallocData {
+ 	return &s.chunks[ci.l1()][ci.l2()]
+ }

@@ -10,7 +10,7 @@ Date:   Wed Feb 9 12:02:10 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/384615
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go              | 16 +++++++++++++++-
  .../compile/internal/types2/testdata/check/builtins.src  |  8 ++++----
  .../internal/types2/testdata/fixedbugs/issue49735.go2    | 11 +++++++++++
@@ -18,3 +18,144 @@ Date:   Wed Feb 9 12:02:10 2022 -0800
  src/go/types/testdata/check/builtins.src                 |  8 ++++----
  src/go/types/testdata/fixedbugs/issue49735.go2           | 11 +++++++++++
  6 files changed, 60 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index f9db07fdea..4b122bc540 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -85,7 +85,21 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		if s, _ := structuralType(S).(*Slice); s != nil {
+ 			T = s.elem
+ 		} else {
+-			check.errorf(x, invalidArg+"%s is not a slice", x)
++			var cause string
++			switch {
++			case x.isNil():
++				cause = "have untyped nil"
++			case isTypeParam(S):
++				if u := structuralType(S); u != nil {
++					cause = check.sprintf("%s has structural type %s", x, u)
++				} else {
++					cause = check.sprintf("%s has no structural type", x)
++				}
++			default:
++				cause = check.sprintf("have %s", x)
++			}
++			// don't use invalidArg prefix here as it would repeat "argument" in the error message
++			check.errorf(x, "first argument to append must be a slice; %s", cause)
+ 			return
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/builtins.src b/src/cmd/compile/internal/types2/testdata/check/builtins.src
+index de27f5c632..358e9c5c0d 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/builtins.src
++++ b/src/cmd/compile/internal/types2/testdata/check/builtins.src
+@@ -15,9 +15,9 @@ func append1() {
+ 	var x int
+ 	var s []byte
+ 	_ = append() // ERROR not enough arguments
+-	_ = append("foo" /* ERROR not a slice */ )
+-	_ = append(nil /* ERROR not a slice */ , s)
+-	_ = append(x /* ERROR not a slice */ , s)
++	_ = append("foo" /* ERROR must be a slice */ )
++	_ = append(nil /* ERROR must be a slice */ , s)
++	_ = append(x /* ERROR must be a slice */ , s)
+ 	_ = append(s)
+ 	_ = append(s, nil...)
+ 	append /* ERROR not used */ (s)
+@@ -77,7 +77,7 @@ func append3() {
+ 	_ = append(f2())
+ 	_ = append(f3())
+ 	_ = append(f5())
+-	_ = append(ff /* ERROR not a slice */ ()) // TODO(gri) better error message
++	_ = append(ff /* ERROR must be a slice */ ()) // TODO(gri) better error message
+ }
+ 
+ func cap1() {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49735.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49735.go2
+new file mode 100644
+index 0000000000..10e8df2776
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49735.go2
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[P1 any, P2 ~byte](s1 P1, s2 P2) {
++        _ = append(nil /* ERROR first argument to append must be a slice; have untyped nil */ , 0)
++        _ = append(s1 /* ERROR s1 .* has no structural type */ , 0)
++        _ = append(s2 /* ERROR s2 .* has structural type byte */ , 0)
++}
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 8fcfcb935f..b421b38753 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -86,7 +86,21 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		if s, _ := structuralType(S).(*Slice); s != nil {
+ 			T = s.elem
+ 		} else {
+-			check.invalidArg(x, _InvalidAppend, "%s is not a slice", x)
++			var cause string
++			switch {
++			case x.isNil():
++				cause = "have untyped nil"
++			case isTypeParam(S):
++				if u := structuralType(S); u != nil {
++					cause = check.sprintf("%s has structural type %s", x, u)
++				} else {
++					cause = check.sprintf("%s has no structural type", x)
++				}
++			default:
++				cause = check.sprintf("have %s", x)
++			}
++			// don't use Checker.invalidArg here as it would repeat "argument" in the error message
++			check.errorf(x, _InvalidAppend, "first argument to append must be a slice; %s", cause)
+ 			return
+ 		}
+ 
+diff --git a/src/go/types/testdata/check/builtins.src b/src/go/types/testdata/check/builtins.src
+index 7fd6a4b032..8a4c207a05 100644
+--- a/src/go/types/testdata/check/builtins.src
++++ b/src/go/types/testdata/check/builtins.src
+@@ -15,9 +15,9 @@ func append1() {
+ 	var x int
+ 	var s []byte
+ 	_ = append() // ERROR not enough arguments
+-	_ = append("foo" /* ERROR not a slice */ )
+-	_ = append(nil /* ERROR not a slice */ , s)
+-	_ = append(x /* ERROR not a slice */ , s)
++	_ = append("foo" /* ERROR must be a slice */ )
++	_ = append(nil /* ERROR must be a slice */ , s)
++	_ = append(x /* ERROR must be a slice */ , s)
+ 	_ = append(s)
+ 	_ = append(s, nil...)
+ 	append /* ERROR not used */ (s)
+@@ -77,7 +77,7 @@ func append3() {
+ 	_ = append(f2())
+ 	_ = append(f3())
+ 	_ = append(f5())
+-	_ = append(ff /* ERROR not a slice */ ()) // TODO(gri) better error message
++	_ = append(ff /* ERROR must be a slice */ ()) // TODO(gri) better error message
+ }
+ 
+ func cap1() {
+diff --git a/src/go/types/testdata/fixedbugs/issue49735.go2 b/src/go/types/testdata/fixedbugs/issue49735.go2
+new file mode 100644
+index 0000000000..10e8df2776
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue49735.go2
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[P1 any, P2 ~byte](s1 P1, s2 P2) {
++        _ = append(nil /* ERROR first argument to append must be a slice; have untyped nil */ , 0)
++        _ = append(s1 /* ERROR s1 .* has no structural type */ , 0)
++        _ = append(s2 /* ERROR s2 .* has structural type byte */ , 0)
++}

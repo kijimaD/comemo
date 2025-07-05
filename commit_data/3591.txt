@@ -10,7 +10,7 @@ Date:   Mon Oct 19 19:27:40 2009 -0700
     R=ken
     OCL=35898
     CL=35898
-
+---
  src/cmd/gc/dcl.c                   | 18 ++++++++++-----
  src/cmd/gc/sinit.c                 |  2 ++
  test/blank.go                      |  4 ++++
@@ -19,3 +19,227 @@ Date:   Mon Oct 19 19:27:40 2009 -0700
  test/interface/embed.go            | 42 +++++++++++++++++------------------
  test/interface/embed1.go           | 45 ++++++++++++++++++++++++++++++++++++++
  7 files changed, 85 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 1be129f9bd..131d688928 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -762,15 +762,20 @@ ok:
+ Type**
+ stotype(NodeList *l, int et, Type **t)
+ {
+-	Type *f, *t1, **t0;
++	Type *f, *t1, *t2, **t0;
+ 	Strlit *note;
+ 	int lno;
+ 	NodeList *init;
+ 	Node *n;
++	char *what;
+ 
+ 	t0 = t;
+ 	init = nil;
+ 	lno = lineno;
++	what = "field";
++	if(et == TINTER)
++		what = "method";
++
+ 	for(; l; l=l->next) {
+ 		n = l->n;
+ 		lineno = n->lineno;
+@@ -827,14 +832,17 @@ stotype(NodeList *l, int et, Type **t)
+ 				continue;
+ 			}
+ 			for(t1=n->type->type; t1!=T; t1=t1->down) {
+-				// TODO(rsc): Is this really an error?
+-				if(strcmp(t1->sym->package, package) != 0)
+-					yyerror("embedded interface contains unexported method %S", t1->sym);
+ 				f = typ(TFIELD);
+ 				f->type = t1->type;
+ 				f->width = BADWIDTH;
+ 				f->nname = newname(t1->sym);
+ 				f->sym = t1->sym;
++				for(t2=*t0; t2!=T; t2=t2->down) {
++					if(t2->sym == f->sym) {
++						yyerror("duplicate method %s", t2->sym->name);
++						break;
++					}
++				}
+ 				*t = f;
+ 				t = &f->down;
+ 			}
+@@ -855,7 +863,7 @@ stotype(NodeList *l, int et, Type **t)
+ 			if(f->sym && !isblank(f->nname)) {
+ 				for(t1=*t0; t1!=T; t1=t1->down) {
+ 					if(t1->sym == f->sym) {
+-						yyerror("duplicate field %s", t1->sym->name);
++						yyerror("duplicate %s %s", what, t1->sym->name);
+ 						break;
+ 					}
+ 				}
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index c22a582e16..d25694fb78 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -27,6 +27,8 @@ init1(Node *n, NodeList **out)
+ 	case PFUNC:
+ 		break;
+ 	default:
++		if(isblank(n))
++			*out = list(*out, n->defn);
+ 		return;
+ 	}
+ 
+diff --git a/test/blank.go b/test/blank.go
+index 634844352e..7b9d64257e 100644
+--- a/test/blank.go
++++ b/test/blank.go
+@@ -52,7 +52,11 @@ func i() int {
+ 	return 23;
+ }
+ 
++var _ = i();
++
+ func main() {
++	if call != "i" {panic("init did not run")}
++	call = "";
+ 	_, _ = f();
+ 	a, _ := f();
+ 	if a != 1 {panic(a)}
+diff --git a/test/bugs/bug211.go b/test/fixedbugs/bug211.go
+similarity index 100%
+rename from test/bugs/bug211.go
+rename to test/fixedbugs/bug211.go
+diff --git a/test/golden.out b/test/golden.out
+index 5e621ccdf4..90f21172cf 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -157,6 +157,3 @@ BUG: errchk: bugs/bug193.go:14: missing expected error: 'shift'
+ too many calls: 5
+ panic PC=xxx
+ BUG: bug196
+-
+-=========== bugs/bug211.go
+-BUG: errchk: command succeeded unexpectedly
+diff --git a/test/interface/embed.go b/test/interface/embed.go
+index d216b890d5..936ea49b76 100644
+--- a/test/interface/embed.go
++++ b/test/interface/embed.go
+@@ -34,7 +34,7 @@ var pi = &i
+ 
+ var ok = true
+ 
+-func check(v int64, s string) {
++func check(s string, v int64) {
+ 	if v != Value {
+ 		println(s, v);
+ 		ok = false;
+@@ -42,38 +42,38 @@ func check(v int64, s string) {
+ }
+ 
+ func main() {
+-	check(t.M(), "t.M");
+-	check(pt.M(), "pt.M");
+-	check(ti.M(), "ti.M");
+-	check(pti.M(), "pti.M");
+-	check(s.M(), "s.M");
+-	check(ps.M(), "ps.M");
+-	check(sp.M(), "sp.M");
+-	check(psp.M(), "psp.M");
++	check("t.M()", t.M());
++	check("pt.M()", pt.M());
++	check("ti.M()", ti.M());
++	check("pti.M()", pti.M());
++	check("s.M()", s.M());
++	check("ps.M()", ps.M());
++	check("sp.M()", sp.M());
++	check("psp.M()", psp.M());
+ 
+ 	i = t;
+-	check(i.M(), "i.M - i = t");
+-	check(pi.M(), "pi.M - i = t");
++	check("i = t; i.M()", i.M());
++	check("i = t; pi.M()", pi.M());
+ 
+ 	i = pt;
+-	check(i.M(), "i.M - i = pt");
+-	check(pi.M(), "pi.M - i = pt");
++	check("i = pt; i.M()", i.M());
++	check("i = pt; pi.M()", pi.M());
+ 
+ 	i = s;
+-	check(i.M(), "i.M - i = s");
+-	check(pi.M(), "pi.M - i = s");
++	check("i = s; i.M()", i.M());
++	check("i = s; pi.M()", pi.M());
+ 
+ 	i = ps;
+-	check(i.M(), "i.M - i = ps");
+-	check(pi.M(), "pi.M - i = ps");
++	check("i = ps; i.M()", i.M());
++	check("i = ps; pi.M()", pi.M());
+ 
+ 	i = sp;
+-	check(i.M(), "i.M - i = sp");
+-	check(pi.M(), "pi.M - i = sp");
++	check("i = sp; i.M()", i.M());
++	check("i = sp; pi.M()", pi.M());
+ 
+ 	i = psp;
+-	check(i.M(), "i.M - i = psp");
+-	check(pi.M(), "pi.M - i = psp");
++	check("i = psp; i.M()", i.M());
++	check("i = psp; pi.M()", pi.M());
+ 
+ 	if !ok {
+ 		println("BUG: interface10");
+diff --git a/test/interface/embed1.go b/test/interface/embed1.go
+new file mode 100644
+index 0000000000..b3fe06f47b
+--- /dev/null
++++ b/test/interface/embed1.go
+@@ -0,0 +1,45 @@
++// $G $D/embed0.go && $G $D/$F.go && $L embed0.$A $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that embedded interface types can have local methods.
++
++package main
++
++import "./embed0"
++
++type T int
++func (t T) m() {}
++
++type I interface { m() }
++type J interface { I; }
++
++type PI interface { p.I; }
++type PJ interface { p.J; }
++
++func main() {
++	var i I;
++	var j J;
++	var t T;
++	i = t;
++	j = t;
++	_ = i;
++	_ = j;
++	i = j;
++	_ = i;
++	j = i;
++	_ = j;
++	var pi PI;
++	var pj PJ;
++	var pt p.T;
++	pi = pt;
++	pj = pt;
++	_ = pi;
++	_ = pj;
++	pi = pj;
++	_ = pi;
++	pj = pi;
++	_ = pj;
++}

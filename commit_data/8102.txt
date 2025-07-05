@@ -14,7 +14,7 @@ Date:   Thu Apr 14 14:25:25 2011 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4398047
-
+---
  src/cmd/gofmt/gofmt_test.go            |  1 +
  src/cmd/gofmt/rewrite.go               | 16 ++++++++++++++++
  src/cmd/gofmt/testdata/rewrite1.golden |  4 ++++
@@ -22,3 +22,124 @@ Date:   Thu Apr 14 14:25:25 2011 -0700
  src/cmd/gofmt/testdata/rewrite2.golden | 10 ++++++++++
  src/cmd/gofmt/testdata/rewrite2.input  | 10 ++++++++++
  6 files changed, 45 insertions(+)
+
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index 4ec94e2933..a72530307e 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -71,6 +71,7 @@ var tests = []struct {
+ 	{".", "gofmt_test.go", "gofmt_test.go", ""},
+ 	{"testdata", "composites.input", "composites.golden", "-s"},
+ 	{"testdata", "rewrite1.input", "rewrite1.golden", "-r=Foo->Bar"},
++	{"testdata", "rewrite2.input", "rewrite2.golden", "-r=int->bool"},
+ }
+ 
+ 
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index 93643dced2..631c513310 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -63,6 +63,10 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
+ 	repl := reflect.NewValue(replace)
+ 	var f func(val reflect.Value) reflect.Value // f is recursive
+ 	f = func(val reflect.Value) reflect.Value {
++		// don't bother if val is invalid to start with
++		if !val.IsValid() {
++			return reflect.Value{}
++		}
+ 		for k := range m {
+ 			m[k] = reflect.Value{}, false
+ 		}
+@@ -79,6 +83,10 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
+ // setValue is a wrapper for x.SetValue(y); it protects
+ // the caller from panics if x cannot be changed to y.
+ func setValue(x, y reflect.Value) {
++	// don't bother if y is invalid to start with
++	if !y.IsValid() {
++		return
++	}
+ 	defer func() {
+ 		if x := recover(); x != nil {
+ 			if s, ok := x.(string); ok && strings.HasPrefix(s, "type mismatch") {
+@@ -95,10 +103,12 @@ func setValue(x, y reflect.Value) {
+ // Values/types for special cases.
+ var (
+ 	objectPtrNil = reflect.NewValue((*ast.Object)(nil))
++	scopePtrNil  = reflect.NewValue((*ast.Scope)(nil))
+ 
+ 	identType     = reflect.Typeof((*ast.Ident)(nil))
+ 	objectPtrType = reflect.Typeof((*ast.Object)(nil))
+ 	positionType  = reflect.Typeof(token.NoPos)
++	scopePtrType  = reflect.Typeof((*ast.Scope)(nil))
+ )
+ 
+ 
+@@ -115,6 +125,12 @@ func apply(f func(reflect.Value) reflect.Value, val reflect.Value) reflect.Value
+ 		return objectPtrNil
+ 	}
+ 
++	// similarly for scopes: they are likely incorrect after a rewrite;
++	// replace them with nil
++	if val.Type() == scopePtrType {
++		return scopePtrNil
++	}
++
+ 	switch v := reflect.Indirect(val); v.Kind() {
+ 	case reflect.Slice:
+ 		for i := 0; i < v.Len(); i++ {
+diff --git a/src/cmd/gofmt/testdata/rewrite1.golden b/src/cmd/gofmt/testdata/rewrite1.golden
+index 3f909ff4ad..d9beb37058 100644
+--- a/src/cmd/gofmt/testdata/rewrite1.golden
++++ b/src/cmd/gofmt/testdata/rewrite1.golden
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ type Bar int
+diff --git a/src/cmd/gofmt/testdata/rewrite1.input b/src/cmd/gofmt/testdata/rewrite1.input
+index 1f10e3601c..bdb894320d 100644
+--- a/src/cmd/gofmt/testdata/rewrite1.input
++++ b/src/cmd/gofmt/testdata/rewrite1.input
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ type Foo int
+diff --git a/src/cmd/gofmt/testdata/rewrite2.golden b/src/cmd/gofmt/testdata/rewrite2.golden
+new file mode 100644
+index 0000000000..64c67ffa67
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite2.golden
+@@ -0,0 +1,10 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// Slices have nil Len values in the corresponding ast.ArrayType
++// node and reflect.NewValue(slice.Len) is an invalid reflect.Value.
++// The rewriter must not crash in that case. Was issue 1696.
++func f() []bool {}
+diff --git a/src/cmd/gofmt/testdata/rewrite2.input b/src/cmd/gofmt/testdata/rewrite2.input
+new file mode 100644
+index 0000000000..21171447a1
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite2.input
+@@ -0,0 +1,10 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// Slices have nil Len values in the corresponding ast.ArrayType
++// node and reflect.NewValue(slice.Len) is an invalid reflect.Value.
++// The rewriter must not crash in that case. Was issue 1696.
++func f() []int {}

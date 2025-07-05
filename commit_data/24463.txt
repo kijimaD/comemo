@@ -13,6 +13,20 @@ Date:   Thu Jul 30 10:39:07 2015 -0400
     Change-Id: Id69811ccb65bf4b4c159301a2b4767deb6ee8d28
     Reviewed-on: https://go-review.googlesource.com/12895
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dial_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 669fcc8ce1..ed6d7cc42f 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -249,7 +249,7 @@ func dialClosedPort() (actual, expected time.Duration) {
+ 	// On Windows, dialing a closed port takes roughly 1 second,
+ 	// but other platforms should be instantaneous.
+ 	if runtime.GOOS == "windows" {
+-		expected = 1095 * time.Millisecond
++		expected = 1500 * time.Millisecond
+ 	} else {
+ 		expected = 95 * time.Millisecond
+ 	}

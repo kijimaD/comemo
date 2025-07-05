@@ -15,7 +15,48 @@ Date:   Mon Jun 11 14:41:58 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/sendfile_test.go     | 6 ------
  src/net/sendfile_unix_alt.go | 6 ++++++
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/sendfile_test.go b/src/net/sendfile_test.go
+index acf1cd9955..ecc00d3c2a 100644
+--- a/src/net/sendfile_test.go
++++ b/src/net/sendfile_test.go
+@@ -13,7 +13,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"os"
+-	"runtime"
+ 	"testing"
+ )
+ 
+@@ -94,11 +93,6 @@ func TestSendfile(t *testing.T) {
+ }
+ 
+ func TestSendfileParts(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "dragonfly", "freebsd", "solaris":
+-		t.Skipf("skipping on %s (see golang.org/issue/25809 for details)", runtime.GOOS)
+-	}
+-
+ 	ln, err := newLocalListener("tcp")
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/net/sendfile_unix_alt.go b/src/net/sendfile_unix_alt.go
+index 97aeebbed2..9b3ba4ee62 100644
+--- a/src/net/sendfile_unix_alt.go
++++ b/src/net/sendfile_unix_alt.go
+@@ -63,5 +63,11 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 	if lr != nil {
+ 		lr.N = remain - written
+ 	}
++
++	_, err1 := f.Seek(written, io.SeekCurrent)
++	if err1 != nil && err == nil {
++		return written, err1, written > 0
++	}
++
+ 	return written, wrapSyscallError("sendfile", err), written > 0
+ }

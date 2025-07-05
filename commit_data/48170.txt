@@ -23,8 +23,80 @@ Date:   Wed Apr 28 23:07:38 2021 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/export_test.go |  2 ++
  src/runtime/malloc.go      | 19 ++++++++++++++++++-
  src/runtime/malloc_test.go |  6 ++++++
  3 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index f742225d51..a6fc1e4785 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1267,3 +1267,5 @@ func GCTestIsReachable(ptrs ...unsafe.Pointer) (mask uint64) {
+ func GCTestPointerClass(p unsafe.Pointer) string {
+ 	return gcTestPointerClass(p)
+ }
++
++const Raceenabled = raceenabled
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index f2d2425f53..3db884f498 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1047,7 +1047,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 			(*[2]uint64)(x)[1] = 0
+ 			// See if we need to replace the existing tiny block with the new one
+ 			// based on amount of remaining free space.
+-			if size < c.tinyoffset || c.tiny == 0 {
++			if !raceenabled && (size < c.tinyoffset || c.tiny == 0) {
++				// Note: disabled when race detector is on, see comment near end of this function.
+ 				c.tiny = uintptr(x)
+ 				c.tinyoffset = size
+ 			}
+@@ -1165,6 +1166,22 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		}
+ 	}
+ 
++	if raceenabled && noscan && dataSize < maxTinySize {
++		// Pad tinysize allocations so they are aligned with the end
++		// of the tinyalloc region. This ensures that any arithmetic
++		// that goes off the top end of the object will be detectable
++		// by checkptr (issue 38872).
++		// Note that we disable tinyalloc when raceenabled for this to work.
++		// TODO: This padding is only performed when the race detector
++		// is enabled. It would be nice to enable it if any package
++		// was compiled with checkptr, but there's no easy way to
++		// detect that (especially at compile time).
++		// TODO: enable this padding for all allocations, not just
++		// tinyalloc ones. It's tricky because of pointer maps.
++		// Maybe just all noscan objects?
++		x = add(x, size-dataSize)
++	}
++
+ 	return x
+ }
+ 
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index 4ba94d0494..e028554b23 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -154,6 +154,9 @@ func TestStringConcatenationAllocs(t *testing.T) {
+ }
+ 
+ func TestTinyAlloc(t *testing.T) {
++	if runtime.Raceenabled {
++		t.Skip("tinyalloc suppressed when running in race mode")
++	}
+ 	const N = 16
+ 	var v [N]unsafe.Pointer
+ 	for i := range v {
+@@ -182,6 +185,9 @@ type obj12 struct {
+ }
+ 
+ func TestTinyAllocIssue37262(t *testing.T) {
++	if runtime.Raceenabled {
++		t.Skip("tinyalloc suppressed when running in race mode")
++	}
+ 	// Try to cause an alignment access fault
+ 	// by atomically accessing the first 64-bit
+ 	// value of a tiny-allocated object.

@@ -9,10 +9,118 @@ Date:   Tue Apr 28 17:28:52 2020 -0400
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/data.go | 35 +++++++++++++++++------------------
  src/cmd/link/internal/ld/lib.go  |  1 +
  src/cmd/link/internal/ld/main.go |  2 +-
  src/cmd/link/internal/x86/asm.go | 13 +++++++++++++
  src/cmd/link/internal/x86/obj.go |  1 +
  5 files changed, 33 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 44e9b884ff..187f915a82 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -221,24 +221,23 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arch
+ 		var o int64
+ 		switch rt {
+ 		default:
+-			panic("not implemented")
+-			//switch siz {
+-			//default:
+-			//	err.Errorf(s, "bad reloc size %#x for %s", uint32(siz), ldr.SymName(rs))
+-			//case 1:
+-			//	o = int64(P[off])
+-			//case 2:
+-			//	o = int64(target.Arch.ByteOrder.Uint16(P[off:]))
+-			//case 4:
+-			//	o = int64(target.Arch.ByteOrder.Uint32(P[off:]))
+-			//case 8:
+-			//	o = int64(target.Arch.ByteOrder.Uint64(P[off:]))
+-			//}
+-			//if out, ok := thearch.Archreloc(ldr, target, syms, &r, s, o); ok {
+-			//	o = out
+-			//} else {
+-			//	err.Errorf(s, "unknown reloc to %v: %d (%s)", ldr.SymName(rs), rt, sym.RelocName(target.Arch, rt))
+-			//}
++			switch siz {
++			default:
++				err.Errorf(s, "bad reloc size %#x for %s", uint32(siz), ldr.SymName(rs))
++			case 1:
++				o = int64(P[off])
++			case 2:
++				o = int64(target.Arch.ByteOrder.Uint16(P[off:]))
++			case 4:
++				o = int64(target.Arch.ByteOrder.Uint32(P[off:]))
++			case 8:
++				o = int64(target.Arch.ByteOrder.Uint64(P[off:]))
++			}
++			if out, ok := thearch.Archreloc2(target, ldr, syms, &r, s, o); ok {
++				o = out
++			} else {
++				err.Errorf(s, "unknown reloc to %v: %d (%s)", ldr.SymName(rs), rt, sym.RelocName(target.Arch, rt))
++			}
+ 		case objabi.R_TLS_LE:
+ 			//if target.IsExternal() && target.IsElf() {
+ 			//	r.Done = false
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 618faf2233..51d81eb28d 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -246,6 +246,7 @@ type Arch struct {
+ 	// success/failure (a failing value indicates a fatal error).
+ 	Archreloc func(target *Target, syms *ArchSyms, rel *sym.Reloc, sym *sym.Symbol,
+ 		offset int64) (relocatedOffset int64, success bool)
++	Archreloc2 func(*Target, *loader.Loader, *ArchSyms, *loader.Reloc2, loader.Sym, int64) (int64, bool)
+ 	// Archrelocvariant is a second arch-specific hook used for
+ 	// relocation processing; it handles relocations where r.Type is
+ 	// insufficient to describe the relocation (r.Variant !=
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 84f40d9b81..1484ade313 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -326,7 +326,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	ctxt.loader.InitOutData()
+ 	thearch.Asmb(ctxt, ctxt.loader)
+ 
+-	newreloc := ctxt.IsInternal() && ctxt.IsAMD64()
++	newreloc := ctxt.IsInternal() && (ctxt.IsAMD64() || ctxt.Is386())
+ 	if newreloc {
+ 		bench.Start("reloc")
+ 		ctxt.reloc()
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 157e13496c..4e31c4e8ea 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -435,6 +435,19 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, secto
+ 	return true
+ }
+ 
++func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r *loader.Reloc2, sym loader.Sym, val int64) (int64, bool) {
++	if target.IsExternal() {
++		return val, false
++	}
++	switch r.Type() {
++	case objabi.R_CONST:
++		return r.Add(), true
++	case objabi.R_GOTOFF:
++		return ldr.SymValue(r.Sym()) + r.Add() - ldr.SymValue(syms.GOT2), true
++	}
++	return val, false
++}
++
+ func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+ 	if target.IsExternal() {
+ 		return val, false
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index 61e3077b5b..8686d6ec18 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -49,6 +49,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Adddynrel2:       adddynrel2,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
++		Archreloc2:       archreloc2,
+ 		Archrelocvariant: archrelocvariant,
+ 		Asmb:             asmb,
+ 		Asmb2:            asmb2,

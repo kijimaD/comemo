@@ -7,6 +7,27 @@ Date:   Thu Jun 4 10:44:46 2020 -0400
     Change-Id: Ibea6fbb73abdb7201855e80967120c07484d6460
     Reviewed-on: https://go-review.googlesource.com/c/go/+/236557
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.15.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index bdb327e4d4..15f56eef9d 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -69,6 +69,15 @@ Do not send CLs removing the interior tags from such phrases.
+ 	planned to become the default NDK linker in a future NDK version.
+ </p>
+ 
++<h3 id="openbsd">OpenBSD</h3>
++
++<p><!-- CL 234381 -->
++  Go 1.15 adds support for OpenBSD 6.7 on <code>GOARCH=arm</code>
++  and <code>GOARCH=arm64</code>. Previous versions of Go already
++  supported OpenBSD 6.7 on <code>GOARCH=386</code>
++  and <code>GOARCH=amd64</code>.
++</p>
++
+ <h3 id="riscv">RISC-V</h3>
+ 
+ <p>

@@ -12,7 +12,62 @@ Date:   Fri Jan 7 14:17:51 2022 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go                         | 15 ---------------
  src/cmd/go/testdata/script/get_issue16471.txt | 22 ++++++++++++++++++++++
  2 files changed, 22 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c100316f47..a0082a3164 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -991,21 +991,6 @@ func TestIssue10952(t *testing.T) {
+ 	tg.run("get", "-d", "-u", importPath)
+ }
+ 
+-func TestIssue16471(t *testing.T) {
+-	testenv.MustHaveExternalNetwork(t)
+-	testenv.MustHaveExecPath(t, "git")
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.tempDir("src")
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.must(os.MkdirAll(tg.path("src/rsc.io/go-get-issue-10952"), 0755))
+-	tg.runGit(tg.path("src/rsc.io"), "clone", "https://github.com/zombiezen/go-get-issue-10952")
+-	tg.runFail("get", "-u", "rsc.io/go-get-issue-10952")
+-	tg.grepStderr("rsc.io/go-get-issue-10952 is a custom import path for https://github.com/rsc/go-get-issue-10952, but .* is checked out from https://github.com/zombiezen/go-get-issue-10952", "did not detect updated import path")
+-}
+-
+ // Test git clone URL that uses SCP-like syntax and custom import path checking.
+ func TestIssue11457(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+diff --git a/src/cmd/go/testdata/script/get_issue16471.txt b/src/cmd/go/testdata/script/get_issue16471.txt
+new file mode 100644
+index 0000000000..2a2225a444
+--- /dev/null
++++ b/src/cmd/go/testdata/script/get_issue16471.txt
+@@ -0,0 +1,22 @@
++[!net] skip
++[!exec:git] skip
++
++env GO111MODULE=off
++
++cd rsc.io/go-get-issue-10952
++
++exec git init
++exec git add foo.go
++exec git config user.name Gopher
++exec git config user.email gopher@golang.org
++exec git commit -a -m 'initial commit'
++exec git remote add origin https://github.com/golang/go-get-issue-10952
++
++exec git status
++
++! go get -x -u rsc.io/go-get-issue-10952
++stderr '^package rsc.io/go-get-issue-10952: rsc\.io/go-get-issue-10952 is a custom import path for https://github.com/rsc/go-get-issue-10952, but .* is checked out from https://github.com/golang/go-get-issue-10952$'
++
++-- rsc.io/go-get-issue-10952/foo.go --
++// Junk package to test go get.
++package foo

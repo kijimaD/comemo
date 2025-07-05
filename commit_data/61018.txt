@@ -12,7 +12,52 @@ Date:   Sun Jun 30 02:46:12 2024 +0800
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/encoding/asn1/asn1.go         |  2 ++
  src/encoding/asn1/marshal_test.go | 20 ++++++++++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 781ab87691..56e007d3a6 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -702,6 +702,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		if !t.isCompound && t.class == ClassUniversal {
+ 			innerBytes := bytes[offset : offset+t.length]
+ 			switch t.tag {
++			case TagBoolean:
++				result, err = parseBool(innerBytes)
+ 			case TagPrintableString:
+ 				result, err = parsePrintableString(innerBytes)
+ 			case TagNumericString:
+diff --git a/src/encoding/asn1/marshal_test.go b/src/encoding/asn1/marshal_test.go
+index 64ce476400..dfd6d4e40b 100644
+--- a/src/encoding/asn1/marshal_test.go
++++ b/src/encoding/asn1/marshal_test.go
+@@ -311,6 +311,26 @@ func TestIssue11130(t *testing.T) {
+ 	}
+ }
+ 
++func TestIssue68241(t *testing.T) {
++	for i, want := range []any{false, true} {
++		data, err := Marshal(want)
++		if err != nil {
++			t.Errorf("cannot Marshal: %v", err)
++			return
++		}
++
++		var got any
++		_, err = Unmarshal(data, &got)
++		if err != nil {
++			t.Errorf("cannot Unmarshal: %v", err)
++			return
++		}
++		if !reflect.DeepEqual(got, want) {
++			t.Errorf("#%d Unmarshal, got: %v, want: %v", i, got, want)
++		}
++	}
++}
++
+ func BenchmarkMarshal(b *testing.B) {
+ 	b.ReportAllocs()
+ 

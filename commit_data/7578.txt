@@ -9,7 +9,7 @@ Date:   Fri Feb 25 14:29:47 2011 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4241043
-
+---
  src/pkg/sync/Makefile               | 17 ----------
  src/pkg/sync/asm_386.s              | 23 -------------
  src/pkg/sync/asm_amd64.s            | 23 -------------
@@ -22,3 +22,441 @@ Date:   Fri Feb 25 14:29:47 2011 -0500
  src/pkg/sync/rwmutex_test.go        | 15 ++++----
  src/pkg/sync/xadd_test.go           |  9 -----
  11 files changed, 92 insertions(+), 176 deletions(-)
+
+diff --git a/src/pkg/sync/Makefile b/src/pkg/sync/Makefile
+index 7f57a2cfbc..e8a7662267 100644
+--- a/src/pkg/sync/Makefile
++++ b/src/pkg/sync/Makefile
+@@ -12,21 +12,4 @@ GOFILES=\
+ 	rwmutex.go\
+ 	waitgroup.go\
+ 
+-# 386-specific object files
+-OFILES_386=\
+-	asm_386.$O\
+-
+-# amd64-specific object files
+-OFILES_amd64=\
+-	asm_amd64.$O\
+-
+-GOARM?=6
+-
+-# arm-specific object files
+-OFILES_arm=\
+-	asm_arm$(GOARM).$O\
+-
+-OFILES=\
+-	$(OFILES_$(GOARCH))\
+-
+ include ../../Make.pkg
+diff --git a/src/pkg/sync/asm_386.s b/src/pkg/sync/asm_386.s
+deleted file mode 100644
+index 228bad0440..0000000000
+--- a/src/pkg/sync/asm_386.s
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// func cas(val *int32, old, new int32) bool
+-// Atomically:
+-//	if *val == old {
+-//		*val = new;
+-//		return true;
+-//	}else
+-//		return false;
+-TEXT ·cas(SB), 7, $0
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), AX
+-	MOVL	12(SP), CX
+-	LOCK
+-	CMPXCHGL	CX, 0(BX)
+-	JZ ok
+-	MOVL	$0, 16(SP)
+-	RET
+-ok:
+-	MOVL	$1, 16(SP)
+-	RET
+diff --git a/src/pkg/sync/asm_amd64.s b/src/pkg/sync/asm_amd64.s
+deleted file mode 100644
+index 8702364828..0000000000
+--- a/src/pkg/sync/asm_amd64.s
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// func cas(val *int32, old, new int32) bool
+-// Atomically:
+-//	if *val == old {
+-//		*val = new;
+-//		return true;
+-//	}else
+-//		return false;
+-TEXT ·cas(SB), 7, $0
+-	MOVQ	8(SP), BX
+-	MOVL	16(SP), AX
+-	MOVL	20(SP), CX
+-	LOCK
+-	CMPXCHGL	CX, 0(BX)
+-	JZ ok
+-	MOVL	$0, 24(SP)
+-	RET
+-ok:
+-	MOVL	$1, 24(SP)
+-	RET
+diff --git a/src/pkg/sync/asm_arm5.s b/src/pkg/sync/asm_arm5.s
+deleted file mode 100644
+index 2cb496887f..0000000000
+--- a/src/pkg/sync/asm_arm5.s
++++ /dev/null
+@@ -1,40 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This version works on pre v6 architectures
+-// func cas(val *int32, old, new int32) bool
+-// Atomically:
+-//	if *val == old {
+-//		*val = new;
+-//		return true;
+-//	}else
+-//		return false;
+-
+-TEXT    ·cas(SB),7,$0
+-	MOVW	0(FP), R0	// *val
+-	MOVW	4(FP), R1	// old
+-	MOVW	8(FP), R2	// new
+-	MOVW	$1, R3
+-	MOVW	$runtime·cas_mutex(SB), R4
+-l:
+-	SWPW	(R4), R3	// acquire mutex
+-	CMP		$0, R3
+-	BNE		fail0
+-	
+-	MOVW	(R0), R5
+-	CMP		R1, R5
+-	BNE		fail1
+-	
+-	MOVW	R2, (R0)	
+-	MOVW	R3, (R4)	// release mutex
+-	MOVW	$1, R0
+-	MOVW	R0, 16(SP)	
+-	RET
+-fail1:	
+-	MOVW	R3, (R4)	// release mutex
+-fail0:
+-	MOVW	$0, R0
+-	MOVW	R0, 16(SP)	
+-	RET
+- 
+diff --git a/src/pkg/sync/asm_arm6.s b/src/pkg/sync/asm_arm6.s
+deleted file mode 100644
+index d1e0851d0b..0000000000
+--- a/src/pkg/sync/asm_arm6.s
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// func cas(val *int32, old, new int32) bool
+-// Atomically:
+-//	if *val == old {
+-//		*val = new;
+-//		return true;
+-//	}else
+-//		return false;
+-
+-TEXT	·cas(SB),7,$0
+-	MOVW	0(FP), R1	// *val
+-	MOVW	4(FP), R2	// old
+-	MOVW	8(FP), R3	// new
+-l:
+-	LDREX	(R1), R0
+-	CMP		R0, R2
+-	BNE		fail
+-	STREX	R3, (R1), R0
+-	CMP		$0, R0
+-	BNE		l
+-	MOVW	$1, R0
+-	MOVW	R0, 16(SP)
+-	RET
+-fail:
+-	MOVW	$0, R0
+-	MOVW	R0, 16(SP)
+-	RET
+diff --git a/src/pkg/sync/atomic/asm_linux_arm.s b/src/pkg/sync/atomic/asm_linux_arm.s
+new file mode 100644
+index 0000000000..5e7aea292e
+--- /dev/null
++++ b/src/pkg/sync/atomic/asm_linux_arm.s
+@@ -0,0 +1,68 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Linux/ARM atomic operations.
++
++// Because there is so much variation in ARM devices,
++// the Linux kernel provides an appropriate compare-and-swap
++// implementation at address 0xffff0fc0.  Caller sets:
++//	R0 = old value
++//	R1 = new value
++//	R2 = valptr
++//	LR = return address
++// The function returns with CS true if the swap happened.
++// http://lxr.linux.no/linux+v2.6.37.2/arch/arm/kernel/entry-armv.S#L850
++TEXT cas<>(SB),7,$0
++	MOVW	$0xffff0fc0, PC
++
++TEXT ·CompareAndSwapInt32(SB),7,$0
++	B	·CompareAndSwapUint32(SB)
++
++// Implement using kernel cas for portability.
++TEXT ·CompareAndSwapUint32(SB),7,$0
++	MOVW	valptr+0(FP), R2
++	MOVW	old+4(FP), R0
++	MOVW	new+8(FP), R1
++	BL cas<>(SB)
++	MOVW	$0, R0
++	MOVW.CS	$1, R0
++	MOVW	R0, ret+12(FP)
++	RET
++
++TEXT ·CompareAndSwapUintptr(SB),7,$0
++	B	·CompareAndSwapUint32(SB)
++
++TEXT ·AddInt32(SB),7,$0
++	B	·AddUint32(SB)
++
++// Implement using kernel cas for portability.
++TEXT ·AddUint32(SB),7,$0
++	MOVW	valptr+0(FP), R2
++	MOVW	delta+4(FP), R4
++addloop1:
++	MOVW	0(R2), R0
++	MOVW	R0, R1
++	ADD	R4, R1
++	BL	cas<>(SB)
++	BCC	addloop1
++	MOVW	R1, ret+8(FP)
++	RET
++
++TEXT ·AddUintptr(SB),7,$0
++	B	·AddUint32(SB)
++
++// The kernel provides no 64-bit compare-and-swap,
++// so use native ARM instructions, which will only work on
++// ARM 11 and later devices.
++TEXT ·CompareAndSwapInt64(SB),7,$0
++	B	·armCompareAndSwapUint64(SB)
++
++TEXT ·CompareAndSwapUint64(SB),7,$0
++	B	·armCompareAndSwapUint64(SB)
++
++TEXT ·AddInt64(SB),7,$0
++	B	·armAddUint64(SB)
++
++TEXT ·AddUint64(SB),7,$0
++	B	·armAddUint64(SB)
+diff --git a/src/pkg/sync/cond_test.go b/src/pkg/sync/cond_test.go
+index 2b99c91bf3..846f98bf39 100644
+--- a/src/pkg/sync/cond_test.go
++++ b/src/pkg/sync/cond_test.go
+@@ -11,7 +11,7 @@ import (
+ func TestCondSignal(t *testing.T) {
+ 	var m Mutex
+ 	c := NewCond(&m)
+-	n := 1000
++	n := 2
+ 	running := make(chan bool, n)
+ 	awake := make(chan bool, n)
+ 	for i := 0; i < n; i++ {
+diff --git a/src/pkg/sync/mutex.go b/src/pkg/sync/mutex.go
+index ff38691c89..da565d38de 100644
+--- a/src/pkg/sync/mutex.go
++++ b/src/pkg/sync/mutex.go
+@@ -9,15 +9,16 @@
+ // done via channels and communication.
+ package sync
+ 
+-import "runtime"
+-
+-func cas(val *uint32, old, new uint32) bool
++import (
++	"runtime"
++	"sync/atomic"
++)
+ 
+ // A Mutex is a mutual exclusion lock.
+ // Mutexes can be created as part of other structures;
+ // the zero value for a Mutex is an unlocked mutex.
+ type Mutex struct {
+-	key  uint32
++	key  int32
+ 	sema uint32
+ }
+ 
+@@ -27,25 +28,11 @@ type Locker interface {
+ 	Unlock()
+ }
+ 
+-// Add delta to *val, and return the new *val in a thread-safe way. If multiple
+-// goroutines call xadd on the same val concurrently, the changes will be
+-// serialized, and all the deltas will be added in an undefined order.
+-func xadd(val *uint32, delta int32) (new uint32) {
+-	for {
+-		v := *val
+-		nv := v + uint32(delta)
+-		if cas(val, v, nv) {
+-			return nv
+-		}
+-	}
+-	panic("unreached")
+-}
+-
+ // Lock locks m.
+ // If the lock is already in use, the calling goroutine
+ // blocks until the mutex is available.
+ func (m *Mutex) Lock() {
+-	if xadd(&m.key, 1) == 1 {
++	if atomic.AddInt32(&m.key, 1) == 1 {
+ 		// changed from 0 to 1; we hold lock
+ 		return
+ 	}
+@@ -59,11 +46,11 @@ func (m *Mutex) Lock() {
+ // It is allowed for one goroutine to lock a Mutex and then
+ // arrange for another goroutine to unlock it.
+ func (m *Mutex) Unlock() {
+-	switch v := xadd(&m.key, -1); {
++	switch v := atomic.AddInt32(&m.key, -1); {
+ 	case v == 0:
+ 		// changed from 1 to 0; no contention
+ 		return
+-	case int32(v) == -1:
++	case v == -1:
+ 		// changed from 0 to -1: wasn't locked
+ 		// (or there are 4 billion goroutines waiting)
+ 		panic("sync: unlock of unlocked mutex")
+diff --git a/src/pkg/sync/rwmutex.go b/src/pkg/sync/rwmutex.go
+index 13f48a077f..9248b4b037 100644
+--- a/src/pkg/sync/rwmutex.go
++++ b/src/pkg/sync/rwmutex.go
+@@ -4,6 +4,8 @@
+ 
+ package sync
+ 
++import "sync/atomic"
++
+ // An RWMutex is a reader/writer mutual exclusion lock.
+ // The lock can be held by an arbitrary number of readers
+ // or a single writer.
+@@ -14,9 +16,9 @@ package sync
+ // Writers take priority over Readers: no new RLocks
+ // are granted while a blocked Lock call is waiting.
+ type RWMutex struct {
+-	w           Mutex  // held if there are pending readers or writers
+-	r           Mutex  // held if the w is being rd
+-	readerCount uint32 // number of pending readers
++	w           Mutex // held if there are pending readers or writers
++	r           Mutex // held if the w is being rd
++	readerCount int32 // number of pending readers
+ }
+ 
+ // RLock locks rw for reading.
+@@ -33,7 +35,7 @@ func (rw *RWMutex) RLock() {
+ 	//   B: rw.RUnlock()
+ 	//   ... (new readers come and go indefinitely, W is starving)
+ 	rw.r.Lock()
+-	if xadd(&rw.readerCount, 1) == 1 {
++	if atomic.AddInt32(&rw.readerCount, 1) == 1 {
+ 		// The first reader locks rw.w, so writers will be blocked
+ 		// while the readers have the RLock.
+ 		rw.w.Lock()
+@@ -46,7 +48,7 @@ func (rw *RWMutex) RLock() {
+ // It is a run-time error if rw is not locked for reading
+ // on entry to RUnlock.
+ func (rw *RWMutex) RUnlock() {
+-	if xadd(&rw.readerCount, -1) == 0 {
++	if atomic.AddInt32(&rw.readerCount, -1) == 0 {
+ 		// last reader finished, enable writers
+ 		rw.w.Unlock()
+ 	}
+diff --git a/src/pkg/sync/rwmutex_test.go b/src/pkg/sync/rwmutex_test.go
+index 4f748b2191..405079270d 100644
+--- a/src/pkg/sync/rwmutex_test.go
++++ b/src/pkg/sync/rwmutex_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"runtime"
+ 	. "sync"
++	"sync/atomic"
+ 	"testing"
+ )
+ 
+@@ -49,31 +50,31 @@ func TestParallelReaders(t *testing.T) {
+ 	doTestParallelReaders(4, 2)
+ }
+ 
+-func reader(rwm *RWMutex, num_iterations int, activity *uint32, cdone chan bool) {
++func reader(rwm *RWMutex, num_iterations int, activity *int32, cdone chan bool) {
+ 	for i := 0; i < num_iterations; i++ {
+ 		rwm.RLock()
+-		n := Xadd(activity, 1)
++		n := atomic.AddInt32(activity, 1)
+ 		if n < 1 || n >= 10000 {
+ 			panic(fmt.Sprintf("wlock(%d)\n", n))
+ 		}
+ 		for i := 0; i < 100; i++ {
+ 		}
+-		Xadd(activity, -1)
++		atomic.AddInt32(activity, -1)
+ 		rwm.RUnlock()
+ 	}
+ 	cdone <- true
+ }
+ 
+-func writer(rwm *RWMutex, num_iterations int, activity *uint32, cdone chan bool) {
++func writer(rwm *RWMutex, num_iterations int, activity *int32, cdone chan bool) {
+ 	for i := 0; i < num_iterations; i++ {
+ 		rwm.Lock()
+-		n := Xadd(activity, 10000)
++		n := atomic.AddInt32(activity, 10000)
+ 		if n != 10000 {
+ 			panic(fmt.Sprintf("wlock(%d)\n", n))
+ 		}
+ 		for i := 0; i < 100; i++ {
+ 		}
+-		Xadd(activity, -10000)
++		atomic.AddInt32(activity, -10000)
+ 		rwm.Unlock()
+ 	}
+ 	cdone <- true
+@@ -82,7 +83,7 @@ func writer(rwm *RWMutex, num_iterations int, activity *uint32, cdone chan bool)
+ func HammerRWMutex(gomaxprocs, numReaders, num_iterations int) {
+ 	runtime.GOMAXPROCS(gomaxprocs)
+ 	// Number of active readers + 10000 * number of active writers.
+-	var activity uint32
++	var activity int32
+ 	var rwm RWMutex
+ 	cdone := make(chan bool)
+ 	go writer(&rwm, num_iterations, &activity, cdone)
+diff --git a/src/pkg/sync/xadd_test.go b/src/pkg/sync/xadd_test.go
+deleted file mode 100644
+index 8b2ef76e6b..0000000000
+--- a/src/pkg/sync/xadd_test.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package sync
+-
+-func Xadd(val *uint32, delta int32) (new uint32) {
+-	return xadd(val, delta)
+-}

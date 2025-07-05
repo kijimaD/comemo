@@ -10,6 +10,29 @@ Date:   Wed Mar 24 19:17:03 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  src/os/file.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index ebeb0d0ac9..e717f171e7 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -651,6 +651,17 @@ func (dir dirFS) Open(name string) (fs.File, error) {
+ 	return f, nil
+ }
+ 
++func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
++	if !fs.ValidPath(name) || runtime.GOOS == "windows" && containsAny(name, `\:`) {
++		return nil, &PathError{Op: "stat", Path: name, Err: ErrInvalid}
++	}
++	f, err := Stat(string(dir) + "/" + name)
++	if err != nil {
++		return nil, err
++	}
++	return f, nil
++}
++
+ // ReadFile reads the named file and returns the contents.
+ // A successful call returns err == nil, not err == EOF.
+ // Because ReadFile reads the whole file, it does not treat an EOF from Read

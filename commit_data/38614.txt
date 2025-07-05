@@ -20,7 +20,7 @@ Date:   Thu Oct 11 12:46:14 2018 +0200
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/wasm/wasm_exec.js               |  82 ++++++++++++-----------
  src/cmd/internal/obj/wasm/a.out.go   |   2 +-
  src/cmd/internal/obj/wasm/wasmobj.go |  24 +++----
@@ -35,3 +35,931 @@ Date:   Thu Oct 11 12:46:14 2018 +0200
  src/syscall/js/callback.go           | 116 ++++++++++++---------------------
  src/syscall/js/js_test.go            |  44 ++++++-------
  13 files changed, 270 insertions(+), 253 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index e47663783e..440bba104c 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -79,6 +79,10 @@
+ 					console.warn("exit code:", code);
+ 				}
+ 			};
++			this._exitPromise = new Promise((resolve) => {
++				this._resolveExitPromise = resolve;
++			});
++			this._pendingCallback = null;
+ 			this._callbackTimeouts = new Map();
+ 			this._nextCallbackTimeoutID = 1;
+ 
+@@ -194,6 +198,11 @@
+ 			const timeOrigin = Date.now() - performance.now();
+ 			this.importObject = {
+ 				go: {
++					// Go's SP does not change as long as no Go code is running. Some operations (e.g. calls, getters and setters)
++					// may trigger a synchronous callback to Go. This makes Go code get executed in the middle of the imported
++					// function. A goroutine can switch to a new stack if the current stack is too small (see morestack function).
++					// This changes the SP, thus we have to update the SP used by the imported function.
++
+ 					// func wasmExit(code int32)
+ 					"runtime.wasmExit": (sp) => {
+ 						const code = mem().getInt32(sp + 8, true);
+@@ -229,7 +238,7 @@
+ 						const id = this._nextCallbackTimeoutID;
+ 						this._nextCallbackTimeoutID++;
+ 						this._callbackTimeouts.set(id, setTimeout(
+-							() => { this._resolveCallbackPromise(); },
++							() => { this._resume(); },
+ 							getInt64(sp + 8) + 1, // setTimeout has been seen to fire up to 1 millisecond early
+ 						));
+ 						mem().setInt32(sp + 16, id, true);
+@@ -254,7 +263,9 @@
+ 
+ 					// func valueGet(v ref, p string) ref
+ 					"syscall/js.valueGet": (sp) => {
+-						storeValue(sp + 32, Reflect.get(loadValue(sp + 8), loadString(sp + 16)));
++						const result = Reflect.get(loadValue(sp + 8), loadString(sp + 16));
++						sp = this._inst.exports.getsp(); // see comment above
++						storeValue(sp + 32, result);
+ 					},
+ 
+ 					// func valueSet(v ref, p string, x ref)
+@@ -278,7 +289,9 @@
+ 							const v = loadValue(sp + 8);
+ 							const m = Reflect.get(v, loadString(sp + 16));
+ 							const args = loadSliceOfValues(sp + 32);
+-							storeValue(sp + 56, Reflect.apply(m, v, args));
++							const result = Reflect.apply(m, v, args);
++							sp = this._inst.exports.getsp(); // see comment above
++							storeValue(sp + 56, result);
+ 							mem().setUint8(sp + 64, 1);
+ 						} catch (err) {
+ 							storeValue(sp + 56, err);
+@@ -291,7 +304,9 @@
+ 						try {
+ 							const v = loadValue(sp + 8);
+ 							const args = loadSliceOfValues(sp + 16);
+-							storeValue(sp + 40, Reflect.apply(v, undefined, args));
++							const result = Reflect.apply(v, undefined, args);
++							sp = this._inst.exports.getsp(); // see comment above
++							storeValue(sp + 40, result);
+ 							mem().setUint8(sp + 48, 1);
+ 						} catch (err) {
+ 							storeValue(sp + 40, err);
+@@ -304,7 +319,9 @@
+ 						try {
+ 							const v = loadValue(sp + 8);
+ 							const args = loadSliceOfValues(sp + 16);
+-							storeValue(sp + 40, Reflect.construct(v, args));
++							const result = Reflect.construct(v, args);
++							sp = this._inst.exports.getsp(); // see comment above
++							storeValue(sp + 40, result);
+ 							mem().setUint8(sp + 48, 1);
+ 						} catch (err) {
+ 							storeValue(sp + 40, err);
+@@ -355,7 +372,6 @@
+ 				this,
+ 			];
+ 			this._refs = new Map();
+-			this._callbackShutdown = false;
+ 			this.exited = false;
+ 
+ 			const mem = new DataView(this._inst.exports.mem.buffer)
+@@ -390,42 +406,30 @@
+ 				offset += 8;
+ 			});
+ 
+-			while (true) {
+-				const callbackPromise = new Promise((resolve) => {
+-					this._resolveCallbackPromise = () => {
+-						if (this.exited) {
+-							throw new Error("bad callback: Go program has already exited");
+-						}
+-						setTimeout(resolve, 0); // make sure it is asynchronous
+-					};
+-				});
+-				this._inst.exports.run(argc, argv);
+-				if (this.exited) {
+-					break;
+-				}
+-				await callbackPromise;
++			this._inst.exports.run(argc, argv);
++			if (this.exited) {
++				this._resolveExitPromise();
+ 			}
++			await this._exitPromise;
+ 		}
+ 
+-		static _makeCallbackHelper(id, pendingCallbacks, go) {
+-			return function () {
+-				pendingCallbacks.push({ id: id, args: arguments });
+-				go._resolveCallbackPromise();
+-			};
++		_resume() {
++			if (this.exited) {
++				throw new Error("bad callback: Go program has already exited");
++			}
++			this._inst.exports.resume();
++			if (this.exited) {
++				this._resolveExitPromise();
++			}
+ 		}
+ 
+-		static _makeEventCallbackHelper(preventDefault, stopPropagation, stopImmediatePropagation, fn) {
+-			return function (event) {
+-				if (preventDefault) {
+-					event.preventDefault();
+-				}
+-				if (stopPropagation) {
+-					event.stopPropagation();
+-				}
+-				if (stopImmediatePropagation) {
+-					event.stopImmediatePropagation();
+-				}
+-				fn(event);
++		_makeCallbackHelper(id) {
++			const go = this;
++			return function () {
++				const cb = { id: id, this: this, args: arguments };
++				go._pendingCallback = cb;
++				go._resume();
++				return cb.result;
+ 			};
+ 		}
+ 	}
+@@ -444,8 +448,8 @@
+ 			process.on("exit", (code) => { // Node.js exits if no callback is pending
+ 				if (code === 0 && !go.exited) {
+ 					// deadlock, make Go print error and stack traces
+-					go._callbackShutdown = true;
+-					go._inst.exports.run();
++					go._pendingCallback = { id: 0 };
++					go._resume();
+ 				}
+ 			});
+ 			return go.run(result.instance);
+diff --git a/src/cmd/internal/obj/wasm/a.out.go b/src/cmd/internal/obj/wasm/a.out.go
+index 6f882215ff..0e8196be60 100644
+--- a/src/cmd/internal/obj/wasm/a.out.go
++++ b/src/cmd/internal/obj/wasm/a.out.go
+@@ -246,7 +246,7 @@ const (
+ 	REG_RET1
+ 	REG_RET2
+ 	REG_RET3
+-	REG_RUN
++	REG_PAUSE
+ 
+ 	// locals
+ 	REG_R0
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index b1eae2882b..f271101f4b 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -16,16 +16,16 @@ import (
+ )
+ 
+ var Register = map[string]int16{
+-	"PC_F": REG_PC_F,
+-	"PC_B": REG_PC_B,
+-	"SP":   REG_SP,
+-	"CTXT": REG_CTXT,
+-	"g":    REG_g,
+-	"RET0": REG_RET0,
+-	"RET1": REG_RET1,
+-	"RET2": REG_RET2,
+-	"RET3": REG_RET3,
+-	"RUN":  REG_RUN,
++	"PC_F":  REG_PC_F,
++	"PC_B":  REG_PC_B,
++	"SP":    REG_SP,
++	"CTXT":  REG_CTXT,
++	"g":     REG_g,
++	"RET0":  REG_RET0,
++	"RET1":  REG_RET1,
++	"RET2":  REG_RET2,
++	"RET3":  REG_RET3,
++	"PAUSE": REG_PAUSE,
+ 
+ 	"R0":  REG_R0,
+ 	"R1":  REG_R1,
+@@ -777,7 +777,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 			}
+ 			reg := p.From.Reg
+ 			switch {
+-			case reg >= REG_PC_F && reg <= REG_RUN:
++			case reg >= REG_PC_F && reg <= REG_PAUSE:
+ 				w.WriteByte(0x23) // get_global
+ 				writeUleb128(w, uint64(reg-REG_PC_F))
+ 			case reg >= REG_R0 && reg <= REG_R15:
+@@ -797,7 +797,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 			}
+ 			reg := p.To.Reg
+ 			switch {
+-			case reg >= REG_PC_F && reg <= REG_RUN:
++			case reg >= REG_PC_F && reg <= REG_PAUSE:
+ 				w.WriteByte(0x24) // set_global
+ 				writeUleb128(w, uint64(reg-REG_PC_F))
+ 			case reg >= REG_R0 && reg <= REG_F15:
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index bffbc7c8a6..737de59928 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -54,7 +54,11 @@ type wasmFuncType struct {
+ }
+ 
+ var wasmFuncTypes = map[string]*wasmFuncType{
+-	"_rt0_wasm_js":           &wasmFuncType{Params: []byte{I32, I32}},                                 // argc, argv
++	"_rt0_wasm_js":           &wasmFuncType{Params: []byte{}},                                         //
++	"wasm_export_run":        &wasmFuncType{Params: []byte{I32, I32}},                                 // argc, argv
++	"wasm_export_resume":     &wasmFuncType{Params: []byte{}},                                         //
++	"wasm_export_getsp":      &wasmFuncType{Results: []byte{I32}},                                     // sp
++	"wasm_pc_f_loop":         &wasmFuncType{Params: []byte{}},                                         //
+ 	"runtime.wasmMove":       &wasmFuncType{Params: []byte{I32, I32, I32}},                            // dst, src, len
+ 	"runtime.wasmZero":       &wasmFuncType{Params: []byte{I32, I32}},                                 // ptr, len
+ 	"runtime.wasmDiv":        &wasmFuncType{Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
+@@ -162,9 +166,6 @@ func asmb(ctxt *ld.Link) {
+ 		fns[i] = &wasmFunc{Name: name, Type: typ, Code: wfn.Bytes()}
+ 	}
+ 
+-	// look up program entry point
+-	rt0 := uint32(len(hostImports)) + uint32(ctxt.Syms.ROLookup("_rt0_wasm_js", 0).Value>>16) - funcValueOffset
+-
+ 	ctxt.Out.Write([]byte{0x00, 0x61, 0x73, 0x6d}) // magic
+ 	ctxt.Out.Write([]byte{0x01, 0x00, 0x00, 0x00}) // version
+ 
+@@ -180,7 +181,7 @@ func asmb(ctxt *ld.Link) {
+ 	writeTableSec(ctxt, fns)
+ 	writeMemorySec(ctxt)
+ 	writeGlobalSec(ctxt)
+-	writeExportSec(ctxt, rt0)
++	writeExportSec(ctxt, len(hostImports))
+ 	writeElementSec(ctxt, uint64(len(hostImports)), uint64(len(fns)))
+ 	writeCodeSec(ctxt, fns)
+ 	writeDataSec(ctxt)
+@@ -326,7 +327,7 @@ func writeGlobalSec(ctxt *ld.Link) {
+ 		I64, // 6: RET1
+ 		I64, // 7: RET2
+ 		I64, // 8: RET3
+-		I32, // 9: RUN
++		I32, // 9: PAUSE
+ 	}
+ 
+ 	writeUleb128(ctxt.Out, uint64(len(globalRegs))) // number of globals
+@@ -348,15 +349,18 @@ func writeGlobalSec(ctxt *ld.Link) {
+ 
+ // writeExportSec writes the section that declares exports.
+ // Exports can be accessed by the WebAssembly host, usually JavaScript.
+-// Currently _rt0_wasm_js (program entry point) and the linear memory get exported.
+-func writeExportSec(ctxt *ld.Link, rt0 uint32) {
++// The wasm_export_* functions and the linear memory get exported.
++func writeExportSec(ctxt *ld.Link, lenHostImports int) {
+ 	sizeOffset := writeSecHeader(ctxt, sectionExport)
+ 
+-	writeUleb128(ctxt.Out, 2) // number of exports
++	writeUleb128(ctxt.Out, 4) // number of exports
+ 
+-	writeName(ctxt.Out, "run")          // inst.exports.run in wasm_exec.js
+-	ctxt.Out.WriteByte(0x00)            // func export
+-	writeUleb128(ctxt.Out, uint64(rt0)) // funcidx
++	for _, name := range []string{"run", "resume", "getsp"} {
++		idx := uint32(lenHostImports) + uint32(ctxt.Syms.ROLookup("wasm_export_"+name, 0).Value>>16) - funcValueOffset
++		writeName(ctxt.Out, name)           // inst.exports.run/resume/getsp in wasm_exec.js
++		ctxt.Out.WriteByte(0x00)            // func export
++		writeUleb128(ctxt.Out, uint64(idx)) // funcidx
++	}
+ 
+ 	writeName(ctxt.Out, "mem") // inst.exports.mem in wasm_exec.js
+ 	ctxt.Out.WriteByte(0x02)   // mem export
+diff --git a/src/net/http/roundtrip_js.go b/src/net/http/roundtrip_js.go
+index 38e4f5573e..7959816445 100644
+--- a/src/net/http/roundtrip_js.go
++++ b/src/net/http/roundtrip_js.go
+@@ -93,7 +93,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		respCh = make(chan *Response, 1)
+ 		errCh  = make(chan error, 1)
+ 	)
+-	success := js.NewCallback(func(args []js.Value) {
++	success := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+ 		result := args[0]
+ 		header := Header{}
+ 		// https://developer.mozilla.org/en-US/docs/Web/API/Headers/entries
+@@ -137,14 +137,17 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		}:
+ 		case <-req.Context().Done():
+ 		}
++
++		return nil
+ 	})
+ 	defer success.Release()
+-	failure := js.NewCallback(func(args []js.Value) {
++	failure := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+ 		err := fmt.Errorf("net/http: fetch() failed: %s", args[0].String())
+ 		select {
+ 		case errCh <- err:
+ 		case <-req.Context().Done():
+ 		}
++		return nil
+ 	})
+ 	defer failure.Release()
+ 	respPromise.Call("then", success, failure)
+@@ -187,26 +190,28 @@ func (r *streamReader) Read(p []byte) (n int, err error) {
+ 			bCh   = make(chan []byte, 1)
+ 			errCh = make(chan error, 1)
+ 		)
+-		success := js.NewCallback(func(args []js.Value) {
++		success := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+ 			result := args[0]
+ 			if result.Get("done").Bool() {
+ 				errCh <- io.EOF
+-				return
++				return nil
+ 			}
+ 			value := make([]byte, result.Get("value").Get("byteLength").Int())
+ 			a := js.TypedArrayOf(value)
+ 			a.Call("set", result.Get("value"))
+ 			a.Release()
+ 			bCh <- value
++			return nil
+ 		})
+ 		defer success.Release()
+-		failure := js.NewCallback(func(args []js.Value) {
++		failure := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+ 			// Assumes it's a TypeError. See
+ 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError
+ 			// for more information on this type. See
+ 			// https://streams.spec.whatwg.org/#byob-reader-read for the spec on
+ 			// the read method.
+ 			errCh <- errors.New(args[0].Get("message").String())
++			return nil
+ 		})
+ 		defer failure.Release()
+ 		r.stream.Call("read").Call("then", success, failure)
+@@ -253,7 +258,7 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
+ 			bCh   = make(chan []byte, 1)
+ 			errCh = make(chan error, 1)
+ 		)
+-		success := js.NewCallback(func(args []js.Value) {
++		success := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+ 			// Wrap the input ArrayBuffer with a Uint8Array
+ 			uint8arrayWrapper := js.Global().Get("Uint8Array").New(args[0])
+ 			value := make([]byte, uint8arrayWrapper.Get("byteLength").Int())
+@@ -261,14 +266,16 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
+ 			a.Call("set", uint8arrayWrapper)
+ 			a.Release()
+ 			bCh <- value
++			return nil
+ 		})
+ 		defer success.Release()
+-		failure := js.NewCallback(func(args []js.Value) {
++		failure := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+ 			// Assumes it's a TypeError. See
+ 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError
+ 			// for more information on this type.
+ 			// See https://fetch.spec.whatwg.org/#concept-body-consume-body for reasons this might error.
+ 			errCh <- errors.New(args[0].Get("message").String())
++			return nil
+ 		})
+ 		defer failure.Release()
+ 		r.arrayPromise.Call("then", success, failure)
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index b590c4b92b..d2828b138a 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -230,7 +230,7 @@ func notetsleepg(n *note, ns int64) bool {
+ 	return ok
+ }
+ 
+-func pauseSchedulerUntilCallback() bool {
++func beforeIdle() bool {
+ 	return false
+ }
+ 
+diff --git a/src/runtime/lock_js.go b/src/runtime/lock_js.go
+index df321e5196..98aed8796b 100644
+--- a/src/runtime/lock_js.go
++++ b/src/runtime/lock_js.go
+@@ -134,35 +134,36 @@ func checkTimeouts() {
+ 	}
+ }
+ 
+-var waitingForCallback *g
++var returnedCallback *g
+ 
+-// sleepUntilCallback puts the current goroutine to sleep until a callback is triggered.
+-// It is currently only used by the callback routine of the syscall/js package.
+-//go:linkname sleepUntilCallback syscall/js.sleepUntilCallback
+-func sleepUntilCallback() {
+-	waitingForCallback = getg()
++func init() {
++	// At the toplevel we need an extra goroutine that handles asynchronous callbacks.
++	initg := getg()
++	go func() {
++		returnedCallback = getg()
++		goready(initg, 1)
++
++		gopark(nil, nil, waitReasonZero, traceEvNone, 1)
++		returnedCallback = nil
++
++		pause(getcallersp() - 16)
++	}()
+ 	gopark(nil, nil, waitReasonZero, traceEvNone, 1)
+-	waitingForCallback = nil
+ }
+ 
+-// pauseSchedulerUntilCallback gets called from the scheduler and pauses the execution
+-// of Go's WebAssembly code until a callback is triggered. Then it checks for note timeouts
+-// and resumes goroutines that are waiting for a callback.
+-func pauseSchedulerUntilCallback() bool {
+-	if waitingForCallback == nil && len(notesWithTimeout) == 0 {
+-		return false
+-	}
+-
+-	pause()
+-	checkTimeouts()
+-	if waitingForCallback != nil {
+-		goready(waitingForCallback, 1)
++// beforeIdle gets called by the scheduler if no goroutine is awake.
++// If a callback has returned, then we resume the callback handler which
++// will pause the execution.
++func beforeIdle() bool {
++	if returnedCallback != nil {
++		goready(returnedCallback, 1)
++		return true
+ 	}
+-	return true
++	return false
+ }
+ 
+-// pause pauses the execution of Go's WebAssembly code until a callback is triggered.
+-func pause()
++// pause sets SP to newsp and pauses the execution of Go's WebAssembly code until a callback is triggered.
++func pause(newsp uintptr)
+ 
+ // scheduleCallback tells the WebAssembly environment to trigger a callback after ms milliseconds.
+ // It returns a timer id that can be used with clearScheduledCallback.
+@@ -170,3 +171,25 @@ func scheduleCallback(ms int64) int32
+ 
+ // clearScheduledCallback clears a callback scheduled by scheduleCallback.
+ func clearScheduledCallback(id int32)
++
++func handleCallback() {
++	prevReturnedCallback := returnedCallback
++	returnedCallback = nil
++
++	checkTimeouts()
++	callbackHandler()
++
++	returnedCallback = getg()
++	gopark(nil, nil, waitReasonZero, traceEvNone, 1)
++
++	returnedCallback = prevReturnedCallback
++
++	pause(getcallersp() - 16)
++}
++
++var callbackHandler func()
++
++//go:linkname setCallbackHandler syscall/js.setCallbackHandler
++func setCallbackHandler(fn func()) {
++	callbackHandler = fn
++}
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index d21a055685..08dfd2b664 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -283,7 +283,7 @@ func notetsleepg(n *note, ns int64) bool {
+ 	return ok
+ }
+ 
+-func pauseSchedulerUntilCallback() bool {
++func beforeIdle() bool {
+ 	return false
+ }
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 864efcdfed..8631608c06 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2280,10 +2280,10 @@ stop:
+ 	}
+ 
+ 	// wasm only:
+-	// Check if a goroutine is waiting for a callback from the WebAssembly host.
+-	// If yes, pause the execution until a callback was triggered.
+-	if pauseSchedulerUntilCallback() {
+-		// A callback was triggered and caused at least one goroutine to wake up.
++	// If a callback returned and no other goroutine is awake,
++	// then pause execution until a callback was triggered.
++	if beforeIdle() {
++		// At least one goroutine got woken.
+ 		goto top
+ 	}
+ 
+diff --git a/src/runtime/rt0_js_wasm.s b/src/runtime/rt0_js_wasm.s
+index c494b0a34a..8b92fcbdb7 100644
+--- a/src/runtime/rt0_js_wasm.s
++++ b/src/runtime/rt0_js_wasm.s
+@@ -5,53 +5,61 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-// The register RUN indicates the current run state of the program.
+-// Possible values are:
+-#define RUN_STARTING 0
+-#define RUN_RUNNING 1
+-#define RUN_PAUSED 2
+-#define RUN_EXITED 3
+-
+-// _rt0_wasm_js does NOT follow the Go ABI. It has two WebAssembly parameters:
++// _rt0_wasm_js is not used itself. It only exists to mark the exported functions as alive.
++TEXT _rt0_wasm_js(SB),NOSPLIT,$0
++	I32Const $wasm_export_run(SB)
++	Drop
++	I32Const $wasm_export_resume(SB)
++	Drop
++	I32Const $wasm_export_getsp(SB)
++	Drop
++
++// wasm_export_run gets called from JavaScript. It initializes the Go runtime and executes Go code until it needs
++// to wait for a callback. It does NOT follow the Go ABI. It has two WebAssembly parameters:
+ // R0: argc (i32)
+ // R1: argv (i32)
+-TEXT _rt0_wasm_js(SB),NOSPLIT,$0
+-	Get RUN
+-	I32Const $RUN_STARTING
+-	I32Eq
+-	If
+-		MOVD $runtime·wasmStack+m0Stack__size(SB), SP
+-
+-		Get SP
+-		Get R0 // argc
+-		I64ExtendUI32
+-		I64Store $0
+-
+-		Get SP
+-		Get R1 // argv
+-		I64ExtendUI32
+-		I64Store $8
+-
+-		I32Const $runtime·rt0_go(SB)
+-		I32Const $16
+-		I32ShrU
+-		Set PC_F
+-
+-		I32Const $RUN_RUNNING
+-		Set RUN
+-	Else
+-		Get RUN
+-		I32Const $RUN_PAUSED
+-		I32Eq
+-		If
+-			I32Const $RUN_RUNNING
+-			Set RUN
+-		Else
+-			Unreachable
+-		End
+-	End
++TEXT wasm_export_run(SB),NOSPLIT,$0
++	MOVD $runtime·wasmStack+m0Stack__size(SB), SP
++
++	Get SP
++	Get R0 // argc
++	I64ExtendUI32
++	I64Store $0
++
++	Get SP
++	Get R1 // argv
++	I64ExtendUI32
++	I64Store $8
++
++	I32Const $runtime·rt0_go(SB)
++	I32Const $16
++	I32ShrU
++	Set PC_F
++
++	I32Const $0
++	Set PC_B
+ 
+-// Call the function for the current PC_F. Repeat until RUN != 0 indicates pause or exit.
++	Call wasm_pc_f_loop(SB)
++
++	Return
++
++// wasm_export_resume gets called from JavaScript. It resumes the execution of Go code until it needs to wait for
++// a callback.
++TEXT wasm_export_resume(SB),NOSPLIT,$0
++	I32Const $runtime·handleCallback(SB)
++	I32Const $16
++	I32ShrU
++	Set PC_F
++
++	I32Const $0
++	Set PC_B
++
++	Call wasm_pc_f_loop(SB)
++
++	Return
++
++TEXT wasm_pc_f_loop(SB),NOSPLIT,$0
++// Call the function for the current PC_F. Repeat until PAUSE != 0 indicates pause or exit.
+ // The WebAssembly stack may unwind, e.g. when switching goroutines.
+ // The Go stack on the linear memory is then used to jump to the correct functions
+ // with this loop, without having to restore the full WebAssembly stack.
+@@ -61,25 +69,33 @@ loop:
+ 		CallIndirect $0
+ 		Drop
+ 
+-		Get RUN
+-		I32Const $RUN_RUNNING
+-		I32Eq
++		Get PAUSE
++		I32Eqz
+ 		BrIf loop
+ 	End
+ 
++	I32Const $0
++	Set PAUSE
++
++	Return
++
++// wasm_export_getsp gets called from JavaScript to retrieve the SP.
++TEXT wasm_export_getsp(SB),NOSPLIT,$0
++	Get SP
+ 	Return
+ 
+-TEXT runtime·pause(SB), NOSPLIT, $0
+-	I32Const $RUN_PAUSED
+-	Set RUN
++TEXT runtime·pause(SB), NOSPLIT, $0-8
++	MOVD newsp+0(FP), SP
++	I32Const $1
++	Set PAUSE
+ 	RETUNWIND
+ 
+ TEXT runtime·exit(SB), NOSPLIT, $0-4
+ 	Call runtime·wasmExit(SB)
+ 	Drop
+-	I32Const $RUN_EXITED
+-	Set RUN
++	I32Const $1
++	Set PAUSE
+ 	RETUNWIND
+ 
+-TEXT _rt0_wasm_js_lib(SB),NOSPLIT,$0
++TEXT wasm_export_lib(SB),NOSPLIT,$0
+ 	UNDEF
+diff --git a/src/syscall/fs_js.go b/src/syscall/fs_js.go
+index 22a055a040..58d8216f21 100644
+--- a/src/syscall/fs_js.go
++++ b/src/syscall/fs_js.go
+@@ -473,8 +473,8 @@ func fsCall(name string, args ...interface{}) (js.Value, error) {
+ 		err error
+ 	}
+ 
+-	c := make(chan callResult)
+-	jsFS.Call(name, append(args, js.NewCallback(func(args []js.Value) {
++	c := make(chan callResult, 1)
++	jsFS.Call(name, append(args, js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+ 		var res callResult
+ 
+ 		if len(args) >= 1 { // on Node.js 8, fs.utimes calls the callback without any arguments
+@@ -489,6 +489,7 @@ func fsCall(name string, args ...interface{}) (js.Value, error) {
+ 		}
+ 
+ 		c <- res
++		return nil
+ 	}))...)
+ 	res := <-c
+ 	return res.val, res.err
+diff --git a/src/syscall/js/callback.go b/src/syscall/js/callback.go
+index 2801e00b68..7f6540908d 100644
+--- a/src/syscall/js/callback.go
++++ b/src/syscall/js/callback.go
+@@ -8,15 +8,9 @@ package js
+ 
+ import "sync"
+ 
+-var (
+-	pendingCallbacks        = Global().Get("Array").New()
+-	makeCallbackHelper      = Global().Get("Go").Get("_makeCallbackHelper")
+-	makeEventCallbackHelper = Global().Get("Go").Get("_makeEventCallbackHelper")
+-)
+-
+ var (
+ 	callbacksMu    sync.Mutex
+-	callbacks             = make(map[uint32]func([]Value))
++	callbacks             = make(map[uint32]func(Value, []Value) interface{})
+ 	nextCallbackID uint32 = 1
+ )
+ 
+@@ -24,61 +18,32 @@ var _ Wrapper = Callback{} // Callback must implement Wrapper
+ 
+ // Callback is a Go function that got wrapped for use as a JavaScript callback.
+ type Callback struct {
+-	Value // the JavaScript function that queues the callback for execution
++	Value // the JavaScript function that invokes the Go function
+ 	id    uint32
+ }
+ 
+ // NewCallback returns a wrapped callback function.
+ //
+-// Invoking the callback in JavaScript will queue the Go function fn for execution.
+-// This execution happens asynchronously on a special goroutine that handles all callbacks and preserves
+-// the order in which the callbacks got called.
+-// As a consequence, if one callback blocks this goroutine, other callbacks will not be processed.
++// Invoking the callback in JavaScript will synchronously call the Go function fn with the value of JavaScript's
++// "this" keyword and the arguments of the invocation.
++// The return value of the invocation is the result of the Go function mapped back to JavaScript according to ValueOf.
++//
++// A callback triggered during a call from Go to JavaScript gets executed on the same goroutine.
++// A callback triggered by JavaScript's event loop gets executed on an extra goroutine.
++// Blocking operations in the callback will block the event loop.
++// As a consequence, if one callback blocks, other callbacks will not be processed.
+ // A blocking callback should therefore explicitly start a new goroutine.
+ //
+ // Callback.Release must be called to free up resources when the callback will not be used any more.
+-func NewCallback(fn func(args []Value)) Callback {
+-	callbackLoopOnce.Do(func() {
+-		go callbackLoop()
+-	})
+-
++func NewCallback(fn func(this Value, args []Value) interface{}) Callback {
+ 	callbacksMu.Lock()
+ 	id := nextCallbackID
+ 	nextCallbackID++
+ 	callbacks[id] = fn
+ 	callbacksMu.Unlock()
+ 	return Callback{
+-		Value: makeCallbackHelper.Invoke(id, pendingCallbacks, jsGo),
+ 		id:    id,
+-	}
+-}
+-
+-type EventCallbackFlag int
+-
+-const (
+-	// PreventDefault can be used with NewEventCallback to call event.preventDefault synchronously.
+-	PreventDefault EventCallbackFlag = 1 << iota
+-	// StopPropagation can be used with NewEventCallback to call event.stopPropagation synchronously.
+-	StopPropagation
+-	// StopImmediatePropagation can be used with NewEventCallback to call event.stopImmediatePropagation synchronously.
+-	StopImmediatePropagation
+-)
+-
+-// NewEventCallback returns a wrapped callback function, just like NewCallback, but the callback expects to have
+-// exactly one argument, the event. Depending on flags, it will synchronously call event.preventDefault,
+-// event.stopPropagation and/or event.stopImmediatePropagation before queuing the Go function fn for execution.
+-func NewEventCallback(flags EventCallbackFlag, fn func(event Value)) Callback {
+-	c := NewCallback(func(args []Value) {
+-		fn(args[0])
+-	})
+-	return Callback{
+-		Value: makeEventCallbackHelper.Invoke(
+-			flags&PreventDefault != 0,
+-			flags&StopPropagation != 0,
+-			flags&StopImmediatePropagation != 0,
+-			c,
+-		),
+-		id: c.id,
++		Value: jsGo.Call("_makeCallbackHelper", id),
+ 	}
+ }
+ 
+@@ -90,35 +55,38 @@ func (c Callback) Release() {
+ 	callbacksMu.Unlock()
+ }
+ 
+-var callbackLoopOnce sync.Once
++// setCallbackHandler is defined in the runtime package.
++func setCallbackHandler(fn func())
+ 
+-func callbackLoop() {
+-	for !jsGo.Get("_callbackShutdown").Bool() {
+-		sleepUntilCallback()
+-		for {
+-			cb := pendingCallbacks.Call("shift")
+-			if cb == Undefined() {
+-				break
+-			}
++func init() {
++	setCallbackHandler(handleCallback)
++}
+ 
+-			id := uint32(cb.Get("id").Int())
+-			callbacksMu.Lock()
+-			f, ok := callbacks[id]
+-			callbacksMu.Unlock()
+-			if !ok {
+-				Global().Get("console").Call("error", "call to closed callback")
+-				continue
+-			}
++func handleCallback() {
++	cb := jsGo.Get("_pendingCallback")
++	if cb == Null() {
++		return
++	}
++	jsGo.Set("_pendingCallback", Null())
+ 
+-			argsObj := cb.Get("args")
+-			args := make([]Value, argsObj.Length())
+-			for i := range args {
+-				args[i] = argsObj.Index(i)
+-			}
+-			f(args)
+-		}
++	id := uint32(cb.Get("id").Int())
++	if id == 0 { // zero indicates deadlock
++		select {}
++	}
++	callbacksMu.Lock()
++	f, ok := callbacks[id]
++	callbacksMu.Unlock()
++	if !ok {
++		Global().Get("console").Call("error", "call to closed callback")
++		return
+ 	}
+-}
+ 
+-// sleepUntilCallback is defined in the runtime package
+-func sleepUntilCallback()
++	this := cb.Get("this")
++	argsObj := cb.Get("args")
++	args := make([]Value, argsObj.Length())
++	for i := range args {
++		args[i] = argsObj.Index(i)
++	}
++	result := f(this, args)
++	cb.Set("result", result)
++}
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index 73d112a2e8..b4d2e66faf 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -302,49 +302,43 @@ func TestZeroValue(t *testing.T) {
+ 
+ func TestCallback(t *testing.T) {
+ 	c := make(chan struct{})
+-	cb := js.NewCallback(func(args []js.Value) {
++	cb := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+ 		if got := args[0].Int(); got != 42 {
+ 			t.Errorf("got %#v, want %#v", got, 42)
+ 		}
+ 		c <- struct{}{}
++		return nil
+ 	})
+ 	defer cb.Release()
+ 	js.Global().Call("setTimeout", cb, 0, 42)
+ 	<-c
+ }
+ 
+-func TestEventCallback(t *testing.T) {
+-	for _, name := range []string{"preventDefault", "stopPropagation", "stopImmediatePropagation"} {
+-		c := make(chan struct{})
+-		var flags js.EventCallbackFlag
+-		switch name {
+-		case "preventDefault":
+-			flags = js.PreventDefault
+-		case "stopPropagation":
+-			flags = js.StopPropagation
+-		case "stopImmediatePropagation":
+-			flags = js.StopImmediatePropagation
+-		}
+-		cb := js.NewEventCallback(flags, func(event js.Value) {
+-			c <- struct{}{}
++func TestInvokeCallback(t *testing.T) {
++	called := false
++	cb := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
++		cb2 := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
++			called = true
++			return 42
+ 		})
+-		defer cb.Release()
+-
+-		event := js.Global().Call("eval", fmt.Sprintf("({ called: false, %s: function() { this.called = true; } })", name))
+-		cb.Invoke(event)
+-		if !event.Get("called").Bool() {
+-			t.Errorf("%s not called", name)
+-		}
+-
+-		<-c
++		defer cb2.Release()
++		return cb2.Invoke()
++	})
++	defer cb.Release()
++	if got := cb.Invoke().Int(); got != 42 {
++		t.Errorf("got %#v, want %#v", got, 42)
++	}
++	if !called {
++		t.Error("callback not called")
+ 	}
+ }
+ 
+ func ExampleNewCallback() {
+ 	var cb js.Callback
+-	cb = js.NewCallback(func(args []js.Value) {
++	cb = js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+ 		fmt.Println("button clicked")
+ 		cb.Release() // release the callback if the button will not be clicked again
++		return nil
+ 	})
+ 	js.Global().Get("document").Call("getElementById", "myButton").Call("addEventListener", "click", cb)
+ }

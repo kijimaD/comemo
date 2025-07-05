@@ -7,6 +7,20 @@ Date:   Tue Jul 12 13:08:22 2011 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4697041
-
+---
  src/pkg/go/build/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 12a9c20d99..de22a5a65f 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -182,7 +182,7 @@ func (s *Script) Clean() (err os.Error) {
+ 	return
+ }
+ 
+-// Clean removes the Script's Intermediate and Output files.
++// Nuke removes the Script's Intermediate and Output files.
+ // It tries to remove every file and returns the first error it encounters.
+ func (s *Script) Nuke() (err os.Error) {
+ 	// Reverse order so that directories get removed after the files they contain.

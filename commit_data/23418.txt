@@ -12,6 +12,38 @@ Date:   Mon May 11 13:31:05 2015 -0700
     Change-Id: I1543137073a9dee9e546bc9d648ca54fc9632dde
     Reviewed-on: https://go-review.googlesource.com/9899
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/doc/pkg.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 3a0aa7ff89..835313e902 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -190,6 +190,7 @@ func (pkg *Package) packageDoc() {
+ 	pkg.valueSummary(pkg.doc.Vars)
+ 	pkg.funcSummary(pkg.doc.Funcs)
+ 	pkg.typeSummary()
++	pkg.bugs()
+ }
+ 
+ // packageClause prints the package clause.
+@@ -253,6 +254,18 @@ func (pkg *Package) typeSummary() {
+ 	}
+ }
+ 
++// bugs prints the BUGS information for the package.
++// TODO: Provide access to TODOs and NOTEs as well (very noisy so off by default)?
++func (pkg *Package) bugs() {
++	if pkg.doc.Notes["BUG"] == nil {
++		return
++	}
++	pkg.Printf("\n")
++	for _, note := range pkg.doc.Notes["BUG"] {
++		pkg.Printf("%s: %v\n", "BUG", note.Body)
++	}
++}
++
+ // findValues finds the doc.Values that describe the symbol.
+ func (pkg *Package) findValues(symbol string, docValues []*doc.Value) (values []*doc.Value) {
+ 	for _, value := range docValues {

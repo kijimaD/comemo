@@ -20,8 +20,55 @@ Date:   Tue Nov 1 23:26:10 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5333053
-
+---
  src/cmd/gc/go.h   |  1 -
  src/cmd/gc/lex.c  |  1 -
  src/cmd/gc/subr.c | 11 -----------
  3 files changed, 13 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index cff01a11f8..7d6ac08433 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -852,7 +852,6 @@ EXTERN	int	typecheckok;
+ EXTERN	int	compiling_runtime;
+ 
+ EXTERN	int	rune32;
+-EXTERN	int	oserror;
+ 
+ /*
+  *	y.tab.c
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 1dc00d70d3..86492a53bc 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -38,7 +38,6 @@ static struct {
+ 	int *val;
+ } exper[] = {
+ 	{"rune32", &rune32},
+-	{"os.Error", &oserror},
+ };
+ 
+ static void
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 1d5c1aad25..dc1d314638 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2967,17 +2967,6 @@ mkpkg(Strlit *path)
+ 	p->prefix = pathtoprefix(path->s);
+ 	p->link = phash[h];
+ 	phash[h] = p;
+-	
+-	// If the compiler was built with
+-	//	GOEXPERIMENT=os.Error
+-	// define os.Error as an alias for error.
+-	// Terrible and won't last long, but useful for transitions.
+-	if(oserror && strcmp(path->s, "os") == 0) {
+-		Sym *s;
+-		s = pkglookup("Error", p);
+-		s->def = typenod(errortype);
+-	}
+-
+ 	return p;
+ }
+ 

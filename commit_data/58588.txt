@@ -15,6 +15,87 @@ Date:   Fri Nov 3 14:04:57 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/539696
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  .../internal/inline/inlheur/analyze_func_flags.go  | 32 +++++++---------------
  1 file changed, 10 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+index 588d2f4f59..b7403a4f8c 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+@@ -66,34 +66,24 @@ func (ffa *funcFlagsAnalyzer) setResults(funcProps *FuncProps) {
+ 	funcProps.Flags = rv
+ }
+ 
+-func (ffa *funcFlagsAnalyzer) getstate(n ir.Node) pstate {
+-	val, ok := ffa.nstate[n]
+-	if !ok {
+-		base.Fatalf("funcFlagsAnalyzer: fn %q node %s line %s: internal error, no setting for node:\n%+v\n", ffa.fn.Sym().Name, n.Op().String(), ir.Line(n), n)
+-	}
+-	return val
++func (ffa *funcFlagsAnalyzer) getState(n ir.Node) pstate {
++	return ffa.nstate[n]
+ }
+ 
+-func (ffa *funcFlagsAnalyzer) setstate(n ir.Node, st pstate) {
+-	if _, ok := ffa.nstate[n]; ok {
+-		base.Fatalf("funcFlagsAnalyzer: fn %q internal error, existing setting for node:\n%+v\n", ffa.fn.Sym().Name, n)
+-	} else {
++func (ffa *funcFlagsAnalyzer) setState(n ir.Node, st pstate) {
++	if st != psNoInfo {
+ 		ffa.nstate[n] = st
+ 	}
+ }
+ 
+-func (ffa *funcFlagsAnalyzer) updatestate(n ir.Node, st pstate) {
+-	if _, ok := ffa.nstate[n]; !ok {
+-		base.Fatalf("funcFlagsAnalyzer: fn %q internal error, expected existing setting for node:\n%+v\n", ffa.fn.Sym().Name, n)
++func (ffa *funcFlagsAnalyzer) updateState(n ir.Node, st pstate) {
++	if st == psNoInfo {
++		delete(ffa.nstate, n)
+ 	} else {
+ 		ffa.nstate[n] = st
+ 	}
+ }
+ 
+-func (ffa *funcFlagsAnalyzer) setstateSoft(n ir.Node, st pstate) {
+-	ffa.nstate[n] = st
+-}
+-
+ func (ffa *funcFlagsAnalyzer) panicPathTable() map[ir.Node]pstate {
+ 	return ffa.nstate
+ }
+@@ -164,13 +154,13 @@ func (ffa *funcFlagsAnalyzer) stateForList(list ir.Nodes) pstate {
+ 	// line 10 will be on a panic path).
+ 	for i := len(list) - 1; i >= 0; i-- {
+ 		n := list[i]
+-		psi := ffa.getstate(n)
++		psi := ffa.getState(n)
+ 		if debugTrace&debugTraceFuncFlags != 0 {
+ 			fmt.Fprintf(os.Stderr, "=-= %v: stateForList n=%s ps=%s\n",
+ 				ir.Line(n), n.Op().String(), psi.String())
+ 		}
+ 		st = blockCombine(psi, st)
+-		ffa.updatestate(n, st)
++		ffa.updateState(n, st)
+ 	}
+ 	if st == psTop {
+ 		st = psNoInfo
+@@ -237,8 +227,6 @@ func (ffa *funcFlagsAnalyzer) nodeVisitPost(n ir.Node) {
+ 			ir.Line(n), n.Op().String(), shouldVisit(n))
+ 	}
+ 	if !shouldVisit(n) {
+-		// invoke soft set, since node may be shared (e.g. ONAME)
+-		ffa.setstateSoft(n, psNoInfo)
+ 		return
+ 	}
+ 	var st pstate
+@@ -361,7 +349,7 @@ func (ffa *funcFlagsAnalyzer) nodeVisitPost(n ir.Node) {
+ 		fmt.Fprintf(os.Stderr, "=-= %v: visit n=%s returns %s\n",
+ 			ir.Line(n), n.Op().String(), st.String())
+ 	}
+-	ffa.setstate(n, st)
++	ffa.setState(n, st)
+ }
+ 
+ func (ffa *funcFlagsAnalyzer) nodeVisitPre(n ir.Node) {

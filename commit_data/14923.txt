@@ -10,7 +10,7 @@ Date:   Fri Jan 18 13:39:53 2013 -0800
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/7127053
-
+---
  src/cmd/5a/doc.go | 2 +-
  src/cmd/5c/doc.go | 2 +-
  src/cmd/6a/doc.go | 2 +-
@@ -19,3 +19,95 @@ Date:   Fri Jan 18 13:39:53 2013 -0800
  src/cmd/8c/doc.go | 2 +-
  src/cmd/ld/doc.go | 2 +-
  7 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/5a/doc.go b/src/cmd/5a/doc.go
+index a0d2c4c648..62d6ee9cd4 100644
+--- a/src/cmd/5a/doc.go
++++ b/src/cmd/5a/doc.go
+@@ -6,7 +6,7 @@
+ 
+ 5a is a version of the Plan 9 assembler.  The original is documented at
+ 
+-	http://plan9.bell-labs.com/magic/man2html/1/2a
++	http://plan9.bell-labs.com/magic/man2html/1/8a
+ 
+ Its target architecture is the ARM, referred to by these tools as arm.
+ 
+diff --git a/src/cmd/5c/doc.go b/src/cmd/5c/doc.go
+index 0874293bf4..0fc0278294 100644
+--- a/src/cmd/5c/doc.go
++++ b/src/cmd/5c/doc.go
+@@ -6,7 +6,7 @@
+ 
+ 5c is a version of the Plan 9 C compiler.  The original is documented at
+ 
+-	http://plan9.bell-labs.com/magic/man2html/1/2c
++	http://plan9.bell-labs.com/magic/man2html/1/8c
+ 
+ Its target architecture is the ARM, referred to by these tools as arm.
+ 
+diff --git a/src/cmd/6a/doc.go b/src/cmd/6a/doc.go
+index 92fb74de66..f8370a05f3 100644
+--- a/src/cmd/6a/doc.go
++++ b/src/cmd/6a/doc.go
+@@ -6,7 +6,7 @@
+ 
+ 6a is a version of the Plan 9 assembler.  The original is documented at
+ 
+-	http://plan9.bell-labs.com/magic/man2html/1/2a
++	http://plan9.bell-labs.com/magic/man2html/1/8a
+ 
+ Its target architecture is the x86-64, referred to by these tools as amd64.
+ 
+diff --git a/src/cmd/6c/doc.go b/src/cmd/6c/doc.go
+index 249a8ed801..7f6fb77f16 100644
+--- a/src/cmd/6c/doc.go
++++ b/src/cmd/6c/doc.go
+@@ -6,7 +6,7 @@
+ 
+ 6c is a version of the Plan 9 C compiler.  The original is documented at
+ 
+-	http://plan9.bell-labs.com/magic/man2html/1/2c
++	http://plan9.bell-labs.com/magic/man2html/1/8c
+ 
+ Its target architecture is the x86-64, referred to by these tools as amd64.
+ 
+diff --git a/src/cmd/8a/doc.go b/src/cmd/8a/doc.go
+index a43b4461f6..59f286e199 100644
+--- a/src/cmd/8a/doc.go
++++ b/src/cmd/8a/doc.go
+@@ -6,7 +6,7 @@
+ 
+ 8a is a version of the Plan 9 assembler.  The original is documented at
+ 
+-	http://plan9.bell-labs.com/magic/man2html/1/2a
++	http://plan9.bell-labs.com/magic/man2html/1/8a
+ 
+ Its target architecture is the x86, referred to by these tools for historical reasons as 386.
+ 
+diff --git a/src/cmd/8c/doc.go b/src/cmd/8c/doc.go
+index e3aae857f6..5d94c4b0d9 100644
+--- a/src/cmd/8c/doc.go
++++ b/src/cmd/8c/doc.go
+@@ -6,7 +6,7 @@
+ 
+ 8c is a version of the Plan 9 C compiler.  The original is documented at
+ 
+-	http://plan9.bell-labs.com/magic/man2html/1/2c
++	http://plan9.bell-labs.com/magic/man2html/1/8c
+ 
+ Its target architecture is the x86, referred to by these tools for historical reasons as 386.
+ 
+diff --git a/src/cmd/ld/doc.go b/src/cmd/ld/doc.go
+index cf22ba8d80..108f1c6502 100644
+--- a/src/cmd/ld/doc.go
++++ b/src/cmd/ld/doc.go
+@@ -6,7 +6,7 @@
+ 
+ Ld is the portable code for a modified version of the Plan 9 linker.  The original is documented at
+ 
+-	http://plan9.bell-labs.com/magic/man2html/1/2l
++	http://plan9.bell-labs.com/magic/man2html/1/8l
+ 
+ It reads object files (.5, .6, or .8 files) and writes a binary named for the
+ architecture (5.out, 6.out, 8.out) by default (if $GOOS is windows, a .exe suffix

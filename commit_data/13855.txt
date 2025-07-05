@@ -12,7 +12,7 @@ Date:   Tue Sep 18 21:15:46 2012 +0400
     R=rsc, remyoudompheng, dave
     CC=golang-dev
     https://golang.org/cl/6501077
-
+---
  src/pkg/runtime/chan.c    | 37 ++++++++-----------------------------
  src/pkg/runtime/mgc0.c    |  4 +---
  src/pkg/runtime/proc.c    | 12 ++++++++++++
@@ -20,3 +20,252 @@ Date:   Tue Sep 18 21:15:46 2012 +0400
  src/pkg/runtime/sema.goc  |  5 +----
  src/pkg/runtime/time.goc  | 24 ++++++++----------------
  6 files changed, 32 insertions(+), 53 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 07ab431b43..93408c22f6 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -155,9 +155,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
+ 			*pres = false;
+ 			return;
+ 		}
+-		g->status = Gwaiting;
+-		g->waitreason = "chan send (nil chan)";
+-		runtime·gosched();
++		runtime·park(nil, nil, "chan send (nil chan)");
+ 		return;  // not reached
+ 	}
+ 
+@@ -202,11 +200,8 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
+ 	mysg.g = g;
+ 	mysg.selgen = NOSELGEN;
+ 	g->param = nil;
+-	g->status = Gwaiting;
+-	g->waitreason = "chan send";
+ 	enqueue(&c->sendq, &mysg);
+-	runtime·unlock(c);
+-	runtime·gosched();
++	runtime·park(runtime·unlock, c, "chan send");
+ 
+ 	if(g->param == nil) {
+ 		runtime·lock(c);
+@@ -230,11 +225,8 @@ asynch:
+ 		mysg.g = g;
+ 		mysg.elem = nil;
+ 		mysg.selgen = NOSELGEN;
+-		g->status = Gwaiting;
+-		g->waitreason = "chan send";
+ 		enqueue(&c->sendq, &mysg);
+-		runtime·unlock(c);
+-		runtime·gosched();
++		runtime·park(runtime·unlock, c, "chan send");
+ 
+ 		runtime·lock(c);
+ 		goto asynch;
+@@ -280,9 +272,7 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
+ 			*selected = false;
+ 			return;
+ 		}
+-		g->status = Gwaiting;
+-		g->waitreason = "chan receive (nil chan)";
+-		runtime·gosched();
++		runtime·park(nil, nil, "chan receive (nil chan)");
+ 		return;  // not reached
+ 	}
+ 
+@@ -320,11 +310,8 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
+ 	mysg.g = g;
+ 	mysg.selgen = NOSELGEN;
+ 	g->param = nil;
+-	g->status = Gwaiting;
+-	g->waitreason = "chan receive";
+ 	enqueue(&c->recvq, &mysg);
+-	runtime·unlock(c);
+-	runtime·gosched();
++	runtime·park(runtime·unlock, c, "chan receive");
+ 
+ 	if(g->param == nil) {
+ 		runtime·lock(c);
+@@ -352,11 +339,8 @@ asynch:
+ 		mysg.g = g;
+ 		mysg.elem = nil;
+ 		mysg.selgen = NOSELGEN;
+-		g->status = Gwaiting;
+-		g->waitreason = "chan receive";
+ 		enqueue(&c->recvq, &mysg);
+-		runtime·unlock(c);
+-		runtime·gosched();
++		runtime·park(runtime·unlock, c, "chan receive");
+ 
+ 		runtime·lock(c);
+ 		goto asynch;
+@@ -774,9 +758,7 @@ selunlock(Select *sel)
+ void
+ runtime·block(void)
+ {
+-	g->status = Gwaiting;	// forever
+-	g->waitreason = "select (no cases)";
+-	runtime·gosched();
++	runtime·park(nil, nil, "select (no cases)");	// forever
+ }
+ 
+ static void* selectgo(Select**);
+@@ -907,10 +889,7 @@ loop:
+ 	}
+ 
+ 	g->param = nil;
+-	g->status = Gwaiting;
+-	g->waitreason = "select";
+-	selunlock(sel);
+-	runtime·gosched();
++	runtime·park((void(*)(Lock*))selunlock, (Lock*)sel, "select");
+ 
+ 	sellock(sel);
+ 	sg = g->param;
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 6dee9523bb..91ed5088da 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1027,9 +1027,7 @@ runfinq(void)
+ 		finq = nil;
+ 		if(fb == nil) {
+ 			fingwait = 1;
+-			g->status = Gwaiting;
+-			g->waitreason = "finalizer wait";
+-			runtime·gosched();
++			runtime·park(nil, nil, "finalizer wait");
+ 			continue;
+ 		}
+ 		for(; fb; fb=next) {
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 2d837c537f..d763d01b08 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -951,6 +951,18 @@ runtime·gosched(void)
+ 	runtime·mcall(schedule);
+ }
+ 
++// Puts the current goroutine into a waiting state and unlocks the lock.
++// The goroutine can be made runnable again by calling runtime·ready(gp).
++void
++runtime·park(void (*unlockf)(Lock*), Lock *lock, int8 *reason)
++{
++	g->status = Gwaiting;
++	g->waitreason = reason;
++	if(unlockf)
++		unlockf(lock);
++	runtime·gosched();
++}
++
+ // The goroutine g is about to enter a system call.
+ // Record that it's not using the cpu anymore.
+ // This is called only from the go syscall library and cgocall,
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 20fb8ddfe1..96da29a00c 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -614,7 +614,8 @@ uint32	runtime·fastrand1(void);
+ void	runtime·exit(int32);
+ void	runtime·breakpoint(void);
+ void	runtime·gosched(void);
+-void	runtime·tsleep(int64);
++void	runtime·park(void(*)(Lock*), Lock*, int8*);
++void	runtime·tsleep(int64, int8*);
+ M*	runtime·newm(void);
+ void	runtime·goexit(void);
+ void	runtime·asmcgocall(void (*fn)(void*), void*);
+diff --git a/src/pkg/runtime/sema.goc b/src/pkg/runtime/sema.goc
+index 2300c56aa3..8b9cef4b37 100644
+--- a/src/pkg/runtime/sema.goc
++++ b/src/pkg/runtime/sema.goc
+@@ -125,10 +125,7 @@ runtime·semacquire(uint32 volatile *addr)
+ 		// Any semrelease after the cansemacquire knows we're waiting
+ 		// (we set nwait above), so go to sleep.
+ 		semqueue(root, addr, &s);
+-		g->status = Gwaiting;
+-		g->waitreason = "semacquire";
+-		runtime·unlock(root);
+-		runtime·gosched();
++		runtime·park(runtime·unlock, root, "semacquire");
+ 		if(cansemacquire(addr))
+ 			return;
+ 	}
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index b18902f00f..18c24d1956 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -23,14 +23,14 @@ static bool deltimer(Timer*);
+ 
+ // Sleep puts the current goroutine to sleep for at least ns nanoseconds.
+ func Sleep(ns int64) {
+-	g->status = Gwaiting;
+-	g->waitreason = "sleep";
+-	runtime·tsleep(ns);
++	runtime·tsleep(ns, "sleep");
+ }
+ 
+ // startTimer adds t to the timer heap.
+ func startTimer(t *Timer) {
++	runtime·lock(&timers);
+ 	addtimer(t);
++	runtime·unlock(&timers);
+ }
+ 
+ // stopTimer removes t from the timer heap if it is there.
+@@ -55,24 +55,21 @@ ready(int64 now, Eface e)
+ }
+ 
+ // Put the current goroutine to sleep for ns nanoseconds.
+-// The caller must have set g->status and g->waitreason.
+ void
+-runtime·tsleep(int64 ns)
++runtime·tsleep(int64 ns, int8 *reason)
+ {
+ 	Timer t;
+ 
+-	if(ns <= 0) {
+-		g->status = Grunning;
+-		g->waitreason = nil;
++	if(ns <= 0)
+ 		return;
+-	}
+ 
+ 	t.when = runtime·nanotime() + ns;
+ 	t.period = 0;
+ 	t.f = ready;
+ 	t.arg.data = g;
++	runtime·lock(&timers);
+ 	addtimer(&t);
+-	runtime·gosched();
++	runtime·park(runtime·unlock, &timers, reason);
+ }
+ 
+ // Add a timer to the heap and start or kick the timer proc
+@@ -83,7 +80,6 @@ addtimer(Timer *t)
+ 	int32 n;
+ 	Timer **nt;
+ 
+-	runtime·lock(&timers);
+ 	if(timers.len >= timers.cap) {
+ 		// Grow slice.
+ 		n = 16;
+@@ -111,7 +107,6 @@ addtimer(Timer *t)
+ 	}
+ 	if(timers.timerproc == nil)
+ 		timers.timerproc = runtime·newproc1((byte*)timerproc, nil, 0, 0, addtimer);
+-	runtime·unlock(&timers);
+ }
+ 
+ // Delete timer t from the heap.
+@@ -191,10 +186,7 @@ timerproc(void)
+ 		if(delta < 0) {
+ 			// No timers left - put goroutine to sleep.
+ 			timers.rescheduling = true;
+-			g->status = Gwaiting;
+-			g->waitreason = "timer goroutine (idle)";
+-			runtime·unlock(&timers);
+-			runtime·gosched();
++			runtime·park(runtime·unlock, &timers, "timer goroutine (idle)");
+ 			continue;
+ 		}
+ 		// At least one timer pending.  Sleep until then.

@@ -23,10 +23,115 @@ Date:   Thu Jun 21 16:12:17 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go   |  4 ++--
  src/cmd/compile/internal/types/scope.go | 13 +++++++++++--
  test/fixedbugs/issue25984.dir/p.go      | 15 +++++++++++++++
  test/fixedbugs/issue25984.dir/q.go      | 11 +++++++++++
  test/fixedbugs/issue25984.go            |  7 +++++++
  5 files changed, 46 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index cd71db3a14..becc4e1f3b 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -89,7 +89,7 @@ func dumpexport(bout *bio.Writer) {
+ }
+ 
+ func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op) *Node {
+-	n := asNode(s.Def)
++	n := asNode(s.PkgDef())
+ 	if n == nil {
+ 		// iimport should have created a stub ONONAME
+ 		// declaration for all imported symbols. The exception
+@@ -100,7 +100,7 @@ func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op) *Node {
+ 		}
+ 
+ 		n = dclname(s)
+-		s.Def = asTypesNode(n)
++		s.SetPkgDef(asTypesNode(n))
+ 		s.Importdef = ipkg
+ 	}
+ 	if n.Op != ONONAME && n.Op != op {
+diff --git a/src/cmd/compile/internal/types/scope.go b/src/cmd/compile/internal/types/scope.go
+index 156174746f..40d3d86ef1 100644
+--- a/src/cmd/compile/internal/types/scope.go
++++ b/src/cmd/compile/internal/types/scope.go
+@@ -80,15 +80,24 @@ func IsDclstackValid() bool {
+ 
+ // PkgDef returns the definition associated with s at package scope.
+ func (s *Sym) PkgDef() *Node {
++	return *s.pkgDefPtr()
++}
++
++// SetPkgDef sets the definition associated with s at package scope.
++func (s *Sym) SetPkgDef(n *Node) {
++	*s.pkgDefPtr() = n
++}
++
++func (s *Sym) pkgDefPtr() **Node {
+ 	// Look for outermost saved declaration, which must be the
+ 	// package scope definition, if present.
+ 	for _, d := range dclstack {
+ 		if s == d.sym {
+-			return d.def
++			return &d.def
+ 		}
+ 	}
+ 
+ 	// Otherwise, the declaration hasn't been shadowed within a
+ 	// function scope.
+-	return s.Def
++	return &s.Def
+ }
+diff --git a/test/fixedbugs/issue25984.dir/p.go b/test/fixedbugs/issue25984.dir/p.go
+new file mode 100644
+index 0000000000..306d6a489f
+--- /dev/null
++++ b/test/fixedbugs/issue25984.dir/p.go
+@@ -0,0 +1,15 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type m struct {
++	link *m
++}
++
++var head *m
++
++func F(m *int) bool {
++	return head != nil
++}
+diff --git a/test/fixedbugs/issue25984.dir/q.go b/test/fixedbugs/issue25984.dir/q.go
+new file mode 100644
+index 0000000000..64d25870b7
+--- /dev/null
++++ b/test/fixedbugs/issue25984.dir/q.go
+@@ -0,0 +1,11 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package q
++
++import "./p"
++
++func G() {
++	p.F(nil)
++}
+diff --git a/test/fixedbugs/issue25984.go b/test/fixedbugs/issue25984.go
+new file mode 100644
+index 0000000000..128cf9d06a
+--- /dev/null
++++ b/test/fixedbugs/issue25984.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

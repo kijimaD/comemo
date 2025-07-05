@@ -18,7 +18,53 @@ Date:   Fri Feb 16 19:08:59 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/cmd/go/go_test.go            | 15 +++++++++++++++
  src/cmd/go/internal/test/test.go |  8 ++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 74254230a9..f8975edda5 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5771,6 +5771,21 @@ func TestAtomicCoverpkgAll(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 23882.
++func TestCoverpkgAllRuntime(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++
++	tg.tempFile("src/x/x.go", `package x; import _ "runtime"; func F() {}`)
++	tg.tempFile("src/x/x_test.go", `package x; import "testing"; func TestF(t *testing.T) { F() }`)
++	tg.setenv("GOPATH", tg.path("."))
++	tg.run("test", "-coverpkg=all", "x")
++	if canRace {
++		tg.run("test", "-coverpkg=all", "-race", "x")
++	}
++}
++
+ func TestBadCommandLines(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 9a53a19731..42bff352c5 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -674,6 +674,14 @@ func runTest(cmd *base.Command, args []string) {
+ 				continue
+ 			}
+ 
++			// If using the race detector, silently ignore
++			// attempts to run coverage on the runtime
++			// packages. It will cause the race detector
++			// to be invoked before it has been initialized.
++			if cfg.BuildRace && p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal")) {
++				continue
++			}
++
+ 			if haveMatch {
+ 				testCoverPkgs = append(testCoverPkgs, p)
+ 			}

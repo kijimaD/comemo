@@ -9,7 +9,7 @@ Date:   Thu Aug 7 19:32:22 2008 -0700
     R=r
     OCL=13990
     CL=13990
-
+---
  usr/gri/gosrc/compilation.go | 23 +++++++-----
  usr/gri/gosrc/export.go      |  8 ++++-
  usr/gri/gosrc/globals.go     | 41 +++++++++++++++-------
@@ -19,3 +19,455 @@ Date:   Thu Aug 7 19:32:22 2008 -0700
  usr/gri/gosrc/scanner.go     |  2 +-
  usr/gri/gosrc/utils.go       | 48 ++++++++++++++++---------
  8 files changed, 207 insertions(+), 69 deletions(-)
+
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index 0f284d346d..3edb59d168 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -17,18 +17,25 @@ import Printer "printer"
+ import Verifier "verifier"
+ 
+ 
+-export func Compile(comp *Globals.Compilation, file_name string) {
+-	src, ok := sys.readfile(file_name);
++export func Compile(flags *Globals.Flags, filename string) {
++	// setup compilation
++	comp := new(Globals.Compilation);
++	comp.flags = flags;
++	comp.Compile = &Compile;
++	
++	src, ok := sys.readfile(filename);
+ 	if !ok {
+-		print "cannot open ", file_name, "\n"
++		print "cannot open ", filename, "\n"
+ 		return;
+ 	}
+ 	
++	print filename, "\n";
++	
+ 	scanner := new(Scanner.Scanner);
+-	scanner.Open(file_name, src);
++	scanner.Open(filename, src);
+ 	
+ 	var tstream *chan *Scanner.Token;
+-	if comp.flags.pscan {
++	if comp.flags.token_chan {
+ 		tstream = new(chan *Scanner.Token, 100);
+ 		go scanner.Server(tstream);
+ 	}
+@@ -41,15 +48,15 @@ export func Compile(comp *Globals.Compilation, file_name string) {
+ 		return;
+ 	}
+ 	
+-	if !comp.flags.semantic_checks {
++	if !comp.flags.ast {
+ 		return;
+ 	}
+ 	
+ 	Verifier.Verify(comp);
+ 	
+-	if comp.flags.print_export {
++	if comp.flags.print_interface {
+ 		Printer.PrintObject(comp, comp.pkg_list[0].obj, false);
+ 	}
+ 	
+-	Export.Export(comp, file_name);
++	Export.Export(comp, filename);
+ }
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index cccb33bcbf..5b5d842e1f 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -247,6 +247,12 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+ 		print "exporting to ", file_name, "\n";
+ 	}
+ 
++	// write magic bits
++	magic := Globals.MAGIC_obj_file;  // TODO remove once len(constant) works
++	for i := 0; i < len(magic); i++ {
++		E.WriteByte(magic[i]);
++	}
++	
+ 	// Predeclared types are "pre-exported".
+ 	// TODO run the loop below only in debug mode
+ 	{	i := 0;
+@@ -279,5 +285,5 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+ 
+ export func Export(comp* Globals.Compilation, pkg_name string) {
+ 	var E Exporter;
+-	(&E).Export(comp, Utils.FixExt(Utils.BaseName(pkg_name)));
++	(&E).Export(comp, Utils.TrimExt(Utils.BaseName(pkg_name), Globals.src_file_ext) + Globals.obj_file_ext);
+ }
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index 121052c753..ef85215218 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -5,6 +5,18 @@
+ package Globals
+ 
+ 
++// ----------------------------------------------------------------------------
++// Constants
++
++export const (
++	MAGIC_obj_file = "/*go.7*/";  // anything, really
++	src_file_ext = ".go";
++	obj_file_ext = ".7";
++)
++
++
++// ----------------------------------------------------------------------------
++
+ // The following types should really be in their respective files
+ // (object.go, type.go, scope.go, package.go, compilation.go, etc.) but
+ // they refer to each other and we don't know how to handle forward
+@@ -60,16 +72,28 @@ export type Scope struct {
+ 
+ export type Flags struct {
+ 	debug bool;
+-	print_export bool;
+-	semantic_checks bool;
+-	verbose int;
+-	sixg bool;  // 6g compatibility
+-	pscan bool;  // parallel scanning using a token channel
++	object_filename string;
++	update_packages bool;
++	print_interface bool;
++	verbosity uint;
++	sixg bool;
++
++	scan bool;
++	parse bool;
++	ast bool;
++	deps bool;
++	token_chan bool;
+ }
+ 
+ 
+ export type Compilation struct {
++	// envionment
+ 	flags *Flags;
++	Error *func(comp *Compilation);  // TODO complete this
++	Import *func(comp *Compilation, data string) *Package;
++	Export *func(comp *Compilation) string;
++    Compile *func(flags *Flags, filename string);  // TODO remove this eventually
++	
+ 	// TODO use open arrays eventually
+ 	pkg_list [256] *Package;  // pkg_list[0] is the current package
+ 	pkg_ref int;
+@@ -150,13 +174,6 @@ export func NewScope(parent *Scope) *Scope {
+ }
+ 
+ 
+-export func NewCompilation(flags *Flags) *Compilation {
+-	comp := new(Compilation);
+-	comp.flags = flags;
+-	return comp;
+-}
+-
+-
+ // ----------------------------------------------------------------------------
+ // Object methods
+ 
+diff --git a/usr/gri/gosrc/go.go b/usr/gri/gosrc/go.go
+index 1097c4edbf..86ddd8a4a4 100644
+--- a/usr/gri/gosrc/go.go
++++ b/usr/gri/gosrc/go.go
+@@ -9,49 +9,80 @@ import Globals "globals"
+ import Compilation "compilation"
+ 
+ 
+-// For now we are not using the flags package to minimize
+-// external dependencies, and because the requirements are
+-// very minimal at this point.
+-
+ func PrintHelp() {
+-  print "go in go (", Build.time, ")\n";
+-  print "usage:\n";
+-  print "  go { flag | file }\n";
+-  print "  -d  print debug information\n";
+-  print "  -p  print export\n";
+-  print "  -s  enable semantic checks\n";
+-  print "  -v  verbose mode\n";
+-  print "  -vv  very verbose mode\n";
+-  print "  -6g  6g compatibility mode\n";
+-  print "  -pscan  scan and parse in parallel (use token channel)\n";
++	print
++		"go (" + Build.time + ")\n" +
++		"usage:\n" +
++		"  go { flag } { file }\n" +
++		"  -d             debug mode, additional self tests and prints\n" +
++		"  -o filename    explicit object filename\n" +
++		"  -r             recursively update imported packages in current directory\n" +
++		"  -p             print package interface\n" +
++		"  -v [0 .. 3]    verbosity level\n" +
++		"  -6g            6g compatibility mode\n" +
++		"  -scan          scan only, print tokens\n" +
++		"  -parse         parse only, print productions\n" +
++		"  -ast           analyse only, print ast\n" +
++		"  -deps          print package dependencies\n" +
++		"  -token_chan    use token channel to scan and parse in parallel\n";
++}
++
++
++var argno int = 1;
++func Next() string {
++	arg := "";
++	if argno < sys.argc() {
++		arg = sys.argv(argno);
++		argno++;
++	}
++	return arg;
+ }
+ 
+ 
+ func main() {
+-	if sys.argc() <= 1 {
++	arg := Next();
++	
++	if arg == "" {
+ 		PrintHelp();
+-		sys.exit(1);
++		return;
+ 	}
+-	
++
+ 	// collect flags and files
+ 	flags := new(Globals.Flags);
+ 	files := Globals.NewList();
+-	for i := 1; i < sys.argc(); i++ {
+-		switch arg := sys.argv(i); arg {
++	for arg != "" {
++	    switch arg {
+ 		case "-d": flags.debug = true;
+-		case "-p": flags.print_export = true;
+-		case "-s": flags.semantic_checks = true;
+-		case "-v": flags.verbose = 1;
+-		case "-vv": flags.verbose = 2;
++		case "-o": flags.object_filename = Next();
++			print "note: -o flag ignored at the moment\n";
++		case "-r": flags.update_packages = true;
++		case "-p": flags.print_interface = true;
++		case "-v":
++			arg = Next();
++			switch arg {
++			case "0", "1", "2", "3":
++				flags.verbosity = uint(arg[0] - '0');
++			default:
++				// anything else is considered the next argument
++				flags.verbosity = 1;
++				continue;
++			}
+ 		case "-6g": flags.sixg = true;
+-		case "-pscan": flags.pscan = true;
++		case "-scan": flags.scan = true;
++			print "note: -scan flag ignored at the moment\n";
++		case "-parse": flags.parse = true;
++			print "note: -parse flag ignored at the moment\n";
++		case "-ast": flags.ast = true;
++		case "-deps": flags.deps = true;
++			print "note: -deps flag ignored at the moment\n";
++		case "-token_chan": flags.token_chan = true;
+ 		default: files.AddStr(arg);
+ 		}
++		arg = Next();
+ 	}
+ 	
+ 	// compile files
+ 	for p := files.first; p != nil; p = p.next {
+-		comp := Globals.NewCompilation(flags);
+-		Compilation.Compile(comp, p.str);
++		Compilation.Compile(flags, p.str);
+ 	}
+ }
+diff --git a/usr/gri/gosrc/import.go b/usr/gri/gosrc/import.go
+index 101b51416b..4f7e23fb4c 100755
+--- a/usr/gri/gosrc/import.go
++++ b/usr/gri/gosrc/import.go
+@@ -264,6 +264,66 @@ func (I *Importer) ReadObject() *Globals.Object {
+ }
+ 
+ 
++func ReadObjectFile(filename string) (data string, ok bool) {
++	data, ok = sys.readfile(filename + Globals.obj_file_ext);
++	magic := Globals.MAGIC_obj_file;  // TODO remove once len(constant) works
++	if ok && len(data) >= len(magic) && data[0 : len(magic)] == magic {
++		return data, ok;
++	}
++	return "", false;
++}
++
++
++func ReadSourceFile(filename string) (data string, ok bool) {
++	data, ok = sys.readfile(filename + Globals.src_file_ext);
++	return data, ok;
++}
++
++
++func ReadImport(comp* Globals.Compilation, filename string, update bool) (data string, ok bool) {
++	if filename == "" {
++		panic "illegal package file name";
++	}
++
++	// see if it just works
++	data, ok = ReadObjectFile(filename);
++	if ok {
++		return data, ok;
++	}
++	
++	if filename[0] == '/' {
++		// absolute path
++		panic `don't know how to handle absolute import file path "` + filename + `"`;
++	}
++	
++	// relative path
++	// try relative to the $GOROOT/pkg directory
++	std_filename := Utils.GOROOT + "/pkg/" + filename;
++	data, ok = ReadObjectFile(std_filename);
++	if ok {
++		return data, ok;
++	}
++	
++	if !update {
++		return "", false;
++	}
++	
++	// TODO BIG HACK - fix this!
++	// look for a src file
++	// see if it just works
++	data, ok = ReadSourceFile(filename);
++	if ok {
++		comp.Compile(comp.flags, filename + Globals.src_file_ext);
++		data, ok = ReadImport(comp, filename, false);
++		if ok {
++			return data, ok;
++		}
++	}
++	
++	return "", false;
++}
++
++
+ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.Package {
+ 	I.comp = comp;
+ 	I.debug = comp.flags.debug;
+@@ -276,7 +336,8 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
+ 		print "importing from ", file_name, "\n";
+ 	}
+ 	
+-	buf, ok := sys.readfile(file_name);
++	//  read file and check magic bits
++	buf, ok := ReadImport(comp, file_name, comp.flags.update_packages);
+ 	if !ok {
+ 		return nil;
+ 	}
+@@ -305,5 +366,5 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
+ 
+ export func Import(comp* Globals.Compilation, pkg_name string) *Globals.Package {
+ 	var I Importer;
+-	return (&I).Import(comp, Utils.FixExt(pkg_name));
++	return (&I).Import(comp, pkg_name);
+ }
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 2e2346e318..61984ef8bf 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -17,7 +17,7 @@ import AST "ast"
+ export type Parser struct {
+ 	comp *Globals.Compilation;
+ 	semantic_checks bool;
+-	verbose, indent int;
++	verbose, indent uint;
+ 	S *Scanner.Scanner;
+ 	C *chan *Scanner.Token;
+ 	
+@@ -78,8 +78,8 @@ func (P *Parser) Next() {
+ 
+ func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, C *chan *Scanner.Token) {
+ 	P.comp = comp;
+-	P.semantic_checks = comp.flags.semantic_checks;
+-	P.verbose = comp.flags.verbose;
++	P.semantic_checks = comp.flags.ast;
++	P.verbose = comp.flags.verbosity;
+ 	P.indent = 0;
+ 	P.S = S;
+ 	P.C = C;
+diff --git a/usr/gri/gosrc/scanner.go b/usr/gri/gosrc/scanner.go
+index a50ad2a867..975683bd69 100644
+--- a/usr/gri/gosrc/scanner.go
++++ b/usr/gri/gosrc/scanner.go
+@@ -223,7 +223,7 @@ func init() {
+ 	}
+ 	
+ 	// Provide column information in error messages for gri only...
+-	VerboseMsgs = Utils.GetEnv("USER") == "gri";
++	VerboseMsgs = Utils.USER == "gri";
+ }
+ 
+ 
+diff --git a/usr/gri/gosrc/utils.go b/usr/gri/gosrc/utils.go
+index 2dcd84a6ac..ff0f1d96d8 100644
+--- a/usr/gri/gosrc/utils.go
++++ b/usr/gri/gosrc/utils.go
+@@ -5,6 +5,34 @@
+ package Utils
+ 
+ 
++// Environment
++export var
++	GOARCH,
++	GOOS,
++	GOROOT,
++	USER string;
++
++
++func GetEnv(key string) string {
++	n := len(key);
++	for i := 0; i < sys.envc(); i++ {
++		v := sys.envv(i);
++		if v[0 : n] == key {
++			return v[n + 1 : len(v)];  // +1: trim "="
++		}
++	}
++	return "";
++}
++
++
++func init() {
++	GOARCH = GetEnv("GOARCH");
++	GOOS = GetEnv("GOOS");
++	GOROOT = GetEnv("GOROOT");
++	USER = GetEnv("USER");
++}
++
++
+ export func BaseName(s string) string {
+ 	// TODO this is not correct for non-ASCII strings!
+ 	i := len(s) - 1;
+@@ -18,22 +46,10 @@ export func BaseName(s string) string {
+ }
+ 
+ 
+-export func FixExt(s string) string {
+-	i := len(s) - 3;  // 3 == len(".go");
+-	if i >= 0 && s[i : len(s)] == ".go" {
++export func TrimExt(s, ext string) string {
++	i := len(s) - len(ext);
++	if i >= 0 && s[i : len(s)] == ext {
+ 		s = s[0 : i];
+ 	}
+-	return s + ".7";
+-}
+-
+-
+-export func GetEnv(key string) string {
+-	n := len(key);
+-	for i := 0; i < sys.envc(); i++ {
+-		v := sys.envv(i);
+-		if v[0 : n] == key {
+-			return v[n + 1 : len(v)];  // +1: skip "="
+-		}
+-	}
+-	return "";
++	return s;
+ }

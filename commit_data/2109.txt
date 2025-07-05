@@ -13,7 +13,34 @@ Date:   Wed Apr 29 17:36:58 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=27959
     CL=28055
-
+---
  src/runtime/darwin/signals.h | 2 +-
  src/runtime/linux/signals.h  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/darwin/signals.h b/src/runtime/darwin/signals.h
+index c4d5860494..4051dc4dc4 100644
+--- a/src/runtime/darwin/signals.h
++++ b/src/runtime/darwin/signals.h
+@@ -21,7 +21,7 @@ static SigTab sigtab[] = {
+ 	/* 10 */	C, "SIGBUS: bus error",
+ 	/* 11 */	C, "SIGSEGV: segmentation violation",
+ 	/* 12 */	C, "SIGSYS: bad system call",
+-	/* 13 */	0, "SIGPIPE: write to broken pipe",
++	/* 13 */	I, "SIGPIPE: write to broken pipe",
+ 	/* 14 */	0, "SIGALRM: alarm clock",
+ 	/* 15 */	0, "SIGTERM: termination",
+ 	/* 16 */	0, "SIGURG: urgent condition on socket",
+diff --git a/src/runtime/linux/signals.h b/src/runtime/linux/signals.h
+index 9e770e92f8..1fb49c5135 100644
+--- a/src/runtime/linux/signals.h
++++ b/src/runtime/linux/signals.h
+@@ -21,7 +21,7 @@ static SigTab sigtab[] = {
+ 	/* 10 */	0, "SIGUSR1: user-defined signal 1",
+ 	/* 11 */	C, "SIGSEGV: segmentation violation",
+ 	/* 12 */	0, "SIGUSR2: user-defined signal 2",
+-	/* 13 */	0, "SIGPIPE: write to broken pipe",
++	/* 13 */	I, "SIGPIPE: write to broken pipe",
+ 	/* 14 */	0, "SIGALRM: alarm clock",
+ 	/* 15 */	0, "SIGTERM: termination",
+ 	/* 16 */	0, "SIGSTKFLT: stack fault",

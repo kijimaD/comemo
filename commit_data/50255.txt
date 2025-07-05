@@ -22,10 +22,237 @@ Date:   Tue Aug 10 14:51:57 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/test/inst_test.go         | 71 ++++++++++++++++++++++
  .../internal/test/testdata/mysort/mysort.go        | 40 ++++++++++++
  src/cmd/compile/internal/test/testdata/ptrsort.go  | 30 +++++++++
  src/cmd/compile/internal/test/testdata/ptrsort.out |  3 +
  test/typeparam/genembed.go                         | 52 ++++++++++++++++
  5 files changed, 196 insertions(+)
+
+diff --git a/src/cmd/compile/internal/test/inst_test.go b/src/cmd/compile/internal/test/inst_test.go
+new file mode 100644
+index 0000000000..59a67cb545
+--- /dev/null
++++ b/src/cmd/compile/internal/test/inst_test.go
+@@ -0,0 +1,71 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package test
++
++import (
++	"internal/goexperiment"
++	"internal/testenv"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"regexp"
++	"testing"
++)
++
++// TestInst tests that only one instantiation of Sort is created, even though generic
++// Sort is used for multiple pointer types across two packages.
++func TestInst(t *testing.T) {
++	if goexperiment.Unified {
++		t.Skip("unified currently does stenciling, not dictionaries")
++	}
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveGoRun(t)
++
++	var tmpdir string
++	var err error
++	tmpdir, err = ioutil.TempDir("", "TestDict")
++	if err != nil {
++		t.Fatalf("Failed to create temporary directory: %v", err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	// Build ptrsort.go, which uses package mysort.
++	var output []byte
++	filename := "ptrsort.go"
++	exename := "ptrsort"
++	outname := "ptrsort.out"
++	gotool := testenv.GoToolPath(t)
++	dest := filepath.Join(tmpdir, exename)
++	cmd := exec.Command(gotool, "build", "-o", dest, filepath.Join("testdata", filename))
++	if output, err = cmd.CombinedOutput(); err != nil {
++		t.Fatalf("Failed: %v:\nOutput: %s\n", err, output)
++	}
++
++	// Test that there is exactly one shape-based instantiation of Sort in
++	// the executable.
++	cmd = exec.Command(gotool, "tool", "nm", dest)
++	if output, err = cmd.CombinedOutput(); err != nil {
++		t.Fatalf("Failed: %v:\nOut: %s\n", err, output)
++	}
++	re := regexp.MustCompile(`\bSort\[.*shape.*\]`)
++	r := re.FindAllIndex(output, -1)
++	if len(r) != 1 {
++		t.Fatalf("Wanted 1 instantiations of Sort function, got %d\n", len(r))
++	}
++
++	// Actually run the test and make sure output is correct.
++	cmd = exec.Command(gotool, "run", filepath.Join("testdata", filename))
++	if output, err = cmd.CombinedOutput(); err != nil {
++		t.Fatalf("Failed: %v:\nOut: %s\n", err, output)
++	}
++	out, err := ioutil.ReadFile(filepath.Join("testdata", outname))
++	if err != nil {
++		t.Fatalf("Could not find %s\n", outname)
++	}
++	if string(out) != string(output) {
++		t.Fatalf("Wanted output %v, got %v\n", string(out), string(output))
++	}
++}
+diff --git a/src/cmd/compile/internal/test/testdata/mysort/mysort.go b/src/cmd/compile/internal/test/testdata/mysort/mysort.go
+new file mode 100644
+index 0000000000..14852c868a
+--- /dev/null
++++ b/src/cmd/compile/internal/test/testdata/mysort/mysort.go
+@@ -0,0 +1,40 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Generic sort function, tested with two different pointer types.
++
++package mysort
++
++import (
++	"fmt"
++)
++
++type LessConstraint[T any] interface {
++	Less(T) bool
++}
++
++//go:noinline
++func Sort[T LessConstraint[T]](x []T) {
++	n := len(x)
++	for i := 1; i < n; i++ {
++		for j := i; j > 0 && x[j].Less(x[j-1]); j-- {
++			x[j], x[j-1] = x[j-1], x[j]
++		}
++	}
++}
++
++type MyInt struct {
++	Value int
++}
++
++func (a *MyInt) Less(b *MyInt) bool {
++	return a.Value < b.Value
++}
++
++//go:noinline
++func F() {
++	sl1 := []*MyInt{&MyInt{4}, &MyInt{3}, &MyInt{8}, &MyInt{7}}
++	Sort(sl1)
++	fmt.Printf("%v %v %v %v\n", sl1[0], sl1[1], sl1[2], sl1[3])
++}
+diff --git a/src/cmd/compile/internal/test/testdata/ptrsort.go b/src/cmd/compile/internal/test/testdata/ptrsort.go
+new file mode 100644
+index 0000000000..6cc7ba4851
+--- /dev/null
++++ b/src/cmd/compile/internal/test/testdata/ptrsort.go
+@@ -0,0 +1,30 @@
++package main
++
++// Test generic sort function with two different pointer types in different packages,
++// make sure only one instantiation is created.
++
++import (
++	"fmt"
++
++	"./mysort"
++)
++
++type MyString struct {
++	string
++}
++
++func (a *MyString) Less(b *MyString) bool {
++	return a.string < b.string
++}
++
++func main() {
++	mysort.F()
++
++	sl1 := []*mysort.MyInt{{7}, {1}, {4}, {6}}
++	mysort.Sort(sl1)
++	fmt.Printf("%v %v %v %v\n", sl1[0], sl1[1], sl1[2], sl1[3])
++
++	sl2 := []*MyString{{"when"}, {"in"}, {"the"}, {"course"}, {"of"}}
++	mysort.Sort(sl2)
++	fmt.Printf("%v %v %v %v %v\n", sl2[0], sl2[1], sl2[2], sl2[3], sl2[4])
++}
+diff --git a/src/cmd/compile/internal/test/testdata/ptrsort.out b/src/cmd/compile/internal/test/testdata/ptrsort.out
+new file mode 100644
+index 0000000000..41f1621d1a
+--- /dev/null
++++ b/src/cmd/compile/internal/test/testdata/ptrsort.out
+@@ -0,0 +1,3 @@
++&{3} &{4} &{7} &{8}
++&{1} &{4} &{6} &{7}
++&{course} &{in} &{of} &{the} &{when}
+diff --git a/test/typeparam/genembed.go b/test/typeparam/genembed.go
+new file mode 100644
+index 0000000000..43ab3d6f4c
+--- /dev/null
++++ b/test/typeparam/genembed.go
+@@ -0,0 +1,52 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test wrappers/interfaces for generic type embedding another generic type.
++
++package main
++
++import "fmt"
++
++type A[T any] struct {
++	B[T]
++}
++
++type B[T any] struct {
++	val T
++}
++
++func (b *B[T]) get() T {
++	return b.val
++}
++
++type getter[T any] interface {
++	get() T
++}
++
++//go:noinline
++func doGet[T any](i getter[T]) T {
++	return i.get()
++}
++
++//go:noline
++func doGet2[T any](i interface{}) T {
++	i2 := i.(getter[T])
++	return i2.get()
++}
++
++func main() {
++	a := A[int]{B: B[int]{3}}
++	var i getter[int] = &a
++
++	if got, want := doGet(i), 3; got != want {
++		panic(fmt.Sprintf("got %v, want %v", got, want))
++	}
++
++	as := A[string]{B: B[string]{"abc"}}
++	if got, want := doGet2[string](&as), "abc"; got != want {
++		panic(fmt.Sprintf("got %v, want %v", got, want))
++	}
++}

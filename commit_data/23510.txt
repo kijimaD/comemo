@@ -7,6 +7,19 @@ Date:   Tue May 19 18:25:22 2015 -0400
     Change-Id: Ib6c121414c74f8a40eb87a52af8737502ce7216d
     Reviewed-on: https://go-review.googlesource.com/10265
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/go/fmt.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/fmt.go b/src/cmd/go/fmt.go
+index e40b0dc65f..1722b9d568 100644
+--- a/src/cmd/go/fmt.go
++++ b/src/cmd/go/fmt.go
+@@ -7,7 +7,6 @@ package main
+ import (
+ 	"os"
+ 	"path/filepath"
+-	"runtime"
+ )
+ 
+ func init() {

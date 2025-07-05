@@ -10,7 +10,44 @@ Date:   Sat Mar 9 05:39:15 2013 +0100
     R=rsc, rminnich, ality
     CC=golang-dev
     https://golang.org/cl/7559047
-
+---
  src/pkg/runtime/sys_plan9_386.s   | 7 +++++++
  src/pkg/runtime/sys_plan9_amd64.s | 7 +++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/pkg/runtime/sys_plan9_386.s b/src/pkg/runtime/sys_plan9_386.s
+index 09211e8807..1f860a9619 100644
+--- a/src/pkg/runtime/sys_plan9_386.s
++++ b/src/pkg/runtime/sys_plan9_386.s
+@@ -187,6 +187,13 @@ TEXT runtime·errstr(SB),7,$0
+ 	MOVL	$ERRMAX, 8(SP)
+ 	MOVL	$41, AX
+ 	INT	$64
++
++	// syscall requires caller-save
++	MOVL	4(SP), CX
++
++	// push the argument
++	PUSHL	CX
+ 	CALL	runtime·findnull(SB)
++	POPL	CX
+ 	MOVL	AX, 8(SP)
+ 	RET
+diff --git a/src/pkg/runtime/sys_plan9_amd64.s b/src/pkg/runtime/sys_plan9_amd64.s
+index 68563f3e3c..c0c896ebc9 100644
+--- a/src/pkg/runtime/sys_plan9_amd64.s
++++ b/src/pkg/runtime/sys_plan9_amd64.s
+@@ -224,6 +224,13 @@ TEXT runtime·errstr(SB),7,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$41, BP
+ 	SYSCALL
++
++	// syscall requires caller-save
++	MOVQ	8(SP), CX
++
++	// push the argument
++	PUSHQ	CX
+ 	CALL	runtime·findnull(SB)
++	POPQ	CX
+ 	MOVQ	AX, 16(SP)
+ 	RET

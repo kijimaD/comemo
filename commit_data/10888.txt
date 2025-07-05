@@ -7,10 +7,429 @@ Date:   Tue Dec 20 12:25:06 2011 +1100
     R=m4dh4tt3r, jsing, rsc
     CC=golang-dev
     https://golang.org/cl/5493068
-
+---
  src/cmd/5l/asm.c | 33 +++++++++++++++++++++-----
  src/cmd/6l/asm.c | 28 ++++++++++++++++++----
  src/cmd/8l/asm.c | 33 +++++++++++++++++++++-----
  src/cmd/ld/elf.c | 72 ++++++++++++++++++++++++++++++++++++++++++++++----------
  src/cmd/ld/elf.h |  6 +++--
  5 files changed, 141 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index f7fa688be1..8ec8935ffb 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -73,6 +73,7 @@ enum {
+ 	ElfStrShstrtab,
+ 	ElfStrRelPlt,
+ 	ElfStrPlt,
++	ElfStrNoteNetbsdIdent,
+ 	NElfStr
+ };
+ 
+@@ -164,6 +165,8 @@ doelf(void)
+ 	elfstr[ElfStrText] = addstring(shstrtab, ".text");
+ 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
+ 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
++	if(HEADTYPE == Hnetbsd)
++		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
+ 	addstring(shstrtab, ".rodata");
+ 	addstring(shstrtab, ".gosymtab");
+ 	addstring(shstrtab, ".gopclntab");
+@@ -294,7 +297,7 @@ asmb(void)
+ {
+ 	int32 t;
+ 	int a, dynsym;
+-	uint32 fo, symo, startva;
++	uint32 fo, symo, startva, resoff;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+@@ -336,6 +339,8 @@ asmb(void)
+ 			if(elfverneed)
+ 				elftextsh += 2;
+ 		}
++		if(HEADTYPE == Hnetbsd)
++			elftextsh += 1;
+ 	}
+ 
+ 	/* output symbol table */
+@@ -371,7 +376,7 @@ asmb(void)
+ 		cseek(symo);
+ 		if(iself) {
+ 			if(debug['v'])
+-			       Bprint(&bso, "%5.2f elfsym\n", cputime());
++				Bprint(&bso, "%5.2f elfsym\n", cputime());
+ 			asmelfsym();
+ 			cflush();
+ 			cwrite(elfstrdat, elfstrsize);
+@@ -455,6 +460,7 @@ asmb(void)
+ 		eh = getElfEhdr();
+ 		fo = HEADR;
+ 		startva = INITTEXT - fo;	/* va of byte 0 of file */
++		resoff = ELFRESERVE;
+ 		
+ 		/* This null SHdr must appear before all others */
+ 		newElfShdr(elfstr[ElfStrEmpty]);
+@@ -487,7 +493,7 @@ asmb(void)
+ 			sh->addralign = 1;
+ 			if(interpreter == nil)
+ 				interpreter = linuxdynld;
+-			elfinterp(sh, startva, interpreter);
++			resoff -= elfinterp(sh, startva, resoff, interpreter);
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_INTERP;
+@@ -495,11 +501,24 @@ asmb(void)
+ 			phsh(ph, sh);
+ 		}
+ 
++		if(HEADTYPE == Hnetbsd) {
++			sh = newElfShdr(elfstr[ElfStrNoteNetbsdIdent]);
++			sh->type = SHT_NOTE;
++			sh->flags = SHF_ALLOC;
++			sh->addralign = 4;
++			resoff -= elfnetbsdsig(sh, startva, resoff);
++
++			ph = newElfPhdr();
++			ph->type = PT_NOTE;
++			ph->flags = PF_R;
++			phsh(ph, sh);
++		}
++
+ 		elfphload(&segtext);
+ 		elfphload(&segdata);
+ 
+ 		/* Dynamic linking sections */
+-		if (!debug['d']) {	/* -d suppresses dynamic loader format */
++		if(!debug['d']) {	/* -d suppresses dynamic loader format */
+ 			/* S headers for dynamic linking */
+ 			sh = newElfShdr(elfstr[ElfStrGot]);
+ 			sh->type = SHT_PROGBITS;
+@@ -590,7 +609,7 @@ asmb(void)
+ 		for(sect=segdata.sect; sect!=nil; sect=sect->next)
+ 			elfshbits(sect);
+ 
+-		if (!debug['s']) {
++		if(!debug['s']) {
+ 			sh = newElfShdr(elfstr[ElfStrSymtab]);
+ 			sh->type = SHT_SYMTAB;
+ 			sh->off = symo;
+@@ -632,7 +651,9 @@ asmb(void)
+ 		a += elfwritehdr();
+ 		a += elfwritephdrs();
+ 		a += elfwriteshdrs();
+-		a += elfwriteinterp();
++		a += elfwriteinterp(elfstr[ElfStrInterp]);
++		if(HEADTYPE == Hnetbsd)
++			a += elfwritenetbsdsig(elfstr[ElfStrNoteNetbsdIdent]);
+ 		if(a > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index c3b2ba42f6..1169490b80 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -707,7 +707,7 @@ asmb(void)
+ {
+ 	int32 magic;
+ 	int a, dynsym;
+-	vlong vl, startva, symo, dwarfoff, machlink;
++	vlong vl, startva, symo, dwarfoff, machlink, resoff;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+@@ -778,6 +778,8 @@ asmb(void)
+ 			if(elfverneed)
+ 				elftextsh += 2;
+ 		}
++		if(HEADTYPE == Hnetbsd)
++			elftextsh += 1;
+ 		break;
+ 	case Hwindows:
+ 		break;
+@@ -879,6 +881,7 @@ asmb(void)
+ 
+ 		eh = getElfEhdr();
+ 		startva = INITTEXT - HEADR;
++		resoff = ELFRESERVE;
+ 
+ 		/* This null SHdr must appear before all others */
+ 		newElfShdr(elfstr[ElfStrEmpty]);
+@@ -925,7 +928,7 @@ asmb(void)
+ 					break;
+ 				}
+ 			}
+-			elfinterp(sh, startva, interpreter);
++			resoff -= elfinterp(sh, startva, resoff, interpreter);
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_INTERP;
+@@ -933,11 +936,24 @@ asmb(void)
+ 			phsh(ph, sh);
+ 		}
+ 
++		if(HEADTYPE == Hnetbsd) {
++			sh = newElfShdr(elfstr[ElfStrNoteNetbsdIdent]);
++			sh->type = SHT_NOTE;
++			sh->flags = SHF_ALLOC;
++			sh->addralign = 4;
++			resoff -= elfnetbsdsig(sh, startva, resoff);
++
++			ph = newElfPhdr();
++			ph->type = PT_NOTE;
++			ph->flags = PF_R;
++			phsh(ph, sh);
++		}
++
+ 		elfphload(&segtext);
+ 		elfphload(&segdata);
+ 
+ 		/* Dynamic linking sections */
+-		if (!debug['d']) {	/* -d suppresses dynamic loader format */
++		if(!debug['d']) {	/* -d suppresses dynamic loader format */
+ 			/* S headers for dynamic linking */
+ 			sh = newElfShdr(elfstr[ElfStrGot]);
+ 			sh->type = SHT_PROGBITS;
+@@ -1061,7 +1077,7 @@ asmb(void)
+ 		for(sect=segdata.sect; sect!=nil; sect=sect->next)
+ 			elfshbits(sect);
+ 
+-		if (!debug['s']) {
++		if(!debug['s']) {
+ 			sh = newElfShdr(elfstr[ElfStrSymtab]);
+ 			sh->type = SHT_SYMTAB;
+ 			sh->off = symo;
+@@ -1107,7 +1123,9 @@ asmb(void)
+ 		a += elfwritehdr();
+ 		a += elfwritephdrs();
+ 		a += elfwriteshdrs();
+-		a += elfwriteinterp();
++		a += elfwriteinterp(elfstr[ElfStrInterp]);
++		if(HEADTYPE == Hnetbsd)
++			a += elfwritenetbsdsig(elfstr[ElfStrNoteNetbsdIdent]);
+ 		if(a > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 3612c2bf2a..7799e3f1e2 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -92,6 +92,7 @@ enum {
+ 	ElfStrPlt,
+ 	ElfStrGnuVersion,
+ 	ElfStrGnuVersionR,
++	ElfStrNoteNetbsdIdent,
+ 	NElfStr
+ };
+ 
+@@ -528,6 +529,8 @@ doelf(void)
+ 	elfstr[ElfStrText] = addstring(shstrtab, ".text");
+ 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
+ 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
++	if(HEADTYPE == Hnetbsd)
++		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
+ 	addstring(shstrtab, ".elfdata");
+ 	addstring(shstrtab, ".rodata");
+ 	addstring(shstrtab, ".gosymtab");
+@@ -661,7 +664,7 @@ asmb(void)
+ {
+ 	int32 v, magic;
+ 	int a, dynsym;
+-	uint32 symo, startva, dwarfoff, machlink;
++	uint32 symo, startva, dwarfoff, machlink, resoff;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+@@ -715,6 +718,8 @@ asmb(void)
+ 			if(elfverneed)
+ 				elftextsh += 2;
+ 		}
++		if(HEADTYPE == Hnetbsd)
++			elftextsh += 1;
+ 	}
+ 
+ 	symsize = 0;
+@@ -761,7 +766,7 @@ asmb(void)
+ 		default:
+ 			if(iself) {
+ 				if(debug['v'])
+-				       Bprint(&bso, "%5.2f elfsym\n", cputime());
++					Bprint(&bso, "%5.2f elfsym\n", cputime());
+ 				asmelfsym();
+ 				cflush();
+ 				cwrite(elfstrdat, elfstrsize);
+@@ -932,6 +937,7 @@ asmb(void)
+ 	Elfput:
+ 		eh = getElfEhdr();
+ 		startva = INITTEXT - HEADR;
++		resoff = ELFRESERVE;
+ 
+ 		/* This null SHdr must appear before all others */
+ 		newElfShdr(elfstr[ElfStrEmpty]);
+@@ -978,7 +984,7 @@ asmb(void)
+ 					break;
+ 				}
+ 			}
+-			elfinterp(sh, startva, interpreter);
++			resoff -= elfinterp(sh, startva, resoff, interpreter);
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_INTERP;
+@@ -986,11 +992,24 @@ asmb(void)
+ 			phsh(ph, sh);
+ 		}
+ 
++		if(HEADTYPE == Hnetbsd) {
++			sh = newElfShdr(elfstr[ElfStrNoteNetbsdIdent]);
++			sh->type = SHT_NOTE;
++			sh->flags = SHF_ALLOC;
++			sh->addralign = 4;
++			resoff -= elfnetbsdsig(sh, startva, resoff);
++
++			ph = newElfPhdr();
++			ph->type = PT_NOTE;
++			ph->flags = PF_R;
++			phsh(ph, sh);
++		}
++
+ 		elfphload(&segtext);
+ 		elfphload(&segdata);
+ 
+ 		/* Dynamic linking sections */
+-		if (!debug['d']) {	/* -d suppresses dynamic loader format */
++		if(!debug['d']) {	/* -d suppresses dynamic loader format */
+ 			/* S headers for dynamic linking */
+ 			sh = newElfShdr(elfstr[ElfStrGot]);
+ 			sh->type = SHT_PROGBITS;
+@@ -1114,7 +1133,7 @@ asmb(void)
+ 		for(sect=segdata.sect; sect!=nil; sect=sect->next)
+ 			elfshbits(sect);
+ 
+-		if (!debug['s']) {
++		if(!debug['s']) {
+ 			sh = newElfShdr(elfstr[ElfStrSymtab]);
+ 			sh->type = SHT_SYMTAB;
+ 			sh->off = symo;
+@@ -1167,7 +1186,9 @@ asmb(void)
+ 		a += elfwritehdr();
+ 		a += elfwritephdrs();
+ 		a += elfwriteshdrs();
+-		a += elfwriteinterp();
++		a += elfwriteinterp(elfstr[ElfStrInterp]);
++		if(HEADTYPE == Hnetbsd)
++			a += elfwritenetbsdsig(elfstr[ElfStrNoteNetbsdIdent]);
+ 		if(a > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 00cfc8c8c9..de9e6b8541 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -318,29 +318,77 @@ elfwritedynentsymsize(Sym *s, int tag, Sym *t)
+ }
+ 
+ int
+-elfwriteinterp(void)
++elfinterp(ElfShdr *sh, uint64 startva, uint64 resoff, char *p)
+ {
+ 	int n;
+ 
+-	if(interp == nil)
+-		return 0;
+-
++	interp = p;
+ 	n = strlen(interp)+1;
+-	cseek(ELFRESERVE-n);
+-	cwrite(interp, n);
++	sh->addr = startva + resoff - n;
++	sh->off = resoff - n;
++	sh->size = n;
++
+ 	return n;
+ }
+ 
+-void
+-elfinterp(ElfShdr *sh, uint64 startva, char *p)
++int
++elfwriteinterp(vlong stridx)
++{
++	ElfShdr *sh = nil;
++	int i;
++
++	for(i = 0; i < hdr.shnum; i++)
++		if(shdr[i]->name == stridx)
++			sh = shdr[i];
++	if(sh == nil || interp == nil)
++		return 0;
++
++	cseek(sh->off);
++	cwrite(interp, sh->size);
++	return sh->size;
++}
++
++// Defined in NetBSD's sys/exec_elf.h
++#define ELF_NOTE_TYPE_NETBSD_TAG	1
++#define ELF_NOTE_NETBSD_NAMESZ		7
++#define ELF_NOTE_NETBSD_DESCSZ		4
++#define ELF_NOTE_NETBSD_NAME		"NetBSD\0\0"
++#define ELF_NOTE_NETBSD_VERSION		599000000	/* NetBSD 5.99 */
++
++int
++elfnetbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
+ {
+ 	int n;
+ 
+-	interp = p;
+-	n = strlen(interp)+1;
+-	sh->addr = startva + ELFRESERVE - n;
+-	sh->off = ELFRESERVE - n;
++	n = sizeof(Elf_Note) + ELF_NOTE_NETBSD_NAMESZ + ELF_NOTE_NETBSD_DESCSZ + 1;
++	n += resoff % 4;
++	sh->addr = startva + resoff - n;
++	sh->off = resoff - n;
+ 	sh->size = n;
++
++	return n;
++}
++
++int
++elfwritenetbsdsig(vlong stridx) {
++	ElfShdr *sh = nil;
++	int i;
++
++	for(i = 0; i < hdr.shnum; i++)
++		if(shdr[i]->name == stridx)
++			sh = shdr[i];
++	if(sh == nil)
++		return 0;
++
++	// Write Elf_Note header followed by NetBSD string.
++	cseek(sh->off);
++	LPUT(ELF_NOTE_NETBSD_NAMESZ);
++	LPUT(ELF_NOTE_NETBSD_DESCSZ);
++	LPUT(ELF_NOTE_TYPE_NETBSD_TAG);
++	cwrite(ELF_NOTE_NETBSD_NAME, 8);
++	LPUT(ELF_NOTE_NETBSD_VERSION);
++
++	return sh->size;
+ }
+ 
+ extern int nelfsym;
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index c63df22417..690ade9753 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -968,8 +968,10 @@ extern	int	numelfphdr;
+ extern	int	numelfshdr;
+ extern	int	iself;
+ extern	int	elfverneed;
+-int	elfwriteinterp(void);
+-void	elfinterp(ElfShdr*, uint64, char*);
++int	elfinterp(ElfShdr*, uint64, uint64, char*);
++int	elfwriteinterp(vlong);
++int	elfnetbsdsig(ElfShdr*, uint64, uint64);
++int	elfwritenetbsdsig(vlong);
+ void	elfdynhash(void);
+ ElfPhdr* elfphload(Segment*);
+ ElfShdr* elfshbits(Section*);

@@ -7,6 +7,52 @@ Date:   Wed Feb 4 15:16:45 2015 -0800
     Change-Id: I4329c44b829fcd77e4f1a1d45904f0f8a280a595
     Reviewed-on: https://go-review.googlesource.com/3940
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/ftoa.go | 21 ++++++++++++---------
  1 file changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/src/math/big/ftoa.go b/src/math/big/ftoa.go
+index 5eb0dbdd53..148081589d 100644
+--- a/src/math/big/ftoa.go
++++ b/src/math/big/ftoa.go
+@@ -111,9 +111,8 @@ func fmtE(buf []byte, fmt byte, prec int, neg bool, d decimal) []byte {
+ 	// .moredigits
+ 	if prec > 0 {
+ 		buf = append(buf, '.')
+-		// TODO(gri) clean up logic below
+ 		i := 1
+-		m := len(d.mant) + prec + 1 - max(len(d.mant), prec+1)
++		m := min(len(d.mant), prec+1)
+ 		if i < m {
+ 			buf = append(buf, d.mant[i:m]...)
+ 			i = m
+@@ -151,14 +150,11 @@ func fmtF(buf []byte, prec int, neg bool, d decimal) []byte {
+ 		buf = append(buf, '-')
+ 	}
+ 
+-	// integer, padded with zeros as needed.
++	// integer, padded with zeros as needed
+ 	if d.exp > 0 {
+-		// TODO(gri) fuse loops below and/or cleanup
+-		var i int
+-		for i = 0; i < int(d.exp) && i < len(d.mant); i++ {
+-			buf = append(buf, d.mant[i])
+-		}
+-		for ; i < d.exp; i++ {
++		m := min(len(d.mant), d.exp)
++		buf = append(buf, d.mant[:m]...)
++		for ; m < d.exp; m++ {
+ 			buf = append(buf, '0')
+ 		}
+ 	} else {
+@@ -179,3 +175,10 @@ func fmtF(buf []byte, prec int, neg bool, d decimal) []byte {
+ 
+ 	return buf
+ }
++
++func min(x, y int) int {
++	if x < y {
++		return x
++	}
++	return y
++}

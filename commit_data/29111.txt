@@ -11,7 +11,34 @@ Date:   Thu Aug 25 13:42:49 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/syntax/scanner_test.go | 2 +-
  src/net/http/httptrace/example_test.go          | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index 4b582ccfdf..70b986ed4e 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -79,7 +79,7 @@ func TestTokens(t *testing.T) {
+ 				continue
+ 			}
+ 			if got.prec != want.prec {
+-				t.Errorf("got prec = %s; want %s", got.prec, want.prec)
++				t.Errorf("got prec = %d; want %d", got.prec, want.prec)
+ 				continue
+ 			}
+ 			nlsemi = want.tok == _IncOp
+diff --git a/src/net/http/httptrace/example_test.go b/src/net/http/httptrace/example_test.go
+index c8ed446435..3a4b35469c 100644
+--- a/src/net/http/httptrace/example_test.go
++++ b/src/net/http/httptrace/example_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"net/http/httptrace"
+ )
+ 
+-func ExampleTrace() {
++func Example() {
+ 	req, _ := http.NewRequest("GET", "http://example.com", nil)
+ 	trace := &httptrace.ClientTrace{
+ 		GotConn: func(connInfo httptrace.GotConnInfo) {

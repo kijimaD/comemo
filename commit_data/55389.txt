@@ -22,7 +22,90 @@ Date:   Wed Feb 1 08:31:03 2023 -0800
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/schedule.go | 28 ++++++++++++++++++++++++++--
  test/codegen/issue58166.go               | 23 +++++++++++++++++++++++
  2 files changed, 49 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 4cd60d714c..c291e5c13f 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -25,8 +25,9 @@ const (
+ )
+ 
+ type ValHeap struct {
+-	a     []*Value
+-	score []int8
++	a           []*Value
++	score       []int8
++	inBlockUses []bool
+ }
+ 
+ func (h ValHeap) Len() int      { return len(h.a) }
+@@ -56,6 +57,12 @@ func (h ValHeap) Less(i, j int) bool {
+ 	// Note: only scores are required for correct scheduling.
+ 	// Everything else is just heuristics.
+ 
++	ix := h.inBlockUses[x.ID]
++	iy := h.inBlockUses[y.ID]
++	if ix != iy {
++		return ix // values with in-block uses come earlier
++	}
++
+ 	if x.Pos != y.Pos { // Favor in-order line stepping
+ 		if x.Block == x.Block.Func.Entry && x.Pos.IsStmt() != y.Pos.IsStmt() {
+ 			// In the entry block, put statement-marked instructions earlier.
+@@ -110,6 +117,23 @@ func schedule(f *Func) {
+ 	nextMem := f.Cache.allocValueSlice(f.NumValues())
+ 	defer f.Cache.freeValueSlice(nextMem)
+ 
++	// inBlockUses records whether a value is used in the block
++	// in which it lives. (block control values don't count as uses.)
++	inBlockUses := f.Cache.allocBoolSlice(f.NumValues())
++	defer f.Cache.freeBoolSlice(inBlockUses)
++	if f.Config.optimize {
++		for _, b := range f.Blocks {
++			for _, v := range b.Values {
++				for _, a := range v.Args {
++					if a.Block == b {
++						inBlockUses[a.ID] = true
++					}
++				}
++			}
++		}
++	}
++	priq.inBlockUses = inBlockUses
++
+ 	for _, b := range f.Blocks {
+ 		// Compute score. Larger numbers are scheduled closer to the end of the block.
+ 		for _, v := range b.Values {
+diff --git a/test/codegen/issue58166.go b/test/codegen/issue58166.go
+new file mode 100644
+index 0000000000..8be5aac841
+--- /dev/null
++++ b/test/codegen/issue58166.go
+@@ -0,0 +1,23 @@
++// asmcheck
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func dgemmSerialNotNot(m, n, k int, a []float64, lda int, b []float64, ldb int, c []float64, ldc int, alpha float64) {
++	for i := 0; i < m; i++ {
++		ctmp := c[i*ldc : i*ldc+n]
++		for l, v := range a[i*lda : i*lda+k] {
++			tmp := alpha * v
++			if tmp != 0 {
++				x := b[l*ldb : l*ldb+n]
++				// amd64:"INCQ"
++				for i, v := range x {
++					ctmp[i] += tmp * v
++				}
++			}
++		}
++	}
++}

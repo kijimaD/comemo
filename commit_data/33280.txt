@@ -12,8 +12,107 @@ Date:   Tue Aug 8 16:40:07 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Avelino <t@avelino.xxx>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/gen.go     |  2 +-
  src/cmd/compile/internal/gc/reflect.go |  6 ++---
  src/cmd/compile/internal/gc/ssa.go     | 48 +++++++++++++++++-----------------
  3 files changed, 28 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 626d282c18..6b1598e06c 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -11,7 +11,7 @@ import (
+ 	"strconv"
+ )
+ 
+-func Sysfunc(name string) *obj.LSym {
++func sysfunc(name string) *obj.LSym {
+ 	return Runtimepkg.Lookup(name).Linksym()
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 91e6f46804..bcd4f1e02a 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -788,7 +788,7 @@ func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
+ 
+ 	sizeofAlg := 2 * Widthptr
+ 	if algarray == nil {
+-		algarray = Sysfunc("algarray")
++		algarray = sysfunc("algarray")
+ 	}
+ 	dowidth(t)
+ 	alg := algtype(t)
+@@ -1586,8 +1586,8 @@ func dalgsym(t *types.Type) *obj.LSym {
+ 		s.SetAlgGen(true)
+ 
+ 		if memhashvarlen == nil {
+-			memhashvarlen = Sysfunc("memhash_varlen")
+-			memequalvarlen = Sysfunc("memequal_varlen")
++			memhashvarlen = sysfunc("memhash_varlen")
++			memequalvarlen = sysfunc("memequal_varlen")
+ 		}
+ 
+ 		// make hash closure
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9c1b3ca69f..2400af3407 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -70,32 +70,32 @@ func initssaconfig() {
+ 	ssaCaches = make([]ssa.Cache, nBackendWorkers)
+ 
+ 	// Set up some runtime functions we'll need to call.
+-	Newproc = Sysfunc("newproc")
+-	Deferproc = Sysfunc("deferproc")
+-	Deferreturn = Sysfunc("deferreturn")
+-	Duffcopy = Sysfunc("duffcopy")
+-	Duffzero = Sysfunc("duffzero")
+-	panicindex = Sysfunc("panicindex")
+-	panicslice = Sysfunc("panicslice")
+-	panicdivide = Sysfunc("panicdivide")
+-	growslice = Sysfunc("growslice")
+-	panicdottypeE = Sysfunc("panicdottypeE")
+-	panicdottypeI = Sysfunc("panicdottypeI")
+-	panicnildottype = Sysfunc("panicnildottype")
+-	assertE2I = Sysfunc("assertE2I")
+-	assertE2I2 = Sysfunc("assertE2I2")
+-	assertI2I = Sysfunc("assertI2I")
+-	assertI2I2 = Sysfunc("assertI2I2")
+-	goschedguarded = Sysfunc("goschedguarded")
+-	writeBarrier = Sysfunc("writeBarrier")
+-	writebarrierptr = Sysfunc("writebarrierptr")
+-	typedmemmove = Sysfunc("typedmemmove")
+-	typedmemclr = Sysfunc("typedmemclr")
+-	Udiv = Sysfunc("udiv")
++	Newproc = sysfunc("newproc")
++	Deferproc = sysfunc("deferproc")
++	Deferreturn = sysfunc("deferreturn")
++	Duffcopy = sysfunc("duffcopy")
++	Duffzero = sysfunc("duffzero")
++	panicindex = sysfunc("panicindex")
++	panicslice = sysfunc("panicslice")
++	panicdivide = sysfunc("panicdivide")
++	growslice = sysfunc("growslice")
++	panicdottypeE = sysfunc("panicdottypeE")
++	panicdottypeI = sysfunc("panicdottypeI")
++	panicnildottype = sysfunc("panicnildottype")
++	assertE2I = sysfunc("assertE2I")
++	assertE2I2 = sysfunc("assertE2I2")
++	assertI2I = sysfunc("assertI2I")
++	assertI2I2 = sysfunc("assertI2I2")
++	goschedguarded = sysfunc("goschedguarded")
++	writeBarrier = sysfunc("writeBarrier")
++	writebarrierptr = sysfunc("writebarrierptr")
++	typedmemmove = sysfunc("typedmemmove")
++	typedmemclr = sysfunc("typedmemclr")
++	Udiv = sysfunc("udiv")
+ 
+ 	// GO386=387 runtime functions
+-	ControlWord64trunc = Sysfunc("controlWord64trunc")
+-	ControlWord32 = Sysfunc("controlWord32")
++	ControlWord64trunc = sysfunc("controlWord64trunc")
++	ControlWord32 = sysfunc("controlWord32")
+ }
+ 
+ // buildssa builds an SSA function for fn.

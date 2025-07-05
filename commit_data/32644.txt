@@ -18,7 +18,7 @@ Date:   Mon Apr 3 22:38:09 2017 +0200
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bytes/bytes_amd64.go               |  12 ++--
  src/cmd/dist/deps.go                   | 123 +++++++++++++++++----------------
  src/cmd/vet/all/whitelist/amd64.txt    |   4 --
@@ -51,3 +51,981 @@ Date:   Mon Apr 3 22:38:09 2017 +0200
  src/runtime/asm_amd64.s                |  21 ------
  src/strings/strings_amd64.go           |  12 ++--
  31 files changed, 329 insertions(+), 226 deletions(-)
+
+diff --git a/src/bytes/bytes_amd64.go b/src/bytes/bytes_amd64.go
+index e68a3920d0..77d5970152 100644
+--- a/src/bytes/bytes_amd64.go
++++ b/src/bytes/bytes_amd64.go
+@@ -4,19 +4,19 @@
+ 
+ package bytes
+ 
++import "internal/cpu"
++
+ //go:noescape
+ 
+ // indexShortStr returns the index of the first instance of c in s, or -1 if c is not present in s.
+ // indexShortStr requires 2 <= len(c) <= shortStringLen
+-func indexShortStr(s, c []byte) int  // ../runtime/asm_$GOARCH.s
+-func supportAVX2() bool              // ../runtime/asm_$GOARCH.s
+-func supportPOPCNT() bool            // ../runtime/asm_$GOARCH.s
+-func countByte(s []byte, c byte) int // ../runtime/asm_$GOARCH.s
++func indexShortStr(s, c []byte) int  // ../runtime/asm_amd64.s
++func countByte(s []byte, c byte) int // ../runtime/asm_amd64.s
+ 
+ var shortStringLen int
+ 
+ func init() {
+-	if supportAVX2() {
++	if cpu.X86.HasAVX2 {
+ 		shortStringLen = 63
+ 	} else {
+ 		shortStringLen = 31
+@@ -99,7 +99,7 @@ func Index(s, sep []byte) int {
+ // Count counts the number of non-overlapping instances of sep in s.
+ // If sep is an empty slice, Count returns 1 + the number of Unicode code points in s.
+ func Count(s, sep []byte) int {
+-	if len(sep) == 1 && supportPOPCNT() {
++	if len(sep) == 1 && cpu.X86.HasPOPCNT {
+ 		return countByte(s, sep[0])
+ 	}
+ 	return countGeneric(s, sep)
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index 158157eac0..1b106d19cf 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -3,56 +3,57 @@
+ package main
+ 
+ var builddeps = map[string][]string{
+-	"bufio":                             {"bytes", "errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+-	"bytes":                             {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+-	"cmd/go/internal/base":              {"bufio", "bytes", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/bug":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/envcmd", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/web", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/buildid":           {"bufio", "bytes", "cmd/go/internal/cfg", "compress/flate", "compress/zlib", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/cfg":               {"bufio", "bytes", "errors", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/clean":             {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/doc":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/envcmd":            {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/fix":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "compress/flate", "compress/zlib", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/fmtcmd":            {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "compress/flate", "compress/zlib", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/generate":          {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/get":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/web", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "encoding/xml", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/singleflight", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/help":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/list":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/load":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/str", "compress/flate", "compress/zlib", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/run":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/str":               {"bytes", "errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/test":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/cmdflag", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/tool":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/version":           {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/cmdflag":           {"cmd/go/internal/base", "flag", "fmt", "os", "strconv", "strings"},
+-	"cmd/go/internal/vet":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/cmdflag", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"bufio":                             {"bytes", "errors", "internal/cpu", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
++	"bytes":                             {"errors", "internal/cpu", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
++	"cmd/go/internal/base":              {"bufio", "bytes", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/bug":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/envcmd", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/web", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/buildid":           {"bufio", "bytes", "cmd/go/internal/cfg", "compress/flate", "compress/zlib", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/cfg":               {"bufio", "bytes", "errors", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/clean":             {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/cmdflag":           {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/doc":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/envcmd":            {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/fix":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "compress/flate", "compress/zlib", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/fmtcmd":            {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "compress/flate", "compress/zlib", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/generate":          {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/get":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/web", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "encoding/xml", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/singleflight", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/help":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/list":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/load":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/str", "compress/flate", "compress/zlib", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/run":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/str":               {"bytes", "errors", "fmt", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/test":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/cmdflag", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/tool":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/version":           {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/vet":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/cmdflag", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/web":               {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
+-	"cmd/go/internal/work":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"compress/flate":                    {"bufio", "bytes", "errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "math/bits", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"compress/zlib":                     {"bufio", "bytes", "compress/flate", "errors", "fmt", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "math/bits", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"container/heap":                    {"errors", "internal/race", "math", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+-	"context":                           {"errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+-	"crypto":                            {"errors", "hash", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+-	"crypto/sha1":                       {"crypto", "errors", "hash", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+-	"debug/dwarf":                       {"encoding/binary", "errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"debug/elf":                         {"bufio", "bytes", "compress/flate", "compress/zlib", "debug/dwarf", "encoding/binary", "errors", "fmt", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "math/bits", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"debug/macho":                       {"bytes", "debug/dwarf", "encoding/binary", "errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/work":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"compress/flate":                    {"bufio", "bytes", "errors", "fmt", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "math/bits", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"compress/zlib":                     {"bufio", "bytes", "compress/flate", "errors", "fmt", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "math/bits", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"container/heap":                    {"errors", "internal/cpu", "internal/race", "math", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "unicode/utf8"},
++	"context":                           {"errors", "fmt", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
++	"crypto":                            {"errors", "hash", "internal/cpu", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
++	"crypto/sha1":                       {"crypto", "errors", "hash", "internal/cpu", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
++	"debug/dwarf":                       {"encoding/binary", "errors", "fmt", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"debug/elf":                         {"bufio", "bytes", "compress/flate", "compress/zlib", "debug/dwarf", "encoding/binary", "errors", "fmt", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "math/bits", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"debug/macho":                       {"bytes", "debug/dwarf", "encoding/binary", "errors", "fmt", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"encoding":                          {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+-	"encoding/base64":                   {"errors", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+-	"encoding/binary":                   {"errors", "internal/race", "io", "math", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+-	"encoding/json":                     {"bytes", "encoding", "encoding/base64", "errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"encoding/xml":                      {"bufio", "bytes", "encoding", "errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"encoding/base64":                   {"errors", "internal/cpu", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
++	"encoding/binary":                   {"errors", "internal/cpu", "internal/race", "io", "math", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
++	"encoding/json":                     {"bytes", "encoding", "encoding/base64", "errors", "fmt", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"encoding/xml":                      {"bufio", "bytes", "encoding", "errors", "fmt", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"errors":                            {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+-	"flag":                              {"errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+-	"fmt":                               {"errors", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+-	"go/ast":                            {"bytes", "errors", "fmt", "go/scanner", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"go/build":                          {"bufio", "bytes", "errors", "fmt", "go/ast", "go/doc", "go/parser", "go/scanner", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"go/doc":                            {"bytes", "errors", "fmt", "go/ast", "go/scanner", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "math", "net/url", "os", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"go/parser":                         {"bytes", "errors", "fmt", "go/ast", "go/scanner", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"go/scanner":                        {"bytes", "errors", "fmt", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"go/token":                          {"errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
++	"flag":                              {"errors", "fmt", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
++	"fmt":                               {"errors", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
++	"go/ast":                            {"bytes", "errors", "fmt", "go/scanner", "go/token", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"go/build":                          {"bufio", "bytes", "errors", "fmt", "go/ast", "go/doc", "go/parser", "go/scanner", "go/token", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"go/doc":                            {"bytes", "errors", "fmt", "go/ast", "go/scanner", "go/token", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "math", "net/url", "os", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"go/parser":                         {"bytes", "errors", "fmt", "go/ast", "go/scanner", "go/token", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"go/scanner":                        {"bytes", "errors", "fmt", "go/token", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"go/token":                          {"errors", "fmt", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+ 	"hash":                              {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
+ 	"hash/adler32":                      {"errors", "hash", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
++	"internal/cpu":                      {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"internal/poll":                     {"errors", "internal/race", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+ 	"internal/race":                     {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"internal/singleflight":             {"internal/race", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
+@@ -60,33 +61,33 @@ var builddeps = map[string][]string{
+ 	"internal/syscall/windows/registry": {"errors", "internal/race", "internal/syscall/windows/sysdll", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "unicode/utf16"},
+ 	"internal/syscall/windows/sysdll":   {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"io":                      {"errors", "internal/race", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
+-	"io/ioutil":               {"bytes", "errors", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"log":                     {"errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+-	"math":                    {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
++	"io/ioutil":               {"bytes", "errors", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"log":                     {"errors", "fmt", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
++	"math":                    {"internal/cpu", "runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"math/bits":               {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+-	"net/url":                 {"bytes", "errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"net/url":                 {"bytes", "errors", "fmt", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"os":                      {"errors", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+-	"os/exec":                 {"bytes", "context", "errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"os/exec":                 {"bytes", "context", "errors", "fmt", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"os/signal":               {"errors", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "os", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+-	"path":                    {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+-	"path/filepath":           {"errors", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"reflect":                 {"errors", "internal/race", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+-	"regexp":                  {"bytes", "errors", "internal/race", "io", "math", "reflect", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+-	"regexp/syntax":           {"bytes", "errors", "internal/race", "io", "math", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
++	"path":                    {"errors", "internal/cpu", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
++	"path/filepath":           {"errors", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"reflect":                 {"errors", "internal/cpu", "internal/race", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
++	"regexp":                  {"bytes", "errors", "internal/cpu", "internal/race", "io", "math", "reflect", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
++	"regexp/syntax":           {"bytes", "errors", "internal/cpu", "internal/race", "io", "math", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+ 	"runtime":                 {"runtime/internal/atomic", "runtime/internal/sys"},
+ 	"runtime/internal/atomic": {"runtime/internal/sys"},
+ 	"runtime/internal/sys":    {},
+-	"sort":                    {"errors", "internal/race", "math", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+-	"strconv":                 {"errors", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "unicode/utf8"},
+-	"strings":                 {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
++	"sort":                    {"errors", "internal/cpu", "internal/race", "math", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
++	"strconv":                 {"errors", "internal/cpu", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "unicode/utf8"},
++	"strings":                 {"errors", "internal/cpu", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+ 	"sync":                    {"internal/race", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync/atomic"},
+ 	"sync/atomic":             {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"syscall":                 {"errors", "internal/race", "internal/syscall/windows/sysdll", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode/utf16"},
+-	"text/template":           {"bytes", "errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "math", "net/url", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"text/template/parse":     {"bytes", "errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"text/template":           {"bytes", "errors", "fmt", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "math", "net/url", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"text/template/parse":     {"bytes", "errors", "fmt", "internal/cpu", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"time":                    {"errors", "internal/race", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "unicode/utf16"},
+ 	"unicode":                 {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"unicode/utf16":           {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"unicode/utf8":            {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+-	"cmd/go":                  {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/bug", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/clean", "cmd/go/internal/doc", "cmd/go/internal/envcmd", "cmd/go/internal/fix", "cmd/go/internal/fmtcmd", "cmd/go/internal/generate", "cmd/go/internal/get", "cmd/go/internal/help", "cmd/go/internal/list", "cmd/go/internal/load", "cmd/go/internal/run", "cmd/go/internal/str", "cmd/go/internal/test", "cmd/go/internal/tool", "cmd/go/internal/version", "cmd/go/internal/vet", "cmd/go/internal/web", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "encoding/xml", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/singleflight", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go":                  {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/bug", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/clean", "cmd/go/internal/cmdflag", "cmd/go/internal/doc", "cmd/go/internal/envcmd", "cmd/go/internal/fix", "cmd/go/internal/fmtcmd", "cmd/go/internal/generate", "cmd/go/internal/get", "cmd/go/internal/help", "cmd/go/internal/list", "cmd/go/internal/load", "cmd/go/internal/run", "cmd/go/internal/str", "cmd/go/internal/test", "cmd/go/internal/tool", "cmd/go/internal/version", "cmd/go/internal/vet", "cmd/go/internal/web", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "encoding/xml", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/cpu", "internal/poll", "internal/race", "internal/singleflight", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ }
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+index b77756d174..fb617d5554 100644
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -15,10 +15,6 @@ runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument fram
+ runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package strings
+ runtime/asm_amd64.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
+ runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package bytes
+-runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: supportAVX2 is in package strings
+-runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: supportAVX2 is in package bytes
+-runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: supportPOPCNT is in package strings
+-runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: supportPOPCNT is in package bytes
+ runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: countByte is in package strings
+ runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: countByte is in package bytes
+ 
+diff --git a/src/crypto/sha1/sha1block_amd64.go b/src/crypto/sha1/sha1block_amd64.go
+index 0320e41f36..039813d7dc 100644
+--- a/src/crypto/sha1/sha1block_amd64.go
++++ b/src/crypto/sha1/sha1block_amd64.go
+@@ -4,18 +4,18 @@
+ 
+ package sha1
+ 
+-//go:noescape
++import "internal/cpu"
+ 
++//go:noescape
+ func blockAVX2(dig *digest, p []byte)
+ 
+ //go:noescape
+ func blockAMD64(dig *digest, p []byte)
+-func checkAVX2() bool
+ 
+-var hasAVX2 = checkAVX2()
++var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
+ 
+ func block(dig *digest, p []byte) {
+-	if hasAVX2 && len(p) >= 256 {
++	if useAVX2 && len(p) >= 256 {
+ 		// blockAVX2 calculates sha1 for 2 block per iteration
+ 		// it also interleaves precalculation for next block.
+ 		// So it may read up-to 192 bytes past end of p
+diff --git a/src/crypto/sha1/sha1block_amd64.s b/src/crypto/sha1/sha1block_amd64.s
+index 5356bc0543..3adb6d2c32 100644
+--- a/src/crypto/sha1/sha1block_amd64.s
++++ b/src/crypto/sha1/sha1block_amd64.s
+@@ -1457,23 +1457,6 @@ TEXT ·blockAVX2(SB),$1408-32
+ 
+ 	CALC // RET is inside macros
+ 
+-
+-// func checkAVX2() bool
+-// returns whether AVX2, BMI1 and BMI2 are supported
+-TEXT ·checkAVX2(SB),NOSPLIT,$0
+-	CMPB runtime·support_avx2(SB), $0
+-	JE   noavx2
+-	CMPB runtime·support_bmi1(SB), $0  // check for ANDNL instruction
+-	JE   noavx2
+-	CMPB runtime·support_bmi2(SB), $0  // check for RORXL instruction
+-	JE   noavx2
+-        MOVB    $1, ret+0(FP)
+-	RET
+-noavx2:
+-        MOVB    $0, ret+0(FP)
+-	RET
+-
+-
+ DATA K_XMM_AR<>+0x00(SB)/4,$0x5a827999
+ DATA K_XMM_AR<>+0x04(SB)/4,$0x5a827999
+ DATA K_XMM_AR<>+0x08(SB)/4,$0x5a827999
+diff --git a/src/crypto/sha256/sha256block_amd64.go b/src/crypto/sha256/sha256block_amd64.go
+new file mode 100644
+index 0000000000..27464e2c12
+--- /dev/null
++++ b/src/crypto/sha256/sha256block_amd64.go
+@@ -0,0 +1,9 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sha256
++
++import "internal/cpu"
++
++var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI2
+diff --git a/src/crypto/sha256/sha256block_amd64.s b/src/crypto/sha256/sha256block_amd64.s
+index e9705b94b1..d7ac1e53b3 100644
+--- a/src/crypto/sha256/sha256block_amd64.s
++++ b/src/crypto/sha256/sha256block_amd64.s
+@@ -559,11 +559,8 @@
+ 	ADDL  y3, h                        // h = t1 + S0 + MAJ					// --
+ 
+ TEXT ·block(SB), 0, $536-32
+-	CMPB runtime·support_avx2(SB), $0
+-	JE   noavx2bmi2
+-	CMPB runtime·support_bmi2(SB), $1  // check for RORXL instruction
++	CMPB ·useAVX2(SB), $1
+ 	JE   avx2
+-noavx2bmi2:
+ 
+ 	MOVQ p_base+8(FP), SI
+ 	MOVQ p_len+16(FP), DX
+diff --git a/src/crypto/sha512/sha512block_amd64.go b/src/crypto/sha512/sha512block_amd64.go
+index 526d85d433..18151cea24 100644
+--- a/src/crypto/sha512/sha512block_amd64.go
++++ b/src/crypto/sha512/sha512block_amd64.go
+@@ -6,19 +6,18 @@
+ 
+ package sha512
+ 
++import "internal/cpu"
++
+ //go:noescape
+ func blockAVX2(dig *digest, p []byte)
+ 
+ //go:noescape
+ func blockAMD64(dig *digest, p []byte)
+ 
+-//go:noescape
+-func checkAVX2() bool
+-
+-var hasAVX2 = checkAVX2()
++var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
+ 
+ func block(dig *digest, p []byte) {
+-	if hasAVX2 {
++	if useAVX2 {
+ 		blockAVX2(dig, p)
+ 	} else {
+ 		blockAMD64(dig, p)
+diff --git a/src/crypto/sha512/sha512block_amd64.s b/src/crypto/sha512/sha512block_amd64.s
+index 5370e5ea5b..5b42420615 100644
+--- a/src/crypto/sha512/sha512block_amd64.s
++++ b/src/crypto/sha512/sha512block_amd64.s
+@@ -1472,16 +1472,3 @@ loop2:
+ done_hash:
+ 	VZEROUPPER
+ 	RET
+-
+-// func checkAVX2() bool
+-// returns whether AVX2 is supported
+-TEXT ·checkAVX2(SB), NOSPLIT, $0
+-	MOVB runtime·support_avx2(SB), AX
+-	CMPB AX,$0
+-	JNE check_bmi2
+-	MOVB AX, ret+0(FP)
+-	RET
+-check_bmi2:
+-	MOVB runtime·support_bmi2(SB), AX
+-	MOVB AX, ret+0(FP)
+-	RET
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index c197489cd7..2cceb5a2e2 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -43,6 +43,7 @@ var pkgDeps = map[string][]string{
+ 	"sync":                    {"internal/race", "runtime", "sync/atomic", "unsafe"},
+ 	"sync/atomic":             {"unsafe"},
+ 	"unsafe":                  {},
++	"internal/cpu":            {"runtime"},
+ 
+ 	"L0": {
+ 		"errors",
+@@ -52,11 +53,12 @@ var pkgDeps = map[string][]string{
+ 		"sync",
+ 		"sync/atomic",
+ 		"unsafe",
++		"internal/cpu",
+ 	},
+ 
+ 	// L1 adds simple functions and strings processing,
+ 	// but not Unicode tables.
+-	"math":          {"unsafe"},
++	"math":          {"internal/cpu", "unsafe"},
+ 	"math/bits":     {},
+ 	"math/cmplx":    {"math"},
+ 	"math/rand":     {"L0", "math"},
+diff --git a/src/hash/crc32/crc32_amd64.go b/src/hash/crc32/crc32_amd64.go
+index 369a436be9..7017a89304 100644
+--- a/src/hash/crc32/crc32_amd64.go
++++ b/src/hash/crc32/crc32_amd64.go
+@@ -8,23 +8,20 @@
+ 
+ package crc32
+ 
+-import "unsafe"
++import (
++	"internal/cpu"
++	"unsafe"
++)
+ 
+ // This file contains the code to call the SSE 4.2 version of the Castagnoli
+ // and IEEE CRC.
+ 
+-// haveSSE41/haveSSE42/haveCLMUL are defined in crc_amd64.s and use
+-// CPUID to test for SSE 4.1, 4.2 and CLMUL support.
+-func haveSSE41() bool
+-func haveSSE42() bool
+-func haveCLMUL() bool
+-
+-// castagnoliSSE42 is defined in crc32_amd64.s and uses the SSE4.2 CRC32
++// castagnoliSSE42 is defined in crc32_amd64.s and uses the SSE 4.2 CRC32
+ // instruction.
+ //go:noescape
+ func castagnoliSSE42(crc uint32, p []byte) uint32
+ 
+-// castagnoliSSE42Triple is defined in crc32_amd64.s and uses the SSE4.2 CRC32
++// castagnoliSSE42Triple is defined in crc32_amd64.s and uses the SSE 4.2 CRC32
+ // instruction.
+ //go:noescape
+ func castagnoliSSE42Triple(
+@@ -38,9 +35,6 @@ func castagnoliSSE42Triple(
+ //go:noescape
+ func ieeeCLMUL(crc uint32, p []byte) uint32
+ 
+-var sse42 = haveSSE42()
+-var useFastIEEE = haveCLMUL() && haveSSE41()
+-
+ const castagnoliK1 = 168
+ const castagnoliK2 = 1344
+ 
+@@ -50,11 +44,11 @@ var castagnoliSSE42TableK1 *sse42Table
+ var castagnoliSSE42TableK2 *sse42Table
+ 
+ func archAvailableCastagnoli() bool {
+-	return sse42
++	return cpu.X86.HasSSE42
+ }
+ 
+ func archInitCastagnoli() {
+-	if !sse42 {
++	if !cpu.X86.HasSSE42 {
+ 		panic("arch-specific Castagnoli not available")
+ 	}
+ 	castagnoliSSE42TableK1 = new(sse42Table)
+@@ -86,7 +80,7 @@ func castagnoliShift(table *sse42Table, crc uint32) uint32 {
+ }
+ 
+ func archUpdateCastagnoli(crc uint32, p []byte) uint32 {
+-	if !sse42 {
++	if !cpu.X86.HasSSE42 {
+ 		panic("not available")
+ 	}
+ 
+@@ -197,13 +191,13 @@ func archUpdateCastagnoli(crc uint32, p []byte) uint32 {
+ }
+ 
+ func archAvailableIEEE() bool {
+-	return useFastIEEE
++	return cpu.X86.HasPCLMULQDQ && cpu.X86.HasSSE41
+ }
+ 
+ var archIeeeTable8 *slicing8Table
+ 
+ func archInitIEEE() {
+-	if !useFastIEEE {
++	if !cpu.X86.HasPCLMULQDQ || !cpu.X86.HasSSE41 {
+ 		panic("not available")
+ 	}
+ 	// We still use slicing-by-8 for small buffers.
+@@ -211,7 +205,7 @@ func archInitIEEE() {
+ }
+ 
+ func archUpdateIEEE(crc uint32, p []byte) uint32 {
+-	if !useFastIEEE {
++	if !cpu.X86.HasPCLMULQDQ || !cpu.X86.HasSSE41 {
+ 		panic("not available")
+ 	}
+ 
+diff --git a/src/hash/crc32/crc32_amd64.s b/src/hash/crc32/crc32_amd64.s
+index 50c0ec83aa..d49093602e 100644
+--- a/src/hash/crc32/crc32_amd64.s
++++ b/src/hash/crc32/crc32_amd64.s
+@@ -134,36 +134,6 @@ loop:
+ 	MOVL DX, retC+104(FP)
+ 	RET
+ 
+-// func haveSSE42() bool
+-TEXT ·haveSSE42(SB),NOSPLIT,$0
+-	XORQ AX, AX
+-	INCL AX
+-	CPUID
+-	SHRQ $20, CX
+-	ANDQ $1, CX
+-	MOVB CX, ret+0(FP)
+-	RET
+-
+-// func haveCLMUL() bool
+-TEXT ·haveCLMUL(SB),NOSPLIT,$0
+-	XORQ AX, AX
+-	INCL AX
+-	CPUID
+-	SHRQ $1, CX
+-	ANDQ $1, CX
+-	MOVB CX, ret+0(FP)
+-	RET
+-
+-// func haveSSE41() bool
+-TEXT ·haveSSE41(SB),NOSPLIT,$0
+-	XORQ AX, AX
+-	INCL AX
+-	CPUID
+-	SHRQ $19, CX
+-	ANDQ $1, CX
+-	MOVB CX, ret+0(FP)
+-	RET
+-
+ // CRC32 polynomial data
+ //
+ // These constants are lifted from the
+diff --git a/src/hash/crc32/crc32_amd64p32.go b/src/hash/crc32/crc32_amd64p32.go
+index 9d728fc8fe..1ec44cb496 100644
+--- a/src/hash/crc32/crc32_amd64p32.go
++++ b/src/hash/crc32/crc32_amd64p32.go
+@@ -4,33 +4,29 @@
+ 
+ package crc32
+ 
++import "internal/cpu"
++
+ // This file contains the code to call the SSE 4.2 version of the Castagnoli
+ // CRC.
+ 
+-// haveSSE42 is defined in crc32_amd64p32.s and uses CPUID to test for SSE 4.2
+-// support.
+-func haveSSE42() bool
+-
+ // castagnoliSSE42 is defined in crc32_amd64p32.s and uses the SSE4.2 CRC32
+ // instruction.
+ //go:noescape
+ func castagnoliSSE42(crc uint32, p []byte) uint32
+ 
+-var sse42 = haveSSE42()
+-
+ func archAvailableCastagnoli() bool {
+-	return sse42
++	return cpu.X86.HasSSE42
+ }
+ 
+ func archInitCastagnoli() {
+-	if !sse42 {
++	if !cpu.X86.HasSSE42 {
+ 		panic("not available")
+ 	}
+ 	// No initialization necessary.
+ }
+ 
+ func archUpdateCastagnoli(crc uint32, p []byte) uint32 {
+-	if !sse42 {
++	if !cpu.X86.HasSSE42 {
+ 		panic("not available")
+ 	}
+ 	return castagnoliSSE42(crc, p)
+diff --git a/src/hash/crc32/crc32_amd64p32.s b/src/hash/crc32/crc32_amd64p32.s
+index b6770eba3e..502bceac57 100644
+--- a/src/hash/crc32/crc32_amd64p32.s
++++ b/src/hash/crc32/crc32_amd64p32.s
+@@ -51,14 +51,3 @@ done:
+ 	NOTL AX
+ 	MOVL AX, ret+16(FP)
+ 	RET
+-
+-// func haveSSE42() bool
+-TEXT ·haveSSE42(SB),NOSPLIT,$0
+-	XORQ AX, AX
+-	INCL AX
+-	CPUID
+-	SHRQ $20, CX
+-	ANDQ $1, CX
+-	MOVB CX, ret+0(FP)
+-	RET
+-
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+new file mode 100644
+index 0000000000..2226b777e2
+--- /dev/null
++++ b/src/internal/cpu/cpu.go
+@@ -0,0 +1,32 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package cpu implements processor feature detection
++// used by the Go standard libary.
++package cpu
++
++var X86 x86
++
++// The booleans in x86 contain the correspondingly named cpuid feature bit.
++// HasAVX and HasAVX2 are only set if the OS does support XMM and YMM registers
++// in addition to the cpuid feature bit being set.
++// The struct is padded to avoid false sharing.
++type x86 struct {
++	_            [CacheLineSize]byte
++	HasAES       bool
++	HasAVX       bool
++	HasAVX2      bool
++	HasBMI1      bool
++	HasBMI2      bool
++	HasERMS      bool
++	HasOSXSAVE   bool
++	HasPCLMULQDQ bool
++	HasPOPCNT    bool
++	HasSSE2      bool
++	HasSSE3      bool
++	HasSSSE3     bool
++	HasSSE41     bool
++	HasSSE42     bool
++	_            [CacheLineSize]byte
++}
+diff --git a/src/internal/cpu/cpu_arm.go b/src/internal/cpu/cpu_arm.go
+new file mode 100644
+index 0000000000..078a6c3b80
+--- /dev/null
++++ b/src/internal/cpu/cpu_arm.go
+@@ -0,0 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const CacheLineSize = 32
+diff --git a/src/internal/cpu/cpu_arm64.go b/src/internal/cpu/cpu_arm64.go
+new file mode 100644
+index 0000000000..078a6c3b80
+--- /dev/null
++++ b/src/internal/cpu/cpu_arm64.go
+@@ -0,0 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const CacheLineSize = 32
+diff --git a/src/internal/cpu/cpu_mips.go b/src/internal/cpu/cpu_mips.go
+new file mode 100644
+index 0000000000..078a6c3b80
+--- /dev/null
++++ b/src/internal/cpu/cpu_mips.go
+@@ -0,0 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const CacheLineSize = 32
+diff --git a/src/internal/cpu/cpu_mips64.go b/src/internal/cpu/cpu_mips64.go
+new file mode 100644
+index 0000000000..078a6c3b80
+--- /dev/null
++++ b/src/internal/cpu/cpu_mips64.go
+@@ -0,0 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const CacheLineSize = 32
+diff --git a/src/internal/cpu/cpu_mips64le.go b/src/internal/cpu/cpu_mips64le.go
+new file mode 100644
+index 0000000000..078a6c3b80
+--- /dev/null
++++ b/src/internal/cpu/cpu_mips64le.go
+@@ -0,0 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const CacheLineSize = 32
+diff --git a/src/internal/cpu/cpu_mipsle.go b/src/internal/cpu/cpu_mipsle.go
+new file mode 100644
+index 0000000000..078a6c3b80
+--- /dev/null
++++ b/src/internal/cpu/cpu_mipsle.go
+@@ -0,0 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const CacheLineSize = 32
+diff --git a/src/internal/cpu/cpu_ppc64.go b/src/internal/cpu/cpu_ppc64.go
+new file mode 100644
+index 0000000000..5b15150847
+--- /dev/null
++++ b/src/internal/cpu/cpu_ppc64.go
+@@ -0,0 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const CacheLineSize = 128
+diff --git a/src/internal/cpu/cpu_ppc64le.go b/src/internal/cpu/cpu_ppc64le.go
+new file mode 100644
+index 0000000000..5b15150847
+--- /dev/null
++++ b/src/internal/cpu/cpu_ppc64le.go
+@@ -0,0 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const CacheLineSize = 128
+diff --git a/src/internal/cpu/cpu_s390x.go b/src/internal/cpu/cpu_s390x.go
+new file mode 100644
+index 0000000000..4455809d53
+--- /dev/null
++++ b/src/internal/cpu/cpu_s390x.go
+@@ -0,0 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const CacheLineSize = 256
+diff --git a/src/internal/cpu/cpu_test.go b/src/internal/cpu/cpu_test.go
+new file mode 100644
+index 0000000000..ab9836ac2f
+--- /dev/null
++++ b/src/internal/cpu/cpu_test.go
+@@ -0,0 +1,27 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu_test
++
++import (
++	"internal/cpu"
++	"runtime"
++	"testing"
++)
++
++func TestAMD64minimalFeatures(t *testing.T) {
++	if runtime.GOARCH == "amd64" {
++		if !cpu.X86.HasSSE2 {
++			t.Fatalf("HasSSE2 expected true, got false")
++		}
++	}
++}
++
++func TestAVX2hasAVX(t *testing.T) {
++	if runtime.GOARCH == "amd64" {
++		if cpu.X86.HasAVX2 && !cpu.X86.HasAVX {
++			t.Fatalf("HasAVX expected true, got false")
++		}
++	}
++}
+diff --git a/src/internal/cpu/cpu_x86.go b/src/internal/cpu/cpu_x86.go
+new file mode 100644
+index 0000000000..31e7084e78
+--- /dev/null
++++ b/src/internal/cpu/cpu_x86.go
+@@ -0,0 +1,59 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 amd64 amd64p32
++
++package cpu
++
++const CacheLineSize = 64
++
++// cpuid is implemented in cpu_x86.s.
++func cpuid(eaxArg, ecxArg uint32) (eax, ebx, ecx, edx uint32)
++
++// xgetbv with ecx = 0 is implemented in cpu_x86.s.
++func xgetbv() (eax, edx uint32)
++
++func init() {
++	maxId, _, _, _ := cpuid(0, 0)
++
++	if maxId < 1 {
++		return
++	}
++
++	_, _, ecx1, edx1 := cpuid(1, 0)
++	X86.HasSSE2 = isSet(26, edx1)
++
++	X86.HasSSE3 = isSet(0, ecx1)
++	X86.HasPCLMULQDQ = isSet(1, ecx1)
++	X86.HasSSSE3 = isSet(9, ecx1)
++	X86.HasSSE41 = isSet(19, ecx1)
++	X86.HasSSE42 = isSet(20, ecx1)
++	X86.HasPOPCNT = isSet(23, ecx1)
++	X86.HasAES = isSet(25, ecx1)
++	X86.HasOSXSAVE = isSet(27, ecx1)
++
++	osSupportsAVX := false
++	// For XGETBV, OSXSAVE bit is required and sufficient.
++	if X86.HasOSXSAVE {
++		eax, _ := xgetbv()
++		// Check if XMM and YMM registers have OS support.
++		osSupportsAVX = isSet(1, eax) && isSet(2, eax)
++	}
++
++	X86.HasAVX = isSet(28, ecx1) && osSupportsAVX
++
++	if maxId < 7 {
++		return
++	}
++
++	_, ebx7, _, _ := cpuid(7, 0)
++	X86.HasBMI1 = isSet(3, ebx7)
++	X86.HasAVX2 = isSet(5, ebx7) && osSupportsAVX
++	X86.HasBMI2 = isSet(8, ebx7)
++	X86.HasERMS = isSet(9, ebx7)
++}
++
++func isSet(bitpos uint, value uint32) bool {
++	return value&(1<<bitpos) != 0
++}
+diff --git a/src/internal/cpu/cpu_x86.s b/src/internal/cpu/cpu_x86.s
+new file mode 100644
+index 0000000000..228fbcf6d6
+--- /dev/null
++++ b/src/internal/cpu/cpu_x86.s
+@@ -0,0 +1,32 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 amd64 amd64p32
++
++#include "textflag.h"
++
++// func cpuid(eaxArg, ecxArg uint32) (eax, ebx, ecx, edx uint32)
++TEXT ·cpuid(SB), NOSPLIT, $0-24
++	MOVL eaxArg+0(FP), AX
++	MOVL ecxArg+4(FP), CX
++	CPUID
++	MOVL AX, eax+8(FP)
++	MOVL BX, ebx+12(FP)
++	MOVL CX, ecx+16(FP)
++	MOVL DX, edx+20(FP)
++	RET
++
++// func xgetbv() (eax, edx uint32)
++TEXT ·xgetbv(SB),NOSPLIT,$0-8
++#ifdef GOOS_nacl
++	// nacl does not support XGETBV.
++	MOVL $0, eax+0(FP)
++	MOVL $0, edx+4(FP)
++#else
++	MOVL $0, CX
++	XGETBV
++	MOVL AX, eax+0(FP)
++	MOVL DX, edx+4(FP)
++#endif
++	RET
+diff --git a/src/math/floor_amd64.s b/src/math/floor_amd64.s
+index aa10ee8a9e..678d64361c 100644
+--- a/src/math/floor_amd64.s
++++ b/src/math/floor_amd64.s
+@@ -6,20 +6,9 @@
+ 
+ #define Big		0x4330000000000000 // 2**52
+ 
+-// func hasSSE4() bool
+-// returns whether SSE4.1 is supported
+-TEXT ·hasSSE4(SB),NOSPLIT,$0
+-	XORQ AX, AX
+-	INCL AX
+-	CPUID
+-	SHRQ $19, CX
+-	ANDQ $1, CX
+-	MOVB CX, ret+0(FP)
+-	RET
+-
+ // func Floor(x float64) float64
+ TEXT ·Floor(SB),NOSPLIT,$0
+-	CMPB    math·useSSE4(SB), $1
++	CMPB    ·useSSE41(SB), $1
+ 	JNE     nosse4
+ 	ROUNDSD $1, x+0(FP), X0
+ 	MOVQ X0, ret+8(FP)
+@@ -47,7 +36,7 @@ isBig_floor:
+ 
+ // func Ceil(x float64) float64
+ TEXT ·Ceil(SB),NOSPLIT,$0
+-	CMPB    math·useSSE4(SB), $1
++	CMPB    ·useSSE41(SB), $1
+ 	JNE     nosse4
+ 	ROUNDSD $2, x+0(FP), X0
+ 	MOVQ X0, ret+8(FP)
+diff --git a/src/math/floor_asm.go b/src/math/floor_asm.go
+index 28e56a5d51..fdec112cef 100644
+--- a/src/math/floor_asm.go
++++ b/src/math/floor_asm.go
+@@ -6,7 +6,6 @@
+ 
+ package math
+ 
+-//defined in floor_amd64.s
+-func hasSSE4() bool
++import "internal/cpu"
+ 
+-var useSSE4 = hasSSE4()
++var useSSE41 = cpu.X86.HasSSE41
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 0dc9a9c542..fb428c40db 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1706,27 +1706,6 @@ big_loop_avx2_exit:
+ 	VZEROUPPER
+ 	JMP loop
+ 
+-
+-TEXT strings·supportAVX2(SB),NOSPLIT,$0-1
+-	MOVBLZX runtime·support_avx2(SB), AX
+-	MOVB AX, ret+0(FP)
+-	RET
+-
+-TEXT bytes·supportAVX2(SB),NOSPLIT,$0-1
+-	MOVBLZX runtime·support_avx2(SB), AX
+-	MOVB AX, ret+0(FP)
+-	RET
+-
+-TEXT strings·supportPOPCNT(SB),NOSPLIT,$0-1
+-	MOVBLZX runtime·support_popcnt(SB), AX
+-	MOVB AX, ret+0(FP)
+-	RET
+-
+-TEXT bytes·supportPOPCNT(SB),NOSPLIT,$0-1
+-	MOVBLZX runtime·support_popcnt(SB), AX
+-	MOVB AX, ret+0(FP)
+-	RET
+-
+ TEXT strings·indexShortStr(SB),NOSPLIT,$0-40
+ 	MOVQ s+0(FP), DI
+ 	// We want len in DX and AX, because PCMPESTRI implicitly consumes them
+diff --git a/src/strings/strings_amd64.go b/src/strings/strings_amd64.go
+index 33771480a6..a9c01bbf7f 100644
+--- a/src/strings/strings_amd64.go
++++ b/src/strings/strings_amd64.go
+@@ -4,19 +4,19 @@
+ 
+ package strings
+ 
++import "internal/cpu"
++
+ //go:noescape
+ 
+ // indexShortStr returns the index of the first instance of c in s, or -1 if c is not present in s.
+ // indexShortStr requires 2 <= len(c) <= shortStringLen
+-func indexShortStr(s, c string) int  // ../runtime/asm_$GOARCH.s
+-func supportAVX2() bool              // ../runtime/asm_$GOARCH.s
+-func supportPOPCNT() bool            // ../runtime/asm_$GOARCH.s
+-func countByte(s string, c byte) int // ../runtime/asm_$GOARCH.s
++func indexShortStr(s, c string) int  // ../runtime/asm_amd64.s
++func countByte(s string, c byte) int // ../runtime/asm_amd64.s
+ 
+ var shortStringLen int
+ 
+ func init() {
+-	if supportAVX2() {
++	if cpu.X86.HasAVX2 {
+ 		shortStringLen = 63
+ 	} else {
+ 		shortStringLen = 31
+@@ -99,7 +99,7 @@ func Index(s, substr string) int {
+ // Count counts the number of non-overlapping instances of substr in s.
+ // If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
+ func Count(s, substr string) int {
+-	if len(substr) == 1 && supportPOPCNT() {
++	if len(substr) == 1 && cpu.X86.HasPOPCNT {
+ 		return countByte(s, byte(substr[0]))
+ 	}
+ 	return countGeneric(s, substr)

@@ -15,6 +15,28 @@ Date:   Wed Mar 7 00:01:57 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5755064
-
+---
  src/cmd/go/run.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index d189d70aac..94cd592969 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -42,12 +42,15 @@ func runRun(cmd *Command, args []string) {
+ 		i++
+ 	}
+ 	files, cmdArgs := args[:i], args[i:]
++	if len(files) == 0 {
++		fatalf("go run: no go files listed")
++	}
+ 	p := goFilesPackage(files)
+ 	if p.Error != nil {
+ 		fatalf("%s", p.Error)
+ 	}
+ 	if p.Name != "main" {
+-		fatalf("cannot run non-main package")
++		fatalf("go run: cannot run non-main package")
+ 	}
+ 	p.target = "" // must build - not up to date
+ 	a1 := b.action(modeBuild, modeBuild, p)

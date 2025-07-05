@@ -13,7 +13,7 @@ Date:   Wed Oct 4 19:28:59 2017 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/build/deps_test.go                          |   1 +
  src/net/http/export_test.go                        |   4 +-
  src/net/http/proxy_test.go                         |  39 +--
@@ -23,3 +23,910 @@ Date:   Wed Oct 4 19:28:59 2017 +0100
  .../golang_org/x/net/http/httpproxy/proxy.go       | 239 +++++++++++++++++
  .../golang_org/x/net/http/httpproxy/proxy_test.go  | 298 +++++++++++++++++++++
  8 files changed, 605 insertions(+), 184 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 9aebd7327a..5137ccfe3f 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -401,6 +401,7 @@ var pkgDeps = map[string][]string{
+ 		"crypto/rand",
+ 		"crypto/tls",
+ 		"golang_org/x/net/http/httpguts",
++		"golang_org/x/net/http/httpproxy",
+ 		"golang_org/x/net/http2/hpack",
+ 		"golang_org/x/net/idna",
+ 		"golang_org/x/text/unicode/norm",
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 1825acd9be..e0ceb40021 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -76,9 +76,7 @@ func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
+ }
+ 
+ func ResetCachedEnvironment() {
+-	httpProxyEnv.reset()
+-	httpsProxyEnv.reset()
+-	noProxyEnv.reset()
++	resetProxyConfig()
+ }
+ 
+ func (t *Transport) NumPendingRequestsForTesting() int {
+diff --git a/src/net/http/proxy_test.go b/src/net/http/proxy_test.go
+index f59a551f0a..eef0ca82f8 100644
+--- a/src/net/http/proxy_test.go
++++ b/src/net/http/proxy_test.go
+@@ -13,37 +13,6 @@ import (
+ // TODO(mattn):
+ //	test ProxyAuth
+ 
+-var UseProxyTests = []struct {
+-	host  string
+-	match bool
+-}{
+-	// Never proxy localhost:
+-	{"localhost", false},
+-	{"127.0.0.1", false},
+-	{"127.0.0.2", false},
+-	{"[::1]", false},
+-	{"[::2]", true}, // not a loopback address
+-
+-	{"barbaz.net", false},     // match as .barbaz.net
+-	{"foobar.com", false},     // have a port but match
+-	{"foofoobar.com", true},   // not match as a part of foobar.com
+-	{"baz.com", true},         // not match as a part of barbaz.com
+-	{"localhost.net", true},   // not match as suffix of address
+-	{"local.localhost", true}, // not match as prefix as address
+-	{"barbarbaz.net", true},   // not match because NO_PROXY have a '.'
+-	{"www.foobar.com", false}, // match because NO_PROXY includes "foobar.com"
+-}
+-
+-func TestUseProxy(t *testing.T) {
+-	ResetProxyEnv()
+-	os.Setenv("NO_PROXY", "foobar.com, .barbaz.net")
+-	for _, test := range UseProxyTests {
+-		if useProxy(test.host+":80") != test.match {
+-			t.Errorf("useProxy(%v) = %v, want %v", test.host, !test.match, test.match)
+-		}
+-	}
+-}
+-
+ var cacheKeysTests = []struct {
+ 	proxy  string
+ 	scheme string
+@@ -74,14 +43,8 @@ func TestCacheKeys(t *testing.T) {
+ }
+ 
+ func ResetProxyEnv() {
+-	for _, v := range []string{"HTTP_PROXY", "http_proxy", "NO_PROXY", "no_proxy"} {
++	for _, v := range []string{"HTTP_PROXY", "http_proxy", "NO_PROXY", "no_proxy", "REQUEST_METHOD"} {
+ 		os.Unsetenv(v)
+ 	}
+ 	ResetCachedEnvironment()
+ }
+-
+-func TestInvalidNoProxy(t *testing.T) {
+-	ResetProxyEnv()
+-	os.Setenv("NO_PROXY", ":1")
+-	useProxy("example.com:80") // should not panic
+-}
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index cce88ca239..5bf9ff951f 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -29,6 +29,7 @@ import (
+ 	"time"
+ 
+ 	"golang_org/x/net/http/httpguts"
++	"golang_org/x/net/http/httpproxy"
+ )
+ 
+ // DefaultTransport is the default implementation of Transport and is
+@@ -272,39 +273,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
+ // As a special case, if req.URL.Host is "localhost" (with or without
+ // a port number), then a nil URL and nil error will be returned.
+ func ProxyFromEnvironment(req *Request) (*url.URL, error) {
+-	var proxy string
+-	if req.URL.Scheme == "https" {
+-		proxy = httpsProxyEnv.Get()
+-	}
+-	if proxy == "" {
+-		proxy = httpProxyEnv.Get()
+-		if proxy != "" && os.Getenv("REQUEST_METHOD") != "" {
+-			return nil, errors.New("net/http: refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy")
+-		}
+-	}
+-	if proxy == "" {
+-		return nil, nil
+-	}
+-	if !useProxy(canonicalAddr(req.URL)) {
+-		return nil, nil
+-	}
+-	proxyURL, err := url.Parse(proxy)
+-	if err != nil ||
+-		(proxyURL.Scheme != "http" &&
+-			proxyURL.Scheme != "https" &&
+-			proxyURL.Scheme != "socks5") {
+-		// proxy was bogus. Try prepending "http://" to it and
+-		// see if that parses correctly. If not, we fall
+-		// through and complain about the original one.
+-		if proxyURL, err := url.Parse("http://" + proxy); err == nil {
+-			return proxyURL, nil
+-		}
+-
+-	}
+-	if err != nil {
+-		return nil, fmt.Errorf("invalid proxy address %q: %v", proxy, err)
+-	}
+-	return proxyURL, nil
++	return envProxyFunc()(req.URL)
+ }
+ 
+ // ProxyURL returns a proxy function (for use in a Transport)
+@@ -574,44 +543,25 @@ func (t *Transport) cancelRequest(req *Request, err error) {
+ //
+ 
+ var (
+-	httpProxyEnv = &envOnce{
+-		names: []string{"HTTP_PROXY", "http_proxy"},
+-	}
+-	httpsProxyEnv = &envOnce{
+-		names: []string{"HTTPS_PROXY", "https_proxy"},
+-	}
+-	noProxyEnv = &envOnce{
+-		names: []string{"NO_PROXY", "no_proxy"},
+-	}
++	// proxyConfigOnce guards proxyConfig
++	envProxyOnce      sync.Once
++	envProxyFuncValue func(*url.URL) (*url.URL, error)
+ )
+ 
+-// envOnce looks up an environment variable (optionally by multiple
+-// names) once. It mitigates expensive lookups on some platforms
+-// (e.g. Windows).
+-type envOnce struct {
+-	names []string
+-	once  sync.Once
+-	val   string
++// defaultProxyConfig returns a ProxyConfig value looked up
++// from the environment. This mitigates expensive lookups
++// on some platforms (e.g. Windows).
++func envProxyFunc() func(*url.URL) (*url.URL, error) {
++	envProxyOnce.Do(func() {
++		envProxyFuncValue = httpproxy.FromEnvironment().ProxyFunc()
++	})
++	return envProxyFuncValue
+ }
+ 
+-func (e *envOnce) Get() string {
+-	e.once.Do(e.init)
+-	return e.val
+-}
+-
+-func (e *envOnce) init() {
+-	for _, n := range e.names {
+-		e.val = os.Getenv(n)
+-		if e.val != "" {
+-			return
+-		}
+-	}
+-}
+-
+-// reset is used by tests
+-func (e *envOnce) reset() {
+-	e.once = sync.Once{}
+-	e.val = ""
++// resetProxyConfig is used by tests.
++func resetProxyConfig() {
++	envProxyOnce = sync.Once{}
++	envProxyFuncValue = nil
+ }
+ 
+ func (t *Transport) connectMethodForRequest(treq *transportRequest) (cm connectMethod, err error) {
+@@ -1235,63 +1185,6 @@ func (w persistConnWriter) Write(p []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// useProxy reports whether requests to addr should use a proxy,
+-// according to the NO_PROXY or no_proxy environment variable.
+-// addr is always a canonicalAddr with a host and port.
+-func useProxy(addr string) bool {
+-	if len(addr) == 0 {
+-		return true
+-	}
+-	host, _, err := net.SplitHostPort(addr)
+-	if err != nil {
+-		return false
+-	}
+-	if host == "localhost" {
+-		return false
+-	}
+-	if ip := net.ParseIP(host); ip != nil {
+-		if ip.IsLoopback() {
+-			return false
+-		}
+-	}
+-
+-	noProxy := noProxyEnv.Get()
+-	if noProxy == "*" {
+-		return false
+-	}
+-
+-	addr = strings.ToLower(strings.TrimSpace(addr))
+-	if hasPort(addr) {
+-		addr = addr[:strings.LastIndex(addr, ":")]
+-	}
+-
+-	for _, p := range strings.Split(noProxy, ",") {
+-		p = strings.ToLower(strings.TrimSpace(p))
+-		if len(p) == 0 {
+-			continue
+-		}
+-		if hasPort(p) {
+-			p = p[:strings.LastIndex(p, ":")]
+-		}
+-		if addr == p {
+-			return false
+-		}
+-		if len(p) == 0 {
+-			// There is no host part, likely the entry is malformed; ignore.
+-			continue
+-		}
+-		if p[0] == '.' && (strings.HasSuffix(addr, p) || addr == p[1:]) {
+-			// no_proxy ".foo.com" matches "bar.foo.com" or "foo.com"
+-			return false
+-		}
+-		if p[0] != '.' && strings.HasSuffix(addr, p) && addr[len(addr)-len(p)-1] == '.' {
+-			// no_proxy "foo.com" matches "bar.foo.com"
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ // connectMethod is the map key (in its String form) for keeping persistent
+ // TCP connections alive for subsequent HTTP requests.
+ //
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 5e35812c7b..57309bbac1 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2381,7 +2381,7 @@ var proxyFromEnvTests = []proxyFromEnvTest{
+ 	// where HTTP_PROXY can be attacker-controlled.
+ 	{env: "http://10.1.2.3:8080", reqmeth: "POST",
+ 		want:    "<nil>",
+-		wanterr: errors.New("net/http: refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy")},
++		wanterr: errors.New("refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy")},
+ 
+ 	{want: "<nil>"},
+ 
+@@ -2392,28 +2392,50 @@ var proxyFromEnvTests = []proxyFromEnvTest{
+ 	{noenv: ".foo.com", req: "http://example.com/", env: "proxy", want: "http://proxy"},
+ }
+ 
++func testProxyForRequest(t *testing.T, tt proxyFromEnvTest, proxyForRequest func(req *Request) (*url.URL, error)) {
++	t.Helper()
++	reqURL := tt.req
++	if reqURL == "" {
++		reqURL = "http://example.com"
++	}
++	req, _ := NewRequest("GET", reqURL, nil)
++	url, err := proxyForRequest(req)
++	if g, e := fmt.Sprintf("%v", err), fmt.Sprintf("%v", tt.wanterr); g != e {
++		t.Errorf("%v: got error = %q, want %q", tt, g, e)
++		return
++	}
++	if got := fmt.Sprintf("%s", url); got != tt.want {
++		t.Errorf("%v: got URL = %q, want %q", tt, url, tt.want)
++	}
++}
++
+ func TestProxyFromEnvironment(t *testing.T) {
+ 	ResetProxyEnv()
+ 	defer ResetProxyEnv()
+ 	for _, tt := range proxyFromEnvTests {
+-		os.Setenv("HTTP_PROXY", tt.env)
+-		os.Setenv("HTTPS_PROXY", tt.httpsenv)
+-		os.Setenv("NO_PROXY", tt.noenv)
+-		os.Setenv("REQUEST_METHOD", tt.reqmeth)
+-		ResetCachedEnvironment()
+-		reqURL := tt.req
+-		if reqURL == "" {
+-			reqURL = "http://example.com"
+-		}
+-		req, _ := NewRequest("GET", reqURL, nil)
+-		url, err := ProxyFromEnvironment(req)
+-		if g, e := fmt.Sprintf("%v", err), fmt.Sprintf("%v", tt.wanterr); g != e {
+-			t.Errorf("%v: got error = %q, want %q", tt, g, e)
+-			continue
+-		}
+-		if got := fmt.Sprintf("%s", url); got != tt.want {
+-			t.Errorf("%v: got URL = %q, want %q", tt, url, tt.want)
+-		}
++		testProxyForRequest(t, tt, func(req *Request) (*url.URL, error) {
++			os.Setenv("HTTP_PROXY", tt.env)
++			os.Setenv("HTTPS_PROXY", tt.httpsenv)
++			os.Setenv("NO_PROXY", tt.noenv)
++			os.Setenv("REQUEST_METHOD", tt.reqmeth)
++			ResetCachedEnvironment()
++			return ProxyFromEnvironment(req)
++		})
++	}
++}
++
++func TestProxyFromEnvironmentLowerCase(t *testing.T) {
++	ResetProxyEnv()
++	defer ResetProxyEnv()
++	for _, tt := range proxyFromEnvTests {
++		testProxyForRequest(t, tt, func(req *Request) (*url.URL, error) {
++			os.Setenv("http_proxy", tt.env)
++			os.Setenv("https_proxy", tt.httpsenv)
++			os.Setenv("no_proxy", tt.noenv)
++			os.Setenv("REQUEST_METHOD", tt.reqmeth)
++			ResetCachedEnvironment()
++			return ProxyFromEnvironment(req)
++		})
+ 	}
+ }
+ 
+diff --git a/src/vendor/golang_org/x/net/http/httpproxy/export_test.go b/src/vendor/golang_org/x/net/http/httpproxy/export_test.go
+new file mode 100644
+index 0000000000..36b29d2db6
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/http/httpproxy/export_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package httpproxy
++
++var ExportUseProxy = (*Config).useProxy
+diff --git a/src/vendor/golang_org/x/net/http/httpproxy/proxy.go b/src/vendor/golang_org/x/net/http/httpproxy/proxy.go
+new file mode 100644
+index 0000000000..f82748d208
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/http/httpproxy/proxy.go
+@@ -0,0 +1,239 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package httpproxy provides support for HTTP proxy determination
++// based on environment variables, as provided by net/http's
++// ProxyFromEnvironment function.
++//
++// The API is not subject to the Go 1 compatibility promise and may change at
++// any time.
++package httpproxy
++
++import (
++	"errors"
++	"fmt"
++	"net"
++	"net/url"
++	"os"
++	"strings"
++	"unicode/utf8"
++
++	"golang_org/x/net/idna"
++)
++
++// Config holds configuration for HTTP proxy settings. See
++// FromEnvironment for details.
++type Config struct {
++	// HTTPProxy represents the value of the HTTP_PROXY or
++	// http_proxy environment variable. It will be used as the proxy
++	// URL for HTTP requests and HTTPS requests unless overridden by
++	// HTTPSProxy or NoProxy.
++	HTTPProxy string
++
++	// HTTPSProxy represents the HTTPS_PROXY or https_proxy
++	// environment variable. It will be used as the proxy URL for
++	// HTTPS requests unless overridden by NoProxy.
++	HTTPSProxy string
++
++	// NoProxy represents the NO_PROXY or no_proxy environment
++	// variable. It specifies URLs that should be excluded from
++	// proxying as a comma-separated list of domain names or a
++	// single asterisk (*) to indicate that no proxying should be
++	// done. A domain name matches that name and all subdomains. A
++	// domain name with a leading "." matches subdomains only. For
++	// example "foo.com" matches "foo.com" and "bar.foo.com";
++	// ".y.com" matches "x.y.com" but not "y.com".
++	NoProxy string
++
++	// CGI holds whether the current process is running
++	// as a CGI handler (FromEnvironment infers this from the
++	// presence of a REQUEST_METHOD environment variable).
++	// When this is set, ProxyForURL will return an error
++	// when HTTPProxy applies, because a client could be
++	// setting HTTP_PROXY maliciously. See https://golang.org/s/cgihttpproxy.
++	CGI bool
++}
++
++// FromEnvironment returns a Config instance populated from the
++// environment variables HTTP_PROXY, HTTPS_PROXY and NO_PROXY (or the
++// lowercase versions thereof). HTTPS_PROXY takes precedence over
++// HTTP_PROXY for https requests.
++//
++// The environment values may be either a complete URL or a
++// "host[:port]", in which case the "http" scheme is assumed. An error
++// is returned if the value is a different form.
++func FromEnvironment() *Config {
++	return &Config{
++		HTTPProxy:  getEnvAny("HTTP_PROXY", "http_proxy"),
++		HTTPSProxy: getEnvAny("HTTPS_PROXY", "https_proxy"),
++		NoProxy:    getEnvAny("NO_PROXY", "no_proxy"),
++		CGI:        os.Getenv("REQUEST_METHOD") != "",
++	}
++}
++
++func getEnvAny(names ...string) string {
++	for _, n := range names {
++		if val := os.Getenv(n); val != "" {
++			return val
++		}
++	}
++	return ""
++}
++
++// ProxyFunc returns a function that determines the proxy URL to use for
++// a given request URL. Changing the contents of cfg will not affect
++// proxy functions created earlier.
++//
++// A nil URL and nil error are returned if no proxy is defined in the
++// environment, or a proxy should not be used for the given request, as
++// defined by NO_PROXY.
++//
++// As a special case, if req.URL.Host is "localhost" (with or without a
++// port number), then a nil URL and nil error will be returned.
++func (cfg *Config) ProxyFunc() func(reqURL *url.URL) (*url.URL, error) {
++	// Prevent Config changes from affecting the function calculation.
++	// TODO Preprocess proxy settings for more efficient evaluation.
++	cfg1 := *cfg
++	return cfg1.proxyForURL
++}
++
++func (cfg *Config) proxyForURL(reqURL *url.URL) (*url.URL, error) {
++	var proxy string
++	if reqURL.Scheme == "https" {
++		proxy = cfg.HTTPSProxy
++	}
++	if proxy == "" {
++		proxy = cfg.HTTPProxy
++		if proxy != "" && cfg.CGI {
++			return nil, errors.New("refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy")
++		}
++	}
++	if proxy == "" {
++		return nil, nil
++	}
++	if !cfg.useProxy(canonicalAddr(reqURL)) {
++		return nil, nil
++	}
++	proxyURL, err := url.Parse(proxy)
++	if err != nil ||
++		(proxyURL.Scheme != "http" &&
++			proxyURL.Scheme != "https" &&
++			proxyURL.Scheme != "socks5") {
++		// proxy was bogus. Try prepending "http://" to it and
++		// see if that parses correctly. If not, we fall
++		// through and complain about the original one.
++		if proxyURL, err := url.Parse("http://" + proxy); err == nil {
++			return proxyURL, nil
++		}
++	}
++	if err != nil {
++		return nil, fmt.Errorf("invalid proxy address %q: %v", proxy, err)
++	}
++	return proxyURL, nil
++}
++
++// useProxy reports whether requests to addr should use a proxy,
++// according to the NO_PROXY or no_proxy environment variable.
++// addr is always a canonicalAddr with a host and port.
++func (cfg *Config) useProxy(addr string) bool {
++	if len(addr) == 0 {
++		return true
++	}
++	host, _, err := net.SplitHostPort(addr)
++	if err != nil {
++		return false
++	}
++	if host == "localhost" {
++		return false
++	}
++	if ip := net.ParseIP(host); ip != nil {
++		if ip.IsLoopback() {
++			return false
++		}
++	}
++
++	noProxy := cfg.NoProxy
++	if noProxy == "*" {
++		return false
++	}
++
++	addr = strings.ToLower(strings.TrimSpace(addr))
++	if hasPort(addr) {
++		addr = addr[:strings.LastIndex(addr, ":")]
++	}
++
++	for _, p := range strings.Split(noProxy, ",") {
++		p = strings.ToLower(strings.TrimSpace(p))
++		if len(p) == 0 {
++			continue
++		}
++		if hasPort(p) {
++			p = p[:strings.LastIndex(p, ":")]
++		}
++		if addr == p {
++			return false
++		}
++		if len(p) == 0 {
++			// There is no host part, likely the entry is malformed; ignore.
++			continue
++		}
++		if p[0] == '.' && (strings.HasSuffix(addr, p) || addr == p[1:]) {
++			// no_proxy ".foo.com" matches "bar.foo.com" or "foo.com"
++			return false
++		}
++		if p[0] != '.' && strings.HasSuffix(addr, p) && addr[len(addr)-len(p)-1] == '.' {
++			// no_proxy "foo.com" matches "bar.foo.com"
++			return false
++		}
++	}
++	return true
++}
++
++var portMap = map[string]string{
++	"http":   "80",
++	"https":  "443",
++	"socks5": "1080",
++}
++
++// canonicalAddr returns url.Host but always with a ":port" suffix
++func canonicalAddr(url *url.URL) string {
++	addr := url.Hostname()
++	if v, err := idnaASCII(addr); err == nil {
++		addr = v
++	}
++	port := url.Port()
++	if port == "" {
++		port = portMap[url.Scheme]
++	}
++	return net.JoinHostPort(addr, port)
++}
++
++// Given a string of the form "host", "host:port", or "[ipv6::address]:port",
++// return true if the string includes a port.
++func hasPort(s string) bool { return strings.LastIndex(s, ":") > strings.LastIndex(s, "]") }
++
++func idnaASCII(v string) (string, error) {
++	// TODO: Consider removing this check after verifying performance is okay.
++	// Right now punycode verification, length checks, context checks, and the
++	// permissible character tests are all omitted. It also prevents the ToASCII
++	// call from salvaging an invalid IDN, when possible. As a result it may be
++	// possible to have two IDNs that appear identical to the user where the
++	// ASCII-only version causes an error downstream whereas the non-ASCII
++	// version does not.
++	// Note that for correct ASCII IDNs ToASCII will only do considerably more
++	// work, but it will not cause an allocation.
++	if isASCII(v) {
++		return v, nil
++	}
++	return idna.Lookup.ToASCII(v)
++}
++
++func isASCII(s string) bool {
++	for i := 0; i < len(s); i++ {
++		if s[i] >= utf8.RuneSelf {
++			return false
++		}
++	}
++	return true
++}
+diff --git a/src/vendor/golang_org/x/net/http/httpproxy/proxy_test.go b/src/vendor/golang_org/x/net/http/httpproxy/proxy_test.go
+new file mode 100644
+index 0000000000..fde2514832
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/http/httpproxy/proxy_test.go
+@@ -0,0 +1,298 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package httpproxy_test
++
++import (
++	"bytes"
++	"errors"
++	"fmt"
++	"net/url"
++	"os"
++	"strings"
++	"testing"
++
++	"golang_org/x/net/http/httpproxy"
++)
++
++type proxyForURLTest struct {
++	cfg     httpproxy.Config
++	req     string // URL to fetch; blank means "http://example.com"
++	want    string
++	wanterr error
++}
++
++func (t proxyForURLTest) String() string {
++	var buf bytes.Buffer
++	space := func() {
++		if buf.Len() > 0 {
++			buf.WriteByte(' ')
++		}
++	}
++	if t.cfg.HTTPProxy != "" {
++		fmt.Fprintf(&buf, "http_proxy=%q", t.cfg.HTTPProxy)
++	}
++	if t.cfg.HTTPSProxy != "" {
++		space()
++		fmt.Fprintf(&buf, "https_proxy=%q", t.cfg.HTTPSProxy)
++	}
++	if t.cfg.NoProxy != "" {
++		space()
++		fmt.Fprintf(&buf, "no_proxy=%q", t.cfg.NoProxy)
++	}
++	req := "http://example.com"
++	if t.req != "" {
++		req = t.req
++	}
++	space()
++	fmt.Fprintf(&buf, "req=%q", req)
++	return strings.TrimSpace(buf.String())
++}
++
++var proxyForURLTests = []proxyForURLTest{{
++	cfg: httpproxy.Config{
++		HTTPProxy: "127.0.0.1:8080",
++	},
++	want: "http://127.0.0.1:8080",
++}, {
++	cfg: httpproxy.Config{
++		HTTPProxy: "cache.corp.example.com:1234",
++	},
++	want: "http://cache.corp.example.com:1234",
++}, {
++	cfg: httpproxy.Config{
++		HTTPProxy: "cache.corp.example.com",
++	},
++	want: "http://cache.corp.example.com",
++}, {
++	cfg: httpproxy.Config{
++		HTTPProxy: "https://cache.corp.example.com",
++	},
++	want: "https://cache.corp.example.com",
++}, {
++	cfg: httpproxy.Config{
++		HTTPProxy: "http://127.0.0.1:8080",
++	},
++	want: "http://127.0.0.1:8080",
++}, {
++	cfg: httpproxy.Config{
++		HTTPProxy: "https://127.0.0.1:8080",
++	},
++	want: "https://127.0.0.1:8080",
++}, {
++	cfg: httpproxy.Config{
++		HTTPProxy: "socks5://127.0.0.1",
++	},
++	want: "socks5://127.0.0.1",
++}, {
++	// Don't use secure for http
++	cfg: httpproxy.Config{
++		HTTPProxy:  "http.proxy.tld",
++		HTTPSProxy: "secure.proxy.tld",
++	},
++	req:  "http://insecure.tld/",
++	want: "http://http.proxy.tld",
++}, {
++	// Use secure for https.
++	cfg: httpproxy.Config{
++		HTTPProxy:  "http.proxy.tld",
++		HTTPSProxy: "secure.proxy.tld",
++	},
++	req:  "https://secure.tld/",
++	want: "http://secure.proxy.tld",
++}, {
++	cfg: httpproxy.Config{
++		HTTPProxy:  "http.proxy.tld",
++		HTTPSProxy: "https://secure.proxy.tld",
++	},
++	req:  "https://secure.tld/",
++	want: "https://secure.proxy.tld",
++}, {
++	// Issue 16405: don't use HTTP_PROXY in a CGI environment,
++	// where HTTP_PROXY can be attacker-controlled.
++	cfg: httpproxy.Config{
++		HTTPProxy: "http://10.1.2.3:8080",
++		CGI:       true,
++	},
++	want:    "<nil>",
++	wanterr: errors.New("refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy"),
++}, {
++	// HTTPS proxy is still used even in CGI environment.
++	// (perhaps dubious but it's the historical behaviour).
++	cfg: httpproxy.Config{
++		HTTPSProxy: "https://secure.proxy.tld",
++		CGI:        true,
++	},
++	req:  "https://secure.tld/",
++	want: "https://secure.proxy.tld",
++}, {
++	want: "<nil>",
++}, {
++	cfg: httpproxy.Config{
++		NoProxy:   "example.com",
++		HTTPProxy: "proxy",
++	},
++	req:  "http://example.com/",
++	want: "<nil>",
++}, {
++	cfg: httpproxy.Config{
++		NoProxy:   ".example.com",
++		HTTPProxy: "proxy",
++	},
++	req:  "http://example.com/",
++	want: "<nil>",
++}, {
++	cfg: httpproxy.Config{
++		NoProxy:   "ample.com",
++		HTTPProxy: "proxy",
++	},
++	req:  "http://example.com/",
++	want: "http://proxy",
++}, {
++	cfg: httpproxy.Config{
++		NoProxy:   "example.com",
++		HTTPProxy: "proxy",
++	},
++	req:  "http://foo.example.com/",
++	want: "<nil>",
++}, {
++	cfg: httpproxy.Config{
++		NoProxy:   ".foo.com",
++		HTTPProxy: "proxy",
++	},
++	req:  "http://example.com/",
++	want: "http://proxy",
++}}
++
++func testProxyForURL(t *testing.T, tt proxyForURLTest) {
++	t.Helper()
++	reqURLStr := tt.req
++	if reqURLStr == "" {
++		reqURLStr = "http://example.com"
++	}
++	reqURL, err := url.Parse(reqURLStr)
++	if err != nil {
++		t.Errorf("invalid URL %q", reqURLStr)
++		return
++	}
++	cfg := tt.cfg
++	proxyForURL := cfg.ProxyFunc()
++	url, err := proxyForURL(reqURL)
++	if g, e := fmt.Sprintf("%v", err), fmt.Sprintf("%v", tt.wanterr); g != e {
++		t.Errorf("%v: got error = %q, want %q", tt, g, e)
++		return
++	}
++	if got := fmt.Sprintf("%s", url); got != tt.want {
++		t.Errorf("%v: got URL = %q, want %q", tt, url, tt.want)
++	}
++
++	// Check that changing the Config doesn't change the results
++	// of the functuon.
++	cfg = httpproxy.Config{}
++	url, err = proxyForURL(reqURL)
++	if g, e := fmt.Sprintf("%v", err), fmt.Sprintf("%v", tt.wanterr); g != e {
++		t.Errorf("(after mutating config) %v: got error = %q, want %q", tt, g, e)
++		return
++	}
++	if got := fmt.Sprintf("%s", url); got != tt.want {
++		t.Errorf("(after mutating config) %v: got URL = %q, want %q", tt, url, tt.want)
++	}
++}
++
++func TestProxyForURL(t *testing.T) {
++	for _, tt := range proxyForURLTests {
++		testProxyForURL(t, tt)
++	}
++}
++
++func TestFromEnvironment(t *testing.T) {
++	os.Setenv("HTTP_PROXY", "httpproxy")
++	os.Setenv("HTTPS_PROXY", "httpsproxy")
++	os.Setenv("NO_PROXY", "noproxy")
++	os.Setenv("REQUEST_METHOD", "")
++	got := httpproxy.FromEnvironment()
++	want := httpproxy.Config{
++		HTTPProxy:  "httpproxy",
++		HTTPSProxy: "httpsproxy",
++		NoProxy:    "noproxy",
++	}
++	if *got != want {
++		t.Errorf("unexpected proxy config, got %#v want %#v", got, want)
++	}
++}
++
++func TestFromEnvironmentWithRequestMethod(t *testing.T) {
++	os.Setenv("HTTP_PROXY", "httpproxy")
++	os.Setenv("HTTPS_PROXY", "httpsproxy")
++	os.Setenv("NO_PROXY", "noproxy")
++	os.Setenv("REQUEST_METHOD", "PUT")
++	got := httpproxy.FromEnvironment()
++	want := httpproxy.Config{
++		HTTPProxy:  "httpproxy",
++		HTTPSProxy: "httpsproxy",
++		NoProxy:    "noproxy",
++		CGI:        true,
++	}
++	if *got != want {
++		t.Errorf("unexpected proxy config, got %#v want %#v", got, want)
++	}
++}
++
++func TestFromEnvironmentLowerCase(t *testing.T) {
++	os.Setenv("http_proxy", "httpproxy")
++	os.Setenv("https_proxy", "httpsproxy")
++	os.Setenv("no_proxy", "noproxy")
++	os.Setenv("REQUEST_METHOD", "")
++	got := httpproxy.FromEnvironment()
++	want := httpproxy.Config{
++		HTTPProxy:  "httpproxy",
++		HTTPSProxy: "httpsproxy",
++		NoProxy:    "noproxy",
++	}
++	if *got != want {
++		t.Errorf("unexpected proxy config, got %#v want %#v", got, want)
++	}
++}
++
++var UseProxyTests = []struct {
++	host  string
++	match bool
++}{
++	// Never proxy localhost:
++	{"localhost", false},
++	{"127.0.0.1", false},
++	{"127.0.0.2", false},
++	{"[::1]", false},
++	{"[::2]", true}, // not a loopback address
++
++	{"barbaz.net", false},     // match as .barbaz.net
++	{"foobar.com", false},     // have a port but match
++	{"foofoobar.com", true},   // not match as a part of foobar.com
++	{"baz.com", true},         // not match as a part of barbaz.com
++	{"localhost.net", true},   // not match as suffix of address
++	{"local.localhost", true}, // not match as prefix as address
++	{"barbarbaz.net", true},   // not match because NO_PROXY have a '.'
++	{"www.foobar.com", false}, // match because NO_PROXY includes "foobar.com"
++}
++
++func TestUseProxy(t *testing.T) {
++	cfg := &httpproxy.Config{
++		NoProxy: "foobar.com, .barbaz.net",
++	}
++	for _, test := range UseProxyTests {
++		if httpproxy.ExportUseProxy(cfg, test.host+":80") != test.match {
++			t.Errorf("useProxy(%v) = %v, want %v", test.host, !test.match, test.match)
++		}
++	}
++}
++
++func TestInvalidNoProxy(t *testing.T) {
++	cfg := &httpproxy.Config{
++		NoProxy: ":1",
++	}
++	ok := httpproxy.ExportUseProxy(cfg, "example.com:80") // should not panic
++	if !ok {
++		t.Errorf("useProxy unexpected return; got false; want true")
++	}
++}

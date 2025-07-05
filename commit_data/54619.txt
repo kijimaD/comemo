@@ -24,7 +24,77 @@ Date:   Thu Nov 3 12:16:06 2022 -0700
     Reviewed-by: Eli Bendersky <eliben@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/text/template/parse/parse.go      | 10 +++++-----
  src/text/template/parse/parse_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 5 deletions(-)
+
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index 87b7618f75..d43d5334ba 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -223,6 +223,11 @@ func (t *Tree) startParse(funcs []map[string]any, lex *lexer, treeSet map[string
+ 	t.vars = []string{"$"}
+ 	t.funcs = funcs
+ 	t.treeSet = treeSet
++	lex.options = lexOptions{
++		emitComment: t.Mode&ParseComments != 0,
++		breakOK:     !t.hasFunction("break"),
++		continueOK:  !t.hasFunction("continue"),
++	}
+ }
+ 
+ // stopParse terminates parsing.
+@@ -241,11 +246,6 @@ func (t *Tree) Parse(text, leftDelim, rightDelim string, treeSet map[string]*Tre
+ 	defer t.recover(&err)
+ 	t.ParseName = t.Name
+ 	lexer := lex(t.Name, text, leftDelim, rightDelim)
+-	lexer.options = lexOptions{
+-		emitComment: t.Mode&ParseComments != 0,
+-		breakOK:     !t.hasFunction("break"),
+-		continueOK:  !t.hasFunction("continue"),
+-	}
+ 	t.startParse(funcs, lexer, treeSet)
+ 	t.text = text
+ 	t.parse()
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index f6a9fdd872..59e0a17412 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -391,6 +391,36 @@ func TestParseWithComments(t *testing.T) {
+ 	}
+ }
+ 
++func TestKeywordsAndFuncs(t *testing.T) {
++	// Check collisions between functions and new keywords like 'break'. When a
++	// break function is provided, the parser should treat 'break' as a function,
++	// not a keyword.
++	textFormat = "%q"
++	defer func() { textFormat = "%s" }()
++
++	inp := `{{range .X}}{{break 20}}{{end}}`
++	{
++		// 'break' is a defined function, don't treat it as a keyword: it should
++		// accept an argument successfully.
++		var funcsWithKeywordFunc = map[string]any{
++			"break": func(in any) any { return in },
++		}
++		tmpl, err := New("").Parse(inp, "", "", make(map[string]*Tree), funcsWithKeywordFunc)
++		if err != nil || tmpl == nil {
++			t.Errorf("with break func: unexpected error: %v", err)
++		}
++	}
++
++	{
++		// No function called 'break'; treat it as a keyword. Results in a parse
++		// error.
++		tmpl, err := New("").Parse(inp, "", "", make(map[string]*Tree), make(map[string]any))
++		if err == nil || tmpl != nil {
++			t.Errorf("without break func: expected error; got none")
++		}
++	}
++}
++
+ func TestSkipFuncCheck(t *testing.T) {
+ 	oldTextFormat := textFormat
+ 	textFormat = "%q"

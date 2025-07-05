@@ -22,10 +22,121 @@ Date:   Sun Sep 1 14:19:19 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/fs_js.go         |  8 ++++++++
  src/syscall/syscall_plan9.go |  8 ++++++++
  src/syscall/syscall_unix.go  |  9 ++++++++-
  src/syscall/time_fake.go     | 26 ++++++++++++++++++++++++++
  src/syscall/time_nofake.go   | 14 ++++++++++++++
  5 files changed, 64 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/fs_js.go b/src/syscall/fs_js.go
+index 1b835c5048..91042f10ef 100644
+--- a/src/syscall/fs_js.go
++++ b/src/syscall/fs_js.go
+@@ -404,6 +404,14 @@ func Write(fd int, b []byte) (int, error) {
+ 		return n, err
+ 	}
+ 
++	if faketime && (fd == 1 || fd == 2) {
++		n := faketimeWrite(fd, b)
++		if n < 0 {
++			return 0, errnoErr(Errno(-n))
++		}
++		return n, nil
++	}
++
+ 	buf := uint8Array.New(len(b))
+ 	js.CopyBytesToJS(buf, b)
+ 	n, err := fsCall("write", fd, buf, 0, len(b), nil)
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index d4e679c92a..1648e409b0 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -167,6 +167,14 @@ func Read(fd int, p []byte) (n int, err error) {
+ }
+ 
+ func Write(fd int, p []byte) (n int, err error) {
++	if faketime && (fd == 1 || fd == 2) {
++		n = faketimeWrite(fd, p)
++		if n < 0 {
++			return 0, ErrorString("error")
++		}
++		return n, nil
++	}
++
+ 	return Pwrite(fd, p, -1)
+ }
+ 
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 1d0be94305..457be311c4 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -205,7 +205,14 @@ func Write(fd int, p []byte) (n int, err error) {
+ 	if race.Enabled {
+ 		race.ReleaseMerge(unsafe.Pointer(&ioSync))
+ 	}
+-	n, err = write(fd, p)
++	if faketime && (fd == 1 || fd == 2) {
++		n = faketimeWrite(fd, p)
++		if n < 0 {
++			n, err = 0, errnoErr(Errno(-n))
++		}
++	} else {
++		n, err = write(fd, p)
++	}
+ 	if race.Enabled && n > 0 {
+ 		race.ReadRange(unsafe.Pointer(&p[0]), n)
+ 	}
+diff --git a/src/syscall/time_fake.go b/src/syscall/time_fake.go
+new file mode 100644
+index 0000000000..5dec57a25a
+--- /dev/null
++++ b/src/syscall/time_fake.go
+@@ -0,0 +1,26 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build faketime
++
++package syscall
++
++import "unsafe"
++
++const faketime = true
++
++// When faketime is enabled, we redirect writes to FDs 1 and 2 through
++// the runtime's write function, since that adds the framing that
++// reports the emulated time.
++
++//go:linkname runtimeWrite runtime.write
++func runtimeWrite(fd uintptr, p unsafe.Pointer, n int32) int32
++
++func faketimeWrite(fd int, p []byte) int {
++	var pp *byte
++	if len(p) > 0 {
++		pp = &p[0]
++	}
++	return int(runtimeWrite(uintptr(fd), unsafe.Pointer(pp), int32(len(p))))
++}
+diff --git a/src/syscall/time_nofake.go b/src/syscall/time_nofake.go
+new file mode 100644
+index 0000000000..c94cef8686
+--- /dev/null
++++ b/src/syscall/time_nofake.go
+@@ -0,0 +1,14 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !faketime
++
++package syscall
++
++const faketime = false
++
++func faketimeWrite(fd int, p []byte) int {
++	// This should never be called since faketime is false.
++	panic("not implemented")
++}

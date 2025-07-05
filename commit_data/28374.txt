@@ -9,6 +9,20 @@ Date:   Wed May 18 15:20:56 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/traceback.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 0e96a28945..eef3470803 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1039,7 +1039,7 @@ func printOneCgoTraceback(pc uintptr, max int, arg *cgoSymbolizerArg) int {
+ 		if arg.file != nil {
+ 			print(gostringnocopy(arg.file), ":", arg.lineno, " ")
+ 		}
+-		print("pc=", hex(c), "\n")
++		print("pc=", hex(pc), "\n")
+ 		c++
+ 		if arg.more == 0 {
+ 			break

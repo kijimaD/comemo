@@ -11,8 +11,331 @@ Date:   Tue Sep 22 17:32:54 2015 -0700
     Change-Id: Id18e160e857be2743429a377000e996978015a1a
     Reviewed-on: https://go-review.googlesource.com/14850
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/decimal.go        |  2 +-
  src/math/big/floatconv_test.go | 84 ++++++++++++++++++++-------------------
  src/math/big/ftoa.go           | 90 ++++++++++++++++++++++++++++++++++++++----
  3 files changed, 127 insertions(+), 49 deletions(-)
+
+diff --git a/src/math/big/decimal.go b/src/math/big/decimal.go
+index 2595e5f8c1..7789677f76 100644
+--- a/src/math/big/decimal.go
++++ b/src/math/big/decimal.go
+@@ -20,7 +20,7 @@
+ package big
+ 
+ // A decimal represents an unsigned floating-point number in decimal representation.
+-// The value of a non-zero decimal x is x.mant * 10 ** x.exp with 0.5 <= x.mant < 1,
++// The value of a non-zero decimal d is d.mant * 10**d.exp with 0.5 <= d.mant < 1,
+ // with the most-significant mantissa digit at index 0. For the zero decimal, the
+ // mantissa length and exponent are 0.
+ // The zero value for decimal represents a ready-to-use 0.0.
+diff --git a/src/math/big/floatconv_test.go b/src/math/big/floatconv_test.go
+index b19152662d..a29f8a1369 100644
+--- a/src/math/big/floatconv_test.go
++++ b/src/math/big/floatconv_test.go
+@@ -139,6 +139,8 @@ func TestFloatSetFloat64String(t *testing.T) {
+ 	}
+ }
+ 
++func fdiv(a, b float64) float64 { return a / b }
++
+ const (
+ 	below1e23 = 99999999999999974834176
+ 	above1e23 = 100000000000000008388608
+@@ -187,11 +189,11 @@ func TestFloat64Text(t *testing.T) {
+ 		{1, 'e', 5, "1.00000e+00"},
+ 		{1, 'f', 5, "1.00000"},
+ 		{1, 'g', 5, "1"},
+-		// {1, 'g', -1, "1"},
+-		// {20, 'g', -1, "20"},
+-		// {1234567.8, 'g', -1, "1.2345678e+06"},
+-		// {200000, 'g', -1, "200000"},
+-		// {2000000, 'g', -1, "2e+06"},
++		{1, 'g', -1, "1"},
++		{20, 'g', -1, "20"},
++		{1234567.8, 'g', -1, "1.2345678e+06"},
++		{200000, 'g', -1, "200000"},
++		{2000000, 'g', -1, "2e+06"},
+ 
+ 		// g conversion and zero suppression
+ 		{400, 'g', 2, "4e+02"},
+@@ -207,22 +209,22 @@ func TestFloat64Text(t *testing.T) {
+ 		{0, 'e', 5, "0.00000e+00"},
+ 		{0, 'f', 5, "0.00000"},
+ 		{0, 'g', 5, "0"},
+-		// {0, 'g', -1, "0"},
++		{0, 'g', -1, "0"},
+ 
+ 		{-1, 'e', 5, "-1.00000e+00"},
+ 		{-1, 'f', 5, "-1.00000"},
+ 		{-1, 'g', 5, "-1"},
+-		// {-1, 'g', -1, "-1"},
++		{-1, 'g', -1, "-1"},
+ 
+ 		{12, 'e', 5, "1.20000e+01"},
+ 		{12, 'f', 5, "12.00000"},
+ 		{12, 'g', 5, "12"},
+-		// {12, 'g', -1, "12"},
++		{12, 'g', -1, "12"},
+ 
+ 		{123456700, 'e', 5, "1.23457e+08"},
+ 		{123456700, 'f', 5, "123456700.00000"},
+ 		{123456700, 'g', 5, "1.2346e+08"},
+-		// {123456700, 'g', -1, "1.234567e+08"},
++		{123456700, 'g', -1, "1.234567e+08"},
+ 
+ 		{1.2345e6, 'e', 5, "1.23450e+06"},
+ 		{1.2345e6, 'f', 5, "1234500.00000"},
+@@ -232,36 +234,39 @@ func TestFloat64Text(t *testing.T) {
+ 		{1e23, 'f', 17, "99999999999999991611392.00000000000000000"},
+ 		{1e23, 'g', 17, "9.9999999999999992e+22"},
+ 
+-		// {1e23, 'e', -1, "1e+23"},
+-		// {1e23, 'f', -1, "100000000000000000000000"},
+-		// {1e23, 'g', -1, "1e+23"},
++		{1e23, 'e', -1, "1e+23"},
++		{1e23, 'f', -1, "100000000000000000000000"},
++		{1e23, 'g', -1, "1e+23"},
+ 
+ 		{below1e23, 'e', 17, "9.99999999999999748e+22"},
+ 		{below1e23, 'f', 17, "99999999999999974834176.00000000000000000"},
+ 		{below1e23, 'g', 17, "9.9999999999999975e+22"},
+ 
+-		// {below1e23, 'e', -1, "9.999999999999997e+22"},
+-		// {below1e23, 'f', -1, "99999999999999970000000"},
+-		// {below1e23, 'g', -1, "9.999999999999997e+22"},
++		{below1e23, 'e', -1, "9.999999999999997e+22"},
++		{below1e23, 'f', -1, "99999999999999970000000"},
++		{below1e23, 'g', -1, "9.999999999999997e+22"},
+ 
+ 		{above1e23, 'e', 17, "1.00000000000000008e+23"},
+ 		{above1e23, 'f', 17, "100000000000000008388608.00000000000000000"},
+-		// {above1e23, 'g', 17, "1.0000000000000001e+23"},
++		{above1e23, 'g', 17, "1.0000000000000001e+23"},
+ 
+-		// {above1e23, 'e', -1, "1.0000000000000001e+23"},
+-		// {above1e23, 'f', -1, "100000000000000010000000"},
+-		// {above1e23, 'g', -1, "1.0000000000000001e+23"},
++		{above1e23, 'e', -1, "1.0000000000000001e+23"},
++		{above1e23, 'f', -1, "100000000000000010000000"},
++		{above1e23, 'g', -1, "1.0000000000000001e+23"},
+ 
+-		// {fdiv(5e-304, 1e20), 'g', -1, "5e-324"},
+-		// {fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"},
++		// TODO(gri) track down why these don't work yet
++		// {5e-304/1e20, 'g', -1, "5e-324"},
++		// {-5e-304/1e20, 'g', -1, "-5e-324"},
++		// {fdiv(5e-304, 1e20), 'g', -1, "5e-324"},   // avoid constant arithmetic
++		// {fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"}, // avoid constant arithmetic
+ 
+-		// {32, 'g', -1, "32"},
+-		// {32, 'g', 0, "3e+01"},
++		{32, 'g', -1, "32"},
++		{32, 'g', 0, "3e+01"},
+ 
+-		// {100, 'x', -1, "%x"},
++		{100, 'x', -1, "%x"},
+ 
+-		// {math.NaN(), 'g', -1, "NaN"},
+-		// {-math.NaN(), 'g', -1, "NaN"},
++		// {math.NaN(), 'g', -1, "NaN"},  // Float doesn't support NaNs
++		// {-math.NaN(), 'g', -1, "NaN"}, // Float doesn't support NaNs
+ 		{math.Inf(0), 'g', -1, "+Inf"},
+ 		{math.Inf(-1), 'g', -1, "-Inf"},
+ 		{-math.Inf(0), 'g', -1, "-Inf"},
+@@ -279,13 +284,13 @@ func TestFloat64Text(t *testing.T) {
+ 		{1.5, 'f', 0, "2"},
+ 
+ 		// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+-		// {2.2250738585072012e-308, 'g', -1, "2.2250738585072014e-308"},
++		{2.2250738585072012e-308, 'g', -1, "2.2250738585072014e-308"},
+ 		// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+-		// {2.2250738585072011e-308, 'g', -1, "2.225073858507201e-308"},
++		{2.2250738585072011e-308, 'g', -1, "2.225073858507201e-308"},
+ 
+ 		// Issue 2625.
+ 		{383260575764816448, 'f', 0, "383260575764816448"},
+-		// {383260575764816448, 'g', -1, "3.8326057576481645e+17"},
++		{383260575764816448, 'g', -1, "3.8326057576481645e+17"},
+ 	} {
+ 		f := new(Float).SetFloat64(test.x)
+ 		got := f.Text(test.format, test.prec)
+@@ -448,9 +453,6 @@ func TestFloatFormat(t *testing.T) {
+ 		value  interface{} // float32, float64, or string (== 512bit *Float)
+ 		want   string
+ 	}{
+-		// TODO(gri) uncomment the disabled 'g'/'G' formats
+-		// 	     below once (*Float).Text supports prec < 0
+-
+ 		// from fmt/fmt_test.go
+ 		{"%+.3e", 0.0, "+0.000e+00"},
+ 		{"%+.3e", 1.0, "+1.000e+00"},
+@@ -481,9 +483,9 @@ func TestFloatFormat(t *testing.T) {
+ 		{"%f", 1234.5678e-8, "0.000012"},
+ 		{"%f", -7.0, "-7.000000"},
+ 		{"%f", -1e-9, "-0.000000"},
+-		// {"%g", 1234.5678e3, "1.2345678e+06"},
+-		// {"%g", float32(1234.5678e3), "1.2345678e+06"},
+-		// {"%g", 1234.5678e-8, "1.2345678e-05"},
++		{"%g", 1234.5678e3, "1.2345678e+06"},
++		{"%g", float32(1234.5678e3), "1.2345678e+06"},
++		{"%g", 1234.5678e-8, "1.2345678e-05"},
+ 		{"%g", -7.0, "-7"},
+ 		{"%g", -1e-9, "-1e-09"},
+ 		{"%g", float32(-1e-9), "-1e-09"},
+@@ -492,9 +494,9 @@ func TestFloatFormat(t *testing.T) {
+ 		{"%E", 1234.5678e-8, "1.234568E-05"},
+ 		{"%E", -7.0, "-7.000000E+00"},
+ 		{"%E", -1e-9, "-1.000000E-09"},
+-		// {"%G", 1234.5678e3, "1.2345678E+06"},
+-		// {"%G", float32(1234.5678e3), "1.2345678E+06"},
+-		// {"%G", 1234.5678e-8, "1.2345678E-05"},
++		{"%G", 1234.5678e3, "1.2345678E+06"},
++		{"%G", float32(1234.5678e3), "1.2345678E+06"},
++		{"%G", 1234.5678e-8, "1.2345678E-05"},
+ 		{"%G", -7.0, "-7"},
+ 		{"%G", -1e-9, "-1E-09"},
+ 		{"%G", float32(-1e-9), "-1E-09"},
+@@ -510,9 +512,9 @@ func TestFloatFormat(t *testing.T) {
+ 		{"%-20f", 1.23456789e3, "1234.567890         "},
+ 		{"%20.8f", 1.23456789e3, "       1234.56789000"},
+ 		{"%20.8f", 1.23456789e-3, "          0.00123457"},
+-		// {"%g", 1.23456789e3, "1234.56789"},
+-		// {"%g", 1.23456789e-3, "0.00123456789"},
+-		// {"%g", 1.23456789e20, "1.23456789e+20"},
++		{"%g", 1.23456789e3, "1234.56789"},
++		{"%g", 1.23456789e-3, "0.00123456789"},
++		{"%g", 1.23456789e20, "1.23456789e+20"},
+ 		{"%20e", math.Inf(1), "                +Inf"},
+ 		{"%-20f", math.Inf(-1), "-Inf                "},
+ 
+diff --git a/src/math/big/ftoa.go b/src/math/big/ftoa.go
+index 5c5f2cea46..21d5b546ff 100644
+--- a/src/math/big/ftoa.go
++++ b/src/math/big/ftoa.go
+@@ -39,8 +39,6 @@ import (
+ // the total number of digits. A negative precision selects the smallest
+ // number of digits necessary to identify the value x uniquely.
+ // The prec value is ignored for the 'b' or 'p' format.
+-//
+-// BUG(gri) Float.Text does not accept negative precisions (issue #10991).
+ func (x *Float) Text(format byte, prec int) string {
+ 	const extra = 10 // TODO(gri) determine a good/better value here
+ 	return string(x.Append(make([]byte, 0, prec+extra), format, prec))
+@@ -83,6 +81,7 @@ func (x *Float) Append(buf []byte, fmt byte, prec int) []byte {
+ 	// 1) convert Float to multiprecision decimal
+ 	var d decimal // == 0.0
+ 	if x.form == finite {
++		// x != 0
+ 		d.init(x.mant, int(x.exp)-x.mant.bitLen())
+ 	}
+ 
+@@ -90,9 +89,7 @@ func (x *Float) Append(buf []byte, fmt byte, prec int) []byte {
+ 	shortest := false
+ 	if prec < 0 {
+ 		shortest = true
+-		panic("unimplemented")
+-		// TODO(gri) complete this
+-		// roundShortest(&d, f.mant, int(f.exp))
++		roundShortest(&d, x)
+ 		// Precision for shortest representation mode.
+ 		switch fmt {
+ 		case 'e', 'E':
+@@ -158,6 +155,86 @@ func (x *Float) Append(buf []byte, fmt byte, prec int) []byte {
+ 	return append(buf, '%', fmt)
+ }
+ 
++func roundShortest(d *decimal, x *Float) {
++	// if the mantissa is zero, the number is zero - stop now
++	if len(d.mant) == 0 {
++		return
++	}
++
++	// Approach: All numbers in the interval [x - 1/2ulp, x + 1/2ulp]
++	// (possibly exclusive) round to x for the given precision of x.
++	// Compute the lower and upper bound in decimal form and find the
++	// the shortest decimal number d such that lower <= d <= upper.
++
++	// TODO(gri) strconv/ftoa.do describes a shortcut in some cases.
++	// See if we can use it (in adjusted form) here as well.
++
++	// 1) Compute normalized mantissa mant and exponent exp for x such
++	// that the lsb of mant corresponds to 1/2 ulp for the precision of
++	// x (i.e., for mant we want x.prec + 1 bits).
++	mant := nat(nil).set(x.mant)
++	exp := int(x.exp) - mant.bitLen()
++	s := mant.bitLen() - int(x.prec+1)
++	switch {
++	case s < 0:
++		mant = mant.shl(mant, uint(-s))
++	case s > 0:
++		mant = mant.shr(mant, uint(+s))
++	}
++	exp += s
++	// x = mant * 2**exp with lsb(mant) == 1/2 ulp of x.prec
++
++	// 2) Compute lower bound by subtracting 1/2 ulp.
++	var lower decimal
++	var tmp nat
++	lower.init(tmp.sub(mant, natOne), exp)
++
++	// 3) Compute upper bound by adding 1/2 ulp.
++	var upper decimal
++	upper.init(tmp.add(mant, natOne), exp)
++
++	// The upper and lower bounds are possible outputs only if
++	// the original mantissa is even, so that ToNearestEven rounding
++	// would round to the original mantissa and not the neighbors.
++	inclusive := mant[0]&2 == 0 // test bit 1 since original mantissa was shifted by 1
++
++	// Now we can figure out the minimum number of digits required.
++	// Walk along until d has distinguished itself from upper and lower.
++	for i, m := range d.mant {
++		l := byte('0') // lower digit
++		if i < len(lower.mant) {
++			l = lower.mant[i]
++		}
++		u := byte('0') // upper digit
++		if i < len(upper.mant) {
++			u = upper.mant[i]
++		}
++
++		// Okay to round down (truncate) if lower has a different digit
++		// or if lower is inclusive and is exactly the result of rounding
++		// down (i.e., and we have reached the final digit of lower).
++		okdown := l != m || inclusive && i+1 == len(lower.mant)
++
++		// Okay to round up if upper has a different digit and either upper
++		// is inclusive or upper is bigger than the result of rounding up.
++		okup := m != u && (inclusive || m+1 < u || i+1 < len(upper.mant))
++
++		// If it's okay to do either, then round to the nearest one.
++		// If it's okay to do only one, do it.
++		switch {
++		case okdown && okup:
++			d.round(i + 1)
++			return
++		case okdown:
++			d.roundDown(i + 1)
++			return
++		case okup:
++			d.roundUp(i + 1)
++			return
++		}
++	}
++}
++
+ // %e: d.ddddde±dd
+ func fmtE(buf []byte, fmt byte, prec int, d decimal) []byte {
+ 	// first digit
+@@ -336,8 +413,7 @@ func (x *Float) Format(s fmt.State, format rune) {
+ 		fallthrough
+ 	case 'g', 'G':
+ 		if !hasPrec {
+-			// TODO(gri) uncomment once (*Float).Text handles prec < 0
+-			// prec = -1 // default precision for 'g', 'G'
++			prec = -1 // default precision for 'g', 'G'
+ 		}
+ 	default:
+ 		fmt.Fprintf(s, "%%!%c(*big.Float=%s)", format, x.String())

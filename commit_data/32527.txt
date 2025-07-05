@@ -11,7 +11,7 @@ Date:   Wed Apr 19 15:30:08 2017 +1200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/internal/obj/mips/asm0.go         | 4 ----
  src/cmd/internal/obj/plist.go             | 2 +-
  src/cmd/internal/obj/ppc64/asm9.go        | 4 ----
@@ -21,3 +21,118 @@ Date:   Wed Apr 19 15:30:08 2017 +1200
  src/cmd/internal/objfile/goobj.go         | 2 --
  src/cmd/link/internal/ld/symkind.go       | 2 --
  8 files changed, 3 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 39c4d4750b..cb0775b2b9 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -606,10 +606,6 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 			if s == nil {
+ 				break
+ 			}
+-			if s.Type == objabi.SCONST {
+-				c.instoffset = a.Offset
+-				goto consize
+-			}
+ 
+ 			c.instoffset = a.Offset
+ 			if s.Type == objabi.STLSBSS {
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index fbc902696f..c8d282712b 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -162,7 +162,7 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
+ 	s.Set(AttrOnList, true)
+ 	ctxt.Data = append(ctxt.Data, s)
+ 	s.Size = size
+-	if s.Type == 0 || s.Type == objabi.SXREF {
++	if s.Type == 0 {
+ 		s.Type = objabi.SBSS
+ 	}
+ 	if flag&DUPOK != 0 {
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index c3f0a0d187..8bfc667cff 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -810,10 +810,6 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
+ 			if s == nil {
+ 				break
+ 			}
+-			if s.Type == objabi.SCONST {
+-				c.instoffset = a.Offset
+-				goto consize
+-			}
+ 
+ 			c.instoffset = a.Offset
+ 
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index df466d6d92..624d3b74ff 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -558,9 +558,6 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
+ 				break
+ 			}
+ 			c.instoffset = a.Offset
+-			if s.Type == objabi.SCONST {
+-				goto consize
+-			}
+ 
+ 			return C_SYMADDR
+ 
+diff --git a/src/cmd/internal/objabi/symkind.go b/src/cmd/internal/objabi/symkind.go
+index 6c2eecf8a5..6219436fb7 100644
+--- a/src/cmd/internal/objabi/symkind.go
++++ b/src/cmd/internal/objabi/symkind.go
+@@ -54,10 +54,6 @@ const (
+ 	SNOPTRBSS
+ 	// Thread-local data that is initally all 0s
+ 	STLSBSS
+-	// TODO(mwhudson): outside of the linker, these values are
+-	// only checked for, not set, so they should be removed.
+-	SXREF
+-	SCONST
+ 	// Debugging data
+ 	SDWARFINFO
+ )
+diff --git a/src/cmd/internal/objabi/symkind_string.go b/src/cmd/internal/objabi/symkind_string.go
+index 365bf17a73..b28628b520 100644
+--- a/src/cmd/internal/objabi/symkind_string.go
++++ b/src/cmd/internal/objabi/symkind_string.go
+@@ -4,9 +4,9 @@ package objabi
+ 
+ import "fmt"
+ 
+-const _SymKind_name = "SxxxSTEXTSRODATASNOPTRDATASDATASBSSSNOPTRBSSSTLSBSSSXREFSCONSTSDWARFINFO"
++const _SymKind_name = "SxxxSTEXTSRODATASNOPTRDATASDATASBSSSNOPTRBSSSTLSBSSSDWARFINFO"
+ 
+-var _SymKind_index = [...]uint8{0, 4, 9, 16, 26, 31, 35, 44, 51, 56, 62, 72}
++var _SymKind_index = [...]uint8{0, 4, 9, 16, 26, 31, 35, 44, 51, 61}
+ 
+ func (i SymKind) String() string {
+ 	if i < 0 || i >= SymKind(len(_SymKind_index)-1) {
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index 63c66a8dc2..e075604abd 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -53,8 +53,6 @@ func (f *goobjFile) symbols() ([]Sym, error) {
+ 			sym.Code = 'D'
+ 		case objabi.SBSS, objabi.SNOPTRBSS, objabi.STLSBSS:
+ 			sym.Code = 'B'
+-		case objabi.SXREF, objabi.SCONST:
+-			sym.Code = 'X' // should not see
+ 		}
+ 		if s.Version != 0 {
+ 			sym.Code += 'a' - 'A'
+diff --git a/src/cmd/link/internal/ld/symkind.go b/src/cmd/link/internal/ld/symkind.go
+index faf888d43f..1d10ce235c 100644
+--- a/src/cmd/link/internal/ld/symkind.go
++++ b/src/cmd/link/internal/ld/symkind.go
+@@ -121,8 +121,6 @@ var abiSymKindToSymKind = [...]SymKind{
+ 	SBSS,
+ 	SNOPTRBSS,
+ 	STLSBSS,
+-	SXREF,
+-	SCONST,
+ 	SDWARFINFO,
+ }
+ 

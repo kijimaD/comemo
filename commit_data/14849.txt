@@ -9,7 +9,32 @@ Date:   Thu Jan 10 11:37:52 2013 -0800
     R=gobot
     CC=golang-dev
     https://golang.org/cl/7057067
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 2b9e035929..67c2730432 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -102,6 +102,7 @@ Florian Weimer <fw@deneb.enyo.de>
+ Francisco Souza <franciscossouza@gmail.com>
+ Frithjof Schulze <schulze@math.uni-hannover.de>
+ Gary Burd <gary@beagledreams.com>
++Georg Reinke <guelfey@gmail.com>
+ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+ Giles Lean <giles.lean@pobox.com>
+ Google Inc.
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e1c439c857..f7756ec08a 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -158,6 +158,7 @@ Francisco Souza <franciscossouza@gmail.com>
+ Frithjof Schulze <schulze@math.uni-hannover.de>
+ Fumitoshi Ukai <ukai@google.com>
+ Gary Burd <gary@beagledreams.com> <gary.burd@gmail.com>
++Georg Reinke <guelfey@gmail.com>
+ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+ Giles Lean <giles.lean@pobox.com>
+ Graham Miller <graham.miller@gmail.com>

@@ -7,9 +7,113 @@ Date:   Thu Feb 3 20:35:14 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4079063
-
+---
  test/bugs/bug322.dir/lib.go  | 15 ++++++++++++++
  test/bugs/bug322.dir/main.go | 47 ++++++++++++++++++++++++++++++++++++++++++++
  test/bugs/bug322.go          |  8 ++++++++
  test/golden.out              |  6 ++++++
  4 files changed, 76 insertions(+)
+
+diff --git a/test/bugs/bug322.dir/lib.go b/test/bugs/bug322.dir/lib.go
+new file mode 100644
+index 0000000000..0de56d3d64
+--- /dev/null
++++ b/test/bugs/bug322.dir/lib.go
+@@ -0,0 +1,15 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package lib
++
++type T struct {
++	x int  // non-exported field
++}
++
++func (t T) M() {
++}
++
++func (t *T) PM() {
++}
+diff --git a/test/bugs/bug322.dir/main.go b/test/bugs/bug322.dir/main.go
+new file mode 100644
+index 0000000000..a99ed3bc29
+--- /dev/null
++++ b/test/bugs/bug322.dir/main.go
+@@ -0,0 +1,47 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./lib"
++
++type I interface {
++	M()
++}
++
++type PI interface {
++	PM()
++}
++
++func main() {
++	var t lib.T
++	t.M()
++	t.PM()
++
++	var i1 I = t
++	i1.M()
++	
++	// This combination is illegal because
++	// PM requires a pointer receiver.
++	// var pi1 PI = t
++	// pi1.PM()
++
++	var pt = &t
++	pt.M()
++	pt.PM()
++
++	var i2 I = pt
++	i2.M()
++
++	var pi2 PI = pt
++	pi2.PM()
++}
++
++/*
++These should not be errors anymore:
++
++bug322.dir/main.go:19: implicit assignment of unexported field 'x' of lib.T in method receiver
++bug322.dir/main.go:22: implicit assignment of unexported field 'x' of lib.T in assignment
++bug322.dir/main.go:31: implicit assignment of unexported field 'x' of lib.T in method receiver
++*/
+\ No newline at end of file
+diff --git a/test/bugs/bug322.go b/test/bugs/bug322.go
+new file mode 100644
+index 0000000000..ad0e62dc8c
+--- /dev/null
++++ b/test/bugs/bug322.go
+@@ -0,0 +1,8 @@
++// $G $D/$F.dir/lib.go && $G $D/$F.dir/main.go && $L main.$A && ./$A.out || echo BUG: fails incorrectly
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case for issue 1402.
++ignored
+diff --git a/test/golden.out b/test/golden.out
+index 425771b4af..7883973e02 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -158,3 +158,9 @@ panic: interface conversion: interface is main.T, not main.T
+ 
+ 
+ == bugs/
++
++=========== bugs/bug322.go
++bugs/bug322.dir/main.go:19: implicit assignment of unexported field 'x' of lib.T in method receiver
++bugs/bug322.dir/main.go:22: implicit assignment of unexported field 'x' of lib.T in assignment
++bugs/bug322.dir/main.go:31: implicit assignment of unexported field 'x' of lib.T in method receiver
++BUG: fails incorrectly

@@ -9,10 +9,209 @@ Date:   Mon Jan 30 11:59:06 2012 +1100
     R=rsc, bsiegert, rogpeppe
     CC=golang-dev
     https://golang.org/cl/5572062
-
+---
  misc/dashboard/app/build/build.go   | 14 +++++++--
  misc/dashboard/app/build/handler.go | 29 ++-----------------
  misc/dashboard/app/build/init.go    | 57 +++++++++++++++++++++++++++++++++++++
  misc/dashboard/app/build/test.go    |  4 +--
  misc/dashboard/app/build/ui.go      |  4 +--
  5 files changed, 75 insertions(+), 33 deletions(-)
+
+diff --git a/misc/dashboard/app/build/build.go b/misc/dashboard/app/build/build.go
+index 175812a378..8dbefe9d38 100644
+--- a/misc/dashboard/app/build/build.go
++++ b/misc/dashboard/app/build/build.go
+@@ -22,6 +22,7 @@ const maxDatastoreStringLen = 500
+ 
+ // A Package describes a package that is listed on the dashboard.
+ type Package struct {
++	Kind    string // "subrepo", "external", or empty for the main Go tree
+ 	Name    string
+ 	Path    string // (empty for the main Go tree)
+ 	NextNum int    // Num of the next head Commit
+@@ -276,10 +277,17 @@ func GetTag(c appengine.Context, tag string) (*Tag, os.Error) {
+ 	return t, nil
+ }
+ 
+-// Packages returns all non-Go packages.
+-func Packages(c appengine.Context) ([]*Package, os.Error) {
++// Packages returns packages of the specified kind.
++// Kind must be one of "external" or "subrepo".
++func Packages(c appengine.Context, kind string) ([]*Package, os.Error) {
++	switch kind {
++	case "external", "subrepo":
++	default:
++		return nil, os.NewError(`kind must be one of "external" or "subrepo"`)
++	}
+ 	var pkgs []*Package
+-	for t := datastore.NewQuery("Package").Run(c); ; {
++	q := datastore.NewQuery("Package").Filter("Kind=", kind)
++	for t := q.Run(c); ; {
+ 		pkg := new(Package)
+ 		if _, err := t.Next(pkg); err == datastore.Done {
+ 			break
+diff --git a/misc/dashboard/app/build/handler.go b/misc/dashboard/app/build/handler.go
+index b3e62ad467..9dcf128dc3 100644
+--- a/misc/dashboard/app/build/handler.go
++++ b/misc/dashboard/app/build/handler.go
+@@ -18,11 +18,6 @@ import (
+ 
+ const commitsPerPage = 30
+ 
+-// defaultPackages specifies the Package records to be created by initHandler.
+-var defaultPackages = []*Package{
+-	&Package{Name: "Go"},
+-}
+-
+ // commitHandler retrieves commit data or records a new commit.
+ //
+ // For GET requests it returns a Commit value for the specified
+@@ -217,14 +212,15 @@ func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interf
+ // packagesHandler returns a list of the non-Go Packages monitored
+ // by the dashboard.
+ func packagesHandler(r *http.Request) (interface{}, os.Error) {
++	kind := r.FormValue("kind")
+ 	c := appengine.NewContext(r)
+ 	now := cache.Now(c)
+-	const key = "build-packages"
++	key := "build-packages-" + kind
+ 	var p []*Package
+ 	if cache.Get(r, now, key, &p) {
+ 		return p, nil
+ 	}
+-	p, err := Packages(c)
++	p, err := Packages(c, kind)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -355,25 +351,6 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
+ 	}
+ }
+ 
+-func initHandler(w http.ResponseWriter, r *http.Request) {
+-	// TODO(adg): devise a better way of bootstrapping new packages
+-	c := appengine.NewContext(r)
+-	defer cache.Tick(c)
+-	for _, p := range defaultPackages {
+-		if err := datastore.Get(c, p.Key(c), new(Package)); err == nil {
+-			continue
+-		} else if err != datastore.ErrNoSuchEntity {
+-			logErr(w, r, err)
+-			return
+-		}
+-		if _, err := datastore.Put(c, p.Key(c), p); err != nil {
+-			logErr(w, r, err)
+-			return
+-		}
+-	}
+-	fmt.Fprint(w, "OK")
+-}
+-
+ func keyHandler(w http.ResponseWriter, r *http.Request) {
+ 	builder := r.FormValue("builder")
+ 	if builder == "" {
+diff --git a/misc/dashboard/app/build/init.go b/misc/dashboard/app/build/init.go
+new file mode 100644
+index 0000000000..58c5382de7
+--- /dev/null
++++ b/misc/dashboard/app/build/init.go
+@@ -0,0 +1,57 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package build
++
++import (
++	"fmt"
++	"http"
++
++	"appengine"
++	"appengine/datastore"
++	"cache"
++)
++
++// defaultPackages specifies the Package records to be created by initHandler.
++var defaultPackages = []*Package{
++	&Package{Name: "Go", Kind: "go"},
++}
++
++// subRepos specifies the Go project sub-repositories.
++var subRepos = []string{
++	"codereview",
++	"crypto",
++	"image",
++	"net",
++}
++
++// Put subRepos into defaultPackages.
++func init() {
++	for _, name := range subRepos {
++		p := &Package{
++			Kind: "subrepo",
++			Name: "go." + name,
++			Path: "code.google.com/p/go." + name,
++		}
++		defaultPackages = append(defaultPackages, p)
++	}
++}
++
++func initHandler(w http.ResponseWriter, r *http.Request) {
++	c := appengine.NewContext(r)
++	defer cache.Tick(c)
++	for _, p := range defaultPackages {
++		if err := datastore.Get(c, p.Key(c), new(Package)); err == nil {
++			continue
++		} else if err != datastore.ErrNoSuchEntity {
++			logErr(w, r, err)
++			return
++		}
++		if _, err := datastore.Put(c, p.Key(c), p); err != nil {
++			logErr(w, r, err)
++			return
++		}
++	}
++	fmt.Fprint(w, "OK")
++}
+diff --git a/misc/dashboard/app/build/test.go b/misc/dashboard/app/build/test.go
+index a923969bc0..f22eac1a49 100644
+--- a/misc/dashboard/app/build/test.go
++++ b/misc/dashboard/app/build/test.go
+@@ -34,7 +34,7 @@ var testEntityKinds = []string{
+ 
+ const testPkg = "code.google.com/p/go.test"
+ 
+-var testPackage = &Package{Name: "Test", Path: testPkg}
++var testPackage = &Package{Name: "Test", Kind: "subrepo", Path: testPkg}
+ 
+ var testPackages = []*Package{
+ 	&Package{Name: "Go", Path: ""},
+@@ -61,7 +61,7 @@ var testRequests = []struct {
+ 	res  interface{}
+ }{
+ 	// Packages
+-	{"/packages", nil, nil, []*Package{testPackage}},
++	{"/packages?kind=subrepo", nil, nil, []*Package{testPackage}},
+ 
+ 	// Go repo
+ 	{"/commit", nil, tCommit("0001", "0000"), nil},
+diff --git a/misc/dashboard/app/build/ui.go b/misc/dashboard/app/build/ui.go
+index 032fdbd84e..37a1500633 100644
+--- a/misc/dashboard/app/build/ui.go
++++ b/misc/dashboard/app/build/ui.go
+@@ -131,13 +131,13 @@ type PackageState struct {
+ 	OK      bool
+ }
+ 
+-// TagState fetches the results for all non-Go packages at the specified tag.
++// TagState fetches the results for all Go subrepos at the specified tag.
+ func TagState(c appengine.Context, name string) ([]*PackageState, os.Error) {
+ 	tag, err := GetTag(c, name)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	pkgs, err := Packages(c)
++	pkgs, err := Packages(c, "subrepo")
+ 	if err != nil {
+ 		return nil, err
+ 	}

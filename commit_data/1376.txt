@@ -9,10 +9,506 @@ Date:   Fri Dec 19 03:05:54 2008 -0800
     R=ken
     OCL=21578
     CL=21582
-
+---
  src/cmd/gc/go.y        | 13 +++++++
  src/cmd/gc/subr.c      | 36 +++++++++++++-----
  src/cmd/gc/sys.go      | 28 +++++++-------
  src/cmd/gc/sysimport.c | 30 +++++++--------
  src/cmd/gc/walk.c      | 99 ++++++++++++++++++++------------------------------
  5 files changed, 107 insertions(+), 99 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 58986aec77..60a88a2702 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1022,6 +1022,7 @@ convtype:
+ 		$$ = typ(TMAP);
+ 		$$->down = $3;
+ 		$$->type = $5;
++		$$ = ptrto($$);
+ 	}
+ |	structtype
+ 
+@@ -1106,18 +1107,21 @@ Aothertype:
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = Crecv;
++		$$ = ptrto($$);
+ 	}
+ |	LCHAN LCOMM Anon_chan_type
+ 	{
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = Csend;
++		$$ = ptrto($$);
+ 	}
+ |	LMAP '[' type ']' Atype
+ 	{
+ 		$$ = typ(TMAP);
+ 		$$->down = $3;
+ 		$$->type = $5;
++		$$ = ptrto($$);
+ 	}
+ |	'*' Atype
+ 	{
+@@ -1140,18 +1144,21 @@ Bothertype:
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = Crecv;
++		$$ = ptrto($$);
+ 	}
+ |	LCHAN LCOMM Bnon_chan_type
+ 	{
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = Csend;
++		$$ = ptrto($$);
+ 	}
+ |	LMAP '[' type ']' Btype
+ 	{
+ 		$$ = typ(TMAP);
+ 		$$->down = $3;
+ 		$$->type = $5;
++		$$ = ptrto($$);
+ 	}
+ |	'*' Btype
+ 	{
+@@ -1168,6 +1175,7 @@ Achantype:
+ 		$$ = typ(TCHAN);
+ 		$$->type = $2;
+ 		$$->chan = Cboth;
++		$$ = ptrto($$);
+ 	}
+ 
+ Bchantype:
+@@ -1176,6 +1184,7 @@ Bchantype:
+ 		$$ = typ(TCHAN);
+ 		$$->type = $2;
+ 		$$->chan = Cboth;
++		$$ = ptrto($$);
+ 	}
+ 
+ structtype:
+@@ -1858,6 +1867,7 @@ hidden_type1:
+ 		$$ = typ(TMAP);
+ 		$$->down = $3;
+ 		$$->type = $5;
++		$$ = ptrto($$);
+ 	}
+ |	LSTRUCT '{' ohidden_structdcl_list '}'
+ 	{
+@@ -1878,12 +1888,14 @@ hidden_type1:
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = Crecv;
++		$$ = ptrto($$);
+ 	}
+ |	LCHAN LCOMM hidden_type1
+ 	{
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = Csend;
++		$$ = ptrto($$);
+ 	}
+ |	LDDD
+ 	{
+@@ -1896,6 +1908,7 @@ hidden_type2:
+ 		$$ = typ(TCHAN);
+ 		$$->type = $2;
+ 		$$->chan = Cboth;
++		$$ = ptrto($$);
+ 	}
+ |	'(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index a561b761a6..e180258bb8 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1004,9 +1004,26 @@ Tpretty(Fmt *fp, Type *t)
+ 	switch(t->etype) {
+ 	case TPTR32:
+ 	case TPTR64:
+-		if(t->type && t->type->etype == TSTRING)
+-			return fmtprint(fp, "string");
+-		return fmtprint(fp, "*%T", t->type);
++		t1 = t->type;
++		if(t1 != T) {
++			switch(t1->etype) {
++			case TSTRING:
++				return fmtprint(fp, "string");
++			case TMAP:
++				return fmtprint(fp, "map[%T] %T", t1->down, t1->type);
++			case TCHAN:
++				return fmtprint(fp, "chan %T", t1->type);
++			}
++		}
++		return fmtprint(fp, "*%T", t1);
++
++	// Should not see these: should see ptr instead, handled above.
++	case TSTRING:
++		return fmtprint(fp, "STRING", t->type);
++	case TCHAN:
++		return fmtprint(fp, "CHAN %T", t->type);
++	case TMAP:
++		return fmtprint(fp, "MAP[%T] %T", t->down, t->type);
+ 
+ 	case TFUNC:
+ 		// t->type is method struct
+@@ -1056,12 +1073,6 @@ Tpretty(Fmt *fp, Type *t)
+ 			return fmtprint(fp, "[%d]%T", (int)t->bound, t->type);
+ 		return fmtprint(fp, "[]%T", t->type);
+ 
+-	case TCHAN:
+-		return fmtprint(fp, "chan %T", t->type);
+-
+-	case TMAP:
+-		return fmtprint(fp, "map[%T] %T", t->down, t->type);
+-
+ 	case TINTER:
+ 		fmtprint(fp, "interface {");
+ 		for(t1=t->type; t1!=T; t1=t1->down) {
+@@ -1615,11 +1626,12 @@ iscomposite(Type *t)
+ 	if(t == T)
+ 		return 0;
+ 	switch(t->etype) {
+-	case TMAP:
+ 	case TARRAY:
+ 	case TSTRUCT:
+ 		return 1;
+ 	}
++	if(isptr[t->etype] && t->type != T && t->type->etype == TMAP)
++		return 1;
+ 	return 0;
+ }
+ 
+@@ -1639,6 +1651,10 @@ signame(Type *t)
+ 	if(t->etype == TINTER)
+ 		e = "sigi";
+ 
++	// don't allow arrays in interfaces
++	if(t->etype == TARRAY)
++		goto bad;
++
+ 	// name is exported name, like *[]byte or *Struct or Interface
+ 	// (special symbols don't bother the linker).
+ 	snprint(buf, sizeof(buf), "%#T", t);
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index ede7baddbc..445104b044 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -57,26 +57,26 @@ export func	float64frombits(uint64) float64;	// raw bits
+ 
+ export func	newmap(keysize int, valsize int,
+ 			keyalg int, valalg int,
+-			hint int) (hmap *map[any]any);
+-export func	mapaccess1(hmap *map[any]any, key any) (val any);
+-export func	mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
+-export func	mapassign1(hmap *map[any]any, key any, val any);
+-export func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
+-export func	mapiterinit(hmap *map[any]any, hiter *any);
++			hint int) (hmap map[any]any);
++export func	mapaccess1(hmap map[any]any, key any) (val any);
++export func	mapaccess2(hmap map[any]any, key any) (val any, pres bool);
++export func	mapassign1(hmap map[any]any, key any, val any);
++export func	mapassign2(hmap map[any]any, key any, val any, pres bool);
++export func	mapiterinit(hmap map[any]any, hiter *any);
+ export func	mapiternext(hiter *any);
+ export func	mapiter1(hiter *any) (key any);
+ export func	mapiter2(hiter *any) (key any, val any);
+ 
+-export func	newchan(elemsize int, elemalg int, hint int) (hchan *chan any);
+-export func	chanrecv1(hchan *chan any) (elem any);
+-export func	chanrecv2(hchan *chan any) (elem any, pres bool);
+-export func	chanrecv3(hchan *chan any, elem *any) (pres bool);
+-export func	chansend1(hchan *chan any, elem any);
+-export func	chansend2(hchan *chan any, elem any) (pres bool);
++export func	newchan(elemsize int, elemalg int, hint int) (hchan chan any);
++export func	chanrecv1(hchan chan any) (elem any);
++export func	chanrecv2(hchan chan any) (elem any, pres bool);
++export func	chanrecv3(hchan chan any, elem *any) (pres bool);
++export func	chansend1(hchan chan any, elem any);
++export func	chansend2(hchan chan any, elem any) (pres bool);
+ 
+ export func	newselect(size int) (sel *byte);
+-export func	selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
+-export func	selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
++export func	selectsend(sel *byte, hchan chan any, elem any) (selected bool);
++export func	selectrecv(sel *byte, hchan chan any, elem *any) (selected bool);
+ export func	selectdefault(sel *byte) (selected bool);
+ export func	selectgo(sel *byte);
+ 
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 7727798149..b183830f61 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -44,24 +44,24 @@ char *sysimport =
+ 	"export func sys.float64bits (? float64) (? uint64)\n"
+ 	"export func sys.float32frombits (? uint32) (? float32)\n"
+ 	"export func sys.float64frombits (? uint64) (? float64)\n"
+-	"export func sys.newmap (keysize int, valsize int, keyalg int, valalg int, hint int) (hmap *map[any] any)\n"
+-	"export func sys.mapaccess1 (hmap *map[any] any, key any) (val any)\n"
+-	"export func sys.mapaccess2 (hmap *map[any] any, key any) (val any, pres bool)\n"
+-	"export func sys.mapassign1 (hmap *map[any] any, key any, val any)\n"
+-	"export func sys.mapassign2 (hmap *map[any] any, key any, val any, pres bool)\n"
+-	"export func sys.mapiterinit (hmap *map[any] any, hiter *any)\n"
++	"export func sys.newmap (keysize int, valsize int, keyalg int, valalg int, hint int) (hmap map[any] any)\n"
++	"export func sys.mapaccess1 (hmap map[any] any, key any) (val any)\n"
++	"export func sys.mapaccess2 (hmap map[any] any, key any) (val any, pres bool)\n"
++	"export func sys.mapassign1 (hmap map[any] any, key any, val any)\n"
++	"export func sys.mapassign2 (hmap map[any] any, key any, val any, pres bool)\n"
++	"export func sys.mapiterinit (hmap map[any] any, hiter *any)\n"
+ 	"export func sys.mapiternext (hiter *any)\n"
+ 	"export func sys.mapiter1 (hiter *any) (key any)\n"
+ 	"export func sys.mapiter2 (hiter *any) (key any, val any)\n"
+-	"export func sys.newchan (elemsize int, elemalg int, hint int) (hchan *chan any)\n"
+-	"export func sys.chanrecv1 (hchan *chan any) (elem any)\n"
+-	"export func sys.chanrecv2 (hchan *chan any) (elem any, pres bool)\n"
+-	"export func sys.chanrecv3 (hchan *chan any, elem *any) (pres bool)\n"
+-	"export func sys.chansend1 (hchan *chan any, elem any)\n"
+-	"export func sys.chansend2 (hchan *chan any, elem any) (pres bool)\n"
++	"export func sys.newchan (elemsize int, elemalg int, hint int) (hchan chan any)\n"
++	"export func sys.chanrecv1 (hchan chan any) (elem any)\n"
++	"export func sys.chanrecv2 (hchan chan any) (elem any, pres bool)\n"
++	"export func sys.chanrecv3 (hchan chan any, elem *any) (pres bool)\n"
++	"export func sys.chansend1 (hchan chan any, elem any)\n"
++	"export func sys.chansend2 (hchan chan any, elem any) (pres bool)\n"
+ 	"export func sys.newselect (size int) (sel *uint8)\n"
+-	"export func sys.selectsend (sel *uint8, hchan *chan any, elem any) (selected bool)\n"
+-	"export func sys.selectrecv (sel *uint8, hchan *chan any, elem *any) (selected bool)\n"
++	"export func sys.selectsend (sel *uint8, hchan chan any, elem any) (selected bool)\n"
++	"export func sys.selectrecv (sel *uint8, hchan chan any, elem *any) (selected bool)\n"
+ 	"export func sys.selectdefault (sel *uint8) (selected bool)\n"
+ 	"export func sys.selectgo (sel *uint8)\n"
+ 	"export func sys.newarray (nel int, cap int, width int) (ary []any)\n"
+@@ -75,7 +75,7 @@ char *sysimport =
+ 	"export func sys.bytestorune (? *uint8, ? int, ? int) (? int, ? int)\n"
+ 	"export func sys.stringtorune (? string, ? int) (? int, ? int)\n"
+ 	"export func sys.exit (? int)\n"
+-	"export func sys.symdat () (symtab *[]uint8, pclntab *[]uint8)\n"
++	"export func sys.symdat () (symtab []uint8, pclntab []uint8)\n"
+ 	"export func sys.semacquire (sema *int32)\n"
+ 	"export func sys.semrelease (sema *int32)\n"
+ 	"\n"
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 710e143782..1fb29dad33 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -609,7 +609,7 @@ loop:
+ 		}
+ 
+ 		// map literal
+-		if(t->etype == TMAP) {
++		if(isptr[t->etype] && t->type != t && t->type->etype == TMAP) {
+ 			r = maplit(n);
+ 			indir(n, r);
+ 			goto ret;
+@@ -944,25 +944,27 @@ loop:
+ 	case OADDR:
+ 		if(top != Erv)
+ 			goto nottop;
+-		if(n->left->op == OCONV && iscomposite(n->left->type)) {
++		if(n->left->op == OCONV && n->left->type != T)
++		if(n->left->type->etype == TSTRUCT) {
+ 			// turn &Point{1, 2} into allocation.
+ 			// initialize with
+-			//	nvar := new(Point);
++			//	nvar := new(*Point);
+ 			//	*nvar = Point{1, 2};
+ 			// and replace expression with nvar
+ 
+ 			// TODO(rsc): might do a better job (fewer copies) later
+ 			Node *nnew, *nvar, *nas;
+ 
++			t = ptrto(n->left->type);
+ 			walktype(n->left, Elv);
+ 			if(n->left == N)
+ 				goto ret;
+ 
+ 			nvar = nod(0, N, N);
+-			tempname(nvar, ptrto(n->left->type));
++			tempname(nvar, t);
+ 
+ 			nnew = nod(ONEW, N, N);
+-			nnew->type = n->left->type;
++			nnew->type = t;
+ 			nnew = newcompat(nnew);
+ 
+ 			nas = nod(OAS, nvar, nnew);
+@@ -2004,67 +2006,45 @@ newcompat(Node *n)
+ 	if(t == T)
+ 		goto bad;
+ 
+-/*
+-	if(isptr[t->etype]) {
+-		if(t->type == T)
+-			goto bad;
+-		t = t->type;
++	if(t->etype == TARRAY)
++		return arrayop(n, Erv);
+ 
+-		dowidth(t);
++	if(!isptr[t->etype] || t->type == T)
++		goto bad;
+ 
+-		on = syslook("mal", 1);
+-		argtype(on, t);
++	t = t->type;
++	switch(t->etype) {
++	case TSTRING:
++		goto bad;
+ 
+-		r = nodintconst(t->width);
+-		r = nod(OCALL, on, r);
+-		walktype(r, Erv);
++	// the call looks like new(map[int]int)
++	// but internally we see new(*MAP[int]int)
++	case TMAP:
++		r = mapop(n, Erv);
++		break;
+ 
+-		r->type = n->type;
+-		goto ret;
+-	}
+-*/
++	// the call looks like new(chan int)
++	// but internally we see new(*CHAN int)
++	case TCHAN:
++		r = chanop(n, Erv);
++		break;
+ 
+-	switch(t->etype) {
+ 	default:
+-//		goto bad;
+-//
+-//	case TSTRUCT:
+ 		if(n->left != N)
+-			yyerror("dont know what new(,e) means");
+-
++			yyerror("cannot new(*%T, expr)", t);
+ 		dowidth(t);
+-
+ 		on = syslook("mal", 1);
+-
+ 		argtype(on, t);
+-
+ 		r = nodintconst(t->width);
+ 		r = nod(OCALL, on, r);
+ 		walktype(r, Erv);
+-
+-		r->type = ptrto(n->type);
+-
+-		return r;
+-	case TMAP:
+-		n->type = ptrto(n->type);
+-		r = mapop(n, Erv);
+-		break;
+-
+-	case TCHAN:
+-		n->type = ptrto(n->type);
+-		r = chanop(n, Erv);
+-		break;
+-
+-	case TARRAY:
+-		r = arrayop(n, Erv);
+ 		break;
+ 	}
+ 
+-ret:
+ 	return r;
+ 
+ bad:
+-	fatal("cannot make new %T", t);
++	yyerror("cannot new(*%T)", t);
+ 	return n;
+ }
+ 
+@@ -2233,7 +2213,7 @@ mapop(Node *n, int top)
+ 
+ 		// newmap(keysize int, valsize int,
+ 		//	keyalg int, valalg int,
+-		//	hint int) (hmap *map[any-1]any-2);
++		//	hint int) (hmap map[any-1]any-2);
+ 
+ 		t = fixmap(n->type);
+ 		if(t == T)
+@@ -2265,7 +2245,7 @@ mapop(Node *n, int top)
+ 	case OINDEX:
+ 		if(top != Erv)
+ 			goto nottop;
+-		// mapaccess1(hmap *map[any]any, key any) (val any);
++		// mapaccess1(hmap map[any]any, key any) (val any);
+ 
+ 		t = fixmap(n->left->type);
+ 		if(t == T)
+@@ -2311,7 +2291,7 @@ mapop(Node *n, int top)
+ 		if(cl != 1 || cr != 1)
+ 			goto shape;
+ 
+-		// mapassign1(hmap *map[any-1]any-2, key any-3, val any-4);
++		// mapassign1(hmap map[any-1]any-2, key any-3, val any-4);
+ 		if(n->left->op != OINDEX)
+ 			goto shape;
+ 
+@@ -2338,7 +2318,7 @@ mapop(Node *n, int top)
+ 		break;
+ 
+ 	assign2:
+-		// mapassign2(hmap *map[any]any, key any, val any, pres bool);
++		// mapassign2(hmap map[any]any, key any, val any, pres bool);
+ 		if(n->left->op != OINDEX)
+ 			goto shape;
+ 
+@@ -2367,7 +2347,7 @@ mapop(Node *n, int top)
+ 		break;
+ 
+ 	access2:
+-		// mapaccess2(hmap *map[any-1]any-2, key any-3) (val-4 any, pres bool);
++		// mapaccess2(hmap map[any-1]any-2, key any-3) (val-4 any, pres bool);
+ 
+ //dump("access2", n);
+ 		if(n->right->op != OINDEX)
+@@ -3510,7 +3490,7 @@ arraylit(Node *n)
+ {
+ 	Iter saver;
+ 	Type *t;
+-	Node *var, *r, *a, *nas, *nnew, *ncon;
++	Node *var, *r, *a, *nas, *nnew;
+ 	int idx;
+ 
+ 	t = n->type;
+@@ -3519,13 +3499,13 @@ arraylit(Node *n)
+ 
+ 	if(t->bound >= 0)
+ 		fatal("arraylit: literal fixed arrays not implemented");
+-	
++
+ 	var = nod(OXXX, N, N);
+ 	tempname(var, t);
+-	
++
+ 	nnew = nod(ONEW, N, N);
+ 	nnew->type = t;
+-	
++
+ 	nas = nod(OAS, var, nnew);
+ 	addtop = list(addtop, nas);
+ 
+@@ -3554,15 +3534,14 @@ maplit(Node *n)
+ 	Node *var, *r, *a;
+ 
+ 	t = n->type;
+-	if(t->etype != TMAP)
+-		fatal("maplit: not array");
+-	t = ptrto(t);
++	if(!isptr[t->etype] || t->type == T || t->type->etype != TMAP)
++		fatal("maplit: not map");
+ 
+ 	var = nod(OXXX, N, N);
+ 	tempname(var, t);
+ 
+ 	a = nod(ONEW, N, N);
+-	a->type = t->type;
++	a->type = t;
+ 	a = nod(OAS, var, a);
+ 	addtop = list(addtop, a);
+ 

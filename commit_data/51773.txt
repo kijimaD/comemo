@@ -16,10 +16,168 @@ Date:   Mon Oct 25 16:51:55 2021 -0500
     Trust: Paul Murphy <murp@ibm.com>
     Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/arch/ppc64.go        |  2 +-
  src/cmd/asm/internal/asm/testdata/ppc64.s | 30 ++++++++++++++++++------------
  src/cmd/internal/obj/ppc64/a.out.go       | 11 +++++++----
  src/cmd/internal/obj/ppc64/anames.go      |  2 ++
  src/cmd/internal/obj/ppc64/asm9.go        | 24 ++++++++++++++++--------
  5 files changed, 44 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/ppc64.go b/src/cmd/asm/internal/arch/ppc64.go
+index 3139665ba5..616e189b1a 100644
+--- a/src/cmd/asm/internal/arch/ppc64.go
++++ b/src/cmd/asm/internal/arch/ppc64.go
+@@ -15,7 +15,7 @@ import (
+ 
+ func jumpPPC64(word string) bool {
+ 	switch word {
+-	case "BC", "BCL", "BEQ", "BGE", "BGT", "BL", "BLE", "BLT", "BNE", "BR", "BVC", "BVS", "CALL", "JMP":
++	case "BC", "BCL", "BEQ", "BGE", "BGT", "BL", "BLE", "BLT", "BNE", "BR", "BVC", "BVS", "BDNZ", "BDZ", "CALL", "JMP":
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index c140fd025a..5452668791 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -751,17 +751,23 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	MOVD XER, R3                    // 7c6102a6
+ 	MOVFL CR3, CR1                  // 4c8c0000
+ 
+-	MOVW CR0, R1			// 7c380026
+-	MOVW CR7, R1			// 7c301026
+-	MOVW CR, R1			// 7c200026
+-
+-	MOVW R1, CR			// 7c2ff120
+-	MOVFL R1, CR			// 7c2ff120
+-	MOVW R1, CR2			// 7c320120
+-	MOVFL R1, CR2			// 7c320120
+-	MOVFL R1, $255			// 7c2ff120
+-	MOVFL R1, $1			// 7c301120
+-	MOVFL R1, $128			// 7c380120
+-	MOVFL R1, $3			// 7c203120
++	MOVW CR0, R1                    // 7c380026
++	MOVW CR7, R1                    // 7c301026
++	MOVW CR, R1                     // 7c200026
++
++	MOVW R1, CR                     // 7c2ff120
++	MOVFL R1, CR                    // 7c2ff120
++	MOVW R1, CR2                    // 7c320120
++	MOVFL R1, CR2                   // 7c320120
++	MOVFL R1, $255                  // 7c2ff120
++	MOVFL R1, $1                    // 7c301120
++	MOVFL R1, $128                  // 7c380120
++	MOVFL R1, $3                    // 7c203120
++
++	// Verify supported bdnz/bdz encodings.
++	BC 16,0,0(PC)                   // BC $16,R0,0(PC) // 42000000
++	BDNZ 0(PC)                      // 42000000
++	BDZ 0(PC)                       // 42400000
++	BC 18,0,0(PC)                   // BC $18,R0,0(PC) // 42400000
+ 
+ 	RET
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 1e74e64a29..25081efcee 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -362,13 +362,14 @@ const (
+ 	BI_LT  = 0
+ 	BI_GT  = 1
+ 	BI_EQ  = 2
+-	BI_OVF = 3
++	BI_FU  = 3
+ )
+ 
+ // Common values for the BO field.
+ 
+ const (
+ 	BO_BCTR    = 16 // decrement ctr, branch on ctr != 0
++	BO_NOTBCTR = 18 // decrement ctr, branch on ctr == 0
+ 	BO_BCR     = 12 // branch on cr value
+ 	BO_BCRBCTR = 8  // decrement ctr, branch on ctr != 0 and cr value
+ 	BO_NOTBCR  = 4  // branch on not cr value
+@@ -480,9 +481,11 @@ const (
+ 	ABGT
+ 	ABLE // not GT = L/E/U
+ 	ABLT
+-	ABNE // not EQ = L/G/U
+-	ABVC // Unordered-clear
+-	ABVS // Unordered-set
++	ABNE  // not EQ = L/G/U
++	ABVC  // Branch if float not unordered (also branch on not summary overflow)
++	ABVS  // Branch if float unordered (also branch on summary overflow)
++	ABDNZ // Decrement CTR, and branch if CTR != 0
++	ABDZ  // Decrement CTR, and branch if CTR == 0
+ 	ACMP
+ 	ACMPU
+ 	ACMPEQB
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index 0da73ca91e..7521a92ab4 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -42,6 +42,8 @@ var Anames = []string{
+ 	"BNE",
+ 	"BVC",
+ 	"BVS",
++	"BDNZ",
++	"BDZ",
+ 	"CMP",
+ 	"CMPU",
+ 	"CMPEQB",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 70ce9050b6..50c9b37f02 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -305,6 +305,7 @@ var optab = []Optab{
+ 	{as: ABC, a1: C_SCON, a2: C_REG, a6: C_LR, type_: 18, size: 4},
+ 	{as: ABC, a1: C_SCON, a2: C_REG, a6: C_CTR, type_: 18, size: 4},
+ 	{as: ABC, a6: C_ZOREG, type_: 15, size: 8},
++	{as: ABDNZ, a6: C_SBRA, type_: 16, size: 4},
+ 	{as: ASYNC, type_: 46, size: 4},
+ 	{as: AWORD, a1: C_LCON, type_: 40, size: 4},
+ 	{as: ADWORD, a1: C_64CON, type_: 31, size: 8},
+@@ -1778,6 +1779,9 @@ func buildop(ctxt *obj.Link) {
+ 		case ABC:
+ 			opset(ABCL, r0)
+ 
++		case ABDNZ:
++			opset(ABDZ, r0)
++
+ 		case AEXTSB: /* op Rs, Ra */
+ 			opset(AEXTSBCC, r0)
+ 
+@@ -4875,21 +4879,25 @@ func (c *ctxt9) opirr(a obj.As) uint32 {
+ 		return OPVCC(16, 0, 0, 0) | 1
+ 
+ 	case ABEQ:
+-		return AOP_RRR(16<<26, 12, 2, 0)
++		return AOP_RRR(16<<26, BO_BCR, BI_EQ, 0)
+ 	case ABGE:
+-		return AOP_RRR(16<<26, 4, 0, 0)
++		return AOP_RRR(16<<26, BO_NOTBCR, BI_LT, 0)
+ 	case ABGT:
+-		return AOP_RRR(16<<26, 12, 1, 0)
++		return AOP_RRR(16<<26, BO_BCR, BI_GT, 0)
+ 	case ABLE:
+-		return AOP_RRR(16<<26, 4, 1, 0)
++		return AOP_RRR(16<<26, BO_NOTBCR, BI_GT, 0)
+ 	case ABLT:
+-		return AOP_RRR(16<<26, 12, 0, 0)
++		return AOP_RRR(16<<26, BO_BCR, BI_LT, 0)
+ 	case ABNE:
+-		return AOP_RRR(16<<26, 4, 2, 0)
++		return AOP_RRR(16<<26, BO_NOTBCR, BI_EQ, 0)
+ 	case ABVC:
+-		return AOP_RRR(16<<26, 4, 3, 0) // apparently unordered-clear
++		return AOP_RRR(16<<26, BO_NOTBCR, BI_FU, 0)
+ 	case ABVS:
+-		return AOP_RRR(16<<26, 12, 3, 0) // apparently unordered-set
++		return AOP_RRR(16<<26, BO_BCR, BI_FU, 0)
++	case ABDZ:
++		return AOP_RRR(16<<26, BO_NOTBCTR, 0, 0)
++	case ABDNZ:
++		return AOP_RRR(16<<26, BO_BCTR, 0, 0)
+ 
+ 	case ACMP:
+ 		return OPVCC(11, 0, 0, 0) | 1<<21 /* L=1 */

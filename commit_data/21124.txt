@@ -16,7 +16,7 @@ Date:   Sun Nov 16 20:52:45 2014 -0500
     R=adg, dsymonds
     CC=golang-codereviews
     https://golang.org/cl/174250043
-
+---
  src/{debug => cmd/internal}/goobj/read.go      | 0
  src/{debug => cmd/internal}/goobj/read_test.go | 0
  src/cmd/internal/objfile/goobj.go              | 2 +-
@@ -32,3 +32,177 @@ Date:   Sun Nov 16 20:52:45 2014 -0500
  src/cmd/link/runtime.go                        | 2 +-
  src/cmd/link/scan.go                           | 4 ++--
  14 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/debug/goobj/read.go b/src/cmd/internal/goobj/read.go
+similarity index 100%
+rename from src/debug/goobj/read.go
+rename to src/cmd/internal/goobj/read.go
+diff --git a/src/debug/goobj/read_test.go b/src/cmd/internal/goobj/read_test.go
+similarity index 100%
+rename from src/debug/goobj/read_test.go
+rename to src/cmd/internal/goobj/read_test.go
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index a1d773023d..6b1607a172 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -7,7 +7,7 @@
+ package objfile
+ 
+ import (
+-	"debug/goobj"
++	"cmd/internal/goobj"
+ 	"fmt"
+ 	"os"
+ )
+diff --git a/src/cmd/link/auto.go b/src/cmd/link/auto.go
+index f9228e8cab..21f6d60827 100644
+--- a/src/cmd/link/auto.go
++++ b/src/cmd/link/auto.go
+@@ -10,7 +10,7 @@
+ package main
+ 
+ import (
+-	"debug/goobj"
++	"cmd/internal/goobj"
+ 	"strconv"
+ 	"strings"
+ )
+diff --git a/src/cmd/link/auto_test.go b/src/cmd/link/auto_test.go
+index 27f8e2b96d..f99e097a9c 100644
+--- a/src/cmd/link/auto_test.go
++++ b/src/cmd/link/auto_test.go
+@@ -13,7 +13,7 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"debug/goobj"
++	"cmd/internal/goobj"
+ 	"testing"
+ )
+ 
+diff --git a/src/cmd/link/dead.go b/src/cmd/link/dead.go
+index e1e775eb3b..ee23a61f81 100644
+--- a/src/cmd/link/dead.go
++++ b/src/cmd/link/dead.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-import "debug/goobj"
++import "cmd/internal/goobj"
+ 
+ // dead removes unreachable code and data from the program.
+ // It is basically a mark-sweep garbage collection: traverse all the
+diff --git a/src/cmd/link/dead_test.go b/src/cmd/link/dead_test.go
+index 2e179b453b..eb34d0580d 100644
+--- a/src/cmd/link/dead_test.go
++++ b/src/cmd/link/dead_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"debug/goobj"
++	"cmd/internal/goobj"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+diff --git a/src/cmd/link/layout.go b/src/cmd/link/layout.go
+index 149ebced0f..d5c291e255 100644
+--- a/src/cmd/link/layout.go
++++ b/src/cmd/link/layout.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ import (
+-	"debug/goobj"
++	"cmd/internal/goobj"
+ )
+ 
+ // A layoutSection describes a single section to add to the
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 984796784e..b5ae15fc71 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -6,7 +6,7 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"debug/goobj"
++	"cmd/internal/goobj"
+ 	"io/ioutil"
+ 	"testing"
+ )
+diff --git a/src/cmd/link/pclntab.go b/src/cmd/link/pclntab.go
+index 232d586bf2..2d131781f2 100644
+--- a/src/cmd/link/pclntab.go
++++ b/src/cmd/link/pclntab.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ import (
+-	"debug/goobj"
++	"cmd/internal/goobj"
+ 	"encoding/binary"
+ 	"os"
+ 	"sort"
+diff --git a/src/cmd/link/pclntab_test.go b/src/cmd/link/pclntab_test.go
+index 19953f5797..ea80806742 100644
+--- a/src/cmd/link/pclntab_test.go
++++ b/src/cmd/link/pclntab_test.go
+@@ -6,7 +6,7 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"debug/goobj"
++	"cmd/internal/goobj"
+ 	"fmt"
+ 	"math/rand"
+ 	"sort"
+diff --git a/src/cmd/link/prog.go b/src/cmd/link/prog.go
+index a52b5ff9b2..77fb1ece5b 100644
+--- a/src/cmd/link/prog.go
++++ b/src/cmd/link/prog.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"debug/goobj"
++	"cmd/internal/goobj"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"go/build"
+diff --git a/src/cmd/link/runtime.go b/src/cmd/link/runtime.go
+index b0c1ac98a6..acda2d24d6 100644
+--- a/src/cmd/link/runtime.go
++++ b/src/cmd/link/runtime.go
+@@ -7,7 +7,7 @@
+ 
+ package main
+ 
+-import "debug/goobj"
++import "cmd/internal/goobj"
+ 
+ func (p *Prog) runtime() {
+ 	p.pclntab()
+diff --git a/src/cmd/link/scan.go b/src/cmd/link/scan.go
+index 0720e039b8..7feb0d8900 100644
+--- a/src/cmd/link/scan.go
++++ b/src/cmd/link/scan.go
+@@ -11,7 +11,7 @@
+ package main
+ 
+ import (
+-	"debug/goobj"
++	"cmd/internal/goobj"
+ 	"os"
+ 	"sort"
+ 	"strings"
+@@ -69,7 +69,7 @@ func (p *Prog) scanFile(pkgpath string, file string) {
+ 		return
+ 	}
+ 
+-	// TODO(rsc): Change debug/goobj to record package name as gp.Name.
++	// TODO(rsc): Change cmd/internal/goobj to record package name as gp.Name.
+ 	// TODO(rsc): If pkgpath == "main", check that gp.Name == "main".
+ 
+ 	pkg.Package = gp

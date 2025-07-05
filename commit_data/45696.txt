@@ -20,6 +20,29 @@ Date:   Fri Nov 6 13:11:58 2020 -0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/os/exec/read3.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/exec/read3.go b/src/os/exec/read3.go
+index 8852023e77..8cc24da8cb 100644
+--- a/src/os/exec/read3.go
++++ b/src/os/exec/read3.go
+@@ -56,7 +56,7 @@ func main() {
+ 			switch runtime.GOOS {
+ 			case "plan9":
+ 				args = []string{fmt.Sprintf("/proc/%d/fd", os.Getpid())}
+-			case "aix":
++			case "aix", "solaris", "illumos":
+ 				args = []string{fmt.Sprint(os.Getpid())}
+ 			default:
+ 				args = []string{"-p", fmt.Sprint(os.Getpid())}
+@@ -71,6 +71,8 @@ func main() {
+ 				ofcmd = "/bin/cat"
+ 			case "aix":
+ 				ofcmd = "procfiles"
++			case "solaris", "illumos":
++				ofcmd = "pfiles"
+ 			}
+ 
+ 			cmd := exec.Command(ofcmd, args...)

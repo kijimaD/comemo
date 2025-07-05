@@ -9,7 +9,215 @@ Date:   Thu May 26 11:29:53 2016 +0200
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/nat_test.go     |  27 ++++-----
  src/math/big/natconv_test.go | 133 +++++++++++++++----------------------------
  2 files changed, 57 insertions(+), 103 deletions(-)
+
+diff --git a/src/math/big/nat_test.go b/src/math/big/nat_test.go
+index 563ccb3052..ebb2985654 100644
+--- a/src/math/big/nat_test.go
++++ b/src/math/big/nat_test.go
+@@ -5,6 +5,7 @@
+ package big
+ 
+ import (
++	"fmt"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+@@ -509,24 +510,20 @@ func TestExpNN(t *testing.T) {
+ 	}
+ }
+ 
+-func ExpHelper(b *testing.B, x, y Word) {
+-	var z nat
+-	for i := 0; i < b.N; i++ {
+-		z.expWW(x, y)
++func BenchmarkExp3Power(b *testing.B) {
++	const x = 3
++	for _, y := range []Word{
++		0x10, 0x40, 0x100, 0x400, 0x1000, 0x4000, 0x10000, 0x40000, 0x100000, 0x400000,
++	} {
++		b.Run(fmt.Sprintf("%#x", y), func(b *testing.B) {
++			var z nat
++			for i := 0; i < b.N; i++ {
++				z.expWW(x, y)
++			}
++		})
+ 	}
+ }
+ 
+-func BenchmarkExp3Power0x10(b *testing.B)     { ExpHelper(b, 3, 0x10) }
+-func BenchmarkExp3Power0x40(b *testing.B)     { ExpHelper(b, 3, 0x40) }
+-func BenchmarkExp3Power0x100(b *testing.B)    { ExpHelper(b, 3, 0x100) }
+-func BenchmarkExp3Power0x400(b *testing.B)    { ExpHelper(b, 3, 0x400) }
+-func BenchmarkExp3Power0x1000(b *testing.B)   { ExpHelper(b, 3, 0x1000) }
+-func BenchmarkExp3Power0x4000(b *testing.B)   { ExpHelper(b, 3, 0x4000) }
+-func BenchmarkExp3Power0x10000(b *testing.B)  { ExpHelper(b, 3, 0x10000) }
+-func BenchmarkExp3Power0x40000(b *testing.B)  { ExpHelper(b, 3, 0x40000) }
+-func BenchmarkExp3Power0x100000(b *testing.B) { ExpHelper(b, 3, 0x100000) }
+-func BenchmarkExp3Power0x400000(b *testing.B) { ExpHelper(b, 3, 0x400000) }
+-
+ func fibo(n int) nat {
+ 	switch n {
+ 	case 0:
+diff --git a/src/math/big/natconv_test.go b/src/math/big/natconv_test.go
+index 028e5a858e..79901d1880 100644
+--- a/src/math/big/natconv_test.go
++++ b/src/math/big/natconv_test.go
+@@ -6,6 +6,7 @@ package big
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"io"
+ 	"strings"
+ 	"testing"
+@@ -273,102 +274,58 @@ func BenchmarkStringPiParallel(b *testing.B) {
+ 	})
+ }
+ 
+-func BenchmarkScan10Base2(b *testing.B)     { ScanHelper(b, 2, 10, 10) }
+-func BenchmarkScan100Base2(b *testing.B)    { ScanHelper(b, 2, 10, 100) }
+-func BenchmarkScan1000Base2(b *testing.B)   { ScanHelper(b, 2, 10, 1000) }
+-func BenchmarkScan10000Base2(b *testing.B)  { ScanHelper(b, 2, 10, 10000) }
+-func BenchmarkScan100000Base2(b *testing.B) { ScanHelper(b, 2, 10, 100000) }
+-
+-func BenchmarkScan10Base8(b *testing.B)     { ScanHelper(b, 8, 10, 10) }
+-func BenchmarkScan100Base8(b *testing.B)    { ScanHelper(b, 8, 10, 100) }
+-func BenchmarkScan1000Base8(b *testing.B)   { ScanHelper(b, 8, 10, 1000) }
+-func BenchmarkScan10000Base8(b *testing.B)  { ScanHelper(b, 8, 10, 10000) }
+-func BenchmarkScan100000Base8(b *testing.B) { ScanHelper(b, 8, 10, 100000) }
+-
+-func BenchmarkScan10Base10(b *testing.B)     { ScanHelper(b, 10, 10, 10) }
+-func BenchmarkScan100Base10(b *testing.B)    { ScanHelper(b, 10, 10, 100) }
+-func BenchmarkScan1000Base10(b *testing.B)   { ScanHelper(b, 10, 10, 1000) }
+-func BenchmarkScan10000Base10(b *testing.B)  { ScanHelper(b, 10, 10, 10000) }
+-func BenchmarkScan100000Base10(b *testing.B) { ScanHelper(b, 10, 10, 100000) }
+-
+-func BenchmarkScan10Base16(b *testing.B)     { ScanHelper(b, 16, 10, 10) }
+-func BenchmarkScan100Base16(b *testing.B)    { ScanHelper(b, 16, 10, 100) }
+-func BenchmarkScan1000Base16(b *testing.B)   { ScanHelper(b, 16, 10, 1000) }
+-func BenchmarkScan10000Base16(b *testing.B)  { ScanHelper(b, 16, 10, 10000) }
+-func BenchmarkScan100000Base16(b *testing.B) { ScanHelper(b, 16, 10, 100000) }
+-
+-func ScanHelper(b *testing.B, base int, x, y Word) {
+-	b.StopTimer()
+-	var z nat
+-	z = z.expWW(x, y)
+-
+-	s := z.utoa(base)
+-	if t := itoa(z, base); !bytes.Equal(s, t) {
+-		b.Fatalf("scanning: got %s; want %s", s, t)
++func BenchmarkScan(b *testing.B) {
++	const x = 10
++	for _, base := range []int{2, 8, 10, 16} {
++		for _, y := range []Word{10, 100, 1000, 10000, 100000} {
++			b.Run(fmt.Sprintf("%d/Base%d", y, base), func(b *testing.B) {
++				b.StopTimer()
++				var z nat
++				z = z.expWW(x, y)
++
++				s := z.utoa(base)
++				if t := itoa(z, base); !bytes.Equal(s, t) {
++					b.Fatalf("scanning: got %s; want %s", s, t)
++				}
++				b.StartTimer()
++
++				for i := 0; i < b.N; i++ {
++					z.scan(bytes.NewReader(s), base, false)
++				}
++			})
++		}
+ 	}
+-	b.StartTimer()
++}
+ 
+-	for i := 0; i < b.N; i++ {
+-		z.scan(bytes.NewReader(s), base, false)
++func BenchmarkString(b *testing.B) {
++	const x = 10
++	for _, base := range []int{2, 8, 10, 16} {
++		for _, y := range []Word{10, 100, 1000, 10000, 100000} {
++			b.Run(fmt.Sprintf("%d/Base%d", y, base), func(b *testing.B) {
++				b.StopTimer()
++				var z nat
++				z = z.expWW(x, y)
++				z.utoa(base) // warm divisor cache
++				b.StartTimer()
++
++				for i := 0; i < b.N; i++ {
++					_ = z.utoa(base)
++				}
++			})
++		}
+ 	}
+ }
+ 
+-func BenchmarkString10Base2(b *testing.B)     { StringHelper(b, 2, 10, 10) }
+-func BenchmarkString100Base2(b *testing.B)    { StringHelper(b, 2, 10, 100) }
+-func BenchmarkString1000Base2(b *testing.B)   { StringHelper(b, 2, 10, 1000) }
+-func BenchmarkString10000Base2(b *testing.B)  { StringHelper(b, 2, 10, 10000) }
+-func BenchmarkString100000Base2(b *testing.B) { StringHelper(b, 2, 10, 100000) }
+-
+-func BenchmarkString10Base8(b *testing.B)     { StringHelper(b, 8, 10, 10) }
+-func BenchmarkString100Base8(b *testing.B)    { StringHelper(b, 8, 10, 100) }
+-func BenchmarkString1000Base8(b *testing.B)   { StringHelper(b, 8, 10, 1000) }
+-func BenchmarkString10000Base8(b *testing.B)  { StringHelper(b, 8, 10, 10000) }
+-func BenchmarkString100000Base8(b *testing.B) { StringHelper(b, 8, 10, 100000) }
+-
+-func BenchmarkString10Base10(b *testing.B)     { StringHelper(b, 10, 10, 10) }
+-func BenchmarkString100Base10(b *testing.B)    { StringHelper(b, 10, 10, 100) }
+-func BenchmarkString1000Base10(b *testing.B)   { StringHelper(b, 10, 10, 1000) }
+-func BenchmarkString10000Base10(b *testing.B)  { StringHelper(b, 10, 10, 10000) }
+-func BenchmarkString100000Base10(b *testing.B) { StringHelper(b, 10, 10, 100000) }
+-
+-func BenchmarkString10Base16(b *testing.B)     { StringHelper(b, 16, 10, 10) }
+-func BenchmarkString100Base16(b *testing.B)    { StringHelper(b, 16, 10, 100) }
+-func BenchmarkString1000Base16(b *testing.B)   { StringHelper(b, 16, 10, 1000) }
+-func BenchmarkString10000Base16(b *testing.B)  { StringHelper(b, 16, 10, 10000) }
+-func BenchmarkString100000Base16(b *testing.B) { StringHelper(b, 16, 10, 100000) }
+-
+-func StringHelper(b *testing.B, base int, x, y Word) {
+-	b.StopTimer()
+-	var z nat
+-	z = z.expWW(x, y)
+-	z.utoa(base) // warm divisor cache
+-	b.StartTimer()
+-
+-	for i := 0; i < b.N; i++ {
+-		_ = z.utoa(base)
++func BenchmarkLeafSize(b *testing.B) {
++	for n := 0; n <= 16; n++ {
++		b.Run(fmt.Sprint(n), func(b *testing.B) { LeafSizeHelper(b, 10, n) })
++	}
++	// Try some large lengths
++	for _, n := range []int{32, 64} {
++		b.Run(fmt.Sprint(n), func(b *testing.B) { LeafSizeHelper(b, 10, n) })
+ 	}
+ }
+ 
+-func BenchmarkLeafSize0(b *testing.B)  { LeafSizeHelper(b, 10, 0) } // test without splitting
+-func BenchmarkLeafSize1(b *testing.B)  { LeafSizeHelper(b, 10, 1) }
+-func BenchmarkLeafSize2(b *testing.B)  { LeafSizeHelper(b, 10, 2) }
+-func BenchmarkLeafSize3(b *testing.B)  { LeafSizeHelper(b, 10, 3) }
+-func BenchmarkLeafSize4(b *testing.B)  { LeafSizeHelper(b, 10, 4) }
+-func BenchmarkLeafSize5(b *testing.B)  { LeafSizeHelper(b, 10, 5) }
+-func BenchmarkLeafSize6(b *testing.B)  { LeafSizeHelper(b, 10, 6) }
+-func BenchmarkLeafSize7(b *testing.B)  { LeafSizeHelper(b, 10, 7) }
+-func BenchmarkLeafSize8(b *testing.B)  { LeafSizeHelper(b, 10, 8) }
+-func BenchmarkLeafSize9(b *testing.B)  { LeafSizeHelper(b, 10, 9) }
+-func BenchmarkLeafSize10(b *testing.B) { LeafSizeHelper(b, 10, 10) }
+-func BenchmarkLeafSize11(b *testing.B) { LeafSizeHelper(b, 10, 11) }
+-func BenchmarkLeafSize12(b *testing.B) { LeafSizeHelper(b, 10, 12) }
+-func BenchmarkLeafSize13(b *testing.B) { LeafSizeHelper(b, 10, 13) }
+-func BenchmarkLeafSize14(b *testing.B) { LeafSizeHelper(b, 10, 14) }
+-func BenchmarkLeafSize15(b *testing.B) { LeafSizeHelper(b, 10, 15) }
+-func BenchmarkLeafSize16(b *testing.B) { LeafSizeHelper(b, 10, 16) }
+-func BenchmarkLeafSize32(b *testing.B) { LeafSizeHelper(b, 10, 32) } // try some large lengths
+-func BenchmarkLeafSize64(b *testing.B) { LeafSizeHelper(b, 10, 64) }
+-
+ func LeafSizeHelper(b *testing.B, base, size int) {
+ 	b.StopTimer()
+ 	originalLeafSize := leafSize

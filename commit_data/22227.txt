@@ -15,7 +15,94 @@ Date:   Sun Mar 1 13:32:49 2015 -0500
     Change-Id: I75bd73afd1fa4ce9a53c887e1bd7d1e26ff43ae4
     Reviewed-on: https://go-review.googlesource.com/6405
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/9l/asm.go           | 21 ++++++++++-----------
  src/cmd/internal/ld/data.go | 10 ++++++++--
  2 files changed, 18 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/9l/asm.go b/src/cmd/9l/asm.go
+index eab0ef2af1..3197f5170b 100644
+--- a/src/cmd/9l/asm.go
++++ b/src/cmd/9l/asm.go
+@@ -379,26 +379,25 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ld.Ctxt, ".got", 0))
+ 		return 0
+ 
+-		// r->add is two ppc64 instructions holding an immediate 32-bit constant.
+-	// We want to add r->sym's address to that constant.
+-	// The encoding of the immediate x<<16 + y,
+-	// where x is the low 16 bits of the first instruction and y is the low 16
+-	// bits of the second. Both x and y are signed (int16, not uint16).
+ 	case ld.R_ADDRPOWER:
++		// r->add is two ppc64 instructions holding an immediate 32-bit constant.
++		// We want to add r->sym's address to that constant.
++		// The encoding of the immediate x<<16 + y,
++		// where x is the low 16 bits of the first instruction and y is the low 16
++		// bits of the second. Both x and y are signed (int16, not uint16).
+ 		o1 = uint32(r.Add >> 32)
+-
+ 		o2 = uint32(r.Add)
+ 		t = ld.Symaddr(r.Sym)
+ 		if t < 0 {
+ 			ld.Ctxt.Diag("relocation for %s is too big (>=2G): %d", s.Name, ld.Symaddr(r.Sym))
+ 		}
+ 
+-		t += ((int64(o1) & 0xffff) << 16) + (int64(int32(o2)) << 16 >> 16)
++		t += int64((o1&0xffff)<<16 + uint32(int32(o2)<<16>>16))
+ 		if t&0x8000 != 0 {
+ 			t += 0x10000
+ 		}
+-		o1 = uint32(int64(o1&0xffff0000) | (t>>16)&0xffff)
+-		o2 = uint32(int64(o2&0xffff0000) | t&0xffff)
++		o1 = o1&0xffff0000 | (uint32(t)>>16)&0xffff
++		o2 = o2&0xffff0000 | uint32(t)&0xffff
+ 
+ 		// when laid out, the instruction order must always be o1, o2.
+ 		if ld.Ctxt.Arch.Endian == ld.BigEndian {
+@@ -408,8 +407,8 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 		}
+ 		return 0
+ 
+-		// Bits 6 through 29 = (S + A - P) >> 2
+ 	case ld.R_CALLPOWER:
++		// Bits 6 through 29 = (S + A - P) >> 2
+ 		if ld.Ctxt.Arch.Endian == ld.BigEndian {
+ 			o1 = ld.Be32(s.P[r.Off:])
+ 		} else {
+@@ -426,7 +425,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 			ld.Ctxt.Diag("relocation for %s+%d is too big: %d", r.Sym.Name, r.Off, t)
+ 		}
+ 
+-		*val = int64(o1)&0xfc000003 | t&^0xfc000003
++		*val = int64(o1&0xfc000003 | uint32(t)&^0xfc000003)
+ 		return 0
+ 
+ 	case ld.R_POWER_TOC: // S + A - .TOC.
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index ff2d09f4ae..381030dd42 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -479,7 +479,7 @@ func relocsym(s *LSym) {
+ 			// Instead of special casing only amd64, we treat this as an error on all
+ 			// 64-bit architectures so as to be future-proof.
+ 			if int32(o) < 0 && Thearch.Ptrsize > 4 && siz == 4 {
+-				Diag("non-pc-relative relocation address is too big: %#x", uint64(o))
++				Diag("non-pc-relative relocation address is too big: %#x (%#x + %#x)", uint64(o), Symaddr(r.Sym), r.Add)
+ 				Errorexit()
+ 			}
+ 
+@@ -546,7 +546,13 @@ func relocsym(s *LSym) {
+ 			o = Thearch.Archrelocvariant(r, s, o)
+ 		}
+ 
+-		//print("relocate %s %#llux (%#llux+%#llux, size %d) => %s %#llux +%#llx [%llx]\n", s->name, (uvlong)(s->value+off), (uvlong)s->value, (uvlong)r->off, r->siz, r->sym ? r->sym->name : "<nil>", (uvlong)symaddr(r->sym), (vlong)r->add, (vlong)o);
++		if false {
++			nam := "<nil>"
++			if r.Sym != nil {
++				nam = r.Sym.Name
++			}
++			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x [type %d/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, Symaddr(r.Sym), r.Add, r.Type, r.Variant, o)
++		}
+ 		switch siz {
+ 		default:
+ 			Ctxt.Cursym = s

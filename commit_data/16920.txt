@@ -10,7 +10,48 @@ Date:   Tue Jul 30 14:11:47 2013 +1000
     R=golang-dev, r, bradfitz, adg
     CC=golang-dev
     https://golang.org/cl/11975043
-
+---
  src/pkg/encoding/xml/xml.go      |  2 +-
  src/pkg/encoding/xml/xml_test.go | 12 ++++++++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/xml/xml.go b/src/pkg/encoding/xml/xml.go
+index 021f7e47d9..2f36604797 100644
+--- a/src/pkg/encoding/xml/xml.go
++++ b/src/pkg/encoding/xml/xml.go
+@@ -1758,7 +1758,7 @@ func EscapeText(w io.Writer, s []byte) error {
+ 		case '\r':
+ 			esc = esc_cr
+ 		default:
+-			if !isInCharacterRange(r) {
++			if !isInCharacterRange(r) || (r == 0xFFFD && width == 1) {
+ 				esc = esc_fffd
+ 				break
+ 			}
+diff --git a/src/pkg/encoding/xml/xml_test.go b/src/pkg/encoding/xml/xml_test.go
+index eeedbe575f..52477d3429 100644
+--- a/src/pkg/encoding/xml/xml_test.go
++++ b/src/pkg/encoding/xml/xml_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"reflect"
+ 	"strings"
+ 	"testing"
++	"unicode/utf8"
+ )
+ 
+ const testInput = `
+@@ -714,3 +715,14 @@ func TestEscapeTextInvalidChar(t *testing.T) {
+ 		t.Errorf("have %v, want %v", text, expected)
+ 	}
+ }
++
++func TestIssue5880(t *testing.T) {
++	type T []byte
++	data, err := Marshal(T{192, 168, 0, 1})
++	if err != nil {
++		t.Errorf("Marshal error: %v", err)
++	}
++	if !utf8.Valid(data) {
++		t.Errorf("Marshal generated invalid UTF-8: %x", data)
++	}
++}

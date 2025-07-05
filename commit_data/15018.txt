@@ -14,8 +14,121 @@ Date:   Tue Jan 29 13:34:18 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7228061
-
+---
  src/pkg/encoding/json/bench_test.go  | 34 +++++++++++++++++++++++++++++++++-
  src/pkg/encoding/json/decode.go      | 19 -------------------
  src/pkg/encoding/json/decode_test.go | 23 ++++++++++++++++++++++-
  3 files changed, 55 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/encoding/json/bench_test.go b/src/pkg/encoding/json/bench_test.go
+index 333c1c0ce9..29dbc26d41 100644
+--- a/src/pkg/encoding/json/bench_test.go
++++ b/src/pkg/encoding/json/bench_test.go
+@@ -153,5 +153,37 @@ func BenchmarkCodeUnmarshalReuse(b *testing.B) {
+ 			b.Fatal("Unmmarshal:", err)
+ 		}
+ 	}
+-	b.SetBytes(int64(len(codeJSON)))
++}
++
++func BenchmarkUnmarshalString(b *testing.B) {
++	data := []byte(`"hello, world"`)
++	var s string
++
++	for i := 0; i < b.N; i++ {
++		if err := Unmarshal(data, &s); err != nil {
++			b.Fatal("Unmarshal:", err)
++		}
++	}
++}
++
++func BenchmarkUnmarshalFloat64(b *testing.B) {
++	var f float64
++	data := []byte(`3.14`)
++
++	for i := 0; i < b.N; i++ {
++		if err := Unmarshal(data, &f); err != nil {
++			b.Fatal("Unmarshal:", err)
++		}
++	}
++}
++
++func BenchmarkUnmarshalInt64(b *testing.B) {
++	var x int64
++	data := []byte(`3`)
++
++	for i := 0; i < b.N; i++ {
++		if err := Unmarshal(data, &x); err != nil {
++			b.Fatal("Unmarshal:", err)
++		}
++	}
+ }
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index 6e6815ff13..95e9120918 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -52,25 +52,6 @@ import (
+ // an UnmarshalTypeError describing the earliest such error.
+ //
+ func Unmarshal(data []byte, v interface{}) error {
+-
+-	// skip heavy processing for primitive values
+-	var first byte
+-	var i int
+-	for i, first = range data {
+-		if !isSpace(rune(first)) {
+-			break
+-		}
+-	}
+-	if first != '{' && first != '[' {
+-		rv := reflect.ValueOf(v)
+-		if rv.Kind() != reflect.Ptr || rv.IsNil() {
+-			return &InvalidUnmarshalError{reflect.TypeOf(v)}
+-		}
+-		var d decodeState
+-		d.literalStore(data[i:], rv.Elem(), false)
+-		return d.savedError
+-	}
+-
+ 	d := new(decodeState).init(data)
+ 
+ 	// Quick check for well-formedness.
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index 97f2a41eb7..a91c6da01d 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -1059,12 +1059,33 @@ func TestUnmarshalTypeError(t *testing.T) {
+ 	for _, item := range decodeTypeErrorTests {
+ 		err := Unmarshal([]byte(item.src), item.dest)
+ 		if _, ok := err.(*UnmarshalTypeError); !ok {
+-			t.Errorf("expected type error for Unmarshal(%q, type %T): got %v instead",
++			t.Errorf("expected type error for Unmarshal(%q, type %T): got %T",
+ 				item.src, item.dest, err)
+ 		}
+ 	}
+ }
+ 
++var unmarshalSyntaxTests = []string{
++	"tru",
++	"fals",
++	"nul",
++	"123e",
++	`"hello`,
++	`[1,2,3`,
++	`{"key":1`,
++	`{"key":1,`,
++}
++
++func TestUnmarshalSyntax(t *testing.T) {
++	var x interface{}
++	for _, src := range unmarshalSyntaxTests {
++		err := Unmarshal([]byte(src), &x)
++		if _, ok := err.(*SyntaxError); !ok {
++			t.Errorf("expected syntax error for Unmarshal(%q): got %T", src, err)
++		}
++	}
++}
++
+ // Test handling of unexported fields that should be ignored.
+ // Issue 4660
+ type unexportedFields struct {

@@ -13,9 +13,202 @@ Date:   Wed Nov 20 07:19:55 2024 -0500
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  lib/fips140/Makefile                  |  46 +++++++++++++++
  lib/fips140/README.md                 |   9 +++
  lib/fips140/fips140.sum               |  11 ++++
  src/cmd/go/internal/fips/fips_test.go | 102 ++++++++++++++++++++++++++++++++++
  4 files changed, 168 insertions(+)
+
+diff --git a/lib/fips140/Makefile b/lib/fips140/Makefile
+new file mode 100644
+index 0000000000..7a97eb6557
+--- /dev/null
++++ b/lib/fips140/Makefile
+@@ -0,0 +1,46 @@
++# Copyright 2024 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# Rules for building and testing new FIPS snapshots.
++# For example:
++#
++#	make v1.2.3.zip
++#	make v1.2.3.test
++#
++# and then if changes are needed, check them into master
++# and run 'make v1.2.3.rm' and repeat.
++#
++# Note that once published a snapshot zip file should never
++# be modified. We record the sha256 hashes of the zip files
++# in fips140.sum, and the cmd/go/internal/fips test checks
++# that the zips match.
++#
++# When the zip file is finalized, run 'make updatesum' to update
++# fips140.sum.
++
++default:
++	@echo nothing to make
++
++# make v1.2.3.zip builds a v1.2.3.zip file
++# from the current origin/master.
++# copy and edit the 'go run' command by hand to use a different branch.
++v%.zip:
++	git fetch origin master
++	go run ../../src/cmd/go/internal/fips/mkzip.go -b master v$*
++
++# normally mkzip refuses to overwrite an existing zip file.
++# make v1.2.3.rm removes the zip file and and unpacked
++# copy from the module cache.
++v%.rm:
++	rm -f v$*.zip
++	chmod -R u+w $$(go env GOMODCACHE)/golang.org/fips140@v$* 2>/dev/null || true
++	rm -rf $$(go env GOMODCACHE)/golang.org/fips140@v$*
++
++# make v1.2.3.test runs the crypto tests using that snapshot.
++v%.test:
++	GOFIPS140=v$* go test -short crypto...
++
++# make updatesum updates the fips140.sum file.
++updatesum:
++	go test cmd/go/internal/fips -update
+diff --git a/lib/fips140/README.md b/lib/fips140/README.md
+new file mode 100644
+index 0000000000..6427ddb7a9
+--- /dev/null
++++ b/lib/fips140/README.md
+@@ -0,0 +1,9 @@
++This directory holds snapshots of the crypto/internal/fips tree
++that are being validated and certified for FIPS-140 use.
++The file x.txt (for example, inprocess.txt, certified.txt)
++defines the meaning of the FIPS version alias x, listing
++the exact version to use.
++
++The zip files are created by cmd/go/internal/fips/mkzip.go.
++The fips140.sum file lists checksums for the zip files.
++See the Makefile for recipes.
+diff --git a/lib/fips140/fips140.sum b/lib/fips140/fips140.sum
+new file mode 100644
+index 0000000000..3dd9146ff5
+--- /dev/null
++++ b/lib/fips140/fips140.sum
+@@ -0,0 +1,11 @@
++# SHA256 checksums of snapshot zip files in this directory.
++# These checksums are included in the FIPS security policy
++# (validation instructions sent to the lab) and MUST NOT CHANGE.
++# That is, the zip files themselves must not change.
++#
++# It is okay to add new zip files to the list, and it is okay to
++# remove zip files from the list when they are removed from
++# this directory. To update this file:
++#
++#	go test cmd/go/internal/fips -update
++#
+diff --git a/src/cmd/go/internal/fips/fips_test.go b/src/cmd/go/internal/fips/fips_test.go
+new file mode 100644
+index 0000000000..a2f0acba2b
+--- /dev/null
++++ b/src/cmd/go/internal/fips/fips_test.go
+@@ -0,0 +1,102 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fips
++
++import (
++	"crypto/sha256"
++	"flag"
++	"fmt"
++	"internal/testenv"
++	"maps"
++	"os"
++	"path/filepath"
++	"slices"
++	"strings"
++	"testing"
++)
++
++var update = flag.Bool("update", false, "update GOROOT/lib/fips140/fips140.sum")
++
++func TestSums(t *testing.T) {
++	lib := filepath.Join(testenv.GOROOT(t), "lib/fips140")
++	file := filepath.Join(lib, "fips140.sum")
++	sums, err := os.ReadFile(file)
++	if err != nil {
++		t.Fatal(err)
++	}
++	lines := strings.SplitAfter(string(sums), "\n")
++
++	zips, err := filepath.Glob(filepath.Join(lib, "*.zip"))
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	format := func(name string, sum [32]byte) string {
++		return fmt.Sprintf("%s %x\n", name, sum[:])
++	}
++
++	want := make(map[string]string)
++	for _, zip := range zips {
++		data, err := os.ReadFile(zip)
++		if err != nil {
++			t.Fatal(err)
++		}
++		name := filepath.Base(zip)
++		want[name] = format(name, sha256.Sum256(data))
++	}
++
++	// Process diff, deleting or correcting stale lines.
++	var diff []string
++	have := make(map[string]bool)
++	for i, line := range lines {
++		if line == "" {
++			continue
++		}
++		if strings.HasPrefix(line, "#") || line == "\n" {
++			// comment, preserve
++			diff = append(diff, " "+line)
++			continue
++		}
++		name, _, _ := strings.Cut(line, " ")
++		if want[name] == "" {
++			lines[i] = ""
++			diff = append(diff, "-"+line)
++			continue
++		}
++		have[name] = true
++		fixed := want[name]
++		delete(want, name)
++		if line == fixed {
++			diff = append(diff, " "+line)
++		} else {
++			// zip hashes should never change once listed
++			t.Errorf("policy violation: zip file hash is changing:\n-%s+%s", line, fixed)
++			lines[i] = fixed
++			diff = append(diff, "-"+line, "+"+fixed)
++		}
++	}
++
++	// Add missing lines.
++	// Sort keys to avoid non-determinism, but overall file is not sorted.
++	// It will end up time-ordered instead.
++	for _, name := range slices.Sorted(maps.Keys(want)) {
++		line := want[name]
++		lines = append(lines, line)
++		diff = append(diff, "+"+line)
++	}
++
++	// Show diffs or update file.
++	fixed := strings.Join(lines, "")
++	if fixed != string(sums) {
++		if *update && !t.Failed() {
++			t.Logf("updating GOROOT/lib/fips140/fips140.sum:\n%s", strings.Join(diff, ""))
++			if err := os.WriteFile(file, []byte(fixed), 0666); err != nil {
++				t.Fatal(err)
++			}
++			return
++		}
++		t.Errorf("GOROOT/lib/fips140/fips140.sum out of date. changes needed:\n%s", strings.Join(diff, ""))
++	}
++}

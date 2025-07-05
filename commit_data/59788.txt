@@ -20,6 +20,21 @@ Date:   Mon Apr 22 15:58:29 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/580917
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ir/func.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index a74bb6ebda..d20836e006 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -481,6 +481,9 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
+ func NewClosureFunc(fpos, cpos src.XPos, why Op, typ *types.Type, outerfn *Func, pkg *Package) *Func {
+ 	fn := NewFunc(fpos, fpos, closureName(outerfn, cpos, why), typ)
+ 	fn.SetIsHiddenClosure(outerfn != nil)
++	if outerfn != nil {
++		fn.SetDupok(outerfn.Dupok()) // if the outer function is dupok, so is the closure
++	}
+ 
+ 	clo := &ClosureExpr{Func: fn}
+ 	clo.op = OCLOSURE

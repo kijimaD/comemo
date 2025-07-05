@@ -7,6 +7,24 @@ Date:   Fri Sep 26 14:31:17 2008 -0700
     R=r
     OCL=15989
     CL=16001
-
+---
  src/lib/os/os_file.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/lib/os/os_file.go b/src/lib/os/os_file.go
+index c6c641bb55..0b1d2e0df5 100644
+--- a/src/lib/os/os_file.go
++++ b/src/lib/os/os_file.go
+@@ -82,3 +82,12 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
+ 	r, e := syscall.write(fd.fd, &b[0], int64(len(s)));
+ 	return int(r), ErrnoToError(e)
+ }
++
++export func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
++	var p [2]int64
++	r, e := syscall.pipe(&p);
++	if e != 0 {
++		return nil, nil, ErrnoToError(e)
++	}
++	return NewFD(p[0]), NewFD(p[1]), nil
++}

@@ -7,7 +7,38 @@ Date:   Thu Jun 16 11:45:16 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4622041
-
+---
  src/pkg/image/draw/draw.go      | 6 +++---
  src/pkg/image/draw/draw_test.go | 2 +-
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/image/draw/draw.go b/src/pkg/image/draw/draw.go
+index 618fb4aa6b..0ab7b59ab7 100644
+--- a/src/pkg/image/draw/draw.go
++++ b/src/pkg/image/draw/draw.go
+@@ -34,9 +34,9 @@ type Image interface {
+ 	Set(x, y int, c image.Color)
+ }
+ 
+-// Draw calls DrawMask with a nil mask and an Over op.
+-func Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point) {
+-	DrawMask(dst, r, src, sp, nil, image.ZP, Over)
++// Draw calls DrawMask with a nil mask.
++func Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point, op Op) {
++	DrawMask(dst, r, src, sp, nil, image.ZP, op)
+ }
+ 
+ // clip clips r against each image's bounds (after translating into the
+diff --git a/src/pkg/image/draw/draw_test.go b/src/pkg/image/draw/draw_test.go
+index 37d6303533..6db567231e 100644
+--- a/src/pkg/image/draw/draw_test.go
++++ b/src/pkg/image/draw/draw_test.go
+@@ -271,7 +271,7 @@ func TestNonZeroSrcPt(t *testing.T) {
+ 	b.Set(1, 0, image.RGBAColor{0, 0, 5, 5})
+ 	b.Set(0, 1, image.RGBAColor{0, 5, 0, 5})
+ 	b.Set(1, 1, image.RGBAColor{5, 0, 0, 5})
+-	Draw(a, image.Rect(0, 0, 1, 1), b, image.Pt(1, 1))
++	Draw(a, image.Rect(0, 0, 1, 1), b, image.Pt(1, 1), Over)
+ 	if !eq(image.RGBAColor{5, 0, 0, 5}, a.At(0, 0)) {
+ 		t.Errorf("non-zero src pt: want %v got %v", image.RGBAColor{5, 0, 0, 5}, a.At(0, 0))
+ 	}

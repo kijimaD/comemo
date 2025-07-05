@@ -1412,3 +1412,586 @@ Date:   Fri Feb 8 15:36:33 2019 -0500
  test/sinit.go                                      |    6 -
  test/writebarrier.go                               |   11 +
  1404 files changed, 82035 insertions(+), 33671 deletions(-)
+
+diff --cc src/crypto/tls/boring.go
+index f6d922c673,0000000000..cd74495aa6
+mode 100644,000000..100644
+--- a/src/crypto/tls/boring.go
++++ b/src/crypto/tls/boring.go
+@@@ -1,121 -1,0 +1,124 @@@
+ +// Copyright 2017 The Go Authors. All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +package tls
+ +
+ +import (
+ +	"crypto/ecdsa"
+ +	"crypto/internal/boring/fipstls"
+ +	"crypto/rsa"
+ +	"crypto/x509"
+ +)
+ +
+ +// needFIPS returns fipstls.Required(); it avoids a new import in common.go.
+ +func needFIPS() bool {
+ +	return fipstls.Required()
+ +}
+ +
+ +// fipsMinVersion replaces c.minVersion in FIPS-only mode.
+ +func fipsMinVersion(c *Config) uint16 {
+ +	// FIPS requires TLS 1.2.
+ +	return VersionTLS12
+ +}
+ +
+ +// fipsMaxVersion replaces c.maxVersion in FIPS-only mode.
+ +func fipsMaxVersion(c *Config) uint16 {
+ +	// FIPS requires TLS 1.2.
+ +	return VersionTLS12
+ +}
+ +
+ +// default defaultFIPSCurvePreferences is the FIPS-allowed curves,
+ +// in preference order (most preferable first).
+ +var defaultFIPSCurvePreferences = []CurveID{CurveP256, CurveP384, CurveP521}
+ +
+ +// fipsCurvePreferences replaces c.curvePreferences in FIPS-only mode.
+ +func fipsCurvePreferences(c *Config) []CurveID {
+ +	if c == nil || len(c.CurvePreferences) == 0 {
+ +		return defaultFIPSCurvePreferences
+ +	}
+ +	var list []CurveID
+ +	for _, id := range c.CurvePreferences {
+ +		for _, allowed := range defaultFIPSCurvePreferences {
+ +			if id == allowed {
+ +				list = append(list, id)
+ +				break
+ +			}
+ +		}
+ +	}
+ +	return list
+ +}
+ +
+ +// default FIPSCipherSuites is the FIPS-allowed cipher suites,
+ +// in preference order (most preferable first).
+ +var defaultFIPSCipherSuites = []uint16{
+ +	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+ +	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+ +	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+ +	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+ +	TLS_RSA_WITH_AES_128_GCM_SHA256,
+ +	TLS_RSA_WITH_AES_256_GCM_SHA384,
+ +}
+ +
+ +// fipsCipherSuites replaces c.cipherSuites in FIPS-only mode.
+ +func fipsCipherSuites(c *Config) []uint16 {
+ +	if c == nil || c.CipherSuites == nil {
+ +		return defaultFIPSCipherSuites
+ +	}
+ +	var list []uint16
+ +	for _, id := range c.CipherSuites {
+ +		for _, allowed := range defaultFIPSCipherSuites {
+ +			if id == allowed {
+ +				list = append(list, id)
+ +				break
+ +			}
+ +		}
+ +	}
+ +	return list
+ +}
+ +
+ +// isBoringCertificate reports whether a certificate may be used
+ +// when constructing a verified chain.
+ +// It is called for each leaf, intermediate, and root certificate.
+ +func isBoringCertificate(c *x509.Certificate) bool {
+ +	if !needFIPS() {
+ +		// Everything is OK if we haven't forced FIPS-only mode.
+ +		return true
+ +	}
+ +
+ +	// Otherwise the key must be RSA 2048, RSA 3072, or ECDSA P-256.
+ +	switch k := c.PublicKey.(type) {
+ +	default:
+ +		return false
+ +	case *rsa.PublicKey:
+ +		if size := k.N.BitLen(); size != 2048 && size != 3072 {
+ +			return false
+ +		}
+ +	case *ecdsa.PublicKey:
+ +		if name := k.Curve.Params().Name; name != "P-256" && name != "P-384" {
+ +			return false
+ +		}
+ +	}
+ +
+ +	return true
+ +}
+ +
+ +// supportedSignatureAlgorithms returns the supported signature algorithms.
+ +// It knows that the FIPS-allowed ones are all at the beginning of
+ +// defaultSupportedSignatureAlgorithms.
+- func supportedSignatureAlgorithms() []SignatureScheme {
+++func supportedSignatureAlgorithms(version uint16) []SignatureScheme {
+ +	all := defaultSupportedSignatureAlgorithms
+++	if version < VersionTLS13 {
+++		all = defaultSupportedSignatureAlgorithmsTLS12
+++	}
+ +	if !needFIPS() {
+ +		return all
+ +	}
+ +	i := 0
+ +	for i < len(all) && all[i] != PKCS1WithSHA1 {
+ +		i++
+ +	}
+ +	return all[:i]
+ +}
+ +
+ +var testingOnlyForceClientHelloSignatureAlgorithms []SignatureScheme
+diff --cc src/crypto/tls/common.go
+index 8a9053a857,f695528fe0..515d9124c1
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@@ -160,11 -160,11 +161,11 @@@ const 
+  	signatureRSAPSS
+  )
+  
+ -// supportedSignatureAlgorithms contains the signature and hash algorithms that
+ +// defaultSupportedSignatureAlgorithms contains the signature and hash algorithms that
+- // the code advertises as supported in a TLS 1.2 ClientHello and in a TLS 1.2
++ // the code advertises as supported in a TLS 1.2+ ClientHello and in a TLS 1.2+
+  // CertificateRequest. The two fields are merged to match with TLS 1.3.
+  // Note that in TLS 1.2, the ECDSA algorithms are not constrained to P-256, etc.
+ -var supportedSignatureAlgorithms = []SignatureScheme{
+ +var defaultSupportedSignatureAlgorithms = []SignatureScheme{
+  	PSSWithSHA256,
+  	PSSWithSHA384,
+  	PSSWithSHA512,
+@@@ -178,6 -178,9 +179,9 @@@
+  	ECDSAWithSHA1,
+  }
+  
++ // RSA-PSS is disabled in TLS 1.2 for Go 1.12. See Issue 30055.
+ -var supportedSignatureAlgorithmsTLS12 = supportedSignatureAlgorithms[3:]
+++var defaultSupportedSignatureAlgorithmsTLS12 = defaultSupportedSignatureAlgorithms[3:]
++ 
+  // helloRetryRequestRandom is set as the Random value of a ServerHello
+  // to signal that the message is actually a HelloRetryRequest.
+  var helloRetryRequestRandom = []byte{ // See RFC 8446, Section 4.1.3.
+diff --cc src/crypto/tls/handshake_client.go
+index 1f92682063,ca74989f6e..44acdbaf2d
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@@ -114,10 -114,7 +114,16 @@@ NextCipherSuite
+  	}
+  
+  	if hello.vers >= VersionTLS12 {
+- 		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+ -		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+++		// The non-BoringCrypto behavior here is to use the full set of
+++		// signature algorithms, even if TLS 1.3 is not being negotiated. It's
+++		// debatable if this is correct or not, because on one hand it allows
+++		// RSA-PSS as a client with TLS 1.2, but on the other hand we can't
+++		// predict what the server will pick when we do advertise TLS 1.3, so we
+++		// might end up with TLS 1.2 + RSA-PSS anyway. Anyway, it will go away soon.
+++		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms(VersionTLS13)
+ +	}
+ +	if testingOnlyForceClientHelloSignatureAlgorithms != nil {
+ +		hello.supportedSignatureAlgorithms = testingOnlyForceClientHelloSignatureAlgorithms
+  	}
+  
+  	var params ecdheParameters
+diff --cc src/crypto/tls/handshake_client_test.go
+index d7a4cc57d9,7441e5b556..2314501a3b
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@@ -851,6 -855,30 +855,30 @@@ func TestHandshakeClientCertRSAPKCS1v15
+  	runClientTestTLS12(t, test)
+  }
+  
++ func TestHandshakeClientCertPSSDisabled(t *testing.T) {
++ 	config := testConfig.Clone()
++ 	cert, _ := X509KeyPair([]byte(clientCertificatePEM), []byte(clientKeyPEM))
++ 	config.Certificates = []Certificate{cert}
++ 
++ 	test := &clientTest{
++ 		name:   "ClientCert-RSA-PSS-Disabled",
++ 		args:   []string{"-cipher", "AES128", "-Verify", "1"},
++ 		config: config,
++ 	}
++ 
++ 	// Restore the default signature algorithms, disabling RSA-PSS in TLS 1.2,
++ 	// and check that handshakes still work.
+ -	testSupportedSignatureAlgorithmsTLS12 := supportedSignatureAlgorithmsTLS12
+ -	defer func() { supportedSignatureAlgorithmsTLS12 = testSupportedSignatureAlgorithmsTLS12 }()
+ -	supportedSignatureAlgorithmsTLS12 = savedSupportedSignatureAlgorithmsTLS12
+++	testSupportedSignatureAlgorithmsTLS12 := defaultSupportedSignatureAlgorithmsTLS12
+++	defer func() { defaultSupportedSignatureAlgorithmsTLS12 = testSupportedSignatureAlgorithmsTLS12 }()
+++	defaultSupportedSignatureAlgorithmsTLS12 = savedSupportedSignatureAlgorithmsTLS12
++ 
++ 	// Use t.Run to ensure the defer runs after all parallel tests end.
++ 	t.Run("", func(t *testing.T) {
++ 		runClientTestTLS12(t, test)
++ 		runClientTestTLS13(t, test)
++ 	})
++ }
++ 
+  func TestClientKeyUpdate(t *testing.T) {
+  	test := &clientTest{
+  		name:          "KeyUpdate",
+diff --cc src/crypto/tls/handshake_client_tls13.go
+index 783047470a,85715b721c..0ffa7d6edf
+--- a/src/crypto/tls/handshake_client_tls13.go
++++ b/src/crypto/tls/handshake_client_tls13.go
+@@@ -453,7 -448,7 +452,7 @@@ func (hs *clientHandshakeStateTLS13) re
+  	}
+  
+  	// See RFC 8446, Section 4.4.3.
+- 	if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms()) {
+ -	if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms) {
+++	if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms(VersionTLS13)) {
+  		c.sendAlert(alertIllegalParameter)
+  		return errors.New("tls: invalid certificate signature algorithm")
+  	}
+diff --cc src/crypto/tls/handshake_messages_test.go
+index 1f08f6ac0e,21beb8ef2d..ec8dea43fe
+--- a/src/crypto/tls/handshake_messages_test.go
++++ b/src/crypto/tls/handshake_messages_test.go
+@@@ -151,10 -151,10 +151,10 @@@ func (*clientHelloMsg) Generate(rand *r
+  		}
+  	}
+  	if rand.Intn(10) > 5 {
+- 		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+ -		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+++		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms(VersionTLS13)
+  	}
+  	if rand.Intn(10) > 5 {
+- 		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms()
+ -		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms
+++		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms(VersionTLS13)
+  	}
+  	for i := 0; i < rand.Intn(5); i++ {
+  		m.alpnProtocols = append(m.alpnProtocols, randomString(rand.Intn(20)+1, rand))
+@@@ -386,10 -386,10 +386,10 @@@ func (*certificateRequestMsgTLS13) Gene
+  		m.scts = true
+  	}
+  	if rand.Intn(10) > 5 {
+- 		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+ -		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+++		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms(VersionTLS13)
+  	}
+  	if rand.Intn(10) > 5 {
+- 		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms()
+ -		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms
+++		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms(VersionTLS13)
+  	}
+  	if rand.Intn(10) > 5 {
+  		m.certificateAuthorities = make([][]byte, 3)
+diff --cc src/crypto/tls/handshake_server.go
+index 909430facb,4f4b60ae2c..f82d5392c1
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@@ -463,7 -463,7 +463,7 @@@ func (hs *serverHandshakeState) doFullH
+  		}
+  		if c.vers >= VersionTLS12 {
+  			certReq.hasSignatureAlgorithm = true
+- 			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+ -			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithmsTLS12
+++			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms(c.vers)
+  		}
+  
+  		// An empty list of certificateAuthorities signals to
+@@@ -559,7 -559,7 +559,7 @@@
+  		}
+  
+  		// Determine the signature type.
+- 		_, sigType, hashFunc, err := pickSignatureAlgorithm(pub, []SignatureScheme{certVerify.signatureAlgorithm}, supportedSignatureAlgorithms(), c.vers)
+ -		_, sigType, hashFunc, err := pickSignatureAlgorithm(pub, []SignatureScheme{certVerify.signatureAlgorithm}, supportedSignatureAlgorithmsTLS12, c.vers)
+++		_, sigType, hashFunc, err := pickSignatureAlgorithm(pub, []SignatureScheme{certVerify.signatureAlgorithm}, supportedSignatureAlgorithms(c.vers), c.vers)
+  		if err != nil {
+  			c.sendAlert(alertIllegalParameter)
+  			return err
+diff --cc src/crypto/tls/handshake_server_test.go
+index 0bd0ae0b2c,c23f98f6bc..8fa83fec75
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@@ -1208,6 -1211,33 +1211,33 @@@ func TestHandshakeServerRSAPSS(t *testi
+  	runServerTestTLS13(t, test)
+  }
+  
++ func TestHandshakeServerPSSDisabled(t *testing.T) {
++ 	test := &serverTest{
++ 		name:    "RSA-PSS-Disabled",
++ 		command: []string{"openssl", "s_client", "-no_ticket"},
++ 		wait:    true,
++ 	}
++ 
++ 	// Restore the default signature algorithms, disabling RSA-PSS in TLS 1.2,
++ 	// and check that handshakes still work.
+ -	testSupportedSignatureAlgorithmsTLS12 := supportedSignatureAlgorithmsTLS12
+ -	defer func() { supportedSignatureAlgorithmsTLS12 = testSupportedSignatureAlgorithmsTLS12 }()
+ -	supportedSignatureAlgorithmsTLS12 = savedSupportedSignatureAlgorithmsTLS12
+++	testSupportedSignatureAlgorithmsTLS12 := defaultSupportedSignatureAlgorithmsTLS12
+++	defer func() { defaultSupportedSignatureAlgorithmsTLS12 = testSupportedSignatureAlgorithmsTLS12 }()
+++	defaultSupportedSignatureAlgorithmsTLS12 = savedSupportedSignatureAlgorithmsTLS12
++ 
++ 	runServerTestTLS12(t, test)
++ 	runServerTestTLS13(t, test)
++ 
++ 	test = &serverTest{
++ 		name:    "RSA-PSS-Disabled-Required",
++ 		command: []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha256"},
++ 		wait:    true,
++ 
++ 		expectHandshakeErrorIncluding: "peer doesn't support any common signature algorithms",
++ 	}
++ 
++ 	runServerTestTLS12(t, test)
++ }
++ 
+  func benchmarkHandshakeServer(b *testing.B, version uint16, cipherSuite uint16, curve CurveID, cert []byte, key crypto.PrivateKey) {
+  	config := testConfig.Clone()
+  	config.CipherSuites = []uint16{cipherSuite}
+@@@ -1387,49 -1417,82 +1417,82 @@@ func TestClientAuth(t *testing.T) 
+  		defer os.Remove(ecdsaCertPath)
+  		ecdsaKeyPath = tempFile(clientECDSAKeyPEM)
+  		defer os.Remove(ecdsaKeyPath)
+- 	} else {
+- 		t.Parallel()
+  	}
+  
+- 	config := testConfig.Clone()
+- 	config.ClientAuth = RequestClientCert
++ 	t.Run("Normal", func(t *testing.T) {
++ 		config := testConfig.Clone()
++ 		config.ClientAuth = RequestClientCert
+  
+- 	test := &serverTest{
+- 		name:    "ClientAuthRequestedNotGiven",
+- 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA"},
+- 		config:  config,
+- 	}
+- 	runServerTestTLS12(t, test)
+- 	runServerTestTLS13(t, test)
++ 		test := &serverTest{
++ 			name:    "ClientAuthRequestedNotGiven",
++ 			command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA"},
++ 			config:  config,
++ 		}
++ 		runServerTestTLS12(t, test)
++ 		runServerTestTLS13(t, test)
+  
+- 	test = &serverTest{
+- 		name: "ClientAuthRequestedAndGiven",
+- 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
+- 			"-cert", certPath, "-key", keyPath, "-sigalgs", "rsa_pss_rsae_sha256"},
+- 		config:            config,
+- 		expectedPeerCerts: []string{clientCertificatePEM},
+- 	}
+- 	runServerTestTLS12(t, test)
+- 	runServerTestTLS13(t, test)
++ 		config.ClientAuth = RequireAnyClientCert
+  
+- 	test = &serverTest{
+- 		name: "ClientAuthRequestedAndECDSAGiven",
+- 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
+- 			"-cert", ecdsaCertPath, "-key", ecdsaKeyPath},
+- 		config:            config,
+- 		expectedPeerCerts: []string{clientECDSACertificatePEM},
+- 	}
+- 	runServerTestTLS12(t, test)
+- 	runServerTestTLS13(t, test)
++ 		test = &serverTest{
++ 			name: "ClientAuthRequestedAndGiven",
++ 			command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
++ 				"-cert", certPath, "-key", keyPath, "-sigalgs", "rsa_pss_rsae_sha256"},
++ 			config:            config,
++ 			expectedPeerCerts: []string{clientCertificatePEM},
++ 		}
++ 		runServerTestTLS12(t, test)
++ 		runServerTestTLS13(t, test)
++ 
++ 		test = &serverTest{
++ 			name: "ClientAuthRequestedAndECDSAGiven",
++ 			command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
++ 				"-cert", ecdsaCertPath, "-key", ecdsaKeyPath},
++ 			config:            config,
++ 			expectedPeerCerts: []string{clientECDSACertificatePEM},
++ 		}
++ 		runServerTestTLS12(t, test)
++ 		runServerTestTLS13(t, test)
++ 
++ 		test = &serverTest{
++ 			name: "ClientAuthRequestedAndPKCS1v15Given",
++ 			command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
++ 				"-cert", certPath, "-key", keyPath, "-sigalgs", "rsa_pkcs1_sha256"},
++ 			config:            config,
++ 			expectedPeerCerts: []string{clientCertificatePEM},
++ 		}
++ 		runServerTestTLS12(t, test)
++ 	})
+  
+- 	test = &serverTest{
+- 		name: "ClientAuthRequestedAndPKCS1v15Given",
+- 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
+- 			"-cert", certPath, "-key", keyPath, "-sigalgs", "rsa_pkcs1_sha256"},
+- 		config:            config,
+- 		expectedPeerCerts: []string{clientCertificatePEM},
+- 	}
+- 	runServerTestTLS12(t, test)
++ 	// Restore the default signature algorithms, disabling RSA-PSS in TLS 1.2,
++ 	// and check that handshakes still work.
+ -	testSupportedSignatureAlgorithmsTLS12 := supportedSignatureAlgorithmsTLS12
+ -	defer func() { supportedSignatureAlgorithmsTLS12 = testSupportedSignatureAlgorithmsTLS12 }()
+ -	supportedSignatureAlgorithmsTLS12 = savedSupportedSignatureAlgorithmsTLS12
+++	testSupportedSignatureAlgorithmsTLS12 := defaultSupportedSignatureAlgorithmsTLS12
+++	defer func() { defaultSupportedSignatureAlgorithmsTLS12 = testSupportedSignatureAlgorithmsTLS12 }()
+++	defaultSupportedSignatureAlgorithmsTLS12 = savedSupportedSignatureAlgorithmsTLS12
++ 
++ 	t.Run("PSSDisabled", func(t *testing.T) {
++ 		config := testConfig.Clone()
++ 		config.ClientAuth = RequireAnyClientCert
++ 
++ 		test := &serverTest{
++ 			name: "ClientAuthRequestedAndGiven-PSS-Disabled",
++ 			command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
++ 				"-cert", certPath, "-key", keyPath},
++ 			config:            config,
++ 			expectedPeerCerts: []string{clientCertificatePEM},
++ 		}
++ 		runServerTestTLS12(t, test)
++ 		runServerTestTLS13(t, test)
++ 
++ 		test = &serverTest{
++ 			name: "ClientAuthRequestedAndGiven-PSS-Disabled-Required",
++ 			command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
++ 				"-cert", certPath, "-key", keyPath, "-client_sigalgs", "rsa_pss_rsae_sha256"},
++ 			config: config,
++ 
++ 			expectHandshakeErrorIncluding: "client didn't provide a certificate",
++ 		}
++ 		runServerTestTLS12(t, test)
++ 	})
+  }
+  
+  func TestSNIGivenOnFailure(t *testing.T) {
+@@@ -1694,3 -1757,58 +1757,58 @@@ func TestCloneHash(t *testing.T) 
+  		t.Error("cloned hash generated a different sum")
+  	}
+  }
++ 
++ func TestKeyTooSmallForRSAPSS(t *testing.T) {
++ 	clientConn, serverConn := localPipe(t)
++ 	client := Client(clientConn, testConfig)
++ 	cert, err := X509KeyPair([]byte(`-----BEGIN CERTIFICATE-----
++ MIIBcTCCARugAwIBAgIQGjQnkCFlUqaFlt6ixyz/tDANBgkqhkiG9w0BAQsFADAS
++ MRAwDgYDVQQKEwdBY21lIENvMB4XDTE5MDExODIzMjMyOFoXDTIwMDExODIzMjMy
++ OFowEjEQMA4GA1UEChMHQWNtZSBDbzBcMA0GCSqGSIb3DQEBAQUAA0sAMEgCQQDd
++ ez1rFUDwax2HTxbcnFUP9AhcgEGMHVV2nn4VVEWFJB6I8C/Nkx0XyyQlrmFYBzEQ
++ nIPhKls4T0hFoLvjJnXpAgMBAAGjTTBLMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUE
++ DDAKBggrBgEFBQcDATAMBgNVHRMBAf8EAjAAMBYGA1UdEQQPMA2CC2V4YW1wbGUu
++ Y29tMA0GCSqGSIb3DQEBCwUAA0EAxDuUS+BrrS3c+h+k+fQPOmOScy6yTX9mHw0Q
++ KbucGamXYEy0URIwOdO0tQ3LHPc1YGvYSPwkDjkjqECs2Vm/AA==
++ -----END CERTIFICATE-----`), []byte(`-----BEGIN RSA PRIVATE KEY-----
++ MIIBOgIBAAJBAN17PWsVQPBrHYdPFtycVQ/0CFyAQYwdVXaefhVURYUkHojwL82T
++ HRfLJCWuYVgHMRCcg+EqWzhPSEWgu+MmdekCAwEAAQJBALjQYNTdXF4CFBbXwUz/
++ yt9QFDYT9B5WT/12jeGAe653gtYS6OOi/+eAkGmzg1GlRnw6fOfn+HYNFDORST7z
++ 4j0CIQDn2xz9hVWQEu9ee3vecNT3f60huDGTNoRhtqgweQGX0wIhAPSLj1VcRZEz
++ nKpbtU22+PbIMSJ+e80fmY9LIPx5N4HTAiAthGSimMR9bloz0EY3GyuUEyqoDgMd
++ hXxjuno2WesoJQIgemilbcALXpxsLmZLgcQ2KSmaVr7jb5ECx9R+hYKTw1sCIG4s
++ T+E0J8wlH24pgwQHzy7Ko2qLwn1b5PW8ecrlvP1g
++ -----END RSA PRIVATE KEY-----`))
++ 	if err != nil {
++ 		t.Fatal(err)
++ 	}
++ 
++ 	done := make(chan struct{})
++ 	go func() {
++ 		config := testConfig.Clone()
++ 		config.Certificates = []Certificate{cert}
++ 		config.MinVersion = VersionTLS13
++ 		server := Server(serverConn, config)
++ 		err := server.Handshake()
++ 		if !strings.Contains(err.Error(), "key size too small for PSS signature") {
++ 			t.Errorf(`expected "key size too small for PSS signature", got %q`, err)
++ 		}
++ 		close(done)
++ 	}()
++ 	err = client.Handshake()
++ 	if !strings.Contains(err.Error(), "handshake failure") {
++ 		t.Errorf(`expected "handshake failure", got %q`, err)
++ 	}
++ 	<-done
++ 
++ 	// With RSA-PSS disabled and TLS 1.2, this should work.
++ 
+ -	testSupportedSignatureAlgorithmsTLS12 := supportedSignatureAlgorithmsTLS12
+ -	defer func() { supportedSignatureAlgorithmsTLS12 = testSupportedSignatureAlgorithmsTLS12 }()
+ -	supportedSignatureAlgorithmsTLS12 = savedSupportedSignatureAlgorithmsTLS12
+++	testSupportedSignatureAlgorithmsTLS12 := defaultSupportedSignatureAlgorithmsTLS12
+++	defer func() { defaultSupportedSignatureAlgorithmsTLS12 = testSupportedSignatureAlgorithmsTLS12 }()
+++	defaultSupportedSignatureAlgorithmsTLS12 = savedSupportedSignatureAlgorithmsTLS12
++ 
++ 	serverConfig := testConfig.Clone()
++ 	serverConfig.Certificates = []Certificate{cert}
++ 	serverConfig.MaxVersion = VersionTLS12
++ 	testHandshake(t, testConfig, serverConfig)
++ }
+diff --cc src/crypto/tls/handshake_server_tls13.go
+index 9097670010,fd65ac1190..99d335e1ee
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@@ -598,7 -595,7 +599,7 @@@ func (hs *serverHandshakeStateTLS13) se
+  		certReq := new(certificateRequestMsgTLS13)
+  		certReq.ocspStapling = true
+  		certReq.scts = true
+- 		certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+ -		certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+++		certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms(VersionTLS13)
+  		if c.config.ClientCAs != nil {
+  			certReq.certificateAuthorities = c.config.ClientCAs.Subjects()
+  		}
+@@@ -801,7 -801,7 +805,7 @@@ func (hs *serverHandshakeStateTLS13) re
+  		}
+  
+  		// See RFC 8446, Section 4.4.3.
+- 		if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms()) {
+ -		if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms) {
+++		if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms(VersionTLS13)) {
+  			c.sendAlert(alertIllegalParameter)
+  			return errors.New("tls: invalid certificate signature algorithm")
+  		}
+diff --cc src/crypto/tls/key_agreement.go
+index 681ba83c06,05fe77b3e2..91f5cde5c3
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@@ -177,7 -177,7 +177,7 @@@ NextCandidate
+  		return nil, errors.New("tls: certificate private key does not implement crypto.Signer")
+  	}
+  
+- 	signatureAlgorithm, sigType, hashFunc, err := pickSignatureAlgorithm(priv.Public(), clientHello.supportedSignatureAlgorithms, supportedSignatureAlgorithms(), ka.version)
+ -	signatureAlgorithm, sigType, hashFunc, err := pickSignatureAlgorithm(priv.Public(), clientHello.supportedSignatureAlgorithms, supportedSignatureAlgorithmsTLS12, ka.version)
+++	signatureAlgorithm, sigType, hashFunc, err := pickSignatureAlgorithm(priv.Public(), clientHello.supportedSignatureAlgorithms, supportedSignatureAlgorithms(ka.version), ka.version)
+  	if err != nil {
+  		return nil, err
+  	}
+diff --cc src/crypto/tls/tls_test.go
+index e23068ce43,208c13c195..61f4eaf1ae
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@@ -22,6 -23,17 +23,17 @@@ import 
+  	"time"
+  )
+  
+ -var savedSupportedSignatureAlgorithmsTLS12 = supportedSignatureAlgorithmsTLS12
+++var savedSupportedSignatureAlgorithmsTLS12 = defaultSupportedSignatureAlgorithmsTLS12
++ 
++ func init() {
++ 	// TLS 1.3 is opt-in for Go 1.12, and RSA-PSS is disabled in TLS 1.2, but we
++ 	// want to run most tests with both enabled. TestTLS13Switch below and the
++ 	// "PSS-Disabled" recordings test the disabled behavior. See Issue 30055.
++ 	tls13Support.Do(func() {}) // defuse the sync.Once
++ 	tls13Support.cached = true
+ -	supportedSignatureAlgorithmsTLS12 = supportedSignatureAlgorithms
+++	defaultSupportedSignatureAlgorithmsTLS12 = defaultSupportedSignatureAlgorithms
++ }
++ 
+  var rsaCertPEM = `-----BEGIN CERTIFICATE-----
+  MIIB0zCCAX2gAwIBAgIJAI/M7BYjwB+uMA0GCSqGSIb3DQEBBQUAMEUxCzAJBgNV
+  BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX

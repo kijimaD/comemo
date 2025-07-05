@@ -8,8 +8,101 @@ Date:   Thu Dec 11 12:59:49 2008 -0800
     DELTA=25  (19 added, 0 deleted, 6 changed)
     OCL=20985
     CL=20985
-
+---
  src/lib/fmt/print.go     | 22 +++++++++++++++++-----
  src/lib/reflect/type.go  |  6 ++++++
  src/lib/reflect/value.go |  3 ++-
  3 files changed, 25 insertions(+), 6 deletions(-)
+
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index c05067eb35..9c1b0ddfcd 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -307,9 +307,12 @@ func parsenum(s string, start, end int) (n int, got bool, newi int) {
+ }
+ 
+ func (p *P) printField(field reflect.Value) (was_string bool) {
+-	if stringer, ok := field.Interface().(String); ok {
+-		p.addstr(stringer.String());
+-		return false;	// this value is not a string
++	inter := field.Interface();
++	if inter != nil {
++		if stringer, ok := inter.(String); ok {
++			p.addstr(stringer.String());
++			return false;	// this value is not a string
++		}
+ 	}
+ 	s := "";
+ 	switch field.Kind() {
+@@ -363,6 +366,14 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
+ 		p.add('{');
+ 		p.doprint(field, true, false);
+ 		p.add('}');
++	case reflect.InterfaceKind:
++		inter := field.(reflect.InterfaceValue).Get();
++		if inter == nil {
++			s = "<nil>"
++		} else {
++			// should never happen since a non-nil interface always has a type
++			s = "<non-nil interface>";
++		}
+ 	default:
+ 		s = "?" + field.Type().String() + "?";
+ 	}
+@@ -421,8 +432,9 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
+ 		}
+ 		field := getField(v, fieldnum);
+ 		fieldnum++;
+-		if c != 'T' {	// don't want thing to describe itself if we're asking for its type
+-			if formatter, ok := field.Interface().(Format); ok {
++		inter := field.Interface();
++		if inter != nil && c != 'T' {	// don't want thing to describe itself if we're asking for its type
++			if formatter, ok := inter.(Format); ok {
+ 				formatter.Format(p, c);
+ 				continue;
+ 			}
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index dc1a30a5ad..ce44ecf937 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -340,6 +340,8 @@ func (t *InterfaceTypeStruct) Len() int {
+ 	return len(t.field)
+ }
+ 
++var NilInterface = NewInterfaceTypeStruct("nil", "", new([]Field, 0));
++
+ // -- Func
+ 
+ export type FuncType interface {
+@@ -834,6 +836,10 @@ func (p *Parser) Type(name string) *StubType {
+ }
+ 
+ export func ParseTypeString(name, typestring string) Type {
++	if typestring == "" {
++		// If the typestring is empty, it represents (the type of) a nil interface value
++		return NilInterface
++	}
+ 	p := new(Parser);
+ 	p.str = typestring;
+ 	p.Next();
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 1b6ec31463..9df6c62315 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -59,6 +59,7 @@ type Creator *(typ Type, addr Addr) Value
+ export type MissingValue interface {
+ 	Kind()	int;
+ 	Type()	Type;
++	Addr()	Addr;
+ }
+ 
+ type MissingValueStruct struct {
+@@ -66,7 +67,7 @@ type MissingValueStruct struct {
+ }
+ 
+ func MissingCreator(typ Type, addr Addr) Value {
+-	return &MissingValueStruct{ Common{IntKind, typ, addr} }
++	return &MissingValueStruct{ Common{MissingKind, typ, addr} }
+ }
+ 
+ // -- Int

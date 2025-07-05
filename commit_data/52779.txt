@@ -12,6 +12,31 @@ Date:   Thu May 26 09:58:18 2022 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Rhys Hiltner <rhys@justin.tv>
-
+---
  doc/go1.19.html | 9 +++------
  1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index a0f6bc1ff1..76d4bc7eea 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -308,16 +308,13 @@ Do not send CLs removing the interior tags from such phrases.
+       the <code>-trimpath</code> flag set and the <code>GOROOT</code>
+       variable is not set in the process environment.
+     </p>
+-    <p><!-- CL 333529 -->
+-      TODO: <a href="https://go.dev/cl/333529">https://go.dev/cl/333529</a>: update runtime (v3)
+-    </p>
+   </dd>
+ </dl><!-- runtime -->
+ 
+-<dl id="runtime/race"><dt><a href="/pkg/runtime/race">runtime/race</a></dt>
++<dl id="runtime/race"><dt><a href="/pkg/runtime/race/">runtime/race</a></dt>
+   <dd>
+-    <p><!-- https://go.dev/issue/49761 -->
+-      The race detector has been updgraded to use thread sanitizer
++    <p><!-- https://go.dev/issue/49761 --><!-- CL 333529 -->
++      The race detector has been upgraded to use thread sanitizer
+       version v3.
+       <ul>
+         <li>

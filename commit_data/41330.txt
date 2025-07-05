@@ -14,7 +14,7 @@ Date:   Thu Aug 22 12:18:28 2019 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/goobj/read.go                | 25 +++++++++++++++---------
  src/cmd/internal/obj/dwarf.go                 | 12 ------------
  src/cmd/internal/obj/objfile.go               | 28 +++++++++------------------
@@ -22,3 +22,226 @@ Date:   Thu Aug 22 12:18:28 2019 -0400
  src/cmd/link/internal/objfile/objfile.go      | 12 ++++++++++--
  src/cmd/link/internal/sym/compilation_unit.go | 19 +++++++++---------
  6 files changed, 49 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index dd29bacd04..0c70b8cd9f 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -129,13 +129,14 @@ type InlinedCall struct {
+ 
+ // A Package is a parsed Go object file or archive defining a Go package.
+ type Package struct {
+-	ImportPath string          // import path denoting this package
+-	Imports    []string        // packages imported by this package
+-	SymRefs    []SymID         // list of symbol names and versions referred to by this pack
+-	Syms       []*Sym          // symbols defined by this package
+-	MaxVersion int64           // maximum Version in any SymID in Syms
+-	Arch       string          // architecture
+-	Native     []*NativeReader // native object data (e.g. ELF)
++	ImportPath    string          // import path denoting this package
++	Imports       []string        // packages imported by this package
++	SymRefs       []SymID         // list of symbol names and versions referred to by this pack
++	Syms          []*Sym          // symbols defined by this package
++	MaxVersion    int64           // maximum Version in any SymID in Syms
++	Arch          string          // architecture
++	Native        []*NativeReader // native object data (e.g. ELF)
++	DWARFFileList []string        // List of files for the DWARF .debug_lines section
+ }
+ 
+ type NativeReader struct {
+@@ -502,7 +503,7 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 	// TODO: extract OS + build ID if/when we need it
+ 
+ 	r.readFull(r.tmp[:8])
+-	if !bytes.Equal(r.tmp[:8], []byte("\x00go112ld")) {
++	if !bytes.Equal(r.tmp[:8], []byte("\x00go114ld")) {
+ 		return r.error(errCorruptObject)
+ 	}
+ 
+@@ -520,6 +521,12 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 		r.p.Imports = append(r.p.Imports, s)
+ 	}
+ 
++	// Read filenames for dwarf info.
++	count := r.readInt()
++	for i := int64(0); i < count; i++ {
++		r.p.DWARFFileList = append(r.p.DWARFFileList, r.readString())
++	}
++
+ 	r.p.SymRefs = []SymID{{"", 0}}
+ 	for {
+ 		if b := r.readByte(); b != 0xfe {
+@@ -619,7 +626,7 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 	}
+ 
+ 	r.readFull(r.tmp[:7])
+-	if !bytes.Equal(r.tmp[:7], []byte("go112ld")) {
++	if !bytes.Equal(r.tmp[:7], []byte("go114ld")) {
+ 		return r.error(errCorruptObject)
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index ebe69f8811..23c668c5a9 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -235,15 +235,3 @@ func putpclcdelta(linkctxt *Link, dctxt dwCtxt, s *LSym, deltaPC uint64, deltaLC
+ 	// Output the special opcode.
+ 	dctxt.AddUint8(s, uint8(opcode))
+ }
+-
+-// createDebugLinesFileTable creates a new symbol holding the list of files
+-// in our package.
+-func (ctxt *Link) createDebugLinesFileTable() {
+-	dctxt := dwCtxt{ctxt}
+-
+-	fileLUT := ctxt.PosTable.DebugLinesFileTable()
+-	s := ctxt.dwarfFileTableSymbol()
+-	for _, file := range fileLUT {
+-		dctxt.AddString(s, file)
+-	}
+-}
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 863989c473..a40c6d8c29 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -86,7 +86,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer, pkgpath string) {
+ 	w := newObjWriter(ctxt, b, pkgpath)
+ 
+ 	// Magic header
+-	w.wr.WriteString("\x00go112ld")
++	w.wr.WriteString("\x00go114ld")
+ 
+ 	// Version
+ 	w.wr.WriteByte(1)
+@@ -97,6 +97,13 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer, pkgpath string) {
+ 	}
+ 	w.writeString("")
+ 
++	// DWARF File Table
++	fileTable := ctxt.PosTable.DebugLinesFileTable()
++	w.writeInt(int64(len(fileTable)))
++	for _, str := range fileTable {
++		w.writeString(str)
++	}
++
+ 	// Symbol references
+ 	for _, s := range ctxt.Text {
+ 		w.writeRefs(s)
+@@ -161,7 +168,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer, pkgpath string) {
+ 	}
+ 
+ 	// Magic footer
+-	w.wr.WriteString("\xffgo112ld")
++	w.wr.WriteString("\xffgo114ld")
+ }
+ 
+ // Symbols are prefixed so their content doesn't get confused with the magic footer.
+@@ -641,23 +648,6 @@ func (ctxt *Link) DwarfIntConst(myimportpath, name, typename string, val int64)
+ 	dwarf.PutIntConst(dwCtxt{ctxt}, s, ctxt.Lookup(dwarf.InfoPrefix+typename), myimportpath+"."+name, val)
+ }
+ 
+-// dwarfFileTableSymbol creates (or finds) the symbol for holding the line table for this package.
+-//
+-// The symbol WILL NOT be unique at the per package/archive level. For example,
+-// when writing a package archive, we'll write this symbol for the Go code, and
+-// one for each assembly file in the package. As such, we can't treat this
+-// symbol the same when we read in the object files in the linker. This symbol
+-// won't make it to the symbol table, and compilation units will keep track of
+-// it.
+-// TODO: Actually save this to the object file, and read it back in the linker.
+-func (ctxt *Link) dwarfFileTableSymbol() *LSym {
+-	s := ctxt.LookupInit(dwarf.DebugLinesPrefix+".package", func(s *LSym) {
+-		s.Type = objabi.SDWARFLINES
+-		//ctxt.Data = append(ctxt.Data, s)
+-	})
+-	return s
+-}
+-
+ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath string) {
+ 	absfn := ctxt.DwFixups.AbsFuncDwarfSym(s)
+ 	if absfn.Size != 0 {
+diff --git a/src/cmd/internal/objabi/doc.go b/src/cmd/internal/objabi/doc.go
+index 03dc9fb88b..08e922b11f 100644
+--- a/src/cmd/internal/objabi/doc.go
++++ b/src/cmd/internal/objabi/doc.go
+@@ -22,10 +22,12 @@
+ //
+ // The file format is:
+ //
+-//	- magic header: "\x00go112ld"
++//	- magic header: "\x00go114ld"
+ //	- byte 1 - version number
+ //	- sequence of strings giving dependencies (imported packages)
+ //	- empty string (marks end of sequence)
++//	- number of entries in the following sequence
++//	- sequence of filename strings to generate debug information
+ //	- sequence of symbol references used by the defined symbols
+ //	- byte 0xff (marks end of sequence)
+ //	- sequence of integer lengths:
+@@ -38,7 +40,7 @@
+ //	- data, the content of the defined symbols
+ //	- sequence of defined symbols
+ //	- byte 0xff (marks end of sequence)
+-//	- magic footer: "\xffgo112ld"
++//	- magic footer: "\xffgo114ld"
+ //
+ // All integers are stored in a zigzag varint format.
+ // See golang.org/s/go12symtab for a definition.
+diff --git a/src/cmd/link/internal/objfile/objfile.go b/src/cmd/link/internal/objfile/objfile.go
+index 840914f543..503b53db17 100644
+--- a/src/cmd/link/internal/objfile/objfile.go
++++ b/src/cmd/link/internal/objfile/objfile.go
+@@ -27,8 +27,8 @@ import (
+ )
+ 
+ const (
+-	startmagic = "\x00go112ld"
+-	endmagic   = "\xffgo112ld"
++	startmagic = "\x00go114ld"
++	endmagic   = "\xffgo114ld"
+ )
+ 
+ var emptyPkg = []byte(`"".`)
+@@ -136,6 +136,14 @@ func (r *objReader) loadObjFile() {
+ 		r.lib.ImportStrings = append(r.lib.ImportStrings, lib)
+ 	}
+ 
++	// DWARF strings
++	count := r.readInt()
++	r.unit.DWARFFileTable = make([]string, count)
++	for i := 0; i < count; i++ {
++		// TODO: This should probably be a call to mkROString.
++		r.unit.DWARFFileTable[i] = r.readString()
++	}
++
+ 	// Symbol references
+ 	r.refs = []*sym.Symbol{nil} // zeroth ref is nil
+ 	for {
+diff --git a/src/cmd/link/internal/sym/compilation_unit.go b/src/cmd/link/internal/sym/compilation_unit.go
+index f9684b0ea0..02fb0cfab8 100644
+--- a/src/cmd/link/internal/sym/compilation_unit.go
++++ b/src/cmd/link/internal/sym/compilation_unit.go
+@@ -10,13 +10,14 @@ import "cmd/internal/dwarf"
+ // debug-related data. We create a CompilationUnit per Object file in a
+ // library (so, one for all the Go code, one for each assembly file, etc.).
+ type CompilationUnit struct {
+-	Pkg       string        // The package name, eg ("fmt", or "runtime")
+-	Lib       *Library      // Our library
+-	Consts    *Symbol       // Package constants DIEs
+-	PCs       []dwarf.Range // PC ranges, relative to Textp[0]
+-	DWInfo    *dwarf.DWDie  // CU root DIE
+-	FuncDIEs  []*Symbol     // Function DIE subtrees
+-	AbsFnDIEs []*Symbol     // Abstract function DIE subtrees
+-	RangeSyms []*Symbol     // Symbols for debug_range
+-	Textp     []*Symbol     // Text symbols in this CU
++	Pkg            string        // The package name, eg ("fmt", or "runtime")
++	Lib            *Library      // Our library
++	Consts         *Symbol       // Package constants DIEs
++	PCs            []dwarf.Range // PC ranges, relative to Textp[0]
++	DWInfo         *dwarf.DWDie  // CU root DIE
++	FuncDIEs       []*Symbol     // Function DIE subtrees
++	AbsFnDIEs      []*Symbol     // Abstract function DIE subtrees
++	RangeSyms      []*Symbol     // Symbols for debug_range
++	Textp          []*Symbol     // Text symbols in this CU
++	DWARFFileTable []string      // The file table used to generate the .debug_lines
+ }

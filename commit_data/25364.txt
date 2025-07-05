@@ -93,7 +93,7 @@ Date:   Wed Aug 12 23:43:43 2015 -0400
     Change-Id: I281044ae0b24990ba46487cacbc1069493274bc4
     Reviewed-on: https://go-review.googlesource.com/13614
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/heapdump.go  |  2 +-
  src/runtime/mbitmap.go   |  2 +-
  src/runtime/mgcmark.go   |  7 ++---
@@ -101,3 +101,242 @@ Date:   Wed Aug 12 23:43:43 2015 -0400
  src/runtime/symtab.go    | 66 ++++++++++++++++++++++++++++++++++++++++--------
  src/runtime/traceback.go |  6 +++--
  6 files changed, 68 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 0344330e4d..f8f88c6515 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -247,7 +247,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
+ 	if pc != f.entry {
+ 		pc--
+ 	}
+-	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, pc)
++	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
+ 	if pcdata == -1 {
+ 		// We do not have a valid pcdata value but there might be a
+ 		// stackmap for this function.  It is likely that we are looking
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 33715f287b..42afdf4390 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -1696,7 +1696,7 @@ func getgcmask(ep interface{}) (mask []byte) {
+ 			if targetpc != f.entry {
+ 				targetpc--
+ 			}
+-			pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, targetpc)
++			pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, nil)
+ 			if pcdata == -1 {
+ 				return
+ 			}
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 35bdda9789..93018207d6 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -438,10 +438,11 @@ func scanstack(gp *g) {
+ 		throw("scanstack in wrong phase")
+ 	}
+ 
++	var cache pcvalueCache
+ 	gcw := &getg().m.p.ptr().gcw
+ 	n := 0
+ 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
+-		scanframeworker(frame, unused, gcw)
++		scanframeworker(frame, &cache, gcw)
+ 
+ 		if frame.fp > nextBarrier {
+ 			// We skip installing a barrier on bottom-most
+@@ -474,7 +475,7 @@ func scanstack(gp *g) {
+ 
+ // Scan a stack frame: local variables and function arguments/results.
+ //go:nowritebarrier
+-func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
++func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
+ 
+ 	f := frame.fn
+ 	targetpc := frame.continpc
+@@ -488,7 +489,7 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
+ 	if targetpc != f.entry {
+ 		targetpc--
+ 	}
+-	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, targetpc)
++	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, cache)
+ 	if pcdata == -1 {
+ 		// We do not have a valid pcdata value but there might be a
+ 		// stackmap for this function.  It is likely that we are looking
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 56efc2eb4a..e3087af940 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -482,6 +482,7 @@ var ptrnames = []string{
+ type adjustinfo struct {
+ 	old   stack
+ 	delta uintptr // ptr distance from old to new stack (newbase - oldbase)
++	cache pcvalueCache
+ }
+ 
+ // Adjustpointer checks whether *vpp is in the old stack described by adjinfo.
+@@ -575,7 +576,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 	if targetpc != f.entry {
+ 		targetpc--
+ 	}
+-	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, targetpc)
++	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, &adjinfo.cache)
+ 	if pcdata == -1 {
+ 		pcdata = 0 // in prologue
+ 	}
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 46686092f8..c3235fac03 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -112,6 +112,7 @@ func moduledataverify1(datap *moduledata) {
+ 
+ 	// ftab is lookup table for function by program counter.
+ 	nftab := len(datap.ftab) - 1
++	var pcCache pcvalueCache
+ 	for i := 0; i < nftab; i++ {
+ 		// NOTE: ftab[nftab].entry is legal; it is the address beyond the final function.
+ 		if datap.ftab[i].entry > datap.ftab[i+1].entry {
+@@ -147,9 +148,9 @@ func moduledataverify1(datap *moduledata) {
+ 					}
+ 				}
+ 			}
+-			pcvalue(f, f.pcfile, end, true)
+-			pcvalue(f, f.pcln, end, true)
+-			pcvalue(f, f.pcsp, end, true)
++			pcvalue(f, f.pcfile, end, &pcCache, true)
++			pcvalue(f, f.pcln, end, &pcCache, true)
++			pcvalue(f, f.pcsp, end, &pcCache, true)
+ 		}
+ 	}
+ 
+@@ -226,10 +227,42 @@ func findfunc(pc uintptr) *_func {
+ 	return (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[idx].funcoff]))
+ }
+ 
+-func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
++type pcvalueCache struct {
++	entries [16]pcvalueCacheEnt
++}
++
++type pcvalueCacheEnt struct {
++	// targetpc and off together are the key of this cache entry.
++	targetpc uintptr
++	off      int32
++	// val is the value of this cached pcvalue entry.
++	val int32
++}
++
++func pcvalue(f *_func, off int32, targetpc uintptr, cache *pcvalueCache, strict bool) int32 {
+ 	if off == 0 {
+ 		return -1
+ 	}
++
++	// Check the cache. This speeds up walks of deep stacks, which
++	// tend to have the same recursive functions over and over.
++	//
++	// This cache is small enough that full associativity is
++	// cheaper than doing the hashing for a less associative
++	// cache.
++	if cache != nil {
++		for _, ent := range cache.entries {
++			// We check off first because we're more
++			// likely to have multiple entries with
++			// different offsets for the same targetpc
++			// than the other way around, so we'll usually
++			// fail in the first clause.
++			if ent.off == off && ent.targetpc == targetpc {
++				return ent.val
++			}
++		}
++	}
++
+ 	datap := findmoduledatap(f.entry) // inefficient
+ 	if datap == nil {
+ 		if strict && panicking == 0 {
+@@ -248,6 +281,19 @@ func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
+ 			break
+ 		}
+ 		if targetpc < pc {
++			// Replace a random entry in the cache. Random
++			// replacement prevents a performance cliff if
++			// a recursive stack's cycle is slightly
++			// larger than the cache.
++			if cache != nil {
++				ci := fastrand1() % uint32(len(cache.entries))
++				cache.entries[ci] = pcvalueCacheEnt{
++					targetpc: targetpc,
++					off:      off,
++					val:      val,
++				}
++			}
++
+ 			return val
+ 		}
+ 	}
+@@ -296,8 +342,8 @@ func funcline1(f *_func, targetpc uintptr, strict bool) (file string, line int32
+ 	if datap == nil {
+ 		return "?", 0
+ 	}
+-	fileno := int(pcvalue(f, f.pcfile, targetpc, strict))
+-	line = pcvalue(f, f.pcln, targetpc, strict)
++	fileno := int(pcvalue(f, f.pcfile, targetpc, nil, strict))
++	line = pcvalue(f, f.pcln, targetpc, nil, strict)
+ 	if fileno == -1 || line == -1 || fileno >= len(datap.filetab) {
+ 		// print("looking for ", hex(targetpc), " in ", funcname(f), " got file=", fileno, " line=", lineno, "\n")
+ 		return "?", 0
+@@ -310,20 +356,20 @@ func funcline(f *_func, targetpc uintptr) (file string, line int32) {
+ 	return funcline1(f, targetpc, true)
+ }
+ 
+-func funcspdelta(f *_func, targetpc uintptr) int32 {
+-	x := pcvalue(f, f.pcsp, targetpc, true)
++func funcspdelta(f *_func, targetpc uintptr, cache *pcvalueCache) int32 {
++	x := pcvalue(f, f.pcsp, targetpc, cache, true)
+ 	if x&(ptrSize-1) != 0 {
+ 		print("invalid spdelta ", funcname(f), " ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
+ 	}
+ 	return x
+ }
+ 
+-func pcdatavalue(f *_func, table int32, targetpc uintptr) int32 {
++func pcdatavalue(f *_func, table int32, targetpc uintptr, cache *pcvalueCache) int32 {
+ 	if table < 0 || table >= f.npcdata {
+ 		return -1
+ 	}
+ 	off := *(*int32)(add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(table)*4))
+-	return pcvalue(f, off, targetpc, true)
++	return pcvalue(f, off, targetpc, cache, true)
+ }
+ 
+ func funcdata(f *_func, i int32) unsafe.Pointer {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 2d223ced62..b99920ab4f 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -198,6 +198,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 	}
+ 	frame.fn = f
+ 
++	var cache pcvalueCache
++
+ 	n := 0
+ 	for n < max {
+ 		// Typically:
+@@ -219,7 +221,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 				sp = gp.m.curg.sched.sp
+ 				stkbar = gp.m.curg.stkbar[gp.m.curg.stkbarPos:]
+ 			}
+-			frame.fp = sp + uintptr(funcspdelta(f, frame.pc))
++			frame.fp = sp + uintptr(funcspdelta(f, frame.pc, &cache))
+ 			if !usesLR {
+ 				// On x86, call instruction pushes return PC before entering new function.
+ 				frame.fp += regSize
+@@ -403,7 +405,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			frame.fn = f
+ 			if f == nil {
+ 				frame.pc = x
+-			} else if funcspdelta(f, frame.pc) == 0 {
++			} else if funcspdelta(f, frame.pc, &cache) == 0 {
+ 				frame.lr = x
+ 			}
+ 		}

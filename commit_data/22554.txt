@@ -20,7 +20,50 @@ Date:   Sat Feb 28 00:41:31 2015 +0100
     Change-Id: Ia0e8a51ac591d4c833d11285da5b767ef7ed8ad2
     Reviewed-on: https://go-review.googlesource.com/6266
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/get.go    | 10 ++++++++++
  src/cmd/go/test.bash | 10 ++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 01ca4b2acd..c7399ebfcc 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -155,6 +155,16 @@ func download(arg string, stk *importStack, getTestDeps bool) {
+ 		return
+ 	}
+ 
++	// loadPackage inferred the canonical ImportPath from arg.
++	// Use that in the following to prevent hysteresis effects
++	// in e.g. downloadCache and packageCache.
++	// This allows invocations such as:
++	//   mkdir -p $GOPATH/src/github.com/user
++	//   cd $GOPATH/src/github.com/user
++	//   go get ./foo
++	// see: golang.org/issue/9767
++	arg = p.ImportPath
++
+ 	// There's nothing to do if this is a package in the standard library.
+ 	if p.Standard {
+ 		return
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 25d3c66665..39071e976f 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -1120,6 +1120,16 @@ fi
+ unset GOPATH
+ rm -rf $d
+ 
++TEST go get ./rsc.io/toolstash '(golang.org/issue/9767)'
++d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
++export GOPATH=$d
++export testgo=$(pwd)/testgo
++mkdir -p $GOPATH/src/rsc.io
++(cd $GOPATH/src/rsc.io && $testgo get ./toolstash) || ok=false
++unset GOPATH
++unset testgo
++rm -rf $d
++
+ # clean up
+ if $started; then stop; fi
+ rm -rf testdata/bin testdata/bin1

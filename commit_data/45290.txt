@@ -32,7 +32,7 @@ Date:   Wed Oct 7 12:31:05 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Trust: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go |   4 +-
  src/cmd/asm/internal/asm/expr_test.go     |   4 +-
  src/cmd/asm/internal/asm/line_test.go     |   2 +-
@@ -45,3 +45,569 @@ Date:   Wed Oct 7 12:31:05 2020 -0400
  src/cmd/internal/obj/util.go              |  39 +++++++-
  src/cmd/internal/objabi/path.go           |  22 +++++
  11 files changed, 207 insertions(+), 65 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index decf5391db..989b7a5405 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -31,7 +31,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
+ 	architecture, ctxt := setArch(goarch)
+ 	architecture.Init(ctxt)
+ 	lexer := lex.NewLexer(input)
+-	parser := NewParser(ctxt, architecture, lexer)
++	parser := NewParser(ctxt, architecture, lexer, false)
+ 	pList := new(obj.Plist)
+ 	var ok bool
+ 	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
+@@ -273,7 +273,7 @@ func testErrors(t *testing.T, goarch, file string) {
+ 	input := filepath.Join("testdata", file+".s")
+ 	architecture, ctxt := setArch(goarch)
+ 	lexer := lex.NewLexer(input)
+-	parser := NewParser(ctxt, architecture, lexer)
++	parser := NewParser(ctxt, architecture, lexer, false)
+ 	pList := new(obj.Plist)
+ 	var ok bool
+ 	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
+diff --git a/src/cmd/asm/internal/asm/expr_test.go b/src/cmd/asm/internal/asm/expr_test.go
+index 1251594349..e9c92df1f3 100644
+--- a/src/cmd/asm/internal/asm/expr_test.go
++++ b/src/cmd/asm/internal/asm/expr_test.go
+@@ -57,7 +57,7 @@ var exprTests = []exprTest{
+ }
+ 
+ func TestExpr(t *testing.T) {
+-	p := NewParser(nil, nil, nil) // Expression evaluation uses none of these fields of the parser.
++	p := NewParser(nil, nil, nil, false) // Expression evaluation uses none of these fields of the parser.
+ 	for i, test := range exprTests {
+ 		p.start(lex.Tokenize(test.input))
+ 		result := int64(p.expr())
+@@ -113,7 +113,7 @@ func TestBadExpr(t *testing.T) {
+ }
+ 
+ func runBadTest(i int, test badExprTest, t *testing.T) (err error) {
+-	p := NewParser(nil, nil, nil) // Expression evaluation uses none of these fields of the parser.
++	p := NewParser(nil, nil, nil, false) // Expression evaluation uses none of these fields of the parser.
+ 	p.start(lex.Tokenize(test.input))
+ 	return tryParse(t, func() {
+ 		p.expr()
+diff --git a/src/cmd/asm/internal/asm/line_test.go b/src/cmd/asm/internal/asm/line_test.go
+index 01b058bd95..da857ced3a 100644
+--- a/src/cmd/asm/internal/asm/line_test.go
++++ b/src/cmd/asm/internal/asm/line_test.go
+@@ -39,7 +39,7 @@ func testBadInstParser(t *testing.T, goarch string, tests []badInstTest) {
+ 	for i, test := range tests {
+ 		arch, ctxt := setArch(goarch)
+ 		tokenizer := lex.NewTokenizer("", strings.NewReader(test.input+"\n"), nil)
+-		parser := NewParser(ctxt, arch, tokenizer)
++		parser := NewParser(ctxt, arch, tokenizer, false)
+ 
+ 		err := tryParse(t, func() {
+ 			parser.Parse()
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index f187d0b166..2e83e176b2 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -28,7 +28,7 @@ func setArch(goarch string) (*arch.Arch, *obj.Link) {
+ 
+ func newParser(goarch string) *Parser {
+ 	architecture, ctxt := setArch(goarch)
+-	return NewParser(ctxt, architecture, nil)
++	return NewParser(ctxt, architecture, nil, false)
+ }
+ 
+ // tryParse executes parse func in panicOnError=true context.
+@@ -75,7 +75,12 @@ func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
+ 		parser.start(lex.Tokenize(test.input))
+ 		addr := obj.Addr{}
+ 		parser.operand(&addr)
+-		result := obj.Dconv(&emptyProg, &addr)
++		var result string
++		if parser.compilingRuntime {
++			result = obj.DconvWithABIDetail(&emptyProg, &addr)
++		} else {
++			result = obj.Dconv(&emptyProg, &addr)
++		}
+ 		if result != test.output {
+ 			t.Errorf("fail at %s: got %s; expected %s\n", test.input, result, test.output)
+ 		}
+@@ -86,6 +91,9 @@ func TestAMD64OperandParser(t *testing.T) {
+ 	parser := newParser("amd64")
+ 	testOperandParser(t, parser, amd64OperandTests)
+ 	testBadOperandParser(t, parser, amd64BadOperandTests)
++	parser.compilingRuntime = true
++	testOperandParser(t, parser, amd64RuntimeOperandTests)
++	testBadOperandParser(t, parser, amd64BadOperandRuntimeTests)
+ }
+ 
+ func Test386OperandParser(t *testing.T) {
+@@ -141,7 +149,7 @@ func TestFuncAddress(t *testing.T) {
+ 			parser := newParser(sub.arch)
+ 			for _, test := range sub.tests {
+ 				parser.start(lex.Tokenize(test.input))
+-				name, ok := parser.funcAddress()
++				name, _, ok := parser.funcAddress()
+ 
+ 				isFuncSym := strings.HasSuffix(test.input, "(SB)") &&
+ 					// Ignore static symbols.
+@@ -298,6 +306,11 @@ var amd64OperandTests = []operandTest{
+ 	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
+ }
+ 
++var amd64RuntimeOperandTests = []operandTest{
++	{"$bar<ABI0>(SB)", "$bar<ABI0>(SB)"},
++	{"$foo<ABIInternal>(SB)", "$foo<ABIInternal>(SB)"},
++}
++
+ var amd64BadOperandTests = []badOperandTest{
+ 	{"[", "register list: expected ']', found EOF"},
+ 	{"[4", "register list: bad low register in `[4`"},
+@@ -311,6 +324,11 @@ var amd64BadOperandTests = []badOperandTest{
+ 	{"[X0-X1-X2]", "register list: expected ']' after `[X0-X1`, found '-'"},
+ 	{"[X0,X3]", "register list: expected '-' after `[X0`, found ','"},
+ 	{"[X0,X1,X2,X3]", "register list: expected '-' after `[X0`, found ','"},
++	{"$foo<ABI0>", "ABI selector only permitted when compiling runtime, reference was to \"foo\""},
++}
++
++var amd64BadOperandRuntimeTests = []badOperandTest{
++	{"$foo<bletch>", "malformed ABI selector \"bletch\" in reference to \"foo\""},
+ }
+ 
+ var x86OperandTests = []operandTest{
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index d9dbd92cb0..154cf9c7a7 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -25,25 +25,26 @@ import (
+ )
+ 
+ type Parser struct {
+-	lex           lex.TokenReader
+-	lineNum       int   // Line number in source file.
+-	errorLine     int   // Line number of last error.
+-	errorCount    int   // Number of errors.
+-	sawCode       bool  // saw code in this file (as opposed to comments and blank lines)
+-	pc            int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
+-	input         []lex.Token
+-	inputPos      int
+-	pendingLabels []string // Labels to attach to next instruction.
+-	labels        map[string]*obj.Prog
+-	toPatch       []Patch
+-	addr          []obj.Addr
+-	arch          *arch.Arch
+-	ctxt          *obj.Link
+-	firstProg     *obj.Prog
+-	lastProg      *obj.Prog
+-	dataAddr      map[string]int64 // Most recent address for DATA for this symbol.
+-	isJump        bool             // Instruction being assembled is a jump.
+-	errorWriter   io.Writer
++	lex              lex.TokenReader
++	lineNum          int   // Line number in source file.
++	errorLine        int   // Line number of last error.
++	errorCount       int   // Number of errors.
++	sawCode          bool  // saw code in this file (as opposed to comments and blank lines)
++	pc               int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
++	input            []lex.Token
++	inputPos         int
++	pendingLabels    []string // Labels to attach to next instruction.
++	labels           map[string]*obj.Prog
++	toPatch          []Patch
++	addr             []obj.Addr
++	arch             *arch.Arch
++	ctxt             *obj.Link
++	firstProg        *obj.Prog
++	lastProg         *obj.Prog
++	dataAddr         map[string]int64 // Most recent address for DATA for this symbol.
++	isJump           bool             // Instruction being assembled is a jump.
++	compilingRuntime bool
++	errorWriter      io.Writer
+ }
+ 
+ type Patch struct {
+@@ -51,14 +52,15 @@ type Patch struct {
+ 	label string
+ }
+ 
+-func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
++func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader, compilingRuntime bool) *Parser {
+ 	return &Parser{
+-		ctxt:        ctxt,
+-		arch:        ar,
+-		lex:         lexer,
+-		labels:      make(map[string]*obj.Prog),
+-		dataAddr:    make(map[string]int64),
+-		errorWriter: os.Stderr,
++		ctxt:             ctxt,
++		arch:             ar,
++		lex:              lexer,
++		labels:           make(map[string]*obj.Prog),
++		dataAddr:         make(map[string]int64),
++		errorWriter:      os.Stderr,
++		compilingRuntime: compilingRuntime,
+ 	}
+ }
+ 
+@@ -310,8 +312,8 @@ func (p *Parser) symDefRef(w io.Writer, word string, operands [][]lex.Token) {
+ 		// Defines text symbol in operands[0].
+ 		if len(operands) > 0 {
+ 			p.start(operands[0])
+-			if name, ok := p.funcAddress(); ok {
+-				fmt.Fprintf(w, "def %s ABI0\n", name)
++			if name, abi, ok := p.funcAddress(); ok {
++				fmt.Fprintf(w, "def %s %s\n", name, abi)
+ 			}
+ 		}
+ 		return
+@@ -329,8 +331,8 @@ func (p *Parser) symDefRef(w io.Writer, word string, operands [][]lex.Token) {
+ 	// Search for symbol references.
+ 	for _, op := range operands {
+ 		p.start(op)
+-		if name, ok := p.funcAddress(); ok {
+-			fmt.Fprintf(w, "ref %s ABI0\n", name)
++		if name, abi, ok := p.funcAddress(); ok {
++			fmt.Fprintf(w, "ref %s %s\n", name, abi)
+ 		}
+ 	}
+ }
+@@ -765,20 +767,19 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
+ 	case '*':
+ 		a.Type = obj.TYPE_INDIR
+ 	}
+-	// Weirdness with statics: Might now have "<>".
+-	isStatic := false
+-	if p.peek() == '<' {
+-		isStatic = true
+-		p.next()
+-		p.get('>')
+-	}
++
++	// Parse optional <> (indicates a static symbol) or
++	// <ABIxxx> (selecting text symbol with specific ABI).
++	doIssueError := true
++	isStatic, abi := p.symRefAttrs(name, doIssueError)
++
+ 	if p.peek() == '+' || p.peek() == '-' {
+ 		a.Offset = int64(p.expr())
+ 	}
+ 	if isStatic {
+ 		a.Sym = p.ctxt.LookupStatic(name)
+ 	} else {
+-		a.Sym = p.ctxt.Lookup(name)
++		a.Sym = p.ctxt.LookupABI(name, abi)
+ 	}
+ 	if p.peek() == scanner.EOF {
+ 		if prefix == 0 && p.isJump {
+@@ -823,12 +824,60 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg string, isStatic bool, pr
+ 	}
+ }
+ 
++// symRefAttrs parses an optional function symbol attribute clause for
++// the function symbol 'name', logging an error for a malformed
++// attribute clause if 'issueError' is true. The return value is a
++// (boolean, ABI) pair indicating that the named symbol is either
++// static or a particular ABI specification.
++//
++// The expected form of the attribute clause is:
++//
++// empty,           yielding (false, obj.ABI0)
++// "<>",            yielding (true,  obj.ABI0)
++// "<ABI0>"         yielding (false, obj.ABI0)
++// "<ABIInternal>"  yielding (false, obj.ABIInternal)
++//
++// Anything else beginning with "<" logs an error if issueError is
++// true, otherwise returns (false, obj.ABI0).
++//
++func (p *Parser) symRefAttrs(name string, issueError bool) (bool, obj.ABI) {
++	abi := obj.ABI0
++	isStatic := false
++	if p.peek() != '<' {
++		return isStatic, abi
++	}
++	p.next()
++	tok := p.peek()
++	if tok == '>' {
++		isStatic = true
++	} else if tok == scanner.Ident {
++		abistr := p.get(scanner.Ident).String()
++		if !p.compilingRuntime {
++			if issueError {
++				p.errorf("ABI selector only permitted when compiling runtime, reference was to %q", name)
++			}
++		} else {
++			theabi, valid := obj.ParseABI(abistr)
++			if !valid {
++				if issueError {
++					p.errorf("malformed ABI selector %q in reference to %q",
++						abistr, name)
++				}
++			} else {
++				abi = theabi
++			}
++		}
++	}
++	p.get('>')
++	return isStatic, abi
++}
++
+ // funcAddress parses an external function address. This is a
+ // constrained form of the operand syntax that's always SB-based,
+ // non-static, and has at most a simple integer offset:
+ //
+-//    [$|*]sym[+Int](SB)
+-func (p *Parser) funcAddress() (string, bool) {
++//    [$|*]sym[<abi>][+Int](SB)
++func (p *Parser) funcAddress() (string, obj.ABI, bool) {
+ 	switch p.peek() {
+ 	case '$', '*':
+ 		// Skip prefix.
+@@ -838,25 +887,32 @@ func (p *Parser) funcAddress() (string, bool) {
+ 	tok := p.next()
+ 	name := tok.String()
+ 	if tok.ScanToken != scanner.Ident || p.atStartOfRegister(name) {
+-		return "", false
++		return "", obj.ABI0, false
++	}
++	// Parse optional <> (indicates a static symbol) or
++	// <ABIxxx> (selecting text symbol with specific ABI).
++	noErrMsg := false
++	isStatic, abi := p.symRefAttrs(name, noErrMsg)
++	if isStatic {
++		return "", obj.ABI0, false // This function rejects static symbols.
+ 	}
+ 	tok = p.next()
+ 	if tok.ScanToken == '+' {
+ 		if p.next().ScanToken != scanner.Int {
+-			return "", false
++			return "", obj.ABI0, false
+ 		}
+ 		tok = p.next()
+ 	}
+ 	if tok.ScanToken != '(' {
+-		return "", false
++		return "", obj.ABI0, false
+ 	}
+ 	if reg := p.next(); reg.ScanToken != scanner.Ident || reg.String() != "SB" {
+-		return "", false
++		return "", obj.ABI0, false
+ 	}
+ 	if p.next().ScanToken != ')' || p.peek() != scanner.EOF {
+-		return "", false
++		return "", obj.ABI0, false
+ 	}
+-	return name, true
++	return name, abi, true
+ }
+ 
+ // registerIndirect parses the general form of a register indirection.
+diff --git a/src/cmd/asm/internal/asm/pseudo_test.go b/src/cmd/asm/internal/asm/pseudo_test.go
+index 100bef91cf..622ee25ce7 100644
+--- a/src/cmd/asm/internal/asm/pseudo_test.go
++++ b/src/cmd/asm/internal/asm/pseudo_test.go
+@@ -37,6 +37,7 @@ func TestErroneous(t *testing.T) {
+ 		{"TEXT", "$0É:0, 0, $1", "expected end of operand, found É"}, // Issue #12467.
+ 		{"TEXT", "$:0:(SB, 0, $1", "expected '(', found 0"},          // Issue 12468.
+ 		{"TEXT", "@B(SB),0,$0", "expected '(', found B"},             // Issue 23580.
++		{"TEXT", "foo<ABIInternal>(SB),0", "ABI selector only permitted when compiling runtime, reference was to \"foo\""},
+ 		{"FUNCDATA", "", "expect two operands for FUNCDATA"},
+ 		{"FUNCDATA", "(SB ", "expect two operands for FUNCDATA"},
+ 		{"DATA", "", "expect two operands for DATA"},
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index fd079a2ccd..01c963ac72 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -52,6 +52,7 @@ func main() {
+ 	case "all", "ret":
+ 		ctxt.Retpoline = true
+ 	}
++	compilingRuntime := objabi.IsRuntimePackagePath(*flags.Importpath)
+ 
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 	defer ctxt.Bso.Flush()
+@@ -74,7 +75,7 @@ func main() {
+ 	var failedFile string
+ 	for _, f := range flag.Args() {
+ 		lexer := lex.NewLexer(f)
+-		parser := asm.NewParser(ctxt, architecture, lexer)
++		parser := asm.NewParser(ctxt, architecture, lexer, compilingRuntime)
+ 		ctxt.DiagFunc = func(format string, args ...interface{}) {
+ 			diag = true
+ 			log.Printf(format, args...)
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index e4e4ce72fd..2fffe625cd 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -968,9 +968,10 @@ func readSymABIs(file, myimportpath string) {
+ 			if len(parts) != 3 {
+ 				log.Fatalf(`%s:%d: invalid symabi: syntax is "%s sym abi"`, file, lineNum, parts[0])
+ 			}
+-			sym, abi := parts[1], parts[2]
+-			if abi != "ABI0" { // Only supported external ABI right now
+-				log.Fatalf(`%s:%d: invalid symabi: unknown abi "%s"`, file, lineNum, abi)
++			sym, abistr := parts[1], parts[2]
++			abi, valid := obj.ParseABI(abistr)
++			if !valid {
++				log.Fatalf(`%s:%d: invalid symabi: unknown abi "%s"`, file, lineNum, abistr)
+ 			}
+ 
+ 			// If the symbol is already prefixed with
+@@ -983,9 +984,9 @@ func readSymABIs(file, myimportpath string) {
+ 
+ 			// Record for later.
+ 			if parts[0] == "def" {
+-				symabiDefs[sym] = obj.ABI0
++				symabiDefs[sym] = abi
+ 			} else {
+-				symabiRefs[sym] = obj.ABI0
++				symabiRefs[sym] = abi
+ 			}
+ 		default:
+ 			log.Fatalf(`%s:%d: invalid symabi type "%s"`, file, lineNum, parts[0])
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index ae85dbbe4e..ad4708138f 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -502,6 +502,20 @@ const (
+ 	ABICount
+ )
+ 
++// ParseABI converts from a string representation in 'abistr' to the
++// corresponding ABI value. Second return value is TRUE if the
++// abi string is recognized, FALSE otherwise.
++func ParseABI(abistr string) (ABI, bool) {
++	switch abistr {
++	default:
++		return ABI0, false
++	case "ABI0":
++		return ABI0, true
++	case "ABIInternal":
++		return ABIInternal, true
++	}
++}
++
+ // Attribute is a set of symbol attributes.
+ type Attribute uint32
+ 
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index a30ccf0564..21e28807a6 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -210,13 +210,30 @@ func (ctxt *Link) CanReuseProgs() bool {
+ 	return ctxt.Debugasm == 0
+ }
+ 
++// Dconv accepts an argument 'a' within a prog 'p' and returns a string
++// with a formatted version of the argument.
+ func Dconv(p *Prog, a *Addr) string {
+ 	buf := new(bytes.Buffer)
+-	WriteDconv(buf, p, a)
++	writeDconv(buf, p, a, false)
+ 	return buf.String()
+ }
+ 
++// DconvDconvWithABIDetail accepts an argument 'a' within a prog 'p'
++// and returns a string with a formatted version of the argument, in
++// which text symbols are rendered with explicit ABI selectors.
++func DconvWithABIDetail(p *Prog, a *Addr) string {
++	buf := new(bytes.Buffer)
++	writeDconv(buf, p, a, true)
++	return buf.String()
++}
++
++// WriteDconv accepts an argument 'a' within a prog 'p'
++// and writes a formatted version of the arg to the writer.
+ func WriteDconv(w io.Writer, p *Prog, a *Addr) {
++	writeDconv(w, p, a, false)
++}
++
++func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
+ 	switch a.Type {
+ 	default:
+ 		fmt.Fprintf(w, "type=%d", a.Type)
+@@ -250,7 +267,7 @@ func WriteDconv(w io.Writer, p *Prog, a *Addr) {
+ 
+ 	case TYPE_BRANCH:
+ 		if a.Sym != nil {
+-			fmt.Fprintf(w, "%s(SB)", a.Sym.Name)
++			fmt.Fprintf(w, "%s%s(SB)", a.Sym.Name, abiDecorate(a, abiDetail))
+ 		} else if a.Target() != nil {
+ 			fmt.Fprint(w, a.Target().Pc)
+ 		} else {
+@@ -259,7 +276,7 @@ func WriteDconv(w io.Writer, p *Prog, a *Addr) {
+ 
+ 	case TYPE_INDIR:
+ 		io.WriteString(w, "*")
+-		a.WriteNameTo(w)
++		a.writeNameTo(w, abiDetail)
+ 
+ 	case TYPE_MEM:
+ 		a.WriteNameTo(w)
+@@ -299,7 +316,7 @@ func WriteDconv(w io.Writer, p *Prog, a *Addr) {
+ 
+ 	case TYPE_ADDR:
+ 		io.WriteString(w, "$")
+-		a.WriteNameTo(w)
++		a.writeNameTo(w, abiDetail)
+ 
+ 	case TYPE_SHIFT:
+ 		v := int(a.Offset)
+@@ -335,6 +352,11 @@ func WriteDconv(w io.Writer, p *Prog, a *Addr) {
+ }
+ 
+ func (a *Addr) WriteNameTo(w io.Writer) {
++	a.writeNameTo(w, false)
++}
++
++func (a *Addr) writeNameTo(w io.Writer, abiDetail bool) {
++
+ 	switch a.Name {
+ 	default:
+ 		fmt.Fprintf(w, "name=%d", a.Name)
+@@ -356,7 +378,7 @@ func (a *Addr) WriteNameTo(w io.Writer) {
+ 			reg = Rconv(int(a.Reg))
+ 		}
+ 		if a.Sym != nil {
+-			fmt.Fprintf(w, "%s%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
++			fmt.Fprintf(w, "%s%s%s(%s)", a.Sym.Name, abiDecorate(a, abiDetail), offConv(a.Offset), reg)
+ 		} else {
+ 			fmt.Fprintf(w, "%s(%s)", offConv(a.Offset), reg)
+ 		}
+@@ -596,3 +618,10 @@ func Bool2int(b bool) int {
+ 	}
+ 	return i
+ }
++
++func abiDecorate(a *Addr, abiDetail bool) string {
++	if !abiDetail || a.Sym == nil {
++		return ""
++	}
++	return fmt.Sprintf("<%s>", a.Sym.ABI())
++}
+diff --git a/src/cmd/internal/objabi/path.go b/src/cmd/internal/objabi/path.go
+index 2a42179a36..fd1c9981c6 100644
+--- a/src/cmd/internal/objabi/path.go
++++ b/src/cmd/internal/objabi/path.go
+@@ -39,3 +39,25 @@ func PathToPrefix(s string) string {
+ 
+ 	return string(p)
+ }
++
++// IsRuntimePackagePath examines 'pkgpath' and returns TRUE if it
++// belongs to the collection of "runtime-related" packages, including
++// "runtime" itself, "reflect", "syscall", and the
++// "runtime/internal/*" packages. The compiler and/or assembler in
++// some cases need to be aware of when they are building such a
++// package, for example to enable features such as ABI selectors in
++// assembly sources.
++func IsRuntimePackagePath(pkgpath string) bool {
++	rval := false
++	switch pkgpath {
++	case "runtime":
++		rval = true
++	case "reflect":
++		rval = true
++	case "syscall":
++		rval = true
++	default:
++		rval = strings.HasPrefix(pkgpath, "runtime/internal")
++	}
++	return rval
++}

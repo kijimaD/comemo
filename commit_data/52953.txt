@@ -19,10 +19,168 @@ Date:   Mon Jun 20 17:06:09 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go      |  2 +
  src/cmd/compile/internal/dwarfgen/dwarf.go |  5 ++
  src/cmd/compile/internal/types/size.go     |  6 ++
  src/cmd/compile/internal/types/type.go     |  5 ++
  test/fixedbugs/issue53454.go               | 89 ++++++++++++++++++++++++++++++
  5 files changed, 107 insertions(+)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index c9667bd04a..0a95aaabd7 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -78,6 +78,8 @@ func storeByType(t *types.Type) obj.As {
+ 			return x86.AMOVL
+ 		case 8:
+ 			return x86.AMOVQ
++		case 16:
++			return x86.AMOVUPS
+ 		}
+ 	}
+ 	panic(fmt.Sprintf("bad store type %v", t))
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index f84368ece3..4bbc04826a 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -91,6 +91,11 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
+ 				continue
+ 			}
+ 			apdecls = append(apdecls, n)
++			if n.Type().Kind() == types.TSSA {
++				// Can happen for TypeInt128 types. This only happens for
++				// spill locations, so not a huge deal.
++				continue
++			}
+ 			fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index a5a5c0b5b1..68b9ac3ff3 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -590,6 +590,12 @@ func PtrDataSize(t *Type) int64 {
+ 		}
+ 		return 0
+ 
++	case TSSA:
++		if t != TypeInt128 {
++			base.Fatalf("PtrDataSize: unexpected ssa type %v", t)
++		}
++		return 0
++
+ 	default:
+ 		base.Fatalf("PtrDataSize: unexpected type, %v", t)
+ 		return 0
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 1ea239ea32..9e229a59c6 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1705,6 +1705,11 @@ var (
+ 	TypeResultMem = newResults([]*Type{TypeMem})
+ )
+ 
++func init() {
++	TypeInt128.width = 16
++	TypeInt128.align = 8
++}
++
+ // NewNamed returns a new named type for the given type name. obj should be an
+ // ir.Name. The new type is incomplete (marked as TFORW kind), and the underlying
+ // type should be set later via SetUnderlying(). References to the type are
+diff --git a/test/fixedbugs/issue53454.go b/test/fixedbugs/issue53454.go
+new file mode 100644
+index 0000000000..8b16d81839
+--- /dev/null
++++ b/test/fixedbugs/issue53454.go
+@@ -0,0 +1,89 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T1 struct {
++	A T5
++	B T2
++	C T7
++	D T4
++}
++
++type T2 struct {
++	T3
++	A float64
++	E float64
++	C float64
++}
++
++type T3 struct {
++	F float64
++	G float64
++	H float64
++	I float64
++	J float64
++	K float64
++	L float64
++}
++
++type T4 struct {
++	M float64
++	N float64
++	O float64
++	P float64
++}
++
++type T5 struct {
++	Q float64
++	R float64
++	S float64
++	T float64
++	U float64
++	V float64
++}
++
++type T6 struct {
++	T9
++	C T10
++}
++
++type T7 struct {
++	T10
++	T11
++}
++
++type T8 struct {
++	T9
++	C T7
++}
++
++type T9 struct {
++	A T5
++	B T3
++	D T4
++}
++
++type T10 struct {
++	W float64
++}
++
++type T11 struct {
++	X float64
++	Y float64
++}
++
++func MainTest(x T1, y T8, z T6) float64 {
++	return Test(x.B, x.A, x.D, x.C, y.B, y.A, y.D, y.C, z.B, z.A, z.D,
++		T7{
++			T10: T10{
++				W: z.C.W,
++			},
++			T11: T11{},
++		},
++	)
++}
++func Test(a T2, b T5, c T4, d T7, e T3, f T5, g T4, h T7, i T3, j T5, k T4, l T7) float64

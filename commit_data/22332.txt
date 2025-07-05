@@ -18,7 +18,7 @@ Date:   Thu Mar 5 10:39:23 2015 -0800
     Change-Id: I7f6654d11f80065f3914a3f19353f2f12edfe310
     Reviewed-on: https://go-review.googlesource.com/6931
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go           |   4 -
  src/cmd/asm/internal/asm/asm.go             |  15 --
  src/cmd/asm/internal/asm/operand_test.go    |  14 +-
@@ -38,3 +38,1038 @@ Date:   Thu Mar 5 10:39:23 2015 -0800
  src/cmd/internal/obj/x86/list6.go           |  48 ------
  src/cmd/internal/obj/x86/obj6.go            |   3 -
  18 files changed, 283 insertions(+), 439 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index 0522724f57..01039ad35f 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -81,7 +81,6 @@ func jumpX86(word string) bool {
+ func archX86(linkArch *obj.LinkArch) *Arch {
+ 	register := make(map[string]int16)
+ 	// Create maps for easy lookup of instruction names etc.
+-	// TODO: Should this be done in obj for us?
+ 	for i, s := range x86.Register {
+ 		register[s] = int16(i + x86.REG_AL)
+ 	}
+@@ -154,9 +153,7 @@ func archX86(linkArch *obj.LinkArch) *Arch {
+ func archArm() *Arch {
+ 	register := make(map[string]int16)
+ 	// Create maps for easy lookup of instruction names etc.
+-	// TODO: Should this be done in obj for us?
+ 	// Note that there is no list of names as there is for x86.
+-	// TODO: Are there aliases we need to add?
+ 	for i := arm.REG_R0; i < arm.REG_SPSR; i++ {
+ 		register[obj.Rconv(i)] = int16(i)
+ 	}
+@@ -203,7 +200,6 @@ func archArm() *Arch {
+ func archPPC64() *Arch {
+ 	register := make(map[string]int16)
+ 	// Create maps for easy lookup of instruction names etc.
+-	// TODO: Should this be done in obj for us?
+ 	// Note that there is no list of names as there is for x86.
+ 	for i := ppc64.REG_R0; i <= ppc64.REG_R31; i++ {
+ 		register[obj.Rconv(i)] = int16(i)
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index e8dee10d78..bb38b6d4ab 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -460,21 +460,6 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 		}
+ 		prog.From = a[0]
+ 		prog.To = a[1]
+-		switch p.arch.Thechar {
+-		case '9':
+-			var reg0, reg1 int16
+-			// Handle (R1+R2)
+-			if a[0].Scale != 0 {
+-				reg0 = int16(a[0].Scale)
+-				prog.Reg = reg0
+-			} else if a[1].Scale != 0 {
+-				reg1 = int16(a[1].Scale)
+-				prog.Reg = reg1
+-			}
+-			if reg0 != 0 && reg1 != 0 {
+-				p.errorf("register pair cannot be both left and right operands")
+-			}
+-		}
+ 	case 3:
+ 		switch p.arch.Thechar {
+ 		case '5':
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index 179d63db26..d25e740313 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -59,18 +59,6 @@ func TestARMOperandParser(t *testing.T) {
+ func TestPPC64OperandParser(t *testing.T) {
+ 	parser := newParser("ppc64")
+ 	testOperandParser(t, parser, ppc64OperandTests)
+-	// Special encoding for (R1+R2).
+-	parser.start(lex.Tokenize("(R1+R2)"))
+-	addr := obj.Addr{}
+-	parser.operand(&addr)
+-	want := obj.Addr{
+-		Type:  obj.TYPE_MEM,
+-		Reg:   parser.arch.Register["R1"],
+-		Scale: parser.arch.Register["R2"], // TODO: clean up how this is encoded in parse.go
+-	}
+-	if want != addr {
+-		t.Errorf("(R1+R2): expected %+v got %+v", want, addr)
+-	}
+ }
+ 
+ type operandTest struct {
+@@ -321,6 +309,8 @@ var ppc64OperandTests = []operandTest{
+ 	{"(R3)", "(R3)"},
+ 	{"(R4)", "(R4)"},
+ 	{"(R5)", "(R5)"},
++	{"(R5)(R6*1)", "(R5)(R6*1)"},
++	{"(R5+R6)", "(R5)(R6*1)"}, // Old syntax.
+ 	{"-1(R4)", "-1(R4)"},
+ 	{"-1(R5)", "-1(R5)"},
+ 	{"6(PC)", "6(PC)"},
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index f37c5a0168..827165308d 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -646,9 +646,9 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
+ 				p.errorf("illegal address mode for register pair")
+ 				return
+ 			}
+-			// TODO: This is rewritten in asm. Clumsy.
+ 			a.Type = obj.TYPE_MEM
+-			a.Scale = r2
++			a.Scale = 1
++			a.Index = r2
+ 			// Nothing may follow.
+ 			return
+ 		}
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.out b/src/cmd/asm/internal/asm/testdata/arm.out
+index 9e6f080069..d1e21cb20b 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.out
++++ b/src/cmd/asm/internal/asm/testdata/arm.out
+@@ -1,53 +1,53 @@
+-5 00001 (testdata/arm.s:5)	TEXT	foo(SB),0,$0
+-14 00002 (testdata/arm.s:14)	ADD	$1,R2,R3
+-15 00003 (testdata/arm.s:15)	ADD	R1<<R2,R3,R4
+-16 00004 (testdata/arm.s:16)	ADD	R1>>R2,R3,R4
+-17 00005 (testdata/arm.s:17)	ADD	R1@>R2,R3,R4
+-18 00006 (testdata/arm.s:18)	ADD	R1->R2,R3,R4
+-19 00007 (testdata/arm.s:19)	ADD	R1,R2,R3
+-20 00008 (testdata/arm.s:20)	ADD	R1<<R2,R3,R4
+-30 00009 (testdata/arm.s:30)	ADD	$1,R2
+-31 00010 (testdata/arm.s:31)	ADD	R1<<R2,R3
+-32 00011 (testdata/arm.s:32)	ADD	R1>>R2,R3
+-33 00012 (testdata/arm.s:33)	ADD	R1@>R2,R3
+-34 00013 (testdata/arm.s:34)	ADD	R1->R2,R3
+-35 00014 (testdata/arm.s:35)	ADD	R1,R2
+-44 00015 (testdata/arm.s:44)	CLZ.S	R1,R2
+-53 00016 (testdata/arm.s:53)	MOVW.S	R1,R2
+-54 00017 (testdata/arm.s:54)	MOVW.S	$1,R2
+-55 00018 (testdata/arm.s:55)	MOVW.S	R1<<R2,R3
+-64 00019 (testdata/arm.s:64)	JMP.S	,20(PC)
+-70 00020 (testdata/arm.s:70)	JMP.S	,(R2)
+-71 00021 (testdata/arm.s:71)	JMP.S	,foo(SB)
+-72 00022 (testdata/arm.s:72)	JMP.S	,bar<>(SB)
+-81 00023 (testdata/arm.s:81)	BX	(R2),
+-90 00024 (testdata/arm.s:90)	BEQ	,25(PC)
+-99 00025 (testdata/arm.s:99)	SWI.S	,R1
+-100 00026 (testdata/arm.s:100)	SWI.S	,(R1)
+-101 00027 (testdata/arm.s:101)	SWI.S	,foo(SB)
+-110 00028 (testdata/arm.s:110)	CMP.S	$1,R2,
+-111 00029 (testdata/arm.s:111)	CMP.S	R1<<R2,R3,
+-112 00030 (testdata/arm.s:112)	CMP.S	R1,R2,
+-126 00031 (testdata/arm.s:126)	MOVM	(R1),[R2,R5,R8,g]
+-127 00032 (testdata/arm.s:127)	MOVM	(R1),[R2,R3,R4,R5]
+-128 00033 (testdata/arm.s:128)	MOVM.S	(R1),[R2]
+-139 00034 (testdata/arm.s:139)	MOVM	[R2,R5,R8,g],(R1)
+-140 00035 (testdata/arm.s:140)	MOVM	[R2,R3,R4,R5],(R1)
+-141 00036 (testdata/arm.s:141)	MOVM.S	[R2],(R1)
+-150 00037 (testdata/arm.s:150)	STREX.S	(R2),R1,R3
+-156 00038 (testdata/arm.s:156)	STREX.S	(R2),R1,R1
+-162 00039 (testdata/arm.s:162)	STREX.S	(R2),R3,R3
+-170 00040 (testdata/arm.s:170)	CASE.S	R1,
+-179 00041 (testdata/arm.s:179)	WORD	,$1234
+-188 00042 (testdata/arm.s:188)	ABSF.S	F1,F2
+-194 00043 (testdata/arm.s:194)	ADDD.S	F1,F2
+-195 00044 (testdata/arm.s:195)	ADDD.S	$(0.5),F2
+-201 00045 (testdata/arm.s:201)	ADDD.S	F1,F2,F3
+-202 00046 (testdata/arm.s:202)	ADDD.S	$(0.5),F2,F3
+-208 00047 (testdata/arm.s:208)	CMPD.S	F1,F2
+-242 00048 (testdata/arm.s:242)	MULL	R1,R2,(R3, R4)
+-254 00049 (testdata/arm.s:254)	MULAWT	R1,R2,R3, R4
+-262 00050 (testdata/arm.s:262)	PLD	(R1),
+-263 00051 (testdata/arm.s:263)	PLD	4(R1),
+-272 00052 (testdata/arm.s:272)	RET	,
+-281 00053 (testdata/arm.s:281)	END	,
++5 00001 (testdata/arm.s:5)	TEXT	foo(SB), 0, $0
++14 00002 (testdata/arm.s:14)	ADD	$1, R2, R3
++15 00003 (testdata/arm.s:15)	ADD	R1<<R2, R3, R4
++16 00004 (testdata/arm.s:16)	ADD	R1>>R2, R3, R4
++17 00005 (testdata/arm.s:17)	ADD	R1@>R2, R3, R4
++18 00006 (testdata/arm.s:18)	ADD	R1->R2, R3, R4
++19 00007 (testdata/arm.s:19)	ADD	R1, R2, R3
++20 00008 (testdata/arm.s:20)	ADD	R1<<R2, R3, R4
++30 00009 (testdata/arm.s:30)	ADD	$1, R2
++31 00010 (testdata/arm.s:31)	ADD	R1<<R2, R3
++32 00011 (testdata/arm.s:32)	ADD	R1>>R2, R3
++33 00012 (testdata/arm.s:33)	ADD	R1@>R2, R3
++34 00013 (testdata/arm.s:34)	ADD	R1->R2, R3
++35 00014 (testdata/arm.s:35)	ADD	R1, R2
++44 00015 (testdata/arm.s:44)	CLZ.S	R1, R2
++53 00016 (testdata/arm.s:53)	MOVW.S	R1, R2
++54 00017 (testdata/arm.s:54)	MOVW.S	$1, R2
++55 00018 (testdata/arm.s:55)	MOVW.S	R1<<R2, R3
++64 00019 (testdata/arm.s:64)	JMP.S	20(PC)
++70 00020 (testdata/arm.s:70)	JMP.S	(R2)
++71 00021 (testdata/arm.s:71)	JMP.S	foo(SB)
++72 00022 (testdata/arm.s:72)	JMP.S	bar<>(SB)
++81 00023 (testdata/arm.s:81)	BX	(R2)
++90 00024 (testdata/arm.s:90)	BEQ	25(PC)
++99 00025 (testdata/arm.s:99)	SWI.S	R1
++100 00026 (testdata/arm.s:100)	SWI.S	(R1)
++101 00027 (testdata/arm.s:101)	SWI.S	foo(SB)
++110 00028 (testdata/arm.s:110)	CMP.S	$1, R2
++111 00029 (testdata/arm.s:111)	CMP.S	R1<<R2, R3
++112 00030 (testdata/arm.s:112)	CMP.S	R1, R2
++126 00031 (testdata/arm.s:126)	MOVM	(R1), [R2,R5,R8,g]
++127 00032 (testdata/arm.s:127)	MOVM	(R1), [R2,R3,R4,R5]
++128 00033 (testdata/arm.s:128)	MOVM.S	(R1), [R2]
++139 00034 (testdata/arm.s:139)	MOVM	[R2,R5,R8,g], (R1)
++140 00035 (testdata/arm.s:140)	MOVM	[R2,R3,R4,R5], (R1)
++141 00036 (testdata/arm.s:141)	MOVM.S	[R2], (R1)
++150 00037 (testdata/arm.s:150)	STREX.S	(R2), R1, R3
++156 00038 (testdata/arm.s:156)	STREX.S	(R2), R1, R1
++162 00039 (testdata/arm.s:162)	STREX.S	(R2), R3, R3
++170 00040 (testdata/arm.s:170)	CASE.S	R1
++179 00041 (testdata/arm.s:179)	WORD	$1234
++188 00042 (testdata/arm.s:188)	ABSF.S	F1, F2
++194 00043 (testdata/arm.s:194)	ADDD.S	F1, F2
++195 00044 (testdata/arm.s:195)	ADDD.S	$(0.5), F2
++201 00045 (testdata/arm.s:201)	ADDD.S	F1, F2, F3
++202 00046 (testdata/arm.s:202)	ADDD.S	$(0.5), F2, F3
++208 00047 (testdata/arm.s:208)	CMPD.S	F1, F2
++242 00048 (testdata/arm.s:242)	MULL	R1, R2, (R3, R4)
++254 00049 (testdata/arm.s:254)	MULAWT	R1, R2, R3, R4
++262 00050 (testdata/arm.s:262)	PLD	(R1)
++263 00051 (testdata/arm.s:263)	PLD	4(R1)
++272 00052 (testdata/arm.s:272)	RET
++281 00053 (testdata/arm.s:281)	END
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.out b/src/cmd/asm/internal/asm/testdata/ppc64.out
+index da9c1b487d..79a995dfa8 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.out
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.out
+@@ -1,110 +1,110 @@
+-5 00001 (testdata/ppc64.s:5)	TEXT	foo(SB),$0
+-15 00002 (testdata/ppc64.s:15)	MOVW	R1,R2
+-21 00003 (testdata/ppc64.s:21)	MOVW	foo<>+3(SB),R2
+-22 00004 (testdata/ppc64.s:22)	MOVW	16(R1),R2
+-28 00005 (testdata/ppc64.s:28)	MOVW	(R1),R2
+-29 00006 (testdata/ppc64.s:29)	MOVW	(R1+R2),R3
+-35 00007 (testdata/ppc64.s:35)	MOVW	R1,R2
+-41 00008 (testdata/ppc64.s:41)	MOVB	foo<>+3(SB),R2
+-42 00009 (testdata/ppc64.s:42)	MOVB	16(R1),R2
+-48 00010 (testdata/ppc64.s:48)	MOVB	(R1),R2
+-49 00011 (testdata/ppc64.s:49)	MOVB	(R1+R2),R3
+-58 00012 (testdata/ppc64.s:58)	FMOVD	foo<>+3(SB),F2
+-59 00013 (testdata/ppc64.s:59)	FMOVD	16(R1),F2
+-65 00014 (testdata/ppc64.s:65)	FMOVD	(R1),F2
+-71 00015 (testdata/ppc64.s:71)	FMOVD	$(0.10000000000000001),F2
+-77 00016 (testdata/ppc64.s:77)	FMOVD	F1,F2
+-83 00017 (testdata/ppc64.s:83)	FMOVD	F2,foo<>+3(SB)
+-84 00018 (testdata/ppc64.s:84)	FMOVD	F2,16(R1)
+-90 00019 (testdata/ppc64.s:90)	FMOVD	F2,(R1)
+-99 00020 (testdata/ppc64.s:99)	MOVW	R1,foo<>+3(SB)
+-100 00021 (testdata/ppc64.s:100)	MOVW	R1,16(R2)
+-106 00022 (testdata/ppc64.s:106)	MOVW	R1,(R1)
+-107 00023 (testdata/ppc64.s:107)	MOVW	R1,(R2+R3)
+-113 00024 (testdata/ppc64.s:113)	MOVB	R1,foo<>+3(SB)
+-114 00025 (testdata/ppc64.s:114)	MOVB	R1,16(R2)
+-120 00026 (testdata/ppc64.s:120)	MOVB	R1,(R1)
+-121 00027 (testdata/ppc64.s:121)	MOVB	R1,(R2+R3)
+-129 00028 (testdata/ppc64.s:129)	FMOVD	F1,foo<>+3(SB)
+-130 00029 (testdata/ppc64.s:130)	FMOVD	F1,16(R2)
+-136 00030 (testdata/ppc64.s:136)	FMOVD	F1,(R1)
+-145 00031 (testdata/ppc64.s:145)	MOVFL	FPSCR,F1
+-151 00032 (testdata/ppc64.s:151)	MOVFL	F1,FPSCR
+-157 00033 (testdata/ppc64.s:157)	MOVFL	F1,$4,FPSCR
+-163 00034 (testdata/ppc64.s:163)	MOVFL	FPSCR,CR0
+-184 00035 (testdata/ppc64.s:184)	MOVW	R1,CR1
+-190 00036 (testdata/ppc64.s:190)	MOVW	R1,CR
+-202 00037 (testdata/ppc64.s:202)	ADD	R1,R2,R3
+-208 00038 (testdata/ppc64.s:208)	ADD	$1,R2,R3
+-220 00039 (testdata/ppc64.s:220)	ADD	R1,R2
+-226 00040 (testdata/ppc64.s:226)	ADD	$4,R1
+-232 00041 (testdata/ppc64.s:232)	ADDE	R1,R2,R3
+-238 00042 (testdata/ppc64.s:238)	ADDE	R1,R2
+-244 00043 (testdata/ppc64.s:244)	SLW	R1,R2,R3
+-250 00044 (testdata/ppc64.s:250)	SLW	R1,R2
+-256 00045 (testdata/ppc64.s:256)	SLW	$4,R1,R2
+-262 00046 (testdata/ppc64.s:262)	SLW	$4,R1
+-268 00047 (testdata/ppc64.s:268)	SLW	$4,R1
+-274 00048 (testdata/ppc64.s:274)	SUBME	R1,R1
+-292 00049 (testdata/ppc64.s:292)	MOVW	$1,R1
+-298 00050 (testdata/ppc64.s:298)	MOVW	$1,R1
+-299 00051 (testdata/ppc64.s:299)	MOVW	$foo(SB),R1
+-323 00052 (testdata/ppc64.s:323)	MOVFL	CR0,CR1
+-335 00053 (testdata/ppc64.s:335)	MOVW	CR,R1
+-341 00054 (testdata/ppc64.s:341)	MOVW	SPR(0),R1
+-342 00055 (testdata/ppc64.s:342)	MOVW	SPR(7),R1
+-348 00056 (testdata/ppc64.s:348)	MOVW	LR,R1
+-349 00057 (testdata/ppc64.s:349)	MOVW	CTR,R1
+-355 00058 (testdata/ppc64.s:355)	MOVW	R1,LR
+-356 00059 (testdata/ppc64.s:356)	MOVW	R1,CTR
+-368 00060 (testdata/ppc64.s:368)	MOVW	R1,SPR(7)
+-380 00061 (testdata/ppc64.s:380)	JMP	,62(PC)
+-381 00062 (testdata/ppc64.s:381)	JMP	,61
+-387 00063 (testdata/ppc64.s:387)	JMP	,4(R1)
+-388 00064 (testdata/ppc64.s:388)	JMP	,foo(SB)
+-394 00065 (testdata/ppc64.s:394)	JMP	,CTR
+-413 00066 (testdata/ppc64.s:413)	BEQ	CR1,67(PC)
+-414 00067 (testdata/ppc64.s:414)	BEQ	CR1,66
+-440 00068 (testdata/ppc64.s:440)	BC	4,CTR
+-450 00069 (testdata/ppc64.s:450)	BC	$3,R4,66
+-470 00070 (testdata/ppc64.s:470)	BC	$3,R3,LR
+-500 00071 (testdata/ppc64.s:500)	FABS	F1,F2
+-506 00072 (testdata/ppc64.s:506)	FADD	F1,F2
+-512 00073 (testdata/ppc64.s:512)	FADD	F1,F2,F3
+-518 00074 (testdata/ppc64.s:518)	FMADD	F1,F2,F3,F4
+-524 00075 (testdata/ppc64.s:524)	FCMPU	F1,F2
+-530 00076 (testdata/ppc64.s:530)	FCMPU	F1,F2,CR0
+-539 00077 (testdata/ppc64.s:539)	CMP	R1,R2
+-545 00078 (testdata/ppc64.s:545)	CMP	R1,$4
+-551 00079 (testdata/ppc64.s:551)	CMP	R1,CR0,R2
+-557 00080 (testdata/ppc64.s:557)	CMP	R1,CR0,$4
+-566 00081 (testdata/ppc64.s:566)	RLDC	$4,R1,$5,R2
+-572 00082 (testdata/ppc64.s:572)	RLDC	$26,R1,$201326592,R2
+-578 00083 (testdata/ppc64.s:578)	RLDC	R1,R2,$4,R3
+-584 00084 (testdata/ppc64.s:584)	RLWMI	R1,R2,$201326592,R3
+-593 00085 (testdata/ppc64.s:593)	MOVMW	foo(SB),R2
+-594 00086 (testdata/ppc64.s:594)	MOVMW	4(R1),R2
+-600 00087 (testdata/ppc64.s:600)	MOVMW	R1,foo(SB)
+-601 00088 (testdata/ppc64.s:601)	MOVMW	R1,4(R2)
+-611 00089 (testdata/ppc64.s:611)	LSW	(R1),R2
+-612 00090 (testdata/ppc64.s:612)	LSW	(R1+R2),R3
+-618 00091 (testdata/ppc64.s:618)	LSW	(R1+NONE),R2
+-619 00092 (testdata/ppc64.s:619)	LSW	(R1+NONE),R3
+-625 00093 (testdata/ppc64.s:625)	STSW	R1,(R2)
+-626 00094 (testdata/ppc64.s:626)	STSW	R1,(R2+R3)
+-632 00095 (testdata/ppc64.s:632)	STSW	R1,(R2+NONE)
+-633 00096 (testdata/ppc64.s:633)	STSW	R1,(R2+NONE)
+-639 00097 (testdata/ppc64.s:639)	MOVHBR	(R1),R2
+-640 00098 (testdata/ppc64.s:640)	MOVHBR	(R1+R2),R3
+-646 00099 (testdata/ppc64.s:646)	MOVHBR	R1,(R2)
+-647 00100 (testdata/ppc64.s:647)	MOVHBR	R1,(R2+R3)
+-653 00101 (testdata/ppc64.s:653)	DCBF	(R1),
+-654 00102 (testdata/ppc64.s:654)	DCBF	(R1),
+-663 00103 (testdata/ppc64.s:663)	NOP	,
+-669 00104 (testdata/ppc64.s:669)	NOP	R2,
+-675 00105 (testdata/ppc64.s:675)	NOP	F2,
+-681 00106 (testdata/ppc64.s:681)	NOP	R2,
+-687 00107 (testdata/ppc64.s:687)	NOP	F2,
+-693 00108 (testdata/ppc64.s:693)	NOP	$4,
+-701 00109 (testdata/ppc64.s:701)	RET	,
+-709 00110 (testdata/ppc64.s:709)	END	,
++5 00001 (testdata/ppc64.s:5)	TEXT	foo(SB), 0, $0
++15 00002 (testdata/ppc64.s:15)	MOVW	R1, R2
++21 00003 (testdata/ppc64.s:21)	MOVW	foo<>+3(SB), R2
++22 00004 (testdata/ppc64.s:22)	MOVW	16(R1), R2
++28 00005 (testdata/ppc64.s:28)	MOVW	(R1), R2
++29 00006 (testdata/ppc64.s:29)	MOVW	(R1)(R2*1), R3
++35 00007 (testdata/ppc64.s:35)	MOVW	R1, R2
++41 00008 (testdata/ppc64.s:41)	MOVB	foo<>+3(SB), R2
++42 00009 (testdata/ppc64.s:42)	MOVB	16(R1), R2
++48 00010 (testdata/ppc64.s:48)	MOVB	(R1), R2
++49 00011 (testdata/ppc64.s:49)	MOVB	(R1)(R2*1), R3
++58 00012 (testdata/ppc64.s:58)	FMOVD	foo<>+3(SB), F2
++59 00013 (testdata/ppc64.s:59)	FMOVD	16(R1), F2
++65 00014 (testdata/ppc64.s:65)	FMOVD	(R1), F2
++71 00015 (testdata/ppc64.s:71)	FMOVD	$(0.10000000000000001), F2
++77 00016 (testdata/ppc64.s:77)	FMOVD	F1, F2
++83 00017 (testdata/ppc64.s:83)	FMOVD	F2, foo<>+3(SB)
++84 00018 (testdata/ppc64.s:84)	FMOVD	F2, 16(R1)
++90 00019 (testdata/ppc64.s:90)	FMOVD	F2, (R1)
++99 00020 (testdata/ppc64.s:99)	MOVW	R1, foo<>+3(SB)
++100 00021 (testdata/ppc64.s:100)	MOVW	R1, 16(R2)
++106 00022 (testdata/ppc64.s:106)	MOVW	R1, (R1)
++107 00023 (testdata/ppc64.s:107)	MOVW	R1, (R2)(R3*1)
++113 00024 (testdata/ppc64.s:113)	MOVB	R1, foo<>+3(SB)
++114 00025 (testdata/ppc64.s:114)	MOVB	R1, 16(R2)
++120 00026 (testdata/ppc64.s:120)	MOVB	R1, (R1)
++121 00027 (testdata/ppc64.s:121)	MOVB	R1, (R2)(R3*1)
++129 00028 (testdata/ppc64.s:129)	FMOVD	F1, foo<>+3(SB)
++130 00029 (testdata/ppc64.s:130)	FMOVD	F1, 16(R2)
++136 00030 (testdata/ppc64.s:136)	FMOVD	F1, (R1)
++145 00031 (testdata/ppc64.s:145)	MOVFL	FPSCR, F1
++151 00032 (testdata/ppc64.s:151)	MOVFL	F1, FPSCR
++157 00033 (testdata/ppc64.s:157)	MOVFL	F1, $4, FPSCR
++163 00034 (testdata/ppc64.s:163)	MOVFL	FPSCR, CR0
++184 00035 (testdata/ppc64.s:184)	MOVW	R1, CR1
++190 00036 (testdata/ppc64.s:190)	MOVW	R1, CR
++202 00037 (testdata/ppc64.s:202)	ADD	R1, R2, R3
++208 00038 (testdata/ppc64.s:208)	ADD	$1, R2, R3
++220 00039 (testdata/ppc64.s:220)	ADD	R1, R2
++226 00040 (testdata/ppc64.s:226)	ADD	$4, R1
++232 00041 (testdata/ppc64.s:232)	ADDE	R1, R2, R3
++238 00042 (testdata/ppc64.s:238)	ADDE	R1, R2
++244 00043 (testdata/ppc64.s:244)	SLW	R1, R2, R3
++250 00044 (testdata/ppc64.s:250)	SLW	R1, R2
++256 00045 (testdata/ppc64.s:256)	SLW	$4, R1, R2
++262 00046 (testdata/ppc64.s:262)	SLW	$4, R1
++268 00047 (testdata/ppc64.s:268)	SLW	$4, R1
++274 00048 (testdata/ppc64.s:274)	SUBME	R1, R1
++292 00049 (testdata/ppc64.s:292)	MOVW	$1, R1
++298 00050 (testdata/ppc64.s:298)	MOVW	$1, R1
++299 00051 (testdata/ppc64.s:299)	MOVW	$foo(SB), R1
++323 00052 (testdata/ppc64.s:323)	MOVFL	CR0, CR1
++335 00053 (testdata/ppc64.s:335)	MOVW	CR, R1
++341 00054 (testdata/ppc64.s:341)	MOVW	SPR(0), R1
++342 00055 (testdata/ppc64.s:342)	MOVW	SPR(7), R1
++348 00056 (testdata/ppc64.s:348)	MOVW	LR, R1
++349 00057 (testdata/ppc64.s:349)	MOVW	CTR, R1
++355 00058 (testdata/ppc64.s:355)	MOVW	R1, LR
++356 00059 (testdata/ppc64.s:356)	MOVW	R1, CTR
++368 00060 (testdata/ppc64.s:368)	MOVW	R1, SPR(7)
++380 00061 (testdata/ppc64.s:380)	JMP	62(PC)
++381 00062 (testdata/ppc64.s:381)	JMP	61
++387 00063 (testdata/ppc64.s:387)	JMP	4(R1)
++388 00064 (testdata/ppc64.s:388)	JMP	foo(SB)
++394 00065 (testdata/ppc64.s:394)	JMP	CTR
++413 00066 (testdata/ppc64.s:413)	BEQ	CR1, 67(PC)
++414 00067 (testdata/ppc64.s:414)	BEQ	CR1, 66
++440 00068 (testdata/ppc64.s:440)	BC	4, CTR
++450 00069 (testdata/ppc64.s:450)	BC	$3, R4, 66
++470 00070 (testdata/ppc64.s:470)	BC	$3, R3, LR
++500 00071 (testdata/ppc64.s:500)	FABS	F1, F2
++506 00072 (testdata/ppc64.s:506)	FADD	F1, F2
++512 00073 (testdata/ppc64.s:512)	FADD	F1, F2, F3
++518 00074 (testdata/ppc64.s:518)	FMADD	F1, F2, F3, F4
++524 00075 (testdata/ppc64.s:524)	FCMPU	F1, F2
++530 00076 (testdata/ppc64.s:530)	FCMPU	F1, F2, CR0
++539 00077 (testdata/ppc64.s:539)	CMP	R1, R2
++545 00078 (testdata/ppc64.s:545)	CMP	R1, $4
++551 00079 (testdata/ppc64.s:551)	CMP	R1, CR0, R2
++557 00080 (testdata/ppc64.s:557)	CMP	R1, CR0, $4
++566 00081 (testdata/ppc64.s:566)	RLDC	$4, R1, $5, R2
++572 00082 (testdata/ppc64.s:572)	RLDC	$26, R1, $201326592, R2
++578 00083 (testdata/ppc64.s:578)	RLDC	R1, R2, $4, R3
++584 00084 (testdata/ppc64.s:584)	RLWMI	R1, R2, $201326592, R3
++593 00085 (testdata/ppc64.s:593)	MOVMW	foo(SB), R2
++594 00086 (testdata/ppc64.s:594)	MOVMW	4(R1), R2
++600 00087 (testdata/ppc64.s:600)	MOVMW	R1, foo(SB)
++601 00088 (testdata/ppc64.s:601)	MOVMW	R1, 4(R2)
++611 00089 (testdata/ppc64.s:611)	LSW	(R1), R2
++612 00090 (testdata/ppc64.s:612)	LSW	(R1)(R2*1), R3
++618 00091 (testdata/ppc64.s:618)	LSW	(R1), $1, R2
++619 00092 (testdata/ppc64.s:619)	LSW	(R1)(R2*1), $1, R3
++625 00093 (testdata/ppc64.s:625)	STSW	R1, (R2)
++626 00094 (testdata/ppc64.s:626)	STSW	R1, (R2)(R3*1)
++632 00095 (testdata/ppc64.s:632)	STSW	R1, $1, (R2)
++633 00096 (testdata/ppc64.s:633)	STSW	R1, $1, (R2)(R3*1)
++639 00097 (testdata/ppc64.s:639)	MOVHBR	(R1), R2
++640 00098 (testdata/ppc64.s:640)	MOVHBR	(R1)(R2*1), R3
++646 00099 (testdata/ppc64.s:646)	MOVHBR	R1, (R2)
++647 00100 (testdata/ppc64.s:647)	MOVHBR	R1, (R2)(R3*1)
++653 00101 (testdata/ppc64.s:653)	DCBF	(R1)
++654 00102 (testdata/ppc64.s:654)	DCBF	(R1)(R2*1)
++663 00103 (testdata/ppc64.s:663)	NOP
++669 00104 (testdata/ppc64.s:669)	NOP	R2
++675 00105 (testdata/ppc64.s:675)	NOP	F2
++681 00106 (testdata/ppc64.s:681)	NOP	R2
++687 00107 (testdata/ppc64.s:687)	NOP	F2
++693 00108 (testdata/ppc64.s:693)	NOP	$4
++701 00109 (testdata/ppc64.s:701)	RET
++709 00110 (testdata/ppc64.s:709)	END
+diff --git a/src/cmd/internal/asm/asm.go b/src/cmd/internal/asm/asm.go
+index 151a8a5926..b67b4d717c 100644
+--- a/src/cmd/internal/asm/asm.go
++++ b/src/cmd/internal/asm/asm.go
+@@ -81,7 +81,6 @@ const (
+ 	EOF      = -1
+ 	IGN      = -2
+ 	NHASH    = 503
+-	STRINGSZ = 200
+ 	NMACRO   = 10
+ )
+ 
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index bab3373680..aa0ac8481b 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -20,16 +20,19 @@ import (
+ // or bison will check for its definition and use
+ // a potentially smaller value if it is undefined.
+ const (
+-	NHUNK    = 50000
+-	BUFSIZ   = 8192
+-	NSYMB    = 500
+-	NHASH    = 1024
+-	STRINGSZ = 200
+-	MAXALIGN = 7
+-	UINF     = 100
+-	PRIME1   = 3
+-	AUNK     = 100
+-	AMEM     = 0 + iota - 9
++	NHUNK           = 50000
++	BUFSIZ          = 8192
++	NSYMB           = 500
++	NHASH           = 1024
++	MAXALIGN        = 7
++	UINF            = 100
++	PRIME1          = 3
++	BADWIDTH        = -1000000000
++	MaxStackVarSize = 10 * 1024 * 1024
++)
++
++const (
++	AMEM = iota
+ 	AMEM0
+ 	AMEM8
+ 	AMEM16
+@@ -51,8 +54,7 @@ const (
+ 	AFLOAT64
+ 	ACPLX64
+ 	ACPLX128
+-	BADWIDTH        = -1000000000
+-	MaxStackVarSize = 10 * 1024 * 1024
++	AUNK = 100
+ )
+ 
+ const (
+diff --git a/src/cmd/internal/obj/arm/5.out.go b/src/cmd/internal/obj/arm/5.out.go
+index 91e96874f0..424dd3d58e 100644
+--- a/src/cmd/internal/obj/arm/5.out.go
++++ b/src/cmd/internal/obj/arm/5.out.go
+@@ -32,9 +32,6 @@ package arm
+ 
+ import "cmd/internal/obj"
+ 
+-// TODO(ality): remove this workaround.
+-//   It's here because Pconv in liblink/list?.c references %L.
+-
+ const (
+ 	NSNAME = 8
+ 	NSYM   = 50
+diff --git a/src/cmd/internal/obj/arm/list5.go b/src/cmd/internal/obj/arm/list5.go
+index 321c1f8583..bb2ac20e53 100644
+--- a/src/cmd/internal/obj/arm/list5.go
++++ b/src/cmd/internal/obj/arm/list5.go
+@@ -35,67 +35,6 @@ import (
+ 	"fmt"
+ )
+ 
+-const (
+-	STRINGSZ = 1000
+-)
+-
+-var extra = []string{
+-	".EQ",
+-	".NE",
+-	".CS",
+-	".CC",
+-	".MI",
+-	".PL",
+-	".VS",
+-	".VC",
+-	".HI",
+-	".LS",
+-	".GE",
+-	".LT",
+-	".GT",
+-	".LE",
+-	"",
+-	".NV",
+-}
+-
+-var bigP *obj.Prog
+-
+-func Pconv(p *obj.Prog) string {
+-	a := int(p.As)
+-	s := int(p.Scond)
+-	sc := extra[(s&C_SCOND)^C_SCOND_XOR]
+-	if s&C_SBIT != 0 {
+-		sc += ".S"
+-	}
+-	if s&C_PBIT != 0 {
+-		sc += ".P"
+-	}
+-	if s&C_WBIT != 0 {
+-		sc += ".W"
+-	}
+-	if s&C_UBIT != 0 { /* ambiguous with FBIT */
+-		sc += ".U"
+-	}
+-	var str string
+-	if a == obj.ADATA {
+-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
+-			p.Pc, p.Line(), obj.Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
+-	} else if p.As == obj.ATEXT {
+-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v",
+-			p.Pc, p.Line(), obj.Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
+-	} else if p.Reg == 0 {
+-		str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
+-			p.Pc, p.Line(), obj.Aconv(a), sc, obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
+-	} else {
+-		str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v,%v",
+-			p.Pc, p.Line(), obj.Aconv(a), sc, obj.Dconv(p, &p.From), Rconv(int(p.Reg)), obj.Dconv(p, &p.To))
+-	}
+-
+-	var fp string
+-	fp += str
+-	return fp
+-}
+-
+ func init() {
+ 	obj.RegisterRegister(obj.RBaseARM, MAXREG, Rconv)
+ 	obj.RegisterOpcode(obj.ABaseARM, Anames)
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index ca464b6de6..7c28add64a 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -1045,7 +1045,6 @@ var unaryDst = map[int]bool{
+ 
+ var Linkarm = obj.LinkArch{
+ 	ByteOrder:  binary.LittleEndian,
+-	Pconv:      Pconv,
+ 	Name:       "arm",
+ 	Thechar:    '5',
+ 	Preprocess: preprocess,
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index a41da83c86..bcec3c2e63 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -234,7 +234,6 @@ type Plist struct {
+ }
+ 
+ type LinkArch struct {
+-	Pconv      func(*Prog) string
+ 	ByteOrder  binary.ByteOrder
+ 	Name       string
+ 	Thechar    int
+@@ -382,7 +381,16 @@ type Pciter struct {
+ //			offset = bit mask of registers in list; R0 is low bit.
+ //
+ //	reg, reg
+-//		TYPE_REGREG2, to be removed.
++//		Register pair for ARM.
++//		TYPE_REGREG2
++//
++//	(reg+reg)
++//		Register pair for PPC64.
++//		Encoding:
++//			type = TYPE_MEM
++//			reg = first register
++//			index = second register
++//			scale = 1
+ //
+ 
+ const (
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 77ffec8dc3..9e227c427d 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -604,7 +604,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 			}
+ 			return C_LAUTO
+ 
+-		case obj.TYPE_NONE:
++		case obj.NAME_NONE:
+ 			ctxt.Instoffset = a.Offset
+ 			if ctxt.Instoffset == 0 {
+ 				return C_ZOREG
+@@ -1579,11 +1579,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			r = int(o.param)
+ 		}
+ 		v := regoff(ctxt, &p.To)
+-		if p.To.Type == obj.TYPE_MEM && p.Reg != 0 {
++		if p.To.Type == obj.TYPE_MEM && p.To.Index != 0 {
+ 			if v != 0 {
+ 				ctxt.Diag("illegal indexed instruction\n%v", p)
+ 			}
+-			o1 = AOP_RRR(uint32(opstorex(ctxt, int(p.As))), uint32(p.From.Reg), uint32(p.Reg), uint32(r))
++			o1 = AOP_RRR(uint32(opstorex(ctxt, int(p.As))), uint32(p.From.Reg), uint32(p.To.Index), uint32(r))
+ 		} else {
+ 			if int32(int16(v)) != v {
+ 				log.Fatalf("mishandled instruction %v", p)
+@@ -1598,11 +1598,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			r = int(o.param)
+ 		}
+ 		v := regoff(ctxt, &p.From)
+-		if p.From.Type == obj.TYPE_MEM && p.Reg != 0 {
++		if p.From.Type == obj.TYPE_MEM && p.From.Index != 0 {
+ 			if v != 0 {
+ 				ctxt.Diag("illegal indexed instruction\n%v", p)
+ 			}
+-			o1 = AOP_RRR(uint32(oploadx(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.Reg), uint32(r))
++			o1 = AOP_RRR(uint32(oploadx(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.From.Index), uint32(r))
+ 		} else {
+ 			if int32(int16(v)) != v {
+ 				log.Fatalf("mishandled instruction %v", p)
+@@ -1617,11 +1617,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			r = int(o.param)
+ 		}
+ 		v := regoff(ctxt, &p.From)
+-		if p.From.Type == obj.TYPE_MEM && p.Reg != 0 {
++		if p.From.Type == obj.TYPE_MEM && p.From.Index != 0 {
+ 			if v != 0 {
+ 				ctxt.Diag("illegal indexed instruction\n%v", p)
+ 			}
+-			o1 = AOP_RRR(uint32(oploadx(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.Reg), uint32(r))
++			o1 = AOP_RRR(uint32(oploadx(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.From.Index), uint32(r))
+ 		} else {
+ 			o1 = AOP_IRR(uint32(opload(ctxt, int(p.As))), uint32(p.To.Reg), uint32(r), uint32(v))
+ 		}
+@@ -1764,16 +1764,12 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		} else {
+ 			v = 20 /* unconditional */
+ 		}
+-		r := int(p.Reg)
+-		if r == 0 {
+-			r = 0
+-		}
+ 		o1 = AOP_RRR(OP_MTSPR, uint32(p.To.Reg), 0, 0) | (REG_LR&0x1f)<<16 | ((REG_LR>>5)&0x1f)<<11
+ 		o2 = OPVCC(19, 16, 0, 0)
+ 		if p.As == ABL || p.As == ABCL {
+ 			o2 |= 1
+ 		}
+-		o2 = OP_BCR(o2, uint32(v), uint32(r))
++		o2 = OP_BCR(o2, uint32(v), uint32(p.To.Index))
+ 
+ 	case 18: /* br/bl (lr/ctr); bc/bcl bo,bi,(lr/ctr) */
+ 		var v int32
+@@ -2085,28 +2081,13 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = AOP_RRR(uint32(opirr(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.From.Reg), 0) | (uint32(regoff(ctxt, &p.From3))&0x7F)<<11
+ 
+ 	case 43: /* unary indexed source: dcbf (b); dcbf (a+b) */
+-		r := int(p.Reg)
+-
+-		if r == 0 {
+-			r = 0
+-		}
+-		o1 = AOP_RRR(uint32(oprrr(ctxt, int(p.As))), 0, uint32(r), uint32(p.From.Reg))
++		o1 = AOP_RRR(uint32(oprrr(ctxt, int(p.As))), 0, uint32(p.From.Index), uint32(p.From.Reg))
+ 
+ 	case 44: /* indexed store */
+-		r := int(p.Reg)
+-
+-		if r == 0 {
+-			r = 0
+-		}
+-		o1 = AOP_RRR(uint32(opstorex(ctxt, int(p.As))), uint32(p.From.Reg), uint32(r), uint32(p.To.Reg))
++		o1 = AOP_RRR(uint32(opstorex(ctxt, int(p.As))), uint32(p.From.Reg), uint32(p.To.Index), uint32(p.To.Reg))
+ 
+ 	case 45: /* indexed load */
+-		r := int(p.Reg)
+-
+-		if r == 0 {
+-			r = 0
+-		}
+-		o1 = AOP_RRR(uint32(oploadx(ctxt, int(p.As))), uint32(p.To.Reg), uint32(r), uint32(p.From.Reg))
++		o1 = AOP_RRR(uint32(oploadx(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.From.Index), uint32(p.From.Reg))
+ 
+ 	case 46: /* plain op */
+ 		o1 = uint32(oprrr(ctxt, int(p.As)))
+diff --git a/src/cmd/internal/obj/ppc64/list9.go b/src/cmd/internal/obj/ppc64/list9.go
+index 048928442a..4cdcfbcd27 100644
+--- a/src/cmd/internal/obj/ppc64/list9.go
++++ b/src/cmd/internal/obj/ppc64/list9.go
+@@ -34,85 +34,6 @@ import (
+ 	"fmt"
+ )
+ 
+-const (
+-	STRINGSZ = 1000
+-)
+-
+-//
+-// Format conversions
+-//	%A int		Opcodes (instruction mnemonics)
+-//
+-//	%D Addr*	Addresses (instruction operands)
+-//
+-//	%P Prog*	Instructions
+-//
+-//	%R int		Registers
+-//
+-//	%$ char*	String constant addresses (for internal use only)
+-//	%^ int   	C_* classes (for liblink internal use)
+-
+-var bigP *obj.Prog
+-
+-func Pconv(p *obj.Prog) string {
+-	a := int(p.As)
+-
+-	str := ""
+-	if a == obj.ADATA {
+-		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
+-			p.Pc, p.Line(), obj.Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
+-	} else if a == obj.ATEXT || a == obj.AGLOBL {
+-		if p.From3.Offset != 0 {
+-			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%d,%v",
+-				p.Pc, p.Line(), obj.Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
+-		} else {
+-			str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
+-				p.Pc, p.Line(), obj.Aconv(a), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
+-		}
+-	} else {
+-		if p.Mark&NOSCHED != 0 {
+-			str += fmt.Sprintf("*")
+-		}
+-		if p.Reg == 0 && p.From3.Type == obj.TYPE_NONE {
+-			str += fmt.Sprintf("%.5d (%v)\t%v\t%v,%v",
+-				p.Pc, p.Line(), obj.Aconv(a), obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
+-		} else if a != obj.ATEXT && p.From.Type == obj.TYPE_MEM {
+-			off := ""
+-			if p.From.Offset != 0 {
+-				off = fmt.Sprintf("%d", p.From.Offset)
+-			}
+-			str += fmt.Sprintf("%.5d (%v)\t%v\t%s(%v+%v),%v",
+-				p.Pc, p.Line(), obj.Aconv(a), off, Rconv(int(p.From.Reg)), Rconv(int(p.Reg)), obj.Dconv(p, &p.To))
+-		} else if p.To.Type == obj.TYPE_MEM {
+-			off := ""
+-			if p.From.Offset != 0 {
+-				off = fmt.Sprintf("%d", p.From.Offset)
+-			}
+-			str += fmt.Sprintf("%.5d (%v)\t%v\t%v,%s(%v+%v)",
+-				p.Pc, p.Line(), obj.Aconv(a), obj.Dconv(p, &p.From), off, Rconv(int(p.To.Reg)), Rconv(int(p.Reg)))
+-		} else {
+-			str += fmt.Sprintf("%.5d (%v)\t%v\t%v",
+-				p.Pc, p.Line(), obj.Aconv(a), obj.Dconv(p, &p.From))
+-			if p.Reg != 0 {
+-				str += fmt.Sprintf(",%v", Rconv(int(p.Reg)))
+-			}
+-			if p.From3.Type != obj.TYPE_NONE {
+-				str += fmt.Sprintf(",%v", obj.Dconv(p, &p.From3))
+-			}
+-			str += fmt.Sprintf(",%v", obj.Dconv(p, &p.To))
+-		}
+-
+-		if p.Spadj != 0 {
+-			var fp string
+-			fp += fmt.Sprintf("%s # spadj=%d", str, p.Spadj)
+-			return fp
+-		}
+-	}
+-
+-	var fp string
+-	fp += str
+-	return fp
+-}
+-
+ func init() {
+ 	obj.RegisterRegister(obj.RBasePPC64, REG_DCR0+1024, Rconv)
+ 	obj.RegisterOpcode(obj.ABasePPC64, Anames)
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 75eca37057..027fffa57a 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -949,7 +949,6 @@ loop:
+ 
+ var Linkppc64 = obj.LinkArch{
+ 	ByteOrder:  binary.BigEndian,
+-	Pconv:      Pconv,
+ 	Name:       "ppc64",
+ 	Thechar:    '9',
+ 	Preprocess: preprocess,
+@@ -963,7 +962,6 @@ var Linkppc64 = obj.LinkArch{
+ 
+ var Linkppc64le = obj.LinkArch{
+ 	ByteOrder:  binary.LittleEndian,
+-	Pconv:      Pconv,
+ 	Name:       "ppc64le",
+ 	Thechar:    '9',
+ 	Preprocess: preprocess,
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index d626793475..b2c7df7d56 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -6,6 +6,7 @@ package obj
+ 
+ import (
+ 	"bufio"
++	"bytes"
+ 	"fmt"
+ 	"io"
+ 	"log"
+@@ -248,11 +249,90 @@ func (p *Prog) Line() string {
+ 	return Linklinefmt(p.Ctxt, int(p.Lineno), false, false)
+ }
+ 
++var armCondCode = []string{
++	".EQ",
++	".NE",
++	".CS",
++	".CC",
++	".MI",
++	".PL",
++	".VS",
++	".VC",
++	".HI",
++	".LS",
++	".GE",
++	".LT",
++	".GT",
++	".LE",
++	"",
++	".NV",
++}
++
++/* ARM scond byte */
++const (
++	C_SCOND     = (1 << 4) - 1
++	C_SBIT      = 1 << 4
++	C_PBIT      = 1 << 5
++	C_WBIT      = 1 << 6
++	C_FBIT      = 1 << 7
++	C_UBIT      = 1 << 7
++	C_SCOND_XOR = 14
++)
++
++// CConv formats ARM condition codes.
++func CConv(s uint8) string {
++	if s == 0 {
++		return ""
++	}
++	sc := armCondCode[(s&C_SCOND)^C_SCOND_XOR]
++	if s&C_SBIT != 0 {
++		sc += ".S"
++	}
++	if s&C_PBIT != 0 {
++		sc += ".P"
++	}
++	if s&C_WBIT != 0 {
++		sc += ".W"
++	}
++	if s&C_UBIT != 0 { /* ambiguous with FBIT */
++		sc += ".U"
++	}
++	return sc
++}
++
+ func (p *Prog) String() string {
+ 	if p.Ctxt == nil {
+ 		return "<Prog without ctxt>"
+ 	}
+-	return p.Ctxt.Arch.Pconv(p)
++
++	sc := CConv(p.Scond)
++
++	var buf bytes.Buffer
++
++	fmt.Fprintf(&buf, "%.5d (%v)\t%v%s", p.Pc, p.Line(), Aconv(int(p.As)), sc)
++	sep := "\t"
++	if p.From.Type != TYPE_NONE {
++		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.From))
++		sep = ", "
++	}
++	if p.Reg != REG_NONE {
++		// Should not happen but might as well show it if it does.
++		fmt.Fprintf(&buf, "%s%v", sep, Rconv(int(p.Reg)))
++		sep = ", "
++	}
++	if p.From3.Type != TYPE_NONE {
++		if p.From3.Type == TYPE_CONST && (p.As == ADATA || p.As == ATEXT || p.As == AGLOBL) {
++			// Special case - omit $.
++			fmt.Fprintf(&buf, "%s%d", sep, p.From3.Offset)
++		} else {
++			fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.From3))
++		}
++		sep = ", "
++	}
++	if p.To.Type != TYPE_NONE {
++		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.To))
++	}
++	return buf.String()
+ }
+ 
+ func (ctxt *Link) NewProg() *Prog {
+diff --git a/src/cmd/internal/obj/x86/list6.go b/src/cmd/internal/obj/x86/list6.go
+index 89d6c4a1c3..fc79b902a2 100644
+--- a/src/cmd/internal/obj/x86/list6.go
++++ b/src/cmd/internal/obj/x86/list6.go
+@@ -31,58 +31,10 @@
+ package x86
+ 
+ import (
+-	"bytes"
+ 	"cmd/internal/obj"
+ 	"fmt"
+ )
+ 
+-//
+-// Format conversions
+-//	%A int		Opcodes (instruction mnemonics)
+-//
+-//	%D Addr*	Addresses (instruction operands)
+-//
+-//	%P Prog*	Instructions
+-//
+-//	%R int		Registers
+-//
+-//	%$ char*	String constant addresses (for internal use only)
+-
+-const (
+-	STRINGSZ = 1000
+-)
+-
+-var bigP *obj.Prog
+-
+-func Pconv(p *obj.Prog) string {
+-	var buf bytes.Buffer
+-
+-	fmt.Fprintf(&buf, "%.5d (%v)\t%v", p.Pc, p.Line(), obj.Aconv(int(p.As)))
+-	sep := "\t"
+-	if p.From.Type != obj.TYPE_NONE {
+-		fmt.Fprintf(&buf, "%s%v", sep, obj.Dconv(p, &p.From))
+-		sep = ", "
+-	}
+-	if p.Reg != obj.REG_NONE {
+-		// Should not happen but might as well show it if it does.
+-		fmt.Fprintf(&buf, "%s%v", sep, obj.Rconv(int(p.Reg)))
+-		sep = ", "
+-	}
+-	if p.From3.Type != obj.TYPE_NONE {
+-		if p.From3.Type == obj.TYPE_CONST && (p.As == obj.ADATA || p.As == obj.ATEXT || p.As == obj.AGLOBL) {
+-			// Special case - omit $.
+-			fmt.Fprintf(&buf, "%s%d", sep, p.From3.Offset)
+-		} else {
+-			fmt.Fprintf(&buf, "%s%v", sep, obj.Dconv(p, &p.From3))
+-		}
+-		sep = ", "
+-	}
+-	if p.To.Type != obj.TYPE_NONE {
+-		fmt.Fprintf(&buf, "%s%v", sep, obj.Dconv(p, &p.To))
+-	}
+-	return buf.String()
+-}
+-
+ var Register = []string{
+ 	"AL", /* [D_AL] */
+ 	"CL",
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index e5bc3584fd..57a201bd9a 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1187,7 +1187,6 @@ var unaryDst = map[int]bool{
+ 
+ var Linkamd64 = obj.LinkArch{
+ 	ByteOrder:  binary.LittleEndian,
+-	Pconv:      Pconv,
+ 	Name:       "amd64",
+ 	Thechar:    '6',
+ 	Preprocess: preprocess,
+@@ -1202,7 +1201,6 @@ var Linkamd64 = obj.LinkArch{
+ 
+ var Linkamd64p32 = obj.LinkArch{
+ 	ByteOrder:  binary.LittleEndian,
+-	Pconv:      Pconv,
+ 	Name:       "amd64p32",
+ 	Thechar:    '6',
+ 	Preprocess: preprocess,
+@@ -1217,7 +1215,6 @@ var Linkamd64p32 = obj.LinkArch{
+ 
+ var Link386 = obj.LinkArch{
+ 	ByteOrder:  binary.LittleEndian,
+-	Pconv:      Pconv,
+ 	Name:       "386",
+ 	Thechar:    '8',
+ 	Preprocess: preprocess,

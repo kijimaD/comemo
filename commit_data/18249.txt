@@ -7,6 +7,19 @@ Date:   Tue Jan 14 12:53:06 2014 -0800
     R=golang-codereviews, iant, mjk
     CC=golang-codereviews
     https://golang.org/cl/52220043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e64714be70..8d1eae1c8e 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -348,6 +348,7 @@ Michael Elkins <michael.elkins@gmail.com>
+ Michael Gehring <mg@ebfe.org> <gnirheg.leahcim@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
+ Michael Hudson-Doyle <michael.hudson@linaro.org>
++Michael Kelly <mjk@google.com>
+ Michael Lewis <mikelikespie@gmail.com>
+ Michael Matloob <matloob@google.com>
+ Michael Piatek <piatek@google.com>

@@ -13,6 +13,29 @@ Date:   Thu Feb 6 13:16:34 2025 -0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/work/exec.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 8e5d481033..c79d6f73ef 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2208,7 +2208,7 @@ func (b *Builder) gccld(a *Action, objdir, outfile string, flags []string, objs
+ 	}
+ 
+ 	cmdargs := []any{cmd, "-o", outfile, objs, flags}
+-	out, err := sh.runOut(base.Cwd(), b.cCompilerEnv(), cmdargs...)
++	_, err := sh.runOut(base.Cwd(), b.cCompilerEnv(), cmdargs...)
+ 
+ 	// Note that failure is an expected outcome here, so we report output only
+ 	// in debug mode and don't report the error.
+@@ -2217,7 +2217,7 @@ func (b *Builder) gccld(a *Action, objdir, outfile string, flags []string, objs
+ 		if err != nil {
+ 			saw = "failed"
+ 		}
+-		sh.ShowCmd("", "%s # test for internal linking errors (%s)\n%s", joinUnambiguously(str.StringList(cmdargs...)), saw, out)
++		sh.ShowCmd("", "%s # test for internal linking errors (%s)", joinUnambiguously(str.StringList(cmdargs...)), saw)
+ 	}
+ 
+ 	return err

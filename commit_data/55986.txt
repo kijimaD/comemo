@@ -24,7 +24,50 @@ Date:   Mon Mar 13 09:56:45 2023 +0100
     Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/callers_test.go | 20 ++++++++++++++++++++
  src/runtime/export_test.go  |  6 ++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/runtime/callers_test.go b/src/runtime/callers_test.go
+index d738076a2f..e52357f175 100644
+--- a/src/runtime/callers_test.go
++++ b/src/runtime/callers_test.go
+@@ -430,3 +430,23 @@ func callersNoCache(b *testing.B, n int) int {
+ 		return 1 + callersNoCache(b, n-1)
+ 	}
+ }
++
++func BenchmarkFPCallers(b *testing.B) {
++	b.Run("cached", func(b *testing.B) {
++		// Very pcvalueCache-friendly, no inlining.
++		fpCallersCached(b, 100)
++	})
++}
++
++func fpCallersCached(b *testing.B, n int) int {
++	if n <= 0 {
++		pcs := make([]uintptr, 32)
++		b.ResetTimer()
++		for i := 0; i < b.N; i++ {
++			runtime.FPCallers(0, pcs)
++		}
++		b.StopTimer()
++		return 0
++	}
++	return 1 + fpCallersCached(b, n-1)
++}
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 367362b672..498c63f5b6 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1727,3 +1727,9 @@ func FrameStartLine(f *Frame) int {
+ func PersistentAlloc(n uintptr) unsafe.Pointer {
+ 	return persistentalloc(n, 0, &memstats.other_sys)
+ }
++
++// FPCallers works like Callers and uses frame pointer unwinding to populate
++// pcBuf with the return addresses of the physical frames on the stack.
++func FPCallers(skip int, pcBuf []uintptr) int {
++	return fpTracebackPCs(unsafe.Pointer(getcallerfp()), skip, pcBuf)
++}

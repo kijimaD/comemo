@@ -11,7 +11,7 @@ Date:   Mon Feb 8 21:41:54 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/204065
-
+---
  src/pkg/os/file.go               |  7 +++++--
  src/pkg/runtime/chan.c           |  9 +++++++++
  src/pkg/runtime/darwin/thread.c  | 12 ++++++++----
@@ -24,3 +24,416 @@ Date:   Mon Feb 8 21:41:54 2010 -0800
  src/pkg/runtime/proc.c           | 13 ++++++++++---
  src/pkg/runtime/runtime.h        |  4 +++-
  11 files changed, 102 insertions(+), 37 deletions(-)
+
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index b92384e2c2..83b022aa0a 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -7,6 +7,7 @@
+ package os
+ 
+ import (
++	"runtime"
+ 	"syscall"
+ )
+ 
+@@ -36,7 +37,9 @@ func NewFile(fd int, name string) *File {
+ 	if fd < 0 {
+ 		return nil
+ 	}
+-	return &File{fd, name, nil, 0}
++	f := &File{fd, name, nil, 0}
++	runtime.SetFinalizer(f, (*File).Close)
++	return f
+ }
+ 
+ // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
+@@ -86,7 +89,7 @@ func Open(name string, flag int, perm int) (file *File, err Error) {
+ // Close closes the File, rendering it unusable for I/O.
+ // It returns an Error, if any.
+ func (file *File) Close() Error {
+-	if file == nil {
++	if file == nil || file.fd < 0 {
+ 		return EINVAL
+ 	}
+ 	var err Error
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 72faa3e81a..bee033fa11 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -86,6 +86,7 @@ static	void	freesg(Hchan*, SudoG*);
+ static	uint32	gcd(uint32, uint32);
+ static	uint32	fastrand1(void);
+ static	uint32	fastrand2(void);
++static	void	destroychan(Hchan*);
+ 
+ Hchan*
+ makechan(Type *elem, uint32 hint)
+@@ -99,6 +100,7 @@ makechan(Type *elem, uint32 hint)
+ 	}
+ 
+ 	c = mal(sizeof(*c));
++	addfinalizer(c, destroychan, 0);
+ 
+ 	c->elemsize = elem->size;
+ 	c->elemalg = &algarray[elem->alg];
+@@ -141,6 +143,13 @@ makechan(Type *elem, uint32 hint)
+ 	return c;
+ }
+ 
++static void
++destroychan(Hchan *c)
++{
++	destroylock(&c->Lock);
++}
++
++
+ // makechan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
+ void
+ ·makechan(Type *elem, uint32 hint, Hchan *ret)
+diff --git a/src/pkg/runtime/darwin/thread.c b/src/pkg/runtime/darwin/thread.c
+index 56c9d17022..38e3c23fb2 100644
+--- a/src/pkg/runtime/darwin/thread.c
++++ b/src/pkg/runtime/darwin/thread.c
+@@ -48,10 +48,6 @@ initsema(uint32 *psema)
+ // be >0, so it will increment the semaphore to wake up
+ // one of the others.  This is the same algorithm used
+ // in Plan 9's user-level locks.
+-//
+-// Note that semaphores are never destroyed (the kernel
+-// will clean up when the process exits).  We assume for now
+-// that Locks are only used for long-lived structures like M and G.
+ 
+ void
+ lock(Lock *l)
+@@ -83,6 +79,14 @@ unlock(Lock *l)
+ 	}
+ }
+ 
++void
++destroylock(Lock *l)
++{
++	if(l->sema != 0) {
++		mach_semdestroy(l->sema);
++		l->sema = 0;
++	}
++}
+ 
+ // User-level semaphore implementation:
+ // try to do the operations in user space on u,
+diff --git a/src/pkg/runtime/freebsd/thread.c b/src/pkg/runtime/freebsd/thread.c
+index bf891e9804..19c14c5abe 100644
+--- a/src/pkg/runtime/freebsd/thread.c
++++ b/src/pkg/runtime/freebsd/thread.c
+@@ -99,6 +99,11 @@ unlock(Lock *l)
+ 	umtx_unlock(l);
+ }
+ 
++void
++destroylock(Lock *l)
++{
++}
++
+ // Event notifications.
+ void
+ noteclear(Note *n)
+diff --git a/src/pkg/runtime/linux/thread.c b/src/pkg/runtime/linux/thread.c
+index 1d857a67c6..efb138021f 100644
+--- a/src/pkg/runtime/linux/thread.c
++++ b/src/pkg/runtime/linux/thread.c
+@@ -174,6 +174,11 @@ unlock(Lock *l)
+ 	futexunlock(l);
+ }
+ 
++void
++destroylock(Lock *l)
++{
++}
++
+ 
+ // One-time notifications.
+ //
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.cgo
+index 286aa2bf3c..c6d5c6e33c 100644
+--- a/src/pkg/runtime/malloc.cgo
++++ b/src/pkg/runtime/malloc.cgo
+@@ -289,6 +289,8 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 	byte *base;
+ 	uintptr size;
+ 	FuncType *ft;
++	int32 i, nret;
++	Type *t;
+ 	
+ 	if(obj.type == nil) {
+ 		printf("runtime.SetFinalizer: first argument is nil interface\n");
+@@ -303,6 +305,7 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 		printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
+ 		goto throw;
+ 	}
++	nret = 0;
+ 	if(finalizer.type != nil) {
+ 		if(finalizer.type->kind != KindFunc) {
+ 		badfunc:
+@@ -310,12 +313,21 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 			goto throw;
+ 		}
+ 		ft = (FuncType*)finalizer.type;
+-		if(ft->dotdotdot || ft->out.len != 0 || ft->in.len != 1 || *(Type**)ft->in.array != obj.type)
++		if(ft->dotdotdot || ft->in.len != 1 || *(Type**)ft->in.array != obj.type)
+ 			goto badfunc;
+-		if(getfinalizer(obj.data, 0)) {
++		
++		// compute size needed for return parameters
++		for(i=0; i<ft->out.len; i++) {
++			t = ((Type**)ft->out.array)[i];
++			nret = (nret + t->align - 1) & ~(t->align - 1);
++			nret += t->size;
++		}
++		nret = (nret + sizeof(void*)-1) & ~(sizeof(void*)-1);
++
++		if(getfinalizer(obj.data, 0, nil)) {
+ 			printf("runtime.SetFinalizer: finalizer already set");
+ 			goto throw;
+ 		}
+ 	}
+-	addfinalizer(obj.data, finalizer.data);
++	addfinalizer(obj.data, finalizer.data, nret);
+ }
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 05f500a1e7..3a3b9bef6f 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -318,8 +318,7 @@ void*	SysAlloc(uintptr);
+ void	SysUnused(void*, uintptr);
+ void	SysFree(void*, uintptr);
+ 
+-void	addfinalizer(void*, void*);
+-void*	getfinalizer(void*, bool);
++void*	getfinalizer(void*, bool, int32*);
+ 
+ enum
+ {
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+index 083a530684..3034f05672 100644
+--- a/src/pkg/runtime/mfinal.c
++++ b/src/pkg/runtime/mfinal.c
+@@ -16,14 +16,17 @@ typedef struct Fintab Fintab;
+ struct Fintab
+ {
+ 	void **key;
+-	void **val;
++	struct {
++		void *fn;
++		int32 nret;
++	} *val;
+ 	int32 nkey;	// number of non-nil entries in key
+ 	int32 ndead;	// number of dead (-1) entries in key
+ 	int32 max;	// size of key, val allocations
+ };
+ 
+ static void
+-addfintab(Fintab *t, void *k, void *v)
++addfintab(Fintab *t, void *k, void *fn, int32 nret)
+ {
+ 	int32 i, j;
+ 	
+@@ -46,11 +49,12 @@ addfintab(Fintab *t, void *k, void *v)
+ 
+ ret:
+ 	t->key[i] = k;
+-	t->val[i] = v;
++	t->val[i].fn = fn;
++	t->val[i].nret = nret;
+ }
+ 
+ static void*
+-lookfintab(Fintab *t, void *k, bool del)
++lookfintab(Fintab *t, void *k, bool del, int32 *nret)
+ {
+ 	int32 i, j;
+ 	void *v;
+@@ -62,10 +66,13 @@ lookfintab(Fintab *t, void *k, bool del)
+ 		if(t->key[i] == nil)
+ 			return nil;
+ 		if(t->key[i] == k) {
+-			v = t->val[i];
++			v = t->val[i].fn;
++			if(nret)
++				*nret = t->val[i].nret;
+ 			if(del) {
+ 				t->key[i] = (void*)-1;
+-				t->val[i] = nil;
++				t->val[i].fn = nil;
++				t->val[i].nret = 0;
+ 				t->ndead++;
+ 			}
+ 			return v;
+@@ -83,7 +90,7 @@ static Fintab fintab;
+ 
+ // add finalizer; caller is responsible for making sure not already in table
+ void
+-addfinalizer(void *p, void *f)
++addfinalizer(void *p, void (*f)(void*), int32 nret)
+ {
+ 	Fintab newtab;
+ 	int32 i;
+@@ -110,18 +117,18 @@ addfinalizer(void *p, void *f)
+ 			
+ 			k = fintab.key[i];
+ 			if(k != nil && k != (void*)-1)
+-				addfintab(&newtab, k, fintab.val[i]);
++				addfintab(&newtab, k, fintab.val[i].fn, fintab.val[i].nret);
+ 		}
+ 		free(fintab.key);
+ 		free(fintab.val);
+ 		fintab = newtab;
+ 	}
+ 	
+-	addfintab(&fintab, p, f);		
++	addfintab(&fintab, p, f, nret);		
+ }
+ 
+ void*
+-getfinalizer(void *p, bool del)
++getfinalizer(void *p, bool del, int32 *nret)
+ {
+-	return lookfintab(&fintab, p, del);
++	return lookfintab(&fintab, p, del, nret);
+ }
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 83d217320d..bd5d2e25a8 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -23,9 +23,17 @@ extern byte data[];
+ extern byte etext[];
+ extern byte end[];
+ 
+-static void *finq[128];	// finalizer queue - two elements per entry
+-static void **pfinq = finq;
+-static void **efinq = finq+nelem(finq);
++typedef struct Finq Finq;
++struct Finq
++{
++	void (*fn)(void*);
++	void *p;
++	int32 nret;
++};
++
++static Finq finq[128];	// finalizer queue - two elements per entry
++static Finq *pfinq = finq;
++static Finq *efinq = finq+nelem(finq);
+ 
+ static void sweepblock(byte*, int64, uint32*, int32);
+ 
+@@ -172,7 +180,7 @@ sweepblock(byte *p, int64 n, uint32 *gcrefp, int32 pass)
+ 		break;
+ 	case RefNone:
+ 	case RefNone|RefNoPointers:
+-		if(pass == 0 && getfinalizer(p, 0)) {
++		if(pass == 0 && getfinalizer(p, 0, nil)) {
+ 			// Tentatively mark as finalizable.
+ 			// Make sure anything it points at will not be collected.
+ 			if(Debug > 0)
+@@ -192,8 +200,12 @@ sweepblock(byte *p, int64 n, uint32 *gcrefp, int32 pass)
+ 		if(pfinq < efinq) {
+ 			if(Debug > 0)
+ 				printf("finalize %p+%D\n", p, n);
+-			*pfinq++ = getfinalizer(p, 1);
+-			*pfinq++ = p;
++			pfinq->p = p;
++			pfinq->nret = 0;
++			pfinq->fn = getfinalizer(p, 1, &pfinq->nret);
++			if(pfinq->fn == nil)
++				throw("getfinalizer inconsistency");
++			pfinq++;
+ 		}
+ 		// Reset for next mark+sweep.
+ 		*gcrefp = RefNone | (gcref&RefNoPointers);
+@@ -242,7 +254,7 @@ gc(int32 force)
+ {
+ 	int64 t0, t1;
+ 	byte *p;
+-	void **fp;
++	Finq *fp;
+ 
+ 	// The gc is turned off (via enablegc) until
+ 	// the bootstrap has completed.
+@@ -283,10 +295,10 @@ gc(int32 force)
+ 	
+ 	// kick off goroutines to run queued finalizers
+ 	m->locks++;	// disable gc during the mallocs in newproc
+-	for(fp=finq; fp<pfinq; fp+=2) {
+-		·newproc(sizeof(void*), fp[0], fp[1]);
+-		fp[0] = nil;
+-		fp[1] = nil;
++	for(fp=finq; fp<pfinq; fp++) {
++		newproc1((byte*)fp->fn, (byte*)&fp->p, sizeof(fp->p), fp->nret);
++		fp->fn = nil;
++		fp->p = nil;
+ 	}
+ 	pfinq = finq;
+ 	m->locks--;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index b162f4676b..5bd92dd809 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -765,12 +765,19 @@ malg(int32 stacksize)
+ #pragma textflag 7
+ void
+ ·newproc(int32 siz, byte* fn, byte* arg0)
++{
++	newproc1(fn, (byte*)&arg0, siz, 0);
++}
++
++void
++newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
+ {
+ 	byte *stk, *sp;
+ 	G *newg;
++	int32 siz;
+ 
+-//printf("newproc siz=%d fn=%p", siz, fn);
+-
++//printf("newproc1 %p %p narg=%d nret=%d\n", fn, argp, narg, nret);
++	siz = narg + nret;
+ 	siz = (siz+7) & ~7;
+ 	if(siz > 1024)
+ 		throw("runtime.newproc: too many args");
+@@ -793,7 +800,7 @@ void
+ 	newg->stackbase = sp;
+ 
+ 	sp -= siz;
+-	mcpy(sp, (byte*)&arg0, siz);
++	mcpy(sp, argp, narg);
+ 
+ 	newg->sched.sp = sp;
+ 	newg->sched.pc = (byte*)goexit;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index a526c04927..b361bacc1e 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -383,6 +383,7 @@ uintptr	nohash(uint32, void*);
+ uint32	noequal(uint32, void*, void*);
+ void*	malloc(uintptr size);
+ void	free(void *v);
++void	addfinalizer(void*, void(*fn)(void*), int32);
+ void	exit(int32);
+ void	breakpoint(void);
+ void	gosched(void);
+@@ -390,7 +391,7 @@ void	goexit(void);
+ void	runcgo(void (*fn)(void*), void*);
+ void	·entersyscall(void);
+ void	·exitsyscall(void);
+-void	·newproc(int32, byte*, byte*);
++void	newproc1(byte*, byte*, int32, int32);
+ void	siginit(void);
+ bool	sigsend(int32 sig);
+ void	gettime(int64*, int32*);
+@@ -425,6 +426,7 @@ void	starttheworld(void);
+  */
+ void	lock(Lock*);
+ void	unlock(Lock*);
++void	destroylock(Lock*);
+ 
+ /*
+  * sleep and wakeup on one-time events.

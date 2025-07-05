@@ -23,7 +23,7 @@ Date:   Tue Sep 29 21:24:13 2015 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/testsanitizers/msan.go   | 34 ++++++++++++++++++++++++++++++++++
  misc/cgo/testsanitizers/test.bash | 22 ++++++++++++++++++++++
  src/cmd/dist/test.go              |  3 +++
@@ -35,3 +35,304 @@ Date:   Tue Sep 29 21:24:13 2015 -0700
  src/runtime/stubs2.go             |  1 -
  src/runtime/sys_linux_amd64.s     | 16 +++++++++++++++-
  10 files changed, 194 insertions(+), 7 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/msan.go b/misc/cgo/testsanitizers/msan.go
+new file mode 100644
+index 0000000000..1a95715ecd
+--- /dev/null
++++ b/misc/cgo/testsanitizers/msan.go
+@@ -0,0 +1,34 @@
++package main
++
++/*
++#cgo CFLAGS: -fsanitize=memory
++#cgo LDFLAGS: -fsanitize=memory
++
++#include <stdint.h>
++
++void f(int32_t *p, int n) {
++  int i;
++
++  for (i = 0; i < n; i++) {
++    p[i] = (int32_t)i;
++  }
++}
++*/
++import "C"
++
++import (
++	"fmt"
++	"os"
++	"unsafe"
++)
++
++func main() {
++	a := make([]int32, 10)
++	C.f((*C.int32_t)(unsafe.Pointer(&a[0])), C.int(len(a)))
++	for i, v := range a {
++		if i != int(v) {
++			fmt.Println("bad %d: %v\n", i, a)
++			os.Exit(1)
++		}
++	}
++}
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+new file mode 100755
+index 0000000000..5ad303a0cc
+--- /dev/null
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -0,0 +1,22 @@
++#!/usr/bin/env bash
++# Copyright 2015 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This directory is intended to test the use of Go with sanitizers
++# like msan, asan, etc.  See https://github.com/google/sanitizers .
++
++set -e
++
++# The sanitizers were originally developed with clang, so prefer it.
++CC=cc
++if test "$(type -p clang)" != ""; then
++  CC=clang
++fi
++export CC
++
++if $CC -fsanitize=memory 2>&1 | grep "unrecognized" >& /dev/null; then
++  echo "skipping msan test: -fsanitize=memory not supported"
++else
++  go run msan.go
++fi
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 0e9666bc91..858ad58dd3 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -439,6 +439,9 @@ func (t *tester) registerTests() {
+ 		if t.gohostos == "linux" && t.goarch == "amd64" {
+ 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
+ 		}
++		if t.gohostos == "linux" && t.goarch == "amd64" {
++			t.registerTest("testsanitizers", "../misc/cgo/testsanitizers", "./test.bash")
++		}
+ 		if t.hasBash() && t.goos != "android" && !t.iOS() && t.gohostos != "windows" {
+ 			t.registerTest("cgo_errors", "../misc/cgo/errors", "./test.bash")
+ 		}
+diff --git a/src/runtime/cgo/gcc_linux_amd64.c b/src/runtime/cgo/gcc_linux_amd64.c
+index 275d5ddaca..c93cacd744 100644
+--- a/src/runtime/cgo/gcc_linux_amd64.c
++++ b/src/runtime/cgo/gcc_linux_amd64.c
+@@ -3,8 +3,10 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include <pthread.h>
++#include <errno.h>
+ #include <string.h> // strerror
+ #include <signal.h>
++#include <stdlib.h>
+ #include "libcgo.h"
+ 
+ static void* threadentry(void*);
+@@ -13,14 +15,34 @@ static void (*setg_gcc)(void*);
+ void
+ x_cgo_init(G* g, void (*setg)(void*))
+ {
+-	pthread_attr_t attr;
++	pthread_attr_t *attr;
+ 	size_t size;
+ 
++	/* The memory sanitizer distributed with versions of clang
++	   before 3.8 has a bug: if you call mmap before malloc, mmap
++	   may return an address that is later overwritten by the msan
++	   library.  Avoid this problem by forcing a call to malloc
++	   here, before we ever call malloc.
++
++	   This is only required for the memory sanitizer, so it's
++	   unfortunate that we always run it.  It should be possible
++	   to remove this when we no longer care about versions of
++	   clang before 3.8.  The test for this is
++	   misc/cgo/testsanitizers.
++
++	   GCC works hard to eliminate a seemingly unnecessary call to
++	   malloc, so we actually use the memory we allocate.  */
++
+ 	setg_gcc = setg;
+-	pthread_attr_init(&attr);
+-	pthread_attr_getstacksize(&attr, &size);
+-	g->stacklo = (uintptr)&attr - size + 4096;
+-	pthread_attr_destroy(&attr);
++	attr = (pthread_attr_t*)malloc(sizeof *attr);
++	if (attr == NULL) {
++		fatalf("malloc failed: %s", strerror(errno));
++	}
++	pthread_attr_init(attr);
++	pthread_attr_getstacksize(attr, &size);
++	g->stacklo = (uintptr)&size - size + 4096;
++	pthread_attr_destroy(attr);
++	free(attr);
+ }
+ 
+ 
+diff --git a/src/runtime/cgo/gcc_mmap.c b/src/runtime/cgo/gcc_mmap.c
+new file mode 100644
+index 0000000000..10d589fa28
+--- /dev/null
++++ b/src/runtime/cgo/gcc_mmap.c
+@@ -0,0 +1,21 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux,amd64
++
++#include <errno.h>
++#include <stdint.h>
++#include <sys/mman.h>
++
++void *
++x_cgo_mmap(void *addr, uintptr_t length, int32_t prot, int32_t flags, int32_t fd, uint32_t offset) {
++	void *p;
++
++	p = mmap(addr, length, prot, flags, fd, offset);
++	if (p == MAP_FAILED) {
++		/* This is what the Go code expects on failure.  */
++		p = (void *) (uintptr_t) errno;
++	}
++	return p;
++}
+diff --git a/src/runtime/cgo/mmap.go b/src/runtime/cgo/mmap.go
+new file mode 100644
+index 0000000000..d514c38ca5
+--- /dev/null
++++ b/src/runtime/cgo/mmap.go
+@@ -0,0 +1,22 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux,amd64
++
++package cgo
++
++// Import "unsafe" because we use go:linkname.
++import _ "unsafe"
++
++// When using cgo, call the C library for mmap, so that we call into
++// any sanitizer interceptors.  This supports using the memory
++// sanitizer with Go programs.  The memory sanitizer only applies to
++// C/C++ code; this permits that code to see the Go code as normal
++// program addresses that have been initialized.
++
++//go:cgo_import_static x_cgo_mmap
++//go:linkname x_cgo_mmap x_cgo_mmap
++//go:linkname _cgo_mmap _cgo_mmap
++var x_cgo_mmap byte
++var _cgo_mmap = &x_cgo_mmap
+diff --git a/src/runtime/cgo_mmap.go b/src/runtime/cgo_mmap.go
+new file mode 100644
+index 0000000000..ef5501ca5f
+--- /dev/null
++++ b/src/runtime/cgo_mmap.go
+@@ -0,0 +1,34 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Support for memory sanitizer.  See runtime/cgo/mmap.go.
++
++// +build linux,amd64
++
++package runtime
++
++import "unsafe"
++
++// _cgo_mmap is filled in by runtime/cgo when it is linked into the
++// program, so it is only non-nil when using cgo.
++//go:linkname _cgo_mmap _cgo_mmap
++var _cgo_mmap unsafe.Pointer
++
++func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (ret unsafe.Pointer) {
++	if _cgo_mmap != nil {
++		systemstack(func() {
++			ret = callCgoMmap(addr, n, prot, flags, fd, off)
++		})
++		return
++	}
++	return sysMmap(addr, n, prot, flags, fd, off)
++}
++
++// sysMmap calls the mmap system call.  It is implemented in assembly.
++func sysMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
++
++// cgoMmap calls the mmap function in the runtime/cgo package on the
++// callCgoMmap calls the mmap function in the runtime/cgo package
++// using the GCC calling convention.  It is implemented in assembly.
++func callCgoMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
+diff --git a/src/runtime/mmap.go b/src/runtime/mmap.go
+new file mode 100644
+index 0000000000..a0768428b4
+--- /dev/null
++++ b/src/runtime/mmap.go
+@@ -0,0 +1,16 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9
++// +build !solaris
++// +build !windows
++// +build !nacl
++// +build !linux !amd64
++
++package runtime
++
++import "unsafe"
++
++// mmap calls the mmap system call.  It is implemented in assembly.
++func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index 1cb6f9123d..95db924d5a 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -18,7 +18,6 @@ func exit(code int32)
+ func nanotime() int64
+ func usleep(usec uint32)
+ 
+-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
+ func munmap(addr unsafe.Pointer, n uintptr)
+ 
+ //go:noescape
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 59c21c5b42..7ad704f306 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -239,7 +239,7 @@ TEXT runtime·sigreturn(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	INT $3	// not reached
+ 
+-TEXT runtime·mmap(SB),NOSPLIT,$0
++TEXT runtime·sysMmap(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), DI
+ 	MOVQ	n+8(FP), SI
+ 	MOVL	prot+16(FP), DX
+@@ -256,6 +256,20 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVQ	AX, ret+32(FP)
+ 	RET
+ 
++// Call the function stored in _cgo_mmap using the GCC calling convention.
++// This must be called on the system stack.
++TEXT runtime·callCgoMmap(SB),NOSPLIT,$0
++	MOVQ	addr+0(FP), DI
++	MOVQ	n+8(FP), SI
++	MOVL	prot+16(FP), DX
++	MOVL	flags+20(FP), CX
++	MOVL	fd+24(FP), R8
++	MOVL	off+28(FP), R9
++	MOVQ	_cgo_mmap(SB), AX
++	CALL	AX
++	MOVQ	AX, ret+32(FP)
++	RET
++
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), DI
+ 	MOVQ	n+8(FP), SI

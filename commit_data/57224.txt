@@ -14,7 +14,7 @@ Date:   Tue Jul 11 17:56:17 2023 +0200
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/crypto/internal/boring/aes.go       |  2 +-
  src/crypto/internal/boring/boring.go    |  2 +-
  src/crypto/internal/boring/ecdh.go      |  2 +-
@@ -28,3 +28,230 @@ Date:   Tue Jul 11 17:56:17 2023 +0200
  src/crypto/sha1/notboring.go            | 20 --------------------
  src/crypto/sha1/sha1.go                 | 13 +++++++------
  12 files changed, 16 insertions(+), 60 deletions(-)
+
+diff --git a/src/crypto/internal/boring/aes.go b/src/crypto/internal/boring/aes.go
+index 6fae1d54f8..8819f576f4 100644
+--- a/src/crypto/internal/boring/aes.go
++++ b/src/crypto/internal/boring/aes.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+index 102380a839..ded36a92f9 100644
+--- a/src/crypto/internal/boring/boring.go
++++ b/src/crypto/internal/boring/boring.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/ecdh.go b/src/crypto/internal/boring/ecdh.go
+index 8f46d8146f..6a5d174c16 100644
+--- a/src/crypto/internal/boring/ecdh.go
++++ b/src/crypto/internal/boring/ecdh.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/ecdsa.go b/src/crypto/internal/boring/ecdsa.go
+index e15f3682c7..2adfdb2c9f 100644
+--- a/src/crypto/internal/boring/ecdsa.go
++++ b/src/crypto/internal/boring/ecdsa.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/hmac.go b/src/crypto/internal/boring/hmac.go
+index 6241a65f5f..ae926da695 100644
+--- a/src/crypto/internal/boring/hmac.go
++++ b/src/crypto/internal/boring/hmac.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/notboring.go b/src/crypto/internal/boring/notboring.go
+index 1c5e4c742d..361dec9672 100644
+--- a/src/crypto/internal/boring/notboring.go
++++ b/src/crypto/internal/boring/notboring.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !(boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan && cgo)
++//go:build !(boringcrypto && linux && (amd64 || arm64) && !android && !msan && cgo)
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/rand.go b/src/crypto/internal/boring/rand.go
+index 7639c01909..556b98a112 100644
+--- a/src/crypto/internal/boring/rand.go
++++ b/src/crypto/internal/boring/rand.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/rsa.go b/src/crypto/internal/boring/rsa.go
+index fa693ea319..e3baa44549 100644
+--- a/src/crypto/internal/boring/rsa.go
++++ b/src/crypto/internal/boring/rsa.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/sha.go b/src/crypto/internal/boring/sha.go
+index cf82f3f64f..a49c119738 100644
+--- a/src/crypto/internal/boring/sha.go
++++ b/src/crypto/internal/boring/sha.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto && linux && (amd64 || arm64) && !android && !cmd_go_bootstrap && !msan
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/sha1/boring.go b/src/crypto/sha1/boring.go
+deleted file mode 100644
+index b5786d1bf4..0000000000
+--- a/src/crypto/sha1/boring.go
++++ /dev/null
+@@ -1,25 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Extra indirection here so that when building go_bootstrap
+-// cmd/internal/boring is not even imported, so that we don't
+-// have to maintain changes to cmd/dist's deps graph.
+-
+-//go:build !cmd_go_bootstrap && cgo
+-// +build !cmd_go_bootstrap,cgo
+-
+-package sha1
+-
+-import (
+-	"crypto/internal/boring"
+-	"hash"
+-)
+-
+-const boringEnabled = boring.Enabled
+-
+-func boringNewSHA1() hash.Hash { return boring.NewSHA1() }
+-
+-func boringUnreachable() { boring.Unreachable() }
+-
+-func boringSHA1(p []byte) [20]byte { return boring.SHA1(p) }
+diff --git a/src/crypto/sha1/notboring.go b/src/crypto/sha1/notboring.go
+deleted file mode 100644
+index 42ef87937f..0000000000
+--- a/src/crypto/sha1/notboring.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build cmd_go_bootstrap || !cgo
+-// +build cmd_go_bootstrap !cgo
+-
+-package sha1
+-
+-import (
+-	"hash"
+-)
+-
+-const boringEnabled = false
+-
+-func boringNewSHA1() hash.Hash { panic("boringcrypto: not available") }
+-
+-func boringUnreachable() {}
+-
+-func boringSHA1([]byte) [20]byte { panic("boringcrypto: not available") }
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index 43ab72a485..bde642d905 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -10,6 +10,7 @@ package sha1
+ 
+ import (
+ 	"crypto"
++	"crypto/internal/boring"
+ 	"encoding/binary"
+ 	"errors"
+ 	"hash"
+@@ -107,8 +108,8 @@ func (d *digest) Reset() {
+ // implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
+ // marshal and unmarshal the internal state of the hash.
+ func New() hash.Hash {
+-	if boringEnabled {
+-		return boringNewSHA1()
++	if boring.Enabled {
++		return boring.NewSHA1()
+ 	}
+ 	d := new(digest)
+ 	d.Reset()
+@@ -120,7 +121,7 @@ func (d *digest) Size() int { return Size }
+ func (d *digest) BlockSize() int { return BlockSize }
+ 
+ func (d *digest) Write(p []byte) (nn int, err error) {
+-	boringUnreachable()
++	boring.Unreachable()
+ 	nn = len(p)
+ 	d.len += uint64(nn)
+ 	if d.nx > 0 {
+@@ -144,7 +145,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ }
+ 
+ func (d *digest) Sum(in []byte) []byte {
+-	boringUnreachable()
++	boring.Unreachable()
+ 	// Make a copy of d so that caller can keep writing and summing.
+ 	d0 := *d
+ 	hash := d0.checkSum()
+@@ -254,8 +255,8 @@ func (d *digest) constSum() [Size]byte {
+ 
+ // Sum returns the SHA-1 checksum of the data.
+ func Sum(data []byte) [Size]byte {
+-	if boringEnabled {
+-		return boringSHA1(data)
++	if boring.Enabled {
++		return boring.SHA1(data)
+ 	}
+ 	var d digest
+ 	d.Reset()

@@ -7,6 +7,20 @@ Date:   Tue Apr 24 16:25:45 2018 -0700
     Change-Id: Ifd51636c9254de51b8a21371d7507a9481bcca0a
     Reviewed-on: https://go-review.googlesource.com/109142
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 9908f5c973..f202eb0c34 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -309,7 +309,7 @@ func (tv TypeAndValue) Assignable() bool {
+ }
+ 
+ // HasOk reports whether the corresponding expression may be
+-// used on the lhs of a comma-ok assignment.
++// used on the rhs of a comma-ok assignment.
+ func (tv TypeAndValue) HasOk() bool {
+ 	return tv.mode == commaok || tv.mode == mapindex
+ }

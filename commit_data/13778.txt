@@ -32,8 +32,224 @@ Date:   Sun Sep 9 20:30:08 2012 +0200
     R=nigeltao, rsc, golang-dev
     CC=golang-dev, remy
     https://golang.org/cl/6489067
-
+---
  src/cmd/8g/cgen.c | 166 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
  src/cmd/8g/gg.h   |   1 +
  src/cmd/8g/ggen.c |   4 ++
  3 files changed, 170 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 1ae49acaa0..3ef75712c0 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -777,7 +777,7 @@ igen(Node *n, Node *a, Node *res)
+ 			break;
+ 		*a = *n;
+ 		return;
+- 
++
+ 	case OCALLFUNC:
+ 		fp = structfirst(&flist, getoutarg(n->left->type));
+ 		cgen_call(n, 0);
+@@ -1197,6 +1197,11 @@ sgen(Node *n, Node *res, int64 w)
+ 		return;
+ 	}
+ 
++	if (w == 8 || w == 12) {
++		if(componentgen(n, res))
++			return;
++	}
++
+ 	// offset on the stack
+ 	osrc = stkof(n);
+ 	odst = stkof(res);
+@@ -1280,3 +1285,162 @@ sgen(Node *n, Node *res, int64 w)
+ 	}
+ }
+ 
++static int
++cadable(Node *n)
++{
++	if(!n->addable) {
++		// dont know how it happens,
++		// but it does
++		return 0;
++	}
++
++	switch(n->op) {
++	case ONAME:
++		return 1;
++	}
++	return 0;
++}
++
++/*
++ * copy a structure component by component
++ * return 1 if can do, 0 if cant.
++ * nr is N for copy zero
++ */
++int
++componentgen(Node *nr, Node *nl)
++{
++	Node nodl, nodr;
++	int freel, freer;
++
++	freel = 0;
++	freer = 0;
++
++	switch(nl->type->etype) {
++	default:
++		goto no;
++
++	case TARRAY:
++		if(!isslice(nl->type))
++			goto no;
++	case TSTRING:
++	case TINTER:
++		break;
++	}
++
++	nodl = *nl;
++	if(!cadable(nl)) {
++		if(nr == N || !cadable(nr))
++			goto no;
++		igen(nl, &nodl, N);
++		freel = 1;
++	}
++
++	if(nr != N) {
++		nodr = *nr;
++		if(!cadable(nr)) {
++			igen(nr, &nodr, N);
++			freer = 1;
++		}
++	}
++
++	switch(nl->type->etype) {
++	case TARRAY:
++		if(!isslice(nl->type))
++			goto no;
++
++		nodl.xoffset += Array_array;
++		nodl.type = ptrto(nl->type->type);
++
++		if(nr != N) {
++			nodr.xoffset += Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		nodl.xoffset += Array_nel-Array_array;
++		nodl.type = types[TUINT32];
++
++		if(nr != N) {
++			nodr.xoffset += Array_nel-Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		nodl.xoffset += Array_cap-Array_nel;
++		nodl.type = types[TUINT32];
++
++		if(nr != N) {
++			nodr.xoffset += Array_cap-Array_nel;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		goto yes;
++
++	case TSTRING:
++		nodl.xoffset += Array_array;
++		nodl.type = ptrto(types[TUINT8]);
++
++		if(nr != N) {
++			nodr.xoffset += Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		nodl.xoffset += Array_nel-Array_array;
++		nodl.type = types[TUINT32];
++
++		if(nr != N) {
++			nodr.xoffset += Array_nel-Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		goto yes;
++
++	case TINTER:
++		nodl.xoffset += Array_array;
++		nodl.type = ptrto(types[TUINT8]);
++
++		if(nr != N) {
++			nodr.xoffset += Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		nodl.xoffset += Array_nel-Array_array;
++		nodl.type = ptrto(types[TUINT8]);
++
++		if(nr != N) {
++			nodr.xoffset += Array_nel-Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		goto yes;
++
++	case TSTRUCT:
++		goto no;
++	}
++
++no:
++	if(freer)
++		regfree(&nodr);
++	if(freel)
++		regfree(&nodl);
++	return 0;
++
++yes:
++	if(freer)
++		regfree(&nodr);
++	if(freel)
++		regfree(&nodl);
++	return 1;
++}
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 12632f651c..a30c95d715 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -107,6 +107,7 @@ void	cgen_aret(Node*, Node*);
+ Node*	ncon(uint32);
+ void	mgen(Node*, Node*, Node*);
+ void	mfree(Node*);
++int	componentgen(Node*, Node*);
+ 
+ /*
+  * cgen64.c
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 749f913ef5..a31f660740 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -59,6 +59,10 @@ clearfat(Node *nl)
+ 		dump("\nclearfat", nl);
+ 
+ 	w = nl->type->width;
++	if(w == 8 || w == 12)
++		if(componentgen(N, nl))
++			return;
++
+ 	c = w % 4;	// bytes
+ 	q = w / 4;	// quads
+ 

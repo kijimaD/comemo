@@ -9,6 +9,20 @@ Date:   Thu Jun 2 02:40:37 2016 -0700
     Change-Id: Ie7c3253a5e1cd43be8fa12bad340204cc6c5ca76
     Reviewed-on: https://go-review.googlesource.com/23677
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.7.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index a657fcc48a..ae724e8a63 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -973,7 +973,7 @@ For compatibility with older mail parsers,
+ the address encoder, namely
+ <a href="/pkg/net/mail/#Address"><code>Address</code></a>'s
+ <a href="/pkg/net/mail/#Address.String"><code>String</code></a> method,
+-continues to escape all UTF-8 text following <a href="https://tools.ietf.org/html/rfc5322">RFC 5322</a>,
++continues to escape all UTF-8 text following <a href="https://tools.ietf.org/html/rfc5322">RFC 5322</a>.
+ </p>
+ </dd>
+ 

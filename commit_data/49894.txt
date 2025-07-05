@@ -15,7 +15,7 @@ Date:   Fri Sep 3 17:00:41 2021 +0200
     Reviewed-by: Than McIntosh <thanm@google.com>
     Trust: Dan Scales <danscales@google.com>
     Trust: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  1 +
  src/cmd/internal/goobj/objfile.go         |  2 ++
  src/cmd/internal/obj/objfile.go           |  3 +++
@@ -23,3 +23,159 @@ Date:   Fri Sep 3 17:00:41 2021 +0200
  src/cmd/link/internal/ld/dwarf_test.go    | 23 +++++++++++++++++++++--
  src/cmd/link/internal/loader/loader.go    |  9 +++++++++
  6 files changed, 51 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index e2525a8f7e..7fca674132 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1479,6 +1479,7 @@ func markTypeUsed(t *types.Type, lsym *obj.LSym) {
+ 	} else {
+ 		// TODO: This is somewhat overkill, we really only need it
+ 		// for types that are put into interfaces.
++		// Note: this relocation is also used in cmd/link/internal/ld/dwarf.go
+ 		reflectdata.MarkTypeUsedInInterface(t, lsym)
+ 	}
+ }
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index e2858bd57d..20bf0eba89 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -304,6 +304,7 @@ const (
+ const (
+ 	SymFlagUsedInIface = 1 << iota
+ 	SymFlagItab
++	SymFlagDict
+ )
+ 
+ // Returns the length of the name of the symbol.
+@@ -333,6 +334,7 @@ func (s *Sym) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
+ func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
+ func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
+ func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
++func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
+ 
+ func (s *Sym) SetName(x string, w *Writer) {
+ 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 01466ea736..910e6ef0d9 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -340,6 +340,9 @@ func (w *writer) Sym(s *LSym) {
+ 	if strings.HasPrefix(s.Name, "go.itab.") && s.Type == objabi.SRODATA {
+ 		flag2 |= goobj.SymFlagItab
+ 	}
++	if strings.HasPrefix(s.Name, w.ctxt.Pkgpath) && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath):], "..dict") {
++		flag2 |= goobj.SymFlagDict
++	}
+ 	name := s.Name
+ 	if strings.HasPrefix(name, "gofile..") {
+ 		name = filepath.ToSlash(name)
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 839609339f..d72846a691 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1890,6 +1890,8 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 	// global variables. For each global of this sort, locate
+ 	// the corresponding compiler-generated DIE symbol and tack
+ 	// it onto the list associated with the unit.
++	// Also looks for dictionary symbols and generates DIE symbols for each
++	// type they reference.
+ 	for idx := loader.Sym(1); idx < loader.Sym(d.ldr.NDef()); idx++ {
+ 		if !d.ldr.AttrReachable(idx) ||
+ 			d.ldr.AttrNotInSymbolTable(idx) ||
+@@ -1903,9 +1905,21 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 		default:
+ 			continue
+ 		}
+-		// Skip things with no type
++		// Skip things with no type, unless it's a dictionary
+ 		gt := d.ldr.SymGoType(idx)
+ 		if gt == 0 {
++			if t == sym.SRODATA {
++				if d.ldr.IsDict(idx) {
++					// This is a dictionary, make sure that all types referenced by this dictionary are reachable
++					relocs := d.ldr.Relocs(idx)
++					for i := 0; i < relocs.Count(); i++ {
++						reloc := relocs.At(i)
++						if reloc.Type() == objabi.R_USEIFACE {
++							d.defgotype(reloc.Sym())
++						}
++					}
++				}
++			}
+ 			continue
+ 		}
+ 		// Skip file local symbols (this includes static tmps, stack
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 3d112d97a4..db9002491e 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -1749,7 +1749,9 @@ func main() {
+ }
+ 
+ func TestDictIndex(t *testing.T) {
+-	// Check that variables with a parametric type have a dictionary index attribute
++	// Check that variables with a parametric type have a dictionary index
++	// attribute and that types that are only referenced through dictionaries
++	// have DIEs.
+ 	testenv.MustHaveGoBuild(t)
+ 
+ 	if runtime.GOOS == "plan9" {
+@@ -1765,6 +1767,8 @@ package main
+ 
+ import "fmt"
+ 
++type CustomInt int
++
+ func testfn[T any](arg T) {
+ 	var mapvar = make(map[int]T)
+ 	mapvar[0] = arg
+@@ -1772,7 +1776,7 @@ func testfn[T any](arg T) {
+ }
+ 
+ func main() {
+-	testfn("test")
++	testfn(CustomInt(3))
+ }
+ `
+ 
+@@ -1829,4 +1833,19 @@ func main() {
+ 			t.Errorf("could not find DW_AT_go_dict_index attribute offset %#x (%T)", off, entry.Val(intdwarf.DW_AT_go_dict_index))
+ 		}
+ 	}
++
++	rdr.Seek(0)
++	ex := examiner{}
++	if err := ex.populate(rdr); err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++	for _, typeName := range []string{"main.CustomInt", "map[int]main.CustomInt"} {
++		dies := ex.Named(typeName)
++		if len(dies) != 1 {
++			t.Errorf("wanted 1 DIE named %s, found %v", typeName, len(dies))
++		}
++		if dies[0].Val(intdwarf.DW_AT_go_runtime_type).(uint64) == 0 {
++			t.Errorf("type %s does not have DW_AT_go_runtime_type", typeName)
++		}
++	}
+ }
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index f144e00f37..b9a1da6f45 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1209,6 +1209,15 @@ func (l *Loader) IsItab(i Sym) bool {
+ 	return r.Sym(li).IsItab()
+ }
+ 
++// Returns whether this symbol is a dictionary symbol.
++func (l *Loader) IsDict(i Sym) bool {
++	if l.IsExternal(i) {
++		return false
++	}
++	r, li := l.toLocal(i)
++	return r.Sym(li).IsDict()
++}
++
+ // Return whether this is a trampoline of a deferreturn call.
+ func (l *Loader) IsDeferReturnTramp(i Sym) bool {
+ 	return l.deferReturnTramp[i]

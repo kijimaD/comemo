@@ -34,7 +34,7 @@ Date:   Tue Apr 5 15:29:14 2016 +0200
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/trace/order.go       | 278 ++++++++++++++++++++++++++++++++++++++
  src/internal/trace/parser.go      | 208 +++++++++++++++-------------
  src/internal/trace/parser_test.go |   8 +-
@@ -42,3 +42,1080 @@ Date:   Tue Apr 5 15:29:14 2016 +0200
  src/runtime/runtime2.go           |  21 +--
  src/runtime/trace.go              | 121 +++++++++--------
  6 files changed, 478 insertions(+), 183 deletions(-)
+
+diff --git a/src/internal/trace/order.go b/src/internal/trace/order.go
+new file mode 100644
+index 0000000000..f9ec44c745
+--- /dev/null
++++ b/src/internal/trace/order.go
+@@ -0,0 +1,278 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package trace
++
++import (
++	"fmt"
++	"sort"
++)
++
++type eventBatch struct {
++	events   []*Event
++	selected bool
++}
++
++type orderEvent struct {
++	ev    *Event
++	batch int
++	g     uint64
++	init  gState
++	next  gState
++}
++
++type gStatus int
++
++type gState struct {
++	seq    uint64
++	status gStatus
++}
++
++const (
++	gDead gStatus = iota
++	gRunnable
++	gRunning
++	gWaiting
++
++	unordered = ^uint64(0)
++	garbage   = ^uint64(0) - 1
++	noseq     = ^uint64(0)
++	seqinc    = ^uint64(0) - 1
++)
++
++// order1007 merges a set of per-P event batches into a single, consistent stream.
++// The high level idea is as follows. Events within an individual batch are in
++// correct order, because they are emitted by a single P. So we need to produce
++// a correct interleaving of the batches. To do this we take first unmerged event
++// from each batch (frontier). Then choose subset that is "ready" to be merged,
++// that is, events for which all dependencies are already merged. Then we choose
++// event with the lowest timestamp from the subset, merge it and repeat.
++// This approach ensures that we form a consistent stream even if timestamps are
++// incorrect (condition observed on some machines).
++func order1007(m map[int][]*Event) (events []*Event, err error) {
++	pending := 0
++	var batches []*eventBatch
++	for _, v := range m {
++		pending += len(v)
++		batches = append(batches, &eventBatch{v, false})
++	}
++	gs := make(map[uint64]gState)
++	var frontier []orderEvent
++	for ; pending != 0; pending-- {
++		for i, b := range batches {
++			if b.selected || len(b.events) == 0 {
++				continue
++			}
++			ev := b.events[0]
++			g, init, next := stateTransition(ev)
++			if !transitionReady(g, gs[g], init) {
++				continue
++			}
++			frontier = append(frontier, orderEvent{ev, i, g, init, next})
++			b.events = b.events[1:]
++			b.selected = true
++			// Get rid of "Local" events, they are intended merely for ordering.
++			switch ev.Type {
++			case EvGoStartLocal:
++				ev.Type = EvGoStart
++			case EvGoUnblockLocal:
++				ev.Type = EvGoUnblock
++			case EvGoSysExitLocal:
++				ev.Type = EvGoSysExit
++			}
++		}
++		if len(frontier) == 0 {
++			return nil, fmt.Errorf("no consistent ordering of events possible")
++		}
++		sort.Sort(orderEventList(frontier))
++		f := frontier[0]
++		frontier[0] = frontier[len(frontier)-1]
++		frontier = frontier[:len(frontier)-1]
++		events = append(events, f.ev)
++		transition(gs, f.g, f.init, f.next)
++		if !batches[f.batch].selected {
++			panic("frontier batch is not selected")
++		}
++		batches[f.batch].selected = false
++	}
++
++	// At this point we have a consistent stream of events.
++	// Make sure time stamps respect the ordering.
++	// The tests will skip (not fail) the test case if they see this error.
++	if !sort.IsSorted(eventList(events)) {
++		return nil, ErrTimeOrder
++	}
++
++	// The last part is giving correct timestamps to EvGoSysExit events.
++	// The problem with EvGoSysExit is that actual syscall exit timestamp (ev.Args[2])
++	// is potentially acquired long before event emission. So far we've used
++	// timestamp of event emission (ev.Ts).
++	// We could not set ev.Ts = ev.Args[2] earlier, because it would produce
++	// seemingly broken timestamps (misplaced event).
++	// We also can't simply update the timestamp and resort events, because
++	// if timestamps are broken we will misplace the event and later report
++	// logically broken trace (instead of reporting broken timestamps).
++	lastSysBlock := make(map[uint64]int64)
++	for _, ev := range events {
++		switch ev.Type {
++		case EvGoSysBlock, EvGoInSyscall:
++			lastSysBlock[ev.G] = ev.Ts
++		case EvGoSysExit:
++			ts := int64(ev.Args[2])
++			if ts == 0 {
++				continue
++			}
++			block := lastSysBlock[ev.G]
++			if block == 0 {
++				return nil, fmt.Errorf("stray syscall exit")
++			}
++			if ts < block {
++				return nil, ErrTimeOrder
++			}
++			ev.Ts = ts
++		}
++	}
++	sort.Sort(eventList(events))
++
++	return
++}
++
++// stateTransition returns goroutine state (sequence and status) when the event
++// becomes ready for merging (init) and the goroutine state after the event (next).
++func stateTransition(ev *Event) (g uint64, init, next gState) {
++	switch ev.Type {
++	case EvGoCreate:
++		g = ev.Args[0]
++		init = gState{0, gDead}
++		next = gState{1, gRunnable}
++	case EvGoWaiting, EvGoInSyscall:
++		g = ev.G
++		init = gState{1, gRunnable}
++		next = gState{2, gWaiting}
++	case EvGoStart:
++		g = ev.G
++		init = gState{ev.Args[1], gRunnable}
++		next = gState{ev.Args[1] + 1, gRunning}
++	case EvGoStartLocal:
++		// noseq means that this event is ready for merging as soon as
++		// frontier reaches it (EvGoStartLocal is emitted on the same P
++		// as the corresponding EvGoCreate/EvGoUnblock, and thus the latter
++		// is already merged).
++		// seqinc is a stub for cases when event increments g sequence,
++		// but since we don't know current seq we also don't know next seq.
++		g = ev.G
++		init = gState{noseq, gRunnable}
++		next = gState{seqinc, gRunning}
++	case EvGoBlock, EvGoBlockSend, EvGoBlockRecv, EvGoBlockSelect,
++		EvGoBlockSync, EvGoBlockCond, EvGoBlockNet, EvGoSleep, EvGoSysBlock:
++		g = ev.G
++		init = gState{noseq, gRunning}
++		next = gState{noseq, gWaiting}
++	case EvGoSched, EvGoPreempt:
++		g = ev.G
++		init = gState{noseq, gRunning}
++		next = gState{noseq, gRunnable}
++	case EvGoUnblock, EvGoSysExit:
++		g = ev.Args[0]
++		init = gState{ev.Args[1], gWaiting}
++		next = gState{ev.Args[1] + 1, gRunnable}
++	case EvGoUnblockLocal, EvGoSysExitLocal:
++		g = ev.Args[0]
++		init = gState{noseq, gWaiting}
++		next = gState{seqinc, gRunnable}
++	case EvGCStart:
++		g = garbage
++		init = gState{ev.Args[0], gDead}
++		next = gState{ev.Args[0] + 1, gDead}
++	default:
++		// no ordering requirements
++		g = unordered
++	}
++	return
++}
++
++func transitionReady(g uint64, curr, init gState) bool {
++	return g == unordered || (init.seq == noseq || init.seq == curr.seq) && init.status == curr.status
++}
++
++func transition(gs map[uint64]gState, g uint64, init, next gState) {
++	if g == unordered {
++		return
++	}
++	curr := gs[g]
++	if !transitionReady(g, curr, init) {
++		panic("event sequences are broken")
++	}
++	switch next.seq {
++	case noseq:
++		next.seq = curr.seq
++	case seqinc:
++		next.seq = curr.seq + 1
++	}
++	gs[g] = next
++}
++
++// order1005 merges a set of per-P event batches into a single, consistent stream.
++func order1005(m map[int][]*Event) (events []*Event, err error) {
++	for _, batch := range m {
++		events = append(events, batch...)
++	}
++	for _, ev := range events {
++		if ev.Type == EvGoSysExit {
++			// EvGoSysExit emission is delayed until the thread has a P.
++			// Give it the real sequence number and time stamp.
++			ev.seq = int64(ev.Args[1])
++			if ev.Args[2] != 0 {
++				ev.Ts = int64(ev.Args[2])
++			}
++		}
++	}
++	sort.Sort(eventSeqList(events))
++	if !sort.IsSorted(eventList(events)) {
++		return nil, ErrTimeOrder
++	}
++	return
++}
++
++type orderEventList []orderEvent
++
++func (l orderEventList) Len() int {
++	return len(l)
++}
++
++func (l orderEventList) Less(i, j int) bool {
++	return l[i].ev.Ts < l[j].ev.Ts
++}
++
++func (l orderEventList) Swap(i, j int) {
++	l[i], l[j] = l[j], l[i]
++}
++
++type eventList []*Event
++
++func (l eventList) Len() int {
++	return len(l)
++}
++
++func (l eventList) Less(i, j int) bool {
++	return l[i].Ts < l[j].Ts
++}
++
++func (l eventList) Swap(i, j int) {
++	l[i], l[j] = l[j], l[i]
++}
++
++type eventSeqList []*Event
++
++func (l eventSeqList) Len() int {
++	return len(l)
++}
++
++func (l eventSeqList) Less(i, j int) bool {
++	return l[i].seq < l[j].seq
++}
++
++func (l eventSeqList) Swap(i, j int) {
++	l[i], l[j] = l[j], l[i]
++}
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index d279ddeacf..e6f29445c1 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -11,7 +11,6 @@ import (
+ 	"io"
+ 	"os"
+ 	"os/exec"
+-	"sort"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -135,7 +134,12 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
+ 		}
+ 		off += n
+ 		typ := buf[0] << 2 >> 2
+-		narg := buf[0] >> 6
++		narg := buf[0]>>6 + 1
++		inlineArgs := byte(4)
++		if ver < 1007 {
++			narg++
++			inlineArgs++
++		}
+ 		if typ == EvNone || typ >= EvCount || EventDescriptions[typ].minVersion > ver {
+ 			err = fmt.Errorf("unknown event type %v at offset 0x%x", typ, off0)
+ 			return
+@@ -180,8 +184,8 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
+ 			continue
+ 		}
+ 		ev := rawEvent{typ: typ, off: off0}
+-		if narg < 3 {
+-			for i := 0; i < int(narg)+2; i++ { // sequence number and time stamp are present but not counted in narg
++		if narg < inlineArgs {
++			for i := 0; i < int(narg); i++ {
+ 				var v uint64
+ 				v, off, err = readVal(r, off)
+ 				if err != nil {
+@@ -191,7 +195,7 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
+ 				ev.args = append(ev.args, v)
+ 			}
+ 		} else {
+-			// If narg == 3, the first value is length of the event in bytes.
++			// More than inlineArgs args, the first value is length of the event in bytes.
+ 			var v uint64
+ 			v, off, err = readVal(r, off)
+ 			if err != nil {
+@@ -250,34 +254,30 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
+ 	var lastP int
+ 	lastGs := make(map[int]uint64) // last goroutine running on P
+ 	stacks = make(map[uint64][]*Frame)
++	batches := make(map[int][]*Event) // events by P
+ 	for _, raw := range rawEvents {
+ 		desc := EventDescriptions[raw.typ]
+ 		if desc.Name == "" {
+ 			err = fmt.Errorf("missing description for event type %v", raw.typ)
+ 			return
+ 		}
+-		if raw.typ != EvStack {
+-			narg := len(desc.Args)
+-			if desc.Stack {
+-				narg++
+-			}
+-			if raw.typ != EvBatch && raw.typ != EvFrequency && raw.typ != EvTimerGoroutine {
+-				narg++ // sequence number
+-				narg++ // timestamp
+-			}
+-			if len(raw.args) != narg {
+-				err = fmt.Errorf("%v has wrong number of arguments at offset 0x%x: want %v, got %v",
+-					desc.Name, raw.off, narg, len(raw.args))
+-				return
+-			}
++		narg := argNum(raw, ver)
++		if len(raw.args) != narg {
++			err = fmt.Errorf("%v has wrong number of arguments at offset 0x%x: want %v, got %v",
++				desc.Name, raw.off, narg, len(raw.args))
++			return
+ 		}
+ 		switch raw.typ {
+ 		case EvBatch:
+ 			lastGs[lastP] = lastG
+ 			lastP = int(raw.args[0])
+ 			lastG = lastGs[lastP]
+-			lastSeq = int64(raw.args[1])
+-			lastTs = int64(raw.args[2])
++			if ver < 1007 {
++				lastSeq = int64(raw.args[1])
++				lastTs = int64(raw.args[2])
++			} else {
++				lastTs = int64(raw.args[1])
++			}
+ 		case EvFrequency:
+ 			ticksPerSec = int64(raw.args[0])
+ 			if ticksPerSec <= 0 {
+@@ -328,18 +328,26 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
+ 			}
+ 		default:
+ 			e := &Event{Off: raw.off, Type: raw.typ, P: lastP, G: lastG}
+-			e.seq = lastSeq + int64(raw.args[0])
+-			e.Ts = lastTs + int64(raw.args[1])
+-			lastSeq = e.seq
+-			lastTs = e.Ts
+-			for i := range desc.Args {
+-				e.Args[i] = raw.args[i+2]
++			var argOffset int
++			if ver < 1007 {
++				e.seq = lastSeq + int64(raw.args[0])
++				e.Ts = lastTs + int64(raw.args[1])
++				lastSeq = e.seq
++				argOffset = 2
++			} else {
++				e.Ts = lastTs + int64(raw.args[0])
++				argOffset = 1
+ 			}
+-			if desc.Stack {
+-				e.StkID = raw.args[len(desc.Args)+2]
++			lastTs = e.Ts
++			for i := argOffset; i < narg; i++ {
++				if i == narg-1 && desc.Stack {
++					e.StkID = raw.args[i]
++				} else {
++					e.Args[i-argOffset] = raw.args[i]
++				}
+ 			}
+ 			switch raw.typ {
+-			case EvGoStart:
++			case EvGoStart, EvGoStartLocal:
+ 				lastG = e.Args[0]
+ 				e.G = lastG
+ 			case EvGCStart, EvGCDone, EvGCScanStart, EvGCScanDone:
+@@ -349,28 +357,30 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
+ 				EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond, EvGoBlockNet,
+ 				EvGoSysBlock:
+ 				lastG = 0
+-			case EvGoSysExit:
+-				// EvGoSysExit emission is delayed until the thread has a P.
+-				// Give it the real sequence number and time stamp.
+-				e.seq = int64(e.Args[1])
+-				if e.Args[2] != 0 {
+-					e.Ts = int64(e.Args[2])
+-				}
++			case EvGoSysExit, EvGoWaiting, EvGoInSyscall:
++				e.G = e.Args[0]
+ 			}
+-			events = append(events, e)
++			batches[lastP] = append(batches[lastP], e)
+ 		}
+ 	}
+-	if len(events) == 0 {
++	if len(batches) == 0 {
+ 		err = fmt.Errorf("trace is empty")
+ 		return
+ 	}
+-
+-	// Sort by sequence number and translate cpu ticks to real time.
+-	sort.Sort(eventList(events))
+ 	if ticksPerSec == 0 {
+ 		err = fmt.Errorf("no EvFrequency event")
+ 		return
+ 	}
++	if ver < 1007 {
++		events, err = order1005(batches)
++	} else {
++		events, err = order1007(batches)
++	}
++	if err != nil {
++		return
++	}
++
++	// Translate cpu ticks to real time.
+ 	minTs := events[0].Ts
+ 	// Use floating point to avoid integer overflows.
+ 	freq := 1e9 / float64(ticksPerSec)
+@@ -382,7 +392,6 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
+ 		}
+ 		if ev.Type == EvGoSysExit {
+ 			ev.P = SyscallP
+-			ev.G = ev.Args[0]
+ 		}
+ 	}
+ 
+@@ -543,19 +552,15 @@ func postProcessTrace(ver int, events []*Event) error {
+ 			p.evSweep.Link = ev
+ 			p.evSweep = nil
+ 		case EvGoWaiting:
+-			g1 := gs[ev.Args[0]]
+-			if g1.state != gRunnable {
+-				return fmt.Errorf("g %v is not runnable before EvGoWaiting (offset %v, time %v)", ev.Args[0], ev.Off, ev.Ts)
++			if g.state != gRunnable {
++				return fmt.Errorf("g %v is not runnable before EvGoWaiting (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
+ 			}
+-			g1.state = gWaiting
+-			gs[ev.Args[0]] = g1
++			g.state = gWaiting
+ 		case EvGoInSyscall:
+-			g1 := gs[ev.Args[0]]
+-			if g1.state != gRunnable {
+-				return fmt.Errorf("g %v is not runnable before EvGoInSyscall (offset %v, time %v)", ev.Args[0], ev.Off, ev.Ts)
++			if g.state != gRunnable {
++				return fmt.Errorf("g %v is not runnable before EvGoInSyscall (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
+ 			}
+-			g1.state = gWaiting
+-			gs[ev.Args[0]] = g1
++			g.state = gWaiting
+ 		case EvGoCreate:
+ 			if err := checkRunning(p, g, ev, true); err != nil {
+ 				return err
+@@ -666,18 +671,6 @@ func postProcessTrace(ver int, events []*Event) error {
+ 	// TODO(dvyukov): restore stacks for EvGoStart events.
+ 	// TODO(dvyukov): test that all EvGoStart events has non-nil Link.
+ 
+-	// Last, after all the other consistency checks,
+-	// make sure time stamps respect sequence numbers.
+-	// The tests will skip (not fail) the test case if they see this error,
+-	// so check everything else that could possibly be wrong first.
+-	lastTs := int64(0)
+-	for _, ev := range events {
+-		if ev.Ts < lastTs {
+-			return ErrTimeOrder
+-		}
+-		lastTs = ev.Ts
+-	}
+-
+ 	return nil
+ }
+ 
+@@ -773,30 +766,51 @@ func readVal(r io.Reader, off0 int) (v uint64, off int, err error) {
+ 	return 0, 0, fmt.Errorf("bad value at offset 0x%x", off0)
+ }
+ 
+-type eventList []*Event
+-
+-func (l eventList) Len() int {
+-	return len(l)
+-}
+-
+-func (l eventList) Less(i, j int) bool {
+-	return l[i].seq < l[j].seq
++// Print dumps events to stdout. For debugging.
++func Print(events []*Event) {
++	for _, ev := range events {
++		PrintEvent(ev)
++	}
+ }
+ 
+-func (l eventList) Swap(i, j int) {
+-	l[i], l[j] = l[j], l[i]
++// PrintEvent dumps the event to stdout. For debugging.
++func PrintEvent(ev *Event) {
++	desc := EventDescriptions[ev.Type]
++	fmt.Printf("%v %v p=%v g=%v off=%v", ev.Ts, desc.Name, ev.P, ev.G, ev.Off)
++	for i, a := range desc.Args {
++		fmt.Printf(" %v=%v", a, ev.Args[i])
++	}
++	fmt.Printf("\n")
+ }
+ 
+-// Print dumps events to stdout. For debugging.
+-func Print(events []*Event) {
+-	for _, ev := range events {
+-		desc := EventDescriptions[ev.Type]
+-		fmt.Printf("%v %v p=%v g=%v off=%v", ev.Ts, desc.Name, ev.P, ev.G, ev.Off)
+-		for i, a := range desc.Args {
+-			fmt.Printf(" %v=%v", a, ev.Args[i])
++// argNum returns total number of args for the event accounting for timestamps,
++// sequence numbers and differences between trace format versions.
++func argNum(raw rawEvent, ver int) int {
++	desc := EventDescriptions[raw.typ]
++	if raw.typ == EvStack {
++		return len(raw.args)
++	}
++	narg := len(desc.Args)
++	if desc.Stack {
++		narg++
++	}
++	switch raw.typ {
++	case EvBatch, EvFrequency, EvTimerGoroutine:
++		if ver < 1007 {
++			narg++ // there was an unused arg before 1.7
++		}
++	case EvGCStart, EvGoStart, EvGoUnblock:
++		if ver < 1007 {
++			narg-- // 1.7 added an additional seq arg
++		}
++		fallthrough
++	default:
++		narg++ // timestamp
++		if ver < 1007 {
++			narg++ // sequence
+ 		}
+-		fmt.Printf("\n")
+ 	}
++	return narg
+ }
+ 
+ // Event types in the trace.
+@@ -809,21 +823,21 @@ const (
+ 	EvGomaxprocs     = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
+ 	EvProcStart      = 5  // start of P [timestamp, thread id]
+ 	EvProcStop       = 6  // stop of P [timestamp]
+-	EvGCStart        = 7  // GC start [timestamp, stack id]
++	EvGCStart        = 7  // GC start [timestamp, seq, stack id]
+ 	EvGCDone         = 8  // GC done [timestamp]
+ 	EvGCScanStart    = 9  // GC scan start [timestamp]
+ 	EvGCScanDone     = 10 // GC scan done [timestamp]
+ 	EvGCSweepStart   = 11 // GC sweep start [timestamp, stack id]
+ 	EvGCSweepDone    = 12 // GC sweep done [timestamp]
+ 	EvGoCreate       = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
+-	EvGoStart        = 14 // goroutine starts running [timestamp, goroutine id]
++	EvGoStart        = 14 // goroutine starts running [timestamp, goroutine id, seq]
+ 	EvGoEnd          = 15 // goroutine ends [timestamp]
+ 	EvGoStop         = 16 // goroutine stops (like in select{}) [timestamp, stack]
+ 	EvGoSched        = 17 // goroutine calls Gosched [timestamp, stack]
+ 	EvGoPreempt      = 18 // goroutine is preempted [timestamp, stack]
+ 	EvGoSleep        = 19 // goroutine calls Sleep [timestamp, stack]
+ 	EvGoBlock        = 20 // goroutine blocks [timestamp, stack]
+-	EvGoUnblock      = 21 // goroutine is unblocked [timestamp, goroutine id, stack]
++	EvGoUnblock      = 21 // goroutine is unblocked [timestamp, goroutine id, seq, stack]
+ 	EvGoBlockSend    = 22 // goroutine blocks on chan send [timestamp, stack]
+ 	EvGoBlockRecv    = 23 // goroutine blocks on chan recv [timestamp, stack]
+ 	EvGoBlockSelect  = 24 // goroutine blocks on select [timestamp, stack]
+@@ -831,7 +845,7 @@ const (
+ 	EvGoBlockCond    = 26 // goroutine blocks on Cond [timestamp, stack]
+ 	EvGoBlockNet     = 27 // goroutine blocks on network [timestamp, stack]
+ 	EvGoSysCall      = 28 // syscall enter [timestamp, stack]
+-	EvGoSysExit      = 29 // syscall exit [timestamp, goroutine id, real timestamp]
++	EvGoSysExit      = 29 // syscall exit [timestamp, goroutine id, seq, real timestamp]
+ 	EvGoSysBlock     = 30 // syscall blocks [timestamp]
+ 	EvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
+ 	EvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
+@@ -840,7 +854,10 @@ const (
+ 	EvTimerGoroutine = 35 // denotes timer goroutine [timer goroutine id]
+ 	EvFutileWakeup   = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
+ 	EvString         = 37 // string dictionary entry [ID, length, string]
+-	EvCount          = 38
++	EvGoStartLocal   = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
++	EvGoUnblockLocal = 39 // goroutine is unblocked on the same P as the last event [timestamp, goroutine id, stack]
++	EvGoSysExitLocal = 40 // syscall exit on the same P as the last event [timestamp, goroutine id, real timestamp]
++	EvCount          = 41
+ )
+ 
+ var EventDescriptions = [EvCount]struct {
+@@ -850,27 +867,27 @@ var EventDescriptions = [EvCount]struct {
+ 	Args       []string
+ }{
+ 	EvNone:           {"None", 1005, false, []string{}},
+-	EvBatch:          {"Batch", 1005, false, []string{"p", "seq", "ticks"}},
+-	EvFrequency:      {"Frequency", 1005, false, []string{"freq", "unused"}},
++	EvBatch:          {"Batch", 1005, false, []string{"p", "ticks"}}, // in 1.5 format it was {"p", "seq", "ticks"}
++	EvFrequency:      {"Frequency", 1005, false, []string{"freq"}},   // in 1.5 format it was {"freq", "unused"}
+ 	EvStack:          {"Stack", 1005, false, []string{"id", "siz"}},
+ 	EvGomaxprocs:     {"Gomaxprocs", 1005, true, []string{"procs"}},
+ 	EvProcStart:      {"ProcStart", 1005, false, []string{"thread"}},
+ 	EvProcStop:       {"ProcStop", 1005, false, []string{}},
+-	EvGCStart:        {"GCStart", 1005, true, []string{}},
++	EvGCStart:        {"GCStart", 1005, true, []string{"seq"}}, // in 1.5 format it was {}
+ 	EvGCDone:         {"GCDone", 1005, false, []string{}},
+ 	EvGCScanStart:    {"GCScanStart", 1005, false, []string{}},
+ 	EvGCScanDone:     {"GCScanDone", 1005, false, []string{}},
+ 	EvGCSweepStart:   {"GCSweepStart", 1005, true, []string{}},
+ 	EvGCSweepDone:    {"GCSweepDone", 1005, false, []string{}},
+ 	EvGoCreate:       {"GoCreate", 1005, true, []string{"g", "stack"}},
+-	EvGoStart:        {"GoStart", 1005, false, []string{"g"}},
++	EvGoStart:        {"GoStart", 1005, false, []string{"g", "seq"}}, // in 1.5 format it was {"g"}
+ 	EvGoEnd:          {"GoEnd", 1005, false, []string{}},
+ 	EvGoStop:         {"GoStop", 1005, true, []string{}},
+ 	EvGoSched:        {"GoSched", 1005, true, []string{}},
+ 	EvGoPreempt:      {"GoPreempt", 1005, true, []string{}},
+ 	EvGoSleep:        {"GoSleep", 1005, true, []string{}},
+ 	EvGoBlock:        {"GoBlock", 1005, true, []string{}},
+-	EvGoUnblock:      {"GoUnblock", 1005, true, []string{"g"}},
++	EvGoUnblock:      {"GoUnblock", 1005, true, []string{"g", "seq"}}, // in 1.5 format it was {"g"}
+ 	EvGoBlockSend:    {"GoBlockSend", 1005, true, []string{}},
+ 	EvGoBlockRecv:    {"GoBlockRecv", 1005, true, []string{}},
+ 	EvGoBlockSelect:  {"GoBlockSelect", 1005, true, []string{}},
+@@ -884,7 +901,10 @@ var EventDescriptions = [EvCount]struct {
+ 	EvGoInSyscall:    {"GoInSyscall", 1005, false, []string{"g"}},
+ 	EvHeapAlloc:      {"HeapAlloc", 1005, false, []string{"mem"}},
+ 	EvNextGC:         {"NextGC", 1005, false, []string{"mem"}},
+-	EvTimerGoroutine: {"TimerGoroutine", 1005, false, []string{"g", "unused"}},
++	EvTimerGoroutine: {"TimerGoroutine", 1005, false, []string{"g"}}, // in 1.5 format it was {"g", "unused"}
+ 	EvFutileWakeup:   {"FutileWakeup", 1005, false, []string{}},
+ 	EvString:         {"String", 1007, false, []string{}},
++	EvGoStartLocal:   {"GoStartLocal", 1007, false, []string{"g"}},
++	EvGoUnblockLocal: {"GoUnblockLocal", 1007, true, []string{"g"}},
++	EvGoSysExitLocal: {"GoSysExitLocal", 1007, false, []string{"g", "ts"}},
+ }
+diff --git a/src/internal/trace/parser_test.go b/src/internal/trace/parser_test.go
+index 337d5a85d7..340f106484 100644
+--- a/src/internal/trace/parser_test.go
++++ b/src/internal/trace/parser_test.go
+@@ -89,10 +89,10 @@ func TestParseVersion(t *testing.T) {
+ func TestTimestampOverflow(t *testing.T) {
+ 	// Test that parser correctly handles large timestamps (long tracing).
+ 	w := newWriter()
+-	w.emit(EvBatch, 0, 0, 0)
+-	w.emit(EvFrequency, 1e9, 0)
++	w.emit(EvBatch, 0, 0)
++	w.emit(EvFrequency, 1e9)
+ 	for ts := uint64(1); ts < 1e16; ts *= 2 {
+-		w.emit(EvGoCreate, 1, ts, ts, 1, 0)
++		w.emit(EvGoCreate, ts, ts, 0, 0)
+ 	}
+ 	if _, err := Parse(w, ""); err != nil {
+ 		t.Fatalf("failed to parse: %v", err)
+@@ -110,7 +110,7 @@ func newWriter() *writer {
+ }
+ 
+ func (w *writer) emit(typ byte, args ...uint64) {
+-	nargs := byte(len(args)) - 2
++	nargs := byte(len(args)) - 1
+ 	if nargs > 3 {
+ 		nargs = 3
+ 	}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 98a986cd63..a847823da4 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1796,23 +1796,7 @@ func execute(gp *g, inheritTime bool) {
+ 		// GoSysExit has to happen when we have a P, but before GoStart.
+ 		// So we emit it here.
+ 		if gp.syscallsp != 0 && gp.sysblocktraced {
+-			// Since gp.sysblocktraced is true, we must emit an event.
+-			// There is a race between the code that initializes sysexitseq
+-			// and sysexitticks (in exitsyscall, which runs without a P,
+-			// and therefore is not stopped with the rest of the world)
+-			// and the code that initializes a new trace.
+-			// The recorded sysexitseq and sysexitticks must therefore
+-			// be treated as "best effort". If they are valid for this trace,
+-			// then great, use them for greater accuracy.
+-			// But if they're not valid for this trace, assume that the
+-			// trace was started after the actual syscall exit (but before
+-			// we actually managed to start the goroutine, aka right now),
+-			// and assign a fresh time stamp to keep the log consistent.
+-			seq, ts := gp.sysexitseq, gp.sysexitticks
+-			if seq == 0 || int64(seq)-int64(trace.seqStart) < 0 {
+-				seq, ts = tracestamp()
+-			}
+-			traceGoSysExit(seq, ts)
++			traceGoSysExit(gp.sysexitticks)
+ 		}
+ 		traceGoStart()
+ 	}
+@@ -2481,7 +2465,6 @@ func exitsyscall(dummy int32) {
+ 	}
+ 
+ 	_g_.sysexitticks = 0
+-	_g_.sysexitseq = 0
+ 	if trace.enabled {
+ 		// Wait till traceGoSysBlock event is emitted.
+ 		// This ensures consistency of the trace (the goroutine is started after it is blocked).
+@@ -2492,7 +2475,7 @@ func exitsyscall(dummy int32) {
+ 		// Tracing code can invoke write barriers that cannot run without a P.
+ 		// So instead we remember the syscall exit time and emit the event
+ 		// in execute when we have a P.
+-		_g_.sysexitseq, _g_.sysexitticks = tracestamp()
++		_g_.sysexitticks = cputicks()
+ 	}
+ 
+ 	_g_.m.locks--
+@@ -2540,7 +2523,7 @@ func exitsyscallfast() bool {
+ 					// Denote blocking of the new syscall.
+ 					traceGoSysBlock(_g_.m.p.ptr())
+ 					// Denote completion of the current syscall.
+-					traceGoSysExit(tracestamp())
++					traceGoSysExit(0)
+ 				})
+ 			}
+ 			_g_.m.p.ptr().syscalltick++
+@@ -2564,7 +2547,7 @@ func exitsyscallfast() bool {
+ 						osyield()
+ 					}
+ 				}
+-				traceGoSysExit(tracestamp())
++				traceGoSysExit(0)
+ 			}
+ 		})
+ 		if ok {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 0fdea400de..8cfe6b06e6 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -332,16 +332,17 @@ type g struct {
+ 	waitsince      int64  // approx time when the g become blocked
+ 	waitreason     string // if status==Gwaiting
+ 	schedlink      guintptr
+-	preempt        bool   // preemption signal, duplicates stackguard0 = stackpreempt
+-	paniconfault   bool   // panic (instead of crash) on unexpected fault address
+-	preemptscan    bool   // preempted g does scan for gc
+-	gcscandone     bool   // g has scanned stack; protected by _Gscan bit in status
+-	gcscanvalid    bool   // false at start of gc cycle, true if G has not run since last scan
+-	throwsplit     bool   // must not split stack
+-	raceignore     int8   // ignore race detection events
+-	sysblocktraced bool   // StartTrace has emitted EvGoInSyscall about this goroutine
+-	sysexitticks   int64  // cputicks when syscall has returned (for tracing)
+-	sysexitseq     uint64 // trace seq when syscall has returned (for tracing)
++	preempt        bool     // preemption signal, duplicates stackguard0 = stackpreempt
++	paniconfault   bool     // panic (instead of crash) on unexpected fault address
++	preemptscan    bool     // preempted g does scan for gc
++	gcscandone     bool     // g has scanned stack; protected by _Gscan bit in status
++	gcscanvalid    bool     // false at start of gc cycle, true if G has not run since last scan
++	throwsplit     bool     // must not split stack
++	raceignore     int8     // ignore race detection events
++	sysblocktraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
++	sysexitticks   int64    // cputicks when syscall has returned (for tracing)
++	traceseq       uint64   // trace event sequencer
++	tracelastp     puintptr // last P emitted an event for this goroutine
+ 	lockedm        *m
+ 	sig            uint32
+ 	writebuf       []byte
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 06fbdfac94..092f941f0c 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -13,7 +13,6 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -27,21 +26,21 @@ const (
+ 	traceEvGomaxprocs     = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
+ 	traceEvProcStart      = 5  // start of P [timestamp, thread id]
+ 	traceEvProcStop       = 6  // stop of P [timestamp]
+-	traceEvGCStart        = 7  // GC start [timestamp, stack id]
++	traceEvGCStart        = 7  // GC start [timestamp, seq, stack id]
+ 	traceEvGCDone         = 8  // GC done [timestamp]
+ 	traceEvGCScanStart    = 9  // GC scan start [timestamp]
+ 	traceEvGCScanDone     = 10 // GC scan done [timestamp]
+ 	traceEvGCSweepStart   = 11 // GC sweep start [timestamp, stack id]
+ 	traceEvGCSweepDone    = 12 // GC sweep done [timestamp]
+ 	traceEvGoCreate       = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
+-	traceEvGoStart        = 14 // goroutine starts running [timestamp, goroutine id]
++	traceEvGoStart        = 14 // goroutine starts running [timestamp, goroutine id, seq]
+ 	traceEvGoEnd          = 15 // goroutine ends [timestamp]
+ 	traceEvGoStop         = 16 // goroutine stops (like in select{}) [timestamp, stack]
+ 	traceEvGoSched        = 17 // goroutine calls Gosched [timestamp, stack]
+ 	traceEvGoPreempt      = 18 // goroutine is preempted [timestamp, stack]
+ 	traceEvGoSleep        = 19 // goroutine calls Sleep [timestamp, stack]
+ 	traceEvGoBlock        = 20 // goroutine blocks [timestamp, stack]
+-	traceEvGoUnblock      = 21 // goroutine is unblocked [timestamp, goroutine id, stack]
++	traceEvGoUnblock      = 21 // goroutine is unblocked [timestamp, goroutine id, seq, stack]
+ 	traceEvGoBlockSend    = 22 // goroutine blocks on chan send [timestamp, stack]
+ 	traceEvGoBlockRecv    = 23 // goroutine blocks on chan recv [timestamp, stack]
+ 	traceEvGoBlockSelect  = 24 // goroutine blocks on select [timestamp, stack]
+@@ -49,7 +48,7 @@ const (
+ 	traceEvGoBlockCond    = 26 // goroutine blocks on Cond [timestamp, stack]
+ 	traceEvGoBlockNet     = 27 // goroutine blocks on network [timestamp, stack]
+ 	traceEvGoSysCall      = 28 // syscall enter [timestamp, stack]
+-	traceEvGoSysExit      = 29 // syscall exit [timestamp, goroutine id, real timestamp]
++	traceEvGoSysExit      = 29 // syscall exit [timestamp, goroutine id, seq, real timestamp]
+ 	traceEvGoSysBlock     = 30 // syscall blocks [timestamp]
+ 	traceEvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
+ 	traceEvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
+@@ -58,7 +57,10 @@ const (
+ 	traceEvTimerGoroutine = 35 // denotes timer goroutine [timer goroutine id]
+ 	traceEvFutileWakeup   = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
+ 	traceEvString         = 37 // string dictionary entry [ID, length, string]
+-	traceEvCount          = 38
++	traceEvGoStartLocal   = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
++	traceEvGoUnblockLocal = 39 // goroutine is unblocked on the same P as the last event [timestamp, goroutine id, stack]
++	traceEvGoSysExitLocal = 40 // syscall exit on the same P as the last event [timestamp, goroutine id, real timestamp]
++	traceEvCount          = 41
+ )
+ 
+ const (
+@@ -105,6 +107,7 @@ var trace struct {
+ 	ticksEnd      int64       // cputicks when tracing was stopped
+ 	timeStart     int64       // nanotime when tracing was started
+ 	timeEnd       int64       // nanotime when tracing was stopped
++	seqGC         uint64      // GC start/done sequencer
+ 	reading       traceBufPtr // buffer currently handed off to user
+ 	empty         traceBufPtr // stack of empty buffers
+ 	fullHead      traceBufPtr // queue of full buffers
+@@ -122,31 +125,9 @@ var trace struct {
+ 	buf     traceBufPtr // global trace buffer, used when running without a p
+ }
+ 
+-var traceseq uint64 // global trace sequence number
+-
+-// tracestamp returns a consistent sequence number, time stamp pair
+-// for use in a trace. We need to make sure that time stamp ordering
+-// (assuming synchronized CPUs) and sequence ordering match.
+-// To do that, we increment traceseq, grab ticks, and increment traceseq again.
+-// We treat odd traceseq as a sign that another thread is in the middle
+-// of the sequence and spin until it is done.
+-// Not splitting stack to avoid preemption, just in case the call sites
+-// that used to call xadd64 and cputicks are sensitive to that.
+-//go:nosplit
+-func tracestamp() (seq uint64, ts int64) {
+-	seq = atomic.Load64(&traceseq)
+-	for seq&1 != 0 || !atomic.Cas64(&traceseq, seq, seq+1) {
+-		seq = atomic.Load64(&traceseq)
+-	}
+-	ts = cputicks()
+-	atomic.Store64(&traceseq, seq+2)
+-	return seq >> 1, ts
+-}
+-
+ // traceBufHeader is per-P tracing buffer.
+ type traceBufHeader struct {
+ 	link      traceBufPtr             // in trace.empty/full
+-	lastSeq   uint64                  // sequence number of last event
+ 	lastTicks uint64                  // when we wrote the last event
+ 	pos       int                     // next write offset in arr
+ 	stk       [traceStackSize]uintptr // scratch buffer for traceback
+@@ -194,13 +175,6 @@ func StartTrace() error {
+ 		return errorString("tracing is already enabled")
+ 	}
+ 
+-	trace.seqStart, trace.ticksStart = tracestamp()
+-	trace.timeStart = nanotime()
+-	trace.headerWritten = false
+-	trace.footerWritten = false
+-	trace.strings = make(map[string]uint64)
+-	trace.stringSeq = 0
+-
+ 	// Can't set trace.enabled yet. While the world is stopped, exitsyscall could
+ 	// already emit a delayed event (see exitTicks in exitsyscall) if we set trace.enabled here.
+ 	// That would lead to an inconsistent trace:
+@@ -213,12 +187,15 @@ func StartTrace() error {
+ 	for _, gp := range allgs {
+ 		status := readgstatus(gp)
+ 		if status != _Gdead {
+-			traceGoCreate(gp, gp.startpc)
++			traceGoCreate(gp, gp.startpc) // also resets gp.traceseq/tracelastp
+ 		}
+ 		if status == _Gwaiting {
++			// traceEvGoWaiting is implied to have seq=1.
++			gp.traceseq++
+ 			traceEvent(traceEvGoWaiting, -1, uint64(gp.goid))
+ 		}
+ 		if status == _Gsyscall {
++			gp.traceseq++
+ 			traceEvent(traceEvGoInSyscall, -1, uint64(gp.goid))
+ 		} else {
+ 			gp.sysblocktraced = false
+@@ -226,6 +203,17 @@ func StartTrace() error {
+ 	}
+ 	traceProcStart()
+ 	traceGoStart()
++	// Note: ticksStart needs to be set after we emit traceEvGoInSyscall events.
++	// If we do it the other way around, it is possible that exitsyscall will
++	// query sysexitticks after ticksStart but before traceEvGoInSyscall timestamp.
++	// It will lead to a false conclusion that cputicks is broken.
++	trace.ticksStart = cputicks()
++	trace.timeStart = nanotime()
++	trace.headerWritten = false
++	trace.footerWritten = false
++	trace.strings = make(map[string]uint64)
++	trace.stringSeq = 0
++	trace.seqGC = 0
+ 	_g_.m.startingtrace = false
+ 	trace.enabled = true
+ 
+@@ -382,11 +370,9 @@ func ReadTrace() []byte {
+ 		var data []byte
+ 		data = append(data, traceEvFrequency|0<<traceArgCountShift)
+ 		data = traceAppend(data, uint64(freq))
+-		data = traceAppend(data, 0)
+ 		if timers.gp != nil {
+ 			data = append(data, traceEvTimerGoroutine|0<<traceArgCountShift)
+ 			data = traceAppend(data, uint64(timers.gp.goid))
+-			data = traceAppend(data, 0)
+ 		}
+ 		// This will emit a bunch of full buffers, we will pick them up
+ 		// on the next iteration.
+@@ -494,19 +480,14 @@ func traceEvent(ev byte, skip int, args ...uint64) {
+ 		(*bufp).set(buf)
+ 	}
+ 
+-	seq, ticksraw := tracestamp()
+-	seqDiff := seq - buf.lastSeq
+-	ticks := uint64(ticksraw) / traceTickDiv
++	ticks := uint64(cputicks()) / traceTickDiv
+ 	tickDiff := ticks - buf.lastTicks
+ 	if buf.pos == 0 {
+ 		buf.byte(traceEvBatch | 1<<traceArgCountShift)
+ 		buf.varint(uint64(pid))
+-		buf.varint(seq)
+ 		buf.varint(ticks)
+-		seqDiff = 0
+ 		tickDiff = 0
+ 	}
+-	buf.lastSeq = seq
+ 	buf.lastTicks = ticks
+ 	narg := byte(len(args))
+ 	if skip >= 0 {
+@@ -525,7 +506,6 @@ func traceEvent(ev byte, skip int, args ...uint64) {
+ 		buf.varint(0)
+ 		lenp = &buf.arr[buf.pos-1]
+ 	}
+-	buf.varint(seqDiff)
+ 	buf.varint(tickDiff)
+ 	for _, a := range args {
+ 		buf.varint(a)
+@@ -892,7 +872,8 @@ func traceProcStop(pp *p) {
+ }
+ 
+ func traceGCStart() {
+-	traceEvent(traceEvGCStart, 3)
++	traceEvent(traceEvGCStart, 3, trace.seqGC)
++	trace.seqGC++
+ }
+ 
+ func traceGCDone() {
+@@ -916,13 +897,23 @@ func traceGCSweepDone() {
+ }
+ 
+ func traceGoCreate(newg *g, pc uintptr) {
++	newg.traceseq = 0
++	newg.tracelastp = getg().m.p
+ 	// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
+ 	id := trace.stackTab.put([]uintptr{pc + sys.PCQuantum})
+ 	traceEvent(traceEvGoCreate, 2, uint64(newg.goid), uint64(id))
+ }
+ 
+ func traceGoStart() {
+-	traceEvent(traceEvGoStart, -1, uint64(getg().m.curg.goid))
++	_g_ := getg().m.curg
++	_p_ := _g_.m.p
++	_g_.traceseq++
++	if _g_.tracelastp == _p_ {
++		traceEvent(traceEvGoStartLocal, -1, uint64(_g_.goid))
++	} else {
++		_g_.tracelastp = _p_
++		traceEvent(traceEvGoStart, -1, uint64(_g_.goid), _g_.traceseq)
++	}
+ }
+ 
+ func traceGoEnd() {
+@@ -930,10 +921,14 @@ func traceGoEnd() {
+ }
+ 
+ func traceGoSched() {
++	_g_ := getg()
++	_g_.tracelastp = _g_.m.p
+ 	traceEvent(traceEvGoSched, 1)
+ }
+ 
+ func traceGoPreempt() {
++	_g_ := getg()
++	_g_.tracelastp = _g_.m.p
+ 	traceEvent(traceEvGoPreempt, 1)
+ }
+ 
+@@ -945,19 +940,37 @@ func traceGoPark(traceEv byte, skip int, gp *g) {
+ }
+ 
+ func traceGoUnpark(gp *g, skip int) {
+-	traceEvent(traceEvGoUnblock, skip, uint64(gp.goid))
++	_p_ := getg().m.p
++	gp.traceseq++
++	if gp.tracelastp == _p_ {
++		traceEvent(traceEvGoUnblockLocal, skip, uint64(gp.goid))
++	} else {
++		gp.tracelastp = _p_
++		traceEvent(traceEvGoUnblock, skip, uint64(gp.goid), gp.traceseq)
++	}
+ }
+ 
+ func traceGoSysCall() {
+ 	traceEvent(traceEvGoSysCall, 1)
+ }
+ 
+-func traceGoSysExit(seq uint64, ts int64) {
+-	if int64(seq)-int64(trace.seqStart) < 0 {
+-		// The timestamp was obtained during a previous tracing session, ignore.
+-		return
+-	}
+-	traceEvent(traceEvGoSysExit, -1, uint64(getg().m.curg.goid), seq, uint64(ts)/traceTickDiv)
++func traceGoSysExit(ts int64) {
++	if ts != 0 && ts < trace.ticksStart {
++		// There is a race between the code that initializes sysexitticks
++		// (in exitsyscall, which runs without a P, and therefore is not
++		// stopped with the rest of the world) and the code that initializes
++		// a new trace. The recorded sysexitticks must therefore be treated
++		// as "best effort". If they are valid for this trace, then great,
++		// use them for greater accuracy. But if they're not valid for this
++		// trace, assume that the trace was started after the actual syscall
++		// exit (but before we actually managed to start the goroutine,
++		// aka right now), and assign a fresh time stamp to keep the log consistent.
++		ts = 0
++	}
++	_g_ := getg().m.curg
++	_g_.traceseq++
++	_g_.tracelastp = _g_.m.p
++	traceEvent(traceEvGoSysExit, -1, uint64(_g_.goid), _g_.traceseq, uint64(ts)/traceTickDiv)
+ }
+ 
+ func traceGoSysBlock(pp *p) {

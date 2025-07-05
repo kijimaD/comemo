@@ -15,6 +15,20 @@ Date:   Thu Jan 31 16:57:29 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mheap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 47e3a33391..8b7ed742c9 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1381,7 +1381,7 @@ func (h *mheap) scavengeLargest(nbytes uintptr) {
+ 			// This check also preserves the invariant that spans that have
+ 			// `scavenged` set are only ever in the `scav` treap, and
+ 			// those which have it unset are only in the `free` treap.
+-			return
++			break
+ 		}
+ 		n := t.prev()
+ 		h.free.erase(t)

@@ -9,7 +9,57 @@ Date:   Fri Jan 3 10:13:28 2014 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/47260043
-
+---
  src/pkg/encoding/json/decode.go      |  1 +
  src/pkg/encoding/json/decode_test.go | 19 +++++++++++++++++--
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index 4db566726e..dde0d78e32 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -561,6 +561,7 @@ func (d *decodeState) object(v reflect.Value) {
+ 		if destring {
+ 			d.value(reflect.ValueOf(&d.tempstr))
+ 			d.literalStore([]byte(d.tempstr), subv, true)
++			d.tempstr = "" // Zero scratch space for successive values.
+ 		} else {
+ 			d.value(subv)
+ 		}
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index c5a84ab832..238a87fd66 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -1060,6 +1060,21 @@ func TestEmptyString(t *testing.T) {
+ 	}
+ }
+ 
++// Test that the returned error is non-nil when trying to unmarshal null string into int, for successive ,string option
++// Issue 7046
++func TestNullString(t *testing.T) {
++	type T struct {
++		A int `json:",string"`
++		B int `json:",string"`
++	}
++	data := []byte(`{"A": "1", "B": null}`)
++	var s T
++	err := Unmarshal(data, &s)
++	if err == nil {
++		t.Fatalf("expected error; got %v", s)
++	}
++}
++
+ func intp(x int) *int {
+ 	p := new(int)
+ 	*p = x
+@@ -1110,8 +1125,8 @@ func TestInterfaceSet(t *testing.T) {
+ // Issue 2540
+ func TestUnmarshalNulls(t *testing.T) {
+ 	jsonData := []byte(`{
+-		"Bool"    : null, 
+-		"Int"     : null, 
++		"Bool"    : null,
++		"Int"     : null,
+ 		"Int8"    : null,
+ 		"Int16"   : null,
+ 		"Int32"   : null,

@@ -42,3 +42,4 @@ Date:   Fri Jun 26 14:25:33 2020 -0400
  src/text/template/parse/node.go                    |    2 +-
  test/fixedbugs/issue39459.go                       |   22 +
  32 files changed, 2036 insertions(+), 925 deletions(-)
+

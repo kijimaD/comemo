@@ -13,6 +13,22 @@ Date:   Sat Apr 3 16:29:34 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/objabi/stack.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/stack.go b/src/cmd/internal/objabi/stack.go
+index 05a1d4a4b5..1f531176cc 100644
+--- a/src/cmd/internal/objabi/stack.go
++++ b/src/cmd/internal/objabi/stack.go
+@@ -13,10 +13,6 @@ const (
+ 	StackSmall  = 128
+ )
+ 
+-const (
+-	StackPreempt = -1314 // 0xfff...fade
+-)
+-
+ // Initialize StackGuard and StackLimit according to target system.
+ var StackGuard = 928*stackGuardMultiplier() + StackSystem
+ var StackLimit = StackGuard - StackSystem - StackSmall

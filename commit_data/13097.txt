@@ -7,6 +7,18 @@ Date:   Sat May 19 08:35:51 2012 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6215046
-
+---
  src/pkg/syscall/types_darwin.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/syscall/types_darwin.go b/src/pkg/syscall/types_darwin.go
+index 1e8e477388..1205398116 100644
+--- a/src/pkg/syscall/types_darwin.go
++++ b/src/pkg/syscall/types_darwin.go
+@@ -228,4 +228,6 @@ type BpfInsn C.struct_bpf_insn
+ 
+ type BpfHdr C.struct_bpf_hdr
+ 
++// Terminal handling
++
+ type Termios C.struct_termios

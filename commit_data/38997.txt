@@ -24,8 +24,87 @@ Date:   Thu Dec 13 17:55:52 2018 +0100
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go |  4 ++--
  test/fixedbugs/issue29190.go       | 37 +++++++++++++++++++++++++++++++++++++
  test/prove.go                      |  2 +-
  3 files changed, 40 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index dcb9841042..2eeea79ff9 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2416,7 +2416,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 	// a := &s
+ 	// ptr, len, cap := s
+ 	// newlen := len + 3
+-	// if newlen > cap {
++	// if uint(newlen) > uint(cap) {
+ 	//    newptr, len, newcap = growslice(ptr, len, cap, newlen)
+ 	//    vardef(a)       // if necessary, advise liveness we are writing a new a
+ 	//    *a.cap = newcap // write before ptr to avoid a spill
+@@ -2454,7 +2454,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 	c := s.newValue1(ssa.OpSliceCap, types.Types[TINT], slice)
+ 	nl := s.newValue2(s.ssaOp(OADD, types.Types[TINT]), types.Types[TINT], l, s.constInt(types.Types[TINT], nargs))
+ 
+-	cmp := s.newValue2(s.ssaOp(OGT, types.Types[TINT]), types.Types[TBOOL], nl, c)
++	cmp := s.newValue2(s.ssaOp(OGT, types.Types[TUINT]), types.Types[TBOOL], nl, c)
+ 	s.vars[&ptrVar] = p
+ 
+ 	if !inplace {
+diff --git a/test/fixedbugs/issue29190.go b/test/fixedbugs/issue29190.go
+new file mode 100644
+index 0000000000..c0c4bb12b4
+--- /dev/null
++++ b/test/fixedbugs/issue29190.go
+@@ -0,0 +1,37 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"strings"
++)
++
++type T struct{}
++
++const maxInt = int(^uint(0) >> 1)
++
++func main() {
++	s := make([]T, maxInt)
++	shouldPanic("cap out of range", func() { s = append(s, T{}) })
++	var oneElem = make([]T, 1)
++	shouldPanic("cap out of range", func() { s = append(s, oneElem...) })
++}
++
++func shouldPanic(str string, f func()) {
++	defer func() {
++		err := recover()
++		if err == nil {
++			panic("did not panic")
++		}
++		s := err.(error).Error()
++		if !strings.Contains(s, str) {
++			panic("got panic " + s + ", want " + str)
++		}
++	}()
++
++	f()
++}
+diff --git a/test/prove.go b/test/prove.go
+index 0de6bd63b4..a881b2d6e2 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -530,7 +530,7 @@ func fence1(b []int, x, y int) {
+ 	}
+ 	if len(b) < cap(b) {
+ 		// This eliminates the growslice path.
+-		b = append(b, 1) // ERROR "Disproved Greater64$"
++		b = append(b, 1) // ERROR "Disproved Greater64U$"
+ 	}
+ }
+ 

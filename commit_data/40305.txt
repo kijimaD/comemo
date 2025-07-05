@@ -16,9 +16,139 @@ Date:   Wed May 1 16:44:21 2019 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go     | 32 ++++++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/typecheck.go |  6 +++++-
  src/go/types/stdlib_test.go              |  1 +
  test/fixedbugs/issue31747.go             | 34 ++++++++++++++++++++++++++++++++
  4 files changed, 72 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 3fab95b917..e83ae7c5eb 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -1310,6 +1310,35 @@ func (p *noder) binOp(op syntax.Operator) Op {
+ 	return binOps[op]
+ }
+ 
++// checkLangCompat reports an error if the representation of a numeric
++// literal is not compatible with the current language version.
++func checkLangCompat(lit *syntax.BasicLit) {
++	s := lit.Value
++	if len(s) <= 2 || langSupported(1, 13) {
++		return
++	}
++	// len(s) > 2
++	if strings.Contains(s, "_") {
++		yyerror("underscores in numeric literals only supported as of -lang=go1.13")
++		return
++	}
++	if s[0] != '0' {
++		return
++	}
++	base := s[1]
++	if base == 'b' || base == 'B' {
++		yyerror("binary literals only supported as of -lang=go1.13")
++		return
++	}
++	if base == 'o' || base == 'O' {
++		yyerror("0o/0O-style octal literals only supported as of -lang=go1.13")
++		return
++	}
++	if lit.Kind != syntax.IntLit && (base == 'x' || base == 'X') {
++		yyerror("hexadecimal floating-point literals only supported as of -lang=go1.13")
++	}
++}
++
+ func (p *noder) basicLit(lit *syntax.BasicLit) Val {
+ 	// TODO: Don't try to convert if we had syntax errors (conversions may fail).
+ 	//       Use dummy values so we can continue to compile. Eventually, use a
+@@ -1317,16 +1346,19 @@ func (p *noder) basicLit(lit *syntax.BasicLit) Val {
+ 	//       we can continue type-checking w/o spurious follow-up errors.
+ 	switch s := lit.Value; lit.Kind {
+ 	case syntax.IntLit:
++		checkLangCompat(lit)
+ 		x := new(Mpint)
+ 		x.SetString(s)
+ 		return Val{U: x}
+ 
+ 	case syntax.FloatLit:
++		checkLangCompat(lit)
+ 		x := newMpflt()
+ 		x.SetString(s)
+ 		return Val{U: x}
+ 
+ 	case syntax.ImagLit:
++		checkLangCompat(lit)
+ 		x := newMpcmplx()
+ 		x.Imag.SetString(strings.TrimSuffix(s, "i"))
+ 		return Val{U: x}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index a746b34180..81f59013f4 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -631,7 +631,11 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 				n.Type = nil
+ 				return n
+ 			}
+-
++			if t.IsSigned() && !langSupported(1, 13) {
++				yyerror("invalid operation: %v (signed shift count type %v, only supported as of -lang=go1.13)", n, r.Type)
++				n.Type = nil
++				return n
++			}
+ 			t = l.Type
+ 			if t != nil && t.Etype != TIDEAL && !t.IsInteger() {
+ 				yyerror("invalid operation: %v (shift of type %v)", n, t)
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 84908fd190..771f54d3f1 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -180,6 +180,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue22200b.go", // go/types does not have constraints on stack size
+ 		"issue25507.go",  // go/types does not have constraints on stack size
+ 		"issue20780.go",  // go/types does not have constraints on stack size
++		"issue31747.go",  // go/types does not have constraints on language level (-lang=go1.12) (see #31793)
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue31747.go b/test/fixedbugs/issue31747.go
+new file mode 100644
+index 0000000000..dfb585c613
+--- /dev/null
++++ b/test/fixedbugs/issue31747.go
+@@ -0,0 +1,34 @@
++// errorcheck -lang=go1.12
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// numeric literals
++const (
++	_ = 1_000 // ERROR "underscores in numeric literals only supported as of -lang=go1.13"
++	_ = 0b111 // ERROR "binary literals only supported as of -lang=go1.13"
++	_ = 0o567 // ERROR "0o/0O-style octal literals only supported as of -lang=go1.13"
++	_ = 0xabc // ok
++	_ = 0x0p1 // ERROR "hexadecimal floating-point literals only supported as of -lang=go1.13"
++
++	_ = 0B111 // ERROR "binary"
++	_ = 0O567 // ERROR "octal"
++	_ = 0Xabc // ok
++	_ = 0X0P1 // ERROR "hexadecimal floating-point"
++
++	_ = 1_000i // ERROR "underscores"
++	_ = 0b111i // ERROR "binary"
++	_ = 0o567i // ERROR "octal"
++	_ = 0xabci // ERROR "hexadecimal floating-point"
++	_ = 0x0p1i // ERROR "hexadecimal floating-point"
++)
++
++// signed shift counts
++var (
++	s int
++	_ = 1 << s // ERROR "signed shift count type int, only supported as of -lang=go1.13"
++	_ = 1 >> s // ERROR "signed shift count"
++)

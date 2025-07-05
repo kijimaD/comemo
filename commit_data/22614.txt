@@ -12,7 +12,7 @@ Date:   Thu Mar 26 10:49:03 2015 -0700
     Change-Id: Id4758f2b887d8a6888e88a7e047d97af55e34b62
     Reviewed-on: https://go-review.googlesource.com/8110
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/internal/ssa/block.go                  |   1 +
  src/cmd/internal/ssa/compile.go                |   2 +-
  src/cmd/internal/ssa/deadcode.go               |   2 +-
@@ -30,3 +30,892 @@ Date:   Thu Mar 26 10:49:03 2015 -0700
  src/cmd/internal/ssa/types/sizes.go            | 117 +++++++++++++++++++++++++
  src/cmd/internal/ssa/value.go                  |  13 +--
  16 files changed, 271 insertions(+), 174 deletions(-)
+
+diff --git a/src/cmd/internal/ssa/block.go b/src/cmd/internal/ssa/block.go
+index ff1cb1b30a..81b5594f38 100644
+--- a/src/cmd/internal/ssa/block.go
++++ b/src/cmd/internal/ssa/block.go
+@@ -54,6 +54,7 @@ const (
+ 	BlockPlain                  // a single successor
+ 	BlockIf                     // 2 successors, if control goto Succs[0] else goto Succs[1]
+ 	BlockCall                   // 2 successors, normal return and panic
++	// TODO(khr): BlockPanic for the built-in panic call, has 1 edge to the exit block
+ 	BlockUnknown
+ 
+ 	// 386/amd64 variants of BlockIf that take the flags register as an arg
+diff --git a/src/cmd/internal/ssa/compile.go b/src/cmd/internal/ssa/compile.go
+index b8f34c52fc..6103cc9557 100644
+--- a/src/cmd/internal/ssa/compile.go
++++ b/src/cmd/internal/ssa/compile.go
+@@ -79,7 +79,7 @@ var passOrder = map[string]string{
+ 	// regalloc requires all the values in a block to be scheduled
+ 	//"schedule": "regalloc",
+ 	// code generation requires register allocation
+-	//"cgen":"regalloc",
++	//"regalloc": "cgen",
+ }
+ 
+ func init() {
+diff --git a/src/cmd/internal/ssa/deadcode.go b/src/cmd/internal/ssa/deadcode.go
+index e8c8bfcc03..f9e4b18d5f 100644
+--- a/src/cmd/internal/ssa/deadcode.go
++++ b/src/cmd/internal/ssa/deadcode.go
+@@ -20,7 +20,7 @@ func deadcode(f *Func) {
+ 
+ 		// constant-fold conditionals
+ 		// TODO: rewrite rules instead?
+-		if b.Kind == BlockIf && b.Control.Op == OpConstBool {
++		if b.Kind == BlockIf && b.Control.Op == OpConst {
+ 			cond := b.Control.Aux.(bool)
+ 			var c *Block
+ 			if cond {
+diff --git a/src/cmd/internal/ssa/func.go b/src/cmd/internal/ssa/func.go
+index 6868e3d1ed..b4677c97b3 100644
+--- a/src/cmd/internal/ssa/func.go
++++ b/src/cmd/internal/ssa/func.go
+@@ -57,5 +57,5 @@ func (b *Block) NewValue(op Op, t Type, aux interface{}) *Value {
+ func (f *Func) ConstInt(c int64) *Value {
+ 	// TODO: cache?
+ 	// TODO: different types?
+-	return f.Entry.NewValue(OpConstInt, TypeInt, c)
++	return f.Entry.NewValue(OpConst, TypeInt64, c)
+ }
+diff --git a/src/cmd/internal/ssa/generic.go b/src/cmd/internal/ssa/generic.go
+index f28633b19a..3118b3af9d 100644
+--- a/src/cmd/internal/ssa/generic.go
++++ b/src/cmd/internal/ssa/generic.go
+@@ -5,23 +5,23 @@ package ssa
+ func genericRules(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAdd:
+-		// match: (Add <t> (ConstInt [c]) (ConstInt [d]))
+-		// cond: is64BitInt(t)
+-		// result: (ConstInt [{c.(int64)+d.(int64)}])
++		// match: (Add <t> (Const [c]) (Const [d]))
++		// cond: is64BitInt(t) && isSigned(t)
++		// result: (Const [{c.(int64)+d.(int64)}])
+ 		{
+ 			t := v.Type
+-			if v.Args[0].Op != OpConstInt {
++			if v.Args[0].Op != OpConst {
+ 				goto end0
+ 			}
+ 			c := v.Args[0].Aux
+-			if v.Args[1].Op != OpConstInt {
++			if v.Args[1].Op != OpConst {
+ 				goto end0
+ 			}
+ 			d := v.Args[1].Aux
+-			if !(is64BitInt(t)) {
++			if !(is64BitInt(t) && isSigned(t)) {
+ 				goto end0
+ 			}
+-			v.Op = OpConstInt
++			v.Op = OpConst
+ 			v.Aux = nil
+ 			v.Args = v.argstorage[:0]
+ 			v.Aux = c.(int64) + d.(int64)
+@@ -29,13 +29,37 @@ func genericRules(v *Value) bool {
+ 		}
+ 	end0:
+ 		;
++		// match: (Add <t> (Const [c]) (Const [d]))
++		// cond: is64BitInt(t) && !isSigned(t)
++		// result: (Const [{c.(uint64)+d.(uint64)}])
++		{
++			t := v.Type
++			if v.Args[0].Op != OpConst {
++				goto end1
++			}
++			c := v.Args[0].Aux
++			if v.Args[1].Op != OpConst {
++				goto end1
++			}
++			d := v.Args[1].Aux
++			if !(is64BitInt(t) && !isSigned(t)) {
++				goto end1
++			}
++			v.Op = OpConst
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.Aux = c.(uint64) + d.(uint64)
++			return true
++		}
++	end1:
++		;
+ 	case OpLoad:
+ 		// match: (Load (FPAddr [offset]) mem)
+ 		// cond:
+ 		// result: (LoadFP [offset] mem)
+ 		{
+ 			if v.Args[0].Op != OpFPAddr {
+-				goto end1
++				goto end2
+ 			}
+ 			offset := v.Args[0].Aux
+ 			mem := v.Args[1]
+@@ -46,14 +70,14 @@ func genericRules(v *Value) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-	end1:
++	end2:
+ 		;
+ 		// match: (Load (SPAddr [offset]) mem)
+ 		// cond:
+ 		// result: (LoadSP [offset] mem)
+ 		{
+ 			if v.Args[0].Op != OpSPAddr {
+-				goto end2
++				goto end3
+ 			}
+ 			offset := v.Args[0].Aux
+ 			mem := v.Args[1]
+@@ -64,7 +88,7 @@ func genericRules(v *Value) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-	end2:
++	end3:
+ 		;
+ 	case OpStore:
+ 		// match: (Store (FPAddr [offset]) val mem)
+@@ -72,7 +96,7 @@ func genericRules(v *Value) bool {
+ 		// result: (StoreFP [offset] val mem)
+ 		{
+ 			if v.Args[0].Op != OpFPAddr {
+-				goto end3
++				goto end4
+ 			}
+ 			offset := v.Args[0].Aux
+ 			val := v.Args[1]
+@@ -85,14 +109,14 @@ func genericRules(v *Value) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-	end3:
++	end4:
+ 		;
+ 		// match: (Store (SPAddr [offset]) val mem)
+ 		// cond:
+ 		// result: (StoreSP [offset] val mem)
+ 		{
+ 			if v.Args[0].Op != OpSPAddr {
+-				goto end4
++				goto end5
+ 			}
+ 			offset := v.Args[0].Aux
+ 			val := v.Args[1]
+@@ -105,7 +129,7 @@ func genericRules(v *Value) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-	end4:
++	end5:
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/internal/ssa/lowerAmd64.go b/src/cmd/internal/ssa/lowerAmd64.go
+index ab79ed09b1..88f0e43bd8 100644
+--- a/src/cmd/internal/ssa/lowerAmd64.go
++++ b/src/cmd/internal/ssa/lowerAmd64.go
+@@ -5,12 +5,12 @@ package ssa
+ func lowerAmd64(v *Value) bool {
+ 	switch v.Op {
+ 	case OpADDQ:
+-		// match: (ADDQ x (ConstInt [c]))
++		// match: (ADDQ x (Const [c]))
+ 		// cond:
+ 		// result: (ADDCQ [c] x)
+ 		{
+ 			x := v.Args[0]
+-			if v.Args[1].Op != OpConstInt {
++			if v.Args[1].Op != OpConst {
+ 				goto end0
+ 			}
+ 			c := v.Args[1].Aux
+@@ -23,11 +23,11 @@ func lowerAmd64(v *Value) bool {
+ 		}
+ 	end0:
+ 		;
+-		// match: (ADDQ (ConstInt [c]) x)
++		// match: (ADDQ (Const [c]) x)
+ 		// cond:
+ 		// result: (ADDCQ [c] x)
+ 		{
+-			if v.Args[0].Op != OpConstInt {
++			if v.Args[0].Op != OpConst {
+ 				goto end1
+ 			}
+ 			c := v.Args[0].Aux
+@@ -81,12 +81,12 @@ func lowerAmd64(v *Value) bool {
+ 	end3:
+ 		;
+ 	case OpCMPQ:
+-		// match: (CMPQ x (ConstInt [c]))
++		// match: (CMPQ x (Const [c]))
+ 		// cond:
+ 		// result: (CMPCQ x [c])
+ 		{
+ 			x := v.Args[0]
+-			if v.Args[1].Op != OpConstInt {
++			if v.Args[1].Op != OpConst {
+ 				goto end4
+ 			}
+ 			c := v.Args[1].Aux
+@@ -99,11 +99,11 @@ func lowerAmd64(v *Value) bool {
+ 		}
+ 	end4:
+ 		;
+-		// match: (CMPQ (ConstInt [c]) x)
++		// match: (CMPQ (Const [c]) x)
+ 		// cond:
+-		// result: (InvertFlags (CMPCQ x [c]))
++		// result: (InvertFlags (CMPCQ <TypeFlags> x [c]))
+ 		{
+-			if v.Args[0].Op != OpConstInt {
++			if v.Args[0].Op != OpConst {
+ 				goto end5
+ 			}
+ 			c := v.Args[0].Aux
+@@ -112,9 +112,9 @@ func lowerAmd64(v *Value) bool {
+ 			v.Aux = nil
+ 			v.Args = v.argstorage[:0]
+ 			v0 := v.Block.NewValue(OpCMPCQ, TypeInvalid, nil)
++			v0.Type = TypeFlags
+ 			v0.AddArg(x)
+ 			v0.Aux = c
+-			v0.SetType()
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+@@ -123,7 +123,7 @@ func lowerAmd64(v *Value) bool {
+ 	case OpLess:
+ 		// match: (Less x y)
+ 		// cond: is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)
+-		// result: (SETL (CMPQ x y))
++		// result: (SETL (CMPQ <TypeFlags> x y))
+ 		{
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+@@ -134,9 +134,9 @@ func lowerAmd64(v *Value) bool {
+ 			v.Aux = nil
+ 			v.Args = v.argstorage[:0]
+ 			v0 := v.Block.NewValue(OpCMPQ, TypeInvalid, nil)
++			v0.Type = TypeFlags
+ 			v0.AddArg(x)
+ 			v0.AddArg(y)
+-			v0.SetType()
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+@@ -202,12 +202,12 @@ func lowerAmd64(v *Value) bool {
+ 	end9:
+ 		;
+ 	case OpSUBQ:
+-		// match: (SUBQ x (ConstInt [c]))
++		// match: (SUBQ x (Const [c]))
+ 		// cond:
+ 		// result: (SUBCQ x [c])
+ 		{
+ 			x := v.Args[0]
+-			if v.Args[1].Op != OpConstInt {
++			if v.Args[1].Op != OpConst {
+ 				goto end10
+ 			}
+ 			c := v.Args[1].Aux
+@@ -220,11 +220,12 @@ func lowerAmd64(v *Value) bool {
+ 		}
+ 	end10:
+ 		;
+-		// match: (SUBQ (ConstInt [c]) x)
++		// match: (SUBQ <t> (Const [c]) x)
+ 		// cond:
+-		// result: (NEGQ (SUBCQ x [c]))
++		// result: (NEGQ (SUBCQ <t> x [c]))
+ 		{
+-			if v.Args[0].Op != OpConstInt {
++			t := v.Type
++			if v.Args[0].Op != OpConst {
+ 				goto end11
+ 			}
+ 			c := v.Args[0].Aux
+@@ -233,9 +234,9 @@ func lowerAmd64(v *Value) bool {
+ 			v.Aux = nil
+ 			v.Args = v.argstorage[:0]
+ 			v0 := v.Block.NewValue(OpSUBCQ, TypeInvalid, nil)
++			v0.Type = t
+ 			v0.AddArg(x)
+ 			v0.Aux = c
+-			v0.SetType()
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+diff --git a/src/cmd/internal/ssa/op.go b/src/cmd/internal/ssa/op.go
+index da69657411..19d973921c 100644
+--- a/src/cmd/internal/ssa/op.go
++++ b/src/cmd/internal/ssa/op.go
+@@ -29,14 +29,9 @@ const (
+ 	OpLess
+ 
+ 	// constants
+-	OpConstNil
+-	OpConstBool    // aux is type bool
+-	OpConstString  // aux is type string
+-	OpConstInt     // aux is type int64
+-	OpConstFloat   // aux is type float64
+-	OpConstComplex // aux is type complex128
+-
+-	OpArg    // address of a function parameter/result
++	OpConst
++
++	OpArg    // address of a function parameter/result.  Memory input is an arg called ".mem".
+ 	OpGlobal // address of a global variable
+ 	OpFunc   // entry address of a function
+ 	OpCopy   // output = input
+@@ -56,7 +51,7 @@ const (
+ 	OpIndexAddr
+ 
+ 	OpLoad  // args are ptr, memory
+-	OpStore // args are ptr, memory, returns memory
++	OpStore // args are ptr, value, memory, returns memory
+ 
+ 	OpCheckNil   // arg[0] != nil
+ 	OpCheckBound // 0 <= arg[0] < arg[1]
+@@ -135,9 +130,6 @@ type OpInfo struct {
+ 	// %A: print aux with fmt.Print
+ 	asm string
+ 
+-	// computes type for values with this opcode
+-	typer func(v *Value)
+-
+ 	// returns a reg constraint for the instruction. [0] gives a reg constraint
+ 	// for each input, [1] gives a reg constraint for each output. (Values have
+ 	// exactly one output for now)
+@@ -178,28 +170,6 @@ const (
+ 	ArchArm
+ )
+ 
+-func firstArgTyper(v *Value) {
+-	v.Type = v.Args[0].Type
+-}
+-func boolTyper(v *Value) {
+-	v.Type = TypeBool
+-}
+-func stringTyper(v *Value) {
+-	v.Type = TypeString
+-}
+-func flagsTyper(v *Value) {
+-	v.Type = TypeFlags
+-}
+-func uint8Typer(v *Value) {
+-	v.Type = TypeUint8
+-}
+-func uint64Typer(v *Value) {
+-	v.Type = TypeUint64
+-}
+-func auxTyper(v *Value) {
+-	v.Type = v.Aux.(Type)
+-}
+-
+ // general purpose registers, 2 input, 1 output
+ var gp21 = [2][]regMask{{gp, gp}, {gp}}
+ var gp21_overwrite = [2][]regMask{{gp, gp}, {overwrite0}}
+@@ -221,21 +191,17 @@ var genericTable = [...]OpInfo{
+ 	// the unknown op is used only during building and should not appear in a
+ 	// fully formed ssa representation.
+ 
+-	OpAdd:  {flags: OpFlagCommutative, typer: firstArgTyper},
+-	OpSub:  {typer: firstArgTyper},
+-	OpMul:  {flags: OpFlagCommutative, typer: firstArgTyper},
+-	OpLess: {typer: boolTyper},
+-
+-	OpConstBool:    {typer: boolTyper},   // aux is a bool
+-	OpConstString:  {typer: stringTyper}, // aux is a string
+-	OpConstInt:     {},                   // aux is an int64
+-	OpConstFloat:   {},                   // aux is a float64
+-	OpConstComplex: {},
+-	OpArg:          {}, // aux is the name of the input variable  TODO:?
+-	OpGlobal:       {}, // address of a global variable
+-	OpFunc:         {},
+-	OpCopy:         {},
+-	OpPhi:          {},
++	OpAdd:  {flags: OpFlagCommutative},
++	OpSub:  {},
++	OpMul:  {flags: OpFlagCommutative},
++	OpLess: {},
++
++	OpConst:  {}, // aux matches the type (e.g. bool, int64 float64)
++	OpArg:    {}, // aux is the name of the input variable  TODO:?
++	OpGlobal: {}, // address of a global variable
++	OpFunc:   {},
++	OpCopy:   {},
++	OpPhi:    {},
+ 
+ 	OpConvNop: {}, // aux is the type to convert to
+ 
+@@ -281,12 +247,12 @@ var genericTable = [...]OpInfo{
+ 
+ // Opcodes that appear in an output amd64 program
+ var amd64Table = [...]OpInfo{
+-	OpADDQ:  {flags: OpFlagCommutative, asm: "ADDQ\t%I0,%I1,%O0", reg: gp21, typer: firstArgTyper}, // TODO: overwrite
+-	OpADDCQ: {asm: "ADDQ\t$%A,%I0,%O0", reg: gp11_overwrite, typer: firstArgTyper},                 // aux = int64 constant to add
+-	OpSUBQ:  {asm: "SUBQ\t%I0,%I1,%O0", reg: gp21, typer: firstArgTyper},
+-	OpSUBCQ: {asm: "SUBQ\t$%A,%I0,%O0", reg: gp11_overwrite, typer: firstArgTyper},
++	OpADDQ:  {flags: OpFlagCommutative, asm: "ADDQ\t%I0,%I1,%O0", reg: gp21}, // TODO: overwrite
++	OpADDCQ: {asm: "ADDQ\t$%A,%I0,%O0", reg: gp11_overwrite},                 // aux = int64 constant to add
++	OpSUBQ:  {asm: "SUBQ\t%I0,%I1,%O0", reg: gp21},
++	OpSUBCQ: {asm: "SUBQ\t$%A,%I0,%O0", reg: gp11_overwrite},
+ 
+-	OpCMPQ:  {asm: "CMPQ\t%I0,%I1", reg: gp2_flags, typer: flagsTyper}, // compute arg[0]-arg[1] and produce flags
++	OpCMPQ:  {asm: "CMPQ\t%I0,%I1", reg: gp2_flags}, // compute arg[0]-arg[1] and produce flags
+ 	OpCMPCQ: {asm: "CMPQ\t$%A,%I0", reg: gp1_flags},
+ 
+ 	OpLEAQ:  {flags: OpFlagCommutative, asm: "LEAQ\t%A(%I0)(%I1*1),%O0", reg: gp21}, // aux = int64 constant to add
+@@ -302,7 +268,7 @@ var amd64Table = [...]OpInfo{
+ 	OpCopy: {asm: "MOVQ\t%I0,%O0", reg: gp11},
+ 
+ 	// convert from flags back to boolean
+-	OpSETL: {typer: boolTyper},
++	OpSETL: {},
+ 
+ 	// ops for load/store to stack
+ 	OpLoadFP8:  {asm: "MOVQ\t%A(FP),%O0"},
+diff --git a/src/cmd/internal/ssa/op_string.go b/src/cmd/internal/ssa/op_string.go
+index 9aee7de43e..dba1725262 100644
+--- a/src/cmd/internal/ssa/op_string.go
++++ b/src/cmd/internal/ssa/op_string.go
+@@ -4,9 +4,9 @@ package ssa
+ 
+ import "fmt"
+ 
+-const _Op_name = "OpUnknownOpNopOpThunkOpAddOpSubOpMulOpLessOpConstNilOpConstBoolOpConstStringOpConstIntOpConstFloatOpConstComplexOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpSliceOpIndexOpIndexAddrOpLoadOpStoreOpCheckNilOpCheckBoundOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpLoadFPOpLoadSPOpStoreFPOpStoreSPOpStoreReg8OpLoadReg8OpADDQOpSUBQOpADDCQOpSUBCQOpNEGQOpCMPQOpCMPCQOpADDLOpSETLOpSETGEOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpLoadFP8OpLoadSP8OpStoreFP8OpStoreSP8OpMax"
++const _Op_name = "OpUnknownOpNopOpThunkOpAddOpSubOpMulOpLessOpConstOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpSliceOpIndexOpIndexAddrOpLoadOpStoreOpCheckNilOpCheckBoundOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpLoadFPOpLoadSPOpStoreFPOpStoreSPOpStoreReg8OpLoadReg8OpADDQOpSUBQOpADDCQOpSUBCQOpNEGQOpCMPQOpCMPCQOpADDLOpSETLOpSETGEOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpLoadFP8OpLoadSP8OpStoreFP8OpStoreSP8OpMax"
+ 
+-var _Op_index = [...]uint16{0, 9, 14, 21, 26, 31, 36, 42, 52, 63, 76, 86, 98, 112, 117, 125, 131, 137, 142, 153, 163, 173, 183, 195, 206, 217, 224, 231, 242, 248, 255, 265, 277, 283, 295, 304, 313, 321, 329, 337, 345, 354, 363, 374, 384, 390, 396, 403, 410, 416, 422, 429, 435, 441, 448, 461, 467, 474, 481, 488, 497, 506, 516, 526, 531}
++var _Op_index = [...]uint16{0, 9, 14, 21, 26, 31, 36, 42, 49, 54, 62, 68, 74, 79, 90, 100, 110, 120, 132, 143, 154, 161, 168, 179, 185, 192, 202, 214, 220, 232, 241, 250, 258, 266, 274, 282, 291, 300, 311, 321, 327, 333, 340, 347, 353, 359, 366, 372, 378, 385, 398, 404, 411, 418, 425, 434, 443, 453, 463, 468}
+ 
+ func (i Op) String() string {
+ 	if i < 0 || i+1 >= Op(len(_Op_index)) {
+diff --git a/src/cmd/internal/ssa/rewrite.go b/src/cmd/internal/ssa/rewrite.go
+index 0d7c0c1c64..d22926e8f9 100644
+--- a/src/cmd/internal/ssa/rewrite.go
++++ b/src/cmd/internal/ssa/rewrite.go
+@@ -28,43 +28,36 @@ func applyRewrite(f *Func, r func(*Value) bool) {
+ // Common functions called from rewriting rules
+ 
+ func is64BitInt(t Type) bool {
+-	return typeIdentical(t, TypeInt64) ||
+-		typeIdentical(t, TypeUint64) ||
+-		(typeIdentical(t, TypeInt) && intSize == 8) ||
+-		(typeIdentical(t, TypeUint) && intSize == 8) ||
+-		(typeIdentical(t, TypeUintptr) && ptrSize == 8)
++	if b, ok := t.Underlying().(*types.Basic); ok {
++		switch b.Kind() {
++		case types.Int64, types.Uint64:
++			return true
++		}
++	}
++	return false
+ }
+ 
+ func is32BitInt(t Type) bool {
+-	return typeIdentical(t, TypeInt32) ||
+-		typeIdentical(t, TypeUint32) ||
+-		(typeIdentical(t, TypeInt) && intSize == 4) ||
+-		(typeIdentical(t, TypeUint) && intSize == 4) ||
+-		(typeIdentical(t, TypeUintptr) && ptrSize == 4)
++	if b, ok := t.Underlying().(*types.Basic); ok {
++		switch b.Kind() {
++		case types.Int32, types.Uint32:
++			return true
++		}
++	}
++	return false
+ }
+ 
+ func isSigned(t Type) bool {
+-	return typeIdentical(t, TypeInt) ||
+-		typeIdentical(t, TypeInt8) ||
+-		typeIdentical(t, TypeInt16) ||
+-		typeIdentical(t, TypeInt32) ||
+-		typeIdentical(t, TypeInt64)
+-}
+-
+-func typeSize(t Type) int {
+-	switch t {
+-	case TypeInt32, TypeUint32:
+-		return 4
+-	case TypeInt64, TypeUint64:
+-		return 8
+-	case TypeUintptr:
+-		return ptrSize
+-	case TypeInt, TypeUint:
+-		return intSize
+-	default:
+-		if _, ok := t.(*types.Pointer); ok {
+-			return ptrSize
++	if b, ok := t.Underlying().(*types.Basic); ok {
++		switch b.Kind() {
++		case types.Int8, types.Int16, types.Int32, types.Int64:
++			return true
+ 		}
+-		panic("TODO: width of " + t.String())
+ 	}
++	return false
++}
++
++var sizer types.Sizes = &types.StdSizes{int64(ptrSize), int64(ptrSize)} // TODO(khr): from config
++func typeSize(t Type) int64 {
++	return sizer.Sizeof(t)
+ }
+diff --git a/src/cmd/internal/ssa/rulegen/generic.rules b/src/cmd/internal/ssa/rulegen/generic.rules
+index 73e6e4a329..1fc1620c5c 100644
+--- a/src/cmd/internal/ssa/rulegen/generic.rules
++++ b/src/cmd/internal/ssa/rulegen/generic.rules
+@@ -3,7 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // constant folding
+-(Add <t> (ConstInt [c]) (ConstInt [d])) && is64BitInt(t) -> (ConstInt [{c.(int64)+d.(int64)}])
++(Add <t> (Const [c]) (Const [d])) && is64BitInt(t) && isSigned(t) -> (Const [{c.(int64)+d.(int64)}])
++(Add <t> (Const [c]) (Const [d])) && is64BitInt(t) && !isSigned(t) -> (Const [{c.(uint64)+d.(uint64)}])
+ 
+ // load/store to stack
+ (Load (FPAddr [offset]) mem) -> (LoadFP [offset] mem)
+diff --git a/src/cmd/internal/ssa/rulegen/lower_amd64.rules b/src/cmd/internal/ssa/rulegen/lower_amd64.rules
+index 525035b8c2..f60ac361ad 100644
+--- a/src/cmd/internal/ssa/rulegen/lower_amd64.rules
++++ b/src/cmd/internal/ssa/rulegen/lower_amd64.rules
+@@ -8,7 +8,8 @@
+ // on the matching side
+ //  - the types and aux fields must match if they are specified.
+ // on the generated side
+-//  - types will be computed by opcode typers if not specified explicitly.
++//  - the type of the top-level expression is the same as the one on the left-hand side.
++//  - the type of any subexpressions must be specified explicitly.
+ //  - aux will be nil if not specified.
+ 
+ // x86 register conventions:
+@@ -24,7 +25,7 @@
+ 
+ (Sub <t> x y) && is64BitInt(t) -> (SUBQ x y)
+ 
+-(Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ x y))
++(Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ <TypeFlags> x y))
+ 
+ // stack loads/stores
+ (LoadFP <t> [offset] mem) && typeSize(t) == 8 -> (LoadFP8 <t> [offset] mem)
+@@ -35,12 +36,12 @@
+ // Rules below here apply some simple optimizations after lowering.
+ // TODO: Should this be a separate pass?
+ 
+-(ADDQ x (ConstInt [c])) -> (ADDCQ [c] x) // TODO: restrict c to int32 range?
+-(ADDQ (ConstInt [c]) x) -> (ADDCQ [c] x)
+-(SUBQ x (ConstInt [c])) -> (SUBCQ x [c])
+-(SUBQ (ConstInt [c]) x) -> (NEGQ (SUBCQ x [c]))
+-(CMPQ x (ConstInt [c])) -> (CMPCQ x [c])
+-(CMPQ (ConstInt [c]) x) -> (InvertFlags (CMPCQ x [c]))
++(ADDQ x (Const [c])) -> (ADDCQ [c] x) // TODO: restrict c to int32 range?
++(ADDQ (Const [c]) x) -> (ADDCQ [c] x)
++(SUBQ x (Const [c])) -> (SUBCQ x [c])
++(SUBQ <t> (Const [c]) x) -> (NEGQ (SUBCQ <t> x [c]))
++(CMPQ x (Const [c])) -> (CMPCQ x [c])
++(CMPQ (Const [c]) x) -> (InvertFlags (CMPCQ <TypeFlags> x [c]))
+ 
+ // reverse ordering of compare instruction
+ (SETL (InvertFlags x)) -> (SETGE x)
+diff --git a/src/cmd/internal/ssa/rulegen/rulegen.go b/src/cmd/internal/ssa/rulegen/rulegen.go
+index f125828f64..4038662ca8 100644
+--- a/src/cmd/internal/ssa/rulegen/rulegen.go
++++ b/src/cmd/internal/ssa/rulegen/rulegen.go
+@@ -17,6 +17,7 @@ import (
+ 	"fmt"
+ 	"go/format"
+ 	"io"
++	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"sort"
+@@ -148,22 +149,14 @@ func main() {
+ 	}
+ 
+ 	// Write to a file if given, otherwise stdout.
+-	var out io.WriteCloser
+ 	if len(os.Args) >= 4 {
+-		outfile := os.Args[3]
+-		out, err = os.Create(outfile)
+-		if err != nil {
+-			log.Fatalf("can't open output file %s: %v\n", outfile, err)
+-		}
++		err = ioutil.WriteFile(os.Args[3], b, 0666)
+ 	} else {
+-		out = os.Stdout
++		_, err = os.Stdout.Write(b)
+ 	}
+-	if _, err = out.Write(b); err != nil {
++	if err != nil {
+ 		log.Fatalf("can't write output: %v\n", err)
+ 	}
+-	if err = out.Close(); err != nil {
+-		log.Fatalf("can't close output: %v\n", err)
+-	}
+ }
+ 
+ func genMatch(w io.Writer, match, fail string) {
+@@ -251,17 +244,17 @@ func genResult0(w io.Writer, result string, alloc *int, top bool) string {
+ 
+ 	s := split(result[1 : len(result)-1])
+ 	var v string
+-	var needsType bool
++	var hasType bool
+ 	if top {
+ 		v = "v"
+ 		fmt.Fprintf(w, "v.Op = Op%s\n", s[0])
+ 		fmt.Fprintf(w, "v.Aux = nil\n")
+ 		fmt.Fprintf(w, "v.Args = v.argstorage[:0]\n")
++		hasType = true
+ 	} else {
+ 		v = fmt.Sprintf("v%d", *alloc)
+ 		*alloc++
+ 		fmt.Fprintf(w, "%s := v.Block.NewValue(Op%s, TypeInvalid, nil)\n", v, s[0])
+-		needsType = true
+ 	}
+ 	for _, a := range s[1:] {
+ 		if a[0] == '<' {
+@@ -271,7 +264,7 @@ func genResult0(w io.Writer, result string, alloc *int, top bool) string {
+ 				t = t[1 : len(t)-1]
+ 			}
+ 			fmt.Fprintf(w, "%s.Type = %s\n", v, t)
+-			needsType = false
++			hasType = true
+ 		} else if a[0] == '[' {
+ 			// aux restriction
+ 			x := a[1 : len(a)-1]
+@@ -287,8 +280,8 @@ func genResult0(w io.Writer, result string, alloc *int, top bool) string {
+ 			fmt.Fprintf(w, "%s.AddArg(%s)\n", v, x)
+ 		}
+ 	}
+-	if needsType {
+-		fmt.Fprintf(w, "%s.SetType()\n", v)
++	if !hasType {
++		log.Fatalf("sub-expression %s must have a type", result)
+ 	}
+ 	return v
+ }
+diff --git a/src/cmd/internal/ssa/ssac/main.go b/src/cmd/internal/ssa/ssac/main.go
+index 4975b50db4..361bc87bff 100644
+--- a/src/cmd/internal/ssa/ssac/main.go
++++ b/src/cmd/internal/ssa/ssac/main.go
+@@ -411,7 +411,8 @@ func parseSexprType(e sexpr) ssa.Type {
+ 	if !e.compound {
+ 		switch e.name {
+ 		case "int":
+-			return ssa.TypeInt
++			// TODO: pick correct width
++			return ssa.TypeInt64
+ 		default:
+ 			fmt.Println(e.name)
+ 			panic("unknown type")
+diff --git a/src/cmd/internal/ssa/type.go b/src/cmd/internal/ssa/type.go
+index e9c017d38a..98efe54133 100644
+--- a/src/cmd/internal/ssa/type.go
++++ b/src/cmd/internal/ssa/type.go
+@@ -13,25 +13,33 @@ type Type types.Type
+ 
+ var (
+ 	// shortcuts for commonly used basic types
+-	TypeInt     = types.Typ[types.Int]
+-	TypeUint    = types.Typ[types.Uint]
+-	TypeInt8    = types.Typ[types.Int8]
+-	TypeInt16   = types.Typ[types.Int16]
+-	TypeInt32   = types.Typ[types.Int32]
+-	TypeInt64   = types.Typ[types.Int64]
+-	TypeUint8   = types.Typ[types.Uint8]
+-	TypeUint16  = types.Typ[types.Uint16]
+-	TypeUint32  = types.Typ[types.Uint32]
+-	TypeUint64  = types.Typ[types.Uint64]
+-	TypeUintptr = types.Typ[types.Uintptr]
+-	TypeBool    = types.Typ[types.Bool]
+-	TypeString  = types.Typ[types.String]
++	//TypeInt     = types.Typ[types.Int]
++	//TypeUint    = types.Typ[types.Uint]
++	TypeInt8   = types.Typ[types.Int8]
++	TypeInt16  = types.Typ[types.Int16]
++	TypeInt32  = types.Typ[types.Int32]
++	TypeInt64  = types.Typ[types.Int64]
++	TypeUint8  = types.Typ[types.Uint8]
++	TypeUint16 = types.Typ[types.Uint16]
++	TypeUint32 = types.Typ[types.Uint32]
++	TypeUint64 = types.Typ[types.Uint64]
++	//TypeUintptr = types.Typ[types.Uintptr]
++	TypeBool   = types.Typ[types.Bool]
++	TypeString = types.Typ[types.String]
+ 
+ 	TypeInvalid = types.Typ[types.Invalid]
+ 
+ 	// Additional compiler-only types go here.
+ 	TypeMem   = &Memory{}
+ 	TypeFlags = &Flags{}
++
++	// TODO(khr): we probably shouldn't use int/uint/uintptr as Value types in the compiler.
++	// In OpConst's case, their width is the compiler's width, not the to-be-compiled
++	// program's width.  For now, we can translate int/uint/uintptr to their specific
++	// widths variants before SSA.
++	// However, we may need at some point to maintain all possible user types in the
++	// compiler to handle things like interface conversion.  At that point, we may
++	// need to revisit this decision.
+ )
+ 
+ // typeIdentical reports whether its two arguments are the same type.
+diff --git a/src/cmd/internal/ssa/types/sizes.go b/src/cmd/internal/ssa/types/sizes.go
+new file mode 100644
+index 0000000000..b52f636fc5
+--- /dev/null
++++ b/src/cmd/internal/ssa/types/sizes.go
+@@ -0,0 +1,117 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements Sizes.
++
++package types
++
++import "log"
++
++// Sizes defines the sizing functions for package unsafe.
++type Sizes interface {
++	// Alignof returns the alignment of a variable of type T.
++	// Alignof must implement the alignment guarantees required by the spec.
++	Alignof(T Type) int64
++
++	// Offsetsof returns the offsets of the given struct fields, in bytes.
++	// Offsetsof must implement the offset guarantees required by the spec.
++	Offsetsof(fields []*Var) []int64
++
++	// Sizeof returns the size of a variable of type T.
++	// Sizeof must implement the size guarantees required by the spec.
++	Sizeof(T Type) int64
++}
++
++// StdSizes is a convenience type for creating commonly used Sizes.
++// It makes the following simplifying assumptions:
++//
++//	- The size of explicitly sized basic types (int16, etc.) is the
++//	  specified size.
++//	- The size of strings and interfaces is 2*WordSize.
++//	- The size of slices is 3*WordSize.
++//	- The size of an array of n elements corresponds to the size of
++//	  a struct of n consecutive fields of the array's element type.
++//      - The size of a struct is the offset of the last field plus that
++//	  field's size. As with all element types, if the struct is used
++//	  in an array its size must first be aligned to a multiple of the
++//	  struct's alignment.
++//	- All other types have size WordSize.
++//	- Arrays and structs are aligned per spec definition; all other
++//	  types are naturally aligned with a maximum alignment MaxAlign.
++//
++// *StdSizes implements Sizes.
++//
++type StdSizes struct {
++	WordSize int64 // word size in bytes - must be >= 4 (32bits)
++	MaxAlign int64 // maximum alignment in bytes - must be >= 1
++}
++
++func (s *StdSizes) Alignof(T Type) int64 {
++	a := s.Sizeof(T) // may be 0
++	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
++	if a < 1 {
++		return 1
++	}
++	if a > s.MaxAlign {
++		return s.MaxAlign
++	}
++	return a
++}
++
++func (s *StdSizes) Offsetsof(fields []*Var) []int64 {
++	offsets := make([]int64, len(fields))
++	var o int64
++	for i, f := range fields {
++		a := s.Alignof(f.typ)
++		o = align(o, a)
++		offsets[i] = o
++		o += s.Sizeof(f.typ)
++	}
++	return offsets
++}
++
++var basicSizes = [...]byte{
++	Bool:       1,
++	Int8:       1,
++	Int16:      2,
++	Int32:      4,
++	Int64:      8,
++	Uint8:      1,
++	Uint16:     2,
++	Uint32:     4,
++	Uint64:     8,
++	Float32:    4,
++	Float64:    8,
++	Complex64:  8,
++	Complex128: 16,
++}
++
++func (s *StdSizes) Sizeof(T Type) int64 {
++	switch t := T.Underlying().(type) {
++	case *Basic:
++		k := t.kind
++		if int(k) < len(basicSizes) {
++			if s := basicSizes[k]; s > 0 {
++				return int64(s)
++			}
++		}
++		if k == String {
++			return s.WordSize * 2
++		}
++	case *Slice:
++		return s.WordSize * 3
++	default:
++		log.Fatalf("not implemented")
++	}
++	return s.WordSize // catch-all
++}
++
++// stdSizes is used if Config.Sizes == nil.
++var stdSizes = StdSizes{8, 8}
++
++// align returns the smallest y >= x such that y % a == 0.
++func align(x, a int64) int64 {
++	y := x + a - 1
++	return y - y%a
++}
+diff --git a/src/cmd/internal/ssa/value.go b/src/cmd/internal/ssa/value.go
+index f6f099cd32..389ba1ff77 100644
+--- a/src/cmd/internal/ssa/value.go
++++ b/src/cmd/internal/ssa/value.go
+@@ -40,8 +40,8 @@ type Value struct {
+ // Examples:
+ // Opcode          aux   args
+ //  OpAdd          nil      2
+-//  OpConstStr  string      0
+-//  OpConstInt   int64      0
++//  OpConst     string      0    string constant
++//  OpConst      int64      0    int64 constant
+ //  OpAddcq      int64      1    amd64 op: v = arg[0] + constant
+ 
+ // short form print.  Just v#.
+@@ -113,12 +113,3 @@ func (v *Value) CopyFrom(w *Value) {
+ 	v.resetArgs()
+ 	v.AddArgs(w.Args...)
+ }
+-
+-// SetType sets the type of v.  v must not have had its type
+-// set yet (it must be TypeInvalid).
+-func (v *Value) SetType() {
+-	if v.Type != TypeInvalid {
+-		panic("setting type when it is already set")
+-	}
+-	opcodeTable[v.Op].typer(v)
+-}

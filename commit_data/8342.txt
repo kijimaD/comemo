@@ -11,7 +11,7 @@ Date:   Mon May 9 15:16:34 2011 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4456054
-
+---
  misc/cgo/test/env.go                            |   8 +-
  src/pkg/crypto/openpgp/packet/packet.go         |  12 +-
  src/pkg/go/printer/nodes.go                     | 159 ++++++++++++++++++------
@@ -23,3 +23,512 @@ Date:   Mon May 9 15:16:34 2011 -0700
  src/pkg/rand/rand_test.go                       |   4 +-
  src/pkg/runtime/softfloat64.go                  |   4 +-
  10 files changed, 216 insertions(+), 81 deletions(-)
+
+diff --git a/misc/cgo/test/env.go b/misc/cgo/test/env.go
+index 53e80c7c4e..1fb4e684cb 100644
+--- a/misc/cgo/test/env.go
++++ b/misc/cgo/test/env.go
+@@ -16,9 +16,9 @@ import (
+ 
+ // This is really an os package test but here for convenience.
+ func testSetEnv(t *testing.T) {
+-	const key = "CGO_OS_TEST_KEY" 
+-	const val = "CGO_OS_TEST_VALUE" 
+-	os.Setenv(key, val) 
++	const key = "CGO_OS_TEST_KEY"
++	const val = "CGO_OS_TEST_VALUE"
++	os.Setenv(key, val)
+ 	keyc := C.CString(key)
+ 	defer C.free(unsafe.Pointer(keyc))
+ 	v := C.getenv(keyc)
+@@ -30,5 +30,3 @@ func testSetEnv(t *testing.T) {
+ 		t.Fatalf("getenv() = %q; want %q", vs, val)
+ 	}
+ }
+-
+-
+diff --git a/src/pkg/crypto/openpgp/packet/packet.go b/src/pkg/crypto/openpgp/packet/packet.go
+index c0ec44dd8e..24be5cb26d 100644
+--- a/src/pkg/crypto/openpgp/packet/packet.go
++++ b/src/pkg/crypto/openpgp/packet/packet.go
+@@ -301,12 +301,12 @@ type SignatureType uint8
+ 
+ const (
+ 	SigTypeBinary        SignatureType = 0
+-	SigTypeText          = 1
+-	SigTypeGenericCert   = 0x10
+-	SigTypePersonaCert   = 0x11
+-	SigTypeCasualCert    = 0x12
+-	SigTypePositiveCert  = 0x13
+-	SigTypeSubkeyBinding = 0x18
++	SigTypeText                        = 1
++	SigTypeGenericCert                 = 0x10
++	SigTypePersonaCert                 = 0x11
++	SigTypeCasualCert                  = 0x12
++	SigTypePositiveCert                = 0x13
++	SigTypeSubkeyBinding               = 0x18
+ )
+ 
+ // PublicKeyAlgorithm represents the different public key system specified for
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 86c3279306..572c9bd28f 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -1189,6 +1189,97 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
++// The keepTypeColumn function determines if the type column of a series of
++// consecutive const or var declarations must be kept, or if initialization
++// values (V) can be placed in the type column (T) instead. The i'th entry
++// in the result slice is true if the type column in spec[i] must be kept.
++//
++// For example, the declaration:
++//
++//	const (
++//		foobar int = 42 // comment
++//		x          = 7  // comment
++//		foo
++//              bar = 991
++//	)
++//
++// leads to the type/values matrix below. A run of value columns (V) can
++// be moved into the type column if there is no type for any of the values
++// in that column (we only move entire columns so that they align properly).
++//
++//	matrix        formatted     result
++//                    matrix
++//	T  V    ->    T  V     ->   true      there is a T and so the type
++//	-  V          -  V          true      column must be kept
++//	-  -          -  -          false
++//	-  V          V  -          false     V is moved into T column
++//
++func keepTypeColumn(specs []ast.Spec) []bool {
++	m := make([]bool, len(specs))
++
++	populate := func(i, j int, keepType bool) {
++		if keepType {
++			for ; i < j; i++ {
++				m[i] = true
++			}
++		}
++	}
++
++	i0 := -1 // if i0 >= 0 we are in a run and i0 is the start of the run
++	var keepType bool
++	for i, s := range specs {
++		t := s.(*ast.ValueSpec)
++		if t.Values != nil {
++			if i0 < 0 {
++				// start of a run of ValueSpecs with non-nil Values
++				i0 = i
++				keepType = false
++			}
++		} else {
++			if i0 >= 0 {
++				// end of a run
++				populate(i0, i, keepType)
++				i0 = -1
++			}
++		}
++		if t.Type != nil {
++			keepType = true
++		}
++	}
++	if i0 >= 0 {
++		// end of a run
++		populate(i0, len(specs), keepType)
++	}
++
++	return m
++}
++
++
++func (p *printer) valueSpec(s *ast.ValueSpec, keepType, doIndent bool, multiLine *bool) {
++	p.setComment(s.Doc)
++	p.identList(s.Names, doIndent, multiLine) // always present
++	extraTabs := 3
++	if s.Type != nil || keepType {
++		p.print(vtab)
++		extraTabs--
++	}
++	if s.Type != nil {
++		p.expr(s.Type, multiLine)
++	}
++	if s.Values != nil {
++		p.print(vtab, token.ASSIGN)
++		p.exprList(token.NoPos, s.Values, 1, blankStart|commaSep, multiLine, token.NoPos)
++		extraTabs--
++	}
++	if s.Comment != nil {
++		for ; extraTabs > 0; extraTabs-- {
++			p.print(vtab)
++		}
++		p.setComment(s.Comment)
++	}
++}
++
++
+ // The parameter n is the number of specs in the group. If doIndent is set,
+ // multi-line identifier lists in the spec are indented when the first
+ // linebreak is encountered.
+@@ -1206,38 +1297,20 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool, multiLine *bool) {
+ 		p.setComment(s.Comment)
+ 
+ 	case *ast.ValueSpec:
++		if n != 1 {
++			p.internalError("expected n = 1; got", n)
++		}
+ 		p.setComment(s.Doc)
+ 		p.identList(s.Names, doIndent, multiLine) // always present
+-		if n == 1 {
+-			if s.Type != nil {
+-				p.print(blank)
+-				p.expr(s.Type, multiLine)
+-			}
+-			if s.Values != nil {
+-				p.print(blank, token.ASSIGN)
+-				p.exprList(token.NoPos, s.Values, 1, blankStart|commaSep, multiLine, token.NoPos)
+-			}
+-			p.setComment(s.Comment)
+-
+-		} else {
+-			extraTabs := 3
+-			if s.Type != nil {
+-				p.print(vtab)
+-				p.expr(s.Type, multiLine)
+-				extraTabs--
+-			}
+-			if s.Values != nil {
+-				p.print(vtab, token.ASSIGN)
+-				p.exprList(token.NoPos, s.Values, 1, blankStart|commaSep, multiLine, token.NoPos)
+-				extraTabs--
+-			}
+-			if s.Comment != nil {
+-				for ; extraTabs > 0; extraTabs-- {
+-					p.print(vtab)
+-				}
+-				p.setComment(s.Comment)
+-			}
++		if s.Type != nil {
++			p.print(blank)
++			p.expr(s.Type, multiLine)
++		}
++		if s.Values != nil {
++			p.print(blank, token.ASSIGN)
++			p.exprList(token.NoPos, s.Values, 1, blankStart|commaSep, multiLine, token.NoPos)
+ 		}
++		p.setComment(s.Comment)
+ 
+ 	case *ast.TypeSpec:
+ 		p.setComment(s.Doc)
+@@ -1264,15 +1337,29 @@ func (p *printer) genDecl(d *ast.GenDecl, multiLine *bool) {
+ 	if d.Lparen.IsValid() {
+ 		// group of parenthesized declarations
+ 		p.print(d.Lparen, token.LPAREN)
+-		if len(d.Specs) > 0 {
++		if n := len(d.Specs); n > 0 {
+ 			p.print(indent, formfeed)
+-			var ml bool
+-			for i, s := range d.Specs {
+-				if i > 0 {
+-					p.linebreak(p.fset.Position(s.Pos()).Line, 1, ignore, ml)
++			if n > 1 && (d.Tok == token.CONST || d.Tok == token.VAR) {
++				// two or more grouped const/var declarations:
++				// determine if the type column must be kept
++				keepType := keepTypeColumn(d.Specs)
++				var ml bool
++				for i, s := range d.Specs {
++					if i > 0 {
++						p.linebreak(p.fset.Position(s.Pos()).Line, 1, ignore, ml)
++					}
++					ml = false
++					p.valueSpec(s.(*ast.ValueSpec), keepType[i], false, &ml)
++				}
++			} else {
++				var ml bool
++				for i, s := range d.Specs {
++					if i > 0 {
++						p.linebreak(p.fset.Position(s.Pos()).Line, 1, ignore, ml)
++					}
++					ml = false
++					p.spec(s, n, false, &ml)
+ 				}
+-				ml = false
+-				p.spec(s, len(d.Specs), false, &ml)
+ 			}
+ 			p.print(unindent, formfeed)
+ 			*multiLine = true
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index a86d661743..334098759c 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -22,7 +22,7 @@ const (
+ 	_	= iota + 10
+ 	_	// comments
+ 
+-	_	= 10		// comment
++	_		= 10	// comment
+ 	_	T	= 20	// comment
+ )
+ 
+@@ -38,9 +38,9 @@ const (
+ 	_			// comment
+ 	_			// comment
+ 	_	= iota + 10
+-	_	// comment
+-	_	= 10
+-	_	= 20		// comment
++	_		// comment
++	_		= 10
++	_		= 20	// comment
+ 	_	T	= 0	// comment
+ )
+ 
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index c1b255842c..fac72f6512 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -160,7 +160,6 @@ bar`
+ 
+ 
+ func _() {
+-	// the following decls need a semicolon at the end
+ 	type _ int
+ 	type _ *int
+ 	type _ []int
+@@ -175,7 +174,6 @@ func _() {
+ 	var _ chan int
+ 	var _ func() int
+ 
+-	// the following decls don't need a semicolon at the end
+ 	type _ struct{}
+ 	type _ *struct{}
+ 	type _ []struct{}
+@@ -331,11 +329,11 @@ func _() {
+ 	)
+ 	// some entries have a type
+ 	const (
+-		xxxxxx		= 1
+-		x		= 2
+-		xxx		= 3
++		xxxxxx			= 1
++		x			= 2
++		xxx			= 3
+ 		yyyyyyyy	float	= iota
+-		yyyy		= "bar"
++		yyyy			= "bar"
+ 		yyy
+ 		yy	= 2
+ 	)
+@@ -365,7 +363,7 @@ func _() {
+ 		xxx		string
+ 		yyyyyyyy	int	= 1234
+ 		y		float	= 3.14
+-		yyyy		= "bar"
++		yyyy			= "bar"
+ 		yyy		string	= "foo"
+ 	)
+ 	// mixed entries - all comments should be aligned
+@@ -373,7 +371,7 @@ func _() {
+ 		a, b, c			int
+ 		x			= 10
+ 		d			int			// comment
+-		y			= 20			// comment
++		y				= 20		// comment
+ 		f, ff, fff, ffff	int	= 0, 1, 2, 3	// comment
+ 	)
+ 	// respect original line breaks
+@@ -401,6 +399,33 @@ func _() {
+ 	)
+ }
+ 
++// alignment of "=" in consecutive lines (extended example from issue 1414)
++const (
++	umax	uint	= ^uint(0)		// maximum value for a uint
++	bpu		= 1 << (5 + umax>>63)	// bits per uint
++	foo
++	bar	= -1
++)
++
++// typical enum
++const (
++	a	MyType	= iota
++	abcd
++	b
++	c
++	def
++)
++
++// excerpt from godoc.go
++var (
++	goroot		= flag.String("goroot", runtime.GOROOT(), "Go root directory")
++	testDir		= flag.String("testdir", "", "Go root subdirectory - for testing only (faster startups)")
++	pkgPath		= flag.String("path", "", "additional package directories (colon-separated)")
++	filter		= flag.String("filter", "", "filter file containing permitted package directory paths")
++	filterMin	= flag.Int("filter_minutes", 0, "filter file update interval in minutes; disabled if <= 0")
++	filterDelay	delayTime	// actual filter update interval in minutes; usually filterDelay == filterMin, but filterDelay may back off exponentially
++)
++
+ 
+ // formatting of structs
+ type _ struct{}
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index c8b37e12ba..c6134096bf 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -159,7 +159,6 @@ bar`
+ 
+ 
+ func _() {
+-	// the following decls need a semicolon at the end
+ 	type _ int
+ 	type _ *int
+ 	type _ []int
+@@ -174,7 +173,6 @@ func _() {
+ 	var _ chan int
+ 	var _ func() int
+ 
+-	// the following decls don't need a semicolon at the end
+ 	type _ struct{}
+ 	type _ *struct{}
+ 	type _ []struct{}
+@@ -400,6 +398,33 @@ func _() {
+ 	)
+ }
+ 
++// alignment of "=" in consecutive lines (extended example from issue 1414)
++const (
++	umax uint                  = ^uint(0) // maximum value for a uint
++	bpu  = 1 << (5 + umax>>63)            // bits per uint
++	foo
++	bar  = -1
++)
++
++// typical enum
++const (
++	a MyType = iota
++	abcd
++	b
++	c
++	def
++)
++
++// excerpt from godoc.go
++var (
++	goroot = flag.String("goroot", runtime.GOROOT(), "Go root directory")
++	testDir = flag.String("testdir", "", "Go root subdirectory - for testing only (faster startups)")
++	pkgPath = flag.String("path", "", "additional package directories (colon-separated)")
++	filter = flag.String("filter", "", "filter file containing permitted package directory paths")
++	filterMin = flag.Int("filter_minutes", 0, "filter file update interval in minutes; disabled if <= 0")
++	filterDelay delayTime // actual filter update interval in minutes; usually filterDelay == filterMin, but filterDelay may back off exponentially
++)
++
+ 
+ // formatting of structs
+ type _ struct{}
+diff --git a/src/pkg/go/types/testdata/exports.go b/src/pkg/go/types/testdata/exports.go
+index 13efe012a0..461db0acc9 100644
+--- a/src/pkg/go/types/testdata/exports.go
++++ b/src/pkg/go/types/testdata/exports.go
+@@ -14,13 +14,13 @@ import (
+ 
+ const (
+ 	C0 int = 0
+-	C1 = 3.14159265
+-	C2 = 2.718281828i
+-	C3 = -123.456e-789
+-	C4 = +123.456E+789
+-	C5 = 1234i
+-	C6 = "foo\n"
+-	C7 = `bar\n`
++	C1     = 3.14159265
++	C2     = 2.718281828i
++	C3     = -123.456e-789
++	C4     = +123.456E+789
++	C5     = 1234i
++	C6     = "foo\n"
++	C7     = `bar\n`
+ )
+ 
+ 
+diff --git a/src/pkg/http/spdy/protocol.go b/src/pkg/http/spdy/protocol.go
+index d584ea232e..ad9aa63335 100644
+--- a/src/pkg/http/spdy/protocol.go
++++ b/src/pkg/http/spdy/protocol.go
+@@ -29,14 +29,14 @@ type ControlFrameType uint16
+ // Control frame type constants
+ const (
+ 	TypeSynStream    ControlFrameType = 0x0001
+-	TypeSynReply     = 0x0002
+-	TypeRstStream    = 0x0003
+-	TypeSettings     = 0x0004
+-	TypeNoop         = 0x0005
+-	TypePing         = 0x0006
+-	TypeGoaway       = 0x0007
+-	TypeHeaders      = 0x0008
+-	TypeWindowUpdate = 0x0009
++	TypeSynReply                      = 0x0002
++	TypeRstStream                     = 0x0003
++	TypeSettings                      = 0x0004
++	TypeNoop                          = 0x0005
++	TypePing                          = 0x0006
++	TypeGoaway                        = 0x0007
++	TypeHeaders                       = 0x0008
++	TypeWindowUpdate                  = 0x0009
+ )
+ 
+ func (t ControlFrameType) String() string {
+@@ -68,7 +68,7 @@ type FrameFlags uint8
+ // Stream frame flags
+ const (
+ 	FlagFin            FrameFlags = 0x01
+-	FlagUnidirectional = 0x02
++	FlagUnidirectional            = 0x02
+ )
+ 
+ // SETTINGS frame flags
+diff --git a/src/pkg/rand/rand_test.go b/src/pkg/rand/rand_test.go
+index 2476ebaf61..a689da8487 100644
+--- a/src/pkg/rand/rand_test.go
++++ b/src/pkg/rand/rand_test.go
+@@ -197,7 +197,7 @@ func initNorm() (testKn []uint32, testWn, testFn []float32) {
+ 	const m1 = 1 << 31
+ 	var (
+ 		dn float64 = rn
+-		tn = dn
++		tn         = dn
+ 		vn float64 = 9.91256303526217e-3
+ 	)
+ 
+@@ -226,7 +226,7 @@ func initExp() (testKe []uint32, testWe, testFe []float32) {
+ 	const m2 = 1 << 32
+ 	var (
+ 		de float64 = re
+-		te = de
++		te         = de
+ 		ve float64 = 3.9496598225815571993e-3
+ 	)
+ 
+diff --git a/src/pkg/runtime/softfloat64.go b/src/pkg/runtime/softfloat64.go
+index d9bbe5def6..e0c3b7b738 100644
+--- a/src/pkg/runtime/softfloat64.go
++++ b/src/pkg/runtime/softfloat64.go
+@@ -11,7 +11,7 @@ package runtime
+ const (
+ 	mantbits64 uint = 52
+ 	expbits64  uint = 11
+-	bias64     = -1<<(expbits64-1) + 1
++	bias64          = -1<<(expbits64-1) + 1
+ 
+ 	nan64 uint64 = (1<<expbits64-1)<<mantbits64 + 1
+ 	inf64 uint64 = (1<<expbits64 - 1) << mantbits64
+@@ -19,7 +19,7 @@ const (
+ 
+ 	mantbits32 uint = 23
+ 	expbits32  uint = 8
+-	bias32     = -1<<(expbits32-1) + 1
++	bias32          = -1<<(expbits32-1) + 1
+ 
+ 	nan32 uint32 = (1<<expbits32-1)<<mantbits32 + 1
+ 	inf32 uint32 = (1<<expbits32 - 1) << mantbits32

@@ -17,7 +17,7 @@ Date:   Fri Jul 29 22:38:24 2022 -0600
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +-
  .../google/pprof/internal/driver/settings.go       |  8 +--
@@ -25,3 +25,176 @@ Date:   Fri Jul 29 22:38:24 2022 -0600
  .../google/pprof/internal/symbolizer/symbolizer.go | 61 ++++++++++++++--------
  src/cmd/vendor/modules.txt                         |  2 +-
  6 files changed, 50 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 6629512617..326992ddd2 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,7 +3,7 @@ module cmd
+ go 1.20
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20220517023622-154dc81eb7b0
++	github.com/google/pprof v0.0.0-20220729232143-a41b82acbcb1
+ 	golang.org/x/arch v0.0.0-20220722155209-00200b7164a7
+ 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
+ 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index aa72650400..dd5852ef76 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,5 +1,5 @@
+-github.com/google/pprof v0.0.0-20220517023622-154dc81eb7b0 h1:XgEFTOJTsN3Li0Txfhn2UzsysGJfXIDe7wE07uY7ZfI=
+-github.com/google/pprof v0.0.0-20220517023622-154dc81eb7b0/go.mod h1:gSuNB+gJaOiQKLEZ+q+PK9Mq3SOzhRcw2GsGS/FhYDk=
++github.com/google/pprof v0.0.0-20220729232143-a41b82acbcb1 h1:8pyqKJvrJqUYaKS851Ule26pwWvey6IDMiczaBLDKLQ=
++github.com/google/pprof v0.0.0-20220729232143-a41b82acbcb1/go.mod h1:gSuNB+gJaOiQKLEZ+q+PK9Mq3SOzhRcw2GsGS/FhYDk=
+ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 h1:rcanfLhLDA8nozr/K289V1zcntHr3V+SHlXwzz1ZI2g=
+ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2/go.mod h1:aYm2/VgdVmcIU8iMfdMvDMsRAQjcfZSKFby6HOFvi/w=
+ golang.org/x/arch v0.0.0-20220722155209-00200b7164a7 h1:VBQqJMNMRfQsWSiCTLgz9XjAfWlgnJAPv8nsp1HF8Tw=
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/settings.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/settings.go
+index f72314b185..1e9154c5f5 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/settings.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/settings.go
+@@ -79,7 +79,7 @@ type configMenuEntry struct {
+ }
+ 
+ // configMenu returns a list of items to add to a menu in the web UI.
+-func configMenu(fname string, url url.URL) []configMenuEntry {
++func configMenu(fname string, u url.URL) []configMenuEntry {
+ 	// Start with system configs.
+ 	configs := []namedConfig{{Name: "Default", config: defaultConfig()}}
+ 	if settings, err := readSettings(fname); err == nil {
+@@ -91,13 +91,15 @@ func configMenu(fname string, url url.URL) []configMenuEntry {
+ 	result := make([]configMenuEntry, len(configs))
+ 	lastMatch := -1
+ 	for i, cfg := range configs {
+-		dst, changed := cfg.config.makeURL(url)
++		dst, changed := cfg.config.makeURL(u)
+ 		if !changed {
+ 			lastMatch = i
+ 		}
++		// Use a relative URL to work in presence of stripping/redirects in webui.go.
++		rel := &url.URL{RawQuery: dst.RawQuery, ForceQuery: true}
+ 		result[i] = configMenuEntry{
+ 			Name:       cfg.Name,
+-			URL:        dst.String(),
++			URL:        rel.String(),
+ 			UserConfig: (i != 0),
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go b/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go
+index 9ff4c95adb..09d40fd2c9 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go
+@@ -385,6 +385,9 @@ func multilinePrintableName(info *NodeInfo) string {
+ 	infoCopy := *info
+ 	infoCopy.Name = escapeForDot(ShortenFunctionName(infoCopy.Name))
+ 	infoCopy.Name = strings.Replace(infoCopy.Name, "::", `\n`, -1)
++	// Go type parameters are reported as "[...]" by Go pprof profiles.
++	// Keep this ellipsis rather than replacing with newlines below.
++	infoCopy.Name = strings.Replace(infoCopy.Name, "[...]", "[…]", -1)
+ 	infoCopy.Name = strings.Replace(infoCopy.Name, ".", `\n`, -1)
+ 	if infoCopy.File != "" {
+ 		infoCopy.File = filepath.Base(infoCopy.File)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+index cbb0ed4d1b..d243b800a9 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+@@ -205,49 +205,64 @@ func Demangle(prof *profile.Profile, force bool, demanglerMode string) {
+ 		}
+ 	}
+ 
+-	var options []demangle.Option
++	options := demanglerModeToOptions(demanglerMode)
++	for _, fn := range prof.Function {
++		demangleSingleFunction(fn, options)
++	}
++}
++
++func demanglerModeToOptions(demanglerMode string) []demangle.Option {
+ 	switch demanglerMode {
+ 	case "": // demangled, simplified: no parameters, no templates, no return type
+-		options = []demangle.Option{demangle.NoParams, demangle.NoTemplateParams}
++		return []demangle.Option{demangle.NoParams, demangle.NoTemplateParams}
+ 	case "templates": // demangled, simplified: no parameters, no return type
+-		options = []demangle.Option{demangle.NoParams}
++		return []demangle.Option{demangle.NoParams}
+ 	case "full":
+-		options = []demangle.Option{demangle.NoClones}
++		return []demangle.Option{demangle.NoClones}
+ 	case "none": // no demangling
+-		return
++		return []demangle.Option{}
+ 	}
+ 
++	panic(fmt.Sprintf("unknown demanglerMode %s", demanglerMode))
++}
++
++func demangleSingleFunction(fn *profile.Function, options []demangle.Option) {
++	if fn.Name != "" && fn.SystemName != fn.Name {
++		return // Already demangled.
++	}
+ 	// Copy the options because they may be updated by the call.
+ 	o := make([]demangle.Option, len(options))
+-	for _, fn := range prof.Function {
+-		if fn.Name != "" && fn.SystemName != fn.Name {
+-			continue // Already demangled.
+-		}
+-		copy(o, options)
+-		if demangled := demangle.Filter(fn.SystemName, o...); demangled != fn.SystemName {
+-			fn.Name = demangled
+-			continue
+-		}
+-		// Could not demangle. Apply heuristics in case the name is
+-		// already demangled.
+-		name := fn.SystemName
+-		if looksLikeDemangledCPlusPlus(name) {
+-			if demanglerMode == "" || demanglerMode == "templates" {
++	copy(o, options)
++	if demangled := demangle.Filter(fn.SystemName, o...); demangled != fn.SystemName {
++		fn.Name = demangled
++		return
++	}
++	// Could not demangle. Apply heuristics in case the name is
++	// already demangled.
++	name := fn.SystemName
++	if looksLikeDemangledCPlusPlus(name) {
++		for _, o := range options {
++			switch o {
++			case demangle.NoParams:
+ 				name = removeMatching(name, '(', ')')
+-			}
+-			if demanglerMode == "" {
++			case demangle.NoTemplateParams:
+ 				name = removeMatching(name, '<', '>')
+ 			}
+ 		}
+-		fn.Name = name
+ 	}
++	fn.Name = name
+ }
+ 
+ // looksLikeDemangledCPlusPlus is a heuristic to decide if a name is
+ // the result of demangling C++. If so, further heuristics will be
+ // applied to simplify the name.
+ func looksLikeDemangledCPlusPlus(demangled string) bool {
+-	if strings.Contains(demangled, ".<") { // Skip java names of the form "class.<init>"
++	// Skip java names of the form "class.<init>".
++	if strings.Contains(demangled, ".<") {
++		return false
++	}
++	// Skip Go names of the form "foo.(*Bar[...]).Method".
++	if strings.Contains(demangled, "]).") {
+ 		return false
+ 	}
+ 	return strings.ContainsAny(demangled, "<>[]") || strings.Contains(demangled, "::")
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 1df2768049..5dd6bfaadd 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# github.com/google/pprof v0.0.0-20220517023622-154dc81eb7b0
++# github.com/google/pprof v0.0.0-20220729232143-a41b82acbcb1
+ ## explicit; go 1.17
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils

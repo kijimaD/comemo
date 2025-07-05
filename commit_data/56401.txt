@@ -21,7 +21,138 @@ Date:   Wed Apr 19 16:51:05 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/log/slog/json_handler.go      | 42 +++++++++++++++------------------------
  src/log/slog/json_handler_test.go | 20 +++++++++----------
  2 files changed, 26 insertions(+), 36 deletions(-)
+
+diff --git a/src/log/slog/json_handler.go b/src/log/slog/json_handler.go
+index a99a99f1c1..ec25771245 100644
+--- a/src/log/slog/json_handler.go
++++ b/src/log/slog/json_handler.go
+@@ -12,7 +12,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"log/slog/internal/buffer"
+-	"math"
+ 	"strconv"
+ 	"time"
+ 	"unicode/utf8"
+@@ -75,12 +74,16 @@ func (h *JSONHandler) WithGroup(name string) Handler {
+ // To modify these or other attributes, or remove them from the output, use
+ // [HandlerOptions.ReplaceAttr].
+ //
+-// Values are formatted as with encoding/json.Marshal, with the following
+-// exceptions:
+-//   - Floating-point NaNs and infinities are formatted as one of the strings
+-//     "NaN", "Infinity" or "-Infinity".
+-//   - Levels are formatted as with Level.String.
+-//   - HTML characters are not escaped.
++// Values are formatted as with an [encoding/json.Encoder] with SetEscapeHTML(false),
++// with two exceptions.
++//
++// First, an Attr whose Value is of type error is formatted as a string, by
++// calling its Error method. Only errors in Attrs receive this special treatment,
++// not errors embedded in structs, slices, maps or other data structures that
++// are processed by the encoding/json package.
++//
++// Second, an encoding failure does not cause Handle to return an error.
++// Instead, the error message is formatted as a string.
+ //
+ // Each call to Handle results in a single serialized call to io.Writer.Write.
+ func (h *JSONHandler) Handle(_ context.Context, r Record) error {
+@@ -108,22 +111,11 @@ func appendJSONValue(s *handleState, v Value) error {
+ 	case KindUint64:
+ 		*s.buf = strconv.AppendUint(*s.buf, v.Uint64(), 10)
+ 	case KindFloat64:
+-		f := v.Float64()
+-		// json.Marshal fails on special floats, so handle them here.
+-		switch {
+-		case math.IsInf(f, 1):
+-			s.buf.WriteString(`"Infinity"`)
+-		case math.IsInf(f, -1):
+-			s.buf.WriteString(`"-Infinity"`)
+-		case math.IsNaN(f):
+-			s.buf.WriteString(`"NaN"`)
+-		default:
+-			// json.Marshal is funny about floats; it doesn't
+-			// always match strconv.AppendFloat. So just call it.
+-			// That's expensive, but floats are rare.
+-			if err := appendJSONMarshal(s.buf, f); err != nil {
+-				return err
+-			}
++		// json.Marshal is funny about floats; it doesn't
++		// always match strconv.AppendFloat. So just call it.
++		// That's expensive, but floats are rare.
++		if err := appendJSONMarshal(s.buf, v.Float64()); err != nil {
++			return err
+ 		}
+ 	case KindBool:
+ 		*s.buf = strconv.AppendBool(*s.buf, v.Bool())
+@@ -163,9 +155,7 @@ func appendJSONMarshal(buf *buffer.Buffer, v any) error {
+ // It does not surround the string in quotation marks.
+ //
+ // Modified from encoding/json/encode.go:encodeState.string,
+-// with escapeHTML set to true.
+-//
+-// TODO: review whether HTML escaping is necessary.
++// with escapeHTML set to false.
+ func appendEscapedJSONString(buf []byte, s string) []byte {
+ 	char := func(b byte) { buf = append(buf, b) }
+ 	str := func(s string) { buf = append(buf, s...) }
+diff --git a/src/log/slog/json_handler_test.go b/src/log/slog/json_handler_test.go
+index d8457cb9ee..61078caec8 100644
+--- a/src/log/slog/json_handler_test.go
++++ b/src/log/slog/json_handler_test.go
+@@ -74,7 +74,7 @@ type jsonMarshalerError struct {
+ func (jsonMarshalerError) Error() string { return "oops" }
+ 
+ func TestAppendJSONValue(t *testing.T) {
+-	// On most values, jsonAppendAttrValue should agree with json.Marshal.
++	// jsonAppendAttrValue should always agree with json.Marshal.
+ 	for _, value := range []any{
+ 		"hello",
+ 		`"[{escape}]"`,
+@@ -89,8 +89,9 @@ func TestAppendJSONValue(t *testing.T) {
+ 		testTime,
+ 		jsonMarshaler{"xyz"},
+ 		jsonMarshalerError{jsonMarshaler{"pqr"}},
++		LevelWarn,
+ 	} {
+-		got := jsonValueString(t, AnyValue(value))
++		got := jsonValueString(AnyValue(value))
+ 		want, err := marshalJSON(value)
+ 		if err != nil {
+ 			t.Fatal(err)
+@@ -117,24 +118,23 @@ func TestJSONAppendAttrValueSpecial(t *testing.T) {
+ 		value any
+ 		want  string
+ 	}{
+-		{math.NaN(), `"NaN"`},
+-		{math.Inf(+1), `"Infinity"`},
+-		{math.Inf(-1), `"-Infinity"`},
+-		{LevelWarn, `"WARN"`},
++		{math.NaN(), `"!ERROR:json: unsupported value: NaN"`},
++		{math.Inf(+1), `"!ERROR:json: unsupported value: +Inf"`},
++		{math.Inf(-1), `"!ERROR:json: unsupported value: -Inf"`},
++		{io.EOF, `"EOF"`},
+ 	} {
+-		got := jsonValueString(t, AnyValue(test.value))
++		got := jsonValueString(AnyValue(test.value))
+ 		if got != test.want {
+ 			t.Errorf("%v: got %s, want %s", test.value, got, test.want)
+ 		}
+ 	}
+ }
+ 
+-func jsonValueString(t *testing.T, v Value) string {
+-	t.Helper()
++func jsonValueString(v Value) string {
+ 	var buf []byte
+ 	s := &handleState{h: &commonHandler{json: true}, buf: (*buffer.Buffer)(&buf)}
+ 	if err := appendJSONValue(s, v); err != nil {
+-		t.Fatal(err)
++		s.appendError(err)
+ 	}
+ 	return string(buf)
+ }

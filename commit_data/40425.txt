@@ -16,7 +16,93 @@ Date:   Fri May 10 12:18:43 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-
+---
  src/cmd/compile/internal/gc/scope.go | 34 ++++------------------------------
  src/cmd/internal/dwarf/dwarf.go      | 14 ++++++++++++++
  2 files changed, 18 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/scope.go b/src/cmd/compile/internal/gc/scope.go
+index 3d543084bc..d7239d5693 100644
+--- a/src/cmd/compile/internal/gc/scope.go
++++ b/src/cmd/compile/internal/gc/scope.go
+@@ -55,14 +55,6 @@ func scopeVariables(dwarfVars []*dwarf.Var, varScopes []ScopeID, dwarfScopes []d
+ 	}
+ }
+ 
+-// A scopedPCs represents a non-empty half-open interval of PCs that
+-// share a common source position.
+-type scopedPCs struct {
+-	start, end int64
+-	pos        src.XPos
+-	scope      ScopeID
+-}
+-
+ // scopePCs assigns PC ranges to their scopes.
+ func scopePCs(fnsym *obj.LSym, marks []Mark, dwarfScopes []dwarf.Scope) {
+ 	// If there aren't any child scopes (in particular, when scope
+@@ -70,36 +62,18 @@ func scopePCs(fnsym *obj.LSym, marks []Mark, dwarfScopes []dwarf.Scope) {
+ 	if len(marks) == 0 {
+ 		return
+ 	}
+-
+-	// Break function text into scopedPCs.
+-	var pcs []scopedPCs
+ 	p0 := fnsym.Func.Text
++	scope := findScope(marks, p0.Pos)
+ 	for p := fnsym.Func.Text; p != nil; p = p.Link {
+ 		if p.Pos == p0.Pos {
+ 			continue
+ 		}
+-		if p0.Pc < p.Pc {
+-			pcs = append(pcs, scopedPCs{start: p0.Pc, end: p.Pc, pos: p0.Pos})
+-		}
++		dwarfScopes[scope].AppendRange(dwarf.Range{Start: p0.Pc, End: p.Pc})
+ 		p0 = p
++		scope = findScope(marks, p0.Pos)
+ 	}
+ 	if p0.Pc < fnsym.Size {
+-		pcs = append(pcs, scopedPCs{start: p0.Pc, end: fnsym.Size, pos: p0.Pos})
+-	}
+-
+-	// Assign scopes to each chunk of instructions.
+-	for i := range pcs {
+-		pcs[i].scope = findScope(marks, pcs[i].pos)
+-	}
+-
+-	// Create sorted PC ranges for each DWARF scope.
+-	for _, pc := range pcs {
+-		r := &dwarfScopes[pc.scope].Ranges
+-		if i := len(*r); i > 0 && (*r)[i-1].End == pc.start {
+-			(*r)[i-1].End = pc.end
+-		} else {
+-			*r = append(*r, dwarf.Range{Start: pc.start, End: pc.end})
+-		}
++		dwarfScopes[scope].AppendRange(dwarf.Range{Start: p0.Pc, End: fnsym.Size})
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index df34843c18..1f5786f1ad 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -145,6 +145,20 @@ func (s *Scope) UnifyRanges(c *Scope) {
+ 	s.Ranges = out
+ }
+ 
++// AppendRange adds r to s, if r is non-empty.
++// If possible, it extends the last Range in s.Ranges; if not, it creates a new one.
++func (s *Scope) AppendRange(r Range) {
++	if r.End <= r.Start {
++		return
++	}
++	i := len(s.Ranges)
++	if i > 0 && s.Ranges[i-1].End == r.Start {
++		s.Ranges[i-1].End = r.End
++		return
++	}
++	s.Ranges = append(s.Ranges, r)
++}
++
+ type InlCalls struct {
+ 	Calls []InlCall
+ }

@@ -13,8 +13,126 @@ Date:   Mon May 22 09:04:27 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/call.go             | 17 +++++++++++++----
  src/go/types/call.go                                | 17 +++++++++++++----
  src/internal/types/testdata/fixedbugs/issue60346.go | 17 +++++++++++++++++
  3 files changed, 43 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 301dc63477..bc3634b6bb 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -374,7 +374,8 @@ func (check *Checker) exprList(elist []syntax.Expr) (xlist []*operand) {
+ }
+ 
+ // genericExprList is like exprList but result operands may be uninstantiated or partially
+-// instantiated generic functions.
++// instantiated generic functions (where constraint information is insufficient to infer
++// the missing type arguments) for Go 1.21 and later.
+ // For each non-generic or uninstantiated generic operand, the corresponding targsList and
+ // xlistList elements do not exist (targsList and xlistList are nil) or the elements are nil.
+ // For each partially instantiated generic function operand, the corresponding targsList and
+@@ -396,13 +397,21 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand,
+ 		}()
+ 	}
+ 
+-	if n := len(elist); n == 1 {
++	// Before Go 1.21, uninstantiated or partially instantiated argument functions are
++	// nor permitted. Checker.funcInst must infer missing type arguments in that case.
++	infer := true // for -lang < go1.21
++	n := len(elist)
++	if n > 0 && check.allowVersion(check.pkg, elist[0], go1_21) {
++		infer = false
++	}
++
++	if n == 1 {
+ 		// single value (possibly a partially instantiated function), or a multi-valued expression
+ 		e := elist[0]
+ 		var x operand
+ 		if inst, _ := e.(*syntax.IndexExpr); inst != nil && check.indexExpr(&x, inst) {
+ 			// x is a generic function.
+-			targs, xlist := check.funcInst(nil, x.Pos(), &x, inst, false)
++			targs, xlist := check.funcInst(nil, x.Pos(), &x, inst, infer)
+ 			if targs != nil {
+ 				// x was not instantiated: collect the (partial) type arguments.
+ 				targsList = [][]Type{targs}
+@@ -439,7 +448,7 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand,
+ 			var x operand
+ 			if inst, _ := e.(*syntax.IndexExpr); inst != nil && check.indexExpr(&x, inst) {
+ 				// x is a generic function.
+-				targs, xlist := check.funcInst(nil, x.Pos(), &x, inst, false)
++				targs, xlist := check.funcInst(nil, x.Pos(), &x, inst, infer)
+ 				if targs != nil {
+ 					// x was not instantiated: collect the (partial) type arguments.
+ 					targsList[i] = targs
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index c8360dce57..df48bf19e4 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -379,7 +379,8 @@ func (check *Checker) exprList(elist []ast.Expr) (xlist []*operand) {
+ }
+ 
+ // genericExprList is like exprList but result operands may be uninstantiated or partially
+-// instantiated generic functions.
++// instantiated generic functions (where constraint information is insufficient to infer
++// the missing type arguments) for Go 1.21 and later.
+ // For each non-generic or uninstantiated generic operand, the corresponding targsList and
+ // xlistList elements do not exist (targsList and xlistList are nil) or the elements are nil.
+ // For each partially instantiated generic function operand, the corresponding targsList and
+@@ -401,13 +402,21 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
+ 		}()
+ 	}
+ 
+-	if n := len(elist); n == 1 {
++	// Before Go 1.21, uninstantiated or partially instantiated argument functions are
++	// nor permitted. Checker.funcInst must infer missing type arguments in that case.
++	infer := true // for -lang < go1.21
++	n := len(elist)
++	if n > 0 && check.allowVersion(check.pkg, elist[0], go1_21) {
++		infer = false
++	}
++
++	if n == 1 {
+ 		// single value (possibly a partially instantiated function), or a multi-valued expression
+ 		e := elist[0]
+ 		var x operand
+ 		if ix := typeparams.UnpackIndexExpr(e); ix != nil && check.indexExpr(&x, ix) {
+ 			// x is a generic function.
+-			targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, false)
++			targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, infer)
+ 			if targs != nil {
+ 				// x was not instantiated: collect the (partial) type arguments.
+ 				targsList = [][]Type{targs}
+@@ -444,7 +453,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
+ 			var x operand
+ 			if ix := typeparams.UnpackIndexExpr(e); ix != nil && check.indexExpr(&x, ix) {
+ 				// x is a generic function.
+-				targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, false)
++				targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, infer)
+ 				if targs != nil {
+ 					// x was not instantiated: collect the (partial) type arguments.
+ 					targsList[i] = targs
+diff --git a/src/internal/types/testdata/fixedbugs/issue60346.go b/src/internal/types/testdata/fixedbugs/issue60346.go
+new file mode 100644
+index 0000000000..6dc057b178
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue60346.go
+@@ -0,0 +1,17 @@
++// -lang=go1.20
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func F[P any, Q *P](p P) {}
++
++var _ = F[int]
++
++func G[R any](func(R)) {}
++
++func _() {
++	G(F[int])
++}

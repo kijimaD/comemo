@@ -29,7 +29,336 @@ Date:   Wed Jul 14 18:52:44 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go |  43 +++-----
  src/runtime/traceback_test.go          | 179 ++++++++++++++++++++++++++++++++-
  2 files changed, 190 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index f1dc56e729..a5cb0857b3 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6598,6 +6598,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
+ 	x := base.Ctxt.Lookup(fmt.Sprintf("%s.arginfo%d", f.LSym.Name, f.ABI))
+ 
+ 	PtrSize := int64(types.PtrSize)
++	uintptrTyp := types.Types[types.TUINTPTR]
+ 
+ 	isAggregate := func(t *types.Type) bool {
+ 		return t.IsStruct() || t.IsArray() || t.IsComplex() || t.IsInterface() || t.IsString() || t.IsSlice()
+@@ -6641,12 +6642,8 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
+ 	n := 0
+ 	writebyte := func(o uint8) { wOff = objw.Uint8(x, wOff, o) }
+ 
+-	// Write one non-aggrgate arg/field/element if there is room.
+-	// Returns whether to continue.
+-	write1 := func(sz, offset int64) bool {
+-		if n >= limit {
+-			return false
+-		}
++	// Write one non-aggrgate arg/field/element.
++	write1 := func(sz, offset int64) {
+ 		if offset >= _special {
+ 			writebyte(_offsetTooLarge)
+ 		} else {
+@@ -6654,7 +6651,6 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
+ 			writebyte(uint8(sz))
+ 		}
+ 		n++
+-		return true
+ 	}
+ 
+ 	// Visit t recursively and write it out.
+@@ -6662,10 +6658,12 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
+ 	var visitType func(baseOffset int64, t *types.Type, depth int) bool
+ 	visitType = func(baseOffset int64, t *types.Type, depth int) bool {
+ 		if n >= limit {
++			writebyte(_dotdotdot)
+ 			return false
+ 		}
+ 		if !isAggregate(t) {
+-			return write1(t.Size(), baseOffset)
++			write1(t.Size(), baseOffset)
++			return true
+ 		}
+ 		writebyte(_startAgg)
+ 		depth++
+@@ -6675,58 +6673,47 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
+ 			n++
+ 			return true
+ 		}
+-		var r bool
+ 		switch {
+ 		case t.IsInterface(), t.IsString():
+-			r = write1(PtrSize, baseOffset) &&
+-				write1(PtrSize, baseOffset+PtrSize)
++			_ = visitType(baseOffset, uintptrTyp, depth) &&
++				visitType(baseOffset+PtrSize, uintptrTyp, depth)
+ 		case t.IsSlice():
+-			r = write1(PtrSize, baseOffset) &&
+-				write1(PtrSize, baseOffset+PtrSize) &&
+-				write1(PtrSize, baseOffset+PtrSize*2)
++			_ = visitType(baseOffset, uintptrTyp, depth) &&
++				visitType(baseOffset+PtrSize, uintptrTyp, depth) &&
++				visitType(baseOffset+PtrSize*2, uintptrTyp, depth)
+ 		case t.IsComplex():
+-			r = write1(t.Size()/2, baseOffset) &&
+-				write1(t.Size()/2, baseOffset+t.Size()/2)
++			_ = visitType(baseOffset, types.FloatForComplex(t), depth) &&
++				visitType(baseOffset+t.Size()/2, types.FloatForComplex(t), depth)
+ 		case t.IsArray():
+-			r = true
+ 			if t.NumElem() == 0 {
+ 				n++ // {} counts as a component
+ 				break
+ 			}
+ 			for i := int64(0); i < t.NumElem(); i++ {
+ 				if !visitType(baseOffset, t.Elem(), depth) {
+-					r = false
+ 					break
+ 				}
+ 				baseOffset += t.Elem().Size()
+ 			}
+ 		case t.IsStruct():
+-			r = true
+ 			if t.NumFields() == 0 {
+ 				n++ // {} counts as a component
+ 				break
+ 			}
+ 			for _, field := range t.Fields().Slice() {
+ 				if !visitType(baseOffset+field.Offset, field.Type, depth) {
+-					r = false
+ 					break
+ 				}
+ 			}
+ 		}
+-		if !r {
+-			writebyte(_dotdotdot)
+-		}
+ 		writebyte(_endAgg)
+-		return r
++		return true
+ 	}
+ 
+-	c := true
+ 	for _, a := range abiInfo.InParams() {
+-		if !c {
+-			writebyte(_dotdotdot)
++		if !visitType(a.FrameOffset(abiInfo), a.Type, 0) {
+ 			break
+ 		}
+-		c = visitType(a.FrameOffset(abiInfo), a.Type, 0)
+ 	}
+ 	writebyte(_endSeq)
+ 	if wOff > maxLen {
+diff --git a/src/runtime/traceback_test.go b/src/runtime/traceback_test.go
+index 2a0497e9a9..83b86a7e90 100644
+--- a/src/runtime/traceback_test.go
++++ b/src/runtime/traceback_test.go
+@@ -19,8 +19,8 @@ func TestTracebackArgs(t *testing.T) {
+ 	}{
+ 		// simple ints
+ 		{
+-			func() int { return testTracebackArgs1(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12) },
+-			"testTracebackArgs1(0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, ...)",
++			func() int { return testTracebackArgs1(1, 2, 3, 4, 5) },
++			"testTracebackArgs1(0x1, 0x2, 0x3, 0x4, 0x5)",
+ 		},
+ 		// some aggregates
+ 		{
+@@ -53,6 +53,58 @@ func TestTracebackArgs(t *testing.T) {
+ 			},
+ 			"testTracebackArgs5(0x0, {0x1, {}, {{}, {}}}, {}, {}, {}, {}, {}, ...)",
+ 		},
++
++		// edge cases for ...
++		// no ... for 10 args
++		{
++			func() int { return testTracebackArgs6a(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) },
++			"testTracebackArgs6a(0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa)",
++		},
++		// has ... for 11 args
++		{
++			func() int { return testTracebackArgs6b(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11) },
++			"testTracebackArgs6b(0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, ...)",
++		},
++		// no ... for aggregates with 10 words
++		{
++			func() int { return testTracebackArgs7a([10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) },
++			"testTracebackArgs7a({0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa})",
++		},
++		// has ... for aggregates with 11 words
++		{
++			func() int { return testTracebackArgs7b([11]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}) },
++			"testTracebackArgs7b({0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, ...})",
++		},
++		// no ... for aggregates, but with more args
++		{
++			func() int { return testTracebackArgs7c([10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, 11) },
++			"testTracebackArgs7c({0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa}, ...)",
++		},
++		// has ... for aggregates and also for more args
++		{
++			func() int { return testTracebackArgs7d([11]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, 12) },
++			"testTracebackArgs7d({0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, ...}, ...)",
++		},
++		// nested aggregates, no ...
++		{
++			func() int { return testTracebackArgs8a(testArgsType8a{1, 2, 3, 4, 5, 6, 7, 8, [2]int{9, 10}}) },
++			"testTracebackArgs8a({0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, {0x9, 0xa}})",
++		},
++		// nested aggregates, ... in inner but not outer
++		{
++			func() int { return testTracebackArgs8b(testArgsType8b{1, 2, 3, 4, 5, 6, 7, 8, [3]int{9, 10, 11}}) },
++			"testTracebackArgs8b({0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, {0x9, 0xa, ...}})",
++		},
++		// nested aggregates, ... in outer but not inner
++		{
++			func() int { return testTracebackArgs8c(testArgsType8c{1, 2, 3, 4, 5, 6, 7, 8, [2]int{9, 10}, 11}) },
++			"testTracebackArgs8c({0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, {0x9, 0xa}, ...})",
++		},
++		// nested aggregates, ... in both inner and outer
++		{
++			func() int { return testTracebackArgs8d(testArgsType8d{1, 2, 3, 4, 5, 6, 7, 8, [3]int{9, 10, 11}, 12}) },
++			"testTracebackArgs8d({0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, {0x9, 0xa, ...}, ...})",
++		},
+ 	}
+ 	for _, test := range tests {
+ 		n := test.fn()
+@@ -64,11 +116,11 @@ func TestTracebackArgs(t *testing.T) {
+ }
+ 
+ //go:noinline
+-func testTracebackArgs1(a, b, c, d, e, f, g, h, i, j, k, l int) int {
++func testTracebackArgs1(a, b, c, d, e int) int {
+ 	n := runtime.Stack(testTracebackArgsBuf[:], false)
+ 	if a < 0 {
+ 		// use in-reg args to keep them alive
+-		return a + b + c + d + e + f + g + h + i + j + k + l
++		return a + b + c + d + e
+ 	}
+ 	return n
+ }
+@@ -119,3 +171,122 @@ func testTracebackArgs5(a bool, x struct {
+ 	}
+ 	return n
+ }
++
++//go:noinline
++func testTracebackArgs6a(a, b, c, d, e, f, g, h, i, j int) int {
++	n := runtime.Stack(testTracebackArgsBuf[:], false)
++	if a < 0 {
++		// use in-reg args to keep them alive
++		return a + b + c + d + e + f + g + h + i + j
++	}
++	return n
++}
++
++//go:noinline
++func testTracebackArgs6b(a, b, c, d, e, f, g, h, i, j, k int) int {
++	n := runtime.Stack(testTracebackArgsBuf[:], false)
++	if a < 0 {
++		// use in-reg args to keep them alive
++		return a + b + c + d + e + f + g + h + i + j + k
++	}
++	return n
++}
++
++//go:noinline
++func testTracebackArgs7a(a [10]int) int {
++	n := runtime.Stack(testTracebackArgsBuf[:], false)
++	if a[0] < 0 {
++		// use in-reg args to keep them alive
++		return a[1] + a[2] + a[3] + a[4] + a[5] + a[6] + a[7] + a[8] + a[9]
++	}
++	return n
++}
++
++//go:noinline
++func testTracebackArgs7b(a [11]int) int {
++	n := runtime.Stack(testTracebackArgsBuf[:], false)
++	if a[0] < 0 {
++		// use in-reg args to keep them alive
++		return a[1] + a[2] + a[3] + a[4] + a[5] + a[6] + a[7] + a[8] + a[9] + a[10]
++	}
++	return n
++}
++
++//go:noinline
++func testTracebackArgs7c(a [10]int, b int) int {
++	n := runtime.Stack(testTracebackArgsBuf[:], false)
++	if a[0] < 0 {
++		// use in-reg args to keep them alive
++		return a[1] + a[2] + a[3] + a[4] + a[5] + a[6] + a[7] + a[8] + a[9] + b
++	}
++	return n
++}
++
++//go:noinline
++func testTracebackArgs7d(a [11]int, b int) int {
++	n := runtime.Stack(testTracebackArgsBuf[:], false)
++	if a[0] < 0 {
++		// use in-reg args to keep them alive
++		return a[1] + a[2] + a[3] + a[4] + a[5] + a[6] + a[7] + a[8] + a[9] + a[10] + b
++	}
++	return n
++}
++
++type testArgsType8a struct {
++	a, b, c, d, e, f, g, h int
++	i                      [2]int
++}
++type testArgsType8b struct {
++	a, b, c, d, e, f, g, h int
++	i                      [3]int
++}
++type testArgsType8c struct {
++	a, b, c, d, e, f, g, h int
++	i                      [2]int
++	j                      int
++}
++type testArgsType8d struct {
++	a, b, c, d, e, f, g, h int
++	i                      [3]int
++	j                      int
++}
++
++//go:noinline
++func testTracebackArgs8a(a testArgsType8a) int {
++	n := runtime.Stack(testTracebackArgsBuf[:], false)
++	if a.a < 0 {
++		// use in-reg args to keep them alive
++		return a.b + a.c + a.d + a.e + a.f + a.g + a.h + a.i[0] + a.i[1]
++	}
++	return n
++}
++
++//go:noinline
++func testTracebackArgs8b(a testArgsType8b) int {
++	n := runtime.Stack(testTracebackArgsBuf[:], false)
++	if a.a < 0 {
++		// use in-reg args to keep them alive
++		return a.b + a.c + a.d + a.e + a.f + a.g + a.h + a.i[0] + a.i[1] + a.i[2]
++	}
++	return n
++}
++
++//go:noinline
++func testTracebackArgs8c(a testArgsType8c) int {
++	n := runtime.Stack(testTracebackArgsBuf[:], false)
++	if a.a < 0 {
++		// use in-reg args to keep them alive
++		return a.b + a.c + a.d + a.e + a.f + a.g + a.h + a.i[0] + a.i[1] + a.j
++	}
++	return n
++}
++
++//go:noinline
++func testTracebackArgs8d(a testArgsType8d) int {
++	n := runtime.Stack(testTracebackArgsBuf[:], false)
++	if a.a < 0 {
++		// use in-reg args to keep them alive
++		return a.b + a.c + a.d + a.e + a.f + a.g + a.h + a.i[0] + a.i[1] + a.i[2] + a.j
++	}
++	return n
++}

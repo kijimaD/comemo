@@ -34,7 +34,7 @@ Date:   Wed Aug 21 17:13:45 2019 -0700
     Change-Id: Ic8b9321374ab4f617498d97c12871b69d1119735
     Reviewed-on: https://go-review.googlesource.com/c/go/+/191257
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/types/builtins.go            |   2 +-
  src/go/types/call.go                |   6 +-
  src/go/types/check.go               |  25 +-
@@ -51,3 +51,1284 @@ Date:   Wed Aug 21 17:13:45 2019 -0700
  src/go/types/typexpr.go             | 248 ++++++++------------
  test/fixedbugs/bug211.go            |  14 --
  15 files changed, 287 insertions(+), 682 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index ece6d4f530..0a62f4beaf 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -559,7 +559,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 		base := derefStructPtr(x.typ)
+ 		sel := selx.Sel.Name
+-		obj, index, indirect := LookupFieldOrMethod(base, false, check.pkg, sel)
++		obj, index, indirect := check.LookupFieldOrMethod(base, false, check.pkg, sel)
+ 		switch obj.(type) {
+ 		case nil:
+ 			check.invalidArg(x.pos(), "%s has no single field %s", base, sel)
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 88e3336136..6220794718 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -370,7 +370,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 		goto Error
+ 	}
+ 
+-	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
++	obj, index, indirect = check.LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+ 	if obj == nil {
+ 		switch {
+ 		case index != nil:
+@@ -437,6 +437,10 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 
+ 			if debug {
+ 				// Verify that LookupFieldOrMethod and MethodSet.Lookup agree.
++				// TODO(gri) This only works because we call LookupFieldOrMethod
++				// _before_ calling NewMethodSet: LookupFieldOrMethod completes
++				// any incomplete interfaces so they are avaible to NewMethodSet
++				// (which assumes that interfaces have been completed already).
+ 				typ := x.typ
+ 				if x.mode == variable {
+ 					// If typ is not an (unnamed) pointer or an interface,
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index b48d09de22..fbf0f4a911 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -76,8 +76,9 @@ type Checker struct {
+ 	fset *token.FileSet
+ 	pkg  *Package
+ 	*Info
+-	objMap map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+-	impMap map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
++	objMap map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
++	impMap map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
++	posMap map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
+ 
+ 	// information collected during type-checking of a set of package files
+ 	// (initialized by Files, valid only for the duration of check.Files;
+@@ -86,12 +87,10 @@ type Checker struct {
+ 	unusedDotImports map[*Scope]map[*Package]token.Pos // positions of unused dot-imported packages for each file scope
+ 
+ 	firstErr error                 // first error encountered
+-	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank, non-interface methods
+-	// TODO(gri) move interfaces up to the group of fields persistent across check.Files invocations (see also comment in Checker.initFiles)
+-	interfaces map[*TypeName]*ifaceInfo // maps interface type names to corresponding interface infos
+-	untyped    map[ast.Expr]exprInfo    // map of expressions without final type
+-	delayed    []func()                 // stack of delayed actions
+-	objPath    []Object                 // path of object dependencies during type inference (for cycle reporting)
++	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
++	untyped  map[ast.Expr]exprInfo // map of expressions without final type
++	delayed  []func()              // stack of delayed actions
++	objPath  []Object              // path of object dependencies during type inference (for cycle reporting)
+ 
+ 	// context within which the current object is type-checked
+ 	// (valid only for the duration of type-checking a specific object)
+@@ -181,6 +180,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		Info:   info,
+ 		objMap: make(map[Object]*declInfo),
+ 		impMap: make(map[importKey]*Package),
++		posMap: make(map[*Interface][]token.Pos),
+ 	}
+ }
+ 
+@@ -193,15 +193,6 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 
+ 	check.firstErr = nil
+ 	check.methods = nil
+-	// Don't clear the interfaces cache! It's important that we don't recompute
+-	// ifaceInfos repeatedly (due to multiple check.Files calls) because when
+-	// they are recomputed, they are not used in the context of their original
+-	// declaration (because those types are already type-checked, typically) and
+-	// then they will get the wrong receiver types, which matters for go/types
+-	// clients. It is also safe to not reset the interfaces cache because files
+-	// added to a package cannot change (add methods to) existing interface types;
+-	// they can only add new interfaces. See also the respective comment in
+-	// checker.infoFromTypeName (interfaces.go). Was bug - see issue #29029.
+ 	check.untyped = nil
+ 	check.delayed = nil
+ 
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 61bcf13c1a..89122d75ff 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -97,6 +97,7 @@ var tests = [][]string{
+ 	{"testdata/issue23203a.src"},
+ 	{"testdata/issue23203b.src"},
+ 	{"testdata/issue28251.src"},
++	{"testdata/issue6977.src"},
+ }
+ 
+ var fset = token.NewFileSet()
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 68c96c037e..23f2611b48 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -82,6 +82,10 @@ func (check *Checker) err(pos token.Pos, msg string, soft bool) {
+ 		check.firstErr = err
+ 	}
+ 
++	if trace {
++		check.trace(pos, "ERROR: %s", msg)
++	}
++
+ 	f := check.conf.Error
+ 	if f == nil {
+ 		panic(bailout{}) // report only first error
+diff --git a/src/go/types/interfaces.go b/src/go/types/interfaces.go
+deleted file mode 100644
+index e0ef83adcc..0000000000
+--- a/src/go/types/interfaces.go
++++ /dev/null
+@@ -1,451 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this src code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package types
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"go/ast"
+-	"go/token"
+-)
+-
+-// This file implements the collection of an interface's methods
+-// without relying on partially computed types of methods or interfaces
+-// for interface types declared at the package level.
+-//
+-// Because interfaces must not embed themselves, directly or indirectly,
+-// the method set of a valid interface can always be computed independent
+-// of any cycles that might exist via method signatures (see also issue #18395).
+-//
+-// Except for blank method name and interface cycle errors, no errors
+-// are reported. Affected methods or embedded interfaces are silently
+-// dropped. Subsequent type-checking of the interface will check
+-// signatures and embedded interfaces and report errors at that time.
+-//
+-// Only infoFromTypeLit should be called directly from code outside this file
+-// to compute an ifaceInfo.
+-
+-// ifaceInfo describes the method set for an interface.
+-// The zero value for an ifaceInfo is a ready-to-use ifaceInfo representing
+-// the empty interface.
+-type ifaceInfo struct {
+-	explicits int           // number of explicitly declared methods
+-	methods   []*methodInfo // all methods, starting with explicitly declared ones in source order
+-}
+-
+-// emptyIfaceInfo represents the ifaceInfo for the empty interface.
+-var emptyIfaceInfo ifaceInfo
+-
+-func (info *ifaceInfo) String() string {
+-	var buf bytes.Buffer
+-	fmt.Fprintf(&buf, "interface{")
+-	for i, m := range info.methods {
+-		if i > 0 {
+-			fmt.Fprint(&buf, " ")
+-		}
+-		fmt.Fprint(&buf, m)
+-	}
+-	fmt.Fprintf(&buf, "}")
+-	return buf.String()
+-}
+-
+-// methodInfo represents an interface method.
+-// At least one of src or fun must be non-nil.
+-// (Methods declared in the current package have a non-nil scope
+-// and src, and eventually a non-nil fun field; imported and pre-
+-// declared methods have a nil scope and src, and only a non-nil
+-// fun field.)
+-type methodInfo struct {
+-	scope *Scope     // scope of interface method; or nil
+-	src   *ast.Field // syntax tree representation of interface method; or nil
+-	fun   *Func      // corresponding fully type-checked method type; or nil
+-}
+-
+-func (info *methodInfo) String() string {
+-	if info.fun != nil {
+-		return info.fun.name
+-	}
+-	return info.src.Names[0].Name
+-}
+-
+-func (info *methodInfo) Pos() token.Pos {
+-	if info.fun != nil {
+-		return info.fun.Pos()
+-	}
+-	return info.src.Pos()
+-}
+-
+-func (info *methodInfo) id(pkg *Package) string {
+-	if info.fun != nil {
+-		return info.fun.Id()
+-	}
+-	return Id(pkg, info.src.Names[0].Name)
+-}
+-
+-// A methodInfoSet maps method ids to methodInfos.
+-// It is used to determine duplicate declarations.
+-// (A methodInfo set is the equivalent of an objset
+-// but for methodInfos rather than Objects.)
+-type methodInfoSet map[string]*methodInfo
+-
+-// insert attempts to insert an method m into the method set s.
+-// If s already contains an alternative method alt with
+-// the same name, insert leaves s unchanged and returns alt.
+-// Otherwise it inserts m and returns nil.
+-func (s *methodInfoSet) insert(pkg *Package, m *methodInfo) *methodInfo {
+-	id := m.id(pkg)
+-	if alt := (*s)[id]; alt != nil {
+-		return alt
+-	}
+-	if *s == nil {
+-		*s = make(methodInfoSet)
+-	}
+-	(*s)[id] = m
+-	return nil
+-}
+-
+-// like Checker.declareInSet but for method infos.
+-func (check *Checker) declareInMethodSet(mset *methodInfoSet, pos token.Pos, m *methodInfo) bool {
+-	if alt := mset.insert(check.pkg, m); alt != nil {
+-		check.errorf(pos, "%s redeclared", m)
+-		check.reportAltMethod(alt)
+-		return false
+-	}
+-	return true
+-}
+-
+-// like Checker.reportAltDecl but for method infos.
+-func (check *Checker) reportAltMethod(m *methodInfo) {
+-	if pos := m.Pos(); pos.IsValid() {
+-		// We use "other" rather than "previous" here because
+-		// the first declaration seen may not be textually
+-		// earlier in the source.
+-		check.errorf(pos, "\tother declaration of %s", m) // secondary error, \t indented
+-	}
+-}
+-
+-// infoFromTypeLit computes the method set for the given interface iface
+-// declared in scope.
+-// If a corresponding type name exists (tname != nil), it is used for
+-// cycle detection and to cache the method set.
+-// The result is the method set, or nil if there is a cycle via embedded
+-// interfaces. A non-nil result doesn't mean that there were no errors,
+-// but they were either reported (e.g., blank methods), or will be found
+-// (again) when computing the interface's type.
+-// If tname is not nil it must be the last element in path.
+-func (check *Checker) infoFromTypeLit(scope *Scope, iface *ast.InterfaceType, tname *TypeName, path []*TypeName) (info *ifaceInfo) {
+-	assert(iface != nil)
+-
+-	// lazy-allocate interfaces map
+-	if check.interfaces == nil {
+-		check.interfaces = make(map[*TypeName]*ifaceInfo)
+-	}
+-
+-	if trace {
+-		check.trace(iface.Pos(), "-- collect methods for %v (path = %s, objPath = %s)", iface, pathString(path), objPathString(check.objPath))
+-		check.indent++
+-		defer func() {
+-			check.indent--
+-			check.trace(iface.Pos(), "=> %s", info)
+-		}()
+-	}
+-
+-	// If the interface is named, check if we computed info already.
+-	//
+-	// This is not simply an optimization; we may run into stack
+-	// overflow with recursive interface declarations. Example:
+-	//
+-	//      type T interface {
+-	//              m() interface { T }
+-	//      }
+-	//
+-	// (Since recursive definitions can only be expressed via names,
+-	// it is sufficient to track named interfaces here.)
+-	//
+-	// While at it, use the same mechanism to detect cycles. (We still
+-	// have the path-based cycle check because we want to report the
+-	// entire cycle if present.)
+-	if tname != nil {
+-		assert(path[len(path)-1] == tname) // tname must be last path element
+-		var found bool
+-		if info, found = check.interfaces[tname]; found {
+-			if info == nil {
+-				// We have a cycle and use check.cycle to report it.
+-				// We are guaranteed that check.cycle also finds the
+-				// cycle because when infoFromTypeLit is called, any
+-				// tname that's already in check.interfaces was also
+-				// added to the path. (But the converse is not true:
+-				// A non-nil tname is always the last element in path.)
+-				ok := check.cycle(tname, path, true)
+-				assert(ok)
+-			}
+-			return
+-		}
+-		check.interfaces[tname] = nil // computation started but not complete
+-	}
+-
+-	if iface.Methods.List == nil {
+-		// fast track for empty interface
+-		info = &emptyIfaceInfo
+-	} else {
+-		// (syntactically) non-empty interface
+-		info = new(ifaceInfo)
+-
+-		// collect explicitly declared methods and embedded interfaces
+-		var mset methodInfoSet
+-		var embeddeds []*ifaceInfo
+-		var positions []token.Pos // entries correspond to positions of embeddeds; used for error reporting
+-		for _, f := range iface.Methods.List {
+-			if len(f.Names) > 0 {
+-				// We have a method with name f.Names[0].
+-				// (The parser ensures that there's only one method
+-				// and we don't care if a constructed AST has more.)
+-
+-				// spec: "As with all method sets, in an interface type,
+-				// each method must have a unique non-blank name."
+-				if name := f.Names[0]; name.Name == "_" {
+-					check.errorf(name.Pos(), "invalid method name _")
+-					continue // ignore
+-				}
+-
+-				m := &methodInfo{scope: scope, src: f}
+-				if check.declareInMethodSet(&mset, f.Pos(), m) {
+-					info.methods = append(info.methods, m)
+-				}
+-			} else {
+-				// We have an embedded interface and f.Type is its
+-				// (possibly qualified) embedded type name. Collect
+-				// it if it's a valid interface.
+-				var e *ifaceInfo
+-				switch ename := f.Type.(type) {
+-				case *ast.Ident:
+-					e = check.infoFromTypeName(scope, ename, path)
+-				case *ast.SelectorExpr:
+-					e = check.infoFromQualifiedTypeName(scope, ename)
+-				default:
+-					// The parser makes sure we only see one of the above.
+-					// Constructed ASTs may contain other (invalid) nodes;
+-					// we simply ignore them. The full type-checking pass
+-					// will report those as errors later.
+-				}
+-				if e != nil {
+-					embeddeds = append(embeddeds, e)
+-					positions = append(positions, f.Type.Pos())
+-				}
+-			}
+-		}
+-		info.explicits = len(info.methods)
+-
+-		// collect methods of embedded interfaces
+-		for i, e := range embeddeds {
+-			pos := positions[i] // position of type name of embedded interface
+-			for _, m := range e.methods {
+-				if check.declareInMethodSet(&mset, pos, m) {
+-					info.methods = append(info.methods, m)
+-				}
+-			}
+-		}
+-	}
+-
+-	// mark check.interfaces as complete
+-	assert(info != nil)
+-	if tname != nil {
+-		check.interfaces[tname] = info
+-	}
+-
+-	return
+-}
+-
+-// infoFromTypeName computes the method set for the given type name
+-// which must denote a type whose underlying type is an interface.
+-// The same result qualifications apply as for infoFromTypeLit.
+-// infoFromTypeName should only be called from infoFromTypeLit.
+-func (check *Checker) infoFromTypeName(scope *Scope, name *ast.Ident, path []*TypeName) *ifaceInfo {
+-	// A single call of infoFromTypeName handles a sequence of (possibly
+-	// recursive) type declarations connected via unqualified type names.
+-	// Each type declaration leading to another typename causes a "tail call"
+-	// (goto) of this function. The general scenario looks like this:
+-	//
+-	//      ...
+-	//      type Pn T        // previous declarations leading to T, path = [..., Pn]
+-	//      type T interface { T0; ... }  // T0 leads to call of infoFromTypeName
+-	//
+-	//      // infoFromTypeName(name = T0, path = [..., Pn, T])
+-	//      type T0 T1       // path = [..., Pn, T, T0]
+-	//      type T1 T2  <-+  // path = [..., Pn, T, T0, T1]
+-	//      type T2 ...   |  // path = [..., Pn, T, T0, T1, T2]
+-	//      type Tn T1  --+  // path = [..., Pn, T, T0, T1, T2, Tn] and T1 is in path => cycle
+-	//
+-	// infoFromTypeName returns nil when such a cycle is detected. But in
+-	// contrast to cycles involving interfaces, we must not report the
+-	// error for "type name only" cycles because they will be found again
+-	// during type-checking of embedded interfaces. Reporting those cycles
+-	// here would lead to double reporting. Cycles involving embedding are
+-	// not reported again later because type-checking of interfaces relies
+-	// on the ifaceInfos computed here which are cycle-free by design.
+-	//
+-	// Remember the path length to detect "type name only" cycles.
+-	start := len(path)
+-
+-typenameLoop:
+-	// name must be a type name denoting a type whose underlying type is an interface
+-	_, obj := scope.LookupParent(name.Name, check.pos)
+-	if obj == nil {
+-		return nil
+-	}
+-	tname, _ := obj.(*TypeName)
+-	if tname == nil {
+-		return nil
+-	}
+-
+-	// We have a type name. It may be predeclared (error type),
+-	// imported (dot import), or declared by a type declaration.
+-	// It may not be an interface (e.g., predeclared type int).
+-	// Resolve it by analyzing each possible case.
+-
+-	// Abort but don't report an error if we have a "type name only"
+-	// cycle (see big function comment).
+-	if check.cycle(tname, path[start:], false) {
+-		return nil
+-	}
+-
+-	// Abort and report an error if we have a general cycle.
+-	if check.cycle(tname, path, true) {
+-		return nil
+-	}
+-
+-	path = append(path, tname)
+-
+-	// If tname is a package-level type declaration, it must be
+-	// in the objMap. Follow the RHS of that declaration if so.
+-	// The RHS may be a literal type (likely case), or another
+-	// (possibly parenthesized and/or qualified) type name.
+-	// (The declaration may be an alias declaration, but it
+-	// doesn't matter for the purpose of determining the under-
+-	// lying interface.)
+-	if decl := check.objMap[tname]; decl != nil {
+-		switch typ := unparen(decl.typ).(type) {
+-		case *ast.Ident:
+-			// type tname T
+-			name = typ
+-			goto typenameLoop
+-		case *ast.SelectorExpr:
+-			// type tname p.T
+-			return check.infoFromQualifiedTypeName(decl.file, typ)
+-		case *ast.InterfaceType:
+-			// type tname interface{...}
+-			// If tname is fully type-checked at this point (tname.color() == black)
+-			// we could use infoFromType here. But in this case, the interface must
+-			// be in the check.interfaces cache as well, which will be hit when we
+-			// call infoFromTypeLit below, and which will be faster. It is important
+-			// that we use that previously computed interface because its methods
+-			// have the correct receiver type (for go/types clients). Thus, the
+-			// check.interfaces cache must be up-to-date across even across multiple
+-			// check.Files calls (was bug - see issue #29029).
+-			return check.infoFromTypeLit(decl.file, typ, tname, path)
+-		}
+-		// type tname X // and X is not an interface type
+-		return nil
+-	}
+-
+-	// If tname is not a package-level declaration, in a well-typed
+-	// program it should be a predeclared (error type), imported (dot
+-	// import), or function local declaration. Either way, it should
+-	// have been fully declared before use, except if there is a direct
+-	// cycle, and direct cycles will be caught above. Also, the denoted
+-	// type should be an interface (e.g., int is not an interface).
+-	if typ := tname.typ; typ != nil {
+-		// typ should be an interface
+-		if ityp, _ := typ.Underlying().(*Interface); ityp != nil {
+-			return infoFromType(ityp)
+-		}
+-	}
+-
+-	// In all other cases we have some error.
+-	return nil
+-}
+-
+-// infoFromQualifiedTypeName computes the method set for the given qualified type name, or nil.
+-func (check *Checker) infoFromQualifiedTypeName(scope *Scope, qname *ast.SelectorExpr) *ifaceInfo {
+-	// see also Checker.selector
+-	name, _ := qname.X.(*ast.Ident)
+-	if name == nil {
+-		return nil
+-	}
+-	_, obj1 := scope.LookupParent(name.Name, check.pos)
+-	if obj1 == nil {
+-		return nil
+-	}
+-	pname, _ := obj1.(*PkgName)
+-	if pname == nil {
+-		return nil
+-	}
+-	assert(pname.pkg == check.pkg)
+-	obj2 := pname.imported.scope.Lookup(qname.Sel.Name)
+-	if obj2 == nil || !obj2.Exported() {
+-		return nil
+-	}
+-	tname, _ := obj2.(*TypeName)
+-	if tname == nil {
+-		return nil
+-	}
+-	ityp, _ := tname.typ.Underlying().(*Interface)
+-	if ityp == nil {
+-		return nil
+-	}
+-	return infoFromType(ityp)
+-}
+-
+-// infoFromType computes the method set for the given interface type.
+-// The result is never nil.
+-func infoFromType(typ *Interface) *ifaceInfo {
+-	assert(typ.allMethods != nil) // typ must be completely set up
+-
+-	// fast track for empty interface
+-	n := len(typ.allMethods)
+-	if n == 0 {
+-		return &emptyIfaceInfo
+-	}
+-
+-	info := new(ifaceInfo)
+-	info.explicits = len(typ.methods)
+-	info.methods = make([]*methodInfo, n)
+-
+-	// If there are no embedded interfaces, simply collect the
+-	// explicitly declared methods (optimization of common case).
+-	if len(typ.methods) == n {
+-		for i, m := range typ.methods {
+-			info.methods[i] = &methodInfo{fun: m}
+-		}
+-		return info
+-	}
+-
+-	// Interface types have a separate list for explicitly declared methods
+-	// which shares its methods with the list of all (explicitly declared or
+-	// embedded) methods. Collect all methods in a set so we can separate
+-	// the embedded methods from the explicitly declared ones.
+-	all := make(map[*Func]bool, n)
+-	for _, m := range typ.allMethods {
+-		all[m] = true
+-	}
+-	assert(len(all) == n) // methods must be unique
+-
+-	// collect explicitly declared methods
+-	info.methods = make([]*methodInfo, n)
+-	for i, m := range typ.methods {
+-		info.methods[i] = &methodInfo{fun: m}
+-		delete(all, m)
+-	}
+-
+-	// collect remaining (embedded) methods
+-	i := len(typ.methods)
+-	for m := range all {
+-		info.methods[i] = &methodInfo{fun: m}
+-		i++
+-	}
+-	assert(i == n)
+-
+-	return info
+-}
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index e6764f45a0..265e30971d 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -6,11 +6,6 @@
+ 
+ package types
+ 
+-// Internal use of LookupFieldOrMethod: If the obj result is a method
+-// associated with a concrete (non-interface) type, the method's signature
+-// may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
+-// the method's type.
+-
+ // LookupFieldOrMethod looks up a field or method with given package and name
+ // in T and returns the corresponding *Var or *Func, an index sequence, and a
+ // bool indicating if there were any pointer indirections on the path to the
+@@ -38,6 +33,19 @@ package types
+ //	the method's formal receiver base type, nor was the receiver addressable.
+ //
+ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
++	return (*Checker)(nil).LookupFieldOrMethod(T, addressable, pkg, name)
++}
++
++// Internal use of Checker.LookupFieldOrMethod: If the obj result is a method
++// associated with a concrete (non-interface) type, the method's signature
++// may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
++// the method's type.
++// TODO(gri) Now that we provide the *Checker, we can probably remove this
++// caveat by calling Checker.objDecl from LookupFieldOrMethod. Investigate.
++
++// LookupFieldOrMethod is like the external version but completes interfaces
++// as necessary.
++func (check *Checker) LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+ 	// Methods cannot be associated to a named pointer type
+ 	// (spec: "The type denoted by T is called the receiver base type;
+ 	// it must not be a pointer or interface type and it must be declared
+@@ -47,7 +55,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	// not have found it for T (see also issue 8590).
+ 	if t, _ := T.(*Named); t != nil {
+ 		if p, _ := t.underlying.(*Pointer); p != nil {
+-			obj, index, indirect = lookupFieldOrMethod(p, false, pkg, name)
++			obj, index, indirect = check.lookupFieldOrMethod(p, false, pkg, name)
+ 			if _, ok := obj.(*Func); ok {
+ 				return nil, nil, false
+ 			}
+@@ -55,7 +63,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 		}
+ 	}
+ 
+-	return lookupFieldOrMethod(T, addressable, pkg, name)
++	return check.lookupFieldOrMethod(T, addressable, pkg, name)
+ }
+ 
+ // TODO(gri) The named type consolidation and seen maps below must be
+@@ -63,7 +71,8 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ //           types always have only one representation (even when imported
+ //           indirectly via different packages.)
+ 
+-func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
++// lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
++func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+ 	// WARNING: The code in this function is extremely subtle - do not modify casually!
+ 	//          This function and NewMethodSet should be kept in sync.
+ 
+@@ -166,6 +175,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 			case *Interface:
+ 				// look for a matching method
+ 				// TODO(gri) t.allMethods is sorted - use binary search
++				check.completeInterface(t)
+ 				if i, m := lookupMethod(t.allMethods, pkg, name); m != nil {
+ 					assert(m.typ != nil)
+ 					index = concat(e.index, i)
+@@ -261,6 +271,8 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
+ // an exported API call (such as MissingMethod), i.e., when all
+ // methods have been type-checked.
+ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
++	check.completeInterface(T)
++
+ 	// fast path for common case
+ 	if T.Empty() {
+ 		return
+@@ -269,6 +281,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method *
+ 	// TODO(gri) Consider using method sets here. Might be more efficient.
+ 
+ 	if ityp, _ := V.Underlying().(*Interface); ityp != nil {
++		check.completeInterface(ityp)
+ 		// TODO(gri) allMethods is sorted - can do this more efficiently
+ 		for _, m := range T.allMethods {
+ 			_, obj := lookupMethod(ityp.allMethods, m.pkg, m.name)
+@@ -286,7 +299,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method *
+ 
+ 	// A concrete type implements T if it implements all methods of T.
+ 	for _, m := range T.allMethods {
+-		obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name)
++		obj, _, _ := check.lookupFieldOrMethod(V, false, m.pkg, m.name)
+ 
+ 		// we must have a method (not a field of matching function type)
+ 		f, _ := obj.(*Func)
+diff --git a/src/go/types/methodset.go b/src/go/types/methodset.go
+index 619c448492..1c2208002e 100644
+--- a/src/go/types/methodset.go
++++ b/src/go/types/methodset.go
+@@ -62,6 +62,11 @@ func (s *MethodSet) Lookup(pkg *Package, name string) *Selection {
+ // Shared empty method set.
+ var emptyMethodSet MethodSet
+ 
++// Note: NewMethodSet is intended for external use only as it
++//       requires interfaces to be complete. If may be used
++//       internally if LookupFieldOrMethod completed the same
++//       interfaces beforehand.
++
+ // NewMethodSet returns the method set for the given type T.
+ // It always returns a non-nil method set, even if it is empty.
+ func NewMethodSet(T Type) *MethodSet {
+diff --git a/src/go/types/testdata/cycles2.src b/src/go/types/testdata/cycles2.src
+index fd0df4bf27..e95506a108 100644
+--- a/src/go/types/testdata/cycles2.src
++++ b/src/go/types/testdata/cycles2.src
+@@ -22,13 +22,13 @@ func _() {
+ 
+ 	t.f(t)
+ 	t.f(u)
+-	
++
+ 	u.f(t)
+ 	u.f(u)
+ }
+ 
+ 
+-// Test case for issue 6589.
++// Test case for issues #6589, #33656.
+ 
+ type A interface {
+ 	a() interface {
+@@ -45,26 +45,28 @@ type B interface {
+ type AB interface {
+ 	a() interface {
+ 		A
+-		B /* ERROR a redeclared */
++		// TODO(gri) there shouldn't be an error here. See issue #33656.
++		B // ERROR duplicate method a
+ 	}
+ 	b() interface {
+ 		A
+-		B /* ERROR a redeclared */
++		// TODO(gri) there shouldn't be an error here. See issue #33656.
++		B // ERROR duplicate method a
+ 	}
+ }
+ 
+ var x AB
+ var y interface {
+ 	A
+-	B /* ERROR a redeclared */
++	B
+ }
+-var _ = x /* ERROR cannot compare */ == y
++var _ = x == y
+ 
+ 
+ // Test case for issue 6638.
+ 
+ type T interface {
+-	m() [T /* ERROR no value */ (nil).m()[0]]int
++	m() [T(nil).m /* ERROR undefined */ ()[0]]int
+ }
+ 
+ // Variations of this test case.
+diff --git a/src/go/types/testdata/decls0.src b/src/go/types/testdata/decls0.src
+index 56adbbfaae..5b84722cc9 100644
+--- a/src/go/types/testdata/decls0.src
++++ b/src/go/types/testdata/decls0.src
+@@ -139,7 +139,7 @@ type (
+ 	}
+ 	I3 interface {
+ 		m1()
+-		m1 /* ERROR "redeclared" */ ()
++		m1 /* ERROR "duplicate method" */ ()
+ 	}
+ 	I4 interface {
+ 		m1(x, y, x /* ERROR "redeclared" */ float32)
+diff --git a/src/go/types/testdata/issue6977.src b/src/go/types/testdata/issue6977.src
+new file mode 100644
+index 0000000000..8f4e9ba2b2
+--- /dev/null
++++ b/src/go/types/testdata/issue6977.src
+@@ -0,0 +1,82 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "io"
++
++// Alan's initial report.
++
++type I interface { f(); String() string }
++type J interface { g(); String() string }
++
++type IJ1 = interface { I; J }
++type IJ2 = interface { f(); g(); String() string }
++
++var _ = (*IJ1)(nil) == (*IJ2)(nil) // static assert that IJ1 and IJ2 are identical types
++
++// The canonical example.
++
++type ReadWriteCloser interface { io.ReadCloser; io.WriteCloser }
++
++// Some more cases.
++
++type M interface { m() }
++type M32 interface { m() int32 }
++type M64 interface { m() int64 }
++
++type U1 interface { m() }
++type U2 interface { m(); M }
++type U3 interface { M; m() }
++type U4 interface { M; M; M }
++type U5 interface { U1; U2; U3; U4 }
++
++type U6 interface { m(); m /* ERROR duplicate method */ () }
++type U7 interface { M32 /* ERROR duplicate method */ ; m() }
++type U8 interface { m(); M32 /* ERROR duplicate method */ }
++type U9 interface { M32; M64 /* ERROR duplicate method */ }
++
++// Verify that repeated embedding of the same interface(s)
++// eliminates duplicate methods early (rather than at the
++// end) to prevent exponential memory and time use.
++// Without early elimination, computing T29 may take dozens
++// of minutes.
++type (
++        T0 interface { m() }
++        T1 interface { T0; T0 }
++        T2 interface { T1; T1 }
++        T3 interface { T2; T2 }
++        T4 interface { T3; T3 }
++        T5 interface { T4; T4 }
++        T6 interface { T5; T5 }
++        T7 interface { T6; T6 }
++        T8 interface { T7; T7 }
++        T9 interface { T8; T8 }
++
++        T10 interface { T9; T9 }
++        T11 interface { T10; T10 }
++        T12 interface { T11; T11 }
++        T13 interface { T12; T12 }
++        T14 interface { T13; T13 }
++        T15 interface { T14; T14 }
++        T16 interface { T15; T15 }
++        T17 interface { T16; T16 }
++        T18 interface { T17; T17 }
++        T19 interface { T18; T18 }
++
++        T20 interface { T19; T19 }
++        T21 interface { T20; T20 }
++        T22 interface { T21; T21 }
++        T23 interface { T22; T22 }
++        T24 interface { T23; T23 }
++        T25 interface { T24; T24 }
++        T26 interface { T25; T25 }
++        T27 interface { T26; T26 }
++        T28 interface { T27; T27 }
++        T29 interface { T28; T28 }
++)
++
++// Verify that m is present.
++var x T29
++var _ = x.m
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index d020301109..5ddf6e0e71 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -91,7 +91,7 @@ func issue10979() {
+ 		nosuchpkg /* ERROR undeclared name: nosuchpkg */ .Nosuchtype
+ 	}
+ 	type I interface {
+-		I /* ERROR I\.m \(value of type func\(I\)\) is not a type */ .m
++		I.m /* ERROR no field or method m */
+ 		m()
+ 	}
+ }
+@@ -259,10 +259,9 @@ type E = interface {
+ 	m()
+ }
+ 
+-// Test case from issue. Eventually we may disallow this due
+-// to the cycle via the alias type name. But for now we make
+-// sure this is accepted.
+-type issue25301b = interface {
++// Test case from issue.
++// cmd/compile reports a cycle as well.
++type issue25301b /* ERROR cycle */ = interface {
+ 	m() interface{ issue25301b }
+ }
+ 
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 3dd9eb97f5..4807911e35 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -284,31 +284,27 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 		return typ
+ 	}
+ 
+-	var mset objset
++	// set method receivers if necessary
+ 	for _, m := range methods {
+-		if mset.insert(m) != nil {
+-			panic("multiple methods with the same name")
+-		}
+-		// set receiver if we don't have one
+ 		if sig := m.typ.(*Signature); sig.recv == nil {
+ 			sig.recv = NewVar(m.pos, m.pkg, "", typ)
+ 		}
+ 	}
+-	sort.Sort(byUniqueMethodName(methods))
+ 
+-	if len(embeddeds) > 0 {
+-		// All embedded types should be interfaces; however, defined types
+-		// may not yet be fully resolved. Only verify that non-defined types
+-		// are interfaces. This matches the behavior of the code before the
+-		// fix for #25301 (issue #25596).
+-		for _, t := range embeddeds {
+-			if _, ok := t.(*Named); !ok && !IsInterface(t) {
+-				panic("embedded type is not an interface")
+-			}
++	// All embedded types should be interfaces; however, defined types
++	// may not yet be fully resolved. Only verify that non-defined types
++	// are interfaces. This matches the behavior of the code before the
++	// fix for #25301 (issue #25596).
++	for _, t := range embeddeds {
++		if _, ok := t.(*Named); !ok && !IsInterface(t) {
++			panic("embedded type is not an interface")
+ 		}
+-		sort.Stable(byUniqueTypeName(embeddeds))
+ 	}
+ 
++	// sort for API stability
++	sort.Sort(byUniqueMethodName(methods))
++	sort.Stable(byUniqueTypeName(embeddeds))
++
+ 	typ.methods = methods
+ 	typ.embeddeds = embeddeds
+ 	return typ
+@@ -346,28 +342,45 @@ func (t *Interface) Empty() bool { return len(t.allMethods) == 0 }
+ // Complete computes the interface's method set. It must be called by users of
+ // NewInterfaceType and NewInterface after the interface's embedded types are
+ // fully defined and before using the interface type in any way other than to
+-// form other types. Complete returns the receiver.
++// form other types. The interface must not contain duplicate methods or a
++// panic occurs. Complete returns the receiver.
+ func (t *Interface) Complete() *Interface {
++	// TODO(gri) consolidate this method with Checker.completeInterface
+ 	if t.allMethods != nil {
+ 		return t
+ 	}
+ 
+-	// collect all methods
+-	var allMethods []*Func
+-	allMethods = append(allMethods, t.methods...)
+-	for _, et := range t.embeddeds {
+-		it := et.Underlying().(*Interface)
+-		it.Complete()
+-		// copy embedded methods unchanged (see issue #28282)
+-		allMethods = append(allMethods, it.allMethods...)
++	t.allMethods = markComplete // avoid infinite recursion
++
++	var methods []*Func
++	var seen objset
++	addMethod := func(m *Func, explicit bool) {
++		switch alt := seen.insert(m); {
++		case alt == nil:
++			methods = append(methods, m)
++		case explicit || !Identical(m.Type(), alt.Type()):
++			panic("duplicate method " + m.name)
++		default:
++			// silently drop method m
++		}
++	}
++
++	for _, m := range t.methods {
++		addMethod(m, true)
++	}
++
++	for _, typ := range t.embeddeds {
++		typ := typ.Underlying().(*Interface)
++		typ.Complete()
++		for _, m := range typ.allMethods {
++			addMethod(m, false)
++		}
+ 	}
+-	sort.Sort(byUniqueMethodName(allMethods))
+ 
+-	// t.methods and/or t.embeddeds may have been empty
+-	if allMethods == nil {
+-		allMethods = markComplete
++	if methods != nil {
++		sort.Sort(byUniqueMethodName(methods))
++		t.allMethods = methods
+ 	}
+-	t.allMethods = allMethods
+ 
+ 	return t
+ }
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index b16bf962cd..c2d218f5c3 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -472,171 +472,127 @@ func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool
+ }
+ 
+ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named) {
+-	// fast-track empty interface
+-	if iface.Methods.List == nil {
+-		ityp.allMethods = markComplete
+-		return
+-	}
+-
+-	// collect embedded interfaces
+-	// Only needed for printing and API. Delay collection
+-	// to end of type-checking (for package-global interfaces)
+-	// when all types are complete. Local interfaces are handled
+-	// after each statement (as each statement processes delayed
+-	// functions).
+-	interfaceContext := check.context // capture for use in closure below
+-	check.later(func() {
+-		if trace {
+-			check.trace(iface.Pos(), "-- delayed checking embedded interfaces of %v", iface)
+-			check.indent++
+-			defer func() {
+-				check.indent--
+-			}()
+-		}
++	for _, f := range iface.Methods.List {
++		if len(f.Names) > 0 {
++			// We have a method with name f.Names[0].
++			// (The parser ensures that there's only one method
++			// and we don't care if a constructed AST has more.)
++			name := f.Names[0]
++			if name.Name == "_" {
++				check.errorf(name.Pos(), "invalid method name _")
++				continue // ignore
++			}
+ 
+-		// The context must be restored since for local interfaces
+-		// delayed functions are processed after each statement
+-		// (was issue #24140).
+-		defer func(ctxt context) {
+-			check.context = ctxt
+-		}(check.context)
+-		check.context = interfaceContext
+-
+-		for _, f := range iface.Methods.List {
+-			if len(f.Names) == 0 {
+-				typ := check.indirectType(f.Type)
+-				// typ should be a named type denoting an interface
+-				// (the parser will make sure it's a named type but
+-				// constructed ASTs may be wrong).
+-				if typ == Typ[Invalid] {
+-					continue // error reported before
++			typ := check.indirectType(f.Type)
++			sig, _ := typ.(*Signature)
++			if sig == nil {
++				if typ != Typ[Invalid] {
++					check.invalidAST(f.Type.Pos(), "%s is not a method signature", typ)
+ 				}
+-				embed, _ := typ.Underlying().(*Interface)
+-				if embed == nil {
++				continue // ignore
++			}
++
++			// use named receiver type if available (for better error messages)
++			var recvTyp Type = ityp
++			if def != nil {
++				recvTyp = def
++			}
++			sig.recv = NewVar(name.Pos(), check.pkg, "", recvTyp)
++
++			m := NewFunc(name.Pos(), check.pkg, name.Name, sig)
++			check.recordDef(name, m)
++			ityp.methods = append(ityp.methods, m)
++		} else {
++			// We have an embedded interface and f.Type is its
++			// (possibly qualified) embedded type name. Collect
++			// it if it's a valid interface.
++			typ := check.typ(f.Type)
++
++			if _, ok := underlying(typ).(*Interface); !ok {
++				if typ != Typ[Invalid] {
+ 					check.errorf(f.Type.Pos(), "%s is not an interface", typ)
+-					continue
+ 				}
+-				// Correct embedded interfaces must be complete -
+-				// don't just assert, but report error since this
+-				// used to be the underlying cause for issue #18395.
+-				if embed.allMethods == nil {
+-					check.dump("%v: incomplete embedded interface %s", f.Type.Pos(), typ)
+-					unreachable()
+-				}
+-				// collect interface
+-				ityp.embeddeds = append(ityp.embeddeds, typ)
++				continue
+ 			}
++
++			ityp.embeddeds = append(ityp.embeddeds, typ)
++			check.posMap[ityp] = append(check.posMap[ityp], f.Type.Pos())
+ 		}
+-		// sort to match NewInterface/NewInterface2
+-		// TODO(gri) we may be able to switch to source order
+-		sort.Stable(byUniqueTypeName(ityp.embeddeds))
+-	})
+-
+-	// compute method set
+-	var tname *TypeName
+-	var path []*TypeName
+-	if def != nil {
+-		tname = def.obj
+-		path = []*TypeName{tname}
+ 	}
+-	info := check.infoFromTypeLit(check.scope, iface, tname, path)
+-	if info == nil || info == &emptyIfaceInfo {
+-		// we got an error or the empty interface - exit early
++
++	if len(ityp.methods) == 0 && len(ityp.embeddeds) == 0 {
++		// empty interface
+ 		ityp.allMethods = markComplete
+ 		return
+ 	}
+ 
+-	// use named receiver type if available (for better error messages)
+-	var recvTyp Type = ityp
+-	if def != nil {
+-		recvTyp = def
++	// sort for API stability
++	sort.Sort(byUniqueMethodName(ityp.methods))
++	sort.Stable(byUniqueTypeName(ityp.embeddeds))
++
++	check.later(func() { check.completeInterface(ityp) })
++}
++
++func (check *Checker) completeInterface(ityp *Interface) {
++	if ityp.allMethods != nil {
++		return
+ 	}
+ 
+-	// Correct receiver type for all methods explicitly declared
+-	// by this interface after we're done with type-checking at
+-	// this level. See comment below for details.
+-	check.later(func() {
+-		for _, m := range ityp.methods {
+-			m.typ.(*Signature).recv.typ = recvTyp
+-		}
+-	})
+-
+-	// collect methods
+-	var sigfix []*methodInfo
+-	for i, minfo := range info.methods {
+-		fun := minfo.fun
+-		if fun == nil {
+-			name := minfo.src.Names[0]
+-			pos := name.Pos()
+-			// Don't type-check signature yet - use an
+-			// empty signature now and update it later.
+-			// But set up receiver since we know it and
+-			// its position, and because interface method
+-			// signatures don't get a receiver via regular
+-			// type-checking (there isn't a receiver in the
+-			// method's AST). Setting the receiver type is
+-			// also important for ptrRecv() (see methodset.go).
+-			//
+-			// Note: For embedded methods, the receiver type
+-			// should be the type of the interface that declared
+-			// the methods in the first place. Since we get the
+-			// methods here via methodInfo, which may be computed
+-			// before we have all relevant interface types, we use
+-			// the current interface's type (recvType). This may be
+-			// the type of the interface embedding the interface that
+-			// declared the methods. This doesn't matter for type-
+-			// checking (we only care about the receiver type for
+-			// the ptrRecv predicate, and it's never a pointer recv
+-			// for interfaces), but it matters for go/types clients
+-			// and for printing. We correct the receiver after type-
+-			// checking.
+-			//
+-			// TODO(gri) Consider marking methods signatures
+-			// as incomplete, for better error messages. See
+-			// also the T4 and T5 tests in testdata/cycles2.src.
+-			sig := new(Signature)
+-			sig.recv = NewVar(pos, check.pkg, "", recvTyp)
+-			fun = NewFunc(pos, check.pkg, name.Name, sig)
+-			minfo.fun = fun
+-			check.recordDef(name, fun)
+-			sigfix = append(sigfix, minfo)
+-		}
+-		// fun != nil
+-		if i < info.explicits {
+-			ityp.methods = append(ityp.methods, fun)
+-		}
+-		ityp.allMethods = append(ityp.allMethods, fun)
++	// completeInterface may be called via the LookupFieldOrMethod or
++	// MissingMethod external API in which case check will be nil. In
++	// this case, type-checking must be finished and all interfaces
++	// should have been completed.
++	if check == nil {
++		panic("internal error: incomplete interface")
+ 	}
+ 
+-	// fix signatures now that we have collected all methods
+-	savedContext := check.context
+-	for _, minfo := range sigfix {
+-		// (possibly embedded) methods must be type-checked within their scope and
+-		// type-checking them must not affect the current context (was issue #23914)
+-		check.context = context{scope: minfo.scope}
+-		typ := check.indirectType(minfo.src.Type)
+-		sig, _ := typ.(*Signature)
+-		if sig == nil {
+-			if typ != Typ[Invalid] {
+-				check.invalidAST(minfo.src.Type.Pos(), "%s is not a method signature", typ)
+-			}
+-			continue // keep method with empty method signature
++	if trace {
++		check.trace(token.NoPos, "complete %s", ityp)
++		check.indent++
++		defer func() {
++			check.indent--
++			check.trace(token.NoPos, "=> %s", ityp)
++		}()
++	}
++
++	ityp.allMethods = markComplete // avoid infinite recursion
++
++	var methods []*Func
++	var seen objset
++	addMethod := func(m *Func, explicit bool) {
++		switch alt := seen.insert(m); {
++		case alt == nil:
++			methods = append(methods, m)
++		case explicit || !Identical(m.Type(), alt.Type()):
++			check.errorf(m.pos, "duplicate method %s", m.name)
++			// We use "other" rather than "previous" here because
++			// the first declaration seen may not be textually
++			// earlier in the source.
++			check.errorf(alt.Pos(), "\tother declaration of %s", m) // secondary error, \t indented
++		default:
++			// silently drop method m
+ 		}
+-		// update signature, but keep recv that was set up before
+-		old := minfo.fun.typ.(*Signature)
+-		sig.recv = old.recv
+-		*old = *sig // update signature (don't replace pointer!)
+ 	}
+-	check.context = savedContext
+ 
+-	// sort to match NewInterface/NewInterface2
+-	// TODO(gri) we may be able to switch to source order
+-	sort.Sort(byUniqueMethodName(ityp.methods))
++	for _, m := range ityp.methods {
++		addMethod(m, true)
++	}
+ 
+-	if ityp.allMethods == nil {
+-		ityp.allMethods = markComplete
+-	} else {
+-		sort.Sort(byUniqueMethodName(ityp.allMethods))
++	posList := check.posMap[ityp]
++	for i, typ := range ityp.embeddeds {
++		pos := posList[i] // embedding position
++		typ := typ.Underlying().(*Interface)
++		check.completeInterface(typ)
++		for _, m := range typ.allMethods {
++			copy := *m
++			copy.pos = pos // preserve embedding position
++			addMethod(&copy, false)
++		}
++	}
++
++	if methods != nil {
++		sort.Sort(byUniqueMethodName(methods))
++		ityp.allMethods = methods
+ 	}
+ }
+ 
+diff --git a/test/fixedbugs/bug211.go b/test/fixedbugs/bug211.go
+deleted file mode 100644
+index b150479276..0000000000
+--- a/test/fixedbugs/bug211.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// errorcheck
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-type R interface { duplicate() }
+-type S interface { duplicate() }
+-type T interface { R; S }	// ERROR "duplicate"
+-
+-func main() {
+-}

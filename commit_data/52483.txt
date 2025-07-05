@@ -15,7 +15,7 @@ Date:   Wed May 4 10:07:38 2022 -0500
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go        | 4 ++++
  src/cmd/compile/internal/ssa/gen/PPC64.rules | 3 +++
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 1 +
@@ -23,3 +23,98 @@ Date:   Wed May 4 10:07:38 2022 -0500
  src/cmd/compile/internal/ssa/rewritePPC64.go | 3 +++
  src/cmd/compile/internal/ssagen/ssa.go       | 2 +-
  6 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 8689bd8b27..e5a9eecc6a 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -468,6 +468,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p8 := s.Prog(obj.ANOP)
+ 		p6.To.SetTarget(p8)
+ 
++	case ssa.OpPPC64LoweredPubBarrier:
++		// LWSYNC
++		s.Prog(v.Op.Asm())
++
+ 	case ssa.OpPPC64LoweredGetClosurePtr:
+ 		// Closure pointer is R11 (already)
+ 		ssagen.CheckLoweredGetClosurePtr(v)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 1fe7ae9e53..bb3ac8ad1b 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -687,6 +687,9 @@
+ // Write barrier.
+ (WB ...) => (LoweredWB ...)
+ 
++// Publication barrier as intrinsic
++(PubBarrier ...) => (LoweredPubBarrier ...)
++
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index e3b79200fe..bc7fa0a1a3 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -686,6 +686,7 @@ func init() {
+ 		// but may clobber anything else, including R31 (REGTMP).
+ 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ buildReg("R0 R3 R4 R5 R6 R7 R8 R9 R10 R14 R15 R16 R17 R20 R21 g")) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+ 
++		{name: "LoweredPubBarrier", argLength: 1, asm: "LWSYNC", hasSideEffects: true}, // Do data barrier. arg0=memory
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+ 		// default registers to match so we don't need to copy registers around unnecessarily.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 0357fdb12a..6d2ec4a235 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2138,6 +2138,7 @@ const (
+ 	OpPPC64LoweredAtomicOr8
+ 	OpPPC64LoweredAtomicOr32
+ 	OpPPC64LoweredWB
++	OpPPC64LoweredPubBarrier
+ 	OpPPC64LoweredPanicBoundsA
+ 	OpPPC64LoweredPanicBoundsB
+ 	OpPPC64LoweredPanicBoundsC
+@@ -28775,6 +28776,13 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 18446744072632408064, // R11 R12 R18 R19 R22 R23 R24 R25 R26 R27 R28 R29 R31 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 XER
+ 		},
+ 	},
++	{
++		name:           "LoweredPubBarrier",
++		argLen:         1,
++		hasSideEffects: true,
++		asm:            ppc64.ALWSYNC,
++		reg:            regInfo{},
++	},
+ 	{
+ 		name:    "LoweredPanicBoundsA",
+ 		auxType: auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 1d945be741..a21b757ca9 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -643,6 +643,9 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpPrefetchCache(v)
+ 	case OpPrefetchCacheStreamed:
+ 		return rewriteValuePPC64_OpPrefetchCacheStreamed(v)
++	case OpPubBarrier:
++		v.Op = OpPPC64LoweredPubBarrier
++		return true
+ 	case OpRotateLeft16:
+ 		return rewriteValuePPC64_OpRotateLeft16(v)
+ 	case OpRotateLeft32:
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index f6176c4f05..c15fd78563 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3951,7 +3951,7 @@ func InitTables() {
+ 			s.vars[memVar] = s.newValue1(ssa.OpPubBarrier, types.TypeMem, s.mem())
+ 			return nil
+ 		},
+-		sys.ARM64)
++		sys.ARM64, sys.PPC64)
+ 
+ 	/******** runtime/internal/sys ********/
+ 	addF("runtime/internal/sys", "Ctz32",

@@ -13,6 +13,28 @@ Date:   Mon Jul 31 11:00:40 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/time/time.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index e8aac5999a..26872b1c05 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -76,6 +76,16 @@
+ // For debugging, the result of t.String does include the monotonic
+ // clock reading if present. If t != u because of different monotonic clock readings,
+ // that difference will be visible when printing t.String() and u.String().
++//
++// # Timer Resolution
++//
++// Timer resolution varies depending on the Go runtime, the operating system
++// and the underlying hardware.
++// On Unix, the resolution is approximately 1ms.
++// On Windows, the default resolution is approximately 16ms, but
++// a lower resolution may be requested using [timeBeginPeriod].
++//
++// [timeBeginPeriod]: https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod
+ package time
+ 
+ import (

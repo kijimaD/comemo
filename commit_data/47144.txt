@@ -22,7 +22,7 @@ Date:   Thu Feb 4 00:11:12 2021 +0100
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go                    |   6 +++-
  src/cmd/link/internal/loadpe/ldpe.go               |  29 ++++++++++++++++
  src/cmd/link/link_test.go                          |  38 +++++++++++++++------
@@ -35,3 +35,209 @@ Date:   Thu Feb 4 00:11:12 2021 +0100
  src/cmd/link/testdata/pe-llvm/rsrc_arm.syso        | Bin 0 -> 352 bytes
  src/cmd/link/testdata/pe-llvm/rsrc_arm64.syso      | Bin 0 -> 352 bytes
  11 files changed, 67 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 28713456c4..517b0f6930 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1827,7 +1827,11 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 		return ldhostobj(ldmacho, ctxt.HeadType, f, pkg, length, pn, file)
+ 	}
+ 
+-	if /* x86 */ c1 == 0x4c && c2 == 0x01 || /* x86_64 */ c1 == 0x64 && c2 == 0x86 || /* armv7 */ c1 == 0xc4 && c2 == 0x01 {
++	switch c1<<8 | c2 {
++	case 0x4c01, // 386
++		0x6486, // amd64
++		0xc401, // arm
++		0x64aa: // arm64
+ 		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
+ 			if err != nil {
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index a5c025de8f..f474dfb276 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -115,6 +115,24 @@ const (
+ 	IMAGE_REL_THUMB_BRANCH24         = 0x0014
+ 	IMAGE_REL_THUMB_BLX23            = 0x0015
+ 	IMAGE_REL_ARM_PAIR               = 0x0016
++	IMAGE_REL_ARM64_ABSOLUTE         = 0x0000
++	IMAGE_REL_ARM64_ADDR32           = 0x0001
++	IMAGE_REL_ARM64_ADDR32NB         = 0x0002
++	IMAGE_REL_ARM64_BRANCH26         = 0x0003
++	IMAGE_REL_ARM64_PAGEBASE_REL21   = 0x0004
++	IMAGE_REL_ARM64_REL21            = 0x0005
++	IMAGE_REL_ARM64_PAGEOFFSET_12A   = 0x0006
++	IMAGE_REL_ARM64_PAGEOFFSET_12L   = 0x0007
++	IMAGE_REL_ARM64_SECREL           = 0x0008
++	IMAGE_REL_ARM64_SECREL_LOW12A    = 0x0009
++	IMAGE_REL_ARM64_SECREL_HIGH12A   = 0x000A
++	IMAGE_REL_ARM64_SECREL_LOW12L    = 0x000B
++	IMAGE_REL_ARM64_TOKEN            = 0x000C
++	IMAGE_REL_ARM64_SECTION          = 0x000D
++	IMAGE_REL_ARM64_ADDR64           = 0x000E
++	IMAGE_REL_ARM64_BRANCH19         = 0x000F
++	IMAGE_REL_ARM64_BRANCH14         = 0x0010
++	IMAGE_REL_ARM64_REL32            = 0x0011
+ )
+ 
+ // TODO(crawshaw): de-duplicate these symbols with cmd/internal/ld, ideally in debug/pe.
+@@ -319,6 +337,17 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 				case IMAGE_REL_ARM_BRANCH24:
+ 					rType = objabi.R_CALLARM
+ 
++					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
++				}
++
++			case sys.ARM64:
++				switch r.Type {
++				default:
++					return nil, nil, fmt.Errorf("%s: %v: unknown ARM64 relocation type %v", pn, sectsyms[rsect], r.Type)
++
++				case IMAGE_REL_ARM64_ADDR32, IMAGE_REL_ARM64_ADDR32NB:
++					rType = objabi.R_ADDR
++
+ 					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
+ 				}
+ 			}
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 08ddd00a0c..9c69ccca43 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -753,23 +753,24 @@ func TestIndexMismatch(t *testing.T) {
+ 	}
+ }
+ 
+-func TestPErsrc(t *testing.T) {
++func TestPErsrcBinutils(t *testing.T) {
+ 	// Test that PE rsrc section is handled correctly (issue 39658).
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	if runtime.GOARCH != "amd64" || runtime.GOOS != "windows" {
+-		t.Skipf("this is a windows/amd64-only test")
++	if (runtime.GOARCH != "386" && runtime.GOARCH != "amd64") || runtime.GOOS != "windows" {
++		// This test is limited to amd64 and 386, because binutils is limited as such
++		t.Skipf("this is only for windows/amd64 and windows/386")
+ 	}
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestPErsrc")
++	tmpdir, err := ioutil.TempDir("", "TestPErsrcBinutils")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(tmpdir)
+ 
+-	pkgdir := filepath.Join("testdata", "testPErsrc")
++	pkgdir := filepath.Join("testdata", "pe-binutils")
+ 	exe := filepath.Join(tmpdir, "a.exe")
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
+ 	cmd.Dir = pkgdir
+@@ -787,19 +788,36 @@ func TestPErsrc(t *testing.T) {
+ 	if !bytes.Contains(b, []byte("Hello Gophers!")) {
+ 		t.Fatalf("binary does not contain expected content")
+ 	}
++}
++
++func TestPErsrcLLVM(t *testing.T) {
++	// Test that PE rsrc section is handled correctly (issue 39658).
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS != "windows" {
++		t.Skipf("this is a windows-only test")
++	}
++
++	t.Parallel()
++
++	tmpdir, err := ioutil.TempDir("", "TestPErsrcLLVM")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmpdir)
+ 
+-	pkgdir = filepath.Join("testdata", "testPErsrc-complex")
+-	exe = filepath.Join(tmpdir, "a.exe")
+-	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
++	pkgdir := filepath.Join("testdata", "pe-llvm")
++	exe := filepath.Join(tmpdir, "a.exe")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
+ 	cmd.Dir = pkgdir
+ 	// cmd.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64") // uncomment if debugging in a cross-compiling environment
+-	out, err = cmd.CombinedOutput()
++	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("building failed: %v, output:\n%s", err, out)
+ 	}
+ 
+ 	// Check that the binary contains the rsrc data
+-	b, err = ioutil.ReadFile(exe)
++	b, err := ioutil.ReadFile(exe)
+ 	if err != nil {
+ 		t.Fatalf("reading output failed: %v", err)
+ 	}
+diff --git a/src/cmd/link/testdata/testPErsrc/main.go b/src/cmd/link/testdata/pe-binutils/main.go
+similarity index 65%
+rename from src/cmd/link/testdata/testPErsrc/main.go
+rename to src/cmd/link/testdata/pe-binutils/main.go
+index 5eb66fb9cc..14ea6f9e0f 100644
+--- a/src/cmd/link/testdata/testPErsrc/main.go
++++ b/src/cmd/link/testdata/pe-binutils/main.go
+@@ -4,10 +4,9 @@
+ 
+ // Test that a PE rsrc section is handled correctly (issue 39658).
+ //
+-// rsrc.syso is created with:
+-//	windres -i a.rc -o rsrc.syso -O coff
+-// on windows-amd64-2016 builder, where a.rc is a text file with
+-// the following content:
++// rsrc.syso is created using binutils with:
++//	{x86_64,i686}-w64-mingw32-windres -i a.rc -o rsrc_$GOARCH.syso -O coff
++// where a.rc is a text file with the following content:
+ //
+ // resname RCDATA {
+ //   "Hello Gophers!\0",
+diff --git a/src/cmd/link/testdata/pe-binutils/rsrc_386.syso b/src/cmd/link/testdata/pe-binutils/rsrc_386.syso
+new file mode 100644
+index 0000000000..b4abc58abe
+Binary files /dev/null and b/src/cmd/link/testdata/pe-binutils/rsrc_386.syso differ
+diff --git a/src/cmd/link/testdata/testPErsrc/rsrc.syso b/src/cmd/link/testdata/pe-binutils/rsrc_amd64.syso
+similarity index 100%
+rename from src/cmd/link/testdata/testPErsrc/rsrc.syso
+rename to src/cmd/link/testdata/pe-binutils/rsrc_amd64.syso
+diff --git a/src/cmd/link/testdata/testPErsrc-complex/main.go b/src/cmd/link/testdata/pe-llvm/main.go
+similarity index 92%
+rename from src/cmd/link/testdata/testPErsrc-complex/main.go
+rename to src/cmd/link/testdata/pe-llvm/main.go
+index affd6eada2..099a71a3ff 100644
+--- a/src/cmd/link/testdata/testPErsrc-complex/main.go
++++ b/src/cmd/link/testdata/pe-llvm/main.go
+@@ -6,8 +6,8 @@
+ // have been created by llvm-rc or msvc's rc.exe, which means there's the
+ // @feat.00 symbol as well as split .rsrc$00 and .rsrc$01 section to deal with.
+ //
+-// rsrc.syso is created with:
+-//    windres -i a.rc -o rsrc.syso -O coff
++// rsrc.syso is created using llvm with:
++//    {i686,x86_64,armv7,arm64}-w64-mingw32-windres -i a.rc -o rsrc_$GOARCH.syso -O coff
+ // where this windres calls into llvm-rc and llvm-cvtres. The source file,
+ // a.rc, simply contains a reference to its own bytes:
+ //
+diff --git a/src/cmd/link/testdata/pe-llvm/rsrc_386.syso b/src/cmd/link/testdata/pe-llvm/rsrc_386.syso
+new file mode 100644
+index 0000000000..21126c9954
+Binary files /dev/null and b/src/cmd/link/testdata/pe-llvm/rsrc_386.syso differ
+diff --git a/src/cmd/link/testdata/testPErsrc-complex/rsrc.syso b/src/cmd/link/testdata/pe-llvm/rsrc_amd64.syso
+similarity index 81%
+rename from src/cmd/link/testdata/testPErsrc-complex/rsrc.syso
+rename to src/cmd/link/testdata/pe-llvm/rsrc_amd64.syso
+index eff630b8a2..56f9260b0a 100644
+Binary files a/src/cmd/link/testdata/testPErsrc-complex/rsrc.syso and b/src/cmd/link/testdata/pe-llvm/rsrc_amd64.syso differ
+diff --git a/src/cmd/link/testdata/pe-llvm/rsrc_arm.syso b/src/cmd/link/testdata/pe-llvm/rsrc_arm.syso
+new file mode 100644
+index 0000000000..c93a1e9ba0
+Binary files /dev/null and b/src/cmd/link/testdata/pe-llvm/rsrc_arm.syso differ
+diff --git a/src/cmd/link/testdata/pe-llvm/rsrc_arm64.syso b/src/cmd/link/testdata/pe-llvm/rsrc_arm64.syso
+new file mode 100644
+index 0000000000..7849638ddd
+Binary files /dev/null and b/src/cmd/link/testdata/pe-llvm/rsrc_arm64.syso differ

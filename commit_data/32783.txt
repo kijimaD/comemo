@@ -16,6 +16,19 @@ Date:   Thu May 25 13:59:39 2017 +0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/lock_futex.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index 45d3da64a4..9d55bd129c 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -38,6 +38,7 @@ const (
+ // affect mutex's state.
+ 
+ // We use the uintptr mutex.key and note.key as a uint32.
++//go:nosplit
+ func key32(p *uintptr) *uint32 {
+ 	return (*uint32)(unsafe.Pointer(p))
+ }

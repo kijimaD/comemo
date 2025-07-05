@@ -7,6 +7,20 @@ Date:   Thu May 1 18:48:52 2008 -0700
     - added select statement
     
     SVN=117448
-
+---
  test/sieve.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/sieve.go b/test/sieve.go
+index 03538d62a3..1a96e601dd 100644
+--- a/test/sieve.go
++++ b/test/sieve.go
+@@ -30,7 +30,7 @@ func Sieve() {
+   go Generate(ch);  // Start Generate() as a subprocess.
+   for {
+     prime := <ch;
+-    printf("%d\n",  prime);
++    print "%d\n",  prime;
+     ch1 := new(chan int);
+     go Filter(ch, ch1, prime);
+     ch = ch1

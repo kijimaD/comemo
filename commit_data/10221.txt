@@ -22,7 +22,38 @@ Date:   Thu Nov 3 17:12:13 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5331061
-
+---
  src/pkg/html/parse.go      | 6 ++++--
  src/pkg/html/parse_test.go | 2 +-
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 4a21be925a..38f8ba481a 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -455,8 +455,10 @@ func inHeadIM(p *parser) (insertionMode, bool) {
+ 		implied = true
+ 	case StartTagToken:
+ 		switch p.tok.Data {
+-		case "meta":
+-			// TODO.
++		case "base", "basefont", "bgsound", "command", "link", "meta":
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.oe.pop()
++			p.acknowledgeSelfClosingTag()
+ 		case "script", "title", "noscript", "noframes", "style":
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+ 			p.setOriginalIM(inHeadIM)
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 65fc8edaed..3194a3fa47 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -133,7 +133,7 @@ func TestParser(t *testing.T) {
+ 		rc := make(chan io.Reader)
+ 		go readDat(filename, rc)
+ 		// TODO(nigeltao): Process all test cases, not just a subset.
+-		for i := 0; i < 83; i++ {
++		for i := 0; i < 85; i++ {
+ 			// Parse the #data section.
+ 			b, err := ioutil.ReadAll(<-rc)
+ 			if err != nil {

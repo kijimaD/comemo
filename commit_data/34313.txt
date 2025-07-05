@@ -12,7 +12,58 @@ Date:   Mon Oct 16 17:17:40 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/71250
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go |  6 ++++--
  test/fixedbugs/issue22164.go              | 26 ++++++++++++++++++++++++++
  2 files changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index cda2cf42da..3d14b70eba 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -377,8 +377,10 @@ func (p *parser) list(open, sep, close token, f func() bool) src.Pos {
+ 			//            to the expected close token only
+ 		default:
+ 			p.syntax_error(fmt.Sprintf("expecting %s or %s", tokstring(sep), tokstring(close)))
+-			p.advance(close)
+-			done = true
++			p.advance(_Rparen, _Rbrack, _Rbrace)
++			if p.tok != close {
++				return p.pos()
++			}
+ 		}
+ 	}
+ 
+diff --git a/test/fixedbugs/issue22164.go b/test/fixedbugs/issue22164.go
+new file mode 100644
+index 0000000000..fad78e23e8
+--- /dev/null
++++ b/test/fixedbugs/issue22164.go
+@@ -0,0 +1,26 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test error recovery after missing closing parentheses in lists.
++
++package p
++
++func f() {
++	x := f(g() // ERROR "unexpected newline"
++	y := 1
++}
++
++func g() {
++}
++
++func h() {
++	x := f(g() // ERROR "unexpected newline"
++}
++
++func i() {
++	x := []int{1, 2, 3 // ERROR "unexpected newline"
++	y := 0
++}
+\ No newline at end of file

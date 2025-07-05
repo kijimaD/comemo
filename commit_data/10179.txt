@@ -7,7 +7,7 @@ Date:   Tue Nov 1 21:46:41 2011 -0400
     R=ken
     CC=golang-dev
     https://golang.org/cl/5331043
-
+---
  src/cmd/gc/export.c  |  3 +--
  src/cmd/gc/fmt.c     |  3 +++
  src/cmd/gc/go.h      |  1 +
@@ -15,3 +15,153 @@ Date:   Tue Nov 1 21:46:41 2011 -0400
  src/cmd/gc/reflect.c | 14 +++++++++++++-
  src/cmd/gc/subr.c    |  2 +-
  6 files changed, 57 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 06410a2143..d0b28a25b3 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -89,7 +89,6 @@ dumppkg(Pkg *p)
+ }
+ 
+ static void
+-
+ dumpexportconst(Sym *s)
+ {
+ 	Node *n;
+@@ -151,7 +150,7 @@ dumpexporttype(Type *t)
+ 	if(t == T)
+ 		return;
+ 
+-	if(t->printed || t == types[t->etype] || t == bytetype || t == runetype)
++	if(t->printed || t == types[t->etype] || t == bytetype || t == runetype || t == errortype)
+ 		return;
+ 	t->printed = 1;
+ 
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 4e57057a93..12ea302827 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -553,6 +553,9 @@ typefmt(Fmt *fp, Type *t)
+ 		t = types[t->etype];
+ 	}
+ 
++	if(t == errortype)
++		return fmtstrcpy(fp, "error");
++
+ 	// Unless the 'l' flag was specified, if the type has a name, just print that name.
+ 	if(!(fp->flags&FmtLong) && t->sym && t->etype != TFIELD && t != types[t->etype]) {
+ 		switch(fmtmode) {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 7557f74baa..7d6ac08433 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -786,6 +786,7 @@ EXTERN	Type*	idealstring;
+ EXTERN	Type*	idealbool;
+ EXTERN	Type*	bytetype;
+ EXTERN	Type*	runetype;
++EXTERN	Type*	errortype;
+ EXTERN	uchar	simtype[NTYPE];
+ EXTERN	uchar	isptr[NTYPE];
+ EXTERN	uchar	isforw[NTYPE];
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index a242b9b43c..86492a53bc 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1759,6 +1759,40 @@ static void
+ lexinit1(void)
+ {
+ 	Sym *s, *s1;
++	Type *t, *f, *rcvr, *in, *out;
++
++	// t = interface { Error() string }
++	rcvr = typ(TSTRUCT);
++	rcvr->type = typ(TFIELD);
++	rcvr->type->type = ptrto(typ(TSTRUCT));
++	rcvr->funarg = 1;
++	in = typ(TSTRUCT);
++	in->funarg = 1;
++	out = typ(TSTRUCT);
++	out->type = typ(TFIELD);
++	out->type->type = types[TSTRING];
++	out->funarg = 1;
++	f = typ(TFUNC);
++	*getthis(f) = rcvr;
++	*getoutarg(f) = out;
++	*getinarg(f) = in;
++	f->thistuple = 1;
++	f->intuple = 0;
++	f->outnamed = 0;
++	f->outtuple = 1;
++	t = typ(TINTER);
++	t->type = typ(TFIELD);
++	t->type->sym = lookup("Error");
++	t->type->type = f;
++
++	// error type
++	s = lookup("error");
++	s->lexical = LNAME;
++	errortype = t;
++	errortype->sym = s;
++	s1 = pkglookup("error", builtinpkg);
++	s1->lexical = LNAME;
++	s1->def = typenod(errortype);
+ 
+ 	// byte alias
+ 	s = lookup("byte");
+@@ -1820,6 +1854,10 @@ lexfini(void)
+ 	s = lookup("byte");
+ 	if(s->def == N)
+ 		s->def = typenod(bytetype);
++	
++	s = lookup("error");
++	if(s->def == N)
++		s->def = typenod(errortype);
+ 
+ 	s = lookup("rune");
+ 	if(s->def == N)
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 3eefb0afe3..86df3a378d 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -693,8 +693,13 @@ dtypesym(Type *t)
+ 		tbase = t->type;
+ 	dupok = tbase->sym == S;
+ 
+-	if(compiling_runtime && (tbase == types[tbase->etype] || tbase == bytetype || tbase == runetype))	// int, float, etc
++	if(compiling_runtime && 
++			(tbase == types[tbase->etype] ||
++			tbase == bytetype ||
++			tbase == runetype ||
++			tbase == errortype)) { // int, float, etc
+ 		goto ok;
++	}
+ 
+ 	// named types from other files are defined only by those files
+ 	if(tbase->sym && !tbase->local)
+@@ -903,6 +908,13 @@ dumptypestructs(void)
+ 			dtypesym(ptrto(types[i]));
+ 		dtypesym(ptrto(types[TSTRING]));
+ 		dtypesym(ptrto(types[TUNSAFEPTR]));
++
++		// emit type structs for error and func(error) string.
++		// The latter is the type of an auto-generated wrapper.
++		dtypesym(ptrto(errortype));
++		dtypesym(functype(nil, 
++			list1(nod(ODCLFIELD, N, typenod(errortype))),
++			list1(nod(ODCLFIELD, N, typenod(types[TSTRING])))));
+ 		
+ 		// add paths for runtime and main, which 6l imports implicitly.
+ 		dimportpath(runtimepkg);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 7843102abd..dc1d314638 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1483,7 +1483,7 @@ ptrto(Type *t)
+ 	Type *t1;
+ 
+ 	if(tptr == 0)
+-		fatal("ptrto: nil");
++		fatal("ptrto: no tptr");
+ 	t1 = typ(tptr);
+ 	t1->type = t;
+ 	t1->width = widthptr;

@@ -15,6 +15,24 @@ Date:   Fri Apr 16 21:50:46 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/internal/buildcfg/exp.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index ef769b5415..2435a79dce 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -108,10 +108,10 @@ func parseExperiments() goexperiment.Flags {
+ 	}
+ 	// Check regabi dependencies.
+ 	if flags.RegabiG && !flags.RegabiWrappers {
+-		panic("GOEXPERIMENT regabig requires regabiwrappers")
++		Error = fmt.Errorf("GOEXPERIMENT regabig requires regabiwrappers")
+ 	}
+ 	if flags.RegabiArgs && !(flags.RegabiWrappers && flags.RegabiG && flags.RegabiReflect && flags.RegabiDefer) {
+-		panic("GOEXPERIMENT regabiargs requires regabiwrappers,regabig,regabireflect,regabidefer")
++		Error = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabig,regabireflect,regabidefer")
+ 	}
+ 	return flags
+ }

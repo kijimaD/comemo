@@ -9,6 +9,20 @@ Date:   Tue Apr 2 00:00:16 2013 +0200
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8229043
-
+---
  src/cmd/gc/fmt.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index ee5b9e939b..8a14aa2df9 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -630,7 +630,7 @@ typefmt(Fmt *fp, Type *t)
+ 
+ 	case TARRAY:
+ 		if(t->bound >= 0)
+-			return fmtprint(fp, "[%d]%T", (int)t->bound, t->type);
++			return fmtprint(fp, "[%lld]%T", t->bound, t->type);
+ 		if(t->bound == -100)
+ 			return fmtprint(fp, "[...]%T", t->type);
+ 		return fmtprint(fp, "[]%T", t->type);

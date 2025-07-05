@@ -10,6 +10,20 @@ Date:   Thu Jun 2 15:42:14 2016 +0200
     Reviewed-on: https://go-review.googlesource.com/23684
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 0a384c73b2..e56d108ad4 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -728,7 +728,7 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 	cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", t.tags(), "-ldflags", "-linkmode=auto", t.runFlag(""))
+ 	cmd.Env = env
+ 
+-	if t.gohostos != "dragonfly" && t.gohostarch != "ppc64le" && t.goos != "android" {
++	if t.gohostos != "dragonfly" && t.gohostarch != "ppc64le" && t.goos != "android" && (t.goos != "darwin" || t.goarch != "arm") {
+ 		// linkmode=internal fails on dragonfly since errno is a TLS relocation.
+ 		// linkmode=internal fails on ppc64le because cmd/link doesn't
+ 		// handle the TOC correctly (issue 15409).

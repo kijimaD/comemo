@@ -8,6 +8,22 @@ Date:   Thu Apr 2 16:41:53 2009 -0700
     DELTA=4  (4 added, 0 deleted, 0 changed)
     OCL=26983
     CL=27041
-
+---
  src/runtime/proc.c | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index f7a4478800..f35641c7eb 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -546,6 +546,10 @@ sys·exitsyscall(void)
+  * don't bother with the check and always call morestack.
+  * the sequences are:
+  *
++ *	guard = g->stackguard
++ *	frame = function's stack frame size
++ *	argsize = size of function arguments (call + return)
++ *
+  *	stack frame size <= StackSmall:
+  *		CMPQ guard, SP
+  *		JHI 3(PC)

@@ -10,9 +10,171 @@ Date:   Wed Dec 3 13:17:26 2008 -0800
     R=r
     OCL=20357
     CL=20357
-
+---
  src/cmd/gc/export.c   |  2 +-
  src/cmd/gc/go.h       |  3 ++-
  src/cmd/gc/lex.c      | 18 ++++++++++++++++++
  src/cmd/gc/mparith1.c | 46 +++++++++++++++++++++++++++++++++++++++-------
  4 files changed, 60 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 66a568cc4a..3d7984bd8e 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -105,7 +105,7 @@ dumpexportconst(Sym *s)
+ 		Bprint(bout, "0x%llux\n", n->val.u.bval);
+ 		break;
+ 	case CTFLT:
+-		Bprint(bout, "%.17e\n", mpgetflt(n->val.u.fval));
++		Bprint(bout, "%F\n", n->val.u.fval);
+ 		break;
+ 	case CTSTR:
+ 		Bprint(bout, "\"%Z\"\n", n->val.u.sval);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 2654e1c564..ea5321f529 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -567,6 +567,8 @@ void	mpshiftfix(Mpint *a, int s);
+ /*
+  *	mparith3.c
+  */
++int	sigfig(Mpflt *a);
++void	mpnorm(Mpflt *a);
+ void	mpmovefltflt(Mpflt *a, Mpflt *b);
+ void	mpmovecflt(Mpflt *a, double f);
+ int	mptestflt(Mpflt *a);
+@@ -576,7 +578,6 @@ void	mpdivfltflt(Mpflt *a, Mpflt *b);
+ void	mpnegflt(Mpflt *a);
+ double	mpgetflt(Mpflt *a);
+ int	Fconv(Fmt*);
+-void	mpnorm(Mpflt *a);
+ 
+ /*
+  *	subr.c
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index f818a641fa..126a201d6f 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -742,6 +742,8 @@ dc:
+ 		goto casedot;
+ 	if(c == 'e' || c == 'E')
+ 		goto casee;
++	if(c == 'p' || c == 'P')
++		goto casep;
+ 
+ ncu:
+ 	*cp = 0;
+@@ -780,6 +782,22 @@ casee:
+ 		*cp++ = c;
+ 		c = getc();
+ 	}
++	goto caseout;
++
++casep:
++	*cp++ = 'p';
++	c = getc();
++	if(c == '+' || c == '-') {
++		*cp++ = c;
++		c = getc();
++	}
++	if(!isdigit(c))
++		yyerror("malformed fp constant exponent");
++	while(isdigit(c)) {
++		*cp++ = c;
++		c = getc();
++	}
++	goto caseout;
+ 
+ caseout:
+ 	*cp = 0;
+diff --git a/src/cmd/gc/mparith1.c b/src/cmd/gc/mparith1.c
+index 2bf20d60ee..1fd8d7f0fe 100644
+--- a/src/cmd/gc/mparith1.c
++++ b/src/cmd/gc/mparith1.c
+@@ -194,13 +194,14 @@ void
+ mpatoflt(Mpflt *a, char *as)
+ {
+ 	Mpflt b;
+-	int dp, c, f, ef, ex, zer;
++	int dp, c, f, ef, ex, eb, zer;
+ 	char *s;
+ 
+ 	s = as;
+ 	dp = 0;		/* digits after decimal point */
+ 	f = 0;		/* sign */
+ 	ex = 0;		/* exponent */
++	eb = 0;		/* binary point */
+ 	zer = 1;	/* zero */
+ 
+ 	mpmovecflt(a, 0.0);
+@@ -239,6 +240,10 @@ mpatoflt(Mpflt *a, char *as)
+ 				dp++;
+ 			continue;
+ 
++		case 'P':
++		case 'p':
++			eb = 1;
++
+ 		case 'E':
+ 		case 'e':
+ 			ex = 0;
+@@ -266,6 +271,13 @@ mpatoflt(Mpflt *a, char *as)
+ 		break;
+ 	}
+ 
++	if(eb) {
++		if(dp)
++			goto bad;
++		a->exp += ex;
++		goto out;
++	}
++
+ 	if(dp)
+ 		dp--;
+ 	if(mpcmpfltc(a, 0.0) != 0) {
+@@ -277,6 +289,8 @@ mpatoflt(Mpflt *a, char *as)
+ 			mpdivfltflt(a, &b);
+ 		}
+ 	}
++
++out:
+ 	if(f)
+ 		mpnegflt(a);
+ 	return;
+@@ -407,12 +421,30 @@ int
+ Fconv(Fmt *fp)
+ {
+ 	char buf[500];
+-	Mpflt *fval;
++	Mpflt *fvp, fv;
++
++	fvp = va_arg(fp->args, Mpflt*);
++	if(sigfig(fvp) == 0) {
++		snprint(buf, sizeof(buf), "0p+0");
++		goto out;
++	}
++	fv = *fvp;
++
++	while(fv.val.a[0] == 0) {
++		mpshiftfix(&fv.val, -Mpscale);
++		fv.exp += Mpscale;
++	}
++	while((fv.val.a[0]&1) == 0) {
++		mpshiftfix(&fv.val, -1);
++		fv.exp += 1;
++	}
+ 
+-	fval = va_arg(fp->args, Mpflt*);
+-	if(fval->exp >= 0)
+-		snprint(buf, sizeof(buf), "(%B*2^%d)", &fval->val, fval->exp);
+-	else
+-		snprint(buf, sizeof(buf), "(%B/2^%d)", &fval->val, -fval->exp);
++	if(fv.exp >= 0) {
++		snprint(buf, sizeof(buf), "%Bp+%d", &fv.val, fv.exp);
++		goto out;
++	}
++	snprint(buf, sizeof(buf), "%Bp-%d", &fv.val, -fv.exp);
++
++out:
+ 	return fmtstrcpy(fp, buf);
+ }

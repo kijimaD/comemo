@@ -12,7 +12,49 @@ Date:   Mon Apr 4 14:07:36 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/reader.go | 12 ++++++++++++
  test/typeparam/issue52124.go             |  9 +++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 01e795183d..71efac80aa 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -442,9 +442,21 @@ func (r *reader) doTyp() *types.Type {
+ 		return r.structType()
+ 	case pkgbits.TypeInterface:
+ 		return r.interfaceType()
++	case pkgbits.TypeUnion:
++		return r.unionType()
+ 	}
+ }
+ 
++func (r *reader) unionType() *types.Type {
++	terms := make([]*types.Type, r.Len())
++	tildes := make([]bool, len(terms))
++	for i := range terms {
++		tildes[i] = r.Bool()
++		terms[i] = r.typ()
++	}
++	return types.NewUnion(terms, tildes)
++}
++
+ func (r *reader) interfaceType() *types.Type {
+ 	tpkg := types.LocalPkg // TODO(mdempsky): Remove after iexport is gone.
+ 
+diff --git a/test/typeparam/issue52124.go b/test/typeparam/issue52124.go
+new file mode 100644
+index 0000000000..56318d5d4c
+--- /dev/null
++++ b/test/typeparam/issue52124.go
+@@ -0,0 +1,9 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type I interface{ any | int }

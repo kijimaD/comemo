@@ -12,6 +12,28 @@ Date:   Fri Jul 24 11:43:25 2015 -0700
     Change-Id: I20ed6ec6aae2c91183b8c826b8ebcc98e8ceebff
     Reviewed-on: https://go-review.googlesource.com/12655
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e7772a92bb..2b6962a979 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1911,8 +1911,15 @@ func regnum(v *ssa.Value) int16 {
+ // localOffset returns the offset below the frame pointer where
+ // a stack-allocated local has been allocated.  Panics if v
+ // is not assigned to a local slot.
++// TODO: Make this panic again once it stops happening routinely.
+ func localOffset(v *ssa.Value) int64 {
+-	return v.Block.Func.RegAlloc[v.ID].(*ssa.LocalSlot).Idx
++	reg := v.Block.Func.RegAlloc[v.ID]
++	slot, ok := reg.(*ssa.LocalSlot)
++	if !ok {
++		v.Unimplementedf("localOffset of non-LocalSlot value: %s", v.LongString())
++		return 0
++	}
++	return slot.Idx
+ }
+ 
+ // ssaExport exports a bunch of compiler services for the ssa backend.

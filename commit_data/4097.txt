@@ -6,6 +6,20 @@ Date:   Tue Nov 17 11:40:25 2009 -0800
     
     R=rsc
     https://golang.org/cl/157043
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 152798501f..3376f07364 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -957,7 +957,7 @@ def FindContributor(ui, repo, user, warn=True):
+ 		match = re.match(r"(.*) <(.*)>", line)
+ 		if not match:
+ 			continue
+-		if line == user or match.group(2) == user:
++		if line == user or match.group(2).lower() == user.lower():
+ 			return match.group(2), line
+ 	if warn:
+ 		ui.warn("warning: cannot find %s in CONTRIBUTORS\n" % (user,))

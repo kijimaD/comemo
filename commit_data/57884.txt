@@ -15,7 +15,7 @@ Date:   Fri Sep 1 01:54:25 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/encoding/ascii85/ascii85.go             |  8 +++---
  src/encoding/asn1/asn1.go                   | 39 ++++++++++++++---------------
  src/encoding/asn1/marshal.go                |  2 +-
@@ -41,3 +41,1350 @@ Date:   Fri Sep 1 01:54:25 2023 -0700
  src/encoding/xml/read.go                    | 14 +++++------
  src/encoding/xml/xml.go                     | 30 +++++++++++-----------
  24 files changed, 204 insertions(+), 197 deletions(-)
+
+diff --git a/src/encoding/ascii85/ascii85.go b/src/encoding/ascii85/ascii85.go
+index 1f1fb00ffa..18bf9f08a9 100644
+--- a/src/encoding/ascii85/ascii85.go
++++ b/src/encoding/ascii85/ascii85.go
+@@ -15,12 +15,12 @@ import (
+  * Encoder
+  */
+ 
+-// Encode encodes src into at most MaxEncodedLen(len(src))
++// Encode encodes src into at most [MaxEncodedLen](len(src))
+ // bytes of dst, returning the actual number of bytes written.
+ //
+ // The encoding handles 4-byte chunks, using a special encoding
+ // for the last fragment, so Encode is not appropriate for use on
+-// individual blocks of a large data stream. Use NewEncoder() instead.
++// individual blocks of a large data stream. Use [NewEncoder] instead.
+ //
+ // Often, ascii85-encoded data is wrapped in <~ and ~> symbols.
+ // Encode does not add these.
+@@ -173,7 +173,7 @@ func (e CorruptInputError) Error() string {
+ // Decode decodes src into dst, returning both the number
+ // of bytes written to dst and the number consumed from src.
+ // If src contains invalid ascii85 data, Decode will return the
+-// number of bytes successfully written and a CorruptInputError.
++// number of bytes successfully written and a [CorruptInputError].
+ // Decode ignores space and control characters in src.
+ // Often, ascii85-encoded data is wrapped in <~ and ~> symbols.
+ // Decode expects these to have been stripped by the caller.
+@@ -182,7 +182,7 @@ func (e CorruptInputError) Error() string {
+ // end of the input stream and processes it completely rather
+ // than wait for the completion of another 32-bit block.
+ //
+-// NewDecoder wraps an io.Reader interface around Decode.
++// [NewDecoder] wraps an [io.Reader] interface around Decode.
+ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err error) {
+ 	var v uint32
+ 	var nb int
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 9c05871e76..781ab87691 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -211,7 +211,7 @@ func parseBitString(bytes []byte) (ret BitString, err error) {
+ 
+ // NULL
+ 
+-// NullRawValue is a RawValue with its Tag set to the ASN.1 NULL type tag (5).
++// NullRawValue is a [RawValue] with its Tag set to the ASN.1 NULL type tag (5).
+ var NullRawValue = RawValue{Tag: TagNull}
+ 
+ // NullBytes contains bytes representing the DER-encoded ASN.1 NULL type.
+@@ -1031,34 +1031,33 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
+ // fields in val will not be included in rest, as these are considered
+ // valid elements of the SEQUENCE and not trailing data.
+ //
+-// An ASN.1 INTEGER can be written to an int, int32, int64,
+-// or *big.Int (from the math/big package).
+-// If the encoded value does not fit in the Go type,
+-// Unmarshal returns a parse error.
++//   - An ASN.1 INTEGER can be written to an int, int32, int64,
++//     or *[big.Int].
++//     If the encoded value does not fit in the Go type,
++//     Unmarshal returns a parse error.
+ //
+-// An ASN.1 BIT STRING can be written to a BitString.
++//   - An ASN.1 BIT STRING can be written to a [BitString].
+ //
+-// An ASN.1 OCTET STRING can be written to a []byte.
++//   - An ASN.1 OCTET STRING can be written to a []byte.
+ //
+-// An ASN.1 OBJECT IDENTIFIER can be written to an
+-// ObjectIdentifier.
++//   - An ASN.1 OBJECT IDENTIFIER can be written to an [ObjectIdentifier].
+ //
+-// An ASN.1 ENUMERATED can be written to an Enumerated.
++//   - An ASN.1 ENUMERATED can be written to an [Enumerated].
+ //
+-// An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a time.Time.
++//   - An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a [time.Time].
+ //
+-// An ASN.1 PrintableString, IA5String, or NumericString can be written to a string.
++//   - An ASN.1 PrintableString, IA5String, or NumericString can be written to a string.
+ //
+-// Any of the above ASN.1 values can be written to an interface{}.
+-// The value stored in the interface has the corresponding Go type.
+-// For integers, that type is int64.
++//   - Any of the above ASN.1 values can be written to an interface{}.
++//     The value stored in the interface has the corresponding Go type.
++//     For integers, that type is int64.
+ //
+-// An ASN.1 SEQUENCE OF x or SET OF x can be written
+-// to a slice if an x can be written to the slice's element type.
++//   - An ASN.1 SEQUENCE OF x or SET OF x can be written
++//     to a slice if an x can be written to the slice's element type.
+ //
+-// An ASN.1 SEQUENCE or SET can be written to a struct
+-// if each of the elements in the sequence can be
+-// written to the corresponding element in the struct.
++//   - An ASN.1 SEQUENCE or SET can be written to a struct
++//     if each of the elements in the sequence can be
++//     written to the corresponding element in the struct.
+ //
+ // The following tags on struct fields have special meaning to Unmarshal:
+ //
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index c243349175..d8c8fe17b3 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -721,7 +721,7 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
+ 
+ // Marshal returns the ASN.1 encoding of val.
+ //
+-// In addition to the struct tags recognised by Unmarshal, the following can be
++// In addition to the struct tags recognized by Unmarshal, the following can be
+ // used:
+ //
+ //	ia5:         causes strings to be marshaled as ASN.1, IA5String values
+diff --git a/src/encoding/base32/base32.go b/src/encoding/base32/base32.go
+index d26cb5c685..4a61199a59 100644
+--- a/src/encoding/base32/base32.go
++++ b/src/encoding/base32/base32.go
+@@ -57,7 +57,7 @@ const (
+ // The alphabet is treated as a sequence of byte values
+ // without any special treatment for multi-byte UTF-8.
+ // The resulting Encoding uses the default padding character ('='),
+-// which may be changed or disabled via WithPadding.
++// which may be changed or disabled via [Encoding.WithPadding].
+ func NewEncoding(encoder string) *Encoding {
+ 	if len(encoder) != 32 {
+ 		panic("encoding alphabet is not 32-bytes long")
+@@ -112,12 +112,12 @@ func (enc Encoding) WithPadding(padding rune) *Encoding {
+  * Encoder
+  */
+ 
+-// Encode encodes src using the encoding enc, writing
+-// EncodedLen(len(src)) bytes to dst.
++// Encode encodes src using the encoding enc,
++// writing [Encoding.EncodedLen](len(src)) bytes to dst.
+ //
+ // The encoding pads the output to a multiple of 8 bytes,
+ // so Encode is not appropriate for use on individual blocks
+-// of a large data stream. Use NewEncoder() instead.
++// of a large data stream. Use [NewEncoder] instead.
+ func (enc *Encoding) Encode(dst, src []byte) {
+ 	if len(src) == 0 {
+ 		return
+@@ -386,10 +386,10 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
+ }
+ 
+ // Decode decodes src using the encoding enc. It writes at most
+-// DecodedLen(len(src)) bytes to dst and returns the number of bytes
++// [Encoding.DecodedLen](len(src)) bytes to dst and returns the number of bytes
+ // written. If src contains invalid base32 data, it will return the
+-// number of bytes successfully written and CorruptInputError.
+-// New line characters (\r and \n) are ignored.
++// number of bytes successfully written and [CorruptInputError].
++// Newline characters (\r and \n) are ignored.
+ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
+ 	buf := make([]byte, len(src))
+ 	l := stripNewlines(buf, src)
+diff --git a/src/encoding/base64/base64.go b/src/encoding/base64/base64.go
+index 992f5c243f..87f45863bd 100644
+--- a/src/encoding/base64/base64.go
++++ b/src/encoding/base64/base64.go
+@@ -60,7 +60,7 @@ const (
+ // The alphabet is treated as a sequence of byte values
+ // without any special treatment for multi-byte UTF-8.
+ // The resulting Encoding uses the default padding character ('='),
+-// which may be changed or disabled via WithPadding.
++// which may be changed or disabled via [Encoding.WithPadding].
+ func NewEncoding(encoder string) *Encoding {
+ 	if len(encoder) != 64 {
+ 		panic("encoding alphabet is not 64-bytes long")
+@@ -87,7 +87,7 @@ func NewEncoding(encoder string) *Encoding {
+ }
+ 
+ // WithPadding creates a new encoding identical to enc except
+-// with a specified padding character, or NoPadding to disable padding.
++// with a specified padding character, or [NoPadding] to disable padding.
+ // The padding character must not be '\r' or '\n',
+ // must not be contained in the encoding's alphabet,
+ // must not be negative, and must be a rune equal or below '\xff'.
+@@ -124,24 +124,24 @@ var URLEncoding = NewEncoding("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvw
+ 
+ // RawStdEncoding is the standard raw, unpadded base64 encoding,
+ // as defined in RFC 4648 section 3.2.
+-// This is the same as StdEncoding but omits padding characters.
++// This is the same as [StdEncoding] but omits padding characters.
+ var RawStdEncoding = StdEncoding.WithPadding(NoPadding)
+ 
+ // RawURLEncoding is the unpadded alternate base64 encoding defined in RFC 4648.
+ // It is typically used in URLs and file names.
+-// This is the same as URLEncoding but omits padding characters.
++// This is the same as [URLEncoding] but omits padding characters.
+ var RawURLEncoding = URLEncoding.WithPadding(NoPadding)
+ 
+ /*
+  * Encoder
+  */
+ 
+-// Encode encodes src using the encoding enc, writing
+-// EncodedLen(len(src)) bytes to dst.
++// Encode encodes src using the encoding enc,
++// writing [Encoding.EncodedLen](len(src)) bytes to dst.
+ //
+ // The encoding pads the output to a multiple of 4 bytes,
+ // so Encode is not appropriate for use on individual blocks
+-// of a large data stream. Use NewEncoder() instead.
++// of a large data stream. Use [NewEncoder] instead.
+ func (enc *Encoding) Encode(dst, src []byte) {
+ 	if len(src) == 0 {
+ 		return
+@@ -507,9 +507,9 @@ func (d *decoder) Read(p []byte) (n int, err error) {
+ }
+ 
+ // Decode decodes src using the encoding enc. It writes at most
+-// DecodedLen(len(src)) bytes to dst and returns the number of bytes
++// [Encoding.DecodedLen](len(src)) bytes to dst and returns the number of bytes
+ // written. If src contains invalid base64 data, it will return the
+-// number of bytes successfully written and CorruptInputError.
++// number of bytes successfully written and [CorruptInputError].
+ // New line characters (\r and \n) are ignored.
+ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
+ 	if len(src) == 0 {
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index 3fb18a7a03..f001be8386 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -17,8 +17,8 @@
+ //
+ // This package favors simplicity over efficiency. Clients that require
+ // high-performance serialization, especially for large data structures,
+-// should look at more advanced solutions such as the encoding/gob
+-// package or protocol buffers.
++// should look at more advanced solutions such as the [encoding/gob]
++// package or [google.golang.org/protobuf] for protocol buffers.
+ package binary
+ 
+ import (
+@@ -31,6 +31,8 @@ import (
+ 
+ // A ByteOrder specifies how to convert byte slices into
+ // 16-, 32-, or 64-bit unsigned integers.
++//
++// It is implemented by [LittleEndian], [BigEndian], and [NativeEndian].
+ type ByteOrder interface {
+ 	Uint16([]byte) uint16
+ 	Uint32([]byte) uint32
+@@ -43,6 +45,8 @@ type ByteOrder interface {
+ 
+ // AppendByteOrder specifies how to append 16-, 32-, or 64-bit unsigned integers
+ // into a byte slice.
++//
++// It is implemented by [LittleEndian], [BigEndian], and [NativeEndian].
+ type AppendByteOrder interface {
+ 	AppendUint16([]byte, uint16) []byte
+ 	AppendUint32([]byte, uint32) []byte
+@@ -50,10 +54,10 @@ type AppendByteOrder interface {
+ 	String() string
+ }
+ 
+-// LittleEndian is the little-endian implementation of ByteOrder and AppendByteOrder.
++// LittleEndian is the little-endian implementation of [ByteOrder] and [AppendByteOrder].
+ var LittleEndian littleEndian
+ 
+-// BigEndian is the big-endian implementation of ByteOrder and AppendByteOrder.
++// BigEndian is the big-endian implementation of [ByteOrder] and [AppendByteOrder].
+ var BigEndian bigEndian
+ 
+ type littleEndian struct{}
+@@ -227,9 +231,9 @@ func (nativeEndian) GoString() string { return "binary.NativeEndian" }
+ // When reading into a struct, all non-blank fields must be exported
+ // or Read may panic.
+ //
+-// The error is EOF only if no bytes were read.
+-// If an EOF happens after reading some but not all the bytes,
+-// Read returns ErrUnexpectedEOF.
++// The error is [io.EOF] only if no bytes were read.
++// If an [io.EOF] happens after reading some but not all the bytes,
++// Read returns [io.ErrUnexpectedEOF].
+ func Read(r io.Reader, order ByteOrder, data any) error {
+ 	// Fast path for basic types and slices.
+ 	if n := intDataSize(data); n != 0 {
+@@ -460,7 +464,7 @@ func Write(w io.Writer, order ByteOrder, data any) error {
+ 	return err
+ }
+ 
+-// Size returns how many bytes Write would generate to encode the value v, which
++// Size returns how many bytes [Write] would generate to encode the value v, which
+ // must be a fixed-size value or a slice of fixed-size values, or a pointer to such data.
+ // If v is neither of these, Size returns -1.
+ func Size(v any) int {
+diff --git a/src/encoding/binary/native_endian_big.go b/src/encoding/binary/native_endian_big.go
+index 1a24354f4b..bcc8e30b74 100644
+--- a/src/encoding/binary/native_endian_big.go
++++ b/src/encoding/binary/native_endian_big.go
+@@ -10,5 +10,5 @@ type nativeEndian struct {
+ 	bigEndian
+ }
+ 
+-// NativeEndian is the native-endian implementation of ByteOrder and AppendByteOrder.
++// NativeEndian is the native-endian implementation of [ByteOrder] and [AppendByteOrder].
+ var NativeEndian nativeEndian
+diff --git a/src/encoding/binary/native_endian_little.go b/src/encoding/binary/native_endian_little.go
+index 67b41ae0a2..38d3e9b695 100644
+--- a/src/encoding/binary/native_endian_little.go
++++ b/src/encoding/binary/native_endian_little.go
+@@ -10,5 +10,5 @@ type nativeEndian struct {
+ 	littleEndian
+ }
+ 
+-// NativeEndian is the native-endian implementation of ByteOrder and AppendByteOrder.
++// NativeEndian is the native-endian implementation of [ByteOrder] and [AppendByteOrder].
+ var NativeEndian nativeEndian
+diff --git a/src/encoding/binary/varint.go b/src/encoding/binary/varint.go
+index 7b14fb2b63..64dd9d61b4 100644
+--- a/src/encoding/binary/varint.go
++++ b/src/encoding/binary/varint.go
+@@ -37,7 +37,7 @@ const (
+ )
+ 
+ // AppendUvarint appends the varint-encoded form of x,
+-// as generated by PutUvarint, to buf and returns the extended buffer.
++// as generated by [PutUvarint], to buf and returns the extended buffer.
+ func AppendUvarint(buf []byte, x uint64) []byte {
+ 	for x >= 0x80 {
+ 		buf = append(buf, byte(x)|0x80)
+@@ -88,7 +88,7 @@ func Uvarint(buf []byte) (uint64, int) {
+ }
+ 
+ // AppendVarint appends the varint-encoded form of x,
+-// as generated by PutVarint, to buf and returns the extended buffer.
++// as generated by [PutVarint], to buf and returns the extended buffer.
+ func AppendVarint(buf []byte, x int64) []byte {
+ 	ux := uint64(x) << 1
+ 	if x < 0 {
+@@ -126,9 +126,9 @@ func Varint(buf []byte) (int64, int) {
+ var errOverflow = errors.New("binary: varint overflows a 64-bit integer")
+ 
+ // ReadUvarint reads an encoded unsigned integer from r and returns it as a uint64.
+-// The error is EOF only if no bytes were read.
+-// If an EOF happens after reading some but not all the bytes,
+-// ReadUvarint returns io.ErrUnexpectedEOF.
++// The error is [io.EOF] only if no bytes were read.
++// If an [io.EOF] happens after reading some but not all the bytes,
++// ReadUvarint returns [io.ErrUnexpectedEOF].
+ func ReadUvarint(r io.ByteReader) (uint64, error) {
+ 	var x uint64
+ 	var s uint
+@@ -153,9 +153,9 @@ func ReadUvarint(r io.ByteReader) (uint64, error) {
+ }
+ 
+ // ReadVarint reads an encoded signed integer from r and returns it as an int64.
+-// The error is EOF only if no bytes were read.
+-// If an EOF happens after reading some but not all the bytes,
+-// ReadVarint returns io.ErrUnexpectedEOF.
++// The error is [io.EOF] only if no bytes were read.
++// If an [io.EOF] happens after reading some but not all the bytes,
++// ReadVarint returns [io.ErrUnexpectedEOF].
+ func ReadVarint(r io.ByteReader) (int64, error) {
+ 	ux, err := ReadUvarint(r) // ok to continue in presence of error
+ 	x := int64(ux >> 1)
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index a93de9822d..d9cab86572 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -82,7 +82,7 @@ func (e *ParseError) Error() string {
+ 
+ func (e *ParseError) Unwrap() error { return e.Err }
+ 
+-// These are the errors that can be returned in ParseError.Err.
++// These are the errors that can be returned in [ParseError.Err].
+ var (
+ 	ErrBareQuote  = errors.New("bare \" in non-quoted-field")
+ 	ErrQuote      = errors.New("extraneous or missing \" in quoted-field")
+@@ -100,9 +100,9 @@ func validDelim(r rune) bool {
+ 
+ // A Reader reads records from a CSV-encoded file.
+ //
+-// As returned by NewReader, a Reader expects input conforming to RFC 4180.
++// As returned by [NewReader], a Reader expects input conforming to RFC 4180.
+ // The exported fields can be changed to customize the details before the
+-// first call to Read or ReadAll.
++// first call to [Reader.Read] or [Reader.ReadAll].
+ //
+ // The Reader converts all \r\n sequences in its input to plain \n,
+ // including in multiline field values, so that the returned data does
+@@ -186,12 +186,12 @@ func NewReader(r io.Reader) *Reader {
+ 
+ // Read reads one record (a slice of fields) from r.
+ // If the record has an unexpected number of fields,
+-// Read returns the record along with the error ErrFieldCount.
++// Read returns the record along with the error [ErrFieldCount].
+ // If the record contains a field that cannot be parsed,
+ // Read returns a partial record along with the parse error.
+ // The partial record contains all fields read before the error.
+-// If there is no data left to be read, Read returns nil, io.EOF.
+-// If ReuseRecord is true, the returned slice may be shared
++// If there is no data left to be read, Read returns nil, [io.EOF].
++// If [Reader.ReuseRecord] is true, the returned slice may be shared
+ // between multiple calls to Read.
+ func (r *Reader) Read() (record []string, err error) {
+ 	if r.ReuseRecord {
+@@ -205,7 +205,7 @@ func (r *Reader) Read() (record []string, err error) {
+ 
+ // FieldPos returns the line and column corresponding to
+ // the start of the field with the given index in the slice most recently
+-// returned by Read. Numbering of lines and columns starts at 1;
++// returned by [Reader.Read]. Numbering of lines and columns starts at 1;
+ // columns are counted in bytes, not runes.
+ //
+ // If this is called with an out-of-bounds index, it panics.
+@@ -231,7 +231,7 @@ type position struct {
+ 
+ // ReadAll reads all the remaining records from r.
+ // Each record is a slice of fields.
+-// A successful call returns err == nil, not err == io.EOF. Because ReadAll is
++// A successful call returns err == nil, not err == [io.EOF]. Because ReadAll is
+ // defined to read until EOF, it does not treat end of file as an error to be
+ // reported.
+ func (r *Reader) ReadAll() (records [][]string, err error) {
+@@ -249,7 +249,7 @@ func (r *Reader) ReadAll() (records [][]string, err error) {
+ 
+ // readLine reads the next line (with the trailing endline).
+ // If EOF is hit without a trailing endline, it will be omitted.
+-// If some bytes were read, then the error is never io.EOF.
++// If some bytes were read, then the error is never [io.EOF].
+ // The result is only valid until the next call to readLine.
+ func (r *Reader) readLine() ([]byte, error) {
+ 	line, err := r.r.ReadSlice('\n')
+diff --git a/src/encoding/csv/writer.go b/src/encoding/csv/writer.go
+index ac64b4d54c..ff3142f0bb 100644
+--- a/src/encoding/csv/writer.go
++++ b/src/encoding/csv/writer.go
+@@ -14,19 +14,21 @@ import (
+ 
+ // A Writer writes records using CSV encoding.
+ //
+-// As returned by NewWriter, a Writer writes records terminated by a
++// As returned by [NewWriter], a Writer writes records terminated by a
+ // newline and uses ',' as the field delimiter. The exported fields can be
+-// changed to customize the details before the first call to Write or WriteAll.
++// changed to customize the details before
++// the first call to [Writer.Write] or [Writer.WriteAll].
+ //
+-// Comma is the field delimiter.
++// [Writer.Comma] is the field delimiter.
+ //
+-// If UseCRLF is true, the Writer ends each output line with \r\n instead of \n.
++// If [Writer.UseCRLF] is true,
++// the Writer ends each output line with \r\n instead of \n.
+ //
+ // The writes of individual records are buffered.
+ // After all data has been written, the client should call the
+-// Flush method to guarantee all data has been forwarded to
+-// the underlying io.Writer.  Any errors that occurred should
+-// be checked by calling the Error method.
++// [Writer.Flush] method to guarantee all data has been forwarded to
++// the underlying [io.Writer].  Any errors that occurred should
++// be checked by calling the [Writer.Error] method.
+ type Writer struct {
+ 	Comma   rune // Field delimiter (set to ',' by NewWriter)
+ 	UseCRLF bool // True to use \r\n as the line terminator
+@@ -43,8 +45,8 @@ func NewWriter(w io.Writer) *Writer {
+ 
+ // Write writes a single CSV record to w along with any necessary quoting.
+ // A record is a slice of strings with each string being one field.
+-// Writes are buffered, so Flush must eventually be called to ensure
+-// that the record is written to the underlying io.Writer.
++// Writes are buffered, so [Writer.Flush] must eventually be called to ensure
++// that the record is written to the underlying [io.Writer].
+ func (w *Writer) Write(record []string) error {
+ 	if !validDelim(w.Comma) {
+ 		return errInvalidDelim
+@@ -118,20 +120,21 @@ func (w *Writer) Write(record []string) error {
+ 	return err
+ }
+ 
+-// Flush writes any buffered data to the underlying io.Writer.
+-// To check if an error occurred during the Flush, call Error.
++// Flush writes any buffered data to the underlying [io.Writer].
++// To check if an error occurred during Flush, call [Writer.Error].
+ func (w *Writer) Flush() {
+ 	w.w.Flush()
+ }
+ 
+-// Error reports any error that has occurred during a previous Write or Flush.
++// Error reports any error that has occurred during
++// a previous [Writer.Write] or [Writer.Flush].
+ func (w *Writer) Error() error {
+ 	_, err := w.w.Write(nil)
+ 	return err
+ }
+ 
+-// WriteAll writes multiple CSV records to w using Write and then calls Flush,
+-// returning any error from the Flush.
++// WriteAll writes multiple CSV records to w using [Writer.Write] and
++// then calls [Writer.Flush], returning any error from the Flush.
+ func (w *Writer) WriteAll(records [][]string) error {
+ 	for _, record := range records {
+ 		err := w.Write(record)
+diff --git a/src/encoding/gob/decoder.go b/src/encoding/gob/decoder.go
+index 5b77adc7e8..c4b6088013 100644
+--- a/src/encoding/gob/decoder.go
++++ b/src/encoding/gob/decoder.go
+@@ -37,9 +37,9 @@ type Decoder struct {
+ 	err          error
+ }
+ 
+-// NewDecoder returns a new decoder that reads from the io.Reader.
+-// If r does not also implement io.ByteReader, it will be wrapped in a
+-// bufio.Reader.
++// NewDecoder returns a new decoder that reads from the [io.Reader].
++// If r does not also implement [io.ByteReader], it will be wrapped in a
++// [bufio.Reader].
+ func NewDecoder(r io.Reader) *Decoder {
+ 	dec := new(Decoder)
+ 	// We use the ability to read bytes as a plausible surrogate for buffering.
+@@ -188,7 +188,7 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
+ // If e is nil, the value will be discarded. Otherwise,
+ // the value underlying e must be a pointer to the
+ // correct type for the next data item received.
+-// If the input is at EOF, Decode returns io.EOF and
++// If the input is at EOF, Decode returns [io.EOF] and
+ // does not modify e.
+ func (dec *Decoder) Decode(e any) error {
+ 	if e == nil {
+@@ -208,7 +208,7 @@ func (dec *Decoder) Decode(e any) error {
+ // If v is the zero reflect.Value (v.Kind() == Invalid), DecodeValue discards the value.
+ // Otherwise, it stores the value into v. In that case, v must represent
+ // a non-nil pointer to data or be an assignable reflect.Value (v.CanSet())
+-// If the input is at EOF, DecodeValue returns io.EOF and
++// If the input is at EOF, DecodeValue returns [io.EOF] and
+ // does not modify v.
+ func (dec *Decoder) DecodeValue(v reflect.Value) error {
+ 	if v.IsValid() {
+diff --git a/src/encoding/gob/doc.go b/src/encoding/gob/doc.go
+index 53c47e7d00..3f26ed8591 100644
+--- a/src/encoding/gob/doc.go
++++ b/src/encoding/gob/doc.go
+@@ -4,12 +4,12 @@
+ 
+ /*
+ Package gob manages streams of gobs - binary values exchanged between an
+-Encoder (transmitter) and a Decoder (receiver). A typical use is transporting
++[Encoder] (transmitter) and a [Decoder] (receiver). A typical use is transporting
+ arguments and results of remote procedure calls (RPCs) such as those provided by
+ [net/rpc].
+ 
+ The implementation compiles a custom codec for each data type in the stream and
+-is most efficient when a single Encoder is used to transmit a stream of values,
++is most efficient when a single [Encoder] is used to transmit a stream of values,
+ amortizing the cost of compilation.
+ 
+ # Basics
+@@ -21,10 +21,10 @@ transmitted; that is, the values are flattened. Nil pointers are not permitted,
+ as they have no value. Recursive types work fine, but
+ recursive values (data with cycles) are problematic. This may change.
+ 
+-To use gobs, create an Encoder and present it with a series of data items as
+-values or addresses that can be dereferenced to values. The Encoder makes sure
++To use gobs, create an [Encoder] and present it with a series of data items as
++values or addresses that can be dereferenced to values. The [Encoder] makes sure
+ all type information is sent before it is needed. At the receive side, a
+-Decoder retrieves values from the encoded stream and unpacks them into local
++[Decoder] retrieves values from the encoded stream and unpacks them into local
+ variables.
+ 
+ # Types and Values
+@@ -93,12 +93,12 @@ Functions and channels will not be sent in a gob. Attempting to encode such a va
+ at the top level will fail. A struct field of chan or func type is treated exactly
+ like an unexported field and is ignored.
+ 
+-Gob can encode a value of any type implementing the GobEncoder or
+-encoding.BinaryMarshaler interfaces by calling the corresponding method,
++Gob can encode a value of any type implementing the [GobEncoder] or
++[encoding.BinaryMarshaler] interfaces by calling the corresponding method,
+ in that order of preference.
+ 
+-Gob can decode a value of any type implementing the GobDecoder or
+-encoding.BinaryUnmarshaler interfaces by calling the corresponding method,
++Gob can decode a value of any type implementing the [GobDecoder] or
++[encoding.BinaryUnmarshaler] interfaces by calling the corresponding method,
+ again in that order of preference.
+ 
+ # Encoding Details
+@@ -131,7 +131,7 @@ instead guarantees that the largest negative integer is not a special case. For
+ example, -129=^128=(^256>>1) encodes as (FE 01 01).
+ 
+ Floating-point numbers are always sent as a representation of a float64 value.
+-That value is converted to a uint64 using math.Float64bits. The uint64 is then
++That value is converted to a uint64 using [math.Float64bits]. The uint64 is then
+ byte-reversed and sent as a regular unsigned integer. The byte-reversal means the
+ exponent and high-precision part of the mantissa go first. Since the low bits are
+ often zero, this can save encoding bytes. For instance, 17.0 is encoded in only
+@@ -168,22 +168,22 @@ Interface types are not checked for compatibility; all interface types are
+ treated, for transmission, as members of a single "interface" type, analogous to
+ int or []byte - in effect they're all treated as interface{}. Interface values
+ are transmitted as a string identifying the concrete type being sent (a name
+-that must be pre-defined by calling Register), followed by a byte count of the
++that must be pre-defined by calling [Register]), followed by a byte count of the
+ length of the following data (so the value can be skipped if it cannot be
+ stored), followed by the usual encoding of concrete (dynamic) value stored in
+ the interface value. (A nil interface value is identified by the empty string
+ and transmits no value.) Upon receipt, the decoder verifies that the unpacked
+ concrete item satisfies the interface of the receiving variable.
+ 
+-If a value is passed to Encode and the type is not a struct (or pointer to struct,
++If a value is passed to [Encoder.Encode] and the type is not a struct (or pointer to struct,
+ etc.), for simplicity of processing it is represented as a struct of one field.
+ The only visible effect of this is to encode a zero byte after the value, just as
+ after the last field of an encoded struct, so that the decode algorithm knows when
+ the top-level value is complete.
+ 
+ The representation of types is described below. When a type is defined on a given
+-connection between an Encoder and Decoder, it is assigned a signed integer type
+-id. When Encoder.Encode(v) is called, it makes sure there is an id assigned for
++connection between an [Encoder] and [Decoder], it is assigned a signed integer type
++id. When [Encoder.Encode](v) is called, it makes sure there is an id assigned for
+ the type of v and all its elements and then it sends the pair (typeid, encoded-v)
+ where typeid is the type id of the encoded type of v and encoded-v is the gob
+ encoding of the value v.
+@@ -280,7 +280,7 @@ https://blog.golang.org/gobs-of-data
+ # Security
+ 
+ This package is not designed to be hardened against adversarial inputs, and is
+-outside the scope of https://go.dev/security/policy. In particular, the Decoder
++outside the scope of https://go.dev/security/policy. In particular, the [Decoder]
+ does only basic sanity checking on decoded input sizes, and its limits are not
+ configurable. Care should be taken when decoding gob data from untrusted
+ sources, which may consume significant resources.
+diff --git a/src/encoding/gob/encoder.go b/src/encoding/gob/encoder.go
+index 16b65bf7d4..7d46152aba 100644
+--- a/src/encoding/gob/encoder.go
++++ b/src/encoding/gob/encoder.go
+@@ -30,7 +30,7 @@ type Encoder struct {
+ const maxLength = 9 // Maximum size of an encoded length.
+ var spaceForLength = make([]byte, maxLength)
+ 
+-// NewEncoder returns a new encoder that will transmit on the io.Writer.
++// NewEncoder returns a new encoder that will transmit on the [io.Writer].
+ func NewEncoder(w io.Writer) *Encoder {
+ 	enc := new(Encoder)
+ 	enc.w = []io.Writer{w}
+diff --git a/src/encoding/gob/type.go b/src/encoding/gob/type.go
+index 2f7254abb9..30d8ca61c4 100644
+--- a/src/encoding/gob/type.go
++++ b/src/encoding/gob/type.go
+@@ -828,7 +828,7 @@ var (
+ 	concreteTypeToName sync.Map // map[reflect.Type]string
+ )
+ 
+-// RegisterName is like Register but uses the provided name rather than the
++// RegisterName is like [Register] but uses the provided name rather than the
+ // type's default.
+ func RegisterName(name string, value any) {
+ 	if name == "" {
+diff --git a/src/encoding/hex/hex.go b/src/encoding/hex/hex.go
+index ccc395e2f7..791d2bd4ad 100644
+--- a/src/encoding/hex/hex.go
++++ b/src/encoding/hex/hex.go
+@@ -38,9 +38,9 @@ const (
+ // Specifically, it returns n * 2.
+ func EncodedLen(n int) int { return n * 2 }
+ 
+-// Encode encodes src into EncodedLen(len(src))
++// Encode encodes src into [EncodedLen](len(src))
+ // bytes of dst. As a convenience, it returns the number
+-// of bytes written to dst, but this value is always EncodedLen(len(src)).
++// of bytes written to dst, but this value is always [EncodedLen](len(src)).
+ // Encode implements hexadecimal encoding.
+ func Encode(dst, src []byte) int {
+ 	j := 0
+@@ -62,8 +62,8 @@ func AppendEncode(dst, src []byte) []byte {
+ }
+ 
+ // ErrLength reports an attempt to decode an odd-length input
+-// using Decode or DecodeString.
+-// The stream-based Decoder returns io.ErrUnexpectedEOF instead of ErrLength.
++// using [Decode] or [DecodeString].
++// The stream-based Decoder returns [io.ErrUnexpectedEOF] instead of ErrLength.
+ var ErrLength = errors.New("encoding/hex: odd length hex string")
+ 
+ // InvalidByteError values describe errors resulting from an invalid byte in a hex string.
+@@ -77,7 +77,7 @@ func (e InvalidByteError) Error() string {
+ // Specifically, it returns x / 2.
+ func DecodedLen(x int) int { return x / 2 }
+ 
+-// Decode decodes src into DecodedLen(len(src)) bytes,
++// Decode decodes src into [DecodedLen](len(src)) bytes,
+ // returning the actual number of bytes written to dst.
+ //
+ // Decode expects that src contains only hexadecimal
+@@ -171,7 +171,7 @@ type encoder struct {
+ 	out [bufferSize]byte // output buffer
+ }
+ 
+-// NewEncoder returns an io.Writer that writes lowercase hexadecimal characters to w.
++// NewEncoder returns an [io.Writer] that writes lowercase hexadecimal characters to w.
+ func NewEncoder(w io.Writer) io.Writer {
+ 	return &encoder{w: w}
+ }
+@@ -199,7 +199,7 @@ type decoder struct {
+ 	arr [bufferSize]byte // backing array for in
+ }
+ 
+-// NewDecoder returns an io.Reader that decodes hexadecimal characters from r.
++// NewDecoder returns an [io.Reader] that decodes hexadecimal characters from r.
+ // NewDecoder expects that r contain only an even number of hexadecimal characters.
+ func NewDecoder(r io.Reader) io.Reader {
+ 	return &decoder{r: r}
+@@ -238,7 +238,7 @@ func (d *decoder) Read(p []byte) (n int, err error) {
+ 	return numDec, nil
+ }
+ 
+-// Dumper returns a WriteCloser that writes a hex dump of all written data to
++// Dumper returns a [io.WriteCloser] that writes a hex dump of all written data to
+ // w. The format of the dump matches the output of `hexdump -C` on the command
+ // line.
+ func Dumper(w io.Writer) io.WriteCloser {
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 72188a66f6..bc1891f8ac 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -24,7 +24,7 @@ import (
+ // Unmarshal returns an [InvalidUnmarshalError].
+ //
+ // Unmarshal uses the inverse of the encodings that
+-// Marshal uses, allocating maps, slices, and pointers as necessary,
++// [Marshal] uses, allocating maps, slices, and pointers as necessary,
+ // with the following additional rules:
+ //
+ // To unmarshal JSON into a pointer, Unmarshal first handles the case of
+@@ -41,7 +41,7 @@ import (
+ // [encoding.TextUnmarshaler.UnmarshalText] with the unquoted form of the string.
+ //
+ // To unmarshal JSON into a struct, Unmarshal matches incoming object
+-// keys to the keys used by Marshal (either the struct field name or its tag),
++// keys to the keys used by [Marshal] (either the struct field name or its tag),
+ // preferring an exact match but also accepting a case-insensitive match. By
+ // default, object keys which don't have a corresponding struct field are
+ // ignored (see [Decoder.DisallowUnknownFields] for an alternative).
+@@ -49,12 +49,12 @@ import (
+ // To unmarshal JSON into an interface value,
+ // Unmarshal stores one of these in the interface value:
+ //
+-//	bool, for JSON booleans
+-//	float64, for JSON numbers
+-//	string, for JSON strings
+-//	[]interface{}, for JSON arrays
+-//	map[string]interface{}, for JSON objects
+-//	nil for JSON null
++//   - bool, for JSON booleans
++//   - float64, for JSON numbers
++//   - string, for JSON strings
++//   - []interface{}, for JSON arrays
++//   - map[string]interface{}, for JSON objects
++//   - nil for JSON null
+ //
+ // To unmarshal a JSON array into a slice, Unmarshal resets the slice length
+ // to zero and then appends each element to the slice.
+@@ -72,8 +72,8 @@ import (
+ // use. If the map is nil, Unmarshal allocates a new map. Otherwise Unmarshal
+ // reuses the existing map, keeping existing entries. Unmarshal then stores
+ // key-value pairs from the JSON object into the map. The map's key type must
+-// either be any string type, an integer, implement json.Unmarshaler, or
+-// implement encoding.TextUnmarshaler.
++// either be any string type, an integer, implement [json.Unmarshaler], or
++// implement [encoding.TextUnmarshaler].
+ //
+ // If the JSON-encoded data contain a syntax error, Unmarshal returns a [SyntaxError].
+ //
+@@ -81,7 +81,7 @@ import (
+ // or if a JSON number overflows the target type, Unmarshal
+ // skips that field and completes the unmarshaling as best it can.
+ // If no more serious errors are encountered, Unmarshal returns
+-// an UnmarshalTypeError describing the earliest such error. In any
++// an [UnmarshalTypeError] describing the earliest such error. In any
+ // case, it's not guaranteed that all the remaining fields following
+ // the problematic one will be unmarshaled into the target object.
+ //
+@@ -114,7 +114,7 @@ func Unmarshal(data []byte, v any) error {
+ // a JSON value. UnmarshalJSON must copy the JSON data
+ // if it wishes to retain the data after returning.
+ //
+-// By convention, to approximate the behavior of Unmarshal itself,
++// By convention, to approximate the behavior of [Unmarshal] itself,
+ // Unmarshalers implement UnmarshalJSON([]byte("null")) as a no-op.
+ type Unmarshaler interface {
+ 	UnmarshalJSON([]byte) error
+@@ -151,8 +151,8 @@ func (e *UnmarshalFieldError) Error() string {
+ 	return "json: cannot unmarshal object key " + strconv.Quote(e.Key) + " into unexported field " + e.Field.Name + " of type " + e.Type.String()
+ }
+ 
+-// An InvalidUnmarshalError describes an invalid argument passed to Unmarshal.
+-// (The argument to Unmarshal must be a non-nil pointer.)
++// An InvalidUnmarshalError describes an invalid argument passed to [Unmarshal].
++// (The argument to [Unmarshal] must be a non-nil pointer.)
+ type InvalidUnmarshalError struct {
+ 	Type reflect.Type
+ }
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 6fee1dc00b..9d6d7adcef 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -42,17 +42,17 @@ import (
+ //
+ // Boolean values encode as JSON booleans.
+ //
+-// Floating point, integer, and Number values encode as JSON numbers.
++// Floating point, integer, and [Number] values encode as JSON numbers.
+ // NaN and +/-Inf values will return an [UnsupportedValueError].
+ //
+ // String values encode as JSON strings coerced to valid UTF-8,
+ // replacing invalid bytes with the Unicode replacement rune.
+ // So that the JSON will be safe to embed inside HTML <script> tags,
+-// the string is encoded using HTMLEscape,
++// the string is encoded using [HTMLEscape],
+ // which replaces "<", ">", "&", U+2028, and U+2029 are escaped
+ // to "\u003c","\u003e", "\u0026", "\u2028", and "\u2029".
+-// This replacement can be disabled when using an Encoder,
+-// by calling SetEscapeHTML(false).
++// This replacement can be disabled when using an [Encoder],
++// by calling [Encoder.SetEscapeHTML](false).
+ //
+ // Array and slice values encode as JSON arrays, except that
+ // []byte encodes as a base64-encoded string, and a nil slice
+@@ -109,7 +109,7 @@ import (
+ // only Unicode letters, digits, and ASCII punctuation except quotation
+ // marks, backslash, and comma.
+ //
+-// Anonymous struct fields are usually marshaled as if their inner exported fields
++// Embedded struct fields are usually marshaled as if their inner exported fields
+ // were fields in the outer struct, subject to the usual Go visibility rules amended
+ // as described in the next paragraph.
+ // An anonymous struct field with a name given in its JSON tag is treated as
+@@ -136,11 +136,11 @@ import (
+ // a JSON tag of "-".
+ //
+ // Map values encode as JSON objects. The map's key type must either be a
+-// string, an integer type, or implement encoding.TextMarshaler. The map keys
++// string, an integer type, or implement [encoding.TextMarshaler]. The map keys
+ // are sorted and used as JSON object keys by applying the following rules,
+ // subject to the UTF-8 coercion described for string values above:
+ //   - keys of any string type are used directly
+-//   - encoding.TextMarshalers are marshaled
++//   - [encoding.TextMarshalers] are marshaled
+ //   - integer keys are converted to strings
+ //
+ // Pointer values encode as the value pointed to.
+@@ -151,7 +151,7 @@ import (
+ //
+ // Channel, complex, and function values cannot be encoded in JSON.
+ // Attempting to encode such a value causes Marshal to return
+-// an UnsupportedTypeError.
++// an [UnsupportedTypeError].
+ //
+ // JSON cannot represent cyclic data structures and Marshal does not
+ // handle them. Passing cyclic structures to Marshal will result in
+@@ -169,7 +169,7 @@ func Marshal(v any) ([]byte, error) {
+ 	return buf, nil
+ }
+ 
+-// MarshalIndent is like Marshal but applies Indent to format the output.
++// MarshalIndent is like [Marshal] but applies [Indent] to format the output.
+ // Each JSON element in the output will begin on a new line beginning with prefix
+ // followed by one or more copies of indent according to the indentation nesting.
+ func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
+@@ -191,7 +191,7 @@ type Marshaler interface {
+ 	MarshalJSON() ([]byte, error)
+ }
+ 
+-// An UnsupportedTypeError is returned by Marshal when attempting
++// An UnsupportedTypeError is returned by [Marshal] when attempting
+ // to encode an unsupported value type.
+ type UnsupportedTypeError struct {
+ 	Type reflect.Type
+@@ -201,7 +201,7 @@ func (e *UnsupportedTypeError) Error() string {
+ 	return "json: unsupported type: " + e.Type.String()
+ }
+ 
+-// An UnsupportedValueError is returned by Marshal when attempting
++// An UnsupportedValueError is returned by [Marshal] when attempting
+ // to encode an unsupported value.
+ type UnsupportedValueError struct {
+ 	Value reflect.Value
+@@ -212,9 +212,9 @@ func (e *UnsupportedValueError) Error() string {
+ 	return "json: unsupported value: " + e.Str
+ }
+ 
+-// Before Go 1.2, an InvalidUTF8Error was returned by Marshal when
++// Before Go 1.2, an InvalidUTF8Error was returned by [Marshal] when
+ // attempting to encode a string value with invalid UTF-8 sequences.
+-// As of Go 1.2, Marshal instead coerces the string to valid UTF-8 by
++// As of Go 1.2, [Marshal] instead coerces the string to valid UTF-8 by
+ // replacing invalid bytes with the Unicode replacement rune U+FFFD.
+ //
+ // Deprecated: No longer used; kept for compatibility.
+@@ -226,7 +226,8 @@ func (e *InvalidUTF8Error) Error() string {
+ 	return "json: invalid UTF-8 in string: " + strconv.Quote(e.S)
+ }
+ 
+-// A MarshalerError represents an error from calling a MarshalJSON or MarshalText method.
++// A MarshalerError represents an error from calling a
++// [Marshaler.MarshalJSON] or [encoding.TextMarshaler.MarshalText] method.
+ type MarshalerError struct {
+ 	Type       reflect.Type
+ 	Err        error
+diff --git a/src/encoding/json/scanner.go b/src/encoding/json/scanner.go
+index 4c43f5f98c..da6ea2ac8f 100644
+--- a/src/encoding/json/scanner.go
++++ b/src/encoding/json/scanner.go
+@@ -43,7 +43,7 @@ func checkValid(data []byte, scan *scanner) error {
+ }
+ 
+ // A SyntaxError is a description of a JSON syntax error.
+-// Unmarshal will return a SyntaxError if the JSON can't be parsed.
++// [Unmarshal] will return a SyntaxError if the JSON can't be parsed.
+ type SyntaxError struct {
+ 	msg    string // description of error
+ 	Offset int64  // error occurred after reading Offset bytes
+diff --git a/src/encoding/json/stream.go b/src/encoding/json/stream.go
+index b4146a359e..5c98d1de04 100644
+--- a/src/encoding/json/stream.go
++++ b/src/encoding/json/stream.go
+@@ -33,7 +33,7 @@ func NewDecoder(r io.Reader) *Decoder {
+ }
+ 
+ // UseNumber causes the Decoder to unmarshal a number into an interface{} as a
+-// Number instead of as a float64.
++// [Number] instead of as a float64.
+ func (dec *Decoder) UseNumber() { dec.d.useNumber = true }
+ 
+ // DisallowUnknownFields causes the Decoder to return an error when the destination
+@@ -44,7 +44,7 @@ func (dec *Decoder) DisallowUnknownFields() { dec.d.disallowUnknownFields = true
+ // Decode reads the next JSON-encoded value from its
+ // input and stores it in the value pointed to by v.
+ //
+-// See the documentation for Unmarshal for details about
++// See the documentation for [Unmarshal] for details about
+ // the conversion of JSON into a Go value.
+ func (dec *Decoder) Decode(v any) error {
+ 	if dec.err != nil {
+@@ -79,7 +79,7 @@ func (dec *Decoder) Decode(v any) error {
+ }
+ 
+ // Buffered returns a reader of the data remaining in the Decoder's
+-// buffer. The reader is valid until the next call to Decode.
++// buffer. The reader is valid until the next call to [Decoder.Decode].
+ func (dec *Decoder) Buffered() io.Reader {
+ 	return bytes.NewReader(dec.buf[dec.scanp:])
+ }
+@@ -196,7 +196,7 @@ func NewEncoder(w io.Writer) *Encoder {
+ // Encode writes the JSON encoding of v to the stream,
+ // followed by a newline character.
+ //
+-// See the documentation for Marshal for details about the
++// See the documentation for [Marshal] for details about the
+ // conversion of Go values to JSON.
+ func (enc *Encoder) Encode(v any) error {
+ 	if enc.err != nil {
+@@ -253,7 +253,7 @@ func (enc *Encoder) SetEscapeHTML(on bool) {
+ }
+ 
+ // RawMessage is a raw encoded JSON value.
+-// It implements Marshaler and Unmarshaler and can
++// It implements [Marshaler] and [Unmarshaler] and can
+ // be used to delay JSON decoding or precompute a JSON encoding.
+ type RawMessage []byte
+ 
+@@ -279,12 +279,12 @@ var _ Unmarshaler = (*RawMessage)(nil)
+ 
+ // A Token holds a value of one of these types:
+ //
+-//	Delim, for the four JSON delimiters [ ] { }
+-//	bool, for JSON booleans
+-//	float64, for JSON numbers
+-//	Number, for JSON numbers
+-//	string, for JSON string literals
+-//	nil, for JSON null
++//   - [Delim], for the four JSON delimiters [ ] { }
++//   - bool, for JSON booleans
++//   - float64, for JSON numbers
++//   - [Number], for JSON numbers
++//   - string, for JSON string literals
++//   - nil, for JSON null
+ type Token any
+ 
+ const (
+@@ -354,14 +354,14 @@ func (d Delim) String() string {
+ }
+ 
+ // Token returns the next JSON token in the input stream.
+-// At the end of the input stream, Token returns nil, io.EOF.
++// At the end of the input stream, Token returns nil, [io.EOF].
+ //
+ // Token guarantees that the delimiters [ ] { } it returns are
+ // properly nested and matched: if Token encounters an unexpected
+ // delimiter in the input, it will return an error.
+ //
+ // The input stream consists of basic JSON values—bool, string,
+-// number, and null—along with delimiters [ ] { } of type Delim
++// number, and null—along with delimiters [ ] { } of type [Delim]
+ // to mark the start and end of arrays and objects.
+ // Commas and colons are elided.
+ func (dec *Decoder) Token() (Token, error) {
+diff --git a/src/encoding/pem/pem.go b/src/encoding/pem/pem.go
+index d26e4c8399..4b4f749021 100644
+--- a/src/encoding/pem/pem.go
++++ b/src/encoding/pem/pem.go
+@@ -25,7 +25,7 @@ import (
+ //	base64-encoded Bytes
+ //	-----END Type-----
+ //
+-// where Headers is a possibly empty sequence of Key: Value lines.
++// where [Block.Headers] is a possibly empty sequence of Key: Value lines.
+ type Block struct {
+ 	Type    string            // The type, taken from the preamble (i.e. "RSA PRIVATE KEY").
+ 	Headers map[string]string // Optional headers.
+@@ -306,7 +306,7 @@ func Encode(out io.Writer, b *Block) error {
+ //
+ // If b has invalid headers and cannot be encoded,
+ // EncodeToMemory returns nil. If it is important to
+-// report details about this error case, use Encode instead.
++// report details about this error case, use [Encode] instead.
+ func EncodeToMemory(b *Block) []byte {
+ 	var buf bytes.Buffer
+ 	if err := Encode(&buf, b); err != nil {
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index 5cf12f0888..c2931a534b 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -17,7 +17,7 @@ import (
+ )
+ 
+ const (
+-	// Header is a generic XML header suitable for use with the output of Marshal.
++	// Header is a generic XML header suitable for use with the output of [Marshal].
+ 	// This is not automatically added to any output of this package,
+ 	// it is provided as a convenience.
+ 	Header = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
+@@ -34,7 +34,7 @@ const (
+ //
+ // The name for the XML elements is taken from, in order of preference:
+ //   - the tag on the XMLName field, if the data is a struct
+-//   - the value of the XMLName field of type Name
++//   - the value of the XMLName field of type [Name]
+ //   - the tag of the struct field used to obtain the data
+ //   - the name of the struct field used to obtain the data
+ //   - the name of the marshaled type
+@@ -62,9 +62,9 @@ const (
+ //     string of length zero.
+ //   - an anonymous struct field is handled as if the fields of its
+ //     value were part of the outer struct.
+-//   - a field implementing Marshaler is written by calling its MarshalXML
++//   - a field implementing [Marshaler] is written by calling its MarshalXML
+ //     method.
+-//   - a field implementing encoding.TextMarshaler is written by encoding the
++//   - a field implementing [encoding.TextMarshaler] is written by encoding the
+ //     result of its MarshalText method as text.
+ //
+ // If a field uses a tag "a>b>c", then the element c will be nested inside
+@@ -74,7 +74,7 @@ const (
+ // If the XML name for a struct field is defined by both the field tag and the
+ // struct's XMLName field, the names must match.
+ //
+-// See MarshalIndent for an example.
++// See [MarshalIndent] for an example.
+ //
+ // Marshal will return an error if asked to marshal a channel, function, or map.
+ func Marshal(v any) ([]byte, error) {
+@@ -96,7 +96,7 @@ func Marshal(v any) ([]byte, error) {
+ // By convention, arrays or slices are typically encoded as a sequence
+ // of elements, one per entry.
+ // Using start as the element tag is not required, but doing so
+-// will enable Unmarshal to match the XML elements to the correct
++// will enable [Unmarshal] to match the XML elements to the correct
+ // struct field.
+ // One common implementation strategy is to construct a separate
+ // value with a layout corresponding to the desired XML and then
+@@ -114,9 +114,9 @@ type Marshaler interface {
+ //
+ // MarshalXMLAttr returns an XML attribute with the encoded value of the receiver.
+ // Using name as the attribute name is not required, but doing so
+-// will enable Unmarshal to match the attribute to the correct
++// will enable [Unmarshal] to match the attribute to the correct
+ // struct field.
+-// If MarshalXMLAttr returns the zero attribute Attr{}, no attribute
++// If MarshalXMLAttr returns the zero attribute [Attr]{}, no attribute
+ // will be generated in the output.
+ // MarshalXMLAttr is used only for struct fields with the
+ // "attr" option in the field tag.
+@@ -124,7 +124,7 @@ type MarshalerAttr interface {
+ 	MarshalXMLAttr(name Name) (Attr, error)
+ }
+ 
+-// MarshalIndent works like Marshal, but each XML element begins on a new
++// MarshalIndent works like [Marshal], but each XML element begins on a new
+ // indented line that starts with prefix and is followed by one or more
+ // copies of indent according to the nesting depth.
+ func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
+@@ -162,10 +162,10 @@ func (enc *Encoder) Indent(prefix, indent string) {
+ 
+ // Encode writes the XML encoding of v to the stream.
+ //
+-// See the documentation for Marshal for details about the conversion
++// See the documentation for [Marshal] for details about the conversion
+ // of Go values to XML.
+ //
+-// Encode calls Flush before returning.
++// Encode calls [Encoder.Flush] before returning.
+ func (enc *Encoder) Encode(v any) error {
+ 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, nil)
+ 	if err != nil {
+@@ -177,10 +177,10 @@ func (enc *Encoder) Encode(v any) error {
+ // EncodeElement writes the XML encoding of v to the stream,
+ // using start as the outermost tag in the encoding.
+ //
+-// See the documentation for Marshal for details about the conversion
++// See the documentation for [Marshal] for details about the conversion
+ // of Go values to XML.
+ //
+-// EncodeElement calls Flush before returning.
++// EncodeElement calls [Encoder.Flush] before returning.
+ func (enc *Encoder) EncodeElement(v any, start StartElement) error {
+ 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, &start)
+ 	if err != nil {
+@@ -196,16 +196,16 @@ var (
+ )
+ 
+ // EncodeToken writes the given XML token to the stream.
+-// It returns an error if StartElement and EndElement tokens are not properly matched.
++// It returns an error if [StartElement] and [EndElement] tokens are not properly matched.
+ //
+-// EncodeToken does not call Flush, because usually it is part of a larger operation
+-// such as Encode or EncodeElement (or a custom Marshaler's MarshalXML invoked
++// EncodeToken does not call [Encoder.Flush], because usually it is part of a larger operation
++// such as [Encoder.Encode] or [Encoder.EncodeElement] (or a custom [Marshaler]'s MarshalXML invoked
+ // during those), and those will call Flush when finished.
+ // Callers that create an Encoder and then invoke EncodeToken directly, without
+ // using Encode or EncodeElement, need to call Flush when finished to ensure
+ // that the XML is written to the underlying writer.
+ //
+-// EncodeToken allows writing a ProcInst with Target set to "xml" only as the first token
++// EncodeToken allows writing a [ProcInst] with Target set to "xml" only as the first token
+ // in the stream.
+ func (enc *Encoder) EncodeToken(t Token) error {
+ 
+@@ -303,7 +303,7 @@ func isValidDirective(dir Directive) bool {
+ }
+ 
+ // Flush flushes any buffered XML to the underlying writer.
+-// See the EncodeToken documentation for details about when it is necessary.
++// See the [Encoder.EncodeToken] documentation for details about when it is necessary.
+ func (enc *Encoder) Flush() error {
+ 	return enc.p.w.Flush()
+ }
+@@ -1106,7 +1106,7 @@ func (s *parentStack) push(parents []string) error {
+ 	return nil
+ }
+ 
+-// UnsupportedTypeError is returned when Marshal encounters a type
++// UnsupportedTypeError is returned when [Marshal] encounters a type
+ // that cannot be converted into XML.
+ type UnsupportedTypeError struct {
+ 	Type reflect.Type
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index e3f9a587dd..3cc4968c76 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -19,7 +19,7 @@ import (
+ // an XML element is an order-dependent collection of anonymous
+ // values, while a data structure is an order-independent collection
+ // of named values.
+-// See package json for a textual representation more suitable
++// See [encoding/json] for a textual representation more suitable
+ // to data structures.
+ 
+ // Unmarshal parses the XML-encoded data and stores the result in
+@@ -96,7 +96,7 @@ import (
+ // If Unmarshal encounters a field type that implements the Unmarshaler
+ // interface, Unmarshal calls its UnmarshalXML method to produce the value from
+ // the XML element.  Otherwise, if the value implements
+-// encoding.TextUnmarshaler, Unmarshal calls that value's UnmarshalText method.
++// [encoding.TextUnmarshaler], Unmarshal calls that value's UnmarshalText method.
+ //
+ // Unmarshal maps an XML element to a string or []byte by saving the
+ // concatenation of that element's character data in the string or
+@@ -105,7 +105,7 @@ import (
+ // Unmarshal maps an attribute value to a string or []byte by saving
+ // the value in the string or slice.
+ //
+-// Unmarshal maps an attribute value to an Attr by saving the attribute,
++// Unmarshal maps an attribute value to an [Attr] by saving the attribute,
+ // including its name, in the Attr.
+ //
+ // Unmarshal maps an XML element or attribute value to a slice by
+@@ -134,16 +134,16 @@ func Unmarshal(data []byte, v any) error {
+ 	return NewDecoder(bytes.NewReader(data)).Decode(v)
+ }
+ 
+-// Decode works like Unmarshal, except it reads the decoder
++// Decode works like [Unmarshal], except it reads the decoder
+ // stream to find the start element.
+ func (d *Decoder) Decode(v any) error {
+ 	return d.DecodeElement(v, nil)
+ }
+ 
+-// DecodeElement works like Unmarshal except that it takes
++// DecodeElement works like [Unmarshal] except that it takes
+ // a pointer to the start XML element to decode into v.
+ // It is useful when a client reads some raw XML tokens itself
+-// but also wants to defer to Unmarshal for some elements.
++// but also wants to defer to [Unmarshal] for some elements.
+ func (d *Decoder) DecodeElement(v any, start *StartElement) error {
+ 	val := reflect.ValueOf(v)
+ 	if val.Kind() != reflect.Pointer {
+@@ -184,7 +184,7 @@ type Unmarshaler interface {
+ // an XML attribute description of themselves.
+ //
+ // UnmarshalXMLAttr decodes a single XML attribute.
+-// If it returns an error, the outer call to Unmarshal stops and
++// If it returns an error, the outer call to [Unmarshal] stops and
+ // returns that error.
+ // UnmarshalXMLAttr is used only for struct fields with the
+ // "attr" option in the field tag.
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index d121986944..73eedad290 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -34,7 +34,7 @@ func (e *SyntaxError) Error() string {
+ 
+ // A Name represents an XML name (Local) annotated
+ // with a name space identifier (Space).
+-// In tokens returned by Decoder.Token, the Space identifier
++// In tokens returned by [Decoder.Token], the Space identifier
+ // is given as a canonical URL, not the short prefix used
+ // in the document being parsed.
+ type Name struct {
+@@ -48,7 +48,7 @@ type Attr struct {
+ }
+ 
+ // A Token is an interface holding one of the token types:
+-// StartElement, EndElement, CharData, Comment, ProcInst, or Directive.
++// [StartElement], [EndElement], [CharData], [Comment], [ProcInst], or [Directive].
+ type Token any
+ 
+ // A StartElement represents an XML start element.
+@@ -127,14 +127,14 @@ func CopyToken(t Token) Token {
+ }
+ 
+ // A TokenReader is anything that can decode a stream of XML tokens, including a
+-// Decoder.
++// [Decoder].
+ //
+ // When Token encounters an error or end-of-file condition after successfully
+ // reading a token, it returns the token. It may return the (non-nil) error from
+ // the same call or return the error (and a nil token) from a subsequent call.
+ // An instance of this general case is that a TokenReader returning a non-nil
+ // token at the end of the token stream may return either io.EOF or a nil error.
+-// The next Read should return nil, io.EOF.
++// The next Read should return nil, [io.EOF].
+ //
+ // Implementations of Token are discouraged from returning a nil token with a
+ // nil error. Callers should treat a return of nil, nil as indicating that
+@@ -216,7 +216,7 @@ type Decoder struct {
+ }
+ 
+ // NewDecoder creates a new XML parser reading from r.
+-// If r does not implement io.ByteReader, NewDecoder will
++// If r does not implement [io.ByteReader], NewDecoder will
+ // do its own buffering.
+ func NewDecoder(r io.Reader) *Decoder {
+ 	d := &Decoder{
+@@ -246,28 +246,28 @@ func NewTokenDecoder(t TokenReader) *Decoder {
+ }
+ 
+ // Token returns the next XML token in the input stream.
+-// At the end of the input stream, Token returns nil, io.EOF.
++// At the end of the input stream, Token returns nil, [io.EOF].
+ //
+ // Slices of bytes in the returned token data refer to the
+ // parser's internal buffer and remain valid only until the next
+-// call to Token. To acquire a copy of the bytes, call CopyToken
++// call to Token. To acquire a copy of the bytes, call [CopyToken]
+ // or the token's Copy method.
+ //
+ // Token expands self-closing elements such as <br>
+ // into separate start and end elements returned by successive calls.
+ //
+-// Token guarantees that the StartElement and EndElement
++// Token guarantees that the [StartElement] and [EndElement]
+ // tokens it returns are properly nested and matched:
+ // if Token encounters an unexpected end element
+ // or EOF before all expected end elements,
+ // it will return an error.
+ //
+-// If CharsetReader is called and returns an error,
++// If [Decoder.CharsetReader] is called and returns an error,
+ // the error is wrapped and returned.
+ //
+ // Token implements XML name spaces as described by
+ // https://www.w3.org/TR/REC-xml-names/. Each of the
+-// Name structures contained in the Token has the Space
++// [Name] structures contained in the Token has the Space
+ // set to the URL identifying its name space when known.
+ // If Token encounters an unrecognized name space prefix,
+ // it uses the prefix as the Space rather than report an error.
+@@ -534,7 +534,7 @@ func (d *Decoder) autoClose(t Token) (Token, bool) {
+ 
+ var errRawToken = errors.New("xml: cannot use RawToken from UnmarshalXML method")
+ 
+-// RawToken is like Token but does not verify that
++// RawToken is like [Decoder.Token] but does not verify that
+ // start and end elements match and does not translate
+ // name space prefixes to their corresponding URLs.
+ func (d *Decoder) RawToken() (Token, error) {
+@@ -1596,7 +1596,7 @@ var second = &unicode.RangeTable{
+ // HTMLEntity is an entity map containing translations for the
+ // standard HTML entity characters.
+ //
+-// See the Decoder.Strict and Decoder.Entity fields' documentation.
++// See the [Decoder.Strict] and [Decoder.Entity] fields' documentation.
+ var HTMLEntity map[string]string = htmlEntity
+ 
+ var htmlEntity = map[string]string{
+@@ -1865,7 +1865,7 @@ var htmlEntity = map[string]string{
+ // HTMLAutoClose is the set of HTML elements that
+ // should be considered to close automatically.
+ //
+-// See the Decoder.Strict and Decoder.Entity fields' documentation.
++// See the [Decoder.Strict] and [Decoder.Entity] fields' documentation.
+ var HTMLAutoClose []string = htmlAutoClose
+ 
+ var htmlAutoClose = []string{
+@@ -1993,9 +1993,9 @@ func (p *printer) EscapeString(s string) {
+ 	p.WriteString(s[last:])
+ }
+ 
+-// Escape is like EscapeText but omits the error return value.
++// Escape is like [EscapeText] but omits the error return value.
+ // It is provided for backwards compatibility with Go 1.0.
+-// Code targeting Go 1.1 or later should use EscapeText.
++// Code targeting Go 1.1 or later should use [EscapeText].
+ func Escape(w io.Writer, s []byte) {
+ 	EscapeText(w, s)
+ }

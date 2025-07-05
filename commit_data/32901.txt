@@ -24,7 +24,122 @@ Date:   Tue Jun 13 22:13:07 2017 +0530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/reflect/all_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
  src/reflect/type.go     | 30 ++++++++++++++++++++++++++++++
  2 files changed, 78 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 4953e4ff83..308cb77a8f 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4063,6 +4063,54 @@ func TestSliceOfGC(t *testing.T) {
+ 	}
+ }
+ 
++func TestStructOfFieldName(t *testing.T) {
++	// invalid field name "1nvalid"
++	shouldPanic(func() {
++		StructOf([]StructField{
++			StructField{Name: "valid", Type: TypeOf("")},
++			StructField{Name: "1nvalid", Type: TypeOf("")},
++		})
++	})
++
++	// invalid field name "+"
++	shouldPanic(func() {
++		StructOf([]StructField{
++			StructField{Name: "val1d", Type: TypeOf("")},
++			StructField{Name: "+", Type: TypeOf("")},
++		})
++	})
++
++	// no field name
++	shouldPanic(func() {
++		StructOf([]StructField{
++			StructField{Name: "", Type: TypeOf("")},
++		})
++	})
++
++	// verify creation of a struct with valid struct fields
++	validFields := []StructField{
++		StructField{
++			Name: "φ",
++			Type: TypeOf(""),
++		},
++		StructField{
++			Name: "ValidName",
++			Type: TypeOf(""),
++		},
++		StructField{
++			Name: "Val1dNam5",
++			Type: TypeOf(""),
++		},
++	}
++
++	validStruct := StructOf(validFields)
++
++	const structStr = `struct { φ string; ValidName string; Val1dNam5 string }`
++	if got, want := validStruct.String(), structStr; got != want {
++		t.Errorf("StructOf(validFields).String()=%q, want %q", got, want)
++	}
++}
++
+ func TestStructOf(t *testing.T) {
+ 	// check construction and use of type not in binary
+ 	fields := []StructField{
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 58f39a19b2..14c16fc832 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -19,6 +19,8 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"sync"
++	"unicode"
++	"unicode/utf8"
+ 	"unsafe"
+ )
+ 
+@@ -2344,6 +2346,31 @@ type structTypeFixed32 struct {
+ 	m [32]method
+ }
+ 
++// isLetter returns true if a given 'rune' is classified as a Letter.
++func isLetter(ch rune) bool {
++	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= utf8.RuneSelf && unicode.IsLetter(ch)
++}
++
++// isValidFieldName checks if a string is a valid (struct) field name or not.
++//
++// According to the language spec, a field name should be an identifier.
++//
++// identifier = letter { letter | unicode_digit } .
++// letter = unicode_letter | "_" .
++func isValidFieldName(fieldName string) bool {
++	for i, c := range fieldName {
++		if i == 0 && !isLetter(c) {
++			return false
++		}
++
++		if !(isLetter(c) || unicode.IsDigit(c)) {
++			return false
++		}
++	}
++
++	return len(fieldName) > 0
++}
++
+ // StructOf returns the struct type containing fields.
+ // The Offset and Index fields are ignored and computed as they would be
+ // by the compiler.
+@@ -2373,6 +2400,9 @@ func StructOf(fields []StructField) Type {
+ 		if field.Name == "" {
+ 			panic("reflect.StructOf: field " + strconv.Itoa(i) + " has no name")
+ 		}
++		if !isValidFieldName(field.Name) {
++			panic("reflect.StructOf: field " + strconv.Itoa(i) + " has invalid name")
++		}
+ 		if field.Type == nil {
+ 			panic("reflect.StructOf: field " + strconv.Itoa(i) + " has no type")
+ 		}

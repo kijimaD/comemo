@@ -25,6 +25,53 @@ Date:   Fri Feb 24 17:51:59 2023 +0100
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/net/mptcpsock_linux.go | 30 ++++++++++++++++++++++--------
  1 file changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/mptcpsock_linux.go b/src/net/mptcpsock_linux.go
+index 4663d28b4b..15a7882498 100644
+--- a/src/net/mptcpsock_linux.go
++++ b/src/net/mptcpsock_linux.go
+@@ -44,19 +44,33 @@ func initMPTCPavailable() {
+ }
+ 
+ func (sd *sysDialer) dialMPTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
+-	// Fallback to dialTCP if Multipath TCP isn't supported on this operating system.
+-	if !supportsMultipathTCP() {
+-		return sd.dialTCP(ctx, laddr, raddr)
++	if supportsMultipathTCP() {
++		if conn, err := sd.doDialTCPProto(ctx, laddr, raddr, _IPPROTO_MPTCP); err == nil {
++			return conn, nil
++		}
+ 	}
+ 
+-	return sd.doDialTCPProto(ctx, laddr, raddr, _IPPROTO_MPTCP)
++	// Fallback to dialTCP if Multipath TCP isn't supported on this operating
++	// system. But also fallback in case of any error with MPTCP.
++	//
++	// Possible MPTCP specific error: ENOPROTOOPT (sysctl net.mptcp.enabled=0)
++	// But just in case MPTCP is blocked differently (SELinux, etc.), just
++	// retry with "plain" TCP.
++	return sd.dialTCP(ctx, laddr, raddr)
+ }
+ 
+ func (sl *sysListener) listenMPTCP(ctx context.Context, laddr *TCPAddr) (*TCPListener, error) {
+-	// Fallback to listenTCP if Multipath TCP isn't supported on this operating system.
+-	if !supportsMultipathTCP() {
+-		return sl.listenTCP(ctx, laddr)
++	if supportsMultipathTCP() {
++		if dial, err := sl.listenTCPProto(ctx, laddr, _IPPROTO_MPTCP); err == nil {
++			return dial, nil
++		}
+ 	}
+ 
+-	return sl.listenTCPProto(ctx, laddr, _IPPROTO_MPTCP)
++	// Fallback to listenTCP if Multipath TCP isn't supported on this operating
++	// system. But also fallback in case of any error with MPTCP.
++	//
++	// Possible MPTCP specific error: ENOPROTOOPT (sysctl net.mptcp.enabled=0)
++	// But just in case MPTCP is blocked differently (SELinux, etc.), just
++	// retry with "plain" TCP.
++	return sl.listenTCP(ctx, laddr)
+ }

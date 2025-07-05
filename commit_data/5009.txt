@@ -7,6 +7,20 @@ Date:   Mon Mar 8 13:45:03 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/296042
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index d95d649259..0dc1a836ec 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3262,7 +3262,7 @@ When converting a floating-point number to an integer, the fraction is discarded
+ </li>
+ <li>
+ A value of complex type may be converted to a different complex type,
+-but there is no conversion between complex and any other type.
++but there is no conversion from complex to any other type.
+ <li>
+ When converting a number to a floating-point or complex type,
+ the result value is rounded

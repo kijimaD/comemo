@@ -9,7 +9,48 @@ Date:   Tue May 5 11:17:08 2015 -0700
     Change-Id: I32fe474cdfa09aff91daa4b10ac4df28ffdaa649
     Reviewed-on: https://go-review.googlesource.com/9741
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/env.go      |  9 +++++++++
  src/os/env_test.go | 12 ++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/os/env.go b/src/os/env.go
+index 4bc6dade44..a4ede15e61 100644
+--- a/src/os/env.go
++++ b/src/os/env.go
+@@ -81,6 +81,15 @@ func Getenv(key string) string {
+ 	return v
+ }
+ 
++// LookupEnv retrieves the value of the environment variable named
++// by the key. If the variable is present in the environment the
++// value (which may be empty) is returned and the boolean is true.
++// Otherwise the returned value will be empty and the boolean will
++// be false.
++func LookupEnv(key string) (string, bool) {
++	return syscall.Getenv(key)
++}
++
+ // Setenv sets the value of the environment variable named by the key.
+ // It returns an error, if any.
+ func Setenv(key, value string) error {
+diff --git a/src/os/env_test.go b/src/os/env_test.go
+index e618067513..622f39cfed 100644
+--- a/src/os/env_test.go
++++ b/src/os/env_test.go
+@@ -94,3 +94,15 @@ func TestUnsetenv(t *testing.T) {
+ 		t.Fatal("Unsetenv didn't clear TestUnsetenv")
+ 	}
+ }
++
++func TestLookupEnv(t *testing.T) {
++	value, ok := LookupEnv("GOROOT") // Should be set.
++	if !ok {
++		t.Errorf("GOROOT is not set")
++	}
++	const v = "Variable That Does Not Exist"
++	value, ok = LookupEnv(v) // Should not be set.
++	if ok || value != "" {
++		t.Errorf("%s is set: %q", v, value)
++	}
++}

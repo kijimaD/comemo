@@ -19,7 +19,7 @@ Date:   Thu Apr 6 13:42:31 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go         |  2 --
  src/cmd/asm/internal/asm/endtoend_test.go |  1 +
  src/cmd/asm/main.go                       |  2 ++
@@ -40,3 +40,395 @@ Date:   Thu Apr 6 13:42:31 2017 -0700
  src/cmd/internal/obj/x86/asm6.go          | 10 +++++-----
  src/cmd/internal/obj/x86/obj6.go          |  3 +++
  19 files changed, 64 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index f325e9366d..b4ce2fd8ae 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -171,8 +171,6 @@ func archX86(linkArch *obj.LinkArch) *Arch {
+ 	instructions["PSRLDQ"] = x86.APSRLO
+ 	instructions["PADDD"] = x86.APADDL
+ 
+-	x86.InstInit()
+-
+ 	return &Arch{
+ 		LinkArch:       linkArch,
+ 		Instructions:   instructions,
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index a105ce725f..f9d95ebc8c 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -28,6 +28,7 @@ import (
+ func testEndToEnd(t *testing.T, goarch, file string) {
+ 	input := filepath.Join("testdata", file+".s")
+ 	architecture, ctxt := setArch(goarch)
++	architecture.Init(ctxt)
+ 	lexer := lex.NewLexer(input)
+ 	parser := NewParser(ctxt, architecture, lexer)
+ 	pList := new(obj.Plist)
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 3aab0d00a2..737d2f102c 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -42,6 +42,8 @@ func main() {
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 	defer ctxt.Bso.Flush()
+ 
++	architecture.Init(ctxt)
++
+ 	// Create object file, write header.
+ 	out, err := os.Create(*flags.OutputFile)
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 59484b1537..90ee895364 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -27,6 +27,4 @@ func Init(arch *gc.Arch) {
+ 	arch.SSAMarkMoves = ssaMarkMoves
+ 	arch.SSAGenValue = ssaGenValue
+ 	arch.SSAGenBlock = ssaGenBlock
+-
+-	x86.InstInit()
+ }
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index d6872126f1..00d44d885b 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -238,6 +238,8 @@ func Main(archInit func(*Arch)) {
+ 		usage()
+ 	}
+ 
++	thearch.LinkArch.Init(Ctxt)
++
+ 	if outfile == "" {
+ 		p := flag.Arg(0)
+ 		if i := strings.LastIndex(p, "/"); i >= 0 {
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index 5255e9c60e..b5cf044bc7 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -33,6 +33,4 @@ func Init(arch *gc.Arch) {
+ 	arch.Ginsnop = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+-
+-	x86.InstInit()
+ }
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index c755e90b23..56ee7aa2f9 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -557,7 +557,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	if oprange[AAND&obj.AMask] == nil {
+-		buildop(ctxt)
++		ctxt.Diag("arm ops not initialized, call arm.buildop first")
+ 	}
+ 
+ 	ctxt.Cursym = cursym
+@@ -1296,6 +1296,13 @@ func opset(a, b0 obj.As) {
+ }
+ 
+ func buildop(ctxt *obj.Link) {
++	if oprange[AAND&obj.AMask] != nil {
++		// Already initialized; stop now.
++		// This happens in the cmd/asm tests,
++		// each of which re-initializes the arch.
++		return
++	}
++
+ 	var n int
+ 
+ 	for i := 0; i < C_GOK; i++ {
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index f14577e2fa..89cf299bef 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -880,6 +880,7 @@ var unaryDst = map[obj.As]bool{
+ 
+ var Linkarm = obj.LinkArch{
+ 	Arch:       sys.ArchARM,
++	Init:       buildop,
+ 	Preprocess: preprocess,
+ 	Assemble:   span5,
+ 	Progedit:   progedit,
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index c0a19d2d2a..65c48d3e01 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -537,7 +537,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	ctxt.Autosize = int32(p.To.Offset&0xffffffff) + 8
+ 
+ 	if oprange[AAND&obj.AMask] == nil {
+-		buildop(ctxt)
++		ctxt.Diag("arm64 ops not initialized, call arm64.buildop first")
+ 	}
+ 
+ 	bflag := 1
+@@ -1438,6 +1438,13 @@ func oprangeset(a obj.As, t []Optab) {
+ }
+ 
+ func buildop(ctxt *obj.Link) {
++	if oprange[AAND&obj.AMask] != nil {
++		// Already initialized; stop now.
++		// This happens in the cmd/asm tests,
++		// each of which re-initializes the arch.
++		return
++	}
++
+ 	var n int
+ 	for i := 0; i < C_GOK; i++ {
+ 		for n = 0; n < C_GOK; n++ {
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index b09454445a..52c4c594cb 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -799,6 +799,7 @@ var unaryDst = map[obj.As]bool{
+ 
+ var Linkarm64 = obj.LinkArch{
+ 	Arch:       sys.ArchARM64,
++	Init:       buildop,
+ 	Preprocess: preprocess,
+ 	Assemble:   span7,
+ 	Progedit:   progedit,
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 53a9428e72..fd07851f3b 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -786,6 +786,7 @@ type SymVer struct {
+ // LinkArch is the definition of a single architecture.
+ type LinkArch struct {
+ 	*sys.Arch
++	Init       func(*Link)
+ 	Preprocess func(*Link, *LSym, ProgAlloc)
+ 	Assemble   func(*Link, *LSym, ProgAlloc)
+ 	Progedit   func(*Link, *Prog, ProgAlloc)
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 30ffc0d3d7..4151f6ad35 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -382,7 +382,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	ctxt.Autosize = int32(p.To.Offset + ctxt.FixedFrameSize())
+ 
+ 	if oprange[AOR&obj.AMask] == nil {
+-		buildop(ctxt)
++		ctxt.Diag("mips ops not initialized, call mips.buildop first")
+ 	}
+ 
+ 	c := int64(0)
+@@ -668,7 +668,7 @@ func prasm(p *obj.Prog) {
+ 
+ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
+ 	if oprange[AOR&obj.AMask] == nil {
+-		buildop(ctxt)
++		ctxt.Diag("mips ops not initialized, call mips.buildop first")
+ 	}
+ 
+ 	a1 := int(p.Optab)
+@@ -833,6 +833,13 @@ func opset(a, b0 obj.As) {
+ }
+ 
+ func buildop(ctxt *obj.Link) {
++	if oprange[AOR&obj.AMask] != nil {
++		// Already initialized; stop now.
++		// This happens in the cmd/asm tests,
++		// each of which re-initializes the arch.
++		return
++	}
++
+ 	var n int
+ 
+ 	for i := 0; i < C_NCLASS; i++ {
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 3724808be1..e5f3277885 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -1398,6 +1398,7 @@ func compound(ctxt *obj.Link, p *obj.Prog) bool {
+ 
+ var Linkmips64 = obj.LinkArch{
+ 	Arch:       sys.ArchMIPS64,
++	Init:       buildop,
+ 	Preprocess: preprocess,
+ 	Assemble:   span0,
+ 	Progedit:   progedit,
+@@ -1405,6 +1406,7 @@ var Linkmips64 = obj.LinkArch{
+ 
+ var Linkmips64le = obj.LinkArch{
+ 	Arch:       sys.ArchMIPS64LE,
++	Init:       buildop,
+ 	Preprocess: preprocess,
+ 	Assemble:   span0,
+ 	Progedit:   progedit,
+@@ -1412,6 +1414,7 @@ var Linkmips64le = obj.LinkArch{
+ 
+ var Linkmips = obj.LinkArch{
+ 	Arch:       sys.ArchMIPS,
++	Init:       buildop,
+ 	Preprocess: preprocess,
+ 	Assemble:   span0,
+ 	Progedit:   progedit,
+@@ -1419,6 +1422,7 @@ var Linkmips = obj.LinkArch{
+ 
+ var Linkmipsle = obj.LinkArch{
+ 	Arch:       sys.ArchMIPSLE,
++	Init:       buildop,
+ 	Preprocess: preprocess,
+ 	Assemble:   span0,
+ 	Progedit:   progedit,
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index a6a359da23..523448b0d9 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -561,7 +561,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	ctxt.Autosize = int32(p.To.Offset)
+ 
+ 	if oprange[AANDN&obj.AMask] == nil {
+-		buildop(ctxt)
++		ctxt.Diag("ppc64 ops not initialized, call ppc64.buildop first")
+ 	}
+ 
+ 	c := int64(0)
+@@ -1052,6 +1052,13 @@ func opset(a, b0 obj.As) {
+ }
+ 
+ func buildop(ctxt *obj.Link) {
++	if oprange[AANDN&obj.AMask] != nil {
++		// Already initialized; stop now.
++		// This happens in the cmd/asm tests,
++		// each of which re-initializes the arch.
++		return
++	}
++
+ 	var n int
+ 
+ 	for i := 0; i < C_NCLASS; i++ {
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 6e93cc3996..1349075043 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -1051,6 +1051,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
+ 
+ var Linkppc64 = obj.LinkArch{
+ 	Arch:       sys.ArchPPC64,
++	Init:       buildop,
+ 	Preprocess: preprocess,
+ 	Assemble:   span9,
+ 	Progedit:   progedit,
+@@ -1058,6 +1059,7 @@ var Linkppc64 = obj.LinkArch{
+ 
+ var Linkppc64le = obj.LinkArch{
+ 	Arch:       sys.ArchPPC64LE,
++	Init:       buildop,
+ 	Preprocess: preprocess,
+ 	Assemble:   span9,
+ 	Progedit:   progedit,
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 25109dda3c..a7dafdffa0 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -394,7 +394,7 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	ctxt.Autosize = int32(p.To.Offset)
+ 
+ 	if oprange[AORW&obj.AMask] == nil {
+-		buildop(ctxt)
++		ctxt.Diag("s390x ops not initialized, call s390x.buildop first")
+ 	}
+ 
+ 	buffer := make([]byte, 0)
+@@ -772,6 +772,13 @@ func opset(a, b obj.As) {
+ }
+ 
+ func buildop(ctxt *obj.Link) {
++	if oprange[AORW&obj.AMask] != nil {
++		// Already initialized; stop now.
++		// This happens in the cmd/asm tests,
++		// each of which re-initializes the arch.
++		return
++	}
++
+ 	for i := 0; i < C_NCLASS; i++ {
+ 		for n := 0; n < C_NCLASS; n++ {
+ 			if cmp(n, i) {
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 3815db51fc..4e9935dce7 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -715,6 +715,7 @@ var unaryDst = map[obj.As]bool{
+ 
+ var Links390x = obj.LinkArch{
+ 	Arch:       sys.ArchS390X,
++	Init:       buildop,
+ 	Preprocess: preprocess,
+ 	Assemble:   spanz,
+ 	Progedit:   progedit,
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 8e372709d3..3fd5052e65 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -883,8 +883,8 @@ var ymmxmm0f38 = []ytab{
+  * two values match the Ytypes of the p->from and p->to operands.  The function
+  * oclass in span.c computes the specific Ytype of an operand and then the set
+  * of more general Ytypes that it satisfies is implied by the ycover table, set
+- * up in InstInit.  For example, oclass distinguishes the constants 0 and 1
+- * from the more general 8-bit constants, but InstInit says
++ * up in instinit.  For example, oclass distinguishes the constants 0 and 1
++ * from the more general 8-bit constants, but instinit says
+  *
+  *        ycover[Yi0*Ymax + Ys32] = 1;
+  *        ycover[Yi1*Ymax + Ys32] = 1;
+@@ -1768,7 +1768,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	if ycover[0] == 0 {
+-		ctxt.Diag("x86 tables not initialized, call x86.InstInit first")
++		ctxt.Diag("x86 tables not initialized, call x86.instinit first")
+ 	}
+ 
+ 	var asmbuf AsmBuf
+@@ -1965,7 +1965,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ }
+ 
+-func InstInit() {
++func instinit(ctxt *obj.Link) {
+ 	if ycover[0] != 0 {
+ 		// Already initialized; stop now.
+ 		// This happens in the cmd/asm tests,
+@@ -1976,7 +1976,7 @@ func InstInit() {
+ 	for i := 1; optab[i].as != 0; i++ {
+ 		c := optab[i].as
+ 		if opindex[c&obj.AMask] != nil {
+-			log.Fatalf("phase error in optab: %d (%v)", i, c)
++			ctxt.Diag("phase error in optab: %d (%v)", i, c)
+ 		}
+ 		opindex[c&obj.AMask] = &optab[i]
+ 	}
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 29ec849893..54c7a53829 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1234,6 +1234,7 @@ var unaryDst = map[obj.As]bool{
+ 
+ var Linkamd64 = obj.LinkArch{
+ 	Arch:       sys.ArchAMD64,
++	Init:       instinit,
+ 	Preprocess: preprocess,
+ 	Assemble:   span6,
+ 	Progedit:   progedit,
+@@ -1242,6 +1243,7 @@ var Linkamd64 = obj.LinkArch{
+ 
+ var Linkamd64p32 = obj.LinkArch{
+ 	Arch:       sys.ArchAMD64P32,
++	Init:       instinit,
+ 	Preprocess: preprocess,
+ 	Assemble:   span6,
+ 	Progedit:   progedit,
+@@ -1250,6 +1252,7 @@ var Linkamd64p32 = obj.LinkArch{
+ 
+ var Link386 = obj.LinkArch{
+ 	Arch:       sys.Arch386,
++	Init:       instinit,
+ 	Preprocess: preprocess,
+ 	Assemble:   span6,
+ 	Progedit:   progedit,

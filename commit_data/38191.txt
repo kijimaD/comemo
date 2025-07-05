@@ -11,6 +11,21 @@ Date:   Sat Oct 6 19:16:28 2018 +0530
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/doc/example.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/go/doc/example.go b/src/go/doc/example.go
+index 5b40bb0fb2..d6d4ece3a8 100644
+--- a/src/go/doc/example.go
++++ b/src/go/doc/example.go
+@@ -68,6 +68,9 @@ func Examples(files ...*ast.File) []*Example {
+ 			if !isTest(name, "Example") {
+ 				continue
+ 			}
++			if f.Body == nil { // ast.File.Body nil dereference (see issue 28044)
++				continue
++			}
+ 			var doc string
+ 			if f.Doc != nil {
+ 				doc = f.Doc.Text()

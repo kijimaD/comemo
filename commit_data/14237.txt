@@ -8,7 +8,7 @@ Date:   Mon Oct 29 23:15:06 2012 +0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6816054
-
+---
  src/pkg/syscall/syscall_darwin.go        | 4 ++--
  src/pkg/syscall/syscall_freebsd_386.go   | 2 +-
  src/pkg/syscall/syscall_freebsd_amd64.go | 2 +-
@@ -23,3 +23,185 @@ Date:   Mon Oct 29 23:15:06 2012 +0400
  src/pkg/syscall/zsyscall_linux_amd64.go  | 2 +-
  src/pkg/syscall/zsyscall_linux_arm.go    | 2 +-
  13 files changed, 20 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index 273a62eae4..7fe406aaa2 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -97,7 +97,7 @@ func Pipe(p []int) (err error) {
+ }
+ 
+ // TODO
+-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	return -1, ENOSYS
+ }
+ 
+@@ -334,7 +334,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
+ // __pthread_canceled
+ // __semwait_signal
+ // Proc_info
+-// Sendfile
++// sendfile
+ // Stat64_extended
+ // Lstat64_extended
+ // Fstat64_extended
+diff --git a/src/pkg/syscall/syscall_freebsd_386.go b/src/pkg/syscall/syscall_freebsd_386.go
+index de670e67cb..ebd3d4c9cf 100644
+--- a/src/pkg/syscall/syscall_freebsd_386.go
++++ b/src/pkg/syscall/syscall_freebsd_386.go
+@@ -43,7 +43,7 @@ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
+ 
+-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	var writtenOut uint64 = 0
+ 	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr((*offset)>>32), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0)
+ 
+diff --git a/src/pkg/syscall/syscall_freebsd_amd64.go b/src/pkg/syscall/syscall_freebsd_amd64.go
+index 46bb5c6b0e..70c2ffb035 100644
+--- a/src/pkg/syscall/syscall_freebsd_amd64.go
++++ b/src/pkg/syscall/syscall_freebsd_amd64.go
+@@ -43,7 +43,7 @@ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
+ 
+-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	var writtenOut uint64 = 0
+ 	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0, 0)
+ 
+diff --git a/src/pkg/syscall/syscall_freebsd_arm.go b/src/pkg/syscall/syscall_freebsd_arm.go
+index 00133ed061..ab72871dda 100644
+--- a/src/pkg/syscall/syscall_freebsd_arm.go
++++ b/src/pkg/syscall/syscall_freebsd_arm.go
+@@ -43,7 +43,7 @@ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
+ 
+-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	var writtenOut uint64 = 0
+ 	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr((*offset)>>32), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0)
+ 
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index f838a54bd9..58bc9b53f1 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -41,7 +41,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+-//sys	Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
++//sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
+ //sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
+ //sys	Setfsuid(uid int) (err error) = SYS_SETFSUID32
+ //sysnb	Setgid(gid int) (err error) = SYS_SETGID32
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index 54d8dbe0e6..b0d236cdc1 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -23,7 +23,7 @@ package syscall
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error)
+-//sys	Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
++//sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+ //sysnb	Setgid(gid int) (err error)
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index 547a4eb9bc..f2859cfaf2 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -55,7 +55,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
+ //sys	Lchown(path string, uid int, gid int) (err error) = SYS_LCHOWN32
+ //sys	Listen(s int, n int) (err error)
+ //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
+-//sys	Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
++//sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
+ //sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
+ //sys	Setfsuid(uid int) (err error) = SYS_SETFSUID32
+diff --git a/src/pkg/syscall/syscall_netbsd.go b/src/pkg/syscall/syscall_netbsd.go
+index adaaa42a70..b0fa1112da 100644
+--- a/src/pkg/syscall/syscall_netbsd.go
++++ b/src/pkg/syscall/syscall_netbsd.go
+@@ -133,7 +133,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ }
+ 
+ // TODO
+-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	return -1, ENOSYS
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_openbsd.go b/src/pkg/syscall/syscall_openbsd.go
+index 8f2b0854a0..a146dca2cd 100644
+--- a/src/pkg/syscall/syscall_openbsd.go
++++ b/src/pkg/syscall/syscall_openbsd.go
+@@ -91,7 +91,7 @@ func Pipe(p []int) (err error) {
+ }
+ 
+ // TODO
+-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	return -1, ENOSYS
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index 978350829b..fee1fc491f 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -143,4 +143,11 @@ func Write(fd int, p []byte) (n int, err error) {
+ 	return write(fd, p)
+ }
+ 
++func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++	if raceenabled {
++		raceReleaseMerge(unsafe.Pointer(&ioSync))
++	}
++	return sendfile(outfd, infd, offset, count)
++}
++
+ var ioSync int64
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index 0364c51c60..dd0cefb4b6 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -1371,7 +1371,7 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_SENDFILE64, uintptr(outfd), uintptr(infd), uintptr(unsafe.Pointer(offset)), uintptr(count), 0, 0)
+ 	written = int(r0)
+ 	if e1 != 0 {
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index 82c8b0408a..323c099568 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -1423,7 +1423,7 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_SENDFILE, uintptr(outfd), uintptr(infd), uintptr(unsafe.Pointer(offset)), uintptr(count), 0, 0)
+ 	written = int(r0)
+ 	if e1 != 0 {
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index 3bb4b75f7b..2e1d498da9 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -1484,7 +1484,7 @@ func Lstat(path string, stat *Stat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_SENDFILE64, uintptr(outfd), uintptr(infd), uintptr(unsafe.Pointer(offset)), uintptr(count), 0, 0)
+ 	written = int(r0)
+ 	if e1 != 0 {

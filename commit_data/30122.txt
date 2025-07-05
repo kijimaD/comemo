@@ -13,10 +13,192 @@ Date:   Tue Oct 4 15:51:31 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/export_test.go |  2 +-
  src/runtime/heapdump.go    |  8 +++----
  src/runtime/mgc.go         |  5 ++---
  src/runtime/mheap.go       | 56 ++++++++++++++++++++++++++++------------------
  src/runtime/mstats.go      |  2 +-
  5 files changed, 42 insertions(+), 31 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index a24d7188f3..5510a27694 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -231,7 +231,7 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
+ 
+ 	pagesInUse = uintptr(mheap_.pagesInUse)
+ 
+-	for _, s := range h_allspans {
++	for _, s := range mheap_.allspans {
+ 		if s.state == mSpanInUse {
+ 			counted += s.npages
+ 		}
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index f7d7aac2a7..3ad83532cf 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -437,7 +437,7 @@ func dumproots() {
+ 	dumpfields(firstmoduledata.gcbssmask)
+ 
+ 	// MSpan.types
+-	allspans := h_allspans
++	allspans := mheap_.allspans
+ 	for spanidx := uint32(0); spanidx < mheap_.nspan; spanidx++ {
+ 		s := allspans[spanidx]
+ 		if s.state == _MSpanInUse {
+@@ -463,7 +463,7 @@ var freemark [_PageSize / 8]bool
+ 
+ func dumpobjs() {
+ 	for i := uintptr(0); i < uintptr(mheap_.nspan); i++ {
+-		s := h_allspans[i]
++		s := mheap_.allspans[i]
+ 		if s.state != _MSpanInUse {
+ 			continue
+ 		}
+@@ -608,7 +608,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs,
+ 
+ func dumpmemprof() {
+ 	iterate_memprof(dumpmemprof_callback)
+-	allspans := h_allspans
++	allspans := mheap_.allspans
+ 	for spanidx := uint32(0); spanidx < mheap_.nspan; spanidx++ {
+ 		s := allspans[spanidx]
+ 		if s.state != _MSpanInUse {
+@@ -632,7 +632,7 @@ var dumphdr = []byte("go1.7 heap dump\n")
+ func mdump() {
+ 	// make sure we're done sweeping
+ 	for i := uintptr(0); i < uintptr(mheap_.nspan); i++ {
+-		s := h_allspans[i]
++		s := mheap_.allspans[i]
+ 		if s.state == _MSpanInUse {
+ 			s.ensureSwept()
+ 		}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 4db84662db..f44a4fbb03 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1738,12 +1738,11 @@ func gcCopySpans() {
+ 	// Even if this is stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
+ 	lock(&mheap_.lock)
+ 	// Free the old cached mark array if necessary.
+-	if work.spans != nil && &work.spans[0] != &h_allspans[0] {
++	if work.spans != nil && &work.spans[0] != &mheap_.allspans[0] {
+ 		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
+ 	}
+ 	// Cache the current array for sweeping.
+-	mheap_.gcspans = mheap_.allspans
+-	work.spans = h_allspans
++	work.spans = mheap_.allspans
+ 	unlock(&mheap_.lock)
+ }
+ 
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 2996be0131..9d02343dbe 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -33,15 +33,29 @@ type mheap struct {
+ 	freelarge mSpanList                // free lists length >= _MaxMHeapList
+ 	busy      [_MaxMHeapList]mSpanList // busy lists of large objects of given length
+ 	busylarge mSpanList                // busy lists of large objects length >= _MaxMHeapList
+-	allspans  **mspan                  // all spans out there
+-	gcspans   **mspan                  // copy of allspans referenced by gc marker or sweeper
+-	nspan     uint32
+-	sweepgen  uint32 // sweep generation, see comment in mspan
+-	sweepdone uint32 // all spans are swept
++	sweepgen  uint32                   // sweep generation, see comment in mspan
++	sweepdone uint32                   // all spans are swept
++
++	// allspans is a slice of all mspans ever created. Each mspan
++	// appears exactly once.
++	//
++	// The memory for allspans is manually managed and can be
++	// reallocated and move as the heap grows.
++	//
++	// In general, allspans is protected by mheap_.lock, which
++	// prevents concurrent access as well as freeing the backing
++	// store. Accesses during STW might not hold the lock, but
++	// must ensure that allocation cannot happen around the
++	// access (since that may free the backing store).
++	allspans []*mspan // all spans out there
++	nspan    uint32
++
+ 	// span lookup
+ 	spans        **mspan
+ 	spans_mapped uintptr
+ 
++	_ uint32 // align uint64 fields on 32-bit for atomics
++
+ 	// Proportional sweep
+ 	pagesInUse        uint64  // pages of spans in stats _MSpanInUse; R/W with mheap.lock
+ 	spanBytesAlloc    uint64  // bytes of spans allocated this cycle; updated atomically
+@@ -233,8 +247,6 @@ func (s *mspan) layout() (size, n, total uintptr) {
+ 	return
+ }
+ 
+-var h_allspans []*mspan // TODO: make this h.allspans once mheap can be defined in Go
+-
+ // h_spans is a lookup table to map virtual address page IDs to *mspan.
+ // For allocated spans, their pages map to the span itself.
+ // For free spans, only the lowest and highest pages map to the span itself. Internal
+@@ -245,10 +257,10 @@ var h_spans []*mspan // TODO: make this h.spans once mheap can be defined in Go
+ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
+ 	h := (*mheap)(vh)
+ 	s := (*mspan)(p)
+-	if len(h_allspans) >= cap(h_allspans) {
++	if len(h.allspans) >= cap(h.allspans) {
+ 		n := 64 * 1024 / sys.PtrSize
+-		if n < cap(h_allspans)*3/2 {
+-			n = cap(h_allspans) * 3 / 2
++		if n < cap(h.allspans)*3/2 {
++			n = cap(h.allspans) * 3 / 2
+ 		}
+ 		var new []*mspan
+ 		sp := (*slice)(unsafe.Pointer(&new))
+@@ -256,21 +268,21 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
+ 		if sp.array == nil {
+ 			throw("runtime: cannot allocate memory")
+ 		}
+-		sp.len = len(h_allspans)
++		sp.len = len(h.allspans)
+ 		sp.cap = n
+-		if len(h_allspans) > 0 {
+-			copy(new, h_allspans)
+-			// Don't free the old array if it's referenced by sweep.
+-			// See the comment in mgc.go.
+-			if h.allspans != mheap_.gcspans {
+-				sysFree(unsafe.Pointer(h.allspans), uintptr(cap(h_allspans))*sys.PtrSize, &memstats.other_sys)
+-			}
++		if len(h.allspans) > 0 {
++			copy(new, h.allspans)
++		}
++		oldAllspans := h.allspans
++		h.allspans = new
++		// Don't free the old array if it's referenced by sweep.
++		// See the comment in mgc.go.
++		if len(oldAllspans) != 0 && &oldAllspans[0] != &work.spans[0] {
++			sysFree(unsafe.Pointer(&oldAllspans[0]), uintptr(cap(oldAllspans))*unsafe.Sizeof(oldAllspans[0]), &memstats.other_sys)
+ 		}
+-		h_allspans = new
+-		h.allspans = (**mspan)(sp.array)
+ 	}
+-	h_allspans = append(h_allspans, s)
+-	h.nspan = uint32(len(h_allspans))
++	h.allspans = append(h.allspans, s)
++	h.nspan = uint32(len(h.allspans))
+ }
+ 
+ // inheap reports whether b is a pointer into a (potentially dead) heap object.
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 75c4da4cbf..38ae45bd1d 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -529,7 +529,7 @@ func updatememstats(stats *gcstats) {
+ 	// Scan all spans and count number of alive objects.
+ 	lock(&mheap_.lock)
+ 	for i := uint32(0); i < mheap_.nspan; i++ {
+-		s := h_allspans[i]
++		s := mheap_.allspans[i]
+ 		if s.state != mSpanInUse {
+ 			continue
+ 		}

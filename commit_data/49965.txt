@@ -25,7 +25,7 @@ Date:   Wed Sep 22 21:57:19 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go | 39 ++++++++++++++++++---
  src/cmd/compile/internal/types2/call.go        | 48 ++++++--------------------
  src/cmd/compile/internal/types2/stmt.go        |  3 --
@@ -36,3 +36,276 @@ Date:   Wed Sep 22 21:57:19 2021 -0700
  test/fixedbugs/issue9083.go                    | 12 +++----
  test/interface/pointer.go                      |  5 +--
  9 files changed, 57 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index a1847b21ca..bfc5578683 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -156,6 +156,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
+ 
+ 	check.assignment(x, lhs.typ, context)
+ 	if x.mode == invalid {
++		lhs.used = true // avoid follow-on "declared but not used" errors
+ 		return nil
+ 	}
+ 
+@@ -164,7 +165,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
+ 
+ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
+ 	if x.mode == invalid || x.typ == Typ[Invalid] {
+-		check.useLHS(lhs)
++		check.use(lhs)
+ 		return nil
+ 	}
+ 
+@@ -306,8 +307,18 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnPos syn
+ 		return
+ 	}
+ 
++	ok := true
+ 	for i, lhs := range lhs {
+-		check.initVar(lhs, rhs[i], context)
++		if check.initVar(lhs, rhs[i], context) == nil {
++			ok = false
++		}
++	}
++
++	// avoid follow-on "declared but not used" errors if any initialization failed
++	if !ok {
++		for _, lhs := range lhs {
++			lhs.used = true
++		}
+ 	}
+ }
+ 
+@@ -315,7 +326,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 	rhs, commaOk := check.exprList(orig_rhs, len(lhs) == 2)
+ 
+ 	if len(lhs) != len(rhs) {
+-		check.useLHS(lhs...)
++		check.use(lhs...)
+ 		// don't report an error if we already reported one
+ 		for _, x := range rhs {
+ 			if x.mode == invalid {
+@@ -339,8 +350,26 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 		return
+ 	}
+ 
++	ok := true
+ 	for i, lhs := range lhs {
+-		check.assignVar(lhs, rhs[i])
++		if check.assignVar(lhs, rhs[i]) == nil {
++			ok = false
++		}
++	}
++
++	// avoid follow-on "declared but not used" errors if any assignment failed
++	if !ok {
++		// don't call check.use to avoid re-evaluation of the lhs expressions
++		for _, lhs := range lhs {
++			if name, _ := unparen(lhs).(*syntax.Name); name != nil {
++				if obj := check.lookup(name.Value); obj != nil {
++					// see comment in assignVar
++					if v, _ := obj.(*Var); v != nil && v.pkg == check.pkg {
++						v.used = true
++					}
++				}
++			}
++		}
+ 	}
+ }
+ 
+@@ -371,7 +400,7 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
+ 	for i, lhs := range lhs {
+ 		ident, _ := lhs.(*syntax.Name)
+ 		if ident == nil {
+-			check.useLHS(lhs)
++			check.use(lhs)
+ 			check.errorf(lhs, "non-name %s on left side of :=", lhs)
+ 			hasErr = true
+ 			continue
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index aaef97f58a..99afecaf19 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -627,48 +627,20 @@ Error:
+ func (check *Checker) use(arg ...syntax.Expr) {
+ 	var x operand
+ 	for _, e := range arg {
+-		// Certain AST fields may legally be nil (e.g., the ast.SliceExpr.High field).
+-		if e == nil {
++		switch n := e.(type) {
++		case nil:
++			// some AST fields may be nil (e.g., elements of syntax.SliceExpr.Index)
++			// TODO(gri) can those fields really make it here?
+ 			continue
+-		}
+-		if l, _ := e.(*syntax.ListExpr); l != nil {
+-			check.use(l.ElemList...)
+-			continue
+-		}
+-		check.rawExpr(&x, e, nil, false)
+-	}
+-}
+-
+-// useLHS is like use, but doesn't "use" top-level identifiers.
+-// It should be called instead of use if the arguments are
+-// expressions on the lhs of an assignment.
+-// The arguments must not be nil.
+-func (check *Checker) useLHS(arg ...syntax.Expr) {
+-	var x operand
+-	for _, e := range arg {
+-		// If the lhs is an identifier denoting a variable v, this assignment
+-		// is not a 'use' of v. Remember current value of v.used and restore
+-		// after evaluating the lhs via check.rawExpr.
+-		var v *Var
+-		var v_used bool
+-		if ident, _ := unparen(e).(*syntax.Name); ident != nil {
+-			// never type-check the blank name on the lhs
+-			if ident.Value == "_" {
++		case *syntax.Name:
++			// don't report an error evaluating blank
++			if n.Value == "_" {
+ 				continue
+ 			}
+-			if _, obj := check.scope.LookupParent(ident.Value, nopos); obj != nil {
+-				// It's ok to mark non-local variables, but ignore variables
+-				// from other packages to avoid potential race conditions with
+-				// dot-imported variables.
+-				if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
+-					v = w
+-					v_used = v.used
+-				}
+-			}
++		case *syntax.ListExpr:
++			check.use(n.ElemList...)
++			continue
+ 		}
+ 		check.rawExpr(&x, e, nil, false)
+-		if v != nil {
+-			v.used = v_used // restore v.used
+-		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index e138c58123..f3f345fd2f 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -654,9 +654,6 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		// declaration, but the post statement must not."
+ 		if s, _ := s.Post.(*syntax.AssignStmt); s != nil && s.Op == syntax.Def {
+ 			// The parser already reported an error.
+-			// Don't call useLHS here because we want to use the lhs in
+-			// this erroneous statement so that we don't get errors about
+-			// these lhs variables being declared but not used.
+ 			check.use(s.Lhs) // avoid follow-up errors
+ 		}
+ 		check.stmt(inner, s.Body)
+diff --git a/test/fixedbugs/bug062.go b/test/fixedbugs/bug062.go
+index 24c2dff933..1008f1af9c 100644
+--- a/test/fixedbugs/bug062.go
++++ b/test/fixedbugs/bug062.go
+@@ -7,6 +7,5 @@
+ package main
+ 
+ func main() {
+-	var s string = nil;	// ERROR "illegal|invalid|incompatible|cannot"
+-	_ = s
++	var s string = nil // ERROR "illegal|invalid|incompatible|cannot"
+ }
+diff --git a/test/fixedbugs/bug131.go b/test/fixedbugs/bug131.go
+index 2c9d120ed0..de606da167 100644
+--- a/test/fixedbugs/bug131.go
++++ b/test/fixedbugs/bug131.go
+@@ -7,7 +7,6 @@
+ package main
+ 
+ func main() {
+-	const a uint64 = 10;
+-	var b int64 = a;	// ERROR "convert|cannot|incompatible"
+-	_ = b
++	const a uint64 = 10
++	var b int64 = a // ERROR "convert|cannot|incompatible"
+ }
+diff --git a/test/fixedbugs/bug175.go b/test/fixedbugs/bug175.go
+index 88210a59b3..caf3168536 100644
+--- a/test/fixedbugs/bug175.go
++++ b/test/fixedbugs/bug175.go
+@@ -9,6 +9,5 @@ package main
+ func f() (int, bool) { return 0, true }
+ 
+ func main() {
+-	x, y := f(), 2;	// ERROR "multi|2-valued"
+-	_, _ = x, y
++	x, y := f(), 2 // ERROR "multi|2-valued"
+ }
+diff --git a/test/fixedbugs/bug289.go b/test/fixedbugs/bug289.go
+index fea6829992..7e8346ee0f 100644
+--- a/test/fixedbugs/bug289.go
++++ b/test/fixedbugs/bug289.go
+@@ -9,18 +9,14 @@
+ package main
+ 
+ func f1() {
+-	a, b := f()	// ERROR "assignment mismatch|does not match|cannot initialize"
+-	_ = a
+-	_ = b
++	a, b := f() // ERROR "assignment mismatch|does not match|cannot initialize"
+ }
+ 
+ func f2() {
+ 	var a, b int
+-	a, b = f()	// ERROR "assignment mismatch|does not match|cannot assign"
+-	_ = a
+-	_ = b
++	a, b = f() // ERROR "assignment mismatch|does not match|cannot assign"
+ }
+ 
+ func f() int {
+-	return 1;
++	return 1
+ }
+diff --git a/test/fixedbugs/issue9083.go b/test/fixedbugs/issue9083.go
+index f5c5296a2b..ea53e7a69a 100644
+--- a/test/fixedbugs/issue9083.go
++++ b/test/fixedbugs/issue9083.go
+@@ -13,12 +13,10 @@ const zero = 0
+ 
+ func main() {
+ 	var x int
+-	_ = x
+-	x = make(map[int]int) // ERROR "cannot use make\(map\[int\]int\)|incompatible"
+-	x = make(map[int]int, 0) // ERROR "cannot use make\(map\[int\]int, 0\)|incompatible"
++	x = make(map[int]int)       // ERROR "cannot use make\(map\[int\]int\)|incompatible"
++	x = make(map[int]int, 0)    // ERROR "cannot use make\(map\[int\]int, 0\)|incompatible"
+ 	x = make(map[int]int, zero) // ERROR "cannot use make\(map\[int\]int, zero\)|incompatible"
+-	x = make(chan int) // ERROR "cannot use make\(chan int\)|incompatible"
+-	x = make(chan int, 0) // ERROR "cannot use make\(chan int, 0\)|incompatible"
+-	x = make(chan int, zero) // ERROR "cannot use make\(chan int, zero\)|incompatible"
+-	_ = x
++	x = make(chan int)          // ERROR "cannot use make\(chan int\)|incompatible"
++	x = make(chan int, 0)       // ERROR "cannot use make\(chan int, 0\)|incompatible"
++	x = make(chan int, zero)    // ERROR "cannot use make\(chan int, zero\)|incompatible"
+ }
+diff --git a/test/interface/pointer.go b/test/interface/pointer.go
+index c21e4da390..a71b3f4bf8 100644
+--- a/test/interface/pointer.go
++++ b/test/interface/pointer.go
+@@ -24,7 +24,6 @@ type Start struct {
+ 
+ func (start *Start) Next() *Inst { return nil }
+ 
+-
+ func AddInst(Inst) *Inst {
+ 	print("ok in addinst\n")
+ 	return nil
+@@ -33,8 +32,6 @@ func AddInst(Inst) *Inst {
+ func main() {
+ 	print("call addinst\n")
+ 	var x Inst = AddInst(new(Start)) // ERROR "pointer to interface|incompatible type"
+-	_ = x
+ 	print("return from  addinst\n")
+-	var y *Inst = new(Start)  // ERROR "pointer to interface|incompatible type"
+-	_ = y
++	var y *Inst = new(Start) // ERROR "pointer to interface|incompatible type"
+ }

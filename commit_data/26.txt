@@ -5,6 +5,35 @@ Date:   Tue Mar 11 20:40:20 2008 -0700
     examples contradicted text: '\octal' and '\hex' are fixed size
     
     SVN=112150
-
+---
  doc/go_lang.txt | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index 75a1a91c52..b0d717e0ec 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -432,10 +432,10 @@ quotes. [Note: the Unicode doesn't look right in the browser.]
+     'ä'
+     '本'
+     '\t'
+-    '\0'
+-    '\07'
+-    '\0377'
+-    '\x7'
++    '\000'
++    '\007'
++    '\377'
++    '\x07'
+     '\xff'
+     '\u12e4'
+     '\U00101234'
+@@ -1507,7 +1507,7 @@ Program
+ A program is package clause, optionally followed by import declarations,
+ followed by a series of declarations.
+ 
+-Program = PackageClause { ImportDecl } { Declaration } .
++  Program = PackageClause { ImportDecl } { Declaration } .
+ 
+ TODO
+ ----

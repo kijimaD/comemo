@@ -17,9 +17,176 @@ Date:   Thu Feb 18 15:50:37 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  3 +-
  src/cmd/compile/internal/ssa/op.go           | 54 +++++++++++++++++++++++++++-
  src/cmd/compile/internal/ssa/opGen.go        |  2 +-
  src/cmd/compile/internal/ssa/regalloc.go     | 27 +++++++++++---
  4 files changed, 78 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index fd2c2023e6..5f5ebaaa35 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -771,7 +771,8 @@ func init() {
+ 			faultOnNilArg0: true,
+ 		},
+ 
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                              // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
++		// With a register ABI, the actual register info for these instructions (i.e., what is used in regalloc) is augmented with per-call-site bindings of additional arguments to specific registers.
++		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                             // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 0bc7b0ca0d..4082e84c6a 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -96,6 +96,54 @@ type AuxCall struct {
+ 	abiInfo *abi.ABIParamResultInfo // TODO remove fields above redundant with this information.
+ }
+ 
++// Reg returns the regInfo for a given call, combining the derived in/out register masks
++// with the machine-specific register information in the input i.  (The machine-specific
++// regInfo is much handier at the call site than it is when the AuxCall is being constructed,
++// therefore do this lazily).
++//
++// TODO: there is a Clever Hack that allows pre-generation of a small-ish number of the slices
++// of inputInfo and outputInfo used here, provided that we are willing to reorder the inputs
++// and outputs from calls, so that all integer registers come first, then all floating registers.
++// At this point (active development of register ABI) that is very premature,
++// but if this turns out to be a cost, we could do it.
++func (a *AuxCall) Reg(i *regInfo, c *Config) *regInfo {
++	if a.reg.clobbers != 0 {
++		// Already updated
++		return a.reg
++	}
++	if a.abiInfo.InRegistersUsed()+a.abiInfo.OutRegistersUsed() == 0 {
++		// Shortcut for zero case, also handles old ABI.
++		a.reg = i
++		return a.reg
++	}
++	a.reg.inputs = append(a.reg.inputs, i.inputs...)
++	for _, p := range a.abiInfo.InParams() {
++		for _, r := range p.Registers {
++			m := archRegForAbiReg(r, c)
++			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: len(a.reg.inputs), regs: (1 << m)})
++		}
++	}
++	a.reg.outputs = append(a.reg.outputs, i.outputs...)
++	for _, p := range a.abiInfo.OutParams() {
++		for _, r := range p.Registers {
++			m := archRegForAbiReg(r, c)
++			a.reg.outputs = append(a.reg.outputs, outputInfo{idx: len(a.reg.outputs), regs: (1 << m)})
++		}
++	}
++	a.reg.clobbers = i.clobbers
++	return a.reg
++}
++
++func archRegForAbiReg(r abi.RegIndex, c *Config) uint8 {
++	var m int8
++	if int(r) < len(c.intParamRegs) {
++		m = c.intParamRegs[r]
++	} else {
++		m = c.floatParamRegs[int(r)-len(c.intParamRegs)]
++	}
++	return uint8(m)
++}
++
+ // OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
+ func (a *AuxCall) OffsetOfResult(which int64) int64 {
+ 	n := int64(a.abiInfo.OutParam(int(which)).Offset())
+@@ -217,7 +265,11 @@ func StaticAuxCall(sym *obj.LSym, args []Param, results []Param, paramResultInfo
+ 	if paramResultInfo == nil {
+ 		panic(fmt.Errorf("Nil paramResultInfo, sym=%v", sym))
+ 	}
+-	return &AuxCall{Fn: sym, args: args, results: results, abiInfo: paramResultInfo}
++	var reg *regInfo
++	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
++		reg = &regInfo{}
++	}
++	return &AuxCall{Fn: sym, args: args, results: results, abiInfo: paramResultInfo, reg: reg}
+ }
+ 
+ // InterfaceAuxCall returns an AuxCall for an interface call.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index a9565ffe4b..34445cfbf1 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -13229,7 +13229,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:         "CALLstatic",
+ 		auxType:      auxCallOff,
+-		argLen:       1,
++		argLen:       -1,
+ 		clobberFlags: true,
+ 		call:         true,
+ 		reg: regInfo{
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index c11138bf4e..c2d0478e82 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -151,6 +151,14 @@ type register uint8
+ 
+ const noRegister register = 255
+ 
++// For bulk initializing
++var noRegisters [32]register = [32]register{
++	noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister,
++	noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister,
++	noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister,
++	noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister,
++}
++
+ // A regMask encodes a set of machine registers.
+ // TODO: regMask -> regSet?
+ type regMask uint64
+@@ -818,9 +826,8 @@ func (s *regAllocState) regspec(v *Value) regInfo {
+ 		return regInfo{outputs: []outputInfo{{regs: 1 << uint(reg)}}}
+ 	}
+ 	if op.IsCall() {
+-		// TODO Panic if not okay
+ 		if ac, ok := v.Aux.(*AuxCall); ok && ac.reg != nil {
+-			return *ac.reg
++			return *ac.Reg(&opcodeTable[op].reg, s.f.Config)
+ 		}
+ 	}
+ 	return opcodeTable[op].reg
+@@ -1456,7 +1463,8 @@ func (s *regAllocState) regalloc(f *Func) {
+ 
+ 			// Pick registers for outputs.
+ 			{
+-				outRegs := [2]register{noRegister, noRegister}
++				outRegs := noRegisters // TODO if this is costly, hoist and clear incrementally below.
++				maxOutIdx := -1
+ 				var used regMask
+ 				for _, out := range regspec.outputs {
+ 					mask := out.regs & s.allocatable &^ used
+@@ -1502,6 +1510,9 @@ func (s *regAllocState) regalloc(f *Func) {
+ 						mask &^= desired.avoid
+ 					}
+ 					r := s.allocReg(mask, v)
++					if out.idx > maxOutIdx {
++						maxOutIdx = out.idx
++					}
+ 					outRegs[out.idx] = r
+ 					used |= regMask(1) << r
+ 					s.tmpused |= regMask(1) << r
+@@ -1518,8 +1529,14 @@ func (s *regAllocState) regalloc(f *Func) {
+ 					s.f.setHome(v, outLocs)
+ 					// Note that subsequent SelectX instructions will do the assignReg calls.
+ 				} else if v.Type.IsResults() {
+-					// TODO register arguments need to make this work
+-					panic("Oops, implement this.")
++					// preallocate outLocs to the right size, which is maxOutIdx+1
++					outLocs := make(LocResults, maxOutIdx+1, maxOutIdx+1)
++					for i := 0; i <= maxOutIdx; i++ {
++						if r := outRegs[i]; r != noRegister {
++							outLocs[i] = &s.registers[r]
++						}
++					}
++					s.f.setHome(v, outLocs)
+ 				} else {
+ 					if r := outRegs[0]; r != noRegister {
+ 						s.assignReg(r, v, v)

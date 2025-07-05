@@ -7,6 +7,20 @@ Date:   Tue Nov 9 08:46:13 2010 -0800
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/2985041
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index e3346b271d..d0db9d8b9e 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4396,7 +4396,7 @@ BuiltinArgs = Type [ "," ExpressionList ] | ExpressionList .
+ <p>
+ For a channel <code>c</code>, the built-in function <code>close(c)</code>
+ marks the channel as unable to accept more values through a send operation;
+-values sent to a closed channed are ignored.
++values sent to a closed channel are ignored.
+ After calling <code>close</code>, and after any previously
+ sent values have been received, receive operations will return
+ the zero value for the channel's type without blocking.

@@ -14,7 +14,52 @@ Date:   Wed Sep 27 02:01:46 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/zstd/block.go     | 9 +++------
  src/internal/zstd/zstd_test.go | 5 +++++
  2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/internal/zstd/block.go b/src/internal/zstd/block.go
+index cf4c954c7d..8732661fa1 100644
+--- a/src/internal/zstd/block.go
++++ b/src/internal/zstd/block.go
+@@ -50,10 +50,9 @@ func (r *Reader) compressedBlock(blockSize int) error {
+ 		if off < len(data) {
+ 			return r.makeError(off, "extraneous data after no sequences")
+ 		}
+-		if len(litbuf) == 0 {
+-			return r.makeError(off, "no sequences and no literals")
+-		}
++
+ 		r.buffer = append(r.buffer, litbuf...)
++
+ 		return nil
+ 	}
+ 
+@@ -374,9 +373,7 @@ func (r *Reader) execSeqs(data block, off int, litbuf []byte, seqCount int) erro
+ 		}
+ 	}
+ 
+-	if len(litbuf) > 0 {
+-		r.buffer = append(r.buffer, litbuf...)
+-	}
++	r.buffer = append(r.buffer, litbuf...)
+ 
+ 	if rbr.cnt != 0 {
+ 		return r.makeError(off, "extraneous data after sequences")
+diff --git a/src/internal/zstd/zstd_test.go b/src/internal/zstd/zstd_test.go
+index 22af814acf..c2914bb1f4 100644
+--- a/src/internal/zstd/zstd_test.go
++++ b/src/internal/zstd/zstd_test.go
+@@ -90,6 +90,11 @@ var tests = []struct {
+ 		"0\x00\x00\x00\x00\x000\x00\x00\x00\x00\x001\x00\x00\x00\x00\x000000",
+ 		"(\xb5/\xfd\x04X\x8d\x00\x00P0\x000\x001\x000000\x03T\x02\x00\x01\x01m\xf9\xb7G",
+ 	},
++	{
++		"empty block",
++		"",
++		"\x28\xb5\x2f\xfd\x00\x00\x15\x00\x00\x00\x00",
++	},
+ }
+ 
+ func TestSamples(t *testing.T) {

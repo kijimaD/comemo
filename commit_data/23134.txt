@@ -15,6 +15,20 @@ Date:   Mon Apr 27 10:46:02 2015 -0700
     Change-Id: Ic13a27d11cedd1e1f007951214b3bb56b1644f02
     Reviewed-on: https://go-review.googlesource.com/9393
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/select.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index efe0ec8542..29cc077779 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -243,7 +243,7 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
+ 	// generate permuted order
+ 	pollslice := slice{unsafe.Pointer(sel.pollorder), int(sel.ncase), int(sel.ncase)}
+ 	pollorder := *(*[]uint16)(unsafe.Pointer(&pollslice))
+-	for i := 0; i < int(sel.ncase); i++ {
++	for i := 1; i < int(sel.ncase); i++ {
+ 		j := int(fastrand1()) % (i + 1)
+ 		pollorder[i] = pollorder[j]
+ 		pollorder[j] = uint16(i)

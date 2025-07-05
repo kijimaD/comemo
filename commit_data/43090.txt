@@ -20,6 +20,20 @@ Date:   Wed Jan 8 11:00:44 2020 -0500
     Change-Id: I039e60ca619d39e5b502261d4a73e1afc7e3f9fc
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213827
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/run.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/run.go b/test/run.go
+index 85dc51d1dd..76babdfae8 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -459,7 +459,7 @@ func init() { checkShouldTest() }
+ // or else the commands will rebuild any needed packages (like runtime)
+ // over and over.
+ func goGcflags() string {
+-	return "-gcflags=" + os.Getenv("GO_GCFLAGS")
++	return "-gcflags=all=" + os.Getenv("GO_GCFLAGS")
+ }
+ 
+ // run runs a test.

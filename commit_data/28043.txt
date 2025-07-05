@@ -20,7 +20,7 @@ Date:   Wed Apr 27 14:46:09 2016 +1000
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/amd64/gsubr.go  |  2 +-
  src/cmd/compile/internal/arm/cgen64.go   |  6 ++--
  src/cmd/compile/internal/arm/gsubr.go    |  4 +--
@@ -52,3 +52,1059 @@ Date:   Wed Apr 27 14:46:09 2016 +1000
  src/cmd/compile/internal/x86/ggen.go     |  2 +-
  src/cmd/compile/internal/x86/gsubr.go    |  6 ++--
  30 files changed, 115 insertions(+), 115 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/gsubr.go b/src/cmd/compile/internal/amd64/gsubr.go
+index 456fa7cbae..e3535f3244 100644
+--- a/src/cmd/compile/internal/amd64/gsubr.go
++++ b/src/cmd/compile/internal/amd64/gsubr.go
+@@ -722,7 +722,7 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
+ 	a := obj.AXXX
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+-		gc.Fatalf("optoas: no entry %v-%v", gc.Oconv(op, 0), t)
++		gc.Fatalf("optoas: no entry %v-%v", op, t)
+ 
+ 	case OADDR_ | gc.TPTR32:
+ 		a = x86.ALEAL
+diff --git a/src/cmd/compile/internal/arm/cgen64.go b/src/cmd/compile/internal/arm/cgen64.go
+index 337bf03179..33e840615c 100644
+--- a/src/cmd/compile/internal/arm/cgen64.go
++++ b/src/cmd/compile/internal/arm/cgen64.go
+@@ -19,7 +19,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 	if res.Op != gc.OINDREG && res.Op != gc.ONAME {
+ 		gc.Dump("n", n)
+ 		gc.Dump("res", res)
+-		gc.Fatalf("cgen64 %v of %v", gc.Oconv(n.Op, 0), gc.Oconv(res.Op, 0))
++		gc.Fatalf("cgen64 %v of %v", n.Op, res.Op)
+ 	}
+ 
+ 	l := n.Left
+@@ -35,7 +35,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 	split64(l, &lo1, &hi1)
+ 	switch n.Op {
+ 	default:
+-		gc.Fatalf("cgen64 %v", gc.Oconv(n.Op, 0))
++		gc.Fatalf("cgen64 %v", n.Op)
+ 
+ 	case gc.OMINUS:
+ 		var lo2 gc.Node
+@@ -793,7 +793,7 @@ func cmp64(nl *gc.Node, nr *gc.Node, op gc.Op, likely int, to *obj.Prog) {
+ 	var br *obj.Prog
+ 	switch op {
+ 	default:
+-		gc.Fatalf("cmp64 %v %v", gc.Oconv(op, 0), t)
++		gc.Fatalf("cmp64 %v %v", op, t)
+ 
+ 		// cmp hi
+ 	// bne L
+diff --git a/src/cmd/compile/internal/arm/gsubr.go b/src/cmd/compile/internal/arm/gsubr.go
+index 26da2e2081..73905f18ce 100644
+--- a/src/cmd/compile/internal/arm/gsubr.go
++++ b/src/cmd/compile/internal/arm/gsubr.go
+@@ -719,7 +719,7 @@ func raddr(n *gc.Node, p *obj.Prog) {
+ 	gc.Naddr(&a, n)
+ 	if a.Type != obj.TYPE_REG {
+ 		if n != nil {
+-			gc.Fatalf("bad in raddr: %v", gc.Oconv(n.Op, 0))
++			gc.Fatalf("bad in raddr: %v", n.Op)
+ 		} else {
+ 			gc.Fatalf("bad in raddr: <null>")
+ 		}
+@@ -790,7 +790,7 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
+ 	a := obj.AXXX
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+-		gc.Fatalf("optoas: no entry %v-%v etype %v simtype %v", gc.Oconv(op, 0), t, gc.Types[t.Etype], gc.Types[gc.Simtype[t.Etype]])
++		gc.Fatalf("optoas: no entry %v-%v etype %v simtype %v", op, t, gc.Types[t.Etype], gc.Types[gc.Simtype[t.Etype]])
+ 
+ 		/*	case CASE(OADDR, TPTR32):
+ 				a = ALEAL;
+diff --git a/src/cmd/compile/internal/arm64/gsubr.go b/src/cmd/compile/internal/arm64/gsubr.go
+index 4d64e790af..efa66a09d3 100644
+--- a/src/cmd/compile/internal/arm64/gsubr.go
++++ b/src/cmd/compile/internal/arm64/gsubr.go
+@@ -567,7 +567,7 @@ func raddr(n *gc.Node, p *obj.Prog) {
+ 	gc.Naddr(&a, n)
+ 	if a.Type != obj.TYPE_REG {
+ 		if n != nil {
+-			gc.Fatalf("bad in raddr: %v", gc.Oconv(n.Op, 0))
++			gc.Fatalf("bad in raddr: %v", n.Op)
+ 		} else {
+ 			gc.Fatalf("bad in raddr: <null>")
+ 		}
+@@ -579,7 +579,7 @@ func raddr(n *gc.Node, p *obj.Prog) {
+ 
+ func gcmp(as obj.As, lhs *gc.Node, rhs *gc.Node) *obj.Prog {
+ 	if lhs.Op != gc.OREGISTER {
+-		gc.Fatalf("bad operands to gcmp: %v %v", gc.Oconv(lhs.Op, 0), gc.Oconv(rhs.Op, 0))
++		gc.Fatalf("bad operands to gcmp: %v %v", lhs.Op, rhs.Op)
+ 	}
+ 
+ 	p := rawgins(as, rhs, nil)
+@@ -622,7 +622,7 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
+ 	a := obj.AXXX
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+-		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(op, 0), t)
++		gc.Fatalf("optoas: no entry for op=%v type=%v", op, t)
+ 
+ 	case OEQ_ | gc.TBOOL,
+ 		OEQ_ | gc.TINT8,
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 5618012c77..5c9a2734d4 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -501,7 +501,7 @@ func (p *exporter) obj(sym *Sym) {
+ 		}
+ 
+ 	default:
+-		Fatalf("exporter: unexpected export symbol: %v %v", Oconv(n.Op, 0), sym)
++		Fatalf("exporter: unexpected export symbol: %v %v", oconv(n.Op, 0), sym)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 3d3600a079..bb7487c958 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -1807,7 +1807,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	}
+ 
+ 	if !n.Type.IsBoolean() {
+-		Fatalf("bgen: bad type %v for %v", n.Type, Oconv(n.Op, 0))
++		Fatalf("bgen: bad type %v for %v", n.Type, oconv(n.Op, 0))
+ 	}
+ 
+ 	for n.Op == OCONVNOP {
+@@ -2454,7 +2454,7 @@ func Ginscall(f *Node, proc int) {
+ func cgen_callinter(n *Node, res *Node, proc int) {
+ 	i := n.Left
+ 	if i.Op != ODOTINTER {
+-		Fatalf("cgen_callinter: not ODOTINTER %v", Oconv(i.Op, 0))
++		Fatalf("cgen_callinter: not ODOTINTER %v", oconv(i.Op, 0))
+ 	}
+ 
+ 	i = i.Left // interface
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 99b48f5ffe..5a7e9f34dd 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -695,7 +695,7 @@ func evconst(n *Node) {
+ 		switch uint32(n.Op)<<16 | uint32(v.Ctype()) {
+ 		default:
+ 			if n.Diag == 0 {
+-				Yyerror("illegal constant expression %v %v", Oconv(n.Op, 0), nl.Type)
++				Yyerror("illegal constant expression %v %v", oconv(n.Op, 0), nl.Type)
+ 				n.Diag = 1
+ 			}
+ 			return
+@@ -1179,7 +1179,7 @@ setfalse:
+ 
+ illegal:
+ 	if n.Diag == 0 {
+-		Yyerror("illegal constant expression: %v %v %v", nl.Type, Oconv(n.Op, 0), nr.Type)
++		Yyerror("illegal constant expression: %v %v %v", nl.Type, oconv(n.Op, 0), nr.Type)
+ 		n.Diag = 1
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/cplx.go b/src/cmd/compile/internal/gc/cplx.go
+index 34fd0b96d9..4218117711 100644
+--- a/src/cmd/compile/internal/gc/cplx.go
++++ b/src/cmd/compile/internal/gc/cplx.go
+@@ -399,7 +399,7 @@ func Complexgen(n *Node, res *Node) {
+ 	switch n.Op {
+ 	default:
+ 		Dump("complexgen: unknown op", n)
+-		Fatalf("complexgen: unknown op %v", Oconv(n.Op, 0))
++		Fatalf("complexgen: unknown op %v", oconv(n.Op, 0))
+ 
+ 	case ODOT,
+ 		ODOTPTR,
+@@ -458,7 +458,7 @@ func Complexgen(n *Node, res *Node) {
+ 
+ 	switch n.Op {
+ 	default:
+-		Fatalf("complexgen: unknown op %v", Oconv(n.Op, 0))
++		Fatalf("complexgen: unknown op %v", oconv(n.Op, 0))
+ 
+ 	case OCONV:
+ 		Complexmove(nl, res)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index ca9caf69d7..53d4ad4d10 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -551,7 +551,7 @@ func funchdr(n *Node) {
+ 
+ func funcargs(nt *Node) {
+ 	if nt.Op != OTFUNC {
+-		Fatalf("funcargs %v", Oconv(nt.Op, 0))
++		Fatalf("funcargs %v", oconv(nt.Op, 0))
+ 	}
+ 
+ 	// re-start the variable generation number
+@@ -565,7 +565,7 @@ func funcargs(nt *Node) {
+ 	if nt.Left != nil {
+ 		n := nt.Left
+ 		if n.Op != ODCLFIELD {
+-			Fatalf("funcargs receiver %v", Oconv(n.Op, 0))
++			Fatalf("funcargs receiver %v", oconv(n.Op, 0))
+ 		}
+ 		if n.Left != nil {
+ 			n.Left.Op = ONAME
+@@ -580,7 +580,7 @@ func funcargs(nt *Node) {
+ 
+ 	for _, n := range nt.List.Slice() {
+ 		if n.Op != ODCLFIELD {
+-			Fatalf("funcargs in %v", Oconv(n.Op, 0))
++			Fatalf("funcargs in %v", oconv(n.Op, 0))
+ 		}
+ 		if n.Left != nil {
+ 			n.Left.Op = ONAME
+@@ -598,7 +598,7 @@ func funcargs(nt *Node) {
+ 	var i int = 0
+ 	for _, n := range nt.Rlist.Slice() {
+ 		if n.Op != ODCLFIELD {
+-			Fatalf("funcargs out %v", Oconv(n.Op, 0))
++			Fatalf("funcargs out %v", oconv(n.Op, 0))
+ 		}
+ 
+ 		if n.Left == nil {
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 795e688090..a7bc88e5c1 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -998,8 +998,8 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
+ 	if Debug['m'] > 2 {
+ 		fmt.Printf("%v:[%d] %v escassign: %v(%v)[%v] = %v(%v)[%v]\n",
+ 			linestr(lineno), e.loopdepth, funcSym(Curfn),
+-			Nconv(dst, FmtShort), Jconv(dst, FmtShort), Oconv(dst.Op, 0),
+-			Nconv(src, FmtShort), Jconv(src, FmtShort), Oconv(src.Op, 0))
++			Nconv(dst, FmtShort), Jconv(dst, FmtShort), oconv(dst.Op, 0),
++			Nconv(src, FmtShort), Jconv(src, FmtShort), oconv(src.Op, 0))
+ 	}
+ 
+ 	setlineno(dst)
+@@ -1741,7 +1741,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep,
+ 
+ 	if Debug['m'] > 2 {
+ 		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %v(%v) scope:%v[%d] extraloopdepth=%v\n",
+-			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(src.Op, 0), Nconv(src, FmtShort), Jconv(src, FmtShort), e.curfnSym(src), srcE.Escloopdepth, extraloopdepth)
++			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", oconv(src.Op, 0), Nconv(src, FmtShort), Jconv(src, FmtShort), e.curfnSym(src), srcE.Escloopdepth, extraloopdepth)
+ 	}
+ 
+ 	e.pdepth++
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index a275377598..b6280ab30b 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -354,7 +354,7 @@ func dumpsym(s *Sym) {
+ 
+ 	switch s.Def.Op {
+ 	default:
+-		Yyerror("unexpected export symbol: %v %v", Oconv(s.Def.Op, 0), s)
++		Yyerror("unexpected export symbol: %v %v", oconv(s.Def.Op, 0), s)
+ 
+ 	case OLITERAL:
+ 		dumpexportconst(s)
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 3bd3874845..ee12e35975 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -193,7 +193,7 @@ var goopnames = []string{
+ }
+ 
+ // Fmt "%O":  Node opcodes
+-func Oconv(o Op, flag FmtFlag) string {
++func oconv(o Op, flag FmtFlag) string {
+ 	if (flag&FmtSharp != 0) || fmtmode != FDbg {
+ 		if o >= 0 && int(o) < len(goopnames) && goopnames[o] != "" {
+ 			return goopnames[o]
+@@ -454,7 +454,7 @@ func (e EType) String() string {
+ }
+ 
+ func (o Op) String() string {
+-	return Oconv(o, 0)
++	return oconv(o, 0)
+ }
+ 
+ // Fmt "%S": syms
+@@ -840,7 +840,7 @@ func stmtfmt(n *Node) string {
+ 			break
+ 		}
+ 
+-		f += fmt.Sprintf("%v %v= %v", n.Left, Oconv(Op(n.Etype), FmtSharp), n.Right)
++		f += fmt.Sprintf("%v %v= %v", n.Left, oconv(Op(n.Etype), FmtSharp), n.Right)
+ 
+ 	case OAS2:
+ 		if n.Colas && !complexinit {
+@@ -914,11 +914,11 @@ func stmtfmt(n *Node) string {
+ 
+ 	case OSELECT, OSWITCH:
+ 		if fmtmode == FErr {
+-			f += fmt.Sprintf("%v statement", Oconv(n.Op, 0))
++			f += fmt.Sprintf("%v statement", oconv(n.Op, 0))
+ 			break
+ 		}
+ 
+-		f += Oconv(n.Op, FmtSharp)
++		f += oconv(n.Op, FmtSharp)
+ 		if simpleinit {
+ 			f += fmt.Sprintf(" %v;", n.Ninit.First())
+ 		}
+@@ -941,9 +941,9 @@ func stmtfmt(n *Node) string {
+ 		OFALL,
+ 		OXFALL:
+ 		if n.Left != nil {
+-			f += fmt.Sprintf("%v %v", Oconv(n.Op, FmtSharp), n.Left)
++			f += fmt.Sprintf("%v %v", oconv(n.Op, FmtSharp), n.Left)
+ 		} else {
+-			f += Oconv(n.Op, FmtSharp)
++			f += oconv(n.Op, FmtSharp)
+ 		}
+ 
+ 	case OEMPTY:
+@@ -1337,7 +1337,7 @@ func exprfmt(n *Node, prec int) string {
+ 		return buf.String()
+ 
+ 	case OCOPY, OCOMPLEX:
+-		return fmt.Sprintf("%v(%v, %v)", Oconv(n.Op, FmtSharp), n.Left, n.Right)
++		return fmt.Sprintf("%v(%v, %v)", oconv(n.Op, FmtSharp), n.Left, n.Right)
+ 
+ 	case OCONV,
+ 		OCONVIFACE,
+@@ -1369,12 +1369,12 @@ func exprfmt(n *Node, prec int) string {
+ 		OPRINT,
+ 		OPRINTN:
+ 		if n.Left != nil {
+-			return fmt.Sprintf("%v(%v)", Oconv(n.Op, FmtSharp), n.Left)
++			return fmt.Sprintf("%v(%v)", oconv(n.Op, FmtSharp), n.Left)
+ 		}
+ 		if n.Isddd {
+-			return fmt.Sprintf("%v(%v...)", Oconv(n.Op, FmtSharp), Hconv(n.List, FmtComma))
++			return fmt.Sprintf("%v(%v...)", oconv(n.Op, FmtSharp), Hconv(n.List, FmtComma))
+ 		}
+-		return fmt.Sprintf("%v(%v)", Oconv(n.Op, FmtSharp), Hconv(n.List, FmtComma))
++		return fmt.Sprintf("%v(%v)", oconv(n.Op, FmtSharp), Hconv(n.List, FmtComma))
+ 
+ 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
+ 		var f string
+@@ -1408,9 +1408,9 @@ func exprfmt(n *Node, prec int) string {
+ 		ORECV:
+ 		var f string
+ 		if n.Left.Op == n.Op {
+-			f += fmt.Sprintf("%v ", Oconv(n.Op, FmtSharp))
++			f += fmt.Sprintf("%v ", oconv(n.Op, FmtSharp))
+ 		} else {
+-			f += Oconv(n.Op, FmtSharp)
++			f += oconv(n.Op, FmtSharp)
+ 		}
+ 		f += exprfmt(n.Left, nprec+1)
+ 		return f
+@@ -1439,7 +1439,7 @@ func exprfmt(n *Node, prec int) string {
+ 		var f string
+ 		f += exprfmt(n.Left, nprec)
+ 
+-		f += fmt.Sprintf(" %v ", Oconv(n.Op, FmtSharp))
++		f += fmt.Sprintf(" %v ", oconv(n.Op, FmtSharp))
+ 		f += exprfmt(n.Right, nprec+1)
+ 		return f
+ 
+@@ -1460,7 +1460,7 @@ func exprfmt(n *Node, prec int) string {
+ 		var f string
+ 		f += exprfmt(n.Left, nprec)
+ 		// TODO(marvin): Fix Node.EType type union.
+-		f += fmt.Sprintf(" %v ", Oconv(Op(n.Etype), FmtSharp))
++		f += fmt.Sprintf(" %v ", oconv(Op(n.Etype), FmtSharp))
+ 		f += exprfmt(n.Right, nprec+1)
+ 		return f
+ 
+@@ -1472,7 +1472,7 @@ func exprfmt(n *Node, prec int) string {
+ 		}
+ 	}
+ 
+-	return fmt.Sprintf("<node %v>", Oconv(n.Op, 0))
++	return fmt.Sprintf("<node %v>", oconv(n.Op, 0))
+ }
+ 
+ func nodefmt(n *Node, flag FmtFlag) string {
+@@ -1527,40 +1527,40 @@ func nodedump(n *Node, flag FmtFlag) string {
+ 		}
+ 
+ 		if n.Ninit.Len() != 0 {
+-			fmt.Fprintf(&buf, "%v-init%v", Oconv(n.Op, 0), n.Ninit)
++			fmt.Fprintf(&buf, "%v-init%v", oconv(n.Op, 0), n.Ninit)
+ 			indent(&buf)
+ 		}
+ 	}
+ 
+ 	switch n.Op {
+ 	default:
+-		fmt.Fprintf(&buf, "%v%v", Oconv(n.Op, 0), Jconv(n, 0))
++		fmt.Fprintf(&buf, "%v%v", oconv(n.Op, 0), Jconv(n, 0))
+ 
+ 	case OREGISTER, OINDREG:
+-		fmt.Fprintf(&buf, "%v-%v%v", Oconv(n.Op, 0), obj.Rconv(int(n.Reg)), Jconv(n, 0))
++		fmt.Fprintf(&buf, "%v-%v%v", oconv(n.Op, 0), obj.Rconv(int(n.Reg)), Jconv(n, 0))
+ 
+ 	case OLITERAL:
+-		fmt.Fprintf(&buf, "%v-%v%v", Oconv(n.Op, 0), Vconv(n.Val(), 0), Jconv(n, 0))
++		fmt.Fprintf(&buf, "%v-%v%v", oconv(n.Op, 0), Vconv(n.Val(), 0), Jconv(n, 0))
+ 
+ 	case ONAME, ONONAME:
+ 		if n.Sym != nil {
+-			fmt.Fprintf(&buf, "%v-%v%v", Oconv(n.Op, 0), n.Sym, Jconv(n, 0))
++			fmt.Fprintf(&buf, "%v-%v%v", oconv(n.Op, 0), n.Sym, Jconv(n, 0))
+ 		} else {
+-			fmt.Fprintf(&buf, "%v%v", Oconv(n.Op, 0), Jconv(n, 0))
++			fmt.Fprintf(&buf, "%v%v", oconv(n.Op, 0), Jconv(n, 0))
+ 		}
+ 		if recur && n.Type == nil && n.Name != nil && n.Name.Param != nil && n.Name.Param.Ntype != nil {
+ 			indent(&buf)
+-			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(n.Op, 0), n.Name.Param.Ntype)
++			fmt.Fprintf(&buf, "%v-ntype%v", oconv(n.Op, 0), n.Name.Param.Ntype)
+ 		}
+ 
+ 	case OASOP:
+-		fmt.Fprintf(&buf, "%v-%v%v", Oconv(n.Op, 0), Oconv(Op(n.Etype), 0), Jconv(n, 0))
++		fmt.Fprintf(&buf, "%v-%v%v", oconv(n.Op, 0), oconv(Op(n.Etype), 0), Jconv(n, 0))
+ 
+ 	case OTYPE:
+-		fmt.Fprintf(&buf, "%v %v%v type=%v", Oconv(n.Op, 0), n.Sym, Jconv(n, 0), n.Type)
++		fmt.Fprintf(&buf, "%v %v%v type=%v", oconv(n.Op, 0), n.Sym, Jconv(n, 0), n.Type)
+ 		if recur && n.Type == nil && n.Name.Param.Ntype != nil {
+ 			indent(&buf)
+-			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(n.Op, 0), n.Name.Param.Ntype)
++			fmt.Fprintf(&buf, "%v-ntype%v", oconv(n.Op, 0), n.Name.Param.Ntype)
+ 		}
+ 	}
+ 
+@@ -1581,17 +1581,17 @@ func nodedump(n *Node, flag FmtFlag) string {
+ 		}
+ 		if n.List.Len() != 0 {
+ 			indent(&buf)
+-			fmt.Fprintf(&buf, "%v-list%v", Oconv(n.Op, 0), n.List)
++			fmt.Fprintf(&buf, "%v-list%v", oconv(n.Op, 0), n.List)
+ 		}
+ 
+ 		if n.Rlist.Len() != 0 {
+ 			indent(&buf)
+-			fmt.Fprintf(&buf, "%v-rlist%v", Oconv(n.Op, 0), n.Rlist)
++			fmt.Fprintf(&buf, "%v-rlist%v", oconv(n.Op, 0), n.Rlist)
+ 		}
+ 
+ 		if n.Nbody.Len() != 0 {
+ 			indent(&buf)
+-			fmt.Fprintf(&buf, "%v-body%v", Oconv(n.Op, 0), n.Nbody)
++			fmt.Fprintf(&buf, "%v-body%v", oconv(n.Op, 0), n.Nbody)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index d16c4fa992..6fb27cf8e1 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -218,7 +218,7 @@ func Genlist(l Nodes) {
+ func cgen_proc(n *Node, proc int) {
+ 	switch n.Left.Op {
+ 	default:
+-		Fatalf("cgen_proc: unknown call %v", Oconv(n.Left.Op, 0))
++		Fatalf("cgen_proc: unknown call %v", oconv(n.Left.Op, 0))
+ 
+ 	case OCALLMETH:
+ 		cgen_callmeth(n.Left, proc)
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index ff6fbe42fb..3d9ab626f6 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -327,7 +327,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		a := a // copy to let escape into Ctxt.Dconv
+ 		Debug['h'] = 1
+ 		Dump("naddr", n)
+-		Fatalf("naddr: bad %v %v", Oconv(n.Op, 0), Ctxt.Dconv(a))
++		Fatalf("naddr: bad %v %v", oconv(n.Op, 0), Ctxt.Dconv(a))
+ 
+ 	case OREGISTER:
+ 		a.Type = obj.TYPE_REG
+@@ -422,7 +422,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		if !n.Left.Type.IsStruct() || n.Left.Type.Field(0).Sym != n.Sym {
+ 			Debug['h'] = 1
+ 			Dump("naddr", n)
+-			Fatalf("naddr: bad %v %v", Oconv(n.Op, 0), Ctxt.Dconv(a))
++			Fatalf("naddr: bad %v %v", oconv(n.Op, 0), Ctxt.Dconv(a))
+ 		}
+ 		Naddr(a, n.Left)
+ 
+@@ -465,7 +465,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		}
+ 		if a.Type != obj.TYPE_MEM {
+ 			a := a // copy to let escape into Ctxt.Dconv
+-			Fatalf("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), Oconv(n.Left.Op, 0))
++			Fatalf("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), oconv(n.Left.Op, 0))
+ 		}
+ 		a.Type = obj.TYPE_ADDR
+ 
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 7e7bda466d..aea05caee2 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -165,7 +165,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
+ 		a.Right = r
+ 		return typecheck(&a, Erv)
+ 	default:
+-		Fatalf("ordersafeexpr %v", Oconv(n.Op, 0))
++		Fatalf("ordersafeexpr %v", oconv(n.Op, 0))
+ 		return nil // not reached
+ 	}
+ }
+@@ -416,7 +416,7 @@ func ordercall(n *Node, order *Order) {
+ func ordermapassign(n *Node, order *Order) {
+ 	switch n.Op {
+ 	default:
+-		Fatalf("ordermapassign %v", Oconv(n.Op, 0))
++		Fatalf("ordermapassign %v", oconv(n.Op, 0))
+ 
+ 	case OAS:
+ 		order.out = append(order.out, n)
+@@ -478,7 +478,7 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 	switch n.Op {
+ 	default:
+-		Fatalf("orderstmt %v", Oconv(n.Op, 0))
++		Fatalf("orderstmt %v", oconv(n.Op, 0))
+ 
+ 	case OVARKILL, OVARLIVE:
+ 		order.out = append(order.out, n)
+@@ -790,7 +790,7 @@ func orderstmt(n *Node, order *Order) {
+ 		var r *Node
+ 		for _, n2 := range n.List.Slice() {
+ 			if n2.Op != OXCASE {
+-				Fatalf("order select case %v", Oconv(n2.Op, 0))
++				Fatalf("order select case %v", oconv(n2.Op, 0))
+ 			}
+ 			r = n2.Left
+ 			setlineno(n2)
+@@ -803,7 +803,7 @@ func orderstmt(n *Node, order *Order) {
+ 			if r != nil {
+ 				switch r.Op {
+ 				default:
+-					Yyerror("unknown op in select %v", Oconv(r.Op, 0))
++					Yyerror("unknown op in select %v", oconv(r.Op, 0))
+ 					Dump("select case", r)
+ 
+ 				// If this is case x := <-ch or case x, y := <-ch, the case has
+@@ -943,7 +943,7 @@ func orderstmt(n *Node, order *Order) {
+ 		n.Left = orderexpr(n.Left, order, nil)
+ 		for _, n4 := range n.List.Slice() {
+ 			if n4.Op != OXCASE {
+-				Fatalf("order switch case %v", Oconv(n4.Op, 0))
++				Fatalf("order switch case %v", oconv(n4.Op, 0))
+ 			}
+ 			orderexprlistinplace(n4.List, order)
+ 			orderblockNodes(&n4.Nbody)
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index bba4ff5e48..984d468bc6 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -91,7 +91,7 @@ func gvardefx(n *Node, as obj.As) {
+ 		Fatalf("gvardef nil")
+ 	}
+ 	if n.Op != ONAME {
+-		Yyerror("gvardef %v; %v", Oconv(n.Op, FmtSharp), n)
++		Yyerror("gvardef %v; %v", oconv(n.Op, FmtSharp), n)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 620bcb34a3..dc7d0068a1 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -132,7 +132,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 
+ 	switch n.Op {
+ 	default:
+-		Fatalf("instrument: unknown node type %v", Oconv(n.Op, 0))
++		Fatalf("instrument: unknown node type %v", oconv(n.Op, 0))
+ 
+ 	case OAS, OASWB, OAS2FUNC:
+ 		instrumentnode(&n.Left, init, 1, 0)
+@@ -374,13 +374,13 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		OAS2RECV,
+ 		OAS2MAPR,
+ 		OASOP:
+-		Yyerror("instrument: %v must be lowered by now", Oconv(n.Op, 0))
++		Yyerror("instrument: %v must be lowered by now", oconv(n.Op, 0))
+ 
+ 		goto ret
+ 
+ 		// impossible nodes: only appear in backend.
+ 	case ORROTC, OEXTEND:
+-		Yyerror("instrument: %v cannot exist now", Oconv(n.Op, 0))
++		Yyerror("instrument: %v cannot exist now", oconv(n.Op, 0))
+ 		goto ret
+ 
+ 	case OGETG:
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 22c716f9ce..c197fdd57d 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -18,7 +18,7 @@ func typecheckselect(sel *Node) {
+ 		ncase = n1
+ 		setlineno(ncase)
+ 		if ncase.Op != OXCASE {
+-			Fatalf("typecheckselect %v", Oconv(ncase.Op, 0))
++			Fatalf("typecheckselect %v", oconv(ncase.Op, 0))
+ 		}
+ 
+ 		if ncase.List.Len() == 0 {
+@@ -120,7 +120,7 @@ func walkselect(sel *Node) {
+ 			var ch *Node
+ 			switch n.Op {
+ 			default:
+-				Fatalf("select %v", Oconv(n.Op, 0))
++				Fatalf("select %v", oconv(n.Op, 0))
+ 
+ 				// ok already
+ 			case OSEND:
+@@ -218,7 +218,7 @@ func walkselect(sel *Node) {
+ 		r.Ninit.Set(cas.Ninit.Slice())
+ 		switch n.Op {
+ 		default:
+-			Fatalf("select %v", Oconv(n.Op, 0))
++			Fatalf("select %v", oconv(n.Op, 0))
+ 
+ 			// if selectnbsend(c, v) { body } else { default body }
+ 		case OSEND:
+@@ -282,7 +282,7 @@ func walkselect(sel *Node) {
+ 		} else {
+ 			switch n.Op {
+ 			default:
+-				Fatalf("select %v", Oconv(n.Op, 0))
++				Fatalf("select %v", oconv(n.Op, 0))
+ 
+ 				// selectsend(sel *byte, hchan *chan any, elem *any) (selected bool);
+ 			case OSEND:
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7763b18ce2..758f29d098 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2563,7 +2563,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		// want to set it here.
+ 	case OCALLINTER:
+ 		if fn.Op != ODOTINTER {
+-			Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", Oconv(fn.Op, 0))
++			Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", oconv(fn.Op, 0))
+ 		}
+ 		i := s.expr(fn.Left)
+ 		itab := s.newValue1(ssa.OpITab, Types[TUINTPTR], i)
+@@ -2787,7 +2787,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 		return s.call(n, callNormal)
+ 
+ 	default:
+-		s.Unimplementedf("unhandled addr %v", Oconv(n.Op, 0))
++		s.Unimplementedf("unhandled addr %v", oconv(n.Op, 0))
+ 		return nil
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index f2f2a70446..ff491f5dc2 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1203,9 +1203,9 @@ func printframenode(n *Node) {
+ 	}
+ 	switch n.Op {
+ 	case ONAME:
+-		fmt.Printf("%v %v G%d %v width=%d\n", Oconv(n.Op, 0), n.Sym, n.Name.Vargen, n.Type, w)
++		fmt.Printf("%v %v G%d %v width=%d\n", oconv(n.Op, 0), n.Sym, n.Name.Vargen, n.Type, w)
+ 	case OTYPE:
+-		fmt.Printf("%v %v width=%d\n", Oconv(n.Op, 0), n.Type, w)
++		fmt.Printf("%v %v width=%d\n", oconv(n.Op, 0), n.Type, w)
+ 	}
+ }
+ 
+@@ -1286,7 +1286,7 @@ func badtype(op Op, tl *Type, tr *Type) {
+ 	}
+ 
+ 	s := fmt_
+-	Yyerror("illegal types for operand: %v%s", Oconv(op, 0), s)
++	Yyerror("illegal types for operand: %v%s", oconv(op, 0), s)
+ }
+ 
+ // Brcom returns !(op).
+@@ -1306,7 +1306,7 @@ func Brcom(op Op) Op {
+ 	case OGE:
+ 		return OLT
+ 	}
+-	Fatalf("brcom: no com for %v\n", Oconv(op, 0))
++	Fatalf("brcom: no com for %v\n", oconv(op, 0))
+ 	return op
+ }
+ 
+@@ -1327,7 +1327,7 @@ func Brrev(op Op) Op {
+ 	case OGE:
+ 		return OLE
+ 	}
+-	Fatalf("brrev: no rev for %v\n", Oconv(op, 0))
++	Fatalf("brrev: no rev for %v\n", oconv(op, 0))
+ 	return op
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 3b08b13508..a8e6e15e0a 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -350,7 +350,7 @@ func casebody(sw *Node, typeswvar *Node) {
+ 	for i, n := range sw.List.Slice() {
+ 		setlineno(n)
+ 		if n.Op != OXCASE {
+-			Fatalf("casebody %v", Oconv(n.Op, 0))
++			Fatalf("casebody %v", oconv(n.Op, 0))
+ 		}
+ 		n.Op = OCASE
+ 		needvar := n.List.Len() != 1 || n.List.First().Op == OLITERAL
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 8860c5d803..8c51802ac6 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -278,7 +278,7 @@ OpSwitch:
+ 	default:
+ 		Dump("typecheck", n)
+ 
+-		Fatalf("typecheck %v", Oconv(n.Op, 0))
++		Fatalf("typecheck %v", oconv(n.Op, 0))
+ 
+ 	// names
+ 	case OLITERAL:
+@@ -611,7 +611,7 @@ OpSwitch:
+ 				aop = assignop(l.Type, r.Type, nil)
+ 				if aop != 0 {
+ 					if r.Type.IsInterface() && !l.Type.IsInterface() && !l.Type.IsComparable() {
+-						Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(op, 0), typekind(l.Type))
++						Yyerror("invalid operation: %v (operator %v not defined on %s)", n, oconv(op, 0), typekind(l.Type))
+ 						n.Type = nil
+ 						return n
+ 					}
+@@ -633,7 +633,7 @@ OpSwitch:
+ 				aop = assignop(r.Type, l.Type, nil)
+ 				if aop != 0 {
+ 					if l.Type.IsInterface() && !r.Type.IsInterface() && !r.Type.IsComparable() {
+-						Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(op, 0), typekind(r.Type))
++						Yyerror("invalid operation: %v (operator %v not defined on %s)", n, oconv(op, 0), typekind(r.Type))
+ 						n.Type = nil
+ 						return n
+ 					}
+@@ -664,7 +664,7 @@ OpSwitch:
+ 		}
+ 
+ 		if !okfor[op][et] {
+-			Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(op, 0), typekind(t))
++			Yyerror("invalid operation: %v (operator %v not defined on %s)", n, oconv(op, 0), typekind(t))
+ 			n.Type = nil
+ 			return n
+ 		}
+@@ -774,7 +774,7 @@ OpSwitch:
+ 			return n
+ 		}
+ 		if !okfor[n.Op][t.Etype] {
+-			Yyerror("invalid operation: %v %v", Oconv(n.Op, 0), t)
++			Yyerror("invalid operation: %v %v", oconv(n.Op, 0), t)
+ 			n.Type = nil
+ 			return n
+ 		}
+@@ -1314,7 +1314,7 @@ OpSwitch:
+ 
+ 	case OCAP, OLEN, OREAL, OIMAG:
+ 		ok |= Erv
+-		if !onearg(n, "%v", Oconv(n.Op, 0)) {
++		if !onearg(n, "%v", oconv(n.Op, 0)) {
+ 			n.Type = nil
+ 			return n
+ 		}
+@@ -1380,7 +1380,7 @@ OpSwitch:
+ 		break OpSwitch
+ 
+ 	badcall1:
+-		Yyerror("invalid argument %v for %v", Nconv(n.Left, FmtLong), Oconv(n.Op, 0))
++		Yyerror("invalid argument %v for %v", Nconv(n.Left, FmtLong), oconv(n.Op, 0))
+ 		n.Type = nil
+ 		return n
+ 
+@@ -1463,7 +1463,7 @@ OpSwitch:
+ 		break OpSwitch
+ 
+ 	case OCLOSE:
+-		if !onearg(n, "%v", Oconv(n.Op, 0)) {
++		if !onearg(n, "%v", oconv(n.Op, 0)) {
+ 			n.Type = nil
+ 			return n
+ 		}
+@@ -2284,19 +2284,19 @@ func twoarg(n *Node) bool {
+ 		return true
+ 	}
+ 	if n.List.Len() == 0 {
+-		Yyerror("missing argument to %v - %v", Oconv(n.Op, 0), n)
++		Yyerror("missing argument to %v - %v", oconv(n.Op, 0), n)
+ 		return false
+ 	}
+ 
+ 	n.Left = n.List.First()
+ 	if n.List.Len() == 1 {
+-		Yyerror("missing argument to %v - %v", Oconv(n.Op, 0), n)
++		Yyerror("missing argument to %v - %v", oconv(n.Op, 0), n)
+ 		n.List.Set(nil)
+ 		return false
+ 	}
+ 
+ 	if n.List.Len() > 2 {
+-		Yyerror("too many arguments to %v - %v", Oconv(n.Op, 0), n)
++		Yyerror("too many arguments to %v - %v", oconv(n.Op, 0), n)
+ 		n.List.Set(nil)
+ 		return false
+ 	}
+@@ -2662,7 +2662,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc
+ 		if call != nil {
+ 			Yyerror("invalid use of ... in call to %v", call)
+ 		} else {
+-			Yyerror("invalid use of ... in %v", Oconv(op, 0))
++			Yyerror("invalid use of ... in %v", oconv(op, 0))
+ 		}
+ 	}
+ 
+@@ -2682,7 +2682,7 @@ notenough:
+ 				Yyerror("not enough arguments in call to %v", call)
+ 			}
+ 		} else {
+-			Yyerror("not enough arguments to %v", Oconv(op, 0))
++			Yyerror("not enough arguments to %v", oconv(op, 0))
+ 		}
+ 		if n != nil {
+ 			n.Diag = 1
+@@ -2695,7 +2695,7 @@ toomany:
+ 	if call != nil {
+ 		Yyerror("too many arguments in call to %v", call)
+ 	} else {
+-		Yyerror("too many arguments to %v", Oconv(op, 0))
++		Yyerror("too many arguments to %v", oconv(op, 0))
+ 	}
+ 	goto out
+ }
+@@ -3606,7 +3606,7 @@ func typecheckdef(n *Node) *Node {
+ 
+ 	switch n.Op {
+ 	default:
+-		Fatalf("typecheckdef %v", Oconv(n.Op, 0))
++		Fatalf("typecheckdef %v", oconv(n.Op, 0))
+ 
+ 		// not really syms
+ 	case OGOTO, OLABEL:
+diff --git a/src/cmd/compile/internal/gc/unsafe.go b/src/cmd/compile/internal/gc/unsafe.go
+index e1d3b40098..5935cd98ff 100644
+--- a/src/cmd/compile/internal/gc/unsafe.go
++++ b/src/cmd/compile/internal/gc/unsafe.go
+@@ -82,7 +82,7 @@ func unsafenmagic(nn *Node) *Node {
+ 				v += r1.Xoffset
+ 			default:
+ 				Dump("unsafenmagic", r)
+-				Fatalf("impossible %v node after dot insertion", Oconv(r1.Op, FmtSharp))
++				Fatalf("impossible %v node after dot insertion", oconv(r1.Op, FmtSharp))
+ 				goto bad
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 0c7c5fa7aa..bce34374e8 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -159,7 +159,7 @@ func walkstmt(n *Node) *Node {
+ 		if n.Op == ONAME {
+ 			Yyerror("%v is not a top level statement", n.Sym)
+ 		} else {
+-			Yyerror("%v is not a top level statement", Oconv(n.Op, 0))
++			Yyerror("%v is not a top level statement", oconv(n.Op, 0))
+ 		}
+ 		Dump("nottop", n)
+ 
+@@ -1505,7 +1505,7 @@ opswitch:
+ 		// ifaceeq(i1 any-1, i2 any-2) (ret bool);
+ 	case OCMPIFACE:
+ 		if !Eqtype(n.Left.Type, n.Right.Type) {
+-			Fatalf("ifaceeq %v %v %v", Oconv(n.Op, 0), n.Left.Type, n.Right.Type)
++			Fatalf("ifaceeq %v %v %v", oconv(n.Op, 0), n.Left.Type, n.Right.Type)
+ 		}
+ 		var fn *Node
+ 		if n.Left.Type.IsEmptyInterface() {
+@@ -1651,7 +1651,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
+ 		var nln, nrn Nodes
+ 		nln.Set(nl)
+ 		nrn.Set(nr)
+-		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nln, FmtSign), Oconv(op, 0), Hconv(nrn, FmtSign), len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
++		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nln, FmtSign), oconv(op, 0), Hconv(nrn, FmtSign), len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
+ 	}
+ 	return nn
+ }
+@@ -1866,9 +1866,9 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
+ 				l1 := dumptypes(nl, "expected")
+ 				l2 := dumpnodetypes(lr0, "given")
+ 				if l != nil {
+-					Yyerror("not enough arguments to %v\n\t%s\n\t%s", Oconv(op, 0), l1, l2)
++					Yyerror("not enough arguments to %v\n\t%s\n\t%s", oconv(op, 0), l1, l2)
+ 				} else {
+-					Yyerror("too many arguments to %v\n\t%s\n\t%s", Oconv(op, 0), l1, l2)
++					Yyerror("too many arguments to %v\n\t%s\n\t%s", oconv(op, 0), l1, l2)
+ 				}
+ 			}
+ 
+@@ -2142,7 +2142,7 @@ func applywritebarrier(n *Node) *Node {
+ 
+ func convas(n *Node, init *Nodes) *Node {
+ 	if n.Op != OAS {
+-		Fatalf("convas: not OAS %v", Oconv(n.Op, 0))
++		Fatalf("convas: not OAS %v", oconv(n.Op, 0))
+ 	}
+ 
+ 	n.Typecheck = 1
+@@ -2285,7 +2285,7 @@ func reorder3(all []*Node) []*Node {
+ 
+ 		switch l.Op {
+ 		default:
+-			Fatalf("reorder3 unexpected lvalue %v", Oconv(l.Op, FmtSharp))
++			Fatalf("reorder3 unexpected lvalue %v", oconv(l.Op, FmtSharp))
+ 
+ 		case ONAME:
+ 			break
+@@ -3788,7 +3788,7 @@ func usefield(n *Node) {
+ 
+ 	switch n.Op {
+ 	default:
+-		Fatalf("usefield %v", Oconv(n.Op, 0))
++		Fatalf("usefield %v", oconv(n.Op, 0))
+ 
+ 	case ODOT, ODOTPTR:
+ 		break
+diff --git a/src/cmd/compile/internal/mips64/gsubr.go b/src/cmd/compile/internal/mips64/gsubr.go
+index 60805270af..a2bff29ecc 100644
+--- a/src/cmd/compile/internal/mips64/gsubr.go
++++ b/src/cmd/compile/internal/mips64/gsubr.go
+@@ -148,7 +148,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	case gc.TFLOAT32:
+ 		switch op {
+ 		default:
+-			gc.Fatalf("ginscmp: no entry for op=%v type=%v", gc.Oconv(op, 0), t)
++			gc.Fatalf("ginscmp: no entry for op=%s type=%v", op, t)
+ 
+ 		case gc.OEQ,
+ 			gc.ONE:
+@@ -165,7 +165,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	case gc.TFLOAT64:
+ 		switch op {
+ 		default:
+-			gc.Fatalf("ginscmp: no entry for op=%v type=%v", gc.Oconv(op, 0), t)
++			gc.Fatalf("ginscmp: no entry for op=%s type=%v", op, t)
+ 
+ 		case gc.OEQ,
+ 			gc.ONE:
+@@ -715,7 +715,7 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
+ 	a := obj.AXXX
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+-		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(op, 0), t)
++		gc.Fatalf("optoas: no entry for op=%s type=%v", op, t)
+ 
+ 	case OEQ_ | gc.TBOOL,
+ 		OEQ_ | gc.TINT8,
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+index eb6cd2c5e9..1137c50678 100644
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -712,7 +712,7 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
+ 	a := obj.AXXX
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+-		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(op, 0), t)
++		gc.Fatalf("optoas: no entry for op=%v type=%v", op, t)
+ 
+ 	case OEQ_ | gc.TBOOL,
+ 		OEQ_ | gc.TINT8,
+diff --git a/src/cmd/compile/internal/s390x/gsubr.go b/src/cmd/compile/internal/s390x/gsubr.go
+index e9cfd23e42..3e8782f5e6 100644
+--- a/src/cmd/compile/internal/s390x/gsubr.go
++++ b/src/cmd/compile/internal/s390x/gsubr.go
+@@ -639,7 +639,7 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
+ 	a := obj.AXXX
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+-		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(op, 0), t)
++		gc.Fatalf("optoas: no entry for op=%v type=%v", op, t)
+ 
+ 	case OEQ_ | gc.TBOOL,
+ 		OEQ_ | gc.TINT8,
+diff --git a/src/cmd/compile/internal/x86/cgen64.go b/src/cmd/compile/internal/x86/cgen64.go
+index 61e191f87c..ea52d6951a 100644
+--- a/src/cmd/compile/internal/x86/cgen64.go
++++ b/src/cmd/compile/internal/x86/cgen64.go
+@@ -19,12 +19,12 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 	if res.Op != gc.OINDREG && res.Op != gc.ONAME {
+ 		gc.Dump("n", n)
+ 		gc.Dump("res", res)
+-		gc.Fatalf("cgen64 %v of %v", gc.Oconv(n.Op, 0), gc.Oconv(res.Op, 0))
++		gc.Fatalf("cgen64 %v of %v", n.Op, res.Op)
+ 	}
+ 
+ 	switch n.Op {
+ 	default:
+-		gc.Fatalf("cgen64 %v", gc.Oconv(n.Op, 0))
++		gc.Fatalf("cgen64 %v", n.Op)
+ 
+ 	case gc.OMINUS:
+ 		gc.Cgen(n.Left, res)
+@@ -531,7 +531,7 @@ func cmp64(nl *gc.Node, nr *gc.Node, op gc.Op, likely int, to *obj.Prog) {
+ 	var br *obj.Prog
+ 	switch op {
+ 	default:
+-		gc.Fatalf("cmp64 %v %v", gc.Oconv(op, 0), t)
++		gc.Fatalf("cmp64 %v %v", op, t)
+ 
+ 		// cmp hi
+ 	// jne L
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index 38c3f8fc0e..21d989c98d 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -661,7 +661,7 @@ func cgen_floatsse(n *gc.Node, res *gc.Node) {
+ 	switch n.Op {
+ 	default:
+ 		gc.Dump("cgen_floatsse", n)
+-		gc.Fatalf("cgen_floatsse %v", gc.Oconv(n.Op, 0))
++		gc.Fatalf("cgen_floatsse %v", n.Op)
+ 		return
+ 
+ 	case gc.OMINUS,
+diff --git a/src/cmd/compile/internal/x86/gsubr.go b/src/cmd/compile/internal/x86/gsubr.go
+index 91c009116c..569ffd11bd 100644
+--- a/src/cmd/compile/internal/x86/gsubr.go
++++ b/src/cmd/compile/internal/x86/gsubr.go
+@@ -91,7 +91,7 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
+ 	a := obj.AXXX
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+-		gc.Fatalf("optoas: no entry %v-%v", gc.Oconv(op, 0), t)
++		gc.Fatalf("optoas: no entry %v-%v", op, t)
+ 
+ 	case OADDR_ | gc.TPTR32:
+ 		a = x86.ALEAL
+@@ -454,7 +454,7 @@ func foptoas(op gc.Op, t *gc.Type, flg int) obj.As {
+ 	if !gc.Thearch.Use387 {
+ 		switch uint32(op)<<16 | uint32(et) {
+ 		default:
+-			gc.Fatalf("foptoas-sse: no entry %v-%v", gc.Oconv(op, 0), t)
++			gc.Fatalf("foptoas-sse: no entry %v-%v", op, t)
+ 
+ 		case OCMP_ | gc.TFLOAT32:
+ 			a = x86.AUCOMISS
+@@ -587,7 +587,7 @@ func foptoas(op gc.Op, t *gc.Type, flg int) obj.As {
+ 		return x86.AFCHS
+ 	}
+ 
+-	gc.Fatalf("foptoas %v %v %#x", gc.Oconv(op, 0), t, flg)
++	gc.Fatalf("foptoas %v %v %#x", op, t, flg)
+ 	return 0
+ }
+ 

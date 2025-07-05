@@ -9,6 +9,22 @@ Date:   Wed Jul 22 13:11:54 2015 -0400
     Change-Id: I5bc60779a87dc07899dd70659a830996bf7812ca
     Reviewed-on: https://go-review.googlesource.com/12527
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/verify_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 20a3e31878..694c14023b 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -221,6 +221,10 @@ var verifyTests = []verifyTest{
+ 		currentTime:   1397502195,
+ 		dnsName:       "api.moip.com.br",
+ 
++		// CryptoAPI can find alternative validation paths so we don't
++		// perform this test with system validation.
++		systemSkip: true,
++
+ 		sha2: true,
+ 		expectedChains: [][]string{
+ 			{

@@ -15,6 +15,25 @@ Date:   Mon May 11 11:24:10 2015 +1200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/ld/lib.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index edafaebb0b..e4e68eae27 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -1573,12 +1573,11 @@ func Cflush() {
+ }
+ 
+ func Cpos() int64 {
+-	Cflush()
+ 	off, err := coutbuf.f.Seek(0, 1)
+ 	if err != nil {
+ 		Exitf("seeking in output [0, 1]: %v", err)
+ 	}
+-	return off
++	return off + int64(coutbuf.Buffered())
+ }
+ 
+ func Cseek(p int64) {

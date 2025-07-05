@@ -7,9 +7,138 @@ Date:   Wed Sep 9 16:59:41 2009 -0700
     R=ken
     OCL=34500
     CL=34500
-
+---
  src/cmd/gc/dcl.c       |  4 ++--
  src/cmd/gc/go.y        |  7 +++++--
  src/cmd/gc/typecheck.c |  9 +++++----
  test/blank.go          | 11 +++++++++--
  4 files changed, 21 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 8e6c171845..356314296c 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1123,8 +1123,8 @@ methodname1(Node *n, Node *t)
+ 		star = "*";
+ 		t = t->left;
+ 	}
+-	if(t->sym == S)
+-		return n;
++	if(t->sym == S || isblank(n))
++		return newname(n->sym);
+ 	snprint(buf, sizeof(buf), "%s%S·%S", star, t->sym, n->sym);
+ 	return newname(pkglookup(buf, t->sym->package));
+ }
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index f784c862ab..61f8b2b2ee 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -176,6 +176,8 @@ import_stmt:
+ 			importdot(import);
+ 			break;
+ 		}
++		if(my->name[0] == '_' && my->name[1] == '\0')
++			break;
+ 
+ 		// TODO(rsc): this line is needed for a package
+ 		// which does bytes := in a function, which creates
+@@ -212,8 +214,8 @@ import_here:
+ 		$$ = parserline();
+ 		pkgimportname = S;
+ 		pkgmyname = $1;
+-		if(pkgmyname->def)
+-			redeclare(pkgmyname, "as imported package name");
++		if($1->def && ($1->name[0] != '_' || $1->name[1] != '\0'))
++			redeclare($1, "as imported package name");
+ 		importfile(&$2);
+ 	}
+ |	'.' LLITERAL
+@@ -1172,6 +1174,7 @@ xdcl_list:
+ |	xdcl_list xdcl
+ 	{
+ 		$$ = concat($1, $2);
++		testdclstack();
+ 	}
+ 
+ vardcl_list:
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index cf46414cab..d33e9e8094 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -61,7 +61,7 @@ typecheck(Node **np, int top)
+ 	n = *np;
+ 	if(n == N)
+ 		return N;
+-	
++
+ 	// Skip typecheck if already done.
+ 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
+ 	if(n->typecheck == 1) {
+@@ -614,7 +614,7 @@ reswitch:
+ 		}
+ 		yyerror("cannot slice %#N (type %T)", l, t);
+ 		goto error;
+-	
++
+ 	/*
+ 	 * call and call like
+ 	 */
+@@ -1196,7 +1196,7 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
+ 	 */
+ 	if(nt == T)
+ 		return 0;
+-	
++
+ 	if(t->etype == TBLANK) {
+ 		*op = OCONVNOP;
+ 		return 0;
+@@ -1982,12 +1982,13 @@ typecheckfunc(Node *n)
+ {
+ 	Type *t, *rcvr;
+ 
++//dump("nname", n->nname);
+ 	typecheck(&n->nname, Erv | Easgn);
+ 	if((t = n->nname->type) == T)
+ 		return;
+ 	n->type = t;
+ 
+ 	rcvr = getthisx(t)->type;
+-	if(rcvr != nil && n->shortname != N)
++	if(rcvr != nil && n->shortname != N && !isblank(n->shortname))
+ 		addmethod(n->shortname->sym, t, 1);
+ }
+diff --git a/test/blank.go b/test/blank.go
+index 4919841a42..634844352e 100644
+--- a/test/blank.go
++++ b/test/blank.go
+@@ -6,12 +6,20 @@
+ 
+ package main
+ 
++import _ "fmt"
++
+ var call string
+ 
+ type T struct {
+ 	_, _, _ int;
+ }
+ 
++func (T) _() {
++}
++
++func (T) _() {
++}
++
+ const (
+ 	c0 = iota;
+ 	_;
+@@ -44,8 +52,7 @@ func i() int {
+ 	return 23;
+ }
+ 
+-func main()
+-{
++func main() {
+ 	_, _ = f();
+ 	a, _ := f();
+ 	if a != 1 {panic(a)}

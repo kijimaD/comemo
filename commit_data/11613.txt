@@ -7,6 +7,24 @@ Date:   Sat Feb 4 13:27:12 2012 +0900
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/5608060
-
+---
  src/cmd/dist/windows.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/windows.c b/src/cmd/dist/windows.c
+index e54bd89f16..2d82587bd2 100644
+--- a/src/cmd/dist/windows.c
++++ b/src/cmd/dist/windows.c
+@@ -396,10 +396,10 @@ mtime(char *p)
+ bool
+ isabs(char *p)
+ {
+-	// c:/ or c:\
++	// "c:/" or "c:\"
+ 	if(('A' <= p[0] && p[0] <= 'Z') || ('a' <= p[0] && p[0] <= 'z'))
+ 		return p[1] == ':' && (p[2] == '/' || p[2] == '\\');
+-	// / or \
++	// "/" or "\"
+ 	return p[0] == '/' || p[0] == '\\';
+ }
+ 

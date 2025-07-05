@@ -14,9 +14,131 @@ Date:   Wed Aug 19 13:34:33 2015 +1200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go |  2 +-
  src/cmd/link/internal/ld/lib.go    | 18 ++++++++++++++
  src/cmd/link/internal/ld/link.go   | 51 +++++++++++++++++++-------------------
  src/cmd/link/internal/ld/symtab.go |  6 +----
  4 files changed, 46 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 74ec9dd3ea..3e316e64e4 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -81,7 +81,7 @@ func gentext() {
+ 	//    0:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 7 <local.dso_init+0x7>
+ 	// 			3: R_X86_64_PC32	runtime.firstmoduledata-0x4
+ 	o(0x48, 0x8d, 0x3d)
+-	ld.Addpcrelplus(ld.Ctxt, initfunc, ld.Linklookup(ld.Ctxt, "runtime.firstmoduledata", 0), 0)
++	ld.Addpcrelplus(ld.Ctxt, initfunc, ld.Ctxt.Moduledata, 0)
+ 	//    7:	e8 00 00 00 00       	callq  c <local.dso_init+0xc>
+ 	// 			8: R_X86_64_PLT32	runtime.addmoduledata-0x4
+ 	o(0xe8)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 8ccbec9dd6..f31070f41b 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -564,6 +564,24 @@ func loadlib() {
+ 	tlsg.Reachable = true
+ 	Ctxt.Tlsg = tlsg
+ 
++	moduledata := Linklookup(Ctxt, "runtime.firstmoduledata", 0)
++	if moduledata.Type == 0 || moduledata.Type == obj.SDYNIMPORT {
++		// If the module we are linking does not define the
++		// runtime.firstmoduledata symbol, create a local symbol for
++		// the moduledata.
++		moduledata = Linklookup(Ctxt, "local.moduledata", 0)
++		moduledata.Local = true
++	} else {
++		// If OTOH the module does define the symbol, we truncate the
++		// symbol back to 0 bytes so we can define its entire
++		// contents.
++		moduledata.Size = 0
++	}
++	// Either way we mark it as noptrdata to hide it from the GC.
++	moduledata.Type = obj.SNOPTRDATA
++	moduledata.Reachable = true
++	Ctxt.Moduledata = moduledata
++
+ 	// Now that we know the link mode, trim the dynexp list.
+ 	x := CgoExportDynamic
+ 
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 33b17c5985..54154340e0 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -121,31 +121,32 @@ type Shlib struct {
+ }
+ 
+ type Link struct {
+-	Thechar   int32
+-	Thestring string
+-	Goarm     int32
+-	Headtype  int
+-	Arch      *LinkArch
+-	Debugasm  int32
+-	Debugvlog int32
+-	Bso       *obj.Biobuf
+-	Windows   int32
+-	Goroot    string
+-	Hash      map[symVer]*LSym
+-	Allsym    *LSym
+-	Nsymbol   int32
+-	Tlsg      *LSym
+-	Libdir    []string
+-	Library   []*Library
+-	Shlibs    []Shlib
+-	Tlsoffset int
+-	Diag      func(string, ...interface{})
+-	Cursym    *LSym
+-	Version   int
+-	Textp     *LSym
+-	Etextp    *LSym
+-	Nhistfile int32
+-	Filesyms  *LSym
++	Thechar    int32
++	Thestring  string
++	Goarm      int32
++	Headtype   int
++	Arch       *LinkArch
++	Debugasm   int32
++	Debugvlog  int32
++	Bso        *obj.Biobuf
++	Windows    int32
++	Goroot     string
++	Hash       map[symVer]*LSym
++	Allsym     *LSym
++	Nsymbol    int32
++	Tlsg       *LSym
++	Libdir     []string
++	Library    []*Library
++	Shlibs     []Shlib
++	Tlsoffset  int
++	Diag       func(string, ...interface{})
++	Cursym     *LSym
++	Version    int
++	Textp      *LSym
++	Etextp     *LSym
++	Nhistfile  int32
++	Filesyms   *LSym
++	Moduledata *LSym
+ }
+ 
+ type LinkArch struct {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 5360ec15a1..250c053143 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -452,11 +452,7 @@ func symtab() {
+ 	// runtime to use. Any changes here must be matched by changes to
+ 	// the definition of moduledata in runtime/symtab.go.
+ 	// This code uses several global variables that are set by pcln.go:pclntab.
+-	moduledata := Linklookup(Ctxt, "runtime.firstmoduledata", 0)
+-	moduledata.Type = obj.SNOPTRDATA
+-	moduledata.Size = 0 // truncate symbol back to 0 bytes to reinitialize
+-	moduledata.Reachable = true
+-	moduledata.Local = true
++	moduledata := Ctxt.Moduledata
+ 	// The pclntab slice
+ 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.pclntab", 0))
+ 	adduint(Ctxt, moduledata, uint64(Linklookup(Ctxt, "runtime.pclntab", 0).Size))

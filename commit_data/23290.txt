@@ -15,9 +15,117 @@ Date:   Tue May 5 16:10:12 2015 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/6l/asm.go             |  7 ++++++-
  src/cmd/internal/ld/lib.go    |  1 +
  src/cmd/internal/ld/link.go   | 37 +++++++++++++++++++++----------------
  src/cmd/internal/ld/symtab.go |  7 +++----
  4 files changed, 31 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/6l/asm.go b/src/cmd/6l/asm.go
+index deaeb82d39..4df8ac7196 100644
+--- a/src/cmd/6l/asm.go
++++ b/src/cmd/6l/asm.go
+@@ -33,6 +33,7 @@ package main
+ import (
+ 	"cmd/internal/ld"
+ 	"cmd/internal/obj"
++	"debug/elf"
+ 	"fmt"
+ 	"log"
+ )
+@@ -381,7 +382,11 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+ 
+ 	case obj.R_PCREL:
+ 		if r.Siz == 4 {
+-			ld.Thearch.Vput(ld.R_X86_64_PC32 | uint64(elfsym)<<32)
++			if r.Xsym.Type == obj.SDYNIMPORT && r.Xsym.ElfType == elf.STT_FUNC {
++				ld.Thearch.Vput(ld.R_X86_64_PLT32 | uint64(elfsym)<<32)
++			} else {
++				ld.Thearch.Vput(ld.R_X86_64_PC32 | uint64(elfsym)<<32)
++			}
+ 		} else {
+ 			return -1
+ 		}
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index cdf2dcaccb..184175e026 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -1197,6 +1197,7 @@ func ldshlibsyms(shlib string) {
+ 				s.Name, shlib, lsym.File)
+ 		}
+ 		lsym.Type = obj.SDYNIMPORT
++		lsym.ElfType = elf.ST_TYPE(s.Info)
+ 		lsym.File = libpath
+ 		if strings.HasPrefix(lsym.Name, "type.") {
+ 			data := make([]byte, s.Size)
+diff --git a/src/cmd/internal/ld/link.go b/src/cmd/internal/ld/link.go
+index 52390e741d..03da52a981 100644
+--- a/src/cmd/internal/ld/link.go
++++ b/src/cmd/internal/ld/link.go
+@@ -32,26 +32,31 @@ package ld
+ 
+ import (
+ 	"cmd/internal/obj"
++	"debug/elf"
+ 	"encoding/binary"
+ )
+ 
+ type LSym struct {
+-	Name        string
+-	Extname     string
+-	Type        int16
+-	Version     int16
+-	Dupok       uint8
+-	Cfunc       uint8
+-	External    uint8
+-	Nosplit     uint8
+-	Reachable   bool
+-	Cgoexport   uint8
+-	Special     uint8
+-	Stkcheck    uint8
+-	Hide        uint8
+-	Leaf        uint8
+-	Localentry  uint8
+-	Onlist      uint8
++	Name       string
++	Extname    string
++	Type       int16
++	Version    int16
++	Dupok      uint8
++	Cfunc      uint8
++	External   uint8
++	Nosplit    uint8
++	Reachable  bool
++	Cgoexport  uint8
++	Special    uint8
++	Stkcheck   uint8
++	Hide       uint8
++	Leaf       uint8
++	Localentry uint8
++	Onlist     uint8
++	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
++	// is not set for symbols defined by the packages being linked or by symbols
++	// read by ldelf (and so is left as elf.STT_NOTYPE).
++	ElfType     elf.SymType
+ 	Dynid       int32
+ 	Plt         int32
+ 	Got         int32
+diff --git a/src/cmd/internal/ld/symtab.go b/src/cmd/internal/ld/symtab.go
+index 31baba010b..d6e79dc00f 100644
+--- a/src/cmd/internal/ld/symtab.go
++++ b/src/cmd/internal/ld/symtab.go
+@@ -106,10 +106,9 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
+ 		type_ = STT_OBJECT
+ 
+ 	case 'U':
+-		type_ = STT_NOTYPE
+-		if x == Ctxt.Tlsg {
+-			type_ = STT_TLS
+-		}
++		// ElfType is only set for symbols read from Go shared libraries, but
++		// for other symbols it is left as STT_NOTYPE which is fine.
++		type_ = int(x.ElfType)
+ 
+ 	case 't':
+ 		type_ = STT_TLS

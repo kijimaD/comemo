@@ -13,7 +13,40 @@ Date:   Tue Jul 14 22:42:16 2015 -0400
     Change-Id: I0320a93ce4130deed1c7b7685627d51acb7bc56d
     Reviewed-on: https://go-review.googlesource.com/12230
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/math/all_test.go | 6 ++++--
  src/math/log10.go    | 5 +++++
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 0037b4a64c..e18e45e020 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -1730,8 +1730,10 @@ func tolerance(a, b, e float64) bool {
+ 		d = -d
+ 	}
+ 
+-	if a != 0 {
+-		e = e * a
++	// note: b is correct (expected) value, a is actual value.
++	// make error tolerance a fraction of b, not a.
++	if b != 0 {
++		e = e * b
+ 		if e < 0 {
+ 			e = -e
+ 		}
+diff --git a/src/math/log10.go b/src/math/log10.go
+index 95cfbf47ce..ccd079d891 100644
+--- a/src/math/log10.go
++++ b/src/math/log10.go
+@@ -18,5 +18,10 @@ func Log2(x float64) float64
+ 
+ func log2(x float64) float64 {
+ 	frac, exp := Frexp(x)
++	// Make sure exact powers of two give an exact answer.
++	// Don't depend on Log(0.5)*(1/Ln2)+exp being exactly exp-1.
++	if frac == 0.5 {
++		return float64(exp - 1)
++	}
+ 	return Log(frac)*(1/Ln2) + float64(exp)
+ }

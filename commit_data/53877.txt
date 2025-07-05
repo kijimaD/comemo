@@ -13,6 +13,20 @@ Date:   Wed Sep 7 01:16:14 2022 +0800
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Andy Pan <panjf2000@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/sendfile_linux_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/sendfile_linux_test.go b/src/net/sendfile_linux_test.go
+index 2ca4ec0e75..8cd6acca17 100644
+--- a/src/net/sendfile_linux_test.go
++++ b/src/net/sendfile_linux_test.go
+@@ -59,7 +59,7 @@ func (bench sendFileBench) benchSendFile(b *testing.B) {
+ func createTempFile(b *testing.B, size int) *os.File {
+ 	f, err := os.CreateTemp("", "linux-sendfile-test")
+ 	if err != nil {
+-		b.Fatalf("failed to create tmp directory: %v", err)
++		b.Fatalf("failed to create temporary file: %v", err)
+ 	}
+ 
+ 	data := make([]byte, size)

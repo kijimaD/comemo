@@ -10,6 +10,29 @@ Date:   Fri Nov 3 19:19:58 2023 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/plugin/plugin.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/plugin/plugin.go b/src/plugin/plugin.go
+index 187d127432..b4b1697b52 100644
+--- a/src/plugin/plugin.go
++++ b/src/plugin/plugin.go
+@@ -74,7 +74,7 @@ type Plugin struct {
+ }
+ 
+ // Open opens a Go plugin.
+-// If a path has already been opened, then the existing *Plugin is returned.
++// If a path has already been opened, then the existing *[Plugin] is returned.
+ // It is safe for concurrent use by multiple goroutines.
+ func Open(path string) (*Plugin, error) {
+ 	return open(path)
+@@ -100,7 +100,7 @@ func (p *Plugin) Lookup(symName string) (Symbol, error) {
+ //
+ //	func F() { fmt.Printf("Hello, number %d\n", V) }
+ //
+-// may be loaded with the Open function and then the exported package
++// may be loaded with the [Open] function and then the exported package
+ // symbols V and F can be accessed
+ //
+ //	p, err := plugin.Open("plugin_name.so")

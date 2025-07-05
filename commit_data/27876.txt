@@ -11,6 +11,19 @@ Date:   Sun Apr 17 15:13:46 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  .gitignore | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/.gitignore b/.gitignore
+index 1677a18fc8..6851e147d3 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -24,7 +24,6 @@ doc/articles/wiki/*.bin
+ misc/cgo/life/run.out
+ misc/cgo/stdio/run.out
+ misc/cgo/testso/main
+-src/cmd/**/y.output
+ src/cmd/cgo/zdefaultcc.go
+ src/cmd/go/zdefaultcc.go
+ src/cmd/internal/obj/zbootstrap.go

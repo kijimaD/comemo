@@ -9,7 +9,72 @@ Date:   Thu Apr 16 00:03:34 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/goobj2/builtinlist.go | 15 ++++++++++++++-
  src/cmd/internal/goobj2/mkbuiltin.go   |  9 ++++++++-
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/goobj2/builtinlist.go b/src/cmd/internal/goobj2/builtinlist.go
+index bcab6f2e0b..8fbbe45261 100644
+--- a/src/cmd/internal/goobj2/builtinlist.go
++++ b/src/cmd/internal/goobj2/builtinlist.go
+@@ -10,6 +10,7 @@ var builtins = [...]struct {
+ 	{"runtime.panicdivide", 1},
+ 	{"runtime.panicshift", 1},
+ 	{"runtime.panicmakeslicelen", 1},
++	{"runtime.panicmakeslicecap", 1},
+ 	{"runtime.throwinit", 1},
+ 	{"runtime.panicwrap", 1},
+ 	{"runtime.gopanic", 1},
+@@ -180,14 +181,26 @@ var builtins = [...]struct {
+ 	{"runtime.msanwrite", 1},
+ 	{"runtime.checkptrAlignment", 1},
+ 	{"runtime.checkptrArithmetic", 1},
++	{"runtime.libfuzzerTraceCmp1", 1},
++	{"runtime.libfuzzerTraceCmp2", 1},
++	{"runtime.libfuzzerTraceCmp4", 1},
++	{"runtime.libfuzzerTraceCmp8", 1},
++	{"runtime.libfuzzerTraceConstCmp1", 1},
++	{"runtime.libfuzzerTraceConstCmp2", 1},
++	{"runtime.libfuzzerTraceConstCmp4", 1},
++	{"runtime.libfuzzerTraceConstCmp8", 1},
+ 	{"runtime.x86HasPOPCNT", 0},
+ 	{"runtime.x86HasSSE41", 0},
++	{"runtime.x86HasFMA", 0},
++	{"runtime.armHasVFPv4", 0},
+ 	{"runtime.arm64HasATOMICS", 0},
+-	{"runtime.gcWriteBarrier", 0},
+ 	{"runtime.deferproc", 1},
+ 	{"runtime.deferprocStack", 1},
+ 	{"runtime.deferreturn", 1},
+ 	{"runtime.newproc", 1},
++	{"runtime.panicoverflow", 1},
++	{"runtime.sigpanic", 1},
++	{"runtime.gcWriteBarrier", 0},
+ 	{"runtime.morestack", 0},
+ 	{"runtime.morestackc", 0},
+ 	{"runtime.morestack_noctxt", 0},
+diff --git a/src/cmd/internal/goobj2/mkbuiltin.go b/src/cmd/internal/goobj2/mkbuiltin.go
+index 0061aeb237..d773e53e59 100644
+--- a/src/cmd/internal/goobj2/mkbuiltin.go
++++ b/src/cmd/internal/goobj2/mkbuiltin.go
+@@ -113,11 +113,18 @@ var extra = [...]struct {
+ 	name string
+ 	abi  int
+ }{
+-	{"gcWriteBarrier", 0}, // asm function, ABI0
++	// compiler frontend inserted calls (sysfunc)
+ 	{"deferproc", 1},
+ 	{"deferprocStack", 1},
+ 	{"deferreturn", 1},
+ 	{"newproc", 1},
++	{"panicoverflow", 1},
++	{"sigpanic", 1},
++
++	// compiler backend inserted calls
++	{"gcWriteBarrier", 0}, // asm function, ABI0
++
++	// assembler backend inserted calls
+ 	{"morestack", 0},        // asm function, ABI0
+ 	{"morestackc", 0},       // asm function, ABI0
+ 	{"morestack_noctxt", 0}, // asm function, ABI0

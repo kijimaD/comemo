@@ -7,6 +7,20 @@ Date:   Sat Dec 9 12:31:41 2017 +0100
     Change-Id: I2ad5d73deaee57ccbb2c75378dcc2884e43be3bb
     Reviewed-on: https://go-review.googlesource.com/82899
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/executable_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/executable_test.go b/src/os/executable_test.go
+index 7800844e42..4a9a8837be 100644
+--- a/src/os/executable_test.go
++++ b/src/os/executable_test.go
+@@ -17,7 +17,7 @@ import (
+ const executable_EnvVar = "OSTEST_OUTPUT_EXECPATH"
+ 
+ func TestExecutable(t *testing.T) {
+-	testenv.MustHaveExec(t) // will also execlude nacl, which doesn't support Executable anyway
++	testenv.MustHaveExec(t) // will also exclude nacl, which doesn't support Executable anyway
+ 	ep, err := os.Executable()
+ 	if err != nil {
+ 		t.Fatalf("Executable failed: %v", err)

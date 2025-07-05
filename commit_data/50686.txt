@@ -16,6 +16,22 @@ Date:   Fri Nov 5 10:11:11 2021 -0400
     Trust: Benny Siegert <bsiegert@gmail.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/runtime/chan_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/chan_test.go b/src/runtime/chan_test.go
+index c9ce3ac643..355267c5e3 100644
+--- a/src/runtime/chan_test.go
++++ b/src/runtime/chan_test.go
+@@ -624,6 +624,10 @@ func TestShrinkStackDuringBlockedSend(t *testing.T) {
+ }
+ 
+ func TestNoShrinkStackWhileParking(t *testing.T) {
++	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm64" {
++		testenv.SkipFlaky(t, 49382)
++	}
++
+ 	// The goal of this test is to trigger a "racy sudog adjustment"
+ 	// throw. Basically, there's a window between when a goroutine
+ 	// becomes available for preemption for stack scanning (and thus,

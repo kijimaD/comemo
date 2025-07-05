@@ -11,6 +11,20 @@ Date:   Fri Aug 29 10:29:00 2014 -0400
     TBR=r
     CC=0intro, golang-codereviews
     https://golang.org/cl/133260044
-
+---
  src/pkg/runtime/print1.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/print1.go b/src/pkg/runtime/print1.go
+index 9df6a621bb..f19cc1da59 100644
+--- a/src/pkg/runtime/print1.go
++++ b/src/pkg/runtime/print1.go
+@@ -46,7 +46,7 @@ func printf(s *byte) {
+ // It has the same problem as goprintf.
+ //go:nosplit
+ func snprintf(dst *byte, n int32, s *byte) {
+-	buf := (*[1 << 30]byte)(unsafe.Pointer(dst))[0:0:n]
++	buf := (*[1 << 30]byte)(unsafe.Pointer(dst))[0:n:n]
+ 
+ 	gp := getg()
+ 	gp.writebuf = buf[0:0 : n-1] // leave room for NUL, this is called from C

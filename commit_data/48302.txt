@@ -16,7 +16,69 @@ Date:   Wed May 5 21:13:24 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/exec_test.go | 19 +++++++++++--------
  src/text/template/funcs.go     |  6 ++++--
  2 files changed, 15 insertions(+), 10 deletions(-)
+
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index e73fce4fa8..ef521645a7 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -1201,8 +1201,11 @@ var cmpTests = []cmpTest{
+ 	{"eq .Ptr .NilPtr", "false", true},
+ 	{"eq .NilPtr .NilPtr", "true", true},
+ 	{"eq .Iface1 .Iface1", "true", true},
+-	{"eq .Iface1 .Iface2", "false", true},
+-	{"eq .Iface2 .Iface2", "true", true},
++	{"eq .Iface1 .NilIface", "false", true},
++	{"eq .NilIface .NilIface", "true", true},
++	{"eq .NilIface .Iface1", "false", true},
++	{"eq .NilIface 0", "false", true},
++	{"eq 0 .NilIface", "false", true},
+ 	// Errors
+ 	{"eq `xy` 1", "", false},       // Different types.
+ 	{"eq 2 2.0", "", false},        // Different types.
+@@ -1217,12 +1220,12 @@ var cmpTests = []cmpTest{
+ func TestComparison(t *testing.T) {
+ 	b := new(bytes.Buffer)
+ 	var cmpStruct = struct {
+-		Uthree, Ufour  uint
+-		NegOne, Three  int
+-		Ptr, NilPtr    *int
+-		Map            map[int]int
+-		V1, V2         V
+-		Iface1, Iface2 fmt.Stringer
++		Uthree, Ufour    uint
++		NegOne, Three    int
++		Ptr, NilPtr      *int
++		Map              map[int]int
++		V1, V2           V
++		Iface1, NilIface fmt.Stringer
+ 	}{
+ 		Uthree: 3,
+ 		Ufour:  4,
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index 9dd332c068..fff833ed29 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -478,7 +478,9 @@ func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
+ 			case k1 == uintKind && k2 == intKind:
+ 				truth = arg.Int() >= 0 && arg1.Uint() == uint64(arg.Int())
+ 			default:
+-				return false, errBadComparison
++				if arg1 != zero && arg != zero {
++					return false, errBadComparison
++				}
+ 			}
+ 		} else {
+ 			switch k1 {
+@@ -495,7 +497,7 @@ func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
+ 			case uintKind:
+ 				truth = arg1.Uint() == arg.Uint()
+ 			default:
+-				if arg == zero {
++				if arg == zero || arg1 == zero {
+ 					truth = arg1 == arg
+ 				} else {
+ 					if t2 := arg.Type(); !t2.Comparable() {

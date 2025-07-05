@@ -7,7 +7,34 @@ Date:   Mon Feb 7 14:40:36 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4023071
-
+---
  src/cmd/8l/l.h      | 2 +-
  src/cmd/ld/symtab.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 7cd97deaf3..f2546cf201 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -365,7 +365,7 @@ void	listinit(void);
+ Sym*	lookup(char*, int);
+ void	lputb(int32);
+ void	lputl(int32);
+-void	vputl(uvlong);
++void	vputl(uint64);
+ void	strnput(char*, int);
+ void	main(int, char*[]);
+ void*	mal(uint32);
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 413e6397c0..22777b6b5b 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -260,7 +260,7 @@ vputb(uint64 v)
+ }
+ 
+ void
+-vputl(uvlong v)
++vputl(uint64 v)
+ {
+ 	lputl(v);
+ 	lputl(v >> 32);

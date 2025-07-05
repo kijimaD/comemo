@@ -10,6 +10,20 @@ Date:   Tue Jun 22 02:12:29 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/329730
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ben Shi <powerman1st@163.com>
-
+---
  src/runtime/internal/atomic/atomic_386.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_386.s b/src/runtime/internal/atomic/atomic_386.s
+index 37318e0ad7..724d515231 100644
+--- a/src/runtime/internal/atomic/atomic_386.s
++++ b/src/runtime/internal/atomic/atomic_386.s
+@@ -65,7 +65,7 @@ TEXT ·Xaddint64(SB), NOSPLIT, $0-20
+ 
+ // bool ·Cas64(uint64 *val, uint64 old, uint64 new)
+ // Atomically:
+-//	if(*val == *old){
++//	if(*val == old){
+ //		*val = new;
+ //		return 1;
+ //	} else {

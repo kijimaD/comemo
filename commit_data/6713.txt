@@ -7,6 +7,20 @@ Date:   Fri Nov 5 16:13:58 2010 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/2925041
-
+---
  doc/root.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index 1fbf61d909..3bc781a678 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -6,7 +6,7 @@ function loadFeed() {
+         var url = "http://blog.golang.org/feeds/posts/default";
+         var divId = "blogFeed";
+         var feed = new google.feeds.Feed(url);
+-        feed.setNumEntries(5)
++        feed.setNumEntries(4)
+         feed.load(function (result) {
+                 var container = document.getElementById(divId)
+                 if (result.error) {

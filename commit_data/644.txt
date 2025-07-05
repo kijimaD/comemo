@@ -7,8 +7,100 @@ Date:   Sun Sep 14 17:29:50 2008 -0700
     R=r
     OCL=15327
     CL=15327
-
+---
  src/cmd/gc/go.h   |  2 ++
  src/cmd/gc/go.y   | 14 ++++++++------
  src/cmd/gc/walk.c |  6 ++++--
  3 files changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index e36eece280..1d776d4813 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -666,6 +666,8 @@ void	doimport9(Sym*, Node*);
+ /*
+  *	walk.c
+  */
++void	addtotop(Node*);
++void	gettype(Node*, Node*);
+ void	walk(Node*);
+ void	walkstate(Node*);
+ void	walktype(Node*, int);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 15c56370d0..9d05bf43dd 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -247,20 +247,22 @@ Bvardcl:
+ 		dodclvar($$, $2);
+ 
+ 		$$ = nod(OAS, $$, $4);
++		addtotop($$);
+ 	}
+ |	new_name '=' expr
+ 	{
+-		gettype($3);
++		$$ = nod(OAS, $1, N);
++		gettype($3, $$);
+ 		defaultlit($3);
+ 		dodclvar($1, $3->type);
+-		$$ = nod(OAS, $1, $3);
++		$$->right = $3;
+ 	}
+ 
+ constdcl:
+ 	new_name type '=' expr
+ 	{
+ 		Node *c = treecopy($4);
+-		gettype(c);
++		gettype(c, N);
+ 		convlit(c, $2);
+ 		dodclconst($1, c);
+ 
+@@ -270,7 +272,7 @@ constdcl:
+ |	new_name '=' expr
+ 	{
+ 		Node *c = treecopy($3);
+-		gettype(c);
++		gettype(c, N);
+ 		dodclconst($1, c);
+ 
+ 		lastconst = $3;
+@@ -282,7 +284,7 @@ constdcl1:
+ |	new_name type
+ 	{
+ 		Node *c = treecopy(lastconst);
+-		gettype(c);
++		gettype(c, N);
+ 		convlit(c, $2);
+ 		dodclconst($1, c);
+ 
+@@ -291,7 +293,7 @@ constdcl1:
+ |	new_name
+ 	{
+ 		Node *c = treecopy(lastconst);
+-		gettype(c);
++		gettype(c, N);
+ 		dodclconst($1, c);
+ 
+ 		iota += 1;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 2975149b73..503f9260e5 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -76,12 +76,14 @@ addtotop(Node *n)
+ }
+ 
+ void
+-gettype(Node *n)
++gettype(Node *n, Node *a)
+ {
+ 	if(debug['W'])
+ 		dump("\nbefore gettype", n);
+ 	walktype(n, Erv);
+-	addtotop(n);
++	if(a == N && addtop != N)
++		fatal("gettype: addtop");
++	addtotop(a);
+ 	if(debug['W'])
+ 		dump("after gettype", n);
+ }

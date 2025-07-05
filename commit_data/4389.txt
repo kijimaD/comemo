@@ -8,10 +8,94 @@ Date:   Fri Dec 11 12:48:55 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/171048
-
+---
  doc/code.html       |  4 ++--
  doc/contribute.html |  4 ++--
  doc/install.html    |  4 ++--
  src/Makefile        | 11 +++++++++++
  src/all.bash        |  9 ++-------
  5 files changed, 19 insertions(+), 13 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 178fca131f..6e32a3d309 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -130,8 +130,8 @@ cd $GOROOT/src/pkg
+ </pre>
+ <p>
+ to update the dependency file <code>Make.deps</code>.
+-(This happens automatically each time you run <code>all.bash</code>
+-or <code>make.bash</code>.)
++(This happens automatically each time you run <code>make all</code>
++or <code>make build</code>.)
+ </p>
+ 
+ <p>
+diff --git a/doc/contribute.html b/doc/contribute.html
+index edbaf73025..d4bf667a25 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -21,11 +21,11 @@ tree to make sure the changes don't break other packages or programs:
+ 
+ <pre>
+ cd $GOROOT/src
+-./all.bash
++make all
+ </pre>
+ 
+ <p>
+-The final line printed by <code>all.bash</code> should be of the form:
++The final line printed by <code>make all</code> should be of the form:
+ </p>
+ 
+ <pre>
+diff --git a/doc/install.html b/doc/install.html
+index a7fc446db2..a3787191f7 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -211,11 +211,11 @@ is in your <code>$PATH</code> and then run
+ 
+ <pre>
+ $ cd $GOROOT/src
+-$ ./all.bash
++$ make all
+ </pre>
+ 
+ <p>
+-If <code>all.bash</code> goes well, it will finish by printing
++If <code>make all</code> goes well, it will finish by printing
+ </p>
+ 
+ <pre>
+diff --git a/src/Makefile b/src/Makefile
+new file mode 100644
+index 0000000000..02581f5f80
+--- /dev/null
++++ b/src/Makefile
+@@ -0,0 +1,11 @@
++all: build run
++
++build:
++	bash $(GOROOT)/src/make.bash
++
++run:
++	bash $(GOROOT)/src/run.bash
++
++clean:
++	bash $(GOROOT)/src/clean.bash
++
+diff --git a/src/all.bash b/src/all.bash
+index 67c19cd43f..8074c571a9 100755
+--- a/src/all.bash
++++ b/src/all.bash
+@@ -1,8 +1,3 @@
+-#!/usr/bin/env bash
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
++#!/bin/sh
++exec make all
+ 
+-set -e
+-bash make.bash
+-bash run.bash

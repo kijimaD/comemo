@@ -9,7 +9,49 @@ Date:   Wed Apr 21 16:27:41 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/958041
-
+---
  src/pkg/runtime/mgc0.c | 2 +-
  src/pkg/runtime/proc.c | 3 ++-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 5265bea21f..f78dabf88b 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -128,6 +128,7 @@ mark(void)
+ 		case Gdead:
+ 			break;
+ 		case Grunning:
++		case Grecovery:
+ 			if(gp != g)
+ 				throw("mark - world not stopped");
+ 			scanstack(gp);
+@@ -135,7 +136,6 @@ mark(void)
+ 		case Grunnable:
+ 		case Gsyscall:
+ 		case Gwaiting:
+-		case Grecovery:
+ 			scanstack(gp);
+ 			break;
+ 		}
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 169f90b733..acbb3afa15 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -248,7 +248,7 @@ readylocked(G *g)
+ 	}
+ 
+ 	// Mark runnable.
+-	if(g->status == Grunnable || g->status == Grunning)
++	if(g->status == Grunnable || g->status == Grunning || g->status == Grecovery)
+ 		throw("bad g->status in ready");
+ 	g->status = Grunnable;
+ 
+@@ -472,6 +472,7 @@ scheduler(void)
+ 			// before it tests the return value.)
+ 			gp->sched.sp = getcallersp(d->sp - 2*sizeof(uintptr));
+ 			gp->sched.pc = d->pc;
++			gp->status = Grunning;
+ 			free(d);
+ 			gogo(&gp->sched, 1);
+ 		}

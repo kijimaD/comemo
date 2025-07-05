@@ -31,10 +31,107 @@ Date:   Tue May 3 10:49:56 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/403696
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/go/parser/parser.go                       |  2 +-
  src/go/parser/testdata/typeset.go2            | 27 ++++++++++++---------------
  src/go/types/expr.go                          |  6 ++++++
  src/go/types/testdata/check/expr0.go          |  7 +++++++
  src/go/types/testdata/fixedbugs/issue49482.go |  5 +----
  5 files changed, 27 insertions(+), 20 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 39ba9b33a7..3c9be31626 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1722,7 +1722,7 @@ func (p *parser) parseUnaryExpr() ast.Expr {
+ 	}
+ 
+ 	switch p.tok {
+-	case token.ADD, token.SUB, token.NOT, token.XOR, token.AND:
++	case token.ADD, token.SUB, token.NOT, token.XOR, token.AND, token.TILDE:
+ 		pos, op := p.pos, p.tok
+ 		p.next()
+ 		x := p.parseUnaryExpr()
+diff --git a/src/go/parser/testdata/typeset.go2 b/src/go/parser/testdata/typeset.go2
+index aa18e8ccff..7844c22212 100644
+--- a/src/go/parser/testdata/typeset.go2
++++ b/src/go/parser/testdata/typeset.go2
+@@ -48,21 +48,18 @@ type (
+ 
+ // Single-expression type parameter lists and those that don't start
+ // with a (type parameter) name are considered array sizes.
+-// The term must be a valid expression (it could be a type - and then
+-// a type-checker will complain - but we don't allow ~ in the expr).
+-// TODO(rfindley): Improve error recover here. In these cases go/parser error
+-// recovery is worse than cmd/compile/internal/syntax, and unnecessary type
+-// declarations had to be inserted to force synchronization.
+-type _[t] t
+-type _[~ /* ERROR "expected operand" */ t] t
+-type /* ERROR "expected ']'" */ Sync int  // placeholder to synchronize the parser
+-type _[t|t] t
+-type _[~ /* ERROR "expected operand" */ t|t] t
+-type /* ERROR "expected ']'" */ Sync int  // placeholder to synchronize the parser
+-type _[t| ~ /* ERROR "expected operand" */ t] t
+-type /* ERROR "expected ']'" */ Sync int  // placeholder to synchronize the parser
+-type _[~ /* ERROR "expected operand" */ t|~t] t
+-type /* ERROR "expected ']'" */ Sync int  // placeholder to synchronize the parser
++// The term must be a valid expression (it could be a type incl. a
++// tilde term) but the type-checker will complain.
++type (
++        _[t] t
++        _[t|t] t
++
++        // These are invalid and the type-checker will complain.
++        _[~t] t
++        _[~t|t] t
++        _[t|~t] t
++        _[~t|~t] t
++)
+ 
+ type _[_ t, t /* ERROR "type parameters must be named" */ ] t
+ type _[_ ~t, t /* ERROR "type parameters must be named" */ ] t
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 70914d5485..14ca0c20d8 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -195,6 +195,12 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
+ 		x.typ = ch.elem
+ 		check.hasCallOrRecv = true
+ 		return
++
++	case token.TILDE:
++		// Provide a better error position and message than what check.op below could do.
++		check.error(e, _UndefinedOp, "cannot use ~ outside of interface or type constraint")
++		x.mode = invalid
++		return
+ 	}
+ 
+ 	if !check.op(unaryOpPredicates, x, e.Op) {
+diff --git a/src/go/types/testdata/check/expr0.go b/src/go/types/testdata/check/expr0.go
+index 1aac726327..19923777df 100644
+--- a/src/go/types/testdata/check/expr0.go
++++ b/src/go/types/testdata/check/expr0.go
+@@ -178,3 +178,10 @@ func _() {
+ 	_ = -g /* ERROR 2-valued g */ ()
+ 	_ = <-g /* ERROR 2-valued g */ ()
+ }
++
++// ~ is accepted as unary operator only permitted in interface type elements
++var (
++	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ 0
++	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ "foo"
++	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ i0
++)
+diff --git a/src/go/types/testdata/fixedbugs/issue49482.go b/src/go/types/testdata/fixedbugs/issue49482.go
+index 4c6579ed68..f103d3b952 100644
+--- a/src/go/types/testdata/fixedbugs/issue49482.go
++++ b/src/go/types/testdata/fixedbugs/issue49482.go
+@@ -22,7 +22,4 @@ type _[P /* ERROR non-function P */ (*int)] int
+ type _[P *struct /* ERROR "expected expression" */ {}| int /* ERROR "not an expression" */ ] struct{}
+ 
+ // The following fails to parse, due to the '~'
+-type _[P *struct /* ERROR "expected expression" */ {}|~ /* ERROR "expected operand" */ int] struct{}
+-
+-// This is fragile: 'var' synchronizes the parser, and we absorb the rest of the errors.
+-var /* ERROR "expected ']'" */ _ /* ERROR "value or type" */
++type _[P *struct /* ERROR "expected expression" */ {}|~int /* ERROR "not an expression" */ ] struct{}

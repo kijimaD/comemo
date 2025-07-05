@@ -18,9 +18,160 @@ Date:   Tue Nov 17 19:54:31 2020 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/malloc.go   | 40 +++++++++++++++++++++++++++++++++++++++-
  src/runtime/mcache.go   |  9 ++++++---
  src/runtime/mcentral.go |  2 +-
  src/runtime/mheap.go    |  7 +++++--
  4 files changed, 51 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 3db884f498..81e5225883 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -979,6 +979,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	var span *mspan
+ 	var x unsafe.Pointer
+ 	noscan := typ == nil || typ.ptrdata == 0
++	// In some cases block zeroing can profitably (for latency reduction purposes)
++	// be delayed till preemption is possible; isZeroed tracks that state.
++	isZeroed := true
+ 	if size <= maxSmallSize {
+ 		if noscan && size < maxTinySize {
+ 			// Tiny allocator.
+@@ -1074,7 +1077,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		}
+ 	} else {
+ 		shouldhelpgc = true
+-		span = c.allocLarge(size, needzero, noscan)
++		// For large allocations, keep track of zeroed state so that
++		// bulk zeroing can be happen later in a preemptible context.
++		span, isZeroed = c.allocLarge(size, needzero && !noscan, noscan)
+ 		span.freeindex = 1
+ 		span.allocCount = 1
+ 		x = unsafe.Pointer(span.base())
+@@ -1133,6 +1138,12 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	mp.mallocing = 0
+ 	releasem(mp)
+ 
++	// Pointerfree data can be zeroed late in a context where preemption can occur.
++	// x will keep the memory alive.
++	if !isZeroed && needzero {
++		memclrNoHeapPointersChunked(size, x)
++	}
++
+ 	if debug.malloc {
+ 		if debug.allocfreetrace != 0 {
+ 			tracealloc(x, size, typ)
+@@ -1185,6 +1196,33 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	return x
+ }
+ 
++// memclrNoHeapPointersChunked repeatedly calls memclrNoHeapPointers
++// on chunks of the buffer to be zeroed, with opportunities for preemption
++// along the way.  memclrNoHeapPointers contains no safepoints and also
++// cannot be preemptively scheduled, so this provides a still-efficient
++// block copy that can also be preempted on a reasonable granularity.
++//
++// Use this with care; if the data being cleared is tagged to contain
++// pointers, this allows the GC to run before it is all cleared.
++func memclrNoHeapPointersChunked(size uintptr, x unsafe.Pointer) {
++	v := uintptr(x)
++	// got this from benchmarking. 128k is too small, 512k is too large.
++	const chunkBytes = 256 * 1024
++	vsize := v + size
++	for voff := v; voff < vsize; voff = voff + chunkBytes {
++		if getg().preempt {
++			// may hold locks, e.g., profiling
++			goschedguarded()
++		}
++		// clear min(avail, lump) bytes
++		n := vsize - voff
++		if n > chunkBytes {
++			n = chunkBytes
++		}
++		memclrNoHeapPointers(unsafe.Pointer(voff), n)
++	}
++}
++
+ // implementation of new builtin
+ // compiler (both frontend and SSA backend) knows the signature
+ // of this function
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 097e4a5ade..a9e959109a 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -206,7 +206,10 @@ func (c *mcache) refill(spc spanClass) {
+ }
+ 
+ // allocLarge allocates a span for a large object.
+-func (c *mcache) allocLarge(size uintptr, needzero bool, noscan bool) *mspan {
++// The boolean result indicates whether the span is known-zeroed.
++// If it did not need to be zeroed, it may not have been zeroed;
++// but if it came directly from the OS, it is already zeroed.
++func (c *mcache) allocLarge(size uintptr, needzero bool, noscan bool) (*mspan, bool) {
+ 	if size+_PageSize < size {
+ 		throw("out of memory")
+ 	}
+@@ -221,7 +224,7 @@ func (c *mcache) allocLarge(size uintptr, needzero bool, noscan bool) *mspan {
+ 	deductSweepCredit(npages*_PageSize, npages)
+ 
+ 	spc := makeSpanClass(0, noscan)
+-	s := mheap_.alloc(npages, spc, needzero)
++	s, isZeroed := mheap_.alloc(npages, spc, needzero)
+ 	if s == nil {
+ 		throw("out of memory")
+ 	}
+@@ -245,7 +248,7 @@ func (c *mcache) allocLarge(size uintptr, needzero bool, noscan bool) *mspan {
+ 	mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
+ 	s.limit = s.base() + size
+ 	heapBitsForAddr(s.base()).initSpan(s)
+-	return s
++	return s, isZeroed
+ }
+ 
+ func (c *mcache) releaseAll() {
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 4eeac3be88..6013c94c69 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -238,7 +238,7 @@ func (c *mcentral) grow() *mspan {
+ 	npages := uintptr(class_to_allocnpages[c.spanclass.sizeclass()])
+ 	size := uintptr(class_to_size[c.spanclass.sizeclass()])
+ 
+-	s := mheap_.alloc(npages, c.spanclass, true)
++	s, _ := mheap_.alloc(npages, c.spanclass, true)
+ 	if s == nil {
+ 		return nil
+ 	}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index a34bab42a4..952c0b21b0 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -897,7 +897,8 @@ func (s spanAllocType) manual() bool {
+ // spanclass indicates the span's size class and scannability.
+ //
+ // If needzero is true, the memory for the returned span will be zeroed.
+-func (h *mheap) alloc(npages uintptr, spanclass spanClass, needzero bool) *mspan {
++// The boolean returned indicates whether the returned span is zeroed.
++func (h *mheap) alloc(npages uintptr, spanclass spanClass, needzero bool) (*mspan, bool) {
+ 	// Don't do any operations that lock the heap on the G stack.
+ 	// It might trigger stack growth, and the stack growth code needs
+ 	// to be able to allocate heap.
+@@ -911,13 +912,15 @@ func (h *mheap) alloc(npages uintptr, spanclass spanClass, needzero bool) *mspan
+ 		s = h.allocSpan(npages, spanAllocHeap, spanclass)
+ 	})
+ 
++	isZeroed := s.needzero == 0
+ 	if s != nil {
+ 		if needzero && s.needzero != 0 {
+ 			memclrNoHeapPointers(unsafe.Pointer(s.base()), s.npages<<_PageShift)
++			isZeroed = true
+ 		}
+ 		s.needzero = 0
+ 	}
+-	return s
++	return s, isZeroed
+ }
+ 
+ // allocManual allocates a manually-managed span of npage pages.

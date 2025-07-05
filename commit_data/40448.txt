@@ -11,6 +11,31 @@ Date:   Tue May 14 14:56:26 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/lookup_windows.go | 13 ++++++++-----
  1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index 5ebd4b7853..d7b28f5e18 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -138,11 +138,14 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
+ 		err   error
+ 	}
+ 
+-	ch := make(chan ret, 1)
+-	go func() {
+-		addr, err := getaddr()
+-		ch <- ret{addrs: addr, err: err}
+-	}()
++	var ch chan ret
++	if ctx.Err() == nil {
++		ch = make(chan ret, 1)
++		go func() {
++			addr, err := getaddr()
++			ch <- ret{addrs: addr, err: err}
++		}()
++	}
+ 
+ 	select {
+ 	case r := <-ch:

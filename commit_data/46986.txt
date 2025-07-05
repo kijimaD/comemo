@@ -17,7 +17,47 @@ Date:   Fri Jan 22 09:25:40 2021 -0500
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go       | 1 +
  src/cmd/dist/sys_windows.go | 5 +++++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 332f2fab58..c02b92818c 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1575,6 +1575,7 @@ var cgoEnabled = map[string]bool{
+ 	"windows/386":     true,
+ 	"windows/amd64":   true,
+ 	"windows/arm":     false,
++	"windows/arm64":   false,
+ }
+ 
+ // List of platforms which are supported but not complete yet. These get
+diff --git a/src/cmd/dist/sys_windows.go b/src/cmd/dist/sys_windows.go
+index 2f6a1b0dce..265f729d0f 100644
+--- a/src/cmd/dist/sys_windows.go
++++ b/src/cmd/dist/sys_windows.go
+@@ -29,10 +29,13 @@ type systeminfo struct {
+ 	wProcessorRevision          uint16
+ }
+ 
++// See https://docs.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info
+ const (
+ 	PROCESSOR_ARCHITECTURE_AMD64 = 9
+ 	PROCESSOR_ARCHITECTURE_INTEL = 0
+ 	PROCESSOR_ARCHITECTURE_ARM   = 5
++	PROCESSOR_ARCHITECTURE_ARM64 = 12
++	PROCESSOR_ARCHITECTURE_IA64  = 6
+ )
+ 
+ var sysinfo systeminfo
+@@ -46,6 +49,8 @@ func sysinit() {
+ 		gohostarch = "386"
+ 	case PROCESSOR_ARCHITECTURE_ARM:
+ 		gohostarch = "arm"
++	case PROCESSOR_ARCHITECTURE_ARM64:
++		gohostarch = "arm64"
+ 	default:
+ 		fatalf("unknown processor architecture")
+ 	}

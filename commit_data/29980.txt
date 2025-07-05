@@ -11,7 +11,54 @@ Date:   Wed Oct 19 12:39:37 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_solaris.go        | 11 +++++++++--
  src/syscall/zsyscall_solaris_amd64.go |  2 +-
  2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index 61f550e959..84d7c041e3 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -279,7 +279,7 @@ func UtimesNano(path string, ts []Timespec) (err error) {
+ 		tv[i].Sec = ts[i].Sec
+ 		tv[i].Usec = ts[i].Nsec / 1000
+ 	}
+-	return Utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
++	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+ }
+ 
+ //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
+@@ -494,7 +494,7 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error)
+ //sys	Ftruncate(fd int, length int64) (err error)
+ //sys	Umask(newmask int) (oldmask int)
+ //sys	Unlink(path string) (err error)
+-//sys	Utimes(path string, times *[2]Timeval) (err error)
++//sys	utimes(path string, times *[2]Timeval) (err error)
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) = libsocket.__xnet_bind
+ //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) = libsocket.__xnet_connect
+ //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
+@@ -527,3 +527,10 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 	}
+ 	return
+ }
++
++func Utimes(path string, tv []Timeval) error {
++	if len(tv) != 2 {
++		return EINVAL
++	}
++	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
++}
+diff --git a/src/syscall/zsyscall_solaris_amd64.go b/src/syscall/zsyscall_solaris_amd64.go
+index 89ab48bc17..34849757f8 100644
+--- a/src/syscall/zsyscall_solaris_amd64.go
++++ b/src/syscall/zsyscall_solaris_amd64.go
+@@ -953,7 +953,7 @@ func Unlink(path string) (err error) {
+ 	return
+ }
+ 
+-func Utimes(path string, times *[2]Timeval) (err error) {
++func utimes(path string, times *[2]Timeval) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+ 	if err != nil {

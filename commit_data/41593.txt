@@ -9,6 +9,39 @@ Date:   Sun Oct 13 01:26:22 2019 +0200
     Change-Id: I6f5e811e141dd09dc5c47ff2d37fae4c640315e3
     Reviewed-on: https://go-review.googlesource.com/c/go/+/200862
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/poset.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/poset.go b/src/cmd/compile/internal/ssa/poset.go
+index 1ddc3e3277..e4fa3a83e0 100644
+--- a/src/cmd/compile/internal/ssa/poset.go
++++ b/src/cmd/compile/internal/ssa/poset.go
+@@ -874,7 +874,7 @@ func (po *poset) NonEqual(n1, n2 *Value) bool {
+ 		defer po.CheckIntegrity()
+ 	}
+ 	if n1.ID == n2.ID {
+-		panic("should not call Equal with n1==n2")
++		panic("should not call NonEqual with n1==n2")
+ 	}
+ 	if po.isnoneq(n1.ID, n2.ID) {
+ 		return true
+@@ -888,7 +888,8 @@ func (po *poset) NonEqual(n1, n2 *Value) bool {
+ 	return false
+ }
+ 
+-// setOrder records that n1<n2 or n1<=n2 (depending on strict).
++// setOrder records that n1<n2 or n1<=n2 (depending on strict). Returns false
++// if this is a contradiction.
+ // Implements SetOrder() and SetOrderOrEqual()
+ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
+ 	// If we are trying to record n1<=n2 but we learned that n1!=n2,
+@@ -1110,7 +1111,7 @@ func (po *poset) SetNonEqual(n1, n2 *Value) bool {
+ 		defer po.CheckIntegrity()
+ 	}
+ 	if n1.ID == n2.ID {
+-		panic("should not call Equal with n1==n2")
++		panic("should not call SetNonEqual with n1==n2")
+ 	}
+ 
+ 	// See if we already know this

@@ -11,7 +11,57 @@ Date:   Thu Dec 15 09:58:30 2016 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/request.go    |  3 +++
  src/net/http/serve_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index fb6bb0aab5..168c03e86c 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -930,6 +930,9 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
+ 	if !ok {
+ 		return nil, &badStringError{"malformed HTTP request", s}
+ 	}
++	if !validMethod(req.Method) {
++		return nil, &badStringError{"invalid method", req.Method}
++	}
+ 	rawurl := req.RequestURI
+ 	if req.ProtoMajor, req.ProtoMinor, ok = ParseHTTPVersion(req.Proto); !ok {
+ 		return nil, &badStringError{"malformed HTTP version", req.Proto}
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 73dd56e8c4..1358ce8c4a 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -5312,3 +5312,30 @@ func TestServerHijackGetsBackgroundByte_big(t *testing.T) {
+ 		t.Error("timeout")
+ 	}
+ }
++
++// Issue 18319: test that the Server validates the request method.
++func TestServerValidatesMethod(t *testing.T) {
++	tests := []struct {
++		method string
++		want   int
++	}{
++		{"GET", 200},
++		{"GE(T", 400},
++	}
++	for _, tt := range tests {
++		conn := &testConn{closec: make(chan bool, 1)}
++		io.WriteString(&conn.readBuf, tt.method+" / HTTP/1.1\r\nHost: foo.example\r\n\r\n")
++
++		ln := &oneConnListener{conn}
++		go Serve(ln, serve(200))
++		<-conn.closec
++		res, err := ReadResponse(bufio.NewReader(&conn.writeBuf), nil)
++		if err != nil {
++			t.Errorf("For %s, ReadResponse: %v", tt.method, res)
++			continue
++		}
++		if res.StatusCode != tt.want {
++			t.Errorf("For %s, Status = %d; want %d", tt.method, res.StatusCode, tt.want)
++		}
++	}
++}

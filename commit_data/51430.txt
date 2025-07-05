@@ -17,7 +17,7 @@ Date:   Wed Jan 26 20:50:51 2022 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/api_test.go | 17 +++++++-
  src/cmd/compile/internal/types2/named.go    | 23 +++++++++--
  src/cmd/compile/internal/types2/subst.go    | 62 +++++++++++++++++++++++++++--
@@ -25,3 +25,326 @@ Date:   Wed Jan 26 20:50:51 2022 -0500
  src/go/types/named.go                       | 23 +++++++++--
  src/go/types/subst.go                       | 62 +++++++++++++++++++++++++++--
  6 files changed, 188 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index b54f84dde0..80e998ebee 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -697,6 +697,19 @@ func TestUsesInfo(t *testing.T) {
+ 		// Uses of methods are uses of the instantiated method.
+ 		{`package m0; type N[A any] int; func (r N[B]) m() { r.n() }; func (N[C]) n() {}`, `n`, `func (m0.N[B]).n()`},
+ 		{`package m1; type N[A any] int; func (r N[B]) m() { }; var f = N[int].m`, `m`, `func (m1.N[int]).m()`},
++		{`package m2; func _[A any](v interface{ m() A }) { v.m() }`, `m`, `func (interface).m() A`},
++		{`package m3; func f[A any]() interface{ m() A } { return nil }; var _ = f[int]().m()`, `m`, `func (interface).m() int`},
++		{`package m4; type T[A any] func() interface{ m() A }; var x T[int]; var y = x().m`, `m`, `func (interface).m() int`},
++		{`package m5; type T[A any] interface{ m() A }; func _[B any](t T[B]) { t.m() }`, `m`, `func (m5.T[B]).m() B`},
++		{`package m6; type T[A any] interface{ m() }; func _[B any](t T[B]) { t.m() }`, `m`, `func (m6.T[B]).m()`},
++		{`package m7; type T[A any] interface{ m() A }; func _(t T[int]) { t.m() }`, `m`, `func (m7.T[int]).m() int`},
++		{`package m8; type T[A any] interface{ m() }; func _(t T[int]) { t.m() }`, `m`, `func (m8.T[int]).m()`},
++		{`package m9; type T[A any] interface{ m() }; func _(t T[int]) { _ = t.m }`, `m`, `func (m9.T[int]).m()`},
++		{
++			`package m10; type E[A any] interface{ m() }; type T[B any] interface{ E[B]; n() }; func _(t T[int]) { t.m() }`,
++			`m`,
++			`func (m10.E[int]).m()`,
++		},
+ 	}
+ 
+ 	for _, test := range tests {
+@@ -709,8 +722,10 @@ func TestUsesInfo(t *testing.T) {
+ 		var use Object
+ 		for id, obj := range info.Uses {
+ 			if id.Value == test.obj {
++				if use != nil {
++					panic(fmt.Sprintf("multiple uses of %q", id.Value))
++				}
+ 				use = obj
+-				break
+ 			}
+ 		}
+ 		if use == nil {
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index ed33a9ddf7..5248893a4a 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -351,13 +351,30 @@ func expandNamed(ctxt *Context, n *Named, instPos syntax.Pos) (tparams *TypePara
+ 
+ 		smap := makeSubstMap(n.orig.tparams.list(), n.targs.list())
+ 		underlying = n.check.subst(instPos, n.orig.underlying, smap, ctxt)
++		// If the underlying of n is an interface, we need to set the receiver of
++		// its methods accurately -- we set the receiver of interface methods on
++		// the RHS of a type declaration to the defined type.
++		if iface, _ := underlying.(*Interface); iface != nil {
++			if methods, copied := replaceRecvType(iface.methods, n.orig, n); copied {
++				// If the underlying doesn't actually use type parameters, it's possible
++				// that it wasn't substituted. In this case we need to create a new
++				// *Interface before modifying receivers.
++				if iface == n.orig.underlying {
++					iface = &Interface{
++						embeddeds: iface.embeddeds,
++						complete:  iface.complete,
++						implicit:  iface.implicit, // should be false but be conservative
++					}
++					underlying = iface
++				}
++				iface.methods = methods
++			}
++		}
+ 	} else {
+ 		underlying = Typ[Invalid]
+ 	}
+ 
+-	mlist := newLazyMethodList(n.orig.methods.Len())
+-
+-	return n.orig.tparams, underlying, mlist
++	return n.orig.tparams, underlying, newLazyMethodList(n.orig.methods.Len())
+ }
+ 
+ // safeUnderlying returns the underlying of typ without expanding instances, to
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 4108f6aa85..f2e8fecc05 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -106,12 +106,24 @@ func (subst *subster) typ(typ Type) Type {
+ 		return subst.tuple(t)
+ 
+ 	case *Signature:
+-		// TODO(gri) rethink the recv situation with respect to methods on parameterized types
+-		// recv := subst.var_(t.recv) // TODO(gri) this causes a stack overflow - explain
++		// Preserve the receiver: it is handled during *Interface and *Named type
++		// substitution.
++		//
++		// Naively doing the substitution here can lead to an infinite recursion in
++		// the case where the receiver is an interface. For example, consider the
++		// following declaration:
++		//
++		//  type T[A any] struct { f interface{ m() } }
++		//
++		// In this case, the type of f is an interface that is itself the receiver
++		// type of all of its methods. Because we have no type name to break
++		// cycles, substituting in the recv results in an infinite loop of
++		// recv->interface->recv->interface->...
+ 		recv := t.recv
++
+ 		params := subst.tuple(t.params)
+ 		results := subst.tuple(t.results)
+-		if recv != t.recv || params != t.params || results != t.results {
++		if params != t.params || results != t.results {
+ 			return &Signature{
+ 				rparams: t.rparams,
+ 				// TODO(gri) why can't we nil out tparams here, rather than in instantiate?
+@@ -137,7 +149,21 @@ func (subst *subster) typ(typ Type) Type {
+ 		methods, mcopied := subst.funcList(t.methods)
+ 		embeddeds, ecopied := subst.typeList(t.embeddeds)
+ 		if mcopied || ecopied {
+-			iface := &Interface{methods: methods, embeddeds: embeddeds, implicit: t.implicit, complete: t.complete}
++			iface := &Interface{embeddeds: embeddeds, implicit: t.implicit, complete: t.complete}
++			// If we've changed the interface type, we may need to replace its
++			// receiver if the receiver type is the original interface. Receivers of
++			// *Named type are replaced during named type expansion.
++			//
++			// Notably, it's possible to reach here and not create a new *Interface,
++			// even though the receiver type may be parameterized. For example:
++			//
++			//  type T[P any] interface{ m() }
++			//
++			// In this case the interface will not be substituted here, because its
++			// method signatures do not depend on the type parameter P, but we still
++			// need to create new interface methods to hold the instantiated
++			// receiver. This is handled by expandNamed.
++			iface.methods, _ = replaceRecvType(methods, t, iface)
+ 			return iface
+ 		}
+ 
+@@ -349,3 +375,31 @@ func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
+ 	}
+ 	return
+ }
++
++// replaceRecvType updates any function receivers that have type old to have
++// type new. It does not modify the input slice; if modifications are required,
++// the input slice and any affected signatures will be copied before mutating.
++//
++// The resulting out slice contains the updated functions, and copied reports
++// if anything was modified.
++func replaceRecvType(in []*Func, old, new Type) (out []*Func, copied bool) {
++	out = in
++	for i, method := range in {
++		sig := method.Type().(*Signature)
++		if sig.recv != nil && sig.recv.Type() == old {
++			if !copied {
++				// Allocate a new methods slice before mutating for the first time.
++				// This is defensive, as we may share methods across instantiations of
++				// a given interface type if they do not get substituted.
++				out = make([]*Func, len(in))
++				copy(out, in)
++				copied = true
++			}
++			newsig := *sig
++			sig = &newsig
++			sig.recv = NewVar(sig.recv.pos, sig.recv.pkg, "", new)
++			out[i] = NewFunc(method.pos, method.pkg, method.name, sig)
++		}
++	}
++	return
++}
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 5c61e54360..5f4d48472c 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -689,6 +689,19 @@ func TestUsesInfo(t *testing.T) {
+ 		// Uses of methods are uses of the instantiated method.
+ 		{`package generic_m0; type N[A any] int; func (r N[B]) m() { r.n() }; func (N[C]) n() {}`, `n`, `func (generic_m0.N[B]).n()`},
+ 		{`package generic_m1; type N[A any] int; func (r N[B]) m() { }; var f = N[int].m`, `m`, `func (generic_m1.N[int]).m()`},
++		{`package generic_m2; func _[A any](v interface{ m() A }) { v.m() }`, `m`, `func (interface).m() A`},
++		{`package generic_m3; func f[A any]() interface{ m() A } { return nil }; var _ = f[int]().m()`, `m`, `func (interface).m() int`},
++		{`package generic_m4; type T[A any] func() interface{ m() A }; var x T[int]; var y = x().m`, `m`, `func (interface).m() int`},
++		{`package generic_m5; type T[A any] interface{ m() A }; func _[B any](t T[B]) { t.m() }`, `m`, `func (generic_m5.T[B]).m() B`},
++		{`package generic_m6; type T[A any] interface{ m() }; func _[B any](t T[B]) { t.m() }`, `m`, `func (generic_m6.T[B]).m()`},
++		{`package generic_m7; type T[A any] interface{ m() A }; func _(t T[int]) { t.m() }`, `m`, `func (generic_m7.T[int]).m() int`},
++		{`package generic_m8; type T[A any] interface{ m() }; func _(t T[int]) { t.m() }`, `m`, `func (generic_m8.T[int]).m()`},
++		{`package generic_m9; type T[A any] interface{ m() }; func _(t T[int]) { _ = t.m }`, `m`, `func (generic_m9.T[int]).m()`},
++		{
++			`package generic_m10; type E[A any] interface{ m() }; type T[B any] interface{ E[B]; n() }; func _(t T[int]) { t.m() }`,
++			`m`,
++			`func (generic_m10.E[int]).m()`,
++		},
+ 	}
+ 
+ 	for _, test := range tests {
+@@ -701,8 +714,10 @@ func TestUsesInfo(t *testing.T) {
+ 		var use Object
+ 		for id, obj := range info.Uses {
+ 			if id.Name == test.obj {
++				if use != nil {
++					panic(fmt.Sprintf("multiple uses of %q", id.Name))
++				}
+ 				use = obj
+-				break
+ 			}
+ 		}
+ 		if use == nil {
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index a9d1eab24b..28db26014f 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -353,13 +353,30 @@ func expandNamed(ctxt *Context, n *Named, instPos token.Pos) (tparams *TypeParam
+ 
+ 		smap := makeSubstMap(n.orig.tparams.list(), n.targs.list())
+ 		underlying = n.check.subst(instPos, n.orig.underlying, smap, ctxt)
++		// If the underlying of n is an interface, we need to set the receiver of
++		// its methods accurately -- we set the receiver of interface methods on
++		// the RHS of a type declaration to the defined type.
++		if iface, _ := underlying.(*Interface); iface != nil {
++			if methods, copied := replaceRecvType(iface.methods, n.orig, n); copied {
++				// If the underlying doesn't actually use type parameters, it's possible
++				// that it wasn't substituted. In this case we need to create a new
++				// *Interface before modifying receivers.
++				if iface == n.orig.underlying {
++					iface = &Interface{
++						embeddeds: iface.embeddeds,
++						complete:  iface.complete,
++						implicit:  iface.implicit, // should be false but be conservative
++					}
++					underlying = iface
++				}
++				iface.methods = methods
++			}
++		}
+ 	} else {
+ 		underlying = Typ[Invalid]
+ 	}
+ 
+-	mlist := newLazyMethodList(n.orig.methods.Len())
+-
+-	return n.orig.tparams, underlying, mlist
++	return n.orig.tparams, underlying, newLazyMethodList(n.orig.methods.Len())
+ }
+ 
+ // safeUnderlying returns the underlying of typ without expanding instances, to
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index b7e3b12779..0cce46ac46 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -106,12 +106,24 @@ func (subst *subster) typ(typ Type) Type {
+ 		return subst.tuple(t)
+ 
+ 	case *Signature:
+-		// TODO(gri) rethink the recv situation with respect to methods on parameterized types
+-		// recv := subst.var_(t.recv) // TODO(gri) this causes a stack overflow - explain
++		// Preserve the receiver: it is handled during *Interface and *Named type
++		// substitution.
++		//
++		// Naively doing the substitution here can lead to an infinite recursion in
++		// the case where the receiver is an interface. For example, consider the
++		// following declaration:
++		//
++		//  type T[A any] struct { f interface{ m() } }
++		//
++		// In this case, the type of f is an interface that is itself the receiver
++		// type of all of its methods. Because we have no type name to break
++		// cycles, substituting in the recv results in an infinite loop of
++		// recv->interface->recv->interface->...
+ 		recv := t.recv
++
+ 		params := subst.tuple(t.params)
+ 		results := subst.tuple(t.results)
+-		if recv != t.recv || params != t.params || results != t.results {
++		if params != t.params || results != t.results {
+ 			return &Signature{
+ 				rparams: t.rparams,
+ 				// TODO(rFindley) why can't we nil out tparams here, rather than in instantiate?
+@@ -137,7 +149,21 @@ func (subst *subster) typ(typ Type) Type {
+ 		methods, mcopied := subst.funcList(t.methods)
+ 		embeddeds, ecopied := subst.typeList(t.embeddeds)
+ 		if mcopied || ecopied {
+-			iface := &Interface{methods: methods, embeddeds: embeddeds, implicit: t.implicit, complete: t.complete}
++			iface := &Interface{embeddeds: embeddeds, implicit: t.implicit, complete: t.complete}
++			// If we've changed the interface type, we may need to replace its
++			// receiver if the receiver type is the original interface. Receivers of
++			// *Named type are replaced during named type expansion.
++			//
++			// Notably, it's possible to reach here and not create a new *Interface,
++			// even though the receiver type may be parameterized. For example:
++			//
++			//  type T[P any] interface{ m() }
++			//
++			// In this case the interface will not be substituted here, because its
++			// method signatures do not depend on the type parameter P, but we still
++			// need to create new interface methods to hold the instantiated
++			// receiver. This is handled by expandNamed.
++			iface.methods, _ = replaceRecvType(methods, t, iface)
+ 			return iface
+ 		}
+ 
+@@ -349,3 +375,31 @@ func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
+ 	}
+ 	return
+ }
++
++// replaceRecvType updates any function receivers that have type old to have
++// type new. It does not modify the input slice; if modifications are required,
++// the input slice and any affected signatures will be copied before mutating.
++//
++// The resulting out slice contains the updated functions, and copied reports
++// if anything was modified.
++func replaceRecvType(in []*Func, old, new Type) (out []*Func, copied bool) {
++	out = in
++	for i, method := range in {
++		sig := method.Type().(*Signature)
++		if sig.recv != nil && sig.recv.Type() == old {
++			if !copied {
++				// Allocate a new methods slice before mutating for the first time.
++				// This is defensive, as we may share methods across instantiations of
++				// a given interface type if they do not get substituted.
++				out = make([]*Func, len(in))
++				copy(out, in)
++				copied = true
++			}
++			newsig := *sig
++			sig = &newsig
++			sig.recv = NewVar(sig.recv.pos, sig.recv.pkg, "", new)
++			out[i] = NewFunc(method.pos, method.pkg, method.name, sig)
++		}
++	}
++	return
++}

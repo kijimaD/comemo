@@ -8,6 +8,23 @@ Date:   Wed Dec 2 08:24:14 2009 -0800
     
     R=dho, rsc
     https://golang.org/cl/164078
-
+---
  src/pkg/syscall/syscall_linux_386.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 1e6fa75a30..f2130f9869 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -145,6 +145,11 @@ func Listen(s int, n int) (errno int) {
+ 	return;
+ }
+ 
++func Shutdown(s, how int) (errno int) {
++	_, errno = socketcall(_SHUTDOWN, uintptr(s), uintptr(how), 0, 0, 0, 0);
++	return;
++}
++
+ func (r *PtraceRegs) PC() uint64	{ return uint64(uint32(r.Eip)) }
+ 
+ func (r *PtraceRegs) SetPC(pc uint64)	{ r.Eip = int32(pc) }

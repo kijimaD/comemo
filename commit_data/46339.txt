@@ -90,7 +90,7 @@ Date:   Wed Dec 23 00:08:03 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/alg.go                 | 271 +++++----------------
  src/cmd/compile/internal/gc/align.go               |   8 +-
  src/cmd/compile/internal/gc/const.go               |   6 +-
@@ -123,3 +123,2489 @@ Date:   Wed Dec 23 00:08:03 2020 -0500
  src/cmd/compile/internal/types/sort.go             |  14 ++
  src/cmd/compile/internal/types/type.go             | 202 +++++++++++++++
  31 files changed, 691 insertions(+), 666 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 8733c6198c..08237d4055 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -13,56 +13,10 @@ import (
+ 	"sort"
+ )
+ 
+-// AlgKind describes the kind of algorithms used for comparing and
+-// hashing a Type.
+-type AlgKind int
+-
+-//go:generate stringer -type AlgKind -trimprefix A
+-
+-const (
+-	// These values are known by runtime.
+-	ANOEQ AlgKind = iota
+-	AMEM0
+-	AMEM8
+-	AMEM16
+-	AMEM32
+-	AMEM64
+-	AMEM128
+-	ASTRING
+-	AINTER
+-	ANILINTER
+-	AFLOAT32
+-	AFLOAT64
+-	ACPLX64
+-	ACPLX128
+-
+-	// Type can be compared/hashed as regular memory.
+-	AMEM AlgKind = 100
+-
+-	// Type needs special comparison/hashing functions.
+-	ASPECIAL AlgKind = -1
+-)
+-
+-// IsComparable reports whether t is a comparable type.
+-func IsComparable(t *types.Type) bool {
+-	a, _ := algtype1(t)
+-	return a != ANOEQ
+-}
+-
+ // IsRegularMemory reports whether t can be compared/hashed as regular memory.
+ func IsRegularMemory(t *types.Type) bool {
+-	a, _ := algtype1(t)
+-	return a == AMEM
+-}
+-
+-// IncomparableField returns an incomparable Field of struct Type t, if any.
+-func IncomparableField(t *types.Type) *types.Field {
+-	for _, f := range t.FieldSlice() {
+-		if !IsComparable(f.Type) {
+-			return f
+-		}
+-	}
+-	return nil
++	a, _ := types.AlgType(t)
++	return a == types.AMEM
+ }
+ 
+ // EqCanPanic reports whether == on type t could panic (has an interface somewhere).
+@@ -87,128 +41,28 @@ func EqCanPanic(t *types.Type) bool {
+ 
+ // algtype is like algtype1, except it returns the fixed-width AMEMxx variants
+ // instead of the general AMEM kind when possible.
+-func algtype(t *types.Type) AlgKind {
+-	a, _ := algtype1(t)
+-	if a == AMEM {
++func algtype(t *types.Type) types.AlgKind {
++	a, _ := types.AlgType(t)
++	if a == types.AMEM {
+ 		switch t.Width {
+ 		case 0:
+-			return AMEM0
++			return types.AMEM0
+ 		case 1:
+-			return AMEM8
++			return types.AMEM8
+ 		case 2:
+-			return AMEM16
++			return types.AMEM16
+ 		case 4:
+-			return AMEM32
++			return types.AMEM32
+ 		case 8:
+-			return AMEM64
++			return types.AMEM64
+ 		case 16:
+-			return AMEM128
++			return types.AMEM128
+ 		}
+ 	}
+ 
+ 	return a
+ }
+ 
+-// algtype1 returns the AlgKind used for comparing and hashing Type t.
+-// If it returns ANOEQ, it also returns the component type of t that
+-// makes it incomparable.
+-func algtype1(t *types.Type) (AlgKind, *types.Type) {
+-	if t.Broke() {
+-		return AMEM, nil
+-	}
+-	if t.Noalg() {
+-		return ANOEQ, t
+-	}
+-
+-	switch t.Kind() {
+-	case types.TANY, types.TFORW:
+-		// will be defined later.
+-		return ANOEQ, t
+-
+-	case types.TINT8, types.TUINT8, types.TINT16, types.TUINT16,
+-		types.TINT32, types.TUINT32, types.TINT64, types.TUINT64,
+-		types.TINT, types.TUINT, types.TUINTPTR,
+-		types.TBOOL, types.TPTR,
+-		types.TCHAN, types.TUNSAFEPTR:
+-		return AMEM, nil
+-
+-	case types.TFUNC, types.TMAP:
+-		return ANOEQ, t
+-
+-	case types.TFLOAT32:
+-		return AFLOAT32, nil
+-
+-	case types.TFLOAT64:
+-		return AFLOAT64, nil
+-
+-	case types.TCOMPLEX64:
+-		return ACPLX64, nil
+-
+-	case types.TCOMPLEX128:
+-		return ACPLX128, nil
+-
+-	case types.TSTRING:
+-		return ASTRING, nil
+-
+-	case types.TINTER:
+-		if t.IsEmptyInterface() {
+-			return ANILINTER, nil
+-		}
+-		return AINTER, nil
+-
+-	case types.TSLICE:
+-		return ANOEQ, t
+-
+-	case types.TARRAY:
+-		a, bad := algtype1(t.Elem())
+-		switch a {
+-		case AMEM:
+-			return AMEM, nil
+-		case ANOEQ:
+-			return ANOEQ, bad
+-		}
+-
+-		switch t.NumElem() {
+-		case 0:
+-			// We checked above that the element type is comparable.
+-			return AMEM, nil
+-		case 1:
+-			// Single-element array is same as its lone element.
+-			return a, nil
+-		}
+-
+-		return ASPECIAL, nil
+-
+-	case types.TSTRUCT:
+-		fields := t.FieldSlice()
+-
+-		// One-field struct is same as that one field alone.
+-		if len(fields) == 1 && !fields[0].Sym.IsBlank() {
+-			return algtype1(fields[0].Type)
+-		}
+-
+-		ret := AMEM
+-		for i, f := range fields {
+-			// All fields must be comparable.
+-			a, bad := algtype1(f.Type)
+-			if a == ANOEQ {
+-				return ANOEQ, bad
+-			}
+-
+-			// Blank fields, padded fields, fields with non-memory
+-			// equality need special compare.
+-			if a != AMEM || f.Sym.IsBlank() || ispaddedfield(t, i) {
+-				ret = ASPECIAL
+-			}
+-		}
+-
+-		return ret, nil
+-	}
+-
+-	base.Fatalf("algtype1: unexpected type %v", t)
+-	return 0, nil
+-}
+-
+ // genhash returns a symbol which is the closure used to compute
+ // the hash of a value of type t.
+ // Note: the generated function must match runtime.typehash exactly.
+@@ -217,37 +71,37 @@ func genhash(t *types.Type) *obj.LSym {
+ 	default:
+ 		// genhash is only called for types that have equality
+ 		base.Fatalf("genhash %v", t)
+-	case AMEM0:
++	case types.AMEM0:
+ 		return sysClosure("memhash0")
+-	case AMEM8:
++	case types.AMEM8:
+ 		return sysClosure("memhash8")
+-	case AMEM16:
++	case types.AMEM16:
+ 		return sysClosure("memhash16")
+-	case AMEM32:
++	case types.AMEM32:
+ 		return sysClosure("memhash32")
+-	case AMEM64:
++	case types.AMEM64:
+ 		return sysClosure("memhash64")
+-	case AMEM128:
++	case types.AMEM128:
+ 		return sysClosure("memhash128")
+-	case ASTRING:
++	case types.ASTRING:
+ 		return sysClosure("strhash")
+-	case AINTER:
++	case types.AINTER:
+ 		return sysClosure("interhash")
+-	case ANILINTER:
++	case types.ANILINTER:
+ 		return sysClosure("nilinterhash")
+-	case AFLOAT32:
++	case types.AFLOAT32:
+ 		return sysClosure("f32hash")
+-	case AFLOAT64:
++	case types.AFLOAT64:
+ 		return sysClosure("f64hash")
+-	case ACPLX64:
++	case types.ACPLX64:
+ 		return sysClosure("c64hash")
+-	case ACPLX128:
++	case types.ACPLX128:
+ 		return sysClosure("c128hash")
+-	case AMEM:
++	case types.AMEM:
+ 		// For other sizes of plain memory, we build a closure
+ 		// that calls memhash_varlen. The size of the memory is
+ 		// encoded in the first slot of the closure.
+-		closure := typeLookup(fmt.Sprintf(".hashfunc%d", t.Width)).Linksym()
++		closure := types.TypeSymLookup(fmt.Sprintf(".hashfunc%d", t.Width)).Linksym()
+ 		if len(closure.P) > 0 { // already generated
+ 			return closure
+ 		}
+@@ -259,7 +113,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 		ot = duintptr(closure, ot, uint64(t.Width)) // size encoded in closure
+ 		ggloblsym(closure, int32(ot), obj.DUPOK|obj.RODATA)
+ 		return closure
+-	case ASPECIAL:
++	case types.ASPECIAL:
+ 		break
+ 	}
+ 
+@@ -390,7 +244,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 	Curfn = nil
+ 
+ 	if base.Debug.DclStack != 0 {
+-		testdclstack()
++		types.CheckDclstack()
+ 	}
+ 
+ 	fn.SetNilCheckDisabled(true)
+@@ -407,22 +261,22 @@ func genhash(t *types.Type) *obj.LSym {
+ func hashfor(t *types.Type) ir.Node {
+ 	var sym *types.Sym
+ 
+-	switch a, _ := algtype1(t); a {
+-	case AMEM:
++	switch a, _ := types.AlgType(t); a {
++	case types.AMEM:
+ 		base.Fatalf("hashfor with AMEM type")
+-	case AINTER:
++	case types.AINTER:
+ 		sym = Runtimepkg.Lookup("interhash")
+-	case ANILINTER:
++	case types.ANILINTER:
+ 		sym = Runtimepkg.Lookup("nilinterhash")
+-	case ASTRING:
++	case types.ASTRING:
+ 		sym = Runtimepkg.Lookup("strhash")
+-	case AFLOAT32:
++	case types.AFLOAT32:
+ 		sym = Runtimepkg.Lookup("f32hash")
+-	case AFLOAT64:
++	case types.AFLOAT64:
+ 		sym = Runtimepkg.Lookup("f64hash")
+-	case ACPLX64:
++	case types.ACPLX64:
+ 		sym = Runtimepkg.Lookup("c64hash")
+-	case ACPLX128:
++	case types.ACPLX128:
+ 		sym = Runtimepkg.Lookup("c128hash")
+ 	default:
+ 		// Note: the caller of hashfor ensured that this symbol
+@@ -457,40 +311,40 @@ func sysClosure(name string) *obj.LSym {
+ // equality for two objects of type t.
+ func geneq(t *types.Type) *obj.LSym {
+ 	switch algtype(t) {
+-	case ANOEQ:
++	case types.ANOEQ:
+ 		// The runtime will panic if it tries to compare
+ 		// a type with a nil equality function.
+ 		return nil
+-	case AMEM0:
++	case types.AMEM0:
+ 		return sysClosure("memequal0")
+-	case AMEM8:
++	case types.AMEM8:
+ 		return sysClosure("memequal8")
+-	case AMEM16:
++	case types.AMEM16:
+ 		return sysClosure("memequal16")
+-	case AMEM32:
++	case types.AMEM32:
+ 		return sysClosure("memequal32")
+-	case AMEM64:
++	case types.AMEM64:
+ 		return sysClosure("memequal64")
+-	case AMEM128:
++	case types.AMEM128:
+ 		return sysClosure("memequal128")
+-	case ASTRING:
++	case types.ASTRING:
+ 		return sysClosure("strequal")
+-	case AINTER:
++	case types.AINTER:
+ 		return sysClosure("interequal")
+-	case ANILINTER:
++	case types.ANILINTER:
+ 		return sysClosure("nilinterequal")
+-	case AFLOAT32:
++	case types.AFLOAT32:
+ 		return sysClosure("f32equal")
+-	case AFLOAT64:
++	case types.AFLOAT64:
+ 		return sysClosure("f64equal")
+-	case ACPLX64:
++	case types.ACPLX64:
+ 		return sysClosure("c64equal")
+-	case ACPLX128:
++	case types.ACPLX128:
+ 		return sysClosure("c128equal")
+-	case AMEM:
++	case types.AMEM:
+ 		// make equality closure. The size of the type
+ 		// is encoded in the closure.
+-		closure := typeLookup(fmt.Sprintf(".eqfunc%d", t.Width)).Linksym()
++		closure := types.TypeSymLookup(fmt.Sprintf(".eqfunc%d", t.Width)).Linksym()
+ 		if len(closure.P) != 0 {
+ 			return closure
+ 		}
+@@ -502,7 +356,7 @@ func geneq(t *types.Type) *obj.LSym {
+ 		ot = duintptr(closure, ot, uint64(t.Width))
+ 		ggloblsym(closure, int32(ot), obj.DUPOK|obj.RODATA)
+ 		return closure
+-	case ASPECIAL:
++	case types.ASPECIAL:
+ 		break
+ 	}
+ 
+@@ -766,7 +620,7 @@ func geneq(t *types.Type) *obj.LSym {
+ 	Curfn = nil
+ 
+ 	if base.Debug.DclStack != 0 {
+-		testdclstack()
++		types.CheckDclstack()
+ 	}
+ 
+ 	// Disable checknils while compiling this code.
+@@ -904,7 +758,7 @@ func memrun(t *types.Type, start int) (size int64, next int) {
+ 			break
+ 		}
+ 		// Stop run after a padded field.
+-		if ispaddedfield(t, next-1) {
++		if types.IsPaddedField(t, next-1) {
+ 			break
+ 		}
+ 		// Also, stop before a blank or non-memory field.
+@@ -914,16 +768,3 @@ func memrun(t *types.Type, start int) (size int64, next int) {
+ 	}
+ 	return t.Field(next-1).End() - t.Field(start).Offset, next
+ }
+-
+-// ispaddedfield reports whether the i'th field of struct type t is followed
+-// by padding.
+-func ispaddedfield(t *types.Type, i int) bool {
+-	if !t.IsStruct() {
+-		base.Fatalf("ispaddedfield called non-struct %v", t)
+-	}
+-	end := t.Width
+-	if i+1 < t.NumFields() {
+-		end = t.Field(i + 1).Offset
+-	}
+-	return t.Field(i).End() != end
+-}
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index f2f98bd51f..92826d003b 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -40,7 +40,7 @@ func expandiface(t *types.Type) {
+ 		switch prev := seen[m.Sym]; {
+ 		case prev == nil:
+ 			seen[m.Sym] = m
+-		case langSupported(1, 14, t.Pkg()) && !explicit && types.Identical(m.Type, prev.Type):
++		case types.AllowsGoVersion(t.Pkg(), 1, 14) && !explicit && types.Identical(m.Type, prev.Type):
+ 			return
+ 		default:
+ 			base.ErrorfAt(m.Pos, "duplicate method %s", m.Sym.Name)
+@@ -84,7 +84,7 @@ func expandiface(t *types.Type) {
+ 		}
+ 	}
+ 
+-	sort.Sort(methcmp(methods))
++	sort.Sort(types.MethodsByName(methods))
+ 
+ 	if int64(len(methods)) >= MaxWidth/int64(Widthptr) {
+ 		base.ErrorfAt(typePos(t), "interface too large")
+@@ -325,8 +325,8 @@ func dowidth(t *types.Type) {
+ 
+ 	// simtype == 0 during bootstrap
+ 	default:
+-		if simtype[t.Kind()] != 0 {
+-			et = simtype[t.Kind()]
++		if types.SimType[t.Kind()] != 0 {
++			et = types.SimType[t.Kind()]
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 94bcf63263..553f06757f 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -242,11 +242,11 @@ func operandType(op ir.Op, t *types.Type) *types.Type {
+ 	switch op {
+ 	case ir.OCOMPLEX:
+ 		if t.IsComplex() {
+-			return floatForComplex(t)
++			return types.FloatForComplex(t)
+ 		}
+ 	case ir.OREAL, ir.OIMAG:
+ 		if t.IsFloat() {
+-			return complexForFloat(t)
++			return types.ComplexForFloat(t)
+ 		}
+ 	default:
+ 		if okfor[op][t.Kind()] {
+@@ -377,7 +377,7 @@ func doesoverflow(v constant.Value, t *types.Type) bool {
+ 			return math.IsInf(f, 0)
+ 		}
+ 	case t.IsComplex():
+-		ft := floatForComplex(t)
++		ft := types.FloatForComplex(t)
+ 		return doesoverflow(constant.Real(v), ft) || doesoverflow(constant.Imag(v), ft)
+ 	}
+ 	base.Fatalf("doesoverflow: %v, %v", v, t)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 62cdff6b8e..5a5f670a08 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -28,12 +28,6 @@ func NoWriteBarrierRecCheck() {
+ 
+ var nowritebarrierrecCheck *nowritebarrierrecChecker
+ 
+-func testdclstack() {
+-	if !types.IsDclstackValid() {
+-		base.Fatalf("mark left on the dclstack")
+-	}
+-}
+-
+ // redeclare emits a diagnostic about symbol s being redeclared at pos.
+ func redeclare(pos src.XPos, s *types.Sym, where string) {
+ 	if !s.Lastlineno.IsKnown() {
+@@ -555,13 +549,6 @@ func fakeRecvField() *types.Field {
+ 	return types.NewField(src.NoXPos, nil, types.FakeRecvType())
+ }
+ 
+-// isifacemethod reports whether (field) m is
+-// an interface method. Such methods have the
+-// special receiver type types.FakeRecvType().
+-func isifacemethod(f *types.Type) bool {
+-	return f.Recv().Type == types.FakeRecvType()
+-}
+-
+ // turn a parsed function declaration into a type
+ func functype(nrecv *ir.Field, nparams, nresults []*ir.Field) *types.Type {
+ 	funarg := func(n *ir.Field) *types.Field {
+@@ -685,7 +672,7 @@ func addmethod(n *ir.Func, msym *types.Sym, t *types.Type, local, nointerface bo
+ 		return nil
+ 	}
+ 
+-	mt := methtype(rf.Type)
++	mt := types.ReceiverBaseType(rf.Type)
+ 	if mt == nil || mt.Sym() == nil {
+ 		pa := rf.Type
+ 		t := pa
+@@ -883,7 +870,7 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
+ 	if fn.Class_ != ir.PFUNC || fn.Name().Defn == nil {
+ 		return
+ 	}
+-	if !isRuntimePkg(fn.Sym().Pkg) || fn.Sym().Name != "systemstack" {
++	if !types.IsRuntimePkg(fn.Sym().Pkg) || fn.Sym().Name != "systemstack" {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index fb9cbf2d51..4366a5cc2c 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -579,7 +579,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
+ 		}
+ 	case ir.OCONVIFACE:
+ 		n := n.(*ir.ConvExpr)
+-		if !n.X.Type().IsInterface() && !isdirectiface(n.X.Type()) {
++		if !n.X.Type().IsInterface() && !types.IsDirectIface(n.X.Type()) {
+ 			k = e.spill(k, n)
+ 		}
+ 		e.expr(k.note(n, "interface-converted"), n.X)
+@@ -1064,7 +1064,7 @@ func (k EscHole) deref(where ir.Node, why string) EscHole { return k.shift(1).no
+ func (k EscHole) addr(where ir.Node, why string) EscHole  { return k.shift(-1).note(where, why) }
+ 
+ func (k EscHole) dotType(t *types.Type, where ir.Node, why string) EscHole {
+-	if !t.IsInterface() && !isdirectiface(t) {
++	if !t.IsInterface() && !types.IsDirectIface(t) {
+ 		k = k.shift(1)
+ 	}
+ 	return k.note(where, why)
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 46ddda0ba7..7ec59852ee 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -5,7 +5,6 @@
+ package gc
+ 
+ import (
+-	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+@@ -34,22 +33,6 @@ var (
+ 	smallArrayBytes = int64(256)
+ )
+ 
+-// isRuntimePkg reports whether p is package runtime.
+-func isRuntimePkg(p *types.Pkg) bool {
+-	if base.Flag.CompilingRuntime && p == types.LocalPkg {
+-		return true
+-	}
+-	return p.Path == "runtime"
+-}
+-
+-// isReflectPkg reports whether p is package reflect.
+-func isReflectPkg(p *types.Pkg) bool {
+-	if p == types.LocalPkg {
+-		return base.Ctxt.Pkgpath == "reflect"
+-	}
+-	return p.Path == "reflect"
+-}
+-
+ // Slices in the runtime are represented by three components:
+ //
+ // type slice struct {
+@@ -101,15 +84,6 @@ var gopkg *types.Pkg // pseudo-package for method symbols on anonymous receiver
+ 
+ var zerosize int64
+ 
+-var simtype [types.NTYPE]types.Kind
+-
+-var (
+-	isInt     [types.NTYPE]bool
+-	isFloat   [types.NTYPE]bool
+-	isComplex [types.NTYPE]bool
+-	issimple  [types.NTYPE]bool
+-)
+-
+ var (
+ 	okforeq    [types.NTYPE]bool
+ 	okforadd   [types.NTYPE]bool
+@@ -121,8 +95,6 @@ var (
+ 	okforarith [types.NTYPE]bool
+ )
+ 
+-var okforcmp [types.NTYPE]bool
+-
+ var (
+ 	okfor [ir.OEND][]bool
+ 	iscmp [ir.OEND]bool
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index db55b1035c..da2345c289 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -283,7 +283,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 
+ 	funcbody()
+ 	if base.Debug.DclStack != 0 {
+-		testdclstack()
++		types.CheckDclstack()
+ 	}
+ 
+ 	typecheckFunc(fn)
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index d601331ee4..87db08e0d1 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -461,7 +461,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 		w.value(n.Type(), n.Val())
+ 
+ 	case ir.OTYPE:
+-		if IsAlias(n.Sym()) {
++		if types.IsDotAlias(n.Sym()) {
+ 			// Alias.
+ 			w.tag('A')
+ 			w.pos(n.Pos())
+@@ -1028,8 +1028,8 @@ func (w *exportWriter) typeExt(t *types.Type) {
+ 		w.int64(i[1])
+ 		return
+ 	}
+-	w.symIdx(typesym(t))
+-	w.symIdx(typesym(t.PtrTo()))
++	w.symIdx(types.TypeSym(t))
++	w.symIdx(types.TypeSym(t.PtrTo()))
+ }
+ 
+ // Inline bodies.
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 49e0bcc470..47fdc7b9b7 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -350,7 +350,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
+ 		// runtime.throw is a "cheap call" like panic in normal code.
+ 		if n.X.Op() == ir.ONAME {
+ 			name := n.X.(*ir.Name)
+-			if name.Class_ == ir.PFUNC && isRuntimePkg(name.Sym().Pkg) {
++			if name.Class_ == ir.PFUNC && types.IsRuntimePkg(name.Sym().Pkg) {
+ 				fn := name.Sym().Name
+ 				if fn == "getcallerpc" || fn == "getcallersp" {
+ 					return errors.New("call to " + fn)
+@@ -382,7 +382,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
+ 		if t == nil {
+ 			base.Fatalf("no function type for [%p] %+v\n", n.X, n.X)
+ 		}
+-		if isRuntimePkg(n.X.Sym().Pkg) {
++		if types.IsRuntimePkg(n.X.Sym().Pkg) {
+ 			fn := n.X.Sym().Name
+ 			if fn == "heapBits.nextArena" {
+ 				// Special case: explicitly allow
+@@ -589,7 +589,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
+ 		// Prevent inlining some reflect.Value methods when using checkptr,
+ 		// even when package reflect was compiled without it (#35073).
+ 		n := n.(*ir.CallExpr)
+-		if s := n.X.Sym(); base.Debug.Checkptr != 0 && isReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
++		if s := n.X.Sym(); base.Debug.Checkptr != 0 && types.IsReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
+ 			return n
+ 		}
+ 	}
+@@ -844,7 +844,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 		return n
+ 	}
+ 
+-	if base.Flag.Cfg.Instrumenting && isRuntimePkg(fn.Sym().Pkg) {
++	if base.Flag.Cfg.Instrumenting && types.IsRuntimePkg(fn.Sym().Pkg) {
+ 		// Runtime package must not be instrumented.
+ 		// Instrument skips runtime package. However, some runtime code can be
+ 		// inlined into other packages and instrumented there. To avoid this,
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index feded3f9b2..15646ff8c7 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -23,13 +23,11 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/constant"
+-	"internal/goversion"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"path"
+-	"regexp"
+ 	"runtime"
+ 	"sort"
+ 	"strconv"
+@@ -153,7 +151,7 @@ func Main(archInit func(*Arch)) {
+ 		log.Fatalf("location lists requested but register mapping not available on %v", base.Ctxt.Arch.Name)
+ 	}
+ 
+-	checkLang()
++	types.ParseLangFlag()
+ 
+ 	if base.Flag.SymABIs != "" {
+ 		readSymABIs(base.Flag.SymABIs, base.Ctxt.Pkgpath)
+@@ -858,7 +856,7 @@ func clearImports() {
+ 			s.Def = nil
+ 			continue
+ 		}
+-		if IsAlias(s) {
++		if types.IsDotAlias(s) {
+ 			// throw away top-level name left over
+ 			// from previous import . "x"
+ 			// We'll report errors after type checking in checkDotImports.
+@@ -873,10 +871,6 @@ func clearImports() {
+ 	}
+ }
+ 
+-func IsAlias(sym *types.Sym) bool {
+-	return sym.Def != nil && sym.Def.Sym() != sym
+-}
+-
+ // recordFlags records the specified command-line flags to be placed
+ // in the DWARF info.
+ func recordFlags(flags ...string) {
+@@ -944,89 +938,6 @@ func recordPackageName() {
+ 	s.P = []byte(types.LocalPkg.Name)
+ }
+ 
+-// currentLang returns the current language version.
+-func currentLang() string {
+-	return fmt.Sprintf("go1.%d", goversion.Version)
+-}
+-
+-// goVersionRE is a regular expression that matches the valid
+-// arguments to the -lang flag.
+-var goVersionRE = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+-
+-// A lang is a language version broken into major and minor numbers.
+-type lang struct {
+-	major, minor int
+-}
+-
+-// langWant is the desired language version set by the -lang flag.
+-// If the -lang flag is not set, this is the zero value, meaning that
+-// any language version is supported.
+-var langWant lang
+-
+-// AllowsGoVersion reports whether a particular package
+-// is allowed to use Go version major.minor.
+-// We assume the imported packages have all been checked,
+-// so we only have to check the local package against the -lang flag.
+-func AllowsGoVersion(pkg *types.Pkg, major, minor int) bool {
+-	if pkg == nil {
+-		// TODO(mdempsky): Set Pkg for local types earlier.
+-		pkg = types.LocalPkg
+-	}
+-	if pkg != types.LocalPkg {
+-		// Assume imported packages passed type-checking.
+-		return true
+-	}
+-	if langWant.major == 0 && langWant.minor == 0 {
+-		return true
+-	}
+-	return langWant.major > major || (langWant.major == major && langWant.minor >= minor)
+-}
+-
+-func langSupported(major, minor int, pkg *types.Pkg) bool {
+-	return AllowsGoVersion(pkg, major, minor)
+-}
+-
+-// checkLang verifies that the -lang flag holds a valid value, and
+-// exits if not. It initializes data used by langSupported.
+-func checkLang() {
+-	if base.Flag.Lang == "" {
+-		return
+-	}
+-
+-	var err error
+-	langWant, err = parseLang(base.Flag.Lang)
+-	if err != nil {
+-		log.Fatalf("invalid value %q for -lang: %v", base.Flag.Lang, err)
+-	}
+-
+-	if def := currentLang(); base.Flag.Lang != def {
+-		defVers, err := parseLang(def)
+-		if err != nil {
+-			log.Fatalf("internal error parsing default lang %q: %v", def, err)
+-		}
+-		if langWant.major > defVers.major || (langWant.major == defVers.major && langWant.minor > defVers.minor) {
+-			log.Fatalf("invalid value %q for -lang: max known version is %q", base.Flag.Lang, def)
+-		}
+-	}
+-}
+-
+-// parseLang parses a -lang option into a langVer.
+-func parseLang(s string) (lang, error) {
+-	matches := goVersionRE.FindStringSubmatch(s)
+-	if matches == nil {
+-		return lang{}, fmt.Errorf(`should be something like "go1.12"`)
+-	}
+-	major, err := strconv.Atoi(matches[1])
+-	if err != nil {
+-		return lang{}, err
+-	}
+-	minor, err := strconv.Atoi(matches[2])
+-	if err != nil {
+-		return lang{}, err
+-	}
+-	return lang{major: major, minor: minor}, nil
+-}
+-
+ // useNewABIWrapGen returns TRUE if the compiler should generate an
+ // ABI wrapper for the function 'f'.
+ func useABIWrapGen(f *ir.Func) bool {
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index bed37efb87..77a45f0023 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -72,7 +72,7 @@ func parseFiles(filenames []string) uint {
+ 			base.ErrorExit()
+ 		}
+ 		// Always run testdclstack here, even when debug_dclstack is not set, as a sanity measure.
+-		testdclstack()
++		types.CheckDclstack()
+ 	}
+ 
+ 	for _, p := range noders {
+@@ -485,7 +485,7 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
+ 	}
+ 
+ 	nod := ir.NewDecl(p.pos(decl), ir.ODCLTYPE, n)
+-	if n.Alias() && !langSupported(1, 9, types.LocalPkg) {
++	if n.Alias() && !types.AllowsGoVersion(types.LocalPkg, 1, 9) {
+ 		base.ErrorfAt(nod.Pos(), "type aliases only supported as of -lang=go1.9")
+ 	}
+ 	return nod
+@@ -1401,7 +1401,7 @@ func (p *noder) binOp(op syntax.Operator) ir.Op {
+ // literal is not compatible with the current language version.
+ func checkLangCompat(lit *syntax.BasicLit) {
+ 	s := lit.Value
+-	if len(s) <= 2 || langSupported(1, 13, types.LocalPkg) {
++	if len(s) <= 2 || types.AllowsGoVersion(types.LocalPkg, 1, 13) {
+ 		return
+ 	}
+ 	// len(s) > 2
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 9634cd51ae..883033e0c2 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -259,7 +259,7 @@ func dumpGlobalConst(n ir.Node) {
+ 			return
+ 		}
+ 	}
+-	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, typesymname(t), ir.IntVal(t, v))
++	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
+ }
+ 
+ func dumpglobls(externs []ir.Node) {
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 738b403b99..9e792d153c 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1332,7 +1332,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
+ 	case ir.ODOTTYPE, ir.ODOTTYPE2:
+ 		n := n.(*ir.TypeAssertExpr)
+ 		n.X = o.expr(n.X, nil)
+-		if !isdirectiface(n.Type()) || base.Flag.Cfg.Instrumenting {
++		if !types.IsDirectIface(n.Type()) || base.Flag.Cfg.Instrumenting {
+ 			return o.copyExprClear(n)
+ 		}
+ 		return n
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 785e01663f..d6c15f113b 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -552,7 +552,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 		base.Fatalf("createSimpleVar unexpected class %v for node %v", n.Class_, n)
+ 	}
+ 
+-	typename := dwarf.InfoPrefix + typesymname(n.Type())
++	typename := dwarf.InfoPrefix + types.TypeSymName(n.Type())
+ 	delete(fnsym.Func().Autot, ngotype(n).Linksym())
+ 	inlIndex := 0
+ 	if base.Flag.GenDwarfInl > 1 {
+@@ -655,7 +655,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 			decls = append(decls, n)
+ 			continue
+ 		}
+-		typename := dwarf.InfoPrefix + typesymname(n.Type())
++		typename := dwarf.InfoPrefix + types.TypeSymName(n.Type())
+ 		decls = append(decls, n)
+ 		abbrev := dwarf.DW_ABRV_AUTO_LOCLIST
+ 		isReturnValue := (n.Class_ == ir.PPARAMOUT)
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 078f03bc68..463d0c55bd 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -493,7 +493,7 @@ func isMapClear(n *ir.RangeStmt) bool {
+ 	}
+ 
+ 	// Keys where equality is not reflexive can not be deleted from maps.
+-	if !isreflexive(m.Type().Key()) {
++	if !types.IsReflexive(m.Type().Key()) {
+ 		return false
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 07552e64b4..12fc6b7fa7 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -135,7 +135,7 @@ func bmap(t *types.Type) *types.Type {
+ 	dowidth(bucket)
+ 
+ 	// Check invariants that map code depends on.
+-	if !IsComparable(t.Key()) {
++	if !types.IsComparable(t.Key()) {
+ 		base.Fatalf("unsupported map key type for %v", t)
+ 	}
+ 	if BUCKETSIZE < 8 {
+@@ -373,7 +373,7 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
+ // Generates stub functions as needed.
+ func methods(t *types.Type) []*Sig {
+ 	// method type
+-	mt := methtype(t)
++	mt := types.ReceiverBaseType(t)
+ 
+ 	if mt == nil {
+ 		return nil
+@@ -383,7 +383,7 @@ func methods(t *types.Type) []*Sig {
+ 	// type stored in interface word
+ 	it := t
+ 
+-	if !isdirectiface(it) {
++	if !types.IsDirectIface(it) {
+ 		it = types.NewPtr(t)
+ 	}
+ 
+@@ -410,7 +410,7 @@ func methods(t *types.Type) []*Sig {
+ 		// if pointer receiver but non-pointer t and
+ 		// this is not an embedded pointer inside a struct,
+ 		// method does not apply.
+-		if !isMethodApplicable(t, f) {
++		if !types.IsMethodApplicable(t, f) {
+ 			continue
+ 		}
+ 
+@@ -848,7 +848,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 	ot := 0
+ 	ot = duintptr(lsym, ot, uint64(t.Width))
+ 	ot = duintptr(lsym, ot, uint64(ptrdata))
+-	ot = duint32(lsym, ot, typehash(t))
++	ot = duint32(lsym, ot, types.TypeHash(t))
+ 
+ 	var tflag uint8
+ 	if uncommonSize(t) != 0 {
+@@ -895,7 +895,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 	ot = duint8(lsym, ot, t.Align) // fieldAlign
+ 
+ 	i = kinds[t.Kind()]
+-	if isdirectiface(t) {
++	if types.IsDirectIface(t) {
+ 		i |= objabi.KindDirectIface
+ 	}
+ 	if useGCProg {
+@@ -923,40 +923,6 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 	return ot
+ }
+ 
+-// typeHasNoAlg reports whether t does not have any associated hash/eq
+-// algorithms because t, or some component of t, is marked Noalg.
+-func typeHasNoAlg(t *types.Type) bool {
+-	a, bad := algtype1(t)
+-	return a == ANOEQ && bad.Noalg()
+-}
+-
+-func typesymname(t *types.Type) string {
+-	name := t.ShortString()
+-	// Use a separate symbol name for Noalg types for #17752.
+-	if typeHasNoAlg(t) {
+-		name = "noalg." + name
+-	}
+-	return name
+-}
+-
+-// Fake package for runtime type info (headers)
+-// Don't access directly, use typeLookup below.
+-var (
+-	typepkgmu sync.Mutex // protects typepkg lookups
+-	typepkg   = types.NewPkg("type", "type")
+-)
+-
+-func typeLookup(name string) *types.Sym {
+-	typepkgmu.Lock()
+-	s := typepkg.Lookup(name)
+-	typepkgmu.Unlock()
+-	return s
+-}
+-
+-func typesym(t *types.Type) *types.Sym {
+-	return typeLookup(typesymname(t))
+-}
+-
+ // tracksym returns the symbol for tracking use of field/method f, assumed
+ // to be a member of struct/interface type t.
+ func tracksym(t *types.Type, f *types.Field) *types.Sym {
+@@ -965,7 +931,7 @@ func tracksym(t *types.Type, f *types.Field) *types.Sym {
+ 
+ func typesymprefix(prefix string, t *types.Type) *types.Sym {
+ 	p := prefix + "." + t.ShortString()
+-	s := typeLookup(p)
++	s := types.TypeSymLookup(p)
+ 
+ 	// This function is for looking up type-related generated functions
+ 	// (e.g. eq and hash). Make sure they are indeed generated.
+@@ -982,7 +948,7 @@ func typenamesym(t *types.Type) *types.Sym {
+ 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
+ 		base.Fatalf("typenamesym %v", t)
+ 	}
+-	s := typesym(t)
++	s := types.TypeSym(t)
+ 	signatmu.Lock()
+ 	addsignat(t)
+ 	signatmu.Unlock()
+@@ -1025,52 +991,6 @@ func itabname(t, itype *types.Type) *ir.AddrExpr {
+ 	return n
+ }
+ 
+-// isreflexive reports whether t has a reflexive equality operator.
+-// That is, if x==x for all x of type t.
+-func isreflexive(t *types.Type) bool {
+-	switch t.Kind() {
+-	case types.TBOOL,
+-		types.TINT,
+-		types.TUINT,
+-		types.TINT8,
+-		types.TUINT8,
+-		types.TINT16,
+-		types.TUINT16,
+-		types.TINT32,
+-		types.TUINT32,
+-		types.TINT64,
+-		types.TUINT64,
+-		types.TUINTPTR,
+-		types.TPTR,
+-		types.TUNSAFEPTR,
+-		types.TSTRING,
+-		types.TCHAN:
+-		return true
+-
+-	case types.TFLOAT32,
+-		types.TFLOAT64,
+-		types.TCOMPLEX64,
+-		types.TCOMPLEX128,
+-		types.TINTER:
+-		return false
+-
+-	case types.TARRAY:
+-		return isreflexive(t.Elem())
+-
+-	case types.TSTRUCT:
+-		for _, t1 := range t.Fields().Slice() {
+-			if !isreflexive(t1.Type) {
+-				return false
+-			}
+-		}
+-		return true
+-
+-	default:
+-		base.Fatalf("bad type for map key: %v", t)
+-		return false
+-	}
+-}
+-
+ // needkeyupdate reports whether map updates with t as a key
+ // need the key to be updated.
+ func needkeyupdate(t *types.Type) bool {
+@@ -1139,7 +1059,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 		base.Fatalf("dtypesym %v", t)
+ 	}
+ 
+-	s := typesym(t)
++	s := types.TypeSym(t)
+ 	lsym := s.Linksym()
+ 	if s.Siggen() {
+ 		return lsym
+@@ -1310,7 +1230,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 			ot = duint8(lsym, ot, uint8(t.Elem().Width))
+ 		}
+ 		ot = duint16(lsym, ot, uint16(bmap(t).Width))
+-		if isreflexive(t.Key()) {
++		if types.IsReflexive(t.Key()) {
+ 			flags |= 4 // reflexive key
+ 		}
+ 		if needkeyupdate(t.Key()) {
+@@ -1404,7 +1324,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 		}
+ 	}
+ 	// Do not put Noalg types in typelinks.  See issue #22605.
+-	if typeHasNoAlg(t) {
++	if types.TypeHasNoAlg(t) {
+ 		keep = false
+ 	}
+ 	lsym.Set(obj.AttrMakeTypelink, keep)
+@@ -1528,7 +1448,7 @@ func dumpsignats() {
+ 		signats = signats[:0]
+ 		// Transfer entries to a slice and sort, for reproducible builds.
+ 		for _, t := range signatslice {
+-			signats = append(signats, typeAndStr{t: t, short: typesymname(t), regular: t.String()})
++			signats = append(signats, typeAndStr{t: t, short: types.TypeSymName(t), regular: t.String()})
+ 			delete(signatset, t)
+ 		}
+ 		signatslice = signatslice[:0]
+@@ -1556,8 +1476,8 @@ func dumptabs() {
+ 		// }
+ 		o := dsymptr(i.lsym, 0, dtypesym(i.itype), 0)
+ 		o = dsymptr(i.lsym, o, dtypesym(i.t), 0)
+-		o = duint32(i.lsym, o, typehash(i.t)) // copy of type hash
+-		o += 4                                // skip unused field
++		o = duint32(i.lsym, o, types.TypeHash(i.t)) // copy of type hash
++		o += 4                                      // skip unused field
+ 		for _, fn := range genfun(i.t, i.itype) {
+ 			o = dsymptr(i.lsym, o, fn, 0) // method pointer for each method
+ 		}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 9445627b41..c9a554079d 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -324,7 +324,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
+ 		addrsym(l, loff, itab.X.(*ir.Name), 0)
+ 
+ 		// Emit data.
+-		if isdirectiface(val.Type()) {
++		if types.IsDirectIface(val.Type()) {
+ 			if val.Op() == ir.ONIL {
+ 				// Nil is zero, nothing to do.
+ 				return true
+@@ -506,7 +506,7 @@ func isStaticCompositeLiteral(n ir.Node) bool {
+ 		if val.Type().IsInterface() {
+ 			return val.Op() == ir.ONIL
+ 		}
+-		if isdirectiface(val.Type()) && val.Op() == ir.ONIL {
++		if types.IsDirectIface(val.Type()) && val.Op() == ir.ONIL {
+ 			return true
+ 		}
+ 		return isStaticCompositeLiteral(val)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 0bca2baa17..722a3257da 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1916,28 +1916,6 @@ func (s *state) ssaOp(op ir.Op, t *types.Type) ssa.Op {
+ 	return x
+ }
+ 
+-func floatForComplex(t *types.Type) *types.Type {
+-	switch t.Kind() {
+-	case types.TCOMPLEX64:
+-		return types.Types[types.TFLOAT32]
+-	case types.TCOMPLEX128:
+-		return types.Types[types.TFLOAT64]
+-	}
+-	base.Fatalf("unexpected type: %v", t)
+-	return nil
+-}
+-
+-func complexForFloat(t *types.Type) *types.Type {
+-	switch t.Kind() {
+-	case types.TFLOAT32:
+-		return types.Types[types.TCOMPLEX64]
+-	case types.TFLOAT64:
+-		return types.Types[types.TCOMPLEX128]
+-	}
+-	base.Fatalf("unexpected type: %v", t)
+-	return nil
+-}
+-
+ type opAndTwoTypes struct {
+ 	op     ir.Op
+ 	etype1 types.Kind
+@@ -2458,8 +2436,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 			} else {
+ 				s.Fatalf("weird complex conversion %v -> %v", ft, tt)
+ 			}
+-			ftp := floatForComplex(ft)
+-			ttp := floatForComplex(tt)
++			ftp := types.FloatForComplex(ft)
++			ttp := types.FloatForComplex(tt)
+ 			return s.newValue2(ssa.OpComplexMake, tt,
+ 				s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexReal, ftp, x)),
+ 				s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexImag, ftp, x)))
+@@ -2479,7 +2457,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		a := s.expr(n.X)
+ 		b := s.expr(n.Y)
+ 		if n.X.Type().IsComplex() {
+-			pt := floatForComplex(n.X.Type())
++			pt := types.FloatForComplex(n.X.Type())
+ 			op := s.ssaOp(ir.OEQ, pt)
+ 			r := s.newValueOrSfCall2(op, types.Types[types.TBOOL], s.newValue1(ssa.OpComplexReal, pt, a), s.newValue1(ssa.OpComplexReal, pt, b))
+ 			i := s.newValueOrSfCall2(op, types.Types[types.TBOOL], s.newValue1(ssa.OpComplexImag, pt, a), s.newValue1(ssa.OpComplexImag, pt, b))
+@@ -2516,8 +2494,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 			mulop := ssa.OpMul64F
+ 			addop := ssa.OpAdd64F
+ 			subop := ssa.OpSub64F
+-			pt := floatForComplex(n.Type())   // Could be Float32 or Float64
+-			wt := types.Types[types.TFLOAT64] // Compute in Float64 to minimize cancellation error
++			pt := types.FloatForComplex(n.Type()) // Could be Float32 or Float64
++			wt := types.Types[types.TFLOAT64]     // Compute in Float64 to minimize cancellation error
+ 
+ 			areal := s.newValue1(ssa.OpComplexReal, pt, a)
+ 			breal := s.newValue1(ssa.OpComplexReal, pt, b)
+@@ -2560,8 +2538,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 			addop := ssa.OpAdd64F
+ 			subop := ssa.OpSub64F
+ 			divop := ssa.OpDiv64F
+-			pt := floatForComplex(n.Type())   // Could be Float32 or Float64
+-			wt := types.Types[types.TFLOAT64] // Compute in Float64 to minimize cancellation error
++			pt := types.FloatForComplex(n.Type()) // Could be Float32 or Float64
++			wt := types.Types[types.TFLOAT64]     // Compute in Float64 to minimize cancellation error
+ 
+ 			areal := s.newValue1(ssa.OpComplexReal, pt, a)
+ 			breal := s.newValue1(ssa.OpComplexReal, pt, b)
+@@ -2606,7 +2584,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		a := s.expr(n.X)
+ 		b := s.expr(n.Y)
+ 		if n.Type().IsComplex() {
+-			pt := floatForComplex(n.Type())
++			pt := types.FloatForComplex(n.Type())
+ 			op := s.ssaOp(n.Op(), pt)
+ 			return s.newValue2(ssa.OpComplexMake, n.Type(),
+ 				s.newValueOrSfCall2(op, pt, s.newValue1(ssa.OpComplexReal, pt, a), s.newValue1(ssa.OpComplexReal, pt, b)),
+@@ -2694,7 +2672,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		n := n.(*ir.UnaryExpr)
+ 		a := s.expr(n.X)
+ 		if n.Type().IsComplex() {
+-			tp := floatForComplex(n.Type())
++			tp := types.FloatForComplex(n.Type())
+ 			negop := s.ssaOp(n.Op(), tp)
+ 			return s.newValue2(ssa.OpComplexMake, n.Type(),
+ 				s.newValue1(negop, tp, s.newValue1(ssa.OpComplexReal, tp, a)),
+@@ -6147,7 +6125,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 	}
+ 
+ 	// Converting to a concrete type.
+-	direct := isdirectiface(n.Type())
++	direct := types.IsDirectIface(n.Type())
+ 	itab := s.newValue1(ssa.OpITab, byteptr, iface) // type word of interface
+ 	if base.Debug.TypeAssert > 0 {
+ 		base.WarnfAt(n.Pos(), "type assertion inlined")
+@@ -6442,7 +6420,7 @@ func emitStackObjects(e *ssafn, pp *Progs) {
+ 		// in which case the offset is relative to argp.
+ 		// Locals have a negative Xoffset, in which case the offset is relative to varp.
+ 		off = duintptr(x, off, uint64(v.FrameOffset()))
+-		if !typesym(v.Type()).Siggen() {
++		if !types.TypeSym(v.Type()).Siggen() {
+ 			e.Fatalf(v.Pos(), "stack object's type symbol not generated for type %s", v.Type())
+ 		}
+ 		off = dsymptr(x, off, dtypesym(v.Type()), 0)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 6e130d4889..d8956633b2 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -9,8 +9,6 @@ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+-	"crypto/md5"
+-	"encoding/binary"
+ 	"fmt"
+ 	"go/constant"
+ 	"sort"
+@@ -170,13 +168,6 @@ func NewName(s *types.Sym) *ir.Name {
+ 	return n
+ }
+ 
+-// methcmp sorts methods by symbol.
+-type methcmp []*types.Field
+-
+-func (x methcmp) Len() int           { return len(x) }
+-func (x methcmp) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x methcmp) Less(i, j int) bool { return x[i].Sym.Less(x[j].Sym) }
+-
+ func nodintconst(v int64) ir.Node {
+ 	return ir.NewLiteral(constant.MakeInt64(v))
+ }
+@@ -212,41 +203,6 @@ func isptrto(t *types.Type, et types.Kind) bool {
+ 	return true
+ }
+ 
+-// methtype returns the underlying type, if any,
+-// that owns methods with receiver parameter t.
+-// The result is either a named type or an anonymous struct.
+-func methtype(t *types.Type) *types.Type {
+-	if t == nil {
+-		return nil
+-	}
+-
+-	// Strip away pointer if it's there.
+-	if t.IsPtr() {
+-		if t.Sym() != nil {
+-			return nil
+-		}
+-		t = t.Elem()
+-		if t == nil {
+-			return nil
+-		}
+-	}
+-
+-	// Must be a named type or anonymous struct.
+-	if t.Sym() == nil && !t.IsStruct() {
+-		return nil
+-	}
+-
+-	// Check types.
+-	if issimple[t.Kind()] {
+-		return t
+-	}
+-	switch t.Kind() {
+-	case types.TARRAY, types.TCHAN, types.TFUNC, types.TMAP, types.TSLICE, types.TSTRING, types.TSTRUCT:
+-		return t
+-	}
+-	return nil
+-}
+-
+ // Is type src assignment compatible to type dst?
+ // If so, return op code to use in conversion.
+ // If not, return OXXX. In this case, the string return parameter may
+@@ -294,7 +250,7 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
+ 			// gets added to itabs early, which allows
+ 			// us to de-virtualize calls through this
+ 			// type/interface pair later. See peekitabs in reflect.go
+-			if isdirectiface(src) && !dst.IsEmptyInterface() {
++			if types.IsDirectIface(src) && !dst.IsEmptyInterface() {
+ 				NeedITab(src, dst)
+ 			}
+ 
+@@ -429,7 +385,7 @@ func convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
+ 
+ 	// 4. src and dst are both integer or floating point types.
+ 	if (src.IsInteger() || src.IsFloat()) && (dst.IsInteger() || dst.IsFloat()) {
+-		if simtype[src.Kind()] == simtype[dst.Kind()] {
++		if types.SimType[src.Kind()] == types.SimType[dst.Kind()] {
+ 			return ir.OCONVNOP, ""
+ 		}
+ 		return ir.OCONV, ""
+@@ -437,7 +393,7 @@ func convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
+ 
+ 	// 5. src and dst are both complex types.
+ 	if src.IsComplex() && dst.IsComplex() {
+-		if simtype[src.Kind()] == simtype[dst.Kind()] {
++		if types.SimType[src.Kind()] == types.SimType[dst.Kind()] {
+ 			return ir.OCONVNOP, ""
+ 		}
+ 		return ir.OCONV, ""
+@@ -574,15 +530,6 @@ func syslook(name string) *ir.Name {
+ 	return ir.AsNode(s.Def).(*ir.Name)
+ }
+ 
+-// typehash computes a hash value for type t to use in type switch statements.
+-func typehash(t *types.Type) uint32 {
+-	p := t.LongString()
+-
+-	// Using MD5 is overkill, but reduces accidental collisions.
+-	h := md5.Sum([]byte(p))
+-	return binary.LittleEndian.Uint32(h[:4])
+-}
+-
+ // updateHasCall checks whether expression n contains any function
+ // calls and sets the n.HasCall flag if so.
+ func updateHasCall(n ir.Node) {
+@@ -627,25 +574,25 @@ func calcHasCall(n ir.Node) bool {
+ 	// so we ensure they are evaluated first.
+ 	case ir.OADD, ir.OSUB, ir.OMUL:
+ 		n := n.(*ir.BinaryExpr)
+-		if thearch.SoftFloat && (isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) {
++		if thearch.SoftFloat && (types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) {
+ 			return true
+ 		}
+ 		return n.X.HasCall() || n.Y.HasCall()
+ 	case ir.ONEG:
+ 		n := n.(*ir.UnaryExpr)
+-		if thearch.SoftFloat && (isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) {
++		if thearch.SoftFloat && (types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) {
+ 			return true
+ 		}
+ 		return n.X.HasCall()
+ 	case ir.OLT, ir.OEQ, ir.ONE, ir.OLE, ir.OGE, ir.OGT:
+ 		n := n.(*ir.BinaryExpr)
+-		if thearch.SoftFloat && (isFloat[n.X.Type().Kind()] || isComplex[n.X.Type().Kind()]) {
++		if thearch.SoftFloat && (types.IsFloat[n.X.Type().Kind()] || types.IsComplex[n.X.Type().Kind()]) {
+ 			return true
+ 		}
+ 		return n.X.HasCall() || n.Y.HasCall()
+ 	case ir.OCONV:
+ 		n := n.(*ir.ConvExpr)
+-		if thearch.SoftFloat && ((isFloat[n.Type().Kind()] || isComplex[n.Type().Kind()]) || (isFloat[n.X.Type().Kind()] || isComplex[n.X.Type().Kind()])) {
++		if thearch.SoftFloat && ((types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) || (types.IsFloat[n.X.Type().Kind()] || types.IsComplex[n.X.Type().Kind()])) {
+ 			return true
+ 		}
+ 		return n.X.HasCall()
+@@ -893,7 +840,7 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool)
+ 		// If t is a defined pointer type, then x.m is shorthand for (*x).m.
+ 		u = t.Elem()
+ 	}
+-	u = methtype(u)
++	u = types.ReceiverBaseType(u)
+ 	if u != nil {
+ 		for _, f := range u.Methods().Slice() {
+ 			if f.Embedded == 0 && (f.Sym == s || (ignorecase && strings.EqualFold(f.Sym.Name, s.Name))) {
+@@ -1056,7 +1003,7 @@ func expand0(t *types.Type) {
+ 		return
+ 	}
+ 
+-	u = methtype(t)
++	u = types.ReceiverBaseType(t)
+ 	if u != nil {
+ 		for _, f := range u.Methods().Slice() {
+ 			if f.Sym.Uniq() {
+@@ -1147,7 +1094,7 @@ func expandmeth(t *types.Type) {
+ 	}
+ 
+ 	ms = append(ms, t.Methods().Slice()...)
+-	sort.Sort(methcmp(ms))
++	sort.Sort(types.MethodsByName(ms))
+ 	t.AllMethods().Set(ms)
+ }
+ 
+@@ -1243,7 +1190,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 	// the TOC to the appropriate value for that module. But if it returns
+ 	// directly to the wrapper's caller, nothing will reset it to the correct
+ 	// value for that function.
+-	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !isifacemethod(method.Type) && !(thearch.LinkArch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
++	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(thearch.LinkArch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
+ 		// generate tail call: adjust pointer receiver and jump to embedded method.
+ 		left := dot.X // skip final .M
+ 		if !left.Type().IsPtr() {
+@@ -1272,7 +1219,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 
+ 	funcbody()
+ 	if base.Debug.DclStack != 0 {
+-		testdclstack()
++		types.CheckDclstack()
+ 	}
+ 
+ 	typecheckFunc(fn)
+@@ -1373,7 +1320,7 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool
+ 		return true
+ 	}
+ 
+-	t = methtype(t)
++	t = types.ReceiverBaseType(t)
+ 	var tms []*types.Field
+ 	if t != nil {
+ 		expandmeth(t)
+@@ -1405,7 +1352,7 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool
+ 		// if pointer receiver in method,
+ 		// the method does not exist for value types.
+ 		rcvr := tm.Type.Recv().Type
+-		if rcvr.IsPtr() && !t0.IsPtr() && !followptr && !isifacemethod(tm.Type) {
++		if rcvr.IsPtr() && !t0.IsPtr() && !followptr && !types.IsInterfaceMethod(tm.Type) {
+ 			if false && base.Flag.LowerR != 0 {
+ 				base.Errorf("interface pointer mismatch")
+ 			}
+@@ -1508,35 +1455,6 @@ func isbadimport(path string, allowSpace bool) bool {
+ 	return false
+ }
+ 
+-// Can this type be stored directly in an interface word?
+-// Yes, if the representation is a single pointer.
+-func isdirectiface(t *types.Type) bool {
+-	if t.Broke() {
+-		return false
+-	}
+-
+-	switch t.Kind() {
+-	case types.TPTR:
+-		// Pointers to notinheap types must be stored indirectly. See issue 42076.
+-		return !t.Elem().NotInHeap()
+-	case types.TCHAN,
+-		types.TMAP,
+-		types.TFUNC,
+-		types.TUNSAFEPTR:
+-		return true
+-
+-	case types.TARRAY:
+-		// Array of 1 direct iface type can be direct.
+-		return t.NumElem() == 1 && isdirectiface(t.Elem())
+-
+-	case types.TSTRUCT:
+-		// Struct with 1 field of direct iface type can be direct.
+-		return t.NumFields() == 1 && isdirectiface(t.Field(0).Type)
+-	}
+-
+-	return false
+-}
+-
+ // itabType loads the _type field from a runtime.itab struct.
+ func itabType(itab ir.Node) ir.Node {
+ 	typ := ir.NewSelectorExpr(base.Pos, ir.ODOTPTR, itab, nil)
+@@ -1555,7 +1473,7 @@ func ifaceData(pos src.XPos, n ir.Node, t *types.Type) ir.Node {
+ 		base.Fatalf("ifaceData interface: %v", t)
+ 	}
+ 	ptr := ir.NewUnaryExpr(pos, ir.OIDATA, n)
+-	if isdirectiface(t) {
++	if types.IsDirectIface(t) {
+ 		ptr.SetType(t)
+ 		ptr.SetTypecheck(1)
+ 		return ptr
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index ab241a3813..513b890355 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -166,9 +166,9 @@ func typecheckExprSwitch(n *ir.SwitchStmt) {
+ 		case t.IsSlice():
+ 			nilonly = "slice"
+ 
+-		case !IsComparable(t):
++		case !types.IsComparable(t):
+ 			if t.IsStruct() {
+-				base.ErrorfAt(n.Pos(), "cannot switch on %L (struct containing %v cannot be compared)", n.Tag, IncomparableField(t).Type)
++				base.ErrorfAt(n.Pos(), "cannot switch on %L (struct containing %v cannot be compared)", n.Tag, types.IncomparableField(t).Type)
+ 			} else {
+ 				base.ErrorfAt(n.Pos(), "cannot switch on %L", n.Tag)
+ 			}
+@@ -200,7 +200,7 @@ func typecheckExprSwitch(n *ir.SwitchStmt) {
+ 
+ 			if nilonly != "" && !ir.IsNil(n1) {
+ 				base.ErrorfAt(ncase.Pos(), "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Tag)
+-			} else if t.IsInterface() && !n1.Type().IsInterface() && !IsComparable(n1.Type()) {
++			} else if t.IsInterface() && !n1.Type().IsInterface() && !types.IsComparable(n1.Type()) {
+ 				base.ErrorfAt(ncase.Pos(), "invalid case %L in switch (incomparable type)", n1)
+ 			} else {
+ 				op1, _ := assignop(n1.Type(), t)
+@@ -339,7 +339,7 @@ type exprClause struct {
+ 
+ func (s *exprSwitch) Add(pos src.XPos, expr, jmp ir.Node) {
+ 	c := exprClause{pos: pos, lo: expr, hi: expr, jmp: jmp}
+-	if okforcmp[s.exprname.Type().Kind()] && expr.Op() == ir.OLITERAL {
++	if types.IsOrdered[s.exprname.Type().Kind()] && expr.Op() == ir.OLITERAL {
+ 		s.clauses = append(s.clauses, c)
+ 		return
+ 	}
+@@ -670,7 +670,7 @@ func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp ir.Node) {
+ 
+ 	if !typ.IsInterface() {
+ 		s.clauses = append(s.clauses, typeClause{
+-			hash: typehash(typ),
++			hash: types.TypeHash(typ),
+ 			body: body,
+ 		})
+ 		return
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 4f1fe240ec..5e13facc4f 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -837,7 +837,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 				n.SetType(nil)
+ 				return n
+ 			}
+-			if t.IsSigned() && !langSupported(1, 13, curpkg()) {
++			if t.IsSigned() && !types.AllowsGoVersion(curpkg(), 1, 13) {
+ 				base.ErrorfVers("go1.13", "invalid operation: %v (signed shift count type %v)", n, r.Type())
+ 				n.SetType(nil)
+ 				return n
+@@ -904,7 +904,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 			if r.Type().Kind() != types.TBLANK {
+ 				aop, _ = assignop(l.Type(), r.Type())
+ 				if aop != ir.OXXX {
+-					if r.Type().IsInterface() && !l.Type().IsInterface() && !IsComparable(l.Type()) {
++					if r.Type().IsInterface() && !l.Type().IsInterface() && !types.IsComparable(l.Type()) {
+ 						base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(l.Type()))
+ 						n.SetType(nil)
+ 						return n
+@@ -925,7 +925,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 			if !converted && l.Type().Kind() != types.TBLANK {
+ 				aop, _ = assignop(r.Type(), l.Type())
+ 				if aop != ir.OXXX {
+-					if l.Type().IsInterface() && !r.Type().IsInterface() && !IsComparable(r.Type()) {
++					if l.Type().IsInterface() && !r.Type().IsInterface() && !types.IsComparable(r.Type()) {
+ 						base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(r.Type()))
+ 						n.SetType(nil)
+ 						return n
+@@ -969,7 +969,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 
+ 		// okfor allows any array == array, map == map, func == func.
+ 		// restrict to slice/map/func == nil and nil == slice/map/func.
+-		if l.Type().IsArray() && !IsComparable(l.Type()) {
++		if l.Type().IsArray() && !types.IsComparable(l.Type()) {
+ 			base.Errorf("invalid operation: %v (%v cannot be compared)", n, l.Type())
+ 			n.SetType(nil)
+ 			return n
+@@ -994,7 +994,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 		}
+ 
+ 		if l.Type().IsStruct() {
+-			if f := IncomparableField(l.Type()); f != nil {
++			if f := types.IncomparableField(l.Type()); f != nil {
+ 				base.Errorf("invalid operation: %v (struct containing %v cannot be compared)", n, f.Type)
+ 				n.SetType(nil)
+ 				return n
+@@ -1627,7 +1627,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 			n.SetType(l.Type().Results().Field(0).Type)
+ 
+ 			if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME {
+-				if sym := n.X.(*ir.Name).Sym(); isRuntimePkg(sym.Pkg) && sym.Name == "getg" {
++				if sym := n.X.(*ir.Name).Sym(); types.IsRuntimePkg(sym.Pkg) && sym.Name == "getg" {
+ 					// Emit code for runtime.getg() directly instead of calling function.
+ 					// Most such rewrites (for example the similar one for math.Sqrt) should be done in walk,
+ 					// so that the ordering pass can make sure to preserve the semantics of the original code
+@@ -2560,7 +2560,7 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
+ 	if t.IsInterface() {
+ 		ms = t.Fields()
+ 	} else {
+-		mt := methtype(t)
++		mt := types.ReceiverBaseType(t)
+ 		if mt == nil {
+ 			base.Errorf("%v undefined (type %v has no method %v)", n, t, n.Sel)
+ 			n.SetType(nil)
+@@ -2595,7 +2595,7 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
+ 		return n
+ 	}
+ 
+-	if !isMethodApplicable(t, m) {
++	if !types.IsMethodApplicable(t, m) {
+ 		base.Errorf("invalid method expression %v (needs pointer receiver: (*%v).%S)", n, t, s)
+ 		n.SetType(nil)
+ 		return n
+@@ -2616,14 +2616,6 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
+ 	return me
+ }
+ 
+-// isMethodApplicable reports whether method m can be called on a
+-// value of type t. This is necessary because we compute a single
+-// method set for both T and *T, but some *T methods are not
+-// applicable to T receivers.
+-func isMethodApplicable(t *types.Type, m *types.Field) bool {
+-	return t.IsPtr() || !m.Type.Recv().Type.IsPtr() || isifacemethod(m.Type) || m.Embedded == 2
+-}
+-
+ func derefall(t *types.Type) *types.Type {
+ 	for t != nil && t.IsPtr() {
+ 		t = t.Elem()
+@@ -2642,7 +2634,7 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
+ 
+ 	var f2 *types.Field
+ 	if n.X.Type() == t || n.X.Type().Sym() == nil {
+-		mt := methtype(t)
++		mt := types.ReceiverBaseType(t)
+ 		if mt != nil {
+ 			f2 = lookdot1(n, s, mt, mt.Methods(), dostrcmp)
+ 		}
+@@ -3406,7 +3398,7 @@ func samesafeexpr(l ir.Node, r ir.Node) bool {
+ 		r := r.(*ir.ConvExpr)
+ 		// Some conversions can't be reused, such as []byte(str).
+ 		// Allow only numeric-ish types. This is a bit conservative.
+-		return issimple[l.Type().Kind()] && samesafeexpr(l.X, r.X)
++		return types.IsSimple[l.Type().Kind()] && samesafeexpr(l.X, r.X)
+ 
+ 	case ir.OINDEX, ir.OINDEXMAP:
+ 		l := l.(*ir.IndexExpr)
+@@ -3680,7 +3672,7 @@ var mapqueue []*ir.MapType
+ func checkMapKeys() {
+ 	for _, n := range mapqueue {
+ 		k := n.Type().MapType().Key
+-		if !k.Broke() && !IsComparable(k) {
++		if !k.Broke() && !types.IsComparable(k) {
+ 			base.ErrorfAt(n.Pos(), "invalid map key type %v", k)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index cf20583042..f2c719db38 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -90,7 +90,7 @@ func initUniverse() {
+ 	sizeofString = Rnd(sliceLenOffset+int64(Widthptr), int64(Widthptr))
+ 
+ 	for et := types.Kind(0); et < types.NTYPE; et++ {
+-		simtype[et] = et
++		types.SimType[et] = et
+ 	}
+ 
+ 	types.Types[types.TANY] = types.New(types.TANY)
+@@ -117,7 +117,7 @@ func initUniverse() {
+ 		if Widthptr == 8 {
+ 			sameas = s.sameas64
+ 		}
+-		simtype[s.etype] = sameas
++		types.SimType[s.etype] = sameas
+ 
+ 		types.Types[s.etype] = defBasic(s.etype, types.BuiltinPkg, s.name)
+ 	}
+@@ -144,10 +144,10 @@ func initUniverse() {
+ 	types.Types[types.TUNSAFEPTR] = defBasic(types.TUNSAFEPTR, unsafepkg, "Pointer")
+ 
+ 	// simple aliases
+-	simtype[types.TMAP] = types.TPTR
+-	simtype[types.TCHAN] = types.TPTR
+-	simtype[types.TFUNC] = types.TPTR
+-	simtype[types.TUNSAFEPTR] = types.TPTR
++	types.SimType[types.TMAP] = types.TPTR
++	types.SimType[types.TCHAN] = types.TPTR
++	types.SimType[types.TFUNC] = types.TPTR
++	types.SimType[types.TUNSAFEPTR] = types.TPTR
+ 
+ 	for _, s := range &builtinFuncs {
+ 		s2 := types.BuiltinPkg.Lookup(s.name)
+@@ -194,49 +194,49 @@ func initUniverse() {
+ 	s.Def = ir.NewIota(base.Pos, s)
+ 
+ 	for et := types.TINT8; et <= types.TUINT64; et++ {
+-		isInt[et] = true
++		types.IsInt[et] = true
+ 	}
+-	isInt[types.TINT] = true
+-	isInt[types.TUINT] = true
+-	isInt[types.TUINTPTR] = true
++	types.IsInt[types.TINT] = true
++	types.IsInt[types.TUINT] = true
++	types.IsInt[types.TUINTPTR] = true
+ 
+-	isFloat[types.TFLOAT32] = true
+-	isFloat[types.TFLOAT64] = true
++	types.IsFloat[types.TFLOAT32] = true
++	types.IsFloat[types.TFLOAT64] = true
+ 
+-	isComplex[types.TCOMPLEX64] = true
+-	isComplex[types.TCOMPLEX128] = true
++	types.IsComplex[types.TCOMPLEX64] = true
++	types.IsComplex[types.TCOMPLEX128] = true
+ 
+ 	// initialize okfor
+ 	for et := types.Kind(0); et < types.NTYPE; et++ {
+-		if isInt[et] || et == types.TIDEAL {
++		if types.IsInt[et] || et == types.TIDEAL {
+ 			okforeq[et] = true
+-			okforcmp[et] = true
++			types.IsOrdered[et] = true
+ 			okforarith[et] = true
+ 			okforadd[et] = true
+ 			okforand[et] = true
+ 			ir.OKForConst[et] = true
+-			issimple[et] = true
++			types.IsSimple[et] = true
+ 		}
+ 
+-		if isFloat[et] {
++		if types.IsFloat[et] {
+ 			okforeq[et] = true
+-			okforcmp[et] = true
++			types.IsOrdered[et] = true
+ 			okforadd[et] = true
+ 			okforarith[et] = true
+ 			ir.OKForConst[et] = true
+-			issimple[et] = true
++			types.IsSimple[et] = true
+ 		}
+ 
+-		if isComplex[et] {
++		if types.IsComplex[et] {
+ 			okforeq[et] = true
+ 			okforadd[et] = true
+ 			okforarith[et] = true
+ 			ir.OKForConst[et] = true
+-			issimple[et] = true
++			types.IsSimple[et] = true
+ 		}
+ 	}
+ 
+-	issimple[types.TBOOL] = true
++	types.IsSimple[types.TBOOL] = true
+ 
+ 	okforadd[types.TSTRING] = true
+ 
+@@ -267,7 +267,7 @@ func initUniverse() {
+ 	okforeq[types.TARRAY] = true  // only if element type is comparable; refined in typecheck
+ 	okforeq[types.TSTRUCT] = true // only if all struct fields are comparable; refined in typecheck
+ 
+-	okforcmp[types.TSTRING] = true
++	types.IsOrdered[types.TSTRING] = true
+ 
+ 	for i := range okfor {
+ 		okfor[i] = okfornone[:]
+@@ -280,10 +280,10 @@ func initUniverse() {
+ 	okfor[ir.OANDNOT] = okforand[:]
+ 	okfor[ir.ODIV] = okforarith[:]
+ 	okfor[ir.OEQ] = okforeq[:]
+-	okfor[ir.OGE] = okforcmp[:]
+-	okfor[ir.OGT] = okforcmp[:]
+-	okfor[ir.OLE] = okforcmp[:]
+-	okfor[ir.OLT] = okforcmp[:]
++	okfor[ir.OGE] = types.IsOrdered[:]
++	okfor[ir.OGT] = types.IsOrdered[:]
++	okfor[ir.OLE] = types.IsOrdered[:]
++	okfor[ir.OLT] = types.IsOrdered[:]
+ 	okfor[ir.OMOD] = okforand[:]
+ 	okfor[ir.OMUL] = okforarith[:]
+ 	okfor[ir.ONE] = okforeq[:]
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 57edc43280..7f68efeed1 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -939,7 +939,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		}
+ 
+ 		// Optimize convT2E or convT2I as a two-word copy when T is pointer-shaped.
+-		if isdirectiface(fromType) {
++		if types.IsDirectIface(fromType) {
+ 			l := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeword(), n.X)
+ 			l.SetType(toType)
+ 			l.SetTypecheck(n.Typecheck())
+@@ -1101,14 +1101,14 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		// rewrite complex div into function call.
+ 		et := n.X.Type().Kind()
+ 
+-		if isComplex[et] && n.Op() == ir.ODIV {
++		if types.IsComplex[et] && n.Op() == ir.ODIV {
+ 			t := n.Type()
+ 			call := mkcall("complex128div", types.Types[types.TCOMPLEX128], init, conv(n.X, types.Types[types.TCOMPLEX128]), conv(n.Y, types.Types[types.TCOMPLEX128]))
+ 			return conv(call, t)
+ 		}
+ 
+ 		// Nothing to do for float divisions.
+-		if isFloat[et] {
++		if types.IsFloat[et] {
+ 			return n
+ 		}
+ 
+@@ -2078,7 +2078,7 @@ func walkprint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 			on = syslook("printslice")
+ 			on = substArgTypes(on, n.Type()) // any-1
+ 		case types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64, types.TUINTPTR:
+-			if isRuntimePkg(n.Type().Sym().Pkg) && n.Type().Sym().Name == "hex" {
++			if types.IsRuntimePkg(n.Type().Sym().Pkg) && n.Type().Sym().Name == "hex" {
+ 				on = syslook("printhex")
+ 			} else {
+ 				on = syslook("printuint")
+@@ -2706,7 +2706,7 @@ func mapfast(t *types.Type) int {
+ 		return mapslow
+ 	}
+ 	switch algtype(t.Key()) {
+-	case AMEM32:
++	case types.AMEM32:
+ 		if !t.Key().HasPointers() {
+ 			return mapfast32
+ 		}
+@@ -2714,7 +2714,7 @@ func mapfast(t *types.Type) int {
+ 			return mapfast32ptr
+ 		}
+ 		base.Fatalf("small pointer %v", t.Key())
+-	case AMEM64:
++	case types.AMEM64:
+ 		if !t.Key().HasPointers() {
+ 			return mapfast64
+ 		}
+@@ -2723,7 +2723,7 @@ func mapfast(t *types.Type) int {
+ 		}
+ 		// Two-word object, at least one of which is a pointer.
+ 		// Use the slow path.
+-	case ASTRING:
++	case types.ASTRING:
+ 		return mapfaststr
+ 	}
+ 	return mapslow
+@@ -3256,12 +3256,12 @@ func eqfor(t *types.Type) (n ir.Node, needsize bool) {
+ 	// a struct/array containing a non-memory field/element.
+ 	// Small memory is handled inline, and single non-memory
+ 	// is handled by walkcompare.
+-	switch a, _ := algtype1(t); a {
+-	case AMEM:
++	switch a, _ := types.AlgType(t); a {
++	case types.AMEM:
+ 		n := syslook("memequal")
+ 		n = substArgTypes(n, t, t)
+ 		return n, true
+-	case ASPECIAL:
++	case types.ASPECIAL:
+ 		sym := typesymprefix(".eq", t)
+ 		n := NewName(sym)
+ 		setNodeNameFunc(n)
+@@ -3398,7 +3398,7 @@ func walkcompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 		return n
+ 	case types.TARRAY:
+ 		// We can compare several elements at once with 2/4/8 byte integer compares
+-		inline = t.NumElem() <= 1 || (issimple[t.Elem().Kind()] && (t.NumElem() <= 4 || t.Elem().Width*t.NumElem() <= maxcmpsize))
++		inline = t.NumElem() <= 1 || (types.IsSimple[t.Elem().Kind()] && (t.NumElem() <= 4 || t.Elem().Width*t.NumElem() <= maxcmpsize))
+ 	case types.TSTRUCT:
+ 		inline = t.NumComponents(types.IgnoreBlankFields) <= 4
+ 	}
+@@ -3793,7 +3793,7 @@ func usemethod(n *ir.CallExpr) {
+ 	// Note: Don't rely on res0.Type.String() since its formatting depends on multiple factors
+ 	//       (including global variables such as numImports - was issue #19028).
+ 	// Also need to check for reflect package itself (see Issue #38515).
+-	if s := res0.Type.Sym(); s != nil && s.Name == "Method" && isReflectPkg(s.Pkg) {
++	if s := res0.Type.Sym(); s != nil && s.Name == "Method" && types.IsReflectPkg(s.Pkg) {
+ 		Curfn.SetReflectMethod(true)
+ 		// The LSym is initialized at this point. We need to set the attribute on the LSym.
+ 		Curfn.LSym.Set(obj.AttrReflectMethod, true)
+diff --git a/src/cmd/compile/internal/types/alg.go b/src/cmd/compile/internal/types/alg.go
+new file mode 100644
+index 0000000000..14200e0d16
+--- /dev/null
++++ b/src/cmd/compile/internal/types/alg.go
+@@ -0,0 +1,173 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++import "cmd/compile/internal/base"
++
++// AlgKind describes the kind of algorithms used for comparing and
++// hashing a Type.
++type AlgKind int
++
++//go:generate stringer -type AlgKind -trimprefix A
++
++const (
++	// These values are known by runtime.
++	ANOEQ AlgKind = iota
++	AMEM0
++	AMEM8
++	AMEM16
++	AMEM32
++	AMEM64
++	AMEM128
++	ASTRING
++	AINTER
++	ANILINTER
++	AFLOAT32
++	AFLOAT64
++	ACPLX64
++	ACPLX128
++
++	// Type can be compared/hashed as regular memory.
++	AMEM AlgKind = 100
++
++	// Type needs special comparison/hashing functions.
++	ASPECIAL AlgKind = -1
++)
++
++// AlgType returns the AlgKind used for comparing and hashing Type t.
++// If it returns ANOEQ, it also returns the component type of t that
++// makes it incomparable.
++func AlgType(t *Type) (AlgKind, *Type) {
++	if t.Broke() {
++		return AMEM, nil
++	}
++	if t.Noalg() {
++		return ANOEQ, t
++	}
++
++	switch t.Kind() {
++	case TANY, TFORW:
++		// will be defined later.
++		return ANOEQ, t
++
++	case TINT8, TUINT8, TINT16, TUINT16,
++		TINT32, TUINT32, TINT64, TUINT64,
++		TINT, TUINT, TUINTPTR,
++		TBOOL, TPTR,
++		TCHAN, TUNSAFEPTR:
++		return AMEM, nil
++
++	case TFUNC, TMAP:
++		return ANOEQ, t
++
++	case TFLOAT32:
++		return AFLOAT32, nil
++
++	case TFLOAT64:
++		return AFLOAT64, nil
++
++	case TCOMPLEX64:
++		return ACPLX64, nil
++
++	case TCOMPLEX128:
++		return ACPLX128, nil
++
++	case TSTRING:
++		return ASTRING, nil
++
++	case TINTER:
++		if t.IsEmptyInterface() {
++			return ANILINTER, nil
++		}
++		return AINTER, nil
++
++	case TSLICE:
++		return ANOEQ, t
++
++	case TARRAY:
++		a, bad := AlgType(t.Elem())
++		switch a {
++		case AMEM:
++			return AMEM, nil
++		case ANOEQ:
++			return ANOEQ, bad
++		}
++
++		switch t.NumElem() {
++		case 0:
++			// We checked above that the element type is comparable.
++			return AMEM, nil
++		case 1:
++			// Single-element array is same as its lone element.
++			return a, nil
++		}
++
++		return ASPECIAL, nil
++
++	case TSTRUCT:
++		fields := t.FieldSlice()
++
++		// One-field struct is same as that one field alone.
++		if len(fields) == 1 && !fields[0].Sym.IsBlank() {
++			return AlgType(fields[0].Type)
++		}
++
++		ret := AMEM
++		for i, f := range fields {
++			// All fields must be comparable.
++			a, bad := AlgType(f.Type)
++			if a == ANOEQ {
++				return ANOEQ, bad
++			}
++
++			// Blank fields, padded fields, fields with non-memory
++			// equality need special compare.
++			if a != AMEM || f.Sym.IsBlank() || IsPaddedField(t, i) {
++				ret = ASPECIAL
++			}
++		}
++
++		return ret, nil
++	}
++
++	base.Fatalf("algtype1: unexpected type %v", t)
++	return 0, nil
++}
++
++// TypeHasNoAlg reports whether t does not have any associated hash/eq
++// algorithms because t, or some component of t, is marked Noalg.
++func TypeHasNoAlg(t *Type) bool {
++	a, bad := AlgType(t)
++	return a == ANOEQ && bad.Noalg()
++}
++
++// IsComparable reports whether t is a comparable type.
++func IsComparable(t *Type) bool {
++	a, _ := AlgType(t)
++	return a != ANOEQ
++}
++
++// IncomparableField returns an incomparable Field of struct Type t, if any.
++func IncomparableField(t *Type) *Field {
++	for _, f := range t.FieldSlice() {
++		if !IsComparable(f.Type) {
++			return f
++		}
++	}
++	return nil
++}
++
++// IsPaddedField reports whether the i'th field of struct type t is followed
++// by padding.
++func IsPaddedField(t *Type, i int) bool {
++	if !t.IsStruct() {
++		base.Fatalf("ispaddedfield called non-struct %v", t)
++	}
++	end := t.Width
++	if i+1 < t.NumFields() {
++		end = t.Field(i + 1).Offset
++	}
++	return t.Field(i).End() != end
++}
+diff --git a/src/cmd/compile/internal/gc/algkind_string.go b/src/cmd/compile/internal/types/algkind_string.go
+similarity index 98%
+rename from src/cmd/compile/internal/gc/algkind_string.go
+rename to src/cmd/compile/internal/types/algkind_string.go
+index 52b5399956..8c5a0bc287 100644
+--- a/src/cmd/compile/internal/gc/algkind_string.go
++++ b/src/cmd/compile/internal/types/algkind_string.go
+@@ -1,6 +1,6 @@
+ // Code generated by "stringer -type AlgKind -trimprefix A"; DO NOT EDIT.
+ 
+-package gc
++package types
+ 
+ import "strconv"
+ 
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index d63f7a4f8d..bf37f01922 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -6,6 +6,8 @@ package types
+ 
+ import (
+ 	"bytes"
++	"crypto/md5"
++	"encoding/binary"
+ 	"fmt"
+ 	"go/constant"
+ 	"strconv"
+@@ -659,3 +661,12 @@ func FmtConst(v constant.Value, sharp bool) string {
+ 
+ 	return v.String()
+ }
++
++// TypeHash computes a hash value for type t to use in type switch statements.
++func TypeHash(t *Type) uint32 {
++	p := t.LongString()
++
++	// Using MD5 is overkill, but reduces accidental collisions.
++	h := md5.Sum([]byte(p))
++	return binary.LittleEndian.Uint32(h[:4])
++}
+diff --git a/src/cmd/compile/internal/types/goversion.go b/src/cmd/compile/internal/types/goversion.go
+new file mode 100644
+index 0000000000..2265f472cf
+--- /dev/null
++++ b/src/cmd/compile/internal/types/goversion.go
+@@ -0,0 +1,96 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:generate go run mkbuiltin.go
++
++package types
++
++import (
++	"fmt"
++	"internal/goversion"
++	"log"
++	"regexp"
++	"strconv"
++
++	"cmd/compile/internal/base"
++)
++
++// A lang is a language version broken into major and minor numbers.
++type lang struct {
++	major, minor int
++}
++
++// langWant is the desired language version set by the -lang flag.
++// If the -lang flag is not set, this is the zero value, meaning that
++// any language version is supported.
++var langWant lang
++
++// AllowsGoVersion reports whether a particular package
++// is allowed to use Go version major.minor.
++// We assume the imported packages have all been checked,
++// so we only have to check the local package against the -lang flag.
++func AllowsGoVersion(pkg *Pkg, major, minor int) bool {
++	if pkg == nil {
++		// TODO(mdempsky): Set Pkg for local types earlier.
++		pkg = LocalPkg
++	}
++	if pkg != LocalPkg {
++		// Assume imported packages passed type-checking.
++		return true
++	}
++	if langWant.major == 0 && langWant.minor == 0 {
++		return true
++	}
++	return langWant.major > major || (langWant.major == major && langWant.minor >= minor)
++}
++
++// ParseLangFlag verifies that the -lang flag holds a valid value, and
++// exits if not. It initializes data used by langSupported.
++func ParseLangFlag() {
++	if base.Flag.Lang == "" {
++		return
++	}
++
++	var err error
++	langWant, err = parseLang(base.Flag.Lang)
++	if err != nil {
++		log.Fatalf("invalid value %q for -lang: %v", base.Flag.Lang, err)
++	}
++
++	if def := currentLang(); base.Flag.Lang != def {
++		defVers, err := parseLang(def)
++		if err != nil {
++			log.Fatalf("internal error parsing default lang %q: %v", def, err)
++		}
++		if langWant.major > defVers.major || (langWant.major == defVers.major && langWant.minor > defVers.minor) {
++			log.Fatalf("invalid value %q for -lang: max known version is %q", base.Flag.Lang, def)
++		}
++	}
++}
++
++// parseLang parses a -lang option into a langVer.
++func parseLang(s string) (lang, error) {
++	matches := goVersionRE.FindStringSubmatch(s)
++	if matches == nil {
++		return lang{}, fmt.Errorf(`should be something like "go1.12"`)
++	}
++	major, err := strconv.Atoi(matches[1])
++	if err != nil {
++		return lang{}, err
++	}
++	minor, err := strconv.Atoi(matches[2])
++	if err != nil {
++		return lang{}, err
++	}
++	return lang{major: major, minor: minor}, nil
++}
++
++// currentLang returns the current language version.
++func currentLang() string {
++	return fmt.Sprintf("go1.%d", goversion.Version)
++}
++
++// goVersionRE is a regular expression that matches the valid
++// arguments to the -lang flag.
++var goVersionRE = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index bf90570b53..de45d32bfa 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -138,3 +138,7 @@ func CleanroomDo(f func()) {
+ 	f()
+ 	pkgMap = saved
+ }
++
++func IsDotAlias(sym *Sym) bool {
++	return sym.Def != nil && sym.Def.Sym() != sym
++}
+diff --git a/src/cmd/compile/internal/types/scope.go b/src/cmd/compile/internal/types/scope.go
+index d46918f73d..a9669ffafc 100644
+--- a/src/cmd/compile/internal/types/scope.go
++++ b/src/cmd/compile/internal/types/scope.go
+@@ -72,7 +72,7 @@ func Markdcl() {
+ 	Block = blockgen
+ }
+ 
+-func IsDclstackValid() bool {
++func isDclstackValid() bool {
+ 	for _, d := range dclstack {
+ 		if d.sym == nil {
+ 			return false
+@@ -105,3 +105,9 @@ func (s *Sym) pkgDefPtr() *Object {
+ 	// function scope.
+ 	return &s.Def
+ }
++
++func CheckDclstack() {
++	if !isDclstackValid() {
++		base.Fatalf("mark left on the dclstack")
++	}
++}
+diff --git a/src/cmd/compile/internal/types/sort.go b/src/cmd/compile/internal/types/sort.go
+new file mode 100644
+index 0000000000..dc59b06415
+--- /dev/null
++++ b/src/cmd/compile/internal/types/sort.go
+@@ -0,0 +1,14 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++// MethodsByName sorts methods by symbol.
++type MethodsByName []*Field
++
++func (x MethodsByName) Len() int { return len(x) }
++
++func (x MethodsByName) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
++
++func (x MethodsByName) Less(i, j int) bool { return x[i].Sym.Less(x[j].Sym) }
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 752c268fa2..21d96c430a 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
++	"sync"
+ )
+ 
+ // IRNode represents an ir.Node, but without needing to import cmd/compile/internal/ir,
+@@ -1695,3 +1696,204 @@ func anyBroke(fields []*Field) bool {
+ 	}
+ 	return false
+ }
++
++var (
++	IsInt     [NTYPE]bool
++	IsFloat   [NTYPE]bool
++	IsComplex [NTYPE]bool
++	IsSimple  [NTYPE]bool
++)
++
++var IsOrdered [NTYPE]bool
++
++// IsReflexive reports whether t has a reflexive equality operator.
++// That is, if x==x for all x of type t.
++func IsReflexive(t *Type) bool {
++	switch t.Kind() {
++	case TBOOL,
++		TINT,
++		TUINT,
++		TINT8,
++		TUINT8,
++		TINT16,
++		TUINT16,
++		TINT32,
++		TUINT32,
++		TINT64,
++		TUINT64,
++		TUINTPTR,
++		TPTR,
++		TUNSAFEPTR,
++		TSTRING,
++		TCHAN:
++		return true
++
++	case TFLOAT32,
++		TFLOAT64,
++		TCOMPLEX64,
++		TCOMPLEX128,
++		TINTER:
++		return false
++
++	case TARRAY:
++		return IsReflexive(t.Elem())
++
++	case TSTRUCT:
++		for _, t1 := range t.Fields().Slice() {
++			if !IsReflexive(t1.Type) {
++				return false
++			}
++		}
++		return true
++
++	default:
++		base.Fatalf("bad type for map key: %v", t)
++		return false
++	}
++}
++
++// Can this type be stored directly in an interface word?
++// Yes, if the representation is a single pointer.
++func IsDirectIface(t *Type) bool {
++	if t.Broke() {
++		return false
++	}
++
++	switch t.Kind() {
++	case TPTR:
++		// Pointers to notinheap types must be stored indirectly. See issue 42076.
++		return !t.Elem().NotInHeap()
++	case TCHAN,
++		TMAP,
++		TFUNC,
++		TUNSAFEPTR:
++		return true
++
++	case TARRAY:
++		// Array of 1 direct iface type can be direct.
++		return t.NumElem() == 1 && IsDirectIface(t.Elem())
++
++	case TSTRUCT:
++		// Struct with 1 field of direct iface type can be direct.
++		return t.NumFields() == 1 && IsDirectIface(t.Field(0).Type)
++	}
++
++	return false
++}
++
++// IsInterfaceMethod reports whether (field) m is
++// an interface method. Such methods have the
++// special receiver type types.FakeRecvType().
++func IsInterfaceMethod(f *Type) bool {
++	return f.Recv().Type == FakeRecvType()
++}
++
++// IsMethodApplicable reports whether method m can be called on a
++// value of type t. This is necessary because we compute a single
++// method set for both T and *T, but some *T methods are not
++// applicable to T receivers.
++func IsMethodApplicable(t *Type, m *Field) bool {
++	return t.IsPtr() || !m.Type.Recv().Type.IsPtr() || IsInterfaceMethod(m.Type) || m.Embedded == 2
++}
++
++// IsRuntimePkg reports whether p is package runtime.
++func IsRuntimePkg(p *Pkg) bool {
++	if base.Flag.CompilingRuntime && p == LocalPkg {
++		return true
++	}
++	return p.Path == "runtime"
++}
++
++// IsReflectPkg reports whether p is package reflect.
++func IsReflectPkg(p *Pkg) bool {
++	if p == LocalPkg {
++		return base.Ctxt.Pkgpath == "reflect"
++	}
++	return p.Path == "reflect"
++}
++
++// ReceiverBaseType returns the underlying type, if any,
++// that owns methods with receiver parameter t.
++// The result is either a named type or an anonymous struct.
++func ReceiverBaseType(t *Type) *Type {
++	if t == nil {
++		return nil
++	}
++
++	// Strip away pointer if it's there.
++	if t.IsPtr() {
++		if t.Sym() != nil {
++			return nil
++		}
++		t = t.Elem()
++		if t == nil {
++			return nil
++		}
++	}
++
++	// Must be a named type or anonymous struct.
++	if t.Sym() == nil && !t.IsStruct() {
++		return nil
++	}
++
++	// Check types.
++	if IsSimple[t.Kind()] {
++		return t
++	}
++	switch t.Kind() {
++	case TARRAY, TCHAN, TFUNC, TMAP, TSLICE, TSTRING, TSTRUCT:
++		return t
++	}
++	return nil
++}
++
++func FloatForComplex(t *Type) *Type {
++	switch t.Kind() {
++	case TCOMPLEX64:
++		return Types[TFLOAT32]
++	case TCOMPLEX128:
++		return Types[TFLOAT64]
++	}
++	base.Fatalf("unexpected type: %v", t)
++	return nil
++}
++
++func ComplexForFloat(t *Type) *Type {
++	switch t.Kind() {
++	case TFLOAT32:
++		return Types[TCOMPLEX64]
++	case TFLOAT64:
++		return Types[TCOMPLEX128]
++	}
++	base.Fatalf("unexpected type: %v", t)
++	return nil
++}
++
++func TypeSym(t *Type) *Sym {
++	return TypeSymLookup(TypeSymName(t))
++}
++
++func TypeSymLookup(name string) *Sym {
++	typepkgmu.Lock()
++	s := typepkg.Lookup(name)
++	typepkgmu.Unlock()
++	return s
++}
++
++func TypeSymName(t *Type) string {
++	name := t.ShortString()
++	// Use a separate symbol name for Noalg types for #17752.
++	if TypeHasNoAlg(t) {
++		name = "noalg." + name
++	}
++	return name
++}
++
++// Fake package for runtime type info (headers)
++// Don't access directly, use typeLookup below.
++var (
++	typepkgmu sync.Mutex // protects typepkg lookups
++	typepkg   = NewPkg("type", "type")
++)
++
++var SimType [NTYPE]Kind

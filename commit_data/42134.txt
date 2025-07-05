@@ -11,7 +11,82 @@ Date:   Fri Nov 8 21:50:35 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/pprof/mprof_test.go |  6 ++++++
  src/runtime/pprof/pprof_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 44 insertions(+)
+
+diff --git a/src/runtime/pprof/mprof_test.go b/src/runtime/pprof/mprof_test.go
+index 8bc1ae41f2..1c0d2c6ea9 100644
+--- a/src/runtime/pprof/mprof_test.go
++++ b/src/runtime/pprof/mprof_test.go
+@@ -151,6 +151,12 @@ func TestMemoryProfiler(t *testing.T) {
+ 				t.Fatalf("No matching stack entry for %q\n\nProfile:\n%v\n", test.stk, p)
+ 			}
+ 		}
++
++		if !containsInlinedCall(TestMemoryProfiler, 4<<10) {
++			t.Logf("Can't determine whether allocateTransient2MInline was inlined into TestMemoryProfiler.")
++			return
++		}
++
+ 		// Check the inlined function location is encoded correctly.
+ 		for _, loc := range p.Location {
+ 			inlinedCaller, inlinedCallee := false, false
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index b553baf3a9..5cbe9ab7a8 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"math/big"
+ 	"os"
+ 	"os/exec"
++	"reflect"
+ 	"regexp"
+ 	"runtime"
+ 	"runtime/pprof/internal/profile"
+@@ -104,7 +105,44 @@ func TestCPUProfileMultithreaded(t *testing.T) {
+ 	})
+ }
+ 
++// containsInlinedCall reports whether the function body for the function f is
++// known to contain an inlined function call within the first maxBytes bytes.
++func containsInlinedCall(f interface{}, maxBytes int) bool {
++	rf := reflect.ValueOf(f)
++	if rf.Kind() != reflect.Func {
++		panic(fmt.Sprintf("%T is not a function", f))
++	}
++	fFunc := runtime.FuncForPC(rf.Pointer())
++	if fFunc == nil || fFunc.Entry() == 0 {
++		panic("failed to locate function entry")
++	}
++
++	for offset := 0; offset < maxBytes; offset++ {
++		inner := runtime.FuncForPC(fFunc.Entry() + uintptr(offset))
++		if inner == nil {
++			// No function known for this PC value.
++			// It might simply be misaligned, so keep searching.
++			continue
++		}
++		if inner.Entry() != fFunc.Entry() {
++			// Scanned past f and didn't find any inlined functions.
++			break
++		}
++		if inner.Name() != fFunc.Name() {
++			// This PC has f as its entry-point, but is not f. Therefore, it must be a
++			// function inlined into f.
++			return true
++		}
++	}
++
++	return false
++}
++
+ func TestCPUProfileInlining(t *testing.T) {
++	if !containsInlinedCall(inlinedCaller, 4<<10) {
++		t.Skipf("Can't determine whether inlinedCallee was inlined into inlinedCaller.")
++	}
++
+ 	p := testCPUProfile(t, stackContains, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}, avoidFunctions(), func(dur time.Duration) {
+ 		cpuHogger(inlinedCaller, &salt1, dur)
+ 	})

@@ -7,6 +7,20 @@ Date:   Fri May 13 02:05:48 2016 +0530
     Change-Id: Iae4855c52c4da9755277251d22121226507ea26a
     Reviewed-on: https://go-review.googlesource.com/23074
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/fmt/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index fefc10c19d..c312914b44 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -210,7 +210,7 @@
+ 		Too many arguments: %!(EXTRA type=value)
+ 			Printf("hi", "guys"):      hi%!(EXTRA string=guys)
+ 		Too few arguments: %!verb(MISSING)
+-			Printf("hi%d"):            hi %!d(MISSING)
++			Printf("hi%d"):            hi%!d(MISSING)
+ 		Non-int for width or precision: %!(BADWIDTH) or %!(BADPREC)
+ 			Printf("%*s", 4.5, "hi"):  %!(BADWIDTH)hi
+ 			Printf("%.*s", 4.5, "hi"): %!(BADPREC)hi

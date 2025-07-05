@@ -7,7 +7,52 @@ Date:   Thu Jun 9 17:18:28 2011 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4591059
-
+---
  AUTHORS      | 3 ++-
  CONTRIBUTORS | 3 ++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 35489b40af..8f510f3bad 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -55,6 +55,7 @@ Eoghan Sherry <ejsherry@gmail.com>
+ Eric Clark <zerohp@gmail.com>
+ Eric Eisner <eric.d.eisner@gmail.com>
+ Evan Shaw <chickencha@gmail.com>
++Fan Hongjian <fan.howard@gmail.com>
+ Fazlul Shahriar <fshahriar@gmail.com>
+ Firmansyah Adiputra <frm.adiputra@gmail.com>
+ Florian Uekermann <florian@uekermann-online.de>
+@@ -73,8 +74,8 @@ James Toy <nil@opensesame.st>
+ James Whitehead <jnwhiteh@gmail.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
+-Jeff R. Allen <jra@nella.org>
+ Jeff Hodges <jeff@somethingsimilar.com>
++Jeff R. Allen <jra@nella.org>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Jonathan Mark <jhmark@xenops.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f8e8e652aa..a395c11cc8 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -94,6 +94,7 @@ Eoghan Sherry <ejsherry@gmail.com>
+ Eric Clark <zerohp@gmail.com>
+ Eric Eisner <eric.d.eisner@gmail.com>
+ Evan Shaw <chickencha@gmail.com>
++Fan Hongjian <fan.howard@gmail.com>
+ Fazlul Shahriar <fshahriar@gmail.com>
+ Firmansyah Adiputra <frm.adiputra@gmail.com>
+ Florian Uekermann <florian@uekermann-online.de> <f1@uekermann-online.de>
+@@ -117,8 +118,8 @@ James Whitehead <jnwhiteh@gmail.com>
+ Jamie Gennis <jgennis@google.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
+-Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
+ Jeff Hodges <jeff@somethingsimilar.com>
++Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Johan Euphrosine <proppy@google.com>

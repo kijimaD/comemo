@@ -10,7 +10,32 @@ Date:   Tue Sep 9 09:12:21 2014 +1000
     R=gobot, jbd, jtolds
     CC=golang-codereviews
     https://golang.org/cl/137300043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 29aca3dbc4..2c3d945b1a 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -189,6 +189,7 @@ Hong Ruiqi <hongruiqi@gmail.com>
+ Icarus Sparry <golang@icarus.freeuk.com>
+ Ingo Oeser <nightlyone@googlemail.com>
+ Isaac Wagner <ibw@isaacwagner.me>
++JT Olds <jtolds@xnet5.com>
+ Jakob Borg <jakob@nym.se>
+ Jakub Ryszard Czarnowicz <j.czarnowicz@gmail.com>
+ James David Chalfant <james.chalfant@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 4d2aacafa9..b20cf055af 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -267,6 +267,7 @@ Icarus Sparry <golang@icarus.freeuk.com>
+ Ingo Oeser <nightlyone@googlemail.com> <nightlyone@gmail.com>
+ Isaac Wagner <ibw@isaacwagner.me>
+ Ivan Krasin <krasin@golang.org>
++JT Olds <jtolds@xnet5.com>
+ Jacob Baskin <jbaskin@google.com>
+ Jakob Borg <jakob@nym.se>
+ Jakub Ryszard Czarnowicz <j.czarnowicz@gmail.com>

@@ -9,6 +9,22 @@ Date:   Fri Apr 12 12:21:16 2019 +0000
     GitHub-Pull-Request: golang/go#31439
     Reviewed-on: https://go-review.googlesource.com/c/go/+/171885
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go_faq.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 305878f237..dd3ba84cac 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -2082,8 +2082,8 @@ At the beginning of the project we considered using LLVM for
+ our performance goals.
+ More important in retrospect, starting with LLVM would have made it
+ harder to introduce some of the ABI and related changes, such as
+-stack management, that Go requires but not are not part of the
+-standard C setup.
++stack management, that Go requires but are not part of the standard
++C setup.
+ A new <a href="https://go.googlesource.com/gollvm/">LLVM implementation</a>
+ is starting to come together now, however.
+ </p>

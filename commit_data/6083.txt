@@ -8,6 +8,20 @@ Date:   Wed Aug 25 01:26:35 2010 -0400
     R=brainman
     CC=golang-dev
     https://golang.org/cl/1966048
-
+---
  src/pkg/syscall/syscall_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index ca00e72ac4..366a482d29 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -206,7 +206,7 @@ func Read(fd int, p []byte) (n int, errno int) {
+ 	var done uint32
+ 	if ok, e := ReadFile(int32(fd), p, &done, nil); !ok {
+ 		if e == ERROR_BROKEN_PIPE {
+-			// BUG(brainman): work around ERROR_BROKEN_PIPE is returned on reading EOF from stdin
++			// NOTE(brainman): work around ERROR_BROKEN_PIPE is returned on reading EOF from stdin
+ 			return 0, 0
+ 		}
+ 		return 0, e

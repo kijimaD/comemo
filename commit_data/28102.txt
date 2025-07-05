@@ -10,7 +10,45 @@ Date:   Thu Apr 28 19:01:48 2016 +1000
     Change-Id: Ie78b4ff4aa97e1b332ade67ae4fa25f7c0770610
     Reviewed-on: https://go-review.googlesource.com/22547
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/gif/reader.go      | 6 ++++++
  src/image/gif/reader_test.go | 2 +-
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/image/gif/reader.go b/src/image/gif/reader.go
+index 6bfc72e974..9a0852dbfd 100644
+--- a/src/image/gif/reader.go
++++ b/src/image/gif/reader.go
+@@ -349,6 +349,9 @@ func (d *decoder) readGraphicControl() error {
+ 	if _, err := io.ReadFull(d.r, d.tmp[:6]); err != nil {
+ 		return fmt.Errorf("gif: can't read graphic control: %s", err)
+ 	}
++	if d.tmp[0] != 4 {
++		return fmt.Errorf("gif: invalid graphic control extension block size: %d", d.tmp[0])
++	}
+ 	flags := d.tmp[1]
+ 	d.disposalMethod = (flags & gcDisposalMethodMask) >> 2
+ 	d.delayTime = int(d.tmp[2]) | int(d.tmp[3])<<8
+@@ -356,6 +359,9 @@ func (d *decoder) readGraphicControl() error {
+ 		d.transparentIndex = d.tmp[4]
+ 		d.hasTransparentIndex = true
+ 	}
++	if d.tmp[5] != 0 {
++		return fmt.Errorf("gif: invalid graphic control extension block terminator: %d", d.tmp[5])
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/image/gif/reader_test.go b/src/image/gif/reader_test.go
+index c294195b6f..ee78a40716 100644
+--- a/src/image/gif/reader_test.go
++++ b/src/image/gif/reader_test.go
+@@ -97,7 +97,7 @@ func TestTransparentIndex(t *testing.T) {
+ 	for transparentIndex := 0; transparentIndex < 3; transparentIndex++ {
+ 		if transparentIndex < 2 {
+ 			// Write the graphic control for the transparent index.
+-			b.WriteString("\x21\xf9\x00\x01\x00\x00")
++			b.WriteString("\x21\xf9\x04\x01\x00\x00")
+ 			b.WriteByte(byte(transparentIndex))
+ 			b.WriteByte(0)
+ 		}

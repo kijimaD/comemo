@@ -7,7 +7,40 @@ Date:   Thu Mar 22 12:48:41 2012 -0700
     R=golang-dev, gri, iant
     CC=golang-dev
     https://golang.org/cl/5882046
-
+---
  test/fixedbugs/bug424.go | 4 ++--
  test/golden.out          | 3 ---
  2 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/test/fixedbugs/bug424.go b/test/fixedbugs/bug424.go
+index c401af0b1d..42cff54d45 100644
+--- a/test/fixedbugs/bug424.go
++++ b/test/fixedbugs/bug424.go
+@@ -1,4 +1,4 @@
+-// run
++// $G $D/$F.dir/lib.go && $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -11,7 +11,7 @@
+ 
+ package main
+ 
+-import "./bug424.dir"
++import "./lib"
+ import "reflect"
+ import "fmt"
+ 
+diff --git a/test/golden.out b/test/golden.out
+index b7d759450c..764f561969 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -17,8 +17,5 @@
+ 
+ == bugs/
+ 
+-=========== bugs/424.go
+-BUG: myT3: lib.T.m called
+-
+ =========== bugs/bug395.go
+ bug395 is broken

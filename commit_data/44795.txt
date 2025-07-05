@@ -11,6 +11,35 @@ Date:   Thu Aug 27 16:31:30 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue38125.go | 22 ++++++++++++++++++++++
  1 file changed, 22 insertions(+)
+
+diff --git a/test/fixedbugs/issue38125.go b/test/fixedbugs/issue38125.go
+new file mode 100644
+index 0000000000..1207aecd39
+--- /dev/null
++++ b/test/fixedbugs/issue38125.go
+@@ -0,0 +1,22 @@
++// compile
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// gccgo mishandled embedded methods of type aliases.
++
++package p
++
++type I int
++
++func (I) M() {}
++
++type T = struct {
++	I
++}
++
++func F() {
++	_ = T.M
++	_ = struct { I }.M
++}

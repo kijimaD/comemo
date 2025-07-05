@@ -10,7 +10,68 @@ Date:   Wed May 14 12:12:01 2014 +0900
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/95320043
-
+---
  src/pkg/net/tcpsock_plan9.go | 15 ++++++++-------
  src/pkg/net/tcpsock_posix.go | 15 ++++++++-------
  2 files changed, 16 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index 92e98be6f7..52019d7b4e 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -44,17 +44,18 @@ func (c *TCPConn) CloseWrite() error {
+ 	return c.fd.closeWrite()
+ }
+ 
+-// SetLinger sets the behavior of Close() on a connection which still
++// SetLinger sets the behavior of Close on a connection which still
+ // has data waiting to be sent or to be acknowledged.
+ //
+-// If sec < 0 (the default), Close returns immediately and the
+-// operating system finishes sending the data in the background.
++// If sec < 0 (the default), the operating system finishes sending the
++// data in the background.
+ //
+-// If sec == 0, Close returns immediately and the operating system
+-// discards any unsent or unacknowledged data.
++// If sec == 0, the operating system discards any unsent or
++// unacknowledged data.
+ //
+-// If sec > 0, Close blocks for at most sec seconds waiting for data
+-// to be sent and acknowledged.
++// If sec > 0, the data is sent in the background as with sec < 0. On
++// some operating systems after sec seconds have elapsed any remaining
++// unsent data may be discarded.
+ func (c *TCPConn) SetLinger(sec int) error {
+ 	return syscall.EPLAN9
+ }
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index d72c96777d..b79b115ca5 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -90,17 +90,18 @@ func (c *TCPConn) CloseWrite() error {
+ 	return c.fd.closeWrite()
+ }
+ 
+-// SetLinger sets the behavior of Close() on a connection which still
++// SetLinger sets the behavior of Close on a connection which still
+ // has data waiting to be sent or to be acknowledged.
+ //
+-// If sec < 0 (the default), Close returns immediately and the
+-// operating system finishes sending the data in the background.
++// If sec < 0 (the default), the operating system finishes sending the
++// data in the background.
+ //
+-// If sec == 0, Close returns immediately and the operating system
+-// discards any unsent or unacknowledged data.
++// If sec == 0, the operating system discards any unsent or
++// unacknowledged data.
+ //
+-// If sec > 0, Close blocks for at most sec seconds waiting for data
+-// to be sent and acknowledged.
++// If sec > 0, the data is sent in the background as with sec < 0. On
++// some operating systems after sec seconds have elapsed any remaining
++// unsent data may be discarded.
+ func (c *TCPConn) SetLinger(sec int) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL

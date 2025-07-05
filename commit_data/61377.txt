@@ -15,7 +15,36 @@ Date:   Mon Oct 28 17:12:41 2024 -0700
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/dist/build.go           | 3 +--
  src/internal/syslist/syslist.go | 3 +--
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 2c9ecdfa58..a75799c2e7 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1063,8 +1063,7 @@ func packagefile(pkg string) string {
+ }
+ 
+ // unixOS is the set of GOOS values matched by the "unix" build tag.
+-// This is the same list as in go/build/syslist.go and
+-// cmd/go/internal/imports/build.go.
++// This is the same list as in internal/syslist/syslist.go.
+ var unixOS = map[string]bool{
+ 	"aix":       true,
+ 	"android":   true,
+diff --git a/src/internal/syslist/syslist.go b/src/internal/syslist/syslist.go
+index 7d1a2b3c3d..2349b6ea64 100644
+--- a/src/internal/syslist/syslist.go
++++ b/src/internal/syslist/syslist.go
+@@ -37,8 +37,7 @@ var KnownOS = map[string]bool{
+ 
+ // UnixOS is the set of GOOS values matched by the "unix" build tag.
+ // This is not used for filename matching.
+-// This list also appears in cmd/dist/build.go and
+-// cmd/go/internal/imports/build.go.
++// This list also appears in cmd/dist/build.go.
+ var UnixOS = map[string]bool{
+ 	"aix":       true,
+ 	"android":   true,

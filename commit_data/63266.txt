@@ -25,7 +25,183 @@ Date:   Thu May 29 11:48:06 2025 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/synctest/synctest_test.go | 60 ++++++++++++++++++++++++++++++++++
  src/runtime/time.go                    | 38 ++++++++++++++++-----
  2 files changed, 89 insertions(+), 9 deletions(-)
+
+diff --git a/src/internal/synctest/synctest_test.go b/src/internal/synctest/synctest_test.go
+index 2e1393591f..53c7c89716 100644
+--- a/src/internal/synctest/synctest_test.go
++++ b/src/internal/synctest/synctest_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"sync"
++	"sync/atomic"
+ 	"testing"
+ 	"time"
+ 	"weak"
+@@ -218,6 +219,65 @@ func TestTimerFromOutsideBubble(t *testing.T) {
+ 	}
+ }
+ 
++// TestTimerNondeterminism verifies that timers firing at the same instant
++// don't always fire in exactly the same order.
++func TestTimerNondeterminism(t *testing.T) {
++	synctest.Run(func() {
++		const iterations = 1000
++		var seen1, seen2 bool
++		for range iterations {
++			tm1 := time.NewTimer(0)
++			tm2 := time.NewTimer(0)
++			select {
++			case <-tm1.C:
++				seen1 = true
++			case <-tm2.C:
++				seen2 = true
++			}
++			if seen1 && seen2 {
++				return
++			}
++			synctest.Wait()
++		}
++		t.Errorf("after %v iterations, seen timer1:%v, timer2:%v; want both", iterations, seen1, seen2)
++	})
++}
++
++// TestSleepNondeterminism verifies that goroutines sleeping to the same instant
++// don't always schedule in exactly the same order.
++func TestSleepNondeterminism(t *testing.T) {
++	synctest.Run(func() {
++		const iterations = 1000
++		var seen1, seen2 bool
++		for range iterations {
++			var first atomic.Int32
++			go func() {
++				time.Sleep(1)
++				first.CompareAndSwap(0, 1)
++			}()
++			go func() {
++				time.Sleep(1)
++				first.CompareAndSwap(0, 2)
++			}()
++			time.Sleep(1)
++			synctest.Wait()
++			switch v := first.Load(); v {
++			case 1:
++				seen1 = true
++			case 2:
++				seen2 = true
++			default:
++				t.Fatalf("first = %v, want 1 or 2", v)
++			}
++			if seen1 && seen2 {
++				return
++			}
++			synctest.Wait()
++		}
++		t.Errorf("after %v iterations, seen goroutine 1:%v, 2:%v; want both", iterations, seen1, seen2)
++	})
++}
++
+ func TestChannelFromOutsideBubble(t *testing.T) {
+ 	choutside := make(chan struct{})
+ 	for _, test := range []struct {
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 711f3e472d..a1f8351a1e 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -62,6 +62,7 @@ type timer struct {
+ 	isFake bool         // timer is using fake time; immutable; can be read without lock
+ 
+ 	blocked uint32 // number of goroutines blocked on timer's channel
++	rand    uint32 // randomizes order of timers at same instant; only set when isFake
+ 
+ 	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
+ 	// each time calling f(arg, seq, delay) in the timer goroutine, so f must be
+@@ -165,6 +166,21 @@ type timerWhen struct {
+ 	when  int64
+ }
+ 
++// less reports whether tw is less than other.
++func (tw timerWhen) less(other timerWhen) bool {
++	switch {
++	case tw.when < other.when:
++		return true
++	case tw.when > other.when:
++		return false
++	default:
++		// When timers wake at the same time, use a per-timer random value to order them.
++		// We only set the random value for timers using fake time, since there's
++		// no practical way to schedule real-time timers for the same instant.
++		return tw.timer.rand < other.timer.rand
++	}
++}
++
+ func (ts *timers) lock() {
+ 	lock(&ts.mu)
+ }
+@@ -696,6 +712,12 @@ func (t *timer) maybeAdd() {
+ 	when := int64(0)
+ 	wake := false
+ 	if t.needsAdd() {
++		if t.isFake {
++			// Re-randomize timer order.
++			// We could do this for all timers, but unbubbled timers are highly
++			// unlikely to have the same when.
++			t.rand = cheaprand()
++		}
+ 		t.state |= timerHeaped
+ 		when = t.when
+ 		wakeTime := ts.wakeTime()
+@@ -1234,7 +1256,7 @@ func (ts *timers) verify() {
+ 
+ 		// The heap is timerHeapN-ary. See siftupTimer and siftdownTimer.
+ 		p := int(uint(i-1) / timerHeapN)
+-		if tw.when < ts.heap[p].when {
++		if tw.less(ts.heap[p]) {
+ 			print("bad timer heap at ", i, ": ", p, ": ", ts.heap[p].when, ", ", i, ": ", tw.when, "\n")
+ 			throw("bad timer heap")
+ 		}
+@@ -1312,13 +1334,12 @@ func (ts *timers) siftUp(i int) {
+ 		badTimer()
+ 	}
+ 	tw := heap[i]
+-	when := tw.when
+-	if when <= 0 {
++	if tw.when <= 0 {
+ 		badTimer()
+ 	}
+ 	for i > 0 {
+ 		p := int(uint(i-1) / timerHeapN) // parent
+-		if when >= heap[p].when {
++		if !tw.less(heap[p]) {
+ 			break
+ 		}
+ 		heap[i] = heap[p]
+@@ -1341,8 +1362,7 @@ func (ts *timers) siftDown(i int) {
+ 		return
+ 	}
+ 	tw := heap[i]
+-	when := tw.when
+-	if when <= 0 {
++	if tw.when <= 0 {
+ 		badTimer()
+ 	}
+ 	for {
+@@ -1350,11 +1370,11 @@ func (ts *timers) siftDown(i int) {
+ 		if leftChild >= n {
+ 			break
+ 		}
+-		w := when
++		w := tw
+ 		c := -1
+ 		for j, tw := range heap[leftChild:min(leftChild+timerHeapN, n)] {
+-			if tw.when < w {
+-				w = tw.when
++			if tw.less(w) {
++				w = tw
+ 				c = leftChild + j
+ 			}
+ 		}

@@ -11,6 +11,20 @@ Date:   Mon Oct 4 14:06:37 2021 -0700
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/objdump/objdump_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index f231a7c6e0..ff43161030 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -228,7 +228,7 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
+ 		}
+ 	}
+ 
+-	if !ok {
++	if !ok || testing.Verbose() {
+ 		t.Logf("full disassembly:\n%s", text)
+ 	}
+ }

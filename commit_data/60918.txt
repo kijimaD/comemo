@@ -29,6 +29,31 @@ Date:   Thu Sep 5 14:14:59 2024 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/internal/syscall/unix/eaccess.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/src/internal/syscall/unix/eaccess.go b/src/internal/syscall/unix/eaccess.go
+index 531fd2f106..3c12314a9c 100644
+--- a/src/internal/syscall/unix/eaccess.go
++++ b/src/internal/syscall/unix/eaccess.go
+@@ -6,6 +6,19 @@
+ 
+ package unix
+ 
++import (
++	"runtime"
++	"syscall"
++)
++
+ func Eaccess(path string, mode uint32) error {
++	if runtime.GOOS == "android" {
++		// syscall.Faccessat for Android implements AT_EACCESS check in
++		// userspace. Since Android doesn't have setuid programs and
++		// never runs code with euid!=uid, AT_EACCESS check is not
++		// really required. Return ENOSYS so the callers can fall back
++		// to permission bits check.
++		return syscall.ENOSYS
++	}
+ 	return faccessat(AT_FDCWD, path, mode, AT_EACCESS)
+ }

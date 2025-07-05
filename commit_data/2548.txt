@@ -8,10 +8,87 @@ Date:   Mon Jun 29 15:13:56 2009 -0700
     DELTA=11  (0 added, 6 deleted, 5 changed)
     OCL=30862
     CL=30870
-
+---
  src/pkg/os/dir_darwin_386.go   | 2 +-
  src/pkg/os/dir_darwin_amd64.go | 2 +-
  src/pkg/os/dir_linux_386.go    | 2 +-
  src/pkg/os/dir_linux_amd64.go  | 2 +-
  src/pkg/os/file.go             | 8 +-------
  5 files changed, 5 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/os/dir_darwin_386.go b/src/pkg/os/dir_darwin_386.go
+index 791499d8f9..8ae6ba70fb 100644
+--- a/src/pkg/os/dir_darwin_386.go
++++ b/src/pkg/os/dir_darwin_386.go
+@@ -15,7 +15,7 @@ const (
+ )
+ 
+ // Negative count means read until EOF.
+-func readdirnames(file *File, count int) (names []string, err Error) {
++func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	// If this file has no dirinfo, create one.
+ 	if file.dirinfo == nil {
+ 		file.dirinfo = new(dirInfo);
+diff --git a/src/pkg/os/dir_darwin_amd64.go b/src/pkg/os/dir_darwin_amd64.go
+index 791499d8f9..8ae6ba70fb 100644
+--- a/src/pkg/os/dir_darwin_amd64.go
++++ b/src/pkg/os/dir_darwin_amd64.go
+@@ -15,7 +15,7 @@ const (
+ )
+ 
+ // Negative count means read until EOF.
+-func readdirnames(file *File, count int) (names []string, err Error) {
++func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	// If this file has no dirinfo, create one.
+ 	if file.dirinfo == nil {
+ 		file.dirinfo = new(dirInfo);
+diff --git a/src/pkg/os/dir_linux_386.go b/src/pkg/os/dir_linux_386.go
+index d6d700b24b..9b9a1763e8 100644
+--- a/src/pkg/os/dir_linux_386.go
++++ b/src/pkg/os/dir_linux_386.go
+@@ -28,7 +28,7 @@ func clen(n []byte) int {
+ }
+ 
+ // Negative count means read until EOF.
+-func readdirnames(file *File, count int) (names []string, err Error) {
++func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	// If this file has no dirinfo, create one.
+ 	if file.dirinfo == nil {
+ 		file.dirinfo = new(dirInfo);
+diff --git a/src/pkg/os/dir_linux_amd64.go b/src/pkg/os/dir_linux_amd64.go
+index 8b1664f774..c0a7ee8b7d 100644
+--- a/src/pkg/os/dir_linux_amd64.go
++++ b/src/pkg/os/dir_linux_amd64.go
+@@ -24,7 +24,7 @@ func clen(n []byte) int {
+ }
+ 
+ // Negative count means read until EOF.
+-func readdirnames(file *File, count int) (names []string, err Error) {
++func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	// If this file has no dirinfo, create one.
+ 	if file.dirinfo == nil {
+ 		file.dirinfo = new(dirInfo);
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 8c76735fbc..952348307c 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -257,18 +257,12 @@ func Lstat(name string) (dir *Dir, err Error) {
+ 	return dirFromStat(name, new(Dir), &stat, &stat), nil
+ }
+ 
+-// Readdirnames has a non-portable implemenation so its code is separated into an
+-// operating-system-dependent file.
+-func readdirnames(file *File, count int) (names []string, err Error)
+-
+ // Readdirnames reads the contents of the directory associated with file and
+ // returns an array of up to count names, in directory order.  Subsequent
+ // calls on the same file will yield further names.
+ // A negative count means to read until EOF.
+ // Readdirnames returns the array and an Error, if any.
+-func (file *File) Readdirnames(count int) (names []string, err Error) {
+-	return readdirnames(file, count);
+-}
++func (file *File) Readdirnames(count int) (names []string, err Error)
+ 
+ // Readdir reads the contents of the directory associated with file and
+ // returns an array of up to count Dir structures, as would be returned

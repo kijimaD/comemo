@@ -13,7 +13,66 @@ Date:   Sun Dec 15 12:55:59 2013 -0500
     R=golang-dev, hanwen
     CC=golang-dev
     https://golang.org/cl/42110043
-
+---
  src/pkg/crypto/cipher/cfb.go      | 11 ++++++-----
  src/pkg/crypto/cipher/cfb_test.go |  8 +++++---
  2 files changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/crypto/cipher/cfb.go b/src/pkg/crypto/cipher/cfb.go
+index acaed007a9..9b4eebf5b4 100644
+--- a/src/pkg/crypto/cipher/cfb.go
++++ b/src/pkg/crypto/cipher/cfb.go
+@@ -16,21 +16,22 @@ type cfb struct {
+ }
+ 
+ func (x *cfb) XORKeyStream(dst, src []byte) {
+-	for i := 0; i < len(src); i++ {
++	for len(src) > 0 {
+ 		if x.outUsed == len(x.out) {
+ 			x.b.Encrypt(x.out, x.next)
+ 			x.outUsed = 0
+ 		}
+ 
+-		n := xorBytes(dst, src, x.out[x.outUsed:])
+ 		if x.decrypt {
+ 			// We can precompute a larger segment of the
+ 			// keystream on decryption. This will allow
+ 			// larger batches for xor, and we should be
+ 			// able to match CTR/OFB performance.
+-			copy(x.next[x.outUsed:], src[:n])
+-		} else {
+-			copy(x.next[x.outUsed:], dst[:n])
++			copy(x.next[x.outUsed:], src)
++		}
++		n := xorBytes(dst, src, x.out[x.outUsed:])
++		if !x.decrypt {
++			copy(x.next[x.outUsed:], dst)
+ 		}
+ 		dst = dst[n:]
+ 		src = src[n:]
+diff --git a/src/pkg/crypto/cipher/cfb_test.go b/src/pkg/crypto/cipher/cfb_test.go
+index f704b337e4..ec708ab2be 100644
+--- a/src/pkg/crypto/cipher/cfb_test.go
++++ b/src/pkg/crypto/cipher/cfb_test.go
+@@ -19,16 +19,18 @@ func TestCFB(t *testing.T) {
+ 		return
+ 	}
+ 
+-	plaintext := []byte("this is the plaintext")
++	plaintext := []byte("this is the plaintext. this is the plaintext.")
+ 	iv := make([]byte, block.BlockSize())
+ 	rand.Reader.Read(iv)
+ 	cfb := cipher.NewCFBEncrypter(block, iv)
+ 	ciphertext := make([]byte, len(plaintext))
+-	cfb.XORKeyStream(ciphertext, plaintext)
++	copy(ciphertext, plaintext)
++	cfb.XORKeyStream(ciphertext, ciphertext)
+ 
+ 	cfbdec := cipher.NewCFBDecrypter(block, iv)
+ 	plaintextCopy := make([]byte, len(plaintext))
+-	cfbdec.XORKeyStream(plaintextCopy, ciphertext)
++	copy(plaintextCopy, ciphertext)
++	cfbdec.XORKeyStream(plaintextCopy, plaintextCopy)
+ 
+ 	if !bytes.Equal(plaintextCopy, plaintext) {
+ 		t.Errorf("got: %x, want: %x", plaintextCopy, plaintext)

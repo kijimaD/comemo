@@ -12,6 +12,24 @@ Date:   Thu Apr 7 13:02:35 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/398895
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  doc/go1.19.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 5c48302bf7..c1523c57ec 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -106,9 +106,9 @@ Do not send CLs removing the interior tags from such phrases.
+     <p><!-- CL 396877 -->
+       When a net package function or method returns an "I/O timeout"
+       error, the error will now satisfy <code>errors.Is(err,
+-      context.Canceled)</code>.  When a net package function returns
+-      an "operation was canceled" error, the error will now satisfy
+-      <code>errors.Is(err, context.DeadlineExceeded)</code>.
++      context.DeadlineExceeded)</code>.  When a net package function
++      returns an "operation was canceled" error, the error will now
++      satisfy <code>errors.Is(err, context.Canceled)</code>.
+       These changes are intended to make it easier for code to test
+       for cases in which a context cancelation or timeout causes a net
+       package function or method to return an error, while preserving

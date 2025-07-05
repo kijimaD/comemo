@@ -9,7 +9,7 @@ Date:   Tue Aug 23 22:39:14 2011 -0400
     R=iant, ken
     CC=golang-dev
     https://golang.org/cl/4931042
-
+---
  src/Make.inc           |  5 ++++-
  src/cmd/5c/gc.h        |  2 +-
  src/cmd/5g/gg.h        | 13 +++++--------
@@ -20,3 +20,212 @@ Date:   Tue Aug 23 22:39:14 2011 -0400
  src/cmd/8g/reg.c       |  2 --
  src/cmd/gc/lex.c       |  1 -
  9 files changed, 18 insertions(+), 30 deletions(-)
+
+diff --git a/src/Make.inc b/src/Make.inc
+index 7e815c0103..c770b76327 100644
+--- a/src/Make.inc
++++ b/src/Make.inc
+@@ -118,7 +118,10 @@ HOST_AR?=ar
+ HOST_EXTRA_CFLAGS?=-ggdb -O2
+ HOST_EXTRA_LDFLAGS?=
+ 
+-HOST_CFLAGS=-I"$(GOROOT)/include" $(HOST_EXTRA_CFLAGS)
++# The -fno-common here is not necessary, but some compilers
++# on OS X seem to set it by default.  Setting it here keeps the build
++# working in that non-standard context.
++HOST_CFLAGS=-fno-common -I"$(GOROOT)/include" $(HOST_EXTRA_CFLAGS)
+ HOST_LDFLAGS=$(HOST_EXTRA_LDFLAGS)
+ PWD=$(shell pwd)
+ 
+diff --git a/src/cmd/5c/gc.h b/src/cmd/5c/gc.h
+index ff6d51916a..5349114f8f 100644
+--- a/src/cmd/5c/gc.h
++++ b/src/cmd/5c/gc.h
+@@ -181,7 +181,7 @@ EXTERN	int32	maxargsafe;
+ EXTERN	int	mnstring;
+ EXTERN	Multab	multab[20];
+ EXTERN	int	retok;
+-EXTERN	int	hintabsize;
++extern	int	hintabsize;
+ EXTERN	Node*	nodrat;
+ EXTERN	Node*	nodret;
+ EXTERN	Node*	nodsafe;
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index ce4558e21b..b4667a3f6a 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -5,13 +5,13 @@
+ #include <u.h>
+ #include <libc.h>
+ 
+-#include "../gc/go.h"
+-#include "../5l/5.out.h"
+-
+ #ifndef	EXTERN
+-#define EXTERN	extern
++#define	EXTERN	extern
+ #endif
+ 
++#include "../gc/go.h"
++#include "../5l/5.out.h"
++
+ typedef	struct	Addr	Addr;
+ 
+ struct	Addr
+@@ -51,22 +51,19 @@ struct	Prog
+ #define REGALLOC_F0 (REGALLOC_RMAX+1)
+ #define REGALLOC_FMAX (REGALLOC_F0 + FREGEXT)
+ 
+-EXTERN	Biobuf*	bout;
+ EXTERN	int32	dynloc;
+ EXTERN	uchar	reg[REGALLOC_FMAX+1];
+ EXTERN	int32	pcloc;		// instruction counter
+ EXTERN	Strlit	emptystring;
+ extern	char*	anames[];
+-EXTERN	Hist*	hist;
+ EXTERN	Prog	zprog;
+-EXTERN	Node*	curfn;
+ EXTERN	Node*	newproc;
+ EXTERN	Node*	deferproc;
+ EXTERN	Node*	deferreturn;
+ EXTERN	Node*	panicindex;
+ EXTERN	Node*	panicslice;
+ EXTERN	Node*	throwreturn;
+-EXTERN	long	unmappedzero;
++extern	long	unmappedzero;
+ EXTERN	int	maxstksize;
+ 
+ /*
+diff --git a/src/cmd/5l/softfloat.c b/src/cmd/5l/softfloat.c
+index 4f799d17ee..4011071780 100644
+--- a/src/cmd/5l/softfloat.c
++++ b/src/cmd/5l/softfloat.c
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define	EXTERN
+ #include	"l.h"
+ #include	"../ld/lib.h"
+ 
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 2493771a0d..3af8d3707f 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -5,13 +5,13 @@
+ #include <u.h>
+ #include <libc.h>
+ 
+-#include "../gc/go.h"
+-#include "../6l/6.out.h"
+-
+ #ifndef	EXTERN
+-#define EXTERN	extern
++#define	EXTERN	extern
+ #endif
+ 
++#include "../gc/go.h"
++#include "../6l/6.out.h"
++
+ typedef	struct	Addr	Addr;
+ 
+ struct	Addr
+@@ -44,22 +44,19 @@ struct	Prog
+ 	void*	reg;		// pointer to containing Reg struct
+ };
+ 
+-EXTERN	Biobuf*	bout;
+ EXTERN	int32	dynloc;
+ EXTERN	uchar	reg[D_NONE];
+ EXTERN	int32	pcloc;		// instruction counter
+ EXTERN	Strlit	emptystring;
+ extern	char*	anames[];
+-EXTERN	Hist*	hist;
+ EXTERN	Prog	zprog;
+-EXTERN	Node*	curfn;
+ EXTERN	Node*	newproc;
+ EXTERN	Node*	deferproc;
+ EXTERN	Node*	deferreturn;
+ EXTERN	Node*	panicindex;
+ EXTERN	Node*	panicslice;
+ EXTERN	Node*	throwreturn;
+-EXTERN	vlong	unmappedzero;
++extern	vlong	unmappedzero;
+ 
+ /*
+  * gen.c
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 4d42630471..5d6bfb3ada 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -29,8 +29,6 @@
+ // THE SOFTWARE.
+ 
+ #include "gg.h"
+-#undef	EXTERN
+-#define	EXTERN
+ #include "opt.h"
+ 
+ #define	NREGVAR	32	/* 16 general + 16 floating */
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 9f7a66a295..506345ef46 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -5,13 +5,13 @@
+ #include <u.h>
+ #include <libc.h>
+ 
+-#include "../gc/go.h"
+-#include "../8l/8.out.h"
+-
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+ #endif
+ 
++#include "../gc/go.h"
++#include "../8l/8.out.h"
++
+ typedef	struct	Addr	Addr;
+ 
+ struct	Addr
+@@ -54,15 +54,12 @@ enum
+ 	Fpop2 = 1<<2,
+ };
+ 
+-EXTERN	Biobuf*	bout;
+ EXTERN	int32	dynloc;
+ EXTERN	uchar	reg[D_NONE];
+ EXTERN	int32	pcloc;		// instruction counter
+ EXTERN	Strlit	emptystring;
+ extern	char*	anames[];
+-EXTERN	Hist*	hist;
+ EXTERN	Prog	zprog;
+-EXTERN	Node*	curfn;
+ EXTERN	Node*	newproc;
+ EXTERN	Node*	deferproc;
+ EXTERN	Node*	deferreturn;
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 2b878f62a2..4fb274fe04 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -29,8 +29,6 @@
+ // THE SOFTWARE.
+ 
+ #include "gg.h"
+-#undef	EXTERN
+-#define	EXTERN
+ #include "opt.h"
+ 
+ #define	NREGVAR	8
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index e876412a0d..fcca219933 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define		EXTERN
+ #include	"go.h"
+ #include	"y.tab.h"
+ #include	<ar.h>

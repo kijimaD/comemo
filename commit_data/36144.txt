@@ -37,10 +37,86 @@ Date:   Tue Feb 6 13:16:02 2018 -0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/user/cgo_lookup_unix.go |  2 +-
  src/os/user/listgroups_unix.go |  1 +
  src/os/user/lookup_stubs.go    |  2 +-
  src/os/user/lookup_unix.go     |  2 +-
  src/os/user/user.go            | 13 ++++++++++++-
  5 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/os/user/cgo_lookup_unix.go b/src/os/user/cgo_lookup_unix.go
+index 987a2d8c7d..210bd6e0b3 100644
+--- a/src/os/user/cgo_lookup_unix.go
++++ b/src/os/user/cgo_lookup_unix.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build darwin dragonfly freebsd !android,linux netbsd openbsd solaris
+-// +build cgo
++// +build cgo,!osusergo
+ 
+ package user
+ 
+diff --git a/src/os/user/listgroups_unix.go b/src/os/user/listgroups_unix.go
+index 44f4ae1714..70f7af7f97 100644
+--- a/src/os/user/listgroups_unix.go
++++ b/src/os/user/listgroups_unix.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build dragonfly darwin freebsd !android,linux netbsd openbsd
++// +build cgo,!osusergo
+ 
+ package user
+ 
+diff --git a/src/os/user/lookup_stubs.go b/src/os/user/lookup_stubs.go
+index d23870fda8..dc5ab40055 100644
+--- a/src/os/user/lookup_stubs.go
++++ b/src/os/user/lookup_stubs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !cgo,!windows,!plan9 android
++// +build !cgo,!windows,!plan9 android osusergo
+ 
+ package user
+ 
+diff --git a/src/os/user/lookup_unix.go b/src/os/user/lookup_unix.go
+index 5f34ba8611..05f39be40b 100644
+--- a/src/os/user/lookup_unix.go
++++ b/src/os/user/lookup_unix.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build darwin dragonfly freebsd !android,linux nacl netbsd openbsd solaris
+-// +build !cgo
++// +build !cgo osusergo
+ 
+ package user
+ 
+diff --git a/src/os/user/user.go b/src/os/user/user.go
+index ad61992ad3..1f733b8023 100644
+--- a/src/os/user/user.go
++++ b/src/os/user/user.go
+@@ -2,7 +2,18 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package user allows user account lookups by name or id.
++/*
++Package user allows user account lookups by name or id.
++
++For most Unix systems, this package has two internal implementations of
++resolving user and group ids to names. One is written in pure Go and
++parses /etc/passwd and /etc/group. The other is cgo-based and relies on
++the standard C library (libc) routines such as getpwuid_r and getgrnam_r.
++
++When cgo is available, cgo-based (libc-backed) code is used by default.
++This can be overriden by using osusergo build tag, which enforces
++the pure Go implementation.
++*/
+ package user
+ 
+ import (

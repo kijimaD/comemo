@@ -7,6 +7,26 @@ Date:   Thu Mar 14 14:03:30 2019 -0400
     Change-Id: I6d3a615c5f72e9aa29d23e127af98d6e836da173
     Reviewed-on: https://go-review.googlesource.com/c/go/+/167699
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 7255bd9811..7a036db9a8 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -30,6 +30,14 @@ Go 1.12 is a major release of Go.
+ Read the <a href="/doc/go1.12">Go 1.12 Release Notes</a> for more information.
+ </p>
+ 
++<p>
++go1.12.1 (released 2019/03/14) includes fixes to cgo, the compiler, the go
++command, and the <code>fmt</code>, <code>net/smtp</code>, <code>os</code>,
++<code>path/filepath</code>, <code>sync</code>, and <code>text/template</code>
++packages. See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.12.1">Go
++1.12.1 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.11">go1.11 (released 2018/08/24)</h2>
+ 
+ <p>

@@ -9,6 +9,20 @@ Date:   Thu Dec 31 11:25:51 2015 -0500
     Change-Id: I629e2ba79b74d693e04c3747812c9a686cae5335
     Reviewed-on: https://go-review.googlesource.com/18218
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 9c19b08d75..fe35aaccb4 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -5330,7 +5330,7 @@ the "for" statement's block but the <code>goto</code> is not.
+ 
+ <p>
+ A "fallthrough" statement transfers control to the first statement of the
+-next case clause in a <a href="#Expression_switches">expression "switch" statement</a>.
++next case clause in an <a href="#Expression_switches">expression "switch" statement</a>.
+ It may be used only as the final non-empty statement in such a clause.
+ </p>
+ 

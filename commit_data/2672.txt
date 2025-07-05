@@ -8,6 +8,28 @@ Date:   Fri Jul 10 18:21:07 2009 -0700
     DELTA=2  (0 added, 1 deleted, 1 changed)
     OCL=31472
     CL=31477
-
+---
  doc/go_spec.html | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 451baedf72..ef86dda2cf 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -101,7 +101,6 @@ The following terms are used to denote specific Unicode character classes:
+ <pre class="ebnf">
+ unicode_char   = /* an arbitrary Unicode code point */ .
+ unicode_letter = /* a Unicode code point classified as "Letter" */ .
+-capital_letter = /* a Unicode code point classified as "Letter, uppercase" */ .
+ unicode_digit  = /* a Unicode code point classified as "Digit" */ .
+ </pre>
+ 
+@@ -1329,7 +1328,7 @@ Some identifiers are <i>exported</i> and can be referenced using
+ If an identifier satisfies these two conditions:
+ </p>
+ <ol>
+-<li>the first character of the identifier's name is a Unicode upper case letter;
++<li>the first character of the identifier's name is a Unicode upper case letter (Unicode class "Lu");
+ <li>the identifier is declared at the package level or is a field or method of a type
+ declared at the top level;
+ </ol>

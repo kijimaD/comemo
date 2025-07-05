@@ -11,7 +11,7 @@ Date:   Wed Nov 15 14:54:24 2017 -0800
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm/ssa.go        |  5 +++
  src/cmd/compile/internal/gc/main.go        |  2 +-
  src/cmd/compile/internal/ssa/gen/ARM.rules |  3 ++
@@ -21,3 +21,210 @@ Date:   Wed Nov 15 14:54:24 2017 -0800
  src/cmd/vet/all/whitelist/arm.txt          |  2 ++
  src/runtime/asm_arm.s                      | 58 ++++++++++++++++++++++++++++++
  8 files changed, 109 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 300672d9cf..abe40dfa9f 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -660,6 +660,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = gc.Udiv
++	case ssa.OpARMLoweredWB:
++		p := s.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = v.Aux.(*obj.LSym)
+ 	case ssa.OpARMDUFFZERO:
+ 		p := s.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 71ba1f61eb..4efd647682 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -408,7 +408,7 @@ func Main(archInit func(*Arch)) {
+ 	}
+ 
+ 	switch objabi.GOARCH {
+-	case "amd64", "amd64p32", "386":
++	case "amd64", "amd64p32", "386", "arm":
+ 	default:
+ 		// Other architectures don't support the buffered
+ 		// write barrier yet.
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index c3baa5133f..78a3ec0778 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -427,6 +427,9 @@
+ (NE (CMPconst [0] (GreaterEqual cc)) yes no) -> (GE cc yes no)
+ (NE (CMPconst [0] (GreaterEqualU cc)) yes no) -> (UGE cc yes no)
+ 
++// Write barrier.
++(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
++
+ // Optimizations
+ 
+ // fold offset into address
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index d16675fddb..de6c13cc97 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -542,6 +542,11 @@ func init() {
+ 		// (InvertFlags (CMP a b)) == (CMP b a)
+ 		// InvertFlags is a pseudo-op which can't appear in assembly output.
+ 		{name: "InvertFlags", argLength: 1}, // reverse direction of arg0
++
++		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		// It saves all GP registers if necessary,
++		// but clobbers R14 (LR) because it's a call.
++		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R14")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 200298db56..e2ecca7bdb 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -949,6 +949,7 @@ const (
+ 	OpARMFlagGT_UGT
+ 	OpARMFlagGT_ULT
+ 	OpARMInvertFlags
++	OpARMLoweredWB
+ 
+ 	OpARM64ADD
+ 	OpARM64ADDconst
+@@ -11991,6 +11992,20 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg:    regInfo{},
+ 	},
++	{
++		name:         "LoweredWB",
++		auxType:      auxSym,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymNone,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4}, // R2
++				{1, 8}, // R3
++			},
++			clobbers: 4294918144, // R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++		},
++	},
+ 
+ 	{
+ 		name:        "ADD",
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 058ae72dde..ca76558d62 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -799,6 +799,8 @@ func rewriteValueARM(v *Value) bool {
+ 		return rewriteValueARM_OpTrunc32to16_0(v)
+ 	case OpTrunc32to8:
+ 		return rewriteValueARM_OpTrunc32to8_0(v)
++	case OpWB:
++		return rewriteValueARM_OpWB_0(v)
+ 	case OpXor16:
+ 		return rewriteValueARM_OpXor16_0(v)
+ 	case OpXor32:
+@@ -21709,6 +21711,24 @@ func rewriteValueARM_OpTrunc32to8_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpWB_0(v *Value) bool {
++	// match: (WB {fn} destptr srcptr mem)
++	// cond:
++	// result: (LoweredWB {fn} destptr srcptr mem)
++	for {
++		fn := v.Aux
++		_ = v.Args[2]
++		destptr := v.Args[0]
++		srcptr := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARMLoweredWB)
++		v.Aux = fn
++		v.AddArg(destptr)
++		v.AddArg(srcptr)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueARM_OpXor16_0(v *Value) bool {
+ 	// match: (Xor16 x y)
+ 	// cond:
+diff --git a/src/cmd/vet/all/whitelist/arm.txt b/src/cmd/vet/all/whitelist/arm.txt
+index 770008c9f0..51b3d6bf51 100644
+--- a/src/cmd/vet/all/whitelist/arm.txt
++++ b/src/cmd/vet/all/whitelist/arm.txt
+@@ -16,3 +16,5 @@ runtime/tls_arm.s: [arm] load_g: function load_g missing Go declaration
+ runtime/tls_arm.s: [arm] _initcgo: function _initcgo missing Go declaration
+ 
+ runtime/internal/atomic/asm_arm.s: [arm] cas: function cas missing Go declaration
++
++runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index d10c370a7d..0b429705e8 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -1054,3 +1054,61 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVW	$1, R3
+ 	MOVB	R3, ret+0(FP)
+ 	RET
++
++// gcWriteBarrier performs a heap pointer write and informs the GC.
++//
++// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
++// - R2 is the destination of the write
++// - R3 is the value being written at R2
++// It clobbers condition codes.
++// It does not clobber any other general-purpose registers,
++// but may clobber others (e.g., floating point registers).
++// The act of CALLing gcWriteBarrier will clobber R14 (LR).
++TEXT runtime·gcWriteBarrier(SB),NOSPLIT|NOFRAME,$0
++	// Save the registers clobbered by the fast path.
++	MOVM.DB.W	[R0,R1], (R13)
++	MOVW	g_m(g), R0
++	MOVW	m_p(R0), R0
++	MOVW	(p_wbBuf+wbBuf_next)(R0), R1
++	// Increment wbBuf.next position.
++	ADD	$8, R1
++	MOVW	R1, (p_wbBuf+wbBuf_next)(R0)
++	MOVW	(p_wbBuf+wbBuf_end)(R0), R0
++	CMP	R1, R0
++	// Record the write.
++	MOVW	R3, -8(R1)	// Record value
++	MOVW	(R2), R0	// TODO: This turns bad writes into bad reads.
++	MOVW	R0, -4(R1)	// Record *slot
++	// Is the buffer full? (flags set in CMP above)
++	B.EQ	flush
++ret:
++	MOVM.IA.W	(R13), [R0,R1]
++	// Do the write.
++	MOVW	R3, (R2)
++	// Normally RET on nacl clobbers R12, but because this
++	// function has no frame it doesn't have to usual epilogue.
++	RET
++
++flush:
++	// Save all general purpose registers since these could be
++	// clobbered by wbBufFlush and were not saved by the caller.
++	//
++	// R0 and R1 were saved at entry.
++	// R10 is g, so preserved.
++	// R11 is linker temp, so no need to save.
++	// R13 is stack pointer.
++	// R15 is PC.
++	//
++	// This also sets up R2 and R3 as the arguments to wbBufFlush.
++	MOVM.DB.W	[R2-R9,R12], (R13)
++	// Save R14 (LR) because the fast path above doesn't save it,
++	// but needs it to RET. This is after the MOVM so it appears below
++	// the arguments in the stack frame.
++	MOVM.DB.W	[R14], (R13)
++
++	// This takes arguments R2 and R3.
++	CALL	runtime·wbBufFlush(SB)
++
++	MOVM.IA.W	(R13), [R14]
++	MOVM.IA.W	(R13), [R2-R9,R12]
++	JMP	ret

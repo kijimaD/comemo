@@ -19,7 +19,633 @@ Date:   Mon Sep 21 08:47:34 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/decl.go     | 266 ++++++++++++++++++++++++++-------------------
  src/go/types/resolver.go | 278 +++++++++++++++++++++--------------------------
  2 files changed, 275 insertions(+), 269 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 5c0e611c51..a022ec5678 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -381,6 +381,76 @@ func firstInSrc(path []Object) int {
+ 	return fst
+ }
+ 
++type (
++	decl interface {
++		node() ast.Node
++	}
++
++	importDecl struct{ spec *ast.ImportSpec }
++	constDecl  struct {
++		spec *ast.ValueSpec
++		iota int
++		typ  ast.Expr
++		init []ast.Expr
++	}
++	varDecl  struct{ spec *ast.ValueSpec }
++	typeDecl struct{ spec *ast.TypeSpec }
++	funcDecl struct{ decl *ast.FuncDecl }
++)
++
++func (d importDecl) node() ast.Node { return d.spec }
++func (d constDecl) node() ast.Node  { return d.spec }
++func (d varDecl) node() ast.Node    { return d.spec }
++func (d typeDecl) node() ast.Node   { return d.spec }
++func (d funcDecl) node() ast.Node   { return d.decl }
++
++func (check *Checker) walkDecls(decls []ast.Decl, f func(decl)) {
++	for _, d := range decls {
++		check.walkDecl(d, f)
++	}
++}
++
++func (check *Checker) walkDecl(d ast.Decl, f func(decl)) {
++	switch d := d.(type) {
++	case *ast.BadDecl:
++		// ignore
++	case *ast.GenDecl:
++		var last *ast.ValueSpec // last ValueSpec with type or init exprs seen
++		for iota, s := range d.Specs {
++			switch s := s.(type) {
++			case *ast.ImportSpec:
++				f(importDecl{s})
++			case *ast.ValueSpec:
++				switch d.Tok {
++				case token.CONST:
++					// determine which initialization expressions to use
++					switch {
++					case s.Type != nil || len(s.Values) > 0:
++						last = s
++					case last == nil:
++						last = new(ast.ValueSpec) // make sure last exists
++					}
++					check.arityMatch(s, last)
++					f(constDecl{spec: s, iota: iota, init: last.Values, typ: last.Type})
++				case token.VAR:
++					check.arityMatch(s, nil)
++					f(varDecl{s})
++				default:
++					check.invalidAST(s.Pos(), "invalid token %s", d.Tok)
++				}
++			case *ast.TypeSpec:
++				f(typeDecl{s})
++			default:
++				check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)
++			}
++		}
++	case *ast.FuncDecl:
++		f(funcDecl{d})
++	default:
++		check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
++	}
++}
++
+ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
+ 	assert(obj.typ == nil)
+ 
+@@ -664,133 +734,105 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
+ 	}
+ }
+ 
+-func (check *Checker) declStmt(decl ast.Decl) {
++func (check *Checker) declStmt(d ast.Decl) {
+ 	pkg := check.pkg
+ 
+-	switch d := decl.(type) {
+-	case *ast.BadDecl:
+-		// ignore
++	check.walkDecl(d, func(d decl) {
++		switch d := d.(type) {
++		case constDecl:
++			top := len(check.delayed)
+ 
+-	case *ast.GenDecl:
+-		var last *ast.ValueSpec // last ValueSpec with type or init exprs seen
+-		for iota, spec := range d.Specs {
+-			switch s := spec.(type) {
+-			case *ast.ValueSpec:
+-				switch d.Tok {
+-				case token.CONST:
+-					top := len(check.delayed)
++			// declare all constants
++			lhs := make([]*Const, len(d.spec.Names))
++			for i, name := range d.spec.Names {
++				obj := NewConst(name.Pos(), pkg, name.Name, nil, constant.MakeInt64(int64(d.iota)))
++				lhs[i] = obj
+ 
+-					// determine which init exprs to use
+-					switch {
+-					case s.Type != nil || len(s.Values) > 0:
+-						last = s
+-					case last == nil:
+-						last = new(ast.ValueSpec) // make sure last exists
+-					}
+-
+-					// declare all constants
+-					lhs := make([]*Const, len(s.Names))
+-					for i, name := range s.Names {
+-						obj := NewConst(name.Pos(), pkg, name.Name, nil, constant.MakeInt64(int64(iota)))
+-						lhs[i] = obj
+-
+-						var init ast.Expr
+-						if i < len(last.Values) {
+-							init = last.Values[i]
+-						}
++				var init ast.Expr
++				if i < len(d.init) {
++					init = d.init[i]
++				}
+ 
+-						check.constDecl(obj, last.Type, init)
+-					}
++				check.constDecl(obj, d.typ, init)
++			}
+ 
+-					check.arityMatch(s, last)
++			// process function literals in init expressions before scope changes
++			check.processDelayed(top)
+ 
+-					// process function literals in init expressions before scope changes
+-					check.processDelayed(top)
++			// spec: "The scope of a constant or variable identifier declared
++			// inside a function begins at the end of the ConstSpec or VarSpec
++			// (ShortVarDecl for short variable declarations) and ends at the
++			// end of the innermost containing block."
++			scopePos := d.spec.End()
++			for i, name := range d.spec.Names {
++				check.declare(check.scope, name, lhs[i], scopePos)
++			}
+ 
+-					// spec: "The scope of a constant or variable identifier declared
+-					// inside a function begins at the end of the ConstSpec or VarSpec
+-					// (ShortVarDecl for short variable declarations) and ends at the
+-					// end of the innermost containing block."
+-					scopePos := s.End()
+-					for i, name := range s.Names {
+-						check.declare(check.scope, name, lhs[i], scopePos)
+-					}
++		case varDecl:
++			top := len(check.delayed)
+ 
+-				case token.VAR:
+-					top := len(check.delayed)
++			lhs0 := make([]*Var, len(d.spec.Names))
++			for i, name := range d.spec.Names {
++				lhs0[i] = NewVar(name.Pos(), pkg, name.Name, nil)
++			}
+ 
+-					lhs0 := make([]*Var, len(s.Names))
+-					for i, name := range s.Names {
+-						lhs0[i] = NewVar(name.Pos(), pkg, name.Name, nil)
++			// initialize all variables
++			for i, obj := range lhs0 {
++				var lhs []*Var
++				var init ast.Expr
++				switch len(d.spec.Values) {
++				case len(d.spec.Names):
++					// lhs and rhs match
++					init = d.spec.Values[i]
++				case 1:
++					// rhs is expected to be a multi-valued expression
++					lhs = lhs0
++					init = d.spec.Values[0]
++				default:
++					if i < len(d.spec.Values) {
++						init = d.spec.Values[i]
+ 					}
+-
+-					// initialize all variables
+-					for i, obj := range lhs0 {
+-						var lhs []*Var
+-						var init ast.Expr
+-						switch len(s.Values) {
+-						case len(s.Names):
+-							// lhs and rhs match
+-							init = s.Values[i]
+-						case 1:
+-							// rhs is expected to be a multi-valued expression
+-							lhs = lhs0
+-							init = s.Values[0]
+-						default:
+-							if i < len(s.Values) {
+-								init = s.Values[i]
+-							}
+-						}
+-						check.varDecl(obj, lhs, s.Type, init)
+-						if len(s.Values) == 1 {
+-							// If we have a single lhs variable we are done either way.
+-							// If we have a single rhs expression, it must be a multi-
+-							// valued expression, in which case handling the first lhs
+-							// variable will cause all lhs variables to have a type
+-							// assigned, and we are done as well.
+-							if debug {
+-								for _, obj := range lhs0 {
+-									assert(obj.typ != nil)
+-								}
+-							}
+-							break
++				}
++				check.varDecl(obj, lhs, d.spec.Type, init)
++				if len(d.spec.Values) == 1 {
++					// If we have a single lhs variable we are done either way.
++					// If we have a single rhs expression, it must be a multi-
++					// valued expression, in which case handling the first lhs
++					// variable will cause all lhs variables to have a type
++					// assigned, and we are done as well.
++					if debug {
++						for _, obj := range lhs0 {
++							assert(obj.typ != nil)
+ 						}
+ 					}
+-
+-					check.arityMatch(s, nil)
+-
+-					// process function literals in init expressions before scope changes
+-					check.processDelayed(top)
+-
+-					// declare all variables
+-					// (only at this point are the variable scopes (parents) set)
+-					scopePos := s.End() // see constant declarations
+-					for i, name := range s.Names {
+-						// see constant declarations
+-						check.declare(check.scope, name, lhs0[i], scopePos)
+-					}
+-
+-				default:
+-					check.invalidAST(s.Pos(), "invalid token %s", d.Tok)
++					break
+ 				}
++			}
+ 
+-			case *ast.TypeSpec:
+-				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
+-				// spec: "The scope of a type identifier declared inside a function
+-				// begins at the identifier in the TypeSpec and ends at the end of
+-				// the innermost containing block."
+-				scopePos := s.Name.Pos()
+-				check.declare(check.scope, s.Name, obj, scopePos)
+-				// mark and unmark type before calling typeDecl; its type is still nil (see Checker.objDecl)
+-				obj.setColor(grey + color(check.push(obj)))
+-				check.typeDecl(obj, s.Type, nil, s.Assign.IsValid())
+-				check.pop().setColor(black)
+-			default:
+-				check.invalidAST(s.Pos(), "const, type, or var declaration expected")
++			// process function literals in init expressions before scope changes
++			check.processDelayed(top)
++
++			// declare all variables
++			// (only at this point are the variable scopes (parents) set)
++			scopePos := d.spec.End() // see constant declarations
++			for i, name := range d.spec.Names {
++				// see constant declarations
++				check.declare(check.scope, name, lhs0[i], scopePos)
+ 			}
+-		}
+ 
+-	default:
+-		check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
+-	}
++		case typeDecl:
++			obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
++			// spec: "The scope of a type identifier declared inside a function
++			// begins at the identifier in the TypeSpec and ends at the end of
++			// the innermost containing block."
++			scopePos := d.spec.Name.Pos()
++			check.declare(check.scope, d.spec.Name, obj, scopePos)
++			// mark and unmark type before calling typeDecl; its type is still nil (see Checker.objDecl)
++			obj.setColor(grey + color(check.push(obj)))
++			check.typeDecl(obj, d.spec.Type, nil, d.spec.Assign.IsValid())
++			check.pop().setColor(black)
++		default:
++			check.invalidAST(d.node().Pos(), "unknown ast.Decl node %T", d.node())
++		}
++	})
+ }
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 078adc5ec7..cce222cbc5 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -235,179 +235,147 @@ func (check *Checker) collectObjects() {
+ 		// we get "." as the directory which is what we would want.
+ 		fileDir := dir(check.fset.Position(file.Name.Pos()).Filename)
+ 
+-		for _, decl := range file.Decls {
+-			switch d := decl.(type) {
+-			case *ast.BadDecl:
+-				// ignore
+-
+-			case *ast.GenDecl:
+-				var last *ast.ValueSpec // last ValueSpec with type or init exprs seen
+-				for iota, spec := range d.Specs {
+-					switch s := spec.(type) {
+-					case *ast.ImportSpec:
+-						// import package
+-						path, err := validatedImportPath(s.Path.Value)
+-						if err != nil {
+-							check.errorf(s.Path.Pos(), "invalid import path (%s)", err)
+-							continue
+-						}
++		check.walkDecls(file.Decls, func(d decl) {
++			switch d := d.(type) {
++			case importDecl:
++				// import package
++				path, err := validatedImportPath(d.spec.Path.Value)
++				if err != nil {
++					check.errorf(d.spec.Path.Pos(), "invalid import path (%s)", err)
++					return
++				}
+ 
+-						imp := check.importPackage(s.Path.Pos(), path, fileDir)
+-						if imp == nil {
+-							continue
+-						}
++				imp := check.importPackage(d.spec.Path.Pos(), path, fileDir)
++				if imp == nil {
++					return
++				}
+ 
+-						// add package to list of explicit imports
+-						// (this functionality is provided as a convenience
+-						// for clients; it is not needed for type-checking)
+-						if !pkgImports[imp] {
+-							pkgImports[imp] = true
+-							pkg.imports = append(pkg.imports, imp)
+-						}
++				// add package to list of explicit imports
++				// (this functionality is provided as a convenience
++				// for clients; it is not needed for type-checking)
++				if !pkgImports[imp] {
++					pkgImports[imp] = true
++					pkg.imports = append(pkg.imports, imp)
++				}
+ 
+-						// local name overrides imported package name
+-						name := imp.name
+-						if s.Name != nil {
+-							name = s.Name.Name
+-							if path == "C" {
+-								// match cmd/compile (not prescribed by spec)
+-								check.errorf(s.Name.Pos(), `cannot rename import "C"`)
+-								continue
+-							}
+-							if name == "init" {
+-								check.errorf(s.Name.Pos(), "cannot declare init - must be func")
+-								continue
+-							}
+-						}
++				// local name overrides imported package name
++				name := imp.name
++				if d.spec.Name != nil {
++					name = d.spec.Name.Name
++					if path == "C" {
++						// match cmd/compile (not prescribed by spec)
++						check.errorf(d.spec.Name.Pos(), `cannot rename import "C"`)
++						return
++					}
++					if name == "init" {
++						check.errorf(d.spec.Name.Pos(), "cannot declare init - must be func")
++						return
++					}
++				}
+ 
+-						obj := NewPkgName(s.Pos(), pkg, name, imp)
+-						if s.Name != nil {
+-							// in a dot-import, the dot represents the package
+-							check.recordDef(s.Name, obj)
+-						} else {
+-							check.recordImplicit(s, obj)
+-						}
++				obj := NewPkgName(d.spec.Pos(), pkg, name, imp)
++				if d.spec.Name != nil {
++					// in a dot-import, the dot represents the package
++					check.recordDef(d.spec.Name, obj)
++				} else {
++					check.recordImplicit(d.spec, obj)
++				}
+ 
+-						if path == "C" {
+-							// match cmd/compile (not prescribed by spec)
+-							obj.used = true
+-						}
++				if path == "C" {
++					// match cmd/compile (not prescribed by spec)
++					obj.used = true
++				}
+ 
+-						// add import to file scope
+-						if name == "." {
+-							// merge imported scope with file scope
+-							for _, obj := range imp.scope.elems {
+-								// A package scope may contain non-exported objects,
+-								// do not import them!
+-								if obj.Exported() {
+-									// declare dot-imported object
+-									// (Do not use check.declare because it modifies the object
+-									// via Object.setScopePos, which leads to a race condition;
+-									// the object may be imported into more than one file scope
+-									// concurrently. See issue #32154.)
+-									if alt := fileScope.Insert(obj); alt != nil {
+-										check.errorf(s.Name.Pos(), "%s redeclared in this block", obj.Name())
+-										check.reportAltDecl(alt)
+-									}
+-								}
++				// add import to file scope
++				if name == "." {
++					// merge imported scope with file scope
++					for _, obj := range imp.scope.elems {
++						// A package scope may contain non-exported objects,
++						// do not import them!
++						if obj.Exported() {
++							// declare dot-imported object
++							// (Do not use check.declare because it modifies the object
++							// via Object.setScopePos, which leads to a race condition;
++							// the object may be imported into more than one file scope
++							// concurrently. See issue #32154.)
++							if alt := fileScope.Insert(obj); alt != nil {
++								check.errorf(d.spec.Name.Pos(), "%s redeclared in this block", obj.Name())
++								check.reportAltDecl(alt)
+ 							}
+-							// add position to set of dot-import positions for this file
+-							// (this is only needed for "imported but not used" errors)
+-							check.addUnusedDotImport(fileScope, imp, s.Pos())
+-						} else {
+-							// declare imported package object in file scope
+-							// (no need to provide s.Name since we called check.recordDef earlier)
+-							check.declare(fileScope, nil, obj, token.NoPos)
+ 						}
++					}
++					// add position to set of dot-import positions for this file
++					// (this is only needed for "imported but not used" errors)
++					check.addUnusedDotImport(fileScope, imp, d.spec.Pos())
++				} else {
++					// declare imported package object in file scope
++					// (no need to provide s.Name since we called check.recordDef earlier)
++					check.declare(fileScope, nil, obj, token.NoPos)
++				}
++			case constDecl:
++				// declare all constants
++				for i, name := range d.spec.Names {
++					obj := NewConst(name.Pos(), pkg, name.Name, nil, constant.MakeInt64(int64(d.iota)))
++
++					var init ast.Expr
++					if i < len(d.init) {
++						init = d.init[i]
++					}
+ 
+-					case *ast.ValueSpec:
+-						switch d.Tok {
+-						case token.CONST:
+-							// determine which initialization expressions to use
+-							switch {
+-							case s.Type != nil || len(s.Values) > 0:
+-								last = s
+-							case last == nil:
+-								last = new(ast.ValueSpec) // make sure last exists
+-							}
+-
+-							// declare all constants
+-							for i, name := range s.Names {
+-								obj := NewConst(name.Pos(), pkg, name.Name, nil, constant.MakeInt64(int64(iota)))
+-
+-								var init ast.Expr
+-								if i < len(last.Values) {
+-									init = last.Values[i]
+-								}
+-
+-								d := &declInfo{file: fileScope, typ: last.Type, init: init}
+-								check.declarePkgObj(name, obj, d)
+-							}
+-
+-							check.arityMatch(s, last)
+-
+-						case token.VAR:
+-							lhs := make([]*Var, len(s.Names))
+-							// If there's exactly one rhs initializer, use
+-							// the same declInfo d1 for all lhs variables
+-							// so that each lhs variable depends on the same
+-							// rhs initializer (n:1 var declaration).
+-							var d1 *declInfo
+-							if len(s.Values) == 1 {
+-								// The lhs elements are only set up after the for loop below,
+-								// but that's ok because declareVar only collects the declInfo
+-								// for a later phase.
+-								d1 = &declInfo{file: fileScope, lhs: lhs, typ: s.Type, init: s.Values[0]}
+-							}
+-
+-							// declare all variables
+-							for i, name := range s.Names {
+-								obj := NewVar(name.Pos(), pkg, name.Name, nil)
+-								lhs[i] = obj
+-
+-								d := d1
+-								if d == nil {
+-									// individual assignments
+-									var init ast.Expr
+-									if i < len(s.Values) {
+-										init = s.Values[i]
+-									}
+-									d = &declInfo{file: fileScope, typ: s.Type, init: init}
+-								}
+-
+-								check.declarePkgObj(name, obj, d)
+-							}
++					d := &declInfo{file: fileScope, typ: d.typ, init: init}
++					check.declarePkgObj(name, obj, d)
++				}
+ 
+-							check.arityMatch(s, nil)
++			case varDecl:
++				lhs := make([]*Var, len(d.spec.Names))
++				// If there's exactly one rhs initializer, use
++				// the same declInfo d1 for all lhs variables
++				// so that each lhs variable depends on the same
++				// rhs initializer (n:1 var declaration).
++				var d1 *declInfo
++				if len(d.spec.Values) == 1 {
++					// The lhs elements are only set up after the for loop below,
++					// but that's ok because declareVar only collects the declInfo
++					// for a later phase.
++					d1 = &declInfo{file: fileScope, lhs: lhs, typ: d.spec.Type, init: d.spec.Values[0]}
++				}
+ 
+-						default:
+-							check.invalidAST(s.Pos(), "invalid token %s", d.Tok)
++				// declare all variables
++				for i, name := range d.spec.Names {
++					obj := NewVar(name.Pos(), pkg, name.Name, nil)
++					lhs[i] = obj
++
++					di := d1
++					if di == nil {
++						// individual assignments
++						var init ast.Expr
++						if i < len(d.spec.Values) {
++							init = d.spec.Values[i]
+ 						}
+-
+-					case *ast.TypeSpec:
+-						obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
+-						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, typ: s.Type, alias: s.Assign.IsValid()})
+-
+-					default:
+-						check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)
++						di = &declInfo{file: fileScope, typ: d.spec.Type, init: init}
+ 					}
+-				}
+ 
+-			case *ast.FuncDecl:
+-				name := d.Name.Name
+-				obj := NewFunc(d.Name.Pos(), pkg, name, nil)
+-				if d.Recv == nil {
++					check.declarePkgObj(name, obj, di)
++				}
++			case typeDecl:
++				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
++				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, typ: d.spec.Type, alias: d.spec.Assign.IsValid()})
++			case funcDecl:
++				info := &declInfo{file: fileScope, fdecl: d.decl}
++				name := d.decl.Name.Name
++				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil)
++				if d.decl.Recv == nil {
+ 					// regular function
+ 					if name == "init" {
+ 						// don't declare init functions in the package scope - they are invisible
+ 						obj.parent = pkg.scope
+-						check.recordDef(d.Name, obj)
++						check.recordDef(d.decl.Name, obj)
+ 						// init functions must have a body
+-						if d.Body == nil {
++						if d.decl.Body == nil {
+ 							check.softErrorf(obj.pos, "missing function body")
+ 						}
+ 					} else {
+-						check.declare(pkg.scope, d.Name, obj, token.NoPos)
++						check.declare(pkg.scope, d.decl.Name, obj, token.NoPos)
+ 					}
+ 				} else {
+ 					// method
+@@ -417,20 +385,16 @@ func (check *Checker) collectObjects() {
+ 					if name != "_" {
+ 						methods = append(methods, obj)
+ 					}
+-					check.recordDef(d.Name, obj)
++					check.recordDef(d.decl.Name, obj)
+ 				}
+-				info := &declInfo{file: fileScope, fdecl: d}
+ 				// Methods are not package-level objects but we still track them in the
+ 				// object map so that we can handle them like regular functions (if the
+ 				// receiver is invalid); also we need their fdecl info when associating
+ 				// them with their receiver base type, below.
+ 				check.objMap[obj] = info
+ 				obj.setOrder(uint32(len(check.objMap)))
+-
+-			default:
+-				check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
+ 			}
+-		}
++		})
+ 	}
+ 
+ 	// verify that objects in package and file scopes have different names

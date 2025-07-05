@@ -13,7 +13,43 @@ Date:   Fri Feb 17 11:36:08 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/37212
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules | 2 +-
  src/cmd/compile/internal/ssa/rewritegeneric.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index b8028b8443..91e53ea2a3 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1013,7 +1013,7 @@
+     (Rsh64Ux64 <config.fe.TypeUInt64()>
+       (Avg64u
+         (Lsh64x64 <config.fe.TypeUInt64()> (ZeroExt32to64 x) (Const64 <config.fe.TypeUInt64()> [32]))
+-        (Mul64 <config.fe.TypeUInt32()>
++        (Mul64 <config.fe.TypeUInt64()>
+           (Const64 <config.fe.TypeUInt32()> [int64(umagic(32,c).m)])
+           (ZeroExt32to64 x)))
+       (Const64 <config.fe.TypeUInt64()> [32+umagic(32,c).s-1])))
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index d24ceff407..05eeeb80d0 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -2813,7 +2813,7 @@ func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Div32u x (Const32 [c]))
+ 	// cond: umagicOK(32, c) && config.RegSize == 8
+-	// result: (Trunc64to32     (Rsh64Ux64 <config.fe.TypeUInt64()>       (Avg64u         (Lsh64x64 <config.fe.TypeUInt64()> (ZeroExt32to64 x) (Const64 <config.fe.TypeUInt64()> [32]))         (Mul64 <config.fe.TypeUInt32()>           (Const64 <config.fe.TypeUInt32()> [int64(umagic(32,c).m)])           (ZeroExt32to64 x)))       (Const64 <config.fe.TypeUInt64()> [32+umagic(32,c).s-1])))
++	// result: (Trunc64to32     (Rsh64Ux64 <config.fe.TypeUInt64()>       (Avg64u         (Lsh64x64 <config.fe.TypeUInt64()> (ZeroExt32to64 x) (Const64 <config.fe.TypeUInt64()> [32]))         (Mul64 <config.fe.TypeUInt64()>           (Const64 <config.fe.TypeUInt32()> [int64(umagic(32,c).m)])           (ZeroExt32to64 x)))       (Const64 <config.fe.TypeUInt64()> [32+umagic(32,c).s-1])))
+ 	for {
+ 		x := v.Args[0]
+ 		v_1 := v.Args[1]
+@@ -2835,7 +2835,7 @@ func rewriteValuegeneric_OpDiv32u(v *Value, config *Config) bool {
+ 		v4.AuxInt = 32
+ 		v2.AddArg(v4)
+ 		v1.AddArg(v2)
+-		v5 := b.NewValue0(v.Pos, OpMul64, config.fe.TypeUInt32())
++		v5 := b.NewValue0(v.Pos, OpMul64, config.fe.TypeUInt64())
+ 		v6 := b.NewValue0(v.Pos, OpConst64, config.fe.TypeUInt32())
+ 		v6.AuxInt = int64(umagic(32, c).m)
+ 		v5.AddArg(v6)

@@ -7,6 +7,29 @@ Date:   Tue Feb 9 13:18:51 2010 -0800
     R=agl1
     CC=golang-dev
     https://golang.org/cl/206047
-
+---
  .hgignore | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/.hgignore b/.hgignore
+index 63dc755b22..9b858c97bc 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -1,6 +1,7 @@
+ syntax:glob
+ .DS_Store
+ .git
++.gitignore
+ *.[568ao]
+ *.ao
+ *.so
+@@ -31,6 +32,9 @@ src/pkg/runtime/runtime.acid.*
+ test/pass.out
+ test/run.out
+ test/times.out
++test/garbage/parser
++test/garbage/peano
++test/garbage/tree
+ 
+ syntax:regexp
+ ^pkg/

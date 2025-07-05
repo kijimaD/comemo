@@ -7,7 +7,7 @@ Date:   Tue Sep 29 13:16:21 2009 -0700
     APPROVED=rsc
     OCL=34514
     CL=35093
-
+---
  src/pkg/Make.deps                            |   2 +-
  src/pkg/compress/flate/Makefile              |   6 +
  src/pkg/compress/flate/deflate.go            | 443 +++++++++++++++++++++++
@@ -19,3 +19,1952 @@ Date:   Tue Sep 29 13:16:21 2009 -0700
  src/pkg/compress/flate/token.go              | 116 ++++++
  src/pkg/compress/flate/util.go               |  73 ++++
  10 files changed, 1836 insertions(+), 37 deletions(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 7ced9fa2d9..33631e668b 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -4,7 +4,7 @@ big.install:
+ bignum.install: fmt.install
+ bufio.install: io.install os.install strconv.install utf8.install
+ bytes.install: os.install unicode.install utf8.install
+-compress/flate.install: bufio.install io.install os.install strconv.install
++compress/flate.install: bufio.install bytes.install io.install math.install os.install sort.install strconv.install
+ compress/gzip.install: bufio.install compress/flate.install hash.install hash/crc32.install io.install os.install
+ compress/zlib.install: bufio.install compress/flate.install hash.install hash/adler32.install io.install os.install
+ container/heap.install: sort.install
+diff --git a/src/pkg/compress/flate/Makefile b/src/pkg/compress/flate/Makefile
+index 1759dfb018..c71610cf9b 100644
+--- a/src/pkg/compress/flate/Makefile
++++ b/src/pkg/compress/flate/Makefile
+@@ -6,6 +6,12 @@ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+ TARG=compress/flate
+ GOFILES=\
++	deflate.go\
++	huffman_bit_writer.go\
++	huffman_code.go\
+ 	inflate.go\
++	reverse_bits.go\
++	token.go\
++	util.go\
+ 
+ include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/compress/flate/deflate.go b/src/pkg/compress/flate/deflate.go
+new file mode 100644
+index 0000000000..fbc41bbc99
+--- /dev/null
++++ b/src/pkg/compress/flate/deflate.go
+@@ -0,0 +1,443 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package flate
++
++import (
++	"bytes";
++	"io";
++	"math";
++	"os";
++)
++
++const (
++	NoCompression = 0;
++	BestSpeed = 1;
++	fastCompression = 3;
++	BestCompression = 9;
++	DefaultCompression = -1;
++
++	logMaxOffsetSize = 15; // Standard DEFLATE
++	wideLogMaxOffsetSize = 22; // Wide DEFLATE
++	minMatchLength = 3; // The smallest match that the deflater looks for
++	maxMatchLength = 258; // The longest match for the deflater
++	minOffsetSize = 1; // The shortest offset that makes any sence
++
++	// The maximum number of tokens we put into a single flat block, just too
++	// stop things from getting too large.
++	maxFlateBlockTokens = 1 << 14;
++	maxStoreBlockSize = 65535;
++	hashBits = 15;
++	hashSize = 1 << hashBits;
++	hashMask = (1 << hashBits) - 1;
++	hashShift = (hashBits + minMatchLength - 1) / minMatchLength;
++)
++
++type syncPipeReader struct {
++	*io.PipeReader;
++	closeChan chan bool;
++}
++
++func (sr *syncPipeReader) CloseWithError(err os.Error) os.Error {
++	retErr := sr.PipeReader.CloseWithError(err);
++	sr.closeChan <- true; // finish writer close
++	return retErr;
++}
++
++type syncPipeWriter struct {
++	*io.PipeWriter;
++	closeChan chan bool;
++}
++
++type compressionLevel struct {
++	good, lazy, nice, chain, fastSkipHashing int;
++}
++
++var levels = [] compressionLevel {
++	compressionLevel {}, // 0
++	// For levels 1-3 we don't bother trying with lazy matches
++	compressionLevel { 3, 0, 8, 4, 4, },
++	compressionLevel { 3, 0, 16, 8, 5, },
++	compressionLevel { 3, 0, 32, 32, 6 },
++	// Levels 4-9 use increasingly more lazy matching
++	// and increasingly stringent conditions for "good enough".
++	compressionLevel { 4, 4, 16, 16, math.MaxInt32 },
++	compressionLevel { 8, 16, 32, 32, math.MaxInt32 },
++	compressionLevel { 8, 16, 128, 128, math.MaxInt32 },
++	compressionLevel { 8, 32, 128, 256, math.MaxInt32 },
++	compressionLevel { 32, 128, 258, 1024, math.MaxInt32 },
++	compressionLevel { 32, 258, 258, 4096, math.MaxInt32 },
++}
++
++func (sw *syncPipeWriter) Close() os.Error {
++	err := sw.PipeWriter.Close();
++	<-sw.closeChan; // wait for reader close
++	return err;
++}
++
++func syncPipe() (*syncPipeReader, *syncPipeWriter) {
++	r, w := io.Pipe();
++	sr := &syncPipeReader{r, make(chan bool, 1)};
++	sw := &syncPipeWriter{w, sr.closeChan};
++	return sr, sw;
++}
++
++type deflater struct {
++	level int;
++	logWindowSize uint;
++	w *huffmanBitWriter;
++	r io.Reader;
++	// (1 << logWindowSize) - 1.
++	windowMask int;
++
++	// hashHead[hashValue] contains the largest inputIndex with the specified hash value
++	hashHead []int;
++
++	// If hashHead[hashValue] is within the current window, then
++	// hashPrev[hashHead[hashValue] & windowMask] contains the previous index
++	// with the same hash value.
++	hashPrev []int;
++
++	// If we find a match of length >= niceMatch, then we don't bother searching
++	// any further.
++	niceMatch int;
++
++	// If we find a match of length >= goodMatch, we only do a half-hearted
++	// effort at doing lazy matching starting at the next character
++	goodMatch int;
++
++	// The maximum number of chains we look at when finding a match
++	maxChainLength int;
++
++	// The sliding window we use for matching
++	window []byte;
++
++	// The index just past the last valid character
++	windowEnd int;
++
++	// index in "window" at which current block starts
++	blockStart int;
++}
++
++func (d *deflater) flush() os.Error {
++	d.w.flush();
++	return d.w.err;
++}
++
++func (d *deflater) fillWindow(index int) (int, os.Error) {
++	wSize := d.windowMask + 1;
++	if index >= wSize + wSize - (minMatchLength + maxMatchLength) {
++		// shift the window by wSize
++		bytes.Copy(d.window, d.window[wSize:2*wSize]);
++		index -= wSize;
++		d.windowEnd -= wSize;
++		if d.blockStart >= wSize {
++			d.blockStart -= wSize;
++		} else {
++			d.blockStart = math.MaxInt32;
++		}
++		for i, h := range d.hashHead {
++			d.hashHead[i] = max(h - wSize, -1);
++		}
++		for i, h := range d.hashPrev {
++			d.hashPrev[i] = max(h - wSize, -1);
++		}
++	}
++	var count int;
++	var err os.Error;
++	count, err = io.ReadAtLeast(d.r, d.window[d.windowEnd : len(d.window)], 1);
++	d.windowEnd += count;
++	if err == os.EOF {
++		return index, nil;
++	}
++	return index, err;
++}
++
++func (d *deflater) writeBlock(tokens []token, index int, eof bool) os.Error {
++	if index > 0 || eof {
++		var window []byte;
++		if d.blockStart <= index {
++			window = d.window[d.blockStart:index];
++		}
++		d.blockStart = index;
++		d.w.writeBlock(tokens, eof, window);
++		return d.w.err;
++	}
++	return nil;
++}
++
++// Try to find a match starting at index whose length is greater than prevSize.
++// We only look at chainCount possibilities before giving up.
++func (d *deflater) findMatch(pos int, prevHead int, prevLength int, lookahead int) (length, offset int, ok bool) {
++	win := d.window[0:pos+min(maxMatchLength, lookahead)];
++
++	// We quit when we get a match that's at least nice long
++	nice := min(d.niceMatch, len(win) - pos);
++
++	// If we've got a match that's good enough, only look in 1/4 the chain.
++	tries := d.maxChainLength;
++	length = prevLength;
++	if length >= d.goodMatch {
++		tries >>= 2;
++	}
++
++	w0 := win[pos];
++	w1 := win[pos + 1];
++	wEnd := win[pos + length];
++	minIndex := pos - (d.windowMask + 1);
++
++	for i := prevHead; tries > 0; tries-- {
++		if w0 == win[i] && w1 == win[i+1] && wEnd == win[i+length] {
++			// The hash function ensures that if win[i] and win[i+1] match, win[i+2] matches
++
++			n := 3;
++			for pos + n < len(win) && win[i+n] == win[pos+n] {
++				n++;
++			}
++			if n > length && (n > 3 || pos-i <= 4096) {
++				length = n;
++				offset = pos - i;
++				ok = true;
++				if n >= nice {
++					// The match is good enough that we don't try to find a better one.
++					break;
++				}
++				wEnd = win[pos+n];
++			}
++		}
++		if i == minIndex {
++			// hashPrev[i & windowMask] has already been overwritten, so stop now.
++			break;
++		}
++		if i = d.hashPrev[i & d.windowMask]; i < minIndex || i < 0 {
++			break;
++		}
++	}
++	return;
++}
++
++func (d *deflater) writeStoredBlock(buf []byte) os.Error {
++	if d.w.writeStoredHeader(len(buf), false); d.w.err != nil {
++		return d.w.err;
++	}
++	d.w.writeBytes(buf);
++	return d.w.err;
++}
++
++func (d *deflater) storedDeflate() os.Error {
++	buf := make([]byte, maxStoreBlockSize);
++	for {
++		n, err := d.r.Read(buf);
++		if n > 0 {
++			if err := d.writeStoredBlock(buf[0:n]); err != nil {
++				return err;
++			}
++		}
++		if err != nil {
++			if err == os.EOF {
++				break;
++			}
++			return err;
++		}
++	}
++	return nil;
++}
++
++func (d *deflater) doDeflate() (err os.Error) {
++	// init
++	d.windowMask = 1<<d.logWindowSize - 1;
++	d.hashHead = make([]int, hashSize);
++	d.hashPrev = make([]int, 1 << d.logWindowSize);
++	d.window = make([]byte, 2 << d.logWindowSize);
++	fillInts(d.hashHead, -1);
++	tokens := make([]token, maxFlateBlockTokens, maxFlateBlockTokens + 1);
++	l := levels[d.level];
++	d.goodMatch = l.good;
++	d.niceMatch = l.nice;
++	d.maxChainLength = l.chain;
++	lazyMatch := l.lazy;
++	length := minMatchLength - 1;
++	offset := 0;
++	byteAvailable := false;
++	isFastDeflate := l.fastSkipHashing != 0;
++	index := 0;
++	// run
++	if index, err = d.fillWindow(index); err != nil {
++		return;
++	}
++	maxOffset := d.windowMask + 1; // (1 << logWindowSize);
++	// only need to change when you refill the window
++	windowEnd := d.windowEnd;
++	maxInsertIndex := windowEnd - (minMatchLength - 1);
++	ti := 0;
++
++	hash := int(0);
++	if index < maxInsertIndex {
++		hash = int(d.window[index])<<hashShift + int(d.window[index+1]);
++	}
++	chainHead := -1;
++	for {
++		if index > windowEnd {
++			panic("index > windowEnd");
++		}
++		lookahead := windowEnd - index;
++		if lookahead < minMatchLength + maxMatchLength {
++			if index, err = d.fillWindow(index); err != nil {
++				return;
++			}
++			windowEnd = d.windowEnd;
++			if index > windowEnd {
++				panic("index > windowEnd");
++			}
++			maxInsertIndex = windowEnd - (minMatchLength - 1);
++			lookahead = windowEnd - index;
++			if lookahead == 0 {
++				break;
++			}
++		}
++		if index < maxInsertIndex {
++			// Update the hash
++			hash = (hash<<hashShift + int(d.window[index+2])) & hashMask;
++			chainHead = d.hashHead[hash];
++			d.hashPrev[index & d.windowMask] = chainHead;
++			d.hashHead[hash] = index;
++		}
++		prevLength := length;
++		prevOffset := offset;
++		minIndex := max(index - maxOffset, 0);
++		length = minMatchLength - 1;
++		offset = 0;
++
++		if chainHead >= minIndex &&
++			(isFastDeflate && lookahead > minMatchLength - 1 ||
++			!isFastDeflate && lookahead > prevLength && prevLength < lazyMatch) {
++			if newLength, newOffset, ok := d.findMatch(index, chainHead, minMatchLength -1 , lookahead); ok {
++				length = newLength;
++				offset = newOffset;
++			}
++		}
++		if isFastDeflate && length >= minMatchLength ||
++			!isFastDeflate && prevLength >= minMatchLength && length <= prevLength {
++			// There was a match at the previous step, and the current match is
++			// not better. Output the previous match.
++			if isFastDeflate {
++				tokens[ti] = matchToken(uint32(length - minMatchLength), uint32(offset - minOffsetSize));
++			} else {
++				tokens[ti] = matchToken(uint32(prevLength - minMatchLength), uint32(prevOffset - minOffsetSize));
++			}
++			ti++;
++			// Insert in the hash table all strings up to the end of the match.
++			// index and index-1 are already inserted. If there is not enough
++			// lookahead, the last two strings are not inserted into the hash
++			// table.
++			if length <= l.fastSkipHashing {
++				var newIndex int;
++				if isFastDeflate {
++					newIndex = index + length;
++				} else {
++					newIndex = prevLength - 1;
++				}
++				for index++; index < newIndex; index++ {
++					if index < maxInsertIndex {
++						hash = (hash<<hashShift + int(d.window[index+2])) & hashMask;
++						// Get previous value with the same hash.
++						// Our chain should point to the previous value.
++						d.hashPrev[index & d.windowMask] = d.hashHead[hash];
++						// Set the head of the hash chain to us.
++						d.hashHead[hash] = index;
++					}
++				}
++				if !isFastDeflate {
++					byteAvailable = false;
++					length = minMatchLength - 1;
++				}
++			} else {
++				// For matches this long, we don't bother inserting each individual
++				// item into the table.
++				index += length;
++				hash = (int(d.window[index])<<hashShift + int(d.window[index+1]));
++			}
++			if ti == maxFlateBlockTokens {
++				// The block includes the current character
++				if err = d.writeBlock(tokens, index, false); err != nil {
++					return;
++				}
++				ti = 0;
++			}
++		} else {
++			if isFastDeflate || byteAvailable {
++				i := index - 1;
++				if isFastDeflate {
++					i = index;
++				}
++				tokens[ti] = literalToken(uint32(d.window[i]) & 0xFF);
++				ti++;
++				if ti == maxFlateBlockTokens {
++					if err = d.writeBlock(tokens, i+1, false); err != nil {
++						return;
++					}
++					ti = 0;
++				}
++			}
++			index++;
++			if !isFastDeflate {
++				byteAvailable = true;
++			}
++		}
++
++	}
++	if byteAvailable {
++		// There is still one pending token that needs to be flushed
++		tokens[ti] = literalToken(uint32(d.window[index - 1]) & 0xFF);
++		ti++;
++	}
++
++	if ti > 0 {
++		if err = d.writeBlock(tokens[0:ti], index, false); err != nil {
++			return;
++		}
++	}
++	return;
++}
++
++func (d *deflater) deflater(r io.Reader, w io.Writer, level int, logWindowSize uint) (err os.Error) {
++	d.r = r;
++	d.w = newHuffmanBitWriter(w);
++	d.level = level;
++	d.logWindowSize = logWindowSize;
++
++	switch {
++	case level == NoCompression:
++		err = d.storedDeflate();
++	case level == DefaultCompression:
++		d.level = 4;
++		fallthrough;
++	case 1 <= level && level <= 9:
++		err = d.doDeflate();
++	default:
++		return WrongValueError { "level", 0, 9, int32(level) };
++	}
++
++	if err != nil {
++		return err;
++	}
++	if d.w.writeStoredHeader(0, true); d.w.err != nil {
++		return d.w.err;
++	}
++	return d.flush();
++}
++
++func newDeflater(w io.Writer, level int, logWindowSize uint) io.WriteCloser {
++	var d deflater;
++	pr, pw := syncPipe();
++	go func() {
++		err := d.deflater(pr, w, level, logWindowSize);
++		pr.CloseWithError(err);
++	}();
++	return pw;
++}
++
++func NewDeflater(w io.Writer, level int) io.WriteCloser {
++	return newDeflater(w, level, logMaxOffsetSize);
++}
+diff --git a/src/pkg/compress/flate/deflate_test.go b/src/pkg/compress/flate/deflate_test.go
+new file mode 100644
+index 0000000000..ef12556eb6
+--- /dev/null
++++ b/src/pkg/compress/flate/deflate_test.go
+@@ -0,0 +1,265 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package flate
++
++import (
++	"bytes";
++	"io";
++	"os";
++	"testing";
++)
++
++type deflateTest struct {
++	in []byte;
++	level int;
++	out []byte;
++}
++
++type deflateInflateTest struct {
++	in [] byte;
++}
++
++type reverseBitsTest struct {
++	in uint16;
++	bitCount uint8;
++	out uint16;
++}
++
++var deflateTests = []*deflateTest {
++	&deflateTest { []byte{ }, 0, []byte{ 1, 0, 0, 255, 255 } },
++	&deflateTest { []byte{ 0x11 }, -1, []byte{ 18, 4, 4, 0, 0, 255, 255 } },
++	&deflateTest { []byte{ 0x11 }, DefaultCompression, []byte{ 18, 4, 4, 0, 0, 255, 255 } },
++	&deflateTest { []byte{ 0x11 }, 4, []byte{ 18, 4, 4, 0, 0, 255, 255 } },
++
++	&deflateTest { []byte{ 0x11 }, 0, []byte { 0, 1, 0, 254, 255, 17, 1, 0, 0, 255, 255 } },
++	&deflateTest { []byte{ 0x11, 0x12 }, 0, []byte{ 0, 2, 0, 253, 255, 17, 18, 1, 0, 0, 255, 255 } },
++	&deflateTest { []byte{ 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11 }, 0,
++		[]byte{ 0, 8, 0, 247, 255, 17, 17, 17, 17, 17, 17, 17, 17, 1, 0, 0, 255, 255 } },
++	&deflateTest { []byte{}, 1, []byte{ 1, 0, 0, 255, 255 } },
++	&deflateTest { []byte{ 0x11 }, 1, []byte{ 18, 4, 4, 0, 0, 255, 255 } },
++	&deflateTest { []byte{ 0x11, 0x12 }, 1, []byte{ 18, 20, 2, 4, 0, 0, 255, 255 } },
++	&deflateTest { []byte{ 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11 }, 1, []byte{ 18, 132, 2, 64, 0, 0, 0, 255, 255 } },
++	&deflateTest { []byte{}, 9, []byte{ 1, 0, 0, 255, 255 } },
++	&deflateTest { []byte{ 0x11 }, 9, []byte{ 18, 4, 4, 0, 0, 255, 255 } },
++	&deflateTest { []byte{ 0x11, 0x12 }, 9, []byte{ 18, 20, 2, 4, 0, 0, 255, 255 } },
++	&deflateTest { []byte{ 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11 }, 9, []byte{ 18, 132, 2, 64, 0, 0, 0, 255, 255 } },
++}
++
++var deflateInflateTests = []*deflateInflateTest {
++	&deflateInflateTest { []byte{ } },
++	&deflateInflateTest { []byte{ 0x11 } },
++	&deflateInflateTest { []byte{ 0x11, 0x12 } },
++	&deflateInflateTest { []byte{ 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11 } },
++	&deflateInflateTest { []byte{ 0x11, 0x10, 0x13, 0x41, 0x21, 0x21, 0x41, 0x13, 0x87, 0x78, 0x13 } },
++	&deflateInflateTest { getLargeDataChunk() },
++}
++
++var reverseBitsTests = []*reverseBitsTest {
++	&reverseBitsTest { 1, 1, 1 },
++	&reverseBitsTest { 1, 2, 2 },
++	&reverseBitsTest { 1, 3, 4 },
++	&reverseBitsTest { 1, 4, 8 },
++	&reverseBitsTest { 1, 5, 16 },
++	&reverseBitsTest { 17, 5, 17 },
++	&reverseBitsTest { 257, 9, 257 },
++	&reverseBitsTest { 29, 5, 23 },
++}
++
++func getLargeDataChunk() []byte {
++	result := make([]byte, 100000);
++	for i := range result {
++		result[i] = byte(int64(i) * int64(i) & 0xFF);
++	}
++	return result;
++}
++
++func TestDeflate(t *testing.T) {
++	for _, h := range deflateTests {
++		buffer := bytes.NewBuffer([]byte{});
++		w := NewDeflater(buffer, h.level);
++		w.Write(h.in);
++		w.Close();
++		if bytes.Compare(buffer.Bytes(), h.out) != 0 {
++			t.Errorf("buffer is wrong; level = %v, buffer.Bytes() = %v, expected output = %v",
++				h.level, buffer.Bytes(), h.out);
++		}
++	}
++}
++
++func testToFromWithLevel(t *testing.T, level int, input []byte) os.Error {
++	buffer := bytes.NewBuffer([]byte{});
++	w := NewDeflater(buffer, level);
++	w.Write(input);
++	w.Close();
++	arr := buffer.Bytes();
++	t.Logf("compressed: %v, %v", len(arr), arr);
++	inflater := NewInflater(buffer);
++	decompressed, err := io.ReadAll(inflater);
++	if err != nil && err != os.EOF {
++		t.Errorf("The error reading the buffer, %v", err);
++		return err;
++	}
++	inflater.Close();
++	if bytes.Compare(input, decompressed) != 0 {
++		t.Errorf("the data was changed after deflate/inflate. Level: %v, input: %v, decompressed: %v",
++			level, input, decompressed);
++	}
++	return nil;
++}
++
++func testToFrom(t * testing.T, input[] byte) {
++	for i := 0; i < 10; i++ {
++		testToFromWithLevel(t, i, input);
++	}
++}
++
++func TestDeflateInflate(t *testing.T) {
++	for _, h := range deflateInflateTests {
++		testToFrom(t, h.in);
++	}
++}
++
++func TestReverseBits(t *testing.T) {
++	for _, h := range reverseBitsTests {
++		if v := reverseBits(h.in, h.bitCount); v != h.out {
++			t.Errorf("reverseBits(%v,%v) returned %v, %v expected",
++				h.in, h.bitCount, v, h.out);
++		}
++	}
++}
++
++func TestDeflateInflateString(t *testing.T) {
++	gold := bytes.NewBufferString(getEdata()).Bytes();
++	testToFromWithLevel(t, 1, gold);
++}
++
++func getEdata() string {
++	return "2.718281828459045235360287471352662497757247093699959574966967627724076630353547"+
++	"59457138217852516642742746639193200305992181741359662904357290033429526059563073"+
++	"81323286279434907632338298807531952510190115738341879307021540891499348841675092"+
++	"44761460668082264800168477411853742345442437107539077744992069551702761838606261"+
++	"33138458300075204493382656029760673711320070932870912744374704723069697720931014"+
++	"16928368190255151086574637721112523897844250569536967707854499699679468644549059"+
++	"87931636889230098793127736178215424999229576351482208269895193668033182528869398"+
++	"49646510582093923982948879332036250944311730123819706841614039701983767932068328"+
++	"23764648042953118023287825098194558153017567173613320698112509961818815930416903"+
++	"51598888519345807273866738589422879228499892086805825749279610484198444363463244"+
++	"96848756023362482704197862320900216099023530436994184914631409343173814364054625"+
++	"31520961836908887070167683964243781405927145635490613031072085103837505101157477"+
++	"04171898610687396965521267154688957035035402123407849819334321068170121005627880"+
++	"23519303322474501585390473041995777709350366041699732972508868769664035557071622"+
++	"68447162560798826517871341951246652010305921236677194325278675398558944896970964"+
++	"09754591856956380236370162112047742722836489613422516445078182442352948636372141"+
++	"74023889344124796357437026375529444833799801612549227850925778256209262264832627"+
++	"79333865664816277251640191059004916449982893150566047258027786318641551956532442"+
++	"58698294695930801915298721172556347546396447910145904090586298496791287406870504"+
++	"89585867174798546677575732056812884592054133405392200011378630094556068816674001"+
++	"69842055804033637953764520304024322566135278369511778838638744396625322498506549"+
++	"95886234281899707733276171783928034946501434558897071942586398772754710962953741"+
++	"52111513683506275260232648472870392076431005958411661205452970302364725492966693"+
++	"81151373227536450988890313602057248176585118063036442812314965507047510254465011"+
++	"72721155519486685080036853228183152196003735625279449515828418829478761085263981"+
++	"39559900673764829224437528718462457803619298197139914756448826260390338144182326"+
++	"25150974827987779964373089970388867782271383605772978824125611907176639465070633"+
++	"04527954661855096666185664709711344474016070462621568071748187784437143698821855"+
++	"96709591025968620023537185887485696522000503117343920732113908032936344797273559"+
++	"55277349071783793421637012050054513263835440001863239914907054797780566978533580"+
++	"48966906295119432473099587655236812859041383241160722602998330535370876138939639"+
++	"17795745401613722361878936526053815584158718692553860616477983402543512843961294"+
++	"60352913325942794904337299085731580290958631382683291477116396337092400316894586"+
++	"36060645845925126994655724839186564209752685082307544254599376917041977780085362"+
++	"73094171016343490769642372229435236612557250881477922315197477806056967253801718"+
++	"07763603462459278778465850656050780844211529697521890874019660906651803516501792"+
++	"50461950136658543663271254963990854914420001457476081930221206602433009641270489"+
++	"43903971771951806990869986066365832322787093765022601492910115171776359446020232"+
++	"49300280401867723910288097866605651183260043688508817157238669842242201024950551"+
++	"88169480322100251542649463981287367765892768816359831247788652014117411091360116"+
++	"49950766290779436460058519419985601626479076153210387275571269925182756879893027"+
++	"61761146162549356495903798045838182323368612016243736569846703785853305275833337"+
++	"93990752166069238053369887956513728559388349989470741618155012539706464817194670"+
++	"83481972144888987906765037959036696724949925452790337296361626589760394985767413"+
++	"97359441023744329709355477982629614591442936451428617158587339746791897571211956"+
++	"18738578364475844842355558105002561149239151889309946342841393608038309166281881"+
++	"15037152849670597416256282360921680751501777253874025642534708790891372917228286"+
++	"11515915683725241630772254406337875931059826760944203261924285317018781772960235"+
++	"41306067213604600038966109364709514141718577701418060644363681546444005331608778"+
++	"31431744408119494229755993140118886833148328027065538330046932901157441475631399"+
++	"97221703804617092894579096271662260740718749975359212756084414737823303270330168"+
++	"23719364800217328573493594756433412994302485023573221459784328264142168487872167"+
++	"33670106150942434569844018733128101079451272237378861260581656680537143961278887"+
++	"32527373890392890506865324138062796025930387727697783792868409325365880733988457"+
++	"21874602100531148335132385004782716937621800490479559795929059165547050577751430"+
++	"81751126989851884087185640260353055837378324229241856256442550226721559802740126"+
++	"17971928047139600689163828665277009752767069777036439260224372841840883251848770"+
++	"47263844037953016690546593746161932384036389313136432713768884102681121989127522"+
++	"30562567562547017250863497653672886059667527408686274079128565769963137897530346"+
++	"60616669804218267724560530660773899624218340859882071864682623215080288286359746"+
++	"83965435885668550377313129658797581050121491620765676995065971534476347032085321"+
++	"56036748286083786568030730626576334697742956346437167093971930608769634953288468"+
++	"33613038829431040800296873869117066666146800015121143442256023874474325250769387"+
++	"07777519329994213727721125884360871583483562696166198057252661220679754062106208"+
++	"06498829184543953015299820925030054982570433905535701686531205264956148572492573"+
++	"86206917403695213533732531666345466588597286659451136441370331393672118569553952"+
++	"10845840724432383558606310680696492485123263269951460359603729725319836842336390"+
++	"46321367101161928217111502828016044880588023820319814930963695967358327420249882"+
++	"45684941273860566491352526706046234450549227581151709314921879592718001940968866"+
++	"98683703730220047531433818109270803001720593553052070070607223399946399057131158"+
++	"70996357773590271962850611465148375262095653467132900259943976631145459026858989"+
++	"79115837093419370441155121920117164880566945938131183843765620627846310490346293"+
++	"95002945834116482411496975832601180073169943739350696629571241027323913874175492"+
++	"30718624545432220395527352952402459038057445028922468862853365422138157221311632"+
++	"88112052146489805180092024719391710555390113943316681515828843687606961102505171"+
++	"00739276238555338627255353883096067164466237092264680967125406186950214317621166"+
++	"81400975952814939072226011126811531083873176173232352636058381731510345957365382"+
++	"23534992935822836851007810884634349983518404451704270189381994243410090575376257"+
++	"76757111809008816418331920196262341628816652137471732547772778348877436651882875"+
++	"21566857195063719365653903894493664217640031215278702223664636357555035655769488"+
++	"86549500270853923617105502131147413744106134445544192101336172996285694899193369"+
++	"18472947858072915608851039678195942983318648075608367955149663644896559294818785"+
++	"17840387733262470519450504198477420141839477312028158868457072905440575106012852"+
++	"58056594703046836344592652552137008068752009593453607316226118728173928074623094"+
++	"68536782310609792159936001994623799343421068781349734695924646975250624695861690"+
++	"91785739765951993929939955675427146549104568607020990126068187049841780791739240"+
++	"71945996323060254707901774527513186809982284730860766536866855516467702911336827"+
++	"56310722334672611370549079536583453863719623585631261838715677411873852772292259"+
++	"47433737856955384562468010139057278710165129666367644518724656537304024436841408"+
++	"14488732957847348490003019477888020460324660842875351848364959195082888323206522"+
++	"12810419044804724794929134228495197002260131043006241071797150279343326340799596"+
++	"05314460532304885289729176598760166678119379323724538572096075822771784833616135"+
++	"82612896226118129455927462767137794487586753657544861407611931125958512655759734"+
++	"57301533364263076798544338576171533346232527057200530398828949903425956623297578"+
++	"24887350292591668258944568946559926584547626945287805165017206747854178879822768"+
++	"06536650641910973434528878338621726156269582654478205672987756426325321594294418"+
++	"03994321700009054265076309558846589517170914760743713689331946909098190450129030"+
++	"70995662266203031826493657336984195557769637876249188528656866076005660256054457"+
++	"11337286840205574416030837052312242587223438854123179481388550075689381124935386"+
++	"31863528708379984569261998179452336408742959118074745341955142035172618420084550"+
++	"91708456823682008977394558426792142734775608796442792027083121501564063413416171"+
++	"66448069815483764491573900121217041547872591998943825364950514771379399147205219"+
++	"52907939613762110723849429061635760459623125350606853765142311534966568371511660"+
++	"42207963944666211632551577290709784731562782775987881364919512574833287937715714"+
++	"59091064841642678309949723674420175862269402159407924480541255360431317992696739"+
++	"15754241929660731239376354213923061787675395871143610408940996608947141834069836"+
++	"29936753626215452472984642137528910798843813060955526227208375186298370667872244"+
++	"30195793793786072107254277289071732854874374355781966511716618330881129120245204"+
++	"04868220007234403502544820283425418788465360259150644527165770004452109773558589"+
++	"76226554849416217149895323834216001140629507184904277892585527430352213968356790"+
++	"18076406042138307308774460170842688272261177180842664333651780002171903449234264"+
++	"26629226145600433738386833555534345300426481847398921562708609565062934040526494"+
++	"32442614456659212912256488935696550091543064261342526684725949143142393988454324"+
++	"86327461842846655985332312210466259890141712103446084271616619001257195870793217"+
++	"56969854401339762209674945418540711844643394699016269835160784892451405894094639"+
++	"52678073545797003070511636825194877011897640028276484141605872061841852971891540"+
++	"19688253289309149665345753571427318482016384644832499037886069008072709327673127"+
++	"58196656394114896171683298045513972950668760474091542042842999354102582911350224"+
++	"16907694316685742425225090269390348148564513030699251995904363840284292674125734"+
++	"22447765584177886171737265462085498294498946787350929581652632072258992368768457"+
++	"01782303809656788311228930580914057261086588484587310165815116753332767488701482"+
++	"91674197015125597825727074064318086014281490241467804723275976842696339357735429"+
++	"30186739439716388611764209004068663398856841681003872389214483176070116684503887"+
++	"21236436704331409115573328018297798873659091665961240202177855885487617616198937"+
++	"07943800566633648843650891448055710397652146960276625835990519870423001794655367"+
++	"9";
++}
+diff --git a/src/pkg/compress/flate/huffman_bit_writer.go b/src/pkg/compress/flate/huffman_bit_writer.go
+new file mode 100644
+index 0000000000..dbf59f2ae2
+--- /dev/null
++++ b/src/pkg/compress/flate/huffman_bit_writer.go
+@@ -0,0 +1,510 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package flate
++
++import (
++	"io";
++	"math";
++	"os";
++	"strconv";
++)
++
++const (
++	// The largest offset code.
++	offsetCodeCount = 30;
++
++	// The largest offset code in the extensions.
++	extendedOffsetCodeCount = 42;
++
++	// The special code used to mark the end of a block.
++	endBlockMarker = 256;
++
++	// The first length code.
++	lengthCodesStart = 257;
++
++	// The number of codegen codes.
++	codegenCodeCount = 19;
++
++	badCode = 255;
++)
++
++// The number of extra bits needed by length code X - LENGTH_CODES_START.
++var lengthExtraBits = []int8 {
++	/* 257 */       0, 0, 0,
++	/* 260 */       0, 0, 0, 0, 0, 1, 1, 1, 1, 2,
++	/* 270 */       2, 2, 2, 3, 3, 3, 3, 4, 4, 4,
++	/* 280 */       4, 5, 5, 5, 5, 0,
++}
++
++// The length indicated by length code X - LENGTH_CODES_START.
++var lengthBase = []uint32 {
++	0,  1,  2,  3,   4,   5,   6,   7,   8,  10,
++	12, 14, 16, 20,  24,  28,  32,  40,  48, 56,
++	64, 80, 96, 112, 128, 160, 192, 224, 255
++}
++
++// offset code word extra bits.
++var offsetExtraBits = []int8 {
++	0,  0,  0,  0,  1,  1,  2,  2,  3,  3,
++	4,  4,  5,  5,  6,  6,  7,  7,  8,  8,
++	9,  9,  10, 10, 11, 11, 12, 12, 13, 13,
++	/* extended window */
++	14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20, 20,
++}
++
++var offsetBase = []uint32 {
++	/* normal deflate */
++	0x000000, 0x000001, 0x000002, 0x000003, 0x000004,
++	0x000006, 0x000008, 0x00000c, 0x000010, 0x000018,
++	0x000020, 0x000030, 0x000040, 0x000060, 0x000080,
++	0x0000c0, 0x000100, 0x000180, 0x000200, 0x000300,
++	0x000400, 0x000600, 0x000800, 0x000c00, 0x001000,
++	0x001800, 0x002000, 0x003000, 0x004000, 0x006000,
++
++	/* extended window */
++	0x008000, 0x00c000, 0x010000, 0x018000, 0x020000,
++	0x030000, 0x040000, 0x060000, 0x080000, 0x0c0000,
++	0x100000, 0x180000, 0x200000, 0x300000
++}
++
++// The odd order in which the codegen code sizes are written.
++var codegenOrder = []uint32 {
++	16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
++}
++
++type huffmanBitWriter struct {
++	w io.Writer;
++	// Data waiting to be written is bytes[0:nbytes]
++	// and then the low nbits of bits.
++	bits uint32;
++	nbits uint32;
++	bytes [64]byte;
++	nbytes int;
++	literalFreq []int32;
++	offsetFreq []int32;
++	codegen []uint8;
++	codegenFreq []int32;
++	literalEncoding *huffmanEncoder;
++	offsetEncoding *huffmanEncoder;
++	codegenEncoding *huffmanEncoder;
++	err os.Error;
++}
++
++type WrongValueError struct {
++	name string;
++	from int32;
++	to int32;
++	value int32;
++}
++
++func newHuffmanBitWriter(w io.Writer) *huffmanBitWriter {
++	return &huffmanBitWriter{
++		w: w,
++		literalFreq: make([]int32, maxLit),
++		offsetFreq: make([]int32, extendedOffsetCodeCount),
++		codegen: make([]uint8, maxLit + extendedOffsetCodeCount + 1),
++		codegenFreq: make([]int32, codegenCodeCount),
++		literalEncoding: newHuffmanEncoder(maxLit),
++		offsetEncoding: newHuffmanEncoder(extendedOffsetCodeCount),
++		codegenEncoding: newHuffmanEncoder(codegenCodeCount),
++	};
++}
++
++func (err WrongValueError) String() string {
++	return "huffmanBitWriter: " + err.name + " should belong to [" + strconv.Itoa64(int64(err.from)) + ";" +
++		strconv.Itoa64(int64(err.to)) + "] but actual value is " + strconv.Itoa64(int64(err.value));
++}
++
++func (w *huffmanBitWriter) flushBits() {
++	if w.err != nil {
++		w.nbits = 0;
++		return;
++	}
++	bits := w.bits;
++	w.bits >>= 16;
++	w.nbits -= 16;
++	n := w.nbytes;
++	w.bytes[n] = byte(bits);
++	w.bytes[n+1] = byte(bits>>8);
++	if n += 2; n >= len(w.bytes) {
++		_, w.err = w.w.Write(&w.bytes);
++		n = 0;
++	}
++	w.nbytes = n;
++}
++
++func (w *huffmanBitWriter) flush() {
++	if w.err != nil {
++		w.nbits = 0;
++		return;
++	}
++	n := w.nbytes;
++	if w.nbits > 8 {
++		w.bytes[n] = byte(w.bits);
++		w.bits >>= 8;
++		w.nbits -= 8;
++		n++;
++	}
++	if w.nbits > 0 {
++		w.bytes[n] = byte(w.bits);
++		w.nbits = 0;
++		n++;
++	}
++	w.bits = 0;
++	_, w.err = w.w.Write(w.bytes[0:n]);
++	w.nbytes = 0;
++}
++
++func (w *huffmanBitWriter) writeBits(b, nb int32) {
++	w.bits |= uint32(b) << w.nbits;
++	if w.nbits += uint32(nb); w.nbits >= 16 {
++		w.flushBits();
++	}
++}
++
++func (w *huffmanBitWriter) writeBytes(bytes []byte) {
++	if w.err != nil {
++		return;
++	}
++	n := w.nbytes;
++	if w.nbits == 8 {
++		w.bytes[n] = byte(w.bits);
++		w.nbits = 0;
++		n++;
++	}
++	if w.nbits != 0 {
++        	w.err = InternalError("writeBytes with unfinished bits");
++		return;
++	}
++	if n != 0 {
++		_, w.err = w.w.Write(w.bytes[0:n]);
++		if w.err != nil {
++			return;
++		}
++	}
++	w.nbytes = 0;
++	_, w.err = w.w.Write(bytes);
++}
++
++// RFC 1951 3.2.7 specifies a special run-length encoding for specifiying
++// the literal and offset lengths arrays (which are concatenated into a single
++// array).  This method generates that run-length encoding.
++//
++// The result is written into the codegen array, and the frequencies
++// of each code is written into the codegenFreq array.
++// Codes 0-15 are single byte codes. Codes 16-18 are followed by additional
++// information.  Code badCode is an end marker
++//
++//  numLiterals      The number of literals in literalEncoding
++//  numOffsets       The number of offsets in offsetEncoding
++func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int) {
++	fillInt32s(w.codegenFreq, 0);
++	// Note that we are using codegen both as a temporary variable for holding
++	// a copy of the frequencies, and as the place where we put the result.
++	// This is fine because the output is always shorter than the input used
++	// so far.
++	codegen := w.codegen; // cache
++	// Copy the concatenated code sizes to codegen.  Put a marker at the end.
++	copyUint8s(codegen[0 : numLiterals], w.literalEncoding.codeBits);
++	copyUint8s(codegen[numLiterals : numLiterals + numOffsets], w.offsetEncoding.codeBits);
++	codegen[numLiterals + numOffsets] = badCode;
++
++	size := codegen[0];
++	count := 1;
++	outIndex := 0;
++	for inIndex := 1; size != badCode; inIndex++ {
++		// INVARIANT: We have seen "count" copies of size that have not yet
++		// had output generated for them.
++		nextSize := codegen[inIndex];
++		if nextSize == size {
++			count++;
++			continue;
++		}
++		// We need to generate codegen indicating "count" of size.
++		if size != 0 {
++			codegen[outIndex] = size;
++			outIndex++;
++			w.codegenFreq[size]++;
++			count--;
++			for count >= 3 {
++				n := min(count, 6);
++				codegen[outIndex] = 16;
++				outIndex++;
++				codegen[outIndex] = uint8(n - 3);
++				outIndex++;
++				w.codegenFreq[16]++;
++				count -= n;
++			}
++		} else {
++			for count >= 11 {
++				n := min(count, 138);
++				codegen[outIndex] = 18;
++				outIndex++;
++				codegen[outIndex] = uint8(n - 11);
++				outIndex++;
++				w.codegenFreq[18]++;
++				count -= n;
++			}
++			if count >= 3 {
++				// count >= 3 && count <= 10
++				codegen[outIndex] = 17;
++				outIndex++;
++				codegen[outIndex] = uint8(count - 3);
++				outIndex++;
++				w.codegenFreq[17]++;
++				count = 0;
++			}
++		}
++		count--;
++		for ; count >= 0; count-- {
++			codegen[outIndex] = size;
++			outIndex++;
++			w.codegenFreq[size]++;
++		}
++		// Set up invariant for next time through the loop.
++		size = nextSize;
++		count = 1;
++	}
++	// Marker indicating the end of the codegen.
++	codegen[outIndex] = badCode;
++}
++
++func (w *huffmanBitWriter) writeCode(code *huffmanEncoder, literal uint32) {
++	if w.err != nil {
++		return;
++	}
++	w.writeBits(int32(code.code[literal]), int32(code.codeBits[literal]));
++}
++
++// Write the header of a dynamic Huffman block to the output stream.
++//
++//  numLiterals  The number of literals specified in codegen
++//  numOffsets   The number of offsets specified in codegen
++//  numCodegens  Tne number of codegens used in codegen
++func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, numCodegens int, isEof bool) {
++	if w.err != nil {
++		return;
++	}
++	var firstBits int32 = 4;
++	if isEof {
++		firstBits = 5;
++	}
++	w.writeBits(firstBits, 3);
++	w.writeBits(int32(numLiterals - 257), 5);
++	if numOffsets > offsetCodeCount {
++		// Extended version of deflater
++		w.writeBits(int32(offsetCodeCount + ((numOffsets - (1 + offsetCodeCount)) >> 3)), 5);
++		w.writeBits(int32((numOffsets - (1 + offsetCodeCount)) & 0x7), 3);
++	} else {
++		w.writeBits(int32(numOffsets - 1), 5);
++	}
++	w.writeBits(int32(numCodegens - 4), 4);
++
++	for i := 0; i < numCodegens; i++ {
++		value := w.codegenEncoding.codeBits[codegenOrder[i]];
++		w.writeBits(int32(value), 3);
++	}
++
++	i := 0;
++	for {
++		var codeWord int = int(w.codegen[i]);
++		i++;
++		if codeWord == badCode {
++			break;
++		}
++		// The low byte contains the actual code to generate.
++		w.writeCode(w.codegenEncoding, uint32(codeWord));
++
++		switch codeWord {
++		case 16:
++			w.writeBits(int32(w.codegen[i]), 2);
++			i++;
++			break;
++		case 17:
++			w.writeBits(int32(w.codegen[i]), 3);
++			i++;
++			break;
++		case 18:
++			w.writeBits(int32(w.codegen[i]), 7);
++			i++;
++			break;
++		}
++	}
++}
++
++func (w *huffmanBitWriter) writeStoredHeader(length int, isEof bool) {
++	if w.err != nil {
++		return;
++	}
++	var flag int32;
++	if isEof {
++		flag = 1;
++	}
++	w.writeBits(flag, 3);
++	w.flush();
++	w.writeBits(int32(length), 16);
++	w.writeBits(int32(^uint16(length)), 16);
++}
++
++func (w *huffmanBitWriter) writeFixedHeader(isEof bool) {
++	if w.err != nil {
++		return;
++	}
++	// Indicate that we are a fixed Huffman block
++	var value int32 = 2;
++	if isEof {
++		value = 3;
++	}
++	w.writeBits(value, 3);
++}
++
++func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
++	if w.err != nil {
++		return;
++	}
++	fillInt32s(w.literalFreq, 0);
++	fillInt32s(w.offsetFreq, 0);
++
++	n := len(tokens);
++	tokens = tokens[0:n+1];
++	tokens[n] = endBlockMarker;
++
++	totalLength := -1; // Subtract 1 for endBlock.
++	for _, t := range tokens {
++		switch t.typ() {
++		case literalType:
++			w.literalFreq[t.literal()]++;
++			totalLength++;
++			break;
++		case matchType:
++			length := t.length();
++			offset := t.offset();
++			totalLength += int(length + 3);
++			w.literalFreq[lengthCodesStart + lengthCode(length)]++;
++			w.offsetFreq[offsetCode(offset)]++;
++			break;
++		}
++	}
++	w.literalEncoding.generate(w.literalFreq, 15);
++	w.offsetEncoding.generate(w.offsetFreq, 15);
++
++	// get the number of literals
++	numLiterals := len(w.literalFreq);
++	for w.literalFreq[numLiterals - 1] == 0 {
++		numLiterals--;
++	}
++	// get the number of offsets
++	numOffsets := len(w.offsetFreq);
++	for numOffsets > 1 && w.offsetFreq[numOffsets - 1] == 0 {
++		numOffsets--;
++	}
++	storedBytes := 0;
++	if input != nil {
++		storedBytes = len(input);
++	}
++	var extraBits int64;
++	var storedSize int64;
++	if storedBytes <= maxStoreBlockSize && input != nil {
++		storedSize = int64((storedBytes + 5) * 8);
++		// We only bother calculating the costs of the extra bits required by
++		// the length of offset fields (which will be the same for both fixed
++		// and dynamic encoding), if we need to compare those two encodings
++		// against stored encoding.
++		for lengthCode := lengthCodesStart + 8; lengthCode < numLiterals; lengthCode++ {
++			// First eight length codes have extra size = 0.
++			extraBits += int64(w.literalFreq[lengthCode]) * int64(lengthExtraBits[lengthCode - lengthCodesStart]);
++		}
++		for offsetCode := 4; offsetCode < numOffsets; offsetCode++ {
++			// First four offset codes have extra size = 0.
++			extraBits += int64(w.offsetFreq[offsetCode]) * int64(offsetExtraBits[offsetCode]);
++		}
++	} else {
++		storedSize = math.MaxInt32;
++	}
++
++	// Figure out which generates smaller code, fixed Huffman, dynamic
++	// Huffman, or just storing the data.
++	var fixedSize int64 = math.MaxInt64;
++	if numOffsets <= offsetCodeCount {
++		fixedSize = int64(3) +
++			fixedLiteralEncoding.bitLength(w.literalFreq) +
++			fixedOffsetEncoding.bitLength(w.offsetFreq) +
++			extraBits;
++	}
++	// Generate codegen and codegenFrequencies, which indicates how to encode
++	// the literalEncoding and the offsetEncoding.
++	w.generateCodegen(numLiterals, numOffsets);
++	w.codegenEncoding.generate(w.codegenFreq, 7);
++	numCodegens := len(w.codegenFreq);
++	for numCodegens > 4 && w.codegenFreq[codegenOrder[numCodegens - 1]] == 0 {
++		numCodegens--;
++	}
++	extensionSummand := 0;
++	if numOffsets > offsetCodeCount {
++		extensionSummand = 3;
++	}
++	dynamicHeader := int64(3 + 5 + 5 + 4 + (3 * numCodegens)) +
++		// Following line is an extension.
++		int64(extensionSummand) +
++		w.codegenEncoding.bitLength(w.codegenFreq) +
++		int64(extraBits) +
++		int64(w.codegenFreq[16] * 2) +
++		int64(w.codegenFreq[17] * 3) +
++		int64(w.codegenFreq[18] * 7);
++	dynamicSize := dynamicHeader +
++		w.literalEncoding.bitLength(w.literalFreq) +
++		w.offsetEncoding.bitLength(w.offsetFreq);
++
++	if storedSize < fixedSize && storedSize < dynamicSize {
++		w.writeStoredHeader(storedBytes, eof);
++		w.writeBytes(input[0:storedBytes]);
++		return;
++	}
++	var literalEncoding *huffmanEncoder;
++	var offsetEncoding *huffmanEncoder;
++
++	if fixedSize <= dynamicSize {
++		w.writeFixedHeader(eof);
++		literalEncoding = fixedLiteralEncoding;
++		offsetEncoding = fixedOffsetEncoding;
++	} else {
++		// Write the header.
++		w.writeDynamicHeader(numLiterals, numOffsets, numCodegens, eof);
++		literalEncoding = w.literalEncoding;
++		offsetEncoding = w.offsetEncoding;
++	}
++
++	// Write the tokens.
++	for _, t := range tokens {
++		switch t.typ() {
++		case literalType:
++			w.writeCode(literalEncoding, t.literal());
++			break;
++		case matchType:
++			// Write the length
++			length := t.length();
++			lengthCode := lengthCode(length);
++			w.writeCode(literalEncoding, lengthCode + lengthCodesStart);
++			extraLengthBits := int32(lengthExtraBits[lengthCode]);
++			if extraLengthBits > 0 {
++				extraLength := int32(length - lengthBase[lengthCode]);
++				w.writeBits(extraLength, extraLengthBits);
++			}
++			// Write the offset
++			offset := t.offset();
++			offsetCode := offsetCode(offset);
++			w.writeCode(offsetEncoding, offsetCode);
++			extraOffsetBits := int32(offsetExtraBits[offsetCode]);
++			if extraOffsetBits > 0 {
++				extraOffset := int32(offset - offsetBase[offsetCode]);
++				w.writeBits(extraOffset, extraOffsetBits);
++			}
++			break;
++		default:
++			panic("unknown token type: " + string(t));
++		}
++	}
++}
++
+diff --git a/src/pkg/compress/flate/huffman_code.go b/src/pkg/compress/flate/huffman_code.go
+new file mode 100644
+index 0000000000..0efd3e8459
+--- /dev/null
++++ b/src/pkg/compress/flate/huffman_code.go
+@@ -0,0 +1,373 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package flate
++
++import (
++	"math";
++	"sort";
++)
++
++type huffmanEncoder struct {
++	codeBits []uint8;
++	code []uint16;
++}
++
++type literalNode struct {
++	literal uint16;
++	freq int32;
++}
++
++type chain struct {
++	// The sum of the leaves in this tree
++	freq int32;
++
++	// The number of literals to the left of this item at this level
++	leafCount int32;
++
++	// The right child of this chain in the previous level.
++	up *chain;
++}
++
++type levelInfo struct {
++	// Our level.  for better printing
++	level int32;
++
++	// The most recent chain generated for this level
++	lastChain *chain;
++
++	// The frequency of the next character to add to this level
++	nextCharFreq int32;
++
++	// The frequency of the next pair (from level below) to add to this level.
++	// Only valid if the "needed" value of the next lower level is 0.
++	nextPairFreq int32;
++
++	// The number of chains remaining to generate for this level before moving
++	// up to the next level
++	needed int32;
++
++	// The levelInfo for level+1
++	up *levelInfo;
++
++	// The levelInfo for level-1
++	down *levelInfo;
++}
++
++func maxNode() literalNode {
++	return literalNode{ math.MaxUint16, math.MaxInt32 };
++}
++
++func newHuffmanEncoder(size int) *huffmanEncoder {
++	return &huffmanEncoder { make([]uint8, size), make([]uint16, size) };
++}
++
++// Generates a HuffmanCode corresponding to the fixed literal table
++func generateFixedLiteralEncoding() *huffmanEncoder {
++	h := newHuffmanEncoder(maxLit);
++	codeBits := h.codeBits;
++	code := h.code;
++	var ch uint16;
++	for ch = 0; ch < maxLit; ch++ {
++		var bits uint16;
++		var size uint8;
++		switch {
++			case ch < 144:
++				// size 8, 000110000  .. 10111111
++				bits = ch + 48; size = 8; break;
++			case ch < 256:
++				// size 9, 110010000 .. 111111111
++				bits = ch + 400 - 144; size = 9; break;
++			case ch < 280:
++				// size 7, 0000000 .. 0010111
++				bits = ch - 256; size = 7; break;
++			default:
++				// size 8, 11000000 .. 11000111
++				bits = ch + 192 - 280; size = 8;
++		}
++		codeBits[ch] = size;
++		code[ch] = reverseBits(bits, size);
++	}
++	return h;
++}
++
++func generateFixedOffsetEncoding() *huffmanEncoder {
++	h := newHuffmanEncoder(30);
++	codeBits := h.codeBits;
++	code := h.code;
++	for ch := uint16(0); ch < 30; ch++ {
++		codeBits[ch] = 5;
++		code[ch] = reverseBits(ch, 5);
++	}
++	return h;
++}
++
++var fixedLiteralEncoding *huffmanEncoder = generateFixedLiteralEncoding();
++var fixedOffsetEncoding *huffmanEncoder = generateFixedOffsetEncoding();
++
++func (h *huffmanEncoder) bitLength(freq []int32) int64 {
++	var total int64;
++	for i, f := range freq {
++		if f != 0 {
++			total += int64(f) * int64(h.codeBits[i]);
++		}
++	}
++	return total;
++}
++
++// Generate elements in the chain using an iterative algorithm.
++func (h *huffmanEncoder) generateChains(top *levelInfo, list []literalNode) {
++	n := len(list);
++	list = list[0:n+1];
++	list[n] = maxNode();
++
++	l := top;
++	for {
++		if l.nextPairFreq == math.MaxInt32 && l.nextCharFreq == math.MaxInt32 {
++			// We've run out of both leafs and pairs.
++			// End all calculations for this level.
++			// To m sure we never come back to this level or any lower level,
++			// set nextPairFreq impossibly large.
++			l.lastChain = nil;
++			l.needed = 0;
++			l = l.up;
++			l.nextPairFreq = math.MaxInt32;
++			continue;
++		}
++
++		prevFreq := l.lastChain.freq;
++		if l.nextCharFreq < l.nextPairFreq {
++			// The next item on this row is a leaf node.
++			n := l.lastChain.leafCount + 1;
++			l.lastChain = &chain{ l.nextCharFreq, n, l.lastChain.up };
++			l.nextCharFreq = list[n].freq;
++		} else {
++			// The next item on this row is a pair from the previous row.
++			// nextPairFreq isn't valid until we generate two
++			// more values in the level below
++			l.lastChain = &chain{ l.nextPairFreq, l.lastChain.leafCount, l.down.lastChain };
++			l.down.needed = 2;
++		}
++
++		if l.needed--; l.needed == 0 {
++			// We've done everything we need to do for this level.
++			// Continue calculating one level up.  Fill in nextPairFreq
++			// of that level with the sum of the two nodes we've just calculated on
++			// this level.
++			up := l.up;
++			if up == nil {
++				// All done!
++				return;
++			}
++			up.nextPairFreq = prevFreq + l.lastChain.freq;
++			l = up;
++		} else {
++			// If we stole from below, move down temporarily to replenish it.
++			for l.down.needed > 0 {
++				l = l.down;
++			}
++		}
++	}
++}
++
++// Return the number of literals assigned to each bit size in the Huffman encoding
++//
++// This method is only called when list.length >= 3
++// The cases of 0, 1, and 2 literals are handled by special case code.
++//
++// list  An array of the literals with non-zero frequencies
++//             and their associated frequencies.  The array is in order of increasing
++//             frequency, and has as its last element a special element with frequency
++//             MaxInt32
++// maxBits     The maximum number of bits that should be used to encode any literal.
++// return      An integer array in which array[i] indicates the number of literals
++//             that should be encoded in i bits.
++func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
++	n := int32(len(list));
++	list = list[0:n+1];
++	list[n] = maxNode();
++
++	// The tree can't have greater depth than n - 1, no matter what.  This
++	// saves a little bit of work in some small cases
++	maxBits = minInt32(maxBits, n - 1);
++
++	// Create information about each of the levels.
++	// A bogus "Level 0" whose sole purpose is so that
++	// level1.prev.needed==0.  This makes level1.nextPairFreq
++	// be a legitimate value that never gets chosen.
++	top := &levelInfo{needed: 0};
++	chain2 := &chain{ list[1].freq, 2, new(chain) };
++	for level := int32(1); level <= maxBits; level++ {
++		// For every level, the first two items are the first two characters.
++		// We initialize the levels as if we had already figured this out.
++		top = &levelInfo{
++			level: level,
++			lastChain: chain2,
++			nextCharFreq: list[2].freq,
++			nextPairFreq: list[0].freq + list[1].freq,
++			down: top,
++		};
++		top.down.up = top;
++		if level == 1 {
++			top.nextPairFreq = math.MaxInt32;
++		}
++	}
++
++	// We need a total of 2*n - 2 items at top level and have already generated 2.
++	top.needed = 2*n - 4;
++
++	l := top;
++	for {
++		if l.nextPairFreq == math.MaxInt32 && l.nextCharFreq == math.MaxInt32 {
++			// We've run out of both leafs and pairs.
++			// End all calculations for this level.
++			// To m sure we never come back to this level or any lower level,
++			// set nextPairFreq impossibly large.
++			l.lastChain = nil;
++			l.needed = 0;
++			l = l.up;
++			l.nextPairFreq = math.MaxInt32;
++			continue;
++		}
++
++		prevFreq := l.lastChain.freq;
++		if l.nextCharFreq < l.nextPairFreq {
++			// The next item on this row is a leaf node.
++			n := l.lastChain.leafCount + 1;
++			l.lastChain = &chain{ l.nextCharFreq, n, l.lastChain.up };
++			l.nextCharFreq = list[n].freq;
++		} else {
++			// The next item on this row is a pair from the previous row.
++			// nextPairFreq isn't valid until we generate two
++			// more values in the level below
++			l.lastChain = &chain{ l.nextPairFreq, l.lastChain.leafCount, l.down.lastChain };
++			l.down.needed = 2;
++		}
++
++		if l.needed--; l.needed == 0 {
++			// We've done everything we need to do for this level.
++			// Continue calculating one level up.  Fill in nextPairFreq
++			// of that level with the sum of the two nodes we've just calculated on
++			// this level.
++			up := l.up;
++			if up == nil {
++				// All done!
++				break;
++			}
++			up.nextPairFreq = prevFreq + l.lastChain.freq;
++			l = up;
++		} else {
++			// If we stole from below, move down temporarily to replenish it.
++			for l.down.needed > 0 {
++				l = l.down;
++			}
++		}
++	}
++
++
++	// Somethings is wrong if at the end, the top level is null or hasn't used
++	// all of the leaves.
++	if top.lastChain.leafCount != n {
++		panic("top.lastChain.leafCount != n");
++	}
++
++	bitCount := make([]int32, maxBits + 1);
++	bits := 1;
++	for chain := top.lastChain; chain.up != nil; chain = chain.up {
++		// chain.leafCount gives the number of literals requiring at least "bits"
++		// bits to encode.
++		bitCount[bits] = chain.leafCount - chain.up.leafCount;
++		bits++;
++	}
++	return bitCount;
++}
++
++// Look at the leaves and assign them a bit count and an encoding as specified
++// in RFC 1951 3.2.2
++func (h *huffmanEncoder) assignEncodingAndSize(bitCount []int32, list []literalNode) {
++	code := uint16(0);
++	for n, bits := range bitCount {
++		code <<= 1;
++		if n == 0 || bits == 0 {
++			continue;
++		}
++		// The literals list[len(list)-bits] .. list[len(list)-bits]
++		// are encoded using "bits" bits, and get the values
++		// code, code + 1, ....  The code values are
++		// assigned in literal order (not frequency order).
++		chunk := list[len(list)-int(bits):len(list)];
++		sortByLiteral(chunk);
++		for _, node := range chunk {
++			h.codeBits[node.literal] = uint8(n);
++			h.code[node.literal] = reverseBits(code, uint8(n));
++			code++;
++		}
++		list = list[0:len(list)-int(bits)];
++	}
++}
++
++// Update this Huffman Code object to be the minimum code for the specified frequency count.
++//
++// freq  An array of frequencies, in which frequency[i] gives the frequency of literal i.
++// maxBits  The maximum number of bits to use for any literal.
++func (h *huffmanEncoder) generate(freq []int32, maxBits int32) {
++	list := make([]literalNode, len(freq) + 1);
++	// Number of non-zero literals
++	count := 0;
++	// Set list to be the set of all non-zero literals and their frequencies
++	for i, f := range freq {
++		if f != 0 {
++			list[count] = literalNode{uint16(i), f};
++			count++;
++		} else {
++			h.codeBits[i] = 0;
++		}
++	}
++	// If freq[] is shorter than codeBits[], fill rest of codeBits[] with zeros
++	h.codeBits = h.codeBits[0:len(freq)];
++	list = list[0:count];
++	if count <= 2 {
++		// Handle the small cases here, because they are awkward for the general case code.  With
++		// two or fewer literals, everything has bit length 1.
++		for i, node := range list {
++			// "list" is in order of increasing literal value.
++			h.codeBits[node.literal] = 1;
++			h.code[node.literal] = uint16(i);
++		}
++                return;
++	}
++	sortByFreq(list);
++
++	// Get the number of literals for each bit count
++	bitCount := h.bitCounts(list, maxBits);
++	// And do the assignment
++	h.assignEncodingAndSize(bitCount, list);
++}
++
++type literalNodeSorter struct {
++	a []literalNode;
++	less func(i,j int) bool;
++}
++
++func (s literalNodeSorter) Len() int {
++	return len(s.a);
++}
++
++func (s literalNodeSorter) Less(i, j int) bool {
++	return s.less(i, j);
++}
++
++func (s literalNodeSorter) Swap(i,j int) {
++	s.a[i], s.a[j] = s.a[j], s.a[i];
++}
++
++func sortByFreq(a []literalNode) {
++	s := &literalNodeSorter { a, func(i, j int) bool { return a[i].freq < a[j].freq; }};
++	sort.Sort(s);
++}
++
++func sortByLiteral(a []literalNode) {
++	s := &literalNodeSorter{ a, func(i, j int) bool { return a[i].literal < a[j].literal; }};
++	sort.Sort(s);
++}
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index 5415d3336c..6c36adaa07 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -22,42 +22,6 @@ const (
+ 	numCodes = 19;	// number of codes in Huffman meta-code
+ )
+ 
+-// TODO(rsc): Publish in another package?
+-var reverseByte = [256]byte {
+-	0x00, 0x80, 0x40, 0xc0, 0x20, 0xa0, 0x60, 0xe0,
+-	0x10, 0x90, 0x50, 0xd0, 0x30, 0xb0, 0x70, 0xf0,
+-	0x08, 0x88, 0x48, 0xc8, 0x28, 0xa8, 0x68, 0xe8,
+-	0x18, 0x98, 0x58, 0xd8, 0x38, 0xb8, 0x78, 0xf8,
+-	0x04, 0x84, 0x44, 0xc4, 0x24, 0xa4, 0x64, 0xe4,
+-	0x14, 0x94, 0x54, 0xd4, 0x34, 0xb4, 0x74, 0xf4,
+-	0x0c, 0x8c, 0x4c, 0xcc, 0x2c, 0xac, 0x6c, 0xec,
+-	0x1c, 0x9c, 0x5c, 0xdc, 0x3c, 0xbc, 0x7c, 0xfc,
+-	0x02, 0x82, 0x42, 0xc2, 0x22, 0xa2, 0x62, 0xe2,
+-	0x12, 0x92, 0x52, 0xd2, 0x32, 0xb2, 0x72, 0xf2,
+-	0x0a, 0x8a, 0x4a, 0xca, 0x2a, 0xaa, 0x6a, 0xea,
+-	0x1a, 0x9a, 0x5a, 0xda, 0x3a, 0xba, 0x7a, 0xfa,
+-	0x06, 0x86, 0x46, 0xc6, 0x26, 0xa6, 0x66, 0xe6,
+-	0x16, 0x96, 0x56, 0xd6, 0x36, 0xb6, 0x76, 0xf6,
+-	0x0e, 0x8e, 0x4e, 0xce, 0x2e, 0xae, 0x6e, 0xee,
+-	0x1e, 0x9e, 0x5e, 0xde, 0x3e, 0xbe, 0x7e, 0xfe,
+-	0x01, 0x81, 0x41, 0xc1, 0x21, 0xa1, 0x61, 0xe1,
+-	0x11, 0x91, 0x51, 0xd1, 0x31, 0xb1, 0x71, 0xf1,
+-	0x09, 0x89, 0x49, 0xc9, 0x29, 0xa9, 0x69, 0xe9,
+-	0x19, 0x99, 0x59, 0xd9, 0x39, 0xb9, 0x79, 0xf9,
+-	0x05, 0x85, 0x45, 0xc5, 0x25, 0xa5, 0x65, 0xe5,
+-	0x15, 0x95, 0x55, 0xd5, 0x35, 0xb5, 0x75, 0xf5,
+-	0x0d, 0x8d, 0x4d, 0xcd, 0x2d, 0xad, 0x6d, 0xed,
+-	0x1d, 0x9d, 0x5d, 0xdd, 0x3d, 0xbd, 0x7d, 0xfd,
+-	0x03, 0x83, 0x43, 0xc3, 0x23, 0xa3, 0x63, 0xe3,
+-	0x13, 0x93, 0x53, 0xd3, 0x33, 0xb3, 0x73, 0xf3,
+-	0x0b, 0x8b, 0x4b, 0xcb, 0x2b, 0xab, 0x6b, 0xeb,
+-	0x1b, 0x9b, 0x5b, 0xdb, 0x3b, 0xbb, 0x7b, 0xfb,
+-	0x07, 0x87, 0x47, 0xc7, 0x27, 0xa7, 0x67, 0xe7,
+-	0x17, 0x97, 0x57, 0xd7, 0x37, 0xb7, 0x77, 0xf7,
+-	0x0f, 0x8f, 0x4f, 0xcf, 0x2f, 0xaf, 0x6f, 0xef,
+-	0x1f, 0x9f, 0x5f, 0xdf, 0x3f, 0xbf, 0x7f, 0xff,
+-}
+-
+ // A CorruptInputError reports the presence of corrupt input at a given offset.
+ type CorruptInputError int64
+ func (e CorruptInputError) String() string {
+diff --git a/src/pkg/compress/flate/reverse_bits.go b/src/pkg/compress/flate/reverse_bits.go
+new file mode 100644
+index 0000000000..2866a01dd6
+--- /dev/null
++++ b/src/pkg/compress/flate/reverse_bits.go
+@@ -0,0 +1,49 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package flate
++
++var reverseByte = [256]byte {
++	0x00, 0x80, 0x40, 0xc0, 0x20, 0xa0, 0x60, 0xe0,
++	0x10, 0x90, 0x50, 0xd0, 0x30, 0xb0, 0x70, 0xf0,
++	0x08, 0x88, 0x48, 0xc8, 0x28, 0xa8, 0x68, 0xe8,
++	0x18, 0x98, 0x58, 0xd8, 0x38, 0xb8, 0x78, 0xf8,
++	0x04, 0x84, 0x44, 0xc4, 0x24, 0xa4, 0x64, 0xe4,
++	0x14, 0x94, 0x54, 0xd4, 0x34, 0xb4, 0x74, 0xf4,
++	0x0c, 0x8c, 0x4c, 0xcc, 0x2c, 0xac, 0x6c, 0xec,
++	0x1c, 0x9c, 0x5c, 0xdc, 0x3c, 0xbc, 0x7c, 0xfc,
++	0x02, 0x82, 0x42, 0xc2, 0x22, 0xa2, 0x62, 0xe2,
++	0x12, 0x92, 0x52, 0xd2, 0x32, 0xb2, 0x72, 0xf2,
++	0x0a, 0x8a, 0x4a, 0xca, 0x2a, 0xaa, 0x6a, 0xea,
++	0x1a, 0x9a, 0x5a, 0xda, 0x3a, 0xba, 0x7a, 0xfa,
++	0x06, 0x86, 0x46, 0xc6, 0x26, 0xa6, 0x66, 0xe6,
++	0x16, 0x96, 0x56, 0xd6, 0x36, 0xb6, 0x76, 0xf6,
++	0x0e, 0x8e, 0x4e, 0xce, 0x2e, 0xae, 0x6e, 0xee,
++	0x1e, 0x9e, 0x5e, 0xde, 0x3e, 0xbe, 0x7e, 0xfe,
++	0x01, 0x81, 0x41, 0xc1, 0x21, 0xa1, 0x61, 0xe1,
++	0x11, 0x91, 0x51, 0xd1, 0x31, 0xb1, 0x71, 0xf1,
++	0x09, 0x89, 0x49, 0xc9, 0x29, 0xa9, 0x69, 0xe9,
++	0x19, 0x99, 0x59, 0xd9, 0x39, 0xb9, 0x79, 0xf9,
++	0x05, 0x85, 0x45, 0xc5, 0x25, 0xa5, 0x65, 0xe5,
++	0x15, 0x95, 0x55, 0xd5, 0x35, 0xb5, 0x75, 0xf5,
++	0x0d, 0x8d, 0x4d, 0xcd, 0x2d, 0xad, 0x6d, 0xed,
++	0x1d, 0x9d, 0x5d, 0xdd, 0x3d, 0xbd, 0x7d, 0xfd,
++	0x03, 0x83, 0x43, 0xc3, 0x23, 0xa3, 0x63, 0xe3,
++	0x13, 0x93, 0x53, 0xd3, 0x33, 0xb3, 0x73, 0xf3,
++	0x0b, 0x8b, 0x4b, 0xcb, 0x2b, 0xab, 0x6b, 0xeb,
++	0x1b, 0x9b, 0x5b, 0xdb, 0x3b, 0xbb, 0x7b, 0xfb,
++	0x07, 0x87, 0x47, 0xc7, 0x27, 0xa7, 0x67, 0xe7,
++	0x17, 0x97, 0x57, 0xd7, 0x37, 0xb7, 0x77, 0xf7,
++	0x0f, 0x8f, 0x4f, 0xcf, 0x2f, 0xaf, 0x6f, 0xef,
++	0x1f, 0x9f, 0x5f, 0xdf, 0x3f, 0xbf, 0x7f, 0xff,
++}
++
++func reverseUint16(v uint16) uint16 {
++	return uint16(reverseByte[v>>8]) | uint16(reverseByte[v&0xFF])<<8;
++}
++
++func reverseBits(number uint16, bitLength byte) uint16 {
++	return reverseUint16(number << uint8(16 - bitLength));
++}
++
+diff --git a/src/pkg/compress/flate/token.go b/src/pkg/compress/flate/token.go
+new file mode 100644
+index 0000000000..e6b6d1fd9a
+--- /dev/null
++++ b/src/pkg/compress/flate/token.go
+@@ -0,0 +1,116 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package flate
++
++const (
++	// 2 bits:   type   0 = literal  1=EOF  2=Match   3=Unused
++	// 8 bits:   xlength = length - MIN_MATCH_LENGTH
++	// 22 bits   xoffset = offset - MIN_OFFSET_SIZE, or literal
++	lengthShift = 22;
++	offsetMask = 1<<lengthShift - 1;
++	typeMask = 3 << 30;
++	literalType = 0 << 30;
++	matchType = 1 << 30;
++)
++
++// The length code for length X (MIN_MATCH_LENGTH <= X <= MAX_MATCH_LENGTH)
++// is lengthCodes[length - MIN_MATCH_LENGTH]
++var lengthCodes = [...]uint32 {
++	0,  1,  2,  3,  4,  5,  6,  7,  8,  8,
++	9,  9,  10, 10, 11, 11, 12, 12, 12, 12,
++	13, 13, 13, 13, 14, 14, 14, 14, 15, 15,
++	15, 15, 16, 16, 16, 16, 16, 16, 16, 16,
++	17, 17, 17, 17, 17, 17, 17, 17, 18, 18,
++	18, 18, 18, 18, 18, 18, 19, 19, 19, 19,
++	19, 19, 19, 19, 20, 20, 20, 20, 20, 20,
++	20, 20, 20, 20, 20, 20, 20, 20, 20, 20,
++	21, 21, 21, 21, 21, 21, 21, 21, 21, 21,
++	21, 21, 21, 21, 21, 21, 22, 22, 22, 22,
++	22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
++	22, 22, 23, 23, 23, 23, 23, 23, 23, 23,
++	23, 23, 23, 23, 23, 23, 23, 23, 24, 24,
++	24, 24, 24, 24, 24, 24, 24, 24, 24, 24,
++	24, 24, 24, 24, 24, 24, 24, 24, 24, 24,
++	24, 24, 24, 24, 24, 24, 24, 24, 24, 24,
++	25, 25, 25, 25, 25, 25, 25, 25, 25, 25,
++	25, 25, 25, 25, 25, 25, 25, 25, 25, 25,
++	25, 25, 25, 25, 25, 25, 25, 25, 25, 25,
++	25, 25, 26, 26, 26, 26, 26, 26, 26, 26,
++	26, 26, 26, 26, 26, 26, 26, 26, 26, 26,
++	26, 26, 26, 26, 26, 26, 26, 26, 26, 26,
++	26, 26, 26, 26, 27, 27, 27, 27, 27, 27,
++	27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
++	27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
++	27, 27, 27, 27, 27, 28
++}
++
++var offsetCodes = [...]uint32 {
++	0,  1,  2,  3,  4,  4,  5,  5,  6,  6,  6,  6,  7,  7,  7,  7,
++	8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9,
++	10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
++	11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
++	12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
++	12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
++	13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13,
++	13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13,
++	14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
++	14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
++	14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
++	14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
++	15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
++	15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
++	15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
++	15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
++}
++
++type token uint32;
++
++// Convert a literal into a literal token.
++func literalToken(literal uint32) token {
++	return token(literalType + literal);
++}
++
++// Convert a < xlength, xoffset > pair into a match token.
++func matchToken(xlength uint32, xoffset uint32) token {
++	return token(matchType + xlength<<lengthShift + xoffset);
++}
++
++// Returns the type of a token
++func (t token) typ() uint32 {
++	return uint32(t) & typeMask;
++}
++
++// Returns the literal of a literal token
++func (t token) literal() uint32 {
++	return uint32(t - literalType);
++}
++
++// Returns the extra offset of a match token
++func (t token) offset() uint32 {
++	return uint32(t) & offsetMask;
++}
++
++func (t token) length() uint32 {
++	return uint32((t - matchType)>>lengthShift);
++}
++
++func lengthCode(len uint32) uint32 {
++	return lengthCodes[len];
++}
++
++// Returns the offset code corresponding to a specific offset
++func offsetCode(off uint32) uint32 {
++	const n = uint32(len(offsetCodes));
++	switch {
++	case off < n:
++		return offsetCodes[off];
++	case off>>7 < n:
++		return offsetCodes[off >> 7] + 14;
++	default:
++		return offsetCodes[off >> 14] + 28;
++	}
++	panic("unreachable");
++}
++
+diff --git a/src/pkg/compress/flate/util.go b/src/pkg/compress/flate/util.go
+new file mode 100644
+index 0000000000..9b8eb9f5bb
+--- /dev/null
++++ b/src/pkg/compress/flate/util.go
+@@ -0,0 +1,73 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package flate
++
++func min(left int, right int) int {
++	if left < right {
++		return left;
++	}
++	return right;
++}
++
++func minInt32(left int32, right int32) int32 {
++	if left < right {
++		return left;
++	}
++	return right;
++}
++
++func max(left int, right int) int {
++	if left > right {
++		return left;
++	}
++	return right;
++}
++
++func fillInts(a []int, value int) {
++	for i := range a {
++		a[i] = value;
++	}
++}
++
++func fillInt32s(a []int32, value int32) {
++	for i := range a {
++		a[i] = value;
++	}
++}
++
++func fillBytes(a []byte, value byte) {
++	for i := range a {
++		a[i] = value;
++	}
++}
++
++func fillInt8s(a []int8, value int8) {
++	for i := range a {
++		a[i] = value;
++	}
++}
++
++func fillUint8s(a []uint8, value uint8) {
++	for i := range a {
++		a[i] = value;
++	}
++}
++
++func copyInt8s(dst []int8, src []int8) int {
++	cnt := min(len(dst), len(src));
++	for i := 0; i < cnt; i++ {
++		dst[i] = src[i];
++	}
++	return cnt;
++}
++
++func copyUint8s(dst []uint8, src []uint8) int {
++	cnt := min(len(dst), len(src));
++	for i := 0; i < cnt; i++ {
++		dst[i] = src[i];
++	}
++	return cnt;
++}
++

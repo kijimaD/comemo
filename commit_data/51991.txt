@@ -16,9 +16,78 @@ Date:   Tue Mar 29 18:30:06 2022 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/context.go     | 7 ++++---
  src/cmd/compile/internal/types2/instantiate.go | 3 ++-
  src/go/types/context.go                        | 7 ++++---
  src/go/types/instantiate.go                    | 3 ++-
  4 files changed, 12 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/context.go b/src/cmd/compile/internal/types2/context.go
+index 7abea6b654..2d790fe5dd 100644
+--- a/src/cmd/compile/internal/types2/context.go
++++ b/src/cmd/compile/internal/types2/context.go
+@@ -12,11 +12,12 @@ import (
+ 	"sync"
+ )
+ 
+-// An Context is an opaque type checking context. It may be used to share
++// A Context is an opaque type checking context. It may be used to share
+ // identical type instances across type-checked packages or calls to
+-// Instantiate.
++// Instantiate. Contexts are safe for concurrent use.
+ //
+-// It is safe for concurrent use.
++// The use of a shared context does not guarantee that identical instances are
++// deduplicated in all cases.
+ type Context struct {
+ 	mu        sync.Mutex
+ 	typeMap   map[string][]ctxtEntry // type hash -> instances entries
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index a511538ccc..a69a26ba64 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -24,7 +24,8 @@ import (
+ // previous instances with the same identity. As a special case, generic
+ // *Signature origin types are only considered identical if they are pointer
+ // equivalent, so that instantiating distinct (but possibly identical)
+-// signatures will yield different instances.
++// signatures will yield different instances. The use of a shared context does
++// not guarantee that identical instances are deduplicated in all cases.
+ //
+ // If validate is set, Instantiate verifies that the number of type arguments
+ // and parameters match, and that the type arguments satisfy their
+diff --git a/src/go/types/context.go b/src/go/types/context.go
+index ff4bf89f3c..692b3a6682 100644
+--- a/src/go/types/context.go
++++ b/src/go/types/context.go
+@@ -12,11 +12,12 @@ import (
+ 	"sync"
+ )
+ 
+-// An Context is an opaque type checking context. It may be used to share
++// A Context is an opaque type checking context. It may be used to share
+ // identical type instances across type-checked packages or calls to
+-// Instantiate.
++// Instantiate. Contexts are safe for concurrent use.
+ //
+-// It is safe for concurrent use.
++// The use of a shared context does not guarantee that identical instances are
++// deduplicated in all cases.
+ type Context struct {
+ 	mu        sync.Mutex
+ 	typeMap   map[string][]ctxtEntry // type hash -> instances entries
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index d7045ff23c..4450847dfd 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -24,7 +24,8 @@ import (
+ // previous instances with the same identity. As a special case, generic
+ // *Signature origin types are only considered identical if they are pointer
+ // equivalent, so that instantiating distinct (but possibly identical)
+-// signatures will yield different instances.
++// signatures will yield different instances. The use of a shared context does
++// not guarantee that identical instances are deduplicated in all cases.
+ //
+ // If validate is set, Instantiate verifies that the number of type arguments
+ // and parameters match, and that the type arguments satisfy their

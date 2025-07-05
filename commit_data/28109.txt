@@ -8,7 +8,37 @@ Date:   Thu Apr 28 22:04:30 2016 -0500
     Reviewed-on: https://go-review.googlesource.com/22601
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/context/context.go      | 3 +++
  src/context/context_test.go | 4 ++++
  2 files changed, 7 insertions(+)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index da294b1292..5184b94e51 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -428,6 +428,9 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
+ //
+ // The provided key must be comparable.
+ func WithValue(parent Context, key, val interface{}) Context {
++	if key == nil {
++		panic("nil key")
++	}
+ 	if !reflect.TypeOf(key).Comparable() {
+ 		panic("key is not comparable")
+ 	}
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index aa26161d2b..99456b188d 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -583,6 +583,10 @@ func TestWithValueChecksKey(t *testing.T) {
+ 	if panicVal == nil {
+ 		t.Error("expected panic")
+ 	}
++	panicVal = recoveredValue(func() { WithValue(Background(), nil, "bar") })
++	if got, want := fmt.Sprint(panicVal), "nil key"; got != want {
++		t.Errorf("panic = %q; want %q", got, want)
++	}
+ }
+ 
+ func recoveredValue(fn func()) (v interface{}) {

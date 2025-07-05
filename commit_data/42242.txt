@@ -12,7 +12,157 @@ Date:   Mon Nov 18 16:46:16 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go                            | 57 --------------------
  src/cmd/go/testdata/script/gopath_moved_repo.txt | 68 ++++++++++++++++++++++++
  2 files changed, 68 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 4181c878f5..5f2ba97334 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1045,48 +1045,6 @@ func TestRunPkg(t *testing.T) {
+ 	tg.grepStderr("hello, world", "did not find hello, world")
+ }
+ 
+-func testMove(t *testing.T, vcs, url, base, config string) {
+-	testenv.MustHaveExternalNetwork(t)
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.tempDir("src")
+-	tg.must(os.Mkdir(tg.path(".hg"), 0700))
+-	tg.must(ioutil.WriteFile(filepath.Join(tg.path(".hg"), "hgrc"), nil, 0600))
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.run("get", "-d", url)
+-	tg.run("get", "-d", "-u", url)
+-	switch vcs {
+-	case "svn":
+-		// SVN doesn't believe in text files so we can't just edit the config.
+-		// Check out a different repo into the wrong place.
+-		tg.must(robustio.RemoveAll(tg.path("src/code.google.com/p/rsc-svn")))
+-		tg.run("get", "-d", "-u", "code.google.com/p/rsc-svn2/trunk")
+-		tg.must(os.Rename(tg.path("src/code.google.com/p/rsc-svn2"), tg.path("src/code.google.com/p/rsc-svn")))
+-	default:
+-		path := tg.path(filepath.Join("src", config))
+-		data, err := ioutil.ReadFile(path)
+-		tg.must(err)
+-		data = bytes.ReplaceAll(data, []byte(base), []byte(base+"XXX"))
+-		tg.must(ioutil.WriteFile(path, data, 0644))
+-	}
+-	if vcs == "git" {
+-		// git will ask for a username and password when we
+-		// run go get -d -f -u. An empty username and
+-		// password will work. Prevent asking by setting
+-		// GIT_ASKPASS.
+-		tg.creatingTemp("sink" + exeSuffix)
+-		tg.tempFile("src/sink/sink.go", `package main; func main() {}`)
+-		tg.run("build", "-o", "sink"+exeSuffix, "sink")
+-		tg.setenv("GIT_ASKPASS", filepath.Join(tg.pwd(), "sink"+exeSuffix))
+-	}
+-	tg.runFail("get", "-d", "-u", url)
+-	tg.grepStderr("is a custom import path for", "go get -d -u "+url+" failed for wrong reason")
+-	tg.runFail("get", "-d", "-f", "-u", url)
+-	tg.grepStderr("validating server certificate|[nN]ot [fF]ound", "go get -d -f -u "+url+" failed for wrong reason")
+-}
+-
+ func TestInternalPackageErrorsAreHandled(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -1101,21 +1059,6 @@ func TestInternalCache(t *testing.T) {
+ 	tg.grepStderr("internal", "did not fail to build p")
+ }
+ 
+-func TestMoveGit(t *testing.T) {
+-	testenv.MustHaveExecPath(t, "git")
+-	testMove(t, "git", "rsc.io/pdf", "pdf", "rsc.io/pdf/.git/config")
+-}
+-
+-func TestMoveHG(t *testing.T) {
+-	testenv.MustHaveExecPath(t, "hg")
+-	testMove(t, "hg", "vcs-test.golang.org/go/custom-hg-hello", "custom-hg-hello", "vcs-test.golang.org/go/custom-hg-hello/.hg/hgrc")
+-}
+-
+-// TODO(rsc): Set up a test case on SourceForge (?) for svn.
+-// func testMoveSVN(t *testing.T) {
+-//	testMove(t, "svn", "code.google.com/p/rsc-svn/trunk", "-", "-")
+-// }
+-
+ func TestImportCommandMatch(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/script/gopath_moved_repo.txt b/src/cmd/go/testdata/script/gopath_moved_repo.txt
+new file mode 100644
+index 0000000000..869980da7c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/gopath_moved_repo.txt
+@@ -0,0 +1,68 @@
++env GO111MODULE=off
++
++# Test that 'go get -u' reports packages whose VCS configurations do not
++# match their import paths.
++
++[!net] skip
++[short] skip
++
++# We need to execute a custom Go program to break the config files.
++#
++# git will ask for a username and password when we run 'go get -d -f -u',
++# so we also need to set GIT_ASKPASS. Conveniently, a single binary can
++# perform both tasks!
++
++go build -o replace.exe replace
++env GIT_ASKPASS=$PWD/replace.exe
++
++
++# Test that 'go get -u' reports moved git packages.
++
++[exec:git] go get -d rsc.io/pdf
++[exec:git] go get -d -u rsc.io/pdf
++[exec:git] exec ./replace.exe pdf rsc.io/pdf/.git/config
++
++[exec:git] ! go get -d -u rsc.io/pdf
++[exec:git] stderr 'is a custom import path for'
++[exec:git] ! go get -d -f -u rsc.io/pdf
++[exec:git] stderr 'validating server certificate|[nN]ot [fF]ound'
++
++
++# Test that 'go get -u' reports moved Mercurial packages.
++
++[exec:hg] go get -d vcs-test.golang.org/go/custom-hg-hello
++[exec:hg] go get -d -u vcs-test.golang.org/go/custom-hg-hello
++[exec:hg] exec ./replace.exe custom-hg-hello vcs-test.golang.org/go/custom-hg-hello/.hg/hgrc
++
++[exec:hg] ! go get -d -u vcs-test.golang.org/go/custom-hg-hello
++[exec:hg] stderr 'is a custom import path for'
++[exec:hg] ! go get -d -f -u vcs-test.golang.org/go/custom-hg-hello
++[exec:hg] stderr 'validating server certificate|[nN]ot [fF]ound'
++
++
++-- replace/replace.go --
++package main
++
++import (
++	"bytes"
++	"io/ioutil"
++	"log"
++	"os"
++)
++
++func main() {
++	if len(os.Args) < 3 {
++		return
++	}
++
++	base := []byte(os.Args[1])
++	path := os.Args[2]
++	data, err := ioutil.ReadFile(path)
++	if err != nil {
++		log.Fatal(err)
++	}
++	err = ioutil.WriteFile(path, bytes.ReplaceAll(data, base, append(base, "XXX"...)), 0644)
++	if err != nil {
++		log.Fatal(err)
++	}
++}

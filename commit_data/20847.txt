@@ -20,7 +20,82 @@ Date:   Sat Oct 18 21:02:49 2014 -0700
     R=rsc, bradfitz, dvyukov, khr
     CC=austin, golang-codereviews
     https://golang.org/cl/159040043
-
+---
  src/runtime/chan_test.go | 29 +++++++++++++++++++++++++++++
  src/runtime/select.go    |  8 ++++----
  2 files changed, 33 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/chan_test.go b/src/runtime/chan_test.go
+index 01632892ed..e689ceaed1 100644
+--- a/src/runtime/chan_test.go
++++ b/src/runtime/chan_test.go
+@@ -482,6 +482,35 @@ func TestShrinkStackDuringBlockedSend(t *testing.T) {
+ 	<-done
+ }
+ 
++func TestSelectDuplicateChannel(t *testing.T) {
++	// This test makes sure we can queue a G on
++	// the same channel multiple times.
++	c := make(chan int)
++	d := make(chan int)
++	e := make(chan int)
++
++	// goroutine A
++	go func() {
++		select {
++		case <-c:
++		case <-c:
++		case <-d:
++		}
++		e <- 9
++	}()
++	time.Sleep(time.Millisecond) // make sure goroutine A gets qeueued first on c
++
++	// goroutine B
++	go func() {
++		<-c
++	}()
++	time.Sleep(time.Millisecond) // make sure goroutine B gets queued on c before continuing
++
++	d <- 7 // wake up A, it dequeues itself from c.  This operation used to corrupt c.recvq.
++	<-e    // A tells us it's done
++	c <- 8 // wake up B.  This operation used to fail because c.recvq was corrupted (it tries to wake up an already running G instead of B)
++}
++
+ func BenchmarkChanNonblocking(b *testing.B) {
+ 	myc := make(chan int)
+ 	b.RunParallel(func(pb *testing.PB) {
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 9de057b871..efe68c1f5c 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -398,9 +398,9 @@ loop:
+ 		} else {
+ 			c = k._chan
+ 			if k.kind == _CaseSend {
+-				c.sendq.dequeueg(gp)
++				c.sendq.dequeueSudoG(sglist)
+ 			} else {
+-				c.recvq.dequeueg(gp)
++				c.recvq.dequeueSudoG(sglist)
+ 			}
+ 		}
+ 		sgnext = sglist.waitlink
+@@ -628,7 +628,7 @@ func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
+ 	return
+ }
+ 
+-func (q *waitq) dequeueg(gp *g) {
++func (q *waitq) dequeueSudoG(s *sudog) {
+ 	var prevsgp *sudog
+ 	l := &q.first
+ 	for {
+@@ -636,7 +636,7 @@ func (q *waitq) dequeueg(gp *g) {
+ 		if sgp == nil {
+ 			return
+ 		}
+-		if sgp.g == gp {
++		if sgp == s {
+ 			*l = sgp.next
+ 			if q.last == sgp {
+ 				q.last = prevsgp

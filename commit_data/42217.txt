@@ -11,8 +11,59 @@ Date:   Fri Nov 15 12:32:43 2019 +0530
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go               | 5 ++++-
  src/cmd/go/internal/modload/help.go | 3 +++
  src/cmd/go/internal/work/build.go   | 2 +-
  3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 0be368d560..add11a47fe 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -148,7 +148,7 @@
+ // 		build code that will be linked against shared libraries previously
+ // 		created with -buildmode=shared.
+ // 	-mod mode
+-// 		module download mode to use: readonly or vendor.
++// 		module download mode to use: readonly, vendor, or mod.
+ // 		See 'go help modules' for more.
+ // 	-modcacherw
+ // 		leave newly-created directories in the module cache read-write
+@@ -2495,6 +2495,9 @@
+ // directory holds the correct copies of dependencies and ignores
+ // the dependency descriptions in go.mod.
+ //
++// If invoked with -mod=mod, the go command loads modules from the module cache
++// even if there is a vendor directory present.
++//
+ // Pseudo-versions
+ //
+ // The go.mod file and the go command more generally use semantic versions as
+diff --git a/src/cmd/go/internal/modload/help.go b/src/cmd/go/internal/modload/help.go
+index 1927c1cff7..b47f3dedb3 100644
+--- a/src/cmd/go/internal/modload/help.go
++++ b/src/cmd/go/internal/modload/help.go
+@@ -179,6 +179,9 @@ If invoked with -mod=vendor, the go command assumes that the vendor
+ directory holds the correct copies of dependencies and ignores
+ the dependency descriptions in go.mod.
+ 
++If invoked with -mod=mod, the go command loads modules from the module cache
++even if there is a vendor directory present.
++
+ Pseudo-versions
+ 
+ The go.mod file and the go command more generally use semantic versions as
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 45dd165ce0..e3b25c937c 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -100,7 +100,7 @@ and test commands:
+ 		build code that will be linked against shared libraries previously
+ 		created with -buildmode=shared.
+ 	-mod mode
+-		module download mode to use: readonly or vendor.
++		module download mode to use: readonly, vendor, or mod.
+ 		See 'go help modules' for more.
+ 	-modcacherw
+ 		leave newly-created directories in the module cache read-write

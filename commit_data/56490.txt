@@ -48,8 +48,226 @@ Date:   Sun May 7 16:46:42 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-
+---
  src/net/conf.go        | 106 +++++++++++++++++++++++++++----------------------
  src/net/conf_test.go   |  37 ++++++++++++++++-
  src/net/lookup_unix.go |   2 +-
  3 files changed, 96 insertions(+), 49 deletions(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index d11a568502..10bc8c366e 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -188,6 +188,18 @@ func (c *conf) mustUseGoResolver(r *Resolver) bool {
+ 	return c.netGo || r.preferGo() || !cgoAvailable
+ }
+ 
++// addrLookupOrder determines which strategy to use to resolve addresses.
++// The provided Resolver is optional. nil means to not consider its options.
++// It also returns dnsConfig when it was used to determine the lookup order.
++func (c *conf) addrLookupOrder(r *Resolver, addr string) (ret hostLookupOrder, dnsConf *dnsConfig) {
++	if c.dnsDebugLevel > 1 {
++		defer func() {
++			print("go package net: addrLookupOrder(", addr, ") = ", ret.String(), "\n")
++		}()
++	}
++	return c.lookupOrder(r, "")
++}
++
+ // hostLookupOrder determines which strategy to use to resolve hostname.
+ // The provided Resolver is optional. nil means to not consider its options.
+ // It also returns dnsConfig when it was used to determine the lookup order.
+@@ -197,7 +209,10 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ 			print("go package net: hostLookupOrder(", hostname, ") = ", ret.String(), "\n")
+ 		}()
+ 	}
++	return c.lookupOrder(r, hostname)
++}
+ 
++func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, dnsConf *dnsConfig) {
+ 	// fallbackOrder is the order we return if we can't figure it out.
+ 	var fallbackOrder hostLookupOrder
+ 
+@@ -339,23 +354,9 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ 		return fallbackOrder, dnsConf
+ 	}
+ 
+-	var mdnsSource, filesSource, dnsSource, unknownSource bool
++	var filesSource, dnsSource, unknownSource bool
+ 	var first string
+ 	for _, src := range srcs {
+-		if src.source == "myhostname" {
+-			// Let the cgo resolver handle myhostname
+-			// if we are looking up the local hostname.
+-			if canUseCgo {
+-				if isLocalhost(hostname) || isGateway(hostname) || isOutbound(hostname) {
+-					return hostLookupCgo, dnsConf
+-				}
+-				hn, err := getHostname()
+-				if err != nil || stringsEqualFold(hostname, hn) {
+-					return hostLookupCgo, dnsConf
+-				}
+-			}
+-			continue
+-		}
+ 		if src.source == "files" || src.source == "dns" {
+ 			if canUseCgo && !src.standardCriteria() {
+ 				// non-standard; let libc deal with it.
+@@ -371,16 +372,50 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ 			}
+ 			continue
+ 		}
+-		if stringsHasPrefix(src.source, "mdns") {
+-			// e.g. "mdns4", "mdns4_minimal"
+-			// We already returned true before if it was *.local.
+-			// libc wouldn't have found a hit on this anyway.
+-			mdnsSource = true
+-			continue
+-		}
+-		// Some source we don't know how to deal with.
++
+ 		if canUseCgo {
+-			return hostLookupCgo, dnsConf
++			switch {
++			case hostname != "" && src.source == "myhostname":
++				// Let the cgo resolver handle myhostname
++				// if we are looking up the local hostname.
++				if isLocalhost(hostname) || isGateway(hostname) || isOutbound(hostname) {
++					return hostLookupCgo, dnsConf
++				}
++				hn, err := getHostname()
++				if err != nil || stringsEqualFold(hostname, hn) {
++					return hostLookupCgo, dnsConf
++				}
++				continue
++			case hostname != "" && stringsHasPrefix(src.source, "mdns"):
++				// e.g. "mdns4", "mdns4_minimal"
++				// We already returned true before if it was *.local.
++				// libc wouldn't have found a hit on this anyway.
++
++				// We don't parse mdns.allow files. They're rare. If one
++				// exists, it might list other TLDs (besides .local) or even
++				// '*', so just let libc deal with it.
++				var haveMDNSAllow bool
++				switch c.mdnsTest {
++				case mdnsFromSystem:
++					_, err := os.Stat("/etc/mdns.allow")
++					if err != nil && !errors.Is(err, fs.ErrNotExist) {
++						// Let libc figure out what is going on.
++						return hostLookupCgo, dnsConf
++					}
++					haveMDNSAllow = err == nil
++				case mdnsAssumeExists:
++					haveMDNSAllow = true
++				case mdnsAssumeDoesNotExist:
++					haveMDNSAllow = false
++				}
++				if haveMDNSAllow {
++					return hostLookupCgo, dnsConf
++				}
++				continue
++			default:
++				// Some source we don't know how to deal with.
++				return hostLookupCgo, dnsConf
++			}
+ 		}
+ 
+ 		unknownSource = true
+@@ -389,29 +424,6 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ 		}
+ 	}
+ 
+-	// We don't parse mdns.allow files. They're rare. If one
+-	// exists, it might list other TLDs (besides .local) or even
+-	// '*', so just let libc deal with it.
+-	if canUseCgo && mdnsSource {
+-		var haveMDNSAllow bool
+-		switch c.mdnsTest {
+-		case mdnsFromSystem:
+-			_, err := os.Stat("/etc/mdns.allow")
+-			if err != nil && !errors.Is(err, fs.ErrNotExist) {
+-				// Let libc figure out what is going on.
+-				return hostLookupCgo, dnsConf
+-			}
+-			haveMDNSAllow = err == nil
+-		case mdnsAssumeExists:
+-			haveMDNSAllow = true
+-		case mdnsAssumeDoesNotExist:
+-			haveMDNSAllow = false
+-		}
+-		if haveMDNSAllow {
+-			return hostLookupCgo, dnsConf
+-		}
+-	}
+-
+ 	// If we saw a source we don't recognize, which can only
+ 	// happen if we can't use the cgo resolver, treat it as DNS.
+ 	if unknownSource {
+diff --git a/src/net/conf_test.go b/src/net/conf_test.go
+index 08d774bfe2..d2cdac8083 100644
+--- a/src/net/conf_test.go
++++ b/src/net/conf_test.go
+@@ -304,7 +304,6 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 				{"anything.localhost.localdomain", "myhostname", hostLookupCgo},
+ 				{"Anything.Localhost.Localdomain", "myhostname", hostLookupCgo},
+ 				{"somehostname", "myhostname", hostLookupFilesDNS},
+-				{"", "myhostname", hostLookupFilesDNS}, // Issue 13623
+ 			},
+ 		},
+ 		{
+@@ -392,6 +391,42 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 	}
+ }
+ 
++func TestAddrLookupOrder(t *testing.T) {
++	// This test is written for a system with cgo available,
++	// without using the netgo tag.
++	if netGoBuildTag {
++		t.Skip("skipping test because net package built with netgo tag")
++	}
++	if !cgoAvailable {
++		t.Skip("skipping test because cgo resolver not available")
++	}
++
++	defer setSystemNSS(getSystemNSS(), 0)
++	c, err := newResolvConfTest()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c.teardown()
++
++	if !c.forceUpdateConf(defaultResolvConf, time.Now().Add(time.Hour)) {
++		t.Fatal("failed to change resolv config")
++	}
++
++	setSystemNSS(nssStr(t, "hosts: files myhostname dns"), time.Hour)
++	cnf := &conf{}
++	order, _ := cnf.addrLookupOrder(nil, "192.0.2.1")
++	if order != hostLookupCgo {
++		t.Errorf("addrLookupOrder returned: %v, want cgo", order)
++	}
++
++	setSystemNSS(nssStr(t, "hosts: files mdns4 dns"), time.Hour)
++	order, _ = cnf.addrLookupOrder(nil, "192.0.2.1")
++	if order != hostLookupCgo {
++		t.Errorf("addrLookupOrder returned: %v, want cgo", order)
++	}
++
++}
++
+ func setSystemNSS(nss *nssConf, addDur time.Duration) {
+ 	nssConfig.mu.Lock()
+ 	nssConfig.nssConf = nss
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index ad35551f9d..dc75e0a3b6 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -117,7 +117,7 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
+ }
+ 
+ func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
+-	order, conf := systemConf().hostLookupOrder(r, "")
++	order, conf := systemConf().addrLookupOrder(r, addr)
+ 	if order == hostLookupCgo {
+ 		return cgoLookupPTR(ctx, addr)
+ 	}

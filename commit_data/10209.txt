@@ -9,7 +9,74 @@ Date:   Wed Nov 2 17:18:53 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5332048
-
+---
  src/cmd/gc/typecheck.c   | 17 ++++++++++++++++-
  test/fixedbugs/bug371.go | 24 ++++++++++++++++++++++++
  2 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index d2268e6641..6ae4384e0b 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1595,6 +1595,14 @@ looktypedot(Node *n, Type *t, int dostrcmp)
+ 	return 1;
+ }
+ 
++static Type*
++derefall(Type* t)
++{
++	while(t && t->etype == tptr)
++		t = t->type;
++	return t;
++}
++
+ static int
+ lookdot(Node *n, Type *t, int dostrcmp)
+ {
+@@ -1652,8 +1660,15 @@ lookdot(Node *n, Type *t, int dostrcmp)
+ 				n->left = nod(OIND, n->left, N);
+ 				n->left->implicit = 1;
+ 				typecheck(&n->left, Etype|Erv);
++			} else if(tt->etype == tptr && tt->type->etype == tptr && eqtype(derefall(tt), rcvr)) {
++				yyerror("calling method %N with receiver %lN requires explicit dereference", n->right, n->left);
++				while(tt->etype == tptr) {
++					n->left = nod(OIND, n->left, N);
++					n->left->implicit = 1;
++					typecheck(&n->left, Etype|Erv);
++					tt = tt->type;
++				}
+ 			} else {
+-				// method is attached to wrong type?
+ 				fatal("method mismatch: %T for %T", rcvr, tt);
+ 			}
+ 		}
+diff --git a/test/fixedbugs/bug371.go b/test/fixedbugs/bug371.go
+new file mode 100644
+index 0000000000..bf993df068
+--- /dev/null
++++ b/test/fixedbugs/bug371.go
+@@ -0,0 +1,24 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 2343
++
++package main
++
++type T struct {}
++
++func (t *T) pm() {}
++func (t T) m() {}
++
++func main() {
++	p := &T{}
++	p.pm()
++	p.m()
++
++	q := &p
++	q.m()  // ERROR "requires explicit dereference"
++	q.pm()
++}

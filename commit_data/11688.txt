@@ -9,7 +9,43 @@ Date:   Wed Feb 8 14:34:40 2012 +1100
     R=golang-dev, n13m3y3r, r, bradfitz
     CC=golang-dev
     https://golang.org/cl/5645051
-
+---
  src/pkg/archive/zip/reader.go | 2 +-
  src/pkg/archive/zip/writer.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index 4dd0f4f434..c3009869b6 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -117,7 +117,7 @@ func (rc *ReadCloser) Close() error {
+ }
+ 
+ // Open returns a ReadCloser that provides access to the File's contents.
+-// It is safe to Open and Read from files concurrently.
++// Multiple files may be read concurrently.
+ func (f *File) Open() (rc io.ReadCloser, err error) {
+ 	bodyOffset, err := f.findBodyOffset()
+ 	if err != nil {
+diff --git a/src/pkg/archive/zip/writer.go b/src/pkg/archive/zip/writer.go
+index b1b128e2a7..a4f0654474 100644
+--- a/src/pkg/archive/zip/writer.go
++++ b/src/pkg/archive/zip/writer.go
+@@ -19,7 +19,7 @@ import (
+ 
+ // Writer implements a zip file writer.
+ type Writer struct {
+-	*countWriter
++	countWriter
+ 	dir    []*header
+ 	last   *fileWriter
+ 	closed bool
+@@ -32,7 +32,7 @@ type header struct {
+ 
+ // NewWriter returns a new Writer writing a zip file to w.
+ func NewWriter(w io.Writer) *Writer {
+-	return &Writer{countWriter: &countWriter{w: bufio.NewWriter(w)}}
++	return &Writer{countWriter: countWriter{w: bufio.NewWriter(w)}}
+ }
+ 
+ // Close finishes writing the zip file by writing the central directory.

@@ -13,7 +13,41 @@ Date:   Wed Oct 20 00:16:23 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/reflect/all_test.go | 7 +++++--
  src/reflect/value.go    | 3 +--
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 91aac9cccb..fcd0e15f0a 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -7724,9 +7724,12 @@ func TestNotInHeapDeref(t *testing.T) {
+ }
+ 
+ func TestMethodCallValueCodePtr(t *testing.T) {
+-	p := ValueOf(Point{}).Method(1).UnsafePointer()
++	m := ValueOf(Point{}).Method(1)
+ 	want := MethodValueCallCodePtr()
+-	if got := uintptr(p); got != want {
++	if got := uintptr(m.UnsafePointer()); got != want {
++		t.Errorf("methodValueCall code pointer mismatched, want: %v, got: %v", want, got)
++	}
++	if got := m.Pointer(); got != want {
+ 		t.Errorf("methodValueCall code pointer mismatched, want: %v, got: %v", want, got)
+ 	}
+ }
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 63faa04964..7bb8ae5b97 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1957,8 +1957,7 @@ func (v Value) Pointer() uintptr {
+ 			// created via reflect have the same underlying code pointer,
+ 			// so their Pointers are equal. The function used here must
+ 			// match the one used in makeMethodValue.
+-			f := methodValueCall
+-			return **(**uintptr)(unsafe.Pointer(&f))
++			return methodValueCallCodePtr()
+ 		}
+ 		p := v.pointer()
+ 		// Non-nil func value points at data block.

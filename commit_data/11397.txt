@@ -12,7 +12,72 @@ Date:   Wed Jan 25 15:00:39 2012 -0800
     R=golang-dev, bradfitz, nekotaroh
     CC=golang-dev
     https://golang.org/cl/5532057
-
+---
  src/pkg/net/http/transport.go      | 18 ++++++++++--------
  src/pkg/net/http/transport_test.go |  4 ----
  2 files changed, 10 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index 1b9ad1b85c..4de070f01f 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -494,12 +494,6 @@ func (pc *persistConn) isBroken() bool {
+ 	return pc.broken
+ }
+ 
+-func (pc *persistConn) expectingResponse() bool {
+-	pc.lk.Lock()
+-	defer pc.lk.Unlock()
+-	return pc.numExpectedResponses > 0
+-}
+-
+ var remoteSideClosedFunc func(error) bool // or nil to use default
+ 
+ func remoteSideClosed(err error) bool {
+@@ -518,14 +512,18 @@ func (pc *persistConn) readLoop() {
+ 
+ 	for alive {
+ 		pb, err := pc.br.Peek(1)
+-		if !pc.expectingResponse() {
++
++		pc.lk.Lock()
++		if pc.numExpectedResponses == 0 {
++			pc.closeLocked()
++			pc.lk.Unlock()
+ 			if len(pb) > 0 {
+ 				log.Printf("Unsolicited response received on idle HTTP channel starting with %q; err=%v",
+ 					string(pb), err)
+ 			}
+-			pc.close()
+ 			return
+ 		}
++		pc.lk.Unlock()
+ 
+ 		rc := <-pc.reqch
+ 
+@@ -649,6 +647,10 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
+ func (pc *persistConn) close() {
+ 	pc.lk.Lock()
+ 	defer pc.lk.Unlock()
++	pc.closeLocked()
++}
++
++func (pc *persistConn) closeLocked() {
+ 	pc.broken = true
+ 	pc.conn.Close()
+ 	pc.mutateHeaderFunc = nil
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 8f63bdbdb7..321da52e27 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -307,10 +307,6 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
+ // Test for http://golang.org/issue/2616 (appropriate issue number)
+ // This fails pretty reliably with GOMAXPROCS=100 or something high.
+ func TestStressSurpriseServerCloses(t *testing.T) {
+-	if true {
+-		t.Logf("known broken test; fix coming. Issue 2616")
+-		return
+-	}
+ 	if testing.Short() {
+ 		t.Logf("skipping test in short mode")
+ 		return

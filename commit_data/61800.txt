@@ -12,6 +12,27 @@ Date:   Tue Nov 26 15:31:36 2024 -0500
     Auto-Submit: Alan Donovan <adonovan@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/next/3-tools.md | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 5e450c66ce..c09cea6d84 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -28,9 +28,14 @@ tests, fuzzers, benchmarks, and examples in test packages, such as
+ malformed names, incorrect signatures, or examples that document
+ non-existent identifiers. Some of these mistakes may cause tests not
+ to run.
+-
+ This analyzer is among the subset of analyzers that are run by `go test`.
+ 
++The existing `printf` analyzer now reports a diagnostic for calls of
++the form `fmt.Printf(s)`, where `s` is a non-constant format string,
++with no other arguments. Such calls are nearly always a mistake
++as the value of `s` may contain the `%` symbol; use `fmt.Print` instead.
++See [#60529](/issue/60529).
++
+ ### GOCACHEPROG
+ 
+ The `cmd/go` internal binary and test caching mechanism can now be implemented

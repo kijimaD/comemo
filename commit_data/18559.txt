@@ -13,6 +13,20 @@ Date:   Tue Feb 18 17:59:44 2014 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/65720045
-
+---
  src/cmd/link/prog_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/prog_test.go b/src/cmd/link/prog_test.go
+index 34c06a262a..768b11fc47 100644
+--- a/src/cmd/link/prog_test.go
++++ b/src/cmd/link/prog_test.go
+@@ -112,7 +112,7 @@ func cloneProg(p *Prog) *Prog {
+ 	for i, seg := range p.Segments {
+ 		q.Segments[i] = cloneSegment(seg)
+ 	}
+-	return p
++	return q
+ }
+ 
+ // cloneSegment returns a deep copy of seg.

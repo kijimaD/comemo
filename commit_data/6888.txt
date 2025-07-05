@@ -10,6 +10,27 @@ Date:   Wed Dec 8 14:31:46 2010 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/3440046
-
+---
  src/pkg/syscall/syscall_linux_arm.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index bc6592f156..00ab24f68e 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -98,3 +98,15 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+ func (r *PtraceRegs) PC() uint64 { return 0 }
+ 
+ func (r *PtraceRegs) SetPC(pc uint64) {}
++
++func (iov *Iovec) SetLen(length int) {
++	iov.Len = uint32(length)
++}
++
++func (msghdr *Msghdr) SetControllen(length int) {
++	msghdr.Controllen = uint32(length)
++}
++
++func (cmsg *Cmsghdr) SetLen(length int) {
++	cmsg.Len = uint32(length)
++}

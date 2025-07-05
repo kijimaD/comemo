@@ -7,7 +7,60 @@ Date:   Tue Jul 13 10:47:52 2010 +1000
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/1821041
-
+---
  src/pkg/runtime/tiny/README   | 10 +++++++---
  src/pkg/runtime/tiny/thread.c |  3 ++-
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/tiny/README b/src/pkg/runtime/tiny/README
+index 42e730d8f5..cf001d1e69 100755
+--- a/src/pkg/runtime/tiny/README
++++ b/src/pkg/runtime/tiny/README
+@@ -25,6 +25,7 @@ and GOOS set to your normal GOOS (linux, darwin).  Then:
+ Use the built-in print(text string) function to print to the
+ console.
+ 
++
+ BOCHS
+ 
+ You may have to tweak the .bochsrc depending on your system,
+@@ -37,19 +38,22 @@ and you may need to install the Bochs emulator.
+ 
+ ORACLE xVM VIRTUALBOX
+ 
+-Get VirtualBox installed, and the do:
++Install VirtualBox. Then:
++
++    Build 'disk' (described above under '386').
+ 
+-    ... build 'disk', described above
+     $ VBoxManage convertfromraw disk go-tiny.vdi
+     $ VirtualBox
+         create a new VM; as disk use the go-tiny.vdi image.
+         start the vm.
+ 
++
+ QEMU / KVM
+ 
+ This should work the same for qemu and kvm (really: qemu-kvm).
+ 
+-    ... build 'disk', described above
++    Build 'disk' (described above under '386').
++
+     $ qemu -hda disk
+ 
+ 
+diff --git a/src/pkg/runtime/tiny/thread.c b/src/pkg/runtime/tiny/thread.c
+index e62953128b..17d4d9f3eb 100644
+--- a/src/pkg/runtime/tiny/thread.c
++++ b/src/pkg/runtime/tiny/thread.c
+@@ -59,7 +59,8 @@ unlock(Lock *l)
+ 	l->key = 0;
+ }
+ 
+-void destroylock(Lock *l)
++void 
++destroylock(Lock *l)
+ {
+     // nothing
+ }

@@ -18,6 +18,24 @@ Date:   Sat Mar 6 20:59:40 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/299549
     Trust: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index d4fa7f2b14..d7d7d3bc45 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -424,7 +424,11 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 				}
+ 				outParam := aux.abiInfo.OutParam(int(which))
+ 				if len(outParam.Registers) > 0 {
+-					reg := int64(outParam.Registers[regOffset])
++					firstReg := uint32(0)
++					for i := 0; i < int(which); i++ {
++						firstReg += uint32(len(aux.abiInfo.OutParam(i).Registers))
++					}
++					reg := int64(regOffset + Abi1RO(firstReg))
+ 					if leaf.Block == call.Block {
+ 						leaf.reset(OpSelectN)
+ 						leaf.SetArgs1(call0)

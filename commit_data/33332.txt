@@ -11,6 +11,25 @@ Date:   Sat Aug 12 15:21:05 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/debug/macho/macho.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/debug/macho/macho.go b/src/debug/macho/macho.go
+index 40ac74e9a1..366ce205df 100644
+--- a/src/debug/macho/macho.go
++++ b/src/debug/macho/macho.go
+@@ -90,6 +90,13 @@ var cmdStrings = []intName{
+ func (i LoadCmd) String() string   { return stringName(uint32(i), cmdStrings, false) }
+ func (i LoadCmd) GoString() string { return stringName(uint32(i), cmdStrings, true) }
+ 
++const (
++	FlagNoUndefs uint32 = 0x1
++	FlagDyldLink uint32 = 0x4
++	FlagTwoLevel uint32 = 0x80
++	FlagPIE      uint32 = 0x200000
++)
++
+ // A Segment64 is a 64-bit Mach-O segment load command.
+ type Segment64 struct {
+ 	Cmd     LoadCmd

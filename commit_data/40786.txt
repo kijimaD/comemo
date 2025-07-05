@@ -7,6 +7,20 @@ Date:   Tue Jul 2 17:07:54 2019 +0200
     Change-Id: I99e76c0c12050289be5b353595eb21fbabe7c01e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/184597
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.13.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index 547fdd9933..42546c4622 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -341,7 +341,7 @@ go env -w GOSUMDB=off
+ <p id="go-env-w"><!-- CL 171137 -->
+   The <a href="/cmd/go/#hdr-Environment_variables"><code>go</code> <code>env</code></a>
+   command now accepts a <code>-w</code> flag to set the per-user default value
+-  of an enviroment variable recognized by the
++  of an environment variable recognized by the
+   <code>go</code> command, and a corresponding <code>-u</code> flag to unset a
+   previously-set default. Defaults set via
+   <code>go</code> <code>env</code> <code>-w</code> are stored in the

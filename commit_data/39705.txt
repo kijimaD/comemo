@@ -14,6 +14,35 @@ Date:   Fri Mar 1 09:31:30 2019 -0400
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/fmt/errors_test.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/fmt/errors_test.go b/src/fmt/errors_test.go
+index d2957e675b..a3cd26ef3e 100644
+--- a/src/fmt/errors_test.go
++++ b/src/fmt/errors_test.go
+@@ -353,6 +353,10 @@ func TestErrorFormatter(t *testing.T) {
+ 		err:  intError(4),
+ 		fmt:  "%d",
+ 		want: "4",
++	}, {
++		err:  intError(4),
++		fmt:  "%🤪",
++		want: "%!🤪(fmt_test.intError=4)",
+ 	}}
+ 	for i, tc := range testCases {
+ 		t.Run(fmt.Sprintf("%d/%s", i, tc.fmt), func(t *testing.T) {
+@@ -446,6 +450,12 @@ type intError int
+ 
+ func (e intError) Error() string { return fmt.Sprint(e) }
+ 
++func (e wrapped) Format(w fmt.State, r rune) {
++	// Test that the normal fallback handling after handleMethod for
++	// non-string verbs is used. This path should not be reached.
++	fmt.Fprintf(w, "Unreachable: %d", e)
++}
++
+ func (e intError) FormatError(p errors.Printer) (next error) {
+ 	p.Printf("error %d", e)
+ 	return nil

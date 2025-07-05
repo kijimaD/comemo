@@ -10,7 +10,63 @@ Date:   Mon Jan 29 17:01:41 2018 -0500
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go    |  8 +++++++-
  src/cmd/compile/internal/ssa/cache.go | 18 +++++++++++-------
  2 files changed, 18 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b512b10e01..b746eec690 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4653,7 +4653,13 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 	s.ScratchFpMem = e.scratchFpMem
+ 
+ 	if Ctxt.Flag_locationlists {
+-		valueToProgAfter = make([]*obj.Prog, f.NumValues())
++		if cap(f.Cache.ValueToProgAfter) < f.NumValues() {
++			f.Cache.ValueToProgAfter = make([]*obj.Prog, f.NumValues())
++		}
++		valueToProgAfter = f.Cache.ValueToProgAfter[:f.NumValues()]
++		for i := range valueToProgAfter {
++			valueToProgAfter[i] = nil
++		}
+ 	}
+ 
+ 	// Emit basic blocks
+diff --git a/src/cmd/compile/internal/ssa/cache.go b/src/cmd/compile/internal/ssa/cache.go
+index caaac0b387..299c804dd9 100644
+--- a/src/cmd/compile/internal/ssa/cache.go
++++ b/src/cmd/compile/internal/ssa/cache.go
+@@ -4,7 +4,10 @@
+ 
+ package ssa
+ 
+-import "sort"
++import (
++	"cmd/internal/obj"
++	"sort"
++)
+ 
+ // A Cache holds reusable compiler state.
+ // It is intended to be re-used for multiple Func compilations.
+@@ -21,12 +24,13 @@ type Cache struct {
+ 	domblockstore []ID         // scratch space for computing dominators
+ 	scrSparse     []*sparseSet // scratch sparse sets to be re-used.
+ 
+-	blockDebug      []BlockDebug
+-	valueNames      [][]SlotID
+-	slotLocs        []VarLoc
+-	regContents     [][]SlotID
+-	pendingEntries  []pendingEntry
+-	pendingSlotLocs []VarLoc
++	ValueToProgAfter []*obj.Prog
++	blockDebug       []BlockDebug
++	valueNames       [][]SlotID
++	slotLocs         []VarLoc
++	regContents      [][]SlotID
++	pendingEntries   []pendingEntry
++	pendingSlotLocs  []VarLoc
+ 
+ 	liveSlotSliceBegin int
+ 	liveSlots          []liveSlot

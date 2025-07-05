@@ -7,6 +7,27 @@ Date:   Wed Jan 27 16:14:11 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/194118
-
+---
  lib/codereview/codereview.py | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index c74ad97296..9f7470be52 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -2881,13 +2881,10 @@ class MercurialVCS(VersionControlSystem):
+     # the working copy
+     if out[0].startswith('%s: ' % relpath):
+       out = out[1:]
+-    if len(out) > 1:
+-      # Moved/copied => considered as modified, use old filename to
+-      # retrieve base contents
++    status, what = out[0].split(' ', 1)
++    if len(out) > 1 and status == "A" and what == relpath:
+       oldrelpath = out[1].strip()
+       status = "M"
+-    else:
+-      status, _ = out[0].split(' ', 1)
+     if ":" in self.base_rev:
+       base_rev = self.base_rev.split(":", 1)[0]
+     else:

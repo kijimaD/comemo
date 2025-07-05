@@ -12,6 +12,17 @@ Date:   Fri May 24 13:55:19 2013 -0700
     R=golang-dev, lucio.dere, rsc
     CC=golang-dev
     https://golang.org/cl/9611045
-
+---
  src/make.rc | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/make.rc b/src/make.rc
+index 83d16c0455..222bb8a186 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -95,3 +95,5 @@ rm -f $GOTOOLDIR/go_bootstrap
+ 
+ if(! ~ $1 --no-banner)
+ 	$GOTOOLDIR/dist banner
++
++status=''

@@ -7,8 +7,48 @@ Date:   Thu Dec 22 14:21:25 2011 +1100
     R=golang-dev, bradfitz, adg
     CC=golang-dev
     https://golang.org/cl/5501062
-
+---
  doc/contrib.html     | 2 +-
  doc/devel/index.html | 2 +-
  doc/root.html        | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/contrib.html b/doc/contrib.html
+index 84d2cda6a4..5e00345c8e 100644
+--- a/doc/contrib.html
++++ b/doc/contrib.html
+@@ -41,7 +41,7 @@ are particularly in need of outside help.
+ 
+ <h2 id="the_go_project">The Go Project</h2>
+ 
+-<h3 id="build_status"><a href="http://godashboard.appspot.com/">Build Status</a></h3>
++<h3 id="build_status"><a href="http://build.golang.org/">Build Status</a></h3>
+ <p>View the status of Go builds across the supported operating
+ systems and architectures.</p>
+ 
+diff --git a/doc/devel/index.html b/doc/devel/index.html
+index ae405bf520..7fcfe8d41b 100644
+--- a/doc/devel/index.html
++++ b/doc/devel/index.html
+@@ -4,7 +4,7 @@
+ <li><a href="roadmap.html">Roadmap</a></li>
+ <li><a href="release.html">Release history</a></li>
+ <li><a href="weekly.html">Weekly snapshot history</a></li>
+-<li><a href="http://godashboard.appspot.com">Build and benchmark status</a></li>
++<li><a href="http://build.golang.org/">Build status</a></li>
+ </ul>
+ <ul>
+ <li><a href="../contribute.html">Contributing code</a></li>
+diff --git a/doc/root.html b/doc/root.html
+index a1fa585d19..635df1a052 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -90,7 +90,7 @@ google.setOnLoadCallback(loadFeed);
+           <ul>
+             <li><a href="http://godashboard.appspot.com/package">Package Dashboard</a></li>
+             <li><a href="http://code.google.com/p/go/issues">Issue Tracker</a></li>
+-            <li><a href="http://godashboard.appspot.com/">Build Status</a></li>
++            <li><a href="http://build.golang.org/">Build Status</a></li>
+             <li><a href="http://code.google.com/p/go/source/browse/">Go Source</a> [<a href="http://code.google.com/p/go/source/list">changes</a>]</li>
+             <li><a href="/pkg/">Package Reference</a></li>
+             <li><a href="/doc/go_spec.html">Language Specification</a></li>

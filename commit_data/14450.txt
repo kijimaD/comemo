@@ -11,10 +11,204 @@ Date:   Thu Nov 22 01:25:53 2012 +1100
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/6843058
-
+---
  src/pkg/runtime/defs_openbsd_386.h   |  2 +-
  src/pkg/runtime/defs_openbsd_amd64.h |  3 +--
  src/pkg/runtime/sys_openbsd_386.s    | 32 +++++++++++++++-----------------
  src/pkg/runtime/sys_openbsd_amd64.s  | 22 ++++++++--------------
  src/pkg/runtime/thread_openbsd.c     |  6 +++---
  5 files changed, 28 insertions(+), 37 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_openbsd_386.h b/src/pkg/runtime/defs_openbsd_386.h
+index 0527ef1fc5..965e05e217 100644
+--- a/src/pkg/runtime/defs_openbsd_386.h
++++ b/src/pkg/runtime/defs_openbsd_386.h
+@@ -85,7 +85,7 @@ typedef struct Itimerval Itimerval;
+ struct Tfork {
+ 	byte	*tf_tcb;
+ 	int32	*tf_tid;
+-	int32	tf_flags;
++	byte	*tf_stack;
+ };
+ 
+ struct Sigaltstack {
+diff --git a/src/pkg/runtime/defs_openbsd_amd64.h b/src/pkg/runtime/defs_openbsd_amd64.h
+index 0a43349519..159bbd8fdc 100644
+--- a/src/pkg/runtime/defs_openbsd_amd64.h
++++ b/src/pkg/runtime/defs_openbsd_amd64.h
+@@ -85,8 +85,7 @@ typedef struct Itimerval Itimerval;
+ struct Tfork {
+ 	byte	*tf_tcb;
+ 	int32	*tf_tid;
+-	int32	tf_flags;
+-	byte	Pad_cgo_0[4];
++	byte	*tf_stack;
+ };
+ 
+ struct Sigaltstack {
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index 7888638dff..43a8dac62c 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -190,12 +190,14 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-// int32 tfork_thread(void *param, void *stack, M *m, G *g, void (*fn)(void));
+-TEXT runtime·tfork_thread(SB),7,$8
++// int32 tfork(void *param, uintptr psize, M *m, G *g, void (*fn)(void));
++TEXT runtime·tfork(SB),7,$12
+ 
+-	// Copy m, g, fn off parent stack and onto the child stack.
+-	MOVL	stack+8(FP), CX
++	// Copy m, g and fn from the parent stack onto the child stack.
++	MOVL	params+4(FP), AX
++	MOVL	8(AX), CX		// tf_stack
+ 	SUBL	$16, CX
++	MOVL	CX, 8(AX)
+ 	MOVL	mm+12(FP), SI
+ 	MOVL	SI, 0(CX)
+ 	MOVL	gg+16(FP), SI
+@@ -203,12 +205,13 @@ TEXT runtime·tfork_thread(SB),7,$8
+ 	MOVL	fn+20(FP), SI
+ 	MOVL	SI, 8(CX)
+ 	MOVL	$1234, 12(CX)
+-	MOVL	CX, SI
+ 
+ 	MOVL	$0, 0(SP)		// syscall gap
+ 	MOVL	params+4(FP), AX
+ 	MOVL	AX, 4(SP)		// arg 1 - param
+-	MOVL	$328, AX		// sys___tfork
++	MOVL	psize+8(FP), AX
++	MOVL	AX, 8(SP)		// arg 2 - psize
++	MOVL	$8, AX			// sys___tfork
+ 	INT	$0x80
+ 
+ 	// Return if tfork syscall failed.
+@@ -225,9 +228,6 @@ TEXT runtime·tfork_thread(SB),7,$8
+ 	MOVL	AX, 0(DX)
+ 	RET
+ 
+-	// In child, switch to new stack.
+-	MOVL    SI, SP
+-
+ 	// Paranoia: check that SP is as we expect.
+ 	MOVL	12(SP), BP
+ 	CMPL	BP, $1234
+@@ -278,22 +278,20 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	INT	$3
+ 	RET
+ 
+-TEXT runtime·setldt(SB),7,$8
++TEXT runtime·setldt(SB),7,$4
+ 	// Under OpenBSD we set the GS base instead of messing with the LDT.
+-	MOVL	16(SP), AX		// tls0
++	MOVL	tls0+4(FP), AX
+ 	MOVL	AX, 0(SP)
+ 	CALL	runtime·settls(SB)
+ 	RET
+ 
+-TEXT runtime·settls(SB),7,$16
++TEXT runtime·settls(SB),7,$8
+ 	// adjust for ELF: wants to use -8(GS) and -4(GS) for g and m
+-	MOVL	20(SP), CX
++	MOVL	tlsbase+0(FP), CX
+ 	ADDL	$8, CX
+-	MOVL	CX, 0(CX)
+ 	MOVL	$0, 0(SP)		// syscall gap
+-	MOVL	$9, 4(SP)		// I386_SET_GSBASE (machine/sysarch.h)
+-	MOVL	CX, 8(SP)		// pointer to base
+-	MOVL	$165, AX		// sys_sysarch
++	MOVL	CX, 4(SP)		// arg 1 - tcb
++	MOVL	$329, AX		// sys___set_tcb
+ 	INT	$0x80
+ 	JCC	2(PC)
+ 	MOVL	$0xf1, 0xf1		// crash
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index ad7de11f84..9717725d99 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -8,17 +8,17 @@
+ 
+ #include "zasm_GOOS_GOARCH.h"
+ 
+-// int64 tfork_thread(void *param, void *stack, M *m, G *g, void (*fn)(void));
+-TEXT runtime·tfork_thread(SB),7,$32
++// int64 tfork(void *param, uintptr psize, M *m, G *g, void (*fn)(void));
++TEXT runtime·tfork(SB),7,$32
+ 
+-	// Copy stack, m, g and fn off parent stack for use by child.
+-	MOVQ	stack+8(FP), SI
++	// Copy m, g and fn off parent stack for use by child.
+ 	MOVQ	mm+16(FP), R8
+ 	MOVQ	gg+24(FP), R9
+ 	MOVQ	fn+32(FP), R12
+ 
+ 	MOVQ	param+0(FP), DI
+-	MOVL	$328, AX		// sys___tfork
++	MOVQ	psize+8(FP), SI
++	MOVL	$8, AX			// sys___tfork
+ 	SYSCALL
+ 
+ 	// Return if tfork syscall failed.
+@@ -31,9 +31,6 @@ TEXT runtime·tfork_thread(SB),7,$32
+ 	JEQ	2(PC)
+ 	RET
+ 
+-	// In child, switch to new stack.
+-	MOVQ	SI, SP
+-
+ 	// Set FS to point at m->tls.
+ 	LEAQ	m_tls(R8), DI
+ 	CALL	runtime·settls(SB)
+@@ -54,7 +51,7 @@ TEXT runtime·tfork_thread(SB),7,$32
+ 	JMP	-3(PC)			// keep exiting
+ 
+ TEXT runtime·osyield(SB),7,$0
+-	MOVL $298, AX			// sys_sched_yield
++	MOVL	$298, AX		// sys_sched_yield
+ 	SYSCALL
+ 	RET
+ 
+@@ -249,13 +246,10 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	RET
+ 
+ // set tls base to DI
+-TEXT runtime·settls(SB),7,$8
++TEXT runtime·settls(SB),7,$0
+ 	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
+ 	ADDQ	$16, DI
+-	MOVQ	DI, 0(SP)
+-	MOVQ	SP, SI
+-	MOVQ	$12, DI			// AMD64_SET_FSBASE (machine/sysarch.h)
+-	MOVQ	$165, AX		// sys_sysarch
++	MOVQ	$329, AX		// sys___settcb
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	MOVL	$0xf1, 0xf1		// crash
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/thread_openbsd.c
+index f479e2c3e9..b696534e79 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -23,7 +23,7 @@ extern SigTab runtime·sigtab[];
+ static Sigset sigset_all = ~(Sigset)0;
+ static Sigset sigset_none;
+ 
+-extern int64 runtime·tfork_thread(void *param, void *stack, M *m, G *g, void (*fn)(void));
++extern int64 runtime·tfork(void *param, uintptr psize, M *m, G *g, void (*fn)(void));
+ extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock, const int32 *abort);
+ extern int32 runtime·thrwakeup(void *ident, int32 n);
+ 
+@@ -139,10 +139,10 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 
+ 	param.tf_tcb = (byte*)&m->tls[0];
+ 	param.tf_tid = (int32*)&m->procid;
+-	param.tf_flags = (int32)0;
++	param.tf_stack = stk;
+ 
+ 	oset = runtime·sigprocmask(SIG_SETMASK, sigset_all);
+-	ret = runtime·tfork_thread((byte*)&param, stk, m, g, fn);
++	ret = runtime·tfork((byte*)&param, sizeof(param), m, g, fn);
+ 	runtime·sigprocmask(SIG_SETMASK, oset);
+ 
+ 	if(ret < 0) {

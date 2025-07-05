@@ -36,7 +36,61 @@ Date:   Mon Jun 12 22:56:23 2023 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/go/testdata/script/repro_build.txt | 22 ++++++++++++++++++++++
  src/cmd/internal/obj/sym.go                | 14 +++++++++-----
  2 files changed, 31 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/repro_build.txt b/src/cmd/go/testdata/script/repro_build.txt
+new file mode 100644
+index 0000000000..7c6e317cec
+--- /dev/null
++++ b/src/cmd/go/testdata/script/repro_build.txt
+@@ -0,0 +1,22 @@
++# Check that goroutine scheduling does not affect compiler output.
++# If it does, reproducible builds will not work very well.
++[short] skip
++[GOOS:aix] env CGO_ENABLED=0  # go.dev/issue/56896
++env GOMAXPROCS=16
++go build -a -o http16.o net/http
++env GOMAXPROCS=17
++go build -a -o http17.o net/http
++cmp -q http16.o http17.o
++env GOMAXPROCS=18
++go build -a -o http18.o net/http
++cmp -q http16.o http18.o
++
++# Check that goroutine scheduling does not affect linker output.
++env GOMAXPROCS=16
++go build -a -o gofmt16.exe cmd/gofmt
++env GOMAXPROCS=17
++go build -a -o gofmt17.exe cmd/gofmt
++cmp -q gofmt16.exe gofmt17.exe
++env GOMAXPROCS=18
++go build -a -o gofmt18.exe cmd/gofmt
++cmp -q gofmt16.exe gofmt18.exe
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 6a5ab6c349..2b885f6a10 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -189,11 +189,15 @@ func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
+ // in which case all the symbols are non-package (for now).
+ func (ctxt *Link) NumberSyms() {
+ 	if ctxt.Headtype == objabi.Haix {
+-		// Data must be sorted to keep a constant order in TOC symbols.
+-		// As they are created during Progedit, two symbols can be switched between
+-		// two different compilations. Therefore, BuildID will be different.
+-		// TODO: find a better place and optimize to only sort TOC symbols
+-		sort.Slice(ctxt.Data, func(i, j int) bool {
++		// Data must be in a reliable order for reproducible builds.
++		// The original entries are in a reliable order, but the TOC symbols
++		// that are added in Progedit are added by different goroutines
++		// that can be scheduled independently. We need to reorder those
++		// symbols reliably. Sort by name but use a stable sort, so that
++		// any original entries with the same name (all DWARFVAR symbols
++		// have empty names but different relocation sets) are not shuffled.
++		// TODO: Find a better place and optimize to only sort TOC symbols.
++		sort.SliceStable(ctxt.Data, func(i, j int) bool {
+ 			return ctxt.Data[i].Name < ctxt.Data[j].Name
+ 		})
+ 	}

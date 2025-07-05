@@ -12,6 +12,40 @@ Date:   Fri Sep 2 10:31:34 2022 +0800
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/runtime/memmove_test.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/memmove_test.go b/src/runtime/memmove_test.go
+index 382920bde6..f1247f6ddf 100644
+--- a/src/runtime/memmove_test.go
++++ b/src/runtime/memmove_test.go
+@@ -244,23 +244,23 @@ func TestMemmoveAtomicity(t *testing.T) {
+ 					dst[i] = nil
+ 				}
+ 
+-				var ready uint32
++				var ready atomic.Uint32
+ 				go func() {
+ 					sp := unsafe.Pointer(&src[0])
+ 					dp := unsafe.Pointer(&dst[0])
+-					atomic.StoreUint32(&ready, 1)
++					ready.Store(1)
+ 					for i := 0; i < 10000; i++ {
+ 						Memmove(dp, sp, sz)
+ 						MemclrNoHeapPointers(dp, sz)
+ 					}
+-					atomic.StoreUint32(&ready, 2)
++					ready.Store(2)
+ 				}()
+ 
+-				for atomic.LoadUint32(&ready) == 0 {
++				for ready.Load() == 0 {
+ 					Gosched()
+ 				}
+ 
+-				for atomic.LoadUint32(&ready) != 2 {
++				for ready.Load() != 2 {
+ 					for i := range dst {
+ 						p := dst[i]
+ 						if p != nil && p != &x {

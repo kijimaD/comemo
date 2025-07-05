@@ -19,7 +19,47 @@ Date:   Wed Jan 3 14:23:49 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/553795
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/list/list.go                    |  6 ++++--
  src/cmd/go/testdata/script/list_json_issue64946.txt | 10 ++++++++++
  2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index d9b09077c1..db58714882 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -449,13 +449,15 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 	if listJson {
+ 		do = func(x any) {
+ 			if !listJsonFields.needAll() {
+-				v := reflect.ValueOf(x).Elem() // do is always called with a non-nil pointer.
+-				// Clear all non-requested fields.
++				//  Set x to a copy of itself with all non-requested fields cleared.
++				v := reflect.New(reflect.TypeOf(x).Elem()).Elem() // do is always called with a non-nil pointer.
++				v.Set(reflect.ValueOf(x).Elem())
+ 				for i := 0; i < v.NumField(); i++ {
+ 					if !listJsonFields.needAny(v.Type().Field(i).Name) {
+ 						v.Field(i).SetZero()
+ 					}
+ 				}
++				x = v.Interface()
+ 			}
+ 			b, err := json.MarshalIndent(x, "", "\t")
+ 			if err != nil {
+diff --git a/src/cmd/go/testdata/script/list_json_issue64946.txt b/src/cmd/go/testdata/script/list_json_issue64946.txt
+new file mode 100644
+index 0000000000..64ff9d9fe3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_json_issue64946.txt
+@@ -0,0 +1,10 @@
++cd mod
++go list -e -json=ImportPath,Error ./foo
++stdout '"Err": "no Go files in .*(/|\\\\)src(/|\\\\)mod(/|\\\\)foo"'
++
++-- mod/go.mod --
++module example.com/foo
++
++go 1.21
++-- mod/foo/README.md --
++empty
+\ No newline at end of file

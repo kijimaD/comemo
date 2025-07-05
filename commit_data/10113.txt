@@ -7,6 +7,25 @@ Date:   Wed Oct 26 22:25:20 2011 +1100
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/5302058
-
+---
  src/pkg/net/sock_windows.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/pkg/net/sock_windows.go b/src/pkg/net/sock_windows.go
+index 5169d1e6a2..9b9cd9e368 100644
+--- a/src/pkg/net/sock_windows.go
++++ b/src/pkg/net/sock_windows.go
+@@ -11,6 +11,13 @@ import (
+ )
+ 
+ func setKernelSpecificSockopt(s syscall.Handle, f int) {
++	// Windows will reuse recently-used addresses by default.
++	// SO_REUSEADDR should not be used here, as it allows
++	// a socket to forcibly bind to a port in use by another socket.
++	// This could lead to a non-deterministic behavior, where
++	// connection requests over the port cannot be guaranteed
++	// to be handled by the correct socket.
++
+ 	// Allow broadcast.
+ 	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+ 

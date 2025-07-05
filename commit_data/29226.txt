@@ -11,7 +11,33 @@ Date:   Mon Aug 1 12:50:11 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/doc/comment.go      | 2 +-
  src/go/doc/comment_test.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/doc/comment.go b/src/go/doc/comment.go
+index ed8eef4c61..15e034b6df 100644
+--- a/src/go/doc/comment.go
++++ b/src/go/doc/comment.go
+@@ -53,7 +53,7 @@ const (
+ 	filePart = `[a-zA-Z0-9_?%#~&/\-+=()]+` // parentheses may not be matching; see pairedParensPrefixLen
+ 	urlRx    = `(` + protocol + `)://` +   // http://
+ 		hostPart + `([.:]` + hostPart + `)*/?` + // //www.google.com:8080/
+-		filePart + `([:.,]` + filePart + `)*`
++		filePart + `([:.,;]` + filePart + `)*`
+ )
+ 
+ var matchRx = regexp.MustCompile(`(` + urlRx + `)|(` + identRx + `)`)
+diff --git a/src/go/doc/comment_test.go b/src/go/doc/comment_test.go
+index ad65c2a27f..76dfbeac79 100644
+--- a/src/go/doc/comment_test.go
++++ b/src/go/doc/comment_test.go
+@@ -162,6 +162,7 @@ var emphasizeTests = []struct {
+ 	{"Hello http://example.com/%2f/ /world.", `Hello <a href="http://example.com/%2f/">http://example.com/%2f/</a> /world.`},
+ 	{"Lorem http: ipsum //host/path", "Lorem http: ipsum //host/path"},
+ 	{"javascript://is/not/linked", "javascript://is/not/linked"},
++	{"http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD", `<a href="http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD">http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD</a>`},
+ }
+ 
+ func TestEmphasize(t *testing.T) {

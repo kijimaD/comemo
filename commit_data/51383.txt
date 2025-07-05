@@ -12,6 +12,32 @@ Date:   Thu Jan 20 11:17:51 2022 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 14 +++++++-------
  1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 54604598cc..19b9754e8b 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1462,13 +1462,13 @@ func TestLabelSystemstack(t *testing.T) {
+ 					// runtime.isSystemGoroutine). These
+ 					// should never be labeled.
+ 					mustNotBeLabeled = true
+-				case "gogo", "gosave_systemstack_switch":
+-					// These are context switch critical
+-					// that we can't do a full traceback
+-					// from. Typically this would be
+-					// covered by the runtime check below,
+-					// but these symbols don't have the
+-					// package name.
++				case "gogo", "gosave_systemstack_switch", "racecall":
++					// These are context switch/race
++					// critical that we can't do a full
++					// traceback from. Typically this would
++					// be covered by the runtime check
++					// below, but these symbols don't have
++					// the package name.
+ 					mayBeLabeled = true
+ 				}
+ 

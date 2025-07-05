@@ -7,6 +7,24 @@ Date:   Thu Jan 15 16:20:21 2009 -0800
     R=ken
     OCL=22887
     CL=22887
-
+---
  src/cmd/gc/export.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index e46276b118..2b3a6f701f 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -75,8 +75,11 @@ autoexport(Sym *s)
+ 		if(dcladj != exportsym)
+ 			warn("uppercase missing export");
+ 		exportsym(s);
+-	} else
++	} else {
++		if(dcladj == exportsym)
++			warn("export missing uppercase");
+ 		packagesym(s);
++	}
+ }
+ 
+ void

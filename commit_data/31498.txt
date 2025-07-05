@@ -19,7 +19,143 @@ Date:   Mon Nov 14 08:05:45 2016 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/strings/replace_test.go | 41 ++++++++++++++++++++++++++++++
  src/strings/strings.go      | 61 ++++++++++++++++++++++++++++++---------------
  2 files changed, 82 insertions(+), 20 deletions(-)
+
+diff --git a/src/strings/replace_test.go b/src/strings/replace_test.go
+index 77e48b988b..34b5badfad 100644
+--- a/src/strings/replace_test.go
++++ b/src/strings/replace_test.go
+@@ -540,3 +540,44 @@ func BenchmarkByteByteMap(b *testing.B) {
+ 		Map(fn, str)
+ 	}
+ }
++
++var mapdata = []struct{ name, data string }{
++	{"ASCII", "a b c d e f g h i j k l m n o p q r s t u v w x y z"},
++	{"Greek", "α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ ς σ τ υ φ χ ψ ω"},
++}
++
++func BenchmarkMap(b *testing.B) {
++	mapidentity := func(r rune) rune {
++		return r
++	}
++
++	b.Run("identity", func(b *testing.B) {
++		for _, md := range mapdata {
++			b.Run(md.name, func(b *testing.B) {
++				for i := 0; i < b.N; i++ {
++					Map(mapidentity, md.data)
++				}
++			})
++		}
++	})
++
++	mapchange := func(r rune) rune {
++		if 'a' <= r && r <= 'z' {
++			return r + 'A' - 'a'
++		}
++		if 'α' <= r && r <= 'ω' {
++			return r + 'Α' - 'α'
++		}
++		return r
++	}
++
++	b.Run("change", func(b *testing.B) {
++		for _, md := range mapdata {
++			b.Run(md.name, func(b *testing.B) {
++				for i := 0; i < b.N; i++ {
++					Map(mapchange, md.data)
++				}
++			})
++		}
++	})
++}
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 5bc60e8a85..188d8cbc09 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -383,40 +383,61 @@ func Map(mapping func(rune) rune, s string) string {
+ 	// In the worst case, the string can grow when mapped, making
+ 	// things unpleasant. But it's so rare we barge in assuming it's
+ 	// fine. It could also shrink but that falls out naturally.
+-	maxbytes := len(s) // length of b
+-	nbytes := 0        // number of bytes encoded in b
++
+ 	// The output buffer b is initialized on demand, the first
+ 	// time a character differs.
+ 	var b []byte
++	// nbytes is the number of bytes encoded in b.
++	var nbytes int
+ 
+ 	for i, c := range s {
+ 		r := mapping(c)
+-		if b == nil {
+-			if r == c {
+-				continue
+-			}
+-			b = make([]byte, maxbytes)
+-			nbytes = copy(b, s[:i])
++		if r == c {
++			continue
+ 		}
++
++		b = make([]byte, len(s)+utf8.UTFMax)
++		nbytes = copy(b, s[:i])
+ 		if r >= 0 {
+-			wid := 1
+-			if r >= utf8.RuneSelf {
+-				wid = utf8.RuneLen(r)
++			if r <= utf8.RuneSelf {
++				b[nbytes] = byte(r)
++				nbytes++
++			} else {
++				nbytes += utf8.EncodeRune(b[nbytes:], r)
+ 			}
+-			if nbytes+wid > maxbytes {
+-				// Grow the buffer.
+-				maxbytes = maxbytes*2 + utf8.UTFMax
+-				nb := make([]byte, maxbytes)
+-				copy(nb, b[0:nbytes])
+-				b = nb
+-			}
+-			nbytes += utf8.EncodeRune(b[nbytes:maxbytes], r)
+ 		}
++		i += utf8.RuneLen(c)
++		s = s[i:]
++		break
+ 	}
++
+ 	if b == nil {
+ 		return s
+ 	}
+-	return string(b[0:nbytes])
++
++	for _, c := range s {
++		r := mapping(c)
++
++		// common case
++		if (0 <= r && r <= utf8.RuneSelf) && nbytes < len(b) {
++			b[nbytes] = byte(r)
++			nbytes++
++			continue
++		}
++
++		// b is not big enough or r is not a ASCII rune.
++		if r >= 0 {
++			if nbytes+utf8.UTFMax >= len(b) {
++				// Grow the buffer.
++				nb := make([]byte, 2*len(b))
++				copy(nb, b[:nbytes])
++				b = nb
++			}
++			nbytes += utf8.EncodeRune(b[nbytes:], r)
++		}
++	}
++
++	return string(b[:nbytes])
+ }
+ 
+ // Repeat returns a new string consisting of count copies of the string s.

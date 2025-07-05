@@ -19,7 +19,53 @@ Date:   Thu Feb 4 13:38:38 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/19231
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/string.go      |  4 ++--
  src/runtime/string_test.go | 15 +++++++++++++++
  2 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index f8ccd41b1d..dd04bda04b 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -139,7 +139,7 @@ func slicebytetostringtmp(b []byte) string {
+ func stringtoslicebyte(buf *tmpBuf, s string) []byte {
+ 	var b []byte
+ 	if buf != nil && len(s) <= len(buf) {
+-		b = buf[:len(s)]
++		b = buf[:len(s):len(s)]
+ 	} else {
+ 		b = rawbyteslice(len(s))
+ 	}
+@@ -171,7 +171,7 @@ func stringtoslicerune(buf *[tmpStringBufSize]rune, s string) []rune {
+ 	}
+ 	var a []rune
+ 	if buf != nil && n <= len(buf) {
+-		a = buf[:n]
++		a = buf[:n:n]
+ 	} else {
+ 		a = rawruneslice(n)
+ 	}
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index 318a5532e5..150a25520a 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -222,3 +222,18 @@ func TestRangeStringCast(t *testing.T) {
+ 		t.Fatalf("want 0 allocs, got %v", n)
+ 	}
+ }
++
++func TestString2Slice(t *testing.T) {
++	// Make sure we don't return slices that expose
++	// an unzeroed section of stack-allocated temp buf
++	// between len and cap.  See issue 14232.
++	s := "foož"
++	b := ([]byte)(s)
++	if cap(b) != 5 {
++		t.Errorf("want cap of 5, got %d", cap(b))
++	}
++	r := ([]rune)(s)
++	if cap(r) != 4 {
++		t.Errorf("want cap of 4, got %d", cap(r))
++	}
++}

@@ -24,7 +24,94 @@ Date:   Fri May 6 17:05:02 2016 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 15 +++++++----
  test/fixedbugs/issue15585.go             | 45 ++++++++++++++++++++++++++++++++
  2 files changed, 55 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 1b12c6f300..6c391aba29 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1311,20 +1311,25 @@ func (s *regAllocState) regalloc(f *Func) {
+ 						// Start with live at end.
+ 						for _, li := range s.live[ss.ID] {
+ 							if s.isLoopSpillCandidate(loop, s.orig[li.ID]) {
++								// s.live contains original IDs, use s.orig above to map back to *Value
+ 								entryCandidates.setBit(li.ID, uint(whichExit))
+ 							}
+ 						}
+ 						// Control can also be live.
+-						if ss.Control != nil && s.isLoopSpillCandidate(loop, ss.Control) {
+-							entryCandidates.setBit(ss.Control.ID, uint(whichExit))
++						if ss.Control != nil && s.orig[ss.Control.ID] != nil && s.isLoopSpillCandidate(loop, s.orig[ss.Control.ID]) {
++							entryCandidates.setBit(s.orig[ss.Control.ID].ID, uint(whichExit))
+ 						}
+ 						// Walk backwards, filling in locally live values, removing those defined.
+ 						for i := len(ss.Values) - 1; i >= 0; i-- {
+ 							v := ss.Values[i]
+-							entryCandidates.remove(v.ID) // Cannot be an issue, only keeps the sets smaller.
++							vorig := s.orig[v.ID]
++							if vorig != nil {
++								entryCandidates.remove(vorig.ID) // Cannot be an issue, only keeps the sets smaller.
++							}
+ 							for _, a := range v.Args {
+-								if s.isLoopSpillCandidate(loop, a) {
+-									entryCandidates.setBit(a.ID, uint(whichExit))
++								aorig := s.orig[a.ID]
++								if aorig != nil && s.isLoopSpillCandidate(loop, aorig) {
++									entryCandidates.setBit(aorig.ID, uint(whichExit))
+ 								}
+ 							}
+ 						}
+diff --git a/test/fixedbugs/issue15585.go b/test/fixedbugs/issue15585.go
+new file mode 100644
+index 0000000000..79eb13f90d
+--- /dev/null
++++ b/test/fixedbugs/issue15585.go
+@@ -0,0 +1,45 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bug
++
++func example(n int) (rc int) {
++	var cc, ll, pp, rr [27]int
++	for q0 := 0; q0 < n-2; q0++ {
++		for q1 := q0 + 2; q1 < n; q1++ {
++			var c, d, l, p, r int
++			b0 := 1 << uint(q0)
++			b1 := 1 << uint(q1)
++			l = ((b0 << 1) | b1) << 1
++			c = b0 | b1 | (-1 << uint(n))
++			r = ((b0 >> 1) | b1) >> 1
++		E:
++			if c != -1 {
++				p = ^(l | c | r)
++			} else {
++				rc++
++				goto R
++			}
++		L:
++			if p != 0 {
++				lsb := p & -p
++				p &^= lsb
++				ll[d], cc[d], rr[d], pp[d] = l, c, r, p
++				l, c, r = (l|lsb)<<1, c|lsb, (r|lsb)>>1
++				d++
++				goto E
++			}
++		R:
++			d--
++			if d >= 0 {
++				l, c, r, p = ll[d], cc[d], rr[d], pp[d]
++				goto L
++			}
++		}
++	}
++	rc <<= 1
++	return
++}

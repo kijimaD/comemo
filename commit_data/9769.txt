@@ -10,10 +10,152 @@ Date:   Wed Sep 21 15:12:06 2011 -0700
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5092047
-
+---
  src/cmd/godoc/codewalk.go   |  4 ++--
  src/cmd/godoc/filesystem.go | 15 ++++++++++-----
  src/cmd/godoc/godoc.go      | 10 +++++-----
  src/cmd/godoc/parser.go     |  2 +-
  src/cmd/godoc/zip.go        |  9 ---------
  5 files changed, 18 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+index 214fc5644e..fb5f27596e 100644
+--- a/src/cmd/godoc/codewalk.go
++++ b/src/cmd/godoc/codewalk.go
+@@ -129,7 +129,7 @@ func loadCodewalk(filename string) (*Codewalk, os.Error) {
+ 			i = len(st.Src)
+ 		}
+ 		filename := st.Src[0:i]
+-		data, err := fs.ReadFile(absolutePath(filename, *goroot))
++		data, err := ReadFile(fs, absolutePath(filename, *goroot))
+ 		if err != nil {
+ 			st.Err = err
+ 			continue
+@@ -208,7 +208,7 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
+ // the usual godoc HTML wrapper.
+ func codewalkFileprint(w http.ResponseWriter, r *http.Request, f string) {
+ 	abspath := absolutePath(f, *goroot)
+-	data, err := fs.ReadFile(abspath)
++	data, err := ReadFile(fs, abspath)
+ 	if err != nil {
+ 		log.Print(err)
+ 		serveError(w, r, f, err)
+diff --git a/src/cmd/godoc/filesystem.go b/src/cmd/godoc/filesystem.go
+index a68c085927..011977af90 100644
+--- a/src/cmd/godoc/filesystem.go
++++ b/src/cmd/godoc/filesystem.go
+@@ -31,7 +31,16 @@ type FileSystem interface {
+ 	Lstat(path string) (FileInfo, os.Error)
+ 	Stat(path string) (FileInfo, os.Error)
+ 	ReadDir(path string) ([]FileInfo, os.Error)
+-	ReadFile(path string) ([]byte, os.Error)
++}
++
++// ReadFile reads the file named by path from fs and returns the contents.
++func ReadFile(fs FileSystem, path string) ([]byte, os.Error) {
++	rc, err := fs.Open(path)
++	if err != nil {
++		return nil, err
++	}
++	defer rc.Close()
++	return ioutil.ReadAll(rc)
+ }
+ 
+ // ----------------------------------------------------------------------------
+@@ -98,7 +107,3 @@ func (osFS) ReadDir(path string) ([]FileInfo, os.Error) {
+ 	}
+ 	return l1, nil
+ }
+-
+-func (osFS) ReadFile(path string) ([]byte, os.Error) {
+-	return ioutil.ReadFile(path)
+-}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index c817dbe6ac..3bf721bcc0 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -149,7 +149,7 @@ func getPathFilter() func(string) bool {
+ // readDirList reads a file containing a newline-separated list
+ // of directory paths and returns the list of paths.
+ func readDirList(filename string) ([]string, os.Error) {
+-	contents, err := fs.ReadFile(filename)
++	contents, err := ReadFile(fs, filename)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -546,7 +546,7 @@ func readTemplate(name string) *template.Template {
+ 
+ 	// use underlying file system fs to read the template file
+ 	// (cannot use template ParseFile functions directly)
+-	data, err := fs.ReadFile(path)
++	data, err := ReadFile(fs, path)
+ 	if err != nil {
+ 		log.Fatal("readTemplate: ", err)
+ 	}
+@@ -636,7 +636,7 @@ func extractString(src []byte, rx *regexp.Regexp) (s string) {
+ 
+ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
+ 	// get HTML body contents
+-	src, err := fs.ReadFile(abspath)
++	src, err := ReadFile(fs, abspath)
+ 	if err != nil {
+ 		log.Printf("ReadFile: %s", err)
+ 		serveError(w, r, relpath, err)
+@@ -685,7 +685,7 @@ func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
+ }
+ 
+ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, title string) {
+-	src, err := fs.ReadFile(abspath)
++	src, err := ReadFile(fs, abspath)
+ 	if err != nil {
+ 		log.Printf("ReadFile: %s", err)
+ 		serveError(w, r, relpath, err)
+@@ -837,7 +837,7 @@ func fsReadDir(dir string) ([]*os.FileInfo, os.Error) {
+ // fsReadFile implements ReadFile for the go/build package.
+ func fsReadFile(dir, name string) (path string, data []byte, err os.Error) {
+ 	path = filepath.Join(dir, name)
+-	data, err = fs.ReadFile(path)
++	data, err = ReadFile(fs, path)
+ 	return
+ }
+ 
+diff --git a/src/cmd/godoc/parser.go b/src/cmd/godoc/parser.go
+index cc1780a4b5..a2920539f2 100644
+--- a/src/cmd/godoc/parser.go
++++ b/src/cmd/godoc/parser.go
+@@ -18,7 +18,7 @@ import (
+ )
+ 
+ func parseFile(fset *token.FileSet, filename string, mode uint) (*ast.File, os.Error) {
+-	src, err := fs.ReadFile(filename)
++	src, err := ReadFile(fs, filename)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/godoc/zip.go b/src/cmd/godoc/zip.go
+index 46d7112e51..86cd79b17b 100644
+--- a/src/cmd/godoc/zip.go
++++ b/src/cmd/godoc/zip.go
+@@ -22,7 +22,6 @@ import (
+ 	"archive/zip"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"path"
+ 	"sort"
+@@ -153,14 +152,6 @@ func (fs *zipFS) ReadDir(abspath string) ([]FileInfo, os.Error) {
+ 	return list, nil
+ }
+ 
+-func (fs *zipFS) ReadFile(abspath string) ([]byte, os.Error) {
+-	rc, err := fs.Open(abspath)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return ioutil.ReadAll(rc)
+-}
+-
+ func NewZipFS(rc *zip.ReadCloser) FileSystem {
+ 	list := make(zipList, len(rc.File))
+ 	copy(list, rc.File) // sort a copy of rc.File

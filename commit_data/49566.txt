@@ -13,6 +13,20 @@ Date:   Sat Aug 28 11:22:06 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/expr.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 41de6bd61b..baf0117409 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -574,7 +574,7 @@ type SliceExpr struct {
+ 	Low          Node
+ 	High         Node
+ 	Max          Node
+-	CheckPtrCall *CallExpr
++	CheckPtrCall *CallExpr `mknode:"-"`
+ }
+ 
+ func NewSliceExpr(pos src.XPos, op Op, x, low, high, max Node) *SliceExpr {

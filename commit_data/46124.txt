@@ -30,10 +30,231 @@ Date:   Tue Dec 8 09:44:48 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check.go               |  1 +
  src/go/types/decl.go                | 35 ++++++++++++++++++++++++++---------
  src/go/types/errors.go              | 20 ++++++++++++++++----
  src/go/types/resolver.go            | 15 ++++++++-------
  src/go/types/testdata/constdecl.src | 31 +++++++++++++++++++++++++++++++
  5 files changed, 82 insertions(+), 20 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 5e7bd92076..280792e838 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -46,6 +46,7 @@ type context struct {
+ 	scope         *Scope                 // top-most scope for lookups
+ 	pos           token.Pos              // if valid, identifiers are looked up as if at position pos (used by Eval)
+ 	iota          constant.Value         // value of iota in a constant declaration; nil otherwise
++	errpos        positioner             // if set, identifier position of a constant with inherited initializer
+ 	sig           *Signature             // function signature if inside a function; nil otherwise
+ 	isPanic       map[*ast.CallExpr]bool // set of panic call expressions (used for termination check)
+ 	hasLabel      bool                   // set if a function makes use of labels (only ~1% of functions); unused outside functions
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 17b66ca387..1f0bc358a2 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -183,7 +183,7 @@ func (check *Checker) objDecl(obj Object, def *Named) {
+ 	switch obj := obj.(type) {
+ 	case *Const:
+ 		check.decl = d // new package-level const decl
+-		check.constDecl(obj, d.typ, d.init)
++		check.constDecl(obj, d.typ, d.init, d.inherited)
+ 	case *Var:
+ 		check.decl = d // new package-level var decl
+ 		check.varDecl(obj, d.lhs, d.typ, d.init)
+@@ -388,10 +388,11 @@ type (
+ 
+ 	importDecl struct{ spec *ast.ImportSpec }
+ 	constDecl  struct {
+-		spec *ast.ValueSpec
+-		iota int
+-		typ  ast.Expr
+-		init []ast.Expr
++		spec      *ast.ValueSpec
++		iota      int
++		typ       ast.Expr
++		init      []ast.Expr
++		inherited bool
+ 	}
+ 	varDecl  struct{ spec *ast.ValueSpec }
+ 	typeDecl struct{ spec *ast.TypeSpec }
+@@ -424,14 +425,17 @@ func (check *Checker) walkDecl(d ast.Decl, f func(decl)) {
+ 				switch d.Tok {
+ 				case token.CONST:
+ 					// determine which initialization expressions to use
++					inherited := true
+ 					switch {
+ 					case s.Type != nil || len(s.Values) > 0:
+ 						last = s
++						inherited = false
+ 					case last == nil:
+ 						last = new(ast.ValueSpec) // make sure last exists
++						inherited = false
+ 					}
+ 					check.arityMatch(s, last)
+-					f(constDecl{spec: s, iota: iota, init: last.Values, typ: last.Type})
++					f(constDecl{spec: s, iota: iota, typ: last.Type, init: last.Values, inherited: inherited})
+ 				case token.VAR:
+ 					check.arityMatch(s, nil)
+ 					f(varDecl{s})
+@@ -451,12 +455,16 @@ func (check *Checker) walkDecl(d ast.Decl, f func(decl)) {
+ 	}
+ }
+ 
+-func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
++func (check *Checker) constDecl(obj *Const, typ, init ast.Expr, inherited bool) {
+ 	assert(obj.typ == nil)
+ 
+ 	// use the correct value of iota
+-	defer func(iota constant.Value) { check.iota = iota }(check.iota)
++	defer func(iota constant.Value, errpos positioner) {
++		check.iota = iota
++		check.errpos = errpos
++	}(check.iota, check.errpos)
+ 	check.iota = obj.val
++	check.errpos = nil
+ 
+ 	// provide valid constant value under all circumstances
+ 	obj.val = constant.MakeUnknown()
+@@ -479,6 +487,15 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
+ 	// check initialization
+ 	var x operand
+ 	if init != nil {
++		if inherited {
++			// The initialization expression is inherited from a previous
++			// constant declaration, and (error) positions refer to that
++			// expression and not the current constant declaration. Use
++			// the constant identifier position for any errors during
++			// init expression evaluation since that is all we have
++			// (see issues #42991, #42992).
++			check.errpos = atPos(obj.pos)
++		}
+ 		check.expr(&x, init)
+ 	}
+ 	check.initConst(obj, &x)
+@@ -753,7 +770,7 @@ func (check *Checker) declStmt(d ast.Decl) {
+ 					init = d.init[i]
+ 				}
+ 
+-				check.constDecl(obj, d.typ, init)
++				check.constDecl(obj, d.typ, init, d.inherited)
+ 			}
+ 
+ 			// process function literals in init expressions before scope changes
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index c9c475e469..a2195011f0 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -89,6 +89,18 @@ func (check *Checker) err(err error) {
+ 		return
+ 	}
+ 
++	if check.errpos != nil && isInternal {
++		// If we have an internal error and the errpos override is set, use it to
++		// augment our error positioning.
++		// TODO(rFindley) we may also want to augment the error message and refer
++		// to the position (pos) in the original expression.
++		span := spanOf(check.errpos)
++		e.Pos = span.pos
++		e.go116start = span.start
++		e.go116end = span.end
++		err = e
++	}
++
+ 	if check.firstErr == nil {
+ 		check.firstErr = err
+ 	}
+@@ -111,15 +123,15 @@ func (check *Checker) err(err error) {
+ }
+ 
+ func (check *Checker) newError(at positioner, code errorCode, soft bool, msg string) error {
+-	ext := spanOf(at)
++	span := spanOf(at)
+ 	return Error{
+ 		Fset:       check.fset,
+-		Pos:        ext.pos,
++		Pos:        span.pos,
+ 		Msg:        msg,
+ 		Soft:       soft,
+ 		go116code:  code,
+-		go116start: ext.start,
+-		go116end:   ext.end,
++		go116start: span.start,
++		go116end:   span.end,
+ 	}
+ }
+ 
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 4092d55b4e..b637f8b8ca 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -17,12 +17,13 @@ import (
+ 
+ // A declInfo describes a package-level const, type, var, or func declaration.
+ type declInfo struct {
+-	file  *Scope        // scope of file containing this declaration
+-	lhs   []*Var        // lhs of n:1 variable declarations, or nil
+-	typ   ast.Expr      // type, or nil
+-	init  ast.Expr      // init/orig expression, or nil
+-	fdecl *ast.FuncDecl // func declaration, or nil
+-	alias bool          // type alias declaration
++	file      *Scope        // scope of file containing this declaration
++	lhs       []*Var        // lhs of n:1 variable declarations, or nil
++	typ       ast.Expr      // type, or nil
++	init      ast.Expr      // init/orig expression, or nil
++	inherited bool          // if set, the init expression is inherited from a previous constant declaration
++	fdecl     *ast.FuncDecl // func declaration, or nil
++	alias     bool          // type alias declaration
+ 
+ 	// The deps field tracks initialization expression dependencies.
+ 	deps map[Object]bool // lazily initialized
+@@ -323,7 +324,7 @@ func (check *Checker) collectObjects() {
+ 						init = d.init[i]
+ 					}
+ 
+-					d := &declInfo{file: fileScope, typ: d.typ, init: init}
++					d := &declInfo{file: fileScope, typ: d.typ, init: init, inherited: d.inherited}
+ 					check.declarePkgObj(name, obj, d)
+ 				}
+ 
+diff --git a/src/go/types/testdata/constdecl.src b/src/go/types/testdata/constdecl.src
+index c2f40ed6e6..680c85aff3 100644
+--- a/src/go/types/testdata/constdecl.src
++++ b/src/go/types/testdata/constdecl.src
+@@ -107,4 +107,35 @@ func _() {
+ 	const x, y, z = 0, 1, unsafe.Sizeof(func() { _ = x /* ERROR "undeclared name" */ + y /* ERROR "undeclared name" */ + z /* ERROR "undeclared name" */ })
+ }
+ 
++// Test cases for errors in inherited constant initialization expressions.
++// Errors related to inherited initialization expressions must appear at
++// the constant identifier being declared, not at the original expression
++// (issues #42991, #42992).
++const (
++	_ byte = 255 + iota
++	/* some gap */
++	_ // ERROR overflows
++	/* some gap */
++	/* some gap */ _ /* ERROR overflows */; _ /* ERROR overflows */
++	/* some gap */
++	_ = 255 + iota
++	_ = byte /* ERROR overflows */ (255) + iota
++	_ /* ERROR overflows */
++)
++
++// Test cases from issue.
++const (
++	ok = byte(iota + 253)
++	bad
++	barn
++	bard // ERROR cannot convert
++)
++
++const (
++	c = len([1 - iota]int{})
++	d
++	e // ERROR invalid array length
++	f // ERROR invalid array length
++)
++
+ // TODO(gri) move extra tests from testdata/const0.src into here

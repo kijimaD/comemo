@@ -10,7 +10,52 @@ Date:   Tue Nov 25 12:49:17 2008 -0800
     DELTA=18  (12 added, 3 deleted, 3 changed)
     OCL=19988
     CL=19993
-
+---
  src/cmd/gotest/gotest | 19 ++++++++++++++-----
  src/lib/testing.go    |  2 +-
  2 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 55d22e7299..744a7f3c87 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -55,12 +55,21 @@ trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
+ 	# test array
+ 	echo
+ 	echo 'var tests = &[]testing.Test {'
+-	# test functions are named TestFoo
+-	# the grep -v eliminates methods and other special names
+-	# that have multiple dots.
+-	for i in $(6nm -s $ofiles | grep ' T .*·Test[A-Z]' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
++	for ofile in $ofiles
+ 	do
+-		echo '	testing.Test{ "'$i'", &'$i' },'
++		# test functions are named TestFoo
++		# the grep -v eliminates methods and other special names
++		# that have multiple dots.
++		pattern='Test([^a-z].*)?'
++		tests=$(6nm -s $ofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
++		if [ "x$tests" = x ]; then
++			echo 'gotest: warning: no tests matching '$pattern' in '$ofile 1>&2
++		else
++			for i in $tests
++			do
++				echo '	testing.Test{ "'$i'", &'$i' },'
++			done
++		fi
+ 	done
+ 	echo '}'
+ 	# body
+diff --git a/src/lib/testing.go b/src/lib/testing.go
+index 37dcc39411..afb24855ba 100644
+--- a/src/lib/testing.go
++++ b/src/lib/testing.go
+@@ -86,7 +86,7 @@ export func Main(tests *[]Test) {
+ 	flag.Parse();
+ 	ok := true;
+ 	if len(tests) == 0 {
+-		println("gotest: warning: no tests to run");
++		println("testing: warning: no tests to run");
+ 	}
+ 	for i := 0; i < len(tests); i++ {
+ 		if chatty {

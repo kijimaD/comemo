@@ -18,7 +18,7 @@ Date:   Wed May 17 14:48:51 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/noder/irgen.go             |  5 ++---
  src/cmd/compile/internal/types2/api.go              |  5 -----
  src/cmd/compile/internal/types2/check_test.go       |  1 -
@@ -32,3 +32,199 @@ Date:   Wed May 17 14:48:51 2023 -0700
  src/internal/types/testdata/check/typeparams.go     |  6 +++---
  src/internal/types/testdata/fixedbugs/issue58671.go |  2 --
  12 files changed, 33 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index baccd0323b..3adf9e5d11 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -50,9 +50,8 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 			}
+ 			base.ErrorfAt(m.makeXPos(terr.Pos), terr.Code, "%s", msg)
+ 		},
+-		Importer:            &importer,
+-		Sizes:               &gcSizes{},
+-		InferMaxDefaultType: true, // #58671
++		Importer: &importer,
++		Sizes:    &gcSizes{},
+ 	}
+ 	info := &types2.Info{
+ 		StoreTypesInSyntax: true,
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 5860c3a92c..b798f2c888 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -169,11 +169,6 @@ type Config struct {
+ 	// If DisableUnusedImportCheck is set, packages are not checked
+ 	// for unused imports.
+ 	DisableUnusedImportCheck bool
+-
+-	// If InferMaxDefaultType is set, the minimum (smallest) default
+-	// type that fits all untyped constant arguments for the same type
+-	// parameter is selected in type inference. (go.dev/issue/58671)
+-	InferMaxDefaultType bool
+ }
+ 
+ func srcimporter_setUsesCgo(conf *Config) {
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 357ca7cf50..26bb1aed9e 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -133,7 +133,6 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 	flags := flag.NewFlagSet("", flag.PanicOnError)
+ 	flags.StringVar(&conf.GoVersion, "lang", "", "")
+ 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+-	flags.BoolVar(&conf.InferMaxDefaultType, "inferMaxDefaultType", false, "")
+ 	if err := parseFlags(filenames[0], nil, flags); err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index d8c81820f8..77c594a722 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -273,7 +273,19 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 		u.tracef("== untyped arguments: %v", untyped)
+ 	}
+ 
+-	if check.conf.InferMaxDefaultType {
++	// We need a poser/positioner for check.allowVersion below.
++	// We should really use pos (argument to infer) but currently
++	// the generator that generates go/types/infer.go has trouble
++	// with that. For now, do a little dance to get a position if
++	// we need one. (If we don't have untyped arguments left, it
++	// doesn't matter which branch we take below.)
++	// TODO(gri) adjust infer signature or adjust the rewriter.
++	var at syntax.Pos
++	if len(untyped) > 0 {
++		at = params.At(untyped[0]).pos
++	}
++
++	if check.allowVersion(check.pkg, atPos(at), go1_21) {
+ 		// Some generic parameters with untyped arguments may have been given a type by now.
+ 		// Collect all remaining parameters that don't have a type yet and determine the
+ 		// maximum untyped type for each of those parameters, if possible.
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 80a05b7491..404e1636ae 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -139,9 +139,8 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 		file, err := syntax.ParseFile(filename, nil, nil, 0)
+ 		if err == nil {
+ 			conf := Config{
+-				GoVersion:           goVersion,
+-				Importer:            stdLibImporter,
+-				InferMaxDefaultType: true,
++				GoVersion: goVersion,
++				Importer:  stdLibImporter,
+ 			}
+ 			_, err = conf.Check(filename, []*syntax.File{file}, nil)
+ 		}
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 3f83a8088a..08430c9e7a 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -170,11 +170,6 @@ type Config struct {
+ 	// If DisableUnusedImportCheck is set, packages are not checked
+ 	// for unused imports.
+ 	DisableUnusedImportCheck bool
+-
+-	// If _InferMaxDefaultType is set, the minimum (smallest) default
+-	// type that fits all untyped constant arguments for the same type
+-	// parameter is selected in type inference. (go.dev/issue/58671)
+-	_InferMaxDefaultType bool
+ }
+ 
+ func srcimporter_setUsesCgo(conf *Config) {
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 9dbcb326cf..d53aaeadc5 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -146,7 +146,6 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 	flags := flag.NewFlagSet("", flag.PanicOnError)
+ 	flags.StringVar(&conf.GoVersion, "lang", "", "")
+ 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+-	flags.BoolVar(boolFieldAddr(&conf, "_InferMaxDefaultType"), "inferMaxDefaultType", false, "")
+ 	if err := parseFlags(filenames[0], srcs[0], flags); err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/go/types/generate_test.go b/src/go/types/generate_test.go
+index 73ad2c5b89..6a8343c615 100644
+--- a/src/go/types/generate_test.go
++++ b/src/go/types/generate_test.go
+@@ -106,7 +106,6 @@ var filemap = map[string]action{
+ 	"infer.go": func(f *ast.File) {
+ 		fixTokenPos(f)
+ 		fixInferSig(f)
+-		renameIdent(f, "InferMaxDefaultType", "_InferMaxDefaultType")
+ 	},
+ 	// "initorder.go": fixErrErrorfCall, // disabled for now due to unresolved error_ use implications for gopls
+ 	"instantiate.go":      func(f *ast.File) { fixTokenPos(f); fixCheckErrorfCall(f) },
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 9c31d6adf6..b376ce4a4a 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -275,7 +275,19 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 		u.tracef("== untyped arguments: %v", untyped)
+ 	}
+ 
+-	if check.conf._InferMaxDefaultType {
++	// We need a poser/positioner for check.allowVersion below.
++	// We should really use pos (argument to infer) but currently
++	// the generator that generates go/types/infer.go has trouble
++	// with that. For now, do a little dance to get a position if
++	// we need one. (If we don't have untyped arguments left, it
++	// doesn't matter which branch we take below.)
++	// TODO(gri) adjust infer signature or adjust the rewriter.
++	var at token.Pos
++	if len(untyped) > 0 {
++		at = params.At(untyped[0]).pos
++	}
++
++	if check.allowVersion(check.pkg, atPos(at), go1_21) {
+ 		// Some generic parameters with untyped arguments may have been given a type by now.
+ 		// Collect all remaining parameters that don't have a type yet and determine the
+ 		// maximum untyped type for each of those parameters, if possible.
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index a7c1ae2eba..82f22de836 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -143,7 +143,6 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 				GoVersion: goVersion,
+ 				Importer:  stdLibImporter,
+ 			}
+-			*boolFieldAddr(&conf, "_InferMaxDefaultType") = true
+ 			_, err = conf.Check(filename, fset, []*ast.File{file}, nil)
+ 		}
+ 
+diff --git a/src/internal/types/testdata/check/typeparams.go b/src/internal/types/testdata/check/typeparams.go
+index 9f06b0888d..b002377df7 100644
+--- a/src/internal/types/testdata/check/typeparams.go
++++ b/src/internal/types/testdata/check/typeparams.go
+@@ -307,15 +307,15 @@ var _ int = f7 /* ERROR "cannot use" */ ([]float64{}...)
+ var _ float64 = f7([]float64{}...)
+ var _ = f7[float64](1, 2.3)
+ var _ = f7(float64(1), 2.3)
+-var _ = f7(1, 2.3 /* ERROR "does not match" */ )
+-var _ = f7(1.2, 3 /* ERROR "does not match" */ )
++var _ = f7(1, 2.3)
++var _ = f7(1.2, 3)
+ 
+ func f8[A, B any](A, B, ...B) int { panic(0) }
+ 
+ var _ = f8(1) /* ERROR "not enough arguments" */
+ var _ = f8(1, 2.3)
+ var _ = f8(1, 2.3, 3.4, 4.5)
+-var _ = f8(1, 2.3, 3.4, 4 /* ERROR "does not match" */ )
++var _ = f8(1, 2.3, 3.4, 4)
+ var _ = f8[int, float64](1, 2.3, 3.4, 4)
+ 
+ var _ = f8[int, float64](0, 0, nil...) // test case for #18268
+diff --git a/src/internal/types/testdata/fixedbugs/issue58671.go b/src/internal/types/testdata/fixedbugs/issue58671.go
+index 166ffda3d9..fa964aa5fd 100644
+--- a/src/internal/types/testdata/fixedbugs/issue58671.go
++++ b/src/internal/types/testdata/fixedbugs/issue58671.go
+@@ -1,5 +1,3 @@
+-// -inferMaxDefaultType
+-
+ // Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

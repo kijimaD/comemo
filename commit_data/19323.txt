@@ -8,6 +8,20 @@ Date:   Sun May 11 22:06:00 2014 -0700
     R=golang-codereviews, robert.hencke, iant
     CC=golang-codereviews
     https://golang.org/cl/96230043
-
+---
  src/pkg/unicode/letter.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/unicode/letter.go b/src/pkg/unicode/letter.go
+index 3b389e93f1..977bd2b3b0 100644
+--- a/src/pkg/unicode/letter.go
++++ b/src/pkg/unicode/letter.go
+@@ -316,7 +316,7 @@ type foldPair struct {
+ // SimpleFold iterates over Unicode code points equivalent under
+ // the Unicode-defined simple case folding.  Among the code points
+ // equivalent to rune (including rune itself), SimpleFold returns the
+-// smallest rune >= r if one exists, or else the smallest rune >= 0.
++// smallest rune > r if one exists, or else the smallest rune >= 0.
+ //
+ // For example:
+ //	SimpleFold('A') = 'a'

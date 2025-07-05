@@ -7,7 +7,54 @@ Date:   Thu Feb 25 13:26:55 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/224057
-
+---
  src/pkg/tabwriter/tabwriter.go      | 9 +++++++++
  src/pkg/tabwriter/tabwriter_test.go | 1 +
  2 files changed, 10 insertions(+)
+
+diff --git a/src/pkg/tabwriter/tabwriter.go b/src/pkg/tabwriter/tabwriter.go
+index 1f3ed9e33c..d341e21aac 100644
+--- a/src/pkg/tabwriter/tabwriter.go
++++ b/src/pkg/tabwriter/tabwriter.go
+@@ -281,6 +281,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error)
+ 			c := line.At(j).(cell)
+ 
+ 			if j > 0 && b.flags&Debug != 0 {
++				// indicate column break
+ 				if err = b.write0(vbar); err != nil {
+ 					return
+ 				}
+@@ -496,6 +497,8 @@ func (b *Writer) Flush() os.Error {
+ }
+ 
+ 
++var hbar = []byte{'-', '-', '-', '\n'}
++
+ // Write writes buf to the writer b.
+ // The only errors returned are ones encountered
+ // while writing to the underlying output stream.
+@@ -525,6 +528,12 @@ func (b *Writer) Write(buf []byte) (n int, err os.Error) {
+ 						if err = b.Flush(); err != nil {
+ 							return
+ 						}
++						if ch == '\f' && b.flags&Debug != 0 {
++							// indicate section break
++							if err = b.write0(hbar); err != nil {
++								return
++							}
++						}
+ 					}
+ 				}
+ 
+diff --git a/src/pkg/tabwriter/tabwriter_test.go b/src/pkg/tabwriter/tabwriter_test.go
+index c8823cfef4..076ffddbe3 100644
+--- a/src/pkg/tabwriter/tabwriter_test.go
++++ b/src/pkg/tabwriter/tabwriter_test.go
+@@ -318,6 +318,7 @@ var tests = []entry{
+ 			"11\t222\t3333\t44444\n",
+ 
+ 		"1|2|3|4\n" +
++			"---\n" +
+ 			"11|222|3333|44444\n",
+ 	},
+ 

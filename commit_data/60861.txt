@@ -13,8 +13,35 @@ Date:   Fri Aug 30 21:11:09 2024 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/609976
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/internal/boring/build-boring.sh         |   9 +++++++++
  .../boring/syso/goboringcrypto_linux_amd64.syso    | Bin 2429120 -> 2429120 bytes
  .../boring/syso/goboringcrypto_linux_arm64.syso    | Bin 2107832 -> 2107832 bytes
  3 files changed, 9 insertions(+)
+
+diff --git a/src/crypto/internal/boring/build-boring.sh b/src/crypto/internal/boring/build-boring.sh
+index 5e109653a4..c7dc4f37ad 100755
+--- a/src/crypto/internal/boring/build-boring.sh
++++ b/src/crypto/internal/boring/build-boring.sh
+@@ -30,6 +30,15 @@ export CGO_ENABLED=0
+ # Go toolchain / clang toolchain combinations.
+ perl -p -i -e 's/defined.*ELF.*defined.*GNUC.*/$0 \&\& !defined(GOBORING)/' boringssl/crypto/mem.c
+ 
++# We build all of libcrypto, which includes a bunch of I/O operations that we
++# don't actually care about, since we only really want the BoringCrypto module.
++# In libcrypto, they use the LFS64 interfaces where available in order to
++# traverse files larger than 2GB. In some scenarios this can cause breakage, so
++# we comment out the _FILE_OFFSET_BITS definition which enables the LFS64
++# interfaces. Since this code is outside of the FIPS module, it doesn't affect
++# the certification status of the module. See b/364606941 for additional context.
++perl -p -i -e 's/(#define _FILE_OFFSET_BITS 64)/\/\/ $1/' boringssl/crypto/bio/file.c
++
+ # Verbatim instructions from BoringCrypto build docs.
+ printf "set(CMAKE_C_COMPILER \"clang\")\nset(CMAKE_CXX_COMPILER \"clang++\")\n" >${HOME}/toolchain
+ cd boringssl
+diff --git a/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso b/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso
+index 5ba8919dc1..6d0aeb8335 100644
+Binary files a/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso and b/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso differ
+diff --git a/src/crypto/internal/boring/syso/goboringcrypto_linux_arm64.syso b/src/crypto/internal/boring/syso/goboringcrypto_linux_arm64.syso
+index c0f80c17e4..23736c82f6 100644
+Binary files a/src/crypto/internal/boring/syso/goboringcrypto_linux_arm64.syso and b/src/crypto/internal/boring/syso/goboringcrypto_linux_arm64.syso differ

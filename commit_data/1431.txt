@@ -8,6 +8,20 @@ Date:   Wed Jan 7 12:39:48 2009 -0800
     R=ken
     OCL=22216
     CL=22216
-
+---
  src/cmd/gc/go.y | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index ffaad5d89b..d3a88ea9b1 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -878,8 +878,6 @@ pexpr:
+ 	{
+ 		$$ = nod(OCONV, $3, N);
+ 		$$->type = oldtype($1);
+-		if(iscomposite($$->type))
+-			yyerror("illegal conversion type %T", $$->type);
+ 	}
+ |	convtype '{' braced_keyexpr_list '}'
+ 	{

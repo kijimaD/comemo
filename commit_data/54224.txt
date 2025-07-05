@@ -12,6 +12,49 @@ Date:   Thu Sep 29 20:00:00 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/ir/bitset.go | 34 ----------------------------------
  1 file changed, 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/bitset.go b/src/cmd/compile/internal/ir/bitset.go
+index 0c7bd542f6..bae4005866 100644
+--- a/src/cmd/compile/internal/ir/bitset.go
++++ b/src/cmd/compile/internal/ir/bitset.go
+@@ -35,37 +35,3 @@ func (f *bitset16) set(mask uint16, b bool) {
+ 		*(*uint16)(f) &^= mask
+ 	}
+ }
+-
+-type bitset32 uint32
+-
+-func (f *bitset32) set(mask uint32, b bool) {
+-	if b {
+-		*(*uint32)(f) |= mask
+-	} else {
+-		*(*uint32)(f) &^= mask
+-	}
+-}
+-
+-func (f bitset32) get2(shift uint8) uint8 {
+-	return uint8(f>>shift) & 3
+-}
+-
+-// set2 sets two bits in f using the bottom two bits of b.
+-func (f *bitset32) set2(shift uint8, b uint8) {
+-	// Clear old bits.
+-	*(*uint32)(f) &^= 3 << shift
+-	// Set new bits.
+-	*(*uint32)(f) |= uint32(b&3) << shift
+-}
+-
+-func (f bitset32) get3(shift uint8) uint8 {
+-	return uint8(f>>shift) & 7
+-}
+-
+-// set3 sets three bits in f using the bottom three bits of b.
+-func (f *bitset32) set3(shift uint8, b uint8) {
+-	// Clear old bits.
+-	*(*uint32)(f) &^= 7 << shift
+-	// Set new bits.
+-	*(*uint32)(f) |= uint32(b&7) << shift
+-}

@@ -14,7 +14,34 @@ Date:   Wed Apr 8 12:16:38 2020 -0400
     Change-Id: I98cac2ea96ec5ac1ae60b7e32d195d5e86e2bd66
     Reviewed-on: https://go-review.googlesource.com/c/go/+/227583
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/root_darwin_arm64.go   | 2 --
  src/crypto/x509/root_darwin_arm_gen.go | 2 --
  2 files changed, 4 deletions(-)
+
+diff --git a/src/crypto/x509/root_darwin_arm64.go b/src/crypto/x509/root_darwin_arm64.go
+index 67615fd9f2..bfbfee1901 100644
+--- a/src/crypto/x509/root_darwin_arm64.go
++++ b/src/crypto/x509/root_darwin_arm64.go
+@@ -4,8 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ package x509
+ 
+ func loadSystemRoots() (*CertPool, error) {
+diff --git a/src/crypto/x509/root_darwin_arm_gen.go b/src/crypto/x509/root_darwin_arm_gen.go
+index 5bb0bd22d1..0bd480b45d 100644
+--- a/src/crypto/x509/root_darwin_arm_gen.go
++++ b/src/crypto/x509/root_darwin_arm_gen.go
+@@ -172,8 +172,6 @@ const header = `
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ package x509
+ 
+ func loadSystemRoots() (*CertPool, error) {

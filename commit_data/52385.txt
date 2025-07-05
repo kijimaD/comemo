@@ -14,8 +14,94 @@ Date:   Mon Apr 18 16:39:24 2022 -0700
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa_test.go                              |  6 +++---
  src/crypto/ed25519/internal/edwards25519/scalarmult_test.go | 12 ++++++------
  src/crypto/elliptic/elliptic_test.go                        |  6 +++---
  3 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index c8390b2cc9..77a8134316 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -327,7 +327,7 @@ func testZeroHashSignature(t *testing.T, curve elliptic.Curve) {
+ 	}
+ }
+ 
+-func benchmarkAllCurves(t *testing.B, f func(*testing.B, elliptic.Curve)) {
++func benchmarkAllCurves(b *testing.B, f func(*testing.B, elliptic.Curve)) {
+ 	tests := []struct {
+ 		name  string
+ 		curve elliptic.Curve
+@@ -339,8 +339,8 @@ func benchmarkAllCurves(t *testing.B, f func(*testing.B, elliptic.Curve)) {
+ 	}
+ 	for _, test := range tests {
+ 		curve := test.curve
+-		t.Run(test.name, func(t *testing.B) {
+-			f(t, curve)
++		b.Run(test.name, func(b *testing.B) {
++			f(b, curve)
+ 		})
+ 	}
+ }
+diff --git a/src/crypto/ed25519/internal/edwards25519/scalarmult_test.go b/src/crypto/ed25519/internal/edwards25519/scalarmult_test.go
+index c2027f5ddb..1760603858 100644
+--- a/src/crypto/ed25519/internal/edwards25519/scalarmult_test.go
++++ b/src/crypto/ed25519/internal/edwards25519/scalarmult_test.go
+@@ -184,26 +184,26 @@ func TestVarTimeDoubleBaseMultMatchesBaseMult(t *testing.T) {
+ 
+ // Benchmarks.
+ 
+-func BenchmarkScalarBaseMult(t *testing.B) {
++func BenchmarkScalarBaseMult(b *testing.B) {
+ 	var p Point
+ 
+-	for i := 0; i < t.N; i++ {
++	for i := 0; i < b.N; i++ {
+ 		p.ScalarBaseMult(&dalekScalar)
+ 	}
+ }
+ 
+-func BenchmarkScalarMult(t *testing.B) {
++func BenchmarkScalarMult(b *testing.B) {
+ 	var p Point
+ 
+-	for i := 0; i < t.N; i++ {
++	for i := 0; i < b.N; i++ {
+ 		p.ScalarMult(&dalekScalar, B)
+ 	}
+ }
+ 
+-func BenchmarkVarTimeDoubleScalarBaseMult(t *testing.B) {
++func BenchmarkVarTimeDoubleScalarBaseMult(b *testing.B) {
+ 	var p Point
+ 
+-	for i := 0; i < t.N; i++ {
++	for i := 0; i < b.N; i++ {
+ 		p.VarTimeDoubleScalarBaseMult(&dalekScalar, B, &dalekScalar)
+ 	}
+ }
+diff --git a/src/crypto/elliptic/elliptic_test.go b/src/crypto/elliptic/elliptic_test.go
+index eb5f0546c4..6a79b82e2f 100644
+--- a/src/crypto/elliptic/elliptic_test.go
++++ b/src/crypto/elliptic/elliptic_test.go
+@@ -305,7 +305,7 @@ func TestLargeIsOnCurve(t *testing.T) {
+ 	})
+ }
+ 
+-func benchmarkAllCurves(t *testing.B, f func(*testing.B, Curve)) {
++func benchmarkAllCurves(b *testing.B, f func(*testing.B, Curve)) {
+ 	tests := []struct {
+ 		name  string
+ 		curve Curve
+@@ -317,8 +317,8 @@ func benchmarkAllCurves(t *testing.B, f func(*testing.B, Curve)) {
+ 	}
+ 	for _, test := range tests {
+ 		curve := test.curve
+-		t.Run(test.name, func(t *testing.B) {
+-			f(t, curve)
++		b.Run(test.name, func(b *testing.B) {
++			f(b, curve)
+ 		})
+ 	}
+ }

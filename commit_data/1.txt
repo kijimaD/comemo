@@ -6,6 +6,20 @@ Date:   Tue Jul 18 19:05:45 1972 -0500
     
     R=ken
     DELTA=7  (7 added, 0 deleted, 0 changed)
-
+---
  src/pkg/debug/macho/testdata/hello.b | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/pkg/debug/macho/testdata/hello.b b/src/pkg/debug/macho/testdata/hello.b
+new file mode 100644
+index 0000000000..05c4140424
+--- /dev/null
++++ b/src/pkg/debug/macho/testdata/hello.b
+@@ -0,0 +1,7 @@
++main( ) {
++	extrn a, b, c;
++	putchar(a); putchar(b); putchar(c); putchar('!*n');
++}
++a 'hell';
++b 'o, w';
++c 'orld';

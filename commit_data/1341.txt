@@ -7,10 +7,367 @@ Date:   Sun Dec 14 18:45:00 2008 -0800
     R=r
     OCL=21160
     CL=21160
-
+---
  src/cmd/6g/gen.c   | 109 ++++++++++++++++++++++++++++++++++++-----------------
  src/cmd/6g/gg.h    |   1 -
  src/cmd/6g/gsubr.c |  95 ++++++++++++++++------------------------------
  src/cmd/gc/const.c |  18 +++++++++
  src/cmd/gc/go.h    |   1 +
  5 files changed, 126 insertions(+), 98 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 400aa7eac5..3b6a5e4d44 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -915,55 +915,96 @@ cgen_asop(Node *n)
+ {
+ 	Node n1, n2, n3, n4;
+ 	Node *nl, *nr;
++	Prog *p1;
++	Addr addr;
+ 
+ 	nl = n->left;
+ 	nr = n->right;
+ 
+-	if(nl->addable && nr->op == OLITERAL)
++	if(nr->ullman >= UINF && nl->ullman >= UINF) {
++		tempname(&n1, nr->type);
++		cgen(nr, &n1);
++		n2 = *n;
++		n2.right = &n1;
++		cgen_asop(&n2);
++		goto ret;
++	}
++
++	if(!isint[nl->type->etype])
++		goto hard;
++	if(!isint[nr->type->etype])
++		goto hard;
++
+ 	switch(n->etype) {
+ 	case OADD:
+-		if(!isint[nl->type->etype])
+-			break;
+-		if(mpgetfix(nr->val.u.xval) != 1)
+-			break;
+-		gins(optoas(OINC, nl->type), N, nl);
+-		goto ret;
++		if(smallintconst(nr))
++		if(mpgetfix(nr->val.u.xval) == 1) {
++			if(nl->addable) {
++				gins(optoas(OINC, nl->type), N, nl);
++				goto ret;
++			}
++			if(sudoaddable(nl, nr->type, &addr)) {
++				p1 = gins(optoas(OINC, nl->type), N, N);
++				p1->to = addr;
++				sudoclean();
++				goto ret;
++			}
++		}
++		break;
++
+ 	case OSUB:
+-		if(!isint[nl->type->etype])
+-			break;
+-		if(mpgetfix(nr->val.u.xval) != 1)
+-			break;
+-		gins(optoas(ODEC, nl->type), N, nl);
+-		goto ret;
++		if(smallintconst(nr))
++		if(mpgetfix(nr->val.u.xval) == 1) {
++			if(nl->addable) {
++				gins(optoas(ODEC, nl->type), N, nl);
++				goto ret;
++			}
++			if(sudoaddable(nl, nr->type, &addr)) {
++				p1 = gins(optoas(ODEC, nl->type), N, N);
++				p1->to = addr;
++				sudoclean();
++				goto ret;
++			}
++		}
++		break;
+ 	}
+ 
+-	if(nl->addable)
+ 	switch(n->etype) {
++	case OADD:
++	case OSUB:
+ 	case OXOR:
+ 	case OAND:
+ 	case OOR:
+-	case OADD:
+-	case OSUB:
+-		if(!isint[nl->type->etype])
+-			break;
+-		if(!isint[nr->type->etype])
+-			break;
+-		regalloc(&n2, nr->type, N);
+-		cgen(nr, &n2);
+-		gins(optoas(n->etype, nl->type), &n2, nl);
+-		regfree(&n2);
+-		goto ret;
+-	}
+-
+-	if(nr->ullman >= UINF && nl->ullman >= UINF) {
+-		tempname(&n1, nr->type);
+-		cgen(nr, &n1);
+-		n2 = *n;
+-		n2.right = &n1;
+-		cgen_asop(&n2);
+-		goto ret;
++		if(nl->addable) {
++			if(smallintconst(nr)) {
++				gins(optoas(n->etype, nl->type), nr, nl);
++				goto ret;
++			}
++			regalloc(&n2, nr->type, N);
++			cgen(nr, &n2);
++			gins(optoas(n->etype, nl->type), &n2, nl);
++			regfree(&n2);
++			goto ret;
++		}
++		if(nr->ullman < UINF)
++		if(sudoaddable(nl, nr->type, &addr)) {
++			if(smallintconst(nr)) {
++				p1 = gins(optoas(n->etype, nl->type), nr, N);
++				p1->to = addr;
++				sudoclean();
++				goto ret;
++			}
++			regalloc(&n2, nr->type, N);
++			cgen(nr, &n2);
++			p1 = gins(optoas(n->etype, nl->type), &n2, N);
++			p1->to = addr;
++			regfree(&n2);
++			sudoclean();
++			goto ret;
++		}
+ 	}
+ 
++hard:
+ 	if(nr->ullman > nl->ullman) {
+ 		regalloc(&n2, nr->type, N);
+ 		cgen(nr, &n2);
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 051fa12156..80a548f8aa 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -199,7 +199,6 @@ void	tempname(Node*, Type*);
+ Plist*	newplist(void);
+ int	isfat(Type*);
+ void	setmaxarg(Type*);
+-int	smallintconst(Node*);
+ void	sudoclean(void);
+ int	sudoaddable(Node*, Type*, Addr*);
+ 
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index c4798b77ed..daaf713212 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -102,6 +102,19 @@ newplist(void)
+ 	return pl;
+ }
+ 
++static	int	resvd[] =
++{
++//	D_DI,	// for movstring
++//	D_SI,	// for movstring
++
++	D_AX,	// for divide
++	D_CX,	// for shift
++	D_DX,	// for divide
++	D_SP,	// for stack
++	D_R14,	// reserved for m
++	D_R15,	// reserved for u
++};
++
+ void
+ ginit(void)
+ {
+@@ -114,15 +127,8 @@ ginit(void)
+ 	for(i=D_X0; i<=D_X7; i++)
+ 		reg[i] = 0;
+ 
+-//	reg[D_DI]++;	// for movstring
+-//	reg[D_SI]++;	// for movstring
+-
+-	reg[D_AX]++;	// for divide
+-	reg[D_CX]++;	// for shift
+-	reg[D_DX]++;	// for divide
+-	reg[D_SP]++;	// for stack
+-	reg[D_R14]++;	// reserved for m
+-	reg[D_R15]++;	// reserved for u
++	for(i=0; i<nelem(resvd); i++)
++		reg[resvd[i]]++;
+ }
+ 
+ void
+@@ -130,15 +136,8 @@ gclean(void)
+ {
+ 	int i;
+ 
+-//	reg[D_DI]--;	// for movstring
+-//	reg[D_SI]--;	// for movstring
+-
+-	reg[D_AX]--;	// for divide
+-	reg[D_CX]--;	// for shift
+-	reg[D_DX]--;	// for divide
+-	reg[D_SP]--;	// for stack
+-	reg[D_R14]--;	// reserved for m
+-	reg[D_R15]--;	// reserved for u
++	for(i=0; i<nelem(resvd); i++)
++		reg[resvd[i]]--;
+ 
+ 	for(i=D_AX; i<=D_R15; i++)
+ 		if(reg[i])
+@@ -1817,24 +1816,6 @@ dotoffset(Node *n, int *oary, Node **nn)
+ 	return i;
+ }
+ 
+-int
+-smallintconst(Node *n)
+-{
+-	if(n->op == OLITERAL)
+-	switch(simtype[n->type->etype]) {
+-	case TINT8:
+-	case TUINT8:
+-	case TINT16:
+-	case TUINT16:
+-	case TINT32:
+-	case TUINT32:
+-	case TBOOL:
+-	case TPTR32:
+-		return 1;
+-	}
+-	return 0;
+-}
+-
+ enum
+ {
+ 	ODynam	= 1<<0,
+@@ -1857,37 +1838,36 @@ sudoclean(void)
+ int
+ sudoaddable(Node *n, Type *t, Addr *a)
+ {
+-	int et, o, i, w;
++	int o, i, w;
+ 	int oary[10];
+ 	vlong v;
+-	Node n0, n1, n2, *nn, *l, *r;
++	Node n1, n2, *nn, *l, *r;
+ 	Node *reg, *reg1;
+ 	Prog *p1;
+ 
+-	// make a cleanup slot
+-	cleani += 2;
+-	reg = &clean[cleani-1];
+-	reg1 = &clean[cleani-2];
+-	reg->op = OEMPTY;
+-	reg1->op = OEMPTY;
+-
+ 	if(n->type == T || t == T)
+-		goto no;
+-	et = simtype[n->type->etype];
+-	if(et != simtype[t->etype])
+-		goto no;
++		return 0;
+ 
+ 	switch(n->op) {
+ 	default:
+-		goto no;
++		return 0;
+ 
+ 	case ODOT:
+ 	case ODOTPTR:
++		cleani += 2;
++		reg = &clean[cleani-1];
++		reg1 = &clean[cleani-2];
++		reg->op = OEMPTY;
++		reg1->op = OEMPTY;
+ 		goto odot;
+ 
+ 	case OINDEXPTR:
+-		goto no;
+ 	case OINDEX:
++		cleani += 2;
++		reg = &clean[cleani-1];
++		reg1 = &clean[cleani-2];
++		reg->op = OEMPTY;
++		reg1->op = OEMPTY;
+ 		goto oindex;
+ 	}
+ 
+@@ -1895,15 +1875,6 @@ odot:
+ 	o = dotoffset(n, oary, &nn);
+ 	if(nn == N)
+ 		goto no;
+-
+-	if(0) {
+-		dump("\nXX", n);
+-		dump("YY", nn);
+-		for(i=0; i<o; i++)
+-			print(" %d", oary[i]);
+-		print("\n");
+-		goto no;
+-	}
+ 	
+ 	regalloc(reg, types[tptr], N);
+ 	n1 = *reg;
+@@ -1931,7 +1902,7 @@ odot:
+ oindex:
+ 	l = n->left;
+ 	r = n->right;
+-	if(l->ullman >= UINF || r->ullman >= UINF)
++	if(l->ullman >= UINF && r->ullman >= UINF)
+ 		goto no;
+ 
+ 	// set o to type of array
+@@ -1950,8 +1921,6 @@ oindex:
+ 	}
+ 
+ 	w = n->type->width;
+-	if(w == 0)
+-		fatal("index is zero width");
+ 	if(whatis(r) == Wlitint)
+ 		goto oindex_const;
+ 
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index d8e38300d4..b903d582d6 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -540,3 +540,21 @@ cmpslit(Node *l, Node *r)
+ 		return +1;
+ 	return -1;
+ }
++
++int
++smallintconst(Node *n)
++{
++	if(n->op == OLITERAL)
++	switch(simtype[n->type->etype]) {
++	case TINT8:
++	case TUINT8:
++	case TINT16:
++	case TUINT16:
++	case TINT32:
++	case TUINT32:
++	case TBOOL:
++	case TPTR32:
++		return 1;
++	}
++	return 0;
++}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 81371f41d4..858afc1c15 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -826,6 +826,7 @@ void	convlit1(Node*, Type*, int);
+ void	convlit(Node*, Type*);
+ void	evconst(Node*);
+ int	cmpslit(Node *l, Node *r);
++int	smallintconst(Node*);
+ 
+ /*
+  *	gen.c/gsubr.c/obj.c

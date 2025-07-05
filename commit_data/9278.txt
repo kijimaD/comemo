@@ -9,6 +9,24 @@ Date:   Tue Aug 2 07:45:04 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4826063
-
+---
  src/cmd/ld/go.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index cc0262f040..fd7278a7b4 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -148,8 +148,11 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
+ 					;
+ 			}
+ 		}
+-		if(strcmp(pkg, "main") == 0 && strcmp(name, "main") != 0)
++		if(strcmp(pkg, "main") == 0 && strcmp(name, "main") != 0) {
+ 			fprint(2, "%s: %s: not package main (package %s)\n", argv0, filename, name);
++			nerrors++;
++			errorexit();
++		}
+ 		loadpkgdata(filename, pkg, p0, p1 - p0);
+ 	}
+ 

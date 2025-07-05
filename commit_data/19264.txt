@@ -11,6 +11,20 @@ Date:   Thu May 1 09:37:55 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/94000043
-
+---
  src/pkg/runtime/iface.goc | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/iface.goc b/src/pkg/runtime/iface.goc
+index 08da8c7337..96bb8b8aa4 100644
+--- a/src/pkg/runtime/iface.goc
++++ b/src/pkg/runtime/iface.goc
+@@ -161,7 +161,7 @@ copyin(Type *t, void *src, void **dst)
+ 	if(size <= sizeof(*dst))
+ 		alg->copy(size, dst, src);
+ 	else {
+-		p = runtime·mal(size);
++		p = runtime·cnew(t);
+ 		alg->copy(size, p, src);
+ 		*dst = p;
+ 	}

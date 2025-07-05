@@ -13,7 +13,61 @@ Date:   Mon Sep 2 14:34:16 2019 +0000
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/dial.go         |  2 ++
  src/net/example_test.go | 18 ++++++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index 4d55a95ddf..60ab0f2973 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -23,6 +23,8 @@ const (
+ // The zero value for each field is equivalent to dialing
+ // without that option. Dialing with the zero value of Dialer
+ // is therefore equivalent to just calling the Dial function.
++//
++// It is safe to call Dialer's methods concurrently.
+ type Dialer struct {
+ 	// Timeout is the maximum amount of time a dial will wait for
+ 	// a connect to complete. If Deadline is also set, it may fail
+diff --git a/src/net/example_test.go b/src/net/example_test.go
+index e4d732e68a..ef8c38f9f4 100644
+--- a/src/net/example_test.go
++++ b/src/net/example_test.go
+@@ -5,10 +5,12 @@
+ package net_test
+ 
+ import (
++	"context"
+ 	"fmt"
+ 	"io"
+ 	"log"
+ 	"net"
++	"time"
+ )
+ 
+ func ExampleListener() {
+@@ -37,6 +39,22 @@ func ExampleListener() {
+ 	}
+ }
+ 
++func ExampleDialer() {
++	var d net.Dialer
++	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
++	defer cancel()
++
++	conn, err := d.DialContext(ctx, "tcp", "localhost:12345")
++	if err != nil {
++		log.Fatalf("Failed to dial: %v", err)
++	}
++	defer conn.Close()
++
++	if _, err := conn.Write([]byte("Hello, World!")); err != nil {
++		log.Fatal(err)
++	}
++}
++
+ func ExampleIPv4() {
+ 	fmt.Println(net.IPv4(8, 8, 8, 8))
+ 

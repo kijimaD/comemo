@@ -12,7 +12,7 @@ Date:   Sun Jul 16 08:31:48 2017 -0600
     Reviewed-on: https://go-review.googlesource.com/56284
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/base/path.go         | 22 ---------------
  src/cmd/go/internal/fix/fix.go           |  2 +-
  src/cmd/go/internal/fmtcmd/fmt.go        |  2 +-
@@ -20,3 +20,161 @@ Date:   Sun Jul 16 08:31:48 2017 -0600
  src/cmd/go/internal/get/get.go           |  2 +-
  src/cmd/go/internal/load/pkg.go          | 47 ++++++++++++++++++++------------
  6 files changed, 34 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/path.go b/src/cmd/go/internal/base/path.go
+index 4f12fa8c28..7a51181c97 100644
+--- a/src/cmd/go/internal/base/path.go
++++ b/src/cmd/go/internal/base/path.go
+@@ -44,28 +44,6 @@ func RelPaths(paths []string) []string {
+ 	return out
+ }
+ 
+-// FilterDotUnderscoreFiles returns a slice containing all elements
+-// of path whose base name doesn't begin with "." or "_".
+-func FilterDotUnderscoreFiles(path []string) []string {
+-	var out []string // lazily initialized
+-	for i, p := range path {
+-		base := filepath.Base(p)
+-		if strings.HasPrefix(base, ".") || strings.HasPrefix(base, "_") {
+-			if out == nil {
+-				out = append(make([]string, 0, len(path)), path[:i]...)
+-			}
+-			continue
+-		}
+-		if out != nil {
+-			out = append(out, p)
+-		}
+-	}
+-	if out == nil {
+-		return path
+-	}
+-	return out
+-}
+-
+ // IsTestFile reports whether the source file is a set of tests and should therefore
+ // be excluded from coverage analysis.
+ func IsTestFile(file string) bool {
+diff --git a/src/cmd/go/internal/fix/fix.go b/src/cmd/go/internal/fix/fix.go
+index 788d49bcb6..81cf869a65 100644
+--- a/src/cmd/go/internal/fix/fix.go
++++ b/src/cmd/go/internal/fix/fix.go
+@@ -33,7 +33,7 @@ func runFix(cmd *base.Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		files := base.FilterDotUnderscoreFiles(base.RelPaths(pkg.Internal.AllGoFiles))
++		files := base.RelPaths(pkg.InternalAllGoFiles())
+ 		base.Run(str.StringList(cfg.BuildToolexec, base.Tool("fix"), files))
+ 	}
+ }
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index 5839028b07..75e2fe39ce 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -59,7 +59,7 @@ func runFmt(cmd *base.Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		files := base.FilterDotUnderscoreFiles(base.RelPaths(pkg.Internal.AllGoFiles))
++		files := base.RelPaths(pkg.InternalAllGoFiles())
+ 		for _, file := range files {
+ 			fileC <- file
+ 		}
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index d47c9b7323..017d0e2ee2 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -153,7 +153,7 @@ func runGenerate(cmd *base.Command, args []string) {
+ 	}
+ 	// Even if the arguments are .go files, this loop suffices.
+ 	for _, pkg := range load.Packages(args) {
+-		for _, file := range pkg.Internal.GoFiles {
++		for _, file := range pkg.InternalGoFiles() {
+ 			if !generate(pkg.Name, file) {
+ 				break
+ 			}
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 7acba46db3..e1c90181fe 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -301,7 +301,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
+ 	// due to wildcard expansion.
+ 	for _, p := range pkgs {
+ 		if *getFix {
+-			files := base.FilterDotUnderscoreFiles(base.RelPaths(p.Internal.AllGoFiles))
++			files := base.RelPaths(p.InternalAllGoFiles())
+ 			base.Run(cfg.BuildToolexec, str.StringList(base.Tool("fix"), files))
+ 
+ 			// The imports might have changed, so reload again.
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 41aaf30f05..57048d076c 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -95,8 +95,6 @@ type PackageInternal struct {
+ 	Build        *build.Package
+ 	Pkgdir       string               // overrides build.PkgDir
+ 	Imports      []*Package           // this package's direct imports
+-	GoFiles      []string             // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
+-	AllGoFiles   []string             // gofiles + IgnoredGoFiles, absolute paths
+ 	Target       string               // installed file for this package (may be executable)
+ 	Pkgfile      string               // where package will be (or is already) built or installed
+ 	ForceLibrary bool                 // this package is a library (even if named "main")
+@@ -980,21 +978,6 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 		importPaths = append(importPaths, "runtime/internal/sys")
+ 	}
+ 
+-	// Build list of full paths to all Go files in the package,
+-	// for use by commands like go fmt.
+-	p.Internal.GoFiles = str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles)
+-	for i := range p.Internal.GoFiles {
+-		p.Internal.GoFiles[i] = filepath.Join(p.Dir, p.Internal.GoFiles[i])
+-	}
+-	sort.Strings(p.Internal.GoFiles)
+-
+-	p.Internal.AllGoFiles = str.StringList(p.IgnoredGoFiles)
+-	for i := range p.Internal.AllGoFiles {
+-		p.Internal.AllGoFiles[i] = filepath.Join(p.Dir, p.Internal.AllGoFiles[i])
+-	}
+-	p.Internal.AllGoFiles = append(p.Internal.AllGoFiles, p.Internal.GoFiles...)
+-	sort.Strings(p.Internal.AllGoFiles)
+-
+ 	// Check for case-insensitive collision of input files.
+ 	// To avoid problems on case-insensitive files, we reject any package
+ 	// where two different input files have equal names under a case-insensitive
+@@ -1141,6 +1124,36 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 	}
+ }
+ 
++// mkAbs rewrites list, which must be paths relative to p.Dir,
++// into a sorted list of absolute paths. It edits list in place but for
++// convenience also returns list back to its caller.
++func (p *Package) mkAbs(list []string) []string {
++	for i, f := range list {
++		list[i] = filepath.Join(p.Dir, f)
++	}
++	sort.Strings(list)
++	return list
++}
++
++// InternalGoFiles returns the list of Go files being built for the package,
++// using absolute paths.
++func (p *Package) InternalGoFiles() []string {
++	return p.mkAbs(str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles))
++}
++
++// InternalGoFiles returns the list of all Go files possibly relevant for the package,
++// using absolute paths. "Possibly relevant" means that files are not excluded
++// due to build tags, but files with names beginning with . or _ are still excluded.
++func (p *Package) InternalAllGoFiles() []string {
++	var extra []string
++	for _, f := range p.IgnoredGoFiles {
++		if f != "" && f[0] != '.' || f[0] != '_' {
++			extra = append(extra, f)
++		}
++	}
++	return p.mkAbs(str.StringList(extra, p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles))
++}
++
+ // InternalDeps returns the full dependency list for p,
+ // built by traversing p.Internal.Imports, their .Internal.Imports, and so on.
+ // It guarantees that the returned list has only one package per ImportPath

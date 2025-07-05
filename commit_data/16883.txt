@@ -19,8 +19,99 @@ Date:   Fri Jul 26 09:10:29 2013 +0200
     R=golang-dev, agl, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/11874043
-
+---
  src/pkg/crypto/des/block.go    | 14 +++++++++++++-
  src/pkg/crypto/des/const.go    | 11 -----------
  src/pkg/crypto/des/des_test.go | 28 ++++++++++++++++++++++++++++
  3 files changed, 41 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/crypto/des/block.go b/src/pkg/crypto/des/block.go
+index c11c62cd72..805bb9f8cc 100644
+--- a/src/pkg/crypto/des/block.go
++++ b/src/pkg/crypto/des/block.go
+@@ -40,7 +40,7 @@ func decryptBlock(subkeys []uint64, dst, src []byte) {
+ 
+ // DES Feistel function
+ func feistel(right uint32, key uint64) (result uint32) {
+-	sBoxLocations := key ^ permuteBlock(uint64(right), expansionFunction[:])
++	sBoxLocations := key ^ expandBlock(right)
+ 	var sBoxResult uint32
+ 	for i := uint8(0); i < 8; i++ {
+ 		sBoxLocation := uint8(sBoxLocations>>42) & 0x3f
+@@ -63,6 +63,18 @@ func permuteBlock(src uint64, permutation []uint8) (block uint64) {
+ 	return
+ }
+ 
++// expandBlock expands an input block of 32 bits,
++// producing an output block of 48 bits.
++func expandBlock(src uint32) (block uint64) {
++	src = (src << 5) | (src >> 27)
++	for i := 0; i < 8; i++ {
++		block <<= 6
++		block |= uint64(src) & (1<<6 - 1)
++		src = (src << 4) | (src >> 28)
++	}
++	return
++}
++
+ // creates 16 28-bit blocks rotated according
+ // to the rotation schedule
+ func ksRotate(in uint32) (out []uint32) {
+diff --git a/src/pkg/crypto/des/const.go b/src/pkg/crypto/des/const.go
+index 2bd485ee80..1b898dc275 100644
+--- a/src/pkg/crypto/des/const.go
++++ b/src/pkg/crypto/des/const.go
+@@ -32,17 +32,6 @@ var finalPermutation = [64]byte{
+ 	31, 63, 23, 55, 15, 47, 7, 39,
+ }
+ 
+-// Used to expand an input block of 32 bits, producing an output block of 48
+-// bits.
+-var expansionFunction = [48]byte{
+-	0, 31, 30, 29, 28, 27, 28, 27,
+-	26, 25, 24, 23, 24, 23, 22, 21,
+-	20, 19, 20, 19, 18, 17, 16, 15,
+-	16, 15, 14, 13, 12, 11, 12, 11,
+-	10, 9, 8, 7, 8, 7, 6, 5,
+-	4, 3, 4, 3, 2, 1, 0, 31,
+-}
+-
+ // Yields a 32-bit output from a 32-bit input
+ var permutationFunction = [32]byte{
+ 	16, 25, 12, 11, 3, 20, 4, 15,
+diff --git a/src/pkg/crypto/des/des_test.go b/src/pkg/crypto/des/des_test.go
+index 2e87e99b67..5a9308a8d2 100644
+--- a/src/pkg/crypto/des/des_test.go
++++ b/src/pkg/crypto/des/des_test.go
+@@ -1521,3 +1521,31 @@ func ExampleNewTripleDESCipher() {
+ 	// See crypto/cipher for how to use a cipher.Block for encryption and
+ 	// decryption.
+ }
++
++func BenchmarkEncrypt(b *testing.B) {
++	tt := encryptDESTests[0]
++	c, err := NewCipher(tt.key)
++	if err != nil {
++		b.Fatal("NewCipher:", err)
++	}
++	out := make([]byte, len(tt.in))
++	b.SetBytes(int64(len(out)))
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		c.Encrypt(out, tt.in)
++	}
++}
++
++func BenchmarkDecrypt(b *testing.B) {
++	tt := encryptDESTests[0]
++	c, err := NewCipher(tt.key)
++	if err != nil {
++		b.Fatal("NewCipher:", err)
++	}
++	out := make([]byte, len(tt.out))
++	b.SetBytes(int64(len(out)))
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		c.Decrypt(out, tt.out)
++	}
++}

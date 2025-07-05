@@ -10,7 +10,99 @@ Date:   Mon Aug 10 13:33:15 2020 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           | 12 +++---------
  src/cmd/compile/internal/ssa/expand_calls.go | 15 ++++++++++-----
  2 files changed, 13 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7bde7f7c65..90ce9e54f8 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4375,9 +4375,7 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
+ 
+ 	switch n.Op {
+ 	case OCALLFUNC:
+-		if k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f) {
+-			testLateExpansion = true
+-		}
++		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
+ 		if k == callNormal && fn.Op == ONAME && fn.Class() == PFUNC {
+ 			sym = fn.Sym
+ 			break
+@@ -4392,9 +4390,7 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
+ 		if fn.Op != ODOTMETH {
+ 			s.Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
+ 		}
+-		if k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f) {
+-			testLateExpansion = true
+-		}
++		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
+ 		if k == callNormal {
+ 			sym = fn.Sym
+ 			break
+@@ -4406,9 +4402,7 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
+ 		if fn.Op != ODOTINTER {
+ 			s.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op)
+ 		}
+-		if k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f) {
+-			testLateExpansion = true
+-		}
++		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
+ 		var iclosure *ssa.Value
+ 		iclosure, rcvr = s.getClosureAndRcvr(fn)
+ 		if k == callNormal {
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 8c06040542..bbd9aeee51 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -39,7 +39,9 @@ func expandCalls(f *Func) {
+ 		hiOffset = 4
+ 	}
+ 
+-	pairTypes := func(et types.EType) (tHi, tLo *types.Type) {
++	// intPairTypes returns the pair of 32-bit int types needed to encode a 64-bit integer type on a target
++	// that has no 64-bit integer registers.
++	intPairTypes := func(et types.EType) (tHi, tLo *types.Type) {
+ 		tHi = tUint32
+ 		if et == types.TINT64 {
+ 			tHi = tInt32
+@@ -147,8 +149,8 @@ func expandCalls(f *Func) {
+ 		}
+ 	}
+ 
+-	// storeArg converts stores of SSA-able aggregates into a series of stores of smaller types into
+-	// individual parameter slots.
++	// storeArg converts stores of SSA-able aggregate arguments (passed to a call) into a series of stores of
++	// smaller types into individual parameter slots.
+ 	// TODO when registers really arrive, must also decompose anything split across two registers or registers and memory.
+ 	var storeArg func(pos src.XPos, b *Block, a *Value, t *types.Type, offset int64, mem *Value) *Value
+ 	storeArg = func(pos src.XPos, b *Block, a *Value, t *types.Type, offset int64, mem *Value) *Value {
+@@ -165,7 +167,7 @@ func expandCalls(f *Func) {
+ 			return storeArg(pos, b, a.Args[0], t.Elem(), offset, mem)
+ 
+ 		case OpInt64Make:
+-			tHi, tLo := pairTypes(t.Etype)
++			tHi, tLo := intPairTypes(t.Etype)
+ 			mem = storeArg(pos, b, a.Args[0], tHi, offset+hiOffset, mem)
+ 			return storeArg(pos, b, a.Args[1], tLo, offset+lowOffset, mem)
+ 		}
+@@ -207,7 +209,7 @@ func expandCalls(f *Func) {
+ 			if t.Width == regSize {
+ 				break
+ 			}
+-			tHi, tLo := pairTypes(t.Etype)
++			tHi, tLo := intPairTypes(t.Etype)
+ 			sel := src.Block.NewValue1(pos, OpInt64Hi, tHi, src)
+ 			mem = splitStore(dst, sel, mem, v, tHi, offset+hiOffset, firstStorePos)
+ 			firstStorePos = firstStorePos.WithNotStmt()
+@@ -261,6 +263,9 @@ func expandCalls(f *Func) {
+ 		return x
+ 	}
+ 
++	// rewriteArgs removes all the Args from a call and converts the call args into appropriate
++	// stores (or later, register movement).  Extra args for interface and closure calls are ignored,
++	// but removed.
+ 	rewriteArgs := func(v *Value, firstArg int) *Value {
+ 		// Thread the stores on the memory arg
+ 		aux := v.Aux.(*AuxCall)

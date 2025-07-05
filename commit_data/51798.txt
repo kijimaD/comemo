@@ -12,7 +12,32 @@ Date:   Thu Feb 24 23:44:05 2022 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/flags/flags.go | 1 +
  src/cmd/asm/main.go                 | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index 607166e664..273d422370 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -30,6 +30,7 @@ var (
+ 
+ var DebugFlags struct {
+ 	MayMoreStack string `help:"call named function before all stack growth checks"`
++	PCTab        string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
+ }
+ 
+ var (
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 3683527f5b..6a25fd426b 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -43,6 +43,7 @@ func main() {
+ 	ctxt.Flag_linkshared = *flags.Linkshared
+ 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+ 	ctxt.Flag_maymorestack = flags.DebugFlags.MayMoreStack
++	ctxt.Debugpcln = flags.DebugFlags.PCTab
+ 	ctxt.IsAsm = true
+ 	ctxt.Pkgpath = *flags.Importpath
+ 	switch *flags.Spectre {

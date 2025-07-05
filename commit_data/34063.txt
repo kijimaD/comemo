@@ -7,6 +7,20 @@ Date:   Fri Sep 29 10:01:56 2017 -0700
     Change-Id: Id900636ee58a39aaa3dc1c601cb83706d3e2fbe8
     Reviewed-on: https://go-review.googlesource.com/67190
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/ssa/nilcheck.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 1f789df2a8..b107f8a836 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -168,7 +168,7 @@ func nilcheckelim2(f *Func) {
+ 		// input pointer is nil. Remove nil checks on those pointers, as the
+ 		// faulting instruction effectively does the nil check for free.
+ 		unnecessary.clear()
+-		// Optimization: keep track of removed nilckeck with smallest index
++		// Optimization: keep track of removed nilcheck with smallest index
+ 		firstToRemove := len(b.Values)
+ 		for i := len(b.Values) - 1; i >= 0; i-- {
+ 			v := b.Values[i]

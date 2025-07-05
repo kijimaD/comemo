@@ -9,6 +9,20 @@ Date:   Thu Jun 23 09:16:20 2011 +1000
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/4648049
-
+---
  src/pkg/exec/lp_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exec/lp_windows.go b/src/pkg/exec/lp_windows.go
+index 401c693b41..5a74c8ee5b 100644
+--- a/src/pkg/exec/lp_windows.go
++++ b/src/pkg/exec/lp_windows.go
+@@ -38,7 +38,7 @@ func findExecutable(file string, exts []string) (string, os.Error) {
+ 			return f, nil
+ 		}
+ 	}
+-	return ``, ErrNotFound
++	return ``, os.ENOENT
+ }
+ 
+ func LookPath(file string) (f string, err os.Error) {

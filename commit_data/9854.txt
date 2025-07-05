@@ -33,7 +33,7 @@ Date:   Tue Oct 4 11:09:03 2011 +1100
     R=r, bsiegert
     CC=golang-dev
     https://golang.org/cl/5132048
-
+---
  src/cmd/gofix/Makefile            |   1 +
  src/cmd/gofix/imagecolor.go       |  87 +++++++++++
  src/cmd/gofix/imagecolor_test.go  | 126 ++++++++++++++++
@@ -60,3 +60,2417 @@ Date:   Tue Oct 4 11:09:03 2011 +1100
  src/pkg/image/tiff/reader.go      |  19 +--
  src/pkg/image/ycbcr/ycbcr.go      |   9 +-
  25 files changed, 820 insertions(+), 327 deletions(-)
+
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index 7a2b7241f1..fc129790a5 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -12,6 +12,7 @@ GOFILES=\
+ 	httpfs.go\
+ 	httpheaders.go\
+ 	httpserver.go\
++	imagecolor.go\
+ 	imagenew.go\
+ 	iocopyn.go\
+ 	main.go\
+diff --git a/src/cmd/gofix/imagecolor.go b/src/cmd/gofix/imagecolor.go
+new file mode 100644
+index 0000000000..d1cda33566
+--- /dev/null
++++ b/src/cmd/gofix/imagecolor.go
+@@ -0,0 +1,87 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++func init() {
++	register(fix{
++		"color",
++		color,
++		`Adapt code to types moved from image to color.
++
++http://codereview.appspot.com/5132048
++`,
++	})
++}
++
++var colorRenames = []struct{ in, out string }{
++	{"Color", "Color"},
++	{"ColorModel", "Model"},
++	{"ColorModelFunc", "ModelFunc"},
++	{"PalettedColorModel", "Palette"},
++
++	{"RGBAColor", "RGBA"},
++	{"RGBA64Color", "RGBA64"},
++	{"NRGBAColor", "NRGBA"},
++	{"NRGBA64Color", "NRGBA64"},
++	{"AlphaColor", "Alpha"},
++	{"Alpha16Color", "Alpha16"},
++	{"GrayColor", "Gray"},
++	{"Gray16Color", "Gray16"},
++
++	{"RGBAColorModel", "RGBAModel"},
++	{"RGBA64ColorModel", "RGBA64Model"},
++	{"NRGBAColorModel", "NRGBAModel"},
++	{"NRGBA64ColorModel", "NRGBA64Model"},
++	{"AlphaColorModel", "AlphaModel"},
++	{"Alpha16ColorModel", "Alpha16Model"},
++	{"GrayColorModel", "GrayModel"},
++	{"Gray16ColorModel", "Gray16Model"},
++}
++
++func color(f *ast.File) (fixed bool) {
++	if !imports(f, "image") {
++		return
++	}
++
++	importColor := false
++
++	walk(f, func(n interface{}) {
++		s, ok := n.(*ast.SelectorExpr)
++
++		if !ok || !isTopName(s.X, "image") {
++			return
++		}
++
++		switch sel := s.Sel.String(); {
++		case sel == "ColorImage":
++			s.Sel = &ast.Ident{Name: "Uniform"}
++			fixed = true
++		case sel == "NewColorImage":
++			s.Sel = &ast.Ident{Name: "NewUniform"}
++			fixed = true
++		default:
++			for _, rename := range colorRenames {
++				if sel == rename.in {
++					s.X.(*ast.Ident).Name = "color"
++					s.Sel.Name = rename.out
++					fixed = true
++					importColor = true
++				}
++			}
++		}
++	})
++
++	if importColor {
++		addImport(f, "image/color")
++		if !usesImport(f, "image") {
++			deleteImport(f, "image")
++		}
++	}
++	return
++}
+diff --git a/src/cmd/gofix/imagecolor_test.go b/src/cmd/gofix/imagecolor_test.go
+new file mode 100644
+index 0000000000..3a3d4c6bf4
+--- /dev/null
++++ b/src/cmd/gofix/imagecolor_test.go
+@@ -0,0 +1,126 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(colorTests)
++}
++
++var colorTests = []testCase{
++	{
++		Name: "color.0",
++		In: `package main
++
++import (
++	"image"
++)
++
++var (
++	_ image.Image
++	_ image.RGBA
++	_ image.Black
++	_ image.Color
++	_ image.ColorModel
++	_ image.ColorModelFunc
++	_ image.PalettedColorModel
++	_ image.RGBAColor
++	_ image.RGBA64Color
++	_ image.NRGBAColor
++	_ image.NRGBA64Color
++	_ image.AlphaColor
++	_ image.Alpha16Color
++	_ image.GrayColor
++	_ image.Gray16Color
++)
++
++func f() {
++	_ = image.RGBAColorModel
++	_ = image.RGBA64ColorModel
++	_ = image.NRGBAColorModel
++	_ = image.NRGBA64ColorModel
++	_ = image.AlphaColorModel
++	_ = image.Alpha16ColorModel
++	_ = image.GrayColorModel
++	_ = image.Gray16ColorModel
++}
++`,
++		Out: `package main
++
++import (
++	"image"
++	"image/color"
++)
++
++var (
++	_ image.Image
++	_ image.RGBA
++	_ image.Black
++	_ color.Color
++	_ color.Model
++	_ color.ModelFunc
++	_ color.Palette
++	_ color.RGBA
++	_ color.RGBA64
++	_ color.NRGBA
++	_ color.NRGBA64
++	_ color.Alpha
++	_ color.Alpha16
++	_ color.Gray
++	_ color.Gray16
++)
++
++func f() {
++	_ = color.RGBAModel
++	_ = color.RGBA64Model
++	_ = color.NRGBAModel
++	_ = color.NRGBA64Model
++	_ = color.AlphaModel
++	_ = color.Alpha16Model
++	_ = color.GrayModel
++	_ = color.Gray16Model
++}
++`,
++	},
++	{
++		Name: "color.1",
++		In: `package main
++
++import (
++	"fmt"
++	"image"
++)
++
++func f() {
++	fmt.Println(image.RGBAColor{1, 2, 3, 4}.RGBA())
++}
++`,
++		Out: `package main
++
++import (
++	"fmt"
++	"image/color"
++)
++
++func f() {
++	fmt.Println(color.RGBA{1, 2, 3, 4}.RGBA())
++}
++`,
++	},
++	{
++		Name: "color.2",
++		In: `package main
++
++import "image"
++
++var c *image.ColorImage = image.NewColorImage(nil)
++`,
++		Out: `package main
++
++import "image"
++
++var c *image.Uniform = image.NewUniform(nil)
++`,
++	},
++}
+diff --git a/src/cmd/gofix/imagenew_test.go b/src/cmd/gofix/imagenew_test.go
+index 3d40fea81f..c45fc480de 100644
+--- a/src/cmd/gofix/imagenew_test.go
++++ b/src/cmd/gofix/imagenew_test.go
+@@ -26,8 +26,7 @@ func f() {
+ 	image.NewAlpha16(1, 2)
+ 	image.NewGray(1, 2)
+ 	image.NewGray16(1, 2)
+-	var m image.PalettedColorModel
+-	image.NewPaletted(1, 2, m)
++	image.NewPaletted(1, 2, nil)
+ }
+ `,
+ 		Out: `package main
+@@ -45,8 +44,7 @@ func f() {
+ 	image.NewAlpha16(image.Rect(0, 0, 1, 2))
+ 	image.NewGray(image.Rect(0, 0, 1, 2))
+ 	image.NewGray16(image.Rect(0, 0, 1, 2))
+-	var m image.PalettedColorModel
+-	image.NewPaletted(image.Rect(0, 0, 1, 2), m)
++	image.NewPaletted(image.Rect(0, 0, 1, 2), nil)
+ }
+ `,
+ 	},
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 6b9a2d8784..e6b5d785b6 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -112,6 +112,7 @@ DIRS=\
+ 	http/spdy\
+ 	image\
+ 	image/bmp\
++	image/color\
+ 	image/draw\
+ 	image/gif\
+ 	image/jpeg\
+@@ -212,6 +213,7 @@ NOTEST+=\
+ 	http/pprof\
+ 	http/httptest\
+ 	image/bmp\
++	image/color\
+ 	image/gif\
+ 	net/dict\
+ 	rand\
+diff --git a/src/pkg/image/Makefile b/src/pkg/image/Makefile
+index 739ad804b9..0c733d1eaa 100644
+--- a/src/pkg/image/Makefile
++++ b/src/pkg/image/Makefile
+@@ -6,7 +6,6 @@ include ../../Make.inc
+ 
+ TARG=image
+ GOFILES=\
+-	color.go\
+ 	format.go\
+ 	geom.go\
+ 	image.go\
+diff --git a/src/pkg/image/bmp/reader.go b/src/pkg/image/bmp/reader.go
+index 6bf4b1dbb1..134de5be99 100644
+--- a/src/pkg/image/bmp/reader.go
++++ b/src/pkg/image/bmp/reader.go
+@@ -8,6 +8,7 @@
+ package bmp
+ 
+ import (
++	"image/color"
+ 	"image"
+ 	"io"
+ 	"os"
+@@ -28,7 +29,7 @@ func readUint32(b []byte) uint32 {
+ // decodePaletted reads an 8 bit-per-pixel BMP image from r.
+ func decodePaletted(r io.Reader, c image.Config) (image.Image, os.Error) {
+ 	var tmp [4]byte
+-	paletted := image.NewPaletted(image.Rect(0, 0, c.Width, c.Height), c.ColorModel.(image.PalettedColorModel))
++	paletted := image.NewPaletted(image.Rect(0, 0, c.Width, c.Height), c.ColorModel.(color.Palette))
+ 	// BMP images are stored bottom-up rather than top-down.
+ 	for y := c.Height - 1; y >= 0; y-- {
+ 		p := paletted.Pix[y*paletted.Stride : y*paletted.Stride+c.Width]
+@@ -77,7 +78,7 @@ func Decode(r io.Reader) (image.Image, os.Error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	if c.ColorModel == image.RGBAColorModel {
++	if c.ColorModel == color.RGBAModel {
+ 		return decodeRGBA(r, c)
+ 	}
+ 	return decodePaletted(r, c)
+@@ -128,11 +129,11 @@ func DecodeConfig(r io.Reader) (config image.Config, err os.Error) {
+ 		if err != nil {
+ 			return
+ 		}
+-		pcm := make(image.PalettedColorModel, 256)
++		pcm := make(color.Palette, 256)
+ 		for i := range pcm {
+ 			// BMP images are stored in BGR order rather than RGB order.
+ 			// Every 4th byte is padding.
+-			pcm[i] = image.RGBAColor{b[4*i+2], b[4*i+1], b[4*i+0], 0xFF}
++			pcm[i] = color.RGBA{b[4*i+2], b[4*i+1], b[4*i+0], 0xFF}
+ 		}
+ 		return image.Config{pcm, width, height}, nil
+ 	case 24:
+@@ -140,7 +141,7 @@ func DecodeConfig(r io.Reader) (config image.Config, err os.Error) {
+ 			err = ErrUnsupported
+ 			return
+ 		}
+-		return image.Config{image.RGBAColorModel, width, height}, nil
++		return image.Config{color.RGBAModel, width, height}, nil
+ 	}
+ 	err = ErrUnsupported
+ 	return
+diff --git a/src/pkg/image/color/Makefile b/src/pkg/image/color/Makefile
+new file mode 100644
+index 0000000000..c4254a9322
+--- /dev/null
++++ b/src/pkg/image/color/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.inc
++
++TARG=image/color
++GOFILES=\
++	color.go\
++
++include ../../../Make.pkg
+diff --git a/src/pkg/image/color/color.go b/src/pkg/image/color/color.go
+new file mode 100644
+index 0000000000..4a0fae5a78
+--- /dev/null
++++ b/src/pkg/image/color/color.go
+@@ -0,0 +1,293 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package color implements a basic color library.
++package color
++
++// Color can convert itself to alpha-premultiplied 16-bits per channel RGBA.
++// The conversion may be lossy.
++type Color interface {
++	// RGBA returns the alpha-premultiplied red, green, blue and alpha values
++	// for the color. Each value ranges within [0, 0xFFFF], but is represented
++	// by a uint32 so that multiplying by a blend factor up to 0xFFFF will not
++	// overflow.
++	RGBA() (r, g, b, a uint32)
++}
++
++// RGBA represents a traditional 32-bit alpha-premultiplied color,
++// having 8 bits for each of red, green, blue and alpha.
++type RGBA struct {
++	R, G, B, A uint8
++}
++
++func (c RGBA) RGBA() (r, g, b, a uint32) {
++	r = uint32(c.R)
++	r |= r << 8
++	g = uint32(c.G)
++	g |= g << 8
++	b = uint32(c.B)
++	b |= b << 8
++	a = uint32(c.A)
++	a |= a << 8
++	return
++}
++
++// RGBA64 represents a 64-bit alpha-premultiplied color,
++// having 16 bits for each of red, green, blue and alpha.
++type RGBA64 struct {
++	R, G, B, A uint16
++}
++
++func (c RGBA64) RGBA() (r, g, b, a uint32) {
++	return uint32(c.R), uint32(c.G), uint32(c.B), uint32(c.A)
++}
++
++// NRGBA represents a non-alpha-premultiplied 32-bit color.
++type NRGBA struct {
++	R, G, B, A uint8
++}
++
++func (c NRGBA) RGBA() (r, g, b, a uint32) {
++	r = uint32(c.R)
++	r |= r << 8
++	r *= uint32(c.A)
++	r /= 0xff
++	g = uint32(c.G)
++	g |= g << 8
++	g *= uint32(c.A)
++	g /= 0xff
++	b = uint32(c.B)
++	b |= b << 8
++	b *= uint32(c.A)
++	b /= 0xff
++	a = uint32(c.A)
++	a |= a << 8
++	return
++}
++
++// NRGBA64 represents a non-alpha-premultiplied 64-bit color,
++// having 16 bits for each of red, green, blue and alpha.
++type NRGBA64 struct {
++	R, G, B, A uint16
++}
++
++func (c NRGBA64) RGBA() (r, g, b, a uint32) {
++	r = uint32(c.R)
++	r *= uint32(c.A)
++	r /= 0xffff
++	g = uint32(c.G)
++	g *= uint32(c.A)
++	g /= 0xffff
++	b = uint32(c.B)
++	b *= uint32(c.A)
++	b /= 0xffff
++	a = uint32(c.A)
++	return
++}
++
++// Alpha represents an 8-bit alpha color.
++type Alpha struct {
++	A uint8
++}
++
++func (c Alpha) RGBA() (r, g, b, a uint32) {
++	a = uint32(c.A)
++	a |= a << 8
++	return a, a, a, a
++}
++
++// Alpha16 represents a 16-bit alpha color.
++type Alpha16 struct {
++	A uint16
++}
++
++func (c Alpha16) RGBA() (r, g, b, a uint32) {
++	a = uint32(c.A)
++	return a, a, a, a
++}
++
++// Gray represents an 8-bit grayscale color.
++type Gray struct {
++	Y uint8
++}
++
++func (c Gray) RGBA() (r, g, b, a uint32) {
++	y := uint32(c.Y)
++	y |= y << 8
++	return y, y, y, 0xffff
++}
++
++// Gray16 represents a 16-bit grayscale color.
++type Gray16 struct {
++	Y uint16
++}
++
++func (c Gray16) RGBA() (r, g, b, a uint32) {
++	y := uint32(c.Y)
++	return y, y, y, 0xffff
++}
++
++// Model can convert any Color to one from its own color model. The conversion
++// may be lossy.
++type Model interface {
++	Convert(c Color) Color
++}
++
++// ModelFunc is an adapter type to allow the use of a color conversion
++// function as a Model. If f is such a function, ModelFunc(f) is a Model that
++// invokes f to implement the conversion.
++type ModelFunc func(Color) Color
++
++func (f ModelFunc) Convert(c Color) Color {
++	return f(c)
++}
++
++// RGBAModel is the Model for RGBA colors.
++var RGBAModel Model = ModelFunc(func(c Color) Color {
++	if _, ok := c.(RGBA); ok {
++		return c
++	}
++	r, g, b, a := c.RGBA()
++	return RGBA{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), uint8(a >> 8)}
++})
++
++// RGBAModel is the Model for RGBA64 colors.
++var RGBA64Model Model = ModelFunc(func(c Color) Color {
++	if _, ok := c.(RGBA64); ok {
++		return c
++	}
++	r, g, b, a := c.RGBA()
++	return RGBA64{uint16(r), uint16(g), uint16(b), uint16(a)}
++})
++
++// NRGBAModel is the Model for NRGBA colors.
++var NRGBAModel Model = ModelFunc(func(c Color) Color {
++	if _, ok := c.(NRGBA); ok {
++		return c
++	}
++	r, g, b, a := c.RGBA()
++	if a == 0xffff {
++		return NRGBA{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), 0xff}
++	}
++	if a == 0 {
++		return NRGBA{0, 0, 0, 0}
++	}
++	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
++	r = (r * 0xffff) / a
++	g = (g * 0xffff) / a
++	b = (b * 0xffff) / a
++	return NRGBA{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), uint8(a >> 8)}
++})
++
++// NRGBAModel is the Model for NRGBA64 colors.
++var NRGBA64Model Model = ModelFunc(func(c Color) Color {
++	if _, ok := c.(NRGBA64); ok {
++		return c
++	}
++	r, g, b, a := c.RGBA()
++	if a == 0xffff {
++		return NRGBA64{uint16(r), uint16(g), uint16(b), 0xffff}
++	}
++	if a == 0 {
++		return NRGBA64{0, 0, 0, 0}
++	}
++	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
++	r = (r * 0xffff) / a
++	g = (g * 0xffff) / a
++	b = (b * 0xffff) / a
++	return NRGBA64{uint16(r), uint16(g), uint16(b), uint16(a)}
++})
++
++// AlphaModel is the Model for Alpha colors.
++var AlphaModel Model = ModelFunc(func(c Color) Color {
++	if _, ok := c.(Alpha); ok {
++		return c
++	}
++	_, _, _, a := c.RGBA()
++	return Alpha{uint8(a >> 8)}
++})
++
++// Alpha16Model is the Model for Alpha16 colors.
++var Alpha16Model Model = ModelFunc(func(c Color) Color {
++	if _, ok := c.(Alpha16); ok {
++		return c
++	}
++	_, _, _, a := c.RGBA()
++	return Alpha16{uint16(a)}
++})
++
++// GrayModel is the Model for Gray colors.
++var GrayModel Model = ModelFunc(func(c Color) Color {
++	if _, ok := c.(Gray); ok {
++		return c
++	}
++	r, g, b, _ := c.RGBA()
++	y := (299*r + 587*g + 114*b + 500) / 1000
++	return Gray{uint8(y >> 8)}
++})
++
++// Gray16Model is the Model for Gray16 colors.
++var Gray16Model Model = ModelFunc(func(c Color) Color {
++	if _, ok := c.(Gray16); ok {
++		return c
++	}
++	r, g, b, _ := c.RGBA()
++	y := (299*r + 587*g + 114*b + 500) / 1000
++	return Gray16{uint16(y)}
++})
++
++// Palette is a palette of colors.
++type Palette []Color
++
++func diff(a, b uint32) uint32 {
++	if a > b {
++		return a - b
++	}
++	return b - a
++}
++
++// Convert returns the palette color closest to c in Euclidean R,G,B space.
++func (p Palette) Convert(c Color) Color {
++	if len(p) == 0 {
++		return nil
++	}
++	return p[p.Index(c)]
++}
++
++// Index returns the index of the palette color closest to c in Euclidean
++// R,G,B space.
++func (p Palette) Index(c Color) int {
++	cr, cg, cb, _ := c.RGBA()
++	// Shift by 1 bit to avoid potential uint32 overflow in sum-squared-difference.
++	cr >>= 1
++	cg >>= 1
++	cb >>= 1
++	ret, bestSSD := 0, uint32(1<<32-1)
++	for i, v := range p {
++		vr, vg, vb, _ := v.RGBA()
++		vr >>= 1
++		vg >>= 1
++		vb >>= 1
++		dr, dg, db := diff(cr, vr), diff(cg, vg), diff(cb, vb)
++		ssd := (dr * dr) + (dg * dg) + (db * db)
++		if ssd < bestSSD {
++			if ssd == 0 {
++				return i
++			}
++			ret, bestSSD = i, ssd
++		}
++	}
++	return ret
++}
++
++var (
++	// Black is an opaque black Color.
++	Black = Gray16{0}
++	// White is an opaque white Color.
++	White = Gray16{0xffff}
++	// Transparent is a fully transparent Color.
++	Transparent = Alpha16{0}
++	// Opaque is a fully opaque Color.
++	Opaque = Alpha16{0xffff}
++)
+diff --git a/src/pkg/image/decode_test.go b/src/pkg/image/decode_test.go
+index 540d5eda5c..b348c1d111 100644
+--- a/src/pkg/image/decode_test.go
++++ b/src/pkg/image/decode_test.go
+@@ -7,6 +7,7 @@ package image_test
+ import (
+ 	"bufio"
+ 	"image"
++	"image/color"
+ 	"os"
+ 	"testing"
+ 
+@@ -66,7 +67,7 @@ func delta(u0, u1 uint32) int {
+ 	return d
+ }
+ 
+-func withinTolerance(c0, c1 image.Color, tolerance int) bool {
++func withinTolerance(c0, c1 color.Color, tolerance int) bool {
+ 	r0, g0, b0, a0 := c0.RGBA()
+ 	r1, g1, b1, a1 := c1.RGBA()
+ 	r := delta(r0, r1)
+diff --git a/src/pkg/image/draw/bench_test.go b/src/pkg/image/draw/bench_test.go
+index 0e5e324dc5..2be91185af 100644
+--- a/src/pkg/image/draw/bench_test.go
++++ b/src/pkg/image/draw/bench_test.go
+@@ -6,6 +6,7 @@ package draw
+ 
+ import (
+ 	"image"
++	"image/color"
+ 	"image/ycbcr"
+ 	"testing"
+ )
+@@ -18,16 +19,16 @@ const (
+ // bench benchmarks drawing src and mask images onto a dst image with the
+ // given op and the color models to create those images from.
+ // The created images' pixels are initialized to non-zero values.
+-func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
++func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
+ 	b.StopTimer()
+ 
+ 	var dst Image
+ 	switch dcm {
+-	case image.RGBAColorModel:
++	case color.RGBAModel:
+ 		dst1 := image.NewRGBA(image.Rect(0, 0, dstw, dsth))
+ 		for y := 0; y < dsth; y++ {
+ 			for x := 0; x < dstw; x++ {
+-				dst1.SetRGBA(x, y, image.RGBAColor{
++				dst1.SetRGBA(x, y, color.RGBA{
+ 					uint8(5 * x % 0x100),
+ 					uint8(7 * y % 0x100),
+ 					uint8((7*x + 5*y) % 0x100),
+@@ -36,11 +37,11 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
+ 			}
+ 		}
+ 		dst = dst1
+-	case image.RGBA64ColorModel:
++	case color.RGBA64Model:
+ 		dst1 := image.NewRGBA64(image.Rect(0, 0, dstw, dsth))
+ 		for y := 0; y < dsth; y++ {
+ 			for x := 0; x < dstw; x++ {
+-				dst1.SetRGBA64(x, y, image.RGBA64Color{
++				dst1.SetRGBA64(x, y, color.RGBA64{
+ 					uint16(53 * x % 0x10000),
+ 					uint16(59 * y % 0x10000),
+ 					uint16((59*x + 53*y) % 0x10000),
+@@ -56,12 +57,12 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
+ 	var src image.Image
+ 	switch scm {
+ 	case nil:
+-		src = &image.ColorImage{image.RGBAColor{0x11, 0x22, 0x33, 0xff}}
+-	case image.RGBAColorModel:
++		src = &image.Uniform{color.RGBA{0x11, 0x22, 0x33, 0xff}}
++	case color.RGBAModel:
+ 		src1 := image.NewRGBA(image.Rect(0, 0, srcw, srch))
+ 		for y := 0; y < srch; y++ {
+ 			for x := 0; x < srcw; x++ {
+-				src1.SetRGBA(x, y, image.RGBAColor{
++				src1.SetRGBA(x, y, color.RGBA{
+ 					uint8(13 * x % 0x80),
+ 					uint8(11 * y % 0x80),
+ 					uint8((11*x + 13*y) % 0x80),
+@@ -70,11 +71,11 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
+ 			}
+ 		}
+ 		src = src1
+-	case image.RGBA64ColorModel:
++	case color.RGBA64Model:
+ 		src1 := image.NewRGBA64(image.Rect(0, 0, srcw, srch))
+ 		for y := 0; y < srch; y++ {
+ 			for x := 0; x < srcw; x++ {
+-				src1.SetRGBA64(x, y, image.RGBA64Color{
++				src1.SetRGBA64(x, y, color.RGBA64{
+ 					uint16(103 * x % 0x8000),
+ 					uint16(101 * y % 0x8000),
+ 					uint16((101*x + 103*y) % 0x8000),
+@@ -83,11 +84,11 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
+ 			}
+ 		}
+ 		src = src1
+-	case image.NRGBAColorModel:
++	case color.NRGBAModel:
+ 		src1 := image.NewNRGBA(image.Rect(0, 0, srcw, srch))
+ 		for y := 0; y < srch; y++ {
+ 			for x := 0; x < srcw; x++ {
+-				src1.SetNRGBA(x, y, image.NRGBAColor{
++				src1.SetNRGBA(x, y, color.NRGBA{
+ 					uint8(13 * x % 0x100),
+ 					uint8(11 * y % 0x100),
+ 					uint8((11*x + 13*y) % 0x100),
+@@ -122,7 +123,7 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
+ 	switch mcm {
+ 	case nil:
+ 		// No-op.
+-	case image.AlphaColorModel:
++	case color.AlphaModel:
+ 		mask1 := image.NewAlpha(image.Rect(0, 0, srcw, srch))
+ 		for y := 0; y < srch; y++ {
+ 			for x := 0; x < srcw; x++ {
+@@ -130,7 +131,7 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
+ 				// Glyph masks are typically mostly zero,
+ 				// so we only set a quarter of mask1's pixels.
+ 				if a >= 0xc0 {
+-					mask1.SetAlpha(x, y, image.AlphaColor{a})
++					mask1.SetAlpha(x, y, color.Alpha{a})
+ 				}
+ 			}
+ 		}
+@@ -152,55 +153,55 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
+ // The BenchmarkFoo functions exercise a drawFoo fast-path function in draw.go.
+ 
+ func BenchmarkFillOver(b *testing.B) {
+-	bench(b, image.RGBAColorModel, nil, nil, Over)
++	bench(b, color.RGBAModel, nil, nil, Over)
+ }
+ 
+ func BenchmarkFillSrc(b *testing.B) {
+-	bench(b, image.RGBAColorModel, nil, nil, Src)
++	bench(b, color.RGBAModel, nil, nil, Src)
+ }
+ 
+ func BenchmarkCopyOver(b *testing.B) {
+-	bench(b, image.RGBAColorModel, image.RGBAColorModel, nil, Over)
++	bench(b, color.RGBAModel, color.RGBAModel, nil, Over)
+ }
+ 
+ func BenchmarkCopySrc(b *testing.B) {
+-	bench(b, image.RGBAColorModel, image.RGBAColorModel, nil, Src)
++	bench(b, color.RGBAModel, color.RGBAModel, nil, Src)
+ }
+ 
+ func BenchmarkNRGBAOver(b *testing.B) {
+-	bench(b, image.RGBAColorModel, image.NRGBAColorModel, nil, Over)
++	bench(b, color.RGBAModel, color.NRGBAModel, nil, Over)
+ }
+ 
+ func BenchmarkNRGBASrc(b *testing.B) {
+-	bench(b, image.RGBAColorModel, image.NRGBAColorModel, nil, Src)
++	bench(b, color.RGBAModel, color.NRGBAModel, nil, Src)
+ }
+ 
+ func BenchmarkYCbCr(b *testing.B) {
+-	bench(b, image.RGBAColorModel, ycbcr.YCbCrColorModel, nil, Over)
++	bench(b, color.RGBAModel, ycbcr.YCbCrColorModel, nil, Over)
+ }
+ 
+ func BenchmarkGlyphOver(b *testing.B) {
+-	bench(b, image.RGBAColorModel, nil, image.AlphaColorModel, Over)
++	bench(b, color.RGBAModel, nil, color.AlphaModel, Over)
+ }
+ 
+ func BenchmarkRGBA(b *testing.B) {
+-	bench(b, image.RGBAColorModel, image.RGBA64ColorModel, nil, Src)
++	bench(b, color.RGBAModel, color.RGBA64Model, nil, Src)
+ }
+ 
+ // The BenchmarkGenericFoo functions exercise the generic, slow-path code.
+ 
+ func BenchmarkGenericOver(b *testing.B) {
+-	bench(b, image.RGBA64ColorModel, image.RGBA64ColorModel, nil, Over)
++	bench(b, color.RGBA64Model, color.RGBA64Model, nil, Over)
+ }
+ 
+ func BenchmarkGenericMaskOver(b *testing.B) {
+-	bench(b, image.RGBA64ColorModel, image.RGBA64ColorModel, image.AlphaColorModel, Over)
++	bench(b, color.RGBA64Model, color.RGBA64Model, color.AlphaModel, Over)
+ }
+ 
+ func BenchmarkGenericSrc(b *testing.B) {
+-	bench(b, image.RGBA64ColorModel, image.RGBA64ColorModel, nil, Src)
++	bench(b, color.RGBA64Model, color.RGBA64Model, nil, Src)
+ }
+ 
+ func BenchmarkGenericMaskSrc(b *testing.B) {
+-	bench(b, image.RGBA64ColorModel, image.RGBA64ColorModel, image.AlphaColorModel, Src)
++	bench(b, color.RGBA64Model, color.RGBA64Model, color.AlphaModel, Src)
+ }
+diff --git a/src/pkg/image/draw/draw.go b/src/pkg/image/draw/draw.go
+index 5171e03b18..af02639ccd 100644
+--- a/src/pkg/image/draw/draw.go
++++ b/src/pkg/image/draw/draw.go
+@@ -10,6 +10,7 @@ package draw
+ 
+ import (
+ 	"image"
++	"image/color"
+ 	"image/ycbcr"
+ )
+ 
+@@ -26,12 +27,10 @@ const (
+ 	Src
+ )
+ 
+-var zeroColor image.Color = image.AlphaColor{0}
+-
+ // A draw.Image is an image.Image with a Set method to change a single pixel.
+ type Image interface {
+ 	image.Image
+-	Set(x, y int, c image.Color)
++	Set(x, y int, c color.Color)
+ }
+ 
+ // Draw calls DrawMask with a nil mask.
+@@ -73,7 +72,7 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 		if op == Over {
+ 			if mask == nil {
+ 				switch src0 := src.(type) {
+-				case *image.ColorImage:
++				case *image.Uniform:
+ 					drawFillOver(dst0, r, src0)
+ 					return
+ 				case *image.RGBA:
+@@ -88,7 +87,7 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 				}
+ 			} else if mask0, ok := mask.(*image.Alpha); ok {
+ 				switch src0 := src.(type) {
+-				case *image.ColorImage:
++				case *image.Uniform:
+ 					drawGlyphOver(dst0, r, src0, mask0, mp)
+ 					return
+ 				}
+@@ -96,7 +95,7 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 		} else {
+ 			if mask == nil {
+ 				switch src0 := src.(type) {
+-				case *image.ColorImage:
++				case *image.Uniform:
+ 					drawFillSrc(dst0, r, src0)
+ 					return
+ 				case *image.RGBA:
+@@ -125,7 +124,7 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 		}
+ 	}
+ 
+-	var out *image.RGBA64Color
++	var out *color.RGBA64
+ 	sy := sp.Y + y0 - r.Min.Y
+ 	my := mp.Y + y0 - r.Min.Y
+ 	for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+@@ -141,14 +140,14 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 				if op == Over {
+ 					// No-op.
+ 				} else {
+-					dst.Set(x, y, zeroColor)
++					dst.Set(x, y, color.Transparent)
+ 				}
+ 			case ma == m && op == Src:
+ 				dst.Set(x, y, src.At(sx, sy))
+ 			default:
+ 				sr, sg, sb, sa := src.At(sx, sy).RGBA()
+ 				if out == nil {
+-					out = new(image.RGBA64Color)
++					out = new(color.RGBA64)
+ 				}
+ 				if op == Over {
+ 					dr, dg, db, da := dst.At(x, y).RGBA()
+@@ -169,7 +168,7 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 	}
+ }
+ 
+-func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
++func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.Uniform) {
+ 	sr, sg, sb, sa := src.RGBA()
+ 	// The 0x101 is here for the same reason as in drawRGBA.
+ 	a := (m - sa) * 0x101
+@@ -192,7 +191,7 @@ func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
+ 	}
+ }
+ 
+-func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
++func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.Uniform) {
+ 	sr, sg, sb, sa := src.RGBA()
+ 	// The built-in copy function is faster than a straightforward for loop to fill the destination with
+ 	// the color, but copy requires a slice source. We therefore use a for loop to fill the first row, and
+@@ -406,7 +405,7 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *ycbcr.YCbCr, sp image.Po
+ 	}
+ }
+ 
+-func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage, mask *image.Alpha, mp image.Point) {
++func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.Uniform, mask *image.Alpha, mp image.Point) {
+ 	i0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + (r.Min.X-dst.Rect.Min.X)*4
+ 	i1 := i0 + r.Dx()*4
+ 	mi0 := (mp.Y-mask.Rect.Min.Y)*mask.Stride + mp.X - mask.Rect.Min.X
+diff --git a/src/pkg/image/draw/draw_test.go b/src/pkg/image/draw/draw_test.go
+index 7634c2e8b5..663ab67a19 100644
+--- a/src/pkg/image/draw/draw_test.go
++++ b/src/pkg/image/draw/draw_test.go
+@@ -6,29 +6,30 @@ package draw
+ 
+ import (
+ 	"image"
++	"image/color"
+ 	"image/ycbcr"
+ 	"testing"
+ )
+ 
+-func eq(c0, c1 image.Color) bool {
++func eq(c0, c1 color.Color) bool {
+ 	r0, g0, b0, a0 := c0.RGBA()
+ 	r1, g1, b1, a1 := c1.RGBA()
+ 	return r0 == r1 && g0 == g1 && b0 == b1 && a0 == a1
+ }
+ 
+ func fillBlue(alpha int) image.Image {
+-	return image.NewColorImage(image.RGBAColor{0, 0, uint8(alpha), uint8(alpha)})
++	return image.NewUniform(color.RGBA{0, 0, uint8(alpha), uint8(alpha)})
+ }
+ 
+ func fillAlpha(alpha int) image.Image {
+-	return image.NewColorImage(image.AlphaColor{uint8(alpha)})
++	return image.NewUniform(color.Alpha{uint8(alpha)})
+ }
+ 
+ func vgradGreen(alpha int) image.Image {
+ 	m := image.NewRGBA(image.Rect(0, 0, 16, 16))
+ 	for y := 0; y < 16; y++ {
+ 		for x := 0; x < 16; x++ {
+-			m.Set(x, y, image.RGBAColor{0, uint8(y * alpha / 15), 0, uint8(alpha)})
++			m.Set(x, y, color.RGBA{0, uint8(y * alpha / 15), 0, uint8(alpha)})
+ 		}
+ 	}
+ 	return m
+@@ -38,7 +39,7 @@ func vgradAlpha(alpha int) image.Image {
+ 	m := image.NewAlpha(image.Rect(0, 0, 16, 16))
+ 	for y := 0; y < 16; y++ {
+ 		for x := 0; x < 16; x++ {
+-			m.Set(x, y, image.AlphaColor{uint8(y * alpha / 15)})
++			m.Set(x, y, color.Alpha{uint8(y * alpha / 15)})
+ 		}
+ 	}
+ 	return m
+@@ -48,7 +49,7 @@ func vgradGreenNRGBA(alpha int) image.Image {
+ 	m := image.NewNRGBA(image.Rect(0, 0, 16, 16))
+ 	for y := 0; y < 16; y++ {
+ 		for x := 0; x < 16; x++ {
+-			m.Set(x, y, image.RGBAColor{0, uint8(y * 0x11), 0, uint8(alpha)})
++			m.Set(x, y, color.RGBA{0, uint8(y * 0x11), 0, uint8(alpha)})
+ 		}
+ 	}
+ 	return m
+@@ -76,7 +77,7 @@ func hgradRed(alpha int) Image {
+ 	m := image.NewRGBA(image.Rect(0, 0, 16, 16))
+ 	for y := 0; y < 16; y++ {
+ 		for x := 0; x < 16; x++ {
+-			m.Set(x, y, image.RGBAColor{uint8(x * alpha / 15), 0, 0, uint8(alpha)})
++			m.Set(x, y, color.RGBA{uint8(x * alpha / 15), 0, 0, uint8(alpha)})
+ 		}
+ 	}
+ 	return m
+@@ -86,7 +87,7 @@ func gradYellow(alpha int) Image {
+ 	m := image.NewRGBA(image.Rect(0, 0, 16, 16))
+ 	for y := 0; y < 16; y++ {
+ 		for x := 0; x < 16; x++ {
+-			m.Set(x, y, image.RGBAColor{uint8(x * alpha / 15), uint8(y * alpha / 15), 0, uint8(alpha)})
++			m.Set(x, y, color.RGBA{uint8(x * alpha / 15), uint8(y * alpha / 15), 0, uint8(alpha)})
+ 		}
+ 	}
+ 	return m
+@@ -97,61 +98,61 @@ type drawTest struct {
+ 	src      image.Image
+ 	mask     image.Image
+ 	op       Op
+-	expected image.Color
++	expected color.Color
+ }
+ 
+ var drawTests = []drawTest{
+ 	// Uniform mask (0% opaque).
+-	{"nop", vgradGreen(255), fillAlpha(0), Over, image.RGBAColor{136, 0, 0, 255}},
+-	{"clear", vgradGreen(255), fillAlpha(0), Src, image.RGBAColor{0, 0, 0, 0}},
++	{"nop", vgradGreen(255), fillAlpha(0), Over, color.RGBA{136, 0, 0, 255}},
++	{"clear", vgradGreen(255), fillAlpha(0), Src, color.RGBA{0, 0, 0, 0}},
+ 	// Uniform mask (100%, 75%, nil) and uniform source.
+ 	// At (x, y) == (8, 8):
+ 	// The destination pixel is {136, 0, 0, 255}.
+ 	// The source pixel is {0, 0, 90, 90}.
+-	{"fill", fillBlue(90), fillAlpha(255), Over, image.RGBAColor{88, 0, 90, 255}},
+-	{"fillSrc", fillBlue(90), fillAlpha(255), Src, image.RGBAColor{0, 0, 90, 90}},
+-	{"fillAlpha", fillBlue(90), fillAlpha(192), Over, image.RGBAColor{100, 0, 68, 255}},
+-	{"fillAlphaSrc", fillBlue(90), fillAlpha(192), Src, image.RGBAColor{0, 0, 68, 68}},
+-	{"fillNil", fillBlue(90), nil, Over, image.RGBAColor{88, 0, 90, 255}},
+-	{"fillNilSrc", fillBlue(90), nil, Src, image.RGBAColor{0, 0, 90, 90}},
++	{"fill", fillBlue(90), fillAlpha(255), Over, color.RGBA{88, 0, 90, 255}},
++	{"fillSrc", fillBlue(90), fillAlpha(255), Src, color.RGBA{0, 0, 90, 90}},
++	{"fillAlpha", fillBlue(90), fillAlpha(192), Over, color.RGBA{100, 0, 68, 255}},
++	{"fillAlphaSrc", fillBlue(90), fillAlpha(192), Src, color.RGBA{0, 0, 68, 68}},
++	{"fillNil", fillBlue(90), nil, Over, color.RGBA{88, 0, 90, 255}},
++	{"fillNilSrc", fillBlue(90), nil, Src, color.RGBA{0, 0, 90, 90}},
+ 	// Uniform mask (100%, 75%, nil) and variable source.
+ 	// At (x, y) == (8, 8):
+ 	// The destination pixel is {136, 0, 0, 255}.
+ 	// The source pixel is {0, 48, 0, 90}.
+-	{"copy", vgradGreen(90), fillAlpha(255), Over, image.RGBAColor{88, 48, 0, 255}},
+-	{"copySrc", vgradGreen(90), fillAlpha(255), Src, image.RGBAColor{0, 48, 0, 90}},
+-	{"copyAlpha", vgradGreen(90), fillAlpha(192), Over, image.RGBAColor{100, 36, 0, 255}},
+-	{"copyAlphaSrc", vgradGreen(90), fillAlpha(192), Src, image.RGBAColor{0, 36, 0, 68}},
+-	{"copyNil", vgradGreen(90), nil, Over, image.RGBAColor{88, 48, 0, 255}},
+-	{"copyNilSrc", vgradGreen(90), nil, Src, image.RGBAColor{0, 48, 0, 90}},
++	{"copy", vgradGreen(90), fillAlpha(255), Over, color.RGBA{88, 48, 0, 255}},
++	{"copySrc", vgradGreen(90), fillAlpha(255), Src, color.RGBA{0, 48, 0, 90}},
++	{"copyAlpha", vgradGreen(90), fillAlpha(192), Over, color.RGBA{100, 36, 0, 255}},
++	{"copyAlphaSrc", vgradGreen(90), fillAlpha(192), Src, color.RGBA{0, 36, 0, 68}},
++	{"copyNil", vgradGreen(90), nil, Over, color.RGBA{88, 48, 0, 255}},
++	{"copyNilSrc", vgradGreen(90), nil, Src, color.RGBA{0, 48, 0, 90}},
+ 	// Uniform mask (100%, 75%, nil) and variable NRGBA source.
+ 	// At (x, y) == (8, 8):
+ 	// The destination pixel is {136, 0, 0, 255}.
+ 	// The source pixel is {0, 136, 0, 90} in NRGBA-space, which is {0, 48, 0, 90} in RGBA-space.
+ 	// The result pixel is different than in the "copy*" test cases because of rounding errors.
+-	{"nrgba", vgradGreenNRGBA(90), fillAlpha(255), Over, image.RGBAColor{88, 46, 0, 255}},
+-	{"nrgbaSrc", vgradGreenNRGBA(90), fillAlpha(255), Src, image.RGBAColor{0, 46, 0, 90}},
+-	{"nrgbaAlpha", vgradGreenNRGBA(90), fillAlpha(192), Over, image.RGBAColor{100, 34, 0, 255}},
+-	{"nrgbaAlphaSrc", vgradGreenNRGBA(90), fillAlpha(192), Src, image.RGBAColor{0, 34, 0, 68}},
+-	{"nrgbaNil", vgradGreenNRGBA(90), nil, Over, image.RGBAColor{88, 46, 0, 255}},
+-	{"nrgbaNilSrc", vgradGreenNRGBA(90), nil, Src, image.RGBAColor{0, 46, 0, 90}},
++	{"nrgba", vgradGreenNRGBA(90), fillAlpha(255), Over, color.RGBA{88, 46, 0, 255}},
++	{"nrgbaSrc", vgradGreenNRGBA(90), fillAlpha(255), Src, color.RGBA{0, 46, 0, 90}},
++	{"nrgbaAlpha", vgradGreenNRGBA(90), fillAlpha(192), Over, color.RGBA{100, 34, 0, 255}},
++	{"nrgbaAlphaSrc", vgradGreenNRGBA(90), fillAlpha(192), Src, color.RGBA{0, 34, 0, 68}},
++	{"nrgbaNil", vgradGreenNRGBA(90), nil, Over, color.RGBA{88, 46, 0, 255}},
++	{"nrgbaNilSrc", vgradGreenNRGBA(90), nil, Src, color.RGBA{0, 46, 0, 90}},
+ 	// Uniform mask (100%, 75%, nil) and variable YCbCr source.
+ 	// At (x, y) == (8, 8):
+ 	// The destination pixel is {136, 0, 0, 255}.
+ 	// The source pixel is {0, 0, 136} in YCbCr-space, which is {11, 38, 0, 255} in RGB-space.
+-	{"ycbcr", vgradCr(), fillAlpha(255), Over, image.RGBAColor{11, 38, 0, 255}},
+-	{"ycbcrSrc", vgradCr(), fillAlpha(255), Src, image.RGBAColor{11, 38, 0, 255}},
+-	{"ycbcrAlpha", vgradCr(), fillAlpha(192), Over, image.RGBAColor{42, 28, 0, 255}},
+-	{"ycbcrAlphaSrc", vgradCr(), fillAlpha(192), Src, image.RGBAColor{8, 28, 0, 192}},
+-	{"ycbcrNil", vgradCr(), nil, Over, image.RGBAColor{11, 38, 0, 255}},
+-	{"ycbcrNilSrc", vgradCr(), nil, Src, image.RGBAColor{11, 38, 0, 255}},
++	{"ycbcr", vgradCr(), fillAlpha(255), Over, color.RGBA{11, 38, 0, 255}},
++	{"ycbcrSrc", vgradCr(), fillAlpha(255), Src, color.RGBA{11, 38, 0, 255}},
++	{"ycbcrAlpha", vgradCr(), fillAlpha(192), Over, color.RGBA{42, 28, 0, 255}},
++	{"ycbcrAlphaSrc", vgradCr(), fillAlpha(192), Src, color.RGBA{8, 28, 0, 192}},
++	{"ycbcrNil", vgradCr(), nil, Over, color.RGBA{11, 38, 0, 255}},
++	{"ycbcrNilSrc", vgradCr(), nil, Src, color.RGBA{11, 38, 0, 255}},
+ 	// Variable mask and variable source.
+ 	// At (x, y) == (8, 8):
+ 	// The destination pixel is {136, 0, 0, 255}.
+ 	// The source pixel is {0, 0, 255, 255}.
+ 	// The mask pixel's alpha is 102, or 40%.
+-	{"generic", fillBlue(255), vgradAlpha(192), Over, image.RGBAColor{81, 0, 102, 255}},
+-	{"genericSrc", fillBlue(255), vgradAlpha(192), Src, image.RGBAColor{0, 0, 102, 102}},
++	{"generic", fillBlue(255), vgradAlpha(192), Over, color.RGBA{81, 0, 102, 255}},
++	{"genericSrc", fillBlue(255), vgradAlpha(192), Src, color.RGBA{0, 0, 102, 102}},
+ }
+ 
+ func makeGolden(dst image.Image, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op Op) image.Image {
+@@ -191,7 +192,7 @@ func makeGolden(dst image.Image, r image.Rectangle, src image.Image, sp image.Po
+ 				_, _, _, ma = mask.At(mx, my).RGBA()
+ 			}
+ 			a := M - (sa * ma / M)
+-			golden.Set(x, y, image.RGBA64Color{
++			golden.Set(x, y, color.RGBA64{
+ 				uint16((dr*a + sr*ma) / M),
+ 				uint16((dg*a + sg*ma) / M),
+ 				uint16((db*a + sb*ma) / M),
+@@ -283,13 +284,13 @@ func TestDrawOverlap(t *testing.T) {
+ func TestNonZeroSrcPt(t *testing.T) {
+ 	a := image.NewRGBA(image.Rect(0, 0, 1, 1))
+ 	b := image.NewRGBA(image.Rect(0, 0, 2, 2))
+-	b.Set(0, 0, image.RGBAColor{0, 0, 0, 5})
+-	b.Set(1, 0, image.RGBAColor{0, 0, 5, 5})
+-	b.Set(0, 1, image.RGBAColor{0, 5, 0, 5})
+-	b.Set(1, 1, image.RGBAColor{5, 0, 0, 5})
++	b.Set(0, 0, color.RGBA{0, 0, 0, 5})
++	b.Set(1, 0, color.RGBA{0, 0, 5, 5})
++	b.Set(0, 1, color.RGBA{0, 5, 0, 5})
++	b.Set(1, 1, color.RGBA{5, 0, 0, 5})
+ 	Draw(a, image.Rect(0, 0, 1, 1), b, image.Pt(1, 1), Over)
+-	if !eq(image.RGBAColor{5, 0, 0, 5}, a.At(0, 0)) {
+-		t.Errorf("non-zero src pt: want %v got %v", image.RGBAColor{5, 0, 0, 5}, a.At(0, 0))
++	if !eq(color.RGBA{5, 0, 0, 5}, a.At(0, 0)) {
++		t.Errorf("non-zero src pt: want %v got %v", color.RGBA{5, 0, 0, 5}, a.At(0, 0))
+ 	}
+ }
+ 
+@@ -312,8 +313,8 @@ func TestFill(t *testing.T) {
+ 	for _, r := range rr {
+ 		m := image.NewRGBA(image.Rect(0, 0, 40, 30)).SubImage(r).(*image.RGBA)
+ 		b := m.Bounds()
+-		c := image.RGBAColor{11, 0, 0, 255}
+-		src := &image.ColorImage{c}
++		c := color.RGBA{11, 0, 0, 255}
++		src := &image.Uniform{c}
+ 		check := func(desc string) {
+ 			for y := b.Min.Y; y < b.Max.Y; y++ {
+ 				for x := b.Min.X; x < b.Max.X; x++ {
+@@ -332,22 +333,22 @@ func TestFill(t *testing.T) {
+ 		}
+ 		check("pixel")
+ 		// Draw 1 row at a time.
+-		c = image.RGBAColor{0, 22, 0, 255}
+-		src = &image.ColorImage{c}
++		c = color.RGBA{0, 22, 0, 255}
++		src = &image.Uniform{c}
+ 		for y := b.Min.Y; y < b.Max.Y; y++ {
+ 			DrawMask(m, image.Rect(b.Min.X, y, b.Max.X, y+1), src, image.ZP, nil, image.ZP, Src)
+ 		}
+ 		check("row")
+ 		// Draw 1 column at a time.
+-		c = image.RGBAColor{0, 0, 33, 255}
+-		src = &image.ColorImage{c}
++		c = color.RGBA{0, 0, 33, 255}
++		src = &image.Uniform{c}
+ 		for x := b.Min.X; x < b.Max.X; x++ {
+ 			DrawMask(m, image.Rect(x, b.Min.Y, x+1, b.Max.Y), src, image.ZP, nil, image.ZP, Src)
+ 		}
+ 		check("column")
+ 		// Draw the whole image at once.
+-		c = image.RGBAColor{44, 55, 66, 77}
+-		src = &image.ColorImage{c}
++		c = color.RGBA{44, 55, 66, 77}
++		src = &image.Uniform{c}
+ 		DrawMask(m, b, src, image.ZP, nil, image.ZP, Src)
+ 		check("whole")
+ 	}
+diff --git a/src/pkg/image/gif/reader.go b/src/pkg/image/gif/reader.go
+index 48876f3a63..a5a4265e47 100644
+--- a/src/pkg/image/gif/reader.go
++++ b/src/pkg/image/gif/reader.go
+@@ -12,6 +12,7 @@ import (
+ 	"compress/lzw"
+ 	"fmt"
+ 	"image"
++	"image/color"
+ 	"io"
+ 	"os"
+ )
+@@ -76,7 +77,7 @@ type decoder struct {
+ 
+ 	// Computed.
+ 	pixelSize      uint
+-	globalColorMap image.PalettedColorModel
++	globalColorMap color.Palette
+ 
+ 	// Used when decoding.
+ 	delay []int
+@@ -235,7 +236,7 @@ func (d *decoder) readHeaderAndScreenDescriptor() os.Error {
+ 	return nil
+ }
+ 
+-func (d *decoder) readColorMap() (image.PalettedColorModel, os.Error) {
++func (d *decoder) readColorMap() (color.Palette, os.Error) {
+ 	if d.pixelSize > 8 {
+ 		return nil, fmt.Errorf("gif: can't handle %d bits per pixel", d.pixelSize)
+ 	}
+@@ -248,10 +249,10 @@ func (d *decoder) readColorMap() (image.PalettedColorModel, os.Error) {
+ 	if err != nil {
+ 		return nil, fmt.Errorf("gif: short read on color map: %s", err)
+ 	}
+-	colorMap := make(image.PalettedColorModel, numColors)
++	colorMap := make(color.Palette, numColors)
+ 	j := 0
+ 	for i := range colorMap {
+-		colorMap[i] = image.RGBAColor{d.tmp[j+0], d.tmp[j+1], d.tmp[j+2], 0xFF}
++		colorMap[i] = color.RGBA{d.tmp[j+0], d.tmp[j+1], d.tmp[j+2], 0xFF}
+ 		j += 3
+ 	}
+ 	return colorMap, nil
+@@ -319,9 +320,9 @@ func (d *decoder) readGraphicControl() os.Error {
+ 	return nil
+ }
+ 
+-func (d *decoder) setTransparency(colorMap image.PalettedColorModel) {
++func (d *decoder) setTransparency(colorMap color.Palette) {
+ 	if int(d.transparentIndex) < len(colorMap) {
+-		colorMap[d.transparentIndex] = image.RGBAColor{}
++		colorMap[d.transparentIndex] = color.RGBA{}
+ 	}
+ }
+ 
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index 72dfb62431..a0dd930c7c 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -8,23 +8,27 @@
+ // http://blog.golang.org/2011/09/go-image-package.html
+ package image
+ 
++import (
++	"image/color"
++)
++
+ // Config holds an image's color model and dimensions.
+ type Config struct {
+-	ColorModel    ColorModel
++	ColorModel    color.Model
+ 	Width, Height int
+ }
+ 
+-// Image is a finite rectangular grid of Colors drawn from a ColorModel.
++// Image is a finite rectangular grid of Colors drawn from a color model.
+ type Image interface {
+-	// ColorModel returns the Image's ColorModel.
+-	ColorModel() ColorModel
++	// ColorModel returns the Image's color model.
++	ColorModel() color.Model
+ 	// Bounds returns the domain for which At can return non-zero color.
+ 	// The bounds do not necessarily contain the point (0, 0).
+ 	Bounds() Rectangle
+ 	// At returns the color of the pixel at (x, y).
+ 	// At(Bounds().Min.X, Bounds().Min.Y) returns the upper-left pixel of the grid.
+ 	// At(Bounds().Max.X-1, Bounds().Max.Y-1) returns the lower-right one.
+-	At(x, y int) Color
++	At(x, y int) color.Color
+ }
+ 
+ // PalettedImage is an image whose colors may come from a limited palette.
+@@ -49,31 +53,31 @@ type RGBA struct {
+ 	Rect Rectangle
+ }
+ 
+-func (p *RGBA) ColorModel() ColorModel { return RGBAColorModel }
++func (p *RGBA) ColorModel() color.Model { return color.RGBAModel }
+ 
+ func (p *RGBA) Bounds() Rectangle { return p.Rect }
+ 
+-func (p *RGBA) At(x, y int) Color {
++func (p *RGBA) At(x, y int) color.Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+-		return RGBAColor{}
++		return color.RGBA{}
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
+-	return RGBAColor{p.Pix[i+0], p.Pix[i+1], p.Pix[i+2], p.Pix[i+3]}
++	return color.RGBA{p.Pix[i+0], p.Pix[i+1], p.Pix[i+2], p.Pix[i+3]}
+ }
+ 
+-func (p *RGBA) Set(x, y int, c Color) {
++func (p *RGBA) Set(x, y int, c color.Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
+-	c1 := toRGBAColor(c).(RGBAColor)
++	c1 := color.RGBAModel.Convert(c).(color.RGBA)
+ 	p.Pix[i+0] = c1.R
+ 	p.Pix[i+1] = c1.G
+ 	p.Pix[i+2] = c1.B
+ 	p.Pix[i+3] = c1.A
+ }
+ 
+-func (p *RGBA) SetRGBA(x, y int, c RGBAColor) {
++func (p *RGBA) SetRGBA(x, y int, c color.RGBA) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+@@ -138,16 +142,16 @@ type RGBA64 struct {
+ 	Rect Rectangle
+ }
+ 
+-func (p *RGBA64) ColorModel() ColorModel { return RGBA64ColorModel }
++func (p *RGBA64) ColorModel() color.Model { return color.RGBA64Model }
+ 
+ func (p *RGBA64) Bounds() Rectangle { return p.Rect }
+ 
+-func (p *RGBA64) At(x, y int) Color {
++func (p *RGBA64) At(x, y int) color.Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+-		return RGBA64Color{}
++		return color.RGBA64{}
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
+-	return RGBA64Color{
++	return color.RGBA64{
+ 		uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1]),
+ 		uint16(p.Pix[i+2])<<8 | uint16(p.Pix[i+3]),
+ 		uint16(p.Pix[i+4])<<8 | uint16(p.Pix[i+5]),
+@@ -155,12 +159,12 @@ func (p *RGBA64) At(x, y int) Color {
+ 	}
+ }
+ 
+-func (p *RGBA64) Set(x, y int, c Color) {
++func (p *RGBA64) Set(x, y int, c color.Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
+-	c1 := toRGBA64Color(c).(RGBA64Color)
++	c1 := color.RGBA64Model.Convert(c).(color.RGBA64)
+ 	p.Pix[i+0] = uint8(c1.R >> 8)
+ 	p.Pix[i+1] = uint8(c1.R)
+ 	p.Pix[i+2] = uint8(c1.G >> 8)
+@@ -171,7 +175,7 @@ func (p *RGBA64) Set(x, y int, c Color) {
+ 	p.Pix[i+7] = uint8(c1.A)
+ }
+ 
+-func (p *RGBA64) SetRGBA64(x, y int, c RGBA64Color) {
++func (p *RGBA64) SetRGBA64(x, y int, c color.RGBA64) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+@@ -240,31 +244,31 @@ type NRGBA struct {
+ 	Rect Rectangle
+ }
+ 
+-func (p *NRGBA) ColorModel() ColorModel { return NRGBAColorModel }
++func (p *NRGBA) ColorModel() color.Model { return color.NRGBAModel }
+ 
+ func (p *NRGBA) Bounds() Rectangle { return p.Rect }
+ 
+-func (p *NRGBA) At(x, y int) Color {
++func (p *NRGBA) At(x, y int) color.Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+-		return NRGBAColor{}
++		return color.NRGBA{}
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
+-	return NRGBAColor{p.Pix[i+0], p.Pix[i+1], p.Pix[i+2], p.Pix[i+3]}
++	return color.NRGBA{p.Pix[i+0], p.Pix[i+1], p.Pix[i+2], p.Pix[i+3]}
+ }
+ 
+-func (p *NRGBA) Set(x, y int, c Color) {
++func (p *NRGBA) Set(x, y int, c color.Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
+-	c1 := toNRGBAColor(c).(NRGBAColor)
++	c1 := color.NRGBAModel.Convert(c).(color.NRGBA)
+ 	p.Pix[i+0] = c1.R
+ 	p.Pix[i+1] = c1.G
+ 	p.Pix[i+2] = c1.B
+ 	p.Pix[i+3] = c1.A
+ }
+ 
+-func (p *NRGBA) SetNRGBA(x, y int, c NRGBAColor) {
++func (p *NRGBA) SetNRGBA(x, y int, c color.NRGBA) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+@@ -329,16 +333,16 @@ type NRGBA64 struct {
+ 	Rect Rectangle
+ }
+ 
+-func (p *NRGBA64) ColorModel() ColorModel { return NRGBA64ColorModel }
++func (p *NRGBA64) ColorModel() color.Model { return color.NRGBA64Model }
+ 
+ func (p *NRGBA64) Bounds() Rectangle { return p.Rect }
+ 
+-func (p *NRGBA64) At(x, y int) Color {
++func (p *NRGBA64) At(x, y int) color.Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+-		return NRGBA64Color{}
++		return color.NRGBA64{}
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
+-	return NRGBA64Color{
++	return color.NRGBA64{
+ 		uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1]),
+ 		uint16(p.Pix[i+2])<<8 | uint16(p.Pix[i+3]),
+ 		uint16(p.Pix[i+4])<<8 | uint16(p.Pix[i+5]),
+@@ -346,12 +350,12 @@ func (p *NRGBA64) At(x, y int) Color {
+ 	}
+ }
+ 
+-func (p *NRGBA64) Set(x, y int, c Color) {
++func (p *NRGBA64) Set(x, y int, c color.Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
+-	c1 := toNRGBA64Color(c).(NRGBA64Color)
++	c1 := color.NRGBA64Model.Convert(c).(color.NRGBA64)
+ 	p.Pix[i+0] = uint8(c1.R >> 8)
+ 	p.Pix[i+1] = uint8(c1.R)
+ 	p.Pix[i+2] = uint8(c1.G >> 8)
+@@ -362,7 +366,7 @@ func (p *NRGBA64) Set(x, y int, c Color) {
+ 	p.Pix[i+7] = uint8(c1.A)
+ }
+ 
+-func (p *NRGBA64) SetNRGBA64(x, y int, c NRGBA64Color) {
++func (p *NRGBA64) SetNRGBA64(x, y int, c color.NRGBA64) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+@@ -431,27 +435,27 @@ type Alpha struct {
+ 	Rect Rectangle
+ }
+ 
+-func (p *Alpha) ColorModel() ColorModel { return AlphaColorModel }
++func (p *Alpha) ColorModel() color.Model { return color.AlphaModel }
+ 
+ func (p *Alpha) Bounds() Rectangle { return p.Rect }
+ 
+-func (p *Alpha) At(x, y int) Color {
++func (p *Alpha) At(x, y int) color.Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+-		return AlphaColor{}
++		return color.Alpha{}
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+-	return AlphaColor{p.Pix[i]}
++	return color.Alpha{p.Pix[i]}
+ }
+ 
+-func (p *Alpha) Set(x, y int, c Color) {
++func (p *Alpha) Set(x, y int, c color.Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+-	p.Pix[i] = toAlphaColor(c).(AlphaColor).A
++	p.Pix[i] = color.AlphaModel.Convert(c).(color.Alpha).A
+ }
+ 
+-func (p *Alpha) SetAlpha(x, y int, c AlphaColor) {
++func (p *Alpha) SetAlpha(x, y int, c color.Alpha) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+@@ -513,29 +517,29 @@ type Alpha16 struct {
+ 	Rect Rectangle
+ }
+ 
+-func (p *Alpha16) ColorModel() ColorModel { return Alpha16ColorModel }
++func (p *Alpha16) ColorModel() color.Model { return color.Alpha16Model }
+ 
+ func (p *Alpha16) Bounds() Rectangle { return p.Rect }
+ 
+-func (p *Alpha16) At(x, y int) Color {
++func (p *Alpha16) At(x, y int) color.Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+-		return Alpha16Color{}
++		return color.Alpha16{}
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
+-	return Alpha16Color{uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1])}
++	return color.Alpha16{uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1])}
+ }
+ 
+-func (p *Alpha16) Set(x, y int, c Color) {
++func (p *Alpha16) Set(x, y int, c color.Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
+-	c1 := toAlpha16Color(c).(Alpha16Color)
++	c1 := color.Alpha16Model.Convert(c).(color.Alpha16)
+ 	p.Pix[i+0] = uint8(c1.A >> 8)
+ 	p.Pix[i+1] = uint8(c1.A)
+ }
+ 
+-func (p *Alpha16) SetAlpha16(x, y int, c Alpha16Color) {
++func (p *Alpha16) SetAlpha16(x, y int, c color.Alpha16) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+@@ -598,27 +602,27 @@ type Gray struct {
+ 	Rect Rectangle
+ }
+ 
+-func (p *Gray) ColorModel() ColorModel { return GrayColorModel }
++func (p *Gray) ColorModel() color.Model { return color.GrayModel }
+ 
+ func (p *Gray) Bounds() Rectangle { return p.Rect }
+ 
+-func (p *Gray) At(x, y int) Color {
++func (p *Gray) At(x, y int) color.Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+-		return GrayColor{}
++		return color.Gray{}
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+-	return GrayColor{p.Pix[i]}
++	return color.Gray{p.Pix[i]}
+ }
+ 
+-func (p *Gray) Set(x, y int, c Color) {
++func (p *Gray) Set(x, y int, c color.Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+-	p.Pix[i] = toGrayColor(c).(GrayColor).Y
++	p.Pix[i] = color.GrayModel.Convert(c).(color.Gray).Y
+ }
+ 
+-func (p *Gray) SetGray(x, y int, c GrayColor) {
++func (p *Gray) SetGray(x, y int, c color.Gray) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+@@ -667,29 +671,29 @@ type Gray16 struct {
+ 	Rect Rectangle
+ }
+ 
+-func (p *Gray16) ColorModel() ColorModel { return Gray16ColorModel }
++func (p *Gray16) ColorModel() color.Model { return color.Gray16Model }
+ 
+ func (p *Gray16) Bounds() Rectangle { return p.Rect }
+ 
+-func (p *Gray16) At(x, y int) Color {
++func (p *Gray16) At(x, y int) color.Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+-		return Gray16Color{}
++		return color.Gray16{}
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
+-	return Gray16Color{uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1])}
++	return color.Gray16{uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1])}
+ }
+ 
+-func (p *Gray16) Set(x, y int, c Color) {
++func (p *Gray16) Set(x, y int, c color.Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+ 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
+-	c1 := toGray16Color(c).(Gray16Color)
++	c1 := color.Gray16Model.Convert(c).(color.Gray16)
+ 	p.Pix[i+0] = uint8(c1.Y >> 8)
+ 	p.Pix[i+1] = uint8(c1.Y)
+ }
+ 
+-func (p *Gray16) SetGray16(x, y int, c Gray16Color) {
++func (p *Gray16) SetGray16(x, y int, c color.Gray16) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+@@ -728,50 +732,6 @@ func NewGray16(r Rectangle) *Gray16 {
+ 	return &Gray16{pix, 2 * w, r}
+ }
+ 
+-// A PalettedColorModel represents a fixed palette of at most 256 colors.
+-type PalettedColorModel []Color
+-
+-func diff(a, b uint32) uint32 {
+-	if a > b {
+-		return a - b
+-	}
+-	return b - a
+-}
+-
+-// Convert returns the palette color closest to c in Euclidean R,G,B space.
+-func (p PalettedColorModel) Convert(c Color) Color {
+-	if len(p) == 0 {
+-		return nil
+-	}
+-	return p[p.Index(c)]
+-}
+-
+-// Index returns the index of the palette color closest to c in Euclidean
+-// R,G,B space.
+-func (p PalettedColorModel) Index(c Color) int {
+-	cr, cg, cb, _ := c.RGBA()
+-	// Shift by 1 bit to avoid potential uint32 overflow in sum-squared-difference.
+-	cr >>= 1
+-	cg >>= 1
+-	cb >>= 1
+-	ret, bestSSD := 0, uint32(1<<32-1)
+-	for i, v := range p {
+-		vr, vg, vb, _ := v.RGBA()
+-		vr >>= 1
+-		vg >>= 1
+-		vb >>= 1
+-		dr, dg, db := diff(cr, vr), diff(cg, vg), diff(cb, vb)
+-		ssd := (dr * dr) + (dg * dg) + (db * db)
+-		if ssd < bestSSD {
+-			if ssd == 0 {
+-				return i
+-			}
+-			ret, bestSSD = i, ssd
+-		}
+-	}
+-	return ret
+-}
+-
+ // Paletted is an in-memory image of uint8 indices into a given palette.
+ type Paletted struct {
+ 	// Pix holds the image's pixels, as palette indices. The pixel at
+@@ -782,14 +742,14 @@ type Paletted struct {
+ 	// Rect is the image's bounds.
+ 	Rect Rectangle
+ 	// Palette is the image's palette.
+-	Palette PalettedColorModel
++	Palette color.Palette
+ }
+ 
+-func (p *Paletted) ColorModel() ColorModel { return p.Palette }
++func (p *Paletted) ColorModel() color.Model { return p.Palette }
+ 
+ func (p *Paletted) Bounds() Rectangle { return p.Rect }
+ 
+-func (p *Paletted) At(x, y int) Color {
++func (p *Paletted) At(x, y int) color.Color {
+ 	if len(p.Palette) == 0 {
+ 		return nil
+ 	}
+@@ -800,7 +760,7 @@ func (p *Paletted) At(x, y int) Color {
+ 	return p.Palette[p.Pix[i]]
+ }
+ 
+-func (p *Paletted) Set(x, y int, c Color) {
++func (p *Paletted) Set(x, y int, c color.Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+@@ -869,8 +829,8 @@ func (p *Paletted) Opaque() bool {
+ }
+ 
+ // NewPaletted returns a new Paletted with the given width, height and palette.
+-func NewPaletted(r Rectangle, m PalettedColorModel) *Paletted {
++func NewPaletted(r Rectangle, p color.Palette) *Paletted {
+ 	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 1*w*h)
+-	return &Paletted{pix, 1 * w, r, m}
++	return &Paletted{pix, 1 * w, r, p}
+ }
+diff --git a/src/pkg/image/image_test.go b/src/pkg/image/image_test.go
+index e23a3c259a..799c1a7a11 100644
+--- a/src/pkg/image/image_test.go
++++ b/src/pkg/image/image_test.go
+@@ -5,17 +5,18 @@
+ package image
+ 
+ import (
++	"image/color"
+ 	"testing"
+ )
+ 
+ type image interface {
+ 	Image
+ 	Opaque() bool
+-	Set(int, int, Color)
++	Set(int, int, color.Color)
+ 	SubImage(Rectangle) Image
+ }
+ 
+-func cmp(t *testing.T, cm ColorModel, c0, c1 Color) bool {
++func cmp(t *testing.T, cm color.Model, c0, c1 color.Color) bool {
+ 	r0, g0, b0, a0 := cm.Convert(c0).RGBA()
+ 	r1, g1, b1, a1 := cm.Convert(c1).RGBA()
+ 	return r0 == r1 && g0 == g1 && b0 == b1 && a0 == a1
+@@ -31,7 +32,7 @@ func TestImage(t *testing.T) {
+ 		NewAlpha16(Rect(0, 0, 10, 10)),
+ 		NewGray(Rect(0, 0, 10, 10)),
+ 		NewGray16(Rect(0, 0, 10, 10)),
+-		NewPaletted(Rect(0, 0, 10, 10), PalettedColorModel{
++		NewPaletted(Rect(0, 0, 10, 10), color.Palette{
+ 			Transparent,
+ 			Opaque,
+ 		}),
+@@ -81,14 +82,14 @@ func TestImage(t *testing.T) {
+ }
+ 
+ func Test16BitsPerColorChannel(t *testing.T) {
+-	testColorModel := []ColorModel{
+-		RGBA64ColorModel,
+-		NRGBA64ColorModel,
+-		Alpha16ColorModel,
+-		Gray16ColorModel,
++	testColorModel := []color.Model{
++		color.RGBA64Model,
++		color.NRGBA64Model,
++		color.Alpha16Model,
++		color.Gray16Model,
+ 	}
+ 	for _, cm := range testColorModel {
+-		c := cm.Convert(RGBA64Color{0x1234, 0x1234, 0x1234, 0x1234}) // Premultiplied alpha.
++		c := cm.Convert(color.RGBA64{0x1234, 0x1234, 0x1234, 0x1234}) // Premultiplied alpha.
+ 		r, _, _, _ := c.RGBA()
+ 		if r != 0x1234 {
+ 			t.Errorf("%T: want red value 0x%04x got 0x%04x", c, 0x1234, r)
+@@ -102,7 +103,7 @@ func Test16BitsPerColorChannel(t *testing.T) {
+ 		NewGray16(Rect(0, 0, 10, 10)),
+ 	}
+ 	for _, m := range testImage {
+-		m.Set(1, 2, NRGBA64Color{0xffff, 0xffff, 0xffff, 0x1357}) // Non-premultiplied alpha.
++		m.Set(1, 2, color.NRGBA64{0xffff, 0xffff, 0xffff, 0x1357}) // Non-premultiplied alpha.
+ 		r, _, _, _ := m.At(1, 2).RGBA()
+ 		if r != 0x1357 {
+ 			t.Errorf("%T: want red value 0x%04x got 0x%04x", m, 0x1357, r)
+diff --git a/src/pkg/image/jpeg/reader.go b/src/pkg/image/jpeg/reader.go
+index af69cfcec9..450355efae 100644
+--- a/src/pkg/image/jpeg/reader.go
++++ b/src/pkg/image/jpeg/reader.go
+@@ -10,6 +10,7 @@ package jpeg
+ import (
+ 	"bufio"
+ 	"image"
++	"image/color"
+ 	"image/ycbcr"
+ 	"io"
+ 	"os"
+@@ -464,7 +465,7 @@ func DecodeConfig(r io.Reader) (image.Config, os.Error) {
+ 	}
+ 	switch d.nComp {
+ 	case nGrayComponent:
+-		return image.Config{image.GrayColorModel, d.width, d.height}, nil
++		return image.Config{color.GrayModel, d.width, d.height}, nil
+ 	case nColorComponent:
+ 		return image.Config{ycbcr.YCbCrColorModel, d.width, d.height}, nil
+ 	}
+diff --git a/src/pkg/image/jpeg/writer_test.go b/src/pkg/image/jpeg/writer_test.go
+index 44c045ed05..0378252d2f 100644
+--- a/src/pkg/image/jpeg/writer_test.go
++++ b/src/pkg/image/jpeg/writer_test.go
+@@ -7,6 +7,7 @@ package jpeg
+ import (
+ 	"bytes"
+ 	"image"
++	"image/color"
+ 	"image/png"
+ 	"io/ioutil"
+ 	"rand"
+@@ -96,7 +97,7 @@ func BenchmarkEncodeRGBOpaque(b *testing.B) {
+ 	rnd := rand.New(rand.NewSource(123))
+ 	for y := bo.Min.Y; y < bo.Max.Y; y++ {
+ 		for x := bo.Min.X; x < bo.Max.X; x++ {
+-			img.Set(x, y, image.RGBAColor{
++			img.Set(x, y, color.RGBA{
+ 				uint8(rnd.Intn(256)),
+ 				uint8(rnd.Intn(256)),
+ 				uint8(rnd.Intn(256)),
+diff --git a/src/pkg/image/names.go b/src/pkg/image/names.go
+index c309684cea..a7ad51d537 100644
+--- a/src/pkg/image/names.go
++++ b/src/pkg/image/names.go
+@@ -4,43 +4,47 @@
+ 
+ package image
+ 
++import (
++	"image/color"
++)
++
+ var (
+-	// Black is an opaque black ColorImage.
+-	Black = NewColorImage(Gray16Color{0})
+-	// White is an opaque white ColorImage.
+-	White = NewColorImage(Gray16Color{0xffff})
+-	// Transparent is a fully transparent ColorImage.
+-	Transparent = NewColorImage(Alpha16Color{0})
+-	// Opaque is a fully opaque ColorImage.
+-	Opaque = NewColorImage(Alpha16Color{0xffff})
++	// Black is an opaque black uniform image.
++	Black = NewUniform(color.Black)
++	// White is an opaque white uniform image.
++	White = NewUniform(color.White)
++	// Transparent is a fully transparent uniform image.
++	Transparent = NewUniform(color.Transparent)
++	// Opaque is a fully opaque uniform image.
++	Opaque = NewUniform(color.Opaque)
+ )
+ 
+-// A ColorImage is an infinite-sized Image of uniform Color.
+-// It implements both the Color and Image interfaces.
+-type ColorImage struct {
+-	C Color
++// Uniform is an infinite-sized Image of uniform color.
++// It implements both the color.Color and Image interfaces.
++type Uniform struct {
++	C color.Color
+ }
+ 
+-func (c *ColorImage) RGBA() (r, g, b, a uint32) {
++func (c *Uniform) RGBA() (r, g, b, a uint32) {
+ 	return c.C.RGBA()
+ }
+ 
+-func (c *ColorImage) ColorModel() ColorModel {
+-	return ColorModelFunc(func(Color) Color { return c.C })
++func (c *Uniform) ColorModel() color.Model {
++	return color.ModelFunc(func(color.Color) color.Color { return c.C })
+ }
+ 
+-func (c *ColorImage) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
++func (c *Uniform) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
+ 
+-func (c *ColorImage) At(x, y int) Color { return c.C }
++func (c *Uniform) At(x, y int) color.Color { return c.C }
+ 
+ // Opaque scans the entire image and returns whether or not it is fully opaque.
+-func (c *ColorImage) Opaque() bool {
++func (c *Uniform) Opaque() bool {
+ 	_, _, _, a := c.C.RGBA()
+ 	return a == 0xffff
+ }
+ 
+-func NewColorImage(c Color) *ColorImage {
+-	return &ColorImage{c}
++func NewUniform(c color.Color) *Uniform {
++	return &Uniform{c}
+ }
+ 
+ // A Tiled is an infinite-sized Image that repeats another Image in both
+@@ -51,13 +55,13 @@ type Tiled struct {
+ 	Offset Point
+ }
+ 
+-func (t *Tiled) ColorModel() ColorModel {
++func (t *Tiled) ColorModel() color.Model {
+ 	return t.I.ColorModel()
+ }
+ 
+ func (t *Tiled) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
+ 
+-func (t *Tiled) At(x, y int) Color {
++func (t *Tiled) At(x, y int) color.Color {
+ 	p := Point{x, y}.Add(t.Offset).Mod(t.I.Bounds())
+ 	return t.I.At(p.X, p.Y)
+ }
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index 19cb248c15..66f1916a6f 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -14,6 +14,7 @@ import (
+ 	"hash"
+ 	"hash/crc32"
+ 	"image"
++	"image/color"
+ 	"io"
+ 	"os"
+ )
+@@ -79,7 +80,7 @@ type decoder struct {
+ 	crc           hash.Hash32
+ 	width, height int
+ 	depth         int
+-	palette       image.PalettedColorModel
++	palette       color.Palette
+ 	cb            int
+ 	stage         int
+ 	idatLength    uint32
+@@ -200,9 +201,9 @@ func (d *decoder) parsePLTE(length uint32) os.Error {
+ 	d.crc.Write(d.tmp[:n])
+ 	switch d.cb {
+ 	case cbP1, cbP2, cbP4, cbP8:
+-		d.palette = image.PalettedColorModel(make([]image.Color, np))
++		d.palette = color.Palette(make([]color.Color, np))
+ 		for i := 0; i < np; i++ {
+-			d.palette[i] = image.RGBAColor{d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff}
++			d.palette[i] = color.RGBA{d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff}
+ 		}
+ 	case cbTC8, cbTCA8, cbTC16, cbTCA16:
+ 		// As per the PNG spec, a PLTE chunk is optional (and for practical purposes,
+@@ -232,8 +233,8 @@ func (d *decoder) parsetRNS(length uint32) os.Error {
+ 			return FormatError("bad tRNS length")
+ 		}
+ 		for i := 0; i < n; i++ {
+-			rgba := d.palette[i].(image.RGBAColor)
+-			d.palette[i] = image.RGBAColor{rgba.R, rgba.G, rgba.B, d.tmp[i]}
++			rgba := d.palette[i].(color.RGBA)
++			d.palette[i] = color.RGBA{rgba.R, rgba.G, rgba.B, d.tmp[i]}
+ 		}
+ 	case cbGA8, cbGA16, cbTCA8, cbTCA16:
+ 		return FormatError("tRNS, color type mismatch")
+@@ -402,7 +403,7 @@ func (d *decoder) decode() (image.Image, os.Error) {
+ 			for x := 0; x < d.width; x += 8 {
+ 				b := cdat[x/8]
+ 				for x2 := 0; x2 < 8 && x+x2 < d.width; x2++ {
+-					gray.SetGray(x+x2, y, image.GrayColor{(b >> 7) * 0xff})
++					gray.SetGray(x+x2, y, color.Gray{(b >> 7) * 0xff})
+ 					b <<= 1
+ 				}
+ 			}
+@@ -410,7 +411,7 @@ func (d *decoder) decode() (image.Image, os.Error) {
+ 			for x := 0; x < d.width; x += 4 {
+ 				b := cdat[x/4]
+ 				for x2 := 0; x2 < 4 && x+x2 < d.width; x2++ {
+-					gray.SetGray(x+x2, y, image.GrayColor{(b >> 6) * 0x55})
++					gray.SetGray(x+x2, y, color.Gray{(b >> 6) * 0x55})
+ 					b <<= 2
+ 				}
+ 			}
+@@ -418,22 +419,22 @@ func (d *decoder) decode() (image.Image, os.Error) {
+ 			for x := 0; x < d.width; x += 2 {
+ 				b := cdat[x/2]
+ 				for x2 := 0; x2 < 2 && x+x2 < d.width; x2++ {
+-					gray.SetGray(x+x2, y, image.GrayColor{(b >> 4) * 0x11})
++					gray.SetGray(x+x2, y, color.Gray{(b >> 4) * 0x11})
+ 					b <<= 4
+ 				}
+ 			}
+ 		case cbG8:
+ 			for x := 0; x < d.width; x++ {
+-				gray.SetGray(x, y, image.GrayColor{cdat[x]})
++				gray.SetGray(x, y, color.Gray{cdat[x]})
+ 			}
+ 		case cbGA8:
+ 			for x := 0; x < d.width; x++ {
+ 				ycol := cdat[2*x+0]
+-				nrgba.SetNRGBA(x, y, image.NRGBAColor{ycol, ycol, ycol, cdat[2*x+1]})
++				nrgba.SetNRGBA(x, y, color.NRGBA{ycol, ycol, ycol, cdat[2*x+1]})
+ 			}
+ 		case cbTC8:
+ 			for x := 0; x < d.width; x++ {
+-				rgba.SetRGBA(x, y, image.RGBAColor{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
++				rgba.SetRGBA(x, y, color.RGBA{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
+ 			}
+ 		case cbP1:
+ 			for x := 0; x < d.width; x += 8 {
+@@ -480,25 +481,25 @@ func (d *decoder) decode() (image.Image, os.Error) {
+ 			}
+ 		case cbTCA8:
+ 			for x := 0; x < d.width; x++ {
+-				nrgba.SetNRGBA(x, y, image.NRGBAColor{cdat[4*x+0], cdat[4*x+1], cdat[4*x+2], cdat[4*x+3]})
++				nrgba.SetNRGBA(x, y, color.NRGBA{cdat[4*x+0], cdat[4*x+1], cdat[4*x+2], cdat[4*x+3]})
+ 			}
+ 		case cbG16:
+ 			for x := 0; x < d.width; x++ {
+ 				ycol := uint16(cdat[2*x+0])<<8 | uint16(cdat[2*x+1])
+-				gray16.SetGray16(x, y, image.Gray16Color{ycol})
++				gray16.SetGray16(x, y, color.Gray16{ycol})
+ 			}
+ 		case cbGA16:
+ 			for x := 0; x < d.width; x++ {
+ 				ycol := uint16(cdat[4*x+0])<<8 | uint16(cdat[4*x+1])
+ 				acol := uint16(cdat[4*x+2])<<8 | uint16(cdat[4*x+3])
+-				nrgba64.SetNRGBA64(x, y, image.NRGBA64Color{ycol, ycol, ycol, acol})
++				nrgba64.SetNRGBA64(x, y, color.NRGBA64{ycol, ycol, ycol, acol})
+ 			}
+ 		case cbTC16:
+ 			for x := 0; x < d.width; x++ {
+ 				rcol := uint16(cdat[6*x+0])<<8 | uint16(cdat[6*x+1])
+ 				gcol := uint16(cdat[6*x+2])<<8 | uint16(cdat[6*x+3])
+ 				bcol := uint16(cdat[6*x+4])<<8 | uint16(cdat[6*x+5])
+-				rgba64.SetRGBA64(x, y, image.RGBA64Color{rcol, gcol, bcol, 0xffff})
++				rgba64.SetRGBA64(x, y, color.RGBA64{rcol, gcol, bcol, 0xffff})
+ 			}
+ 		case cbTCA16:
+ 			for x := 0; x < d.width; x++ {
+@@ -506,7 +507,7 @@ func (d *decoder) decode() (image.Image, os.Error) {
+ 				gcol := uint16(cdat[8*x+2])<<8 | uint16(cdat[8*x+3])
+ 				bcol := uint16(cdat[8*x+4])<<8 | uint16(cdat[8*x+5])
+ 				acol := uint16(cdat[8*x+6])<<8 | uint16(cdat[8*x+7])
+-				nrgba64.SetNRGBA64(x, y, image.NRGBA64Color{rcol, gcol, bcol, acol})
++				nrgba64.SetNRGBA64(x, y, color.NRGBA64{rcol, gcol, bcol, acol})
+ 			}
+ 		}
+ 
+@@ -669,26 +670,26 @@ func DecodeConfig(r io.Reader) (image.Config, os.Error) {
+ 			break
+ 		}
+ 	}
+-	var cm image.ColorModel
++	var cm color.Model
+ 	switch d.cb {
+ 	case cbG1, cbG2, cbG4, cbG8:
+-		cm = image.GrayColorModel
++		cm = color.GrayModel
+ 	case cbGA8:
+-		cm = image.NRGBAColorModel
++		cm = color.NRGBAModel
+ 	case cbTC8:
+-		cm = image.RGBAColorModel
++		cm = color.RGBAModel
+ 	case cbP1, cbP2, cbP4, cbP8:
+ 		cm = d.palette
+ 	case cbTCA8:
+-		cm = image.NRGBAColorModel
++		cm = color.NRGBAModel
+ 	case cbG16:
+-		cm = image.Gray16ColorModel
++		cm = color.Gray16Model
+ 	case cbGA16:
+-		cm = image.NRGBA64ColorModel
++		cm = color.NRGBA64Model
+ 	case cbTC16:
+-		cm = image.RGBA64ColorModel
++		cm = color.RGBA64Model
+ 	case cbTCA16:
+-		cm = image.NRGBA64ColorModel
++		cm = color.NRGBA64Model
+ 	}
+ 	return image.Config{cm, d.width, d.height}, nil
+ }
+diff --git a/src/pkg/image/png/reader_test.go b/src/pkg/image/png/reader_test.go
+index 1b7c2de718..48d06130e3 100644
+--- a/src/pkg/image/png/reader_test.go
++++ b/src/pkg/image/png/reader_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"fmt"
+ 	"image"
++	"image/color"
+ 	"io"
+ 	"os"
+ 	"strings"
+@@ -58,12 +59,12 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
+ 	cm := png.ColorModel()
+ 	var bitdepth int
+ 	switch cm {
+-	case image.RGBAColorModel, image.NRGBAColorModel, image.AlphaColorModel, image.GrayColorModel:
++	case color.RGBAModel, color.NRGBAModel, color.AlphaModel, color.GrayModel:
+ 		bitdepth = 8
+ 	default:
+ 		bitdepth = 16
+ 	}
+-	cpm, _ := cm.(image.PalettedColorModel)
++	cpm, _ := cm.(color.Palette)
+ 	var paletted *image.Paletted
+ 	if cpm != nil {
+ 		switch {
+@@ -83,11 +84,11 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
+ 	io.WriteString(w, "#SNG: from "+filename+".png\nIHDR {\n")
+ 	fmt.Fprintf(w, "    width: %d; height: %d; bitdepth: %d;\n", bounds.Dx(), bounds.Dy(), bitdepth)
+ 	switch {
+-	case cm == image.RGBAColorModel, cm == image.RGBA64ColorModel:
++	case cm == color.RGBAModel, cm == color.RGBA64Model:
+ 		io.WriteString(w, "    using color;\n")
+-	case cm == image.NRGBAColorModel, cm == image.NRGBA64ColorModel:
++	case cm == color.NRGBAModel, cm == color.NRGBA64Model:
+ 		io.WriteString(w, "    using color alpha;\n")
+-	case cm == image.GrayColorModel, cm == image.Gray16ColorModel:
++	case cm == color.GrayModel, cm == color.Gray16Model:
+ 		io.WriteString(w, "    using grayscale;\n")
+ 	case cpm != nil:
+ 		io.WriteString(w, "    using color palette;\n")
+@@ -130,34 +131,34 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
+ 	io.WriteString(w, "IMAGE {\n    pixels hex\n")
+ 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+ 		switch {
+-		case cm == image.GrayColorModel:
++		case cm == color.GrayModel:
+ 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+-				gray := png.At(x, y).(image.GrayColor)
++				gray := png.At(x, y).(color.Gray)
+ 				fmt.Fprintf(w, "%02x", gray.Y)
+ 			}
+-		case cm == image.Gray16ColorModel:
++		case cm == color.Gray16Model:
+ 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+-				gray16 := png.At(x, y).(image.Gray16Color)
++				gray16 := png.At(x, y).(color.Gray16)
+ 				fmt.Fprintf(w, "%04x ", gray16.Y)
+ 			}
+-		case cm == image.RGBAColorModel:
++		case cm == color.RGBAModel:
+ 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+-				rgba := png.At(x, y).(image.RGBAColor)
++				rgba := png.At(x, y).(color.RGBA)
+ 				fmt.Fprintf(w, "%02x%02x%02x ", rgba.R, rgba.G, rgba.B)
+ 			}
+-		case cm == image.RGBA64ColorModel:
++		case cm == color.RGBA64Model:
+ 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+-				rgba64 := png.At(x, y).(image.RGBA64Color)
++				rgba64 := png.At(x, y).(color.RGBA64)
+ 				fmt.Fprintf(w, "%04x%04x%04x ", rgba64.R, rgba64.G, rgba64.B)
+ 			}
+-		case cm == image.NRGBAColorModel:
++		case cm == color.NRGBAModel:
+ 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+-				nrgba := png.At(x, y).(image.NRGBAColor)
++				nrgba := png.At(x, y).(color.NRGBA)
+ 				fmt.Fprintf(w, "%02x%02x%02x%02x ", nrgba.R, nrgba.G, nrgba.B, nrgba.A)
+ 			}
+-		case cm == image.NRGBA64ColorModel:
++		case cm == color.NRGBA64Model:
+ 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+-				nrgba64 := png.At(x, y).(image.NRGBA64Color)
++				nrgba64 := png.At(x, y).(color.NRGBA64)
+ 				fmt.Fprintf(w, "%04x%04x%04x%04x ", nrgba64.R, nrgba64.G, nrgba64.B, nrgba64.A)
+ 			}
+ 		case cpm != nil:
+@@ -193,7 +194,7 @@ func TestReader(t *testing.T) {
+ 		if fn == "basn4a16" {
+ 			// basn4a16.sng is gray + alpha but sng() will produce true color + alpha
+ 			// so we just check a single random pixel.
+-			c := img.At(2, 1).(image.NRGBA64Color)
++			c := img.At(2, 1).(color.NRGBA64)
+ 			if c.R != 0x11a7 || c.G != 0x11a7 || c.B != 0x11a7 || c.A != 0x1085 {
+ 				t.Error(fn, fmt.Errorf("wrong pixel value at (2, 1): %x", c))
+ 			}
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index 2dc5537cc6..b6103c6d0e 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -9,6 +9,7 @@ import (
+ 	"compress/zlib"
+ 	"hash/crc32"
+ 	"image"
++	"image/color"
+ 	"io"
+ 	"os"
+ 	"strconv"
+@@ -125,7 +126,7 @@ func (e *encoder) writeIHDR() {
+ 	e.writeChunk(e.tmp[0:13], "IHDR")
+ }
+ 
+-func (e *encoder) writePLTE(p image.PalettedColorModel) {
++func (e *encoder) writePLTE(p color.Palette) {
+ 	if len(p) < 1 || len(p) > 256 {
+ 		e.err = FormatError("bad palette length: " + strconv.Itoa(len(p)))
+ 		return
+@@ -139,7 +140,7 @@ func (e *encoder) writePLTE(p image.PalettedColorModel) {
+ 	e.writeChunk(e.tmp[0:3*len(p)], "PLTE")
+ }
+ 
+-func (e *encoder) maybeWritetRNS(p image.PalettedColorModel) {
++func (e *encoder) maybeWritetRNS(p color.Palette) {
+ 	last := -1
+ 	for i, c := range p {
+ 		_, _, _, a := c.RGBA()
+@@ -306,7 +307,7 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
+ 		switch cb {
+ 		case cbG8:
+ 			for x := b.Min.X; x < b.Max.X; x++ {
+-				c := image.GrayColorModel.Convert(m.At(x, y)).(image.GrayColor)
++				c := color.GrayModel.Convert(m.At(x, y)).(color.Gray)
+ 				cr[0][i] = c.Y
+ 				i++
+ 			}
+@@ -345,7 +346,7 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
+ 		case cbTCA8:
+ 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
+ 			for x := b.Min.X; x < b.Max.X; x++ {
+-				c := image.NRGBAColorModel.Convert(m.At(x, y)).(image.NRGBAColor)
++				c := color.NRGBAModel.Convert(m.At(x, y)).(color.NRGBA)
+ 				cr[0][i+0] = c.R
+ 				cr[0][i+1] = c.G
+ 				cr[0][i+2] = c.B
+@@ -354,7 +355,7 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
+ 			}
+ 		case cbG16:
+ 			for x := b.Min.X; x < b.Max.X; x++ {
+-				c := image.Gray16ColorModel.Convert(m.At(x, y)).(image.Gray16Color)
++				c := color.Gray16Model.Convert(m.At(x, y)).(color.Gray16)
+ 				cr[0][i+0] = uint8(c.Y >> 8)
+ 				cr[0][i+1] = uint8(c.Y)
+ 				i += 2
+@@ -374,7 +375,7 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
+ 		case cbTCA16:
+ 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
+ 			for x := b.Min.X; x < b.Max.X; x++ {
+-				c := image.NRGBA64ColorModel.Convert(m.At(x, y)).(image.NRGBA64Color)
++				c := color.NRGBA64Model.Convert(m.At(x, y)).(color.NRGBA64)
+ 				cr[0][i+0] = uint8(c.R >> 8)
+ 				cr[0][i+1] = uint8(c.R)
+ 				cr[0][i+2] = uint8(c.G >> 8)
+@@ -436,20 +437,20 @@ func Encode(w io.Writer, m image.Image) os.Error {
+ 	e.w = w
+ 	e.m = m
+ 
+-	var pal image.PalettedColorModel
++	var pal color.Palette
+ 	// cbP8 encoding needs PalettedImage's ColorIndexAt method.
+ 	if _, ok := m.(image.PalettedImage); ok {
+-		pal, _ = m.ColorModel().(image.PalettedColorModel)
++		pal, _ = m.ColorModel().(color.Palette)
+ 	}
+ 	if pal != nil {
+ 		e.cb = cbP8
+ 	} else {
+ 		switch m.ColorModel() {
+-		case image.GrayColorModel:
++		case color.GrayModel:
+ 			e.cb = cbG8
+-		case image.Gray16ColorModel:
++		case color.Gray16Model:
+ 			e.cb = cbG16
+-		case image.RGBAColorModel, image.NRGBAColorModel, image.AlphaColorModel:
++		case color.RGBAModel, color.NRGBAModel, color.AlphaModel:
+ 			if opaque(m) {
+ 				e.cb = cbTC8
+ 			} else {
+diff --git a/src/pkg/image/png/writer_test.go b/src/pkg/image/png/writer_test.go
+index a3864e0964..e517173c3e 100644
+--- a/src/pkg/image/png/writer_test.go
++++ b/src/pkg/image/png/writer_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"image"
++	"image/color"
+ 	"io/ioutil"
+ 	"os"
+ 	"testing"
+@@ -85,7 +86,7 @@ func TestSubImage(t *testing.T) {
+ 	m0 := image.NewRGBA(image.Rect(0, 0, 256, 256))
+ 	for y := 0; y < 256; y++ {
+ 		for x := 0; x < 256; x++ {
+-			m0.Set(x, y, image.RGBAColor{uint8(x), uint8(y), 0, 255})
++			m0.Set(x, y, color.RGBA{uint8(x), uint8(y), 0, 255})
+ 		}
+ 	}
+ 	m0 = m0.SubImage(image.Rect(50, 30, 250, 130)).(*image.RGBA)
+@@ -103,11 +104,10 @@ func TestSubImage(t *testing.T) {
+ 
+ func BenchmarkEncodePaletted(b *testing.B) {
+ 	b.StopTimer()
+-	img := image.NewPaletted(image.Rect(0, 0, 640, 480),
+-		[]image.Color{
+-			image.RGBAColor{0, 0, 0, 255},
+-			image.RGBAColor{255, 255, 255, 255},
+-		})
++	img := image.NewPaletted(image.Rect(0, 0, 640, 480), color.Palette{
++		color.RGBA{0, 0, 0, 255},
++		color.RGBA{255, 255, 255, 255},
++	})
+ 	b.SetBytes(640 * 480 * 1)
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+@@ -122,7 +122,7 @@ func BenchmarkEncodeRGBOpaque(b *testing.B) {
+ 	bo := img.Bounds()
+ 	for y := bo.Min.Y; y < bo.Max.Y; y++ {
+ 		for x := bo.Min.X; x < bo.Max.X; x++ {
+-			img.Set(x, y, image.RGBAColor{0, 0, 0, 255})
++			img.Set(x, y, color.RGBA{0, 0, 0, 255})
+ 		}
+ 	}
+ 	if !img.Opaque() {
+diff --git a/src/pkg/image/tiff/reader.go b/src/pkg/image/tiff/reader.go
+index c1c0a1b169..2db82bf210 100644
+--- a/src/pkg/image/tiff/reader.go
++++ b/src/pkg/image/tiff/reader.go
+@@ -12,6 +12,7 @@ import (
+ 	"compress/zlib"
+ 	"encoding/binary"
+ 	"image"
++	"image/color"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -45,7 +46,7 @@ type decoder struct {
+ 	config    image.Config
+ 	mode      imageMode
+ 	features  map[int][]uint
+-	palette   []image.Color
++	palette   []color.Color
+ 
+ 	buf   []byte
+ 	off   int    // Current offset in buf.
+@@ -129,9 +130,9 @@ func (d *decoder) parseIFD(p []byte) os.Error {
+ 		if len(val)%3 != 0 || numcolors <= 0 || numcolors > 256 {
+ 			return FormatError("bad ColorMap length")
+ 		}
+-		d.palette = make([]image.Color, numcolors)
++		d.palette = make([]color.Color, numcolors)
+ 		for i := 0; i < numcolors; i++ {
+-			d.palette[i] = image.RGBA64Color{
++			d.palette[i] = color.RGBA64{
+ 				uint16(val[i]),
+ 				uint16(val[i+numcolors]),
+ 				uint16(val[i+2*numcolors]),
+@@ -208,7 +209,7 @@ func (d *decoder) decode(dst image.Image, ymin, ymax int) os.Error {
+ 				if d.mode == mGrayInvert {
+ 					v = 0xff - v
+ 				}
+-				img.SetGray(x, y, image.GrayColor{v})
++				img.SetGray(x, y, color.Gray{v})
+ 			}
+ 			d.flushBits()
+ 		}
+@@ -308,7 +309,7 @@ func newDecoder(r io.Reader) (*decoder, os.Error) {
+ 				return nil, UnsupportedError("non-8-bit RGB image")
+ 			}
+ 		}
+-		d.config.ColorModel = image.RGBAColorModel
++		d.config.ColorModel = color.RGBAModel
+ 		// RGB images normally have 3 samples per pixel.
+ 		// If there are more, ExtraSamples (p. 31-32 of the spec)
+ 		// gives their meaning (usually an alpha channel).
+@@ -324,7 +325,7 @@ func newDecoder(r io.Reader) (*decoder, os.Error) {
+ 				d.mode = mRGBA
+ 			case 2:
+ 				d.mode = mNRGBA
+-				d.config.ColorModel = image.NRGBAColorModel
++				d.config.ColorModel = color.NRGBAModel
+ 			default:
+ 				return nil, FormatError("wrong number of samples for RGB")
+ 			}
+@@ -333,13 +334,13 @@ func newDecoder(r io.Reader) (*decoder, os.Error) {
+ 		}
+ 	case pPaletted:
+ 		d.mode = mPaletted
+-		d.config.ColorModel = image.PalettedColorModel(d.palette)
++		d.config.ColorModel = color.Palette(d.palette)
+ 	case pWhiteIsZero:
+ 		d.mode = mGrayInvert
+-		d.config.ColorModel = image.GrayColorModel
++		d.config.ColorModel = color.GrayModel
+ 	case pBlackIsZero:
+ 		d.mode = mGray
+-		d.config.ColorModel = image.GrayColorModel
++		d.config.ColorModel = color.GrayModel
+ 	default:
+ 		return nil, UnsupportedError("color model")
+ 	}
+diff --git a/src/pkg/image/ycbcr/ycbcr.go b/src/pkg/image/ycbcr/ycbcr.go
+index f2de3d6fbc..84a35a3fb5 100644
+--- a/src/pkg/image/ycbcr/ycbcr.go
++++ b/src/pkg/image/ycbcr/ycbcr.go
+@@ -15,6 +15,7 @@ package ycbcr
+ 
+ import (
+ 	"image"
++	"image/color"
+ )
+ 
+ // RGBToYCbCr converts an RGB triple to a YCbCr triple. All components lie
+@@ -92,7 +93,7 @@ func (c YCbCrColor) RGBA() (uint32, uint32, uint32, uint32) {
+ 	return uint32(r) * 0x101, uint32(g) * 0x101, uint32(b) * 0x101, 0xffff
+ }
+ 
+-func toYCbCrColor(c image.Color) image.Color {
++func toYCbCrColor(c color.Color) color.Color {
+ 	if _, ok := c.(YCbCrColor); ok {
+ 		return c
+ 	}
+@@ -102,7 +103,7 @@ func toYCbCrColor(c image.Color) image.Color {
+ }
+ 
+ // YCbCrColorModel is the color model for YCbCrColor.
+-var YCbCrColorModel image.ColorModel = image.ColorModelFunc(toYCbCrColor)
++var YCbCrColorModel color.Model = color.ModelFunc(toYCbCrColor)
+ 
+ // SubsampleRatio is the chroma subsample ratio used in a YCbCr image.
+ type SubsampleRatio int
+@@ -133,7 +134,7 @@ type YCbCr struct {
+ 	Rect           image.Rectangle
+ }
+ 
+-func (p *YCbCr) ColorModel() image.ColorModel {
++func (p *YCbCr) ColorModel() color.Model {
+ 	return YCbCrColorModel
+ }
+ 
+@@ -141,7 +142,7 @@ func (p *YCbCr) Bounds() image.Rectangle {
+ 	return p.Rect
+ }
+ 
+-func (p *YCbCr) At(x, y int) image.Color {
++func (p *YCbCr) At(x, y int) color.Color {
+ 	if !(image.Point{x, y}.In(p.Rect)) {
+ 		return YCbCrColor{}
+ 	}

@@ -9,6 +9,23 @@ Date:   Thu Feb 10 13:48:14 2011 -0500
     R=r, rsc, rog
     CC=golang-dev
     https://golang.org/cl/4168043
-
+---
  src/pkg/json/encode.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index 759b49dbeb..0fcc78aa80 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -35,9 +35,8 @@ import (
+ //
+ // Struct values encode as JSON objects.  Each struct field becomes
+ // a member of the object.  By default the object's key name is the
+-// struct field name converted to lower case.  If the struct field
+-// has a tag, that tag will be used as the name instead.
+-// Only exported fields will be encoded.
++// struct field name.  If the struct field has a tag, that tag will 
++// be used as the name instead.  Only exported fields will be encoded.
+ //
+ // Map values encode as JSON objects.
+ // The map's key type must be string; the object keys are used directly

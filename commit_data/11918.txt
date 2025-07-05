@@ -11,6 +11,22 @@ Date:   Wed Feb 15 13:07:34 2012 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5668044
-
+---
  doc/codewalk/markov.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/codewalk/markov.go b/doc/codewalk/markov.go
+index cb28eb0bcc..a8f322eb6b 100644
+--- a/doc/codewalk/markov.go
++++ b/doc/codewalk/markov.go
+@@ -120,8 +120,8 @@ func main() {
+ 	numWords := flag.Int("words", 100, "maximum number of words to print")
+ 	prefixLen := flag.Int("prefix", 2, "prefix length in words")
+ 
+-	flag.Parse()                  // Parse command-line flags.
+-	rand.Seed(time.Nanoseconds()) // Seed the random number generator.
++	flag.Parse()                     // Parse command-line flags.
++	rand.Seed(time.Now().UnixNano()) // Seed the random number generator.
+ 
+ 	c := NewChain(*prefixLen)     // Initialize a new Chain.
+ 	c.Build(os.Stdin)             // Build chains from standard input.

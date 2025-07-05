@@ -15,7 +15,83 @@ Date:   Tue Aug 18 22:50:12 2015 -0400
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/conf.go        |  8 +++++++-
  src/net/lookup_unix.go | 27 +++++++++++++++------------
  2 files changed, 22 insertions(+), 13 deletions(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 01bb585ce6..c92e579d7e 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -19,7 +19,7 @@ type conf struct {
+ 	// forceCgoLookupHost forces CGO to always be used, if available.
+ 	forceCgoLookupHost bool
+ 
+-	netGo  bool // "netgo" build tag in use (or no cgo)
++	netGo  bool // go DNS resolution forced
+ 	netCgo bool // cgo DNS resolution forced
+ 
+ 	// machine has an /etc/mdns.allow file
+@@ -112,6 +112,12 @@ func initConfVal() {
+ 	}
+ }
+ 
++// canUseCgo reports whether calling cgo functions is allowed
++// for non-hostname lookups.
++func (c *conf) canUseCgo() bool {
++	return c.hostLookupOrder("") == hostLookupCgo
++}
++
+ // hostLookupOrder determines which strategy to use to resolve hostname.
+ func (c *conf) hostLookupOrder(hostname string) (ret hostLookupOrder) {
+ 	if c.dnsDebugLevel > 1 {
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index 1c811d2683..a64da8bcb5 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -74,19 +74,21 @@ func lookupIP(host string) (addrs []IPAddr, err error) {
+ }
+ 
+ func lookupPort(network, service string) (int, error) {
+-	port, err, ok := cgoLookupPort(network, service)
+-	if !ok {
+-		port, err = goLookupPort(network, service)
++	if systemConf().canUseCgo() {
++		if port, err, ok := cgoLookupPort(network, service); ok {
++			return port, err
++		}
+ 	}
+-	return port, err
++	return goLookupPort(network, service)
+ }
+ 
+ func lookupCNAME(name string) (string, error) {
+-	cname, err, ok := cgoLookupCNAME(name)
+-	if !ok {
+-		cname, err = goLookupCNAME(name)
++	if systemConf().canUseCgo() {
++		if cname, err, ok := cgoLookupCNAME(name); ok {
++			return cname, err
++		}
+ 	}
+-	return cname, err
++	return goLookupCNAME(name)
+ }
+ 
+ func lookupSRV(service, proto, name string) (string, []*SRV, error) {
+@@ -148,9 +150,10 @@ func lookupTXT(name string) ([]string, error) {
+ }
+ 
+ func lookupAddr(addr string) ([]string, error) {
+-	ptrs, err, ok := cgoLookupPTR(addr)
+-	if !ok {
+-		ptrs, err = goLookupPTR(addr)
++	if systemConf().canUseCgo() {
++		if ptrs, err, ok := cgoLookupPTR(addr); ok {
++			return ptrs, err
++		}
+ 	}
+-	return ptrs, err
++	return goLookupPTR(addr)
+ }

@@ -7,6 +7,22 @@ Date:   Fri Oct 10 16:14:13 2008 -0700
     R=ken
     OCL=16935
     CL=16935
-
+---
  src/cmd/gc/subr.c | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index ddce14e6f3..05977ee6bd 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1507,6 +1507,10 @@ signame(Type *t, int block)
+ 		ss->local = s->local;
+ //print("signame: %d %lS\n", ss->local, ss);
+ 	}
++
++	if(strcmp(ss->name, "sigt_int32") == 0)
++		warn("int32 -> interface");
++
+ 	return ss;
+ 
+ bad:

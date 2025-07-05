@@ -12,6 +12,54 @@ Date:   Tue May 3 15:17:32 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/typecheck/dcl.go | 29 -----------------------------
  1 file changed, 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index 3b426a6d07..93fcf236d8 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -203,16 +203,6 @@ func funcarg(n *ir.Field, ctxt ir.Class) {
+ 	Declare(name, ctxt)
+ }
+ 
+-func funcarg2(f *types.Field, ctxt ir.Class) {
+-	if f.Sym == nil {
+-		return
+-	}
+-	n := ir.NewNameAt(f.Pos, f.Sym)
+-	f.Nname = n
+-	n.SetType(f.Type)
+-	Declare(n, ctxt)
+-}
+-
+ func funcargs(nt *ir.FuncType) {
+ 	if nt.Op() != ir.OTFUNC {
+ 		base.Fatalf("funcargs %v", nt.Op())
+@@ -245,25 +235,6 @@ func funcargs(nt *ir.FuncType) {
+ 	}
+ }
+ 
+-// Same as funcargs, except run over an already constructed TFUNC.
+-// This happens during import, where the hidden_fndcl rule has
+-// used functype directly to parse the function's type.
+-func funcargs2(t *types.Type) {
+-	if t.Kind() != types.TFUNC {
+-		base.Fatalf("funcargs2 %v", t)
+-	}
+-
+-	for _, f := range t.Recvs().Fields().Slice() {
+-		funcarg2(f, ir.PPARAM)
+-	}
+-	for _, f := range t.Params().Fields().Slice() {
+-		funcarg2(f, ir.PPARAM)
+-	}
+-	for _, f := range t.Results().Fields().Slice() {
+-		funcarg2(f, ir.PPARAMOUT)
+-	}
+-}
+-
+ func Temp(t *types.Type) *ir.Name {
+ 	return TempAt(base.Pos, ir.CurFunc, t)
+ }

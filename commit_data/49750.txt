@@ -16,8 +16,215 @@ Date:   Tue Sep 7 17:24:50 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/reader.go  | 18 ++++++++---------
  src/cmd/compile/internal/noder/unified.go |  2 --
  src/cmd/compile/internal/noder/writer.go  | 32 ++++++++++++-------------------
  3 files changed, 20 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index e235dd5792..57e8476099 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -79,8 +79,6 @@ type reader struct {
+ 
+ 	p *pkgReader
+ 
+-	ext *reader
+-
+ 	dict *readerDict
+ 
+ 	// TODO(mdempsky): The state below is all specific to reading
+@@ -586,10 +584,10 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 	dict := pr.objDictIdx(sym, idx, implicits, explicits)
+ 
+ 	r := pr.newReader(relocObj, idx, syncObject1)
+-	r.ext = pr.newReader(relocObjExt, idx, syncObject1)
++	rext := pr.newReader(relocObjExt, idx, syncObject1)
+ 
+ 	r.dict = dict
+-	r.ext.dict = dict
++	rext.dict = dict
+ 
+ 	sym = r.mangle(sym)
+ 	if !sym.IsBlank() && sym.Def != nil {
+@@ -642,7 +640,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 		name.Func = ir.NewFunc(r.pos())
+ 		name.Func.Nname = name
+ 
+-		r.ext.funcExt(name)
++		rext.funcExt(name)
+ 		return name
+ 
+ 	case objType:
+@@ -651,7 +649,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 		setType(name, typ)
+ 
+ 		// Important: We need to do this before SetUnderlying.
+-		r.ext.typeExt(name)
++		rext.typeExt(name)
+ 
+ 		// We need to defer CheckSize until we've called SetUnderlying to
+ 		// handle recursive types.
+@@ -661,7 +659,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 
+ 		methods := make([]*types.Field, r.len())
+ 		for i := range methods {
+-			methods[i] = r.method()
++			methods[i] = r.method(rext)
+ 		}
+ 		if len(methods) != 0 {
+ 			typ.Methods().Set(methods)
+@@ -674,7 +672,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 	case objVar:
+ 		name := do(ir.ONAME, false)
+ 		setType(name, r.typ())
+-		r.ext.varExt(name)
++		rext.varExt(name)
+ 		return name
+ 	}
+ }
+@@ -756,7 +754,7 @@ func (r *reader) typeParamNames() {
+ 	}
+ }
+ 
+-func (r *reader) method() *types.Field {
++func (r *reader) method(rext *reader) *types.Field {
+ 	r.sync(syncMethod)
+ 	pos := r.pos()
+ 	pkg, sym := r.selector()
+@@ -772,7 +770,7 @@ func (r *reader) method() *types.Field {
+ 	name.Func = ir.NewFunc(r.pos())
+ 	name.Func.Nname = name
+ 
+-	r.ext.funcExt(name)
++	rext.funcExt(name)
+ 
+ 	meth := types.NewField(name.Func.Pos(), sym, typ)
+ 	meth.Nname = name
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 02f64d00ac..eff2eeaeff 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -106,7 +106,6 @@ func unified(noders []*noder) {
+ 	readPackage(localPkgReader, types.LocalPkg)
+ 
+ 	r := localPkgReader.newReader(relocMeta, privateRootIdx, syncPrivate)
+-	r.ext = r
+ 	r.pkgInit(types.LocalPkg, target)
+ 
+ 	// Type-check any top-level assignments. We ignore non-assignments
+@@ -190,7 +189,6 @@ func writePkgStub(noders []*noder) string {
+ 
+ 	{
+ 		w := privateRootWriter
+-		w.ext = w
+ 		w.pkgInit(noders)
+ 		w.flush()
+ 	}
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 694035b73f..e1413da1d8 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -75,14 +75,6 @@ type writer struct {
+ 
+ 	encoder
+ 
+-	// For writing out object descriptions, ext points to the extension
+-	// writer for where we can write the compiler's private extension
+-	// details for the object.
+-	//
+-	// TODO(mdempsky): This is a little hacky, but works easiest with
+-	// the way things are currently.
+-	ext *writer
+-
+ 	// TODO(mdempsky): We should be able to prune localsIdx whenever a
+ 	// scope closes, and then maybe we can just use the same map for
+ 	// storing the TypeParams too (as their TypeName instead).
+@@ -504,21 +496,21 @@ func (pw *pkgWriter) objIdx(obj types2.Object) int {
+ 	}
+ 
+ 	w := pw.newWriter(relocObj, syncObject1)
+-	w.ext = pw.newWriter(relocObjExt, syncObject1)
++	wext := pw.newWriter(relocObjExt, syncObject1)
+ 	wname := pw.newWriter(relocName, syncObject1)
+ 	wdict := pw.newWriter(relocObjDict, syncObject1)
+ 
+ 	pw.globalsIdx[obj] = w.idx // break cycles
+-	assert(w.ext.idx == w.idx)
++	assert(wext.idx == w.idx)
+ 	assert(wname.idx == w.idx)
+ 	assert(wdict.idx == w.idx)
+ 
+ 	w.dict = dict
+-	w.ext.dict = dict
++	wext.dict = dict
+ 
+-	code := w.doObj(obj)
++	code := w.doObj(wext, obj)
+ 	w.flush()
+-	w.ext.flush()
++	wext.flush()
+ 
+ 	wname.qualifiedIdent(obj)
+ 	wname.code(code)
+@@ -530,7 +522,7 @@ func (pw *pkgWriter) objIdx(obj types2.Object) int {
+ 	return w.idx
+ }
+ 
+-func (w *writer) doObj(obj types2.Object) codeObj {
++func (w *writer) doObj(wext *writer, obj types2.Object) codeObj {
+ 	if obj.Pkg() != w.p.curpkg {
+ 		return objStub
+ 	}
+@@ -555,7 +547,7 @@ func (w *writer) doObj(obj types2.Object) codeObj {
+ 		w.typeParamNames(sig.TypeParams())
+ 		w.signature(sig)
+ 		w.pos(decl)
+-		w.ext.funcExt(obj)
++		wext.funcExt(obj)
+ 		return objFunc
+ 
+ 	case *types2.TypeName:
+@@ -573,12 +565,12 @@ func (w *writer) doObj(obj types2.Object) codeObj {
+ 
+ 		w.pos(obj)
+ 		w.typeParamNames(named.TypeParams())
+-		w.ext.typeExt(obj)
++		wext.typeExt(obj)
+ 		w.typExpr(decl.Type)
+ 
+ 		w.len(named.NumMethods())
+ 		for i := 0; i < named.NumMethods(); i++ {
+-			w.method(named.Method(i))
++			w.method(wext, named.Method(i))
+ 		}
+ 
+ 		return objType
+@@ -586,7 +578,7 @@ func (w *writer) doObj(obj types2.Object) codeObj {
+ 	case *types2.Var:
+ 		w.pos(obj)
+ 		w.typ(obj.Type())
+-		w.ext.varExt(obj)
++		wext.varExt(obj)
+ 		return objVar
+ 	}
+ }
+@@ -648,7 +640,7 @@ func (w *writer) typeParamNames(tparams *types2.TypeParamList) {
+ 	}
+ }
+ 
+-func (w *writer) method(meth *types2.Func) {
++func (w *writer) method(wext *writer, meth *types2.Func) {
+ 	decl, ok := w.p.funDecls[meth]
+ 	assert(ok)
+ 	sig := meth.Type().(*types2.Signature)
+@@ -661,7 +653,7 @@ func (w *writer) method(meth *types2.Func) {
+ 	w.signature(sig)
+ 
+ 	w.pos(decl) // XXX: Hack to workaround linker limitations.
+-	w.ext.funcExt(meth)
++	wext.funcExt(meth)
+ }
+ 
+ // qualifiedIdent writes out the name of an object declared at package

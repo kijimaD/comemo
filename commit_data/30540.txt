@@ -13,9 +13,195 @@ Date:   Sat Oct 22 00:21:18 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/dnsclient.go           | 16 +++++++++----
  src/net/dnsclient_unix.go      | 15 +++++++++---
  src/net/dnsconfig_unix_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++
  src/net/dnsname_test.go        | 27 +++++++++++----------
  4 files changed, 90 insertions(+), 21 deletions(-)
+
+diff --git a/src/net/dnsclient.go b/src/net/dnsclient.go
+index f1835b8c06..2ab5639d62 100644
+--- a/src/net/dnsclient.go
++++ b/src/net/dnsclient.go
+@@ -113,12 +113,20 @@ func equalASCIILabel(x, y string) bool {
+ 	return true
+ }
+ 
++// isDomainName checks if a string is a presentation-format domain name
++// (currently restricted to hostname-compatible "preferred name" LDH labels and
++// SRV-like "underscore labels"; see golang.org/issue/12421).
+ func isDomainName(s string) bool {
+ 	// See RFC 1035, RFC 3696.
+-	if len(s) == 0 {
+-		return false
+-	}
+-	if len(s) > 255 {
++	// Presentation format has dots before every label except the first, and the
++	// terminal empty label is optional here because we assume fully-qualified
++	// (absolute) input. We must therefore reserve space for the first and last
++	// labels' length octets in wire format, where they are necessary and the
++	// maximum total length is 255.
++	// So our _effective_ maximum is 253, but 254 is not rejected if the last
++	// character is a dot.
++	l := len(s)
++	if l == 0 || l > 254 || l == 254 && s[l-1] != '.' {
+ 		return false
+ 	}
+ 
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index dd39a78f45..2980302849 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -362,14 +362,21 @@ func (conf *dnsConfig) nameList(name string) []string {
+ 		return nil
+ 	}
+ 
++	// Check name length (see isDomainName).
++	l := len(name)
++	rooted := l > 0 && name[l-1] == '.'
++	if l > 254 || l == 254 && rooted {
++		return nil
++	}
++
+ 	// If name is rooted (trailing dot), try only that name.
+-	rooted := len(name) > 0 && name[len(name)-1] == '.'
+ 	if rooted {
+ 		return []string{name}
+ 	}
+ 
+ 	hasNdots := count(name, '.') >= conf.ndots
+ 	name += "."
++	l++
+ 
+ 	// Build list of search choices.
+ 	names := make([]string, 0, 1+len(conf.search))
+@@ -377,9 +384,11 @@ func (conf *dnsConfig) nameList(name string) []string {
+ 	if hasNdots {
+ 		names = append(names, name)
+ 	}
+-	// Try suffixes.
++	// Try suffixes that are not too long (see isDomainName).
+ 	for _, suffix := range conf.search {
+-		names = append(names, name+suffix)
++		if l+len(suffix) <= 254 {
++			names = append(names, name+suffix)
++		}
+ 	}
+ 	// Try unsuffixed, if not tried first above.
+ 	if !hasNdots {
+diff --git a/src/net/dnsconfig_unix_test.go b/src/net/dnsconfig_unix_test.go
+index 89695c3099..37bdeb04c8 100644
+--- a/src/net/dnsconfig_unix_test.go
++++ b/src/net/dnsconfig_unix_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"errors"
+ 	"os"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ 	"time"
+ )
+@@ -184,3 +185,55 @@ func TestDNSDefaultSearch(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestDNSNameLength(t *testing.T) {
++	origGetHostname := getHostname
++	defer func() { getHostname = origGetHostname }()
++	getHostname = func() (string, error) { return "host.domain.local", nil }
++
++	var char63 = ""
++	for i := 0; i < 63; i++ {
++		char63 += "a"
++	}
++	longDomain := strings.Repeat(char63+".", 5) + "example"
++
++	for _, tt := range dnsReadConfigTests {
++		conf := dnsReadConfig(tt.name)
++		if conf.err != nil {
++			t.Fatal(conf.err)
++		}
++
++		var shortestSuffix int
++		for _, suffix := range tt.want.search {
++			if shortestSuffix == 0 || len(suffix) < shortestSuffix {
++				shortestSuffix = len(suffix)
++			}
++		}
++
++		// Test a name that will be maximally long when prefixing the shortest
++		// suffix (accounting for the intervening dot).
++		longName := longDomain[len(longDomain)-254+1+shortestSuffix:]
++		if longName[0] == '.' || longName[1] == '.' {
++			longName = "aa." + longName[3:]
++		}
++		for _, fqdn := range conf.nameList(longName) {
++			if len(fqdn) > 254 {
++				t.Errorf("got %d; want less than or equal to 254", len(fqdn))
++			}
++		}
++
++		// Now test a name that's too long for suffixing.
++		unsuffixable := "a." + longName[1:]
++		unsuffixableResults := conf.nameList(unsuffixable)
++		if len(unsuffixableResults) != 1 {
++			t.Errorf("suffixed names %v; want []", unsuffixableResults[1:])
++		}
++
++		// Now test a name that's too long for DNS.
++		tooLong := "a." + longDomain
++		tooLongResults := conf.nameList(tooLong)
++		if tooLongResults != nil {
++			t.Errorf("suffixed names %v; want nil", tooLongResults)
++		}
++	}
++}
+diff --git a/src/net/dnsname_test.go b/src/net/dnsname_test.go
+index bc777b855e..e0f786dec8 100644
+--- a/src/net/dnsname_test.go
++++ b/src/net/dnsname_test.go
+@@ -32,14 +32,12 @@ var dnsNameTests = []dnsNameTest{
+ 
+ func emitDNSNameTest(ch chan<- dnsNameTest) {
+ 	defer close(ch)
+-	var char59 = ""
+ 	var char63 = ""
+-	var char64 = ""
+-	for i := 0; i < 59; i++ {
+-		char59 += "a"
++	for i := 0; i < 63; i++ {
++		char63 += "a"
+ 	}
+-	char63 = char59 + "aaaa"
+-	char64 = char63 + "a"
++	char64 := char63 + "a"
++	longDomain := strings.Repeat(char63+".", 5) + "example"
+ 
+ 	for _, tc := range dnsNameTests {
+ 		ch <- tc
+@@ -47,14 +45,15 @@ func emitDNSNameTest(ch chan<- dnsNameTest) {
+ 
+ 	ch <- dnsNameTest{char63 + ".com", true}
+ 	ch <- dnsNameTest{char64 + ".com", false}
+-	// 255 char name is fine:
+-	ch <- dnsNameTest{char59 + "." + char63 + "." + char63 + "." +
+-		char63 + ".com",
+-		true}
+-	// 256 char name is bad:
+-	ch <- dnsNameTest{char59 + "a." + char63 + "." + char63 + "." +
+-		char63 + ".com",
+-		false}
++
++	// Remember: wire format is two octets longer than presentation
++	// (length octets for the first and [root] last labels).
++	// 253 is fine:
++	ch <- dnsNameTest{longDomain[len(longDomain)-253:], true}
++	// A terminal dot doesn't contribute to length:
++	ch <- dnsNameTest{longDomain[len(longDomain)-253:] + ".", true}
++	// 254 is bad:
++	ch <- dnsNameTest{longDomain[len(longDomain)-254:], false}
+ }
+ 
+ func TestDNSName(t *testing.T) {

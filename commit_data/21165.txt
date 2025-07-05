@@ -16,7 +16,7 @@ Date:   Fri Nov 21 15:57:10 2014 -0500
     R=rlh
     CC=golang-codereviews
     https://golang.org/cl/179160043
-
+---
  src/runtime/asm_386.s      | 20 ++++++++++++++++++++
  src/runtime/asm_amd64.s    | 20 ++++++++++++++++++++
  src/runtime/asm_amd64p32.s | 21 +++++++++++++++++++++
@@ -25,3 +25,158 @@ Date:   Fri Nov 21 15:57:10 2014 -0500
  src/runtime/runtime1.go    |  5 ++++-
  src/runtime/stubs.go       |  5 +++++
  7 files changed, 94 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index a02bb5556f..7cc64a3a49 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -2285,3 +2285,23 @@ TEXT runtime·getg(SB),NOSPLIT,$0-4
+ 	MOVL	AX, ret+0(FP)
+ 	RET
+ 
++TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
++	MOVL	addr+0(FP), AX
++	PREFETCHT0	(AX)
++	RET
++
++TEXT runtime·prefetcht1(SB),NOSPLIT,$0-4
++	MOVL	addr+0(FP), AX
++	PREFETCHT1	(AX)
++	RET
++
++
++TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
++	MOVL	addr+0(FP), AX
++	PREFETCHT2	(AX)
++	RET
++
++TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
++	MOVL	addr+0(FP), AX
++	PREFETCHNTA	(AX)
++	RET
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 6e3f5ff6ca..14be2fe92d 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -2228,3 +2228,23 @@ TEXT runtime·getg(SB),NOSPLIT,$0-8
+ 	MOVQ	g(CX), AX
+ 	MOVQ	AX, ret+0(FP)
+ 	RET
++
++TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
++	MOVQ	addr+0(FP), AX
++	PREFETCHT0	(AX)
++	RET
++
++TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
++	MOVQ	addr+0(FP), AX
++	PREFETCHT1	(AX)
++	RET
++
++TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
++	MOVQ	addr+0(FP), AX
++	PREFETCHT2	(AX)
++	RET
++
++TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
++	MOVQ	addr+0(FP), AX
++	PREFETCHNTA	(AX)
++	RET
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index cead3cd075..60c438c1d8 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -1079,3 +1079,24 @@ TEXT runtime·getg(SB),NOSPLIT,$0-4
+ 	MOVL	g(CX), AX
+ 	MOVL	AX, ret+0(FP)
+ 	RET
++
++TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
++	MOVL	addr+0(FP), AX
++	PREFETCHT0	(AX)
++	RET
++
++TEXT runtime·prefetcht1(SB),NOSPLIT,$0-4
++	MOVL	addr+0(FP), AX
++	PREFETCHT1	(AX)
++	RET
++
++
++TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
++	MOVL	addr+0(FP), AX
++	PREFETCHT2	(AX)
++	RET
++
++TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
++	MOVL	addr+0(FP), AX
++	PREFETCHNTA	(AX)
++	RET
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 583c7ba501..c6c98b4439 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -1320,3 +1320,15 @@ TEXT runtime·goexit(SB),NOSPLIT,$-4-0
+ TEXT runtime·getg(SB),NOSPLIT,$-4-4
+ 	MOVW	g, ret+0(FP)
+ 	RET
++
++TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
++	RET
++
++TEXT runtime·prefetcht1(SB),NOSPLIT,$0-4
++	RET
++
++TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
++	RET
++
++TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
++	RET
+diff --git a/src/runtime/asm_power64x.s b/src/runtime/asm_power64x.s
+index ba900c2b3f..6169202ea6 100644
+--- a/src/runtime/asm_power64x.s
++++ b/src/runtime/asm_power64x.s
+@@ -986,3 +986,15 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
+ TEXT runtime·goexit(SB),NOSPLIT,$-8-0
+ 	MOVD	R0, R0	// NOP
+ 	BL	runtime·goexit1(SB)	// does not return
++
++TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
++	RETURN
++
++TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
++	RETURN
++
++TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
++	RETURN
++
++TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
++	RETURN
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 15dea01a3c..9e19b68bee 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -97,7 +97,10 @@ func testAtomic64() {
+ 
+ 	z64 = 42
+ 	x64 = 0
+-	// TODO: PREFETCH((unsafe.Pointer)(&z64))
++	prefetcht0(uintptr(unsafe.Pointer(&z64)))
++	prefetcht1(uintptr(unsafe.Pointer(&z64)))
++	prefetcht2(uintptr(unsafe.Pointer(&z64)))
++	prefetchnta(uintptr(unsafe.Pointer(&z64)))
+ 	if cas64(&z64, x64, 1) {
+ 		gothrow("cas64 failed")
+ 	}
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 217307a1ed..4063e5434b 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -231,3 +231,8 @@ func call536870912(fn, arg unsafe.Pointer, n, retoffset uint32)
+ func call1073741824(fn, arg unsafe.Pointer, n, retoffset uint32)
+ 
+ func systemstack_switch()
++
++func prefetcht0(addr uintptr)
++func prefetcht1(addr uintptr)
++func prefetcht2(addr uintptr)
++func prefetchnta(addr uintptr)

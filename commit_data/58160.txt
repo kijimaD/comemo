@@ -21,7 +21,7 @@ Date:   Sun Oct 1 10:02:39 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go             |   2 +
  src/cmd/compile/internal/reflectdata/reflect.go |  41 ++---
  src/cmd/compile/internal/rttype/rttype.go       | 192 ++++++++++++++++++++++++
@@ -29,3 +29,378 @@ Date:   Sun Oct 1 10:02:39 2023 -0700
  src/internal/abi/compiletype.go                 |   9 --
  src/internal/abi/type.go                        |  14 +-
  6 files changed, 219 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 543b7a488d..a19962dabb 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -20,6 +20,7 @@ import (
+ 	"cmd/compile/internal/pgo"
+ 	"cmd/compile/internal/pkginit"
+ 	"cmd/compile/internal/reflectdata"
++	"cmd/compile/internal/rttype"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/staticinit"
+@@ -190,6 +191,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 
+ 	typecheck.InitUniverse()
+ 	typecheck.InitRuntime()
++	rttype.Init()
+ 
+ 	// Parse and typecheck input.
+ 	noder.LoadPackage(flag.Args())
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index b92be26e0b..e23d2fb401 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -18,6 +18,7 @@ import (
+ 	"cmd/compile/internal/compare"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
++	"cmd/compile/internal/rttype"
+ 	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/typebits"
+ 	"cmd/compile/internal/typecheck"
+@@ -74,7 +75,7 @@ const (
+ 
+ func structfieldSize() int { return abi.StructFieldSize(types.PtrSize) } // Sizeof(runtime.structfield{})
+ func imethodSize() int     { return abi.IMethodSize(types.PtrSize) }     // Sizeof(runtime.imethod{})
+-func commonSize() int      { return abi.CommonSize(types.PtrSize) }      // Sizeof(runtime._type{})
++func commonSize() int      { return int(rttype.Type.Size()) }            // Sizeof(runtime._type{})
+ 
+ func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
+ 	if t.Sym() == nil && len(methods(t)) == 0 {
+@@ -699,10 +700,10 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 	//		str           nameOff
+ 	//		ptrToThis     typeOff
+ 	//	}
+-	ot := 0
+-	ot = objw.Uintptr(lsym, ot, uint64(t.Size()))
+-	ot = objw.Uintptr(lsym, ot, uint64(ptrdata))
+-	ot = objw.Uint32(lsym, ot, types.TypeHash(t))
++	rt := rttype.Type
++	rt.WriteUintptr(lsym, "Size_", uint64(t.Size()))
++	rt.WriteUintptr(lsym, "PtrBytes", uint64(ptrdata))
++	rt.WriteUint32(lsym, "Hash", types.TypeHash(t))
+ 
+ 	var tflag abi.TFlag
+ 	if uncommonSize(t) != 0 {
+@@ -738,7 +739,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 		// this should optimize away completely
+ 		panic("Unexpected change in size of abi.TFlag")
+ 	}
+-	ot = objw.Uint8(lsym, ot, uint8(tflag))
++	rt.WriteUint8(lsym, "TFlag", uint8(tflag))
+ 
+ 	// runtime (and common sense) expects alignment to be a power of two.
+ 	i := int(uint8(t.Alignment()))
+@@ -749,8 +750,8 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 	if i&(i-1) != 0 {
+ 		base.Fatalf("invalid alignment %d for %v", uint8(t.Alignment()), t)
+ 	}
+-	ot = objw.Uint8(lsym, ot, uint8(t.Alignment())) // align
+-	ot = objw.Uint8(lsym, ot, uint8(t.Alignment())) // fieldAlign
++	rt.WriteUint8(lsym, "Align_", uint8(t.Alignment()))
++	rt.WriteUint8(lsym, "FieldAlign_", uint8(t.Alignment()))
+ 
+ 	i = kinds[t.Kind()]
+ 	if types.IsDirectIface(t) {
+@@ -759,26 +760,16 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 	if useGCProg {
+ 		i |= objabi.KindGCProg
+ 	}
+-	ot = objw.Uint8(lsym, ot, uint8(i)) // kind
+-	if eqfunc != nil {
+-		ot = objw.SymPtr(lsym, ot, eqfunc, 0) // equality function
+-	} else {
+-		ot = objw.Uintptr(lsym, ot, 0) // type we can't do == with
+-	}
+-	ot = objw.SymPtr(lsym, ot, gcsym, 0) // gcdata
++	rt.WriteUint8(lsym, "Kind_", uint8(i))
++
++	rt.WritePtr(lsym, "Equal", eqfunc)
++	rt.WritePtr(lsym, "GCData", gcsym)
+ 
+ 	nsym := dname(p, "", nil, exported, false)
+-	ot = objw.SymPtrOff(lsym, ot, nsym) // str
+-	// ptrToThis
+-	if sptr == nil {
+-		ot = objw.Uint32(lsym, ot, 0)
+-	} else if sptrWeak {
+-		ot = objw.SymPtrWeakOff(lsym, ot, sptr)
+-	} else {
+-		ot = objw.SymPtrOff(lsym, ot, sptr)
+-	}
++	rt.WriteSymPtrOff(lsym, "Str", nsym, false)
++	rt.WriteSymPtrOff(lsym, "PtrToThis", sptr, sptrWeak)
+ 
+-	return ot
++	return int(rt.Size())
+ }
+ 
+ // TrackSym returns the symbol for tracking use of field/method f, assumed
+diff --git a/src/cmd/compile/internal/rttype/rttype.go b/src/cmd/compile/internal/rttype/rttype.go
+new file mode 100644
+index 0000000000..474203631d
+--- /dev/null
++++ b/src/cmd/compile/internal/rttype/rttype.go
+@@ -0,0 +1,192 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package rttype allows the compiler to share type information with
++// the runtime. The shared type information is stored in
++// internal/abi. This package translates those types from the host
++// machine on which the compiler runs to the target machine on which
++// the compiled program will run. In particular, this package handles
++// layout differences between e.g. a 64 bit compiler and 32 bit
++// target.
++package rttype
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/objw"
++	"cmd/compile/internal/types"
++	"cmd/internal/obj"
++	"fmt"
++	"internal/abi"
++	"reflect"
++)
++
++type RuntimeType struct {
++	// A *types.Type representing a type used at runtime.
++	t *types.Type
++	// components maps from component names to their location in the type.
++	components map[string]location
++}
++
++type location struct {
++	offset int64
++	kind   types.Kind // Just used for bug detection
++}
++
++// Types shared with the runtime via internal/abi.
++// TODO: add more
++var Type *RuntimeType
++
++func Init() {
++	// Note: this has to be called explicitly instead of being
++	// an init function so it runs after the types package has
++	// been properly initialized.
++	Type = fromReflect(reflect.TypeOf(abi.Type{}))
++
++	// Make sure abi functions are correct. These functions are used
++	// by the linker which doesn't have the ability to do type layout,
++	// so we check the functions it uses here.
++	ptrSize := types.PtrSize
++	if got, want := int64(abi.CommonSize(ptrSize)), Type.Size(); got != want {
++		base.Fatalf("abi.CommonSize() == %d, want %d", got, want)
++	}
++	if got, want := int64(abi.TFlagOff(ptrSize)), Type.Offset("TFlag"); got != want {
++		base.Fatalf("abi.TFlagOff() == %d, want %d", got, want)
++	}
++}
++
++// fromReflect translates from a host type to the equivalent
++// target type.
++func fromReflect(rt reflect.Type) *RuntimeType {
++	t := reflectToType(rt)
++	types.CalcSize(t)
++	return &RuntimeType{t: t, components: unpack(t)}
++}
++
++// reflectToType converts from a reflect.Type (which is a compiler
++// host type) to a *types.Type, which is a target type.  The result
++// must be CalcSize'd before using.
++func reflectToType(rt reflect.Type) *types.Type {
++	switch rt.Kind() {
++	case reflect.Bool:
++		return types.Types[types.TBOOL]
++	case reflect.Int:
++		return types.Types[types.TINT]
++	case reflect.Int32:
++		return types.Types[types.TINT32]
++	case reflect.Uint8:
++		return types.Types[types.TUINT8]
++	case reflect.Uint16:
++		return types.Types[types.TUINT16]
++	case reflect.Uint32:
++		return types.Types[types.TUINT32]
++	case reflect.Uintptr:
++		return types.Types[types.TUINTPTR]
++	case reflect.Ptr, reflect.Func, reflect.UnsafePointer:
++		// TODO: there's no mechanism to distinguish different pointer types,
++		// so we treat them all as unsafe.Pointer.
++		return types.Types[types.TUNSAFEPTR]
++	case reflect.Array:
++		return types.NewArray(reflectToType(rt.Elem()), int64(rt.Len()))
++	case reflect.Struct:
++		fields := make([]*types.Field, rt.NumField())
++		for i := 0; i < rt.NumField(); i++ {
++			f := rt.Field(i)
++			ft := reflectToType(f.Type)
++			fields[i] = &types.Field{Sym: &types.Sym{Name: f.Name}, Type: ft}
++		}
++		return types.NewStruct(fields)
++	default:
++		base.Fatalf("unhandled kind %s", rt.Kind())
++		return nil
++	}
++}
++
++// Unpack generates a set of components of a *types.Type.
++// The type must have already been CalcSize'd.
++func unpack(t *types.Type) map[string]location {
++	components := map[string]location{}
++	switch t.Kind() {
++	default:
++		components[""] = location{0, t.Kind()}
++	case types.TARRAY:
++		// TODO: not used yet
++		elemSize := t.Elem().Size()
++		for name, loc := range unpack(t.Elem()) {
++			for i := int64(0); i < t.NumElem(); i++ {
++				components[fmt.Sprintf("[%d]%s", i, name)] = location{i*elemSize + loc.offset, loc.kind}
++			}
++		}
++	case types.TSTRUCT:
++		for _, f := range t.Fields() {
++			for name, loc := range unpack(f.Type) {
++				n := f.Sym.Name
++				if name != "" {
++					n += "." + name
++				}
++				components[n] = location{f.Offset + loc.offset, loc.kind}
++			}
++		}
++	}
++	return components
++}
++
++func (r *RuntimeType) Size() int64 {
++	return r.t.Size()
++}
++
++func (r *RuntimeType) Alignment() int64 {
++	return r.t.Alignment()
++}
++
++func (r *RuntimeType) Offset(name string) int64 {
++	return r.components[name].offset
++}
++
++// WritePtr writes a pointer "target" to the component named "name" in the
++// static object "lsym".
++func (r *RuntimeType) WritePtr(lsym *obj.LSym, name string, target *obj.LSym) {
++	loc := r.components[name]
++	if loc.kind != types.TUNSAFEPTR {
++		base.Fatalf("can't write ptr to field %s, it has kind %s", name, loc.kind)
++	}
++	if target == nil {
++		objw.Uintptr(lsym, int(loc.offset), 0)
++	} else {
++		objw.SymPtr(lsym, int(loc.offset), target, 0)
++	}
++}
++func (r *RuntimeType) WriteUintptr(lsym *obj.LSym, name string, val uint64) {
++	loc := r.components[name]
++	if loc.kind != types.TUINTPTR {
++		base.Fatalf("can't write uintptr to field %s, it has kind %s", name, loc.kind)
++	}
++	objw.Uintptr(lsym, int(loc.offset), val)
++}
++func (r *RuntimeType) WriteUint32(lsym *obj.LSym, name string, val uint32) {
++	loc := r.components[name]
++	if loc.kind != types.TUINT32 {
++		base.Fatalf("can't write uint32 to field %s, it has kind %s", name, loc.kind)
++	}
++	objw.Uint32(lsym, int(loc.offset), val)
++}
++func (r *RuntimeType) WriteUint8(lsym *obj.LSym, name string, val uint8) {
++	loc := r.components[name]
++	if loc.kind != types.TUINT8 {
++		base.Fatalf("can't write uint8 to field %s, it has kind %s", name, loc.kind)
++	}
++	objw.Uint8(lsym, int(loc.offset), val)
++}
++func (r *RuntimeType) WriteSymPtrOff(lsym *obj.LSym, name string, target *obj.LSym, weak bool) {
++	loc := r.components[name]
++	if loc.kind != types.TINT32 {
++		base.Fatalf("can't write SymPtr to field %s, it has kind %s", name, loc.kind)
++	}
++	if target == nil {
++		objw.Uint32(lsym, int(loc.offset), 0)
++	} else if weak {
++		objw.SymPtrWeakOff(lsym, int(loc.offset), target)
++	} else {
++		objw.SymPtrOff(lsym, int(loc.offset), target)
++	}
++}
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index 80c956f654..aa04700088 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -15,6 +15,7 @@ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/reflectdata"
++	"cmd/compile/internal/rttype"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+@@ -691,7 +692,7 @@ func typeHashFieldOf(pos src.XPos, itab *ir.UnaryExpr) *ir.SelectorExpr {
+ 	if itab.X.Type().IsEmptyInterface() {
+ 		// runtime._type's hash field
+ 		if rtypeHashField == nil {
+-			rtypeHashField = runtimeField("hash", int64(2*types.PtrSize), types.Types[types.TUINT32])
++			rtypeHashField = runtimeField("hash", rttype.Type.Offset("Hash"), types.Types[types.TUINT32])
+ 		}
+ 		hashField = rtypeHashField
+ 	} else {
+diff --git a/src/internal/abi/compiletype.go b/src/internal/abi/compiletype.go
+index d92addec25..f2a3001d2e 100644
+--- a/src/internal/abi/compiletype.go
++++ b/src/internal/abi/compiletype.go
+@@ -24,15 +24,6 @@ func UncommonSize() uint64 { return 4 + 2 + 2 + 4 + 4 }
+ // IMethodSize returns sizeof(IMethod) for a compilation target with a given ptrSize
+ func IMethodSize(ptrSize int) int { return 4 + 4 }
+ 
+-// KindOff returns the offset of Type.Kind_ for a compilation target with a given ptrSize
+-func KindOff(ptrSize int) int { return 2*ptrSize + 7 }
+-
+-// SizeOff returns the offset of Type.Size_ for a compilation target with a given ptrSize
+-func SizeOff(ptrSize int) int { return 0 }
+-
+-// PtrBytes returns the offset of Type.PtrBytes for a compilation target with a given ptrSize
+-func PtrBytesOff(ptrSize int) int { return ptrSize }
+-
+ // TFlagOff returns the offset of Type.TFlag for a compilation target with a given ptrSize
+ func TFlagOff(ptrSize int) int { return 2*ptrSize + 4 }
+ 
+diff --git a/src/internal/abi/type.go b/src/internal/abi/type.go
+index b3f9d448d9..86f055cb91 100644
+--- a/src/internal/abi/type.go
++++ b/src/internal/abi/type.go
+@@ -10,13 +10,13 @@ import (
+ 
+ // Type is the runtime representation of a Go type.
+ //
+-// Type is also referenced implicitly
+-// (in the form of expressions involving constants and arch.PtrSize)
+-// in cmd/compile/internal/reflectdata/reflect.go
+-// and cmd/link/internal/ld/decodesym.go
+-// (e.g. data[2*arch.PtrSize+4] references the TFlag field)
+-// unsafe.OffsetOf(Type{}.TFlag) cannot be used directly in those
+-// places because it varies with cross compilation and experiments.
++// Be careful about accessing this type at build time, as the version
++// of this type in the compiler/linker may not have the same layout
++// as the version in the target binary, due to pointer width
++// differences and any experiments. Use cmd/compile/internal/rttype
++// or the functions in compiletype.go to access this type instead.
++// (TODO: this admonition applies to every type in this package.
++// Put it in some shared location?)
+ type Type struct {
+ 	Size_       uintptr
+ 	PtrBytes    uintptr // number of (prefix) bytes in the type that can contain pointers

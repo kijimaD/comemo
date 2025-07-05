@@ -13,8 +13,85 @@ Date:   Mon Sep 7 13:55:49 2015 -0700
     Change-Id: I336e967687e2238c7d0d64e3b37132a731ad15c3
     Reviewed-on: https://go-review.googlesource.com/14347
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
  src/cmd/compile/internal/ssa/gen/genericOps.go |  4 +--
  src/cmd/compile/internal/ssa/rewritegeneric.go | 38 ++++++++++++++++++++++++++
  3 files changed, 41 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index d2ab9f5421..b704014287 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -179,6 +179,7 @@
+ 
+ // big-object moves (TODO: remove?)
+ (Store [size] dst (Load src mem) mem) && size > config.IntSize -> (Move [size] dst src mem)
++(Store [size] dst (Load src mem) (VarDef {x} mem)) && size > config.IntSize -> (Move [size] dst src (VarDef {x} mem))
+ 
+ (If (IsNonNil (GetG)) yes no) -> (First nil yes no)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index b52bd1fecc..042d34ea85 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -362,8 +362,8 @@ var genericOps = []opData{
+ 	// Used during ssa construction.  Like Copy, but the arg has not been specified yet.
+ 	{name: "FwdRef"},
+ 
+-	{name: "VarDef"},  // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
+-	{name: "VarKill"}, // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
++	{name: "VarDef", typ: "Mem"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
++	{name: "VarKill"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+ }
+ 
+ //     kind           control    successors
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index dc6604fe38..0334c0cd95 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -1434,6 +1434,44 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		goto enda18a7163888e2f4fca9f38bae56cef42
+ 	enda18a7163888e2f4fca9f38bae56cef42:
+ 		;
++		// match: (Store [size] dst (Load src mem) (VarDef {x} mem))
++		// cond: size > config.IntSize
++		// result: (Move [size] dst src (VarDef {x} mem))
++		{
++			size := v.AuxInt
++			dst := v.Args[0]
++			if v.Args[1].Op != OpLoad {
++				goto endc671c9b1be99e3125fe81e29018bc0e6
++			}
++			src := v.Args[1].Args[0]
++			mem := v.Args[1].Args[1]
++			if v.Args[2].Op != OpVarDef {
++				goto endc671c9b1be99e3125fe81e29018bc0e6
++			}
++			x := v.Args[2].Aux
++			if v.Args[2].Args[0] != mem {
++				goto endc671c9b1be99e3125fe81e29018bc0e6
++			}
++			if !(size > config.IntSize) {
++				goto endc671c9b1be99e3125fe81e29018bc0e6
++			}
++			v.Op = OpMove
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = size
++			v.AddArg(dst)
++			v.AddArg(src)
++			v0 := b.NewValue0(v.Line, OpVarDef, TypeInvalid)
++			v0.Aux = x
++			v0.AddArg(mem)
++			v0.Type = TypeMem
++			v.AddArg(v0)
++			return true
++		}
++		goto endc671c9b1be99e3125fe81e29018bc0e6
++	endc671c9b1be99e3125fe81e29018bc0e6:
++		;
+ 	case OpStringLen:
+ 		// match: (StringLen (StringMake _ len))
+ 		// cond:

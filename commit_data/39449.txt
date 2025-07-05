@@ -21,7 +21,62 @@ Date:   Wed Feb 27 17:12:23 2019 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go | 13 -------------
  test/fixedbugs/issue30430.go         | 17 +++++++++++++++++
  2 files changed, 17 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index de7df645e6..0e6d838eaa 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1280,8 +1280,6 @@ func indexconst(n *Node) int64 {
+ //
+ // Expressions derived from nil, like string([]byte(nil)), while they
+ // may be known at compile time, are not Go language constants.
+-// Only called for expressions known to evaluate to compile-time
+-// constants.
+ func (n *Node) isGoConst() bool {
+ 	if n.Orig != nil {
+ 		n = n.Orig
+@@ -1359,17 +1357,6 @@ func (n *Node) isGoConst() bool {
+ 			return true
+ 		}
+ 
+-	case ONAME:
+-		l := asNode(n.Sym.Def)
+-		if l != nil && l.Op == OLITERAL && n.Val().Ctype() != CTNIL {
+-			return true
+-		}
+-
+-	case ONONAME:
+-		if asNode(n.Sym.Def) != nil && asNode(n.Sym.Def).Op == OIOTA {
+-			return true
+-		}
+-
+ 	case OALIGNOF, OOFFSETOF, OSIZEOF:
+ 		return true
+ 	}
+diff --git a/test/fixedbugs/issue30430.go b/test/fixedbugs/issue30430.go
+new file mode 100644
+index 0000000000..6c27b82881
+--- /dev/null
++++ b/test/fixedbugs/issue30430.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 30430: isGoConst returned true for non-const variables,
++// resulting in ICE.
++
++package p
++
++func f() {
++	var s string
++	_ = map[string]string{s: ""}
++}
++
++const s = ""

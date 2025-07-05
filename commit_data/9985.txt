@@ -10,6 +10,20 @@ Date:   Fri Oct 14 15:54:36 2011 -0400
     R=gri
     CC=golang-dev
     https://golang.org/cl/5285043
-
+---
  src/make.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 57a57077c7..013852570c 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -69,7 +69,7 @@ fi
+ (
+ 	cd "$GOROOT"/src/pkg;
+ 	bash deps.bash	# do this here so clean.bash will work in the pkg directory
+-)
++) || exit 1
+ bash "$GOROOT"/src/clean.bash
+ 
+ # pkg builds libcgo and the Go programs in cmd.

@@ -21,10 +21,142 @@ Date:   Fri May 12 08:55:49 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go.mod                                   |  2 +-
  src/cmd/go.sum                                   |  4 +--
  src/cmd/go/testdata/script/mod_exclude_go121.txt | 34 ++++++++++++++++++++++++
  src/cmd/vendor/golang.org/x/mod/modfile/rule.go  | 26 +++++++++++++++++-
  src/cmd/vendor/modules.txt                       |  2 +-
  5 files changed, 63 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 529fc402dd..746d4428f9 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,7 +5,7 @@ go 1.21
+ require (
+ 	github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26
+ 	golang.org/x/arch v0.2.1-0.20230208145055-40c19ba4a7c5
+-	golang.org/x/mod v0.10.0
++	golang.org/x/mod v0.10.1-0.20230517154618-e7bea8f1d64f
+ 	golang.org/x/sync v0.2.0
+ 	golang.org/x/sys v0.8.0
+ 	golang.org/x/term v0.5.0
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index d964d568e4..db69eb0300 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -4,8 +4,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 h1:rcanfLh
+ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2/go.mod h1:aYm2/VgdVmcIU8iMfdMvDMsRAQjcfZSKFby6HOFvi/w=
+ golang.org/x/arch v0.2.1-0.20230208145055-40c19ba4a7c5 h1:UFbINK7+lzLJEIqCXPlzx05ivYhLQeXCkxW3SSH3f8Q=
+ golang.org/x/arch v0.2.1-0.20230208145055-40c19ba4a7c5/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+-golang.org/x/mod v0.10.0 h1:lFO9qtOdlre5W1jxS3r/4szv2/6iXxScdzjoBMXNhYk=
+-golang.org/x/mod v0.10.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
++golang.org/x/mod v0.10.1-0.20230517154618-e7bea8f1d64f h1:ghNt+qaUoQ453QdEj40jEN5kYz71m4aDEkk767JfeR0=
++golang.org/x/mod v0.10.1-0.20230517154618-e7bea8f1d64f/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
+ golang.org/x/sync v0.2.0 h1:PUR+T4wwASmuSTYdKjYHI5TD22Wy5ogLU5qZCOLxBrI=
+ golang.org/x/sync v0.2.0/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sys v0.8.0 h1:EBmGv8NaZBZTWvrbjNoL6HVt+IVy3QDQpJs7VRIw3tU=
+diff --git a/src/cmd/go/testdata/script/mod_exclude_go121.txt b/src/cmd/go/testdata/script/mod_exclude_go121.txt
+new file mode 100644
+index 0000000000..51c8a00a43
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_exclude_go121.txt
+@@ -0,0 +1,34 @@
++# go.dev/issue/60028: use semver sort in exclude block in 1.21
++cp $WORK/go.mod.badfmtexclude go.mod
++go mod edit -go=1.20
++cmp go.mod $WORK/go.mod.goodfmtexclude120
++go mod edit -go=1.21
++cmp go.mod $WORK/go.mod.goodfmtexclude121
++
++-- $WORK/go.mod.badfmtexclude --
++module     x.x/y/z
++exclude  (
++	x.1   v1.11.0
++	x.1    v1.10.0
++	x.1     v1.9.0
++)
++-- $WORK/go.mod.goodfmtexclude120 --
++module x.x/y/z
++
++go 1.20
++
++exclude (
++	x.1 v1.10.0
++	x.1 v1.11.0
++	x.1 v1.9.0
++)
++-- $WORK/go.mod.goodfmtexclude121 --
++module x.x/y/z
++
++go 1.21
++
++exclude (
++	x.1 v1.9.0
++	x.1 v1.10.0
++	x.1 v1.11.0
++)
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index 6bcde8fabe..c20aef1566 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -1387,13 +1387,21 @@ func (f *File) DropRetract(vi VersionInterval) error {
+ func (f *File) SortBlocks() {
+ 	f.removeDups() // otherwise sorting is unsafe
+ 
++	// semanticSortForExcludeVersionV is the Go version (plus leading "v") at which
++	// lines in exclude blocks start to use semantic sort instead of lexicographic sort.
++	// See go.dev/issue/60028.
++	const semanticSortForExcludeVersionV = "v1.21"
++	useSemanticSortForExclude := f.Go != nil && semver.Compare("v"+f.Go.Version, semanticSortForExcludeVersionV) >= 0
++
+ 	for _, stmt := range f.Syntax.Stmt {
+ 		block, ok := stmt.(*LineBlock)
+ 		if !ok {
+ 			continue
+ 		}
+ 		less := lineLess
+-		if block.Token[0] == "retract" {
++		if block.Token[0] == "exclude" && useSemanticSortForExclude {
++			less = lineExcludeLess
++		} else if block.Token[0] == "retract" {
+ 			less = lineRetractLess
+ 		}
+ 		sort.SliceStable(block.Line, func(i, j int) bool {
+@@ -1496,6 +1504,22 @@ func lineLess(li, lj *Line) bool {
+ 	return len(li.Token) < len(lj.Token)
+ }
+ 
++// lineExcludeLess reports whether li should be sorted before lj for lines in
++// an "exclude" block.
++func lineExcludeLess(li, lj *Line) bool {
++	if len(li.Token) != 2 || len(lj.Token) != 2 {
++		// Not a known exclude specification.
++		// Fall back to sorting lexicographically.
++		return lineLess(li, lj)
++	}
++	// An exclude specification has two tokens: ModulePath and Version.
++	// Compare module path by string order and version by semver rules.
++	if pi, pj := li.Token[0], lj.Token[0]; pi != pj {
++		return pi < pj
++	}
++	return semver.Compare(li.Token[1], lj.Token[1]) < 0
++}
++
+ // lineRetractLess returns whether li should be sorted before lj for lines in
+ // a "retract" block. It treats each line as a version interval. Single versions
+ // are compared as if they were intervals with the same low and high version.
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 2cf140f093..40e45bba5f 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -23,7 +23,7 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/mod v0.10.0
++# golang.org/x/mod v0.10.1-0.20230517154618-e7bea8f1d64f
+ ## explicit; go 1.17
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

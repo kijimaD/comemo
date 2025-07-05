@@ -15,7 +15,7 @@ Date:   Thu Mar 8 14:03:56 2012 -0500
     R=golang-dev, gri, minux.ma, bradfitz
     CC=golang-dev
     https://golang.org/cl/5792048
-
+---
  src/pkg/runtime/asm_amd64.s         |  2 +-
  src/pkg/runtime/sys_darwin_386.s    | 22 +++++++++-------------
  src/pkg/runtime/sys_darwin_amd64.s  | 21 ++++++++-------------
@@ -29,3 +29,707 @@ Date:   Thu Mar 8 14:03:56 2012 -0500
  src/pkg/runtime/sys_openbsd_amd64.s | 17 ++++++-----------
  src/pkg/runtime/sys_windows_amd64.s |  5 -----
  12 files changed, 67 insertions(+), 115 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 392ad8c87f..60d851f671 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -73,7 +73,7 @@ ok:
+ 	// start this M
+ 	CALL	runtime·mstart(SB)
+ 
+-	CALL	runtime·notok(SB)		// never returns
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·breakpoint(SB),7,$0
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index c2dab8931c..da61063466 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -8,15 +8,11 @@
+ 
+ #include "zasm_GOOS_GOARCH.h"
+ 
+-TEXT runtime·notok(SB),7,$0
+-	MOVL	$0xf1, 0xf1
+-	RET
+-
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),7,$0
+ 	MOVL	$1, AX
+ 	INT	$0x80
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ // Exit this OS thread (like pthread_exit, which eventually
+@@ -25,7 +21,7 @@ TEXT runtime·exit1(SB),7,$0
+ 	MOVL	$361, AX
+ 	INT	$0x80
+ 	JAE 2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·write(SB),7,$0
+@@ -52,14 +48,14 @@ TEXT runtime·madvise(SB),7,$0
+ 	MOVL	$75, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·munmap(SB),7,$0
+ 	MOVL	$73, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),7,$0
+@@ -110,14 +106,14 @@ TEXT runtime·sigprocmask(SB),7,$0
+ 	MOVL	$329, AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sigaction(SB),7,$0
+ 	MOVL	$46, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ // Sigtramp's job is to call the actual signal handler.
+@@ -165,14 +161,14 @@ TEXT runtime·sigtramp(SB),7,$40
+ 	MOVL	BX, 8(SP)
+ 	MOVL	$184, AX	// sigreturn(ucontext, infostyle)
+ 	INT	$0x80
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sigaltstack(SB),7,$0
+ 	MOVL	$53, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·usleep(SB),7,$32
+@@ -268,7 +264,7 @@ TEXT runtime·bsdthread_register(SB),7,$40
+ 	MOVL	$0, 24(SP)	// dispatchqueue_offset
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ // Invoke Mach system call.
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index 4b215d04d4..5f784c44a9 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -18,7 +18,7 @@ TEXT runtime·exit(SB),7,$0
+ 	MOVL	8(SP), DI		// arg 1 exit status
+ 	MOVL	$(0x2000000+1), AX	// syscall entry
+ 	SYSCALL
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ // Exit this OS thread (like pthread_exit, which eventually
+@@ -27,7 +27,7 @@ TEXT runtime·exit1(SB),7,$0
+ 	MOVL	8(SP), DI		// arg 1 exit status
+ 	MOVL	$(0x2000000+361), AX	// syscall entry
+ 	SYSCALL
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·write(SB),7,$0
+@@ -62,7 +62,7 @@ TEXT runtime·madvise(SB), 7, $0
+ 	MOVL	$(0x2000000+75), AX	// syscall entry madvise
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+@@ -99,7 +99,7 @@ TEXT runtime·sigprocmask(SB),7,$0
+ 	MOVL	$(0x2000000+329), AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sigaction(SB),7,$0
+@@ -111,7 +111,7 @@ TEXT runtime·sigaction(SB),7,$0
+ 	MOVL	$(0x2000000+46), AX	// syscall entry
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),7,$64
+@@ -164,12 +164,7 @@ TEXT runtime·munmap(SB),7,$0
+ 	MOVL	$(0x2000000+73), AX	// syscall entry
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
+-	RET
+-
+-TEXT runtime·notok(SB),7,$0
+-	MOVL	$0xf1, BP
+-	MOVQ	BP, (BP)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sigaltstack(SB),7,$0
+@@ -178,7 +173,7 @@ TEXT runtime·sigaltstack(SB),7,$0
+ 	MOVQ	$(0x2000000+53), AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·usleep(SB),7,$16
+@@ -266,7 +261,7 @@ TEXT runtime·bsdthread_register(SB),7,$0
+ 	MOVQ	$(0x2000000+366), AX	// bsdthread_register
+ 	SYSCALL
+ 	JCC 2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index 80a8be8a99..683a56489e 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -45,14 +45,14 @@ TEXT runtime·thr_start(SB),7,$0
+ TEXT runtime·exit(SB),7,$-4
+ 	MOVL	$1, AX
+ 	INT	$0x80
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·exit1(SB),7,$-4
+ 	MOVL	$431, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·write(SB),7,$-4
+@@ -79,10 +79,6 @@ TEXT runtime·raisesigpipe(SB),7,$12
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·notok(SB),7,$0
+-	MOVL	$0xf1, 0xf1
+-	RET
+-
+ TEXT runtime·mmap(SB),7,$32
+ 	LEAL arg0+0(FP), SI
+ 	LEAL	4(SP), DI
+@@ -103,7 +99,7 @@ TEXT runtime·munmap(SB),7,$-4
+ 	MOVL	$73, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·setitimer(SB), 7, $-4
+@@ -157,7 +153,7 @@ TEXT runtime·sigaction(SB),7,$-4
+ 	MOVL	$416, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),7,$44
+@@ -194,14 +190,14 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	MOVL	AX, 4(SP)
+ 	MOVL	$417, AX	// sigreturn(ucontext)
+ 	INT	$0x80
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sigaltstack(SB),7,$0
+ 	MOVL	$53, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·usleep(SB),7,$20
+@@ -317,7 +313,7 @@ TEXT runtime·sigprocmask(SB),7,$16
+ 	MOVL	$340, AX		// sys_sigprocmask
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ GLOBL runtime·tlsoffset(SB),$4
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index 6ef8b50453..e1d8c1ce2c 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -47,14 +47,14 @@ TEXT runtime·exit(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 exit status
+ 	MOVL	$1, AX
+ 	SYSCALL
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·exit1(SB),7,$-8
+ 	MOVQ	8(SP), DI		// arg 1 exit status
+ 	MOVL	$431, AX
+ 	SYSCALL
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·write(SB),7,$-8
+@@ -129,7 +129,7 @@ TEXT runtime·sigaction(SB),7,$-8
+ 	MOVL	$416, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),7,$64
+@@ -174,12 +174,7 @@ TEXT runtime·munmap(SB),7,$0
+ 	MOVL	$73, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
+-	RET
+-
+-TEXT runtime·notok(SB),7,$-8
+-	MOVL	$0xf1, BP
+-	MOVQ	BP, (BP)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sigaltstack(SB),7,$-8
+@@ -188,7 +183,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	MOVQ	$53, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·usleep(SB),7,$16
+@@ -216,7 +211,7 @@ TEXT runtime·settls(SB),7,$8
+ 	MOVQ	$165, AX	// sysarch
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),7,$0
+@@ -246,5 +241,5 @@ TEXT runtime·sigprocmask(SB),7,$0
+ 	MOVL	$340, AX		// sys_sigprocmask
+ 	SYSCALL
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index 0de5b2aa41..d95d4fde5b 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -139,7 +139,7 @@ TEXT runtime·rtsigprocmask(SB),7,$0-32
+ 	SYSCALL
+ 	CMPQ	AX, $0xfffffffffffff001
+ 	JLS	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·rt_sigaction(SB),7,$0-32
+@@ -205,7 +205,7 @@ TEXT runtime·munmap(SB),7,$0
+ 	SYSCALL
+ 	CMPQ	AX, $0xfffffffffffff001
+ 	JLS	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·madvise(SB),7,$0
+@@ -216,12 +216,7 @@ TEXT runtime·madvise(SB),7,$0
+ 	SYSCALL
+ 	CMPQ	AX, $0xfffffffffffff001
+ 	JLS	2(PC)
+-	CALL	runtime·notok(SB)
+-	RET
+-
+-TEXT runtime·notok(SB),7,$0
+-	MOVQ	$0xf1, BP
+-	MOVQ	BP, (BP)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ // int64 futex(int32 *uaddr, int32 op, int32 val,
+@@ -290,7 +285,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	SYSCALL
+ 	CMPQ	AX, $0xfffffffffffff001
+ 	JLS	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ // set tls base to DI
+@@ -303,7 +298,7 @@ TEXT runtime·settls(SB),7,$32
+ 	SYSCALL
+ 	CMPQ	AX, $0xfffffffffffff001
+ 	JLS	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·osyield(SB),7,$0
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index 439df3afa8..03e173d266 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -38,11 +38,6 @@
+ #define ARM_BASE (SYS_BASE + 0x0f0000)
+ #define SYS_ARM_cacheflush (ARM_BASE + 2)
+ 
+-TEXT notok<>(SB),7,$0
+-	MOVW	$0, R9
+-	MOVW	R9, (R9)
+-	B   	0(PC)
+-
+ TEXT runtime·open(SB),7,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+@@ -126,7 +121,8 @@ TEXT runtime·munmap(SB),7,$0
+ 	SWI	$0
+ 	MOVW	$0xfffff001, R6
+ 	CMP 	R6, R0
+-	BL.HI	notok<>(SB)
++	MOVW.HI	$0, R9  // crash on syscall failure
++	MOVW.HI	R9, (R9)
+ 	RET
+ 
+ TEXT runtime·madvise(SB),7,$0
+@@ -137,7 +133,8 @@ TEXT runtime·madvise(SB),7,$0
+ 	SWI	$0
+ 	MOVW	$0xfffff001, R6
+ 	CMP 	R6, R0
+-	BL.HI	notok<>(SB)
++	MOVW.HI	$0, R9  // crash on syscall failure
++	MOVW.HI	R9, (R9)
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),7,$0
+@@ -291,7 +288,8 @@ TEXT runtime·sigaltstack(SB),7,$0
+ 	SWI	$0
+ 	MOVW	$0xfffff001, R6
+ 	CMP 	R6, R0
+-	BL.HI	notok<>(SB)
++	MOVW.HI	$0, R9  // crash on syscall failure
++	MOVW.HI	R9, (R9)
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),7,$24
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index 6322861024..8276e2ce91 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -12,14 +12,14 @@
+ TEXT runtime·exit(SB),7,$-4
+ 	MOVL	$1, AX
+ 	INT	$0x80
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·exit1(SB),7,$-4
+ 	MOVL	$302, AX		// sys_threxit
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·write(SB),7,$-4
+@@ -55,10 +55,6 @@ TEXT runtime·raisesigpipe(SB),7,$12
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·notok(SB),7,$0
+-	MOVL	$0xf1, 0xf1
+-	RET
+-
+ TEXT runtime·mmap(SB),7,$36
+ 	LEAL	arg0+0(FP), SI
+ 	LEAL	4(SP), DI
+@@ -83,7 +79,7 @@ TEXT runtime·munmap(SB),7,$-4
+ 	MOVL	$73, AX			// sys_munmap
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),7,$-4
+@@ -136,7 +132,7 @@ TEXT runtime·sigaction(SB),7,$-4
+ 	MOVL	$46, AX			// sys_sigaction
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),7,$44
+@@ -173,7 +169,7 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	MOVL	AX, 4(SP)		// arg 1 - sigcontext
+ 	MOVL	$103, AX		// sys_sigreturn
+ 	INT	$0x80
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ // int32 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+@@ -285,7 +281,7 @@ TEXT runtime·settls(SB),7,$16
+ 	MOVL	$165, AX		// sys_sysarch
+ 	INT	$0x80
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·osyield(SB),7,$-4
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index 7abeb159b1..9741d85a57 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -83,13 +83,13 @@ TEXT runtime·exit(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 - exit status
+ 	MOVL	$1, AX			// sys_exit
+ 	SYSCALL
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·exit1(SB),7,$-8
+ 	MOVL	$302, AX		// sys_threxit
+ 	SYSCALL
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·write(SB),7,$-8
+@@ -170,7 +170,7 @@ TEXT runtime·sigaction(SB),7,$-8
+ 	MOVL	$46, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),7,$64
+@@ -221,12 +221,7 @@ TEXT runtime·munmap(SB),7,$0
+ 	MOVL	$73, AX			// sys_munmap
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
+-	RET
+-
+-TEXT runtime·notok(SB),7,$-8
+-	MOVL	$0xf1, BP
+-	MOVQ	BP, (BP)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sigaltstack(SB),7,$-8
+@@ -235,7 +230,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	MOVQ	$288, AX		// sys_sigaltstack
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ // set tls base to DI
+@@ -248,7 +243,7 @@ TEXT runtime·settls(SB),7,$8
+ 	MOVQ	$165, AX		// sys_sysarch
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),7,$0
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index d49d32b95a..0821745561 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -12,14 +12,14 @@
+ TEXT runtime·exit(SB),7,$-4
+ 	MOVL	$1, AX
+ 	INT	$0x80
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·exit1(SB),7,$-4
+ 	MOVL	$302, AX		// sys_threxit
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·write(SB),7,$-4
+@@ -55,10 +55,6 @@ TEXT runtime·raisesigpipe(SB),7,$12
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·notok(SB),7,$0
+-	MOVL	$0xf1, 0xf1
+-	RET
+-
+ TEXT runtime·mmap(SB),7,$36
+ 	LEAL	arg0+0(FP), SI
+ 	LEAL	4(SP), DI
+@@ -83,7 +79,7 @@ TEXT runtime·munmap(SB),7,$-4
+ 	MOVL	$73, AX			// sys_munmap
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),7,$-4
+@@ -136,7 +132,7 @@ TEXT runtime·sigaction(SB),7,$-4
+ 	MOVL	$46, AX			// sys_sigaction
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),7,$44
+@@ -173,7 +169,7 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	MOVL	AX, 4(SP)		// arg 1 - sigcontext
+ 	MOVL	$103, AX		// sys_sigreturn
+ 	INT	$0x80
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ // int32 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+@@ -285,7 +281,7 @@ TEXT runtime·settls(SB),7,$16
+ 	MOVL	$165, AX		// sys_sysarch
+ 	INT	$0x80
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·osyield(SB),7,$-4
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index 5bf2e813e8..501c846a4f 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -83,13 +83,13 @@ TEXT runtime·exit(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 - exit status
+ 	MOVL	$1, AX			// sys_exit
+ 	SYSCALL
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·exit1(SB),7,$-8
+ 	MOVL	$302, AX		// sys_threxit
+ 	SYSCALL
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·write(SB),7,$-8
+@@ -170,7 +170,7 @@ TEXT runtime·sigaction(SB),7,$-8
+ 	MOVL	$46, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),7,$64
+@@ -221,12 +221,7 @@ TEXT runtime·munmap(SB),7,$0
+ 	MOVL	$73, AX			// sys_munmap
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
+-	RET
+-
+-TEXT runtime·notok(SB),7,$-8
+-	MOVL	$0xf1, BP
+-	MOVQ	BP, (BP)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sigaltstack(SB),7,$-8
+@@ -235,7 +230,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	MOVQ	$288, AX		// sys_sigaltstack
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ // set tls base to DI
+@@ -248,7 +243,7 @@ TEXT runtime·settls(SB),7,$8
+ 	MOVQ	$165, AX		// sys_sysarch
+ 	SYSCALL
+ 	JCC	2(PC)
+-	CALL	runtime·notok(SB)
++	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),7,$0
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index 76b5ee5fbe..fa8d4221e2 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -268,11 +268,6 @@ TEXT runtime·tstart_stdcall(SB),7,$0
+ 	XORL	AX, AX			// return 0 == success
+ 	RET
+ 
+-TEXT runtime·notok(SB),7,$0
+-	MOVQ	$0xf1, BP
+-	MOVQ	BP, (BP)
+-	RET
+-
+ // set tls base to DI
+ TEXT runtime·settls(SB),7,$0
+ 	CALL	runtime·setstacklimits(SB)

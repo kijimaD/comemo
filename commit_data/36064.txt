@@ -26,7 +26,90 @@ Date:   Mon Apr 2 22:50:20 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/bug248.go | 17 +++++++++--------
  test/fixedbugs/bug345.go | 12 +++++++-----
  2 files changed, 16 insertions(+), 13 deletions(-)
+
+diff --git a/test/fixedbugs/bug248.go b/test/fixedbugs/bug248.go
+index 173b46fd83..30f2ce48f1 100644
+--- a/test/fixedbugs/bug248.go
++++ b/test/fixedbugs/bug248.go
+@@ -12,6 +12,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"regexp"
+ )
+ 
+ func main() {
+@@ -19,13 +20,11 @@ func main() {
+ 	errchk, err := filepath.Abs("errchk")
+ 	check(err)
+ 
+-	err = os.Chdir(filepath.Join("fixedbugs", "bug248.dir"))
+-	check(err)
+-
+-	run("go", "tool", "compile", "bug0.go")
+-	run("go", "tool", "compile", "bug1.go")
+-	run("go", "tool", "compile", "bug2.go")
+-	run(errchk, "go", "tool", "compile", "-e", "bug3.go")
++	bugDir := filepath.Join(".", "fixedbugs", "bug248.dir")
++	run("go", "tool", "compile", filepath.Join(bugDir, "bug0.go"))
++	run("go", "tool", "compile", filepath.Join(bugDir, "bug1.go"))
++	run("go", "tool", "compile", filepath.Join(bugDir, "bug2.go"))
++	run(errchk, "go", "tool", "compile", "-e", filepath.Join(bugDir, "bug3.go"))
+ 	run("go", "tool", "link", "bug2.o")
+ 	run(fmt.Sprintf(".%ca.out", filepath.Separator))
+ 
+@@ -35,10 +34,12 @@ func main() {
+ 	os.Remove("a.out")
+ }
+ 
++var bugRE = regexp.MustCompile(`(?m)^BUG`)
++
+ func run(name string, args ...string) {
+ 	cmd := exec.Command(name, args...)
+ 	out, err := cmd.CombinedOutput()
+-	if err != nil {
++	if bugRE.Match(out) || err != nil {
+ 		fmt.Println(string(out))
+ 		fmt.Println(err)
+ 		os.Exit(1)
+diff --git a/test/fixedbugs/bug345.go b/test/fixedbugs/bug345.go
+index dcf62f0592..59e99c7d2a 100644
+--- a/test/fixedbugs/bug345.go
++++ b/test/fixedbugs/bug345.go
+@@ -12,6 +12,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"regexp"
+ )
+ 
+ func main() {
+@@ -19,18 +20,19 @@ func main() {
+ 	errchk, err := filepath.Abs("errchk")
+ 	check(err)
+ 
+-	err = os.Chdir(filepath.Join(".", "fixedbugs", "bug345.dir"))
+-	check(err)
++	bugDir := filepath.Join(".", "fixedbugs", "bug345.dir")
++	run("go", "tool", "compile", filepath.Join(bugDir, "io.go"))
++	run(errchk, "go", "tool", "compile", "-e", filepath.Join(bugDir, "main.go"))
+ 
+-	run("go", "tool", "compile", "io.go")
+-	run(errchk, "go", "tool", "compile", "-e", "main.go")
+ 	os.Remove("io.o")
+ }
+ 
++var bugRE = regexp.MustCompile(`(?m)^BUG`)
++
+ func run(name string, args ...string) {
+ 	cmd := exec.Command(name, args...)
+ 	out, err := cmd.CombinedOutput()
+-	if err != nil {
++	if bugRE.Match(out) || err != nil {
+ 		fmt.Println(string(out))
+ 		fmt.Println(err)
+ 		os.Exit(1)

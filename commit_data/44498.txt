@@ -11,6 +11,18 @@ Date:   Wed Jul 22 11:42:13 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/target.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/target.go b/src/cmd/link/internal/ld/target.go
+index 9f0aab3d6c..40e53d4c9d 100644
+--- a/src/cmd/link/internal/ld/target.go
++++ b/src/cmd/link/internal/ld/target.go
+@@ -185,5 +185,5 @@ func (t *Target) IsBigEndian() bool {
+ // Temporary helper.
+ func (t *Target) StreamExtRelocs() bool {
+ 	return (t.IsELF || t.IsDarwin()) &&
+-		(t.IsAMD64() || t.Is386() || t.IsARM64() || t.IsMIPS() || t.IsMIPS64())
++		(t.IsAMD64() || t.Is386() || t.IsARM64() || t.IsMIPS() || t.IsMIPS64() || t.IsS390X())
+ }

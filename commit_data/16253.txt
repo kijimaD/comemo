@@ -9,9 +9,119 @@ Date:   Tue Apr 30 17:47:39 2013 -0700
     R=golang-dev, mikioh.mikioh, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/8966046
-
+---
  src/pkg/net/dial_test.go  | 35 +++++++++++++++++++++++++++++++++++
  src/pkg/net/fd_unix.go    |  2 +-
  src/pkg/net/fd_windows.go | 25 +++++++++++++------------
  src/pkg/net/sock_posix.go |  2 +-
  4 files changed, 50 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index 41821e4adb..e24fecc8d4 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -372,3 +372,38 @@ func TestDialFailPDLeak(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestDialer(t *testing.T) {
++	ln, err := Listen("tcp4", "127.0.0.1:0")
++	if err != nil {
++		t.Fatalf("Listen failed: %v", err)
++	}
++	defer ln.Close()
++	ch := make(chan error, 1)
++	go func() {
++		var err error
++		c, err := ln.Accept()
++		if err != nil {
++			ch <- fmt.Errorf("Accept failed: %v", err)
++			return
++		}
++		defer c.Close()
++		ch <- nil
++	}()
++
++	laddr, err := ResolveTCPAddr("tcp4", "127.0.0.1:0")
++	if err != nil {
++		t.Fatalf("ResolveTCPAddr failed: %v", err)
++	}
++	d := &Dialer{LocalAddr: laddr}
++	c, err := d.Dial("tcp4", ln.Addr().String())
++	if err != nil {
++		t.Fatalf("Dial failed: %v", err)
++	}
++	defer c.Close()
++	c.Read(make([]byte, 1))
++	err = <-ch
++	if err != nil {
++		t.Error(err)
++	}
++}
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index c160faeceb..8c59bff989 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -79,7 +79,7 @@ func (fd *netFD) name() string {
+ 	return fd.net + ":" + ls + "->" + rs
+ }
+ 
+-func (fd *netFD) connect(ra syscall.Sockaddr) error {
++func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
+ 	fd.wio.Lock()
+ 	defer fd.wio.Unlock()
+ 	if err := fd.pd.PrepareWrite(); err != nil {
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 3a16d8ae7b..fefd174baf 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -364,22 +364,23 @@ func (o *connectOp) Name() string {
+ 	return "ConnectEx"
+ }
+ 
+-func (fd *netFD) connect(ra syscall.Sockaddr) error {
++func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
+ 	if !canUseConnectEx(fd.net) {
+ 		return syscall.Connect(fd.sysfd, ra)
+ 	}
+ 	// ConnectEx windows API requires an unconnected, previously bound socket.
+-	var la syscall.Sockaddr
+-	switch ra.(type) {
+-	case *syscall.SockaddrInet4:
+-		la = &syscall.SockaddrInet4{}
+-	case *syscall.SockaddrInet6:
+-		la = &syscall.SockaddrInet6{}
+-	default:
+-		panic("unexpected type in connect")
+-	}
+-	if err := syscall.Bind(fd.sysfd, la); err != nil {
+-		return err
++	if la == nil {
++		switch ra.(type) {
++		case *syscall.SockaddrInet4:
++			la = &syscall.SockaddrInet4{}
++		case *syscall.SockaddrInet6:
++			la = &syscall.SockaddrInet6{}
++		default:
++			panic("unexpected type in connect")
++		}
++		if err := syscall.Bind(fd.sysfd, la); err != nil {
++			return err
++		}
+ 	}
+ 	// Call ConnectEx API.
+ 	var o connectOp
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index 7e6a2c073d..be89c26db2 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -57,7 +57,7 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
+ 		if !deadline.IsZero() {
+ 			setWriteDeadline(fd, deadline)
+ 		}
+-		if err = fd.connect(ursa); err != nil {
++		if err = fd.connect(ulsa, ursa); err != nil {
+ 			fd.Close()
+ 			return nil, err
+ 		}

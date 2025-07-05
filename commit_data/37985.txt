@@ -23,6 +23,28 @@ Date:   Tue Sep 18 12:52:39 2018 -0700
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/fmt/print.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index c9d694b07d..32743d0712 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -139,6 +139,16 @@ func newPrinter() *pp {
+ 
+ // free saves used pp structs in ppFree; avoids an allocation per invocation.
+ func (p *pp) free() {
++	// Proper usage of a sync.Pool requires each entry to have approximately
++	// the same memory cost. To obtain this property when the stored type
++	// contains a variably-sized buffer, we add a hard limit on the maximum buffer
++	// to place back in the pool.
++	//
++	// See https://golang.org/issue/23199
++	if cap(p.buf) > 64<<10 {
++		return
++	}
++
+ 	p.buf = p.buf[:0]
+ 	p.arg = nil
+ 	p.value = reflect.Value{}

@@ -23,7 +23,44 @@ Date:   Wed Feb 14 11:52:22 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/macho.go | 4 +---
  src/cmd/link/link_test.go         | 6 +++---
  2 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index fc38b0d99d..91e908c97f 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -478,13 +478,11 @@ func (ctxt *Link) domacho() {
+ 		if ctxt.LinkMode == LinkInternal && machoPlatform == PLATFORM_MACOS {
+ 			var version uint32
+ 			switch ctxt.Arch.Family {
+-			case sys.AMD64:
++			case sys.ARM64, sys.AMD64:
+ 				// This must be fairly recent for Apple signing (go.dev/issue/30488).
+ 				// Having too old a version here was also implicated in some problems
+ 				// calling into macOS libraries (go.dev/issue/56784).
+ 				// In general this can be the most recent supported macOS version.
+-				version = 10<<16 | 13<<8 | 0<<0 // 10.13.0
+-			case sys.ARM64:
+ 				version = 11<<16 | 0<<8 | 0<<0 // 11.0.0
+ 			}
+ 			ml := newMachoLoad(ctxt.Arch, LC_BUILD_VERSION, 4)
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 897607c4fa..7029d3213f 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -388,9 +388,9 @@ func TestMachOBuildVersion(t *testing.T) {
+ 	found := false
+ 	const LC_BUILD_VERSION = 0x32
+ 	checkMin := func(ver uint32) {
+-		major, minor := (ver>>16)&0xff, (ver>>8)&0xff
+-		if major != 10 || minor < 9 {
+-			t.Errorf("LC_BUILD_VERSION version %d.%d < 10.9", major, minor)
++		major, minor, patch := (ver>>16)&0xff, (ver>>8)&0xff, (ver>>0)&0xff
++		if major < 11 {
++			t.Errorf("LC_BUILD_VERSION version %d.%d.%d < 11.0.0", major, minor, patch)
+ 		}
+ 	}
+ 	for _, cmd := range exem.Loads {

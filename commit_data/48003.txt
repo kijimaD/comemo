@@ -10,6 +10,24 @@ Date:   Wed Apr 21 20:23:50 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/interface_freebsd.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/interface_freebsd.go b/src/net/interface_freebsd.go
+index 45badd6495..2b51fcb632 100644
+--- a/src/net/interface_freebsd.go
++++ b/src/net/interface_freebsd.go
+@@ -16,9 +16,9 @@ func interfaceMessages(ifindex int) ([]route.Message, error) {
+ 	if err != nil {
+ 		typ = route.RIBType(syscall.NET_RT_IFLIST)
+ 		rib, err = route.FetchRIB(syscall.AF_UNSPEC, typ, ifindex)
+-	}
+-	if err != nil {
+-		return nil, err
++		if err != nil {
++			return nil, err
++		}
+ 	}
+ 	return route.ParseRIB(typ, rib)
+ }

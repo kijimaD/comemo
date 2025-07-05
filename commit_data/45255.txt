@@ -15,6 +15,19 @@ Date:   Thu Oct 15 17:08:50 2020 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Trust: Damien Neil <dneil@google.com>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transport.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 4546166430..d5ee5645fb 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -44,7 +44,6 @@ var DefaultTransport RoundTripper = &Transport{
+ 	DialContext: (&net.Dialer{
+ 		Timeout:   30 * time.Second,
+ 		KeepAlive: 30 * time.Second,
+-		DualStack: true,
+ 	}).DialContext,
+ 	ForceAttemptHTTP2:     true,
+ 	MaxIdleConns:          100,

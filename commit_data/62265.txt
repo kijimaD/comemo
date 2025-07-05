@@ -14,6 +14,20 @@ Date:   Sat Feb 15 04:45:04 2025 +1100
     Reviewed-by: Damien Neil <dneil@google.com>
     Commit-Queue: Damien Neil <dneil@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/internal/syscall/unix/at_openbsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/syscall/unix/at_openbsd.go b/src/internal/syscall/unix/at_openbsd.go
+index 771cb063e0..22c959b0c7 100644
+--- a/src/internal/syscall/unix/at_openbsd.go
++++ b/src/internal/syscall/unix/at_openbsd.go
+@@ -81,7 +81,7 @@ func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_fchmodat_trampoline),
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_fchownat_trampoline),
+ 		uintptr(dirfd),
+ 		uintptr(unsafe.Pointer(p)),
+ 		uintptr(uid),

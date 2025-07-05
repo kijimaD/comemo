@@ -7,7 +7,43 @@ Date:   Tue Sep 2 17:26:00 2008 -0700
     R=r
     OCL=14734
     CL=14734
-
+---
  usr/gri/gosrc/import.go | 2 +-
  usr/gri/gosrc/parser.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/usr/gri/gosrc/import.go b/usr/gri/gosrc/import.go
+index 8aff333063..b947c514df 100755
+--- a/usr/gri/gosrc/import.go
++++ b/usr/gri/gosrc/import.go
+@@ -41,7 +41,7 @@ func (I *Importer) ReadByte() byte {
+ 
+ func (I *Importer) ReadInt() int {
+ 	x := 0;
+-	s := 0;  // TODO eventually Go will require this to be a uint!
++	s := uint(0);
+ 	b := I.ReadByte();
+ 	for b < 128 {
+ 		x |= int(b) << s;
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 789573190b..023a0d85d0 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -533,7 +533,7 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
+ 	if P.tok == Scanner.PERIOD {
+ 		p0 = sig.entries.len_;
+ 		if P.semantic_checks && p0 != 1 {
+-			P.Error(recv_pos, "must have exactly one receiver")
++			P.Error(recv_pos, "must have exactly one receiver");
+ 			panic("UNIMPLEMENTED (ParseAnonymousSignature)");
+ 			// TODO do something useful here
+ 		}
+@@ -574,7 +574,7 @@ func (P *Parser) ParseNamedSignature() (pos int, ident string, typ *Globals.Type
+ 		p0 = sig.entries.len_;
+ 		if P.semantic_checks && p0 != 1 {
+ 			print("p0 = ", p0, "\n");
+-			P.Error(recv_pos, "must have exactly one receiver")
++			P.Error(recv_pos, "must have exactly one receiver");
+ 			panic("UNIMPLEMENTED (ParseNamedSignature)");
+ 			// TODO do something useful here
+ 		}

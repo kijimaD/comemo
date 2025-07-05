@@ -13,10 +13,118 @@ Date:   Fri Sep 16 18:31:25 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/dcl.go  |  2 --
  src/cmd/compile/internal/gc/go.go   |  4 ----
  src/cmd/compile/internal/gc/pgen.go |  6 +-----
  src/cmd/internal/obj/link.go        |  3 +--
  src/cmd/internal/obj/plist.go       | 15 +++------------
  5 files changed, 5 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 0a1d63ae3d..fa54e709cf 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1260,8 +1260,6 @@ func funccompile(n *Node) {
+ 	compile(n)
+ 	Curfn = nil
+ 	Pc = nil
+-	continpc = nil
+-	breakpc = nil
+ 	funcdepth = 0
+ 	dclcontext = PEXTERN
+ 	if nerrors != 0 {
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index d090e5cb95..ccf2a86bb3 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -274,10 +274,6 @@ var writearchive bool
+ 
+ var Nacl bool
+ 
+-var continpc *obj.Prog
+-
+-var breakpc *obj.Prog
+-
+ var Pc *obj.Prog
+ 
+ var nodfp *Node
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index fd7ab08a1a..a43ec32176 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -372,11 +372,7 @@ func compile(fn *Node) {
+ 		return
+ 	}
+ 
+-	continpc = nil
+-	breakpc = nil
+-
+-	pl := newplist()
+-	pl.Name = Linksym(Curfn.Func.Nname.Sym)
++	newplist()
+ 
+ 	setlineno(Curfn)
+ 
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index a9af709be6..c5d600d564 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -679,8 +679,7 @@ type Link struct {
+ 	Hash          map[SymVer]*LSym
+ 	LineHist      LineHist
+ 	Imports       []string
+-	Plist         *Plist
+-	Plast         *Plist
++	Plists        []*Plist
+ 	Sym_div       *LSym
+ 	Sym_divu      *LSym
+ 	Sym_mod       *LSym
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 9d76ea9ee8..4890d9c03f 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -11,10 +11,7 @@ import (
+ )
+ 
+ type Plist struct {
+-	Name    *LSym
+ 	Firstpc *Prog
+-	Recur   int
+-	Link    *Plist
+ }
+ 
+ /*
+@@ -22,12 +19,7 @@ type Plist struct {
+  */
+ func Linknewplist(ctxt *Link) *Plist {
+ 	pl := new(Plist)
+-	if ctxt.Plist == nil {
+-		ctxt.Plist = pl
+-	} else {
+-		ctxt.Plast.Link = pl
+-	}
+-	ctxt.Plast = pl
++	ctxt.Plists = append(ctxt.Plists, pl)
+ 	return pl
+ }
+ 
+@@ -45,7 +37,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 	var etext *Prog
+ 	var text []*LSym
+ 
+-	for pl := ctxt.Plist; pl != nil; pl = pl.Link {
++	for _, pl := range ctxt.Plists {
+ 		var plink *Prog
+ 		for p := pl.Firstpc; p != nil; p = plink {
+ 			if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
+@@ -182,8 +174,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 	// Add to running list in ctxt.
+ 	ctxt.Text = append(ctxt.Text, text...)
+ 	ctxt.Data = append(ctxt.Data, gendwarf(ctxt, text)...)
+-	ctxt.Plist = nil
+-	ctxt.Plast = nil
++	ctxt.Plists = nil
+ 	ctxt.Curp = nil
+ 	if freeProgs {
+ 		ctxt.freeProgs()

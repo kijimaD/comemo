@@ -7,6 +7,24 @@ Date:   Fri Jun 3 09:48:42 2011 +1000
     R=golang-dev, dchest
     CC=golang-dev
     https://golang.org/cl/4564057
-
+---
  doc/docs.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index e8f2fa5017..f6ff05c256 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -59,6 +59,12 @@ An introduction to Go for C++ programmers.
+ 
+ <h2 id="tutorials_nonenglish">Non-English Documentation</h2>
+ 
++<h3 id="docs_be">Belarusian &mdash; Беларуская</h3>
++
++<ul>
++<li><a href="http://www.designcontest.com/show/faq-be">faq-be</a> - Frequently Asked Questions.</li>
++</ul>
++
+ <h3 id="docs_cn">Chinese &mdash; 中文</h3>
+ 
+ <ul>

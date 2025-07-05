@@ -8,6 +8,38 @@ Date:   Thu Jul 29 11:14:54 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/338309
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/operand.go | 16 ++++++++++------
  1 file changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 01c720d1f7..34d35b2594 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -176,16 +176,20 @@ func operandString(x *operand, qf Qualifier) string {
+ 	if hasType {
+ 		if x.typ != Typ[Invalid] {
+ 			var intro string
+-			switch {
+-			case isGeneric(x.typ):
+-				intro = " of generic type "
+-			case asTypeParam(x.typ) != nil:
+-				intro = " of type parameter type "
+-			default:
++			var tpar *TypeParam
++			if isGeneric(x.typ) {
++				intro = " of parameterized type "
++			} else if tpar = asTypeParam(x.typ); tpar != nil {
++				intro = " of type parameter "
++			} else {
+ 				intro = " of type "
+ 			}
+ 			buf.WriteString(intro)
+ 			WriteType(&buf, x.typ, qf)
++			if tpar != nil {
++				buf.WriteString(" constrained by ")
++				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
++			}
+ 		} else {
+ 			buf.WriteString(" with invalid type")
+ 		}

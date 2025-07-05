@@ -8,7 +8,7 @@ Date:   Tue Jun 11 02:55:16 2013 +0800
     R=golang-dev, bradfitz, rsc, iant
     CC=golang-dev
     https://golang.org/cl/7100050
-
+---
  doc/go1.2.txt              | 1 +
  src/pkg/net/cgo_bsd.go     | 1 +
  src/pkg/net/cgo_linux.go   | 2 ++
@@ -17,3 +17,90 @@ Date:   Tue Jun 11 02:55:16 2013 +0800
  src/pkg/net/cgo_stub.go    | 2 +-
  src/pkg/net/cgo_unix.go    | 1 +
  7 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.2.txt b/doc/go1.2.txt
+index b8034894b8..37172db0bb 100644
+--- a/doc/go1.2.txt
++++ b/doc/go1.2.txt
+@@ -15,4 +15,5 @@ crypto/tls: add support for TLS 1.1. (CL 7872043).
+ fmt: indexed access to arguments in Printf etc. (CL 9680043).
+ go/build: support including C++ code with cgo (CL 8248043).
+ io: Copy prioritizes WriterTo over ReaderFrom (CL 9462044).
++net: new build tag netgo for building a pure Go net package (CL 7100050).
+ testing: AllocsPerRun is now quantized to an integer (the type is still float64) (CL 9837049).
+diff --git a/src/pkg/net/cgo_bsd.go b/src/pkg/net/cgo_bsd.go
+index 3b38e3d83e..53f8c38e3b 100644
+--- a/src/pkg/net/cgo_bsd.go
++++ b/src/pkg/net/cgo_bsd.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !netgo
+ // +build darwin freebsd
+ 
+ package net
+diff --git a/src/pkg/net/cgo_linux.go b/src/pkg/net/cgo_linux.go
+index f6cefa89ae..693aef03d2 100644
+--- a/src/pkg/net/cgo_linux.go
++++ b/src/pkg/net/cgo_linux.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build cgo,!netgo
++
+ package net
+ 
+ /*
+diff --git a/src/pkg/net/cgo_netbsd.go b/src/pkg/net/cgo_netbsd.go
+index aeaf8e568a..09c5ad2d9f 100644
+--- a/src/pkg/net/cgo_netbsd.go
++++ b/src/pkg/net/cgo_netbsd.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build cgo,!netgo
++
+ package net
+ 
+ /*
+diff --git a/src/pkg/net/cgo_openbsd.go b/src/pkg/net/cgo_openbsd.go
+index aeaf8e568a..09c5ad2d9f 100644
+--- a/src/pkg/net/cgo_openbsd.go
++++ b/src/pkg/net/cgo_openbsd.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build cgo,!netgo
++
+ package net
+ 
+ /*
+diff --git a/src/pkg/net/cgo_stub.go b/src/pkg/net/cgo_stub.go
+index 52e57d7400..f533c14212 100644
+--- a/src/pkg/net/cgo_stub.go
++++ b/src/pkg/net/cgo_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !cgo
++// +build !cgo netgo
+ 
+ // Stub cgo routines for systems that do not use cgo to do network lookups.
+ 
+diff --git a/src/pkg/net/cgo_unix.go b/src/pkg/net/cgo_unix.go
+index 7476140ebf..0c3c56936e 100644
+--- a/src/pkg/net/cgo_unix.go
++++ b/src/pkg/net/cgo_unix.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !netgo
+ // +build darwin freebsd linux netbsd openbsd
+ 
+ package net

@@ -22,10 +22,138 @@ Date:   Mon May 20 20:31:36 2024 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mksizeclasses.go  |  4 +++-
  src/runtime/sizeclasses.go    |  1 +
  src/runtime/trace.go          |  2 +-
  src/runtime/traceallocfree.go | 29 +++++++++++++++++++++++++++--
  src/runtime/tracetype.go      |  9 +++++++--
  5 files changed, 39 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mksizeclasses.go b/src/runtime/mksizeclasses.go
+index 26ca49e6eb..bb06ba1edd 100644
+--- a/src/runtime/mksizeclasses.go
++++ b/src/runtime/mksizeclasses.go
+@@ -75,6 +75,7 @@ func main() {
+ 
+ const (
+ 	// Constants that we use and will transfer to the runtime.
++	minHeapAlign = 8
+ 	maxSmallSize = 32 << 10
+ 	smallSizeDiv = 8
+ 	smallSizeMax = 1024
+@@ -99,7 +100,7 @@ func makeClasses() []class {
+ 
+ 	classes = append(classes, class{}) // class #0 is a dummy entry
+ 
+-	align := 8
++	align := minHeapAlign
+ 	for size := align; size <= maxSmallSize; size += align {
+ 		if powerOfTwo(size) { // bump alignment once in a while
+ 			if size >= 2048 {
+@@ -288,6 +289,7 @@ func maxObjsPerSpan(classes []class) int {
+ 
+ func printClasses(w io.Writer, classes []class) {
+ 	fmt.Fprintln(w, "const (")
++	fmt.Fprintf(w, "minHeapAlign = %d\n", minHeapAlign)
+ 	fmt.Fprintf(w, "_MaxSmallSize = %d\n", maxSmallSize)
+ 	fmt.Fprintf(w, "smallSizeDiv = %d\n", smallSizeDiv)
+ 	fmt.Fprintf(w, "smallSizeMax = %d\n", smallSizeMax)
+diff --git a/src/runtime/sizeclasses.go b/src/runtime/sizeclasses.go
+index 9314623453..bbcaa9e983 100644
+--- a/src/runtime/sizeclasses.go
++++ b/src/runtime/sizeclasses.go
+@@ -82,6 +82,7 @@ package runtime
+ //      8192    13         32768
+ 
+ const (
++	minHeapAlign    = 8
+ 	_MaxSmallSize   = 32768
+ 	smallSizeDiv    = 8
+ 	smallSizeMax    = 1024
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 49ac3e2d45..e893525bd0 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -290,7 +290,7 @@ func StartTrace() error {
+ 
+ 	// Dump a snapshot of memory, if enabled.
+ 	if trace.enabledWithAllocFree {
+-		traceSnapshotMemory()
++		traceSnapshotMemory(firstGen)
+ 	}
+ 
+ 	// Record the heap goal so we have it at the very beginning of the trace.
+diff --git a/src/runtime/traceallocfree.go b/src/runtime/traceallocfree.go
+index 3067e16670..67c6f40926 100644
+--- a/src/runtime/traceallocfree.go
++++ b/src/runtime/traceallocfree.go
+@@ -11,13 +11,38 @@ import (
+ 	"runtime/internal/sys"
+ )
+ 
++// Batch type values for the alloc/free experiment.
++const (
++	traceAllocFreeTypesBatch = iota // Contains types. [{id, address, size, ptrspan, name length, name string} ...]
++	traceAllocFreeInfoBatch         // Contains info for interpreting events. [min heap addr, page size, min heap align, min stack align]
++)
++
+ // traceSnapshotMemory takes a snapshot of all runtime memory that there are events for
+ // (heap spans, heap objects, goroutine stacks, etc.) and writes out events for them.
+ //
+ // The world must be stopped and tracing must be enabled when this function is called.
+-func traceSnapshotMemory() {
++func traceSnapshotMemory(gen uintptr) {
+ 	assertWorldStopped()
+ 
++	// Write a batch containing information that'll be necessary to
++	// interpret the events.
++	var flushed bool
++	w := unsafeTraceExpWriter(gen, nil, traceExperimentAllocFree)
++	w, flushed = w.ensure(1 + 4*traceBytesPerNumber)
++	if flushed {
++		// Annotate the batch as containing additional info.
++		w.byte(byte(traceAllocFreeInfoBatch))
++	}
++
++	// Emit info.
++	w.varint(uint64(trace.minPageHeapAddr))
++	w.varint(uint64(pageSize))
++	w.varint(uint64(minHeapAlign))
++	w.varint(uint64(fixedStack))
++
++	// Finish writing the batch.
++	w.flush().end()
++
+ 	// Start tracing.
+ 	trace := traceAcquire()
+ 	if !trace.ok() {
+@@ -103,7 +128,7 @@ func (tl traceLocker) HeapObjectFree(addr uintptr) {
+ 
+ // traceHeapObjectID creates a trace ID for a heap object at address addr.
+ func traceHeapObjectID(addr uintptr) traceArg {
+-	return traceArg(uint64(addr)-trace.minPageHeapAddr) / 8
++	return traceArg(uint64(addr)-trace.minPageHeapAddr) / minHeapAlign
+ }
+ 
+ // GoroutineStackExists records that a goroutine stack already exists at address base with the provided size.
+diff --git a/src/runtime/tracetype.go b/src/runtime/tracetype.go
+index 41dce9c9f2..b27a690916 100644
+--- a/src/runtime/tracetype.go
++++ b/src/runtime/tracetype.go
+@@ -54,8 +54,13 @@ func dumpTypesRec(node *traceMapNode, w traceExpWriter) traceExpWriter {
+ 	// bound is pretty loose, but avoids counting
+ 	// lots of varint sizes.
+ 	//
+-	// Add 1 because we might also write traceEvTypes.
+-	w, _ = w.ensure(1 + maxBytes)
++	// Add 1 because we might also write a traceAllocFreeTypesBatch byte.
++	var flushed bool
++	w, flushed = w.ensure(1 + maxBytes)
++	if flushed {
++		// Annotate the batch as containing types.
++		w.byte(byte(traceAllocFreeTypesBatch))
++	}
+ 
+ 	// Emit type.
+ 	w.varint(uint64(node.id))

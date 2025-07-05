@@ -17,9 +17,79 @@ Date:   Thu Feb 4 11:41:34 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/asm.s           |  5 +++++
  src/runtime/asm_amd64.s     | 12 ++++++++++++
  src/runtime/signal_amd64.go |  7 +++++--
  src/runtime/stubs.go        |  4 ++++
  4 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index 27d8df9e06..72c744925d 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -11,3 +11,8 @@
+ DATA runtime·no_pointers_stackmap+0x00(SB)/4, $2
+ DATA runtime·no_pointers_stackmap+0x04(SB)/4, $0
+ GLOBL runtime·no_pointers_stackmap(SB),RODATA, $8
++
++#ifndef GOARCH_amd64
++TEXT ·sigpanic0<ABIInternal>(SB),NOSPLIT,$0-0
++	JMP	·sigpanic<ABIInternal>(SB)
++#endif
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 9f15990b13..83c08a52f7 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1364,6 +1364,18 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+ 	POPQ	R15
+ 	RET
+ 
++// Initialize special registers then jump to sigpanic.
++// This function is injected from the signal handler for panicking
++// signals. It is quite painful to set X15 in the signal context,
++// so we do it here.
++TEXT ·sigpanic0<ABIInternal>(SB),NOSPLIT,$0-0
++#ifdef GOEXPERIMENT_REGABI
++	get_tls(R14)
++	MOVQ	g(R14), R14
++	XORPS	X15, X15
++#endif
++	JMP	·sigpanic<ABIInternal>(SB)
++
+ // gcWriteBarrier performs a heap pointer write and informs the GC.
+ //
+ // gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+diff --git a/src/runtime/signal_amd64.go b/src/runtime/signal_amd64.go
+index 6ab1f758c2..3eeb5e044f 100644
+--- a/src/runtime/signal_amd64.go
++++ b/src/runtime/signal_amd64.go
+@@ -65,11 +65,14 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	pc := uintptr(c.rip())
+ 	sp := uintptr(c.rsp())
+ 
++	// In case we are panicking from external code, we need to initialize
++	// Go special registers. We inject sigpanic0 (instead of sigpanic),
++	// which takes care of that.
+ 	if shouldPushSigpanic(gp, pc, *(*uintptr)(unsafe.Pointer(sp))) {
+-		c.pushCall(funcPC(sigpanic), pc)
++		c.pushCall(funcPC(sigpanic0), pc)
+ 	} else {
+ 		// Not safe to push the call. Just clobber the frame.
+-		c.set_rip(uint64(funcPC(sigpanic)))
++		c.set_rip(uint64(funcPC(sigpanic0)))
+ 	}
+ }
+ 
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 36bbc8991a..3d1e0c0bb4 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -356,3 +356,7 @@ func duffcopy()
+ 
+ // Called from linker-generated .initarray; declared for go vet; do NOT call from Go.
+ func addmoduledata()
++
++// Injected by the signal handler for panicking signals. On many platforms it just
++// jumps to sigpanic.
++func sigpanic0()

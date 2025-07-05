@@ -15,7 +15,56 @@ Date:   Fri Dec 16 11:57:25 2016 -0500
     Change-Id: Ic5ed1beffb65db76aca2977958da35de902e8e58
     Reviewed-on: https://go-review.googlesource.com/34590
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/reflect/makefunc.go  | 12 ++++++++----
  src/runtime/traceback.go |  3 ++-
  2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/reflect/makefunc.go b/src/reflect/makefunc.go
+index a7efeb8262..885966db6f 100644
+--- a/src/reflect/makefunc.go
++++ b/src/reflect/makefunc.go
+@@ -12,9 +12,12 @@ import (
+ 
+ // makeFuncImpl is the closure value implementing the function
+ // returned by MakeFunc.
++// The first two words of this type must be kept in sync with
++// methodValue and runtime.reflectMethodValue.
++// Any changes should be reflected in all three.
+ type makeFuncImpl struct {
+ 	code  uintptr
+-	stack *bitVector // stack bitmap for args - offset known to runtime
++	stack *bitVector
+ 	typ   *funcType
+ 	fn    func([]Value) []Value
+ }
+@@ -70,11 +73,12 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
+ // word in the passed-in argument frame.
+ func makeFuncStub()
+ 
+-// This type is partially duplicated as runtime.reflectMethodValue.
+-// Any changes should be reflected in both.
++// The first two words of this type must be kept in sync with
++// makeFuncImpl and runtime.reflectMethodValue.
++// Any changes should be reflected in all three.
+ type methodValue struct {
+ 	fn     uintptr
+-	stack  *bitVector // stack bitmap for args - offset known to runtime
++	stack  *bitVector
+ 	method int
+ 	rcvr   Value
+ }
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 0049e82d63..180489fb2c 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -546,7 +546,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 	return n
+ }
+ 
+-// reflectMethodValue is a partial duplicate of reflect.methodValue.
++// reflectMethodValue is a partial duplicate of reflect.makeFuncImpl
++// and reflect.methodValue.
+ type reflectMethodValue struct {
+ 	fn    uintptr
+ 	stack *bitvector // args bitmap

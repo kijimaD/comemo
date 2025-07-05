@@ -13,8 +13,50 @@ Date:   Mon Jul 11 16:05:41 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/27492
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/asm.s                          | 3 ---
  src/runtime/internal/atomic/asm.s          | 8 --------
  src/runtime/internal/atomic/sys_nacl_arm.s | 3 ---
  3 files changed, 14 deletions(-)
+
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index 646dc2ff07..3ddea7c055 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -12,8 +12,5 @@ DATA runtime·no_pointers_stackmap+0x00(SB)/4, $2
+ DATA runtime·no_pointers_stackmap+0x04(SB)/4, $0
+ GLOBL runtime·no_pointers_stackmap(SB),RODATA, $8
+ 
+-TEXT runtime·nop(SB),NOSPLIT,$0-0
+-	RET
+-
+ GLOBL runtime·mheap_(SB), NOPTR, $0
+ GLOBL runtime·memstats(SB), NOPTR, $0
+diff --git a/src/runtime/internal/atomic/asm.s b/src/runtime/internal/atomic/asm.s
+deleted file mode 100644
+index 84885854de..0000000000
+--- a/src/runtime/internal/atomic/asm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT runtime∕internal∕atomic·nop(SB),NOSPLIT,$0-0
+-	RET
+diff --git a/src/runtime/internal/atomic/sys_nacl_arm.s b/src/runtime/internal/atomic/sys_nacl_arm.s
+index efa960474d..bdc1dd6bcd 100644
+--- a/src/runtime/internal/atomic/sys_nacl_arm.s
++++ b/src/runtime/internal/atomic/sys_nacl_arm.s
+@@ -4,9 +4,6 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT runtime∕internal∕atomic·Casp(SB),NOSPLIT,$0
+-	B	runtime·cas(SB)
+-
+ // This is only valid for ARMv6+, however, NaCl/ARM is only defined
+ // for ARMv7A anyway.
+ TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0

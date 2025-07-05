@@ -14,10 +14,155 @@ Date:   Wed Jan 27 18:43:36 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/defs_plan9_386.go   |  6 ++++++
  src/runtime/defs_plan9_amd64.go |  6 ++++++
  src/runtime/os3_plan9.go        | 35 +++++++++++++++++++++++++----------
  src/runtime/os_plan9.go         | 10 +++++++++-
  src/runtime/signal_plan9.go     |  4 ++--
  5 files changed, 48 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/defs_plan9_386.go b/src/runtime/defs_plan9_386.go
+index 3574cb6654..54ace4871e 100644
+--- a/src/runtime/defs_plan9_386.go
++++ b/src/runtime/defs_plan9_386.go
+@@ -30,9 +30,13 @@ type sigctxt struct {
+ 
+ func (c *sigctxt) pc() uintptr { return uintptr(c.u.pc) }
+ func (c *sigctxt) sp() uintptr { return uintptr(c.u.sp) }
++func (c *sigctxt) lr() uintptr { return uintptr(0) }
+ 
+ func (c *sigctxt) setpc(x uintptr) { c.u.pc = uint32(x) }
+ func (c *sigctxt) setsp(x uintptr) { c.u.sp = uint32(x) }
++func (c *sigctxt) setlr(x uintptr) {}
++
++func (c *sigctxt) savelr(x uintptr) {}
+ 
+ func dumpregs(u *ureg) {
+ 	print("ax    ", hex(u.ax), "\n")
+@@ -49,3 +53,5 @@ func dumpregs(u *ureg) {
+ 	print("fs    ", hex(u.fs), "\n")
+ 	print("gs    ", hex(u.gs), "\n")
+ }
++
++func sigpanictramp() {}
+diff --git a/src/runtime/defs_plan9_amd64.go b/src/runtime/defs_plan9_amd64.go
+index 54b4d39076..1633ec1e0b 100644
+--- a/src/runtime/defs_plan9_amd64.go
++++ b/src/runtime/defs_plan9_amd64.go
+@@ -39,9 +39,13 @@ type sigctxt struct {
+ 
+ func (c *sigctxt) pc() uintptr { return uintptr(c.u.ip) }
+ func (c *sigctxt) sp() uintptr { return uintptr(c.u.sp) }
++func (c *sigctxt) lr() uintptr { return uintptr(0) }
+ 
+ func (c *sigctxt) setpc(x uintptr) { c.u.ip = uint64(x) }
+ func (c *sigctxt) setsp(x uintptr) { c.u.sp = uint64(x) }
++func (c *sigctxt) setlr(x uintptr) {}
++
++func (c *sigctxt) savelr(x uintptr) {}
+ 
+ func dumpregs(u *ureg) {
+ 	print("ax    ", hex(u.ax), "\n")
+@@ -66,3 +70,5 @@ func dumpregs(u *ureg) {
+ 	print("fs    ", hex(u.fs), "\n")
+ 	print("gs    ", hex(u.gs), "\n")
+ }
++
++func sigpanictramp() {}
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index 3cd843c855..767578e069 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -66,22 +66,37 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 			pc = 0
+ 		}
+ 
+-		// Only push sigpanic if PC != 0.
+-		//
++		// IF LR exists, sigpanictramp must save it to the stack
++		// before entry to sigpanic so that panics in leaf
++		// functions are correctly handled. This will smash
++		// the stack frame but we're not going back there
++		// anyway.
++		if usesLR {
++			c.savelr(c.lr())
++		}
++
+ 		// If PC == 0, probably panicked because of a call to a nil func.
+-		// Not pushing that onto SP will make the trace look like a call
++		// Not faking that as the return address will make the trace look like a call
+ 		// to sigpanic instead. (Otherwise the trace will end at
+ 		// sigpanic and we won't get to see who faulted).
+ 		if pc != 0 {
+-			if sys.RegSize > sys.PtrSize {
++			if usesLR {
++				c.setlr(pc)
++			} else {
++				if sys.RegSize > sys.PtrSize {
++					sp -= sys.PtrSize
++					*(*uintptr)(unsafe.Pointer(sp)) = 0
++				}
+ 				sp -= sys.PtrSize
+-				*(*uintptr)(unsafe.Pointer(sp)) = 0
++				*(*uintptr)(unsafe.Pointer(sp)) = pc
++				c.setsp(sp)
+ 			}
+-			sp -= sys.PtrSize
+-			*(*uintptr)(unsafe.Pointer(sp)) = pc
+-			c.setsp(sp)
+ 		}
+-		c.setpc(funcPC(sigpanic))
++		if usesLR {
++			c.setpc(funcPC(sigpanictramp))
++		} else {
++			c.setpc(funcPC(sigpanic))
++		}
+ 		return _NCONT
+ 	}
+ 	if flags&_SigNotify != 0 {
+@@ -105,7 +120,7 @@ Throw:
+ 	level, _, docrash = gotraceback()
+ 	if level > 0 {
+ 		goroutineheader(gp)
+-		tracebacktrap(c.pc(), c.sp(), 0, gp)
++		tracebacktrap(c.pc(), c.sp(), c.lr(), gp)
+ 		tracebackothers(gp)
+ 		print("\n")
+ 		dumpregs(_ureg)
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index cc2597a37d..5c43a3bd85 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -78,7 +78,15 @@ func sigpanic() {
+ 	note := gostringnocopy((*byte)(unsafe.Pointer(g.m.notesig)))
+ 	switch g.sig {
+ 	case _SIGRFAULT, _SIGWFAULT:
+-		addr := note[index(note, "addr=")+5:]
++		i := index(note, "addr=")
++		if i >= 0 {
++			i += 5
++		} else if i = index(note, "va="); i >= 0 {
++			i += 3
++		} else {
++			panicmem()
++		}
++		addr := note[i:]
+ 		g.sigcode1 = uintptr(atolwhex(addr))
+ 		if g.sigcode1 < 0x1000 || g.paniconfault {
+ 			panicmem()
+diff --git a/src/runtime/signal_plan9.go b/src/runtime/signal_plan9.go
+index 19247f2753..d3894c8c86 100644
+--- a/src/runtime/signal_plan9.go
++++ b/src/runtime/signal_plan9.go
+@@ -22,8 +22,8 @@ var sigtable = [...]sigTabT{
+ 	{_SigThrow, "sys: trap: invalid opcode"},
+ 
+ 	// We can recover from some memory errors in runtime·sigpanic.
+-	{_SigPanic, "sys: trap: fault read addr"},  // SIGRFAULT
+-	{_SigPanic, "sys: trap: fault write addr"}, // SIGWFAULT
++	{_SigPanic, "sys: trap: fault read"},  // SIGRFAULT
++	{_SigPanic, "sys: trap: fault write"}, // SIGWFAULT
+ 
+ 	// We can also recover from math errors.
+ 	{_SigPanic, "sys: trap: divide error"}, // SIGINTDIV

@@ -12,6 +12,27 @@ Date:   Mon Mar 7 13:41:27 2016 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc_test.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 9e5960bd2a..7064b0edd8 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -178,7 +178,14 @@ func testGoroutineParallelism2(t *testing.T, load, netpoll bool) {
+ 		}
+ 		if netpoll {
+ 			// Enable netpoller, affects schedler behavior.
+-			ln, err := net.Listen("tcp", "localhost:0")
++			laddr := "localhost:0"
++			if runtime.GOOS == "android" {
++				// On some Android devices, there are no records for localhost,
++				// see https://golang.org/issues/14486.
++				// Don't use 127.0.0.1 for every case, it won't work on IPv6-only systems.
++				laddr = "127.0.0.1:0"
++			}
++			ln, err := net.Listen("tcp", laddr)
+ 			if err != nil {
+ 				defer ln.Close() // yup, defer in a loop
+ 			}

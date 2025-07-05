@@ -21,6 +21,32 @@ Date:   Tue Dec 1 15:39:41 2015 +1300
     Change-Id: I606864133a83935899398e2d42edd08a946aab24
     Reviewed-on: https://go-review.googlesource.com/17281
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/obj/ppc64/obj9.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 696f6e5834..11be4d79f6 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -471,7 +471,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 			q = p
+ 
+-			if ctxt.Flag_shared != 0 && cursym.Name != "runtime.duffzero" && cursym.Name != "runtime.duffcopy" {
++			if ctxt.Flag_shared != 0 && cursym.Name != "runtime.duffzero" && cursym.Name != "runtime.duffcopy" && cursym.Name != "runtime.stackBarrier" {
+ 				// When compiling Go into PIC, all functions must start
+ 				// with instructions to load the TOC pointer into r2:
+ 				//
+@@ -482,7 +482,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				// but it's a bit subtle. However, it is both safe and
+ 				// necessary to leave the prologue off duffzero and
+ 				// duffcopy as we rely on being able to jump to a specific
+-				// instruction offset for them.
++				// instruction offset for them, and stackBarrier is only
++				// ever called from an overwritten LR-save slot on the
++				// stack (when r12 will not be remotely the right thing)
++				// but fortunately does not access global data.
+ 				//
+ 				// These are AWORDS because there is no (afaict) way to
+ 				// generate the addis instruction except as part of the

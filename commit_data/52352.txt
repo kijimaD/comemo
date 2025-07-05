@@ -14,10 +14,290 @@ Date:   Mon Apr 25 17:21:58 2022 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
-
+---
  src/runtime/export_test.go | 18 +++++++++---------
  src/runtime/gc_test.go     | 10 ++++------
  src/runtime/gcinfo_test.go | 25 +++++++++----------------
  src/runtime/malloc_test.go | 21 +++++----------------
  src/runtime/map_test.go    | 14 ++++----------
  5 files changed, 31 insertions(+), 57 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 3916eaf0e3..6d17d1bc4d 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -85,7 +85,7 @@ func GCMask(x any) (ret []byte) {
+ func RunSchedLocalQueueTest() {
+ 	_p_ := new(p)
+ 	gs := make([]g, len(_p_.runq))
+-	escape(gs) // Ensure gs doesn't move, since we use guintptrs
++	Escape(gs) // Ensure gs doesn't move, since we use guintptrs
+ 	for i := 0; i < len(_p_.runq); i++ {
+ 		if g, _ := runqget(_p_); g != nil {
+ 			throw("runq is not empty initially")
+@@ -109,7 +109,7 @@ func RunSchedLocalQueueStealTest() {
+ 	p1 := new(p)
+ 	p2 := new(p)
+ 	gs := make([]g, len(p1.runq))
+-	escape(gs) // Ensure gs doesn't move, since we use guintptrs
++	Escape(gs) // Ensure gs doesn't move, since we use guintptrs
+ 	for i := 0; i < len(p1.runq); i++ {
+ 		for j := 0; j < i; j++ {
+ 			gs[j].sig = 0
+@@ -157,7 +157,7 @@ func RunSchedLocalQueueEmptyTest(iters int) {
+ 	done := make(chan bool, 1)
+ 	p := new(p)
+ 	gs := make([]g, 2)
+-	escape(gs) // Ensure gs doesn't move, since we use guintptrs
++	Escape(gs) // Ensure gs doesn't move, since we use guintptrs
+ 	ready := new(uint32)
+ 	for i := 0; i < iters; i++ {
+ 		*ready = 0
+@@ -1260,7 +1260,7 @@ func NewGCController(gcPercent int) *GCController {
+ 	// do 64-bit atomics on it, and if it gets stack-allocated
+ 	// on a 32-bit architecture, it may get allocated unaligned
+ 	// space.
+-	g := escape(new(GCController))
++	g := Escape(new(GCController))
+ 	g.gcControllerState.test = true // Mark it as a test copy.
+ 	g.init(int32(gcPercent))
+ 	return g
+@@ -1334,13 +1334,13 @@ func (c *GCController) SetMaxIdleMarkWorkers(max int32) {
+ 	c.setMaxIdleMarkWorkers(max)
+ }
+ 
++var alwaysFalse bool
+ var escapeSink any
+ 
+-//go:noinline
+-//go:norace
+-func escape[T any](x T) T {
+-	escapeSink = x
+-	escapeSink = nil
++func Escape[T any](x T) T {
++	if alwaysFalse {
++		escapeSink = x
++	}
+ 	return x
+ }
+ 
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 9743dbbe2b..84baa009d5 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -284,7 +284,7 @@ func TestGCTestIsReachable(t *testing.T) {
+ 	runtime.KeepAlive(half)
+ }
+ 
+-var pointerClassSink *int
++var pointerClassBSS *int
+ var pointerClassData = 42
+ 
+ func TestGCTestPointerClass(t *testing.T) {
+@@ -300,10 +300,9 @@ func TestGCTestPointerClass(t *testing.T) {
+ 	}
+ 	var onStack int
+ 	var notOnStack int
+-	pointerClassSink = &notOnStack
+ 	check(unsafe.Pointer(&onStack), "stack")
+-	check(unsafe.Pointer(&notOnStack), "heap")
+-	check(unsafe.Pointer(&pointerClassSink), "bss")
++	check(unsafe.Pointer(runtime.Escape(&notOnStack)), "heap")
++	check(unsafe.Pointer(&pointerClassBSS), "bss")
+ 	check(unsafe.Pointer(&pointerClassData), "data")
+ 	check(nil, "other")
+ }
+@@ -614,14 +613,13 @@ func BenchmarkReadMemStats(b *testing.B) {
+ 	for i := range x {
+ 		x[i] = new([1024]byte)
+ 	}
+-	hugeSink = x
+ 
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		runtime.ReadMemStats(&ms)
+ 	}
+ 
+-	hugeSink = nil
++	runtime.KeepAlive(x)
+ }
+ 
+ func applyGCLoad(b *testing.B) func() {
+diff --git a/src/runtime/gcinfo_test.go b/src/runtime/gcinfo_test.go
+index f2c88ef1ab..a0be7adaf7 100644
+--- a/src/runtime/gcinfo_test.go
++++ b/src/runtime/gcinfo_test.go
+@@ -77,15 +77,15 @@ func TestGCInfo(t *testing.T) {
+ 	}
+ 
+ 	for i := 0; i < 10; i++ {
+-		verifyGCInfo(t, "heap Ptr", escape(new(Ptr)), trimDead(infoPtr))
+-		verifyGCInfo(t, "heap PtrSlice", escape(&make([]*byte, 10)[0]), trimDead(infoPtr10))
+-		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), trimDead(infoScalarPtr))
+-		verifyGCInfo(t, "heap ScalarPtrSlice", escape(&make([]ScalarPtr, 4)[0]), trimDead(infoScalarPtr4))
+-		verifyGCInfo(t, "heap PtrScalar", escape(new(PtrScalar)), trimDead(infoPtrScalar))
+-		verifyGCInfo(t, "heap BigStruct", escape(new(BigStruct)), trimDead(infoBigStruct()))
+-		verifyGCInfo(t, "heap string", escape(new(string)), trimDead(infoString))
+-		verifyGCInfo(t, "heap eface", escape(new(any)), trimDead(infoEface))
+-		verifyGCInfo(t, "heap iface", escape(new(Iface)), trimDead(infoIface))
++		verifyGCInfo(t, "heap Ptr", runtime.Escape(new(Ptr)), trimDead(infoPtr))
++		verifyGCInfo(t, "heap PtrSlice", runtime.Escape(&make([]*byte, 10)[0]), trimDead(infoPtr10))
++		verifyGCInfo(t, "heap ScalarPtr", runtime.Escape(new(ScalarPtr)), trimDead(infoScalarPtr))
++		verifyGCInfo(t, "heap ScalarPtrSlice", runtime.Escape(&make([]ScalarPtr, 4)[0]), trimDead(infoScalarPtr4))
++		verifyGCInfo(t, "heap PtrScalar", runtime.Escape(new(PtrScalar)), trimDead(infoPtrScalar))
++		verifyGCInfo(t, "heap BigStruct", runtime.Escape(new(BigStruct)), trimDead(infoBigStruct()))
++		verifyGCInfo(t, "heap string", runtime.Escape(new(string)), trimDead(infoString))
++		verifyGCInfo(t, "heap eface", runtime.Escape(new(any)), trimDead(infoEface))
++		verifyGCInfo(t, "heap iface", runtime.Escape(new(Iface)), trimDead(infoIface))
+ 	}
+ }
+ 
+@@ -104,13 +104,6 @@ func trimDead(mask []byte) []byte {
+ 	return mask
+ }
+ 
+-var gcinfoSink any
+-
+-func escape(p any) any {
+-	gcinfoSink = p
+-	return p
+-}
+-
+ var infoPtr = []byte{typePointer}
+ 
+ type Ptr struct {
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index 8ff88687bd..cc2007604d 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -173,12 +173,6 @@ func TestTinyAlloc(t *testing.T) {
+ 	}
+ }
+ 
+-var (
+-	tinyByteSink   *byte
+-	tinyUint32Sink *uint32
+-	tinyObj12Sink  *obj12
+-)
+-
+ type obj12 struct {
+ 	a uint64
+ 	b uint32
+@@ -205,8 +199,8 @@ func TestTinyAllocIssue37262(t *testing.T) {
+ 	// Make 1-byte allocations until we get a fresh tiny slot.
+ 	aligned := false
+ 	for i := 0; i < 16; i++ {
+-		tinyByteSink = new(byte)
+-		if uintptr(unsafe.Pointer(tinyByteSink))&0xf == 0xf {
++		x := runtime.Escape(new(byte))
++		if uintptr(unsafe.Pointer(x))&0xf == 0xf {
+ 			aligned = true
+ 			break
+ 		}
+@@ -218,22 +212,17 @@ func TestTinyAllocIssue37262(t *testing.T) {
+ 
+ 	// Create a 4-byte object so that the current
+ 	// tiny slot is partially filled.
+-	tinyUint32Sink = new(uint32)
++	runtime.Escape(new(uint32))
+ 
+ 	// Create a 12-byte object, which fits into the
+ 	// tiny slot. If it actually gets place there,
+ 	// then the field "a" will be improperly aligned
+ 	// for atomic access on 32-bit architectures.
+ 	// This won't be true if issue 36606 gets resolved.
+-	tinyObj12Sink = new(obj12)
++	tinyObj12 := runtime.Escape(new(obj12))
+ 
+ 	// Try to atomically access "x.a".
+-	atomic.StoreUint64(&tinyObj12Sink.a, 10)
+-
+-	// Clear the sinks.
+-	tinyByteSink = nil
+-	tinyUint32Sink = nil
+-	tinyObj12Sink = nil
++	atomic.StoreUint64(&tinyObj12.a, 10)
+ 
+ 	runtime.Releasem()
+ }
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 5c458b4a49..4afbae6bc4 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -673,8 +673,6 @@ func TestIgnoreBogusMapHint(t *testing.T) {
+ 	}
+ }
+ 
+-var mapSink map[int]int
+-
+ var mapBucketTests = [...]struct {
+ 	n        int // n is the number of map elements
+ 	noescape int // number of expected buckets for non-escaping map
+@@ -710,7 +708,7 @@ func TestMapBuckets(t *testing.T) {
+ 			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
+ 				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
+ 			}
+-			escapingMap := map[int]int{}
++			escapingMap := runtime.Escape(map[int]int{})
+ 			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
+ 				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
+ 			}
+@@ -720,7 +718,6 @@ func TestMapBuckets(t *testing.T) {
+ 			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
+ 				t.Errorf("escape n=%d want %d buckets, got %d", tt.n, tt.escape, got)
+ 			}
+-			mapSink = escapingMap
+ 		}
+ 	})
+ 	t.Run("nohint", func(t *testing.T) {
+@@ -735,7 +732,7 @@ func TestMapBuckets(t *testing.T) {
+ 			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
+ 				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
+ 			}
+-			escapingMap := make(map[int]int)
++			escapingMap := runtime.Escape(make(map[int]int))
+ 			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
+ 				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
+ 			}
+@@ -745,7 +742,6 @@ func TestMapBuckets(t *testing.T) {
+ 			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
+ 				t.Errorf("escape: n=%d want %d buckets, got %d", tt.n, tt.escape, got)
+ 			}
+-			mapSink = escapingMap
+ 		}
+ 	})
+ 	t.Run("makemap", func(t *testing.T) {
+@@ -760,7 +756,7 @@ func TestMapBuckets(t *testing.T) {
+ 			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
+ 				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
+ 			}
+-			escapingMap := make(map[int]int, tt.n)
++			escapingMap := runtime.Escape(make(map[int]int, tt.n))
+ 			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
+ 				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
+ 			}
+@@ -770,7 +766,6 @@ func TestMapBuckets(t *testing.T) {
+ 			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
+ 				t.Errorf("escape: n=%d want %d buckets, got %d", tt.n, tt.escape, got)
+ 			}
+-			mapSink = escapingMap
+ 		}
+ 	})
+ 	t.Run("makemap64", func(t *testing.T) {
+@@ -785,7 +780,7 @@ func TestMapBuckets(t *testing.T) {
+ 			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
+ 				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
+ 			}
+-			escapingMap := make(map[int]int, tt.n)
++			escapingMap := runtime.Escape(make(map[int]int, tt.n))
+ 			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
+ 				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
+ 			}
+@@ -795,7 +790,6 @@ func TestMapBuckets(t *testing.T) {
+ 			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
+ 				t.Errorf("escape: n=%d want %d buckets, got %d", tt.n, tt.escape, got)
+ 			}
+-			mapSink = escapingMap
+ 		}
+ 	})
+ 

@@ -7,7 +7,48 @@ Date:   Tue Dec 7 15:57:00 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3448042
-
+---
  src/pkg/exec/lp_unix.go    | 4 ++--
  src/pkg/exec/lp_windows.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/exec/lp_unix.go b/src/pkg/exec/lp_unix.go
+index b2feecd10e..292e24fccd 100644
+--- a/src/pkg/exec/lp_unix.go
++++ b/src/pkg/exec/lp_unix.go
+@@ -29,7 +29,7 @@ func LookPath(file string) (string, os.Error) {
+ 		if canExec(file) {
+ 			return file, nil
+ 		}
+-		return "", os.ENOENT
++		return "", &os.PathError{"lookpath", file, os.ENOENT}
+ 	}
+ 	pathenv := os.Getenv("PATH")
+ 	for _, dir := range strings.Split(pathenv, ":", -1) {
+@@ -41,5 +41,5 @@ func LookPath(file string) (string, os.Error) {
+ 			return dir + "/" + file, nil
+ 		}
+ 	}
+-	return "", os.ENOENT
++	return "", &os.PathError{"lookpath", file, os.ENOENT}
+ }
+diff --git a/src/pkg/exec/lp_windows.go b/src/pkg/exec/lp_windows.go
+index 9d5dc1a144..7b56afa856 100644
+--- a/src/pkg/exec/lp_windows.go
++++ b/src/pkg/exec/lp_windows.go
+@@ -49,7 +49,7 @@ func LookPath(file string) (string, os.Error) {
+ 		if f, ok := canExec(file, exts); ok {
+ 			return f, nil
+ 		}
+-		return ``, os.ENOENT
++		return ``, &os.PathError{"lookpath", file, os.ENOENT}
+ 	}
+ 	if pathenv := os.Getenv(`PATH`); pathenv == `` {
+ 		if f, ok := canExec(`.\`+file, exts); ok {
+@@ -62,5 +62,5 @@ func LookPath(file string) (string, os.Error) {
+ 			}
+ 		}
+ 	}
+-	return ``, os.ENOENT
++	return ``, &os.PathError{"lookpath", file, os.ENOENT}
+ }

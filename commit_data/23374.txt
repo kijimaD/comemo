@@ -12,6 +12,34 @@ Date:   Wed May 6 12:22:05 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9788
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/internal/gc/gsubr.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index 9b75bb6109..93e4852b6f 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -625,20 +625,20 @@ func gclean() {
+ 	for r := Thearch.REGMIN; r <= Thearch.REGMAX; r++ {
+ 		n := reg[r-Thearch.REGMIN]
+ 		if n != 0 {
+-			Yyerror("reg %v left allocated", obj.Rconv(r))
+ 			if Debug['v'] != 0 {
+ 				Regdump()
+ 			}
++			Yyerror("reg %v left allocated", obj.Rconv(r))
+ 		}
+ 	}
+ 
+ 	for r := Thearch.FREGMIN; r <= Thearch.FREGMAX; r++ {
+ 		n := reg[r-Thearch.REGMIN]
+ 		if n != 0 {
+-			Yyerror("reg %v left allocated", obj.Rconv(r))
+ 			if Debug['v'] != 0 {
+ 				Regdump()
+ 			}
++			Yyerror("reg %v left allocated", obj.Rconv(r))
+ 		}
+ 	}
+ }

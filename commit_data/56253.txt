@@ -15,6 +15,20 @@ Date:   Thu Apr 20 18:08:55 2023 +0000
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/x509/verify.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 0b01f8b475..8f9610f8e6 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -1081,7 +1081,7 @@ func toLowerCaseASCII(in string) string {
+ // IP addresses can be optionally enclosed in square brackets and are checked
+ // against the IPAddresses field. Other names are checked case insensitively
+ // against the DNSNames field. If the names are valid hostnames, the certificate
+-// fields can have a wildcard as the left-most label.
++// fields can have a wildcard as the complete left-most label (e.g. *.example.com).
+ //
+ // Note that the legacy Common Name field is ignored.
+ func (c *Certificate) VerifyHostname(h string) error {

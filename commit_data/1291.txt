@@ -12,7 +12,7 @@ Date:   Fri Dec 5 15:24:18 2008 -0800
     DELTA=502  (346 added, 143 deleted, 13 changed)
     OCL=20630
     CL=20635
-
+---
  src/runtime/Makefile           |   2 +-
  src/runtime/mem.c              |  96 +++++++++++++++++++++++++
  src/runtime/proc.c             |  43 ++++++++++-
@@ -26,3 +26,807 @@ Date:   Fri Dec 5 15:24:18 2008 -0800
  usr/rsc/mem/{stack.c => mem.c} |  17 +++++
  usr/rsc/mem/testrandom.go      |   8 ++-
  12 files changed, 341 insertions(+), 139 deletions(-)
+
+diff --git a/src/runtime/Makefile b/src/runtime/Makefile
+index 000c889030..2cb5cfa0ae 100644
+--- a/src/runtime/Makefile
++++ b/src/runtime/Makefile
+@@ -22,11 +22,11 @@ LIBOFILES=\
+ 	chan.$O\
+ 	iface.$O\
+ 	array.$O\
++	mem.$O\
+ 	print.$O\
+ 	rune.$O\
+ 	proc.$O\
+ 	sema.$O\
+-	stack.$O\
+ 	string.$O\
+ 	symtab.$O\
+ 	sys_file.$O\
+diff --git a/src/runtime/mem.c b/src/runtime/mem.c
+new file mode 100644
+index 0000000000..0db941e81d
+--- /dev/null
++++ b/src/runtime/mem.c
+@@ -0,0 +1,96 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++// Stubs for memory management.
++// In a separate file so they can be overridden during testing of gc.
++
++enum
++{
++	NHUNK		= 20<<20,
++
++	PROT_NONE	= 0x00,
++	PROT_READ	= 0x01,
++	PROT_WRITE	= 0x02,
++	PROT_EXEC	= 0x04,
++
++	MAP_FILE	= 0x0000,
++	MAP_SHARED	= 0x0001,
++	MAP_PRIVATE	= 0x0002,
++	MAP_FIXED	= 0x0010,
++	MAP_ANON	= 0x1000,	// not on Linux - TODO(rsc)
++};
++
++void*
++stackalloc(uint32 n)
++{
++	return mal(n);
++}
++
++void
++stackfree(void*)
++{
++}
++
++// Convenient wrapper around mmap.
++static void*
++brk(uint32 n)
++{
++	byte *v;
++
++	v = sys·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
++	m->mem.nmmap += n;
++	return v;
++}
++
++// Allocate n bytes of memory.  Note that this gets used
++// to allocate new stack segments, so at each call to a function
++// you have to ask yourself "would it be okay to call mal recursively
++// right here?"  The answer is yes unless we're in the middle of
++// editing the malloc state in m->mem.
++void*
++mal(uint32 n)
++{
++	byte* v;
++
++	// round to keep everything 64-bit aligned
++	n = rnd(n, 8);
++
++	// be careful.  calling any function might invoke
++	// mal to allocate more stack.
++	if(n > NHUNK) {
++		v = brk(n);
++	} else {
++		// allocate a new hunk if this one is too small
++		if(n > m->mem.nhunk) {
++			// here we're in the middle of editing m->mem
++			// (we're about to overwrite m->mem.hunk),
++			// so we can't call brk - it might call mal to grow the
++			// stack, and the recursive call would allocate a new
++			// hunk, and then once brk returned we'd immediately
++			// overwrite that hunk with our own.
++			// (the net result would be a memory leak, not a crash.)
++			// so we have to call sys·mmap directly - it is written
++			// in assembly and tagged not to grow the stack.
++			m->mem.hunk =
++				sys·mmap(nil, NHUNK, PROT_READ|PROT_WRITE,
++					MAP_ANON|MAP_PRIVATE, 0, 0);
++			m->mem.nhunk = NHUNK;
++			m->mem.nmmap += NHUNK;
++		}
++		v = m->mem.hunk;
++		m->mem.hunk += n;
++		m->mem.nhunk -= n;
++	}
++	m->mem.nmal += n;
++	return v;
++}
++
++void
++sys·mal(uint32 n, uint8 *ret)
++{
++	ret = mal(n);
++	FLUSH(&ret);
++}
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index fa30c1eabb..6e947c5f50 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -53,9 +53,12 @@ struct Sched {
+ 	int32 mcount;	// number of ms that have been created
+ 	int32 mcpu;	// number of ms executing on cpu
+ 	int32 mcpumax;	// max number of ms allowed on cpu
++	int32 gomaxprocs;
+ 	int32 msyscall;	// number of ms in system calls
+ 
+ 	int32 predawn;	// running initialization, don't run new gs.
++
++	Note	stopped;	// one g can wait here for ms to stop
+ };
+ 
+ Sched sched;
+@@ -91,10 +94,11 @@ schedinit(void)
+ 	int32 n;
+ 	byte *p;
+ 
+-	sched.mcpumax = 1;
++	sched.gomaxprocs = 1;
+ 	p = getenv("GOMAXPROCS");
+ 	if(p != nil && (n = atoi(p)) != 0)
+-		sched.mcpumax = n;
++		sched.gomaxprocs = n;
++	sched.mcpumax = sched.gomaxprocs;
+ 	sched.mcount = 1;
+ 	sched.predawn = 1;
+ }
+@@ -134,7 +138,7 @@ malg(int32 stacksize)
+ 
+ 	// 160 is the slop amount known to the stack growth code
+ 	g = mal(sizeof(G));
+-	stk = mal(160 + stacksize);
++	stk = stackalloc(160 + stacksize);
+ 	g->stack0 = stk;
+ 	g->stackguard = stk + 160;
+ 	g->stackbase = stk + 160 + stacksize;
+@@ -348,6 +352,7 @@ nextgandunlock(void)
+ 		throw("all goroutines are asleep - deadlock!");
+ 	m->nextg = nil;
+ 	noteclear(&m->havenextg);
++	notewakeup(&sched.stopped);
+ 	unlock(&sched);
+ 
+ 	notesleep(&m->havenextg);
+@@ -362,6 +367,33 @@ nextgandunlock(void)
+ 	return gp;
+ }
+ 
++// TODO(rsc): Remove. This is only temporary,
++// for the mark and sweep collector.
++void
++stoptheworld(void)
++{
++	lock(&sched);
++	sched.mcpumax = 1;
++	while(sched.mcpu > 1) {
++		noteclear(&sched.stopped);
++		unlock(&sched);
++		notesleep(&sched.stopped);
++		lock(&sched);
++	}
++	unlock(&sched);
++}
++
++// TODO(rsc): Remove. This is only temporary,
++// for the mark and sweep collector.
++void
++starttheworld(void)
++{
++	lock(&sched);
++	sched.mcpumax = sched.gomaxprocs;
++	matchmg();
++	unlock(&sched);
++}
++
+ // Called to start an M.
+ void
+ mstart(void)
+@@ -500,11 +532,15 @@ sys·entersyscall(uint64 callerpc, int64 trap)
+ 		unlock(&debuglock);
+ 	}
+ 	lock(&sched);
++	g->status = Gsyscall;
+ 	sched.mcpu--;
+ 	sched.msyscall++;
+ 	if(sched.gwait != 0)
+ 		matchmg();
+ 	unlock(&sched);
++	// leave SP around for gc; poison PC to make sure it's not used
++	g->sched.SP = (byte*)&callerpc;
++	g->sched.PC = (byte*)0xdeadbeef;
+ }
+ 
+ // The goroutine g exited its system call.
+@@ -521,6 +557,7 @@ sys·exitsyscall(void)
+ 	}
+ 
+ 	lock(&sched);
++	g->status = Grunning;
+ 	sched.msyscall--;
+ 	sched.mcpu++;
+ 	// Fast path - if there's room for this m, we're done.
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 33f2abcea4..baf6eb68b9 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -48,22 +48,6 @@ sys·throwreturn(void)
+ 	throw("no return at end of a typed function");
+ }
+ 
+-enum
+-{
+-	NHUNK		= 20<<20,
+-
+-	PROT_NONE	= 0x00,
+-	PROT_READ	= 0x01,
+-	PROT_WRITE	= 0x02,
+-	PROT_EXEC	= 0x04,
+-
+-	MAP_FILE	= 0x0000,
+-	MAP_SHARED	= 0x0001,
+-	MAP_PRIVATE	= 0x0002,
+-	MAP_FIXED	= 0x0010,
+-	MAP_ANON	= 0x1000,	// not on Linux - TODO(rsc)
+-};
+-
+ void
+ throw(int8 *s)
+ {
+@@ -129,67 +113,6 @@ rnd(uint32 n, uint32 m)
+ 	return n;
+ }
+ 
+-// Convenient wrapper around mmap.
+-static void*
+-brk(uint32 n)
+-{
+-	byte *v;
+-
+-	v = sys·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
+-	m->mem.nmmap += n;
+-	return v;
+-}
+-
+-// Allocate n bytes of memory.  Note that this gets used
+-// to allocate new stack segments, so at each call to a function
+-// you have to ask yourself "would it be okay to call mal recursively
+-// right here?"  The answer is yes unless we're in the middle of
+-// editing the malloc state in m->mem.
+-void*
+-mal(uint32 n)
+-{
+-	byte* v;
+-
+-	// round to keep everything 64-bit aligned
+-	n = rnd(n, 8);
+-
+-	// be careful.  calling any function might invoke
+-	// mal to allocate more stack.
+-	if(n > NHUNK) {
+-		v = brk(n);
+-	} else {
+-		// allocate a new hunk if this one is too small
+-		if(n > m->mem.nhunk) {
+-			// here we're in the middle of editing m->mem
+-			// (we're about to overwrite m->mem.hunk),
+-			// so we can't call brk - it might call mal to grow the
+-			// stack, and the recursive call would allocate a new
+-			// hunk, and then once brk returned we'd immediately
+-			// overwrite that hunk with our own.
+-			// (the net result would be a memory leak, not a crash.)
+-			// so we have to call sys·mmap directly - it is written
+-			// in assembly and tagged not to grow the stack.
+-			m->mem.hunk =
+-				sys·mmap(nil, NHUNK, PROT_READ|PROT_WRITE,
+-					MAP_ANON|MAP_PRIVATE, 0, 0);
+-			m->mem.nhunk = NHUNK;
+-			m->mem.nmmap += NHUNK;
+-		}
+-		v = m->mem.hunk;
+-		m->mem.hunk += n;
+-		m->mem.nhunk -= n;
+-	}
+-	m->mem.nmal += n;
+-	return v;
+-}
+-
+-void
+-sys·mal(uint32 n, uint8 *ret)
+-{
+-	ret = mal(n);
+-	FLUSH(&ret);
+-}
+-
+ static	uint64	uvnan		= 0x7FF0000000000001ULL;
+ static	uint64	uvinf		= 0x7FF0000000000000ULL;
+ static	uint64	uvneginf	= 0xFFF0000000000000ULL;
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index a0cbac359d..dea47f72ed 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -65,6 +65,7 @@ enum
+ 	Gidle,
+ 	Grunnable,
+ 	Grunning,
++	Gsyscall,
+ 	Gwaiting,
+ 	Gmoribund,
+ 	Gdead,
+@@ -280,6 +281,11 @@ int32	funcline(Func*, uint64);
+ void*	stackalloc(uint32);
+ void	stackfree(void*);
+ 
++// TODO(rsc): Remove. These are only temporary,
++// for the mark and sweep collector.
++void	stoptheworld(void);
++void	starttheworld(void);
++
+ /*
+  * mutual exclusion locks.  in the uncontended case,
+  * as fast as spin locks (just a few user-level instructions),
+@@ -340,3 +346,5 @@ bool	isNaN(float64);
+ void	sys·readfile(string, string, bool);
+ void	sys·bytestorune(byte*, int32, int32, int32, int32);
+ void	sys·stringtorune(string, int32, int32, int32);
++void	sys·semacquire(uint32*);
++void	sys·semrelease(uint32*);
+diff --git a/src/runtime/stack.c b/src/runtime/stack.c
+deleted file mode 100644
+index a4eeedc453..0000000000
+--- a/src/runtime/stack.c
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-
+-// Stubs for stack management.
+-// In a separate file so they can be overridden during testing of gc.
+-
+-void*
+-stackalloc(uint32 n)
+-{
+-	return mal(n);
+-}
+-
+-void
+-stackfree(void*)
+-{
+-}
+diff --git a/usr/rsc/mem/Makefile b/usr/rsc/mem/Makefile
+index 0bfb89b512..80bd60aeea 100644
+--- a/usr/rsc/mem/Makefile
++++ b/usr/rsc/mem/Makefile
+@@ -20,6 +20,8 @@ default: $(TARG)
+ OFILES=\
+ 	allocator.$O\
+ 	malloc.$O\
++	mem.$O\
++	ms.$O\
+ 	pagemap.$O\
+ 	triv.$O\
+ 
+@@ -32,6 +34,5 @@ test%: test%.$O $(OFILES)
+ clean:
+ 	rm -f *.$O $(TARG)
+ 
+-runtime: allocator.$O malloc.$O pagemap.$O triv.$O stack.$O
++runtime: $(OFILES)
+ 	6ar grc $(GOROOT)/lib/lib_$(GOARCH)_$(GOOS).a $^
+-
+diff --git a/usr/rsc/mem/allocator.go b/usr/rsc/mem/allocator.go
+index a0d95e77c8..de9809dede 100644
+--- a/usr/rsc/mem/allocator.go
++++ b/usr/rsc/mem/allocator.go
+@@ -11,3 +11,5 @@ export var footprint int64
+ export var frozen bool
+ export func testsizetoclass()
+ export var allocated int64
++export func find(uint64) (obj *byte, size int64, ref *int32, ok bool)
++export func gc()
+diff --git a/usr/rsc/mem/malloc.c b/usr/rsc/mem/malloc.c
+index 02fe40bd3d..6d542add90 100644
+--- a/usr/rsc/mem/malloc.c
++++ b/usr/rsc/mem/malloc.c
+@@ -18,36 +18,8 @@
+ 
+ #include "malloc.h"
+ 
+-typedef struct Span Span;
+-typedef struct Central Central;
+-
+-// A Span contains metadata about a range of pages.
+-enum {
+-	SpanInUse = 0,	// span has been handed out by allocator
+-	SpanFree = 1,	// span is in central free list
+-};
+-struct Span
+-{
+-	Span *next;	// in free lists
+-	byte *base;	// first byte in span
+-	uintptr length;	// number of pages in span
+-	int32 cl;
+-	int32 state;	// state (enum above)
+-//	int ref;	// reference count if state == SpanInUse (for GC)
+-//	void *type;	// object type if state == SpanInUse (for GC)
+-};
+-
+-// The Central cache contains a list of free spans,
+-// as well as free lists of small blocks.
+-struct Central
+-{
+-	Lock;
+-	Span *free[256];
+-	Span *large;	// free spans >= MaxPage pages
+-};
+-
+-static Central central;
+-static PageMap spanmap;
++Central central;
++PageMap spanmap;
+ 
+ // Insert a new span into the map.
+ static void
+@@ -86,6 +58,39 @@ spanofptr(void *v)
+ 
+ static void freespan(Span*);
+ 
++// Linked list of spans.
++// TODO(rsc): Remove - should be able to walk pagemap.
++Span *spanfirst;
++Span *spanlast;
++static void
++addtolist(Span *s)
++{
++	if(spanlast) {
++		s->aprev = spanlast;
++		s->aprev->anext = s;
++	} else {
++		s->aprev = nil;
++		spanfirst = s;
++	}
++	s->anext = nil;
++	spanlast = s;
++}
++
++/*
++static void
++delfromlist(Span *s)
++{
++	if(s->aprev)
++		s->aprev->anext = s->anext;
++	else
++		spanfirst = s->anext;
++	if(s->anext)
++		s->anext->aprev = s->aprev;
++	else
++		spanlast = s->aprev;
++}
++*/
++
+ // Allocate a span of at least n pages.
+ static Span*
+ allocspan(int32 npage)
+@@ -122,6 +127,7 @@ allocspan(int32 npage)
+ //printf("New span %d for %d\n", allocnpage, npage);
+ 	s->base = trivalloc(allocnpage<<PageShift);
+ 	insertspan(s);
++	addtolist(s);
+ 
+ havespan:
+ 	// If span is bigger than needed, redistribute the remainder.
+@@ -131,6 +137,7 @@ havespan:
+ 		s1->length = s->length - npage;
+ 		shrinkspan(s, npage);
+ 		insertspan(s1);
++		addtolist(s1);
+ 		freespan(s1);
+ 	}
+ 	s->state = SpanInUse;
+@@ -138,6 +145,7 @@ havespan:
+ }
+ 
+ // Free a span.
++// TODO(rsc): Coalesce adjacent free spans.
+ static void
+ freespan(Span *s)
+ {
+@@ -161,7 +169,7 @@ freespan(Span *s)
+ 
+ // Small objects are kept on per-size free lists in the M.
+ // There are SmallFreeClasses (defined in runtime.h) different lists.
+-static int32 classtosize[SmallFreeClasses] = {
++int32 classtosize[SmallFreeClasses] = {
+ 	/*
+ 	seq 8 8 127 | sed 's/$/,/' | fmt
+ 	seq 128 16 255 | sed 's/$/,/' | fmt
+@@ -257,16 +265,24 @@ centralgrab(int32 cl, int32 *pn)
+ 	chunk = (chunk+PageMask) & ~PageMask;
+ 	s = allocspan(chunk>>PageShift);
+ //printf("New class %d\n", cl);
++
+ 	s->state = SpanInUse;
+ 	s->cl = cl;
+ 	siz = classtosize[cl];
+-	n = chunk/siz;
++	n = chunk/(siz+sizeof(s->refbase[0]));
+ 	p = s->base;
+ //printf("centralgrab cl=%d siz=%d n=%d\n", cl, siz, n);
+-	for(i=0; i<n-1; i++) {
+-		*(void**)p = p+siz;
++	for(i=0; i<n; i++) {
++		if(i < n-1)
++			*(void**)p = p+siz;
+ 		p += siz;
+ 	}
++	s->refbase = (int32*)p;
++
++	// TODO(rsc): Remove - only for mark/sweep
++	for(i=0; i<n; i++)
++		s->refbase[i] = RefFree;
++
+ 	*pn = n;
+ 	return s->base;
+ }
+@@ -292,10 +308,21 @@ allocsmall(int32 cl)
+ 		unlock(&central);
+ 	}
+ 
+-//printf("alloc from cl %d\n", cl);
++//printf("alloc from cl %d %p\n", cl, p);
+ 	// advance linked list.
+ 	m->freelist[cl] = *p;
+ 
++	// TODO(rsc): If cl > 0, can store ref ptr in *(p+1),
++	// avoiding call to findobj.
++	// Or could get rid of RefFree, which is only truly
++	// necessary for mark/sweep.
++	int32 *ref;
++	if(!findobj(p, nil, nil, &ref))
++		throw("bad findobj");
++	if(*ref != RefFree)
++		throw("double alloc");
++	*ref = 0;
++
+ 	// Blocks on free list are zeroed except for
+ 	// the linked list pointer that we just used.  Zero it.
+ 	*p = 0;
+@@ -315,6 +342,7 @@ alloclarge(int32 np)
+ 	unlock(&central);
+ 	s->state = SpanInUse;
+ 	s->cl = -1;
++	s->ref = 0;
+ 	return s->base;
+ }
+ 
+@@ -347,13 +375,62 @@ allocator·malloc(int32 n, byte *out)
+ 	FLUSH(&out);
+ }
+ 
++// Check whether v points into a known memory block.
++// If so, return true with
++//	*obj = base pointer of object (can pass to free)
++//	*size = size of object
++//	*ref = pointer to ref count for object
++// Object might already be freed, in which case *ref == RefFree.
++bool
++findobj(void *v, void **obj, int64 *size, int32 **ref)
++{
++	Span *s;
++	int32 siz, off, indx;
++
++	s = spanofptr(v);
++	if(s == nil || s->state != SpanInUse)
++		return false;
++
++	// Big object
++	if(s->cl < 0) {
++		if(obj)
++			*obj = s->base;
++		if(size)
++			*size = s->length<<PageShift;
++		if(ref)
++			*ref = &s->ref;
++		return true;
++	}
++
++	// Small object
++	if((byte*)v >= (byte*)s->refbase)
++		return false;
++	siz = classtosize[s->cl];
++	off = (byte*)v - (byte*)s->base;
++	indx = off/siz;
++	if(obj)
++		*obj = s->base + indx*siz;
++	if(size)
++		*size = siz;
++	if(ref)
++		*ref = s->refbase + indx;
++	return true;
++}
++
++void
++allocator·find(uint64 ptr, byte *obj, int64 siz, int32 *ref, bool ok)
++{
++	ok = findobj((void*)ptr, &obj, &siz, &ref);
++	FLUSH(&ok);
++}
++
+ // Free object with base pointer v.
+ void
+ free(void *v)
+ {
+ 	void **p;
+ 	Span *s;
+-	int32 siz, off;
++	int32 siz, off, n;
+ 
+ 	s = spanofptr(v);
+ 	if(s->state != SpanInUse)
+@@ -365,6 +442,9 @@ free(void *v)
+ 			throw("free - invalid pointer2");
+ 		// TODO: For large spans, maybe just return the
+ 		// memory to the operating system and let it zero it.
++		if(s->ref != 0 && s->ref != RefManual && s->ref != RefStack)
++			throw("free - bad ref count");
++		s->ref = RefFree;
+ 		sys·memclr(s->base, s->length << PageShift);
+ //printf("Free big %D\n", s->length);
+ 		allocator·allocated -= s->length << PageShift;
+@@ -375,10 +455,17 @@ free(void *v)
+ 	}
+ 
+ 	// Small object should be aligned properly.
++	if((byte*)v >= (byte*)s->refbase)
++		throw("free - invalid pointer4");
++
+ 	siz = classtosize[s->cl];
+ 	off = (byte*)v - (byte*)s->base;
+ 	if(off%siz)
+ 		throw("free - invalid pointer3");
++	n = off/siz;
++	if(s->refbase[n] != 0 && s->refbase[n] != RefManual && s->refbase[n] != RefStack)
++		throw("free - bad ref count1");
++	s->refbase[n] = RefFree;
+ 
+ 	// Zero and add to free list.
+ 	sys·memclr(v, siz);
+diff --git a/usr/rsc/mem/malloc.h b/usr/rsc/mem/malloc.h
+index dd51e49b24..891638aab1 100644
+--- a/usr/rsc/mem/malloc.h
++++ b/usr/rsc/mem/malloc.h
+@@ -12,6 +12,10 @@ enum
+ 	PageMask = (1<<PageShift) - 1,
+ };
+ 
++#define RefFree	0xffffffffU
++#define RefManual	0xfffffffeU
++#define RefStack	0xfffffffdU
++
+ enum {
+ 	PMBits = 64 - PageShift,
+ 	PMLevels = 4,
+@@ -24,6 +28,40 @@ struct PageMap
+ 	void *level0[PMLevelSize];
+ };
+ 
++typedef struct Span Span;
++typedef struct Central Central;
++
++// A Span contains metadata about a range of pages.
++enum {
++	SpanInUse = 0,	// span has been handed out by allocator
++	SpanFree = 1,	// span is in central free list
++};
++struct Span
++{
++	Span *aprev;	// in list of all spans
++	Span *anext;
++
++	Span *next;	// in free lists
++	byte *base;	// first byte in span
++	uintptr length;	// number of pages in span
++	int32 cl;
++	int32 state;	// state (enum above)
++	union {
++		int32 ref;	// reference count if state == SpanInUse (for GC)
++		int32 *refbase;	// ptr to packed ref counts
++	};
++//	void *type;	// object type if state == SpanInUse (for GC)
++};
++
++// The Central cache contains a list of free spans,
++// as well as free lists of small blocks.
++struct Central
++{
++	Lock;
++	Span *free[256];
++	Span *large;	// free spans >= MaxPage pages
++};
++
+ extern int64 allocator·allocated;
+ extern int64 allocator·footprint;
+ extern bool allocator·frozen;
+@@ -34,3 +72,9 @@ void* pminsert(PageMap*, uintptr, void*);
+ 
+ void*	alloc(int32);
+ void	free(void*);
++bool	findobj(void*, void**, int64*, int32**);
++
++extern Central central;
++extern PageMap spanmap;
++extern int32 classtosize[SmallFreeClasses];
++extern Span *spanfirst, *spanlast;
+diff --git a/usr/rsc/mem/stack.c b/usr/rsc/mem/mem.c
+similarity index 65%
+rename from usr/rsc/mem/stack.c
+rename to usr/rsc/mem/mem.c
+index 295e709ffb..6740b2e0a3 100644
+--- a/usr/rsc/mem/stack.c
++++ b/usr/rsc/mem/mem.c
+@@ -8,9 +8,13 @@ void*
+ stackalloc(uint32 n)
+ {
+ 	void *v;
++	int32 *ref;
+ 
+ 	v = alloc(n);
+ //printf("stackalloc %d = %p\n", n, v);
++	ref = nil;
++	findobj(v, nil, nil, &ref);
++	*ref = RefStack;
+ 	return v;
+ }
+ 
+@@ -20,3 +24,16 @@ stackfree(void *v)
+ //printf("stackfree %p\n", v);
+ 	free(v);
+ }
++
++void*
++mal(uint32 n)
++{
++	return alloc(n);
++}
++
++void
++sys·mal(uint32 n, uint8 *ret)
++{
++	ret = alloc(n);
++	FLUSH(&ret);
++}
+diff --git a/usr/rsc/mem/testrandom.go b/usr/rsc/mem/testrandom.go
+index 7115afd628..742bdf52b4 100644
+--- a/usr/rsc/mem/testrandom.go
++++ b/usr/rsc/mem/testrandom.go
+@@ -6,7 +6,8 @@ package main
+ 
+ import (
+ 	"allocator";
+-	"rand"
++	"rand";
++	"syscall"
+ )
+ 
+ var footprint int64;
+@@ -52,6 +53,11 @@ func main() {
+ 		}
+ 		siz := rand.rand() >> (11 + rand.urand32() % 20);
+ 		base := allocator.malloc(siz);
++		ptr := uint64(syscall.BytePtr(base))+uint64(siz/2);
++		obj, size, ref, ok := allocator.find(ptr);
++		if obj != base || *ref != 0 || !ok {
++			panicln("find", siz, obj, ref, ok);
++		}
+ 		blocks[b].base = base;
+ 		blocks[b].siz = siz;
+ 		allocated += int64(siz);

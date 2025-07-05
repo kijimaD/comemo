@@ -10,6 +10,35 @@ Date:   Tue Jul 12 11:19:16 2016 -0600
     Reviewed-on: https://go-review.googlesource.com/24864
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 11a4eab093..3c0b994ef2 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -673,11 +673,6 @@ func init() {
+ 	goarch = buildContext.GOARCH
+ 	goos = buildContext.GOOS
+ 
+-	if _, ok := osArchSupportsCgo[goos+"/"+goarch]; !ok {
+-		fmt.Fprintf(os.Stderr, "cmd/go: unsupported GOOS/GOARCH pair %s/%s\n", goos, goarch)
+-		os.Exit(2)
+-	}
+-
+ 	if goos == "windows" {
+ 		exeSuffix = ".exe"
+ 	}
+@@ -1226,6 +1221,11 @@ func allArchiveActions(root *action) []*action {
+ 
+ // do runs the action graph rooted at root.
+ func (b *builder) do(root *action) {
++	if _, ok := osArchSupportsCgo[goos+"/"+goarch]; !ok && buildContext.Compiler == "gc" {
++		fmt.Fprintf(os.Stderr, "cmd/go: unsupported GOOS/GOARCH pair %s/%s\n", goos, goarch)
++		os.Exit(2)
++	}
++
+ 	// Build list of all actions, assigning depth-first post-order priority.
+ 	// The original implementation here was a true queue
+ 	// (using a channel) but it had the effect of getting

@@ -7,10 +7,198 @@ Date:   Tue Aug 3 08:04:33 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1860046
-
+---
  src/pkg/io/Makefile                                |  3 +-
  src/pkg/io/{multi_reader.go => multi.go}           | 24 +++++++++++++
  src/pkg/io/{multi_reader_test.go => multi_test.go} | 32 ++++++++++++++++-
  src/pkg/io/multi_writer.go                         | 31 ----------------
  src/pkg/io/multi_writer_test.go                    | 41 ----------------------
  5 files changed, 56 insertions(+), 75 deletions(-)
+
+diff --git a/src/pkg/io/Makefile b/src/pkg/io/Makefile
+index ad2e4cec44..837888d5c1 100644
+--- a/src/pkg/io/Makefile
++++ b/src/pkg/io/Makefile
+@@ -7,8 +7,7 @@ include ../../Make.$(GOARCH)
+ TARG=io
+ GOFILES=\
+ 	io.go\
+-	multi_reader.go\
+-	multi_writer.go\
++	multi.go\
+ 	pipe.go\
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/io/multi_reader.go b/src/pkg/io/multi.go
+similarity index 65%
+rename from src/pkg/io/multi_reader.go
+rename to src/pkg/io/multi.go
+index b6fa5dd058..88e4f1b769 100644
+--- a/src/pkg/io/multi_reader.go
++++ b/src/pkg/io/multi.go
+@@ -34,3 +34,27 @@ func (mr *multiReader) Read(p []byte) (n int, err os.Error) {
+ func MultiReader(readers ...Reader) Reader {
+ 	return &multiReader{readers}
+ }
++
++type multiWriter struct {
++	writers []Writer
++}
++
++func (t *multiWriter) Write(p []byte) (n int, err os.Error) {
++	for _, w := range t.writers {
++		n, err = w.Write(p)
++		if err != nil {
++			return
++		}
++		if n != len(p) {
++			err = ErrShortWrite
++			return
++		}
++	}
++	return len(p), nil
++}
++
++// MultiWriter creates a writer that duplicates its writes to all the
++// provided writers, similar to the Unix tee(1) command.
++func MultiWriter(writers ...Writer) Writer {
++	return &multiWriter{writers}
++}
+diff --git a/src/pkg/io/multi_reader_test.go b/src/pkg/io/multi_test.go
+similarity index 61%
+rename from src/pkg/io/multi_reader_test.go
+rename to src/pkg/io/multi_test.go
+index 7d4639628b..f5d2fadfbb 100644
+--- a/src/pkg/io/multi_reader_test.go
++++ b/src/pkg/io/multi_test.go
+@@ -1,4 +1,4 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
++// Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -6,6 +6,9 @@ package io_test
+ 
+ import (
+ 	. "io"
++	"bytes"
++	"crypto/sha1"
++	"fmt"
+ 	"os"
+ 	"strings"
+ 	"testing"
+@@ -56,3 +59,30 @@ func TestMultiReader(t *testing.T) {
+ 		expectRead(5, "foo ", nil)
+ 	})
+ }
++
++func TestMultiWriter(t *testing.T) {
++	sha1 := sha1.New()
++	sink := new(bytes.Buffer)
++	mw := MultiWriter(sha1, sink)
++
++	sourceString := "My input text."
++	source := strings.NewReader(sourceString)
++	written, err := Copy(mw, source)
++
++	if written != int64(len(sourceString)) {
++		t.Errorf("short write of %d, not %d", written, len(sourceString))
++	}
++
++	if err != nil {
++		t.Errorf("unexpected error: %v", err)
++	}
++
++	sha1hex := fmt.Sprintf("%x", sha1.Sum())
++	if sha1hex != "01cb303fa8c30a64123067c5aa6284ba7ec2d31b" {
++		t.Error("incorrect sha1 value")
++	}
++
++	if sink.String() != sourceString {
++		t.Error("expected %q; got %q", sourceString, sink.String())
++	}
++}
+diff --git a/src/pkg/io/multi_writer.go b/src/pkg/io/multi_writer.go
+deleted file mode 100644
+index 58252880db..0000000000
+--- a/src/pkg/io/multi_writer.go
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package io
+-
+-import "os"
+-
+-type multiWriter struct {
+-	writers []Writer
+-}
+-
+-func (t *multiWriter) Write(p []byte) (n int, err os.Error) {
+-	for _, w := range t.writers {
+-		n, err = w.Write(p)
+-		if err != nil {
+-			return
+-		}
+-		if n != len(p) {
+-			err = ErrShortWrite
+-			return
+-		}
+-	}
+-	return len(p), nil
+-}
+-
+-// MultiWriter creates a writer that duplicates its writes to all the
+-// provided writers, similar to the Unix tee(1) command.
+-func MultiWriter(writers ...Writer) Writer {
+-	return &multiWriter{writers}
+-}
+diff --git a/src/pkg/io/multi_writer_test.go b/src/pkg/io/multi_writer_test.go
+deleted file mode 100644
+index 251a4779ee..0000000000
+--- a/src/pkg/io/multi_writer_test.go
++++ /dev/null
+@@ -1,41 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package io_test
+-
+-import (
+-	. "io"
+-	"bytes"
+-	"crypto/sha1"
+-	"fmt"
+-	"strings"
+-	"testing"
+-)
+-
+-func TestMultiWriter(t *testing.T) {
+-	sha1 := sha1.New()
+-	sink := new(bytes.Buffer)
+-	mw := MultiWriter(sha1, sink)
+-
+-	sourceString := "My input text."
+-	source := strings.NewReader(sourceString)
+-	written, err := Copy(mw, source)
+-
+-	if written != int64(len(sourceString)) {
+-		t.Errorf("short write of %d, not %d", written, len(sourceString))
+-	}
+-
+-	if err != nil {
+-		t.Errorf("unexpected error: %v", err)
+-	}
+-
+-	sha1hex := fmt.Sprintf("%x", sha1.Sum())
+-	if sha1hex != "01cb303fa8c30a64123067c5aa6284ba7ec2d31b" {
+-		t.Error("incorrect sha1 value")
+-	}
+-
+-	if sink.String() != sourceString {
+-		t.Error("expected %q; got %q", sourceString, sink.String())
+-	}
+-}

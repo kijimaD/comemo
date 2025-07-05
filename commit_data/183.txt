@@ -5,8 +5,66 @@ Date:   Tue Jun 17 10:56:28 2008 -0700
     add two more tests
     
     SVN=123143
-
+---
  test/bugs/bug049.go | 17 +++++++++++++++++
  test/bugs/bug050.go |  8 ++++++++
  test/golden.out     |  9 +++++++++
  3 files changed, 34 insertions(+)
+
+diff --git a/test/bugs/bug049.go b/test/bugs/bug049.go
+new file mode 100644
+index 0000000000..31da6c816f
+--- /dev/null
++++ b/test/bugs/bug049.go
+@@ -0,0 +1,17 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func atom(s string) {
++	if s == nil {
++		return;
++	}
++}
++
++/*
++bug047.go:4: fatal error: stringpool: not string
++*/
+diff --git a/test/bugs/bug050.go b/test/bugs/bug050.go
+new file mode 100644
+index 0000000000..afc545588e
+--- /dev/null
++++ b/test/bugs/bug050.go
+@@ -0,0 +1,8 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++func main() {
++}
+diff --git a/test/golden.out b/test/golden.out
+index 5c6b17b5d4..c2728e6d1c 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -242,6 +242,15 @@ bugs/bug048.go:7: illegal types for operand: CONV
+ bugs/bug048.go:8: syntax error
+ BUG: known to fail incorrectly
+ 
++=========== bugs/bug049.go
++bugs/bug049.go:6: fatal error: stringpool: not string
++BUG: fatal error
++
++=========== bugs/bug050.go
++bugs/bug050.go:3: package statement must be first
++sys.6:1 bugs/bug050.go:2: syntax error
++BUG: segfault
++
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug001.go

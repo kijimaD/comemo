@@ -12,7 +12,104 @@ Date:   Sat Mar 5 16:25:58 2016 -0800
     Change-Id: I4ee9b4bf56ffa04df23e20a0a83b302d36b33510
     Reviewed-on: https://go-review.googlesource.com/20290
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go | 19 ++++++++++++++++---
  src/cmd/compile/internal/gc/syntax.go | 27 ---------------------------
  2 files changed, 16 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 5c68336a33..66804e49a9 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -684,7 +684,11 @@ func (p *parser) labeled_stmt(label *Node) *Node {
+ 	label.Name.Defn = ls
+ 	l := list1(label)
+ 	if ls != nil {
+-		l = list(l, ls)
++		if ls.Op == OBLOCK && nodeSeqLen(ls.Ninit) == 0 {
++			l = concat(l, ls.List)
++		} else {
++			l = list(l, ls)
++		}
+ 	}
+ 	return liststmt(l)
+ }
+@@ -1043,7 +1047,12 @@ func (p *parser) if_stmt() *Node {
+ 		if p.tok == LIF {
+ 			setNodeSeq(&stmt.Rlist, []*Node{p.if_stmt()})
+ 		} else {
+-			setNodeSeq(&stmt.Rlist, []*Node{p.compound_stmt(true)})
++			cs := p.compound_stmt(true)
++			if cs.Op == OBLOCK && cs.Ninit == nil {
++				setNodeSeq(&stmt.Rlist, cs.List)
++			} else {
++				setNodeSeq(&stmt.Rlist, []*Node{cs})
++			}
+ 		}
+ 	}
+ 
+@@ -2538,7 +2547,11 @@ func (p *parser) stmt_list() (l *NodeList) {
+ 		if s == missing_stmt {
+ 			break
+ 		}
+-		l = list(l, s)
++		if s != nil && s.Op == OBLOCK && nodeSeqLen(s.Ninit) == 0 {
++			l = concat(l, s.List)
++		} else {
++			l = list(l, s)
++		}
+ 		// customized version of osemi:
+ 		// ';' is optional before a closing ')' or '}'
+ 		if p.tok == ')' || p.tok == '}' {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 868b40eaf3..7aec6ae7de 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -391,15 +391,6 @@ func list1(n *Node) *NodeList {
+ 	if n == nil {
+ 		return nil
+ 	}
+-	if n.Op == OBLOCK && nodeSeqLen(n.Ninit) == 0 {
+-		// Flatten list and steal storage.
+-		// Poison pointer to catch errant uses.
+-		l := n.List
+-
+-		setNodeSeq(&n.List, nil)
+-		return l
+-	}
+-
+ 	l := new(NodeList)
+ 	l.N = n
+ 	l.End = l
+@@ -741,15 +732,6 @@ func setNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
+ // This is an interim function during the transition from NodeList to Nodes.
+ // TODO(iant): Remove when transition is complete.
+ func setNodeSeqNode(a nodesOrNodeListPtr, n *Node) {
+-	// This is what the old list1 function did;
+-	// the rest of the compiler has come to expect it.
+-	if n.Op == OBLOCK && nodeSeqLen(n.Ninit) == 0 {
+-		l := n.List
+-		setNodeSeq(&n.List, nil)
+-		setNodeSeq(a, l)
+-		return
+-	}
+-
+ 	switch a := a.(type) {
+ 	case **NodeList:
+ 		*a = list1(n)
+@@ -822,15 +804,6 @@ func appendNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
+ // This is an interim function during the transition from NodeList to Nodes.
+ // TODO(iant): Remove when transition is complete.
+ func appendNodeSeqNode(a nodesOrNodeListPtr, n *Node) {
+-	// This is what the old list1 function did;
+-	// the rest of the compiler has come to expect it.
+-	if n.Op == OBLOCK && nodeSeqLen(n.Ninit) == 0 {
+-		l := n.List
+-		setNodeSeq(&n.List, nil)
+-		appendNodeSeq(a, l)
+-		return
+-	}
+-
+ 	switch a := a.(type) {
+ 	case **NodeList:
+ 		*a = list(*a, n)

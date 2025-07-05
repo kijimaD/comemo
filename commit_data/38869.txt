@@ -25,7 +25,7 @@ Date:   Fri Nov 2 11:27:53 2018 -0400
     Run-TryBot: Alan Donovan <adonovan@google.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  .../x/tools/go/analysis/unitchecker/unitchecker.go |  7 +++++-
  .../go/analysis/unitchecker/unitchecker112.go      |  9 ++++++++
  src/go/importer/importer.go                        | 18 +++++++++++----
@@ -33,3 +33,309 @@ Date:   Fri Nov 2 11:27:53 2018 -0400
  src/go/internal/gcimporter/gcimporter.go           |  6 +----
  src/go/internal/gcimporter/gcimporter_test.go      | 25 ++++++++++++++-------
  6 files changed, 70 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index ec3103b27e..018191a5e7 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -181,6 +181,11 @@ func readConfig(filename string) (*Config, error) {
+ 	return cfg, nil
+ }
+ 
++var importerForCompiler = func(_ *token.FileSet, compiler string, lookup importer.Lookup) types.Importer {
++	// broken legacy implementation (github.com/golang/go/issues/28995)
++	return importer.For(compiler, lookup)
++}
++
+ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]result, error) {
+ 	// Load, parse, typecheck.
+ 	var files []*ast.File
+@@ -196,7 +201,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 		}
+ 		files = append(files, f)
+ 	}
+-	compilerImporter := importer.For(cfg.Compiler, func(path string) (io.ReadCloser, error) {
++	compilerImporter := importerForCompiler(fset, cfg.Compiler, func(path string) (io.ReadCloser, error) {
+ 		// path is a resolved package path, not an import path.
+ 		file, ok := cfg.PackageFile[path]
+ 		if !ok {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker112.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker112.go
+new file mode 100644
+index 0000000000..683b7e91d2
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker112.go
+@@ -0,0 +1,9 @@
++// +build go1.12
++
++package unitchecker
++
++import "go/importer"
++
++func init() {
++	importerForCompiler = importer.ForCompiler
++}
+diff --git a/src/go/importer/importer.go b/src/go/importer/importer.go
+index f0a1ca2b76..c809c9ab86 100644
+--- a/src/go/importer/importer.go
++++ b/src/go/importer/importer.go
+@@ -20,7 +20,7 @@ import (
+ // a given import path, or an error if no matching package is found.
+ type Lookup func(path string) (io.ReadCloser, error)
+ 
+-// For returns an Importer for importing from installed packages
++// ForCompiler returns an Importer for importing from installed packages
+ // for the compilers "gc" and "gccgo", or for importing directly
+ // from the source if the compiler argument is "source". In this
+ // latter case, importing may fail under circumstances where the
+@@ -39,10 +39,11 @@ type Lookup func(path string) (io.ReadCloser, error)
+ // (not relative or absolute ones); it is assumed that the translation
+ // to canonical import paths is being done by the client of the
+ // importer.
+-func For(compiler string, lookup Lookup) types.Importer {
++func ForCompiler(fset *token.FileSet, compiler string, lookup Lookup) types.Importer {
+ 	switch compiler {
+ 	case "gc":
+ 		return &gcimports{
++			fset:     fset,
+ 			packages: make(map[string]*types.Package),
+ 			lookup:   lookup,
+ 		}
+@@ -63,13 +64,21 @@ func For(compiler string, lookup Lookup) types.Importer {
+ 			panic("source importer for custom import path lookup not supported (issue #13847).")
+ 		}
+ 
+-		return srcimporter.New(&build.Default, token.NewFileSet(), make(map[string]*types.Package))
++		return srcimporter.New(&build.Default, fset, make(map[string]*types.Package))
+ 	}
+ 
+ 	// compiler not supported
+ 	return nil
+ }
+ 
++// For calls ForCompiler with a new FileSet.
++//
++// Deprecated: use ForCompiler, which populates a FileSet
++// with the positions of objects created by the importer.
++func For(compiler string, lookup Lookup) types.Importer {
++	return ForCompiler(token.NewFileSet(), compiler, lookup)
++}
++
+ // Default returns an Importer for the compiler that built the running binary.
+ // If available, the result implements types.ImporterFrom.
+ func Default() types.Importer {
+@@ -79,6 +88,7 @@ func Default() types.Importer {
+ // gc importer
+ 
+ type gcimports struct {
++	fset     *token.FileSet
+ 	packages map[string]*types.Package
+ 	lookup   Lookup
+ }
+@@ -91,7 +101,7 @@ func (m *gcimports) ImportFrom(path, srcDir string, mode types.ImportMode) (*typ
+ 	if mode != 0 {
+ 		panic("mode must be 0")
+ 	}
+-	return gcimporter.Import(m.packages, path, srcDir, m.lookup)
++	return gcimporter.Import(m.fset, m.packages, path, srcDir, m.lookup)
+ }
+ 
+ // gccgo importer
+diff --git a/src/go/importer/importer_test.go b/src/go/importer/importer_test.go
+index 56e83136fb..ff6e12c0da 100644
+--- a/src/go/importer/importer_test.go
++++ b/src/go/importer/importer_test.go
+@@ -5,15 +5,18 @@
+ package importer
+ 
+ import (
++	"go/token"
+ 	"internal/testenv"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"os/exec"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+ 
+-func TestFor(t *testing.T) {
++func TestForCompiler(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+ 	const thePackage = "math/big"
+@@ -32,8 +35,10 @@ func TestFor(t *testing.T) {
+ 		t.Skip("golang.org/issue/22500")
+ 	}
+ 
++	fset := token.NewFileSet()
++
+ 	t.Run("LookupDefault", func(t *testing.T) {
+-		imp := For(compiler, nil)
++		imp := ForCompiler(fset, compiler, nil)
+ 		pkg, err := imp.Import(thePackage)
+ 		if err != nil {
+ 			t.Fatal(err)
+@@ -41,6 +46,21 @@ func TestFor(t *testing.T) {
+ 		if pkg.Path() != thePackage {
+ 			t.Fatalf("Path() = %q, want %q", pkg.Path(), thePackage)
+ 		}
++
++		// Check that the fileset positions are accurate.
++		// https://github.com/golang/go#28995
++		mathBigInt := pkg.Scope().Lookup("Int")
++		posn := fset.Position(mathBigInt.Pos()) // "$GOROOT/src/math/big/int.go:25:1"
++		filename := strings.Replace(posn.Filename, "$GOROOT", runtime.GOROOT(), 1)
++		data, err := ioutil.ReadFile(filename)
++		if err != nil {
++			t.Fatalf("can't read file containing declaration of math/big.Int: %v", err)
++		}
++		lines := strings.Split(string(data), "\n")
++		if posn.Line > len(lines) || !strings.HasPrefix(lines[posn.Line-1], "type Int") {
++			t.Fatalf("Object %v position %s does not contain its declaration",
++				mathBigInt, posn)
++		}
+ 	})
+ 
+ 	t.Run("LookupCustom", func(t *testing.T) {
+@@ -54,7 +74,7 @@ func TestFor(t *testing.T) {
+ 			}
+ 			return f, nil
+ 		}
+-		imp := For(compiler, lookup)
++		imp := ForCompiler(fset, compiler, lookup)
+ 		pkg, err := imp.Import("math/bigger")
+ 		if err != nil {
+ 			t.Fatal(err)
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index d117f6fe4d..3aed6de6ae 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -85,7 +85,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ // the corresponding package object to the packages map, and returns the object.
+ // The packages map must contain all packages already imported.
+ //
+-func Import(packages map[string]*types.Package, path, srcDir string, lookup func(path string) (io.ReadCloser, error)) (pkg *types.Package, err error) {
++func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDir string, lookup func(path string) (io.ReadCloser, error)) (pkg *types.Package, err error) {
+ 	var rc io.ReadCloser
+ 	var id string
+ 	if lookup != nil {
+@@ -152,10 +152,6 @@ func Import(packages map[string]*types.Package, path, srcDir string, lookup func
+ 			break
+ 		}
+ 
+-		// TODO(gri): allow clients of go/importer to provide a FileSet.
+-		// Or, define a new standard go/types/gcexportdata package.
+-		fset := token.NewFileSet()
+-
+ 		// The indexed export format starts with an 'i'; the older
+ 		// binary export format starts with a 'c', 'd', or 'v'
+ 		// (from "version"). Select appropriate importer.
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 222b36c883..3b7636806e 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -17,6 +17,7 @@ import (
+ 	"testing"
+ 	"time"
+ 
++	"go/token"
+ 	"go/types"
+ )
+ 
+@@ -55,7 +56,8 @@ func compile(t *testing.T, dirname, filename, outdirname string) string {
+ 
+ func testPath(t *testing.T, path, srcDir string) *types.Package {
+ 	t0 := time.Now()
+-	pkg, err := Import(make(map[string]*types.Package), path, srcDir, nil)
++	fset := token.NewFileSet()
++	pkg, err := Import(fset, make(map[string]*types.Package), path, srcDir, nil)
+ 	if err != nil {
+ 		t.Errorf("testPath(%s): %s", path, err)
+ 		return nil
+@@ -158,6 +160,8 @@ func TestVersionHandling(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
++	fset := token.NewFileSet()
++
+ 	for _, f := range list {
+ 		name := f.Name()
+ 		if !strings.HasSuffix(name, ".a") {
+@@ -173,7 +177,7 @@ func TestVersionHandling(t *testing.T) {
+ 		}
+ 
+ 		// test that export data can be imported
+-		_, err := Import(make(map[string]*types.Package), pkgpath, dir, nil)
++		_, err := Import(fset, make(map[string]*types.Package), pkgpath, dir, nil)
+ 		if err != nil {
+ 			// ok to fail if it fails with a newer version error for select files
+ 			if strings.Contains(err.Error(), "newer version") {
+@@ -209,7 +213,7 @@ func TestVersionHandling(t *testing.T) {
+ 		ioutil.WriteFile(filename, data, 0666)
+ 
+ 		// test that importing the corrupted file results in an error
+-		_, err = Import(make(map[string]*types.Package), pkgpath, corruptdir, nil)
++		_, err = Import(fset, make(map[string]*types.Package), pkgpath, corruptdir, nil)
+ 		if err == nil {
+ 			t.Errorf("import corrupted %q succeeded", pkgpath)
+ 		} else if msg := err.Error(); !strings.Contains(msg, "version skew") {
+@@ -266,6 +270,7 @@ func TestImportedTypes(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
++	fset := token.NewFileSet()
+ 	for _, test := range importedObjectTests {
+ 		s := strings.Split(test.name, ".")
+ 		if len(s) != 2 {
+@@ -274,7 +279,7 @@ func TestImportedTypes(t *testing.T) {
+ 		importPath := s[0]
+ 		objName := s[1]
+ 
+-		pkg, err := Import(make(map[string]*types.Package), importPath, ".", nil)
++		pkg, err := Import(fset, make(map[string]*types.Package), importPath, ".", nil)
+ 		if err != nil {
+ 			t.Error(err)
+ 			continue
+@@ -371,7 +376,8 @@ func TestCorrectMethodPackage(t *testing.T) {
+ 	}
+ 
+ 	imports := make(map[string]*types.Package)
+-	_, err := Import(imports, "net/http", ".", nil)
++	fset := token.NewFileSet()
++	_, err := Import(fset, imports, "net/http", ".", nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -433,8 +439,9 @@ func TestIssue13898(t *testing.T) {
+ 	}
+ 
+ 	// import go/internal/gcimporter which imports go/types partially
++	fset := token.NewFileSet()
+ 	imports := make(map[string]*types.Package)
+-	_, err := Import(imports, "go/internal/gcimporter", ".", nil)
++	_, err := Import(fset, imports, "go/internal/gcimporter", ".", nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -502,8 +509,9 @@ func TestIssue15517(t *testing.T) {
+ 	// file and package path are different, exposing the problem if present.
+ 	// The same issue occurs with vendoring.)
+ 	imports := make(map[string]*types.Package)
++	fset := token.NewFileSet()
+ 	for i := 0; i < 3; i++ {
+-		if _, err := Import(imports, "./././testdata/p", tmpdir, nil); err != nil {
++		if _, err := Import(fset, imports, "./././testdata/p", tmpdir, nil); err != nil {
+ 			t.Fatal(err)
+ 		}
+ 	}
+@@ -582,7 +590,8 @@ func TestIssue25596(t *testing.T) {
+ }
+ 
+ func importPkg(t *testing.T, path, srcDir string) *types.Package {
+-	pkg, err := Import(make(map[string]*types.Package), path, srcDir, nil)
++	fset := token.NewFileSet()
++	pkg, err := Import(fset, make(map[string]*types.Package), path, srcDir, nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}

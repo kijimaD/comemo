@@ -9,6 +9,86 @@ Date:   Wed Jan 7 13:29:03 2009 -0800
     DELTA=37  (13 added, 14 deleted, 10 changed)
     OCL=22217
     CL=22219
-
+---
  src/cmd/6g/obj.c | 43 +++++++++++++++++++++----------------------
  1 file changed, 21 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index e060f0691b..c44e6f6a4e 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -612,9 +612,9 @@ out:
+ }
+ 
+ void
+-dumpsigt(Type *t0, Sym *s)
++dumpsigt(Type *t0, Type *t, Sym *s)
+ {
+-	Type *f, *t;
++	Type *f;
+ 	Sym *s1;
+ 	int o;
+ 	Sig *a, *b;
+@@ -623,12 +623,6 @@ dumpsigt(Type *t0, Sym *s)
+ 
+ 	at.sym = s;
+ 
+-	t = t0;
+-	if(isptr[t->etype] && t->type->sym != S) {
+-		t = t->type;
+-		expandmeth(t->sym, t);
+-	}
+-
+ 	a = nil;
+ 	o = 0;
+ 	for(f=t->method; f!=T; f=f->down) {
+@@ -815,7 +809,7 @@ dumpsignatures(void)
+ {
+ 	int et;
+ 	Dcl *d, *x;
+-	Type *t;
++	Type *t, *t0;
+ 	Sym *s, *s1;
+ 	Prog *p;
+ 
+@@ -893,22 +887,27 @@ dumpsignatures(void)
+ 		// don't emit non-trivial signatures for types defined outside this file.
+ 		// non-trivial signatures might also drag in generated trampolines,
+ 		// and ar can't handle duplicates of the trampolines.
+-		s1 = S;
+-		if(isptr[et] && t->type != T) {
+-			s1 = t->type->sym;
+-			if(s1 && !t->type->local)
+-				continue;
+-		}
+-		else if(et == TINTER) {
+-			s1 = t->sym;
+-			if(s1 && !t->local)
++		// only pay attention to types with symbols, because
++		// the ... structs and maybe other internal structs
++		// don't get marked as local.
++
++		// interface is easy
++		if(et == TINTER) {
++			if(t->sym && !t->local)
+ 				continue;
++			dumpsigi(t, s);
++			continue;
+ 		}
+ 
+-		if(et == TINTER)
+-			dumpsigi(t, s);
+-		else
+-			dumpsigt(t, s);
++		// if there's a pointer, methods are on base.
++		t0 = t;
++		if(isptr[et] && t->type->sym != S) {
++			t = t->type;
++			expandmeth(t->sym, t);
++		}
++		if(t->method && t->sym && !t->local)
++			continue;
++		dumpsigt(t0, t, s);
+ 	}
+ 
+ 	if(stringo > 0) {

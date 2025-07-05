@@ -7,7 +7,7 @@ Date:   Mon Oct 22 14:26:36 2012 +0800
     R=rsc, dave
     CC=golang-dev
     https://golang.org/cl/6638043
-
+---
  include/libc.h         |  1 +
  src/cmd/5l/obj.c       |  2 +-
  src/cmd/dist/a.h       |  2 ++
@@ -19,3 +19,246 @@ Date:   Mon Oct 22 14:26:36 2012 +0800
  src/lib9/goos.c        |  6 ++++++
  src/make.bat           |  2 +-
  10 files changed, 111 insertions(+), 2 deletions(-)
+
+diff --git a/include/libc.h b/include/libc.h
+index b464cb4c63..6ae3df2408 100644
+--- a/include/libc.h
++++ b/include/libc.h
+@@ -293,6 +293,7 @@ extern	char*	getgoos(void);
+ extern	char*	getgoarch(void);
+ extern	char*	getgoroot(void);
+ extern	char*	getgoversion(void);
++extern	char*	getgoarm(void);
+ 
+ #ifdef _WIN32
+ 
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 4a7ccc63f7..bf2978d05e 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -90,7 +90,7 @@ main(int argc, char *argv[])
+ 	INITENTRY = 0;
+ 	nuxiinit();
+ 	
+-	p = getenv("GOARM");
++	p = getgoarm();
+ 	if(p != nil)
+ 		goarm = atoi(p);
+ 	else
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+index ace2ff60ad..f6d90df638 100644
+--- a/src/cmd/dist/a.h
++++ b/src/cmd/dist/a.h
+@@ -151,3 +151,5 @@ char*	xstrrchr(char*, int);
+ char*	xstrstr(char*, char*);
+ char*	xworkdir(void);
+ int	xsamefile(char*, char*);
++char*	xgetgoarm(void);
++int	xtryexecfunc(void (*)(void));
+diff --git a/src/cmd/dist/arm.c b/src/cmd/dist/arm.c
+new file mode 100644
+index 0000000000..ed64089908
+--- /dev/null
++++ b/src/cmd/dist/arm.c
+@@ -0,0 +1,45 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "a.h"
++
++#ifndef __ARMEL__
++char *
++xgetgoarm(void)
++{
++	return "6";
++}
++#else
++static void useVFPv3(void);
++static void useVFPv1(void);
++
++char *
++xgetgoarm(void)
++{
++	if(xtryexecfunc(useVFPv3))
++		return "7";
++	else if(xtryexecfunc(useVFPv1))
++		return "6";
++	return "5";
++}
++
++static void
++useVFPv3(void)
++{
++	// try to run VFPv3-only "vmov.f64 d0, #112" instruction
++	// we can't use that instruction directly, because we
++	// might be compiling with a soft-float only toolchain
++	__asm__ __volatile__ (".word 0xeeb70b00");
++}
++
++static void
++useVFPv1(void)
++{
++	// try to run "vmov.f64 d0, d0" instruction
++	// we can't use that instruction directly, because we
++	// might be compiling with a soft-float only toolchain
++	__asm__ __volatile__ (".word 0xeeb00b40");
++}
++
++#endif
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 74100595c0..fca668ceb8 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -16,6 +16,7 @@ char *gohostarch;
+ char *gohostchar;
+ char *gohostos;
+ char *goos;
++char *goarm;
+ char *goroot = GOROOT_FINAL;
+ char *goroot_final = GOROOT_FINAL;
+ char *workdir;
+@@ -96,6 +97,11 @@ init(void)
+ 	if(find(goos, okgoos, nelem(okgoos)) < 0)
+ 		fatal("unknown $GOOS %s", goos);
+ 
++	xgetenv(&b, "GOARM");
++	if(b.len == 0)
++		bwritestr(&b, xgetgoarm());
++	goarm = btake(&b);
++
+ 	p = bpathf(&b, "%s/include/u.h", goroot);
+ 	if(!isfile(p)) {
+ 		fatal("$GOROOT is not set correctly or not exported\n"
+@@ -126,6 +132,7 @@ init(void)
+ 	xsetenv("GOROOT", goroot);
+ 	xsetenv("GOARCH", goarch);
+ 	xsetenv("GOOS", goos);
++	xsetenv("GOARM", goarm);
+ 
+ 	// Make the environment more predictable.
+ 	xsetenv("LANG", "C");
+@@ -883,6 +890,7 @@ install(char *dir)
+ 				bsubst(&b1, "\\", "\\\\");  // turn into C string
+ 				vadd(&compile, bprintf(&b, "-DGOROOT=\"%s\"", bstr(&b1)));
+ 				vadd(&compile, bprintf(&b, "-DGOVERSION=\"%s\"", goversion));
++				vadd(&compile, bprintf(&b, "-DGOARM=\"%s\"", goarm));
+ 			}
+ 
+ 			// gc/lex.c records the GOEXPERIMENT setting used during the build.
+@@ -1371,6 +1379,8 @@ cmdenv(int argc, char **argv)
+ 	xprintf(format, "GOHOSTOS", gohostos);
+ 	xprintf(format, "GOTOOLDIR", tooldir);
+ 	xprintf(format, "GOCHAR", gochar);
++	if(streq(goarch, "arm"))
++		xprintf(format, "GOARM", goarm);
+ 
+ 	if(pflag) {
+ 		sep = ":";
+diff --git a/src/cmd/dist/plan9.c b/src/cmd/dist/plan9.c
+index 7482d970a4..5bf2c3736d 100644
+--- a/src/cmd/dist/plan9.c
++++ b/src/cmd/dist/plan9.c
+@@ -749,4 +749,13 @@ xsamefile(char *f1, char *f2)
+ 	return streq(f1, f2); // suffice for now
+ }
+ 
++// xtryexecfunc tries to execute function f, if any illegal instruction
++// signal received in the course of executing that function, it will
++// return 0, otherwise it will return 1.
++int
++xtryexecfunc(void (*f)(void))
++{
++	return 0; // suffice for now
++}
++
+ #endif // PLAN9
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index ff63556127..607f904acb 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -23,6 +23,7 @@
+ #include <stdlib.h>
+ #include <errno.h>
+ #include <stdarg.h>
++#include <setjmp.h>
+ 
+ // bprintf replaces the buffer with the result of the printf formatting
+ // and returns a pointer to the NUL-terminated buffer contents.
+@@ -734,5 +735,31 @@ xsamefile(char *f1, char *f2)
+ 	return streq(f1, f2); // suffice for now
+ }
+ 
++sigjmp_buf sigill_jmpbuf;
++static void sigillhand(int);
++// xtryexecfunc tries to execute function f, if any illegal instruction
++// signal received in the course of executing that function, it will
++// return 0, otherwise it will return 1.
++int
++xtryexecfunc(void (*f)(void))
++{
++	int r;
++	r = 0;
++	signal(SIGILL, sigillhand);
++	if(sigsetjmp(sigill_jmpbuf, 1) == 0) {
++		f();
++		r = 1;
++	}
++	signal(SIGILL, SIG_DFL);
++	return r;
++}
++// SIGILL handler helper
++static void
++sigillhand(int signum)
++{
++	USED(signum);
++	siglongjmp(sigill_jmpbuf, 1);
++}
++
+ #endif // PLAN9
+ #endif // __WINDOWS__
+diff --git a/src/cmd/dist/windows.c b/src/cmd/dist/windows.c
+index 5fa9634919..37f8ea02ec 100644
+--- a/src/cmd/dist/windows.c
++++ b/src/cmd/dist/windows.c
+@@ -962,4 +962,13 @@ xsamefile(char *f1, char *f2)
+ 	return 0;
+ }
+ 
++// xtryexecfunc tries to execute function f, if any illegal instruction
++// signal received in the course of executing that function, it will
++// return 0, otherwise it will return 1.
++int
++xtryexecfunc(void (*f)(void))
++{
++	return 0; // suffice for now
++}
++
+ #endif // __WINDOWS__
+diff --git a/src/lib9/goos.c b/src/lib9/goos.c
+index f3ee1110a0..c892757498 100644
+--- a/src/lib9/goos.c
++++ b/src/lib9/goos.c
+@@ -39,3 +39,9 @@ getgoversion(void)
+ {
+ 	return GOVERSION;
+ }
++
++char*
++getgoarm(void)
++{
++	return defgetenv("GOARM", GOARM);
++}
+diff --git a/src/make.bat b/src/make.bat
+index 01c2dc4578..be1c8f52dc 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -60,7 +60,7 @@ echo # Building C bootstrap tool.
+ echo cmd/dist
+ if not exist ..\bin\tool mkdir ..\bin\tool
+ :: Windows has no glob expansion, so spell out cmd/dist/*.c.
+-gcc -O2 -Wall -Werror -o cmd/dist/dist.exe -Icmd/dist %DEFGOROOT% cmd/dist/buf.c cmd/dist/build.c cmd/dist/buildgc.c cmd/dist/buildruntime.c cmd/dist/goc2c.c cmd/dist/main.c cmd/dist/windows.c
++gcc -O2 -Wall -Werror -o cmd/dist/dist.exe -Icmd/dist %DEFGOROOT% cmd/dist/buf.c cmd/dist/build.c cmd/dist/buildgc.c cmd/dist/buildruntime.c cmd/dist/goc2c.c cmd/dist/main.c cmd/dist/windows.c cmd/dist/arm.c
+ if errorlevel 1 goto fail
+ .\cmd\dist\dist env -wp >env.bat
+ if errorlevel 1 goto fail

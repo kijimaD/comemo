@@ -9,7 +9,56 @@ Date:   Wed Mar 2 10:21:56 2011 -0800
     R=rsc, r, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4260042
-
+---
  src/pkg/http/client.go      | 11 +++++++++++
  src/pkg/http/client_test.go |  7 +++++--
  2 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index cbd628014e..b1fe5ec678 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -36,6 +36,9 @@ type ClientTransport interface {
+ 	// be reserved for failure to obtain a response.  Similarly, Do should
+ 	// not attempt to handle higher-level protocol details such as redirects,
+ 	// authentication, or cookies.
++	//
++	// Transports may modify the request. The request Headers field is
++	// guaranteed to be initalized.
+ 	Do(req *Request) (resp *Response, err os.Error)
+ }
+ 
+@@ -109,6 +112,14 @@ func send(req *Request, t ClientTransport) (resp *Response, err os.Error) {
+ 			return
+ 		}
+ 	}
++
++	// Most the callers of send (Get, Post, et al) don't need
++	// Headers, leaving it uninitialized.  We guarantee to the
++	// ClientTransport that this has been initialized, though.
++	if req.Header == nil {
++		req.Header = Header(make(map[string][]string))
++	}
++
+ 	info := req.URL.RawUserinfo
+ 	if len(info) > 0 {
+ 		enc := base64.URLEncoding
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index 1b0fe03509..c89ecbce2d 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -55,9 +55,12 @@ func TestGetRequestFormat(t *testing.T) {
+ 	url := "http://dummy.faketld/"
+ 	client.Get(url) // Note: doesn't hit network
+ 	if tr.req.Method != "GET" {
+-		t.Fatalf("expected method %q; got %q", "GET", tr.req.Method)
++		t.Errorf("expected method %q; got %q", "GET", tr.req.Method)
+ 	}
+ 	if tr.req.URL.String() != url {
+-		t.Fatalf("expected URL %q; got %q", url, tr.req.URL.String())
++		t.Errorf("expected URL %q; got %q", url, tr.req.URL.String())
++	}
++	if tr.req.Header == nil {
++		t.Errorf("expected non-nil request Header")
+ 	}
+ }

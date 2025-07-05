@@ -36,7 +36,7 @@ Date:   Fri Feb 26 21:57:16 2016 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgcsweep.go                  |  12 ++++-
  src/runtime/proc.go                      |  19 +++++--
  src/runtime/race.go                      |  89 ++++++++++++++++++++++++++-----
@@ -51,3 +51,437 @@ Date:   Fri Feb 26 21:57:16 2016 +0100
  src/runtime/race_amd64.s                 |  23 +++++++-
  src/runtime/runtime2.go                  |   1 +
  13 files changed, 157 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index b8e33897c1..947c38e400 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -251,7 +251,7 @@ func (s *mspan) sweep(preserve bool) bool {
+ 		}
+ 	}
+ 
+-	if debug.allocfreetrace != 0 {
++	if debug.allocfreetrace != 0 || raceenabled || msanenabled {
+ 		// Find all newly freed objects. This doesn't have to
+ 		// efficient; allocfreetrace has massive overhead.
+ 		mbits := s.markBitsForBase()
+@@ -259,7 +259,15 @@ func (s *mspan) sweep(preserve bool) bool {
+ 		for i := uintptr(0); i < s.nelems; i++ {
+ 			if !mbits.isMarked() && (abits.index < s.freeindex || abits.isMarked()) {
+ 				x := s.base() + i*s.elemsize
+-				tracefree(unsafe.Pointer(x), size)
++				if debug.allocfreetrace != 0 {
++					tracefree(unsafe.Pointer(x), size)
++				}
++				if raceenabled {
++					racefree(unsafe.Pointer(x), size)
++				}
++				if msanenabled {
++					msanfree(unsafe.Pointer(x), size)
++				}
+ 			}
+ 			mbits.advance()
+ 			abits.advance()
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index e03059080d..541fbaf8fb 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -76,8 +76,9 @@ var buildVersion = sys.TheVersion
+ // for nmspinning manipulation.
+ 
+ var (
+-	m0 m
+-	g0 g
++	m0           m
++	g0           g
++	raceprocctx0 uintptr
+ )
+ 
+ //go:linkname runtime_init runtime.init
+@@ -434,7 +435,7 @@ func schedinit() {
+ 	// In particular, it must be done before mallocinit below calls racemapshadow.
+ 	_g_ := getg()
+ 	if raceenabled {
+-		_g_.racectx = raceinit()
++		_g_.racectx, raceprocctx0 = raceinit()
+ 	}
+ 
+ 	sched.maxmcount = 10000
+@@ -3251,6 +3252,14 @@ func procresize(nprocs int32) *p {
+ 				pp.mcache = allocmcache()
+ 			}
+ 		}
++		if raceenabled && pp.racectx == 0 {
++			if old == 0 && i == 0 {
++				pp.racectx = raceprocctx0
++				raceprocctx0 = 0 // bootstrap
++			} else {
++				pp.racectx = raceproccreate()
++			}
++		}
+ 	}
+ 
+ 	// free unused P's
+@@ -3302,6 +3311,10 @@ func procresize(nprocs int32) *p {
+ 		p.mcache = nil
+ 		gfpurge(p)
+ 		traceProcFree(p)
++		if raceenabled {
++			raceprocdestroy(p.racectx)
++			p.racectx = 0
++		}
+ 		p.status = _Pdead
+ 		// can't free P itself because it can be referenced by an M in syscall
+ 	}
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index beca47ed21..ecd68d80ce 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -58,7 +58,7 @@ func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
+ //go:noescape
+ func racewritepc(addr unsafe.Pointer, callpc, pc uintptr)
+ 
+-type symbolizeContext struct {
++type symbolizeCodeContext struct {
+ 	pc   uintptr
+ 	fn   *byte
+ 	file *byte
+@@ -70,8 +70,27 @@ type symbolizeContext struct {
+ var qq = [...]byte{'?', '?', 0}
+ var dash = [...]byte{'-', 0}
+ 
++const (
++	raceGetProcCmd = iota
++	raceSymbolizeCodeCmd
++	raceSymbolizeDataCmd
++)
++
+ // Callback from C into Go, runs on g0.
+-func racesymbolize(ctx *symbolizeContext) {
++func racecallback(cmd uintptr, ctx unsafe.Pointer) {
++	switch cmd {
++	case raceGetProcCmd:
++		throw("should have been handled by racecallbackthunk")
++	case raceSymbolizeCodeCmd:
++		raceSymbolizeCode((*symbolizeCodeContext)(ctx))
++	case raceSymbolizeDataCmd:
++		raceSymbolizeData((*symbolizeDataContext)(ctx))
++	default:
++		throw("unknown command")
++	}
++}
++
++func raceSymbolizeCode(ctx *symbolizeCodeContext) {
+ 	f := findfunc(ctx.pc)
+ 	if f == nil {
+ 		ctx.fn = &qq[0]
+@@ -91,6 +110,26 @@ func racesymbolize(ctx *symbolizeContext) {
+ 	return
+ }
+ 
++type symbolizeDataContext struct {
++	addr  uintptr
++	heap  uintptr
++	start uintptr
++	size  uintptr
++	name  *byte
++	file  *byte
++	line  uintptr
++	res   uintptr
++}
++
++func raceSymbolizeData(ctx *symbolizeDataContext) {
++	if _, x, n := findObject(unsafe.Pointer(ctx.addr)); x != nil {
++		ctx.heap = 1
++		ctx.start = uintptr(x)
++		ctx.size = n
++		ctx.res = 1
++	}
++}
++
+ // Race runtime functions called via runtime·racecall.
+ //go:linkname __tsan_init __tsan_init
+ var __tsan_init byte
+@@ -98,6 +137,12 @@ var __tsan_init byte
+ //go:linkname __tsan_fini __tsan_fini
+ var __tsan_fini byte
+ 
++//go:linkname __tsan_proc_create __tsan_proc_create
++var __tsan_proc_create byte
++
++//go:linkname __tsan_proc_destroy __tsan_proc_destroy
++var __tsan_proc_destroy byte
++
+ //go:linkname __tsan_map_shadow __tsan_map_shadow
+ var __tsan_map_shadow byte
+ 
+@@ -113,6 +158,9 @@ var __tsan_go_end byte
+ //go:linkname __tsan_malloc __tsan_malloc
+ var __tsan_malloc byte
+ 
++//go:linkname __tsan_free __tsan_free
++var __tsan_free byte
++
+ //go:linkname __tsan_acquire __tsan_acquire
+ var __tsan_acquire byte
+ 
+@@ -131,11 +179,14 @@ var __tsan_go_ignore_sync_end byte
+ // Mimic what cmd/cgo would do.
+ //go:cgo_import_static __tsan_init
+ //go:cgo_import_static __tsan_fini
++//go:cgo_import_static __tsan_proc_create
++//go:cgo_import_static __tsan_proc_destroy
+ //go:cgo_import_static __tsan_map_shadow
+ //go:cgo_import_static __tsan_finalizer_goroutine
+ //go:cgo_import_static __tsan_go_start
+ //go:cgo_import_static __tsan_go_end
+ //go:cgo_import_static __tsan_malloc
++//go:cgo_import_static __tsan_free
+ //go:cgo_import_static __tsan_acquire
+ //go:cgo_import_static __tsan_release
+ //go:cgo_import_static __tsan_release_merge
+@@ -175,7 +226,7 @@ func racefuncenter(uintptr)
+ func racefuncexit()
+ func racereadrangepc1(uintptr, uintptr, uintptr)
+ func racewriterangepc1(uintptr, uintptr, uintptr)
+-func racesymbolizethunk(uintptr)
++func racecallbackthunk(uintptr)
+ 
+ // racecall allows calling an arbitrary function f from C race runtime
+ // with up to 4 uintptr arguments.
+@@ -189,14 +240,13 @@ func isvalidaddr(addr unsafe.Pointer) bool {
+ }
+ 
+ //go:nosplit
+-func raceinit() uintptr {
++func raceinit() (gctx, pctx uintptr) {
+ 	// cgo is required to initialize libc, which is used by race runtime
+ 	if !iscgo {
+ 		throw("raceinit: race build must use cgo")
+ 	}
+ 
+-	var racectx uintptr
+-	racecall(&__tsan_init, uintptr(unsafe.Pointer(&racectx)), funcPC(racesymbolizethunk), 0, 0)
++	racecall(&__tsan_init, uintptr(unsafe.Pointer(&gctx)), uintptr(unsafe.Pointer(&pctx)), funcPC(racecallbackthunk), 0)
+ 
+ 	// Round data segment to page boundaries, because it's used in mmap().
+ 	start := ^uintptr(0)
+@@ -230,7 +280,7 @@ func raceinit() uintptr {
+ 	racedatastart = start
+ 	racedataend = start + size
+ 
+-	return racectx
++	return
+ }
+ 
+ //go:nosplit
+@@ -238,6 +288,18 @@ func racefini() {
+ 	racecall(&__tsan_fini, 0, 0, 0, 0)
+ }
+ 
++//go:nosplit
++func raceproccreate() uintptr {
++	var ctx uintptr
++	racecall(&__tsan_proc_create, uintptr(unsafe.Pointer(&ctx)), 0, 0, 0)
++	return ctx
++}
++
++//go:nosplit
++func raceprocdestroy(ctx uintptr) {
++	racecall(&__tsan_proc_destroy, ctx, 0, 0, 0)
++}
++
+ //go:nosplit
+ func racemapshadow(addr unsafe.Pointer, size uintptr) {
+ 	if racearenastart == 0 {
+@@ -251,7 +313,12 @@ func racemapshadow(addr unsafe.Pointer, size uintptr) {
+ 
+ //go:nosplit
+ func racemalloc(p unsafe.Pointer, sz uintptr) {
+-	racecall(&__tsan_malloc, uintptr(p), sz, 0, 0)
++	racecall(&__tsan_malloc, 0, 0, uintptr(p), sz)
++}
++
++//go:nosplit
++func racefree(p unsafe.Pointer, sz uintptr) {
++	racecall(&__tsan_free, uintptr(p), sz, 0, 0)
+ }
+ 
+ //go:nosplit
+@@ -323,11 +390,7 @@ func raceacquireg(gp *g, addr unsafe.Pointer) {
+ 
+ //go:nosplit
+ func racerelease(addr unsafe.Pointer) {
+-	_g_ := getg()
+-	if _g_.raceignore != 0 || !isvalidaddr(addr) {
+-		return
+-	}
+-	racereleaseg(_g_, addr)
++	racereleaseg(getg(), addr)
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/race/README b/src/runtime/race/README
+index 1831699935..3a506b0c08 100644
+--- a/src/runtime/race/README
++++ b/src/runtime/race/README
+@@ -4,4 +4,4 @@ the LLVM project (http://llvm.org/git/compiler-rt.git).
+ 
+ To update the .syso files use golang.org/x/build/cmd/racebuild.
+ 
+-Current runtime is built on rev 389d49d4943780efbfcd2a434f4462b6d0f23c44.
++Current runtime is built on rev 9d79ea3416bfbe3acac50e47802ee9621bf53254.
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index 27d9efb687..5157f7e4bd 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -93,13 +93,13 @@ func racer(x *int, done chan bool) {
+ }
+ `, `==================
+ WARNING: DATA RACE
+-Write by goroutine [0-9]:
++Write at 0x[0-9,a-f]+ by goroutine [0-9]:
+   main\.store\(\)
+       .+/main\.go:12 \+0x[0-9,a-f]+
+   main\.racer\(\)
+       .+/main\.go:19 \+0x[0-9,a-f]+
+ 
+-Previous write by main goroutine:
++Previous write at 0x[0-9,a-f]+ by main goroutine:
+   main\.store\(\)
+       .+/main\.go:12 \+0x[0-9,a-f]+
+   main\.main\(\)
+diff --git a/src/runtime/race/race_darwin_amd64.syso b/src/runtime/race/race_darwin_amd64.syso
+index 745d970eac..1822486e08 100644
+Binary files a/src/runtime/race/race_darwin_amd64.syso and b/src/runtime/race/race_darwin_amd64.syso differ
+diff --git a/src/runtime/race/race_freebsd_amd64.syso b/src/runtime/race/race_freebsd_amd64.syso
+index 074b676d4a..75d94952c3 100644
+Binary files a/src/runtime/race/race_freebsd_amd64.syso and b/src/runtime/race/race_freebsd_amd64.syso differ
+diff --git a/src/runtime/race/race_linux_amd64.syso b/src/runtime/race/race_linux_amd64.syso
+index 042ca5924f..8f571afa9a 100644
+Binary files a/src/runtime/race/race_linux_amd64.syso and b/src/runtime/race/race_linux_amd64.syso differ
+diff --git a/src/runtime/race/race_test.go b/src/runtime/race/race_test.go
+index 748f33883b..81e51cc5b2 100644
+--- a/src/runtime/race/race_test.go
++++ b/src/runtime/race/race_test.go
+@@ -17,10 +17,13 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"log"
++	"math/rand"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"strings"
++	"sync"
++	"sync/atomic"
+ 	"testing"
+ )
+ 
+@@ -195,3 +198,26 @@ func TestIssue9137(t *testing.T) {
+ 		t.Errorf("mangled a: %q %q", a, a[:1])
+ 	}
+ }
++
++func BenchmarkSyncLeak(b *testing.B) {
++	const (
++		G = 1000
++		S = 1000
++		H = 10
++	)
++	var wg sync.WaitGroup
++	wg.Add(G)
++	for g := 0; g < G; g++ {
++		go func() {
++			defer wg.Done()
++			hold := make([][]uint32, H)
++			for i := 0; i < b.N; i++ {
++				a := make([]uint32, S)
++				atomic.AddUint32(&a[rand.Intn(len(a))], 1)
++				hold[rand.Intn(len(hold))] = a
++			}
++			_ = hold
++		}()
++	}
++	wg.Wait()
++}
+diff --git a/src/runtime/race/race_windows_amd64.syso b/src/runtime/race/race_windows_amd64.syso
+index cb4446ba3e..64c54b6e2f 100644
+Binary files a/src/runtime/race/race_windows_amd64.syso and b/src/runtime/race/race_windows_amd64.syso differ
+diff --git a/src/runtime/race0.go b/src/runtime/race0.go
+index ccf0defa79..f1d3706231 100644
+--- a/src/runtime/race0.go
++++ b/src/runtime/race0.go
+@@ -18,8 +18,10 @@ const raceenabled = false
+ 
+ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr)  { throw("race") }
+ func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) { throw("race") }
+-func raceinit() uintptr                                                     { throw("race"); return 0 }
++func raceinit() (uintptr, uintptr)                                          { throw("race"); return 0, 0 }
+ func racefini()                                                             { throw("race") }
++func raceproccreate() uintptr                                               { throw("race"); return 0 }
++func raceprocdestroy(ctx uintptr)                                           { throw("race") }
+ func racemapshadow(addr unsafe.Pointer, size uintptr)                       { throw("race") }
+ func racewritepc(addr unsafe.Pointer, callerpc, pc uintptr)                 { throw("race") }
+ func racereadpc(addr unsafe.Pointer, callerpc, pc uintptr)                  { throw("race") }
+@@ -33,5 +35,6 @@ func racereleasemerge(addr unsafe.Pointer)                                  { th
+ func racereleasemergeg(gp *g, addr unsafe.Pointer)                          { throw("race") }
+ func racefingo()                                                            { throw("race") }
+ func racemalloc(p unsafe.Pointer, sz uintptr)                               { throw("race") }
++func racefree(p unsafe.Pointer, sz uintptr)                                 { throw("race") }
+ func racegostart(pc uintptr) uintptr                                        { throw("race"); return 0 }
+ func racegoend()                                                            { throw("race") }
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index 55c48fc5f2..94ca76da27 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -384,7 +384,24 @@ call:
+ // C->Go callback thunk that allows to call runtime·racesymbolize from C code.
+ // Direct Go->C race call has only switched SP, finish g->g0 switch by setting correct g.
+ // The overall effect of Go->C->Go call chain is similar to that of mcall.
+-TEXT	runtime·racesymbolizethunk(SB), NOSPLIT, $56-8
++// RARG0 contains command code. RARG1 contains command-specific context.
++// See racecallback for command codes.
++TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $56-8
++	// Handle command raceGetProcCmd (0) here.
++	// First, code below assumes that we are on curg, while raceGetProcCmd
++	// can be executed on g0. Second, it is called frequently, so will
++	// benefit from this fast path.
++	CMPQ	RARG0, $0
++	JNE	rest
++	get_tls(RARG0)
++	MOVQ	g(RARG0), RARG0
++	MOVQ	g_m(RARG0), RARG0
++	MOVQ	m_p(RARG0), RARG0
++	MOVQ	p_racectx(RARG0), RARG0
++	MOVQ	RARG0, (RARG1)
++	RET
++
++rest:
+ 	// Save callee-saved registers (Go code won't respect that).
+ 	// This is superset of darwin/linux/windows registers.
+ 	PUSHQ	BX
+@@ -401,8 +418,10 @@ TEXT	runtime·racesymbolizethunk(SB), NOSPLIT, $56-8
+ 	MOVQ	g_m(R13), R13
+ 	MOVQ	m_g0(R13), R14
+ 	MOVQ	R14, g(R12)	// g = m->g0
++	PUSHQ	RARG1	// func arg
+ 	PUSHQ	RARG0	// func arg
+-	CALL	runtime·racesymbolize(SB)
++	CALL	runtime·racecallback(SB)
++	POPQ	R12
+ 	POPQ	R12
+ 	// All registers are smashed after Go code, reload.
+ 	get_tls(R12)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 7567639168..71da504f1c 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -451,6 +451,7 @@ type p struct {
+ 	syscalltick uint32   // incremented on every system call
+ 	m           muintptr // back-link to associated m (nil if idle)
+ 	mcache      *mcache
++	racectx     uintptr
+ 
+ 	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.go)
+ 	deferpoolbuf [5][32]*_defer

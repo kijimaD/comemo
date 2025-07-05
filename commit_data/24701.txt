@@ -13,7 +13,179 @@ Date:   Sat Aug 22 09:52:36 2015 -0700
     Change-Id: I6fede8c027b7dc340e00d1e15df1b87bf2b2d9ec
     Reviewed-on: https://go-review.googlesource.com/13843
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 19 ++++++++++---------
  src/cmd/compile/internal/ssa/opGen.go        | 16 ----------------
  2 files changed, 10 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 7469601fc7..86b51ecef2 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -93,11 +93,12 @@ func init() {
+ 
+ 	// Common regInfo
+ 	var (
+-		gp01      = regInfo{inputs: []regMask{}, outputs: gponly, clobbers: flags}
++		gp01      = regInfo{inputs: []regMask{}, outputs: gponly}
+ 		gp11      = regInfo{inputs: []regMask{gpsp}, outputs: gponly, clobbers: flags}
+-		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly, clobbers: flags}
++		gp11nf    = regInfo{inputs: []regMask{gpsp}, outputs: gponly} // nf: no flags clobbered
++		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
+ 		gp21      = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: gponly, clobbers: flags}
+-		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly, clobbers: flags}
++		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
+ 		gp21shift = regInfo{inputs: []regMask{gpsp, cx}, outputs: []regMask{gp &^ cx}, clobbers: flags}
+ 		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax},
+ 			clobbers: dx | flags}
+@@ -315,12 +316,12 @@ func init() {
+ 		{name: "SETA", reg: readflags, asm: "SETHI"},  // extract unsigned > condition from arg0
+ 		{name: "SETAE", reg: readflags, asm: "SETCC"}, // extract unsigned >= condition from arg0
+ 
+-		{name: "MOVBQSX", reg: gp11, asm: "MOVBQSX"}, // sign extend arg0 from int8 to int64
+-		{name: "MOVBQZX", reg: gp11, asm: "MOVBQZX"}, // zero extend arg0 from int8 to int64
+-		{name: "MOVWQSX", reg: gp11, asm: "MOVWQSX"}, // sign extend arg0 from int16 to int64
+-		{name: "MOVWQZX", reg: gp11, asm: "MOVWQZX"}, // zero extend arg0 from int16 to int64
+-		{name: "MOVLQSX", reg: gp11, asm: "MOVLQSX"}, // sign extend arg0 from int32 to int64
+-		{name: "MOVLQZX", reg: gp11, asm: "MOVLQZX"}, // zero extend arg0 from int32 to int64
++		{name: "MOVBQSX", reg: gp11nf, asm: "MOVBQSX"}, // sign extend arg0 from int8 to int64
++		{name: "MOVBQZX", reg: gp11nf, asm: "MOVBQZX"}, // zero extend arg0 from int8 to int64
++		{name: "MOVWQSX", reg: gp11nf, asm: "MOVWQSX"}, // sign extend arg0 from int16 to int64
++		{name: "MOVWQZX", reg: gp11nf, asm: "MOVWQZX"}, // zero extend arg0 from int16 to int64
++		{name: "MOVLQSX", reg: gp11nf, asm: "MOVLQSX"}, // sign extend arg0 from int32 to int64
++		{name: "MOVLQZX", reg: gp11nf, asm: "MOVLQZX"}, // zero extend arg0 from int32 to int64
+ 
+ 		{name: "MOVBconst", reg: gp01, asm: "MOVB"}, // 8 low bits of auxint
+ 		{name: "MOVWconst", reg: gp01, asm: "MOVW"}, // 16 low bits of auxint
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 11fc3180cf..5346f757fb 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2261,7 +2261,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2420,7 +2419,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2433,7 +2431,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2446,7 +2443,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2459,7 +2455,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2472,7 +2467,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2495,7 +2489,6 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVBconst",
+ 		asm:  x86.AMOVB,
+ 		reg: regInfo{
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2505,7 +2498,6 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVWconst",
+ 		asm:  x86.AMOVW,
+ 		reg: regInfo{
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2515,7 +2507,6 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVLconst",
+ 		asm:  x86.AMOVL,
+ 		reg: regInfo{
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2525,7 +2516,6 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVQconst",
+ 		asm:  x86.AMOVQ,
+ 		reg: regInfo{
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2537,7 +2527,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2550,7 +2539,6 @@ var opcodeTable = [...]opInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2563,7 +2551,6 @@ var opcodeTable = [...]opInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2576,7 +2563,6 @@ var opcodeTable = [...]opInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2589,7 +2575,6 @@ var opcodeTable = [...]opInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2799,7 +2784,6 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name: "LoweredGetG",
+ 		reg: regInfo{
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},

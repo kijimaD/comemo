@@ -7,6 +7,20 @@ Date:   Fri Apr 27 13:26:21 2018 +0000
     Change-Id: I561640768c43491288e7f5bd1a34247787793dab
     Reviewed-on: https://go-review.googlesource.com/109935
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/match.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/match.go b/src/testing/match.go
+index 89e30d01a7..b18c6e7f38 100644
+--- a/src/testing/match.go
++++ b/src/testing/match.go
+@@ -110,7 +110,7 @@ func splitRegexp(s string) []string {
+ }
+ 
+ // unique creates a unique name for the given parent and subname by affixing it
+-// with one ore more counts, if necessary.
++// with one or more counts, if necessary.
+ func (m *matcher) unique(parent, subname string) string {
+ 	name := fmt.Sprintf("%s/%s", parent, subname)
+ 	empty := subname == ""

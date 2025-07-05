@@ -27,9 +27,312 @@ Date:   Sat Sep 17 18:52:35 2022 -0400
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules | 17 +++++----
  src/cmd/compile/internal/ssa/rewritegeneric.go | 50 +++++++++++++-------------
  test/fixedbugs/issue55122.go                   | 42 ++++++++++++++++++++++
  test/fixedbugs/issue55122b.go                  | 43 ++++++++++++++++++++++
  4 files changed, 119 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 668164949f..ccdb1d8a77 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -2112,7 +2112,13 @@
+ 
+ // Inline small or disjoint runtime.memmove calls with constant length.
+ // See the comment in op Move in genericOps.go for discussion of the type.
+-
++//
++// Note that we've lost any knowledge of the type and alignment requirements
++// of the source and destination. We only know the size, and that the type
++// contains no pointers.
++// The type of the move is not necessarily v.Args[0].Type().Elem()!
++// See issue 55122 for details.
++//
+ // Because expand calls runs after prove, constants useful to this pattern may not appear.
+ // Both versions need to exist; the memory and register variants.
+ //
+@@ -2120,31 +2126,28 @@
+ (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem)))))
+ 	&& sz >= 0
+ 	&& isSameCall(sym, "runtime.memmove")
+-	&& t.IsPtr() // avoids TUNSAFEPTR, see issue 30061
+ 	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
+ 	&& isInlinableMemmove(dst, src, int64(sz), config)
+ 	&& clobber(s1, s2, s3, call)
+-	=> (Move {t.Elem()} [int64(sz)] dst src mem)
++	=> (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
+ 
+ // Match post-expansion calls, register version.
+ (SelectN [0] call:(StaticCall {sym} dst src (Const(64|32) [sz]) mem))
+ 	&& sz >= 0
+ 	&& call.Uses == 1 // this will exclude all calls with results
+ 	&& isSameCall(sym, "runtime.memmove")
+-	&& dst.Type.IsPtr() // avoids TUNSAFEPTR, see issue 30061
+ 	&& isInlinableMemmove(dst, src, int64(sz), config)
+ 	&& clobber(call)
+-	=> (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
++	=> (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
+ 
+ // Match pre-expansion calls.
+ (SelectN [0] call:(StaticLECall {sym} dst src (Const(64|32) [sz]) mem))
+ 	&& sz >= 0
+ 	&& call.Uses == 1 // this will exclude all calls with results
+ 	&& isSameCall(sym, "runtime.memmove")
+-	&& dst.Type.IsPtr() // avoids TUNSAFEPTR, see issue 30061
+ 	&& isInlinableMemmove(dst, src, int64(sz), config)
+ 	&& clobber(call)
+-	=> (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
++	=> (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
+ 
+ // De-virtualize late-expanded interface calls into late-expanded static calls.
+ // Note that (ITab (IMake)) doesn't get rewritten until after the first opt pass,
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 080a0b7030..2c6630c29d 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -26382,8 +26382,8 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem)))))
+-	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)
+-	// result: (Move {t.Elem()} [int64(sz)] dst src mem)
++	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)
++	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 0 {
+ 			break
+@@ -26413,21 +26413,20 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 		if s3.Op != OpStore {
+ 			break
+ 		}
+-		t := auxToType(s3.Aux)
+ 		mem := s3.Args[2]
+ 		dst := s3.Args[1]
+-		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)) {
++		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+ 		v.AuxInt = int64ToAuxInt(int64(sz))
+-		v.Aux = typeToAux(t.Elem())
++		v.Aux = typeToAux(types.Types[types.TUINT8])
+ 		v.AddArg3(dst, src, mem)
+ 		return true
+ 	}
+ 	// match: (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const32 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem)))))
+-	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)
+-	// result: (Move {t.Elem()} [int64(sz)] dst src mem)
++	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)
++	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 0 {
+ 			break
+@@ -26457,21 +26456,20 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 		if s3.Op != OpStore {
+ 			break
+ 		}
+-		t := auxToType(s3.Aux)
+ 		mem := s3.Args[2]
+ 		dst := s3.Args[1]
+-		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)) {
++		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+ 		v.AuxInt = int64ToAuxInt(int64(sz))
+-		v.Aux = typeToAux(t.Elem())
++		v.Aux = typeToAux(types.Types[types.TUINT8])
+ 		v.AddArg3(dst, src, mem)
+ 		return true
+ 	}
+ 	// match: (SelectN [0] call:(StaticCall {sym} dst src (Const64 [sz]) mem))
+-	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
+-	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
++	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
++	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 0 {
+ 			break
+@@ -26489,18 +26487,18 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 			break
+ 		}
+ 		sz := auxIntToInt64(call_2.AuxInt)
+-		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
++		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+ 		v.AuxInt = int64ToAuxInt(int64(sz))
+-		v.Aux = typeToAux(dst.Type.Elem())
++		v.Aux = typeToAux(types.Types[types.TUINT8])
+ 		v.AddArg3(dst, src, mem)
+ 		return true
+ 	}
+ 	// match: (SelectN [0] call:(StaticCall {sym} dst src (Const32 [sz]) mem))
+-	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
+-	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
++	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
++	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 0 {
+ 			break
+@@ -26518,18 +26516,18 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 			break
+ 		}
+ 		sz := auxIntToInt32(call_2.AuxInt)
+-		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
++		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+ 		v.AuxInt = int64ToAuxInt(int64(sz))
+-		v.Aux = typeToAux(dst.Type.Elem())
++		v.Aux = typeToAux(types.Types[types.TUINT8])
+ 		v.AddArg3(dst, src, mem)
+ 		return true
+ 	}
+ 	// match: (SelectN [0] call:(StaticLECall {sym} dst src (Const64 [sz]) mem))
+-	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
+-	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
++	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
++	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 0 {
+ 			break
+@@ -26547,18 +26545,18 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 			break
+ 		}
+ 		sz := auxIntToInt64(call_2.AuxInt)
+-		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
++		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+ 		v.AuxInt = int64ToAuxInt(int64(sz))
+-		v.Aux = typeToAux(dst.Type.Elem())
++		v.Aux = typeToAux(types.Types[types.TUINT8])
+ 		v.AddArg3(dst, src, mem)
+ 		return true
+ 	}
+ 	// match: (SelectN [0] call:(StaticLECall {sym} dst src (Const32 [sz]) mem))
+-	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
+-	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
++	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
++	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 0 {
+ 			break
+@@ -26576,12 +26574,12 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 			break
+ 		}
+ 		sz := auxIntToInt32(call_2.AuxInt)
+-		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
++		if !(sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+ 		v.AuxInt = int64ToAuxInt(int64(sz))
+-		v.Aux = typeToAux(dst.Type.Elem())
++		v.Aux = typeToAux(types.Types[types.TUINT8])
+ 		v.AddArg3(dst, src, mem)
+ 		return true
+ 	}
+diff --git a/test/fixedbugs/issue55122.go b/test/fixedbugs/issue55122.go
+new file mode 100644
+index 0000000000..24da89dcb6
+--- /dev/null
++++ b/test/fixedbugs/issue55122.go
+@@ -0,0 +1,42 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	for i := 0; i < 10000; i++ {
++		h(i)
++		sink = make([]byte, 1024) // generate some garbage
++	}
++}
++
++func h(iter int) {
++	var x [32]byte
++	for i := 0; i < 32; i++ {
++		x[i] = 99
++	}
++	g(&x)
++	if x == ([32]byte{}) {
++		return
++	}
++	for i := 0; i < 32; i++ {
++		println(x[i])
++	}
++	panic(iter)
++}
++
++//go:noinline
++func g(x interface{}) {
++	switch e := x.(type) {
++	case *[32]byte:
++		var c [32]byte
++		*e = c
++	case *[]byte:
++		*e = nil
++	}
++}
++
++var sink []byte
+diff --git a/test/fixedbugs/issue55122b.go b/test/fixedbugs/issue55122b.go
+new file mode 100644
+index 0000000000..a911a9f1b6
+--- /dev/null
++++ b/test/fixedbugs/issue55122b.go
+@@ -0,0 +1,43 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	for i := 0; i < 10000; i++ {
++		h(i)
++		sink = make([]byte, 1024) // generate some garbage
++	}
++}
++
++func h(iter int) {
++	var x [32]byte
++	for i := 0; i < 32; i++ {
++		x[i] = 99
++	}
++	g(&x)
++	if x == ([32]byte{}) {
++		return
++	}
++	for i := 0; i < 32; i++ {
++		println(x[i])
++	}
++	panic(iter)
++}
++
++//go:noinline
++func g(x interface{}) {
++	switch e := x.(type) {
++	case *[32]byte:
++		var c [32]byte
++		*e = c
++	case *[3]*byte:
++		var c [3]*byte
++		*e = c
++	}
++}
++
++var sink []byte

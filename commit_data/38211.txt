@@ -69,7 +69,54 @@ Date:   Tue Oct 9 11:01:34 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/x86/ssa.go | 21 ++++++++++++++++++++-
  test/codegen/arithmetic.go          |  2 ++
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 4ed46b9c8c..e0aebb449c 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -603,8 +603,27 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 		gc.AddAux2(&p.To, v, sc.Off())
++	case ssa.Op386ADDLconstmodifyidx4:
++		sc := v.AuxValAndOff()
++		val := sc.Val()
++		if val == 1 || val == -1 {
++			var p *obj.Prog
++			if val == 1 {
++				p = s.Prog(x86.AINCL)
++			} else {
++				p = s.Prog(x86.ADECL)
++			}
++			off := sc.Off()
++			p.To.Type = obj.TYPE_MEM
++			p.To.Reg = v.Args[0].Reg()
++			p.To.Scale = 4
++			p.To.Index = v.Args[1].Reg()
++			gc.AddAux2(&p.To, v, off)
++			break
++		}
++		fallthrough
+ 	case ssa.Op386MOVLstoreconstidx1, ssa.Op386MOVLstoreconstidx4, ssa.Op386MOVWstoreconstidx1, ssa.Op386MOVWstoreconstidx2, ssa.Op386MOVBstoreconstidx1,
+-		ssa.Op386ADDLconstmodifyidx4, ssa.Op386ANDLconstmodifyidx4, ssa.Op386ORLconstmodifyidx4, ssa.Op386XORLconstmodifyidx4:
++		ssa.Op386ANDLconstmodifyidx4, ssa.Op386ORLconstmodifyidx4, ssa.Op386XORLconstmodifyidx4:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		sc := v.AuxValAndOff()
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index 0b209f5130..879aaf285c 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -32,6 +32,8 @@ func SubMem(arr []int, b, c, d int) int {
+ 	arr[c] -= b
+ 	// 386:`ADDL\s[$]-15,\s\([A-Z]+\)\([A-Z]+\*4\)`
+ 	arr[d] -= 15
++	// 386:`DECL\s\([A-Z]+\)\([A-Z]+\*4\)`
++	arr[b]--
+ 	// 386:"SUBL\t4"
+ 	// amd64:"SUBQ\t8"
+ 	return arr[0] - arr[1]

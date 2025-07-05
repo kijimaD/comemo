@@ -7,6 +7,21 @@ Date:   Thu Nov 8 13:00:54 2012 +1100
     R=golang-dev, r
     CC=dvyukov, golang-dev
     https://golang.org/cl/6810099
-
+---
  src/cmd/go/build.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 1b5b7f4498..5c1c783ab4 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -62,7 +62,8 @@ The build flags are shared by the build, install, run, and test commands:
+ 		print the commands.
+ 	-race
+ 		enable data race detection.
+-		Currently supported only on linux/amd64 and darwin/amd64.
++		Currently supported only on linux/amd64,
++		darwin/amd64 and windows/amd64.
+ 
+ 	-ccflags 'arg list'
+ 		arguments to pass on each 5c, 6c, or 8c compiler invocation

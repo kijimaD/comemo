@@ -14,6 +14,32 @@ Date:   Thu Mar 31 14:57:49 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/user/lookup_unix.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/user/lookup_unix.go b/src/os/user/lookup_unix.go
+index 97b649cdad..58ecf32405 100644
+--- a/src/os/user/lookup_unix.go
++++ b/src/os/user/lookup_unix.go
+@@ -37,6 +37,11 @@ static int mygetgrgid_r(int gid, struct group *grp,
+ 	char *buf, size_t buflen, struct group **result) {
+  return getgrgid_r(gid, grp, buf, buflen, result);
+ }
++
++static int mygetgrnam_r(const char *name, struct group *grp,
++	char *buf, size_t buflen, struct group **result) {
++ return getgrnam_r(name, grp, buf, buflen, result);
++}
+ */
+ import "C"
+ 
+@@ -139,7 +144,7 @@ func lookupGroup(groupname string) (*Group, error) {
+ 	defer C.free(unsafe.Pointer(cname))
+ 
+ 	err := retryWithBuffer(buf, func() syscall.Errno {
+-		return syscall.Errno(C.getgrnam_r(cname,
++		return syscall.Errno(C.mygetgrnam_r(cname,
+ 			&grp,
+ 			(*C.char)(buf.ptr),
+ 			C.size_t(buf.size),

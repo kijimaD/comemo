@@ -7,7 +7,30 @@ Date:   Mon Oct 18 13:01:10 2010 -0400
     TBR=r
     CC=golang-dev
     https://golang.org/cl/2556041
-
+---
  src/pkg/runtime/386/asm.s | 1 -
  src/pkg/runtime/runtime.c | 2 +-
  2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 5f0d0ed468..bf4c97ba61 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -416,4 +416,3 @@ GLOBL m0(SB), $1024
+ GLOBL g0(SB), $1024
+ GLOBL tls0(SB), $32
+ GLOBL initcgo(SB), $4
+-GLOBL isplan9(SB), $4
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index a8f8177331..9b874cec8d 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -147,7 +147,7 @@ args(int32 c, uint8 **v)
+ 	argv = v;
+ }
+ 
+-extern int32 isplan9;
++int32 isplan9;
+ 
+ void
+ goargs(void)

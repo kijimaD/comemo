@@ -11,6 +11,20 @@ Date:   Mon Nov 7 18:04:58 2022 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 2260a90d50..be4773ab28 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -919,7 +919,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
+ 	}
+ 	if fn.Inl.Cost > maxCost {
+ 		// If the callsite is hot and it is under the inlineHotMaxBudget budget, then try to inline it, or else bail.
+-		lineOffset := pgo.NodeLineOffset(n, fn)
++		lineOffset := pgo.NodeLineOffset(n, ir.CurFunc)
+ 		csi := pgo.CallSiteInfo{LineOffset: lineOffset, Caller: ir.CurFunc}
+ 		if _, ok := candHotEdgeMap[csi]; ok {
+ 			if fn.Inl.Cost > inlineHotMaxBudget {

@@ -13,7 +13,137 @@ Date:   Fri Sep 19 16:33:14 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/142280044
-
+---
  src/runtime/crash_test.go | 88 +++++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/panic.go      | 18 +++++++++-
  2 files changed, 105 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index d1577fb5fe..783b4c48f5 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -412,3 +412,91 @@ func main() {
+ 	runtime.Breakpoint()
+ }
+ `
++
++func TestGoexitInPanic(t *testing.T) {
++	// see issue 8774: this code used to trigger an infinite recursion
++	output := executeTest(t, goexitInPanicSource, nil)
++	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++}
++
++const goexitInPanicSource = `
++package main
++import "runtime"
++func main() {
++	go func() {
++		defer func() {
++			runtime.Goexit()
++		}()
++		panic("hello")
++	}()
++	runtime.Goexit()
++}
++`
++
++func TestPanicAfterGoexit(t *testing.T) {
++	// an uncaught panic should still work after goexit
++	output := executeTest(t, panicAfterGoexitSource, nil)
++	want := "panic: hello"
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++}
++
++const panicAfterGoexitSource = `
++package main
++import "runtime"
++func main() {
++	defer func() {
++		panic("hello")
++	}()
++	runtime.Goexit()
++}
++`
++
++func TestRecoveredPanicAfterGoexit(t *testing.T) {
++	output := executeTest(t, recoveredPanicAfterGoexitSource, nil)
++	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++}
++
++const recoveredPanicAfterGoexitSource = `
++package main
++import "runtime"
++func main() {
++	defer func() {
++		defer func() {
++			r := recover()
++			if r == nil {
++				panic("bad recover")
++			}
++		}()
++		panic("hello")
++	}()
++	runtime.Goexit()
++}
++`
++
++func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
++	// 1. defer a function that recovers
++	// 2. defer a function that panics
++	// 3. call goexit
++	// Goexit should run the #2 defer.  Its panic
++	// should be caught by the #1 defer, and execution
++	// should resume in the caller.  Like the Goexit
++	// never happened!
++	defer func() {
++		r := recover()
++		if r == nil {
++			panic("bad recover")
++		}
++	}()
++	defer func() {
++		panic("hello")
++	}()
++	runtime.Goexit()
++}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 3cc31053e8..7eb2d6055a 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -247,11 +247,27 @@ func deferreturn(arg0 uintptr) {
+ // If all other goroutines exit, the program crashes.
+ func Goexit() {
+ 	// Run all deferred functions for the current goroutine.
++	// This code is similar to gopanic, see that implementation
++	// for detailed comments.
+ 	gp := getg()
+-	for gp._defer != nil {
++	for {
+ 		d := gp._defer
++		if d == nil {
++			break
++		}
++		if d.started {
++			if d._panic != nil {
++				d._panic.aborted = true
++			}
++			gp._defer = d.link
++			freedefer(d)
++			continue
++		}
+ 		d.started = true
+ 		reflectcall(unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
++		if gp._defer != d {
++			gothrow("bad defer entry in Goexit")
++		}
+ 		gp._defer = d.link
+ 		freedefer(d)
+ 		// Note: we ignore recovers here because Goexit isn't a panic

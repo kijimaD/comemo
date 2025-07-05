@@ -15,7 +15,48 @@ Date:   Thu Jan 3 10:00:49 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/all_test.go | 2 ++
  src/math/log1p.go    | 5 +++--
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index c2d2efcd97..ed42941780 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -1528,6 +1528,7 @@ var vflog1pSC = []float64{
+ 	0,
+ 	Inf(1),
+ 	NaN(),
++	4503599627370496.5, // Issue #29488
+ }
+ var log1pSC = []float64{
+ 	NaN(),
+@@ -1537,6 +1538,7 @@ var log1pSC = []float64{
+ 	0,
+ 	Inf(1),
+ 	NaN(),
++	36.04365338911715, // Issue #29488
+ }
+ 
+ var vfmodfSC = []float64{
+diff --git a/src/math/log1p.go b/src/math/log1p.go
+index b128a1620c..c4ec61b225 100644
+--- a/src/math/log1p.go
++++ b/src/math/log1p.go
+@@ -151,12 +151,13 @@ func log1p(x float64) float64 {
+ 			u = 1.0 + x
+ 			iu = Float64bits(u)
+ 			k = int((iu >> 52) - 1023)
++			// correction term
+ 			if k > 0 {
+ 				c = 1.0 - (u - x)
+ 			} else {
+-				c = x - (u - 1.0) // correction term
+-				c /= u
++				c = x - (u - 1.0)
+ 			}
++			c /= u
+ 		} else {
+ 			u = x
+ 			iu = Float64bits(u)

@@ -14,8 +14,59 @@ Date:   Tue May 24 19:51:37 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/printer/printer.go               | 12 ++++++++++++
  src/go/printer/testdata/comments.golden |  4 ++++
  src/go/printer/testdata/comments.input  |  5 +++++
  3 files changed, 21 insertions(+)
+
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index 25eec6bd75..244a19b2a7 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -747,6 +747,18 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
+ 			// a top-level doc comment.
+ 			list = formatDocComment(list)
+ 			changed = true
++
++			if len(p.comment.List) > 0 && len(list) == 0 {
++				// The doc comment was removed entirely.
++				// Keep preceding whitespace.
++				p.writeCommentPrefix(p.posFor(p.comment.Pos()), next, last, tok)
++				// Change print state to continue at next.
++				p.pos = next
++				p.last = next
++				// There can't be any more comments.
++				p.nextComment()
++				return p.writeCommentSuffix(false)
++			}
+ 		}
+ 		for _, c := range list {
+ 			p.writeCommentPrefix(p.posFor(c.Pos()), next, last, tok)
+diff --git a/src/go/printer/testdata/comments.golden b/src/go/printer/testdata/comments.golden
+index 62f37ea091..1e5d17b4e1 100644
+--- a/src/go/printer/testdata/comments.golden
++++ b/src/go/printer/testdata/comments.golden
+@@ -767,4 +767,8 @@ var _ = []T{	// lone comments
+ 	// in composite lit
+ }
+ 
++func _()	{}
++
++func _()	{}
++
+ /* This comment is the last entry in this file. It must be printed and should be followed by a newline */
+diff --git a/src/go/printer/testdata/comments.input b/src/go/printer/testdata/comments.input
+index 4bdafc3781..40aa55be06 100644
+--- a/src/go/printer/testdata/comments.input
++++ b/src/go/printer/testdata/comments.input
+@@ -765,4 +765,9 @@ var _ = []T{// lone comments
+ // in composite lit
+ }
+ 
++func _() {}
++
++//
++func _() {}
++
+ /* This comment is the last entry in this file. It must be printed and should be followed by a newline */

@@ -8,7 +8,7 @@ Date:   Tue May 19 15:41:37 2009 -0700
     DELTA=791  (779 added, 0 deleted, 12 changed)
     OCL=29045
     CL=29058
-
+---
  src/lib/crypto/block/cfb.go           |   2 +-
  src/lib/crypto/block/cipher.go        |  16 +++
  src/lib/crypto/block/cmac.go          | 105 ++++++++++++++
@@ -20,3 +20,947 @@ Date:   Tue May 19 15:41:37 2009 -0700
  src/lib/crypto/block/xor.go           |  14 +-
  src/lib/crypto/block/xor_test.go      |   4 +-
  10 files changed, 795 insertions(+), 12 deletions(-)
+
+diff --git a/src/lib/crypto/block/cfb.go b/src/lib/crypto/block/cfb.go
+index 827a55ee1c..5c4c09a1b1 100644
+--- a/src/lib/crypto/block/cfb.go
++++ b/src/lib/crypto/block/cfb.go
+@@ -27,7 +27,7 @@ type cfbCipher struct {
+ 
+ func newCFB(c Cipher, s int, iv []byte) *cfbCipher {
+ 	if s == 0 || s % 8 != 0 {
+-		panicln("invalid CFB mode", s);
++		panicln("crypto/block: invalid CFB mode", s);
+ 	}
+ 	b := c.BlockSize();
+ 	x := new(cfbCipher);
+diff --git a/src/lib/crypto/block/cipher.go b/src/lib/crypto/block/cipher.go
+index 8bff1b8782..7ea035db9a 100644
+--- a/src/lib/crypto/block/cipher.go
++++ b/src/lib/crypto/block/cipher.go
+@@ -8,6 +8,8 @@
+ // and NIST Special Publication 800-38A.
+ package block
+ 
++import "io";
++
+ // A Cipher represents an implementation of block cipher
+ // using a given key.  It provides the capability to encrypt
+ // or decrypt individual blocks.  The mode implementations
+@@ -25,6 +27,20 @@ type Cipher interface {
+ 	Decrypt(src, dst []byte);
+ }
+ 
++// TODO(rsc): Digest belongs elsewhere.
++
++// A Digest is an implementation of a message digest algorithm.
++// Write data to it and then call Sum to retreive the digest.
++// Calling Reset resets the internal state, as though no data has
++// been written.
++type Digest interface {
++	io.Writer;
++	Sum() []byte;
++	Reset();
++}
++
++
++
+ // Utility routines
+ 
+ func shift1(src, dst []byte) byte {
+diff --git a/src/lib/crypto/block/cmac.go b/src/lib/crypto/block/cmac.go
+new file mode 100644
+index 0000000000..40697cabdc
+--- /dev/null
++++ b/src/lib/crypto/block/cmac.go
+@@ -0,0 +1,105 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// CMAC message authentication code, defined in
++// NIST Special Publication SP 800-38B.
++
++package block
++
++import (
++	"crypto/block";
++	"io";
++	"os";
++)
++
++const (
++	// minimal irreducible polynomial of degree b
++	r64 = 0x1b;
++	r128 = 0x87;
++)
++
++type cmac struct {
++	k1, k2, ci, digest []byte;
++	p int;	// position in ci
++	c Cipher;
++}
++
++// TODO(rsc): Should this return an error instead of panic?
++
++// NewCMAC returns a new instance of a CMAC message authentication code
++// digest using the given Cipher.
++func NewCMAC(c Cipher) Digest {
++	var r byte;
++	n := c.BlockSize();
++	switch n {
++	case 64/8:
++		r = r64;
++	case 128/8:
++		r = r128;
++	default:
++		panic("crypto/block: NewCMAC: invalid cipher block size", n);
++	}
++
++	d := new(cmac);
++	d.c = c;
++	d.k1 = make([]byte, n);
++	d.k2 = make([]byte, n);
++	d.ci = make([]byte, n);
++	d.digest = make([]byte, n);
++
++	// Subkey generation, p. 7
++	c.Encrypt(d.k1, d.k1);
++	if shift1(d.k1, d.k1) != 0 {
++		d.k1[n-1] ^= r;
++	}
++	if shift1(d.k1, d.k2) != 0 {
++		d.k2[n-1] ^= r;
++	}
++
++	return d;
++}
++
++// Reset clears the digest state, starting a new digest.
++func (d *cmac) Reset() {
++	for i := range d.ci {
++		d.ci[i] = 0;
++	}
++	d.p = 0;
++}
++
++// Write adds the given data to the digest state.
++func (d *cmac) Write(p []byte) (n int, err os.Error) {
++	// Xor input into ci.
++	for i, c := range p {
++		// If ci is full, encrypt and start over.
++		if d.p >= len(d.ci) {
++			d.c.Encrypt(d.ci, d.ci);
++			d.p = 0;
++		}
++		d.ci[d.p] ^= c;
++		d.p++;
++	}
++	return len(p), nil;
++}
++
++// Sum returns the CMAC digest, one cipher block in length,
++// of the data written with Write.
++func (d *cmac) Sum() []byte {
++	// Finish last block, mix in key, encrypt.
++	// Don't edit ci, in case caller wants
++	// to keep digesting after call to Sum.
++	k := d.k1;
++	if d.p < len(d.digest) {
++		k = d.k2;
++	}
++	for i := 0; i < len(d.ci); i++ {
++		d.digest[i] = d.ci[i] ^ k[i];
++	}
++	if d.p < len(d.digest) {
++		d.digest[d.p] ^= 0x80;
++	}
++	d.c.Encrypt(d.digest, d.digest);
++	return d.digest;
++}
++
+diff --git a/src/lib/crypto/block/cmac_aes_test.go b/src/lib/crypto/block/cmac_aes_test.go
+new file mode 100644
+index 0000000000..9284ac40a0
+--- /dev/null
++++ b/src/lib/crypto/block/cmac_aes_test.go
+@@ -0,0 +1,165 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// CMAC test vectors.  See NIST SP 800-38B, Appendix D.
++
++package block
++
++// gobuild: $GC ecb_aes_test.go
++
++import (
++	"crypto/aes";
++	"crypto/block";
++	"testing";
++
++	"./ecb_aes_test";
++)
++
++type cmacAESTest struct {
++	key []byte;
++	in []byte;
++	digest []byte;
++}
++
++var cmacAESTests = []cmacAESTest {
++	cmacAESTest {
++		commonKey128,
++		nil,
++		[]byte {
++			0xbb, 0x1d, 0x69, 0x29, 0xe9, 0x59, 0x37, 0x28, 0x7f, 0xa3, 0x7d, 0x12, 0x9b, 0x75, 0x67, 0x46,
++ 		}
++ 	},
++ 	cmacAESTest {
++ 		commonKey128,
++ 		[]byte {
++			0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
++		},
++		[]byte {
++			0x07, 0x0a, 0x16, 0xb4, 0x6b, 0x4d, 0x41, 0x44, 0xf7, 0x9b, 0xdd, 0x9d, 0xd0, 0x4a, 0x28, 0x7c,
++		}
++	},
++	cmacAESTest {
++		commonKey128,
++		[]byte {
++			0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
++			0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c, 0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
++			0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11,
++		},
++		[]byte {
++			0xdf, 0xa6, 0x67, 0x47, 0xde, 0x9a, 0xe6, 0x30, 0x30, 0xca, 0x32, 0x61, 0x14, 0x97, 0xc8, 0x27,
++		}
++	},
++	cmacAESTest {
++		commonKey128,
++		[]byte {
++			0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
++			0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c, 0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
++			0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11, 0xe5, 0xfb, 0xc1, 0x19, 0x1a, 0x0a, 0x52, 0xef,
++			0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17, 0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10,
++		},
++		[]byte {
++			0x51, 0xf0, 0xbe, 0xbf, 0x7e, 0x3b, 0x9d, 0x92, 0xfc, 0x49, 0x74, 0x17, 0x79, 0x36, 0x3c, 0xfe,
++		}
++	},
++	cmacAESTest {
++		commonKey192,
++		nil,
++		[]byte {
++			0xd1, 0x7d, 0xdf, 0x46, 0xad, 0xaa, 0xcd, 0xe5, 0x31, 0xca, 0xc4, 0x83, 0xde, 0x7a, 0x93, 0x67,
++ 		}
++ 	},
++ 	cmacAESTest {
++ 		commonKey192,
++ 		[]byte {
++			0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
++		},
++		[]byte {
++			0x9e, 0x99, 0xa7, 0xbf, 0x31, 0xe7, 0x10, 0x90, 0x06, 0x62, 0xf6, 0x5e, 0x61, 0x7c, 0x51, 0x84,
++ 		}
++ 	},
++ 	cmacAESTest {
++ 		commonKey192,
++ 		[]byte {
++			0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
++			0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c, 0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
++			0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11,
++		},
++		[]byte {
++			0x8a, 0x1d, 0xe5, 0xbe, 0x2e, 0xb3, 0x1a, 0xad, 0x08, 0x9a, 0x82, 0xe6, 0xee, 0x90, 0x8b, 0x0e,
++		}
++	},
++	cmacAESTest {
++		commonKey192,
++		[]byte {
++			0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
++			0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c, 0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
++			0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11, 0xe5, 0xfb, 0xc1, 0x19, 0x1a, 0x0a, 0x52, 0xef,
++			0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17, 0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10,
++		},
++		[]byte {
++			0xa1, 0xd5, 0xdf, 0x0e, 0xed, 0x79, 0x0f, 0x79, 0x4d, 0x77, 0x58, 0x96, 0x59, 0xf3, 0x9a, 0x11,
++		}
++	},
++	cmacAESTest {
++		commonKey256,
++		nil,
++		[]byte {
++			0x02, 0x89, 0x62, 0xf6, 0x1b, 0x7b, 0xf8, 0x9e, 0xfc, 0x6b, 0x55, 0x1f, 0x46, 0x67, 0xd9, 0x83,
++ 		}
++ 	},
++ 	cmacAESTest {
++ 		commonKey256,
++ 		[]byte {
++			0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
++		},
++		[]byte {
++			0x28, 0xa7, 0x02, 0x3f, 0x45, 0x2e, 0x8f, 0x82, 0xbd, 0x4b, 0xf2, 0x8d, 0x8c, 0x37, 0xc3, 0x5c,
++ 		}
++ 	},
++ 	cmacAESTest {
++ 		commonKey256,
++ 		[]byte {
++			0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
++			0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c, 0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
++			0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11,
++		},
++		[]byte {
++			0xaa, 0xf3, 0xd8, 0xf1, 0xde, 0x56, 0x40, 0xc2, 0x32, 0xf5, 0xb1, 0x69, 0xb9, 0xc9, 0x11, 0xe6,
++ 		}
++ 	},
++ 	cmacAESTest {
++ 		commonKey256,
++ 		[]byte {
++			0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
++			0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c, 0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
++			0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11, 0xe5, 0xfb, 0xc1, 0x19, 0x1a, 0x0a, 0x52, 0xef,
++			0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17, 0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10,
++		},
++		[]byte {
++			0xe1, 0x99, 0x21, 0x90, 0x54, 0x9f, 0x6e, 0xd5, 0x69, 0x6a, 0x2c, 0x05, 0x6c, 0x31, 0x54, 0x10,
++		}
++	}
++}
++
++func TestCMAC_AES(t *testing.T) {
++	for i, tt := range cmacAESTests {
++		c, err := aes.NewCipher(tt.key);
++		if err != nil {
++			t.Errorf("test %d: NewCipher: %s", i, err);
++			continue;
++		}
++		d := NewCMAC(c);
++		n, err := d.Write(tt.in);
++		if err != nil || n != len(tt.in) {
++			t.Errorf("test %d: Write %d: %d, %s", i, len(tt.in), n, err);
++			continue;
++		}
++		sum := d.Sum();
++		if !same(sum, tt.digest) {
++			x := d.(*cmac);
++			t.Errorf("test %d: digest mismatch\n\twant %x\n\thave %x\n\tk1 %x\n\tk2 %x", i, tt.digest, sum, x.k1, x.k2);
++			continue;
++		}
++	}
++}
+diff --git a/src/lib/crypto/block/ctr.go b/src/lib/crypto/block/ctr.go
+index 98fd193922..eecb615ad1 100644
+--- a/src/lib/crypto/block/ctr.go
++++ b/src/lib/crypto/block/ctr.go
+@@ -53,7 +53,7 @@ func (x *ctrStream) Next() []byte {
+ // a CTR reader applied to an encrypted stream produces a decrypted
+ // stream and vice versa.
+ func NewCTRReader(c Cipher, iv []byte, r io.Reader) io.Reader {
+-	return NewXorReader(newCTRStream(c, iv), r);
++	return newXorReader(newCTRStream(c, iv), r);
+ }
+ 
+ // NewCTRWriter returns a writer that encrypts (or decrypts) data using c
+@@ -64,6 +64,6 @@ func NewCTRReader(c Cipher, iv []byte, r io.Reader) io.Reader {
+ // a CTR writer applied to an decrypted stream produces an encrypted
+ // stream and vice versa.
+ func NewCTRWriter(c Cipher, iv []byte, w io.Writer) io.Writer {
+-	return NewXorWriter(newCTRStream(c, iv), w);
++	return newXorWriter(newCTRStream(c, iv), w);
+ }
+ 
+diff --git a/src/lib/crypto/block/eax.go b/src/lib/crypto/block/eax.go
+new file mode 100644
+index 0000000000..7e1d7475cb
+--- /dev/null
++++ b/src/lib/crypto/block/eax.go
+@@ -0,0 +1,254 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// EAX mode, not a NIST standard (yet).
++// EAX provides encryption and authentication.
++// EAX targets the same uses as NIST's CCM mode,
++// but EAX adds the ability to run in streaming mode.
++
++// See
++// http://csrc.nist.gov/groups/ST/toolkit/BCM/documents/proposedmodes/eax/eax-spec.pdf
++// http://www.cs.ucdavis.edu/~rogaway/papers/eax.pdf
++// What those papers call OMAC is now called CMAC.
++
++package block
++
++import (
++	"crypto/block";
++	"fmt";
++	"io";
++	"os";
++)
++
++// An EAXTagError is returned when the message has failed to authenticate,
++// because the tag at the end of the message stream (Read) does not match
++// the tag computed from the message itself (Computed).
++type EAXTagError struct {
++	Read []byte;
++	Computed []byte;
++}
++
++func (e *EAXTagError) String() string {
++	return fmt.Sprintf("crypto/block: EAX tag mismatch: read %x but computed %x", e.Read, e.Computed);
++}
++
++func setupEAX(c Cipher, iv, hdr []byte, tagBytes int) (ctrIV, tag []byte, cmac Digest) {
++	n := len(iv);
++	if n != c.BlockSize() {
++		panicln("crypto/block: EAX: iv length", n, "!=", c.BlockSize());
++	}
++	buf := make([]byte, n);	// zeroed
++
++	// tag = CMAC(0 + iv) ^ CMAC(1 + hdr) ^ CMAC(2 + data)
++	cmac = NewCMAC(c);
++	cmac.Write(buf);	// 0
++	cmac.Write(iv);
++	sum := cmac.Sum();
++	ctrIV = copy(sum);
++	tag = copy(sum[0:tagBytes]);
++
++	cmac.Reset();
++	buf[n-1] = 1;
++	cmac.Write(buf);	// 1
++	cmac.Write(hdr);
++	sum = cmac.Sum();
++	for i := 0; i < tagBytes; i++ {
++		tag[i] ^= sum[i];
++	}
++
++	cmac.Reset();
++	buf[n-1] = 2;		// 2
++	cmac.Write(buf);
++
++	return;
++}
++
++func finishEAX(tag []byte, cmac Digest) {
++	// Finish CMAC #2 and xor into tag.
++	sum := cmac.Sum();
++	for i := range tag {
++		tag[i] ^= sum[i];
++	}
++}
++
++// Writer adapter.  Tees writes into both w and cmac.
++// Knows that cmac never returns write errors.
++type cmacWriter struct {
++	w io.Writer;
++	cmac Digest;
++}
++
++func (cw *cmacWriter) Write(p []byte) (n int, err os.Error) {
++	n, err = cw.w.Write(p);
++	cw.cmac.Write(p[0:n]);
++	return;
++}
++
++// An eaxEncrypter implements the EAX encryption mode.
++type eaxEncrypter struct {
++	ctr io.Writer;	// CTR encrypter
++	cw cmacWriter;	// CTR's output stream
++	tag []byte;
++}
++
++// NewEAXEncrypter creates and returns a new EAX encrypter
++// using the given cipher c, initialization vector iv, associated data hdr,
++// and tag length tagBytes.  The encrypter's Write method encrypts
++// the data it receives and writes that data to w.
++// The encrypter's Close method writes a final authenticating tag to w.
++func NewEAXEncrypter(c Cipher, iv []byte, hdr []byte, tagBytes int, w io.Writer) io.WriteCloser {
++	x := new(eaxEncrypter);
++
++	// Create new CTR instance writing to both
++	// w for encrypted output and cmac for digesting.
++	x.cw.w = w;
++	var ctrIV []byte;
++	ctrIV, x.tag, x.cw.cmac = setupEAX(c, iv, hdr, tagBytes);
++	x.ctr = NewCTRWriter(c, ctrIV, &x.cw);
++	return x;
++}
++
++func (x *eaxEncrypter) Write(p []byte) (n int, err os.Error) {
++	return x.ctr.Write(p);
++}
++
++func (x *eaxEncrypter) Close() os.Error {
++	x.ctr = nil;	// crash if Write is called again
++
++	// Write tag.
++	finishEAX(x.tag, x.cw.cmac);
++	n, err := x.cw.w.Write(x.tag);
++	if n != len(x.tag) && err == nil {
++		err = io.ErrShortWrite;
++	}
++
++	return err;
++}
++
++// Reader adapter.  Returns data read from r but hangs
++// on to the last len(tag) bytes for itself (returns EOF len(tag)
++// bytes early).  Also tees all data returned from Read into
++// the cmac digest.  The "don't return the last t bytes"
++// and the "tee into digest" functionality could be separated,
++// but the latter half is trivial.
++type cmacReader struct {
++	r io.Reader;
++	cmac Digest;
++	tag []byte;
++	tmp []byte;
++}
++
++func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
++	// TODO(rsc): Maybe fall back to simpler code if
++	// we recognize the underlying r as a ByteBuffer
++	// or ByteReader.  Then we can just take the last piece
++	// off at the start.
++
++	// First, read a tag-sized chunk.
++	// It's probably not the tag (unless there's no data).
++	tag := cr.tag;
++	if len(tag) < cap(tag) {
++		nt := len(tag);
++		nn, err1 := io.FullRead(cr.r, tag[nt:cap(tag)]);
++		tag = tag[0:nt+nn];
++		cr.tag = tag;
++		if err1 != nil {
++			return 0, err1;
++		}
++	}
++
++	tagBytes := len(tag);
++	if len(p) > 4*tagBytes {
++		// If p is big, try to read directly into p to avoid a copy.
++		n, err = cr.r.Read(p[tagBytes:len(p)]);
++		if n == 0 {
++			goto out;
++		}
++		// copy old tag into p
++		for i := 0; i < tagBytes; i++ {
++			p[i] = tag[i];
++		}
++		// copy new tag out of p
++		for i := 0; i < tagBytes; i++ {
++			tag[i] = p[n+i];
++		}
++		goto out;
++	}
++
++	// Otherwise, read into p and then slide data
++	n, err = cr.r.Read(p);
++	if n == 0 {
++		goto out;
++	}
++
++	// copy tag+p into p+tmp and then swap tmp, tag
++	tmp := cr.tmp;
++	for i := n + tagBytes - 1; i >= 0; i-- {
++		var c byte;
++		if i < tagBytes {
++			c = tag[i];
++		} else {
++			c = p[i - tagBytes];
++		}
++		if i < n {
++			p[i] = c;
++		} else {
++			tmp[i] = c;
++		}
++	}
++	cr.tmp, cr.tag = tag, tmp;
++
++out:
++	cr.cmac.Write(p[0:n]);
++	return;
++}
++
++type eaxDecrypter struct {
++	ctr io.Reader;
++	cr cmacReader;
++	tag []byte;
++}
++
++// NewEAXDecrypter creates and returns a new EAX decrypter
++// using the given cipher c, initialization vector iv, associated data hdr,
++// and tag length tagBytes.  The encrypter's Read method decrypts and
++// returns data read from r.  At r's EOF, the encrypter checks the final
++// authenticating tag and returns an EAXTagError if the tag is invalid.
++// In that case, the message should be discarded.
++// Note that the data stream returned from Read cannot be
++// assumed to be valid, authenticated data until Read returns
++// 0, nil to signal the end of the data.
++func NewEAXDecrypter(c Cipher, iv []byte, hdr []byte, tagBytes int, r io.Reader) io.Reader {
++	x := new(eaxDecrypter);
++
++	x.cr.r = r;
++	x.cr.tag = make([]byte, 0, tagBytes);
++	x.cr.tmp = make([]byte, 0, tagBytes);
++	var ctrIV []byte;
++	ctrIV, x.tag, x.cr.cmac = setupEAX(c, iv, hdr, tagBytes);
++	x.ctr = NewCTRReader(c, ctrIV, &x.cr);
++	return x;
++}
++
++func (x *eaxDecrypter) checkTag() os.Error {
++	x.ctr = nil;	// crash if Read is called again
++
++	finishEAX(x.tag, x.cr.cmac);
++	if !same(x.tag, x.cr.tag) {
++		e := new(EAXTagError);
++		e.Computed = copy(x.tag);
++		e.Read = copy(x.cr.tag);
++		return e;
++	}
++	return nil;
++}
++
++func (x *eaxDecrypter) Read(p []byte) (n int, err os.Error) {
++	n, err = x.ctr.Read(p);
++	if n == 0 && err == nil {
++		err = x.checkTag();
++	}
++	return n, err;
++}
++
+diff --git a/src/lib/crypto/block/eax_aes_test.go b/src/lib/crypto/block/eax_aes_test.go
+new file mode 100644
+index 0000000000..f0453be806
+--- /dev/null
++++ b/src/lib/crypto/block/eax_aes_test.go
+@@ -0,0 +1,239 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package block
++
++import (
++	"crypto/aes";
++	"crypto/block";
++	"fmt";
++	"io";
++	"testing";
++)
++
++// Test vectors from http://www.cs.ucdavis.edu/~rogaway/papers/eax.pdf
++
++type eaxAESTest struct {
++	msg []byte;
++	key []byte;
++	nonce []byte;
++	header []byte;
++	cipher []byte;
++}
++
++var eaxAESTests = []eaxAESTest {
++	eaxAESTest {
++		[]byte {
++		},
++		[]byte {
++			0x23, 0x39, 0x52, 0xDE, 0xE4, 0xD5, 0xED, 0x5F, 0x9B, 0x9C, 0x6D, 0x6F, 0xF8, 0x0F, 0xF4, 0x78,
++		},
++		[]byte {
++			0x62, 0xEC, 0x67, 0xF9, 0xC3, 0xA4, 0xA4, 0x07, 0xFC, 0xB2, 0xA8, 0xC4, 0x90, 0x31, 0xA8, 0xB3,
++		},
++		[]byte {
++			0x6B, 0xFB, 0x91, 0x4F, 0xD0, 0x7E, 0xAE, 0x6B,
++		},
++		[]byte {
++			0xE0, 0x37, 0x83, 0x0E, 0x83, 0x89, 0xF2, 0x7B, 0x02, 0x5A, 0x2D, 0x65, 0x27, 0xE7, 0x9D, 0x01,
++		},
++	},
++	eaxAESTest {
++		[]byte {
++			0xF7, 0xFB,
++		},
++		[]byte {
++			0x91, 0x94, 0x5D, 0x3F, 0x4D, 0xCB, 0xEE, 0x0B, 0xF4, 0x5E, 0xF5, 0x22, 0x55, 0xF0, 0x95, 0xA4,
++		},
++		[]byte {
++			0xBE, 0xCA, 0xF0, 0x43, 0xB0, 0xA2, 0x3D, 0x84, 0x31, 0x94, 0xBA, 0x97, 0x2C, 0x66, 0xDE, 0xBD,
++		},
++		[]byte {
++			0xFA, 0x3B, 0xFD, 0x48, 0x06, 0xEB, 0x53, 0xFA,
++		},
++		[]byte {
++			0x19, 0xDD, 0x5C, 0x4C, 0x93, 0x31, 0x04, 0x9D, 0x0B, 0xDA, 0xB0, 0x27, 0x74, 0x08, 0xF6, 0x79, 0x67, 0xE5,
++		},
++	},
++	eaxAESTest {
++		[]byte {
++			0x1A, 0x47, 0xCB, 0x49, 0x33,
++		},
++		[]byte {
++			0x01, 0xF7, 0x4A, 0xD6, 0x40, 0x77, 0xF2, 0xE7, 0x04, 0xC0, 0xF6, 0x0A, 0xDA, 0x3D, 0xD5, 0x23,
++		},
++		[]byte {
++			0x70, 0xC3, 0xDB, 0x4F, 0x0D, 0x26, 0x36, 0x84, 0x00, 0xA1, 0x0E, 0xD0, 0x5D, 0x2B, 0xFF, 0x5E,
++		},
++		[]byte {
++			0x23, 0x4A, 0x34, 0x63, 0xC1, 0x26, 0x4A, 0xC6,
++		},
++		[]byte {
++			0xD8, 0x51, 0xD5, 0xBA, 0xE0, 0x3A, 0x59, 0xF2, 0x38, 0xA2, 0x3E, 0x39, 0x19, 0x9D, 0xC9, 0x26, 0x66, 0x26, 0xC4, 0x0F, 0x80,
++		},
++	},
++	eaxAESTest {
++		[]byte {
++			0x48, 0x1C, 0x9E, 0x39, 0xB1,
++		},
++		[]byte {
++			0xD0, 0x7C, 0xF6, 0xCB, 0xB7, 0xF3, 0x13, 0xBD, 0xDE, 0x66, 0xB7, 0x27, 0xAF, 0xD3, 0xC5, 0xE8,
++		},
++		[]byte {
++			0x84, 0x08, 0xDF, 0xFF, 0x3C, 0x1A, 0x2B, 0x12, 0x92, 0xDC, 0x19, 0x9E, 0x46, 0xB7, 0xD6, 0x17,
++		},
++		[]byte {
++			0x33, 0xCC, 0xE2, 0xEA, 0xBF, 0xF5, 0xA7, 0x9D,
++		},
++		[]byte {
++			0x63, 0x2A, 0x9D, 0x13, 0x1A, 0xD4, 0xC1, 0x68, 0xA4, 0x22, 0x5D, 0x8E, 0x1F, 0xF7, 0x55, 0x93, 0x99, 0x74, 0xA7, 0xBE, 0xDE,
++		},
++	},
++	eaxAESTest {
++		[]byte {
++			0x40, 0xD0, 0xC0, 0x7D, 0xA5, 0xE4,
++		},
++		[]byte {
++			0x35, 0xB6, 0xD0, 0x58, 0x00, 0x05, 0xBB, 0xC1, 0x2B, 0x05, 0x87, 0x12, 0x45, 0x57, 0xD2, 0xC2,
++		},
++		[]byte {
++			0xFD, 0xB6, 0xB0, 0x66, 0x76, 0xEE, 0xDC, 0x5C, 0x61, 0xD7, 0x42, 0x76, 0xE1, 0xF8, 0xE8, 0x16,
++		},
++		[]byte {
++			0xAE, 0xB9, 0x6E, 0xAE, 0xBE, 0x29, 0x70, 0xE9,
++		},
++		[]byte {
++			0x07, 0x1D, 0xFE, 0x16, 0xC6, 0x75, 0xCB, 0x06, 0x77, 0xE5, 0x36, 0xF7, 0x3A, 0xFE, 0x6A, 0x14, 0xB7, 0x4E, 0xE4, 0x98, 0x44, 0xDD,
++		},
++	},
++	eaxAESTest {
++		[]byte {
++			0x4D, 0xE3, 0xB3, 0x5C, 0x3F, 0xC0, 0x39, 0x24, 0x5B, 0xD1, 0xFB, 0x7D,
++		},
++		[]byte {
++			0xBD, 0x8E, 0x6E, 0x11, 0x47, 0x5E, 0x60, 0xB2, 0x68, 0x78, 0x4C, 0x38, 0xC6, 0x2F, 0xEB, 0x22,
++		},
++		[]byte {
++			0x6E, 0xAC, 0x5C, 0x93, 0x07, 0x2D, 0x8E, 0x85, 0x13, 0xF7, 0x50, 0x93, 0x5E, 0x46, 0xDA, 0x1B,
++		},
++		[]byte {
++			0xD4, 0x48, 0x2D, 0x1C, 0xA7, 0x8D, 0xCE, 0x0F,
++		},
++		[]byte {
++			0x83, 0x5B, 0xB4, 0xF1, 0x5D, 0x74, 0x3E, 0x35, 0x0E, 0x72, 0x84, 0x14, 0xAB, 0xB8, 0x64, 0x4F, 0xD6, 0xCC, 0xB8, 0x69, 0x47, 0xC5, 0xE1, 0x05, 0x90, 0x21, 0x0A, 0x4F,
++		},
++	},
++	eaxAESTest {
++		[]byte {
++			0x8B, 0x0A, 0x79, 0x30, 0x6C, 0x9C, 0xE7, 0xED, 0x99, 0xDA, 0xE4, 0xF8, 0x7F, 0x8D, 0xD6, 0x16, 0x36,
++		},
++		[]byte {
++			0x7C, 0x77, 0xD6, 0xE8, 0x13, 0xBE, 0xD5, 0xAC, 0x98, 0xBA, 0xA4, 0x17, 0x47, 0x7A, 0x2E, 0x7D,
++		},
++		[]byte {
++			0x1A, 0x8C, 0x98, 0xDC, 0xD7, 0x3D, 0x38, 0x39, 0x3B, 0x2B, 0xF1, 0x56, 0x9D, 0xEE, 0xFC, 0x19,
++		},
++		[]byte {
++			0x65, 0xD2, 0x01, 0x79, 0x90, 0xD6, 0x25, 0x28,
++		},
++		[]byte {
++			0x02, 0x08, 0x3E, 0x39, 0x79, 0xDA, 0x01, 0x48, 0x12, 0xF5, 0x9F, 0x11, 0xD5, 0x26, 0x30, 0xDA, 0x30, 0x13, 0x73, 0x27, 0xD1, 0x06, 0x49, 0xB0, 0xAA, 0x6E, 0x1C, 0x18, 0x1D, 0xB6, 0x17, 0xD7, 0xF2,
++		},
++	},
++	eaxAESTest {
++		[]byte {
++			0x1B, 0xDA, 0x12, 0x2B, 0xCE, 0x8A, 0x8D, 0xBA, 0xF1, 0x87, 0x7D, 0x96, 0x2B, 0x85, 0x92, 0xDD, 0x2D, 0x56,
++		},
++		[]byte {
++			0x5F, 0xFF, 0x20, 0xCA, 0xFA, 0xB1, 0x19, 0xCA, 0x2F, 0xC7, 0x35, 0x49, 0xE2, 0x0F, 0x5B, 0x0D,
++		},
++		[]byte {
++			0xDD, 0xE5, 0x9B, 0x97, 0xD7, 0x22, 0x15, 0x6D, 0x4D, 0x9A, 0xFF, 0x2B, 0xC7, 0x55, 0x98, 0x26,
++		},
++		[]byte {
++			0x54, 0xB9, 0xF0, 0x4E, 0x6A, 0x09, 0x18, 0x9A,
++		},
++		[]byte {
++			0x2E, 0xC4, 0x7B, 0x2C, 0x49, 0x54, 0xA4, 0x89, 0xAF, 0xC7, 0xBA, 0x48, 0x97, 0xED, 0xCD, 0xAE, 0x8C, 0xC3, 0x3B, 0x60, 0x45, 0x05, 0x99, 0xBD, 0x02, 0xC9, 0x63, 0x82, 0x90, 0x2A, 0xEF, 0x7F, 0x83, 0x2A,
++		},
++	},
++	eaxAESTest {
++		[]byte {
++			0x6C, 0xF3, 0x67, 0x20, 0x87, 0x2B, 0x85, 0x13, 0xF6, 0xEA, 0xB1, 0xA8, 0xA4, 0x44, 0x38, 0xD5, 0xEF, 0x11,
++		},
++		[]byte {
++			0xA4, 0xA4, 0x78, 0x2B, 0xCF, 0xFD, 0x3E, 0xC5, 0xE7, 0xEF, 0x6D, 0x8C, 0x34, 0xA5, 0x61, 0x23,
++		},
++		[]byte {
++			0xB7, 0x81, 0xFC, 0xF2, 0xF7, 0x5F, 0xA5, 0xA8, 0xDE, 0x97, 0xA9, 0xCA, 0x48, 0xE5, 0x22, 0xEC,
++		},
++		[]byte {
++			0x89, 0x9A, 0x17, 0x58, 0x97, 0x56, 0x1D, 0x7E,
++		},
++		[]byte {
++			0x0D, 0xE1, 0x8F, 0xD0, 0xFD, 0xD9, 0x1E, 0x7A, 0xF1, 0x9F, 0x1D, 0x8E, 0xE8, 0x73, 0x39, 0x38, 0xB1, 0xE8, 0xE7, 0xF6, 0xD2, 0x23, 0x16, 0x18, 0x10, 0x2F, 0xDB, 0x7F, 0xE5, 0x5F, 0xF1, 0x99, 0x17, 0x00,
++		},
++	},
++	eaxAESTest {
++		[]byte {
++			0xCA, 0x40, 0xD7, 0x44, 0x6E, 0x54, 0x5F, 0xFA, 0xED, 0x3B, 0xD1, 0x2A, 0x74, 0x0A, 0x65, 0x9F, 0xFB, 0xBB, 0x3C, 0xEA, 0xB7,
++		},
++		[]byte {
++			0x83, 0x95, 0xFC, 0xF1, 0xE9, 0x5B, 0xEB, 0xD6, 0x97, 0xBD, 0x01, 0x0B, 0xC7, 0x66, 0xAA, 0xC3,
++		},
++		[]byte {
++			0x22, 0xE7, 0xAD, 0xD9, 0x3C, 0xFC, 0x63, 0x93, 0xC5, 0x7E, 0xC0, 0xB3, 0xC1, 0x7D, 0x6B, 0x44,
++		},
++		[]byte {
++			0x12, 0x67, 0x35, 0xFC, 0xC3, 0x20, 0xD2, 0x5A,
++		},
++		[]byte {
++			0xCB, 0x89, 0x20, 0xF8, 0x7A, 0x6C, 0x75, 0xCF, 0xF3, 0x96, 0x27, 0xB5, 0x6E, 0x3E, 0xD1, 0x97, 0xC5, 0x52, 0xD2, 0x95, 0xA7, 0xCF, 0xC4, 0x6A, 0xFC, 0x25, 0x3B, 0x46, 0x52, 0xB1, 0xAF, 0x37, 0x95, 0xB1, 0x24, 0xAB, 0x6E,
++		},
++	},
++}
++
++func TestEAXEncrypt_AES(t *testing.T) {
++	b := new(io.ByteBuffer);
++	for i, tt := range eaxAESTests {
++		test := fmt.Sprintf("test %d", i);
++		c, err := aes.NewCipher(tt.key);
++		if err != nil {
++			t.Fatalf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err);
++		}
++		b.Reset();
++		enc := NewEAXEncrypter(c, tt.nonce, tt.header, 16, b);
++		n, err := io.Copy(io.NewByteReader(tt.msg), enc);
++		if n != int64(len(tt.msg)) || err != nil {
++			t.Fatalf("%s: io.Copy into encrypter: %d, %s", test, n, err);
++		}
++		err = enc.Close();
++		if err != nil {
++			t.Fatalf("%s: enc.Close: %s", test, err);
++		}
++		if d := b.Data(); !same(d, tt.cipher) {
++			t.Fatalf("%s: got %x want %x", test, d, tt.cipher);
++		}
++	}
++}
++
++func TestEAXDecrypt_AES(t *testing.T) {
++	b := new(io.ByteBuffer);
++	for i, tt := range eaxAESTests {
++		test := fmt.Sprintf("test %d", i);
++		c, err := aes.NewCipher(tt.key);
++		if err != nil {
++			t.Fatalf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err);
++		}
++		b.Reset();
++		dec := NewEAXDecrypter(c, tt.nonce, tt.header, 16, io.NewByteReader(tt.cipher));
++		n, err := io.Copy(dec, b);
++		if n != int64(len(tt.msg)) || err != nil {
++			t.Fatalf("%s: io.Copy into decrypter: %d, %s", test, n, err);
++		}
++		if d := b.Data(); !same(d, tt.msg) {
++			t.Fatalf("%s: got %x want %x", test, d, tt.msg);
++		}
++	}
++}
+diff --git a/src/lib/crypto/block/ofb.go b/src/lib/crypto/block/ofb.go
+index 10f9a77371..084274a084 100644
+--- a/src/lib/crypto/block/ofb.go
++++ b/src/lib/crypto/block/ofb.go
+@@ -45,7 +45,7 @@ func (x *ofbStream) Next() []byte {
+ // an OFB reader applied to an encrypted stream produces a decrypted
+ // stream and vice versa.
+ func NewOFBReader(c Cipher, iv []byte, r io.Reader) io.Reader {
+-	return NewXorReader(newOFBStream(c, iv), r);
++	return newXorReader(newOFBStream(c, iv), r);
+ }
+ 
+ // NewOFBWriter returns a writer that encrypts (or decrypts) data using c
+@@ -56,6 +56,6 @@ func NewOFBReader(c Cipher, iv []byte, r io.Reader) io.Reader {
+ // an OFB writer applied to an decrypted stream produces an encrypted
+ // stream and vice versa.
+ func NewOFBWriter(c Cipher, iv []byte, w io.Writer) io.Writer {
+-	return NewXorWriter(newOFBStream(c, iv), w);
++	return newXorWriter(newOFBStream(c, iv), w);
+ }
+ 
+diff --git a/src/lib/crypto/block/xor.go b/src/lib/crypto/block/xor.go
+index 35c1813844..63229dbb40 100644
+--- a/src/lib/crypto/block/xor.go
++++ b/src/lib/crypto/block/xor.go
+@@ -12,17 +12,21 @@ import (
+ 	"os";
+ )
+ 
+-type DataStream interface {
++// A dataStream is an interface to an unending stream of data,
++// used by XorReader and XorWriter to model a pseudo-random generator.
++// Calls to Next() return sequential blocks of data from the stream.
++// Each call must return at least one byte: there is no EOF.
++type dataStream interface {
+ 	Next() []byte
+ }
+ 
+ type xorReader struct {
+ 	r io.Reader;
+-	rand DataStream;	// pseudo-random
++	rand dataStream;	// pseudo-random
+ 	buf []byte;		// data available from last call to rand
+ }
+ 
+-func NewXorReader(rand DataStream, r io.Reader) io.Reader {
++func newXorReader(rand dataStream, r io.Reader) io.Reader {
+ 	x := new(xorReader);
+ 	x.r = r;
+ 	x.rand = rand;
+@@ -49,13 +53,13 @@ func (x *xorReader) Read(p []byte) (n int, err os.Error) {
+ 
+ type xorWriter struct {
+ 	w io.Writer;
+-	rand DataStream;	// pseudo-random
++	rand dataStream;	// pseudo-random
+ 	buf []byte;	// last buffer returned by rand
+ 	extra []byte;	// extra random data (use before buf)
+ 	work []byte;	// work space
+ }
+ 
+-func NewXorWriter(rand DataStream, w io.Writer) io.Writer {
++func newXorWriter(rand dataStream, w io.Writer) io.Writer {
+ 	x := new(xorWriter);
+ 	x.w = w;
+ 	x.rand = rand;
+diff --git a/src/lib/crypto/block/xor_test.go b/src/lib/crypto/block/xor_test.go
+index a2166f884c..6e6d1a3ce9 100644
+--- a/src/lib/crypto/block/xor_test.go
++++ b/src/lib/crypto/block/xor_test.go
+@@ -55,7 +55,7 @@ func testXorWriter(t *testing.T, maxio int) {
+ 			b.Reset();
+ 			r := io.NewByteReader(&plain);
+ 			s := newIncStream(block);
+-			w := NewXorWriter(s, b);
++			w := newXorWriter(s, b);
+ 
+ 			// copy plain into w in increasingly large chunks: 1, 1, 2, 4, 8, ...
+ 			// if frag != 0, move the 1 to the end to cause fragmentation.
+@@ -123,7 +123,7 @@ func testXorReader(t *testing.T, maxio int) {
+ 				test := fmt.Sprintf("block=%d mode=%d frag=%d maxio=%d", block, mode, frag, maxio);
+ 				s := newIncStream(block);
+ 				b.Reset();
+-				r := NewXorReader(s, readers[mode](io.NewByteReader(crypt[0:maxio])));
++				r := newXorReader(s, readers[mode](io.NewByteReader(crypt[0:maxio])));
+ 
+ 				// read from crypt in increasingly large chunks: 1, 1, 2, 4, 8, ...
+ 				// if frag == 1, move the 1 to the end to cause fragmentation.

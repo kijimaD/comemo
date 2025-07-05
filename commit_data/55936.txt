@@ -17,6 +17,25 @@ Date:   Sat Mar 25 20:05:38 2023 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/lookup_unix.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index 600e694044..3c67b9ecc8 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -148,11 +148,11 @@ func concurrentThreadsLimit() int {
+ 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlim); err != nil {
+ 		return 500
+ 	}
+-	r := int(rlim.Cur)
++	r := rlim.Cur
+ 	if r > 500 {
+ 		r = 500
+ 	} else if r > 30 {
+ 		r -= 30
+ 	}
+-	return r
++	return int(r)
+ }

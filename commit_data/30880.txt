@@ -12,9 +12,77 @@ Date:   Tue Dec 13 15:00:59 2016 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/go/internal/gccgoimporter/importer_test.go     |   7 +++++--
  src/go/internal/gccgoimporter/parser.go            |  16 ++++++++++++++--
  src/go/internal/gccgoimporter/testdata/time.gox    | Bin 0 -> 7977 bytes
  src/go/internal/gccgoimporter/testdata/unicode.gox | Bin 0 -> 7945 bytes
  4 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index 58abbba94e..2b454701be 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -96,8 +96,11 @@ var importerTests = [...]importerTest{
+ 	{pkgpath: "complexnums", name: "PN", want: "const PN untyped complex", wantval: "(1 + -1i)"},
+ 	{pkgpath: "complexnums", name: "PP", want: "const PP untyped complex", wantval: "(1 + 1i)"},
+ 	{pkgpath: "conversions", name: "Bits", want: "const Bits Units", wantval: `"bits"`},
+-	// TODO: enable this entry once bug has been tracked down
+-	//{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
++	{pkgpath: "time", name: "Duration", want: "type Duration int64"},
++	{pkgpath: "time", name: "Nanosecond", want: "const Nanosecond Duration", wantval: "1"},
++	{pkgpath: "unicode", name: "IsUpper", want: "func IsUpper(r rune) bool"},
++	{pkgpath: "unicode", name: "MaxRune", want: "const MaxRune untyped rune", wantval: "1114111"},
++	{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
+ }
+ 
+ func TestGoxImporter(t *testing.T) {
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index 7312cb4879..3b97c96d43 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -711,7 +711,10 @@ func (p *parser) parseType(pkg *types.Package) (t types.Type) {
+ func (p *parser) parsePackageInit() PackageInit {
+ 	name := p.parseUnquotedString()
+ 	initfunc := p.parseUnquotedString()
+-	priority := int(p.parseInt())
++	priority := -1
++	if p.version == "v1" {
++		priority = int(p.parseInt())
++	}
+ 	return PackageInit{Name: name, InitFunc: initfunc, Priority: priority}
+ }
+ 
+@@ -766,6 +769,15 @@ func (p *parser) parseInitDataDirective() {
+ 		}
+ 		p.expect(';')
+ 
++	case "init_graph":
++		p.next()
++		// The graph data is thrown away for now.
++		for p.tok != ';' && p.tok != scanner.EOF {
++			p.parseInt()
++			p.parseInt()
++		}
++		p.expect(';')
++
+ 	case "checksum":
+ 		// Don't let the scanner try to parse the checksum as a number.
+ 		defer func(mode uint) {
+@@ -797,7 +809,7 @@ func (p *parser) parseDirective() {
+ 	}
+ 
+ 	switch p.lit {
+-	case "v1", "v2", "priority", "init", "checksum":
++	case "v1", "v2", "priority", "init", "init_graph", "checksum":
+ 		p.parseInitDataDirective()
+ 
+ 	case "package":
+diff --git a/src/go/internal/gccgoimporter/testdata/time.gox b/src/go/internal/gccgoimporter/testdata/time.gox
+new file mode 100644
+index 0000000000..80c2dbcb47
+Binary files /dev/null and b/src/go/internal/gccgoimporter/testdata/time.gox differ
+diff --git a/src/go/internal/gccgoimporter/testdata/unicode.gox b/src/go/internal/gccgoimporter/testdata/unicode.gox
+new file mode 100644
+index 0000000000..e70e539655
+Binary files /dev/null and b/src/go/internal/gccgoimporter/testdata/unicode.gox differ

@@ -7,6 +7,20 @@ Date:   Tue Dec 13 21:49:09 2016 -0800
     Change-Id: I9e24a28b4daee5d6e1e4769547922a1a253b4ffc
     Reviewed-on: https://go-review.googlesource.com/34377
     Reviewed-by: Michael Munday <munday@ca.ibm.com>
-
+---
  src/crypto/aes/cipher_s390x.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/aes/cipher_s390x.go b/src/crypto/aes/cipher_s390x.go
+index 6030c25ee3..28d0ac90cf 100644
+--- a/src/crypto/aes/cipher_s390x.go
++++ b/src/crypto/aes/cipher_s390x.go
+@@ -27,7 +27,7 @@ type aesCipherAsm struct {
+ // cryptBlocks invokes the cipher message (KM) instruction with
+ // the given function code. This is equivalent to AES in ECB
+ // mode. The length must be a multiple of BlockSize (16).
+-//go:noesape
++//go:noescape
+ func cryptBlocks(c code, key, dst, src *byte, length int)
+ 
+ var useAsm = cipherhw.AESGCMSupport()

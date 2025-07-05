@@ -9,6 +9,20 @@ Date:   Thu Nov 19 13:54:40 2015 -0800
     Change-Id: I229d4a9df3da542b77f830c2830f63ec23ec1d61
     Reviewed-on: https://go-review.googlesource.com/17065
     Reviewed-by: Chris Manghane <cmang@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 51d04f59fe..d210386837 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -1386,7 +1386,7 @@ func (p *parser) pseudocall() *Node {
+ 		defer p.trace("pseudocall")()
+ 	}
+ 
+-	x := p.pexpr(true) // keep_parens so we can report error below
++	x := p.pexpr(p.tok == '(') // keep_parens so we can report error below
+ 	switch x.Op {
+ 	case OCALL:
+ 		return x

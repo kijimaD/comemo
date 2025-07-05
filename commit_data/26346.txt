@@ -12,7 +12,7 @@ Date:   Wed Jan 13 16:43:22 2016 +0300
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/obj/x86/a.out.go  |  6 ++++++
  src/cmd/internal/obj/x86/anames.go |  6 ++++++
  src/cmd/internal/obj/x86/asm6.go   | 29 +++++++++++++++++++++++++++--
@@ -21,3 +21,304 @@ Date:   Wed Jan 13 16:43:22 2016 +0300
  src/hash/crc32/crc32_amd64.s       |  4 +---
  src/runtime/asm_amd64.s            |  6 +++---
  7 files changed, 49 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index 5ea5c9d79e..b3e2d48d24 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -181,6 +181,7 @@ const (
+ 	APAUSE
+ 	APOPAL
+ 	APOPAW
++	APOPCNT
+ 	APOPFL
+ 	APOPFW
+ 	APOPL
+@@ -500,6 +501,7 @@ const (
+ 	AXADDQ
+ 	AXCHGQ
+ 	AXORQ
++	AXGETBV
+ 
+ 	// media
+ 	AADDPD
+@@ -614,6 +616,9 @@ const (
+ 	APCMPGTL
+ 	APCMPGTW
+ 	APEXTRW
++	APEXTRB
++	APEXTRD
++	APEXTRQ
+ 	APFACC
+ 	APFADD
+ 	APFCMPEQ
+@@ -632,6 +637,7 @@ const (
+ 	APFSUB
+ 	APFSUBR
+ 	APINSRW
++	APINSRB
+ 	APINSRD
+ 	APINSRQ
+ 	APMADDWL
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index 9eb57b04cd..392899cf5f 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -149,6 +149,7 @@ var Anames = []string{
+ 	"PAUSE",
+ 	"POPAL",
+ 	"POPAW",
++	"POPCNT",
+ 	"POPFL",
+ 	"POPFW",
+ 	"POPL",
+@@ -451,6 +452,7 @@ var Anames = []string{
+ 	"XADDQ",
+ 	"XCHGQ",
+ 	"XORQ",
++	"XGETBV",
+ 	"ADDPD",
+ 	"ADDPS",
+ 	"ADDSD",
+@@ -563,6 +565,9 @@ var Anames = []string{
+ 	"PCMPGTL",
+ 	"PCMPGTW",
+ 	"PEXTRW",
++	"PEXTRB",
++	"PEXTRD",
++	"PEXTRQ",
+ 	"PFACC",
+ 	"PFADD",
+ 	"PFCMPEQ",
+@@ -581,6 +586,7 @@ var Anames = []string{
+ 	"PFSUB",
+ 	"PFSUBR",
+ 	"PINSRW",
++	"PINSRB",
+ 	"PINSRD",
+ 	"PINSRQ",
+ 	"PMADDWL",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 8bb4dff262..164dbd6064 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -187,6 +187,7 @@ const (
+ 	Zm_r_xm_nr
+ 	Zr_m_xm_nr
+ 	Zibm_r /* mmx1,mmx2/mem64,imm8 */
++	Zibr_m
+ 	Zmb_r
+ 	Zaut_r
+ 	Zo_m
+@@ -219,6 +220,7 @@ const (
+ 	Pf2   = 0xf2 /* xmm escape 1: f2 0f */
+ 	Pf3   = 0xf3 /* xmm escape 2: f3 0f */
+ 	Pq3   = 0x67 /* xmm escape 3: 66 48 0f */
++	Pfw   = 0xf4 /* Pf3 with Rex.w: f3 48 0f */
+ 	Pvex1 = 0xc5 /* 66.0f escape, vex encoding */
+ 	Pvex2 = 0xc6 /* f3.0f escape, vex encoding */
+ 	Pvex3 = 0xc7 /* 66.0f38 escape, vex encoding */
+@@ -720,6 +722,10 @@ var yextrw = []ytab{
+ 	{Yu8, Yxr, Yrl, Zibm_r, 2},
+ }
+ 
++var yextr = []ytab{
++	{Yu8, Yxr, Ymm, Zibr_m, 3},
++}
++
+ var yinsrw = []ytab{
+ 	{Yu8, Yml, Yxr, Zibm_r, 2},
+ }
+@@ -1162,6 +1168,9 @@ var optab =
+ 	{APCMPGTL, ymm, Py1, [23]uint8{0x66, Pe, 0x66}},
+ 	{APCMPGTW, ymm, Py1, [23]uint8{0x65, Pe, 0x65}},
+ 	{APEXTRW, yextrw, Pq, [23]uint8{0xc5, 00}},
++	{APEXTRB, yextr, Pq, [23]uint8{0x3a, 0x14, 00}},
++	{APEXTRD, yextr, Pq, [23]uint8{0x3a, 0x16, 00}},
++	{APEXTRQ, yextr, Pq3, [23]uint8{0x3a, 0x16, 00}},
+ 	{APF2IL, ymfp, Px, [23]uint8{0x1d}},
+ 	{APF2IW, ymfp, Px, [23]uint8{0x1c}},
+ 	{API2FL, ymfp, Px, [23]uint8{0x0d}},
+@@ -1183,6 +1192,7 @@ var optab =
+ 	{APFSUB, ymfp, Px, [23]uint8{0x9a}},
+ 	{APFSUBR, ymfp, Px, [23]uint8{0xaa}},
+ 	{APINSRW, yinsrw, Pq, [23]uint8{0xc4, 00}},
++	{APINSRB, yinsr, Pq, [23]uint8{0x3a, 0x20, 00}},
+ 	{APINSRD, yinsr, Pq, [23]uint8{0x3a, 0x22, 00}},
+ 	{APINSRQ, yinsr, Pq3, [23]uint8{0x3a, 0x22, 00}},
+ 	{APMADDWL, ymm, Py1, [23]uint8{0xf5, Pe, 0xf5}},
+@@ -1198,6 +1208,7 @@ var optab =
+ 	{APMULULQ, ymm, Py1, [23]uint8{0xf4, Pe, 0xf4}},
+ 	{APOPAL, ynone, P32, [23]uint8{0x61}},
+ 	{APOPAW, ynone, Pe, [23]uint8{0x61}},
++	{APOPCNT, yml_rl, Pfw, [23]uint8{0xb8}},
+ 	{APOPFL, ynone, P32, [23]uint8{0x9d}},
+ 	{APOPFQ, ynone, Py, [23]uint8{0x9d}},
+ 	{APOPFW, ynone, Pe, [23]uint8{0x9d}},
+@@ -1533,6 +1544,7 @@ var optab =
+ 	{AXABORT, yxabort, Px, [23]uint8{0xc6, 0xf8}},
+ 	{AXEND, ynone, Px, [23]uint8{0x0f, 01, 0xd5}},
+ 	{AXTEST, ynone, Px, [23]uint8{0x0f, 01, 0xd6}},
++	{AXGETBV, ynone, Pm, [23]uint8{01, 0xd0}},
+ 	{obj.AUSEFIELD, ynop, Px, [23]uint8{0, 0}},
+ 	{obj.ATYPE, nil, 0, [23]uint8{}},
+ 	{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
+@@ -3194,6 +3206,15 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				ctxt.Andptr[0] = Pm
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 
++			case Pfw: /* first escape, Rex.w, and second escape */
++				ctxt.Andptr[0] = Pf3
++				ctxt.Andptr = ctxt.Andptr[1:]
++
++				ctxt.Andptr[0] = Pw
++				ctxt.Andptr = ctxt.Andptr[1:]
++				ctxt.Andptr[0] = Pm
++				ctxt.Andptr = ctxt.Andptr[1:]
++
+ 			case Pm: /* opcode escape */
+ 				ctxt.Andptr[0] = Pm
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+@@ -3343,7 +3364,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				ctxt.Andptr[0] = byte(op)
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 
+-			case Zibm_r:
++			case Zibm_r, Zibr_m:
+ 				for {
+ 					tmp1 := z
+ 					z++
+@@ -3354,7 +3375,11 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 					ctxt.Andptr[0] = byte(op)
+ 					ctxt.Andptr = ctxt.Andptr[1:]
+ 				}
+-				asmand(ctxt, p, p.From3, &p.To)
++				if yt.zcase == Zibr_m {
++					asmand(ctxt, p, &p.To, p.From3)
++				} else {
++					asmand(ctxt, p, p.From3, &p.To)
++				}
+ 				ctxt.Andptr[0] = byte(p.From.Offset)
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 
+diff --git a/src/crypto/aes/asm_amd64.s b/src/crypto/aes/asm_amd64.s
+index 6a6e6ac4b9..b2579987d8 100644
+--- a/src/crypto/aes/asm_amd64.s
++++ b/src/crypto/aes/asm_amd64.s
+@@ -217,8 +217,6 @@ Lexp_dec_loop:
+ 	MOVUPS X0, 16(DX)
+ 	RET
+ 
+-#define PSHUFD_X0_X0_ BYTE $0x66; BYTE $0x0f; BYTE $0x70; BYTE $0xc0
+-#define PSHUFD_X1_X1_ BYTE $0x66; BYTE $0x0f; BYTE $0x70; BYTE $0xc9
+ TEXT _expand_key_128<>(SB),NOSPLIT,$0
+ 	PSHUFD $0xff, X1, X1
+ 	SHUFPS $0x10, X0, X4
+@@ -230,8 +228,6 @@ TEXT _expand_key_128<>(SB),NOSPLIT,$0
+ 	ADDQ $16, BX
+ 	RET
+ 
+-#define PSLLDQ_X5_ BYTE $0x66; BYTE $0x0f; BYTE $0x73; BYTE $0xfd
+-#define PSHUFD_X0_X3_ BYTE $0x66; BYTE $0x0f; BYTE $0x70; BYTE $0xd8
+ TEXT _expand_key_192a<>(SB),NOSPLIT,$0
+ 	PSHUFD $0x55, X1, X1
+ 	SHUFPS $0x10, X0, X4
+@@ -242,7 +238,7 @@ TEXT _expand_key_192a<>(SB),NOSPLIT,$0
+ 
+ 	MOVAPS X2, X5
+ 	MOVAPS X2, X6
+-	PSLLDQ_X5_; BYTE $0x4
++	PSLLDQ $0x4, X5
+ 	PSHUFD $0xff, X0, X3
+ 	PXOR X3, X2
+ 	PXOR X5, X2
+@@ -264,7 +260,7 @@ TEXT _expand_key_192b<>(SB),NOSPLIT,$0
+ 	PXOR X1, X0
+ 
+ 	MOVAPS X2, X5
+-	PSLLDQ_X5_; BYTE $0x4
++	PSLLDQ $0x4, X5
+ 	PSHUFD $0xff, X0, X3
+ 	PXOR X3, X2
+ 	PXOR X5, X2
+diff --git a/src/crypto/aes/gcm_amd64.s b/src/crypto/aes/gcm_amd64.s
+index f60c92d6ea..cabb028f75 100644
+--- a/src/crypto/aes/gcm_amd64.s
++++ b/src/crypto/aes/gcm_amd64.s
+@@ -345,7 +345,7 @@ TEXT ·gcmAesData(SB),NOSPLIT,$0
+ 	PXOR B0, B0
+ 	MOVQ (aut), B0
+ 	PINSRD $2, 8(aut), B0
+-	BYTE $0x66; BYTE $0x0f; BYTE $0x3a; BYTE $0x20; BYTE $0x46; BYTE $0x0c; BYTE $0x0c  //PINSRB $12, 12(aut), B0
++	PINSRB $12, 12(aut), B0
+ 	XORQ autLen, autLen
+ 	JMP dataMul
+ 
+@@ -404,7 +404,7 @@ dataEnd:
+ dataLoadLoop:
+ 
+ 		PSLLDQ $1, B0
+-		BYTE $0x66; BYTE $0x0f; BYTE $0x3a; BYTE $0x20; BYTE $0x06; BYTE $0x00   //PINSRB $0, (aut), B0
++		PINSRB $0, (aut), B0
+ 
+ 		LEAQ -1(aut), aut
+ 		DECQ autLen
+@@ -892,7 +892,7 @@ encLast4:
+ 	PXOR B0, B0
+ ptxLoadLoop:
+ 		PSLLDQ $1, B0
+-		BYTE $0x66; BYTE $0x0f; BYTE $0x3a; BYTE $0x20; BYTE $0x06; BYTE $0x00  //PINSRB $0, (ptx), B0
++		PINSRB $0, (ptx), B0
+ 		LEAQ -1(ptx), ptx
+ 		DECQ ptxLen
+ 	JNE ptxLoadLoop
+@@ -1264,7 +1264,7 @@ decLast3:
+ 	PXOR T1, B0
+ 
+ ptxStoreLoop:
+-		BYTE $0x66; BYTE $0x0f; BYTE $0x3a; BYTE $0x14; BYTE $0x06; BYTE $0x00  // PEXTRB $0, B0, (ptx)
++		PEXTRB $0, B0, (ptx)
+ 		PSRLDQ $1, B0
+ 		LEAQ 1(ptx), ptx
+ 		DECQ ptxLen
+diff --git a/src/hash/crc32/crc32_amd64.s b/src/hash/crc32/crc32_amd64.s
+index 11d9bb53d8..caacfae21d 100644
+--- a/src/hash/crc32/crc32_amd64.s
++++ b/src/hash/crc32/crc32_amd64.s
+@@ -225,9 +225,7 @@ finish:
+ 	PCLMULQDQ   $0, X0, X1
+ 	PXOR        X2, X1
+ 
+-	/* PEXTRD   $1, X1, AX  (SSE 4.1) */
+-	BYTE $0x66; BYTE $0x0f; BYTE $0x3a;
+-	BYTE $0x16; BYTE $0xc8; BYTE $0x01;
++	PEXTRD	$1, X1, AX
+ 	MOVL        AX, ret+32(FP)
+ 
+ 	RET
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 6ebe0dc8e6..cac032c370 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -56,7 +56,7 @@ notintel:
+ 	JNE     noavx
+ 	MOVL    $0, CX
+ 	// For XGETBV, OSXSAVE bit is required and sufficient
+-	BYTE $0x0F; BYTE $0x01; BYTE $0xD0
++	XGETBV
+ 	ANDL    $6, AX
+ 	CMPL    AX, $6 // Check for OS support of YMM registers
+ 	JNE     noavx
+@@ -822,10 +822,10 @@ TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
+ 	JNE	mfence
+-	BYTE	$0x0f; BYTE $0xae; BYTE $0xe8 // LFENCE
++	LFENCE
+ 	JMP	done
+ mfence:
+-	BYTE	$0x0f; BYTE $0xae; BYTE $0xf0 // MFENCE
++	MFENCE
+ done:
+ 	RDTSC
+ 	SHLQ	$32, DX

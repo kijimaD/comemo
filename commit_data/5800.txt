@@ -7,6 +7,31 @@ Date:   Tue Jul 13 17:27:26 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1835041
-
+---
  src/pkg/runtime/chan.c | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 08cd75a6e5..9e88e824a4 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -182,6 +182,9 @@ chansend(Hchan *c, byte *ep, bool *pres)
+ 	SudoG *sg;
+ 	G* gp;
+ 
++	if(c == nil)
++		panicstring("send to nil channel");
++
+ 	if(gcwaiting)
+ 		gosched();
+ 
+@@ -286,6 +289,9 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
+ 	SudoG *sg;
+ 	G *gp;
+ 
++	if(c == nil)
++		panicstring("receive from nil channel");
++
+ 	if(gcwaiting)
+ 		gosched();
+ 

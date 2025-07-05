@@ -9,7 +9,104 @@ Date:   Fri Dec 4 11:39:57 2015 -0500
     Change-Id: I89f2a7326bb9182024c44bf815a06fa48639649d
     Reviewed-on: https://go-review.googlesource.com/17384
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/url.go      |  4 ++--
  src/net/url/url_test.go | 59 ++++++++++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 60 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 5dc5260ff5..e7c08b348d 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -590,12 +590,12 @@ func validEncodedPath(s string) bool {
+ }
+ 
+ // validOptionalPort reports whether port is either an empty string
+-// or matches /^:\d+$/
++// or matches /^:\d*$/
+ func validOptionalPort(port string) bool {
+ 	if port == "" {
+ 		return true
+ 	}
+-	if port[0] != ':' || len(port) == 1 {
++	if port[0] != ':' {
+ 		return false
+ 	}
+ 	for _, b := range port[1:] {
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index dbac91b945..037e8549ad 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -426,6 +426,63 @@ var urltests = []URLTest{
+ 		},
+ 		"",
+ 	},
++	// golang.org/issue/12200 (colon with empty port)
++	{
++		"http://192.168.0.2:8080/foo",
++		&URL{
++			Scheme: "http",
++			Host:   "192.168.0.2:8080",
++			Path:   "/foo",
++		},
++		"",
++	},
++	{
++		"http://192.168.0.2:/foo",
++		&URL{
++			Scheme: "http",
++			Host:   "192.168.0.2:",
++			Path:   "/foo",
++		},
++		"",
++	},
++	{
++		// Malformed IPv6 but still accepted.
++		"http://2b01:e34:ef40:7730:8e70:5aff:fefe:edac:8080/foo",
++		&URL{
++			Scheme: "http",
++			Host:   "2b01:e34:ef40:7730:8e70:5aff:fefe:edac:8080",
++			Path:   "/foo",
++		},
++		"",
++	},
++	{
++		// Malformed IPv6 but still accepted.
++		"http://2b01:e34:ef40:7730:8e70:5aff:fefe:edac:/foo",
++		&URL{
++			Scheme: "http",
++			Host:   "2b01:e34:ef40:7730:8e70:5aff:fefe:edac:",
++			Path:   "/foo",
++		},
++		"",
++	},
++	{
++		"http://[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:8080/foo",
++		&URL{
++			Scheme: "http",
++			Host:   "[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:8080",
++			Path:   "/foo",
++		},
++		"",
++	},
++	{
++		"http://[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:/foo",
++		&URL{
++			Scheme: "http",
++			Host:   "[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:",
++			Path:   "/foo",
++		},
++		"",
++	},
+ }
+ 
+ // more useful string for debugging than fmt's struct printer
+@@ -1126,7 +1183,7 @@ func TestParseAuthority(t *testing.T) {
+ 		{"http://[::1]a", true},
+ 		{"http://[::1]%23", true},
+ 		{"http://[::1%25en0]", false},     // valid zone id
+-		{"http://[::1]:", true},           // colon, but no port
++		{"http://[::1]:", false},          // colon, but no port OK
+ 		{"http://[::1]:%38%30", true},     // no hex in port
+ 		{"http://[::1%25%10]", false},     // TODO: reject the %10 after the valid zone %25 separator?
+ 		{"http://[%10::1]", true},         // no %xx escapes in IP address

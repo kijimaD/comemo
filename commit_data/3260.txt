@@ -10,6 +10,51 @@ Date:   Sun Sep 13 21:47:54 2009 -0700
     DELTA=7  (2 added, 0 deleted, 5 changed)
     OCL=34583
     CL=34585
-
+---
  src/pkg/image/png/reader.go | 12 +++++++-----
  1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index d410b6e53b..2e67fd999d 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -65,6 +65,8 @@ func (e FormatError) String() string {
+ 	return "invalid PNG format: " + e;
+ }
+ 
++var chunkOrderError = FormatError("chunk out of order")
++
+ // An IDATDecodingError wraps an inner error (such as a ZLIB decoding error) encountered while processing an IDAT chunk.
+ type IDATDecodingError struct {
+ 	Err os.Error;
+@@ -347,25 +349,25 @@ func (d *decoder) parseChunk(r io.Reader) os.Error {
+ 	switch string(d.scratch[0:4]) {
+ 	case "IHDR":
+ 		if d.stage != dsStart {
+-			return FormatError("chunk out of order");
++			return chunkOrderError;
+ 		}
+ 		d.stage = dsSeenIHDR;
+ 		err = d.parseIHDR(r, crc, length);
+ 	case "PLTE":
+ 		if d.stage != dsSeenIHDR {
+-			return FormatError("chunk out of order");
++			return chunkOrderError;
+ 		}
+ 		d.stage = dsSeenPLTE;
+ 		err = d.parsePLTE(r, crc, length);
+ 	case "IDAT":
+-		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT {
+-			return FormatError("chunk out of order");
++		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT || (d.colorType == ctPaletted && d.stage == dsSeenIHDR) {
++			return chunkOrderError;
+ 		}
+ 		d.stage = dsSeenIDAT;
+ 		err = d.parseIDAT(r, crc, length);
+ 	case "IEND":
+ 		if d.stage != dsSeenIDAT {
+-			return FormatError("chunk out of order");
++			return chunkOrderError;
+ 		}
+ 		d.stage = dsSeenIEND;
+ 		err = d.parseIEND(r, crc, length);

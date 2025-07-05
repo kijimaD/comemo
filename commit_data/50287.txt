@@ -31,7 +31,7 @@ Date:   Fri Oct 1 11:21:49 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  api/next.txt                                       |   4 +
  src/cmd/go/alldocs.go                              |   6 +
  src/cmd/go/internal/cfg/cfg.go                     |   1 +
@@ -47,3 +47,967 @@ Date:   Fri Oct 1 11:21:49 2021 -0700
  src/cmd/internal/str/path.go                       |  14 +++
  src/runtime/debug/mod.go                           |  46 +++++--
  14 files changed, 585 insertions(+), 53 deletions(-)
+
+diff --git a/api/next.txt b/api/next.txt
+index ced738e480..9e4bb83cb7 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -4,6 +4,10 @@ pkg debug/buildinfo, type BuildInfo = debug.BuildInfo
+ pkg runtime/debug, method (*BuildInfo) MarshalText() ([]byte, error)
+ pkg runtime/debug, method (*BuildInfo) UnmarshalText() ([]byte, error)
+ pkg runtime/debug, type BuildInfo struct, GoVersion string
++pkg runtime/debug, type BuildInfo struct, Settings []BuildSetting
++pkg runtime/debug, type BuildSetting struct
++pkg runtime/debug, type BuildSetting struct, Key string
++pkg runtime/debug, type BuildSetting struct, Value string
+ pkg syscall (darwin-amd64), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
+ pkg syscall (darwin-amd64), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (darwin-amd64), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index c3e4179025..b6ea5a3701 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -133,6 +133,12 @@
+ // 		arguments to pass on each go tool asm invocation.
+ // 	-buildmode mode
+ // 		build mode to use. See 'go help buildmode' for more.
++// 	-buildvcs
++// 		Whether to stamp binaries with version control information. By default,
++// 		version control information is stamped into a binary if the main package
++// 		and the main module containing it are in the repository containing the
++// 		current directory (if there is a repository). Use -buildvcs=false to
++// 		omit version control information.
+ // 	-compiler name
+ // 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
+ // 	-gccgoflags '[pattern=]arg list'
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index c8747d6c11..e1bf11fce2 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -26,6 +26,7 @@ import (
+ var (
+ 	BuildA                 bool   // -a flag
+ 	BuildBuildmode         string // -buildmode flag
++	BuildBuildvcs          bool   // -buildvcs flag
+ 	BuildContext           = defaultContext()
+ 	BuildMod               string                  // -mod flag
+ 	BuildModExplicit       bool                    // whether -mod was set explicitly
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index b79d3ba86f..c96459297a 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -417,10 +417,10 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
+ // to make the first copy of or update a copy of the given package.
+ func downloadPackage(p *load.Package) error {
+ 	var (
+-		vcsCmd         *vcs.Cmd
+-		repo, rootPath string
+-		err            error
+-		blindRepo      bool // set if the repo has unusual configuration
++		vcsCmd                  *vcs.Cmd
++		repo, rootPath, repoDir string
++		err                     error
++		blindRepo               bool // set if the repo has unusual configuration
+ 	)
+ 
+ 	// p can be either a real package, or a pseudo-package whose “import path” is
+@@ -446,10 +446,18 @@ func downloadPackage(p *load.Package) error {
+ 
+ 	if p.Internal.Build.SrcRoot != "" {
+ 		// Directory exists. Look for checkout along path to src.
+-		vcsCmd, rootPath, err = vcs.FromDir(p.Dir, p.Internal.Build.SrcRoot)
++		repoDir, vcsCmd, err = vcs.FromDir(p.Dir, p.Internal.Build.SrcRoot)
+ 		if err != nil {
+ 			return err
+ 		}
++		if !str.HasFilePathPrefix(repoDir, p.Internal.Build.SrcRoot) {
++			panic(fmt.Sprintf("repository %q not in source root %q", repo, p.Internal.Build.SrcRoot))
++		}
++		rootPath = str.TrimFilePathPrefix(repoDir, p.Internal.Build.SrcRoot)
++		if err := vcs.CheckGOVCS(vcsCmd, rootPath); err != nil {
++			return err
++		}
++
+ 		repo = "<local>" // should be unused; make distinctive
+ 
+ 		// Double-check where it came from.
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 0fc5afbc36..473fa7a9d6 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -38,6 +38,7 @@ import (
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/trace"
++	"cmd/go/internal/vcs"
+ 	"cmd/internal/str"
+ 	"cmd/internal/sys"
+ 
+@@ -2267,6 +2268,72 @@ func (p *Package) setBuildInfo() {
+ 		Main: main,
+ 		Deps: deps,
+ 	}
++
++	// Add VCS status if all conditions are true:
++	//
++	// - -buildvcs is enabled.
++	// - p is contained within a main module (there may be multiple main modules
++	//   in a workspace, but local replacements don't count).
++	// - Both the current directory and p's module's root directory are contained
++	//   in the same local repository.
++	// - We know the VCS commands needed to get the status.
++	setVCSError := func(err error) {
++		setPkgErrorf("error obtaining VCS status: %v\n\tUse -buildvcs=false to disable VCS stamping.", err)
++	}
++
++	var repoDir string
++	var vcsCmd *vcs.Cmd
++	var err error
++	if cfg.BuildBuildvcs && p.Module != nil && p.Module.Version == "" {
++		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "")
++		if err != nil && !errors.Is(err, os.ErrNotExist) {
++			setVCSError(err)
++			return
++		}
++		if !str.HasFilePathPrefix(p.Module.Dir, repoDir) &&
++			!str.HasFilePathPrefix(repoDir, p.Module.Dir) {
++			// The module containing the main package does not overlap with the
++			// repository containing the working directory. Don't include VCS info.
++			// If the repo contains the module or vice versa, but they are not
++			// the same directory, it's likely an error (see below).
++			repoDir, vcsCmd = "", nil
++		}
++	}
++	if repoDir != "" && vcsCmd.Status != nil {
++		// Check that the current directory, package, and module are in the same
++		// repository. vcs.FromDir allows nested Git repositories, but nesting
++		// is not allowed for other VCS tools. The current directory may be outside
++		// p.Module.Dir when a workspace is used.
++		pkgRepoDir, _, err := vcs.FromDir(p.Dir, "")
++		if err != nil {
++			setVCSError(err)
++			return
++		}
++		if pkgRepoDir != repoDir {
++			setVCSError(fmt.Errorf("main package is in repository %q but current directory is in repository %q", pkgRepoDir, repoDir))
++			return
++		}
++		modRepoDir, _, err := vcs.FromDir(p.Module.Dir, "")
++		if err != nil {
++			setVCSError(err)
++			return
++		}
++		if modRepoDir != repoDir {
++			setVCSError(fmt.Errorf("main module is in repository %q but current directory is in repository %q", modRepoDir, repoDir))
++			return
++		}
++
++		st, err := vcsCmd.Status(vcsCmd, repoDir)
++		if err != nil {
++			setVCSError(err)
++			return
++		}
++		info.Settings = []debug.BuildSetting{
++			{Key: vcsCmd.Cmd + "revision", Value: st.Revision},
++			{Key: vcsCmd.Cmd + "uncommitted", Value: strconv.FormatBool(st.Uncommitted)},
++		}
++	}
++
+ 	text, err := info.MarshalText()
+ 	if err != nil {
+ 		setPkgErrorf("error formatting build info: %v", err)
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index 97b2a631ae..ebb4850443 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -5,6 +5,7 @@
+ package vcs
+ 
+ import (
++	"bytes"
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+@@ -29,7 +30,7 @@ import (
+ 	"golang.org/x/mod/module"
+ )
+ 
+-// A vcsCmd describes how to use a version control system
++// A Cmd describes how to use a version control system
+ // like Mercurial, Git, or Subversion.
+ type Cmd struct {
+ 	Name string
+@@ -48,6 +49,13 @@ type Cmd struct {
+ 
+ 	RemoteRepo  func(v *Cmd, rootDir string) (remoteRepo string, err error)
+ 	ResolveRepo func(v *Cmd, rootDir, remoteRepo string) (realRepo string, err error)
++	Status      func(v *Cmd, rootDir string) (Status, error)
++}
++
++// Status is the current state of a local repository.
++type Status struct {
++	Revision    string
++	Uncommitted bool
+ }
+ 
+ var defaultSecureScheme = map[string]bool{
+@@ -139,6 +147,7 @@ var vcsHg = &Cmd{
+ 	Scheme:     []string{"https", "http", "ssh"},
+ 	PingCmd:    "identify -- {scheme}://{repo}",
+ 	RemoteRepo: hgRemoteRepo,
++	Status:     hgStatus,
+ }
+ 
+ func hgRemoteRepo(vcsHg *Cmd, rootDir string) (remoteRepo string, err error) {
+@@ -149,6 +158,27 @@ func hgRemoteRepo(vcsHg *Cmd, rootDir string) (remoteRepo string, err error) {
+ 	return strings.TrimSpace(string(out)), nil
+ }
+ 
++func hgStatus(vcsHg *Cmd, rootDir string) (Status, error) {
++	out, err := vcsHg.runOutputVerboseOnly(rootDir, "identify -i")
++	if err != nil {
++		return Status{}, err
++	}
++	rev := strings.TrimSpace(string(out))
++	uncommitted := strings.HasSuffix(rev, "+")
++	if uncommitted {
++		// "+" means a tracked file is edited.
++		rev = rev[:len(rev)-len("+")]
++	} else {
++		// Also look for untracked files.
++		out, err = vcsHg.runOutputVerboseOnly(rootDir, "status -u")
++		if err != nil {
++			return Status{}, err
++		}
++		uncommitted = len(out) > 0
++	}
++	return Status{Revision: rev, Uncommitted: uncommitted}, nil
++}
++
+ // vcsGit describes how to use Git.
+ var vcsGit = &Cmd{
+ 	Name: "Git",
+@@ -182,6 +212,7 @@ var vcsGit = &Cmd{
+ 	PingCmd: "ls-remote {scheme}://{repo}",
+ 
+ 	RemoteRepo: gitRemoteRepo,
++	Status:     gitStatus,
+ }
+ 
+ // scpSyntaxRe matches the SCP-like addresses used by Git to access
+@@ -232,6 +263,20 @@ func gitRemoteRepo(vcsGit *Cmd, rootDir string) (remoteRepo string, err error) {
+ 	return "", errParse
+ }
+ 
++func gitStatus(cmd *Cmd, repoDir string) (Status, error) {
++	out, err := cmd.runOutputVerboseOnly(repoDir, "rev-parse HEAD")
++	if err != nil {
++		return Status{}, err
++	}
++	rev := string(bytes.TrimSpace(out))
++	out, err = cmd.runOutputVerboseOnly(repoDir, "status --porcelain")
++	if err != nil {
++		return Status{}, err
++	}
++	uncommitted := len(out) != 0
++	return Status{Revision: rev, Uncommitted: uncommitted}, nil
++}
++
+ // vcsBzr describes how to use Bazaar.
+ var vcsBzr = &Cmd{
+ 	Name: "Bazaar",
+@@ -395,6 +440,12 @@ func (v *Cmd) runOutput(dir string, cmd string, keyval ...string) ([]byte, error
+ 	return v.run1(dir, cmd, keyval, true)
+ }
+ 
++// runOutputVerboseOnly is like runOutput but only generates error output to
++// standard error in verbose mode.
++func (v *Cmd) runOutputVerboseOnly(dir string, cmd string, keyval ...string) ([]byte, error) {
++	return v.run1(dir, cmd, keyval, false)
++}
++
+ // run1 is the generalized implementation of run and runOutput.
+ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([]byte, error) {
+ 	m := make(map[string]string)
+@@ -550,58 +601,62 @@ type vcsPath struct {
+ 
+ // FromDir inspects dir and its parents to determine the
+ // version control system and code repository to use.
+-// On return, root is the import path
+-// corresponding to the root of the repository.
+-func FromDir(dir, srcRoot string) (vcs *Cmd, root string, err error) {
++// If no repository is found, FromDir returns an error
++// equivalent to os.ErrNotExist.
++func FromDir(dir, srcRoot string) (repoDir string, vcsCmd *Cmd, err error) {
+ 	// Clean and double-check that dir is in (a subdirectory of) srcRoot.
+ 	dir = filepath.Clean(dir)
+-	srcRoot = filepath.Clean(srcRoot)
+-	if len(dir) <= len(srcRoot) || dir[len(srcRoot)] != filepath.Separator {
+-		return nil, "", fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
++	if srcRoot != "" {
++		srcRoot = filepath.Clean(srcRoot)
++		if len(dir) <= len(srcRoot) || dir[len(srcRoot)] != filepath.Separator {
++			return "", nil, fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
++		}
+ 	}
+ 
+-	var vcsRet *Cmd
+-	var rootRet string
+-
+ 	origDir := dir
+ 	for len(dir) > len(srcRoot) {
+ 		for _, vcs := range vcsList {
+ 			if _, err := os.Stat(filepath.Join(dir, "."+vcs.Cmd)); err == nil {
+-				root := filepath.ToSlash(dir[len(srcRoot)+1:])
+ 				// Record first VCS we find, but keep looking,
+ 				// to detect mistakes like one kind of VCS inside another.
+-				if vcsRet == nil {
+-					vcsRet = vcs
+-					rootRet = root
++				if vcsCmd == nil {
++					vcsCmd = vcs
++					repoDir = dir
+ 					continue
+ 				}
+ 				// Allow .git inside .git, which can arise due to submodules.
+-				if vcsRet == vcs && vcs.Cmd == "git" {
++				if vcsCmd == vcs && vcs.Cmd == "git" {
+ 					continue
+ 				}
+ 				// Otherwise, we have one VCS inside a different VCS.
+-				return nil, "", fmt.Errorf("directory %q uses %s, but parent %q uses %s",
+-					filepath.Join(srcRoot, rootRet), vcsRet.Cmd, filepath.Join(srcRoot, root), vcs.Cmd)
++				return "", nil, fmt.Errorf("directory %q uses %s, but parent %q uses %s",
++					repoDir, vcsCmd.Cmd, dir, vcs.Cmd)
+ 			}
+ 		}
+ 
+ 		// Move to parent.
+ 		ndir := filepath.Dir(dir)
+ 		if len(ndir) >= len(dir) {
+-			// Shouldn't happen, but just in case, stop.
+ 			break
+ 		}
+ 		dir = ndir
+ 	}
+-
+-	if vcsRet != nil {
+-		if err := checkGOVCS(vcsRet, rootRet); err != nil {
+-			return nil, "", err
+-		}
+-		return vcsRet, rootRet, nil
++	if vcsCmd == nil {
++		return "", nil, &vcsNotFoundError{dir: origDir}
+ 	}
++	return repoDir, vcsCmd, nil
++}
++
++type vcsNotFoundError struct {
++	dir string
++}
++
++func (e *vcsNotFoundError) Error() string {
++	return fmt.Sprintf("directory %q is not using a known version control system", e.dir)
++}
+ 
+-	return nil, "", fmt.Errorf("directory %q is not using a known version control system", origDir)
++func (e *vcsNotFoundError) Is(err error) bool {
++	return err == os.ErrNotExist
+ }
+ 
+ // A govcsRule is a single GOVCS rule like private:hg|svn.
+@@ -707,7 +762,11 @@ var defaultGOVCS = govcsConfig{
+ 	{"public", []string{"git", "hg"}},
+ }
+ 
+-func checkGOVCS(vcs *Cmd, root string) error {
++// CheckGOVCS checks whether the policy defined by the environment variable
++// GOVCS allows the given vcs command to be used with the given repository
++// root path. Note that root may not be a real package or module path; it's
++// the same as the root path in the go-import meta tag.
++func CheckGOVCS(vcs *Cmd, root string) error {
+ 	if vcs == vcsMod {
+ 		// Direct module (proxy protocol) fetches don't
+ 		// involve an external version control system
+@@ -885,7 +944,7 @@ func repoRootFromVCSPaths(importPath string, security web.SecurityMode, vcsPaths
+ 		if vcs == nil {
+ 			return nil, fmt.Errorf("unknown version control system %q", match["vcs"])
+ 		}
+-		if err := checkGOVCS(vcs, match["root"]); err != nil {
++		if err := CheckGOVCS(vcs, match["root"]); err != nil {
+ 			return nil, err
+ 		}
+ 		var repoURL string
+@@ -1012,7 +1071,7 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
+ 		}
+ 	}
+ 
+-	if err := checkGOVCS(vcs, mmi.Prefix); err != nil {
++	if err := CheckGOVCS(vcs, mmi.Prefix); err != nil {
+ 		return nil, err
+ 	}
+ 
+diff --git a/src/cmd/go/internal/vcs/vcs_test.go b/src/cmd/go/internal/vcs/vcs_test.go
+index c5c7a3283b..248c541014 100644
+--- a/src/cmd/go/internal/vcs/vcs_test.go
++++ b/src/cmd/go/internal/vcs/vcs_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"errors"
+ 	"internal/testenv"
+ 	"os"
+-	"path"
+ 	"path/filepath"
+ 	"strings"
+ 	"testing"
+@@ -205,7 +204,8 @@ func TestRepoRootForImportPath(t *testing.T) {
+ 	}
+ }
+ 
+-// Test that vcsFromDir correctly inspects a given directory and returns the right VCS and root.
++// Test that vcs.FromDir correctly inspects a given directory and returns the
++// right VCS and repo directory.
+ func TestFromDir(t *testing.T) {
+ 	tempDir, err := os.MkdirTemp("", "vcstest")
+ 	if err != nil {
+@@ -232,18 +232,14 @@ func TestFromDir(t *testing.T) {
+ 			f.Close()
+ 		}
+ 
+-		want := RepoRoot{
+-			VCS:  vcs,
+-			Root: path.Join("example.com", vcs.Name),
+-		}
+-		var got RepoRoot
+-		got.VCS, got.Root, err = FromDir(dir, tempDir)
++		wantRepoDir := filepath.Dir(dir)
++		gotRepoDir, gotVCS, err := FromDir(dir, tempDir)
+ 		if err != nil {
+ 			t.Errorf("FromDir(%q, %q): %v", dir, tempDir, err)
+ 			continue
+ 		}
+-		if got.VCS.Name != want.VCS.Name || got.Root != want.Root {
+-			t.Errorf("FromDir(%q, %q) = VCS(%s) Root(%s), want VCS(%s) Root(%s)", dir, tempDir, got.VCS, got.Root, want.VCS, want.Root)
++		if gotRepoDir != wantRepoDir || gotVCS.Name != vcs.Name {
++			t.Errorf("FromDir(%q, %q) = RepoDir(%s), VCS(%s); want RepoDir(%s), VCS(%s)", dir, tempDir, gotRepoDir, gotVCS.Name, wantRepoDir, vcs.Name)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 55e4954eee..114abab16c 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -87,6 +87,12 @@ and test commands:
+ 		arguments to pass on each go tool asm invocation.
+ 	-buildmode mode
+ 		build mode to use. See 'go help buildmode' for more.
++	-buildvcs
++		Whether to stamp binaries with version control information. By default,
++		version control information is stamped into a binary if the main package
++		and the main module containing it are in the repository containing the
++		current directory (if there is a repository). Use -buildvcs=false to
++		omit version control information.
+ 	-compiler name
+ 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
+ 	-gccgoflags '[pattern=]arg list'
+@@ -302,6 +308,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
+ 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
++	cmd.Flag.BoolVar(&cfg.BuildBuildvcs, "buildvcs", true, "")
+ 
+ 	// Undocumented, unstable debugging flags.
+ 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 17782420c7..ac9764db94 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -1130,6 +1130,17 @@ func (ts *testScript) startBackground(want simpleStatus, command string, args ..
+ 		done: done,
+ 	}
+ 
++	// Use the script's PATH to look up the command if it contains a separator
++	// instead of the test process's PATH (see lookPath).
++	// Don't use filepath.Clean, since that changes "./foo" to "foo".
++	command = filepath.FromSlash(command)
++	if !strings.Contains(command, string(filepath.Separator)) {
++		var err error
++		command, err = ts.lookPath(command)
++		if err != nil {
++			return nil, err
++		}
++	}
+ 	cmd := exec.Command(command, args...)
+ 	cmd.Dir = ts.cd
+ 	cmd.Env = append(ts.env, "PWD="+ts.cd)
+@@ -1146,6 +1157,73 @@ func (ts *testScript) startBackground(want simpleStatus, command string, args ..
+ 	return bg, nil
+ }
+ 
++// lookPath is (roughly) like exec.LookPath, but it uses the test script's PATH
++// instead of the test process's PATH to find the executable. We don't change
++// the test process's PATH since it may run scripts in parallel.
++func (ts *testScript) lookPath(command string) (string, error) {
++	var strEqual func(string, string) bool
++	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
++		// Using GOOS as a proxy for case-insensitive file system.
++		strEqual = strings.EqualFold
++	} else {
++		strEqual = func(a, b string) bool { return a == b }
++	}
++
++	var pathExt []string
++	var searchExt bool
++	var isExecutable func(os.FileInfo) bool
++	if runtime.GOOS == "windows" {
++		// Use the test process's PathExt instead of the script's.
++		// If PathExt is set in the command's environment, cmd.Start fails with
++		// "parameter is invalid". Not sure why.
++		// If the command already has an extension in PathExt (like "cmd.exe")
++		// don't search for other extensions (not "cmd.bat.exe").
++		pathExt = strings.Split(os.Getenv("PathExt"), string(filepath.ListSeparator))
++		searchExt = true
++		cmdExt := filepath.Ext(command)
++		for _, ext := range pathExt {
++			if strEqual(cmdExt, ext) {
++				searchExt = false
++				break
++			}
++		}
++		isExecutable = func(fi os.FileInfo) bool {
++			return fi.Mode().IsRegular()
++		}
++	} else {
++		isExecutable = func(fi os.FileInfo) bool {
++			return fi.Mode().IsRegular() && fi.Mode().Perm()&0111 != 0
++		}
++	}
++
++	pathName := "PATH"
++	if runtime.GOOS == "plan9" {
++		pathName = "path"
++	}
++
++	for _, dir := range strings.Split(ts.envMap[pathName], string(filepath.ListSeparator)) {
++		if searchExt {
++			ents, err := os.ReadDir(dir)
++			if err != nil {
++				continue
++			}
++			for _, ent := range ents {
++				for _, ext := range pathExt {
++					if !ent.IsDir() && strEqual(ent.Name(), command+ext) {
++						return dir + string(filepath.Separator) + ent.Name(), nil
++					}
++				}
++			}
++		} else {
++			path := dir + string(filepath.Separator) + command
++			if fi, err := os.Stat(path); err == nil && isExecutable(fi) {
++				return path, nil
++			}
++		}
++	}
++	return "", &exec.Error{Name: command, Err: exec.ErrNotFound}
++}
++
+ // waitOrStop waits for the already-started command cmd by calling its Wait method.
+ //
+ // If cmd does not return before ctx is done, waitOrStop sends it the given interrupt signal.
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_git.txt b/src/cmd/go/testdata/script/version_buildvcs_git.txt
+new file mode 100644
+index 0000000000..78ce2e835e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/version_buildvcs_git.txt
+@@ -0,0 +1,135 @@
++# This test checks that VCS information is stamped into Go binaries by default,
++# controlled with -buildvcs. This test focuses on Git. Other tests focus on
++# other VCS tools but may not cover common functionality.
++
++[!exec:git] skip
++[short] skip
++env GOBIN=$WORK/gopath/bin
++env oldpath=$PATH
++cd repo/a
++
++# If there's no local repository, there's no VCS info.
++go install
++go version -m $GOBIN/a$GOEXE
++! stdout gitrevision
++rm $GOBIN/a$GOEXE
++
++# If there is a repository, but it can't be used for some reason,
++# there should be an error. It should hint about -buildvcs=false.
++cd ..
++mkdir .git
++env PATH=$WORK${/}fakebin${:}$oldpath
++chmod 0755 $WORK/fakebin/git
++! exec git help
++cd a
++! go install
++stderr '^error obtaining VCS status: exit status 1\n\tUse -buildvcs=false to disable VCS stamping.$'
++cd ..
++env PATH=$oldpath
++rm .git
++
++# If there is a repository in a parent directory, there should be VCS info.
++exec git init
++exec git config user.email gopher@golang.org
++exec git config user.name 'J.R. Gopher'
++exec git add -A
++exec git commit -m 'initial commit'
++cd a
++go install
++go version -m $GOBIN/a$GOEXE
++stdout '^\tbuild\tgitrevision\t'
++stdout '^\tbuild\tgituncommitted\tfalse$'
++rm $GOBIN/a$GOEXE
++
++# Building with -buildvcs=false suppresses the info.
++go install -buildvcs=false
++go version -m $GOBIN/a$GOEXE
++! stdout gitrevision
++rm $GOBIN/a$GOEXE
++
++# An untracked file is shown as uncommitted, even if it isn't part of the build.
++cp ../../outside/empty.txt .
++go install
++go version -m $GOBIN/a$GOEXE
++stdout '^\tbuild\tgituncommitted\ttrue$'
++rm empty.txt
++rm $GOBIN/a$GOEXE
++
++# An edited file is shown as uncommitted, even if it isn't part of the build.
++cp ../../outside/empty.txt ../README
++go install
++go version -m $GOBIN/a$GOEXE
++stdout '^\tbuild\tgituncommitted\ttrue$'
++exec git checkout ../README
++rm $GOBIN/a$GOEXE
++
++# If the build doesn't include any packages from the repository,
++# there should be no VCS info.
++go install example.com/cmd/a@v1.0.0
++go version -m $GOBIN/a$GOEXE
++! stdout gitrevision
++rm $GOBIN/a$GOEXE
++
++go mod edit -require=example.com/c@v0.0.0
++go mod edit -replace=example.com/c@v0.0.0=../../outside/c
++go install example.com/c
++go version -m $GOBIN/c$GOEXE
++! stdout gitrevision
++rm $GOBIN/c$GOEXE
++exec git checkout go.mod
++
++# If the build depends on a package in the repository, but it's not in the
++# main module, there should be no VCS info.
++go mod edit -require=example.com/b@v0.0.0
++go mod edit -replace=example.com/b@v0.0.0=../b
++go mod edit -require=example.com/d@v0.0.0
++go mod edit -replace=example.com/d@v0.0.0=../../outside/d
++go install example.com/d
++go version -m $GOBIN/d$GOEXE
++! stdout gitrevision
++exec git checkout go.mod
++rm $GOBIN/d$GOEXE
++
++-- $WORK/fakebin/git --
++#!/bin/sh
++exit 1
++-- $WORK/fakebin/git.bat --
++exit 1
++-- repo/README --
++Far out in the uncharted backwaters of the unfashionable end of the western
++spiral arm of the Galaxy lies a small, unregarded yellow sun.
++-- repo/a/go.mod --
++module example.com/a
++
++go 1.18
++-- repo/a/a.go --
++package main
++
++func main() {}
++-- repo/b/go.mod --
++module example.com/b
++
++go 1.18
++-- repo/b/b.go --
++package b
++-- outside/empty.txt --
++-- outside/c/go.mod --
++module example.com/c
++
++go 1.18
++-- outside/c/main.go --
++package main
++
++func main() {}
++-- outside/d/go.mod --
++module example.com/d
++
++go 1.18
++
++require example.com/b v0.0.0
++-- outside/d/main.go --
++package main
++
++import _ "example.com/b"
++
++func main() {}
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_hg.txt b/src/cmd/go/testdata/script/version_buildvcs_hg.txt
+new file mode 100644
+index 0000000000..9dcb8dd950
+--- /dev/null
++++ b/src/cmd/go/testdata/script/version_buildvcs_hg.txt
+@@ -0,0 +1,81 @@
++# This test checks that VCS information is stamped into Go binaries by default,
++# controlled with -buildvcs. This test focuses on Mercurial specifics.
++# The Git test covers common functionality.
++
++[!exec:hg] skip
++[short] skip
++env GOBIN=$WORK/gopath/bin
++env oldpath=$PATH
++cd repo/a
++
++# If there's no local repository, there's no VCS info.
++go install
++go version -m $GOBIN/a$GOEXE
++! stdout hgrevision
++rm $GOBIN/a$GOEXE
++
++# If there is a repository, but it can't be used for some reason,
++# there should be an error. It should hint about -buildvcs=false.
++cd ..
++mkdir .hg
++env PATH=$WORK${/}fakebin${:}$oldpath
++chmod 0755 $WORK/fakebin/hg
++! exec hg help
++cd a
++! go install
++stderr '^error obtaining VCS status: exit status 1\n\tUse -buildvcs=false to disable VCS stamping.$'
++rm $GOBIN/a$GOEXE
++cd ..
++env PATH=$oldpath
++rm .hg
++
++# If there is a repository in a parent directory, there should be VCS info.
++exec hg init
++exec hg add a README
++exec hg commit -m 'initial commit'
++cd a
++go install
++go version -m $GOBIN/a$GOEXE
++stdout '^\tbuild\thgrevision\t'
++stdout '^\tbuild\thguncommitted\tfalse$'
++rm $GOBIN/a$GOEXE
++
++# Building with -buildvcs=false suppresses the info.
++go install -buildvcs=false
++go version -m $GOBIN/a$GOEXE
++! stdout hgrevision
++rm $GOBIN/a$GOEXE
++
++# An untracked file is shown as uncommitted, even if it isn't part of the build.
++cp ../../outside/empty.txt .
++go install
++go version -m $GOBIN/a$GOEXE
++stdout '^\tbuild\thguncommitted\ttrue$'
++rm empty.txt
++rm $GOBIN/a$GOEXE
++
++# An edited file is shown as uncommitted, even if it isn't part of the build.
++cp ../../outside/empty.txt ../README
++go install
++go version -m $GOBIN/a$GOEXE
++stdout '^\tbuild\thguncommitted\ttrue$'
++exec hg revert ../README
++rm $GOBIN/a$GOEXE
++
++-- $WORK/fakebin/hg --
++#!/bin/sh
++exit 1
++-- $WORK/fakebin/hg.bat --
++exit 1
++-- repo/README --
++Far out in the uncharted backwaters of the unfashionable end of the western
++spiral arm of the Galaxy lies a small, unregarded yellow sun.
++-- repo/a/go.mod --
++module example.com/a
++
++go 1.18
++-- repo/a/a.go --
++package main
++
++func main() {}
++-- outside/empty.txt --
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_nested.txt b/src/cmd/go/testdata/script/version_buildvcs_nested.txt
+new file mode 100644
+index 0000000000..f904c41bf8
+--- /dev/null
++++ b/src/cmd/go/testdata/script/version_buildvcs_nested.txt
+@@ -0,0 +1,50 @@
++[!exec:git] skip
++[!exec:hg] skip
++env GOFLAGS=-n
++
++# Create a root module in a root Git repository.
++mkdir root
++cd root
++go mod init example.com/root
++exec git init
++
++# It's an error to build a package from a nested Mercurial repository
++# without -buildvcs=false, even if the package is in a separate module.
++mkdir hgsub
++cd hgsub
++exec hg init
++cp ../../main.go main.go
++! go build
++stderr '^error obtaining VCS status: directory ".*hgsub" uses hg, but parent ".*root" uses git$'
++stderr '\tUse -buildvcs=false to disable VCS stamping.$'
++go mod init example.com/root/hgsub
++! go build
++stderr '^error obtaining VCS status: directory ".*hgsub" uses hg, but parent ".*root" uses git$'
++go build -buildvcs=false
++cd ..
++
++# It's an error to build a package from a nested Git repository if the package
++# is in a separate repository from the current directory or from the module
++# root directory. However, unlike with other VCS, it's okay for a Git repository
++# to be nested within another Git repository. This happens with submodules.
++mkdir gitsub
++cd gitsub
++exec git init
++exec git config user.name 'J.R.Gopher'
++exec git config user.email 'gopher@golang.org'
++cp ../../main.go main.go
++! go build
++stderr '^error obtaining VCS status: main module is in repository ".*root" but current directory is in repository ".*gitsub"$'
++go build -buildvcs=false
++go mod init example.com/root/gitsub
++exec git commit --allow-empty -m empty # status commands fail without this
++go build
++rm go.mod
++cd ..
++! go build ./gitsub
++stderr '^error obtaining VCS status: main package is in repository ".*gitsub" but current directory is in repository ".*root"$'
++go build -buildvcs=false -o=gitsub${/} ./gitsub
++
++-- main.go --
++package main
++func main() {}
+diff --git a/src/cmd/internal/str/path.go b/src/cmd/internal/str/path.go
+index 51ab2af82b..0c8aaeaca1 100644
+--- a/src/cmd/internal/str/path.go
++++ b/src/cmd/internal/str/path.go
+@@ -49,3 +49,17 @@ func HasFilePathPrefix(s, prefix string) bool {
+ 		return s[len(prefix)] == filepath.Separator && s[:len(prefix)] == prefix
+ 	}
+ }
++
++// TrimFilePathPrefix returns s without the leading path elements in prefix.
++// If s does not start with prefix (HasFilePathPrefix with the same arguments
++// returns false), TrimFilePathPrefix returns s. If s equals prefix,
++// TrimFilePathPrefix returns "".
++func TrimFilePathPrefix(s, prefix string) string {
++	if !HasFilePathPrefix(s, prefix) {
++		return s
++	}
++	if len(s) == len(prefix) {
++		return ""
++	}
++	return s[len(prefix)+1:]
++}
+diff --git a/src/runtime/debug/mod.go b/src/runtime/debug/mod.go
+index 0c6488753b..14b99f5735 100644
+--- a/src/runtime/debug/mod.go
++++ b/src/runtime/debug/mod.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"runtime"
++	"strings"
+ )
+ 
+ // exported from runtime
+@@ -38,10 +39,11 @@ func ReadBuildInfo() (info *BuildInfo, ok bool) {
+ 
+ // BuildInfo represents the build information read from a Go binary.
+ type BuildInfo struct {
+-	GoVersion string    // Version of Go that produced this binary.
+-	Path      string    // The main package path
+-	Main      Module    // The module containing the main package
+-	Deps      []*Module // Module dependencies
++	GoVersion string         // Version of Go that produced this binary.
++	Path      string         // The main package path
++	Main      Module         // The module containing the main package
++	Deps      []*Module      // Module dependencies
++	Settings  []BuildSetting // Other information about the build.
+ }
+ 
+ // Module represents a module.
+@@ -52,6 +54,14 @@ type Module struct {
+ 	Replace *Module // replaced by this module
+ }
+ 
++// BuildSetting describes a setting that may be used to understand how the
++// binary was built. For example, VCS commit and dirty status is stored here.
++type BuildSetting struct {
++	// Key and Value describe the build setting. They must not contain tabs
++	// or newlines.
++	Key, Value string
++}
++
+ func (bi *BuildInfo) MarshalText() ([]byte, error) {
+ 	buf := &bytes.Buffer{}
+ 	if bi.GoVersion != "" {
+@@ -86,6 +96,12 @@ func (bi *BuildInfo) MarshalText() ([]byte, error) {
+ 	for _, dep := range bi.Deps {
+ 		formatMod("dep", *dep)
+ 	}
++	for _, s := range bi.Settings {
++		if strings.ContainsAny(s.Key, "\n\t") || strings.ContainsAny(s.Value, "\n\t") {
++			return nil, fmt.Errorf("build setting %q contains tab or newline", s.Key)
++		}
++		fmt.Fprintf(buf, "build\t%s\t%s\n", s.Key, s.Value)
++	}
+ 
+ 	return buf.Bytes(), nil
+ }
+@@ -100,12 +116,13 @@ func (bi *BuildInfo) UnmarshalText(data []byte) (err error) {
+ 	}()
+ 
+ 	var (
+-		pathLine = []byte("path\t")
+-		modLine  = []byte("mod\t")
+-		depLine  = []byte("dep\t")
+-		repLine  = []byte("=>\t")
+-		newline  = []byte("\n")
+-		tab      = []byte("\t")
++		pathLine  = []byte("path\t")
++		modLine   = []byte("mod\t")
++		depLine   = []byte("dep\t")
++		repLine   = []byte("=>\t")
++		buildLine = []byte("build\t")
++		newline   = []byte("\n")
++		tab       = []byte("\t")
+ 	)
+ 
+ 	readModuleLine := func(elem [][]byte) (Module, error) {
+@@ -167,6 +184,15 @@ func (bi *BuildInfo) UnmarshalText(data []byte) (err error) {
+ 				Sum:     string(elem[2]),
+ 			}
+ 			last = nil
++		case bytes.HasPrefix(line, buildLine):
++			elem := bytes.Split(line[len(buildLine):], tab)
++			if len(elem) != 2 {
++				return fmt.Errorf("expected 2 columns for build setting; got %d", len(elem))
++			}
++			if len(elem[0]) == 0 {
++				return fmt.Errorf("empty key")
++			}
++			bi.Settings = append(bi.Settings, BuildSetting{Key: string(elem[0]), Value: string(elem[1])})
+ 		}
+ 		lineNum++
+ 	}

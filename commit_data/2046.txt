@@ -10,7 +10,7 @@ Date:   Fri Apr 17 00:08:24 2009 -0700
     R=rsc
     OCL=27586
     CL=27586
-
+---
  doc/progs/cat_rot13.go              |   4 +-
  doc/progs/file.go                   |   8 +--
  src/cmd/gobuild/Makefile            |   2 +-
@@ -69,3 +69,2818 @@ Date:   Fri Apr 17 00:08:24 2009 -0700
  usr/gri/pretty/godoc.go             |   8 +--
  usr/gri/pretty/platform.go          |   6 +-
  57 files changed, 341 insertions(+), 339 deletions(-)
+
+diff --git a/doc/progs/cat_rot13.go b/doc/progs/cat_rot13.go
+index aba8b4c7fb..7411a7bedc 100644
+--- a/doc/progs/cat_rot13.go
++++ b/doc/progs/cat_rot13.go
+@@ -24,7 +24,7 @@ func rot13(b byte) byte {
+ }
+ 
+ type reader interface {
+-	Read(b []byte) (ret int, err *os.Error);
++	Read(b []byte) (ret int, err os.Error);
+ 	String() string;
+ }
+ 
+@@ -36,7 +36,7 @@ func newRotate13(source reader) *rotate13 {
+ 	return &rotate13{source}
+ }
+ 
+-func (r13 *rotate13) Read(b []byte) (ret int, err *os.Error) {
++func (r13 *rotate13) Read(b []byte) (ret int, err os.Error) {
+ 	r, e := r13.source.Read(b);
+ 	for i := 0; i < r; i++ {
+ 		b[i] = rot13(b[i])
+diff --git a/doc/progs/file.go b/doc/progs/file.go
+index e2ecf92096..0f9a4a9f8b 100644
+--- a/doc/progs/file.go
++++ b/doc/progs/file.go
+@@ -27,12 +27,12 @@ var (
+ 	Stderr = newFile(2, "/dev/stderr");
+ )
+ 
+-func Open(name string, mode int64, perm int64) (file *File, err *os.Error) {
++func Open(name string, mode int64, perm int64) (file *File, err os.Error) {
+ 	r, e := syscall.Open(name, mode, perm);
+ 	return newFile(r, name), os.ErrnoToError(e)
+ }
+ 
+-func (file *File) Close() *os.Error {
++func (file *File) Close() os.Error {
+ 	if file == nil {
+ 		return os.EINVAL
+ 	}
+@@ -41,7 +41,7 @@ func (file *File) Close() *os.Error {
+ 	return nil
+ }
+ 
+-func (file *File) Read(b []byte) (ret int, err *os.Error) {
++func (file *File) Read(b []byte) (ret int, err os.Error) {
+ 	if file == nil {
+ 		return -1, os.EINVAL
+ 	}
+@@ -49,7 +49,7 @@ func (file *File) Read(b []byte) (ret int, err *os.Error) {
+ 	return int(r), os.ErrnoToError(e)
+ }
+ 
+-func (file *File) Write(b []byte) (ret int, err *os.Error) {
++func (file *File) Write(b []byte) (ret int, err os.Error) {
+ 	if file == nil {
+ 		return -1, os.EINVAL
+ 	}
+diff --git a/src/cmd/gobuild/Makefile b/src/cmd/gobuild/Makefile
+index 42c2a072b7..8c0eb523b0 100644
+--- a/src/cmd/gobuild/Makefile
++++ b/src/cmd/gobuild/Makefile
+@@ -5,7 +5,7 @@
+ # sadly, not auto-generated
+ 
+ O=6
+-OS=568vq
++OS=568vqo
+ GC=$(O)g
+ CC=$(O)c -FVw
+ AS=$(O)a
+diff --git a/src/cmd/gobuild/gobuild.go b/src/cmd/gobuild/gobuild.go
+index 7622494aa0..9324e98ff4 100644
+--- a/src/cmd/gobuild/gobuild.go
++++ b/src/cmd/gobuild/gobuild.go
+@@ -307,7 +307,7 @@ func Main() {
+ 
+ 	filenames := flag.Args();
+ 	if len(filenames) == 0 {
+-		var err *os.Error;
++		var err os.Error;
+ 		filenames, err= SourceFiles(".");
+ 		if err != nil {
+ 			fatal("reading .: ", err.String());
+@@ -317,7 +317,7 @@ func Main() {
+ 	state := ScanFiles(filenames);
+ 	state.Build();
+ 	if *writeMakefile {
+-		t, err, line := template.Parse(makefileTemplate, makefileMap);
++		t, err := template.Parse(makefileTemplate, makefileMap);
+ 		if err != nil {
+ 			fatal("template.Parse: ", err.String());
+ 		}
+diff --git a/src/cmd/gobuild/util.go b/src/cmd/gobuild/util.go
+index 8f69f39b45..34351cea82 100644
+--- a/src/cmd/gobuild/util.go
++++ b/src/cmd/gobuild/util.go
+@@ -38,7 +38,7 @@ func fatal(args ...) {
+ }
+ 
+ func init() {
+-	var err *os.Error;
++	var err os.Error;
+ 	goarch, err = os.Getenv("GOARCH");
+ 	goos, err = os.Getenv("GOOS");
+ 
+@@ -183,7 +183,7 @@ func (s MakeString) String() string {
+ var ParseError = os.NewError("parse errors");
+ 
+ // TODO(rsc): Should this be in the AST library?
+-func LitString(p []*ast.StringLit) (string, *os.Error) {
++func LitString(p []*ast.StringLit) (string, os.Error) {
+ 	s := "";
+ 	for i, lit := range p {
+ 		t, err := strconv.Unquote(string(lit.Value));
+@@ -195,7 +195,7 @@ func LitString(p []*ast.StringLit) (string, *os.Error) {
+ 	return s, nil;
+ }
+ 
+-func PackageImports(file string) (pkg string, imports []string, err1 *os.Error) {
++func PackageImports(file string) (pkg string, imports []string, err1 os.Error) {
+ 	f, err := os.Open(file, os.O_RDONLY, 0);
+ 	if err != nil {
+ 		return "", nil, err
+@@ -224,7 +224,7 @@ func PackageImports(file string) (pkg string, imports []string, err1 *os.Error)
+ 	return prog.Name.Value, imp, nil;
+ }
+ 
+-func SourceFiles(dir string) ([]string, *os.Error) {
++func SourceFiles(dir string) ([]string, os.Error) {
+ 	f, err := os.Open(dir, os.O_RDONLY, 0);
+ 	if err != nil {
+ 		return nil, err;
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 0c025e3b34..2cb08c5290 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -12,6 +12,7 @@ O=6
+ GC=${GC:-${O}g}
+ GL=${GL:-${O}l}
+ export GC GL
++GC="$GC -I _obj"
+ 
+ gofiles=""
+ loop=true
+diff --git a/src/lib/bufio.go b/src/lib/bufio.go
+index d2387916a8..23f5599938 100644
+--- a/src/lib/bufio.go
++++ b/src/lib/bufio.go
+@@ -49,7 +49,7 @@ type BufRead struct {
+ 	buf []byte;
+ 	rd io.Read;
+ 	r, w int;
+-	err *os.Error;
++	err os.Error;
+ 	lastbyte int;
+ }
+ 
+@@ -57,7 +57,7 @@ type BufRead struct {
+ // which must be greater than zero.  If the argument io.Read is already a
+ // BufRead with large enough size, it returns the underlying BufRead.
+ // It returns the BufRead and any error.
+-func NewBufReadSize(rd io.Read, size int) (*BufRead, *os.Error) {
++func NewBufReadSize(rd io.Read, size int) (*BufRead, os.Error) {
+ 	if size <= 0 {
+ 		return nil, BadBufSize
+ 	}
+@@ -84,7 +84,7 @@ func NewBufRead(rd io.Read) *BufRead {
+ }
+ 
+ //.fill reads a new chunk into the buffer.
+-func (b *BufRead) fill() *os.Error {
++func (b *BufRead) fill() os.Error {
+ 	if b.err != nil {
+ 		return b.err
+ 	}
+@@ -113,7 +113,7 @@ func (b *BufRead) fill() *os.Error {
+ // If nn < len(p), also returns an error explaining
+ // why the read is short.  At EOF, the count will be
+ // zero and err will be io.ErrEOF.
+-func (b *BufRead) Read(p []byte) (nn int, err *os.Error) {
++func (b *BufRead) Read(p []byte) (nn int, err os.Error) {
+ 	nn = 0;
+ 	for len(p) > 0 {
+ 		n := len(p);
+@@ -157,7 +157,7 @@ func (b *BufRead) Read(p []byte) (nn int, err *os.Error) {
+ 
+ // ReadByte reads and returns a single byte.
+ // If no byte is available, returns an error.
+-func (b *BufRead) ReadByte() (c byte, err *os.Error) {
++func (b *BufRead) ReadByte() (c byte, err os.Error) {
+ 	if b.w == b.r {
+ 		b.fill();
+ 		if b.err != nil {
+@@ -174,7 +174,7 @@ func (b *BufRead) ReadByte() (c byte, err *os.Error) {
+ }
+ 
+ // UnreadByte unreads the last byte.  Only one byte may be unread at a given time.
+-func (b *BufRead) UnreadByte() *os.Error {
++func (b *BufRead) UnreadByte() os.Error {
+ 	if b.err != nil {
+ 		return b.err
+ 	}
+@@ -195,7 +195,7 @@ func (b *BufRead) UnreadByte() *os.Error {
+ 
+ // ReadRune reads a single UTF-8 encoded Unicode character and returns the
+ // rune and its size in bytes.
+-func (b *BufRead) ReadRune() (rune int, size int, err *os.Error) {
++func (b *BufRead) ReadRune() (rune int, size int, err os.Error) {
+ 	for b.r + utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) {
+ 		n := b.w - b.r;
+ 		b.fill();
+@@ -241,7 +241,7 @@ func (b *BufRead) Buffered() int {
+ // Fails if the line doesn't fit in the buffer.
+ // For internal or advanced use only; most uses should
+ // call ReadLineString or ReadLineBytes instead.
+-func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
++func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err os.Error) {
+ 	if b.err != nil {
+ 		return nil, b.err
+ 	}
+@@ -288,7 +288,7 @@ func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
+ // If an error happens, returns the data (without a delimiter)
+ // and the error.  (It can't leave the data in the buffer because
+ // it might have read more than the buffer size.)
+-func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
++func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err os.Error) {
+ 	if b.err != nil {
+ 		return nil, b.err
+ 	}
+@@ -301,7 +301,7 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
+ 	err = nil;
+ 
+ 	for {
+-		var e *os.Error;
++		var e os.Error;
+ 		frag, e = b.ReadLineSlice(delim);
+ 		if e == nil {	// got final fragment
+ 			break
+@@ -364,7 +364,7 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
+ // ReadLineString reads until the first occurrence of delim in the input,
+ // returning a new string containing the line.
+ // If savedelim, keep delim in the result; otherwise drop it.
+-func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err *os.Error) {
++func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err os.Error) {
+ 	bytes, e := b.ReadLineBytes(delim);
+ 	if e != nil {
+ 		return string(bytes), e
+@@ -380,7 +380,7 @@ func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err *
+ 
+ // BufWrite implements buffering for an io.Write object.
+ type BufWrite struct {
+-	err *os.Error;
++	err os.Error;
+ 	buf []byte;
+ 	n int;
+ 	wr io.Write;
+@@ -390,7 +390,7 @@ type BufWrite struct {
+ // which must be greater than zero. If the argument io.Write is already a
+ // BufWrite with large enough size, it returns the underlying BufWrite.
+ // It returns the BufWrite and any error.
+-func NewBufWriteSize(wr io.Write, size int) (*BufWrite, *os.Error) {
++func NewBufWriteSize(wr io.Write, size int) (*BufWrite, os.Error) {
+ 	if size <= 0 {
+ 		return nil, BadBufSize
+ 	}
+@@ -416,7 +416,7 @@ func NewBufWrite(wr io.Write) *BufWrite {
+ }
+ 
+ // Flush writes any buffered data to the underlying io.Write.
+-func (b *BufWrite) Flush() *os.Error {
++func (b *BufWrite) Flush() os.Error {
+ 	if b.err != nil {
+ 		return b.err
+ 	}
+@@ -454,7 +454,7 @@ func (b *BufWrite) Buffered() int {
+ // It returns the number of bytes written.
+ // If nn < len(p), also returns an error explaining
+ // why the write is short.
+-func (b *BufWrite) Write(p []byte) (nn int, err *os.Error) {
++func (b *BufWrite) Write(p []byte) (nn int, err os.Error) {
+ 	if b.err != nil {
+ 		return 0, b.err
+ 	}
+@@ -490,7 +490,7 @@ func (b *BufWrite) Write(p []byte) (nn int, err *os.Error) {
+ }
+ 
+ // WriteByte writes a single byte.
+-func (b *BufWrite) WriteByte(c byte) *os.Error {
++func (b *BufWrite) WriteByte(c byte) os.Error {
+ 	if b.err != nil {
+ 		return b.err
+ 	}
+diff --git a/src/lib/bufio_test.go b/src/lib/bufio_test.go
+index d8c77c153c..00ab4a4142 100644
+--- a/src/lib/bufio_test.go
++++ b/src/lib/bufio_test.go
+@@ -30,7 +30,7 @@ func newByteReader(p []byte) io.Read {
+ 	return b
+ }
+ 
+-func (b *byteReader) Read(p []byte) (int, *os.Error) {
++func (b *byteReader) Read(p []byte) (int, os.Error) {
+ 	n := len(p);
+ 	if n > len(b.p) {
+ 		n = len(b.p)
+@@ -52,7 +52,7 @@ func newHalfByteReader(p []byte) io.Read {
+ 	return b
+ }
+ 
+-func (b *halfByteReader) Read(p []byte) (int, *os.Error) {
++func (b *halfByteReader) Read(p []byte) (int, os.Error) {
+ 	n := len(p)/2;
+ 	if n == 0 && len(p) > 0 {
+ 		n = 1
+@@ -76,7 +76,7 @@ func newRot13Reader(r io.Read) *rot13Reader {
+ 	return r13
+ }
+ 
+-func (r13 *rot13Reader) Read(p []byte) (int, *os.Error) {
++func (r13 *rot13Reader) Read(p []byte) (int, os.Error) {
+ 	n, e := r13.r.Read(p);
+ 	if e != nil {
+ 		return n, e
+@@ -218,7 +218,7 @@ func TestBufRead(t *testing.T) {
+ }
+ 
+ type writeBuffer interface {
+-	Write(p []byte) (int, *os.Error);
++	Write(p []byte) (int, os.Error);
+ 	GetBytes() []byte
+ }
+ 
+@@ -232,7 +232,7 @@ func newByteWriter() writeBuffer {
+ 	return new(byteWriter)
+ }
+ 
+-func (w *byteWriter) Write(p []byte) (int, *os.Error) {
++func (w *byteWriter) Write(p []byte) (int, os.Error) {
+ 	if w.p == nil {
+ 		w.p = make([]byte, len(p)+100)
+ 	} else if w.n + len(p) >= len(w.p) {
+@@ -262,7 +262,7 @@ func newHalfByteWriter() writeBuffer {
+ 	return w
+ }
+ 
+-func (w *halfByteWriter) Write(p []byte) (int, *os.Error) {
++func (w *halfByteWriter) Write(p []byte) (int, os.Error) {
+ 	n := (len(p)+1) / 2;
+ 	// BUG return w.bw.Write(p[0:n])
+ 	r, e := w.bw.Write(p[0:n]);
+diff --git a/src/lib/exec.go b/src/lib/exec.go
+index 6808b95542..c13bad3e07 100644
+--- a/src/lib/exec.go
++++ b/src/lib/exec.go
+@@ -32,7 +32,7 @@ type Cmd struct {
+ 
+ // Given mode (DevNull, etc), return file for child
+ // and file to record in Cmd structure.
+-func modeToFiles(mode, fd int) (*os.File, *os.File, *os.Error) {
++func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
+ 	switch mode {
+ 	case DevNull:
+ 		rw := os.O_WRONLY;
+@@ -78,7 +78,7 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, *os.Error) {
+ // If a parameter is Pipe, then the corresponding field (Stdin, Stdout, Stderr)
+ // of the returned Cmd is the other end of the pipe.
+ // Otherwise the field in Cmd is nil.
+-func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, err *os.Error)
++func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, err os.Error)
+ {
+ 	p = new(Cmd);
+ 	var fd [3]*os.File;
+@@ -139,7 +139,7 @@ Error:
+ // Setting options to 0 waits for p to exit;
+ // other options cause Wait to return for other
+ // process events; see package os for details.
+-func (p *Cmd) Wait(options uint64) (*os.Waitmsg, *os.Error) {
++func (p *Cmd) Wait(options uint64) (*os.Waitmsg, os.Error) {
+ 	if p.Pid < 0 {
+ 		return nil, os.EINVAL;
+ 	}
+@@ -153,7 +153,7 @@ func (p *Cmd) Wait(options uint64) (*os.Waitmsg, *os.Error) {
+ // Close waits for the running command p to exit,
+ // if it hasn't already, and then closes the non-nil file descriptors
+ // p.Stdin, p.Stdout, and p.Stderr.
+-func (p *Cmd) Close() *os.Error {
++func (p *Cmd) Close() os.Error {
+ 	if p.Pid >= 0 {
+ 		// Loop on interrupt, but
+ 		// ignore other errors -- maybe
+@@ -165,7 +165,7 @@ func (p *Cmd) Close() *os.Error {
+ 	}
+ 
+ 	// Close the FDs that are still open.
+-	var err *os.Error;
++	var err os.Error;
+ 	if p.Stdin != nil && p.Stdin.Fd() >= 0 {
+ 		if err1 := p.Stdin.Close(); err1 != nil {
+ 			err = err1;
+@@ -197,7 +197,7 @@ func canExec(file string) bool{
+ // If file contains a slash, it is tried directly and the PATH is not consulted.
+ //
+ // TODO(rsc): Does LookPath belong in os instead?
+-func LookPath(file string) (string, *os.Error) {
++func LookPath(file string) (string, os.Error) {
+ 	// NOTE(rsc): I wish we could use the Plan 9 behavior here
+ 	// (only bypass the path if file begins with / or ./ or ../)
+ 	// but that would not match all the Unix shells.
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index bb5a24034f..d52dcfc10a 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -31,7 +31,7 @@ import (
+ // the flags and options for the operand's format specifier.
+ type Formatter interface {
+ 	// Write is the function to call to emit formatted output to be printed.
+-	Write(b []byte) (ret int, err *os.Error);
++	Write(b []byte) (ret int, err os.Error);
+ 	// Width returns the value of the width option and whether it has been set.
+ 	Width()	(wid int, ok bool);
+ 	// Precision returns the value of the precision option and whether it has been set.
+@@ -138,7 +138,7 @@ func (p *pp) add(c int) {
+ 
+ // Implement Write so we can call fprintf on a P, for
+ // recursive use in custom verbs.
+-func (p *pp) Write(b []byte) (ret int, err *os.Error) {
++func (p *pp) Write(b []byte) (ret int, err os.Error) {
+ 	p.addbytes(b, 0, len(b));
+ 	return len(b), nil;
+ }
+@@ -149,7 +149,7 @@ func (p *pp) doprint(v reflect.StructValue, addspace, addnewline bool);
+ // These routines end in 'f' and take a format string.
+ 
+ // Fprintf formats according to a format specifier and writes to w.
+-func Fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
++func Fprintf(w io.Write, format string, a ...) (n int, error os.Error) {
+ 	v := reflect.NewValue(a).(reflect.StructValue);
+ 	p := newPrinter();
+ 	p.doprintf(format, v);
+@@ -158,7 +158,7 @@ func Fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
+ }
+ 
+ // Printf formats according to a format specifier and writes to standard output.
+-func Printf(format string, v ...) (n int, errno *os.Error) {
++func Printf(format string, v ...) (n int, errno os.Error) {
+ 	n, errno = Fprintf(os.Stdout, format, v);
+ 	return n, errno;
+ }
+@@ -176,7 +176,7 @@ func Sprintf(format string, a ...) string {
+ 
+ // Fprint formats using the default formats for its operands and writes to w.
+ // Spaces are added between operands when neither is a string.
+-func Fprint(w io.Write, a ...) (n int, error *os.Error) {
++func Fprint(w io.Write, a ...) (n int, error os.Error) {
+ 	v := reflect.NewValue(a).(reflect.StructValue);
+ 	p := newPrinter();
+ 	p.doprint(v, false, false);
+@@ -186,7 +186,7 @@ func Fprint(w io.Write, a ...) (n int, error *os.Error) {
+ 
+ // Print formats using the default formats for its operands and writes to standard output.
+ // Spaces are added between operands when neither is a string.
+-func Print(v ...) (n int, errno *os.Error) {
++func Print(v ...) (n int, errno os.Error) {
+ 	n, errno = Fprint(os.Stdout, v);
+ 	return n, errno;
+ }
+@@ -207,7 +207,7 @@ func Sprint(a ...) string {
+ 
+ // Fprintln formats using the default formats for its operands and writes to w.
+ // Spaces are always added between operands and a newline is appended.
+-func Fprintln(w io.Write, a ...) (n int, error *os.Error) {
++func Fprintln(w io.Write, a ...) (n int, error os.Error) {
+ 	v := reflect.NewValue(a).(reflect.StructValue);
+ 	p := newPrinter();
+ 	p.doprint(v, true, true);
+@@ -217,7 +217,7 @@ func Fprintln(w io.Write, a ...) (n int, error *os.Error) {
+ 
+ // Println formats using the default formats for its operands and writes to standard output.
+ // Spaces are always added between operands and a newline is appended.
+-func Println(v ...) (n int, errno *os.Error) {
++func Println(v ...) (n int, errno os.Error) {
+ 	n, errno = Fprintln(os.Stdout, v);
+ 	return n, errno;
+ }
+diff --git a/src/lib/hash/adler32.go b/src/lib/hash/adler32.go
+index 2964153831..2b3bd6f85a 100644
+--- a/src/lib/hash/adler32.go
++++ b/src/lib/hash/adler32.go
+@@ -31,7 +31,7 @@ func NewDigest() *Digest {
+ 
+ // Write updates the Digest with the incremental checksum generated by p.
+ // It returns the number of bytes written; err is always nil.
+-func (d *Digest) Write(p []byte) (nn int, err *os.Error) {
++func (d *Digest) Write(p []byte) (nn int, err os.Error) {
+ 	a, b := d.a, d.b;
+ 	for i := 0; i < len(p); i++ {
+ 		a += uint32(p[i]);
+diff --git a/src/lib/hash/crc32.go b/src/lib/hash/crc32.go
+index eb1dff3ba3..57fa6af816 100644
+--- a/src/lib/hash/crc32.go
++++ b/src/lib/hash/crc32.go
+@@ -69,7 +69,7 @@ func NewIEEEDigest() *Digest {
+ 
+ // Write updates the Digest with the incremental checksum generated by p.
+ // It returns the number of bytes written; err is always nil.
+-func (d *Digest) Write(p []byte) (n int, err *os.Error) {
++func (d *Digest) Write(p []byte) (n int, err os.Error) {
+ 	crc := d.crc ^ 0xFFFFFFFF;
+ 	tab := d.tab;
+ 	for i := 0; i < len(p); i++ {
+diff --git a/src/lib/hash/md5.go b/src/lib/hash/md5.go
+index d9fc6157dc..de8d34d33f 100644
+--- a/src/lib/hash/md5.go
++++ b/src/lib/hash/md5.go
+@@ -38,7 +38,7 @@ func _Block(dig *Digest, p []byte) int
+ 
+ // Write updates the Digest with the incremental checksum generated by p.
+ // It returns the number of bytes written; err is always nil.
+-func (d *Digest) Write(p []byte) (nn int, err *os.Error) {
++func (d *Digest) Write(p []byte) (nn int, err os.Error) {
+ 	nn = len(p);
+ 	d.len += uint64(nn);
+ 	if d.nx > 0 {
+diff --git a/src/lib/hash/sha1.go b/src/lib/hash/sha1.go
+index 788eda860e..2b83eb9b0c 100644
+--- a/src/lib/hash/sha1.go
++++ b/src/lib/hash/sha1.go
+@@ -40,7 +40,7 @@ func _Block(dig *Digest, p []byte) int
+ 
+ // Write updates the Digest with the incremental checksum generated by p.
+ // It returns the number of bytes written; err is always nil.
+-func (d *Digest) Write(p []byte) (nn int, err *os.Error) {
++func (d *Digest) Write(p []byte) (nn int, err os.Error) {
+ 	nn = len(p);
+ 	d.len += uint64(nn);
+ 	if d.nx > 0 {
+diff --git a/src/lib/http/request.go b/src/lib/http/request.go
+index a2720ff01b..59592add53 100644
+--- a/src/lib/http/request.go
++++ b/src/lib/http/request.go
+@@ -100,7 +100,7 @@ func (r *Request) ProtoAtLeast(major, minor int) bool {
+ // Give up if the line exceeds maxLineLength.
+ // The returned bytes are a pointer into storage in
+ // the bufio, so they are only valid until the next bufio read.
+-func readLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
++func readLineBytes(b *bufio.BufRead) (p []byte, err os.Error) {
+ 	if p, err = b.ReadLineSlice('\n'); err != nil {
+ 		return nil, err
+ 	}
+@@ -119,7 +119,7 @@ func readLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
+ }
+ 
+ // readLineBytes, but convert the bytes into a string.
+-func readLine(b *bufio.BufRead) (s string, err *os.Error) {
++func readLine(b *bufio.BufRead) (s string, err os.Error) {
+ 	p, e := readLineBytes(b);
+ 	if e != nil {
+ 		return "", e
+@@ -131,7 +131,7 @@ func readLine(b *bufio.BufRead) (s string, err *os.Error) {
+ // A key/value has the form Key: Value\r\n
+ // and the Value can continue on multiple lines if each continuation line
+ // starts with a space.
+-func readKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
++func readKeyValue(b *bufio.BufRead) (key, value string, err os.Error) {
+ 	line, e := readLineBytes(b);
+ 	if e != nil {
+ 		return "", "", e
+@@ -266,7 +266,7 @@ func CanonicalHeaderKey(s string) string {
+ }
+ 
+ // ReadRequest reads and parses a request from b.
+-func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
++func ReadRequest(b *bufio.BufRead) (req *Request, err os.Error) {
+ 	req = new(Request);
+ 
+ 	// First line: GET /index.html HTTP/1.0
+diff --git a/src/lib/http/server.go b/src/lib/http/server.go
+index 267e9e41e4..3595a515dc 100644
+--- a/src/lib/http/server.go
++++ b/src/lib/http/server.go
+@@ -56,7 +56,7 @@ type Conn struct {
+ }
+ 
+ // Create new connection from rwc.
+-func newConn(rwc io.ReadWriteClose, raddr string, handler Handler) (c *Conn, err *os.Error) {
++func newConn(rwc io.ReadWriteClose, raddr string, handler Handler) (c *Conn, err os.Error) {
+ 	c = new(Conn);
+ 	c.RemoteAddr = raddr;
+ 	c.handler = handler;
+@@ -70,7 +70,7 @@ func newConn(rwc io.ReadWriteClose, raddr string, handler Handler) (c *Conn, err
+ func (c *Conn) SetHeader(hdr, val string)
+ 
+ // Read next request from connection.
+-func (c *Conn) readRequest() (req *Request, err *os.Error) {
++func (c *Conn) readRequest() (req *Request, err os.Error) {
+ 	if c.hijacked {
+ 		return nil, ErrHijacked
+ 	}
+@@ -156,7 +156,7 @@ func (c *Conn) WriteHeader(code int) {
+ // Write writes the data to the connection as part of an HTTP reply.
+ // If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
+ // before writing the data.
+-func (c *Conn) Write(data []byte) (n int, err *os.Error) {
++func (c *Conn) Write(data []byte) (n int, err os.Error) {
+ 	if c.hijacked {
+ 		log.Stderr("http: Conn.Write on hijacked connection");
+ 		return 0, ErrHijacked
+@@ -228,7 +228,7 @@ func (c *Conn) serve() {
+ // will not do anything else with the connection.
+ // It becomes the caller's responsibility to manage
+ // and close the connection.
+-func (c *Conn) Hijack() (rwc io.ReadWriteClose, buf *bufio.BufReadWrite, err *os.Error) {
++func (c *Conn) Hijack() (rwc io.ReadWriteClose, buf *bufio.BufReadWrite, err os.Error) {
+ 	if c.hijacked {
+ 		return nil, nil, ErrHijacked;
+ 	}
+@@ -448,7 +448,7 @@ func Handle(pattern string, handler Handler) {
+ // creating a new service thread for each.  The service threads
+ // read requests and then call handler to reply to them.
+ // Handler is typically nil, in which case the DefaultServeMux is used.
+-func Serve(l net.Listener, handler Handler) *os.Error {
++func Serve(l net.Listener, handler Handler) os.Error {
+ 	if handler == nil {
+ 		handler = DefaultServeMux;
+ 	}
+@@ -492,7 +492,7 @@ func Serve(l net.Listener, handler Handler) *os.Error {
+ //			panic("ListenAndServe: ", err.String())
+ //		}
+ //	}
+-func ListenAndServe(addr string, handler Handler) *os.Error {
++func ListenAndServe(addr string, handler Handler) os.Error {
+ 	l, e := net.Listen("tcp", addr);
+ 	if e != nil {
+ 		return e
+diff --git a/src/lib/http/url.go b/src/lib/http/url.go
+index d92a3baa62..62699c13d7 100644
+--- a/src/lib/http/url.go
++++ b/src/lib/http/url.go
+@@ -45,7 +45,7 @@ func unhex(c byte) byte {
+ // converting %AB into the byte 0xAB.
+ // It returns a BadURL error if any % is not followed
+ // by two hexadecimal digits.
+-func URLUnescape(s string) (string, *os.Error) {
++func URLUnescape(s string) (string, os.Error) {
+ 	// Count %, check that they're well-formed.
+ 	n := 0;
+ 	for i := 0; i < len(s); {
+@@ -98,7 +98,7 @@ type URL struct {
+ // Maybe rawurl is of the form scheme:path.
+ // (Scheme must be [a-zA-Z][a-zA-Z0-9+-.]*)
+ // If so, return scheme, path; else return "", rawurl.
+-func getscheme(rawurl string) (scheme, path string, err *os.Error) {
++func getscheme(rawurl string) (scheme, path string, err os.Error) {
+ 	for i := 0; i < len(rawurl); i++ {
+ 		c := rawurl[i];
+ 		switch {
+@@ -139,7 +139,7 @@ func split(s string, c byte, cutc bool) (string, string) {
+ // ParseURL parses rawurl into a URL structure.
+ // The string rawurl is assumed not to have a #fragment suffix.
+ // (Web browsers strip #fragment before sending the URL to a web server.)
+-func ParseURL(rawurl string) (url *URL, err *os.Error) {
++func ParseURL(rawurl string) (url *URL, err os.Error) {
+ 	if rawurl == "" {
+ 		return nil, BadURL
+ 	}
+@@ -184,7 +184,7 @@ func ParseURL(rawurl string) (url *URL, err *os.Error) {
+ }
+ 
+ // ParseURLReference is like ParseURL but allows a trailing #fragment.
+-func ParseURLReference(rawurlref string) (url *URL, err *os.Error) {
++func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
+ 	// Cut off #frag.
+ 	rawurl, frag := split(rawurlref, '#', true);
+ 	if url, err = ParseURL(rawurl); err != nil {
+diff --git a/src/lib/http/url_test.go b/src/lib/http/url_test.go
+index 50263f69ae..f5a7069aea 100644
+--- a/src/lib/http/url_test.go
++++ b/src/lib/http/url_test.go
+@@ -126,7 +126,7 @@ func ufmt(u *URL) string {
+ 		u.Host, u.Path, u.Query, u.Fragment);
+ }
+ 
+-func DoTest(t *testing.T, parse func(string) (*URL, *os.Error), name string, tests []URLTest) {
++func DoTest(t *testing.T, parse func(string) (*URL, os.Error), name string, tests []URLTest) {
+ 	for i, tt := range tests {
+ 		u, err := parse(tt.in);
+ 		if err != nil {
+@@ -150,7 +150,7 @@ func TestParseURLReference(t *testing.T) {
+ 	DoTest(t, ParseURLReference, "ParseURLReference", urlfragtests);
+ }
+ 
+-func DoTestString(t *testing.T, parse func(string) (*URL, *os.Error), name string, tests []URLTest) {
++func DoTestString(t *testing.T, parse func(string) (*URL, os.Error), name string, tests []URLTest) {
+ 	for i, tt := range tests {
+ 		u, err := parse(tt.in);
+ 		if err != nil {
+diff --git a/src/lib/io/bytebuffer.go b/src/lib/io/bytebuffer.go
+index 440f265c53..9c78e8566f 100644
+--- a/src/lib/io/bytebuffer.go
++++ b/src/lib/io/bytebuffer.go
+@@ -40,7 +40,7 @@ func (b *ByteBuffer) Reset() {
+ 
+ // Write appends the contents of p to the buffer.  The return
+ // value is the length of p; err is always nil.
+-func (b *ByteBuffer) Write(p []byte) (n int, err *os.Error) {
++func (b *ByteBuffer) Write(p []byte) (n int, err os.Error) {
+ 	plen := len(p);
+ 	if len(b.buf) == 0 {
+ 		b.cap = plen + 1024;
+@@ -60,7 +60,7 @@ func (b *ByteBuffer) Write(p []byte) (n int, err *os.Error) {
+ 
+ // Read reads the next len(p) bytes from the buffer or until the buffer
+ // is drained.  The return value is the number of bytes read; err is always nil.
+-func (b *ByteBuffer) Read(p []byte) (n int, err *os.Error) {
++func (b *ByteBuffer) Read(p []byte) (n int, err os.Error) {
+ 	plen := len(p);
+ 	if len(b.buf) == 0 {
+ 		return 0, nil
+diff --git a/src/lib/io/io.go b/src/lib/io/io.go
+index 73406668fb..2c116687b9 100644
+--- a/src/lib/io/io.go
++++ b/src/lib/io/io.go
+@@ -18,17 +18,17 @@ var ErrEOF = os.NewError("EOF")
+ 
+ // Read is the interface that wraps the basic Read method.
+ type Read interface {
+-	Read(p []byte) (n int, err *os.Error);
++	Read(p []byte) (n int, err os.Error);
+ }
+ 
+ // Write is the interface that wraps the basic Write method.
+ type Write interface {
+-	Write(p []byte) (n int, err *os.Error);
++	Write(p []byte) (n int, err os.Error);
+ }
+ 
+ // Close is the interface that wraps the basic Close method.
+ type Close interface {
+-	Close() *os.Error;
++	Close() os.Error;
+ }
+ 
+ // ReadWrite is the interface that groups the basic Read and Write methods.
+@@ -66,12 +66,12 @@ func StringBytes(s string) []byte {
+ }
+ 
+ // WriteString writes the contents of the string s to w, which accepts an array of bytes.
+-func WriteString(w Write, s string) (n int, err *os.Error) {
++func WriteString(w Write, s string) (n int, err os.Error) {
+ 	return w.Write(StringBytes(s))
+ }
+ 
+ // Readn reads r until the buffer buf is full, or until EOF or error.
+-func Readn(r Read, buf []byte) (n int, err *os.Error) {
++func Readn(r Read, buf []byte) (n int, err os.Error) {
+ 	n = 0;
+ 	for n < len(buf) {
+ 		nn, e := r.Read(buf[n:len(buf)]);
+@@ -94,7 +94,7 @@ type fullRead struct {
+ 	r	Read;
+ }
+ 
+-func (fr *fullRead) Read(p []byte) (n int, err *os.Error) {
++func (fr *fullRead) Read(p []byte) (n int, err os.Error) {
+ 	n, err = Readn(fr.r, p);
+ 	return n, err
+ }
+@@ -111,7 +111,7 @@ func MakeFullReader(r Read) Read {
+ 
+ // Copy n copies n bytes (or until EOF is reached) from src to dst.
+ // It returns the number of bytes copied and the error, if any.
+-func Copyn(src Read, dst Write, n int64) (written int64, err *os.Error) {
++func Copyn(src Read, dst Write, n int64) (written int64, err os.Error) {
+ 	buf := make([]byte, 32*1024);
+ 	for written < n {
+ 		l := len(buf);
+@@ -147,7 +147,7 @@ func Copyn(src Read, dst Write, n int64) (written int64, err *os.Error) {
+ 
+ // Copy copies from src to dst until EOF is reached.
+ // It returns the number of bytes copied and the error, if any.
+-func Copy(src Read, dst Write) (written int64, err *os.Error) {
++func Copy(src Read, dst Write) (written int64, err os.Error) {
+ 	buf := make([]byte, 32*1024);
+ 	for {
+ 		nr, er := src.Read(buf);
+diff --git a/src/lib/io/pipe.go b/src/lib/io/pipe.go
+index 427717b09a..446ec69bb4 100644
+--- a/src/lib/io/pipe.go
++++ b/src/lib/io/pipe.go
+@@ -15,7 +15,7 @@ import (
+ 
+ type pipeReturn struct {
+ 	n int;
+-	err *os.Error;
++	err os.Error;
+ }
+ 
+ // Shared pipe structure.
+@@ -28,7 +28,7 @@ type pipe struct {
+ 	cw chan pipeReturn;	// ... and reads the n, err back from here.
+ }
+ 
+-func (p *pipe) Read(data []byte) (n int, err *os.Error) {
++func (p *pipe) Read(data []byte) (n int, err os.Error) {
+ 	if p == nil || p.rclosed {
+ 		return 0, os.EINVAL;
+ 	}
+@@ -65,7 +65,7 @@ func (p *pipe) Read(data []byte) (n int, err *os.Error) {
+ 	return n, nil;
+ }
+ 
+-func (p *pipe) Write(data []byte) (n int, err *os.Error) {
++func (p *pipe) Write(data []byte) (n int, err os.Error) {
+ 	if p == nil || p.wclosed {
+ 		return 0, os.EINVAL;
+ 	}
+@@ -81,7 +81,7 @@ func (p *pipe) Write(data []byte) (n int, err *os.Error) {
+ 	return res.n, res.err;
+ }
+ 
+-func (p *pipe) CloseReader() *os.Error {
++func (p *pipe) CloseReader() os.Error {
+ 	if p == nil || p.rclosed {
+ 		return os.EINVAL;
+ 	}
+@@ -97,7 +97,7 @@ func (p *pipe) CloseReader() *os.Error {
+ 	return nil;
+ }
+ 
+-func (p *pipe) CloseWriter() *os.Error {
++func (p *pipe) CloseWriter() os.Error {
+ 	if p == nil || p.wclosed {
+ 		return os.EINVAL;
+ 	}
+@@ -127,14 +127,14 @@ type pipeRead struct {
+ 	p *pipe;
+ }
+ 
+-func (r *pipeRead) Read(data []byte) (n int, err *os.Error) {
++func (r *pipeRead) Read(data []byte) (n int, err os.Error) {
+ 	r.lock.Lock();
+ 	defer r.lock.Unlock();
+ 
+ 	return r.p.Read(data);
+ }
+ 
+-func (r *pipeRead) Close() *os.Error {
++func (r *pipeRead) Close() os.Error {
+ 	r.lock.Lock();
+ 	defer r.lock.Unlock();
+ 
+@@ -151,14 +151,14 @@ type pipeWrite struct {
+ 	p *pipe;
+ }
+ 
+-func (w *pipeWrite) Write(data []byte) (n int, err *os.Error) {
++func (w *pipeWrite) Write(data []byte) (n int, err os.Error) {
+ 	w.lock.Lock();
+ 	defer w.lock.Unlock();
+ 
+ 	return w.p.Write(data);
+ }
+ 
+-func (w *pipeWrite) Close() *os.Error {
++func (w *pipeWrite) Close() os.Error {
+ 	w.lock.Lock();
+ 	defer w.lock.Unlock();
+ 
+diff --git a/src/lib/json/generic.go b/src/lib/json/generic.go
+index 8801f7631c..4393e4d080 100644
+--- a/src/lib/json/generic.go
++++ b/src/lib/json/generic.go
+@@ -327,4 +327,4 @@ func StringToJson(s string) (json Json, ok bool, errtok string) {
+ 	return j, true, ""
+ }
+ 
+-// BUG(rsc): StringToJson should return an *os.Error instead of a bool.
++// BUG(rsc): StringToJson should return an os.Error instead of a bool.
+diff --git a/src/lib/net/dnsclient.go b/src/lib/net/dnsclient.go
+index c0a4177315..afae7cfb40 100644
+--- a/src/lib/net/dnsclient.go
++++ b/src/lib/net/dnsclient.go
+@@ -41,7 +41,7 @@ var (
+ 
+ // Send a request on the connection and hope for a reply.
+ // Up to cfg.attempts attempts.
+-func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err *os.Error) {
++func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error) {
+ 	if len(name) >= 256 {
+ 		return nil, DNS_NameTooLong
+ 	}
+@@ -86,7 +86,7 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err *os.Erro
+ // Find answer for name in dns message.
+ // On return, if err == nil, addrs != nil.
+ // TODO(rsc): Maybe return []IP instead?
+-func answer(name string, dns *_DNS_Msg) (addrs []string, err *os.Error) {
++func answer(name string, dns *_DNS_Msg) (addrs []string, err os.Error) {
+ 	addrs = make([]string, 0, len(dns.answer));
+ 
+ 	if dns.rcode == _DNS_RcodeNameError && dns.authoritative {
+@@ -137,7 +137,7 @@ Cname:
+ 
+ // Do a lookup for a single name, which must be rooted
+ // (otherwise answer will not find the answers).
+-func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err *os.Error) {
++func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
+ 	err = DNS_NoServers;
+ 	for i := 0; i < len(cfg.servers); i++ {
+ 		// Calling Dial here is scary -- we have to be sure
+@@ -168,7 +168,7 @@ func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err *os.Error) {
+ }
+ 
+ var cfg *_DNS_Config
+-var dnserr *os.Error
++var dnserr os.Error
+ 
+ func loadConfig() {
+ 	cfg, dnserr = _DNS_ReadConfig();
+@@ -177,7 +177,7 @@ func loadConfig() {
+ // LookupHost looks up the host name using the local DNS resolver.
+ // It returns the canonical name for the host and an array of that
+ // host's addresses.
+-func LookupHost(name string) (cname string, addrs []string, err *os.Error)
++func LookupHost(name string) (cname string, addrs []string, err os.Error)
+ {
+ 	// TODO(rsc): Pick out obvious non-DNS names to avoid
+ 	// sending stupid requests to the server?
+diff --git a/src/lib/net/dnsconfig.go b/src/lib/net/dnsconfig.go
+index 385d07b6ae..e56d964f2d 100644
+--- a/src/lib/net/dnsconfig.go
++++ b/src/lib/net/dnsconfig.go
+@@ -22,16 +22,16 @@ type _DNS_Config struct {
+ 	rotate bool;	// round robin among servers
+ }
+ 
+-var _DNS_configError *os.Error;
++var _DNS_configError os.Error;
+ 
+ // See resolv.conf(5) on a Linux machine.
+ // TODO(rsc): Supposed to call uname() and chop the beginning
+ // of the host name to get the default search domain.
+ // We assume it's in resolv.conf anyway.
+-func _DNS_ReadConfig() (*_DNS_Config, *os.Error) {
++func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
+ 	// TODO(rsc): 6g won't let me say file, err :=
+ 	var file *file;
+-	var err *os.Error;
++	var err os.Error;
+ 	file, err = open("/etc/resolv.conf");
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/lib/net/fd.go b/src/lib/net/fd.go
+index 8b26efed50..b386728ff6 100644
+--- a/src/lib/net/fd.go
++++ b/src/lib/net/fd.go
+@@ -38,7 +38,7 @@ type netFD struct {
+ }
+ 
+ // Make reads and writes on fd return EAGAIN instead of blocking.
+-func setNonblock(fd int64) *os.Error {
++func setNonblock(fd int64) os.Error {
+ 	flags, e := syscall.Fcntl(fd, syscall.F_GETFL, 0);
+ 	if e != 0 {
+ 		return os.ErrnoToError(e)
+@@ -97,7 +97,7 @@ type pollServer struct {
+ }
+ func (s *pollServer) Run();
+ 
+-func newPollServer() (s *pollServer, err *os.Error) {
++func newPollServer() (s *pollServer, err os.Error) {
+ 	s = new(pollServer);
+ 	s.cr = make(chan *netFD, 1);
+ 	s.cw = make(chan *netFD, 1);
+@@ -318,7 +318,7 @@ func _StartServer() {
+ 	pollserver = p
+ }
+ 
+-func newFD(fd int64, net, laddr, raddr string) (f *netFD, err *os.Error) {
++func newFD(fd int64, net, laddr, raddr string) (f *netFD, err os.Error) {
+ 	if pollserver == nil {
+ 		once.Do(_StartServer);
+ 	}
+@@ -336,7 +336,7 @@ func newFD(fd int64, net, laddr, raddr string) (f *netFD, err *os.Error) {
+ 	return f, nil
+ }
+ 
+-func (fd *netFD) Close() *os.Error {
++func (fd *netFD) Close() os.Error {
+ 	if fd == nil || fd.file == nil {
+ 		return os.EINVAL
+ 	}
+@@ -355,7 +355,7 @@ func (fd *netFD) Close() *os.Error {
+ 	return e
+ }
+ 
+-func (fd *netFD) Read(p []byte) (n int, err *os.Error) {
++func (fd *netFD) Read(p []byte) (n int, err os.Error) {
+ 	if fd == nil || fd.file == nil {
+ 		return -1, os.EINVAL
+ 	}
+@@ -374,7 +374,7 @@ func (fd *netFD) Read(p []byte) (n int, err *os.Error) {
+ 	return n, err
+ }
+ 
+-func (fd *netFD) Write(p []byte) (n int, err *os.Error) {
++func (fd *netFD) Write(p []byte) (n int, err os.Error) {
+ 	if fd == nil || fd.file == nil {
+ 		return -1, os.EINVAL
+ 	}
+@@ -406,9 +406,9 @@ func (fd *netFD) Write(p []byte) (n int, err *os.Error) {
+ 	return nn, err
+ }
+ 
+-func sockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error)
++func sockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err os.Error)
+ 
+-func (fd *netFD) Accept(sa *syscall.Sockaddr) (nfd *netFD, err *os.Error) {
++func (fd *netFD) Accept(sa *syscall.Sockaddr) (nfd *netFD, err os.Error) {
+ 	if fd == nil || fd.file == nil {
+ 		return nil, os.EINVAL
+ 	}
+diff --git a/src/lib/net/fd_darwin.go b/src/lib/net/fd_darwin.go
+index c543755b97..b4392d00e1 100644
+--- a/src/lib/net/fd_darwin.go
++++ b/src/lib/net/fd_darwin.go
+@@ -18,7 +18,7 @@ type pollster struct {
+ 	events []syscall.Kevent_t;
+ }
+ 
+-func newpollster() (p *pollster, err *os.Error) {
++func newpollster() (p *pollster, err os.Error) {
+ 	p = new(pollster);
+ 	var e int64;
+ 	if p.kq, e = syscall.Kqueue(); e != 0 {
+@@ -28,7 +28,7 @@ func newpollster() (p *pollster, err *os.Error) {
+ 	return p, nil
+ }
+ 
+-func (p *pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
++func (p *pollster) AddFD(fd int64, mode int, repeat bool) os.Error {
+ 	var kmode int16;
+ 	if mode == 'r' {
+ 		kmode = syscall.EVFILT_READ
+@@ -81,7 +81,7 @@ func (p *pollster) DelFD(fd int64, mode int) {
+ 	syscall.Kevent(p.kq, &events, &events, nil);
+ }
+ 
+-func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err *os.Error) {
++func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err os.Error) {
+ 	var t *syscall.Timespec;
+ 	for len(p.events) == 0 {
+ 		if nsec > 0 {
+@@ -114,7 +114,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err *os.Error) {
+ 	return fd, mode, nil
+ }
+ 
+-func (p *pollster) Close() *os.Error {
++func (p *pollster) Close() os.Error {
+ 	r, e := syscall.Close(p.kq);
+ 	return os.ErrnoToError(e)
+ }
+diff --git a/src/lib/net/fd_linux.go b/src/lib/net/fd_linux.go
+index ecdf1da841..78a1670e1f 100644
+--- a/src/lib/net/fd_linux.go
++++ b/src/lib/net/fd_linux.go
+@@ -24,7 +24,7 @@ type pollster struct {
+ 	events map[int64] uint32;
+ }
+ 
+-func newpollster() (p *pollster, err *os.Error) {
++func newpollster() (p *pollster, err os.Error) {
+ 	p = new(pollster);
+ 	var e int64;
+ 
+@@ -38,7 +38,7 @@ func newpollster() (p *pollster, err *os.Error) {
+ 	return p, nil
+ }
+ 
+-func (p *pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
++func (p *pollster) AddFD(fd int64, mode int, repeat bool) os.Error {
+ 	var ev syscall.EpollEvent;
+ 	var already bool;
+ 	ev.Fd = int32(fd);
+@@ -106,7 +106,7 @@ func (p *pollster) DelFD(fd int64, mode int) {
+ 	}
+ }
+ 
+-func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err *os.Error) {
++func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err os.Error) {
+ 	// Get an event.
+ 	var evarray [1]syscall.EpollEvent;
+ 	ev := &evarray[0];
+@@ -145,7 +145,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err *os.Error) {
+ 	return fd, 'r', nil;
+ }
+ 
+-func (p *pollster) Close() *os.Error {
++func (p *pollster) Close() os.Error {
+ 	r, e := syscall.Close(p.epfd);
+ 	return os.ErrnoToError(e);
+ }
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index c63972a887..737af520b6 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -19,11 +19,11 @@ var (
+ 	UnknownSocketFamily = os.NewError("unknown socket family");
+ )
+ 
+-func LookupHost(name string) (cname string, addrs []string, err *os.Error)
++func LookupHost(name string) (cname string, addrs []string, err os.Error)
+ 
+ // Split "host:port" into "host" and "port".
+ // Host cannot contain colons unless it is bracketed.
+-func splitHostPort(hostport string) (host, port string, err *os.Error) {
++func splitHostPort(hostport string) (host, port string, err os.Error) {
+ 	// The port starts after the last colon.
+ 	var i int;
+ 	for i = len(hostport)-1; i >= 0; i-- {
+@@ -63,7 +63,7 @@ func joinHostPort(host, port string) string {
+ // Convert "host:port" into IP address and port.
+ // For now, host and port must be numeric literals.
+ // Eventually, we'll have name resolution.
+-func hostPortToIP(net, hostport, mode string) (ip []byte, iport int, err *os.Error) {
++func hostPortToIP(net, hostport, mode string) (ip []byte, iport int, err os.Error) {
+ 	var host, port string;
+ 	host, port, err = splitHostPort(hostport);
+ 	if err != nil {
+@@ -114,7 +114,7 @@ func hostPortToIP(net, hostport, mode string) (ip []byte, iport int, err *os.Err
+ }
+ 
+ // Convert socket address into "host:port".
+-func sockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error) {
++func sockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err os.Error) {
+ 	switch sa.Family {
+ 	case syscall.AF_INET, syscall.AF_INET6:
+ 		addr, port, e := sockaddrToIP(sa);
+@@ -139,7 +139,7 @@ func boolint(b bool) int {
+ 
+ // Generic socket creation.
+ func socket(net, laddr, raddr string, f, p, t int64, la, ra *syscall.Sockaddr)
+-	(fd *netFD, err *os.Error)
++	(fd *netFD, err os.Error)
+ {
+ 	// See ../syscall/exec.go for description of ForkLock.
+ 	syscall.ForkLock.RLock();
+@@ -201,17 +201,17 @@ func (c *connBase) sysFD() int64 {
+ 	return c.fd.fd;
+ }
+ 
+-func (c *connBase) Read(b []byte) (n int, err *os.Error) {
++func (c *connBase) Read(b []byte) (n int, err os.Error) {
+ 	n, err = c.fd.Read(b);
+ 	return n, err
+ }
+ 
+-func (c *connBase) Write(b []byte) (n int, err *os.Error) {
++func (c *connBase) Write(b []byte) (n int, err os.Error) {
+ 	n, err = c.fd.Write(b);
+ 	return n, err
+ }
+ 
+-func (c *connBase) ReadFrom(b []byte) (n int, raddr string, err *os.Error) {
++func (c *connBase) ReadFrom(b []byte) (n int, raddr string, err os.Error) {
+ 	if c == nil {
+ 		return -1, "", os.EINVAL
+ 	}
+@@ -219,7 +219,7 @@ func (c *connBase) ReadFrom(b []byte) (n int, raddr string, err *os.Error) {
+ 	return n, c.raddr, err
+ }
+ 
+-func (c *connBase) WriteTo(raddr string, b []byte) (n int, err *os.Error) {
++func (c *connBase) WriteTo(raddr string, b []byte) (n int, err os.Error) {
+ 	if c == nil {
+ 		return -1, os.EINVAL
+ 	}
+@@ -230,7 +230,7 @@ func (c *connBase) WriteTo(raddr string, b []byte) (n int, err *os.Error) {
+ 	return n, err
+ }
+ 
+-func (c *connBase) Close() *os.Error {
++func (c *connBase) Close() os.Error {
+ 	if c == nil {
+ 		return os.EINVAL
+ 	}
+@@ -238,57 +238,57 @@ func (c *connBase) Close() *os.Error {
+ }
+ 
+ 
+-func setsockopt_int(fd, level, opt int64, value int) *os.Error {
++func setsockopt_int(fd, level, opt int64, value int) os.Error {
+ 	return os.ErrnoToError(syscall.Setsockopt_int(fd, level, opt, value));
+ }
+ 
+-func setsockopt_tv(fd, level, opt int64, nsec int64) *os.Error {
++func setsockopt_tv(fd, level, opt int64, nsec int64) os.Error {
+ 	return os.ErrnoToError(syscall.Setsockopt_tv(fd, level, opt, nsec));
+ }
+ 
+-func (c *connBase) SetReadBuffer(bytes int) *os.Error {
++func (c *connBase) SetReadBuffer(bytes int) os.Error {
+ 	return setsockopt_int(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes);
+ }
+ 
+-func (c *connBase) SetWriteBuffer(bytes int) *os.Error {
++func (c *connBase) SetWriteBuffer(bytes int) os.Error {
+ 	return setsockopt_int(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes);
+ }
+ 
+-func (c *connBase) SetReadTimeout(nsec int64) *os.Error {
++func (c *connBase) SetReadTimeout(nsec int64) os.Error {
+ 	c.fd.rdeadline_delta = nsec;
+ 	return nil;
+ }
+ 
+-func (c *connBase) SetWriteTimeout(nsec int64) *os.Error {
++func (c *connBase) SetWriteTimeout(nsec int64) os.Error {
+ 	c.fd.wdeadline_delta = nsec;
+ 	return nil;
+ }
+ 
+-func (c *connBase) SetTimeout(nsec int64) *os.Error {
++func (c *connBase) SetTimeout(nsec int64) os.Error {
+ 	if e := c.SetReadTimeout(nsec); e != nil {
+ 		return e
+ 	}
+ 	return c.SetWriteTimeout(nsec)
+ }
+ 
+-func (c *connBase) SetReuseAddr(reuse bool) *os.Error {
++func (c *connBase) SetReuseAddr(reuse bool) os.Error {
+ 	return setsockopt_int(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse));
+ }
+ 
+-func (c *connBase) BindToDevice(dev string) *os.Error {
++func (c *connBase) BindToDevice(dev string) os.Error {
+ 	// TODO(rsc): call setsockopt with null-terminated string pointer
+ 	return os.EINVAL
+ }
+ 
+-func (c *connBase) SetDontRoute(dontroute bool) *os.Error {
++func (c *connBase) SetDontRoute(dontroute bool) os.Error {
+ 	return setsockopt_int(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute));
+ }
+ 
+-func (c *connBase) SetKeepAlive(keepalive bool) *os.Error {
++func (c *connBase) SetKeepAlive(keepalive bool) os.Error {
+ 	return setsockopt_int(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive));
+ }
+ 
+-func (c *connBase) SetLinger(sec int) *os.Error {
++func (c *connBase) SetLinger(sec int) os.Error {
+ 	e := syscall.Setsockopt_linger(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_LINGER, sec);
+ 	return os.ErrnoToError(e);
+ }
+@@ -305,12 +305,12 @@ func (c *connBase) SetLinger(sec int) *os.Error {
+ const preferIPv4 = false
+ 
+ func internetSocket(net, laddr, raddr string, proto int64, mode string)
+-	(fd *netFD, err *os.Error)
++	(fd *netFD, err os.Error)
+ {
+ 	// Parse addresses (unless they are empty).
+ 	var lip, rip IP;
+ 	var lport, rport int;
+-	var lerr, rerr *os.Error;
++	var lerr, rerr os.Error;
+ 
+ 	if laddr != "" {
+ 		lip, lport, lerr = hostPortToIP(net, laddr, mode);
+@@ -343,7 +343,7 @@ func internetSocket(net, laddr, raddr string, proto int64, mode string)
+ 		}
+ 	}
+ 
+-	var cvt func(addr []byte, port int) (sa *syscall.Sockaddr, err *os.Error);
++	var cvt func(addr []byte, port int) (sa *syscall.Sockaddr, err os.Error);
+ 	var family int64;
+ 	if vers == 4 {
+ 		cvt = v4ToSockaddr;
+@@ -378,7 +378,7 @@ type ConnTCP struct {
+ 	connBase
+ }
+ 
+-func (c *ConnTCP) SetNoDelay(nodelay bool) *os.Error {
++func (c *ConnTCP) SetNoDelay(nodelay bool) os.Error {
+ 	if c == nil {
+ 		return os.EINVAL
+ 	}
+@@ -393,7 +393,7 @@ func newConnTCP(fd *netFD, raddr string) *ConnTCP {
+ 	return c
+ }
+ 
+-func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
++func DialTCP(net, laddr, raddr string) (c *ConnTCP, err os.Error) {
+ 	if raddr == "" {
+ 		return nil, MissingAddress
+ 	}
+@@ -420,7 +420,7 @@ func newConnUDP(fd *netFD, raddr string) *ConnUDP {
+ 	return c
+ }
+ 
+-func DialUDP(net, laddr, raddr string) (c *ConnUDP, err *os.Error) {
++func DialUDP(net, laddr, raddr string) (c *ConnUDP, err os.Error) {
+ 	if raddr == "" {
+ 		return nil, MissingAddress
+ 	}
+@@ -441,48 +441,48 @@ type Conn interface {
+ 	// Read blocks until data is ready from the connection
+ 	// and then reads into b.  It returns the number
+ 	// of bytes read, or 0 if the connection has been closed.
+-	Read(b []byte) (n int, err *os.Error);
++	Read(b []byte) (n int, err os.Error);
+ 
+ 	// Write writes the data in b to the connection.
+-	Write(b []byte) (n int, err *os.Error);
++	Write(b []byte) (n int, err os.Error);
+ 
+ 	// Close closes the connection.
+-	Close() *os.Error;
++	Close() os.Error;
+ 
+ 	// For packet-based protocols such as UDP,
+ 	// ReadFrom reads the next packet from the network,
+ 	// returning the number of bytes read and the remote
+ 	// address that sent them.
+-	ReadFrom(b []byte) (n int, addr string, err *os.Error);
++	ReadFrom(b []byte) (n int, addr string, err os.Error);
+ 
+ 	// For packet-based protocols such as UDP,
+ 	// WriteTo writes the byte buffer b to the network
+ 	// as a single payload, sending it to the target address.
+-	WriteTo(addr string, b []byte) (n int, err *os.Error);
++	WriteTo(addr string, b []byte) (n int, err os.Error);
+ 
+ 	// SetReadBuffer sets the size of the operating system's
+ 	// receive buffer associated with the connection.
+-	SetReadBuffer(bytes int) *os.Error;
++	SetReadBuffer(bytes int) os.Error;
+ 
+ 	// SetReadBuffer sets the size of the operating system's
+ 	// transmit buffer associated with the connection.
+-	SetWriteBuffer(bytes int) *os.Error;
++	SetWriteBuffer(bytes int) os.Error;
+ 
+ 	// SetTimeout sets the read and write deadlines associated
+ 	// with the connection.
+-	SetTimeout(nsec int64) *os.Error;
++	SetTimeout(nsec int64) os.Error;
+ 
+ 	// SetReadTimeout sets the time (in nanoseconds) that
+ 	// Read will wait for data before returning os.EAGAIN.
+ 	// Setting nsec == 0 (the default) disables the deadline.
+-	SetReadTimeout(nsec int64) *os.Error;
++	SetReadTimeout(nsec int64) os.Error;
+ 
+ 	// SetWriteTimeout sets the time (in nanoseconds) that
+ 	// Write will wait to send its data before returning os.EAGAIN.
+ 	// Setting nsec == 0 (the default) disables the deadline.
+ 	// Even if write times out, it may return n > 0, indicating that
+ 	// some of the data was successfully written.
+-	SetWriteTimeout(nsec int64) *os.Error;
++	SetWriteTimeout(nsec int64) os.Error;
+ 
+ 	// SetLinger sets the behavior of Close() on a connection
+ 	// which still has data waiting to be sent or to be acknowledged.
+@@ -495,22 +495,22 @@ type Conn interface {
+ 	//
+ 	// If sec > 0, Close blocks for at most sec seconds waiting for
+ 	// data to be sent and acknowledged.
+-	SetLinger(sec int) *os.Error;
++	SetLinger(sec int) os.Error;
+ 
+ 	// SetReuseAddr sets whether it is okay to reuse addresses
+ 	// from recent connections that were not properly closed.
+-	SetReuseAddr(reuseaddr bool) *os.Error;
++	SetReuseAddr(reuseaddr bool) os.Error;
+ 
+ 	// SetDontRoute sets whether outgoing messages should
+ 	// bypass the system routing tables.
+-	SetDontRoute(dontroute bool) *os.Error;
++	SetDontRoute(dontroute bool) os.Error;
+ 
+ 	// SetKeepAlive sets whether the operating system should send
+ 	// keepalive messages on the connection.
+-	SetKeepAlive(keepalive bool) *os.Error;
++	SetKeepAlive(keepalive bool) os.Error;
+ 
+ 	// BindToDevice binds a connection to a particular network device.
+-	BindToDevice(dev string) *os.Error;
++	BindToDevice(dev string) os.Error;
+ }
+ 
+ // Dial connects to the remote address raddr on the network net.
+@@ -528,7 +528,7 @@ type Conn interface {
+ //	Dial("tcp", "", "google.com:80")
+ //	Dial("tcp", "", "[de:ad:be:ef::ca:fe]:80")
+ //	Dial("tcp", "127.0.0.1:123", "127.0.0.1:88")
+-func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
++func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+ 		c, err := DialTCP(net, laddr, raddr);
+@@ -557,8 +557,8 @@ func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
+ // A Listener is a generic network listener.
+ // Accept waits for the next connection and Close closes the connection.
+ type Listener interface {
+-	Accept() (c Conn, raddr string, err *os.Error);
+-	Close() *os.Error;
++	Accept() (c Conn, raddr string, err os.Error);
++	Close() os.Error;
+ }
+ 
+ // ListenerTCP is a TCP network listener.
+@@ -571,7 +571,7 @@ type ListenerTCP struct {
+ 
+ // ListenTCP announces on the TCP address laddr and returns a TCP listener.
+ // Net must be "tcp", "tcp4", or "tcp6".
+-func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
++func ListenTCP(net, laddr string) (l *ListenerTCP, err os.Error) {
+ 	fd, e := internetSocket(net, laddr, "", syscall.SOCK_STREAM, "listen");
+ 	if e != nil {
+ 		return nil, e
+@@ -588,7 +588,7 @@ func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
+ 
+ // AcceptTCP accepts the next incoming call and returns the new connection
+ // and the remote address.
+-func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err *os.Error) {
++func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err os.Error) {
+ 	if l == nil || l.fd == nil || l.fd.fd < 0 {
+ 		return nil, "", os.EINVAL
+ 	}
+@@ -607,7 +607,7 @@ func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err *os.Error) {
+ 
+ // Accept implements the accept method in the Listener interface;
+ // it waits for the next call and returns a generic Conn.
+-func (l *ListenerTCP) Accept() (c Conn, raddr string, err *os.Error) {
++func (l *ListenerTCP) Accept() (c Conn, raddr string, err os.Error) {
+ 	c1, r1, e1 := l.AcceptTCP();
+ 	if e1 != nil {
+ 		return nil, "", e1
+@@ -617,7 +617,7 @@ func (l *ListenerTCP) Accept() (c Conn, raddr string, err *os.Error) {
+ 
+ // Close stops listening on the TCP address.
+ // Already Accepted connections are not closed.
+-func (l *ListenerTCP) Close() *os.Error {
++func (l *ListenerTCP) Close() os.Error {
+ 	if l == nil || l.fd == nil {
+ 		return os.EINVAL
+ 	}
+@@ -626,7 +626,7 @@ func (l *ListenerTCP) Close() *os.Error {
+ 
+ // Listen announces on the local network address laddr.
+ // The network string net must be "tcp", "tcp4", or "tcp6".
+-func Listen(net, laddr string) (l Listener, err *os.Error) {
++func Listen(net, laddr string) (l Listener, err os.Error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+ 		l, err := ListenTCP(net, laddr);
+diff --git a/src/lib/net/net_darwin.go b/src/lib/net/net_darwin.go
+index 78a705af95..7e85f089b5 100644
+--- a/src/lib/net/net_darwin.go
++++ b/src/lib/net/net_darwin.go
+@@ -11,7 +11,7 @@ import (
+ 	"unsafe";
+ )
+ 
+-func v4ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
++func v4ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err os.Error) {
+ 	p = p.To4();
+ 	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+@@ -27,7 +27,7 @@ func v4ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+ 	return (*syscall.Sockaddr)(unsafe.Pointer(sa)), nil
+ }
+ 
+-func v6ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
++func v6ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err os.Error) {
+ 	p = p.To16();
+ 	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+@@ -44,7 +44,7 @@ func v6ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+ }
+ 
+ 
+-func sockaddrToIP(sa1 *syscall.Sockaddr) (p IP, port int, err *os.Error) {
++func sockaddrToIP(sa1 *syscall.Sockaddr) (p IP, port int, err os.Error) {
+ 	switch sa1.Family {
+ 	case syscall.AF_INET:
+ 		sa := (*syscall.SockaddrInet4)(unsafe.Pointer(sa1));
+diff --git a/src/lib/net/net_linux.go b/src/lib/net/net_linux.go
+index ddc13d3472..b6bfe7646c 100644
+--- a/src/lib/net/net_linux.go
++++ b/src/lib/net/net_linux.go
+@@ -11,7 +11,7 @@ import (
+ 	"unsafe";
+ )
+ 
+-func v4ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
++func v4ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err os.Error) {
+ 	p = p.To4();
+ 	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+@@ -26,7 +26,7 @@ func v4ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+ 	return (*syscall.Sockaddr)(unsafe.Pointer(sa)), nil
+ }
+ 
+-func v6ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
++func v6ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err os.Error) {
+ 	p = p.To16();
+ 	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+@@ -49,7 +49,7 @@ func v6ToSockaddr(p IP, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+ 	return (*syscall.Sockaddr)(unsafe.Pointer(sa)), nil
+ }
+ 
+-func sockaddrToIP(sa1 *syscall.Sockaddr) (p IP, port int, err *os.Error) {
++func sockaddrToIP(sa1 *syscall.Sockaddr) (p IP, port int, err os.Error) {
+ 	switch sa1.Family {
+ 	case syscall.AF_INET:
+ 		sa := (*syscall.SockaddrInet4)(unsafe.Pointer(sa1));
+diff --git a/src/lib/net/parse.go b/src/lib/net/parse.go
+index 194f412908..72aeff072b 100644
+--- a/src/lib/net/parse.go
++++ b/src/lib/net/parse.go
+@@ -55,7 +55,7 @@ func (f *file) readLine() (s string, ok bool) {
+ 	return
+ }
+ 
+-func open(name string) (*file, *os.Error) {
++func open(name string) (*file, os.Error) {
+ 	fd, err := os.Open(name, os.O_RDONLY, 0);
+ 	if err != nil {
+ 		return nil, err;
+diff --git a/src/lib/net/port.go b/src/lib/net/port.go
+index cc7f399148..073af658a4 100644
+--- a/src/lib/net/port.go
++++ b/src/lib/net/port.go
+@@ -19,7 +19,7 @@ import (
+ var ErrNoService = os.NewError("unknown network service");
+ 
+ var services map[string] map[string] int
+-var servicesError *os.Error
++var servicesError os.Error
+ 
+ func readServices() {
+ 	services = make(map[string] map[string] int);
+@@ -55,7 +55,7 @@ func readServices() {
+ }
+ 
+ // LookupPort looks up the port for the given network and service.
+-func LookupPort(network, service string) (port int, err *os.Error) {
++func LookupPort(network, service string) (port int, err os.Error) {
+ 	once.Do(readServices);
+ 
+ 	switch network {
+diff --git a/src/lib/os/dir_amd64_darwin.go b/src/lib/os/dir_amd64_darwin.go
+index 51f17c015c..681a710d1b 100644
+--- a/src/lib/os/dir_amd64_darwin.go
++++ b/src/lib/os/dir_amd64_darwin.go
+@@ -15,7 +15,7 @@ const (
+ )
+ 
+ // Negative count means read until EOF.
+-func readdirnames(file *File, count int) (names []string, err *os.Error) {
++func readdirnames(file *File, count int) (names []string, err Error) {
+ 	// If this file has no dirinfo, create one.
+ 	if file.dirinfo == nil {
+ 		file.dirinfo = new(dirInfo);
+@@ -36,7 +36,7 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
+ 			// Final argument is (basep *int64) and the syscall doesn't take nil.
+ 			d.nbuf, errno = syscall.Getdirentries(file.fd, &d.buf[0], int64(len(d.buf)), new(int64));
+ 			if d.nbuf < 0 {
+-				return names, os.ErrnoToError(errno)
++				return names, ErrnoToError(errno)
+ 			}
+ 			if d.nbuf == 0 {
+ 				break	// EOF
+diff --git a/src/lib/os/dir_amd64_linux.go b/src/lib/os/dir_amd64_linux.go
+index 582e4f632d..67eae30ff3 100644
+--- a/src/lib/os/dir_amd64_linux.go
++++ b/src/lib/os/dir_amd64_linux.go
+@@ -24,7 +24,7 @@ func clen(n []byte) int {
+ }
+ 
+ // Negative count means read until EOF.
+-func readdirnames(file *File, count int) (names []string, err *os.Error) {
++func readdirnames(file *File, count int) (names []string, err Error) {
+ 	// If this file has no dirinfo, create one.
+ 	if file.dirinfo == nil {
+ 		file.dirinfo = new(dirInfo);
+@@ -45,7 +45,7 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
+ 			dbuf := (*syscall.Dirent)(unsafe.Pointer(&d.buf[0]));
+ 			d.nbuf, errno = syscall.Getdents(file.fd, dbuf, int64(len(d.buf)));
+ 			if d.nbuf < 0 {
+-				return names, os.ErrnoToError(errno)
++				return names, ErrnoToError(errno)
+ 			}
+ 			if d.nbuf == 0 {
+ 				break	// EOF
+diff --git a/src/lib/os/env.go b/src/lib/os/env.go
+index 69af22382f..e7df309e03 100644
+--- a/src/lib/os/env.go
++++ b/src/lib/os/env.go
+@@ -31,7 +31,7 @@ func copyenv() {
+ 
+ // Getenv retrieves the value of the environment variable named by the key.
+ // It returns the value and an error, if any.
+-func Getenv(key string) (value string, err *Error) {
++func Getenv(key string) (value string, err Error) {
+ 	once.Do(copyenv);
+ 
+ 	if len(key) == 0 {
+@@ -46,7 +46,7 @@ func Getenv(key string) (value string, err *Error) {
+ 
+ // Setenv sets the value of the environment variable named by the key.
+ // It returns an Error, if any.
+-func Setenv(key, value string) *Error {
++func Setenv(key, value string) Error {
+ 	once.Do(copyenv);
+ 
+ 	if len(key) == 0 {
+diff --git a/src/lib/os/error.go b/src/lib/os/error.go
+index 18d010ce0a..69565d6a58 100644
+--- a/src/lib/os/error.go
++++ b/src/lib/os/error.go
+@@ -6,31 +6,43 @@ package os
+ 
+ import syscall "syscall"
+ 
+-// Error is a structure wrapping a string describing an error.
++// An Error can represent any printable error condition.
++type Error interface {
++	String() string
++}
++
++// A helper type that can be embedded or wrapped to simplify satisfying
++// Error.
++type ErrorString string
++func (e *ErrorString) String() string {
++	return *e
++}
++
++// _Error is a structure wrapping a string describing an error.
+ // Errors are singleton structures, created by NewError, so their addresses can
+ // be compared to test for equality. A nil Error pointer means ``no error''.
+ // Use the String() method to get the contents; it handles the nil case.
+ // The Error type is intended for use by any package that wishes to define
+ // error strings.
+-type Error struct {
++type _Error struct {
+ 	s string
+ }
+ 
+ // Indexed by errno.
+ // If we worry about syscall speed (only relevant on failure), we could
+ // make it an array, but it's probably not important.
+-var errorTab = make(map[int64] *Error);
++var errorTab = make(map[int64] Error);
+ 
+ // Table of all known errors in system.  Use the same error string twice,
+-// get the same *os.Error.
+-var errorStringTab = make(map[string] *Error);
++// get the same *os._Error.
++var errorStringTab = make(map[string] Error);
+ 
+ // These functions contain a race if two goroutines add identical
+ // errors simultaneously but the consequences are unimportant.
+ 
+ // NewError allocates an Error object, but if s has been seen before,
+-// shares the Error associated with that message.
+-func NewError(s string) *Error {
++// shares the _Error associated with that message.
++func NewError(s string) Error {
+ 	if s == "" {
+ 		return nil
+ 	}
+@@ -38,14 +50,14 @@ func NewError(s string) *Error {
+ 	if ok {
+ 		return err
+ 	}
+-	err = &Error{s};
++	err = &_Error{s};
+ 	errorStringTab[s] = err;
+ 	return err;
+ }
+ 
+-// ErrnoToError calls NewError to create an Error object for the string
++// ErrnoToError calls NewError to create an _Error object for the string
+ // associated with Unix error code errno.
+-func ErrnoToError(errno int64) *Error {
++func ErrnoToError(errno int64) Error {
+ 	if errno == 0 {
+ 		return nil
+ 	}
+@@ -61,6 +73,11 @@ func ErrnoToError(errno int64) *Error {
+ 
+ // Commonly known Unix errors.
+ var (
++	// TODO(r):
++	// 1. these become type ENONE struct { ErrorString }
++	// 2. create private instances of each type: var eNONE ENONE(ErrnoToString(syscall.ENONE));
++	// 3. put them in a table
++	// 4. ErrnoToError uses the table. its error case ECATCHALL("%d")
+ 	ENONE = ErrnoToError(syscall.ENONE);
+ 	EPERM = ErrnoToError(syscall.EPERM);
+ 	ENOENT = ErrnoToError(syscall.ENOENT);
+@@ -99,10 +116,10 @@ var (
+ 	EAGAIN = ErrnoToError(syscall.EAGAIN);
+ )
+ 
+-// String returns the string associated with the Error.
+-func (e *Error) String() string {
++// String returns the string associated with the _Error.
++func (e *_Error) String() string {
+ 	if e == nil {
+-		return "No Error"
++		return "No _Error"
+ 	}
+ 	return e.s
+ }
+diff --git a/src/lib/os/exec.go b/src/lib/os/exec.go
+index f987f7aa1f..6c0b355785 100644
+--- a/src/lib/os/exec.go
++++ b/src/lib/os/exec.go
+@@ -16,7 +16,7 @@ import (
+ // descriptor 0 (standard input), fd[1] descriptor 1, and so on.  A nil entry
+ // will cause the child to have no open file descriptor with that index.
+ func ForkExec(argv0 string, argv []string, envv []string, fd []*File)
+-	(pid int, err *Error)
++	(pid int, err Error)
+ {
+ 	// Create array of integer (system) fds.
+ 	intfd := make([]int64, len(fd));
+@@ -36,7 +36,7 @@ func ForkExec(argv0 string, argv []string, envv []string, fd []*File)
+ // named by argv0, with arguments argv and environment envv.
+ // If successful, Exec never returns.  If it fails, it returns an Error.
+ // ForkExec is almost always a better way to execute a program.
+-func Exec(argv0 string, argv []string, envv []string) *Error {
++func Exec(argv0 string, argv []string, envv []string) Error {
+ 	if envv == nil {
+ 		envv = Environ();
+ 	}
+@@ -69,7 +69,7 @@ const (
+ // Wait waits for process pid to exit or stop, and then returns a
+ // Waitmsg describing its status and an Error, if any. The options
+ // (WNOHANG etc.) affect the behavior of the Wait call.
+-func Wait(pid int, options uint64) (w *Waitmsg, err *Error) {
++func Wait(pid int, options uint64) (w *Waitmsg, err Error) {
+ 	var status syscall.WaitStatus;
+ 	var rusage *syscall.Rusage;
+ 	if options & WRUSAGE != 0 {
+diff --git a/src/lib/os/file.go b/src/lib/os/file.go
+index fa066eb712..d7ea573fc5 100644
+--- a/src/lib/os/file.go
++++ b/src/lib/os/file.go
+@@ -70,7 +70,7 @@ const (
+ // Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
+ // if applicable.  If successful, methods on the returned File can be used for I/O.
+ // It returns the File and an Error, if any.
+-func Open(name string, flag int, perm int) (file *File, err *Error) {
++func Open(name string, flag int, perm int) (file *File, err Error) {
+ 	r, e := syscall.Open(name, int64(flag | syscall.O_CLOEXEC), int64(perm));
+ 	if e != 0 {
+ 		return nil, ErrnoToError(e);
+@@ -87,7 +87,7 @@ func Open(name string, flag int, perm int) (file *File, err *Error) {
+ 
+ // Close closes the File, rendering it unusable for I/O.
+ // It returns an Error, if any.
+-func (file *File) Close() *Error {
++func (file *File) Close() Error {
+ 	if file == nil {
+ 		return EINVAL
+ 	}
+@@ -100,7 +100,7 @@ func (file *File) Close() *Error {
+ // It returns the number of bytes read and an Error, if any.
+ // EOF is signaled by a zero count with a nil Error.
+ // TODO(r): Add Pread, Pwrite (maybe ReadAt, WriteAt).
+-func (file *File) Read(b []byte) (ret int, err *Error) {
++func (file *File) Read(b []byte) (ret int, err Error) {
+ 	if file == nil {
+ 		return 0, EINVAL
+ 	}
+@@ -117,7 +117,7 @@ func (file *File) Read(b []byte) (ret int, err *Error) {
+ // Write writes len(b) bytes to the File.
+ // It returns the number of bytes written and an Error, if any.
+ // If the byte count differs from len(b), it usually implies an error occurred.
+-func (file *File) Write(b []byte) (ret int, err *Error) {
++func (file *File) Write(b []byte) (ret int, err Error) {
+ 	if file == nil {
+ 		return 0, EINVAL
+ 	}
+@@ -135,7 +135,7 @@ func (file *File) Write(b []byte) (ret int, err *Error) {
+ // according to whence: 0 means relative to the origin of the file, 1 means
+ // relative to the current offset, and 2 means relative to the end.
+ // It returns the new offset and an Error, if any.
+-func (file *File) Seek(offset int64, whence int) (ret int64, err *Error) {
++func (file *File) Seek(offset int64, whence int) (ret int64, err Error) {
+ 	r, e := syscall.Seek(file.fd, offset, int64(whence));
+ 	if e != 0 {
+ 		return -1, ErrnoToError(e)
+@@ -148,7 +148,7 @@ func (file *File) Seek(offset int64, whence int) (ret int64, err *Error) {
+ 
+ // WriteString is like Write, but writes the contents of string s rather than
+ // an array of bytes.
+-func (file *File) WriteString(s string) (ret int, err *Error) {
++func (file *File) WriteString(s string) (ret int, err Error) {
+ 	if file == nil {
+ 		return 0, EINVAL
+ 	}
+@@ -161,7 +161,7 @@ func (file *File) WriteString(s string) (ret int, err *Error) {
+ 
+ // Pipe returns a connected pair of Files; reads from r return bytes written to w.
+ // It returns the files and an Error, if any.
+-func Pipe() (r *File, w *File, err *Error) {
++func Pipe() (r *File, w *File, err Error) {
+ 	var p [2]int64;
+ 
+ 	// See ../syscall/exec.go for description of lock.
+@@ -180,7 +180,7 @@ func Pipe() (r *File, w *File, err *Error) {
+ 
+ // Mkdir creates a new directory with the specified name and permission bits.
+ // It returns an error, if any.
+-func Mkdir(name string, perm int) *Error {
++func Mkdir(name string, perm int) Error {
+ 	r, e := syscall.Mkdir(name, int64(perm));
+ 	return ErrnoToError(e)
+ }
+@@ -189,7 +189,7 @@ func Mkdir(name string, perm int) *Error {
+ // is a symbolic link, it returns information about the file the link
+ // references.
+ // It returns the Dir and an error, if any.
+-func Stat(name string) (dir *Dir, err *Error) {
++func Stat(name string) (dir *Dir, err Error) {
+ 	stat := new(syscall.Stat_t);
+ 	r, e := syscall.Stat(name, stat);
+ 	if e != 0 {
+@@ -200,7 +200,7 @@ func Stat(name string) (dir *Dir, err *Error) {
+ 
+ // Stat returns the Dir structure describing file.
+ // It returns the Dir and an error, if any.
+-func (file *File) Stat() (dir *Dir, err *Error) {
++func (file *File) Stat() (dir *Dir, err Error) {
+ 	stat := new(syscall.Stat_t);
+ 	r, e := syscall.Fstat(file.fd, stat);
+ 	if e != 0 {
+@@ -212,7 +212,7 @@ func (file *File) Stat() (dir *Dir, err *Error) {
+ // Lstat returns the Dir structure describing the named file. If the file
+ // is a symbolic link, it returns information about the link itself.
+ // It returns the Dir and an error, if any.
+-func Lstat(name string) (dir *Dir, err *Error) {
++func Lstat(name string) (dir *Dir, err Error) {
+ 	stat := new(syscall.Stat_t);
+ 	r, e := syscall.Lstat(name, stat);
+ 	if e != 0 {
+@@ -223,14 +223,14 @@ func Lstat(name string) (dir *Dir, err *Error) {
+ 
+ // Readdirnames has a non-portable implemenation so its code is separated into an
+ // operating-system-dependent file.
+-func readdirnames(file *File, count int) (names []string, err *os.Error)
++func readdirnames(file *File, count int) (names []string, err Error)
+ 
+ // Readdirnames reads the contents of the directory associated with file and
+ // returns an array of up to count names, in directory order.  Subsequent
+ // calls on the same file will yield further names.
+ // A negative count means to read until EOF.
+ // It returns the array and an Error, if any.
+-func (file *File) Readdirnames(count int) (names []string, err *os.Error) {
++func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	return readdirnames(file, count);
+ }
+ 
+@@ -239,7 +239,7 @@ func (file *File) Readdirnames(count int) (names []string, err *os.Error) {
+ // calls on the same file will yield further Dirs.
+ // A negative count means to read until EOF.
+ // It returns the array and an Error, if any.
+-func (file *File) Readdir(count int) (dirs []Dir, err *os.Error) {
++func (file *File) Readdir(count int) (dirs []Dir, err Error) {
+ 	dirname := file.name;
+ 	if dirname == "" {
+ 		dirname = ".";
+@@ -262,13 +262,13 @@ func (file *File) Readdir(count int) (dirs []Dir, err *os.Error) {
+ }
+ 
+ // Chdir changes the current working directory to the named directory.
+-func Chdir(dir string) *os.Error {
++func Chdir(dir string) Error {
+ 	r, e := syscall.Chdir(dir);
+ 	return ErrnoToError(e);
+ }
+ 
+ // Remove removes the named file or directory.
+-func Remove(name string) *os.Error {
++func Remove(name string) Error {
+ 	// System call interface forces us to know
+ 	// whether name is a file or directory.
+ 	// Try both: it is cheaper on average than
+diff --git a/src/lib/os/time.go b/src/lib/os/time.go
+index 9847d80bbf..7e268a0c7f 100644
+--- a/src/lib/os/time.go
++++ b/src/lib/os/time.go
+@@ -14,7 +14,7 @@ import (
+ // fractional nanoseconds, plus an Error if any. The current
+ // time is thus 1e9*sec+nsec, in nanoseconds.  The zero of
+ // time is the Unix epoch.
+-func Time() (sec int64, nsec int64, err *Error) {
++func Time() (sec int64, nsec int64, err Error) {
+ 	var errno int64;
+ 	sec, nsec, errno = syscall.Gettimeofday();
+ 	if errno != 0 {
+diff --git a/src/lib/regexp/all_test.go b/src/lib/regexp/all_test.go
+index 1a5285eb73..a9f275893a 100644
+--- a/src/lib/regexp/all_test.go
++++ b/src/lib/regexp/all_test.go
+@@ -32,7 +32,7 @@ var good_re = []string{
+ // TODO: nice to do this with a map
+ type stringError struct {
+ 	re	string;
+-	err	*os.Error;
++	err	os.Error;
+ }
+ var bad_re = []stringError{
+ 	stringError{ `*`,	 	regexp.ErrBareClosure },
+@@ -85,7 +85,7 @@ var matches = []tester {
+ 	tester{ `a*(|(b))c*`,	"aacc",	vec{0,4, 2,2, -1,-1} },
+ }
+ 
+-func compileTest(t *testing.T, expr string, error *os.Error) *regexp.Regexp {
++func compileTest(t *testing.T, expr string, error os.Error) *regexp.Regexp {
+ 	re, err := regexp.Compile(expr);
+ 	if err != error {
+ 		t.Error("compiling `", expr, "`; unexpected error: ", err.String());
+diff --git a/src/lib/regexp/regexp.go b/src/lib/regexp/regexp.go
+index 3ec3ff83ac..135dcc368a 100644
+--- a/src/lib/regexp/regexp.go
++++ b/src/lib/regexp/regexp.go
+@@ -70,7 +70,7 @@ func (c *common) setIndex(i int) { c._index = i }
+ type Regexp struct {
+ 	expr	string;	// the original expression
+ 	ch	chan<- *Regexp;	// reply channel when we're done
+-	error	*os.Error;	// compile- or run-time error; nil if OK
++	error	os.Error;	// compile- or run-time error; nil if OK
+ 	inst	*vector.Vector;
+ 	start	instr;
+ 	nbra	int;	// number of brackets in expression, for subexpressions
+@@ -233,7 +233,7 @@ func (nop *_Nop) kind() int { return _NOP }
+ func (nop *_Nop) print() { print("nop") }
+ 
+ // report error and exit compiling/executing goroutine
+-func (re *Regexp) setError(err *os.Error) {
++func (re *Regexp) setError(err os.Error) {
+ 	re.error = err;
+ 	re.ch <- re;
+ 	sys.Goexit();
+@@ -586,7 +586,7 @@ func compiler(str string, ch chan *Regexp) {
+ 
+ // Compile parses a regular expression and returns, if successful, a Regexp
+ // object that can be used to match against text.
+-func Compile(str string) (regexp *Regexp, error *os.Error) {
++func Compile(str string) (regexp *Regexp, error os.Error) {
+ 	// Compile in a separate goroutine and wait for the result.
+ 	ch := make(chan *Regexp);
+ 	go compiler(str, ch);
+@@ -754,7 +754,7 @@ func (re *Regexp) MatchStrings(s string) (a []string) {
+ // Match checks whether a textual regular expression
+ // matches a substring.  More complicated queries need
+ // to use Compile and the full Regexp interface.
+-func Match(pattern string, s string) (matched bool, error *os.Error) {
++func Match(pattern string, s string) (matched bool, error os.Error) {
+ 	re, err := Compile(pattern);
+ 	if err != nil {
+ 		return false, err
+diff --git a/src/lib/strconv/atof.go b/src/lib/strconv/atof.go
+index ec94b7c741..c257b2a33e 100644
+--- a/src/lib/strconv/atof.go
++++ b/src/lib/strconv/atof.go
+@@ -321,7 +321,7 @@ func decimalAtof32(neg bool, d *decimal, trunc bool) (f float32, ok bool) {
+ // If s is syntactically well-formed but is more than 1/2 ULP
+ // away from the largest floating point number of the given size,
+ // Atof32 returns f = ±Inf, err = os.ERANGE.
+-func Atof32(s string) (f float32, err *os.Error) {
++func Atof32(s string) (f float32, err os.Error) {
+ 	neg, d, trunc, ok := stringToDecimal(s);
+ 	if !ok {
+ 		return 0, os.EINVAL;
+@@ -342,7 +342,7 @@ func Atof32(s string) (f float32, err *os.Error) {
+ // Atof64 converts the string s to a 64-bit floating-point number.
+ // Except for the type of its result, its definition is the same as that
+ // of Atof32.
+-func Atof64(s string) (f float64, err *os.Error) {
++func Atof64(s string) (f float64, err os.Error) {
+ 	neg, d, trunc, ok := stringToDecimal(s);
+ 	if !ok {
+ 		return 0, os.EINVAL;
+@@ -361,7 +361,7 @@ func Atof64(s string) (f float64, err *os.Error) {
+ }
+ 
+ // Atof is like Atof32 or Atof64, depending on the size of float.
+-func Atof(s string) (f float, err *os.Error) {
++func Atof(s string) (f float, err os.Error) {
+ 	if FloatSize == 32 {
+ 		f1, err1 := Atof32(s);
+ 		return float(f1), err1;
+diff --git a/src/lib/strconv/atof_test.go b/src/lib/strconv/atof_test.go
+index 7f1f0a1312..6782f274a2 100644
+--- a/src/lib/strconv/atof_test.go
++++ b/src/lib/strconv/atof_test.go
+@@ -13,7 +13,7 @@ import (
+ type atofTest struct {
+ 	in string;
+ 	out string;
+-	err *os.Error;
++	err os.Error;
+ }
+ 
+ var atoftests = []atofTest {
+diff --git a/src/lib/strconv/atoi.go b/src/lib/strconv/atoi.go
+index 467c37737c..a5d896a05e 100644
+--- a/src/lib/strconv/atoi.go
++++ b/src/lib/strconv/atoi.go
+@@ -29,7 +29,7 @@ func cutoff64(base int) uint64 {
+ // range or s is empty or contains invalid digits.
+ // It returns err == os.ERANGE if the value corresponding
+ // to s cannot be represented by a uint64.
+-func Btoui64(s string, b int) (n uint64, err *os.Error) {
++func Btoui64(s string, b int) (n uint64, err os.Error) {
+ 	if b < 2 || b > 36 || len(s) < 1 {
+ 		return 0, os.EINVAL;
+ 	}
+@@ -77,7 +77,7 @@ func Btoui64(s string, b int) (n uint64, err *os.Error) {
+ //
+ // Atoui64 returns err == os.EINVAL if s is empty or contains invalid digits.
+ // It returns err == os.ERANGE if s cannot be represented by a uint64.
+-func Atoui64(s string) (n uint64, err *os.Error) {
++func Atoui64(s string) (n uint64, err os.Error) {
+ 	// Empty string bad.
+ 	if len(s) == 0 {
+ 		return 0, os.EINVAL
+@@ -99,7 +99,7 @@ func Atoui64(s string) (n uint64, err *os.Error) {
+ 
+ // Atoi64 is like Atoui64 but allows signed numbers and
+ // returns its result in an int64.
+-func Atoi64(s string) (i int64, err *os.Error) {
++func Atoi64(s string) (i int64, err os.Error) {
+ 	// Empty string bad.
+ 	if len(s) == 0 {
+ 		return 0, os.EINVAL
+@@ -134,7 +134,7 @@ func Atoi64(s string) (i int64, err *os.Error) {
+ }
+ 
+ // Atoui is like Atoui64 but returns its result as a uint.
+-func Atoui(s string) (i uint, err *os.Error) {
++func Atoui(s string) (i uint, err os.Error) {
+ 	i1, e1 := Atoui64(s);
+ 	if e1 != nil && e1 != os.ERANGE {
+ 		return 0, e1
+@@ -149,7 +149,7 @@ func Atoui(s string) (i uint, err *os.Error) {
+ }
+ 
+ // Atoi is like Atoi64 but returns its result as an int.
+-func Atoi(s string) (i int, err *os.Error) {
++func Atoi(s string) (i int, err os.Error) {
+ 	i1, e1 := Atoi64(s);
+ 	if e1 != nil && e1 != os.ERANGE {
+ 		return 0, e1
+diff --git a/src/lib/strconv/atoi_test.go b/src/lib/strconv/atoi_test.go
+index 3940ebc782..e4a9f955d9 100644
+--- a/src/lib/strconv/atoi_test.go
++++ b/src/lib/strconv/atoi_test.go
+@@ -14,7 +14,7 @@ import (
+ type atoui64Test struct {
+ 	in string;
+ 	out uint64;
+-	err *os.Error;
++	err os.Error;
+ }
+ 
+ var atoui64tests = []atoui64Test {
+@@ -41,7 +41,7 @@ var atoui64tests = []atoui64Test {
+ type atoi64Test struct {
+ 	in string;
+ 	out int64;
+-	err *os.Error;
++	err os.Error;
+ }
+ 
+ var atoi64test = []atoi64Test {
+@@ -71,7 +71,7 @@ var atoi64test = []atoi64Test {
+ type atoui32Test struct {
+ 	in string;
+ 	out uint32;
+-	err *os.Error;
++	err os.Error;
+ }
+ 
+ var atoui32tests = []atoui32Test {
+@@ -91,7 +91,7 @@ var atoui32tests = []atoui32Test {
+ type atoi32Test struct {
+ 	in string;
+ 	out int32;
+-	err *os.Error;
++	err os.Error;
+ }
+ 
+ var atoi32tests = []atoi32Test {
+diff --git a/src/lib/strconv/quote.go b/src/lib/strconv/quote.go
+index c06204013b..4fcec9a5ea 100644
+--- a/src/lib/strconv/quote.go
++++ b/src/lib/strconv/quote.go
+@@ -97,7 +97,7 @@ func unhex(b byte) (v int, ok bool) {
+ 	return;
+ }
+ 
+-func unquoteChar(s string, i int, q byte) (t string, ii int, err *os.Error) {
++func unquoteChar(s string, i int, q byte) (t string, ii int, err os.Error) {
+ 	err = os.EINVAL;  // assume error for easy return
+ 
+ 	// easy cases
+@@ -190,7 +190,7 @@ func unquoteChar(s string, i int, q byte) (t string, ii int, err *os.Error) {
+ // that s quotes.  (If s is single-quoted, it would be a Go
+ // character literal; Unquote returns the corresponding
+ // one-character string.)
+-func Unquote(s string) (t string, err *os.Error) {
++func Unquote(s string) (t string, err os.Error) {
+ 	err = os.EINVAL;  // assume error for easy return
+ 	n := len(s);
+ 	if n < 2 || s[0] != s[n-1] {
+@@ -207,7 +207,7 @@ func Unquote(s string) (t string, err *os.Error) {
+ 		t := "";
+ 		q := s[0];
+ 		var c string;
+-		var err *os.Error;
++		var err os.Error;
+ 		for i := 1; i < n-1; {
+ 			c, i, err = unquoteChar(s, i, q);
+ 			if err != nil {
+diff --git a/src/lib/tabwriter/tabwriter.go b/src/lib/tabwriter/tabwriter.go
+index b15d4de18d..9a5c37c321 100644
+--- a/src/lib/tabwriter/tabwriter.go
++++ b/src/lib/tabwriter/tabwriter.go
+@@ -222,7 +222,7 @@ func (b *Writer) dump() {
+ }
+ 
+ 
+-func (b *Writer) write0(buf []byte) *os.Error {
++func (b *Writer) write0(buf []byte) os.Error {
+ 	n, err := b.output.Write(buf);
+ 	if n != len(buf) && err == nil {
+ 		err = os.EIO;
+@@ -233,7 +233,7 @@ func (b *Writer) write0(buf []byte) *os.Error {
+ 
+ var newline = []byte{'\n'}
+ 
+-func (b *Writer) writePadding(textw, cellw int) (err *os.Error) {
++func (b *Writer) writePadding(textw, cellw int) (err os.Error) {
+ 	if b.padbytes[0] == '\t' {
+ 		// make cell width a multiple of cellwidth
+ 		cellw = ((cellw + b.cellwidth - 1) / b.cellwidth) * b.cellwidth;
+@@ -262,7 +262,7 @@ exit:
+ }
+ 
+ 
+-func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err *os.Error) {
++func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) {
+ 	pos = pos0;
+ 	for i := line0; i < line1; i++ {
+ 		line_size, line_width := b.line(i);
+@@ -319,7 +319,7 @@ exit:
+ }
+ 
+ 
+-func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err *os.Error) {
++func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
+ 	pos = pos0;
+ 	column := b.widths.Len();
+ 	last := line0;
+@@ -373,7 +373,7 @@ exit:
+ // Flush should be called after the last call to Write to ensure
+ // that any data buffered in the Writer is written to output.
+ //
+-func (b *Writer) Flush() *os.Error {
++func (b *Writer) Flush() os.Error {
+ 	dummy, err := b.format(0, 0, b.lines_size.Len());
+ 	// reset (even in the presence of errors)
+ 	b.buf.clear();
+@@ -411,7 +411,7 @@ func (b *Writer) append(buf []byte) {
+ // The only errors returned are ones encountered
+ // while writing to the underlying output stream.
+ //
+-func (b *Writer) Write(buf []byte) (written int, err *os.Error) {
++func (b *Writer) Write(buf []byte) (written int, err os.Error) {
+ 	i0, n := 0, len(buf);
+ 
+ 	// split text into cells
+diff --git a/src/lib/tabwriter/tabwriter_test.go b/src/lib/tabwriter/tabwriter_test.go
+index 560eb97ae1..b4cc610a0a 100644
+--- a/src/lib/tabwriter/tabwriter_test.go
++++ b/src/lib/tabwriter/tabwriter_test.go
+@@ -27,7 +27,7 @@ func (b *buffer) clear() {
+ }
+ 
+ 
+-func (b *buffer) Write(buf []byte) (written int, err *os.Error) {
++func (b *buffer) Write(buf []byte) (written int, err os.Error) {
+ 	n := len(b.a);
+ 	m := len(buf);
+ 	if n + m <= cap(b.a) {
+diff --git a/src/lib/template/template.go b/src/lib/template/template.go
+index 327d8194b8..36ff60937a 100644
+--- a/src/lib/template/template.go
++++ b/src/lib/template/template.go
+@@ -66,19 +66,9 @@ import (
+ 	"template";
+ )
+ 
+-// Errors returned during parsing and execution.
+-var ErrUnmatchedRDelim = os.NewError("unmatched closing delimiter")
+-var ErrUnmatchedLDelim = os.NewError("unmatched opening delimiter")
+-var ErrBadDirective = os.NewError("unrecognized directive name")
+-var ErrEmptyDirective = os.NewError("empty directive")
+-var ErrFields = os.NewError("incorrect fields for directive")
+-var ErrSyntax = os.NewError("directive out of place")
+-var ErrNoEnd = os.NewError("section does not have .end")
+-var ErrNoVar = os.NewError("variable name not in struct");
+-var ErrBadType = os.NewError("unsupported type for variable");
+-var ErrNotStruct = os.NewError("driver must be a struct")
+-var ErrNoFormatter = os.NewError("unknown formatter")
+-var ErrBadDelims = os.NewError("invalid delimiter strings")
++// Errors returned during parsing. TODO: different error model for execution?
++
++type ParseError struct { os.ErrorString }
+ 
+ // All the literals are aces.
+ var lbrace = []byte{ '{' }
+@@ -112,15 +102,14 @@ var builtins = FormatterMap {
+ // State for executing a Template
+ type state struct {
+ 	parent	*state;	// parent in hierarchy
+-	errorchan	chan *os.Error;	// for erroring out
++	errorchan	chan os.Error;	// for erroring out
+ 	data	reflect.Value;	// the driver data for this section etc.
+ 	wr	io.Write;	// where to send output
+ }
+ 
+ // Report error and stop generation.
+-func (st *state) error(err *os.Error, args ...) {
+-	fmt.Fprintf(os.Stderr, "template: %v%s\n", err, fmt.Sprint(args));
+-	st.errorchan <- err;
++func (st *state) parseError(line int, err string, args ...) {
++	st.errorchan <- ParseError{fmt.Sprintf("line %d: %s", line, fmt.Sprintf(err, args))};
+ 	sys.Goexit();
+ }
+ 
+@@ -217,7 +206,7 @@ Loop:
+ 			i = j - 1;
+ 		case equal(t.buf, i, t.rdelim):
+ 			if !sawLeft {
+-				st.error(ErrUnmatchedRDelim)
++				st.parseError(*t.linenum, "unmatched closing delimiter")
+ 			}
+ 			sawLeft = false;
+ 			i += len(t.rdelim);
+@@ -227,7 +216,7 @@ Loop:
+ 		}
+ 	}
+ 	if sawLeft {
+-		st.error(ErrUnmatchedLDelim)
++		st.parseError(*t.linenum, "unmatched opening delimiter")
+ 	}
+ 	item := t.buf[start:i];
+ 	if special && trim_white {
+@@ -281,10 +270,10 @@ func (t *Template) analyze(item []byte, st *state) (tok int, w []string) {
+ 		return
+ 	}
+ 	if !equal(item, len(item)-len(t.rdelim), t.rdelim) {	// doesn't end with right delimiter
+-		st.error(ErrUnmatchedLDelim)  // should not happen anyway
++		st.parseError(*t.linenum, "unmatched opening delimiter")  // should not happen anyway
+ 	}
+ 	if len(item) <= len(t.ldelim)+len(t.rdelim) {	// no contents
+-		st.error(ErrEmptyDirective)
++		st.parseError(*t.linenum, "empty directive")
+ 	}
+ 	// Comment
+ 	if item[len(t.ldelim)] == '#' {
+@@ -294,10 +283,7 @@ func (t *Template) analyze(item []byte, st *state) (tok int, w []string) {
+ 	// Split into words
+ 	w = words(item[len(t.ldelim): len(item)-len(t.rdelim)]);  // drop final delimiter
+ 	if len(w) == 0 {
+-		st.error(ErrBadDirective)
+-	}
+-	if len(w[0]) == 0 {
+-		st.error(ErrEmptyDirective)
++		st.parseError(*t.linenum, "empty directive")
+ 	}
+ 	if len(w) == 1 && w[0][0] != '.' {
+ 		tok = Variable;
+@@ -315,24 +301,24 @@ func (t *Template) analyze(item []byte, st *state) (tok int, w []string) {
+ 		return;
+ 	case ".section":
+ 		if len(w) != 2 {
+-			st.error(ErrFields, ": ", string(item))
++			st.parseError(*t.linenum, "incorrect fields for .section: %s", item)
+ 		}
+ 		tok = Section;
+ 		return;
+ 	case ".repeated":
+ 		if len(w) != 3 || w[1] != "section" {
+-			st.error(ErrFields, ": ", string(item))
++			st.parseError(*t.linenum, "incorrect fields for .repeated: %s", item)
+ 		}
+ 		tok = Repeated;
+ 		return;
+ 	case ".alternates":
+ 		if len(w) != 2 || w[1] != "with" {
+-			st.error(ErrFields, ": ", string(item))
++			st.parseError(*t.linenum, "incorrect fields for .alternates: %s", item)
+ 		}
+ 		tok = Alternates;
+ 		return;
+ 	}
+-	st.error(ErrBadDirective, ": ", string(item));
++	st.parseError(*t.linenum, "bad directive: %s", item);
+ 	return
+ }
+ 
+@@ -375,18 +361,19 @@ func empty(v reflect.Value, indirect_ok bool) bool {
+ // Execute a ".repeated" section
+ func (t *Template) executeRepeated(w []string, st *state) {
+ 	if w[1] != "section" {
+-		st.error(ErrSyntax, `: .repeated must have "section"`)
++		st.parseError(*t.linenum, `.repeated must have "section"`)
+ 	}
+ 
+ 	// Find driver array/struct for this section.  It must be in the current struct.
+ 	field := st.findVar(w[2]);
+ 	if field == nil {
+-		st.error(ErrNoVar, ": .repeated ", w[2], " in ", reflect.Indirect(st.data).Type());
++		st.parseError(*t.linenum, ".repeated: cannot find %s in %s", w[2], reflect.Indirect(st.data).Type());
+ 	}
++	field = reflect.Indirect(field);
+ 
+ 	// Must be an array/slice
+ 	if field != nil && field.Kind() != reflect.ArrayKind {
+-		st.error(ErrBadType, " in .repeated: ", w[2], " ", field.Type().String());
++		st.parseError(*t.linenum, ".repeated: %s has bad type %s", w[2], field.Type());
+ 	}
+ 	// Scan repeated section, remembering slice of text we must execute.
+ 	nesting := 0;
+@@ -396,7 +383,7 @@ Loop:
+ 	for {
+ 		item := t.nextItem(st);
+ 		if len(item) ==  0 {
+-			st.error(ErrNoEnd)
++			st.parseError(*t.linenum, "missing .end")
+ 		}
+ 		tok, s := t.analyze(item, st);
+ 		switch tok {
+@@ -430,7 +417,7 @@ func (t *Template) executeSection(w []string, st *state) {
+ 	// Find driver data for this section.  It must be in the current struct.
+ 	field := st.findVar(w[1]);
+ 	if field == nil {
+-		st.error(ErrNoVar, ": .section ", w[1], " in ", reflect.Indirect(st.data).Type());
++		st.parseError(*t.linenum, ".section: cannot find %s in %s", w[1], reflect.Indirect(st.data).Type());
+ 	}
+ 	// Scan section, remembering slice of text we must execute.
+ 	orFound := false;
+@@ -442,7 +429,7 @@ Loop:
+ 	for {
+ 		item := t.nextItem(st);
+ 		if len(item) ==  0 {
+-			st.error(ErrNoEnd)
++			st.parseError(*t.linenum, "missing .end")
+ 		}
+ 		tok, s := t.analyze(item, st);
+ 		switch tok {
+@@ -458,7 +445,7 @@ Loop:
+ 				break
+ 			}
+ 			if orFound {
+-				st.error(ErrSyntax, ": .or");
++				st.parseError(*t.linenum, "unexpected .or");
+ 			}
+ 			orFound = true;
+ 			if !accumulate {
+@@ -491,7 +478,7 @@ func (t *Template) varValue(name string, st *state) reflect.Value {
+ 	field := st.findVar(name);
+ 	if field == nil {
+ 		if st.parent == nil {
+-			st.error(ErrNoVar, ": ", name)
++			st.parseError(*t.linenum, "name not found: %s", name)
+ 		}
+ 		return t.varValue(name, st.parent);
+ 	}
+@@ -521,7 +508,7 @@ func (t *Template) writeVariable(st *state, name_formatter string) {
+ 		fn(st.wr, val, formatter);
+ 		return;
+ 	}
+-	st.error(ErrNoFormatter, ": ", formatter);
++	st.parseError(*t.linenum, "unknown formatter: %s", formatter);
+ 	panic("notreached");
+ }
+ 
+@@ -553,7 +540,7 @@ func (t *Template) execute(st *state) {
+ 		case Variable:
+ 			t.writeVariable(st, w[0]);
+ 		case Or, End, Alternates:
+-			st.error(ErrSyntax, ": ", string(item));
++			st.parseError(*t.linenum, "unexpected %s", w[0]);
+ 		case Section:
+ 			t.executeSection(w, st);
+ 		case Repeated:
+@@ -568,7 +555,7 @@ func (t *Template) doParse() {
+ 	// stub for now
+ }
+ 
+-// A valid delimeter must contain no white space and be non-empty.
++// A valid delimiter must contain no white space and be non-empty.
+ func validDelim(d []byte) bool {
+ 	if len(d) == 0 {
+ 		return false
+@@ -581,32 +568,29 @@ func validDelim(d []byte) bool {
+ 	return true;
+ }
+ 
+-// Parse initializes a Template by parsing its definition.  The string s contains
+-// the template text.  If any errors occur, it returns the error and line number
+-// in the text of the erroneous construct.
+-func (t *Template) Parse(s string) (err *os.Error, eline int) {
++// Parse initializes a Template by parsing its definition.  The string
++// s contains the template text.  If any errors occur, Parse returns
++// the error.
++func (t *Template) Parse(s string) (err os.Error) {
+ 	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
+-		return ErrBadDelims, 0
++		return ParseError{fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)}
+ 	}
+ 	t.init(io.StringBytes(s));
+-	ch := make(chan *os.Error);
++	ch := make(chan os.Error);
+ 	go func() {
+ 		t.doParse();
+ 		ch <- nil;	// clean return;
+ 	}();
+ 	err = <-ch;
+-	if err != nil {
+-		return err, *t.linenum
+-	}
+ 	return
+ }
+ 
+ // Execute executes a parsed template on the specified data object,
+ // generating output to wr.
+-func (t *Template) Execute(data interface{}, wr io.Write) *os.Error {
++func (t *Template) Execute(data interface{}, wr io.Write) os.Error {
+ 	// Extract the driver data.
+ 	val := reflect.NewValue(data);
+-	ch := make(chan *os.Error);
++	ch := make(chan os.Error);
+ 	go func() {
+ 		t.p = 0;
+ 		t.execute(&state{nil, ch, val, wr});
+@@ -625,23 +609,23 @@ func New(fmap FormatterMap) *Template {
+ 	return t;
+ }
+ 
+-// SetDelims sets the left and right delimiters for operations in the template.
+-// They are validated during parsing.  They could be validated here but it's
+-// better to keep the routine simple.  The delimiters are very rarely invalid
+-// and Parse has the necessary error-handling interface already.
++// SetDelims sets the left and right delimiters for operations in the
++// template.  They are validated during parsing.  They could be
++// validated here but it's better to keep the routine simple.  The
++// delimiters are very rarely invalid and Parse has the necessary
++// error-handling interface already.
+ func (t *Template) SetDelims(left, right string) {
+ 	t.ldelim = io.StringBytes(left);
+ 	t.rdelim = io.StringBytes(right);
+ }
+ 
+ // Parse creates a Template with default parameters (such as {} for
+-// metacharacters).  The string s contains the template text while the
+-// formatter map fmap, which may be nil, defines auxiliary functions
++// metacharacters).  The string s contains the template text while
++// the formatter map fmap, which may be nil, defines auxiliary functions
+ // for formatting variables.  The template is returned. If any errors
+-// occur, err will be non-nil and eline will be  the line number in the
+-// text of the erroneous construct.
+-func Parse(s string, fmap FormatterMap) (t *Template, err *os.Error, eline int) {
++// occur, err will be non-nil.
++func Parse(s string, fmap FormatterMap) (t *Template, err os.Error) {
+ 	t = New(fmap);
+-	err, eline = t.Parse(s);
++	err = t.Parse(s);
+ 	return
+ }
+diff --git a/src/lib/template/template_test.go b/src/lib/template/template_test.go
+index aab0c9cc6e..cec7f0941d 100644
+--- a/src/lib/template/template_test.go
++++ b/src/lib/template/template_test.go
+@@ -194,9 +194,9 @@ func TestAll(t *testing.T) {
+ 	var buf io.ByteBuffer;
+ 	for i, test := range tests {
+ 		buf.Reset();
+-		tmpl, err, line := Parse(test.in, formatters);
++		tmpl, err := Parse(test.in, formatters);
+ 		if err != nil {
+-			t.Error("unexpected parse error:", err, "line", line);
++			t.Error("unexpected parse error:", err);
+ 			continue;
+ 		}
+ 		err = tmpl.Execute(s, &buf);
+@@ -210,7 +210,7 @@ func TestAll(t *testing.T) {
+ }
+ 
+ func TestStringDriverType(t *testing.T) {
+-	tmpl, err, line := Parse("template: {@}", nil);
++	tmpl, err := Parse("template: {@}", nil);
+ 	if err != nil {
+ 		t.Error("unexpected parse error:", err)
+ 	}
+@@ -226,7 +226,7 @@ func TestStringDriverType(t *testing.T) {
+ }
+ 
+ func TestTwice(t *testing.T) {
+-	tmpl, err, line := Parse("template: {@}", nil);
++	tmpl, err := Parse("template: {@}", nil);
+ 	if err != nil {
+ 		t.Error("unexpected parse error:", err)
+ 	}
+@@ -265,7 +265,7 @@ func TestCustomDelims(t *testing.T) {
+ 				ldelim + "@" + rdelim +
+ 				ldelim + ".meta-left" + rdelim +
+ 				ldelim + ".meta-right" + rdelim;
+-			err, line := tmpl.Parse(text);
++			err := tmpl.Parse(text);
+ 			if err != nil {
+ 				if i == 0 || j == 0 {	// expected
+ 					continue
+diff --git a/src/lib/time/sleep.go b/src/lib/time/sleep.go
+index 8451c6d801..f1f0d11ae1 100644
+--- a/src/lib/time/sleep.go
++++ b/src/lib/time/sleep.go
+@@ -12,7 +12,7 @@ import (
+ 
+ // Sleep pauses the current goroutine for ns nanoseconds.
+ // It returns os.EINTR if interrupted.
+-func Sleep(ns int64) *os.Error {
++func Sleep(ns int64) os.Error {
+ 	var tv syscall.Timeval;
+ 	syscall.Nstotimeval(ns, &tv);
+ 	r1, r2, err := syscall.Syscall6(syscall.SYS_SELECT, 0, 0, 0, 0,
+diff --git a/src/lib/time/zoneinfo.go b/src/lib/time/zoneinfo.go
+index 8790f0ecd1..0eda397c69 100644
+--- a/src/lib/time/zoneinfo.go
++++ b/src/lib/time/zoneinfo.go
+@@ -88,7 +88,7 @@ type zonetime struct {
+ 	isstd, isutc bool;	// ignored - no idea what these mean
+ }
+ 
+-func parseinfo(bytes []byte) (zt []zonetime, err *os.Error) {
++func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
+ 	d := data{bytes, false};
+ 
+ 	// 4-byte magic "TZif"
+@@ -203,7 +203,7 @@ func parseinfo(bytes []byte) (zt []zonetime, err *os.Error) {
+ 	return zt, nil
+ }
+ 
+-func readfile(name string, max int) (p []byte, err *os.Error) {
++func readfile(name string, max int) (p []byte, err os.Error) {
+ 	f, e := os.Open(name, os.O_RDONLY, 0);
+ 	if e != nil {
+ 		return nil, e;
+@@ -220,7 +220,7 @@ func readfile(name string, max int) (p []byte, err *os.Error) {
+ 	return p[0:n], nil;
+ }
+ 
+-func readinfofile(name string) (tx []zonetime, err *os.Error) {
++func readinfofile(name string) (tx []zonetime, err os.Error) {
+ 	buf, e := readfile(name, maxFileSize);
+ 	if e != nil {
+ 		return nil, e
+@@ -230,7 +230,7 @@ func readinfofile(name string) (tx []zonetime, err *os.Error) {
+ }
+ 
+ var zones []zonetime
+-var zoneerr *os.Error
++var zoneerr os.Error
+ 
+ func setupZone() {
+ 	// consult $TZ to find the time zone to use.
+@@ -252,7 +252,7 @@ func setupZone() {
+ 	}
+ }
+ 
+-func lookupTimezone(sec int64) (zone string, offset int, err *os.Error) {
++func lookupTimezone(sec int64) (zone string, offset int, err os.Error) {
+ 	once.Do(setupZone);
+ 	if zoneerr != nil || len(zones) == 0 {
+ 		return "UTC", 0, zoneerr
+diff --git a/src/lib/xml.go b/src/lib/xml.go
+index 3b4277878b..bd944337e9 100644
+--- a/src/lib/xml.go
++++ b/src/lib/xml.go
+@@ -175,26 +175,26 @@ type Builder interface {
+ 	//	<name attr.name=attr.value attr1.name=attr1.value ... />
+ 	// xmlns and xmlns:foo attributes are handled internally
+ 	// and not passed through to StartElement.
+-	StartElement(name Name, attr []Attr) *os.Error;
++	StartElement(name Name, attr []Attr) os.Error;
+ 
+ 	// Called when an element ends.
+ 	//	</name>
+ 	//	<name ... />
+-	EndElement(name Name) *os.Error;
++	EndElement(name Name) os.Error;
+ 
+ 	// Called for non-empty character data string inside element.
+ 	// Can be called multiple times between elements.
+ 	//	text
+ 	//	<![CDATA[text]]>
+-	Text(text []byte) *os.Error;
++	Text(text []byte) os.Error;
+ 
+ 	// Called when a comment is found in the XML.
+ 	//	<!-- text -->
+-	Comment(text []byte) *os.Error;
++	Comment(text []byte) os.Error;
+ 
+ 	// Called for a processing instruction
+ 	// <?target text?>
+-	ProcInst(target string, text []byte) *os.Error;
++	ProcInst(target string, text []byte) os.Error;
+ }
+ 
+ // Default builder.  Implements no-op Builder methods.
+@@ -203,28 +203,28 @@ type Builder interface {
+ type BaseBuilder struct {
+ }
+ 
+-func (b *BaseBuilder) StartElement(name Name, attr []Attr) *os.Error {
++func (b *BaseBuilder) StartElement(name Name, attr []Attr) os.Error {
+ 	return nil;
+ }
+ 
+-func (b *BaseBuilder) EndElement(name Name) *os.Error {
++func (b *BaseBuilder) EndElement(name Name) os.Error {
+ 	return nil;
+ }
+ 
+-func (b *BaseBuilder) Text(text []byte) *os.Error {
++func (b *BaseBuilder) Text(text []byte) os.Error {
+ 	return nil;
+ }
+ 
+-func (b *BaseBuilder) Comment(text []byte) *os.Error {
++func (b *BaseBuilder) Comment(text []byte) os.Error {
+ 	return nil;
+ }
+ 
+-func (b *BaseBuilder) ProcInst(target string, text []byte) *os.Error {
++func (b *BaseBuilder) ProcInst(target string, text []byte) os.Error {
+ 	return nil;
+ }
+ 
+ // XML Parser.  Calls Builder methods as it parses.
+-func Parse(r io.Read, b Builder) *os.Error {
++func Parse(r io.Read, b Builder) os.Error {
+ 	return os.NewError("unimplemented");
+ }
+ 
+@@ -252,12 +252,12 @@ type Token struct {
+ 	Attr []Attr;		// attributes (TokenStartElement)
+ 	Target string;		// target (TokenProcessingInstruction)
+ 	Text []byte;		// text (TokenCharData, TokenComment, etc.)
+-	Err *os.Error;		// error (TokenEnd)
++	Err os.Error;		// error (TokenEnd)
+ }
+ 
+ type ChanBuilder chan Token;
+ 
+-func (c ChanBuilder) StartElement(name Name, attr []Attr) *os.Error {
++func (c ChanBuilder) StartElement(name Name, attr []Attr) os.Error {
+ 	var t Token;
+ 	t.Kind = TokenStartElement;
+ 	t.Name = name;
+@@ -266,7 +266,7 @@ func (c ChanBuilder) StartElement(name Name, attr []Attr) *os.Error {
+ 	return nil;
+ }
+ 
+-func (c ChanBuilder) EndElement(name Name) *os.Error {
++func (c ChanBuilder) EndElement(name Name) os.Error {
+ 	var t Token;
+ 	t.Kind = TokenEndElement;
+ 	t.Name = name;
+@@ -274,7 +274,7 @@ func (c ChanBuilder) EndElement(name Name) *os.Error {
+ 	return nil;
+ }
+ 
+-func (c ChanBuilder) Text(text []byte) *os.Error {
++func (c ChanBuilder) Text(text []byte) os.Error {
+ 	var t Token;
+ 	t.Kind = TokenText;
+ 	t.Text = text;
+@@ -282,7 +282,7 @@ func (c ChanBuilder) Text(text []byte) *os.Error {
+ 	return nil;
+ }
+ 
+-func (c ChanBuilder) Comment(text []byte) *os.Error {
++func (c ChanBuilder) Comment(text []byte) os.Error {
+ 	var t Token;
+ 	t.Kind = TokenComment;
+ 	t.Text = text;
+@@ -290,7 +290,7 @@ func (c ChanBuilder) Comment(text []byte) *os.Error {
+ 	return nil;
+ }
+ 
+-func (c ChanBuilder) ProcInst(target string, text []byte) *os.Error {
++func (c ChanBuilder) ProcInst(target string, text []byte) os.Error {
+ 	var t Token;
+ 	t.Kind = TokenProcInst;
+ 	t.Target = target;
+diff --git a/test/chan/goroutines.go b/test/chan/goroutines.go
+index 8c7f9ad696..c1b7143566 100644
+--- a/test/chan/goroutines.go
++++ b/test/chan/goroutines.go
+@@ -21,7 +21,7 @@ func f(left, right chan int) {
+ func main() {
+ 	var n = 10000;
+ 	if len(sys.Args) > 1 {
+-		var err *os.Error;
++		var err os.Error;
+ 		n, err = strconv.Atoi(sys.Args[1]);
+ 		if err != nil {
+ 			print("bad arg\n");
+diff --git a/usr/gri/pretty/astprinter.go b/usr/gri/pretty/astprinter.go
+index 4f32c23048..70662e5f76 100644
+--- a/usr/gri/pretty/astprinter.go
++++ b/usr/gri/pretty/astprinter.go
+@@ -450,7 +450,7 @@ func (P *Printer) Error(pos token.Position, tok token.Token, msg string) {
+ 
+ // An astPrinter implements io.Write.
+ // TODO this is not yet used.
+-func (P *Printer) Write(p []byte) (n int, err *os.Error) {
++func (P *Printer) Write(p []byte) (n int, err os.Error) {
+ 	// TODO
+ 	// - no string conversion every time
+ 	// - return proper results
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index 2eb56a3d65..300081ec64 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -85,7 +85,7 @@ const (
+ )
+ 
+ func init() {
+-	var err *os.Error;
++	var err os.Error;
+ 	goroot, err = os.Getenv("GOROOT");
+ 	if err != nil {
+ 		goroot = "/home/r/go-build/go";
+@@ -118,7 +118,7 @@ func makeTabwriter(writer io.Write) *tabwriter.Writer {
+ 
+ 
+ // TODO(rsc): this belongs in a library somewhere, maybe os
+-func ReadFile(name string) ([]byte, *os.Error) {
++func ReadFile(name string) ([]byte, os.Error) {
+ 	f, err := os.Open(name, os.O_RDONLY, 0);
+ 	if err != nil {
+ 		return nil, err;
+@@ -321,9 +321,9 @@ func ReadTemplate(name string) *template.Template {
+ 	if err != nil {
+ 		log.Exitf("ReadFile %s: %v", name, err);
+ 	}
+-	t, err1, line := template.Parse(string(data), fmap);
++	t, err1 := template.Parse(string(data), fmap);
+ 	if err1 != nil {
+-		log.Exitf("%s:%d: %v", name, line, err);
++		log.Exitf("%s: %v", name, err);
+ 	}
+ 	return t;
+ }
+diff --git a/usr/gri/pretty/platform.go b/usr/gri/pretty/platform.go
+index 90b9d5ebb9..25f7a7bba8 100644
+--- a/usr/gri/pretty/platform.go
++++ b/usr/gri/pretty/platform.go
+@@ -19,7 +19,7 @@ var
+ 	USER string;
+ 
+ func init() {
+-	var e *OS.Error;
++	var e OS.Error;
+ 
+ 	GOARCH, e = OS.Getenv("GOARCH");
+ 	GOOS, e = OS.Getenv("GOOS");
+@@ -37,7 +37,7 @@ const (
+ 	Obj_file_ext = ".7";
+ )
+ 
+-func readfile(filename string) ([]byte, *OS.Error) {
++func readfile(filename string) ([]byte, OS.Error) {
+ 	f, err := OS.Open(filename, OS.O_RDONLY, 0);
+ 	if err != nil {
+ 		return []byte{}, err;
+@@ -51,7 +51,7 @@ func readfile(filename string) ([]byte, *OS.Error) {
+ 	return buf[0:n], err1;
+ }
+ 
+-func writefile(name, data string) *OS.Error {
++func writefile(name, data string) OS.Error {
+ 	fd, err := OS.Open(name, OS.O_WRONLY, 0);
+ 	if err != nil {
+ 		return err;

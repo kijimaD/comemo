@@ -11,7 +11,7 @@ Date:   Mon Nov 4 14:50:35 2019 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  .../golang.org/x/tools/go/analysis/analysis.go     |  18 ++-
@@ -35,3 +35,799 @@ Date:   Mon Nov 4 14:50:35 2019 -0800
  .../go/analysis/passes/unsafeptr/unsafeptr.go      |   2 +-
  src/cmd/vendor/modules.txt                         |   2 +-
  22 files changed, 162 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 6b2c45a9bb..4de382e0be 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,5 +9,5 @@ require (
+ 	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+ 	golang.org/x/mod v0.1.1-0.20191029194233-18c3998b6452
+ 	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
+-	golang.org/x/tools v0.0.0-20191018203202-04252eccb9d5
++	golang.org/x/tools v0.0.0-20191104222624-6b7b8b79ae80
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 7fd4eaddad..85b5317b7f 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -18,8 +18,8 @@ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 h1:vsphBvatvfbhlb4PO1BYSr9dz
+ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+-golang.org/x/tools v0.0.0-20191018203202-04252eccb9d5 h1:TFUhCYbgGMOGnRxJv+j0iAcxCjk8oGjXXWNejQBhUUs=
+-golang.org/x/tools v0.0.0-20191018203202-04252eccb9d5/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
++golang.org/x/tools v0.0.0-20191104222624-6b7b8b79ae80 h1:6CcDC1SXj4DrJP955osT9RJmKsH3LQBZJ59D5v4Rw0s=
++golang.org/x/tools v0.0.0-20191104222624-6b7b8b79ae80/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898 h1:/atklqdjdhuosWIl6AIbOeHJjicWYPqR9bpxqxYG2pA=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+index bc58c31c9f..ea605f4fd4 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+@@ -163,13 +163,19 @@ func (pass *Pass) Reportf(pos token.Pos, format string, args ...interface{}) {
+ 	pass.Report(Diagnostic{Pos: pos, Message: msg})
+ }
+ 
+-// reportNodef is a helper function that reports a Diagnostic using the
+-// range denoted by the AST node.
+-//
+-// WARNING: This is an experimental API and may change in the future.
+-func (pass *Pass) reportNodef(node ast.Node, format string, args ...interface{}) {
++// The Range interface provides a range. It's equivalent to and satisfied by
++// ast.Node.
++type Range interface {
++	Pos() token.Pos // position of first character belonging to the node
++	End() token.Pos // position of first character immediately after the node
++}
++
++// ReportRangef is a helper function that reports a Diagnostic using the
++// range provided. ast.Node values can be passed in as the range because
++// they satisfy the Range interface.
++func (pass *Pass) ReportRangef(rng Range, format string, args ...interface{}) {
+ 	msg := fmt.Sprintf(format, args...)
+-	pass.Report(Diagnostic{Pos: node.Pos(), End: node.End(), Message: msg})
++	pass.Report(Diagnostic{Pos: rng.Pos(), End: rng.End(), Message: msg})
+ }
+ 
+ func (pass *Pass) String() string {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
+index 744072cd79..57eaf6faa2 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
+@@ -22,6 +22,19 @@ type Diagnostic struct {
+ 	// Diagnostics should not contain SuggestedFixes that overlap.
+ 	// Experimental: This API is experimental and may change in the future.
+ 	SuggestedFixes []SuggestedFix // optional
++
++	// Experimental: This API is experimental and may change in the future.
++	Related []RelatedInformation // optional
++}
++
++// RelatedInformation contains information related to a diagnostic.
++// For example, a diagnostic that flags duplicated declarations of a
++// variable may include one RelatedInformation per existing
++// declaration.
++type RelatedInformation struct {
++	Pos     token.Pos
++	End     token.Pos
++	Message string
+ }
+ 
+ // A SuggestedFix is a code change associated with a Diagnostic that a user can choose
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/facts.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/facts.go
+index 07984521c3..fe8e8f3884 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/facts.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/facts.go
+@@ -101,11 +101,13 @@ func (s *Set) ExportObjectFact(obj types.Object, fact analysis.Fact) {
+ 
+ func (s *Set) AllObjectFacts(filter map[reflect.Type]bool) []analysis.ObjectFact {
+ 	var facts []analysis.ObjectFact
++	s.mu.Lock()
+ 	for k, v := range s.m {
+ 		if k.obj != nil && filter[k.t] {
+ 			facts = append(facts, analysis.ObjectFact{Object: k.obj, Fact: v})
+ 		}
+ 	}
++	s.mu.Unlock()
+ 	return facts
+ }
+ 
+@@ -134,11 +136,13 @@ func (s *Set) ExportPackageFact(fact analysis.Fact) {
+ 
+ func (s *Set) AllPackageFacts(filter map[reflect.Type]bool) []analysis.PackageFact {
+ 	var facts []analysis.PackageFact
++	s.mu.Lock()
+ 	for k, v := range s.m {
+ 		if k.obj == nil && filter[k.t] {
+ 			facts = append(facts, analysis.PackageFact{Package: k.pkg, Fact: v})
+ 		}
+ 	}
++	s.mu.Unlock()
+ 	return facts
+ }
+ 
+@@ -227,7 +231,6 @@ func Decode(pkg *types.Package, read func(packagePath string) ([]byte, error)) (
+ // It may fail if one of the Facts could not be gob-encoded, but this is
+ // a sign of a bug in an Analyzer.
+ func (s *Set) Encode() []byte {
+-
+ 	// TODO(adonovan): opt: use a more efficient encoding
+ 	// that avoids repeating PkgPath for each fact.
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+index 6e7a76e8c8..c2e89ee2dc 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+@@ -661,6 +661,10 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
+ 				src = 4
+ 				break
+ 			}
++			if op == "MOVO" || op == "MOVOU" {
++				src = 16
++				break
++			}
+ 			if strings.HasPrefix(op, "SET") {
+ 				// SETEQ, etc
+ 				src = 1
+@@ -736,6 +740,11 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
+ 		vk = v.inner[0].kind
+ 		vs = v.inner[0].size
+ 		vt = v.inner[0].typ
++	case asmComplex:
++		// Allow a single instruction to load both parts of a complex.
++		if int(kind) == vs {
++			kind = asmComplex
++		}
+ 	}
+ 	if addr {
+ 		vk = asmKind(archDef.ptrSize)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/atomic/atomic.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/atomic/atomic.go
+index 45243d6f8c..9261db7e4e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/atomic/atomic.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/atomic/atomic.go
+@@ -91,6 +91,6 @@ func checkAtomicAddAssignment(pass *analysis.Pass, left ast.Expr, call *ast.Call
+ 	}
+ 
+ 	if broken {
+-		pass.Reportf(left.Pos(), "direct assignment to atomic value")
++		pass.ReportRangef(left, "direct assignment to atomic value")
+ 	}
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
+index c82d3675b9..fbc1f7ea91 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
+@@ -100,7 +100,7 @@ func (op boolOp) checkRedundant(pass *analysis.Pass, exprs []ast.Expr) {
+ 	for _, e := range exprs {
+ 		efmt := analysisutil.Format(pass.Fset, e)
+ 		if seen[efmt] {
+-			pass.Reportf(e.Pos(), "redundant %s: %s %s %s", op.name, efmt, op.tok, efmt)
++			pass.ReportRangef(e, "redundant %s: %s %s %s", op.name, efmt, op.tok, efmt)
+ 		} else {
+ 			seen[efmt] = true
+ 		}
+@@ -147,7 +147,7 @@ func (op boolOp) checkSuspect(pass *analysis.Pass, exprs []ast.Expr) {
+ 		if prev, found := seen[xfmt]; found {
+ 			// checkRedundant handles the case in which efmt == prev.
+ 			if efmt != prev {
+-				pass.Reportf(e.Pos(), "suspect %s: %s %s %s", op.name, efmt, op.tok, prev)
++				pass.ReportRangef(e, "suspect %s: %s %s %s", op.name, efmt, op.tok, prev)
+ 			}
+ 		} else {
+ 			seen[xfmt] = efmt
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+index 2abe7c6d51..4c3ac6647f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+@@ -97,7 +97,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			return
+ 		}
+ 
+-		pass.Reportf(cl.Pos(), "%s composite literal uses unkeyed fields", typeName)
++		pass.ReportRangef(cl, "%s composite literal uses unkeyed fields", typeName)
+ 	})
+ 	return nil, nil
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+index 067aed57df..c4ebf78571 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+@@ -74,7 +74,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ func checkCopyLocksAssign(pass *analysis.Pass, as *ast.AssignStmt) {
+ 	for i, x := range as.Rhs {
+ 		if path := lockPathRhs(pass, x); path != nil {
+-			pass.Reportf(x.Pos(), "assignment copies lock value to %v: %v", analysisutil.Format(pass.Fset, as.Lhs[i]), path)
++			pass.ReportRangef(x, "assignment copies lock value to %v: %v", analysisutil.Format(pass.Fset, as.Lhs[i]), path)
+ 		}
+ 	}
+ }
+@@ -89,7 +89,7 @@ func checkCopyLocksGenDecl(pass *analysis.Pass, gd *ast.GenDecl) {
+ 		valueSpec := spec.(*ast.ValueSpec)
+ 		for i, x := range valueSpec.Values {
+ 			if path := lockPathRhs(pass, x); path != nil {
+-				pass.Reportf(x.Pos(), "variable declaration copies lock value to %v: %v", valueSpec.Names[i].Name, path)
++				pass.ReportRangef(x, "variable declaration copies lock value to %v: %v", valueSpec.Names[i].Name, path)
+ 			}
+ 		}
+ 	}
+@@ -102,7 +102,7 @@ func checkCopyLocksCompositeLit(pass *analysis.Pass, cl *ast.CompositeLit) {
+ 			x = node.Value
+ 		}
+ 		if path := lockPathRhs(pass, x); path != nil {
+-			pass.Reportf(x.Pos(), "literal copies lock value from %v: %v", analysisutil.Format(pass.Fset, x), path)
++			pass.ReportRangef(x, "literal copies lock value from %v: %v", analysisutil.Format(pass.Fset, x), path)
+ 		}
+ 	}
+ }
+@@ -111,7 +111,7 @@ func checkCopyLocksCompositeLit(pass *analysis.Pass, cl *ast.CompositeLit) {
+ func checkCopyLocksReturnStmt(pass *analysis.Pass, rs *ast.ReturnStmt) {
+ 	for _, x := range rs.Results {
+ 		if path := lockPathRhs(pass, x); path != nil {
+-			pass.Reportf(x.Pos(), "return copies lock value: %v", path)
++			pass.ReportRangef(x, "return copies lock value: %v", path)
+ 		}
+ 	}
+ }
+@@ -133,7 +133,7 @@ func checkCopyLocksCallExpr(pass *analysis.Pass, ce *ast.CallExpr) {
+ 	}
+ 	for _, x := range ce.Args {
+ 		if path := lockPathRhs(pass, x); path != nil {
+-			pass.Reportf(x.Pos(), "call of %s copies lock value: %v", analysisutil.Format(pass.Fset, ce.Fun), path)
++			pass.ReportRangef(x, "call of %s copies lock value: %v", analysisutil.Format(pass.Fset, ce.Fun), path)
+ 		}
+ 	}
+ }
+@@ -146,7 +146,7 @@ func checkCopyLocksFunc(pass *analysis.Pass, name string, recv *ast.FieldList, t
+ 	if recv != nil && len(recv.List) > 0 {
+ 		expr := recv.List[0].Type
+ 		if path := lockPath(pass.Pkg, pass.TypesInfo.Types[expr].Type); path != nil {
+-			pass.Reportf(expr.Pos(), "%s passes lock by value: %v", name, path)
++			pass.ReportRangef(expr, "%s passes lock by value: %v", name, path)
+ 		}
+ 	}
+ 
+@@ -154,7 +154,7 @@ func checkCopyLocksFunc(pass *analysis.Pass, name string, recv *ast.FieldList, t
+ 		for _, field := range typ.Params.List {
+ 			expr := field.Type
+ 			if path := lockPath(pass.Pkg, pass.TypesInfo.Types[expr].Type); path != nil {
+-				pass.Reportf(expr.Pos(), "%s passes lock by value: %v", name, path)
++				pass.ReportRangef(expr, "%s passes lock by value: %v", name, path)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+index 01abc70017..cd37407144 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+@@ -51,7 +51,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			return // not enough arguments, e.g. called with return values of another function
+ 		}
+ 		if fn.FullName() == "errors.As" && !pointerToInterfaceOrError(pass, call.Args[1]) {
+-			pass.Reportf(call.Pos(), "second argument to errors.As must be a pointer to an interface or a type implementing error")
++			pass.ReportRangef(call, "second argument to errors.As must be a pointer to an interface or a type implementing error")
+ 		}
+ 	})
+ 	return nil, nil
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go
+index 0cf21b8cd1..ec335d3506 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go
+@@ -85,7 +85,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		}
+ 
+ 		if resp.Obj == root.Obj {
+-			pass.Reportf(root.Pos(), "using %s before checking for errors", resp.Name)
++			pass.ReportRangef(root, "using %s before checking for errors", resp.Name)
+ 		}
+ 		return true
+ 	})
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go
+index 8213f63313..2856df137c 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go
+@@ -16,7 +16,7 @@
+ //
+ //	var Analyzer = &analysis.Analyzer{
+ //		...
+-//		Requires:       reflect.TypeOf(new(inspect.Analyzer)),
++//		Requires:       []*analysis.Analyzer{inspect.Analyzer},
+ //	}
+ //
+ // 	func run(pass *analysis.Pass) (interface{}, error) {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+index da0714069f..a14e7eb55d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+@@ -119,7 +119,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			}
+ 			for _, v := range vars {
+ 				if v.Obj == id.Obj {
+-					pass.Reportf(id.Pos(), "loop variable %s captured by func literal",
++					pass.ReportRangef(id, "loop variable %s captured by func literal",
+ 						id.Name)
+ 				}
+ 			}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+index e88cf57d8f..85e7ba7a8e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+@@ -121,7 +121,7 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
+ 		}
+ 		if id != nil {
+ 			if id.Name == "_" {
+-				pass.Reportf(id.Pos(),
++				pass.ReportRangef(id,
+ 					"the cancel function returned by context.%s should be called, not discarded, to avoid a context leak",
+ 					n.(*ast.SelectorExpr).Sel.Name)
+ 			} else if v, ok := pass.TypesInfo.Uses[id].(*types.Var); ok {
+@@ -174,8 +174,8 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
+ 	for v, stmt := range cancelvars {
+ 		if ret := lostCancelPath(pass, g, v, stmt, sig); ret != nil {
+ 			lineno := pass.Fset.Position(stmt.Pos()).Line
+-			pass.Reportf(stmt.Pos(), "the %s function is not used on all paths (possible context leak)", v.Name())
+-			pass.Reportf(ret.Pos(), "this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno)
++			pass.ReportRangef(stmt, "the %s function is not used on all paths (possible context leak)", v.Name())
++			pass.ReportRangef(ret, "this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
+index 9c2d4df20a..cd42c9897f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
+@@ -68,7 +68,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			return
+ 		}
+ 
+-		pass.Reportf(e.Pos(), "comparison of function %v %v nil is always %v", obj.Name(), e.Op, e.Op == token.NEQ)
++		pass.ReportRangef(e, "comparison of function %v %v nil is always %v", obj.Name(), e.Op, e.Op == token.NEQ)
+ 	})
+ 	return nil, nil
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index b501538055..38a752c957 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/constant"
+ 	"go/token"
+ 	"go/types"
++	"reflect"
+ 	"regexp"
+ 	"sort"
+ 	"strconv"
+@@ -31,11 +32,12 @@ func init() {
+ }
+ 
+ var Analyzer = &analysis.Analyzer{
+-	Name:      "printf",
+-	Doc:       doc,
+-	Requires:  []*analysis.Analyzer{inspect.Analyzer},
+-	Run:       run,
+-	FactTypes: []analysis.Fact{new(isWrapper)},
++	Name:       "printf",
++	Doc:        doc,
++	Requires:   []*analysis.Analyzer{inspect.Analyzer},
++	Run:        run,
++	ResultType: reflect.TypeOf((*Result)(nil)),
++	FactTypes:  []analysis.Fact{new(isWrapper)},
+ }
+ 
+ const doc = `check consistency of Printf format strings and arguments
+@@ -66,18 +68,64 @@ argument list. Otherwise it is assumed to be Print-like, taking a list
+ of arguments with no format string.
+ `
+ 
++// Kind is a kind of fmt function behavior.
++type Kind int
++
++const (
++	KindNone   Kind = iota // not a fmt wrapper function
++	KindPrint              // function behaves like fmt.Print
++	KindPrintf             // function behaves like fmt.Printf
++	KindErrorf             // function behaves like fmt.Errorf
++)
++
++func (kind Kind) String() string {
++	switch kind {
++	case KindPrint:
++		return "print"
++	case KindPrintf:
++		return "printf"
++	case KindErrorf:
++		return "errorf"
++	}
++	return ""
++}
++
++// Result is the printf analyzer's result type. Clients may query the result
++// to learn whether a function behaves like fmt.Print or fmt.Printf.
++type Result struct {
++	funcs map[*types.Func]Kind
++}
++
++// Kind reports whether fn behaves like fmt.Print or fmt.Printf.
++func (r *Result) Kind(fn *types.Func) Kind {
++	_, ok := isPrint[fn.FullName()]
++	if !ok {
++		// Next look up just "printf", for use with -printf.funcs.
++		_, ok = isPrint[strings.ToLower(fn.Name())]
++	}
++	if ok {
++		if strings.HasSuffix(fn.Name(), "f") {
++			return KindPrintf
++		} else {
++			return KindPrint
++		}
++	}
++
++	return r.funcs[fn]
++}
++
+ // isWrapper is a fact indicating that a function is a print or printf wrapper.
+-type isWrapper struct{ Kind funcKind }
++type isWrapper struct{ Kind Kind }
+ 
+ func (f *isWrapper) AFact() {}
+ 
+ func (f *isWrapper) String() string {
+ 	switch f.Kind {
+-	case kindPrintf:
++	case KindPrintf:
+ 		return "printfWrapper"
+-	case kindPrint:
++	case KindPrint:
+ 		return "printWrapper"
+-	case kindErrorf:
++	case KindErrorf:
+ 		return "errorfWrapper"
+ 	default:
+ 		return "unknownWrapper"
+@@ -85,9 +133,12 @@ func (f *isWrapper) String() string {
+ }
+ 
+ func run(pass *analysis.Pass) (interface{}, error) {
+-	findPrintfLike(pass)
++	res := &Result{
++		funcs: make(map[*types.Func]Kind),
++	}
++	findPrintfLike(pass, res)
+ 	checkCall(pass)
+-	return nil, nil
++	return res, nil
+ }
+ 
+ type printfWrapper struct {
+@@ -154,7 +205,7 @@ func maybePrintfWrapper(info *types.Info, decl ast.Decl) *printfWrapper {
+ }
+ 
+ // findPrintfLike scans the entire package to find printf-like functions.
+-func findPrintfLike(pass *analysis.Pass) (interface{}, error) {
++func findPrintfLike(pass *analysis.Pass, res *Result) (interface{}, error) {
+ 	// Gather potential wrappers and call graph between them.
+ 	byObj := make(map[*types.Func]*printfWrapper)
+ 	var wrappers []*printfWrapper
+@@ -209,7 +260,7 @@ func findPrintfLike(pass *analysis.Pass) (interface{}, error) {
+ 
+ 			fn, kind := printfNameAndKind(pass, call)
+ 			if kind != 0 {
+-				checkPrintfFwd(pass, w, call, kind)
++				checkPrintfFwd(pass, w, call, kind, res)
+ 				return true
+ 			}
+ 
+@@ -232,20 +283,11 @@ func match(info *types.Info, arg ast.Expr, param *types.Var) bool {
+ 	return ok && info.ObjectOf(id) == param
+ }
+ 
+-type funcKind int
+-
+-const (
+-	kindUnknown funcKind = iota
+-	kindPrintf           = iota
+-	kindPrint
+-	kindErrorf
+-)
+-
+ // checkPrintfFwd checks that a printf-forwarding wrapper is forwarding correctly.
+ // It diagnoses writing fmt.Printf(format, args) instead of fmt.Printf(format, args...).
+-func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, kind funcKind) {
+-	matched := kind == kindPrint ||
+-		kind != kindUnknown && len(call.Args) >= 2 && match(pass.TypesInfo, call.Args[len(call.Args)-2], w.format)
++func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, kind Kind, res *Result) {
++	matched := kind == KindPrint ||
++		kind != KindNone && len(call.Args) >= 2 && match(pass.TypesInfo, call.Args[len(call.Args)-2], w.format)
+ 	if !matched {
+ 		return
+ 	}
+@@ -266,10 +308,10 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
+ 			return
+ 		}
+ 		desc := "printf"
+-		if kind == kindPrint {
++		if kind == KindPrint {
+ 			desc = "print"
+ 		}
+-		pass.Reportf(call.Pos(), "missing ... in args forwarded to %s-like function", desc)
++		pass.ReportRangef(call, "missing ... in args forwarded to %s-like function", desc)
+ 		return
+ 	}
+ 	fn := w.obj
+@@ -277,8 +319,9 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
+ 	if !pass.ImportObjectFact(fn, &fact) {
+ 		fact.Kind = kind
+ 		pass.ExportObjectFact(fn, &fact)
++		res.funcs[fn] = kind
+ 		for _, caller := range w.callers {
+-			checkPrintfFwd(pass, caller.w, caller.call, kind)
++			checkPrintfFwd(pass, caller.w, caller.call, kind, res)
+ 		}
+ 	}
+ }
+@@ -427,15 +470,15 @@ func checkCall(pass *analysis.Pass) {
+ 		call := n.(*ast.CallExpr)
+ 		fn, kind := printfNameAndKind(pass, call)
+ 		switch kind {
+-		case kindPrintf, kindErrorf:
++		case KindPrintf, KindErrorf:
+ 			checkPrintf(pass, kind, call, fn)
+-		case kindPrint:
++		case KindPrint:
+ 			checkPrint(pass, call, fn)
+ 		}
+ 	})
+ }
+ 
+-func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func, kind funcKind) {
++func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func, kind Kind) {
+ 	fn, _ = typeutil.Callee(pass.TypesInfo, call).(*types.Func)
+ 	if fn == nil {
+ 		return nil, 0
+@@ -448,11 +491,11 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
+ 	}
+ 	if ok {
+ 		if fn.Name() == "Errorf" {
+-			kind = kindErrorf
++			kind = KindErrorf
+ 		} else if strings.HasSuffix(fn.Name(), "f") {
+-			kind = kindPrintf
++			kind = KindPrintf
+ 		} else {
+-			kind = kindPrint
++			kind = KindPrint
+ 		}
+ 		return fn, kind
+ 	}
+@@ -462,7 +505,7 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
+ 		return fn, fact.Kind
+ 	}
+ 
+-	return fn, kindUnknown
++	return fn, KindNone
+ }
+ 
+ // isFormatter reports whether t satisfies fmt.Formatter.
+@@ -504,7 +547,7 @@ type formatState struct {
+ }
+ 
+ // checkPrintf checks a call to a formatted print routine such as Printf.
+-func checkPrintf(pass *analysis.Pass, kind funcKind, call *ast.CallExpr, fn *types.Func) {
++func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.Func) {
+ 	format, idx := formatString(pass, call)
+ 	if idx < 0 {
+ 		if false {
+@@ -542,7 +585,7 @@ func checkPrintf(pass *analysis.Pass, kind funcKind, call *ast.CallExpr, fn *typ
+ 			anyIndex = true
+ 		}
+ 		if state.verb == 'w' {
+-			if kind != kindErrorf {
++			if kind != KindErrorf {
+ 				pass.Reportf(call.Pos(), "%s call has error-wrapping directive %%w", state.name)
+ 				return
+ 			}
+@@ -574,7 +617,7 @@ func checkPrintf(pass *analysis.Pass, kind funcKind, call *ast.CallExpr, fn *typ
+ 	if maxArgNum != len(call.Args) {
+ 		expect := maxArgNum - firstArg
+ 		numArgs := len(call.Args) - firstArg
+-		pass.Reportf(call.Pos(), "%s call needs %v but has %v", fn.Name(), count(expect, "arg"), count(numArgs, "arg"))
++		pass.ReportRangef(call, "%s call needs %v but has %v", fn.Name(), count(expect, "arg"), count(numArgs, "arg"))
+ 	}
+ }
+ 
+@@ -615,13 +658,13 @@ func (s *formatState) parseIndex() bool {
+ 		ok = false
+ 		s.nbytes = strings.Index(s.format, "]")
+ 		if s.nbytes < 0 {
+-			s.pass.Reportf(s.call.Pos(), "%s format %s is missing closing ]", s.name, s.format)
++			s.pass.ReportRangef(s.call, "%s format %s is missing closing ]", s.name, s.format)
+ 			return false
+ 		}
+ 	}
+ 	arg32, err := strconv.ParseInt(s.format[start:s.nbytes], 10, 32)
+ 	if err != nil || !ok || arg32 <= 0 || arg32 > int64(len(s.call.Args)-s.firstArg) {
+-		s.pass.Reportf(s.call.Pos(), "%s format has invalid argument index [%s]", s.name, s.format[start:s.nbytes])
++		s.pass.ReportRangef(s.call, "%s format has invalid argument index [%s]", s.name, s.format[start:s.nbytes])
+ 		return false
+ 	}
+ 	s.nbytes++ // skip ']'
+@@ -698,7 +741,7 @@ func parsePrintfVerb(pass *analysis.Pass, call *ast.CallExpr, name, format strin
+ 		return nil
+ 	}
+ 	if state.nbytes == len(state.format) {
+-		pass.Reportf(call.Pos(), "%s format %s is missing verb at end of string", name, state.format)
++		pass.ReportRangef(call.Fun, "%s format %s is missing verb at end of string", name, state.format)
+ 		return nil
+ 	}
+ 	verb, w := utf8.DecodeRuneInString(state.format[state.nbytes:])
+@@ -748,7 +791,7 @@ var printVerbs = []printVerb{
+ 	// '#' is alternate format for several verbs.
+ 	// ' ' is spacer for numbers
+ 	{'%', noFlag, 0},
+-	{'b', numFlag, argInt | argFloat | argComplex | argPointer},
++	{'b', sharpNumFlag, argInt | argFloat | argComplex | argPointer},
+ 	{'c', "-", argRune | argInt},
+ 	{'d', numFlag, argInt | argPointer},
+ 	{'e', sharpNumFlag, argFloat | argComplex},
+@@ -794,7 +837,7 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
+ 
+ 	if !formatter {
+ 		if !found {
+-			pass.Reportf(call.Pos(), "%s format %s has unknown verb %c", state.name, state.format, state.verb)
++			pass.ReportRangef(call, "%s format %s has unknown verb %c", state.name, state.format, state.verb)
+ 			return false
+ 		}
+ 		for _, flag := range state.flags {
+@@ -804,7 +847,7 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
+ 				continue
+ 			}
+ 			if !strings.ContainsRune(v.flags, rune(flag)) {
+-				pass.Reportf(call.Pos(), "%s format %s has unrecognized flag %c", state.name, state.format, flag)
++				pass.ReportRangef(call, "%s format %s has unrecognized flag %c", state.name, state.format, flag)
+ 				return false
+ 			}
+ 		}
+@@ -823,7 +866,7 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
+ 		}
+ 		arg := call.Args[argNum]
+ 		if !matchArgType(pass, argInt, nil, arg) {
+-			pass.Reportf(call.Pos(), "%s format %s uses non-int %s as argument of *", state.name, state.format, analysisutil.Format(pass.Fset, arg))
++			pass.ReportRangef(call, "%s format %s uses non-int %s as argument of *", state.name, state.format, analysisutil.Format(pass.Fset, arg))
+ 			return false
+ 		}
+ 	}
+@@ -837,7 +880,7 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
+ 	}
+ 	arg := call.Args[argNum]
+ 	if isFunctionValue(pass, arg) && state.verb != 'p' && state.verb != 'T' {
+-		pass.Reportf(call.Pos(), "%s format %s arg %s is a func value, not called", state.name, state.format, analysisutil.Format(pass.Fset, arg))
++		pass.ReportRangef(call, "%s format %s arg %s is a func value, not called", state.name, state.format, analysisutil.Format(pass.Fset, arg))
+ 		return false
+ 	}
+ 	if !matchArgType(pass, v.typ, nil, arg) {
+@@ -845,11 +888,11 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
+ 		if typ := pass.TypesInfo.Types[arg].Type; typ != nil {
+ 			typeString = typ.String()
+ 		}
+-		pass.Reportf(call.Pos(), "%s format %s has arg %s of wrong type %s", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString)
++		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString)
+ 		return false
+ 	}
+ 	if v.typ&argString != 0 && v.verb != 'T' && !bytes.Contains(state.flags, []byte{'#'}) && recursiveStringer(pass, arg) {
+-		pass.Reportf(call.Pos(), "%s format %s with arg %s causes recursive String method call", state.name, state.format, analysisutil.Format(pass.Fset, arg))
++		pass.ReportRangef(call, "%s format %s with arg %s causes recursive String method call", state.name, state.format, analysisutil.Format(pass.Fset, arg))
+ 		return false
+ 	}
+ 	return true
+@@ -935,7 +978,7 @@ func argCanBeChecked(pass *analysis.Pass, call *ast.CallExpr, formatArg int, sta
+ 	// There are bad indexes in the format or there are fewer arguments than the format needs.
+ 	// This is the argument number relative to the format: Printf("%s", "hi") will give 1 for the "hi".
+ 	arg := argNum - state.firstArg + 1 // People think of arguments as 1-indexed.
+-	pass.Reportf(call.Pos(), "%s format %s reads arg #%d, but call has %v", state.name, state.format, arg, count(len(call.Args)-state.firstArg, "arg"))
++	pass.ReportRangef(call, "%s format %s reads arg #%d, but call has %v", state.name, state.format, arg, count(len(call.Args)-state.firstArg, "arg"))
+ 	return false
+ }
+ 
+@@ -986,7 +1029,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+ 		if sel, ok := call.Args[0].(*ast.SelectorExpr); ok {
+ 			if x, ok := sel.X.(*ast.Ident); ok {
+ 				if x.Name == "os" && strings.HasPrefix(sel.Sel.Name, "Std") {
+-					pass.Reportf(call.Pos(), "%s does not take io.Writer but has first arg %s", fn.Name(), analysisutil.Format(pass.Fset, call.Args[0]))
++					pass.ReportRangef(call, "%s does not take io.Writer but has first arg %s", fn.Name(), analysisutil.Format(pass.Fset, call.Args[0]))
+ 				}
+ 			}
+ 		}
+@@ -1000,7 +1043,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+ 		if strings.Contains(s, "%") {
+ 			m := printFormatRE.FindStringSubmatch(s)
+ 			if m != nil {
+-				pass.Reportf(call.Pos(), "%s call has possible formatting directive %s", fn.Name(), m[0])
++				pass.ReportRangef(call, "%s call has possible formatting directive %s", fn.Name(), m[0])
+ 			}
+ 		}
+ 	}
+@@ -1010,16 +1053,16 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+ 		if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+ 			str, _ := strconv.Unquote(lit.Value)
+ 			if strings.HasSuffix(str, "\n") {
+-				pass.Reportf(call.Pos(), "%s arg list ends with redundant newline", fn.Name())
++				pass.ReportRangef(call, "%s arg list ends with redundant newline", fn.Name())
+ 			}
+ 		}
+ 	}
+ 	for _, arg := range args {
+ 		if isFunctionValue(pass, arg) {
+-			pass.Reportf(call.Pos(), "%s arg %s is a func value, not called", fn.Name(), analysisutil.Format(pass.Fset, arg))
++			pass.ReportRangef(call, "%s arg %s is a func value, not called", fn.Name(), analysisutil.Format(pass.Fset, arg))
+ 		}
+ 		if recursiveStringer(pass, arg) {
+-			pass.Reportf(call.Pos(), "%s arg %s causes recursive call to String method", fn.Name(), analysisutil.Format(pass.Fset, arg))
++			pass.ReportRangef(call, "%s arg %s causes recursive call to String method", fn.Name(), analysisutil.Format(pass.Fset, arg))
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
+index 39f54573c9..0db95dafb0 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
+@@ -94,6 +94,6 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
+ 	size := 8 * pass.TypesSizes.Sizeof(t)
+ 	if amt >= size {
+ 		ident := analysisutil.Format(pass.Fset, x)
+-		pass.Reportf(node.Pos(), "%s (%d bits) too small for shift of %d", ident, size, amt)
++		pass.ReportRangef(node, "%s (%d bits) too small for shift of %d", ident, size, amt)
+ 	}
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+index bc1db7e4c2..856c6ae0d8 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+@@ -141,7 +141,7 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
+ 		actual = strings.TrimPrefix(actual, "func")
+ 		actual = id.Name + actual
+ 
+-		pass.Reportf(id.Pos(), "method %s should have signature %s", actual, expectFmt)
++		pass.ReportRangef(id, "method %s should have signature %s", actual, expectFmt)
+ 	}
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go
+index 19bc9c2db9..089c064838 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go
+@@ -189,7 +189,7 @@ func (d *deadState) findDead(stmt ast.Stmt) {
+ 		case *ast.EmptyStmt:
+ 			// do not warn about unreachable empty statements
+ 		default:
+-			d.pass.Reportf(stmt.Pos(), "unreachable code")
++			d.pass.ReportRangef(stmt, "unreachable code")
+ 			d.reachable = true // silence error about next statement
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr/unsafeptr.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr/unsafeptr.go
+index 308bfc69cb..d5bafb859d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr/unsafeptr.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr/unsafeptr.go
+@@ -45,7 +45,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		if hasBasicType(pass.TypesInfo, x.Fun, types.UnsafePointer) &&
+ 			hasBasicType(pass.TypesInfo, x.Args[0], types.Uintptr) &&
+ 			!isSafeUintptr(pass.TypesInfo, x.Args[0]) {
+-			pass.Reportf(x.Pos(), "possible misuse of unsafe.Pointer")
++			pass.ReportRangef(x, "possible misuse of unsafe.Pointer")
+ 		}
+ 	})
+ 	return nil, nil
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 6cc6ed87fa..7bca3d0d3d 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -43,7 +43,7 @@ golang.org/x/mod/sumdb/tlog
+ ## explicit
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20191018203202-04252eccb9d5
++# golang.org/x/tools v0.0.0-20191104222624-6b7b8b79ae80
+ ## explicit
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags

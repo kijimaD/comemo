@@ -15,7 +15,44 @@ Date:   Sat Sep 9 00:39:20 2017 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/url/url.go      | 13 +++++++++++++
  src/net/url/url_test.go |  1 +
  2 files changed, 14 insertions(+)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 6608dbd74a..80eb7a86c8 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -158,6 +158,19 @@ func shouldEscape(c byte, mode encoding) bool {
+ 		}
+ 	}
+ 
++	if mode == encodeFragment {
++		// RFC 3986 §2.2 allows not escaping sub-delims. A subset of sub-delims are
++		// included in reserved from RFC 2396 §2.2. The remaining sub-delims do not
++		// need to be escaped. To minimize potential breakage, we apply two restrictions:
++		// (1) we always escape sub-delims outside of the fragment, and (2) we always
++		// escape single quote to avoid breaking callers that had previously assumed that
++		// single quotes would be escaped. See issue #19917.
++		switch c {
++		case '!', '(', ')', '*':
++			return false
++		}
++	}
++
+ 	// Everything else must be escaped.
+ 	return true
+ }
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 7f03d2b9de..9043a844e8 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -1075,6 +1075,7 @@ var resolveReferenceTests = []struct {
+ 
+ 	// Fragment
+ 	{"http://foo.com/bar", ".#frag", "http://foo.com/#frag"},
++	{"http://example.org/", "#!$&%27()*+,;=", "http://example.org/#!$&%27()*+,;="},
+ 
+ 	// Paths with escaping (issue 16947).
+ 	{"http://foo.com/foo%2fbar/", "../baz", "http://foo.com/baz"},

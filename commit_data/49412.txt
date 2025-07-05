@@ -10,8 +10,48 @@ Date:   Tue Aug 17 03:24:15 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/338751
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/escape/graph.go | 2 +-
  src/cmd/compile/internal/ir/expr.go      | 2 +-
  src/cmd/compile/internal/ir/stmt.go      | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/graph.go b/src/cmd/compile/internal/escape/graph.go
+index d3ae1da693..cc3d078add 100644
+--- a/src/cmd/compile/internal/escape/graph.go
++++ b/src/cmd/compile/internal/escape/graph.go
+@@ -117,7 +117,7 @@ func (l *location) isName(c ir.Class) bool {
+ 	return l.n != nil && l.n.Op() == ir.ONAME && l.n.(*ir.Name).Class == c
+ }
+ 
+-// An hole represents a context for evaluation a Go
++// A hole represents a context for evaluation of a Go
+ // expression. E.g., when evaluating p in "x = **p", we'd have a hole
+ // with dst==x and derefs==2.
+ type hole struct {
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index dc28483907..f526d987a7 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -275,7 +275,7 @@ func (n *ConvExpr) SetOp(op Op) {
+ 	}
+ }
+ 
+-// An IndexExpr is an index expression X[Y].
++// An IndexExpr is an index expression X[Index].
+ type IndexExpr struct {
+ 	miniExpr
+ 	X        Node
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 8115012f97..69a74b9fdd 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -244,7 +244,7 @@ func NewGoDeferStmt(pos src.XPos, op Op, call Node) *GoDeferStmt {
+ 	return n
+ }
+ 
+-// A IfStmt is a return statement: if Init; Cond { Then } else { Else }.
++// An IfStmt is a return statement: if Init; Cond { Body } else { Else }.
+ type IfStmt struct {
+ 	miniStmt
+ 	Cond   Node

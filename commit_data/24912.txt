@@ -14,6 +14,22 @@ Date:   Wed Sep 9 10:57:40 2015 +1000
     Change-Id: Iba40e1a2f4e0eec8b2fbcd3bbdae886311434da7
     Reviewed-on: https://go-review.googlesource.com/14411
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/png/reader.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/image/png/reader.go b/src/image/png/reader.go
+index bbd6f753fa..ae6b775b4e 100644
+--- a/src/image/png/reader.go
++++ b/src/image/png/reader.go
+@@ -154,8 +154,8 @@ func (d *decoder) parseIHDR(length uint32) error {
+ 	d.interlace = int(d.tmp[12])
+ 	w := int32(binary.BigEndian.Uint32(d.tmp[0:4]))
+ 	h := int32(binary.BigEndian.Uint32(d.tmp[4:8]))
+-	if w < 0 || h < 0 {
+-		return FormatError("negative dimension")
++	if w <= 0 || h <= 0 {
++		return FormatError("non-positive dimension")
+ 	}
+ 	nPixels := int64(w) * int64(h)
+ 	if nPixels != int64(int(nPixels)) {

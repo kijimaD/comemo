@@ -13,7 +13,231 @@ Date:   Mon Mar 7 03:35:14 2022 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/reader.go | 68 ++++++++++++++++++++------------
  src/cmd/compile/internal/noder/writer.go | 55 +++++++++++++++++++++++---
  2 files changed, 93 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 5191dbe177..2b8134a02c 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -147,6 +147,13 @@ type readerDict struct {
+ 
+ 	funcs    []objInfo
+ 	funcsObj []ir.Node
++
++	itabs []itabInfo2
++}
++
++type itabInfo2 struct {
++	typ  *types.Type
++	lsym *obj.LSym
+ }
+ 
+ func setType(n ir.Node, typ *types.Type) {
+@@ -745,6 +752,22 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx int, implicits, explicits []
+ 		dict.funcs[i] = objInfo{idx: objIdx, explicits: targs}
+ 	}
+ 
++	dict.itabs = make([]itabInfo2, r.Len())
++	for i := range dict.itabs {
++		typ := pr.typIdx(typeInfo{idx: r.Len(), derived: true}, &dict, true)
++		ifaceInfo := r.typInfo()
++
++		var lsym *obj.LSym
++		if typ.IsInterface() {
++			lsym = reflectdata.TypeLinksym(typ)
++		} else {
++			iface := pr.typIdx(ifaceInfo, &dict, true)
++			lsym = reflectdata.ITabLsym(typ, iface)
++		}
++
++		dict.itabs[i] = itabInfo2{typ: typ, lsym: lsym}
++	}
++
+ 	return &dict
+ }
+ 
+@@ -1438,7 +1461,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
+ 				cases = nil // TODO(mdempsky): Unclear if this matters.
+ 			}
+ 			for i := range cases {
+-				cases[i] = r.exprType(iface, true)
++				cases[i] = r.exprType(true)
+ 			}
+ 		} else {
+ 			cases = r.exprList()
+@@ -1538,7 +1561,7 @@ func (r *reader) expr() (res ir.Node) {
+ 		return typecheck.Callee(r.obj())
+ 
+ 	case exprType:
+-		return r.exprType(nil, false)
++		return r.exprType(false)
+ 
+ 	case exprConst:
+ 		pos := r.pos()
+@@ -1603,7 +1626,7 @@ func (r *reader) expr() (res ir.Node) {
+ 	case exprAssert:
+ 		x := r.expr()
+ 		pos := r.pos()
+-		typ := r.exprType(x.Type(), false)
++		typ := r.exprType(false)
+ 
+ 		if typ, ok := typ.(*ir.DynamicType); ok && typ.Op() == ir.ODYNAMICTYPE {
+ 			return typed(typ.Type(), ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, x, typ.X))
+@@ -1753,11 +1776,7 @@ func (r *reader) exprs() []ir.Node {
+ 	return nodes
+ }
+ 
+-func (r *reader) exprType(iface *types.Type, nilOK bool) ir.Node {
+-	if iface != nil {
+-		base.Assertf(iface.IsInterface(), "%L must be an interface type", iface)
+-	}
+-
++func (r *reader) exprType(nilOK bool) ir.Node {
+ 	r.Sync(pkgbits.SyncExprType)
+ 
+ 	if nilOK && r.Bool() {
+@@ -1765,30 +1784,29 @@ func (r *reader) exprType(iface *types.Type, nilOK bool) ir.Node {
+ 	}
+ 
+ 	pos := r.pos()
+-	info := r.typInfo()
+-	typ := r.p.typIdx(info, r.dict, true)
+ 
+-	if info.derived {
+-		// TODO(mdempsky): Handle with runtime dictionary lookup.
++	var typ *types.Type
++	var lsym *obj.LSym
+ 
+-		var lsym *obj.LSym
++	if r.Bool() {
++		itab := r.dict.itabs[r.Len()]
++		typ, lsym = itab.typ, itab.lsym
++	} else {
++		info := r.typInfo()
++		typ = r.p.typIdx(info, r.dict, true)
+ 
+-		// For assertions from non-empty interfaces to non-interfaces,
+-		// we need the ITab instead.
+-		if iface != nil && !iface.IsEmptyInterface() && !typ.IsInterface() {
+-			lsym = reflectdata.ITabLsym(typ, iface)
+-		} else {
+-			lsym = reflectdata.TypeLinksym(typ)
++		if !info.derived {
++			// TODO(mdempsky): ir.TypeNode should probably return a typecheck'd node.
++			n := ir.TypeNode(typ)
++			n.SetTypecheck(1)
++			return n
+ 		}
+ 
+-		ptr := typecheck.Expr(typecheck.NodAddr(ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
+-		return typed(typ, ir.NewDynamicType(pos, ptr))
++		lsym = reflectdata.TypeLinksym(typ)
+ 	}
+ 
+-	// TODO(mdempsky): ir.TypeNode should probably return a typecheck'd node.
+-	n := ir.TypeNode(typ)
+-	n.SetTypecheck(1)
+-	return n
++	ptr := typecheck.Expr(typecheck.NodAddr(ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
++	return typed(typ, ir.NewDynamicType(pos, ptr))
+ }
+ 
+ func (r *reader) op() ir.Op {
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 821fae59e0..c5c346b784 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -103,6 +103,10 @@ type writerDict struct {
+ 	// instantiated with derived types (i.e., that require
+ 	// sub-dictionaries when called at run time).
+ 	funcs []objInfo
++
++	// itabs lists itabs that are needed for dynamic type assertions
++	// (including type switches).
++	itabs []itabInfo
+ }
+ 
+ type derivedInfo struct {
+@@ -120,6 +124,11 @@ type objInfo struct {
+ 	explicits []typeInfo // info for the type arguments
+ }
+ 
++type itabInfo struct {
++	typIdx int      // always a derived type index
++	iface  typeInfo // always a non-empty interface type
++}
++
+ func (info objInfo) anyDerived() bool {
+ 	for _, explicit := range info.explicits {
+ 		if explicit.derived {
+@@ -633,6 +642,13 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
+ 		}
+ 	}
+ 
++	nitabs := len(dict.itabs)
++	w.Len(nitabs)
++	for _, itab := range dict.itabs {
++		w.Len(itab.typIdx)
++		w.typInfo(itab.iface)
++	}
++
+ 	assert(len(dict.derived) == nderived)
+ 	assert(len(dict.funcs) == nfuncs)
+ }
+@@ -1388,10 +1404,7 @@ func (w *writer) exprs(exprs []syntax.Expr) {
+ }
+ 
+ func (w *writer) exprType(iface types2.Type, typ syntax.Expr, nilOK bool) {
+-	if iface != nil {
+-		_, ok := iface.Underlying().(*types2.Interface)
+-		base.Assertf(ok, "%v must be an interface type", iface)
+-	}
++	base.Assertf(iface == nil || isInterface(iface), "%v must be nil or an interface type", iface)
+ 
+ 	tv, ok := w.p.info.Types[typ]
+ 	assert(ok)
+@@ -1403,8 +1416,40 @@ func (w *writer) exprType(iface types2.Type, typ syntax.Expr, nilOK bool) {
+ 	}
+ 
+ 	assert(tv.IsType())
++	info := w.p.typIdx(tv.Type, w.dict)
++
+ 	w.pos(typ)
+-	w.typ(tv.Type)
++
++	if w.Bool(info.derived && iface != nil && !iface.Underlying().(*types2.Interface).Empty()) {
++		ifaceInfo := w.p.typIdx(iface, w.dict)
++
++		idx := -1
++		for i, itab := range w.dict.itabs {
++			if itab.typIdx == info.idx && itab.iface == ifaceInfo {
++				idx = i
++			}
++		}
++		if idx < 0 {
++			idx = len(w.dict.itabs)
++			w.dict.itabs = append(w.dict.itabs, itabInfo{typIdx: info.idx, iface: ifaceInfo})
++		}
++		w.Len(idx)
++		return
++	}
++
++	w.typInfo(info)
++}
++
++func isInterface(typ types2.Type) bool {
++	if _, ok := typ.(*types2.TypeParam); ok {
++		// typ is a type parameter and may be instantiated as either a
++		// concrete or interface type, so the writer can't depend on
++		// knowing this.
++		base.Fatalf("%v is a type parameter", typ)
++	}
++
++	_, ok := typ.Underlying().(*types2.Interface)
++	return ok
+ }
+ 
+ func (w *writer) op(op ir.Op) {

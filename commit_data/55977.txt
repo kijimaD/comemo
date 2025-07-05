@@ -41,6 +41,29 @@ Date:   Sat Mar 25 12:04:59 2023 +0000
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/encoding/gob/type.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/gob/type.go b/src/encoding/gob/type.go
+index efaed68749..205a0b3694 100644
+--- a/src/encoding/gob/type.go
++++ b/src/encoding/gob/type.go
+@@ -406,7 +406,7 @@ type fieldType struct {
+ 
+ type structType struct {
+ 	CommonType
+-	Field []*fieldType
++	Field []fieldType
+ }
+ 
+ func (s *structType) safeString(seen map[typeId]bool) string {
+@@ -549,7 +549,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
+ 			if gt.id() == 0 {
+ 				setTypeId(gt)
+ 			}
+-			st.Field = append(st.Field, &fieldType{f.Name, gt.id()})
++			st.Field = append(st.Field, fieldType{f.Name, gt.id()})
+ 		}
+ 		return st, nil
+ 

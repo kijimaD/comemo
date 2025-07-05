@@ -10,6 +10,25 @@ Date:   Tue Apr 16 01:51:14 2019 +0700
     Change-Id: Icd5a81333a0d4d04adef2dbc58db92ce67aa0860
     Reviewed-on: https://go-review.googlesource.com/c/go/+/172038
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/subr.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 775147bff7..156e3c2c94 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -435,10 +435,9 @@ func nodstr(s string) *Node {
+ }
+ 
+ // treecopy recursively copies n, with the exception of
+-// ONAME, OLITERAL, OTYPE, and non-iota ONONAME leaves.
+-// Copies of iota ONONAME nodes are assigned the current
+-// value of iota_. If pos.IsKnown(), it sets the source
+-// position of newly allocated nodes to pos.
++// ONAME, OLITERAL, OTYPE, and ONONAME leaves.
++// If pos.IsKnown(), it sets the source position of newly
++// allocated nodes to pos.
+ func treecopy(n *Node, pos src.XPos) *Node {
+ 	if n == nil {
+ 		return nil

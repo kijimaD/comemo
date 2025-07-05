@@ -11,7 +11,7 @@ Date:   Thu Jan 19 16:09:10 2017 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testsanitizers/test.bash |  3 +++
  misc/cgo/testsanitizers/tsan10.go | 31 +++++++++++++++++++++++++++++++
  src/runtime/cgo.go                |  2 ++
@@ -21,3 +21,234 @@ Date:   Thu Jan 19 16:09:10 2017 -0500
  src/runtime/lock_sema.go          | 22 ++++++++++++++++++++--
  src/runtime/proc.go               |  3 +++
  8 files changed, 122 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index 4da85020d8..67925e52ee 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -198,6 +198,9 @@ if test "$tsan" = "yes"; then
+ 
+ 	# This test requires rebuilding runtime/cgo with -fsanitize=thread.
+ 	testtsan tsan7.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
++
++	# This test requires rebuilding runtime/cgo with -fsanitize=thread.
++	testtsan tsan10.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+     fi
+ fi
+ 
+diff --git a/misc/cgo/testsanitizers/tsan10.go b/misc/cgo/testsanitizers/tsan10.go
+new file mode 100644
+index 0000000000..a40f245553
+--- /dev/null
++++ b/misc/cgo/testsanitizers/tsan10.go
+@@ -0,0 +1,31 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// This program hung when run under the C/C++ ThreadSanitizer.
++// TSAN defers asynchronous signals until the signaled thread calls into libc.
++// Since the Go runtime makes direct futex syscalls, Go runtime threads could
++// run for an arbitrarily long time without triggering the libc interceptors.
++// See https://golang.org/issue/18717.
++
++import (
++	"os"
++	"os/signal"
++	"syscall"
++)
++
++/*
++#cgo CFLAGS: -g -fsanitize=thread
++#cgo LDFLAGS: -g -fsanitize=thread
++*/
++import "C"
++
++func main() {
++	c := make(chan os.Signal, 1)
++	signal.Notify(c, syscall.SIGUSR1)
++	defer signal.Stop(c)
++	syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
++	<-c
++}
+diff --git a/src/runtime/cgo.go b/src/runtime/cgo.go
+index 9cf7b58a2f..16ca004ee0 100644
+--- a/src/runtime/cgo.go
++++ b/src/runtime/cgo.go
+@@ -16,6 +16,7 @@ import "unsafe"
+ //go:linkname _cgo_notify_runtime_init_done _cgo_notify_runtime_init_done
+ //go:linkname _cgo_callers _cgo_callers
+ //go:linkname _cgo_set_context_function _cgo_set_context_function
++//go:linkname _cgo_yield _cgo_yield
+ 
+ var (
+ 	_cgo_init                     unsafe.Pointer
+@@ -24,6 +25,7 @@ var (
+ 	_cgo_notify_runtime_init_done unsafe.Pointer
+ 	_cgo_callers                  unsafe.Pointer
+ 	_cgo_set_context_function     unsafe.Pointer
++	_cgo_yield                    unsafe.Pointer
+ )
+ 
+ // iscgo is set to true by the runtime/cgo package
+diff --git a/src/runtime/cgo/callbacks.go b/src/runtime/cgo/callbacks.go
+index 9bde5a933f..8590aa3659 100644
+--- a/src/runtime/cgo/callbacks.go
++++ b/src/runtime/cgo/callbacks.go
+@@ -92,5 +92,15 @@ var _cgo_notify_runtime_init_done = &x_cgo_notify_runtime_init_done
+ var x_cgo_set_context_function byte
+ var _cgo_set_context_function = &x_cgo_set_context_function
+ 
++// Calls a libc function to execute background work injected via libc
++// interceptors, such as processing pending signals under the thread
++// sanitizer.
++//
++// Left as a nil pointer if no libc interceptors are expected.
++
++//go:cgo_import_static _cgo_yield
++//go:linkname _cgo_yield _cgo_yield
++var _cgo_yield unsafe.Pointer
++
+ //go:cgo_export_static _cgo_topofstack
+ //go:cgo_export_dynamic _cgo_topofstack
+diff --git a/src/runtime/cgo/gcc_util.c b/src/runtime/cgo/gcc_util.c
+index 99af021331..2d5382a8f0 100644
+--- a/src/runtime/cgo/gcc_util.c
++++ b/src/runtime/cgo/gcc_util.c
+@@ -22,3 +22,39 @@ x_cgo_thread_start(ThreadStart *arg)
+ 
+ 	_cgo_sys_thread_start(ts);	/* OS-dependent half */
+ }
++
++#ifndef CGO_TSAN
++void(* const _cgo_yield)() = NULL;
++#else
++
++#include <string.h>
++
++/*
++Stub for allowing libc interceptors to execute.
++
++_cgo_yield is set to NULL if we do not expect libc interceptors to exist.
++*/
++static void
++x_cgo_yield()
++{
++	/*
++	The libc function(s) we call here must form a no-op and include at least one
++	call that triggers TSAN to process pending asynchronous signals.
++
++	sleep(0) would be fine, but it's not portable C (so it would need more header
++	guards).
++	free(NULL) has a fast-path special case in TSAN, so it doesn't
++	trigger signal delivery.
++	free(malloc(0)) would work (triggering the interceptors in malloc), but
++	it also runs a bunch of user-supplied malloc hooks.
++
++	So we choose strncpy(_, _, 0): it requires an extra header,
++	but it's standard and should be very efficient.
++	*/
++	char nothing = 0;
++	strncpy(&nothing, &nothing, 0);
++}
++
++void(* const _cgo_yield)() = &x_cgo_yield;
++
++#endif  /* GO_TSAN */
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index 073136abd0..341c74ff39 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -140,9 +140,17 @@ func notesleep(n *note) {
+ 	if gp != gp.m.g0 {
+ 		throw("notesleep not on g0")
+ 	}
++	ns := int64(-1)
++	if _cgo_yield != nil {
++		// Sleep for an arbitrary-but-moderate interval to poll libc interceptors.
++		ns = 10e6
++	}
+ 	for atomic.Load(key32(&n.key)) == 0 {
+ 		gp.m.blocked = true
+-		futexsleep(key32(&n.key), 0, -1)
++		futexsleep(key32(&n.key), 0, ns)
++		if _cgo_yield != nil {
++			asmcgocall(_cgo_yield, nil)
++		}
+ 		gp.m.blocked = false
+ 	}
+ }
+@@ -156,9 +164,16 @@ func notetsleep_internal(n *note, ns int64) bool {
+ 	gp := getg()
+ 
+ 	if ns < 0 {
++		if _cgo_yield != nil {
++			// Sleep for an arbitrary-but-moderate interval to poll libc interceptors.
++			ns = 10e6
++		}
+ 		for atomic.Load(key32(&n.key)) == 0 {
+ 			gp.m.blocked = true
+-			futexsleep(key32(&n.key), 0, -1)
++			futexsleep(key32(&n.key), 0, ns)
++			if _cgo_yield != nil {
++				asmcgocall(_cgo_yield, nil)
++			}
+ 			gp.m.blocked = false
+ 		}
+ 		return true
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index 0fa0481733..e00b99164f 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -163,7 +163,16 @@ func notesleep(n *note) {
+ 	}
+ 	// Queued. Sleep.
+ 	gp.m.blocked = true
+-	semasleep(-1)
++	if _cgo_yield == nil {
++		semasleep(-1)
++	} else {
++		// Sleep for an arbitrary-but-moderate interval to poll libc interceptors.
++		const ns = 10e6
++		for atomic.Loaduintptr(&n.key) == 0 {
++			semasleep(ns)
++			asmcgocall(_cgo_yield, nil)
++		}
++	}
+ 	gp.m.blocked = false
+ }
+ 
+@@ -186,7 +195,16 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
+ 	if ns < 0 {
+ 		// Queued. Sleep.
+ 		gp.m.blocked = true
+-		semasleep(-1)
++		if _cgo_yield == nil {
++			semasleep(-1)
++		} else {
++			// Sleep for an arbitrary-but-moderate interval to poll libc interceptors.
++			const ns = 10e6
++			for atomic.Loaduintptr(&n.key) == 0 {
++				semasleep(ns)
++				asmcgocall(_cgo_yield, nil)
++			}
++		}
+ 		gp.m.blocked = false
+ 		return true
+ 	}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index f13746dee4..5b907502d6 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1899,6 +1899,9 @@ top:
+ 			ready(gp, 0, true)
+ 		}
+ 	}
++	if _cgo_yield != nil {
++		asmcgocall(_cgo_yield, nil)
++	}
+ 
+ 	// local runq
+ 	if gp, inheritTime := runqget(_p_); gp != nil {

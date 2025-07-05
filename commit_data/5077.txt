@@ -7,6 +7,20 @@ Date:   Fri Mar 19 14:17:07 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/642042
-
+---
  src/pkg/deps.bash | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/deps.bash b/src/pkg/deps.bash
+index 8d245e18db..fa06f646fc 100755
+--- a/src/pkg/deps.bash
++++ b/src/pkg/deps.bash
+@@ -19,6 +19,8 @@ for dir in $dirs; do (
+ 	cd $dir || exit 1
+ 
+ 	sources=$(sed -n 's/\.go[ \t]*\\/.go/p' Makefile)
++	sources=$(echo $sources | sed 's/\$(GOOS)/'$GOOS'/g')
++	sources=$(echo $sources | sed 's/\$(GOARCH)/'$GOARCH'/g')
+ 	sources=$(ls $sources 2> /dev/null)  # remove .s, .c, etc.
+ 
+ 	deps=$(

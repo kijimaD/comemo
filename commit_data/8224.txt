@@ -11,7 +11,41 @@ Date:   Tue Apr 26 10:47:49 2011 +1000
     R=ukai, bradfitz, bradfitzgo
     CC=golang-dev
     https://golang.org/cl/4439069
-
+---
  src/pkg/websocket/server.go    | 1 +
  src/pkg/websocket/websocket.go | 3 +++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/pkg/websocket/server.go b/src/pkg/websocket/server.go
+index 1119b2d34e..376265236e 100644
+--- a/src/pkg/websocket/server.go
++++ b/src/pkg/websocket/server.go
+@@ -150,6 +150,7 @@ func (f Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ 		return
+ 	}
+ 	ws := newConn(origin, location, protocol, buf, rwc)
++	ws.Request = req
+ 	f(ws)
+ }
+ 
+diff --git a/src/pkg/websocket/websocket.go b/src/pkg/websocket/websocket.go
+index eaad22eb33..edde61b4a7 100644
+--- a/src/pkg/websocket/websocket.go
++++ b/src/pkg/websocket/websocket.go
+@@ -13,6 +13,7 @@ import (
+ 	"bufio"
+ 	"crypto/md5"
+ 	"encoding/binary"
++	"http"
+ 	"io"
+ 	"net"
+ 	"os"
+@@ -43,6 +44,8 @@ type Conn struct {
+ 	Location string
+ 	// The subprotocol for the Web Socket.
+ 	Protocol string
++	// The initial http Request (for the Server side only).
++	Request *http.Request
+ 
+ 	buf *bufio.ReadWriter
+ 	rwc io.ReadWriteCloser

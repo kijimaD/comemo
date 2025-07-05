@@ -16,7 +16,35 @@ Date:   Tue Sep 27 10:45:05 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/arch/s390x.go        | 2 ++
  src/cmd/asm/internal/asm/testdata/s390x.s | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/asm/internal/arch/s390x.go b/src/cmd/asm/internal/arch/s390x.go
+index 6fa0292759..244758df5f 100644
+--- a/src/cmd/asm/internal/arch/s390x.go
++++ b/src/cmd/asm/internal/arch/s390x.go
+@@ -22,7 +22,9 @@ func jumpS390x(word string) bool {
+ 		"BGT",
+ 		"BL",
+ 		"BLE",
++		"BLEU",
+ 		"BLT",
++		"BLTU",
+ 		"BNE",
+ 		"BR",
+ 		"BVC",
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 4b1d573064..be31221d00 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -142,6 +142,8 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
+ 	BLE	0(PC)                  // a7c40000
+ 	BGT	0(PC)                  // a7240000
+ 	BGE	0(PC)                  // a7a40000
++	BLTU	0(PC)                  // a7540000
++	BLEU	0(PC)                  // a7d40000
+ 
+ 	CMPBNE	R1, R2, 0(PC)          // ec1200007064
+ 	CMPBEQ	R3, R4, 0(PC)          // ec3400008064

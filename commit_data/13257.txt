@@ -7,6 +7,20 @@ Date:   Sat Jun 2 23:02:39 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6278045
-
+---
  api/next.txt | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/api/next.txt b/api/next.txt
+index 5147f99585..8b45feb691 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -10,6 +10,8 @@ pkg debug/elf, type FileHeader struct, Entry uint64
+ pkg go/doc, var IllegalPrefixes []string
+ pkg math/big, method (*Int) MarshalJSON() ([]byte, error)
+ pkg math/big, method (*Int) UnmarshalJSON([]byte) error
++pkg net, method (*UnixConn) CloseRead() error
++pkg net, method (*UnixConn) CloseWrite() error
+ pkg regexp/syntax, const ErrUnexpectedParen ErrorCode
+ pkg syscall (darwin-386), const B0 ideal-int
+ pkg syscall (darwin-386), const B110 ideal-int

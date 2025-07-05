@@ -9,9 +9,91 @@ Date:   Tue Aug 18 11:48:47 2009 -0700
     DELTA=40  (16 added, 20 deleted, 4 changed)
     OCL=33464
     CL=33464
-
+---
  src/pkg/big/Makefile |  1 -
  src/pkg/big/arith.go | 12 ++++++++++++
  src/pkg/big/defs.go  | 19 -------------------
  src/pkg/big/nat.go   |  8 ++++++--
  4 files changed, 18 insertions(+), 22 deletions(-)
+
+diff --git a/src/pkg/big/Makefile b/src/pkg/big/Makefile
+index b64ba40bf5..8cf98911cb 100644
+--- a/src/pkg/big/Makefile
++++ b/src/pkg/big/Makefile
+@@ -6,7 +6,6 @@ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+ TARG=big
+ GOFILES=\
+-	defs.go\
+ 	arith.go\
+ 	big.go\
+ 	nat.go\
+diff --git a/src/pkg/big/arith.go b/src/pkg/big/arith.go
+index 04d0eb1bea..59f99e98d2 100644
+--- a/src/pkg/big/arith.go
++++ b/src/pkg/big/arith.go
+@@ -10,6 +10,18 @@ package big
+ 
+ import "unsafe"
+ 
++type Word uintptr
++
++const (
++	_S = uintptr(unsafe.Sizeof(Word));  // TODO(gri) should Sizeof return a uintptr?
++	_W = _S*8;
++	_B = 1<<_W;
++	_M = _B-1;
++	_W2 = _W/2;
++	_B2 = 1<<_W2;
++	_M2 = _B2-1;
++)
++
+ 
+ // ----------------------------------------------------------------------------
+ // Elementary operations on words
+diff --git a/src/pkg/big/defs.go b/src/pkg/big/defs.go
+deleted file mode 100644
+index 5972fa6421..0000000000
+--- a/src/pkg/big/defs.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package big
+-
+-import "unsafe"
+-
+-type Word uintptr
+-
+-const (
+-	_S = uintptr(unsafe.Sizeof(Word));  // TODO(gri) should Sizeof return a uintptr?
+-	_W = _S*8;
+-	_B = 1<<_W;
+-	_M = _B-1;
+-	_W2 = _W/2;
+-	_B2 = 1<<_W2;
+-	_M2 = _B2-1;
+-)
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index 0274ceca59..ce9690442a 100644
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -36,10 +36,14 @@ func normN(z []Word) []Word {
+ func makeN(z []Word, m int, clear bool) []Word {
+ 	if len(z) > m {
+ 		z = z[0 : m];  // reuse z - has at least one extra word for a carry, if any
+-		for i := range z {
+-			z[i] = 0;
++		if clear {
++			for i := range z {
++				z[i] = 0;
++			}
+ 		}
++		return z;
+ 	}
++
+ 	c := 4;  // minimum capacity
+ 	if m > c {
+ 		c = m;

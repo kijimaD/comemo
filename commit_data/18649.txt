@@ -8,6 +8,19 @@ Date:   Tue Feb 25 11:49:37 2014 -0800
     R=golang-codereviews, bradfitz, khr
     CC=golang-codereviews
     https://golang.org/cl/68680043
-
+---
  src/pkg/runtime/vlrt_arm.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/vlrt_arm.c b/src/pkg/runtime/vlrt_arm.c
+index 9606e16076..7dd71b40e3 100644
+--- a/src/pkg/runtime/vlrt_arm.c
++++ b/src/pkg/runtime/vlrt_arm.c
+@@ -27,6 +27,7 @@
+ 
+ // declared here to avoid include of runtime.h
+ void	runtime·panicstring(char*);
++void	runtime·panicdivide(void);
+ 
+ typedef unsigned long   ulong;
+ typedef unsigned int    uint;

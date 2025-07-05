@@ -15,6 +15,20 @@ Date:   Wed Nov 1 12:09:18 2023 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/diff/diff.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/diff/diff.go b/src/internal/diff/diff.go
+index 0aeeb75eb0..6a40b23fcb 100644
+--- a/src/internal/diff/diff.go
++++ b/src/internal/diff/diff.go
+@@ -74,7 +74,7 @@ func Diff(oldName string, old []byte, newName string, new []byte) []byte {
+ 			continue
+ 		}
+ 
+-		// Expand matching lines as far possible,
++		// Expand matching lines as far as possible,
+ 		// establishing that x[start.x:end.x] == y[start.y:end.y].
+ 		// Note that on the first (or last) iteration we may (or definitely do)
+ 		// have an empty match: start.x==end.x and start.y==end.y.

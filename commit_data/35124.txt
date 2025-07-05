@@ -12,6 +12,21 @@ Date:   Mon Dec 18 12:13:17 2017 -0800
     Change-Id: If7e2112fa61a8cc4e155bb31e94e89b20c607242
     Reviewed-on: https://go-review.googlesource.com/84636
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/driver/driver.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/database/sql/driver/driver.go b/src/database/sql/driver/driver.go
+index 83b2b3f535..19a3a4f7c9 100644
+--- a/src/database/sql/driver/driver.go
++++ b/src/database/sql/driver/driver.go
+@@ -15,7 +15,8 @@ import (
+ )
+ 
+ // Value is a value that drivers must be able to handle.
+-// It is either nil or an instance of one of these types:
++// It is either nil, a type handled by a database driver's NamedValueChecker
++// interface, or an instance of one of these types:
+ //
+ //   int64
+ //   float64

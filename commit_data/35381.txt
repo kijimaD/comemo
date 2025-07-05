@@ -11,7 +11,7 @@ Date:   Tue Jan 23 22:11:51 2018 -0800
     Change-Id: Ib3ce7c19789c4e9d982a776b61d8380ddc63194d
     Reviewed-on: https://go-review.googlesource.com/89416
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  lib/time/README                 | 2 +-
  lib/time/update.bash            | 9 ++++-----
  misc/nacl/testdata/mime.types   | 2 +-
@@ -22,3 +22,157 @@ Date:   Tue Jan 23 22:11:51 2018 -0800
  src/net/lookup_test.go          | 4 ++--
  src/time/zoneinfo.go            | 2 +-
  9 files changed, 14 insertions(+), 15 deletions(-)
+
+diff --git a/lib/time/README b/lib/time/README
+index ffce9b0e08..aab4daa7e2 100644
+--- a/lib/time/README
++++ b/lib/time/README
+@@ -3,7 +3,7 @@ the code and data maintained as part of the IANA Time Zone Database.
+ The IANA asserts that the database is in the public domain.
+ 
+ For more information, see
+-http://www.iana.org/time-zones
++https://www.iana.org/time-zones
+ ftp://ftp.iana.org/tz/code/tz-link.htm
+ http://tools.ietf.org/html/rfc6557
+ 
+diff --git a/lib/time/update.bash b/lib/time/update.bash
+index b54fc9e4f6..26ad79d52d 100755
+--- a/lib/time/update.bash
++++ b/lib/time/update.bash
+@@ -5,7 +5,7 @@
+ 
+ # This script rebuilds the time zone files using files
+ # downloaded from the ICANN/IANA distribution.
+-# Consult http://www.iana.org/time-zones for the latest versions.
++# Consult https://www.iana.org/time-zones for the latest versions.
+ 
+ # Versions to use.
+ CODE=2017c
+@@ -16,8 +16,8 @@ rm -rf work
+ mkdir work
+ cd work
+ mkdir zoneinfo
+-curl -L -O http://www.iana.org/time-zones/repository/releases/tzcode$CODE.tar.gz
+-curl -L -O http://www.iana.org/time-zones/repository/releases/tzdata$DATA.tar.gz
++curl -L -O https://www.iana.org/time-zones/repository/releases/tzcode$CODE.tar.gz
++curl -L -O https://www.iana.org/time-zones/repository/releases/tzdata$DATA.tar.gz
+ tar xzf tzcode$CODE.tar.gz
+ tar xzf tzdata$DATA.tar.gz
+ 
+@@ -42,10 +42,9 @@ zip -0 -r ../../zoneinfo.zip *
+ cd ../..
+ 
+ echo
+-if [ "$1" = "-work" ]; then 
++if [ "$1" = "-work" ]; then
+ 	echo Left workspace behind in work/.
+ else
+ 	rm -rf work
+ fi
+ echo New time zone files in zoneinfo.zip.
+-
+diff --git a/misc/nacl/testdata/mime.types b/misc/nacl/testdata/mime.types
+index 2c41bd2c00..81a415e9e6 100644
+--- a/misc/nacl/testdata/mime.types
++++ b/misc/nacl/testdata/mime.types
+@@ -9,7 +9,7 @@
+ # content languages and encodings, so choose them carefully.
+ #
+ # Internet media types should be registered as described in RFC 4288.
+-# The registry is at <http://www.iana.org/assignments/media-types/>.
++# The registry is at <https://www.iana.org/assignments/media-types/>.
+ #
+ # MIME type (lowercased)			Extensions
+ # ============================================	==========
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index beb0f1926d..41f9103f0d 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -364,7 +364,7 @@ func mutualCipherSuite(have []uint16, want uint16) *cipherSuite {
+ // A list of cipher suite IDs that are, or have been, implemented by this
+ // package.
+ //
+-// Taken from http://www.iana.org/assignments/tls-parameters/tls-parameters.xml
++// Taken from https://www.iana.org/assignments/tls-parameters/tls-parameters.xml
+ const (
+ 	TLS_RSA_WITH_RC4_128_SHA                uint16 = 0x0005
+ 	TLS_RSA_WITH_3DES_EDE_CBC_SHA           uint16 = 0x000a
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 646b107958..f331c11bda 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -91,7 +91,7 @@ const (
+ )
+ 
+ // CurveID is the type of a TLS identifier for an elliptic curve. See
+-// http://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-8
++// https://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-8
+ type CurveID uint16
+ 
+ const (
+@@ -102,7 +102,7 @@ const (
+ )
+ 
+ // TLS Elliptic Curve Point Formats
+-// http://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-9
++// https://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-9
+ const (
+ 	pointFormatUncompressed uint8 = 0
+ )
+diff --git a/src/net/http/status.go b/src/net/http/status.go
+index 98645b7d74..eb55757be6 100644
+--- a/src/net/http/status.go
++++ b/src/net/http/status.go
+@@ -5,7 +5,7 @@
+ package http
+ 
+ // HTTP status codes as registered with IANA.
+-// See: http://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
++// See: https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
+ const (
+ 	StatusContinue           = 100 // RFC 7231, 6.2.1
+ 	StatusSwitchingProtocols = 101 // RFC 7231, 6.2.2
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index 85e472932f..6844b1118f 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -15,7 +15,7 @@ import (
+ // names and numbers for platforms that don't have a complete list of
+ // protocol numbers.
+ //
+-// See http://www.iana.org/assignments/protocol-numbers
++// See https://www.iana.org/assignments/protocol-numbers
+ //
+ // On Unix, this map is augmented by readProtocols via lookupProtocol.
+ var protocols = map[string]int{
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index bfb872551c..d0fc8c345d 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -664,10 +664,10 @@ func srvString(srvs []*SRV) string {
+ }
+ 
+ func TestLookupPort(t *testing.T) {
+-	// See http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
++	// See https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
+ 	//
+ 	// Please be careful about adding new test cases.
+-	// There are platforms having incomplete mappings for
++	// There are platforms which have incomplete mappings for
+ 	// restricted resource access and security reasons.
+ 	type test struct {
+ 		network string
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index 96ff8d3970..d7e830be9d 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -173,7 +173,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
+ // times.
+ //
+ // The reference implementation in localtime.c from
+-// http://www.iana.org/time-zones/repository/releases/tzcode2013g.tar.gz
++// https://www.iana.org/time-zones/repository/releases/tzcode2013g.tar.gz
+ // implements the following algorithm for these cases:
+ // 1) If the first zone is unused by the transitions, use it.
+ // 2) Otherwise, if there are transition times, and the first

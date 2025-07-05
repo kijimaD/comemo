@@ -8,7 +8,7 @@ Date:   Fri Apr 17 17:23:51 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9081
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/6g/peep.go                 |  2 +-
  src/cmd/7g/gsubr.go                | 19 ----------
  src/cmd/7g/peep.go                 |  2 +-
@@ -23,3 +23,295 @@ Date:   Fri Apr 17 17:23:51 2015 -0700
  src/cmd/internal/obj/arm64/obj7.go |  1 -
  src/cmd/trace/trace.go             |  2 +-
  13 files changed, 41 insertions(+), 93 deletions(-)
+
+diff --git a/src/cmd/6g/peep.go b/src/cmd/6g/peep.go
+index 1fbf79ac64..cd07199ed1 100644
+--- a/src/cmd/6g/peep.go
++++ b/src/cmd/6g/peep.go
+@@ -329,7 +329,7 @@ func pushback(r0 *gc.Flow) {
+ 		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 			fmt.Printf("no pushback: %v\n", r0.Prog)
+ 			if r != nil {
+-				fmt.Printf("\t%v [%d]\n", r.Prog, gc.Uniqs(r) != nil)
++				fmt.Printf("\t%v [%v]\n", r.Prog, gc.Uniqs(r) != nil)
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/7g/gsubr.go b/src/cmd/7g/gsubr.go
+index 23c6c0a6f0..138e2ddb18 100644
+--- a/src/cmd/7g/gsubr.go
++++ b/src/cmd/7g/gsubr.go
+@@ -543,25 +543,6 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	return p
+ }
+ 
+-func fixlargeoffset(n *gc.Node) {
+-	if n == nil {
+-		return
+-	}
+-	if n.Op != gc.OINDREG {
+-		return
+-	}
+-	if -4096 <= n.Xoffset && n.Xoffset < 4096 {
+-		return
+-	}
+-	a := gc.Node(*n)
+-	a.Op = gc.OREGISTER
+-	a.Type = gc.Types[gc.Tptr]
+-	a.Xoffset = 0
+-	gc.Cgen_checknil(&a)
+-	ginscon(optoas(gc.OADD, gc.Types[gc.Tptr]), n.Xoffset, &a)
+-	n.Xoffset = 0
+-}
+-
+ /*
+  * insert n into reg slot of p
+  */
+diff --git a/src/cmd/7g/peep.go b/src/cmd/7g/peep.go
+index 0901806753..49bc69b132 100644
+--- a/src/cmd/7g/peep.go
++++ b/src/cmd/7g/peep.go
+@@ -293,7 +293,7 @@ func copyprop(r0 *gc.Flow) bool {
+ 	v2 := (*obj.Addr)(&p.To)
+ 	if copyas(v1, v2) {
+ 		if gc.Debug['P'] != 0 {
+-			fmt.Printf("eliminating self-move\n", r0.Prog)
++			fmt.Printf("eliminating self-move: %v\n", r0.Prog)
+ 		}
+ 		return true
+ 	}
+diff --git a/src/cmd/9g/gsubr.go b/src/cmd/9g/gsubr.go
+index 3b0e090e07..2c4db9cda4 100644
+--- a/src/cmd/9g/gsubr.go
++++ b/src/cmd/9g/gsubr.go
+@@ -638,31 +638,6 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	return p
+ }
+ 
+-func fixlargeoffset(n *gc.Node) {
+-	if n == nil {
+-		return
+-	}
+-	if n.Op != gc.OINDREG {
+-		return
+-	}
+-	if n.Reg == ppc64.REGSP { // stack offset cannot be large
+-		return
+-	}
+-	if n.Xoffset != int64(int32(n.Xoffset)) {
+-		// TODO(minux): offset too large, move into R31 and add to R31 instead.
+-		// this is used only in test/fixedbugs/issue6036.go.
+-		gc.Fatal("offset too large: %v", n)
+-
+-		a := gc.Node(*n)
+-		a.Op = gc.OREGISTER
+-		a.Type = gc.Types[gc.Tptr]
+-		a.Xoffset = 0
+-		gc.Cgen_checknil(&a)
+-		ginscon(optoas(gc.OADD, gc.Types[gc.Tptr]), n.Xoffset, &a)
+-		n.Xoffset = 0
+-	}
+-}
+-
+ /*
+  * return Axxx for Oxxx on type t.
+  */
+diff --git a/src/cmd/9g/peep.go b/src/cmd/9g/peep.go
+index 6992968e33..94c9b1554b 100644
+--- a/src/cmd/9g/peep.go
++++ b/src/cmd/9g/peep.go
+@@ -481,7 +481,7 @@ func copyprop(r0 *gc.Flow) bool {
+ 	v2 := (*obj.Addr)(&p.To)
+ 	if copyas(v1, v2) {
+ 		if gc.Debug['P'] != 0 {
+-			fmt.Printf("eliminating self-move\n", r0.Prog)
++			fmt.Printf("eliminating self-move: %v\n", r0.Prog)
+ 		}
+ 		return true
+ 	}
+diff --git a/src/cmd/internal/gc/const.go b/src/cmd/internal/gc/const.go
+index ab526f5258..d09273b700 100644
+--- a/src/cmd/internal/gc/const.go
++++ b/src/cmd/internal/gc/const.go
+@@ -1135,7 +1135,6 @@ func idealkind(n *Node) int {
+ 		} else {
+ 			return k2
+ 		}
+-		fallthrough
+ 
+ 	case OREAL, OIMAG:
+ 		return CTFLT
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index f7e2583ec0..8f7f8dd178 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -1184,7 +1184,6 @@ func exprfmt(n *Node, prec int) string {
+ 				return fmt.Sprintf("chan %v", n.Left)
+ 			}
+ 		}
+-		fallthrough
+ 
+ 	case OTSTRUCT:
+ 		return "<struct>"
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index a637780fc0..df4f9ea2cf 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -1738,51 +1738,48 @@ OpSwitch:
+ 		break OpSwitch
+ 
+ 	case OCONV:
+-		{
+-			ok |= Erv
+-			saveorignode(n)
+-			typecheck(&n.Left, Erv|top&(Eindir|Eiota))
+-			convlit1(&n.Left, n.Type, true)
+-			t := n.Left.Type
+-			if t == nil || n.Type == nil {
+-				n.Type = nil
+-				return
++		ok |= Erv
++		saveorignode(n)
++		typecheck(&n.Left, Erv|top&(Eindir|Eiota))
++		convlit1(&n.Left, n.Type, true)
++		t := n.Left.Type
++		if t == nil || n.Type == nil {
++			n.Type = nil
++			return
++		}
++		var why string
++		n.Op = uint8(convertop(t, n.Type, &why))
++		if (n.Op) == 0 {
++			if n.Diag == 0 && n.Type.Broke == 0 {
++				Yyerror("cannot convert %v to type %v%s", Nconv(n.Left, obj.FmtLong), n.Type, why)
++				n.Diag = 1
+ 			}
+-			var why string
+-			n.Op = uint8(convertop(t, n.Type, &why))
+-			if (n.Op) == 0 {
+-				if n.Diag == 0 && n.Type.Broke == 0 {
+-					Yyerror("cannot convert %v to type %v%s", Nconv(n.Left, obj.FmtLong), n.Type, why)
+-					n.Diag = 1
+-				}
+ 
++			n.Op = OCONV
++		}
++
++		switch n.Op {
++		case OCONVNOP:
++			if n.Left.Op == OLITERAL && n.Type != Types[TBOOL] {
++				r := Nod(OXXX, nil, nil)
+ 				n.Op = OCONV
++				n.Orig = r
++				*r = *n
++				n.Op = OLITERAL
++				n.Val = n.Left.Val
+ 			}
+ 
+-			switch n.Op {
+-			case OCONVNOP:
+-				if n.Left.Op == OLITERAL && n.Type != Types[TBOOL] {
+-					r := Nod(OXXX, nil, nil)
+-					n.Op = OCONV
+-					n.Orig = r
+-					*r = *n
+-					n.Op = OLITERAL
+-					n.Val = n.Left.Val
+-				}
+-
+-				// do not use stringtoarraylit.
+-			// generated code and compiler memory footprint is better without it.
+-			case OSTRARRAYBYTE:
+-				break
++			// do not use stringtoarraylit.
++		// generated code and compiler memory footprint is better without it.
++		case OSTRARRAYBYTE:
++			break
+ 
+-			case OSTRARRAYRUNE:
+-				if n.Left.Op == OLITERAL {
+-					stringtoarraylit(&n)
+-				}
++		case OSTRARRAYRUNE:
++			if n.Left.Op == OLITERAL {
++				stringtoarraylit(&n)
+ 			}
+-
+-			break OpSwitch
+ 		}
++
+ 		break OpSwitch
+ 
+ 	case OMAKE:
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index 97b962afe1..bf634b08d1 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -791,14 +791,14 @@ func Codeblk(addr int64, size int64) {
+ 		q = sym.P
+ 
+ 		for n >= 16 {
+-			fmt.Fprintf(&Bso, "%.6x\t%%-20.16I\n", uint64(addr), q)
++			fmt.Fprintf(&Bso, "%.6x\t%-20.16I\n", uint64(addr), q)
+ 			addr += 16
+ 			q = q[16:]
+ 			n -= 16
+ 		}
+ 
+ 		if n > 0 {
+-			fmt.Fprintf(&Bso, "%.6x\t%%-20.*I\n", uint64(addr), int(n), q)
++			fmt.Fprintf(&Bso, "%.6x\t%-20.*I\n", uint64(addr), int(n), q)
+ 		}
+ 		addr += n
+ 	}
+diff --git a/src/cmd/internal/ld/dwarf.go b/src/cmd/internal/ld/dwarf.go
+index 8460593e80..744bb5ba30 100644
+--- a/src/cmd/internal/ld/dwarf.go
++++ b/src/cmd/internal/ld/dwarf.go
+@@ -973,7 +973,7 @@ func defgotype(gotype *LSym) *DWDie {
+ 	}
+ 
+ 	if false && Debug['v'] > 2 {
+-		fmt.Printf("new type: %%Y\n", gotype)
++		fmt.Printf("new type: %v\n", gotype)
+ 	}
+ 
+ 	kind := decodetype_kind(gotype)
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index 048556a5fc..ac19ca6829 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -1011,8 +1011,6 @@ func hostlink() {
+ func ldobj(f *Biobuf, pkg string, length int64, pn string, file string, whence int) {
+ 	eof := Boffset(f) + length
+ 
+-	pn = pn
+-
+ 	start := Boffset(f)
+ 	c1 := Bgetc(f)
+ 	c2 := Bgetc(f)
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index b69da2a2ac..59a2659928 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -781,7 +781,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 			p.As = obj.ARET
+-			p.Lineno = p.Lineno
+ 			p.To.Type = obj.TYPE_MEM
+ 			p.To.Offset = 0
+ 			p.To.Reg = REGLINK
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 16a20aed07..02cd0a5663 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -323,7 +323,7 @@ func (ctx *traceContext) emit(e *ViewerEvent) {
+ 
+ func (ctx *traceContext) time(ev *trace.Event) int64 {
+ 	if ev.Ts < ctx.startTime || ev.Ts > ctx.endTime {
+-		fmt.Printf("ts=%v startTime=%v endTime\n", ev.Ts, ctx.startTime, ctx.endTime)
++		fmt.Printf("ts=%v startTime=%v endTime=%v\n", ev.Ts, ctx.startTime, ctx.endTime)
+ 		panic("timestamp is outside of trace range")
+ 	}
+ 	// NOTE: trace viewer wants timestamps in microseconds and it does not

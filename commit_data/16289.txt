@@ -9,7 +9,39 @@ Date:   Tue May 14 09:43:56 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/9392047
-
+---
  src/cmd/api/goapi.go      | 7 ++++++-
  src/cmd/api/goapi_test.go | 2 +-
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index ff75f00e39..46b5f3bae8 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -231,7 +231,12 @@ func compareAPI(w io.Writer, features, required, optional, exception []string) (
+ 		case len(features) == 0 || (len(required) > 0 && required[0] < features[0]):
+ 			feature := take(&required)
+ 			if exceptionSet[feature] {
+-				fmt.Fprintf(w, "~%s\n", feature)
++				// An "unfortunate" case: the feature was once
++				// included in the API (e.g. go1.txt), but was
++				// subsequently removed. These are already
++				// acknowledged by being in the file
++				// "api/except.txt". No need to print them out
++				// here.
+ 			} else if featureSet[featureWithoutContext(feature)] {
+ 				// okay.
+ 			} else {
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index 1a86c0ec70..226748ac4a 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -110,7 +110,7 @@ func TestCompareAPI(t *testing.T) {
+ 			features:  []string{"A", "C"},
+ 			exception: []string{"B"},
+ 			ok:        true,
+-			out:       "~B\n",
++			out:       "",
+ 		},
+ 		{
+ 			// http://golang.org/issue/4303

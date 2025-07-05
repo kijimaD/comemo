@@ -42,10 +42,398 @@ Date:   Sat Apr 24 12:41:17 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/313514
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/liveness/plive.go      | 22 ++++++++-
  src/cmd/compile/internal/reflectdata/reflect.go | 64 ++++++++++++++++++++-----
  src/runtime/mgcmark.go                          | 28 +++++------
  src/runtime/mgcstack.go                         | 22 ++++-----
  src/runtime/stack.go                            | 40 ++++++++++++----
  5 files changed, 128 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 424d248590..f5c2ef7709 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -1431,8 +1431,26 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
+ 		// Note: arguments and return values have non-negative Xoffset,
+ 		// in which case the offset is relative to argp.
+ 		// Locals have a negative Xoffset, in which case the offset is relative to varp.
+-		off = objw.Uintptr(x, off, uint64(v.FrameOffset()))
+-		off = objw.SymPtr(x, off, reflectdata.TypeLinksym(v.Type()), 0)
++		// We already limit the frame size, so the offset and the object size
++		// should not be too big.
++		frameOffset := v.FrameOffset()
++		if frameOffset != int64(int32(frameOffset)) {
++			base.Fatalf("frame offset too big: %v %d", v, frameOffset)
++		}
++		off = objw.Uint32(x, off, uint32(frameOffset))
++
++		t := v.Type()
++		sz := t.Width
++		if sz != int64(int32(sz)) {
++			base.Fatalf("stack object too big: %v of type %v, size %d", v, t, sz)
++		}
++		lsym, useGCProg, ptrdata := reflectdata.GCSym(t)
++		if useGCProg {
++			ptrdata = -ptrdata
++		}
++		off = objw.Uint32(x, off, uint32(sz))
++		off = objw.Uint32(x, off, uint32(ptrdata))
++		off = objw.SymPtr(x, off, lsym, 0)
+ 	}
+ 
+ 	if base.Flag.Live != 0 {
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 06c4986cf4..01eaf26a0a 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -52,6 +52,9 @@ var (
+ 	signatset   = make(map[*types.Type]struct{})
+ 	signatslice []*types.Type
+ 
++	gcsymmu  sync.Mutex // protects gcsymset and gcsymslice
++	gcsymset = make(map[*types.Type]struct{})
++
+ 	itabs []itabEntry
+ 	ptabs []*ir.Name
+ )
+@@ -694,7 +697,8 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 		sptr = writeType(tptr)
+ 	}
+ 
+-	gcsym, useGCProg, ptrdata := dgcsym(t)
++	gcsym, useGCProg, ptrdata := dgcsym(t, true)
++	delete(gcsymset, t)
+ 
+ 	// ../../../../reflect/type.go:/^type.rtype
+ 	// actual type structure
+@@ -1321,6 +1325,16 @@ func WriteRuntimeTypes() {
+ 			}
+ 		}
+ 	}
++
++	// Emit GC data symbols.
++	gcsyms := make([]typeAndStr, 0, len(gcsymset))
++	for t := range gcsymset {
++		gcsyms = append(gcsyms, typeAndStr{t: t, short: types.TypeSymName(t), regular: t.String()})
++	}
++	sort.Sort(typesByString(gcsyms))
++	for _, ts := range gcsyms {
++		dgcsym(ts.t, true)
++	}
+ }
+ 
+ func WriteTabs() {
+@@ -1490,29 +1504,46 @@ func (a typesByString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+ //
+ const maxPtrmaskBytes = 2048
+ 
+-// dgcsym emits and returns a data symbol containing GC information for type t,
+-// along with a boolean reporting whether the UseGCProg bit should be set in
+-// the type kind, and the ptrdata field to record in the reflect type information.
+-func dgcsym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
++// GCSym returns a data symbol containing GC information for type t, along
++// with a boolean reporting whether the UseGCProg bit should be set in the
++// type kind, and the ptrdata field to record in the reflect type information.
++// GCSym may be called in concurrent backend, so it does not emit the symbol
++// content.
++func GCSym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
++	// Record that we need to emit the GC symbol.
++	gcsymmu.Lock()
++	if _, ok := gcsymset[t]; !ok {
++		gcsymset[t] = struct{}{}
++	}
++	gcsymmu.Unlock()
++
++	return dgcsym(t, false)
++}
++
++// dgcsym returns a data symbol containing GC information for type t, along
++// with a boolean reporting whether the UseGCProg bit should be set in the
++// type kind, and the ptrdata field to record in the reflect type information.
++// When write is true, it writes the symbol data.
++func dgcsym(t *types.Type, write bool) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
+ 	ptrdata = types.PtrDataSize(t)
+ 	if ptrdata/int64(types.PtrSize) <= maxPtrmaskBytes*8 {
+-		lsym = dgcptrmask(t)
++		lsym = dgcptrmask(t, write)
+ 		return
+ 	}
+ 
+ 	useGCProg = true
+-	lsym, ptrdata = dgcprog(t)
++	lsym, ptrdata = dgcprog(t, write)
+ 	return
+ }
+ 
+ // dgcptrmask emits and returns the symbol containing a pointer mask for type t.
+-func dgcptrmask(t *types.Type) *obj.LSym {
++func dgcptrmask(t *types.Type, write bool) *obj.LSym {
+ 	ptrmask := make([]byte, (types.PtrDataSize(t)/int64(types.PtrSize)+7)/8)
+ 	fillptrmask(t, ptrmask)
+ 	p := fmt.Sprintf("runtime.gcbits.%x", ptrmask)
+ 
+ 	lsym := base.Ctxt.Lookup(p)
+-	if !lsym.OnList() {
++	if write && !lsym.OnList() {
+ 		for i, x := range ptrmask {
+ 			objw.Uint8(lsym, i, x)
+ 		}
+@@ -1549,14 +1580,14 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
+ // [types.PtrDataSize(t), t.Width]).
+ // In practice, the size is types.PtrDataSize(t) except for non-trivial arrays.
+ // For non-trivial arrays, the program describes the full t.Width size.
+-func dgcprog(t *types.Type) (*obj.LSym, int64) {
++func dgcprog(t *types.Type, write bool) (*obj.LSym, int64) {
+ 	types.CalcSize(t)
+ 	if t.Width == types.BADWIDTH {
+ 		base.Fatalf("dgcprog: %v badwidth", t)
+ 	}
+ 	lsym := TypeLinksymPrefix(".gcprog", t)
+ 	var p gcProg
+-	p.init(lsym)
++	p.init(lsym, write)
+ 	p.emit(t, 0)
+ 	offset := p.w.BitIndex() * int64(types.PtrSize)
+ 	p.end()
+@@ -1570,11 +1601,17 @@ type gcProg struct {
+ 	lsym   *obj.LSym
+ 	symoff int
+ 	w      gcprog.Writer
++	write  bool
+ }
+ 
+-func (p *gcProg) init(lsym *obj.LSym) {
++func (p *gcProg) init(lsym *obj.LSym, write bool) {
+ 	p.lsym = lsym
++	p.write = write && !lsym.OnList()
+ 	p.symoff = 4 // first 4 bytes hold program length
++	if !write {
++		p.w.Init(func(byte) {})
++		return
++	}
+ 	p.w.Init(p.writeByte)
+ 	if base.Debug.GCProg > 0 {
+ 		fmt.Fprintf(os.Stderr, "compile: start GCProg for %v\n", lsym)
+@@ -1588,6 +1625,9 @@ func (p *gcProg) writeByte(x byte) {
+ 
+ func (p *gcProg) end() {
+ 	p.w.End()
++	if !p.write {
++		return
++	}
+ 	objw.Uint32(p.lsym, 0, uint32(p.symoff-4))
+ 	objw.Global(p.lsym, int32(p.symoff), obj.DUPOK|obj.RODATA|obj.LOCAL)
+ 	p.lsym.Set(obj.AttrContentAddressable, true)
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 719b21055b..1fd0732d62 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -792,24 +792,24 @@ func scanstack(gp *g, gcw *gcWork) {
+ 		if obj == nil {
+ 			continue
+ 		}
+-		t := obj.typ
+-		if t == nil {
++		r := obj.r
++		if r == nil {
+ 			// We've already scanned this object.
+ 			continue
+ 		}
+-		obj.setType(nil) // Don't scan it again.
++		obj.setRecord(nil) // Don't scan it again.
+ 		if stackTraceDebug {
+ 			printlock()
+-			print("  live stkobj at", hex(state.stack.lo+uintptr(obj.off)), "of type", t.string())
++			print("  live stkobj at", hex(state.stack.lo+uintptr(obj.off)), "of size", obj.size)
+ 			if conservative {
+ 				print(" (conservative)")
+ 			}
+ 			println()
+ 			printunlock()
+ 		}
+-		gcdata := t.gcdata
++		gcdata := r.gcdata
+ 		var s *mspan
+-		if t.kind&kindGCProg != 0 {
++		if r.useGCProg() {
+ 			// This path is pretty unlikely, an object large enough
+ 			// to have a GC program allocated on the stack.
+ 			// We need some space to unpack the program into a straight
+@@ -819,15 +819,15 @@ func scanstack(gp *g, gcw *gcWork) {
+ 			// to change from a Lempel-Ziv style program to something else.
+ 			// Or we can forbid putting objects on stacks if they require
+ 			// a gc program (see issue 27447).
+-			s = materializeGCProg(t.ptrdata, gcdata)
++			s = materializeGCProg(r.ptrdata(), gcdata)
+ 			gcdata = (*byte)(unsafe.Pointer(s.startAddr))
+ 		}
+ 
+ 		b := state.stack.lo + uintptr(obj.off)
+ 		if conservative {
+-			scanConservative(b, t.ptrdata, gcdata, gcw, &state)
++			scanConservative(b, r.ptrdata(), gcdata, gcw, &state)
+ 		} else {
+-			scanblock(b, t.ptrdata, gcdata, gcw, &state)
++			scanblock(b, r.ptrdata(), gcdata, gcw, &state)
+ 		}
+ 
+ 		if s != nil {
+@@ -843,10 +843,10 @@ func scanstack(gp *g, gcw *gcWork) {
+ 		if stackTraceDebug {
+ 			for i := 0; i < x.nobj; i++ {
+ 				obj := &x.obj[i]
+-				if obj.typ == nil { // reachable
++				if obj.r == nil { // reachable
+ 					continue
+ 				}
+-				println("  dead stkobj at", hex(gp.stack.lo+uintptr(obj.off)), "of type", obj.typ.string())
++				println("  dead stkobj at", hex(gp.stack.lo+uintptr(obj.off)), "of size", obj.r.size)
+ 				// Note: not necessarily really dead - only reachable-from-ptr dead.
+ 			}
+ 		}
+@@ -927,7 +927,7 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
+ 		// varp is 0 for defers, where there are no locals.
+ 		// In that case, there can't be a pointer to its args, either.
+ 		// (And all args would be scanned above anyway.)
+-		for _, obj := range objs {
++		for i, obj := range objs {
+ 			off := obj.off
+ 			base := frame.varp // locals base pointer
+ 			if off >= 0 {
+@@ -939,9 +939,9 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
+ 				continue
+ 			}
+ 			if stackTraceDebug {
+-				println("stkobj at", hex(ptr), "of type", obj.typ.string())
++				println("stkobj at", hex(ptr), "of size", obj.size)
+ 			}
+-			state.addObject(ptr, obj.typ)
++			state.addObject(ptr, &objs[i])
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/mgcstack.go b/src/runtime/mgcstack.go
+index 8eb941a328..92d58485f6 100644
+--- a/src/runtime/mgcstack.go
++++ b/src/runtime/mgcstack.go
+@@ -150,19 +150,19 @@ func init() {
+ //
+ //go:notinheap
+ type stackObject struct {
+-	off   uint32       // offset above stack.lo
+-	size  uint32       // size of object
+-	typ   *_type       // type info (for ptr/nonptr bits). nil if object has been scanned.
+-	left  *stackObject // objects with lower addresses
+-	right *stackObject // objects with higher addresses
++	off   uint32             // offset above stack.lo
++	size  uint32             // size of object
++	r     *stackObjectRecord // info of the object (for ptr/nonptr bits). nil if object has been scanned.
++	left  *stackObject       // objects with lower addresses
++	right *stackObject       // objects with higher addresses
+ }
+ 
+-// obj.typ = typ, but with no write barrier.
++// obj.r = r, but with no write barrier.
+ //go:nowritebarrier
+-func (obj *stackObject) setType(typ *_type) {
++func (obj *stackObject) setRecord(r *stackObjectRecord) {
+ 	// Types of stack objects are always in read-only memory, not the heap.
+ 	// So not using a write barrier is ok.
+-	*(*uintptr)(unsafe.Pointer(&obj.typ)) = uintptr(unsafe.Pointer(typ))
++	*(*uintptr)(unsafe.Pointer(&obj.r)) = uintptr(unsafe.Pointer(r))
+ }
+ 
+ // A stackScanState keeps track of the state used during the GC walk
+@@ -271,7 +271,7 @@ func (s *stackScanState) getPtr() (p uintptr, conservative bool) {
+ }
+ 
+ // addObject adds a stack object at addr of type typ to the set of stack objects.
+-func (s *stackScanState) addObject(addr uintptr, typ *_type) {
++func (s *stackScanState) addObject(addr uintptr, r *stackObjectRecord) {
+ 	x := s.tail
+ 	if x == nil {
+ 		// initial setup
+@@ -294,8 +294,8 @@ func (s *stackScanState) addObject(addr uintptr, typ *_type) {
+ 	obj := &x.obj[x.nobj]
+ 	x.nobj++
+ 	obj.off = uint32(addr - s.stack.lo)
+-	obj.size = uint32(typ.size)
+-	obj.setType(typ)
++	obj.size = uint32(r.size)
++	obj.setRecord(r)
+ 	// obj.left and obj.right will be initialized by buildIndex before use.
+ 	s.nobjs++
+ }
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index babfdfccf0..b21c9c9518 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -702,15 +702,15 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 				// we call into morestack.)
+ 				continue
+ 			}
+-			t := obj.typ
+-			gcdata := t.gcdata
++			ptrdata := obj.ptrdata()
++			gcdata := obj.gcdata
+ 			var s *mspan
+-			if t.kind&kindGCProg != 0 {
++			if obj.useGCProg() {
+ 				// See comments in mgcmark.go:scanstack
+-				s = materializeGCProg(t.ptrdata, gcdata)
++				s = materializeGCProg(ptrdata, gcdata)
+ 				gcdata = (*byte)(unsafe.Pointer(s.startAddr))
+ 			}
+-			for i := uintptr(0); i < t.ptrdata; i += sys.PtrSize {
++			for i := uintptr(0); i < ptrdata; i += sys.PtrSize {
+ 				if *addb(gcdata, i/(8*sys.PtrSize))>>(i/sys.PtrSize&7)&1 != 0 {
+ 					adjustpointer(adjinfo, unsafe.Pointer(p+i))
+ 				}
+@@ -1346,20 +1346,42 @@ var (
+ 	abiRegArgsType           *_type      = efaceOf(&abiRegArgsEface)._type
+ 	methodValueCallFrameObjs             = []stackObjectRecord{
+ 		{
+-			off: -int(alignUp(abiRegArgsType.size, 8)), // It's always the highest address local.
+-			typ: abiRegArgsType,
++			off:      -int32(alignUp(abiRegArgsType.size, 8)), // It's always the highest address local.
++			size:     int32(abiRegArgsType.size),
++			_ptrdata: int32(abiRegArgsType.ptrdata),
++			gcdata:   abiRegArgsType.gcdata,
+ 		},
+ 	}
+ )
+ 
++func init() {
++	if abiRegArgsType.kind&kindGCProg != 0 {
++		throw("abiRegArgsType needs GC Prog, update methodValueCallFrameObjs")
++	}
++}
++
+ // A stackObjectRecord is generated by the compiler for each stack object in a stack frame.
+ // This record must match the generator code in cmd/compile/internal/liveness/plive.go:emitStackObjects.
+ type stackObjectRecord struct {
+ 	// offset in frame
+ 	// if negative, offset from varp
+ 	// if non-negative, offset from argp
+-	off int
+-	typ *_type
++	off      int32
++	size     int32
++	_ptrdata int32 // ptrdata, or -ptrdata is GC prog is used
++	gcdata   *byte // pointer map or GC prog of the type
++}
++
++func (r *stackObjectRecord) useGCProg() bool {
++	return r._ptrdata < 0
++}
++
++func (r *stackObjectRecord) ptrdata() uintptr {
++	x := r._ptrdata
++	if x < 0 {
++		return uintptr(-x)
++	}
++	return uintptr(x)
+ }
+ 
+ // This is exported as ABI0 via linkname so obj can call it.

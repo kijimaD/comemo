@@ -7,6 +7,23 @@ Date:   Mon Jan 15 14:17:43 2018 +0100
     Change-Id: I248cb10a2e24f089600c13e86da251970c773d95
     Reviewed-on: https://go-review.googlesource.com/87662
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.10.html | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index b5b3c01e6c..1f0d045696 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -370,8 +370,9 @@ without the binary that produced the profile.
+ </p>
+ 
+ <p>
+-The <a href="/cmd/pprof/"><code>go</code>&nbsp;<code>tool</code>&nbsp;<code>pprof</code></a> profile visualizer has been updated to
+-the latest version from <a href="https://github.com/google/pprof">github.com/google/pprof</a>,
++The <a href="/cmd/pprof/"><code>go</code>&nbsp;<code>tool</code>&nbsp;<code>pprof</code></a>
++profile visualizer has been updated to git version 9e20b5b (2017-11-08)
++from <a href="https://github.com/google/pprof">github.com/google/pprof</a>,
+ which includes an updated web interface.
+ </p>
+ 

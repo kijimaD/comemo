@@ -7,6 +7,33 @@ Date:   Mon Oct 18 13:44:39 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2473042
-
+---
  src/cmd/5l/softfloat.c | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/5l/softfloat.c b/src/cmd/5l/softfloat.c
+index 5284cf81e8..308a5fbeda 100644
+--- a/src/cmd/5l/softfloat.c
++++ b/src/cmd/5l/softfloat.c
+@@ -19,8 +19,11 @@ softfloat(void)
+ 	if(symsfloat->type == STEXT)
+ 		psfloat = symsfloat->text;
+ 
+-	wasfloat = 0;
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
++		wasfloat = 0;
++		for(p = cursym->text; p != P; p = p->link)
++			if(p->cond != P)
++				p->cond->mark |= LABEL;
+ 		for(p = cursym->text; p != P; p = p->link) {
+ 			switch(p->as) {
+ 			case AMOVWD:
+@@ -43,7 +46,7 @@ softfloat(void)
+ 			case ADIVD:
+ 				if (psfloat == P)
+ 					diag("floats used with _sfloat not defined");
+-				if (!wasfloat) {
++				if (!wasfloat || (p->mark&LABEL)) {
+ 					next = prg();
+ 					*next = *p;
+ 	

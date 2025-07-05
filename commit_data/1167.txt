@@ -8,6 +8,32 @@ Date:   Tue Nov 18 17:23:11 2008 -0800
     DELTA=5  (3 added, 0 deleted, 2 changed)
     OCL=19520
     CL=19529
-
+---
  src/lib/flag.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/flag.go b/src/lib/flag.go
+index 7baa72a852..a1189a67fa 100644
+--- a/src/lib/flag.go
++++ b/src/lib/flag.go
+@@ -32,7 +32,10 @@ package flag
+  *		-flag=x
+  *		-flag x
+  *	One or two minus signs may be used; they are equivalent.
+- *	A lone -- terminates the parsing of the command line.
++ *
++ *	Flag parsing stops just before the first non-flag argument
++ *	("-" is a non-flag argument) or after the terminator "--".
++ *
+  *	Integer flags accept 1234, 0664, 0x1234 and may be negative.
+  *	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
+  */
+@@ -397,7 +400,7 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
+ 	}
+ 	num_minuses := 1;
+ 	if len(s) == 1 {
+-		return false, -1
++		return false, index
+ 	}
+ 	if s[1] == '-' {
+ 		num_minuses++;

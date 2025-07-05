@@ -35,10 +35,344 @@ Date:   Mon Mar 15 15:21:57 2021 -0500
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/ppc64/asm9.go   | 34 +++++++++----------------
  src/cmd/internal/objabi/reloctype.go | 14 ++++++-----
  src/cmd/link/internal/ppc64/asm.go   | 48 ++++++++++++++++++++++++++++++------
  src/runtime/race_ppc64le.s           | 28 ++++++++++-----------
  src/runtime/tls_ppc64x.s             |  4 +--
  5 files changed, 76 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index ea76543963..0243dd4744 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -229,8 +229,8 @@ var optab = []Optab{
+ 	{as: AMOVD, a1: C_LACON, a6: C_REG, type_: 26, size: 8},
+ 	{as: AMOVD, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
+ 	{as: AMOVD, a1: C_LOREG, a6: C_REG, type_: 36, size: 8},
+-	{as: AMOVD, a1: C_TLS_LE, a6: C_REG, type_: 79, size: 4},
+-	{as: AMOVD, a1: C_TLS_IE, a6: C_REG, type_: 80, size: 8},
++	{as: AMOVD, a1: C_TLS_LE, a6: C_REG, type_: 79, size: 8},
++	{as: AMOVD, a1: C_TLS_IE, a6: C_REG, type_: 80, size: 12},
+ 	{as: AMOVD, a1: C_TOCADDR, a6: C_REG, type_: 95, size: 8},
+ 	{as: AMOVD, a1: C_SPR, a6: C_REG, type_: 66, size: 4},
+ 	{as: AMOVD, a1: C_REG, a6: C_ADDR, type_: 74, size: 8},
+@@ -2500,18 +2500,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			if v != 0 {
+ 				c.ctxt.Diag("illegal indexed instruction\n%v", p)
+ 			}
+-			if c.ctxt.Flag_shared && r == REG_R13 {
+-				rel := obj.Addrel(c.cursym)
+-				rel.Off = int32(c.pc)
+-				rel.Siz = 4
+-				// This (and the matching part in the load case
+-				// below) are the only places in the ppc64 toolchain
+-				// that knows the name of the tls variable. Possibly
+-				// we could add some assembly syntax so that the name
+-				// of the variable does not have to be assumed.
+-				rel.Sym = c.ctxt.Lookup("runtime.tls_g")
+-				rel.Type = objabi.R_POWER_TLS
+-			}
+ 			o1 = AOP_RRR(c.opstorex(p.As), uint32(p.From.Reg), uint32(p.To.Index), uint32(r))
+ 		} else {
+ 			if int32(int16(v)) != v {
+@@ -2536,13 +2524,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			if v != 0 {
+ 				c.ctxt.Diag("illegal indexed instruction\n%v", p)
+ 			}
+-			if c.ctxt.Flag_shared && r == REG_R13 {
+-				rel := obj.Addrel(c.cursym)
+-				rel.Off = int32(c.pc)
+-				rel.Siz = 4
+-				rel.Sym = c.ctxt.Lookup("runtime.tls_g")
+-				rel.Type = objabi.R_POWER_TLS
+-			}
+ 			o1 = AOP_RRR(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(r))
+ 		} else {
+ 			if int32(int16(v)) != v {
+@@ -3511,10 +3492,11 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if p.From.Offset != 0 {
+ 			c.ctxt.Diag("invalid offset against tls var %v", p)
+ 		}
+-		o1 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), REGZERO, 0)
++		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R13, 0)
++		o2 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), uint32(p.To.Reg), 0)
+ 		rel := obj.Addrel(c.cursym)
+ 		rel.Off = int32(c.pc)
+-		rel.Siz = 4
++		rel.Siz = 8
+ 		rel.Sym = p.From.Sym
+ 		rel.Type = objabi.R_POWER_TLS_LE
+ 
+@@ -3524,11 +3506,17 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
+ 		o2 = AOP_IRR(c.opload(AMOVD), uint32(p.To.Reg), uint32(p.To.Reg), 0)
++		o3 = AOP_RRR(OP_ADD, uint32(p.To.Reg), uint32(p.To.Reg), REG_R13)
+ 		rel := obj.Addrel(c.cursym)
+ 		rel.Off = int32(c.pc)
+ 		rel.Siz = 8
+ 		rel.Sym = p.From.Sym
+ 		rel.Type = objabi.R_POWER_TLS_IE
++		rel = obj.Addrel(c.cursym)
++		rel.Off = int32(c.pc) + 8
++		rel.Siz = 4
++		rel.Sym = p.From.Sym
++		rel.Type = objabi.R_POWER_TLS
+ 
+ 	case 81:
+ 		v := c.vregoff(&p.To)
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index b241127b4e..ea55fa3b0a 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -167,8 +167,8 @@ const (
+ 
+ 	// R_POWER_TLS_LE is used to implement the "local exec" model for tls
+ 	// access. It resolves to the offset of the thread-local symbol from the
+-	// thread pointer (R13) and inserts this value into the low 16 bits of an
+-	// instruction word.
++	// thread pointer (R13) and is split against a pair of instructions to
++	// support a 32 bit displacement.
+ 	R_POWER_TLS_LE
+ 
+ 	// R_POWER_TLS_IE is used to implement the "initial exec" model for tls access. It
+@@ -178,10 +178,12 @@ const (
+ 	// symbol from the thread pointer (R13)).
+ 	R_POWER_TLS_IE
+ 
+-	// R_POWER_TLS marks an X-form instruction such as "MOVD 0(R13)(R31*1), g" as
+-	// accessing a particular thread-local symbol. It does not affect code generation
+-	// but is used by the system linker when relaxing "initial exec" model code to
+-	// "local exec" model code.
++	// R_POWER_TLS marks an X-form instruction such as "ADD R3,R13,R4" as completing
++	// a sequence of GOT-relative relocations to compute a TLS address. This can be
++	// used by the system linker to to rewrite the GOT-relative TLS relocation into a
++	// simpler thread-pointer relative relocation. See table 3.26 and 3.28 in the
++	// ppc64 elfv2 1.4 ABI on this transformation.  Likewise, the second argument
++	// (usually called RB in X-form instructions) is assumed to be R13.
+ 	R_POWER_TLS
+ 
+ 	// R_ADDRPOWER_DS is similar to R_ADDRPOWER above, but assumes the second
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index e8e258a1f3..06385026d9 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -418,6 +418,7 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
+ 		emitReloc(ld.XCOFF_R_TOCU|(0x0F<<8), 2)
+ 		emitReloc(ld.XCOFF_R_TOCL|(0x0F<<8), 6)
+ 	case objabi.R_POWER_TLS_LE:
++		// This only supports 16b relocations.  It is fixed up in archreloc.
+ 		emitReloc(ld.XCOFF_R_TLS_LE|0x0F<<8, 2)
+ 	case objabi.R_CALLPOWER:
+ 		if r.Size != 4 {
+@@ -458,7 +459,10 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 	case objabi.R_POWER_TLS:
+ 		out.Write64(uint64(elf.R_PPC64_TLS) | uint64(elfsym)<<32)
+ 	case objabi.R_POWER_TLS_LE:
+-		out.Write64(uint64(elf.R_PPC64_TPREL16) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_PPC64_TPREL16_HA) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++		out.Write64(uint64(sectoff + 4))
++		out.Write64(uint64(elf.R_PPC64_TPREL16_LO) | uint64(elfsym)<<32)
+ 	case objabi.R_POWER_TLS_IE:
+ 		out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_HA) | uint64(elfsym)<<32)
+ 		out.Write64(uint64(r.Xadd))
+@@ -797,11 +801,25 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 			if !target.IsAIX() {
+ 				return val, nExtReloc, false
+ 			}
+-		case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
+-			// check Outer is nil, Type is TLSBSS?
++		case objabi.R_POWER_TLS:
+ 			nExtReloc = 1
+-			if rt == objabi.R_POWER_TLS_IE {
+-				nExtReloc = 2 // need two ELF relocations, see elfreloc1
++			return val, nExtReloc, true
++		case objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
++			if target.IsAIX() && rt == objabi.R_POWER_TLS_LE {
++				// Fixup val, an addis/addi pair of instructions, which generate a 32b displacement
++				// from the threadpointer (R13), into a 16b relocation. XCOFF only supports 16b
++				// TLS LE relocations. Likewise, verify this is an addis/addi sequence.
++				const expectedOpcodes = 0x3C00000038000000
++				const expectedOpmasks = 0xFC000000FC000000
++				if uint64(val)&expectedOpmasks != expectedOpcodes {
++					ldr.Errorf(s, "relocation for %s+%d is not an addis/addi pair: %16x", ldr.SymName(rs), r.Off(), uint64(val))
++				}
++				nval := (int64(uint32(0x380d0000)) | val&0x03e00000) << 32 // addi rX, r13, $0
++				nval |= int64(0x60000000)                                  // nop
++				val = nval
++				nExtReloc = 1
++			} else {
++				nExtReloc = 2
+ 			}
+ 			return val, nExtReloc, true
+ 		case objabi.R_ADDRPOWER,
+@@ -855,10 +873,26 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 			// the TLS.
+ 			v -= 0x800
+ 		}
+-		if int64(int16(v)) != v {
++
++		var o1, o2 uint32
++		if int64(int32(v)) != v {
+ 			ldr.Errorf(s, "TLS offset out of range %d", v)
+ 		}
+-		return (val &^ 0xffff) | (v & 0xffff), nExtReloc, true
++		if target.IsBigEndian() {
++			o1 = uint32(val >> 32)
++			o2 = uint32(val)
++		} else {
++			o1 = uint32(val)
++			o2 = uint32(val >> 32)
++		}
++
++		o1 |= uint32(((v + 0x8000) >> 16) & 0xFFFF)
++		o2 |= uint32(v & 0xFFFF)
++
++		if target.IsBigEndian() {
++			return int64(o1)<<32 | int64(o2), nExtReloc, true
++		}
++		return int64(o2)<<32 | int64(o1), nExtReloc, true
+ 	}
+ 
+ 	return val, nExtReloc, false
+diff --git a/src/runtime/race_ppc64le.s b/src/runtime/race_ppc64le.s
+index b09f37031c..069e4d86dd 100644
+--- a/src/runtime/race_ppc64le.s
++++ b/src/runtime/race_ppc64le.s
+@@ -36,9 +36,9 @@
+ // racecalladdr.
+ //
+ // The sequence used to get the race ctx:
+-//    MOVD    runtime·tls_g(SB), R10	// offset to TLS
+-//    MOVD    0(R13)(R10*1), g		// R13=TLS for this thread, g = R30
+-//    MOVD    g_racectx(g), R3		// racectx == ThreadState
++//    MOVD    runtime·tls_g(SB), R10 // Address of TLS variable
++//    MOVD    0(R10), g              // g = R30
++//    MOVD    g_racectx(g), R3       // racectx == ThreadState
+ 
+ // func runtime·RaceRead(addr uintptr)
+ // Called from instrumented Go code
+@@ -137,7 +137,7 @@ TEXT	runtime·racewriterangepc1(SB), NOSPLIT, $0-24
+ // Otherwise, setup goroutine context and invoke racecall. Other arguments already set.
+ TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
+ 	MOVD    runtime·tls_g(SB), R10
+-	MOVD	0(R13)(R10*1), g
++	MOVD	0(R10), g
+ 	MOVD	g_racectx(g), R3	// goroutine context
+ 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
+ 	MOVD	runtime·racearenastart(SB), R9
+@@ -173,7 +173,7 @@ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
+ // R11 = caller's return address
+ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+ 	MOVD    runtime·tls_g(SB), R10
+-	MOVD    0(R13)(R10*1), g
++	MOVD    0(R10), g
+ 	MOVD    g_racectx(g), R3        // goroutine racectx aka *ThreadState
+ 	MOVD	R8, R4			// caller pc set by caller in R8
+ 	// void __tsan_func_enter(ThreadState *thr, void *pc);
+@@ -185,7 +185,7 @@ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+ // Called from Go instrumented code.
+ TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
+ 	MOVD    runtime·tls_g(SB), R10
+-	MOVD    0(R13)(R10*1), g
++	MOVD    0(R10), g
+ 	MOVD    g_racectx(g), R3        // goroutine racectx aka *ThreadState
+ 	// void __tsan_func_exit(ThreadState *thr);
+ 	MOVD	$__tsan_func_exit(SB), R8
+@@ -380,7 +380,7 @@ racecallatomic_data:
+ racecallatomic_ok:
+ 	// Addr is within the good range, call the atomic function.
+ 	MOVD    runtime·tls_g(SB), R10
+-	MOVD    0(R13)(R10*1), g
++	MOVD    0(R10), g
+ 	MOVD    g_racectx(g), R3        // goroutine racectx aka *ThreadState
+ 	MOVD	R8, R5			// pc is the function called
+ 	MOVD	(R1), R4		// caller pc from stack
+@@ -394,7 +394,7 @@ racecallatomic_ignore:
+ 	MOVD	R6, R17 // save the original arg list addr
+ 	MOVD	$__tsan_go_ignore_sync_begin(SB), R8 // func addr to call
+ 	MOVD    runtime·tls_g(SB), R10
+-	MOVD    0(R13)(R10*1), g
++	MOVD    0(R10), g
+ 	MOVD    g_racectx(g), R3        // goroutine context
+ 	BL	racecall<>(SB)
+ 	MOVD	R15, R8	// restore the original function
+@@ -402,7 +402,7 @@ racecallatomic_ignore:
+ 	// Call the atomic function.
+ 	// racecall will call LLVM race code which might clobber r30 (g)
+ 	MOVD	runtime·tls_g(SB), R10
+-	MOVD	0(R13)(R10*1), g
++	MOVD	0(R10), g
+ 
+ 	MOVD	g_racectx(g), R3
+ 	MOVD	R8, R4		// pc being called same TODO as above
+@@ -434,7 +434,7 @@ TEXT	racecall<>(SB), NOSPLIT, $0-0
+ 	MOVD	R10, 16(R1)	// C ABI
+ 	// Get info from the current goroutine
+ 	MOVD    runtime·tls_g(SB), R10	// g offset in TLS
+-	MOVD    0(R13)(R10*1), g	// R13 = current TLS
++	MOVD    0(R10), g
+ 	MOVD	g_m(g), R7		// m for g
+ 	MOVD	R1, R16			// callee-saved, preserved across C call
+ 	MOVD	m_g0(R7), R10		// g0 for m
+@@ -448,7 +448,7 @@ call:
+ 	XOR     R0, R0			// clear R0 on return from Clang
+ 	MOVD	R16, R1			// restore R1; R16 nonvol in Clang
+ 	MOVD    runtime·tls_g(SB), R10	// find correct g
+-	MOVD    0(R13)(R10*1), g
++	MOVD    0(R10), g
+ 	MOVD	16(R1), R10		// LR was saved away, restore for return
+ 	MOVD	R10, LR
+ 	RET
+@@ -469,7 +469,7 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $-8
+ 	// g0 TODO: Don't modify g here since R30 is nonvolatile
+ 	MOVD	g, R9
+ 	MOVD    runtime·tls_g(SB), R10
+-	MOVD    0(R13)(R10*1), g
++	MOVD    0(R10), g
+ 	MOVD	g_m(g), R3
+ 	MOVD	m_p(R3), R3
+ 	MOVD	p_raceprocctx(R3), R3
+@@ -527,7 +527,7 @@ rest:
+ 	MOVD	R4, FIXED_FRAME+8(R1)
+ 
+ 	MOVD    runtime·tls_g(SB), R10
+-	MOVD    0(R13)(R10*1), g
++	MOVD    0(R10), g
+ 
+ 	MOVD	g_m(g), R7
+ 	MOVD	m_g0(R7), R8
+@@ -540,7 +540,7 @@ rest:
+ 
+ 	// All registers are clobbered after Go code, reload.
+ 	MOVD    runtime·tls_g(SB), R10
+-	MOVD    0(R13)(R10*1), g
++	MOVD    0(R10), g
+ 
+ 	MOVD	g_m(g), R7
+ 	MOVD	m_curg(R7), g // restore g = m->curg
+diff --git a/src/runtime/tls_ppc64x.s b/src/runtime/tls_ppc64x.s
+index c697449282..25d796fcc6 100644
+--- a/src/runtime/tls_ppc64x.s
++++ b/src/runtime/tls_ppc64x.s
+@@ -29,7 +29,7 @@ TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
+ 	BEQ	nocgo
+ #endif
+ 	MOVD	runtime·tls_g(SB), R31
+-	MOVD	g, 0(R13)(R31*1)
++	MOVD	g, 0(R31)
+ 
+ nocgo:
+ 	RET
+@@ -45,7 +45,7 @@ nocgo:
+ // NOTE: _cgo_topofstack assumes this only clobbers g (R30), and R31.
+ TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	runtime·tls_g(SB), R31
+-	MOVD	0(R13)(R31*1), g
++	MOVD	0(R31), g
+ 	RET
+ 
+ GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8

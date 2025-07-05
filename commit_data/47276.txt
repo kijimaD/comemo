@@ -10,7 +10,50 @@ Date:   Fri Mar 5 09:50:28 2021 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/func.go    | 11 +++--------
  src/cmd/compile/internal/typecheck/iimport.go |  2 +-
  2 files changed, 4 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 6e2354c281..367df8e9f4 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -108,6 +108,9 @@ var inTypeCheckInl bool
+ // Lazy typechecking of imported bodies. For local functions, CanInline will set ->typecheck
+ // because they're a copy of an already checked body.
+ func ImportedBody(fn *ir.Func) {
++	if fn.Inl.Body != nil {
++		return
++	}
+ 	lno := ir.SetPos(fn.Nname)
+ 
+ 	// When we load an inlined body, we need to allow OADDR
+@@ -151,14 +154,6 @@ func ImportedBody(fn *ir.Func) {
+ 	inTypeCheckInl = false
+ 	ir.CurFunc = savefn
+ 
+-	// During ImportBody (which imports fn.Func.Inl.Body),
+-	// declarations are added to fn.Func.Dcl by funcBody(). Move them
+-	// to fn.Func.Inl.Dcl for consistency with how local functions
+-	// behave. (Append because ImportedBody may be called multiple
+-	// times on same fn.)
+-	fn.Inl.Dcl = append(fn.Inl.Dcl, fn.Dcl...)
+-	fn.Dcl = nil
+-
+ 	base.Pos = lno
+ }
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index d7c118b631..5c57373b66 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -63,7 +63,7 @@ func expandDecl(n ir.Node) ir.Node {
+ 
+ func ImportBody(fn *ir.Func) {
+ 	if fn.Inl.Body != nil {
+-		return
++		base.Fatalf("%v already has inline body", fn)
+ 	}
+ 
+ 	r := importReaderFor(fn.Nname.Sym(), inlineImporter)

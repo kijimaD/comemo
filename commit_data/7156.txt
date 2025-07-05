@@ -15,7 +15,119 @@ Date:   Wed Jan 19 13:47:04 2011 -0500
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/4057042
-
+---
  src/pkg/regexp/all_test.go |  3 ++-
  src/pkg/regexp/regexp.go   | 50 ++++++++++++++++++++--------------------------
  2 files changed, 24 insertions(+), 29 deletions(-)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index 3b2c489bce..aed7330645 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -38,6 +38,8 @@ type stringError struct {
+ 
+ var bad_re = []stringError{
+ 	{`*`, ErrBareClosure},
++	{`+`, ErrBareClosure},
++	{`?`, ErrBareClosure},
+ 	{`(abc`, ErrUnmatchedLpar},
+ 	{`abc)`, ErrUnmatchedRpar},
+ 	{`x[a-z`, ErrUnmatchedLbkt},
+@@ -47,7 +49,6 @@ var bad_re = []stringError{
+ 	{`a**`, ErrBadClosure},
+ 	{`a*+`, ErrBadClosure},
+ 	{`a??`, ErrBadClosure},
+-	{`*`, ErrBareClosure},
+ 	{`\x`, ErrBadBackslash},
+ }
+ 
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 2e03b798ab..d274ccdf5a 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -283,6 +283,24 @@ func escape(c int) int {
+ 	return -1
+ }
+ 
++func (p *parser) checkBackslash() int {
++	c := p.c()
++	if c == '\\' {
++		c = p.nextc()
++		switch {
++		case c == endOfFile:
++			p.error(ErrExtraneousBackslash)
++		case ispunct(c):
++			// c is as delivered
++		case escape(c) >= 0:
++			c = int(escaped[escape(c)])
++		default:
++			p.error(ErrBadBackslash)
++		}
++	}
++	return c
++}
++
+ func (p *parser) charClass() *instr {
+ 	i := newCharClass()
+ 	cc := i.cclass
+@@ -314,20 +332,8 @@ func (p *parser) charClass() *instr {
+ 			return i
+ 		case '-': // do this before backslash processing
+ 			p.error(ErrBadRange)
+-		case '\\':
+-			c = p.nextc()
+-			switch {
+-			case c == endOfFile:
+-				p.error(ErrExtraneousBackslash)
+-			case ispunct(c):
+-				// c is as delivered
+-			case escape(c) >= 0:
+-				c = int(escaped[escape(c)])
+-			default:
+-				p.error(ErrBadBackslash)
+-			}
+-			fallthrough
+ 		default:
++			c = p.checkBackslash()
+ 			p.nextc()
+ 			switch {
+ 			case left < 0: // first of pair
+@@ -345,14 +351,14 @@ func (p *parser) charClass() *instr {
+ 			}
+ 		}
+ 	}
+-	return nil
++	panic("unreachable")
+ }
+ 
+ func (p *parser) term() (start, end *instr) {
+ 	switch c := p.c(); c {
+ 	case '|', endOfFile:
+ 		return nil, nil
+-	case '*', '+':
++	case '*', '+', '?':
+ 		p.error(ErrBareClosure)
+ 	case ')':
+ 		if p.nlpar == 0 {
+@@ -407,20 +413,8 @@ func (p *parser) term() (start, end *instr) {
+ 		}
+ 		bra.next = start
+ 		return bra, ebra
+-	case '\\':
+-		c = p.nextc()
+-		switch {
+-		case c == endOfFile:
+-			p.error(ErrExtraneousBackslash)
+-		case ispunct(c):
+-			// c is as delivered
+-		case escape(c) >= 0:
+-			c = int(escaped[escape(c)])
+-		default:
+-			p.error(ErrBadBackslash)
+-		}
+-		fallthrough
+ 	default:
++		c = p.checkBackslash()
+ 		p.nextc()
+ 		start = &instr{kind: iChar, char: c}
+ 		p.re.add(start)

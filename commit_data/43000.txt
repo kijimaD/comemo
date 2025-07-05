@@ -35,7 +35,7 @@ Date:   Fri Feb 28 17:04:16 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/221607
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/386.rules     |  2 ++
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 ++
  src/cmd/compile/internal/ssa/gen/ARM.rules     |  2 ++
@@ -60,3 +60,342 @@ Date:   Fri Feb 28 17:04:16 2020 -0800
  src/cmd/compile/internal/ssa/rewriteS390X.go   |  3 +++
  src/cmd/compile/internal/ssa/rewriteWasm.go    |  3 +++
  23 files changed, 65 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 78916bebc3..64a6cbaf84 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -92,6 +92,8 @@
+ (Round32F ...) -> (Copy ...)
+ (Round64F ...) -> (Copy ...)
+ 
++(CvtBoolToUint8 ...) -> (Copy ...)
++
+ // Lowering shifts
+ // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
+ //   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 4fd13a5056..f915ea4355 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -154,6 +154,8 @@
+ 
+ (Round(32|64)F ...) -> (Copy ...)
+ 
++(CvtBoolToUint8 ...) -> (Copy ...)
++
+ // Lowering shifts
+ // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
+ //   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 77e7b477c6..839d701b8c 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -207,6 +207,8 @@
+ 
+ (Round(32|64)F ...) -> (Copy ...)
+ 
++(CvtBoolToUint8 ...) -> (Copy ...)
++
+ // fused-multiply-add
+ (FMA x y z) -> (FMULAD z x y)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 4e0ab3288d..61994a15a1 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -244,6 +244,8 @@
+ (Cvt32Fto64F ...) -> (FCVTSD ...)
+ (Cvt64Fto32F ...) -> (FCVTDS ...)
+ 
++(CvtBoolToUint8 ...) -> (Copy ...)
++
+ (Round32F ...) -> (LoweredRound32F ...)
+ (Round64F ...) -> (LoweredRound64F ...)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index 228d5ee454..9ac8e5f471 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -170,6 +170,8 @@
+ (Cvt32Fto64F ...) -> (MOVFD ...)
+ (Cvt64Fto32F ...) -> (MOVDF ...)
+ 
++(CvtBoolToUint8 ...) -> (Copy ...)
++
+ (Round(32|64)F ...) -> (Copy ...)
+ 
+ // comparisons
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index 35c65023cd..6df2b3e6b9 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -171,6 +171,8 @@
+ (Cvt32Fto64F ...) -> (MOVFD ...)
+ (Cvt64Fto32F ...) -> (MOVDF ...)
+ 
++(CvtBoolToUint8 ...) -> (Copy ...)
++
+ (Round(32|64)F ...) -> (Copy ...)
+ 
+ // comparisons
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index d4ef49e20b..961f833e90 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -59,6 +59,8 @@
+ (Cvt32Fto64F ...) -> (Copy ...) // Note v will have the wrong type for patterns dependent on Float32/Float64
+ (Cvt64Fto32F ...) -> (FRSP ...)
+ 
++(CvtBoolToUint8 ...) -> (Copy ...)
++
+ (Round(32|64)F ...) -> (LoweredRound(32|64)F ...)
+ 
+ (Sqrt ...) -> (FSQRT ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 720724647e..4ab4656bd5 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -131,6 +131,8 @@
+ (Cvt32Fto64F ...) -> (FCVTDS ...)
+ (Cvt64Fto32F ...) -> (FCVTSD ...)
+ 
++(CvtBoolToUint8 ...) -> (Copy ...)
++
+ (Round32F ...) -> (Copy ...)
+ (Round64F ...) -> (Copy ...)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 30a0249759..f2c7f62dcf 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -230,6 +230,8 @@
+ (Cvt32Fto64F ...) -> (LDEBR ...)
+ (Cvt64Fto32F ...) -> (LEDBR ...)
+ 
++(CvtBoolToUint8 ...) -> (Copy ...)
++
+ (Round(32|64)F ...) -> (LoweredRound(32|64)F ...)
+ 
+ // Lowering shifts
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index 010adcb095..cdcbc28c30 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -91,6 +91,8 @@
+ (Cvt32Fto64F ...) -> (F64PromoteF32 ...)
+ (Cvt64Fto32F ...) -> (F32DemoteF64 ...)
+ 
++(CvtBoolToUint8 ...) -> (Copy ...)
++
+ (Round32F ...) -> (Copy ...)
+ (Round64F ...) -> (Copy ...)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 9f17299610..54c6968c5b 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -418,6 +418,7 @@ var genericOps = []opData{
+ 	{name: "Cvt64Fto64", argLength: 1},
+ 	{name: "Cvt32Fto64F", argLength: 1},
+ 	{name: "Cvt64Fto32F", argLength: 1},
++	{name: "CvtBoolToUint8", argLength: 1},
+ 
+ 	// Force rounding to precision of type.
+ 	{name: "Round32F", argLength: 1},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 1111316d9b..963f1aa07a 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2584,6 +2584,7 @@ const (
+ 	OpCvt64Fto64
+ 	OpCvt32Fto64F
+ 	OpCvt64Fto32F
++	OpCvtBoolToUint8
+ 	OpRound32F
+ 	OpRound64F
+ 	OpIsNonNil
+@@ -32561,6 +32562,11 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "CvtBoolToUint8",
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:    "Round32F",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/phiopt.go b/src/cmd/compile/internal/ssa/phiopt.go
+index cc3319e188..8643fa584c 100644
+--- a/src/cmd/compile/internal/ssa/phiopt.go
++++ b/src/cmd/compile/internal/ssa/phiopt.go
+@@ -148,6 +148,13 @@ func phioptint(v *Value, b0 *Block, reverse int) {
+ 		negate = !negate
+ 	}
+ 
++	a := b0.Controls[0]
++	if negate {
++		a = v.Block.NewValue1(v.Pos, OpNot, a.Type, a)
++	}
++	v.AddArg(a)
++
++	cvt := v.Block.NewValue1(v.Pos, OpCvtBoolToUint8, a.Type, a)
+ 	switch v.Type.Size() {
+ 	case 1:
+ 		v.reset(OpCopy)
+@@ -160,12 +167,7 @@ func phioptint(v *Value, b0 *Block, reverse int) {
+ 	default:
+ 		v.Fatalf("bad int size %d", v.Type.Size())
+ 	}
+-
+-	a := b0.Controls[0]
+-	if negate {
+-		a = v.Block.NewValue1(v.Pos, OpNot, a.Type, a)
+-	}
+-	v.AddArg(a)
++	v.AddArg(cvt)
+ 
+ 	f := b0.Func
+ 	if f.pass.debug > 0 {
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index cf9a7362a2..4efb2d4f74 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -408,6 +408,9 @@ func rewriteValue386(v *Value) bool {
+ 	case OpCvt64Fto32F:
+ 		v.Op = Op386CVTSD2SS
+ 		return true
++	case OpCvtBoolToUint8:
++		v.Op = OpCopy
++		return true
+ 	case OpDiv16:
+ 		v.Op = Op386DIVW
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 665b20c42d..ee7f9ad190 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -780,6 +780,9 @@ func rewriteValueAMD64(v *Value) bool {
+ 	case OpCvt64to64F:
+ 		v.Op = OpAMD64CVTSQ2SD
+ 		return true
++	case OpCvtBoolToUint8:
++		v.Op = OpCopy
++		return true
+ 	case OpDiv128u:
+ 		v.Op = OpAMD64DIVQU2
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index baa3c66e0f..6849fecc2a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -545,6 +545,9 @@ func rewriteValueARM(v *Value) bool {
+ 	case OpCvt64Fto32U:
+ 		v.Op = OpARMMOVDWU
+ 		return true
++	case OpCvtBoolToUint8:
++		v.Op = OpCopy
++		return true
+ 	case OpDiv16:
+ 		return rewriteValueARM_OpDiv16(v)
+ 	case OpDiv16u:
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 4bee98e4d3..51051b93b7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -604,6 +604,9 @@ func rewriteValueARM64(v *Value) bool {
+ 	case OpCvt64to64F:
+ 		v.Op = OpARM64SCVTFD
+ 		return true
++	case OpCvtBoolToUint8:
++		v.Op = OpCopy
++		return true
+ 	case OpDiv16:
+ 		return rewriteValueARM64_OpDiv16(v)
+ 	case OpDiv16u:
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index f4d774c96f..b3226cddb5 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -129,6 +129,9 @@ func rewriteValueMIPS(v *Value) bool {
+ 	case OpCvt64Fto32F:
+ 		v.Op = OpMIPSMOVDF
+ 		return true
++	case OpCvtBoolToUint8:
++		v.Op = OpCopy
++		return true
+ 	case OpDiv16:
+ 		return rewriteValueMIPS_OpDiv16(v)
+ 	case OpDiv16u:
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 4139361b11..315270b16a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -154,6 +154,9 @@ func rewriteValueMIPS64(v *Value) bool {
+ 	case OpCvt64to64F:
+ 		v.Op = OpMIPS64MOVVD
+ 		return true
++	case OpCvtBoolToUint8:
++		v.Op = OpCopy
++		return true
+ 	case OpDiv16:
+ 		return rewriteValueMIPS64_OpDiv16(v)
+ 	case OpDiv16u:
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index c4eb25f38e..53549dda74 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -179,6 +179,9 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpCvt64to32F(v)
+ 	case OpCvt64to64F:
+ 		return rewriteValuePPC64_OpCvt64to64F(v)
++	case OpCvtBoolToUint8:
++		v.Op = OpCopy
++		return true
+ 	case OpDiv16:
+ 		return rewriteValuePPC64_OpDiv16(v)
+ 	case OpDiv16u:
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index e4480dc366..4d70814cfd 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -114,6 +114,9 @@ func rewriteValueRISCV64(v *Value) bool {
+ 	case OpCvt64to64F:
+ 		v.Op = OpRISCV64FCVTDL
+ 		return true
++	case OpCvtBoolToUint8:
++		v.Op = OpCopy
++		return true
+ 	case OpDiv16:
+ 		return rewriteValueRISCV64_OpDiv16(v)
+ 	case OpDiv16u:
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 43ca2ceb92..2195f6aa1e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -183,6 +183,9 @@ func rewriteValueS390X(v *Value) bool {
+ 	case OpCvt64to64F:
+ 		v.Op = OpS390XCDGBRA
+ 		return true
++	case OpCvtBoolToUint8:
++		v.Op = OpCopy
++		return true
+ 	case OpDiv16:
+ 		return rewriteValueS390X_OpDiv16(v)
+ 	case OpDiv16u:
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index ea365f46b6..90701067ce 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -169,6 +169,9 @@ func rewriteValueWasm(v *Value) bool {
+ 	case OpCvt64to64F:
+ 		v.Op = OpWasmF64ConvertI64S
+ 		return true
++	case OpCvtBoolToUint8:
++		v.Op = OpCopy
++		return true
+ 	case OpDiv16:
+ 		return rewriteValueWasm_OpDiv16(v)
+ 	case OpDiv16u:

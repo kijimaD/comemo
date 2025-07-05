@@ -17,6 +17,31 @@ Date:   Fri Oct 20 12:44:00 2017 +1100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/file_windows.go | 10 +---------
  1 file changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index e2be192bcb..c8307a6d22 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -310,18 +310,10 @@ func rename(oldname, newname string) error {
+ // It returns the files and an error, if any.
+ func Pipe() (r *File, w *File, err error) {
+ 	var p [2]syscall.Handle
+-
+-	// See ../syscall/exec.go for description of lock.
+-	syscall.ForkLock.RLock()
+-	e := syscall.Pipe(p[0:])
++	e := syscall.CreatePipe(&p[0], &p[1], nil, 0)
+ 	if e != nil {
+-		syscall.ForkLock.RUnlock()
+ 		return nil, nil, NewSyscallError("pipe", e)
+ 	}
+-	syscall.CloseOnExec(p[0])
+-	syscall.CloseOnExec(p[1])
+-	syscall.ForkLock.RUnlock()
+-
+ 	return newFile(p[0], "|0", "file"), newFile(p[1], "|1", "file"), nil
+ }
+ 

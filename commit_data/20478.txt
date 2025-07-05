@@ -12,7 +12,7 @@ Date:   Thu Sep 11 12:08:30 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/134710043
-
+---
  src/runtime/asm_386.s      | 17 +++++++++++++++++
  src/runtime/asm_amd64.s    | 17 +++++++++++++++++
  src/runtime/asm_amd64p32.s | 17 +++++++++++++++++
@@ -23,3 +23,220 @@ Date:   Thu Sep 11 12:08:30 2014 -0400
  src/runtime/runtime.h      |  1 +
  src/runtime/stubs.go       | 18 ++++++++++++++++++
  9 files changed, 104 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 3e93025faf..062a668e3e 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -209,6 +209,23 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
+ TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
+ 	RET
+ 
++// func onM_signalok(fn func())
++TEXT runtime·onM_signalok(SB), NOSPLIT, $0-4
++	get_tls(CX)
++	MOVL	g(CX), AX	// AX = g
++	MOVL	g_m(AX), BX	// BX = m
++	MOVL	m_gsignal(BX), DX	// DX = gsignal
++	CMPL	AX, DX
++	JEQ	ongsignal
++	JMP	runtime·onM(SB)
++
++ongsignal:
++	MOVL	fn+0(FP), DI	// DI = fn
++	MOVL	DI, DX
++	MOVL	0(DI), DI
++	CALL	DI
++	RET
++
+ // func onM(fn func())
+ TEXT runtime·onM(SB), NOSPLIT, $0-4
+ 	MOVL	fn+0(FP), DI	// DI = fn
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index e5702d074c..bf0f490ae3 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -200,6 +200,23 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
+ TEXT runtime·switchtoM(SB), NOSPLIT, $0-8
+ 	RET
+ 
++// func onM_signalok(fn func())
++TEXT runtime·onM_signalok(SB), NOSPLIT, $0-8
++	get_tls(CX)
++	MOVQ	g(CX), AX	// AX = g
++	MOVQ	g_m(AX), BX	// BX = m
++	MOVQ	m_gsignal(BX), DX	// DX = gsignal
++	CMPQ	AX, DX
++	JEQ	ongsignal
++	JMP	runtime·onM(SB)
++
++ongsignal:
++	MOVQ	fn+0(FP), DI	// DI = fn
++	MOVQ	DI, DX
++	MOVQ	0(DI), DI
++	CALL	DI
++	RET
++
+ // func onM(fn func())
+ TEXT runtime·onM(SB), NOSPLIT, $0-8
+ 	MOVQ	fn+0(FP), DI	// DI = fn
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 32276c8952..62fa4ff868 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -175,6 +175,23 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
+ TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
+ 	RET
+ 
++// func onM_signalok(fn func())
++TEXT runtime·onM_signalok(SB), NOSPLIT, $0-4
++	get_tls(CX)
++	MOVL	g(CX), AX	// AX = g
++	MOVL	g_m(AX), BX	// BX = m
++	MOVL	m_gsignal(BX), DX	// DX = gsignal
++	CMPL	AX, DX
++	JEQ	ongsignal
++	JMP	runtime·onM(SB)
++
++ongsignal:
++	MOVL	fn+0(FP), DI	// DI = fn
++	MOVL	DI, DX
++	MOVL	0(DI), DI
++	CALL	DI
++	RET
++
+ // func onM(fn func())
+ TEXT runtime·onM(SB), NOSPLIT, $0-4
+ 	MOVL	fn+0(FP), DI	// DI = fn
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 73d23fce34..bddffc9e77 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -202,6 +202,21 @@ TEXT runtime·switchtoM(SB),NOSPLIT,$0-4
+ 	BL	(R0) // clobber lr to ensure push {lr} is kept
+ 	RET
+ 
++// func onM_signalok(fn func())
++TEXT runtime·onM_signalok(SB), NOSPLIT, $-4-4
++	MOVW	g_m(g), R1
++	MOVW	m_gsignal(R1), R2
++	CMP	g, R2
++	B.EQ	ongsignal
++	B	runtime·onM(SB)
++
++ongsignal:
++	MOVW	fn+0(FP), R0
++	MOVW	R0, R7
++	MOVW	0(R0), R0
++	BL	(R0)
++	RET
++
+ // func onM(fn func())
+ TEXT runtime·onM(SB),NOSPLIT,$0-4
+ 	MOVW	fn+0(FP), R0	// R0 = fn
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index c61fa162f0..a86a3b7904 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -175,6 +175,14 @@ func TestMainGoroutineId(t *testing.T) {
+ 	}
+ }
+ 
++func TestBreakpoint(t *testing.T) {
++	output := executeTest(t, breakpointSource, nil)
++	want := "runtime.Breakpoint()"
++	if !strings.Contains(output, want) {
++		t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
++	}
++}
++
+ const crashSource = `
+ package main
+ 
+@@ -380,3 +388,11 @@ func main() {
+ 	panic("test")
+ }
+ `
++
++const breakpointSource = `
++package main
++import "runtime"
++func main() {
++	runtime.Breakpoint()
++}
++`
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index ac0a7541e8..017f5d4896 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -371,7 +371,7 @@ func gorecover(argp uintptr) interface{} {
+ 
+ //go:nosplit
+ func startpanic() {
+-	onM(startpanic_m)
++	onM_signalok(startpanic_m)
+ }
+ 
+ //go:nosplit
+@@ -381,7 +381,7 @@ func dopanic(unused int) {
+ 	mp.ptrarg[0] = unsafe.Pointer(gp)
+ 	mp.scalararg[0] = getcallerpc((unsafe.Pointer)(&unused))
+ 	mp.scalararg[1] = getcallersp((unsafe.Pointer)(&unused))
+-	onM(dopanic_m) // should never return
++	onM_signalok(dopanic_m) // should never return
+ 	*(*int)(nil) = 0
+ }
+ 
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index e3f24a7e67..03deb7abb1 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -2398,6 +2398,7 @@ gfpurge(P *p)
+ 	runtime·unlock(&runtime·sched.gflock);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·Breakpoint(void)
+ {
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index da9b2b7514..4f9656457d 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -823,6 +823,7 @@ int32	runtime·mcount(void);
+ int32	runtime·gcount(void);
+ void	runtime·mcall(void(**)(G*));
+ void	runtime·onM(void(**)(void));
++void	runtime·onMsignal(void(**)(void));
+ uint32	runtime·fastrand1(void);
+ void	runtime·rewindmorestack(Gobuf*);
+ int32	runtime·timediv(int64, int32, int32*);
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 8bae98c73d..45fc877e51 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -73,6 +73,24 @@ func mcall(fn func(*g))
+ //go:noescape
+ func onM(fn func())
+ 
++// onMsignal is like onM but is allowed to be used in code that
++// might run on the gsignal stack. Code running on a signal stack
++// may be interrupting an onM sequence on the main stack, so
++// if the onMsignal calling sequence writes to ptrarg/scalararg,
++// it must first save the old values and then restore them when
++// finished. As an exception to the rule, it is fine not to save and
++// restore the values if the program is trying to crash rather than
++// return from the signal handler.
++// Once all the runtime is written in Go, there will be no ptrarg/scalararg
++// and the distinction between onM and onMsignal (and perhaps mcall)
++// can go away.
++//
++// If onMsignal is called from a gsignal stack, it invokes fn directly,
++// without a stack switch. Otherwise onMsignal behaves like onM.
++//
++//go:noescape
++func onM_signalok(fn func())
++
+ func badonm() {
+ 	gothrow("onM called from signal goroutine")
+ }

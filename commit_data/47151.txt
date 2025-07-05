@@ -14,6 +14,47 @@ Date:   Wed Feb 17 19:14:03 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/reflect/abi.go | 13 +++++--------
  1 file changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/reflect/abi.go b/src/reflect/abi.go
+index 88af212717..20f41d96b5 100644
+--- a/src/reflect/abi.go
++++ b/src/reflect/abi.go
+@@ -334,8 +334,7 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
+ 	//
+ 	// TODO(mknyszek): Remove this when we no longer have
+ 	// caller reserved spill space.
+-	spillInt := uintptr(0)
+-	spillFloat := uintptr(0)
++	spill := uintptr(0)
+ 
+ 	// Compute gc program & stack bitmap for stack arguments
+ 	stackPtrs := new(bitVector)
+@@ -351,21 +350,19 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
+ 				stackPtrs.append(0)
+ 			}
+ 		} else {
+-			spillInt += ptrSize
++			spill += ptrSize
+ 		}
+ 	}
+ 	for _, arg := range t.in() {
+-		i, f := in.iregs, in.fregs
+ 		stkStep := in.addArg(arg)
+ 		if stkStep != nil {
+ 			addTypeBits(stackPtrs, stkStep.stkOff, arg)
+ 		} else {
+-			i, f = in.iregs-i, in.fregs-f
+-			spillInt += uintptr(i) * ptrSize
+-			spillFloat += uintptr(f) * abi.EffectiveFloatRegSize
++			spill = align(spill, uintptr(arg.align))
++			spill += arg.size
+ 		}
+ 	}
+-	spill := align(spillInt+spillFloat, ptrSize)
++	spill = align(spill, ptrSize)
+ 
+ 	// From the input parameters alone, we now know
+ 	// the stackCallArgsSize and retOffset.

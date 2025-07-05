@@ -14,6 +14,20 @@ Date:   Sat Jul 6 14:09:26 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/unsafe/unsafe.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/unsafe/unsafe.go b/src/unsafe/unsafe.go
+index 645ddf2c8a..de9421bab5 100644
+--- a/src/unsafe/unsafe.go
++++ b/src/unsafe/unsafe.go
+@@ -110,7 +110,7 @@ type IntegerType int
+ //	u := unsafe.Pointer(nil)
+ //	p := unsafe.Pointer(uintptr(u) + offset)
+ //
+-// (4) Conversion of a Pointer to a uintptr when calling [syscall.Syscall].
++// (4) Conversion of a Pointer to a uintptr when calling functions like [syscall.Syscall].
+ //
+ // The Syscall functions in package syscall pass their uintptr arguments directly
+ // to the operating system, which then may, depending on the details of the call,

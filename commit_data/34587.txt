@@ -10,6 +10,24 @@ Date:   Wed Nov 1 16:25:24 2017 -0400
     Change-Id: Ib3bac8a16bc2d1fcb26ab3bb7ad172b89e1a4a24
     Reviewed-on: https://go-review.googlesource.com/75230
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/example_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index 98a2d532a3..34df8daef2 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -238,10 +238,10 @@ func ExampleTime_Format() {
+ 	// value.
+ 	do("No pad", "<2>", "<7>")
+ 
+-	// An underscore represents a zero pad, if required.
++	// An underscore represents a space pad, if the date only has one digit.
+ 	do("Spaces", "<_2>", "< 7>")
+ 
+-	// Similarly, a 0 indicates zero padding.
++	// A "0" indicates zero padding for single-digit values.
+ 	do("Zeros", "<02>", "<07>")
+ 
+ 	// If the value is already the right width, padding is not used.

@@ -12,7 +12,7 @@ Date:   Fri Jun 9 20:17:51 2017 +0000
     Change-Id: Idbe90ba3b584f9b9661d2bbd141607daaadfa41a
     Reviewed-on: https://go-review.googlesource.com/45270
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/bufio/bufio.go                       |  2 +-
  src/cmd/cgo/doc.go                       | 80 ++++++++++++++++----------------
  src/cmd/go/alldocs.go                    | 70 ++++++++++++++--------------
@@ -34,3 +34,1061 @@ Date:   Fri Jun 9 20:17:51 2017 +0000
  src/time/time.go                         | 16 +++----
  src/unicode/letter.go                    |  4 +-
  20 files changed, 141 insertions(+), 141 deletions(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index bbdfad4ba8..da94a2503f 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package bufio implements buffered I/O.  It wraps an io.Reader or io.Writer
++// Package bufio implements buffered I/O. It wraps an io.Reader or io.Writer
+ // object, creating another object (Reader or Writer) that also implements
+ // the interface but provides buffering and some help for textual I/O.
+ package bufio
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 85441e61c0..b2388829a8 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -14,27 +14,27 @@ as C.stdout, or functions such as C.putchar.
+ 
+ If the import of "C" is immediately preceded by a comment, that
+ comment, called the preamble, is used as a header when compiling
+-the C parts of the package.  For example:
++the C parts of the package. For example:
+ 
+ 	// #include <stdio.h>
+ 	// #include <errno.h>
+ 	import "C"
+ 
+ The preamble may contain any C code, including function and variable
+-declarations and definitions.  These may then be referred to from Go
+-code as though they were defined in the package "C".  All names
++declarations and definitions. These may then be referred to from Go
++code as though they were defined in the package "C". All names
+ declared in the preamble may be used, even if they start with a
+-lower-case letter.  Exception: static variables in the preamble may
++lower-case letter. Exception: static variables in the preamble may
+ not be referenced from Go code; static functions are permitted.
+ 
+-See $GOROOT/misc/cgo/stdio and $GOROOT/misc/cgo/gmp for examples.  See
++See $GOROOT/misc/cgo/stdio and $GOROOT/misc/cgo/gmp for examples. See
+ "C? Go? Cgo!" for an introduction to using cgo:
+ https://golang.org/doc/articles/c_go_cgo.html.
+ 
+ CFLAGS, CPPFLAGS, CXXFLAGS, FFLAGS and LDFLAGS may be defined with pseudo
+ #cgo directives within these comments to tweak the behavior of the C, C++
+-or Fortran compiler.  Values defined in multiple directives are concatenated
+-together.  The directive can include a list of build constraints limiting its
++or Fortran compiler. Values defined in multiple directives are concatenated
++together. The directive can include a list of build constraints limiting its
+ effect to systems satisfying one of the constraints
+ (see https://golang.org/pkg/go/build/#hdr-Build_Constraints for details about the constraint syntax).
+ For example:
+@@ -57,16 +57,16 @@ The default pkg-config tool may be changed by setting the PKG_CONFIG environment
+ 
+ When building, the CGO_CFLAGS, CGO_CPPFLAGS, CGO_CXXFLAGS, CGO_FFLAGS and
+ CGO_LDFLAGS environment variables are added to the flags derived from
+-these directives.  Package-specific flags should be set using the
++these directives. Package-specific flags should be set using the
+ directives, not the environment variables, so that builds work in
+ unmodified environments.
+ 
+ All the cgo CPPFLAGS and CFLAGS directives in a package are concatenated and
+-used to compile C files in that package.  All the CPPFLAGS and CXXFLAGS
++used to compile C files in that package. All the CPPFLAGS and CXXFLAGS
+ directives in a package are concatenated and used to compile C++ files in that
+-package.  All the CPPFLAGS and FFLAGS directives in a package are concatenated
+-and used to compile Fortran files in that package.  All the LDFLAGS directives
+-in any package in the program are concatenated and used at link time.  All the
++package. All the CPPFLAGS and FFLAGS directives in a package are concatenated
++and used to compile Fortran files in that package. All the LDFLAGS directives
++in any package in the program are concatenated and used at link time. All the
+ pkg-config directives are concatenated and sent to pkg-config simultaneously
+ to add to each appropriate set of command-line flags.
+ 
+@@ -84,27 +84,27 @@ Will be expanded to:
+ 
+ When the Go tool sees that one or more Go files use the special import
+ "C", it will look for other non-Go files in the directory and compile
+-them as part of the Go package.  Any .c, .s, or .S files will be
+-compiled with the C compiler.  Any .cc, .cpp, or .cxx files will be
+-compiled with the C++ compiler.  Any .f, .F, .for or .f90 files will be
++them as part of the Go package. Any .c, .s, or .S files will be
++compiled with the C compiler. Any .cc, .cpp, or .cxx files will be
++compiled with the C++ compiler. Any .f, .F, .for or .f90 files will be
+ compiled with the fortran compiler. Any .h, .hh, .hpp, or .hxx files will
+ not be compiled separately, but, if these header files are changed,
+-the C and C++ files will be recompiled.  The default C and C++
++the C and C++ files will be recompiled. The default C and C++
+ compilers may be changed by the CC and CXX environment variables,
+ respectively; those environment variables may include command line
+ options.
+ 
+ The cgo tool is enabled by default for native builds on systems where
+-it is expected to work.  It is disabled by default when
+-cross-compiling.  You can control this by setting the CGO_ENABLED
++it is expected to work. It is disabled by default when
++cross-compiling. You can control this by setting the CGO_ENABLED
+ environment variable when running the go tool: set it to 1 to enable
+-the use of cgo, and to 0 to disable it.  The go tool will set the
++the use of cgo, and to 0 to disable it. The go tool will set the
+ build constraint "cgo" if cgo is enabled.
+ 
+ When cross-compiling, you must specify a C cross-compiler for cgo to
+-use.  You can do this by setting the CC_FOR_TARGET environment
++use. You can do this by setting the CC_FOR_TARGET environment
+ variable when building the toolchain using make.bash, or by setting
+-the CC environment variable any time you run the go tool.  The
++the CC environment variable any time you run the go tool. The
+ CXX_FOR_TARGET and CXX environment variables work in a similar way for
+ C++ code.
+ 
+@@ -138,7 +138,7 @@ C's union types are represented as a Go byte array with the same length.
+ Go structs cannot embed fields with C types.
+ 
+ Go code cannot refer to zero-sized fields that occur at the end of
+-non-empty C structs.  To get the address of such a field (which is the
++non-empty C structs. To get the address of such a field (which is the
+ only operation you can do with a zero-sized field) you must take the
+ address of the struct and add the size of the struct.
+ 
+@@ -150,7 +150,7 @@ is different from the same C type used in another.
+ Any C function (even void functions) may be called in a multiple
+ assignment context to retrieve both the return value (if any) and the
+ C errno variable as an error (use _ to skip the result value if the
+-function returns void).  For example:
++function returns void). For example:
+ 
+ 	n, err = C.sqrt(-1)
+ 	_, err := C.voidFunc()
+@@ -187,11 +187,11 @@ received from Go. For example:
+ In C, a function argument written as a fixed size array
+ actually requires a pointer to the first element of the array.
+ C compilers are aware of this calling convention and adjust
+-the call accordingly, but Go cannot.  In Go, you must pass
++the call accordingly, but Go cannot. In Go, you must pass
+ the pointer to the first element explicitly: C.f(&C.x[0]).
+ 
+ A few special functions convert between Go and C types
+-by making copies of the data.  In pseudo-Go definitions:
++by making copies of the data. In pseudo-Go definitions:
+ 
+ 	// Go string to C string
+ 	// The C string is allocated in the C heap using malloc.
+@@ -253,50 +253,50 @@ must be placed in preambles in other files, or in C source files.
+ Passing pointers
+ 
+ Go is a garbage collected language, and the garbage collector needs to
+-know the location of every pointer to Go memory.  Because of this,
++know the location of every pointer to Go memory. Because of this,
+ there are restrictions on passing pointers between Go and C.
+ 
+ In this section the term Go pointer means a pointer to memory
+ allocated by Go (such as by using the & operator or calling the
+ predefined new function) and the term C pointer means a pointer to
+-memory allocated by C (such as by a call to C.malloc).  Whether a
++memory allocated by C (such as by a call to C.malloc). Whether a
+ pointer is a Go pointer or a C pointer is a dynamic property
+ determined by how the memory was allocated; it has nothing to do with
+ the type of the pointer.
+ 
+ Go code may pass a Go pointer to C provided the Go memory to which it
+-points does not contain any Go pointers.  The C code must preserve
++points does not contain any Go pointers. The C code must preserve
+ this property: it must not store any Go pointers in Go memory, even
+-temporarily.  When passing a pointer to a field in a struct, the Go
++temporarily. When passing a pointer to a field in a struct, the Go
+ memory in question is the memory occupied by the field, not the entire
+-struct.  When passing a pointer to an element in an array or slice,
++struct. When passing a pointer to an element in an array or slice,
+ the Go memory in question is the entire array or the entire backing
+ array of the slice.
+ 
+ C code may not keep a copy of a Go pointer after the call returns.
+ 
+-A Go function called by C code may not return a Go pointer.  A Go
++A Go function called by C code may not return a Go pointer. A Go
+ function called by C code may take C pointers as arguments, and it may
+ store non-pointer or C pointer data through those pointers, but it may
+-not store a Go pointer in memory pointed to by a C pointer.  A Go
++not store a Go pointer in memory pointed to by a C pointer. A Go
+ function called by C code may take a Go pointer as an argument, but it
+ must preserve the property that the Go memory to which it points does
+ not contain any Go pointers.
+ 
+-Go code may not store a Go pointer in C memory.  C code may store Go
++Go code may not store a Go pointer in C memory. C code may store Go
+ pointers in C memory, subject to the rule above: it must stop storing
+ the Go pointer when the C function returns.
+ 
+-These rules are checked dynamically at runtime.  The checking is
++These rules are checked dynamically at runtime. The checking is
+ controlled by the cgocheck setting of the GODEBUG environment
+-variable.  The default setting is GODEBUG=cgocheck=1, which implements
+-reasonably cheap dynamic checks.  These checks may be disabled
+-entirely using GODEBUG=cgocheck=0.  Complete checking of pointer
++variable. The default setting is GODEBUG=cgocheck=1, which implements
++reasonably cheap dynamic checks. These checks may be disabled
++entirely using GODEBUG=cgocheck=0. Complete checking of pointer
+ handling, at some cost in run time, is available via GODEBUG=cgocheck=2.
+ 
+ It is possible to defeat this enforcement by using the unsafe package,
+ and of course there is nothing stopping the C code from doing anything
+-it likes.  However, programs that break these rules are likely to fail
++it likes. However, programs that break these rules are likely to fail
+ in unexpected and unpredictable ways.
+ 
+ Using cgo directly
+@@ -499,7 +499,7 @@ Here is a _cgo_gotypes.go containing definitions for needed C types:
+ 	type _Ctype_void [0]byte
+ 
+ The _cgo_gotypes.go file also contains the definitions of the
+-functions.  They all have similar bodies that invoke runtime·cgocall
++functions. They all have similar bodies that invoke runtime·cgocall
+ to make a switch from the Go runtime world to the system C (GCC-based)
+ world.
+ 
+@@ -835,7 +835,7 @@ to avoid conflicts), write the go.o file to that directory, and invoke
+ the host linker. The default value for the host linker is $CC, split
+ into fields, or else "gcc". The specific host linker command line can
+ be overridden using command line flags: cmd/link -extld=clang
+--extldflags='-ggdb -O3'.  If any package in a build includes a .cc or
++-extldflags='-ggdb -O3'. If any package in a build includes a .cc or
+ other file compiled by the C++ compiler, the go tool will use the
+ -extld option to set the host linker to the C++ compiler.
+ 
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 3dcaf47ed1..745ee31d99 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -118,8 +118,8 @@
+ // 		a suffix to use in the name of the package installation directory,
+ // 		in order to keep output separate from default builds.
+ // 		If using the -race flag, the install suffix is automatically set to race
+-// 		or, if set explicitly, has _race appended to it.  Likewise for the -msan
+-// 		flag.  Using a -buildmode option that requires non-default compile flags
++// 		or, if set explicitly, has _race appended to it. Likewise for the -msan
++// 		flag. Using a -buildmode option that requires non-default compile flags
+ // 		has a similar effect.
+ // 	-ldflags 'flag list'
+ // 		arguments to pass on each go tool link invocation.
+@@ -243,7 +243,7 @@
+ //
+ // For packages, the order of scanning is determined lexically in breadth-first order.
+ // That is, the package presented is the one that matches the search and is nearest
+-// the root and lexically first at its level of the hierarchy.  The GOROOT tree is
++// the root and lexically first at its level of the hierarchy. The GOROOT tree is
+ // always scanned in its entirety before GOPATH.
+ //
+ // If there is no package specified or matched, the package in the current
+@@ -321,8 +321,8 @@
+ // Env prints Go environment information.
+ //
+ // By default env prints information as a shell script
+-// (on Windows, a batch file).  If one or more variable
+-// names is given as arguments,  env prints the value of
++// (on Windows, a batch file). If one or more variable
++// names is given as arguments, env prints the value of
+ // each named variable on its own line.
+ //
+ // The -json flag prints the environment in JSON format
+@@ -362,7 +362,7 @@
+ // 	go fmt [-n] [-x] [packages]
+ //
+ // Fmt runs the command 'gofmt -l -w' on the packages named
+-// by the import paths.  It prints the names of the files that are modified.
++// by the import paths. It prints the names of the files that are modified.
+ //
+ // For more about gofmt, see 'go doc cmd/gofmt'.
+ // For more about specifying packages, see 'go help packages'.
+@@ -432,7 +432,7 @@
+ // As a last step before running the command, any invocations of any
+ // environment variables with alphanumeric names, such as $GOFILE or
+ // $HOME, are expanded throughout the command line. The syntax for
+-// variable expansion is $NAME on all operating systems.  Due to the
++// variable expansion is $NAME on all operating systems. Due to the
+ // order of evaluation, variables are expanded even inside quoted
+ // strings. If the variable NAME is not set, $NAME expands to the
+ // empty string.
+@@ -509,7 +509,7 @@
+ // the tests for the specified packages.
+ //
+ // The -u flag instructs get to use the network to update the named packages
+-// and their dependencies.  By default, get uses the network to check out
++// and their dependencies. By default, get uses the network to check out
+ // missing packages but does not use it to look for updates to existing packages.
+ //
+ // The -v flag enables verbose progress and debug output.
+@@ -570,7 +570,7 @@
+ //     golang.org/x/net/html
+ //
+ // The -f flag specifies an alternate format for the list, using the
+-// syntax of package template.  The default output is equivalent to -f
++// syntax of package template. The default output is equivalent to -f
+ // '{{.ImportPath}}'. The struct being passed to the template is:
+ //
+ //     type Package struct {
+@@ -663,12 +663,12 @@
+ // instead of using the template format.
+ //
+ // The -e flag changes the handling of erroneous packages, those that
+-// cannot be found or are malformed.  By default, the list command
++// cannot be found or are malformed. By default, the list command
+ // prints an error to standard error for each erroneous package and
+ // omits the packages from consideration during the usual printing.
+ // With the -e flag, the list command never prints errors to standard
+ // error and instead processes the erroneous packages with the usual
+-// printing.  Erroneous packages will have a non-empty ImportPath and
++// printing. Erroneous packages will have a non-empty ImportPath and
+ // a non-nil Error field; other information may or may not be missing
+ // (zeroed).
+ //
+@@ -721,7 +721,7 @@
+ // the file pattern "*_test.go".
+ // Files whose names begin with "_" (including "_test.go") or "." are ignored.
+ // These additional files can contain test functions, benchmark functions, and
+-// example functions.  See 'go help testfunc' for more.
++// example functions. See 'go help testfunc' for more.
+ // Each listed package causes the execution of a separate test binary.
+ //
+ // Test files that declare a package with the suffix "_test" will be compiled as a
+@@ -730,7 +730,7 @@
+ // The go tool will ignore a directory named "testdata", making it available
+ // to hold ancillary data needed by the tests.
+ //
+-// By default, go test needs no arguments.  It compiles and tests the package
++// By default, go test needs no arguments. It compiles and tests the package
+ // with source in the current directory, including tests, and runs the tests.
+ //
+ // The package is built in a temporary directory so it does not interfere with the
+@@ -817,18 +817,18 @@
+ //
+ // There are two different ways to call between Go and C/C++ code.
+ //
+-// The first is the cgo tool, which is part of the Go distribution.  For
++// The first is the cgo tool, which is part of the Go distribution. For
+ // information on how to use it see the cgo documentation (go doc cmd/cgo).
+ //
+ // The second is the SWIG program, which is a general tool for
+-// interfacing between languages.  For information on SWIG see
+-// http://swig.org/.  When running go build, any file with a .swig
+-// extension will be passed to SWIG.  Any file with a .swigcxx extension
++// interfacing between languages. For information on SWIG see
++// http://swig.org/. When running go build, any file with a .swig
++// extension will be passed to SWIG. Any file with a .swigcxx extension
+ // will be passed to SWIG with the -c++ option.
+ //
+ // When either cgo or SWIG is used, go build will pass any .c, .m, .s,
+ // or .S files to the C compiler, and any .cc, .cpp, .cxx files to the C++
+-// compiler.  The CC or CXX environment variables may be set to determine
++// compiler. The CC or CXX environment variables may be set to determine
+ // the C or C++ compiler, respectively, to use.
+ //
+ //
+@@ -941,7 +941,7 @@
+ //
+ // Each directory listed in GOPATH must have a prescribed structure:
+ //
+-// The src directory holds source code.  The path below src
++// The src directory holds source code. The path below src
+ // determines the import path or executable name.
+ //
+ // The pkg directory holds installed package objects.
+@@ -955,11 +955,11 @@
+ //
+ // The bin directory holds compiled commands.
+ // Each command is named for its source directory, but only
+-// the final element, not the entire path.  That is, the
++// the final element, not the entire path. That is, the
+ // command with source in DIR/src/foo/quux is installed into
+-// DIR/bin/quux, not DIR/bin/foo/quux.  The "foo/" prefix is stripped
++// DIR/bin/quux, not DIR/bin/foo/quux. The "foo/" prefix is stripped
+ // so that you can add DIR/bin to your PATH to get at the
+-// installed commands.  If the GOBIN environment variable is
++// installed commands. If the GOBIN environment variable is
+ // set, commands are installed to the directory it names instead
+ // of DIR/bin. GOBIN must be an absolute path.
+ //
+@@ -1102,7 +1102,7 @@
+ // 	CC
+ // 		The command to use to compile C code.
+ // 	CGO_ENABLED
+-// 		Whether the cgo command is supported.  Either 0 or 1.
++// 		Whether the cgo command is supported. Either 0 or 1.
+ // 	CGO_CFLAGS
+ // 		Flags that cgo will pass to the compiler when compiling
+ // 		C code.
+@@ -1151,7 +1151,7 @@
+ // Import path syntax
+ //
+ // An import path (see 'go help packages') denotes a package stored in the local
+-// file system.  In general, an import path denotes either a standard package (such
++// file system. In general, an import path denotes either a standard package (such
+ // as "unicode/utf8") or a package found in one of the work spaces (For more
+ // details see: 'go help gopath').
+ //
+@@ -1222,7 +1222,7 @@
+ //
+ // specifies the given repository, with or without the .vcs suffix,
+ // using the named version control system, and then the path inside
+-// that repository.  The supported version control systems are:
++// that repository. The supported version control systems are:
+ //
+ // 	Bazaar      .bzr
+ // 	Git         .git
+@@ -1242,7 +1242,7 @@
+ // example.org/repo or repo.git.
+ //
+ // When a version control system supports multiple protocols,
+-// each is tried in turn when downloading.  For example, a Git
++// each is tried in turn when downloading. For example, a Git
+ // download tries https://, then git+ssh://.
+ //
+ // By default, downloads are restricted to known secure protocols
+@@ -1360,7 +1360,7 @@
+ //
+ // An import path is a pattern if it includes one or more "..." wildcards,
+ // each of which can match any string, including the empty string and
+-// strings containing slashes.  Such a pattern expands to all package
++// strings containing slashes. Such a pattern expands to all package
+ // directories found in the GOPATH trees with names matching the
+ // patterns.
+ //
+@@ -1377,11 +1377,11 @@
+ // See golang.org/s/go15vendor for more about vendoring.
+ //
+ // An import path can also name a package to be downloaded from
+-// a remote repository.  Run 'go help importpath' for details.
++// a remote repository. Run 'go help importpath' for details.
+ //
+ // Every package in a program must have a unique import path.
+ // By convention, this is arranged by starting each path with a
+-// unique prefix that belongs to you.  For example, paths used
++// unique prefix that belongs to you. For example, paths used
+ // internally at Google all begin with 'google', and paths
+ // denoting remote repositories begin with the path to the code,
+ // such as 'github.com/user/repo'.
+@@ -1410,7 +1410,7 @@
+ //
+ // Several of the flags control profiling and write an execution profile
+ // suitable for "go tool pprof"; run "go tool pprof -h" for more
+-// information.  The --alloc_space, --alloc_objects, and --show_bytes
++// information. The --alloc_space, --alloc_objects, and --show_bytes
+ // options of pprof control how the information is presented.
+ //
+ // The following flags are recognized by the 'go test' command and
+@@ -1460,7 +1460,7 @@
+ //
+ // 	-cpu 1,2,4
+ // 	    Specify a list of GOMAXPROCS values for which the tests or
+-// 	    benchmarks should be executed.  The default is the current value
++// 	    benchmarks should be executed. The default is the current value
+ // 	    of GOMAXPROCS.
+ //
+ // 	-list regexp
+@@ -1513,7 +1513,7 @@
+ // 	    calling runtime.SetBlockProfileRate with n.
+ // 	    See 'go doc runtime.SetBlockProfileRate'.
+ // 	    The profiler aims to sample, on average, one blocking event every
+-// 	    n nanoseconds the program spends blocked.  By default,
++// 	    n nanoseconds the program spends blocked. By default,
+ // 	    if -test.blockprofile is set without this flag, all blocking events
+ // 	    are recorded, equivalent to -test.blockprofilerate=1.
+ //
+@@ -1531,7 +1531,7 @@
+ //
+ // 	-memprofilerate n
+ // 	    Enable more precise (and expensive) memory profiles by setting
+-// 	    runtime.MemProfileRate.  See 'go doc runtime.MemProfileRate'.
++// 	    runtime.MemProfileRate. See 'go doc runtime.MemProfileRate'.
+ // 	    To profile all memory allocations, use -test.memprofilerate=1
+ // 	    and pass --alloc_space flag to the pprof tool.
+ //
+@@ -1634,8 +1634,8 @@
+ // "Output:" is compiled, executed, and expected to produce no output.
+ //
+ // Godoc displays the body of ExampleXXX to demonstrate the use
+-// of the function, constant, or variable XXX.  An example of a method M with
+-// receiver type T or *T is named ExampleT_M.  There may be multiple examples
++// of the function, constant, or variable XXX. An example of a method M with
++// receiver type T or *T is named ExampleT_M. There may be multiple examples
+ // for a given function, constant, or variable, distinguished by a trailing _xxx,
+ // where xxx is a suffix not beginning with an upper case letter.
+ //
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 4bbfe1554e..4a3d4559ed 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -133,7 +133,7 @@ func TestMain(m *testing.M) {
+ 	if home, ccacheDir := os.Getenv("HOME"), os.Getenv("CCACHE_DIR"); home != "" && ccacheDir == "" {
+ 		// On some systems the default C compiler is ccache.
+ 		// Setting HOME to a non-existent directory will break
+-		// those systems.  Set CCACHE_DIR to cope.  Issue 17668.
++		// those systems. Set CCACHE_DIR to cope. Issue 17668.
+ 		os.Setenv("CCACHE_DIR", filepath.Join(home, ".ccache"))
+ 	}
+ 	os.Setenv("HOME", "/test-go-home-does-not-exist")
+@@ -402,7 +402,7 @@ func (tg *testgoData) doGrepMatch(match string, b *bytes.Buffer) bool {
+ 
+ // doGrep looks for a regular expression in a buffer and fails if it
+ // is not found. The name argument is the name of the output we are
+-// searching, "output" or "error".  The msg argument is logged on
++// searching, "output" or "error". The msg argument is logged on
+ // failure.
+ func (tg *testgoData) doGrep(match string, b *bytes.Buffer, name, msg string) {
+ 	if !tg.doGrepMatch(match, b) {
+@@ -1783,7 +1783,7 @@ func TestDefaultGOPATHPrintedSearchList(t *testing.T) {
+ 	tg.grepStderr(regexp.QuoteMeta(tg.path("home/go/src/github.com/golang/example/hello"))+`.*from \$GOPATH`, "expected default GOPATH")
+ }
+ 
+-// Issue 4186.  go get cannot be used to download packages to $GOROOT.
++// Issue 4186. go get cannot be used to download packages to $GOROOT.
+ // Test that without GOPATH set, go get should fail.
+ func TestGoGetIntoGOROOT(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+diff --git a/src/cmd/go/internal/doc/doc.go b/src/cmd/go/internal/doc/doc.go
+index e7e116af7e..d73dd9ad91 100644
+--- a/src/cmd/go/internal/doc/doc.go
++++ b/src/cmd/go/internal/doc/doc.go
+@@ -48,7 +48,7 @@ letter it is assumed to identify a symbol or method in the current directory.
+ 
+ For packages, the order of scanning is determined lexically in breadth-first order.
+ That is, the package presented is the one that matches the search and is nearest
+-the root and lexically first at its level of the hierarchy.  The GOROOT tree is
++the root and lexically first at its level of the hierarchy. The GOROOT tree is
+ always scanned in its entirety before GOPATH.
+ 
+ If there is no package specified or matched, the package in the current
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 6cb602031e..43d4334f06 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -25,8 +25,8 @@ var CmdEnv = &base.Command{
+ Env prints Go environment information.
+ 
+ By default env prints information as a shell script
+-(on Windows, a batch file).  If one or more variable
+-names is given as arguments,  env prints the value of
++(on Windows, a batch file). If one or more variable
++names is given as arguments, env prints the value of
+ each named variable on its own line.
+ 
+ The -json flag prints the environment in JSON format
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index 5b54bdc257..0563a0410b 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -25,7 +25,7 @@ var CmdFmt = &base.Command{
+ 	Short:     "run gofmt on package sources",
+ 	Long: `
+ Fmt runs the command 'gofmt -l -w' on the packages named
+-by the import paths.  It prints the names of the files that are modified.
++by the import paths. It prints the names of the files that are modified.
+ 
+ For more about gofmt, see 'go doc cmd/gofmt'.
+ For more about specifying packages, see 'go help packages'.
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index fb6d777091..d47c9b7323 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -80,7 +80,7 @@ line.
+ As a last step before running the command, any invocations of any
+ environment variables with alphanumeric names, such as $GOFILE or
+ $HOME, are expanded throughout the command line. The syntax for
+-variable expansion is $NAME on all operating systems.  Due to the
++variable expansion is $NAME on all operating systems. Due to the
+ order of evaluation, variables are expanded even inside quoted
+ strings. If the variable NAME is not set, $NAME expands to the
+ empty string.
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 45891bd341..0181c5f5b7 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -46,7 +46,7 @@ The -t flag instructs get to also download the packages required to build
+ the tests for the specified packages.
+ 
+ The -u flag instructs get to use the network to update the named packages
+-and their dependencies.  By default, get uses the network to check out
++and their dependencies. By default, get uses the network to check out
+ missing packages but does not use it to look for updates to existing packages.
+ 
+ The -v flag enables verbose progress and debug output.
+@@ -121,7 +121,7 @@ func runGet(cmd *base.Command, args []string) {
+ 		os.Setenv("GIT_SSH_COMMAND", "ssh -o ControlMaster=no")
+ 	}
+ 
+-	// Phase 1.  Download/update.
++	// Phase 1. Download/update.
+ 	var stk load.ImportStack
+ 	mode := 0
+ 	if *getT {
+@@ -151,7 +151,7 @@ func runGet(cmd *base.Command, args []string) {
+ 	args = load.ImportPaths(args)
+ 	load.PackagesForBuild(args)
+ 
+-	// Phase 3.  Install.
++	// Phase 3. Install.
+ 	if *getD {
+ 		// Download only.
+ 		// Check delayed until now so that importPaths
+@@ -514,7 +514,7 @@ func downloadPackage(p *load.Package) error {
+ // Version "weekly.YYYY-MM-DD" matches tags like "go.weekly.YYYY-MM-DD".
+ //
+ // NOTE(rsc): Eventually we will need to decide on some logic here.
+-// For now, there is only "go1".  This matches the docs in go help get.
++// For now, there is only "go1". This matches the docs in go help get.
+ func selectTag(goVersion string, tags []string) (match string) {
+ 	for _, t := range tags {
+ 		if t == "go1" {
+diff --git a/src/cmd/go/internal/get/vcs.go b/src/cmd/go/internal/get/vcs.go
+index c72d52bc1b..c656debf8a 100644
+--- a/src/cmd/go/internal/get/vcs.go
++++ b/src/cmd/go/internal/get/vcs.go
+@@ -324,7 +324,7 @@ func (v *vcsCmd) String() string {
+ }
+ 
+ // run runs the command line cmd in the given directory.
+-// keyval is a list of key, value pairs.  run expands
++// keyval is a list of key, value pairs. run expands
+ // instances of {key} in cmd into value, but only after
+ // splitting cmd into individual arguments.
+ // If an error occurs, run prints the command line and the
+@@ -688,7 +688,7 @@ func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*re
+ 	// prefix was "uni.edu" and the RepoRoot was "evilroot.com",
+ 	// make sure we don't trust Bob and check out evilroot.com to
+ 	// "uni.edu" yet (possibly overwriting/preempting another
+-	// non-evil student).  Instead, first verify the root and see
++	// non-evil student). Instead, first verify the root and see
+ 	// if it matches Bob's claim.
+ 	if mmi.Prefix != importPath {
+ 		if cfg.BuildV {
+diff --git a/src/cmd/go/internal/help/help.go b/src/cmd/go/internal/help/help.go
+index da52ac00fd..b4c5217f83 100644
+--- a/src/cmd/go/internal/help/help.go
++++ b/src/cmd/go/internal/help/help.go
+@@ -58,7 +58,7 @@ func Help(args []string) {
+ 		}
+ 	}
+ 
+-	fmt.Fprintf(os.Stderr, "Unknown help topic %#q.  Run 'go help'.\n", arg)
++	fmt.Fprintf(os.Stderr, "Unknown help topic %#q. Run 'go help'.\n", arg)
+ 	os.Exit(2) // failed at 'go help cmd'
+ }
+ 
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 132d956b66..04731c232b 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -12,18 +12,18 @@ var HelpC = &base.Command{
+ 	Long: `
+ There are two different ways to call between Go and C/C++ code.
+ 
+-The first is the cgo tool, which is part of the Go distribution.  For
++The first is the cgo tool, which is part of the Go distribution. For
+ information on how to use it see the cgo documentation (go doc cmd/cgo).
+ 
+ The second is the SWIG program, which is a general tool for
+-interfacing between languages.  For information on SWIG see
+-http://swig.org/.  When running go build, any file with a .swig
+-extension will be passed to SWIG.  Any file with a .swigcxx extension
++interfacing between languages. For information on SWIG see
++http://swig.org/. When running go build, any file with a .swig
++extension will be passed to SWIG. Any file with a .swigcxx extension
+ will be passed to SWIG with the -c++ option.
+ 
+ When either cgo or SWIG is used, go build will pass any .c, .m, .s,
+ or .S files to the C compiler, and any .cc, .cpp, .cxx files to the C++
+-compiler.  The CC or CXX environment variables may be set to determine
++compiler. The CC or CXX environment variables may be set to determine
+ the C or C++ compiler, respectively, to use.
+ 	`,
+ }
+@@ -69,7 +69,7 @@ the Go repository.
+ 
+ An import path is a pattern if it includes one or more "..." wildcards,
+ each of which can match any string, including the empty string and
+-strings containing slashes.  Such a pattern expands to all package
++strings containing slashes. Such a pattern expands to all package
+ directories found in the GOPATH trees with names matching the
+ patterns.
+ 
+@@ -86,11 +86,11 @@ and the pattern cmd/... matches it.
+ See golang.org/s/go15vendor for more about vendoring.
+ 
+ An import path can also name a package to be downloaded from
+-a remote repository.  Run 'go help importpath' for details.
++a remote repository. Run 'go help importpath' for details.
+ 
+ Every package in a program must have a unique import path.
+ By convention, this is arranged by starting each path with a
+-unique prefix that belongs to you.  For example, paths used
++unique prefix that belongs to you. For example, paths used
+ internally at Google all begin with 'google', and paths
+ denoting remote repositories begin with the path to the code,
+ such as 'github.com/user/repo'.
+@@ -119,7 +119,7 @@ var HelpImportPath = &base.Command{
+ 	Long: `
+ 
+ An import path (see 'go help packages') denotes a package stored in the local
+-file system.  In general, an import path denotes either a standard package (such
++file system. In general, an import path denotes either a standard package (such
+ as "unicode/utf8") or a package found in one of the work spaces (For more
+ details see: 'go help gopath').
+ 
+@@ -190,7 +190,7 @@ To declare the code location, an import path of the form
+ 
+ specifies the given repository, with or without the .vcs suffix,
+ using the named version control system, and then the path inside
+-that repository.  The supported version control systems are:
++that repository. The supported version control systems are:
+ 
+ 	Bazaar      .bzr
+ 	Git         .git
+@@ -210,7 +210,7 @@ denotes the foo/bar directory of the Git repository at
+ example.org/repo or repo.git.
+ 
+ When a version control system supports multiple protocols,
+-each is tried in turn when downloading.  For example, a Git
++each is tried in turn when downloading. For example, a Git
+ download tries https://, then git+ssh://.
+ 
+ By default, downloads are restricted to known secure protocols
+@@ -312,7 +312,7 @@ See https://golang.org/wiki/SettingGOPATH to set a custom GOPATH.
+ 
+ Each directory listed in GOPATH must have a prescribed structure:
+ 
+-The src directory holds source code.  The path below src
++The src directory holds source code. The path below src
+ determines the import path or executable name.
+ 
+ The pkg directory holds installed package objects.
+@@ -326,11 +326,11 @@ has its compiled form installed to "DIR/pkg/GOOS_GOARCH/foo/bar.a".
+ 
+ The bin directory holds compiled commands.
+ Each command is named for its source directory, but only
+-the final element, not the entire path.  That is, the
++the final element, not the entire path. That is, the
+ command with source in DIR/src/foo/quux is installed into
+-DIR/bin/quux, not DIR/bin/foo/quux.  The "foo/" prefix is stripped
++DIR/bin/quux, not DIR/bin/foo/quux. The "foo/" prefix is stripped
+ so that you can add DIR/bin to your PATH to get at the
+-installed commands.  If the GOBIN environment variable is
++installed commands. If the GOBIN environment variable is
+ set, commands are installed to the directory it names instead
+ of DIR/bin. GOBIN must be an absolute path.
+ 
+@@ -477,7 +477,7 @@ Environment variables for use with cgo:
+ 	CC
+ 		The command to use to compile C code.
+ 	CGO_ENABLED
+-		Whether the cgo command is supported.  Either 0 or 1.
++		Whether the cgo command is supported. Either 0 or 1.
+ 	CGO_CFLAGS
+ 		Flags that cgo will pass to the compiler when compiling
+ 		C code.
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index c63753813e..241d0894c0 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -33,7 +33,7 @@ The default output shows the package import path:
+     golang.org/x/net/html
+ 
+ The -f flag specifies an alternate format for the list, using the
+-syntax of package template.  The default output is equivalent to -f
++syntax of package template. The default output is equivalent to -f
+ '{{.ImportPath}}'. The struct being passed to the template is:
+ 
+     type Package struct {
+@@ -126,12 +126,12 @@ The -json flag causes the package data to be printed in JSON format
+ instead of using the template format.
+ 
+ The -e flag changes the handling of erroneous packages, those that
+-cannot be found or are malformed.  By default, the list command
++cannot be found or are malformed. By default, the list command
+ prints an error to standard error for each erroneous package and
+ omits the packages from consideration during the usual printing.
+ With the -e flag, the list command never prints errors to standard
+ error and instead processes the erroneous packages with the usual
+-printing.  Erroneous packages will have a non-empty ImportPath and
++printing. Erroneous packages will have a non-empty ImportPath and
+ a non-nil Error field; other information may or may not be missing
+ (zeroed).
+ 
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index bfd084200c..9264681468 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -343,7 +343,7 @@ const (
+ 
+ // loadImport scans the directory named by path, which must be an import path,
+ // but possibly a local import path (an absolute file system path or one beginning
+-// with ./ or ../).  A local relative path is interpreted relative to srcDir.
++// with ./ or ../). A local relative path is interpreted relative to srcDir.
+ // It returns a *Package describing the package found in that directory.
+ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
+ 	stk.Push(path)
+@@ -1747,7 +1747,7 @@ func LoadPackage(arg string, stk *ImportStack) *Package {
+ }
+ 
+ // packages returns the packages named by the
+-// command line arguments 'args'.  If a named package
++// command line arguments 'args'. If a named package
+ // cannot be loaded at all (for example, if the directory does not exist),
+ // then packages prints an error and does not include that
+ // package in the results. However, if errors occur trying
+@@ -1843,7 +1843,7 @@ func PackagesForBuild(args []string) []*Package {
+ }
+ 
+ // GoFilesPackage creates a package for building a collection of Go files
+-// (typically named on the command line).  The target is named p.a for
++// (typically named on the command line). The target is named p.a for
+ // package p or named after the first Go file for package main.
+ func GoFilesPackage(gofiles []string) *Package {
+ 	// TODO: Remove this restriction.
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index dc9bf379ee..8cffa14a1c 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -59,7 +59,7 @@ followed by detailed output for each failed package.
+ the file pattern "*_test.go".
+ Files whose names begin with "_" (including "_test.go") or "." are ignored.
+ These additional files can contain test functions, benchmark functions, and
+-example functions.  See 'go help testfunc' for more.
++example functions. See 'go help testfunc' for more.
+ Each listed package causes the execution of a separate test binary.
+ 
+ Test files that declare a package with the suffix "_test" will be compiled as a
+@@ -68,7 +68,7 @@ separate package, and then linked and run with the main test binary.
+ The go tool will ignore a directory named "testdata", making it available
+ to hold ancillary data needed by the tests.
+ 
+-By default, go test needs no arguments.  It compiles and tests the package
++By default, go test needs no arguments. It compiles and tests the package
+ with source in the current directory, including tests, and runs the tests.
+ 
+ The package is built in a temporary directory so it does not interfere with the
+@@ -130,7 +130,7 @@ and flags that apply to the resulting test binary.
+ 
+ Several of the flags control profiling and write an execution profile
+ suitable for "go tool pprof"; run "go tool pprof -h" for more
+-information.  The --alloc_space, --alloc_objects, and --show_bytes
++information. The --alloc_space, --alloc_objects, and --show_bytes
+ options of pprof control how the information is presented.
+ 
+ The following flags are recognized by the 'go test' command and
+@@ -185,7 +185,7 @@ const testFlag2 = `
+ 
+ 	-cpu 1,2,4
+ 	    Specify a list of GOMAXPROCS values for which the tests or
+-	    benchmarks should be executed.  The default is the current value
++	    benchmarks should be executed. The default is the current value
+ 	    of GOMAXPROCS.
+ 
+ 	-list regexp
+@@ -238,7 +238,7 @@ profile the tests during execution:
+ 	    calling runtime.SetBlockProfileRate with n.
+ 	    See 'go doc runtime.SetBlockProfileRate'.
+ 	    The profiler aims to sample, on average, one blocking event every
+-	    n nanoseconds the program spends blocked.  By default,
++	    n nanoseconds the program spends blocked. By default,
+ 	    if -test.blockprofile is set without this flag, all blocking events
+ 	    are recorded, equivalent to -test.blockprofilerate=1.
+ 
+@@ -256,7 +256,7 @@ profile the tests during execution:
+ 
+ 	-memprofilerate n
+ 	    Enable more precise (and expensive) memory profiles by setting
+-	    runtime.MemProfileRate.  See 'go doc runtime.MemProfileRate'.
++	    runtime.MemProfileRate. See 'go doc runtime.MemProfileRate'.
+ 	    To profile all memory allocations, use -test.memprofilerate=1
+ 	    and pass --alloc_space flag to the pprof tool.
+ 
+@@ -361,8 +361,8 @@ comment is compiled but not executed. An example with no text after
+ "Output:" is compiled, executed, and expected to produce no output.
+ 
+ Godoc displays the body of ExampleXXX to demonstrate the use
+-of the function, constant, or variable XXX.  An example of a method M with
+-receiver type T or *T is named ExampleT_M.  There may be multiple examples
++of the function, constant, or variable XXX. An example of a method M with
++receiver type T or *T is named ExampleT_M. There may be multiple examples
+ for a given function, constant, or variable, distinguished by a trailing _xxx,
+ where xxx is a suffix not beginning with an upper case letter.
+ 
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 25d9b36cc6..77f9fc3e01 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -103,8 +103,8 @@ and test commands:
+ 		a suffix to use in the name of the package installation directory,
+ 		in order to keep output separate from default builds.
+ 		If using the -race flag, the install suffix is automatically set to race
+-		or, if set explicitly, has _race appended to it.  Likewise for the -msan
+-		flag.  Using a -buildmode option that requires non-default compile flags
++		or, if set explicitly, has _race appended to it. Likewise for the -msan
++		flag. Using a -buildmode option that requires non-default compile flags
+ 		has a similar effect.
+ 	-ldflags 'flag list'
+ 		arguments to pass on each go tool link invocation.
+@@ -2001,7 +2001,7 @@ func (b *Builder) runOut(dir string, desc string, env []string, cmdargs ...inter
+ 		// until the time of the explicit close, and the race would remain.
+ 		//
+ 		// On Unix systems, this results in ETXTBSY, which formats
+-		// as "text file busy".  Rather than hard-code specific error cases,
++		// as "text file busy". Rather than hard-code specific error cases,
+ 		// we just look for that string. If this happens, sleep a little
+ 		// and try again. We let this happen three times, with increasing
+ 		// sleep lengths: 100+200+400 ms = 0.7 seconds.
+@@ -3662,7 +3662,7 @@ const i int = 1 << 32
+ `
+ 
+ // Determine the size of int on the target system for the -intgosize option
+-// of swig >= 2.0.9.  Run only once.
++// of swig >= 2.0.9. Run only once.
+ func (b *Builder) swigDoIntSize(obj string) (intsize string, err error) {
+ 	if cfg.BuildN {
+ 		return "$INTBITS", nil
+diff --git a/src/sort/search.go b/src/sort/search.go
+index 24cc90248c..fcff0f9491 100644
+--- a/src/sort/search.go
++++ b/src/sort/search.go
+@@ -24,7 +24,7 @@ package sort
+ //
+ // For instance, given a slice data sorted in ascending order,
+ // the call Search(len(data), func(i int) bool { return data[i] >= 23 })
+-// returns the smallest index i such that data[i] >= 23.  If the caller
++// returns the smallest index i such that data[i] >= 23. If the caller
+ // wants to find whether 23 is in the slice, it must test data[i] == 23
+ // separately.
+ //
+diff --git a/src/text/template/doc.go b/src/text/template/doc.go
+index 23d58cf686..d174ebd9cf 100644
+--- a/src/text/template/doc.go
++++ b/src/text/template/doc.go
+@@ -81,14 +81,14 @@ data, defined in detail in the corresponding sections that follow.
+ 
+ 	{{if pipeline}} T1 {{end}}
+ 		If the value of the pipeline is empty, no output is generated;
+-		otherwise, T1 is executed.  The empty values are false, 0, any
++		otherwise, T1 is executed. The empty values are false, 0, any
+ 		nil pointer or interface value, and any array, slice, map, or
+ 		string of length zero.
+ 		Dot is unaffected.
+ 
+ 	{{if pipeline}} T1 {{else}} T0 {{end}}
+ 		If the value of the pipeline is empty, T0 is executed;
+-		otherwise, T1 is executed.  Dot is unaffected.
++		otherwise, T1 is executed. Dot is unaffected.
+ 
+ 	{{if pipeline}} T1 {{else if pipeline}} T0 {{end}}
+ 		To simplify the appearance of if-else chains, the else action
+@@ -242,19 +242,19 @@ where $variable is the name of the variable. An action that declares a
+ variable produces no output.
+ 
+ If a "range" action initializes a variable, the variable is set to the
+-successive elements of the iteration.  Also, a "range" may declare two
++successive elements of the iteration. Also, a "range" may declare two
+ variables, separated by a comma:
+ 
+ 	range $index, $element := pipeline
+ 
+ in which case $index and $element are set to the successive values of the
+-array/slice index or map key and element, respectively.  Note that if there is
++array/slice index or map key and element, respectively. Note that if there is
+ only one variable, it is assigned the element; this is opposite to the
+ convention in Go range clauses.
+ 
+ A variable's scope extends to the "end" action of the control structure ("if",
+ "with", or "range") in which it is declared, or to the end of the template if
+-there is no such control structure.  A template invocation does not inherit
++there is no such control structure. A template invocation does not inherit
+ variables from the point of its invocation.
+ 
+ When execution begins, $ is set to the data argument passed to Execute, that is,
+diff --git a/src/time/time.go b/src/time/time.go
+index 583198278d..b5b40ca804 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -337,7 +337,7 @@ func (d Weekday) String() string { return days[d] }
+ // The zero Time value does not force a specific epoch for the time
+ // representation. For example, to use the Unix epoch internally, we
+ // could define that to distinguish a zero value from Jan 1 1970, that
+-// time would be represented by sec=-1, nsec=1e9.  However, it does
++// time would be represented by sec=-1, nsec=1e9. However, it does
+ // suggest a representation, namely using 1-1-1 00:00:00 UTC as the
+ // epoch, and that's what we do.
+ //
+@@ -369,7 +369,7 @@ func (d Weekday) String() string { return days[d] }
+ // everywhere.
+ //
+ // The calendar runs on an exact 400 year cycle: a 400-year calendar
+-// printed for 1970-2469 will apply as well to 2370-2769.  Even the days
++// printed for 1970-2469 will apply as well to 2370-2769. Even the days
+ // of the week match up. It simplifies the computations to choose the
+ // cycle boundaries so that the exceptional years are always delayed as
+ // long as possible. That means choosing a year equal to 1 mod 400, so
+@@ -383,7 +383,7 @@ func (d Weekday) String() string { return days[d] }
+ //
+ // These three considerations—choose an epoch as early as possible, that
+ // uses a year equal to 1 mod 400, and that is no more than 2⁶³ seconds
+-// earlier than 1970—bring us to the year -292277022399.  We refer to
++// earlier than 1970—bring us to the year -292277022399. We refer to
+ // this year as the absolute zero year, and to times measured as a uint64
+ // seconds since this year as absolute times.
+ //
+@@ -394,9 +394,9 @@ func (d Weekday) String() string { return days[d] }
+ // times.
+ //
+ // It is tempting to just use the year 1 as the absolute epoch, defining
+-// that the routines are only valid for years >= 1.  However, the
++// that the routines are only valid for years >= 1. However, the
+ // routines would then be invalid when displaying the epoch in time zones
+-// west of UTC, since it is year 0.  It doesn't seem tenable to say that
++// west of UTC, since it is year 0. It doesn't seem tenable to say that
+ // printing the zero time correctly isn't supported in half the time
+ // zones. By comparison, it's reasonable to mishandle some times in
+ // the year -292277022399.
+@@ -721,8 +721,8 @@ func (d Duration) String() string {
+ }
+ 
+ // fmtFrac formats the fraction of v/10**prec (e.g., ".12345") into the
+-// tail of buf, omitting trailing zeros.  it omits the decimal
+-// point too when the fraction is 0.  It returns the index where the
++// tail of buf, omitting trailing zeros. it omits the decimal
++// point too when the fraction is 0. It returns the index where the
+ // output bytes begin and the value v/10**prec.
+ func fmtFrac(buf []byte, v uint64, prec int) (nw int, nv uint64) {
+ 	// Omit trailing zeros up to and including decimal point.
+@@ -963,7 +963,7 @@ func absDate(abs uint64, full bool) (year int, month Month, day int, yday int) {
+ 
+ 	// Cut off years within a 4-year cycle.
+ 	// The last year is a leap year, so on the last day of that year,
+-	// day / 365 will be 4 instead of 3.  Cut it back down to 3
++	// day / 365 will be 4 instead of 3. Cut it back down to 3
+ 	// by subtracting n>>2.
+ 	n = d / 365
+ 	n -= n >> 2
+diff --git a/src/unicode/letter.go b/src/unicode/letter.go
+index b43cc66e7d..90b0b414da 100644
+--- a/src/unicode/letter.go
++++ b/src/unicode/letter.go
+@@ -46,7 +46,7 @@ type Range32 struct {
+ 
+ // CaseRange represents a range of Unicode code points for simple (one
+ // code point to one code point) case conversion.
+-// The range runs from Lo to Hi inclusive, with a fixed stride of 1.  Deltas
++// The range runs from Lo to Hi inclusive, with a fixed stride of 1. Deltas
+ // are the number to add to the code point to reach the code point for a
+ // different case for that character. They may be negative. If zero, it
+ // means the character is in the corresponding case. There is a special
+@@ -308,7 +308,7 @@ func (special SpecialCase) ToLower(r rune) rune {
+ }
+ 
+ // caseOrbit is defined in tables.go as []foldPair. Right now all the
+-// entries fit in uint16, so use uint16.  If that changes, compilation
++// entries fit in uint16, so use uint16. If that changes, compilation
+ // will fail (the constants in the composite literal will not fit in uint16)
+ // and the types here can change to uint32.
+ type foldPair struct {

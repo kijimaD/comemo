@@ -12,7 +12,42 @@ Date:   Mon Oct 4 08:00:20 2021 -0500
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64.rules | 2 +-
  src/cmd/compile/internal/ssa/rewritePPC64.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 4b11e81fa2..0393feb125 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -580,7 +580,7 @@
+ (Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (FMOVDstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 8 && is32BitFloat(val.Type) => (FMOVDstore ptr val mem) // glitch from (Cvt32Fto64F x) => x -- type is wrong
+ (Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (FMOVSstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && (is64BitInt(val.Type) || isPtr(val.Type)) => (MOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && !is64BitFloat(val.Type) => (MOVDstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 4 && is32BitInt(val.Type) => (MOVWstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 6127fd262b..450ea861f3 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -16583,14 +16583,14 @@ func rewriteValuePPC64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && (is64BitInt(val.Type) || isPtr(val.Type))
++	// cond: t.Size() == 8 && !is64BitFloat(val.Type)
+ 	// result: (MOVDstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && (is64BitInt(val.Type) || isPtr(val.Type))) {
++		if !(t.Size() == 8 && !is64BitFloat(val.Type)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVDstore)

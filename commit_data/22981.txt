@@ -8,7 +8,144 @@ Date:   Fri Apr 17 09:36:19 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/8947
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/fmt.go | 32 +++++++++++------------
  src/cmd/internal/obj/go.go  | 64 +++------------------------------------------
  2 files changed, 20 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/internal/obj/fmt.go b/src/cmd/internal/obj/fmt.go
+index b1936ef1ae..1268f426a5 100644
+--- a/src/cmd/internal/obj/fmt.go
++++ b/src/cmd/internal/obj/fmt.go
+@@ -15,20 +15,20 @@
+ package obj
+ 
+ const (
+-	FmtWidth    = 1
+-	FmtLeft     = FmtWidth << 1
+-	FmtPrec     = FmtLeft << 1
+-	FmtSharp    = FmtPrec << 1
+-	FmtSpace    = FmtSharp << 1
+-	FmtSign     = FmtSpace << 1
+-	FmtApost    = FmtSign << 1
+-	FmtZero     = FmtApost << 1
+-	FmtUnsigned = FmtZero << 1
+-	FmtShort    = FmtUnsigned << 1
+-	FmtLong     = FmtShort << 1
+-	FmtVLong    = FmtLong << 1
+-	FmtComma    = FmtVLong << 1
+-	FmtByte     = FmtComma << 1
+-	FmtLDouble  = FmtByte << 1
+-	FmtFlag     = FmtLDouble << 1
++	FmtWidth = 1 << iota
++	FmtLeft
++	FmtPrec
++	FmtSharp
++	FmtSpace
++	FmtSign
++	FmtApost
++	FmtZero
++	FmtUnsigned
++	FmtShort
++	FmtLong
++	FmtVLong
++	FmtComma
++	FmtByte
++	FmtLDouble
++	FmtFlag
+ )
+diff --git a/src/cmd/internal/obj/go.go b/src/cmd/internal/obj/go.go
+index 3d6ba85ba1..24ed07f94d 100644
+--- a/src/cmd/internal/obj/go.go
++++ b/src/cmd/internal/obj/go.go
+@@ -6,16 +6,16 @@ package obj
+ 
+ import (
+ 	"fmt"
+-	"math"
+ 	"os"
+ 	"strings"
+ )
+ 
+ // go-specific code shared across loaders (5l, 6l, 8l).
+ 
+-var Framepointer_enabled int
+-
+-var Fieldtrack_enabled int
++var (
++	Framepointer_enabled int
++	Fieldtrack_enabled   int
++)
+ 
+ // Toolchain experiments.
+ // These are controlled by the GOEXPERIMENT environment
+@@ -51,15 +51,6 @@ func init() {
+ 	}
+ }
+ 
+-// replace all "". with pkg.
+-func Expandpkg(t0 string, pkg string) string {
+-	return strings.Replace(t0, `"".`, pkg+".", -1)
+-}
+-
+-func double2ieee(ieee *uint64, f float64) {
+-	*ieee = math.Float64bits(f)
+-}
+-
+ func Nopout(p *Prog) {
+ 	p.As = ANOP
+ 	p.Scond = 0
+@@ -76,53 +67,6 @@ func Nocache(p *Prog) {
+ 	p.To.Class = 0
+ }
+ 
+-/*
+- *	bv.c
+- */
+-
+-/*
+- *	closure.c
+- */
+-
+-/*
+- *	const.c
+- */
+-
+-/*
+- *	cplx.c
+- */
+-
+-/*
+- *	dcl.c
+- */
+-
+-/*
+- *	esc.c
+- */
+-
+-/*
+- *	export.c
+- */
+-
+-/*
+- *	fmt.c
+- */
+-
+-/*
+- *	gen.c
+- */
+-
+-/*
+- *	init.c
+- */
+-
+-/*
+- *	inl.c
+- */
+-
+-/*
+- *	lex.c
+- */
+ func Expstring() string {
+ 	buf := "X"
+ 	for i := range exper {

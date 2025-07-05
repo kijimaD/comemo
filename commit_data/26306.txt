@@ -17,6 +17,39 @@ Date:   Fri Jan 8 11:36:36 2016 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go | 14 +++++++-------
  1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 830c56df60..fb30d58527 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -694,7 +694,13 @@ func importfile(f *Val, line int) {
+ 		errorexit()
+ 	}
+ 
+-	if f.U.(string) == "unsafe" {
++	path_ := f.U.(string)
++
++	if mapped, ok := importMap[path_]; ok {
++		path_ = mapped
++	}
++
++	if path_ == "unsafe" {
+ 		if safemode != 0 {
+ 			Yyerror("cannot import package unsafe")
+ 			errorexit()
+@@ -706,12 +712,6 @@ func importfile(f *Val, line int) {
+ 		return
+ 	}
+ 
+-	path_ := f.U.(string)
+-
+-	if mapped, ok := importMap[path_]; ok {
+-		path_ = mapped
+-	}
+-
+ 	if islocalname(path_) {
+ 		if path_[0] == '/' {
+ 			Yyerror("import path cannot be absolute path")

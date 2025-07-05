@@ -7,6 +7,29 @@ Date:   Fri Nov 5 23:04:08 2010 -0400
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2938041
-
+---
  src/env.bash | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/env.bash b/src/env.bash
+index 40a94d65fe..2518c4233e 100644
+--- a/src/env.bash
++++ b/src/env.bash
+@@ -17,7 +17,7 @@ fi
+ DIR1=$(cd ..; pwd)
+ DIR2=$(cd "$GOROOT"; pwd)
+ if [ "$DIR1" != "$DIR2" ]; then
+-	echo 'Suspicious $GOROOT '$GOROOT': does not match current directory.' 1>&2
++	echo 'Suspicious $GOROOT '"$GOROOT"': does not match current directory.' 1>&2
+ 	exit 1
+ fi
+ 
+@@ -29,7 +29,7 @@ if [ ! -d "$GOBIN" -a "$GOBIN" != "$GOROOT/bin" ]; then
+ fi
+ 
+ export OLDPATH=$PATH
+-export PATH=/bin:/usr/bin:$GOBIN:$PATH
++export PATH=/bin:/usr/bin:"$GOBIN":$PATH
+ 
+ MAKE=make
+ if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then

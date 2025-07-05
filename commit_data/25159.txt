@@ -11,6 +11,25 @@ Date:   Thu Oct 1 15:40:55 2015 -0700
     Reviewed-by: Evan Brown <evanbrown@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/exec_linux_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index e4ed6adff9..cca3812a9e 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -29,6 +29,13 @@ func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
+ 			t.Skip("kernel prohibits user namespace in unprivileged process")
+ 		}
+ 	}
++	// When running under the Go continuous build, skip tests for
++	// now when under Kubernetes. (where things are root but not quite)
++	// Both of these are our own environment variables.
++	// See Issue 12815.
++	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
++		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
++	}
+ 	cmd := exec.Command("whoami")
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{
+ 		Cloneflags: syscall.CLONE_NEWUSER,

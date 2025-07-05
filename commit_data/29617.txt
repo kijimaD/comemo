@@ -20,10 +20,233 @@ Date:   Mon Sep 26 13:21:21 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/arm64/asm7.go | 18 ++++++++-
  src/math/dim_arm64.s               | 78 ++++++++++++++++++++++++++++++++++++++
  src/math/floor_arm64.s             | 26 +++++++++++++
  src/math/modf_arm64.s              | 18 +++++++++
  src/math/stubs_arm64.s             | 21 ----------
  5 files changed, 138 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 610c6d3c29..89c737291c 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -466,6 +466,10 @@ var optab = []Optab{
+ 	{AFMOVD, C_FREG, C_NONE, C_FREG, 54, 4, 0, 0, 0},
+ 	{AFCVTZSD, C_FREG, C_NONE, C_REG, 29, 4, 0, 0, 0},
+ 	{ASCVTFD, C_REG, C_NONE, C_FREG, 29, 4, 0, 0, 0},
++	{AFMOVS, C_REG, C_NONE, C_FREG, 29, 4, 0, 0, 0},
++	{AFMOVS, C_FREG, C_NONE, C_REG, 29, 4, 0, 0, 0},
++	{AFMOVD, C_REG, C_NONE, C_FREG, 29, 4, 0, 0, 0},
++	{AFMOVD, C_FREG, C_NONE, C_REG, 29, 4, 0, 0, 0},
+ 	{AFCMPS, C_FREG, C_FREG, C_NONE, 56, 4, 0, 0, 0},
+ 	{AFCMPS, C_FCON, C_FREG, C_NONE, 56, 4, 0, 0, 0},
+ 	{AFCCMPS, C_COND, C_REG, C_VCON, 57, 4, 0, 0, 0},
+@@ -2376,8 +2380,18 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		o2 |= uint32(p.To.Reg & 31)
+ 
+ 	case 29: /* op Rn, Rd */
+-		o1 = oprrr(ctxt, p.As)
+-
++		if (p.As == AFMOVD || p.As == AFMOVS) && (aclass(ctxt, &p.From) == C_REG || aclass(ctxt, &p.To) == C_REG) {
++			// FMOV Rx, Fy or FMOV Fy, Rx
++			o1 = FPCVTI(0, 0, 0, 0, 6)
++			if p.As == AFMOVD {
++				o1 |= 1<<31 | 1<<22 // 64-bit
++			}
++			if aclass(ctxt, &p.From) == C_REG {
++				o1 |= 1 << 16 // FMOV Rx, Fy
++			}
++		} else {
++			o1 = oprrr(ctxt, p.As)
++		}
+ 		o1 |= uint32(p.From.Reg&31)<<5 | uint32(p.To.Reg&31)
+ 
+ 	case 30: /* movT R,L(R) -> strT */
+diff --git a/src/math/dim_arm64.s b/src/math/dim_arm64.s
+new file mode 100644
+index 0000000000..4b6b5929cd
+--- /dev/null
++++ b/src/math/dim_arm64.s
+@@ -0,0 +1,78 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++#define PosInf 0x7FF0000000000000
++#define NaN    0x7FF8000000000001
++#define NegInf 0xFFF0000000000000
++
++// func Dim(x, y float64) float64
++TEXT ·Dim(SB),NOSPLIT,$0
++	// (+Inf, +Inf) special case
++	MOVD	$PosInf, R0
++	MOVD	x+0(FP), R1
++	MOVD	y+8(FP), R2
++	CMP	R0, R1
++	BNE	dim2
++	CMP	R0, R2
++	BEQ	bothInf
++dim2:	// (-Inf, -Inf) special case
++	MOVD	$NegInf, R0
++	CMP	R0, R1
++	BNE	dim3
++	CMP	R0, R2
++	BEQ	bothInf
++dim3:	// normal case
++	FMOVD	R1, F0
++	FMOVD	R2, F1
++	FMOVD	$0.0, F2
++	FSUBD	F1, F0
++	FMAXD	F0, F2, F0
++	FMOVD	F0, ret+16(FP)
++	RET
++bothInf:
++	MOVD	$NaN, R0
++	MOVD	R0, ret+16(FP)
++	RET
++
++// func ·Max(x, y float64) float64
++TEXT ·Max(SB),NOSPLIT,$0
++	// +Inf special cases
++	MOVD	$PosInf, R0
++	MOVD	x+0(FP), R1
++	CMP	R0, R1
++	BEQ	isPosInf
++	MOVD	y+8(FP), R2
++	CMP	R0, R2
++	BEQ	isPosInf
++	// normal case
++	FMOVD	R1, F0
++	FMOVD	R2, F1
++	FMAXD	F0, F1, F0
++	FMOVD	F0, ret+16(FP)
++	RET
++isPosInf: // return +Inf
++	MOVD	R0, ret+16(FP)
++	RET
++
++// func Min(x, y float64) float64
++TEXT ·Min(SB),NOSPLIT,$0
++	// -Inf special cases
++	MOVD	$NegInf, R0
++	MOVD	x+0(FP), R1
++	CMP	R0, R1
++	BEQ	isNegInf
++	MOVD	y+8(FP), R2
++	CMP	R0, R2
++	BEQ	isNegInf
++	// normal case
++	FMOVD	R1, F0
++	FMOVD	R2, F1
++	FMIND	F0, F1, F0
++	FMOVD	F0, ret+16(FP)
++	RET
++isNegInf: // return -Inf
++	MOVD	R0, ret+16(FP)
++	RET
+diff --git a/src/math/floor_arm64.s b/src/math/floor_arm64.s
+new file mode 100644
+index 0000000000..6d240d4cd8
+--- /dev/null
++++ b/src/math/floor_arm64.s
+@@ -0,0 +1,26 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// func Floor(x float64) float64
++TEXT ·Floor(SB),NOSPLIT,$0
++	FMOVD	x+0(FP), F0
++	FRINTMD	F0, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++
++// func Ceil(x float64) float64
++TEXT ·Ceil(SB),NOSPLIT,$0
++	FMOVD	x+0(FP), F0
++	FRINTPD	F0, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++
++// func Trunc(x float64) float64
++TEXT ·Trunc(SB),NOSPLIT,$0
++	FMOVD	x+0(FP), F0
++	FRINTZD	F0, F0
++	FMOVD	F0, ret+8(FP)
++	RET
+diff --git a/src/math/modf_arm64.s b/src/math/modf_arm64.s
+new file mode 100644
+index 0000000000..0bdec4ebbe
+--- /dev/null
++++ b/src/math/modf_arm64.s
+@@ -0,0 +1,18 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// func Modf(f float64) (int float64, frac float64)
++TEXT ·Modf(SB),NOSPLIT,$0
++	MOVD	x+0(FP), R0
++	FMOVD	R0, F0
++	FRINTZD	F0, F1
++	FMOVD	F1, int+8(FP)
++	FSUBD	F1, F0
++	FMOVD	F0, R1
++	AND	$(1<<63), R0
++	ORR	R0, R1 // must have same sign
++	MOVD	R1, frac+16(FP)
++	RET
+diff --git a/src/math/stubs_arm64.s b/src/math/stubs_arm64.s
+index 04de911f4b..bbd0d175e0 100644
+--- a/src/math/stubs_arm64.s
++++ b/src/math/stubs_arm64.s
+@@ -18,15 +18,6 @@ TEXT ·Atan2(SB),NOSPLIT,$0
+ TEXT ·Atan(SB),NOSPLIT,$0
+ 	B ·atan(SB)
+ 
+-TEXT ·Dim(SB),NOSPLIT,$0
+-	B ·dim(SB)
+-
+-TEXT ·Min(SB),NOSPLIT,$0
+-	B ·min(SB)
+-
+-TEXT ·Max(SB),NOSPLIT,$0
+-	B ·max(SB)
+-
+ TEXT ·Exp2(SB),NOSPLIT,$0
+ 	B ·exp2(SB)
+ 
+@@ -36,15 +27,6 @@ TEXT ·Expm1(SB),NOSPLIT,$0
+ TEXT ·Exp(SB),NOSPLIT,$0
+ 	B ·exp(SB)
+ 
+-TEXT ·Floor(SB),NOSPLIT,$0
+-	B ·floor(SB)
+-
+-TEXT ·Ceil(SB),NOSPLIT,$0
+-	B ·ceil(SB)
+-
+-TEXT ·Trunc(SB),NOSPLIT,$0
+-	B ·trunc(SB)
+-
+ TEXT ·Frexp(SB),NOSPLIT,$0
+ 	B ·frexp(SB)
+ 
+@@ -66,9 +48,6 @@ TEXT ·Log1p(SB),NOSPLIT,$0
+ TEXT ·Log(SB),NOSPLIT,$0
+ 	B ·log(SB)
+ 
+-TEXT ·Modf(SB),NOSPLIT,$0
+-	B ·modf(SB)
+-
+ TEXT ·Mod(SB),NOSPLIT,$0
+ 	B ·mod(SB)
+ 

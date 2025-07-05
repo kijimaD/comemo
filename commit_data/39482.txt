@@ -17,6 +17,21 @@ Date:   Wed Feb 13 19:20:50 2019 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/html/template/escape_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index e6c12a8a25..e72a9ba11f 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -1869,8 +1869,7 @@ func TestErrorOnUndefined(t *testing.T) {
+ 	err := tmpl.Execute(nil, nil)
+ 	if err == nil {
+ 		t.Error("expected error")
+-	}
+-	if !strings.Contains(err.Error(), "incomplete") {
++	} else if !strings.Contains(err.Error(), "incomplete") {
+ 		t.Errorf("expected error about incomplete template; got %s", err)
+ 	}
+ }

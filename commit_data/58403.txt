@@ -17,7 +17,67 @@ Date:   Fri Nov 3 23:42:21 2023 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/http/cgi/host.go      | 11 ++---------
  src/net/http/cgi/host_test.go |  8 ++++----
  2 files changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/src/net/http/cgi/host.go b/src/net/http/cgi/host.go
+index 085658ee7a..ef222ab73a 100644
+--- a/src/net/http/cgi/host.go
++++ b/src/net/http/cgi/host.go
+@@ -115,21 +115,14 @@ func removeLeadingDuplicates(env []string) (ret []string) {
+ }
+ 
+ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+-	root := h.Root
+-	if root == "" {
+-		root = "/"
+-	}
+-
+ 	if len(req.TransferEncoding) > 0 && req.TransferEncoding[0] == "chunked" {
+ 		rw.WriteHeader(http.StatusBadRequest)
+ 		rw.Write([]byte("Chunked request bodies are not supported by CGI."))
+ 		return
+ 	}
+ 
+-	pathInfo := req.URL.Path
+-	if root != "/" && strings.HasPrefix(pathInfo, root) {
+-		pathInfo = pathInfo[len(root):]
+-	}
++	root := strings.TrimRight(h.Root, "/")
++	pathInfo := strings.TrimPrefix(req.URL.Path, root)
+ 
+ 	port := "80"
+ 	if req.TLS != nil {
+diff --git a/src/net/http/cgi/host_test.go b/src/net/http/cgi/host_test.go
+index 707af71dd7..f310a83d49 100644
+--- a/src/net/http/cgi/host_test.go
++++ b/src/net/http/cgi/host_test.go
+@@ -210,14 +210,14 @@ func TestPathInfoDirRoot(t *testing.T) {
+ 	check(t)
+ 	h := &Handler{
+ 		Path: "testdata/test.cgi",
+-		Root: "/myscript/",
++		Root: "/myscript//",
+ 	}
+ 	expectedMap := map[string]string{
+-		"env-PATH_INFO":       "bar",
++		"env-PATH_INFO":       "/bar",
+ 		"env-QUERY_STRING":    "a=b",
+ 		"env-REQUEST_URI":     "/myscript/bar?a=b",
+ 		"env-SCRIPT_FILENAME": "testdata/test.cgi",
+-		"env-SCRIPT_NAME":     "/myscript/",
++		"env-SCRIPT_NAME":     "/myscript",
+ 	}
+ 	runCgiTest(t, h, "GET /myscript/bar?a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
+ }
+@@ -278,7 +278,7 @@ func TestPathInfoNoRoot(t *testing.T) {
+ 		"env-QUERY_STRING":    "a=b",
+ 		"env-REQUEST_URI":     "/bar?a=b",
+ 		"env-SCRIPT_FILENAME": "testdata/test.cgi",
+-		"env-SCRIPT_NAME":     "/",
++		"env-SCRIPT_NAME":     "",
+ 	}
+ 	runCgiTest(t, h, "GET /bar?a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
+ }

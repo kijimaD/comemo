@@ -10,10 +10,306 @@ Date:   Mon Nov 30 12:10:56 2009 -0800
     
     R=rsc
     https://golang.org/cl/162044
-
+---
  src/pkg/sync/Makefile        |   1 +
  src/pkg/sync/mutex.go        |  52 ++------------------
  src/pkg/sync/rwmutex.go      |  75 ++++++++++++++++++++++++++++
  src/pkg/sync/rwmutex_test.go | 114 +++++++++++++++++++++++++++++++++++++++++++
  src/pkg/sync/xadd_test.go    |   9 ++++
  5 files changed, 202 insertions(+), 49 deletions(-)
+
+diff --git a/src/pkg/sync/Makefile b/src/pkg/sync/Makefile
+index 2517d01e6e..25d11d03db 100644
+--- a/src/pkg/sync/Makefile
++++ b/src/pkg/sync/Makefile
+@@ -7,6 +7,7 @@ include ../../Make.$(GOARCH)
+ TARG=sync
+ GOFILES=\
+ 	mutex.go\
++	rwmutex.go\
+ 
+ OFILES=\
+ 	asm_$(GOARCH).$O\
+diff --git a/src/pkg/sync/mutex.go b/src/pkg/sync/mutex.go
+index bf19f0dec7..9ba628824b 100644
+--- a/src/pkg/sync/mutex.go
++++ b/src/pkg/sync/mutex.go
+@@ -20,6 +20,9 @@ type Mutex struct {
+ 	sema	uint32;
+ }
+ 
++// Add delta to *val, and return the new *val in a thread-safe way. If multiple
++// goroutines call xadd on the same val concurrently, the changes will be
++// serialized, and all the deltas will be added in an undefined order.
+ func xadd(val *uint32, delta int32) (new uint32) {
+ 	for {
+ 		v := *val;
+@@ -55,52 +58,3 @@ func (m *Mutex) Unlock() {
+ 	}
+ 	runtime.Semrelease(&m.sema);
+ }
+-
+-// Stub implementation of r/w locks.
+-// This satisfies the semantics but
+-// is not terribly efficient.
+-
+-// The next comment goes in the BUGS section of the document,
+-// in its own paragraph, without the (rsc) tag.
+-
+-// BUG(rsc): RWMutex does not (yet) allow multiple readers;
+-// instead it behaves as if RLock and RUnlock were Lock and Unlock.
+-
+-// An RWMutex is a reader/writer mutual exclusion lock.
+-// The lock can be held by an arbitrary number of readers
+-// or a single writer.
+-// RWMutexes can be created as part of other
+-// structures; the zero value for a RWMutex is
+-// an unlocked mutex.
+-type RWMutex struct {
+-	m Mutex;
+-}
+-
+-// RLock locks rw for reading.
+-// If the lock is already locked for writing or there is a writer already waiting
+-// to acquire the lock, RLock blocks until the writer has released the lock.
+-func (rw *RWMutex) RLock()	{ rw.m.Lock() }
+-
+-// RUnlock undoes a single RLock call;
+-// it does not affect other simultaneous readers.
+-// It is a run-time error if rw is not locked for reading
+-// on entry to RUnlock.
+-func (rw *RWMutex) RUnlock()	{ rw.m.Unlock() }
+-
+-// Lock locks rw for writing.
+-// If the lock is already locked for reading or writing,
+-// Lock blocks until the lock is available.
+-// To ensure that the lock eventually becomes available,
+-// a blocked Lock call excludes new readers from acquiring
+-// the lock.
+-func (rw *RWMutex) Lock()	{ rw.m.Lock() }
+-
+-// Unlock unlocks rw for writing.
+-// It is a run-time error if rw is not locked for writing
+-// on entry to Unlock.
+-//
+-// Like for Mutexes,
+-// a locked RWMutex is not associated with a particular goroutine.
+-// It is allowed for one goroutine to RLock (Lock) an RWMutex and then
+-// arrange for another goroutine to RUnlock (Unlock) it.
+-func (rw *RWMutex) Unlock()	{ rw.m.Unlock() }
+diff --git a/src/pkg/sync/rwmutex.go b/src/pkg/sync/rwmutex.go
+new file mode 100644
+index 0000000000..b5e2b55c0d
+--- /dev/null
++++ b/src/pkg/sync/rwmutex.go
+@@ -0,0 +1,75 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sync
++
++// An RWMutex is a reader/writer mutual exclusion lock.
++// The lock can be held by an arbitrary number of readers
++// or a single writer.
++// RWMutexes can be created as part of other
++// structures; the zero value for a RWMutex is
++// an unlocked mutex.
++//
++// Writers take priority over Readers: no new RLocks
++// are granted while a blocked Lock call is waiting.
++type RWMutex struct {
++	w		Mutex;	// held if there are pending readers or writers
++	r		Mutex;	// held if the w is being rd
++	readerCount	uint32;	// number of pending readers
++}
++
++// RLock locks rw for reading.
++// If the lock is already locked for writing or there is a writer already waiting
++// to r the lock, RLock blocks until the writer has released the lock.
++func (rw *RWMutex) RLock() {
++	// Use rw.r.Lock() to block granting the RLock if a goroutine
++	// is waiting for its Lock. This is the prevent starvation of W in
++	// this situation:
++	//   A: rw.RLock()  // granted
++	//   W: rw.Lock()   // waiting for rw.w().Lock()
++	//   B: rw.RLock()  // granted
++	//   C: rw.RLock()  // granted
++	//   B: rw.RUnlock()
++	//   ... (new readers come and go indefinitely, W is starving)
++	rw.r.Lock();
++	if xadd(&rw.readerCount, 1) == 1 {
++		// The first reader locks rw.w, so writers will be blocked
++		// while the readers have the RLock.
++		rw.w.Lock()
++	}
++	rw.r.Unlock();
++}
++
++// RUnlock undoes a single RLock call;
++// it does not affect other simultaneous readers.
++// It is a run-time error if rw is not locked for reading
++// on entry to RUnlock.
++func (rw *RWMutex) RUnlock() {
++	if xadd(&rw.readerCount, -1) == 0 {
++		// last reader finished, enable writers
++		rw.w.Unlock()
++	}
++}
++
++// Lock locks rw for writing.
++// If the lock is already locked for reading or writing,
++// Lock blocks until the lock is available.
++// To ensure that the lock eventually becomes available,
++// a blocked Lock call excludes new readers from acquiring
++// the lock.
++func (rw *RWMutex) Lock() {
++	rw.r.Lock();
++	rw.w.Lock();
++	rw.r.Unlock();
++}
++
++// Unlock unlocks rw for writing.
++// It is a run-time error if rw is not locked for writing
++// on entry to Unlock.
++//
++// Like for Mutexes,
++// a locked RWMutex is not associated with a particular goroutine.
++// It is allowed for one goroutine to RLock (Lock) an RWMutex and then
++// arrange for another goroutine to RUnlock (Unlock) it.
++func (rw *RWMutex) Unlock()	{ rw.w.Unlock() }
+diff --git a/src/pkg/sync/rwmutex_test.go b/src/pkg/sync/rwmutex_test.go
+new file mode 100644
+index 0000000000..ad35608004
+--- /dev/null
++++ b/src/pkg/sync/rwmutex_test.go
+@@ -0,0 +1,114 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// GOMAXPROCS=10 gotest
++
++package sync_test
++
++import (
++	"fmt";
++	"runtime";
++	. "sync";
++	"testing";
++)
++
++func parallelReader(m *RWMutex, clocked, cunlock, cdone chan bool) {
++	m.RLock();
++	clocked <- true;
++	<-cunlock;
++	m.RUnlock();
++	cdone <- true;
++}
++
++func doTestParallelReaders(numReaders, gomaxprocs int) {
++	runtime.GOMAXPROCS(gomaxprocs);
++	var m RWMutex;
++	clocked := make(chan bool);
++	cunlock := make(chan bool);
++	cdone := make(chan bool);
++	for i := 0; i < numReaders; i++ {
++		go parallelReader(&m, clocked, cunlock, cdone)
++	}
++	// Wait for all parallel RLock()s to succeed.
++	for i := 0; i < numReaders; i++ {
++		<-clocked
++	}
++	for i := 0; i < numReaders; i++ {
++		cunlock <- true
++	}
++	// Wait for the goroutines to finish.
++	for i := 0; i < numReaders; i++ {
++		<-cdone
++	}
++}
++
++func TestParallelReaders(t *testing.T) {
++	doTestParallelReaders(1, 4);
++	doTestParallelReaders(3, 4);
++	doTestParallelReaders(4, 2);
++}
++
++func reader(rwm *RWMutex, num_iterations int, activity *uint32, cdone chan bool) {
++	for i := 0; i < num_iterations; i++ {
++		rwm.RLock();
++		n := Xadd(activity, 1);
++		if n < 1 || n >= 10000 {
++			panic(fmt.Sprintf("wlock(%d)\n", n))
++		}
++		for i := 0; i < 100; i++ {
++		}
++		Xadd(activity, -1);
++		rwm.RUnlock();
++	}
++	cdone <- true;
++}
++
++func writer(rwm *RWMutex, num_iterations int, activity *uint32, cdone chan bool) {
++	for i := 0; i < num_iterations; i++ {
++		rwm.Lock();
++		n := Xadd(activity, 10000);
++		if n != 10000 {
++			panic(fmt.Sprintf("wlock(%d)\n", n))
++		}
++		for i := 0; i < 100; i++ {
++		}
++		Xadd(activity, -10000);
++		rwm.Unlock();
++	}
++	cdone <- true;
++}
++
++func HammerRWMutex(gomaxprocs, numReaders, num_iterations int) {
++	runtime.GOMAXPROCS(gomaxprocs);
++	// Number of active readers + 10000 * number of active writers.
++	var activity uint32;
++	var rwm RWMutex;
++	cdone := make(chan bool);
++	go writer(&rwm, num_iterations, &activity, cdone);
++	var i int;
++	for i = 0; i < numReaders/2; i++ {
++		go reader(&rwm, num_iterations, &activity, cdone)
++	}
++	go writer(&rwm, num_iterations, &activity, cdone);
++	for ; i < numReaders; i++ {
++		go reader(&rwm, num_iterations, &activity, cdone)
++	}
++	// Wait for the 2 writers and all readers to finish.
++	for i := 0; i < 2+numReaders; i++ {
++		<-cdone
++	}
++}
++
++func TestRWMutex(t *testing.T) {
++	HammerRWMutex(1, 1, 1000);
++	HammerRWMutex(1, 3, 1000);
++	HammerRWMutex(1, 10, 1000);
++	HammerRWMutex(4, 1, 1000);
++	HammerRWMutex(4, 3, 1000);
++	HammerRWMutex(4, 10, 1000);
++	HammerRWMutex(10, 1, 1000);
++	HammerRWMutex(10, 3, 1000);
++	HammerRWMutex(10, 10, 1000);
++	HammerRWMutex(10, 5, 10000);
++}
+diff --git a/src/pkg/sync/xadd_test.go b/src/pkg/sync/xadd_test.go
+new file mode 100644
+index 0000000000..8b2ef76e6b
+--- /dev/null
++++ b/src/pkg/sync/xadd_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sync
++
++func Xadd(val *uint32, delta int32) (new uint32) {
++	return xadd(val, delta)
++}

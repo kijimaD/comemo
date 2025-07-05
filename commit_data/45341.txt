@@ -20,7 +20,7 @@ Date:   Fri Oct 16 00:49:02 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/archive/tar/reader.go                         |   7 +-
  src/archive/tar/reader_test.go                    |   2 +-
  src/archive/tar/tar_test.go                       |   8 +-
@@ -157,3 +157,5800 @@ Date:   Fri Oct 16 00:49:02 2020 -0400
  src/text/template/exec_test.go                    |   8 +-
  src/time/genzabbrs.go                             |   3 +-
  135 files changed, 535 insertions(+), 597 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 4f9135b791..1b1d5b4689 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -7,7 +7,6 @@ package tar
+ import (
+ 	"bytes"
+ 	"io"
+-	"io/ioutil"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -104,7 +103,7 @@ func (tr *Reader) next() (*Header, error) {
+ 			continue // This is a meta header affecting the next header
+ 		case TypeGNULongName, TypeGNULongLink:
+ 			format.mayOnlyBe(FormatGNU)
+-			realname, err := ioutil.ReadAll(tr)
++			realname, err := io.ReadAll(tr)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+@@ -294,7 +293,7 @@ func mergePAX(hdr *Header, paxHdrs map[string]string) (err error) {
+ // parsePAX parses PAX headers.
+ // If an extended header (type 'x') is invalid, ErrHeader is returned
+ func parsePAX(r io.Reader) (map[string]string, error) {
+-	buf, err := ioutil.ReadAll(r)
++	buf, err := io.ReadAll(r)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -850,7 +849,7 @@ func discard(r io.Reader, n int64) error {
+ 		}
+ 	}
+ 
+-	copySkipped, err := io.CopyN(ioutil.Discard, r, n-seekSkipped)
++	copySkipped, err := io.CopyN(io.Discard, r, n-seekSkipped)
+ 	if err == io.EOF && seekSkipped+copySkipped < n {
+ 		err = io.ErrUnexpectedEOF
+ 	}
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index f153b668de..411d1e0b99 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -865,7 +865,7 @@ func TestReadTruncation(t *testing.T) {
+ 				}
+ 				cnt++
+ 				if s2 == "manual" {
+-					if _, err = tr.writeTo(ioutil.Discard); err != nil {
++					if _, err = tr.writeTo(io.Discard); err != nil {
+ 						break
+ 					}
+ 				}
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index f605dae904..d4a3d42312 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -328,7 +328,7 @@ func TestRoundTrip(t *testing.T) {
+ 	if !reflect.DeepEqual(rHdr, hdr) {
+ 		t.Errorf("Header mismatch.\n got %+v\nwant %+v", rHdr, hdr)
+ 	}
+-	rData, err := ioutil.ReadAll(tr)
++	rData, err := io.ReadAll(tr)
+ 	if err != nil {
+ 		t.Fatalf("Read: %v", err)
+ 	}
+@@ -805,9 +805,9 @@ func Benchmark(b *testing.B) {
+ 			b.Run(v.label, func(b *testing.B) {
+ 				b.ReportAllocs()
+ 				for i := 0; i < b.N; i++ {
+-					// Writing to ioutil.Discard because we want to
++					// Writing to io.Discard because we want to
+ 					// test purely the writer code and not bring in disk performance into this.
+-					tw := NewWriter(ioutil.Discard)
++					tw := NewWriter(io.Discard)
+ 					for _, file := range v.files {
+ 						if err := tw.WriteHeader(file.hdr); err != nil {
+ 							b.Errorf("unexpected WriteHeader error: %v", err)
+@@ -845,7 +845,7 @@ func Benchmark(b *testing.B) {
+ 					if _, err := tr.Next(); err != nil {
+ 						b.Errorf("unexpected Next error: %v", err)
+ 					}
+-					if _, err := io.Copy(ioutil.Discard, tr); err != nil {
++					if _, err := io.Copy(io.Discard, tr); err != nil {
+ 						b.Errorf("unexpected Copy error : %v", err)
+ 					}
+ 				}
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index 38ff7badd0..b7a7d7a757 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -930,7 +930,7 @@ func returnBigZipBytes() (r io.ReaderAt, size int64) {
+ 		if err != nil {
+ 			panic(err)
+ 		}
+-		b, err = ioutil.ReadAll(f)
++		b, err = io.ReadAll(f)
+ 		if err != nil {
+ 			panic(err)
+ 		}
+@@ -987,7 +987,7 @@ func TestIssue10957(t *testing.T) {
+ 			continue
+ 		}
+ 		if f.UncompressedSize64 < 1e6 {
+-			n, err := io.Copy(ioutil.Discard, r)
++			n, err := io.Copy(io.Discard, r)
+ 			if i == 3 && err != io.ErrUnexpectedEOF {
+ 				t.Errorf("File[3] error = %v; want io.ErrUnexpectedEOF", err)
+ 			}
+@@ -1029,7 +1029,7 @@ func TestIssue11146(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	_, err = ioutil.ReadAll(r)
++	_, err = io.ReadAll(r)
+ 	if err != io.ErrUnexpectedEOF {
+ 		t.Errorf("File[0] error = %v; want io.ErrUnexpectedEOF", err)
+ 	}
+diff --git a/src/archive/zip/register.go b/src/archive/zip/register.go
+index 51e9c3e4d4..4389246286 100644
+--- a/src/archive/zip/register.go
++++ b/src/archive/zip/register.go
+@@ -8,7 +8,6 @@ import (
+ 	"compress/flate"
+ 	"errors"
+ 	"io"
+-	"io/ioutil"
+ 	"sync"
+ )
+ 
+@@ -111,7 +110,7 @@ func init() {
+ 	compressors.Store(Store, Compressor(func(w io.Writer) (io.WriteCloser, error) { return &nopCloser{w}, nil }))
+ 	compressors.Store(Deflate, Compressor(func(w io.Writer) (io.WriteCloser, error) { return newFlateWriter(w), nil }))
+ 
+-	decompressors.Store(Store, Decompressor(ioutil.NopCloser))
++	decompressors.Store(Store, Decompressor(io.NopCloser))
+ 	decompressors.Store(Deflate, Decompressor(newFlateReader))
+ }
+ 
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index 282f9ec216..2c32eaf4a5 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -301,7 +301,7 @@ func TestWriterFlush(t *testing.T) {
+ }
+ 
+ func TestWriterDir(t *testing.T) {
+-	w := NewWriter(ioutil.Discard)
++	w := NewWriter(io.Discard)
+ 	dw, err := w.Create("dir/")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -380,7 +380,7 @@ func testReadFile(t *testing.T, f *File, wt *WriteTest) {
+ 	if err != nil {
+ 		t.Fatal("opening:", err)
+ 	}
+-	b, err := ioutil.ReadAll(rc)
++	b, err := io.ReadAll(rc)
+ 	if err != nil {
+ 		t.Fatal("reading:", err)
+ 	}
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index b3a7caac7f..ead9cd3aab 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -13,7 +13,6 @@ import (
+ 	"hash"
+ 	"internal/testenv"
+ 	"io"
+-	"io/ioutil"
+ 	"runtime"
+ 	"sort"
+ 	"strings"
+@@ -620,7 +619,7 @@ func testZip64(t testing.TB, size int64) *rleBuffer {
+ 			t.Fatal("read:", err)
+ 		}
+ 	}
+-	gotEnd, err := ioutil.ReadAll(rc)
++	gotEnd, err := io.ReadAll(rc)
+ 	if err != nil {
+ 		t.Fatal("read end:", err)
+ 	}
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index cb68f3ba23..75086f1f24 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"strings"
+ 	"testing"
+ 	"testing/iotest"
+@@ -886,7 +885,7 @@ func TestReadEmptyBuffer(t *testing.T) {
+ 
+ func TestLinesAfterRead(t *testing.T) {
+ 	l := NewReaderSize(bytes.NewReader([]byte("foo")), minReadBufferSize)
+-	_, err := ioutil.ReadAll(l)
++	_, err := io.ReadAll(l)
+ 	if err != nil {
+ 		t.Error(err)
+ 		return
+@@ -1130,7 +1129,7 @@ func TestWriterReadFromCounts(t *testing.T) {
+ 	}
+ }
+ 
+-// A writeCountingDiscard is like ioutil.Discard and counts the number of times
++// A writeCountingDiscard is like io.Discard and counts the number of times
+ // Write is called on it.
+ type writeCountingDiscard int
+ 
+@@ -1300,7 +1299,7 @@ func TestReaderReset(t *testing.T) {
+ 		t.Errorf("buf = %q; want foo", buf)
+ 	}
+ 	r.Reset(strings.NewReader("bar bar"))
+-	all, err := ioutil.ReadAll(r)
++	all, err := io.ReadAll(r)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -1645,13 +1644,13 @@ func BenchmarkReaderWriteToOptimal(b *testing.B) {
+ 	buf := make([]byte, bufSize)
+ 	r := bytes.NewReader(buf)
+ 	srcReader := NewReaderSize(onlyReader{r}, 1<<10)
+-	if _, ok := ioutil.Discard.(io.ReaderFrom); !ok {
+-		b.Fatal("ioutil.Discard doesn't support ReaderFrom")
++	if _, ok := io.Discard.(io.ReaderFrom); !ok {
++		b.Fatal("io.Discard doesn't support ReaderFrom")
+ 	}
+ 	for i := 0; i < b.N; i++ {
+ 		r.Seek(0, io.SeekStart)
+ 		srcReader.Reset(onlyReader{r})
+-		n, err := srcReader.WriteTo(ioutil.Discard)
++		n, err := srcReader.WriteTo(io.Discard)
+ 		if err != nil {
+ 			b.Fatal(err)
+ 		}
+@@ -1722,7 +1721,7 @@ func BenchmarkReaderEmpty(b *testing.B) {
+ 	str := strings.Repeat("x", 16<<10)
+ 	for i := 0; i < b.N; i++ {
+ 		br := NewReader(strings.NewReader(str))
+-		n, err := io.Copy(ioutil.Discard, br)
++		n, err := io.Copy(io.Discard, br)
+ 		if err != nil {
+ 			b.Fatal(err)
+ 		}
+@@ -1737,7 +1736,7 @@ func BenchmarkWriterEmpty(b *testing.B) {
+ 	str := strings.Repeat("x", 1<<10)
+ 	bs := []byte(str)
+ 	for i := 0; i < b.N; i++ {
+-		bw := NewWriter(ioutil.Discard)
++		bw := NewWriter(io.Discard)
+ 		bw.Flush()
+ 		bw.WriteByte('a')
+ 		bw.Flush()
+@@ -1752,7 +1751,7 @@ func BenchmarkWriterEmpty(b *testing.B) {
+ 
+ func BenchmarkWriterFlush(b *testing.B) {
+ 	b.ReportAllocs()
+-	bw := NewWriter(ioutil.Discard)
++	bw := NewWriter(io.Discard)
+ 	str := strings.Repeat("x", 50)
+ 	for i := 0; i < b.N; i++ {
+ 		bw.WriteString(str)
+diff --git a/src/bytes/reader_test.go b/src/bytes/reader_test.go
+index d799e036f0..8baac5046c 100644
+--- a/src/bytes/reader_test.go
++++ b/src/bytes/reader_test.go
+@@ -8,7 +8,6 @@ import (
+ 	. "bytes"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"sync"
+ 	"testing"
+ )
+@@ -235,7 +234,7 @@ func TestReaderCopyNothing(t *testing.T) {
+ 	type justWriter struct {
+ 		io.Writer
+ 	}
+-	discard := justWriter{ioutil.Discard} // hide ReadFrom
++	discard := justWriter{io.Discard} // hide ReadFrom
+ 
+ 	var with, withOut nErr
+ 	with.n, with.err = io.Copy(discard, NewReader(nil))
+@@ -248,7 +247,7 @@ func TestReaderCopyNothing(t *testing.T) {
+ // tests that Len is affected by reads, but Size is not.
+ func TestReaderLenSize(t *testing.T) {
+ 	r := NewReader([]byte("abc"))
+-	io.CopyN(ioutil.Discard, r, 1)
++	io.CopyN(io.Discard, r, 1)
+ 	if r.Len() != 2 {
+ 		t.Errorf("Len = %d; want 2", r.Len())
+ 	}
+@@ -268,7 +267,7 @@ func TestReaderReset(t *testing.T) {
+ 	if err := r.UnreadRune(); err == nil {
+ 		t.Errorf("UnreadRune: expected error, got nil")
+ 	}
+-	buf, err := ioutil.ReadAll(r)
++	buf, err := io.ReadAll(r)
+ 	if err != nil {
+ 		t.Errorf("ReadAll: unexpected error: %v", err)
+ 	}
+@@ -314,7 +313,7 @@ func TestReaderZero(t *testing.T) {
+ 		t.Errorf("UnreadRune: got nil, want error")
+ 	}
+ 
+-	if n, err := (&Reader{}).WriteTo(ioutil.Discard); n != 0 || err != nil {
++	if n, err := (&Reader{}).WriteTo(io.Discard); n != 0 || err != nil {
+ 		t.Errorf("WriteTo: got %d, %v; want 0, nil", n, err)
+ 	}
+ }
+diff --git a/src/cmd/fix/main.go b/src/cmd/fix/main.go
+index dfba902f48..1cea9a876a 100644
+--- a/src/cmd/fix/main.go
++++ b/src/cmd/fix/main.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/parser"
+ 	"go/scanner"
+ 	"go/token"
++	"io"
+ 	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+@@ -128,7 +129,7 @@ func processFile(filename string, useStdin bool) error {
+ 		defer f.Close()
+ 	}
+ 
+-	src, err := ioutil.ReadAll(f)
++	src, err := io.ReadAll(f)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 6bfd7ae21e..095c3cc713 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -8,6 +8,7 @@ package clean
+ import (
+ 	"context"
+ 	"fmt"
++	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -172,7 +173,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 			f, err := lockedfile.Edit(filepath.Join(dir, "testexpire.txt"))
+ 			if err == nil {
+ 				now := time.Now().UnixNano()
+-				buf, _ := ioutil.ReadAll(f)
++				buf, _ := io.ReadAll(f)
+ 				prev, _ := strconv.ParseInt(strings.TrimSpace(string(buf)), 10, 64)
+ 				if now > prev {
+ 					if err = f.Truncate(0); err == nil {
+diff --git a/src/cmd/go/internal/fsys/fsys_test.go b/src/cmd/go/internal/fsys/fsys_test.go
+index ba9f05d00b..28c3f08cb9 100644
+--- a/src/cmd/go/internal/fsys/fsys_test.go
++++ b/src/cmd/go/internal/fsys/fsys_test.go
+@@ -6,6 +6,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"internal/testenv"
++	"io"
+ 	"io/fs"
+ 	"io/ioutil"
+ 	"os"
+@@ -418,7 +419,7 @@ this can exist because the parent directory is deleted
+ 			t.Errorf("Open(%q): got error %v, want nil", tc.path, err)
+ 			continue
+ 		}
+-		contents, err := ioutil.ReadAll(f)
++		contents, err := io.ReadAll(f)
+ 		if err != nil {
+ 			t.Errorf("unexpected error reading contents of file: %v", err)
+ 		}
+diff --git a/src/cmd/go/internal/imports/read.go b/src/cmd/go/internal/imports/read.go
+index 58c2abdc29..5e270781d7 100644
+--- a/src/cmd/go/internal/imports/read.go
++++ b/src/cmd/go/internal/imports/read.go
+@@ -198,7 +198,7 @@ func (r *importReader) readImport(imports *[]string) {
+ 	r.readString(imports)
+ }
+ 
+-// ReadComments is like ioutil.ReadAll, except that it only reads the leading
++// ReadComments is like io.ReadAll, except that it only reads the leading
+ // block of comments in the file.
+ func ReadComments(f io.Reader) ([]byte, error) {
+ 	r := &importReader{b: bufio.NewReader(f)}
+@@ -210,7 +210,7 @@ func ReadComments(f io.Reader) ([]byte, error) {
+ 	return r.buf, r.err
+ }
+ 
+-// ReadImports is like ioutil.ReadAll, except that it expects a Go file as input
++// ReadImports is like io.ReadAll, except that it expects a Go file as input
+ // and stops reading the input once the imports have completed.
+ func ReadImports(f io.Reader, reportSyntaxError bool, imports *[]string) ([]byte, error) {
+ 	r := &importReader{b: bufio.NewReader(f)}
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile.go b/src/cmd/go/internal/lockedfile/lockedfile.go
+index 503024da4b..82e1a89675 100644
+--- a/src/cmd/go/internal/lockedfile/lockedfile.go
++++ b/src/cmd/go/internal/lockedfile/lockedfile.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"os"
+ 	"runtime"
+ )
+@@ -104,7 +103,7 @@ func Read(name string) ([]byte, error) {
+ 	}
+ 	defer f.Close()
+ 
+-	return ioutil.ReadAll(f)
++	return io.ReadAll(f)
+ }
+ 
+ // Write opens the named file (creating it with the given permissions if needed),
+@@ -136,7 +135,7 @@ func Transform(name string, t func([]byte) ([]byte, error)) (err error) {
+ 	}
+ 	defer f.Close()
+ 
+-	old, err := ioutil.ReadAll(f)
++	old, err := io.ReadAll(f)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 58b4b2f2d3..8abc039e7f 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"net/url"
+ 	"os"
+ 	"os/exec"
+@@ -832,7 +831,7 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
+ 		return nil, err
+ 	}
+ 
+-	return ioutil.NopCloser(bytes.NewReader(archive)), nil
++	return io.NopCloser(bytes.NewReader(archive)), nil
+ }
+ 
+ // ensureGitAttributes makes sure export-subst and export-ignore features are
+@@ -863,7 +862,7 @@ func ensureGitAttributes(repoDir string) (err error) {
+ 		}
+ 	}()
+ 
+-	b, err := ioutil.ReadAll(f)
++	b, err := io.ReadAll(f)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/codehost/git_test.go b/src/cmd/go/internal/modfetch/codehost/git_test.go
+index 16908b3e84..981e3fe91f 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git_test.go
++++ b/src/cmd/go/internal/modfetch/codehost/git_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/testenv"
++	"io"
+ 	"io/fs"
+ 	"io/ioutil"
+ 	"log"
+@@ -433,7 +434,7 @@ func TestReadZip(t *testing.T) {
+ 			if tt.err != "" {
+ 				t.Fatalf("ReadZip: no error, wanted %v", tt.err)
+ 			}
+-			zipdata, err := ioutil.ReadAll(rc)
++			zipdata, err := io.ReadAll(rc)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+diff --git a/src/cmd/go/internal/modfetch/codehost/shell.go b/src/cmd/go/internal/modfetch/codehost/shell.go
+index 2762c55720..b9525adf5e 100644
+--- a/src/cmd/go/internal/modfetch/codehost/shell.go
++++ b/src/cmd/go/internal/modfetch/codehost/shell.go
+@@ -14,6 +14,7 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
++	"io"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+@@ -115,7 +116,7 @@ func main() {
+ 				fmt.Fprintf(os.Stderr, "?%s\n", err)
+ 				continue
+ 			}
+-			data, err := ioutil.ReadAll(rc)
++			data, err := io.ReadAll(rc)
+ 			rc.Close()
+ 			if err != nil {
+ 				fmt.Fprintf(os.Stderr, "?%s\n", err)
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 7f44e18a70..b6bcf83f1a 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -1052,7 +1052,7 @@ type dataFile struct {
+ func (f dataFile) Path() string                { return f.name }
+ func (f dataFile) Lstat() (fs.FileInfo, error) { return dataFileInfo{f}, nil }
+ func (f dataFile) Open() (io.ReadCloser, error) {
+-	return ioutil.NopCloser(bytes.NewReader(f.data)), nil
++	return io.NopCloser(bytes.NewReader(f.data)), nil
+ }
+ 
+ type dataFileInfo struct {
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 6ff455e89c..40196c4e9a 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -461,7 +461,7 @@ func checkMod(mod module.Version) {
+ // goModSum returns the checksum for the go.mod contents.
+ func goModSum(data []byte) (string, error) {
+ 	return dirhash.Hash1([]string{"go.mod"}, func(string) (io.ReadCloser, error) {
+-		return ioutil.NopCloser(bytes.NewReader(data)), nil
++		return io.NopCloser(bytes.NewReader(data)), nil
+ 	})
+ }
+ 
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 819990b403..d75b4da521 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"net/url"
+ 	"path"
+ 	pathpkg "path"
+@@ -305,7 +304,7 @@ func (p *proxyRepo) getBytes(path string) ([]byte, error) {
+ 		return nil, err
+ 	}
+ 	defer body.Close()
+-	return ioutil.ReadAll(body)
++	return io.ReadAll(body)
+ }
+ 
+ func (p *proxyRepo) getBody(path string) (io.ReadCloser, error) {
+diff --git a/src/cmd/go/internal/modfetch/sumdb.go b/src/cmd/go/internal/modfetch/sumdb.go
+index 5108961a33..4fbc54d15c 100644
+--- a/src/cmd/go/internal/modfetch/sumdb.go
++++ b/src/cmd/go/internal/modfetch/sumdb.go
+@@ -12,8 +12,8 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
++	"io"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"net/url"
+ 	"os"
+ 	"path/filepath"
+@@ -228,7 +228,7 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
+ 		return err
+ 	}
+ 	defer f.Close()
+-	data, err := ioutil.ReadAll(f)
++	data, err := io.ReadAll(f)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/go/internal/web/api.go b/src/cmd/go/internal/web/api.go
+index f7d3ed60f6..9053b16b62 100644
+--- a/src/cmd/go/internal/web/api.go
++++ b/src/cmd/go/internal/web/api.go
+@@ -14,7 +14,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"net/url"
+ 	"strings"
+ 	"unicode"
+@@ -87,7 +86,7 @@ func GetBytes(u *url.URL) ([]byte, error) {
+ 	if err := resp.Err(); err != nil {
+ 		return nil, err
+ 	}
+-	b, err := ioutil.ReadAll(resp.Body)
++	b, err := io.ReadAll(resp.Body)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("reading %s: %v", u.Redacted(), err)
+ 	}
+@@ -130,7 +129,7 @@ func (r *Response) formatErrorDetail() string {
+ 	}
+ 
+ 	// Ensure that r.errorDetail has been populated.
+-	_, _ = io.Copy(ioutil.Discard, r.Body)
++	_, _ = io.Copy(io.Discard, r.Body)
+ 
+ 	s := r.errorDetail.buf.String()
+ 	if !utf8.ValidString(s) {
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 8b0dbb74b2..3ed42face2 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -471,13 +471,13 @@ func proxyGoSum(path, vers string) ([]byte, error) {
+ 	}
+ 	h1, err := dirhash.Hash1(names, func(name string) (io.ReadCloser, error) {
+ 		data := files[name]
+-		return ioutil.NopCloser(bytes.NewReader(data)), nil
++		return io.NopCloser(bytes.NewReader(data)), nil
+ 	})
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	h1mod, err := dirhash.Hash1([]string{"go.mod"}, func(string) (io.ReadCloser, error) {
+-		return ioutil.NopCloser(bytes.NewReader(gomod)), nil
++		return io.NopCloser(bytes.NewReader(gomod)), nil
+ 	})
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/cmd/go/testdata/script/test_cache_inputs.txt b/src/cmd/go/testdata/script/test_cache_inputs.txt
+index 57602e91dc..97ae4af51f 100644
+--- a/src/cmd/go/testdata/script/test_cache_inputs.txt
++++ b/src/cmd/go/testdata/script/test_cache_inputs.txt
+@@ -159,7 +159,7 @@ func TestOddFileContent(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	data, err := ioutil.ReadAll(f)
++	data, err := io.ReadAll(f)
+ 	f.Close()
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 48b6ad6f53..dba2411eed 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -97,7 +97,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
+ 		perm = fi.Mode().Perm()
+ 	}
+ 
+-	src, err := ioutil.ReadAll(in)
++	src, err := io.ReadAll(in)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index c1ddbe372f..11f91cbedb 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -13,7 +13,7 @@ import (
+ 	"crypto/tls"
+ 	"debug/dwarf"
+ 	"fmt"
+-	"io/ioutil"
++	"io"
+ 	"net/http"
+ 	"net/url"
+ 	"os"
+@@ -94,7 +94,7 @@ func getProfile(source string, timeout time.Duration) (*profile.Profile, error)
+ func statusCodeError(resp *http.Response) error {
+ 	if resp.Header.Get("X-Go-Pprof") != "" && strings.Contains(resp.Header.Get("Content-Type"), "text/plain") {
+ 		// error is from pprof endpoint
+-		if body, err := ioutil.ReadAll(resp.Body); err == nil {
++		if body, err := io.ReadAll(resp.Body); err == nil {
+ 			return fmt.Errorf("server response: %s - %s", resp.Status, body)
+ 		}
+ 	}
+diff --git a/src/cmd/trace/trace_test.go b/src/cmd/trace/trace_test.go
+index dd12e8cd20..ea0cc6f880 100644
+--- a/src/cmd/trace/trace_test.go
++++ b/src/cmd/trace/trace_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"cmd/internal/traceviewer"
+ 	"context"
+ 	"internal/trace"
+-	"io/ioutil"
++	"io"
+ 	rtrace "runtime/trace"
+ 	"strings"
+ 	"sync"
+@@ -78,7 +78,7 @@ func TestGoroutineCount(t *testing.T) {
+ 
+ 	// Use the default viewerDataTraceConsumer but replace
+ 	// consumeViewerEvent to intercept the ViewerEvents for testing.
+-	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
++	c := viewerDataTraceConsumer(io.Discard, 0, 1<<63-1)
+ 	c.consumeViewerEvent = func(ev *traceviewer.Event, _ bool) {
+ 		if ev.Name == "Goroutines" {
+ 			cnt := ev.Arg.(*goroutineCountersArg)
+@@ -131,7 +131,7 @@ func TestGoroutineFilter(t *testing.T) {
+ 		gs:      map[uint64]bool{10: true},
+ 	}
+ 
+-	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
++	c := viewerDataTraceConsumer(io.Discard, 0, 1<<63-1)
+ 	if err := generateTrace(params, c); err != nil {
+ 		t.Fatalf("generateTrace failed: %v", err)
+ 	}
+@@ -163,7 +163,7 @@ func TestPreemptedMarkAssist(t *testing.T) {
+ 		endTime: int64(1<<63 - 1),
+ 	}
+ 
+-	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
++	c := viewerDataTraceConsumer(io.Discard, 0, 1<<63-1)
+ 
+ 	marks := 0
+ 	c.consumeViewerEvent = func(ev *traceviewer.Event, _ bool) {
+@@ -214,7 +214,7 @@ func TestFoo(t *testing.T) {
+ 		tasks:     []*taskDesc{task},
+ 	}
+ 
+-	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
++	c := viewerDataTraceConsumer(io.Discard, 0, 1<<63-1)
+ 
+ 	var logBeforeTaskEnd, logAfterTaskEnd bool
+ 	c.consumeViewerEvent = func(ev *traceviewer.Event, _ bool) {
+diff --git a/src/cmd/trace/trace_unix_test.go b/src/cmd/trace/trace_unix_test.go
+index 645978e0f8..c569b40bb2 100644
+--- a/src/cmd/trace/trace_unix_test.go
++++ b/src/cmd/trace/trace_unix_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"bytes"
+ 	"cmd/internal/traceviewer"
+ 	traceparser "internal/trace"
+-	"io/ioutil"
++	"io"
+ 	"runtime"
+ 	"runtime/trace"
+ 	"sync"
+@@ -83,7 +83,7 @@ func TestGoroutineInSyscall(t *testing.T) {
+ 
+ 	// Check only one thread for the pipe read goroutine is
+ 	// considered in-syscall.
+-	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
++	c := viewerDataTraceConsumer(io.Discard, 0, 1<<63-1)
+ 	c.consumeViewerEvent = func(ev *traceviewer.Event, _ bool) {
+ 		if ev.Name == "Threads" {
+ 			arg := ev.Arg.(*threadCountersArg)
+diff --git a/src/compress/bzip2/bzip2_test.go b/src/compress/bzip2/bzip2_test.go
+index c432bb5226..98477791b3 100644
+--- a/src/compress/bzip2/bzip2_test.go
++++ b/src/compress/bzip2/bzip2_test.go
+@@ -133,7 +133,7 @@ func TestReader(t *testing.T) {
+ 
+ 	for i, v := range vectors {
+ 		rd := NewReader(bytes.NewReader(v.input))
+-		buf, err := ioutil.ReadAll(rd)
++		buf, err := io.ReadAll(rd)
+ 
+ 		if fail := bool(err != nil); fail != v.fail {
+ 			if fail {
+@@ -220,7 +220,7 @@ var (
+ 
+ func benchmarkDecode(b *testing.B, compressed []byte) {
+ 	// Determine the uncompressed size of testfile.
+-	uncompressedSize, err := io.Copy(ioutil.Discard, NewReader(bytes.NewReader(compressed)))
++	uncompressedSize, err := io.Copy(io.Discard, NewReader(bytes.NewReader(compressed)))
+ 	if err != nil {
+ 		b.Fatal(err)
+ 	}
+@@ -231,7 +231,7 @@ func benchmarkDecode(b *testing.B, compressed []byte) {
+ 
+ 	for i := 0; i < b.N; i++ {
+ 		r := bytes.NewReader(compressed)
+-		io.Copy(ioutil.Discard, NewReader(r))
++		io.Copy(io.Discard, NewReader(r))
+ 	}
+ }
+ 
+diff --git a/src/compress/flate/deflate_test.go b/src/compress/flate/deflate_test.go
+index b19cbec5a9..6fc5abf4d5 100644
+--- a/src/compress/flate/deflate_test.go
++++ b/src/compress/flate/deflate_test.go
+@@ -157,7 +157,7 @@ func TestVeryLongSparseChunk(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping sparse chunk during short test")
+ 	}
+-	w, err := NewWriter(ioutil.Discard, 1)
++	w, err := NewWriter(io.Discard, 1)
+ 	if err != nil {
+ 		t.Errorf("NewWriter: %v", err)
+ 		return
+@@ -294,7 +294,7 @@ func testSync(t *testing.T, level int, input []byte, name string) {
+ 
+ 	// stream should work for ordinary reader too
+ 	r = NewReader(buf1)
+-	out, err = ioutil.ReadAll(r)
++	out, err = io.ReadAll(r)
+ 	if err != nil {
+ 		t.Errorf("testSync: read: %s", err)
+ 		return
+@@ -322,7 +322,7 @@ func testToFromWithLevelAndLimit(t *testing.T, level int, input []byte, name str
+ 		t.Logf("level: %d, size:%.2f%%, %d b\n", level, float64(buffer.Len()*100)/float64(limit), buffer.Len())
+ 	}
+ 	r := NewReader(&buffer)
+-	out, err := ioutil.ReadAll(r)
++	out, err := io.ReadAll(r)
+ 	if err != nil {
+ 		t.Errorf("read: %s", err)
+ 		return
+@@ -415,7 +415,7 @@ func TestReaderDict(t *testing.T) {
+ 	w.Close()
+ 
+ 	r := NewReaderDict(&b, []byte(dict))
+-	data, err := ioutil.ReadAll(r)
++	data, err := io.ReadAll(r)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -456,7 +456,7 @@ func TestRegression2508(t *testing.T) {
+ 		t.Logf("test disabled with -short")
+ 		return
+ 	}
+-	w, err := NewWriter(ioutil.Discard, 1)
++	w, err := NewWriter(io.Discard, 1)
+ 	if err != nil {
+ 		t.Fatalf("NewWriter: %v", err)
+ 	}
+@@ -475,7 +475,7 @@ func TestWriterReset(t *testing.T) {
+ 		if testing.Short() && level > 1 {
+ 			break
+ 		}
+-		w, err := NewWriter(ioutil.Discard, level)
++		w, err := NewWriter(io.Discard, level)
+ 		if err != nil {
+ 			t.Fatalf("NewWriter: %v", err)
+ 		}
+@@ -487,9 +487,9 @@ func TestWriterReset(t *testing.T) {
+ 		for i := 0; i < n; i++ {
+ 			w.Write(buf)
+ 		}
+-		w.Reset(ioutil.Discard)
++		w.Reset(io.Discard)
+ 
+-		wref, err := NewWriter(ioutil.Discard, level)
++		wref, err := NewWriter(io.Discard, level)
+ 		if err != nil {
+ 			t.Fatalf("NewWriter: %v", err)
+ 		}
+@@ -654,7 +654,7 @@ func TestBestSpeed(t *testing.T) {
+ 				}
+ 
+ 				r := NewReader(buf)
+-				got, err := ioutil.ReadAll(r)
++				got, err := io.ReadAll(r)
+ 				if err != nil {
+ 					t.Errorf("i=%d, firstN=%d, flush=%t: ReadAll: %v", i, firstN, flush, err)
+ 					continue
+@@ -881,7 +881,7 @@ func TestBestSpeedMaxMatchOffset(t *testing.T) {
+ 				}
+ 
+ 				r := NewReader(buf)
+-				dst, err := ioutil.ReadAll(r)
++				dst, err := io.ReadAll(r)
+ 				r.Close()
+ 				if err != nil {
+ 					report("ReadAll: ", err)
+@@ -968,7 +968,7 @@ func TestMaxStackSize(t *testing.T) {
+ 		wg.Add(1)
+ 		go func(level int) {
+ 			defer wg.Done()
+-			zw, err := NewWriter(ioutil.Discard, level)
++			zw, err := NewWriter(io.Discard, level)
+ 			if err != nil {
+ 				t.Errorf("level %d, NewWriter() = %v, want nil", level, err)
+ 			}
+@@ -978,7 +978,7 @@ func TestMaxStackSize(t *testing.T) {
+ 			if err := zw.Close(); err != nil {
+ 				t.Errorf("level %d, Close() = %v, want nil", level, err)
+ 			}
+-			zw.Reset(ioutil.Discard)
++			zw.Reset(io.Discard)
+ 		}(level)
+ 	}
+ }
+diff --git a/src/compress/flate/flate_test.go b/src/compress/flate/flate_test.go
+index 1e45077bd5..23f4c47b03 100644
+--- a/src/compress/flate/flate_test.go
++++ b/src/compress/flate/flate_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"bytes"
+ 	"encoding/hex"
+ 	"io"
+-	"io/ioutil"
+ 	"strings"
+ 	"testing"
+ )
+@@ -243,7 +242,7 @@ func TestStreams(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		data, err = ioutil.ReadAll(NewReader(bytes.NewReader(data)))
++		data, err = io.ReadAll(NewReader(bytes.NewReader(data)))
+ 		if tc.want == "fail" {
+ 			if err == nil {
+ 				t.Errorf("#%d (%s): got nil error, want non-nil", i, tc.desc)
+@@ -266,7 +265,7 @@ func TestTruncatedStreams(t *testing.T) {
+ 
+ 	for i := 0; i < len(data)-1; i++ {
+ 		r := NewReader(strings.NewReader(data[:i]))
+-		_, err := io.Copy(ioutil.Discard, r)
++		_, err := io.Copy(io.Discard, r)
+ 		if err != io.ErrUnexpectedEOF {
+ 			t.Errorf("io.Copy(%d) on truncated stream: got %v, want %v", i, err, io.ErrUnexpectedEOF)
+ 		}
+diff --git a/src/compress/flate/inflate_test.go b/src/compress/flate/inflate_test.go
+index 951decd775..9575be1cf2 100644
+--- a/src/compress/flate/inflate_test.go
++++ b/src/compress/flate/inflate_test.go
+@@ -7,7 +7,6 @@ package flate
+ import (
+ 	"bytes"
+ 	"io"
+-	"io/ioutil"
+ 	"strings"
+ 	"testing"
+ )
+@@ -57,7 +56,7 @@ func TestReaderTruncated(t *testing.T) {
+ 	for i, v := range vectors {
+ 		r := strings.NewReader(v.input)
+ 		zr := NewReader(r)
+-		b, err := ioutil.ReadAll(zr)
++		b, err := io.ReadAll(zr)
+ 		if err != io.ErrUnexpectedEOF {
+ 			t.Errorf("test %d, error mismatch: got %v, want io.ErrUnexpectedEOF", i, err)
+ 		}
+diff --git a/src/compress/flate/reader_test.go b/src/compress/flate/reader_test.go
+index 9d2943a540..eb32c89184 100644
+--- a/src/compress/flate/reader_test.go
++++ b/src/compress/flate/reader_test.go
+@@ -16,7 +16,7 @@ import (
+ func TestNlitOutOfRange(t *testing.T) {
+ 	// Trying to decode this bogus flate data, which has a Huffman table
+ 	// with nlit=288, should not panic.
+-	io.Copy(ioutil.Discard, NewReader(strings.NewReader(
++	io.Copy(io.Discard, NewReader(strings.NewReader(
+ 		"\xfc\xfe\x36\xe7\x5e\x1c\xef\xb3\x55\x58\x77\xb6\x56\xb5\x43\xf4"+
+ 			"\x6f\xf2\xd2\xe6\x3d\x99\xa0\x85\x8c\x48\xeb\xf8\xda\x83\x04\x2a"+
+ 			"\x75\xc4\xf8\x0f\x12\x11\xb9\xb4\x4b\x09\xa0\xbe\x8b\x91\x4c")))
+@@ -54,7 +54,7 @@ func BenchmarkDecode(b *testing.B) {
+ 		runtime.GC()
+ 		b.StartTimer()
+ 		for i := 0; i < b.N; i++ {
+-			io.Copy(ioutil.Discard, NewReader(bytes.NewReader(buf1)))
++			io.Copy(io.Discard, NewReader(bytes.NewReader(buf1)))
+ 		}
+ 	})
+ }
+diff --git a/src/compress/flate/writer_test.go b/src/compress/flate/writer_test.go
+index 881cb71cc3..c413735cd2 100644
+--- a/src/compress/flate/writer_test.go
++++ b/src/compress/flate/writer_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"math/rand"
+ 	"runtime"
+ 	"testing"
+@@ -27,14 +26,14 @@ func BenchmarkEncode(b *testing.B) {
+ 			copy(buf1[i:], buf0)
+ 		}
+ 		buf0 = nil
+-		w, err := NewWriter(ioutil.Discard, level)
++		w, err := NewWriter(io.Discard, level)
+ 		if err != nil {
+ 			b.Fatal(err)
+ 		}
+ 		runtime.GC()
+ 		b.StartTimer()
+ 		for i := 0; i < b.N; i++ {
+-			w.Reset(ioutil.Discard)
++			w.Reset(io.Discard)
+ 			w.Write(buf1)
+ 			w.Close()
+ 		}
+@@ -96,7 +95,7 @@ func TestWriteError(t *testing.T) {
+ 				t.Fatal("Level", l, "Expected an error on close")
+ 			}
+ 
+-			w.Reset(ioutil.Discard)
++			w.Reset(io.Discard)
+ 			n2, err = w.Write([]byte{1, 2, 3, 4, 5, 6})
+ 			if err != nil {
+ 				t.Fatal("Level", l, "Got unexpected error after reset:", err)
+@@ -206,7 +205,7 @@ func TestDeflateFast_Reset(t *testing.T) {
+ 	w.Close()
+ 
+ 	for ; offset <= 256; offset *= 2 {
+-		w, err := NewWriter(ioutil.Discard, level)
++		w, err := NewWriter(io.Discard, level)
+ 		if err != nil {
+ 			t.Fatalf("NewWriter: level %d: %v", level, err)
+ 		}
+diff --git a/src/compress/gzip/gunzip_test.go b/src/compress/gzip/gunzip_test.go
+index 1b01404169..17c23e8a9b 100644
+--- a/src/compress/gzip/gunzip_test.go
++++ b/src/compress/gzip/gunzip_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"compress/flate"
+ 	"encoding/base64"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"strings"
+ 	"testing"
+@@ -430,7 +429,7 @@ func TestIssue6550(t *testing.T) {
+ 	defer gzip.Close()
+ 	done := make(chan bool, 1)
+ 	go func() {
+-		_, err := io.Copy(ioutil.Discard, gzip)
++		_, err := io.Copy(io.Discard, gzip)
+ 		if err == nil {
+ 			t.Errorf("Copy succeeded")
+ 		} else {
+@@ -467,7 +466,7 @@ Found:
+ 	const hello = "hello world\n"
+ 
+ 	r.Multistream(false)
+-	data, err := ioutil.ReadAll(&r)
++	data, err := io.ReadAll(&r)
+ 	if string(data) != hello || err != nil {
+ 		t.Fatalf("first stream = %q, %v, want %q, %v", string(data), err, hello, nil)
+ 	}
+@@ -476,7 +475,7 @@ Found:
+ 		t.Fatalf("second reset: %v", err)
+ 	}
+ 	r.Multistream(false)
+-	data, err = ioutil.ReadAll(&r)
++	data, err = io.ReadAll(&r)
+ 	if string(data) != hello || err != nil {
+ 		t.Fatalf("second stream = %q, %v, want %q, %v", string(data), err, hello, nil)
+ 	}
+@@ -507,7 +506,7 @@ func TestTruncatedStreams(t *testing.T) {
+ 			}
+ 			continue
+ 		}
+-		_, err = io.Copy(ioutil.Discard, r)
++		_, err = io.Copy(io.Discard, r)
+ 		if ferr, ok := err.(*flate.ReadError); ok {
+ 			err = ferr.Err
+ 		}
+diff --git a/src/compress/gzip/gzip_test.go b/src/compress/gzip/gzip_test.go
+index f18c5cb454..12c8e18207 100644
+--- a/src/compress/gzip/gzip_test.go
++++ b/src/compress/gzip/gzip_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"io"
+-	"io/ioutil"
+ 	"reflect"
+ 	"testing"
+ 	"time"
+@@ -29,7 +28,7 @@ func TestEmpty(t *testing.T) {
+ 	if want := (Header{OS: 255}); !reflect.DeepEqual(r.Header, want) {
+ 		t.Errorf("Header mismatch:\ngot  %#v\nwant %#v", r.Header, want)
+ 	}
+-	b, err := ioutil.ReadAll(r)
++	b, err := io.ReadAll(r)
+ 	if err != nil {
+ 		t.Fatalf("ReadAll: %v", err)
+ 	}
+@@ -62,7 +61,7 @@ func TestRoundTrip(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("NewReader: %v", err)
+ 	}
+-	b, err := ioutil.ReadAll(r)
++	b, err := io.ReadAll(r)
+ 	if err != nil {
+ 		t.Fatalf("ReadAll: %v", err)
+ 	}
+@@ -147,7 +146,7 @@ func TestLatin1RoundTrip(t *testing.T) {
+ 			t.Errorf("NewReader: %v", err)
+ 			continue
+ 		}
+-		_, err = ioutil.ReadAll(r)
++		_, err = io.ReadAll(r)
+ 		if err != nil {
+ 			t.Errorf("ReadAll: %v", err)
+ 			continue
+@@ -217,7 +216,7 @@ func TestConcat(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	data, err := ioutil.ReadAll(r)
++	data, err := io.ReadAll(r)
+ 	if string(data) != "hello world\n" || err != nil {
+ 		t.Fatalf("ReadAll = %q, %v, want %q, nil", data, err, "hello world")
+ 	}
+diff --git a/src/compress/lzw/reader_test.go b/src/compress/lzw/reader_test.go
+index 98bbfbb763..6d91dd806f 100644
+--- a/src/compress/lzw/reader_test.go
++++ b/src/compress/lzw/reader_test.go
+@@ -206,7 +206,7 @@ func TestNoLongerSavingPriorExpansions(t *testing.T) {
+ 	in = append(in, 0x80, 0xff, 0x0f, 0x08)
+ 
+ 	r := NewReader(bytes.NewReader(in), LSB, 8)
+-	nDecoded, err := io.Copy(ioutil.Discard, r)
++	nDecoded, err := io.Copy(io.Discard, r)
+ 	if err != nil {
+ 		t.Fatalf("Copy: %v", err)
+ 	}
+@@ -246,7 +246,7 @@ func BenchmarkDecoder(b *testing.B) {
+ 			runtime.GC()
+ 			b.StartTimer()
+ 			for i := 0; i < b.N; i++ {
+-				io.Copy(ioutil.Discard, NewReader(bytes.NewReader(buf1), LSB, 8))
++				io.Copy(io.Discard, NewReader(bytes.NewReader(buf1), LSB, 8))
+ 			}
+ 		})
+ 	}
+diff --git a/src/compress/lzw/writer_test.go b/src/compress/lzw/writer_test.go
+index 4979f8b352..33a28bdd3a 100644
+--- a/src/compress/lzw/writer_test.go
++++ b/src/compress/lzw/writer_test.go
+@@ -67,8 +67,8 @@ func testFile(t *testing.T, fn string, order Order, litWidth int) {
+ 	defer lzwr.Close()
+ 
+ 	// Compare the two.
+-	b0, err0 := ioutil.ReadAll(golden)
+-	b1, err1 := ioutil.ReadAll(lzwr)
++	b0, err0 := io.ReadAll(golden)
++	b1, err1 := io.ReadAll(lzwr)
+ 	if err0 != nil {
+ 		t.Errorf("%s (order=%d litWidth=%d): %v", fn, order, litWidth, err0)
+ 		return
+@@ -107,7 +107,7 @@ func TestWriter(t *testing.T) {
+ }
+ 
+ func TestWriterReturnValues(t *testing.T) {
+-	w := NewWriter(ioutil.Discard, LSB, 8)
++	w := NewWriter(io.Discard, LSB, 8)
+ 	n, err := w.Write([]byte("asdf"))
+ 	if n != 4 || err != nil {
+ 		t.Errorf("got %d, %v, want 4, nil", n, err)
+@@ -115,7 +115,7 @@ func TestWriterReturnValues(t *testing.T) {
+ }
+ 
+ func TestSmallLitWidth(t *testing.T) {
+-	w := NewWriter(ioutil.Discard, LSB, 2)
++	w := NewWriter(io.Discard, LSB, 2)
+ 	if _, err := w.Write([]byte{0x03}); err != nil {
+ 		t.Fatalf("write a byte < 1<<2: %v", err)
+ 	}
+@@ -148,7 +148,7 @@ func BenchmarkEncoder(b *testing.B) {
+ 		b.Run(fmt.Sprint("1e", e), func(b *testing.B) {
+ 			b.SetBytes(int64(n))
+ 			for i := 0; i < b.N; i++ {
+-				w := NewWriter(ioutil.Discard, LSB, 8)
++				w := NewWriter(io.Discard, LSB, 8)
+ 				w.Write(buf1)
+ 				w.Close()
+ 			}
+diff --git a/src/compress/zlib/writer_test.go b/src/compress/zlib/writer_test.go
+index d501974078..c518729146 100644
+--- a/src/compress/zlib/writer_test.go
++++ b/src/compress/zlib/writer_test.go
+@@ -34,7 +34,7 @@ func testFileLevelDict(t *testing.T, fn string, level int, d string) {
+ 		return
+ 	}
+ 	defer golden.Close()
+-	b0, err0 := ioutil.ReadAll(golden)
++	b0, err0 := io.ReadAll(golden)
+ 	if err0 != nil {
+ 		t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err0)
+ 		return
+@@ -74,7 +74,7 @@ func testLevelDict(t *testing.T, fn string, b0 []byte, level int, d string) {
+ 	defer zlibr.Close()
+ 
+ 	// Compare the decompressed data.
+-	b1, err1 := ioutil.ReadAll(zlibr)
++	b1, err1 := io.ReadAll(zlibr)
+ 	if err1 != nil {
+ 		t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err1)
+ 		return
+diff --git a/src/crypto/tls/handshake_test.go b/src/crypto/tls/handshake_test.go
+index f55cd16ca8..224edcd5c7 100644
+--- a/src/crypto/tls/handshake_test.go
++++ b/src/crypto/tls/handshake_test.go
+@@ -403,7 +403,7 @@ func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverStat
+ 		}
+ 		defer cli.Close()
+ 		clientState = cli.ConnectionState()
+-		buf, err := ioutil.ReadAll(cli)
++		buf, err := io.ReadAll(cli)
+ 		if err != nil {
+ 			t.Errorf("failed to call cli.Read: %v", err)
+ 		}
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 4ab8a430ba..9995538871 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+-	"io/ioutil"
+ 	"math"
+ 	"net"
+ 	"os"
+@@ -594,7 +593,7 @@ func TestConnCloseWrite(t *testing.T) {
+ 		}
+ 		defer srv.Close()
+ 
+-		data, err := ioutil.ReadAll(srv)
++		data, err := io.ReadAll(srv)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -635,7 +634,7 @@ func TestConnCloseWrite(t *testing.T) {
+ 			return fmt.Errorf("CloseWrite error = %v; want errShutdown", err)
+ 		}
+ 
+-		data, err := ioutil.ReadAll(conn)
++		data, err := io.ReadAll(conn)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -698,7 +697,7 @@ func TestWarningAlertFlood(t *testing.T) {
+ 		}
+ 		defer srv.Close()
+ 
+-		_, err = ioutil.ReadAll(srv)
++		_, err = io.ReadAll(srv)
+ 		if err == nil {
+ 			return errors.New("unexpected lack of error from server")
+ 		}
+diff --git a/src/crypto/x509/root_ios_gen.go b/src/crypto/x509/root_ios_gen.go
+index 34dd5d5b22..0641c073ea 100644
+--- a/src/crypto/x509/root_ios_gen.go
++++ b/src/crypto/x509/root_ios_gen.go
+@@ -81,7 +81,7 @@ func main() {
+ 			continue
+ 		}
+ 
+-		der, err := ioutil.ReadAll(tr)
++		der, err := io.ReadAll(tr)
+ 		if err != nil {
+ 			log.Fatal(err)
+ 		}
+diff --git a/src/debug/gosym/pclntab_test.go b/src/debug/gosym/pclntab_test.go
+index 33772c7813..f93a5bf5e5 100644
+--- a/src/debug/gosym/pclntab_test.go
++++ b/src/debug/gosym/pclntab_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"compress/gzip"
+ 	"debug/elf"
+ 	"internal/testenv"
++	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -287,7 +288,7 @@ func Test115PclnParsing(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	var dat []byte
+-	dat, err = ioutil.ReadAll(gzReader)
++	dat, err = io.ReadAll(gzReader)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/encoding/ascii85/ascii85_test.go b/src/encoding/ascii85/ascii85_test.go
+index 1a3a87a596..c637103942 100644
+--- a/src/encoding/ascii85/ascii85_test.go
++++ b/src/encoding/ascii85/ascii85_test.go
+@@ -7,7 +7,6 @@ package ascii85
+ import (
+ 	"bytes"
+ 	"io"
+-	"io/ioutil"
+ 	"strings"
+ 	"testing"
+ )
+@@ -118,7 +117,7 @@ func TestDecode(t *testing.T) {
+ func TestDecoder(t *testing.T) {
+ 	for _, p := range pairs {
+ 		decoder := NewDecoder(strings.NewReader(p.encoded))
+-		dbuf, err := ioutil.ReadAll(decoder)
++		dbuf, err := io.ReadAll(decoder)
+ 		if err != nil {
+ 			t.Fatal("Read failed", err)
+ 		}
+@@ -187,7 +186,7 @@ func TestBig(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Encoder.Close() = %v want nil", err)
+ 	}
+-	decoded, err := ioutil.ReadAll(NewDecoder(encoded))
++	decoded, err := io.ReadAll(NewDecoder(encoded))
+ 	if err != nil {
+ 		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err)
+ 	}
+@@ -205,7 +204,7 @@ func TestBig(t *testing.T) {
+ 
+ func TestDecoderInternalWhitespace(t *testing.T) {
+ 	s := strings.Repeat(" ", 2048) + "z"
+-	decoded, err := ioutil.ReadAll(NewDecoder(strings.NewReader(s)))
++	decoded, err := io.ReadAll(NewDecoder(strings.NewReader(s)))
+ 	if err != nil {
+ 		t.Errorf("Decode gave error %v", err)
+ 	}
+diff --git a/src/encoding/base32/base32_test.go b/src/encoding/base32/base32_test.go
+index 0b611db0b2..8fb22b9078 100644
+--- a/src/encoding/base32/base32_test.go
++++ b/src/encoding/base32/base32_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"io"
+-	"io/ioutil"
+ 	"strings"
+ 	"testing"
+ )
+@@ -361,9 +360,9 @@ func TestBig(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Encoder.Close() = %v want nil", err)
+ 	}
+-	decoded, err := ioutil.ReadAll(NewDecoder(StdEncoding, encoded))
++	decoded, err := io.ReadAll(NewDecoder(StdEncoding, encoded))
+ 	if err != nil {
+-		t.Fatalf("ioutil.ReadAll(NewDecoder(...)): %v", err)
++		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err)
+ 	}
+ 
+ 	if !bytes.Equal(raw, decoded) {
+@@ -428,14 +427,14 @@ LNEBUWIIDFON2CA3DBMJXXE5LNFY==
+ 	encodedShort := strings.ReplaceAll(encoded, "\n", "")
+ 
+ 	dec := NewDecoder(StdEncoding, strings.NewReader(encoded))
+-	res1, err := ioutil.ReadAll(dec)
++	res1, err := io.ReadAll(dec)
+ 	if err != nil {
+ 		t.Errorf("ReadAll failed: %v", err)
+ 	}
+ 
+ 	dec = NewDecoder(StdEncoding, strings.NewReader(encodedShort))
+ 	var res2 []byte
+-	res2, err = ioutil.ReadAll(dec)
++	res2, err = io.ReadAll(dec)
+ 	if err != nil {
+ 		t.Errorf("ReadAll failed: %v", err)
+ 	}
+@@ -619,7 +618,7 @@ func TestBufferedDecodingSameError(t *testing.T) {
+ 			}()
+ 
+ 			decoder := NewDecoder(StdEncoding, pr)
+-			_, err := ioutil.ReadAll(decoder)
++			_, err := io.ReadAll(decoder)
+ 
+ 			if err != testcase.expected {
+ 				t.Errorf("Expected %v, got %v; case %s %+v", testcase.expected, err, testcase.prefix, chunks)
+@@ -718,7 +717,7 @@ func TestDecodeReadAll(t *testing.T) {
+ 				encoded = strings.ReplaceAll(encoded, "=", "")
+ 			}
+ 
+-			decReader, err := ioutil.ReadAll(NewDecoder(encoding, strings.NewReader(encoded)))
++			decReader, err := io.ReadAll(NewDecoder(encoding, strings.NewReader(encoded)))
+ 			if err != nil {
+ 				t.Errorf("NewDecoder error: %v", err)
+ 			}
+diff --git a/src/encoding/base64/base64_test.go b/src/encoding/base64/base64_test.go
+index c2c9478a43..51047402bd 100644
+--- a/src/encoding/base64/base64_test.go
++++ b/src/encoding/base64/base64_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"reflect"
+ 	"runtime/debug"
+ 	"strings"
+@@ -324,9 +323,9 @@ func TestBig(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Encoder.Close() = %v want nil", err)
+ 	}
+-	decoded, err := ioutil.ReadAll(NewDecoder(StdEncoding, encoded))
++	decoded, err := io.ReadAll(NewDecoder(StdEncoding, encoded))
+ 	if err != nil {
+-		t.Fatalf("ioutil.ReadAll(NewDecoder(...)): %v", err)
++		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err)
+ 	}
+ 
+ 	if !bytes.Equal(raw, decoded) {
+@@ -403,7 +402,7 @@ func TestDecoderIssue3577(t *testing.T) {
+ 	})
+ 	errc := make(chan error, 1)
+ 	go func() {
+-		_, err := ioutil.ReadAll(d)
++		_, err := io.ReadAll(d)
+ 		errc <- err
+ 	}()
+ 	select {
+@@ -436,14 +435,14 @@ bqbPb06551Y4
+ 	encodedShort := strings.ReplaceAll(encoded, "\n", "")
+ 
+ 	dec := NewDecoder(StdEncoding, strings.NewReader(encoded))
+-	res1, err := ioutil.ReadAll(dec)
++	res1, err := io.ReadAll(dec)
+ 	if err != nil {
+ 		t.Errorf("ReadAll failed: %v", err)
+ 	}
+ 
+ 	dec = NewDecoder(StdEncoding, strings.NewReader(encodedShort))
+ 	var res2 []byte
+-	res2, err = ioutil.ReadAll(dec)
++	res2, err = io.ReadAll(dec)
+ 	if err != nil {
+ 		t.Errorf("ReadAll failed: %v", err)
+ 	}
+@@ -517,14 +516,14 @@ func TestDecoderRaw(t *testing.T) {
+ 
+ 	// Through reader. Used to fail.
+ 	r := NewDecoder(RawURLEncoding, bytes.NewReader([]byte(source)))
+-	dec2, err := ioutil.ReadAll(io.LimitReader(r, 100))
++	dec2, err := io.ReadAll(io.LimitReader(r, 100))
+ 	if err != nil || !bytes.Equal(dec2, want) {
+ 		t.Errorf("reading NewDecoder(RawURLEncoding, %q) = %x, %v, want %x, nil", source, dec2, err, want)
+ 	}
+ 
+ 	// Should work with padding.
+ 	r = NewDecoder(URLEncoding, bytes.NewReader([]byte(source+"==")))
+-	dec3, err := ioutil.ReadAll(r)
++	dec3, err := io.ReadAll(r)
+ 	if err != nil || !bytes.Equal(dec3, want) {
+ 		t.Errorf("reading NewDecoder(URLEncoding, %q) = %x, %v, want %x, nil", source+"==", dec3, err, want)
+ 	}
+diff --git a/src/encoding/binary/binary_test.go b/src/encoding/binary/binary_test.go
+index 5971e0966a..83af89e8a7 100644
+--- a/src/encoding/binary/binary_test.go
++++ b/src/encoding/binary/binary_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"math"
+ 	"reflect"
+ 	"strings"
+@@ -524,7 +523,7 @@ func BenchmarkWriteStruct(b *testing.B) {
+ 	b.SetBytes(int64(Size(&s)))
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		Write(ioutil.Discard, BigEndian, &s)
++		Write(io.Discard, BigEndian, &s)
+ 	}
+ }
+ 
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index 825f0d6f03..fe2774948a 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"bytes"
+ 	"encoding/hex"
+ 	"fmt"
+-	"io/ioutil"
++	"io"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+@@ -938,7 +938,7 @@ func encodeAndRecover(value interface{}) (encodeErr, panicErr error) {
+ 		}
+ 	}()
+ 
+-	encodeErr = NewEncoder(ioutil.Discard).Encode(value)
++	encodeErr = NewEncoder(io.Discard).Encode(value)
+ 	return
+ }
+ 
+diff --git a/src/encoding/hex/hex_test.go b/src/encoding/hex/hex_test.go
+index 31e3f68936..7593e20db5 100644
+--- a/src/encoding/hex/hex_test.go
++++ b/src/encoding/hex/hex_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"strings"
+ 	"testing"
+ )
+@@ -150,7 +149,7 @@ func TestEncoderDecoder(t *testing.T) {
+ func TestDecoderErr(t *testing.T) {
+ 	for _, tt := range errTests {
+ 		dec := NewDecoder(strings.NewReader(tt.in))
+-		out, err := ioutil.ReadAll(dec)
++		out, err := io.ReadAll(dec)
+ 		wantErr := tt.err
+ 		// Decoder is reading from stream, so it reports io.ErrUnexpectedEOF instead of ErrLength.
+ 		if wantErr == ErrLength {
+diff --git a/src/encoding/json/bench_test.go b/src/encoding/json/bench_test.go
+index 4a5fe7ec84..73c7b09fb6 100644
+--- a/src/encoding/json/bench_test.go
++++ b/src/encoding/json/bench_test.go
+@@ -15,7 +15,7 @@ import (
+ 	"compress/gzip"
+ 	"fmt"
+ 	"internal/testenv"
+-	"io/ioutil"
++	"io"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+@@ -52,7 +52,7 @@ func codeInit() {
+ 	if err != nil {
+ 		panic(err)
+ 	}
+-	data, err := ioutil.ReadAll(gz)
++	data, err := io.ReadAll(gz)
+ 	if err != nil {
+ 		panic(err)
+ 	}
+@@ -89,7 +89,7 @@ func BenchmarkCodeEncoder(b *testing.B) {
+ 		b.StartTimer()
+ 	}
+ 	b.RunParallel(func(pb *testing.PB) {
+-		enc := NewEncoder(ioutil.Discard)
++		enc := NewEncoder(io.Discard)
+ 		for pb.Next() {
+ 			if err := enc.Encode(&codeStruct); err != nil {
+ 				b.Fatal("Encode:", err)
+@@ -399,7 +399,7 @@ func BenchmarkEncodeMarshaler(b *testing.B) {
+ 	}{}
+ 
+ 	b.RunParallel(func(pb *testing.PB) {
+-		enc := NewEncoder(ioutil.Discard)
++		enc := NewEncoder(io.Discard)
+ 
+ 		for pb.Next() {
+ 			if err := enc.Encode(&m); err != nil {
+diff --git a/src/encoding/json/stream_test.go b/src/encoding/json/stream_test.go
+index c9e5334337..c284f2d965 100644
+--- a/src/encoding/json/stream_test.go
++++ b/src/encoding/json/stream_test.go
+@@ -7,7 +7,6 @@ package json
+ import (
+ 	"bytes"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"net"
+ 	"net/http"
+@@ -215,7 +214,7 @@ func TestDecoderBuffered(t *testing.T) {
+ 	if m.Name != "Gopher" {
+ 		t.Errorf("Name = %q; want Gopher", m.Name)
+ 	}
+-	rest, err := ioutil.ReadAll(d.Buffered())
++	rest, err := io.ReadAll(d.Buffered())
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -318,7 +317,7 @@ func BenchmarkEncoderEncode(b *testing.B) {
+ 	v := &T{"foo", "bar"}
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		for pb.Next() {
+-			if err := NewEncoder(ioutil.Discard).Encode(v); err != nil {
++			if err := NewEncoder(io.Discard).Encode(v); err != nil {
+ 				b.Fatal(err)
+ 			}
+ 		}
+diff --git a/src/encoding/pem/pem_test.go b/src/encoding/pem/pem_test.go
+index 8515b46498..b2b6b15e73 100644
+--- a/src/encoding/pem/pem_test.go
++++ b/src/encoding/pem/pem_test.go
+@@ -6,7 +6,7 @@ package pem
+ 
+ import (
+ 	"bytes"
+-	"io/ioutil"
++	"io"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+@@ -271,7 +271,7 @@ func BenchmarkEncode(b *testing.B) {
+ 	data := &Block{Bytes: make([]byte, 65536)}
+ 	b.SetBytes(int64(len(data.Bytes)))
+ 	for i := 0; i < b.N; i++ {
+-		Encode(ioutil.Discard, data)
++		Encode(io.Discard, data)
+ 	}
+ }
+ 
+diff --git a/src/flag/flag_test.go b/src/flag/flag_test.go
+index 2793064511..06cab79405 100644
+--- a/src/flag/flag_test.go
++++ b/src/flag/flag_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"runtime"
+@@ -545,7 +544,7 @@ func TestGetters(t *testing.T) {
+ func TestParseError(t *testing.T) {
+ 	for _, typ := range []string{"bool", "int", "int64", "uint", "uint64", "float64", "duration"} {
+ 		fs := NewFlagSet("parse error test", ContinueOnError)
+-		fs.SetOutput(ioutil.Discard)
++		fs.SetOutput(io.Discard)
+ 		_ = fs.Bool("bool", false, "")
+ 		_ = fs.Int("int", 0, "")
+ 		_ = fs.Int64("int64", 0, "")
+@@ -576,7 +575,7 @@ func TestRangeError(t *testing.T) {
+ 	}
+ 	for _, arg := range bad {
+ 		fs := NewFlagSet("parse error test", ContinueOnError)
+-		fs.SetOutput(ioutil.Discard)
++		fs.SetOutput(io.Discard)
+ 		_ = fs.Int("int", 0, "")
+ 		_ = fs.Int64("int64", 0, "")
+ 		_ = fs.Uint("uint", 0, "")
+diff --git a/src/go/internal/gccgoimporter/importer.go b/src/go/internal/gccgoimporter/importer.go
+index 2494fd7b2a..94f2defd8d 100644
+--- a/src/go/internal/gccgoimporter/importer.go
++++ b/src/go/internal/gccgoimporter/importer.go
+@@ -221,7 +221,7 @@ func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) Impo
+ 		// Excluded for now: Standard gccgo doesn't support this import format currently.
+ 		// case goimporterMagic:
+ 		// 	var data []byte
+-		// 	data, err = ioutil.ReadAll(reader)
++		// 	data, err = io.ReadAll(reader)
+ 		// 	if err != nil {
+ 		// 		return
+ 		// 	}
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index fda15eaaae..b74daca246 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -12,7 +12,6 @@ import (
+ 	"go/token"
+ 	"go/types"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+@@ -147,7 +146,7 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
+ 
+ 	case "$$B\n":
+ 		var data []byte
+-		data, err = ioutil.ReadAll(buf)
++		data, err = io.ReadAll(buf)
+ 		if err != nil {
+ 			break
+ 		}
+diff --git a/src/go/parser/interface.go b/src/go/parser/interface.go
+index b2d834fdec..cc7e455c4d 100644
+--- a/src/go/parser/interface.go
++++ b/src/go/parser/interface.go
+@@ -35,7 +35,7 @@ func readSource(filename string, src interface{}) ([]byte, error) {
+ 				return s.Bytes(), nil
+ 			}
+ 		case io.Reader:
+-			return ioutil.ReadAll(s)
++			return io.ReadAll(s)
+ 		}
+ 		return nil, errors.New("invalid source")
+ 	}
+diff --git a/src/go/printer/performance_test.go b/src/go/printer/performance_test.go
+index 2e67154e6b..e23de3fbae 100644
+--- a/src/go/printer/performance_test.go
++++ b/src/go/printer/performance_test.go
+@@ -53,6 +53,6 @@ func BenchmarkPrint(b *testing.B) {
+ 		initialize()
+ 	}
+ 	for i := 0; i < b.N; i++ {
+-		testprint(ioutil.Discard, testfile)
++		testprint(io.Discard, testfile)
+ 	}
+ }
+diff --git a/src/go/types/gotype.go b/src/go/types/gotype.go
+index eacf68f52f..52709df17b 100644
+--- a/src/go/types/gotype.go
++++ b/src/go/types/gotype.go
+@@ -88,7 +88,7 @@ import (
+ 	"go/scanner"
+ 	"go/token"
+ 	"go/types"
+-	"io/ioutil"
++	"io"
+ 	"os"
+ 	"path/filepath"
+ 	"sync"
+@@ -191,7 +191,7 @@ func parse(filename string, src interface{}) (*ast.File, error) {
+ }
+ 
+ func parseStdin() (*ast.File, error) {
+-	src, err := ioutil.ReadAll(os.Stdin)
++	src, err := io.ReadAll(os.Stdin)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/html/template/clone_test.go b/src/html/template/clone_test.go
+index c9c619f0d4..7cb1b9ca06 100644
+--- a/src/html/template/clone_test.go
++++ b/src/html/template/clone_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
+-	"io/ioutil"
++	"io"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -171,7 +171,7 @@ func TestCloneThenParse(t *testing.T) {
+ 		t.Error("adding a template to a clone added it to the original")
+ 	}
+ 	// double check that the embedded template isn't available in the original
+-	err := t0.ExecuteTemplate(ioutil.Discard, "a", nil)
++	err := t0.ExecuteTemplate(io.Discard, "a", nil)
+ 	if err == nil {
+ 		t.Error("expected 'no such template' error")
+ 	}
+@@ -185,13 +185,13 @@ func TestFuncMapWorksAfterClone(t *testing.T) {
+ 
+ 	// get the expected error output (no clone)
+ 	uncloned := Must(New("").Funcs(funcs).Parse("{{customFunc}}"))
+-	wantErr := uncloned.Execute(ioutil.Discard, nil)
++	wantErr := uncloned.Execute(io.Discard, nil)
+ 
+ 	// toClone must be the same as uncloned. It has to be recreated from scratch,
+ 	// since cloning cannot occur after execution.
+ 	toClone := Must(New("").Funcs(funcs).Parse("{{customFunc}}"))
+ 	cloned := Must(toClone.Clone())
+-	gotErr := cloned.Execute(ioutil.Discard, nil)
++	gotErr := cloned.Execute(io.Discard, nil)
+ 
+ 	if wantErr.Error() != gotErr.Error() {
+ 		t.Errorf("clone error message mismatch want %q got %q", wantErr, gotErr)
+@@ -213,7 +213,7 @@ func TestTemplateCloneExecuteRace(t *testing.T) {
+ 		go func() {
+ 			defer wg.Done()
+ 			for i := 0; i < 100; i++ {
+-				if err := tmpl.Execute(ioutil.Discard, "data"); err != nil {
++				if err := tmpl.Execute(io.Discard, "data"); err != nil {
+ 					panic(err)
+ 				}
+ 			}
+@@ -237,7 +237,7 @@ func TestCloneGrowth(t *testing.T) {
+ 	tmpl = Must(tmpl.Clone())
+ 	Must(tmpl.Parse(`{{define "B"}}Text{{end}}`))
+ 	for i := 0; i < 10; i++ {
+-		tmpl.Execute(ioutil.Discard, nil)
++		tmpl.Execute(io.Discard, nil)
+ 	}
+ 	if len(tmpl.DefinedTemplates()) > 200 {
+ 		t.Fatalf("too many templates: %v", len(tmpl.DefinedTemplates()))
+@@ -257,7 +257,7 @@ func TestCloneRedefinedName(t *testing.T) {
+ 	for i := 0; i < 2; i++ {
+ 		t2 := Must(t1.Clone())
+ 		t2 = Must(t2.New(fmt.Sprintf("%d", i)).Parse(page))
+-		err := t2.Execute(ioutil.Discard, nil)
++		err := t2.Execute(io.Discard, nil)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/html/template/exec_test.go b/src/html/template/exec_test.go
+index fc76ee40e5..232945a0bb 100644
+--- a/src/html/template/exec_test.go
++++ b/src/html/template/exec_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"errors"
+ 	"flag"
+ 	"fmt"
+-	"io/ioutil"
++	"io"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+@@ -1335,7 +1335,7 @@ func TestExecuteGivesExecError(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	err = tmpl.Execute(ioutil.Discard, 0)
++	err = tmpl.Execute(io.Discard, 0)
+ 	if err == nil {
+ 		t.Fatal("expected error; got none")
+ 	}
+@@ -1481,7 +1481,7 @@ func TestEvalFieldErrors(t *testing.T) {
+ 	for _, tc := range tests {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			tmpl := Must(New("tmpl").Parse(tc.src))
+-			err := tmpl.Execute(ioutil.Discard, tc.value)
++			err := tmpl.Execute(io.Discard, tc.value)
+ 			got := "<nil>"
+ 			if err != nil {
+ 				got = err.Error()
+@@ -1498,7 +1498,7 @@ func TestMaxExecDepth(t *testing.T) {
+ 		t.Skip("skipping in -short mode")
+ 	}
+ 	tmpl := Must(New("tmpl").Parse(`{{template "tmpl" .}}`))
+-	err := tmpl.Execute(ioutil.Discard, nil)
++	err := tmpl.Execute(io.Discard, nil)
+ 	got := "<nil>"
+ 	if err != nil {
+ 		got = err.Error()
+diff --git a/src/image/gif/writer_test.go b/src/image/gif/writer_test.go
+index 1e622b3674..af0105c6be 100644
+--- a/src/image/gif/writer_test.go
++++ b/src/image/gif/writer_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"image/color/palette"
+ 	"image/draw"
+ 	_ "image/png"
+-	"io/ioutil"
++	"io"
+ 	"math/rand"
+ 	"os"
+ 	"reflect"
+@@ -285,7 +285,7 @@ func TestEncodeMismatchDelay(t *testing.T) {
+ 		Image: images,
+ 		Delay: make([]int, 1),
+ 	}
+-	if err := EncodeAll(ioutil.Discard, g0); err == nil {
++	if err := EncodeAll(io.Discard, g0); err == nil {
+ 		t.Error("expected error from mismatched delay and image slice lengths")
+ 	}
+ 
+@@ -297,13 +297,13 @@ func TestEncodeMismatchDelay(t *testing.T) {
+ 	for i := range g1.Disposal {
+ 		g1.Disposal[i] = DisposalNone
+ 	}
+-	if err := EncodeAll(ioutil.Discard, g1); err == nil {
++	if err := EncodeAll(io.Discard, g1); err == nil {
+ 		t.Error("expected error from mismatched disposal and image slice lengths")
+ 	}
+ }
+ 
+ func TestEncodeZeroGIF(t *testing.T) {
+-	if err := EncodeAll(ioutil.Discard, &GIF{}); err == nil {
++	if err := EncodeAll(io.Discard, &GIF{}); err == nil {
+ 		t.Error("expected error from providing empty gif")
+ 	}
+ }
+@@ -324,7 +324,7 @@ func TestEncodeAllFramesOutOfBounds(t *testing.T) {
+ 				Height: upperBound,
+ 			},
+ 		}
+-		err := EncodeAll(ioutil.Discard, g)
++		err := EncodeAll(io.Discard, g)
+ 		if upperBound >= 8 {
+ 			if err != nil {
+ 				t.Errorf("upperBound=%d: %v", upperBound, err)
+@@ -430,7 +430,7 @@ func TestEncodeImplicitConfigSize(t *testing.T) {
+ 			Image: images,
+ 			Delay: make([]int, len(images)),
+ 		}
+-		err := EncodeAll(ioutil.Discard, g)
++		err := EncodeAll(io.Discard, g)
+ 		if lowerBound >= 0 {
+ 			if err != nil {
+ 				t.Errorf("lowerBound=%d: %v", lowerBound, err)
+@@ -509,7 +509,7 @@ func TestEncodeBadPalettes(t *testing.T) {
+ 				}
+ 			}
+ 
+-			err := EncodeAll(ioutil.Discard, &GIF{
++			err := EncodeAll(io.Discard, &GIF{
+ 				Image: []*image.Paletted{
+ 					image.NewPaletted(image.Rect(0, 0, w, h), pal),
+ 				},
+@@ -668,7 +668,7 @@ func BenchmarkEncodeRandomPaletted(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		Encode(ioutil.Discard, paletted, nil)
++		Encode(io.Discard, paletted, nil)
+ 	}
+ }
+ 
+@@ -691,7 +691,7 @@ func BenchmarkEncodeRandomRGBA(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		Encode(ioutil.Discard, rgba, nil)
++		Encode(io.Discard, rgba, nil)
+ 	}
+ }
+ 
+@@ -708,7 +708,7 @@ func BenchmarkEncodeRealisticPaletted(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		Encode(ioutil.Discard, paletted, nil)
++		Encode(io.Discard, paletted, nil)
+ 	}
+ }
+ 
+@@ -729,6 +729,6 @@ func BenchmarkEncodeRealisticRGBA(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		Encode(ioutil.Discard, rgba, nil)
++		Encode(io.Discard, rgba, nil)
+ 	}
+ }
+diff --git a/src/image/jpeg/writer_test.go b/src/image/jpeg/writer_test.go
+index 3aff742632..abd5e32333 100644
+--- a/src/image/jpeg/writer_test.go
++++ b/src/image/jpeg/writer_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"image"
+ 	"image/color"
+ 	"image/png"
+-	"io/ioutil"
++	"io"
+ 	"math/rand"
+ 	"os"
+ 	"testing"
+@@ -261,7 +261,7 @@ func BenchmarkEncodeRGBA(b *testing.B) {
+ 	b.ResetTimer()
+ 	options := &Options{Quality: 90}
+ 	for i := 0; i < b.N; i++ {
+-		Encode(ioutil.Discard, img, options)
++		Encode(io.Discard, img, options)
+ 	}
+ }
+ 
+@@ -283,6 +283,6 @@ func BenchmarkEncodeYCbCr(b *testing.B) {
+ 	b.ResetTimer()
+ 	options := &Options{Quality: 90}
+ 	for i := 0; i < b.N; i++ {
+-		Encode(ioutil.Discard, img, options)
++		Encode(io.Discard, img, options)
+ 	}
+ }
+diff --git a/src/image/png/writer_test.go b/src/image/png/writer_test.go
+index 5d131ff823..47aa861339 100644
+--- a/src/image/png/writer_test.go
++++ b/src/image/png/writer_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"image"
+ 	"image/color"
+ 	"io"
+-	"io/ioutil"
+ 	"testing"
+ )
+ 
+@@ -169,7 +168,7 @@ func TestWriterPaletted(t *testing.T) {
+ 						t.Error(err)
+ 						return
+ 					}
+-					n, err := io.Copy(ioutil.Discard, r)
++					n, err := io.Copy(io.Discard, r)
+ 					if err != nil {
+ 						t.Errorf("got error while reading image data: %v", err)
+ 					}
+@@ -234,7 +233,7 @@ func BenchmarkEncodeGray(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		Encode(ioutil.Discard, img)
++		Encode(io.Discard, img)
+ 	}
+ }
+ 
+@@ -259,7 +258,7 @@ func BenchmarkEncodeGrayWithBufferPool(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		e.Encode(ioutil.Discard, img)
++		e.Encode(io.Discard, img)
+ 	}
+ }
+ 
+@@ -279,7 +278,7 @@ func BenchmarkEncodeNRGBOpaque(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		Encode(ioutil.Discard, img)
++		Encode(io.Discard, img)
+ 	}
+ }
+ 
+@@ -292,7 +291,7 @@ func BenchmarkEncodeNRGBA(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		Encode(ioutil.Discard, img)
++		Encode(io.Discard, img)
+ 	}
+ }
+ 
+@@ -305,7 +304,7 @@ func BenchmarkEncodePaletted(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		Encode(ioutil.Discard, img)
++		Encode(io.Discard, img)
+ 	}
+ }
+ 
+@@ -325,7 +324,7 @@ func BenchmarkEncodeRGBOpaque(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		Encode(ioutil.Discard, img)
++		Encode(io.Discard, img)
+ 	}
+ }
+ 
+@@ -338,6 +337,6 @@ func BenchmarkEncodeRGBA(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		Encode(ioutil.Discard, img)
++		Encode(io.Discard, img)
+ 	}
+ }
+diff --git a/src/internal/obscuretestdata/obscuretestdata.go b/src/internal/obscuretestdata/obscuretestdata.go
+index 512f3759b4..06cd1df22c 100644
+--- a/src/internal/obscuretestdata/obscuretestdata.go
++++ b/src/internal/obscuretestdata/obscuretestdata.go
+@@ -47,5 +47,5 @@ func ReadFile(name string) ([]byte, error) {
+ 		return nil, err
+ 	}
+ 	defer f.Close()
+-	return ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, f))
++	return io.ReadAll(base64.NewDecoder(base64.StdEncoding, f))
+ }
+diff --git a/src/internal/profile/profile.go b/src/internal/profile/profile.go
+index a6275bc6de..29568aa4b5 100644
+--- a/src/internal/profile/profile.go
++++ b/src/internal/profile/profile.go
+@@ -12,7 +12,6 @@ import (
+ 	"compress/gzip"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"regexp"
+ 	"strings"
+ 	"time"
+@@ -125,7 +124,7 @@ type Function struct {
+ // may be a gzip-compressed encoded protobuf or one of many legacy
+ // profile formats which may be unsupported in the future.
+ func Parse(r io.Reader) (*Profile, error) {
+-	orig, err := ioutil.ReadAll(r)
++	orig, err := io.ReadAll(r)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -136,7 +135,7 @@ func Parse(r io.Reader) (*Profile, error) {
+ 		if err != nil {
+ 			return nil, fmt.Errorf("decompressing profile: %v", err)
+ 		}
+-		data, err := ioutil.ReadAll(gz)
++		data, err := io.ReadAll(gz)
+ 		if err != nil {
+ 			return nil, fmt.Errorf("decompressing profile: %v", err)
+ 		}
+diff --git a/src/io/example_test.go b/src/io/example_test.go
+index 4706032429..6d338acd14 100644
+--- a/src/io/example_test.go
++++ b/src/io/example_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"strings"
+@@ -141,7 +140,7 @@ func ExampleTeeReader() {
+ 	r = io.TeeReader(r, os.Stdout)
+ 
+ 	// Everything read from r will be copied to stdout.
+-	ioutil.ReadAll(r)
++	io.ReadAll(r)
+ 
+ 	// Output:
+ 	// some io.Reader stream to be read
+@@ -245,7 +244,7 @@ func ExamplePipe() {
+ func ExampleReadAll() {
+ 	r := strings.NewReader("Go is a general-purpose language designed with systems programming in mind.")
+ 
+-	b, err := ioutil.ReadAll(r)
++	b, err := io.ReadAll(r)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+diff --git a/src/io/io.go b/src/io/io.go
+index 269ebf6ed0..ffd3cedc25 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -573,7 +573,7 @@ var Discard Writer = discard{}
+ type discard struct{}
+ 
+ // discard implements ReaderFrom as an optimization so Copy to
+-// ioutil.Discard can avoid doing unnecessary work.
++// io.Discard can avoid doing unnecessary work.
+ var _ ReaderFrom = discard{}
+ 
+ func (discard) Write(p []byte) (int, error) {
+diff --git a/src/io/multi_test.go b/src/io/multi_test.go
+index f05d5f74ef..909b6d8be2 100644
+--- a/src/io/multi_test.go
++++ b/src/io/multi_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	. "io"
+-	"io/ioutil"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+@@ -142,7 +141,7 @@ func testMultiWriter(t *testing.T, sink interface {
+ 	}
+ }
+ 
+-// writerFunc is an io.Writer implemented by the underlying func.
++// writerFunc is an Writer implemented by the underlying func.
+ type writerFunc func(p []byte) (int, error)
+ 
+ func (f writerFunc) Write(p []byte) (int, error) {
+@@ -196,7 +195,7 @@ func TestMultiReaderCopy(t *testing.T) {
+ 	slice := []Reader{strings.NewReader("hello world")}
+ 	r := MultiReader(slice...)
+ 	slice[0] = nil
+-	data, err := ioutil.ReadAll(r)
++	data, err := ReadAll(r)
+ 	if err != nil || string(data) != "hello world" {
+ 		t.Errorf("ReadAll() = %q, %v, want %q, nil", data, err, "hello world")
+ 	}
+@@ -217,7 +216,7 @@ func TestMultiWriterCopy(t *testing.T) {
+ 	}
+ }
+ 
+-// readerFunc is an io.Reader implemented by the underlying func.
++// readerFunc is an Reader implemented by the underlying func.
+ type readerFunc func(p []byte) (int, error)
+ 
+ func (f readerFunc) Read(p []byte) (int, error) {
+@@ -261,7 +260,7 @@ func TestMultiReaderFlatten(t *testing.T) {
+ }
+ 
+ // byteAndEOFReader is a Reader which reads one byte (the underlying
+-// byte) and io.EOF at once in its Read call.
++// byte) and EOF at once in its Read call.
+ type byteAndEOFReader byte
+ 
+ func (b byteAndEOFReader) Read(p []byte) (n int, err error) {
+@@ -276,7 +275,7 @@ func (b byteAndEOFReader) Read(p []byte) (n int, err error) {
+ 
+ // This used to yield bytes forever; issue 16795.
+ func TestMultiReaderSingleByteWithEOF(t *testing.T) {
+-	got, err := ioutil.ReadAll(LimitReader(MultiReader(byteAndEOFReader('a'), byteAndEOFReader('b')), 10))
++	got, err := ReadAll(LimitReader(MultiReader(byteAndEOFReader('a'), byteAndEOFReader('b')), 10))
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/mime/encodedword_test.go b/src/mime/encodedword_test.go
+index 6c54e502ad..2a98794380 100644
+--- a/src/mime/encodedword_test.go
++++ b/src/mime/encodedword_test.go
+@@ -7,7 +7,6 @@ package mime
+ import (
+ 	"errors"
+ 	"io"
+-	"io/ioutil"
+ 	"strings"
+ 	"testing"
+ )
+@@ -182,7 +181,7 @@ func TestCharsetDecoder(t *testing.T) {
+ 				if charset != test.charsets[i] {
+ 					t.Errorf("DecodeHeader(%q), got charset %q, want %q", test.src, charset, test.charsets[i])
+ 				}
+-				content, err := ioutil.ReadAll(input)
++				content, err := io.ReadAll(input)
+ 				if err != nil {
+ 					t.Errorf("DecodeHeader(%q), error in reader: %v", test.src, err)
+ 				}
+diff --git a/src/mime/example_test.go b/src/mime/example_test.go
+index 85795976f0..8a96873e5d 100644
+--- a/src/mime/example_test.go
++++ b/src/mime/example_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"mime"
+ )
+ 
+@@ -38,7 +37,7 @@ func ExampleWordDecoder_Decode() {
+ 			// Fake character set for example.
+ 			// Real use would integrate with packages such
+ 			// as code.google.com/p/go-charset
+-			content, err := ioutil.ReadAll(input)
++			content, err := io.ReadAll(input)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+@@ -77,7 +76,7 @@ func ExampleWordDecoder_DecodeHeader() {
+ 			// Fake character set for example.
+ 			// Real use would integrate with packages such
+ 			// as code.google.com/p/go-charset
+-			content, err := ioutil.ReadAll(input)
++			content, err := io.ReadAll(input)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+diff --git a/src/mime/multipart/example_test.go b/src/mime/multipart/example_test.go
+index 6d6ba81d5e..fe154ac4f6 100644
+--- a/src/mime/multipart/example_test.go
++++ b/src/mime/multipart/example_test.go
+@@ -7,7 +7,6 @@ package multipart_test
+ import (
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"mime"
+ 	"mime/multipart"
+@@ -39,7 +38,7 @@ func ExampleNewReader() {
+ 			if err != nil {
+ 				log.Fatal(err)
+ 			}
+-			slurp, err := ioutil.ReadAll(p)
++			slurp, err := io.ReadAll(p)
+ 			if err != nil {
+ 				log.Fatal(err)
+ 			}
+diff --git a/src/mime/multipart/multipart.go b/src/mime/multipart/multipart.go
+index 1750300fb5..cb8bf39338 100644
+--- a/src/mime/multipart/multipart.go
++++ b/src/mime/multipart/multipart.go
+@@ -17,7 +17,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"mime"
+ 	"mime/quotedprintable"
+ 	"net/textproto"
+@@ -278,7 +277,7 @@ func matchAfterPrefix(buf, prefix []byte, readErr error) int {
+ }
+ 
+ func (p *Part) Close() error {
+-	io.Copy(ioutil.Discard, p)
++	io.Copy(io.Discard, p)
+ 	return nil
+ }
+ 
+diff --git a/src/mime/multipart/multipart_test.go b/src/mime/multipart/multipart_test.go
+index b60c54a204..741d2304ed 100644
+--- a/src/mime/multipart/multipart_test.go
++++ b/src/mime/multipart/multipart_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"net/textproto"
+ 	"os"
+ 	"reflect"
+@@ -307,7 +306,7 @@ Oh no, premature EOF!
+ 	if err != nil {
+ 		t.Fatalf("didn't get a part")
+ 	}
+-	_, err = io.Copy(ioutil.Discard, part)
++	_, err = io.Copy(io.Discard, part)
+ 	if err != io.ErrUnexpectedEOF {
+ 		t.Fatalf("expected error io.ErrUnexpectedEOF; got %v", err)
+ 	}
+@@ -372,7 +371,7 @@ Body 2
+ 		if !reflect.DeepEqual(part.Header, hdr) {
+ 			t.Errorf("Part %d: part.Header = %v, want %v", i, part.Header, hdr)
+ 		}
+-		data, err := ioutil.ReadAll(part)
++		data, err := io.ReadAll(part)
+ 		expectEq(t, body, string(data), fmt.Sprintf("Part %d body", i))
+ 		if err != nil {
+ 			t.Fatalf("Part %d: ReadAll failed: %v", i, err)
+@@ -530,14 +529,14 @@ func TestNested(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("reading text/plain part: %v", err)
+ 	}
+-	if b, err := ioutil.ReadAll(p); string(b) != "*body*\r\n" || err != nil {
++	if b, err := io.ReadAll(p); string(b) != "*body*\r\n" || err != nil {
+ 		t.Fatalf("reading text/plain part: got %q, %v", b, err)
+ 	}
+ 	p, err = mr2.NextPart()
+ 	if err != nil {
+ 		t.Fatalf("reading text/html part: %v", err)
+ 	}
+-	if b, err := ioutil.ReadAll(p); string(b) != "<b>body</b>\r\n" || err != nil {
++	if b, err := io.ReadAll(p); string(b) != "<b>body</b>\r\n" || err != nil {
+ 		t.Fatalf("reading text/html part: got %q, %v", b, err)
+ 	}
+ 
+@@ -850,7 +849,7 @@ Cases:
+ 				t.Errorf("in test %q, NextPart: %v", tt.name, err)
+ 				continue Cases
+ 			}
+-			pbody, err := ioutil.ReadAll(p)
++			pbody, err := io.ReadAll(p)
+ 			if err != nil {
+ 				t.Errorf("in test %q, error reading part: %v", tt.name, err)
+ 				continue Cases
+@@ -882,7 +881,7 @@ func partsFromReader(r *Reader) ([]headerBody, error) {
+ 		if err != nil {
+ 			return nil, fmt.Errorf("NextPart: %v", err)
+ 		}
+-		pbody, err := ioutil.ReadAll(p)
++		pbody, err := io.ReadAll(p)
+ 		if err != nil {
+ 			return nil, fmt.Errorf("error reading part: %v", err)
+ 		}
+diff --git a/src/mime/multipart/writer_test.go b/src/mime/multipart/writer_test.go
+index b89b093fff..cfc0f09f37 100644
+--- a/src/mime/multipart/writer_test.go
++++ b/src/mime/multipart/writer_test.go
+@@ -6,7 +6,7 @@ package multipart
+ 
+ import (
+ 	"bytes"
+-	"io/ioutil"
++	"io"
+ 	"mime"
+ 	"net/textproto"
+ 	"strings"
+@@ -51,7 +51,7 @@ func TestWriter(t *testing.T) {
+ 	if g, e := part.FormName(), "myfile"; g != e {
+ 		t.Errorf("part 1: want form name %q, got %q", e, g)
+ 	}
+-	slurp, err := ioutil.ReadAll(part)
++	slurp, err := io.ReadAll(part)
+ 	if err != nil {
+ 		t.Fatalf("part 1: ReadAll: %v", err)
+ 	}
+@@ -66,7 +66,7 @@ func TestWriter(t *testing.T) {
+ 	if g, e := part.FormName(), "key"; g != e {
+ 		t.Errorf("part 2: want form name %q, got %q", e, g)
+ 	}
+-	slurp, err = ioutil.ReadAll(part)
++	slurp, err = io.ReadAll(part)
+ 	if err != nil {
+ 		t.Fatalf("part 2: ReadAll: %v", err)
+ 	}
+@@ -134,7 +134,7 @@ func TestWriterBoundaryGoroutines(t *testing.T) {
+ 	// different goroutines. This was previously broken by
+ 	// https://codereview.appspot.com/95760043/ and reverted in
+ 	// https://codereview.appspot.com/117600043/
+-	w := NewWriter(ioutil.Discard)
++	w := NewWriter(io.Discard)
+ 	done := make(chan int)
+ 	go func() {
+ 		w.CreateFormField("foo")
+diff --git a/src/mime/quotedprintable/example_test.go b/src/mime/quotedprintable/example_test.go
+index 5a9ab450a3..e5a479a3a7 100644
+--- a/src/mime/quotedprintable/example_test.go
++++ b/src/mime/quotedprintable/example_test.go
+@@ -6,7 +6,7 @@ package quotedprintable_test
+ 
+ import (
+ 	"fmt"
+-	"io/ioutil"
++	"io"
+ 	"mime/quotedprintable"
+ 	"os"
+ 	"strings"
+@@ -18,7 +18,7 @@ func ExampleNewReader() {
+ 		`invalid escape: <b style="font-size: 200%">hello</b>`,
+ 		"Hello, Gophers! This symbol will be unescaped: =3D and this will be written in =\r\none line.",
+ 	} {
+-		b, err := ioutil.ReadAll(quotedprintable.NewReader(strings.NewReader(s)))
++		b, err := io.ReadAll(quotedprintable.NewReader(strings.NewReader(s)))
+ 		fmt.Printf("%s %v\n", b, err)
+ 	}
+ 	// Output:
+diff --git a/src/mime/quotedprintable/writer_test.go b/src/mime/quotedprintable/writer_test.go
+index d494c1e3dc..42de0f3d6e 100644
+--- a/src/mime/quotedprintable/writer_test.go
++++ b/src/mime/quotedprintable/writer_test.go
+@@ -6,7 +6,7 @@ package quotedprintable
+ 
+ import (
+ 	"bytes"
+-	"io/ioutil"
++	"io"
+ 	"strings"
+ 	"testing"
+ )
+@@ -128,7 +128,7 @@ func TestRoundTrip(t *testing.T) {
+ 	}
+ 
+ 	r := NewReader(buf)
+-	gotBytes, err := ioutil.ReadAll(r)
++	gotBytes, err := io.ReadAll(r)
+ 	if err != nil {
+ 		t.Fatalf("Error while reading from Reader: %v", err)
+ 	}
+@@ -151,7 +151,7 @@ var testMsg = []byte("Quoted-Printable (QP) est un format d'encodage de données
+ 
+ func BenchmarkWriter(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		w := NewWriter(ioutil.Discard)
++		w := NewWriter(io.Discard)
+ 		w.Write(testMsg)
+ 		w.Close()
+ 	}
+diff --git a/src/net/http/alpn_test.go b/src/net/http/alpn_test.go
+index 618bdbe54a..a51038c355 100644
+--- a/src/net/http/alpn_test.go
++++ b/src/net/http/alpn_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"crypto/x509"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	. "net/http"
+ 	"net/http/httptest"
+ 	"strings"
+@@ -49,7 +48,7 @@ func TestNextProtoUpgrade(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		body, err := ioutil.ReadAll(res.Body)
++		body, err := io.ReadAll(res.Body)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -93,7 +92,7 @@ func TestNextProtoUpgrade(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 		conn.Write([]byte("GET /foo\n"))
+-		body, err := ioutil.ReadAll(conn)
++		body, err := io.ReadAll(conn)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/net/http/cgi/child.go b/src/net/http/cgi/child.go
+index 690986335c..0114da377b 100644
+--- a/src/net/http/cgi/child.go
++++ b/src/net/http/cgi/child.go
+@@ -13,7 +13,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"net"
+ 	"net/http"
+ 	"net/url"
+@@ -32,7 +31,7 @@ func Request() (*http.Request, error) {
+ 		return nil, err
+ 	}
+ 	if r.ContentLength > 0 {
+-		r.Body = ioutil.NopCloser(io.LimitReader(os.Stdin, r.ContentLength))
++		r.Body = io.NopCloser(io.LimitReader(os.Stdin, r.ContentLength))
+ 	}
+ 	return r, nil
+ }
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 6ca0d2e6cf..88e2028bc3 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -16,7 +16,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"net/url"
+ 	"reflect"
+@@ -282,7 +281,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
+ 		if resp.ContentLength > 0 && req.Method != "HEAD" {
+ 			return nil, didTimeout, fmt.Errorf("http: RoundTripper implementation (%T) returned a *Response with content length %d but a nil Body", rt, resp.ContentLength)
+ 		}
+-		resp.Body = ioutil.NopCloser(strings.NewReader(""))
++		resp.Body = io.NopCloser(strings.NewReader(""))
+ 	}
+ 	if !deadline.IsZero() {
+ 		resp.Body = &cancelTimerBody{
+@@ -697,7 +696,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
+ 			// fails, the Transport won't reuse it anyway.
+ 			const maxBodySlurpSize = 2 << 10
+ 			if resp.ContentLength == -1 || resp.ContentLength <= maxBodySlurpSize {
+-				io.CopyN(ioutil.Discard, resp.Body, maxBodySlurpSize)
++				io.CopyN(io.Discard, resp.Body, maxBodySlurpSize)
+ 			}
+ 			resp.Body.Close()
+ 
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 4bd62735e8..d90b4841c6 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"net"
+ 	. "net/http"
+@@ -35,7 +34,7 @@ var robotsTxtHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
+ 	fmt.Fprintf(w, "User-agent: go\nDisallow: /something/")
+ })
+ 
+-// pedanticReadAll works like ioutil.ReadAll but additionally
++// pedanticReadAll works like io.ReadAll but additionally
+ // verifies that r obeys the documented io.Reader contract.
+ func pedanticReadAll(r io.Reader) (b []byte, err error) {
+ 	var bufa [64]byte
+@@ -190,7 +189,7 @@ func TestPostFormRequestFormat(t *testing.T) {
+ 	if g, e := tr.req.ContentLength, int64(len(expectedBody)); g != e {
+ 		t.Errorf("got ContentLength %d, want %d", g, e)
+ 	}
+-	bodyb, err := ioutil.ReadAll(tr.req.Body)
++	bodyb, err := io.ReadAll(tr.req.Body)
+ 	if err != nil {
+ 		t.Fatalf("ReadAll on req.Body: %v", err)
+ 	}
+@@ -421,7 +420,7 @@ func testRedirectsByMethod(t *testing.T, method string, table []redirectTest, wa
+ 	var ts *httptest.Server
+ 	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		log.Lock()
+-		slurp, _ := ioutil.ReadAll(r.Body)
++		slurp, _ := io.ReadAll(r.Body)
+ 		fmt.Fprintf(&log.Buffer, "%s %s %q", r.Method, r.RequestURI, slurp)
+ 		if cl := r.Header.Get("Content-Length"); r.Method == "GET" && len(slurp) == 0 && (r.ContentLength != 0 || cl != "") {
+ 			fmt.Fprintf(&log.Buffer, " (but with body=%T, content-length = %v, %q)", r.Body, r.ContentLength, cl)
+@@ -452,7 +451,7 @@ func testRedirectsByMethod(t *testing.T, method string, table []redirectTest, wa
+ 	for _, tt := range table {
+ 		content := tt.redirectBody
+ 		req, _ := NewRequest(method, ts.URL+tt.suffix, strings.NewReader(content))
+-		req.GetBody = func() (io.ReadCloser, error) { return ioutil.NopCloser(strings.NewReader(content)), nil }
++		req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(strings.NewReader(content)), nil }
+ 		res, err := c.Do(req)
+ 
+ 		if err != nil {
+@@ -522,7 +521,7 @@ func TestClientRedirectUseResponse(t *testing.T) {
+ 		t.Errorf("status = %d; want %d", res.StatusCode, StatusFound)
+ 	}
+ 	defer res.Body.Close()
+-	slurp, err := ioutil.ReadAll(res.Body)
++	slurp, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -1042,7 +1041,7 @@ func testClientHeadContentLength(t *testing.T, h2 bool) {
+ 		if res.ContentLength != tt.want {
+ 			t.Errorf("Content-Length = %d; want %d", res.ContentLength, tt.want)
+ 		}
+-		bs, err := ioutil.ReadAll(res.Body)
++		bs, err := io.ReadAll(res.Body)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -1257,7 +1256,7 @@ func testClientTimeout(t *testing.T, h2 bool) {
+ 
+ 	errc := make(chan error, 1)
+ 	go func() {
+-		_, err := ioutil.ReadAll(res.Body)
++		_, err := io.ReadAll(res.Body)
+ 		errc <- err
+ 		res.Body.Close()
+ 	}()
+@@ -1348,7 +1347,7 @@ func TestClientTimeoutCancel(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	cancel()
+-	_, err = io.Copy(ioutil.Discard, res.Body)
++	_, err = io.Copy(io.Discard, res.Body)
+ 	if err != ExportErrRequestCanceled {
+ 		t.Fatalf("error = %v; want errRequestCanceled", err)
+ 	}
+@@ -1372,7 +1371,7 @@ func testClientRedirectEatsBody(t *testing.T, h2 bool) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	_, err = ioutil.ReadAll(res.Body)
++	_, err = io.ReadAll(res.Body)
+ 	res.Body.Close()
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -1450,7 +1449,7 @@ func (issue15577Tripper) RoundTrip(*Request) (*Response, error) {
+ 	resp := &Response{
+ 		StatusCode: 303,
+ 		Header:     map[string][]string{"Location": {"http://www.example.com/"}},
+-		Body:       ioutil.NopCloser(strings.NewReader("")),
++		Body:       io.NopCloser(strings.NewReader("")),
+ 	}
+ 	return resp, nil
+ }
+@@ -1591,7 +1590,7 @@ func TestClientCopyHostOnRedirect(t *testing.T) {
+ 	if resp.StatusCode != 200 {
+ 		t.Fatal(resp.Status)
+ 	}
+-	if got, err := ioutil.ReadAll(resp.Body); err != nil || string(got) != wantBody {
++	if got, err := io.ReadAll(resp.Body); err != nil || string(got) != wantBody {
+ 		t.Errorf("body = %q; want %q", got, wantBody)
+ 	}
+ }
+@@ -2020,7 +2019,7 @@ func TestClientPopulatesNilResponseBody(t *testing.T) {
+ 		}
+ 	}()
+ 
+-	if b, err := ioutil.ReadAll(resp.Body); err != nil {
++	if b, err := io.ReadAll(resp.Body); err != nil {
+ 		t.Errorf("read error from substitute Response.Body: %v", err)
+ 	} else if len(b) != 0 {
+ 		t.Errorf("substitute Response.Body was unexpectedly non-empty: %q", b)
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 439818bb2f..5e227181ac 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -15,7 +15,6 @@ import (
+ 	"fmt"
+ 	"hash"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"net"
+ 	. "net/http"
+@@ -53,7 +52,7 @@ func (t *clientServerTest) getURL(u string) string {
+ 		t.t.Fatal(err)
+ 	}
+ 	defer res.Body.Close()
+-	slurp, err := ioutil.ReadAll(res.Body)
++	slurp, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.t.Fatal(err)
+ 	}
+@@ -152,7 +151,7 @@ func TestChunkedResponseHeaders_h2(t *testing.T) { testChunkedResponseHeaders(t,
+ 
+ func testChunkedResponseHeaders(t *testing.T, h2 bool) {
+ 	defer afterTest(t)
+-	log.SetOutput(ioutil.Discard) // is noisy otherwise
++	log.SetOutput(io.Discard) // is noisy otherwise
+ 	defer log.SetOutput(os.Stderr)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("Content-Length", "intentional gibberish") // we check that this is deleted
+@@ -266,11 +265,11 @@ func (tt h12Compare) normalizeRes(t *testing.T, res *Response, wantProto string)
+ 	} else {
+ 		t.Errorf("got %q response; want %q", res.Proto, wantProto)
+ 	}
+-	slurp, err := ioutil.ReadAll(res.Body)
++	slurp, err := io.ReadAll(res.Body)
+ 
+ 	res.Body.Close()
+ 	res.Body = slurpResult{
+-		ReadCloser: ioutil.NopCloser(bytes.NewReader(slurp)),
++		ReadCloser: io.NopCloser(bytes.NewReader(slurp)),
+ 		body:       slurp,
+ 		err:        err,
+ 	}
+@@ -477,7 +476,7 @@ func test304Responses(t *testing.T, h2 bool) {
+ 	if len(res.TransferEncoding) > 0 {
+ 		t.Errorf("expected no TransferEncoding; got %v", res.TransferEncoding)
+ 	}
+-	body, err := ioutil.ReadAll(res.Body)
++	body, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+@@ -564,7 +563,7 @@ func testCancelRequestMidBody(t *testing.T, h2 bool) {
+ 
+ 	close(cancel)
+ 
+-	rest, err := ioutil.ReadAll(res.Body)
++	rest, err := io.ReadAll(res.Body)
+ 	all := string(firstRead) + string(rest)
+ 	if all != "Hello" {
+ 		t.Errorf("Read %q (%q + %q); want Hello", all, firstRead, rest)
+@@ -587,7 +586,7 @@ func testTrailersClientToServer(t *testing.T, h2 bool) {
+ 		}
+ 		sort.Strings(decl)
+ 
+-		slurp, err := ioutil.ReadAll(r.Body)
++		slurp, err := io.ReadAll(r.Body)
+ 		if err != nil {
+ 			t.Errorf("Server reading request body: %v", err)
+ 		}
+@@ -721,7 +720,7 @@ func testResponseBodyReadAfterClose(t *testing.T, h2 bool) {
+ 		t.Fatal(err)
+ 	}
+ 	res.Body.Close()
+-	data, err := ioutil.ReadAll(res.Body)
++	data, err := io.ReadAll(res.Body)
+ 	if len(data) != 0 || err == nil {
+ 		t.Fatalf("ReadAll returned %q, %v; want error", data, err)
+ 	}
+@@ -740,7 +739,7 @@ func testConcurrentReadWriteReqBody(t *testing.T, h2 bool) {
+ 		// Read in one goroutine.
+ 		go func() {
+ 			defer wg.Done()
+-			data, err := ioutil.ReadAll(r.Body)
++			data, err := io.ReadAll(r.Body)
+ 			if string(data) != reqBody {
+ 				t.Errorf("Handler read %q; want %q", data, reqBody)
+ 			}
+@@ -770,7 +769,7 @@ func testConcurrentReadWriteReqBody(t *testing.T, h2 bool) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	data, err := ioutil.ReadAll(res.Body)
++	data, err := io.ReadAll(res.Body)
+ 	defer res.Body.Close()
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -887,7 +886,7 @@ func testTransportUserAgent(t *testing.T, h2 bool) {
+ 			t.Errorf("%d. RoundTrip = %v", i, err)
+ 			continue
+ 		}
+-		slurp, err := ioutil.ReadAll(res.Body)
++		slurp, err := io.ReadAll(res.Body)
+ 		res.Body.Close()
+ 		if err != nil {
+ 			t.Errorf("%d. read body = %v", i, err)
+@@ -1019,7 +1018,7 @@ func TestTransportDiscardsUnneededConns(t *testing.T) {
+ 				}
+ 			}
+ 			defer resp.Body.Close()
+-			slurp, err := ioutil.ReadAll(resp.Body)
++			slurp, err := io.ReadAll(resp.Body)
+ 			if err != nil {
+ 				t.Error(err)
+ 			}
+@@ -1064,7 +1063,7 @@ func testTransportGCRequest(t *testing.T, h2, body bool) {
+ 	setParallel(t)
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+-		ioutil.ReadAll(r.Body)
++		io.ReadAll(r.Body)
+ 		if body {
+ 			io.WriteString(w, "Hello.")
+ 		}
+@@ -1080,7 +1079,7 @@ func testTransportGCRequest(t *testing.T, h2, body bool) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		if _, err := ioutil.ReadAll(res.Body); err != nil {
++		if _, err := io.ReadAll(res.Body); err != nil {
+ 			t.Fatal(err)
+ 		}
+ 		if err := res.Body.Close(); err != nil {
+@@ -1141,7 +1140,7 @@ func testTransportRejectsInvalidHeaders(t *testing.T, h2 bool) {
+ 		res, err := cst.c.Do(req)
+ 		var body []byte
+ 		if err == nil {
+-			body, _ = ioutil.ReadAll(res.Body)
++			body, _ = io.ReadAll(res.Body)
+ 			res.Body.Close()
+ 		}
+ 		var dialed bool
+@@ -1198,7 +1197,7 @@ func testInterruptWithPanic(t *testing.T, h2 bool, panicValue interface{}) {
+ 	}
+ 	gotHeaders <- true
+ 	defer res.Body.Close()
+-	slurp, err := ioutil.ReadAll(res.Body)
++	slurp, err := io.ReadAll(res.Body)
+ 	if string(slurp) != msg {
+ 		t.Errorf("client read %q; want %q", slurp, msg)
+ 	}
+@@ -1363,7 +1362,7 @@ func testServerUndeclaredTrailers(t *testing.T, h2 bool) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
++	if _, err := io.Copy(io.Discard, res.Body); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	res.Body.Close()
+@@ -1381,7 +1380,7 @@ func testServerUndeclaredTrailers(t *testing.T, h2 bool) {
+ func TestBadResponseAfterReadingBody(t *testing.T) {
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, false, HandlerFunc(func(w ResponseWriter, r *Request) {
+-		_, err := io.Copy(ioutil.Discard, r.Body)
++		_, err := io.Copy(io.Discard, r.Body)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -1474,7 +1473,7 @@ func testWriteHeaderAfterWrite(t *testing.T, h2, hijack bool) {
+ 		t.Fatal(err)
+ 	}
+ 	defer res.Body.Close()
+-	body, err := ioutil.ReadAll(res.Body)
++	body, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/net/http/doc.go b/src/net/http/doc.go
+index 7855feaaa9..ae9b708c69 100644
+--- a/src/net/http/doc.go
++++ b/src/net/http/doc.go
+@@ -21,7 +21,7 @@ The client must close the response body when finished with it:
+ 		// handle error
+ 	}
+ 	defer resp.Body.Close()
+-	body, err := ioutil.ReadAll(resp.Body)
++	body, err := io.ReadAll(resp.Body)
+ 	// ...
+ 
+ For control over HTTP client headers, redirect policy, and other
+diff --git a/src/net/http/example_test.go b/src/net/http/example_test.go
+index a783b46618..c677d52238 100644
+--- a/src/net/http/example_test.go
++++ b/src/net/http/example_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"context"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"net/http"
+ 	"os"
+@@ -46,7 +45,7 @@ func ExampleGet() {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	robots, err := ioutil.ReadAll(res.Body)
++	robots, err := io.ReadAll(res.Body)
+ 	res.Body.Close()
+ 	if err != nil {
+ 		log.Fatal(err)
+diff --git a/src/net/http/fcgi/child.go b/src/net/http/fcgi/child.go
+index 34761f32ee..e97b8440e1 100644
+--- a/src/net/http/fcgi/child.go
++++ b/src/net/http/fcgi/child.go
+@@ -11,7 +11,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"net"
+ 	"net/http"
+ 	"net/http/cgi"
+@@ -186,7 +185,7 @@ func (c *child) serve() {
+ 
+ var errCloseConn = errors.New("fcgi: connection should be closed")
+ 
+-var emptyBody = ioutil.NopCloser(strings.NewReader(""))
++var emptyBody = io.NopCloser(strings.NewReader(""))
+ 
+ // ErrRequestAborted is returned by Read when a handler attempts to read the
+ // body of a request that has been aborted by the web server.
+@@ -325,7 +324,7 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
+ 	// some sort of abort request to the host, so the host
+ 	// can properly cut off the client sending all the data.
+ 	// For now just bound it a little and
+-	io.CopyN(ioutil.Discard, body, 100<<20)
++	io.CopyN(io.Discard, body, 100<<20)
+ 	body.Close()
+ 
+ 	if !req.keepConn {
+diff --git a/src/net/http/fcgi/fcgi_test.go b/src/net/http/fcgi/fcgi_test.go
+index 4a27a12c35..d3b704f821 100644
+--- a/src/net/http/fcgi/fcgi_test.go
++++ b/src/net/http/fcgi/fcgi_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"io"
+-	"io/ioutil"
+ 	"net/http"
+ 	"strings"
+ 	"testing"
+@@ -243,7 +242,7 @@ func TestChildServeCleansUp(t *testing.T) {
+ 			r *http.Request,
+ 		) {
+ 			// block on reading body of request
+-			_, err := io.Copy(ioutil.Discard, r.Body)
++			_, err := io.Copy(io.Discard, r.Body)
+ 			if err != tt.err {
+ 				t.Errorf("Expected %#v, got %#v", tt.err, err)
+ 			}
+@@ -275,7 +274,7 @@ func TestMalformedParams(t *testing.T) {
+ 		// end of params
+ 		1, 4, 0, 1, 0, 0, 0, 0,
+ 	}
+-	rw := rwNopCloser{bytes.NewReader(input), ioutil.Discard}
++	rw := rwNopCloser{bytes.NewReader(input), io.Discard}
+ 	c := newChild(rw, http.DefaultServeMux)
+ 	c.serve()
+ }
+diff --git a/src/net/http/filetransport_test.go b/src/net/http/filetransport_test.go
+index 2a2f32c769..fdfd44d967 100644
+--- a/src/net/http/filetransport_test.go
++++ b/src/net/http/filetransport_test.go
+@@ -5,6 +5,7 @@
+ package http
+ 
+ import (
++	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -48,7 +49,7 @@ func TestFileTransport(t *testing.T) {
+ 		if res.Body == nil {
+ 			t.Fatalf("for %s, nil Body", urlstr)
+ 		}
+-		slurp, err := ioutil.ReadAll(res.Body)
++		slurp, err := io.ReadAll(res.Body)
+ 		res.Body.Close()
+ 		check("ReadAll "+urlstr, err)
+ 		if string(slurp) != "Bar" {
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index c9f324cff6..2e4751114d 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -160,7 +160,7 @@ Cases:
+ 				if g, w := part.Header.Get("Content-Range"), wantContentRange; g != w {
+ 					t.Errorf("range=%q: part Content-Range = %q; want %q", rt.r, g, w)
+ 				}
+-				body, err := ioutil.ReadAll(part)
++				body, err := io.ReadAll(part)
+ 				if err != nil {
+ 					t.Errorf("range=%q, reading part index %d body: %v", rt.r, ri, err)
+ 					continue Cases
+@@ -312,7 +312,7 @@ func TestFileServerEscapesNames(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("test %q: Get: %v", test.name, err)
+ 		}
+-		b, err := ioutil.ReadAll(res.Body)
++		b, err := io.ReadAll(res.Body)
+ 		if err != nil {
+ 			t.Fatalf("test %q: read Body: %v", test.name, err)
+ 		}
+@@ -360,7 +360,7 @@ func TestFileServerSortsNames(t *testing.T) {
+ 	}
+ 	defer res.Body.Close()
+ 
+-	b, err := ioutil.ReadAll(res.Body)
++	b, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatalf("read Body: %v", err)
+ 	}
+@@ -394,7 +394,7 @@ func TestFileServerImplicitLeadingSlash(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("Get %s: %v", suffix, err)
+ 		}
+-		b, err := ioutil.ReadAll(res.Body)
++		b, err := io.ReadAll(res.Body)
+ 		if err != nil {
+ 			t.Fatalf("ReadAll %s: %v", suffix, err)
+ 		}
+@@ -617,7 +617,7 @@ func TestServeIndexHtmlFS(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		b, err := ioutil.ReadAll(res.Body)
++		b, err := io.ReadAll(res.Body)
+ 		if err != nil {
+ 			t.Fatal("reading Body:", err)
+ 		}
+@@ -745,7 +745,7 @@ func TestDirectoryIfNotModified(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	b, err := ioutil.ReadAll(res.Body)
++	b, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -1082,7 +1082,7 @@ func TestServeContent(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+-			io.Copy(ioutil.Discard, res.Body)
++			io.Copy(io.Discard, res.Body)
+ 			res.Body.Close()
+ 			if res.StatusCode != tt.wantStatus {
+ 				t.Errorf("test %q using %q: got status = %d; want %d", testName, method, res.StatusCode, tt.wantStatus)
+@@ -1196,7 +1196,7 @@ func TestLinuxSendfile(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("http client error: %v", err)
+ 	}
+-	_, err = io.Copy(ioutil.Discard, res.Body)
++	_, err = io.Copy(io.Discard, res.Body)
+ 	if err != nil {
+ 		t.Fatalf("client body read error: %v", err)
+ 	}
+@@ -1218,7 +1218,7 @@ func getBody(t *testing.T, testName string, req Request, client *Client) (*Respo
+ 	if err != nil {
+ 		t.Fatalf("%s: for URL %q, send error: %v", testName, req.URL.String(), err)
+ 	}
+-	b, err := ioutil.ReadAll(r.Body)
++	b, err := io.ReadAll(r.Body)
+ 	if err != nil {
+ 		t.Fatalf("%s: for URL %q, reading body: %v", testName, req.URL.String(), err)
+ 	}
+@@ -1401,7 +1401,7 @@ func testServeFileRejectsInvalidSuffixLengths(t *testing.T, h2 bool) {
+ 			if g, w := res.StatusCode, tt.wantCode; g != w {
+ 				t.Errorf("StatusCode mismatch: got %d want %d", g, w)
+ 			}
+-			slurp, err := ioutil.ReadAll(res.Body)
++			slurp, err := io.ReadAll(res.Body)
+ 			res.Body.Close()
+ 			if err != nil {
+ 				t.Fatal(err)
+diff --git a/src/net/http/httptest/example_test.go b/src/net/http/httptest/example_test.go
+index 54e77dbb84..a6738432eb 100644
+--- a/src/net/http/httptest/example_test.go
++++ b/src/net/http/httptest/example_test.go
+@@ -7,7 +7,6 @@ package httptest_test
+ import (
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"net/http"
+ 	"net/http/httptest"
+@@ -23,7 +22,7 @@ func ExampleResponseRecorder() {
+ 	handler(w, req)
+ 
+ 	resp := w.Result()
+-	body, _ := ioutil.ReadAll(resp.Body)
++	body, _ := io.ReadAll(resp.Body)
+ 
+ 	fmt.Println(resp.StatusCode)
+ 	fmt.Println(resp.Header.Get("Content-Type"))
+@@ -45,7 +44,7 @@ func ExampleServer() {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	greeting, err := ioutil.ReadAll(res.Body)
++	greeting, err := io.ReadAll(res.Body)
+ 	res.Body.Close()
+ 	if err != nil {
+ 		log.Fatal(err)
+@@ -67,7 +66,7 @@ func ExampleServer_hTTP2() {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	greeting, err := ioutil.ReadAll(res.Body)
++	greeting, err := io.ReadAll(res.Body)
+ 	res.Body.Close()
+ 	if err != nil {
+ 		log.Fatal(err)
+@@ -89,7 +88,7 @@ func ExampleNewTLSServer() {
+ 		log.Fatal(err)
+ 	}
+ 
+-	greeting, err := ioutil.ReadAll(res.Body)
++	greeting, err := io.ReadAll(res.Body)
+ 	res.Body.Close()
+ 	if err != nil {
+ 		log.Fatal(err)
+diff --git a/src/net/http/httptest/httptest.go b/src/net/http/httptest/httptest.go
+index f7202da92f..9bedefd2bc 100644
+--- a/src/net/http/httptest/httptest.go
++++ b/src/net/http/httptest/httptest.go
+@@ -10,7 +10,6 @@ import (
+ 	"bytes"
+ 	"crypto/tls"
+ 	"io"
+-	"io/ioutil"
+ 	"net/http"
+ 	"strings"
+ )
+@@ -66,7 +65,7 @@ func NewRequest(method, target string, body io.Reader) *http.Request {
+ 		if rc, ok := body.(io.ReadCloser); ok {
+ 			req.Body = rc
+ 		} else {
+-			req.Body = ioutil.NopCloser(body)
++			req.Body = io.NopCloser(body)
+ 		}
+ 	}
+ 
+diff --git a/src/net/http/httptest/httptest_test.go b/src/net/http/httptest/httptest_test.go
+index ef7d943837..071add67ea 100644
+--- a/src/net/http/httptest/httptest_test.go
++++ b/src/net/http/httptest/httptest_test.go
+@@ -7,7 +7,6 @@ package httptest
+ import (
+ 	"crypto/tls"
+ 	"io"
+-	"io/ioutil"
+ 	"net/http"
+ 	"net/url"
+ 	"reflect"
+@@ -155,7 +154,7 @@ func TestNewRequest(t *testing.T) {
+ 	} {
+ 		t.Run(tt.name, func(t *testing.T) {
+ 			got := NewRequest(tt.method, tt.uri, tt.body)
+-			slurp, err := ioutil.ReadAll(got.Body)
++			slurp, err := io.ReadAll(got.Body)
+ 			if err != nil {
+ 				t.Errorf("ReadAll: %v", err)
+ 			}
+diff --git a/src/net/http/httptest/recorder.go b/src/net/http/httptest/recorder.go
+index 66e67e78b3..2428482612 100644
+--- a/src/net/http/httptest/recorder.go
++++ b/src/net/http/httptest/recorder.go
+@@ -7,7 +7,7 @@ package httptest
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"io/ioutil"
++	"io"
+ 	"net/http"
+ 	"net/textproto"
+ 	"strconv"
+@@ -179,7 +179,7 @@ func (rw *ResponseRecorder) Result() *http.Response {
+ 	}
+ 	res.Status = fmt.Sprintf("%03d %s", res.StatusCode, http.StatusText(res.StatusCode))
+ 	if rw.Body != nil {
+-		res.Body = ioutil.NopCloser(bytes.NewReader(rw.Body.Bytes()))
++		res.Body = io.NopCloser(bytes.NewReader(rw.Body.Bytes()))
+ 	} else {
+ 		res.Body = http.NoBody
+ 	}
+diff --git a/src/net/http/httptest/recorder_test.go b/src/net/http/httptest/recorder_test.go
+index e9534894b6..a865e878b9 100644
+--- a/src/net/http/httptest/recorder_test.go
++++ b/src/net/http/httptest/recorder_test.go
+@@ -7,7 +7,6 @@ package httptest
+ import (
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"net/http"
+ 	"testing"
+ )
+@@ -42,7 +41,7 @@ func TestRecorder(t *testing.T) {
+ 	}
+ 	hasResultContents := func(want string) checkFunc {
+ 		return func(rec *ResponseRecorder) error {
+-			contentBytes, err := ioutil.ReadAll(rec.Result().Body)
++			contentBytes, err := io.ReadAll(rec.Result().Body)
+ 			if err != nil {
+ 				return err
+ 			}
+diff --git a/src/net/http/httptest/server_test.go b/src/net/http/httptest/server_test.go
+index 0aad15c5ed..39568b358c 100644
+--- a/src/net/http/httptest/server_test.go
++++ b/src/net/http/httptest/server_test.go
+@@ -6,7 +6,7 @@ package httptest
+ 
+ import (
+ 	"bufio"
+-	"io/ioutil"
++	"io"
+ 	"net"
+ 	"net/http"
+ 	"testing"
+@@ -61,7 +61,7 @@ func testServer(t *testing.T, newServer newServerFunc) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	got, err := ioutil.ReadAll(res.Body)
++	got, err := io.ReadAll(res.Body)
+ 	res.Body.Close()
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -81,7 +81,7 @@ func testGetAfterClose(t *testing.T, newServer newServerFunc) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	got, err := ioutil.ReadAll(res.Body)
++	got, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -93,7 +93,7 @@ func testGetAfterClose(t *testing.T, newServer newServerFunc) {
+ 
+ 	res, err = http.Get(ts.URL)
+ 	if err == nil {
+-		body, _ := ioutil.ReadAll(res.Body)
++		body, _ := io.ReadAll(res.Body)
+ 		t.Fatalf("Unexpected response after close: %v, %v, %s", res.Status, res.Header, body)
+ 	}
+ }
+@@ -152,7 +152,7 @@ func testServerClient(t *testing.T, newTLSServer newServerFunc) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	got, err := ioutil.ReadAll(res.Body)
++	got, err := io.ReadAll(res.Body)
+ 	res.Body.Close()
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/net/http/httputil/dump.go b/src/net/http/httputil/dump.go
+index c97be066d7..4c9d28bed8 100644
+--- a/src/net/http/httputil/dump.go
++++ b/src/net/http/httputil/dump.go
+@@ -10,7 +10,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"net"
+ 	"net/http"
+ 	"net/url"
+@@ -35,7 +34,7 @@ func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
+ 	if err = b.Close(); err != nil {
+ 		return nil, b, err
+ 	}
+-	return ioutil.NopCloser(&buf), ioutil.NopCloser(bytes.NewReader(buf.Bytes())), nil
++	return io.NopCloser(&buf), io.NopCloser(bytes.NewReader(buf.Bytes())), nil
+ }
+ 
+ // dumpConn is a net.Conn which writes to Writer and reads from Reader
+@@ -81,7 +80,7 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
+ 	if !body {
+ 		contentLength := outgoingLength(req)
+ 		if contentLength != 0 {
+-			req.Body = ioutil.NopCloser(io.LimitReader(neverEnding('x'), contentLength))
++			req.Body = io.NopCloser(io.LimitReader(neverEnding('x'), contentLength))
+ 			dummyBody = true
+ 		}
+ 	} else {
+@@ -133,7 +132,7 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
+ 		if err == nil {
+ 			// Ensure all the body is read; otherwise
+ 			// we'll get a partial dump.
+-			io.Copy(ioutil.Discard, req.Body)
++			io.Copy(io.Discard, req.Body)
+ 			req.Body.Close()
+ 		}
+ 		select {
+@@ -296,7 +295,7 @@ func (failureToReadBody) Read([]byte) (int, error) { return 0, errNoBody }
+ func (failureToReadBody) Close() error             { return nil }
+ 
+ // emptyBody is an instance of empty reader.
+-var emptyBody = ioutil.NopCloser(strings.NewReader(""))
++var emptyBody = io.NopCloser(strings.NewReader(""))
+ 
+ // DumpResponse is like DumpRequest but dumps a response.
+ func DumpResponse(resp *http.Response, body bool) ([]byte, error) {
+diff --git a/src/net/http/httputil/dump_test.go b/src/net/http/httputil/dump_test.go
+index ead56bc172..7571eb0820 100644
+--- a/src/net/http/httputil/dump_test.go
++++ b/src/net/http/httputil/dump_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"net/http"
+ 	"net/url"
+ 	"runtime"
+@@ -268,7 +267,7 @@ func TestDumpRequest(t *testing.T) {
+ 			}
+ 			switch b := ti.Body.(type) {
+ 			case []byte:
+-				req.Body = ioutil.NopCloser(bytes.NewReader(b))
++				req.Body = io.NopCloser(bytes.NewReader(b))
+ 			case func() io.ReadCloser:
+ 				req.Body = b()
+ 			default:
+@@ -363,7 +362,7 @@ var dumpResTests = []struct {
+ 			Header: http.Header{
+ 				"Foo": []string{"Bar"},
+ 			},
+-			Body: ioutil.NopCloser(strings.NewReader("foo")), // shouldn't be used
++			Body: io.NopCloser(strings.NewReader("foo")), // shouldn't be used
+ 		},
+ 		body: false, // to verify we see 50, not empty or 3.
+ 		want: `HTTP/1.1 200 OK
+@@ -379,7 +378,7 @@ Foo: Bar`,
+ 			ProtoMajor:    1,
+ 			ProtoMinor:    1,
+ 			ContentLength: 3,
+-			Body:          ioutil.NopCloser(strings.NewReader("foo")),
++			Body:          io.NopCloser(strings.NewReader("foo")),
+ 		},
+ 		body: true,
+ 		want: `HTTP/1.1 200 OK
+@@ -396,7 +395,7 @@ foo`,
+ 			ProtoMajor:       1,
+ 			ProtoMinor:       1,
+ 			ContentLength:    -1,
+-			Body:             ioutil.NopCloser(strings.NewReader("foo")),
++			Body:             io.NopCloser(strings.NewReader("foo")),
+ 			TransferEncoding: []string{"chunked"},
+ 		},
+ 		body: true,
+diff --git a/src/net/http/httputil/example_test.go b/src/net/http/httputil/example_test.go
+index 6191603674..b77a243ca3 100644
+--- a/src/net/http/httputil/example_test.go
++++ b/src/net/http/httputil/example_test.go
+@@ -6,7 +6,7 @@ package httputil_test
+ 
+ import (
+ 	"fmt"
+-	"io/ioutil"
++	"io"
+ 	"log"
+ 	"net/http"
+ 	"net/http/httptest"
+@@ -39,7 +39,7 @@ func ExampleDumpRequest() {
+ 	}
+ 	defer resp.Body.Close()
+ 
+-	b, err := ioutil.ReadAll(resp.Body)
++	b, err := io.ReadAll(resp.Body)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+@@ -111,7 +111,7 @@ func ExampleReverseProxy() {
+ 		log.Fatal(err)
+ 	}
+ 
+-	b, err := ioutil.ReadAll(resp.Body)
++	b, err := io.ReadAll(resp.Body)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index cc05d55d87..3acbd940e4 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -13,7 +13,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"net/http"
+ 	"net/http/httptest"
+@@ -84,7 +83,7 @@ func TestReverseProxy(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	proxyHandler := NewSingleHostReverseProxy(backendURL)
+-	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
++	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
+ 	frontend := httptest.NewServer(proxyHandler)
+ 	defer frontend.Close()
+ 	frontendClient := frontend.Client()
+@@ -124,7 +123,7 @@ func TestReverseProxy(t *testing.T) {
+ 	if cookie := res.Cookies()[0]; cookie.Name != "flavor" {
+ 		t.Errorf("unexpected cookie %q", cookie.Name)
+ 	}
+-	bodyBytes, _ := ioutil.ReadAll(res.Body)
++	bodyBytes, _ := io.ReadAll(res.Body)
+ 	if g, e := string(bodyBytes), backendResponse; g != e {
+ 		t.Errorf("got body %q; expected %q", g, e)
+ 	}
+@@ -218,7 +217,7 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
+ 		t.Fatalf("Get: %v", err)
+ 	}
+ 	defer res.Body.Close()
+-	bodyBytes, err := ioutil.ReadAll(res.Body)
++	bodyBytes, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatalf("reading body: %v", err)
+ 	}
+@@ -271,7 +270,7 @@ func TestXForwardedFor(t *testing.T) {
+ 	if g, e := res.StatusCode, backendStatus; g != e {
+ 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+ 	}
+-	bodyBytes, _ := ioutil.ReadAll(res.Body)
++	bodyBytes, _ := io.ReadAll(res.Body)
+ 	if g, e := string(bodyBytes), backendResponse; g != e {
+ 		t.Errorf("got body %q; expected %q", g, e)
+ 	}
+@@ -373,7 +372,7 @@ func TestReverseProxyFlushInterval(t *testing.T) {
+ 		t.Fatalf("Get: %v", err)
+ 	}
+ 	defer res.Body.Close()
+-	if bodyBytes, _ := ioutil.ReadAll(res.Body); string(bodyBytes) != expected {
++	if bodyBytes, _ := io.ReadAll(res.Body); string(bodyBytes) != expected {
+ 		t.Errorf("got body %q; expected %q", bodyBytes, expected)
+ 	}
+ }
+@@ -441,7 +440,7 @@ func TestReverseProxyCancellation(t *testing.T) {
+ 
+ 	defer backend.Close()
+ 
+-	backend.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
++	backend.Config.ErrorLog = log.New(io.Discard, "", 0)
+ 
+ 	backendURL, err := url.Parse(backend.URL)
+ 	if err != nil {
+@@ -452,7 +451,7 @@ func TestReverseProxyCancellation(t *testing.T) {
+ 
+ 	// Discards errors of the form:
+ 	// http: proxy error: read tcp 127.0.0.1:44643: use of closed network connection
+-	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0)
++	proxyHandler.ErrorLog = log.New(io.Discard, "", 0)
+ 
+ 	frontend := httptest.NewServer(proxyHandler)
+ 	defer frontend.Close()
+@@ -504,7 +503,7 @@ func TestNilBody(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	defer res.Body.Close()
+-	slurp, err := ioutil.ReadAll(res.Body)
++	slurp, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -533,7 +532,7 @@ func TestUserAgentHeader(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	proxyHandler := NewSingleHostReverseProxy(backendURL)
+-	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
++	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
+ 	frontend := httptest.NewServer(proxyHandler)
+ 	defer frontend.Close()
+ 	frontendClient := frontend.Client()
+@@ -606,7 +605,7 @@ func TestReverseProxyGetPutBuffer(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Get: %v", err)
+ 	}
+-	slurp, err := ioutil.ReadAll(res.Body)
++	slurp, err := io.ReadAll(res.Body)
+ 	res.Body.Close()
+ 	if err != nil {
+ 		t.Fatalf("reading body: %v", err)
+@@ -627,7 +626,7 @@ func TestReverseProxy_Post(t *testing.T) {
+ 	const backendStatus = 200
+ 	var requestBody = bytes.Repeat([]byte("a"), 1<<20)
+ 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+-		slurp, err := ioutil.ReadAll(r.Body)
++		slurp, err := io.ReadAll(r.Body)
+ 		if err != nil {
+ 			t.Errorf("Backend body read = %v", err)
+ 		}
+@@ -656,7 +655,7 @@ func TestReverseProxy_Post(t *testing.T) {
+ 	if g, e := res.StatusCode, backendStatus; g != e {
+ 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+ 	}
+-	bodyBytes, _ := ioutil.ReadAll(res.Body)
++	bodyBytes, _ := io.ReadAll(res.Body)
+ 	if g, e := string(bodyBytes), backendResponse; g != e {
+ 		t.Errorf("got body %q; expected %q", g, e)
+ 	}
+@@ -672,7 +671,7 @@ func (fn RoundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error)
+ func TestReverseProxy_NilBody(t *testing.T) {
+ 	backendURL, _ := url.Parse("http://fake.tld/")
+ 	proxyHandler := NewSingleHostReverseProxy(backendURL)
+-	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
++	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
+ 	proxyHandler.Transport = RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+ 		if req.Body != nil {
+ 			t.Error("Body != nil; want a nil Body")
+@@ -695,8 +694,8 @@ func TestReverseProxy_NilBody(t *testing.T) {
+ // Issue 33142: always allocate the request headers
+ func TestReverseProxy_AllocatedHeader(t *testing.T) {
+ 	proxyHandler := new(ReverseProxy)
+-	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+-	proxyHandler.Director = func(*http.Request) {}         // noop
++	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
++	proxyHandler.Director = func(*http.Request) {}     // noop
+ 	proxyHandler.Transport = RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+ 		if req.Header == nil {
+ 			t.Error("Header == nil; want a non-nil Header")
+@@ -722,7 +721,7 @@ func TestReverseProxyModifyResponse(t *testing.T) {
+ 
+ 	rpURL, _ := url.Parse(backendServer.URL)
+ 	rproxy := NewSingleHostReverseProxy(rpURL)
+-	rproxy.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
++	rproxy.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
+ 	rproxy.ModifyResponse = func(resp *http.Response) error {
+ 		if resp.Header.Get("X-Hit-Mod") != "true" {
+ 			return fmt.Errorf("tried to by-pass proxy")
+@@ -821,7 +820,7 @@ func TestReverseProxyErrorHandler(t *testing.T) {
+ 			if rproxy.Transport == nil {
+ 				rproxy.Transport = failingRoundTripper{}
+ 			}
+-			rproxy.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
++			rproxy.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
+ 			if tt.errorHandler != nil {
+ 				rproxy.ErrorHandler = tt.errorHandler
+ 			}
+@@ -896,7 +895,7 @@ func (t *staticTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+ func BenchmarkServeHTTP(b *testing.B) {
+ 	res := &http.Response{
+ 		StatusCode: 200,
+-		Body:       ioutil.NopCloser(strings.NewReader("")),
++		Body:       io.NopCloser(strings.NewReader("")),
+ 	}
+ 	proxy := &ReverseProxy{
+ 		Director:  func(*http.Request) {},
+@@ -953,7 +952,7 @@ func TestServeHTTPDeepCopy(t *testing.T) {
+ // Issue 18327: verify we always do a deep copy of the Request.Header map
+ // before any mutations.
+ func TestClonesRequestHeaders(t *testing.T) {
+-	log.SetOutput(ioutil.Discard)
++	log.SetOutput(io.Discard)
+ 	defer log.SetOutput(os.Stderr)
+ 	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
+ 	req.RemoteAddr = "1.2.3.4:56789"
+@@ -1031,7 +1030,7 @@ func (cc *checkCloser) Read(b []byte) (int, error) {
+ 
+ // Issue 23643: panic on body copy error
+ func TestReverseProxy_PanicBodyError(t *testing.T) {
+-	log.SetOutput(ioutil.Discard)
++	log.SetOutput(io.Discard)
+ 	defer log.SetOutput(os.Stderr)
+ 	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 		out := "this call was relayed by the reverse proxy"
+@@ -1148,7 +1147,7 @@ func TestReverseProxyWebSocket(t *testing.T) {
+ 
+ 	backURL, _ := url.Parse(backendServer.URL)
+ 	rproxy := NewSingleHostReverseProxy(backURL)
+-	rproxy.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
++	rproxy.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
+ 	rproxy.ModifyResponse = func(res *http.Response) error {
+ 		res.Header.Add("X-Modified", "true")
+ 		return nil
+@@ -1265,7 +1264,7 @@ func TestReverseProxyWebSocketCancelation(t *testing.T) {
+ 
+ 	backendURL, _ := url.Parse(cst.URL)
+ 	rproxy := NewSingleHostReverseProxy(backendURL)
+-	rproxy.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
++	rproxy.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
+ 	rproxy.ModifyResponse = func(res *http.Response) error {
+ 		res.Header.Add("X-Modified", "true")
+ 		return nil
+@@ -1352,7 +1351,7 @@ func TestUnannouncedTrailer(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	proxyHandler := NewSingleHostReverseProxy(backendURL)
+-	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
++	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
+ 	frontend := httptest.NewServer(proxyHandler)
+ 	defer frontend.Close()
+ 	frontendClient := frontend.Client()
+@@ -1362,7 +1361,7 @@ func TestUnannouncedTrailer(t *testing.T) {
+ 		t.Fatalf("Get: %v", err)
+ 	}
+ 
+-	ioutil.ReadAll(res.Body)
++	io.ReadAll(res.Body)
+ 
+ 	if g, w := res.Trailer.Get("X-Unannounced-Trailer"), "unannounced_trailer_value"; g != w {
+ 		t.Errorf("Trailer(X-Unannounced-Trailer) = %q; want %q", g, w)
+diff --git a/src/net/http/internal/chunked_test.go b/src/net/http/internal/chunked_test.go
+index d06716591a..08152ed1e2 100644
+--- a/src/net/http/internal/chunked_test.go
++++ b/src/net/http/internal/chunked_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"strings"
+ 	"testing"
+ )
+@@ -29,7 +28,7 @@ func TestChunk(t *testing.T) {
+ 	}
+ 
+ 	r := NewChunkedReader(&b)
+-	data, err := ioutil.ReadAll(r)
++	data, err := io.ReadAll(r)
+ 	if err != nil {
+ 		t.Logf(`data: "%s"`, data)
+ 		t.Fatalf("ReadAll from reader: %v", err)
+@@ -177,7 +176,7 @@ func TestChunkReadingIgnoresExtensions(t *testing.T) {
+ 		"17;someext\r\n" + // token without value
+ 		"world! 0123456789abcdef\r\n" +
+ 		"0;someextension=sometoken\r\n" // token=token
+-	data, err := ioutil.ReadAll(NewChunkedReader(strings.NewReader(in)))
++	data, err := io.ReadAll(NewChunkedReader(strings.NewReader(in)))
+ 	if err != nil {
+ 		t.Fatalf("ReadAll = %q, %v", data, err)
+ 	}
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index 35cc80977c..6564627998 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -6,7 +6,7 @@ package http_test
+ 
+ import (
+ 	"fmt"
+-	"io/ioutil"
++	"io"
+ 	"log"
+ 	"net/http"
+ 	"os"
+@@ -17,7 +17,7 @@ import (
+ 	"time"
+ )
+ 
+-var quietLog = log.New(ioutil.Discard, "", 0)
++var quietLog = log.New(io.Discard, "", 0)
+ 
+ func TestMain(m *testing.M) {
+ 	v := m.Run()
+diff --git a/src/net/http/pprof/pprof_test.go b/src/net/http/pprof/pprof_test.go
+index f6f9ef5b04..84757e401a 100644
+--- a/src/net/http/pprof/pprof_test.go
++++ b/src/net/http/pprof/pprof_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/profile"
+-	"io/ioutil"
++	"io"
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"runtime"
+@@ -63,7 +63,7 @@ func TestHandlers(t *testing.T) {
+ 				t.Errorf("status code: got %d; want %d", got, want)
+ 			}
+ 
+-			body, err := ioutil.ReadAll(resp.Body)
++			body, err := io.ReadAll(resp.Body)
+ 			if err != nil {
+ 				t.Errorf("when reading response body, expected non-nil err; got %v", err)
+ 			}
+@@ -227,7 +227,7 @@ func query(endpoint string) (*profile.Profile, error) {
+ 		return nil, fmt.Errorf("failed to fetch %q: %v", url, r.Status)
+ 	}
+ 
+-	b, err := ioutil.ReadAll(r.Body)
++	b, err := io.ReadAll(r.Body)
+ 	r.Body.Close()
+ 	if err != nil {
+ 		return nil, fmt.Errorf("failed to read and parse the result from %q: %v", url, err)
+diff --git a/src/net/http/readrequest_test.go b/src/net/http/readrequest_test.go
+index b227bb6d38..1950f4907a 100644
+--- a/src/net/http/readrequest_test.go
++++ b/src/net/http/readrequest_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"net/url"
+ 	"reflect"
+ 	"strings"
+@@ -468,7 +467,7 @@ func TestReadRequest_Bad(t *testing.T) {
+ 	for _, tt := range badRequestTests {
+ 		got, err := ReadRequest(bufio.NewReader(bytes.NewReader(tt.req)))
+ 		if err == nil {
+-			all, err := ioutil.ReadAll(got.Body)
++			all, err := io.ReadAll(got.Body)
+ 			t.Errorf("%s: got unexpected request = %#v\n  Body = %q, %v", tt.name, got, all, err)
+ 		}
+ 	}
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index df73d5f62d..adba5406e9 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -15,7 +15,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"mime"
+ 	"mime/multipart"
+ 	"net"
+@@ -870,7 +869,7 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
+ 	}
+ 	rc, ok := body.(io.ReadCloser)
+ 	if !ok && body != nil {
+-		rc = ioutil.NopCloser(body)
++		rc = io.NopCloser(body)
+ 	}
+ 	// The host's colon:port should be normalized. See Issue 14836.
+ 	u.Host = removeEmptyPort(u.Host)
+@@ -892,21 +891,21 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
+ 			buf := v.Bytes()
+ 			req.GetBody = func() (io.ReadCloser, error) {
+ 				r := bytes.NewReader(buf)
+-				return ioutil.NopCloser(r), nil
++				return io.NopCloser(r), nil
+ 			}
+ 		case *bytes.Reader:
+ 			req.ContentLength = int64(v.Len())
+ 			snapshot := *v
+ 			req.GetBody = func() (io.ReadCloser, error) {
+ 				r := snapshot
+-				return ioutil.NopCloser(&r), nil
++				return io.NopCloser(&r), nil
+ 			}
+ 		case *strings.Reader:
+ 			req.ContentLength = int64(v.Len())
+ 			snapshot := *v
+ 			req.GetBody = func() (io.ReadCloser, error) {
+ 				r := snapshot
+-				return ioutil.NopCloser(&r), nil
++				return io.NopCloser(&r), nil
+ 			}
+ 		default:
+ 			// This is where we'd set it to -1 (at least
+@@ -1205,7 +1204,7 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
+ 			maxFormSize = int64(10 << 20) // 10 MB is a lot of text.
+ 			reader = io.LimitReader(r.Body, maxFormSize+1)
+ 		}
+-		b, e := ioutil.ReadAll(reader)
++		b, e := io.ReadAll(reader)
+ 		if e != nil {
+ 			if err == nil {
+ 				err = e
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 461d66e05d..b4ef472e71 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -103,7 +103,7 @@ func TestParseFormUnknownContentType(t *testing.T) {
+ 				req := &Request{
+ 					Method: "POST",
+ 					Header: test.contentType,
+-					Body:   ioutil.NopCloser(strings.NewReader("body")),
++					Body:   io.NopCloser(strings.NewReader("body")),
+ 				}
+ 				err := req.ParseForm()
+ 				switch {
+@@ -150,7 +150,7 @@ func TestMultipartReader(t *testing.T) {
+ 		req := &Request{
+ 			Method: "POST",
+ 			Header: Header{"Content-Type": {test.contentType}},
+-			Body:   ioutil.NopCloser(new(bytes.Buffer)),
++			Body:   io.NopCloser(new(bytes.Buffer)),
+ 		}
+ 		multipart, err := req.MultipartReader()
+ 		if test.shouldError {
+@@ -187,7 +187,7 @@ binary data
+ 	req := &Request{
+ 		Method: "POST",
+ 		Header: Header{"Content-Type": {`multipart/form-data; boundary=xxx`}},
+-		Body:   ioutil.NopCloser(strings.NewReader(postData)),
++		Body:   io.NopCloser(strings.NewReader(postData)),
+ 	}
+ 
+ 	initialFormItems := map[string]string{
+@@ -231,7 +231,7 @@ func TestParseMultipartForm(t *testing.T) {
+ 	req := &Request{
+ 		Method: "POST",
+ 		Header: Header{"Content-Type": {`multipart/form-data; boundary="foo123"`}},
+-		Body:   ioutil.NopCloser(new(bytes.Buffer)),
++		Body:   io.NopCloser(new(bytes.Buffer)),
+ 	}
+ 	err := req.ParseMultipartForm(25)
+ 	if err == nil {
+@@ -756,10 +756,10 @@ func (dr delayedEOFReader) Read(p []byte) (n int, err error) {
+ }
+ 
+ func TestIssue10884_MaxBytesEOF(t *testing.T) {
+-	dst := ioutil.Discard
++	dst := io.Discard
+ 	_, err := io.Copy(dst, MaxBytesReader(
+ 		responseWriterJustWriter{dst},
+-		ioutil.NopCloser(delayedEOFReader{strings.NewReader("12345")}),
++		io.NopCloser(delayedEOFReader{strings.NewReader("12345")}),
+ 		5))
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -799,7 +799,7 @@ func TestMaxBytesReaderStickyError(t *testing.T) {
+ 		2: {101, 100},
+ 	}
+ 	for i, tt := range tests {
+-		rc := MaxBytesReader(nil, ioutil.NopCloser(bytes.NewReader(make([]byte, tt.readable))), tt.limit)
++		rc := MaxBytesReader(nil, io.NopCloser(bytes.NewReader(make([]byte, tt.readable))), tt.limit)
+ 		if err := isSticky(rc); err != nil {
+ 			t.Errorf("%d. error: %v", i, err)
+ 		}
+@@ -900,7 +900,7 @@ func TestNewRequestGetBody(t *testing.T) {
+ 			t.Errorf("test[%d]: GetBody = nil", i)
+ 			continue
+ 		}
+-		slurp1, err := ioutil.ReadAll(req.Body)
++		slurp1, err := io.ReadAll(req.Body)
+ 		if err != nil {
+ 			t.Errorf("test[%d]: ReadAll(Body) = %v", i, err)
+ 		}
+@@ -908,7 +908,7 @@ func TestNewRequestGetBody(t *testing.T) {
+ 		if err != nil {
+ 			t.Errorf("test[%d]: GetBody = %v", i, err)
+ 		}
+-		slurp2, err := ioutil.ReadAll(newBody)
++		slurp2, err := io.ReadAll(newBody)
+ 		if err != nil {
+ 			t.Errorf("test[%d]: ReadAll(GetBody()) = %v", i, err)
+ 		}
+@@ -1145,7 +1145,7 @@ func benchmarkFileAndServer(b *testing.B, n int64) {
+ func runFileAndServerBenchmarks(b *testing.B, tlsOption bool, f *os.File, n int64) {
+ 	handler := HandlerFunc(func(rw ResponseWriter, req *Request) {
+ 		defer req.Body.Close()
+-		nc, err := io.Copy(ioutil.Discard, req.Body)
++		nc, err := io.Copy(io.Discard, req.Body)
+ 		if err != nil {
+ 			panic(err)
+ 		}
+@@ -1172,7 +1172,7 @@ func runFileAndServerBenchmarks(b *testing.B, tlsOption bool, f *os.File, n int6
+ 		}
+ 
+ 		b.StartTimer()
+-		req, err := NewRequest("PUT", cst.URL, ioutil.NopCloser(f))
++		req, err := NewRequest("PUT", cst.URL, io.NopCloser(f))
+ 		if err != nil {
+ 			b.Fatal(err)
+ 		}
+diff --git a/src/net/http/requestwrite_test.go b/src/net/http/requestwrite_test.go
+index 9ac6701cfd..1157bdfff9 100644
+--- a/src/net/http/requestwrite_test.go
++++ b/src/net/http/requestwrite_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"net"
+ 	"net/url"
+ 	"strings"
+@@ -229,7 +228,7 @@ var reqWriteTests = []reqWriteTest{
+ 			ContentLength: 0, // as if unset by user
+ 		},
+ 
+-		Body: func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 0)) },
++		Body: func() io.ReadCloser { return io.NopCloser(io.LimitReader(strings.NewReader("xx"), 0)) },
+ 
+ 		WantWrite: "POST / HTTP/1.1\r\n" +
+ 			"Host: example.com\r\n" +
+@@ -281,7 +280,7 @@ var reqWriteTests = []reqWriteTest{
+ 			ContentLength: 0, // as if unset by user
+ 		},
+ 
+-		Body: func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 1)) },
++		Body: func() io.ReadCloser { return io.NopCloser(io.LimitReader(strings.NewReader("xx"), 1)) },
+ 
+ 		WantWrite: "POST / HTTP/1.1\r\n" +
+ 			"Host: example.com\r\n" +
+@@ -351,7 +350,7 @@ var reqWriteTests = []reqWriteTest{
+ 		Body: func() io.ReadCloser {
+ 			err := errors.New("Custom reader error")
+ 			errReader := iotest.ErrReader(err)
+-			return ioutil.NopCloser(io.MultiReader(strings.NewReader("x"), errReader))
++			return io.NopCloser(io.MultiReader(strings.NewReader("x"), errReader))
+ 		},
+ 
+ 		WantError: errors.New("Custom reader error"),
+@@ -371,7 +370,7 @@ var reqWriteTests = []reqWriteTest{
+ 		Body: func() io.ReadCloser {
+ 			err := errors.New("Custom reader error")
+ 			errReader := iotest.ErrReader(err)
+-			return ioutil.NopCloser(errReader)
++			return io.NopCloser(errReader)
+ 		},
+ 
+ 		WantError: errors.New("Custom reader error"),
+@@ -620,7 +619,7 @@ func TestRequestWrite(t *testing.T) {
+ 			}
+ 			switch b := tt.Body.(type) {
+ 			case []byte:
+-				tt.Req.Body = ioutil.NopCloser(bytes.NewReader(b))
++				tt.Req.Body = io.NopCloser(bytes.NewReader(b))
+ 			case func() io.ReadCloser:
+ 				tt.Req.Body = b()
+ 			}
+@@ -716,20 +715,20 @@ func TestRequestWriteTransport(t *testing.T) {
+ 		},
+ 		{
+ 			method: "GET",
+-			body:   ioutil.NopCloser(strings.NewReader("")),
++			body:   io.NopCloser(strings.NewReader("")),
+ 			want:   noContentLengthOrTransferEncoding,
+ 		},
+ 		{
+ 			method: "GET",
+ 			clen:   -1,
+-			body:   ioutil.NopCloser(strings.NewReader("")),
++			body:   io.NopCloser(strings.NewReader("")),
+ 			want:   noContentLengthOrTransferEncoding,
+ 		},
+ 		// A GET with a body, with explicit content length:
+ 		{
+ 			method: "GET",
+ 			clen:   7,
+-			body:   ioutil.NopCloser(strings.NewReader("foobody")),
++			body:   io.NopCloser(strings.NewReader("foobody")),
+ 			want: all(matchSubstr("Content-Length: 7"),
+ 				matchSubstr("foobody")),
+ 		},
+@@ -737,7 +736,7 @@ func TestRequestWriteTransport(t *testing.T) {
+ 		{
+ 			method: "GET",
+ 			clen:   -1,
+-			body:   ioutil.NopCloser(strings.NewReader("foobody")),
++			body:   io.NopCloser(strings.NewReader("foobody")),
+ 			want: all(matchSubstr("Transfer-Encoding: chunked"),
+ 				matchSubstr("\r\n1\r\nf\r\n"),
+ 				matchSubstr("oobody")),
+@@ -747,14 +746,14 @@ func TestRequestWriteTransport(t *testing.T) {
+ 		{
+ 			method: "POST",
+ 			clen:   -1,
+-			body:   ioutil.NopCloser(strings.NewReader("foobody")),
++			body:   io.NopCloser(strings.NewReader("foobody")),
+ 			want: all(matchSubstr("Transfer-Encoding: chunked"),
+ 				matchSubstr("foobody")),
+ 		},
+ 		{
+ 			method: "POST",
+ 			clen:   -1,
+-			body:   ioutil.NopCloser(strings.NewReader("")),
++			body:   io.NopCloser(strings.NewReader("")),
+ 			want:   all(matchSubstr("Transfer-Encoding: chunked")),
+ 		},
+ 		// Verify that a blocking Request.Body doesn't block forever.
+@@ -766,7 +765,7 @@ func TestRequestWriteTransport(t *testing.T) {
+ 				tt.afterReqRead = func() {
+ 					pw.Close()
+ 				}
+-				tt.body = ioutil.NopCloser(pr)
++				tt.body = io.NopCloser(pr)
+ 			},
+ 			want: matchSubstr("Transfer-Encoding: chunked"),
+ 		},
+@@ -937,7 +936,7 @@ func dumpRequestOut(req *Request, onReadHeaders func()) ([]byte, error) {
+ 			}
+ 			// Ensure all the body is read; otherwise
+ 			// we'll get a partial dump.
+-			io.Copy(ioutil.Discard, req.Body)
++			io.Copy(io.Discard, req.Body)
+ 			req.Body.Close()
+ 		}
+ 		dr.c <- strings.NewReader("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index ce872606b1..8eef65474e 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"fmt"
+ 	"go/token"
+ 	"io"
+-	"io/ioutil"
+ 	"net/http/internal"
+ 	"net/url"
+ 	"reflect"
+@@ -620,7 +619,7 @@ func TestWriteResponse(t *testing.T) {
+ 			t.Errorf("#%d: %v", i, err)
+ 			continue
+ 		}
+-		err = resp.Write(ioutil.Discard)
++		err = resp.Write(io.Discard)
+ 		if err != nil {
+ 			t.Errorf("#%d: %v", i, err)
+ 			continue
+@@ -722,7 +721,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
+ 		}
+ 		resp.Body.Close()
+ 
+-		rest, err := ioutil.ReadAll(bufr)
++		rest, err := io.ReadAll(bufr)
+ 		checkErr(err, "ReadAll on remainder")
+ 		if e, g := "Next Request Here", string(rest); e != g {
+ 			g = regexp.MustCompile(`(xx+)`).ReplaceAllStringFunc(g, func(match string) string {
+diff --git a/src/net/http/responsewrite_test.go b/src/net/http/responsewrite_test.go
+index d41d89896e..1cc87b942e 100644
+--- a/src/net/http/responsewrite_test.go
++++ b/src/net/http/responsewrite_test.go
+@@ -6,7 +6,7 @@ package http
+ 
+ import (
+ 	"bytes"
+-	"io/ioutil"
++	"io"
+ 	"strings"
+ 	"testing"
+ )
+@@ -26,7 +26,7 @@ func TestResponseWrite(t *testing.T) {
+ 				ProtoMinor:    0,
+ 				Request:       dummyReq("GET"),
+ 				Header:        Header{},
+-				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
++				Body:          io.NopCloser(strings.NewReader("abcdef")),
+ 				ContentLength: 6,
+ 			},
+ 
+@@ -42,7 +42,7 @@ func TestResponseWrite(t *testing.T) {
+ 				ProtoMinor:    0,
+ 				Request:       dummyReq("GET"),
+ 				Header:        Header{},
+-				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
++				Body:          io.NopCloser(strings.NewReader("abcdef")),
+ 				ContentLength: -1,
+ 			},
+ 			"HTTP/1.0 200 OK\r\n" +
+@@ -57,7 +57,7 @@ func TestResponseWrite(t *testing.T) {
+ 				ProtoMinor:    1,
+ 				Request:       dummyReq("GET"),
+ 				Header:        Header{},
+-				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
++				Body:          io.NopCloser(strings.NewReader("abcdef")),
+ 				ContentLength: -1,
+ 				Close:         true,
+ 			},
+@@ -74,7 +74,7 @@ func TestResponseWrite(t *testing.T) {
+ 				ProtoMinor:    1,
+ 				Request:       dummyReq11("GET"),
+ 				Header:        Header{},
+-				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
++				Body:          io.NopCloser(strings.NewReader("abcdef")),
+ 				ContentLength: -1,
+ 				Close:         false,
+ 			},
+@@ -92,7 +92,7 @@ func TestResponseWrite(t *testing.T) {
+ 				ProtoMinor:       1,
+ 				Request:          dummyReq11("GET"),
+ 				Header:           Header{},
+-				Body:             ioutil.NopCloser(strings.NewReader("abcdef")),
++				Body:             io.NopCloser(strings.NewReader("abcdef")),
+ 				ContentLength:    -1,
+ 				TransferEncoding: []string{"chunked"},
+ 				Close:            false,
+@@ -125,7 +125,7 @@ func TestResponseWrite(t *testing.T) {
+ 				ProtoMinor:    1,
+ 				Request:       dummyReq11("GET"),
+ 				Header:        Header{},
+-				Body:          ioutil.NopCloser(strings.NewReader("")),
++				Body:          io.NopCloser(strings.NewReader("")),
+ 				ContentLength: 0,
+ 				Close:         false,
+ 			},
+@@ -141,7 +141,7 @@ func TestResponseWrite(t *testing.T) {
+ 				ProtoMinor:    1,
+ 				Request:       dummyReq11("GET"),
+ 				Header:        Header{},
+-				Body:          ioutil.NopCloser(strings.NewReader("foo")),
++				Body:          io.NopCloser(strings.NewReader("foo")),
+ 				ContentLength: 0,
+ 				Close:         false,
+ 			},
+@@ -157,7 +157,7 @@ func TestResponseWrite(t *testing.T) {
+ 				ProtoMinor:       1,
+ 				Request:          dummyReq("GET"),
+ 				Header:           Header{},
+-				Body:             ioutil.NopCloser(strings.NewReader("abcdef")),
++				Body:             io.NopCloser(strings.NewReader("abcdef")),
+ 				ContentLength:    6,
+ 				TransferEncoding: []string{"chunked"},
+ 				Close:            true,
+@@ -218,7 +218,7 @@ func TestResponseWrite(t *testing.T) {
+ 				Request:       &Request{Method: "POST"},
+ 				Header:        Header{},
+ 				ContentLength: -1,
+-				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
++				Body:          io.NopCloser(strings.NewReader("abcdef")),
+ 			},
+ 			"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nabcdef",
+ 		},
+diff --git a/src/net/http/roundtrip_js.go b/src/net/http/roundtrip_js.go
+index b09923c386..c6a221ac62 100644
+--- a/src/net/http/roundtrip_js.go
++++ b/src/net/http/roundtrip_js.go
+@@ -10,7 +10,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"strconv"
+ 	"syscall/js"
+ )
+@@ -92,7 +91,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		// See https://github.com/web-platform-tests/wpt/issues/7693 for WHATWG tests issue.
+ 		// See https://developer.mozilla.org/en-US/docs/Web/API/Streams_API for more details on the Streams API
+ 		// and browser support.
+-		body, err := ioutil.ReadAll(req.Body)
++		body, err := io.ReadAll(req.Body)
+ 		if err != nil {
+ 			req.Body.Close() // RoundTrip must always close the body, including on errors.
+ 			return nil, err
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index d84804c2e9..ba54b31a29 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -18,7 +18,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"math/rand"
+ 	"net"
+@@ -529,7 +528,7 @@ func TestServeWithSlashRedirectKeepsQueryString(t *testing.T) {
+ 		if err != nil {
+ 			continue
+ 		}
+-		slurp, _ := ioutil.ReadAll(res.Body)
++		slurp, _ := io.ReadAll(res.Body)
+ 		res.Body.Close()
+ 		if !tt.statusOk {
+ 			if got, want := res.StatusCode, 404; got != want {
+@@ -689,7 +688,7 @@ func testServerTimeouts(timeout time.Duration) error {
+ 	if err != nil {
+ 		return fmt.Errorf("http Get #1: %v", err)
+ 	}
+-	got, err := ioutil.ReadAll(r.Body)
++	got, err := io.ReadAll(r.Body)
+ 	expected := "req=1"
+ 	if string(got) != expected || err != nil {
+ 		return fmt.Errorf("Unexpected response for request #1; got %q ,%v; expected %q, nil",
+@@ -721,7 +720,7 @@ func testServerTimeouts(timeout time.Duration) error {
+ 	if err != nil {
+ 		return fmt.Errorf("http Get #2: %v", err)
+ 	}
+-	got, err = ioutil.ReadAll(r.Body)
++	got, err = io.ReadAll(r.Body)
+ 	r.Body.Close()
+ 	expected = "req=2"
+ 	if string(got) != expected || err != nil {
+@@ -734,7 +733,7 @@ func testServerTimeouts(timeout time.Duration) error {
+ 			return fmt.Errorf("long Dial: %v", err)
+ 		}
+ 		defer conn.Close()
+-		go io.Copy(ioutil.Discard, conn)
++		go io.Copy(io.Discard, conn)
+ 		for i := 0; i < 5; i++ {
+ 			_, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: foo\r\n\r\n"))
+ 			if err != nil {
+@@ -954,7 +953,7 @@ func TestOnlyWriteTimeout(t *testing.T) {
+ 			errc <- err
+ 			return
+ 		}
+-		_, err = io.Copy(ioutil.Discard, res.Body)
++		_, err = io.Copy(io.Discard, res.Body)
+ 		res.Body.Close()
+ 		errc <- err
+ 	}()
+@@ -1058,7 +1057,7 @@ func TestIdentityResponse(t *testing.T) {
+ 	}
+ 
+ 	// The ReadAll will hang for a failing test.
+-	got, _ := ioutil.ReadAll(conn)
++	got, _ := io.ReadAll(conn)
+ 	expectedSuffix := "\r\n\r\ntoo short"
+ 	if !strings.HasSuffix(string(got), expectedSuffix) {
+ 		t.Errorf("Expected output to end with %q; got response body %q",
+@@ -1099,7 +1098,7 @@ func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
+ 		}
+ 	}()
+ 
+-	_, err = ioutil.ReadAll(r)
++	_, err = io.ReadAll(r)
+ 	if err != nil {
+ 		t.Fatal("read error:", err)
+ 	}
+@@ -1129,7 +1128,7 @@ func testTCPConnectionStaysOpen(t *testing.T, req string, handler Handler) {
+ 		if err != nil {
+ 			t.Fatalf("res %d: %v", i+1, err)
+ 		}
+-		if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
++		if _, err := io.Copy(io.Discard, res.Body); err != nil {
+ 			t.Fatalf("res %d body copy: %v", i+1, err)
+ 		}
+ 		res.Body.Close()
+@@ -1235,7 +1234,7 @@ func testSetsRemoteAddr(t *testing.T, h2 bool) {
+ 	if err != nil {
+ 		t.Fatalf("Get error: %v", err)
+ 	}
+-	body, err := ioutil.ReadAll(res.Body)
++	body, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatalf("ReadAll error: %v", err)
+ 	}
+@@ -1299,7 +1298,7 @@ func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
+ 			return
+ 		}
+ 		defer resp.Body.Close()
+-		body, err := ioutil.ReadAll(resp.Body)
++		body, err := io.ReadAll(resp.Body)
+ 		if err != nil {
+ 			t.Errorf("Request %d: %v", num, err)
+ 			response <- ""
+@@ -1381,7 +1380,7 @@ func testHeadResponses(t *testing.T, h2 bool) {
+ 	if v := res.ContentLength; v != 10 {
+ 		t.Errorf("Content-Length: %d; want 10", v)
+ 	}
+-	body, err := ioutil.ReadAll(res.Body)
++	body, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+@@ -1432,7 +1431,7 @@ func TestTLSServer(t *testing.T) {
+ 			}
+ 		}
+ 	}))
+-	ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
++	ts.Config.ErrorLog = log.New(io.Discard, "", 0)
+ 	defer ts.Close()
+ 
+ 	// Connect an idle TCP connection to this server before we run
+@@ -1540,7 +1539,7 @@ func TestTLSServerRejectHTTPRequests(t *testing.T) {
+ 	}
+ 	defer conn.Close()
+ 	io.WriteString(conn, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n")
+-	slurp, err := ioutil.ReadAll(conn)
++	slurp, err := io.ReadAll(conn)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -1734,7 +1733,7 @@ func TestServerExpect(t *testing.T) {
+ 		// requests that would read from r.Body, which we only
+ 		// conditionally want to do.
+ 		if strings.Contains(r.URL.RawQuery, "readbody=true") {
+-			ioutil.ReadAll(r.Body)
++			io.ReadAll(r.Body)
+ 			w.Write([]byte("Hi"))
+ 		} else {
+ 			w.WriteHeader(StatusUnauthorized)
+@@ -1773,7 +1772,7 @@ func TestServerExpect(t *testing.T) {
+ 					io.Closer
+ 				}{
+ 					conn,
+-					ioutil.NopCloser(nil),
++					io.NopCloser(nil),
+ 				}
+ 				if test.chunked {
+ 					targ = httputil.NewChunkedWriter(conn)
+@@ -2072,7 +2071,7 @@ type testHandlerBodyConsumer struct {
+ var testHandlerBodyConsumers = []testHandlerBodyConsumer{
+ 	{"nil", func(io.ReadCloser) {}},
+ 	{"close", func(r io.ReadCloser) { r.Close() }},
+-	{"discard", func(r io.ReadCloser) { io.Copy(ioutil.Discard, r) }},
++	{"discard", func(r io.ReadCloser) { io.Copy(io.Discard, r) }},
+ }
+ 
+ func TestRequestBodyReadErrorClosesConnection(t *testing.T) {
+@@ -2298,7 +2297,7 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
+ 	if g, e := res.StatusCode, StatusOK; g != e {
+ 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+ 	}
+-	body, _ := ioutil.ReadAll(res.Body)
++	body, _ := io.ReadAll(res.Body)
+ 	if g, e := string(body), "hi"; g != e {
+ 		t.Errorf("got body %q; expected %q", g, e)
+ 	}
+@@ -2315,7 +2314,7 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
+ 	if g, e := res.StatusCode, StatusServiceUnavailable; g != e {
+ 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+ 	}
+-	body, _ = ioutil.ReadAll(res.Body)
++	body, _ = io.ReadAll(res.Body)
+ 	if !strings.Contains(string(body), "<title>Timeout</title>") {
+ 		t.Errorf("expected timeout body; got %q", string(body))
+ 	}
+@@ -2367,7 +2366,7 @@ func TestTimeoutHandlerRace(t *testing.T) {
+ 			defer func() { <-gate }()
+ 			res, err := c.Get(fmt.Sprintf("%s/%d", ts.URL, rand.Intn(50)))
+ 			if err == nil {
+-				io.Copy(ioutil.Discard, res.Body)
++				io.Copy(io.Discard, res.Body)
+ 				res.Body.Close()
+ 			}
+ 		}()
+@@ -2410,7 +2409,7 @@ func TestTimeoutHandlerRaceHeader(t *testing.T) {
+ 				return
+ 			}
+ 			defer res.Body.Close()
+-			io.Copy(ioutil.Discard, res.Body)
++			io.Copy(io.Discard, res.Body)
+ 		}()
+ 	}
+ 	wg.Wait()
+@@ -2441,7 +2440,7 @@ func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
+ 	if g, e := res.StatusCode, StatusOK; g != e {
+ 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+ 	}
+-	body, _ := ioutil.ReadAll(res.Body)
++	body, _ := io.ReadAll(res.Body)
+ 	if g, e := string(body), "hi"; g != e {
+ 		t.Errorf("got body %q; expected %q", g, e)
+ 	}
+@@ -2458,7 +2457,7 @@ func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
+ 	if g, e := res.StatusCode, StatusServiceUnavailable; g != e {
+ 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+ 	}
+-	body, _ = ioutil.ReadAll(res.Body)
++	body, _ = io.ReadAll(res.Body)
+ 	if !strings.Contains(string(body), "<title>Timeout</title>") {
+ 		t.Errorf("expected timeout body; got %q", string(body))
+ 	}
+@@ -2630,7 +2629,7 @@ func TestRedirectContentTypeAndBody(t *testing.T) {
+ 			t.Errorf("Redirect(%q, %#v) generated Content-Type header %q; want %q", tt.method, tt.ct, got, want)
+ 		}
+ 		resp := rec.Result()
+-		body, err := ioutil.ReadAll(resp.Body)
++		body, err := io.ReadAll(resp.Body)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -2657,7 +2656,7 @@ func testZeroLengthPostAndResponse(t *testing.T, h2 bool) {
+ 	setParallel(t)
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(rw ResponseWriter, r *Request) {
+-		all, err := ioutil.ReadAll(r.Body)
++		all, err := io.ReadAll(r.Body)
+ 		if err != nil {
+ 			t.Fatalf("handler ReadAll: %v", err)
+ 		}
+@@ -2683,7 +2682,7 @@ func testZeroLengthPostAndResponse(t *testing.T, h2 bool) {
+ 	}
+ 
+ 	for i := range resp {
+-		all, err := ioutil.ReadAll(resp[i].Body)
++		all, err := io.ReadAll(resp[i].Body)
+ 		if err != nil {
+ 			t.Fatalf("req #%d: client ReadAll: %v", i, err)
+ 		}
+@@ -2710,7 +2709,7 @@ func TestHandlerPanicWithHijack(t *testing.T) {
+ 
+ func testHandlerPanic(t *testing.T, withHijack, h2 bool, wrapper func(Handler) Handler, panicValue interface{}) {
+ 	defer afterTest(t)
+-	// Unlike the other tests that set the log output to ioutil.Discard
++	// Unlike the other tests that set the log output to io.Discard
+ 	// to quiet the output, this test uses a pipe. The pipe serves three
+ 	// purposes:
+ 	//
+@@ -2970,7 +2969,7 @@ func testRequestBodyLimit(t *testing.T, h2 bool) {
+ 	const limit = 1 << 20
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		r.Body = MaxBytesReader(w, r.Body, limit)
+-		n, err := io.Copy(ioutil.Discard, r.Body)
++		n, err := io.Copy(io.Discard, r.Body)
+ 		if err == nil {
+ 			t.Errorf("expected error from io.Copy")
+ 		}
+@@ -3020,7 +3019,7 @@ func TestClientWriteShutdown(t *testing.T) {
+ 	donec := make(chan bool)
+ 	go func() {
+ 		defer close(donec)
+-		bs, err := ioutil.ReadAll(conn)
++		bs, err := io.ReadAll(conn)
+ 		if err != nil {
+ 			t.Errorf("ReadAll: %v", err)
+ 		}
+@@ -3341,7 +3340,7 @@ func TestHijackBeforeRequestBodyRead(t *testing.T) {
+ 		r.Body = nil // to test that server.go doesn't use this value.
+ 
+ 		gone := w.(CloseNotifier).CloseNotify()
+-		slurp, err := ioutil.ReadAll(reqBody)
++		slurp, err := io.ReadAll(reqBody)
+ 		if err != nil {
+ 			t.Errorf("Body read: %v", err)
+ 			return
+@@ -3643,7 +3642,7 @@ func TestAcceptMaxFds(t *testing.T) {
+ 		}}}
+ 	server := &Server{
+ 		Handler:  HandlerFunc(HandlerFunc(func(ResponseWriter, *Request) {})),
+-		ErrorLog: log.New(ioutil.Discard, "", 0), // noisy otherwise
++		ErrorLog: log.New(io.Discard, "", 0), // noisy otherwise
+ 	}
+ 	err := server.Serve(ln)
+ 	if err != io.EOF {
+@@ -3782,7 +3781,7 @@ func testServerReaderFromOrder(t *testing.T, h2 bool) {
+ 			close(done)
+ 		}()
+ 		time.Sleep(25 * time.Millisecond) // give Copy a chance to break things
+-		n, err := io.Copy(ioutil.Discard, req.Body)
++		n, err := io.Copy(io.Discard, req.Body)
+ 		if err != nil {
+ 			t.Errorf("handler Copy: %v", err)
+ 			return
+@@ -3804,7 +3803,7 @@ func testServerReaderFromOrder(t *testing.T, h2 bool) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	all, err := ioutil.ReadAll(res.Body)
++	all, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -3929,7 +3928,7 @@ func testTransportAndServerSharedBodyRace(t *testing.T, h2 bool) {
+ 			errorf("Proxy outbound request: %v", err)
+ 			return
+ 		}
+-		_, err = io.CopyN(ioutil.Discard, bresp.Body, bodySize/2)
++		_, err = io.CopyN(io.Discard, bresp.Body, bodySize/2)
+ 		if err != nil {
+ 			errorf("Proxy copy error: %v", err)
+ 			return
+@@ -4136,7 +4135,7 @@ func TestServerConnState(t *testing.T) {
+ 		ts.Close()
+ 	}()
+ 
+-	ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
++	ts.Config.ErrorLog = log.New(io.Discard, "", 0)
+ 	ts.Config.ConnState = func(c net.Conn, state ConnState) {
+ 		if c == nil {
+ 			t.Errorf("nil conn seen in state %s", state)
+@@ -4176,7 +4175,7 @@ func TestServerConnState(t *testing.T) {
+ 			t.Errorf("Error fetching %s: %v", url, err)
+ 			return
+ 		}
+-		_, err = ioutil.ReadAll(res.Body)
++		_, err = io.ReadAll(res.Body)
+ 		defer res.Body.Close()
+ 		if err != nil {
+ 			t.Errorf("Error reading %s: %v", url, err)
+@@ -4233,7 +4232,7 @@ func TestServerConnState(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
++		if _, err := io.Copy(io.Discard, res.Body); err != nil {
+ 			t.Fatal(err)
+ 		}
+ 		c.Close()
+@@ -4285,7 +4284,7 @@ func testServerEmptyBodyRace(t *testing.T, h2 bool) {
+ 				}
+ 			}
+ 			defer res.Body.Close()
+-			_, err = io.Copy(ioutil.Discard, res.Body)
++			_, err = io.Copy(io.Discard, res.Body)
+ 			if err != nil {
+ 				t.Error(err)
+ 				return
+@@ -4311,7 +4310,7 @@ func TestServerConnStateNew(t *testing.T) {
+ 	srv.Serve(&oneConnListener{
+ 		conn: &rwTestConn{
+ 			Reader: strings.NewReader("GET / HTTP/1.1\r\nHost: foo\r\n\r\n"),
+-			Writer: ioutil.Discard,
++			Writer: io.Discard,
+ 		},
+ 	})
+ 	if !sawNew { // testing that this read isn't racy
+@@ -4367,7 +4366,7 @@ func TestServerFlushAndHijack(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	defer res.Body.Close()
+-	all, err := ioutil.ReadAll(res.Body)
++	all, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -4555,7 +4554,7 @@ Host: foo
+ 	go Serve(ln, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		numReq++
+ 		if r.URL.Path == "/readbody" {
+-			ioutil.ReadAll(r.Body)
++			io.ReadAll(r.Body)
+ 		}
+ 		io.WriteString(w, "Hello world!")
+ 	}))
+@@ -4608,7 +4607,7 @@ func testHandlerSetsBodyNil(t *testing.T, h2 bool) {
+ 			t.Fatal(err)
+ 		}
+ 		defer res.Body.Close()
+-		slurp, err := ioutil.ReadAll(res.Body)
++		slurp, err := io.ReadAll(res.Body)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -4724,7 +4723,7 @@ func TestServerHandlersCanHandleH2PRI(t *testing.T) {
+ 	}
+ 	defer c.Close()
+ 	io.WriteString(c, "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
+-	slurp, err := ioutil.ReadAll(c)
++	slurp, err := io.ReadAll(c)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -4958,7 +4957,7 @@ func BenchmarkClientServer(b *testing.B) {
+ 		if err != nil {
+ 			b.Fatal("Get:", err)
+ 		}
+-		all, err := ioutil.ReadAll(res.Body)
++		all, err := io.ReadAll(res.Body)
+ 		res.Body.Close()
+ 		if err != nil {
+ 			b.Fatal("ReadAll:", err)
+@@ -5009,7 +5008,7 @@ func benchmarkClientServerParallel(b *testing.B, parallelism int, useTLS bool) {
+ 				b.Logf("Get: %v", err)
+ 				continue
+ 			}
+-			all, err := ioutil.ReadAll(res.Body)
++			all, err := io.ReadAll(res.Body)
+ 			res.Body.Close()
+ 			if err != nil {
+ 				b.Logf("ReadAll: %v", err)
+@@ -5044,7 +5043,7 @@ func BenchmarkServer(b *testing.B) {
+ 			if err != nil {
+ 				log.Panicf("Get: %v", err)
+ 			}
+-			all, err := ioutil.ReadAll(res.Body)
++			all, err := io.ReadAll(res.Body)
+ 			res.Body.Close()
+ 			if err != nil {
+ 				log.Panicf("ReadAll: %v", err)
+@@ -5167,7 +5166,7 @@ func BenchmarkClient(b *testing.B) {
+ 		if err != nil {
+ 			b.Fatalf("Get: %v", err)
+ 		}
+-		body, err := ioutil.ReadAll(res.Body)
++		body, err := io.ReadAll(res.Body)
+ 		res.Body.Close()
+ 		if err != nil {
+ 			b.Fatalf("ReadAll: %v", err)
+@@ -5257,7 +5256,7 @@ Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
+ 
+ 	conn := &rwTestConn{
+ 		Reader: &repeatReader{content: req, count: b.N},
+-		Writer: ioutil.Discard,
++		Writer: io.Discard,
+ 		closec: make(chan bool, 1),
+ 	}
+ 	handled := 0
+@@ -5286,7 +5285,7 @@ Host: golang.org
+ 
+ 	conn := &rwTestConn{
+ 		Reader: &repeatReader{content: req, count: b.N},
+-		Writer: ioutil.Discard,
++		Writer: io.Discard,
+ 		closec: make(chan bool, 1),
+ 	}
+ 	handled := 0
+@@ -5346,7 +5345,7 @@ Host: golang.org
+ `)
+ 	conn := &rwTestConn{
+ 		Reader: &repeatReader{content: req, count: b.N},
+-		Writer: ioutil.Discard,
++		Writer: io.Discard,
+ 		closec: make(chan bool, 1),
+ 	}
+ 	handled := 0
+@@ -5375,7 +5374,7 @@ Host: golang.org
+ 		conn.Close()
+ 	})
+ 	conn := &rwTestConn{
+-		Writer: ioutil.Discard,
++		Writer: io.Discard,
+ 		closec: make(chan bool, 1),
+ 	}
+ 	ln := &oneConnListener{conn: conn}
+@@ -5438,7 +5437,7 @@ func TestServerIdleTimeout(t *testing.T) {
+ 	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+-		io.Copy(ioutil.Discard, r.Body)
++		io.Copy(io.Discard, r.Body)
+ 		io.WriteString(w, r.RemoteAddr)
+ 	}))
+ 	ts.Config.ReadHeaderTimeout = 1 * time.Second
+@@ -5453,7 +5452,7 @@ func TestServerIdleTimeout(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 		defer res.Body.Close()
+-		slurp, err := ioutil.ReadAll(res.Body)
++		slurp, err := io.ReadAll(res.Body)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -5478,7 +5477,7 @@ func TestServerIdleTimeout(t *testing.T) {
+ 	defer conn.Close()
+ 	conn.Write([]byte("GET / HTTP/1.1\r\nHost: foo.com\r\n"))
+ 	time.Sleep(2 * time.Second)
+-	if _, err := io.CopyN(ioutil.Discard, conn, 1); err == nil {
++	if _, err := io.CopyN(io.Discard, conn, 1); err == nil {
+ 		t.Fatal("copy byte succeeded; want err")
+ 	}
+ }
+@@ -5489,7 +5488,7 @@ func get(t *testing.T, c *Client, url string) string {
+ 		t.Fatal(err)
+ 	}
+ 	defer res.Body.Close()
+-	slurp, err := ioutil.ReadAll(res.Body)
++	slurp, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -5739,7 +5738,7 @@ func TestServerCancelsReadTimeoutWhenIdle(t *testing.T) {
+ 		if err != nil {
+ 			return fmt.Errorf("Get: %v", err)
+ 		}
+-		slurp, err := ioutil.ReadAll(res.Body)
++		slurp, err := io.ReadAll(res.Body)
+ 		res.Body.Close()
+ 		if err != nil {
+ 			return fmt.Errorf("Body ReadAll: %v", err)
+@@ -5802,7 +5801,7 @@ func TestServerDuplicateBackgroundRead(t *testing.T) {
+ 			wg.Add(1)
+ 			go func() {
+ 				defer wg.Done()
+-				io.Copy(ioutil.Discard, cn)
++				io.Copy(io.Discard, cn)
+ 			}()
+ 
+ 			for j := 0; j < requests; j++ {
+@@ -5902,7 +5901,7 @@ func TestServerHijackGetsBackgroundByte_big(t *testing.T) {
+ 			return
+ 		}
+ 		defer conn.Close()
+-		slurp, err := ioutil.ReadAll(buf.Reader)
++		slurp, err := io.ReadAll(buf.Reader)
+ 		if err != nil {
+ 			t.Errorf("Copy: %v", err)
+ 		}
+@@ -6436,13 +6435,13 @@ func fetchWireResponse(host string, http1ReqBody []byte) ([]byte, error) {
+ 	if _, err := conn.Write(http1ReqBody); err != nil {
+ 		return nil, err
+ 	}
+-	return ioutil.ReadAll(conn)
++	return io.ReadAll(conn)
+ }
+ 
+ func BenchmarkResponseStatusLine(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.RunParallel(func(pb *testing.PB) {
+-		bw := bufio.NewWriter(ioutil.Discard)
++		bw := bufio.NewWriter(io.Discard)
+ 		var buf3 [3]byte
+ 		for pb.Next() {
+ 			Export_writeStatusLine(bw, true, 200, buf3[:])
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index fab229c92a..ba473d14f5 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -14,7 +14,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"net"
+ 	"net/textproto"
+@@ -1368,7 +1367,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 		}
+ 
+ 		if discard {
+-			_, err := io.CopyN(ioutil.Discard, w.reqBody, maxPostHandlerReadBytes+1)
++			_, err := io.CopyN(io.Discard, w.reqBody, maxPostHandlerReadBytes+1)
+ 			switch err {
+ 			case nil:
+ 				// There must be even more data left over.
+@@ -3407,7 +3406,7 @@ func (globalOptionsHandler) ServeHTTP(w ResponseWriter, r *Request) {
+ 		// (or an attack) and we abort and close the connection,
+ 		// courtesy of MaxBytesReader's EOF behavior.
+ 		mb := MaxBytesReader(w, r.Body, 4<<10)
+-		io.Copy(ioutil.Discard, mb)
++		io.Copy(io.Discard, mb)
+ 	}
+ }
+ 
+diff --git a/src/net/http/sniff_test.go b/src/net/http/sniff_test.go
+index a1157a0823..8d5350374d 100644
+--- a/src/net/http/sniff_test.go
++++ b/src/net/http/sniff_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	. "net/http"
+ 	"reflect"
+@@ -123,7 +122,7 @@ func testServerContentType(t *testing.T, h2 bool) {
+ 		if ct := resp.Header.Get("Content-Type"); ct != wantContentType {
+ 			t.Errorf("%v: Content-Type = %q, want %q", tt.desc, ct, wantContentType)
+ 		}
+-		data, err := ioutil.ReadAll(resp.Body)
++		data, err := io.ReadAll(resp.Body)
+ 		if err != nil {
+ 			t.Errorf("%v: reading body: %v", tt.desc, err)
+ 		} else if !bytes.Equal(data, tt.data) {
+@@ -185,7 +184,7 @@ func testContentTypeWithCopy(t *testing.T, h2 bool) {
+ 	if ct := resp.Header.Get("Content-Type"); ct != expected {
+ 		t.Errorf("Content-Type = %q, want %q", ct, expected)
+ 	}
+-	data, err := ioutil.ReadAll(resp.Body)
++	data, err := io.ReadAll(resp.Body)
+ 	if err != nil {
+ 		t.Errorf("reading body: %v", err)
+ 	} else if !bytes.Equal(data, []byte(input)) {
+@@ -216,7 +215,7 @@ func testSniffWriteSize(t *testing.T, h2 bool) {
+ 		if err != nil {
+ 			t.Fatalf("size %d: %v", size, err)
+ 		}
+-		if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
++		if _, err := io.Copy(io.Discard, res.Body); err != nil {
+ 			t.Fatalf("size %d: io.Copy of body = %v", size, err)
+ 		}
+ 		if err := res.Body.Close(); err != nil {
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index c3234f30cc..fbb0c39829 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -10,7 +10,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"net/http/httptrace"
+ 	"net/http/internal"
+ 	"net/textproto"
+@@ -156,7 +155,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
+ // servers. See Issue 18257, as one example.
+ //
+ // The only reason we'd send such a request is if the user set the Body to a
+-// non-nil value (say, ioutil.NopCloser(bytes.NewReader(nil))) and didn't
++// non-nil value (say, io.NopCloser(bytes.NewReader(nil))) and didn't
+ // set ContentLength, or NewRequest set it to -1 (unknown), so then we assume
+ // there's bytes to send.
+ //
+@@ -370,7 +369,7 @@ func (t *transferWriter) writeBody(w io.Writer) (err error) {
+ 				return err
+ 			}
+ 			var nextra int64
+-			nextra, err = t.doBodyCopy(ioutil.Discard, body)
++			nextra, err = t.doBodyCopy(io.Discard, body)
+ 			ncopy += nextra
+ 		}
+ 		if err != nil {
+@@ -992,7 +991,7 @@ func (b *body) Close() error {
+ 			var n int64
+ 			// Consume the body, or, which will also lead to us reading
+ 			// the trailer headers after the body, if present.
+-			n, err = io.CopyN(ioutil.Discard, bodyLocked{b}, maxPostHandlerReadBytes)
++			n, err = io.CopyN(io.Discard, bodyLocked{b}, maxPostHandlerReadBytes)
+ 			if err == io.EOF {
+ 				err = nil
+ 			}
+@@ -1003,7 +1002,7 @@ func (b *body) Close() error {
+ 	default:
+ 		// Fully consume the body, which will also lead to us reading
+ 		// the trailer headers after the body, if present.
+-		_, err = io.Copy(ioutil.Discard, bodyLocked{b})
++		_, err = io.Copy(io.Discard, bodyLocked{b})
+ 	}
+ 	b.closed = true
+ 	return err
+@@ -1075,7 +1074,7 @@ func (fr finishAsyncByteRead) Read(p []byte) (n int, err error) {
+ 	return
+ }
+ 
+-var nopCloserType = reflect.TypeOf(ioutil.NopCloser(nil))
++var nopCloserType = reflect.TypeOf(io.NopCloser(nil))
+ 
+ // isKnownInMemoryReader reports whether r is a type known to not
+ // block on Read. Its caller uses this as an optional optimization to
+diff --git a/src/net/http/transfer_test.go b/src/net/http/transfer_test.go
+index 185225fa93..1f3d32526d 100644
+--- a/src/net/http/transfer_test.go
++++ b/src/net/http/transfer_test.go
+@@ -81,11 +81,11 @@ func TestDetectInMemoryReaders(t *testing.T) {
+ 		{bytes.NewBuffer(nil), true},
+ 		{strings.NewReader(""), true},
+ 
+-		{ioutil.NopCloser(pr), false},
++		{io.NopCloser(pr), false},
+ 
+-		{ioutil.NopCloser(bytes.NewReader(nil)), true},
+-		{ioutil.NopCloser(bytes.NewBuffer(nil)), true},
+-		{ioutil.NopCloser(strings.NewReader("")), true},
++		{io.NopCloser(bytes.NewReader(nil)), true},
++		{io.NopCloser(bytes.NewBuffer(nil)), true},
++		{io.NopCloser(strings.NewReader("")), true},
+ 	}
+ 	for i, tt := range tests {
+ 		got := isKnownInMemoryReader(tt.r)
+@@ -104,12 +104,12 @@ var _ io.ReaderFrom = (*mockTransferWriter)(nil)
+ 
+ func (w *mockTransferWriter) ReadFrom(r io.Reader) (int64, error) {
+ 	w.CalledReader = r
+-	return io.Copy(ioutil.Discard, r)
++	return io.Copy(io.Discard, r)
+ }
+ 
+ func (w *mockTransferWriter) Write(p []byte) (int, error) {
+ 	w.WriteCalled = true
+-	return ioutil.Discard.Write(p)
++	return io.Discard.Write(p)
+ }
+ 
+ func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
+@@ -166,7 +166,7 @@ func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
+ 			method: "PUT",
+ 			bodyFunc: func() (io.Reader, func(), error) {
+ 				r, cleanup, err := newFileFunc()
+-				return ioutil.NopCloser(r), cleanup, err
++				return io.NopCloser(r), cleanup, err
+ 			},
+ 			contentLength:  nBytes,
+ 			limitedReader:  true,
+@@ -206,7 +206,7 @@ func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
+ 			method: "PUT",
+ 			bodyFunc: func() (io.Reader, func(), error) {
+ 				r, cleanup, err := newBufferFunc()
+-				return ioutil.NopCloser(r), cleanup, err
++				return io.NopCloser(r), cleanup, err
+ 			},
+ 			contentLength:  nBytes,
+ 			limitedReader:  true,
+diff --git a/src/net/http/transport_internal_test.go b/src/net/http/transport_internal_test.go
+index 92729e65b2..1097ffd173 100644
+--- a/src/net/http/transport_internal_test.go
++++ b/src/net/http/transport_internal_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"crypto/tls"
+ 	"errors"
+ 	"io"
+-	"io/ioutil"
+ 	"net"
+ 	"net/http/internal"
+ 	"strings"
+@@ -226,7 +225,7 @@ func TestTransportBodyAltRewind(t *testing.T) {
+ 		TLSNextProto: map[string]func(string, *tls.Conn) RoundTripper{
+ 			"foo": func(authority string, c *tls.Conn) RoundTripper {
+ 				return roundTripFunc(func(r *Request) (*Response, error) {
+-					n, _ := io.Copy(ioutil.Discard, r.Body)
++					n, _ := io.Copy(io.Discard, r.Body)
+ 					if n == 0 {
+ 						t.Error("body length is zero")
+ 					}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index b152007282..58f0d9db98 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -173,7 +173,7 @@ func TestTransportKeepAlives(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatalf("error in disableKeepAlive=%v, req #%d, GET: %v", disableKeepAlive, n, err)
+ 			}
+-			body, err := ioutil.ReadAll(res.Body)
++			body, err := io.ReadAll(res.Body)
+ 			if err != nil {
+ 				t.Fatalf("error in disableKeepAlive=%v, req #%d, ReadAll: %v", disableKeepAlive, n, err)
+ 			}
+@@ -220,7 +220,7 @@ func TestTransportConnectionCloseOnResponse(t *testing.T) {
+ 				t.Fatalf("error in connectionClose=%v, req #%d, Do: %v", connectionClose, n, err)
+ 			}
+ 			defer res.Body.Close()
+-			body, err := ioutil.ReadAll(res.Body)
++			body, err := io.ReadAll(res.Body)
+ 			if err != nil {
+ 				t.Fatalf("error in connectionClose=%v, req #%d, ReadAll: %v", connectionClose, n, err)
+ 			}
+@@ -273,7 +273,7 @@ func TestTransportConnectionCloseOnRequest(t *testing.T) {
+ 				t.Errorf("For connectionClose = %v; handler's X-Saw-Close was %v; want %v",
+ 					connectionClose, got, !connectionClose)
+ 			}
+-			body, err := ioutil.ReadAll(res.Body)
++			body, err := io.ReadAll(res.Body)
+ 			if err != nil {
+ 				t.Fatalf("error in connectionClose=%v, req #%d, ReadAll: %v", connectionClose, n, err)
+ 			}
+@@ -382,7 +382,7 @@ func TestTransportIdleCacheKeys(t *testing.T) {
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+-	ioutil.ReadAll(resp.Body)
++	io.ReadAll(resp.Body)
+ 
+ 	keys := tr.IdleConnKeysForTesting()
+ 	if e, g := 1, len(keys); e != g {
+@@ -495,7 +495,7 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
+ 			t.Error(err)
+ 			return
+ 		}
+-		if _, err := ioutil.ReadAll(resp.Body); err != nil {
++		if _, err := io.ReadAll(resp.Body); err != nil {
+ 			t.Errorf("ReadAll: %v", err)
+ 			return
+ 		}
+@@ -575,7 +575,7 @@ func TestTransportMaxConnsPerHostIncludeDialInProgress(t *testing.T) {
+ 		if err != nil {
+ 			t.Errorf("unexpected error for request %s: %v", reqId, err)
+ 		}
+-		_, err = ioutil.ReadAll(resp.Body)
++		_, err = io.ReadAll(resp.Body)
+ 		if err != nil {
+ 			t.Errorf("unexpected error for request %s: %v", reqId, err)
+ 		}
+@@ -655,7 +655,7 @@ func TestTransportMaxConnsPerHost(t *testing.T) {
+ 				t.Fatalf("request failed: %v", err)
+ 			}
+ 			defer resp.Body.Close()
+-			_, err = ioutil.ReadAll(resp.Body)
++			_, err = io.ReadAll(resp.Body)
+ 			if err != nil {
+ 				t.Fatalf("read body failed: %v", err)
+ 			}
+@@ -733,7 +733,7 @@ func TestTransportRemovesDeadIdleConnections(t *testing.T) {
+ 			t.Fatalf("%s: %v", name, res.Status)
+ 		}
+ 		defer res.Body.Close()
+-		slurp, err := ioutil.ReadAll(res.Body)
++		slurp, err := io.ReadAll(res.Body)
+ 		if err != nil {
+ 			t.Fatalf("%s: %v", name, err)
+ 		}
+@@ -783,7 +783,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
+ 				condFatalf("error in req #%d, GET: %v", n, err)
+ 				continue
+ 			}
+-			body, err := ioutil.ReadAll(res.Body)
++			body, err := io.ReadAll(res.Body)
+ 			if err != nil {
+ 				condFatalf("error in req #%d, ReadAll: %v", n, err)
+ 				continue
+@@ -903,7 +903,7 @@ func TestTransportHeadResponses(t *testing.T) {
+ 		if e, g := int64(123), res.ContentLength; e != g {
+ 			t.Errorf("loop %d: expected res.ContentLength of %v, got %v", i, e, g)
+ 		}
+-		if all, err := ioutil.ReadAll(res.Body); err != nil {
++		if all, err := io.ReadAll(res.Body); err != nil {
+ 			t.Errorf("loop %d: Body ReadAll: %v", i, err)
+ 		} else if len(all) != 0 {
+ 			t.Errorf("Bogus body %q", all)
+@@ -1006,10 +1006,10 @@ func TestRoundTripGzip(t *testing.T) {
+ 				t.Errorf("%d. gzip NewReader: %v", i, err)
+ 				continue
+ 			}
+-			body, err = ioutil.ReadAll(r)
++			body, err = io.ReadAll(r)
+ 			res.Body.Close()
+ 		} else {
+-			body, err = ioutil.ReadAll(res.Body)
++			body, err = io.ReadAll(res.Body)
+ 		}
+ 		if err != nil {
+ 			t.Errorf("%d. Error: %q", i, err)
+@@ -1090,7 +1090,7 @@ func TestTransportGzip(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		body, err := ioutil.ReadAll(res.Body)
++		body, err := io.ReadAll(res.Body)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -1133,7 +1133,7 @@ func TestTransportExpect100Continue(t *testing.T) {
+ 		switch req.URL.Path {
+ 		case "/100":
+ 			// This endpoint implicitly responds 100 Continue and reads body.
+-			if _, err := io.Copy(ioutil.Discard, req.Body); err != nil {
++			if _, err := io.Copy(io.Discard, req.Body); err != nil {
+ 				t.Error("Failed to read Body", err)
+ 			}
+ 			rw.WriteHeader(StatusOK)
+@@ -1159,7 +1159,7 @@ func TestTransportExpect100Continue(t *testing.T) {
+ 			if err != nil {
+ 				log.Fatal(err)
+ 			}
+-			if _, err := io.CopyN(ioutil.Discard, bufrw, req.ContentLength); err != nil {
++			if _, err := io.CopyN(io.Discard, bufrw, req.ContentLength); err != nil {
+ 				t.Error("Failed to read Body", err)
+ 			}
+ 			bufrw.WriteString("HTTP/1.1 200 OK\r\n\r\n")
+@@ -1625,7 +1625,7 @@ func TestTransportGzipRecursive(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	body, err := ioutil.ReadAll(res.Body)
++	body, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -1654,7 +1654,7 @@ func TestTransportGzipShort(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	defer res.Body.Close()
+-	_, err = ioutil.ReadAll(res.Body)
++	_, err = io.ReadAll(res.Body)
+ 	if err == nil {
+ 		t.Fatal("Expect an error from reading a body.")
+ 	}
+@@ -1999,7 +1999,7 @@ func TestIssue3644(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	defer res.Body.Close()
+-	bs, err := ioutil.ReadAll(res.Body)
++	bs, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -2024,7 +2024,7 @@ func TestIssue3595(t *testing.T) {
+ 		t.Errorf("Post: %v", err)
+ 		return
+ 	}
+-	got, err := ioutil.ReadAll(res.Body)
++	got, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatalf("Body ReadAll: %v", err)
+ 	}
+@@ -2096,7 +2096,7 @@ func TestTransportConcurrency(t *testing.T) {
+ 					wg.Done()
+ 					continue
+ 				}
+-				all, err := ioutil.ReadAll(res.Body)
++				all, err := io.ReadAll(res.Body)
+ 				if err != nil {
+ 					t.Errorf("read error on req %s: %v", req, err)
+ 					wg.Done()
+@@ -2163,7 +2163,7 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
+ 			t.Errorf("Error issuing GET: %v", err)
+ 			break
+ 		}
+-		_, err = io.Copy(ioutil.Discard, sres.Body)
++		_, err = io.Copy(io.Discard, sres.Body)
+ 		if err == nil {
+ 			t.Errorf("Unexpected successful copy")
+ 			break
+@@ -2184,7 +2184,7 @@ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
+ 	})
+ 	mux.HandleFunc("/put", func(w ResponseWriter, r *Request) {
+ 		defer r.Body.Close()
+-		io.Copy(ioutil.Discard, r.Body)
++		io.Copy(io.Discard, r.Body)
+ 	})
+ 	ts := httptest.NewServer(mux)
+ 	timeout := 100 * time.Millisecond
+@@ -2338,7 +2338,7 @@ func TestTransportCancelRequest(t *testing.T) {
+ 		tr.CancelRequest(req)
+ 	}()
+ 	t0 := time.Now()
+-	body, err := ioutil.ReadAll(res.Body)
++	body, err := io.ReadAll(res.Body)
+ 	d := time.Since(t0)
+ 
+ 	if err != ExportErrRequestCanceled {
+@@ -2497,7 +2497,7 @@ func TestCancelRequestWithChannel(t *testing.T) {
+ 		close(ch)
+ 	}()
+ 	t0 := time.Now()
+-	body, err := ioutil.ReadAll(res.Body)
++	body, err := io.ReadAll(res.Body)
+ 	d := time.Since(t0)
+ 
+ 	if err != ExportErrRequestCanceled {
+@@ -2678,7 +2678,7 @@ func (fooProto) RoundTrip(req *Request) (*Response, error) {
+ 		Status:     "200 OK",
+ 		StatusCode: 200,
+ 		Header:     make(Header),
+-		Body:       ioutil.NopCloser(strings.NewReader("You wanted " + req.URL.String())),
++		Body:       io.NopCloser(strings.NewReader("You wanted " + req.URL.String())),
+ 	}
+ 	return res, nil
+ }
+@@ -2692,7 +2692,7 @@ func TestTransportAltProto(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	bodyb, err := ioutil.ReadAll(res.Body)
++	bodyb, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -2769,7 +2769,7 @@ func TestTransportSocketLateBinding(t *testing.T) {
+ 		// let the foo response finish so we can use its
+ 		// connection for /bar
+ 		fooGate <- true
+-		io.Copy(ioutil.Discard, fooRes.Body)
++		io.Copy(io.Discard, fooRes.Body)
+ 		fooRes.Body.Close()
+ 	})
+ 
+@@ -2808,7 +2808,7 @@ func TestTransportReading100Continue(t *testing.T) {
+ 				t.Error(err)
+ 				return
+ 			}
+-			slurp, err := ioutil.ReadAll(req.Body)
++			slurp, err := io.ReadAll(req.Body)
+ 			if err != nil {
+ 				t.Errorf("Server request body slurp: %v", err)
+ 				return
+@@ -2872,7 +2872,7 @@ Content-Length: %d
+ 		if id, idBack := req.Header.Get("Request-Id"), res.Header.Get("Echo-Request-Id"); id != "" && id != idBack {
+ 			t.Errorf("%s: response id %q != request id %q", name, idBack, id)
+ 		}
+-		_, err = ioutil.ReadAll(res.Body)
++		_, err = io.ReadAll(res.Body)
+ 		if err != nil {
+ 			t.Fatalf("%s: Slurp error: %v", name, err)
+ 		}
+@@ -3151,7 +3151,7 @@ func TestIdleConnChannelLeak(t *testing.T) {
+ func TestTransportClosesRequestBody(t *testing.T) {
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+-		io.Copy(ioutil.Discard, r.Body)
++		io.Copy(io.Discard, r.Body)
+ 	}))
+ 	defer ts.Close()
+ 
+@@ -3258,7 +3258,7 @@ func TestTLSServerClosesConnection(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 		<-closedc
+-		slurp, err := ioutil.ReadAll(res.Body)
++		slurp, err := io.ReadAll(res.Body)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -3273,7 +3273,7 @@ func TestTLSServerClosesConnection(t *testing.T) {
+ 			errs = append(errs, err)
+ 			continue
+ 		}
+-		slurp, err = ioutil.ReadAll(res.Body)
++		slurp, err = io.ReadAll(res.Body)
+ 		if err != nil {
+ 			errs = append(errs, err)
+ 			continue
+@@ -3344,7 +3344,7 @@ func TestTransportNoReuseAfterEarlyResponse(t *testing.T) {
+ 		sconn.c = conn
+ 		sconn.Unlock()
+ 		conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nfoo")) // keep-alive
+-		go io.Copy(ioutil.Discard, conn)
++		go io.Copy(io.Discard, conn)
+ 	}))
+ 	defer ts.Close()
+ 	c := ts.Client()
+@@ -3593,7 +3593,7 @@ func TestTransportClosesBodyOnError(t *testing.T) {
+ 	defer afterTest(t)
+ 	readBody := make(chan error, 1)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+-		_, err := ioutil.ReadAll(r.Body)
++		_, err := io.ReadAll(r.Body)
+ 		readBody <- err
+ 	}))
+ 	defer ts.Close()
+@@ -3941,7 +3941,7 @@ func TestTransportResponseCancelRace(t *testing.T) {
+ 	// If we do an early close, Transport just throws the connection away and
+ 	// doesn't reuse it. In order to trigger the bug, it has to reuse the connection
+ 	// so read the body
+-	if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
++	if _, err := io.Copy(io.Discard, res.Body); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -3978,7 +3978,7 @@ func TestTransportContentEncodingCaseInsensitive(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 
+-			body, err := ioutil.ReadAll(res.Body)
++			body, err := io.ReadAll(res.Body)
+ 			res.Body.Close()
+ 			if err != nil {
+ 				t.Fatal(err)
+@@ -4085,7 +4085,7 @@ func TestTransportFlushesBodyChunks(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	io.Copy(ioutil.Discard, req.Body)
++	io.Copy(io.Discard, req.Body)
+ 
+ 	// Unblock the transport's roundTrip goroutine.
+ 	resBody <- strings.NewReader("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+@@ -4466,7 +4466,7 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
+ 			// Do nothing for the second request.
+ 			return
+ 		}
+-		if _, err := ioutil.ReadAll(r.Body); err != nil {
++		if _, err := io.ReadAll(r.Body); err != nil {
+ 			t.Error(err)
+ 		}
+ 		if !noHooks {
+@@ -4554,7 +4554,7 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
+ 		t.Fatal(err)
+ 	}
+ 	logf("got roundtrip.response")
+-	slurp, err := ioutil.ReadAll(res.Body)
++	slurp, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -5236,7 +5236,7 @@ func wantBody(res *Response, err error, want string) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	slurp, err := ioutil.ReadAll(res.Body)
++	slurp, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		return fmt.Errorf("error reading body: %v", err)
+ 	}
+@@ -5335,7 +5335,7 @@ func TestMissingStatusNoPanic(t *testing.T) {
+ 		conn, _ := ln.Accept()
+ 		if conn != nil {
+ 			io.WriteString(conn, raw)
+-			ioutil.ReadAll(conn)
++			io.ReadAll(conn)
+ 			conn.Close()
+ 		}
+ 	}()
+@@ -5353,7 +5353,7 @@ func TestMissingStatusNoPanic(t *testing.T) {
+ 		t.Error("panicked, expecting an error")
+ 	}
+ 	if res != nil && res.Body != nil {
+-		io.Copy(ioutil.Discard, res.Body)
++		io.Copy(io.Discard, res.Body)
+ 		res.Body.Close()
+ 	}
+ 
+@@ -5539,7 +5539,7 @@ func TestClientTimeoutKillsConn_AfterHeaders(t *testing.T) {
+ 	}
+ 
+ 	close(cancel)
+-	got, err := ioutil.ReadAll(res.Body)
++	got, err := io.ReadAll(res.Body)
+ 	if err == nil {
+ 		t.Fatalf("unexpected success; read %q, nil", got)
+ 	}
+@@ -5678,7 +5678,7 @@ func TestTransportCONNECTBidi(t *testing.T) {
+ }
+ 
+ func TestTransportRequestReplayable(t *testing.T) {
+-	someBody := ioutil.NopCloser(strings.NewReader(""))
++	someBody := io.NopCloser(strings.NewReader(""))
+ 	tests := []struct {
+ 		name string
+ 		req  *Request
+@@ -5839,7 +5839,7 @@ func TestTransportRequestWriteRoundTrip(t *testing.T) {
+ 				t,
+ 				h1Mode,
+ 				HandlerFunc(func(w ResponseWriter, r *Request) {
+-					io.Copy(ioutil.Discard, r.Body)
++					io.Copy(io.Discard, r.Body)
+ 					r.Body.Close()
+ 					w.WriteHeader(200)
+ 				}),
+@@ -5975,7 +5975,7 @@ func TestTransportIgnores408(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	slurp, err := ioutil.ReadAll(res.Body)
++	slurp, err := io.ReadAll(res.Body)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -6237,7 +6237,7 @@ func TestTransportDecrementConnWhenIdleConnRemoved(t *testing.T) {
+ 			return
+ 		}
+ 		defer resp.Body.Close()
+-		_, err = ioutil.ReadAll(resp.Body)
++		_, err = io.ReadAll(resp.Body)
+ 		if err != nil {
+ 			errCh <- fmt.Errorf("read body failed: %v", err)
+ 		}
+@@ -6299,7 +6299,7 @@ func (f roundTripFunc) RoundTrip(r *Request) (*Response, error) { return f(r) }
+ func TestIssue32441(t *testing.T) {
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+-		if n, _ := io.Copy(ioutil.Discard, r.Body); n == 0 {
++		if n, _ := io.Copy(io.Discard, r.Body); n == 0 {
+ 			t.Error("body length is zero")
+ 		}
+ 	}))
+@@ -6307,7 +6307,7 @@ func TestIssue32441(t *testing.T) {
+ 	c := ts.Client()
+ 	c.Transport.(*Transport).RegisterProtocol("http", roundTripFunc(func(r *Request) (*Response, error) {
+ 		// Draining body to trigger failure condition on actual request to server.
+-		if n, _ := io.Copy(ioutil.Discard, r.Body); n == 0 {
++		if n, _ := io.Copy(io.Discard, r.Body); n == 0 {
+ 			t.Error("body length is zero during round trip")
+ 		}
+ 		return nil, ErrSkipAltProtocol
+@@ -6389,7 +6389,7 @@ func testTransportRace(req *Request) {
+ 		if err == nil {
+ 			// Ensure all the body is read; otherwise
+ 			// we'll get a partial dump.
+-			io.Copy(ioutil.Discard, req.Body)
++			io.Copy(io.Discard, req.Body)
+ 			req.Body.Close()
+ 		}
+ 		select {
+diff --git a/src/net/mail/example_test.go b/src/net/mail/example_test.go
+index c3365642aa..d325dc791f 100644
+--- a/src/net/mail/example_test.go
++++ b/src/net/mail/example_test.go
+@@ -6,7 +6,7 @@ package mail_test
+ 
+ import (
+ 	"fmt"
+-	"io/ioutil"
++	"io"
+ 	"log"
+ 	"net/mail"
+ 	"strings"
+@@ -62,7 +62,7 @@ Message body
+ 	fmt.Println("To:", header.Get("To"))
+ 	fmt.Println("Subject:", header.Get("Subject"))
+ 
+-	body, err := ioutil.ReadAll(m.Body)
++	body, err := io.ReadAll(m.Body)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 67e3643aeb..188d0bf766 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -7,7 +7,6 @@ package mail
+ import (
+ 	"bytes"
+ 	"io"
+-	"io/ioutil"
+ 	"mime"
+ 	"reflect"
+ 	"strings"
+@@ -53,7 +52,7 @@ func TestParsing(t *testing.T) {
+ 			t.Errorf("test #%d: Incorrectly parsed message header.\nGot:\n%+v\nWant:\n%+v",
+ 				i, msg.Header, test.header)
+ 		}
+-		body, err := ioutil.ReadAll(msg.Body)
++		body, err := io.ReadAll(msg.Body)
+ 		if err != nil {
+ 			t.Errorf("test #%d: Failed reading body: %v", i, err)
+ 			continue
+@@ -842,7 +841,7 @@ func TestAddressParser(t *testing.T) {
+ 
+ 	ap := AddressParser{WordDecoder: &mime.WordDecoder{
+ 		CharsetReader: func(charset string, input io.Reader) (io.Reader, error) {
+-			in, err := ioutil.ReadAll(input)
++			in, err := io.ReadAll(input)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+diff --git a/src/net/rpc/jsonrpc/all_test.go b/src/net/rpc/jsonrpc/all_test.go
+index 4e73edc70b..667f839f58 100644
+--- a/src/net/rpc/jsonrpc/all_test.go
++++ b/src/net/rpc/jsonrpc/all_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"net"
+ 	"net/rpc"
+ 	"reflect"
+@@ -249,7 +248,7 @@ func TestMalformedInput(t *testing.T) {
+ func TestMalformedOutput(t *testing.T) {
+ 	cli, srv := net.Pipe()
+ 	go srv.Write([]byte(`{"id":0,"result":null,"error":null}`))
+-	go ioutil.ReadAll(srv)
++	go io.ReadAll(srv)
+ 
+ 	client := NewClient(cli)
+ 	defer client.Close()
+@@ -271,7 +270,7 @@ func TestServerErrorHasNullResult(t *testing.T) {
+ 	}{
+ 		Reader: strings.NewReader(`{"method": "Arith.Add", "id": "123", "params": []}`),
+ 		Writer: &out,
+-		Closer: ioutil.NopCloser(nil),
++		Closer: io.NopCloser(nil),
+ 	})
+ 	r := new(rpc.Request)
+ 	if err := sc.ReadRequestHeader(r); err != nil {
+diff --git a/src/net/sendfile_test.go b/src/net/sendfile_test.go
+index 13842a1261..657a36599f 100644
+--- a/src/net/sendfile_test.go
++++ b/src/net/sendfile_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"encoding/hex"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"runtime"
+ 	"sync"
+@@ -282,7 +281,7 @@ func TestSendfilePipe(t *testing.T) {
+ 			return
+ 		}
+ 		defer conn.Close()
+-		io.Copy(ioutil.Discard, conn)
++		io.Copy(io.Discard, conn)
+ 	}()
+ 
+ 	// Wait for the byte to be copied, meaning that sendfile has
+diff --git a/src/net/splice_test.go b/src/net/splice_test.go
+index 0ba2f164c2..8a0cda6564 100644
+--- a/src/net/splice_test.go
++++ b/src/net/splice_test.go
+@@ -8,7 +8,6 @@ package net
+ 
+ import (
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+@@ -202,7 +201,7 @@ func testSpliceIssue25985(t *testing.T, upNet, downNet string) {
+ 	}
+ 	defer fromProxy.Close()
+ 
+-	_, err = ioutil.ReadAll(fromProxy)
++	_, err = io.ReadAll(fromProxy)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index a00fd2395f..5c3084f8a7 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -9,7 +9,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -426,7 +425,7 @@ func (r *Reader) closeDot() {
+ //
+ // See the documentation for the DotReader method for details about dot-encoding.
+ func (r *Reader) ReadDotBytes() ([]byte, error) {
+-	return ioutil.ReadAll(r.DotReader())
++	return io.ReadAll(r.DotReader())
+ }
+ 
+ // ReadDotLines reads a dot-encoding and returns a slice
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index ad14cd79ac..205aaa430b 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+-	"io/ioutil"
+ 	"net/internal/socktest"
+ 	"os"
+ 	"runtime"
+@@ -874,7 +873,7 @@ func testVariousDeadlines(t *testing.T) {
+ 				if err := c.SetDeadline(t0.Add(timeout)); err != nil {
+ 					t.Error(err)
+ 				}
+-				n, err := io.Copy(ioutil.Discard, c)
++				n, err := io.Copy(io.Discard, c)
+ 				dt := time.Since(t0)
+ 				c.Close()
+ 				ch <- result{n, err, dt}
+diff --git a/src/net/writev_test.go b/src/net/writev_test.go
+index a6b3285e57..d603b7f70a 100644
+--- a/src/net/writev_test.go
++++ b/src/net/writev_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"fmt"
+ 	"internal/poll"
+ 	"io"
+-	"io/ioutil"
+ 	"reflect"
+ 	"runtime"
+ 	"sync"
+@@ -28,7 +27,7 @@ func TestBuffers_read(t *testing.T) {
+ 		[]byte("in "),
+ 		[]byte("Gopherland ... "),
+ 	}
+-	got, err := ioutil.ReadAll(&buffers)
++	got, err := io.ReadAll(&buffers)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -141,7 +140,7 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
+ 		}
+ 		return nil
+ 	}, func(c *TCPConn) error {
+-		all, err := ioutil.ReadAll(c)
++		all, err := io.ReadAll(c)
+ 		if !bytes.Equal(all, want.Bytes()) || err != nil {
+ 			return fmt.Errorf("client read %q, %v; want %q, nil", all, err, want.Bytes())
+ 		}
+diff --git a/src/os/exec/example_test.go b/src/os/exec/example_test.go
+index 62866fa710..a66890be69 100644
+--- a/src/os/exec/example_test.go
++++ b/src/os/exec/example_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+@@ -128,7 +127,7 @@ func ExampleCmd_StderrPipe() {
+ 		log.Fatal(err)
+ 	}
+ 
+-	slurp, _ := ioutil.ReadAll(stderr)
++	slurp, _ := io.ReadAll(stderr)
+ 	fmt.Printf("%s\n", slurp)
+ 
+ 	if err := cmd.Wait(); err != nil {
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 9746722980..cd3d759ebc 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -637,7 +637,7 @@ func TestExtraFiles(t *testing.T) {
+ 	// cgo), to make sure none of that potential C code leaks fds.
+ 	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+ 	// quiet expected TLS handshake error "remote error: bad certificate"
+-	ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
++	ts.Config.ErrorLog = log.New(io.Discard, "", 0)
+ 	ts.StartTLS()
+ 	defer ts.Close()
+ 	_, err = http.Get(ts.URL)
+@@ -830,7 +830,7 @@ func TestHelperProcess(*testing.T) {
+ 			}
+ 		}
+ 	case "stdinClose":
+-		b, err := ioutil.ReadAll(os.Stdin)
++		b, err := io.ReadAll(os.Stdin)
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+ 			os.Exit(1)
+diff --git a/src/os/exec/read3.go b/src/os/exec/read3.go
+index 25d732a991..8852023e77 100644
+--- a/src/os/exec/read3.go
++++ b/src/os/exec/read3.go
+@@ -15,7 +15,7 @@ package main
+ import (
+ 	"fmt"
+ 	"internal/poll"
+-	"io/ioutil"
++	"io"
+ 	"os"
+ 	"os/exec"
+ 	"runtime"
+@@ -24,7 +24,7 @@ import (
+ 
+ func main() {
+ 	fd3 := os.NewFile(3, "fd3")
+-	bs, err := ioutil.ReadAll(fd3)
++	bs, err := io.ReadAll(fd3)
+ 	if err != nil {
+ 		fmt.Printf("ReadAll from fd 3: %v\n", err)
+ 		os.Exit(1)
+diff --git a/src/os/timeout_test.go b/src/os/timeout_test.go
+index 99b94c2e4c..d848e41642 100644
+--- a/src/os/timeout_test.go
++++ b/src/os/timeout_test.go
+@@ -429,7 +429,7 @@ func testVariousDeadlines(t *testing.T) {
+ 					if err := r.SetDeadline(t0.Add(timeout)); err != nil {
+ 						t.Error(err)
+ 					}
+-					n, err := io.Copy(ioutil.Discard, r)
++					n, err := io.Copy(io.Discard, r)
+ 					dt := time.Since(t0)
+ 					r.Close()
+ 					actvch <- result{n, err, dt}
+@@ -565,7 +565,7 @@ func TestRacyWrite(t *testing.T) {
+ 	var wg sync.WaitGroup
+ 	defer wg.Wait()
+ 
+-	go io.Copy(ioutil.Discard, r)
++	go io.Copy(io.Discard, r)
+ 
+ 	w.SetWriteDeadline(time.Now().Add(time.Millisecond))
+ 	for i := 0; i < 10; i++ {
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index 8ef52aba48..fc87f37408 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -241,7 +241,7 @@ func TestPanicSystemstack(t *testing.T) {
+ 	}
+ 
+ 	// Get traceback.
+-	tb, err := ioutil.ReadAll(pr)
++	tb, err := io.ReadAll(pr)
+ 	if err != nil {
+ 		t.Fatal("reading traceback from pipe: ", err)
+ 	}
+diff --git a/src/runtime/testdata/testprogcgo/eintr.go b/src/runtime/testdata/testprogcgo/eintr.go
+index 791ff1bedc..1722a75eb9 100644
+--- a/src/runtime/testdata/testprogcgo/eintr.go
++++ b/src/runtime/testdata/testprogcgo/eintr.go
+@@ -32,7 +32,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"net"
+ 	"os"
+@@ -242,5 +241,5 @@ func testExec(wg *sync.WaitGroup) {
+ 
+ // Block blocks until stdin is closed.
+ func Block() {
+-	io.Copy(ioutil.Discard, os.Stdin)
++	io.Copy(io.Discard, os.Stdin)
+ }
+diff --git a/src/strings/reader_test.go b/src/strings/reader_test.go
+index a4c211d699..5adea6f7ab 100644
+--- a/src/strings/reader_test.go
++++ b/src/strings/reader_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -162,7 +161,7 @@ func TestWriteTo(t *testing.T) {
+ // tests that Len is affected by reads, but Size is not.
+ func TestReaderLenSize(t *testing.T) {
+ 	r := strings.NewReader("abc")
+-	io.CopyN(ioutil.Discard, r, 1)
++	io.CopyN(io.Discard, r, 1)
+ 	if r.Len() != 2 {
+ 		t.Errorf("Len = %d; want 2", r.Len())
+ 	}
+@@ -182,7 +181,7 @@ func TestReaderReset(t *testing.T) {
+ 	if err := r.UnreadRune(); err == nil {
+ 		t.Errorf("UnreadRune: expected error, got nil")
+ 	}
+-	buf, err := ioutil.ReadAll(r)
++	buf, err := io.ReadAll(r)
+ 	if err != nil {
+ 		t.Errorf("ReadAll: unexpected error: %v", err)
+ 	}
+@@ -228,7 +227,7 @@ func TestReaderZero(t *testing.T) {
+ 		t.Errorf("UnreadRune: got nil, want error")
+ 	}
+ 
+-	if n, err := (&strings.Reader{}).WriteTo(ioutil.Discard); n != 0 || err != nil {
++	if n, err := (&strings.Reader{}).WriteTo(io.Discard); n != 0 || err != nil {
+ 		t.Errorf("WriteTo: got %d, %v; want 0, nil", n, err)
+ 	}
+ }
+diff --git a/src/syscall/mkpost.go b/src/syscall/mkpost.go
+index d5f5c8d6d6..ef89128310 100644
+--- a/src/syscall/mkpost.go
++++ b/src/syscall/mkpost.go
+@@ -14,7 +14,7 @@ package main
+ import (
+ 	"fmt"
+ 	"go/format"
+-	"io/ioutil"
++	"io"
+ 	"log"
+ 	"os"
+ 	"regexp"
+@@ -22,7 +22,7 @@ import (
+ )
+ 
+ func main() {
+-	b, err := ioutil.ReadAll(os.Stdin)
++	b, err := io.ReadAll(os.Stdin)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+diff --git a/src/syscall/syscall_unix_test.go b/src/syscall/syscall_unix_test.go
+index d754c075f1..1c34ed2c27 100644
+--- a/src/syscall/syscall_unix_test.go
++++ b/src/syscall/syscall_unix_test.go
+@@ -225,7 +225,7 @@ func TestPassFD(t *testing.T) {
+ 	f := os.NewFile(uintptr(gotFds[0]), "fd-from-child")
+ 	defer f.Close()
+ 
+-	got, err := ioutil.ReadAll(f)
++	got, err := io.ReadAll(f)
+ 	want := "Hello from child process!\n"
+ 	if string(got) != want {
+ 		t.Errorf("child process ReadAll: %q, %v; want %q", got, err, want)
+diff --git a/src/testing/iotest/reader.go b/src/testing/iotest/reader.go
+index 33b782dcb6..770d87f26b 100644
+--- a/src/testing/iotest/reader.go
++++ b/src/testing/iotest/reader.go
+@@ -10,7 +10,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ )
+ 
+ // OneByteReader returns a Reader that implements
+@@ -142,7 +141,7 @@ func TestReader(r io.Reader, content []byte) error {
+ 		}
+ 	}
+ 
+-	data, err := ioutil.ReadAll(&smallByteReader{r: r})
++	data, err := io.ReadAll(&smallByteReader{r: r})
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -181,7 +180,7 @@ func TestReader(r io.Reader, content []byte) error {
+ 		}
+ 
+ 		// Reading forward should return the last part of the file.
+-		data, err := ioutil.ReadAll(&smallByteReader{r: r})
++		data, err := io.ReadAll(&smallByteReader{r: r})
+ 		if err != nil {
+ 			return fmt.Errorf("ReadAll from offset %d: %v", middle, err)
+ 		}
+@@ -198,7 +197,7 @@ func TestReader(r io.Reader, content []byte) error {
+ 		}
+ 
+ 		// Reading forward should return the last part of the file (again).
+-		data, err = ioutil.ReadAll(&smallByteReader{r: r})
++		data, err = io.ReadAll(&smallByteReader{r: r})
+ 		if err != nil {
+ 			return fmt.Errorf("ReadAll from offset %d: %v", middle, err)
+ 		}
+@@ -210,7 +209,7 @@ func TestReader(r io.Reader, content []byte) error {
+ 		if off, err := r.Seek(int64(middle/2), 0); off != int64(middle/2) || err != nil {
+ 			return fmt.Errorf("Seek(%d, 0) from EOF = %d, %v, want %d, nil", middle/2, off, err, middle/2)
+ 		}
+-		data, err = ioutil.ReadAll(r)
++		data, err = io.ReadAll(r)
+ 		if err != nil {
+ 			return fmt.Errorf("ReadAll from offset %d: %v", middle/2, err)
+ 		}
+diff --git a/src/text/tabwriter/tabwriter_test.go b/src/text/tabwriter/tabwriter_test.go
+index 6a97d4c427..a51358dbed 100644
+--- a/src/text/tabwriter/tabwriter_test.go
++++ b/src/text/tabwriter/tabwriter_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"testing"
+ 	. "text/tabwriter"
+ )
+@@ -664,7 +663,7 @@ func BenchmarkTable(b *testing.B) {
+ 				b.Run("new", func(b *testing.B) {
+ 					b.ReportAllocs()
+ 					for i := 0; i < b.N; i++ {
+-						w := NewWriter(ioutil.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
++						w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
+ 						// Write the line h times.
+ 						for j := 0; j < h; j++ {
+ 							w.Write(line)
+@@ -675,7 +674,7 @@ func BenchmarkTable(b *testing.B) {
+ 
+ 				b.Run("reuse", func(b *testing.B) {
+ 					b.ReportAllocs()
+-					w := NewWriter(ioutil.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
++					w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
+ 					for i := 0; i < b.N; i++ {
+ 						// Write the line h times.
+ 						for j := 0; j < h; j++ {
+@@ -696,7 +695,7 @@ func BenchmarkPyramid(b *testing.B) {
+ 		b.Run(fmt.Sprintf("%d", x), func(b *testing.B) {
+ 			b.ReportAllocs()
+ 			for i := 0; i < b.N; i++ {
+-				w := NewWriter(ioutil.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
++				w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
+ 				// Write increasing prefixes of that line.
+ 				for j := 0; j < x; j++ {
+ 					w.Write(line[:j*2])
+@@ -718,7 +717,7 @@ func BenchmarkRagged(b *testing.B) {
+ 		b.Run(fmt.Sprintf("%d", h), func(b *testing.B) {
+ 			b.ReportAllocs()
+ 			for i := 0; i < b.N; i++ {
+-				w := NewWriter(ioutil.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
++				w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
+ 				// Write the lines in turn h times.
+ 				for j := 0; j < h; j++ {
+ 					w.Write(lines[j%len(lines)])
+@@ -746,7 +745,7 @@ lines
+ func BenchmarkCode(b *testing.B) {
+ 	b.ReportAllocs()
+ 	for i := 0; i < b.N; i++ {
+-		w := NewWriter(ioutil.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
++		w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
+ 		// The code is small, so it's reasonable for the tabwriter user
+ 		// to write it all at once, or buffer the writes.
+ 		w.Write([]byte(codeSnippet))
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 3309b33e3e..1611ee054f 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -9,7 +9,7 @@ import (
+ 	"errors"
+ 	"flag"
+ 	"fmt"
+-	"io/ioutil"
++	"io"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+@@ -1328,7 +1328,7 @@ func TestExecuteGivesExecError(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	err = tmpl.Execute(ioutil.Discard, 0)
++	err = tmpl.Execute(io.Discard, 0)
+ 	if err == nil {
+ 		t.Fatal("expected error; got none")
+ 	}
+@@ -1474,7 +1474,7 @@ func TestEvalFieldErrors(t *testing.T) {
+ 	for _, tc := range tests {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			tmpl := Must(New("tmpl").Parse(tc.src))
+-			err := tmpl.Execute(ioutil.Discard, tc.value)
++			err := tmpl.Execute(io.Discard, tc.value)
+ 			got := "<nil>"
+ 			if err != nil {
+ 				got = err.Error()
+@@ -1491,7 +1491,7 @@ func TestMaxExecDepth(t *testing.T) {
+ 		t.Skip("skipping in -short mode")
+ 	}
+ 	tmpl := Must(New("tmpl").Parse(`{{template "tmpl" .}}`))
+-	err := tmpl.Execute(ioutil.Discard, nil)
++	err := tmpl.Execute(io.Discard, nil)
+ 	got := "<nil>"
+ 	if err != nil {
+ 		got = err.Error()
+diff --git a/src/time/genzabbrs.go b/src/time/genzabbrs.go
+index 38397f91b7..1d59ba73ce 100644
+--- a/src/time/genzabbrs.go
++++ b/src/time/genzabbrs.go
+@@ -17,6 +17,7 @@ import (
+ 	"encoding/xml"
+ 	"flag"
+ 	"go/format"
++	"io"
+ 	"io/ioutil"
+ 	"log"
+ 	"net/http"
+@@ -71,7 +72,7 @@ func readWindowsZones() ([]*zone, error) {
+ 	}
+ 	defer r.Body.Close()
+ 
+-	data, err := ioutil.ReadAll(r.Body)
++	data, err := io.ReadAll(r.Body)
+ 	if err != nil {
+ 		return nil, err
+ 	}

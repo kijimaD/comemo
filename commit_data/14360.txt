@@ -7,8 +7,53 @@ Date:   Thu Nov 8 09:04:27 2012 -0800
     R=golang-dev, remyoudompheng, iant, rsc
     CC=golang-dev
     https://golang.org/cl/6833043
-
+---
  test/args.go | 5 +----
  test/nul1.go | 8 +-------
  test/run.go  | 3 ---
  3 files changed, 2 insertions(+), 14 deletions(-)
+
+diff --git a/test/args.go b/test/args.go
+index 9cfddc338b..0ffe8101e9 100644
+--- a/test/args.go
++++ b/test/args.go
+@@ -1,7 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out arg1 arg2
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// run arg1 arg2
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nul1.go b/test/nul1.go
+index 968c952951..20426b4fa0 100644
+--- a/test/nul1.go
++++ b/test/nul1.go
+@@ -1,10 +1,4 @@
+-// [ "$GORUN" == "" ] || exit 0  # Android runner gets confused by the NUL output 
+-// $G $D/$F.go && $L $F.$A && ./$A.out >tmp.go &&
+-// errchk $G -e tmp.go
+-// rm -f tmp.go
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// errorcheckoutput
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run.go b/test/run.go
+index 2b874d7dfc..420b5ddd00 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -676,10 +676,7 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
+ }
+ 
+ var skipOkay = map[string]bool{
+-	"args.go":                 true,
+-	"index.go":                true,
+ 	"linkx.go":                true,
+-	"nul1.go":                 true,
+ 	"rotate.go":               true,
+ 	"sigchld.go":              true,
+ 	"sinit.go":                true,

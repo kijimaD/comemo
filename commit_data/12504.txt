@@ -7,7 +7,7 @@ Date:   Thu Mar 8 14:18:28 2012 +1100
     R=golang-dev, nigeltao
     CC=golang-dev
     https://golang.org/cl/5758047
-
+---
  doc/button_background.png       | Bin 126 -> 0 bytes
  doc/go-logo-black.png           | Bin 8855 -> 8843 bytes
  doc/go-logo-blue.png            | Bin 10874 -> 9360 bytes
@@ -36,3 +36,93 @@ Date:   Thu Mar 8 14:18:28 2012 +1100
  doc/video-004.png               | Bin 22713 -> 0 bytes
  doc/video-005.jpg               | Bin 6783 -> 0 bytes
  27 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/button_background.png b/doc/button_background.png
+deleted file mode 100644
+index 86a3b3086a..0000000000
+Binary files a/doc/button_background.png and /dev/null differ
+diff --git a/doc/go-logo-black.png b/doc/go-logo-black.png
+index 29be31943a..3077ebdad0 100644
+Binary files a/doc/go-logo-black.png and b/doc/go-logo-black.png differ
+diff --git a/doc/go-logo-blue.png b/doc/go-logo-blue.png
+index b9eac2727e..8d43a56775 100644
+Binary files a/doc/go-logo-blue.png and b/doc/go-logo-blue.png differ
+diff --git a/doc/go-logo-white.png b/doc/go-logo-white.png
+index 4011069eb7..fa29169fab 100644
+Binary files a/doc/go-logo-white.png and b/doc/go-logo-white.png differ
+diff --git a/doc/gopher/bumper.png b/doc/gopher/bumper.png
+index 6b41c1fd09..b357cdf47d 100644
+Binary files a/doc/gopher/bumper.png and b/doc/gopher/bumper.png differ
+diff --git a/doc/gopher/bumper192x108.png b/doc/gopher/bumper192x108.png
+index 470a74df5e..925474e763 100644
+Binary files a/doc/gopher/bumper192x108.png and b/doc/gopher/bumper192x108.png differ
+diff --git a/doc/gopher/bumper320x180.png b/doc/gopher/bumper320x180.png
+index 5b31b5d315..611c417c4f 100644
+Binary files a/doc/gopher/bumper320x180.png and b/doc/gopher/bumper320x180.png differ
+diff --git a/doc/gopher/bumper480x270.png b/doc/gopher/bumper480x270.png
+index 621f51b65b..cf187151fd 100644
+Binary files a/doc/gopher/bumper480x270.png and b/doc/gopher/bumper480x270.png differ
+diff --git a/doc/gopher/bumper640x360.png b/doc/gopher/bumper640x360.png
+index 9c898d0c79..a5073e0d1a 100644
+Binary files a/doc/gopher/bumper640x360.png and b/doc/gopher/bumper640x360.png differ
+diff --git a/doc/gopher/doc.png b/doc/gopher/doc.png
+index 3604e397c0..e15a3234d5 100644
+Binary files a/doc/gopher/doc.png and b/doc/gopher/doc.png differ
+diff --git a/doc/gopher/gopherbw.png b/doc/gopher/gopherbw.png
+index 48a08cc613..3bfe85dc16 100644
+Binary files a/doc/gopher/gopherbw.png and b/doc/gopher/gopherbw.png differ
+diff --git a/doc/gopher/gophercolor.png b/doc/gopher/gophercolor.png
+index b48ffba374..b5f8d01ff6 100644
+Binary files a/doc/gopher/gophercolor.png and b/doc/gopher/gophercolor.png differ
+diff --git a/doc/gopher/gophercolor16x16.png b/doc/gopher/gophercolor16x16.png
+index 48854ff3b7..ec7028cc11 100644
+Binary files a/doc/gopher/gophercolor16x16.png and b/doc/gopher/gophercolor16x16.png differ
+diff --git a/doc/gopher/help.png b/doc/gopher/help.png
+index 75aa74ab85..6ee523898d 100644
+Binary files a/doc/gopher/help.png and b/doc/gopher/help.png differ
+diff --git a/doc/gopher/pkg.png b/doc/gopher/pkg.png
+index 9091b93026..ac96551b55 100644
+Binary files a/doc/gopher/pkg.png and b/doc/gopher/pkg.png differ
+diff --git a/doc/gopher/project.png b/doc/gopher/project.png
+index e729a318e6..24603f3068 100644
+Binary files a/doc/gopher/project.png and b/doc/gopher/project.png differ
+diff --git a/doc/gopher/ref.png b/doc/gopher/ref.png
+index 26530a3a0a..72fdd06a5d 100644
+Binary files a/doc/gopher/ref.png and b/doc/gopher/ref.png differ
+diff --git a/doc/gopher/run.png b/doc/gopher/run.png
+index 4547371f8c..eb690e3f22 100644
+Binary files a/doc/gopher/run.png and b/doc/gopher/run.png differ
+diff --git a/doc/gopher/talks.png b/doc/gopher/talks.png
+index 03ab7ef150..589db470a7 100644
+Binary files a/doc/gopher/talks.png and b/doc/gopher/talks.png differ
+diff --git a/doc/logo-153x55.png b/doc/logo-153x55.png
+index 4a2446ce72..8ec22aa6dd 100644
+Binary files a/doc/logo-153x55.png and b/doc/logo-153x55.png differ
+diff --git a/doc/logo.png b/doc/logo.png
+deleted file mode 100644
+index 076ce398eb..0000000000
+Binary files a/doc/logo.png and /dev/null differ
+diff --git a/doc/play_overlay.png b/doc/play_overlay.png
+deleted file mode 100644
+index 20ef7f3996..0000000000
+Binary files a/doc/play_overlay.png and /dev/null differ
+diff --git a/doc/video-001.png b/doc/video-001.png
+deleted file mode 100644
+index d3468bbe8f..0000000000
+Binary files a/doc/video-001.png and /dev/null differ
+diff --git a/doc/video-002.png b/doc/video-002.png
+deleted file mode 100644
+index 4f7c5d1849..0000000000
+Binary files a/doc/video-002.png and /dev/null differ
+diff --git a/doc/video-003.png b/doc/video-003.png
+deleted file mode 100644
+index 3dff686029..0000000000
+Binary files a/doc/video-003.png and /dev/null differ
+diff --git a/doc/video-004.png b/doc/video-004.png
+deleted file mode 100644
+index 92144549ab..0000000000
+Binary files a/doc/video-004.png and /dev/null differ
+diff --git a/doc/video-005.jpg b/doc/video-005.jpg
+deleted file mode 100644
+index 32371581f5..0000000000
+Binary files a/doc/video-005.jpg and /dev/null differ

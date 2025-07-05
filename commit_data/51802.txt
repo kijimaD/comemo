@@ -15,6 +15,26 @@ Date:   Mon Feb 14 17:20:48 2022 -0800
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/package.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/package.go b/src/go/types/package.go
+index 7b89def1b5..26385dc39b 100644
+--- a/src/go/types/package.go
++++ b/src/go/types/package.go
+@@ -39,7 +39,13 @@ func (pkg *Package) SetName(name string) { pkg.name = name }
+ // Scope returns the (complete or incomplete) package scope
+ // holding the objects declared at package level (TypeNames,
+ // Consts, Vars, and Funcs).
+-func (pkg *Package) Scope() *Scope { return pkg.scope }
++// For a nil pkg receiver, Scope returns the Universe scope.
++func (pkg *Package) Scope() *Scope {
++	if pkg != nil {
++		return pkg.scope
++	}
++	return Universe
++}
+ 
+ // A package is complete if its scope contains (at least) all
+ // exported objects; otherwise it is incomplete.

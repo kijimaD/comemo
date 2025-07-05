@@ -16,6 +16,20 @@ Date:   Sun Mar 24 12:06:41 2024 +0000
     Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/os/readfrom_linux_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/readfrom_linux_test.go b/src/os/readfrom_linux_test.go
+index 93f78032e7..b292bffe2b 100644
+--- a/src/os/readfrom_linux_test.go
++++ b/src/os/readfrom_linux_test.go
+@@ -424,7 +424,7 @@ func testSpliceToTTY(t *testing.T, proto string, size int64) {
+ 	// to recreate the problem in the issue (#59041).
+ 	ttyFD, err := syscall.Open(ttyName, syscall.O_RDWR, 0)
+ 	if err != nil {
+-		t.Skipf("skipping test becaused failed to open tty: %v", err)
++		t.Skipf("skipping test because failed to open tty: %v", err)
+ 	}
+ 	defer syscall.Close(ttyFD)
+ 

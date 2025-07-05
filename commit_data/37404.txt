@@ -14,8 +14,64 @@ Date:   Wed Jul 25 15:24:27 2018 -0700
     Change-Id: I48cf72d9eb5016353c43074e6aff6495af326f35
     Reviewed-on: https://go-review.googlesource.com/125995
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  misc/cgo/testgodefs/fieldtypedef.go | 18 ++++++++++++++++++
  misc/cgo/testgodefs/test.bash       |  2 +-
  src/cmd/cgo/gcc.go                  |  7 +++++++
  3 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testgodefs/fieldtypedef.go b/misc/cgo/testgodefs/fieldtypedef.go
+new file mode 100644
+index 0000000000..45c0bf8653
+--- /dev/null
++++ b/misc/cgo/testgodefs/fieldtypedef.go
+@@ -0,0 +1,18 @@
++// Copyright 2018 The Go Authors. All rights reserve d.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// +build ignore
++
++package main
++
++/*
++struct S1 { int f1; };
++struct S2 { struct S1 s1; };
++typedef struct S1 S1Type;
++typedef struct S2 S2Type;
++*/
++import "C"
++
++type S1 C.S1Type
++type S2 C.S2Type
+diff --git a/misc/cgo/testgodefs/test.bash b/misc/cgo/testgodefs/test.bash
+index a82ff9328f..012d007fc3 100755
+--- a/misc/cgo/testgodefs/test.bash
++++ b/misc/cgo/testgodefs/test.bash
+@@ -7,7 +7,7 @@
+ # We are testing cgo -godefs, which translates Go files that use
+ # import "C" into Go files with Go definitions of types defined in the
+ # import "C" block.  Add more tests here.
+-FILE_PREFIXES="anonunion issue8478"
++FILE_PREFIXES="anonunion issue8478 fieldtypedef"
+ 
+ RM=
+ for FP in $FILE_PREFIXES
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 8bd4093587..0b4038fb77 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -180,6 +180,13 @@ func (p *Package) Translate(f *File) {
+ 		if len(needType) > 0 {
+ 			p.loadDWARF(f, needType)
+ 		}
++
++		// In godefs mode we're OK with the typedefs, which
++		// will presumably also be defined in the file, we
++		// don't want to resolve them to their base types.
++		if *godefs {
++			break
++		}
+ 	}
+ 	if p.rewriteCalls(f) {
+ 		// Add `import _cgo_unsafe "unsafe"` after the package statement.

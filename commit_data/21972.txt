@@ -15,7 +15,7 @@ Date:   Thu Jan 29 22:37:41 2015 -0500
     Change-Id: I5c0f07956971e3a9ff9b9d9631e6e3a08c20df15
     Reviewed-on: https://go-review.googlesource.com/3580
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/signal/sig.s              |  3 ++
  src/os/signal/signal.go          | 57 ++++++++++++++++++++++++++++++++--
  src/os/signal/signal_plan9.go    |  5 +++
@@ -29,3 +29,314 @@ Date:   Thu Jan 29 22:37:41 2015 -0500
  src/runtime/sigqueue.go          |  9 ++++++
  src/runtime/sigqueue_plan9.go    |  4 +++
  12 files changed, 169 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/signal/sig.s b/src/os/signal/sig.s
+index 5a042a0964..f54e6ff9c0 100644
+--- a/src/os/signal/sig.s
++++ b/src/os/signal/sig.s
+@@ -24,6 +24,9 @@ TEXT ·signal_disable(SB),NOSPLIT,$0
+ TEXT ·signal_enable(SB),NOSPLIT,$0
+ 	JMP runtime·signal_enable(SB)
+ 
++TEXT ·signal_ignore(SB),NOSPLIT,$0
++	JMP runtime·signal_ignore(SB)
++
+ TEXT ·signal_recv(SB),NOSPLIT,$0
+ 	JMP runtime·signal_recv(SB)
+ 
+diff --git a/src/os/signal/signal.go b/src/os/signal/signal.go
+index 81906d6f40..1625786d49 100644
+--- a/src/os/signal/signal.go
++++ b/src/os/signal/signal.go
+@@ -28,9 +28,55 @@ func (h *handler) set(sig int) {
+ 	h.mask[sig/32] |= 1 << uint(sig&31)
+ }
+ 
++func (h *handler) clear(sig int) {
++	h.mask[sig/32] &^= 1 << uint(sig&31)
++}
++
++// Stop relaying the signals, sigs, to any channels previously registered to
++// receive them and either reset the signal handlers to their original values
++// (action=disableSignal) or ignore the signals (action=ignoreSignal).
++func cancel(sigs []os.Signal, action func(int)) {
++	handlers.Lock()
++	defer handlers.Unlock()
++
++	remove := func(n int) {
++		var zerohandler handler
++
++		for c, h := range handlers.m {
++			if h.want(n) {
++				handlers.ref[n]--
++				h.clear(n)
++				if h.mask == zerohandler.mask {
++					delete(handlers.m, c)
++				}
++			}
++		}
++
++		action(n)
++	}
++
++	if len(sigs) == 0 {
++		for n := 0; n < numSig; n++ {
++			remove(n)
++		}
++	} else {
++		for _, s := range sigs {
++			remove(signum(s))
++		}
++	}
++}
++
++// Ignore causes the provided signals to be ignored. If they are received by
++// the program, nothing will happen. Ignore undoes the effect of any prior
++// calls to Notify for the provided signals.
++// If no signals are provided, all incoming signals will be ignored.
++func Ignore(sig ...os.Signal) {
++	cancel(sig, ignoreSignal)
++}
++
+ // Notify causes package signal to relay incoming signals to c.
+-// If no signals are listed, all incoming signals will be relayed to c.
+-// Otherwise, just the listed signals will.
++// If no signals are provided, all incoming signals will be relayed to c.
++// Otherwise, just the provided signals will.
+ //
+ // Package signal will not block sending to c: the caller must ensure
+ // that c has sufficient buffer space to keep up with the expected
+@@ -85,6 +131,13 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
+ 	}
+ }
+ 
++// Reset undoes the effect of any prior calls to Notify for the provided
++// signals.
++// If no signals are provided, all signal handlers will be reset.
++func Reset(sig ...os.Signal) {
++	cancel(sig, disableSignal)
++}
++
+ // Stop causes package signal to stop relaying incoming signals to c.
+ // It undoes the effect of all prior calls to Notify using c.
+ // When Stop returns, it is guaranteed that c will receive no more signals.
+diff --git a/src/os/signal/signal_plan9.go b/src/os/signal/signal_plan9.go
+index 45355da48a..b065ae520d 100644
+--- a/src/os/signal/signal_plan9.go
++++ b/src/os/signal/signal_plan9.go
+@@ -14,6 +14,7 @@ var sigtab = make(map[os.Signal]int)
+ // In sig.s; jumps to runtime.
+ func signal_disable(uint32)
+ func signal_enable(uint32)
++func signal_ignore(uint32)
+ func signal_recv() string
+ 
+ func init() {
+@@ -53,3 +54,7 @@ func enableSignal(sig int) {
+ func disableSignal(sig int) {
+ 	signal_disable(uint32(sig))
+ }
++
++func ignoreSignal(sig int) {
++	signal_ignore(uint32(sig))
++}
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index 22337a72d4..a71633c890 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -109,6 +109,72 @@ func TestStress(t *testing.T) {
+ 	time.Sleep(10 * time.Millisecond)
+ }
+ 
++func testCancel(t *testing.T, ignore bool) {
++	// Send SIGWINCH. By default this signal should be ignored.
++	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
++	time.Sleep(100 * time.Millisecond)
++
++	// Ask to be notified on c1 when a SIGWINCH is received.
++	c1 := make(chan os.Signal, 1)
++	Notify(c1, syscall.SIGWINCH)
++	defer Stop(c1)
++
++	// Ask to be notified on c2 when a SIGHUP is received.
++	c2 := make(chan os.Signal, 1)
++	Notify(c2, syscall.SIGHUP)
++	defer Stop(c2)
++
++	// Send this process a SIGWINCH and wait for notification on c1.
++	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
++	waitSig(t, c1, syscall.SIGWINCH)
++
++	// Send this process a SIGHUP and wait for notification on c2.
++	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
++	waitSig(t, c2, syscall.SIGHUP)
++
++	// Ignore, or reset the signal handlers for, SIGWINCH and SIGHUP.
++	if ignore {
++		Ignore(syscall.SIGWINCH, syscall.SIGHUP)
++	} else {
++		Reset(syscall.SIGWINCH, syscall.SIGHUP)
++	}
++
++	// Send this process a SIGWINCH. It should be ignored.
++	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
++
++	// If ignoring, Send this process a SIGHUP. It should be ignored.
++	if ignore {
++		syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
++	}
++
++	select {
++	case s := <-c1:
++		t.Fatalf("unexpected signal %v", s)
++	case <-time.After(100 * time.Millisecond):
++		// nothing to read - good
++	}
++
++	select {
++	case s := <-c2:
++		t.Fatalf("unexpected signal %v", s)
++	case <-time.After(100 * time.Millisecond):
++		// nothing to read - good
++	}
++
++	// Reset the signal handlers for all signals.
++	Reset()
++}
++
++// Test that Reset cancels registration for listed signals on all channels.
++func TestReset(t *testing.T) {
++	testCancel(t, false)
++}
++
++// Test that Ignore cancels registration for listed signals on all channels.
++func TestIgnore(t *testing.T) {
++	testCancel(t, true)
++}
++
+ var sendUncaughtSighup = flag.Int("send_uncaught_sighup", 0, "send uncaught SIGHUP during TestStop")
+ 
+ // Test that Stop cancels the channel's registrations.
+diff --git a/src/os/signal/signal_unix.go b/src/os/signal/signal_unix.go
+index 94b8ab3ddb..1bdf1d7271 100644
+--- a/src/os/signal/signal_unix.go
++++ b/src/os/signal/signal_unix.go
+@@ -14,6 +14,7 @@ import (
+ // In assembly.
+ func signal_disable(uint32)
+ func signal_enable(uint32)
++func signal_ignore(uint32)
+ func signal_recv() uint32
+ 
+ func loop() {
+@@ -51,3 +52,7 @@ func enableSignal(sig int) {
+ func disableSignal(sig int) {
+ 	signal_disable(uint32(sig))
+ }
++
++func ignoreSignal(sig int) {
++	signal_ignore(uint32(sig))
++}
+diff --git a/src/runtime/os1_nacl.go b/src/runtime/os1_nacl.go
+index c44d87645e..a27a13f114 100644
+--- a/src/runtime/os1_nacl.go
++++ b/src/runtime/os1_nacl.go
+@@ -174,6 +174,7 @@ func munmap(addr unsafe.Pointer, n uintptr)               {}
+ func resetcpuprofiler(hz int32)                           {}
+ func sigdisable(uint32)                                   {}
+ func sigenable(uint32)                                    {}
++func sigignore(uint32)                                    {}
+ func closeonexec(int32)                                   {}
+ 
+ var writelock uint32 // test-and-set spin lock for write
+diff --git a/src/runtime/os1_windows_386.go b/src/runtime/os1_windows_386.go
+index b7eae204d1..f105539659 100644
+--- a/src/runtime/os1_windows_386.go
++++ b/src/runtime/os1_windows_386.go
+@@ -118,3 +118,6 @@ func sigenable(sig uint32) {
+ 
+ func sigdisable(sig uint32) {
+ }
++
++func sigignore(sig uint32) {
++}
+diff --git a/src/runtime/os1_windows_amd64.go b/src/runtime/os1_windows_amd64.go
+index 4163fcf23d..1b6b99988d 100644
+--- a/src/runtime/os1_windows_amd64.go
++++ b/src/runtime/os1_windows_amd64.go
+@@ -137,3 +137,6 @@ func sigenable(sig uint32) {
+ 
+ func sigdisable(sig uint32) {
+ }
++
++func sigignore(sig uint32) {
++}
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index 8ecbca0174..27519debd3 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -106,6 +106,9 @@ func sigenable(sig uint32) {
+ func sigdisable(sig uint32) {
+ }
+ 
++func sigignore(sig uint32) {
++}
++
+ func resetcpuprofiler(hz int32) {
+ 	// TODO: Enable profiling interrupts.
+ 	getg().m.profilehz = hz
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index 253ee9f465..184fd125fb 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -78,6 +78,18 @@ func sigdisable(sig uint32) {
+ 	}
+ }
+ 
++func sigignore(sig uint32) {
++	if sig >= uint32(len(sigtable)) {
++		return
++	}
++
++	t := &sigtable[sig]
++	if t.flags&_SigNotify != 0 {
++		t.flags &^= _SigHandling
++		setsig(int32(sig), _SIG_IGN, true)
++	}
++}
++
+ func resetcpuprofiler(hz int32) {
+ 	var it itimerval
+ 	if hz == 0 {
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index 5cfc926f67..df3c9c0e61 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -153,6 +153,15 @@ func signal_disable(s uint32) {
+ 	sigdisable(s)
+ }
+ 
++// Must only be called from a single goroutine at a time.
++func signal_ignore(s uint32) {
++	if int(s) >= len(sig.wanted)*32 {
++		return
++	}
++	sig.wanted[s/32] &^= 1 << (s & 31)
++	sigignore(s)
++}
++
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+ //go:nosplit
+ func badsignal(sig uintptr) {
+diff --git a/src/runtime/sigqueue_plan9.go b/src/runtime/sigqueue_plan9.go
+index b029a300a8..38f0a57b90 100644
+--- a/src/runtime/sigqueue_plan9.go
++++ b/src/runtime/sigqueue_plan9.go
+@@ -113,3 +113,7 @@ func signal_enable(s uint32) {
+ // Must only be called from a single goroutine at a time.
+ func signal_disable(s uint32) {
+ }
++
++// Must only be called from a single goroutine at a time.
++func signal_ignore(s uint32) {
++}

@@ -19,6 +19,20 @@ Date:   Fri May 29 09:51:04 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/10511
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/internal/obj/link.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index f96a2951b6..542421b835 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -224,8 +224,6 @@ type Prog struct {
+ 	Ft       uint8
+ 	Tt       uint8
+ 	Isize    uint8
+-	Printed  uint8
+-	Width    int8
+ 	Mode     int8
+ 
+ 	Info ProgInfo

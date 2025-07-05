@@ -7,10 +7,562 @@ Date:   Thu Feb 4 15:53:33 2016 -0800
     Change-Id: Ifb8eba1929c79ee7a8cae2191613c55a3b8f74e5
     Reviewed-on: https://go-review.googlesource.com/19236
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  22 ++
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  28 +++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  12 +-
  src/cmd/compile/internal/ssa/opGen.go        |  48 ++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 316 +++++++++++++++++++++++++++
  5 files changed, 423 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7b85b2fc8a..d56ff495ab 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4168,6 +4168,28 @@ func (s *genState) genValue(v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = regnum(v.Args[0])
+ 		addAux2(&p.To, v, sc.Off())
++	case ssa.OpAMD64MOVQstoreconstidx8, ssa.OpAMD64MOVLstoreconstidx4, ssa.OpAMD64MOVWstoreconstidx2, ssa.OpAMD64MOVBstoreconstidx1:
++		p := Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_CONST
++		sc := v.AuxValAndOff()
++		switch v.Op {
++		case ssa.OpAMD64MOVBstoreconstidx1:
++			p.From.Offset = int64(int8(sc.Val()))
++			p.To.Scale = 1
++		case ssa.OpAMD64MOVWstoreconstidx2:
++			p.From.Offset = int64(int16(sc.Val()))
++			p.To.Scale = 2
++		case ssa.OpAMD64MOVLstoreconstidx4:
++			p.From.Offset = int64(int32(sc.Val()))
++			p.To.Scale = 4
++		case ssa.OpAMD64MOVQstoreconstidx8:
++			p.From.Offset = sc.Val()
++			p.To.Scale = 8
++		}
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = regnum(v.Args[0])
++		p.To.Index = regnum(v.Args[1])
++		addAux2(&p.To, v, sc.Off())
+ 	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX,
+ 		ssa.OpAMD64CVTSL2SS, ssa.OpAMD64CVTSL2SD, ssa.OpAMD64CVTSQ2SS, ssa.OpAMD64CVTSQ2SD,
+ 		ssa.OpAMD64CVTTSS2SL, ssa.OpAMD64CVTTSD2SL, ssa.OpAMD64CVTTSS2SQ, ssa.OpAMD64CVTTSD2SQ,
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 692ea467e4..465d7030f3 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -727,6 +727,16 @@
+ (MOVBload [off] {sym} (ADDQ ptr idx) mem) && ptr.Op != OpSB -> (MOVBloadidx1 [off] {sym} ptr idx mem)
+ (MOVBstore [off] {sym} (ADDQ ptr idx) val mem) && ptr.Op != OpSB -> (MOVBstoreidx1 [off] {sym} ptr idx val mem)
+ 
++(MOVBstoreconst [x] {sym1} (LEAQ1 [off] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
++	(MOVBstoreconstidx1 [ValAndOff(x).add(off)] {mergeSym(sym1,sym2)} ptr idx mem)
++(MOVWstoreconst [x] {sym1} (LEAQ2 [off] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
++	(MOVWstoreconstidx2 [ValAndOff(x).add(off)] {mergeSym(sym1,sym2)} ptr idx mem)
++(MOVLstoreconst [x] {sym1} (LEAQ4 [off] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
++	(MOVLstoreconstidx4 [ValAndOff(x).add(off)] {mergeSym(sym1,sym2)} ptr idx mem)
++(MOVQstoreconst [x] {sym1} (LEAQ8 [off] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
++	(MOVQstoreconstidx8 [ValAndOff(x).add(off)] {mergeSym(sym1,sym2)} ptr idx mem)
++(MOVBstoreconst [x] {sym} (ADDQ ptr idx) mem) -> (MOVBstoreconstidx1 [x] {sym} ptr idx mem)
++
+ // combine ADDQ into indexed loads and stores
+ (MOVBloadidx1 [c] {sym} (ADDQconst [d] ptr) idx mem) -> (MOVBloadidx1 [c+d] {sym} ptr idx mem)
+ (MOVWloadidx2 [c] {sym} (ADDQconst [d] ptr) idx mem) -> (MOVWloadidx2 [c+d] {sym} ptr idx mem)
+@@ -756,6 +766,24 @@
+ (MOVSSstoreidx4 [c] {sym} ptr (ADDQconst [d] idx) val mem) -> (MOVSSstoreidx4 [c+4*d] {sym} ptr idx val mem)
+ (MOVSDstoreidx8 [c] {sym} ptr (ADDQconst [d] idx) val mem) -> (MOVSDstoreidx8 [c+8*d] {sym} ptr idx val mem)
+ 
++(MOVBstoreconstidx1 [x] {sym} (ADDQconst [c] ptr) idx mem) ->
++	(MOVBstoreconstidx1 [ValAndOff(x).add(c)] {sym} ptr idx mem)
++(MOVWstoreconstidx2 [x] {sym} (ADDQconst [c] ptr) idx mem) ->
++	(MOVWstoreconstidx2 [ValAndOff(x).add(c)] {sym} ptr idx mem)
++(MOVLstoreconstidx4 [x] {sym} (ADDQconst [c] ptr) idx mem) ->
++	(MOVLstoreconstidx4 [ValAndOff(x).add(c)] {sym} ptr idx mem)
++(MOVQstoreconstidx8 [x] {sym} (ADDQconst [c] ptr) idx mem) ->
++	(MOVQstoreconstidx8 [ValAndOff(x).add(c)] {sym} ptr idx mem)
++
++(MOVBstoreconstidx1 [x] {sym} ptr (ADDQconst [c] idx) mem) ->
++	(MOVBstoreconstidx1 [ValAndOff(x).add(c)] {sym} ptr idx mem)
++(MOVWstoreconstidx2 [x] {sym} ptr (ADDQconst [c] idx) mem) ->
++	(MOVWstoreconstidx2 [ValAndOff(x).add(2*c)] {sym} ptr idx mem)
++(MOVLstoreconstidx4 [x] {sym} ptr (ADDQconst [c] idx) mem) ->
++	(MOVLstoreconstidx4 [ValAndOff(x).add(4*c)] {sym} ptr idx mem)
++(MOVQstoreconstidx8 [x] {sym} ptr (ADDQconst [c] idx) mem) ->
++	(MOVQstoreconstidx8 [ValAndOff(x).add(8*c)] {sym} ptr idx mem)
++
+ // fold LEAQs together
+ (LEAQ [off1] {sym1} (LEAQ [off2] {sym2} x)) && canMergeSym(sym1, sym2) ->
+       (LEAQ [addOff(off1,off2)] {mergeSym(sym1,sym2)} x)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index bb7a42ea07..7fcf24782c 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -115,9 +115,10 @@ func init() {
+ 		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
+ 		gploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
+ 
+-		gpstore      = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
+-		gpstoreconst = regInfo{inputs: []regMask{gpspsb, 0}}
+-		gpstoreidx   = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
++		gpstore         = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
++		gpstoreconst    = regInfo{inputs: []regMask{gpspsb, 0}}
++		gpstoreidx      = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
++		gpstoreconstidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
+ 
+ 		fp01    = regInfo{inputs: []regMask{}, outputs: fponly}
+ 		fp21    = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
+@@ -402,6 +403,11 @@ func init() {
+ 		{name: "MOVLstoreconst", reg: gpstoreconst, asm: "MOVL", aux: "SymValAndOff", typ: "Mem"}, // store low 4 bytes of ...
+ 		{name: "MOVQstoreconst", reg: gpstoreconst, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem"}, // store 8 bytes of ...
+ 
++		{name: "MOVBstoreconstidx1", reg: gpstoreconstidx, asm: "MOVB", aux: "SymValAndOff", typ: "Mem"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+1*arg1+ValAndOff(AuxInt).Off()+aux.  arg2=mem
++		{name: "MOVWstoreconstidx2", reg: gpstoreconstidx, asm: "MOVW", aux: "SymValAndOff", typ: "Mem"}, // store low 2 bytes of ... 2*arg1 ...
++		{name: "MOVLstoreconstidx4", reg: gpstoreconstidx, asm: "MOVL", aux: "SymValAndOff", typ: "Mem"}, // store low 4 bytes of ... 4*arg1 ...
++		{name: "MOVQstoreconstidx8", reg: gpstoreconstidx, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem"}, // store 8 bytes of ... 8*arg1 ...
++
+ 		// arg0 = (duff-adjusted) pointer to start of memory to zero
+ 		// arg1 = value to store (will always be zero)
+ 		// arg2 = mem
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 219d526cad..8ce9c82f67 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -278,6 +278,10 @@ const (
+ 	OpAMD64MOVWstoreconst
+ 	OpAMD64MOVLstoreconst
+ 	OpAMD64MOVQstoreconst
++	OpAMD64MOVBstoreconstidx1
++	OpAMD64MOVWstoreconstidx2
++	OpAMD64MOVLstoreconstidx4
++	OpAMD64MOVQstoreconstidx8
+ 	OpAMD64DUFFZERO
+ 	OpAMD64MOVOconst
+ 	OpAMD64REPSTOSQ
+@@ -3344,6 +3348,50 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "MOVBstoreconstidx1",
++		auxType: auxSymValAndOff,
++		asm:     x86.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++			},
++		},
++	},
++	{
++		name:    "MOVWstoreconstidx2",
++		auxType: auxSymValAndOff,
++		asm:     x86.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++			},
++		},
++	},
++	{
++		name:    "MOVLstoreconstidx4",
++		auxType: auxSymValAndOff,
++		asm:     x86.AMOVL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++			},
++		},
++	},
++	{
++		name:    "MOVQstoreconstidx8",
++		auxType: auxSymValAndOff,
++		asm:     x86.AMOVQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++			},
++		},
++	},
+ 	{
+ 		name:    "DUFFZERO",
+ 		auxType: auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 25bbbcdeb1..a5593444e9 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -335,6 +335,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpAMD64MOVBstore(v, config)
+ 	case OpAMD64MOVBstoreconst:
+ 		return rewriteValueAMD64_OpAMD64MOVBstoreconst(v, config)
++	case OpAMD64MOVBstoreconstidx1:
++		return rewriteValueAMD64_OpAMD64MOVBstoreconstidx1(v, config)
+ 	case OpAMD64MOVBstoreidx1:
+ 		return rewriteValueAMD64_OpAMD64MOVBstoreidx1(v, config)
+ 	case OpAMD64MOVLQSX:
+@@ -349,6 +351,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpAMD64MOVLstore(v, config)
+ 	case OpAMD64MOVLstoreconst:
+ 		return rewriteValueAMD64_OpAMD64MOVLstoreconst(v, config)
++	case OpAMD64MOVLstoreconstidx4:
++		return rewriteValueAMD64_OpAMD64MOVLstoreconstidx4(v, config)
+ 	case OpAMD64MOVLstoreidx4:
+ 		return rewriteValueAMD64_OpAMD64MOVLstoreidx4(v, config)
+ 	case OpAMD64MOVOload:
+@@ -363,6 +367,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpAMD64MOVQstore(v, config)
+ 	case OpAMD64MOVQstoreconst:
+ 		return rewriteValueAMD64_OpAMD64MOVQstoreconst(v, config)
++	case OpAMD64MOVQstoreconstidx8:
++		return rewriteValueAMD64_OpAMD64MOVQstoreconstidx8(v, config)
+ 	case OpAMD64MOVQstoreidx8:
+ 		return rewriteValueAMD64_OpAMD64MOVQstoreidx8(v, config)
+ 	case OpAMD64MOVSDload:
+@@ -393,6 +399,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpAMD64MOVWstore(v, config)
+ 	case OpAMD64MOVWstoreconst:
+ 		return rewriteValueAMD64_OpAMD64MOVWstoreconst(v, config)
++	case OpAMD64MOVWstoreconstidx2:
++		return rewriteValueAMD64_OpAMD64MOVWstoreconstidx2(v, config)
+ 	case OpAMD64MOVWstoreidx2:
+ 		return rewriteValueAMD64_OpAMD64MOVWstoreidx2(v, config)
+ 	case OpAMD64MULB:
+@@ -5699,6 +5707,98 @@ func rewriteValueAMD64_OpAMD64MOVBstoreconst(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVBstoreconst [x] {sym1} (LEAQ1 [off] {sym2} ptr idx) mem)
++	// cond: canMergeSym(sym1, sym2)
++	// result: (MOVBstoreconstidx1 [ValAndOff(x).add(off)] {mergeSym(sym1,sym2)} ptr idx mem)
++	for {
++		x := v.AuxInt
++		sym1 := v.Aux
++		if v.Args[0].Op != OpAMD64LEAQ1 {
++			break
++		}
++		off := v.Args[0].AuxInt
++		sym2 := v.Args[0].Aux
++		ptr := v.Args[0].Args[0]
++		idx := v.Args[0].Args[1]
++		mem := v.Args[1]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpAMD64MOVBstoreconstidx1)
++		v.AuxInt = ValAndOff(x).add(off)
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVBstoreconst [x] {sym} (ADDQ ptr idx) mem)
++	// cond:
++	// result: (MOVBstoreconstidx1 [x] {sym} ptr idx mem)
++	for {
++		x := v.AuxInt
++		sym := v.Aux
++		if v.Args[0].Op != OpAMD64ADDQ {
++			break
++		}
++		ptr := v.Args[0].Args[0]
++		idx := v.Args[0].Args[1]
++		mem := v.Args[1]
++		v.reset(OpAMD64MOVBstoreconstidx1)
++		v.AuxInt = x
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64MOVBstoreconstidx1(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVBstoreconstidx1 [x] {sym} (ADDQconst [c] ptr) idx mem)
++	// cond:
++	// result: (MOVBstoreconstidx1 [ValAndOff(x).add(c)] {sym} ptr idx mem)
++	for {
++		x := v.AuxInt
++		sym := v.Aux
++		if v.Args[0].Op != OpAMD64ADDQconst {
++			break
++		}
++		c := v.Args[0].AuxInt
++		ptr := v.Args[0].Args[0]
++		idx := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64MOVBstoreconstidx1)
++		v.AuxInt = ValAndOff(x).add(c)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVBstoreconstidx1 [x] {sym} ptr (ADDQconst [c] idx) mem)
++	// cond:
++	// result: (MOVBstoreconstidx1 [ValAndOff(x).add(c)] {sym} ptr idx mem)
++	for {
++		x := v.AuxInt
++		sym := v.Aux
++		ptr := v.Args[0]
++		if v.Args[1].Op != OpAMD64ADDQconst {
++			break
++		}
++		c := v.Args[1].AuxInt
++		idx := v.Args[1].Args[0]
++		mem := v.Args[2]
++		v.reset(OpAMD64MOVBstoreconstidx1)
++		v.AuxInt = ValAndOff(x).add(c)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVBstoreidx1(v *Value, config *Config) bool {
+@@ -6140,6 +6240,78 @@ func rewriteValueAMD64_OpAMD64MOVLstoreconst(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVLstoreconst [x] {sym1} (LEAQ4 [off] {sym2} ptr idx) mem)
++	// cond: canMergeSym(sym1, sym2)
++	// result: (MOVLstoreconstidx4 [ValAndOff(x).add(off)] {mergeSym(sym1,sym2)} ptr idx mem)
++	for {
++		x := v.AuxInt
++		sym1 := v.Aux
++		if v.Args[0].Op != OpAMD64LEAQ4 {
++			break
++		}
++		off := v.Args[0].AuxInt
++		sym2 := v.Args[0].Aux
++		ptr := v.Args[0].Args[0]
++		idx := v.Args[0].Args[1]
++		mem := v.Args[1]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpAMD64MOVLstoreconstidx4)
++		v.AuxInt = ValAndOff(x).add(off)
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64MOVLstoreconstidx4(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVLstoreconstidx4 [x] {sym} (ADDQconst [c] ptr) idx mem)
++	// cond:
++	// result: (MOVLstoreconstidx4 [ValAndOff(x).add(c)] {sym} ptr idx mem)
++	for {
++		x := v.AuxInt
++		sym := v.Aux
++		if v.Args[0].Op != OpAMD64ADDQconst {
++			break
++		}
++		c := v.Args[0].AuxInt
++		ptr := v.Args[0].Args[0]
++		idx := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64MOVLstoreconstidx4)
++		v.AuxInt = ValAndOff(x).add(c)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLstoreconstidx4 [x] {sym} ptr (ADDQconst [c] idx) mem)
++	// cond:
++	// result: (MOVLstoreconstidx4 [ValAndOff(x).add(4*c)] {sym} ptr idx mem)
++	for {
++		x := v.AuxInt
++		sym := v.Aux
++		ptr := v.Args[0]
++		if v.Args[1].Op != OpAMD64ADDQconst {
++			break
++		}
++		c := v.Args[1].AuxInt
++		idx := v.Args[1].Args[0]
++		mem := v.Args[2]
++		v.reset(OpAMD64MOVLstoreconstidx4)
++		v.AuxInt = ValAndOff(x).add(4 * c)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVLstoreidx4(v *Value, config *Config) bool {
+@@ -6558,6 +6730,78 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVQstoreconst [x] {sym1} (LEAQ8 [off] {sym2} ptr idx) mem)
++	// cond: canMergeSym(sym1, sym2)
++	// result: (MOVQstoreconstidx8 [ValAndOff(x).add(off)] {mergeSym(sym1,sym2)} ptr idx mem)
++	for {
++		x := v.AuxInt
++		sym1 := v.Aux
++		if v.Args[0].Op != OpAMD64LEAQ8 {
++			break
++		}
++		off := v.Args[0].AuxInt
++		sym2 := v.Args[0].Aux
++		ptr := v.Args[0].Args[0]
++		idx := v.Args[0].Args[1]
++		mem := v.Args[1]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpAMD64MOVQstoreconstidx8)
++		v.AuxInt = ValAndOff(x).add(off)
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64MOVQstoreconstidx8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVQstoreconstidx8 [x] {sym} (ADDQconst [c] ptr) idx mem)
++	// cond:
++	// result: (MOVQstoreconstidx8 [ValAndOff(x).add(c)] {sym} ptr idx mem)
++	for {
++		x := v.AuxInt
++		sym := v.Aux
++		if v.Args[0].Op != OpAMD64ADDQconst {
++			break
++		}
++		c := v.Args[0].AuxInt
++		ptr := v.Args[0].Args[0]
++		idx := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64MOVQstoreconstidx8)
++		v.AuxInt = ValAndOff(x).add(c)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVQstoreconstidx8 [x] {sym} ptr (ADDQconst [c] idx) mem)
++	// cond:
++	// result: (MOVQstoreconstidx8 [ValAndOff(x).add(8*c)] {sym} ptr idx mem)
++	for {
++		x := v.AuxInt
++		sym := v.Aux
++		ptr := v.Args[0]
++		if v.Args[1].Op != OpAMD64ADDQconst {
++			break
++		}
++		c := v.Args[1].AuxInt
++		idx := v.Args[1].Args[0]
++		mem := v.Args[2]
++		v.reset(OpAMD64MOVQstoreconstidx8)
++		v.AuxInt = ValAndOff(x).add(8 * c)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVQstoreidx8(v *Value, config *Config) bool {
+@@ -7495,6 +7739,78 @@ func rewriteValueAMD64_OpAMD64MOVWstoreconst(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVWstoreconst [x] {sym1} (LEAQ2 [off] {sym2} ptr idx) mem)
++	// cond: canMergeSym(sym1, sym2)
++	// result: (MOVWstoreconstidx2 [ValAndOff(x).add(off)] {mergeSym(sym1,sym2)} ptr idx mem)
++	for {
++		x := v.AuxInt
++		sym1 := v.Aux
++		if v.Args[0].Op != OpAMD64LEAQ2 {
++			break
++		}
++		off := v.Args[0].AuxInt
++		sym2 := v.Args[0].Aux
++		ptr := v.Args[0].Args[0]
++		idx := v.Args[0].Args[1]
++		mem := v.Args[1]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpAMD64MOVWstoreconstidx2)
++		v.AuxInt = ValAndOff(x).add(off)
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64MOVWstoreconstidx2(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVWstoreconstidx2 [x] {sym} (ADDQconst [c] ptr) idx mem)
++	// cond:
++	// result: (MOVWstoreconstidx2 [ValAndOff(x).add(c)] {sym} ptr idx mem)
++	for {
++		x := v.AuxInt
++		sym := v.Aux
++		if v.Args[0].Op != OpAMD64ADDQconst {
++			break
++		}
++		c := v.Args[0].AuxInt
++		ptr := v.Args[0].Args[0]
++		idx := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64MOVWstoreconstidx2)
++		v.AuxInt = ValAndOff(x).add(c)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVWstoreconstidx2 [x] {sym} ptr (ADDQconst [c] idx) mem)
++	// cond:
++	// result: (MOVWstoreconstidx2 [ValAndOff(x).add(2*c)] {sym} ptr idx mem)
++	for {
++		x := v.AuxInt
++		sym := v.Aux
++		ptr := v.Args[0]
++		if v.Args[1].Op != OpAMD64ADDQconst {
++			break
++		}
++		c := v.Args[1].AuxInt
++		idx := v.Args[1].Args[0]
++		mem := v.Args[2]
++		v.reset(OpAMD64MOVWstoreconstidx2)
++		v.AuxInt = ValAndOff(x).add(2 * c)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVWstoreidx2(v *Value, config *Config) bool {

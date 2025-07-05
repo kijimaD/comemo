@@ -10,6 +10,28 @@ Date:   Thu Jan 28 12:19:49 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/287634
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  doc/go1.16.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index fc01a5f509..8d31f63fa2 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -80,6 +80,16 @@ Do not send CLs removing the interior tags from such phrases.
+   support cgo.
+ </p>
+ 
++<p><!-- golang.org/issue/36435, many CLs -->
++  On the 64-bit x86 and 64-bit ARM architectures on OpenBSD (the
++  <code>openbsd/amd64</code> and <code>openbsd/arm64</code> ports), system
++  calls are now made through <code>libc</code>, instead of directly using
++  the <code>SYSCALL</code>/<code>SVC</code> instruction. This ensures
++  forward-compatibility with future versions of OpenBSD. In particular,
++  OpenBSD 6.9 onwards will require system calls to be made through
++  <code>libc</code> for non-static Go binaries.
++</p>
++
+ <h3 id="386">386</h3>
+ 
+ <p><!-- golang.org/issue/40255, golang.org/issue/41848, CL 258957, and CL 260017 -->

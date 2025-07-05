@@ -17,7 +17,7 @@ Date:   Sun Aug 15 15:28:22 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/builtins.go                       |  16 +-
  src/go/types/infer.go                          |  37 +----
  src/go/types/instantiate.go                    |  24 ++-
@@ -42,3 +42,1361 @@ Date:   Sun Aug 15 15:28:22 2021 -0400
  src/go/types/union.go                          | 205 +++++--------------------
  src/go/types/universe.go                       |   4 +-
  23 files changed, 333 insertions(+), 418 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index c73d94658a..8a3fc14fea 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -145,7 +145,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		mode := invalid
+ 		var typ Type
+ 		var val constant.Value
+-		switch typ = implicitArrayDeref(optype(x.typ)); t := typ.(type) {
++		switch typ = implicitArrayDeref(under(x.typ)); t := typ.(type) {
+ 		case *Basic:
+ 			if isString(t) && id == _Len {
+ 				if x.mode == constant_ {
+@@ -179,9 +179,9 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 				mode = value
+ 			}
+ 
+-		case *Union:
++		case *TypeParam:
+ 			if t.underIs(func(t Type) bool {
+-				switch t := t.(type) {
++				switch t := implicitArrayDeref(t).(type) {
+ 				case *Basic:
+ 					if isString(t) && id == _Len {
+ 						return true
+@@ -826,10 +826,10 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 		// type and collect possible result types at the same time.
+ 		var rtypes []Type
+ 		var tildes []bool
+-		if !tp.iface().is(func(typ Type, tilde bool) bool {
+-			if r := f(typ); r != nil {
++		if !tp.iface().typeSet().is(func(t *term) bool {
++			if r := f(t.typ); r != nil {
+ 				rtypes = append(rtypes, r)
+-				tildes = append(tildes, tilde)
++				tildes = append(tildes, t.tilde)
+ 				return true
+ 			}
+ 			return false
+@@ -841,10 +841,8 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 		// type param is placed in the current package so export/import
+ 		// works as expected.
+ 		tpar := NewTypeName(token.NoPos, check.pkg, "<type parameter>", nil)
+-		ptyp := check.NewTypeParam(tpar, &emptyInterface) // assigns type to tpar as a side-effect
++		ptyp := check.NewTypeParam(tpar, NewInterfaceType(nil, []Type{newUnion(rtypes, tildes)})) // assigns type to tpar as a side-effect
+ 		ptyp.index = tp.index
+-		tsum := newUnion(rtypes, tildes)
+-		ptyp.bound = &Interface{complete: true, tset: &_TypeSet{types: tsum}}
+ 
+ 		return ptyp
+ 	}
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 6e70a103e7..eb0d75e46f 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -275,7 +275,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 	}()
+ 
+ 	switch t := typ.(type) {
+-	case nil, *Basic: // TODO(gri) should nil be handled here?
++	case nil, *top, *Basic: // TODO(gri) should nil be handled here?
+ 		break
+ 
+ 	case *Array:
+@@ -302,9 +302,6 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 			}
+ 		}
+ 
+-	case *Union:
+-		return w.isParameterizedTermList(t.terms)
+-
+ 	case *Signature:
+ 		// t.tparams may not be nil if we are looking at a signature
+ 		// of a generic function type (or an interface method) that is
+@@ -322,7 +319,9 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 				return true
+ 			}
+ 		}
+-		return w.isParameterized(tset.types)
++		return tset.is(func(t *term) bool {
++			return w.isParameterized(t.typ)
++		})
+ 
+ 	case *Map:
+ 		return w.isParameterized(t.key) || w.isParameterized(t.elem)
+@@ -353,15 +352,6 @@ func (w *tpWalker) isParameterizedTypeList(list []Type) bool {
+ 	return false
+ }
+ 
+-func (w *tpWalker) isParameterizedTermList(list []*term) bool {
+-	for _, t := range list {
+-		if w.isParameterized(t.typ) {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ // inferB returns the list of actual type arguments inferred from the type parameters'
+ // bounds and an initial set of type arguments. If type inference is impossible because
+ // unification fails, an error is reported if report is set to true, the resulting types
+@@ -389,7 +379,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
+ 	// Unify type parameters with their structural constraints, if any.
+ 	for _, tpar := range tparams {
+ 		typ := tpar.typ.(*TypeParam)
+-		sbound := check.structuralType(typ.bound)
++		sbound := typ.structuralType()
+ 		if sbound != nil {
+ 			if !u.unify(typ, sbound) {
+ 				if report {
+@@ -462,20 +452,3 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
+ 
+ 	return
+ }
+-
+-// structuralType returns the structural type of a constraint, if any.
+-func (check *Checker) structuralType(constraint Type) Type {
+-	if iface, _ := under(constraint).(*Interface); iface != nil {
+-		types := iface.typeSet().types
+-		if u, _ := types.(*Union); u != nil {
+-			if u.NumTerms() == 1 {
+-				// TODO(gri) do we need to respect tilde?
+-				t, _ := u.Term(0)
+-				return t
+-			}
+-			return nil
+-		}
+-		return types
+-	}
+-	return nil
+-}
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 6d56eb7ea2..6f10feb206 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -215,7 +215,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap
+ 	}
+ 
+ 	// targ's underlying type must also be one of the interface types listed, if any
+-	if iface.typeSet().types == nil {
++	if !iface.typeSet().hasTerms() {
+ 		return true // nothing to do
+ 	}
+ 
+@@ -223,24 +223,22 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap
+ 	// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
+ 	if targ := asTypeParam(targ); targ != nil {
+ 		targBound := targ.iface()
+-		if targBound.typeSet().types == nil {
++		if !targBound.typeSet().hasTerms() {
+ 			check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
+ 			return false
+ 		}
+-		return iface.is(func(typ Type, tilde bool) bool {
+-			// TODO(gri) incorporate tilde information!
+-			if !iface.isSatisfiedBy(typ) {
+-				// TODO(gri) match this error message with the one below (or vice versa)
+-				check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, typ, iface.typeSet().types)
+-				return false
+-			}
+-			return true
+-		})
++		if !targBound.typeSet().subsetOf(iface.typeSet()) {
++			// TODO(gri) need better error message
++			check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s", targ, tpar.bound)
++			return false
++		}
++		return true
+ 	}
+ 
+ 	// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
+-	if !iface.isSatisfiedBy(targ) {
+-		check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ, iface.typeSet().types)
++	if !iface.typeSet().includes(targ) {
++		// TODO(gri) better error message
++		check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s", targ, tpar.bound)
+ 		return false
+ 	}
+ 
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index d8f9671857..a5d19e8265 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -25,20 +25,7 @@ type Interface struct {
+ }
+ 
+ // typeSet returns the type set for interface t.
+-func (t *Interface) typeSet() *_TypeSet { return computeTypeSet(nil, token.NoPos, t) }
+-
+-// is reports whether interface t represents types that all satisfy f.
+-func (t *Interface) is(f func(Type, bool) bool) bool {
+-	switch t := t.typeSet().types.(type) {
+-	case nil, *top:
+-		// TODO(gri) should settle on top or nil to represent this case
+-		return false // we must have at least one type! (was bug)
+-	case *Union:
+-		return t.is(func(t *term) bool { return f(t.typ, t.tilde) })
+-	default:
+-		return f(t, false)
+-	}
+-}
++func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(nil, token.NoPos, t) }
+ 
+ // emptyInterface represents the empty (completed) interface
+ var emptyInterface = Interface{complete: true, tset: &topTypeSet}
+@@ -117,23 +104,6 @@ func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
+ // IsConstraint reports whether interface t is not just a method set.
+ func (t *Interface) IsConstraint() bool { return !t.typeSet().IsMethodSet() }
+ 
+-// isSatisfiedBy reports whether interface t's type list is satisfied by the type typ.
+-// If the type list is empty (absent), typ trivially satisfies the interface.
+-// TODO(gri) This is not a great name. Eventually, we should have a more comprehensive
+-//           "implements" predicate.
+-func (t *Interface) isSatisfiedBy(typ Type) bool {
+-	t.Complete()
+-	switch t := t.typeSet().types.(type) {
+-	case nil:
+-		return true // no type restrictions
+-	case *Union:
+-		r, _ := t.intersect(typ, false)
+-		return r != nil
+-	default:
+-		return Identical(t, typ)
+-	}
+-}
+-
+ // Complete computes the interface's type set. It must be called by users of
+ // NewInterfaceType and NewInterface after the interface's embedded types are
+ // fully defined and before using the interface type in any way other than to
+@@ -268,7 +238,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 	// Compute type set with a non-nil *Checker as soon as possible
+ 	// to report any errors. Subsequent uses of type sets will use
+ 	// this computed type set and won't need to pass in a *Checker.
+-	check.later(func() { computeTypeSet(check, iface.Pos(), ityp) })
++	check.later(func() { computeInterfaceTypeSet(check, iface.Pos(), ityp) })
+ }
+ 
+ func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index aea8bf5e7a..a54802defc 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -258,7 +258,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 
+ 	// x is an untyped value representable by a value of type T.
+ 	if isUntyped(Vu) {
+-		if t, ok := Tu.(*Union); ok {
++		if t, _ := under(T).(*TypeParam); t != nil {
+ 			return t.is(func(t *term) bool {
+ 				// TODO(gri) this could probably be more efficient
+ 				if t.tilde {
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 23924693fd..5a2c08322f 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -229,16 +229,6 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 				identical(x.results, y.results, cmpTags, p)
+ 		}
+ 
+-	case *Union:
+-		// Two union types are identical if they contain the same terms.
+-		// The set (list) of types in a union type consists of unique
+-		// types - each type appears exactly once. Thus, two union types
+-		// must contain the same number of types to have chance of
+-		// being equal.
+-		if y, ok := y.(*Union); ok {
+-			return identicalTerms(x.terms, y.terms)
+-		}
+-
+ 	case *Interface:
+ 		// Two interface types are identical if they describe the same type sets.
+ 		// With the existing implementation restriction, this simplifies to:
+@@ -250,7 +240,7 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 		if y, ok := y.(*Interface); ok {
+ 			xset := x.typeSet()
+ 			yset := y.typeSet()
+-			if !Identical(xset.types, yset.types) {
++			if !xset.terms.equal(yset.terms) {
+ 				return false
+ 			}
+ 			a := xset.methods
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index 67a9b39558..403f2bbece 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -26,7 +26,7 @@ func TestSizeof(t *testing.T) {
+ 		{Pointer{}, 8, 16},
+ 		{Tuple{}, 12, 24},
+ 		{Signature{}, 28, 56},
+-		{Union{}, 12, 24},
++		{Union{}, 16, 32},
+ 		{Interface{}, 40, 80},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+@@ -48,7 +48,7 @@ func TestSizeof(t *testing.T) {
+ 		// Misc
+ 		{Scope{}, 44, 88},
+ 		{Package{}, 40, 80},
+-		{_TypeSet{}, 24, 48},
++		{_TypeSet{}, 28, 56},
+ 	}
+ 	for _, test := range tests {
+ 		got := reflect.TypeOf(test.val).Size()
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 0f0a2e4d9f..4c545efcf9 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -917,10 +917,11 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
+ 	case *Chan:
+ 		var msg string
+ 		if typ.dir == SendOnly {
++			// TODO(rfindley): this error message differs from types2. Reconcile this.
+ 			msg = "send-only channel"
+ 		}
+ 		return typ.elem, Typ[Invalid], msg
+-	case *Union:
++	case *TypeParam:
+ 		first := true
+ 		var key, val Type
+ 		var msg string
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 322e30d357..a43c5b9f0b 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -148,12 +148,12 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 	case *Union:
+-		terms, copied := subst.termList(t.terms)
++		terms, copied := subst.termlist(t.terms)
+ 		if copied {
+-			// TODO(gri) Remove duplicates that may have crept in after substitution
+-			//           (unlikely but possible). This matters for the Identical
+-			//           predicate on unions.
+-			return &Union{terms}
++			// term list substitution may introduce duplicate terms (unlikely but possible).
++			// This is ok; lazy type set computation will determine the actual type set
++			// in normal form.
++			return &Union{terms, nil}
+ 		}
+ 
+ 	case *Interface:
+@@ -394,7 +394,7 @@ func (subst *subster) typeList(in []Type) (out []Type, copied bool) {
+ 	return
+ }
+ 
+-func (subst *subster) termList(in []*term) (out []*term, copied bool) {
++func (subst *subster) termlist(in []*term) (out []*term, copied bool) {
+ 	out = in
+ 	for i, t := range in {
+ 		if u := subst.typ(t.typ); u != t.typ {
+diff --git a/src/go/types/termlist.go b/src/go/types/termlist.go
+index 1c534fc6a7..044c6a9466 100644
+--- a/src/go/types/termlist.go
++++ b/src/go/types/termlist.go
+@@ -13,7 +13,7 @@ import "bytes"
+ // normal form.
+ type termlist []*term
+ 
+-// topTermList represents the set of all types.
++// topTermlist represents the set of all types.
+ // It is in normal form.
+ var topTermlist = termlist{new(term)}
+ 
+diff --git a/src/go/types/testdata/check/tinference.go2 b/src/go/types/testdata/check/tinference.go2
+index 44e8dc0059..aa9a054682 100644
+--- a/src/go/types/testdata/check/tinference.go2
++++ b/src/go/types/testdata/check/tinference.go2
+@@ -92,7 +92,7 @@ func FromStrings[T interface{}, PT Setter[T]](s []string) []T {
+ 	result := make([]T, len(s))
+ 	for i, v := range s {
+ 		// The type of &result[i] is *T which is in the type list
+-		// of Setter2, so we can convert it to PT.
++		// of Setter, so we can convert it to PT.
+ 		p := PT(&result[i])
+ 		// PT has a Set method.
+ 		p.Set(v)
+diff --git a/src/go/types/testdata/check/typeinst2.go2 b/src/go/types/testdata/check/typeinst2.go2
+index ab56ccafc9..f8369c31dd 100644
+--- a/src/go/types/testdata/check/typeinst2.go2
++++ b/src/go/types/testdata/check/typeinst2.go2
+@@ -164,13 +164,13 @@ type _ interface {
+ // for them to be all in a single list, and we report the error
+ // as well.)
+ type _ interface {
+-	~int|~ /* ERROR duplicate term int */ int
+-	~int|int /* ERROR duplicate term int */
+-	int|int /* ERROR duplicate term int */
++	~int|~ /* ERROR overlapping terms ~int */ int
++	~int|int /* ERROR overlapping terms int */
++	int|int /* ERROR overlapping terms int */
+ }
+ 
+ type _ interface {
+-	~struct{f int} | ~struct{g int} | ~ /* ERROR duplicate term */ struct{f int}
++	~struct{f int} | ~struct{g int} | ~ /* ERROR overlapping terms */ struct {f int}
+ }
+ 
+ // Interface type lists can contain any type, incl. *Named types.
+diff --git a/src/go/types/testdata/check/typeparams.go2 b/src/go/types/testdata/check/typeparams.go2
+index 77cd65d19a..7ed0a5e847 100644
+--- a/src/go/types/testdata/check/typeparams.go2
++++ b/src/go/types/testdata/check/typeparams.go2
+@@ -149,37 +149,40 @@ func _[T interface{}](x T) {
+         for range x /* ERROR cannot range */ {}
+ }
+ 
+-func _[T interface{ ~string | ~[]string }](x T) {
+-        for range x {}
+-        for i := range x { _ = i }
+-        for i, _ := range x { _ = i }
+-        for i, e := range x /* ERROR must have the same element type */ { _ = i }
+-        for _, e := range x /* ERROR must have the same element type */ {}
+-        var e rune
+-        _ = e
+-        for _, (e) = range x /* ERROR must have the same element type */ {}
+-}
+-
+-
+-func _[T interface{ ~string | ~[]rune | ~map[int]rune }](x T) {
+-        for _, e := range x { _ = e }
+-        for i, e := range x { _ = i; _ = e }
+-}
+-
+-func _[T interface{ ~string | ~[]rune | ~map[string]rune }](x T) {
+-        for _, e := range x { _ = e }
+-        for i, e := range x /* ERROR must have the same key type */ { _ = e }
+-}
+-
+-func _[T interface{ ~string | ~chan int }](x T) {
+-        for range x {}
+-        for i := range x { _ = i }
+-        for i, _ := range x { _ = i } // TODO(gri) should get an error here: channels only return one value
+-}
+-
+-func _[T interface{ ~string | ~chan<-int }](x T) {
+-        for i := range x /* ERROR send-only channel */ { _ = i }
+-}
++// Disabled for now until we have clarified semantics of range.
++// TODO(gri) fix this
++//
++// func _[T interface{ ~string | ~[]string }](x T) {
++//         for range x {}
++//         for i := range x { _ = i }
++//         for i, _ := range x { _ = i }
++//         for i, e := range x /* ERROR must have the same element type */ { _ = i }
++//         for _, e := range x /* ERROR must have the same element type */ {}
++//         var e rune
++//         _ = e
++//         for _, (e) = range x /* ERROR must have the same element type */ {}
++// }
++//
++//
++// func _[T interface{ ~string | ~[]rune | ~map[int]rune }](x T) {
++//         for _, e := range x { _ = e }
++//         for i, e := range x { _ = i; _ = e }
++// }
++//
++// func _[T interface{ ~string | ~[]rune | ~map[string]rune }](x T) {
++//         for _, e := range x { _ = e }
++//         for i, e := range x /* ERROR must have the same key type */ { _ = e }
++// }
++//
++// func _[T interface{ ~string | ~chan int }](x T) {
++//         for range x {}
++//         for i := range x { _ = i }
++//         for i, _ := range x { _ = i } // TODO(gri) should get an error here: channels only return one value
++// }
++//
++// func _[T interface{ ~string | ~chan<-int }](x T) {
++//         for i := range x /* ERROR send-only channel */ { _ = i }
++// }
+ 
+ // type inference checks
+ 
+diff --git a/src/go/types/testdata/examples/constraints.go2 b/src/go/types/testdata/examples/constraints.go2
+index 28aa19bb12..f40d18c63e 100644
+--- a/src/go/types/testdata/examples/constraints.go2
++++ b/src/go/types/testdata/examples/constraints.go2
+@@ -18,18 +18,25 @@ type (
+ 	}
+ )
+ 
++type MyInt int
++
+ type (
+ 	// Arbitrary types may be embedded like interfaces.
+ 	_ interface{int}
+ 	_ interface{~int}
+ 
+ 	// Types may be combined into a union.
+-	_ interface{int|~string}
++	union interface{int|~string}
+ 
+-	// Union terms must be unique independent of whether they are ~ or not.
+-	_ interface{int|int /* ERROR duplicate term int */ }
+-	_ interface{int|~ /* ERROR duplicate term int */ int }
+-	_ interface{~int|~ /* ERROR duplicate term int */ int }
++	// Union terms must describe disjoint (non-overlapping) type sets.
++	_ interface{int|int /* ERROR overlapping terms int */ }
++	_ interface{int|~ /* ERROR overlapping terms ~int */ int }
++	_ interface{~int|~ /* ERROR overlapping terms ~int */ int }
++	_ interface{~int|MyInt /* ERROR overlapping terms p.MyInt and ~int */ }
++	_ interface{int|interface{}}
++	_ interface{int|~string|union}
++	_ interface{int|~string|interface{int}}
++	_ interface{union|union /* ERROR overlapping terms p.union and p.union */ }
+ 
+ 	// For now we do not permit interfaces with methods in unions.
+ 	_ interface{~ /* ERROR invalid use of ~ */ interface{}}
+@@ -45,6 +52,15 @@ type (
+ 	_ interface{~ /* ERROR invalid use of ~ */ bar }
+ )
+ 
++// Stand-alone type parameters are not permitted as elements or terms in unions.
++type (
++	_[T interface{ *T } ] struct{}        // ok
++	_[T interface{ int | *T } ] struct{}  // ok
++	_[T interface{ T /* ERROR cannot embed a type parameter */ } ] struct{}
++	_[T interface{ ~T /* ERROR cannot embed a type parameter */ } ] struct{}
++	_[T interface{ int|T /* ERROR cannot embed a type parameter */ }] struct{}
++)
++
+ // Multiple embedded union elements are intersected. The order in which they
+ // appear in the interface doesn't matter since intersection is a symmetric
+ // operation.
+@@ -58,3 +74,18 @@ func _[T interface{ ~int; myInt1|myInt2 }]() T { return T(0) }
+ // Here the intersections are empty - there's no type that's in the type set of T.
+ func _[T interface{ myInt1|myInt2; int }]() T { return T(0 /* ERROR cannot convert */ ) }
+ func _[T interface{ int; myInt1|myInt2 }]() T { return T(0 /* ERROR cannot convert */ ) }
++
++// Union elements may be interfaces as long as they don't define
++// any methods or embed comparable.
++
++type (
++	Integer interface{ ~int|~int8|~int16|~int32|~int64 }
++	Unsigned interface{ ~uint|~uint8|~uint16|~uint32|~uint64 }
++	Floats interface{ ~float32|~float64 }
++	Complex interface{ ~complex64|~complex128 }
++	Number interface{ Integer|Unsigned|Floats|Complex }
++	Ordered interface{ Integer|Unsigned|Floats|~string }
++
++	_ interface{ Number | error /* ERROR cannot use error in union */ }
++	_ interface{ Ordered | comparable /* ERROR cannot use comparable in union */ }
++)
+diff --git a/src/go/types/testdata/fixedbugs/issue41124.go2 b/src/go/types/testdata/fixedbugs/issue41124.go2
+index ab535049dd..60650432a4 100644
+--- a/src/go/types/testdata/fixedbugs/issue41124.go2
++++ b/src/go/types/testdata/fixedbugs/issue41124.go2
+@@ -47,7 +47,7 @@ type _ struct{
+ }
+ 
+ type _ struct{
+-	I3 // ERROR interface contains type constraints
++	I3 // ERROR interface is .* comparable
+ }
+ 
+ // General composite types.
+@@ -59,19 +59,19 @@ type (
+ 	_ []I1 // ERROR interface is .* comparable
+ 	_ []I2 // ERROR interface contains type constraints
+ 
+-	_ *I3 // ERROR interface contains type constraints
++	_ *I3 // ERROR interface is .* comparable
+ 	_ map[I1 /* ERROR interface is .* comparable */ ]I2 // ERROR interface contains type constraints
+-	_ chan I3 // ERROR interface contains type constraints
++	_ chan I3 // ERROR interface is .* comparable
+ 	_ func(I1 /* ERROR interface is .* comparable */ )
+ 	_ func() I2 // ERROR interface contains type constraints
+ )
+ 
+ // Other cases.
+ 
+-var _ = [...]I3 /* ERROR interface contains type constraints */ {}
++var _ = [...]I3 /* ERROR interface is .* comparable */ {}
+ 
+ func _(x interface{}) {
+-	_ = x.(I3 /* ERROR interface contains type constraints */ )
++	_ = x.(I3 /* ERROR interface is .* comparable */ )
+ }
+ 
+ type T1[_ any] struct{}
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 5819dd290c..c042a819b8 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -44,28 +44,21 @@ func under(t Type) Type {
+ // optype returns a type's operational type. Except for
+ // type parameters, the operational type is the same
+ // as the underlying type (as returned by under). For
+-// Type parameters, the operational type is determined
+-// by the corresponding type bound's type list. The
+-// result may be the bottom or top type, but it is never
+-// the incoming type parameter.
++// Type parameters, the operational type is the structural
++// type, if any; otherwise it's the top type.
++// The result is never the incoming type parameter.
+ func optype(typ Type) Type {
+ 	if t := asTypeParam(typ); t != nil {
++		// TODO(gri) review accuracy of this comment
+ 		// If the optype is typ, return the top type as we have
+ 		// no information. It also prevents infinite recursion
+ 		// via the asTypeParam converter function. This can happen
+ 		// for a type parameter list of the form:
+ 		// (type T interface { type T }).
+ 		// See also issue #39680.
+-		if a := t.iface().typeSet().types; a != nil && a != typ {
+-			// If we have a union with a single entry, ignore
+-			// any tilde because under(~t) == under(t).
+-			if u, _ := a.(*Union); u != nil && u.NumTerms() == 1 {
+-				a, _ = u.Term(0)
+-			}
+-			if a != typ {
+-				// a != typ and a is a type parameter => under(a) != typ, so this is ok
+-				return under(a)
+-			}
++		if u := t.structuralType(); u != nil {
++			assert(u != typ) // "naked" type parameters cannot be embedded
++			return u
+ 		}
+ 		return theTop
+ 	}
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 33a516c209..cf80eaab38 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -69,7 +69,7 @@ func (t *TypeParam) Constraint() Type {
+ 		if n, _ := t.bound.(*Named); n != nil {
+ 			pos = n.obj.pos
+ 		}
+-		computeTypeSet(t.check, pos, iface)
++		computeInterfaceTypeSet(t.check, pos, iface)
+ 	}
+ 	return t.bound
+ }
+@@ -82,14 +82,6 @@ func (t *TypeParam) SetConstraint(bound Type) {
+ 	t.bound = bound
+ }
+ 
+-// iface returns the constraint interface of t.
+-func (t *TypeParam) iface() *Interface {
+-	if iface, _ := under(t.Constraint()).(*Interface); iface != nil {
+-		return iface
+-	}
+-	return &emptyInterface
+-}
+-
+ func (t *TypeParam) Underlying() Type { return t }
+ func (t *TypeParam) String() string   { return TypeString(t, nil) }
+ 
+@@ -131,6 +123,23 @@ func bindTParams(list []*TypeName) *TypeParams {
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
++// iface returns the constraint interface of t.
++func (t *TypeParam) iface() *Interface {
++	if iface, _ := under(t.Constraint()).(*Interface); iface != nil {
++		return iface
++	}
++	return &emptyInterface
++}
++
++// structuralType returns the structural type of the type parameter's constraint; or nil.
++func (t *TypeParam) structuralType() Type {
++	return t.iface().typeSet().structuralType()
++}
++
++func (t *TypeParam) is(f func(*term) bool) bool {
++	return t.iface().typeSet().is(f)
++}
++
+ func (t *TypeParam) underIs(f func(Type) bool) bool {
+ 	return t.iface().typeSet().underIs(f)
+ }
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 836f93047a..3caba05202 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -18,32 +18,32 @@ import (
+ type _TypeSet struct {
+ 	comparable bool // if set, the interface is or embeds comparable
+ 	// TODO(gri) consider using a set for the methods for faster lookup
+-	methods []*Func // all methods of the interface; sorted by unique ID
+-	types   Type    // typically a *Union; nil means no type restrictions
++	methods []*Func  // all methods of the interface; sorted by unique ID
++	terms   termlist // type terms of the type set
+ }
+ 
+-// IsTop reports whether type set s is the top type set (corresponding to the empty interface).
+-func (s *_TypeSet) IsTop() bool { return !s.comparable && len(s.methods) == 0 && s.types == nil }
++// IsEmpty reports whether type set s is the empty set.
++func (s *_TypeSet) IsEmpty() bool { return s.terms.isEmpty() }
++
++// IsTop reports whether type set s is the set of all types (corresponding to the empty interface).
++func (s *_TypeSet) IsTop() bool { return !s.comparable && len(s.methods) == 0 && s.terms.isTop() }
++
++// TODO(gri) IsMethodSet is not a great name for this predicate. Find a better one.
+ 
+ // IsMethodSet reports whether the type set s is described by a single set of methods.
+-func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.types == nil }
++func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isTop() }
+ 
+ // IsComparable reports whether each type in the set is comparable.
+-// TODO(gri) this is not correct - there may be s.types values containing non-comparable types
+ func (s *_TypeSet) IsComparable() bool {
+-	if s.types == nil {
++	if s.terms.isTop() {
+ 		return s.comparable
+ 	}
+-	tcomparable := s.underIs(func(u Type) bool {
+-		return Comparable(u)
++	return s.is(func(t *term) bool {
++		return Comparable(t.typ)
+ 	})
+-	if !s.comparable {
+-		return tcomparable
+-	}
+-	return s.comparable && tcomparable
+ }
+ 
+-// TODO(gri) IsTypeSet is not a great name. Find a better one.
++// TODO(gri) IsTypeSet is not a great name for this predicate. Find a better one.
+ 
+ // IsTypeSet reports whether the type set s is represented by a finite set of underlying types.
+ func (s *_TypeSet) IsTypeSet() bool {
+@@ -64,15 +64,21 @@ func (s *_TypeSet) LookupMethod(pkg *Package, name string) (int, *Func) {
+ }
+ 
+ func (s *_TypeSet) String() string {
+-	if s.IsTop() {
++	switch {
++	case s.IsEmpty():
++		return "∅"
++	case s.IsTop():
+ 		return "⊤"
+ 	}
+ 
++	hasMethods := len(s.methods) > 0
++	hasTerms := s.hasTerms()
++
+ 	var buf bytes.Buffer
+ 	buf.WriteByte('{')
+ 	if s.comparable {
+ 		buf.WriteString(" comparable")
+-		if len(s.methods) > 0 || s.types != nil {
++		if hasMethods || hasTerms {
+ 			buf.WriteByte(';')
+ 		}
+ 	}
+@@ -83,41 +89,77 @@ func (s *_TypeSet) String() string {
+ 		buf.WriteByte(' ')
+ 		buf.WriteString(m.String())
+ 	}
+-	if len(s.methods) > 0 && s.types != nil {
++	if hasMethods && hasTerms {
+ 		buf.WriteByte(';')
+ 	}
+-	if s.types != nil {
+-		buf.WriteByte(' ')
+-		writeType(&buf, s.types, nil, nil)
++	if hasTerms {
++		buf.WriteString(s.terms.String())
+ 	}
++	buf.WriteString(" }") // there was at least one method or term
+ 
+-	buf.WriteString(" }") // there was a least one method or type
+ 	return buf.String()
+ }
+ 
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
+-// underIs reports whether f returned true for the underlying types of the
+-// enumerable types in the type set s. If the type set comprises all types
+-// f is called once with the top type; if the type set is empty, the result
+-// is false.
++func (s *_TypeSet) hasTerms() bool              { return !s.terms.isTop() }
++func (s *_TypeSet) structuralType() Type        { return s.terms.structuralType() }
++func (s *_TypeSet) includes(t Type) bool        { return s.terms.includes(t) }
++func (s1 *_TypeSet) subsetOf(s2 *_TypeSet) bool { return s1.terms.subsetOf(s2.terms) }
++
++// TODO(gri) TypeSet.is and TypeSet.underIs should probably also go into termlist.go
++
++var topTerm = term{false, theTop}
++
++func (s *_TypeSet) is(f func(*term) bool) bool {
++	if len(s.terms) == 0 {
++		return false
++	}
++	for _, t := range s.terms {
++		// Terms represent the top term with a nil type.
++		// The rest of the type checker uses the top type
++		// instead. Convert.
++		// TODO(gri) investigate if we can do without this
++		if t.typ == nil {
++			t = &topTerm
++		}
++		if !f(t) {
++			return false
++		}
++	}
++	return true
++}
++
+ func (s *_TypeSet) underIs(f func(Type) bool) bool {
+-	switch t := s.types.(type) {
+-	case nil:
+-		return f(theTop)
+-	default:
+-		return f(t)
+-	case *Union:
+-		return t.underIs(f)
++	if len(s.terms) == 0 {
++		return false
+ 	}
++	for _, t := range s.terms {
++		// see corresponding comment in TypeSet.is
++		u := t.typ
++		if u == nil {
++			u = theTop
++		}
++		// t == under(t) for ~t terms
++		if !t.tilde {
++			u = under(u)
++		}
++		if debug {
++			assert(Identical(u, under(u)))
++		}
++		if !f(u) {
++			return false
++		}
++	}
++	return true
+ }
+ 
+ // topTypeSet may be used as type set for the empty interface.
+-var topTypeSet _TypeSet
++var topTypeSet = _TypeSet{terms: topTermlist}
+ 
+-// computeTypeSet may be called with check == nil.
+-func computeTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_TypeSet {
++// computeInterfaceTypeSet may be called with check == nil.
++func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_TypeSet {
+ 	if ityp.tset != nil {
+ 		return ityp.tset
+ 	}
+@@ -157,7 +199,7 @@ func computeTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_TypeSet {
+ 	// have valid interfaces. Mark the interface as complete to avoid
+ 	// infinite recursion if the validType check occurs later for some
+ 	// reason.
+-	ityp.tset = new(_TypeSet) // TODO(gri) is this sufficient?
++	ityp.tset = &_TypeSet{terms: topTermlist} // TODO(gri) is this sufficient?
+ 
+ 	// Methods of embedded interfaces are collected unchanged; i.e., the identity
+ 	// of a method I.m's Func Object of an interface I is the same as that of
+@@ -214,7 +256,7 @@ func computeTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_TypeSet {
+ 	}
+ 
+ 	// collect embedded elements
+-	var allTypes Type
++	var allTerms = topTermlist
+ 	for i, typ := range ityp.embeddeds {
+ 		// The embedding position is nil for imported interfaces
+ 		// and also for interface copies after substitution (but
+@@ -223,26 +265,22 @@ func computeTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_TypeSet {
+ 		if ityp.embedPos != nil {
+ 			pos = (*ityp.embedPos)[i]
+ 		}
+-		var types Type
++		var terms termlist
+ 		switch t := under(typ).(type) {
+ 		case *Interface:
+-			tset := computeTypeSet(check, pos, t)
++			tset := computeInterfaceTypeSet(check, pos, t)
+ 			if tset.comparable {
+ 				ityp.tset.comparable = true
+ 			}
+ 			for _, m := range tset.methods {
+ 				addMethod(pos, m, false) // use embedding position pos rather than m.pos
+-
+ 			}
+-			types = tset.types
++			terms = tset.terms
+ 		case *Union:
+-			// TODO(gri) combine with default case once we have
+-			//           converted all tests to new notation and we
+-			//           can report an error when we don't have an
+-			//           interface before go1.18.
+-			types = typ
++			tset := computeUnionTypeSet(check, pos, t)
++			terms = tset.terms
+ 		case *TypeParam:
+-			// Embedding stand-alone type parameters is not permitted for now.
++			// Embedding stand-alone type parameters is not permitted.
+ 			// This case is handled during union parsing.
+ 			unreachable()
+ 		default:
+@@ -253,9 +291,11 @@ func computeTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_TypeSet {
+ 				check.errorf(atPos(pos), _InvalidIfaceEmbed, "%s is not an interface", typ)
+ 				continue
+ 			}
+-			types = typ
++			terms = termlist{{false, typ}}
+ 		}
+-		allTypes = intersect(allTypes, types)
++		// The type set of an interface is the intersection
++		// of the type sets of all its elements.
++		allTerms = allTerms.intersect(terms)
+ 	}
+ 	ityp.embedPos = nil // not needed anymore (errors have been reported)
+ 
+@@ -272,7 +312,7 @@ func computeTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_TypeSet {
+ 		sort.Sort(byUniqueMethodName(methods))
+ 		ityp.tset.methods = methods
+ 	}
+-	ityp.tset.types = allTypes
++	ityp.tset.terms = allTerms
+ 
+ 	return ityp.tset
+ }
+@@ -296,3 +336,34 @@ type byUniqueMethodName []*Func
+ func (a byUniqueMethodName) Len() int           { return len(a) }
+ func (a byUniqueMethodName) Less(i, j int) bool { return a[i].Id() < a[j].Id() }
+ func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
++
++// computeUnionTypeSet may be called with check == nil.
++func computeUnionTypeSet(check *Checker, pos token.Pos, utyp *Union) *_TypeSet {
++	if utyp.tset != nil {
++		return utyp.tset
++	}
++
++	// avoid infinite recursion (see also computeInterfaceTypeSet)
++	utyp.tset = new(_TypeSet)
++
++	var allTerms termlist
++	for _, t := range utyp.terms {
++		var terms termlist
++		switch u := under(t.typ).(type) {
++		case *Interface:
++			terms = computeInterfaceTypeSet(check, pos, u).terms
++		case *TypeParam:
++			// A stand-alone type parameters is not permitted as union term.
++			// This case is handled during union parsing.
++			unreachable()
++		default:
++			terms = termlist{t}
++		}
++		// The type set of a union expression is the union
++		// of the type sets of each term.
++		allTerms = allTerms.union(terms)
++	}
++	utyp.tset.terms = allTerms
++
++	return utyp.tset
++}
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index c0c69624ec..5afa450c70 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -159,9 +159,10 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		writeSignature(buf, t, qf, visited)
+ 
+ 	case *Union:
+-		if t.IsEmpty() {
+-			buf.WriteString("⊥")
+-			break
++		// Unions only appear as (syntactic) embedded elements
++		// in interfaces and syntactically cannot be empty.
++		if t.NumTerms() == 0 {
++			panic("internal error: empty union")
+ 		}
+ 		for i, t := range t.terms {
+ 			if i > 0 {
+@@ -199,13 +200,21 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 				writeSignature(buf, m.typ.(*Signature), qf, visited)
+ 				empty = false
+ 			}
+-			if !empty && tset.types != nil {
++			if !empty && tset.hasTerms() {
+ 				buf.WriteString("; ")
+ 			}
+-			if tset.types != nil {
+-				buf.WriteString("type ")
+-				writeType(buf, tset.types, qf, visited)
+-			}
++			first := true
++			tset.is(func(t *term) bool {
++				if !first {
++					buf.WriteByte('|')
++				}
++				first = false
++				if t.tilde {
++					buf.WriteByte('~')
++				}
++				writeType(buf, t.typ, qf, visited)
++				return true
++			})
+ 		} else {
+ 			// print explicit interface methods and embedded types
+ 			for i, m := range t.methods {
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index a812ba6519..03dd7c26c4 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -145,19 +145,18 @@ func (check *Checker) varType(e ast.Expr) Type {
+ // ordinaryType reports an error if typ is an interface type containing
+ // type lists or is (or embeds) the predeclared type comparable.
+ func (check *Checker) ordinaryType(pos positioner, typ Type) {
+-	// We don't want to call under() (via asInterface) or complete interfaces
+-	// while we are in the middle of type-checking parameter declarations that
+-	// might belong to interface methods. Delay this check to the end of
+-	// type-checking.
++	// We don't want to call under() (via asInterface) or complete interfaces while we
++	// are in the middle of type-checking parameter declarations that might belong to
++	// interface methods. Delay this check to the end of type-checking.
+ 	check.later(func() {
+ 		if t := asInterface(typ); t != nil {
+-			tset := computeTypeSet(check, pos.Pos(), t) // TODO(gri) is this the correct position?
+-			if tset.types != nil {
+-				check.softErrorf(pos, _Todo, "interface contains type constraints (%s)", tset.types)
+-				return
+-			}
+-			if tset.IsComparable() {
+-				check.softErrorf(pos, _Todo, "interface is (or embeds) comparable")
++			tset := computeInterfaceTypeSet(check, pos.Pos(), t) // TODO(gri) is this the correct position?
++			if !tset.IsMethodSet() {
++				if tset.comparable {
++					check.softErrorf(pos, _Todo, "interface is (or embeds) comparable")
++				} else {
++					check.softErrorf(pos, _Todo, "interface contains type constraints")
++				}
+ 			}
+ 		}
+ 	})
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 90a5cf7c72..a94a5f35c6 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -358,9 +358,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 				u.nify(x.results, y.results, p)
+ 		}
+ 
+-	case *Union:
+-		panic("unimplemented: unification with type sets described by types")
+-
+ 	case *Interface:
+ 		// Two interface types are identical if they have the same set of methods with
+ 		// the same names and identical function types. Lower-case method names from
+@@ -368,7 +365,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		if y, ok := y.(*Interface); ok {
+ 			xset := x.typeSet()
+ 			yset := y.typeSet()
+-			if !Identical(xset.types, yset.types) {
++			if !xset.terms.equal(yset.terms) {
+ 				return false
+ 			}
+ 			a := xset.methods
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index a56f9d29f3..7f38c01f40 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -12,14 +12,15 @@ import (
+ // ----------------------------------------------------------------------------
+ // API
+ 
+-// A Union represents a union of terms.
++// A Union represents a union of terms embedded in an interface.
+ type Union struct {
+-	terms []*term
++	terms []*term   // list of syntactical terms (not a canonicalized termlist)
++	tset  *_TypeSet // type set described by this union, computed lazily
+ }
+ 
+ // NewUnion returns a new Union type with the given terms (types[i], tilde[i]).
+-// The lengths of both arguments must match. An empty union represents the set
+-// of no types.
++// The lengths of both arguments must match. It is an error to create an empty
++// union; they are syntactically not possible.
+ func NewUnion(types []Type, tilde []bool) *Union { return newUnion(types, tilde) }
+ 
+ func (u *Union) IsEmpty() bool           { return len(u.terms) == 0 }
+@@ -32,12 +33,10 @@ func (u *Union) String() string   { return TypeString(u, nil) }
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
+-var emptyUnion = new(Union)
+-
+ func newUnion(types []Type, tilde []bool) *Union {
+ 	assert(len(types) == len(tilde))
+ 	if len(types) == 0 {
+-		return emptyUnion
++		panic("empty union")
+ 	}
+ 	t := new(Union)
+ 	t.terms = make([]*term, len(types))
+@@ -47,52 +46,23 @@ func newUnion(types []Type, tilde []bool) *Union {
+ 	return t
+ }
+ 
+-// is reports whether f returns true for all terms of u.
+-func (u *Union) is(f func(*term) bool) bool {
+-	if u.IsEmpty() {
+-		return false
+-	}
+-	for _, t := range u.terms {
+-		if !f(t) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-// underIs reports whether f returned true for the underlying types of all terms of u.
+-func (u *Union) underIs(f func(Type) bool) bool {
+-	if u.IsEmpty() {
+-		return false
+-	}
+-	for _, t := range u.terms {
+-		if !f(under(t.typ)) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+-	var types []Type
+-	var tilde []bool
++	var terms []*term
+ 	for _, x := range tlist {
+-		t, d := parseTilde(check, x)
+-		if len(tlist) == 1 && !d {
+-			return t // single type
++		tilde, typ := parseTilde(check, x)
++		if len(tlist) == 1 && !tilde {
++			return typ // single type
+ 		}
+-		types = append(types, t)
+-		tilde = append(tilde, d)
++		terms = append(terms, &term{tilde, typ})
+ 	}
+ 
+-	// Ensure that each type is only present once in the type list.
+-	// It's ok to do this check later because it's not a requirement
+-	// for correctness of the code.
++	// Check validity of terms.
++	// Do this check later because it requires types to be set up.
+ 	// Note: This is a quadratic algorithm, but unions tend to be short.
+ 	check.later(func() {
+-		for i, t := range types {
+-			t := expand(t)
+-			if t == Typ[Invalid] {
++		for i, t := range terms {
++			typ := expand(t.typ)
++			if typ == Typ[Invalid] {
+ 				continue
+ 			}
+ 
+@@ -108,16 +78,16 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+ 				}
+ 			}
+ 
+-			u := under(t)
++			u := under(typ)
+ 			f, _ := u.(*Interface)
+-			if tilde[i] {
++			if t.tilde {
+ 				if f != nil {
+-					check.errorf(x, _Todo, "invalid use of ~ (%s is an interface)", t)
++					check.errorf(x, _Todo, "invalid use of ~ (%s is an interface)", typ)
+ 					continue // don't report another error for t
+ 				}
+ 
+-				if !Identical(u, t) {
+-					check.errorf(x, _Todo, "invalid use of ~ (underlying type of %s is %s)", t, u)
++				if !Identical(u, typ) {
++					check.errorf(x, _Todo, "invalid use of ~ (underlying type of %s is %s)", typ, u)
+ 					continue // don't report another error for t
+ 				}
+ 			}
+@@ -130,19 +100,18 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+ 				continue // don't report another error for t
+ 			}
+ 
+-			// Complain about duplicate entries a|a, but also a|~a, and ~a|~a.
+-			// TODO(gri) We should also exclude myint|~int since myint is included in ~int.
+-			if includes(types[:i], t) {
+-				// TODO(rfindley) this currently doesn't print the ~ if present
+-				check.softErrorf(atPos(pos), _Todo, "duplicate term %s in union element", t)
++			// Report overlapping (non-disjoint) terms such as
++			// a|a, a|~a, ~a|~a, and ~a|A (where under(A) == a).
++			if j := overlappingTerm(terms[:i], t); j >= 0 {
++				check.softErrorf(atPos(pos), _Todo, "overlapping terms %s and %s", t, terms[j])
+ 			}
+ 		}
+ 	})
+ 
+-	return newUnion(types, tilde)
++	return &Union{terms, nil}
+ }
+ 
+-func parseTilde(check *Checker, x ast.Expr) (typ Type, tilde bool) {
++func parseTilde(check *Checker, x ast.Expr) (tilde bool, typ Type) {
+ 	if op, _ := x.(*ast.UnaryExpr); op != nil && op.Op == token.TILDE {
+ 		x = op.X
+ 		tilde = true
+@@ -156,116 +125,20 @@ func parseTilde(check *Checker, x ast.Expr) (typ Type, tilde bool) {
+ 	return
+ }
+ 
+-// intersect computes the intersection of the types x and y,
+-// A nil type stands for the set of all types; an empty union
+-// stands for the set of no types.
+-func intersect(x, y Type) (r Type) {
+-	// If one of the types is nil (no restrictions)
+-	// the result is the other type.
+-	switch {
+-	case x == nil:
+-		return y
+-	case y == nil:
+-		return x
+-	}
+-
+-	// Compute the terms which are in both x and y.
+-	// TODO(gri) This is not correct as it may not always compute
+-	//           the "largest" intersection. For instance, for
+-	//           x = myInt|~int, y = ~int
+-	//           we get the result myInt but we should get ~int.
+-	xu, _ := x.(*Union)
+-	yu, _ := y.(*Union)
+-	switch {
+-	case xu != nil && yu != nil:
+-		return &Union{intersectTerms(xu.terms, yu.terms)}
+-
+-	case xu != nil:
+-		if r, _ := xu.intersect(y, false); r != nil {
+-			return y
+-		}
+-
+-	case yu != nil:
+-		if r, _ := yu.intersect(x, false); r != nil {
+-			return x
+-		}
+-
+-	default: // xu == nil && yu == nil
+-		if Identical(x, y) {
+-			return x
+-		}
+-	}
+-
+-	return emptyUnion
+-}
+-
+-// includes reports whether typ is in list.
+-func includes(list []Type, typ Type) bool {
+-	for _, e := range list {
+-		if Identical(typ, e) {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-// intersect computes the intersection of the union u and term (y, yt)
+-// and returns the intersection term, if any. Otherwise the result is
+-// (nil, false).
+-// TODO(gri) this needs to cleaned up/removed once we switch to lazy
+-//           union type set computation.
+-func (u *Union) intersect(y Type, yt bool) (Type, bool) {
+-	under_y := under(y)
+-	for _, x := range u.terms {
+-		xt := x.tilde
+-		// determine which types xx, yy to compare
+-		xx := x.typ
+-		if yt {
+-			xx = under(xx)
+-		}
+-		yy := y
+-		if xt {
+-			yy = under_y
+-		}
+-		if Identical(xx, yy) {
+-			//  T ∩  T =  T
+-			//  T ∩ ~t =  T
+-			// ~t ∩  T =  T
+-			// ~t ∩ ~t = ~t
+-			return xx, xt && yt
+-		}
+-	}
+-	return nil, false
+-}
+-
+-func identicalTerms(list1, list2 []*term) bool {
+-	if len(list1) != len(list2) {
+-		return false
+-	}
+-	// Every term in list1 must be in list2.
+-	// Quadratic algorithm, but probably good enough for now.
+-	// TODO(gri) we need a fast quick type ID/hash for all types.
+-L:
+-	for _, x := range list1 {
+-		for _, y := range list2 {
+-			if x.equal(y) {
+-				continue L // x is in list2
++// overlappingTerm reports the index of the term x in terms which is
++// overlapping (not disjoint) from y. The result is < 0 if there is no
++// such term.
++func overlappingTerm(terms []*term, y *term) int {
++	for i, x := range terms {
++		// disjoint requires non-nil, non-top arguments
++		if debug {
++			if x == nil || x.typ == nil || y == nil || y.typ == nil {
++				panic("internal error: empty or top union term")
+ 			}
+ 		}
+-		return false
+-	}
+-	return true
+-}
+-
+-func intersectTerms(list1, list2 []*term) (list []*term) {
+-	// Quadratic algorithm, but good enough for now.
+-	// TODO(gri) fix asymptotic performance
+-	for _, x := range list1 {
+-		for _, y := range list2 {
+-			if r := x.intersect(y); r != nil {
+-				list = append(list, r)
+-			}
++		if !x.disjoint(y) {
++			return i
+ 		}
+ 	}
+-	return
++	return -1
+ }
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 83c54c8cd3..7d48c5d748 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -90,7 +90,7 @@ func defPredeclaredTypes() {
+ 		sig := NewSignature(nil, nil, NewTuple(res), false)
+ 		err := NewFunc(token.NoPos, nil, "Error", sig)
+ 		ityp := &Interface{obj, []*Func{err}, nil, nil, true, nil}
+-		computeTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
++		computeInterfaceTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
+ 		typ := NewNamed(obj, ityp, nil)
+ 		sig.recv = NewVar(token.NoPos, nil, "", typ)
+ 		def(obj)
+@@ -100,7 +100,7 @@ func defPredeclaredTypes() {
+ 	{
+ 		obj := NewTypeName(token.NoPos, nil, "comparable", nil)
+ 		obj.setColor(black)
+-		ityp := &Interface{obj, nil, nil, nil, true, &_TypeSet{true, nil, nil}}
++		ityp := &Interface{obj, nil, nil, nil, true, &_TypeSet{true, nil, topTermlist}}
+ 		NewNamed(obj, ityp, nil)
+ 		def(obj)
+ 	}

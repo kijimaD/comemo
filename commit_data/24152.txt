@@ -14,7 +14,72 @@ Date:   Mon Jul 13 22:13:32 2015 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/exec/exec.go       | 14 ++++++--------
  src/os/exec/exec_posix.go | 24 ++++++++++++++++++++++++
  2 files changed, 30 insertions(+), 8 deletions(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index e3c6fb62b1..1f5fb6e39c 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -157,6 +157,11 @@ func (c *Cmd) argv() []string {
+ 	return []string{c.Path}
+ }
+ 
++// skipStdinCopyError optionally specifies a function which reports
++// whether the provided the stdin copy error should be ignored.
++// It is non-nil everywhere but Plan 9, which lacks EPIPE. See exec_posix.go.
++var skipStdinCopyError func(error) bool
++
+ func (c *Cmd) stdin() (f *os.File, err error) {
+ 	if c.Stdin == nil {
+ 		f, err = os.Open(os.DevNull)
+@@ -180,16 +185,9 @@ func (c *Cmd) stdin() (f *os.File, err error) {
+ 	c.closeAfterWait = append(c.closeAfterWait, pw)
+ 	c.goroutine = append(c.goroutine, func() error {
+ 		_, err := io.Copy(pw, c.Stdin)
+-
+-		// Ignore EPIPE errors copying to stdin if the program
+-		// completed successfully otherwise.
+-		// See Issue 9173.
+-		if pe, ok := err.(*os.PathError); ok &&
+-			pe.Op == "write" && pe.Path == "|1" &&
+-			pe.Err == syscall.EPIPE {
++		if skip := skipStdinCopyError; skip != nil && skip(err) {
+ 			err = nil
+ 		}
+-
+ 		if err1 := pw.Close(); err == nil {
+ 			err = err1
+ 		}
+diff --git a/src/os/exec/exec_posix.go b/src/os/exec/exec_posix.go
+new file mode 100644
+index 0000000000..5e1113748c
+--- /dev/null
++++ b/src/os/exec/exec_posix.go
+@@ -0,0 +1,24 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9
++
++package exec
++
++import (
++	"os"
++	"syscall"
++)
++
++func init() {
++	skipStdinCopyError = func(err error) bool {
++		// Ignore EPIPE errors copying to stdin if the program
++		// completed successfully otherwise.
++		// See Issue 9173.
++		pe, ok := err.(*os.PathError)
++		return ok &&
++			pe.Op == "write" && pe.Path == "|1" &&
++			pe.Err == syscall.EPIPE
++	}
++}

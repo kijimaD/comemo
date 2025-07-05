@@ -9,10 +9,156 @@ Date:   Fri Jul 29 13:47:41 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4815066
-
+---
  src/cmd/6l/asm.c  | 13 +++++++++++--
  src/cmd/6l/doc.go |  2 ++
  src/cmd/6l/obj.c  |  5 ++++-
  src/cmd/6l/pass.c |  6 ++++--
  src/cmd/ld/lib.h  |  1 +
  5 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 39ee2db54f..f59a59efbe 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -43,6 +43,7 @@
+ 
+ char linuxdynld[] = "/lib64/ld-linux-x86-64.so.2";
+ char freebsddynld[] = "/libexec/ld-elf.so.1";
++char openbsddynld[] = "/usr/libexec/ld.so";
+ 
+ char	zeroes[32];
+ 
+@@ -554,7 +555,7 @@ doelf(void)
+ {
+ 	Sym *s, *shstrtab, *dynstr;
+ 
+-	if(HEADTYPE != Hlinux && HEADTYPE != Hfreebsd)
++	if(HEADTYPE != Hlinux && HEADTYPE != Hfreebsd && HEADTYPE != Hopenbsd)
+ 		return;
+ 
+ 	/* predefine strings we need for section headers */
+@@ -746,6 +747,7 @@ asmb(void)
+ 		break;
+ 	case Hlinux:
+ 	case Hfreebsd:
++	case Hopenbsd:
+ 		debug['8'] = 1;	/* 64-bit addresses */
+ 		/* index of elf text section; needed by asmelfsym, double-checked below */
+ 		/* !debug['d'] causes extra sections before the .text section */
+@@ -780,6 +782,7 @@ asmb(void)
+ 			break;
+ 		case Hlinux:
+ 		case Hfreebsd:
++		case Hopenbsd:
+ 			symo = rnd(HEADR+segtext.len, INITRND)+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+@@ -849,6 +852,7 @@ asmb(void)
+ 		break;
+ 	case Hlinux:
+ 	case Hfreebsd:
++	case Hopenbsd:
+ 		/* elf amd-64 */
+ 
+ 		eh = getElfEhdr();
+@@ -891,6 +895,9 @@ asmb(void)
+ 				case Hfreebsd:
+ 					interpreter = freebsddynld;
+ 					break;
++				case Hopenbsd:
++					interpreter = openbsddynld;
++					break;
+ 				}
+ 			}
+ 			elfinterp(sh, startva, interpreter);
+@@ -1053,7 +1060,9 @@ asmb(void)
+ 		eh->ident[EI_MAG2] = 'L';
+ 		eh->ident[EI_MAG3] = 'F';
+ 		if(HEADTYPE == Hfreebsd)
+-			eh->ident[EI_OSABI] = 9;
++			eh->ident[EI_OSABI] = ELFOSABI_FREEBSD;
++		else if(HEADTYPE == Hopenbsd)
++			eh->ident[EI_OSABI] = ELFOSABI_OPENBSD;
+ 		eh->ident[EI_CLASS] = ELFCLASS64;
+ 		eh->ident[EI_DATA] = ELFDATA2LSB;
+ 		eh->ident[EI_VERSION] = EV_CURRENT;
+diff --git a/src/cmd/6l/doc.go b/src/cmd/6l/doc.go
+index cc7782cfeb..b8a6013d63 100644
+--- a/src/cmd/6l/doc.go
++++ b/src/cmd/6l/doc.go
+@@ -34,6 +34,8 @@ Options new in this version:
+ 	Write Linux ELF binaries (default when $GOOS is linux)
+ -Hfreebsd
+ 	Write FreeBSD ELF binaries (default when $GOOS is freebsd)
++-Hopenbsd
++	Write OpenBSD ELF binaries (default when $GOOS is openbsd)
+ -Hwindows
+ 	Write Windows PE32+ binaries (default when $GOOS is windows)
+ -I interpreter
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 306a3edf1a..a7ef58db47 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -50,6 +50,7 @@ Header headers[] = {
+    "darwin", Hdarwin,
+    "linux", Hlinux,
+    "freebsd", Hfreebsd,
++   "openbsd", Hopenbsd,
+    "windows", Hwindows,
+    "windowsgui", Hwindows,
+    0, 0
+@@ -62,6 +63,7 @@ Header headers[] = {
+  *	-Hdarwin -Tx -Rx		is apple MH-exec
+  *	-Hlinux -Tx -Rx			is linux elf-exec
+  *	-Hfreebsd -Tx -Rx		is FreeBSD elf-exec
++ *	-Hopenbsd -Tx -Rx		is OpenBSD elf-exec
+  *	-Hwindows -Tx -Rx		is MS Windows PE32+
+  *
+  *	options used: 189BLQSWabcjlnpsvz
+@@ -194,7 +196,8 @@ main(int argc, char *argv[])
+ 			INITDAT = 0;
+ 		break;
+ 	case Hlinux:	/* elf64 executable */
+-	case Hfreebsd: /* freebsd */
++	case Hfreebsd:	/* freebsd */
++	case Hopenbsd:	/* openbsd */
+ 		/*
+ 		 * ELF uses TLS offset negative from FS.
+ 		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 773a30e4ab..d9e0b2fc1b 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -294,7 +294,8 @@ patch(void)
+ 				p->from.offset = 0x58;
+ 			}
+ 		}
+-		if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd) {
++		if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd
++		|| HEADTYPE == Hopenbsd) {
+ 			// ELF uses FS instead of GS.
+ 			if(p->from.type == D_INDIR+D_GS)
+ 				p->from.type = D_INDIR+D_FS;
+@@ -419,7 +420,8 @@ dostkoff(void)
+ 		if(!(p->from.scale & NOSPLIT)) {
+ 			p = appendp(p);	// load g into CX
+ 			p->as = AMOVQ;
+-			if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd)	// ELF uses FS
++			if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd
++			|| HEADTYPE == Hopenbsd)	// ELF uses FS
+ 				p->from.type = D_INDIR+D_FS;
+ 			else
+ 				p->from.type = D_INDIR+D_GS;
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 0764dc7a79..d13eea31ed 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -263,6 +263,7 @@ enum {
+ 	Hlinux,		// Linux ELF
+ 	Hfreebsd,	// FreeBSD ELF
+ 	Hwindows,	// MS Windows PE
++	Hopenbsd,	// OpenBSD ELF
+ };
+ 
+ typedef struct Header Header;

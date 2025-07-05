@@ -17,7 +17,94 @@ Date:   Thu May 25 22:46:41 2017 +0200
     Reviewed-by: Filippo Valsorda <hi@filippo.io>
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/elliptic/elliptic.go      | 11 +++++++---
  src/crypto/elliptic/elliptic_test.go | 39 ++++++++++++++++++++++++++++++++++++
  2 files changed, 47 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/elliptic/elliptic.go b/src/crypto/elliptic/elliptic.go
+index d3527243e7..35aacf24e5 100644
+--- a/src/crypto/elliptic/elliptic.go
++++ b/src/crypto/elliptic/elliptic.go
+@@ -301,7 +301,7 @@ func GenerateKey(curve Curve, rand io.Reader) (priv []byte, x, y *big.Int, err e
+ 	return
+ }
+ 
+-// Marshal converts a point into the form specified in section 4.3.6 of ANSI X9.62.
++// Marshal converts a point into the uncompressed form specified in section 4.3.6 of ANSI X9.62.
+ func Marshal(curve Curve, x, y *big.Int) []byte {
+ 	byteLen := (curve.Params().BitSize + 7) >> 3
+ 
+@@ -316,7 +316,8 @@ func Marshal(curve Curve, x, y *big.Int) []byte {
+ }
+ 
+ // Unmarshal converts a point, serialized by Marshal, into an x, y pair.
+-// It is an error if the point is not on the curve. On error, x = nil.
++// It is an error if the point is not in uncompressed form or is not on the curve.
++// On error, x = nil.
+ func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
+ 	byteLen := (curve.Params().BitSize + 7) >> 3
+ 	if len(data) != 1+2*byteLen {
+@@ -325,10 +326,14 @@ func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
+ 	if data[0] != 4 { // uncompressed form
+ 		return
+ 	}
++	p := curve.Params().P
+ 	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
+ 	y = new(big.Int).SetBytes(data[1+byteLen:])
++	if x.Cmp(p) >= 0 || y.Cmp(p) >= 0 {
++		return nil, nil
++	}
+ 	if !curve.IsOnCurve(x, y) {
+-		x, y = nil, nil
++		return nil, nil
+ 	}
+ 	return
+ }
+diff --git a/src/crypto/elliptic/elliptic_test.go b/src/crypto/elliptic/elliptic_test.go
+index 41c4d658a0..2c0f2440f7 100644
+--- a/src/crypto/elliptic/elliptic_test.go
++++ b/src/crypto/elliptic/elliptic_test.go
+@@ -580,3 +580,42 @@ func TestP224Overflow(t *testing.T) {
+ 		t.Error("P224 failed to validate a correct point")
+ 	}
+ }
++
++// See https://github.com/golang/go/issues/20482
++func TestUnmarshalToLargeCoordinates(t *testing.T) {
++	curve := P256()
++	p := curve.Params().P
++
++	invalidX, invalidY := make([]byte, 65), make([]byte, 65)
++	invalidX[0], invalidY[0] = 4, 4 // uncompressed encoding
++
++	// Set x to be greater than curve's parameter P – specifically, to P+5.
++	// Set y to mod_sqrt(x^3 - 3x + B)) so that (x mod P = 5 , y) is on the
++	// curve.
++	x := new(big.Int).Add(p, big.NewInt(5))
++	y, _ := new(big.Int).SetString("31468013646237722594854082025316614106172411895747863909393730389177298123724", 10)
++
++	copy(invalidX[1:], x.Bytes())
++	copy(invalidX[33:], y.Bytes())
++
++	if X, Y := Unmarshal(curve, invalidX); X != nil || Y != nil {
++		t.Errorf("Unmarshal accpets invalid X coordinate")
++	}
++
++	// This is a point on the curve with a small y value, small enough that we can add p and still be within 32 bytes.
++	x, _ = new(big.Int).SetString("31931927535157963707678568152204072984517581467226068221761862915403492091210", 10)
++	y, _ = new(big.Int).SetString("5208467867388784005506817585327037698770365050895731383201516607147", 10)
++	y.Add(y, p)
++
++	if p.Cmp(y) > 0 || y.BitLen() != 256 {
++		t.Fatal("y not within expected range")
++	}
++
++	// marshal
++	copy(invalidY[1:], x.Bytes())
++	copy(invalidY[33:], y.Bytes())
++
++	if X, Y := Unmarshal(curve, invalidY); X != nil || Y != nil {
++		t.Errorf("Unmarshal accpets invalid Y coordinate")
++	}
++}

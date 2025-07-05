@@ -8,6 +8,22 @@ Date:   Tue Feb 21 15:49:08 2012 +1100
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/5687058
-
+---
  src/pkg/net/ipsock_posix.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/net/ipsock_posix.go b/src/pkg/net/ipsock_posix.go
+index 4da18a5061..8754451b33 100644
+--- a/src/pkg/net/ipsock_posix.go
++++ b/src/pkg/net/ipsock_posix.go
+@@ -117,6 +117,10 @@ func internetSocket(net string, laddr, raddr sockaddr, sotype, proto int, mode s
+ 		if ra, oserr = raddr.sockaddr(family); oserr != nil {
+ 			goto Error
+ 		}
++		if ra == nil {
++			// TODO(r): part of selfConnect debugging
++			panic("ra nil when raddr non-nil")
++		}
+ 	}
+ 	fd, oserr = socket(net, family, sotype, proto, la, ra, toAddr)
+ 	if oserr != nil {

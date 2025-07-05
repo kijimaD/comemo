@@ -9,6 +9,20 @@ Date:   Tue Jun 28 08:41:37 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/tls/tls_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 48b46a003a..fdccfcadf9 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -482,7 +482,7 @@ func TestClone(t *testing.T) {
+ 			continue
+ 		case "Certificates":
+ 			f.Set(reflect.ValueOf([]Certificate{
+-				{Certificate: [][]byte{[]byte{'b'}}},
++				{Certificate: [][]byte{{'b'}}},
+ 			}))
+ 			continue
+ 		case "NameToCertificate":

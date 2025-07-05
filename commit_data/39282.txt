@@ -13,7 +13,73 @@ Date:   Fri Feb 15 15:01:29 2019 -0500
     Change-Id: I47c2a2e434dd466c08ae6f50f213999a358c796e
     Reviewed-on: https://go-review.googlesource.com/c/162819
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go |  8 ++++----
  test/fixedbugs/issue29215.go            | 17 +++++++++++++++++
  2 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 6edb593df9..9c9de750b2 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1142,7 +1142,7 @@ func symIsRO(sym interface{}) bool {
+ // read8 reads one byte from the read-only global sym at offset off.
+ func read8(sym interface{}, off int64) uint8 {
+ 	lsym := sym.(*obj.LSym)
+-	if off >= int64(len(lsym.P)) {
++	if off >= int64(len(lsym.P)) || off < 0 {
+ 		// Invalid index into the global sym.
+ 		// This can happen in dead code, so we don't want to panic.
+ 		// Just return any value, it will eventually get ignored.
+@@ -1155,7 +1155,7 @@ func read8(sym interface{}, off int64) uint8 {
+ // read16 reads two bytes from the read-only global sym at offset off.
+ func read16(sym interface{}, off int64, bigEndian bool) uint16 {
+ 	lsym := sym.(*obj.LSym)
+-	if off >= int64(len(lsym.P))-1 {
++	if off >= int64(len(lsym.P))-1 || off < 0 {
+ 		return 0
+ 	}
+ 	if bigEndian {
+@@ -1168,7 +1168,7 @@ func read16(sym interface{}, off int64, bigEndian bool) uint16 {
+ // read32 reads four bytes from the read-only global sym at offset off.
+ func read32(sym interface{}, off int64, bigEndian bool) uint32 {
+ 	lsym := sym.(*obj.LSym)
+-	if off >= int64(len(lsym.P))-3 {
++	if off >= int64(len(lsym.P))-3 || off < 0 {
+ 		return 0
+ 	}
+ 	if bigEndian {
+@@ -1181,7 +1181,7 @@ func read32(sym interface{}, off int64, bigEndian bool) uint32 {
+ // read64 reads eight bytes from the read-only global sym at offset off.
+ func read64(sym interface{}, off int64, bigEndian bool) uint64 {
+ 	lsym := sym.(*obj.LSym)
+-	if off >= int64(len(lsym.P))-7 {
++	if off >= int64(len(lsym.P))-7 || off < 0 {
+ 		return 0
+ 	}
+ 	if bigEndian {
+diff --git a/test/fixedbugs/issue29215.go b/test/fixedbugs/issue29215.go
+index df703aa25d..4e8f107aee 100644
+--- a/test/fixedbugs/issue29215.go
++++ b/test/fixedbugs/issue29215.go
+@@ -16,3 +16,20 @@ func f() {
+         }
+         _ = s == "bbb"
+ }
++
++// Another case: load from negative offset of a symbol
++// in dead code (issue 30257).
++func g() {
++	var i int
++	var s string
++
++	if true {
++		s = "a"
++	}
++
++	if f := 0.0; -f < 0 {
++		i = len(s[:4])
++	}
++
++	_ = s[i-1:0] != "bb" && true
++}

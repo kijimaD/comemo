@@ -12,6 +12,37 @@ Date:   Thu Apr 29 10:27:43 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/buildlist.go | 17 +++++++++++++----
  1 file changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 46aee45bd5..4b83ede541 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -140,12 +140,21 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
+ 			// The roots of a lazy module should already include every module in the
+ 			// vendor list, because the vendored modules are the same as those
+ 			// maintained as roots by the lazy loading “import invariant”.
+-			if go117LazyTODO {
+-				// Double-check here that that invariant holds.
++			//
++			// Just to be sure, we'll double-check that here.
++			inconsistent := false
++			for _, m := range vendorList {
++				if v, ok := rs.rootSelected(m.Path); !ok || v != m.Version {
++					base.Errorf("go: vendored module %v should be required explicitly in go.mod", m)
++					inconsistent = true
++				}
++			}
++			if inconsistent {
++				base.Fatalf("go: %v", errGoModDirty)
+ 			}
+ 
+-			// So we can just treat the rest of the module graph as effectively
+-			// “pruned out”, like a more aggressive version of lazy loading:
++			// Now we can treat the rest of the module graph as effectively “pruned
++			// out”, like a more aggressive version of lazy loading: in vendor mode,
+ 			// the root requirements *are* the complete module graph.
+ 			mg.g.Require(Target, rs.rootModules)
+ 		} else {

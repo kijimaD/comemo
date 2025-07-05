@@ -9,6 +9,22 @@ Date:   Mon Oct 17 15:54:36 2011 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5279049
-
+---
  src/pkg/http/server.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 16071edec6..018be8cd3e 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -567,7 +567,9 @@ func (c *conn) serve() {
+ 		if err == nil {
+ 			return
+ 		}
+-		c.rwc.Close()
++		if c.rwc != nil { // may be nil if connection hijacked
++			c.rwc.Close()
++		}
+ 
+ 		var buf bytes.Buffer
+ 		fmt.Fprintf(&buf, "http: panic serving %v: %v\n", c.remoteAddr, err)

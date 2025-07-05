@@ -7,6 +7,20 @@ Date:   Wed Feb 27 12:42:26 2013 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7392054
-
+---
  src/pkg/net/fd_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 4d52640cd4..0e331b44dc 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -65,7 +65,7 @@ func dialTimeout(net, addr string, timeout time.Duration) (Conn, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return dial(net, addr, ra, deadline)
++	return dial(net, addr, noLocalAddr, ra, deadline)
+ }
+ 
+ // Interface for all IO operations.

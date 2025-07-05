@@ -10,6 +10,29 @@ Date:   Tue May 22 17:33:23 2018 -0400
     Change-Id: If437fc832983bd8793bde28ce0e2e64436a0596c
     Reviewed-on: https://go-review.googlesource.com/114087
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/plive.go | 11 -----------
  1 file changed, 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index f3f1ca3d39..88b4380637 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -461,17 +461,6 @@ func (lv *Liveness) regEffects(v *ssa.Value) (uevar, kill liveRegMask) {
+ 		for _, reg := range regs[:nreg] {
+ 			if reg.GCNum() == -1 {
+ 				if ptrOnly {
+-					if reg.String() == "g" {
+-						// Issue #25504: Sometimes we
+-						// spill and reload the g
+-						// register, which this sees
+-						// as a pointer load into the
+-						// g register. The g register
+-						// isn't a GP register and
+-						// can't appear in register
+-						// maps. Ignore it.
+-						continue
+-					}
+ 					v.Fatalf("pointer in non-pointer register %v", reg)
+ 				} else {
+ 					continue

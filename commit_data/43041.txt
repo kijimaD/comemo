@@ -10,7 +10,132 @@ Date:   Mon Mar 2 04:23:12 2020 +1100
     Change-Id: Ie8d54b7538f0012e5f898abea233b2957fe31899
     Reviewed-on: https://go-review.googlesource.com/c/go/+/221679
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules | 14 +++--
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 75 ++++++++++++++++++++++++++
  2 files changed, 86 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 4ab4656bd5..3fd482b50c 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -438,9 +438,6 @@
+ (MOVDconst <t> [c]) && !is32Bit(c) && int32(c) <  0 -> (ADD (SLLI <t> [32] (MOVDconst [c>>32+1])) (MOVDconst [int64(int32(c))]))
+ (MOVDconst <t> [c]) && !is32Bit(c) && int32(c) >= 0 -> (ADD (SLLI <t> [32] (MOVDconst [c>>32+0])) (MOVDconst [int64(int32(c))]))
+ 
+-// Fold ADD+MOVDconst into ADDI where possible.
+-(ADD (MOVDconst [off]) ptr) && is32Bit(off) -> (ADDI [off] ptr)
+-
+ (Addr ...) -> (MOVaddr ...)
+ (LocalAddr {sym} base _) -> (MOVaddr {sym} base)
+ 
+@@ -459,5 +456,16 @@
+ (ClosureCall ...) -> (CALLclosure ...)
+ (InterCall   ...) -> (CALLinter   ...)
+ 
++// Optimizations
++
++// Fold ADD+MOVDconst into ADDI where possible.
++(ADD (MOVDconst [off]) ptr) && is32Bit(off) -> (ADDI [off] ptr)
++
++// Convert subtraction of a const into ADDI with negative immediate, where possible.
++(SUB x (MOVBconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
++(SUB x (MOVHconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
++(SUB x (MOVWconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
++(SUB x (MOVDconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
++
+ // remove redundant *const ops
+ (ADDI [0]  x) -> x
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 2e0b34de8d..128f7bb2b2 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -404,6 +404,8 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		return rewriteValueRISCV64_OpRISCV64MOVWload(v)
+ 	case OpRISCV64MOVWstore:
+ 		return rewriteValueRISCV64_OpRISCV64MOVWstore(v)
++	case OpRISCV64SUB:
++		return rewriteValueRISCV64_OpRISCV64SUB(v)
+ 	case OpRotateLeft16:
+ 		return rewriteValueRISCV64_OpRotateLeft16(v)
+ 	case OpRotateLeft32:
+@@ -2877,6 +2879,79 @@ func rewriteValueRISCV64_OpRISCV64MOVWstore(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueRISCV64_OpRISCV64SUB(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (SUB x (MOVBconst [val]))
++	// cond: is32Bit(-val)
++	// result: (ADDI [-val] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVBconst {
++			break
++		}
++		val := v_1.AuxInt
++		if !(is32Bit(-val)) {
++			break
++		}
++		v.reset(OpRISCV64ADDI)
++		v.AuxInt = -val
++		v.AddArg(x)
++		return true
++	}
++	// match: (SUB x (MOVHconst [val]))
++	// cond: is32Bit(-val)
++	// result: (ADDI [-val] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVHconst {
++			break
++		}
++		val := v_1.AuxInt
++		if !(is32Bit(-val)) {
++			break
++		}
++		v.reset(OpRISCV64ADDI)
++		v.AuxInt = -val
++		v.AddArg(x)
++		return true
++	}
++	// match: (SUB x (MOVWconst [val]))
++	// cond: is32Bit(-val)
++	// result: (ADDI [-val] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVWconst {
++			break
++		}
++		val := v_1.AuxInt
++		if !(is32Bit(-val)) {
++			break
++		}
++		v.reset(OpRISCV64ADDI)
++		v.AuxInt = -val
++		v.AddArg(x)
++		return true
++	}
++	// match: (SUB x (MOVDconst [val]))
++	// cond: is32Bit(-val)
++	// result: (ADDI [-val] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVDconst {
++			break
++		}
++		val := v_1.AuxInt
++		if !(is32Bit(-val)) {
++			break
++		}
++		v.reset(OpRISCV64ADDI)
++		v.AuxInt = -val
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueRISCV64_OpRotateLeft16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]

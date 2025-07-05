@@ -7,8 +7,68 @@ Date:   Thu Sep 19 15:20:39 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/13788043
-
+---
  test/fixedbugs/bug479.dir/a.go | 15 +++++++++++++++
  test/fixedbugs/bug479.dir/b.go | 16 ++++++++++++++++
  test/fixedbugs/bug479.go       | 10 ++++++++++
  3 files changed, 41 insertions(+)
+
+diff --git a/test/fixedbugs/bug479.dir/a.go b/test/fixedbugs/bug479.dir/a.go
+new file mode 100644
+index 0000000000..5ff3bef1d1
+--- /dev/null
++++ b/test/fixedbugs/bug479.dir/a.go
+@@ -0,0 +1,15 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "unsafe"
++
++type S2 struct {}
++
++const C = unsafe.Sizeof(S2{})
++
++type S1 struct {
++	S2
++}
+diff --git a/test/fixedbugs/bug479.dir/b.go b/test/fixedbugs/bug479.dir/b.go
+new file mode 100644
+index 0000000000..a1b27b3326
+--- /dev/null
++++ b/test/fixedbugs/bug479.dir/b.go
+@@ -0,0 +1,16 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++type S3 struct {
++	p.S1
++}
++
++func main() {
++	var i interface{} = S3{}
++	_ = i
++}
+diff --git a/test/fixedbugs/bug479.go b/test/fixedbugs/bug479.go
+new file mode 100644
+index 0000000000..f8a0f93c73
+--- /dev/null
++++ b/test/fixedbugs/bug479.go
+@@ -0,0 +1,10 @@
++// rundir
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Gccgo was not consistent in deciding how to compare a struct type
++// for equality, leading to an undefined symbol at link time.
++
++package ignored

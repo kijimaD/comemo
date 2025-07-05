@@ -13,7 +13,7 @@ Date:   Tue Sep 8 03:51:30 2015 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go     | 10 +++++-----
  src/cmd/compile/internal/gc/closure.go   |  2 +-
  src/cmd/compile/internal/gc/dcl.go       |  8 ++++----
@@ -32,3 +32,473 @@ Date:   Tue Sep 8 03:51:30 2015 +0200
  src/cmd/compile/internal/gc/typecheck.go | 14 +++++++-------
  src/cmd/compile/internal/gc/walk.go      |  4 ++--
  17 files changed, 52 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index ff0adb3fe2..741588ed44 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -281,7 +281,7 @@ func dowidth(t *Type) {
+ 		}
+ 
+ 	case TSTRUCT:
+-		if t.Funarg != 0 {
++		if t.Funarg {
+ 			Fatalf("dowidth fn struct %v", t)
+ 		}
+ 		w = widstruct(t, t, 0, 1)
+@@ -366,7 +366,7 @@ func checkwidth(t *Type) {
+ 
+ 	// function arg structs should not be checked
+ 	// outside of the enclosing function.
+-	if t.Funarg != 0 {
++	if t.Funarg {
+ 		Fatalf("checkwidth %v", t)
+ 	}
+ 
+@@ -375,10 +375,10 @@ func checkwidth(t *Type) {
+ 		return
+ 	}
+ 
+-	if t.Deferwidth != 0 {
++	if t.Deferwidth {
+ 		return
+ 	}
+-	t.Deferwidth = 1
++	t.Deferwidth = true
+ 
+ 	l := tlfree
+ 	if l != nil {
+@@ -405,7 +405,7 @@ func resumecheckwidth() {
+ 		Fatalf("resumecheckwidth")
+ 	}
+ 	for l := tlq; l != nil; l = tlq {
+-		l.t.Deferwidth = 0
++		l.t.Deferwidth = false
+ 		tlq = l.next
+ 		dowidth(l.t)
+ 		l.next = tlfree
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 999bf3900b..e7bece8bd9 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -322,7 +322,7 @@ func transformclosure(xfunc *Node) {
+ 				continue
+ 			}
+ 			fld = typ(TFIELD)
+-			fld.Funarg = 1
++			fld.Funarg = true
+ 			if v.Name.Byval {
+ 				// If v is captured by value, we merely downgrade it to PPARAM.
+ 				v.Class = PPARAM
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 62aca0b277..06092742fa 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -914,11 +914,11 @@ func tofunargs(l *NodeList) *Type {
+ 	var f *Type
+ 
+ 	t := typ(TSTRUCT)
+-	t.Funarg = 1
++	t.Funarg = true
+ 
+ 	for tp := &t.Type; l != nil; l = l.Next {
+ 		f = structfield(l.N)
+-		f.Funarg = 1
++		f.Funarg = true
+ 
+ 		// esc.c needs to find f given a PPARAM to add the tag.
+ 		if l.N.Left != nil && l.N.Left.Class == PPARAM {
+@@ -1233,11 +1233,11 @@ func functype(this *Node, in *NodeList, out *NodeList) *Type {
+ 	}
+ 	t.Outtuple = count(out)
+ 	t.Intuple = count(in)
+-	t.Outnamed = 0
++	t.Outnamed = false
+ 	if t.Outtuple > 0 && out.N.Left != nil && out.N.Left.Orig != nil {
+ 		s := out.N.Left.Orig.Sym
+ 		if s != nil && (s.Name[0] != '~' || s.Name[1] != 'r') { // ~r%d is the name invented for an unnamed result
+-			t.Outnamed = 1
++			t.Outnamed = true
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index eecfde02a3..585b327c9a 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1356,7 +1356,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 	ll := n.List
+ 	if n.List != nil && n.List.Next == nil {
+ 		a := n.List.N
+-		if a.Type.Etype == TSTRUCT && a.Type.Funarg != 0 { // f(g()).
++		if a.Type.Etype == TSTRUCT && a.Type.Funarg { // f(g()).
+ 			ll = e.nodeEscState(a).Escretval
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 0edccce051..de3edfeb64 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -273,10 +273,10 @@ func dumpexporttype(t *Type) {
+ 	if t == nil {
+ 		return
+ 	}
+-	if t.Printed != 0 || t == Types[t.Etype] || t == bytetype || t == runetype || t == errortype {
++	if t.Printed || t == Types[t.Etype] || t == bytetype || t == runetype || t == errortype {
+ 		return
+ 	}
+-	t.Printed = 1
++	t.Printed = true
+ 
+ 	if t.Sym != nil && t.Etype != TFIELD {
+ 		dumppkg(t.Sym.Pkg)
+@@ -548,7 +548,7 @@ func dumpasmhdr() {
+ 
+ 		case OTYPE:
+ 			t = n.Type
+-			if t.Etype != TSTRUCT || t.Map != nil || t.Funarg != 0 {
++			if t.Etype != TSTRUCT || t.Map != nil || t.Funarg {
+ 				break
+ 			}
+ 			fmt.Fprintf(b, "#define %s__size %d\n", t.Sym.Name, int(t.Width))
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index a619740bd8..e5ddf9f50a 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -647,7 +647,7 @@ func typefmt(t *Type, flag int) string {
+ 		}
+ 
+ 		var buf bytes.Buffer
+-		if t.Funarg != 0 {
++		if t.Funarg {
+ 			buf.WriteString("(")
+ 			if fmtmode == FTypeId || fmtmode == FErr { // no argument names on function signature, and no "noescape"/"nosplit" tags
+ 				for t1 := t.Type; t1 != nil; t1 = t1.Down {
+@@ -704,7 +704,7 @@ func typefmt(t *Type, flag int) string {
+ 			}
+ 
+ 			if s != nil && t.Embedded == 0 {
+-				if t.Funarg != 0 {
++				if t.Funarg {
+ 					name = Nconv(t.Nname, 0)
+ 				} else if flag&obj.FmtLong != 0 {
+ 					name = Sconv(s, obj.FmtShort|obj.FmtByte) // qualify non-exported names (used on structs, not on funarg)
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 21e6486415..f360378a43 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -155,15 +155,15 @@ type Sym struct {
+ type Type struct {
+ 	Etype       uint8
+ 	Nointerface bool
+-	Noalg       uint8
++	Noalg       bool
+ 	Chan        uint8
+ 	Trecur      uint8 // to detect loops
+-	Printed     uint8
++	Printed     bool
+ 	Embedded    uint8 // TFIELD embedded type
+-	Funarg      uint8 // on TSTRUCT and TFIELD
+-	Copyany     uint8
++	Funarg      bool  // on TSTRUCT and TFIELD
++	Copyany     bool
+ 	Local       bool // created in this file
+-	Deferwidth  uint8
++	Deferwidth  bool
+ 	Broke       bool // broken type definition.
+ 	Isddd       bool // TFIELD is ... argument
+ 	Align       uint8
+@@ -177,7 +177,7 @@ type Type struct {
+ 	Thistuple int
+ 	Outtuple  int
+ 	Intuple   int
+-	Outnamed  uint8
++	Outnamed  bool
+ 
+ 	Method  *Type
+ 	Xmethod *Type
+@@ -699,7 +699,7 @@ type Flow struct {
+ 	Id     int32  // sequence number in flow graph
+ 	Rpo    int32  // reverse post ordering
+ 	Loop   uint16 // x5 for every loop
+-	Refset uint8  // diagnostic generated
++	Refset bool   // diagnostic generated
+ 
+ 	Data interface{} // for use by client
+ }
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index a4ece1d895..7e085d94b2 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -511,7 +511,7 @@ func nodarg(t *Type, fp int) *Node {
+ 	var n *Node
+ 
+ 	// entire argument struct, not just one arg
+-	if t.Etype == TSTRUCT && t.Funarg != 0 {
++	if t.Etype == TSTRUCT && t.Funarg {
+ 		n = Nod(ONAME, nil, nil)
+ 		n.Sym = Lookup(".args")
+ 		n.Type = t
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index d2f8912e04..4cc3b6398e 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -2288,20 +2288,20 @@ func lexinit1() {
+ 
+ 	rcvr.Type = typ(TFIELD)
+ 	rcvr.Type.Type = Ptrto(typ(TSTRUCT))
+-	rcvr.Funarg = 1
++	rcvr.Funarg = true
+ 	in := typ(TSTRUCT)
+-	in.Funarg = 1
++	in.Funarg = true
+ 	out := typ(TSTRUCT)
+ 	out.Type = typ(TFIELD)
+ 	out.Type.Type = Types[TSTRING]
+-	out.Funarg = 1
++	out.Funarg = true
+ 	f := typ(TFUNC)
+ 	*getthis(f) = rcvr
+ 	*Getoutarg(f) = out
+ 	*getinarg(f) = in
+ 	f.Thistuple = 1
+ 	f.Intuple = 0
+-	f.Outnamed = 0
++	f.Outnamed = false
+ 	f.Outtuple = 1
+ 	t := typ(TINTER)
+ 	t.Type = typ(TFIELD)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index ad021de25d..c783d641a5 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -336,7 +336,7 @@ func ismulticall(l *NodeList) bool {
+ // Copyret emits t1, t2, ... = n, where n is a function call,
+ // and then returns the list t1, t2, ....
+ func copyret(n *Node, order *Order) *NodeList {
+-	if n.Type.Etype != TSTRUCT || n.Type.Funarg == 0 {
++	if n.Type.Etype != TSTRUCT || !n.Type.Funarg {
+ 		Fatalf("copyret %v %d", n.Type, n.Left.Type.Outtuple)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 5631d4e5ec..9b3ef68207 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -371,7 +371,7 @@ func compile(fn *Node) {
+ 	// set up domain for labels
+ 	clearlabels()
+ 
+-	if Curfn.Type.Outnamed != 0 {
++	if Curfn.Type.Outnamed {
+ 		// add clearing of the output parameters
+ 		var save Iter
+ 		t := Structfirst(&save, Getoutarg(Curfn.Type))
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index b36df0f421..f579ef83a6 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -192,7 +192,7 @@ func mapbucket(t *Type) *Type {
+ 	field = append(field, ovf)
+ 
+ 	// link up fields
+-	bucket.Noalg = 1
++	bucket.Noalg = true
+ 	bucket.Local = t.Local
+ 	bucket.Type = field[0]
+ 	for n := int32(0); n < int32(len(field)-1); n++ {
+@@ -232,7 +232,7 @@ func hmap(t *Type) *Type {
+ 	field[7] = makefield("overflow", Types[TUNSAFEPTR])
+ 
+ 	h := typ(TSTRUCT)
+-	h.Noalg = 1
++	h.Noalg = true
+ 	h.Local = t.Local
+ 	h.Type = field[0]
+ 	for n := int32(0); n < int32(len(field)-1); n++ {
+@@ -284,7 +284,7 @@ func hiter(t *Type) *Type {
+ 	// build iterator struct holding the above fields
+ 	i := typ(TSTRUCT)
+ 
+-	i.Noalg = 1
++	i.Noalg = true
+ 	i.Type = field[0]
+ 	for n := int32(0); n < int32(len(field)-1); n++ {
+ 		field[n].Down = field[n+1]
+diff --git a/src/cmd/compile/internal/gc/reg.go b/src/cmd/compile/internal/gc/reg.go
+index 388d713171..b3e96216bd 100644
+--- a/src/cmd/compile/internal/gc/reg.go
++++ b/src/cmd/compile/internal/gc/reg.go
+@@ -1289,12 +1289,12 @@ loop2:
+ 		for z := 0; z < BITS; z++ {
+ 			bit.b[z] = (r.refahead.b[z] | r.calahead.b[z]) &^ (externs.b[z] | params.b[z] | addrs.b[z] | consts.b[z])
+ 		}
+-		if bany(&bit) && f.Refset == 0 {
++		if bany(&bit) && !f.Refset {
+ 			// should never happen - all variables are preset
+ 			if Debug['w'] != 0 {
+ 				fmt.Printf("%v: used and not set: %v\n", f.Prog.Line(), &bit)
+ 			}
+-			f.Refset = 1
++			f.Refset = true
+ 		}
+ 	}
+ 
+@@ -1309,11 +1309,11 @@ loop2:
+ 		for z := 0; z < BITS; z++ {
+ 			bit.b[z] = r.set.b[z] &^ (r.refahead.b[z] | r.calahead.b[z] | addrs.b[z])
+ 		}
+-		if bany(&bit) && f.Refset == 0 {
++		if bany(&bit) && !f.Refset {
+ 			if Debug['w'] != 0 {
+ 				fmt.Printf("%v: set and not used: %v\n", f.Prog.Line(), &bit)
+ 			}
+-			f.Refset = 1
++			f.Refset = true
+ 			Thearch.Excise(f)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 9e75198b7c..83f53c1de1 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -335,7 +335,7 @@ func selecttype(size int32) *Type {
+ 	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("nrelease")), typenod(Types[TINT32])))
+ 	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("waitlink")), typenod(Ptrto(Types[TUINT8]))))
+ 	typecheck(&sudog, Etype)
+-	sudog.Type.Noalg = 1
++	sudog.Type.Noalg = true
+ 	sudog.Type.Local = true
+ 
+ 	scase := Nod(OTSTRUCT, nil, nil)
+@@ -347,7 +347,7 @@ func selecttype(size int32) *Type {
+ 	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("receivedp")), typenod(Ptrto(Types[TUINT8]))))
+ 	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
+ 	typecheck(&scase, Etype)
+-	scase.Type.Noalg = 1
++	scase.Type.Noalg = true
+ 	scase.Type.Local = true
+ 
+ 	sel := Nod(OTSTRUCT, nil, nil)
+@@ -362,7 +362,7 @@ func selecttype(size int32) *Type {
+ 	arr = Nod(OTARRAY, Nodintconst(int64(size)), typenod(Types[TUINT16]))
+ 	sel.List = list(sel.List, Nod(ODCLFIELD, newname(Lookup("pollorderarr")), arr))
+ 	typecheck(&sel, Etype)
+-	sel.Type.Noalg = 1
++	sel.Type.Noalg = true
+ 	sel.Type.Local = true
+ 
+ 	return sel.Type
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 5cb75479d1..df5e398a51 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -429,7 +429,7 @@ func algtype1(t *Type, bad **Type) int {
+ 	if t.Broke {
+ 		return AMEM
+ 	}
+-	if t.Noalg != 0 {
++	if t.Noalg {
+ 		return ANOEQ
+ 	}
+ 
+@@ -1385,7 +1385,7 @@ func substAny(tp **Type, types *[]*Type) {
+ 		if t == nil {
+ 			return
+ 		}
+-		if t.Etype == TANY && t.Copyany != 0 {
++		if t.Etype == TANY && t.Copyany {
+ 			if len(*types) == 0 {
+ 				Fatalf("substArgTypes: not enough argument types")
+ 			}
+@@ -1486,7 +1486,7 @@ func deep(t *Type) *Type {
+ 
+ 	case TANY:
+ 		nt = shallow(t)
+-		nt.Copyany = 1
++		nt.Copyany = true
+ 
+ 	case TPTR32, TPTR64, TCHAN, TARRAY:
+ 		nt = shallow(t)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 68071c409f..314c3a91a6 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1621,7 +1621,7 @@ OpSwitch:
+ 
+ 		// Unpack multiple-return result before type-checking.
+ 		var funarg *Type
+-		if Istype(t, TSTRUCT) && t.Funarg != 0 {
++		if Istype(t, TSTRUCT) && t.Funarg {
+ 			funarg = t
+ 			t = t.Type.Type
+ 		}
+@@ -2117,7 +2117,7 @@ OpSwitch:
+ 			return
+ 		}
+ 
+-		if Curfn.Type.Outnamed != 0 && n.List == nil {
++		if Curfn.Type.Outnamed && n.List == nil {
+ 			break OpSwitch
+ 		}
+ 		typecheckaste(ORETURN, nil, false, getoutargx(Curfn.Type), n.List, func() string { return "return argument" })
+@@ -2173,7 +2173,7 @@ OpSwitch:
+ 	}
+ 
+ 	t := n.Type
+-	if t != nil && t.Funarg == 0 && n.Op != OTYPE {
++	if t != nil && !t.Funarg && n.Op != OTYPE {
+ 		switch t.Etype {
+ 		case TFUNC, // might have TANY; wait until its called
+ 			TANY,
+@@ -2635,7 +2635,7 @@ func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList,
+ 	if nl != nil && nl.Next == nil {
+ 		n = nl.N
+ 		if n.Type != nil {
+-			if n.Type.Etype == TSTRUCT && n.Type.Funarg != 0 {
++			if n.Type.Etype == TSTRUCT && n.Type.Funarg {
+ 				if !hasddd(tstruct) {
+ 					n1 := downcount(tstruct)
+ 					n2 := downcount(n.Type)
+@@ -3375,7 +3375,7 @@ func typecheckas2(n *Node) {
+ 		}
+ 		switch r.Op {
+ 		case OCALLMETH, OCALLINTER, OCALLFUNC:
+-			if r.Type.Etype != TSTRUCT || r.Type.Funarg == 0 {
++			if r.Type.Etype != TSTRUCT || !r.Type.Funarg {
+ 				break
+ 			}
+ 			cr = structcount(r.Type)
+@@ -3559,8 +3559,8 @@ func copytype(n *Node, t *Type) {
+ 	t.Method = nil
+ 	t.Xmethod = nil
+ 	t.Nod = nil
+-	t.Printed = 0
+-	t.Deferwidth = 0
++	t.Printed = false
++	t.Deferwidth = false
+ 	t.Copyto = nil
+ 
+ 	// Update nodes waiting on this type.
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 4a79b6609e..ae19e6fda5 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -283,7 +283,7 @@ func walkstmt(np **Node) {
+ 		if n.List == nil {
+ 			break
+ 		}
+-		if (Curfn.Type.Outnamed != 0 && count(n.List) > 1) || paramoutheap(Curfn) {
++		if (Curfn.Type.Outnamed && count(n.List) > 1) || paramoutheap(Curfn) {
+ 			// assign to the function out parameters,
+ 			// so that reorder3 can fix up conflicts
+ 			var rl *NodeList
+@@ -1900,7 +1900,7 @@ func ascompatte(op int, call *Node, isddd bool, nl **Type, lr *NodeList, fp int,
+ 	var l2 string
+ 	var ll *Type
+ 	var l1 string
+-	if r != nil && lr.Next == nil && r.Type.Etype == TSTRUCT && r.Type.Funarg != 0 {
++	if r != nil && lr.Next == nil && r.Type.Etype == TSTRUCT && r.Type.Funarg {
+ 		// optimization - can do block copy
+ 		if eqtypenoname(r.Type, *nl) {
+ 			a := nodarg(*nl, fp)

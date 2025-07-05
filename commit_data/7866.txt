@@ -7,7 +7,32 @@ Date:   Fri Mar 25 10:35:46 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4309049
-
+---
  src/pkg/runtime/darwin/386/signal.c   | 1 -
  src/pkg/runtime/darwin/amd64/signal.c | 1 -
  2 files changed, 2 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/signal.c b/src/pkg/runtime/darwin/386/signal.c
+index 6f69340034..35bbb178b1 100644
+--- a/src/pkg/runtime/darwin/386/signal.c
++++ b/src/pkg/runtime/darwin/386/signal.c
+@@ -170,7 +170,6 @@ runtime·initsig(int32 queue)
+ void
+ runtime·resetcpuprofiler(int32 hz)
+ {
+-	Sigaction sa;
+ 	Itimerval it;
+ 	
+ 	runtime·memclr((byte*)&it, sizeof it);
+diff --git a/src/pkg/runtime/darwin/amd64/signal.c b/src/pkg/runtime/darwin/amd64/signal.c
+index 77f0eb84be..3a99d2308f 100644
+--- a/src/pkg/runtime/darwin/amd64/signal.c
++++ b/src/pkg/runtime/darwin/amd64/signal.c
+@@ -180,7 +180,6 @@ runtime·initsig(int32 queue)
+ void
+ runtime·resetcpuprofiler(int32 hz)
+ {
+-	Sigaction sa;
+ 	Itimerval it;
+ 	
+ 	runtime·memclr((byte*)&it, sizeof it);

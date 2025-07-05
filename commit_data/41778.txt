@@ -16,6 +16,74 @@ Date:   Fri Oct 18 17:39:31 2019 -0400
     Change-Id: Icd43fa2bdb7d256b28a56b93214b70343f43492e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/202081
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/modules.md | 61 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 61 insertions(+)
+
+diff --git a/doc/modules.md b/doc/modules.md
+new file mode 100644
+index 0000000000..d9bc73efb3
+--- /dev/null
++++ b/doc/modules.md
+@@ -0,0 +1,61 @@
++<!--{
++  "Title": "Go Modules Reference",
++  "Subtitle": "Version of Sep 4, 2019",
++  "Path": "/ref/modules"
++}-->
++<!-- TODO(jayconrod): ensure golang.org/x/website can render Markdown or convert
++this document to HTML before Go 1.14. -->
++<!-- TODO(jayconrod): ensure Markdown renderer adds anchors or add them
++manually. -->
++
++## Introduction
++
++## Glossary
++
++## Packages, modules, and versions
++
++## go.mod files
++
++### go.mod file format
++
++### Minimal version selection (MVS)
++
++### Compatibility with non-module repositories
++
++## Module-aware build commands
++
++### Enabling modules
++
++### Initializing modules
++
++### Build commands
++
++### Vendoring
++
++### `go mod download`
++
++### `go mod verify`
++
++### `go mod edit`
++
++### `go clean -modcache`
++
++### Module commands outside a module
++
++## Retrieving modules
++
++### GOPROXY protocol
++
++### Module zip requirements
++
++### Privacy
++
++### Private modules
++
++## Authenticating modules
++
++### go.sum file format
++
++### Checksum database
++
++### Privacy

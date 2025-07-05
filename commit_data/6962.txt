@@ -9,8 +9,56 @@ Date:   Wed Dec 15 12:07:30 2010 +1100
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/3459043
-
+---
  misc/dashboard/godashboard/package.py         |  5 +++++
  misc/dashboard/godashboard/project-notify.txt |  2 +-
  misc/dashboard/godashboard/toutf8.py          | 14 ++++++++++++++
  3 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/godashboard/package.py b/misc/dashboard/godashboard/package.py
+index e11346102d..cf59bf3e85 100644
+--- a/misc/dashboard/godashboard/package.py
++++ b/misc/dashboard/godashboard/package.py
+@@ -30,6 +30,11 @@ import time
+ import urllib2
+ import sets
+ 
++# local imports
++import toutf8
++
++template.register_template_library('toutf8')
++
+ # Storage model for package info recorded on server.
+ # Just path, count, and time of last install.
+ class Package(db.Model):
+diff --git a/misc/dashboard/godashboard/project-notify.txt b/misc/dashboard/godashboard/project-notify.txt
+index 3a165908ca..f55bf6421b 100644
+--- a/misc/dashboard/godashboard/project-notify.txt
++++ b/misc/dashboard/godashboard/project-notify.txt
+@@ -5,5 +5,5 @@ Description: {{project.descr}}
+ URL: {{project.web_url}}
+ 
+ To edit/approve/delete:
+-http://godashboard.appspot.com/project/edit?name={{project.name|urlencode}}
++http://godashboard.appspot.com/project/edit?name={{project.name|toutf8|urlencode}}
+ 
+diff --git a/misc/dashboard/godashboard/toutf8.py b/misc/dashboard/godashboard/toutf8.py
+new file mode 100644
+index 0000000000..544c681b6a
+--- /dev/null
++++ b/misc/dashboard/godashboard/toutf8.py
+@@ -0,0 +1,14 @@
++# Copyright 2010 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This is a Django custom template filter to work around the
++# fact that GAE's urlencode filter doesn't handle unicode strings.
++
++from google.appengine.ext import webapp
++
++register = webapp.template.create_template_register()
++
++@register.filter
++def toutf8(value):
++    return value.encode("utf-8")

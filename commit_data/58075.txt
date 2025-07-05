@@ -14,8 +14,57 @@ Date:   Wed Sep 27 10:54:14 2023 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/errors.go | 2 +-
  src/go/types/errors.go                    | 2 +-
  src/syscall/js/js.go                      | 4 ++--
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 7db06d944d..90c54d172e 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -250,7 +250,7 @@ func (check *Checker) err(at poser, code Code, msg string, soft bool) {
+ 		pos = check.errpos
+ 	}
+ 
+-	// If we have an URL for error codes, add a link to the first line.
++	// If we have a URL for error codes, add a link to the first line.
+ 	if code != 0 && check.conf.ErrorURL != "" {
+ 		u := fmt.Sprintf(check.conf.ErrorURL, code)
+ 		if i := strings.Index(msg, "\n"); i >= 0 {
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 14d0383e37..2653f9c6c0 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -228,7 +228,7 @@ func (check *Checker) report(errp *error_) {
+ 		panic("no error code provided")
+ 	}
+ 
+-	// If we have an URL for error codes, add a link to the first line.
++	// If we have a URL for error codes, add a link to the first line.
+ 	if errp.code != 0 && check.conf._ErrorURL != "" {
+ 		u := fmt.Sprintf(check.conf._ErrorURL, errp.code)
+ 		if i := strings.Index(msg, "\n"); i >= 0 {
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+index 2515b4f9ca..f7e32eb366 100644
+--- a/src/syscall/js/js.go
++++ b/src/syscall/js/js.go
+@@ -576,7 +576,7 @@ func CopyBytesToGo(dst []byte, src Value) int {
+ 	n, ok := copyBytesToGo(dst, src.ref)
+ 	runtime.KeepAlive(src)
+ 	if !ok {
+-		panic("syscall/js: CopyBytesToGo: expected src to be an Uint8Array or Uint8ClampedArray")
++		panic("syscall/js: CopyBytesToGo: expected src to be a Uint8Array or Uint8ClampedArray")
+ 	}
+ 	return n
+ }
+@@ -591,7 +591,7 @@ func CopyBytesToJS(dst Value, src []byte) int {
+ 	n, ok := copyBytesToJS(dst.ref, src)
+ 	runtime.KeepAlive(dst)
+ 	if !ok {
+-		panic("syscall/js: CopyBytesToJS: expected dst to be an Uint8Array or Uint8ClampedArray")
++		panic("syscall/js: CopyBytesToJS: expected dst to be a Uint8Array or Uint8ClampedArray")
+ 	}
+ 	return n
+ }

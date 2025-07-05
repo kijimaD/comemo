@@ -13,10 +13,119 @@ Date:   Fri Aug 11 19:49:38 2023 +1000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/cgo/gcc_arm.S         | 8 ++++----
  src/runtime/cgo/gcc_freebsd_arm.c | 4 ++--
  src/runtime/cgo/gcc_linux_arm.c   | 4 ++--
  src/runtime/cgo/gcc_netbsd_arm.c  | 4 ++--
  src/runtime/cgo/gcc_openbsd_arm.c | 4 ++--
  5 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_arm.S b/src/runtime/cgo/gcc_arm.S
+index 474fc23a39..3df8143aa7 100644
+--- a/src/runtime/cgo/gcc_arm.S
++++ b/src/runtime/cgo/gcc_arm.S
+@@ -5,14 +5,14 @@
+ .file "gcc_arm.S"
+ 
+ /*
+- * void crosscall_arm1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
++ * void crosscall1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
+  *
+- * Calling into the 5c tool chain, where all registers are caller save.
++ * Calling into the gc tool chain, where all registers are caller save.
+  * Called from standard ARM EABI, where r4-r11 are callee-save, so they
+  * must be saved explicitly.
+  */
+-.globl crosscall_arm1
+-crosscall_arm1:
++.globl crosscall1
++crosscall1:
+ 	push {r4, r5, r6, r7, r8, r9, r10, r11, ip, lr}
+ 	mov r4, r0
+ 	mov r5, r1
+diff --git a/src/runtime/cgo/gcc_freebsd_arm.c b/src/runtime/cgo/gcc_freebsd_arm.c
+index 3fcae03d51..344531007c 100644
+--- a/src/runtime/cgo/gcc_freebsd_arm.c
++++ b/src/runtime/cgo/gcc_freebsd_arm.c
+@@ -56,7 +56,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	}
+ }
+ 
+-extern void crosscall_arm1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void*
+ threadentry(void *v)
+ {
+@@ -65,6 +65,6 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
+-	crosscall_arm1(ts.fn, setg_gcc, (void*)ts.g);
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_linux_arm.c b/src/runtime/cgo/gcc_linux_arm.c
+index 6a7e3bea04..6ebb6c82f6 100644
+--- a/src/runtime/cgo/gcc_linux_arm.c
++++ b/src/runtime/cgo/gcc_linux_arm.c
+@@ -38,7 +38,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	}
+ }
+ 
+-extern void crosscall_arm1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void*
+ threadentry(void *v)
+ {
+@@ -47,7 +47,7 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
+-	crosscall_arm1(ts.fn, setg_gcc, (void*)ts.g);
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_netbsd_arm.c b/src/runtime/cgo/gcc_netbsd_arm.c
+index 13fb47df3b..5f4e1fae4e 100644
+--- a/src/runtime/cgo/gcc_netbsd_arm.c
++++ b/src/runtime/cgo/gcc_netbsd_arm.c
+@@ -46,7 +46,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	}
+ }
+ 
+-extern void crosscall_arm1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ static void*
+ threadentry(void *v)
+ {
+@@ -67,6 +67,6 @@ threadentry(void *v)
+ 	ss.ss_flags = SS_DISABLE;
+ 	sigaltstack(&ss, nil);
+ 
+-	crosscall_arm1(ts.fn, setg_gcc, (void*)ts.g);
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }
+diff --git a/src/runtime/cgo/gcc_openbsd_arm.c b/src/runtime/cgo/gcc_openbsd_arm.c
+index b28f7faced..457f71a192 100644
+--- a/src/runtime/cgo/gcc_openbsd_arm.c
++++ b/src/runtime/cgo/gcc_openbsd_arm.c
+@@ -45,7 +45,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	}
+ }
+ 
+-extern void crosscall_arm1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+ 
+ static void*
+ threadentry(void *v)
+@@ -55,6 +55,6 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
+-	crosscall_arm1(ts.fn, setg_gcc, (void*)ts.g);
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }

@@ -9,6 +9,37 @@ Date:   Tue Sep 15 16:14:49 2009 -0700
     DELTA=12  (11 added, 1 deleted, 0 changed)
     OCL=34658
     CL=34664
-
+---
  src/cmd/5g/gobj.c | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 3ab5dcae43..99855c0da6 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -120,7 +120,6 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 		Bputc(b, l>>24); // fall through
+ 	case D_OREG:
+ 	case D_CONST:
+-	case D_BRANCH:
+ 	case D_SHIFT:
+ 	case D_STATIC:
+ 	case D_AUTO:
+@@ -133,6 +132,17 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 		Bputc(b, l>>24);
+ 		break;
+ 
++	case D_BRANCH:
++		if(a->branch == nil)
++			fatal("unpatched branch");
++		a->offset = a->branch->loc;
++		l = a->offset;
++		Bputc(b, l);
++		Bputc(b, l>>8);
++		Bputc(b, l>>16);
++		Bputc(b, l>>24);
++		break;
++
+ 	case D_SCONST:
+ 		n = a->sval;
+ 		for(i=0; i<NSNAME; i++) {

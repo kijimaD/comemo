@@ -14,7 +14,55 @@ Date:   Tue Apr 28 14:05:20 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/230459
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go  | 16 +++++++++++++++-
  src/cmd/link/internal/ld/main.go |  2 +-
  2 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 96e3e8870c..a43aff22ee 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2824,7 +2824,7 @@ func addToTextp(ctxt *Link) {
+ 	ctxt.Textp = textp
+ }
+ 
+-func (ctxt *Link) loadlibfull() {
++func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind) {
+ 
+ 	// Load full symbol contents, resolve indexed references.
+ 	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms)
+@@ -2890,6 +2890,20 @@ func (ctxt *Link) loadlibfull() {
+ 		}
+ 	}
+ 
++	// For now, overwrite symbol type with its "group" type, as dodata
++	// expected. Once we converted dodata, this will probably not be
++	// needed.
++	for i, t := range symGroupType {
++		if t != sym.Sxxx {
++			s := ctxt.loader.Syms[i]
++			if s == nil {
++				panic(fmt.Sprintf("nil sym for symGroupType t=%s entry %d", t.String(), i))
++			}
++			s.Type = t
++		}
++	}
++	symGroupType = nil
++
+ 	if ctxt.Debugvlog > 1 {
+ 		// loadlibfull is likely a good place to dump.
+ 		// Only dump under -v=2 and above.
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 6bcf274215..bbd6f1c663 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -301,7 +301,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	bench.Start("dodata")
+ 	ctxt.dodata2(symGroupType)
+ 	bench.Start("loadlibfull")
+-	ctxt.loadlibfull() // XXX do it here for now
++	ctxt.loadlibfull(symGroupType) // XXX do it here for now
+ 	bench.Start("address")
+ 	order := ctxt.address()
+ 	bench.Start("dwarfcompress")

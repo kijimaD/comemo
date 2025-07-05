@@ -7,7 +7,43 @@ Date:   Tue Aug 13 16:20:17 2013 +1000
     R=gri, r
     CC=golang-dev
     https://golang.org/cl/12822043
-
+---
  src/pkg/go/doc/synopsis.go      | 9 ++++++---
  src/pkg/go/doc/synopsis_test.go | 1 +
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/doc/synopsis.go b/src/pkg/go/doc/synopsis.go
+index 2d18174393..cef05f5c14 100644
+--- a/src/pkg/go/doc/synopsis.go
++++ b/src/pkg/go/doc/synopsis.go
+@@ -10,12 +10,15 @@ import (
+ )
+ 
+ // firstSentenceLen returns the length of the first sentence in s.
+-// The sentence ends after the first period followed by space and
+-// not preceded by exactly one uppercase letter.
+-//
++// The sentence ends at the first colon followed by a newline,
++// or at the first period followed by space and not preceded by
++// exactly one uppercase letter.
+ func firstSentenceLen(s string) int {
+ 	var ppp, pp, p rune
+ 	for i, q := range s {
++		if p == ':' && q == '\n' {
++			return i
++		}
+ 		if q == '\n' || q == '\r' || q == '\t' {
+ 			q = ' '
+ 		}
+diff --git a/src/pkg/go/doc/synopsis_test.go b/src/pkg/go/doc/synopsis_test.go
+index fd7081a07c..d806fe45bb 100644
+--- a/src/pkg/go/doc/synopsis_test.go
++++ b/src/pkg/go/doc/synopsis_test.go
+@@ -29,6 +29,7 @@ var tests = []struct {
+ 	{"Package Καλημέρα κόσμε.", 36, "Package Καλημέρα κόσμε."},
+ 	{"Package こんにちは 世界\n", 31, "Package こんにちは 世界"},
+ 	{"Package foo does bar.", 21, "Package foo does bar."},
++	{"Package foo does these things:\n  - a\n  - b", 30, "Package foo does these things:"},
+ 	{"Copyright 2012 Google, Inc. Package foo does bar.", 27, ""},
+ 	{"All Rights reserved. Package foo does bar.", 20, ""},
+ 	{"All rights reserved. Package foo does bar.", 20, ""},

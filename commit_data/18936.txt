@@ -13,7 +13,32 @@ Date:   Tue Mar 25 13:32:18 2014 +1100
     R=bradfitz
     CC=golang-codereviews, rsc
     https://golang.org/cl/79330043
-
+---
  src/pkg/database/sql/example_test.go | 1 +
  src/pkg/database/sql/sql.go          | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/pkg/database/sql/example_test.go b/src/pkg/database/sql/example_test.go
+index d47eed50c0..dcb74e0699 100644
+--- a/src/pkg/database/sql/example_test.go
++++ b/src/pkg/database/sql/example_test.go
+@@ -18,6 +18,7 @@ func ExampleDB_Query() {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
++	defer rows.Close()
+ 	for rows.Next() {
+ 		var name string
+ 		if err := rows.Scan(&name); err != nil {
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index 4f86d24b2e..e891d4f4c4 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -1494,6 +1494,7 @@ func (s *Stmt) finalClose() error {
+ //
+ //     rows, err := db.Query("SELECT ...")
+ //     ...
++//     defer rows.Close()
+ //     for rows.Next() {
+ //         var id int
+ //         var name string

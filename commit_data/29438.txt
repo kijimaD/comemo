@@ -9,10 +9,162 @@ Date:   Wed Sep 14 23:57:50 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/arm64/gsubr.go | 10 -------
  src/cmd/compile/internal/gc/gsubr.go    | 18 -------------
  src/cmd/compile/internal/gc/obj.go      |  9 -------
  src/cmd/compile/internal/gc/subr.go     | 15 -----------
  src/cmd/compile/internal/s390x/gsubr.go | 47 ---------------------------------
  5 files changed, 99 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/gsubr.go b/src/cmd/compile/internal/arm64/gsubr.go
+index 564c5aeabd..3bc1bd8273 100644
+--- a/src/cmd/compile/internal/arm64/gsubr.go
++++ b/src/cmd/compile/internal/arm64/gsubr.go
+@@ -172,13 +172,3 @@ func raddr(n *gc.Node, p *obj.Prog) {
+ 		p.Reg = a.Reg
+ 	}
+ }
+-
+-func gcmp(as obj.As, lhs *gc.Node, rhs *gc.Node) *obj.Prog {
+-	if lhs.Op != gc.OREGISTER {
+-		gc.Fatalf("bad operands to gcmp: %v %v", lhs.Op, rhs.Op)
+-	}
+-
+-	p := rawgins(as, rhs, nil)
+-	raddr(lhs, p)
+-	return p
+-}
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 563d4004e8..ccbb3c40ab 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -44,24 +44,6 @@ var (
+ 	dpc     *obj.Prog
+ )
+ 
+-func Gbranch(as obj.As, t *Type, likely int) *obj.Prog {
+-	p := Prog(as)
+-	p.To.Type = obj.TYPE_BRANCH
+-	p.To.Val = nil
+-	if as != obj.AJMP && likely != 0 && !Thearch.LinkArch.InFamily(sys.PPC64, sys.ARM64, sys.MIPS64, sys.S390X) {
+-		p.From.Type = obj.TYPE_CONST
+-		if likely > 0 {
+-			p.From.Offset = 1
+-		}
+-	}
+-
+-	if Debug['g'] != 0 {
+-		fmt.Printf("%v\n", p)
+-	}
+-
+-	return p
+-}
+-
+ func Prog(as obj.As) *obj.Prog {
+ 	var p *obj.Prog
+ 
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 89644d8bae..7f462010c3 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -349,15 +349,6 @@ func slicebytes(nam *Node, s string, len int) {
+ 	duintxx(nam.Sym, off, uint64(len), Widthint)
+ }
+ 
+-func Datastring(s string, a *obj.Addr) {
+-	_, symdata := stringsym(s)
+-	a.Type = obj.TYPE_MEM
+-	a.Name = obj.NAME_EXTERN
+-	a.Sym = symdata
+-	a.Offset = 0
+-	a.Etype = uint8(Simtype[TINT])
+-}
+-
+ func datagostring(sval string, a *obj.Addr) {
+ 	symhdr, _ := stringsym(sval)
+ 	a.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index cc42c8248b..48ae1a42d6 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1398,21 +1398,6 @@ func cheapexpr(n *Node, init *Nodes) *Node {
+ 	return copyexpr(n, n.Type, init)
+ }
+ 
+-func Setmaxarg(t *Type, extra int32) {
+-	dowidth(t)
+-	w := t.ArgWidth()
+-	if w >= Thearch.MAXWIDTH {
+-		Fatalf("bad argwid %v", t)
+-	}
+-	w += int64(extra)
+-	if w >= Thearch.MAXWIDTH {
+-		Fatalf("bad argwid %d + %v", extra, t)
+-	}
+-	if w > Maxarg {
+-		Maxarg = w
+-	}
+-}
+-
+ // Code to resolve elided DOTs in embedded types.
+ 
+ // A Dlist stores a pointer to a TFIELD Type embedded within
+diff --git a/src/cmd/compile/internal/s390x/gsubr.go b/src/cmd/compile/internal/s390x/gsubr.go
+index c6ab09fad4..dbacad9ea2 100644
+--- a/src/cmd/compile/internal/s390x/gsubr.go
++++ b/src/cmd/compile/internal/s390x/gsubr.go
+@@ -69,53 +69,6 @@ func ginscon(as obj.As, c int64, n2 *gc.Node) {
+ 	rawgins(as, &n1, n2)
+ }
+ 
+-// gmvc tries to move f to t using a mvc instruction.
+-// If successful it returns true, otherwise it returns false.
+-func gmvc(f, t *gc.Node) bool {
+-	ft := int(gc.Simsimtype(f.Type))
+-	tt := int(gc.Simsimtype(t.Type))
+-
+-	if ft != tt {
+-		return false
+-	}
+-
+-	if f.Op != gc.OINDREG || t.Op != gc.OINDREG {
+-		return false
+-	}
+-
+-	if f.Xoffset < 0 || f.Xoffset >= 4096-8 {
+-		return false
+-	}
+-
+-	if t.Xoffset < 0 || t.Xoffset >= 4096-8 {
+-		return false
+-	}
+-
+-	var len int64
+-	switch ft {
+-	case gc.TUINT8, gc.TINT8, gc.TBOOL:
+-		len = 1
+-	case gc.TUINT16, gc.TINT16:
+-		len = 2
+-	case gc.TUINT32, gc.TINT32, gc.TFLOAT32:
+-		len = 4
+-	case gc.TUINT64, gc.TINT64, gc.TFLOAT64, gc.TPTR64:
+-		len = 8
+-	case gc.TUNSAFEPTR:
+-		len = int64(gc.Widthptr)
+-	default:
+-		return false
+-	}
+-
+-	p := gc.Prog(s390x.AMVC)
+-	gc.Naddr(&p.From, f)
+-	gc.Naddr(&p.To, t)
+-	p.From3 = new(obj.Addr)
+-	p.From3.Offset = len
+-	p.From3.Type = obj.TYPE_CONST
+-	return true
+-}
+-
+ func intLiteral(n *gc.Node) (x int64, ok bool) {
+ 	switch {
+ 	case n == nil:

@@ -7,6 +7,31 @@ Date:   Wed Jan 27 06:42:10 2016 -0800
     Change-Id: Ibba7fccba9617612e026bd0a208eb12918de465a
     Reviewed-on: https://go-review.googlesource.com/18985
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.6.html | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/doc/go1.6.html b/doc/go1.6.html
+index 5e5149fa10..cd1515224d 100644
+--- a/doc/go1.6.html
++++ b/doc/go1.6.html
+@@ -341,6 +341,19 @@ and changing the global timer resolution caused problems on some systems,
+ so the call has been removed.
+ </p>
+ 
++<p>
++When using <code>-buildmode=c-archive</code> or
++<code>-buildmode=c-shared</code> to build an archive or a shared
++library, the handling of signals has changed.
++In Go 1.5 the archive or shared library would install a signal handler
++for most signals.
++In Go 1.6 it will only install a signal handler for the
++synchronous signals needed to handle run-time panics in Go code:
++SIGBUS, SIGFPE, SIGSEGV.
++See the <a href="/pkg/os/signal">os/signal</a> package for more
++details.
++</p>
++
+ <h3 id="reflect">Reflect</h3>
+ 
+ <p>

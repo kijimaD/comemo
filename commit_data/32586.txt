@@ -32,7 +32,42 @@ Date:   Wed May 3 16:37:03 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go |  6 +++++-
  test/fixedbugs/issue20233.go       | 11 +++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 41502268a7..c0d82d8c16 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1754,7 +1754,11 @@ func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int) string {
+ 
+ 	var typ string
+ 	if f.Isddd() {
+-		typ = "..." + tmodeString(f.Type.Elem(), mode, depth)
++		var et *types.Type
++		if f.Type != nil {
++			et = f.Type.Elem()
++		}
++		typ = "..." + tmodeString(et, mode, depth)
+ 	} else {
+ 		typ = tmodeString(f.Type, mode, depth)
+ 	}
+diff --git a/test/fixedbugs/issue20233.go b/test/fixedbugs/issue20233.go
+new file mode 100644
+index 0000000000..5734cf44ef
+--- /dev/null
++++ b/test/fixedbugs/issue20233.go
+@@ -0,0 +1,11 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 20233: panic while formatting an error message
++
++package p
++
++var f = func(...A) // ERROR "type func(....*) is not an expression" ERROR "undefined: A"

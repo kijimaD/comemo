@@ -10,9 +10,193 @@ Date:   Thu Apr 10 09:59:21 2025 +0800
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/loong64enc1.s | 23 +++++++++
  src/cmd/internal/obj/loong64/a.out.go           | 21 ++++++++
  src/cmd/internal/obj/loong64/anames.go          | 20 ++++++++
  src/cmd/internal/obj/loong64/asm.go             | 65 +++++++++++++++++++++++++
  4 files changed, 129 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index b557625ff3..ad0ffa33d6 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -937,3 +937,26 @@ lable2:
+ 	XVSHUF4IV	$0, X1, X2	// 22009c77
+ 	XVSHUF4IV	$8, X1, X2	// 22209c77
+ 	XVSHUF4IV	$15, X1, X2	// 223c9c77
++
++	// [X]VSETEQZ.V, [X]VSETNEZ.V
++	VSETEQV		V1, FCC0	// 20989c72
++	VSETNEV		V1, FCC0	// 209c9c72
++	XVSETEQV	X1, FCC0	// 20989c76
++	XVSETNEV	X1, FCC0	// 209c9c76
++	// [X]VSETANYEQZ.{B/H/W/D} instructions
++	VSETANYEQB	V1, FCC0	// 20a09c72
++	VSETANYEQH	V1, FCC0	// 20a49c72
++	VSETANYEQW	V1, FCC0	// 20a89c72
++	VSETANYEQV	V1, FCC0	// 20ac9c72
++	VSETALLNEB	V1, FCC0	// 20b09c72
++	VSETALLNEH	V1, FCC0	// 20b49c72
++	VSETALLNEW	V1, FCC0	// 20b89c72
++	VSETALLNEV	V1, FCC0	// 20bc9c72
++	XVSETANYEQB	X1, FCC0	// 20a09c76
++	XVSETANYEQH	X1, FCC0	// 20a49c76
++	XVSETANYEQW	X1, FCC0	// 20a89c76
++	XVSETANYEQV	X1, FCC0	// 20ac9c76
++	XVSETALLNEB	X1, FCC0	// 20b09c76
++	XVSETALLNEH	X1, FCC0	// 20b49c76
++	XVSETALLNEW	X1, FCC0	// 20b89c76
++	XVSETALLNEV	X1, FCC0	// 20bc9c76
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index a3e81ba531..4bef470c86 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -1019,6 +1019,27 @@ const (
+ 	AXVSHUF4IW
+ 	AXVSHUF4IV
+ 
++	AVSETEQV
++	AVSETNEV
++	AVSETANYEQB
++	AVSETANYEQH
++	AVSETANYEQW
++	AVSETANYEQV
++	AVSETALLNEB
++	AVSETALLNEH
++	AVSETALLNEW
++	AVSETALLNEV
++	AXVSETEQV
++	AXVSETNEV
++	AXVSETANYEQB
++	AXVSETANYEQH
++	AXVSETANYEQW
++	AXVSETANYEQV
++	AXVSETALLNEB
++	AXVSETALLNEH
++	AXVSETALLNEW
++	AXVSETALLNEV
++
+ 	ALAST
+ 
+ 	// aliases
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index 8e656c844a..d50c29a9f9 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -513,5 +513,25 @@ var Anames = []string{
+ 	"XVSHUF4IH",
+ 	"XVSHUF4IW",
+ 	"XVSHUF4IV",
++	"VSETEQV",
++	"VSETNEV",
++	"VSETANYEQB",
++	"VSETANYEQH",
++	"VSETANYEQW",
++	"VSETANYEQV",
++	"VSETALLNEB",
++	"VSETALLNEH",
++	"VSETALLNEW",
++	"VSETALLNEV",
++	"XVSETEQV",
++	"XVSETNEV",
++	"XVSETANYEQB",
++	"XVSETANYEQH",
++	"XVSETANYEQW",
++	"XVSETANYEQV",
++	"XVSETALLNEB",
++	"XVSETALLNEH",
++	"XVSETALLNEW",
++	"XVSETALLNEV",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 401cab11cc..1254695be8 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -144,6 +144,8 @@ var optab = []Optab{
+ 	{AMOVD, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
+ 	{AVPCNTB, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 9, 4, 0, 0},
+ 	{AXVPCNTB, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 9, 4, 0, 0},
++	{AVSETEQV, C_VREG, C_NONE, C_NONE, C_FCCREG, C_NONE, 9, 4, 0, 0},
++	{AXVSETEQV, C_XREG, C_NONE, C_NONE, C_FCCREG, C_NONE, 9, 4, 0, 0},
+ 
+ 	{AFMADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 37, 4, 0, 0},
+ 	{AFMADDF, C_FREG, C_FREG, C_FREG, C_FREG, C_NONE, 37, 4, 0, 0},
+@@ -1812,6 +1814,29 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AXVSRLV, r0)
+ 			opset(AXVSRAV, r0)
+ 			opset(AXVROTRV, r0)
++
++		case AVSETEQV:
++			opset(AVSETNEV, r0)
++			opset(AVSETANYEQB, r0)
++			opset(AVSETANYEQH, r0)
++			opset(AVSETANYEQW, r0)
++			opset(AVSETANYEQV, r0)
++			opset(AVSETALLNEB, r0)
++			opset(AVSETALLNEH, r0)
++			opset(AVSETALLNEW, r0)
++			opset(AVSETALLNEV, r0)
++
++		case AXVSETEQV:
++			opset(AXVSETNEV, r0)
++			opset(AXVSETANYEQB, r0)
++			opset(AXVSETANYEQH, r0)
++			opset(AXVSETANYEQW, r0)
++			opset(AXVSETANYEQV, r0)
++			opset(AXVSETALLNEB, r0)
++			opset(AXVSETALLNEH, r0)
++			opset(AXVSETALLNEW, r0)
++			opset(AXVSETALLNEV, r0)
++
+ 		}
+ 	}
+ }
+@@ -3555,6 +3580,46 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
+ 		return 0x1da70e << 10 // xvneg.w
+ 	case AXVNEGV:
+ 		return 0x1da70f << 10 // xvneg.d
++	case AVSETEQV:
++		return 0x1ca726<<10 | 0x0<<3 // vseteqz.v
++	case AVSETNEV:
++		return 0x1ca727<<10 | 0x0<<3 // vsetnez.v
++	case AVSETANYEQB:
++		return 0x1ca728<<10 | 0x0<<3 // vsetanyeqz.b
++	case AVSETANYEQH:
++		return 0x1ca729<<10 | 0x0<<3 // vsetanyeqz.h
++	case AVSETANYEQW:
++		return 0x1ca72a<<10 | 0x0<<3 // vsetanyeqz.w
++	case AVSETANYEQV:
++		return 0x1ca72b<<10 | 0x0<<3 // vsetanyeqz.d
++	case AVSETALLNEB:
++		return 0x1ca72c<<10 | 0x0<<3 // vsetallnez.b
++	case AVSETALLNEH:
++		return 0x1ca72d<<10 | 0x0<<3 // vsetallnez.h
++	case AVSETALLNEW:
++		return 0x1ca72e<<10 | 0x0<<3 // vsetallnez.w
++	case AVSETALLNEV:
++		return 0x1ca72f<<10 | 0x0<<3 // vsetallnez.d
++	case AXVSETEQV:
++		return 0x1da726<<10 | 0x0<<3 // xvseteqz.v
++	case AXVSETNEV:
++		return 0x1da727<<10 | 0x0<<3 // xvsetnez.v
++	case AXVSETANYEQB:
++		return 0x1da728<<10 | 0x0<<3 // xvsetanyeqz.b
++	case AXVSETANYEQH:
++		return 0x1da729<<10 | 0x0<<3 // xvsetanyeqz.h
++	case AXVSETANYEQW:
++		return 0x1da72a<<10 | 0x0<<3 // xvsetanyeqz.w
++	case AXVSETANYEQV:
++		return 0x1da72b<<10 | 0x0<<3 // xvsetanyeqz.d
++	case AXVSETALLNEB:
++		return 0x1da72c<<10 | 0x0<<3 // xvsetallnez.b
++	case AXVSETALLNEH:
++		return 0x1da72d<<10 | 0x0<<3 // xvsetallnez.h
++	case AXVSETALLNEW:
++		return 0x1da72e<<10 | 0x0<<3 // xvsetallnez.w
++	case AXVSETALLNEV:
++		return 0x1da72f<<10 | 0x0<<3 // xvsetallnez.d
+ 	}
+ 
+ 	c.ctxt.Diag("bad rr opcode %v", a)

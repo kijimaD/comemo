@@ -9,6 +9,46 @@ Date:   Wed Nov 1 19:24:07 2017 -0400
     Change-Id: Iba92b7826a9fd6979e627687f2ce72d4b4799385
     Reviewed-on: https://go-review.googlesource.com/75292
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/internal/cache/cache.go | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index e908aaec55..c1f6467a2e 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -118,6 +118,21 @@ func (c *Cache) Get(id ActionID) (OutputID, int64, error) {
+ 	return buf, size, nil
+ }
+ 
++// GetBytes looks up the action ID in the cache and returns
++// the corresponding output bytes.
++// GetBytes should only be used for data that can be expected to fit in memory.
++func (c *Cache) GetBytes(id ActionID) ([]byte, error) {
++	out, _, err := c.Get(id)
++	if err != nil {
++		return nil, err
++	}
++	data, _ := ioutil.ReadFile(c.OutputFile(out))
++	if sha256.Sum256(data) != out {
++		return nil, errMissing
++	}
++	return data, nil
++}
++
+ // OutputFile returns the name of the cache file storing output with the given OutputID.
+ func (c *Cache) OutputFile(out OutputID) string {
+ 	return c.fileName(out, "d")
+@@ -161,6 +176,12 @@ func (c *Cache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
+ 	return out, size, c.putIndexEntry(id, out, size)
+ }
+ 
++// PutBytes stores the given bytes in the cache as the output for the action ID.
++func (c *Cache) PutBytes(id ActionID, data []byte) error {
++	_, _, err := c.Put(id, bytes.NewReader(data))
++	return err
++}
++
+ // copyFile copies file into the cache, expecting it to have the given
+ // output ID and size, if that file is not present already.
+ func (c *Cache) copyFile(file io.ReadSeeker, out OutputID, size int64) error {

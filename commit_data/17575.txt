@@ -9,6 +9,28 @@ Date:   Thu Sep 12 11:18:34 2013 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/13490047
-
+---
  src/cmd/8l/pass.c | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 2151adf9a8..b558ffaa9d 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -415,7 +415,7 @@ static Sym *symmorestack;
+ void
+ dostkoff(void)
+ {
+-	Prog *p, *q, *q1;
++	Prog *p, *q;
+ 	int32 autoffset, deltasp;
+ 	int a;
+ 
+@@ -443,7 +443,6 @@ dostkoff(void)
+ 			autoffset = 0;
+ 
+ 		q = P;
+-		q1 = P;
+ 
+ 		if(!(p->from.scale & NOSPLIT)) {
+ 			p = appendp(p);

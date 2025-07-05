@@ -8,6 +8,19 @@ Date:   Wed May 27 18:20:26 2009 -0700
     DELTA=1  (0 added, 1 deleted, 0 changed)
     OCL=29473
     CL=29477
-
+---
  src/lib/template/template.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/lib/template/template.go b/src/lib/template/template.go
+index 9a40109f90..a5e9b0c7da 100644
+--- a/src/lib/template/template.go
++++ b/src/lib/template/template.go
+@@ -53,7 +53,6 @@
+ 	where wr is the destination for output, data is the field
+ 	value, and formatter is its name at the invocation site.
+ */
+-
+ package template
+ 
+ import (

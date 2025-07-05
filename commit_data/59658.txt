@@ -17,9 +17,117 @@ Date:   Wed Apr 3 15:52:28 2024 -0400
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/go.mod                |  2 +-
  src/go.sum                |  4 ++--
  src/net/http/h2_bundle.go | 35 +++++++++++++++++++++++++++++++++--
  src/vendor/modules.txt    |  2 +-
  4 files changed, 37 insertions(+), 6 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index a6551ffabe..333517bc5c 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.23
+ 
+ require (
+ 	golang.org/x/crypto v0.21.0
+-	golang.org/x/net v0.22.1-0.20240320112724-d73acffdc949
++	golang.org/x/net v0.23.0
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index 2849ffd78f..6f756a6b26 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+ golang.org/x/crypto v0.21.0 h1:X31++rzVUdKhX5sWmSOFZxx8UW/ldWx55cbf08iNAMA=
+ golang.org/x/crypto v0.21.0/go.mod h1:0BP7YvVV9gBbVKyeTG0Gyn+gZm94bibOW5BjDEYAOMs=
+-golang.org/x/net v0.22.1-0.20240320112724-d73acffdc949 h1:I5WNFtVW5hWIoi/wTQJWBBusF9HXZuGCgRt60a7T/pA=
+-golang.org/x/net v0.22.1-0.20240320112724-d73acffdc949/go.mod h1:JKghWKKOSdJwpW2GEx0Ja7fmaKnMsbu+MWVZTokSYmg=
++golang.org/x/net v0.23.0 h1:7EYJ93RZ9vYSZAIb2x3lnuvqO5zneoD6IvWjuhfxjTs=
++golang.org/x/net v0.23.0/go.mod h1:JKghWKKOSdJwpW2GEx0Ja7fmaKnMsbu+MWVZTokSYmg=
+ golang.org/x/sys v0.18.0 h1:DBdB3niSjOA/O0blCZBqDefyWNYveAYMNF1Wum0DYQ4=
+ golang.org/x/sys v0.18.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index af839dd1bf..9285f90d9e 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -2972,6 +2972,7 @@ func (fr *http2Framer) readMetaFrame(hf *http2HeadersFrame) (*http2MetaHeadersFr
+ 		if size > remainSize {
+ 			hdec.SetEmitEnabled(false)
+ 			mh.Truncated = true
++			remainSize = 0
+ 			return
+ 		}
+ 		remainSize -= size
+@@ -2984,6 +2985,36 @@ func (fr *http2Framer) readMetaFrame(hf *http2HeadersFrame) (*http2MetaHeadersFr
+ 	var hc http2headersOrContinuation = hf
+ 	for {
+ 		frag := hc.HeaderBlockFragment()
++
++		// Avoid parsing large amounts of headers that we will then discard.
++		// If the sender exceeds the max header list size by too much,
++		// skip parsing the fragment and close the connection.
++		//
++		// "Too much" is either any CONTINUATION frame after we've already
++		// exceeded the max header list size (in which case remainSize is 0),
++		// or a frame whose encoded size is more than twice the remaining
++		// header list bytes we're willing to accept.
++		if int64(len(frag)) > int64(2*remainSize) {
++			if http2VerboseLogs {
++				log.Printf("http2: header list too large")
++			}
++			// It would be nice to send a RST_STREAM before sending the GOAWAY,
++			// but the structure of the server's frame writer makes this difficult.
++			return nil, http2ConnectionError(http2ErrCodeProtocol)
++		}
++
++		// Also close the connection after any CONTINUATION frame following an
++		// invalid header, since we stop tracking the size of the headers after
++		// an invalid one.
++		if invalid != nil {
++			if http2VerboseLogs {
++				log.Printf("http2: invalid header: %v", invalid)
++			}
++			// It would be nice to send a RST_STREAM before sending the GOAWAY,
++			// but the structure of the server's frame writer makes this difficult.
++			return nil, http2ConnectionError(http2ErrCodeProtocol)
++		}
++
+ 		if _, err := hdec.Write(frag); err != nil {
+ 			return nil, http2ConnectionError(http2ErrCodeCompression)
+ 		}
+@@ -7672,7 +7703,7 @@ type http2ClientConn struct {
+ 	readerErr  error         // set before readerDone is closed
+ 
+ 	idleTimeout time.Duration // or 0 for never
+-	idleTimer   *time.Timer
++	idleTimer   http2timer
+ 
+ 	mu              sync.Mutex   // guards following
+ 	cond            *sync.Cond   // hold mu; broadcast on flow/closed changes
+@@ -8191,7 +8222,7 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool, hooks *http2t
+ 	}
+ 	if d := t.idleConnTimeout(); d != 0 {
+ 		cc.idleTimeout = d
+-		cc.idleTimer = time.AfterFunc(d, cc.onIdleTimeout)
++		cc.idleTimer = cc.afterFunc(d, cc.onIdleTimeout)
+ 	}
+ 	if http2VerboseLogs {
+ 		t.vlogf("http2: Transport creating client conn %p to %v", cc, c.RemoteAddr())
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 9982c93f77..6442e5d7ec 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.22.1-0.20240320112724-d73acffdc949
++# golang.org/x/net v0.23.0
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

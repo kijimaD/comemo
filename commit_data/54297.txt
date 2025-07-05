@@ -18,10 +18,251 @@ Date:   Mon Oct 3 18:40:59 2022 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/runtime/coverage/apis.go                       | 10 ++++---
  src/runtime/coverage/emit.go                       | 35 +++++++++++++++-------
  src/runtime/coverage/emitdata_test.go              | 31 +++++++++++++++++++
  src/runtime/coverage/testdata/issue56006/repro.go  | 26 ++++++++++++++++
  .../coverage/testdata/issue56006/repro_test.go     |  8 +++++
  5 files changed, 95 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/coverage/apis.go b/src/runtime/coverage/apis.go
+index aa7fa97951..0a20b99ef0 100644
+--- a/src/runtime/coverage/apis.go
++++ b/src/runtime/coverage/apis.go
+@@ -9,6 +9,7 @@ import (
+ 	"internal/coverage"
+ 	"io"
+ 	"reflect"
++	"sync/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -151,7 +152,7 @@ func ClearCoverageCounters() error {
+ 	// inconsistency when reading the counter array from the thread
+ 	// running ClearCoverageCounters.
+ 
+-	var sd []uint32
++	var sd []atomic.Uint32
+ 
+ 	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
+ 	for _, c := range cl {
+@@ -160,13 +161,14 @@ func ClearCoverageCounters() error {
+ 		bufHdr.Cap = int(c.Len)
+ 		for i := 0; i < len(sd); i++ {
+ 			// Skip ahead until the next non-zero value.
+-			if sd[i] == 0 {
++			sdi := sd[i].Load()
++			if sdi == 0 {
+ 				continue
+ 			}
+ 			// We found a function that was executed; clear its counters.
+-			nCtrs := sd[i]
++			nCtrs := sdi
+ 			for j := 0; j < int(nCtrs); j++ {
+-				sd[i+coverage.FirstCtrOffset+j] = 0
++				sd[i+coverage.FirstCtrOffset+j].Store(0)
+ 			}
+ 			// Move to next function.
+ 			i += coverage.FirstCtrOffset + int(nCtrs) - 1
+diff --git a/src/runtime/coverage/emit.go b/src/runtime/coverage/emit.go
+index 076dd695bb..2aed99c718 100644
+--- a/src/runtime/coverage/emit.go
++++ b/src/runtime/coverage/emit.go
+@@ -16,6 +16,7 @@ import (
+ 	"path/filepath"
+ 	"reflect"
+ 	"runtime"
++	"sync/atomic"
+ 	"time"
+ 	"unsafe"
+ )
+@@ -462,7 +463,7 @@ func writeMetaData(w io.Writer, metalist []rtcov.CovMetaBlob, cmode coverage.Cou
+ }
+ 
+ func (s *emitState) NumFuncs() (int, error) {
+-	var sd []uint32
++	var sd []atomic.Uint32
+ 	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
+ 
+ 	totalFuncs := 0
+@@ -472,12 +473,13 @@ func (s *emitState) NumFuncs() (int, error) {
+ 		bufHdr.Cap = int(c.Len)
+ 		for i := 0; i < len(sd); i++ {
+ 			// Skip ahead until the next non-zero value.
+-			if sd[i] == 0 {
++			sdi := sd[i].Load()
++			if sdi == 0 {
+ 				continue
+ 			}
+ 
+ 			// We found a function that was executed.
+-			nCtrs := sd[i]
++			nCtrs := sdi
+ 
+ 			// Check to make sure that we have at least one live
+ 			// counter. See the implementation note in ClearCoverageCounters
+@@ -486,7 +488,7 @@ func (s *emitState) NumFuncs() (int, error) {
+ 			st := i + coverage.FirstCtrOffset
+ 			counters := sd[st : st+int(nCtrs)]
+ 			for i := 0; i < len(counters); i++ {
+-				if counters[i] != 0 {
++				if counters[i].Load() != 0 {
+ 					isLive = true
+ 					break
+ 				}
+@@ -507,9 +509,18 @@ func (s *emitState) NumFuncs() (int, error) {
+ }
+ 
+ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
+-	var sd []uint32
++	var sd []atomic.Uint32
++	var tcounters []uint32
+ 	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
+ 
++	rdCounters := func(actrs []atomic.Uint32, ctrs []uint32) []uint32 {
++		ctrs = ctrs[:0]
++		for i := range actrs {
++			ctrs = append(ctrs, actrs[i].Load())
++		}
++		return ctrs
++	}
++
+ 	dpkg := uint32(0)
+ 	for _, c := range s.counterlist {
+ 		bufHdr.Data = uintptr(unsafe.Pointer(c.Counters))
+@@ -517,14 +528,15 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
+ 		bufHdr.Cap = int(c.Len)
+ 		for i := 0; i < len(sd); i++ {
+ 			// Skip ahead until the next non-zero value.
+-			if sd[i] == 0 {
++			sdi := sd[i].Load()
++			if sdi == 0 {
+ 				continue
+ 			}
+ 
+ 			// We found a function that was executed.
+-			nCtrs := sd[i+coverage.NumCtrsOffset]
+-			pkgId := sd[i+coverage.PkgIdOffset]
+-			funcId := sd[i+coverage.FuncIdOffset]
++			nCtrs := sd[i+coverage.NumCtrsOffset].Load()
++			pkgId := sd[i+coverage.PkgIdOffset].Load()
++			funcId := sd[i+coverage.FuncIdOffset].Load()
+ 			cst := i + coverage.FirstCtrOffset
+ 			counters := sd[cst : cst+int(nCtrs)]
+ 
+@@ -533,7 +545,7 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
+ 			// for a description of why this is needed.
+ 			isLive := false
+ 			for i := 0; i < len(counters); i++ {
+-				if counters[i] != 0 {
++				if counters[i].Load() != 0 {
+ 					isLive = true
+ 					break
+ 				}
+@@ -579,7 +591,8 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
+ 				pkgId--
+ 			}
+ 
+-			if err := f(pkgId, funcId, counters); err != nil {
++			tcounters = rdCounters(counters, tcounters)
++			if err := f(pkgId, funcId, tcounters); err != nil {
+ 				return err
+ 			}
+ 
+diff --git a/src/runtime/coverage/emitdata_test.go b/src/runtime/coverage/emitdata_test.go
+index 2541052b5f..818a67cbdb 100644
+--- a/src/runtime/coverage/emitdata_test.go
++++ b/src/runtime/coverage/emitdata_test.go
+@@ -8,10 +8,12 @@ import (
+ 	"fmt"
+ 	"internal/coverage"
+ 	"internal/goexperiment"
++	"internal/platform"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+@@ -402,3 +404,32 @@ func TestApisOnNocoverBinary(t *testing.T) {
+ 		t.Errorf("error output does not contain %q: %s", want, output)
+ 	}
+ }
++
++func TestIssue56006EmitDataRaceCoverRunningGoroutine(t *testing.T) {
++	// This test requires "go test -race -cover", meaning that we need
++	// go build, go run, and "-race" support.
++	testenv.MustHaveGoRun(t)
++	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) ||
++		!testenv.HasCGO() {
++		t.Skip("skipped due to lack of race detector support / CGO")
++	}
++
++	// This will run a program with -cover and -race where we have a
++	// goroutine still running (and updating counters) at the point where
++	// the test runtime is trying to write out counter data.
++	cmd := exec.Command(testenv.GoToolPath(t), "test", "-cover", "-race")
++	cmd.Dir = filepath.Join("testdata", "issue56006")
++	b, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("go test -cover -race failed: %v", err)
++	}
++
++	// Don't want to see any data races in output.
++	avoid := []string{"DATA RACE"}
++	for _, no := range avoid {
++		if strings.Contains(string(b), no) {
++			t.Logf("%s\n", string(b))
++			t.Fatalf("found %s in test output, not permitted", no)
++		}
++	}
++}
+diff --git a/src/runtime/coverage/testdata/issue56006/repro.go b/src/runtime/coverage/testdata/issue56006/repro.go
+new file mode 100644
+index 0000000000..60a4925143
+--- /dev/null
++++ b/src/runtime/coverage/testdata/issue56006/repro.go
+@@ -0,0 +1,26 @@
++package main
++
++//go:noinline
++func blah(x int) int {
++	if x != 0 {
++		return x + 42
++	}
++	return x - 42
++}
++
++func main() {
++	go infloop()
++	println(blah(1) + blah(0))
++}
++
++var G int
++
++func infloop() {
++	for {
++		G += blah(1)
++		G += blah(0)
++		if G > 10000 {
++			G = 0
++		}
++	}
++}
+diff --git a/src/runtime/coverage/testdata/issue56006/repro_test.go b/src/runtime/coverage/testdata/issue56006/repro_test.go
+new file mode 100644
+index 0000000000..674d819c3b
+--- /dev/null
++++ b/src/runtime/coverage/testdata/issue56006/repro_test.go
+@@ -0,0 +1,8 @@
++package main
++
++import "testing"
++
++func TestSomething(t *testing.T) {
++	go infloop()
++	println(blah(1) + blah(0))
++}

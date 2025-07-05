@@ -15,6 +15,20 @@ Date:   Mon Apr 24 14:31:22 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index dde8a9a589..c50b6a054d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -184,6 +184,8 @@ func Main(archInit func(*Arch)) {
+ 	objabi.Flagcount("W", "debug parse tree after type checking", &Debug['W'])
+ 	flag.StringVar(&asmhdr, "asmhdr", "", "write assembly header to `file`")
+ 	flag.StringVar(&buildid, "buildid", "", "record `id` as the build id in the export metadata")
++	var dashc int
++	flag.IntVar(&dashc, "c", 0, "makes -c work")
+ 	flag.BoolVar(&pure_go, "complete", false, "compiling complete package (no C or assembly)")
+ 	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`; try -d help")
+ 	flag.BoolVar(&flagDWARF, "dwarf", true, "generate DWARF symbols")

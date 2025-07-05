@@ -76,7 +76,7 @@ Date:   Thu Mar 27 14:05:57 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/80160044
-
+---
  src/cmd/5g/ggen.c        | 47 ++++++++++++++++++-------
  src/cmd/5g/reg.c         | 86 ++++++++++++++++++++++++++++++++++++++++++---
  src/cmd/6g/ggen.c        | 45 ++++++++++++++----------
@@ -91,3 +91,893 @@ Date:   Thu Mar 27 14:05:57 2014 -0400
  test/fixedbugs/bug484.go | 90 ++++++++++++++++++++++++++++++++++++++++++++++++
  test/live.go             | 22 ++++++++++--
  13 files changed, 447 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 417f381da4..b8dfa7851c 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -16,6 +16,9 @@ defframe(Prog *ptxt)
+ {
+ 	uint32 frame;
+ 	Prog *p, *p1;
++	NodeList *l;
++	Node *n;
++	vlong i;
+ 
+ 	// fill in argument size
+ 	ptxt->to.type = D_CONST2;
+@@ -25,19 +28,39 @@ defframe(Prog *ptxt)
+ 	frame = rnd(stksize+maxarg, widthptr);
+ 	ptxt->to.offset = frame;
+ 	
++	// insert code to contain ambiguously live variables
++	// so that garbage collector only sees initialized values
++	// when it looks for pointers.
++	//
++	// TODO: determine best way to zero the given values.
++	// among other problems, R0 is initialized to 0 multiple times,
++	// but that's really the tip of the iceberg.
+ 	p = ptxt;
+-	if(stkzerosize > 0) {
+-		p = appendpp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
+-		p = appendpp(p, AADD, D_CONST, NREG, 4+frame-stkzerosize, D_REG, 1, 0);
+-		p->reg = REGSP;	
+-		p = appendpp(p, AADD, D_CONST, NREG, stkzerosize, D_REG, 2, 0);	
+-		p->reg = 1;	
+-		p1 = p = appendpp(p, AMOVW, D_REG, 0, 0, D_OREG, 1, 4);	
+-		p->scond |= C_PBIT;	
+-		p = appendpp(p, ACMP, D_REG, 1, 0, D_NONE, 0, 0);	
+-		p->reg = 2;	
+-		p = appendpp(p, ABNE, D_NONE, NREG, 0, D_BRANCH, NREG, 0);	
+-		patch(p, p1);
++	for(l=curfn->dcl; l != nil; l = l->next) {
++		n = l->n;
++		if(!n->needzero)
++			continue;
++		if(n->class != PAUTO)
++			fatal("needzero class %d", n->class);
++		if(n->type->width % widthptr != 0 || n->xoffset % widthptr != 0 || n->type->width == 0)
++			fatal("var %lN has size %d offset %d", n, (int)n->type->width, (int)n->xoffset);
++		if(n->type->width <= 8*widthptr) {
++			p = appendpp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
++			for(i = 0; i < n->type->width; i += widthptr) 
++				p = appendpp(p, AMOVW, D_REG, 0, 0, D_OREG, REGSP, 4+frame+n->xoffset+i);
++		} else {
++			p = appendpp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
++			p = appendpp(p, AADD, D_CONST, NREG, 4+frame+n->xoffset, D_REG, 1, 0);
++			p->reg = REGSP;	
++			p = appendpp(p, AADD, D_CONST, NREG, n->type->width, D_REG, 2, 0);	
++			p->reg = 1;	
++			p1 = p = appendpp(p, AMOVW, D_REG, 0, 0, D_OREG, 1, 4);	
++			p->scond |= C_PBIT;	
++			p = appendpp(p, ACMP, D_REG, 1, 0, D_NONE, 0, 0);	
++			p->reg = 2;	
++			p = appendpp(p, ABNE, D_NONE, NREG, 0, D_BRANCH, NREG, 0);	
++			patch(p, p1);
++		}
+ 	}	
+ }
+ 
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 3949478422..b15a8c14ac 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -203,8 +203,12 @@ regopt(Prog *firstp)
+ 	 * find use and set of variables
+ 	 */
+ 	g = flowstart(firstp, sizeof(Reg));
+-	if(g == nil)
++	if(g == nil) {
++		for(i=0; i<nvar; i++)
++			var[i].node->opt = nil;
+ 		return;
++	}
++
+ 	firstr = (Reg*)g->start;
+ 
+ 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+@@ -471,6 +475,14 @@ brk:
+ 	if(debug['R'] && debug['v'])
+ 		dumpit("pass6", &firstr->f, 1);
+ 
++	/*
++	 * free aux structures. peep allocates new ones.
++	 */
++	for(i=0; i<nvar; i++)
++		var[i].node->opt = nil;
++	flowend(g);
++	firstr = R;
++
+ 	/*
+ 	 * pass 7
+ 	 * peep-hole on basic block
+@@ -536,8 +548,6 @@ brk:
+ 			}
+ 		}
+ 	}
+-
+-	flowend(g);
+ }
+ 
+ void
+@@ -805,6 +815,13 @@ mkvar(Reg *r, Adr *a)
+ 	v->addr = flag;		// funny punning
+ 	v->node = node;
+ 	
++	// node->opt is the head of a linked list
++	// of Vars within the given Node, so that
++	// we can start at a Var and find all the other
++	// Vars in the same Go variable.
++	v->nextinnode = node->opt;
++	node->opt = v;
++	
+ 	if(debug['R'])
+ 		print("bit=%2d et=%2E w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+ 
+@@ -816,6 +833,24 @@ mkvar(Reg *r, Adr *a)
+ 		for(z=0; z<BITS; z++)
+ 			params.b[z] |= bit.b[z];
+ 
++	// Treat values with their address taken as live at calls,
++	// because the garbage collector's liveness analysis in ../gc/plive.c does.
++	// These must be consistent or else we will elide stores and the garbage
++	// collector will see uninitialized data.
++	// The typical case where our own analysis is out of sync is when the
++	// node appears to have its address taken but that code doesn't actually
++	// get generated and therefore doesn't show up as an address being
++	// taken when we analyze the instruction stream.
++	// One instance of this case is when a closure uses the same name as
++	// an outer variable for one of its own variables declared with :=.
++	// The parser flags the outer variable as possibly shared, and therefore
++	// sets addrtaken, even though it ends up not being actually shared.
++	// If we were better about _ elision, _ = &x would suffice too.
++	// The broader := in a closure problem is mentioned in a comment in
++	// closure.c:/^typecheckclosure and dcl.c:/^oldname.
++	if(node->addrtaken)
++		setaddrs(bit);
++
+ 	return bit;
+ 
+ none:
+@@ -826,7 +861,8 @@ void
+ prop(Reg *r, Bits ref, Bits cal)
+ {
+ 	Reg *r1, *r2;
+-	int z;
++	int z, i, j;
++	Var *v, *v1;
+ 
+ 	for(r1 = r; r1 != R; r1 = (Reg*)r1->f.p1) {
+ 		for(z=0; z<BITS; z++) {
+@@ -849,6 +885,48 @@ prop(Reg *r, Bits ref, Bits cal)
+ 				cal.b[z] |= ref.b[z] | externs.b[z];
+ 				ref.b[z] = 0;
+ 			}
++			
++			// cal.b is the current approximation of what's live across the call.
++			// Every bit in cal.b is a single stack word. For each such word,
++			// find all the other tracked stack words in the same Go variable
++			// (struct/slice/string/interface) and mark them live too.
++			// This is necessary because the liveness analysis for the garbage
++			// collector works at variable granularity, not at word granularity.
++			// It is fundamental for slice/string/interface: the garbage collector
++			// needs the whole value, not just some of the words, in order to
++			// interpret the other bits correctly. Specifically, slice needs a consistent
++			// ptr and cap, string needs a consistent ptr and len, and interface
++			// needs a consistent type word and data word.
++			for(z=0; z<BITS; z++) {
++				if(cal.b[z] == 0)
++					continue;
++				for(i=0; i<32; i++) {
++					if(z*32+i >= nvar || ((cal.b[z]>>i)&1) == 0)
++						continue;
++					v = var+z*32+i;
++					if(v->node->opt == nil) // v represents fixed register, not Go variable
++						continue;
++
++					// v->node->opt is the head of a linked list of Vars
++					// corresponding to tracked words from the Go variable v->node.
++					// Walk the list and set all the bits.
++					// For a large struct this could end up being quadratic:
++					// after the first setting, the outer loop (for z, i) would see a 1 bit
++					// for all of the remaining words in the struct, and for each such
++					// word would go through and turn on all the bits again.
++					// To avoid the quadratic behavior, we only turn on the bits if
++					// v is the head of the list or if the head's bit is not yet turned on.
++					// This will set the bits at most twice, keeping the overall loop linear.
++					v1 = v->node->opt;
++					j = v1 - var;
++					if(v == v1 || ((cal.b[j/32]>>(j&31))&1) == 0) {
++						for(; v1 != nil; v1 = v1->nextinnode) {
++							j = v1 - var;
++							cal.b[j/32] |= 1<<(j&31);
++						}
++					}
++				}
++			}
+ 			break;
+ 
+ 		case ATEXT:
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index e051939b21..155b719f47 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -17,6 +17,8 @@ defframe(Prog *ptxt)
+ 	uint32 frame;
+ 	Prog *p;
+ 	vlong i;
++	NodeList *l;
++	Node *n;
+ 
+ 	// fill in argument size
+ 	ptxt->to.offset = rnd(curfn->type->argwid, widthptr);
+@@ -29,26 +31,33 @@ defframe(Prog *ptxt)
+ 	// insert code to contain ambiguously live variables
+ 	// so that garbage collector only sees initialized values
+ 	// when it looks for pointers.
++	//
++	// TODO: determine best way to zero the given values.
++	// among other problems, AX is initialized to 0 multiple times,
++	// but that's really the tip of the iceberg.
+ 	p = ptxt;
+-	if(stkzerosize % widthreg != 0)
+-		fatal("zero size not a multiple of reg size");
+-	if(stkzerosize == 0) {
+-		// nothing
+-	} else if(stkzerosize <= 2*widthreg) {
+-		for(i = 0; i < stkzerosize; i += widthreg) {
+-			p = appendpp(p, AMOVQ, D_CONST, 0, D_SP+D_INDIR, frame-stkzerosize+i);
+-		}
+-	} else if(stkzerosize <= 16*widthreg) {
+-		p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);
+-		for(i = 0; i < stkzerosize; i += widthreg) {
+-			p = appendpp(p, AMOVQ, D_AX, 0, D_SP+D_INDIR, frame-stkzerosize+i);
++	for(l=curfn->dcl; l != nil; l = l->next) {
++		n = l->n;
++		if(!n->needzero)
++			continue;
++		if(n->class != PAUTO)
++			fatal("needzero class %d", n->class);
++		if(n->type->width % widthreg != 0 || n->xoffset % widthreg != 0 || n->type->width == 0)
++			fatal("var %lN has size %d offset %d", n, (int)n->type->width, (int)n->xoffset);
++		if(n->type->width <= 2*widthreg) {
++			for(i = 0; i < n->type->width; i += widthreg)
++				p = appendpp(p, AMOVQ, D_CONST, 0, D_SP+D_INDIR, frame+n->xoffset+i);
++		} else if(n->type->width <= 16*widthreg) {
++			p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);
++			for(i = 0; i < n->type->width; i += widthreg)
++				p = appendpp(p, AMOVQ, D_AX, 0, D_SP+D_INDIR, frame+n->xoffset+i);
++		} else {
++			p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);
++			p = appendpp(p, AMOVQ, D_CONST, n->type->width/widthreg, D_CX, 0);
++			p = appendpp(p, leaptr, D_SP+D_INDIR, frame+n->xoffset, D_DI, 0);
++			p = appendpp(p, AREP, D_NONE, 0, D_NONE, 0);
++			p = appendpp(p, ASTOSQ, D_NONE, 0, D_NONE, 0);
+ 		}
+-	} else {
+-		p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);
+-		p = appendpp(p, AMOVQ, D_CONST, stkzerosize/widthreg, D_CX, 0);
+-		p = appendpp(p, leaptr, D_SP+D_INDIR, frame-stkzerosize, D_DI, 0);
+-		p = appendpp(p, AREP, D_NONE, 0, D_NONE, 0);
+-		appendpp(p, ASTOSQ, D_NONE, 0, D_NONE, 0);
+ 	}
+ }
+ 
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index eadd1cadc2..6fb10e6c95 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -189,8 +189,12 @@ regopt(Prog *firstp)
+ 	 * find use and set of variables
+ 	 */
+ 	g = flowstart(firstp, sizeof(Reg));
+-	if(g == nil)
++	if(g == nil) {
++		for(i=0; i<nvar; i++)
++			var[i].node->opt = nil;
+ 		return;
++	}
++
+ 	firstr = (Reg*)g->start;
+ 
+ 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+@@ -407,6 +411,8 @@ brk:
+ 	/*
+ 	 * free aux structures. peep allocates new ones.
+ 	 */
++	for(i=0; i<nvar; i++)
++		var[i].node->opt = nil;
+ 	flowend(g);
+ 	firstr = R;
+ 
+@@ -665,6 +671,13 @@ mkvar(Reg *r, Adr *a)
+ 	v->width = w;
+ 	v->addr = flag;		// funny punning
+ 	v->node = node;
++	
++	// node->opt is the head of a linked list
++	// of Vars within the given Node, so that
++	// we can start at a Var and find all the other
++	// Vars in the same Go variable.
++	v->nextinnode = node->opt;
++	node->opt = v;
+ 
+ 	if(debug['R'])
+ 		print("bit=%2d et=%2E w=%lld+%lld %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+@@ -679,6 +692,24 @@ mkvar(Reg *r, Adr *a)
+ 		for(z=0; z<BITS; z++)
+ 			params.b[z] |= bit.b[z];
+ 
++	// Treat values with their address taken as live at calls,
++	// because the garbage collector's liveness analysis in ../gc/plive.c does.
++	// These must be consistent or else we will elide stores and the garbage
++	// collector will see uninitialized data.
++	// The typical case where our own analysis is out of sync is when the
++	// node appears to have its address taken but that code doesn't actually
++	// get generated and therefore doesn't show up as an address being
++	// taken when we analyze the instruction stream.
++	// One instance of this case is when a closure uses the same name as
++	// an outer variable for one of its own variables declared with :=.
++	// The parser flags the outer variable as possibly shared, and therefore
++	// sets addrtaken, even though it ends up not being actually shared.
++	// If we were better about _ elision, _ = &x would suffice too.
++	// The broader := in a closure problem is mentioned in a comment in
++	// closure.c:/^typecheckclosure and dcl.c:/^oldname.
++	if(node->addrtaken)
++		setaddrs(bit);
++
+ 	return bit;
+ 
+ none:
+@@ -689,7 +720,8 @@ void
+ prop(Reg *r, Bits ref, Bits cal)
+ {
+ 	Reg *r1, *r2;
+-	int z;
++	int z, i, j;
++	Var *v, *v1;
+ 
+ 	for(r1 = r; r1 != R; r1 = (Reg*)r1->f.p1) {
+ 		for(z=0; z<BITS; z++) {
+@@ -712,6 +744,48 @@ prop(Reg *r, Bits ref, Bits cal)
+ 				cal.b[z] |= ref.b[z] | externs.b[z];
+ 				ref.b[z] = 0;
+ 			}
++			
++			// cal.b is the current approximation of what's live across the call.
++			// Every bit in cal.b is a single stack word. For each such word,
++			// find all the other tracked stack words in the same Go variable
++			// (struct/slice/string/interface) and mark them live too.
++			// This is necessary because the liveness analysis for the garbage
++			// collector works at variable granularity, not at word granularity.
++			// It is fundamental for slice/string/interface: the garbage collector
++			// needs the whole value, not just some of the words, in order to
++			// interpret the other bits correctly. Specifically, slice needs a consistent
++			// ptr and cap, string needs a consistent ptr and len, and interface
++			// needs a consistent type word and data word.
++			for(z=0; z<BITS; z++) {
++				if(cal.b[z] == 0)
++					continue;
++				for(i=0; i<32; i++) {
++					if(z*32+i >= nvar || ((cal.b[z]>>i)&1) == 0)
++						continue;
++					v = var+z*32+i;
++					if(v->node->opt == nil) // v represents fixed register, not Go variable
++						continue;
++
++					// v->node->opt is the head of a linked list of Vars
++					// corresponding to tracked words from the Go variable v->node.
++					// Walk the list and set all the bits.
++					// For a large struct this could end up being quadratic:
++					// after the first setting, the outer loop (for z, i) would see a 1 bit
++					// for all of the remaining words in the struct, and for each such
++					// word would go through and turn on all the bits again.
++					// To avoid the quadratic behavior, we only turn on the bits if
++					// v is the head of the list or if the head's bit is not yet turned on.
++					// This will set the bits at most twice, keeping the overall loop linear.
++					v1 = v->node->opt;
++					j = v1 - var;
++					if(v == v1 || ((cal.b[j/32]>>(j&31))&1) == 0) {
++						for(; v1 != nil; v1 = v1->nextinnode) {
++							j = v1 - var;
++							cal.b[j/32] |= 1<<(j&31);
++						}
++					}
++				}
++			}
+ 			break;
+ 
+ 		case ATEXT:
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 741564ad53..eddba9bac4 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -17,6 +17,8 @@ defframe(Prog *ptxt)
+ 	uint32 frame;
+ 	Prog *p;
+ 	vlong i;
++	NodeList *l;
++	Node *n;
+ 
+ 	// fill in argument size
+ 	ptxt->to.offset2 = rnd(curfn->type->argwid, widthptr);
+@@ -28,26 +30,33 @@ defframe(Prog *ptxt)
+ 	// insert code to contain ambiguously live variables
+ 	// so that garbage collector only sees initialized values
+ 	// when it looks for pointers.
++	//
++	// TODO: determine best way to zero the given values.
++	// among other problems, AX is initialized to 0 multiple times,
++	// but that's really the tip of the iceberg.
+ 	p = ptxt;
+-	if(stkzerosize % widthptr != 0)
+-		fatal("zero size not a multiple of ptr size");
+-	if(stkzerosize == 0) {
+-		// nothing
+-	} else if(stkzerosize <= 2*widthptr) {
+-		for(i = 0; i < stkzerosize; i += widthptr) {
+-			p = appendpp(p, AMOVL, D_CONST, 0, D_SP+D_INDIR, frame-stkzerosize+i);
+-		}
+-	} else if(stkzerosize <= 16*widthptr) {
+-		p = appendpp(p, AMOVL, D_CONST, 0, D_AX, 0);	
+-		for(i = 0; i < stkzerosize; i += widthptr) {
+-			p = appendpp(p, AMOVL, D_AX, 0, D_SP+D_INDIR, frame-stkzerosize+i);
++	for(l=curfn->dcl; l != nil; l = l->next) {
++		n = l->n;
++		if(!n->needzero)
++			continue;
++		if(n->class != PAUTO)
++			fatal("needzero class %d", n->class);
++		if(n->type->width % widthptr != 0 || n->xoffset % widthptr != 0 || n->type->width == 0)
++			fatal("var %lN has size %d offset %d", n, (int)n->type->width, (int)n->xoffset);
++		if(n->type->width <= 2*widthptr) {
++			for(i = 0; i < n->type->width; i += widthptr)
++				p = appendpp(p, AMOVL, D_CONST, 0, D_SP+D_INDIR, frame+n->xoffset+i);
++		} else if(n->type->width <= 16*widthptr) {
++			p = appendpp(p, AMOVL, D_CONST, 0, D_AX, 0);
++			for(i = 0; i < n->type->width; i += widthptr)
++				p = appendpp(p, AMOVL, D_AX, 0, D_SP+D_INDIR, frame+n->xoffset+i);
++		} else {
++			p = appendpp(p, AMOVL, D_CONST, 0, D_AX, 0);
++			p = appendpp(p, AMOVL, D_CONST, n->type->width/widthptr, D_CX, 0);
++			p = appendpp(p, ALEAL, D_SP+D_INDIR, frame+n->xoffset, D_DI, 0);
++			p = appendpp(p, AREP, D_NONE, 0, D_NONE, 0);
++			p = appendpp(p, ASTOSL, D_NONE, 0, D_NONE, 0);
+ 		}
+-	} else {
+-		p = appendpp(p, AMOVL, D_CONST, 0, D_AX, 0);	
+-		p = appendpp(p, AMOVL, D_CONST, stkzerosize/widthptr, D_CX, 0);	
+-		p = appendpp(p, ALEAL, D_SP+D_INDIR, frame-stkzerosize, D_DI, 0);	
+-		p = appendpp(p, AREP, D_NONE, 0, D_NONE, 0);	
+-		appendpp(p, ASTOSL, D_NONE, 0, D_NONE, 0);	
+ 	}
+ }
+ 
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 98edfd9a98..af3e834c94 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -159,8 +159,12 @@ regopt(Prog *firstp)
+ 	 * find use and set of variables
+ 	 */
+ 	g = flowstart(firstp, sizeof(Reg));
+-	if(g == nil)
++	if(g == nil) {
++		for(i=0; i<nvar; i++)
++			var[i].node->opt = nil;
+ 		return;
++	}
++
+ 	firstr = (Reg*)g->start;
+ 
+ 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+@@ -368,6 +372,8 @@ brk:
+ 	/*
+ 	 * free aux structures. peep allocates new ones.
+ 	 */
++	for(i=0; i<nvar; i++)
++		var[i].node->opt = nil;
+ 	flowend(g);
+ 	firstr = R;
+ 
+@@ -631,6 +637,13 @@ mkvar(Reg *r, Adr *a)
+ 	v->width = w;
+ 	v->addr = flag;		// funny punning
+ 	v->node = node;
++	
++	// node->opt is the head of a linked list
++	// of Vars within the given Node, so that
++	// we can start at a Var and find all the other
++	// Vars in the same Go variable.
++	v->nextinnode = node->opt;
++	node->opt = v;
+ 
+ 	if(debug['R'])
+ 		print("bit=%2d et=%2E w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+@@ -644,6 +657,24 @@ mkvar(Reg *r, Adr *a)
+ 		for(z=0; z<BITS; z++)
+ 			params.b[z] |= bit.b[z];
+ 
++	// Treat values with their address taken as live at calls,
++	// because the garbage collector's liveness analysis in ../gc/plive.c does.
++	// These must be consistent or else we will elide stores and the garbage
++	// collector will see uninitialized data.
++	// The typical case where our own analysis is out of sync is when the
++	// node appears to have its address taken but that code doesn't actually
++	// get generated and therefore doesn't show up as an address being
++	// taken when we analyze the instruction stream.
++	// One instance of this case is when a closure uses the same name as
++	// an outer variable for one of its own variables declared with :=.
++	// The parser flags the outer variable as possibly shared, and therefore
++	// sets addrtaken, even though it ends up not being actually shared.
++	// If we were better about _ elision, _ = &x would suffice too.
++	// The broader := in a closure problem is mentioned in a comment in
++	// closure.c:/^typecheckclosure and dcl.c:/^oldname.
++	if(node->addrtaken)
++		setaddrs(bit);
++
+ 	return bit;
+ 
+ none:
+@@ -654,7 +685,8 @@ void
+ prop(Reg *r, Bits ref, Bits cal)
+ {
+ 	Reg *r1, *r2;
+-	int z;
++	int z, i, j;
++	Var *v, *v1;
+ 
+ 	for(r1 = r; r1 != R; r1 = (Reg*)r1->f.p1) {
+ 		for(z=0; z<BITS; z++) {
+@@ -677,6 +709,48 @@ prop(Reg *r, Bits ref, Bits cal)
+ 				cal.b[z] |= ref.b[z] | externs.b[z];
+ 				ref.b[z] = 0;
+ 			}
++			
++			// cal.b is the current approximation of what's live across the call.
++			// Every bit in cal.b is a single stack word. For each such word,
++			// find all the other tracked stack words in the same Go variable
++			// (struct/slice/string/interface) and mark them live too.
++			// This is necessary because the liveness analysis for the garbage
++			// collector works at variable granularity, not at word granularity.
++			// It is fundamental for slice/string/interface: the garbage collector
++			// needs the whole value, not just some of the words, in order to
++			// interpret the other bits correctly. Specifically, slice needs a consistent
++			// ptr and cap, string needs a consistent ptr and len, and interface
++			// needs a consistent type word and data word.
++			for(z=0; z<BITS; z++) {
++				if(cal.b[z] == 0)
++					continue;
++				for(i=0; i<32; i++) {
++					if(z*32+i >= nvar || ((cal.b[z]>>i)&1) == 0)
++						continue;
++					v = var+z*32+i;
++					if(v->node->opt == nil) // v represents fixed register, not Go variable
++						continue;
++
++					// v->node->opt is the head of a linked list of Vars
++					// corresponding to tracked words from the Go variable v->node.
++					// Walk the list and set all the bits.
++					// For a large struct this could end up being quadratic:
++					// after the first setting, the outer loop (for z, i) would see a 1 bit
++					// for all of the remaining words in the struct, and for each such
++					// word would go through and turn on all the bits again.
++					// To avoid the quadratic behavior, we only turn on the bits if
++					// v is the head of the list or if the head's bit is not yet turned on.
++					// This will set the bits at most twice, keeping the overall loop linear.
++					v1 = v->node->opt;
++					j = v1 - var;
++					if(v == v1 || ((cal.b[j/32]>>(j&31))&1) == 0) {
++						for(; v1 != nil; v1 = v1->nextinnode) {
++							j = v1 - var;
++							cal.b[j/32] |= 1<<(j&31);
++						}
++					}
++				}
++			}
+ 			break;
+ 
+ 		case ATEXT:
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 74d65fde18..a6a40be05c 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -465,8 +465,6 @@ gen(Node *n)
+ 	case OAS:
+ 		if(gen_as_init(n))
+ 			break;
+-		if(n->colas && isfat(n->left->type) && n->left->op == ONAME)
+-			gvardef(n->left);
+ 		cgen_as(n->left, n->right);
+ 		break;
+ 
+@@ -566,7 +564,6 @@ cgen_proc(Node *n, int proc)
+  * generate declaration.
+  * have to allocate heap copy
+  * for escaped variables.
+- * also leave VARDEF annotations for liveness analysis.
+  */
+ static void
+ cgen_dcl(Node *n)
+@@ -577,8 +574,6 @@ cgen_dcl(Node *n)
+ 		dump("cgen_dcl", n);
+ 		fatal("cgen_dcl");
+ 	}
+-	if(isfat(n->type))
+-		gvardef(n);
+ 	if(!(n->class & PHEAP))
+ 		return;
+ 	if(n->alloc == nil)
+@@ -641,7 +636,6 @@ cgen_discard(Node *nr)
+ 	// special enough to just evaluate
+ 	default:
+ 		tempname(&tmp, nr->type);
+-		gvardef(&tmp);
+ 		cgen_as(&tmp, nr);
+ 		gused(&tmp);
+ 	}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 36d5167594..34268d2602 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -722,6 +722,7 @@ struct	Var
+ {
+ 	vlong	offset;
+ 	Node*	node;
++	Var*	nextinnode;
+ 	int	width;
+ 	char	name;
+ 	char	etype;
+@@ -943,7 +944,6 @@ EXTERN	Node*	lasttype;
+ EXTERN	vlong	maxarg;
+ EXTERN	vlong	stksize;		// stack size for current frame
+ EXTERN	vlong	stkptrsize;		// prefix of stack containing pointers
+-EXTERN	vlong	stkzerosize;		// prefix of stack that must be zeroed on entry
+ EXTERN	int32	blockgen;		// max block number
+ EXTERN	int32	block;			// current block number
+ EXTERN	int	hasdefer;		// flag that curfn has defer statetment
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 3e1bff1794..8c7b3947e4 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -363,7 +363,6 @@ allocauto(Prog* ptxt)
+ 
+ 	stksize = 0;
+ 	stkptrsize = 0;
+-	stkzerosize = 0;
+ 
+ 	if(curfn->dcl == nil)
+ 		return;
+@@ -375,13 +374,6 @@ allocauto(Prog* ptxt)
+ 
+ 	markautoused(ptxt);
+ 
+-	if(precisestack_enabled) {
+-		// TODO: Remove when liveness analysis sets needzero instead.
+-		for(ll=curfn->dcl; ll != nil; ll=ll->next)
+-			if(ll->n->class == PAUTO)
+-				ll->n->needzero = 1; // ll->n->addrtaken;
+-	}
+-
+ 	listsort(&curfn->dcl, cmpstackvar);
+ 
+ 	// Unused autos are at the end, chop 'em off.
+@@ -415,11 +407,8 @@ allocauto(Prog* ptxt)
+ 			fatal("bad width");
+ 		stksize += w;
+ 		stksize = rnd(stksize, n->type->align);
+-		if(haspointers(n->type)) {
++		if(haspointers(n->type))
+ 			stkptrsize = stksize;
+-			if(n->needzero)
+-				stkzerosize = stksize;
+-		}
+ 		if(thechar == '5')
+ 			stksize = rnd(stksize, widthptr);
+ 		if(stksize >= (1ULL<<31)) {
+@@ -430,7 +419,6 @@ allocauto(Prog* ptxt)
+ 	}
+ 	stksize = rnd(stksize, widthreg);
+ 	stkptrsize = rnd(stkptrsize, widthreg);
+-	stkzerosize = rnd(stkzerosize, widthreg);
+ 
+ 	fixautoused(ptxt);
+ 
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 369b913f6d..55bdee2418 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -701,7 +701,10 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
+ 			node = *(Node**)arrayget(vars, i);
+ 			switch(node->class & ~PHEAP) {
+ 			case PPARAM:
++				if(node->addrtaken)
++					bvset(avarinit, i);
+ 				bvset(varkill, i);
++				break;
+ 			}
+ 		}
+ 		return;
+@@ -717,7 +720,8 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
+ 				if(pos == -1)
+ 					goto Next;
+ 				if(from->node->addrtaken) {
+-					bvset(avarinit, pos);
++					if(info.flags & (LeftRead|LeftWrite))
++						bvset(avarinit, pos);
+ 				} else {
+ 					if(info.flags & (LeftRead | LeftAddr))
+ 						bvset(uevar, pos);
+@@ -1528,7 +1532,7 @@ livenessepilogue(Liveness *lv)
+ 							n = *(Node**)arrayget(lv->vars, pos);
+ 							if(!n->needzero) {
+ 								n->needzero = 1;
+-								if(debuglive >= 3)
++								if(debuglive >= 1)
+ 									warnl(p->lineno, "%N: %lN is ambiguously live", curfn->nname, n);
+ 							}
+ 						}
+@@ -1694,6 +1698,8 @@ livenessepilogue(Liveness *lv)
+ 	free(avarinit);
+ 	free(any);
+ 	free(all);
++	
++	flusherrors();
+ }
+ 
+ static int
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 88ef57f409..3f4734ef52 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -704,6 +704,10 @@ haspointers(Type *t)
+ 			ret = 1;
+ 			break;
+ 		}
++		if(t->bound == 0) {	// empty array
++			ret = 0;
++			break;
++		}
+ 		ret = haspointers(t->type);
+ 		break;
+ 	case TSTRUCT:
+diff --git a/test/fixedbugs/bug484.go b/test/fixedbugs/bug484.go
+new file mode 100644
+index 0000000000..c664b83af3
+--- /dev/null
++++ b/test/fixedbugs/bug484.go
+@@ -0,0 +1,90 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The liveness code used to say that, in func g, s was live
++// starting at its declaration, because it appears to have its
++// address taken by the closure (different s, but the parser
++// gets slightly confused, a separate bug). The liveness analysis
++// saw s as having its address taken but the register optimizer
++// did not. This mismatch meant that s would be marked live
++// (and therefore initialized) at the call to f, but the register optimizer
++// would optimize away the initialization of s before f, causing the
++// garbage collector to use unused data.
++// The register optimizer has been changed to respect the
++// same "address taken" flag that the liveness analysis uses,
++// even if it cannot see any address being taken in the actual
++// machine code. This is conservative but keeps the two consistent,
++// which is the most important thing.
++
++package main
++
++import "runtime"
++
++var c bool
++
++func f() interface{} {
++	if c { // disable inlining
++		f()
++	}
++	runtime.GC()
++	return nil
++}
++
++func g() {
++	if c { // disable inlining
++		g()
++	}
++	var s interface{}
++	_ = func() {
++		s := f()
++		_ = s
++	}
++	s = f()
++	useiface(s)
++	useiface(s)
++}
++
++func useiface(x interface{}) {
++	if c {	// disable inlining
++		useiface(x)
++	}
++}
++
++func h() {
++	if c { // disable inlining
++		h()
++	}
++	var x [16]uintptr
++	for i := range x {
++		x[i] = 1
++	}
++	
++	useint(x[0])
++	useint(x[1])
++	useint(x[2])
++	useint(x[3])
++}
++
++func useint(x uintptr) {
++	if c {	// disable inlining
++		useint(x)
++	}
++}
++
++func main() {
++	// scribble non-zero values on stack
++	h()
++	// call function that used to let the garbage collector
++	// see uninitialized stack values; it will see the
++	// nonzero values.
++	g()
++}
++
++func big(x int) {
++	if x >= 0 {
++		big(x-1)
++	}
++}
+diff --git a/test/live.go b/test/live.go
+index 077a9b676a..f0d7c90451 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -38,7 +38,7 @@ func f3(b bool) {
+ 		print(&y) // ERROR "live at call to printpointer: y$"
+ 		print(&y) // ERROR "live at call to printpointer: y$"
+ 	}
+-	print(0) // ERROR "live at call to printint: x y$"
++	print(0) // ERROR "live at call to printint: x y$" "x \(type \*int\) is ambiguously live" "y \(type \*int\) is ambiguously live"
+ }
+ 
+ // The old algorithm treated x as live on all code that
+@@ -77,7 +77,7 @@ func f5(b1 bool) {
+ 		*y = 54
+ 		z = &y
+ 	}
+-	print(**z) // ERROR "live at call to printint: x y$"
++	print(**z) // ERROR "live at call to printint: x y$" "x \(type \*int\) is ambiguously live" "y \(type \*int\) is ambiguously live"
+ }
+ 
+ // confusion about the _ result used to cause spurious "live at entry to f6: _".
+@@ -194,3 +194,21 @@ func f13() {
+ 
+ func g13(string) string
+ func h13(string, string) string
++
++// more incorrectly placed VARDEF.
++
++func f14() {
++	x := g14()
++	print(&x) // ERROR "live at call to printpointer: x"
++}
++
++func g14() string
++
++func f15() {
++	var x string
++	_ = &x
++	x = g15() // ERROR "live at call to g15: x"
++	print(x) // ERROR "live at call to printstring: x"
++}
++
++func g15() string

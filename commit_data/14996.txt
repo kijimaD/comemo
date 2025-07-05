@@ -7,7 +7,7 @@ Date:   Mon Jan 28 08:54:15 2013 -0800
     R=golang-dev, bradfitz, mikioh.mikioh, dave, minux.ma
     CC=golang-dev
     https://golang.org/cl/7227043
-
+---
  src/pkg/net/fd_unix.go                  | 12 +-----
  src/pkg/net/file_unix.go                |  4 ++
  src/pkg/net/sock_cloexec.go             | 69 +++++++++++++++++++++++++++++++++
@@ -20,3 +20,339 @@ Date:   Mon Jan 28 08:54:15 2013 -0800
  src/pkg/syscall/zsyscall_linux_amd64.go | 11 ++++++
  src/pkg/syscall/zsyscall_linux_arm.go   | 11 ++++++
  11 files changed, 179 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index cfe6df2130..e9d2e4165f 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -298,9 +298,6 @@ func dialTimeout(net, addr string, timeout time.Duration) (Conn, error) {
+ }
+ 
+ func newFD(fd, family, sotype int, net string) (*netFD, error) {
+-	if err := syscall.SetNonblock(fd, true); err != nil {
+-		return nil, err
+-	}
+ 	netfd := &netFD{
+ 		sysfd:  fd,
+ 		family: family,
+@@ -615,16 +612,11 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
+ 	}
+ 	defer fd.decref()
+ 
+-	// See ../syscall/exec_unix.go for description of ForkLock.
+-	// It is okay to hold the lock across syscall.Accept
+-	// because we have put fd.sysfd into non-blocking mode.
+ 	var s int
+ 	var rsa syscall.Sockaddr
+ 	for {
+-		syscall.ForkLock.RLock()
+-		s, rsa, err = syscall.Accept(fd.sysfd)
++		s, rsa, err = accept(fd.sysfd)
+ 		if err != nil {
+-			syscall.ForkLock.RUnlock()
+ 			if err == syscall.EAGAIN {
+ 				if err = fd.pollServer.WaitRead(fd); err == nil {
+ 					continue
+@@ -638,8 +630,6 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
+ 		}
+ 		break
+ 	}
+-	syscall.CloseOnExec(s)
+-	syscall.ForkLock.RUnlock()
+ 
+ 	if netfd, err = newFD(s, fd.family, fd.sotype, fd.net); err != nil {
+ 		closesocket(s)
+diff --git a/src/pkg/net/file_unix.go b/src/pkg/net/file_unix.go
+index 0a64080177..4c8403e406 100644
+--- a/src/pkg/net/file_unix.go
++++ b/src/pkg/net/file_unix.go
+@@ -20,6 +20,10 @@ func newFileFD(f *os.File) (*netFD, error) {
+ 	}
+ 	syscall.CloseOnExec(fd)
+ 	syscall.ForkLock.RUnlock()
++	if err = syscall.SetNonblock(fd, true); err != nil {
++		closesocket(fd)
++		return nil, err
++	}
+ 
+ 	sotype, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
+ 	if err != nil {
+diff --git a/src/pkg/net/sock_cloexec.go b/src/pkg/net/sock_cloexec.go
+new file mode 100644
+index 0000000000..e2a5ef7160
+--- /dev/null
++++ b/src/pkg/net/sock_cloexec.go
+@@ -0,0 +1,69 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements sysSocket and accept for platforms that
++// provide a fast path for setting SetNonblock and CloseOnExec.
++
++// +build linux
++
++package net
++
++import "syscall"
++
++// Wrapper around the socket system call that marks the returned file
++// descriptor as nonblocking and close-on-exec.
++func sysSocket(f, t, p int) (int, error) {
++	s, err := syscall.Socket(f, t|syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC, p)
++	// The SOCK_NONBLOCK and SOCK_CLOEXEC flags were introduced in
++	// Linux 2.6.27.  If we get an EINVAL error, fall back to
++	// using socket without them.
++	if err == nil || err != syscall.EINVAL {
++		return s, err
++	}
++
++	// See ../syscall/exec_unix.go for description of ForkLock.
++	syscall.ForkLock.RLock()
++	s, err = syscall.Socket(f, t, p)
++	if err == nil {
++		syscall.CloseOnExec(s)
++	}
++	syscall.ForkLock.RUnlock()
++	if err != nil {
++		return -1, err
++	}
++	if err = syscall.SetNonblock(s, true); err != nil {
++		syscall.Close(s)
++		return -1, err
++	}
++	return s, nil
++}
++
++// Wrapper around the accept system call that marks the returned file
++// descriptor as nonblocking and close-on-exec.
++func accept(fd int) (int, syscall.Sockaddr, error) {
++	nfd, sa, err := syscall.Accept4(fd, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
++	// The accept4 system call was introduced in Linux 2.6.28.  If
++	// we get an ENOSYS error, fall back to using accept.
++	if err == nil || err != syscall.ENOSYS {
++		return nfd, sa, err
++	}
++
++	// See ../syscall/exec_unix.go for description of ForkLock.
++	// It is okay to hold the lock across syscall.Accept
++	// because we have put fd.sysfd into non-blocking mode.
++	syscall.ForkLock.RLock()
++	nfd, sa, err = syscall.Accept(fd)
++	if err == nil {
++		syscall.CloseOnExec(nfd)
++	}
++	syscall.ForkLock.RUnlock()
++	if err != nil {
++		return -1, nil, err
++	}
++	if err = syscall.SetNonblock(nfd, true); err != nil {
++		syscall.Close(nfd)
++		return -1, nil, err
++	}
++	return nfd, sa, nil
++}
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index 12015ef0ac..9cd149e466 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -17,15 +17,10 @@ var listenerBacklog = maxListenerBacklog()
+ 
+ // Generic socket creation.
+ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+-	// See ../syscall/exec_unix.go for description of ForkLock.
+-	syscall.ForkLock.RLock()
+-	s, err := syscall.Socket(f, t, p)
++	s, err := sysSocket(f, t, p)
+ 	if err != nil {
+-		syscall.ForkLock.RUnlock()
+ 		return nil, err
+ 	}
+-	syscall.CloseOnExec(s)
+-	syscall.ForkLock.RUnlock()
+ 
+ 	if err = setDefaultSockopts(s, f, t, ipv6only); err != nil {
+ 		closesocket(s)
+diff --git a/src/pkg/net/sys_cloexec.go b/src/pkg/net/sys_cloexec.go
+new file mode 100644
+index 0000000000..75d5688a16
+--- /dev/null
++++ b/src/pkg/net/sys_cloexec.go
+@@ -0,0 +1,54 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements sysSocket and accept for platforms that do not
++// provide a fast path for setting SetNonblock and CloseOnExec.
++
++// +build darwin freebsd netbsd openbsd
++
++package net
++
++import "syscall"
++
++// Wrapper around the socket system call that marks the returned file
++// descriptor as nonblocking and close-on-exec.
++func sysSocket(f, t, p int) (int, error) {
++	// See ../syscall/exec_unix.go for description of ForkLock.
++	syscall.ForkLock.RLock()
++	s, err := syscall.Socket(f, t, p)
++	if err == nil {
++		syscall.CloseOnExec(s)
++	}
++	syscall.ForkLock.RUnlock()
++	if err != nil {
++		return -1, err
++	}
++	if err = syscall.SetNonblock(s, true); err != nil {
++		syscall.Close(s)
++		return -1, err
++	}
++	return s, nil
++}
++
++// Wrapper around the accept system call that marks the returned file
++// descriptor as nonblocking and close-on-exec.
++func accept(fd int) (int, syscall.Sockaddr, error) {
++	// See ../syscall/exec_unix.go for description of ForkLock.
++	// It is okay to hold the lock across syscall.Accept
++	// because we have put fd.sysfd into non-blocking mode.
++	syscall.ForkLock.RLock()
++	nfd, sa, err := syscall.Accept(fd)
++	if err == nil {
++		syscall.CloseOnExec(nfd)
++	}
++	syscall.ForkLock.RUnlock()
++	if err != nil {
++		return -1, nil, err
++	}
++	if err = syscall.SetNonblock(nfd, true); err != nil {
++		syscall.Close(nfd)
++		return -1, nil, err
++	}
++	return nfd, sa, nil
++}
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index f44fb48fa7..40e9ed04b1 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -427,6 +427,21 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
+ 	return
+ }
+ 
++func Accept4(fd int, flags int) (nfd int, sa Sockaddr, err error) {
++	var rsa RawSockaddrAny
++	var len _Socklen = SizeofSockaddrAny
++	nfd, err = accept4(fd, &rsa, &len, flags)
++	if err != nil {
++		return
++	}
++	sa, err = anyToSockaddr(&rsa)
++	if err != nil {
++		Close(nfd)
++		nfd = 0
++	}
++	return
++}
++
+ func Getsockname(fd int) (sa Sockaddr, err error) {
+ 	var rsa RawSockaddrAny
+ 	var len _Socklen = SizeofSockaddrAny
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 58bc9b53f1..a0ded43dcf 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -164,6 +164,9 @@ const (
+ 	_GETSOCKOPT  = 15
+ 	_SENDMSG     = 16
+ 	_RECVMSG     = 17
++	_ACCEPT4     = 18
++	_RECVMMSG    = 19
++	_SENDMMSG    = 20
+ )
+ 
+ func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
+@@ -177,6 +180,14 @@ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+ 	return
+ }
+ 
++func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
++	fd, e := socketcall(_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
++	if e != 0 {
++		err = e
++	}
++	return
++}
++
+ func getsockname(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error) {
+ 	_, e := rawsocketcall(_GETSOCKNAME, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
+ 	if e != 0 {
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index b0d236cdc1..f4b73b20e6 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -39,6 +39,7 @@ package syscall
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
+ //sys	Truncate(path string, length int64) (err error)
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
++//sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+ //sys	bind(s int, addr uintptr, addrlen _Socklen) (err error)
+ //sys	connect(s int, addr uintptr, addrlen _Socklen) (err error)
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index f2859cfaf2..7839d52882 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -28,6 +28,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
+ 
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
++//sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+ //sys	bind(s int, addr uintptr, addrlen _Socklen) (err error)
+ //sys	connect(s int, addr uintptr, addrlen _Socklen) (err error)
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error) = SYS_GETGROUPS32
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index 3cdc1873b8..43f24e7731 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -1721,6 +1721,17 @@ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
++	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func bind(s int, addr uintptr, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index db17d96823..804821eb3f 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -1341,6 +1341,17 @@ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
++	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func bind(s int, addr uintptr, addrlen _Socklen) (err error) {
+ 	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen))
+ 	if e1 != 0 {

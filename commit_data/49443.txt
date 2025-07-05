@@ -25,7 +25,7 @@ Date:   Thu Jul 22 17:50:42 2021 +0200
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  doc/go1.18.html                     | 17 ++++++++
  src/runtime/export_windows_test.go  |  2 +
  src/runtime/sys_windows_amd64.s     | 10 ++---
@@ -33,3 +33,403 @@ Date:   Thu Jul 22 17:50:42 2021 +0200
  src/runtime/syscall_windows_test.go | 72 ++++++++++++++++++-------------
  src/syscall/dll_windows.go          | 62 +++++++--------------------
  6 files changed, 115 insertions(+), 133 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 2dc4c1427d..df4b56c49f 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -82,3 +82,20 @@ Do not send CLs removing the interior tags from such phrases.
+ <p>
+   TODO: complete this section
+ </p>
++
++<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
++  <dd>
++    <p><!-- CL 336550 -->
++      The new function <a href="/pkg/syscall/?GOOS=windows#SyscallN"><code>SyscallN</code></a>
++      has been introduced for Windows, allowing for calls with arbitrary number
++      of arguments. As results,
++      <a href="/pkg/syscall/?GOOS=windows#Syscall"><code>Syscall</code></a>,
++      <a href="/pkg/syscall/?GOOS=windows#Syscall6"><code>Syscall6</code></a>,
++      <a href="/pkg/syscall/?GOOS=windows#Syscall9"><code>Syscall9</code></a>,
++      <a href="/pkg/syscall/?GOOS=windows#Syscall12"><code>Syscall12</code></a>,
++      <a href="/pkg/syscall/?GOOS=windows#Syscall15"><code>Syscall15</code></a>, and
++      <a href="/pkg/syscall/?GOOS=windows#Syscall18"><code>Syscall18</code></a> are
++      deprecated in favor of <a href="/pkg/syscall/?GOOS=windows#SyscallN"><code>SyscallN</code></a>.
++    </p>
++  </dd>
++</dl><!-- syscall -->
+\ No newline at end of file
+diff --git a/src/runtime/export_windows_test.go b/src/runtime/export_windows_test.go
+index 536b398fd7..d9cf753463 100644
+--- a/src/runtime/export_windows_test.go
++++ b/src/runtime/export_windows_test.go
+@@ -8,6 +8,8 @@ package runtime
+ 
+ import "unsafe"
+ 
++const MaxArgs = maxArgs
++
+ var (
+ 	TestingWER              = &testingWER
+ 	OsYield                 = osyield
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 6cc5bba2b7..1e4c1d2b61 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -8,10 +8,6 @@
+ #include "time_windows.h"
+ #include "cgo/abi_amd64.h"
+ 
+-// maxargs should be divisible by 2, as Windows stack
+-// must be kept 16-byte aligned on syscall entry.
+-#define maxargs 18
+-
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
+ 	// asmcgocall will put first argument into CX.
+@@ -24,14 +20,14 @@ TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
+ 	MOVQ	0x30(GS), DI
+ 	MOVL	$0, 0x68(DI)
+ 
+-	SUBQ	$(maxargs*8), SP	// room for args
++	SUBQ	$(const_maxArgs*8), SP	// room for args
+ 
+ 	// Fast version, do not store args on the stack.
+ 	CMPL	CX, $4
+ 	JLE	loadregs
+ 
+ 	// Check we have enough room for args.
+-	CMPL	CX, $maxargs
++	CMPL	CX, $const_maxArgs
+ 	JLE	2(PC)
+ 	INT	$3			// not enough room -> crash
+ 
+@@ -59,7 +55,7 @@ loadregs:
+ 	// Call stdcall function.
+ 	CALL	AX
+ 
+-	ADDQ	$(maxargs*8), SP
++	ADDQ	$(const_maxArgs*8), SP
+ 
+ 	// Return result.
+ 	POPQ	CX
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index e872d74e97..da181f2a8d 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -468,84 +468,69 @@ func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uint
+ 
+ //go:linkname syscall_Syscall syscall.Syscall
+ //go:nosplit
+-//go:cgo_unsafe_args
+ func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+-	lockOSThread()
+-	defer unlockOSThread()
+-	c := &getg().m.syscall
+-	c.fn = fn
+-	c.n = nargs
+-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
+-	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+-	return c.r1, c.r2, c.err
++	return syscall_SyscallN(fn, a1, a2, a3)
+ }
+ 
+ //go:linkname syscall_Syscall6 syscall.Syscall6
+ //go:nosplit
+-//go:cgo_unsafe_args
+ func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+-	lockOSThread()
+-	defer unlockOSThread()
+-	c := &getg().m.syscall
+-	c.fn = fn
+-	c.n = nargs
+-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
+-	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+-	return c.r1, c.r2, c.err
++	return syscall_SyscallN(fn, a1, a2, a3, a4, a5, a6)
+ }
+ 
+ //go:linkname syscall_Syscall9 syscall.Syscall9
+ //go:nosplit
+-//go:cgo_unsafe_args
+ func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
+-	lockOSThread()
+-	c := &getg().m.syscall
+-	c.fn = fn
+-	c.n = nargs
+-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
+-	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+-	unlockOSThread()
+-	return c.r1, c.r2, c.err
++	return syscall_SyscallN(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+ }
+ 
+ //go:linkname syscall_Syscall12 syscall.Syscall12
+ //go:nosplit
+-//go:cgo_unsafe_args
+ func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr) {
+-	lockOSThread()
+-	c := &getg().m.syscall
+-	c.fn = fn
+-	c.n = nargs
+-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
+-	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+-	unlockOSThread()
+-	return c.r1, c.r2, c.err
++	return syscall_SyscallN(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
+ }
+ 
+ //go:linkname syscall_Syscall15 syscall.Syscall15
+ //go:nosplit
+-//go:cgo_unsafe_args
+ func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2, err uintptr) {
+-	lockOSThread()
+-	c := &getg().m.syscall
+-	c.fn = fn
+-	c.n = nargs
+-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
+-	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+-	unlockOSThread()
+-	return c.r1, c.r2, c.err
++	return syscall_SyscallN(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15)
+ }
+ 
+ //go:linkname syscall_Syscall18 syscall.Syscall18
+ //go:nosplit
+-//go:cgo_unsafe_args
+ func syscall_Syscall18(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2, err uintptr) {
++	return syscall_SyscallN(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18)
++}
++
++// maxArgs should be divisible by 2, as Windows stack
++// must be kept 16-byte aligned on syscall entry.
++//
++// Although it only permits maximum 42 parameters, it
++// is arguably large enough.
++const maxArgs = 42
++
++//go:linkname syscall_SyscallN syscall.SyscallN
++//go:nosplit
++func syscall_SyscallN(trap uintptr, args ...uintptr) (r1, r2, err uintptr) {
++	nargs := len(args)
++
++	// asmstdcall expects it can access the first 4 arguments
++	// to load them into registers.
++	var tmp [4]uintptr
++	switch {
++	case nargs < 4:
++		copy(tmp[:], args)
++		args = tmp[:]
++	case nargs > maxArgs:
++		panic("runtime: SyscallN has too many arguments")
++	}
++
+ 	lockOSThread()
++	defer unlockOSThread()
+ 	c := &getg().m.syscall
+-	c.fn = fn
+-	c.n = nargs
+-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
++	c.fn = trap
++	c.n = uintptr(nargs)
++	c.args = uintptr(noescape(unsafe.Pointer(&args[0])))
+ 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+-	unlockOSThread()
+ 	return c.r1, c.r2, c.err
+ }
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index e3f772ac4b..235c79f68f 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -759,7 +759,7 @@ uintptr_t cfunc(callback f, uintptr_t n) {
+ 	}
+ }
+ 
+-func TestSyscall18(t *testing.T) {
++func TestSyscallN(t *testing.T) {
+ 	if _, err := exec.LookPath("gcc"); err != nil {
+ 		t.Skip("skipping test: gcc is missing")
+ 	}
+@@ -767,40 +767,52 @@ func TestSyscall18(t *testing.T) {
+ 		t.Skipf("skipping test: GOARCH=%s", runtime.GOARCH)
+ 	}
+ 
+-	const src = `
+-#include <stdint.h>
+-#include <windows.h>
++	for arglen := 0; arglen <= runtime.MaxArgs; arglen++ {
++		arglen := arglen
++		t.Run(fmt.Sprintf("arg-%d", arglen), func(t *testing.T) {
++			t.Parallel()
++			args := make([]string, arglen)
++			rets := make([]string, arglen+1)
++			params := make([]uintptr, arglen)
++			for i := range args {
++				args[i] = fmt.Sprintf("int a%d", i)
++				rets[i] = fmt.Sprintf("(a%d == %d)", i, i)
++				params[i] = uintptr(i)
++			}
++			rets[arglen] = "1" // for arglen == 0
+ 
+-int cfunc(	int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a9,
+-			int a10, int a11, int a12, int a13, int a14, int a15, int a16, int a17, int a18) {
+-	return 1;
+-}
+-`
+-	tmpdir := t.TempDir()
++			src := fmt.Sprintf(`
++		#include <stdint.h>
++		#include <windows.h>
++		int cfunc(%s) { return %s; }`, strings.Join(args, ", "), strings.Join(rets, " && "))
+ 
+-	srcname := "mydll.c"
+-	err := os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	outname := "mydll.dll"
+-	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
+-	cmd.Dir = tmpdir
+-	out, err := cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("failed to build dll: %v - %v", err, string(out))
+-	}
+-	dllpath := filepath.Join(tmpdir, outname)
++			tmpdir := t.TempDir()
+ 
+-	dll := syscall.MustLoadDLL(dllpath)
+-	defer dll.Release()
++			srcname := "mydll.c"
++			err := os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
++			if err != nil {
++				t.Fatal(err)
++			}
++			outname := "mydll.dll"
++			cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
++			cmd.Dir = tmpdir
++			out, err := cmd.CombinedOutput()
++			if err != nil {
++				t.Fatalf("failed to build dll: %v\n%s", err, out)
++			}
++			dllpath := filepath.Join(tmpdir, outname)
+ 
+-	proc := dll.MustFindProc("cfunc")
++			dll := syscall.MustLoadDLL(dllpath)
++			defer dll.Release()
+ 
+-	// proc.Call() will call Syscall18() internally.
+-	r, _, err := proc.Call(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18)
+-	if r != 1 {
+-		t.Errorf("got %d want 1 (err=%v)", r, err)
++			proc := dll.MustFindProc("cfunc")
++
++			// proc.Call() will call SyscallN() internally.
++			r, _, err := proc.Call(params...)
++			if r != 1 {
++				t.Errorf("got %d want 1 (err=%v)", r, err)
++			}
++		})
+ 	}
+ }
+ 
+diff --git a/src/syscall/dll_windows.go b/src/syscall/dll_windows.go
+index 16210ca5b5..34b481d6e6 100644
+--- a/src/syscall/dll_windows.go
++++ b/src/syscall/dll_windows.go
+@@ -5,7 +5,6 @@
+ package syscall
+ 
+ import (
+-	"internal/itoa"
+ 	"internal/syscall/windows/sysdll"
+ 	"sync"
+ 	"sync/atomic"
+@@ -25,12 +24,25 @@ func (e *DLLError) Unwrap() error { return e.Err }
+ 
+ // Implemented in ../runtime/syscall_windows.go.
+ 
++// Deprecated: Use SyscallN instead.
+ func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++
++// Deprecated: Use SyscallN instead.
+ func Syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++
++// Deprecated: Use SyscallN instead.
+ func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
++
++// Deprecated: Use SyscallN instead.
+ func Syscall12(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2 uintptr, err Errno)
++
++// Deprecated: Use SyscallN instead.
+ func Syscall15(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2 uintptr, err Errno)
++
++// Deprecated: Use SyscallN instead.
+ func Syscall18(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2 uintptr, err Errno)
++
++func SyscallN(trap uintptr, args ...uintptr) (r1, r2 uintptr, err Errno)
+ func loadlibrary(filename *uint16) (handle uintptr, err Errno)
+ func loadsystemlibrary(filename *uint16, absoluteFilepath *uint16) (handle uintptr, err Errno)
+ func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err Errno)
+@@ -160,8 +172,7 @@ func (p *Proc) Addr() uintptr {
+ 
+ //go:uintptrescapes
+ 
+-// Call executes procedure p with arguments a. It will panic if more than 18 arguments
+-// are supplied.
++// Call executes procedure p with arguments a.
+ //
+ // The returned error is always non-nil, constructed from the result of GetLastError.
+ // Callers must inspect the primary return value to decide whether an error occurred
+@@ -175,49 +186,8 @@ func (p *Proc) Addr() uintptr {
+ // values are returned in r2. The return value for C type "float" is
+ // math.Float32frombits(uint32(r2)). For C type "double", it is
+ // math.Float64frombits(uint64(r2)).
+-func (p *Proc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
+-	switch len(a) {
+-	case 0:
+-		return Syscall(p.Addr(), uintptr(len(a)), 0, 0, 0)
+-	case 1:
+-		return Syscall(p.Addr(), uintptr(len(a)), a[0], 0, 0)
+-	case 2:
+-		return Syscall(p.Addr(), uintptr(len(a)), a[0], a[1], 0)
+-	case 3:
+-		return Syscall(p.Addr(), uintptr(len(a)), a[0], a[1], a[2])
+-	case 4:
+-		return Syscall6(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], 0, 0)
+-	case 5:
+-		return Syscall6(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], 0)
+-	case 6:
+-		return Syscall6(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5])
+-	case 7:
+-		return Syscall9(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], 0, 0)
+-	case 8:
+-		return Syscall9(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], 0)
+-	case 9:
+-		return Syscall9(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8])
+-	case 10:
+-		return Syscall12(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], 0, 0)
+-	case 11:
+-		return Syscall12(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], 0)
+-	case 12:
+-		return Syscall12(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11])
+-	case 13:
+-		return Syscall15(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], 0, 0)
+-	case 14:
+-		return Syscall15(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], 0)
+-	case 15:
+-		return Syscall15(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14])
+-	case 16:
+-		return Syscall18(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15], 0, 0)
+-	case 17:
+-		return Syscall18(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15], a[16], 0)
+-	case 18:
+-		return Syscall18(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15], a[16], a[17])
+-	default:
+-		panic("Call " + p.Name + " with too many arguments " + itoa.Itoa(len(a)) + ".")
+-	}
++func (p *Proc) Call(a ...uintptr) (uintptr, uintptr, error) {
++	return SyscallN(p.Addr(), a...)
+ }
+ 
+ // A LazyDLL implements access to a single DLL.

@@ -9,6 +9,25 @@ Date:   Wed Jun 28 15:04:47 2017 -0700
     Change-Id: I266519c26c8849da267b77e11abe7734d8275112
     Reviewed-on: https://go-review.googlesource.com/47074
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/internal/srcimporter/srcimporter.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/internal/srcimporter/srcimporter.go b/src/go/internal/srcimporter/srcimporter.go
+index f259493fc7..50cf361dbb 100644
+--- a/src/go/internal/srcimporter/srcimporter.go
++++ b/src/go/internal/srcimporter/srcimporter.go
+@@ -136,8 +136,11 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
+ 	}
+ 	pkg, err = conf.Check(bp.ImportPath, p.fset, files, nil)
+ 	if err != nil {
+-		// return (possibly nil or incomplete) package with error (see #16088)
+-		return pkg, fmt.Errorf("type-checking package %q failed (%v)", bp.ImportPath, err)
++		// Type-checking stops after the first error (types.Config.Error is not set),
++		// so the returned package is very likely incomplete. Don't return it since
++		// we don't know its condition: It's very likely unsafe to use and it's also
++		// not added to p.packages which may cause further problems (issue #20837).
++		return nil, fmt.Errorf("type-checking package %q failed (%v)", bp.ImportPath, err)
+ 	}
+ 
+ 	p.packages[bp.ImportPath] = pkg

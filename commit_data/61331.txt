@@ -24,9 +24,345 @@ Date:   Thu Oct 24 00:56:07 2024 +1100
     Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/riscv/anames.go | 23 +++++----------------
  src/cmd/internal/obj/riscv/cpu.go    | 36 ++++++++------------------------
  src/cmd/internal/obj/riscv/inst.go   | 40 ------------------------------------
  src/cmd/internal/obj/riscv/obj.go    | 35 +++++++++++++++++++++++--------
  4 files changed, 40 insertions(+), 94 deletions(-)
+
+diff --git a/src/cmd/internal/obj/riscv/anames.go b/src/cmd/internal/obj/riscv/anames.go
+index dbdce22687..c49569c943 100644
+--- a/src/cmd/internal/obj/riscv/anames.go
++++ b/src/cmd/internal/obj/riscv/anames.go
+@@ -44,8 +44,6 @@ var Anames = []string{
+ 	"SH",
+ 	"SB",
+ 	"FENCE",
+-	"FENCETSO",
+-	"PAUSE",
+ 	"ADDIW",
+ 	"SLLIW",
+ 	"SRLIW",
+@@ -63,12 +61,6 @@ var Anames = []string{
+ 	"CSRRWI",
+ 	"CSRRSI",
+ 	"CSRRCI",
+-	"RDCYCLE",
+-	"RDCYCLEH",
+-	"RDTIME",
+-	"RDTIMEH",
+-	"RDINSTRET",
+-	"RDINSTRETH",
+ 	"MUL",
+ 	"MULH",
+ 	"MULHU",
+@@ -104,14 +96,6 @@ var Anames = []string{
+ 	"AMOMAXUW",
+ 	"AMOMINW",
+ 	"AMOMINUW",
+-	"FRCSR",
+-	"FSCSR",
+-	"FRRM",
+-	"FSRM",
+-	"FRFLAGS",
+-	"FSFLAGS",
+-	"FSRMI",
+-	"FSFLAGSI",
+ 	"FLW",
+ 	"FSW",
+ 	"FADDS",
+@@ -645,15 +629,15 @@ var Anames = []string{
+ 	"BNEZ",
+ 	"FABSD",
+ 	"FABSS",
++	"FNED",
+ 	"FNEGD",
+ 	"FNEGS",
+-	"FNED",
+ 	"FNES",
+ 	"MOV",
+ 	"MOVB",
+ 	"MOVBU",
+-	"MOVF",
+ 	"MOVD",
++	"MOVF",
+ 	"MOVH",
+ 	"MOVHU",
+ 	"MOVW",
+@@ -661,6 +645,9 @@ var Anames = []string{
+ 	"NEG",
+ 	"NEGW",
+ 	"NOT",
++	"RDCYCLE",
++	"RDINSTRET",
++	"RDTIME",
+ 	"SEQZ",
+ 	"SNEZ",
+ 	"LAST",
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index b9924d6fc8..1501a5027e 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -378,8 +378,6 @@ const (
+ 
+ 	// 2.7: Memory Ordering Instructions
+ 	AFENCE
+-	AFENCETSO
+-	APAUSE
+ 
+ 	// 4.2: Integer Computational Instructions (RV64I)
+ 	AADDIW
+@@ -404,14 +402,6 @@ const (
+ 	ACSRRSI
+ 	ACSRRCI
+ 
+-	// 8.1: Base Counters and Timers (Zicntr)
+-	ARDCYCLE
+-	ARDCYCLEH
+-	ARDTIME
+-	ARDTIMEH
+-	ARDINSTRET
+-	ARDINSTRETH
+-
+ 	// 13.1: Multiplication Operations
+ 	AMUL
+ 	AMULH
+@@ -455,16 +445,6 @@ const (
+ 	AAMOMINW
+ 	AAMOMINUW
+ 
+-	// 20.2: Floating-Point Control and Status Register
+-	AFRCSR
+-	AFSCSR
+-	AFRRM
+-	AFSRM
+-	AFRFLAGS
+-	AFSFLAGS
+-	AFSRMI
+-	AFSFLAGSI
+-
+ 	// 20.5: Single-Precision Load and Store Instructions
+ 	AFLW
+ 	AFSW
+@@ -1168,15 +1148,15 @@ const (
+ 	ABNEZ
+ 	AFABSD
+ 	AFABSS
++	AFNED
+ 	AFNEGD
+ 	AFNEGS
+-	AFNED
+ 	AFNES
+ 	AMOV
+ 	AMOVB
+ 	AMOVBU
+-	AMOVF
+ 	AMOVD
++	AMOVF
+ 	AMOVH
+ 	AMOVHU
+ 	AMOVW
+@@ -1184,6 +1164,9 @@ const (
+ 	ANEG
+ 	ANEGW
+ 	ANOT
++	ARDCYCLE
++	ARDINSTRET
++	ARDTIME
+ 	ASEQZ
+ 	ASNEZ
+ 
+@@ -1242,12 +1225,9 @@ const (
+ // Any instructions not listed here are assumed to either be non-unary or to read
+ // from its argument.
+ var unaryDst = map[obj.As]bool{
+-	ARDCYCLE:    true,
+-	ARDCYCLEH:   true,
+-	ARDTIME:     true,
+-	ARDTIMEH:    true,
+-	ARDINSTRET:  true,
+-	ARDINSTRETH: true,
++	ARDCYCLE:   true,
++	ARDTIME:    true,
++	ARDINSTRET: true,
+ }
+ 
+ // Instruction encoding masks.
+diff --git a/src/cmd/internal/obj/riscv/inst.go b/src/cmd/internal/obj/riscv/inst.go
+index c264f6ae15..2d9132e532 100644
+--- a/src/cmd/internal/obj/riscv/inst.go
++++ b/src/cmd/internal/obj/riscv/inst.go
+@@ -212,8 +212,6 @@ func encode(a obj.As) *inst {
+ 		return &inst{0x53, 0x0, 0x0, 0x0, 384, 0xc}
+ 	case AFENCE:
+ 		return &inst{0xf, 0x0, 0x0, 0x0, 0, 0x0}
+-	case AFENCETSO:
+-		return &inst{0xf, 0x0, 0x0, 0x13, -1997, 0x41}
+ 	case AFEQD:
+ 		return &inst{0x53, 0x2, 0x0, 0x0, -1504, 0x51}
+ 	case AFEQQ:
+@@ -270,14 +268,10 @@ func encode(a obj.As) *inst {
+ 		return &inst{0x53, 0x0, 0x0, 0x0, 256, 0x8}
+ 	case AFMVDX:
+ 		return &inst{0x53, 0x0, 0x0, 0x0, -224, 0x79}
+-	case AFMVSX:
+-		return &inst{0x53, 0x0, 0x0, 0x0, -256, 0x78}
+ 	case AFMVWX:
+ 		return &inst{0x53, 0x0, 0x0, 0x0, -256, 0x78}
+ 	case AFMVXD:
+ 		return &inst{0x53, 0x0, 0x0, 0x0, -480, 0x71}
+-	case AFMVXS:
+-		return &inst{0x53, 0x0, 0x0, 0x0, -512, 0x70}
+ 	case AFMVXW:
+ 		return &inst{0x53, 0x0, 0x0, 0x0, -512, 0x70}
+ 	case AFNMADDD:
+@@ -292,20 +286,8 @@ func encode(a obj.As) *inst {
+ 		return &inst{0x4b, 0x0, 0x0, 0x0, 96, 0x3}
+ 	case AFNMSUBS:
+ 		return &inst{0x4b, 0x0, 0x0, 0x0, 0, 0x0}
+-	case AFRCSR:
+-		return &inst{0x73, 0x2, 0x0, 0x3, 3, 0x0}
+-	case AFRFLAGS:
+-		return &inst{0x73, 0x2, 0x0, 0x1, 1, 0x0}
+-	case AFRRM:
+-		return &inst{0x73, 0x2, 0x0, 0x2, 2, 0x0}
+-	case AFSCSR:
+-		return &inst{0x73, 0x1, 0x0, 0x3, 3, 0x0}
+ 	case AFSD:
+ 		return &inst{0x27, 0x3, 0x0, 0x0, 0, 0x0}
+-	case AFSFLAGS:
+-		return &inst{0x73, 0x1, 0x0, 0x1, 1, 0x0}
+-	case AFSFLAGSI:
+-		return &inst{0x73, 0x5, 0x0, 0x1, 1, 0x0}
+ 	case AFSGNJD:
+ 		return &inst{0x53, 0x0, 0x0, 0x0, 544, 0x11}
+ 	case AFSGNJQ:
+@@ -332,10 +314,6 @@ func encode(a obj.As) *inst {
+ 		return &inst{0x53, 0x0, 0x0, 0x0, 1504, 0x2f}
+ 	case AFSQRTS:
+ 		return &inst{0x53, 0x0, 0x0, 0x0, 1408, 0x2c}
+-	case AFSRM:
+-		return &inst{0x73, 0x1, 0x0, 0x2, 2, 0x0}
+-	case AFSRMI:
+-		return &inst{0x73, 0x5, 0x0, 0x2, 2, 0x0}
+ 	case AFSUBD:
+ 		return &inst{0x53, 0x0, 0x0, 0x0, 160, 0x5}
+ 	case AFSUBQ:
+@@ -396,20 +374,6 @@ func encode(a obj.As) *inst {
+ 		return &inst{0x13, 0x6, 0x0, 0x0, 0, 0x0}
+ 	case AORN:
+ 		return &inst{0x33, 0x6, 0x0, 0x0, 1024, 0x20}
+-	case APAUSE:
+-		return &inst{0xf, 0x0, 0x0, 0x10, 16, 0x0}
+-	case ARDCYCLE:
+-		return &inst{0x73, 0x2, 0x0, 0x0, -1024, 0x60}
+-	case ARDCYCLEH:
+-		return &inst{0x73, 0x2, 0x0, 0x0, -896, 0x64}
+-	case ARDINSTRET:
+-		return &inst{0x73, 0x2, 0x0, 0x2, -1022, 0x60}
+-	case ARDINSTRETH:
+-		return &inst{0x73, 0x2, 0x0, 0x2, -894, 0x64}
+-	case ARDTIME:
+-		return &inst{0x73, 0x2, 0x0, 0x1, -1023, 0x60}
+-	case ARDTIMEH:
+-		return &inst{0x73, 0x2, 0x0, 0x1, -895, 0x64}
+ 	case AREM:
+ 		return &inst{0x33, 0x6, 0x0, 0x0, 32, 0x1}
+ 	case AREMU:
+@@ -434,14 +398,10 @@ func encode(a obj.As) *inst {
+ 		return &inst{0x3b, 0x5, 0x0, 0x0, 1536, 0x30}
+ 	case ASB:
+ 		return &inst{0x23, 0x0, 0x0, 0x0, 0, 0x0}
+-	case ASBREAK:
+-		return &inst{0x73, 0x0, 0x0, 0x1, 1, 0x0}
+ 	case ASCD:
+ 		return &inst{0x2f, 0x3, 0x0, 0x0, 384, 0xc}
+ 	case ASCW:
+ 		return &inst{0x2f, 0x2, 0x0, 0x0, 384, 0xc}
+-	case ASCALL:
+-		return &inst{0x73, 0x0, 0x0, 0x0, 0, 0x0}
+ 	case ASD:
+ 		return &inst{0x23, 0x3, 0x0, 0x0, 0, 0x0}
+ 	case ASEXTB:
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index efb27ecba8..eb413d9ec7 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -155,6 +155,14 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	case obj.AUNDEF:
+ 		p.As = AEBREAK
+ 
++	case AFMVXS:
++		// FMVXS is the old name for FMVXW.
++		p.As = AFMVXW
++
++	case AFMVSX:
++		// FMVSX is the old name for FMVWX.
++		p.As = AFMVWX
++
+ 	case ASCALL:
+ 		// SCALL is the old name for ECALL.
+ 		p.As = AECALL
+@@ -1627,6 +1635,9 @@ var encodings = [ALAST & obj.AMask]encoding{
+ 	ALD & obj.AMask: iIIEncoding,
+ 	ASD & obj.AMask: sIEncoding,
+ 
++	// 7.1: CSR Instructions
++	ACSRRS & obj.AMask: iIIEncoding,
++
+ 	// 7.1: Multiplication Operations
+ 	AMUL & obj.AMask:    rIIIEncoding,
+ 	AMULH & obj.AMask:   rIIIEncoding,
+@@ -1668,11 +1679,6 @@ var encodings = [ALAST & obj.AMask]encoding{
+ 	AAMOMINUW & obj.AMask: rIIIEncoding,
+ 	AAMOMINUD & obj.AMask: rIIIEncoding,
+ 
+-	// 10.1: Base Counters and Timers
+-	ARDCYCLE & obj.AMask:   iIIEncoding,
+-	ARDTIME & obj.AMask:    iIIEncoding,
+-	ARDINSTRET & obj.AMask: iIIEncoding,
+-
+ 	// 11.5: Single-Precision Load and Store Instructions
+ 	AFLW & obj.AMask: iFEncoding,
+ 	AFSW & obj.AMask: sFEncoding,
+@@ -1702,8 +1708,6 @@ var encodings = [ALAST & obj.AMask]encoding{
+ 	AFSGNJS & obj.AMask:  rFFFEncoding,
+ 	AFSGNJNS & obj.AMask: rFFFEncoding,
+ 	AFSGNJXS & obj.AMask: rFFFEncoding,
+-	AFMVXS & obj.AMask:   rFIEncoding,
+-	AFMVSX & obj.AMask:   rIFEncoding,
+ 	AFMVXW & obj.AMask:   rFIEncoding,
+ 	AFMVWX & obj.AMask:   rIFEncoding,
+ 
+@@ -2419,7 +2423,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		ins.funct7 = 3
+ 		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
+ 
+-	case AECALL, AEBREAK, ARDCYCLE, ARDTIME, ARDINSTRET:
++	case AECALL, AEBREAK:
+ 		insEnc := encode(p.As)
+ 		if p.To.Type == obj.TYPE_NONE {
+ 			ins.rd = REG_ZERO
+@@ -2427,6 +2431,21 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		ins.rs1 = REG_ZERO
+ 		ins.imm = insEnc.csr
+ 
++	case ARDCYCLE, ARDTIME, ARDINSTRET:
++		ins.as = ACSRRS
++		if p.To.Type == obj.TYPE_NONE {
++			ins.rd = REG_ZERO
++		}
++		ins.rs1 = REG_ZERO
++		switch p.As {
++		case ARDCYCLE:
++			ins.imm = -1024
++		case ARDTIME:
++			ins.imm = -1023
++		case ARDINSTRET:
++			ins.imm = -1022
++		}
++
+ 	case AFENCE:
+ 		ins.rd, ins.rs1, ins.rs2 = REG_ZERO, REG_ZERO, obj.REG_NONE
+ 		ins.imm = 0x0ff

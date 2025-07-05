@@ -9,7 +9,7 @@ Date:   Thu Jul 14 13:15:55 2011 +1000
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4709047
-
+---
  src/pkg/exp/template/doc.go        | 15 +++++++++---
  src/pkg/exp/template/exec.go       | 30 +++++++++++++++---------
  src/pkg/exp/template/exec_test.go  | 15 +++++++-----
@@ -18,3 +18,430 @@ Date:   Thu Jul 14 13:15:55 2011 +1000
  src/pkg/exp/template/parse.go      | 45 ++++++++++++++++++++++--------------
  src/pkg/exp/template/parse_test.go |  9 +++++---
  7 files changed, 135 insertions(+), 70 deletions(-)
+
+diff --git a/src/pkg/exp/template/doc.go b/src/pkg/exp/template/doc.go
+index 9c439057d1..bd3bc8358c 100644
+--- a/src/pkg/exp/template/doc.go
++++ b/src/pkg/exp/template/doc.go
+@@ -155,9 +155,18 @@ initialization has syntax
+ 
+ 	$variable := pipeline
+ 
+-where $variable is the name of the variable. The one exception is a pipeline in
+-a range action; in ranges, the variable is set to the successive elements of the
+-iteration.
++where $variable is the name of the variable.
++
++The one exception is a pipeline in a range action; in ranges, the variable is
++set to the successive elements of the iteration.  Also, a range may declare two
++variables, separated by a comma:
++
++	$index, $element := pipeline
++
++In this case $index and $element are set to the successive values of the
++array/slice index or map key and element, respectively.  Note that if there is
++only one variable, it is assigned the element; this is opposite to the
++convention in Go range clauses.
+ 
+ When execution begins, $ is set to the data argument passed to Execute, that is,
+ to the starting value of dot.
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index 6b0758045d..d60b107687 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -46,9 +46,9 @@ func (s *state) pop(mark int) {
+ 	s.vars = s.vars[0:mark]
+ }
+ 
+-// setTop overwrites the top variable on the stack. Used by range iterations.
+-func (s *state) setTop(value reflect.Value) {
+-	s.vars[len(s.vars)-1].value = value
++// setVar overwrites the top-nth variable on the stack. Used by range iterations.
++func (s *state) setVar(n int, value reflect.Value) {
++	s.vars[len(s.vars)-n].value = value
+ }
+ 
+ // varValue returns the value of the named variable.
+@@ -191,9 +191,13 @@ func (s *state) walkRange(dot reflect.Value, r *rangeNode) {
+ 		}
+ 		for i := 0; i < val.Len(); i++ {
+ 			elem := val.Index(i)
+-			// Set $x to the element rather than the slice.
+-			if r.pipe.decl != nil {
+-				s.setTop(elem)
++			// Set top var (lexically the second if there are two) to the element.
++			if len(r.pipe.decl) > 0 {
++				s.setVar(1, elem)
++			}
++			// Set next var (lexically the first if there are two) to the index.
++			if len(r.pipe.decl) > 1 {
++				s.setVar(2, reflect.ValueOf(i))
+ 			}
+ 			s.walk(elem, r.list)
+ 		}
+@@ -204,9 +208,13 @@ func (s *state) walkRange(dot reflect.Value, r *rangeNode) {
+ 		}
+ 		for _, key := range val.MapKeys() {
+ 			elem := val.MapIndex(key)
+-			// Set $x to the key rather than the map.
+-			if r.pipe.decl != nil {
+-				s.setTop(elem)
++			// Set top var (lexically the second if there are two) to the element.
++			if len(r.pipe.decl) > 0 {
++				s.setVar(1, elem)
++			}
++			// Set next var (lexically the first if there are two) to the key.
++			if len(r.pipe.decl) > 1 {
++				s.setVar(2, key)
+ 			}
+ 			s.walk(elem, r.list)
+ 		}
+@@ -255,8 +263,8 @@ func (s *state) evalPipeline(dot reflect.Value, pipe *pipeNode) (value reflect.V
+ 			value = reflect.ValueOf(value.Interface()) // lovely!
+ 		}
+ 	}
+-	if pipe.decl != nil {
+-		s.push(pipe.decl.ident[0], value)
++	for _, variable := range pipe.decl {
++		s.push(variable.ident[0], value)
+ 	}
+ 	return value
+ }
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index 97ec952493..7d73f89701 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -195,14 +195,8 @@ var execTests = []execTest{
+ 
+ 	// Variables.
+ 	{"$ int", "{{$}}", "123", 123, true},
+-	{"with $x int", "{{with $x := .I}}{{$x}}{{end}}", "17", tVal, true},
+-	{"range $x SI", "{{range $x := .SI}}<{{$x}}>{{end}}", "<3><4><5>", tVal, true},
+-	{"range $x PSI", "{{range $x := .PSI}}<{{$x}}>{{end}}", "<21><22><23>", tVal, true},
+-	{"if $x with $y int", "{{if $x := true}}{{with $y := .I}}{{$x}},{{$y}}{{end}}{{end}}", "true,17", tVal, true},
+-	{"if $x with $x int", "{{if $x := true}}{{with $x := .I}}{{$x}},{{end}}{{$x}}{{end}}", "17,true", tVal, true},
+ 	{"$.I", "{{$.I}}", "17", tVal, true},
+ 	{"$.U.V", "{{$.U.V}}", "v", tVal, true},
+-	{"with $x struct.U.V", "{{with $x := $}}{{$.U.V}}{{end}}", "v", tVal, true},
+ 
+ 	// Pointers.
+ 	{"*int", "{{.PI}}", "23", tVal, true},
+@@ -253,6 +247,8 @@ var execTests = []execTest{
+ 	{"if slice", "{{if .SI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
+ 	{"if emptymap", "{{if .MSIEmpty}}NON-EMPTY{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+ 	{"if map", "{{if .MSI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
++	{"if $x with $y int", "{{if $x := true}}{{with $y := .I}}{{$x}},{{$y}}{{end}}{{end}}", "true,17", tVal, true},
++	{"if $x with $x int", "{{if $x := true}}{{with $x := .I}}{{$x}},{{end}}{{$x}}{{end}}", "17,true", tVal, true},
+ 
+ 	// Print etc.
+ 	{"print", `{{print "hello, print"}}`, "hello, print", tVal, true},
+@@ -312,6 +308,8 @@ var execTests = []execTest{
+ 	{"with emptymap", "{{with .MSIEmpty}}{{.}}{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+ 	{"with map", "{{with .MSIone}}{{.}}{{else}}EMPTY{{end}}", "map[one:1]", tVal, true},
+ 	{"with empty interface, struct field", "{{with .Empty4}}{{.V}}{{end}}", "v", tVal, true},
++	{"with $x int", "{{with $x := .I}}{{$x}}{{end}}", "17", tVal, true},
++	{"with $x struct.U.V", "{{with $x := $}}{{$.U.V}}{{end}}", "v", tVal, true},
+ 
+ 	// Range.
+ 	{"range []int", "{{range .SI}}-{{.}}-{{end}}", "-3--4--5-", tVal, true},
+@@ -325,6 +323,11 @@ var execTests = []execTest{
+ 	{"range map else", "{{range .MSI | .MSort}}-{{.}}-{{else}}EMPTY{{end}}", "-one--three--two-", tVal, true},
+ 	{"range empty map else", "{{range .MSIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+ 	{"range empty interface", "{{range .Empty3}}-{{.}}-{{else}}EMPTY{{end}}", "-7--8-", tVal, true},
++	{"range $x SI", "{{range $x := .SI}}<{{$x}}>{{end}}", "<3><4><5>", tVal, true},
++	{"range $x $y SI", "{{range $x, $y := .SI}}<{{$x}}={{$y}}>{{end}}", "<0=3><1=4><2=5>", tVal, true},
++	{"range $x MSIone", "{{range $x := .MSIone}}<{{$x}}>{{end}}", "<1>", tVal, true},
++	{"range $x $y MSIone", "{{range $x, $y := .MSIone}}<{{$x}}={{$y}}>{{end}}", "<one=1>", tVal, true},
++	{"range $x PSI", "{{range $x := .PSI}}<{{$x}}>{{end}}", "<21><22><23>", tVal, true},
+ 
+ 	// Cute examples.
+ 	{"or as if true", `{{or .SI "slice is empty"}}`, "[3 4 5]", tVal, true},
+diff --git a/src/pkg/exp/template/lex.go b/src/pkg/exp/template/lex.go
+index 72eff105e4..97f4e9dc35 100644
+--- a/src/pkg/exp/template/lex.go
++++ b/src/pkg/exp/template/lex.go
+@@ -35,11 +35,12 @@ func (i item) String() string {
+ type itemType int
+ 
+ const (
+-	itemError       itemType = iota // error occurred; value is text of error
+-	itemBool                        // boolean constant
+-	itemChar                        // character constant
+-	itemComplex                     // complex constant (1+2i); imaginary is just a number
+-	itemColonEquals                 // colon-equals (':=') introducing a declaration
++	itemError        itemType = iota // error occurred; value is text of error
++	itemBool                         // boolean constant
++	itemChar                         // printable ASCII character; grab bag for comma etc.
++	itemCharConstant                 // character constant
++	itemComplex                      // complex constant (1+2i); imaginary is just a number
++	itemColonEquals                  // colon-equals (':=') introducing a declaration
+ 	itemEOF
+ 	itemField      // alphanumeric identifier, starting with '.', possibly chained ('.x.y')
+ 	itemIdentifier // alphanumeric identifier
+@@ -65,21 +66,22 @@ const (
+ 
+ // Make the types prettyprint.
+ var itemName = map[itemType]string{
+-	itemError:       "error",
+-	itemBool:        "bool",
+-	itemChar:        "char",
+-	itemComplex:     "complex",
+-	itemColonEquals: ":=",
+-	itemEOF:         "EOF",
+-	itemField:       "field",
+-	itemIdentifier:  "identifier",
+-	itemLeftDelim:   "left delim",
+-	itemNumber:      "number",
+-	itemPipe:        "pipe",
+-	itemRawString:   "raw string",
+-	itemRightDelim:  "right delim",
+-	itemString:      "string",
+-	itemVariable:    "variable",
++	itemError:        "error",
++	itemBool:         "bool",
++	itemChar:         "char",
++	itemCharConstant: "charconst",
++	itemComplex:      "complex",
++	itemColonEquals:  ":=",
++	itemEOF:          "EOF",
++	itemField:        "field",
++	itemIdentifier:   "identifier",
++	itemLeftDelim:    "left delim",
++	itemNumber:       "number",
++	itemPipe:         "pipe",
++	itemRawString:    "raw string",
++	itemRightDelim:   "right delim",
++	itemString:       "string",
++	itemVariable:     "variable",
+ 	// keywords
+ 	itemDot:      ".",
+ 	itemDefine:   "define",
+@@ -315,6 +317,9 @@ func lexInsideAction(l *lexer) stateFn {
+ 		case isAlphaNumeric(r):
+ 			l.backup()
+ 			return lexIdentifier
++		case r <= unicode.MaxASCII && unicode.IsPrint(r):
++			l.emit(itemChar)
++			return lexInsideAction
+ 		default:
+ 			return l.errorf("unrecognized character in action: %#U", r)
+ 		}
+@@ -369,7 +374,7 @@ Loop:
+ 			break Loop
+ 		}
+ 	}
+-	l.emit(itemChar)
++	l.emit(itemCharConstant)
+ 	return lexInsideAction
+ }
+ 
+diff --git a/src/pkg/exp/template/lex_test.go b/src/pkg/exp/template/lex_test.go
+index 36079e22f5..a585a41554 100644
+--- a/src/pkg/exp/template/lex_test.go
++++ b/src/pkg/exp/template/lex_test.go
+@@ -36,6 +36,14 @@ var lexTests = []lexTest{
+ 		{itemText, "-world"},
+ 		tEOF,
+ 	}},
++	{"punctuation", "{{,@%}}", []item{
++		tLeft,
++		{itemChar, ","},
++		{itemChar, "@"},
++		{itemChar, "%"},
++		tRight,
++		tEOF,
++	}},
+ 	{"empty action", `{{}}`, []item{tLeft, tRight, tEOF}},
+ 	{"for", `{{for }}`, []item{tLeft, tFor, tRight, tEOF}},
+ 	{"quote", `{{"abc \n\t\" "}}`, []item{tLeft, tQuote, tRight, tEOF}},
+@@ -55,13 +63,13 @@ var lexTests = []lexTest{
+ 	}},
+ 	{"characters", `{{'a' '\n' '\'' '\\' '\u00FF' '\xFF' '本'}}`, []item{
+ 		tLeft,
+-		{itemChar, `'a'`},
+-		{itemChar, `'\n'`},
+-		{itemChar, `'\''`},
+-		{itemChar, `'\\'`},
+-		{itemChar, `'\u00FF'`},
+-		{itemChar, `'\xFF'`},
+-		{itemChar, `'本'`},
++		{itemCharConstant, `'a'`},
++		{itemCharConstant, `'\n'`},
++		{itemCharConstant, `'\''`},
++		{itemCharConstant, `'\\'`},
++		{itemCharConstant, `'\u00FF'`},
++		{itemCharConstant, `'\xFF'`},
++		{itemCharConstant, `'本'`},
+ 		tRight,
+ 		tEOF,
+ 	}},
+@@ -127,11 +135,29 @@ var lexTests = []lexTest{
+ 		{itemText, " outro"},
+ 		tEOF,
+ 	}},
++	{"declaration", "{{$v := 3}}", []item{
++		tLeft,
++		{itemVariable, "$v"},
++		{itemColonEquals, ":="},
++		{itemNumber, "3"},
++		tRight,
++		tEOF,
++	}},
++	{"2 declarations", "{{$v , $w := 3}}", []item{
++		tLeft,
++		{itemVariable, "$v"},
++		{itemChar, ","},
++		{itemVariable, "$w"},
++		{itemColonEquals, ":="},
++		{itemNumber, "3"},
++		tRight,
++		tEOF,
++	}},
+ 	// errors
+-	{"badchar", "#{{#}}", []item{
++	{"badchar", "#{{\x01}}", []item{
+ 		{itemText, "#"},
+ 		tLeft,
+-		{itemError, "unrecognized character in action: U+0023 '#'"},
++		{itemError, "unrecognized character in action: U+0001"},
+ 	}},
+ 	{"unclosed action", "{{\n}}", []item{
+ 		tLeft,
+diff --git a/src/pkg/exp/template/parse.go b/src/pkg/exp/template/parse.go
+index c416b34833..d8ec30fa9e 100644
+--- a/src/pkg/exp/template/parse.go
++++ b/src/pkg/exp/template/parse.go
+@@ -140,11 +140,11 @@ func (t *textNode) String() string {
+ type pipeNode struct {
+ 	nodeType
+ 	line int
+-	decl *variableNode
++	decl []*variableNode
+ 	cmds []*commandNode
+ }
+ 
+-func newPipeline(line int, decl *variableNode) *pipeNode {
++func newPipeline(line int, decl []*variableNode) *pipeNode {
+ 	return &pipeNode{nodeType: nodePipe, line: line, decl: decl}
+ }
+ 
+@@ -154,7 +154,7 @@ func (p *pipeNode) append(command *commandNode) {
+ 
+ func (p *pipeNode) String() string {
+ 	if p.decl != nil {
+-		return fmt.Sprintf("%s := %v", p.decl.ident, p.cmds)
++		return fmt.Sprintf("%v := %v", p.decl, p.cmds)
+ 	}
+ 	return fmt.Sprintf("%v", p.cmds)
+ }
+@@ -287,7 +287,7 @@ type numberNode struct {
+ func newNumber(text string, typ itemType) (*numberNode, os.Error) {
+ 	n := &numberNode{nodeType: nodeNumber, text: text}
+ 	switch typ {
+-	case itemChar:
++	case itemCharConstant:
+ 		rune, _, tail, err := strconv.UnquoteChar(text[1:], text[0])
+ 		if err != nil {
+ 			return nil, err
+@@ -704,20 +704,30 @@ func (t *Template) action() (n node) {
+ //	field or command
+ //	pipeline "|" pipeline
+ func (t *Template) pipeline(context string) (pipe *pipeNode) {
+-	var decl *variableNode
+-	// Is there a declaration?
+-	if v := t.peek(); v.typ == itemVariable {
+-		t.next()
+-		if ce := t.peek(); ce.typ == itemColonEquals {
++	var decl []*variableNode
++	// Are there declarations?
++	for {
++		if v := t.peek(); v.typ == itemVariable {
+ 			t.next()
+-			decl = newVariable(v.val)
+-			if len(decl.ident) != 1 {
+-				t.errorf("illegal variable in declaration: %s", v.val)
++			if next := t.peek(); next.typ == itemColonEquals || next.typ == itemChar {
++				t.next()
++				variable := newVariable(v.val)
++				if len(variable.ident) != 1 {
++					t.errorf("illegal variable in declaration: %s", v.val)
++				}
++				decl = append(decl, variable)
++				t.vars = append(t.vars, v.val)
++				if next.typ == itemChar && next.val == "," {
++					if context == "range" && len(decl) < 2 {
++						continue
++					}
++					t.errorf("too many declarations in %s", context)
++				}
++			} else {
++				t.backup2(v)
+ 			}
+-			t.vars = append(t.vars, v.val)
+-		} else {
+-			t.backup2(v)
+ 		}
++		break
+ 	}
+ 	pipe = newPipeline(t.lex.lineNumber(), decl)
+ 	for {
+@@ -727,7 +737,8 @@ func (t *Template) pipeline(context string) (pipe *pipeNode) {
+ 				t.errorf("missing value for %s", context)
+ 			}
+ 			return
+-		case itemBool, itemChar, itemComplex, itemDot, itemField, itemIdentifier, itemVariable, itemNumber, itemRawString, itemString:
++		case itemBool, itemCharConstant, itemComplex, itemDot, itemField, itemIdentifier,
++			itemVariable, itemNumber, itemRawString, itemString:
+ 			t.backup()
+ 			pipe.append(t.command())
+ 		default:
+@@ -848,7 +859,7 @@ Loop:
+ 			cmd.append(newField(token.val))
+ 		case itemBool:
+ 			cmd.append(newBool(token.val == "true"))
+-		case itemChar, itemComplex, itemNumber:
++		case itemCharConstant, itemComplex, itemNumber:
+ 			number, err := newNumber(token.val, token.typ)
+ 			if err != nil {
+ 				t.error(err)
+diff --git a/src/pkg/exp/template/parse_test.go b/src/pkg/exp/template/parse_test.go
+index de72aa9dde..6b4ca1989f 100644
+--- a/src/pkg/exp/template/parse_test.go
++++ b/src/pkg/exp/template/parse_test.go
+@@ -77,7 +77,7 @@ func TestNumberParse(t *testing.T) {
+ 		var c complex128
+ 		typ := itemNumber
+ 		if test.text[0] == '\'' {
+-			typ = itemChar
++			typ = itemCharConstant
+ 		} else {
+ 			_, err := fmt.Sscan(test.text, &c)
+ 			if err == nil {
+@@ -174,7 +174,7 @@ var parseTests = []parseTest{
+ 	{"$ invocation", "{{$}}", noError,
+ 		"[(action: [(command: [V=[$]])])]"},
+ 	{"variable invocation", "{{with $x := 3}}{{$x 23}}{{end}}", noError,
+-		"[({{with [$x] := [(command: [N=3])]}} [(action: [(command: [V=[$x] N=23])])])]"},
++		"[({{with [V=[$x]] := [(command: [N=3])]}} [(action: [(command: [V=[$x] N=23])])])]"},
+ 	{"variable with fields", "{{$.I}}", noError,
+ 		"[(action: [(command: [V=[$ I]])])]"},
+ 	{"multi-word command", "{{printf `%d` 23}}", noError,
+@@ -182,7 +182,7 @@ var parseTests = []parseTest{
+ 	{"pipeline", "{{.X|.Y}}", noError,
+ 		`[(action: [(command: [F=[X]]) (command: [F=[Y]])])]`},
+ 	{"pipeline with decl", "{{$x := .X|.Y}}", noError,
+-		`[(action: [$x] := [(command: [F=[X]]) (command: [F=[Y]])])]`},
++		`[(action: [V=[$x]] := [(command: [F=[X]]) (command: [F=[Y]])])]`},
+ 	{"declaration", "{{.X|.Y}}", noError,
+ 		`[(action: [(command: [F=[X]]) (command: [F=[Y]])])]`},
+ 	{"simple if", "{{if .X}}hello{{end}}", noError,
+@@ -223,6 +223,9 @@ var parseTests = []parseTest{
+ 	{"declare with field", "{{with $x.Y := 4}}{{end}}", hasError, ""},
+ 	{"template with field ref", "{{template .X}}", hasError, ""},
+ 	{"template with var", "{{template $v}}", hasError, ""},
++	{"invalid punctuation", "{{printf 3, 4}}", hasError, ""},
++	{"multidecl outside range", "{{with $v, $u := 3}}{{end}}", hasError, ""},
++	{"too many decls in range", "{{range $u, $v, $w := 3}}{{end}}", hasError, ""},
+ }
+ 
+ func TestParse(t *testing.T) {

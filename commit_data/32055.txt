@@ -30,7 +30,7 @@ Date:   Thu Mar 30 11:40:06 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go           |  3 +++
  src/cmd/compile/internal/gc/pgen.go          |  7 -------
  src/cmd/compile/internal/gc/ssa.go           | 16 ----------------
@@ -39,3 +39,142 @@ Date:   Thu Mar 30 11:40:06 2017 -0700
  src/cmd/compile/internal/ssa/func.go         |  1 -
  src/cmd/compile/internal/ssa/writebarrier.go |  3 ---
  7 files changed, 3 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index a514aa606a..b66231ab88 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1223,6 +1223,9 @@ func checknowritebarrierrec() {
+ 	visitBottomUp(xtop, func(list []*Node, recursive bool) {
+ 		// Functions with write barriers have depth 0.
+ 		for _, n := range list {
++			if n.Func.WBPos.IsKnown() && n.Func.Pragma&Nowritebarrier != 0 {
++				yyerrorl(n.Func.WBPos, "write barrier prohibited")
++			}
+ 			if n.Func.WBPos.IsKnown() && n.Func.Pragma&Yeswritebarrierrec == 0 {
+ 				c.best[n] = nowritebarrierrecCall{target: nil, depth: 0, lineno: n.Func.WBPos}
+ 			}
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 02cabc4a02..fdebae763a 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -269,19 +269,12 @@ func compile(fn *Node) {
+ 	if instrumenting {
+ 		instrument(fn)
+ 	}
+-	if nerrors != 0 {
+-		return
+-	}
+ 
+ 	// From this point, there should be no uses of Curfn. Enforce that.
+ 	Curfn = nil
+ 
+ 	// Build an SSA backend function.
+ 	ssafn := buildssa(fn)
+-	if nerrors != 0 {
+-		return
+-	}
+-
+ 	pp := newProgs(fn)
+ 	genssa(ssafn, pp)
+ 	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index cbd340974b..794b8017f1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -122,9 +122,6 @@ func buildssa(fn *Node) *ssa.Func {
+ 	if fn.Func.Pragma&Nosplit != 0 {
+ 		s.f.NoSplit = true
+ 	}
+-	if fn.Func.Pragma&Nowritebarrier != 0 {
+-		s.f.NoWB = true
+-	}
+ 	defer func() {
+ 		if s.f.WBPos.IsKnown() {
+ 			fn.Func.WBPos = s.f.WBPos
+@@ -197,10 +194,6 @@ func buildssa(fn *Node) *ssa.Func {
+ 		s.popLine()
+ 	}
+ 
+-	if nerrors > 0 {
+-		return nil
+-	}
+-
+ 	s.insertPhis()
+ 
+ 	// Don't carry reference this around longer than necessary
+@@ -208,10 +201,6 @@ func buildssa(fn *Node) *ssa.Func {
+ 
+ 	// Main call to ssa package to compile function
+ 	ssa.Compile(s.f)
+-	if nerrors > 0 {
+-		return nil
+-	}
+-
+ 	return s.f
+ }
+ 
+@@ -4884,11 +4873,6 @@ func (e *ssafn) Fatalf(pos src.XPos, msg string, args ...interface{}) {
+ 	Fatalf(msg, args...)
+ }
+ 
+-// Error reports a compiler error but keep going.
+-func (e *ssafn) Error(pos src.XPos, msg string, args ...interface{}) {
+-	yyerrorl(pos, msg, args...)
+-}
+-
+ // Warnl reports a "warning", which is usually flag-triggered
+ // logging output for the benefit of tests.
+ func (e *ssafn) Warnl(pos src.XPos, fmt_ string, args ...interface{}) {
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 912fb16d8b..96a4c2b8ae 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -80,9 +80,6 @@ type Logger interface {
+ 	// Fatal reports a compiler error and exits.
+ 	Fatalf(pos src.XPos, msg string, args ...interface{})
+ 
+-	// Error reports a compiler error but keep going.
+-	Error(pos src.XPos, msg string, args ...interface{})
+-
+ 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
+ 	Warnl(pos src.XPos, fmt_ string, args ...interface{})
+ 
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index c26df1b964..f7a80a8c00 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -124,7 +124,6 @@ func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, arg
+ func (d DummyFrontend) Log() bool                            { return true }
+ 
+ func (d DummyFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
+-func (d DummyFrontend) Error(_ src.XPos, msg string, args ...interface{})  { d.t.Errorf(msg, args...) }
+ func (d DummyFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
+ func (d DummyFrontend) Debug_checknil() bool                               { return false }
+ func (d DummyFrontend) Debug_wb() bool                                     { return false }
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 17860957cf..5093d0e7fc 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -37,7 +37,6 @@ type Func struct {
+ 	scheduled bool // Values in Blocks are in final order
+ 	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.
+ 
+-	NoWB  bool     // write barrier is not allowed
+ 	WBPos src.XPos // line number of first write barrier
+ 
+ 	// when register allocation is done, maps value ids to locations
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 35be9a09d7..1b6e51c674 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -208,9 +208,6 @@ func writebarrier(f *Func) {
+ 				memElse.Aux = w.Aux
+ 			}
+ 
+-			if f.NoWB {
+-				f.fe.Error(pos, "write barrier prohibited")
+-			}
+ 			if !f.WBPos.IsKnown() {
+ 				f.WBPos = pos
+ 			}

@@ -9,7 +9,56 @@ Date:   Thu Jun 16 13:35:27 2011 +1000
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/4627041
-
+---
  src/pkg/go/build/build.go      | 11 +++++++----
  src/pkg/go/build/build_test.go |  7 -------
  2 files changed, 7 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index a83e8eefc1..206725f440 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -331,11 +331,14 @@ func (b *build) gccLink(ofile string, ofiles ...string) {
+ 
+ func (b *build) gccArgs(args ...string) []string {
+ 	// TODO(adg): HOST_CC
+-	m := "-m32"
+-	if b.arch == "6" {
+-		m = "-m64"
++	a := []string{"gcc", "-I", b.path, "-g", "-fPIC", "-O2"}
++	switch b.arch {
++	case "8":
++		a = append(a, "-m32")
++	case "6":
++		a = append(a, "-m64")
+ 	}
+-	return append([]string{"gcc", m, "-I", b.path, "-g", "-fPIC", "-O2"}, args...)
++	return append(a, args...)
+ }
+ 
+ func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index 4bd52868d3..e59d87672c 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -7,8 +7,6 @@ package build
+ import (
+ 	"exec"
+ 	"path/filepath"
+-	"runtime"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -22,11 +20,6 @@ const cmdtestOutput = "3"
+ 
+ func TestBuild(t *testing.T) {
+ 	for _, pkg := range buildPkgs {
+-		if runtime.GOARCH == "arm" && strings.Contains(pkg, "/cgo") {
+-			// no cgo for arm, yet.
+-			continue
+-		}
+-
+ 		tree := Path[0] // Goroot
+ 		dir := filepath.Join(tree.SrcDir(), pkg)
+ 

@@ -12,8 +12,177 @@ Date:   Thu Oct 7 13:05:16 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/api/goapi.go                       | 76 +++++++++++++++++++++++++++++-
  src/cmd/api/testdata/src/pkg/p4/golden.txt |  4 ++
  src/cmd/api/testdata/src/pkg/p4/p4.go      | 22 +++++++++
  3 files changed, 100 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 43c761a657..eca113a638 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -706,6 +706,36 @@ func sortedMethodNames(typ *types.Interface) []string {
+ 	return list
+ }
+ 
++// sortedEmbeddeds returns constraint types embedded in an
++// interface. It does not include embedded interface types or methods.
++func (w *Walker) sortedEmbeddeds(typ *types.Interface) []string {
++	n := typ.NumEmbeddeds()
++	list := make([]string, 0, n)
++	for i := 0; i < n; i++ {
++		emb := typ.EmbeddedType(i)
++		switch emb := emb.(type) {
++		case *types.Interface:
++			list = append(list, w.sortedEmbeddeds(emb)...)
++		case *types.Union:
++			var buf bytes.Buffer
++			nu := emb.Len()
++			for i := 0; i < nu; i++ {
++				if i > 0 {
++					buf.WriteString(" | ")
++				}
++				term := emb.Term(i)
++				if term.Tilde() {
++					buf.WriteByte('~')
++				}
++				w.writeType(&buf, term.Type())
++			}
++			list = append(list, buf.String())
++		}
++	}
++	sort.Strings(list)
++	return list
++}
++
+ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
+ 	switch typ := typ.(type) {
+ 	case *types.Basic:
+@@ -763,9 +793,16 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
+ 
+ 	case *types.Interface:
+ 		buf.WriteString("interface{")
+-		if typ.NumMethods() > 0 {
++		if typ.NumMethods() > 0 || typ.NumEmbeddeds() > 0 {
+ 			buf.WriteByte(' ')
++		}
++		if typ.NumMethods() > 0 {
+ 			buf.WriteString(strings.Join(sortedMethodNames(typ), ", "))
++		}
++		if typ.NumEmbeddeds() > 0 {
++			buf.WriteString(strings.Join(w.sortedEmbeddeds(typ), ", "))
++		}
++		if typ.NumMethods() > 0 || typ.NumEmbeddeds() > 0 {
+ 			buf.WriteByte(' ')
+ 		}
+ 		buf.WriteString("}")
+@@ -800,12 +837,18 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
+ 		}
+ 		buf.WriteString(typ.Obj().Name())
+ 
++	case *types.TypeParam:
++		buf.WriteString(typ.Obj().Name())
++
+ 	default:
+ 		panic(fmt.Sprintf("unknown type %T", typ))
+ 	}
+ }
+ 
+ func (w *Walker) writeSignature(buf *bytes.Buffer, sig *types.Signature) {
++	if tparams := sig.TypeParams(); tparams != nil {
++		w.writeTypeParams(buf, tparams, true)
++	}
+ 	w.writeParams(buf, sig.Params(), sig.Variadic())
+ 	switch res := sig.Results(); res.Len() {
+ 	case 0:
+@@ -819,6 +862,23 @@ func (w *Walker) writeSignature(buf *bytes.Buffer, sig *types.Signature) {
+ 	}
+ }
+ 
++func (w *Walker) writeTypeParams(buf *bytes.Buffer, tparams *types.TypeParamList, withConstraints bool) {
++	buf.WriteByte('[')
++	c := tparams.Len()
++	for i := 0; i < c; i++ {
++		if i > 0 {
++			buf.WriteString(", ")
++		}
++		tp := tparams.At(i)
++		buf.WriteString(tp.Obj().Name())
++		if withConstraints {
++			buf.WriteByte(' ')
++			w.writeType(buf, tp.Constraint())
++		}
++	}
++	buf.WriteByte(']')
++}
++
+ func (w *Walker) writeParams(buf *bytes.Buffer, t *types.Tuple, variadic bool) {
+ 	buf.WriteByte('(')
+ 	for i, n := 0, t.Len(); i < n; i++ {
+@@ -872,6 +932,12 @@ func (w *Walker) emitObj(obj types.Object) {
+ 
+ func (w *Walker) emitType(obj *types.TypeName) {
+ 	name := obj.Name()
++	if tparams := obj.Type().(*types.Named).TypeParams(); tparams != nil {
++		var buf bytes.Buffer
++		buf.WriteString(name)
++		w.writeTypeParams(&buf, tparams, true)
++		name = buf.String()
++	}
+ 	typ := obj.Type()
+ 	if obj.IsAlias() {
+ 		w.emitf("type %s = %s", name, w.typeString(typ))
+@@ -995,7 +1061,13 @@ func (w *Walker) emitMethod(m *types.Selection) {
+ 			log.Fatalf("exported method with unexported receiver base type: %s", m)
+ 		}
+ 	}
+-	w.emitf("method (%s) %s%s", w.typeString(recv), m.Obj().Name(), w.signatureString(sig))
++	tps := ""
++	if rtp := sig.RecvTypeParams(); rtp != nil {
++		var buf bytes.Buffer
++		w.writeTypeParams(&buf, rtp, false)
++		tps = buf.String()
++	}
++	w.emitf("method (%s%s) %s%s", w.typeString(recv), tps, m.Obj().Name(), w.signatureString(sig))
+ }
+ 
+ func (w *Walker) emitf(format string, args ...interface{}) {
+diff --git a/src/cmd/api/testdata/src/pkg/p4/golden.txt b/src/cmd/api/testdata/src/pkg/p4/golden.txt
+new file mode 100644
+index 0000000000..d5f282be8e
+--- /dev/null
++++ b/src/cmd/api/testdata/src/pkg/p4/golden.txt
+@@ -0,0 +1,4 @@
++pkg p4, func NewPair[T1 interface{ M }, T2 interface{ ~int }](T1, T2) Pair
++pkg p4, method (Pair[_, X2]) Second() X2
++pkg p4, method (Pair[X1, _]) First() X1
++pkg p4, type Pair[T1 interface{ M }, T2 interface{ ~int }] struct
+diff --git a/src/cmd/api/testdata/src/pkg/p4/p4.go b/src/cmd/api/testdata/src/pkg/p4/p4.go
+new file mode 100644
+index 0000000000..187339b169
+--- /dev/null
++++ b/src/cmd/api/testdata/src/pkg/p4/p4.go
+@@ -0,0 +1,22 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p4
++
++type Pair[T1 interface { M() }, T2 ~int] struct {
++	f1 T1
++	f2 T2
++}
++
++func NewPair[T1 interface { M() }, T2 ~int](v1 T1, v2 T2) Pair[T1, T2] {
++	return Pair[T1, T2]{f1: v1, f2: v2}
++}
++
++func (p Pair[X1, _]) First() X1 {
++	return p.f1
++}
++
++func (p Pair[_, X2]) Second() X2 {
++	return p.f2
++}

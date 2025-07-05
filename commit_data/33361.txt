@@ -14,8 +14,84 @@ Date:   Mon Aug 14 15:07:57 2017 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/dwarf/dwarf.go        |  1 +
  src/cmd/link/internal/ld/dwarf.go      |  1 +
  src/cmd/link/internal/ld/dwarf_test.go | 43 ++++++++++++++++++++++++++++++++++
  3 files changed, 45 insertions(+)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 2b034257a6..b0c7fb20f5 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -467,6 +467,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 		DW_CHILDREN_yes,
+ 		[]dwAttrForm{
+ 			{DW_AT_name, DW_FORM_string},
++			{DW_AT_byte_size, DW_FORM_udata},
+ 			// {DW_AT_type,	DW_FORM_ref_addr},
+ 			{DW_AT_go_kind, DW_FORM_data1},
+ 		},
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index b6fb1bb5c1..9692dd6b4e 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -430,6 +430,7 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 
+ 	case objabi.KindFunc:
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_FUNCTYPE, name, 0)
++		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+ 		dotypedef(ctxt, &dwtypes, name, die)
+ 		newrefattr(die, dwarf.DW_AT_type, mustFind(ctxt, "void"))
+ 		nfields := decodetypeFuncInCount(ctxt.Arch, gotype)
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 4e7413f739..73c3fc3666 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -192,3 +192,46 @@ func findMembers(rdr *dwarf.Reader) (map[string]bool, error) {
+ 	}
+ 	return memberEmbedded, nil
+ }
++
++func TestSizes(t *testing.T) {
++	// DWARF sizes should never be -1.
++	// See issue #21097
++	const prog = `
++package main
++var x func()
++var y [4]func()
++func main() {
++	x = nil
++	y[0] = nil
++}
++`
++	dir, err := ioutil.TempDir("", "TestSizes")
++	if err != nil {
++		t.Fatalf("could not create directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++	f := gobuild(t, dir, prog)
++	defer f.Close()
++	d, err := f.DWARF()
++	if err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++	rdr := d.Reader()
++	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
++		if err != nil {
++			t.Fatalf("error reading DWARF: %v", err)
++		}
++		switch entry.Tag {
++		case dwarf.TagArrayType, dwarf.TagPointerType, dwarf.TagStructType, dwarf.TagBaseType, dwarf.TagSubroutineType, dwarf.TagTypedef:
++		default:
++			continue
++		}
++		typ, err := d.Type(entry.Offset)
++		if err != nil {
++			t.Fatalf("can't read type: %v", err)
++		}
++		if typ.Size() < 0 {
++			t.Errorf("subzero size %s %s %T", typ, entry.Tag, typ)
++		}
++	}
++}

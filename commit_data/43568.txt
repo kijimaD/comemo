@@ -10,8 +10,86 @@ Date:   Sun Apr 12 12:52:16 2020 -0400
     Change-Id: Ia023d6f2fa7d57b97ba861ce464e2eec8ac2d1f5
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228142
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go          | 11 -----------
  src/cmd/link/internal/sym/sizeof_test.go |  2 +-
  src/cmd/link/internal/sym/symbol.go      | 24 ------------------------
  3 files changed, 1 insertion(+), 36 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a5960455e7..727cb056fc 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2604,17 +2604,6 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
+ 
+ 	for _, s := range ctxt.Textp {
+ 		put(ctxt, s, s.Name, TextSym, s.Value, s.Gotype)
+-
+-		locals := int32(0)
+-		if s.FuncInfo != nil {
+-			locals = s.FuncInfo.Locals
+-		}
+-		// NOTE(ality): acid can't produce a stack trace without .frame symbols
+-		put(ctxt, nil, ".frame", FrameSym, int64(locals)+int64(ctxt.Arch.PtrSize), nil)
+-
+-		if s.FuncInfo == nil {
+-			continue
+-		}
+ 	}
+ 
+ 	if ctxt.Debugvlog != 0 || *flagN {
+diff --git a/src/cmd/link/internal/sym/sizeof_test.go b/src/cmd/link/internal/sym/sizeof_test.go
+index e6e3916dad..3e97a833df 100644
+--- a/src/cmd/link/internal/sym/sizeof_test.go
++++ b/src/cmd/link/internal/sym/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Symbol{}, 108, 176},
++		{Symbol{}, 104, 168},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index 1fee966c12..9a6791e16f 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -31,7 +31,6 @@ type Symbol struct {
+ 	File        string // actually package!
+ 	auxinfo     *AuxSymbol
+ 	Sect        *Section
+-	FuncInfo    *FuncInfo
+ 	Unit        *CompilationUnit
+ 	// P contains the raw symbol data.
+ 	P []byte
+@@ -519,29 +518,6 @@ func SortSub(l *Symbol) *Symbol {
+ 	return l
+ }
+ 
+-type FuncInfo struct {
+-	Args        int32
+-	Locals      int32
+-	Pcsp        Pcdata
+-	Pcfile      Pcdata
+-	Pcline      Pcdata
+-	Pcinline    Pcdata
+-	Pcdata      []Pcdata
+-	Funcdata    []*Symbol
+-	Funcdataoff []int64
+-	File        []*Symbol
+-	InlTree     []InlinedCall
+-}
+-
+-// InlinedCall is a node in a local inlining tree (FuncInfo.InlTree).
+-type InlinedCall struct {
+-	Parent   int32   // index of parent in InlTree
+-	File     *Symbol // file of the inlined call
+-	Line     int32   // line number of the inlined call
+-	Func     string  // name of the function that was inlined
+-	ParentPC int32   // PC of the instruction just before the inlined body (offset from function start)
+-}
+-
+ type Pcdata struct {
+ 	P []byte
+ }

@@ -10,7 +10,7 @@ Date:   Wed Mar 19 15:45:07 2008 -0700
     - Updated todo.txt.
     
     SVN=113198
-
+---
  tests/char_lit.go   | 35 +++++++++++++++++++++++++++
  tests/float_lit.go  | 70 +++++++++++++++++++++++++++++++++++++++++++++++++++++
  tests/hashmap.go    |  4 +--
@@ -18,3 +18,210 @@ Date:   Wed Mar 19 15:45:07 2008 -0700
  tests/string_lit.go | 29 ++++++++++++++++++++++
  tests/test0.go      |  2 +-
  6 files changed, 156 insertions(+), 3 deletions(-)
+
+diff --git a/tests/char_lit.go b/tests/char_lit.go
+new file mode 100644
+index 0000000000..66ffec2085
+--- /dev/null
++++ b/tests/char_lit.go
+@@ -0,0 +1,35 @@
++// $G $F.go && $L $F.$A &&./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++  [ ' ',
++    'a',
++    // need to fix Coco/R scanner to read Unicode.
++    // 'ä',
++    //'本',
++    '\a',
++    '\b',
++    '\f',
++    '\n',
++    '\r',
++    '\t',
++    '\v',
++    '\\',
++    '\'',
++    '\"',
++    '\000',
++    '\123',
++    '\x00',
++    '\xca',
++    '\xFE',
++    '\u0123',
++    '\ubabe',
++    '\U0123ABCD',
++    '\Ucafebabe'
++  ]
++}
+diff --git a/tests/float_lit.go b/tests/float_lit.go
+new file mode 100644
+index 0000000000..11decaffb1
+--- /dev/null
++++ b/tests/float_lit.go
+@@ -0,0 +1,70 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++  [ 0.,
++    +10.,
++    -210.,
++        
++    .0,
++    +.01,
++    -.012,
++       
++    0.0,
++    +10.01,
++    -210.012,
++
++    0E+1,
++    +10e2,
++    -210e3,
++    
++    0E-1,
++    +0e23,
++    -0e345,
++
++    0E1,
++    +10e23,
++    -210e345,
++
++    0.E1,
++    +10.e+2,
++    -210.e-3,
++        
++    .0E1,
++    +.01e2,
++    -.012e3,
++       
++    0.0E1,
++    +10.01e2,
++    -210.012e3,
++
++    0.E+12,
++    +10.e23,
++    -210.e34,
++        
++    .0E-12,
++    +.01e23,
++    -.012e34,
++       
++    0.0E12,
++    +10.01e23,
++    -210.012e34,
++
++    0.E123,
++    +10.e+234,
++    -210.e-345,
++        
++    .0E123,
++    +.01e234,
++    -.012e345,
++       
++    0.0E123,
++    +10.01e234,
++    -210.012e345
++  ]
++}
+diff --git a/tests/hashmap.go b/tests/hashmap.go
+index 8d5d5167d5..daa0d43748 100755
+--- a/tests/hashmap.go
++++ b/tests/hashmap.go
+@@ -58,9 +58,9 @@ func (m *HashMap) Clear() {
+   var i uint32 = m.capacity() - 1;
+   for i > 0 {
+     m.map_[i].key = nil;
+-    i = i - 1;
++    i = i - 1
+   }
+-  m.occupancy_ = 0;
++  m.occupancy_ = 0
+ }
+ 
+ 
+diff --git a/tests/int_lit.go b/tests/int_lit.go
+new file mode 100644
+index 0000000000..ef74370ac4
+--- /dev/null
++++ b/tests/int_lit.go
+@@ -0,0 +1,19 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++  [ 0,
++    123,
++    0123,
++    0000,
++    0x0,
++    0x123,
++    0X0,
++    0X123
++  ];
++}
+diff --git a/tests/string_lit.go b/tests/string_lit.go
+new file mode 100644
+index 0000000000..568e7a511d
+--- /dev/null
++++ b/tests/string_lit.go
+@@ -0,0 +1,29 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++  [ "",
++    " ",
++    "'`",
++    "a",
++    //"ä",
++    //"本",
++    "\a\b\f\n\r\t\v\\\'\"",
++    "\000\123\x00\xca\xFE\u0123\ubabe\U0123ABCD\Ucafebabe",
++    
++    ``,
++    ` `,
++    `'"`,
++    `a`,
++    //`ä`,
++    //`本`,
++    `\a\b\f\n\r\t\v\\\'\"`,
++    `\000\123\x00\xca\xFE\u0123\ubabe\U0123ABCD\Ucafebabe`,
++    `\x\u\U\`
++  ]
++}
+diff --git a/tests/test0.go b/tests/test0.go
+index 9201c16685..0d9585ed6b 100644
+--- a/tests/test0.go
++++ b/tests/test0.go
+@@ -69,7 +69,7 @@ func control_structs() {
+   foo:  // a label
+   switch {
+   case i < y:
+-    fallthrough
++    fallthrough;
+   case i < j:
+   case i == 0, i == 1, i == j:
+     i++; i++;

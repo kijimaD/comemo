@@ -17,8 +17,69 @@ Date:   Sat Aug 6 13:28:20 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/runtime/syscall_aix.go      | 4 ++--
  src/syscall/asm_solaris_amd64.s | 2 +-
  src/syscall/exec_libc.go        | 6 +++---
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/syscall_aix.go b/src/runtime/syscall_aix.go
+index f294922e7d..cc9e912613 100644
+--- a/src/runtime/syscall_aix.go
++++ b/src/runtime/syscall_aix.go
+@@ -127,9 +127,9 @@ func syscall_chroot1(path uintptr) (err uintptr) {
+ 
+ // like close, but must not split stack, for fork.
+ //
+-//go:linkname syscall_close syscall.close
++//go:linkname syscall_closeFD syscall.closeFD
+ //go:nosplit
+-func syscall_close(fd int32) int32 {
++func syscall_closeFD(fd int32) int32 {
+ 	_, err := syscall1(&libc_close, uintptr(fd))
+ 	return int32(err)
+ }
+diff --git a/src/syscall/asm_solaris_amd64.s b/src/syscall/asm_solaris_amd64.s
+index 3672d3667f..6891e9c8f9 100644
+--- a/src/syscall/asm_solaris_amd64.s
++++ b/src/syscall/asm_solaris_amd64.s
+@@ -20,7 +20,7 @@ TEXT ·chdir(SB),NOSPLIT,$0
+ TEXT ·chroot1(SB),NOSPLIT,$0
+ 	JMP	runtime·syscall_chroot(SB)
+ 
+-TEXT ·close(SB),NOSPLIT,$0
++TEXT ·closeFD(SB),NOSPLIT,$0
+ 	JMP	runtime·syscall_close(SB)
+ 
+ TEXT ·dup2child(SB),NOSPLIT,$0
+diff --git a/src/syscall/exec_libc.go b/src/syscall/exec_libc.go
+index aee1b8c98a..72f73a268a 100644
+--- a/src/syscall/exec_libc.go
++++ b/src/syscall/exec_libc.go
+@@ -43,7 +43,7 @@ func runtime_AfterForkInChild()
+ 
+ func chdir(path uintptr) (err Errno)
+ func chroot1(path uintptr) (err Errno)
+-func close(fd uintptr) (err Errno)
++func closeFD(fd uintptr) (err Errno)
+ func dup2child(old uintptr, new uintptr) (val uintptr, err Errno)
+ func execve(path uintptr, argv uintptr, envp uintptr) (err Errno)
+ func exit(code uintptr)
+@@ -240,7 +240,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	// Pass 2: dup fd[i] down onto i.
+ 	for i = 0; i < len(fd); i++ {
+ 		if fd[i] == -1 {
+-			close(uintptr(i))
++			closeFD(uintptr(i))
+ 			continue
+ 		}
+ 		if fd[i] == int(i) {
+@@ -265,7 +265,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	// Programs that know they inherit fds >= 3 will need
+ 	// to set them close-on-exec.
+ 	for i = len(fd); i < 3; i++ {
+-		close(uintptr(i))
++		closeFD(uintptr(i))
+ 	}
+ 
+ 	// Detach fd 0 from tty

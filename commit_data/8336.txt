@@ -7,6 +7,20 @@ Date:   Sun May 8 16:33:44 2011 +1000
     R=golang-dev, r, r2
     CC=golang-dev
     https://golang.org/cl/4471046
-
+---
  src/pkg/syscall/ztypes_windows_386.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index 73cfe069bc..7b15ea4049 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -198,7 +198,7 @@ type Overlapped struct {
+ 	InternalHigh uint32
+ 	Offset       uint32
+ 	OffsetHigh   uint32
+-	HEvent       *byte
++	HEvent       int32
+ }
+ 
+ type Filetime struct {

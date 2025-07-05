@@ -13,7 +13,56 @@ Date:   Fri Feb 9 03:32:17 2018 +0000
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/get/vcs.go      | 4 ++--
  src/cmd/go/internal/get/vcs_test.go | 8 ++++++++
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/get/vcs.go b/src/cmd/go/internal/get/vcs.go
+index 26693b13a9..ee6b16a136 100644
+--- a/src/cmd/go/internal/get/vcs.go
++++ b/src/cmd/go/internal/get/vcs.go
+@@ -971,7 +971,7 @@ var vcsPaths = []*vcsPath{
+ 	// IBM DevOps Services (JazzHub)
+ 	{
+ 		prefix: "hub.jazz.net/git/",
+-		re:     `^(?P<root>hub.jazz.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`,
++		re:     `^(?P<root>hub\.jazz\.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`,
+ 		vcs:    "git",
+ 		repo:   "https://{root}",
+ 		check:  noVCSSuffix,
+@@ -980,7 +980,7 @@ var vcsPaths = []*vcsPath{
+ 	// Git at Apache
+ 	{
+ 		prefix: "git.apache.org/",
+-		re:     `^(?P<root>git.apache.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`,
++		re:     `^(?P<root>git\.apache\.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`,
+ 		vcs:    "git",
+ 		repo:   "https://{root}",
+ 	},
+diff --git a/src/cmd/go/internal/get/vcs_test.go b/src/cmd/go/internal/get/vcs_test.go
+index e29338aec1..2cb611fabd 100644
+--- a/src/cmd/go/internal/get/vcs_test.go
++++ b/src/cmd/go/internal/get/vcs_test.go
+@@ -59,6 +59,10 @@ func TestRepoRootForImportPath(t *testing.T) {
+ 			"hub.jazz.net",
+ 			nil,
+ 		},
++		{
++			"hubajazz.net",
++			nil,
++		},
+ 		{
+ 			"hub2.jazz.net",
+ 			nil,
+@@ -140,6 +144,10 @@ func TestRepoRootForImportPath(t *testing.T) {
+ 			"git.apache.org/package-name/path/to/lib",
+ 			nil,
+ 		},
++		{
++			"gitbapache.org",
++			nil,
++		},
+ 		{
+ 			"git.apache.org/package-name.git",
+ 			&repoRoot{

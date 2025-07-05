@@ -22,9 +22,106 @@ Date:   Wed Jun 14 14:03:46 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/45777
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go   | 11 ++++++-----
  test/fixedbugs/issue19028.dir/a.go    |  9 +++++++++
  test/fixedbugs/issue19028.dir/main.go | 26 ++++++++++++++++++++++++++
  test/fixedbugs/issue19028.go          | 13 +++++++++++++
  4 files changed, 54 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 15108e6e57..76031d160a 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3613,7 +3613,7 @@ func bounded(n *Node, max int64) bool {
+ 	return false
+ }
+ 
+-// usemethod check interface method calls for uses of reflect.Type.Method.
++// usemethod checks interface method calls for uses of reflect.Type.Method.
+ func usemethod(n *Node) {
+ 	t := n.Left.Type
+ 
+@@ -3648,11 +3648,12 @@ func usemethod(n *Node) {
+ 			return
+ 		}
+ 	}
+-	if res0.Type.String() != "reflect.Method" {
+-		return
+-	}
+ 
+-	Curfn.Func.SetReflectMethod(true)
++	// Note: Don't rely on res0.Type.String() since its formatting depends on multiple factors
++	//       (including global variables such as numImports - was issue #19028).
++	if s := res0.Type.Sym; s != nil && s.Name == "Method" && s.Pkg != nil && s.Pkg.Path == "reflect" {
++		Curfn.Func.SetReflectMethod(true)
++	}
+ }
+ 
+ func usefield(n *Node) {
+diff --git a/test/fixedbugs/issue19028.dir/a.go b/test/fixedbugs/issue19028.dir/a.go
+new file mode 100644
+index 0000000000..361251d750
+--- /dev/null
++++ b/test/fixedbugs/issue19028.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package reflect
++
++import "reflect"
++
++type Type reflect.Type
+diff --git a/test/fixedbugs/issue19028.dir/main.go b/test/fixedbugs/issue19028.dir/main.go
+new file mode 100644
+index 0000000000..627e926f93
+--- /dev/null
++++ b/test/fixedbugs/issue19028.dir/main.go
+@@ -0,0 +1,26 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++        "reflect"
++        fake "./reflect" // 2nd package with name "reflect"
++)
++
++type T struct {
++        _ fake.Type
++}
++
++func (T) f()            {}
++func (T) G() (_ int)    { return }
++func (T) H() (_, _ int) { return }
++
++func main() {
++        var x T
++        typ := reflect.TypeOf(x)
++        for i := 0; i < typ.NumMethod(); i++ {
++                _ = typ.Method(i) // must not crash
++        }
++}
+diff --git a/test/fixedbugs/issue19028.go b/test/fixedbugs/issue19028.go
+new file mode 100644
+index 0000000000..8d934d2d67
+--- /dev/null
++++ b/test/fixedbugs/issue19028.go
+@@ -0,0 +1,13 @@
++// rundir
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test failed when the compiler didn't use the
++// correct code to identify the type reflect.Method.
++// The failing code relied on Type.String() which had
++// formatting that depended on whether a package (in
++// this case "reflect") was imported more than once.
++
++package ignored

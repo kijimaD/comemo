@@ -13,7 +13,57 @@ Date:   Sun Dec 2 10:15:35 2018 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/alg.go          |  8 ++++++--
  src/runtime/runtime_test.go | 12 ++++++++++++
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 887dbebdeb..1c6795a1fa 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -224,7 +224,10 @@ func efaceeq(t *_type, x, y unsafe.Pointer) bool {
+ 		panic(errorString("comparing uncomparable type " + t.string()))
+ 	}
+ 	if isDirectIface(t) {
+-		return eq(noescape(unsafe.Pointer(&x)), noescape(unsafe.Pointer(&y)))
++		// Direct interface types are ptr, chan, map, func, and single-element structs/arrays thereof.
++		// Maps and funcs are not comparable, so they can't reach here.
++		// Ptrs, chans, and single-element items can be compared directly using ==.
++		return x == y
+ 	}
+ 	return eq(x, y)
+ }
+@@ -238,7 +241,8 @@ func ifaceeq(tab *itab, x, y unsafe.Pointer) bool {
+ 		panic(errorString("comparing uncomparable type " + t.string()))
+ 	}
+ 	if isDirectIface(t) {
+-		return eq(noescape(unsafe.Pointer(&x)), noescape(unsafe.Pointer(&y)))
++		// See comment in efaceeq.
++		return x == y
+ 	}
+ 	return eq(x, y)
+ }
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 8263d4059a..5ea9cbd88a 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -70,6 +70,18 @@ func BenchmarkEfaceCmpDiff(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkEfaceCmpDiffIndirect(b *testing.B) {
++	efaceCmp1 = [2]int{1, 2}
++	efaceCmp2 = [2]int{1, 2}
++	for i := 0; i < b.N; i++ {
++		for j := 0; j < 100; j++ {
++			if efaceCmp1 != efaceCmp2 {
++				b.Fatal("bad comparison")
++			}
++		}
++	}
++}
++
+ func BenchmarkDefer(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		defer1()

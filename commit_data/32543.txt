@@ -17,6 +17,27 @@ Date:   Thu Apr 27 17:18:02 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 9fd7e64c12..293e18eef0 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -461,6 +461,15 @@ func walkexpr(n *Node, init *Nodes) *Node {
+ 		return n
+ 	}
+ 
++	// Eagerly checkwidth all expressions for the back end.
++	if n.Type != nil && !n.Type.WidthCalculated() {
++		switch n.Type.Etype {
++		case TBLANK, TNIL, TIDEAL:
++		default:
++			checkwidth(n.Type)
++		}
++	}
++
+ 	if init == &n.Ninit {
+ 		// not okay to use n->ninit when walking n,
+ 		// because we might replace n with some other node

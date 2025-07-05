@@ -13,8 +13,125 @@ Date:   Wed May 21 13:24:49 2025 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  src/net/http/clientserver_test.go | 32 ++++++--------------------------
  src/net/http/serve_test.go        |  2 +-
  src/net/http/transport_test.go    |  6 +++---
  3 files changed, 10 insertions(+), 30 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 208c6509fa..c3cf3984ef 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -15,7 +15,6 @@ import (
+ 	"crypto/tls"
+ 	"fmt"
+ 	"hash"
+-	"internal/synctest"
+ 	"io"
+ 	"log"
+ 	"maps"
+@@ -34,6 +33,7 @@ import (
+ 	"sync"
+ 	"sync/atomic"
+ 	"testing"
++	"testing/synctest"
+ 	"time"
+ )
+ 
+@@ -95,33 +95,13 @@ func run[T TBRun[T]](t T, f func(t T, mode testMode), opts ...any) {
+ 	}
+ }
+ 
+-// cleanupT wraps a testing.T and adds its own Cleanup method.
+-// Used to execute cleanup functions within a synctest bubble.
+-type cleanupT struct {
+-	*testing.T
+-	cleanups []func()
+-}
+-
+-// Cleanup replaces T.Cleanup.
+-func (t *cleanupT) Cleanup(f func()) {
+-	t.cleanups = append(t.cleanups, f)
+-}
+-
+-func (t *cleanupT) done() {
+-	for _, f := range slices.Backward(t.cleanups) {
+-		f()
+-	}
+-}
+-
+ // runSynctest is run combined with synctest.Run.
+ //
+ // The TB passed to f arranges for cleanup functions to be run in the synctest bubble.
+-func runSynctest(t *testing.T, f func(t testing.TB, mode testMode), opts ...any) {
++func runSynctest(t *testing.T, f func(t *testing.T, mode testMode), opts ...any) {
+ 	run(t, func(t *testing.T, mode testMode) {
+-		synctest.Run(func() {
+-			ct := &cleanupT{T: t}
+-			defer ct.done()
+-			f(ct, mode)
++		synctest.Test(t, func(t *testing.T) {
++			f(t, mode)
+ 		})
+ 	}, opts...)
+ }
+@@ -292,12 +272,12 @@ func TestNewClientServerTest(t *testing.T) {
+ 		}, modes)
+ 	})
+ 	t.Run("synctest", func(t *testing.T) {
+-		runSynctest(t, func(t testing.TB, mode testMode) {
++		runSynctest(t, func(t *testing.T, mode testMode) {
+ 			testNewClientServerTest(t, mode, optFakeNet)
+ 		}, modes)
+ 	})
+ }
+-func testNewClientServerTest(t testing.TB, mode testMode, opts ...any) {
++func testNewClientServerTest(t *testing.T, mode testMode, opts ...any) {
+ 	var got struct {
+ 		sync.Mutex
+ 		proto  string
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 84d383ccfa..7e3e490af3 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -5855,7 +5855,7 @@ func testServerShutdown(t *testing.T, mode testMode) {
+ }
+ 
+ func TestServerShutdownStateNew(t *testing.T) { runSynctest(t, testServerShutdownStateNew) }
+-func testServerShutdownStateNew(t testing.TB, mode testMode) {
++func testServerShutdownStateNew(t *testing.T, mode testMode) {
+ 	if testing.Short() {
+ 		t.Skip("test takes 5-6 seconds; skipping in short mode")
+ 	}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 431dc4ee20..9762f05886 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -4230,7 +4230,7 @@ func TestTransportIdleConnRacesRequest(t *testing.T) {
+ 	// block the connection closing.
+ 	runSynctest(t, testTransportIdleConnRacesRequest, []testMode{http1Mode, http2UnencryptedMode})
+ }
+-func testTransportIdleConnRacesRequest(t testing.TB, mode testMode) {
++func testTransportIdleConnRacesRequest(t *testing.T, mode testMode) {
+ 	if mode == http2UnencryptedMode {
+ 		t.Skip("remove skip when #70515 is fixed")
+ 	}
+@@ -4305,7 +4305,7 @@ func testTransportIdleConnRacesRequest(t testing.TB, mode testMode) {
+ func TestTransportRemovesConnsAfterIdle(t *testing.T) {
+ 	runSynctest(t, testTransportRemovesConnsAfterIdle)
+ }
+-func testTransportRemovesConnsAfterIdle(t testing.TB, mode testMode) {
++func testTransportRemovesConnsAfterIdle(t *testing.T, mode testMode) {
+ 	if testing.Short() {
+ 		t.Skip("skipping in short mode")
+ 	}
+@@ -4351,7 +4351,7 @@ func testTransportRemovesConnsAfterIdle(t testing.TB, mode testMode) {
+ func TestTransportRemovesConnsAfterBroken(t *testing.T) {
+ 	runSynctest(t, testTransportRemovesConnsAfterBroken)
+ }
+-func testTransportRemovesConnsAfterBroken(t testing.TB, mode testMode) {
++func testTransportRemovesConnsAfterBroken(t *testing.T, mode testMode) {
+ 	if testing.Short() {
+ 		t.Skip("skipping in short mode")
+ 	}

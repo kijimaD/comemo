@@ -16,6 +16,32 @@ Date:   Thu Mar 6 12:54:27 2025 -0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/cgo/internal/testsanitizers/cc_test.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/cc_test.go b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+index 193d24d52c..fa0105b11a 100644
+--- a/src/cmd/cgo/internal/testsanitizers/cc_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+@@ -361,10 +361,18 @@ func configure(sanitizer string) *config {
+ 		return c
+ 	}
+ 
++	sanitizerOpt := sanitizer
++	// For the leak detector, we use "go build -asan",
++	// which implies the address sanitizer.
++	// We may want to adjust this someday.
++	if sanitizer == "leak" {
++		sanitizerOpt = "address"
++	}
++
+ 	c := &config{
+ 		sanitizer: sanitizer,
+-		cFlags:    []string{"-fsanitize=" + sanitizer},
+-		ldFlags:   []string{"-fsanitize=" + sanitizer},
++		cFlags:    []string{"-fsanitize=" + sanitizerOpt},
++		ldFlags:   []string{"-fsanitize=" + sanitizerOpt},
+ 	}
+ 
+ 	if testing.Verbose() {

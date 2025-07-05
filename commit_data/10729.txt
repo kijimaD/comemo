@@ -10,6 +10,33 @@ Date:   Mon Dec 12 18:33:47 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5482049
-
+---
  src/pkg/time/sleep_test.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index 0e9bea48f1..b12a5a1681 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -119,8 +119,7 @@ func TestAfterTick(t *testing.T) {
+ 	t1 := Now()
+ 	d := t1.Sub(t0)
+ 	target := Delta * Count
+-	slop := target * 2 / 10
+-	if d < target-slop || d > target+slop {
++	if d < target*9/10 || d > target*30/10 {
+ 		t.Fatalf("%d ticks of %s took %s, expected %s", Count, Delta, d, target)
+ 	}
+ }
+@@ -197,9 +196,8 @@ func testAfterQueuing(t *testing.T) error {
+ 		}
+ 		dt := r.t.Sub(t0)
+ 		target := Duration(slot) * Delta
+-		slop := Delta / 4
+-		if dt < target-slop || dt > target+slop {
+-			return fmt.Errorf("After(%s) arrived at %s, expected [%s,%s]", target, dt, target-slop, target+slop)
++		if dt < target-Delta/2 || dt > target+Delta*10 {
++			return fmt.Errorf("After(%s) arrived at %s, expected [%s,%s]", target, dt, target-Delta/2, target+Delta*10)
+ 		}
+ 	}
+ 	return nil

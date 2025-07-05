@@ -8,6 +8,38 @@ Date:   Fri Sep 1 12:38:52 2017 +0100
     Reviewed-on: https://go-review.googlesource.com/60890
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/example_test.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index bab129db3c..8b2ac07d63 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -355,6 +355,26 @@ func ExampleParseInLocation() {
+ 	// 2012-07-09 00:00:00 +0200 CEST
+ }
+ 
++func ExampleTime_Unix() {
++	// Create a date.
++	const nsecs = 0
++	orig := time.Date(2009, time.January, 1, 1, 9, 30, nsecs, time.UTC)
++	fmt.Printf("orig = %v\n", orig)
++
++	// Get the Unix timestamp of the date.
++	unix := orig.Unix()
++	fmt.Printf("orig.Unix() = %v\n", unix)
++
++	// Convert the Unix date back to a time.Time.
++	parsed := time.Unix(unix, nsecs).UTC()
++	fmt.Printf("parsed = %v\n", parsed)
++
++	// Output:
++	// orig = 2009-01-01 01:09:30 +0000 UTC
++	// orig.Unix() = 1230772170
++	// parsed = 2009-01-01 01:09:30 +0000 UTC
++}
++
+ func ExampleTime_Round() {
+ 	t := time.Date(0, 0, 0, 12, 15, 30, 918273645, time.UTC)
+ 	round := []time.Duration{

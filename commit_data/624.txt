@@ -7,6 +7,40 @@ Date:   Fri Sep 12 08:37:08 2008 -0700
     R=r
     OCL=15221
     CL=15221
-
+---
  test/bugs/bug100.go | 27 +++++++++++++++++++++++++++
  1 file changed, 27 insertions(+)
+
+diff --git a/test/bugs/bug100.go b/test/bugs/bug100.go
+new file mode 100644
+index 0000000000..99c4484b33
+--- /dev/null
++++ b/test/bugs/bug100.go
+@@ -0,0 +1,27 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $D/$F.go || (echo BUG: should compile cleanly; exit 1)
++package main
++
++func f() int {
++	i := 0
++	for {
++		if i >= sys.argc() {
++			return i
++		}
++		i++
++	}
++}
++
++func g() int {
++	for {
++	}
++}
++
++func h() int {
++	for {
++		return 1
++	}
++}

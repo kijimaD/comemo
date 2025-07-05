@@ -27,7 +27,7 @@ Date:   Thu Aug 13 14:41:42 2009 -0700
     R=ken
     OCL=33217
     CL=33220
-
+---
  src/cmd/6g/gsubr.c   |  3 ++-
  src/cmd/6l/l.h       |  3 ++-
  src/cmd/6l/obj.c     | 15 +++++++++++++--
@@ -38,3 +38,278 @@ Date:   Thu Aug 13 14:41:42 2009 -0700
  src/cmd/gc/reflect.c |  8 ++++++--
  src/cmd/ld/go.c      |  2 ++
  9 files changed, 48 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 434a90a802..c4c6e348c9 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -939,7 +939,8 @@ naddr(Node *n, Addr *a)
+ 		if(n->type != T) {
+ 			a->etype = simtype[n->type->etype];
+ 			a->width = n->type->width;
+-		//	a->gotype = typename(n->type)->left->sym;
++			if(n->sym != S && strncmp(n->sym->name, "autotmp_", 8) != 0)
++				a->gotype = typename(n->type)->left->sym;
+ 		}
+ 		a->offset = n->xoffset;
+ 		a->sym = n->sym;
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 3643eee211..8f72812bcc 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -106,6 +106,7 @@ struct	Auto
+ 	Auto*	link;
+ 	int32	aoffset;
+ 	short	type;
++	Sym*	gotype;
+ };
+ struct	Sym
+ {
+@@ -123,6 +124,7 @@ struct	Sym
+ 	Sym*	link;
+ 	Prog*	text;
+ 	Prog*	data;
++	Sym*	gotype;
+ };
+ struct	Optab
+ {
+@@ -403,7 +405,6 @@ void	follow(void);
+ void	addstachmark(void);
+ void	gethunk(void);
+ void	gotypestrings(void);
+-vlong	gotypefor(char*);
+ void	histtoauto(void);
+ double	ieeedtod(Ieee*);
+ int32	ieeedtof(Ieee*);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index f3c12d7668..d9630fe333 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -614,14 +614,19 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 		return;
+ 
+ 	t = a->type;
+-	if(t != D_AUTO && t != D_PARAM)
++	if(t != D_AUTO && t != D_PARAM) {
++		if(a->gotype)
++			s->gotype = a->gotype;
+ 		return;
++	}
+ 	l = a->offset;
+ 	for(u=curauto; u; u=u->link) {
+ 		if(u->asym == s)
+ 		if(u->type == t) {
+ 			if(u->aoffset > l)
+ 				u->aoffset = l;
++			if(a->gotype)
++				u->gotype = a->gotype;
+ 			return;
+ 		}
+ 	}
+@@ -632,6 +637,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 	u->asym = s;
+ 	u->aoffset = l;
+ 	u->type = t;
++	u->gotype = a->gotype;
+ }
+ 
+ void
+@@ -1062,7 +1068,7 @@ loop:
+ 		s = p->from.sym;
+ 		if(s != S && s->dupok) {
+ 			if(debug['v'])
+-				Bprint(&bso, "skipping %s in %s: dupok", s->name, pn);
++				Bprint(&bso, "skipping %s in %s: dupok\n", s->name, pn);
+ 			goto loop;
+ 		}
+ 		if(s != S) {
+@@ -1108,6 +1114,11 @@ loop:
+ 			}
+ 			diag("%s: redefinition: %s\n%P", pn, s->name, p);
+ 		}
++		if(p->from.gotype) {
++			if(s->gotype && s->gotype != p->from.gotype)
++				diag("%s: type mismatch for %s", pn, s->name);
++			s->gotype = p->from.gotype;
++		}
+ 		newtext(p, s);
+ 		goto loop;
+ 
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 4a36b0e16e..3fe80622fe 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -150,9 +150,10 @@ xdefine(char *p, int t, vlong v)
+ }
+ 
+ void
+-putsymb(char *s, int t, vlong v, int ver, vlong go)
++putsymb(char *s, int t, vlong v, int ver, Sym *go)
+ {
+ 	int i, f, l;
++	vlong gv;
+ 
+ 	if(t == 'f')
+ 		s++;
+@@ -181,10 +182,13 @@ putsymb(char *s, int t, vlong v, int ver, vlong go)
+ 			cput(s[i]);
+ 		cput(0);
+ 	}
++	gv = 0;
++	if(go)
++		gv = go->value+INITDAT;
+ 	if(l == 8)
+-		lputb(go>>32);
+-	lputb(go);
+-	symsize += l + 1 + i + 1 + l;
++		lputb(gv>>32);
++	lputb(gv);
++	symsize += l + 1 + i+1 + l;
+ 
+ 	if(debug['n']) {
+ 		if(t == 'z' || t == 'Z') {
+@@ -197,9 +201,9 @@ putsymb(char *s, int t, vlong v, int ver, vlong go)
+ 			return;
+ 		}
+ 		if(ver)
+-			Bprint(&bso, "%c %.8llux %s<%d> %s\n", t, v, s, ver, go);
++			Bprint(&bso, "%c %.8llux %s<%d> %s (%.8llux)\n", t, v, s, ver, go ? go->name : "", gv);
+ 		else
+-			Bprint(&bso, "%c %.8llux %s %s\n", t, v, s, go);
++			Bprint(&bso, "%c %.8llux %s %s (%.8llux)\n", t, v, s, go ? go->name : "", gv);
+ 	}
+ }
+ 
+@@ -219,15 +223,15 @@ asmsym(void)
+ 		for(s=hash[h]; s!=S; s=s->link)
+ 			switch(s->type) {
+ 			case SCONST:
+-				putsymb(s->name, 'D', s->value, s->version, gotypefor(s->name));
++				putsymb(s->name, 'D', s->value, s->version, s->gotype);
+ 				continue;
+ 
+ 			case SDATA:
+-				putsymb(s->name, 'D', s->value+INITDAT, s->version, gotypefor(s->name));
++				putsymb(s->name, 'D', s->value+INITDAT, s->version, s->gotype);
+ 				continue;
+ 
+ 			case SBSS:
+-				putsymb(s->name, 'B', s->value+INITDAT, s->version, gotypefor(s->name));
++				putsymb(s->name, 'B', s->value+INITDAT, s->version, s->gotype);
+ 				continue;
+ 
+ 			case SFILE:
+@@ -248,7 +252,7 @@ asmsym(void)
+ 
+ 		if(s->type != STEXT)
+ 			continue;
+-		putsymb(s->name, 'T', s->value, s->version, gotypefor(s->name));
++		putsymb(s->name, 'T', s->value, s->version, s->gotype);
+ 
+ 		/* frame, auto and param after */
+ 		putsymb(".frame", 'm', p->to.offset+8, 0, 0);
+@@ -256,10 +260,10 @@ asmsym(void)
+ 		/* TODO(rsc): Add types for D_AUTO and D_PARAM */
+ 		for(a=p->to.autom; a; a=a->link)
+ 			if(a->type == D_AUTO)
+-				putsymb(a->asym->name, 'a', -a->aoffset, 0, gotypefor(nil));
++				putsymb(a->asym->name, 'a', -a->aoffset, 0, a->gotype);
+ 			else
+ 			if(a->type == D_PARAM)
+-				putsymb(a->asym->name, 'p', a->aoffset, 0, gotypefor(nil));
++				putsymb(a->asym->name, 'p', a->aoffset, 0, a->gotype);
+ 	}
+ 	if(debug['v'] || debug['n'])
+ 		Bprint(&bso, "symsize = %lud\n", symsize);
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index baf484e02f..922de0060d 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -119,6 +119,7 @@ struct	Sym
+ 	Sym*	link;
+ 	Prog*	text;
+ 	Prog*	data;
++	Sym*	gotype;
+ };
+ struct	Optab
+ {
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index ef7cd3e925..199f5369a1 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -442,7 +442,10 @@ dclname(Sym *s)
+ Node*
+ typenod(Type *t)
+ {
+-	if(t->nod == N) {
++	// if we copied another type with *t = *u
++	// then t->nod might be out of date, so
++	// check t->nod->type too
++	if(t->nod == N || t->nod->type != t) {
+ 		t->nod = nod(OTYPE, N, N);
+ 		t->nod->type = t;
+ 		t->nod->sym = t->sym;
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 6d2154b28d..49216b9534 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -51,6 +51,8 @@ dumpglobls(void)
+ 			fatal("external %#N nil type\n", n);
+ 		if(n->class == PFUNC)
+ 			continue;
++		if(n->sym->package != package)
++			continue;
+ 		dowidth(n->type);
+ 
+ 		// TODO(rsc): why is this not s/n->sym->def/n/ ?
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 9a1ad088dd..597b6a6a34 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -450,6 +450,8 @@ typename(Type *t)
+ 	Sym *s;
+ 	Node *n;
+ 
++	if(isptr[t->etype] && t->type == T)
++		fatal("typename %T", t);
+ 	s = typesym(t);
+ 	if(s->def == N) {
+ 		n = nod(ONAME, N, N);
+@@ -496,6 +498,8 @@ dtypesym(Type *t)
+ 			goto ok;
+ 		if(t1 && t1 == types[t1->etype])
+ 			goto ok;
++		if(t1 && t1->etype == tptr && t1->type->etype == TANY)
++			goto ok;
+ 	}
+ 
+ 	// named types from other files are defined in those files
+@@ -666,13 +670,13 @@ dumptypestructs(void)
+ 			dtypesym(ptrto(t));
+ 	}
+ 
+-	// do basic types if compiling package runtime, type.go.
++	// do basic types if compiling package runtime.
+ 	// they have to be in at least one package,
+ 	// and reflect is always loaded implicitly,
+ 	// so this is as good as any.
+ 	// another possible choice would be package main,
+ 	// but using runtime means fewer copies in .6 files.
+-	if(strcmp(package, "runtime") == 0 && strcmp(filename, "type") == 0) {
++	if(strcmp(package, "runtime") == 0) {
+ 		for(i=1; i<=TBOOL; i++)
+ 			if(i != TFLOAT80)
+ 				dtypesym(ptrto(types[i]));
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index fef39c891d..891dee2e70 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -366,6 +366,8 @@ mark(Sym *s)
+ 		marktext(s->text);
+ 	if(s->data)
+ 		markdata(s->data, s);
++	if(s->gotype)
++		mark(s->gotype);
+ }
+ 
+ static void

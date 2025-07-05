@@ -11,8 +11,62 @@ Date:   Thu Nov 21 04:09:17 2019 -0500
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/exec/exec.go       |  1 -
  src/os/exec/exec_plan9.go | 19 +++++++++++++++++++
  src/os/exec/exec_test.go  |  5 -----
  3 files changed, 19 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 0c17b7a35d..3474ae0ca4 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -238,7 +238,6 @@ func (c *Cmd) argv() []string {
+ 
+ // skipStdinCopyError optionally specifies a function which reports
+ // whether the provided stdin copy error should be ignored.
+-// It is non-nil everywhere but Plan 9, which lacks EPIPE. See exec_posix.go.
+ var skipStdinCopyError func(error) bool
+ 
+ func (c *Cmd) stdin() (f *os.File, err error) {
+diff --git a/src/os/exec/exec_plan9.go b/src/os/exec/exec_plan9.go
+new file mode 100644
+index 0000000000..d90bd04399
+--- /dev/null
++++ b/src/os/exec/exec_plan9.go
+@@ -0,0 +1,19 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package exec
++
++import "os"
++
++func init() {
++	skipStdinCopyError = func(err error) bool {
++		// Ignore hungup errors copying to stdin if the program
++		// completed successfully otherwise.
++		// See Issue 35753.
++		pe, ok := err.(*os.PathError)
++		return ok &&
++			pe.Op == "write" && pe.Path == "|1" &&
++			pe.Err.Error() == "i/o on hungup channel"
++	}
++}
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 19bda6902a..dce66c5c2e 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -974,11 +974,6 @@ func (delayedInfiniteReader) Read(b []byte) (int, error) {
+ func TestIgnorePipeErrorOnSuccess(t *testing.T) {
+ 	testenv.MustHaveExec(t)
+ 
+-	// We really only care about testing this on Unixy and Windowsy things.
+-	if runtime.GOOS == "plan9" {
+-		t.Skipf("skipping test on %q", runtime.GOOS)
+-	}
+-
+ 	testWith := func(r io.Reader) func(*testing.T) {
+ 		return func(t *testing.T) {
+ 			cmd := helperCommand(t, "echo", "foo")

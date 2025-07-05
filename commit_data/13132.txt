@@ -12,6 +12,23 @@ Date:   Wed May 23 02:27:44 2012 +0800
     R=golang-dev, iant, rsc, iant
     CC=golang-dev
     https://golang.org/cl/5823059
-
+---
  src/cmd/ld/ldpe.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index feb8620bdb..942f69ae1a 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -300,6 +300,11 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 					rp->add = le64(rsect->base+rp->off);
+ 					break;
+ 			}
++			// ld -r could generate multiple section symbols for the
++			// same section but with different values, we have to take
++			// that into account
++			if (obj->pesym[symindex].name[0] == '.')
++					rp->add += obj->pesym[symindex].value;
+ 		}
+ 		qsort(r, rsect->sh.NumberOfRelocations, sizeof r[0], rbyoff);
+ 		

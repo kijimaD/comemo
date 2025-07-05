@@ -11,6 +11,28 @@ Date:   Wed Aug 1 10:52:19 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/plugin/plugin_dlopen.go | 10 ----------
  1 file changed, 10 deletions(-)
+
+diff --git a/src/plugin/plugin_dlopen.go b/src/plugin/plugin_dlopen.go
+index 47f2b29a80..f24093989f 100644
+--- a/src/plugin/plugin_dlopen.go
++++ b/src/plugin/plugin_dlopen.go
+@@ -39,16 +39,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-// avoid a dependency on strings
+-func lastIndexByte(s string, c byte) int {
+-	for i := len(s) - 1; i >= 0; i-- {
+-		if s[i] == c {
+-			return i
+-		}
+-	}
+-	return -1
+-}
+-
+ func open(name string) (*Plugin, error) {
+ 	cPath := make([]byte, C.PATH_MAX+1)
+ 	cRelName := make([]byte, len(name)+1)

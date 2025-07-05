@@ -20,7 +20,59 @@ Date:   Fri Jun 4 08:16:58 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  misc/cgo/errors/errors_test.go   |  3 ++-
  misc/cgo/errors/testdata/err2.go | 12 ++++++------
  2 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/misc/cgo/errors/errors_test.go b/misc/cgo/errors/errors_test.go
+index a077b59478..68a30a44fe 100644
+--- a/misc/cgo/errors/errors_test.go
++++ b/misc/cgo/errors/errors_test.go
+@@ -40,7 +40,8 @@ func check(t *testing.T, file string) {
+ 			if len(frags) == 1 {
+ 				continue
+ 			}
+-			re, err := regexp.Compile(string(frags[1]))
++			frag := fmt.Sprintf(":%d:.*%s", i+1, frags[1])
++			re, err := regexp.Compile(frag)
+ 			if err != nil {
+ 				t.Errorf("Invalid regexp after `ERROR HERE: `: %#q", frags[1])
+ 				continue
+diff --git a/misc/cgo/errors/testdata/err2.go b/misc/cgo/errors/testdata/err2.go
+index 1d22401aee..a90598fe35 100644
+--- a/misc/cgo/errors/testdata/err2.go
++++ b/misc/cgo/errors/testdata/err2.go
+@@ -40,15 +40,15 @@ func main() {
+ 	C.foop = x // ERROR HERE
+ 
+ 	// issue 13129: used to output error about C.unsignedshort with CC=clang
+-	var x C.ushort
+-	x = int(0) // ERROR HERE: C\.ushort
++	var x1 C.ushort
++	x1 = int(0) // ERROR HERE: C\.ushort
+ 
+ 	// issue 13423
+ 	_ = C.fopen() // ERROR HERE
+ 
+ 	// issue 13467
+-	var x rune = '✈'
+-	var _ rune = C.transform(x) // ERROR HERE: C\.int
++	var x2 rune = '✈'
++	var _ rune = C.transform(x2) // ERROR HERE: C\.int
+ 
+ 	// issue 13635: used to output error about C.unsignedchar.
+ 	// This test tests all such types.
+@@ -91,10 +91,10 @@ func main() {
+ 
+ 	// issue 26745
+ 	_ = func(i int) int {
+-		return C.i + 1 // ERROR HERE: :13
++		return C.i + 1 // ERROR HERE: 14
+ 	}
+ 	_ = func(i int) {
+-		C.fi(i) // ERROR HERE: :6
++		C.fi(i) // ERROR HERE: 7
+ 	}
+ 
+ 	C.fi = C.fi // ERROR HERE

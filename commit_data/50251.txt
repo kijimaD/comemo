@@ -21,8 +21,81 @@ Date:   Mon Oct 11 15:51:10 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                    | 9 ++++++---
  src/cmd/go/internal/generate/generate.go | 2 +-
  src/cmd/go/internal/modget/get.go        | 7 +++++--
  3 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 8a2109619d..c3e4179025 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -498,7 +498,7 @@
+ // files. Those commands can run any process but the intent is to
+ // create or update Go source files.
+ //
+-// Go generate is never run automatically by go build, go get, go test,
++// Go generate is never run automatically by go build, go test,
+ // and so on. It must be run explicitly.
+ //
+ // Go generate scans the file for directives, which are lines of
+@@ -644,8 +644,7 @@
+ //
+ // See 'go help install' or https://golang.org/ref/mod#go-install for details.
+ //
+-// In addition to build flags (listed in 'go help build') 'go get' accepts the
+-// following flags.
++// 'go get' accepts the following flags.
+ //
+ // The -t flag instructs get to consider modules needed to build tests of
+ // packages specified on the command line.
+@@ -660,6 +659,10 @@
+ // When the -t and -u flags are used together, get will update
+ // test dependencies as well.
+ //
++// The -x flag prints commands as they are executed. This is useful for
++// debugging version control commands when a module is downloaded directly
++// from a repository.
++//
+ // For more about modules, see https://golang.org/ref/mod.
+ //
+ // For more about specifying packages, see 'go help packages'.
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index d7f2eb4610..5981e5ecdb 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -38,7 +38,7 @@ Generate runs commands described by directives within existing
+ files. Those commands can run any process but the intent is to
+ create or update Go source files.
+ 
+-Go generate is never run automatically by go build, go get, go test,
++Go generate is never run automatically by go build, go test,
+ and so on. It must be run explicitly.
+ 
+ Go generate scans the file for directives, which are lines of
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 4d87d2670d..c634512072 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -83,8 +83,7 @@ current directory. For example:
+ 
+ See 'go help install' or https://golang.org/ref/mod#go-install for details.
+ 
+-In addition to build flags (listed in 'go help build') 'go get' accepts the
+-following flags.
++'go get' accepts the following flags.
+ 
+ The -t flag instructs get to consider modules needed to build tests of
+ packages specified on the command line.
+@@ -99,6 +98,10 @@ but changes the default to select patch releases.
+ When the -t and -u flags are used together, get will update
+ test dependencies as well.
+ 
++The -x flag prints commands as they are executed. This is useful for
++debugging version control commands when a module is downloaded directly
++from a repository.
++
+ For more about modules, see https://golang.org/ref/mod.
+ 
+ For more about specifying packages, see 'go help packages'.

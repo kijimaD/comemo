@@ -11,6 +11,21 @@ Date:   Sun May 24 11:29:38 2015 -0700
     Change-Id: Ifed441912d97bbebea20303fdb899e140b380215
     Reviewed-on: https://go-review.googlesource.com/10363
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 6cf0b525e5..80c01538ac 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1028,6 +1028,9 @@ func hostlink() {
+ 
+ 	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
+ 		Exitf("running %s failed: %v\n%s", argv[0], err, out)
++	} else if Debug['v'] != 0 && len(out) > 0 {
++		fmt.Fprintf(&Bso, "%s", out)
++		Bso.Flush()
+ 	}
+ 
+ 	if Debug['s'] == 0 && debug_s == 0 && HEADTYPE == obj.Hdarwin {

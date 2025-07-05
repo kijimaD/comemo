@@ -11,7 +11,7 @@ Date:   Thu Jun 24 12:50:14 2021 +0800
     Trust: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/net/cgo_unix.go            |  2 +-
  src/net/dnsclient.go           | 16 +++++-----------
  src/net/hosts.go               | 15 ++++++++-------
@@ -21,3 +21,282 @@ Date:   Thu Jun 24 12:50:14 2021 +0800
  src/net/lookup_windows_test.go | 10 +++++-----
  src/net/parse.go               | 10 ++++++++++
  8 files changed, 43 insertions(+), 38 deletions(-)
+
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 2ea86e074f..5bf6fd84bc 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -323,7 +323,7 @@ func cgoLookupAddrPTR(addr string, sa *C.struct_sockaddr, salen C.socklen_t) (na
+ 			break
+ 		}
+ 	}
+-	return []string{absDomainName(b)}, nil
++	return []string{absDomainName(string(b))}, nil
+ }
+ 
+ func cgoReverseLookup(result chan<- reverseLookupResult, addr string, sa *C.struct_sockaddr, salen C.socklen_t) {
+diff --git a/src/net/dnsclient.go b/src/net/dnsclient.go
+index 1bbe39650b..3c1a12995a 100644
+--- a/src/net/dnsclient.go
++++ b/src/net/dnsclient.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"internal/bytealg"
+ 	"internal/itoa"
+ 	"sort"
+ 
+@@ -136,18 +137,11 @@ func isDomainName(s string) bool {
+ // It's hard to tell so we settle on the heuristic that names without dots
+ // (like "localhost" or "myhost") do not get trailing dots, but any other
+ // names do.
+-func absDomainName(b []byte) string {
+-	hasDots := false
+-	for _, x := range b {
+-		if x == '.' {
+-			hasDots = true
+-			break
+-		}
+-	}
+-	if hasDots && b[len(b)-1] != '.' {
+-		b = append(b, '.')
++func absDomainName(s string) string {
++	if bytealg.IndexByteString(s, '.') != -1 && s[len(s)-1] != '.' {
++		s += "."
+ 	}
+-	return string(b)
++	return s
+ }
+ 
+ // An SRV represents a single DNS SRV record.
+diff --git a/src/net/hosts.go b/src/net/hosts.go
+index 5c560f3756..e604031920 100644
+--- a/src/net/hosts.go
++++ b/src/net/hosts.go
+@@ -82,10 +82,10 @@ func readHosts() {
+ 			continue
+ 		}
+ 		for i := 1; i < len(f); i++ {
+-			name := absDomainName([]byte(f[i]))
++			name := absDomainName(f[i])
+ 			h := []byte(f[i])
+ 			lowerASCIIBytes(h)
+-			key := absDomainName(h)
++			key := absDomainName(string(h))
+ 			hs[key] = append(hs[key], addr)
+ 			is[addr] = append(is[addr], name)
+ 		}
+@@ -106,11 +106,12 @@ func lookupStaticHost(host string) []string {
+ 	defer hosts.Unlock()
+ 	readHosts()
+ 	if len(hosts.byName) != 0 {
+-		// TODO(jbd,bradfitz): avoid this alloc if host is already all lowercase?
+-		// or linear scan the byName map if it's small enough?
+-		lowerHost := []byte(host)
+-		lowerASCIIBytes(lowerHost)
+-		if ips, ok := hosts.byName[absDomainName(lowerHost)]; ok {
++		if hasUpperCase(host) {
++			lowerHost := []byte(host)
++			lowerASCIIBytes(lowerHost)
++			host = string(lowerHost)
++		}
++		if ips, ok := hosts.byName[absDomainName(host)]; ok {
+ 			ipsCp := make([]string, len(ips))
+ 			copy(ipsCp, ips)
+ 			return ipsCp
+diff --git a/src/net/hosts_test.go b/src/net/hosts_test.go
+index 19c43999f9..72919140e9 100644
+--- a/src/net/hosts_test.go
++++ b/src/net/hosts_test.go
+@@ -70,7 +70,7 @@ func TestLookupStaticHost(t *testing.T) {
+ }
+ 
+ func testStaticHost(t *testing.T, hostsPath string, ent staticHostEntry) {
+-	ins := []string{ent.in, absDomainName([]byte(ent.in)), strings.ToLower(ent.in), strings.ToUpper(ent.in)}
++	ins := []string{ent.in, absDomainName(ent.in), strings.ToLower(ent.in), strings.ToUpper(ent.in)}
+ 	for _, in := range ins {
+ 		addrs := lookupStaticHost(in)
+ 		if !reflect.DeepEqual(addrs, ent.out) {
+@@ -141,7 +141,7 @@ func TestLookupStaticAddr(t *testing.T) {
+ func testStaticAddr(t *testing.T, hostsPath string, ent staticHostEntry) {
+ 	hosts := lookupStaticAddr(ent.in)
+ 	for i := range ent.out {
+-		ent.out[i] = absDomainName([]byte(ent.out[i]))
++		ent.out[i] = absDomainName(ent.out[i])
+ 	}
+ 	if !reflect.DeepEqual(hosts, ent.out) {
+ 		t.Errorf("%s, lookupStaticAddr(%s) = %v; want %v", hostsPath, ent.in, hosts, ent.out)
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index 75c18b33ac..d43a03b778 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -262,8 +262,8 @@ func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cn
+ 		if !(portOk && priorityOk && weightOk) {
+ 			continue
+ 		}
+-		addrs = append(addrs, &SRV{absDomainName([]byte(f[5])), uint16(port), uint16(priority), uint16(weight)})
+-		cname = absDomainName([]byte(f[0]))
++		addrs = append(addrs, &SRV{absDomainName(f[5]), uint16(port), uint16(priority), uint16(weight)})
++		cname = absDomainName(f[0])
+ 	}
+ 	byPriorityWeight(addrs).sort()
+ 	return
+@@ -280,7 +280,7 @@ func (*Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err error
+ 			continue
+ 		}
+ 		if pref, _, ok := dtoi(f[2]); ok {
+-			mx = append(mx, &MX{absDomainName([]byte(f[3])), uint16(pref)})
++			mx = append(mx, &MX{absDomainName(f[3]), uint16(pref)})
+ 		}
+ 	}
+ 	byPref(mx).sort()
+@@ -297,7 +297,7 @@ func (*Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err error
+ 		if len(f) < 3 {
+ 			continue
+ 		}
+-		ns = append(ns, &NS{absDomainName([]byte(f[2]))})
++		ns = append(ns, &NS{absDomainName(f[2])})
+ 	}
+ 	return
+ }
+@@ -329,7 +329,7 @@ func (*Resolver) lookupAddr(ctx context.Context, addr string) (name []string, er
+ 		if len(f) < 3 {
+ 			continue
+ 		}
+-		name = append(name, absDomainName([]byte(f[2])))
++		name = append(name, absDomainName(f[2]))
+ 	}
+ 	return
+ }
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index bb34a08133..27e5f86910 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -226,7 +226,7 @@ func (*Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
+ 	// windows returns DNS_INFO_NO_RECORDS if there are no CNAME-s
+ 	if errno, ok := e.(syscall.Errno); ok && errno == syscall.DNS_INFO_NO_RECORDS {
+ 		// if there are no aliases, the canonical name is the input name
+-		return absDomainName([]byte(name)), nil
++		return absDomainName(name), nil
+ 	}
+ 	if e != nil {
+ 		return "", &DNSError{Err: winError("dnsquery", e).Error(), Name: name}
+@@ -235,7 +235,7 @@ func (*Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
+ 
+ 	resolved := resolveCNAME(syscall.StringToUTF16Ptr(name), r)
+ 	cname := windows.UTF16PtrToString(resolved)
+-	return absDomainName([]byte(cname)), nil
++	return absDomainName(cname), nil
+ }
+ 
+ func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
+@@ -258,10 +258,10 @@ func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (st
+ 	srvs := make([]*SRV, 0, 10)
+ 	for _, p := range validRecs(r, syscall.DNS_TYPE_SRV, target) {
+ 		v := (*syscall.DNSSRVData)(unsafe.Pointer(&p.Data[0]))
+-		srvs = append(srvs, &SRV{absDomainName([]byte(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Target))[:]))), v.Port, v.Priority, v.Weight})
++		srvs = append(srvs, &SRV{absDomainName(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Target))[:])), v.Port, v.Priority, v.Weight})
+ 	}
+ 	byPriorityWeight(srvs).sort()
+-	return absDomainName([]byte(target)), srvs, nil
++	return absDomainName(target), srvs, nil
+ }
+ 
+ func (*Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
+@@ -278,7 +278,7 @@ func (*Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
+ 	mxs := make([]*MX, 0, 10)
+ 	for _, p := range validRecs(r, syscall.DNS_TYPE_MX, name) {
+ 		v := (*syscall.DNSMXData)(unsafe.Pointer(&p.Data[0]))
+-		mxs = append(mxs, &MX{absDomainName([]byte(windows.UTF16PtrToString(v.NameExchange))), v.Preference})
++		mxs = append(mxs, &MX{absDomainName(windows.UTF16PtrToString(v.NameExchange)), v.Preference})
+ 	}
+ 	byPref(mxs).sort()
+ 	return mxs, nil
+@@ -298,7 +298,7 @@ func (*Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
+ 	nss := make([]*NS, 0, 10)
+ 	for _, p := range validRecs(r, syscall.DNS_TYPE_NS, name) {
+ 		v := (*syscall.DNSPTRData)(unsafe.Pointer(&p.Data[0]))
+-		nss = append(nss, &NS{absDomainName([]byte(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:])))})
++		nss = append(nss, &NS{absDomainName(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:]))})
+ 	}
+ 	return nss, nil
+ }
+@@ -344,7 +344,7 @@ func (*Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error)
+ 	ptrs := make([]string, 0, 10)
+ 	for _, p := range validRecs(r, syscall.DNS_TYPE_PTR, arpa) {
+ 		v := (*syscall.DNSPTRData)(unsafe.Pointer(&p.Data[0]))
+-		ptrs = append(ptrs, absDomainName([]byte(windows.UTF16PtrToString(v.Host))))
++		ptrs = append(ptrs, absDomainName(windows.UTF16PtrToString(v.Host)))
+ 	}
+ 	return ptrs, nil
+ }
+diff --git a/src/net/lookup_windows_test.go b/src/net/lookup_windows_test.go
+index aa95501d02..f726ef0f34 100644
+--- a/src/net/lookup_windows_test.go
++++ b/src/net/lookup_windows_test.go
+@@ -220,14 +220,14 @@ func nslookupMX(name string) (mx []*MX, err error) {
+ 	rx := regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+mail exchanger\s*=\s*([0-9]+)\s*([a-z0-9.\-]+)$`)
+ 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
+ 		pref, _, _ := dtoi(ans[2])
+-		mx = append(mx, &MX{absDomainName([]byte(ans[3])), uint16(pref)})
++		mx = append(mx, &MX{absDomainName(ans[3]), uint16(pref)})
+ 	}
+ 	// windows nslookup syntax
+ 	// gmail.com       MX preference = 30, mail exchanger = alt3.gmail-smtp-in.l.google.com
+ 	rx = regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+MX preference\s*=\s*([0-9]+)\s*,\s*mail exchanger\s*=\s*([a-z0-9.\-]+)$`)
+ 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
+ 		pref, _, _ := dtoi(ans[2])
+-		mx = append(mx, &MX{absDomainName([]byte(ans[3])), uint16(pref)})
++		mx = append(mx, &MX{absDomainName(ans[3]), uint16(pref)})
+ 	}
+ 	return
+ }
+@@ -241,7 +241,7 @@ func nslookupNS(name string) (ns []*NS, err error) {
+ 	// golang.org      nameserver = ns1.google.com.
+ 	rx := regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+nameserver\s*=\s*([a-z0-9.\-]+)$`)
+ 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
+-		ns = append(ns, &NS{absDomainName([]byte(ans[2]))})
++		ns = append(ns, &NS{absDomainName(ans[2])})
+ 	}
+ 	return
+ }
+@@ -258,7 +258,7 @@ func nslookupCNAME(name string) (cname string, err error) {
+ 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
+ 		last = ans[2]
+ 	}
+-	return absDomainName([]byte(last)), nil
++	return absDomainName(last), nil
+ }
+ 
+ func nslookupTXT(name string) (txt []string, err error) {
+@@ -299,7 +299,7 @@ func lookupPTR(name string) (ptr []string, err error) {
+ 	ptr = make([]string, 0, 10)
+ 	rx := regexp.MustCompile(`(?m)^Pinging\s+([a-zA-Z0-9.\-]+)\s+\[.*$`)
+ 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
+-		ptr = append(ptr, absDomainName([]byte(ans[1])))
++		ptr = append(ptr, absDomainName(ans[1]))
+ 	}
+ 	return
+ }
+diff --git a/src/net/parse.go b/src/net/parse.go
+index 6c230ab63f..0d7cce12e6 100644
+--- a/src/net/parse.go
++++ b/src/net/parse.go
+@@ -208,6 +208,16 @@ func last(s string, b byte) int {
+ 	return i
+ }
+ 
++// hasUpperCase tells whether the given string contains at least one upper-case.
++func hasUpperCase(s string) bool {
++	for i := range s {
++		if 'A' <= s[i] && s[i] <= 'Z' {
++			return true
++		}
++	}
++	return false
++}
++
+ // lowerASCIIBytes makes x ASCII lowercase in-place.
+ func lowerASCIIBytes(x []byte) {
+ 	for i, b := range x {

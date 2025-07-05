@@ -14,10 +14,167 @@ Date:   Fri Feb 4 16:57:43 2022 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go      | 13 +++++++------
  src/cmd/compile/internal/types2/builtins_test.go |  6 +++++-
  src/go/types/builtins.go                         | 13 +++++++------
  src/go/types/builtins_test.go                    |  6 +++++-
  src/go/types/example_test.go                     |  2 +-
  5 files changed, 25 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index c2f955ce8c..f9db07fdea 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -142,9 +142,8 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// cap(x)
+ 		// len(x)
+ 		mode := invalid
+-		var typ Type
+ 		var val constant.Value
+-		switch typ = arrayPtrDeref(under(x.typ)); t := typ.(type) {
++		switch t := arrayPtrDeref(under(x.typ)).(type) {
+ 		case *Basic:
+ 			if isString(t) && id == _Len {
+ 				if x.mode == constant_ {
+@@ -201,17 +200,19 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			}
+ 		}
+ 
+-		if mode == invalid && typ != Typ[Invalid] {
++		if mode == invalid && under(x.typ) != Typ[Invalid] {
+ 			check.errorf(x, invalidArg+"%s for %s", x, bin.name)
+ 			return
+ 		}
+ 
++		// record the signature before changing x.typ
++		if check.Types != nil && mode != constant_ {
++			check.recordBuiltinType(call.Fun, makeSig(Typ[Int], x.typ))
++		}
++
+ 		x.mode = mode
+ 		x.typ = Typ[Int]
+ 		x.val = val
+-		if check.Types != nil && mode != constant_ {
+-			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ))
+-		}
+ 
+ 	case _Close:
+ 		// close(c)
+diff --git a/src/cmd/compile/internal/types2/builtins_test.go b/src/cmd/compile/internal/types2/builtins_test.go
+index be5707cdfe..e07a7794f6 100644
+--- a/src/cmd/compile/internal/types2/builtins_test.go
++++ b/src/cmd/compile/internal/types2/builtins_test.go
+@@ -28,6 +28,8 @@ var builtinCalls = []struct {
+ 	{"cap", `var s [10]int; _ = cap(&s)`, `invalid type`}, // constant
+ 	{"cap", `var s []int64; _ = cap(s)`, `func([]int64) int`},
+ 	{"cap", `var c chan<-bool; _ = cap(c)`, `func(chan<- bool) int`},
++	{"cap", `type S []byte; var s S; _ = cap(s)`, `func(p.S) int`},
++	{"cap", `var s P; _ = cap(s)`, `func(P) int`},
+ 
+ 	{"len", `_ = len("foo")`, `invalid type`}, // constant
+ 	{"len", `var s string; _ = len(s)`, `func(string) int`},
+@@ -36,6 +38,8 @@ var builtinCalls = []struct {
+ 	{"len", `var s []int64; _ = len(s)`, `func([]int64) int`},
+ 	{"len", `var c chan<-bool; _ = len(c)`, `func(chan<- bool) int`},
+ 	{"len", `var m map[string]float32; _ = len(m)`, `func(map[string]float32) int`},
++	{"len", `type S []byte; var s S; _ = len(s)`, `func(p.S) int`},
++	{"len", `var s P; _ = len(s)`, `func(P) int`},
+ 
+ 	{"close", `var c chan int; close(c)`, `func(chan int)`},
+ 	{"close", `var c chan<- chan string; close(c)`, `func(chan<- chan string)`},
+@@ -159,7 +163,7 @@ func parseGenericSrc(path, src string) (*syntax.File, error) {
+ }
+ 
+ func testBuiltinSignature(t *testing.T, name, src0, want string) {
+-	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _[P any]() { %s }`, src0)
++	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _[P ~[]byte]() { %s }`, src0)
+ 	f, err := parseGenericSrc("", src)
+ 	if err != nil {
+ 		t.Errorf("%s: %s", src0, err)
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index f9aece225b..8fcfcb935f 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -143,9 +143,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// cap(x)
+ 		// len(x)
+ 		mode := invalid
+-		var typ Type
+ 		var val constant.Value
+-		switch typ = arrayPtrDeref(under(x.typ)); t := typ.(type) {
++		switch t := arrayPtrDeref(under(x.typ)).(type) {
+ 		case *Basic:
+ 			if isString(t) && id == _Len {
+ 				if x.mode == constant_ {
+@@ -202,7 +201,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			}
+ 		}
+ 
+-		if mode == invalid && typ != Typ[Invalid] {
++		if mode == invalid && under(x.typ) != Typ[Invalid] {
+ 			code := _InvalidCap
+ 			if id == _Len {
+ 				code = _InvalidLen
+@@ -211,12 +210,14 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			return
+ 		}
+ 
++		// record the signature before changing x.typ
++		if check.Types != nil && mode != constant_ {
++			check.recordBuiltinType(call.Fun, makeSig(Typ[Int], x.typ))
++		}
++
+ 		x.mode = mode
+ 		x.typ = Typ[Int]
+ 		x.val = val
+-		if check.Types != nil && mode != constant_ {
+-			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ))
+-		}
+ 
+ 	case _Close:
+ 		// close(c)
+diff --git a/src/go/types/builtins_test.go b/src/go/types/builtins_test.go
+index edcd7e7724..7e967a36e1 100644
+--- a/src/go/types/builtins_test.go
++++ b/src/go/types/builtins_test.go
+@@ -29,6 +29,8 @@ var builtinCalls = []struct {
+ 	{"cap", `var s [10]int; _ = cap(&s)`, `invalid type`}, // constant
+ 	{"cap", `var s []int64; _ = cap(s)`, `func([]int64) int`},
+ 	{"cap", `var c chan<-bool; _ = cap(c)`, `func(chan<- bool) int`},
++	{"cap", `type S []byte; var s S; _ = cap(s)`, `func(p.S) int`},
++	{"cap", `var s P; _ = cap(s)`, `func(P) int`},
+ 
+ 	{"len", `_ = len("foo")`, `invalid type`}, // constant
+ 	{"len", `var s string; _ = len(s)`, `func(string) int`},
+@@ -37,6 +39,8 @@ var builtinCalls = []struct {
+ 	{"len", `var s []int64; _ = len(s)`, `func([]int64) int`},
+ 	{"len", `var c chan<-bool; _ = len(c)`, `func(chan<- bool) int`},
+ 	{"len", `var m map[string]float32; _ = len(m)`, `func(map[string]float32) int`},
++	{"len", `type S []byte; var s S; _ = len(s)`, `func(p.S) int`},
++	{"len", `var s P; _ = len(s)`, `func(P) int`},
+ 
+ 	{"close", `var c chan int; close(c)`, `func(chan int)`},
+ 	{"close", `var c chan<- chan string; close(c)`, `func(chan<- chan string)`},
+@@ -157,7 +161,7 @@ func TestBuiltinSignatures(t *testing.T) {
+ // parseGenericSrc in types2 is not necessary. We can just parse in testBuiltinSignature below.
+ 
+ func testBuiltinSignature(t *testing.T, name, src0, want string) {
+-	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _[P any]() { %s }`, src0)
++	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _[P ~[]byte]() { %s }`, src0)
+ 	f, err := parser.ParseFile(fset, "", src, 0)
+ 	if err != nil {
+ 		t.Errorf("%s: %s", src0, err)
+diff --git a/src/go/types/example_test.go b/src/go/types/example_test.go
+index 2702567486..3c1bdb58c3 100644
+--- a/src/go/types/example_test.go
++++ b/src/go/types/example_test.go
+@@ -279,7 +279,7 @@ func fib(x int) int {
+ 	//
+ 	// Types and Values of each expression:
+ 	//  4: 8 | string              | type    : string
+-	//  6:15 | len                 | builtin : func(string) int
++	//  6:15 | len                 | builtin : func(fib.S) int
+ 	//  6:15 | len(b)              | value   : int
+ 	//  6:19 | b                   | var     : fib.S
+ 	//  6:23 | S                   | type    : fib.S

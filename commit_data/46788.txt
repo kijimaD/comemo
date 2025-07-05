@@ -19,6 +19,28 @@ Date:   Thu Jan 28 11:14:23 2021 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/build_trimpath.txt | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/build_trimpath.txt b/src/cmd/go/testdata/script/build_trimpath.txt
+index e1ea0a48b2..2c3bee8fdc 100644
+--- a/src/cmd/go/testdata/script/build_trimpath.txt
++++ b/src/cmd/go/testdata/script/build_trimpath.txt
+@@ -121,6 +121,7 @@ package main
+ import (
+ 	"bytes"
+ 	"fmt"
++	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+@@ -130,7 +131,7 @@ import (
+ 
+ func main() {
+ 	exe := os.Args[1]
+-	data, err := os.ReadFile(exe)
++	data, err := ioutil.ReadFile(exe)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}

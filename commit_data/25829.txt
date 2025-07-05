@@ -18,7 +18,7 @@ Date:   Thu Sep 3 02:44:26 2015 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/asm_386.s      | 9 +++++++++
  src/runtime/asm_amd64.s    | 9 +++++++++
  src/runtime/asm_amd64p32.s | 4 ++++
@@ -29,3 +29,134 @@ Date:   Thu Sep 3 02:44:26 2015 -0400
  src/runtime/runtime1.go    | 4 ++++
  src/runtime/stubs.go       | 3 +++
  9 files changed, 47 insertions(+)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 587219060a..3dcb026f0c 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1188,6 +1188,15 @@ DATA shifts<>+0xfc(SB)/4, $0xff0f0e0d
+ 
+ GLOBL shifts<>(SB),RODATA,$256
+ 
++TEXT ·checkASM(SB),NOSPLIT,$0-1
++	// check that masks<>(SB) and shifts<>(SB) are aligned to 16-byte
++	MOVL	$masks<>(SB), AX
++	MOVL	$shifts<>(SB), BX
++	ORL	BX, AX
++	TESTL	$15, AX
++	SETEQ	ret+0(FP)
++	RET
++
+ TEXT runtime·memeq(SB),NOSPLIT,$0-13
+ 	MOVL	a+0(FP), SI
+ 	MOVL	b+4(FP), DI
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 7f14f61e2a..705238cb6d 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1222,6 +1222,15 @@ DATA masks<>+0xf0(SB)/8, $0xffffffffffffffff
+ DATA masks<>+0xf8(SB)/8, $0x00ffffffffffffff
+ GLOBL masks<>(SB),RODATA,$256
+ 
++TEXT ·checkASM(SB),NOSPLIT,$0-1
++	// check that masks<>(SB) and shifts<>(SB) are aligned to 16-byte
++	MOVQ	$masks<>(SB), AX
++	MOVQ	$shifts<>(SB), BX
++	ORQ	BX, AX
++	TESTQ	$15, AX
++	SETEQ	ret+0(FP)
++	RET
++
+ // these are arguments to pshufb.  They move data down from
+ // the high bytes of the register to the low bytes of the register.
+ // index is how many bytes to move.
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 8119d91e1b..ecbc5975bb 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -1012,3 +1012,7 @@ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
+ 	MOVL	addr+0(FP), AX
+ 	PREFETCHNTA	(AX)
+ 	RET
++
++TEXT ·checkASM(SB),NOSPLIT,$0-1
++	MOVB	$1, ret+0(FP)
++	RET
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 48fc321df3..d8757fd0b9 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -1030,3 +1030,8 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-4
+ 	MOVW	saver9-4(SP), R9
+ 	RET
+ #endif
++
++TEXT ·checkASM(SB),NOSPLIT,$0-1
++	MOVW	$1, R3
++	MOVB	R3, ret+0(FP)
++	RET
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 33755b35c0..8931daa2cd 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -996,4 +996,8 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+ 	MOVD	R0, runtime·lastmoduledatap(SB)
+ 	MOVD	8(RSP), R27
+ 	ADD	$0x10, RSP
++
++TEXT ·checkASM(SB),NOSPLIT,$0-1
++	MOVW	$1, R3
++	MOVB	R3, ret+0(FP)
+ 	RET
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 8d0cf122cb..7d3d7c2ae2 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -818,3 +818,8 @@ TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
+ 
+ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+ 	RET
++
++TEXT ·checkASM(SB),NOSPLIT,$0-1
++	MOVW	$1, R1
++	MOVB	R1, ret+0(FP)
++	RET
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 37ba816175..1ecdf3b2cd 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -1079,4 +1079,8 @@ TEXT runtime·addmoduledata(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	R3, runtime·lastmoduledatap(SB)
+ 	MOVD	0(R1), R31
+ 	ADD	$8, R1
++
++TEXT ·checkASM(SB),NOSPLIT,$0-1
++	MOVW	$1, R3
++	MOVB	R3, ret+0(FP)
+ 	RET
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 71afd79b55..3c4f47dd2e 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -296,6 +296,10 @@ func check() {
+ 	if _FixedStack != round2(_FixedStack) {
+ 		throw("FixedStack is not power-of-2")
+ 	}
++
++	if !checkASM() {
++		throw("assembly checks failed")
++	}
+ }
+ 
+ type dbgVar struct {
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 9ead56e897..f060182c22 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -270,3 +270,6 @@ func unixnanotime() int64 {
+ func round(n, a uintptr) uintptr {
+ 	return (n + a - 1) &^ (a - 1)
+ }
++
++// checkASM returns whether assembly runtime checks have passed.
++func checkASM() bool

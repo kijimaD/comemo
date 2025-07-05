@@ -10,7 +10,70 @@ Date:   Mon Dec 8 10:28:18 2014 -0800
     Reviewed-on: https://go-review.googlesource.com/1210
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  test/fixedbugs/bug302.go | 40 ++++++++++++++++++++++++++++++++++++----
  test/run.go              |  1 -
  2 files changed, 36 insertions(+), 5 deletions(-)
+
+diff --git a/test/fixedbugs/bug302.go b/test/fixedbugs/bug302.go
+index dc7637fe52..65c98c4624 100644
+--- a/test/fixedbugs/bug302.go
++++ b/test/fixedbugs/bug302.go
+@@ -1,9 +1,41 @@
+-// $G $D/bug302.dir/p.go && pack grc pp.a p.$A && $G $D/bug302.dir/main.go
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// +build !nacl
++// run
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++package main
++
++import (
++	"fmt"
++	"go/build"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++)
++
++func main() {
++	a, err := build.ArchChar(runtime.GOARCH)
++	if err != nil {
++		fmt.Println("BUG:", err)
++		os.Exit(1)
++	}
++
++	run("go", "tool", a+"g", filepath.Join("fixedbugs", "bug302.dir", "p.go"))
++	run("go", "tool", "pack", "grc", "pp.a", "p."+a)
++	run("go", "tool", a+"g", filepath.Join("fixedbugs", "bug302.dir", "main.go"))
++	os.Remove("p."+a)
++	os.Remove("pp.a")
++	os.Remove("main."+a)
++}
++
++func run(cmd string, args ...string) {
++	out, err := exec.Command(cmd, args...).CombinedOutput()
++	if err != nil {
++		fmt.Println(string(out))
++		fmt.Println(err)
++		os.Exit(1)
++	}
++}
+diff --git a/test/run.go b/test/run.go
+index e8ec2df9c4..7c46dababf 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -908,7 +908,6 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
+ 
+ var skipOkay = map[string]bool{
+ 	"fixedbugs/bug248.go": true, // combines errorcheckdir and rundir in the same dir.
+-	"fixedbugs/bug302.go": true, // tests both .$O and .a imports.
+ 	"fixedbugs/bug345.go": true, // needs the appropriate flags in gc invocation.
+ 	"fixedbugs/bug369.go": true, // needs compiler flags.
+ 	"fixedbugs/bug429.go": true, // like "run" but program should fail

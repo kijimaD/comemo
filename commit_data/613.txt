@@ -7,7 +7,87 @@ Date:   Thu Sep 11 15:23:01 2008 -0700
     R=r
     OCL=15166
     CL=15166
-
+---
  src/cmd/6g/gen.c  |  6 ++++--
  src/cmd/gc/walk.c | 41 ++++++++++++++++++++++++++++++++++++++---
  2 files changed, 42 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index dbdafd6127..9751402ad5 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -68,8 +68,10 @@ if(newproc == N) {
+ 	gclean();
+ 	checklabels();
+ 
+-//	if(curfn->type->outtuple != 0)
+-//		gins(AGOK, N, N);
++	if(curfn->type->outtuple != 0) {
++		nodconst(&nod1, types[TUINT8], 6); // 6 is opcode trap
++		gins(AINT, &nod1, N);
++	}
+ 
+ 	pc->as = ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 8612f6d130..abb7ce0bd8 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -10,6 +10,38 @@ static	Type*	sw3(Node*, Type*);
+ static	Node*	curfn;
+ static	Node*	addtop;
+ 
++// can this code branch reach the end
++// without an undcontitional RETURN
++// this is hard, so it is conservative
++int
++walkret(Node *n)
++{
++
++loop:
++	if(n != N)
++	switch(n->op) {
++	case OLIST:
++		if(n->right == N) {
++			n = n->left;
++			goto loop;
++		}
++		n = n->right;
++		goto loop;
++
++	// at this point, we have the last
++	// statement of the function
++
++	case OGOTO:
++	case OPANIC:
++	case ORETURN:
++		return 0;
++	}
++
++	// all other statements
++	// will flow to the end
++	return 1;
++}
++
+ void
+ walk(Node *fn)
+ {
+@@ -18,12 +50,15 @@ walk(Node *fn)
+ 	curfn = fn;
+ 	if(debug['W']) {
+ 		snprint(s, sizeof(s), "\nbefore %S", curfn->nname->sym);
+-		dump(s, fn->nbody);
++		dump(s, curfn->nbody);
+ 	}
+-	walkstate(fn->nbody);
++	if(curfn->type->outtuple)
++		if(walkret(curfn->nbody))
++			warn("function ends without a return statement");
++	walkstate(curfn->nbody);
+ 	if(debug['W']) {
+ 		snprint(s, sizeof(s), "after %S", curfn->nname->sym);
+-		dump(s, fn->nbody);
++		dump(s, curfn->nbody);
+ 	}
+ }
+ 

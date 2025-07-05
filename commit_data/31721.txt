@@ -9,6 +9,45 @@ Date:   Thu Mar 9 16:45:14 2017 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/expvar/expvar_test.go | 27 +++++++++++++++++++++++++++
  1 file changed, 27 insertions(+)
+
+diff --git a/src/expvar/expvar_test.go b/src/expvar/expvar_test.go
+index 901d72201a..7ee66845cd 100644
+--- a/src/expvar/expvar_test.go
++++ b/src/expvar/expvar_test.go
+@@ -211,6 +211,33 @@ func BenchmarkMapSet(b *testing.B) {
+ 	})
+ }
+ 
++func BenchmarkMapSetDifferent(b *testing.B) {
++	procKeys := make([][]string, runtime.GOMAXPROCS(0))
++	for i := range procKeys {
++		keys := make([]string, 4)
++		for j := range keys {
++			keys[j] = fmt.Sprint(i, j)
++		}
++		procKeys[i] = keys
++	}
++
++	m := new(Map).Init()
++	v := new(Int)
++	b.ResetTimer()
++
++	var n int32
++	b.RunParallel(func(pb *testing.PB) {
++		i := int(atomic.AddInt32(&n, 1)-1) % len(procKeys)
++		keys := procKeys[i]
++
++		for pb.Next() {
++			for _, k := range keys {
++				m.Set(k, v)
++			}
++		}
++	})
++}
++
+ func BenchmarkMapSetString(b *testing.B) {
+ 	m := new(Map).Init()
+ 

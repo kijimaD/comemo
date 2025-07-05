@@ -10,6 +10,22 @@ Date:   Thu Oct 30 10:58:31 2014 -0300
     R=r
     CC=golang-codereviews
     https://golang.org/cl/164250043
-
+---
  doc/go1.4.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.4.html b/doc/go1.4.html
+index 9f65aaf24c..cb2280cb4d 100644
+--- a/doc/go1.4.html
++++ b/doc/go1.4.html
+@@ -678,8 +678,8 @@ Scheme.
+ 
+ <li>The <a href="/pkg/net/http/"><code>net/http</code></a> package's
+ <a href="/pkg/net/http/#Request"><code>Transport</code></a> type
+-has a new <a href="/pkg/net/http/#Transport.DialTLS"><code>DialTLS</code></a> function
+-that simplifies setting up TLS connections.
++has a new <a href="/pkg/net/http/#Transport.DialTLS"><code>DialTLS</code></a> hook
++that allows customizing the behavior of outbound TLS connections.
+ </li>
+ 
+ <li>

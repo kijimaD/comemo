@@ -12,6 +12,27 @@ Date:   Wed Nov 11 11:00:56 2015 +0000
     Change-Id: Ib91c5ccc93665c043da95c7d3783ce5d94e48466
     Reviewed-on: https://go-review.googlesource.com/16821
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 5b2ddbdfe3..f1d2ac957f 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -4,7 +4,6 @@ package gc
+ 
+ const runtimeimport = "" +
+ 	"package runtime\n" +
+-	"import runtime \"runtime\"\n" +
+ 	"func @\"\".newobject (@\"\".typ·2 *byte) (? *any)\n" +
+ 	"func @\"\".panicindex ()\n" +
+ 	"func @\"\".panicslice ()\n" +
+@@ -162,7 +161,6 @@ const runtimeimport = "" +
+ 
+ const unsafeimport = "" +
+ 	"package unsafe\n" +
+-	"import runtime \"runtime\"\n" +
+ 	"type @\"\".Pointer uintptr\n" +
+ 	"func @\"\".Offsetof (? any) (? uintptr)\n" +
+ 	"func @\"\".Sizeof (? any) (? uintptr)\n" +

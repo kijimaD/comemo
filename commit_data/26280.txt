@@ -9,7 +9,54 @@ Date:   Wed Jan 6 20:37:05 2016 -0500
     Change-Id: I30c827ef4a112fee21b8493a67d0227109e35072
     Reviewed-on: https://go-review.googlesource.com/18384
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dnsclient.go   | 12 +++++++++++-
  src/net/lookup_test.go | 10 ++++++++--
  2 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/dnsclient.go b/src/net/dnsclient.go
+index 0f4ef89387..98d1750a63 100644
+--- a/src/net/dnsclient.go
++++ b/src/net/dnsclient.go
+@@ -165,8 +165,18 @@ func isDomainName(s string) bool {
+ // trailing dot to match pure Go reverse resolver and all other lookup
+ // routines.
+ // See golang.org/issue/12189.
++// But we don't want to add dots for local names from /etc/hosts.
++// It's hard to tell so we settle on the heuristic that names without dots
++// (like "localhost" or "myhost") do not get trailing dots, but any other
++// names do.
+ func absDomainName(b []byte) string {
+-	if len(b) > 0 && b[len(b)-1] != '.' {
++	hasDots := false
++	for _, x := range b {
++		if x == '.' {
++			hasDots = true
++		}
++	}
++	if hasDots && b[len(b)-1] != '.' {
+ 		b = append(b, '.')
+ 	}
+ 	return string(b)
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index fa2c6367db..e10be9a210 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -436,9 +436,15 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
+ 			t.Errorf("#%d: %v", i, err)
+ 			continue
+ 		}
++		mode := "netgo"
++		if i == 1 {
++			mode = "netcgo"
++		}
+ 		for _, name := range names {
+-			if !strings.HasSuffix(name, ".") {
+-				t.Errorf("#%d: got %s; want name ending with trailing dot", i, name)
++			if strings.Index(name, ".") == len(name)-1 { // "localhost" not "localhost."
++				t.Errorf("%s: got %s; want %s", mode, name, name[:len(name)-1])
++			} else if strings.Contains(name, ".") && !strings.HasSuffix(name, ".") { // "localhost.localdomain." not "localhost.localdomain"
++				t.Errorf("%s: got %s; want name ending with trailing dot", mode, name)
+ 			}
+ 		}
+ 	}

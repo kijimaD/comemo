@@ -17,6 +17,24 @@ Date:   Wed Oct 19 17:26:33 2022 +0100
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/math/bits/bits.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/math/bits/bits.go b/src/math/bits/bits.go
+index 65452feda2..6ca4bfe9a6 100644
+--- a/src/math/bits/bits.go
++++ b/src/math/bits/bits.go
+@@ -6,6 +6,12 @@
+ 
+ // Package bits implements bit counting and manipulation
+ // functions for the predeclared unsigned integer types.
++//
++// Functions in this package may be implemented directly by
++// the compiler, for better performance. For those functions
++// the code in this package will not be used. Which
++// functions are implemented by the compiler depends on the
++// architecture and the Go release.
+ package bits
+ 
+ const uintSize = 32 << (^uint(0) >> 63) // 32 or 64

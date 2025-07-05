@@ -23,7 +23,7 @@ Date:   Wed Mar 15 15:37:26 2023 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz.txt                  | 2 ++
  src/cmd/go/testdata/script/test_fuzz_chatty.txt           | 1 +
  src/cmd/go/testdata/script/test_fuzz_cleanup.txt          | 1 +
@@ -44,3 +44,242 @@ Date:   Wed Mar 15 15:37:26 2023 -0700
  src/cmd/go/testdata/script/test_fuzz_setenv.txt           | 1 +
  src/cmd/go/testdata/script/test_fuzz_test_race.txt        | 1 +
  19 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index 3e048e00c5..37170bfb2f 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -1,4 +1,6 @@
+ [!fuzz] skip
++[short] skip
++env GOCACHE=$WORK/cache
+ 
+ # Test that running a fuzz target that returns without failing or calling
+ # f.Fuzz fails and causes a non-zero exit status.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_chatty.txt b/src/cmd/go/testdata/script/test_fuzz_chatty.txt
+index d07fe50f95..01a68cb700 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_chatty.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_chatty.txt
+@@ -1,5 +1,6 @@
+ [!fuzz] skip
+ [short] skip
++env GOCACHE=$WORK/cache
+ 
+ # Run chatty fuzz targets with an error.
+ ! go test -v chatty_error_fuzz_test.go
+diff --git a/src/cmd/go/testdata/script/test_fuzz_cleanup.txt b/src/cmd/go/testdata/script/test_fuzz_cleanup.txt
+index b65022bd74..5f864987cb 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_cleanup.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_cleanup.txt
+@@ -1,5 +1,6 @@
+ [!fuzz] skip
+ [short] skip
++env GOCACHE=$WORK/cache
+ 
+ # Cleanup should run after F.Skip.
+ go test -run=FuzzTargetSkip
+diff --git a/src/cmd/go/testdata/script/test_fuzz_cov.txt b/src/cmd/go/testdata/script/test_fuzz_cov.txt
+index e38912ba7c..c0844a3db6 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_cov.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_cov.txt
+@@ -4,10 +4,10 @@
+ 
+ [short] skip
+ [!fuzz-instrumented] skip
++env GOCACHE=$WORK/cache
+ 
+ # TODO(#51484): enabled debugging info to help diagnose a deadlock in the fuzzer
+ env GODEBUG=fuzzdebug=1
+-go clean --fuzzcache
+ ! go test -fuzz=FuzzCov -v
+ ! stderr 'cov instrumentation working'
+ 
+diff --git a/src/cmd/go/testdata/script/test_fuzz_deadline.txt b/src/cmd/go/testdata/script/test_fuzz_deadline.txt
+index 5ba76a3d4f..46d3521558 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_deadline.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_deadline.txt
+@@ -1,5 +1,6 @@
+ [!fuzz] skip
+ [short] skip
++env GOCACHE=$WORK/cache
+ 
+ # The fuzz function should be able to detect whether -timeout
+ # was set with T.Deadline. Note there is no F.Deadline, and
+diff --git a/src/cmd/go/testdata/script/test_fuzz_dup_cache.txt b/src/cmd/go/testdata/script/test_fuzz_dup_cache.txt
+index 52d44a26ff..f54a77c5bb 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_dup_cache.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_dup_cache.txt
+@@ -1,5 +1,6 @@
+ [!fuzz] skip
+ [short] skip
++env GOCACHE=$WORK/cache
+ 
+ # This test checks that cached corpus loading properly handles duplicate entries (this can
+ # happen when a f.Add value has a duplicate entry in the cached corpus.) Duplicate entries
+diff --git a/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt b/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
+index 56d94a4bcf..28ef3bf7de 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
+@@ -1,5 +1,6 @@
+ [!fuzz] skip
+ [short] skip
++env GOCACHE=$WORK/cache
+ 
+ # There are no seed values, so 'go test' should finish quickly.
+ go test
+@@ -14,8 +15,6 @@ exec ./fuzz.test$GOEXE -test.timeout=3s -test.fuzz=FuzzFast -test.fuzztime=5s -t
+ # Timeout should not cause inputs to be written as crashers.
+ ! exists testdata/fuzz
+ 
+-env GOCACHE=$WORK/tmp
+-
+ # When we use fuzztime with an "x" suffix, it runs a specific number of times.
+ # This fuzz function creates a file with a unique name ($pid.$count) on each
+ # run. We count the files to find the number of runs.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_io_error.txt b/src/cmd/go/testdata/script/test_fuzz_io_error.txt
+index 1a0aa6427e..01b4da6a89 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_io_error.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_io_error.txt
+@@ -7,6 +7,7 @@
+ # due to ^C and EOF errors which are more common. We don't report those.
+ [short] skip
+ [!fuzz] skip
++env GOCACHE=$WORK/cache
+ 
+ # If the I/O error occurs before F.Fuzz is called, the coordinator should
+ # stop the worker and say that.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt b/src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt
+index 83235f4b6d..01217aed52 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt
+@@ -1,12 +1,12 @@
+ [!fuzz] skip
+ [short] skip
++env GOCACHE=$WORK/cache
+ 
+ # FuzzA attempts to cause the mutator to create duplicate inputs that generate
+ # new coverage. Previously this would trigger a corner case when the fuzzer
+ # had a execution limit, causing it to deadlock and sit in the coordinator
+ # loop indefinitely, failing to exit once the limit had been exhausted.
+ 
+-go clean --fuzzcache
+ go test -fuzz=FuzzA -fuzztime=100x -parallel=1
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/test_fuzz_match.txt b/src/cmd/go/testdata/script/test_fuzz_match.txt
+index dbf987605f..d149586396 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_match.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_match.txt
+@@ -1,4 +1,6 @@
+ [!fuzz] skip
++[short] skip
++env GOCACHE=$WORK/cache
+ 
+ # Matches only fuzz targets to test.
+ go test standalone_fuzz_test.go
+diff --git a/src/cmd/go/testdata/script/test_fuzz_multiple.txt b/src/cmd/go/testdata/script/test_fuzz_multiple.txt
+index 1ec4985613..c96112f91b 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_multiple.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_multiple.txt
+@@ -4,6 +4,7 @@
+ 
+ [!fuzz] skip
+ [short] skip
++env GOCACHE=$WORK/cache
+ 
+ # With fuzzing disabled, multiple targets can be tested.
+ go test ./...
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+index e0bfdbb408..4b9b36dc75 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -6,6 +6,7 @@
+ # to the seed corpus in testdata, and failing the next time the test is run.
+ 
+ [short] skip
++env GOCACHE=$WORK/cache
+ 
+ # Running the seed corpus for all of the targets should pass the first
+ # time, since nothing in the seed corpus will cause a crash.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_fail.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_fail.txt
+index b5eab17349..213b73a1b3 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_fail.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_fail.txt
+@@ -4,6 +4,7 @@
+ # 'go test' exits non-zero and no crasher is recorded.
+ 
+ [short] skip
++env GOCACHE=$WORK/cache
+ 
+ ! go test -fuzz=FuzzReturn
+ ! exists testdata
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator.txt b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+index 76b86488ad..cc1f98990e 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+@@ -8,6 +8,7 @@
+ # tests seed values and the worker tests mutated values on the fuzz target.
+ 
+ [short] skip
++env GOCACHE=$WORK/cache
+ 
+ go test -fuzz=FuzzA -fuzztime=100x -parallel=1 -log=fuzz
+ go run check_logs.go fuzz fuzz.worker
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt b/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
+index b413f938a6..3b005c9601 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
+@@ -6,6 +6,7 @@
+ # to the coordinator.
+ 
+ [short] skip
++env GOCACHE=$WORK/cache
+ 
+ # Start fuzzing. The worker crashes after 100 iterations.
+ # The fuzz function writes the crashing input to "want" before exiting.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt b/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
+index 6f1eeab424..94a0421361 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
+@@ -3,6 +3,7 @@
+ [GOOS:windows] skip
+ [!fuzz] skip
+ [short] skip
++env GOCACHE=$WORK/cache
+ 
+ # FuzzNonCrash sends itself a signal that does not appear to be a crash.
+ # We should not save a crasher.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_parallel.txt b/src/cmd/go/testdata/script/test_fuzz_parallel.txt
+index e6325208d0..8ff965a9b3 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_parallel.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_parallel.txt
+@@ -1,5 +1,6 @@
+ [!fuzz] skip
+ [short] skip
++env GOCACHE=$WORK/cache
+ 
+ # When running seed inputs, T.Parallel should let multiple inputs run in
+ # parallel.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_setenv.txt b/src/cmd/go/testdata/script/test_fuzz_setenv.txt
+index 2924569de1..1370cd8680 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_setenv.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_setenv.txt
+@@ -1,5 +1,6 @@
+ [!fuzz] skip
+ [short] skip
++env GOCACHE=$WORK/cache
+ 
+ go test -fuzz=FuzzA -fuzztime=100x fuzz_setenv_test.go
+ 
+diff --git a/src/cmd/go/testdata/script/test_fuzz_test_race.txt b/src/cmd/go/testdata/script/test_fuzz_test_race.txt
+index 9d39cd684e..1bed47d458 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_test_race.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_test_race.txt
+@@ -5,6 +5,7 @@
+ [short] skip
+ [!fuzz] skip
+ [!race] skip
++env GOCACHE=$WORK/cache
+ 
+ # Test with coverage instrumentation enabled (-fuzz) and race instrumentation
+ # but without actually fuzzing the target (by using a non-matching pattern)

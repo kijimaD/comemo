@@ -10,7 +10,28 @@ Date:   Fri Feb 3 15:22:19 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5629045
-
+---
  test/fixedbugs/bug385_32.go | 2 +-
  test/fixedbugs/bug385_64.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/fixedbugs/bug385_32.go b/test/fixedbugs/bug385_32.go
+index a009f664e0..b9ecbb4c10 100644
+--- a/test/fixedbugs/bug385_32.go
++++ b/test/fixedbugs/bug385_32.go
+@@ -1,4 +1,4 @@
+-// [ $O == 6 ] || errchk $G -e $D/$F.go
++// [ $A == 6 ] || errchk $G -e $D/$F.go
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug385_64.go b/test/fixedbugs/bug385_64.go
+index 701be0d09a..7476b17d50 100644
+--- a/test/fixedbugs/bug385_64.go
++++ b/test/fixedbugs/bug385_64.go
+@@ -1,4 +1,4 @@
+-// [ $O != 6 ]  || errchk $G -e $D/$F.go
++// [ $A != 6 ]  || errchk $G -e $D/$F.go
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style

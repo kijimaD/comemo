@@ -24,10 +24,167 @@ Date:   Fri Aug 17 03:42:34 2012 +0800
     R=iant, rsc, bradfitz, coldredlemur
     CC=golang-dev
     https://golang.org/cl/5822049
-
+---
  misc/cgo/test/cgo_test.go                          |  1 +
  misc/cgo/test/issue3261.go                         | 43 ++++++++++++++++++++++
  .../{sleep_windows.go => sleep_windows_386.go}     |  4 ++
  src/cmd/go/build.go                                | 33 ++++++++++++++++-
  src/run.bat                                        |  8 +++-
  5 files changed, 87 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 34beee69d1..9c3c116345 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -27,5 +27,6 @@ func Test1328(t *testing.T)                { test1328(t) }
+ func TestParallelSleep(t *testing.T)       { testParallelSleep(t) }
+ func TestSetEnv(t *testing.T)              { testSetEnv(t) }
+ func TestHelpers(t *testing.T)             { testHelpers(t) }
++func TestLibgcc(t *testing.T)              { testLibgcc(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue3261.go b/misc/cgo/test/issue3261.go
+new file mode 100644
+index 0000000000..0411be892d
+--- /dev/null
++++ b/misc/cgo/test/issue3261.go
+@@ -0,0 +1,43 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++// libgcc on ARM might be compiled as thumb code, but our 5l
++// can't handle that, so we have to disable this test on arm.
++#ifdef __ARMEL__
++#include <stdio.h>
++int vabs(int x) {
++	puts("testLibgcc is disabled on ARM because 5l cannot handle thumb library.");
++	return (x < 0) ? -x : x;
++}
++#else
++int __absvsi2(int); // dummy prototype for libgcc function
++// we shouldn't name the function abs, as gcc might use
++// the builtin one.
++int vabs(int x) { return __absvsi2(x); }
++#endif
++*/
++import "C"
++
++import "testing"
++
++func testLibgcc(t *testing.T) {
++	var table = []struct {
++		in, out C.int
++	}{
++		{0, 0},
++		{1, 1},
++		{-42, 42},
++		{1000300, 1000300},
++		{1 - 1<<31, 1<<31 - 1},
++	}
++	for _, v := range table {
++		if o := C.vabs(v.in); o != v.out {
++			t.Fatalf("abs(%d) got %d, should be %d", v.in, o, v.out)
++			return
++		}
++	}
++}
+diff --git a/misc/cgo/test/sleep_windows.go b/misc/cgo/test/sleep_windows_386.go
+similarity index 61%
+rename from misc/cgo/test/sleep_windows.go
+rename to misc/cgo/test/sleep_windows_386.go
+index 007a1bb4c8..75687d7831 100644
+--- a/misc/cgo/test/sleep_windows.go
++++ b/misc/cgo/test/sleep_windows_386.go
+@@ -5,6 +5,10 @@
+ package cgotest
+ 
+ /*
++// mingw32 on windows/386 provides usleep() but not sleep(),
++// as we don't want to require all other OSes to provide usleep,
++// we emulate sleep(int s) using win32 API Sleep(int ms).
++
+ #include <windows.h>
+ 
+ unsigned int sleep(unsigned int seconds) {
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index ff5e0b9c3f..e12698f9f0 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1558,6 +1558,24 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 
+ 	// gcc
+ 	var linkobj []string
++
++	var bareLDFLAGS []string
++	// filter out -lsomelib, and -framework X if on Darwin
++	for i := 0; i < len(cgoLDFLAGS); i++ {
++		f := cgoLDFLAGS[i]
++		if !strings.HasPrefix(f, "-l") {
++			if goos == "darwin" && f == "-framework" { // skip the -framework X
++				i += 1
++				continue
++			}
++			bareLDFLAGS = append(bareLDFLAGS, f)
++		}
++	}
++	staticLibs := []string{"-lgcc"}
++	if goos == "windows" {
++		staticLibs = append(staticLibs, "-lmingwex", "-lmingw32")
++	}
++
+ 	for _, cfile := range cfiles {
+ 		ofile := obj + cfile[:len(cfile)-1] + "o"
+ 		if err := b.gcc(p, ofile, cgoCFLAGS, obj+cfile); err != nil {
+@@ -1605,10 +1623,23 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 		return nil, nil, err
+ 	}
+ 
++	ofile := obj + "_all.o"
++	var gccObjs, nonGccObjs []string
++	for _, f := range outObj {
++		if strings.HasSuffix(f, ".o") {
++			gccObjs = append(gccObjs, f)
++		} else {
++			nonGccObjs = append(nonGccObjs, f)
++		}
++	}
++	if err := b.gccld(p, ofile, stringList(bareLDFLAGS, "-Wl,-r", "-nostdlib", staticLibs), gccObjs); err != nil {
++		return nil, nil, err
++	}
++
+ 	// NOTE(rsc): The importObj is a 5c/6c/8c object and on Windows
+ 	// must be processed before the gcc-generated objects.
+ 	// Put it first.  http://golang.org/issue/2601
+-	outObj = append([]string{importObj}, outObj...)
++	outObj = stringList(importObj, nonGccObjs, ofile)
+ 
+ 	return outGo, outObj, nil
+ }
+diff --git a/src/run.bat b/src/run.bat
+index 496cbe3d57..36d24984e9 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -64,12 +64,18 @@ echo.
+ ::echo.
+ 
+ :: cgo tests
+-:: TODO: Other cgo tests
+ if x%CGO_ENABLED% == x0 goto nocgo
+ echo # ..\misc\cgo\life
+ go run %GOROOT%\test\run.go - ..\misc\cgo\life
+ if errorlevel 1 goto fail
+ echo.
++
++:: TODO ..\misc\cgo\stdio
++
++echo # ..\misc\cgo\test
++go test ..\misc\cgo\test
++if errorlevel 1 goto fail
++echo.
+ :nocgo
+ 
+ :: TODO: The other tests in run.bash.

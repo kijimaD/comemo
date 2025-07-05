@@ -8,9 +8,62 @@ Date:   Wed Feb 16 13:19:31 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4177044
-
+---
  src/pkg/os/error.go                    | 2 ++
  src/pkg/syscall/mkerrors.sh            | 2 +-
  src/pkg/syscall/zerrors_linux_386.go   | 2 ++
  src/pkg/syscall/zerrors_linux_amd64.go | 2 ++
  4 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index 4738d1a424..75a079c740 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -80,6 +80,8 @@ var (
+ 	ENAMETOOLONG Error = Errno(syscall.ENAMETOOLONG)
+ 	EAFNOSUPPORT Error = Errno(syscall.EAFNOSUPPORT)
+ 	ETIMEDOUT    Error = Errno(syscall.ETIMEDOUT)
++	ENODATA      Error = Errno(syscall.ENODATA)
++	ENOTCONN     Error = Errno(syscall.ENOTCONN)
+ )
+ 
+ // PathError records an error and the operation and file path that caused it.
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index a13c0e91ba..d40d1f6b3d 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -116,7 +116,7 @@ done
+ 		$2 ~ /^E[A-Z0-9_]+$/ ||
+ 		$2 ~ /^SIG[^_]/ ||
+ 		$2 ~ /^IN_/ ||
+-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|IFF|NET_RT|RTM|RTF|RTV|RTA|RTAX)_/ ||
++		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|IFF|NET_RT|RTM|RTF|RTV|RTA|RTAX|MCL)_/ ||
+ 		$2 == "SOMAXCONN" ||
+ 		$2 == "NAME_MAX" ||
+ 		$2 == "IFNAMSIZ" ||
+diff --git a/src/pkg/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+index 43d27827cb..a73a949617 100644
+--- a/src/pkg/syscall/zerrors_linux_386.go
++++ b/src/pkg/syscall/zerrors_linux_386.go
+@@ -424,6 +424,8 @@ const (
+ 	MAP_SHARED                       = 0x1
+ 	MAP_STACK                        = 0x20000
+ 	MAP_TYPE                         = 0xf
++	MCL_CURRENT                      = 0x1
++	MCL_FUTURE                       = 0x2
+ 	MSG_CMSG_CLOEXEC                 = 0x40000000
+ 	MSG_CONFIRM                      = 0x800
+ 	MSG_CTRUNC                       = 0x8
+diff --git a/src/pkg/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+index 04f4dad2cd..eea55a2753 100644
+--- a/src/pkg/syscall/zerrors_linux_amd64.go
++++ b/src/pkg/syscall/zerrors_linux_amd64.go
+@@ -424,6 +424,8 @@ const (
+ 	MAP_SHARED                       = 0x1
+ 	MAP_STACK                        = 0x20000
+ 	MAP_TYPE                         = 0xf
++	MCL_CURRENT                      = 0x1
++	MCL_FUTURE                       = 0x2
+ 	MSG_CMSG_CLOEXEC                 = 0x40000000
+ 	MSG_CONFIRM                      = 0x800
+ 	MSG_CTRUNC                       = 0x8

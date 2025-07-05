@@ -14,7 +14,7 @@ Date:   Fri Mar 2 16:44:27 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/whitelist/386.txt           |   1 -
  src/cmd/vet/all/whitelist/all.txt           |   4 +-
  src/cmd/vet/all/whitelist/amd64.txt         |   1 -
@@ -42,3 +42,2550 @@ Date:   Fri Mar 2 16:44:27 2018 -0800
  src/runtime/asm_ppc64x.s                    | 121 ------------------
  src/runtime/asm_s390x.s                     |  98 --------------
  26 files changed, 1241 insertions(+), 1036 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/386.txt b/src/cmd/vet/all/whitelist/386.txt
+index 505856f368..4caa8aade4 100644
+--- a/src/cmd/vet/all/whitelist/386.txt
++++ b/src/cmd/vet/all/whitelist/386.txt
+@@ -15,7 +15,6 @@ runtime/asm_386.s: [386] morestack: use of 4(SP) points beyond argument frame
+ runtime/asm_386.s: [386] ldt0setup: function ldt0setup missing Go declaration
+ runtime/asm_386.s: [386] emptyfunc: function emptyfunc missing Go declaration
+ runtime/asm_386.s: [386] aeshashbody: function aeshashbody missing Go declaration
+-runtime/asm_386.s: [386] memeqbody: function memeqbody missing Go declaration
+ runtime/asm_386.s: [386] cmpbody: function cmpbody missing Go declaration
+ runtime/asm_386.s: [386] addmoduledata: function addmoduledata missing Go declaration
+ runtime/duff_386.s: [386] duffzero: function duffzero missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index 4af8d0a699..4914e7bd6b 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -11,7 +11,9 @@ go/types/scope.go: method WriteTo(w io.Writer, n int, recurse bool) should have
+ 
+ // Nothing much to do about cross-package assembly. Unfortunate.
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: call is in package reflect
+-runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Equal is in package bytes
++internal/bytealg/equal_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Equal is in package bytes
++internal/bytealg/equal_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: memequal is in package runtime
++internal/bytealg/equal_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: memequal_varlen is in package runtime
+ internal/bytealg/indexbyte_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package bytes
+ internal/bytealg/indexbyte_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package strings
+ 
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+index 80f168fbee..4f0e61ad47 100644
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -22,7 +22,6 @@ runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: count
+ // Others use the platform ABI.
+ // There is no sensible corresponding Go prototype.
+ runtime/asm_amd64.s: [amd64] aeshashbody: function aeshashbody missing Go declaration
+-runtime/asm_amd64.s: [amd64] memeqbody: function memeqbody missing Go declaration
+ runtime/asm_amd64.s: [amd64] cmpbody: function cmpbody missing Go declaration
+ runtime/asm_amd64.s: [amd64] addmoduledata: function addmoduledata missing Go declaration
+ runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+index 0fea40f4a1..9900af9b6b 100644
+--- a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
++++ b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+@@ -20,7 +20,6 @@ runtime/sys_nacl_amd64p32.s: [amd64p32] settls: function settls missing Go decla
+ runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argc
+ runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argv
+ 
+-runtime/asm_amd64p32.s: [amd64p32] memeqbody: function memeqbody missing Go declaration
+ runtime/asm_amd64p32.s: [amd64p32] cannot check cross-package assembly function: Compare is in package bytes
+ runtime/asm_amd64p32.s: [amd64p32] cmpbody: function cmpbody missing Go declaration
+ runtime/asm_amd64p32.s: [amd64p32] asmcgocall: RET without writing to 4-byte ret+8(FP)
+diff --git a/src/cmd/vet/all/whitelist/ppc64x.txt b/src/cmd/vet/all/whitelist/ppc64x.txt
+index 4f6444e102..379a2c06ac 100644
+--- a/src/cmd/vet/all/whitelist/ppc64x.txt
++++ b/src/cmd/vet/all/whitelist/ppc64x.txt
+@@ -4,7 +4,6 @@ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: C
+ 
+ runtime/asm_ppc64x.s: [GOARCH] reginit: function reginit missing Go declaration
+ runtime/asm_ppc64x.s: [GOARCH] abort: function abort missing Go declaration
+-runtime/asm_ppc64x.s: [GOARCH] memeqbody: function memeqbody missing Go declaration
+ runtime/asm_ppc64x.s: [GOARCH] goexit: use of 24(R1) points beyond argument frame
+ runtime/asm_ppc64x.s: [GOARCH] addmoduledata: function addmoduledata missing Go declaration
+ runtime/duff_ppc64x.s: [GOARCH] duffzero: function duffzero missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/s390x.txt b/src/cmd/vet/all/whitelist/s390x.txt
+index 8a2f310003..bd577d0de1 100644
+--- a/src/cmd/vet/all/whitelist/s390x.txt
++++ b/src/cmd/vet/all/whitelist/s390x.txt
+@@ -1,6 +1,4 @@
+ runtime/asm_s390x.s: [s390x] abort: function abort missing Go declaration
+-runtime/asm_s390x.s: [s390x] memeqbody: function memeqbody missing Go declaration
+-runtime/asm_s390x.s: [s390x] memeqbodyclc: function memeqbodyclc missing Go declaration
+ runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: Compare is in package bytes
+ runtime/asm_s390x.s: [s390x] cmpbody: function cmpbody missing Go declaration
+ runtime/asm_s390x.s: [s390x] cmpbodyclc: function cmpbodyclc missing Go declaration
+diff --git a/src/internal/bytealg/equal_386.s b/src/internal/bytealg/equal_386.s
+new file mode 100644
+index 0000000000..e6e103e667
+--- /dev/null
++++ b/src/internal/bytealg/equal_386.s
+@@ -0,0 +1,165 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Equal(SB),NOSPLIT,$0-25
++	MOVL	a_len+4(FP), BX
++	MOVL	b_len+16(FP), CX
++	CMPL	BX, CX
++	JNE	neq
++	MOVL	a_base+0(FP), SI
++	MOVL	b_base+12(FP), DI
++	CMPL	SI, DI
++	JEQ	eq
++	LEAL	ret+24(FP), AX
++	JMP	memeqbody<>(SB)
++neq:
++	MOVB	$0, ret+24(FP)
++	RET
++eq:
++	MOVB	$1, ret+24(FP)
++	RET
++
++TEXT bytes·Equal(SB),NOSPLIT,$0-25
++	MOVL	a_len+4(FP), BX
++	MOVL	b_len+16(FP), CX
++	CMPL	BX, CX
++	JNE	neq
++	MOVL	a_base+0(FP), SI
++	MOVL	b_base+12(FP), DI
++	CMPL	SI, DI
++	JEQ	eq
++	LEAL	ret+24(FP), AX
++	JMP	memeqbody<>(SB)
++neq:
++	MOVB	$0, ret+24(FP)
++	RET
++eq:
++	MOVB	$1, ret+24(FP)
++	RET
++
++// memequal(a, b unsafe.Pointer, size uintptr) bool
++TEXT runtime·memequal(SB),NOSPLIT,$0-13
++	MOVL	a+0(FP), SI
++	MOVL	b+4(FP), DI
++	CMPL	SI, DI
++	JEQ	eq
++	MOVL	size+8(FP), BX
++	LEAL	ret+12(FP), AX
++	JMP	memeqbody<>(SB)
++eq:
++	MOVB    $1, ret+12(FP)
++	RET
++
++// memequal_varlen(a, b unsafe.Pointer) bool
++TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-9
++	MOVL    a+0(FP), SI
++	MOVL    b+4(FP), DI
++	CMPL    SI, DI
++	JEQ     eq
++	MOVL    4(DX), BX    // compiler stores size at offset 4 in the closure
++	LEAL	ret+8(FP), AX
++	JMP	memeqbody<>(SB)
++eq:
++	MOVB    $1, ret+8(FP)
++	RET
++
++// a in SI
++// b in DI
++// count in BX
++// address of result byte in AX
++TEXT memeqbody<>(SB),NOSPLIT,$0-0
++	CMPL	BX, $4
++	JB	small
++
++	// 64 bytes at a time using xmm registers
++hugeloop:
++	CMPL	BX, $64
++	JB	bigloop
++	CMPB	internal∕cpu·X86+const_x86_HasSSE2(SB), $1
++	JNE	bigloop
++	MOVOU	(SI), X0
++	MOVOU	(DI), X1
++	MOVOU	16(SI), X2
++	MOVOU	16(DI), X3
++	MOVOU	32(SI), X4
++	MOVOU	32(DI), X5
++	MOVOU	48(SI), X6
++	MOVOU	48(DI), X7
++	PCMPEQB	X1, X0
++	PCMPEQB	X3, X2
++	PCMPEQB	X5, X4
++	PCMPEQB	X7, X6
++	PAND	X2, X0
++	PAND	X6, X4
++	PAND	X4, X0
++	PMOVMSKB X0, DX
++	ADDL	$64, SI
++	ADDL	$64, DI
++	SUBL	$64, BX
++	CMPL	DX, $0xffff
++	JEQ	hugeloop
++	MOVB	$0, (AX)
++	RET
++
++	// 4 bytes at a time using 32-bit register
++bigloop:
++	CMPL	BX, $4
++	JBE	leftover
++	MOVL	(SI), CX
++	MOVL	(DI), DX
++	ADDL	$4, SI
++	ADDL	$4, DI
++	SUBL	$4, BX
++	CMPL	CX, DX
++	JEQ	bigloop
++	MOVB	$0, (AX)
++	RET
++
++	// remaining 0-4 bytes
++leftover:
++	MOVL	-4(SI)(BX*1), CX
++	MOVL	-4(DI)(BX*1), DX
++	CMPL	CX, DX
++	SETEQ	(AX)
++	RET
++
++small:
++	CMPL	BX, $0
++	JEQ	equal
++
++	LEAL	0(BX*8), CX
++	NEGL	CX
++
++	MOVL	SI, DX
++	CMPB	DX, $0xfc
++	JA	si_high
++
++	// load at SI won't cross a page boundary.
++	MOVL	(SI), SI
++	JMP	si_finish
++si_high:
++	// address ends in 111111xx. Load up to bytes we want, move to correct position.
++	MOVL	-4(SI)(BX*1), SI
++	SHRL	CX, SI
++si_finish:
++
++	// same for DI.
++	MOVL	DI, DX
++	CMPB	DX, $0xfc
++	JA	di_high
++	MOVL	(DI), DI
++	JMP	di_finish
++di_high:
++	MOVL	-4(DI)(BX*1), DI
++	SHRL	CX, DI
++di_finish:
++
++	SUBL	SI, DI
++	SHLL	CX, DI
++equal:
++	SETEQ	(AX)
++	RET
+diff --git a/src/internal/bytealg/equal_amd64.s b/src/internal/bytealg/equal_amd64.s
+new file mode 100644
+index 0000000000..73aaacf064
+--- /dev/null
++++ b/src/internal/bytealg/equal_amd64.s
+@@ -0,0 +1,190 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Equal(SB),NOSPLIT,$0-49
++	MOVQ	a_len+8(FP), BX
++	MOVQ	b_len+32(FP), CX
++	CMPQ	BX, CX
++	JNE	neq
++	MOVQ	a_base+0(FP), SI
++	MOVQ	b_base+24(FP), DI
++	CMPQ	SI, DI
++	JEQ	eq
++	LEAQ	ret+48(FP), AX
++	JMP	memeqbody<>(SB)
++neq:
++	MOVB	$0, ret+48(FP)
++	RET
++eq:
++	MOVB	$1, ret+48(FP)
++	RET
++
++TEXT bytes·Equal(SB),NOSPLIT,$0-49
++	MOVQ	a_len+8(FP), BX
++	MOVQ	b_len+32(FP), CX
++	CMPQ	BX, CX
++	JNE	neq
++	MOVQ	a_base+0(FP), SI
++	MOVQ	b_base+24(FP), DI
++	CMPQ	SI, DI
++	JEQ	eq
++	LEAQ	ret+48(FP), AX
++	JMP	memeqbody<>(SB)
++neq:
++	MOVB	$0, ret+48(FP)
++	RET
++eq:
++	MOVB	$1, ret+48(FP)
++	RET
++
++// memequal(a, b unsafe.Pointer, size uintptr) bool
++TEXT runtime·memequal(SB),NOSPLIT,$0-25
++	MOVQ	a+0(FP), SI
++	MOVQ	b+8(FP), DI
++	CMPQ	SI, DI
++	JEQ	eq
++	MOVQ	size+16(FP), BX
++	LEAQ	ret+24(FP), AX
++	JMP	memeqbody<>(SB)
++eq:
++	MOVB	$1, ret+24(FP)
++	RET
++
++// memequal_varlen(a, b unsafe.Pointer) bool
++TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-17
++	MOVQ	a+0(FP), SI
++	MOVQ	b+8(FP), DI
++	CMPQ	SI, DI
++	JEQ	eq
++	MOVQ	8(DX), BX    // compiler stores size at offset 8 in the closure
++	LEAQ	ret+16(FP), AX
++	JMP	memeqbody<>(SB)
++eq:
++	MOVB	$1, ret+16(FP)
++	RET
++
++// a in SI
++// b in DI
++// count in BX
++// address of result byte in AX
++TEXT memeqbody<>(SB),NOSPLIT,$0-0
++	CMPQ	BX, $8
++	JB	small
++	CMPQ	BX, $64
++	JB	bigloop
++	CMPB	internal∕cpu·X86+const_x86_HasAVX2(SB), $1
++	JE	hugeloop_avx2
++	
++	// 64 bytes at a time using xmm registers
++hugeloop:
++	CMPQ	BX, $64
++	JB	bigloop
++	MOVOU	(SI), X0
++	MOVOU	(DI), X1
++	MOVOU	16(SI), X2
++	MOVOU	16(DI), X3
++	MOVOU	32(SI), X4
++	MOVOU	32(DI), X5
++	MOVOU	48(SI), X6
++	MOVOU	48(DI), X7
++	PCMPEQB	X1, X0
++	PCMPEQB	X3, X2
++	PCMPEQB	X5, X4
++	PCMPEQB	X7, X6
++	PAND	X2, X0
++	PAND	X6, X4
++	PAND	X4, X0
++	PMOVMSKB X0, DX
++	ADDQ	$64, SI
++	ADDQ	$64, DI
++	SUBQ	$64, BX
++	CMPL	DX, $0xffff
++	JEQ	hugeloop
++	MOVB	$0, (AX)
++	RET
++
++	// 64 bytes at a time using ymm registers
++hugeloop_avx2:
++	CMPQ	BX, $64
++	JB	bigloop_avx2
++	VMOVDQU	(SI), Y0
++	VMOVDQU	(DI), Y1
++	VMOVDQU	32(SI), Y2
++	VMOVDQU	32(DI), Y3
++	VPCMPEQB	Y1, Y0, Y4
++	VPCMPEQB	Y2, Y3, Y5
++	VPAND	Y4, Y5, Y6
++	VPMOVMSKB Y6, DX
++	ADDQ	$64, SI
++	ADDQ	$64, DI
++	SUBQ	$64, BX
++	CMPL	DX, $0xffffffff
++	JEQ	hugeloop_avx2
++	VZEROUPPER
++	MOVB	$0, (AX)
++	RET
++
++bigloop_avx2:
++	VZEROUPPER
++
++	// 8 bytes at a time using 64-bit register
++bigloop:
++	CMPQ	BX, $8
++	JBE	leftover
++	MOVQ	(SI), CX
++	MOVQ	(DI), DX
++	ADDQ	$8, SI
++	ADDQ	$8, DI
++	SUBQ	$8, BX
++	CMPQ	CX, DX
++	JEQ	bigloop
++	MOVB	$0, (AX)
++	RET
++
++	// remaining 0-8 bytes
++leftover:
++	MOVQ	-8(SI)(BX*1), CX
++	MOVQ	-8(DI)(BX*1), DX
++	CMPQ	CX, DX
++	SETEQ	(AX)
++	RET
++
++small:
++	CMPQ	BX, $0
++	JEQ	equal
++
++	LEAQ	0(BX*8), CX
++	NEGQ	CX
++
++	CMPB	SI, $0xf8
++	JA	si_high
++
++	// load at SI won't cross a page boundary.
++	MOVQ	(SI), SI
++	JMP	si_finish
++si_high:
++	// address ends in 11111xxx. Load up to bytes we want, move to correct position.
++	MOVQ	-8(SI)(BX*1), SI
++	SHRQ	CX, SI
++si_finish:
++
++	// same for DI.
++	CMPB	DI, $0xf8
++	JA	di_high
++	MOVQ	(DI), DI
++	JMP	di_finish
++di_high:
++	MOVQ	-8(DI)(BX*1), DI
++	SHRQ	CX, DI
++di_finish:
++
++	SUBQ	SI, DI
++	SHLQ	CX, DI
++equal:
++	SETEQ	(AX)
++	RET
++
+diff --git a/src/internal/bytealg/equal_amd64p32.s b/src/internal/bytealg/equal_amd64p32.s
+new file mode 100644
+index 0000000000..d64ccbb0d1
+--- /dev/null
++++ b/src/internal/bytealg/equal_amd64p32.s
+@@ -0,0 +1,170 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Equal(SB),NOSPLIT,$0-25
++	MOVL	a_len+4(FP), BX
++	MOVL	b_len+16(FP), CX
++	CMPL	BX, CX
++	JNE	neq
++	MOVL	a_base+0(FP), SI
++	MOVL	b_base+12(FP), DI
++	CMPL	SI, DI
++	JEQ	eq
++	CALL	memeqbody<>(SB)
++	MOVB	AX, ret+24(FP)
++	RET
++neq:
++	MOVB	$0, ret+24(FP)
++	RET
++eq:
++	MOVB    $1, ret+24(FP)
++	RET
++
++TEXT bytes·Equal(SB),NOSPLIT,$0-25
++	MOVL	a_len+4(FP), BX
++	MOVL	b_len+16(FP), CX
++	CMPL	BX, CX
++	JNE	neq
++	MOVL	a_base+0(FP), SI
++	MOVL	b_base+12(FP), DI
++	CMPL	SI, DI
++	JEQ	eq
++	CALL	memeqbody<>(SB)
++	MOVB	AX, ret+24(FP)
++	RET
++neq:
++	MOVB	$0, ret+24(FP)
++	RET
++eq:
++	MOVB    $1, ret+24(FP)
++	RET
++
++// memequal(a, b unsafe.Pointer, size uintptr) bool
++TEXT runtime·memequal(SB),NOSPLIT,$0-17
++	MOVL	a+0(FP), SI
++	MOVL	b+4(FP), DI
++	CMPL	SI, DI
++	JEQ	eq
++	MOVL	size+8(FP), BX
++	CALL	memeqbody<>(SB)
++	MOVB	AX, ret+16(FP)
++	RET
++eq:
++	MOVB    $1, ret+16(FP)
++	RET
++
++// memequal_varlen(a, b unsafe.Pointer) bool
++TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-9
++	MOVL    a+0(FP), SI
++	MOVL    b+4(FP), DI
++	CMPL    SI, DI
++	JEQ     eq
++	MOVL    4(DX), BX    // compiler stores size at offset 4 in the closure
++	CALL    memeqbody<>(SB)
++	MOVB    AX, ret+8(FP)
++	RET
++eq:
++	MOVB    $1, ret+8(FP)
++	RET
++
++// a in SI
++// b in DI
++// count in BX
++TEXT memeqbody<>(SB),NOSPLIT,$0-0
++	XORQ	AX, AX
++
++	CMPQ	BX, $8
++	JB	small
++	
++	// 64 bytes at a time using xmm registers
++hugeloop:
++	CMPQ	BX, $64
++	JB	bigloop
++	MOVOU	(SI), X0
++	MOVOU	(DI), X1
++	MOVOU	16(SI), X2
++	MOVOU	16(DI), X3
++	MOVOU	32(SI), X4
++	MOVOU	32(DI), X5
++	MOVOU	48(SI), X6
++	MOVOU	48(DI), X7
++	PCMPEQB	X1, X0
++	PCMPEQB	X3, X2
++	PCMPEQB	X5, X4
++	PCMPEQB	X7, X6
++	PAND	X2, X0
++	PAND	X6, X4
++	PAND	X4, X0
++	PMOVMSKB X0, DX
++	ADDQ	$64, SI
++	ADDQ	$64, DI
++	SUBQ	$64, BX
++	CMPL	DX, $0xffff
++	JEQ	hugeloop
++	RET
++
++	// 8 bytes at a time using 64-bit register
++bigloop:
++	CMPQ	BX, $8
++	JBE	leftover
++	MOVQ	(SI), CX
++	MOVQ	(DI), DX
++	ADDQ	$8, SI
++	ADDQ	$8, DI
++	SUBQ	$8, BX
++	CMPQ	CX, DX
++	JEQ	bigloop
++	RET
++
++	// remaining 0-8 bytes
++leftover:
++	ADDQ	BX, SI
++	ADDQ	BX, DI
++	MOVQ	-8(SI), CX
++	MOVQ	-8(DI), DX
++	CMPQ	CX, DX
++	SETEQ	AX
++	RET
++
++small:
++	CMPQ	BX, $0
++	JEQ	equal
++
++	LEAQ	0(BX*8), CX
++	NEGQ	CX
++
++	CMPB	SI, $0xf8
++	JA	si_high
++
++	// load at SI won't cross a page boundary.
++	MOVQ	(SI), SI
++	JMP	si_finish
++si_high:
++	// address ends in 11111xxx. Load up to bytes we want, move to correct position.
++	MOVQ	BX, DX
++	ADDQ	SI, DX
++	MOVQ	-8(DX), SI
++	SHRQ	CX, SI
++si_finish:
++
++	// same for DI.
++	CMPB	DI, $0xf8
++	JA	di_high
++	MOVQ	(DI), DI
++	JMP	di_finish
++di_high:
++	MOVQ	BX, DX
++	ADDQ	DI, DX
++	MOVQ	-8(DX), DI
++	SHRQ	CX, DI
++di_finish:
++
++	SUBQ	SI, DI
++	SHLQ	CX, DI
++equal:
++	SETEQ	AX
++	RET
+diff --git a/src/internal/bytealg/equal_arm.s b/src/internal/bytealg/equal_arm.s
+new file mode 100644
+index 0000000000..5a1bd3169e
+--- /dev/null
++++ b/src/internal/bytealg/equal_arm.s
+@@ -0,0 +1,80 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++// TODO: share code with memequal?
++TEXT ·Equal(SB),NOSPLIT,$0-25
++	MOVW	a_len+4(FP), R1
++	MOVW	b_len+16(FP), R3
++	
++	CMP	R1, R3		// unequal lengths are not equal
++	B.NE	notequal
++
++	MOVW	a_base+0(FP), R0
++	MOVW	b_base+12(FP), R2
++	ADD	R0, R1		// end
++
++loop:
++	CMP	R0, R1
++	B.EQ	equal		// reached the end
++	MOVBU.P	1(R0), R4
++	MOVBU.P	1(R2), R5
++	CMP	R4, R5
++	B.EQ	loop
++
++notequal:
++	MOVW	$0, R0
++	MOVBU	R0, ret+24(FP)
++	RET
++
++equal:
++	MOVW	$1, R0
++	MOVBU	R0, ret+24(FP)
++	RET
++
++TEXT bytes·Equal(SB),NOSPLIT,$0-25
++	JMP	·Equal(SB)
++
++// memequal(a, b unsafe.Pointer, size uintptr) bool
++TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-13
++	MOVW	a+0(FP), R1
++	MOVW	b+4(FP), R2
++	MOVW	size+8(FP), R3
++	ADD	R1, R3, R6
++	MOVW	$1, R0
++	MOVB	R0, ret+12(FP)
++	CMP	R1, R2
++	RET.EQ
++loop:
++	CMP	R1, R6
++	RET.EQ
++	MOVBU.P	1(R1), R4
++	MOVBU.P	1(R2), R5
++	CMP	R4, R5
++	BEQ	loop
++
++	MOVW	$0, R0
++	MOVB	R0, ret+12(FP)
++	RET
++
++// memequal_varlen(a, b unsafe.Pointer) bool
++TEXT runtime·memequal_varlen(SB),NOSPLIT,$16-9
++	MOVW	a+0(FP), R0
++	MOVW	b+4(FP), R1
++	CMP	R0, R1
++	BEQ	eq
++	MOVW	4(R7), R2    // compiler stores size at offset 4 in the closure
++	MOVW	R0, 4(R13)
++	MOVW	R1, 8(R13)
++	MOVW	R2, 12(R13)
++	BL	runtime·memequal(SB)
++	MOVB	16(R13), R0
++	MOVB	R0, ret+8(FP)
++	RET
++eq:
++	MOVW	$1, R0
++	MOVB	R0, ret+8(FP)
++	RET
+diff --git a/src/internal/bytealg/equal_arm64.s b/src/internal/bytealg/equal_arm64.s
+new file mode 100644
+index 0000000000..c2ebc8d474
+--- /dev/null
++++ b/src/internal/bytealg/equal_arm64.s
+@@ -0,0 +1,164 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Equal(SB),NOSPLIT,$0-49
++	MOVD	a_len+8(FP), R1
++	MOVD	b_len+32(FP), R3
++	CMP	R1, R3
++	// unequal lengths are not equal
++	BNE	not_equal
++	// short path to handle 0-byte case
++	CBZ	R1, equal
++	MOVD	a_base+0(FP), R0
++	MOVD	b_base+24(FP), R2
++	MOVD	$ret+48(FP), R8
++	B	memeqbody<>(SB)
++equal:
++	MOVD	$1, R0
++	MOVB	R0, ret+48(FP)
++	RET
++not_equal:
++	MOVB	ZR, ret+48(FP)
++	RET
++
++TEXT bytes·Equal(SB),NOSPLIT,$0-49
++	MOVD	a_len+8(FP), R1
++	MOVD	b_len+32(FP), R3
++	CMP	R1, R3
++	// unequal lengths are not equal
++	BNE	not_equal
++	// short path to handle 0-byte case
++	CBZ	R1, equal
++	MOVD	a_base+0(FP), R0
++	MOVD	b_base+24(FP), R2
++	MOVD	$ret+48(FP), R8
++	B	memeqbody<>(SB)
++equal:
++	MOVD	$1, R0
++	MOVB	R0, ret+48(FP)
++	RET
++not_equal:
++	MOVB	ZR, ret+48(FP)
++	RET
++
++// memequal(a, b unsafe.Pointer, size uintptr) bool
++TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
++	MOVD	size+16(FP), R1
++	// short path to handle 0-byte case
++	CBZ	R1, equal
++	MOVD	a+0(FP), R0
++	MOVD	b+8(FP), R2
++	MOVD	$ret+24(FP), R8
++	B	memeqbody<>(SB)
++equal:
++	MOVD	$1, R0
++	MOVB	R0, ret+24(FP)
++	RET
++
++// memequal_varlen(a, b unsafe.Pointer) bool
++TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
++	MOVD	a+0(FP), R3
++	MOVD	b+8(FP), R4
++	CMP	R3, R4
++	BEQ	eq
++	MOVD	8(R26), R5    // compiler stores size at offset 8 in the closure
++	MOVD	R3, 8(RSP)
++	MOVD	R4, 16(RSP)
++	MOVD	R5, 24(RSP)
++	BL	runtime·memequal(SB)
++	MOVBU	32(RSP), R3
++	MOVB	R3, ret+16(FP)
++	RET
++eq:
++	MOVD	$1, R3
++	MOVB	R3, ret+16(FP)
++	RET
++
++// input:
++// R0: pointer a
++// R1: data len
++// R2: pointer b
++// R8: address to put result
++TEXT memeqbody<>(SB),NOSPLIT,$0
++	CMP	$1, R1
++	// handle 1-byte special case for better performance
++	BEQ	one
++	CMP	$16, R1
++	// handle specially if length < 16
++	BLO	tail
++	BIC	$0x3f, R1, R3
++	CBZ	R3, chunk16
++	// work with 64-byte chunks
++	ADD	R3, R0, R6	// end of chunks
++chunk64_loop:
++	VLD1.P	(R0), [V0.D2, V1.D2, V2.D2, V3.D2]
++	VLD1.P	(R2), [V4.D2, V5.D2, V6.D2, V7.D2]
++	VCMEQ	V0.D2, V4.D2, V8.D2
++	VCMEQ	V1.D2, V5.D2, V9.D2
++	VCMEQ	V2.D2, V6.D2, V10.D2
++	VCMEQ	V3.D2, V7.D2, V11.D2
++	VAND	V8.B16, V9.B16, V8.B16
++	VAND	V8.B16, V10.B16, V8.B16
++	VAND	V8.B16, V11.B16, V8.B16
++	CMP	R0, R6
++	VMOV	V8.D[0], R4
++	VMOV	V8.D[1], R5
++	CBZ	R4, not_equal
++	CBZ	R5, not_equal
++	BNE	chunk64_loop
++	AND	$0x3f, R1, R1
++	CBZ	R1, equal
++chunk16:
++	// work with 16-byte chunks
++	BIC	$0xf, R1, R3
++	CBZ	R3, tail
++	ADD	R3, R0, R6	// end of chunks
++chunk16_loop:
++	VLD1.P	(R0), [V0.D2]
++	VLD1.P	(R2), [V1.D2]
++	VCMEQ	V0.D2, V1.D2, V2.D2
++	CMP	R0, R6
++	VMOV	V2.D[0], R4
++	VMOV	V2.D[1], R5
++	CBZ	R4, not_equal
++	CBZ	R5, not_equal
++	BNE	chunk16_loop
++	AND	$0xf, R1, R1
++	CBZ	R1, equal
++tail:
++	// special compare of tail with length < 16
++	TBZ	$3, R1, lt_8
++	MOVD.P	8(R0), R4
++	MOVD.P	8(R2), R5
++	CMP	R4, R5
++	BNE	not_equal
++lt_8:
++	TBZ	$2, R1, lt_4
++	MOVWU.P	4(R0), R4
++	MOVWU.P	4(R2), R5
++	CMP	R4, R5
++	BNE	not_equal
++lt_4:
++	TBZ	$1, R1, lt_2
++	MOVHU.P	2(R0), R4
++	MOVHU.P	2(R2), R5
++	CMP	R4, R5
++	BNE	not_equal
++lt_2:
++	TBZ     $0, R1, equal
++one:
++	MOVBU	(R0), R4
++	MOVBU	(R2), R5
++	CMP	R4, R5
++	BNE	not_equal
++equal:
++	MOVD	$1, R0
++	MOVB	R0, (R8)
++	RET
++not_equal:
++	MOVB	ZR, (R8)
++	RET
+diff --git a/src/internal/bytealg/equal_mips64x.s b/src/internal/bytealg/equal_mips64x.s
+new file mode 100644
+index 0000000000..cf63f3fbba
+--- /dev/null
++++ b/src/internal/bytealg/equal_mips64x.s
+@@ -0,0 +1,83 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips64 mips64le
++
++#include "go_asm.h"
++#include "textflag.h"
++
++#define	REGCTXT	R22
++
++TEXT ·Equal(SB),NOSPLIT,$0-49
++	MOVV	a_len+8(FP), R3
++	MOVV	b_len+32(FP), R4
++	BNE	R3, R4, noteq		// unequal lengths are not equal
++
++	MOVV	a_base+0(FP), R1
++	MOVV	b_base+24(FP), R2
++	ADDV	R1, R3		// end
++
++loop:
++	BEQ	R1, R3, equal		// reached the end
++	MOVBU	(R1), R6
++	ADDV	$1, R1
++	MOVBU	(R2), R7
++	ADDV	$1, R2
++	BEQ	R6, R7, loop
++
++noteq:
++	MOVB	R0, ret+48(FP)
++	RET
++
++equal:
++	MOVV	$1, R1
++	MOVB	R1, ret+48(FP)
++	RET
++
++TEXT bytes·Equal(SB),NOSPLIT,$0-49
++	JMP	·Equal(SB)
++
++// memequal(a, b unsafe.Pointer, size uintptr) bool
++TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
++	MOVV	a+0(FP), R1
++	MOVV	b+8(FP), R2
++	BEQ	R1, R2, eq
++	MOVV	size+16(FP), R3
++	ADDV	R1, R3, R4
++loop:
++	BNE	R1, R4, test
++	MOVV	$1, R1
++	MOVB	R1, ret+24(FP)
++	RET
++test:
++	MOVBU	(R1), R6
++	ADDV	$1, R1
++	MOVBU	(R2), R7
++	ADDV	$1, R2
++	BEQ	R6, R7, loop
++
++	MOVB	R0, ret+24(FP)
++	RET
++eq:
++	MOVV	$1, R1
++	MOVB	R1, ret+24(FP)
++	RET
++
++// memequal_varlen(a, b unsafe.Pointer) bool
++TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
++	MOVV	a+0(FP), R1
++	MOVV	b+8(FP), R2
++	BEQ	R1, R2, eq
++	MOVV	8(REGCTXT), R3    // compiler stores size at offset 8 in the closure
++	MOVV	R1, 8(R29)
++	MOVV	R2, 16(R29)
++	MOVV	R3, 24(R29)
++	JAL	runtime·memequal(SB)
++	MOVBU	32(R29), R1
++	MOVB	R1, ret+16(FP)
++	RET
++eq:
++	MOVV	$1, R1
++	MOVB	R1, ret+16(FP)
++	RET
+diff --git a/src/internal/bytealg/equal_mipsx.s b/src/internal/bytealg/equal_mipsx.s
+new file mode 100644
+index 0000000000..86b038987d
+--- /dev/null
++++ b/src/internal/bytealg/equal_mipsx.s
+@@ -0,0 +1,91 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips mipsle
++
++#include "go_asm.h"
++#include "textflag.h"
++
++#define	REGCTXT	R22
++
++TEXT ·Equal(SB),NOSPLIT,$0-25
++	MOVW	a_len+4(FP), R3
++	MOVW	b_len+16(FP), R4
++	BNE	R3, R4, noteq	// unequal lengths are not equal
++
++	MOVW	a_base+0(FP), R1
++	MOVW	b_base+12(FP), R2
++	ADDU	R1, R3	// end
++
++loop:
++	BEQ	R1, R3, equal	// reached the end
++	MOVBU	(R1), R6
++	ADDU	$1, R1
++	MOVBU	(R2), R7
++	ADDU	$1, R2
++	BEQ	R6, R7, loop
++
++noteq:
++	MOVB	R0, ret+24(FP)
++	RET
++
++equal:
++	MOVW	$1, R1
++	MOVB	R1, ret+24(FP)
++	RET
++
++TEXT bytes·Equal(SB),NOSPLIT,$0-25
++	JMP	·Equal(SB)
++
++// memequal(a, b unsafe.Pointer, size uintptr) bool
++TEXT runtime·memequal(SB),NOSPLIT,$0-13
++	MOVW	a+0(FP), R1
++	MOVW	b+4(FP), R2
++	BEQ	R1, R2, eq
++	MOVW	size+8(FP), R3
++	ADDU	R1, R3, R4
++loop:
++	BNE	R1, R4, test
++	MOVW	$1, R1
++	MOVB	R1, ret+12(FP)
++	RET
++test:
++	MOVBU	(R1), R6
++	ADDU	$1, R1
++	MOVBU	(R2), R7
++	ADDU	$1, R2
++	BEQ	R6, R7, loop
++
++	MOVB	R0, ret+12(FP)
++	RET
++eq:
++	MOVW	$1, R1
++	MOVB	R1, ret+12(FP)
++	RET
++
++// memequal_varlen(a, b unsafe.Pointer) bool
++TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-9
++	MOVW	a+0(FP), R1
++	MOVW	b+4(FP), R2
++	BEQ	R1, R2, eq
++	MOVW	4(REGCTXT), R3	// compiler stores size at offset 4 in the closure
++	ADDU	R1, R3, R4
++loop:
++	BNE	R1, R4, test
++	MOVW	$1, R1
++	MOVB	R1, ret+8(FP)
++	RET
++test:
++	MOVBU	(R1), R6
++	ADDU	$1, R1
++	MOVBU	(R2), R7
++	ADDU	$1, R2
++	BEQ	R6, R7, loop
++
++	MOVB	R0, ret+8(FP)
++	RET
++eq:
++	MOVW	$1, R1
++	MOVB	R1, ret+8(FP)
++	RET
+diff --git a/src/internal/bytealg/equal_native.go b/src/internal/bytealg/equal_native.go
+new file mode 100644
+index 0000000000..3d4c057f10
+--- /dev/null
++++ b/src/internal/bytealg/equal_native.go
+@@ -0,0 +1,27 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bytealg
++
++import (
++	"internal/cpu"
++	"unsafe"
++)
++
++// Note: there's no equal_generic.go because every platform must implement at least memequal_varlen in assembly.
++
++// Because equal_native.go is unconditional, it's a good place to compute asm constants.
++// TODO: find a better way to do this?
++
++// Offsets into internal/cpu records for use in assembly.
++const x86_HasSSE2 = unsafe.Offsetof(cpu.X86.HasSSE2)
++const x86_HasAVX2 = unsafe.Offsetof(cpu.X86.HasAVX2)
++const s390x_HasVX = unsafe.Offsetof(cpu.S390X.HasVX)
++
++//go:noescape
++func Equal(a, b []byte) bool
++
++// The compiler generates calls to runtime.memequal and runtime.memequal_varlen.
++// In addition, the runtime calls runtime.memequal explicitly.
++// Those functions are implemented in this package.
+diff --git a/src/internal/bytealg/equal_ppc64x.s b/src/internal/bytealg/equal_ppc64x.s
+new file mode 100644
+index 0000000000..c04915f897
+--- /dev/null
++++ b/src/internal/bytealg/equal_ppc64x.s
+@@ -0,0 +1,152 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ppc64 ppc64le
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Equal(SB),NOSPLIT,$0-49
++	MOVD	a_len+8(FP), R4
++	MOVD	b_len+32(FP), R5
++	CMP	R5, R4		// unequal lengths are not equal
++	BNE	noteq
++	MOVD	a_base+0(FP), R3
++	MOVD	b_base+24(FP), R4
++	BL	memeqbody<>(SB)
++
++	MOVBZ	R9,ret+48(FP)
++	RET
++
++noteq:
++	MOVBZ	$0,ret+48(FP)
++	RET
++
++equal:
++	MOVD	$1,R3
++	MOVBZ	R3,ret+48(FP)
++	RET
++
++TEXT bytes·Equal(SB),NOSPLIT,$0-49
++	MOVD	a_len+8(FP), R4
++	MOVD	b_len+32(FP), R5
++	CMP	R5, R4		// unequal lengths are not equal
++	BNE	noteq
++	MOVD	a_base+0(FP), R3
++	MOVD	b_base+24(FP), R4
++	BL	memeqbody<>(SB)
++
++	MOVBZ	R9,ret+48(FP)
++	RET
++
++noteq:
++	MOVBZ	$0,ret+48(FP)
++	RET
++
++equal:
++	MOVD	$1,R3
++	MOVBZ	R3,ret+48(FP)
++	RET
++
++// memequal(a, b unsafe.Pointer, size uintptr) bool
++TEXT runtime·memequal(SB),NOSPLIT,$0-25
++	MOVD    a+0(FP), R3
++	MOVD    b+8(FP), R4
++	MOVD    size+16(FP), R5
++
++	BL	memeqbody<>(SB)
++	MOVB    R9, ret+24(FP)
++	RET
++
++// memequal_varlen(a, b unsafe.Pointer) bool
++TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
++	MOVD	a+0(FP), R3
++	MOVD	b+8(FP), R4
++	CMP	R3, R4
++	BEQ	eq
++	MOVD	8(R11), R5    // compiler stores size at offset 8 in the closure
++	BL	memeqbody<>(SB)
++	MOVB	R9, ret+16(FP)
++	RET
++eq:
++	MOVD	$1, R3
++	MOVB	R3, ret+16(FP)
++	RET
++
++// Do an efficient memequal for ppc64
++// R3 = s1
++// R4 = s2
++// R5 = len
++// R9 = return value
++TEXT memeqbody<>(SB),NOSPLIT|NOFRAME,$0-0
++	MOVD    R5,CTR
++	CMP     R5,$8		// only optimize >=8
++	BLT     simplecheck
++	DCBT	(R3)		// cache hint
++	DCBT	(R4)
++	CMP	R5,$32		// optimize >= 32
++	MOVD	R5,R6		// needed if setup8a branch
++	BLT	setup8a		// 8 byte moves only
++setup32a:                       // 8 byte aligned, >= 32 bytes
++	SRADCC  $5,R5,R6        // number of 32 byte chunks to compare
++	MOVD	R6,CTR
++loop32a:
++	MOVD    0(R3),R6        // doublewords to compare
++	MOVD    0(R4),R7
++	MOVD	8(R3),R8	//
++	MOVD	8(R4),R9
++	CMP     R6,R7           // bytes batch?
++	BNE     noteq
++	MOVD	16(R3),R6
++	MOVD	16(R4),R7
++	CMP     R8,R9		// bytes match?
++	MOVD	24(R3),R8
++	MOVD	24(R4),R9
++	BNE     noteq
++	CMP     R6,R7           // bytes match?
++	BNE	noteq
++	ADD     $32,R3		// bump up to next 32
++	ADD     $32,R4
++	CMP     R8,R9           // bytes match?
++	BC      8,2,loop32a	// br ctr and cr
++	BNE	noteq
++	ANDCC	$24,R5,R6       // Any 8 byte chunks?
++	BEQ	leftover	// and result is 0
++setup8a:
++	SRADCC  $3,R6,R6        // get the 8 byte count
++	BEQ	leftover	// shifted value is 0
++	MOVD    R6,CTR
++loop8:
++	MOVD    0(R3),R6        // doublewords to compare
++	ADD	$8,R3
++	MOVD    0(R4),R7
++	ADD     $8,R4
++	CMP     R6,R7           // match?
++	BC	8,2,loop8	// bt ctr <> 0 && cr
++	BNE     noteq
++leftover:
++	ANDCC   $7,R5,R6        // check for leftover bytes
++	BEQ     equal
++	MOVD    R6,CTR
++	BR	simple
++simplecheck:
++	CMP	R5,$0
++	BEQ	equal
++simple:
++	MOVBZ   0(R3), R6
++	ADD	$1,R3
++	MOVBZ   0(R4), R7
++	ADD     $1,R4
++	CMP     R6, R7
++	BNE     noteq
++	BC      8,2,simple
++	BNE	noteq
++	BR	equal
++noteq:
++	MOVD    $0, R9
++	RET
++equal:
++	MOVD    $1, R9
++	RET
++
+diff --git a/src/internal/bytealg/equal_s390x.s b/src/internal/bytealg/equal_s390x.s
+new file mode 100644
+index 0000000000..ed6464936a
+--- /dev/null
++++ b/src/internal/bytealg/equal_s390x.s
+@@ -0,0 +1,116 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Equal(SB),NOSPLIT|NOFRAME,$0-49
++	MOVD	a_len+8(FP), R2
++	MOVD	b_len+32(FP), R6
++	MOVD	a_base+0(FP), R3
++	MOVD	b_base+24(FP), R5
++	LA	ret+48(FP), R7
++	CMPBNE	R2, R6, notequal
++	BR	memeqbody<>(SB)
++notequal:
++	MOVB	$0, ret+48(FP)
++	RET
++
++TEXT bytes·Equal(SB),NOSPLIT|NOFRAME,$0-49
++	MOVD	a_len+8(FP), R2
++	MOVD	b_len+32(FP), R6
++	MOVD	a_base+0(FP), R3
++	MOVD	b_base+24(FP), R5
++	LA	ret+48(FP), R7
++	CMPBNE	R2, R6, notequal
++	BR	memeqbody<>(SB)
++notequal:
++	MOVB	$0, ret+48(FP)
++	RET
++
++// memequal(a, b unsafe.Pointer, size uintptr) bool
++TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
++	MOVD	a+0(FP), R3
++	MOVD	b+8(FP), R5
++	MOVD	size+16(FP), R6
++	LA	ret+24(FP), R7
++	BR	memeqbody<>(SB)
++
++// memequal_varlen(a, b unsafe.Pointer) bool
++TEXT runtime·memequal_varlen(SB),NOSPLIT|NOFRAME,$0-17
++	MOVD	a+0(FP), R3
++	MOVD	b+8(FP), R5
++	MOVD	8(R12), R6    // compiler stores size at offset 8 in the closure
++	LA	ret+16(FP), R7
++	BR	memeqbody<>(SB)
++
++// input:
++//   R3 = a
++//   R5 = b
++//   R6 = len
++//   R7 = address of output byte (stores 0 or 1 here)
++//   a and b have the same length
++TEXT memeqbody<>(SB),NOSPLIT|NOFRAME,$0-0
++	CMPBEQ	R3, R5, equal
++loop:
++	CMPBEQ	R6, $0, equal
++	CMPBLT	R6, $32, tiny
++	CMP	R6, $256
++	BLT	tail
++	CLC	$256, 0(R3), 0(R5)
++	BNE	notequal
++	SUB	$256, R6
++	LA	256(R3), R3
++	LA	256(R5), R5
++	BR	loop
++tail:
++	SUB	$1, R6, R8
++	EXRL	$memeqbodyclc<>(SB), R8
++	BEQ	equal
++notequal:
++	MOVB	$0, 0(R7)
++	RET
++equal:
++	MOVB	$1, 0(R7)
++	RET
++tiny:
++	MOVD	$0, R2
++	CMPBLT	R6, $16, lt16
++	MOVD	0(R3), R8
++	MOVD	0(R5), R9
++	CMPBNE	R8, R9, notequal
++	MOVD	8(R3), R8
++	MOVD	8(R5), R9
++	CMPBNE	R8, R9, notequal
++	LA	16(R2), R2
++	SUB	$16, R6
++lt16:
++	CMPBLT	R6, $8, lt8
++	MOVD	0(R3)(R2*1), R8
++	MOVD	0(R5)(R2*1), R9
++	CMPBNE	R8, R9, notequal
++	LA	8(R2), R2
++	SUB	$8, R6
++lt8:
++	CMPBLT	R6, $4, lt4
++	MOVWZ	0(R3)(R2*1), R8
++	MOVWZ	0(R5)(R2*1), R9
++	CMPBNE	R8, R9, notequal
++	LA	4(R2), R2
++	SUB	$4, R6
++lt4:
++#define CHECK(n) \
++	CMPBEQ	R6, $n, equal \
++	MOVB	n(R3)(R2*1), R8 \
++	MOVB	n(R5)(R2*1), R9 \
++	CMPBNE	R8, R9, notequal
++	CHECK(0)
++	CHECK(1)
++	CHECK(2)
++	CHECK(3)
++	BR	equal
++
++TEXT memeqbodyclc<>(SB),NOSPLIT|NOFRAME,$0-0
++	CLC	$1, 0(R3), 0(R5)
++	RET
+diff --git a/src/internal/bytealg/indexbyte_native.go b/src/internal/bytealg/indexbyte_native.go
+index 83b7239fcd..8e000da4b8 100644
+--- a/src/internal/bytealg/indexbyte_native.go
++++ b/src/internal/bytealg/indexbyte_native.go
+@@ -6,16 +6,6 @@
+ 
+ package bytealg
+ 
+-import (
+-	"internal/cpu"
+-	"unsafe"
+-)
+-
+-// Offsets into internal/cpu records for use in assembly
+-// TODO: find a better way to do this?
+-const x86_HasAVX2 = unsafe.Offsetof(cpu.X86.HasAVX2)
+-const s390x_HasVX = unsafe.Offsetof(cpu.S390X.HasVX)
+-
+ //go:noescape
+ func IndexByte(b []byte, c byte) int
+ 
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 5533681cab..d075759bcf 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1343,142 +1343,6 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	SETEQ	ret+0(FP)
+ 	RET
+ 
+-// memequal(p, q unsafe.Pointer, size uintptr) bool
+-TEXT runtime·memequal(SB),NOSPLIT,$0-13
+-	MOVL	a+0(FP), SI
+-	MOVL	b+4(FP), DI
+-	CMPL	SI, DI
+-	JEQ	eq
+-	MOVL	size+8(FP), BX
+-	LEAL	ret+12(FP), AX
+-	JMP	runtime·memeqbody(SB)
+-eq:
+-	MOVB    $1, ret+12(FP)
+-	RET
+-
+-// memequal_varlen(a, b unsafe.Pointer) bool
+-TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-9
+-	MOVL    a+0(FP), SI
+-	MOVL    b+4(FP), DI
+-	CMPL    SI, DI
+-	JEQ     eq
+-	MOVL    4(DX), BX    // compiler stores size at offset 4 in the closure
+-	LEAL	ret+8(FP), AX
+-	JMP	runtime·memeqbody(SB)
+-eq:
+-	MOVB    $1, ret+8(FP)
+-	RET
+-
+-TEXT bytes·Equal(SB),NOSPLIT,$0-25
+-	MOVL	a_len+4(FP), BX
+-	MOVL	b_len+16(FP), CX
+-	CMPL	BX, CX
+-	JNE	eqret
+-	MOVL	a+0(FP), SI
+-	MOVL	b+12(FP), DI
+-	LEAL	ret+24(FP), AX
+-	JMP	runtime·memeqbody(SB)
+-eqret:
+-	MOVB	$0, ret+24(FP)
+-	RET
+-
+-// a in SI
+-// b in DI
+-// count in BX
+-// address of result byte in AX
+-TEXT runtime·memeqbody(SB),NOSPLIT,$0-0
+-	CMPL	BX, $4
+-	JB	small
+-
+-	// 64 bytes at a time using xmm registers
+-hugeloop:
+-	CMPL	BX, $64
+-	JB	bigloop
+-	CMPB	runtime·support_sse2(SB), $1
+-	JNE	bigloop
+-	MOVOU	(SI), X0
+-	MOVOU	(DI), X1
+-	MOVOU	16(SI), X2
+-	MOVOU	16(DI), X3
+-	MOVOU	32(SI), X4
+-	MOVOU	32(DI), X5
+-	MOVOU	48(SI), X6
+-	MOVOU	48(DI), X7
+-	PCMPEQB	X1, X0
+-	PCMPEQB	X3, X2
+-	PCMPEQB	X5, X4
+-	PCMPEQB	X7, X6
+-	PAND	X2, X0
+-	PAND	X6, X4
+-	PAND	X4, X0
+-	PMOVMSKB X0, DX
+-	ADDL	$64, SI
+-	ADDL	$64, DI
+-	SUBL	$64, BX
+-	CMPL	DX, $0xffff
+-	JEQ	hugeloop
+-	MOVB	$0, (AX)
+-	RET
+-
+-	// 4 bytes at a time using 32-bit register
+-bigloop:
+-	CMPL	BX, $4
+-	JBE	leftover
+-	MOVL	(SI), CX
+-	MOVL	(DI), DX
+-	ADDL	$4, SI
+-	ADDL	$4, DI
+-	SUBL	$4, BX
+-	CMPL	CX, DX
+-	JEQ	bigloop
+-	MOVB	$0, (AX)
+-	RET
+-
+-	// remaining 0-4 bytes
+-leftover:
+-	MOVL	-4(SI)(BX*1), CX
+-	MOVL	-4(DI)(BX*1), DX
+-	CMPL	CX, DX
+-	SETEQ	(AX)
+-	RET
+-
+-small:
+-	CMPL	BX, $0
+-	JEQ	equal
+-
+-	LEAL	0(BX*8), CX
+-	NEGL	CX
+-
+-	MOVL	SI, DX
+-	CMPB	DX, $0xfc
+-	JA	si_high
+-
+-	// load at SI won't cross a page boundary.
+-	MOVL	(SI), SI
+-	JMP	si_finish
+-si_high:
+-	// address ends in 111111xx. Load up to bytes we want, move to correct position.
+-	MOVL	-4(SI)(BX*1), SI
+-	SHRL	CX, SI
+-si_finish:
+-
+-	// same for DI.
+-	MOVL	DI, DX
+-	CMPB	DX, $0xfc
+-	JA	di_high
+-	MOVL	(DI), DI
+-	JMP	di_finish
+-di_high:
+-	MOVL	-4(DI)(BX*1), DI
+-	SHRL	CX, DI
+-di_finish:
+-
+-	SUBL	SI, DI
+-	SHLL	CX, DI
+-equal:
+-	SETEQ	(AX)
+-	RET
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+ 	MOVL	s1_base+0(FP), SI
+ 	MOVL	s1_len+4(FP), BX
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 07e3b0b6e9..5835443ff6 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1358,153 +1358,6 @@ DATA shifts<>+0xf0(SB)/8, $0x0807060504030201
+ DATA shifts<>+0xf8(SB)/8, $0xff0f0e0d0c0b0a09
+ GLOBL shifts<>(SB),RODATA,$256
+ 
+-// memequal(p, q unsafe.Pointer, size uintptr) bool
+-TEXT runtime·memequal(SB),NOSPLIT,$0-25
+-	MOVQ	a+0(FP), SI
+-	MOVQ	b+8(FP), DI
+-	CMPQ	SI, DI
+-	JEQ	eq
+-	MOVQ	size+16(FP), BX
+-	LEAQ	ret+24(FP), AX
+-	JMP	runtime·memeqbody(SB)
+-eq:
+-	MOVB	$1, ret+24(FP)
+-	RET
+-
+-// memequal_varlen(a, b unsafe.Pointer) bool
+-TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-17
+-	MOVQ	a+0(FP), SI
+-	MOVQ	b+8(FP), DI
+-	CMPQ	SI, DI
+-	JEQ	eq
+-	MOVQ	8(DX), BX    // compiler stores size at offset 8 in the closure
+-	LEAQ	ret+16(FP), AX
+-	JMP	runtime·memeqbody(SB)
+-eq:
+-	MOVB	$1, ret+16(FP)
+-	RET
+-
+-// a in SI
+-// b in DI
+-// count in BX
+-// address of result byte in AX
+-TEXT runtime·memeqbody(SB),NOSPLIT,$0-0
+-	CMPQ	BX, $8
+-	JB	small
+-	CMPQ	BX, $64
+-	JB	bigloop
+-	CMPB    runtime·support_avx2(SB), $1
+-	JE	hugeloop_avx2
+-	
+-	// 64 bytes at a time using xmm registers
+-hugeloop:
+-	CMPQ	BX, $64
+-	JB	bigloop
+-	MOVOU	(SI), X0
+-	MOVOU	(DI), X1
+-	MOVOU	16(SI), X2
+-	MOVOU	16(DI), X3
+-	MOVOU	32(SI), X4
+-	MOVOU	32(DI), X5
+-	MOVOU	48(SI), X6
+-	MOVOU	48(DI), X7
+-	PCMPEQB	X1, X0
+-	PCMPEQB	X3, X2
+-	PCMPEQB	X5, X4
+-	PCMPEQB	X7, X6
+-	PAND	X2, X0
+-	PAND	X6, X4
+-	PAND	X4, X0
+-	PMOVMSKB X0, DX
+-	ADDQ	$64, SI
+-	ADDQ	$64, DI
+-	SUBQ	$64, BX
+-	CMPL	DX, $0xffff
+-	JEQ	hugeloop
+-	MOVB	$0, (AX)
+-	RET
+-
+-	// 64 bytes at a time using ymm registers
+-hugeloop_avx2:
+-	CMPQ	BX, $64
+-	JB	bigloop_avx2
+-	VMOVDQU	(SI), Y0
+-	VMOVDQU	(DI), Y1
+-	VMOVDQU	32(SI), Y2
+-	VMOVDQU	32(DI), Y3
+-	VPCMPEQB	Y1, Y0, Y4
+-	VPCMPEQB	Y2, Y3, Y5
+-	VPAND	Y4, Y5, Y6
+-	VPMOVMSKB Y6, DX
+-	ADDQ	$64, SI
+-	ADDQ	$64, DI
+-	SUBQ	$64, BX
+-	CMPL	DX, $0xffffffff
+-	JEQ	hugeloop_avx2
+-	VZEROUPPER
+-	MOVB	$0, (AX)
+-	RET
+-
+-bigloop_avx2:
+-	VZEROUPPER
+-
+-	// 8 bytes at a time using 64-bit register
+-bigloop:
+-	CMPQ	BX, $8
+-	JBE	leftover
+-	MOVQ	(SI), CX
+-	MOVQ	(DI), DX
+-	ADDQ	$8, SI
+-	ADDQ	$8, DI
+-	SUBQ	$8, BX
+-	CMPQ	CX, DX
+-	JEQ	bigloop
+-	MOVB	$0, (AX)
+-	RET
+-
+-	// remaining 0-8 bytes
+-leftover:
+-	MOVQ	-8(SI)(BX*1), CX
+-	MOVQ	-8(DI)(BX*1), DX
+-	CMPQ	CX, DX
+-	SETEQ	(AX)
+-	RET
+-
+-small:
+-	CMPQ	BX, $0
+-	JEQ	equal
+-
+-	LEAQ	0(BX*8), CX
+-	NEGQ	CX
+-
+-	CMPB	SI, $0xf8
+-	JA	si_high
+-
+-	// load at SI won't cross a page boundary.
+-	MOVQ	(SI), SI
+-	JMP	si_finish
+-si_high:
+-	// address ends in 11111xxx. Load up to bytes we want, move to correct position.
+-	MOVQ	-8(SI)(BX*1), SI
+-	SHRQ	CX, SI
+-si_finish:
+-
+-	// same for DI.
+-	CMPB	DI, $0xf8
+-	JA	di_high
+-	MOVQ	(DI), DI
+-	JMP	di_finish
+-di_high:
+-	MOVQ	-8(DI)(BX*1), DI
+-	SHRQ	CX, DI
+-di_finish:
+-
+-	SUBQ	SI, DI
+-	SHLQ	CX, DI
+-equal:
+-	SETEQ	(AX)
+-	RET
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
+ 	MOVQ	s1_base+0(FP), SI
+ 	MOVQ	s1_len+8(FP), BX
+@@ -1995,20 +1848,6 @@ success:
+ 	MOVQ DI, (R11)
+ 	RET
+ 
+-TEXT bytes·Equal(SB),NOSPLIT,$0-49
+-	MOVQ	a_len+8(FP), BX
+-	MOVQ	b_len+32(FP), CX
+-	CMPQ	BX, CX
+-	JNE	eqret
+-	MOVQ	a+0(FP), SI
+-	MOVQ	b+24(FP), DI
+-	LEAQ	ret+48(FP), AX
+-	JMP	runtime·memeqbody(SB)
+-eqret:
+-	MOVB	$0, ret+48(FP)
+-	RET
+-
+-
+ TEXT bytes·countByte(SB),NOSPLIT,$0-40
+ 	MOVQ s+0(FP), SI
+ 	MOVQ s_len+8(FP), BX
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 3c3adc3990..1109b98022 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -575,132 +575,6 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0-12
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-// memequal(p, q unsafe.Pointer, size uintptr) bool
+-TEXT runtime·memequal(SB),NOSPLIT,$0-17
+-	MOVL	a+0(FP), SI
+-	MOVL	b+4(FP), DI
+-	CMPL	SI, DI
+-	JEQ	eq
+-	MOVL	size+8(FP), BX
+-	CALL	runtime·memeqbody(SB)
+-	MOVB	AX, ret+16(FP)
+-	RET
+-eq:
+-	MOVB    $1, ret+16(FP)
+-	RET
+-
+-// memequal_varlen(a, b unsafe.Pointer) bool
+-TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-9
+-	MOVL    a+0(FP), SI
+-	MOVL    b+4(FP), DI
+-	CMPL    SI, DI
+-	JEQ     eq
+-	MOVL    4(DX), BX    // compiler stores size at offset 4 in the closure
+-	CALL    runtime·memeqbody(SB)
+-	MOVB    AX, ret+8(FP)
+-	RET
+-eq:
+-	MOVB    $1, ret+8(FP)
+-	RET
+-
+-// a in SI
+-// b in DI
+-// count in BX
+-TEXT runtime·memeqbody(SB),NOSPLIT,$0-0
+-	XORQ	AX, AX
+-
+-	CMPQ	BX, $8
+-	JB	small
+-	
+-	// 64 bytes at a time using xmm registers
+-hugeloop:
+-	CMPQ	BX, $64
+-	JB	bigloop
+-	MOVOU	(SI), X0
+-	MOVOU	(DI), X1
+-	MOVOU	16(SI), X2
+-	MOVOU	16(DI), X3
+-	MOVOU	32(SI), X4
+-	MOVOU	32(DI), X5
+-	MOVOU	48(SI), X6
+-	MOVOU	48(DI), X7
+-	PCMPEQB	X1, X0
+-	PCMPEQB	X3, X2
+-	PCMPEQB	X5, X4
+-	PCMPEQB	X7, X6
+-	PAND	X2, X0
+-	PAND	X6, X4
+-	PAND	X4, X0
+-	PMOVMSKB X0, DX
+-	ADDQ	$64, SI
+-	ADDQ	$64, DI
+-	SUBQ	$64, BX
+-	CMPL	DX, $0xffff
+-	JEQ	hugeloop
+-	RET
+-
+-	// 8 bytes at a time using 64-bit register
+-bigloop:
+-	CMPQ	BX, $8
+-	JBE	leftover
+-	MOVQ	(SI), CX
+-	MOVQ	(DI), DX
+-	ADDQ	$8, SI
+-	ADDQ	$8, DI
+-	SUBQ	$8, BX
+-	CMPQ	CX, DX
+-	JEQ	bigloop
+-	RET
+-
+-	// remaining 0-8 bytes
+-leftover:
+-	ADDQ	BX, SI
+-	ADDQ	BX, DI
+-	MOVQ	-8(SI), CX
+-	MOVQ	-8(DI), DX
+-	CMPQ	CX, DX
+-	SETEQ	AX
+-	RET
+-
+-small:
+-	CMPQ	BX, $0
+-	JEQ	equal
+-
+-	LEAQ	0(BX*8), CX
+-	NEGQ	CX
+-
+-	CMPB	SI, $0xf8
+-	JA	si_high
+-
+-	// load at SI won't cross a page boundary.
+-	MOVQ	(SI), SI
+-	JMP	si_finish
+-si_high:
+-	// address ends in 11111xxx. Load up to bytes we want, move to correct position.
+-	MOVQ	BX, DX
+-	ADDQ	SI, DX
+-	MOVQ	-8(DX), SI
+-	SHRQ	CX, SI
+-si_finish:
+-
+-	// same for DI.
+-	CMPB	DI, $0xf8
+-	JA	di_high
+-	MOVQ	(DI), DI
+-	JMP	di_finish
+-di_high:
+-	MOVQ	BX, DX
+-	ADDQ	DI, DX
+-	MOVQ	-8(DX), DI
+-	SHRQ	CX, DI
+-di_finish:
+-
+-	SUBQ	SI, DI
+-	SHLQ	CX, DI
+-equal:
+-	SETEQ	AX
+-	RET
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+ 	MOVL	s1_base+0(FP), SI
+ 	MOVL	s1_len+4(FP), BX
+@@ -837,19 +711,6 @@ allsame:
+ 	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
+ 	RET
+ 
+-TEXT bytes·Equal(SB),NOSPLIT,$0-25
+-	MOVL	a_len+4(FP), BX
+-	MOVL	b_len+16(FP), CX
+-	XORL	AX, AX
+-	CMPL	BX, CX
+-	JNE	eqret
+-	MOVL	a+0(FP), SI
+-	MOVL	b+12(FP), DI
+-	CALL	runtime·memeqbody(SB)
+-eqret:
+-	MOVB	AX, ret+24(FP)
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVL	$0, AX
+ 	RET
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index d672bc26a2..423e1b9abb 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -801,47 +801,6 @@ TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	$0, R0
+ 	MOVW	(R0), R1
+ 
+-// memequal(p, q unsafe.Pointer, size uintptr) bool
+-TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-13
+-	MOVW	a+0(FP), R1
+-	MOVW	b+4(FP), R2
+-	MOVW	size+8(FP), R3
+-	ADD	R1, R3, R6
+-	MOVW	$1, R0
+-	MOVB	R0, ret+12(FP)
+-	CMP	R1, R2
+-	RET.EQ
+-loop:
+-	CMP	R1, R6
+-	RET.EQ
+-	MOVBU.P	1(R1), R4
+-	MOVBU.P	1(R2), R5
+-	CMP	R4, R5
+-	BEQ	loop
+-
+-	MOVW	$0, R0
+-	MOVB	R0, ret+12(FP)
+-	RET
+-
+-// memequal_varlen(a, b unsafe.Pointer) bool
+-TEXT runtime·memequal_varlen(SB),NOSPLIT,$16-9
+-	MOVW	a+0(FP), R0
+-	MOVW	b+4(FP), R1
+-	CMP	R0, R1
+-	BEQ	eq
+-	MOVW	4(R7), R2    // compiler stores size at offset 4 in the closure
+-	MOVW	R0, 4(R13)
+-	MOVW	R1, 8(R13)
+-	MOVW	R2, 12(R13)
+-	BL	runtime·memequal(SB)
+-	MOVB	16(R13), R0
+-	MOVB	R0, ret+8(FP)
+-	RET
+-eq:
+-	MOVW	$1, R0
+-	MOVB	R0, ret+8(FP)
+-	RET
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVW	s1_base+0(FP), R2
+ 	MOVW	s1_len+4(FP), R0
+@@ -895,36 +854,6 @@ samebytes:
+ 	MOVW	R0, (R7)
+ 	RET
+ 
+-// TODO: share code with memequal?
+-TEXT bytes·Equal(SB),NOSPLIT,$0-25
+-	MOVW	a_len+4(FP), R1
+-	MOVW	b_len+16(FP), R3
+-	
+-	CMP	R1, R3		// unequal lengths are not equal
+-	B.NE	notequal
+-
+-	MOVW	a+0(FP), R0
+-	MOVW	b+12(FP), R2
+-	ADD	R0, R1		// end
+-
+-loop:
+-	CMP	R0, R1
+-	B.EQ	equal		// reached the end
+-	MOVBU.P	1(R0), R4
+-	MOVBU.P	1(R2), R5
+-	CMP	R4, R5
+-	B.EQ	loop
+-
+-notequal:
+-	MOVW	$0, R0
+-	MOVBU	R0, ret+24(FP)
+-	RET
+-
+-equal:
+-	MOVW	$1, R0
+-	MOVBU	R0, ret+24(FP)
+-	RET
+-
+ TEXT runtime·return0(SB),NOSPLIT,$0
+ 	MOVW	$0, R0
+ 	RET
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 6abb9945e2..00999d4664 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -712,39 +712,6 @@ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+ 	B	(ZR)
+ 	UNDEF
+ 
+-// memequal(a, b unsafe.Pointer, size uintptr) bool
+-TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
+-	MOVD	size+16(FP), R1
+-	// short path to handle 0-byte case
+-	CBZ	R1, equal
+-	MOVD	a+0(FP), R0
+-	MOVD	b+8(FP), R2
+-	MOVD	$ret+24(FP), R8
+-	B	runtime·memeqbody<>(SB)
+-equal:
+-	MOVD	$1, R0
+-	MOVB	R0, ret+24(FP)
+-	RET
+-
+-// memequal_varlen(a, b unsafe.Pointer) bool
+-TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
+-	MOVD	a+0(FP), R3
+-	MOVD	b+8(FP), R4
+-	CMP	R3, R4
+-	BEQ	eq
+-	MOVD	8(R26), R5    // compiler stores size at offset 8 in the closure
+-	MOVD	R3, 8(RSP)
+-	MOVD	R4, 16(RSP)
+-	MOVD	R5, 24(RSP)
+-	BL	runtime·memequal(SB)
+-	MOVBU	32(RSP), R3
+-	MOVB	R3, ret+16(FP)
+-	RET
+-eq:
+-	MOVD	$1, R3
+-	MOVB	R3, ret+16(FP)
+-	RET
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
+ 	MOVD	s1_base+0(FP), R2
+ 	MOVD	s1_len+8(FP), R0
+@@ -797,116 +764,6 @@ samebytes:
+ 	MOVD	R4, (R7)
+ 	RET
+ 
+-//
+-// functions for other packages
+-//
+-
+-// Equal(a, b []byte) bool
+-TEXT bytes·Equal(SB),NOSPLIT,$0-49
+-	MOVD	a_len+8(FP), R1
+-	MOVD	b_len+32(FP), R3
+-	CMP	R1, R3
+-	// unequal lengths are not equal
+-	BNE	not_equal
+-	// short path to handle 0-byte case
+-	CBZ	R1, equal
+-	MOVD	a+0(FP), R0
+-	MOVD	b+24(FP), R2
+-	MOVD	$ret+48(FP), R8
+-	B	runtime·memeqbody<>(SB)
+-equal:
+-	MOVD	$1, R0
+-	MOVB	R0, ret+48(FP)
+-	RET
+-not_equal:
+-	MOVB	ZR, ret+48(FP)
+-	RET
+-
+-// input:
+-// R0: pointer a
+-// R1: data len
+-// R2: pointer b
+-// R8: address to put result
+-TEXT runtime·memeqbody<>(SB),NOSPLIT,$0
+-	CMP	$1, R1
+-	// handle 1-byte special case for better performance
+-	BEQ	one
+-	CMP	$16, R1
+-	// handle specially if length < 16
+-	BLO	tail
+-	BIC	$0x3f, R1, R3
+-	CBZ	R3, chunk16
+-	// work with 64-byte chunks
+-	ADD	R3, R0, R6	// end of chunks
+-chunk64_loop:
+-	VLD1.P	(R0), [V0.D2, V1.D2, V2.D2, V3.D2]
+-	VLD1.P	(R2), [V4.D2, V5.D2, V6.D2, V7.D2]
+-	VCMEQ	V0.D2, V4.D2, V8.D2
+-	VCMEQ	V1.D2, V5.D2, V9.D2
+-	VCMEQ	V2.D2, V6.D2, V10.D2
+-	VCMEQ	V3.D2, V7.D2, V11.D2
+-	VAND	V8.B16, V9.B16, V8.B16
+-	VAND	V8.B16, V10.B16, V8.B16
+-	VAND	V8.B16, V11.B16, V8.B16
+-	CMP	R0, R6
+-	VMOV	V8.D[0], R4
+-	VMOV	V8.D[1], R5
+-	CBZ	R4, not_equal
+-	CBZ	R5, not_equal
+-	BNE	chunk64_loop
+-	AND	$0x3f, R1, R1
+-	CBZ	R1, equal
+-chunk16:
+-	// work with 16-byte chunks
+-	BIC	$0xf, R1, R3
+-	CBZ	R3, tail
+-	ADD	R3, R0, R6	// end of chunks
+-chunk16_loop:
+-	VLD1.P	(R0), [V0.D2]
+-	VLD1.P	(R2), [V1.D2]
+-	VCMEQ	V0.D2, V1.D2, V2.D2
+-	CMP	R0, R6
+-	VMOV	V2.D[0], R4
+-	VMOV	V2.D[1], R5
+-	CBZ	R4, not_equal
+-	CBZ	R5, not_equal
+-	BNE	chunk16_loop
+-	AND	$0xf, R1, R1
+-	CBZ	R1, equal
+-tail:
+-	// special compare of tail with length < 16
+-	TBZ	$3, R1, lt_8
+-	MOVD.P	8(R0), R4
+-	MOVD.P	8(R2), R5
+-	CMP	R4, R5
+-	BNE	not_equal
+-lt_8:
+-	TBZ	$2, R1, lt_4
+-	MOVWU.P	4(R0), R4
+-	MOVWU.P	4(R2), R5
+-	CMP	R4, R5
+-	BNE	not_equal
+-lt_4:
+-	TBZ	$1, R1, lt_2
+-	MOVHU.P	2(R0), R4
+-	MOVHU.P	2(R2), R5
+-	CMP	R4, R5
+-	BNE	not_equal
+-lt_2:
+-	TBZ     $0, R1, equal
+-one:
+-	MOVBU	(R0), R4
+-	MOVBU	(R2), R5
+-	CMP	R4, R5
+-	BNE	not_equal
+-equal:
+-	MOVD	$1, R0
+-	MOVB	R0, (R8)
+-	RET
+-not_equal:
+-	MOVB	ZR, (R8)
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVW	$0, R0
+ 	RET
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index ca47824ab8..00a7951fc1 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -626,77 +626,6 @@ TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
+ TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R1
+ 
+-// memequal(p, q unsafe.Pointer, size uintptr) bool
+-TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
+-	MOVV	a+0(FP), R1
+-	MOVV	b+8(FP), R2
+-	BEQ	R1, R2, eq
+-	MOVV	size+16(FP), R3
+-	ADDV	R1, R3, R4
+-loop:
+-	BNE	R1, R4, test
+-	MOVV	$1, R1
+-	MOVB	R1, ret+24(FP)
+-	RET
+-test:
+-	MOVBU	(R1), R6
+-	ADDV	$1, R1
+-	MOVBU	(R2), R7
+-	ADDV	$1, R2
+-	BEQ	R6, R7, loop
+-
+-	MOVB	R0, ret+24(FP)
+-	RET
+-eq:
+-	MOVV	$1, R1
+-	MOVB	R1, ret+24(FP)
+-	RET
+-
+-// memequal_varlen(a, b unsafe.Pointer) bool
+-TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
+-	MOVV	a+0(FP), R1
+-	MOVV	b+8(FP), R2
+-	BEQ	R1, R2, eq
+-	MOVV	8(REGCTXT), R3    // compiler stores size at offset 8 in the closure
+-	MOVV	R1, 8(R29)
+-	MOVV	R2, 16(R29)
+-	MOVV	R3, 24(R29)
+-	JAL	runtime·memequal(SB)
+-	MOVBU	32(R29), R1
+-	MOVB	R1, ret+16(FP)
+-	RET
+-eq:
+-	MOVV	$1, R1
+-	MOVB	R1, ret+16(FP)
+-	RET
+-
+-// TODO: share code with memequal?
+-TEXT bytes·Equal(SB),NOSPLIT,$0-49
+-	MOVV	a_len+8(FP), R3
+-	MOVV	b_len+32(FP), R4
+-	BNE	R3, R4, noteq		// unequal lengths are not equal
+-
+-	MOVV	a+0(FP), R1
+-	MOVV	b+24(FP), R2
+-	ADDV	R1, R3		// end
+-
+-loop:
+-	BEQ	R1, R3, equal		// reached the end
+-	MOVBU	(R1), R6
+-	ADDV	$1, R1
+-	MOVBU	(R2), R7
+-	ADDV	$1, R2
+-	BEQ	R6, R7, loop
+-
+-noteq:
+-	MOVB	R0, ret+48(FP)
+-	RET
+-
+-equal:
+-	MOVV	$1, R1
+-	MOVB	R1, ret+48(FP)
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVW	$0, R1
+ 	RET
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index ba80361a80..b3e2a24618 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -633,85 +633,6 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0
+ // Not implemented.
+ TEXT runtime·aeshashstr(SB),NOSPLIT,$0
+ 	UNDEF
+-
+-// memequal(a, b unsafe.Pointer, size uintptr) bool
+-TEXT runtime·memequal(SB),NOSPLIT,$0-13
+-	MOVW	a+0(FP), R1
+-	MOVW	b+4(FP), R2
+-	BEQ	R1, R2, eq
+-	MOVW	size+8(FP), R3
+-	ADDU	R1, R3, R4
+-loop:
+-	BNE	R1, R4, test
+-	MOVW	$1, R1
+-	MOVB	R1, ret+12(FP)
+-	RET
+-test:
+-	MOVBU	(R1), R6
+-	ADDU	$1, R1
+-	MOVBU	(R2), R7
+-	ADDU	$1, R2
+-	BEQ	R6, R7, loop
+-
+-	MOVB	R0, ret+12(FP)
+-	RET
+-eq:
+-	MOVW	$1, R1
+-	MOVB	R1, ret+12(FP)
+-	RET
+-
+-// memequal_varlen(a, b unsafe.Pointer) bool
+-TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-9
+-	MOVW	a+0(FP), R1
+-	MOVW	b+4(FP), R2
+-	BEQ	R1, R2, eq
+-	MOVW	4(REGCTXT), R3	// compiler stores size at offset 4 in the closure
+-	ADDU	R1, R3, R4
+-loop:
+-	BNE	R1, R4, test
+-	MOVW	$1, R1
+-	MOVB	R1, ret+8(FP)
+-	RET
+-test:
+-	MOVBU	(R1), R6
+-	ADDU	$1, R1
+-	MOVBU	(R2), R7
+-	ADDU	$1, R2
+-	BEQ	R6, R7, loop
+-
+-	MOVB	R0, ret+8(FP)
+-	RET
+-eq:
+-	MOVW	$1, R1
+-	MOVB	R1, ret+8(FP)
+-	RET
+-
+-TEXT bytes·Equal(SB),NOSPLIT,$0-25
+-	MOVW	a_len+4(FP), R3
+-	MOVW	b_len+16(FP), R4
+-	BNE	R3, R4, noteq	// unequal lengths are not equal
+-
+-	MOVW	a+0(FP), R1
+-	MOVW	b+12(FP), R2
+-	ADDU	R1, R3	// end
+-
+-loop:
+-	BEQ	R1, R3, equal	// reached the end
+-	MOVBU	(R1), R6
+-	ADDU	$1, R1
+-	MOVBU	(R2), R7
+-	ADDU	$1, R2
+-	BEQ	R6, R7, loop
+-
+-noteq:
+-	MOVB	R0, ret+24(FP)
+-	RET
+-
+-equal:
+-	MOVW	$1, R1
+-	MOVB	R1, ret+24(FP)
+-	RET
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+ 	MOVW	s1_base+0(FP), R3
+ 	MOVW	s1_len+4(FP), R1
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 0440751724..1aff8218b9 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -738,30 +738,6 @@ TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
+ TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R1
+ 
+-TEXT runtime·memequal(SB),NOSPLIT,$0-25
+-	MOVD    a+0(FP), R3
+-	MOVD    b+8(FP), R4
+-	MOVD    size+16(FP), R5
+-
+-	BL	runtime·memeqbody(SB)
+-	MOVB    R9, ret+24(FP)
+-	RET
+-
+-// memequal_varlen(a, b unsafe.Pointer) bool
+-TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
+-	MOVD	a+0(FP), R3
+-	MOVD	b+8(FP), R4
+-	CMP	R3, R4
+-	BEQ	eq
+-	MOVD	8(R11), R5    // compiler stores size at offset 8 in the closure
+-	BL	runtime·memeqbody(SB)
+-	MOVB	R9, ret+16(FP)
+-	RET
+-eq:
+-	MOVD	$1, R3
+-	MOVB	R3, ret+16(FP)
+-	RET
+-
+ // Do an efficient memcmp for ppc64le
+ // R3 = s1 len
+ // R4 = s2 len
+@@ -971,103 +947,6 @@ greater:
+ 	MOVD	R3,(R7)		// return value if A > B
+ 	RET
+ 
+-// Do an efficient memequal for ppc64
+-// R3 = s1
+-// R4 = s2
+-// R5 = len
+-// R9 = return value
+-TEXT runtime·memeqbody(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVD    R5,CTR
+-	CMP     R5,$8		// only optimize >=8
+-	BLT     simplecheck
+-	DCBT	(R3)		// cache hint
+-	DCBT	(R4)
+-	CMP	R5,$32		// optimize >= 32
+-	MOVD	R5,R6		// needed if setup8a branch
+-	BLT	setup8a		// 8 byte moves only
+-setup32a:                       // 8 byte aligned, >= 32 bytes
+-	SRADCC  $5,R5,R6        // number of 32 byte chunks to compare
+-	MOVD	R6,CTR
+-loop32a:
+-	MOVD    0(R3),R6        // doublewords to compare
+-	MOVD    0(R4),R7
+-	MOVD	8(R3),R8	//
+-	MOVD	8(R4),R9
+-	CMP     R6,R7           // bytes batch?
+-	BNE     noteq
+-	MOVD	16(R3),R6
+-	MOVD	16(R4),R7
+-	CMP     R8,R9		// bytes match?
+-	MOVD	24(R3),R8
+-	MOVD	24(R4),R9
+-	BNE     noteq
+-	CMP     R6,R7           // bytes match?
+-	BNE	noteq
+-	ADD     $32,R3		// bump up to next 32
+-	ADD     $32,R4
+-	CMP     R8,R9           // bytes match?
+-	BC      8,2,loop32a	// br ctr and cr
+-	BNE	noteq
+-	ANDCC	$24,R5,R6       // Any 8 byte chunks?
+-	BEQ	leftover	// and result is 0
+-setup8a:
+-	SRADCC  $3,R6,R6        // get the 8 byte count
+-	BEQ	leftover	// shifted value is 0
+-	MOVD    R6,CTR
+-loop8:
+-	MOVD    0(R3),R6        // doublewords to compare
+-	ADD	$8,R3
+-	MOVD    0(R4),R7
+-	ADD     $8,R4
+-	CMP     R6,R7           // match?
+-	BC	8,2,loop8	// bt ctr <> 0 && cr
+-	BNE     noteq
+-leftover:
+-	ANDCC   $7,R5,R6        // check for leftover bytes
+-	BEQ     equal
+-	MOVD    R6,CTR
+-	BR	simple
+-simplecheck:
+-	CMP	R5,$0
+-	BEQ	equal
+-simple:
+-	MOVBZ   0(R3), R6
+-	ADD	$1,R3
+-	MOVBZ   0(R4), R7
+-	ADD     $1,R4
+-	CMP     R6, R7
+-	BNE     noteq
+-	BC      8,2,simple
+-	BNE	noteq
+-	BR	equal
+-noteq:
+-	MOVD    $0, R9
+-	RET
+-equal:
+-	MOVD    $1, R9
+-	RET
+-
+-TEXT bytes·Equal(SB),NOSPLIT,$0-49
+-	MOVD	a_len+8(FP), R4
+-	MOVD	b_len+32(FP), R5
+-	CMP	R5, R4		// unequal lengths are not equal
+-	BNE	noteq
+-	MOVD	a+0(FP), R3
+-	MOVD	b+24(FP), R4
+-	BL	runtime·memeqbody(SB)
+-
+-	MOVBZ	R9,ret+48(FP)
+-	RET
+-
+-noteq:
+-	MOVBZ	$0,ret+48(FP)
+-	RET
+-
+-equal:
+-	MOVD	$1,R3
+-	MOVBZ	R3,ret+48(FP)
+-	RET
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
+ 	MOVD	s1_base+0(FP), R5
+ 	MOVD	s2_base+16(FP), R6
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 19262a332a..a386de726c 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -756,104 +756,6 @@ TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
+ TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R15
+ 
+-// memequal(a, b unsafe.Pointer, size uintptr) bool
+-TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
+-	MOVD	a+0(FP), R3
+-	MOVD	b+8(FP), R5
+-	MOVD	size+16(FP), R6
+-	LA	ret+24(FP), R7
+-	BR	runtime·memeqbody(SB)
+-
+-// memequal_varlen(a, b unsafe.Pointer) bool
+-TEXT runtime·memequal_varlen(SB),NOSPLIT|NOFRAME,$0-17
+-	MOVD	a+0(FP), R3
+-	MOVD	b+8(FP), R5
+-	MOVD	8(R12), R6    // compiler stores size at offset 8 in the closure
+-	LA	ret+16(FP), R7
+-	BR	runtime·memeqbody(SB)
+-
+-TEXT bytes·Equal(SB),NOSPLIT|NOFRAME,$0-49
+-	MOVD	a_len+8(FP), R2
+-	MOVD	b_len+32(FP), R6
+-	MOVD	a+0(FP), R3
+-	MOVD	b+24(FP), R5
+-	LA	ret+48(FP), R7
+-	CMPBNE	R2, R6, notequal
+-	BR	runtime·memeqbody(SB)
+-notequal:
+-	MOVB	$0, ret+48(FP)
+-	RET
+-
+-// input:
+-//   R3 = a
+-//   R5 = b
+-//   R6 = len
+-//   R7 = address of output byte (stores 0 or 1 here)
+-//   a and b have the same length
+-TEXT runtime·memeqbody(SB),NOSPLIT|NOFRAME,$0-0
+-	CMPBEQ	R3, R5, equal
+-loop:
+-	CMPBEQ	R6, $0, equal
+-	CMPBLT	R6, $32, tiny
+-	CMP	R6, $256
+-	BLT	tail
+-	CLC	$256, 0(R3), 0(R5)
+-	BNE	notequal
+-	SUB	$256, R6
+-	LA	256(R3), R3
+-	LA	256(R5), R5
+-	BR	loop
+-tail:
+-	SUB	$1, R6, R8
+-	EXRL	$runtime·memeqbodyclc(SB), R8
+-	BEQ	equal
+-notequal:
+-	MOVB	$0, 0(R7)
+-	RET
+-equal:
+-	MOVB	$1, 0(R7)
+-	RET
+-tiny:
+-	MOVD	$0, R2
+-	CMPBLT	R6, $16, lt16
+-	MOVD	0(R3), R8
+-	MOVD	0(R5), R9
+-	CMPBNE	R8, R9, notequal
+-	MOVD	8(R3), R8
+-	MOVD	8(R5), R9
+-	CMPBNE	R8, R9, notequal
+-	LA	16(R2), R2
+-	SUB	$16, R6
+-lt16:
+-	CMPBLT	R6, $8, lt8
+-	MOVD	0(R3)(R2*1), R8
+-	MOVD	0(R5)(R2*1), R9
+-	CMPBNE	R8, R9, notequal
+-	LA	8(R2), R2
+-	SUB	$8, R6
+-lt8:
+-	CMPBLT	R6, $4, lt4
+-	MOVWZ	0(R3)(R2*1), R8
+-	MOVWZ	0(R5)(R2*1), R9
+-	CMPBNE	R8, R9, notequal
+-	LA	4(R2), R2
+-	SUB	$4, R6
+-lt4:
+-#define CHECK(n) \
+-	CMPBEQ	R6, $n, equal \
+-	MOVB	n(R3)(R2*1), R8 \
+-	MOVB	n(R5)(R2*1), R9 \
+-	CMPBNE	R8, R9, notequal
+-	CHECK(0)
+-	CHECK(1)
+-	CHECK(2)
+-	CHECK(3)
+-	BR	equal
+-
+-TEXT runtime·memeqbodyclc(SB),NOSPLIT|NOFRAME,$0-0
+-	CLC	$1, 0(R3), 0(R5)
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVW	$0, R3
+ 	RET

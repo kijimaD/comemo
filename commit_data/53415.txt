@@ -18,7 +18,42 @@ Date:   Sat May 21 17:42:02 2022 +1000
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/cookie.go      | 2 +-
  src/net/http/cookie_test.go | 7 +++++--
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index e9fd599392..b7b0455ee1 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -247,7 +247,7 @@ func (c *Cookie) Valid() error {
+ 	if !isCookieNameValid(c.Name) {
+ 		return errors.New("http: invalid Cookie.Name")
+ 	}
+-	if !validCookieExpires(c.Expires) {
++	if !c.Expires.IsZero() && !validCookieExpires(c.Expires) {
+ 		return errors.New("http: invalid Cookie.Expires")
+ 	}
+ 	for i := 0; i < len(c.Value); i++ {
+diff --git a/src/net/http/cookie_test.go b/src/net/http/cookie_test.go
+index 0db138e4f1..8fcf1faaa5 100644
+--- a/src/net/http/cookie_test.go
++++ b/src/net/http/cookie_test.go
+@@ -542,11 +542,14 @@ func TestCookieValid(t *testing.T) {
+ 	}{
+ 		{nil, false},
+ 		{&Cookie{Name: ""}, false},
+-		{&Cookie{Name: "invalid-expires"}, false},
+ 		{&Cookie{Name: "invalid-value", Value: "foo\"bar"}, false},
+ 		{&Cookie{Name: "invalid-path", Path: "/foo;bar/"}, false},
+ 		{&Cookie{Name: "invalid-domain", Domain: "example.com:80"}, false},
+-		{&Cookie{Name: "valid", Value: "foo", Path: "/bar", Domain: "example.com", Expires: time.Unix(0, 0)}, true},
++		{&Cookie{Name: "invalid-expiry", Value: "", Expires: time.Date(1600, 1, 1, 1, 1, 1, 1, time.UTC)}, false},
++		{&Cookie{Name: "valid-empty"}, true},
++		{&Cookie{Name: "valid-expires", Value: "foo", Path: "/bar", Domain: "example.com", Expires: time.Unix(0, 0)}, true},
++		{&Cookie{Name: "valid-max-age", Value: "foo", Path: "/bar", Domain: "example.com", MaxAge: 60}, true},
++		{&Cookie{Name: "valid-all-fields", Value: "foo", Path: "/bar", Domain: "example.com", Expires: time.Unix(0, 0), MaxAge: 0}, true},
+ 	}
+ 
+ 	for _, tt := range tests {

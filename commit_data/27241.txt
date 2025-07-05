@@ -25,9 +25,94 @@ Date:   Thu Mar 17 12:38:51 2016 +1300
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go    | 20 ++++++++++++++++++++
  src/cmd/link/internal/ld/decodesym.go |  2 +-
  src/cmd/link/internal/ld/objfile.go   |  5 +----
  src/cmd/link/internal/ld/sym.go       |  6 +++++-
  4 files changed, 27 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 86fb530167..30b00d5930 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -203,6 +203,26 @@ func TestNoTextrel(t *testing.T) {
+ 	}
+ }
+ 
++// The shared library does not contain symbols called ".dup"
++func TestNoDupSymbols(t *testing.T) {
++	sopath := filepath.Join(gorootInstallDir, soname)
++	f, err := elf.Open(sopath)
++	if err != nil {
++		t.Fatal("elf.Open failed: ", err)
++	}
++	defer f.Close()
++	syms, err := f.Symbols()
++	if err != nil {
++		t.Errorf("error reading symbols %v", err)
++		return
++	}
++	for _, s := range syms {
++		if s.Name == ".dup" {
++			t.Fatalf("%s contains symbol called .dup", sopath)
++		}
++	}
++}
++
+ // The install command should have created a "shlibname" file for the
+ // listed packages (and runtime/cgo, and math on arm) indicating the
+ // name of the shared library containing it.
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 00e1a79a83..a7a62623d7 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -348,7 +348,7 @@ func decodetype_methods(s *LSym) []methodsig {
+ 	numMethods := int(decode_inuxi(s.P[off+2*Thearch.Ptrsize:], Thearch.Intsize))
+ 	r := decode_reloc(s, int32(off+Thearch.Ptrsize))
+ 	if r.Sym != s {
+-		panic(fmt.Sprintf("method slice pointer in %q leads to a different symbol", s.Name))
++		panic(fmt.Sprintf("method slice pointer in %s leads to a different symbol %s", s, r.Sym))
+ 	}
+ 	off = int(r.Add)                    // array of reflect.method values
+ 	sizeofMethod := 5 * Thearch.Ptrsize // sizeof reflect.method in program
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 04ac8d827f..21b9d6e820 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -175,8 +175,6 @@ func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
+ 	}
+ }
+ 
+-var readsym_ndup int
+-
+ func readsym(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
+ 	if obj.Bgetc(f) != 0xfe {
+ 		log.Fatalf("readsym out of sync")
+@@ -211,8 +209,7 @@ func readsym(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
+ 		}
+ 		if len(s.P) > 0 {
+ 			dup = s
+-			s = linknewsym(ctxt, ".dup", readsym_ndup)
+-			readsym_ndup++ // scratch
++			s = linknewsym(ctxt, ".dup", -1)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 05b3252add..e4fce6a5db 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -173,7 +173,11 @@ func linknewsym(ctxt *Link, symb string, v int) *LSym {
+ 	s.Version = int16(v)
+ 	ctxt.Nsymbol++
+ 
+-	ctxt.Allsym = append(ctxt.Allsym, s)
++	if v != -1 {
++		ctxt.Allsym = append(ctxt.Allsym, s)
++	} else if v < -1 {
++		ctxt.Diag("invalid version %d in linknewsym", v)
++	}
+ 	return s
+ }
+ 

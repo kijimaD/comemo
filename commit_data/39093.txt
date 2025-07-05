@@ -7,6 +7,22 @@ Date:   Sun Dec 30 16:03:53 2018 +0900
     Change-Id: I336ad707a85bf0c81b6c2230c90452c0b3b92924
     Reviewed-on: https://go-review.googlesource.com/c/155998
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/strconv/doc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/strconv/doc.go b/src/strconv/doc.go
+index cba898426a..8db725f96a 100644
+--- a/src/strconv/doc.go
++++ b/src/strconv/doc.go
+@@ -46,8 +46,8 @@
+ // The latter guarantees that the result is an ASCII string, by escaping
+ // any non-ASCII Unicode with \u:
+ //
+-//	q := Quote("Hello, 世界")
+-//	q := QuoteToASCII("Hello, 世界")
++//	q := strconv.Quote("Hello, 世界")
++//	q := strconv.QuoteToASCII("Hello, 世界")
+ //
+ // QuoteRune and QuoteRuneToASCII are similar but accept runes and
+ // return quoted Go rune literals.

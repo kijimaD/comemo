@@ -16,6 +16,20 @@ Date:   Thu Jan 19 19:18:20 2023 -0800
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+index aa4aa854d0..47d685d9c1 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -25,7 +25,7 @@ stdout 'this input caused a crash!'
+ 
+ ! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]fuzz[/\\]FuzzWithNilPanic[/\\]'
+-stdout 'runtime.Goexit'
++stdout 'panic called with nil argument'
+ go run check_testdata.go FuzzWithNilPanic
+ 
+ ! go test -run=FuzzWithGoexit -fuzz=FuzzWithGoexit -fuzztime=100x -fuzzminimizetime=1000x

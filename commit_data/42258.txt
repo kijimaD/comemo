@@ -13,6 +13,20 @@ Date:   Tue Nov 19 13:36:39 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 8dbeb2af4a..8b0b0d5513 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -946,7 +946,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 					return err
+ 				}
+ 				tg.tempFile(dest, string(data))
+-				if err := os.Chmod(tg.path(dest), info.Mode()); err != nil {
++				if err := os.Chmod(tg.path(dest), info.Mode()|0200); err != nil {
+ 					return err
+ 				}
+ 				return nil

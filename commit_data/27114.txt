@@ -11,7 +11,54 @@ Date:   Thu Mar 10 23:59:59 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go  | 3 ++-
  src/cmd/compile/internal/gc/subr.go | 7 -------
  2 files changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index e1209ff8ec..528771627c 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -7,6 +7,7 @@ package gc
+ import (
+ 	"cmd/internal/obj"
+ 	"fmt"
++	"sort"
+ 	"strings"
+ )
+ 
+@@ -975,6 +976,7 @@ func tointerface0(t *Type, l []*Node) *Type {
+ 			fields = append(fields, f)
+ 		}
+ 	}
++	sort.Sort(methcmp(fields))
+ 	t.SetFields(fields)
+ 
+ 	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
+@@ -984,7 +986,6 @@ func tointerface0(t *Type, l []*Node) *Type {
+ 	}
+ 
+ 	checkdupfields("method", t)
+-	t = sortinter(t)
+ 	checkwidth(t)
+ 
+ 	return t
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 9a7e6b68c2..ff4d4409ea 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -416,13 +416,6 @@ func (x methcmp) Less(i, j int) bool {
+ 	return false
+ }
+ 
+-func sortinter(t *Type) *Type {
+-	s := t.FieldSlice()
+-	sort.Sort(methcmp(s))
+-	t.SetFields(s)
+-	return t
+-}
+-
+ func Nodintconst(v int64) *Node {
+ 	c := Nod(OLITERAL, nil, nil)
+ 	c.Addable = true

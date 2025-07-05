@@ -7,7 +7,77 @@ Date:   Mon Jul 12 11:26:41 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1496042
-
+---
  src/pkg/json/decode_test.go | 10 ++++++++++
  src/pkg/json/encode.go      | 37 +++++++++++++++++++++++++++++++++++++
  2 files changed, 47 insertions(+)
+
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index e10b2c56e6..d5ab29ca64 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -139,6 +139,16 @@ func TestUnmarshalPtrPtr(t *testing.T) {
+ 	}
+ }
+ 
++func TestHTMLEscape(t *testing.T) {
++	b, err := MarshalForHTML("foobarbaz<>&quux")
++	if err != nil {
++		t.Fatalf("MarshalForHTML error: %v", err)
++	}
++	if !bytes.Equal(b, []byte(`"foobarbaz\u003c\u003e\u0026quux"`)) {
++		t.Fatalf("Unexpected encoding of \"<>&\": %s", b)
++	}
++}
++
+ func noSpace(c int) int {
+ 	if isSpace(c) {
+ 		return -1
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index 5d7ce35cbb..882ae0e70a 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -76,6 +76,43 @@ func MarshalIndent(v interface{}, prefix, indent string) ([]byte, os.Error) {
+ 	return buf.Bytes(), nil
+ }
+ 
++// MarshalForHTML is like Marshal but applies HTMLEscape to the output.
++func MarshalForHTML(v interface{}) ([]byte, os.Error) {
++	b, err := Marshal(v)
++	if err != nil {
++		return nil, err
++	}
++	var buf bytes.Buffer
++	HTMLEscape(&buf, b)
++	return buf.Bytes(), nil
++}
++
++// HTMLEscape appends to dst the JSON-encoded src with <, >, and &
++// characters inside string literals changed to \u003c, \u003e, \u0026
++// so that the JSON will be safe to embed inside HTML <script> tags.
++// For historical reasons, web browsers don't honor standard HTML
++// escaping within <script> tags, so an alternative JSON encoding must
++// be used.
++func HTMLEscape(dst *bytes.Buffer, src []byte) {
++	// < > & can only appear in string literals,
++	// so just scan the string one byte at a time.
++	start := 0
++	for i, c := range src {
++		if c == '<' || c == '>' || c == '&' {
++			if start < i {
++				dst.Write(src[start:i])
++			}
++			dst.WriteString(`\u00`)
++			dst.WriteByte(hex[c>>4])
++			dst.WriteByte(hex[c&0xF])
++			start = i + 1
++		}
++	}
++	if start < len(src) {
++		dst.Write(src[start:])
++	}
++}
++
+ // Marshaler is the interface implemented by objects that
+ // can marshal themselves into valid JSON.
+ type Marshaler interface {

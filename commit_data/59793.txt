@@ -14,6 +14,20 @@ Date:   Tue Apr 23 09:55:15 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/buildall.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/buildall.bash b/src/buildall.bash
+index 3b8f6ee6f5..70fb3a8a61 100755
+--- a/src/buildall.bash
++++ b/src/buildall.bash
+@@ -41,7 +41,7 @@ GOROOT="$(cd .. && pwd)"
+ 
+ gettargets() {
+ 	../bin/go tool dist list | sed -e 's|/|-|' |
+-		egrep -v '^(android|ios)' # need C toolchain even for cross-compiling
++		grep -E -v '^(android|ios)' # need C toolchain even for cross-compiling
+ 	echo linux-arm-arm5
+ }
+ 

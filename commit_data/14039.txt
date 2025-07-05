@@ -9,8 +9,65 @@ Date:   Sun Oct 7 00:29:55 2012 +0200
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6619057
-
+---
  src/cmd/gc/align.c       |  4 ++--
  src/cmd/gc/go.h          |  2 +-
  test/fixedbugs/bug458.go | 22 ++++++++++++++++++++++
  3 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 2d3756dfc2..36a33d4827 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -15,8 +15,8 @@
+ 
+ static int defercalc;
+ 
+-uint32
+-rnd(uint32 o, uint32 r)
++vlong
++rnd(vlong o, vlong r)
+ {
+ 	if(r < 1 || r > 8 || (r&(r-1)) != 0)
+ 		fatal("rnd");
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 31fae5b19b..f6bf8ef8c2 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -936,7 +936,7 @@ void	checkwidth(Type *t);
+ void	defercheckwidth(void);
+ void	dowidth(Type *t);
+ void	resumecheckwidth(void);
+-uint32	rnd(uint32 o, uint32 r);
++vlong	rnd(vlong o, vlong r);
+ void	typeinit(void);
+ 
+ /*
+diff --git a/test/fixedbugs/bug458.go b/test/fixedbugs/bug458.go
+new file mode 100644
+index 0000000000..ddc97bdb0c
+--- /dev/null
++++ b/test/fixedbugs/bug458.go
+@@ -0,0 +1,22 @@
++// compile
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4200: 6g crashes when a type is larger than 4GB.
++
++package main
++
++import "unsafe"
++
++// N=16 on 32-bit arches, 256 on 64-bit arches.
++// On 32-bit arches we don't want to test types
++// that are over 4GB large.
++const N = 1 << unsafe.Sizeof(uintptr(0))
++
++type T [N][10][10][10][10][3]byte
++
++func F(t *T) byte {
++	return t[0][0][0][0][0][0]
++}

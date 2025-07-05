@@ -10,8 +10,123 @@ Date:   Tue May 12 15:41:19 2009 -0700
     DELTA=30  (13 added, 2 deleted, 15 changed)
     OCL=28598
     CL=28710
-
+---
  src/lib/http/fs.go      |  6 +++---
  src/lib/http/server.go  | 37 ++++++++++++++++++++++++-------------
  usr/gri/pretty/godoc.go |  2 +-
  3 files changed, 28 insertions(+), 17 deletions(-)
+
+diff --git a/src/lib/http/fs.go b/src/lib/http/fs.go
+index c1e0ee6999..108734c47f 100644
+--- a/src/lib/http/fs.go
++++ b/src/lib/http/fs.go
+@@ -78,7 +78,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+ 	// redirect to strip off any index.html
+ 	n := len(name) - len(indexPage);
+ 	if n >= 0 && name[n:len(name)] == indexPage {
+-		http.Redirect(c, name[0:n+1]);
++		http.Redirect(c, name[0:n+1], StatusMovedPermanently);
+ 		return;
+ 	}
+ 
+@@ -103,12 +103,12 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+ 		url := r.Url.Path;
+ 		if d.IsDirectory() {
+ 			if url[len(url)-1] != '/' {
+-				http.Redirect(c, url + "/");
++				http.Redirect(c, url + "/", StatusMovedPermanently);
+ 				return;
+ 			}
+ 		} else {
+ 			if url[len(url)-1] == '/' {
+-				http.Redirect(c, url[0:len(url)-1]);
++				http.Redirect(c, url[0:len(url)-1], StatusMovedPermanently);
+ 				return;
+ 			}
+ 		}
+diff --git a/src/lib/http/server.go b/src/lib/http/server.go
+index 9398351fe7..bdac8f188c 100644
+--- a/src/lib/http/server.go
++++ b/src/lib/http/server.go
+@@ -278,12 +278,17 @@ func NotFoundHandler() Handler {
+ 
+ // Redirect replies to the request with a redirect to url,
+ // which may be a path relative to the request path.
+-func Redirect(c *Conn, url string) {
++func Redirect(c *Conn, url string, code int) {
++	// RFC2616 recommends that a short note "SHOULD" be included in the
++	// response because older user agents may not understand 301/307.
++	note := "<a href=\"%v\">" + statusText[code] + "</a>.\n";
++	if c.Req.Method == "POST" {
++		note = "";
++	}
++
+ 	u, err := ParseURL(url);
+ 	if err != nil {
+-		// TODO report internal error instead?
+-		c.SetHeader("Location", url);
+-		c.WriteHeader(StatusMovedPermanently);
++		goto finish
+ 	}
+ 
+ 	// If url was relative, make absolute by
+@@ -322,20 +327,26 @@ func Redirect(c *Conn, url string) {
+ 		}
+ 	}
+ 
++finish:
+ 	c.SetHeader("Location", url);
+-	c.WriteHeader(StatusMovedPermanently);
++	c.WriteHeader(code);
++	fmt.Fprintf(c, note, url);
+ }
+ 
+ // Redirect to a fixed URL
+-type redirectHandler string
+-func (url redirectHandler) ServeHTTP(c *Conn, req *Request) {
+-	Redirect(c, string(url));
++type redirectHandler struct {
++	url string;
++	code int;
++}
++func (rh *redirectHandler) ServeHTTP(c *Conn, req *Request) {
++	Redirect(c, rh.url, rh.code);
+ }
+ 
+ // RedirectHandler returns a request handler that redirects
+-// each request it receives to the given url.
+-func RedirectHandler(url string) Handler {
+-	return redirectHandler(url);
++// each request it receives to the given url using the given
++// status code.
++func RedirectHandler(url string, code int) Handler {
++	return &redirectHandler{ url, code }
+ }
+ 
+ // ServeMux is an HTTP request multiplexer.
+@@ -441,10 +452,10 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
+ 	mux.m[pattern] = handler;
+ 
+ 	// Helpful behavior:
+-	// If pattern is /tree/, insert redirect for /tree.
++	// If pattern is /tree/, insert permanent redirect for /tree.
+ 	n := len(pattern);
+ 	if n > 0 && pattern[n-1] == '/' {
+-		mux.m[pattern[0:n-1]] = RedirectHandler(pattern);
++		mux.m[pattern[0:n-1]] = RedirectHandler(pattern, StatusMovedPermanently);
+ 	}
+ }
+ 
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index 4713c44417..c7bf7cb1d8 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -585,7 +585,7 @@ func servePkg(c *http.Conn, r *http.Request) {
+ 	/*
+ 	// TODO do we still need this?
+ 	if r.Url.Path != Pkg + info.Path {
+-		http.Redirect(c, info.Path);
++		http.Redirect(c, info.Path, http.StatusMovedPermanently);
+ 		return;
+ 	}
+ 	*/

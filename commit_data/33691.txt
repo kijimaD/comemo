@@ -14,6 +14,32 @@ Date:   Tue Aug 29 13:46:38 2017 +1000
     Reviewed-on: https://go-review.googlesource.com/59792
     Reviewed-by: Dominik Honnef <dominik@honnef.co>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/flag/flag.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index 6bc8e96e20..36e0550030 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -269,7 +269,9 @@ const (
+ type FlagSet struct {
+ 	// Usage is the function called when an error occurs while parsing flags.
+ 	// The field is a function (not a method) that may be changed to point to
+-	// a custom error handler.
++	// a custom error handler. What happens after Usage is called depends
++	// on the ErrorHandling setting; for the command line, this defaults
++	// to ExitOnError, which exits the program after calling Usage.
+ 	Usage func()
+ 
+ 	name          string
+@@ -521,6 +523,9 @@ func (f *FlagSet) defaultUsage() {
+ // The function is a variable that may be changed to point to a custom function.
+ // By default it prints a simple header and calls PrintDefaults; for details about the
+ // format of the output and how to control it, see the documentation for PrintDefaults.
++// Custom usage functions may choose to exit the program; by default exiting
++// happens anyway as the command line's error handling strategy is set to
++// ExitOnError.
+ var Usage = func() {
+ 	fmt.Fprintf(CommandLine.out(), "Usage of %s:\n", os.Args[0])
+ 	PrintDefaults()

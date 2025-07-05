@@ -7,6 +7,20 @@ Date:   Fri May 6 16:11:07 2011 -0400
     R=adg, rsc1, rsc
     CC=golang-dev
     https://golang.org/cl/4491041
-
+---
  doc/all.css | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/all.css b/doc/all.css
+index e496388ef7..84df1f8fa9 100644
+--- a/doc/all.css
++++ b/doc/all.css
+@@ -140,7 +140,7 @@ h1#title {
+ }
+ #content h2 {
+   border-top: 2px solid #ddd;
+-  padding: 8px 5px;
++  padding: 8px 0;
+   margin: 1.5em 0 0;
+ }
+ #content .subtitle {

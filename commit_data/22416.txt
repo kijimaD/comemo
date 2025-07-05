@@ -7,6 +7,33 @@ Date:   Fri Mar 13 13:18:54 2015 -0700
     Change-Id: I9ea6d4d8a9c1c63de36f2f3871dd5ac9201c0aac
     Reviewed-on: https://go-review.googlesource.com/7523
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  test/fixedbugs/bug495.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/test/fixedbugs/bug495.go b/test/fixedbugs/bug495.go
+new file mode 100644
+index 0000000000..dfc0c9f803
+--- /dev/null
++++ b/test/fixedbugs/bug495.go
+@@ -0,0 +1,20 @@
++// compile
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Gccgo used to give an incorrect error
++// bug495.go:16:2: error: missing statement after label
++
++package p
++
++func F(i int) {
++	switch i {
++	case 0:
++		goto lab
++	lab:
++		fallthrough
++	case 1:
++	}
++}

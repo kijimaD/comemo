@@ -5,7 +5,7 @@ Date:   Fri Jun 6 13:28:03 2008 -0700
     lots of new tests
     
     SVN=121464
-
+---
  test/for.go        |  56 ++++++++++++++
  test/func.go       |  97 +++++++++++++++++++++++++
  test/helloworld.go |  12 +++
@@ -18,3 +18,757 @@ Date:   Fri Jun 6 13:28:03 2008 -0700
  test/switch.go     | 131 +++++++++++++++++++++++++++++++++
  test/turing.go     |   2 +-
  11 files changed, 637 insertions(+), 15 deletions(-)
+
+diff --git a/test/for.go b/test/for.go
+new file mode 100644
+index 0000000000..dbdb433239
+--- /dev/null
++++ b/test/for.go
+@@ -0,0 +1,56 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func assertequal(is, shouldbe int, msg string) {
++	if is != shouldbe {
++		print "assertion fail", msg, "\n";
++		panic 1;
++	}
++}
++
++func main() {
++	var i, sum int;
++
++	i = 0;
++	for {
++		i = i + 1;
++		if i > 5 {
++			break;
++		}
++	}
++	assertequal(i, 6, "break");
++
++	sum = 0;
++	for i := 0; i <= 10; i++ {
++		sum = sum + i;
++	}
++	assertequal(sum, 55, "all three");
++
++	sum = 0;
++	for i := 0; i <= 10; {
++		sum = sum + i;
++		i++;
++	}
++	assertequal(sum, 55, "only two");
++
++	sum = 0;
++	for sum < 100 {
++		sum = sum + 9;
++	}
++	assertequal(sum, 99 + 9, "only one");
++
++	sum = 0;
++	for i := 0; i <= 10; i++ {
++		if i % 2 == 0 {
++			continue;
++		}
++		sum = sum + i;
++	}
++	assertequal(sum, 1+3+5+7+9, "continue");
++
++}
+diff --git a/test/func.go b/test/func.go
+new file mode 100644
+index 0000000000..0bb551f45b
+--- /dev/null
++++ b/test/func.go
+@@ -0,0 +1,97 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++func assertequal(is, shouldbe int, msg string) {
++	if is != shouldbe {
++		print "assertion fail", msg, "\n";
++		panic 1;
++	}
++}
++
++func f1() {
++}
++
++func f2(a int) {
++}
++
++func f3(a, b int) int {
++	return a+b;
++}
++
++func f4(a, b int, c float) int {
++	return (a+b)/2 + int(c);
++}
++
++func f5(a int) int {
++	return 5;
++}
++
++func f6(a int) (r int) {
++	return 6;
++}
++
++func f7(a int) (int, float) {
++	return 7, 7.0;
++}
++
++
++func f8(a int) (a int, b float) {
++	return 8, 8.0;
++}
++
++type T struct {
++	x, y int;
++}
++
++func (t *T) m10(a int, b float) int {
++	return (t.x+a) * (t.y+int(b));
++}
++
++
++//BUG func f9(a int) (i int, f float) {  // multiple returns not ready yet
++// BUG funny return value
++//	var i float = 9;
++//	var f float = 9.0;
++//	return i, f;
++// return
++// }
++
++
++func main() {
++	f1();
++	f2(1);
++	r3 := f3(1, 2);
++	assertequal(r3, 3, "3");
++	r4 := f4(0, 2, 3.0);
++	assertequal(r4, 4, "4");
++	r5 := f5(1);
++	assertequal(r5, 5, "5");
++	r6 := f6(1);
++	assertequal(r6, 6, "6");
++	var r7 int;
++	var s7 float;
++	//BUG r7, s7 = f7(1);
++	//BUG assertequal(r7, 7, "r7");
++	//BUG assertequal(int(s7), 7, "s7");
++	var r8 int;
++	var s8 float;
++	//BUG r8, s8 = f8(1);
++	//BUG assertequal(r8, 8, "r8");
++	//BUG assertequal(int(s8), 8, "s8");
++	var r9 int;
++	var s9 float;
++	//BUG r9, s9 = f9(1);
++	//BUG assertequal(r9, 9, "r9");
++	//BUG assertequal(int(s9), 9, "s9");
++	var t *T = new(T);
++	t.x = 1;
++	t.y = 2;
++	r10 := t.m10(1, 3.0);
++	assertequal(r10, 10, "10");
++}
+diff --git a/test/helloworld.go b/test/helloworld.go
+new file mode 100644
+index 0000000000..ae1f264f54
+--- /dev/null
++++ b/test/helloworld.go
+@@ -0,0 +1,12 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() int {
++	print "hello, world\n";
++	return 0;
++}
+diff --git a/test/if.go b/test/if.go
+new file mode 100644
+index 0000000000..2018f7018c
+--- /dev/null
++++ b/test/if.go
+@@ -0,0 +1,94 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func assertequal(is, shouldbe int, msg string) {
++	if is != shouldbe {
++		print "assertion fail", msg, "\n";
++		panic 1;
++	}
++}
++
++func main() {
++	i5 := 5;
++	i7 := 7;
++
++	var count int;
++
++	count = 0;
++	if true {
++		count = count + 1;	
++	}
++	assertequal(count, 1, "if true");
++
++	count = 0;
++	if false {
++		count = count + 1;	
++	}
++	assertequal(count, 0, "if false");
++
++	count = 0;
++	if one := 1; true {
++		count = count + one;	
++	}
++	assertequal(count, 1, "if true one");
++
++	count = 0;
++	if one := 1; false {
++		count = count + 1;	
++	}
++	assertequal(count, 0, "if false one");
++
++	count = 0;
++	if {
++		count = count + 1;	
++	}
++	assertequal(count, 1, "if empty");
++
++	count = 0;
++	if one := 1; {
++		count = count + one;	
++	}
++	assertequal(count, 1, "if empty one");
++
++	count = 0;
++	if i5 < i7 {
++		count = count + 1;	
++	}
++	assertequal(count, 1, "if cond");
++
++	count = 0;
++	if true {
++		count = count + 1;	
++	} else
++		count = count - 1;
++	assertequal(count, 1, "if else true");
++
++	count = 0;
++	if false {
++		count = count + 1;	
++	} else
++		count = count - 1;
++	assertequal(count, -1, "if else false");
++
++	count = 0;
++	if t:=1; false {
++		count = count + 1;
++		t := 7;	
++	} else
++		count = count - t;
++	assertequal(count, -1, "if else false var");
++
++	count = 0;
++	t := 1;
++	if false {
++		count = count + 1;
++		t := 7;	
++	} else
++		count = count - t;
++	assertequal(count, -1, "if else false var outside");
++}
+diff --git a/test/iota.go b/test/iota.go
+new file mode 100644
+index 0000000000..22cf876bb7
+--- /dev/null
++++ b/test/iota.go
+@@ -0,0 +1,30 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func assert(cond bool, msg string) {
++	if !cond {
++		print "assertion fail: ", msg, "\n";
++		panic 1;
++	}
++}
++
++const (
++	x int = iota;
++	y = iota;
++	z = 1 << iota;
++	f float = 2 * iota;
++	g float = 4.5 * float(iota);
++);
++
++func main() {
++	assert(x == 0, "x");
++	assert(y == 1, "y");
++	assert(z == 4, "z");
++	assert(f == 6.0, "f");
++	assert(g == 18.0, "g");
++}
+diff --git a/test/literal.go b/test/literal.go
+new file mode 100644
+index 0000000000..bb35873862
+--- /dev/null
++++ b/test/literal.go
+@@ -0,0 +1,210 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func assert(cond bool, msg string) {
++	if !cond {
++		print "assertion fail: ", msg, "\n";
++		panic 1;
++	}
++}
++
++func main() {
++	// bool
++	var t bool = true;
++	var f bool = false;
++	assert(t == !f, "bool");
++
++	// int8
++	var i00 int8 = 0;
++	var i01 int8 = 1;
++	var i02 int8 = -1;
++	var i03 int8 = 127;
++	var i04 int8 = -127;
++	var i05 int8 = -128;
++	var i06 int8 = +127;
++	assert(i01 == i00 + 1, "i01");
++	assert(i02 == -i01, "i02");
++	assert(i03 == -i04, "i03");
++	assert(-(i05+1) == i06, "i05");
++
++	// int16
++	var i10 int16 = 0;
++	var i11 int16 = 1;
++	var i12 int16 = -1;
++	var i13 int16 = 32767;
++	var i14 int16 = -32767;
++	var i15 int16 = -32768;
++	var i16 int16 = +32767;
++	assert(i11 == i10 + 1, "i11");
++	assert(i12 == -i11, "i12");
++	assert(i13 == -i14, "i13");
++	assert(-(i15+1) == i16, "i15");
++
++	// int32
++	var i20 int32 = 0;
++	var i21 int32 = 1;
++	var i22 int32 = -1;
++	var i23 int32 = 2147483647;
++	var i24 int32 = -2147483647;
++	var i25 int32 = -2147483648;
++	var i26 int32 = +2147483647;
++	assert(i21 == i20 + 1, "i21");
++	assert(i22 == -i21, "i22");
++	assert(i23 == -i24, "i23");
++	assert(-(i25+1) == i26, "i25");
++	assert(i23 == (1 << 31) - 1, "i23 size");
++
++	// int64
++	var i30 int64 = 0;
++	var i31 int64 = 1;
++	var i32 int64 = -1;
++	var i33 int64 = 9223372036854775807;  // BUG? not sure these really work
++	var i34 int64 = -9223372036854775807;
++	var i35 int64 = -9223372036854775808;
++	var i36 int64 = +9223372036854775807;
++	assert(i31 == i30 + 1, "i31");
++	assert(i32 == -i31, "i32");
++	assert(i33 == -i34, "i33");
++	assert(-(i35+1) == i36, "i35");
++	assert(i33 == (1<<63) - 1, "i33 size");
++
++	// uint8
++	var u00 uint8 = 0;
++	var u01 uint8 = 1;
++	var u02 uint8 = 255;
++	var u03 uint8 = +255;
++	assert(u01 == u00 + 1, "u01");
++	assert(u02 == u03, "u02");
++	assert(u03 == (1<<8) - 1, "u03 size");
++
++	// uint16
++	var u10 uint16 = 0;
++	var u11 uint16 = 1;
++	var u12 uint16 = 65535;
++	var u13 uint16 = +65535;
++	assert(u11 == u10 + 1, "u11");
++	assert(u12 == u13, "u12");
++
++	// uint32
++	var u20 uint32 = 0;
++	var u21 uint32 = 1;
++	var u22 uint32 = 4294967295;
++	var u23 uint32 = +4294967295;
++	assert(u21 == u20 + 1, "u21");
++	assert(u22 == u23, "u22");
++
++	// uint64
++//BUG	var u30 uint64 = 0;
++//BUG	var u31 uint64 = 1;
++//BUG	var u32 uint64 = 18446744073709551615;
++//BUG	var u33 uint64 = +18446744073709551615;
++
++	// float
++	var f00 float = 3.14159;
++	var f01 float = -3.14159;
++	var f02 float = +3.14159;
++	var f03 float = 0.0;
++	var f04 float = .0;
++	var f05 float = 0.;
++	var f06 float = -0.0;
++	var f07 float = 1e10;
++	var f08 float = -1e10;
++	var f09 float = 1e-10;
++	var f10 float = 1e+10;
++	var f11 float = 1.e-10;
++	var f12 float = 1.e+10;
++	var f13 float = .1e-10;
++	var f14 float = .1e+10;
++	var f15 float = 1.1e-10;
++	var f16 float = 1.1e+10;
++	assert(f01 == -f00, "f01");
++	assert(f02 == -f01, "f02");
++	assert(f03 == f04, "f03");
++	assert(f04 == f05, "f04");
++	assert(f05 == f06, "f05");
++	assert(f07 == -f08, "f07");
++	assert(f09 == 1/f10, "f09");
++	assert(f11 == f09, "f11");
++	assert(f12 == f10, "f12");
++	assert(f13 == f09/10.0, "f13");
++	assert(f14 == f12/10.0, "f14");
++	assert(f15 == f16/1e20, "f15");
++
++	// character
++	var c0 uint8 = 'a';
++	var c1 uint8 = 'ä';
++	var c2 uint8 = '\a';
++	var c3 uint8 = '\b';
++	var c4 uint8 = '\f';
++	var c5 uint8 = '\n';
++	var c6 uint8 = '\r';
++	var c7 uint8 = '\t';
++	var c8 uint8 = '\v';
++	// var c9 uint8 = '本'; // correctly caught as error
++	var c9 uint16 = '本';
++	assert(c0 == 0x61, "c0");
++	assert(c1 == 0xe4, "c1");
++	assert(c2 == 0x07, "c2");
++	assert(c3 == 0x08, "c3");
++	assert(c4 == 0x0c, "c4");
++	assert(c5 == 0x0a, "c4");
++	assert(c6 == 0x0d, "c6");
++	assert(c7 == 0x09, "c7");
++	assert(c8 == 0x0b, "c8");
++	assert(c9 == 0x672c, "c9");
++
++
++	var c00 uint8 = '\000';
++	var c01 uint8 = '\007';
++	var c02 uint8 = '\177';
++	var c03 uint8 = '\377';
++	assert(c00 == 0, "c00");
++	assert(c01 == 7, "c01");
++	assert(c02 == 127, "c02");
++	assert(c03 == 255, "c03");
++
++	var cx0 uint8 = '\x00';
++	var cx1 uint8 = '\x0f';
++	var cx2 uint8 = '\xff';
++	assert(cx0 == 0, "cx0");
++	assert(cx1 == 15, "cx1");
++	assert(cx2 == 255, "cx2");
++
++	var cu0 uint16 = '\u1234';
++	var cu1 uint32 = '\U00101234';
++	assert(cu0 == 0x1234, "cu0");
++	assert(cu1 == 0x101234, "cu1");
++
++	// string
++	var s0 string = "";
++	var s1 string = "hellô";
++	assert(s1[0] == 'h', "s1-0");
++	assert(s1[4] == 0xc3, "s1-4");
++	assert(s1[5] == 0xb4, "s1-5");
++//	var s2 string = "\a\b\f\n\r\t\v";  // BUG: \r miscompiles
++
++	var s00 string = "\000";
++	var s01 string = "\007";
++	var s02 string = "\377";
++	assert(s00[0] == 0, "s00");
++	assert(s01[0] == 7, "s01");
++	assert(s02[0] == 255, "s02");
++
++	var x00 string = "\x00";
++	var x01 string = "\x0f";
++	var x02 string = "\xff";
++	assert(x00[0] == 0, "x00");
++	assert(x01[0] == 15, "x01");
++	assert(x02[0] == 255, "x02");
++
++	// these are all the same string
++	var sj0 string = "日本語";
++	var sj1 string = "\u65e5\u672c\u8a9e";
++	var sj2 string = "\U000065e5\U0000672c\U00008a9e";
++	var sj3 string = "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e";
++}
+diff --git a/test/run b/test/run
+index cf6b9e5316..94284f6ad2 100755
+--- a/test/run
++++ b/test/run
+@@ -28,11 +28,12 @@ do
+ 		echo >&2 fail: $i
+ 	fi
+ done | cat -v >run.out
++
+ case $failed in
+ 1)
+ 	echo FAIL
+ esac
+-rm  /tmp/$USER.$$.gotest
++rm  -f /tmp/$USER.$$.gotest *.6
+ if ! diff run.out golden.out
+ then
+ 	failed=1
+diff --git a/test/runtests.sh b/test/runtests.sh
+deleted file mode 100755
+index 9fb0f0ab13..0000000000
+--- a/test/runtests.sh
++++ /dev/null
+@@ -1,9 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-#!/bin/bash
+-GO=$1
+-for f in *.go; do
+-  $GO $f
+-done
+diff --git a/test/sieve.go b/test/sieve.go
+index 1a96e601dd..c27519ab9d 100644
+--- a/test/sieve.go
++++ b/test/sieve.go
+@@ -9,7 +9,7 @@ package Main
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+ func Generate(ch *chan> int) {
+   for i := 2; ; i++ {
+-    >ch = i  // Send 'i' to channel 'ch'.
++    >ch = i;  // Send 'i' to channel 'ch'.
+   }
+ }
+ 
+@@ -19,7 +19,7 @@ func Filter(in *chan< int, out *chan> int, prime int) {
+   for {
+     i := <in;  // Receive value of new variable 'i' from 'in'.
+     if i % prime != 0 {
+-      >out = i  // Send 'i' to channel 'out'.
++      >out = i;  // Send 'i' to channel 'out'.
+     }
+   }
+ }
+@@ -33,10 +33,10 @@ func Sieve() {
+     print "%d\n",  prime;
+     ch1 := new(chan int);
+     go Filter(ch, ch1, prime);
+-    ch = ch1
++    ch = ch1;
+   }
+ }
+ 
+ func Main() {
+-  Sieve()
++  Sieve();
+ }
+diff --git a/test/switch.go b/test/switch.go
+new file mode 100644
+index 0000000000..1184230db2
+--- /dev/null
++++ b/test/switch.go
+@@ -0,0 +1,131 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func assert(cond bool, msg string) {
++	if !cond {
++		print "assertion fail: ", msg, "\n";
++		panic 1;
++	}
++}
++
++func main() {
++	i5 := 5;
++	i7 := 7;
++
++	switch true {
++	case i5 < 5: assert(false, "<");
++	case i5 == 5: assert(true, "!");
++	case i5 > 5: assert(false, ">");
++	}
++
++	switch {
++	case i5 < 5: assert(false, "<");
++	case i5 == 5: assert(true, "!");
++	case i5 > 5: assert(false, ">");
++	}
++
++	switch x := 5; true {
++	case i5 < x: assert(false, "<");
++	case i5 == x: assert(true, "!");
++	case i5 > x: assert(false, ">");
++	}
++
++	switch x := 5; {  // BUG?: true should not be necessary but now made mandatory in go_lang.txt
++	case i5 < x: assert(false, "<");
++	case i5 == x: assert(true, "!");
++	case i5 > x: assert(false, ">");
++	}
++
++	switch i5 {
++	case 0: assert(false, "0");
++	case 1: assert(false, "1");
++	case 2: assert(false, "2");
++	case 3: assert(false, "3");
++	case 4: assert(false, "4");
++	case 5: assert(true, "5");
++	case 6: assert(false, "6");
++	case 7: assert(false, "7");
++	case 8: assert(false, "8");
++	case 9: assert(false, "9");
++	default: assert(false, "default");
++	}
++
++	switch i5 {
++	case 0,1,2,3,4: assert(false, "4");
++	case 5: assert(true, "5");
++	case 6,7,8,9: assert(false, "9");
++	default: assert(false, "default");
++	}
++
++	switch i5 {
++	case 0:
++	case 1:
++	case 2:
++	case 3:
++	case 4: assert(false, "4");
++	case 5: assert(true, "5");
++	case 6:
++	case 7:
++	case 8:
++	case 9: 
++	default: assert(i5 == 5, "good");
++	}
++
++	switch i5 {
++	case 0: dummy := 0; fallthrough;
++	case 1: dummy := 0; fallthrough;
++	case 2: dummy := 0; fallthrough;
++	case 3: dummy := 0; fallthrough;
++	case 4: dummy := 0; assert(false, "4");
++	case 5: dummy := 0; fallthrough;
++	case 6: dummy := 0; fallthrough;
++	case 7: dummy := 0; fallthrough;
++	case 8: dummy := 0; fallthrough;
++	case 9: dummy := 0; fallthrough;
++	default: dummy := 0; assert(i5 == 5, "good");
++	}
++
++	fired := 0;  // BUG: should be able to use 'false'
++	switch i5 {
++	case 0: dummy := 0; fallthrough;  // tests scoping of cases
++	case 1: dummy := 0; fallthrough;
++	case 2: dummy := 0; fallthrough;
++	case 3: dummy := 0; fallthrough;
++	case 4: dummy := 0; assert(false, "4");
++	case 5: dummy := 0; fallthrough;
++	case 6: dummy := 0; fallthrough;
++	case 7: dummy := 0; fallthrough;
++	case 8: dummy := 0; fallthrough;
++	case 9: dummy := 0; fallthrough;
++	default: dummy := 0; fired = fired + 1; assert(i5 == 5, "good");
++	}
++	assert(fired > 0, "fired");
++
++	count := 0;
++	switch i5 {
++	case 0: count = count + 1; fallthrough;
++	case 1: count = count + 1; fallthrough;
++	case 2: count = count + 1; fallthrough;
++	case 3: count = count + 1; fallthrough;
++	case 4: count = count + 1; assert(false, "4");
++	case 5: count = count + 1; fallthrough;
++	case 6: count = count + 1; fallthrough;
++	case 7: count = count + 1; fallthrough;
++	case 8: count = count + 1; fallthrough;
++	case 9: count = count + 1; fallthrough;
++	default: assert(i5 == count, "good");
++	}
++	assert(fired > 0, "fired");
++
++	fired = 0;
++	switch i := i5 + 2; i {
++	case i7: fired = 1;
++	default: assert(false, "fail");
++	}
++	assert(fired == 1, "var");
++}
+diff --git a/test/turing.go b/test/turing.go
+index 2b6b69b18a..c622bfb741 100644
+--- a/test/turing.go
++++ b/test/turing.go
+@@ -10,7 +10,7 @@ package main
+ 
+ func main() {
+ 	var a [30000]byte;
+-	prog := "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>.";
++	prog := "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>.!";
+ 	p := 0;
+ 	pc := 0;
+ 	for {

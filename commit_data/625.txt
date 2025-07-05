@@ -8,6 +8,26 @@ Date:   Fri Sep 12 09:43:21 2008 -0700
     DELTA=9  (9 added, 0 deleted, 0 changed)
     OCL=15223
     CL=15223
-
+---
  test/bugs/bug102.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/test/bugs/bug102.go b/test/bugs/bug102.go
+new file mode 100644
+index 0000000000..333fad036f
+--- /dev/null
++++ b/test/bugs/bug102.go
+@@ -0,0 +1,13 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: should not crash
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var b [0]byte;
++	s := string(b);	// out of bounds trap
++}
++

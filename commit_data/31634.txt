@@ -17,7 +17,91 @@ Date:   Sun Mar 5 11:37:09 2017 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/ARMOps.go | 4 ++--
  src/cmd/compile/internal/ssa/opGen.go      | 8 ++++++++
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index e296d0600d..6d9a90acb2 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -119,8 +119,8 @@ func init() {
+ 		fp01      = regInfo{inputs: nil, outputs: []regMask{fp}}
+ 		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+ 		fp1flags  = regInfo{inputs: []regMask{fp}}
+-		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
+-		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
++		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}, clobbers: buildReg("F15")} // int-float conversion uses F15 as tmp
++		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}, clobbers: buildReg("F15")}
+ 		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+ 		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
+ 		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 7360acb4cd..421518ae4d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -10336,6 +10336,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+ 			},
++			clobbers: 2147483648, // F15
+ 			outputs: []outputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+@@ -10349,6 +10350,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+ 			},
++			clobbers: 2147483648, // F15
+ 			outputs: []outputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+@@ -10362,6 +10364,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+ 			},
++			clobbers: 2147483648, // F15
+ 			outputs: []outputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+@@ -10375,6 +10378,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+ 			},
++			clobbers: 2147483648, // F15
+ 			outputs: []outputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+@@ -10388,6 +10392,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
++			clobbers: 2147483648, // F15
+ 			outputs: []outputInfo{
+ 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+ 			},
+@@ -10401,6 +10406,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
++			clobbers: 2147483648, // F15
+ 			outputs: []outputInfo{
+ 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+ 			},
+@@ -10414,6 +10420,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
++			clobbers: 2147483648, // F15
+ 			outputs: []outputInfo{
+ 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+ 			},
+@@ -10427,6 +10434,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
++			clobbers: 2147483648, // F15
+ 			outputs: []outputInfo{
+ 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+ 			},

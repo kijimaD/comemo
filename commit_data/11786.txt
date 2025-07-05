@@ -9,6 +9,19 @@ Date:   Fri Feb 10 22:26:36 2012 -0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5651062
-
+---
  src/cmd/dist/build.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 1067ce16e8..d95910b45c 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1247,6 +1247,7 @@ cmdbootstrap(int argc, char **argv)
+ 		usage();
+ 
+ 	clean();
++	goversion = findgoversion();
+ 	setup();
+ 	
+ 	binit(&b);

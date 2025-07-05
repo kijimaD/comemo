@@ -30,6 +30,22 @@ Date:   Thu Aug 8 15:24:15 2024 -0700
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
-
+---
  src/runtime/mprof.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index a9adc7b6f7..f82f6a6d37 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -722,8 +722,8 @@ type mLockProfile struct {
+ }
+ 
+ func (prof *mLockProfile) recordLock(cycles int64, l *mutex) {
+-	if cycles <= 0 {
+-		return
++	if cycles < 0 {
++		cycles = 0
+ 	}
+ 
+ 	if prof.disabled {

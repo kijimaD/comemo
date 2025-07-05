@@ -11,9 +11,61 @@ Date:   Wed May 29 18:40:06 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go.mod                                              | 2 +-
  src/go.sum                                              | 2 ++
  src/vendor/golang.org/x/sys/cpu/syscall_aix_ppc64_gc.go | 2 ++
  src/vendor/modules.txt                                  | 2 +-
  4 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index 28530491bd..d7d707c2d7 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -5,6 +5,6 @@ go 1.12
+ require (
+ 	golang.org/x/crypto v0.0.0-20190513172903-22d7a77e9e5f
+ 	golang.org/x/net v0.0.0-20190514140710-3ec191127204
+-	golang.org/x/sys v0.0.0-20190528183647-3626398d7749 // indirect
++	golang.org/x/sys v0.0.0-20190529130038-5219a1e1c5f8 // indirect
+ 	golang.org/x/text v0.3.2 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index ff3ed35a94..c0f012c3df 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -8,6 +8,8 @@ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5h
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20190528183647-3626398d7749 h1:oG2HS+e2B9VqK95y67B5MgJIJhOPY27/m5uJKJhHzus=
+ golang.org/x/sys v0.0.0-20190528183647-3626398d7749/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20190529130038-5219a1e1c5f8 h1:2WjIC11WRITGlVWmyLXKjzIVj1ZwoWZ//tadeUUV6/o=
++golang.org/x/sys v0.0.0-20190529130038-5219a1e1c5f8/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/text v0.3.2 h1:tW2bmiBqwgJj/UpqtC8EpXEZVYOwU0yG4iWbprSVAcs=
+ golang.org/x/text v0.3.2/go.mod h1:bEr9sfX3Q8Zfm5fL9x+3itogRgK3+ptLWKqgva+5dAk=
+diff --git a/src/vendor/golang.org/x/sys/cpu/syscall_aix_ppc64_gc.go b/src/vendor/golang.org/x/sys/cpu/syscall_aix_ppc64_gc.go
+index 15a8b85204..78fe25e86f 100644
+--- a/src/vendor/golang.org/x/sys/cpu/syscall_aix_ppc64_gc.go
++++ b/src/vendor/golang.org/x/sys/cpu/syscall_aix_ppc64_gc.go
+@@ -18,6 +18,8 @@ import (
+ 
+ //go:cgo_import_dynamic libc_getsystemcfg getsystemcfg "libc.a/shr_64.o"
+ 
++//go:linkname libc_getsystemcfg libc_getsystemcfg
++
+ type syscallFunc uintptr
+ 
+ var libc_getsystemcfg syscallFunc
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 6f64ac79f1..b7a9006746 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -16,7 +16,7 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.0.0-20190528183647-3626398d7749
++# golang.org/x/sys v0.0.0-20190529130038-5219a1e1c5f8
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.3.2
+ golang.org/x/text/secure/bidirule

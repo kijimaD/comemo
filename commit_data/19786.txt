@@ -16,6 +16,18 @@ Date:   Sun Jul 20 12:25:24 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/116050043
-
+---
  test/shift1.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/test/shift1.go b/test/shift1.go
+index 44a3792c4f..04f5321b73 100644
+--- a/test/shift1.go
++++ b/test/shift1.go
+@@ -238,4 +238,6 @@ func _() {
+ 	z = (1. << s) << (1 << s)    // ERROR "non-integer|type complex128"
+ 	z = (1. << s) << (1. << s)   // ERROR "non-integer|type complex128"
+ 	z = (1.1 << s) << (1.1 << s) // ERROR "invalid|truncated|complex128"
++
++	_, _, _ = x, y, z
+ }

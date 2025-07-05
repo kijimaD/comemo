@@ -6,7 +6,76 @@ Date:   Sat Jul 19 14:52:01 2008 -0700
     tweak ar so the pkgdef file doesn't cause it not to generate a symbol table
     
     SVN=128119
-
+---
  src/cmd/ar/ar.c |  4 +++-
  src/lib/fmt.go  | 26 +++++++++++---------------
  2 files changed, 14 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/ar/ar.c b/src/cmd/ar/ar.c
+index 3e87faac9e..354e5d444d 100644
+--- a/src/cmd/ar/ar.c
++++ b/src/cmd/ar/ar.c
+@@ -111,6 +111,7 @@ char	artemp[] =	"/tmp/vXXXXX";
+ char	movtemp[] =	"/tmp/v1XXXXX";
+ char	tailtemp[] =	"/tmp/v2XXXXX";
+ char	symdef[] =	"__.SYMDEF";
++char	pkgdef[] =	"__.PKGDEF";
+ 
+ int	aflag;				/* command line flags */
+ int	bflag;
+@@ -566,7 +567,8 @@ scanobj(Biobuf *b, Arfile *ap, long size)
+ 	offset = Boffset(b);
+ 	obj = objtype(b, 0);
+ 	if (obj < 0) {			/* not an object file */
+-		allobj = 0;
++		if (strcmp(file, pkgdef) != 0)  /* don't clear allobj if it's pkg defs */
++			allobj = 0;
+ 		d = dirfstat(Bfildes(b));
+ 		if (d != nil && d->length == 0)
+ 			fprint(2, "ar: zero length file %s\n", file);
+diff --git a/src/lib/fmt.go b/src/lib/fmt.go
+index cc98462da5..668d608d16 100644
+--- a/src/lib/fmt.go
++++ b/src/lib/fmt.go
+@@ -18,11 +18,19 @@ export Fmt, New;
+ const NByte = 64;
+ const NPows10 = 160;  // BUG: why not nelem(pows10);
+ 
+-var ldigits string;
+-var udigits string;
+-var inited bool;
++var ldigits string = "0123456789abcdef";  // BUG: Should be const
++var udigits string = "0123456789ABCDEF";  // BUG: Should be const
+ var pows10 [NPows10] double;
+ 
++func init() {
++	pows10[0] = 1.0e0;
++	pows10[1] = 1.0e1;
++	for i:=2; i<NPows10; i++ {
++		m := i/2;
++		pows10[i] = pows10[m] * pows10[i-m];
++	}
++}
++
+ type Fmt struct {
+ 	buf string;
+ 	wid int;
+@@ -43,18 +51,6 @@ func (f *Fmt) clearbuf() {
+ func (f *Fmt) init() {
+ 	f.clearbuf();
+ 	f.clearflags();
+-	if inited {
+-		return;
+-	}
+-	ldigits = "0123456789abcdef";  // BUG: should be initialized const
+-	udigits = "0123456789ABCDEF";  // BUG: should be initialized const
+-	// BUG: should be done with initialization
+-	var p double = 1.0;
+-	for i := 0; i < NPows10; i++ {
+-		pows10[i] = p;
+-		p *= 10.0;
+-	}
+-	inited = true;
+ }
+ 
+ func New() *Fmt {

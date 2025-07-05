@@ -11,7 +11,46 @@ Date:   Tue Aug 25 14:02:30 2015 -0700
     Change-Id: I69f8eaecbc5d79ab9f2a257c2e289d60b18e43c8
     Reviewed-on: https://go-review.googlesource.com/13933
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/check.go    |  3 ---
  src/cmd/compile/internal/ssa/critical.go | 13 -------------
  2 files changed, 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 2631401130..61626089a6 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -99,9 +99,6 @@ func checkFunc(f *Func) {
+ 			if !b.Control.Type.IsMemory() {
+ 				f.Fatalf("call block %s has non-memory control value %s", b, b.Control.LongString())
+ 			}
+-			if b.Succs[1].Kind != BlockExit {
+-				f.Fatalf("exception edge from call block %s does not go to exit but %s", b, b.Succs[1])
+-			}
+ 		}
+ 		if len(b.Succs) > 2 && b.Likely != BranchUnknown {
+ 			f.Fatalf("likeliness prediction %d for block %s with %d successors: %s", b.Likely, b, len(b.Succs))
+diff --git a/src/cmd/compile/internal/ssa/critical.go b/src/cmd/compile/internal/ssa/critical.go
+index 503681ffd3..ba75450875 100644
+--- a/src/cmd/compile/internal/ssa/critical.go
++++ b/src/cmd/compile/internal/ssa/critical.go
+@@ -13,19 +13,6 @@ func critical(f *Func) {
+ 			continue
+ 		}
+ 
+-		// decide if we need to split edges coming into b.
+-		hasphi := false
+-		for _, v := range b.Values {
+-			if v.Op == OpPhi && v.Type != TypeMem {
+-				hasphi = true
+-				break
+-			}
+-		}
+-		if !hasphi {
+-			// no splitting needed
+-			continue
+-		}
+-
+ 		// split input edges coming from multi-output blocks.
+ 		for i, c := range b.Preds {
+ 			if c.Kind == BlockPlain {

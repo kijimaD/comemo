@@ -15,8 +15,59 @@ Date:   Tue Feb 7 15:29:18 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/gofmt/rewrite.go               |  2 +-
  src/cmd/gofmt/testdata/rewrite9.golden | 11 +++++++++++
  src/cmd/gofmt/testdata/rewrite9.input  | 11 +++++++++++
  3 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index 550492bf29..79b7858a5a 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -66,10 +66,10 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
+ 		if !val.IsValid() {
+ 			return reflect.Value{}
+ 		}
++		val = apply(rewriteVal, val)
+ 		for k := range m {
+ 			delete(m, k)
+ 		}
+-		val = apply(rewriteVal, val)
+ 		if match(m, pat, val) {
+ 			val = subst(m, repl, reflect.ValueOf(val.Interface().(ast.Node).Pos()))
+ 		}
+diff --git a/src/cmd/gofmt/testdata/rewrite9.golden b/src/cmd/gofmt/testdata/rewrite9.golden
+new file mode 100644
+index 0000000000..fffbd3d05b
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite9.golden
+@@ -0,0 +1,11 @@
++//gofmt -r=a&&b!=2->a
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 18987.
++
++package p
++
++const _ = x != 1
+diff --git a/src/cmd/gofmt/testdata/rewrite9.input b/src/cmd/gofmt/testdata/rewrite9.input
+new file mode 100644
+index 0000000000..106ad94bc5
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite9.input
+@@ -0,0 +1,11 @@
++//gofmt -r=a&&b!=2->a
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 18987.
++
++package p
++
++const _ = x != 1 && x != 2

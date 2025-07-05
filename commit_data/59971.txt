@@ -15,6 +15,19 @@ Date:   Mon May 13 18:00:46 2024 +0200
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/netip/inlining_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/netip/inlining_test.go b/src/net/netip/inlining_test.go
+index b521eeebfd..6098c9619b 100644
+--- a/src/net/netip/inlining_test.go
++++ b/src/net/netip/inlining_test.go
+@@ -31,6 +31,7 @@ func TestInlining(t *testing.T) {
+ 	})
+ 	wantInlinable := []string{
+ 		"(*uint128).halves",
++		"Addr.AsSlice",
+ 		"Addr.BitLen",
+ 		"Addr.hasZone",
+ 		"Addr.Is4",

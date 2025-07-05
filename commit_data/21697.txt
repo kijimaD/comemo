@@ -13,7 +13,99 @@ Date:   Wed Jan 28 13:34:13 2015 -0800
     Change-Id: I24f9a4d2152c3f9f253e22ff75270fe50c18612b
     Reviewed-on: https://go-review.googlesource.com/3451
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/overflow.go | 35 +++++++++++++++++++++++++++++++++++
  src/cmd/asm/internal/asm/parse.go    | 13 ++++++++++---
  2 files changed, 45 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/overflow.go b/src/cmd/asm/internal/asm/overflow.go
+index 9e03e7acbc..a4292011ae 100644
+--- a/src/cmd/asm/internal/asm/overflow.go
++++ b/src/cmd/asm/internal/asm/overflow.go
+@@ -33,6 +33,23 @@ package asm
+ 			}
+ 		}
+ 	}
++	overflow := func(a, b int) bool {
++		for ; b > 0; b-- {
++			a <<= 1
++			if a >= 256 {
++				return true
++			}
++		}
++		return false
++	}
++	for a := 0; a <= 255; a++ {
++		for b := 0; b <= 255; b++ {
++			ovfl := overflow(a, b)
++			if shiftOverflows(uint8(a), uint8(b)) != ovfl {
++				fmt.Printf("%d<<%d fails\n", a, b)
++			}
++		}
++	}
+ */
+ 
+ func addOverflows(a, b uint64) bool {
+@@ -51,6 +68,11 @@ func mulOverflows(a, b uint64) bool {
+ 	return c/b != a
+ }
+ 
++func shiftOverflows(a, b uint64) bool {
++	c := a << b
++	return c>>b != a
++}
++
+ /*
+ For the record, signed overflow:
+ 
+@@ -91,4 +113,17 @@ func signedMulOverflows(a, b int64) bool {
+ 	c := a * b
+ 	return c/b != a
+ }
++
++func signedShiftOverflows(a, b int64) bool {
++	// Avoid right shift of a negative number.
++	if a >= 0 {
++		c := a << b
++		return c>>b != a
++	}
++	// Otherwise it's negative, so we complement, which
++	// puts zeros at the top.
++	a = ^a
++	c := a << b
++	return c>>b != a
++}
+ */
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 18ec932f97..be616ec0bc 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -408,7 +408,11 @@ func (p *Parser) term() uint64 {
+ 		switch p.peek() {
+ 		case '*':
+ 			p.next()
+-			value *= p.factor() // OVERFLOW?
++			x := p.factor()
++			if mulOverflows(value, x) {
++				p.errorf("%d * %d overflows", value, x)
++			}
++			value *= x
+ 		case '/':
+ 			p.next()
+ 			value /= p.factor()
+@@ -418,10 +422,13 @@ func (p *Parser) term() uint64 {
+ 		case lex.LSH:
+ 			p.next()
+ 			shift := p.factor()
+-			if shift < 0 {
++			if int64(shift) < 0 {
+ 				p.errorf("negative left shift %d", shift)
+ 			}
+-			value <<= uint(shift) // OVERFLOW?
++			if shiftOverflows(value, shift) {
++				p.errorf("%d << %d overflows", value, shift)
++			}
++			return value << shift
+ 		case lex.RSH:
+ 			p.next()
+ 			shift := p.term()

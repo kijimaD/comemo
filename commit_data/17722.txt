@@ -17,9 +17,92 @@ Date:   Tue Oct 1 23:44:20 2013 -0400
     R=adg, rsc, iant
     CC=golang-dev
     https://golang.org/cl/13887043
-
+---
  src/cmd/dist/a.h     | 1 +
  src/cmd/dist/build.c | 8 ++++++++
  src/cmd/dist/main.c  | 1 +
  src/make.bash        | 7 ++++++-
  4 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+index 5ded13d6f6..9de93180f1 100644
+--- a/src/cmd/dist/a.h
++++ b/src/cmd/dist/a.h
+@@ -112,6 +112,7 @@ void	goc2c(char*, char*);
+ 
+ // main.c
+ extern int vflag;
++extern int sflag;
+ void	usage(void);
+ void	xmain(int argc, char **argv);
+ 
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 9fe6058a50..e6e5f0cf7f 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -720,6 +720,8 @@ install(char *dir)
+ 			vadd(&link, bpathf(&b, "%s/%s", tooldir, name));
+ 		} else {
+ 			vcopy(&link, gccargs.p, gccargs.len);
++			if(sflag)
++				vadd(&link, "-static");
+ 			vadd(&link, "-o");
+ 			targ = link.len;
+ 			vadd(&link, bpathf(&b, "%s/%s%s", tooldir, name, exe));
+@@ -1527,6 +1529,9 @@ cmdbootstrap(int argc, char **argv)
+ 	case 'a':
+ 		rebuildall = 1;
+ 		break;
++	case 's':
++		sflag++;
++		break;
+ 	case 'v':
+ 		vflag++;
+ 		break;
+@@ -1613,6 +1618,9 @@ cmdinstall(int argc, char **argv)
+ 	int i;
+ 
+ 	ARGBEGIN{
++	case 's':
++		sflag++;
++		break;
+ 	case 'v':
+ 		vflag++;
+ 		break;
+diff --git a/src/cmd/dist/main.c b/src/cmd/dist/main.c
+index 72a7579d14..fad01802a5 100644
+--- a/src/cmd/dist/main.c
++++ b/src/cmd/dist/main.c
+@@ -5,6 +5,7 @@
+ #include "a.h"
+ 
+ int vflag;
++int sflag;
+ char *argv0;
+ 
+ // cmdtab records the available commands.
+diff --git a/src/make.bash b/src/make.bash
+index 30388388f2..877d1e5ebb 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -37,6 +37,11 @@
+ #
+ # CC: Command line to run to get at host C compiler.
+ # Default is "gcc". Also supported: "clang".
++# CXX: Command line to run to get at host C++ compiler, only recorded
++# for cgo use. Default is "g++". Also supported: "clang++".
++#
++# GO_DISTFLAGS: extra flags to provide to "dist bootstrap". Use "-s"
++# to build a statically linked toolchain.
+ 
+ set -e
+ if [ ! -f run.bash ]; then
+@@ -140,7 +145,7 @@ buildall="-a"
+ if [ "$1" = "--no-clean" ]; then
+ 	buildall=""
+ fi
+-./cmd/dist/dist bootstrap $buildall -v # builds go_bootstrap
++./cmd/dist/dist bootstrap $buildall $GO_DISTFLAGS -v # builds go_bootstrap
+ # Delay move of dist tool to now, because bootstrap may clear tool directory.
+ mv cmd/dist/dist "$GOTOOLDIR"/dist
+ "$GOTOOLDIR"/go_bootstrap clean -i std

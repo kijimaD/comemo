@@ -12,6 +12,20 @@ Date:   Sat Nov 26 16:27:40 2022 -0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.20.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index d8e6a81744..d36c65f918 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -279,7 +279,7 @@ Do not send CLs removing the interior tags from such phrases.
+   wrap multiple other errors.
+ </p>
+ <p>
+-  An error <code>e</code</e> can wrap more than one error by providing
++  An error <code>e</code> can wrap more than one error by providing
+   an <code>Unwrap</code> method that returns a <code>[]error</code>.
+ </p>
+ <p>

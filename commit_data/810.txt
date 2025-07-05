@@ -8,6 +8,52 @@ Date:   Sat Oct 4 22:11:26 2008 -0700
     DELTA=7  (2 added, 2 deleted, 3 changed)
     OCL=16495
     CL=16499
-
+---
  test/chan/powser1.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index 5e73d8edf2..193bab1bd0 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -17,18 +17,18 @@ type rat struct  {
+ 	num, den  int64;	// numerator, denominator
+ }
+ 
+-func (u *rat) pr(){
++type item *rat;
++
++func (u item) pr(){
+ 	if u.den==1 { print(u.num) }
+ 	else { print(u.num, "/", u.den) }
+ 	print(" ")
+ }
+ 
+-func (u *rat) eq(c *rat) bool {
++func (u item) eq(c item) bool {
+ 	return u.num == c.num && u.den == c.den
+ }
+ 
+-type item *rat;
+-
+ type dch struct {
+ 	req *chan  int;
+ 	dat *chan  item;
+@@ -425,7 +425,7 @@ func Poly(a [] *rat) PS{
+ 	begin func(a [] *rat, Z PS){
+ 		j:=0;
+ 		done:=0;
+-		for j=len(a); !done&&j>0; j=j-1) 
++		for j=len(a); !done&&j>0; j=j-1)
+ 			if(a[j-1].num!=0) done=1;
+ 		i:=0;
+ 		for(; i<j; i=i+1) put(a[i],Z);
+@@ -610,7 +610,7 @@ func Init() {
+ 	Twos = Rep(itor(2));
+ }
+ 
+-func check(U PS, c *rat, count int, str string) {
++func check(U PS, c item, count int, str string) {
+ 	for i := 0; i < count; i++ {
+ 		r := get(U)
+ 		if !r.eq(c) {

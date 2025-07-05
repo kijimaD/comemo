@@ -13,6 +13,19 @@ Date:   Fri Aug 27 17:08:23 2021 +0200
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/runtime/syscall_windows_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 235c79f68f..65f74b32fb 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -770,7 +770,6 @@ func TestSyscallN(t *testing.T) {
+ 	for arglen := 0; arglen <= runtime.MaxArgs; arglen++ {
+ 		arglen := arglen
+ 		t.Run(fmt.Sprintf("arg-%d", arglen), func(t *testing.T) {
+-			t.Parallel()
+ 			args := make([]string, arglen)
+ 			rets := make([]string, arglen+1)
+ 			params := make([]uintptr, arglen)

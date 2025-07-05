@@ -25,7 +25,48 @@ Date:   Fri Apr 28 15:20:38 2017 +0100
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64enc.s | 16 ++++++++--------
  src/cmd/internal/obj/x86/asm6.go             |  2 +-
  2 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc.s b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+index 22c948e165..dbc4023f9f 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+@@ -412,14 +412,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	ANDPD (R11), X11                        // 66450f541b
+ 	ANDPD X2, X11                           // 66440f54da
+ 	ANDPD X11, X11                          // 66450f54db
+-	//TODO: ANDPS (BX), X2                  // 0f5413
+-	//TODO: ANDPS (R11), X2                 // 410f5413
+-	//TODO: ANDPS X2, X2                    // 0f54d2
+-	//TODO: ANDPS X11, X2                   // 410f54d3
+-	//TODO: ANDPS (BX), X11                 // 440f541b
+-	//TODO: ANDPS (R11), X11                // 450f541b
+-	//TODO: ANDPS X2, X11                   // 440f54da
+-	//TODO: ANDPS X11, X11                  // 450f54db
++	ANDPS (BX), X2                          // 0f5413
++	ANDPS (R11), X2                         // 410f5413
++	ANDPS X2, X2                            // 0f54d2
++	ANDPS X11, X2                           // 410f54d3
++	ANDPS (BX), X11                         // 440f541b
++	ANDPS (R11), X11                        // 450f541b
++	ANDPS X2, X11                           // 440f54da
++	ANDPS X11, X11                          // 450f54db
+ 	BEXTRL R9, (BX), DX                     // c4e230f713
+ 	BEXTRL R9, (R11), DX                    // c4c230f713
+ 	BEXTRL R9, DX, DX                       // c4e230f7d2
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index e2270747ce..bcf9318e2e 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -963,7 +963,7 @@ var optab =
+ 	{AANDNPD, yxm, Pq, [23]uint8{0x55}},
+ 	{AANDNPS, yxm, Pm, [23]uint8{0x55}},
+ 	{AANDPD, yxm, Pq, [23]uint8{0x54}},
+-	{AANDPS, yxm, Pq, [23]uint8{0x54}},
++	{AANDPS, yxm, Pm, [23]uint8{0x54}},
+ 	{AANDQ, yaddl, Pw, [23]uint8{0x83, 04, 0x25, 0x81, 04, 0x21, 0x23}},
+ 	{AANDW, yaddl, Pe, [23]uint8{0x83, 04, 0x25, 0x81, 04, 0x21, 0x23}},
+ 	{AARPL, yrl_ml, P32, [23]uint8{0x63}},

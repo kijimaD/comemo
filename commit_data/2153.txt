@@ -9,10 +9,602 @@ Date:   Wed May 6 16:28:18 2009 -0700
     R=r
     OCL=28370
     CL=28372
-
+---
  usr/gri/pretty/ast.txt        |  87 ++++++++++++++-----------
  usr/gri/pretty/format.go      | 146 ++++++++++++++++++++++--------------------
  usr/gri/pretty/format_test.go |   2 +-
  usr/gri/pretty/pretty.go      |  35 ++++++++--
  usr/gri/pretty/test.sh        |  26 +++++++-
  5 files changed, 180 insertions(+), 116 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.txt b/usr/gri/pretty/ast.txt
+index d25a5a3bf3..fcad4fe437 100644
+--- a/usr/gri/pretty/ast.txt
++++ b/usr/gri/pretty/ast.txt
+@@ -28,7 +28,7 @@ bytes =
+ nil =
+ 	;  // TODO we see a lot of nil's - why?
+ 
+-not_empty =
++exists =
+ 	*:nil;
+ 
+ 
+@@ -59,7 +59,7 @@ ast.Comments =
+ // Expressions & Types
+ 
+ ast.Field =
+-	[Names:not_empty {Names / ", "} " "] Type;
++	[Names:exists {Names / ", "} " "] Type;
+ 
+ ast.BadExpr =
+ 	"BAD EXPR";
+@@ -86,7 +86,7 @@ ast.StringList =
+ 	{Strings / "\n"};
+ 
+ ast.FuncLit =
+-	"func ";
++	Type " " Body;
+ 
+ ast.CompositeLit =
+ 	Type "{" {Elts / ", "} "}";
+@@ -128,37 +128,45 @@ ast.SliceType =
+ 	"[]" Elt;
+ 
+ ast.StructType =
+-	"struct {"
+-	[Fields:not_empty
+-	>> "\t" "\n"
+-		{Fields / ";\n"}
+-	<< "\n"
++	"struct"
++	[Lbrace:isValidPos " {"]
++	[	Fields:exists
++		>> "\t" "\n"
++			{Fields / ";\n"}
++		<< "\n"
+ 	]
+-	"}";
++	[Rbrace:isValidPos "}"];
+ 
+ signature =
+-	"(" {Params / ", "} ")" [Results:not_empty " (" {Results / ", "} ")"];
++	"(" {Params / ", "} ")" [Results:exists " (" {Results / ", "} ")"];
+ 
+ funcSignature =
+ 	*:signature;
+ 
+ ast.FuncType =
+-	"func" ^:signature;
++	[Position:isValidPos "func"] ^:signature;
+ 
+ ast.InterfaceType =
+-	"interface {"
+-	[Methods:not_empty
+-	>> "\t" "\n"
+-		{Methods / ";\n"}  // TODO should not start with "func"
+-	<< "\n"
++	"interface"
++	[Lbrace:isValidPos " {"]
++	[	Methods:exists
++		>> "\t" "\n"
++			{Methods / ";\n"}
++		<< "\n"
+ 	]
+-	"}";
++	[Rbrace:isValidPos "}"];
+ 
+ ast.MapType =
+ 	"map[" Key "]" Value;
+ 
+ ast.ChanType =
+-	"chan";
++	(	Dir:isSend Dir:isRecv
++		"chan "
++	|	Dir:isSend
++		"chan <- "
++	|	"<-chan "
++	)
++	Value;
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -188,6 +196,9 @@ ast.AssignStmt =
+ ast.GoStmt =
+ 	"go " Call;
+ 
++ast.DeferStmt =
++	"defer " Call;
++
+ ast.ReturnStmt =
+ 	"return" {" " Results / ","};
+ 
+@@ -196,7 +207,7 @@ ast.BranchStmt =
+ 
+ blockStmt =  // like ast.BlockStmt but w/o indentation
+ 	"{"
+-	[List:not_empty
++	[List:exists
+ 	"\n"
+ 		{List / ";\n"}
+ 	"\n"
+@@ -208,7 +219,7 @@ blockStmtPtr =
+ 
+ ast.BlockStmt =
+ 	"{"
+-	[List:not_empty
++	[List:exists
+ 	>> "\t" "\n"
+ 		{List / ";\n"}
+ 	<< "\n"
+@@ -219,11 +230,11 @@ ast.IfStmt =
+ 	"if " [Init "; "] [Cond " "] Body [" else " Else];
+ 
+ ast.CaseClause =
+-	( Values:not_empty "case " {Values / ", "}
+-	| "default"
++	(	Values:exists "case " {Values / ", "}
++	|	"default"
+ 	)
+ 	":"
+-	[Body:not_empty
++	[Body:exists
+ 	>> "\t" "\n"
+ 		{Body / ";\n"}
+ 	<<
+@@ -234,11 +245,11 @@ ast.SwitchStmt =
+ 	Body:blockStmtPtr;
+ 
+ ast.TypeCaseClause =
+-	(	Type:not_empty "case " Type
++	(	Type:exists "case " Type
+ 	|	"default"
+ 	)
+ 	":"
+-	[Body:not_empty
++	[Body:exists
+ 	>> "\t" "\n"
+ 		{Body / ";\n"}
+ 	<<
+@@ -249,7 +260,15 @@ ast.TypeSwitchStmt =
+ 	Body:blockStmtPtr;
+ 
+ ast.CommClause =
+-	"CommClause";
++	(	"case " [Lhs " " Tok " "] Rhs
++	|	"default"
++	)
++	":"
++	[Body:exists
++	>> "\t" "\n"
++		{Body / ";\n"}
++	<<
++	];
+ 
+ ast.SelectStmt =
+ 	"select "
+@@ -257,9 +276,7 @@ ast.SelectStmt =
+ 
+ ast.ForStmt =
+ 	"for "
+-	[	Init:not_empty
+-		[Init] "; " [Cond] "; " [Post " "]
+-	|	Post:not_empty
++	[	(Init:exists | Post:exists)
+ 		[Init] "; " [Cond] "; " [Post " "]
+ 	|	Cond " "
+ 	]
+@@ -282,7 +299,7 @@ ast.ImportSpec =
+ 	[Name] "\t" {Path};
+ 
+ ast.ValueSpec =
+-	{Names / ", "} [" " Type] [Values:not_empty " = " {Values / ", "}];
++	{Names / ", "} [" " Type] [Values:exists " = " {Values / ", "}];
+ 
+ ast.TypeSpec =
+ 	Name " "  // TODO using "\t" instead of " " screws up struct field alignment
+@@ -293,12 +310,10 @@ ast.BadDecl =
+ 
+ ast.GenDecl =
+ 	Doc
+-	Tok " ("
+-	>> "\t" "\n"
+-		{Specs / ";\n"}
+-	<<
+-	"\n"
+-	")";
++	Tok " "
++	[Lparen:isValidPos "(" >> "\t" "\n"]
++	{Specs / ";\n"}
++	[Rparen:isValidPos << "\n" ")"];
+ 
+ ast.FuncDecl =
+ 	"func " ["(" Recv ") "] Name Type:funcSignature
+diff --git a/usr/gri/pretty/format.go b/usr/gri/pretty/format.go
+index eff9836330..960b5c58fd 100644
+--- a/usr/gri/pretty/format.go
++++ b/usr/gri/pretty/format.go
+@@ -29,6 +29,7 @@ import (
+ 	"os";
+ 	"reflect";
+ 	"strconv";
++	"strings";
+ )
+ 
+ 
+@@ -214,21 +215,20 @@ type Format map [string] expr;
+ // Parsing
+ 
+ /*	TODO
+-	- installable custom formatters (like for template.go)
+ 	- have a format to select type name, field tag, field offset?
+ 	- use field tag as default format for that field
+ */
+ 
+ type parser struct {
++	// scanning
+ 	scanner scanner.Scanner;
+-	
+-	// error handling
+-	lastline int;  // > 0 if there was any error
+-
+-	// next token
+ 	pos token.Position;  // token position
+ 	tok token.Token;  // one token look-ahead
+ 	lit []byte;  // token literal
++
++	// error handling
++	errors io.ByteBuffer;  // errors.Len() > 0 if there were errors
++	lastline int;
+ }
+ 
+ 
+@@ -237,7 +237,7 @@ func (p *parser) Error(pos token.Position, msg string) {
+ 	if pos.Line != p.lastline {
+ 		// only report error if not on the same line as previous error
+ 		// in the hope to reduce number of follow-up errors reported
+-		fmt.Fprintf(os.Stderr, "%d:%d: %s\n", pos.Line, pos.Column, msg);
++		fmt.Fprintf(&p.errors, "%d:%d: %s\n", pos.Line, pos.Column, msg);
+ 	}
+ 	p.lastline = pos.Line;
+ }
+@@ -447,66 +447,87 @@ func (p *parser) parseFormat() Format {
+ }
+ 
+ 
+-func readSource(src interface{}, err scanner.ErrorHandler) []byte {
+-	errmsg := "invalid input type (or nil)";
++type formatError string
++
++func (p formatError) String() string {
++	return p;
++}
++
++
++func readSource(src interface{}) ([]byte, os.Error) {
++	if src == nil {
++		return nil, formatError("src is nil");
++	}
+ 
+ 	switch s := src.(type) {
+ 	case string:
+-		return io.StringBytes(s);
++		return io.StringBytes(s), nil;
++
+ 	case []byte:
+-		return s;
++		if s == nil {
++			return nil, formatError("src is nil");
++		}
++		return s, nil;
++
+ 	case *io.ByteBuffer:
+ 		// is io.Read, but src is already available in []byte form
+-		if s != nil {
+-			return s.Data();
++		if s == nil {
++			return nil, formatError("src is nil");
+ 		}
++		return s.Data(), nil;
++
+ 	case io.Read:
+ 		var buf io.ByteBuffer;
+-		n, os_err := io.Copy(s, &buf);
+-		if os_err == nil {
+-			return buf.Data();
++		n, err := io.Copy(s, &buf);
++		if err != nil {
++			return nil, err;
+ 		}
+-		errmsg = os_err.String();
++		return buf.Data(), nil
+ 	}
+ 
+-	if err != nil {
+-		// TODO fix this
+-		panic();
+-		//err.Error(noPos, errmsg);
+-	}
+-	return nil;
++	return nil, formatError("src type not supported");
+ }
+ 
+ 
+-// TODO do better error handling
+-
+ // Parse parses a set of format productions. The format src may be
+ // a string, a []byte, or implement io.Read. The result is a Format
+ // if no errors occured; otherwise Parse returns nil.
+ //
+-func Parse(src interface{}, fmap FormatterMap) Format {
+-	// initialize parser
++func Parse(src interface{}, fmap FormatterMap) (f Format, err os.Error) {
++	s, err := readSource(src);
++	if err != nil {
++		return nil, err;
++	}
++
++	// parse format description
+ 	var p parser;
+-	p.scanner.Init(readSource(src, &p), &p, false);
++	p.scanner.Init(s, &p, false);
+ 	p.next();
++	f = p.parseFormat();
+ 
+-	format := p.parseFormat();
+-	if p.lastline > 0 {	
+-		return nil;  // src contains errors
+-	}
+-	
+-	// add custom formatters if any
+-	if fmap != nil {
+-		for name, form := range fmap {
+-			if t, found := format[name]; !found {
+-				format[name] = &custom{name, form};
+-			} else {
+-				p.Error(token.Position{0, 0, 0}, "formatter already declared: " + name);
+-			}
++	// add custom formatters, if any
++	for name, form := range fmap {
++		if t, found := f[name]; !found {
++			f[name] = &custom{name, form};
++		} else {
++			fmt.Fprintf(&p.errors, "formatter already declared: %s", name);
+ 		}
+ 	}
+ 
+-	return format;
++	if p.errors.Len() > 0 {
++		return nil, formatError(string(p.errors.Data()));
++	}
++	
++	return f, nil;
++}
++
++
++func ParseOrDie(src interface{}, fmap FormatterMap) Format {
++	f, err := Parse(src, fmap);
++	if err != nil {
++		panic(err.String());
++	}
++	return f;
+ }
+ 
+ 
+@@ -520,37 +541,22 @@ func (f Format) Dump() {
+ // ----------------------------------------------------------------------------
+ // Formatting
+ 
+-func fieldIndex(v reflect.StructValue, fieldname string) int {
++func getField(v reflect.StructValue, fieldname string) reflect.Value {
+ 	t := v.Type().(reflect.StructType);
+-	for i := 0; i < v.Len(); i++ {
++	for i := 0; i < t.Len(); i++ {
+ 		name, typ, tag, offset := t.Field(i);
+ 		if name == fieldname {
+-			return i;
++			return v.Field(i);
++		} else if name == "" {
++			// anonymous field - check type name
++			// TODO this is only going down one level - fix
++			if strings.HasSuffix(typ.Name(), "." + fieldname) {
++				return v.Field(i);
++			}
+ 		}
+ 	}
+-	return -1;
+-}
+-
+-
+-func getField(v reflect.StructValue, i int) reflect.Value {
+-	fld := v.Field(i);
+-	/*
+-	if tmp, is_interface := fld.(reflect.InterfaceValue); is_interface {
+-		// TODO do I have to check something for nil here?
+-		fld = reflect.NewValue(tmp.Get());
+-	}
+-	*/
+-	return fld;
+-}
+-
+-
+-func getFieldByName(v reflect.StructValue, fieldname string) reflect.Value {
+-	i := fieldIndex(v, fieldname);
+-	if i < 0 {
+-		panicln(fmt.Sprintf("no field %s int %s", fieldname, v.Type().Name()));
+-	}
+-
+-	return getField(v, i);
++	panicln(fmt.Sprintf("no field %s int %s", fieldname, t.Name()));
++	return nil;
+ }
+ 
+ 
+@@ -838,7 +844,7 @@ func (ps *state) print0(w io.Write, fexpr expr, value reflect.Value, index, leve
+ 		default:
+ 			// field
+ 			if s, is_struct := value.(reflect.StructValue); is_struct {
+-				value = getFieldByName(s, t.fname);
++				value = getField(s, t.fname);
+ 			} else {
+ 				// TODO fix this
+ 				panic(fmt.Sprintf("error: %s has no field `%s`\n", value.Type().Name(), t.fname));
+@@ -933,7 +939,7 @@ func (ps *state) print(w io.Write, fexpr expr, value reflect.Value, index, level
+ func (f Format) Fprint(w io.Write, args ...) {
+ 	value := reflect.NewValue(args).(reflect.StructValue);
+ 	for i := 0; i < value.Len(); i++ {
+-		fld := getField(value, i);
++		fld := value.Field(i);
+ 		var ps state;
+ 		ps.init(f);
+ 		ps.print(w, f.getFormat(typename(fld), fld), fld, 0, 0);
+diff --git a/usr/gri/pretty/format_test.go b/usr/gri/pretty/format_test.go
+index 80401ba83b..65ce83a4f4 100644
+--- a/usr/gri/pretty/format_test.go
++++ b/usr/gri/pretty/format_test.go
+@@ -11,7 +11,7 @@ import (
+ 
+ 
+ func check(t *testing.T, form, expected string, args ...) {
+-	result := format.Parse(form, nil).Sprint(args);
++	result := format.ParseOrDie(form, nil).Sprint(args);
+ 	if result != expected {
+ 		t.Errorf(
+ 			"format  : %s\nresult  : `%s`\nexpected: `%s`\n\n",
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 0f4bafa259..ffe2c0e2e8 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -41,7 +41,7 @@ func init() {
+ func usage() {
+ 	fmt.Fprintf(os.Stderr, "usage: pretty { flags } { files }\n");
+ 	flag.PrintDefaults();
+-	sys.Exit(0);
++	sys.Exit(1);
+ }
+ 
+ 
+@@ -94,6 +94,21 @@ func (h *ErrorHandler) Error(pos token.Position, msg string) {
+ }
+ 
+ 
++func isValidPos(w io.Write, value interface{}, name string) bool {
++	return value.(token.Position).Line > 0;
++}
++
++
++func isSend(w io.Write, value interface{}, name string) bool {
++	return value.(ast.ChanDir) & ast.SEND != 0;
++}
++
++
++func isRecv(w io.Write, value interface{}, name string) bool {
++	return value.(ast.ChanDir) & ast.RECV != 0;
++}
++
++
+ func main() {
+ 	// handle flags
+ 	flag.Parse();
+@@ -114,25 +129,31 @@ func main() {
+ 		fmt.Fprintf(os.Stderr, "%s: %v\n", ast_txt, err);
+ 		sys.Exit(1);
+ 	}
+-	ast_format := format.Parse(src, nil);
+-	if ast_format == nil {
+-		fmt.Fprintf(os.Stderr, "%s: format errors\n", ast_txt);
++	ast_format, err := format.Parse(src, format.FormatterMap{"isValidPos": isValidPos, "isSend": isSend, "isRecv": isRecv});
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "%s: format errors:\n%s", ast_txt, err);
+ 		sys.Exit(1);
+ 	}
+ 
+ 	// process files
++	exitcode := 0;
+ 	for i := 0; i < flag.NArg(); i++ {
+ 		filename := flag.Arg(i);
+ 
+ 		src, err := readFile(filename);
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "%s: %v\n", filename, err);
+-			continue;
++			exitcode = 1;
++			continue;  // proceed with next file
+ 		}
+ 
+ 		prog, ok := parser.Parse(src, &ErrorHandler{filename, 0}, mode);
++		if !ok {
++			exitcode = 1;
++			continue;  // proceed with next file			
++		}
+ 
+-		if ok && !*silent {
++		if !*silent {
+ 			tw := makeTabwriter(os.Stdout);
+ 			if *formatter {
+ 				ast_format.Fprint(tw, prog);
+@@ -144,4 +165,6 @@ func main() {
+ 			tw.Flush();
+ 		}
+ 	}
++	
++	sys.Exit(exitcode);
+ }
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index 02d95a7eef..9abb047d5f 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -4,7 +4,7 @@
+ 
+ #!/bin/bash
+ 
+-CMD="./pretty"
++CMD="./pretty -formatter"
+ TMP1=test_tmp1.go
+ TMP2=test_tmp2.go
+ TMP3=test_tmp3.go
+@@ -70,12 +70,27 @@ silent() {
+ idempotent() {
+ 	cleanup
+ 	$CMD $1 > $TMP1
++	if [ $? != 0 ]; then
++		echo "Error (step 1 of idempotency test): test.sh $1"
++		exit 1
++	fi
++	
+ 	$CMD $TMP1 > $TMP2
++	if [ $? != 0 ]; then
++		echo "Error (step 2 of idempotency test): test.sh $1"
++		exit 1
++	fi
++
+ 	$CMD $TMP2 > $TMP3
++	if [ $? != 0 ]; then
++		echo "Error (step 3 of idempotency test): test.sh $1"
++		exit 1
++	fi
++
+ 	cmp -s $TMP2 $TMP3
+ 	if [ $? != 0 ]; then
+ 		diff $TMP2 $TMP3
+-		echo "Error (idempotency test): test.sh $1"
++		echo "Error (step 4 of idempotency test): test.sh $1"
+ 		exit 1
+ 	fi
+ }
+@@ -84,9 +99,14 @@ idempotent() {
+ valid() {
+ 	cleanup
+ 	$CMD $1 > $TMP1
++	if [ $? != 0 ]; then
++		echo "Error (step 1 of validity test): test.sh $1"
++		exit 1
++	fi
++
+ 	6g -o /dev/null $TMP1
+ 	if [ $? != 0 ]; then
+-		echo "Error (validity test): test.sh $1"
++		echo "Error (step 2 of validity test): test.sh $1"
+ 		exit 1
+ 	fi
+ }

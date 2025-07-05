@@ -7,6 +7,20 @@ Date:   Sun Sep 9 11:50:56 2018 +0200
     Change-Id: I855a9c88c379978099ea53c7d28b87cefd7f5d73
     Reviewed-on: https://go-review.googlesource.com/134295
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index fcefddf488..4e14f40ade 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -240,7 +240,7 @@ func (info *Info) TypeOf(e ast.Expr) Type {
+ // or nil if not found.
+ //
+ // If id is an embedded struct field, ObjectOf returns the field (*Var)
+-// it uses, not the type (*TypeName) it defines.
++// it defines, not the type (*TypeName) it uses.
+ //
+ // Precondition: the Uses and Defs maps are populated.
+ //

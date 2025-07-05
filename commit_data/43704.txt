@@ -16,6 +16,19 @@ Date:   Tue Apr 21 11:37:41 2020 +0000
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/fetch.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 61759c0e6b..fd7a5cef83 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -514,6 +514,7 @@ func checkModSum(mod module.Version, h string) error {
+ 	goSum.mu.Lock()
+ 	inited, err := initGoSum()
+ 	if err != nil {
++		goSum.mu.Unlock()
+ 		return err
+ 	}
+ 	done := inited && haveModSumLocked(mod, h)

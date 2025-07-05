@@ -18,8 +18,86 @@ Date:   Wed Apr 27 16:04:28 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/list/list.go                |  3 ++-
  src/cmd/go/internal/load/pkg.go                 |  8 ++++++--
  src/cmd/go/testdata/script/list_json_fields.txt | 18 ++++++++++++++++++
  3 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index e9e0910f32..4d7c727048 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -574,7 +574,8 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 		// for test variants of packages and users who have been providing format strings
+ 		// might not expect those errors to stop showing up.
+ 		// See issue #52443.
+-		SuppressDeps: !listJsonFields.needAny("Deps", "DepsErrors"),
++		SuppressDeps:      !listJsonFields.needAny("Deps", "DepsErrors"),
++		SuppressBuildInfo: !listJsonFields.needAny("Stale", "StaleReason"),
+ 	}
+ 	pkgs := load.PackagesAndErrors(ctx, pkgOpts, args)
+ 	if !*listE {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 7f2ce324d2..511bdc1734 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1947,7 +1947,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 	if !opts.SuppressDeps {
+ 		p.collectDeps()
+ 	}
+-	if p.Error == nil && p.Name == "main" && !p.Internal.ForceLibrary && len(p.DepsErrors) == 0 {
++	if p.Error == nil && p.Name == "main" && !p.Internal.ForceLibrary && len(p.DepsErrors) == 0 && !opts.SuppressBuildInfo {
+ 		// TODO(bcmills): loading VCS metadata can be fairly slow.
+ 		// Consider starting this as a background goroutine and retrieving the result
+ 		// asynchronously when we're actually ready to build the package, or when we
+@@ -2688,11 +2688,15 @@ type PackageOpts struct {
+ 	// LoadVCS controls whether we also load version-control metadata for main packages.
+ 	LoadVCS bool
+ 
+-	// NeedDepsFields is true if the caller does not need Deps and DepsErrors to be populated
++	// SuppressDeps is true if the caller does not need Deps and DepsErrors to be populated
+ 	// on the package. TestPackagesAndErrors examines the  Deps field to determine if the test
+ 	// variant has an import cycle, so SuppressDeps should not be set if TestPackagesAndErrors
+ 	// will be called on the package.
+ 	SuppressDeps bool
++
++	// SuppressBuildInfo is true if the caller does not need p.Stale, p.StaleReason, or p.Internal.BuildInfo
++	// to be populated on the package.
++	SuppressBuildInfo bool
+ }
+ 
+ // PackagesAndErrors returns the packages named by the command line arguments
+diff --git a/src/cmd/go/testdata/script/list_json_fields.txt b/src/cmd/go/testdata/script/list_json_fields.txt
+index 9b8edc6d7f..5ddbb7385e 100644
+--- a/src/cmd/go/testdata/script/list_json_fields.txt
++++ b/src/cmd/go/testdata/script/list_json_fields.txt
+@@ -26,6 +26,18 @@ go list -json=Deps
+ stdout '"Deps": \['
+ stdout '"errors",'
+ 
++[!exec:git] skip
++
++# Test -json=<field> without Stale skips computing buildinfo
++cd repo
++exec git init
++# Control case: with -json=Stale cmd/go executes git status to compute buildinfo
++go list -json=Stale -x
++stderr 'git status'
++# Test case: without -json=Stale cmd/go skips git status
++go list -json=Name -x
++! stderr 'git status'
++
+ -- go.mod --
+ module example.com/a
+ 
+@@ -55,3 +67,9 @@ example.com/a
+ 		"fmt"
+ 	]
+ }
++-- repo/go.mod --
++module example.com/repo
++-- repo/main.go --
++package main
++
++func main() {}

@@ -9,7 +9,32 @@ Date:   Wed Jan 2 17:39:20 2013 -0500
     R=gobot
     CC=golang-dev
     https://golang.org/cl/7038049
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index d3908f6c2b..c9414f55c5 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -251,6 +251,7 @@ Taj Khattra <taj.khattra@gmail.com>
+ Tarmigan Casebolt <tarmigan@gmail.com>
+ Taru Karttunen <taruti@taruti.net>
+ Thomas Alan Copeland <talan.copeland@gmail.com>
++Thomas Kappler <tkappler@gmail.com>
+ Timo Savola <timo.savola@gmail.com>
+ Tobias Columbus <tobias.columbus@gmail.com>
+ Tor Andersson <tor.andersson@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index dab0c6407f..5486b99a20 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -355,6 +355,7 @@ Taj Khattra <taj.khattra@gmail.com>
+ Tarmigan Casebolt <tarmigan@gmail.com>
+ Taru Karttunen <taruti@taruti.net>
+ Thomas Alan Copeland <talan.copeland@gmail.com>
++Thomas Kappler <tkappler@gmail.com>
+ Timo Savola <timo.savola@gmail.com>
+ Tobias Columbus <tobias.columbus@gmail.com> <tobias.columbus@googlemail.com>
+ Tom Szymanski <tgs@google.com>

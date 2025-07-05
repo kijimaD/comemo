@@ -37,7 +37,84 @@ Date:   Thu Aug 29 17:18:53 2019 +0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/all_test.go  | 12 +++++++++++-
  src/reflect/deepequal.go | 16 +++++++++-------
  2 files changed, 20 insertions(+), 8 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 4431ce2391..fbb6feb0d9 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -787,6 +787,7 @@ type Loopy interface{}
+ 
+ var loop1, loop2 Loop
+ var loopy1, loopy2 Loopy
++var cycleMap1, cycleMap2, cycleMap3 map[string]interface{}
+ 
+ func init() {
+ 	loop1 = &loop2
+@@ -794,6 +795,13 @@ func init() {
+ 
+ 	loopy1 = &loopy2
+ 	loopy2 = &loopy1
++
++	cycleMap1 = map[string]interface{}{}
++	cycleMap1["cycle"] = cycleMap1
++	cycleMap2 = map[string]interface{}{}
++	cycleMap2["cycle"] = cycleMap2
++	cycleMap3 = map[string]interface{}{}
++	cycleMap3["different"] = cycleMap3
+ }
+ 
+ var deepEqualTests = []DeepEqualTest{
+@@ -860,6 +868,8 @@ var deepEqualTests = []DeepEqualTest{
+ 	{&loop1, &loop2, true},
+ 	{&loopy1, &loopy1, true},
+ 	{&loopy1, &loopy2, true},
++	{&cycleMap1, &cycleMap2, true},
++	{&cycleMap1, &cycleMap3, false},
+ }
+ 
+ func TestDeepEqual(t *testing.T) {
+@@ -868,7 +878,7 @@ func TestDeepEqual(t *testing.T) {
+ 			test.b = test.a
+ 		}
+ 		if r := DeepEqual(test.a, test.b); r != test.eq {
+-			t.Errorf("DeepEqual(%v, %v) = %v, want %v", test.a, test.b, r, test.eq)
++			t.Errorf("DeepEqual(%#v, %#v) = %v, want %v", test.a, test.b, r, test.eq)
+ 		}
+ 	}
+ }
+diff --git a/src/reflect/deepequal.go b/src/reflect/deepequal.go
+index 5b6694d3f0..f2d46165b5 100644
+--- a/src/reflect/deepequal.go
++++ b/src/reflect/deepequal.go
+@@ -33,18 +33,20 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
+ 
+ 	// We want to avoid putting more in the visited map than we need to.
+ 	// For any possible reference cycle that might be encountered,
+-	// hard(t) needs to return true for at least one of the types in the cycle.
+-	hard := func(k Kind) bool {
+-		switch k {
++	// hard(v1, v2) needs to return true for at least one of the types in the cycle,
++	// and it's safe and valid to get Value's internal pointer.
++	hard := func(v1, v2 Value) bool {
++		switch v1.Kind() {
+ 		case Map, Slice, Ptr, Interface:
+-			return true
++			// Nil pointers cannot be cyclic. Avoid putting them in the visited map.
++			return !v1.IsNil() && !v2.IsNil()
+ 		}
+ 		return false
+ 	}
+ 
+-	if v1.CanAddr() && v2.CanAddr() && hard(v1.Kind()) {
+-		addr1 := unsafe.Pointer(v1.UnsafeAddr())
+-		addr2 := unsafe.Pointer(v2.UnsafeAddr())
++	if hard(v1, v2) {
++		addr1 := v1.ptr
++		addr2 := v2.ptr
+ 		if uintptr(addr1) > uintptr(addr2) {
+ 			// Canonicalize order to reduce number of entries in visited.
+ 			// Assumes non-moving garbage collector.

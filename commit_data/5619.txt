@@ -9,6 +9,29 @@ Date:   Mon Jun 7 18:10:48 2010 -0700
     R=ken2
     CC=golang-dev, rsc
     https://golang.org/cl/1592041
-
+---
  src/cmd/gc/lex.c | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 1bf51a70a4..f50c857a66 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1160,7 +1160,6 @@ escchar(int e, int *escflg, vlong *val)
+ 
+ 	*escflg = 0;
+ 
+-loop:
+ 	c = getr();
+ 	switch(c) {
+ 	case EOF:
+@@ -1180,9 +1179,6 @@ loop:
+ 
+ 	c = getr();
+ 	switch(c) {
+-	case '\n':
+-		goto loop;
+-
+ 	case 'x':
+ 		*escflg = 1;	// it's a byte
+ 		i = 2;

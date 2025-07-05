@@ -11,7 +11,42 @@ Date:   Thu Oct 17 13:58:27 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go |  2 +-
  test/fixedbugs/issue34968.go       | 15 +++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 27ad9b5615..e05b454805 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -75,7 +75,7 @@ func pragmaValue(verb string) syntax.Pragma {
+ 	case "go:yeswritebarrierrec":
+ 		return Yeswritebarrierrec
+ 	case "go:cgo_unsafe_args":
+-		return CgoUnsafeArgs
++		return CgoUnsafeArgs | NoCheckPtr // implies NoCheckPtr (see #34968)
+ 	case "go:uintptrescapes":
+ 		// For the next function declared in the file
+ 		// any uintptr arguments may be pointer values
+diff --git a/test/fixedbugs/issue34968.go b/test/fixedbugs/issue34968.go
+new file mode 100644
+index 0000000000..6b1dbd16ed
+--- /dev/null
++++ b/test/fixedbugs/issue34968.go
+@@ -0,0 +1,15 @@
++// +build cgo
++// run -gcflags=all=-d=checkptr
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// #include <stdlib.h>
++import "C"
++
++func main() {
++	C.malloc(100)
++}

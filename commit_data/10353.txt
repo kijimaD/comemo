@@ -7,6 +7,20 @@ Date:   Fri Nov 11 14:30:27 2011 -0800
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5369089
-
+---
  src/pkg/runtime/proc.c | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 2f8a40a2d9..0b925fd525 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -13,8 +13,6 @@ bool	runtime·iscgo;
+ 
+ static void unwindstack(G*, byte*);
+ static void schedule(G*);
+-static void acquireproc(void);
+-static void releaseproc(void);
+ 
+ typedef struct Sched Sched;
+ 

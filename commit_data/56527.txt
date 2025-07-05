@@ -11,7 +11,66 @@ Date:   Fri May 12 11:31:28 2023 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/lookup.go | 11 +++++++----
  src/go/types/lookup.go                    | 11 +++++++----
  2 files changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index ccf724373b..b7370ca38d 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -387,10 +387,6 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 					obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
+ 					f, _ = obj.(*Func)
+ 					if f != nil {
+-						// This method is formatted in funcString below, so must be type-checked.
+-						if check != nil {
+-							check.objDecl(f, nil)
+-						}
+ 						state = wrongName
+ 					}
+ 				}
+@@ -421,6 +417,13 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 	}
+ 
+ 	if cause != nil {
++		if f != nil {
++			// This method may be formatted in funcString below, so must have a fully
++			// set up signature.
++			if check != nil {
++				check.objDecl(f, nil)
++			}
++		}
+ 		switch state {
+ 		case notFound:
+ 			switch {
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 0ff5db74e6..d96dd86e5e 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -389,10 +389,6 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 					obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
+ 					f, _ = obj.(*Func)
+ 					if f != nil {
+-						// This method is formatted in funcString below, so must be type-checked.
+-						if check != nil {
+-							check.objDecl(f, nil)
+-						}
+ 						state = wrongName
+ 					}
+ 				}
+@@ -423,6 +419,13 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 	}
+ 
+ 	if cause != nil {
++		if f != nil {
++			// This method may be formatted in funcString below, so must have a fully
++			// set up signature.
++			if check != nil {
++				check.objDecl(f, nil)
++			}
++		}
+ 		switch state {
+ 		case notFound:
+ 			switch {

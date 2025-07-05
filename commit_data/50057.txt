@@ -22,10 +22,116 @@ Date:   Mon Sep 27 16:12:05 2021 -0400
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go  |  1 +
  src/cmd/go/internal/test/test.go | 10 ++++------
  src/cmd/go/internal/work/exec.go |  5 +++++
  src/cmd/go/internal/work/gc.go   |  3 +++
  src/cmd/go/internal/work/init.go | 15 ++++++++-------
  5 files changed, 21 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 4013330bc4..8a5a1a5fe2 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -203,6 +203,7 @@ type PackageInternal struct {
+ 	Local             bool                 // imported via local path (./ or ../)
+ 	LocalPrefix       string               // interpret ./ and ../ imports relative to this prefix
+ 	ExeName           string               // desired name for temporary executable
++	FuzzInstrument    bool                 // package should be instrumented for fuzzing
+ 	CoverMode         string               // preprocess Go source files with the coverage tool in this mode
+ 	CoverVars         map[string]*CoverVar // variables created by coverage analysis
+ 	OmitDebug         bool                 // tell linker not to write debug information
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 7c6f109cc5..a6c8631a37 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -818,12 +818,11 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	// Inform the compiler that it should instrument the binary at
+ 	// build-time when fuzzing is enabled.
+-	fuzzFlags := work.FuzzInstrumentFlags()
+-	if testFuzz != "" && fuzzFlags != nil {
++	if testFuzz != "" {
+ 		// Don't instrument packages which may affect coverage guidance but are
+ 		// unlikely to be useful. Most of these are used by the testing or
+ 		// internal/fuzz packages concurrently with fuzzing.
+-		var fuzzNoInstrument = map[string]bool{
++		var skipInstrumentation = map[string]bool{
+ 			"context":       true,
+ 			"internal/fuzz": true,
+ 			"reflect":       true,
+@@ -835,10 +834,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 			"time":          true,
+ 		}
+ 		for _, p := range load.TestPackageList(ctx, pkgOpts, pkgs) {
+-			if fuzzNoInstrument[p.ImportPath] {
+-				continue
++			if !skipInstrumentation[p.ImportPath] {
++				p.Internal.FuzzInstrument = true
+ 			}
+-			p.Internal.Gcflags = append(p.Internal.Gcflags, fuzzFlags...)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index f82028aef6..692d394520 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -281,6 +281,11 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 	if p.Internal.CoverMode != "" {
+ 		fmt.Fprintf(h, "cover %q %q\n", p.Internal.CoverMode, b.toolID("cover"))
+ 	}
++	if p.Internal.FuzzInstrument {
++		if fuzzFlags := fuzzInstrumentFlags(); fuzzFlags != nil {
++			fmt.Fprintf(h, "fuzz %q\n", fuzzFlags)
++		}
++	}
+ 	fmt.Fprintf(h, "modinfo %q\n", p.Internal.BuildInfo)
+ 
+ 	// Configuration specific to compiler toolchain.
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index fe0a45ec2a..414736cbd7 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -144,6 +144,9 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 	}
+ 
+ 	gcflags := str.StringList(forcedGcflags, p.Internal.Gcflags)
++	if p.Internal.FuzzInstrument {
++		gcflags = append(gcflags, fuzzInstrumentFlags()...)
++	}
+ 	if compilingRuntime {
+ 		// Remove -N, if present.
+ 		// It is not possible to build the runtime with no optimizations,
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 1f8ec02df1..6a29abb03b 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -60,18 +60,19 @@ func BuildInit() {
+ 	}
+ }
+ 
+-// FuzzInstrumentFlags returns compiler flags that enable fuzzing instrumation
++// fuzzInstrumentFlags returns compiler flags that enable fuzzing instrumation
+ // on supported platforms.
+ //
+-// On unsupported platforms, FuzzInstrumentFlags returns nil, meaning no
++// On unsupported platforms, fuzzInstrumentFlags returns nil, meaning no
+ // instrumentation is added. 'go test -fuzz' still works without coverage,
+ // but it generates random inputs without guidance, so it's much less effective.
+-func FuzzInstrumentFlags() []string {
+-	// TODO: expand the set of supported platforms, with testing.
+-	// Nothing about the instrumentation is OS specific, but only amd64 and arm64
+-	// are supported in the runtime. See src/runtime/libfuzzer*.
++func fuzzInstrumentFlags() []string {
++	// TODO: expand the set of supported platforms, with testing. Nothing about
++	// the instrumentation is OS specific, but only amd64 and arm64 are
++	// supported in the runtime. See src/runtime/libfuzzer*.
+ 	//
+-	// Keep in sync with build constraints in internal/fuzz/counters_{un,}supported.go
++	// Keep in sync with build constraints in
++	// internal/fuzz/counters_{un,}supported.go
+ 	switch cfg.Goos {
+ 	case "darwin", "freebsd", "linux", "windows":
+ 	default:

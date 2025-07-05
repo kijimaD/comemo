@@ -19,7 +19,92 @@ Date:   Sat Jul 15 18:21:26 2017 -0600
     Reviewed-by: Adam Langley <agl@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/rand/rand_linux.go      | 25 ++++++++++++++++++++++-
  src/crypto/rand/rand_linux_test.go | 42 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 66 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/rand/rand_linux.go b/src/crypto/rand/rand_linux.go
+index 8a4c757236..dbd038cc58 100644
+--- a/src/crypto/rand/rand_linux.go
++++ b/src/crypto/rand/rand_linux.go
+@@ -9,7 +9,30 @@ import (
+ )
+ 
+ func init() {
+-	altGetRandom = getRandomLinux
++	altGetRandom = batched(getRandomLinux, maxGetRandomRead)
++}
++
++// maxGetRandomRead is the maximum number of bytes to ask for in one call to the
++// getrandom() syscall. In linux at most 2^25-1 bytes will be returned per call.
++// From the manpage
++//
++//	*  When reading from the urandom source, a maximum of 33554431 bytes
++//	   is returned by a single call to getrandom() on systems where int
++//	   has a size of 32 bits.
++const maxGetRandomRead = (1 << 25) - 1
++
++// batched returns a function that calls f to populate a []byte by chunking it
++// into subslices of, at most, readMax bytes.
++func batched(f func([]byte) bool, readMax int) func([]byte) bool {
++	return func(buf []byte) bool {
++		for len(buf) > readMax {
++			if !f(buf[:readMax]) {
++				return false
++			}
++			buf = buf[readMax:]
++		}
++		return len(buf) == 0 || f(buf)
++	}
+ }
+ 
+ // If the kernel is too old (before 3.17) to support the getrandom syscall(),
+diff --git a/src/crypto/rand/rand_linux_test.go b/src/crypto/rand/rand_linux_test.go
+new file mode 100644
+index 0000000000..77b7b6ebd7
+--- /dev/null
++++ b/src/crypto/rand/rand_linux_test.go
+@@ -0,0 +1,42 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rand
++
++import (
++	"bytes"
++	"testing"
++)
++
++func TestBatched(t *testing.T) {
++	fillBatched := batched(func(p []byte) bool {
++		for i := range p {
++			p[i] = byte(i)
++		}
++		return true
++	}, 5)
++
++	p := make([]byte, 13)
++	if !fillBatched(p) {
++		t.Fatal("batched function returned false")
++	}
++	expected := []byte{0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2}
++	if !bytes.Equal(expected, p) {
++		t.Errorf("incorrect batch result: got %x, want %x", p, expected)
++	}
++}
++
++func TestBatchedError(t *testing.T) {
++	b := batched(func(p []byte) bool { return false }, 5)
++	if b(make([]byte, 13)) {
++		t.Fatal("batched function should have returned false")
++	}
++}
++
++func TestBatchedEmpty(t *testing.T) {
++	b := batched(func(p []byte) bool { return false }, 5)
++	if !b(make([]byte, 0)) {
++		t.Fatal("empty slice should always return true")
++	}
++}

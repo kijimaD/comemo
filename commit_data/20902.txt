@@ -8,6 +8,20 @@ Date:   Mon Oct 27 15:10:54 2014 -0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/163370043
-
+---
  src/cmd/cc/pgen.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index 2687e05a91..54cf0c5e11 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -72,7 +72,7 @@ argsize(int doret)
+ 	if(doret && thisfn->link->etype != TVOID) {
+ 		s = align(s, thisfn->link, Aarg1, nil);
+ 		s = align(s, thisfn->link, Aarg2, nil);
+-		if(thechar == '6')
++		if(thechar == '6' || thechar == '9')
+ 			s = (s+7) & ~7;
+ 		else
+ 			s = (s+3) & ~3;

@@ -13,8 +13,216 @@ Date:   Thu Apr 26 00:08:02 2012 +1000
     R=golang-dev, bradfitz, devon.odell, rsc
     CC=golang-dev
     https://golang.org/cl/6037048
-
+---
  src/pkg/runtime/sys_openbsd_386.s   | 47 +++++++++++++++++--------------------
  src/pkg/runtime/sys_openbsd_amd64.s | 29 ++++++++++-------------
  src/pkg/runtime/thread_openbsd.c    | 20 +++++++---------
  3 files changed, 42 insertions(+), 54 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index 49acb25c16..0774162f64 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -187,40 +187,42 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-// int32 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+-TEXT runtime·rfork_thread(SB),7,$8
+-	MOVL	flags+8(SP), AX
+-	MOVL	stack+12(SP), CX
++// int32 tfork_thread(void *param, void *stack, M *m, G *g, void (*fn)(void));
++TEXT runtime·tfork_thread(SB),7,$8
+ 
+-	// Copy m, g, fn off parent stack for use by child.
++	// Copy m, g, fn off parent stack and onto the child stack.
++	MOVL	stack+8(FP), CX
+ 	SUBL	$16, CX
+-	MOVL	mm+16(SP), SI
++	MOVL	mm+12(FP), SI
+ 	MOVL	SI, 0(CX)
+-	MOVL	gg+20(SP), SI
++	MOVL	gg+16(FP), SI
+ 	MOVL	SI, 4(CX)
+-	MOVL	fn+24(SP), SI
++	MOVL	fn+20(FP), SI
+ 	MOVL	SI, 8(CX)
+ 	MOVL	$1234, 12(CX)
+ 	MOVL	CX, SI
+ 
+ 	MOVL	$0, 0(SP)		// syscall gap
+-	MOVL	AX, 4(SP)		// arg 1 - flags
+-	MOVL	$251, AX		// sys_rfork
++	MOVL	params+4(FP), AX
++	MOVL	AX, 4(SP)		// arg 1 - param
++	MOVL	$328, AX		// sys___tfork
+ 	INT	$0x80
+ 
+-	// Return if rfork syscall failed
+-	JCC	4(PC)
++	// Return if tfork syscall failed.
++	JCC	5(PC)
+ 	NEGL	AX
+-	MOVL	AX, 48(SP)
++	MOVL	ret+0(FP), DX
++	MOVL	AX, 0(DX)
+ 	RET
+ 
+ 	// In parent, return.
+ 	CMPL	AX, $0
+-	JEQ	3(PC)
+-	MOVL	AX, 48(SP)
++	JEQ	4(PC)
++	MOVL	ret+0(FP), DX
++	MOVL	AX, 0(DX)
+ 	RET
+ 
+-	// In child, on new stack.
++	// In child, switch to new stack.
+ 	MOVL    SI, SP
+ 
+ 	// Paranoia: check that SP is as we expect.
+@@ -229,17 +231,12 @@ TEXT runtime·rfork_thread(SB),7,$8
+ 	JEQ	2(PC)
+ 	INT	$3
+ 
+-	// Reload registers
++	// Reload registers.
+ 	MOVL	0(SP), BX		// m
+ 	MOVL	4(SP), DX		// g
+ 	MOVL	8(SP), SI		// fn
+ 
+-	// Initialize m->procid to thread ID
+-	MOVL	$299, AX		// sys_getthrid
+-	INT	$0x80
+-	MOVL	AX, m_procid(BX)
+-
+-	// Set FS to point at m->tls
++	// Set FS to point at m->tls.
+ 	LEAL	m_tls(BX), BP
+ 	PUSHAL				// save registers
+ 	PUSHL	BP
+@@ -256,12 +253,12 @@ TEXT runtime·rfork_thread(SB),7,$8
+ 	MOVL	0(DX), DX		// paranoia; check they are not nil
+ 	MOVL	0(BX), BX
+ 
+-	// more paranoia; check that stack splitting code works
++	// More paranoia; check that stack splitting code works.
+ 	PUSHAL
+ 	CALL	runtime·emptyfunc(SB)
+ 	POPAL
+ 
+-	// Call fn
++	// Call fn.
+ 	CALL	SI
+ 
+ 	CALL	runtime·exit1(SB)
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index b103f583cf..9df903f74f 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -8,20 +8,20 @@
+ 
+ #include "zasm_GOOS_GOARCH.h"
+ 
+-// int64 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+-TEXT runtime·rfork_thread(SB),7,$0
+-	MOVL	flags+8(SP), DI
+-	MOVQ	stack+16(SP), SI
++// int64 tfork_thread(void *param, void *stack, M *m, G *g, void (*fn)(void));
++TEXT runtime·tfork_thread(SB),7,$32
+ 
+-	// Copy m, g, fn off parent stack for use by child.
+-	MOVQ	mm+24(SP), R8
+-	MOVQ	gg+32(SP), R9
+-	MOVQ	fn+40(SP), R12
++	// Copy stack, m, g and fn off parent stack for use by child.
++	MOVQ	stack+8(FP), SI
++	MOVQ	mm+16(FP), R8
++	MOVQ	gg+24(FP), R9
++	MOVQ	fn+32(FP), R12
+ 
+-	MOVL	$251, AX		// sys_rfork
++	MOVQ	param+0(FP), DI
++	MOVL	$328, AX		// sys___tfork
+ 	SYSCALL
+ 
+-	// Return if rfork syscall failed
++	// Return if tfork syscall failed.
+ 	JCC	3(PC)
+ 	NEGL	AX
+ 	RET
+@@ -31,19 +31,14 @@ TEXT runtime·rfork_thread(SB),7,$0
+ 	JEQ	2(PC)
+ 	RET
+ 
+-	// In child, on new stack.
++	// In child, switch to new stack.
+ 	MOVQ	SI, SP
+ 
+-	// Initialize m->procid to thread ID
+-	MOVL	$299, AX		// sys_getthrid
+-	SYSCALL
+-	MOVQ	AX, m_procid(R8)
+-
+ 	// Set FS to point at m->tls.
+ 	LEAQ	m_tls(R8), DI
+ 	CALL	runtime·settls(SB)
+ 
+-	// In child, set up new stack
++	// In child, set up new stack.
+ 	get_tls(CX)
+ 	MOVQ	R8, m(CX)
+ 	MOVQ	R9, g(CX)
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/thread_openbsd.c
+index acd32a6f18..56bb1c8ebf 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -23,7 +23,7 @@ extern SigTab runtime·sigtab[];
+ static Sigset sigset_all = ~(Sigset)0;
+ static Sigset sigset_none;
+ 
+-extern int64 runtime·rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
++extern int64 runtime·tfork_thread(void *param, void *stack, M *m, G *g, void (*fn)(void));
+ extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock, const int32 *abort);
+ extern int32 runtime·thrwakeup(void *ident, int32 n);
+ 
+@@ -122,22 +122,14 @@ runtime·semawakeup(M *mp)
+ 	runtime·atomicstore(&mp->waitsemalock, 0);
+ }
+ 
+-// From OpenBSD's sys/param.h
+-#define	RFPROC		(1<<4)	/* change child (else changes curproc) */
+-#define	RFMEM		(1<<5)	/* share `address space' */
+-#define	RFNOWAIT	(1<<6)	/* parent need not wait() on child */
+-#define	RFTHREAD	(1<<13)	/* create a thread, not a process */
+-
+ void
+ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ {
++	Tfork param;
+ 	Sigset oset;
+-	int32 flags;
+ 	int32 ret;
+ 
+-	flags = RFPROC | RFTHREAD | RFMEM | RFNOWAIT;
+-
+-	if (0) {
++	if(0) {
+ 		runtime·printf(
+ 			"newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+ 			stk, m, g, fn, m->id, m->tls[0], &m);
+@@ -145,8 +137,12 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 
+ 	m->tls[0] = m->id;	// so 386 asm can find it
+ 
++	param.tf_tcb = (byte*)&m->tls[0];
++	param.tf_tid = (int32*)&m->procid;
++	param.tf_flags = (int32)0;
++
+ 	oset = runtime·sigprocmask(SIG_SETMASK, sigset_all);
+-	ret = runtime·rfork_thread(flags, stk, m, g, fn);
++	ret = runtime·tfork_thread((byte*)&param, stk, m, g, fn);
+ 	runtime·sigprocmask(SIG_SETMASK, oset);
+ 
+ 	if(ret < 0) {

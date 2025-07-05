@@ -12,6 +12,21 @@ Date:   Tue Oct 11 11:47:24 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5254057
-
+---
  src/cmd/godoc/godoc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index cf2c0c4309..d436898a2c 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -1041,8 +1041,8 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 		if mode&noFiltering == 0 {
+ 			ast.PackageExports(pkg)
+ 		}
+-		stripFunctionBodies(pkg)
+ 		if mode&showSource == 0 {
++			stripFunctionBodies(pkg)
+ 			pdoc = doc.NewPackageDoc(pkg, path.Clean(relpath)) // no trailing '/' in importpath
+ 		} else {
+ 			past = ast.MergePackageFiles(pkg, ast.FilterUnassociatedComments)

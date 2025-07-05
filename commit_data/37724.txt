@@ -32,7 +32,122 @@ Date:   Mon Sep 18 22:02:55 2017 -0700
     Change-Id: I30d8498ef1cf8b69b0f827165c517bc25a5c32d7
     Reviewed-on: https://go-review.googlesource.com/130775
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/int_test.go | 26 ++++++++++++++++++++++++
  src/math/big/nat.go      | 52 ++++++++++++++++++++----------------------------
  2 files changed, 48 insertions(+), 30 deletions(-)
+
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 9930ed016a..7ef2b3907f 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -1727,3 +1727,29 @@ func BenchmarkIntSqr(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func benchmarkDiv(b *testing.B, aSize, bSize int) {
++	var r = rand.New(rand.NewSource(1234))
++	aa := randInt(r, uint(aSize))
++	bb := randInt(r, uint(bSize))
++	if aa.Cmp(bb) < 0 {
++		aa, bb = bb, aa
++	}
++	x := new(Int)
++	y := new(Int)
++
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		x.DivMod(aa, bb, y)
++	}
++}
++
++func BenchmarkDiv(b *testing.B) {
++	min, max, step := 10, 100000, 10
++	for i := min; i <= max; i *= step {
++		j := 2 * i
++		b.Run(fmt.Sprintf("%d/%d", j, i), func(b *testing.B) {
++			benchmarkDiv(b, j, i)
++		})
++	}
++}
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index a6f79edccc..5f5cf5c3e4 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -680,43 +680,36 @@ func putNat(x *nat) {
+ 
+ var natPool sync.Pool
+ 
+-// q = (uIn-r)/v, with 0 <= r < y
++// q = (uIn-r)/vIn, with 0 <= r < y
+ // Uses z as storage for q, and u as storage for r if possible.
+ // See Knuth, Volume 2, section 4.3.1, Algorithm D.
+ // Preconditions:
+-//    len(v) >= 2
+-//    len(uIn) >= len(v)
+-func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+-	n := len(v)
++//    len(vIn) >= 2
++//    len(uIn) >= len(vIn)
++//    u must not alias z
++func (z nat) divLarge(u, uIn, vIn nat) (q, r nat) {
++	n := len(vIn)
+ 	m := len(uIn) - n
+ 
+-	// determine if z can be reused
+-	// TODO(gri) should find a better solution - this if statement
+-	//           is very costly (see e.g. time pidigits -s -n 10000)
+-	if alias(z, u) || alias(z, uIn) || alias(z, v) {
+-		z = nil // z is an alias for u or uIn or v - cannot reuse
++	// D1.
++	shift := nlz(vIn[n-1])
++	// do not modify vIn, it may be used by another goroutine simultaneously
++	vp := getNat(n)
++	v := *vp
++	shlVU(v, vIn, shift)
++
++	// u may safely alias uIn or vIn, the value of uIn is used to set u and vIn was already used
++	u = u.make(len(uIn) + 1)
++	u[len(uIn)] = shlVU(u[0:len(uIn)], uIn, shift)
++
++	// z may safely alias uIn or vIn, both values were used already
++	if alias(z, u) {
++		z = nil // z is an alias for u - cannot reuse
+ 	}
+ 	q = z.make(m + 1)
+ 
+ 	qhatvp := getNat(n + 1)
+ 	qhatv := *qhatvp
+-	if alias(u, uIn) || alias(u, v) {
+-		u = nil // u is an alias for uIn or v - cannot reuse
+-	}
+-	u = u.make(len(uIn) + 1)
+-	u.clear() // TODO(gri) no need to clear if we allocated a new u
+-
+-	// D1.
+-	var v1p *nat
+-	shift := nlz(v[n-1])
+-	if shift > 0 {
+-		// do not modify v, it may be used by another goroutine simultaneously
+-		v1p = getNat(n)
+-		v1 := *v1p
+-		shlVU(v1, v, shift)
+-		v = v1
+-	}
+-	u[len(uIn)] = shlVU(u[0:len(uIn)], uIn, shift)
+ 
+ 	// D2.
+ 	vn1 := v[n-1]
+@@ -756,9 +749,8 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 
+ 		q[j] = qhat
+ 	}
+-	if v1p != nil {
+-		putNat(v1p)
+-	}
++
++	putNat(vp)
+ 	putNat(qhatvp)
+ 
+ 	q = q.norm()

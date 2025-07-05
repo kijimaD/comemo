@@ -12,7 +12,7 @@ Date:   Fri Apr 17 12:24:42 2015 +0900
     Change-Id: I3c4d46ccd7d6e1a2f52d8e75b512f62c533a368d
     Reviewed-on: https://go-review.googlesource.com/8994
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/error_test.go     | 92 +++++++++++++++++++++++++++++++++++++++++++++++
  src/net/fd_unix.go        |  6 +---
  src/net/fd_windows.go     |  6 +---
@@ -22,3 +22,321 @@ Date:   Fri Apr 17 12:24:42 2015 +0900
  src/net/unixsock_plan9.go |  6 ++--
  src/net/unixsock_posix.go | 18 ++++++++--
  8 files changed, 153 insertions(+), 24 deletions(-)
+
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 5668027d98..9f4a90d8e1 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -332,3 +332,95 @@ third:
+ 	}
+ 	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
+ }
++
++// parseCloseError parses nestedErr and reports whether it is a valid
++// error value from Close functions.
++// It returns nil when nestedErr is valid.
++func parseCloseError(nestedErr error) error {
++	if nestedErr == nil {
++		return nil
++	}
++
++	switch err := nestedErr.(type) {
++	case *OpError:
++		if err := err.isValid(); err != nil {
++			return err
++		}
++		nestedErr = err.Err
++		goto second
++	}
++	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)
++
++second:
++	if isPlatformError(nestedErr) {
++		return nil
++	}
++	switch err := nestedErr.(type) {
++	case *os.SyscallError:
++		nestedErr = err.Err
++		goto third
++	case *os.PathError: // for Plan 9
++		nestedErr = err.Err
++		goto third
++	}
++	switch nestedErr {
++	case errClosing:
++		return nil
++	}
++	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
++
++third:
++	if isPlatformError(nestedErr) {
++		return nil
++	}
++	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
++}
++
++func TestCloseError(t *testing.T) {
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ln.Close()
++	c, err := Dial(ln.Addr().Network(), ln.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c.Close()
++
++	for i := 0; i < 3; i++ {
++		err = c.(*TCPConn).CloseRead()
++		if perr := parseCloseError(err); perr != nil {
++			t.Errorf("#%d: %v", i, perr)
++		}
++	}
++	for i := 0; i < 3; i++ {
++		err = c.(*TCPConn).CloseWrite()
++		if perr := parseCloseError(err); perr != nil {
++			t.Errorf("#%d: %v", i, perr)
++		}
++	}
++	for i := 0; i < 3; i++ {
++		err = c.Close()
++		if perr := parseCloseError(err); perr != nil {
++			t.Errorf("#%d: %v", i, perr)
++		}
++		err = ln.Close()
++		if perr := parseCloseError(err); perr != nil {
++			t.Errorf("#%d: %v", i, perr)
++		}
++	}
++
++	pc, err := ListenPacket("udp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer pc.Close()
++
++	for i := 0; i < 3; i++ {
++		err = pc.Close()
++		if perr := parseCloseError(err); perr != nil {
++			t.Errorf("#%d: %v", i, perr)
++		}
++	}
++}
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 99d7a939d6..a7e6d40359 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -205,11 +205,7 @@ func (fd *netFD) shutdown(how int) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	err := syscall.Shutdown(fd.sysfd, how)
+-	if err != nil {
+-		return &OpError{"shutdown", fd.net, fd.laddr, err}
+-	}
+-	return nil
++	return syscall.Shutdown(fd.sysfd, how)
+ }
+ 
+ func (fd *netFD) closeRead() error {
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index e4038b90fa..bdc6d5f15e 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -437,11 +437,7 @@ func (fd *netFD) shutdown(how int) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	err := syscall.Shutdown(fd.sysfd, how)
+-	if err != nil {
+-		return &OpError{"shutdown", fd.net, fd.laddr, err}
+-	}
+-	return nil
++	return syscall.Shutdown(fd.sysfd, how)
+ }
+ 
+ func (fd *netFD) closeRead() error {
+diff --git a/src/net/net.go b/src/net/net.go
+index 38375cc8a0..83739b6313 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -155,7 +155,16 @@ func (c *conn) Close() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.Close()
++	err := c.fd.Close()
++	if err != nil {
++		err = &OpError{Op: "close", Net: c.fd.net, Err: err}
++		if c.fd.raddr != nil {
++			err.(*OpError).Addr = c.fd.raddr
++		} else {
++			err.(*OpError).Addr = c.fd.laddr // for unconnected-mode sockets
++		}
++	}
++	return err
+ }
+ 
+ // LocalAddr returns the local network address.
+diff --git a/src/net/tcpsock_plan9.go b/src/net/tcpsock_plan9.go
+index 2e646edf50..2390cbddb8 100644
+--- a/src/net/tcpsock_plan9.go
++++ b/src/net/tcpsock_plan9.go
+@@ -36,7 +36,11 @@ func (c *TCPConn) CloseRead() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.closeRead()
++	err := c.fd.closeRead()
++	if err != nil {
++		err = &OpError{Op: "close", Net: c.fd.net, Addr: c.fd.raddr, Err: err}
++	}
++	return err
+ }
+ 
+ // CloseWrite shuts down the writing side of the TCP connection.
+@@ -45,7 +49,11 @@ func (c *TCPConn) CloseWrite() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.closeWrite()
++	err := c.fd.closeWrite()
++	if err != nil {
++		err = &OpError{Op: "close", Net: c.fd.net, Addr: c.fd.raddr, Err: err}
++	}
++	return err
+ }
+ 
+ // SetLinger sets the behavior of Close on a connection which still
+@@ -155,9 +163,13 @@ func (l *TCPListener) Close() error {
+ 	}
+ 	if _, err := l.fd.ctl.WriteString("hangup"); err != nil {
+ 		l.fd.ctl.Close()
+-		return &OpError{"close", l.fd.ctl.Name(), l.fd.laddr, err}
++		return &OpError{Op: "close", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
++	}
++	err := l.fd.ctl.Close()
++	if err != nil {
++		err = &OpError{Op: "close", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
+ 	}
+-	return l.fd.ctl.Close()
++	return err
+ }
+ 
+ // Addr returns the listener's network address, a *TCPAddr.
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index 91c8b0bdbb..5a4c28be4f 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -78,7 +78,11 @@ func (c *TCPConn) CloseRead() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.closeRead()
++	err := c.fd.closeRead()
++	if err != nil {
++		err = &OpError{Op: "close", Net: c.fd.net, Addr: c.fd.raddr, Err: err}
++	}
++	return err
+ }
+ 
+ // CloseWrite shuts down the writing side of the TCP connection.
+@@ -87,7 +91,11 @@ func (c *TCPConn) CloseWrite() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.closeWrite()
++	err := c.fd.closeWrite()
++	if err != nil {
++		err = &OpError{Op: "close", Net: c.fd.net, Addr: c.fd.raddr, Err: err}
++	}
++	return err
+ }
+ 
+ // SetLinger sets the behavior of Close on a connection which still
+@@ -254,7 +262,11 @@ func (l *TCPListener) Close() error {
+ 	if l == nil || l.fd == nil {
+ 		return syscall.EINVAL
+ 	}
+-	return l.fd.Close()
++	err := l.fd.Close()
++	if err != nil {
++		err = &OpError{Op: "close", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
++	}
++	return err
+ }
+ 
+ // Addr returns the listener's network address, a *TCPAddr.
+diff --git a/src/net/unixsock_plan9.go b/src/net/unixsock_plan9.go
+index bb8c4dd609..fb47e72e0c 100644
+--- a/src/net/unixsock_plan9.go
++++ b/src/net/unixsock_plan9.go
+@@ -65,13 +65,13 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
+ // CloseRead shuts down the reading side of the Unix domain connection.
+ // Most callers should just use Close.
+ func (c *UnixConn) CloseRead() error {
+-	return syscall.EPLAN9
++	return &OpError{Op: "close", Net: c.fd.net, Addr: c.fd.raddr, Err: syscall.EPLAN9}
+ }
+ 
+ // CloseWrite shuts down the writing side of the Unix domain connection.
+ // Most callers should just use Close.
+ func (c *UnixConn) CloseWrite() error {
+-	return syscall.EPLAN9
++	return &OpError{Op: "close", Net: c.fd.net, Addr: c.fd.raddr, Err: syscall.EPLAN9}
+ }
+ 
+ // DialUnix connects to the remote address raddr on the network net,
+@@ -111,7 +111,7 @@ func (l *UnixListener) Accept() (Conn, error) {
+ // Close stops listening on the Unix address.  Already accepted
+ // connections are not closed.
+ func (l *UnixListener) Close() error {
+-	return syscall.EPLAN9
++	return &OpError{Op: "close", Net: "<nil>", Addr: nil, Err: syscall.EPLAN9}
+ }
+ 
+ // Addr returns the listener's network address.
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index d51599f3bb..4087c9d6bd 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -233,7 +233,11 @@ func (c *UnixConn) CloseRead() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.closeRead()
++	err := c.fd.closeRead()
++	if err != nil {
++		err = &OpError{Op: "close", Net: c.fd.net, Addr: c.fd.raddr, Err: err}
++	}
++	return err
+ }
+ 
+ // CloseWrite shuts down the writing side of the Unix domain connection.
+@@ -242,7 +246,11 @@ func (c *UnixConn) CloseWrite() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return c.fd.closeWrite()
++	err := c.fd.closeWrite()
++	if err != nil {
++		err = &OpError{Op: "close", Net: c.fd.net, Addr: c.fd.raddr, Err: err}
++	}
++	return err
+ }
+ 
+ // DialUnix connects to the remote address raddr on the network net,
+@@ -335,7 +343,11 @@ func (l *UnixListener) Close() error {
+ 	if l.path[0] != '@' {
+ 		syscall.Unlink(l.path)
+ 	}
+-	return l.fd.Close()
++	err := l.fd.Close()
++	if err != nil {
++		err = &OpError{Op: "close", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
++	}
++	return err
+ }
+ 
+ // Addr returns the listener's network address.

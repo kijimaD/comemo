@@ -9,7 +9,59 @@ Date:   Thu Oct 27 12:53:25 2016 -0700
     Change-Id: I5af63b8277c0a0f9fef4880992bcb925ca088687
     Reviewed-on: https://go-review.googlesource.com/32106
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go | 8 ++++++--
  test/alias2.go                       | 7 +++++++
  2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 644abcc204..f8056fee97 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -214,8 +214,12 @@ func (p *noder) aliasDecl(decl *syntax.AliasDecl) {
+ 		return
+ 	}
+ 
+-	// don't declare blank aliases
+-	if decl.Name.Value == "_" {
++	// handle special cases
++	switch decl.Name.Value {
++	case "_":
++		return // don't declare blank aliases
++	case "init":
++		yyerror("cannot declare init - must be non-alias function declaration")
+ 		return
+ 	}
+ 
+diff --git a/test/alias2.go b/test/alias2.go
+index f160d384b1..6fad914420 100644
+--- a/test/alias2.go
++++ b/test/alias2.go
+@@ -9,6 +9,7 @@
+ package p
+ 
+ import (
++	"flag"
+ 	"fmt" // use at most once (to test "imported but not used" error)
+ 	"go/build"
+ 	. "go/build"
+@@ -74,13 +75,19 @@ func _ => math.Sin
+ func sin => math.Sin
+ func sin1 => math.Pi // ERROR "math.Pi is not a function"
+ 
++// aliases may not be called init
++func init => flag.Parse // ERROR "cannot declare init"
++
+ // alias reference to a package marks package as used
+ func _ => fmt.Println
+ 
+ // re-exported aliases
+ const Pi => math.Pi
++
+ type Writer => io.Writer
++
+ var Def => build.Default
++
+ func Sin => math.Sin
+ 
+ // type aliases denote identical types

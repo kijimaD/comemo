@@ -11,6 +11,23 @@ Date:   Thu Nov 4 08:45:25 2010 -0700
     R=lvd
     CC=golang-dev, rsc
     https://golang.org/cl/2881042
-
+---
  src/cmd/ld/dwarf_defs.h | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/dwarf_defs.h b/src/cmd/ld/dwarf_defs.h
+index 0f1e5417cf..eed143dffc 100644
+--- a/src/cmd/ld/dwarf_defs.h
++++ b/src/cmd/ld/dwarf_defs.h
+@@ -379,9 +379,10 @@ enum
+ 	DW_LANG_D = 0x0013,
+ 	// Dwarf4
+ 	DW_LANG_Python = 0x0014,
++	// Dwarf5
++	DW_LANG_Go = 0x0016,
+ 
+ 	DW_LANG_lo_user = 0x8000,
+-	DW_LANG_Go = 0x8015,	// TODO(lvd) Temporary
+ 	DW_LANG_hi_user = 0xffff,
+ };
+ 

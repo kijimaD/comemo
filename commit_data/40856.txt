@@ -19,7 +19,98 @@ Date:   Thu Jul 25 20:26:46 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/cache/cache.go                 | 25 +++++++++++--
  .../script/mod_list_compiled_concurrent.txt        | 41 ++++++++++++++++++++++
  2 files changed, 64 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index 116279c977..168ad32b0e 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -322,7 +322,7 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify
+ 	// in verify mode we are double-checking that the cache entries
+ 	// are entirely reproducible. As just noted, this may be unrealistic
+ 	// in some cases but the check is also useful for shaking out real bugs.
+-	entry := []byte(fmt.Sprintf("v1 %x %x %20d %20d\n", id, out, size, time.Now().UnixNano()))
++	entry := fmt.Sprintf("v1 %x %x %20d %20d\n", id, out, size, time.Now().UnixNano())
+ 	if verify && allowVerify {
+ 		old, err := c.get(id)
+ 		if err == nil && (old.OutputID != out || old.Size != size) {
+@@ -332,7 +332,28 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify
+ 		}
+ 	}
+ 	file := c.fileName(id, "a")
+-	if err := ioutil.WriteFile(file, entry, 0666); err != nil {
++
++	// Copy file to cache directory.
++	mode := os.O_WRONLY | os.O_CREATE
++	f, err := os.OpenFile(file, mode, 0666)
++	if err != nil {
++		return err
++	}
++	_, err = f.WriteString(entry)
++	if err == nil {
++		// Truncate the file only *after* writing it.
++		// (This should be a no-op, but truncate just in case of previous corruption.)
++		//
++		// This differs from ioutil.WriteFile, which truncates to 0 *before* writing
++		// via os.O_TRUNC. Truncating only after writing ensures that a second write
++		// of the same content to the same file is idempotent, and does not — even
++		// temporarily! — undo the effect of the first write.
++		err = f.Truncate(int64(len(entry)))
++	}
++	if closeErr := f.Close(); err == nil {
++		err = closeErr
++	}
++	if err != nil {
+ 		// TODO(bcmills): This Remove potentially races with another go command writing to file.
+ 		// Can we eliminate it?
+ 		os.Remove(file)
+diff --git a/src/cmd/go/testdata/script/mod_list_compiled_concurrent.txt b/src/cmd/go/testdata/script/mod_list_compiled_concurrent.txt
+new file mode 100644
+index 0000000000..b08713dcfd
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list_compiled_concurrent.txt
+@@ -0,0 +1,41 @@
++env GO111MODULE=on
++
++[short] skip
++
++# Regression test for golang.org/issue/29667:
++# spurious 'failed to cache compiled Go files' errors.
++# This test failed reliably when run with -count=10
++# on a Linux workstation.
++
++env GOCACHE=$WORK/gocache
++mkdir $GOCACHE
++
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++go list -json -compiled -test=false -export=false -deps=true -- . &
++
++wait
++
++-- go.mod --
++module sandbox/bar
++-- bar.go --
++package bar
++
++import "C"

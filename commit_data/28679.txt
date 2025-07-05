@@ -11,6 +11,20 @@ Date:   Mon Jun 27 09:43:14 2016 -0700
     Change-Id: I8a188f129534f73edd132ef4e5a2d566e69df7e9
     Reviewed-on: https://go-review.googlesource.com/24502
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/pprof/pprof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index b05c925ad1..f2cd81adb1 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -5,7 +5,7 @@
+ // Package pprof writes runtime profiling data in the format expected
+ // by the pprof visualization tool.
+ // For more information about pprof, see
+-// http://code.google.com/p/google-perftools/.
++// http://github.com/google/pprof/.
+ package pprof
+ 
+ import (

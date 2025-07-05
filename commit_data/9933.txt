@@ -12,7 +12,86 @@ Date:   Tue Oct 11 22:28:56 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/5232051
-
+---
  src/pkg/go/scanner/scanner.go      |  9 +++------
  src/pkg/go/scanner/scanner_test.go | 29 ++++-------------------------
  2 files changed, 7 insertions(+), 31 deletions(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 7f3dd23732..9f855fc197 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -90,9 +90,8 @@ func (S *Scanner) next() {
+ // They control scanner behavior.
+ //
+ const (
+-	ScanComments      = 1 << iota // return comments as COMMENT tokens
+-	AllowIllegalChars             // do not report an error for illegal chars
+-	InsertSemis                   // automatically insert semicolons
++	ScanComments = 1 << iota // return comments as COMMENT tokens
++	InsertSemis              // automatically insert semicolons
+ )
+ 
+ // Init prepares the scanner S to tokenize the text src by setting the
+@@ -652,9 +651,7 @@ scanAgain:
+ 		case '|':
+ 			tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
+ 		default:
+-			if S.mode&AllowIllegalChars == 0 {
+-				S.error(offs, fmt.Sprintf("illegal character %#U", ch))
+-			}
++			S.error(offs, fmt.Sprintf("illegal character %#U", ch))
+ 			insertSemi = S.insertSemi // preserve insertSemi info
+ 		}
+ 	}
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index eb9e1cb818..0c2cbe6dc0 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -420,14 +420,14 @@ var lines = []string{
+ 
+ func TestSemis(t *testing.T) {
+ 	for _, line := range lines {
+-		checkSemi(t, line, AllowIllegalChars|InsertSemis)
+-		checkSemi(t, line, AllowIllegalChars|InsertSemis|ScanComments)
++		checkSemi(t, line, InsertSemis)
++		checkSemi(t, line, InsertSemis|ScanComments)
+ 
+ 		// if the input ended in newlines, the input must tokenize the
+ 		// same with or without those newlines
+ 		for i := len(line) - 1; i >= 0 && line[i] == '\n'; i-- {
+-			checkSemi(t, line[0:i], AllowIllegalChars|InsertSemis)
+-			checkSemi(t, line[0:i], AllowIllegalChars|InsertSemis|ScanComments)
++			checkSemi(t, line[0:i], InsertSemis)
++			checkSemi(t, line[0:i], InsertSemis|ScanComments)
+ 		}
+ 	}
+ }
+@@ -529,27 +529,6 @@ func TestInit(t *testing.T) {
+ 	}
+ }
+ 
+-func TestIllegalChars(t *testing.T) {
+-	var s Scanner
+-
+-	const src = "*?*$*@*"
+-	file := fset.AddFile("", fset.Base(), len(src))
+-	s.Init(file, []byte(src), &testErrorHandler{t}, AllowIllegalChars)
+-	for offs, ch := range src {
+-		pos, tok, lit := s.Scan()
+-		if poffs := file.Offset(pos); poffs != offs {
+-			t.Errorf("bad position for %s: got %d, expected %d", lit, poffs, offs)
+-		}
+-		if tok == token.ILLEGAL && lit != string(ch) {
+-			t.Errorf("bad token: got %s, expected %s", lit, string(ch))
+-		}
+-	}
+-
+-	if s.ErrorCount != 0 {
+-		t.Errorf("found %d errors", s.ErrorCount)
+-	}
+-}
+-
+ func TestStdErrorHander(t *testing.T) {
+ 	const src = "@\n" + // illegal character, cause an error
+ 		"@ @\n" + // two errors on the same line

@@ -9,6 +9,20 @@ Date:   Sun Oct 23 16:03:38 2016 +0200
     Change-Id: I44d7081ef7a973dcd1cc2eb7124e3454c94bc6e3
     Reviewed-on: https://go-review.googlesource.com/31770
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go_faq.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 450a521681..6a955f6f3f 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -1770,7 +1770,7 @@ A simple C "hello, world" program compiled and linked statically using gcc
+ on Linux is around 750 kB,
+ including an implementation of <code>printf</code>.
+ An equivalent Go program using <code>fmt.Printf</code>
+-is around 2.3 MB, but
++is around 1.5 MB, but
+ that includes more powerful run-time support and type information.
+ </p>
+ 

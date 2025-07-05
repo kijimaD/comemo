@@ -11,7 +11,36 @@ Date:   Mon Aug 10 18:19:32 2009 -0700
     R=ken
     OCL=33008
     CL=33008
-
+---
  src/cmd/gc/subr.c      | 4 +++-
  src/cmd/gc/typecheck.c | 2 +-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index d4ee33d872..896f5f61d1 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1215,7 +1215,9 @@ Nconv(Fmt *fp)
+ 	}
+ 
+ 	if(fp->flags & FmtSign) {
+-		if(n->type == T || n->type->etype == TNIL)
++		if(n->type == T)
++			fmtprint(fp, "%#N", n);
++		else if(n->type->etype == TNIL)
+ 			fmtprint(fp, "nil");
+ 		else
+ 			fmtprint(fp, "%#N (type %T)", n, n->type);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index b041cf26f9..983ff78356 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -221,7 +221,7 @@ reswitch:
+ 			goto ret;
+ 		}
+ 		if(!isptr[t->etype]) {
+-			yyerror("invalid indirect of %+N", n);
++			yyerror("invalid indirect of %+N", n->left);
+ 			goto error;
+ 		}
+ 		ok |= Erv;

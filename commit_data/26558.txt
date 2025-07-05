@@ -7,6 +7,20 @@ Date:   Fri Feb 5 15:05:35 2016 +0000
     Change-Id: I93201fa4152f2d60b3eedb8d321a152819033121
     Reviewed-on: https://go-review.googlesource.com/19270
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/request.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 03f3e2b974..8cdab02af5 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -165,7 +165,7 @@ type Request struct {
+ 	// For server requests, the HTTP server handles this automatically
+ 	// and this field is not needed by Handlers.
+ 	//
+-	// The client requests, setting this field prevents re-use of
++	// For client requests, setting this field prevents re-use of
+ 	// TCP connections between requests to the same hosts, as if
+ 	// Transport.DisableKeepAlives were set.
+ 	Close bool

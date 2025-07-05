@@ -15,7 +15,7 @@ Date:   Mon Nov 20 12:56:26 2023 -0800
     Run-TryBot: Tim King <taking@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/go.mod                                     |   6 +-
  src/cmd/go.sum                                     |  12 +-
  .../tools/go/analysis/passes/errorsas/errorsas.go  |   3 -
@@ -31,3 +31,585 @@ Date:   Mon Nov 20 12:56:26 2023 -0800
  .../x/tools/internal/versions/versions_go122.go    |  38 +++++
  src/cmd/vendor/modules.txt                         |   7 +-
  14 files changed, 363 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 1e94f5dab0..8f66963c14 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,11 +5,11 @@ go 1.22
+ require (
+ 	github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17
+ 	golang.org/x/arch v0.5.1-0.20231011141335-a6bdeed49307
+-	golang.org/x/mod v0.13.1-0.20231025225536-6e58e47c7bd6
+-	golang.org/x/sync v0.4.1-0.20231011140417-10739b037d36
++	golang.org/x/mod v0.14.0
++	golang.org/x/sync v0.5.0
+ 	golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3
+ 	golang.org/x/term v0.13.1-0.20231011140651-6a610bc55bff
+-	golang.org/x/tools v0.14.1-0.20231019165902-71f6a46884ab
++	golang.org/x/tools v0.15.1-0.20231120183520-8966034e4e53
+ )
+ 
+ require github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index ab476f84f9..ea29f9f3a3 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -4,13 +4,13 @@ github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab h1:BA4a7pe
+ github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
+ golang.org/x/arch v0.5.1-0.20231011141335-a6bdeed49307 h1:1nIbNxjxQ3+dss3xYMxayoIZONazUTg8/BENwc19sAQ=
+ golang.org/x/arch v0.5.1-0.20231011141335-a6bdeed49307/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+-golang.org/x/mod v0.13.1-0.20231025225536-6e58e47c7bd6 h1:YSyE+/SK6vfYAxf27iVtUZ/tTZOHGN6epnMgE1al/+M=
+-golang.org/x/mod v0.13.1-0.20231025225536-6e58e47c7bd6/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+-golang.org/x/sync v0.4.1-0.20231011140417-10739b037d36 h1:+lDu3sHZVY5Qqb7ynMbjaT4IsYicvoxypEOIE4aYlYE=
+-golang.org/x/sync v0.4.1-0.20231011140417-10739b037d36/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
++golang.org/x/mod v0.14.0 h1:dGoOF9QVLYng8IHTm7BAyWqCqSheQ5pYWGhzW00YJr0=
++golang.org/x/mod v0.14.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
++golang.org/x/sync v0.5.0 h1:60k92dhOjHxJkrqnwsfl8KuaHbn/5dl0lUPUklKo3qE=
++golang.org/x/sync v0.5.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3 h1:G9se7UpoI67yWrFY0IIFGf6H3nwLLUZFDBCyOJwWeSc=
+ golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/term v0.13.1-0.20231011140651-6a610bc55bff h1:4lCCwEX5qbLiqBk8cqIlwrDbmkzfggoqDXYLTU+jr30=
+ golang.org/x/term v0.13.1-0.20231011140651-6a610bc55bff/go.mod h1:tfGnZ3a6ww9diaioGSzdPRgIfpk6Odt1UPXNhRcgfag=
+-golang.org/x/tools v0.14.1-0.20231019165902-71f6a46884ab h1:wNyFWaRZ6iFNvDL/8TK0HF5x3mGttsqpXPuHeKN88G8=
+-golang.org/x/tools v0.14.1-0.20231019165902-71f6a46884ab/go.mod h1:uYBEerGOWcJyEORxN+Ek8+TT266gXkNlHdJBwexUsBg=
++golang.org/x/tools v0.15.1-0.20231120183520-8966034e4e53 h1:OvqfI3Xzb220PLbcIqYXf6DUnr4RyR1MJOhkg8qsnaA=
++golang.org/x/tools v0.15.1-0.20231120183520-8966034e4e53/go.mod h1:Qt/ThNq1+Jt2UJeOwUFFL3xcU1EExDk5yYNCBwMKeyA=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+index 43996b80a5..7f62ad4c82 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+@@ -66,9 +66,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 
+ var errorType = types.Universe.Lookup("error").Type()
+ 
+-// pointerToInterfaceOrError reports whether the type of e is a pointer to an interface or a type implementing error,
+-// or is the empty interface.
+-
+ // checkAsTarget reports an error if the second argument to errors.As is invalid.
+ func checkAsTarget(pass *analysis.Pass, e ast.Expr) error {
+ 	t := pass.TypesInfo.Types[e].Type
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/doc.go
+index dc544df1bf..c95b1c1c98 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/doc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/doc.go
+@@ -14,8 +14,12 @@
+ // in such a way (e.g. with go or defer) that it may outlive the loop
+ // iteration and possibly observe the wrong value of the variable.
+ //
++// Note: An iteration variable can only outlive a loop iteration in Go versions <=1.21.
++// In Go 1.22 and later, the loop variable lifetimes changed to create a new
++// iteration variable per loop iteration. (See go.dev/issue/60078.)
++//
+ // In this example, all the deferred functions run after the loop has
+-// completed, so all observe the final value of v.
++// completed, so all observe the final value of v [<go1.22].
+ //
+ //	for _, v := range list {
+ //	    defer func() {
+@@ -32,7 +36,10 @@
+ //	    }()
+ //	}
+ //
+-// The next example uses a go statement and has a similar problem.
++// After Go version 1.22, the previous two for loops are equivalent
++// and both are correct.
++//
++// The next example uses a go statement and has a similar problem [<go1.22].
+ // In addition, it has a data race because the loop updates v
+ // concurrent with the goroutines accessing it.
+ //
+@@ -56,7 +63,7 @@
+ //	}
+ //
+ // The t.Parallel() call causes the rest of the function to execute
+-// concurrent with the loop.
++// concurrent with the loop [<go1.22].
+ //
+ // The analyzer reports references only in the last statement,
+ // as it is not deep enough to understand the effects of subsequent
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+index fbcdc223df..4724c9f3b1 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+@@ -14,6 +14,7 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/go/types/typeutil"
++	"golang.org/x/tools/internal/versions"
+ )
+ 
+ //go:embed doc.go
+@@ -31,10 +32,15 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+ 
+ 	nodeFilter := []ast.Node{
++		(*ast.File)(nil),
+ 		(*ast.RangeStmt)(nil),
+ 		(*ast.ForStmt)(nil),
+ 	}
+-	inspect.Preorder(nodeFilter, func(n ast.Node) {
++	inspect.Nodes(nodeFilter, func(n ast.Node, push bool) bool {
++		if !push {
++			// inspect.Nodes is slightly suboptimal as we only use push=true.
++			return true
++		}
+ 		// Find the variables updated by the loop statement.
+ 		var vars []types.Object
+ 		addVar := func(expr ast.Expr) {
+@@ -46,6 +52,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		}
+ 		var body *ast.BlockStmt
+ 		switch n := n.(type) {
++		case *ast.File:
++			// Only traverse the file if its goversion is strictly before go1.22.
++			goversion := versions.Lang(versions.FileVersions(pass.TypesInfo, n))
++			// goversion is empty for older go versions (or the version is invalid).
++			return goversion == "" || versions.Compare(goversion, "go1.22") < 0
+ 		case *ast.RangeStmt:
+ 			body = n.Body
+ 			addVar(n.Key)
+@@ -64,7 +75,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			}
+ 		}
+ 		if vars == nil {
+-			return
++			return true
+ 		}
+ 
+ 		// Inspect statements to find function literals that may be run outside of
+@@ -113,6 +124,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 				}
+ 			}
+ 		}
++		return true
+ 	})
+ 	return nil, nil
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index 0a40652c1b..36eed808d8 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -51,6 +51,7 @@ import (
+ 	"golang.org/x/tools/go/analysis/internal/analysisflags"
+ 	"golang.org/x/tools/internal/facts"
+ 	"golang.org/x/tools/internal/typeparams"
++	"golang.org/x/tools/internal/versions"
+ )
+ 
+ // A Config describes a compilation unit to be analyzed.
+@@ -262,6 +263,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
+ 	}
+ 	typeparams.InitInstanceInfo(info)
++	versions.InitFileVersions(info)
+ 
+ 	pkg, err := tc.Check(cfg.ImportPath, fset, files, info)
+ 	if err != nil {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go
+index 9da5692af5..4f2c404562 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go
+@@ -19,6 +19,8 @@ import (
+ // that the Requires graph is acyclic;
+ // that analyzer fact types are unique;
+ // that each fact type is a pointer.
++//
++// Analyzer names need not be unique, though this may be confusing.
+ func Validate(analyzers []*Analyzer) error {
+ 	// Map each fact type to its sole generating analyzer.
+ 	factTypes := make(map[reflect.Type]*Analyzer)
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/versions/gover.go b/src/cmd/vendor/golang.org/x/tools/internal/versions/gover.go
+new file mode 100644
+index 0000000000..bbabcd22e9
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/versions/gover.go
+@@ -0,0 +1,172 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This is a fork of internal/gover for use by x/tools until
++// go1.21 and earlier are no longer supported by x/tools.
++
++package versions
++
++import "strings"
++
++// A gover is a parsed Go gover: major[.Minor[.Patch]][kind[pre]]
++// The numbers are the original decimal strings to avoid integer overflows
++// and since there is very little actual math. (Probably overflow doesn't matter in practice,
++// but at the time this code was written, there was an existing test that used
++// go1.99999999999, which does not fit in an int on 32-bit platforms.
++// The "big decimal" representation avoids the problem entirely.)
++type gover struct {
++	major string // decimal
++	minor string // decimal or ""
++	patch string // decimal or ""
++	kind  string // "", "alpha", "beta", "rc"
++	pre   string // decimal or ""
++}
++
++// compare returns -1, 0, or +1 depending on whether
++// x < y, x == y, or x > y, interpreted as toolchain versions.
++// The versions x and y must not begin with a "go" prefix: just "1.21" not "go1.21".
++// Malformed versions compare less than well-formed versions and equal to each other.
++// The language version "1.21" compares less than the release candidate and eventual releases "1.21rc1" and "1.21.0".
++func compare(x, y string) int {
++	vx := parse(x)
++	vy := parse(y)
++
++	if c := cmpInt(vx.major, vy.major); c != 0 {
++		return c
++	}
++	if c := cmpInt(vx.minor, vy.minor); c != 0 {
++		return c
++	}
++	if c := cmpInt(vx.patch, vy.patch); c != 0 {
++		return c
++	}
++	if c := strings.Compare(vx.kind, vy.kind); c != 0 { // "" < alpha < beta < rc
++		return c
++	}
++	if c := cmpInt(vx.pre, vy.pre); c != 0 {
++		return c
++	}
++	return 0
++}
++
++// lang returns the Go language version. For example, lang("1.2.3") == "1.2".
++func lang(x string) string {
++	v := parse(x)
++	if v.minor == "" || v.major == "1" && v.minor == "0" {
++		return v.major
++	}
++	return v.major + "." + v.minor
++}
++
++// isValid reports whether the version x is valid.
++func isValid(x string) bool {
++	return parse(x) != gover{}
++}
++
++// parse parses the Go version string x into a version.
++// It returns the zero version if x is malformed.
++func parse(x string) gover {
++	var v gover
++
++	// Parse major version.
++	var ok bool
++	v.major, x, ok = cutInt(x)
++	if !ok {
++		return gover{}
++	}
++	if x == "" {
++		// Interpret "1" as "1.0.0".
++		v.minor = "0"
++		v.patch = "0"
++		return v
++	}
++
++	// Parse . before minor version.
++	if x[0] != '.' {
++		return gover{}
++	}
++
++	// Parse minor version.
++	v.minor, x, ok = cutInt(x[1:])
++	if !ok {
++		return gover{}
++	}
++	if x == "" {
++		// Patch missing is same as "0" for older versions.
++		// Starting in Go 1.21, patch missing is different from explicit .0.
++		if cmpInt(v.minor, "21") < 0 {
++			v.patch = "0"
++		}
++		return v
++	}
++
++	// Parse patch if present.
++	if x[0] == '.' {
++		v.patch, x, ok = cutInt(x[1:])
++		if !ok || x != "" {
++			// Note that we are disallowing prereleases (alpha, beta, rc) for patch releases here (x != "").
++			// Allowing them would be a bit confusing because we already have:
++			//	1.21 < 1.21rc1
++			// But a prerelease of a patch would have the opposite effect:
++			//	1.21.3rc1 < 1.21.3
++			// We've never needed them before, so let's not start now.
++			return gover{}
++		}
++		return v
++	}
++
++	// Parse prerelease.
++	i := 0
++	for i < len(x) && (x[i] < '0' || '9' < x[i]) {
++		if x[i] < 'a' || 'z' < x[i] {
++			return gover{}
++		}
++		i++
++	}
++	if i == 0 {
++		return gover{}
++	}
++	v.kind, x = x[:i], x[i:]
++	if x == "" {
++		return v
++	}
++	v.pre, x, ok = cutInt(x)
++	if !ok || x != "" {
++		return gover{}
++	}
++
++	return v
++}
++
++// cutInt scans the leading decimal number at the start of x to an integer
++// and returns that value and the rest of the string.
++func cutInt(x string) (n, rest string, ok bool) {
++	i := 0
++	for i < len(x) && '0' <= x[i] && x[i] <= '9' {
++		i++
++	}
++	if i == 0 || x[0] == '0' && i != 1 { // no digits or unnecessary leading zero
++		return "", "", false
++	}
++	return x[:i], x[i:], true
++}
++
++// cmpInt returns cmp.Compare(x, y) interpreting x and y as decimal numbers.
++// (Copied from golang.org/x/mod/semver's compareInt.)
++func cmpInt(x, y string) int {
++	if x == y {
++		return 0
++	}
++	if len(x) < len(y) {
++		return -1
++	}
++	if len(x) > len(y) {
++		return +1
++	}
++	if x < y {
++		return -1
++	} else {
++		return +1
++	}
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/versions/types.go b/src/cmd/vendor/golang.org/x/tools/internal/versions/types.go
+new file mode 100644
+index 0000000000..562eef21fa
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/versions/types.go
+@@ -0,0 +1,19 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package versions
++
++import (
++	"go/types"
++)
++
++// GoVersion returns the Go version of the type package.
++// It returns zero if no version can be determined.
++func GoVersion(pkg *types.Package) string {
++	// TODO(taking): x/tools can call GoVersion() [from 1.21] after 1.25.
++	if pkg, ok := any(pkg).(interface{ GoVersion() string }); ok {
++		return pkg.GoVersion()
++	}
++	return ""
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/versions/types_go121.go b/src/cmd/vendor/golang.org/x/tools/internal/versions/types_go121.go
+new file mode 100644
+index 0000000000..a7b79207ae
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/versions/types_go121.go
+@@ -0,0 +1,20 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !go1.22
++// +build !go1.22
++
++package versions
++
++import (
++	"go/ast"
++	"go/types"
++)
++
++// FileVersions always reports the a file's Go version as the
++// zero version at this Go version.
++func FileVersions(info *types.Info, file *ast.File) string { return "" }
++
++// InitFileVersions is a noop at this Go version.
++func InitFileVersions(*types.Info) {}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/versions/types_go122.go b/src/cmd/vendor/golang.org/x/tools/internal/versions/types_go122.go
+new file mode 100644
+index 0000000000..7b9ba89a82
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/versions/types_go122.go
+@@ -0,0 +1,24 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.22
++// +build go1.22
++
++package versions
++
++import (
++	"go/ast"
++	"go/types"
++)
++
++// FileVersions maps a file to the file's semantic Go version.
++// The reported version is the zero version if a version cannot be determined.
++func FileVersions(info *types.Info, file *ast.File) string {
++	return info.FileVersions[file]
++}
++
++// InitFileVersions initializes info to record Go versions for Go files.
++func InitFileVersions(info *types.Info) {
++	info.FileVersions = make(map[*ast.File]string)
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/versions/versions_go121.go b/src/cmd/vendor/golang.org/x/tools/internal/versions/versions_go121.go
+new file mode 100644
+index 0000000000..cf4a7d0360
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/versions/versions_go121.go
+@@ -0,0 +1,49 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !go1.22
++// +build !go1.22
++
++package versions
++
++// Lang returns the Go language version for version x.
++// If x is not a valid version, Lang returns the empty string.
++// For example:
++//
++//	Lang("go1.21rc2") = "go1.21"
++//	Lang("go1.21.2") = "go1.21"
++//	Lang("go1.21") = "go1.21"
++//	Lang("go1") = "go1"
++//	Lang("bad") = ""
++//	Lang("1.21") = ""
++func Lang(x string) string {
++	v := lang(stripGo(x))
++	if v == "" {
++		return ""
++	}
++	return x[:2+len(v)] // "go"+v without allocation
++}
++
++// Compare returns -1, 0, or +1 depending on whether
++// x < y, x == y, or x > y, interpreted as Go versions.
++// The versions x and y must begin with a "go" prefix: "go1.21" not "1.21".
++// Invalid versions, including the empty string, compare less than
++// valid versions and equal to each other.
++// The language version "go1.21" compares less than the
++// release candidate and eventual releases "go1.21rc1" and "go1.21.0".
++// Custom toolchain suffixes are ignored during comparison:
++// "go1.21.0" and "go1.21.0-bigcorp" are equal.
++func Compare(x, y string) int { return compare(stripGo(x), stripGo(y)) }
++
++// IsValid reports whether the version x is valid.
++func IsValid(x string) bool { return isValid(stripGo(x)) }
++
++// stripGo converts from a "go1.21" version to a "1.21" version.
++// If v does not start with "go", stripGo returns the empty string (a known invalid version).
++func stripGo(v string) string {
++	if len(v) < 2 || v[:2] != "go" {
++		return ""
++	}
++	return v[2:]
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/versions/versions_go122.go b/src/cmd/vendor/golang.org/x/tools/internal/versions/versions_go122.go
+new file mode 100644
+index 0000000000..c1c1814b28
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/versions/versions_go122.go
+@@ -0,0 +1,38 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.22
++// +build go1.22
++
++package versions
++
++import (
++	"go/version"
++)
++
++// Lang returns the Go language version for version x.
++// If x is not a valid version, Lang returns the empty string.
++// For example:
++//
++//	Lang("go1.21rc2") = "go1.21"
++//	Lang("go1.21.2") = "go1.21"
++//	Lang("go1.21") = "go1.21"
++//	Lang("go1") = "go1"
++//	Lang("bad") = ""
++//	Lang("1.21") = ""
++func Lang(x string) string { return version.Lang(x) }
++
++// Compare returns -1, 0, or +1 depending on whether
++// x < y, x == y, or x > y, interpreted as Go versions.
++// The versions x and y must begin with a "go" prefix: "go1.21" not "1.21".
++// Invalid versions, including the empty string, compare less than
++// valid versions and equal to each other.
++// The language version "go1.21" compares less than the
++// release candidate and eventual releases "go1.21rc1" and "go1.21.0".
++// Custom toolchain suffixes are ignored during comparison:
++// "go1.21.0" and "go1.21.0-bigcorp" are equal.
++func Compare(x, y string) int { return version.Compare(x, y) }
++
++// IsValid reports whether the version x is valid.
++func IsValid(x string) bool { return version.IsValid(x) }
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 9b2335f20e..dfde4b287b 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -23,7 +23,7 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/mod v0.13.1-0.20231025225536-6e58e47c7bd6
++# golang.org/x/mod v0.14.0
+ ## explicit; go 1.18
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+@@ -34,7 +34,7 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sync v0.4.1-0.20231011140417-10739b037d36
++# golang.org/x/sync v0.5.0
+ ## explicit; go 1.18
+ golang.org/x/sync/semaphore
+ # golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3
+@@ -45,7 +45,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.13.1-0.20231011140651-6a610bc55bff
+ ## explicit; go 1.18
+ golang.org/x/term
+-# golang.org/x/tools v0.14.1-0.20231019165902-71f6a46884ab
++# golang.org/x/tools v0.15.1-0.20231120183520-8966034e4e53
+ ## explicit; go 1.18
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+@@ -95,3 +95,4 @@ golang.org/x/tools/go/types/typeutil
+ golang.org/x/tools/internal/bisect
+ golang.org/x/tools/internal/facts
+ golang.org/x/tools/internal/typeparams
++golang.org/x/tools/internal/versions

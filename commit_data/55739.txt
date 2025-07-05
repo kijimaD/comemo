@@ -31,8 +31,103 @@ Date:   Thu Mar 9 09:59:26 2023 -0500
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go |  1 +
  src/cmd/compile/internal/inline/inl.go | 46 ++++++++++++++++++++++++++--------
  test/inline.go                         |  6 ++---
  3 files changed, 39 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index ec20b18134..81e8ed645d 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -32,6 +32,7 @@ type DebugFlags struct {
+ 	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
+ 	InlStaticInit         int    `help:"allow static initialization of inlined calls" concurrent:"ok"`
+ 	InterfaceCycles       int    `help:"allow anonymous interface cycles"`
++	InlineSCCOnePass      int    `help:"visit SCC funcs only once during inlining (legacy behavior)"`
+ 	Libfuzzer             int    `help:"enable coverage instrumentation for libfuzzer"`
+ 	LoopVar               int    `help:"shared (0, default), 1 (private loop variables), 2, private + log"`
+ 	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag."`
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 03f565e9d3..80be841efa 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -186,21 +186,45 @@ func InlineDecls(p *pgo.Profile, decls []ir.Node, doInline bool) {
+ 		pgoInlinePrologue(p, decls)
+ 	}
+ 
++	doCanInline := func(n *ir.Func, recursive bool, numfns int) {
++		if !recursive || numfns > 1 {
++			// We allow inlining if there is no
++			// recursion, or the recursion cycle is
++			// across more than one function.
++			CanInline(n, p)
++		} else {
++			if base.Flag.LowerM > 1 && n.OClosure == nil {
++				fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Nname)
++			}
++		}
++	}
++
+ 	ir.VisitFuncsBottomUp(decls, func(list []*ir.Func, recursive bool) {
+ 		numfns := numNonClosures(list)
+-		for _, n := range list {
+-			if !recursive || numfns > 1 {
+-				// We allow inlining if there is no
+-				// recursion, or the recursion cycle is
+-				// across more than one function.
+-				CanInline(n, p)
+-			} else {
+-				if base.Flag.LowerM > 1 && n.OClosure == nil {
+-					fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Nname)
+-				}
++		// We visit functions within an SCC in fairly arbitrary order,
++		// so by computing inlinability for all functions in the SCC
++		// before performing any inlining, the results are less
++		// sensitive to the order within the SCC (see #58905 for an
++		// example).
++		if base.Debug.InlineSCCOnePass == 0 {
++			// Compute inlinability for all functions in the SCC ...
++			for _, n := range list {
++				doCanInline(n, recursive, numfns)
+ 			}
++			// ... then make a second pass to do inlining of calls.
+ 			if doInline {
+-				InlineCalls(n, p)
++				for _, n := range list {
++					InlineCalls(n, p)
++				}
++			}
++		} else {
++			// Legacy ordering to make it easier to triage any bugs
++			// or compile time issues that might crop up.
++			for _, n := range list {
++				doCanInline(n, recursive, numfns)
++				if doInline {
++					InlineCalls(n, p)
++				}
+ 			}
+ 		}
+ 	})
+diff --git a/test/inline.go b/test/inline.go
+index 1aa8fccbbd..3bc102f769 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -246,13 +246,13 @@ func ff(x int) { // ERROR "can inline ff"
+ 	if x < 0 {
+ 		return
+ 	}
+-	gg(x - 1)
++	gg(x - 1) // ERROR "inlining call to gg" "inlining call to hh"
+ }
+ func gg(x int) { // ERROR "can inline gg"
+-	hh(x - 1)
++	hh(x - 1) // ERROR "inlining call to hh" "inlining call to ff"
+ }
+ func hh(x int) { // ERROR "can inline hh"
+-	ff(x - 1) // ERROR "inlining call to ff"  // ERROR "inlining call to gg"
++	ff(x - 1) // ERROR "inlining call to ff" "inlining call to gg"
+ }
+ 
+ // Issue #14768 - make sure we can inline for loops.

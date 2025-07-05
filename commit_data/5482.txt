@@ -9,9 +9,82 @@ Date:   Tue May 18 22:33:50 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1216042
-
+---
  src/pkg/math/Makefile     |  1 +
  src/pkg/math/fdim_amd64.s | 26 ++++++++++++++++++++++++++
  src/pkg/math/fdim_decl.go |  9 +++++++++
  src/pkg/math/sqrt_amd64.s |  3 +--
  4 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/math/Makefile b/src/pkg/math/Makefile
+index e8edd35050..1447fc11d4 100644
+--- a/src/pkg/math/Makefile
++++ b/src/pkg/math/Makefile
+@@ -7,6 +7,7 @@ include ../../Make.$(GOARCH)
+ TARG=math
+ 
+ OFILES_amd64=\
++	fdim_amd64.$O\
+ 	sqrt_amd64.$O\
+ 
+ OFILES_386=\
+diff --git a/src/pkg/math/fdim_amd64.s b/src/pkg/math/fdim_amd64.s
+new file mode 100644
+index 0000000000..1f45ef8b97
+--- /dev/null
++++ b/src/pkg/math/fdim_amd64.s
+@@ -0,0 +1,26 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// func Fdim(x, y float64) float64
++TEXT ·Fdim(SB),7,$0
++	MOVSD x+0(FP), X0
++	SUBSD y+8(FP), X0
++	MOVSD $(0.0), X1
++	MAXSD X1, X0
++	MOVSD X0, r+16(FP)
++	RET
++
++// func Fmax(x, y float64) float64
++TEXT ·Fmax(SB),7,$0
++	MOVSD x+0(FP), X0
++	MAXSD y+8(FP), X0
++	MOVSD X0, r+16(FP)
++	RET
++
++// func Fmin(x, y float64) float64
++TEXT ·Fmin(SB),7,$0
++	MOVSD x+0(FP), X0
++	MINSD y+8(FP), X0
++	MOVSD X0, r+16(FP)
++	RET
+diff --git a/src/pkg/math/fdim_decl.go b/src/pkg/math/fdim_decl.go
+new file mode 100644
+index 0000000000..88dea3de40
+--- /dev/null
++++ b/src/pkg/math/fdim_decl.go
+@@ -0,0 +1,9 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++func Fdim(x, y float64) float64
++func Fmax(x, y float64) float64
++func Fmin(x, y float64) float64
+diff --git a/src/pkg/math/sqrt_amd64.s b/src/pkg/math/sqrt_amd64.s
+index e98daebf9b..f5b329e70a 100644
+--- a/src/pkg/math/sqrt_amd64.s
++++ b/src/pkg/math/sqrt_amd64.s
+@@ -4,7 +4,6 @@
+ 
+ // func Sqrt(x float64) float64
+ TEXT ·Sqrt(SB),7,$0
+-	MOVSD x+0(FP), X0
+-	SQRTSD X0, X0
++	SQRTSD x+0(FP), X0
+ 	MOVSD X0, r+8(FP)
+ 	RET

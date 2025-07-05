@@ -14,6 +14,20 @@ Date:   Fri Feb 27 20:42:18 2015 +0100
     Change-Id: I76d76c4547fb9cad1782cb11f7a5c63065a6e0c5
     Reviewed-on: https://go-review.googlesource.com/6263
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/gc/pgen.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/internal/gc/pgen.go
+index cb6cb5b76f..b3045a0b0e 100644
+--- a/src/cmd/internal/gc/pgen.go
++++ b/src/cmd/internal/gc/pgen.go
+@@ -383,7 +383,7 @@ func compile(fn *Node) {
+ 	var gclocals *Sym
+ 	if fn.Nbody == nil {
+ 		if pure_go != 0 || strings.HasPrefix(fn.Nname.Sym.Name, "init.") {
+-			Yyerror("missing function body", fn)
++			Yyerror("missing function body for %q", fn.Nname.Sym.Name)
+ 			goto ret
+ 		}
+ 

@@ -7,8 +7,80 @@ Date:   Sat Sep 29 12:43:05 2012 +0900
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/6586044
-
+---
  src/pkg/syscall/types_darwin.go        | 3 +++
  src/pkg/syscall/ztypes_darwin_386.go   | 7 +++++++
  src/pkg/syscall/ztypes_darwin_amd64.go | 7 +++++++
  3 files changed, 17 insertions(+)
+
+diff --git a/src/pkg/syscall/types_darwin.go b/src/pkg/syscall/types_darwin.go
+index 1205398116..098bbff6f2 100644
+--- a/src/pkg/syscall/types_darwin.go
++++ b/src/pkg/syscall/types_darwin.go
+@@ -150,6 +150,8 @@ type Msghdr C.struct_msghdr
+ 
+ type Cmsghdr C.struct_cmsghdr
+ 
++type Inet4Pktinfo C.struct_in_pktinfo
++
+ type Inet6Pktinfo C.struct_in6_pktinfo
+ 
+ const (
+@@ -163,6 +165,7 @@ const (
+ 	SizeofIPv6Mreq         = C.sizeof_struct_ipv6_mreq
+ 	SizeofMsghdr           = C.sizeof_struct_msghdr
+ 	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
++	SizeofInet4Pktinfo     = C.sizeof_struct_in_pktinfo
+ 	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
+ )
+ 
+diff --git a/src/pkg/syscall/ztypes_darwin_386.go b/src/pkg/syscall/ztypes_darwin_386.go
+index 8a88c567e8..71346fbc12 100644
+--- a/src/pkg/syscall/ztypes_darwin_386.go
++++ b/src/pkg/syscall/ztypes_darwin_386.go
+@@ -226,6 +226,12 @@ type Cmsghdr struct {
+ 	Type  int32
+ }
+ 
++type Inet4Pktinfo struct {
++	Ifindex  uint32
++	Spec_dst [4]byte /* in_addr */
++	Addr     [4]byte /* in_addr */
++}
++
+ type Inet6Pktinfo struct {
+ 	Addr    [16]byte /* in6_addr */
+ 	Ifindex uint32
+@@ -242,6 +248,7 @@ const (
+ 	SizeofIPv6Mreq         = 0x14
+ 	SizeofMsghdr           = 0x1c
+ 	SizeofCmsghdr          = 0xc
++	SizeofInet4Pktinfo     = 0xc
+ 	SizeofInet6Pktinfo     = 0x14
+ )
+ 
+diff --git a/src/pkg/syscall/ztypes_darwin_amd64.go b/src/pkg/syscall/ztypes_darwin_amd64.go
+index f845f7c7da..f0809fe4ac 100644
+--- a/src/pkg/syscall/ztypes_darwin_amd64.go
++++ b/src/pkg/syscall/ztypes_darwin_amd64.go
+@@ -234,6 +234,12 @@ type Cmsghdr struct {
+ 	Type  int32
+ }
+ 
++type Inet4Pktinfo struct {
++	Ifindex  uint32
++	Spec_dst [4]byte /* in_addr */
++	Addr     [4]byte /* in_addr */
++}
++
+ type Inet6Pktinfo struct {
+ 	Addr    [16]byte /* in6_addr */
+ 	Ifindex uint32
+@@ -250,6 +256,7 @@ const (
+ 	SizeofIPv6Mreq         = 0x14
+ 	SizeofMsghdr           = 0x30
+ 	SizeofCmsghdr          = 0xc
++	SizeofInet4Pktinfo     = 0xc
+ 	SizeofInet6Pktinfo     = 0x14
+ )
+ 

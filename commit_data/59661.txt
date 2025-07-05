@@ -13,6 +13,19 @@ Date:   Sat Apr 6 06:28:34 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 35b9ca01d2..823c395273 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2848,6 +2848,7 @@ func captureHostObj(h *Hostobj) {
+ 		if err != nil {
+ 			log.Fatalf("capturing host obj: open failed on %s: %v", h.pn, err)
+ 		}
++		defer inf.Close()
+ 		res := make([]byte, h.length)
+ 		if n, err := inf.ReadAt(res, h.off); err != nil || n != int(h.length) {
+ 			log.Fatalf("capturing host obj: readat failed on %s: %v", h.pn, err)

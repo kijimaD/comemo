@@ -8,7 +8,32 @@ Date:   Thu Oct 2 11:36:39 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/152010043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 9f41e5f285..f22fe4c982 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -360,6 +360,7 @@ Pietro Gagliardi <pietro10@mac.com>
+ Preetam Jinka <pj@preet.am>
+ Quan Yong Zhai <qyzhai@gmail.com>
+ Raif S. Naffah <go@naffah-raif.name>
++Red Hat, Inc.
+ Rémy Oudompheng <oudomphe@phare.normalesup.org>
+ Richard Crowley <r@rcrowley.org>
+ Richard Eric Gavaletz <gavaletz@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 2c7ac66a0a..5dadda0ca4 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -437,6 +437,7 @@ Mikkel Krautz <mikkel@krautz.dk> <krautz@gmail.com>
+ Miquel Sabaté Solà <mikisabate@gmail.com>
+ Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
++Mrunal Patel <mrunalp@gmail.com>
+ Nan Deng <monnand@gmail.com>
+ Nathan John Youngman <nj@nathany.com>
+ Nicholas Katsaros <nick@nickkatsaros.com>

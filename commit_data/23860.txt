@@ -10,8 +10,56 @@ Date:   Wed Jun 17 17:02:40 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/11194
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/internal/gccgoimporter/gccgoinstallation_test.go | 4 ----
  src/go/internal/gccgoimporter/importer.go               | 6 ++++++
  src/go/internal/gccgoimporter/importer_test.go          | 4 ----
  3 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/gccgoinstallation_test.go b/src/go/internal/gccgoimporter/gccgoinstallation_test.go
+index d9adcecab7..ef293edcbe 100644
+--- a/src/go/internal/gccgoimporter/gccgoinstallation_test.go
++++ b/src/go/internal/gccgoimporter/gccgoinstallation_test.go
+@@ -2,10 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Exclude plan9 for now due to test failure with TestGoxImporter.
+-// TODO(gri) eliminate this build tag
+-// +build !plan9
+-
+ package gccgoimporter
+ 
+ import (
+diff --git a/src/go/internal/gccgoimporter/importer.go b/src/go/internal/gccgoimporter/importer.go
+index feb9849eef..aa0d01afdf 100644
+--- a/src/go/internal/gccgoimporter/importer.go
++++ b/src/go/internal/gccgoimporter/importer.go
+@@ -88,6 +88,12 @@ func openExportFile(fpath string) (reader io.ReadSeeker, closer io.Closer, err e
+ 	if err != nil {
+ 		return
+ 	}
++	// reset to offset 0 - needed on Plan 9 (see issue #11265)
++	// TODO: remove once issue #11265 has been resolved.
++	_, err = f.Seek(0, 0)
++	if err != nil {
++		return
++	}
+ 
+ 	var elfreader io.ReaderAt
+ 	switch string(magic[:]) {
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index ce0dfb99ef..4fa01c762c 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -2,10 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Exclude plan9 for now due to test failure with TestGoxImporter.
+-// TODO(gri) eliminate this build tag
+-// +build !plan9
+-
+ package gccgoimporter
+ 
+ import (

@@ -20,6 +20,22 @@ Date:   Mon Nov 20 13:16:13 2023 -0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/os/exec_unix.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/os/exec_unix.go b/src/os/exec_unix.go
+index f9063b4db4..36b320df18 100644
+--- a/src/os/exec_unix.go
++++ b/src/os/exec_unix.go
+@@ -48,9 +48,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ 	if e != nil {
+ 		return nil, NewSyscallError("wait", e)
+ 	}
+-	if pid1 != 0 {
+-		p.setDone()
+-	}
++	p.setDone()
+ 	ps = &ProcessState{
+ 		pid:    pid1,
+ 		status: status,

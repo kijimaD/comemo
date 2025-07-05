@@ -16,6 +16,44 @@ Date:   Tue Mar 12 16:21:43 2019 +0100
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/android/go_android_exec.go | 18 +++++++-----------
  1 file changed, 7 insertions(+), 11 deletions(-)
+
+diff --git a/misc/android/go_android_exec.go b/misc/android/go_android_exec.go
+index a662d28944..ee3f16ae3d 100644
+--- a/misc/android/go_android_exec.go
++++ b/misc/android/go_android_exec.go
+@@ -196,12 +196,10 @@ func subdir() (pkgpath string, underGoRoot bool, err error) {
+ 	if err != nil {
+ 		return "", false, err
+ 	}
+-	if strings.HasPrefix(cwd, goroot) {
+-		subdir, err := filepath.Rel(goroot, cwd)
+-		if err != nil {
+-			return "", false, err
++	if subdir, err := filepath.Rel(goroot, cwd); err == nil {
++		if !strings.Contains(subdir, "..") {
++			return subdir, true, nil
+ 		}
+-		return subdir, true, nil
+ 	}
+ 
+ 	for _, p := range filepath.SplitList(build.Default.GOPATH) {
+@@ -209,12 +207,10 @@ func subdir() (pkgpath string, underGoRoot bool, err error) {
+ 		if err != nil {
+ 			return "", false, err
+ 		}
+-		if !strings.HasPrefix(cwd, pabs) {
+-			continue
+-		}
+-		subdir, err := filepath.Rel(pabs, cwd)
+-		if err == nil {
+-			return subdir, false, nil
++		if subdir, err := filepath.Rel(pabs, cwd); err == nil {
++			if !strings.Contains(subdir, "..") {
++				return subdir, false, nil
++			}
+ 		}
+ 	}
+ 	return "", false, fmt.Errorf("the current path %q is not in either GOROOT(%q) or GOPATH(%q)",

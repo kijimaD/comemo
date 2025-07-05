@@ -13,7 +13,7 @@ Date:   Tue Jan 7 23:12:12 2014 +1100
     R=golang-codereviews, jsing, rsc, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/35900045
-
+---
  src/cmd/dist/build.c          |  1 +
  src/cmd/dist/unix.c           |  9 +++++++
  src/lib9/run_unix.c           |  2 +-
@@ -22,3 +22,155 @@ Date:   Tue Jan 7 23:12:12 2014 +1100
  src/pkg/go/build/deps_test.go |  2 +-
  src/pkg/go/build/syslist.go   |  2 +-
  7 files changed, 70 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 26d546af52..000f324035 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -52,6 +52,7 @@ static char *okgoos[] = {
+ 	"darwin",
+ 	"dragonfly",
+ 	"linux",
++	"solaris",
+ 	"freebsd",
+ 	"netbsd",
+ 	"openbsd",
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index fa388e0587..8b943a2d95 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -24,6 +24,7 @@
+ #include <errno.h>
+ #include <stdarg.h>
+ #include <setjmp.h>
++#include <signal.h>
+ 
+ // bprintf replaces the buffer with the result of the printf formatting
+ // and returns a pointer to the NUL-terminated buffer contents.
+@@ -686,6 +687,14 @@ main(int argc, char **argv)
+ 	gohostos = "openbsd";
+ #elif defined(__NetBSD__)
+ 	gohostos = "netbsd";
++#elif defined(__sun) && defined(__SVR4)
++	gohostos = "solaris";
++	// Even on 64-bit platform, solaris uname -m prints i86pc.
++	run(&b, nil, 0, "isainfo", "-n", nil);
++	if(contains(bstr(&b), "amd64"))
++		gohostarch = "amd64";
++	if(contains(bstr(&b), "i386"))
++		gohostarch = "386";
+ #else
+ 	fatal("unknown operating system");
+ #endif
+diff --git a/src/lib9/run_unix.c b/src/lib9/run_unix.c
+index 3db33c76ef..1acaefed87 100644
+--- a/src/lib9/run_unix.c
++++ b/src/lib9/run_unix.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ #include <u.h>
+ #include <errno.h>
+diff --git a/src/lib9/tempdir_unix.c b/src/lib9/tempdir_unix.c
+index 3ce87751b2..269d538233 100644
+--- a/src/lib9/tempdir_unix.c
++++ b/src/lib9/tempdir_unix.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ #include <u.h>
+ #include <dirent.h>
+diff --git a/src/libmach/solaris.c b/src/libmach/solaris.c
+new file mode 100644
+index 0000000000..ea49c2f517
+--- /dev/null
++++ b/src/libmach/solaris.c
+@@ -0,0 +1,56 @@
++// This is stubbed out for the moment. Will revisit when the time comes.
++#include <u.h>
++#include <libc.h>
++#include <bio.h>
++#include <mach.h>
++
++int
++ctlproc(int pid, char *msg)
++{
++	USED(pid);
++	USED(msg);
++	sysfatal("ctlproc unimplemented in Solaris");
++	return -1;
++}
++
++char*
++proctextfile(int pid)
++{
++	USED(pid);
++	sysfatal("proctextfile unimplemented in Solaris");
++	return nil;
++}
++
++char*
++procstatus(int pid)
++{
++	USED(pid);
++	sysfatal("procstatus unimplemented in Solaris");
++	return nil;
++}
++
++Map*
++attachproc(int pid, Fhdr *fp)
++{
++	USED(pid);
++	USED(fp);
++	sysfatal("attachproc unimplemented in Solaris");
++	return nil;
++}
++
++void
++detachproc(Map *m)
++{
++	USED(m);
++	sysfatal("detachproc unimplemented in Solaris");
++}
++
++int
++procthreadpids(int pid, int *p, int np)
++{
++	USED(pid);
++	USED(p);
++	USED(np);
++	sysfatal("procthreadpids unimplemented in Solaris");
++	return -1;
++}
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index dd162c7db7..77b841fb19 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -359,7 +359,7 @@ func allowed(pkg string) map[string]bool {
+ }
+ 
+ var bools = []bool{false, true}
+-var geese = []string{"darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "plan9", "windows"}
++var geese = []string{"darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "plan9", "solaris", "windows"}
+ var goarches = []string{"386", "amd64", "arm"}
+ 
+ type osPkg struct {
+diff --git a/src/pkg/go/build/syslist.go b/src/pkg/go/build/syslist.go
+index e1fbf6330b..f4702d0dc4 100644
+--- a/src/pkg/go/build/syslist.go
++++ b/src/pkg/go/build/syslist.go
+@@ -4,5 +4,5 @@
+ 
+ package build
+ 
+-const goosList = "darwin dragonfly freebsd linux netbsd openbsd plan9 windows "
++const goosList = "darwin dragonfly freebsd linux netbsd openbsd plan9 solaris windows "
+ const goarchList = "386 amd64 arm "

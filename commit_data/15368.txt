@@ -7,7 +7,34 @@ Date:   Fri Feb 22 12:21:42 2013 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7393048
-
+---
  src/pkg/runtime/callback_windows_386.c   | 2 +-
  src/pkg/runtime/callback_windows_amd64.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/callback_windows_386.c b/src/pkg/runtime/callback_windows_386.c
+index 97df7c242f..159b8508e2 100644
+--- a/src/pkg/runtime/callback_windows_386.c
++++ b/src/pkg/runtime/callback_windows_386.c
+@@ -80,7 +80,7 @@ runtime·compilecallback(Eface fn, bool cleanstack)
+ 
+ 	// MOVL fn, AX
+ 	*p++ = 0xb8;
+-	*(uint32*)p = (uint32)fn.data;
++	*(uint32*)p = (uint32)(*(byte**)fn.data);
+ 	p += 4;
+ 
+ 	// MOVL argsize, DX
+diff --git a/src/pkg/runtime/callback_windows_amd64.c b/src/pkg/runtime/callback_windows_amd64.c
+index 0a2e53e6f5..03a4cef136 100644
+--- a/src/pkg/runtime/callback_windows_amd64.c
++++ b/src/pkg/runtime/callback_windows_amd64.c
+@@ -78,7 +78,7 @@ runtime·compilecallback(Eface fn, bool /*cleanstack*/)
+ 	// MOVQ fn, AX
+ 	*p++ = 0x48;
+ 	*p++ = 0xb8;
+-	*(uint64*)p = (uint64)fn.data;
++	*(uint64*)p = (uint64)(*(byte**)fn.data);
+ 	p += 8;
+ 	// PUSH AX
+ 	*p++ = 0x50;

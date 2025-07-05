@@ -7,6 +7,24 @@ Date:   Wed Mar 7 22:03:35 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5783047
-
+---
  src/cmd/gc/walk.c | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 74298e1266..0ed68f86b0 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -646,12 +646,6 @@ walkexpr(Node **np, NodeList **init)
+ 		n->ninit = nil;
+ 		l = n->list->n;
+ 		r = n->list->next->n;
+-		if(n->right != N) {
+-			// TODO: Remove once two-element map assigment is gone.
+-			l = safeexpr(l, init);
+-			r = safeexpr(r, init);
+-			safeexpr(n->right, init);  // cause side effects from n->right
+-		}
+ 		t = l->type;
+ 		n = mkcall1(mapfndel("mapdelete", t), t->down, init, typename(t), l, r);
+ 		goto ret;

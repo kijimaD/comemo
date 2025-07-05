@@ -22,7 +22,33 @@ Date:   Tue Apr 29 14:33:15 2025 -0400
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/crypto/tls/bogo_config.json    | 1 -
  src/crypto/tls/handshake_client.go | 2 +-
  2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index 5261a35ca9..7184f56b05 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -65,7 +65,6 @@
+         "NoNullCompression-TLS12": "TODO: first pass, this should be fixed",
+         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
+         "TLS13-HRR-InvalidCompressionMethod": "TODO: first pass, this should be fixed",
+-        "InvalidCompressionMethod": "TODO: first pass, this should be fixed",
+         "TLS-TLS12-RSA_WITH_AES_128_GCM_SHA256-LargeRecord": "TODO: first pass, this should be fixed",
+         "TLS-TLS1-RSA_WITH_AES_128_CBC_SHA-LargeRecord": "TODO: first pass, this should be fixed",
+         "TLS-TLS11-RSA_WITH_AES_128_CBC_SHA-LargeRecord": "TODO: first pass, this should be fixed",
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 30f2e2a2a2..0971afabac 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -889,7 +889,7 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
+ 	}
+ 
+ 	if hs.serverHello.compressionMethod != compressionNone {
+-		c.sendAlert(alertUnexpectedMessage)
++		c.sendAlert(alertIllegalParameter)
+ 		return false, errors.New("tls: server selected unsupported compression format")
+ 	}
+ 

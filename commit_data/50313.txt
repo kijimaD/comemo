@@ -18,7 +18,45 @@ Date:   Sat Oct 16 20:30:12 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/types2/typexpr.go |  7 +++++++
  test/fixedbugs/issue49005a.go              | 13 +++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 646becbdae..eae9330914 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -312,6 +312,13 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 			typ := new(Pointer)
+ 			def.setUnderlying(typ)
+ 			typ.base = check.varType(e.X)
++			// If typ.base is invalid, it's unlikely that *base is particularly
++			// useful - even a valid dereferenciation will lead to an invalid
++			// type again, and in some cases we get unexpected follow-on errors
++			// (e.g., see #49005). Return an invalid type instead.
++			if typ.base == Typ[Invalid] {
++				return Typ[Invalid]
++			}
+ 			return typ
+ 		}
+ 
+diff --git a/test/fixedbugs/issue49005a.go b/test/fixedbugs/issue49005a.go
+new file mode 100644
+index 0000000000..55d92c4650
+--- /dev/null
++++ b/test/fixedbugs/issue49005a.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T interface{ M() }
++
++func F() T
++
++var _ = F().(*X) // ERROR "undefined: X"

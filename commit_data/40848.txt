@@ -9,6 +9,31 @@ Date:   Sat Jul 27 14:53:54 2019 -0700
     Change-Id: Ic3f42558f6833fc35580b2b2a15f2c5aba5713c0
     Reviewed-on: https://go-review.googlesource.com/c/go/+/187822
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/contribute.html | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 14839a6831..abb2b9bf77 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -238,15 +238,16 @@ $ git codereview help
+ </pre>
+ 
+ <p>
+-prints help text, not an error. If it prints an error, make sure that $GOPATH/bin
+-is in your $PATH.
++prints help text, not an error. If it prints an error, make sure that
++<code>$GOPATH/bin</code> is in your <code>$PATH</code>.
+ </p>
+ 
+ <p>
+ On Windows, when using git-bash you must make sure that
+ <code>git-codereview.exe</code> is in your <code>git</code> exec-path.
+ Run <code>git --exec-path</code> to discover the right location then create a
+-symbolic link or just copy the executable from $GOPATH/bin to this directory.
++symbolic link or just copy the executable from <code>$GOPATH/bin</code> to this
++directory.
+ </p>
+ 
+ 

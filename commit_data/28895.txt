@@ -12,6 +12,22 @@ Date:   Mon Jul 11 11:18:17 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/27125
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/testdata/testprogcgo/threadprof.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/threadprof.go b/src/runtime/testdata/testprogcgo/threadprof.go
+index a77479dfad..516f8dce9e 100644
+--- a/src/runtime/testdata/testprogcgo/threadprof.go
++++ b/src/runtime/testdata/testprogcgo/threadprof.go
+@@ -84,8 +84,8 @@ func CgoExternalThreadSignal() {
+ 
+ 	out, err := exec.Command(os.Args[0], "CgoExternalThreadSignal", "crash").CombinedOutput()
+ 	if err == nil {
+-		fmt.Println("C signal did not crash as expected\n")
+-		fmt.Printf("%s\n", out)
++		fmt.Println("C signal did not crash as expected")
++		fmt.Printf("\n%s\n", out)
+ 		os.Exit(1)
+ 	}
+ 

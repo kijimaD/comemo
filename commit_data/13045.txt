@@ -17,6 +17,17 @@ Date:   Tue May 8 10:41:45 2012 +1000
     R=r, bradfitz
     CC=golang-dev, krasin, rsc
     https://golang.org/cl/6197061
-
+---
  src/pkg/compress/testdata/Mark.Twain-Tom.Sawyer.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/compress/testdata/Mark.Twain-Tom.Sawyer.txt b/src/pkg/compress/testdata/Mark.Twain-Tom.Sawyer.txt
+index 8d0ff4e65c..c97da7eccf 100644
+--- a/src/pkg/compress/testdata/Mark.Twain-Tom.Sawyer.txt
++++ b/src/pkg/compress/testdata/Mark.Twain-Tom.Sawyer.txt
+@@ -1,4 +1,4 @@
+-﻿The Project Gutenberg EBook of The Adventures of Tom Sawyer, Complete
++The Project Gutenberg EBook of The Adventures of Tom Sawyer, Complete
+ by Mark Twain (Samuel Clemens)
+ 
+ This eBook is for the use of anyone anywhere at no cost and with

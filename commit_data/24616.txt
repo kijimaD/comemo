@@ -7,7 +7,7 @@ Date:   Tue Aug 11 17:28:56 2015 -0700
     Change-Id: Id8457b18c07bf717d13c9423d8f314f253eee64f
     Reviewed-on: https://go-review.googlesource.com/13580
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 34 +++++++++++++++++++++-----
  src/cmd/compile/internal/ssa/TODO              |  2 +-
  src/cmd/compile/internal/ssa/block.go          | 21 ++++++++++++++++
@@ -16,3 +16,248 @@ Date:   Tue Aug 11 17:28:56 2015 -0700
  src/cmd/compile/internal/ssa/layout.go         | 16 +++++++++++-
  src/cmd/compile/internal/ssa/rewritegeneric.go |  3 +++
  7 files changed, 84 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2a1c184803..0086feceab 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -504,7 +504,7 @@ func (s *state) stmt(n *Node) {
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockIf
+ 		b.Control = cond
+-		// TODO(khr): likely direction
++		b.Likely = ssa.BranchPrediction(n.Likely) // gc and ssa both use -1/0/+1 for likeliness
+ 
+ 		bThen := s.f.NewBlock(ssa.BlockPlain)
+ 		bEnd := s.f.NewBlock(ssa.BlockPlain)
+@@ -613,7 +613,7 @@ func (s *state) stmt(n *Node) {
+ 		b = s.endBlock()
+ 		b.Kind = ssa.BlockIf
+ 		b.Control = cond
+-		// TODO(khr): likely direction
++		b.Likely = ssa.BranchLikely
+ 		addEdge(b, bBody)
+ 		addEdge(b, bEnd)
+ 
+@@ -1181,6 +1181,10 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockIf
+ 		b.Control = el
++		// In theory, we should set b.Likely here based on context.
++		// However, gc only gives us likeliness hints
++		// in a single place, for plain OIF statements,
++		// and passing around context is finnicky, so don't bother for now.
+ 
+ 		bRight := s.f.NewBlock(ssa.BlockPlain)
+ 		bResult := s.f.NewBlock(ssa.BlockPlain)
+@@ -1516,8 +1520,9 @@ func (s *state) nilCheck(ptr *ssa.Value) {
+ 	}
+ 	c := s.newValue1(ssa.OpIsNonNil, Types[TBOOL], ptr)
+ 	b := s.endBlock()
+-	b.Kind = ssa.BlockIf // TODO: likeliness hint
++	b.Kind = ssa.BlockIf
+ 	b.Control = c
++	b.Likely = ssa.BranchLikely
+ 	bNext := s.f.NewBlock(ssa.BlockPlain)
+ 	bPanic := s.f.NewBlock(ssa.BlockPlain)
+ 	addEdge(b, bNext)
+@@ -1541,6 +1546,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+ 	b.Control = cmp
++	b.Likely = ssa.BranchLikely
+ 	bNext := s.f.NewBlock(ssa.BlockPlain)
+ 	addEdge(b, bNext)
+ 	addEdge(b, s.exit)
+@@ -2295,17 +2301,20 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
+ 		ssa.BlockAMD64ULE, ssa.BlockAMD64UGE:
+ 
+ 		jmp := blockJump[b.Kind]
++		likely := b.Likely
++		var p *obj.Prog
+ 		switch next {
+ 		case b.Succs[0]:
+-			p := Prog(jmp.invasm)
++			p = Prog(jmp.invasm)
++			likely *= -1
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			branches = append(branches, branch{p, b.Succs[1]})
+ 		case b.Succs[1]:
+-			p := Prog(jmp.asm)
++			p = Prog(jmp.asm)
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			branches = append(branches, branch{p, b.Succs[0]})
+ 		default:
+-			p := Prog(jmp.asm)
++			p = Prog(jmp.asm)
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			branches = append(branches, branch{p, b.Succs[0]})
+ 			q := Prog(obj.AJMP)
+@@ -2313,6 +2322,19 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
+ 			branches = append(branches, branch{q, b.Succs[1]})
+ 		}
+ 
++		// liblink reorders the instruction stream as it sees fit.
++		// Pass along what we know so liblink can make use of it.
++		// TODO: Once we've fully switched to SSA,
++		// make liblink leave our output alone.
++		switch likely {
++		case ssa.BranchUnlikely:
++			p.From.Type = obj.TYPE_CONST
++			p.From.Offset = 0
++		case ssa.BranchLikely:
++			p.From.Type = obj.TYPE_CONST
++			p.From.Offset = 1
++		}
++
+ 	default:
+ 		b.Unimplementedf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index 9f8225852c..d049bea872 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -33,7 +33,7 @@ Optimizations (better compiled code)
+ - Implement memory zeroing with REPSTOSQ and DuffZero
+ - Implement memory copying with REPMOVSQ and DuffCopy
+ - Make deadstore work with zeroing
+-- Branch prediction: Respect hints from the frontend, add our own
++- Add branch predictions
+ - Add a value range propagation pass (for bounds elim & bitwidth reduction)
+ - Stackalloc: group pointer-containing variables & spill slots together
+ - Stackalloc: organize values to allow good packing
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index b788031fce..a67cdb5ac6 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -40,6 +40,13 @@ type Block struct {
+ 
+ 	// Line number for block's control operation
+ 	Line int32
++
++	// Likely direction for branches.
++	// If BranchLikely, Succs[0] is the most likely branch taken.
++	// If BranchUnlikely, Succs[1] is the most likely branch taken.
++	// Ignored if len(Succs) < 2.
++	// Fatal if not BranchUnknown and len(Succs) > 2.
++	Likely BranchPrediction
+ }
+ 
+ //     kind           control    successors
+@@ -67,9 +74,23 @@ func (b *Block) LongString() string {
+ 			s += " " + c.String()
+ 		}
+ 	}
++	switch b.Likely {
++	case BranchUnlikely:
++		s += " (unlikely)"
++	case BranchLikely:
++		s += " (likely)"
++	}
+ 	return s
+ }
+ 
+ func (b *Block) Logf(msg string, args ...interface{})           { b.Func.Logf(msg, args...) }
+ func (b *Block) Fatalf(msg string, args ...interface{})         { b.Func.Fatalf(msg, args...) }
+ func (b *Block) Unimplementedf(msg string, args ...interface{}) { b.Func.Unimplementedf(msg, args...) }
++
++type BranchPrediction int8
++
++const (
++	BranchUnlikely = BranchPrediction(-1)
++	BranchUnknown  = BranchPrediction(0)
++	BranchLikely   = BranchPrediction(+1)
++)
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 668828fcd1..dfb33dbd07 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -103,6 +103,9 @@ func checkFunc(f *Func) {
+ 				f.Fatalf("exception edge from call block %s does not go to exit but %s", b, b.Succs[1])
+ 			}
+ 		}
++		if len(b.Succs) > 2 && b.Likely != BranchUnknown {
++			f.Fatalf("likeliness prediction %d for block %s with %d successors: %s", b.Likely, b, len(b.Succs))
++		}
+ 
+ 		for _, v := range b.Values {
+ 			for _, arg := range v.Args {
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 6ee22c1345..571389bb4c 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -254,6 +254,19 @@ func genRules(arch arch) {
+ 			for i, a := range newsuccs {
+ 				fmt.Fprintf(w, "b.Succs[%d] = %s\n", i, a)
+ 			}
++			// Update branch prediction
++			switch {
++			case len(newsuccs) != 2:
++				fmt.Fprintln(w, "b.Likely = BranchUnknown")
++			case newsuccs[0] == succs[0] && newsuccs[1] == succs[1]:
++				// unchanged
++			case newsuccs[0] == succs[1] && newsuccs[1] == succs[0]:
++				// flipped
++				fmt.Fprintln(w, "b.Likely *= -1")
++			default:
++				// unknown
++				fmt.Fprintln(w, "b.Likely = BranchUnknown")
++			}
+ 
+ 			fmt.Fprintf(w, "return true\n")
+ 
+diff --git a/src/cmd/compile/internal/ssa/layout.go b/src/cmd/compile/internal/ssa/layout.go
+index c2d72267b1..7e865f948e 100644
+--- a/src/cmd/compile/internal/ssa/layout.go
++++ b/src/cmd/compile/internal/ssa/layout.go
+@@ -47,7 +47,21 @@ blockloop:
+ 
+ 		// Pick the next block to schedule
+ 		// Pick among the successor blocks that have not been scheduled yet.
+-		// Just use degree for now.  TODO(khr): use likely direction hints.
++
++		// Use likely direction if we have it.
++		var likely *Block
++		switch b.Likely {
++		case BranchLikely:
++			likely = b.Succs[0]
++		case BranchUnlikely:
++			likely = b.Succs[1]
++		}
++		if likely != nil && !scheduled[likely.ID] {
++			bid = likely.ID
++			continue
++		}
++
++		// Use degree for now.
+ 		bid = 0
+ 		mindegree := f.NumBlocks()
+ 		for _, c := range order[len(order)-1].Succs {
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 9753bde45d..6371ac2b38 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -797,6 +797,7 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			b.Control = cond
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
++			b.Likely *= -1
+ 			return true
+ 		}
+ 		goto endebe19c1c3c3bec068cdb2dd29ef57f96
+@@ -821,6 +822,7 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			b.Control = nil
+ 			b.Succs = b.Succs[:1]
+ 			b.Succs[0] = yes
++			b.Likely = BranchUnknown
+ 			return true
+ 		}
+ 		goto end9ff0273f9b1657f4afc287562ca889f0
+@@ -845,6 +847,7 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			b.Control = nil
+ 			b.Succs = b.Succs[:1]
+ 			b.Succs[0] = no
++			b.Likely = BranchUnknown
+ 			return true
+ 		}
+ 		goto endf401a4553c3c7c6bed64801da7bba076

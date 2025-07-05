@@ -13,6 +13,20 @@ Date:   Wed Nov 15 14:26:33 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/78033
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/asm_amd64.s | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index ea48a8e3c0..7e13458b0b 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -2379,8 +2379,6 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+ // - AX is the value being written at DI
+ // It clobbers FLAGS. It does not clobber any general-purpose registers,
+ // but may clobber others (e.g., SSE registers).
+-//
+-// TODO: AX may be a bad choice because regalloc likes to use it.
+ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$120
+ 	// Save the registers clobbered by the fast path.
+ 	//

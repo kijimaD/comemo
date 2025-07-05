@@ -15,7 +15,40 @@ Date:   Mon Dec 30 14:35:24 2024 -0800
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go/alldocs.go               | 5 +++++
  src/cmd/go/internal/help/helpdoc.go | 5 +++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 5edd93599e..548cf171ca 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2448,6 +2448,11 @@
+ //	GOARM
+ //		For GOARCH=arm, the ARM architecture for which to compile.
+ //		Valid values are 5, 6, 7.
++//		When the Go tools are built on an arm system,
++//		the default value is set based on what the build system supports.
++//		When the Go tools are not built on an arm system
++//		(that is, when building a cross-compiler),
++//		the default value is 7.
+ //		The value can be followed by an option specifying how to implement floating point instructions.
+ //		Valid options are ,softfloat (default for 5) and ,hardfloat (default for 6 and 7).
+ //	GOARM64
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 3db3ed06b2..3e7a1cbc75 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -620,6 +620,11 @@ Architecture-specific environment variables:
+ 	GOARM
+ 		For GOARCH=arm, the ARM architecture for which to compile.
+ 		Valid values are 5, 6, 7.
++		When the Go tools are built on an arm system,
++		the default value is set based on what the build system supports.
++		When the Go tools are not built on an arm system
++		(that is, when building a cross-compiler),
++		the default value is 7.
+ 		The value can be followed by an option specifying how to implement floating point instructions.
+ 		Valid options are ,softfloat (default for 5) and ,hardfloat (default for 6 and 7).
+ 	GOARM64

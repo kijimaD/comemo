@@ -20,7 +20,7 @@ Date:   Mon Sep 10 15:52:36 2012 -0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/6492100
-
+---
  src/cmd/6l/optab.c                      |  8 ++++----
  src/cmd/8l/optab.c                      |  8 ++++----
  test/fixedbugs/bug453.dir/bug453.go     | 22 ----------------------
@@ -28,3 +28,171 @@ Date:   Mon Sep 10 15:52:36 2012 -0400
  test/fixedbugs/bug453.dir/bug453_ref.go | 15 ---------------
  test/fixedbugs/bug453.go                |  7 -------
  6 files changed, 8 insertions(+), 83 deletions(-)
+
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index fc9db0f92b..0716fa4453 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -1199,25 +1199,25 @@ Optab optab[] =
+ 	{ AFSUBW,	yfmvx,	Px, 0xde,(04) },
+ 	{ AFSUBL,	yfmvx,	Px, 0xda,(04) },
+ 	{ AFSUBF,	yfmvx,	Px, 0xd8,(04) },
+-	{ AFSUBD,	yfadd,	Px, 0xdc,(04),0xd8,(04),0xdc,(04) },
++	{ AFSUBD,	yfadd,	Px, 0xdc,(04),0xd8,(04),0xdc,(05) },
+ 
+ 	{ AFSUBRDP,	yfaddp,	Px, 0xde,(04) },
+ 	{ AFSUBRW,	yfmvx,	Px, 0xde,(05) },
+ 	{ AFSUBRL,	yfmvx,	Px, 0xda,(05) },
+ 	{ AFSUBRF,	yfmvx,	Px, 0xd8,(05) },
+-	{ AFSUBRD,	yfadd,	Px, 0xdc,(05),0xd8,(05),0xdc,(05) },
++	{ AFSUBRD,	yfadd,	Px, 0xdc,(05),0xd8,(05),0xdc,(04) },
+ 
+ 	{ AFDIVDP,	yfaddp,	Px, 0xde,(07) },
+ 	{ AFDIVW,	yfmvx,	Px, 0xde,(06) },
+ 	{ AFDIVL,	yfmvx,	Px, 0xda,(06) },
+ 	{ AFDIVF,	yfmvx,	Px, 0xd8,(06) },
+-	{ AFDIVD,	yfadd,	Px, 0xdc,(06),0xd8,(06),0xdc,(06) },
++	{ AFDIVD,	yfadd,	Px, 0xdc,(06),0xd8,(06),0xdc,(07) },
+ 
+ 	{ AFDIVRDP,	yfaddp,	Px, 0xde,(06) },
+ 	{ AFDIVRW,	yfmvx,	Px, 0xde,(07) },
+ 	{ AFDIVRL,	yfmvx,	Px, 0xda,(07) },
+ 	{ AFDIVRF,	yfmvx,	Px, 0xd8,(07) },
+-	{ AFDIVRD,	yfadd,	Px, 0xdc,(07),0xd8,(07),0xdc,(07) },
++	{ AFDIVRD,	yfadd,	Px, 0xdc,(07),0xd8,(07),0xdc,(06) },
+ 
+ 	{ AFXCHD,	yfxch,	Px, 0xd9,(01),0xd9,(01) },
+ 	{ AFFREE },
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index a74b73ad2d..7a588fca49 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -651,25 +651,25 @@ Optab optab[] =
+ 	{ AFSUBW,	yfmvx,	Px, 0xde,(04) },
+ 	{ AFSUBL,	yfmvx,	Px, 0xda,(04) },
+ 	{ AFSUBF,	yfmvx,	Px, 0xd8,(04) },
+-	{ AFSUBD,	yfadd,	Px, 0xdc,(04),0xd8,(04),0xdc,(04) },
++	{ AFSUBD,	yfadd,	Px, 0xdc,(04),0xd8,(04),0xdc,(05) },
+ 
+ 	{ AFSUBRDP,	yfaddp,	Px, 0xde,(04) },
+ 	{ AFSUBRW,	yfmvx,	Px, 0xde,(05) },
+ 	{ AFSUBRL,	yfmvx,	Px, 0xda,(05) },
+ 	{ AFSUBRF,	yfmvx,	Px, 0xd8,(05) },
+-	{ AFSUBRD,	yfadd,	Px, 0xdc,(05),0xd8,(05),0xdc,(05) },
++	{ AFSUBRD,	yfadd,	Px, 0xdc,(05),0xd8,(05),0xdc,(04) },
+ 
+ 	{ AFDIVDP,	yfaddp,	Px, 0xde,(07) },
+ 	{ AFDIVW,	yfmvx,	Px, 0xde,(06) },
+ 	{ AFDIVL,	yfmvx,	Px, 0xda,(06) },
+ 	{ AFDIVF,	yfmvx,	Px, 0xd8,(06) },
+-	{ AFDIVD,	yfadd,	Px, 0xdc,(06),0xd8,(06),0xdc,(06) },
++	{ AFDIVD,	yfadd,	Px, 0xdc,(06),0xd8,(06),0xdc,(07) },
+ 
+ 	{ AFDIVRDP,	yfaddp,	Px, 0xde,(06) },
+ 	{ AFDIVRW,	yfmvx,	Px, 0xde,(07) },
+ 	{ AFDIVRL,	yfmvx,	Px, 0xda,(07) },
+ 	{ AFDIVRF,	yfmvx,	Px, 0xd8,(07) },
+-	{ AFDIVRD,	yfadd,	Px, 0xdc,(07),0xd8,(07),0xdc,(07) },
++	{ AFDIVRD,	yfadd,	Px, 0xdc,(07),0xd8,(07),0xdc,(06) },
+ 
+ 	{ AFXCHD,	yfxch,	Px, 0xd9,(01),0xd9,(01) },
+ 	{ AFFREE },
+diff --git a/test/fixedbugs/bug453.dir/bug453.go b/test/fixedbugs/bug453.dir/bug453.go
+deleted file mode 100644
+index 04126b05df..0000000000
+--- a/test/fixedbugs/bug453.dir/bug453.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"strconv"
+-)
+-
+-// These functions are implemented in bug453.s
+-func bug453a() float64
+-func bug453b() float64
+-
+-func main() {
+-	if v := bug453a(); v != -1 {
+-		panic("a: bad result, want -1, got " + strconv.FormatFloat(v, 'f', -1, 64))
+-	}
+-	if v := bug453b(); v != 1 {
+-		panic("b: bad result, want 1, got " + strconv.FormatFloat(v, 'f', -1, 64))
+-	}
+-}
+diff --git a/test/fixedbugs/bug453.dir/bug453.s b/test/fixedbugs/bug453.dir/bug453.s
+deleted file mode 100644
+index 9c0196dbbc..0000000000
+--- a/test/fixedbugs/bug453.dir/bug453.s
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build amd64 386
+-
+-// func bug453a() float64
+-TEXT ·bug453a(SB),7,$0
+-        FLD1
+-        FLD1
+-        FADDD F1,F0
+-
+-        // This should subtract F0 (2) from F1 (1) and put -1 in F1.
+-        FSUBRD F0,F1
+-
+-        FMOVDP  F0,r+0(FP)
+-        FMOVDP  F0,r+0(FP)
+-        RET
+-
+-// func bug453b() float64
+-TEXT ·bug453b(SB),7,$0
+-        FLD1
+-        FLD1
+-        FADDD F1,F0
+-
+-        // This should subtract F1 (1) from F0 (2) and put 1 in F1.
+-        FSUBD F0,F1
+-
+-        FMOVDP  F0,r+0(FP)
+-        FMOVDP  F0,r+0(FP)
+-        RET
+diff --git a/test/fixedbugs/bug453.dir/bug453_ref.go b/test/fixedbugs/bug453.dir/bug453_ref.go
+deleted file mode 100644
+index f7a96d32d3..0000000000
+--- a/test/fixedbugs/bug453.dir/bug453_ref.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !amd64,!386
+-
+-package main
+-
+-// These functions are standins for the functions in the .s file on other platforms.
+-func bug453a() float64 {
+-	return -1
+-}
+-func bug453b() float64 {
+-	return 1
+-}
+diff --git a/test/fixedbugs/bug453.go b/test/fixedbugs/bug453.go
+deleted file mode 100644
+index 6fed2c2abf..0000000000
+--- a/test/fixedbugs/bug453.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// compiledir
+-
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-ignored

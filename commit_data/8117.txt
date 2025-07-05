@@ -9,8 +9,68 @@ Date:   Fri Apr 15 08:20:42 2011 -0400
     R=r, r2, rh, ality
     CC=golang-dev
     https://golang.org/cl/4429041
-
+---
  src/pkg/Makefile               |  5 -----
  src/pkg/net/dialgoogle_test.go | 10 ++++++++++
  src/pkg/syslog/syslog_test.go  |  4 ++++
  3 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index e45b39e86a..de96229723 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -202,11 +202,6 @@ NOTEST+=\
+ NOBENCH+=\
+ 	container/vector\
+ 
+-# Disable tests that depend on an external network.
+-ifeq ($(DISABLE_NET_TESTS),1)
+-NOTEST+=net syslog
+-endif
+-
+ # Disable tests that windows cannot run yet.
+ ifeq ($(GOOS),windows)
+ NOTEST+=os/signal    # no signals
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index 9a9c02ebd7..bec4ad794c 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -56,6 +56,11 @@ var googleaddrs = []string{
+ }
+ 
+ func TestLookupCNAME(t *testing.T) {
++	if testing.Short() {
++		// Don't use external network.
++		t.Logf("skipping external network test during -short")
++		return
++	}
+ 	cname, err := LookupCNAME("www.google.com")
+ 	if cname != "www.l.google.com." || err != nil {
+ 		t.Errorf(`LookupCNAME("www.google.com.") = %q, %v, want "www.l.google.com.", nil`, cname, err)
+@@ -63,6 +68,11 @@ func TestLookupCNAME(t *testing.T) {
+ }
+ 
+ func TestDialGoogle(t *testing.T) {
++	if testing.Short() {
++		// Don't use external network.
++		t.Logf("skipping external network test during -short")
++		return
++	}
+ 	// If no ipv6 tunnel, don't try the last address.
+ 	if !*ipv6 {
+ 		googleaddrs[len(googleaddrs)-1] = ""
+diff --git a/src/pkg/syslog/syslog_test.go b/src/pkg/syslog/syslog_test.go
+index 2958bcb1f8..4816ddf2a3 100644
+--- a/src/pkg/syslog/syslog_test.go
++++ b/src/pkg/syslog/syslog_test.go
+@@ -52,6 +52,10 @@ func TestNewLogger(t *testing.T) {
+ }
+ 
+ func TestDial(t *testing.T) {
++	if testing.Short() {
++		// Depends on syslog daemon running, and sometimes it's not.
++		t.Logf("skipping syslog test during -short")
++	}
+ 	l, err := Dial("", "", LOG_ERR, "syslog_test")
+ 	if err != nil {
+ 		t.Fatalf("Dial() failed: %s", err)

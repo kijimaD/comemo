@@ -13,10 +13,460 @@ Date:   Mon Jun 29 15:13:37 2009 -0700
     R=ken
     OCL=30864
     CL=30869
-
+---
  src/cmd/ar/ar.c     | 92 ++++++++++++++++++++++++-----------------------------
  src/cmd/gc/dcl.c    | 25 ++++++++-------
  src/cmd/gc/export.c | 40 +++++++++++++++++------
  src/cmd/gc/go.y     |  8 +++++
  src/cmd/ld/go.c     | 74 ++++++++++++++++++++++--------------------
  5 files changed, 131 insertions(+), 108 deletions(-)
+
+diff --git a/src/cmd/ar/ar.c b/src/cmd/ar/ar.c
+index 35a3eeccdb..880f32986c 100644
+--- a/src/cmd/ar/ar.c
++++ b/src/cmd/ar/ar.c
+@@ -1216,7 +1216,7 @@ longt(Armember *bp)
+ 	pmode(strtoul(bp->hdr.mode, 0, 8));
+ 	Bprint(&bout, "%3ld/%1ld", strtol(bp->hdr.uid, 0, 0), strtol(bp->hdr.gid, 0, 0));
+ 	Bprint(&bout, "%7ld", bp->size);
+-	cp = ctime(bp->date);
++	cp = ctime(&bp->date);
+ 	Bprint(&bout, " %-12.12s %-4.4s ", cp+4, cp+24);
+ }
+ 
+@@ -1455,7 +1455,6 @@ typedef struct Import Import;
+ struct Import
+ {
+ 	Import *hash;	// next in hash table
+-	char *export;	// marked as export or package?
+ 	char *prefix;	// "type", "var", "func", "const"
+ 	char *name;
+ 	char *def;
+@@ -1485,58 +1484,65 @@ ilookup(char *name)
+ 	return x;
+ }
+ 
++/*
++ * a and b don't match.
++ * is one a forward declaration and the other a valid completion?
++ * if so, return the one to keep.
++ */
++char*
++forwardfix(char *a, char *b)
++{
++	char *t;
++
++	if(strlen(a) > strlen(b)) {
++		t = a;
++		a = b;
++		b = t;
++	}
++	if(strcmp(a, "struct") == 0 && strncmp(b, "struct ", 7) == 0)
++		return b;
++	if(strcmp(a, "interface") == 0 && strncmp(b, "interface ", 10) == 0)
++		return b;
++	return nil;
++}
++
+ int parsemethod(char**, char*, char**);
+-int parsepkgdata(char**, char*, char**, char**, char**, char**);
++int parsepkgdata(char**, char*, char**, char**, char**);
+ 
+ void
+ loadpkgdata(char *data, int len)
+ {
+-	char *export;
+-	char *p, *ep, *prefix, *name, *def;
++	char *p, *ep, *prefix, *name, *def, *ndef;
+ 	Import *x;
+ 
+ 	p = data;
+ 	ep = data + len;
+-	while(parsepkgdata(&p, ep, &export, &prefix, &name, &def) > 0) {
++	while(parsepkgdata(&p, ep, &prefix, &name, &def) > 0) {
+ 		x = ilookup(name);
+ 		if(x->prefix == nil) {
+ 			x->prefix = prefix;
+ 			x->def = def;
+ 			x->file = file;
+-			x->export = export;
++		} else if(strcmp(x->prefix, prefix) != 0) {
++			fprint(2, "ar: conflicting definitions for %s\n", name);
++			fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
++			fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
++			errors++;
++		} else if(strcmp(x->def, def) == 0) {
++			// fine
++		} else if((ndef = forwardfix(x->def, def)) != nil) {
++			x->def = ndef;
+ 		} else {
+-			if(strcmp(x->prefix, prefix) != 0) {
+-				fprint(2, "ar: conflicting definitions for %s\n", name);
+-				fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
+-				fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
+-				errors++;
+-			}
+-			else if(strcmp(x->def, def) != 0) {
+-				fprint(2, "ar: conflicting definitions for %s\n", name);
+-				fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
+-				fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
+-				errors++;
+-			}
+-
+-			// okay if some .6 say export/package and others don't.
+-			// all it takes is one.  not okay if some say export
+-			// and others say package.
+-			if(export) {
+-				if(x->export == nil)
+-					x->export = export;
+-				else if(strcmp(x->export, export) != 0) {
+-					fprint(2, "ar: conflicting scopes for %s\n", name);
+-					fprint(2, "%s:\t%s\n", x->file, x->export);
+-					fprint(2, "%s:\t%s\n", file, export);
+-					errors++;
+-				}
+-			}
++			fprint(2, "ar: conflicting definitions for %s\n", name);
++			fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
++			fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
++			errors++;
+ 		}
+ 	}
+ }
+ 
+ int
+-parsepkgdata(char **pp, char *ep, char **exportp, char **prefixp, char **namep, char **defp)
++parsepkgdata(char **pp, char *ep, char **prefixp, char **namep, char **defp)
+ {
+ 	char *p, *prefix, *name, *def, *edef, *meth;
+ 	int n;
+@@ -1548,16 +1554,6 @@ parsepkgdata(char **pp, char *ep, char **exportp, char **prefixp, char **namep,
+ 	if(p == ep)
+ 		return 0;
+ 
+-	// [export|package ]
+-	*exportp = 0;
+-	if(p + 7 <= ep && strncmp(p, "export ", 7) == 0) {
+-		*exportp = "export";
+-		p += 7;
+-	} else if(p + 8 <= ep && strncmp(p, "package ", 8) == 0) {
+-		*exportp = "package";
+-		p += 8;
+-	}
+-
+ 	// prefix: (var|type|func|const)
+ 	prefix = p;
+ 
+@@ -1710,8 +1706,6 @@ getpkgdef(char **datap, int *lenp)
+ 			len += strlen(x->prefix) + 1
+ 				+ strlen(x->name) + 1
+ 				+ strlen(x->def) + 1;
+-			if(x->export)
+-				len += strlen(x->export) + 1;
+ 		}
+ 	}
+ 	if(j != nimport) {
+@@ -1735,11 +1729,7 @@ getpkgdef(char **datap, int *lenp)
+ 	p = strappend(p, "\n");
+ 	for(i=0; i<nimport; i++) {
+ 		x = all[i];
+-		// [export|package] prefix name def\n
+-		if(x->export) {
+-			p = strappend(p, x->export);
+-			p = strappend(p, " ");
+-		}
++		// prefix name def\n
+ 		p = strappend(p, x->prefix);
+ 		p = strappend(p, " ");
+ 		p = strappend(p, x->name);
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 38bc022d28..0fe204d463 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -93,12 +93,13 @@ updatetype(Type *n, Type *t)
+ {
+ 	Sym *s;
+ 	int local;
+-	int maplineno, lno;
++	int maplineno, lno, etype;
+ 
+ 	s = n->sym;
+ 	if(s == S || s->def == N || s->def->op != OTYPE || s->def->type != n)
+ 		fatal("updatetype %T = %T", n, t);
+ 
++	etype = n->etype;
+ 	switch(n->etype) {
+ 	case TFORW:
+ 		break;
+@@ -144,7 +145,7 @@ updatetype(Type *n, Type *t)
+ 	default:
+ 		checkwidth(n);
+ 	}
+-	
++
+ 	// double-check use of type as map key
+ 	if(maplineno) {
+ 		lno = lineno;
+@@ -316,13 +317,7 @@ addmethod(Node *n, Type *t, int local)
+ 	if(f == T)
+ 		goto bad;
+ 
+-	if(local && !f->local) {
+-		yyerror("cannot define methods on non-local type %T", f);
+-		return;
+-	}
+-
+ 	pa = f;
+-
+ 	if(pkgimportname != S && !exportname(sf->name))
+ 		sf = pkglookup(sf->name, pkgimportname->name);
+ 
+@@ -331,13 +326,11 @@ addmethod(Node *n, Type *t, int local)
+ 
+ 	d = T;	// last found
+ 	for(f=pa->method; f!=T; f=f->down) {
++		d = f;
+ 		if(f->etype != TFIELD)
+ 			fatal("addmethod: not TFIELD: %N", f);
+-
+-		if(strcmp(sf->name, f->sym->name) != 0) {
+-			d = f;
++		if(strcmp(sf->name, f->sym->name) != 0)
+ 			continue;
+-		}
+ 		if(!eqtype(t, f->type)) {
+ 			yyerror("method redeclared: %T.%S", pa, sf);
+ 			print("\t%T\n\t%T\n", f->type, t);
+@@ -345,6 +338,14 @@ addmethod(Node *n, Type *t, int local)
+ 		return;
+ 	}
+ 
++	if(local && !pa->local) {
++		// defining method on non-local type.
++		// method must have been forward declared
++		// elsewhere, i.e. where the type was.
++		yyerror("cannot define new methods on non-local type %T", pa);
++		return;
++	}
++
+ 	if(d == T)
+ 		stotype(n, 0, &pa->method);
+ 	else
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 8653cb5511..fbe9cb202d 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -168,9 +168,13 @@ dumpexporttype(Sym *s)
+ 	Bprint(bout, "\t");
+ 	switch (t->etype) {
+ 	case TFORW:
++		yyerror("export of incomplete type %T", t);
++		return;
+ 	case TFORWSTRUCT:
++		Bprint(bout, "type %#T struct\n", t);
++		return;
+ 	case TFORWINTER:
+-		yyerror("export of incomplete type %T", t);
++		Bprint(bout, "type %#T interface\n", t);
+ 		return;
+ 	}
+ 	Bprint(bout, "type %#T %l#T\n",  t, t);
+@@ -276,11 +280,15 @@ importsym(Sym *s, int op)
+ 		else
+ 			yyerror("redeclaration of %lS during import", s, s->def->op, op);
+ 	}
+-	if(exportname(s->name))
+-		s->export = 1;
+-	else
+-		s->export = 2;	// package scope
+-	s->imported = 1;
++
++	// mark the symbol so it is not reexported
++	if(s->def == N) {
++		if(exportname(s->name))
++			s->export = 1;
++		else
++			s->export = 2;	// package scope
++		s->imported = 1;
++	}
+ 	return s;
+ }
+ 
+@@ -359,9 +367,12 @@ importtype(Sym *s, Type *t)
+ 	if(n != N && n->op == OTYPE) {
+ 		if(cvttype(t, n->type))
+ 			return;
+-		if(n->type->etype != TFORW) {
+-			warn("redeclare import type %S from %lT to %lT",
+-				s, n->type, t);
++		if(t->etype == TFORWSTRUCT && n->type->etype == TSTRUCT)
++			return;
++		if(t->etype == TFORWINTER && n->type->etype == TINTER)
++			return;
++		if(n->type->etype != TFORW && n->type->etype != TFORWSTRUCT && n->type->etype != TFORWINTER) {
++			yyerror("redeclare import type %S from %lT to %lT", s, n->type, t);
+ 			n = s->def = typenod(typ(0));
+ 		}
+ 	}
+@@ -376,7 +387,16 @@ importtype(Sym *s, Type *t)
+ 	*n->type = *t;
+ 	n->type->sym = s;
+ 	n->type->nod = n;
+-	checkwidth(n->type);
++	switch(n->type->etype) {
++	case TFORWINTER:
++	case TFORWSTRUCT:
++		// allow re-export in case it gets defined
++		s->export = 0;
++		s->imported = 0;
++		break;
++	default:
++		checkwidth(n->type);
++	}
+ 
+ 	if(debug['E'])
+ 		print("import type %S %lT\n", s, t);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index ec5032e9ee..8e844e342d 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1700,6 +1700,14 @@ hidden_import:
+ 	{
+ 		importtype($2, $3);
+ 	}
++|	LTYPE hidden_pkg_importsym LSTRUCT
++	{
++		importtype($2, typ(TFORWSTRUCT));
++	}
++|	LTYPE hidden_pkg_importsym LINTERFACE
++	{
++		importtype($2, typ(TFORWINTER));
++	}
+ |	LFUNC hidden_pkg_importsym '(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+ 		importvar($2, functype(N, $4, $6), PFUNC);
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 6990d73292..54a8e48d1d 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -22,7 +22,6 @@ typedef struct Import Import;
+ struct Import
+ {
+ 	Import *hash;	// next in hash table
+-	int export;	// marked as export?
+ 	char *prefix;	// "type", "var", "func", "const"
+ 	char *name;
+ 	char *def;
+@@ -89,7 +88,7 @@ gotypefor(char *name)
+ 
+ static void loadpkgdata(char*, char*, int);
+ static int parsemethod(char**, char*, char**);
+-static int parsepkgdata(char*, char**, char*, int*, char**, char**, char**);
++static int parsepkgdata(char*, char**, char*, char**, char**, char**);
+ 
+ void
+ ldpkg(Biobuf *f, int64 len, char *filename)
+@@ -154,47 +153,63 @@ ldpkg(Biobuf *f, int64 len, char *filename)
+ 	loadpkgdata(filename, p0, p1 - p0);
+ }
+ 
++/*
++ * a and b don't match.
++ * is one a forward declaration and the other a valid completion?
++ * if so, return the one to keep.
++ */
++char*
++forwardfix(char *a, char *b)
++{
++	char *t;
++
++	if(strlen(a) > strlen(b)) {
++		t = a;
++		a = b;
++		b = t;
++	}
++	if(strcmp(a, "struct") == 0 && strncmp(b, "struct ", 7) == 0)
++		return b;
++	if(strcmp(a, "interface") == 0 && strncmp(b, "interface ", 10) == 0)
++		return b;
++	return nil;
++}
++
+ static void
+ loadpkgdata(char *file, char *data, int len)
+ {
+-	int export;
+-	char *p, *ep, *prefix, *name, *def;
++	char *p, *ep, *prefix, *name, *def, *ndef;
+ 	Import *x;
+ 
+ 	file = strdup(file);
+ 	p = data;
+ 	ep = data + len;
+-	while(parsepkgdata(file, &p, ep, &export, &prefix, &name, &def) > 0) {
++	while(parsepkgdata(file, &p, ep, &prefix, &name, &def) > 0) {
+ 		x = ilookup(name);
+ 		if(x->prefix == nil) {
+ 			x->prefix = prefix;
+ 			x->def = def;
+ 			x->file = file;
+-			x->export = export;
++		} else if(strcmp(x->prefix, prefix) != 0) {
++			fprint(2, "%s: conflicting definitions for %s\n", argv0, name);
++			fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
++			fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
++			nerrors++;
++		} else if(strcmp(x->def, def) == 0) {
++			// fine
++		} else if((ndef = forwardfix(x->def, def)) != nil) {
++			x->def = ndef;
+ 		} else {
+-			if(strcmp(x->prefix, prefix) != 0) {
+-				fprint(2, "%s: conflicting definitions for %s\n", argv0, name);
+-				fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
+-				fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
+-				nerrors++;
+-			}
+-			else if(strcmp(x->def, def) != 0) {
+-				fprint(2, "%s: conflicting definitions for %s\n", argv0, name);
+-				fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
+-				fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
+-				nerrors++;
+-			}
+-
+-			// okay if some .6 say export and others don't.
+-			// all it takes is one.
+-			if(export)
+-				x->export = 1;
++			fprint(2, "%d: conflicting definitions for %s\n", argv0, name);
++			fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
++			fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
++			nerrors++;
+ 		}
+ 	}
+ }
+ 
+ static int
+-parsepkgdata(char *file, char **pp, char *ep, int *exportp, char **prefixp, char **namep, char **defp)
++parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char **defp)
+ {
+ 	char *p, *prefix, *name, *def, *edef, *meth;
+ 	int n;
+@@ -206,17 +221,6 @@ parsepkgdata(char *file, char **pp, char *ep, int *exportp, char **prefixp, char
+ 	if(p == ep || strncmp(p, "$$\n", 3) == 0)
+ 		return 0;
+ 
+-	// [export|package ]
+-	*exportp = 0;
+-	if(p + 7 <= ep && strncmp(p, "export ", 7) == 0) {
+-		*exportp = 1;
+-		p += 7;
+-	}
+-	else if(p + 8 <= ep && strncmp(p, "package ", 8) == 0) {
+-		*exportp = 2;
+-		p += 8;
+-	}
+-
+ 	// prefix: (var|type|func|const)
+ 	prefix = p;
+ 

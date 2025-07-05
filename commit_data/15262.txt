@@ -10,7 +10,7 @@ Date:   Thu Feb 14 20:20:32 2013 -0800
     R=gri, rsc, bradfitz, jscrockett01
     CC=golang-dev
     https://golang.org/cl/7322061
-
+---
  src/pkg/go/doc/doc.go                |  7 +++++++
  src/pkg/go/doc/reader.go             | 37 +++++++++++++++++++++++++-----------
  src/pkg/go/doc/testdata/a.0.golden   |  7 +++++++
@@ -20,3 +20,186 @@ Date:   Thu Feb 14 20:20:32 2013 -0800
  src/pkg/go/doc/testdata/a1.go        |  4 ++++
  src/pkg/go/doc/testdata/template.txt |  5 ++++-
  8 files changed, 67 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 9c606315d4..6fc98d4951 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -18,6 +18,12 @@ type Package struct {
+ 	Imports    []string
+ 	Filenames  []string
+ 	Bugs       []string
++	// Notes such as TODO(userid): or SECURITY(userid):
++	// along the lines of BUG(userid). Any marker with 2 or more upper
++	// case [A-Z] letters is recognised.
++	// BUG is explicitly not included in these notes but will
++	// be in a subsequent change when the Bugs field above is removed.
++	Notes map[string][]string
+ 
+ 	// declarations
+ 	Consts []*Value
+@@ -89,6 +95,7 @@ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
+ 		Imports:    sortedKeys(r.imports),
+ 		Filenames:  r.filenames,
+ 		Bugs:       r.bugs,
++		Notes:      r.notes,
+ 		Consts:     sortedValues(r.values, token.CONST),
+ 		Types:      sortedTypes(r.types, mode&AllMethods != 0),
+ 		Vars:       sortedValues(r.values, token.VAR),
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index fafd8f98ea..69c1141167 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -149,6 +149,7 @@ type reader struct {
+ 	doc       string // package documentation, if any
+ 	filenames []string
+ 	bugs      []string
++	notes     map[string][]string
+ 
+ 	// declarations
+ 	imports map[string]int
+@@ -400,10 +401,24 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
+ }
+ 
+ var (
+-	bug_markers = regexp.MustCompile("^/[/*][ \t]*BUG\\(.*\\):[ \t]*") // BUG(uid):
+-	bug_content = regexp.MustCompile("[^ \n\r\t]+")                    // at least one non-whitespace char
++	noteMarker  = regexp.MustCompile(`^/[/*][ \t]*([A-Z][A-Z]+)\(.+\):[ \t]*(.*)`) // MARKER(uid)
++	noteContent = regexp.MustCompile(`[^ \n\r\t]+`)                                // at least one non-whitespace char
+ )
+ 
++func readNote(c *ast.CommentGroup) (marker, annotation string) {
++	text := c.List[0].Text
++	if m := noteMarker.FindStringSubmatch(text); m != nil {
++		if btxt := m[2]; noteContent.MatchString(btxt) {
++			// non-empty MARKER comment; collect comment without the MARKER prefix
++			list := append([]*ast.Comment(nil), c.List...) // make a copy
++			list[0].Text = m[2]
++
++			return m[1], (&ast.CommentGroup{List: list}).Text()
++		}
++	}
++	return "", ""
++}
++
+ // readFile adds the AST for a source file to the reader.
+ //
+ func (r *reader) readFile(src *ast.File) {
+@@ -469,16 +484,15 @@ func (r *reader) readFile(src *ast.File) {
+ 		}
+ 	}
+ 
+-	// collect BUG(...) comments
++	// collect MARKER(...): annotations
+ 	for _, c := range src.Comments {
+-		text := c.List[0].Text
+-		if m := bug_markers.FindStringIndex(text); m != nil {
+-			// found a BUG comment; maybe empty
+-			if btxt := text[m[1]:]; bug_content.MatchString(btxt) {
+-				// non-empty BUG comment; collect comment without BUG prefix
+-				list := append([]*ast.Comment(nil), c.List...) // make a copy
+-				list[0].Text = text[m[1]:]
+-				r.bugs = append(r.bugs, (&ast.CommentGroup{List: list}).Text())
++		if marker, text := readNote(c); marker != "" {
++			// Remove r.bugs in a separate CL along with
++			// any necessary changes to client code.
++			if marker == "BUG" {
++				r.bugs = append(r.bugs, text)
++			} else {
++				r.notes[marker] = append(r.notes[marker], text)
+ 			}
+ 		}
+ 	}
+@@ -492,6 +506,7 @@ func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
+ 	r.mode = mode
+ 	r.types = make(map[string]*namedType)
+ 	r.funcs = make(methodSet)
++	r.notes = make(map[string][]string)
+ 
+ 	// sort package files before reading them so that the
+ 	// result does not depend on map iteration order
+diff --git a/src/pkg/go/doc/testdata/a.0.golden b/src/pkg/go/doc/testdata/a.0.golden
+index 24db02d348..04fe885930 100644
+--- a/src/pkg/go/doc/testdata/a.0.golden
++++ b/src/pkg/go/doc/testdata/a.0.golden
+@@ -11,3 +11,10 @@ FILENAMES
+ BUGS
+ 	// bug0 
+ 	// bug1 
++
++SECBUG
++	// sec hole 0 need to fix asap 
++
++TODO
++	// todo0 
++	// todo1 
+diff --git a/src/pkg/go/doc/testdata/a.1.golden b/src/pkg/go/doc/testdata/a.1.golden
+index 24db02d348..04fe885930 100644
+--- a/src/pkg/go/doc/testdata/a.1.golden
++++ b/src/pkg/go/doc/testdata/a.1.golden
+@@ -11,3 +11,10 @@ FILENAMES
+ BUGS
+ 	// bug0 
+ 	// bug1 
++
++SECBUG
++	// sec hole 0 need to fix asap 
++
++TODO
++	// todo0 
++	// todo1 
+diff --git a/src/pkg/go/doc/testdata/a.2.golden b/src/pkg/go/doc/testdata/a.2.golden
+index 24db02d348..04fe885930 100644
+--- a/src/pkg/go/doc/testdata/a.2.golden
++++ b/src/pkg/go/doc/testdata/a.2.golden
+@@ -11,3 +11,10 @@ FILENAMES
+ BUGS
+ 	// bug0 
+ 	// bug1 
++
++SECBUG
++	// sec hole 0 need to fix asap 
++
++TODO
++	// todo0 
++	// todo1 
+diff --git a/src/pkg/go/doc/testdata/a0.go b/src/pkg/go/doc/testdata/a0.go
+index dc552989ec..d2bd146df1 100644
+--- a/src/pkg/go/doc/testdata/a0.go
++++ b/src/pkg/go/doc/testdata/a0.go
+@@ -6,3 +6,8 @@
+ package a
+ 
+ //BUG(uid): bug0
++
++//TODO(uid): todo0
++
++// SECBUG(uid): sec hole 0
++// need to fix asap
+diff --git a/src/pkg/go/doc/testdata/a1.go b/src/pkg/go/doc/testdata/a1.go
+index 098776c1b0..9fad1e09bc 100644
+--- a/src/pkg/go/doc/testdata/a1.go
++++ b/src/pkg/go/doc/testdata/a1.go
+@@ -6,3 +6,7 @@
+ package a
+ 
+ //BUG(uid): bug1
++
++//TODO(uid): todo1
++
++//TODO(): ignored
+diff --git a/src/pkg/go/doc/testdata/template.txt b/src/pkg/go/doc/testdata/template.txt
+index 32e331cdd1..489b5d4ea7 100644
+--- a/src/pkg/go/doc/testdata/template.txt
++++ b/src/pkg/go/doc/testdata/template.txt
+@@ -62,4 +62,7 @@ TYPES
+ */}}{{with .Bugs}}
+ BUGS
+ {{range .}}	{{synopsis .}}
+-{{end}}{{end}}
+\ No newline at end of file
++{{end}}{{end}}{{with .Notes}}{{range $marker, $content := .}}
++{{$marker}}
++{{range $content}}	{{synopsis .}}
++{{end}}{{end}}{{end}}
+\ No newline at end of file

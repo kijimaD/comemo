@@ -8,6 +8,69 @@ Date:   Mon Oct 12 19:08:17 2009 -0700
     DELTA=15  (12 added, 2 deleted, 1 changed)
     OCL=35641
     CL=35645
-
+---
  src/pkg/go/printer/printer.go | 16 +++++++++++++---
  1 file changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index d2d48f53d4..a9ae51b51e 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -356,7 +356,6 @@ func (p *printer) writeComment(comment *ast.Comment) {
+ }
+ 
+ 
+-
+ // writeCommentSuffix writes a line break after a comment if indicated
+ // and processes any leftover indentation information. If a line break
+ // is needed, the kind of break (newline vs formfeed) depends on the
+@@ -388,7 +387,6 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) {
+ }
+ 
+ 
+-
+ // intersperseComments consumes all comments that appear before the next token
+ // and prints it together with the buffered whitespace (i.e., the whitespace
+ // that needs to be written before the next token). A heuristic is used to mix
+@@ -978,6 +976,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 		}
+ 
+ 	case *ast.BasicLit:
++		// TODO(gri): string contents must remain unchanged through tabwriter!
+ 		p.print(x.Value);
+ 
+ 	case *ast.StringList:
+@@ -1535,7 +1534,8 @@ func (p *printer) file(src *ast.File) {
+ // Trimmer
+ 
+ // A trimmer is an io.Writer filter for stripping trailing blanks
+-// and tabs, and for converting formfeed characters into newlines.
++// and tabs, and for converting formfeed and vtab characters into
++// newlines and htabs (in case no tabwriter is used).
+ //
+ type trimmer struct {
+ 	output io.Writer;
+@@ -1543,6 +1543,12 @@ type trimmer struct {
+ }
+ 
+ 
++// Design note: It is tempting to eliminate extra blanks occuring in
++//              whitespace in this function as it could simplify some
++//              of the blanks logic in the node printing functions.
++//              However, this would mess up any formatting done by
++//              the tabwriter.
++
+ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
+ 	// m < 0: no unwritten data except for whitespace
+ 	// m >= 0: data[m:n] unwritten and no whitespace
+@@ -1564,6 +1570,10 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
+ 				m = n;
+ 			}
+ 
++		case '\v':
++			b = '\t';  // convert to htab
++			fallthrough;
++
+ 		case '\t', ' ':
+ 			// write any pending (non-whitespace) data
+ 			if m >= 0 {

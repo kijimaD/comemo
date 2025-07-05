@@ -12,8 +12,239 @@ Date:   Tue Sep 17 13:30:36 2013 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/13239053
-
+---
  src/pkg/crypto/tls/cipher_suites.go         | 51 ++++++++++++++++++-----------
  src/pkg/crypto/tls/handshake_server.go      | 41 +++++++++++++----------
  src/pkg/crypto/tls/handshake_server_test.go | 22 +++++++++++++
  3 files changed, 77 insertions(+), 37 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/cipher_suites.go b/src/pkg/crypto/tls/cipher_suites.go
+index 1dbda04a1d..9a95cf82a9 100644
+--- a/src/pkg/crypto/tls/cipher_suites.go
++++ b/src/pkg/crypto/tls/cipher_suites.go
+@@ -34,6 +34,19 @@ type keyAgreement interface {
+ 	generateClientKeyExchange(*Config, *clientHelloMsg, *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error)
+ }
+ 
++const (
++	// suiteECDH indicates that the cipher suite involves elliptic curve
++	// Diffie-Hellman. This means that it should only be selected when the
++	// client indicates that it supports ECC with a curve and point format
++	// that we're happy with.
++	suiteECDHE = 1 << iota
++	// suiteECDSA indicates that the cipher suite involves an ECDSA
++	// signature and therefore may only be selected when the server's
++	// certificate is ECDSA. If this is not set then the cipher suite is
++	// RSA based.
++	suiteECDSA
++)
++
+ // A cipherSuite is a specific combination of key agreement, cipher and MAC
+ // function. All cipher suites currently assume RSA key agreement.
+ type cipherSuite struct {
+@@ -43,31 +56,29 @@ type cipherSuite struct {
+ 	macLen int
+ 	ivLen  int
+ 	ka     func(version uint16) keyAgreement
+-	// If elliptic is set, a server will only consider this ciphersuite if
+-	// the ClientHello indicated that the client supports an elliptic curve
+-	// and point format that we can handle.
+-	elliptic bool
+-	cipher   func(key, iv []byte, isRead bool) interface{}
+-	mac      func(version uint16, macKey []byte) macFunction
+-	aead     func(key, fixedNonce []byte) cipher.AEAD
++	// flags is a bitmask of the suite* values, above.
++	flags  int
++	cipher func(key, iv []byte, isRead bool) interface{}
++	mac    func(version uint16, macKey []byte) macFunction
++	aead   func(key, fixedNonce []byte) cipher.AEAD
+ }
+ 
+ var cipherSuites = []*cipherSuite{
+ 	// Ciphersuite order is chosen so that ECDHE comes before plain RSA
+ 	// and RC4 comes before AES (because of the Lucky13 attack).
+-	{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheRSAKA, true, nil, nil, aeadAESGCM},
+-	{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheECDSAKA, true, nil, nil, aeadAESGCM},
+-	{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, true, cipherRC4, macSHA1, nil},
+-	{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheECDSAKA, true, cipherRC4, macSHA1, nil},
+-	{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1, nil},
+-	{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheECDSAKA, true, cipherAES, macSHA1, nil},
+-	{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1, nil},
+-	{TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheECDSAKA, true, cipherAES, macSHA1, nil},
+-	{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, false, cipherRC4, macSHA1, nil},
+-	{TLS_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, rsaKA, false, cipherAES, macSHA1, nil},
+-	{TLS_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, rsaKA, false, cipherAES, macSHA1, nil},
+-	{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, ecdheRSAKA, true, cipher3DES, macSHA1, nil},
+-	{TLS_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, rsaKA, false, cipher3DES, macSHA1, nil},
++	{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheRSAKA, suiteECDHE, nil, nil, aeadAESGCM},
++	{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheECDSAKA, suiteECDHE | suiteECDSA, nil, nil, aeadAESGCM},
++	{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, suiteECDHE, cipherRC4, macSHA1, nil},
++	{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherRC4, macSHA1, nil},
++	{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheRSAKA, suiteECDHE, cipherAES, macSHA1, nil},
++	{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherAES, macSHA1, nil},
++	{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheRSAKA, suiteECDHE, cipherAES, macSHA1, nil},
++	{TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherAES, macSHA1, nil},
++	{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, 0, cipherRC4, macSHA1, nil},
++	{TLS_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, rsaKA, 0, cipherAES, macSHA1, nil},
++	{TLS_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, rsaKA, 0, cipherAES, macSHA1, nil},
++	{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, ecdheRSAKA, suiteECDHE, cipher3DES, macSHA1, nil},
++	{TLS_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, rsaKA, 0, cipher3DES, macSHA1, nil},
+ }
+ 
+ func cipherRC4(key, iv []byte, isRead bool) interface{} {
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index cb4f35a707..7c318555ba 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -23,10 +23,12 @@ type serverHandshakeState struct {
+ 	hello           *serverHelloMsg
+ 	suite           *cipherSuite
+ 	ellipticOk      bool
++	ecdsaOk         bool
+ 	sessionState    *sessionState
+ 	finishedHash    finishedHash
+ 	masterSecret    []byte
+ 	certsFromClient [][]byte
++	cert            *Certificate
+ }
+ 
+ // serverHandshake performs a TLS handshake as a server.
+@@ -167,6 +169,16 @@ Curves:
+ 		hs.hello.nextProtos = config.NextProtos
+ 	}
+ 
++	if len(config.Certificates) == 0 {
++		return false, c.sendAlert(alertInternalError)
++	}
++	hs.cert = &config.Certificates[0]
++	if len(hs.clientHello.serverName) > 0 {
++		hs.cert = config.getCertificateForName(hs.clientHello.serverName)
++	}
++
++	_, hs.ecdsaOk = hs.cert.PrivateKey.(*ecdsa.PrivateKey)
++
+ 	if hs.checkForResumption() {
+ 		return true, nil
+ 	}
+@@ -181,7 +193,7 @@ Curves:
+ 	}
+ 
+ 	for _, id := range preferenceList {
+-		if hs.suite = c.tryCipherSuite(id, supportedList, hs.ellipticOk); hs.suite != nil {
++		if hs.suite = c.tryCipherSuite(id, supportedList, hs.ellipticOk, hs.ecdsaOk); hs.suite != nil {
+ 			break
+ 		}
+ 	}
+@@ -222,7 +234,7 @@ func (hs *serverHandshakeState) checkForResumption() bool {
+ 	}
+ 
+ 	// Check that we also support the ciphersuite from the session.
+-	hs.suite = c.tryCipherSuite(hs.sessionState.cipherSuite, c.config.cipherSuites(), hs.ellipticOk)
++	hs.suite = c.tryCipherSuite(hs.sessionState.cipherSuite, c.config.cipherSuites(), hs.ellipticOk, hs.ecdsaOk)
+ 	if hs.suite == nil {
+ 		return false
+ 	}
+@@ -264,15 +276,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 	config := hs.c.config
+ 	c := hs.c
+ 
+-	if len(config.Certificates) == 0 {
+-		return c.sendAlert(alertInternalError)
+-	}
+-	cert := &config.Certificates[0]
+-	if len(hs.clientHello.serverName) > 0 {
+-		cert = config.getCertificateForName(hs.clientHello.serverName)
+-	}
+-
+-	if hs.clientHello.ocspStapling && len(cert.OCSPStaple) > 0 {
++	if hs.clientHello.ocspStapling && len(hs.cert.OCSPStaple) > 0 {
+ 		hs.hello.ocspStapling = true
+ 	}
+ 
+@@ -282,20 +286,20 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 	c.writeRecord(recordTypeHandshake, hs.hello.marshal())
+ 
+ 	certMsg := new(certificateMsg)
+-	certMsg.certificates = cert.Certificate
++	certMsg.certificates = hs.cert.Certificate
+ 	hs.finishedHash.Write(certMsg.marshal())
+ 	c.writeRecord(recordTypeHandshake, certMsg.marshal())
+ 
+ 	if hs.hello.ocspStapling {
+ 		certStatus := new(certificateStatusMsg)
+ 		certStatus.statusType = statusTypeOCSP
+-		certStatus.response = cert.OCSPStaple
++		certStatus.response = hs.cert.OCSPStaple
+ 		hs.finishedHash.Write(certStatus.marshal())
+ 		c.writeRecord(recordTypeHandshake, certStatus.marshal())
+ 	}
+ 
+ 	keyAgreement := hs.suite.ka(c.vers)
+-	skx, err := keyAgreement.generateServerKeyExchange(config, cert, hs.clientHello, hs.hello)
++	skx, err := keyAgreement.generateServerKeyExchange(config, hs.cert, hs.clientHello, hs.hello)
+ 	if err != nil {
+ 		c.sendAlert(alertHandshakeFailure)
+ 		return err
+@@ -419,7 +423,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 		hs.finishedHash.Write(certVerify.marshal())
+ 	}
+ 
+-	preMasterSecret, err := keyAgreement.processClientKeyExchange(config, cert, ckx, c.vers)
++	preMasterSecret, err := keyAgreement.processClientKeyExchange(config, hs.cert, ckx, c.vers)
+ 	if err != nil {
+ 		c.sendAlert(alertHandshakeFailure)
+ 		return err
+@@ -601,7 +605,7 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (c
+ 
+ // tryCipherSuite returns a cipherSuite with the given id if that cipher suite
+ // is acceptable to use.
+-func (c *Conn) tryCipherSuite(id uint16, supportedCipherSuites []uint16, ellipticOk bool) *cipherSuite {
++func (c *Conn) tryCipherSuite(id uint16, supportedCipherSuites []uint16, ellipticOk, ecdsaOk bool) *cipherSuite {
+ 	for _, supported := range supportedCipherSuites {
+ 		if id == supported {
+ 			var candidate *cipherSuite
+@@ -617,7 +621,10 @@ func (c *Conn) tryCipherSuite(id uint16, supportedCipherSuites []uint16, ellipti
+ 			}
+ 			// Don't select a ciphersuite which we can't
+ 			// support for this client.
+-			if candidate.elliptic && !ellipticOk {
++			if (candidate.flags&suiteECDHE != 0) && !ellipticOk {
++				continue
++			}
++			if (candidate.flags&suiteECDSA != 0) != ecdsaOk {
+ 				continue
+ 			}
+ 			return candidate
+diff --git a/src/pkg/crypto/tls/handshake_server_test.go b/src/pkg/crypto/tls/handshake_server_test.go
+index 27504ae74d..31bcc785f5 100644
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -302,6 +302,28 @@ func TestClientAuthECDSA(t *testing.T) {
+ 	}
+ }
+ 
++// TestCipherSuiteCertPreferance ensures that we select an RSA ciphersuite with
++// an RSA certificate and an ECDSA ciphersuite with an ECDSA certificate.
++func TestCipherSuiteCertPreferance(t *testing.T) {
++	var config = *testConfig
++	config.CipherSuites = []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA}
++	config.MaxVersion = VersionTLS11
++	config.PreferServerCipherSuites = true
++	testServerScript(t, "CipherSuiteCertPreference", tls11ECDHEAESServerScript, &config, nil)
++
++	config = *testConfig
++	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA}
++	config.Certificates = []Certificate{
++		Certificate{
++			Certificate: [][]byte{testECDSACertificate},
++			PrivateKey:  testECDSAPrivateKey,
++		},
++	}
++	config.BuildNameToCertificate()
++	config.PreferServerCipherSuites = true
++	testServerScript(t, "CipherSuiteCertPreference2", ecdheECDSAAESServerScript, &config, nil)
++}
++
+ func TestTLS11Server(t *testing.T) {
+ 	var config = *testConfig
+ 	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA}

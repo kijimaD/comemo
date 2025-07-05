@@ -13,8 +13,91 @@ Date:   Fri Apr 2 14:36:36 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/internal/poll/fd.go | 19 +++++++++++++++----
  src/net/net.go          |  5 ++++-
  src/net/net_test.go     | 20 ++++++++++++++++++++
  3 files changed, 39 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/poll/fd.go b/src/internal/poll/fd.go
+index b72ea3d55c..69a90054d3 100644
+--- a/src/internal/poll/fd.go
++++ b/src/internal/poll/fd.go
+@@ -13,11 +13,22 @@ import (
+ 	"errors"
+ )
+ 
+-// ErrNetClosing is returned when a network descriptor is used after
+-// it has been closed. Keep this string consistent because of issue
+-// #4373: since historically programs have not been able to detect
++// errNetClosing is the type of the variable ErrNetClosing.
++// This is used to implement the net.Error interface.
++type errNetClosing struct{}
++
++// Error returns the error message for ErrNetClosing.
++// Keep this string consistent because of issue #4373:
++// since historically programs have not been able to detect
+ // this error, they look for the string.
+-var ErrNetClosing = errors.New("use of closed network connection")
++func (e errNetClosing) Error() string { return "use of closed network connection" }
++
++func (e errNetClosing) Timeout() bool   { return false }
++func (e errNetClosing) Temporary() bool { return false }
++
++// ErrNetClosing is returned when a network descriptor is used after
++// it has been closed.
++var ErrNetClosing = errNetClosing{}
+ 
+ // ErrFileClosing is returned when a file descriptor is used after it
+ // has been closed.
+diff --git a/src/net/net.go b/src/net/net.go
+index 7e172b708e..a7c65fff79 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -539,6 +539,9 @@ type ParseError struct {
+ 
+ func (e *ParseError) Error() string { return "invalid " + e.Type + ": " + e.Text }
+ 
++func (e *ParseError) Timeout() bool   { return false }
++func (e *ParseError) Temporary() bool { return false }
++
+ type AddrError struct {
+ 	Err  string
+ 	Addr string
+@@ -642,7 +645,7 @@ var errClosed = poll.ErrNetClosing
+ // another goroutine before the I/O is completed. This may be wrapped
+ // in another error, and should normally be tested using
+ // errors.Is(err, net.ErrClosed).
+-var ErrClosed = errClosed
++var ErrClosed error = errClosed
+ 
+ type writerOnly struct {
+ 	io.Writer
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 6d6299e74a..6e7be4db23 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -588,3 +588,23 @@ func TestNotTemporaryRead(t *testing.T) {
+ 	}
+ 	withTCPConnPair(t, client, server)
+ }
++
++// The various errors should implement the Error interface.
++func TestErrors(t *testing.T) {
++	var (
++		_ Error = &OpError{}
++		_ Error = &ParseError{}
++		_ Error = &AddrError{}
++		_ Error = UnknownNetworkError("")
++		_ Error = InvalidAddrError("")
++		_ Error = &timeoutError{}
++		_ Error = &DNSConfigError{}
++		_ Error = &DNSError{}
++	)
++
++	// ErrClosed was introduced as type error, so we can't check
++	// it using a declaration.
++	if _, ok := ErrClosed.(Error); !ok {
++		t.Fatal("ErrClosed does not implement Error")
++	}
++}

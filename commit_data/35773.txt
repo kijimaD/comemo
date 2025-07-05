@@ -13,7 +13,47 @@ Date:   Wed Mar 7 07:03:46 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go          | 10 ++++++++++
  src/cmd/go/internal/vet/vet.go |  4 ++--
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 8f5a1f6c71..0e44004cb1 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3233,6 +3233,16 @@ func TestGoVetWithOnlyTestFiles(t *testing.T) {
+ 	tg.run("vet", "p")
+ }
+ 
++// Issue 24193.
++func TestVetWithOnlyCgoFiles(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempFile("src/p/p.go", "package p; import \"C\"; func F() {}")
++	tg.setenv("GOPATH", tg.path("."))
++	tg.run("vet", "p")
++}
++
+ // Issue 9767, 19769.
+ func TestGoGetDotSlashDownload(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index 3d095d4508..c792a243bf 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -62,11 +62,11 @@ func runVet(cmd *base.Command, args []string) {
+ 			base.Errorf("%v", err)
+ 			continue
+ 		}
+-		if len(ptest.GoFiles) == 0 && pxtest == nil {
++		if len(ptest.GoFiles) == 0 && len(ptest.CgoFiles) == 0 && pxtest == nil {
+ 			base.Errorf("go vet %s: no Go files in %s", p.ImportPath, p.Dir)
+ 			continue
+ 		}
+-		if len(ptest.GoFiles) > 0 {
++		if len(ptest.GoFiles) > 0 || len(ptest.CgoFiles) > 0 {
+ 			root.Deps = append(root.Deps, b.VetAction(work.ModeBuild, work.ModeBuild, ptest))
+ 		}
+ 		if pxtest != nil {

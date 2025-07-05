@@ -13,8 +13,63 @@ Date:   Wed Jan 29 20:14:18 2020 +1100
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/riscv/obj.go | 9 ---------
  src/cmd/link/internal/ld/pcln.go  | 4 ++--
  src/runtime/asm_riscv64.s         | 5 ++---
  3 files changed, 4 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index e90769eb20..1d2c498110 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -55,15 +55,6 @@ func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *ob
+ 	p.Mark |= NEED_PCREL_ITYPE_RELOC
+ 	p = obj.Appendp(p, newprog)
+ 
+-	// TODO(jsing): This instruction is not necessary, as the lower bits
+-	// of the immediate can be encoded directly in the JALR instruction.
+-	// However, other code currently depends on jalrToSym being 12 bytes...
+-	p.As = AADDI
+-	p.From = obj.Addr{Type: obj.TYPE_CONST}
+-	p.Reg = REG_TMP
+-	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+-	p = obj.Appendp(p, newprog)
+-
+ 	// Leave Sym only for the CALL reloc in assemble.
+ 	p.As = AJALR
+ 	p.From.Type = obj.TYPE_REG
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 7cba9bde6d..db44c0292e 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -271,8 +271,8 @@ func (ctxt *Link) pclntab() {
+ 					case sys.RISCV64:
+ 						// TODO(jsing): The JALR instruction is marked with
+ 						// R_CALLRISCV, whereas the actual reloc is currently
+-						// two instructions earlier for the AUIPC+AADI sequence.
+-						deferreturn -= 8
++						// one instruction earlier starting with the AUIPC.
++						deferreturn -= 4
+ 					case sys.S390X:
+ 						deferreturn -= 2
+ 					default:
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 444e2bba1b..31dc94ce54 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -254,12 +254,11 @@ TEXT runtime·gogo(SB), NOSPLIT, $16-8
+ // func jmpdefer(fv *funcval, argp uintptr)
+ // called from deferreturn
+ // 1. grab stored return address from the caller's frame
+-// 2. sub 12 bytes to get back to JAL deferreturn
++// 2. sub 8 bytes to get back to JAL deferreturn
+ // 3. JMP to fn
+-// TODO(sorear): There are shorter jump sequences.  This function will need to be updated when we use them.
+ TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
+ 	MOV	0(X2), RA
+-	ADD	$-12, RA
++	ADD	$-8, RA
+ 
+ 	MOV	fv+0(FP), CTXT
+ 	MOV	argp+8(FP), X2

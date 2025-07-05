@@ -10,8 +10,50 @@ Date:   Tue Dec 29 18:49:13 2020 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/reflectdata/alg.go | 4 ++--
  src/cmd/compile/internal/staticdata/data.go | 2 +-
  src/cmd/compile/internal/types/alg.go       | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index d23ca6c7aa..d576053753 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -42,8 +42,8 @@ func eqCanPanic(t *types.Type) bool {
+ 	}
+ }
+ 
+-// AlgType is like algtype1, except it returns the fixed-width AMEMxx variants
+-// instead of the general AMEM kind when possible.
++// AlgType returns the fixed-width AMEMxx variants instead of the general
++// AMEM kind when possible.
+ func AlgType(t *types.Type) types.AlgKind {
+ 	a, _ := types.AlgType(t)
+ 	if a == types.AMEM {
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index 94fa6760a0..a2a844f940 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -276,7 +276,7 @@ func FuncLinksym(n *ir.Name) *obj.LSym {
+ // the s·f stubs in s's package.
+ func NeedFuncSym(s *types.Sym) {
+ 	if !base.Ctxt.Flag_dynlink {
+-		base.Fatalf("makefuncsym dynlink")
++		base.Fatalf("NeedFuncSym: dynlink")
+ 	}
+ 	if s.IsBlank() {
+ 		return
+diff --git a/src/cmd/compile/internal/types/alg.go b/src/cmd/compile/internal/types/alg.go
+index f1a472cca5..6091ee249c 100644
+--- a/src/cmd/compile/internal/types/alg.go
++++ b/src/cmd/compile/internal/types/alg.go
+@@ -132,7 +132,7 @@ func AlgType(t *Type) (AlgKind, *Type) {
+ 		return ret, nil
+ 	}
+ 
+-	base.Fatalf("algtype1: unexpected type %v", t)
++	base.Fatalf("algtype: unexpected type %v", t)
+ 	return 0, nil
+ }
+ 

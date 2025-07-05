@@ -12,6 +12,20 @@ Date:   Sun Mar 5 19:10:47 2017 +0100
     Change-Id: Ia1c9130c0e474daf47753cf51914a2d7db272c96
     Reviewed-on: https://go-review.googlesource.com/37839
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/internal/gccgoimporter/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index 0d788653e3..8a1ad5ff07 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -739,7 +739,7 @@ func (p *parser) discardDirectiveWhileParsingTypes(pkg *types.Package) {
+ 		case ';':
+ 			return
+ 		case '<':
+-			p.parseType(p.pkg)
++			p.parseType(pkg)
+ 		case scanner.EOF:
+ 			p.error("unexpected EOF")
+ 		default:

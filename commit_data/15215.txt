@@ -7,8 +7,105 @@ Date:   Tue Feb 12 16:13:14 2013 -0500
     R=iant
     CC=golang-dev
     https://golang.org/cl/7307105
-
+---
  src/pkg/exp/ssa/func.go  | 24 +++++++++++++++++++-----
  src/pkg/exp/ssa/print.go | 11 ++++-------
  src/pkg/exp/ssa/ssa.go   |  2 +-
  3 files changed, 24 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/func.go b/src/pkg/exp/ssa/func.go
+index 507eb7c329..d8f11d9c57 100644
+--- a/src/pkg/exp/ssa/func.go
++++ b/src/pkg/exp/ssa/func.go
+@@ -344,6 +344,11 @@ func (f *Function) emit(instr Instruction) Value {
+ //      "func@5.32"                 // an anonymous function
+ //
+ func (f *Function) FullName() string {
++	return f.fullName(nil)
++}
++
++// Like FullName, but if from==f.Pkg, suppress package qualification.
++func (f *Function) fullName(from *Package) string {
+ 	// Anonymous?
+ 	if f.Enclosing != nil {
+ 		return f.Name_
+@@ -353,11 +358,20 @@ func (f *Function) FullName() string {
+ 
+ 	// Synthetic?
+ 	if f.Pkg == nil {
++		var recvType types.Type
+ 		if recv != nil {
+-			// TODO(adonovan): print type package-qualified, if NamedType.
+-			return fmt.Sprintf("(%s).%s", recv.Type, f.Name_) // bridge method
++			recvType = recv.Type // bridge method
++		} else {
++			recvType = f.Params[0].Type() // interface method thunk
+ 		}
+-		return fmt.Sprintf("(%s).%s", f.Params[0].Type(), f.Name_) // interface method thunk
++		// TODO(adonovan): print type package-qualified, if NamedType.
++		return fmt.Sprintf("(%s).%s", recvType, f.Name_)
++	}
++
++	// "pkg." prefix for cross-package references only.
++	var pkgQual string
++	if from != f.Pkg {
++		pkgQual = f.Pkg.ImportPath + "."
+ 	}
+ 
+ 	// Declared method?
+@@ -366,11 +380,11 @@ func (f *Function) FullName() string {
+ 		if isPointer(recv.Type) {
+ 			star = "*"
+ 		}
+-		return fmt.Sprintf("(%s%s.%s).%s", star, f.Pkg.ImportPath, deref(recv.Type), f.Name_)
++		return fmt.Sprintf("(%s%s%s).%s", star, pkgQual, deref(recv.Type), f.Name_)
+ 	}
+ 
+ 	// Package-level function.
+-	return fmt.Sprintf("%s.%s", f.Pkg.ImportPath, f.Name_)
++	return pkgQual + f.Name_
+ }
+ 
+ // DumpTo prints to w a human readable "disassembly" of the SSA code of
+diff --git a/src/pkg/exp/ssa/print.go b/src/pkg/exp/ssa/print.go
+index 4e55dc9ff5..f503a186ae 100644
+--- a/src/pkg/exp/ssa/print.go
++++ b/src/pkg/exp/ssa/print.go
+@@ -20,9 +20,9 @@ func (id Id) String() string {
+ }
+ 
+ // relName returns the name of v relative to i.
+-// In most cases, this is identical to v.Name(), but for cross-package
+-// references to Functions (including methods) and Globals, the
+-// package-qualified FullName is used instead.
++// In most cases, this is identical to v.Name(), but for references to
++// Functions (including methods) and Globals, the FullName is used
++// instead, explicitly package-qualified for cross-package references.
+ //
+ func relName(v Value, i Instruction) string {
+ 	switch v := v.(type) {
+@@ -32,10 +32,7 @@ func relName(v Value, i Instruction) string {
+ 		}
+ 		return v.FullName()
+ 	case *Function:
+-		if v.Pkg == nil || v.Pkg == i.Block().Func.Pkg {
+-			return v.Name()
+-		}
+-		return v.FullName()
++		return v.fullName(i.Block().Func.Pkg)
+ 	}
+ 	return v.Name()
+ }
+diff --git a/src/pkg/exp/ssa/ssa.go b/src/pkg/exp/ssa/ssa.go
+index fa55c20dda..acc84c6130 100644
+--- a/src/pkg/exp/ssa/ssa.go
++++ b/src/pkg/exp/ssa/ssa.go
+@@ -204,7 +204,7 @@ type Function struct {
+ 
+ 	Pos       token.Pos // location of the definition
+ 	Enclosing *Function // enclosing function if anon; nil if global
+-	Pkg       *Package  // enclosing package; nil for some synthetic methods
++	Pkg       *Package  // enclosing package for Go source functions; otherwise nil
+ 	Prog      *Program  // enclosing program
+ 	Params    []*Parameter
+ 	FreeVars  []*Capture // free variables whose values must be supplied by closure

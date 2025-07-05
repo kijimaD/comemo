@@ -12,6 +12,38 @@ Date:   Wed Feb 3 21:57:06 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/errors_test.go | 25 +++++++++++++++++++++++++
  1 file changed, 25 insertions(+)
+
+diff --git a/src/go/types/errors_test.go b/src/go/types/errors_test.go
+new file mode 100644
+index 0000000000..fdbe07cae0
+--- /dev/null
++++ b/src/go/types/errors_test.go
+@@ -0,0 +1,25 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++import "testing"
++
++func TestStripAnnotations(t *testing.T) {
++	for _, test := range []struct {
++		in, want string
++	}{
++		{"", ""},
++		{"   ", "   "},
++		{"foo", "foo"},
++		{"foo₀", "foo"},
++		{"foo(T₀)", "foo(T)"},
++		{"#foo(T₀)", "foo(T)"},
++	} {
++		got := stripAnnotations(test.in)
++		if got != test.want {
++			t.Errorf("%q: got %q; want %q", test.in, got, test.want)
++		}
++	}
++}

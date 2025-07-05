@@ -12,6 +12,19 @@ Date:   Wed Feb 1 12:16:57 2023 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types/alg.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types/alg.go b/src/cmd/compile/internal/types/alg.go
+index c1f93fc1c3..8d56dec824 100644
+--- a/src/cmd/compile/internal/types/alg.go
++++ b/src/cmd/compile/internal/types/alg.go
+@@ -13,7 +13,6 @@ type AlgKind int
+ //go:generate stringer -type AlgKind -trimprefix A alg.go
+ 
+ const (
+-	// These values are known by runtime.
+ 	ANOEQ AlgKind = iota
+ 	AMEM0
+ 	AMEM8

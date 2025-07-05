@@ -37,7 +37,7 @@ Date:   Sun Aug 13 20:03:02 2017 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         | 174 +++++++++++++------------
  src/cmd/compile/internal/gc/builtin/runtime.go |   3 +-
  src/cmd/compile/internal/gc/walk.go            |  16 ++-
@@ -47,3 +47,469 @@ Date:   Sun Aug 13 20:03:02 2017 +0200
  test/chancap.go                                |  43 +++++-
  test/makechan.go                               |  34 +++++
  8 files changed, 246 insertions(+), 95 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index f21a4da491..269f054f0a 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -94,61 +94,62 @@ var runtimeDecls = [...]struct {
+ 	{"mapdelete_fast64", funcTag, 69},
+ 	{"mapdelete_faststr", funcTag, 69},
+ 	{"mapiternext", funcTag, 70},
+-	{"makechan", funcTag, 72},
+-	{"chanrecv1", funcTag, 74},
+-	{"chanrecv2", funcTag, 75},
+-	{"chansend1", funcTag, 77},
++	{"makechan64", funcTag, 72},
++	{"makechan", funcTag, 73},
++	{"chanrecv1", funcTag, 75},
++	{"chanrecv2", funcTag, 76},
++	{"chansend1", funcTag, 78},
+ 	{"closechan", funcTag, 23},
+-	{"writeBarrier", varTag, 79},
+-	{"writebarrierptr", funcTag, 80},
+-	{"typedmemmove", funcTag, 81},
+-	{"typedmemclr", funcTag, 82},
+-	{"typedslicecopy", funcTag, 83},
+-	{"selectnbsend", funcTag, 84},
+-	{"selectnbrecv", funcTag, 85},
+-	{"selectnbrecv2", funcTag, 87},
+-	{"newselect", funcTag, 88},
+-	{"selectsend", funcTag, 89},
+-	{"selectrecv", funcTag, 90},
++	{"writeBarrier", varTag, 80},
++	{"writebarrierptr", funcTag, 81},
++	{"typedmemmove", funcTag, 82},
++	{"typedmemclr", funcTag, 83},
++	{"typedslicecopy", funcTag, 84},
++	{"selectnbsend", funcTag, 85},
++	{"selectnbrecv", funcTag, 86},
++	{"selectnbrecv2", funcTag, 88},
++	{"newselect", funcTag, 89},
++	{"selectsend", funcTag, 90},
++	{"selectrecv", funcTag, 91},
+ 	{"selectdefault", funcTag, 56},
+-	{"selectgo", funcTag, 91},
++	{"selectgo", funcTag, 92},
+ 	{"block", funcTag, 5},
+-	{"makeslice", funcTag, 93},
+-	{"makeslice64", funcTag, 94},
+-	{"growslice", funcTag, 95},
+-	{"memmove", funcTag, 96},
+-	{"memclrNoHeapPointers", funcTag, 97},
+-	{"memclrHasPointers", funcTag, 97},
+-	{"memequal", funcTag, 98},
+-	{"memequal8", funcTag, 99},
+-	{"memequal16", funcTag, 99},
+-	{"memequal32", funcTag, 99},
+-	{"memequal64", funcTag, 99},
+-	{"memequal128", funcTag, 99},
+-	{"int64div", funcTag, 100},
+-	{"uint64div", funcTag, 101},
+-	{"int64mod", funcTag, 100},
+-	{"uint64mod", funcTag, 101},
+-	{"float64toint64", funcTag, 102},
+-	{"float64touint64", funcTag, 103},
+-	{"float64touint32", funcTag, 105},
+-	{"int64tofloat64", funcTag, 106},
+-	{"uint64tofloat64", funcTag, 107},
+-	{"uint32tofloat64", funcTag, 108},
+-	{"complex128div", funcTag, 109},
+-	{"racefuncenter", funcTag, 110},
++	{"makeslice", funcTag, 94},
++	{"makeslice64", funcTag, 95},
++	{"growslice", funcTag, 96},
++	{"memmove", funcTag, 97},
++	{"memclrNoHeapPointers", funcTag, 98},
++	{"memclrHasPointers", funcTag, 98},
++	{"memequal", funcTag, 99},
++	{"memequal8", funcTag, 100},
++	{"memequal16", funcTag, 100},
++	{"memequal32", funcTag, 100},
++	{"memequal64", funcTag, 100},
++	{"memequal128", funcTag, 100},
++	{"int64div", funcTag, 101},
++	{"uint64div", funcTag, 102},
++	{"int64mod", funcTag, 101},
++	{"uint64mod", funcTag, 102},
++	{"float64toint64", funcTag, 103},
++	{"float64touint64", funcTag, 104},
++	{"float64touint32", funcTag, 106},
++	{"int64tofloat64", funcTag, 107},
++	{"uint64tofloat64", funcTag, 108},
++	{"uint32tofloat64", funcTag, 109},
++	{"complex128div", funcTag, 110},
++	{"racefuncenter", funcTag, 111},
+ 	{"racefuncexit", funcTag, 5},
+-	{"raceread", funcTag, 110},
+-	{"racewrite", funcTag, 110},
+-	{"racereadrange", funcTag, 111},
+-	{"racewriterange", funcTag, 111},
+-	{"msanread", funcTag, 111},
+-	{"msanwrite", funcTag, 111},
++	{"raceread", funcTag, 111},
++	{"racewrite", funcTag, 111},
++	{"racereadrange", funcTag, 112},
++	{"racewriterange", funcTag, 112},
++	{"msanread", funcTag, 112},
++	{"msanwrite", funcTag, 112},
+ 	{"support_popcnt", varTag, 11},
+ }
+ 
+ func runtimeTypes() []*types.Type {
+-	var typs [112]*types.Type
++	var typs [113]*types.Type
+ 	typs[0] = types.Bytetype
+ 	typs[1] = types.NewPtr(typs[0])
+ 	typs[2] = types.Types[TANY]
+@@ -222,44 +223,45 @@ func runtimeTypes() []*types.Type {
+ 	typs[70] = functype(nil, []*Node{anonfield(typs[3])}, nil)
+ 	typs[71] = types.NewChan(typs[2], types.Cboth)
+ 	typs[72] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15])}, []*Node{anonfield(typs[71])})
+-	typs[73] = types.NewChan(typs[2], types.Crecv)
+-	typs[74] = functype(nil, []*Node{anonfield(typs[73]), anonfield(typs[3])}, nil)
+-	typs[75] = functype(nil, []*Node{anonfield(typs[73]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
+-	typs[76] = types.NewChan(typs[2], types.Csend)
+-	typs[77] = functype(nil, []*Node{anonfield(typs[76]), anonfield(typs[3])}, nil)
+-	typs[78] = types.NewArray(typs[0], 3)
+-	typs[79] = tostruct([]*Node{namedfield("enabled", typs[11]), namedfield("pad", typs[78]), namedfield("needed", typs[11]), namedfield("cgo", typs[11]), namedfield("alignme", typs[17])})
+-	typs[80] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[2])}, nil)
+-	typs[81] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[3])}, nil)
+-	typs[82] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3])}, nil)
+-	typs[83] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[32])})
+-	typs[84] = functype(nil, []*Node{anonfield(typs[76]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
+-	typs[85] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[73])}, []*Node{anonfield(typs[11])})
+-	typs[86] = types.NewPtr(typs[11])
+-	typs[87] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[86]), anonfield(typs[73])}, []*Node{anonfield(typs[11])})
+-	typs[88] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[8])}, nil)
+-	typs[89] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[76]), anonfield(typs[3])}, nil)
+-	typs[90] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[73]), anonfield(typs[3]), anonfield(typs[86])}, nil)
+-	typs[91] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[32])})
+-	typs[92] = types.NewSlice(typs[2])
+-	typs[93] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[92])})
+-	typs[94] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[92])})
+-	typs[95] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[92]), anonfield(typs[32])}, []*Node{anonfield(typs[92])})
+-	typs[96] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[49])}, nil)
+-	typs[97] = functype(nil, []*Node{anonfield(typs[58]), anonfield(typs[49])}, nil)
+-	typs[98] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[49])}, []*Node{anonfield(typs[11])})
+-	typs[99] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
+-	typs[100] = functype(nil, []*Node{anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[15])})
+-	typs[101] = functype(nil, []*Node{anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[17])})
+-	typs[102] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[15])})
+-	typs[103] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[17])})
+-	typs[104] = types.Types[TUINT32]
+-	typs[105] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[104])})
+-	typs[106] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[13])})
+-	typs[107] = functype(nil, []*Node{anonfield(typs[17])}, []*Node{anonfield(typs[13])})
+-	typs[108] = functype(nil, []*Node{anonfield(typs[104])}, []*Node{anonfield(typs[13])})
+-	typs[109] = functype(nil, []*Node{anonfield(typs[19]), anonfield(typs[19])}, []*Node{anonfield(typs[19])})
+-	typs[110] = functype(nil, []*Node{anonfield(typs[49])}, nil)
+-	typs[111] = functype(nil, []*Node{anonfield(typs[49]), anonfield(typs[49])}, nil)
++	typs[73] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32])}, []*Node{anonfield(typs[71])})
++	typs[74] = types.NewChan(typs[2], types.Crecv)
++	typs[75] = functype(nil, []*Node{anonfield(typs[74]), anonfield(typs[3])}, nil)
++	typs[76] = functype(nil, []*Node{anonfield(typs[74]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
++	typs[77] = types.NewChan(typs[2], types.Csend)
++	typs[78] = functype(nil, []*Node{anonfield(typs[77]), anonfield(typs[3])}, nil)
++	typs[79] = types.NewArray(typs[0], 3)
++	typs[80] = tostruct([]*Node{namedfield("enabled", typs[11]), namedfield("pad", typs[79]), namedfield("needed", typs[11]), namedfield("cgo", typs[11]), namedfield("alignme", typs[17])})
++	typs[81] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[2])}, nil)
++	typs[82] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[3])}, nil)
++	typs[83] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3])}, nil)
++	typs[84] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[32])})
++	typs[85] = functype(nil, []*Node{anonfield(typs[77]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
++	typs[86] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[74])}, []*Node{anonfield(typs[11])})
++	typs[87] = types.NewPtr(typs[11])
++	typs[88] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[87]), anonfield(typs[74])}, []*Node{anonfield(typs[11])})
++	typs[89] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[8])}, nil)
++	typs[90] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[77]), anonfield(typs[3])}, nil)
++	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[74]), anonfield(typs[3]), anonfield(typs[87])}, nil)
++	typs[92] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[32])})
++	typs[93] = types.NewSlice(typs[2])
++	typs[94] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[93])})
++	typs[95] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[93])})
++	typs[96] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[93]), anonfield(typs[32])}, []*Node{anonfield(typs[93])})
++	typs[97] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[49])}, nil)
++	typs[98] = functype(nil, []*Node{anonfield(typs[58]), anonfield(typs[49])}, nil)
++	typs[99] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[49])}, []*Node{anonfield(typs[11])})
++	typs[100] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
++	typs[101] = functype(nil, []*Node{anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[15])})
++	typs[102] = functype(nil, []*Node{anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[17])})
++	typs[103] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[15])})
++	typs[104] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[17])})
++	typs[105] = types.Types[TUINT32]
++	typs[106] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[105])})
++	typs[107] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[13])})
++	typs[108] = functype(nil, []*Node{anonfield(typs[17])}, []*Node{anonfield(typs[13])})
++	typs[109] = functype(nil, []*Node{anonfield(typs[105])}, []*Node{anonfield(typs[13])})
++	typs[110] = functype(nil, []*Node{anonfield(typs[19]), anonfield(typs[19])}, []*Node{anonfield(typs[19])})
++	typs[111] = functype(nil, []*Node{anonfield(typs[49])}, nil)
++	typs[112] = functype(nil, []*Node{anonfield(typs[49]), anonfield(typs[49])}, nil)
+ 	return typs[:]
+ }
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 7f4846db9d..bb7a8a9c9e 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -116,7 +116,8 @@ func mapdelete_faststr(mapType *byte, hmap map[any]any, key any)
+ func mapiternext(hiter *any)
+ 
+ // *byte is really *runtime.Type
+-func makechan(chanType *byte, hint int64) (hchan chan any)
++func makechan64(chanType *byte, size int64) (hchan chan any)
++func makechan(chanType *byte, size int) (hchan chan any)
+ func chanrecv1(hchan <-chan any, elem *any)
+ func chanrecv2(hchan <-chan any, elem *any) bool
+ func chansend1(hchan chan<- any, elem *any)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 4eefb34994..99817a24bf 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1417,7 +1417,21 @@ opswitch:
+ 		n = mkcall1(fn, nil, init, n.Left)
+ 
+ 	case OMAKECHAN:
+-		n = mkcall1(chanfn("makechan", 1, n.Type), n.Type, init, typename(n.Type), conv(n.Left, types.Types[TINT64]))
++		// When size fits into int, use makechan instead of
++		// makechan64, which is faster and shorter on 32 bit platforms.
++		size := n.Left
++		fnname := "makechan64"
++		argtype := types.Types[TINT64]
++
++		// Type checking guarantees that TIDEAL size is positive and fits in an int.
++		// The case of size overflow when converting TUINT or TUINTPTR to TINT
++		// will be handled by the negative range checks in makechan during runtime.
++		if size.Type.IsKind(TIDEAL) || maxintval[size.Type.Etype].Cmp(maxintval[TUINT]) <= 0 {
++			fnname = "makechan"
++			argtype = types.Types[TINT]
++		}
++
++		n = mkcall1(chanfn(fnname, 1, n.Type), n.Type, init, typename(n.Type), conv(size, argtype))
+ 
+ 	case OMAKEMAP:
+ 		t := n.Type
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index a6a7d84c3b..e67b3cdcff 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2072,7 +2072,7 @@ func MakeChan(typ Type, buffer int) Value {
+ 	if typ.ChanDir() != BothDir {
+ 		panic("reflect.MakeChan: unidirectional channel type")
+ 	}
+-	ch := makechan(typ.(*rtype), uint64(buffer))
++	ch := makechan(typ.(*rtype), buffer)
+ 	return Value{typ.common(), ch, flag(Chan)}
+ }
+ 
+@@ -2480,7 +2480,7 @@ func chanrecv(ch unsafe.Pointer, nb bool, val unsafe.Pointer) (selected, receive
+ //go:noescape
+ func chansend(ch unsafe.Pointer, val unsafe.Pointer, nb bool) bool
+ 
+-func makechan(typ *rtype, size uint64) (ch unsafe.Pointer)
++func makechan(typ *rtype, size int) (ch unsafe.Pointer)
+ func makemap(t *rtype, cap int) (m unsafe.Pointer)
+ 
+ //go:noescape
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 6294678d4a..b34333e605 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -55,11 +55,19 @@ type waitq struct {
+ }
+ 
+ //go:linkname reflect_makechan reflect.makechan
+-func reflect_makechan(t *chantype, size int64) *hchan {
++func reflect_makechan(t *chantype, size int) *hchan {
+ 	return makechan(t, size)
+ }
+ 
+-func makechan(t *chantype, size int64) *hchan {
++func makechan64(t *chantype, size int64) *hchan {
++	if int64(int(size)) != size {
++		panic(plainError("makechan: size out of range"))
++	}
++
++	return makechan(t, int(size))
++}
++
++func makechan(t *chantype, size int) *hchan {
+ 	elem := t.elem
+ 
+ 	// compiler checks this but be safe.
+@@ -69,7 +77,7 @@ func makechan(t *chantype, size int64) *hchan {
+ 	if hchanSize%maxAlign != 0 || elem.align > maxAlign {
+ 		throw("makechan: bad alignment")
+ 	}
+-	if size < 0 || int64(uintptr(size)) != size || (elem.size > 0 && uintptr(size) > (_MaxMem-hchanSize)/elem.size) {
++	if size < 0 || (elem.size > 0 && uintptr(size) > (_MaxMem-hchanSize)/elem.size) {
+ 		panic(plainError("makechan: size out of range"))
+ 	}
+ 
+diff --git a/src/runtime/chan_test.go b/src/runtime/chan_test.go
+index a75fa1b992..dd04f82a06 100644
+--- a/src/runtime/chan_test.go
++++ b/src/runtime/chan_test.go
+@@ -669,6 +669,59 @@ done:
+ 	<-ready2
+ }
+ 
++type (
++	struct0  struct{}
++	struct32 struct{ a, b, c, d int64 }
++	struct40 struct{ a, b, c, d, e int64 }
++)
++
++func BenchmarkMakeChan(b *testing.B) {
++	b.Run("Byte", func(b *testing.B) {
++		var x chan byte
++		for i := 0; i < b.N; i++ {
++			x = make(chan byte, 8)
++		}
++		close(x)
++	})
++	b.Run("Int", func(b *testing.B) {
++		var x chan int
++		for i := 0; i < b.N; i++ {
++			x = make(chan int, 8)
++		}
++		close(x)
++	})
++	b.Run("Ptr", func(b *testing.B) {
++		var x chan *byte
++		for i := 0; i < b.N; i++ {
++			x = make(chan *byte, 8)
++		}
++		close(x)
++	})
++	b.Run("Struct", func(b *testing.B) {
++		b.Run("0", func(b *testing.B) {
++			var x chan struct0
++			for i := 0; i < b.N; i++ {
++				x = make(chan struct0, 8)
++			}
++			close(x)
++		})
++		b.Run("32", func(b *testing.B) {
++			var x chan struct32
++			for i := 0; i < b.N; i++ {
++				x = make(chan struct32, 8)
++			}
++			close(x)
++		})
++		b.Run("40", func(b *testing.B) {
++			var x chan struct40
++			for i := 0; i < b.N; i++ {
++				x = make(chan struct40, 8)
++			}
++			close(x)
++		})
++	})
++}
++
+ func BenchmarkChanNonblocking(b *testing.B) {
+ 	myc := make(chan int)
+ 	b.RunParallel(func(pb *testing.PB) {
+diff --git a/test/chancap.go b/test/chancap.go
+index b3e40233f5..b08478a13c 100644
+--- a/test/chancap.go
++++ b/test/chancap.go
+@@ -8,8 +8,17 @@
+ 
+ package main
+ 
++import (
++	"strings"
++	"unsafe"
++)
++
++type T chan int
++
++const ptrSize = unsafe.Sizeof((*byte)(nil))
++
+ func main() {
+-	c := make(chan int, 10)
++	c := make(T, 10)
+ 	if len(c) != 0 || cap(c) != 10 {
+ 		println("chan len/cap ", len(c), cap(c), " want 0 10")
+ 		panic("fail")
+@@ -23,9 +32,39 @@ func main() {
+ 		panic("fail")
+ 	}
+ 
+-	c = make(chan int)
++	c = make(T)
+ 	if len(c) != 0 || cap(c) != 0 {
+ 		println("chan len/cap ", len(c), cap(c), " want 0 0")
+ 		panic("fail")
+ 	}
++
++	n := -1
++	shouldPanic("makechan: size out of range", func() { _ = make(T, n) })
++	shouldPanic("makechan: size out of range", func() { _ = make(T, int64(n)) })
++	if ptrSize == 8 {
++		n = 1 << 20
++		n <<= 20
++		shouldPanic("makechan: size out of range", func() { _ = make(T, n) })
++		n <<= 20
++		shouldPanic("makechan: size out of range", func() { _ = make(T, n) })
++	} else {
++		n = 1<<31 - 1
++		shouldPanic("makechan: size out of range", func() { _ = make(T, n) })
++		shouldPanic("makechan: size out of range", func() { _ = make(T, int64(n)) })
++	}
++}
++
++func shouldPanic(str string, f func()) {
++	defer func() {
++		err := recover()
++		if err == nil {
++			panic("did not panic")
++		}
++		s := err.(error).Error()
++		if !strings.Contains(s, str) {
++			panic("got panic " + s + ", want " + str)
++		}
++	}()
++
++	f()
+ }
+diff --git a/test/makechan.go b/test/makechan.go
+new file mode 100644
+index 0000000000..0ac38c4b89
+--- /dev/null
++++ b/test/makechan.go
+@@ -0,0 +1,34 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Ensure that typed non-integer, negative and to large
++// values are not accepted as size argument in make for
++// channels.
++
++package main
++
++type T chan byte
++
++var sink T
++
++func main() {
++	sink = make(T, -1)            // ERROR "negative buffer argument in make.*"
++	sink = make(T, uint64(1<<63)) // ERROR "buffer argument too large in make.*"
++
++	sink = make(T, 0.5) // ERROR "constant 0.5 truncated to integer"
++	sink = make(T, 1.0)
++	sink = make(T, float32(1.0)) // ERROR "non-integer buffer argument in make.*"
++	sink = make(T, float64(1.0)) // ERROR "non-integer buffer argument in make.*"
++	sink = make(T, 1.0)
++	sink = make(T, float32(1.0)) // ERROR "non-integer buffer argument in make.*"
++	sink = make(T, float64(1.0)) // ERROR "non-integer buffer argument in make.*"
++	sink = make(T, 1+0i)
++	sink = make(T, complex64(1+0i))  // ERROR "non-integer buffer argument in make.*"
++	sink = make(T, complex128(1+0i)) // ERROR "non-integer buffer argument in make.*"
++	sink = make(T, 1+0i)
++	sink = make(T, complex64(1+0i))  // ERROR "non-integer buffer argument in make.*"
++	sink = make(T, complex128(1+0i)) // ERROR "non-integer buffer argument in make.*"
++}

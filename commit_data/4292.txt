@@ -7,9 +7,166 @@ Date:   Wed Dec 2 20:47:38 2009 -0800
     
     R=rsc, r, r1
     https://golang.org/cl/157170
-
+---
  src/pkg/bytes/bytes.go          | 13 ++++++++++++
  src/pkg/bytes/bytes_test.go     | 46 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/strings/strings.go      | 13 +++++++++++-
  src/pkg/strings/strings_test.go | 45 ++++++++++++++++++++++++++++++++++++++++
  4 files changed, 116 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 8548b15490..91ecdf9470 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -333,3 +333,16 @@ func AddByte(s []byte, t byte) []byte {
+ 	s[lens] = t;
+ 	return s;
+ }
++
++// Runes returns a slice of runes (Unicode code points) equivalent to s.
++func Runes(s []byte) []int {
++	t := make([]int, utf8.RuneCount(s));
++	i := 0;
++	for len(s) > 0 {
++		r, l := utf8.DecodeRune(s);
++		t[i] = r;
++		i++;
++		s = s[l:];
++	}
++	return t;
++}
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index b7f8262931..a4f4adcfec 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -400,3 +400,49 @@ func TestRepeat(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func runesEqual(a, b []int) bool {
++	if len(a) != len(b) {
++		return false
++	}
++	for i, r := range a {
++		if r != b[i] {
++			return false
++		}
++	}
++	return true;
++}
++
++type RunesTest struct {
++	in	string;
++	out	[]int;
++	lossy	bool;
++}
++
++var RunesTests = []RunesTest{
++	RunesTest{"", []int{}, false},
++	RunesTest{" ", []int{32}, false},
++	RunesTest{"ABC", []int{65, 66, 67}, false},
++	RunesTest{"abc", []int{97, 98, 99}, false},
++	RunesTest{"\u65e5\u672c\u8a9e", []int{26085, 26412, 35486}, false},
++	RunesTest{"ab\x80c", []int{97, 98, 0xFFFD, 99}, true},
++	RunesTest{"ab\xc0c", []int{97, 98, 0xFFFD, 99}, true},
++}
++
++func TestRunes(t *testing.T) {
++	for _, tt := range RunesTests {
++		tin := strings.Bytes(tt.in);
++		a := Runes(tin);
++		if !runesEqual(a, tt.out) {
++			t.Errorf("Runes(%q) = %v; want %v", tin, a, tt.out);
++			continue;
++		}
++		if !tt.lossy {
++			// can only test reassembly if we didn't lose information
++			s := string(a);
++			if s != tt.in {
++				t.Errorf("string(Runes(%q)) = %x; want %x", tin, s, tin)
++			}
++		}
++	}
++}
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 013af680a2..7be98e6c10 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -124,7 +124,7 @@ func genSplit(s, sep string, sepSave, n int) []string {
+ 
+ // Split splits the string s around each instance of sep, returning an array of substrings of s.
+ // If sep is empty, Split splits s after each UTF-8 sequence.
+-// If n > 0, split Splits s into at most n substrings; the last substring will be the unsplit remainder.
++// If n > 0, Split splits s into at most n substrings; the last substring will be the unsplit remainder.
+ func Split(s, sep string, n int) []string	{ return genSplit(s, sep, 0, n) }
+ 
+ // SplitAfter splits the string s after each instance of sep, returning an array of substrings of s.
+@@ -272,3 +272,14 @@ func Bytes(s string) []byte {
+ 	}
+ 	return b;
+ }
++
++// Runes returns a slice of runes (Unicode code points) equivalent to the string s.
++func Runes(s string) []int {
++	t := make([]int, utf8.RuneCountInString(s));
++	i := 0;
++	for _, r := range s {
++		t[i] = r;
++		i++;
++	}
++	return t;
++}
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 1171db224e..ce77c5c2f2 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -370,3 +370,48 @@ func TestRepeat(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func runesEqual(a, b []int) bool {
++	if len(a) != len(b) {
++		return false
++	}
++	for i, r := range a {
++		if r != b[i] {
++			return false
++		}
++	}
++	return true;
++}
++
++type RunesTest struct {
++	in	string;
++	out	[]int;
++	lossy	bool;
++}
++
++var RunesTests = []RunesTest{
++	RunesTest{"", []int{}, false},
++	RunesTest{" ", []int{32}, false},
++	RunesTest{"ABC", []int{65, 66, 67}, false},
++	RunesTest{"abc", []int{97, 98, 99}, false},
++	RunesTest{"\u65e5\u672c\u8a9e", []int{26085, 26412, 35486}, false},
++	RunesTest{"ab\x80c", []int{97, 98, 0xFFFD, 99}, true},
++	RunesTest{"ab\xc0c", []int{97, 98, 0xFFFD, 99}, true},
++}
++
++func TestRunes(t *testing.T) {
++	for _, tt := range RunesTests {
++		a := Runes(tt.in);
++		if !runesEqual(a, tt.out) {
++			t.Errorf("Runes(%q) = %v; want %v", tt.in, a, tt.out);
++			continue;
++		}
++		if !tt.lossy {
++			// can only test reassembly if we didn't lose information
++			s := string(a);
++			if s != tt.in {
++				t.Errorf("string(Runes(%q)) = %x; want %x", tt.in, s, tt.in)
++			}
++		}
++	}
++}

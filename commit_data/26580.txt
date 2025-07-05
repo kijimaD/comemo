@@ -14,7 +14,52 @@ Date:   Tue Feb 9 12:58:35 2016 -0800
     Change-Id: Ia3721f9ad8a1115d2595fe99b04baaf30d5765f2
     Reviewed-on: https://go-review.googlesource.com/19393
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/go/internal/gcimporter/gcimporter.go |  6 +++++-
  src/go/types/resolver.go                 | 10 ++++------
  2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index 0ef8eb4fc6..d70ec083c3 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -31,7 +31,8 @@ var pkgExts = [...]string{".a", ".o"}
+ 
+ // FindPkg returns the filename and unique package id for an import
+ // path based on package information provided by build.Import (using
+-// the build.Default build.Context).
++// the build.Default build.Context). A relative srcDir is interpreted
++// relative to the current working directory.
+ // If no file was found, an empty filename is returned.
+ //
+ func FindPkg(path, srcDir string) (filename, id string) {
+@@ -44,6 +45,9 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ 	default:
+ 		// "x" -> "$GOPATH/pkg/$GOOS_$GOARCH/x.ext", "x"
+ 		// Don't require the source files to be present.
++		if abs, err := filepath.Abs(srcDir); err == nil { // see issue 14282
++			srcDir = abs
++		}
+ 		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
+ 		if bp.PkgObj == "" {
+ 			return
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 14148a585b..1536df5bf1 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -483,11 +483,9 @@ func pkgName(path string) string {
+ // (Per the go/build package dependency tests, we cannot import
+ // path/filepath and simply use filepath.Dir.)
+ func dir(path string) string {
+-	if i := strings.LastIndexAny(path, "/\\"); i >= 0 {
+-		path = path[:i]
++	if i := strings.LastIndexAny(path, `/\`); i > 0 {
++		return path[:i]
+ 	}
+-	if path == "" {
+-		path = "."
+-	}
+-	return path
++	// i <= 0
++	return "."
+ }

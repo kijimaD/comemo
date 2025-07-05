@@ -7,7 +7,59 @@ Date:   Fri Jul 17 09:40:04 2015 -0700
     Change-Id: I6a8bb853a538c80d95589321d3226784bc017eef
     Reviewed-on: https://go-review.googlesource.com/12327
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/example_test.go | 23 +++++++++++++++++++++++
  src/net/http/server.go       |  2 +-
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/example_test.go b/src/net/http/example_test.go
+index 88b97d9e3d..1774795d37 100644
+--- a/src/net/http/example_test.go
++++ b/src/net/http/example_test.go
+@@ -6,6 +6,7 @@ package http_test
+ 
+ import (
+ 	"fmt"
++	"io"
+ 	"io/ioutil"
+ 	"log"
+ 	"net/http"
+@@ -86,3 +87,25 @@ func ExampleServeMux_Handle() {
+ 		fmt.Fprintf(w, "Welcome to the home page!")
+ 	})
+ }
++
++// HTTP Trailers are a set of key/value pairs like headers that come
++// after the HTTP response, instead of before.
++func ExampleResponseWriter_trailers() {
++	mux := http.NewServeMux()
++	mux.HandleFunc("/sendstrailers", func(w http.ResponseWriter, req *http.Request) {
++		// Before any call to WriteHeader or Write, declare
++		// the trailers you will set during the HTTP
++		// response. These three headers are actually sent in
++		// the trailer.
++		w.Header().Set("Trailer", "AtEnd1, AtEnd2")
++		w.Header().Add("Trailer", "AtEnd3")
++
++		w.Header().Set("Content-Type", "text/plain; charset=utf-8") // normal header
++		w.WriteHeader(http.StatusOK)
++
++		w.Header().Set("AtEnd1", "value 1")
++		io.WriteString(w, "This HTTP response has both headers before this text and trailers at the end.\n")
++		w.Header().Set("AtEnd2", "value 2")
++		w.Header().Set("AtEnd3", "value 3") // These will appear as trailers.
++	})
++}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index fda26bad1d..aad55d0838 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -60,7 +60,7 @@ type ResponseWriter interface {
+ 	// WriteHeader. Changing the header after a call to
+ 	// WriteHeader (or Write) has no effect unless the modified
+ 	// headers were declared as trailers by setting the
+-	// "Trailer" header before the call to WriteHeader.
++	// "Trailer" header before the call to WriteHeader (see example).
+ 	// To suppress implicit response headers, set their value to nil.
+ 	Header() Header
+ 

@@ -11,10 +11,298 @@ Date:   Mon Dec 29 10:07:47 2014 -0500
     Change-Id: Iea83d693480c2f3008b4e80d55821acff65970a6
     Reviewed-on: https://go-review.googlesource.com/2277
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/chan.go    |  8 ++++----
  src/runtime/hashmap.go | 16 ++++++++--------
  src/runtime/iface.go   | 49 ++++++++++++++++++++++++++++++++-----------------
  src/runtime/mgc0.go    |  9 +++++----
  src/runtime/select.go  |  8 ++++----
  5 files changed, 53 insertions(+), 37 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 45aa4e74c9..e9390d3da4 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -146,7 +146,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 
+ 			recvg := sg.g
+ 			if sg.elem != nil {
+-				memmove(unsafe.Pointer(sg.elem), ep, uintptr(c.elemsize))
++				typedmemmove(c.elemtype, unsafe.Pointer(sg.elem), ep)
+ 				sg.elem = nil
+ 			}
+ 			recvg.param = unsafe.Pointer(sg)
+@@ -234,7 +234,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 		raceacquire(chanbuf(c, c.sendx))
+ 		racerelease(chanbuf(c, c.sendx))
+ 	}
+-	memmove(chanbuf(c, c.sendx), ep, uintptr(c.elemsize))
++	typedmemmove(c.elemtype, chanbuf(c, c.sendx), ep)
+ 	c.sendx++
+ 	if c.sendx == c.dataqsiz {
+ 		c.sendx = 0
+@@ -379,7 +379,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 			unlock(&c.lock)
+ 
+ 			if ep != nil {
+-				memmove(ep, sg.elem, uintptr(c.elemsize))
++				typedmemmove(c.elemtype, ep, sg.elem)
+ 			}
+ 			sg.elem = nil
+ 			gp := sg.g
+@@ -484,7 +484,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 		racerelease(chanbuf(c, c.recvx))
+ 	}
+ 	if ep != nil {
+-		memmove(ep, chanbuf(c, c.recvx), uintptr(c.elemsize))
++		typedmemmove(c.elemtype, ep, chanbuf(c, c.recvx))
+ 	}
+ 	memclr(chanbuf(c, c.recvx), uintptr(c.elemsize))
+ 
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 999270a3b1..264651e0de 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -435,13 +435,13 @@ again:
+ 				continue
+ 			}
+ 			// already have a mapping for key.  Update it.
+-			memmove(k2, key, uintptr(t.key.size))
++			typedmemmove(t.key, k2, key)
+ 			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+ 			v2 := v
+ 			if t.indirectvalue {
+ 				v2 = *((*unsafe.Pointer)(v2))
+ 			}
+-			memmove(v2, val, uintptr(t.elem.size))
++			typedmemmove(t.elem, v2, val)
+ 			return
+ 		}
+ 		ovf := b.overflow(t)
+@@ -486,8 +486,8 @@ again:
+ 		*(*unsafe.Pointer)(insertv) = vmem
+ 		insertv = vmem
+ 	}
+-	memmove(insertk, key, uintptr(t.key.size))
+-	memmove(insertv, val, uintptr(t.elem.size))
++	typedmemmove(t.key, insertk, key)
++	typedmemmove(t.elem, insertv, val)
+ 	*inserti = top
+ 	h.count++
+ }
+@@ -846,12 +846,12 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 					if t.indirectkey {
+ 						*(*unsafe.Pointer)(xk) = k2 // copy pointer
+ 					} else {
+-						memmove(xk, k, uintptr(t.key.size)) // copy value
++						typedmemmove(t.key, xk, k) // copy value
+ 					}
+ 					if t.indirectvalue {
+ 						*(*unsafe.Pointer)(xv) = *(*unsafe.Pointer)(v)
+ 					} else {
+-						memmove(xv, v, uintptr(t.elem.size))
++						typedmemmove(t.elem, xv, v)
+ 					}
+ 					xi++
+ 					xk = add(xk, uintptr(t.keysize))
+@@ -873,12 +873,12 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 					if t.indirectkey {
+ 						*(*unsafe.Pointer)(yk) = k2
+ 					} else {
+-						memmove(yk, k, uintptr(t.key.size))
++						typedmemmove(t.key, yk, k)
+ 					}
+ 					if t.indirectvalue {
+ 						*(*unsafe.Pointer)(yv) = *(*unsafe.Pointer)(v)
+ 					} else {
+-						memmove(yv, v, uintptr(t.elem.size))
++						typedmemmove(t.elem, yv, v)
+ 					}
+ 					yi++
+ 					yk = add(yk, uintptr(t.keysize))
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index f62e51a8a9..db3dbdbef8 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -132,16 +132,15 @@ func typ2Itab(t *_type, inter *interfacetype, cache **itab) *itab {
+ }
+ 
+ func convT2E(t *_type, elem unsafe.Pointer) (e interface{}) {
+-	size := uintptr(t.size)
+ 	ep := (*eface)(unsafe.Pointer(&e))
+ 	if isDirectIface(t) {
+ 		ep._type = t
+-		memmove(unsafe.Pointer(&ep.data), elem, size)
++		typedmemmove(t, unsafe.Pointer(&ep.data), elem)
+ 	} else {
+ 		x := newobject(t)
+ 		// TODO: We allocate a zeroed object only to overwrite it with
+ 		// actual data.  Figure out how to avoid zeroing.  Also below in convT2I.
+-		memmove(x, elem, size)
++		typedmemmove(t, x, elem)
+ 		ep._type = t
+ 		ep.data = x
+ 	}
+@@ -154,14 +153,13 @@ func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer)
+ 		tab = getitab(inter, t, false)
+ 		atomicstorep(unsafe.Pointer(cache), unsafe.Pointer(tab))
+ 	}
+-	size := uintptr(t.size)
+ 	pi := (*iface)(unsafe.Pointer(&i))
+ 	if isDirectIface(t) {
+ 		pi.tab = tab
+-		memmove(unsafe.Pointer(&pi.data), elem, size)
++		typedmemmove(t, unsafe.Pointer(&pi.data), elem)
+ 	} else {
+ 		x := newobject(t)
+-		memmove(x, elem, size)
++		typedmemmove(t, x, elem)
+ 		pi.tab = tab
+ 		pi.data = x
+ 	}
+@@ -180,11 +178,15 @@ func assertI2T(t *_type, i fInterface) (r struct{}) {
+ 	if tab._type != t {
+ 		panic(&TypeAssertionError{*tab.inter.typ._string, *tab._type._string, *t._string, ""})
+ 	}
+-	size := uintptr(t.size)
++	// NOTE(rsc): If this changes to take a pointer argument
++	// instead of using &r, these calls need to change to be
++	// typedmemmove (the first can be just writebarrierptr).
++	// Until then, it is very important that no blocking operation
++	// happens between the memmove and the return.
+ 	if isDirectIface(t) {
+-		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ip.data), size)
++		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ip.data), uintptr(t.size))
+ 	} else {
+-		memmove(unsafe.Pointer(&r), ip.data, size)
++		memmove(unsafe.Pointer(&r), ip.data, uintptr(t.size))
+ 	}
+ 	return
+ }
+@@ -192,19 +194,23 @@ func assertI2T(t *_type, i fInterface) (r struct{}) {
+ //go:nosplit
+ func assertI2T2(t *_type, i fInterface) (r byte) {
+ 	ip := (*iface)(unsafe.Pointer(&i))
+-	size := uintptr(t.size)
+-	ok := (*bool)(add(unsafe.Pointer(&r), size))
++	ok := (*bool)(add(unsafe.Pointer(&r), uintptr(t.size)))
+ 	tab := ip.tab
+ 	if tab == nil || tab._type != t {
+ 		*ok = false
+-		memclr(unsafe.Pointer(&r), size)
++		memclr(unsafe.Pointer(&r), uintptr(t.size))
+ 		return
+ 	}
+ 	*ok = true
++	// NOTE(rsc): If this changes to take a pointer argument
++	// instead of using &r, these calls need to change to be
++	// typedmemmove (the first can be just writebarrierptr).
++	// Until then, it is very important that no blocking operation
++	// happens between the memmove and the return.
+ 	if isDirectIface(t) {
+-		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ip.data), size)
++		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ip.data), uintptr(t.size))
+ 	} else {
+-		memmove(unsafe.Pointer(&r), ip.data, size)
++		memmove(unsafe.Pointer(&r), ip.data, uintptr(t.size))
+ 	}
+ 	return
+ }
+@@ -224,11 +230,15 @@ func assertE2T(t *_type, e interface{}) (r struct{}) {
+ 	if ep._type != t {
+ 		panic(&TypeAssertionError{"", *ep._type._string, *t._string, ""})
+ 	}
+-	size := uintptr(t.size)
++	// NOTE(rsc): If this changes to take a pointer argument
++	// instead of using &r, these calls need to change to be
++	// typedmemmove (the first can be just writebarrierptr).
++	// Until then, it is very important that no blocking operation
++	// happens between the memmove and the return.
+ 	if isDirectIface(t) {
+-		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ep.data), size)
++		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ep.data), uintptr(t.size))
+ 	} else {
+-		memmove(unsafe.Pointer(&r), ep.data, size)
++		memmove(unsafe.Pointer(&r), ep.data, uintptr(t.size))
+ 	}
+ 	return
+ }
+@@ -244,6 +254,11 @@ func assertE2T2(t *_type, e interface{}) (r byte) {
+ 		return
+ 	}
+ 	*ok = true
++	// NOTE(rsc): If this changes to take a pointer argument
++	// instead of using &r, these calls need to change to be
++	// typedmemmove (the first can be just writebarrierptr).
++	// Until then, it is very important that no blocking operation
++	// happens between the memmove and the return.
+ 	if isDirectIface(t) {
+ 		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ep.data), size)
+ 	} else {
+diff --git a/src/runtime/mgc0.go b/src/runtime/mgc0.go
+index 9f4e3c855f..2833aa7b75 100644
+--- a/src/runtime/mgc0.go
++++ b/src/runtime/mgc0.go
+@@ -304,8 +304,9 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 			} else {
+ 				*(*uintptr)(dst) = *(*uintptr)(src)
+ 			}
+-			dst = add(dst, ptrSize)
+-			src = add(src, ptrSize)
++			// TODO(rsc): The noescape calls should be unnecessary.
++			dst = add(noescape(dst), ptrSize)
++			src = add(noescape(src), ptrSize)
+ 			if i+1 == nptr {
+ 				break
+ 			}
+@@ -315,8 +316,8 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 			} else {
+ 				*(*uintptr)(dst) = *(*uintptr)(src)
+ 			}
+-			dst = add(dst, ptrSize)
+-			src = add(src, ptrSize)
++			dst = add(noescape(dst), ptrSize)
++			src = add(noescape(src), ptrSize)
+ 		}
+ 	})
+ }
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 1293a153e4..20dd2995b6 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -449,7 +449,7 @@ asyncrecv:
+ 		*cas.receivedp = true
+ 	}
+ 	if cas.elem != nil {
+-		memmove(cas.elem, chanbuf(c, c.recvx), uintptr(c.elemsize))
++		typedmemmove(c.elemtype, cas.elem, chanbuf(c, c.recvx))
+ 	}
+ 	memclr(chanbuf(c, c.recvx), uintptr(c.elemsize))
+ 	c.recvx++
+@@ -477,7 +477,7 @@ asyncsend:
+ 		racerelease(chanbuf(c, c.sendx))
+ 		raceReadObjectPC(c.elemtype, cas.elem, cas.pc, chansendpc)
+ 	}
+-	memmove(chanbuf(c, c.sendx), cas.elem, uintptr(c.elemsize))
++	typedmemmove(c.elemtype, chanbuf(c, c.sendx), cas.elem)
+ 	c.sendx++
+ 	if c.sendx == c.dataqsiz {
+ 		c.sendx = 0
+@@ -512,7 +512,7 @@ syncrecv:
+ 		*cas.receivedp = true
+ 	}
+ 	if cas.elem != nil {
+-		memmove(cas.elem, sg.elem, uintptr(c.elemsize))
++		typedmemmove(c.elemtype, cas.elem, sg.elem)
+ 	}
+ 	sg.elem = nil
+ 	gp = sg.g
+@@ -548,7 +548,7 @@ syncsend:
+ 		print("syncsend: sel=", sel, " c=", c, "\n")
+ 	}
+ 	if sg.elem != nil {
+-		memmove(sg.elem, cas.elem, uintptr(c.elemsize))
++		typedmemmove(c.elemtype, sg.elem, cas.elem)
+ 	}
+ 	sg.elem = nil
+ 	gp = sg.g

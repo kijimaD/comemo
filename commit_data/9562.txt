@@ -7,7 +7,34 @@ Date:   Wed Aug 31 06:44:55 2011 -0300
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4968054
-
+---
  src/cmd/cgo/doc.go         | 2 +-
  src/pkg/runtime/cgo/util.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 63413825af..cc608f40c2 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -72,7 +72,7 @@ the pointer to the first element explicitly: C.f(&x[0]).
+ A few special functions convert between Go and C types
+ by making copies of the data.  In pseudo-Go definitions:
+ 
+-	// Go string to C string
++	// Go string to C string - result is not garbage collected
+ 	func C.CString(string) *C.char
+ 
+ 	// C string to Go string
+diff --git a/src/pkg/runtime/cgo/util.c b/src/pkg/runtime/cgo/util.c
+index 9d96521f53..e06b6f64d9 100644
+--- a/src/pkg/runtime/cgo/util.c
++++ b/src/pkg/runtime/cgo/util.c
+@@ -18,7 +18,7 @@ x_cgo_malloc(void *p)
+ 
+ void (*_cgo_malloc)(void*) = x_cgo_malloc;
+ 
+-/* Stub for calling from Go */
++/* Stub for calling free from Go */
+ static void
+ x_cgo_free(void *p)
+ {

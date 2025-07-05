@@ -19,6 +19,43 @@ Date:   Fri Oct 14 17:09:54 2016 -0700
     Change-Id: I10fb3b2843da527691c39ad5e5e5bd37ed63e2fa
     Reviewed-on: https://go-review.googlesource.com/31250
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/decimal.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/big/decimal.go b/src/math/big/decimal.go
+index 2c0c9daebc..2dfa032c77 100644
+--- a/src/math/big/decimal.go
++++ b/src/math/big/decimal.go
+@@ -125,11 +125,12 @@ func shr(x *decimal, s uint) {
+ 
+ 	// read a digit, write a digit
+ 	w := 0 // write index
++	mask := Word(1)<<s - 1
+ 	for r < len(x.mant) {
+ 		ch := Word(x.mant[r])
+ 		r++
+ 		d := n >> s
+-		n -= d << s
++		n &= mask // n -= d << s
+ 		x.mant[w] = byte(d + '0')
+ 		w++
+ 		n = n*10 + ch - '0'
+@@ -138,7 +139,7 @@ func shr(x *decimal, s uint) {
+ 	// write extra digits that still fit
+ 	for n > 0 && w < len(x.mant) {
+ 		d := n >> s
+-		n -= d << s
++		n &= mask
+ 		x.mant[w] = byte(d + '0')
+ 		w++
+ 		n = n * 10
+@@ -148,7 +149,7 @@ func shr(x *decimal, s uint) {
+ 	// append additional digits that didn't fit
+ 	for n > 0 {
+ 		d := n >> s
+-		n -= d << s
++		n &= mask
+ 		x.mant = append(x.mant, byte(d+'0'))
+ 		n = n * 10
+ 	}

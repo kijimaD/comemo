@@ -11,7 +11,51 @@ Date:   Tue Aug 12 15:28:45 2014 -0700
     R=golang-codereviews, adg, bradfitz, minux, rsc
     CC=golang-codereviews
     https://golang.org/cl/129820043
-
+---
  doc/go1compat.html         | 14 ++++++++++++++
  src/pkg/syscall/syscall.go |  7 +++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/doc/go1compat.html b/doc/go1compat.html
+index d10b9af294..2c8d214840 100644
+--- a/doc/go1compat.html
++++ b/doc/go1compat.html
+@@ -152,6 +152,20 @@ will be tagged as appropriate to identify versions that are compatible
+ with the Go 1 point releases.
+ </p>
+ 
++<h2 id="operating_systems">Operating systems</h2>
++
++<p>
++It is impossible to guarantee long-term compatibility with operating
++system interfaces, which are changed by outside parties.
++The <a href="/pkg/syscall/"><code>syscall</code></a> package
++is therefore outside the purview of the guarantees made here.
++As of Go version 1.4, the <code>syscall</code> package is frozen.
++Any evolution of the system call interface must be supported elsewhere,
++such as in the <code>go.sys</code> subrepository.
++For details and background, see
++<a href="https://golang.org/s/go1.4-syscall">this document</a>.
++</p>
++
+ <h2 id="tools">Tools</h2>
+ 
+ <p>
+diff --git a/src/pkg/syscall/syscall.go b/src/pkg/syscall/syscall.go
+index f7473fd5aa..3fd95798f3 100644
+--- a/src/pkg/syscall/syscall.go
++++ b/src/pkg/syscall/syscall.go
+@@ -17,6 +17,13 @@
+ // These calls return err == nil to indicate success; otherwise
+ // err is an operating system error describing the failure.
+ // On most systems, that error has type syscall.Errno.
++//
++// NOTE: This package is locked down. Code outside the standard
++// Go repository should be migrated to use the corresponding
++// package in the go.sys subrepository. That is also where updates
++// required by new systems or versions should be applied.
++// See https://golang.org/s/go1.4-syscall for more information.
++//
+ package syscall
+ 
+ // StringByteSlice is deprecated. Use ByteSliceFromString instead.

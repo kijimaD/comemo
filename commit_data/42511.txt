@@ -18,9 +18,198 @@ Date:   Thu Jan 2 16:42:43 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213130
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                        | 54 ----------------------
  src/cmd/go/testdata/script/test_regexps.txt  | 68 ++++++++++++++++++++++++++++
  src/cmd/go/testdata/src/testregexp/x_test.go | 17 -------
  src/cmd/go/testdata/src/testregexp/z_test.go | 19 --------
  4 files changed, 68 insertions(+), 90 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 072de5d18c..ddc29fbff9 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4086,60 +4086,6 @@ func main() {}`)
+ 	}))
+ }
+ 
+-func TestTestRegexps(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("test", "-cpu=1", "-run=X/Y", "-bench=X/Y", "-count=2", "-v", "testregexp")
+-	var lines []string
+-	for _, line := range strings.SplitAfter(tg.getStdout(), "\n") {
+-		if strings.Contains(line, "=== RUN") || strings.Contains(line, "--- BENCH") || strings.Contains(line, "LOG") {
+-			lines = append(lines, line)
+-		}
+-	}
+-
+-	// Important parts:
+-	//	TestX is run, twice
+-	//	TestX/Y is run, twice
+-	//	TestXX is run, twice
+-	//	TestZ is not run
+-	//	BenchmarkX is run but only with N=1, once
+-	//	BenchmarkXX is run but only with N=1, once
+-	//	BenchmarkX/Y is run in full, twice
+-	want := `=== RUN   TestX
+-    TestX: x_test.go:6: LOG: X running
+-=== RUN   TestX/Y
+-    TestX/Y: x_test.go:8: LOG: Y running
+-=== RUN   TestXX
+-    TestXX: z_test.go:10: LOG: XX running
+-=== RUN   TestX
+-    TestX: x_test.go:6: LOG: X running
+-=== RUN   TestX/Y
+-    TestX/Y: x_test.go:8: LOG: Y running
+-=== RUN   TestXX
+-    TestXX: z_test.go:10: LOG: XX running
+-    BenchmarkX: x_test.go:13: LOG: X running N=1
+-    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1
+-    BenchmarkX/Y: x_test.go:15: LOG: Y running N=100
+-    BenchmarkX/Y: x_test.go:15: LOG: Y running N=10000
+-    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000
+-    BenchmarkX/Y: x_test.go:15: LOG: Y running N=100000000
+-    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000000
+-    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1
+-    BenchmarkX/Y: x_test.go:15: LOG: Y running N=100
+-    BenchmarkX/Y: x_test.go:15: LOG: Y running N=10000
+-    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000
+-    BenchmarkX/Y: x_test.go:15: LOG: Y running N=100000000
+-    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000000
+-    BenchmarkXX: z_test.go:18: LOG: XX running N=1
+-`
+-
+-	have := strings.Join(lines, "")
+-	if have != want {
+-		t.Errorf("reduced output:<<<\n%s>>> want:<<<\n%s>>>", have, want)
+-	}
+-}
+-
+ func TestListTests(t *testing.T) {
+ 	tooSlow(t)
+ 	var tg *testgoData
+diff --git a/src/cmd/go/testdata/script/test_regexps.txt b/src/cmd/go/testdata/script/test_regexps.txt
+new file mode 100644
+index 0000000000..020b8dd579
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_regexps.txt
+@@ -0,0 +1,68 @@
++go test -cpu=1 -run=X/Y -bench=X/Y -count=2 -v testregexp
++
++# Test the following:
++
++#	TestX is run, twice
++stdout -count=2 '^=== RUN   TestX$'
++stdout -count=2 '^    TestX: x_test.go:6: LOG: X running$'
++
++#	TestX/Y is run, twice
++stdout -count=2 '^=== RUN   TestX/Y$'
++stdout -count=2 '^    TestX/Y: x_test.go:8: LOG: Y running$'
++
++#	TestXX is run, twice
++stdout -count=2 '^=== RUN   TestXX$'
++stdout -count=2 '^    TestXX: z_test.go:10: LOG: XX running'
++
++#	TestZ is not run
++! stdout '^=== RUN   TestZ$'
++
++#	BenchmarkX is run but only with N=1, once
++stdout -count=1 '^    BenchmarkX: x_test.go:13: LOG: X running N=1$'
++! stdout '^    BenchmarkX: x_test.go:13: LOG: X running N=10$'
++
++#	BenchmarkXX is run but only with N=1, once
++stdout -count=1 '^    BenchmarkXX: z_test.go:18: LOG: XX running N=1$'
++! stdout  '^    BenchmarkXX: z_test.go:18: LOG: XX running N=10$'
++
++#	BenchmarkX/Y is run in full, twice
++stdout -count=2 '    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1\n    BenchmarkX/Y: x_test.go:15: LOG: Y running N=100\n    BenchmarkX/Y: x_test.go:15: LOG: Y running N=10000\n    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000\n    BenchmarkX/Y: x_test.go:15: LOG: Y running N=100000000\n    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000000'
++
++-- testregexp/x_test.go --
++package x
++
++import "testing"
++
++func TestX(t *testing.T) {
++	t.Logf("LOG: X running")
++	t.Run("Y", func(t *testing.T) {
++		t.Logf("LOG: Y running")
++	})
++}
++
++func BenchmarkX(b *testing.B) {
++	b.Logf("LOG: X running N=%d", b.N)
++	b.Run("Y", func(b *testing.B) {
++		b.Logf("LOG: Y running N=%d", b.N)
++	})
++}
++-- testregexp/z_test.go --
++package x
++
++import "testing"
++
++func TestZ(t *testing.T) {
++	t.Logf("LOG: Z running")
++}
++
++func TestXX(t *testing.T) {
++	t.Logf("LOG: XX running")
++}
++
++func BenchmarkZ(b *testing.B) {
++	b.Logf("LOG: Z running N=%d", b.N)
++}
++
++func BenchmarkXX(b *testing.B) {
++	b.Logf("LOG: XX running N=%d", b.N)
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/src/testregexp/x_test.go b/src/cmd/go/testdata/src/testregexp/x_test.go
+deleted file mode 100644
+index 7573e79e16..0000000000
+--- a/src/cmd/go/testdata/src/testregexp/x_test.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-package x
+-
+-import "testing"
+-
+-func TestX(t *testing.T) {
+-	t.Logf("LOG: X running")
+-	t.Run("Y", func(t *testing.T) {
+-		t.Logf("LOG: Y running")
+-	})
+-}
+-
+-func BenchmarkX(b *testing.B) {
+-	b.Logf("LOG: X running N=%d", b.N)
+-	b.Run("Y", func(b *testing.B) {
+-		b.Logf("LOG: Y running N=%d", b.N)
+-	})
+-}
+diff --git a/src/cmd/go/testdata/src/testregexp/z_test.go b/src/cmd/go/testdata/src/testregexp/z_test.go
+deleted file mode 100644
+index 4fd1979154..0000000000
+--- a/src/cmd/go/testdata/src/testregexp/z_test.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-package x
+-
+-import "testing"
+-
+-func TestZ(t *testing.T) {
+-	t.Logf("LOG: Z running")
+-}
+-
+-func TestXX(t *testing.T) {
+-	t.Logf("LOG: XX running")
+-}
+-
+-func BenchmarkZ(b *testing.B) {
+-	b.Logf("LOG: Z running N=%d", b.N)
+-}
+-
+-func BenchmarkXX(b *testing.B) {
+-	b.Logf("LOG: XX running N=%d", b.N)
+-}

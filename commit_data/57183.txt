@@ -13,7 +13,7 @@ Date:   Fri Jul 7 09:11:46 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/log/slog/doc.go                        |  2 +-
  src/log/slog/example_custom_levels_test.go |  8 +++---
  src/log/slog/handler_test.go               |  4 +--
@@ -21,3 +21,341 @@ Date:   Fri Jul 7 09:11:46 2023 -0400
  src/log/slog/logger.go                     | 16 +++++------
  src/log/slog/logger_test.go                | 43 ++++++++++++++++--------------
  6 files changed, 42 insertions(+), 37 deletions(-)
+
+diff --git a/src/log/slog/doc.go b/src/log/slog/doc.go
+index d7a2bacb89..088df61c6d 100644
+--- a/src/log/slog/doc.go
++++ b/src/log/slog/doc.go
+@@ -206,7 +206,7 @@ keys and values; this allows it, too, to avoid allocation.
+ 
+ The call
+ 
+-	logger.LogAttrs(nil, slog.LevelInfo, "hello", slog.Int("count", 3))
++	logger.LogAttrs(ctx, slog.LevelInfo, "hello", slog.Int("count", 3))
+ 
+ is the most efficient way to achieve the same output as
+ 
+diff --git a/src/log/slog/example_custom_levels_test.go b/src/log/slog/example_custom_levels_test.go
+index 2f230320bc..7351ca493b 100644
+--- a/src/log/slog/example_custom_levels_test.go
++++ b/src/log/slog/example_custom_levels_test.go
+@@ -5,6 +5,7 @@
+ package slog_test
+ 
+ import (
++	"context"
+ 	"log/slog"
+ 	"os"
+ )
+@@ -72,13 +73,14 @@ func ExampleHandlerOptions_customLevels() {
+ 	})
+ 
+ 	logger := slog.New(th)
+-	logger.Log(nil, LevelEmergency, "missing pilots")
++	ctx := context.Background()
++	logger.Log(ctx, LevelEmergency, "missing pilots")
+ 	logger.Error("failed to start engines", "err", "missing fuel")
+ 	logger.Warn("falling back to default value")
+-	logger.Log(nil, LevelNotice, "all systems are running")
++	logger.Log(ctx, LevelNotice, "all systems are running")
+ 	logger.Info("initiating launch")
+ 	logger.Debug("starting background job")
+-	logger.Log(nil, LevelTrace, "button clicked")
++	logger.Log(ctx, LevelTrace, "button clicked")
+ 
+ 	// Output:
+ 	// sev=EMERGENCY msg="missing pilots"
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index f43d841483..3fb7360fc2 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -108,8 +108,6 @@ func TestDefaultHandle(t *testing.T) {
+ 
+ // Verify the common parts of TextHandler and JSONHandler.
+ func TestJSONAndTextHandlers(t *testing.T) {
+-	ctx := context.Background()
+-
+ 	// remove all Attrs
+ 	removeAll := func(_ []string, a Attr) Attr { return Attr{} }
+ 
+@@ -412,7 +410,7 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 						h = test.with(h)
+ 					}
+ 					buf.Reset()
+-					if err := h.Handle(ctx, r); err != nil {
++					if err := h.Handle(nil, r); err != nil {
+ 						t.Fatal(err)
+ 					}
+ 					want := strings.ReplaceAll(handler.want, "$LINE", line)
+diff --git a/src/log/slog/json_handler_test.go b/src/log/slog/json_handler_test.go
+index dcfd701dd4..65130f2426 100644
+--- a/src/log/slog/json_handler_test.go
++++ b/src/log/slog/json_handler_test.go
+@@ -174,6 +174,7 @@ func BenchmarkJSONHandler(b *testing.B) {
+ 		}},
+ 	} {
+ 		b.Run(bench.name, func(b *testing.B) {
++			ctx := context.Background()
+ 			l := New(NewJSONHandler(io.Discard, &bench.opts)).With(
+ 				String("program", "my-test-program"),
+ 				String("package", "log/slog"),
+@@ -182,7 +183,7 @@ func BenchmarkJSONHandler(b *testing.B) {
+ 			b.ReportAllocs()
+ 			b.ResetTimer()
+ 			for i := 0; i < b.N; i++ {
+-				l.LogAttrs(nil, LevelInfo, "this is a typical log message",
++				l.LogAttrs(ctx, LevelInfo, "this is a typical log message",
+ 					String("module", "github.com/google/go-cmp"),
+ 					String("version", "v1.23.4"),
+ 					Int("count", 23),
+@@ -238,12 +239,13 @@ func BenchmarkPreformatting(b *testing.B) {
+ 		{"struct", io.Discard, structAttrs},
+ 		{"struct file", outFile, structAttrs},
+ 	} {
++		ctx := context.Background()
+ 		b.Run(bench.name, func(b *testing.B) {
+ 			l := New(NewJSONHandler(bench.wc, nil)).With(bench.attrs...)
+ 			b.ReportAllocs()
+ 			b.ResetTimer()
+ 			for i := 0; i < b.N; i++ {
+-				l.LogAttrs(nil, LevelInfo, "this is a typical log message",
++				l.LogAttrs(ctx, LevelInfo, "this is a typical log message",
+ 					String("module", "github.com/google/go-cmp"),
+ 					String("version", "v1.23.4"),
+ 					Int("count", 23),
+diff --git a/src/log/slog/logger.go b/src/log/slog/logger.go
+index b6fea60c9c..a068085f47 100644
+--- a/src/log/slog/logger.go
++++ b/src/log/slog/logger.go
+@@ -165,7 +165,7 @@ func (l *Logger) LogAttrs(ctx context.Context, level Level, msg string, attrs ..
+ 
+ // Debug logs at LevelDebug.
+ func (l *Logger) Debug(msg string, args ...any) {
+-	l.log(nil, LevelDebug, msg, args...)
++	l.log(context.Background(), LevelDebug, msg, args...)
+ }
+ 
+ // DebugContext logs at LevelDebug with the given context.
+@@ -175,7 +175,7 @@ func (l *Logger) DebugContext(ctx context.Context, msg string, args ...any) {
+ 
+ // Info logs at LevelInfo.
+ func (l *Logger) Info(msg string, args ...any) {
+-	l.log(nil, LevelInfo, msg, args...)
++	l.log(context.Background(), LevelInfo, msg, args...)
+ }
+ 
+ // InfoContext logs at LevelInfo with the given context.
+@@ -185,7 +185,7 @@ func (l *Logger) InfoContext(ctx context.Context, msg string, args ...any) {
+ 
+ // Warn logs at LevelWarn.
+ func (l *Logger) Warn(msg string, args ...any) {
+-	l.log(nil, LevelWarn, msg, args...)
++	l.log(context.Background(), LevelWarn, msg, args...)
+ }
+ 
+ // WarnContext logs at LevelWarn with the given context.
+@@ -195,7 +195,7 @@ func (l *Logger) WarnContext(ctx context.Context, msg string, args ...any) {
+ 
+ // Error logs at LevelError.
+ func (l *Logger) Error(msg string, args ...any) {
+-	l.log(nil, LevelError, msg, args...)
++	l.log(context.Background(), LevelError, msg, args...)
+ }
+ 
+ // ErrorContext logs at LevelError with the given context.
+@@ -247,7 +247,7 @@ func (l *Logger) logAttrs(ctx context.Context, level Level, msg string, attrs ..
+ 
+ // Debug calls Logger.Debug on the default logger.
+ func Debug(msg string, args ...any) {
+-	Default().log(nil, LevelDebug, msg, args...)
++	Default().log(context.Background(), LevelDebug, msg, args...)
+ }
+ 
+ // DebugContext calls Logger.DebugContext on the default logger.
+@@ -257,7 +257,7 @@ func DebugContext(ctx context.Context, msg string, args ...any) {
+ 
+ // Info calls Logger.Info on the default logger.
+ func Info(msg string, args ...any) {
+-	Default().log(nil, LevelInfo, msg, args...)
++	Default().log(context.Background(), LevelInfo, msg, args...)
+ }
+ 
+ // InfoContext calls Logger.InfoContext on the default logger.
+@@ -267,7 +267,7 @@ func InfoContext(ctx context.Context, msg string, args ...any) {
+ 
+ // Warn calls Logger.Warn on the default logger.
+ func Warn(msg string, args ...any) {
+-	Default().log(nil, LevelWarn, msg, args...)
++	Default().log(context.Background(), LevelWarn, msg, args...)
+ }
+ 
+ // WarnContext calls Logger.WarnContext on the default logger.
+@@ -277,7 +277,7 @@ func WarnContext(ctx context.Context, msg string, args ...any) {
+ 
+ // Error calls Logger.Error on the default logger.
+ func Error(msg string, args ...any) {
+-	Default().log(nil, LevelError, msg, args...)
++	Default().log(context.Background(), LevelError, msg, args...)
+ }
+ 
+ // ErrorContext calls Logger.ErrorContext on the default logger.
+diff --git a/src/log/slog/logger_test.go b/src/log/slog/logger_test.go
+index b8a01dcb4d..2f5b31939c 100644
+--- a/src/log/slog/logger_test.go
++++ b/src/log/slog/logger_test.go
+@@ -25,6 +25,7 @@ import (
+ const timeRE = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2})`
+ 
+ func TestLogTextHandler(t *testing.T) {
++	ctx := context.Background()
+ 	var buf bytes.Buffer
+ 
+ 	l := New(NewTextHandler(&buf, nil))
+@@ -51,10 +52,10 @@ func TestLogTextHandler(t *testing.T) {
+ 	l.Error("bad", "a", 1)
+ 	check(`level=ERROR msg=bad a=1`)
+ 
+-	l.Log(nil, LevelWarn+1, "w", Int("a", 1), String("b", "two"))
++	l.Log(ctx, LevelWarn+1, "w", Int("a", 1), String("b", "two"))
+ 	check(`level=WARN\+1 msg=w a=1 b=two`)
+ 
+-	l.LogAttrs(nil, LevelInfo+1, "a b c", Int("a", 1), String("b", "two"))
++	l.LogAttrs(ctx, LevelInfo+1, "a b c", Int("a", 1), String("b", "two"))
+ 	check(`level=INFO\+1 msg="a b c" a=1 b=two`)
+ 
+ 	l.Info("info", "a", []Attr{Int("i", 1)})
+@@ -156,6 +157,7 @@ func TestAttrs(t *testing.T) {
+ }
+ 
+ func TestCallDepth(t *testing.T) {
++	ctx := context.Background()
+ 	h := &captureHandler{}
+ 	var startLine int
+ 
+@@ -181,9 +183,9 @@ func TestCallDepth(t *testing.T) {
+ 	startLine = f.Line + 4
+ 	// Do not change the number of lines between here and the call to check(0).
+ 
+-	logger.Log(nil, LevelInfo, "")
++	logger.Log(ctx, LevelInfo, "")
+ 	check(0)
+-	logger.LogAttrs(nil, LevelInfo, "")
++	logger.LogAttrs(ctx, LevelInfo, "")
+ 	check(1)
+ 	logger.Debug("")
+ 	check(2)
+@@ -201,13 +203,14 @@ func TestCallDepth(t *testing.T) {
+ 	check(8)
+ 	Error("")
+ 	check(9)
+-	Log(nil, LevelInfo, "")
++	Log(ctx, LevelInfo, "")
+ 	check(10)
+-	LogAttrs(nil, LevelInfo, "")
++	LogAttrs(ctx, LevelInfo, "")
+ 	check(11)
+ }
+ 
+ func TestAlloc(t *testing.T) {
++	ctx := context.Background()
+ 	dl := New(discardHandler{})
+ 	defer SetDefault(Default()) // restore
+ 	SetDefault(dl)
+@@ -222,7 +225,7 @@ func TestAlloc(t *testing.T) {
+ 		wantAllocs(t, 0, func() { dl.Info("hello") })
+ 	})
+ 	t.Run("logger.Log", func(t *testing.T) {
+-		wantAllocs(t, 0, func() { dl.Log(nil, LevelDebug, "hello") })
++		wantAllocs(t, 0, func() { dl.Log(ctx, LevelDebug, "hello") })
+ 	})
+ 	t.Run("2 pairs", func(t *testing.T) {
+ 		s := "abc"
+@@ -239,7 +242,7 @@ func TestAlloc(t *testing.T) {
+ 		s := "abc"
+ 		i := 2000
+ 		wantAllocs(t, 2, func() {
+-			l.Log(nil, LevelInfo, "hello",
++			l.Log(ctx, LevelInfo, "hello",
+ 				"n", i,
+ 				"s", s,
+ 			)
+@@ -250,8 +253,8 @@ func TestAlloc(t *testing.T) {
+ 		s := "abc"
+ 		i := 2000
+ 		wantAllocs(t, 0, func() {
+-			if l.Enabled(nil, LevelInfo) {
+-				l.Log(nil, LevelInfo, "hello",
++			if l.Enabled(ctx, LevelInfo) {
++				l.Log(ctx, LevelInfo, "hello",
+ 					"n", i,
+ 					"s", s,
+ 				)
+@@ -273,30 +276,30 @@ func TestAlloc(t *testing.T) {
+ 		wantAllocs(t, 0, func() { dl.Info("", "error", io.EOF) })
+ 	})
+ 	t.Run("attrs1", func(t *testing.T) {
+-		wantAllocs(t, 0, func() { dl.LogAttrs(nil, LevelInfo, "", Int("a", 1)) })
+-		wantAllocs(t, 0, func() { dl.LogAttrs(nil, LevelInfo, "", Any("error", io.EOF)) })
++		wantAllocs(t, 0, func() { dl.LogAttrs(ctx, LevelInfo, "", Int("a", 1)) })
++		wantAllocs(t, 0, func() { dl.LogAttrs(ctx, LevelInfo, "", Any("error", io.EOF)) })
+ 	})
+ 	t.Run("attrs3", func(t *testing.T) {
+ 		wantAllocs(t, 0, func() {
+-			dl.LogAttrs(nil, LevelInfo, "hello", Int("a", 1), String("b", "two"), Duration("c", time.Second))
++			dl.LogAttrs(ctx, LevelInfo, "hello", Int("a", 1), String("b", "two"), Duration("c", time.Second))
+ 		})
+ 	})
+ 	t.Run("attrs3 disabled", func(t *testing.T) {
+ 		logger := New(discardHandler{disabled: true})
+ 		wantAllocs(t, 0, func() {
+-			logger.LogAttrs(nil, LevelInfo, "hello", Int("a", 1), String("b", "two"), Duration("c", time.Second))
++			logger.LogAttrs(ctx, LevelInfo, "hello", Int("a", 1), String("b", "two"), Duration("c", time.Second))
+ 		})
+ 	})
+ 	t.Run("attrs6", func(t *testing.T) {
+ 		wantAllocs(t, 1, func() {
+-			dl.LogAttrs(nil, LevelInfo, "hello",
++			dl.LogAttrs(ctx, LevelInfo, "hello",
+ 				Int("a", 1), String("b", "two"), Duration("c", time.Second),
+ 				Int("d", 1), String("e", "two"), Duration("f", time.Second))
+ 		})
+ 	})
+ 	t.Run("attrs9", func(t *testing.T) {
+ 		wantAllocs(t, 1, func() {
+-			dl.LogAttrs(nil, LevelInfo, "hello",
++			dl.LogAttrs(ctx, LevelInfo, "hello",
+ 				Int("a", 1), String("b", "two"), Duration("c", time.Second),
+ 				Int("d", 1), String("e", "two"), Duration("f", time.Second),
+ 				Int("d", 1), String("e", "two"), Duration("f", time.Second))
+@@ -511,27 +514,27 @@ func BenchmarkNopLog(b *testing.B) {
+ 	b.Run("no attrs", func(b *testing.B) {
+ 		b.ReportAllocs()
+ 		for i := 0; i < b.N; i++ {
+-			l.LogAttrs(nil, LevelInfo, "msg")
++			l.LogAttrs(ctx, LevelInfo, "msg")
+ 		}
+ 	})
+ 	b.Run("attrs", func(b *testing.B) {
+ 		b.ReportAllocs()
+ 		for i := 0; i < b.N; i++ {
+-			l.LogAttrs(nil, LevelInfo, "msg", Int("a", 1), String("b", "two"), Bool("c", true))
++			l.LogAttrs(ctx, LevelInfo, "msg", Int("a", 1), String("b", "two"), Bool("c", true))
+ 		}
+ 	})
+ 	b.Run("attrs-parallel", func(b *testing.B) {
+ 		b.ReportAllocs()
+ 		b.RunParallel(func(pb *testing.PB) {
+ 			for pb.Next() {
+-				l.LogAttrs(nil, LevelInfo, "msg", Int("a", 1), String("b", "two"), Bool("c", true))
++				l.LogAttrs(ctx, LevelInfo, "msg", Int("a", 1), String("b", "two"), Bool("c", true))
+ 			}
+ 		})
+ 	})
+ 	b.Run("keys-values", func(b *testing.B) {
+ 		b.ReportAllocs()
+ 		for i := 0; i < b.N; i++ {
+-			l.Log(nil, LevelInfo, "msg", "a", 1, "b", "two", "c", true)
++			l.Log(ctx, LevelInfo, "msg", "a", 1, "b", "two", "c", true)
+ 		}
+ 	})
+ 	b.Run("WithContext", func(b *testing.B) {

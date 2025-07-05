@@ -11,6 +11,21 @@ Date:   Mon May 9 15:14:07 2016 -0400
     Change-Id: I5b9e312806d58532b41ea3560ff079dabbc6424e
     Reviewed-on: https://go-review.googlesource.com/22962
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/os_unix_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/os/os_unix_test.go b/src/os/os_unix_test.go
+index c47f5462ab..5c10154760 100644
+--- a/src/os/os_unix_test.go
++++ b/src/os/os_unix_test.go
+@@ -145,6 +145,9 @@ func TestLchown(t *testing.T) {
+ 
+ 	linkname := f.Name() + "2"
+ 	if err := Symlink(f.Name(), linkname); err != nil {
++		if runtime.GOOS == "android" && IsPermission(err) {
++			t.Skip("skipping test on Android; permission error creating symlink")
++		}
+ 		t.Fatalf("link %s -> %s: %v", f.Name(), linkname, err)
+ 	}
+ 	defer Remove(linkname)

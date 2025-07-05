@@ -7,7 +7,43 @@ Date:   Sat Aug 2 15:52:36 2008 -0700
     R=gri
     OCL=13766
     CL=13766
-
+---
  test/{bugs => fixedbugs}/bug084.go | 0
  test/golden.out                    | 9 ++++-----
  2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/test/bugs/bug084.go b/test/fixedbugs/bug084.go
+similarity index 100%
+rename from test/bugs/bug084.go
+rename to test/fixedbugs/bug084.go
+diff --git a/test/golden.out b/test/golden.out
+index c2a7766dec..997f568fa7 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -213,8 +213,8 @@ outer loop top k 1
+ k not zero
+ panic on line 305 PC=0x1362
+ 0x1362?zi
+-	main·main(1, 0, 1606416400, ...)
+-	main·main(0x1, 0x7fff5fbff810, 0x0, ...)
++	main·main(1, 0, 1606414952, ...)
++	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
+ BUG: crashes
+ 
+ =========== bugs/bug072.go
+@@ -255,9 +255,6 @@ BUG: fails incorrectly
+ 
+ =========== bugs/bug083.go
+ 
+-=========== bugs/bug084.go
+-BUG: wrong answer
+-
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug001.go
+@@ -370,3 +367,5 @@ ok
+ =========== fixedbugs/bug069.go
+ 
+ =========== fixedbugs/bug071.go
++
++=========== fixedbugs/bug084.go

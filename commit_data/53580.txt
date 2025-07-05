@@ -31,7 +31,7 @@ Date:   Thu Aug 18 15:16:23 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/noder/reader.go |  8 ++++++-
  src/cmd/compile/internal/noder/writer.go |  7 ++++--
  src/cmd/compile/internal/types/fmt.go    | 25 +++++++++++++++------
@@ -39,3 +39,160 @@ Date:   Thu Aug 18 15:16:23 2022 -0700
  test/typeparam/issue54456.go             | 37 ++++++++++++++++++++++++++++++++
  test/typeparam/nested.out                |  8 +++----
  6 files changed, 72 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 1acc8c7fb6..5f770166db 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -777,8 +777,13 @@ func (dict *readerDict) mangle(sym *types.Sym) *types.Sym {
+ 		return sym
+ 	}
+ 
++	// If sym is a locally defined generic type, we need the suffix to
++	// stay at the end after mangling so that types/fmt.go can strip it
++	// out again when writing the type's runtime descriptor (#54456).
++	base, suffix := types.SplitVargenSuffix(sym.Name)
++
+ 	var buf strings.Builder
+-	buf.WriteString(sym.Name)
++	buf.WriteString(base)
+ 	buf.WriteByte('[')
+ 	for i, targ := range dict.targs {
+ 		if i > 0 {
+@@ -791,6 +796,7 @@ func (dict *readerDict) mangle(sym *types.Sym) *types.Sym {
+ 		buf.WriteString(targ.LinkString())
+ 	}
+ 	buf.WriteByte(']')
++	buf.WriteString(suffix)
+ 	return sym.Pkg.Lookup(buf.String())
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index d9cd1cbd32..c2c3567220 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -933,8 +933,11 @@ func (w *writer) qualifiedIdent(obj types2.Object) {
+ 		decl, ok := w.p.typDecls[obj.(*types2.TypeName)]
+ 		assert(ok)
+ 		if decl.gen != 0 {
+-			// TODO(mdempsky): Find a better solution than embedding middle
+-			// dot in the symbol name; this is terrible.
++			// For local defined types, we embed a scope-disambiguation
++			// number directly into their name. types.SplitVargenSuffix then
++			// knows to look for this.
++			//
++			// TODO(mdempsky): Find a better solution; this is terrible.
+ 			name = fmt.Sprintf("%s·%v", name, decl.gen)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index c1138643b7..c6e99d26c2 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -340,13 +340,9 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 		// non-fmtTypeID modes.
+ 		sym := t.Sym()
+ 		if mode != fmtTypeID {
+-			i := len(sym.Name)
+-			for i > 0 && sym.Name[i-1] >= '0' && sym.Name[i-1] <= '9' {
+-				i--
+-			}
+-			const dot = "·"
+-			if i >= len(dot) && sym.Name[i-len(dot):i] == dot {
+-				sym = &Sym{Pkg: sym.Pkg, Name: sym.Name[:i-len(dot)]}
++			base, _ := SplitVargenSuffix(sym.Name)
++			if len(base) < len(sym.Name) {
++				sym = &Sym{Pkg: sym.Pkg, Name: base}
+ 			}
+ 		}
+ 		sconv2(b, sym, verb, mode)
+@@ -704,6 +700,21 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
+ 	}
+ }
+ 
++// SplitVargenSuffix returns name split into a base string and a ·N
++// suffix, if any.
++func SplitVargenSuffix(name string) (base, suffix string) {
++	i := len(name)
++	for i > 0 && name[i-1] >= '0' && name[i-1] <= '9' {
++		i--
++	}
++	const dot = "·"
++	if i >= len(dot) && name[i-len(dot):i] == dot {
++		i -= len(dot)
++		return name[:i], name[i:]
++	}
++	return name, ""
++}
++
+ // Val
+ 
+ func FmtConst(v constant.Value, sharp bool) string {
+diff --git a/test/run.go b/test/run.go
+index 21f0f7d634..58d09b6b59 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1990,6 +1990,7 @@ var go118Failures = setOf(
+ 	"fixedbugs/issue54343.go",  // 1.18 compiler assigns receiver parameter to global variable
+ 	"typeparam/nested.go",      // 1.18 compiler doesn't support function-local types with generics
+ 	"typeparam/issue51521.go",  // 1.18 compiler produces bad panic message and link error
++	"typeparam/issue54456.go",  // 1.18 compiler fails to distinguish local generic types
+ 	"typeparam/issue54497.go",  // 1.18 compiler is more conservative about inlining due to repeated issues
+ 	"typeparam/mdempsky/16.go", // 1.18 compiler uses interface shape type in failed type assertions
+ 	"typeparam/mdempsky/17.go", // 1.18 compiler mishandles implicit conversions from range loops
+diff --git a/test/typeparam/issue54456.go b/test/typeparam/issue54456.go
+new file mode 100644
+index 0000000000..8342163e51
+--- /dev/null
++++ b/test/typeparam/issue54456.go
+@@ -0,0 +1,37 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The Go 1.18 frontend failed to disambiguate instantiations of
++// different, locally defined generic types with the same name.
++//
++// The unified frontend also exposed the scope-disambiguation mangling
++// to end users in reflect data.
++
++package main
++
++import (
++	"reflect"
++)
++
++func one() any { type T[_ any] int; return T[int](0) }
++func two() any { type T[_ any] int; return T[int](0) }
++
++func main() {
++	p, q := one(), two()
++
++	// p and q have different dynamic types; this comparison should
++	// evaluate false.
++	if p == q {
++		panic("bad type identity")
++	}
++
++	for _, x := range []any{p, q} {
++		// The names here should not contain "·1" or "·2".
++		if name := reflect.TypeOf(x).String(); name != "main.T[int]" {
++			panic(name)
++		}
++	}
++}
+diff --git a/test/typeparam/nested.out b/test/typeparam/nested.out
+index 37cb762e32..0836d9b0dc 100644
+--- a/test/typeparam/nested.out
++++ b/test/typeparam/nested.out
+@@ -1,4 +1,4 @@
+-0,3: main.T·2[int;int]
+-4,7: main.T·2[int;main.U·3[int;int]]
+-22,23: main.T·2[main.Int;main.Int]
+-26,27: main.T·2[main.Int;main.U·3[main.Int;main.Int]]
++0,3: main.T[int;int]
++4,7: main.T[int;main.U[int;int]·3]
++22,23: main.T[main.Int;main.Int]
++26,27: main.T[main.Int;main.U[main.Int;main.Int]·3]

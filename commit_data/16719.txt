@@ -20,8 +20,177 @@ Date:   Wed Jul 10 09:52:36 2013 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/10868047
-
+---
  src/cmd/go/build.go      |  4 ++--
  src/cmd/go/test.go       | 42 ++++++++++++++++++++++++++++++++++--------
  src/pkg/testing/cover.go | 27 ++++++++++++++-------------
  3 files changed, 50 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 123eb662e5..dd015eeac6 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -796,8 +796,8 @@ func (b *builder) build(a *action) (err error) {
+ 		for _, file := range a.p.GoFiles {
+ 			sourceFile := filepath.Join(a.p.Dir, file)
+ 			cover := a.p.coverVars[file]
+-			if cover == nil {
+-				// Not covering this file
++			if cover == nil || isTestFile(file) {
++				// Not covering this file.
+ 				gofiles = append(gofiles, file)
+ 				continue
+ 			}
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index d30b96bf0e..57b764586a 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -808,11 +808,21 @@ func recompileForTest(pmain, preal, ptest *Package, testDir string) {
+ 
+ var coverIndex = 0
+ 
++// isTestFile reports whether the source file is a set of tests and should therefore
++// be excluded from coverage analysis.
++func isTestFile(file string) bool {
++	// We don't cover tests, only the code they test.
++	return strings.HasSuffix(file, "_test.go")
++}
++
+ // declareCoverVars attaches the required cover variables names
+ // to the files, to be used when annotating the files.
+ func declareCoverVars(importPath string, files ...string) map[string]*CoverVar {
+ 	coverVars := make(map[string]*CoverVar)
+ 	for _, file := range files {
++		if isTestFile(file) {
++			continue
++		}
+ 		coverVars[file] = &CoverVar{
+ 			File: filepath.Join(importPath, file),
+ 			Var:  fmt.Sprintf("GoCover_%d", coverIndex),
+@@ -902,11 +912,7 @@ func (b *builder) runTest(a *action) error {
+ 		if testShowPass {
+ 			a.testOutput.Write(out)
+ 		}
+-		coverWhere := ""
+-		if testCoverPaths != nil {
+-			coverWhere = " in " + strings.Join(testCoverPaths, ", ")
+-		}
+-		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s%s%s\n", a.p.ImportPath, t, coveragePercentage(out), coverWhere)
++		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s%s\n", a.p.ImportPath, t, coveragePercentage(out))
+ 		return nil
+ 	}
+ 
+@@ -931,10 +937,12 @@ func coveragePercentage(out []byte) string {
+ 	// The string looks like
+ 	//	test coverage for encoding/binary: 79.9% of statements
+ 	// Extract the piece from the percentage to the end of the line.
+-	re := regexp.MustCompile(`test coverage for [^ ]+: (.*)\n`)
++	re := regexp.MustCompile(`coverage for [^ ]+: (.*)\n`)
+ 	matches := re.FindSubmatch(out)
+ 	if matches == nil {
+-		return "(missing coverage statistics)"
++		// Probably running "go test -cover" not "go test -cover fmt".
++		// The coverage output will appear in the output directly.
++		return ""
+ 	}
+ 	return fmt.Sprintf("\tcoverage: %s", matches[1])
+ }
+@@ -1036,6 +1044,22 @@ func (t *testFuncs) CoverEnabled() bool {
+ 	return testCover
+ }
+ 
++// Covered returns a string describing which packages are being tested for coverage.
++// If the covered package is the same as the tested package, it returns the empty string.
++// Otherwise it is a comma-separated human-readable list of packages beginning with
++// " in", ready for use in the coverage message.
++func (t *testFuncs) Covered() string {
++	if testCoverPaths == nil {
++		return ""
++	}
++	return " in " + strings.Join(testCoverPaths, ", ")
++}
++
++// Tested returns the name of the package being tested.
++func (t *testFuncs) Tested() string {
++	return t.Package.Name
++}
++
+ type testFunc struct {
+ 	Package string // imported package name (_test or _xtest)
+ 	Name    string // function name
+@@ -1157,7 +1181,8 @@ func coverRegisterFile(fileName string, counter []uint32, pos []uint32, numStmts
+ 		panic("coverage: mismatched sizes")
+ 	}
+ 	if coverCounters[fileName] != nil {
+-		panic("coverage: duplicate counter array for " + fileName)
++		// Already registered.
++		return
+ 	}
+ 	coverCounters[fileName] = counter
+ 	block := make([]testing.CoverBlock, len(counter))
+@@ -1176,6 +1201,7 @@ func coverRegisterFile(fileName string, counter []uint32, pos []uint32, numStmts
+ 
+ func main() {
+ {{if .CoverEnabled}}
++	testing.CoveredPackage({{printf "%q" .Tested}}, {{printf "%q" .Covered}})
+ 	testing.RegisterCover(coverCounters, coverBlocks)
+ {{end}}
+ 	testing.Main(matchString, tests, benchmarks, examples)
+diff --git a/src/pkg/testing/cover.go b/src/pkg/testing/cover.go
+index 4136becbfc..4f66a0b792 100644
+--- a/src/pkg/testing/cover.go
++++ b/src/pkg/testing/cover.go
+@@ -27,6 +27,11 @@ var (
+ 	coverBlocks   map[string][]CoverBlock
+ )
+ 
++var (
++	testedPackage  string // The package being tested.
++	coveredPackage string // List of the package[s] being covered, if distinct from the tested package.
++)
++
+ // RegisterCover records the coverage data accumulators for the tests.
+ // NOTE: This struct is internal to the testing infrastructure and may change.
+ // It is not covered (yet) by the Go 1 compatibility guidelines.
+@@ -35,6 +40,14 @@ func RegisterCover(c map[string][]uint32, b map[string][]CoverBlock) {
+ 	coverBlocks = b
+ }
+ 
++// CoveredPackage records the names of the packages being tested and covered.
++// NOTE: This function is internal to the testing infrastructure and may change.
++// It is not covered (yet) by the Go 1 compatibility guidelines.
++func CoveredPackage(tested, covered string) {
++	testedPackage = tested
++	coveredPackage = covered
++}
++
+ // mustBeNil checks the error and, if present, reports it and exits.
+ func mustBeNil(err error) {
+ 	if err != nil {
+@@ -55,16 +68,7 @@ func coverReport() {
+ 	}
+ 
+ 	var active, total int64
+-	packageName := ""
+ 	for name, counts := range coverCounters {
+-		if packageName == "" {
+-			// Package name ends at last slash.
+-			for i, c := range name {
+-				if c == '/' {
+-					packageName = name[:i]
+-				}
+-			}
+-		}
+ 		blocks := coverBlocks[name]
+ 		for i, count := range counts {
+ 			stmts := int64(blocks[i].Stmts)
+@@ -85,8 +89,5 @@ func coverReport() {
+ 	if total == 0 {
+ 		total = 1
+ 	}
+-	if packageName == "" {
+-		packageName = "package"
+-	}
+-	fmt.Printf("test coverage for %s: %.1f%% of statements\n", packageName, 100*float64(active)/float64(total))
++	fmt.Printf("coverage for %s: %.1f%% of statements%s\n", testedPackage, 100*float64(active)/float64(total), coveredPackage)
+ }

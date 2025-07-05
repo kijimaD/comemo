@@ -5,7 +5,7 @@ Date:   Fri Jun 6 16:59:54 2008 -0700
     - more tests (mostly redeclaration errors that are not checked)
     
     SVN=121546
-
+---
  test/bug032.go  | 11 +++++++++++
  test/bug033.go  | 11 +++++++++++
  test/bug034.go  | 12 ++++++++++++
@@ -17,3 +17,212 @@ Date:   Fri Jun 6 16:59:54 2008 -0700
  test/bug040.go  | 11 +++++++++++
  test/golden.out | 31 +++++++++++++++++++++++++++++++
  10 files changed, 138 insertions(+)
+
+diff --git a/test/bug032.go b/test/bug032.go
+new file mode 100644
+index 0000000000..1e080bae43
+--- /dev/null
++++ b/test/bug032.go
+@@ -0,0 +1,11 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $F.go && echo BUG: compilation succeeds incorrectly
++
++package main
++
++type I interface {
++	g,f	()int;  // BUG only one method name allowed per signature
++}
+diff --git a/test/bug033.go b/test/bug033.go
+new file mode 100644
+index 0000000000..9dad4075b3
+--- /dev/null
++++ b/test/bug033.go
+@@ -0,0 +1,11 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $F.go && echo BUG: compilation succeeds incorrectly
++
++package main
++
++type Iputs	interface {
++	puts func(s string);  // BUG no func allowed
++}
+diff --git a/test/bug034.go b/test/bug034.go
+new file mode 100644
+index 0000000000..6c48851d0e
+--- /dev/null
++++ b/test/bug034.go
+@@ -0,0 +1,12 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $F.go && echo BUG: compilation succeeds incorrectly
++
++package main
++
++type Item interface {
++	Print_BUG	func();  // BUG no func allowed
++}
++
+diff --git a/test/bug035.go b/test/bug035.go
+new file mode 100644
+index 0000000000..5e93a8d89b
+--- /dev/null
++++ b/test/bug035.go
+@@ -0,0 +1,13 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f9(a int) (i int, f float) {
++	i := 9;  // BUG redeclaration
++	f := float(9);  // BUG redeclaration
++	return i, f;
++}
+diff --git a/test/bug036.go b/test/bug036.go
+new file mode 100644
+index 0000000000..8698dc7bf3
+--- /dev/null
++++ b/test/bug036.go
+@@ -0,0 +1,14 @@
++// ! $G $D/$F.go >/dev/null
++// # ignoring error messages...
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main()
++{
++	s := float(0);
++	s := float(0);  // BUG redeclaration
++}
+diff --git a/test/bug037.go b/test/bug037.go
+new file mode 100644
+index 0000000000..b0345ccf15
+--- /dev/null
++++ b/test/bug037.go
+@@ -0,0 +1,11 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	s := vlong(0);  // BUG no vlong specified in the language
++}
+diff --git a/test/bug038.go b/test/bug038.go
+new file mode 100644
+index 0000000000..7585376a36
+--- /dev/null
++++ b/test/bug038.go
+@@ -0,0 +1,13 @@
++// ! $G $D/$F.go >/dev/null
++// # ignoring error messages...
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var z [3]byte;
++	z := new([3]byte);  // BUG redeclaration
++}
+diff --git a/test/bug039.go b/test/bug039.go
+new file mode 100644
+index 0000000000..a87e986510
+--- /dev/null
++++ b/test/bug039.go
+@@ -0,0 +1,11 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main (x int) {
++  var x int;  // BUG redeclaration error
++}
+diff --git a/test/bug040.go b/test/bug040.go
+new file mode 100644
+index 0000000000..912316cb6f
+--- /dev/null
++++ b/test/bug040.go
+@@ -0,0 +1,11 @@
++// ! $G $D/$F.go >/dev/null
++// # ignoring error messages...
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main (x, x int) {  // BUG redeclaration error
++}
+diff --git a/test/golden.out b/test/golden.out
+index 581ccf6afc..688b71678a 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,4 +1,34 @@
+ 
++=========== ./bug032.go
++BUG: compilation succeeds incorrectly
++
++=========== ./bug033.go
++BUG: compilation succeeds incorrectly
++
++=========== ./bug034.go
++BUG: compilation succeeds incorrectly
++
++=========== ./bug035.go
++BUG: compilation succeeds incorrectly
++
++=========== ./bug036.go
++BUG: compilation succeeds incorrectly
++
++=========== ./bug037.go
++BUG: compilation succeeds incorrectly
++
++=========== ./bug038.go
++BUG: compilation succeeds incorrectly
++
++=========== ./bug039.go
++BUG: compilation succeeds incorrectly
++
++=========== ./bug040.go
++BUG: compilation succeeds incorrectly
++
++=========== ./bug041.go
++BUG: compilation succeeds incorrectly
++
+ =========== ./char_lit.go
+ char_lit.go:5: syntax error
+ char_lit.go:17: unknown escape sequence: \
+@@ -101,6 +131,7 @@ BUG: known to fail incorrectly
+ =========== ken/rob1.go
+ 
+ =========== ken/rob2.go
++(hello hello (hello 12 34))
+ 
+ =========== ken/robfor.go
+ ken/robfor.go:45: fatal error: optoas: no entry MOD-<int32>INT32

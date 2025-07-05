@@ -9,6 +9,27 @@ Date:   Mon Aug 5 11:59:59 2013 +1000
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/10587043
-
+---
  src/pkg/net/unix_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/net/unix_test.go b/src/pkg/net/unix_test.go
+index e1c3ff2215..eae9f3f6d1 100644
+--- a/src/pkg/net/unix_test.go
++++ b/src/pkg/net/unix_test.go
+@@ -141,6 +141,7 @@ func TestUnixAutobind(t *testing.T) {
+ 
+ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
+ 	for _, laddr := range []string{"", testUnixAddr()} {
++		laddr := laddr
+ 		taddr := testUnixAddr()
+ 		ta, err := ResolveUnixAddr("unix", taddr)
+ 		if err != nil {
+@@ -196,6 +197,7 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
+ 
+ func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
+ 	for _, laddr := range []string{"", testUnixAddr()} {
++		laddr := laddr
+ 		taddr := testUnixAddr()
+ 		ta, err := ResolveUnixAddr("unixgram", taddr)
+ 		if err != nil {

@@ -11,6 +11,34 @@ Date:   Sat Jul 28 00:29:38 2018 +0300
     Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/stmtlines_test.go | 16 ----------------
  1 file changed, 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/stmtlines_test.go b/src/cmd/compile/internal/ssa/stmtlines_test.go
+index 443b5f9f56..1081f83f6d 100644
+--- a/src/cmd/compile/internal/ssa/stmtlines_test.go
++++ b/src/cmd/compile/internal/ssa/stmtlines_test.go
+@@ -39,22 +39,6 @@ type Line struct {
+ 	Line int
+ }
+ 
+-type File struct {
+-	lines []string
+-}
+-
+-var fileCache = map[string]*File{}
+-
+-func (f *File) Get(lineno int) (string, bool) {
+-	if f == nil {
+-		return "", false
+-	}
+-	if lineno-1 < 0 || lineno-1 >= len(f.lines) {
+-		return "", false
+-	}
+-	return f.lines[lineno-1], true
+-}
+-
+ func TestStmtLines(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")

@@ -11,8 +11,57 @@ Date:   Fri May 6 18:16:52 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/gob/codec_test.go | 4 ++--
  src/net/conn_test.go           | 2 +-
  src/net/mockserver_test.go     | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/gob/codec_test.go b/src/encoding/gob/codec_test.go
+index b772171f93..d4002cbcca 100644
+--- a/src/encoding/gob/codec_test.go
++++ b/src/encoding/gob/codec_test.go
+@@ -1253,7 +1253,7 @@ func TestIgnoreInterface(t *testing.T) {
+ 	if item2.I != item1.I {
+ 		t.Error("normal int did not decode correctly")
+ 	}
+-	if item2.F != item2.F {
++	if item2.F != item1.F {
+ 		t.Error("normal float did not decode correctly")
+ 	}
+ }
+@@ -1280,7 +1280,7 @@ func TestUnexportedFields(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("decode error:", err)
+ 	}
+-	if u0.A != u0.A || u0.B != u1.B || u0.D != u1.D {
++	if u0.A != u1.A || u0.B != u1.B || u0.D != u1.D {
+ 		t.Errorf("u1->u0: expected %v; got %v", u0, u1)
+ 	}
+ 	if u1.c != 1234. {
+diff --git a/src/net/conn_test.go b/src/net/conn_test.go
+index 8accbae7bb..16cf69ee16 100644
+--- a/src/net/conn_test.go
++++ b/src/net/conn_test.go
+@@ -43,7 +43,7 @@ func TestConnAndListener(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 		defer c.Close()
+-		if c.LocalAddr().Network() != network || c.LocalAddr().Network() != network {
++		if c.LocalAddr().Network() != network || c.RemoteAddr().Network() != network {
+ 			t.Fatalf("got %s->%s; want %s->%s", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
+ 		}
+ 		c.SetDeadline(time.Now().Add(someTimeout))
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index 9e6907c09a..b67dd91650 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -228,7 +228,7 @@ func transponder(ln Listener, ch chan<- error) {
+ 	defer c.Close()
+ 
+ 	network := ln.Addr().Network()
+-	if c.LocalAddr().Network() != network || c.LocalAddr().Network() != network {
++	if c.LocalAddr().Network() != network || c.RemoteAddr().Network() != network {
+ 		ch <- fmt.Errorf("got %v->%v; expected %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
+ 		return
+ 	}

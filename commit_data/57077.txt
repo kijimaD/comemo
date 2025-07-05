@@ -18,7 +18,56 @@ Date:   Wed Jun 14 16:17:31 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/text/template/exec.go      | 16 ++++++++++++----
  src/text/template/exec_test.go |  1 +
  2 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index fb60c17931..fd7db657d3 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -361,19 +361,27 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
+ 	// mark top of stack before any variables in the body are pushed.
+ 	mark := s.mark()
+ 	oneIteration := func(index, elem reflect.Value) {
+-		// Set top var (lexically the second if there are two) to the element.
+ 		if len(r.Pipe.Decl) > 0 {
+ 			if r.Pipe.IsAssign {
+-				s.setVar(r.Pipe.Decl[0].Ident[0], elem)
++				// With two variables, index comes first.
++				// With one, we use the element.
++				if len(r.Pipe.Decl) > 1 {
++					s.setVar(r.Pipe.Decl[0].Ident[0], index)
++				} else {
++					s.setVar(r.Pipe.Decl[0].Ident[0], elem)
++				}
+ 			} else {
++				// Set top var (lexically the second if there
++				// are two) to the element.
+ 				s.setTopVar(1, elem)
+ 			}
+ 		}
+-		// Set next var (lexically the first if there are two) to the index.
+ 		if len(r.Pipe.Decl) > 1 {
+ 			if r.Pipe.IsAssign {
+-				s.setVar(r.Pipe.Decl[1].Ident[0], index)
++				s.setVar(r.Pipe.Decl[1].Ident[0], elem)
+ 			} else {
++				// Set next var (lexically the first if there
++				// are two) to the index.
+ 				s.setTopVar(2, index)
+ 			}
+ 		}
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 40e3c5e0b4..6eb0d41a51 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -694,6 +694,7 @@ var execTests = []execTest{
+ 	{"bug18c", "{{eq . 'P'}}", "true", 'P', true},
+ 
+ 	{"issue56490", "{{$i := 0}}{{$x := 0}}{{range $i = .AI}}{{end}}{{$i}}", "5", tVal, true},
++	{"issue60801", "{{$k := 0}}{{$v := 0}}{{range $k, $v = .AI}}{{$k}}={{$v}} {{end}}", "0=3 1=4 2=5 ", tVal, true},
+ }
+ 
+ func zeroArgs() string {

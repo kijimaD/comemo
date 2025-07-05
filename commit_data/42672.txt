@@ -9,6 +9,38 @@ Date:   Tue Feb 4 12:32:58 2020 +0000
     Change-Id: I67840f5dc05dffd8893a055618eb202b682a0ebc
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217698
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.14.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 2f73f0fdf7..dec8e98d73 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -436,7 +436,7 @@ TODO
+   in mind.
+ </p>
+ 
+-<dl id="hash/maphash"><dt><a href="/pkg/hash/maphash">hash/maphash</a></dt>
++<dl id="hash/maphash"><dt><a href="/pkg/hash/maphash/">hash/maphash</a></dt>
+   <dd>
+     <p><!-- CL 186877 -->
+       This new package provides hash functions on byte sequences.
+@@ -626,7 +626,7 @@ TODO
+ 
+ </dl><!-- math -->
+ 
+-<dl id="math/big"><dt><a href="/pkg/math/big">math/big</a></dt>
++<dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+   <dd>
+     <p><!-- CL 164972 -->
+       The <a href="/pkg/math/big/#Int.GCD"><code>GCD</code></a> method
+@@ -759,7 +759,7 @@ TODO
+ 
+ </dl><!-- runtime -->
+ 
+-<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof">runtime/pprof</a></dt>
++<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
+   <dd>
+     <p><!-- CL 204636, 205097 -->
+     The generated profile no longer includes the pseudo-PCs used for inline

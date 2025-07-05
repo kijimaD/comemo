@@ -14,6 +14,27 @@ Date:   Tue Apr 30 20:36:20 2019 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/zoneinfo_ios.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/zoneinfo_ios.go b/src/time/zoneinfo_ios.go
+index 6d7f975a11..09383a5b30 100644
+--- a/src/time/zoneinfo_ios.go
++++ b/src/time/zoneinfo_ios.go
+@@ -7,10 +7,14 @@
+ 
+ package time
+ 
+-import "syscall"
++import (
++	"runtime"
++	"syscall"
++)
+ 
+ var zoneSources = []string{
+ 	getZipParent() + "/zoneinfo.zip",
++	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
+ }
+ 
+ func getZipParent() string {

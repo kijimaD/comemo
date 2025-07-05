@@ -21,6 +21,20 @@ Date:   Fri Nov 4 17:01:21 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/stubs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 20487fdf88..8a8aace046 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -131,7 +131,7 @@ func fastrand() uint32 {
+ 	// by the compiler should be in this list.
+ 	if goarch.IsAmd64|goarch.IsArm64|goarch.IsPpc64|
+ 		goarch.IsPpc64le|goarch.IsMips64|goarch.IsMips64le|
+-		goarch.IsS390x|goarch.IsRiscv64 == 1 {
++		goarch.IsS390x|goarch.IsRiscv64|goarch.IsLoong64 == 1 {
+ 		mp.fastrand += 0xa0761d6478bd642f
+ 		hi, lo := math.Mul64(mp.fastrand, mp.fastrand^0xe7037ed1a0b428db)
+ 		return uint32(hi ^ lo)

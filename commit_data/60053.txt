@@ -10,6 +10,19 @@ Date:   Fri May 17 08:20:50 2024 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mpallocbits.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/mpallocbits.go b/src/runtime/mpallocbits.go
+index 9f447557c6..d8a9d25789 100644
+--- a/src/runtime/mpallocbits.go
++++ b/src/runtime/mpallocbits.go
+@@ -324,7 +324,6 @@ func (b *pallocBits) findLargeN(npages uintptr, searchIdx uint) (uint, uint) {
+ 		}
+ 		s := uint(sys.TrailingZeros64(x))
+ 		if s+size >= uint(npages) {
+-			size += s
+ 			return start, newSearchIdx
+ 		}
+ 		if s < 64 {

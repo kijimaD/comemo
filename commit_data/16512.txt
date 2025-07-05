@@ -7,7 +7,7 @@ Date:   Sun Jun 9 21:50:24 2013 +0800
     R=golang-dev, bradfitz, khr, r
     CC=golang-dev
     https://golang.org/cl/7461046
-
+---
  src/cmd/5c/peep.c         | 2 +-
  src/cmd/5g/gsubr.c        | 2 +-
  src/cmd/5g/peep.c         | 6 +++---
@@ -39,3 +39,448 @@ Date:   Sun Jun 9 21:50:24 2013 +0800
  src/libmach/8obj.c        | 2 +-
  test/chan/doubleselect.go | 2 +-
  30 files changed, 36 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/5c/peep.c b/src/cmd/5c/peep.c
+index 2f902e02a2..31c1322757 100644
+--- a/src/cmd/5c/peep.c
++++ b/src/cmd/5c/peep.c
+@@ -462,7 +462,7 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
+ 		}
+ 		t = copyu(p, v2, A);
+ 		switch(t) {
+-		case 2:	/* rar, cant split */
++		case 2:	/* rar, can't split */
+ 			if(debug['P'])
+ 				print("; %Drar; return 0\n", v2);
+ 			return 0;
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 815d6fab23..f89124269c 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1905,7 +1905,7 @@ odot:
+ 
+ 	for(i=1; i<o; i++) {
+ 		if(oary[i] >= 0)
+-			fatal("cant happen");
++			fatal("can't happen");
+ 		gins(AMOVW, &n1, reg);
+ 		n1.xoffset = -(oary[i]+1);
+ 	}
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 9600d8c9c6..01d4a1bbf2 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -496,7 +496,7 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
+ 		}
+ 		t = copyu(p, v2, A);
+ 		switch(t) {
+-		case 2:	/* rar, cant split */
++		case 2:	/* rar, can't split */
+ 			if(debug['P'])
+ 				print("; %Drar; return 0\n", v2);
+ 			return 0;
+@@ -973,7 +973,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	switch(p->as) {
+ 
+ 	default:
+-		print("copyu: cant find %A\n", p->as);
++		print("copyu: can't find %A\n", p->as);
+ 		return 2;
+ 
+ 	case AMOVM:
+@@ -1288,7 +1288,7 @@ copyau1(Prog *p, Adr *v)
+ 				return 1;
+ 			return 0;
+ 		}
+-		print("copyau1: cant tell %P\n", p);
++		print("copyau1: can't tell %P\n", p);
+ 	}
+ 	return 0;
+ }
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index c675c7d984..e0875995c7 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -816,7 +816,7 @@ addmove(Reg *r, int bn, int rn, int f)
+ 		a->type = D_CONST;
+ 
+ 	if(v->addr)
+-		fatal("addmove: shouldnt be doing this %A\n", a);
++		fatal("addmove: shouldn't be doing this %A\n", a);
+ 
+ 	switch(v->etype) {
+ 	default:
+diff --git a/src/cmd/5l/pass.c b/src/cmd/5l/pass.c
+index c22b860858..a7e776845c 100644
+--- a/src/cmd/5l/pass.c
++++ b/src/cmd/5l/pass.c
+@@ -130,7 +130,7 @@ loop:
+ 				r = prg();
+ 				*r = *p;
+ 				if(!(r->mark&FOLL))
+-					print("cant happen 1\n");
++					print("can't happen 1\n");
+ 				r->mark |= FOLL;
+ 				if(p != q) {
+ 					p = p->link;
+@@ -150,7 +150,7 @@ loop:
+ 				if(!(r->link->mark&FOLL))
+ 					xfol(r->link, last);
+ 				if(!(r->cond->mark&FOLL))
+-					print("cant happen 2\n");
++					print("can't happen 2\n");
+ 				return;
+ 			}
+ 		}
+diff --git a/src/cmd/6c/peep.c b/src/cmd/6c/peep.c
+index c648d8c005..0a3bd84bc7 100644
+--- a/src/cmd/6c/peep.c
++++ b/src/cmd/6c/peep.c
+@@ -483,7 +483,7 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
+ 		}
+ 		t = copyu(p, v2, A);
+ 		switch(t) {
+-		case 2:	/* rar, cant split */
++		case 2:	/* rar, can't split */
+ 			if(debug['P'])
+ 				print("; %D rar; return 0\n", v2);
+ 			return 0;
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index 54b1cf54cb..b91e22b399 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -1188,7 +1188,7 @@ print("botch in doindex\n");
+ 	else if(n->left->op == OREGISTER)
+ 		idx.ptr = n->left->reg;
+ 	else if(n->left->op != OADDR) {
+-		reg[D_BP]++;	// cant be used as a base
++		reg[D_BP]++;	// can't be used as a base
+ 		regalloc(&nod1, &qregnode, Z);
+ 		cgen(n->left, &nod1);
+ 		idx.ptr = nod1.reg;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 2eae865f33..884ccff063 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1480,7 +1480,7 @@ cadable(Node *n)
+  * Small structs or arrays with elements of basic type are
+  * also supported.
+  * nr is N when assigning a zero value.
+- * return 1 if can do, 0 if cant.
++ * return 1 if can do, 0 if can't.
+  */
+ int
+ componentgen(Node *nr, Node *nl)
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 55864c34ed..5408435fdd 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -494,7 +494,7 @@ fp:
+ 		break;
+ 
+ 	case 2:		// offset output arg
+-fatal("shouldnt be used");
++fatal("shouldn't be used");
+ 		n->op = OINDREG;
+ 		n->val.u.reg = D_SP;
+ 		n->xoffset += types[tptr]->width;
+@@ -2038,7 +2038,7 @@ odot:
+ 
+ 	for(i=1; i<o; i++) {
+ 		if(oary[i] >= 0)
+-			fatal("cant happen");
++			fatal("can't happen");
+ 		gins(AMOVQ, &n1, reg);
+ 		n1.xoffset = -(oary[i]+1);
+ 	}
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index f9249e8094..e77d65e873 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -843,7 +843,7 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
+ 		}
+ 		t = copyu(p, v2, A);
+ 		switch(t) {
+-		case 2:	/* rar, cant split */
++		case 2:	/* rar, can't split */
+ 			if(debug['P'])
+ 				print("; %D rar; return 0\n", v2);
+ 			return 0;
+diff --git a/src/cmd/8c/peep.c b/src/cmd/8c/peep.c
+index 9c3e9a5af2..da0127d118 100644
+--- a/src/cmd/8c/peep.c
++++ b/src/cmd/8c/peep.c
+@@ -403,7 +403,7 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
+ 		}
+ 		t = copyu(p, v2, A);
+ 		switch(t) {
+-		case 2:	/* rar, cant split */
++		case 2:	/* rar, can't split */
+ 			if(debug['P'])
+ 				print("; %D rar; return 0\n", v2);
+ 			return 0;
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index 7f95387955..721322a531 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -963,7 +963,7 @@ print("botch in doindex\n");
+ 	else if(n->left->op == OREGISTER)
+ 		idx.ptr = n->left->reg;
+ 	else if(n->left->op != OADDR) {
+-		reg[D_BP]++;	// cant be used as a base
++		reg[D_BP]++;	// can't be used as a base
+ 		regalloc(&nod1, &regnode, Z);
+ 		cgen(n->left, &nod1);
+ 		idx.ptr = nod1.reg;
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index d54db7e629..0294a4299b 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -1319,7 +1319,7 @@ cadable(Node *n)
+  * copy a composite value by moving its individual components.
+  * Slices, strings and interfaces are supported.
+  * nr is N when assigning a zero value.
+- * return 1 if can do, 0 if cant.
++ * return 1 if can do, 0 if can't.
+  */
+ int
+ componentgen(Node *nr, Node *nl)
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index d21be759e1..6b7e4363d8 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -608,7 +608,7 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
+ 		}
+ 		t = copyu(p, v2, A);
+ 		switch(t) {
+-		case 2:	/* rar, cant split */
++		case 2:	/* rar, can't split */
+ 			if(debug['P'])
+ 				print("; %D rar; return 0\n", v2);
+ 			return 0;
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 005f68da30..4a0bf91fbc 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -1824,7 +1824,7 @@ hash32to16(uint32 h)
+ static void
+ fixtemp(Prog *firstp)
+ {
+-	static uint8 counts[1<<16]; // A hash table to count variable occurences.
++	static uint8 counts[1<<16]; // A hash table to count variable occurrences.
+ 	int i;
+ 	Prog *p, *p2;
+ 	uint32 h;
+diff --git a/src/cmd/cc/funct.c b/src/cmd/cc/funct.c
+index 7921277b42..92c067db87 100644
+--- a/src/cmd/cc/funct.c
++++ b/src/cmd/cc/funct.c
+@@ -235,7 +235,7 @@ no:
+ 	return 0;
+ 
+ bad:
+-	diag(n, "cant rewrite typestr for op %O\n", o);
++	diag(n, "can't rewrite typestr for op %O\n", o);
+ 	prtree(n, "isfunct");
+ 	n->type = T;
+ 	return 1;
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index f4a69739c8..c5d51b8fb6 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -762,7 +762,7 @@ ieeedtod(Ieee *ieee, double native)
+ 		return;
+ 	}
+ 	fr = frexp(native, &exp);
+-	f = 2097152L;		/* shouldnt use fp constants here */
++	f = 2097152L;		/* shouldn't use fp constants here */
+ 	fr = modf(fr*f, &ho);
+ 	ieee->h = ho;
+ 	ieee->h &= 0xfffffL;
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index b06aa996d2..d5849dc315 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -75,7 +75,7 @@ codgen(Node *n, Node *nn)
+ 	 */
+ 	for(n1 = nn;; n1 = n1->left) {
+ 		if(n1 == Z) {
+-			diag(nn, "cant find function name");
++			diag(nn, "can't find function name");
+ 			return;
+ 		}
+ 		if(n1->op == ONAME)
+diff --git a/src/cmd/cc/pswt.c b/src/cmd/cc/pswt.c
+index 19b8476dcd..cc9c227637 100644
+--- a/src/cmd/cc/pswt.c
++++ b/src/cmd/cc/pswt.c
+@@ -156,7 +156,7 @@ ieeedtod(Ieee *ieee, double native)
+ 		return;
+ 	}
+ 	fr = frexp(native, &exp);
+-	f = 2097152L;		/* shouldnt use fp constants here */
++	f = 2097152L;		/* shouldn't use fp constants here */
+ 	fr = modf(fr*f, &ho);
+ 	ieee->h = ho;
+ 	ieee->h &= 0xfffffL;
+diff --git a/src/cmd/dist/plan9.c b/src/cmd/dist/plan9.c
+index 8a7c0ab1c3..d954cb35a2 100644
+--- a/src/cmd/dist/plan9.c
++++ b/src/cmd/dist/plan9.c
+@@ -578,7 +578,7 @@ hassuffix(char *p, char *suffix)
+ 	return np >= ns && strcmp(p+np-ns, suffix) == 0;
+ }
+ 
+-// hasprefix reports whether p begins wtih prefix.
++// hasprefix reports whether p begins with prefix.
+ bool
+ hasprefix(char *p, char *prefix)
+ {
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index f2ea48974b..86948b0b2b 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -548,7 +548,7 @@ hassuffix(char *p, char *suffix)
+ 	return np >= ns && strcmp(p+np-ns, suffix) == 0;
+ }
+ 
+-// hasprefix reports whether p begins wtih prefix.
++// hasprefix reports whether p begins with prefix.
+ bool
+ hasprefix(char *p, char *prefix)
+ {
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index e4bcd11703..f06b7ad451 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -235,7 +235,7 @@ ieeedtod(uint64 *ieee, double native)
+ 		return;
+ 	}
+ 	fr = frexp(native, &exp);
+-	f = 2097152L;		/* shouldnt use fp constants here */
++	f = 2097152L;		/* shouldn't use fp constants here */
+ 	fr = modf(fr*f, &ho);
+ 	h = ho;
+ 	h &= 0xfffffL;
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 3ad5f02a5f..c5cb49170d 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -315,7 +315,7 @@ casebody(Node *sw, Node *typeswvar)
+ 		}
+ 		stat = concat(stat, n->nbody);
+ 
+-		// botch - shouldnt fall thru declaration
++		// botch - shouldn't fall thru declaration
+ 		last = stat->end->n;
+ 		if(last->op == OXFALL) {
+ 			if(typeswvar) {
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index e2264a46e7..3c8a83d1b2 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -151,7 +151,7 @@ if ! ./testgo list std | cmp -s test_std.list - ; then
+ fi
+ rm -f test_std.list
+ 
+-# issue 4096. Validate the output of unsucessful go install foo/quxx 
++# issue 4096. Validate the output of unsuccessful go install foo/quxx 
+ if [ $(./testgo install 'foo/quxx' 2>&1 | grep -c 'cannot find package "foo/quxx" in any of') -ne 1 ] ; then
+ 	echo 'go install foo/quxx expected error: .*cannot find package "foo/quxx" in any of'
+ 	ok=false
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 93718ad1d1..547494866e 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -367,7 +367,7 @@ dynreloc(void)
+ {
+ 	Sym *s;
+ 
+-	// -d supresses dynamic loader format, so we may as well not
++	// -d suppresses dynamic loader format, so we may as well not
+ 	// compute these sections or mark their symbols as reachable.
+ 	if(debug['d'] && HEADTYPE != Hwindows)
+ 		return;
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 98b03f1c38..32967d5f6b 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -133,7 +133,7 @@ sleb128put(vlong v)
+ /*
+  * Defining Abbrevs.  This is hardcoded, and there will be
+  * only a handful of them.  The DWARF spec places no restriction on
+- * the ordering of atributes in the Abbrevs and DIEs, and we will
++ * the ordering of attributes in the Abbrevs and DIEs, and we will
+  * always write them out in the order of declaration in the abbrev.
+  * This implementation relies on tag, attr < 127, so they serialize as
+  * a char.  Higher numbered user-defined tags or attributes can be used
+@@ -1646,7 +1646,7 @@ guesslang(char *s)
+ }
+ 
+ /*
+- * Generate short opcodes when possible, long ones when neccesary.
++ * Generate short opcodes when possible, long ones when necessary.
+  * See section 6.2.5
+  */
+ 
+@@ -1938,7 +1938,7 @@ enum
+ {
+ 	CIERESERVE = 16,
+ 	DATAALIGNMENTFACTOR = -4,	// TODO -PtrSize?
+-	FAKERETURNCOLUMN = 16		// TODO gdb6 doesnt like > 15?
++	FAKERETURNCOLUMN = 16		// TODO gdb6 doesn't like > 15?
+ };
+ 
+ static void
+diff --git a/src/cmd/yacc/units.txt b/src/cmd/yacc/units.txt
+index df8f567d93..7df23717ef 100644
+--- a/src/cmd/yacc/units.txt
++++ b/src/cmd/yacc/units.txt
+@@ -481,7 +481,7 @@ mgd			megagal/day
+ mh			millihenry
+ mhz			1e+6/sec
+ mil			1e-3 in
+-millenium		1000 year
++millennium		1000 year
+ minersinch		1.5 ft³/min
+ minim			1|60 fldr
+ mo			month
+diff --git a/src/libmach/6obj.c b/src/libmach/6obj.c
+index 578ae2b5ec..bade9479c7 100644
+--- a/src/libmach/6obj.c
++++ b/src/libmach/6obj.c
+@@ -52,7 +52,7 @@ _is6(char *t)
+ {
+ 	uchar *s = (uchar*)t;
+ 
+-	return  s[0] == (ANAME&0xff)			/* aslo = ANAME */
++	return  s[0] == (ANAME&0xff)			/* also = ANAME */
+ 		&& s[1] == ((ANAME>>8)&0xff)
+ 		&& s[2] == D_FILE			/* type */
+ 		&& s[3] == 1				/* sym */
+diff --git a/src/libmach/8obj.c b/src/libmach/8obj.c
+index af4ebc877e..9933dc0a53 100644
+--- a/src/libmach/8obj.c
++++ b/src/libmach/8obj.c
+@@ -52,7 +52,7 @@ _is8(char *t)
+ {
+ 	uchar *s = (uchar*)t;
+ 
+-	return  s[0] == (ANAME&0xff)			/* aslo = ANAME */
++	return  s[0] == (ANAME&0xff)			/* also = ANAME */
+ 		&& s[1] == ((ANAME>>8)&0xff)
+ 		&& s[2] == D_FILE			/* type */
+ 		&& s[3] == 1				/* sym */
+diff --git a/test/chan/doubleselect.go b/test/chan/doubleselect.go
+index ac559302d9..6be3faf55a 100644
+--- a/test/chan/doubleselect.go
++++ b/test/chan/doubleselect.go
+@@ -36,7 +36,7 @@ func sender(n int, c1, c2, c3, c4 chan<- int) {
+ }
+ 
+ // mux receives the values from sender and forwards them onto another channel.
+-// It would be simplier to just have sender's four cases all be the same
++// It would be simpler to just have sender's four cases all be the same
+ // channel, but this doesn't actually trigger the bug.
+ func mux(out chan<- int, in <-chan int, done chan<- bool) {
+ 	for v := range in {

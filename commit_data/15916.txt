@@ -9,6 +9,20 @@ Date:   Sat Mar 23 15:16:58 2013 -0700
     R=golang-dev, minux.ma, r
     CC=golang-dev
     https://golang.org/cl/7568043
-
+---
  misc/kate/go.xml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/kate/go.xml b/misc/kate/go.xml
+index 1e00cfcbf5..c187eda82b 100644
+--- a/misc/kate/go.xml
++++ b/misc/kate/go.xml
+@@ -95,7 +95,7 @@
+         <HlCHex attribute="Hex" context="#stay"/>
+         <HlCChar attribute="Char" context="#stay"/>
+         <DetectChar attribute="String" context="String" char="&quot;"/>
+-        <DetectChar attribute="Multiline String" context="Multiline String" char="`"/>
++        <DetectChar attribute="String" context="Multiline String" char="`"/>
+         <Detect2Chars attribute="Comment" context="Comment 1" char="/" char1="/"/>
+         <Detect2Chars attribute="Comment" context="Comment 2" char="/" char1="*" beginRegion="Comment"/>
+         <AnyChar attribute="Symbol" context="#stay" String=":!%&amp;()+,-/.*&lt;=&gt;?[]|~^&#59;"/>

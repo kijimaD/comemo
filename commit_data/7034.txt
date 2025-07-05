@@ -8,6 +8,33 @@ Date:   Wed Jan 5 13:00:08 2011 +1100
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/3867041
-
+---
  doc/contribute.html | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 4758a0896b..f18346bca6 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -218,9 +218,9 @@ mailing list.
+ <p>
+ Replace &ldquo;<code>&lt;enter description here&gt;</code>&rdquo;
+ with a description of your change.
+-The first line of the change description is conventionally
+-a one-line summary of the change and is used as the
+-subject for code review mail; the rest of the
++The first line of the change description is conventionally a one-line
++summary of the change, prefixed by the primary affected package,
++and is used as the subject for code review mail; the rest of the
+ description elaborates.
+ </p>
+ 
+@@ -245,7 +245,7 @@ Reviewer: golang-dev@googlegroups.com
+ CC: math-nuts@swtch.com
+ 
+ Description:
+-	Sin, Cos, Tan: improved precision for very large arguments
++	math: improved Sin, Cos and Tan precision for very large arguments.
+ 
+ 	See Bimmler and Shaney, ``Extreme sinusoids,'' J. Math 3(14).
+ 	Fixes issue 159.

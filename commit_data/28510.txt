@@ -26,7 +26,7 @@ Date:   Thu May 26 17:47:03 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  misc/cgo/testsanitizers/test.bash | 11 +++++++++
  misc/cgo/testsanitizers/tsan5.go  | 51 +++++++++++++++++++++++++++++++++++++++
  src/cmd/cgo/out.go                |  3 +++
@@ -34,3 +34,183 @@ Date:   Thu May 26 17:47:03 2016 -0700
  src/runtime/cgo/gcc_util.c        |  2 ++
  src/runtime/cgo/libcgo.h          | 39 ++++++++++++++++++++++++++++++
  6 files changed, 108 insertions(+)
+
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index c30df3b6c2..1a2a9a697d 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -154,6 +154,17 @@ if test "$tsan" = "yes"; then
+ 	status=1
+     fi
+ 
++    # This test requires rebuilding os/user with -fsanitize=thread.
++    if ! CGO_CFLAGS="-fsanitize=thread" CGO_LDFLAGS="-fsanitize=thread" go run -installsuffix=tsan tsan5.go 2>$err; then
++	cat $err
++	echo "FAIL: tsan5"
++	status=1
++    elif grep -i warning $err >/dev/null 2>&1; then
++	cat $err
++	echo "FAIL: tsan5"
++	status=1
++    fi
++
+     rm -f $err
+ fi
+ 
+diff --git a/misc/cgo/testsanitizers/tsan5.go b/misc/cgo/testsanitizers/tsan5.go
+new file mode 100644
+index 0000000000..1214a7743b
+--- /dev/null
++++ b/misc/cgo/testsanitizers/tsan5.go
+@@ -0,0 +1,51 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Check that calls to C.malloc/C.free do not collide with the calls
++// made by the os/user package.
++
++// #cgo CFLAGS: -fsanitize=thread
++// #cgo LDFLAGS: -fsanitize=thread
++// #include <stdlib.h>
++import "C"
++
++import (
++	"fmt"
++	"os"
++	"os/user"
++	"runtime"
++	"sync"
++)
++
++func main() {
++	u, err := user.Current()
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		// Let the test pass.
++		os.Exit(0)
++	}
++
++	var wg sync.WaitGroup
++	for i := 0; i < 20; i++ {
++		wg.Add(2)
++		go func() {
++			defer wg.Done()
++			for i := 0; i < 1000; i++ {
++				user.Lookup(u.Username)
++				runtime.Gosched()
++			}
++		}()
++		go func() {
++			defer wg.Done()
++			for i := 0; i < 1000; i++ {
++				p := C.malloc(C.size_t(len(u.Username) + 1))
++				runtime.Gosched()
++				C.free(p)
++			}
++		}()
++	}
++	wg.Wait()
++}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 5d6930d3ea..13ee0c4ca7 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1324,6 +1324,7 @@ const noTsanProlog = `
+ #define _cgo_tsan_release()
+ `
+ 
++// This must match the TSAN code in runtime/cgo/libcgo.h.
+ const yesTsanProlog = `
+ #define CGO_NO_SANITIZE_THREAD __attribute__ ((no_sanitize_thread))
+ 
+@@ -1332,10 +1333,12 @@ long long _cgo_sync __attribute__ ((common));
+ extern void __tsan_acquire(void*);
+ extern void __tsan_release(void*);
+ 
++__attribute__ ((unused))
+ static void _cgo_tsan_acquire() {
+ 	__tsan_acquire(&_cgo_sync);
+ }
+ 
++__attribute__ ((unused))
+ static void _cgo_tsan_release() {
+ 	__tsan_release(&_cgo_sync);
+ }
+diff --git a/src/runtime/cgo/gcc_linux_amd64.c b/src/runtime/cgo/gcc_linux_amd64.c
+index 50a7e6e078..0c34c66592 100644
+--- a/src/runtime/cgo/gcc_linux_amd64.c
++++ b/src/runtime/cgo/gcc_linux_amd64.c
+@@ -89,7 +89,9 @@ threadentry(void *v)
+ 	ThreadStart ts;
+ 
+ 	ts = *(ThreadStart*)v;
++	_cgo_tsan_acquire();
+ 	free(v);
++	_cgo_tsan_release();
+ 
+ 	/*
+ 	 * Set specific keys.
+diff --git a/src/runtime/cgo/gcc_util.c b/src/runtime/cgo/gcc_util.c
+index 4111fe1195..99af021331 100644
+--- a/src/runtime/cgo/gcc_util.c
++++ b/src/runtime/cgo/gcc_util.c
+@@ -11,7 +11,9 @@ x_cgo_thread_start(ThreadStart *arg)
+ 	ThreadStart *ts;
+ 
+ 	/* Make our own copy that can persist after we return. */
++	_cgo_tsan_acquire();
+ 	ts = malloc(sizeof *ts);
++	_cgo_tsan_release();
+ 	if(ts == nil) {
+ 		fprintf(stderr, "runtime/cgo: out of memory in thread_start\n");
+ 		abort();
+diff --git a/src/runtime/cgo/libcgo.h b/src/runtime/cgo/libcgo.h
+index 6a484ad4a0..249d052edc 100644
+--- a/src/runtime/cgo/libcgo.h
++++ b/src/runtime/cgo/libcgo.h
+@@ -94,3 +94,42 @@ struct context_arg {
+ 	uintptr_t Context;
+ };
+ extern void (*x_cgo_context_function)(struct context_arg*);
++
++/*
++ * TSAN support.  This is only useful when building with
++ *   CGO_CFLAGS="-fsanitize=thread" CGO_LDFLAGS="-fsanitize=thread" go install
++ */
++#undef CGO_TSAN
++#if defined(__has_feature)
++# if __has_feature(thread_sanitizer)
++#  define CGO_TSAN
++# endif
++#elif defined(__SANITIZE_THREAD__)
++# define CGO_TSAN
++#endif
++
++#ifdef CGO_TSAN
++
++// These must match the definitions in yesTsanProlog in cmd/cgo/out.go.
++
++long long _cgo_sync __attribute__ ((common));
++
++extern void __tsan_acquire(void*);
++extern void __tsan_release(void*);
++
++__attribute__ ((unused))
++static void _cgo_tsan_acquire() {
++	__tsan_acquire(&_cgo_sync);
++}
++
++__attribute__ ((unused))
++static void _cgo_tsan_release() {
++	__tsan_release(&_cgo_sync);
++}
++
++#else // !defined(CGO_TSAN)
++
++#define _cgo_tsan_acquire()
++#define _cgo_tsan_release()
++
++#endif // !defined(CGO_TSAN)

@@ -21,10 +21,83 @@ Date:   Mon Sep 28 10:11:06 2020 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/os_netbsd.go       |  1 +
  src/runtime/os_netbsd_386.go   |  3 +++
  src/runtime/os_netbsd_amd64.go |  3 +++
  src/runtime/os_netbsd_arm.go   |  3 +++
  src/runtime/os_netbsd_arm64.go | 12 +++++++++++-
  5 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index f7f90cedc1..c4c3d8e2fe 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -359,6 +359,7 @@ func sysargs(argc int32, argv **byte) {
+ 	// now argv+n is auxv
+ 	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+ 	sysauxv(auxv[:])
++	archauxv(auxv[:])
+ }
+ 
+ const (
+diff --git a/src/runtime/os_netbsd_386.go b/src/runtime/os_netbsd_386.go
+index 037f7e36dc..c203af9cef 100644
+--- a/src/runtime/os_netbsd_386.go
++++ b/src/runtime/os_netbsd_386.go
+@@ -14,3 +14,6 @@ func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintp
+ 	mc.__gregs[_REG_EDX] = uint32(uintptr(unsafe.Pointer(gp)))
+ 	mc.__gregs[_REG_ESI] = uint32(fn)
+ }
++
++func archauxv(auxv []uintptr) {
++}
+diff --git a/src/runtime/os_netbsd_amd64.go b/src/runtime/os_netbsd_amd64.go
+index 5118b0c4ff..ea9d125492 100644
+--- a/src/runtime/os_netbsd_amd64.go
++++ b/src/runtime/os_netbsd_amd64.go
+@@ -14,3 +14,6 @@ func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintp
+ 	mc.__gregs[_REG_R9] = uint64(uintptr(unsafe.Pointer(gp)))
+ 	mc.__gregs[_REG_R12] = uint64(fn)
+ }
++
++func archauxv(auxv []uintptr) {
++}
+diff --git a/src/runtime/os_netbsd_arm.go b/src/runtime/os_netbsd_arm.go
+index b5ec23e45b..646da9dc0b 100644
+--- a/src/runtime/os_netbsd_arm.go
++++ b/src/runtime/os_netbsd_arm.go
+@@ -32,3 +32,6 @@ func cputicks() int64 {
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	return nanotime()
+ }
++
++func archauxv(auxv []uintptr) {
++}
+diff --git a/src/runtime/os_netbsd_arm64.go b/src/runtime/os_netbsd_arm64.go
+index 8d21b0a430..ae2638c778 100644
+--- a/src/runtime/os_netbsd_arm64.go
++++ b/src/runtime/os_netbsd_arm64.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/cpu"
++	"unsafe"
++)
+ 
+ func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintptr) {
+ 	// Machine dependent mcontext initialisation for LWP.
+@@ -21,3 +24,10 @@ func cputicks() int64 {
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	return nanotime()
+ }
++
++func archauxv(auxv []uintptr) {
++	// NetBSD does not supply AT_HWCAP, however we still need to initialise cpu.HWCaps.
++	// For now specify the bare minimum until we add some form of capabilities
++	// detection. See issue https://golang.org/issue/30824#issuecomment-494901591
++	cpu.HWCap = 1<<1 | 1<<0 // ASIMD, FP
++}

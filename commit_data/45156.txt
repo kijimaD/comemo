@@ -17,6 +17,63 @@ Date:   Wed Oct 7 16:37:05 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/cgo/main.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 5c44fb72f4..7d02ac3c54 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -170,35 +170,51 @@ func usage() {
+ 
+ var ptrSizeMap = map[string]int64{
+ 	"386":      4,
++	"alpha":    8,
+ 	"amd64":    8,
+ 	"arm":      4,
+ 	"arm64":    8,
++	"m68k":     4,
+ 	"mips":     4,
+ 	"mipsle":   4,
+ 	"mips64":   8,
+ 	"mips64le": 8,
++	"nios2":    4,
++	"ppc":      4,
+ 	"ppc64":    8,
+ 	"ppc64le":  8,
++	"riscv":    4,
+ 	"riscv64":  8,
+ 	"s390":     4,
+ 	"s390x":    8,
++	"sh":       4,
++	"shbe":     4,
++	"sparc":    4,
+ 	"sparc64":  8,
+ }
+ 
+ var intSizeMap = map[string]int64{
+ 	"386":      4,
++	"alpha":    8,
+ 	"amd64":    8,
+ 	"arm":      4,
+ 	"arm64":    8,
++	"m68k":     4,
+ 	"mips":     4,
+ 	"mipsle":   4,
+ 	"mips64":   8,
+ 	"mips64le": 8,
++	"nios2":    4,
++	"ppc":      4,
+ 	"ppc64":    8,
+ 	"ppc64le":  8,
++	"riscv":    4,
+ 	"riscv64":  8,
+ 	"s390":     4,
+ 	"s390x":    8,
++	"sh":       4,
++	"shbe":     4,
++	"sparc":    4,
+ 	"sparc64":  8,
+ }
+ 

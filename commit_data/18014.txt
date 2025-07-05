@@ -7,6 +7,17 @@ Date:   Tue Dec 17 15:09:42 2013 +0400
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/43340043
-
+---
  src/race.bat | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/race.bat b/src/race.bat
+index 65b76cd61a..64b2f59c15 100644
+--- a/src/race.bat
++++ b/src/race.bat
+@@ -53,4 +53,5 @@ goto end
+ echo All tests passed.
+ 
+ :end
++if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
+ 

@@ -20,7 +20,7 @@ Date:   Fri Dec 16 16:54:03 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/defs_windows.go       |   5 ++
  src/runtime/defs_windows_386.go   |   5 ++
  src/runtime/defs_windows_amd64.go |   5 ++
@@ -32,3 +32,846 @@ Date:   Fri Dec 16 16:54:03 2022 +0100
  src/runtime/sys_windows_arm.s     | 121 +++++--------------------------
  src/runtime/sys_windows_arm64.s   | 145 ++++++--------------------------------
  10 files changed, 221 insertions(+), 393 deletions(-)
+
+diff --git a/src/runtime/defs_windows.go b/src/runtime/defs_windows.go
+index 8d4e38120e..7e5d9570f8 100644
+--- a/src/runtime/defs_windows.go
++++ b/src/runtime/defs_windows.go
+@@ -57,6 +57,11 @@ type systeminfo struct {
+ 	wprocessorrevision          uint16
+ }
+ 
++type exceptionpointers struct {
++	record  *exceptionrecord
++	context *context
++}
++
+ type exceptionrecord struct {
+ 	exceptioncode        uint32
+ 	exceptionflags       uint32
+diff --git a/src/runtime/defs_windows_386.go b/src/runtime/defs_windows_386.go
+index 37fe74c542..8d6c443a14 100644
+--- a/src/runtime/defs_windows_386.go
++++ b/src/runtime/defs_windows_386.go
+@@ -56,6 +56,11 @@ func (c *context) set_lr(x uintptr) {}
+ func (c *context) set_ip(x uintptr) { c.eip = uint32(x) }
+ func (c *context) set_sp(x uintptr) { c.esp = uint32(x) }
+ 
++func prepareContextForSigResume(c *context) {
++	c.edx = c.esp
++	c.ecx = c.eip
++}
++
+ func dumpregs(r *context) {
+ 	print("eax     ", hex(r.eax), "\n")
+ 	print("ebx     ", hex(r.ebx), "\n")
+diff --git a/src/runtime/defs_windows_amd64.go b/src/runtime/defs_windows_amd64.go
+index ac636a68ec..afa8a657b8 100644
+--- a/src/runtime/defs_windows_amd64.go
++++ b/src/runtime/defs_windows_amd64.go
+@@ -70,6 +70,11 @@ func (c *context) set_lr(x uintptr) {}
+ func (c *context) set_ip(x uintptr) { c.rip = uint64(x) }
+ func (c *context) set_sp(x uintptr) { c.rsp = uint64(x) }
+ 
++func prepareContextForSigResume(c *context) {
++	c.r8 = c.rsp
++	c.r9 = c.rip
++}
++
+ func dumpregs(r *context) {
+ 	print("rax     ", hex(r.rax), "\n")
+ 	print("rbx     ", hex(r.rbx), "\n")
+diff --git a/src/runtime/defs_windows_arm.go b/src/runtime/defs_windows_arm.go
+index 370470e35d..21c7991519 100644
+--- a/src/runtime/defs_windows_arm.go
++++ b/src/runtime/defs_windows_arm.go
+@@ -58,6 +58,11 @@ func (c *context) set_ip(x uintptr) { c.pc = uint32(x) }
+ func (c *context) set_sp(x uintptr) { c.spr = uint32(x) }
+ func (c *context) set_lr(x uintptr) { c.lrr = uint32(x) }
+ 
++func prepareContextForSigResume(c *context) {
++	c.r0 = c.spr
++	c.r1 = c.pc
++}
++
+ func dumpregs(r *context) {
+ 	print("r0   ", hex(r.r0), "\n")
+ 	print("r1   ", hex(r.r1), "\n")
+diff --git a/src/runtime/defs_windows_arm64.go b/src/runtime/defs_windows_arm64.go
+index 9ccce46f09..6c71133b43 100644
+--- a/src/runtime/defs_windows_arm64.go
++++ b/src/runtime/defs_windows_arm64.go
+@@ -41,6 +41,11 @@ func (c *context) set_ip(x uintptr) { c.pc = uint64(x) }
+ func (c *context) set_sp(x uintptr) { c.xsp = uint64(x) }
+ func (c *context) set_lr(x uintptr) { c.x[30] = uint64(x) }
+ 
++func prepareContextForSigResume(c *context) {
++	c.x[0] = c.xsp
++	c.x[1] = c.pc
++}
++
+ func dumpregs(r *context) {
+ 	print("r0   ", hex(r.x[0]), "\n")
+ 	print("r1   ", hex(r.x[1]), "\n")
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 37986cd6b5..0686be4635 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -22,10 +22,11 @@ func disableWER() {
+ 	stdcall1(_SetErrorMode, uintptr(errormode)|SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX)
+ }
+ 
+-// in sys_windows_386.s and sys_windows_amd64.s
++// in sys_windows_386.s, sys_windows_amd64.s, sys_windows_arm.s, and sys_windows_arm64.s
+ func exceptiontramp()
+ func firstcontinuetramp()
+ func lastcontinuetramp()
++func sigresume()
+ 
+ func initExceptionHandler() {
+ 	stdcall2(_AddVectoredExceptionHandler, 1, abi.FuncPCABI0(exceptiontramp))
+@@ -88,13 +89,105 @@ func isgoexception(info *exceptionrecord, r *context) bool {
+ 	return true
+ }
+ 
++const (
++	callbackVEH = iota
++	callbackFirstVCH
++	callbackLastVCH
++)
++
++// sigFetchGSafe is like getg() but without panicking
++// when TLS is not set.
++// Only implemented on windows/386, which is the only
++// arch that loads TLS when calling getg(). Others
++// use a dedicated register.
++func sigFetchGSafe() *g
++
++func sigFetchG() *g {
++	if GOARCH == "386" {
++		return sigFetchGSafe()
++	}
++	return getg()
++}
++
++// sigtrampgo is called from the exception handler function, sigtramp,
++// written in assembly code.
++// Return EXCEPTION_CONTINUE_EXECUTION if the exception is handled,
++// else return EXCEPTION_CONTINUE_SEARCH.
++//
++// It is nosplit for the same reason as exceptionhandler.
++//
++//go:nosplit
++func sigtrampgo(ep *exceptionpointers, kind int) int32 {
++	gp := sigFetchG()
++	if gp == nil {
++		return _EXCEPTION_CONTINUE_SEARCH
++	}
++
++	var fn func(info *exceptionrecord, r *context, gp *g) int32
++	switch kind {
++	case callbackVEH:
++		fn = exceptionhandler
++	case callbackFirstVCH:
++		fn = firstcontinuehandler
++	case callbackLastVCH:
++		fn = lastcontinuehandler
++	default:
++		throw("unknown sigtramp callback")
++	}
++
++	// Check if we are running on g0 stack, and if we are,
++	// call fn directly instead of creating the closure.
++	// for the systemstack argument.
++	//
++	// A closure can't be marked as nosplit, so it might
++	// call morestack if we are at the g0 stack limit.
++	// If that happens, the runtime will call abort
++	// and end up in sigtrampgo again.
++	// TODO: revisit this workaround if/when closures
++	// can be compiled as nosplit.
++	//
++	// Note that this scenario should only occur on
++	// TestG0StackOverflow. Any other occurrence should
++	// be treated as a bug.
++	var ret int32
++	if gp != gp.m.g0 {
++		systemstack(func() {
++			ret = fn(ep.record, ep.context, gp)
++		})
++	} else {
++		ret = fn(ep.record, ep.context, gp)
++	}
++	if ret == _EXCEPTION_CONTINUE_SEARCH {
++		return ret
++	}
++
++	// Check if we need to set up the control flow guard workaround.
++	// On Windows, the stack pointer in the context must lie within
++	// system stack limits when we resume from exception.
++	// Store the resume SP and PC in alternate registers
++	// and return to sigresume on the g0 stack.
++	// sigresume makes no use of the stack at all,
++	// loading SP from RX and jumping to RY, being RX and RY two scratch registers.
++	// Note that blindly smashing RX and RY is only safe because we know sigpanic
++	// will not actually return to the original frame, so the registers
++	// are effectively dead. But this does mean we can't use the
++	// same mechanism for async preemption.
++	if ep.context.ip() == abi.FuncPCABI0(sigresume) {
++		// sigresume has already been set up by a previous exception.
++		return ret
++	}
++	prepareContextForSigResume(ep.context)
++	ep.context.set_sp(gp.m.g0.sched.sp)
++	ep.context.set_ip(abi.FuncPCABI0(sigresume))
++	return ret
++}
++
+ // Called by sigtramp from Windows VEH handler.
+ // Return value signals whether the exception has been handled (EXCEPTION_CONTINUE_EXECUTION)
+ // or should be made available to other handlers in the chain (EXCEPTION_CONTINUE_SEARCH).
+ //
+-// This is the first entry into Go code for exception handling. This
+-// is nosplit to avoid growing the stack until we've checked for
+-// _EXCEPTION_BREAKPOINT, which is raised if we overflow the g0 stack,
++// This is nosplit to avoid growing the stack until we've checked for
++// _EXCEPTION_BREAKPOINT, which is raised by abort() if we overflow the g0 stack.
+ //
+ //go:nosplit
+ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 8713f7d0d9..0983cc7b1f 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -72,13 +72,20 @@ TEXT runtime·getlasterror(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+0(FP)
+ 	RET
+ 
++TEXT runtime·sigFetchGSafe<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++	get_tls(AX)
++	CMPL	AX, $0
++	JE	2(PC)
++	MOVL	g(AX), AX
++	MOVL	AX, ret+0(FP)
++	RET
++
+ // Called by Windows as a Vectored Exception Handler (VEH).
+-// First argument is pointer to struct containing
++// AX is pointer to struct containing
+ // exception record and context pointers.
+-// Handler function is stored in AX.
+-// Return 0 for 'not handled', -1 for handled.
++// CX is the kind of sigtramp function.
++// Return value of sigtrampgo is stored in AX.
+ TEXT sigtramp<>(SB),NOSPLIT,$0-0
+-	MOVL	ptrs+0(FP), CX
+ 	SUBL	$40, SP
+ 
+ 	// save callee-saved registers
+@@ -87,58 +94,11 @@ TEXT sigtramp<>(SB),NOSPLIT,$0-0
+ 	MOVL	SI, 20(SP)
+ 	MOVL	DI, 24(SP)
+ 
+-	MOVL	AX, SI	// save handler address
+-
+-	// find g
+-	get_tls(DX)
+-	CMPL	DX, $0
+-	JNE	3(PC)
+-	MOVL	$0, AX // continue
+-	JMP	done
+-	MOVL	g(DX), DX
+-	CMPL	DX, $0
+-	JNE	2(PC)
+-	CALL	runtime·badsignal2(SB)
+-
+-	// save g in case of stack switch
+-	MOVL	DX, 32(SP)	// g
+-	MOVL	SP, 36(SP)
+-
+-	// do we need to switch to the g0 stack?
+-	MOVL	g_m(DX), BX
+-	MOVL	m_g0(BX), BX
+-	CMPL	DX, BX
+-	JEQ	g0
+-
+-	// switch to the g0 stack
+-	get_tls(BP)
+-	MOVL	BX, g(BP)
+-	MOVL	(g_sched+gobuf_sp)(BX), DI
+-	// make room for sighandler arguments
+-	// and re-save old SP for restoring later.
+-	// (note that the 36(DI) here must match the 36(SP) above.)
+-	SUBL	$40, DI
+-	MOVL	SP, 36(DI)
+-	MOVL	DI, SP
+-
+-g0:
+-	MOVL	0(CX), BX // ExceptionRecord*
+-	MOVL	4(CX), CX // Context*
+-	MOVL	BX, 0(SP)
++	MOVL	AX, 0(SP)
+ 	MOVL	CX, 4(SP)
+-	MOVL	DX, 8(SP)
+-	CALL	SI	// call handler
+-	// AX is set to report result back to Windows
+-	MOVL	12(SP), AX
+-
+-	// switch back to original stack and g
+-	// no-op if we never left.
+-	MOVL	36(SP), SP
+-	MOVL	32(SP), DX	// note: different SP
+-	get_tls(BP)
+-	MOVL	DX, g(BP)
+-
+-done:
++	CALL	runtime·sigtrampgo(SB)
++	MOVL	8(SP), AX
++
+ 	// restore callee-saved registers
+ 	MOVL	24(SP), DI
+ 	MOVL	20(SP), SI
+@@ -150,8 +110,18 @@ done:
+ 	BYTE $0xC2; WORD $4
+ 	RET // unreached; make assembler happy
+ 
++// Trampoline to resume execution from exception handler.
++// This is part of the control flow guard workaround.
++// It switches stacks and jumps to the continuation address.
++// DX and CX are set above at the end of sigtrampgo
++// in the context that starts executing at sigresume.
++TEXT runtime·sigresume(SB),NOSPLIT|NOFRAME,$0
++	MOVL	DX, SP
++	JMP	CX
++
+ TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
+-	MOVL	$runtime·exceptionhandler(SB), AX
++	MOVL	argframe+0(FP), AX
++	MOVL	$const_callbackVEH, CX
+ 	JMP	sigtramp<>(SB)
+ 
+ TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
+@@ -159,7 +129,8 @@ TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
+ 	INT	$3
+ 
+ TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
+-	MOVL	$runtime·lastcontinuehandler(SB), AX
++	MOVL	argframe+0(FP), AX
++	MOVL	$const_callbackLastVCH, CX
+ 	JMP	sigtramp<>(SB)
+ 
+ GLOBL runtime·cbctxts(SB), NOPTR, $4
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 777726f7c1..04e649539c 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -107,132 +107,61 @@ TEXT runtime·getlasterror(SB),NOSPLIT,$0
+ 	RET
+ 
+ // Called by Windows as a Vectored Exception Handler (VEH).
+-// First argument is pointer to struct containing
++// CX is pointer to struct containing
+ // exception record and context pointers.
+-// Handler function is stored in AX.
+-// Return 0 for 'not handled', -1 for handled.
++// DX is the kind of sigtramp function.
++// Return value of sigtrampgo is stored in AX.
+ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0-0
+-	// CX: PEXCEPTION_POINTERS ExceptionInfo
+-
+ 	// Switch from the host ABI to the Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+-	// Make stack space for the rest of the function.
+-	ADJSP	$48
+-
+-	MOVQ	CX, R13	// save exception address
+-	MOVQ	AX, R15	// save handler address
+-
+-	// find g
+-	get_tls(DX)
+-	CMPQ	DX, $0
+-	JNE	3(PC)
+-	MOVQ	$0, AX // continue
+-	JMP	done
+-	MOVQ	g(DX), DX
+-	CMPQ	DX, $0
+-	JNE	2(PC)
+-	CALL	runtime·badsignal2(SB)
+-
+-	// save g and SP in case of stack switch
+-	MOVQ	DX, 32(SP) // g
+-	MOVQ	SP, 40(SP)
+-
+-	// do we need to switch to the g0 stack?
+-	MOVQ	g_m(DX), BX
+-	MOVQ	m_g0(BX), BX
+-	CMPQ	DX, BX
+-	JEQ	g0
+-
+-	// switch to g0 stack
+-	get_tls(BP)
+-	MOVQ	BX, g(BP)
+-	MOVQ	(g_sched+gobuf_sp)(BX), DI
+-	// make room for sighandler arguments
+-	// and re-save old SP for restoring later.
+-	// Adjust g0 stack by the space we're using and
+-	// save SP at the same place on the g0 stack.
+-	// The 40(DI) here must match the 40(SP) above.
+-	SUBQ	$(REGS_HOST_TO_ABI0_STACK + 48), DI
+-	MOVQ	SP, 40(DI)
+-	MOVQ	DI, SP
+-
+-g0:
+-	MOVQ	0(R13), BX // ExceptionRecord*
+-	MOVQ	8(R13), CX // Context*
+-	MOVQ	BX, 0(SP)
+-	MOVQ	CX, 8(SP)
+-	MOVQ	DX, 16(SP)
+-	CALL	R15	// call handler
+-	// AX is set to report result back to Windows
+-	MOVL	24(SP), AX
+-
+-	MOVQ	SP, DI // save g0 SP
+-
+-	// switch back to original stack and g
+-	// no-op if we never left.
+-	MOVQ	40(SP), SP
+-	MOVQ	32(SP), DX
+-	get_tls(BP)
+-	MOVQ	DX, g(BP)
+ 
+-	// if return value is CONTINUE_SEARCH, do not set up control
+-	// flow guard workaround.
++	// Set up ABIInternal environment: cleared X15 and R14.
++	// R14 is cleared in case there's a non-zero value in there
++	// if called from a non-go thread.
++	XORPS	X15, X15
++	XORQ	R14, R14
++
++	get_tls(AX)
+ 	CMPQ	AX, $0
+-	JEQ	done
+-
+-	// Check if we need to set up the control flow guard workaround.
+-	// On Windows, the stack pointer in the context must lie within
+-	// system stack limits when we resume from exception.
+-	// Store the resume SP and PC in alternate registers
+-	// and return to sigresume on the g0 stack.
+-	// sigresume makes no use of the stack at all,
+-	// loading SP from R8 and jumping to R9.
+-	// Note that smashing R8 and R9 is only safe because we know sigpanic
+-	// will not actually return to the original frame, so the registers
+-	// are effectively dead. But this does mean we can't use the
+-	// same mechanism for async preemption.
+-	MOVQ	8(R13), CX
+-	MOVQ	$sigresume<>(SB), BX
+-	CMPQ	BX, context_rip(CX)
+-	JEQ	done			// do not clobber saved SP/PC
+-
+-	// Save resume SP and PC into R8, R9.
+-	MOVQ	context_rsp(CX), BX
+-	MOVQ	BX, context_r8(CX)
+-	MOVQ	context_rip(CX), BX
+-	MOVQ	BX, context_r9(CX)
+-
+-	// Set up context record to return to sigresume on g0 stack
+-	MOVD	DI, BX
+-	MOVD	BX, context_rsp(CX)
+-	MOVD	$sigresume<>(SB), BX
+-	MOVD	BX, context_rip(CX)
+-
+-done:
+-	ADJSP	$-48
+-	POP_REGS_HOST_TO_ABI0()
++	JE	2(PC)
++	// Exception from Go thread, set R14.
++	MOVQ	g(AX), R14
+ 
++	// Reserve space for spill slots.
++	ADJSP	$16
++	MOVQ	CX, AX
++	MOVQ	DX, BX
++	// Calling ABIInternal because TLS might be nil.
++	CALL	runtime·sigtrampgo<ABIInternal>(SB)
++	// Return value is already stored in AX.
++
++	ADJSP	$-16
++
++	POP_REGS_HOST_TO_ABI0()
+ 	RET
+ 
+ // Trampoline to resume execution from exception handler.
+ // This is part of the control flow guard workaround.
+ // It switches stacks and jumps to the continuation address.
+-// R8 and R9 are set above at the end of sigtramp<>
+-// in the context that starts executing at sigresume<>.
+-TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
++// R8 and R9 are set above at the end of sigtrampgo
++// in the context that starts executing at sigresume.
++TEXT runtime·sigresume(SB),NOSPLIT|NOFRAME,$0
+ 	MOVQ	R8, SP
+ 	JMP	R9
+ 
+ TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
+-	MOVQ	$runtime·exceptionhandler(SB), AX
++	// PExceptionPointers already on CX
++	MOVQ	$const_callbackVEH, DX
+ 	JMP	sigtramp<>(SB)
+ 
+ TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVQ	$runtime·firstcontinuehandler(SB), AX
++	// PExceptionPointers already on CX
++	MOVQ	$const_callbackFirstVCH, DX
+ 	JMP	sigtramp<>(SB)
+ 
+ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVQ	$runtime·lastcontinuehandler(SB), AX
++	// PExceptionPointers already on CX
++	MOVQ	$const_callbackLastVCH, DX
+ 	JMP	sigtramp<>(SB)
+ 
+ GLOBL runtime·cbctxts(SB), NOPTR, $8
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index db6d8f1a08..a00fd16670 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -107,121 +107,36 @@ TEXT runtime·getlasterror(SB),NOSPLIT,$0
+ 	RET
+ 
+ // Called by Windows as a Vectored Exception Handler (VEH).
+-// First argument is pointer to struct containing
++// R0 is pointer to struct containing
+ // exception record and context pointers.
+-// Handler function is stored in R1
+-// Return 0 for 'not handled', -1 for handled.
+-// int32_t sigtramp(
+-//     PEXCEPTION_POINTERS ExceptionInfo,
+-//     func *GoExceptionHandler);
++// R1 is the kind of sigtramp function.
++// Return value of sigtrampgo is stored in R0.
+ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
+-	MOVM.DB.W [R0, R4-R11, R14], (R13)	// push {r0, r4-r11, lr} (SP-=40)
+-	SUB	$(8+20), R13		// reserve space for g, sp, and
+-					// parameters/retval to go call
++	MOVM.DB.W [R4-R11, R14], (R13)	// push {r4-r11, lr} (SP-=40)
++	SUB	$(16), R13		// reserve space for parameters/retval to go call
+ 
+ 	MOVW	R0, R6			// Save param0
+ 	MOVW	R1, R7			// Save param1
+-
+-	BL      runtime·load_g(SB)
+-	CMP	$0,	g		// is there a current g?
+-	BNE	g_ok
+-	ADD	$(8+20), R13	// free locals
+-	MOVM.IA.W (R13), [R3, R4-R11, R14]	// pop {r3, r4-r11, lr}
+-	MOVW	$0, R0		// continue 
+-	BEQ	return
+-
+-g_ok:
+-
+-	// save g and SP in case of stack switch
+-	MOVW	R13, 24(R13)
+-	MOVW	g, 20(R13)
+-
+-	// do we need to switch to the g0 stack?
+-	MOVW	g, R5			// R5 = g
+-	MOVW	g_m(R5), R2		// R2 = m
+-	MOVW	m_g0(R2), R4		// R4 = g0
+-	CMP	R5, R4			// if curg == g0
+-	BEQ	g0
+-
+-	// switch to g0 stack
+-	MOVW	R4, g				// g = g0
+-	MOVW	(g_sched+gobuf_sp)(g), R3	// R3 = g->gobuf.sp
+-	BL      runtime·save_g(SB)
+-
+-	// make room for sighandler arguments
+-	// and re-save old SP for restoring later.
+-	// (note that the 24(R3) here must match the 24(R13) above.)
+-	SUB	$40, R3
+-	MOVW	R13, 24(R3)		// save old stack pointer
+-	MOVW	R3, R13			// switch stack
+-
+-g0:
+-	MOVW	0(R6), R2	// R2 = ExceptionPointers->ExceptionRecord
+-	MOVW	4(R6), R3	// R3 = ExceptionPointers->ContextRecord
++	BL	runtime·load_g(SB)	// Clobbers R0
+ 
+ 	MOVW	$0, R4
+ 	MOVW	R4, 0(R13)	// No saved link register.
+-	MOVW	R2, 4(R13)	// Move arg0 (ExceptionRecord) into position
+-	MOVW	R3, 8(R13)	// Move arg1 (ContextRecord) into position
+-	MOVW	R5, 12(R13)	// Move arg2 (original g) into position
+-	BL	(R7)		// Call the goroutine
+-	MOVW	16(R13), R4	// Fetch return value from stack
+-
+-	// Save system stack pointer for sigresume setup below.
+-	// The exact value does not matter - nothing is read or written
+-	// from this address. It just needs to be on the system stack.
+-	MOVW	R13, R12
+-
+-	// switch back to original stack and g
+-	MOVW	24(R13), R13
+-	MOVW	20(R13), g
+-	BL      runtime·save_g(SB)
+-
+-done:
+-	MOVW	R4, R0				// move retval into position
+-	ADD	$(8 + 20), R13			// free locals
+-	MOVM.IA.W (R13), [R3, R4-R11, R14]	// pop {r3, r4-r11, lr}
+-
+-	// if return value is CONTINUE_SEARCH, do not set up control
+-	// flow guard workaround
+-	CMP	$0, R0
+-	BEQ	return
+-
+-	// Check if we need to set up the control flow guard workaround.
+-	// On Windows, the stack pointer in the context must lie within
+-	// system stack limits when we resume from exception.
+-	// Store the resume SP and PC on the g0 stack,
+-	// and return to sigresume on the g0 stack. sigresume
+-	// pops the saved PC and SP from the g0 stack, resuming execution
+-	// at the desired location.
+-	// If sigresume has already been set up by a previous exception
+-	// handler, don't clobber the stored SP and PC on the stack.
+-	MOVW	4(R3), R3			// PEXCEPTION_POINTERS->Context
+-	MOVW	context_pc(R3), R2		// load PC from context record
+-	MOVW	$sigresume<>(SB), R1
+-	CMP	R1, R2
+-	B.EQ	return				// do not clobber saved SP/PC
+-
+-	// Save resume SP and PC into R0, R1.
+-	MOVW	context_spr(R3), R2
+-	MOVW	R2, context_r0(R3)
+-	MOVW	context_pc(R3), R2
+-	MOVW	R2, context_r1(R3)
++	MOVW	R6, 4(R13)	// Move arg0 into position
++	MOVW	R7, 8(R13)	// Move arg1 into position
++	BL	runtime·sigtrampgo(SB)
++	MOVW	12(R13), R0	// Fetch return value from stack
+ 
+-	// Set up context record to return to sigresume on g0 stack
+-	MOVW	R12, context_spr(R3)
+-	MOVW	$sigresume<>(SB), R2
+-	MOVW	R2, context_pc(R3)
++	ADD	$(16), R13			// free locals
++	MOVM.IA.W (R13), [R4-R11, R14]	// pop {r4-r11, lr}
+ 
+-return:
+ 	B	(R14)				// return
+ 
+ // Trampoline to resume execution from exception handler.
+ // This is part of the control flow guard workaround.
+ // It switches stacks and jumps to the continuation address.
+-// R0 and R1 are set above at the end of sigtramp<>
+-// in the context that starts executing at sigresume<>.
+-TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
++// R0 and R1 are set above at the end of sigtrampgo
++// in the context that starts executing at sigresume.
++TEXT runtime·sigresume(SB),NOSPLIT|NOFRAME,$0
+ 	// Important: do not smash LR,
+ 	// which is set to a live value when handling
+ 	// a signal by pushing a call to sigpanic onto the stack.
+@@ -229,15 +144,15 @@ TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
+ 	B	(R1)
+ 
+ TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	$runtime·exceptionhandler(SB), R1
++	MOVW	$const_callbackVEH, R1
+ 	B	sigtramp<>(SB)
+ 
+ TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	$runtime·firstcontinuehandler(SB), R1
++	MOVW	$const_callbackFirstVCH, R1
+ 	B	sigtramp<>(SB)
+ 
+ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	$runtime·lastcontinuehandler(SB), R1
++	MOVW	$const_callbackLastVCH, R1
+ 	B	sigtramp<>(SB)
+ 
+ GLOBL runtime·cbctxts(SB), NOPTR, $4
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index 4702a4d7d2..67fe21b2d0 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -131,143 +131,38 @@ TEXT runtime·getlasterror(SB),NOSPLIT|NOFRAME,$0
+ 	RET
+ 
+ // Called by Windows as a Vectored Exception Handler (VEH).
+-// First argument is pointer to struct containing
++// R0 is pointer to struct containing
+ // exception record and context pointers.
+-// Handler function is stored in R1
+-// Return 0 for 'not handled', -1 for handled.
+-// int32_t sigtramp(
+-//     PEXCEPTION_POINTERS ExceptionInfo,
+-//     func *GoExceptionHandler);
+-TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
+-	// Save R0, R1 (args) as well as LR, R27, R28 (callee-save).
++// R1 is the kind of sigtramp function.
++// Return value of sigtrampgo is stored in R0.
++TEXT sigtramp<>(SB),NOSPLIT,$176
++	// Switch from the host ABI to the Go ABI, safe args and lr.
+ 	MOVD	R0, R5
+ 	MOVD	R1, R6
+ 	MOVD	LR, R7
+-	MOVD	R27, R16		// saved R27 (callee-save)
+-	MOVD	g, R17 			// saved R28 (callee-save from Windows, not really g)
++	SAVE_R19_TO_R28(8*4)
++	SAVE_F8_TO_F15(8*14)
+ 
+-	BL      runtime·load_g(SB)	// smashes R0, R27, R28 (g)
+-	CMP	$0,	g		// is there a current g?
+-	BNE	g_ok
+-	MOVD	R7, LR
+-	MOVD	R16, R27	// restore R27
+-	MOVD	R17, g		// restore R28
+-	MOVD	$0, R0		// continue 
+-	RET
++	BL	runtime·load_g(SB)	// Clobers R0, R27, R28 (g)
+ 
+-g_ok:
+-	// Do we need to switch to the g0 stack?
+-	MOVD	g, R3			// R3 = oldg (for sigtramp_g0)
+-	MOVD	g_m(g), R2		// R2 = m
+-	MOVD	m_g0(R2), R2		// R2 = g0
+-	CMP	g, R2			// if curg == g0
+-	BNE	switch
+-
+-	// No: on g0 stack already, tail call to sigtramp_g0.
+-	// Restore all the callee-saves so sigtramp_g0 can return to our caller.
+-	// We also pass R2 = g0, R3 = oldg, both set above.
+ 	MOVD	R5, R0
+ 	MOVD	R6, R1
+-	MOVD	R7, LR
+-	MOVD	R16, R27		// restore R27
+-	MOVD	R17, g 			// restore R28
+-	B	sigtramp_g0<>(SB)
++	// Calling ABIInternal because TLS might be nil.
++	BL	runtime·sigtrampgo<ABIInternal>(SB)
++	// Return value is already stored in R0.
+ 
+-switch:
+-	// switch to g0 stack (but do not update g - that's sigtramp_g0's job)
+-	MOVD	RSP, R8
+-	MOVD	(g_sched+gobuf_sp)(R2), R4	// R4 = g->gobuf.sp
+-	SUB	$(6*8), R4			// alloc space for saves - 2 words below SP for frame pointer, 3 for us to use, 1 for alignment
+-	MOVD	R4, RSP				// switch to g0 stack
+-
+-	MOVD	$0, (0*8)(RSP)	// fake saved LR
+-	MOVD	R7, (1*8)(RSP)	// saved LR
+-	MOVD	R8, (2*8)(RSP)	// saved SP
+-
+-	MOVD	R5, R0		// original args
+-	MOVD	R6, R1		// original args
+-	MOVD	R16, R27
+-	MOVD	R17, g 		// R28
+-	BL	sigtramp_g0<>(SB)
+-
+-	// switch back to original stack; g already updated
+-	MOVD	(1*8)(RSP), R7	// saved LR
+-	MOVD	(2*8)(RSP), R8	// saved SP
++	// Restore callee-save registers.
++	RESTORE_R19_TO_R28(8*4)
++	RESTORE_F8_TO_F15(8*14)
+ 	MOVD	R7, LR
+-	MOVD	R8, RSP
+-	RET
+-
+-// sigtramp_g0 is running on the g0 stack, with R2 = g0, R3 = oldg.
+-// But g itself is not set - that's R28, a callee-save register,
+-// and it still holds the value from the Windows DLL caller.
+-TEXT sigtramp_g0<>(SB),NOSPLIT,$128
+-	NO_LOCAL_POINTERS
+-
+-	// Push C callee-save registers R19-R28. LR, FP already saved.
+-	// These registers will occupy the upper 10 words of the frame.
+-	SAVE_R19_TO_R28(8*7)
+-
+-	MOVD	0(R0), R5	// R5 = ExceptionPointers->ExceptionRecord
+-	MOVD	8(R0), R6	// R6 = ExceptionPointers->ContextRecord
+-	MOVD	R6, context-(11*8)(SP)
+-
+-	MOVD	R2, g 			// g0
+-	BL      runtime·save_g(SB)	// smashes R0
+-
+-	MOVD	R5, (1*8)(RSP)	// arg0 (ExceptionRecord)
+-	MOVD	R6, (2*8)(RSP)	// arg1 (ContextRecord)
+-	MOVD	R3, (3*8)(RSP)	// arg2 (original g)
+-	MOVD	R3, oldg-(12*8)(SP)
+-	BL	(R1)
+-	MOVD	oldg-(12*8)(SP), g
+-	BL      runtime·save_g(SB)	// smashes R0
+-	MOVW	(4*8)(RSP), R0	// return value (0 or -1)
+-
+-	// if return value is CONTINUE_SEARCH, do not set up control
+-	// flow guard workaround
+-	CMP	$0, R0
+-	BEQ	return
+-
+-	// Check if we need to set up the control flow guard workaround.
+-	// On Windows, the stack pointer in the context must lie within
+-	// system stack limits when we resume from exception.
+-	// Store the resume SP and PC in alternate registers
+-	// and return to sigresume on the g0 stack.
+-	// sigresume makes no use of the stack at all,
+-	// loading SP from R0 and jumping to R1.
+-	// Note that smashing R0 and R1 is only safe because we know sigpanic
+-	// will not actually return to the original frame, so the registers
+-	// are effectively dead. But this does mean we can't use the
+-	// same mechanism for async preemption.
+-	MOVD	context-(11*8)(SP), R6
+-	MOVD	context_pc(R6), R2		// load PC from context record
+-	MOVD	$sigresume<>(SB), R1
+-
+-	CMP	R1, R2
+-	BEQ	return				// do not clobber saved SP/PC
+-
+-	// Save resume SP and PC into R0, R1.
+-	MOVD	context_xsp(R6), R2
+-	MOVD	R2, (context_x+0*8)(R6)
+-	MOVD	context_pc(R6), R2
+-	MOVD	R2, (context_x+1*8)(R6)
+-
+-	// Set up context record to return to sigresume on g0 stack
+-	MOVD	RSP, R2
+-	MOVD	R2, context_xsp(R6)
+-	MOVD	$sigresume<>(SB), R2
+-	MOVD	R2, context_pc(R6)
+-
+-return:
+-	RESTORE_R19_TO_R28(8*7)		// smashes g
+ 	RET
+ 
+ // Trampoline to resume execution from exception handler.
+ // This is part of the control flow guard workaround.
+ // It switches stacks and jumps to the continuation address.
+-// R0 and R1 are set above at the end of sigtramp<>
+-// in the context that starts executing at sigresume<>.
+-TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
++// R0 and R1 are set above at the end of sigtrampgo
++// in the context that starts executing at sigresume.
++TEXT runtime·sigresume(SB),NOSPLIT|NOFRAME,$0
+ 	// Important: do not smash LR,
+ 	// which is set to a live value when handling
+ 	// a signal by pushing a call to sigpanic onto the stack.
+@@ -275,15 +170,15 @@ TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
+ 	B	(R1)
+ 
+ TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
+-	MOVD	$runtime·exceptionhandler(SB), R1
++	MOVD	$const_callbackVEH, R1
+ 	B	sigtramp<>(SB)
+ 
+ TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+-	MOVD	$runtime·firstcontinuehandler(SB), R1
++	MOVD	$const_callbackFirstVCH, R1
+ 	B	sigtramp<>(SB)
+ 
+ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+-	MOVD	$runtime·lastcontinuehandler(SB), R1
++	MOVD	$const_callbackLastVCH, R1
+ 	B	sigtramp<>(SB)
+ 
+ GLOBL runtime·cbctxts(SB), NOPTR, $4

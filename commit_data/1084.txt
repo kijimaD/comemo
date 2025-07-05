@@ -9,7 +9,49 @@ Date:   Thu Nov 6 17:39:48 2008 -0800
     DELTA=20  (0 added, 20 deleted, 0 changed)
     OCL=18731
     CL=18739
-
+---
  test/bugs/bug119.go | 20 --------------------
  test/golden.out     |  4 ----
  2 files changed, 24 deletions(-)
+
+diff --git a/test/bugs/bug119.go b/test/bugs/bug119.go
+deleted file mode 100644
+index 956f1b95d4..0000000000
+--- a/test/bugs/bug119.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: should not fail
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func main() {
+-  a := new(chan bool);
+-  for {
+-    select {
+-    case <- a:
+-      panic();
+-    default:
+-      break;
+-    }
+-    panic();
+-  }
+-}
+diff --git a/test/golden.out b/test/golden.out
+index 77fe8dc881..640267d301 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -153,10 +153,6 @@ BUG: should compile
+ =========== bugs/bug118.go
+ BUG should compile
+ 
+-=========== bugs/bug119.go
+-
+-panic on line 82 PC=xxx
+-BUG should not panic
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 

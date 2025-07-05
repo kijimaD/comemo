@@ -13,6 +13,29 @@ Date:   Wed Mar 5 19:37:44 2014 -0800
     R=r, rsc, iant, ken
     CC=golang-codereviews
     https://golang.org/cl/71790044
-
+---
  doc/go_spec.html | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index dada503574..b89aafebe7 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of March 5, 2014",
++	"Subtitle": "Version of March 6, 2014",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -674,7 +674,8 @@ types, the dynamic type is always the static type.
+ 
+ <p>
+ Each type <code>T</code> has an <i>underlying type</i>: If <code>T</code>
+-is a predeclared type or a type literal, the corresponding underlying
++is one of the predeclared boolean, numeric, or string types, or a type literal,
++the corresponding underlying
+ type is <code>T</code> itself. Otherwise, <code>T</code>'s underlying type
+ is the underlying type of the type to which <code>T</code> refers in its
+ <a href="#Type_declarations">type declaration</a>.

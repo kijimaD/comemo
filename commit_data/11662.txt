@@ -8,6 +8,28 @@ Date:   Tue Feb 7 06:59:36 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5634046
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index a546fdc672..4467f4e39e 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of January 30, 2012"
++	"Subtitle": "Version of February 6, 2012"
+ }-->
+ 
+ <!--
+@@ -2143,7 +2143,7 @@ Examples of valid array, slice, and map literals:
+ 
+ <pre>
+ // list of prime numbers
+-primes := []int{2, 3, 5, 7, 9, 11, 13, 17, 19, 991, 1174250539803415390440702411831137627109479}
++primes := []int{2, 3, 5, 7, 9, 2147483647}
+ 
+ // vowels[ch] is true if ch is a vowel
+ vowels := [128]bool{'a': true, 'e': true, 'i': true, 'o': true, 'u': true, 'y': true}

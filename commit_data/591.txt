@@ -8,6 +8,38 @@ Date:   Mon Sep 8 18:50:35 2008 -0700
     R=r
     OCL=14976
     CL=14976
-
+---
  test/sorting.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/sorting.go b/test/sorting.go
+index 1619d83acc..f55e9fddda 100644
+--- a/test/sorting.go
++++ b/test/sorting.go
+@@ -10,7 +10,7 @@ import Sort "sort"
+ 
+ func main() {
+ 	{	data := []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586};
+-		a := Sort.IntArray(&data);
++		a := Sort.IntArray{&data};
+ 		
+ 		Sort.Sort(&a);
+ 
+@@ -27,7 +27,7 @@ func main() {
+ 	}
+ 
+ 	{	data := []float{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8};
+-		a := Sort.FloatArray(&data);
++		a := Sort.FloatArray{&data};
+ 		
+ 		Sort.Sort(&a);
+ 
+@@ -44,7 +44,7 @@ func main() {
+ 	}
+ 
+ 	{	data := []string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"};
+-		a := Sort.StringArray(&data);
++		a := Sort.StringArray{&data};
+ 		
+ 		Sort.Sort(&a);
+ 

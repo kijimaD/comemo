@@ -10,6 +10,22 @@ Date:   Wed Feb 18 08:25:30 2015 +0100
     Change-Id: Ied3850aca5c8bca5974105129a37d575df33f6ec
     Reviewed-on: https://go-review.googlesource.com/5150
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/gc/closure.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 9aeac8aba4..35b6d4b1b4 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -140,8 +140,8 @@ closurename(Node *n)
+ 	if(n->sym != S)
+ 		return n->sym;
+ 	gen = 0;
+-	outer = NULL;
+-	prefix = NULL;
++	outer = nil;
++	prefix = nil;
+ 	if(n->outerfunc == N) {
+ 		// Global closure.
+ 		outer = "glob";

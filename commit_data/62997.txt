@@ -18,9 +18,227 @@ Date:   Mon Oct 14 19:11:53 2024 +0800
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/alldocs.go                  |  5 ++++-
  src/cmd/go/internal/version/version.go | 32 ++++++++++++++++++++++++++++----
  src/cmd/go/testdata/script/version.txt | 23 +++++++++++++++++++++--
  src/runtime/debug/mod.go               | 21 +++++++++++----------
  4 files changed, 64 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d7dab82e19..fe53486b40 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1967,7 +1967,7 @@
+ //
+ // Usage:
+ //
+-//	go version [-m] [-v] [file ...]
++//	go version [-m] [-v] [-json] [file ...]
+ //
+ // Version prints the build information for Go binary files.
+ //
+@@ -1986,6 +1986,9 @@
+ // information consists of multiple lines following the version line, each
+ // indented by a leading tab character.
+ //
++// The -json flag is similar to -m but outputs the runtime/debug.BuildInfo in JSON format.
++// If flag -json is specified without -m, go version reports an error.
++//
+ // See also: go doc runtime/debug.BuildInfo.
+ //
+ // # Report likely mistakes in packages
+diff --git a/src/cmd/go/internal/version/version.go b/src/cmd/go/internal/version/version.go
+index c5b69c0a7e..c26dd42b4e 100644
+--- a/src/cmd/go/internal/version/version.go
++++ b/src/cmd/go/internal/version/version.go
+@@ -8,6 +8,7 @@ package version
+ import (
+ 	"context"
+ 	"debug/buildinfo"
++	"encoding/json"
+ 	"errors"
+ 	"fmt"
+ 	"io/fs"
+@@ -21,7 +22,7 @@ import (
+ )
+ 
+ var CmdVersion = &base.Command{
+-	UsageLine: "go version [-m] [-v] [file ...]",
++	UsageLine: "go version [-m] [-v] [-json] [file ...]",
+ 	Short:     "print Go version",
+ 	Long: `Version prints the build information for Go binary files.
+ 
+@@ -40,6 +41,9 @@ module version information, when available. In the output, the module
+ information consists of multiple lines following the version line, each
+ indented by a leading tab character.
+ 
++The -json flag is similar to -m but outputs the runtime/debug.BuildInfo in JSON format.
++If flag -json is specified without -m, go version reports an error.
++
+ See also: go doc runtime/debug.BuildInfo.
+ `,
+ }
+@@ -50,8 +54,9 @@ func init() {
+ }
+ 
+ var (
+-	versionM = CmdVersion.Flag.Bool("m", false, "")
+-	versionV = CmdVersion.Flag.Bool("v", false, "")
++	versionM    = CmdVersion.Flag.Bool("m", false, "")
++	versionV    = CmdVersion.Flag.Bool("v", false, "")
++	versionJson = CmdVersion.Flag.Bool("json", false, "")
+ )
+ 
+ func runVersion(ctx context.Context, cmd *base.Command, args []string) {
+@@ -68,6 +73,11 @@ func runVersion(ctx context.Context, cmd *base.Command, args []string) {
+ 			argOnlyFlag = "-m"
+ 		} else if !base.InGOFLAGS("-v") && *versionV {
+ 			argOnlyFlag = "-v"
++		} else if !base.InGOFLAGS("-json") && *versionJson {
++			// Even though '-json' without '-m' should report an error,
++			// it reports 'no arguments' issue only because that error will be reported
++			// once the 'no arguments' issue is fixed by users.
++			argOnlyFlag = "-json"
+ 		}
+ 		if argOnlyFlag != "" {
+ 			fmt.Fprintf(os.Stderr, "go: 'go version' only accepts %s flag with arguments\n", argOnlyFlag)
+@@ -82,6 +92,12 @@ func runVersion(ctx context.Context, cmd *base.Command, args []string) {
+ 		return
+ 	}
+ 
++	if !*versionM && *versionJson {
++		fmt.Fprintf(os.Stderr, "go: 'go version' with -json flag requires -m flag\n")
++		base.SetExitStatus(2)
++		return
++	}
++
+ 	for _, arg := range args {
+ 		info, err := os.Stat(arg)
+ 		if err != nil {
+@@ -155,7 +171,6 @@ func scanFile(file string, info fs.FileInfo, mustPrint bool) bool {
+ 			if pathErr := (*os.PathError)(nil); errors.As(err, &pathErr) && filepath.Clean(pathErr.Path) == filepath.Clean(file) {
+ 				fmt.Fprintf(os.Stderr, "%v\n", file)
+ 			} else {
+-
+ 				// Skip errors for non-Go binaries.
+ 				// buildinfo.ReadFile errors are not fine-grained enough
+ 				// to know if the file is a Go binary or not,
+@@ -168,6 +183,15 @@ func scanFile(file string, info fs.FileInfo, mustPrint bool) bool {
+ 		return false
+ 	}
+ 
++	if *versionM && *versionJson {
++		bs, err := json.MarshalIndent(bi, "", "\t")
++		if err != nil {
++			base.Fatal(err)
++		}
++		fmt.Printf("%s\n", bs)
++		return true
++	}
++
+ 	fmt.Printf("%s: %s\n", file, bi.GoVersion)
+ 	bi.GoVersion = "" // suppress printing go version again
+ 	mod := bi.String()
+diff --git a/src/cmd/go/testdata/script/version.txt b/src/cmd/go/testdata/script/version.txt
+index a18bcdd915..722859f258 100644
+--- a/src/cmd/go/testdata/script/version.txt
++++ b/src/cmd/go/testdata/script/version.txt
+@@ -8,6 +8,8 @@ stdout '^go version'
+ stderr 'with arguments'
+ ! go version -v
+ stderr 'with arguments'
++! go version -json
++stderr 'with arguments'
+ 
+ # Check that 'go version' succeed even when it does not contain Go build info.
+ # It should print an error if the file has a known Go binary extension.
+@@ -22,8 +24,8 @@ stderr 'could not read Go build info'
+ go version empty.dll
+ stderr 'could not read Go build info'
+ 
+-# Neither of the two flags above should be an issue via GOFLAGS.
+-env GOFLAGS='-m -v'
++# Neither of the three flags above should be an issue via GOFLAGS.
++env GOFLAGS='-m -v -json'
+ go version
+ stdout '^go version'
+ env GOFLAGS=
+@@ -57,6 +59,23 @@ stdout '^test2json.exe: .+'
+ stdout '^\tpath\tcmd/test2json$'
+ ! stdout 'mod[^e]'
+ 
++# Check -json flag
++go build -o test2json.exe cmd/test2json
++go version -m -json test2json.exe
++stdout '"Path": "cmd/test2json"'
++! stdout 'null'
++
++# Check -json flag output with multiple binaries
++go build -o test2json.exe cmd/test2json
++go version -m -json test2json.exe test2json.exe
++stdout -count=2 '"Path": "cmd/test2json"'
++
++# Check -json flag without -m
++go build -o test2json.exe cmd/test2json
++! go version -json test2json.exe
++! stdout '"Path": "cmd/test2json"'
++stderr 'with -json flag requires -m flag'
++
+ # Repeat the test with -buildmode=pie and default linking.
+ [!buildmode:pie] stop
+ [pielinkext] [!cgo] stop
+diff --git a/src/runtime/debug/mod.go b/src/runtime/debug/mod.go
+index 917e734284..34227d8544 100644
+--- a/src/runtime/debug/mod.go
++++ b/src/runtime/debug/mod.go
+@@ -41,29 +41,29 @@ func ReadBuildInfo() (info *BuildInfo, ok bool) {
+ type BuildInfo struct {
+ 	// GoVersion is the version of the Go toolchain that built the binary
+ 	// (for example, "go1.19.2").
+-	GoVersion string
++	GoVersion string `json:",omitempty"`
+ 
+ 	// Path is the package path of the main package for the binary
+ 	// (for example, "golang.org/x/tools/cmd/stringer").
+-	Path string
++	Path string `json:",omitempty"`
+ 
+ 	// Main describes the module that contains the main package for the binary.
+-	Main Module
++	Main Module `json:""`
+ 
+ 	// Deps describes all the dependency modules, both direct and indirect,
+ 	// that contributed packages to the build of this binary.
+-	Deps []*Module
++	Deps []*Module `json:",omitempty"`
+ 
+ 	// Settings describes the build settings used to build the binary.
+-	Settings []BuildSetting
++	Settings []BuildSetting `json:",omitempty"`
+ }
+ 
+ // A Module describes a single module included in a build.
+ type Module struct {
+-	Path    string  // module path
+-	Version string  // module version
+-	Sum     string  // checksum
+-	Replace *Module // replaced by this module
++	Path    string  `json:",omitempty"` // module path
++	Version string  `json:",omitempty"` // module version
++	Sum     string  `json:",omitempty"` // checksum
++	Replace *Module `json:",omitempty"` // replaced by this module
+ }
+ 
+ // A BuildSetting is a key-value pair describing one setting that influenced a build.
+@@ -89,8 +89,9 @@ type Module struct {
+ type BuildSetting struct {
+ 	// Key and Value describe the build setting.
+ 	// Key must not contain an equals sign, space, tab, or newline.
++	Key string `json:",omitempty"`
+ 	// Value must not contain newlines ('\n').
+-	Key, Value string
++	Value string `json:",omitempty"`
+ }
+ 
+ // quoteKey reports whether key is required to be quoted.

@@ -16,9 +16,111 @@ Date:   Tue Dec 13 16:30:45 2022 +0800
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: Meidan Li <limeidan@loongson.cn>
-
+---
  src/cmd/dist/test.go                 |  2 +-
  src/cmd/link/internal/loong64/asm.go | 42 +++++++++++++++++++++++++++++++++++-
  src/internal/platform/supported.go   |  2 +-
  src/runtime/asm_loong64.s            | 11 ++++++++++
  4 files changed, 54 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 9635c4fb61..4450129e08 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1627,7 +1627,7 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 
+ 	case "plugin":
+ 		switch platform {
+-		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x", "linux/ppc64le",
++		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/loong64", "linux/s390x", "linux/ppc64le",
+ 			"android/amd64", "android/386",
+ 			"darwin/amd64", "darwin/arm64",
+ 			"freebsd/amd64":
+diff --git a/src/cmd/link/internal/loong64/asm.go b/src/cmd/link/internal/loong64/asm.go
+index fc7bad9039..6607e5dc64 100644
+--- a/src/cmd/link/internal/loong64/asm.go
++++ b/src/cmd/link/internal/loong64/asm.go
+@@ -14,7 +14,47 @@ import (
+ 	"log"
+ )
+ 
+-func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
++func gentext(ctxt *ld.Link, ldr *loader.Loader) {
++	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
++	if initfunc == nil {
++		return
++	}
++
++	o := func(op uint32) {
++		initfunc.AddUint32(ctxt.Arch, op)
++	}
++
++	// Emit the following function:
++	//
++	//	local.dso_init:
++	//		la.pcrel $a0, local.moduledata
++	//		b runtime.addmoduledata
++
++	//	0000000000000000 <local.dso_init>:
++	//	0:	1a000004	pcalau12i	$a0, 0
++	//				0: R_LARCH_PCALA_HI20	local.moduledata
++	o(0x1a000004)
++	rel, _ := initfunc.AddRel(objabi.R_ADDRLOONG64U)
++	rel.SetOff(0)
++	rel.SetSiz(4)
++	rel.SetSym(ctxt.Moduledata)
++
++	//	4:	02c00084	addi.d	$a0, $a0, 0
++	//				4: R_LARCH_PCALA_LO12	local.moduledata
++	o(0x02c00084)
++	rel2, _ := initfunc.AddRel(objabi.R_ADDRLOONG64)
++	rel2.SetOff(4)
++	rel2.SetSiz(4)
++	rel2.SetSym(ctxt.Moduledata)
++
++	//	8:	50000000	b	0
++	//				8: R_LARCH_B26	runtime.addmoduledata
++	o(0x50000000)
++	rel3, _ := initfunc.AddRel(objabi.R_CALLLOONG64)
++	rel3.SetOff(8)
++	rel3.SetSiz(4)
++	rel3.SetSym(addmoduledata)
++}
+ 
+ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
+ 	log.Fatalf("adddynrel not implemented")
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index 4589903550..82c66e2195 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -206,7 +206,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 
+ 	case "plugin":
+ 		switch platform {
+-		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x", "linux/ppc64le",
++		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/loong64", "linux/s390x", "linux/ppc64le",
+ 			"android/amd64", "android/386",
+ 			"darwin/amd64", "darwin/arm64",
+ 			"freebsd/amd64":
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index 93550b9342..8a1eae3740 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -642,6 +642,17 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
+ 	// traceback from goexit1 must hit code range of goexit
+ 	NOOP
+ 
++// This is called from .init_array and follows the platform, not Go, ABI.
++TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
++	ADDV	$-0x10, R3
++	MOVV	R30, 8(R3) // The access to global variables below implicitly uses R30, which is callee-save
++	MOVV	runtime·lastmoduledatap(SB), R12
++	MOVV	R4, moduledata_next(R12)
++	MOVV	R4, runtime·lastmoduledatap(SB)
++	MOVV	8(R3), R30
++	ADDV	$0x10, R3
++	RET
++
+ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVW	$1, R19
+ 	MOVB	R19, ret+0(FP)

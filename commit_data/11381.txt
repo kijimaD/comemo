@@ -11,9 +11,293 @@ Date:   Wed Jan 25 10:21:13 2012 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/5564056
-
+---
  src/pkg/go/printer/nodes.go                     | 44 ++++++++++++++-------
  src/pkg/go/printer/testdata/declarations.golden | 50 ++++++++++++++++--------
  src/pkg/go/printer/testdata/linebreaks.golden   | 52 +++++++++++++++++++++++++
  src/pkg/go/printer/testdata/linebreaks.input    | 48 +++++++++++++++++++++++
  4 files changed, 164 insertions(+), 30 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 6817cc42ad..0f4e72b5f1 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -272,23 +272,32 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
+ func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
+ 	p.print(fields.Opening, token.LPAREN)
+ 	if len(fields.List) > 0 {
++		prevLine := p.fset.Position(fields.Opening).Line
+ 		ws := indent
+-		var prevLine, line int
+ 		for i, par := range fields.List {
++			// determine par begin and end line (may be different
++			// if there are multiple parameter names for this par
++			// or the type is on a separate line)
++			var parLineBeg int
++			var parLineEnd = p.fset.Position(par.Type.Pos()).Line
++			if len(par.Names) > 0 {
++				parLineBeg = p.fset.Position(par.Names[0].Pos()).Line
++			} else {
++				parLineBeg = parLineEnd
++			}
++			// separating "," if needed
+ 			if i > 0 {
+ 				p.print(token.COMMA)
+-				if len(par.Names) > 0 {
+-					line = p.fset.Position(par.Names[0].Pos()).Line
+-				} else {
+-					line = p.fset.Position(par.Type.Pos()).Line
+-				}
+-				if 0 < prevLine && prevLine < line && p.linebreak(line, 0, ws, true) {
+-					ws = ignore
+-					*multiLine = true
+-				} else {
+-					p.print(blank)
+-				}
+ 			}
++			// separator if needed (linebreak or blank)
++			if 0 < prevLine && prevLine < parLineBeg && p.linebreak(parLineBeg, 0, ws, true) {
++				// break line if the opening "(" or previous parameter ended on a different line
++				ws = ignore
++				*multiLine = true
++			} else if i > 0 {
++				p.print(blank)
++			}
++			// parameter names
+ 			if len(par.Names) > 0 {
+ 				// Very subtle: If we indented before (ws == ignore), identList
+ 				// won't indent again. If we didn't (ws == indent), identList will
+@@ -299,11 +308,18 @@ func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
+ 				p.identList(par.Names, ws == indent, multiLine)
+ 				p.print(blank)
+ 			}
++			// parameter type
+ 			p.expr(par.Type, multiLine)
+-			prevLine = p.fset.Position(par.Type.Pos()).Line
++			prevLine = parLineEnd
+ 		}
++		// if the closing ")" is on a separate line from the last parameter,
++		// print an additional "," and line break
++		if closing := p.fset.Position(fields.Closing).Line; 0 < prevLine && prevLine < closing {
++			p.print(",")
++			p.linebreak(closing, 0, ignore, true)
++		}
++		// unindent if we indented
+ 		if ws == ignore {
+-			// unindent if we indented
+ 			p.print(unindent)
+ 		}
+ 	}
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 239ba89030..928b8ce0a9 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -773,30 +773,39 @@ func ManageStatus(in <-chan *Status, req <-chan Request,
+ 	TargetHistorySize int) {
+ }
+ 
+-func MultiLineSignature0(a, b, c int) {
++func MultiLineSignature0(
++	a, b, c int,
++) {
+ }
+ 
+-func MultiLineSignature1(a, b, c int,
+-	u, v, w float) {
++func MultiLineSignature1(
++	a, b, c int,
++	u, v, w float,
++) {
+ }
+ 
+-func MultiLineSignature2(a, b,
+-	c int) {
++func MultiLineSignature2(
++	a, b,
++	c int,
++) {
+ }
+ 
+-func MultiLineSignature3(a, b,
++func MultiLineSignature3(
++	a, b,
+ 	c int, u, v,
+ 	w float,
+ 	x ...int) {
+ }
+ 
+-func MultiLineSignature4(a, b, c int,
++func MultiLineSignature4(
++	a, b, c int,
+ 	u, v,
+ 	w float,
+ 	x ...int) {
+ }
+ 
+-func MultiLineSignature5(a, b, c int,
++func MultiLineSignature5(
++	a, b, c int,
+ 	u, v, w float,
+ 	p, q,
+ 	r string,
+@@ -805,25 +814,34 @@ func MultiLineSignature5(a, b, c int,
+ 
+ // make sure it also works for methods in interfaces
+ type _ interface {
+-	MultiLineSignature0(a, b, c int)
++	MultiLineSignature0(
++		a, b, c int,
++	)
+ 
+-	MultiLineSignature1(a, b, c int,
+-		u, v, w float)
++	MultiLineSignature1(
++		a, b, c int,
++		u, v, w float,
++	)
+ 
+-	MultiLineSignature2(a, b,
+-		c int)
++	MultiLineSignature2(
++		a, b,
++		c int,
++	)
+ 
+-	MultiLineSignature3(a, b,
++	MultiLineSignature3(
++		a, b,
+ 		c int, u, v,
+ 		w float,
+ 		x ...int)
+ 
+-	MultiLineSignature4(a, b, c int,
++	MultiLineSignature4(
++		a, b, c int,
+ 		u, v,
+ 		w float,
+ 		x ...int)
+ 
+-	MultiLineSignature5(a, b, c int,
++	MultiLineSignature5(
++		a, b, c int,
+ 		u, v, w float,
+ 		p, q,
+ 		r string,
+diff --git a/src/pkg/go/printer/testdata/linebreaks.golden b/src/pkg/go/printer/testdata/linebreaks.golden
+index be780da677..006cf17184 100644
+--- a/src/pkg/go/printer/testdata/linebreaks.golden
++++ b/src/pkg/go/printer/testdata/linebreaks.golden
+@@ -220,4 +220,56 @@ testLoop:
+ 	}
+ }
+ 
++// Respect line breaks in function calls.
++func _() {
++	f(x)
++	f(x,
++		x)
++	f(x,
++		x,
++	)
++	f(
++		x,
++		x)
++	f(
++		x,
++		x,
++	)
++}
++
++// Respect line breaks in function declarations.
++func _(x T)	{}
++func _(x T,
++	y T) {
++}
++func _(x T,
++	y T,
++) {
++}
++func _(
++	x T,
++	y T) {
++}
++func _(
++	x T,
++	y T,
++) {
++}
++
++// Example from issue 2597.
++func ManageStatus0(
++	in <-chan *Status,
++	req <-chan Request,
++	stat chan<- *TargetInfo,
++	TargetHistorySize int) {
++}
++
++func ManageStatus1(
++	in <-chan *Status,
++	req <-chan Request,
++	stat chan<- *TargetInfo,
++	TargetHistorySize int,
++) {
++}
++
+ // There should be exactly one linebreak after this comment.
+diff --git a/src/pkg/go/printer/testdata/linebreaks.input b/src/pkg/go/printer/testdata/linebreaks.input
+index 457b491e6d..e782bb0444 100644
+--- a/src/pkg/go/printer/testdata/linebreaks.input
++++ b/src/pkg/go/printer/testdata/linebreaks.input
+@@ -220,4 +220,52 @@ testLoop:
+ 	}
+ }
+ 
++// Respect line breaks in function calls.
++func _() {
++	f(x)
++	f(x,
++	  x)
++	f(x,
++	  x,
++	)
++	f(
++	  x,
++	  x)
++	f(
++	  x,
++	  x,
++	)
++}
++
++// Respect line breaks in function declarations.
++func _(x T) {}
++func _(x T,
++       y T) {}
++func _(x T,
++       y T,
++) {}
++func _(
++       x T,
++       y T) {}
++func _(
++       x T,
++       y T,
++) {}
++
++// Example from issue 2597.
++func ManageStatus0(
++	in <-chan *Status,
++	req <-chan Request,
++	stat chan<- *TargetInfo,
++	TargetHistorySize int) {
++}
++    
++func ManageStatus1(
++	in <-chan *Status,
++	req <-chan Request,
++	stat chan<- *TargetInfo,
++	TargetHistorySize int,
++) {
++}
++    
+ // There should be exactly one linebreak after this comment.

@@ -35,8 +35,195 @@ Date:   Fri Nov 11 12:31:44 2022 -0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/responsecontroller_test.go | 23 +--------------
  src/net/http/serve_test.go              | 50 ++++++++++++++++-----------------
  src/net/net_fake.go                     |  4 +--
  3 files changed, 28 insertions(+), 49 deletions(-)
+
+diff --git a/src/net/http/responsecontroller_test.go b/src/net/http/responsecontroller_test.go
+index 90c57016a7..d947504f50 100644
+--- a/src/net/http/responsecontroller_test.go
++++ b/src/net/http/responsecontroller_test.go
+@@ -13,9 +13,6 @@ import (
+ 
+ func TestResponseControllerFlush(t *testing.T) { run(t, testResponseControllerFlush) }
+ func testResponseControllerFlush(t *testing.T, mode testMode) {
+-	if mode == http2Mode {
+-		t.Skip("skip until h2_bundle.go is updated")
+-	}
+ 	continuec := make(chan struct{})
+ 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		ctl := NewResponseController(w)
+@@ -49,9 +46,6 @@ func testResponseControllerFlush(t *testing.T, mode testMode) {
+ 
+ func TestResponseControllerHijack(t *testing.T) { run(t, testResponseControllerHijack) }
+ func testResponseControllerHijack(t *testing.T, mode testMode) {
+-	if mode == http2Mode {
+-		t.Skip("skip until h2_bundle.go is updated")
+-	}
+ 	const header = "X-Header"
+ 	const value = "set"
+ 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -83,16 +77,13 @@ func TestResponseControllerSetPastWriteDeadline(t *testing.T) {
+ 	run(t, testResponseControllerSetPastWriteDeadline)
+ }
+ func testResponseControllerSetPastWriteDeadline(t *testing.T, mode testMode) {
+-	if mode == http2Mode {
+-		t.Skip("skip until h2_bundle.go is updated")
+-	}
+ 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		ctl := NewResponseController(w)
+ 		w.Write([]byte("one"))
+ 		if err := ctl.Flush(); err != nil {
+ 			t.Errorf("before setting deadline: ctl.Flush() = %v, want nil", err)
+ 		}
+-		if err := ctl.SetWriteDeadline(time.Now()); err != nil {
++		if err := ctl.SetWriteDeadline(time.Now().Add(-10 * time.Second)); err != nil {
+ 			t.Errorf("ctl.SetWriteDeadline() = %v, want nil", err)
+ 		}
+ 
+@@ -128,9 +119,6 @@ func TestResponseControllerSetFutureWriteDeadline(t *testing.T) {
+ 	run(t, testResponseControllerSetFutureWriteDeadline)
+ }
+ func testResponseControllerSetFutureWriteDeadline(t *testing.T, mode testMode) {
+-	if mode == http2Mode {
+-		t.Skip("skip until h2_bundle.go is updated")
+-	}
+ 	errc := make(chan error, 1)
+ 	startwritec := make(chan struct{})
+ 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -167,9 +155,6 @@ func TestResponseControllerSetPastReadDeadline(t *testing.T) {
+ 	run(t, testResponseControllerSetPastReadDeadline)
+ }
+ func testResponseControllerSetPastReadDeadline(t *testing.T, mode testMode) {
+-	if mode == http2Mode {
+-		t.Skip("skip until h2_bundle.go is updated")
+-	}
+ 	readc := make(chan struct{})
+ 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		ctl := NewResponseController(w)
+@@ -223,9 +208,6 @@ func TestResponseControllerSetFutureReadDeadline(t *testing.T) {
+ 	run(t, testResponseControllerSetFutureReadDeadline)
+ }
+ func testResponseControllerSetFutureReadDeadline(t *testing.T, mode testMode) {
+-	if mode == http2Mode {
+-		t.Skip("skip until h2_bundle.go is updated")
+-	}
+ 	respBody := "response body"
+ 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, req *Request) {
+ 		ctl := NewResponseController(w)
+@@ -261,9 +243,6 @@ func (w wrapWriter) Unwrap() ResponseWriter {
+ 
+ func TestWrappedResponseController(t *testing.T) { run(t, testWrappedResponseController) }
+ func testWrappedResponseController(t *testing.T, mode testMode) {
+-	if mode == http2Mode {
+-		t.Skip("skip until h2_bundle.go is updated")
+-	}
+ 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		ctl := NewResponseController(w)
+ 		if err := ctl.Flush(); err != nil {
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index ecf681d79c..eac527b94f 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -738,37 +738,37 @@ func testServerTimeoutsWithTimeout(t *testing.T, timeout time.Duration, mode tes
+ 
+ func TestServerReadTimeout(t *testing.T) { run(t, testServerReadTimeout) }
+ func testServerReadTimeout(t *testing.T, mode testMode) {
+-	if mode == http2Mode {
+-		t.Skip("https://go.dev/issue/49837")
+-	}
+ 	respBody := "response body"
+-	cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
+-		_, err := io.Copy(io.Discard, req.Body)
+-		if !errors.Is(err, os.ErrDeadlineExceeded) {
+-			t.Errorf("server timed out reading request body: got err %v; want os.ErrDeadlineExceeded", err)
++	for timeout := 5 * time.Millisecond; ; timeout *= 2 {
++		cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
++			_, err := io.Copy(io.Discard, req.Body)
++			if !errors.Is(err, os.ErrDeadlineExceeded) {
++				t.Errorf("server timed out reading request body: got err %v; want os.ErrDeadlineExceeded", err)
++			}
++			res.Write([]byte(respBody))
++		}), func(ts *httptest.Server) {
++			ts.Config.ReadHeaderTimeout = -1 // don't time out while reading headers
++			ts.Config.ReadTimeout = timeout
++		})
++		pr, pw := io.Pipe()
++		res, err := cst.c.Post(cst.ts.URL, "text/apocryphal", pr)
++		if err != nil {
++			t.Logf("Get error, retrying: %v", err)
++			cst.close()
++			continue
+ 		}
+-		res.Write([]byte(respBody))
+-	}), func(ts *httptest.Server) {
+-		ts.Config.ReadTimeout = 5 * time.Millisecond
+-	})
+-	pr, pw := io.Pipe()
+-	res, err := cst.c.Post(cst.ts.URL, "text/apocryphal", pr)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer res.Body.Close()
+-	got, err := io.ReadAll(res.Body)
+-	if string(got) != respBody || err != nil {
+-		t.Errorf("client read response body: %q, %v; want %q, nil", string(got), err, respBody)
++		defer res.Body.Close()
++		got, err := io.ReadAll(res.Body)
++		if string(got) != respBody || err != nil {
++			t.Errorf("client read response body: %q, %v; want %q, nil", string(got), err, respBody)
++		}
++		pw.Close()
++		break
+ 	}
+-	pw.Close()
+ }
+ 
+ func TestServerWriteTimeout(t *testing.T) { run(t, testServerWriteTimeout) }
+ func testServerWriteTimeout(t *testing.T, mode testMode) {
+-	if mode == http2Mode {
+-		t.Skip("https://go.dev/issue/56478")
+-	}
+ 	for timeout := 5 * time.Millisecond; ; timeout *= 2 {
+ 		errc := make(chan error, 2)
+ 		cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
+@@ -790,7 +790,6 @@ func testServerWriteTimeout(t *testing.T, mode testMode) {
+ 		if err == nil {
+ 			t.Errorf("client reading from truncated request body: got nil error, want non-nil")
+ 		}
+-		cst.close()
+ 		select {
+ 		case <-errc:
+ 			err = <-errc // io.Copy error
+@@ -801,6 +800,7 @@ func testServerWriteTimeout(t *testing.T, mode testMode) {
+ 		default:
+ 			// The write timeout expired before the handler started.
+ 			t.Logf("handler didn't run, retrying")
++			cst.close()
+ 		}
+ 	}
+ }
+diff --git a/src/net/net_fake.go b/src/net/net_fake.go
+index bc8d0fca7e..2ecc1fa46a 100644
+--- a/src/net/net_fake.go
++++ b/src/net/net_fake.go
+@@ -194,7 +194,7 @@ func (p *bufferedPipe) Read(b []byte) (int, error) {
+ 		if !p.rDeadline.IsZero() {
+ 			d := time.Until(p.rDeadline)
+ 			if d <= 0 {
+-				return 0, syscall.EAGAIN
++				return 0, os.ErrDeadlineExceeded
+ 			}
+ 			time.AfterFunc(d, p.rCond.Broadcast)
+ 		}
+@@ -221,7 +221,7 @@ func (p *bufferedPipe) Write(b []byte) (int, error) {
+ 		if !p.wDeadline.IsZero() {
+ 			d := time.Until(p.wDeadline)
+ 			if d <= 0 {
+-				return 0, syscall.EAGAIN
++				return 0, os.ErrDeadlineExceeded
+ 			}
+ 			time.AfterFunc(d, p.wCond.Broadcast)
+ 		}

@@ -9,7 +9,46 @@ Date:   Wed Nov 7 23:09:01 2012 +0100
     R=golang-dev, daniel.morsing, rsc
     CC=golang-dev
     https://golang.org/cl/6834043
-
+---
  src/cmd/gc/typecheck.c      |  2 +-
  test/fixedbugs/issue4359.go | 19 +++++++++++++++++++
  2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 35c99c858c..9b42772393 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -443,7 +443,7 @@ reswitch:
+ 		ok |= Etype;
+ 		n->op = OTYPE;
+ 		n->type = tostruct(n->list);
+-		if(n->type == T)
++		if(n->type == T || n->type->broke)
+ 			goto error;
+ 		n->list = nil;
+ 		break;
+diff --git a/test/fixedbugs/issue4359.go b/test/fixedbugs/issue4359.go
+new file mode 100644
+index 0000000000..b5adb4010b
+--- /dev/null
++++ b/test/fixedbugs/issue4359.go
+@@ -0,0 +1,19 @@
++// errorcheck
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4359: wrong handling of broken struct fields
++// causes "internal compiler error: lookdot badwidth".
++
++package main
++
++type T struct {
++	x T1 // ERROR "undefined"
++}
++
++func f() {
++	var t *T
++	_ = t.x
++}

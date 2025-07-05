@@ -7,8 +7,171 @@ Date:   Tue Mar 27 00:17:50 2012 -0400
     R=golang-dev, r, r
     CC=golang-dev
     https://golang.org/cl/5919048
-
+---
  src/cmd/go/get.go      | 62 +++++++++++++++++++++++++++++++++++++++++++++++++-
  src/cmd/go/tag_test.go | 24 +++++++++++++++++++
  src/cmd/go/vcs.go      |  2 +-
  3 files changed, 86 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index c0788d30c6..6ad683a8be 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -11,6 +11,7 @@ import (
+ 	"go/build"
+ 	"os"
+ 	"path/filepath"
++	"regexp"
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+@@ -323,9 +324,18 @@ func downloadPackage(p *Package) error {
+ 	return nil
+ }
+ 
++// goTag matches go release tags such as go1 and go1.2.3.
++// The numbers involved must be small (at most 4 digits),
++// have no unnecessary leading zeros, and the version cannot
++// end in .0 - it is go1, not go1.0 or go1.0.0.
++var goTag = regexp.MustCompile(
++	`^go((0|[1-9][0-9]{0,3})\.)*([1-9][0-9]{0,3})$`,
++)
++
+ // selectTag returns the closest matching tag for a given version.
+ // Closest means the latest one that is not after the current release.
+-// Version "release.rN" matches tags of the form "go.rN" (N being a decimal).
++// Version "goX" (or "goX.Y" or "goX.Y.Z") matches tags of the same form.
++// Version "release.rN" matches tags of the form "go.rN" (N being a floating-point number).
+ // Version "weekly.YYYY-MM-DD" matches tags like "go.weekly.YYYY-MM-DD".
+ func selectTag(goVersion string, tags []string) (match string) {
+ 	const rPrefix = "release.r"
+@@ -349,6 +359,7 @@ func selectTag(goVersion string, tags []string) (match string) {
+ 			}
+ 		}
+ 	}
++
+ 	const wPrefix = "weekly."
+ 	if strings.HasPrefix(goVersion, wPrefix) {
+ 		p := "go.weekly."
+@@ -362,5 +373,54 @@ func selectTag(goVersion string, tags []string) (match string) {
+ 			}
+ 		}
+ 	}
++
++	if goTag.MatchString(goVersion) {
++		v := goVersion
++		for _, t := range tags {
++			if !goTag.MatchString(t) {
++				continue
++			}
++			if cmpGoVersion(match, t) < 0 && cmpGoVersion(t, v) <= 0 {
++				match = t
++			}
++		}
++	}
++
+ 	return match
+ }
++
++// cmpGoVersion returns -1, 0, +1 reporting whether
++// x < y, x == y, or x > y.
++func cmpGoVersion(x, y string) int {
++	// Malformed strings compare less than well-formed strings.
++	if !goTag.MatchString(x) {
++		return -1
++	}
++	if !goTag.MatchString(y) {
++		return +1
++	}
++
++	// Compare numbers in sequence.
++	xx := strings.Split(x[len("go"):], ".")
++	yy := strings.Split(y[len("go"):], ".")
++
++	for i := 0; i < len(xx) && i < len(yy); i++ {
++		// The Atoi are guaranteed to succeed
++		// because the versions match goTag.
++		xi, _ := strconv.Atoi(xx[i])
++		yi, _ := strconv.Atoi(yy[i])
++		if xi < yi {
++			return -1
++		} else if xi > yi {
++			return +1
++		}
++	}
++
++	if len(xx) < len(yy) {
++		return -1
++	}
++	if len(xx) > len(yy) {
++		return +1
++	}
++	return 0
++}
+diff --git a/src/cmd/go/tag_test.go b/src/cmd/go/tag_test.go
+index a23a7ea82f..556a84a8e4 100644
+--- a/src/cmd/go/tag_test.go
++++ b/src/cmd/go/tag_test.go
+@@ -18,6 +18,12 @@ var selectTagTestTags = []string{
+ 	"go.weekly.2011-10-12.1",
+ 	"go.weekly.2011-10-14",
+ 	"go.weekly.2011-11-01",
++	"go1",
++	"go1.0.1",
++	"go1.999",
++	"go1.9.2",
++	"go5",
++
+ 	// these should be ignored:
+ 	"release.r59",
+ 	"release.r59.1",
+@@ -30,6 +36,14 @@ var selectTagTestTags = []string{
+ 	"go.f00",
+ 	"go!r60",
+ 	"go.1999-01-01",
++	"go.2x",
++	"go.20000000000000",
++	"go.2.",
++	"go.2.0",
++	"go2x",
++	"go20000000000000",
++	"go2.",
++	"go2.0",
+ }
+ 
+ var selectTagTests = []struct {
+@@ -56,11 +70,21 @@ var selectTagTests = []struct {
+ 	{"weekly.2011-11-01", "go.weekly.2011-11-01"},
+ 	{"weekly.2014-01-01", "go.weekly.2011-11-01"},
+ 	{"weekly.3000-01-01", "go.weekly.2011-11-01"},
++	{"go1", "go1"},
++	{"go1.1", "go1.0.1"},
++	{"go1.998", "go1.9.2"},
++	{"go1.1000", "go1.999"},
++	{"go6", "go5"},
++
+ 	// faulty versions:
+ 	{"release.f00", ""},
+ 	{"weekly.1999-01-01", ""},
+ 	{"junk", ""},
+ 	{"", ""},
++	{"go2x", ""},
++	{"go200000000000", ""},
++	{"go2.", ""},
++	{"go2.0", ""},
+ }
+ 
+ func TestSelectTag(t *testing.T) {
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 3634b606c3..5f63f8b568 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -71,7 +71,7 @@ var vcsHg = &vcsCmd{
+ 
+ 	// We allow both tag and branch names as 'tags'
+ 	// for selecting a version.  This lets people have
+-	// a go.release.r60 branch and a go.1 branch
++	// a go.release.r60 branch and a go1 branch
+ 	// and make changes in both, without constantly
+ 	// editing .hgtags.
+ 	tagCmd: []tagCmd{

@@ -15,7 +15,7 @@ Date:   Tue Mar 31 09:19:10 2015 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/asm_386.s     | 794 ---------------------------------------------
  src/runtime/asm_amd64.s   | 795 ----------------------------------------------
  src/runtime/asm_arm.s     | 408 ------------------------
@@ -29,3 +29,4922 @@ Date:   Tue Mar 31 09:19:10 2015 -0700
  src/runtime/mkduff.go     | 180 +++++++++++
  src/runtime/runtime.go    |   1 +
  12 files changed, 2540 insertions(+), 2276 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 3472e071cc..bee8b29694 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1604,800 +1604,6 @@ allsame:
+ 	LEAL	-1(CX)(AX*2), AX	// 1,0,-1 result
+ 	RET
+ 
+-// A Duff's device for zeroing memory.
+-// The compiler jumps to computed addresses within
+-// this routine to zero chunks of memory.  Do not
+-// change this code without also changing the code
+-// in ../../cmd/8g/ggen.c:clearfat.
+-// AX: zero
+-// DI: ptr to memory to be zeroed
+-// DI is updated as a side effect.
+-TEXT runtime·duffzero(SB), NOSPLIT, $0-0
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	STOSL
+-	RET
+-
+-// A Duff's device for copying memory.
+-// The compiler jumps to computed addresses within
+-// this routine to copy chunks of memory.  Source
+-// and destination must not overlap.  Do not
+-// change this code without also changing the code
+-// in ../../cmd/6g/cgen.c:sgen.
+-// SI: ptr to source memory
+-// DI: ptr to destination memory
+-// SI and DI are updated as a side effect.
+-
+-// NOTE: this is equivalent to a sequence of MOVSL but
+-// for some reason MOVSL is really slow.
+-TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	MOVL	(SI),CX
+-	ADDL	$4,SI
+-	MOVL	CX,(DI)
+-	ADDL	$4,DI
+-	
+-	RET
+-
+ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index fdea05366e..946e151110 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1637,801 +1637,6 @@ eqret:
+ 	MOVB	AX, ret+48(FP)
+ 	RET
+ 
+-// A Duff's device for zeroing memory.
+-// The compiler jumps to computed addresses within
+-// this routine to zero chunks of memory.  Do not
+-// change this code without also changing the code
+-// in ../../cmd/6g/ggen.c:clearfat.
+-// AX: zero
+-// DI: ptr to memory to be zeroed
+-// DI is updated as a side effect.
+-TEXT runtime·duffzero(SB), NOSPLIT, $0-0
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	STOSQ
+-	RET
+-
+-// A Duff's device for copying memory.
+-// The compiler jumps to computed addresses within
+-// this routine to copy chunks of memory.  Source
+-// and destination must not overlap.  Do not
+-// change this code without also changing the code
+-// in ../../cmd/6g/cgen.c:sgen.
+-// SI: ptr to source memory
+-// DI: ptr to destination memory
+-// SI and DI are updated as a side effect.
+-
+-// NOTE: this is equivalent to a sequence of MOVSQ but
+-// for some reason that is 3.5x slower than this code.
+-// The STOSQ above seem fine, though.
+-TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	MOVQ	(SI),CX
+-	ADDQ	$8,SI
+-	MOVQ	CX,(DI)
+-	ADDQ	$8,DI
+-
+-	RET
+-
+ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index a5f6bdeac9..a2e1e4be76 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -936,414 +936,6 @@ _sib_notfound:
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-// A Duff's device for zeroing memory.
+-// The compiler jumps to computed addresses within
+-// this routine to zero chunks of memory.  Do not
+-// change this code without also changing the code
+-// in ../../cmd/5g/ggen.c:clearfat.
+-// R0: zero
+-// R1: ptr to memory to be zeroed
+-// R1 is updated as a side effect.
+-TEXT runtime·duffzero(SB),NOSPLIT,$0-0
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	MOVW.P	R0, 4(R1)
+-	RET
+-
+-// A Duff's device for copying memory.
+-// The compiler jumps to computed addresses within
+-// this routine to copy chunks of memory.  Source
+-// and destination must not overlap.  Do not
+-// change this code without also changing the code
+-// in ../../cmd/5g/cgen.c:sgen.
+-// R0: scratch space
+-// R1: ptr to source memory
+-// R2: ptr to destination memory
+-// R1 and R2 are updated as a side effect
+-TEXT runtime·duffcopy(SB),NOSPLIT,$0-0
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	MOVW.P	4(R1), R0
+-	MOVW.P	R0, 4(R2)
+-	RET
+-
+ TEXT runtime·fastrand1(SB),NOSPLIT,$-4-4
+ 	MOVW	g_m(g), R1
+ 	MOVW	m_fastrand(R1), R0
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 0068e848ac..3c09d53a11 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -881,145 +881,6 @@ equal:
+ 	MOVB	R0, ret+48(FP)
+ 	RET
+ 
+-// A Duff's device for zeroing memory.
+-// The compiler jumps to computed addresses within
+-// this routine to zero chunks of memory.  Do not
+-// change this code without also changing the code
+-// in ../cmd/7g/ggen.c:/^clearfat.
+-// ZR: always zero
+-// R16 (aka REGRT1): ptr to memory to be zeroed - 8
+-// On return, R16 points to the last zeroed dword.
+-TEXT runtime·duffzero(SB), NOSPLIT, $-8-0
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	MOVD.W	ZR, 8(R16)
+-	RET
+-
+ TEXT runtime·fastrand1(SB),NOSPLIT,$-8-4
+ 	MOVD	g_m(g), R1
+ 	MOVWU	m_fastrand(R1), R0
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 10461bb076..ef6405003b 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -1093,146 +1093,6 @@ notfound:
+ 	MOVD	R3, ret+24(FP)
+ 	RETURN
+ 
+-
+-// A Duff's device for zeroing memory.
+-// The compiler jumps to computed addresses within
+-// this routine to zero chunks of memory.  Do not
+-// change this code without also changing the code
+-// in ../../cmd/9g/ggen.c:/^clearfat.
+-// R0: always zero
+-// R3 (aka REGRT1): ptr to memory to be zeroed - 8
+-// On return, R3 points to the last zeroed dword.
+-TEXT runtime·duffzero(SB), NOSPLIT, $-8-0
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	MOVDU	R0, 8(R3)
+-	RETURN
+-
+ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	MOVD	g_m(g), R4
+ 	MOVWZ	m_fastrand(R4), R3
+diff --git a/src/runtime/duff_386.s b/src/runtime/duff_386.s
+new file mode 100644
+index 0000000000..5575455367
+--- /dev/null
++++ b/src/runtime/duff_386.s
+@@ -0,0 +1,779 @@
++// AUTO-GENERATED by mkduff.go
++// Run go generate from src/runtime to update.
++// See mkduff.go for comments.
++
++#include "textflag.h"
++
++TEXT runtime·duffzero(SB), NOSPLIT, $0-0
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	STOSL
++	RET
++
++TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	MOVL	(SI), CX
++	ADDL	$4, SI
++	MOVL	CX, (DI)
++	ADDL	$4, DI
++
++	RET
+diff --git a/src/runtime/duff_amd64.s b/src/runtime/duff_amd64.s
+new file mode 100644
+index 0000000000..f28d0dc69d
+--- /dev/null
++++ b/src/runtime/duff_amd64.s
+@@ -0,0 +1,779 @@
++// AUTO-GENERATED by mkduff.go
++// Run go generate from src/runtime to update.
++// See mkduff.go for comments.
++
++#include "textflag.h"
++
++TEXT runtime·duffzero(SB), NOSPLIT, $0-0
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	STOSQ
++	RET
++
++TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	MOVQ	(SI), CX
++	ADDQ	$8, SI
++	MOVQ	CX, (DI)
++	ADDQ	$8, DI
++
++	RET
+diff --git a/src/runtime/duff_arm.s b/src/runtime/duff_arm.s
+new file mode 100644
+index 0000000000..da9f0cb972
+--- /dev/null
++++ b/src/runtime/duff_arm.s
+@@ -0,0 +1,523 @@
++// AUTO-GENERATED by mkduff.go
++// Run go generate from src/runtime to update.
++// See mkduff.go for comments.
++
++#include "textflag.h"
++
++TEXT runtime·duffzero(SB), NOSPLIT, $0-0
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	RET
++
++TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++
++	RET
+diff --git a/src/runtime/duff_arm64.s b/src/runtime/duff_arm64.s
+new file mode 100644
+index 0000000000..6d4bb15dd6
+--- /dev/null
++++ b/src/runtime/duff_arm64.s
+@@ -0,0 +1,138 @@
++// AUTO-GENERATED by mkduff.go
++// Run go generate from src/runtime to update.
++// See mkduff.go for comments.
++
++#include "textflag.h"
++
++TEXT runtime·duffzero(SB), NOSPLIT, $-8-0
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	MOVD.W	ZR, 8(R16)
++	RET
++
++// TODO: Implement runtime·duffcopy.
+diff --git a/src/runtime/duff_ppc64x.s b/src/runtime/duff_ppc64x.s
+new file mode 100644
+index 0000000000..1206fed20b
+--- /dev/null
++++ b/src/runtime/duff_ppc64x.s
+@@ -0,0 +1,140 @@
++// AUTO-GENERATED by mkduff.go
++// Run go generate from src/runtime to update.
++// See mkduff.go for comments.
++
++// +build ppc64 ppc64le
++
++#include "textflag.h"
++
++TEXT runtime·duffzero(SB), NOSPLIT, $-8-0
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	MOVDU	R0, 8(R3)
++	RETURN
++
++// TODO: Implement runtime·duffcopy.
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+new file mode 100644
+index 0000000000..d0f1e1ba9f
+--- /dev/null
++++ b/src/runtime/mkduff.go
+@@ -0,0 +1,180 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++// runtime·duffzero is a Duff's device for zeroing memory.
++// The compiler jumps to computed addresses within
++// the routine to zero chunks of memory.
++// Do not change duffzero without also
++// changing clearfat in cmd/?g/ggen.go.
++
++// runtime·duffcopy is a Duff's device for copying memory.
++// The compiler jumps to computed addresses within
++// the routine to copy chunks of memory.
++// Source and destination must not overlap.
++// Do not change duffcopy without also
++// changing stackcopy in cmd/?g/cgen.go.
++
++// See the zero* and copy* generators below
++// for architecture-specific comments.
++
++// mkduff generates duff_*.s.
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"io"
++	"io/ioutil"
++	"log"
++)
++
++func main() {
++	gen("amd64", notags, zeroAMD64, copyAMD64)
++	gen("386", notags, zero386, copy386)
++	gen("arm", notags, zeroARM, copyARM)
++	gen("arm64", notags, zeroARM64, copyARM64)
++	gen("ppc64x", tagsPPC64x, zeroPPC64x, copyPPC64x)
++}
++
++func gen(arch string, tags, zero, copy func(io.Writer)) {
++	var buf bytes.Buffer
++
++	fmt.Fprintln(&buf, "// AUTO-GENERATED by mkduff.go")
++	fmt.Fprintln(&buf, "// Run go generate from src/runtime to update.")
++	fmt.Fprintln(&buf, "// See mkduff.go for comments.")
++	tags(&buf)
++	fmt.Fprintln(&buf, "#include \"textflag.h\"")
++	fmt.Fprintln(&buf)
++	zero(&buf)
++	fmt.Fprintln(&buf)
++	copy(&buf)
++
++	if err := ioutil.WriteFile("duff_"+arch+".s", buf.Bytes(), 0644); err != nil {
++		log.Fatalln(err)
++	}
++}
++
++func notags(w io.Writer) { fmt.Fprintln(w) }
++
++func zeroAMD64(w io.Writer) {
++	// AX: zero
++	// DI: ptr to memory to be zeroed
++	// DI is updated as a side effect.
++	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $0-0")
++	for i := 0; i < 128; i++ {
++		fmt.Fprintln(w, "\tSTOSQ")
++	}
++	fmt.Fprintln(w, "\tRET")
++}
++
++func copyAMD64(w io.Writer) {
++	// SI: ptr to source memory
++	// DI: ptr to destination memory
++	// SI and DI are updated as a side effect.
++	//
++	// This is equivalent to a sequence of MOVSQ but
++	// for some reason that is 3.5x slower than this code.
++	// The STOSQ in duffzero seem fine, though.
++	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT, $0-0")
++	for i := 0; i < 128; i++ {
++		fmt.Fprintln(w, "\tMOVQ\t(SI), CX")
++		fmt.Fprintln(w, "\tADDQ\t$8, SI")
++		fmt.Fprintln(w, "\tMOVQ\tCX, (DI)")
++		fmt.Fprintln(w, "\tADDQ\t$8, DI")
++		fmt.Fprintln(w)
++	}
++	fmt.Fprintln(w, "\tRET")
++}
++
++func zero386(w io.Writer) {
++	// AX: zero
++	// DI: ptr to memory to be zeroed
++	// DI is updated as a side effect.
++	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $0-0")
++	for i := 0; i < 128; i++ {
++		fmt.Fprintln(w, "\tSTOSL")
++	}
++	fmt.Fprintln(w, "\tRET")
++}
++
++func copy386(w io.Writer) {
++	// SI: ptr to source memory
++	// DI: ptr to destination memory
++	// SI and DI are updated as a side effect.
++	//
++	// This is equivalent to a sequence of MOVSL but
++	// for some reason MOVSL is really slow.
++	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT, $0-0")
++	for i := 0; i < 128; i++ {
++		fmt.Fprintln(w, "\tMOVL\t(SI), CX")
++		fmt.Fprintln(w, "\tADDL\t$4, SI")
++		fmt.Fprintln(w, "\tMOVL\tCX, (DI)")
++		fmt.Fprintln(w, "\tADDL\t$4, DI")
++		fmt.Fprintln(w)
++	}
++	fmt.Fprintln(w, "\tRET")
++}
++
++func zeroARM(w io.Writer) {
++	// R0: zero
++	// R1: ptr to memory to be zeroed
++	// R1 is updated as a side effect.
++	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $0-0")
++	for i := 0; i < 128; i++ {
++		fmt.Fprintln(w, "\tMOVW.P\tR0, 4(R1)")
++	}
++	fmt.Fprintln(w, "\tRET")
++}
++
++func copyARM(w io.Writer) {
++	// R0: scratch space
++	// R1: ptr to source memory
++	// R2: ptr to destination memory
++	// R1 and R2 are updated as a side effect
++	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT, $0-0")
++	for i := 0; i < 128; i++ {
++		fmt.Fprintln(w, "\tMOVW.P\t4(R1), R0")
++		fmt.Fprintln(w, "\tMOVW.P\tR0, 4(R2)")
++		fmt.Fprintln(w)
++	}
++	fmt.Fprintln(w, "\tRET")
++}
++
++func zeroARM64(w io.Writer) {
++	// ZR: always zero
++	// R16 (aka REGRT1): ptr to memory to be zeroed - 8
++	// On return, R16 points to the last zeroed dword.
++	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $-8-0")
++	for i := 0; i < 128; i++ {
++		fmt.Fprintln(w, "\tMOVD.W\tZR, 8(R16)")
++	}
++	fmt.Fprintln(w, "\tRET")
++}
++
++func copyARM64(w io.Writer) {
++	fmt.Fprintln(w, "// TODO: Implement runtime·duffcopy.")
++}
++
++func tagsPPC64x(w io.Writer) {
++	fmt.Fprintln(w)
++	fmt.Fprintln(w, "// +build ppc64 ppc64le")
++	fmt.Fprintln(w)
++}
++
++func zeroPPC64x(w io.Writer) {
++	// R0: always zero
++	// R3 (aka REGRT1): ptr to memory to be zeroed - 8
++	// On return, R3 points to the last zeroed dword.
++	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $-8-0")
++	for i := 0; i < 128; i++ {
++		fmt.Fprintln(w, "\tMOVDU\tR0, 8(R3)")
++	}
++	fmt.Fprintln(w, "\tRETURN")
++}
++
++func copyPPC64x(w io.Writer) {
++	fmt.Fprintln(w, "// TODO: Implement runtime·duffcopy.")
++}
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index 5f0ca02c0f..2387d9ae8b 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -7,6 +7,7 @@ package runtime
+ import _ "unsafe" // for go:linkname
+ 
+ //go:generate go run wincallback.go
++//go:generate go run mkduff.go
+ 
+ var ticks struct {
+ 	lock mutex

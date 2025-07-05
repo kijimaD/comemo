@@ -3,6 +3,32 @@ Author: David Symonds <dsymonds@golang.org>
 Date:   Mon Dec 8 13:50:49 2014 +1100
 
     convert .hgignore to .gitignore.
-
+---
  .hgignore => .gitignore | 9 +--------
  1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/.hgignore b/.gitignore
+similarity index 88%
+rename from .hgignore
+rename to .gitignore
+index a833065f2e..c695683005 100644
+--- a/.hgignore
++++ b/.gitignore
+@@ -1,7 +1,4 @@
+-syntax:glob
+ .DS_Store
+-.git
+-.gitignore
+ *.[5689ao]
+ *.a[5689o]
+ *.so
+@@ -51,8 +48,4 @@ goinstall.log
+ last-change
+ VERSION.cache
+ 
+-syntax:regexp
+-^bin/
+-^pkg/
+-^src/cmd/(.*)/6?\1$
+-^.*/core.[0-9]*$
++pkg/

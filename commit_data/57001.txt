@@ -18,7 +18,36 @@ Date:   Tue Jun 6 18:46:29 2023 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go | 3 +++
  src/go/types/builtins.go                    | 3 +++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index a65054661e..a3e1981af6 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -893,6 +893,9 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			check.dump("%v: %s", atPos(x1), x1)
+ 			x1 = &t // use incoming x only for first argument
+ 		}
++		if x.mode == invalid {
++			return
++		}
+ 		// trace is only available in test mode - no need to record signature
+ 
+ 	default:
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index fcbb712494..837a9b5e14 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -892,6 +892,9 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			check.dump("%v: %s", x1.Pos(), x1)
+ 			x1 = &t // use incoming x only for first argument
+ 		}
++		if x.mode == invalid {
++			return
++		}
+ 		// trace is only available in test mode - no need to record signature
+ 
+ 	default:

@@ -11,6 +11,24 @@ Date:   Tue Sep 12 14:43:38 2023 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/internal/pgo/irgraph.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index 01ffc8e867..9f59fd6d07 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -352,12 +352,6 @@ func (p *Profile) addIREdge(callerNode *IRNode, callerName string, call ir.Node,
+ // addIndirectEdges adds indirect call edges found in the profile to the graph,
+ // to be used for devirtualization.
+ //
+-// targetDeclFuncs is the set of functions in typecheck.Target.Decls. Only
+-// edges from these functions will be added.
+-//
+-// Devirtualization is only applied to typecheck.Target.Decls functions, so there
+-// is no need to add edges from other functions.
+-//
+ // N.B. despite the name, addIndirectEdges will add any edges discovered via
+ // the profile. We don't know for sure that they are indirect, but assume they
+ // are since direct calls would already be added. (e.g., direct calls that have

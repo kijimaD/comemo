@@ -10,6 +10,21 @@ Date:   Thu Aug 26 08:08:57 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2009044
-
+---
  src/pkg/runtime/type.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+index 5efbfaf83d..f84b791386 100644
+--- a/src/pkg/runtime/type.go
++++ b/src/pkg/runtime/type.go
+@@ -53,6 +53,9 @@ const (
+ 	kindFloat
+ 	kindFloat32
+ 	kindFloat64
++	kindComplex
++	kindComplex64
++	kindComplex128
+ 	kindArray
+ 	kindChan
+ 	kindFunc

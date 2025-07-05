@@ -18,7 +18,39 @@ Date:   Wed Nov 17 11:07:44 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/mgcscavenge.go | 5 +++++
  src/runtime/time_fake.go   | 4 ++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 286aa1bbae..0399c2d21c 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -344,6 +344,11 @@ func bgscavenge(c chan int) {
+ 				crit += float64(end - start)
+ 			}
+ 			released += r
++
++			// When using fake time just do one loop.
++			if faketime != 0 {
++				break
++			}
+ 		}
+ 
+ 		if released == 0 {
+diff --git a/src/runtime/time_fake.go b/src/runtime/time_fake.go
+index 107f6be335..b5e0463588 100644
+--- a/src/runtime/time_fake.go
++++ b/src/runtime/time_fake.go
+@@ -41,6 +41,10 @@ func time_now() (sec int64, nsec int32, mono int64) {
+ 	return faketime / 1e9, int32(faketime % 1e9), faketime
+ }
+ 
++// write is like the Unix write system call.
++// We have to avoid write barriers to avoid potential deadlock
++// on write calls.
++//go:nowritebarrierrec
+ func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
+ 	if !(fd == 1 || fd == 2) {
+ 		// Do an ordinary write.

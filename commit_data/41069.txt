@@ -14,6 +14,20 @@ Date:   Fri Aug 16 13:50:07 2019 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/select.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 86182890cc..d2c5a03a1a 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -493,8 +493,6 @@ sclose:
+ }
+ 
+ func (c *hchan) sortkey() uintptr {
+-	// TODO(khr): if we have a moving garbage collector, we'll need to
+-	// change this function.
+ 	return uintptr(unsafe.Pointer(c))
+ }
+ 

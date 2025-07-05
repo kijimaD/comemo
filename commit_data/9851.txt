@@ -22,7 +22,7 @@ Date:   Mon Oct 3 17:46:36 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5174045
-
+---
  src/cmd/5g/gobj.c                |  2 ++
  src/cmd/5g/gsubr.c               |  7 +++--
  src/cmd/5g/reg.c                 | 12 +++++----
@@ -38,3 +38,432 @@ Date:   Mon Oct 3 17:46:36 2011 -0400
  test/fixedbugs/bug369.dir/pkg.go | 15 +++++++++++
  test/fixedbugs/bug369.go         | 57 ++++++++++++++++++++++++++++++++++++++++
  14 files changed, 120 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 9f728dee76..b562ba888b 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -307,6 +307,7 @@ datastring(char *s, int len, Addr *a)
+ 	a->offset = widthptr+4;  // skip header
+ 	a->reg = NREG;
+ 	a->sym = sym;
++	a->node = sym->def;
+ }
+ 
+ /*
+@@ -325,6 +326,7 @@ datagostring(Strlit *sval, Addr *a)
+ 	a->offset = 0;  // header
+ 	a->reg = NREG;
+ 	a->sym = sym;
++	a->node = sym->def;
+ }
+ 
+ void
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index f8920df87b..29793abf01 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -512,6 +512,7 @@ nodarg(Type *t, int fp)
+ 		fatal("nodarg: offset not computed for %T", t);
+ 	n->xoffset = t->width;
+ 	n->addable = 1;
++	n->orig = t->nname;
+ 
+ fp:
+ 	switch(fp) {
+@@ -1263,6 +1264,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->sym = n->left->sym;
+ 		a->type = D_OREG;
+ 		a->name = D_PARAM;
++		a->node = n->left->orig;
+ 		break;
+ 
+ 	case ONAME:
+@@ -1275,6 +1277,9 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		}
+ 		a->offset = n->xoffset;
+ 		a->sym = n->sym;
++		a->node = n->orig;
++		//if(a->node >= (Node*)&n)
++		//	fatal("stack node");
+ 		if(a->sym == S)
+ 			a->sym = lookup(".noname");
+ 		if(n->method) {
+@@ -1293,8 +1298,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			break;
+ 		case PAUTO:
+ 			a->name = D_AUTO;
+-			if (n->sym)
+-				a->node = n->orig;
+ 			break;
+ 		case PPARAM:
+ 		case PPARAMOUT:
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 9dd3f07f17..a2e99492d6 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -92,8 +92,8 @@ setoutvar(void)
+ 			ovar.b[z] |= bit.b[z];
+ 		t = structnext(&save);
+ 	}
+-//if(bany(b))
+-//print("ovars = %Q\n", &ovar);
++//if(bany(ovar))
++//print("ovar = %Q\n", ovar);
+ }
+ 
+ void
+@@ -911,10 +911,12 @@ mkvar(Reg *r, Adr *a)
+ 	}
+ 
+ 	node = a->node;
+-	if(node == N || node->op != ONAME || node->orig != N)
++	if(node == N || node->op != ONAME || node->orig == N)
+ 		goto none;
+ 	node = node->orig;
+-	if(node->sym->name[0] == '.')
++	if(node->orig != node)
++		fatal("%D: bad node", a);
++	if(node->sym == S || node->sym->name[0] == '.')
+ 		goto none;
+ 	et = a->etype;
+ 	o = a->offset;
+@@ -1571,7 +1573,7 @@ dumpone(Reg *r)
+ 		if(bany(&r->refahead))
+ 			print(" ra:%Q ", r->refahead);
+ 		if(bany(&r->calbehind))
+-			print("cb:%Q ", r->calbehind);
++			print(" cb:%Q ", r->calbehind);
+ 		if(bany(&r->calahead))
+ 			print(" ca:%Q ", r->calahead);
+ 		if(bany(&r->regdiff))
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 4dcce39c8f..dfb5e224af 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -310,6 +310,7 @@ datastring(char *s, int len, Addr *a)
+ 	sym = stringsym(s, len);
+ 	a->type = D_EXTERN;
+ 	a->sym = sym;
++	a->node = sym->def;
+ 	a->offset = widthptr+4;  // skip header
+ 	a->etype = TINT32;
+ }
+@@ -326,6 +327,7 @@ datagostring(Strlit *sval, Addr *a)
+ 	sym = stringsym(sval->s, sval->len);
+ 	a->type = D_EXTERN;
+ 	a->sym = sym;
++	a->node = sym->def;
+ 	a->offset = 0;  // header
+ 	a->etype = TINT32;
+ }
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 92b15ef00f..c16a3645a8 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -485,6 +485,7 @@ nodarg(Type *t, int fp)
+ 		fatal("nodarg: offset not computed for %T", t);
+ 	n->xoffset = t->width;
+ 	n->addable = 1;
++	n->orig = t->nname;
+ 
+ fp:
+ 	switch(fp) {
+@@ -1119,6 +1120,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->offset = n->xoffset;
+ 		a->sym = n->left->sym;
+ 		a->type = D_PARAM;
++		a->node = n->left->orig;
+ 		break;
+ 
+ 	case ONAME:
+@@ -1131,6 +1133,9 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		}
+ 		a->offset = n->xoffset;
+ 		a->sym = n->sym;
++		a->node = n->orig;
++		//if(a->node >= (Node*)&n)
++		//	fatal("stack node");
+ 		if(a->sym == S)
+ 			a->sym = lookup(".noname");
+ 		if(n->method) {
+@@ -1148,8 +1153,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			break;
+ 		case PAUTO:
+ 			a->type = D_AUTO;
+-			if (n->sym)
+-				a->node = n->orig;
+ 			break;
+ 		case PPARAM:
+ 		case PPARAMOUT:
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index f380ced8cb..d12d4b19b7 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -89,8 +89,8 @@ setoutvar(void)
+ 			ovar.b[z] |= bit.b[z];
+ 		t = structnext(&save);
+ 	}
+-//if(bany(b))
+-//print("ovars = %Q\n", &ovar);
++//if(bany(&ovar))
++//print("ovars = %Q\n", ovar);
+ }
+ 
+ static void
+@@ -968,11 +968,14 @@ mkvar(Reg *r, Adr *a)
+ 		n = t;
+ 		break;
+ 	}
++
+ 	node = a->node;
+-	if(node == N || node->op != ONAME || node->orig != N)
++	if(node == N || node->op != ONAME || node->orig == N)
+ 		goto none;
+ 	node = node->orig;
+-	if(node->sym->name[0] == '.')
++	if(node->orig != node)
++		fatal("%D: bad node", a);
++	if(node->sym == S || node->sym->name[0] == '.')
+ 		goto none;
+ 	et = a->etype;
+ 	o = a->offset;
+@@ -1622,7 +1625,7 @@ dumpone(Reg *r)
+ 		if(bany(&r->refahead))
+ 			print(" ra:%Q ", r->refahead);
+ 		if(bany(&r->calbehind))
+-			print("cb:%Q ", r->calbehind);
++			print(" cb:%Q ", r->calbehind);
+ 		if(bany(&r->calahead))
+ 			print(" ca:%Q ", r->calahead);
+ 		if(bany(&r->regdiff))
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 7025a536e1..d8c8f5ab9f 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -308,6 +308,7 @@ datastring(char *s, int len, Addr *a)
+ 	sym = stringsym(s, len);
+ 	a->type = D_EXTERN;
+ 	a->sym = sym;
++	a->node = sym->def;
+ 	a->offset = widthptr+4;  // skip header
+ 	a->etype = TINT32;
+ }
+@@ -324,6 +325,7 @@ datagostring(Strlit *sval, Addr *a)
+ 	sym = stringsym(sval->s, sval->len);
+ 	a->type = D_EXTERN;
+ 	a->sym = sym;
++	a->node = sym->def;
+ 	a->offset = 0;  // header
+ 	a->etype = TINT32;
+ }
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 1aae34e358..c7c39b4183 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -964,6 +964,7 @@ nodarg(Type *t, int fp)
+ 			fatal("nodarg: offset not computed for %T", t);
+ 		n->xoffset = t->width;
+ 		n->addable = 1;
++		n->orig = t->nname;
+ 		break;
+ 	}
+ 
+@@ -1152,6 +1153,7 @@ memname(Node *n, Type *t)
+ 	strcpy(namebuf, n->sym->name);
+ 	namebuf[0] = '.';	// keep optimizer from registerizing
+ 	n->sym = lookup(namebuf);
++	n->orig->sym = n->sym;
+ }
+ 
+ void
+@@ -1828,6 +1830,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->offset = n->xoffset;
+ 		a->sym = n->left->sym;
+ 		a->type = D_PARAM;
++		a->node = n->left->orig;
+ 		break;
+ 
+ 	case ONAME:
+@@ -1840,6 +1843,9 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		}
+ 		a->offset = n->xoffset;
+ 		a->sym = n->sym;
++		a->node = n->orig;
++		//if(a->node >= (Node*)&n)
++		//	fatal("stack node");
+ 		if(a->sym == S)
+ 			a->sym = lookup(".noname");
+ 		if(n->method) {
+@@ -1857,8 +1863,6 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			break;
+ 		case PAUTO:
+ 			a->type = D_AUTO;
+-			if (n->sym)
+-				a->node = n->orig;
+ 			break;
+ 		case PPARAM:
+ 		case PPARAMOUT:
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index de5fd87ac8..29ea68b64f 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -89,8 +89,8 @@ setoutvar(void)
+ 			ovar.b[z] |= bit.b[z];
+ 		t = structnext(&save);
+ 	}
+-//if(bany(b))
+-//print("ovars = %Q\n", &ovar);
++//if(bany(ovar))
++//print("ovars = %Q\n", ovar);
+ }
+ 
+ static void
+@@ -848,10 +848,12 @@ mkvar(Reg *r, Adr *a)
+ 	}
+ 
+ 	node = a->node;
+-	if(node == N || node->op != ONAME || node->orig != N)
++	if(node == N || node->op != ONAME || node->orig == N)
+ 		goto none;
+ 	node = node->orig;
+-	if(node->sym->name[0] == '.')
++	if(node->orig != node)
++		fatal("%D: bad node", a);
++	if(node->sym == S || node->sym->name[0] == '.')
+ 		goto none;
+ 	et = a->etype;
+ 	o = a->offset;
+@@ -1482,7 +1484,7 @@ dumpone(Reg *r)
+ 		if(bany(&r->refahead))
+ 			print(" ra:%Q ", r->refahead);
+ 		if(bany(&r->calbehind))
+-			print("cb:%Q ", r->calbehind);
++			print(" cb:%Q ", r->calbehind);
+ 		if(bany(&r->calahead))
+ 			print(" ca:%Q ", r->calahead);
+ 		if(bany(&r->regdiff))
+diff --git a/src/cmd/gc/bits.c b/src/cmd/gc/bits.c
+index f3b031cc3e..591288db62 100644
+--- a/src/cmd/gc/bits.c
++++ b/src/cmd/gc/bits.c
+@@ -151,9 +151,9 @@ Qconv(Fmt *fp)
+ 		else
+ 			fmtprint(fp, " ");
+ 		if(var[i].node == N || var[i].node->sym == S)
+-			fmtprint(fp, "$%lld", var[i].offset);
++			fmtprint(fp, "$%lld", i);
+ 		else {
+-			fmtprint(fp, var[i].node->sym->name);
++			fmtprint(fp, "%s", var[i].node->sym->name);
+ 			if(var[i].offset != 0)
+ 				fmtprint(fp, "%+lld", (vlong)var[i].offset);
+ 		}
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index a818dbc195..cd6d9aaf5a 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -805,6 +805,7 @@ tempname(Node *nn, Type *t)
+ 	s = lookup(namebuf);
+ 	n = nod(ONAME, N, N);
+ 	n->sym = s;
++	s->def = n;
+ 	n->type = t;
+ 	n->class = PAUTO;
+ 	n->addable = 1;
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 730b42671c..aba2aafd81 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -267,6 +267,7 @@ stringsym(char *s, int len)
+ 	if(sym->flags & SymUniq)
+ 		return sym;
+ 	sym->flags |= SymUniq;
++	sym->def = newname(sym);
+ 
+ 	off = 0;
+ 	
+diff --git a/test/fixedbugs/bug369.dir/pkg.go b/test/fixedbugs/bug369.dir/pkg.go
+new file mode 100644
+index 0000000000..cf57041928
+--- /dev/null
++++ b/test/fixedbugs/bug369.dir/pkg.go
+@@ -0,0 +1,15 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pkg
++
++func NonASCII(b []byte, i int) int {
++	for i = 0; i < len(b); i++ {
++		if b[i] >= 0x80 {
++			break
++		}
++	}
++	return i
++}
++
+diff --git a/test/fixedbugs/bug369.go b/test/fixedbugs/bug369.go
+new file mode 100644
+index 0000000000..fbcdf28f39
+--- /dev/null
++++ b/test/fixedbugs/bug369.go
+@@ -0,0 +1,57 @@
++// $G -N -o slow.$A $D/bug369.dir/pkg.go &&
++// $G -o fast.$A $D/bug369.dir/pkg.go &&
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that compiling with optimization turned on produces faster code.
++
++package main
++
++import (
++	"flag"
++	"os"
++	"runtime"
++	"testing"
++
++	fast "./fast"
++	slow "./slow"
++)
++
++var buf = make([]byte, 1048576)
++
++func BenchmarkFastNonASCII(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		fast.NonASCII(buf, 0)
++	}
++}
++
++func BenchmarkSlowNonASCII(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		slow.NonASCII(buf, 0)
++	}
++}
++
++func main() {
++	os.Args = []string{os.Args[0], "-test.benchtime=0.1"}
++	flag.Parse()
++	
++	rslow := testing.Benchmark(BenchmarkSlowNonASCII)
++	rfast := testing.Benchmark(BenchmarkFastNonASCII)
++	tslow := rslow.NsPerOp()
++	tfast := rfast.NsPerOp()
++
++	// Optimization should be good for at least 2x, but be forgiving.
++	// On the ARM simulator we see closer to 1.5x.
++	speedup := float64(tslow)/float64(tfast)
++	want := 1.8
++	if runtime.GOARCH == "arm" {
++		want = 1.3
++	}
++	if speedup < want {
++		println("fast:", tfast, "slow:", tslow, "speedup:", speedup, "want:", want)
++		println("not fast enough")
++	}
++}

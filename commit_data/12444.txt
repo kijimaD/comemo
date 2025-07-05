@@ -7,6 +7,27 @@ Date:   Wed Mar 7 14:07:22 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5752066
-
+---
  .hgignore | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index f306782d99..b4b9adec2a 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -30,7 +30,6 @@ misc/dashboard/builder/gobuilder
+ misc/goplay/goplay
+ misc/osx/*.pkg
+ misc/osx/*.dmg
+-src/Make.inc
+ src/cmd/6a/6a
+ src/cmd/?l/enam.c
+ src/cmd/cc/y.output
+@@ -42,7 +41,6 @@ src/pkg/exp/norm/maketables
+ src/pkg/exp/norm/maketesttables
+ src/pkg/exp/norm/normregtest
+ src/pkg/exp/ebnflint/ebnflint
+-src/pkg/go/build/syslist.go
+ src/pkg/go/doc/headscan
+ src/pkg/runtime/goc2c
+ src/pkg/runtime/mkversion

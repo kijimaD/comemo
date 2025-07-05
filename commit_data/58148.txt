@@ -13,6 +13,40 @@ Date:   Wed Oct 4 13:53:31 2023 +0200
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
-
+---
  src/crypto/x509/root_linux.go | 17 +++++++++++++----
  1 file changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/x509/root_linux.go b/src/crypto/x509/root_linux.go
+index 76a64a80dd..8e79ccb5f6 100644
+--- a/src/crypto/x509/root_linux.go
++++ b/src/crypto/x509/root_linux.go
+@@ -4,6 +4,8 @@
+ 
+ package x509
+ 
++import "internal/goos"
++
+ // Possible certificate files; stop after finding one.
+ var certFiles = []string{
+ 	"/etc/ssl/certs/ca-certificates.crt",                // Debian/Ubuntu/Gentoo etc.
+@@ -16,8 +18,15 @@ var certFiles = []string{
+ 
+ // Possible directories with certificate files; all will be read.
+ var certDirectories = []string{
+-	"/etc/ssl/certs",               // SLES10/SLES11, https://golang.org/issue/12139
+-	"/etc/pki/tls/certs",           // Fedora/RHEL
+-	"/system/etc/security/cacerts", // Android
+-	"/data/misc/keychain/certs-added", // Android user trusted CA folder
++	"/etc/ssl/certs",     // SLES10/SLES11, https://golang.org/issue/12139
++	"/etc/pki/tls/certs", // Fedora/RHEL
++}
++
++func init() {
++	if goos.IsAndroid == 1 {
++		certDirectories = append(certDirectories,
++			"/system/etc/security/cacerts",    // Android system roots
++			"/data/misc/keychain/certs-added", // User trusted CA folder
++		)
++	}
+ }

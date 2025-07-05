@@ -12,6 +12,39 @@ Date:   Sun Apr 11 17:19:59 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/cgo/out.go | 18 ++++++++++++++++--
  1 file changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 2d8d692622..8c31d5b794 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1021,11 +1021,25 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 		}
+ 		fmt.Fprintf(fgcc, "}\n")
+ 
+-		// Build the wrapper function compiled by cmd/compile.
+-		// This unpacks the argument struct above and calls the Go function.
++		// In internal linking mode, the Go linker sees both
++		// the C wrapper written above and the Go wrapper it
++		// references. Hence, export the C wrapper (e.g., for
++		// if we're building a shared object). The Go linker
++		// will resolve the C wrapper's reference to the Go
++		// wrapper without a separate export.
+ 		fmt.Fprintf(fgo2, "//go:cgo_export_dynamic %s\n", exp.ExpName)
++		// cgo_export_static refers to a symbol by its linker
++		// name, so set the linker name of the Go wrapper.
+ 		fmt.Fprintf(fgo2, "//go:linkname _cgoexp%s_%s _cgoexp%s_%s\n", cPrefix, exp.ExpName, cPrefix, exp.ExpName)
++		// In external linking mode, the Go linker sees the Go
++		// wrapper, but not the C wrapper. For this case,
++		// export the Go wrapper so the host linker can
++		// resolve the reference from the C wrapper to the Go
++		// wrapper.
+ 		fmt.Fprintf(fgo2, "//go:cgo_export_static _cgoexp%s_%s\n", cPrefix, exp.ExpName)
++
++		// Build the wrapper function compiled by cmd/compile.
++		// This unpacks the argument struct above and calls the Go function.
+ 		fmt.Fprintf(fgo2, "func _cgoexp%s_%s(a *%s) {\n", cPrefix, exp.ExpName, gotype)
+ 
+ 		fmt.Fprintf(fm, "int _cgoexp%s_%s;\n", cPrefix, exp.ExpName)

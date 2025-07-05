@@ -11,8 +11,92 @@ Date:   Mon Jan 16 12:37:11 2017 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/order.go | 14 --------------
  src/cmd/compile/internal/gc/ssa.go   |  9 +++++++++
  src/cmd/compile/internal/gc/walk.go  | 13 +++++++++++++
  3 files changed, 22 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 4913e3c11a..4f2cc831fe 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -417,9 +417,6 @@ func ordercall(n *Node, order *Order) {
+ // cases they are also typically registerizable, so not much harm done.
+ // And this only applies to the multiple-assignment form.
+ // We could do a more precise analysis if needed, like in walk.go.
+-//
+-// Ordermapassign also inserts these temporaries if needed for
+-// calling writebarrierfat with a pointer to n->right.
+ func ordermapassign(n *Node, order *Order) {
+ 	switch n.Op {
+ 	default:
+@@ -428,17 +425,6 @@ func ordermapassign(n *Node, order *Order) {
+ 	case OAS:
+ 		order.out = append(order.out, n)
+ 
+-		// We call writebarrierfat only for values > 4 pointers long. See walk.go.
+-		// TODO(mdempsky): writebarrierfat doesn't exist anymore, but removing that
+-		// logic causes net/http's tests to become flaky; see CL 21242.
+-		if needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr) && n.Right != nil && !isaddrokay(n.Right) {
+-			m := n.Left
+-			n.Left = ordertemp(m.Type, order, false)
+-			a := nod(OAS, m, n.Left)
+-			a = typecheck(a, Etop)
+-			order.out = append(order.out, a)
+-		}
+-
+ 	case OAS2, OAS2DOTTYPE, OAS2MAPR, OAS2FUNC:
+ 		var post []*Node
+ 		var m *Node
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 364a877c5b..7d362fb311 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2097,6 +2097,15 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case OAPPEND:
+ 		return s.append(n, false)
+ 
++	case OSTRUCTLIT, OARRAYLIT:
++		// All literals with nonzero fields have already been
++		// rewritten during walk. Any that remain are just T{}
++		// or equivalents. Use the zero value.
++		if !iszero(n) {
++			Fatalf("literal with nonzero value in SSA: %v", n)
++		}
++		return s.zeroVal(n.Type)
++
+ 	default:
+ 		s.Fatalf("unhandled expr %v", n.Op)
+ 		return nil
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 7e1da4d51d..8fb33cd949 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1572,6 +1572,9 @@ opswitch:
+ 		n = r
+ 
+ 	case OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
++		if n.Op == OSTRUCTLIT && iszero(n) && !instrumenting { // TODO: SSA doesn't yet handle ARRAYLIT with length > 1
++			break
++		}
+ 		if isStaticCompositeLiteral(n) {
+ 			// n can be directly represented in the read-only data section.
+ 			// Make direct reference to the static data. See issue 12841.
+@@ -3143,6 +3146,16 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 
+ 	// Chose not to inline. Call equality function directly.
+ 	if !inline {
++		if isvaluelit(cmpl) {
++			var_ := temp(cmpl.Type)
++			anylit(cmpl, var_, init)
++			cmpl = var_
++		}
++		if isvaluelit(cmpr) {
++			var_ := temp(cmpr.Type)
++			anylit(cmpr, var_, init)
++			cmpr = var_
++		}
+ 		if !islvalue(cmpl) || !islvalue(cmpr) {
+ 			Fatalf("arguments of comparison must be lvalues - %v %v", cmpl, cmpr)
+ 		}

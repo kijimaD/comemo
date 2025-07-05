@@ -17,7 +17,89 @@ Date:   Wed May 6 12:59:18 2020 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modget/get.go                 | 31 ++++++++++++++++++++---
  src/cmd/go/testdata/script/mod_get_update_log.txt | 15 +++++++++++
  2 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 4c6982426f..0bf9eb3a04 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -6,8 +6,10 @@
+ package modget
+ 
+ import (
++	"bytes"
+ 	"errors"
+ 	"fmt"
++	"io"
+ 	"os"
+ 	"path/filepath"
+ 	"sort"
+@@ -702,6 +704,12 @@ func runGet(cmd *base.Command, args []string) {
+ 	modload.AllowWriteGoMod()
+ 	modload.WriteGoMod()
+ 
++	// Print the changes we made.
++	// TODO(golang.org/issue/33284): include more information about changes to
++	// relevant module versions due to MVS upgrades and downgrades. For now,
++	// the log only contains messages for versions resolved with getQuery.
++	writeUpdateLog()
++
+ 	// If -d was specified, we're done after the module work.
+ 	// We've already downloaded modules by loading packages above.
+ 	// Otherwise, we need to build and install the packages matched by
+@@ -1034,11 +1042,28 @@ func (r *lostUpgradeReqs) Required(mod module.Version) ([]module.Version, error)
+ 	return r.Reqs.Required(mod)
+ }
+ 
+-var loggedLines sync.Map
++var updateLog struct {
++	mu     sync.Mutex
++	buf    bytes.Buffer
++	logged map[string]bool
++}
+ 
+ func logOncef(format string, args ...interface{}) {
+ 	msg := fmt.Sprintf(format, args...)
+-	if _, dup := loggedLines.LoadOrStore(msg, true); !dup {
+-		fmt.Fprintln(os.Stderr, msg)
++	updateLog.mu.Lock()
++	defer updateLog.mu.Unlock()
++	if updateLog.logged == nil {
++		updateLog.logged = make(map[string]bool)
++	}
++	if updateLog.logged[msg] {
++		return
+ 	}
++	updateLog.logged[msg] = true
++	fmt.Fprintln(&updateLog.buf, msg)
++}
++
++func writeUpdateLog() {
++	updateLog.mu.Lock()
++	defer updateLog.mu.Unlock()
++	io.Copy(os.Stderr, &updateLog.buf)
+ }
+diff --git a/src/cmd/go/testdata/script/mod_get_update_log.txt b/src/cmd/go/testdata/script/mod_get_update_log.txt
+new file mode 100644
+index 0000000000..51f138f4eb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_update_log.txt
+@@ -0,0 +1,15 @@
++# Upgrades are reported.
++go get -d rsc.io/quote
++stderr '^go: rsc.io/quote upgrade => v1.5.2\n\z'
++
++# Downgrades are not reported.
++# TODO(golang.org/issue/33284): they should be.
++go get -d rsc.io/quote@v1.5.0
++stderr '^go: downloading.*\n\z'
++
++-- go.mod --
++module m
++
++go 1.15
++
++require rsc.io/quote v1.5.0

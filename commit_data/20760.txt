@@ -8,8 +8,98 @@ Date:   Tue Oct 7 12:07:40 2014 -0400
     R=r, bradfitz, dave
     CC=golang-codereviews
     https://golang.org/cl/152250044
-
+---
  src/cmd/5c/reg.c |  9 +++------
  src/cmd/6c/reg.c | 14 ++++----------
  src/cmd/8c/reg.c |  9 +++------
  3 files changed, 10 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/5c/reg.c b/src/cmd/5c/reg.c
+index 2fbe031f44..9024d5f496 100644
+--- a/src/cmd/5c/reg.c
++++ b/src/cmd/5c/reg.c
+@@ -406,7 +406,7 @@ loop2:
+ 			rgp->cost = change;
+ 			nregion++;
+ 			if(nregion >= NRGN) {
+-				warn(Z, "too many regions");
++				fatal(Z, "too many regions");
+ 				goto brk;
+ 			}
+ 			rgp++;
+@@ -642,11 +642,8 @@ mkvar(Addr *a, int docon)
+ 	if(s)
+ 		if(s->name[0] == '.')
+ 			goto none;
+-	if(nvar >= NVAR) {
+-		if(debug['w'] > 1 && s)
+-			warn(Z, "variable not optimized: %s", s->name);
+-		goto none;
+-	}
++	if(nvar >= NVAR)
++		fatal(Z, "variable not optimized: %s", s->name);
+ 	i = nvar;
+ 	nvar++;
+ 	v = &var[i];
+diff --git a/src/cmd/6c/reg.c b/src/cmd/6c/reg.c
+index 348d747b72..6f8d3ce14d 100644
+--- a/src/cmd/6c/reg.c
++++ b/src/cmd/6c/reg.c
+@@ -585,14 +585,11 @@ loop2:
+ 			}
+ 			rgp->cost = change;
+ 			nregion++;
+-			if(nregion >= NRGN) {
+-				warn(Z, "too many regions");
+-				goto brk;
+-			}
++			if(nregion >= NRGN)
++				fatal(Z, "too many regions");
+ 			rgp++;
+ 		}
+ 	}
+-brk:
+ 	qsort(region, nregion, sizeof(region[0]), rcmp);
+ 
+ 	/*
+@@ -808,11 +805,8 @@ mkvar(Reg *r, Addr *a)
+ 			goto out;
+ 		v++;
+ 	}
+-	if(nvar >= NVAR) {
+-		if(debug['w'] > 1 && s)
+-			warn(Z, "variable not optimized: %s", s->name);
+-		goto none;
+-	}
++	if(nvar >= NVAR)
++		fatal(Z, "variable not optimized: %s", s->name);
+ 	i = nvar;
+ 	nvar++;
+ 	v = &var[i];
+diff --git a/src/cmd/8c/reg.c b/src/cmd/8c/reg.c
+index e6ba8bcb3e..ea862f3888 100644
+--- a/src/cmd/8c/reg.c
++++ b/src/cmd/8c/reg.c
+@@ -518,7 +518,7 @@ loop2:
+ 			rgp->cost = change;
+ 			nregion++;
+ 			if(nregion >= NRGN) {
+-				warn(Z, "too many regions");
++				fatal(Z, "too many regions");
+ 				goto brk;
+ 			}
+ 			rgp++;
+@@ -746,11 +746,8 @@ mkvar(Reg *r, Addr *a)
+ 			goto out;
+ 		v++;
+ 	}
+-	if(nvar >= NVAR) {
+-		if(debug['w'] > 1 && s)
+-			warn(Z, "variable not optimized: %s", s->name);
+-		goto none;
+-	}
++	if(nvar >= NVAR)
++		fatal(Z, "variable not optimized: %s", s->name);
+ 	i = nvar;
+ 	nvar++;
+ 	v = &var[i];

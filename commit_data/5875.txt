@@ -9,6 +9,33 @@ Date:   Mon Jul 26 09:55:25 2010 +1000
     R=rsc, Joe Poirier
     CC=golang-dev
     https://golang.org/cl/1846042
-
+---
  src/Make.cmd | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/Make.cmd b/src/Make.cmd
+index b2b764f26d..1344010936 100644
+--- a/src/Make.cmd
++++ b/src/Make.cmd
+@@ -2,6 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++ifeq ($(GOOS),windows)
++TARG:=$(TARG).exe
++endif
++
+ all: $(TARG)
+ 
+ # ugly hack to deal with whitespaces in $GOROOT
+@@ -11,10 +15,6 @@ QUOTED_GOROOT:=$(subst $(space),\ ,$(GOROOT))
+ 
+ include $(QUOTED_GOROOT)/src/Make.common
+ 
+-ifeq ($(GOOS),windows) 
+-TARG:=$(TARG).exe 
+-endif
+-
+ PREREQ+=$(patsubst %,%.make,$(DEPS))
+ 
+ $(TARG): _go_.$O $(OFILES)

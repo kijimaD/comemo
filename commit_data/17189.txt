@@ -7,6 +7,19 @@ Date:   Tue Aug 13 12:18:29 2013 -0400
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/12790043
-
+---
  src/pkg/runtime/pprof/pprof_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index a9868ccb10..738e2c4ec4 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -47,6 +47,7 @@ func TestCPUProfileMultithreaded(t *testing.T) {
+ 		for i := 0; i < 2000; i++ {
+ 			crc32.ChecksumIEEE(buf)
+ 		}
++		<-c
+ 	})
+ }
+ 

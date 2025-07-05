@@ -9,6 +9,20 @@ Date:   Mon Mar 26 15:06:59 2018 +0000
     Change-Id: Id046d4afbfe0ea43cb29e1a9f400e1f130de221d
     Reviewed-on: https://go-review.googlesource.com/102575
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mbitmap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index afaec55569..38d994eb5a 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -257,7 +257,7 @@ func (s *mspan) objIndex(p uintptr) uintptr {
+ 		return 0
+ 	}
+ 	if s.baseMask != 0 {
+-		// s.baseMask is 0, elemsize is a power of two, so shift by s.divShift
++		// s.baseMask is non-0, elemsize is a power of two, so shift by s.divShift
+ 		return byteOffset >> s.divShift
+ 	}
+ 	return uintptr(((uint64(byteOffset) >> s.divShift) * uint64(s.divMul)) >> s.divShift2)

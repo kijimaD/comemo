@@ -8,9 +8,336 @@ Date:   Tue Mar 3 08:41:02 2009 -0800
     DELTA=131  (60 added, 41 deleted, 30 changed)
     OCL=25617
     CL=25633
-
+---
  src/cmd/gc/go.h   |   4 +--
  src/cmd/gc/go.y   |  44 ++++++++++++++++-------
  src/cmd/gc/subr.c |   4 +--
  src/cmd/gc/walk.c | 103 +++++++++++++++++++++++++++---------------------------
  4 files changed, 87 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 0f8d26506d..8445a9158e 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -327,9 +327,9 @@ enum
+ 	ONOT, OCOM, OPLUS, OMINUS, OSEND, ORECV,
+ 	OLITERAL, OREGISTER, OINDREG,
+ 	OKEY, OPARAM,
++	OCOMPOS,
+ 	OCONV,
+-	OCONVDOT,
+-	OCONVPAREN,
++	ODOTTYPE,
+ 	OBAD,
+ 
+ 	OEXTEND,	// 6g internal
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 320c9c6849..20c981d6c3 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -51,7 +51,7 @@
+ %type	<node>		stmt_list_r Astmt_list_r Bstmt_list_r
+ %type	<node>		Astmt Bstmt
+ %type	<node>		for_stmt for_body for_header
+-%type	<node>		if_stmt if_body if_header select_stmt
++%type	<node>		if_stmt if_body if_header select_stmt condition
+ %type	<node>		simple_stmt osimple_stmt range_stmt semi_stmt
+ %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
+ %type	<node>		exprsym3_list_r exprsym3
+@@ -89,6 +89,13 @@
+ %left			'+' '-' '|' '^'
+ %left			'*' '/' '%' '&' LLSH LRSH
+ 
++/*
++ * resolve { vs condition in favor of condition
++ */
++%left			'{'
++%left			Condition
++
++
+ %%
+ file:
+ 	package import_there imports oxdcl_list
+@@ -562,7 +569,7 @@ for_header:
+ 		$$->ntest = $3;
+ 		$$->nincr = $5;
+ 	}
+-|	osimple_stmt
++|	condition
+ 	{
+ 		// normal test
+ 		$$ = nod(OFOR, N, N);
+@@ -591,15 +598,30 @@ for_stmt:
+ 		$$ = $2;
+ 	}
+ 
++/*
++ * using cond instead of osimple_stmt creates
++ * a shift/reduce conflict on an input like
++ *
++ *	if x == []int { true } { true }
++ *
++ * at the first {, giving us an opportunity
++ * to resolve it by reduce, which implements
++ * the rule about { } inside if conditions
++ * needing parens.
++ */
++condition:
++	osimple_stmt	%prec Condition
++
++
+ if_header:
+-	osimple_stmt
++	condition
+ 	{
+ 		// test
+ 		$$ = nod(OIF, N, N);
+ 		$$->ninit = N;
+ 		$$->ntest = $1;
+ 	}
+-|	osimple_stmt ';' osimple_stmt
++|	osimple_stmt ';' condition
+ 	{
+ 		// init ; test
+ 		$$ = nod(OIF, N, N);
+@@ -791,7 +813,7 @@ pexpr:
+ 	}
+ |	pexpr '.' '(' type ')'
+ 	{
+-		$$ = nod(OCONVDOT, $1, N);
++		$$ = nod(ODOTTYPE, $1, N);
+ 		$$->type = $4;
+ 	}
+ |	pexpr '[' expr ']'
+@@ -841,24 +863,22 @@ pexpr:
+ 		$$ = nod(OMAKE, $5, N);
+ 		$$->type = $3;
+ 	}
+-|	convtype '(' braced_keyexpr_list ')'
++|	convtype '(' expr ')'
+ 	{
+-		// typed literal
++		// conversion
+ 		$$ = rev($3);
+ 		if($$ == N)
+ 			$$ = nod(OEMPTY, N, N);
+-		$$ = nod(OCONVPAREN, $$, N);
++		$$ = nod(OCONV, $$, N);
+ 		$$->type = $1;
+ 	}
+ |	convtype '{' braced_keyexpr_list '}'
+ 	{
+-		if(!debug['{'])
+-			warn("braces should now be parens");
+-		// composite literal
++		// composite expression
+ 		$$ = rev($3);
+ 		if($$ == N)
+ 			$$ = nod(OEMPTY, N, N);
+-		$$ = nod(OCONVPAREN, $$, N);
++		$$ = nod(OCOMPOS, $$, N);
+ 		$$->type = $1;
+ 	}
+ |	fnliteral
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 2ddf6e8cad..7d5890c6bb 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -634,9 +634,9 @@ opnames[] =
+ 	[OXCASE]	= "XCASE",
+ 	[OCMP]		= "CMP",
+ 	[OFALL]		= "FALL",
++	[OCOMPOS]	= "COMPOS",
++	[ODOTTYPE]		= "DOTTYPE",
+ 	[OCONV]	= "CONV",
+-	[OCONVDOT]		= "CONVDOT",
+-	[OCONVPAREN]	= "CONVPAREN",
+ 	[OCOM]		= "COM",
+ 	[OCONST]	= "CONST",
+ 	[OCONTINUE]	= "CONTINUE",
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 116fdec2c9..c7deefc916 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -510,7 +510,7 @@ loop:
+ 			}
+ 			break;
+ 
+-		case OCONVDOT:
++		case ODOTTYPE:
+ 			if(cl == 2 && cr == 1) {
+ 				// a,b = i.(T)
+ 				walktype(r->left, Erv);
+@@ -593,13 +593,41 @@ loop:
+ 		goto ret;
+ 
+ 	case OCONV:
+-	case OCONVDOT:
+-	case OCONVPAREN:
++	case ODOTTYPE:
+ 		if(top != Erv)
+ 			goto nottop;
+ 		walkconv(n);
+ 		goto ret;
+ 
++	case OCOMPOS:
++		t = n->type;
++		if(t == T)
++			goto ret;
++		l = n->left;
++		if(l == N)
++			goto ret;
++		walktype(l, Erv);
++	
++		// structure literal
++		if(t->etype == TSTRUCT) {
++			indir(n, structlit(n, N));
++			goto ret;
++		}
++
++		// array literal
++		if(t->etype == TARRAY) {
++			indir(n, arraylit(n, N));
++			goto ret;
++		}
++
++		// map literal
++		if(t->etype == TMAP) {
++			indir(n, maplit(n, N));
++			goto ret;
++		}
++		yyerror("invalid type for composite literal: %T", t);
++		goto ret;
++
+ 	case ORETURN:
+ 		if(top != Etop)
+ 			goto nottop;
+@@ -887,11 +915,7 @@ loop:
+ 	case OADDR:
+ 		if(top != Erv)
+ 			goto nottop;
+-		if(n->left->op == OCONVPAREN && n->left->type != T)
+-		switch(n->left->type->etype) {
+-		case TSTRUCT:
+-		case TARRAY:
+-		case TMAP:
++		if(n->left->op == OCOMPOS && n->left->type != T) {
+ 			// turn &Point(1, 2) or &[]int(1, 2) or &[...]int(1, 2) into allocation.
+ 			// initialize with
+ 			//	nvar := new(*Point);
+@@ -920,13 +944,14 @@ loop:
+ 				maplit(n->left, nstar);
+ 				break;
+ 			default:
+-				fatal("addr lit %T", n->left->type);
++				goto badlit;
+ 			}
+ 
+ 			indir(n, nvar);
+ 			goto ret;
+ 		}
+ 
++	badlit:
+ 		if(istype(n->left->type, TFUNC) && n->left->class == PFUNC) {
+ 			if(!n->diag) {
+ 				n->diag = 1;
+@@ -1130,10 +1155,12 @@ walkbool(Node *n)
+ 			yyerror("IF and FOR require a boolean type");
+ }
+ 
++
++
+ void
+ walkconv(Node *n)
+ {
+-	int et, op;
++	int et;
+ 	Type *t;
+ 	Node *l;
+ 
+@@ -1145,17 +1172,20 @@ walkconv(Node *n)
+ 		return;
+ 	walktype(l, Erv);
+ 
+-	switch(t->etype) {
+-	case TSTRUCT:
+-	case TMAP:
+-	case TARRAY:
+-		break;
+-	default:
+-		convlit1(l, t, 1);
++	convlit1(l, t, 1);
++
++	// if using .(T), interface assertion.
++	if(n->op == ODOTTYPE) {
++		// interface conversion
++		et = ifaceas(n->type, l->type, 1);
++		if(et != Inone) {
++			indir(n, ifaceop(n->type, l, et));
++			return;
++		}
++		goto bad;
+ 	}
+ 
+-	op = n->op;
+-	n->op = OCONV;	// generic conversion
++	// otherwise, conversion.
+ 
+ 	// nil conversion
+ 	if(eqtype(t, l->type, 0)) {
+@@ -1218,37 +1248,7 @@ walkconv(Node *n)
+ 			return;
+ 	}
+ 
+-	// possible interface conversion if using .(T)
+-	if(op == OCONVDOT) {
+-		// interface conversion
+-		et = ifaceas(n->type, l->type, 1);
+-		if(et != Inone) {
+-			indir(n, ifaceop(n->type, l, et));
+-			return;
+-		}
+-	}
+-
+-	// possible composite literal if using T()
+-	if(op == OCONVPAREN) {
+-		// structure literal
+-		if(t->etype == TSTRUCT) {
+-			indir(n, structlit(n, N));
+-			return;
+-		}
+-
+-		// array literal
+-		if(t->etype == TARRAY) {
+-			indir(n, arraylit(n, N));
+-			return;
+-		}
+-
+-		// map literal
+-		if(t->etype == TMAP) {
+-			indir(n, maplit(n, N));
+-			return;
+-		}
+-	}
+-
++bad:
+ 	if(l->type != T)
+ 		yyerror("invalid conversion: %T to %T", l->type, t);
+ 	else if(n->left->op == OLIST)
+@@ -1256,7 +1256,6 @@ walkconv(Node *n)
+ }
+ 
+ 
+-
+ /*
+  * return the first type
+  */
+@@ -3146,7 +3145,7 @@ multi:
+ 		n = list(n, a);
+ 		break;
+ 
+-	case OCONVDOT:
++	case ODOTTYPE:
+ 		// a,b := i.(T)
+ 		if(cl != 2)
+ 			goto badt;

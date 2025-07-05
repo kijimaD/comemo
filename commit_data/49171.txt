@@ -18,8 +18,56 @@ Date:   Wed Jul 21 16:36:49 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/errors.go                 | 2 +-
  src/cmd/compile/internal/types2/testdata/check/issues.src | 4 ++--
  test/run.go                                               | 1 -
  3 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index af4ecb2300..8c5e185f6c 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -111,7 +111,7 @@ func (check *Checker) qualifier(pkg *Package) string {
+ 		if check.pkgPathMap == nil {
+ 			check.pkgPathMap = make(map[string]map[string]bool)
+ 			check.seenPkgMap = make(map[*Package]bool)
+-			check.markImports(pkg)
++			check.markImports(check.pkg)
+ 		}
+ 		// If the same package name was used by multiple packages, display the full path.
+ 		if len(check.pkgPathMap[pkg.name]) > 1 {
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.src b/src/cmd/compile/internal/types2/testdata/check/issues.src
+index 60d23b3c3b..7219a560b1 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.src
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.src
+@@ -332,7 +332,7 @@ func issue28281g() (... /* ERROR can only use ... with final parameter in list *
+ func issue26234a(f *syn.File) {
+ 	// The error message below should refer to the actual package name (syntax)
+ 	// not the local package name (syn).
+-	f.foo /* ERROR f.foo undefined \(type \*syntax.File has no field or method foo\) */
++	f.foo /* ERROR f\.foo undefined \(type \*syntax\.File has no field or method foo\) */
+ }
+ 
+ type T struct {
+@@ -361,7 +361,7 @@ func issue35895() {
+ 
+ 	// Because both t1 and t2 have the same global package name (template),
+ 	// qualify packages with full path name in this case.
+-	var _ t1.Template = t2 /* ERROR cannot use .* \(value of type "html/template".Template\) as "text/template".Template */ .Template{}
++	var _ t1.Template = t2 /* ERROR cannot use .* \(value of type .html/template.\.Template\) as .text/template.\.Template */ .Template{}
+ }
+ 
+ func issue42989(s uint) {
+diff --git a/test/run.go b/test/run.go
+index 2e72d55b76..edf26a5d82 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2140,7 +2140,6 @@ var types2Failures = setOf(
+ 	"fixedbugs/issue11610.go",  // types2 not run after syntax errors
+ 	"fixedbugs/issue11614.go",  // types2 reports an extra error
+ 	"fixedbugs/issue14520.go",  // missing import path error by types2
+-	"fixedbugs/issue16133.go",  // types2 doesn't use package path for qualified identifiers when package name is ambiguous
+ 	"fixedbugs/issue16428.go",  // types2 reports two instead of one error
+ 	"fixedbugs/issue17038.go",  // types2 doesn't report a follow-on error (pref: types2)
+ 	"fixedbugs/issue17645.go",  // multiple errors on same line

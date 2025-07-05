@@ -9,7 +9,45 @@ Date:   Wed Apr 14 12:38:20 2021 -0400
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go | 2 +-
  src/cmd/dist/test.go  | 6 ++++--
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 63dd8005e3..28c814d316 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1598,7 +1598,7 @@ var cgoEnabled = map[string]bool{
+ 	"windows/386":     true,
+ 	"windows/amd64":   true,
+ 	"windows/arm":     false,
+-	"windows/arm64":   false,
++	"windows/arm64":   true,
+ }
+ 
+ // List of platforms which are supported but not complete yet. These get
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 5ae0bf92cf..8b1ec458ed 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -976,6 +976,9 @@ func (t *tester) internalLink() bool {
+ 	if goos == "ios" {
+ 		return false
+ 	}
++	if goos == "windows" && goarch == "arm64" {
++		return false
++	}
+ 	// Internally linking cgo is incomplete on some architectures.
+ 	// https://golang.org/issue/10373
+ 	// https://golang.org/issue/14449
+@@ -1108,8 +1111,7 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 	cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
+ 	cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=auto")
+ 
+-	// Skip internal linking cases on arm64 to support GCC-9.4 and above,
+-	// only for linux, conservatively.
++	// Skip internal linking cases on linux/arm64 to support GCC-9.4 and above.
+ 	// See issue #39466.
+ 	skipInternalLink := goarch == "arm64" && goos == "linux"
+ 

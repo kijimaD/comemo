@@ -8,6 +8,20 @@ Date:   Thu Apr 2 23:26:55 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=27061
     CL=27061
-
+---
  src/lib/http/url.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/http/url.go b/src/lib/http/url.go
+index 0b2e9783ad..13ac7772e6 100644
+--- a/src/lib/http/url.go
++++ b/src/lib/http/url.go
+@@ -43,7 +43,7 @@ func unhex(c byte) byte {
+ 
+ // URLUnescape unescapes a URL-encoded string,
+ // converting %AB into the byte 0xAB.
+-// It returns a BadURL error if each % is not followed
++// It returns a BadURL error if any % is not followed
+ // by two hexadecimal digits.
+ func URLUnescape(s string) (string, *os.Error) {
+ 	// Count %, check that they're well-formed.

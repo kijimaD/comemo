@@ -12,9 +12,673 @@ Date:   Fri Apr 4 16:26:15 2014 +1100
     R=golang-codereviews, rsc
     CC=golang-codereviews
     https://golang.org/cl/83020043
-
+---
  src/cmd/pack/pack_test.go          |   2 +-
  src/pkg/os/exec/exec.go            |  37 +++
  src/pkg/os/exec/exec_test.go       |  18 ++
  src/pkg/os/exec/lp_windows_test.go | 474 +++++++++++++++++++++++++------------
  4 files changed, 384 insertions(+), 147 deletions(-)
+
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index 33abe45a20..9389349187 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -218,7 +218,7 @@ func TestHello(t *testing.T) {
+ 		t.Fatal("cannot find GOCHAR in 'go env' output:\n", out)
+ 	}
+ 	char := fields[1]
+-	run("go", "build", "-o", "pack", "cmd/pack") // writes pack binary to dir
++	run("go", "build", "cmd/pack") // writes pack binary to dir
+ 	run("go", "tool", char+"g", "hello.go")
+ 	run("./pack", "grc", "hello.a", "hello."+char)
+ 	run("go", "tool", char+"l", "-o", "a.out", "hello.a")
+diff --git a/src/pkg/os/exec/exec.go b/src/pkg/os/exec/exec.go
+index d2cee03fcd..44b9cc08ce 100644
+--- a/src/pkg/os/exec/exec.go
++++ b/src/pkg/os/exec/exec.go
+@@ -13,7 +13,9 @@ import (
+ 	"io"
+ 	"os"
+ 	"path/filepath"
++	"runtime"
+ 	"strconv"
++	"strings"
+ 	"sync"
+ 	"syscall"
+ )
+@@ -237,6 +239,32 @@ func (c *Cmd) Run() error {
+ 	return c.Wait()
+ }
+ 
++// lookExtensions finds windows executable by its dir and path.
++// It uses LookPath to try appropriate extensions.
++// lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
++func lookExtensions(path, dir string) (string, error) {
++	if filepath.Base(path) == path {
++		path = filepath.Join(".", path)
++	}
++	if dir == "" {
++		return LookPath(path)
++	}
++	if filepath.VolumeName(path) != "" {
++		return LookPath(path)
++	}
++	if len(path) > 1 && os.IsPathSeparator(path[0]) {
++		return LookPath(path)
++	}
++	dirandpath := filepath.Join(dir, path)
++	// We assume that LookPath will only add file extension.
++	lp, err := LookPath(dirandpath)
++	if err != nil {
++		return "", err
++	}
++	ext := strings.TrimPrefix(lp, dirandpath)
++	return path + ext, nil
++}
++
+ // Start starts the specified command but does not wait for it to complete.
+ //
+ // The Wait method will return the exit code and release associated resources
+@@ -247,6 +275,15 @@ func (c *Cmd) Start() error {
+ 		c.closeDescriptors(c.closeAfterWait)
+ 		return c.lookPathErr
+ 	}
++	if runtime.GOOS == "windows" {
++		lp, err := lookExtensions(c.Path, c.Dir)
++		if err != nil {
++			c.closeDescriptors(c.closeAfterStart)
++			c.closeDescriptors(c.closeAfterWait)
++			return err
++		}
++		c.Path = lp
++	}
+ 	if c.Process != nil {
+ 		return errors.New("exec: already started")
+ 	}
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index 54d69bff0d..f237312280 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -682,6 +682,24 @@ func TestHelperProcess(*testing.T) {
+ 		}
+ 		fmt.Fprintf(os.Stderr, "child: %s", response)
+ 		os.Exit(0)
++	case "exec":
++		cmd := exec.Command(args[1])
++		cmd.Dir = args[0]
++		output, err := cmd.CombinedOutput()
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "Child: %s %s", err, string(output))
++			os.Exit(1)
++		}
++		fmt.Printf("%s", string(output))
++		os.Exit(0)
++	case "lookpath":
++		p, err := exec.LookPath(args[0])
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "LookPath failed: %v\n", err)
++			os.Exit(1)
++		}
++		fmt.Print(p)
++		os.Exit(0)
+ 	default:
+ 		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
+ 		os.Exit(2)
+diff --git a/src/pkg/os/exec/lp_windows_test.go b/src/pkg/os/exec/lp_windows_test.go
+index 385dd331b1..72df03ed2d 100644
+--- a/src/pkg/os/exec/lp_windows_test.go
++++ b/src/pkg/os/exec/lp_windows_test.go
+@@ -13,10 +13,48 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+-	"text/template"
+ )
+ 
++func installExe(t *testing.T, dest, src string) {
++	fsrc, err := os.Open(src)
++	if err != nil {
++		t.Fatal("os.Open failed: ", err)
++	}
++	defer fsrc.Close()
++	fdest, err := os.Create(dest)
++	if err != nil {
++		t.Fatal("os.Create failed: ", err)
++	}
++	defer fdest.Close()
++	_, err = io.Copy(fdest, fsrc)
++	if err != nil {
++		t.Fatal("io.Copy failed: ", err)
++	}
++}
++
++func installBat(t *testing.T, dest string) {
++	f, err := os.Create(dest)
++	if err != nil {
++		t.Fatalf("failed to create batch file: %v", err)
++	}
++	defer f.Close()
++	fmt.Fprintf(f, "@echo %s\n", dest)
++}
++
++func installProg(t *testing.T, dest, srcExe string) {
++	err := os.MkdirAll(filepath.Dir(dest), 0700)
++	if err != nil {
++		t.Fatal("os.MkdirAll failed: ", err)
++	}
++	if strings.ToLower(filepath.Ext(dest)) == ".bat" {
++		installBat(t, dest)
++		return
++	}
++	installExe(t, dest, srcExe)
++}
++
+ type lookPathTest struct {
++	rootDir   string
+ 	PATH      string
+ 	PATHEXT   string
+ 	files     []string
+@@ -24,13 +62,97 @@ type lookPathTest struct {
+ 	fails     bool // test is expected to fail
+ }
+ 
+-// PrefixPATH returns p.PATH with every element prefixed by prefix.
+-func (t lookPathTest) PrefixPATH(prefix string) string {
+-	a := strings.SplitN(t.PATH, ";", -1)
+-	for i := range a {
+-		a[i] = filepath.Join(prefix, a[i])
++func (test lookPathTest) runProg(t *testing.T, env []string, args ...string) (string, error) {
++	cmd := Command(args[0], args[1:]...)
++	cmd.Env = env
++	cmd.Dir = test.rootDir
++	args[0] = filepath.Base(args[0])
++	cmdText := fmt.Sprintf("%q command", strings.Join(args, " "))
++	out, err := cmd.CombinedOutput()
++	if (err != nil) != test.fails {
++		if test.fails {
++			t.Fatalf("test=%+v: %s succeeded, but expected to fail", test, cmdText)
++		}
++		t.Fatalf("test=%+v: %s failed, but expected to succeed: %v - %v", test, cmdText, err, string(out))
++	}
++	if err != nil {
++		return "", fmt.Errorf("test=%+v: %s failed: %v - %v", test, cmdText, err, string(out))
++	}
++	// normalise program output
++	p := string(out)
++	// trim terminating \r and \n that batch file outputs
++	for len(p) > 0 && (p[len(p)-1] == '\n' || p[len(p)-1] == '\r') {
++		p = p[:len(p)-1]
++	}
++	if !filepath.IsAbs(p) {
++		return p, nil
++	}
++	if p[:len(test.rootDir)] != test.rootDir {
++		t.Fatalf("test=%+v: %s output is wrong: %q must have %q prefix", test, cmdText, p, test.rootDir)
++	}
++	return p[len(test.rootDir)+1:], nil
++}
++
++func updateEnv(env []string, name, value string) []string {
++	for i, e := range env {
++		if strings.HasPrefix(strings.ToUpper(e), name+"=") {
++			env[i] = name + "=" + value
++			return env
++		}
++	}
++	return append(env, name+"="+value)
++}
++
++func createEnv(dir, PATH, PATHEXT string) []string {
++	env := os.Environ()
++	env = updateEnv(env, "PATHEXT", PATHEXT)
++	// Add dir in front of every directory in the PATH.
++	dirs := splitList(PATH)
++	for i := range dirs {
++		dirs[i] = filepath.Join(dir, dirs[i])
++	}
++	path := strings.Join(dirs, ";")
++	env = updateEnv(env, "PATH", path)
++	return env
++}
++
++// createFiles copies srcPath file into multiply files.
++// It uses dir as preifx for all destination files.
++func createFiles(t *testing.T, dir string, files []string, srcPath string) {
++	for _, f := range files {
++		installProg(t, filepath.Join(dir, f), srcPath)
++	}
++}
++
++func (test lookPathTest) run(t *testing.T, tmpdir, printpathExe string) {
++	test.rootDir = tmpdir
++	createFiles(t, test.rootDir, test.files, printpathExe)
++	env := createEnv(test.rootDir, test.PATH, test.PATHEXT)
++	// Run "cmd.exe /c test.searchFor" with new environment and
++	// work directory set. All candidates are copies of printpath.exe.
++	// These will output their program paths when run.
++	should, errCmd := test.runProg(t, env, "cmd", "/c", test.searchFor)
++	// Run the lookpath program with new environment and work directory set.
++	env = append(env, "GO_WANT_HELPER_PROCESS=1")
++	have, errLP := test.runProg(t, env, os.Args[0], "-test.run=TestHelperProcess", "--", "lookpath", test.searchFor)
++	// Compare results.
++	if errCmd == nil && errLP == nil {
++		// both succeeded
++		if should != have {
++			t.Fatalf("test=%+v failed: expected to find %q, but found %q", test, should, have)
++		}
++		return
++	}
++	if errCmd != nil && errLP != nil {
++		// both failed -> continue
++		return
++	}
++	if errCmd != nil {
++		t.Fatal(errCmd)
++	}
++	if errLP != nil {
++		t.Fatal(errLP)
+ 	}
+-	return strings.Join(a, ";")
+ }
+ 
+ var lookPathTests = []lookPathTest{
+@@ -179,190 +301,250 @@ var lookPathTests = []lookPathTest{
+ 	},
+ }
+ 
+-func updateEnv(env []string, name, value string) []string {
+-	for i, e := range env {
+-		if strings.HasPrefix(strings.ToUpper(e), name+"=") {
+-			env[i] = name + "=" + value
+-			return env
+-		}
+-	}
+-	return append(env, name+"="+value)
+-}
+-
+-func installExe(t *testing.T, dest, src string) {
+-	fsrc, err := os.Open(src)
+-	if err != nil {
+-		t.Fatal("os.Open failed: ", err)
+-	}
+-	defer fsrc.Close()
+-	fdest, err := os.Create(dest)
++func TestLookPath(t *testing.T) {
++	tmp, err := ioutil.TempDir("", "TestLookPath")
+ 	if err != nil {
+-		t.Fatal("os.Create failed: ", err)
++		t.Fatal("TempDir failed: ", err)
+ 	}
+-	defer fdest.Close()
+-	_, err = io.Copy(fdest, fsrc)
+-	if err != nil {
+-		t.Fatal("io.Copy failed: ", err)
++	defer os.RemoveAll(tmp)
++
++	printpathExe := buildPrintPathExe(t, tmp)
++
++	// Run all tests.
++	for i, test := range lookPathTests {
++		dir := filepath.Join(tmp, "d"+strconv.Itoa(i))
++		err := os.Mkdir(dir, 0700)
++		if err != nil {
++			t.Fatal("Mkdir failed: ", err)
++		}
++		test.run(t, dir, printpathExe)
+ 	}
+ }
+ 
+-func installBat(t *testing.T, dest string) {
+-	f, err := os.Create(dest)
+-	if err != nil {
+-		t.Fatalf("failed to create batch file: %v", err)
+-	}
+-	defer f.Close()
+-	fmt.Fprintf(f, "@echo %s\n", dest)
++type commandTest struct {
++	PATH  string
++	files []string
++	dir   string
++	arg0  string
++	want  string
++	fails bool // test is expected to fail
+ }
+ 
+-func installProg(t *testing.T, dest, srcExe string) {
+-	err := os.MkdirAll(filepath.Dir(dest), 0700)
++func (test commandTest) isSuccess(rootDir, output string, err error) error {
+ 	if err != nil {
+-		t.Fatal("os.MkdirAll failed: ", err)
++		return fmt.Errorf("test=%+v: exec: %v %v", test, err, output)
+ 	}
+-	if strings.ToLower(filepath.Ext(dest)) == ".bat" {
+-		installBat(t, dest)
+-		return
++	path := output
++	if path[:len(rootDir)] != rootDir {
++		return fmt.Errorf("test=%+v: %q must have %q prefix", test, path, rootDir)
+ 	}
+-	installExe(t, dest, srcExe)
++	path = path[len(rootDir)+1:]
++	if path != test.want {
++		return fmt.Errorf("test=%+v: want %q, got %q", test, test.want, path)
++	}
++	return nil
+ }
+ 
+-func runProg(t *testing.T, test lookPathTest, env []string, dir string, args ...string) (string, error) {
+-	cmd := Command(args[0], args[1:]...)
++func (test commandTest) runOne(rootDir string, env []string, dir, arg0 string) error {
++	cmd := Command(os.Args[0], "-test.run=TestHelperProcess", "--", "exec", dir, arg0)
++	cmd.Dir = rootDir
+ 	cmd.Env = env
+-	cmd.Dir = dir
+-	args[0] = filepath.Base(args[0])
+-	cmdText := fmt.Sprintf("%q command", strings.Join(args, " "))
+-	out, err := cmd.CombinedOutput()
++	output, err := cmd.CombinedOutput()
++	err = test.isSuccess(rootDir, string(output), err)
+ 	if (err != nil) != test.fails {
+ 		if test.fails {
+-			t.Fatalf("test=%+v: %s succeeded, but expected to fail", test, cmdText)
++			return fmt.Errorf("test=%+v: succeeded, but expected to fail", test)
+ 		}
+-		t.Fatalf("test=%+v: %s failed, but expected to succeed: %v - %v", test, cmdText, err, string(out))
+-	}
+-	if err != nil {
+-		return "", fmt.Errorf("test=%+v: %s failed: %v - %v", test, cmdText, err, string(out))
+-	}
+-	// normalise program output
+-	p := string(out)
+-	// trim terminating \r and \n that batch file outputs
+-	for len(p) > 0 && (p[len(p)-1] == '\n' || p[len(p)-1] == '\r') {
+-		p = p[:len(p)-1]
+-	}
+-	if !filepath.IsAbs(p) {
+-		return p, nil
+-	}
+-	if p[:len(dir)] != dir {
+-		t.Fatalf("test=%+v: %s output is wrong: %q must have %q prefix", test, cmdText, p, dir)
++		return err
+ 	}
+-	return p[len(dir)+1:], nil
++	return nil
+ }
+ 
+-func testLookPath(t *testing.T, test lookPathTest, tmpdir, lookpathExe, printpathExe string) {
+-	// Create files listed in test.files in tmp directory.
+-	for i := range test.files {
+-		installProg(t, filepath.Join(tmpdir, test.files[i]), printpathExe)
+-	}
+-	// Create environment with test.PATH and test.PATHEXT set.
+-	env := os.Environ()
+-	env = updateEnv(env, "PATH", test.PrefixPATH(tmpdir))
+-	env = updateEnv(env, "PATHEXT", test.PATHEXT)
+-	// Run "cmd.exe /c test.searchFor" with new environment and
+-	// work directory set. All candidates are copies of printpath.exe.
+-	// These will output their program paths when run.
+-	should, errCmd := runProg(t, test, env, tmpdir, "cmd", "/c", test.searchFor)
+-	// Run the lookpath program with new environment and work directory set.
+-	have, errLP := runProg(t, test, env, tmpdir, lookpathExe, test.searchFor)
+-	// Compare results.
+-	if errCmd == nil && errLP == nil {
+-		// both succeeded
+-		if should != have {
+-			//			t.Fatalf("test=%+v failed: expected to find %v, but found %v", test, should, have)
+-			t.Fatalf("test=%+v failed: expected to find %q, but found %q", test, should, have)
+-		}
+-		return
+-	}
+-	if errCmd != nil && errLP != nil {
+-		// both failed -> continue
+-		return
+-	}
+-	if errCmd != nil {
+-		t.Fatal(errCmd)
+-	}
+-	if errLP != nil {
+-		t.Fatal(errLP)
++func (test commandTest) run(t *testing.T, rootDir, printpathExe string) {
++	createFiles(t, rootDir, test.files, printpathExe)
++	PATHEXT := `.COM;.EXE;.BAT`
++	env := createEnv(rootDir, test.PATH, PATHEXT)
++	env = append(env, "GO_WANT_HELPER_PROCESS=1")
++	err := test.runOne(rootDir, env, test.dir, test.arg0)
++	if err != nil {
++		t.Error(err)
+ 	}
+ }
+ 
+-func buildExe(t *testing.T, templ, dir, name string) string {
+-	srcname := name + ".go"
+-	f, err := os.Create(filepath.Join(dir, srcname))
+-	if err != nil {
+-		t.Fatalf("failed to create source: %v", err)
+-	}
+-	err = template.Must(template.New("template").Parse(templ)).Execute(f, nil)
+-	f.Close()
+-	if err != nil {
+-		t.Fatalf("failed to execute template: %v", err)
+-	}
+-	outname := name + ".exe"
+-	cmd := Command("go", "build", "-o", outname, srcname)
+-	cmd.Dir = dir
+-	out, err := cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("failed to build executable: %v - %v", err, string(out))
+-	}
+-	return filepath.Join(dir, outname)
++var commandTests = []commandTest{
++	// testing commands with no slash, like `a.exe`
++	{
++		// should find a.exe in current directory
++		files: []string{`a.exe`},
++		arg0:  `a.exe`,
++		want:  `a.exe`,
++	},
++	{
++		// like above, but add PATH in attempt to break the test
++		PATH:  `p2;p`,
++		files: []string{`a.exe`, `p\a.exe`, `p2\a.exe`},
++		arg0:  `a.exe`,
++		want:  `a.exe`,
++	},
++	{
++		// like above, but use "a" instead of "a.exe" for command
++		PATH:  `p2;p`,
++		files: []string{`a.exe`, `p\a.exe`, `p2\a.exe`},
++		arg0:  `a`,
++		want:  `a.exe`,
++	},
++	// testing commands with slash, like `.\a.exe`
++	{
++		// should find p\a.exe
++		files: []string{`p\a.exe`},
++		arg0:  `p\a.exe`,
++		want:  `p\a.exe`,
++	},
++	{
++		// like above, but adding `.` in front of executable should still be OK
++		files: []string{`p\a.exe`},
++		arg0:  `.\p\a.exe`,
++		want:  `p\a.exe`,
++	},
++	{
++		// like above, but with PATH added in attempt to break it
++		PATH:  `p2`,
++		files: []string{`p\a.exe`, `p2\a.exe`},
++		arg0:  `p\a.exe`,
++		want:  `p\a.exe`,
++	},
++	{
++		// like above, but make sure .exe is tried even for commands with slash
++		PATH:  `p2`,
++		files: []string{`p\a.exe`, `p2\a.exe`},
++		arg0:  `p\a`,
++		want:  `p\a.exe`,
++	},
++	// tests commands, like `a.exe`, with c.Dir set
++	{
++		// should not find a.exe in p, becasue LookPath(`a.exe`) will fail
++		files: []string{`p\a.exe`},
++		dir:   `p`,
++		arg0:  `a.exe`,
++		want:  `p\a.exe`,
++		fails: true,
++	},
++	{
++		// LookPath(`a.exe`) will find `.\a.exe`, but prefixing that with
++		// dir `p\a.exe` will refer to not existant file
++		files: []string{`a.exe`, `p\not_important_file`},
++		dir:   `p`,
++		arg0:  `a.exe`,
++		want:  `a.exe`,
++		fails: true,
++	},
++	{
++		// like above, but making test succeed by installing file
++		// in refered destination (so LookPath(`a.exe`) will still
++		// find `.\a.exe`, but we successfully execute `p\a.exe`)
++		files: []string{`a.exe`, `p\a.exe`},
++		dir:   `p`,
++		arg0:  `a.exe`,
++		want:  `p\a.exe`,
++	},
++	{
++		// like above, but add PATH in attempt to break the test
++		PATH:  `p2;p`,
++		files: []string{`a.exe`, `p\a.exe`, `p2\a.exe`},
++		dir:   `p`,
++		arg0:  `a.exe`,
++		want:  `p\a.exe`,
++	},
++	{
++		// like above, but use "a" instead of "a.exe" for command
++		PATH:  `p2;p`,
++		files: []string{`a.exe`, `p\a.exe`, `p2\a.exe`},
++		dir:   `p`,
++		arg0:  `a`,
++		want:  `p\a.exe`,
++	},
++	{
++		// finds `a.exe` in the PATH regardless of dir set
++		// because LookPath returns full path in that case
++		PATH:  `p2;p`,
++		files: []string{`p\a.exe`, `p2\a.exe`},
++		dir:   `p`,
++		arg0:  `a.exe`,
++		want:  `p2\a.exe`,
++	},
++	// tests commands, like `.\a.exe`, with c.Dir set
++	{
++		// should use dir when command is path, like ".\a.exe"
++		files: []string{`p\a.exe`},
++		dir:   `p`,
++		arg0:  `.\a.exe`,
++		want:  `p\a.exe`,
++	},
++	{
++		// like above, but with PATH added in attempt to break it
++		PATH:  `p2`,
++		files: []string{`p\a.exe`, `p2\a.exe`},
++		dir:   `p`,
++		arg0:  `.\a.exe`,
++		want:  `p\a.exe`,
++	},
++	{
++		// like above, but make sure .exe is tried even for commands with slash
++		PATH:  `p2`,
++		files: []string{`p\a.exe`, `p2\a.exe`},
++		dir:   `p`,
++		arg0:  `.\a`,
++		want:  `p\a.exe`,
++	},
+ }
+ 
+-func TestLookPath(t *testing.T) {
+-	tmp, err := ioutil.TempDir("", "TestLookPath")
++func TestCommand(t *testing.T) {
++	tmp, err := ioutil.TempDir("", "TestCommand")
+ 	if err != nil {
+ 		t.Fatal("TempDir failed: ", err)
+ 	}
+ 	defer os.RemoveAll(tmp)
+ 
+-	// Create a Go program that uses LookPath to find executable passed as command line parameter.
+-	lookpathExe := buildExe(t, lookpathSrc, tmp, "lookpath")
+-
+-	// Create a Go program that prints its own path.
+-	printpathExe := buildExe(t, printpathSrc, tmp, "printpath")
++	printpathExe := buildPrintPathExe(t, tmp)
+ 
+ 	// Run all tests.
+-	for i, test := range lookPathTests {
++	for i, test := range commandTests {
+ 		dir := filepath.Join(tmp, "d"+strconv.Itoa(i))
+ 		err := os.Mkdir(dir, 0700)
+ 		if err != nil {
+ 			t.Fatal("Mkdir failed: ", err)
+ 		}
+-		testLookPath(t, test, dir, lookpathExe, printpathExe)
++		test.run(t, dir, printpathExe)
+ 	}
+ }
+ 
+-const lookpathSrc = `
+-package main
+-
+-import (
+-	"fmt"
+-	"os"
+-	"os/exec"
+-)
+-
+-func main() {
+-	p, err := exec.LookPath(os.Args[1])
++// buildPrintPathExe creates a Go program that prints its own path.
++// dir is a temp directory where executable will be created.
++// The function returns full path to the created program.
++func buildPrintPathExe(t *testing.T, dir string) string {
++	const name = "printpath"
++	srcname := name + ".go"
++	err := ioutil.WriteFile(filepath.Join(dir, srcname), []byte(printpathSrc), 0644)
+ 	if err != nil {
+-		fmt.Printf("LookPath failed: %v\n", err)
+-		os.Exit(1)
++		t.Fatalf("failed to create source: %v", err)
++	}
++	if err != nil {
++		t.Fatalf("failed to execute template: %v", err)
++	}
++	outname := name + ".exe"
++	cmd := Command("go", "build", "-o", outname, srcname)
++	cmd.Dir = dir
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to build executable: %v - %v", err, string(out))
+ 	}
+-	fmt.Print(p)
++	return filepath.Join(dir, outname)
+ }
+-`
+ 
+ const printpathSrc = `
+ package main
+ 
+ import (
+-	"fmt"
+ 	"os"
+ 	"syscall"
+ 	"unicode/utf16"
+@@ -383,9 +565,9 @@ func getMyName() (string, error) {
+ func main() {
+ 	path, err := getMyName()
+ 	if err != nil {
+-		fmt.Printf("getMyName failed: %v\n", err)
++		os.Stderr.Write([]byte("getMyName failed: " + err.Error() + "\n"))
+ 		os.Exit(1)
+ 	}
+-	fmt.Print(path)
++	os.Stdout.Write([]byte(path))
+ }
+ `

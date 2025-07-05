@@ -21,8 +21,277 @@ Date:   Sun May 23 12:38:59 2021 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: eric fang <eric.fang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/reflectdata/alg.go | 20 ++++++
  src/cmd/compile/internal/test/align_test.go | 96 +++++++++++++++++++++++++++++
  src/cmd/internal/sys/arch.go                | 19 ++++++
  3 files changed, 135 insertions(+)
+
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index d12d9ca0a7..0707e0b61c 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -6,6 +6,7 @@ package reflectdata
+ 
+ import (
+ 	"fmt"
++	"math/bits"
+ 	"sort"
+ 
+ 	"cmd/compile/internal/base"
+@@ -47,6 +48,11 @@ func eqCanPanic(t *types.Type) bool {
+ func AlgType(t *types.Type) types.AlgKind {
+ 	a, _ := types.AlgType(t)
+ 	if a == types.AMEM {
++		if t.Alignment() < int64(base.Ctxt.Arch.Alignment) && t.Alignment() < t.Width {
++			// For example, we can't treat [2]int16 as an int32 if int32s require
++			// 4-byte alignment. See issue 46283.
++			return a
++		}
+ 		switch t.Width {
+ 		case 0:
+ 			return types.AMEM0
+@@ -769,6 +775,20 @@ func memrun(t *types.Type, start int) (size int64, next int) {
+ 		if f := t.Field(next); f.Sym.IsBlank() || !isRegularMemory(f.Type) {
+ 			break
+ 		}
++		// For issue 46283, don't combine fields if the resulting load would
++		// require a larger alignment than the component fields.
++		if base.Ctxt.Arch.Alignment > 1 {
++			align := t.Alignment()
++			if off := t.Field(start).Offset; off&(align-1) != 0 {
++				// Offset is less aligned than the containing type.
++				// Use offset to determine alignment.
++				align = 1 << uint(bits.TrailingZeros64(uint64(off)))
++			}
++			size := t.Field(next).End() - t.Field(start).Offset
++			if size > align {
++				break
++			}
++		}
+ 	}
+ 	return t.Field(next-1).End() - t.Field(start).Offset, next
+ }
+diff --git a/src/cmd/compile/internal/test/align_test.go b/src/cmd/compile/internal/test/align_test.go
+new file mode 100644
+index 0000000000..32afc92973
+--- /dev/null
++++ b/src/cmd/compile/internal/test/align_test.go
+@@ -0,0 +1,96 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test to make sure that equality functions (and hash
++// functions) don't do unaligned reads on architectures
++// that can't do unaligned reads. See issue 46283.
++
++package test
++
++import "testing"
++
++type T1 struct {
++	x          float32
++	a, b, c, d int16 // memequal64
++}
++type T2 struct {
++	x          float32
++	a, b, c, d int32 // memequal128
++}
++
++type A2 [2]byte // eq uses a 2-byte load
++type A4 [4]byte // eq uses a 4-byte load
++type A8 [8]byte // eq uses an 8-byte load
++
++//go:noinline
++func cmpT1(p, q *T1) {
++	if *p != *q {
++		panic("comparison test wrong")
++	}
++}
++
++//go:noinline
++func cmpT2(p, q *T2) {
++	if *p != *q {
++		panic("comparison test wrong")
++	}
++}
++
++//go:noinline
++func cmpA2(p, q *A2) {
++	if *p != *q {
++		panic("comparison test wrong")
++	}
++}
++
++//go:noinline
++func cmpA4(p, q *A4) {
++	if *p != *q {
++		panic("comparison test wrong")
++	}
++}
++
++//go:noinline
++func cmpA8(p, q *A8) {
++	if *p != *q {
++		panic("comparison test wrong")
++	}
++}
++
++func TestAlignEqual(t *testing.T) {
++	cmpT1(&T1{}, &T1{})
++	cmpT2(&T2{}, &T2{})
++
++	m1 := map[T1]bool{}
++	m1[T1{}] = true
++	m1[T1{}] = false
++	if len(m1) != 1 {
++		t.Fatalf("len(m1)=%d, want 1", len(m1))
++	}
++	m2 := map[T2]bool{}
++	m2[T2{}] = true
++	m2[T2{}] = false
++	if len(m2) != 1 {
++		t.Fatalf("len(m2)=%d, want 1", len(m2))
++	}
++
++	type X2 struct {
++		y byte
++		z A2
++	}
++	var x2 X2
++	cmpA2(&x2.z, &A2{})
++	type X4 struct {
++		y byte
++		z A4
++	}
++	var x4 X4
++	cmpA4(&x4.z, &A4{})
++	type X8 struct {
++		y byte
++		z A8
++	}
++	var x8 X8
++	cmpA8(&x8.z, &A8{})
++}
+diff --git a/src/cmd/internal/sys/arch.go b/src/cmd/internal/sys/arch.go
+index e8687363de..a3e39768b6 100644
+--- a/src/cmd/internal/sys/arch.go
++++ b/src/cmd/internal/sys/arch.go
+@@ -40,6 +40,12 @@ type Arch struct {
+ 
+ 	// MinLC is the minimum length of an instruction code.
+ 	MinLC int
++
++	// Alignment is maximum alignment required by the architecture
++	// for any (compiler-generated) load or store instruction.
++	// Loads or stores smaller than Alignment must be naturally aligned.
++	// Loads or stores larger than Alignment need only be Alignment-aligned.
++	Alignment int8
+ }
+ 
+ // InFamily reports whether a is a member of any of the specified
+@@ -60,6 +66,7 @@ var Arch386 = &Arch{
+ 	PtrSize:   4,
+ 	RegSize:   4,
+ 	MinLC:     1,
++	Alignment: 1,
+ }
+ 
+ var ArchAMD64 = &Arch{
+@@ -69,6 +76,7 @@ var ArchAMD64 = &Arch{
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     1,
++	Alignment: 1,
+ }
+ 
+ var ArchARM = &Arch{
+@@ -78,6 +86,7 @@ var ArchARM = &Arch{
+ 	PtrSize:   4,
+ 	RegSize:   4,
+ 	MinLC:     4,
++	Alignment: 4, // TODO: just for arm5?
+ }
+ 
+ var ArchARM64 = &Arch{
+@@ -87,6 +96,7 @@ var ArchARM64 = &Arch{
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     4,
++	Alignment: 1,
+ }
+ 
+ var ArchMIPS = &Arch{
+@@ -96,6 +106,7 @@ var ArchMIPS = &Arch{
+ 	PtrSize:   4,
+ 	RegSize:   4,
+ 	MinLC:     4,
++	Alignment: 4,
+ }
+ 
+ var ArchMIPSLE = &Arch{
+@@ -105,6 +116,7 @@ var ArchMIPSLE = &Arch{
+ 	PtrSize:   4,
+ 	RegSize:   4,
+ 	MinLC:     4,
++	Alignment: 4,
+ }
+ 
+ var ArchMIPS64 = &Arch{
+@@ -114,6 +126,7 @@ var ArchMIPS64 = &Arch{
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     4,
++	Alignment: 8,
+ }
+ 
+ var ArchMIPS64LE = &Arch{
+@@ -123,6 +136,7 @@ var ArchMIPS64LE = &Arch{
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     4,
++	Alignment: 8,
+ }
+ 
+ var ArchPPC64 = &Arch{
+@@ -132,6 +146,7 @@ var ArchPPC64 = &Arch{
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     4,
++	Alignment: 1,
+ }
+ 
+ var ArchPPC64LE = &Arch{
+@@ -141,6 +156,7 @@ var ArchPPC64LE = &Arch{
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     4,
++	Alignment: 1,
+ }
+ 
+ var ArchRISCV64 = &Arch{
+@@ -150,6 +166,7 @@ var ArchRISCV64 = &Arch{
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     4,
++	Alignment: 8, // riscv unaligned loads work, but are really slow (trap + simulated by OS)
+ }
+ 
+ var ArchS390X = &Arch{
+@@ -159,6 +176,7 @@ var ArchS390X = &Arch{
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     2,
++	Alignment: 1,
+ }
+ 
+ var ArchWasm = &Arch{
+@@ -168,6 +186,7 @@ var ArchWasm = &Arch{
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     1,
++	Alignment: 1,
+ }
+ 
+ var Archs = [...]*Arch{

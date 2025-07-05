@@ -9,8 +9,60 @@ Date:   Mon May 11 10:38:24 2015 -0700
     Change-Id: I09aab55dec429ec4a023e5ad591b929563cef0d9
     Reviewed-on: https://go-review.googlesource.com/9855
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/fmt/fmt_test.go    | 8 +++++---
  src/fmt/norace_test.go | 9 +++++++++
  src/fmt/race_test.go   | 9 +++++++++
  3 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index ba99cb0f6a..f15a0ba8e8 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -949,11 +949,13 @@ var mallocTest = []struct {
+ var _ bytes.Buffer
+ 
+ func TestCountMallocs(t *testing.T) {
+-	if testing.Short() {
++	switch {
++	case testing.Short():
+ 		t.Skip("skipping malloc count in short mode")
+-	}
+-	if runtime.GOMAXPROCS(0) > 1 {
++	case runtime.GOMAXPROCS(0) > 1:
+ 		t.Skip("skipping; GOMAXPROCS>1")
++	case raceenabled:
++		t.Skip("skipping malloc count under race detector")
+ 	}
+ 	for _, mt := range mallocTest {
+ 		mallocs := testing.AllocsPerRun(100, mt.fn)
+diff --git a/src/fmt/norace_test.go b/src/fmt/norace_test.go
+new file mode 100644
+index 0000000000..1267cc34ee
+--- /dev/null
++++ b/src/fmt/norace_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !race
++
++package fmt_test
++
++const raceenabled = false
+diff --git a/src/fmt/race_test.go b/src/fmt/race_test.go
+new file mode 100644
+index 0000000000..ae3147a5b0
+--- /dev/null
++++ b/src/fmt/race_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race
++
++package fmt_test
++
++const raceenabled = true

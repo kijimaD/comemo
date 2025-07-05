@@ -11,6 +11,37 @@ Date:   Fri Mar 22 10:03:55 2013 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7838044
-
+---
  doc/go_spec.html | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index ebef65916e..2136d8bbe8 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of March 20, 2013",
++	"Subtitle": "Version of March 22, 2013",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -1964,6 +1964,17 @@ result parameters, the function body's statement list must end in
+ a <a href="#Terminating_statements">terminating statement</a>.
+ </p>
+ 
++<pre>
++func findMarker(c <-chan int) int {
++	for i := range c {
++		if x := <-c; isMarker(x) {
++			return x
++		}
++	}
++	// invalid: missing return statement.
++}
++</pre>
++
+ <p>
+ A function declaration may omit the body. Such a declaration provides the
+ signature for a function implemented outside Go, such as an assembly routine.

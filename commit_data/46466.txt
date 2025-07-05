@@ -26,6 +26,37 @@ Date:   Fri Jan 1 04:51:22 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  test/closure2.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/test/closure2.go b/test/closure2.go
+index e4db05d884..812d41f8ce 100644
+--- a/test/closure2.go
++++ b/test/closure2.go
+@@ -9,6 +9,8 @@
+ 
+ package main
+ 
++var never bool
++
+ func main() {
+ 	{
+ 		type X struct {
+@@ -115,4 +117,16 @@ func main() {
+ 			panic("g() != 2")
+ 		}
+ 	}
++
++	{
++		var g func() int
++		q := 0
++		q, g = 1, func() int { return q }
++		if never {
++			g = func() int { return 2 }
++		}
++		if g() != 1 {
++			panic("g() != 1")
++		}
++	}
+ }

@@ -10,6 +10,20 @@ Date:   Thu Oct 7 07:34:47 2021 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/unicode/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/unicode/example_test.go b/src/unicode/example_test.go
+index 416ad1fe08..d3a47aca91 100644
+--- a/src/unicode/example_test.go
++++ b/src/unicode/example_test.go
+@@ -247,7 +247,7 @@ func ExampleIsSpace() {
+ 	fmt.Printf("%t\n", unicode.IsSpace(' '))
+ 	fmt.Printf("%t\n", unicode.IsSpace('\n'))
+ 	fmt.Printf("%t\n", unicode.IsSpace('\t'))
+-	fmt.Printf("%t\n", unicode.IsUpper('a'))
++	fmt.Printf("%t\n", unicode.IsSpace('a'))
+ 	// Output:
+ 	// true
+ 	// true

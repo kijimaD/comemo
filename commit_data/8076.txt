@@ -7,8 +7,53 @@ Date:   Wed Apr 13 14:24:38 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4403045
-
+---
  src/cmd/gofmt/Makefile | 4 ++--
  src/pkg/Makefile       | 1 -
  src/run.bash           | 9 ---------
  3 files changed, 2 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/gofmt/Makefile b/src/cmd/gofmt/Makefile
+index 5f2f454e82..dc5b060e65 100644
+--- a/src/cmd/gofmt/Makefile
++++ b/src/cmd/gofmt/Makefile
+@@ -15,5 +15,5 @@ include ../../Make.cmd
+ test: $(TARG)
+ 	./test.sh
+ 
+-smoketest: $(TARG)
+-	(cd testdata; ./test.sh)
++testshort:
++	gotest -test.short
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 2e6e092b0b..e45b39e86a 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -194,7 +194,6 @@ NOTEST+=\
+ 	../cmd/cgo\
+ 	../cmd/ebnflint\
+ 	../cmd/godoc\
+-	../cmd/gofmt\
+ 	../cmd/gotest\
+ 	../cmd/govet\
+ 	../cmd/goyacc\
+diff --git a/src/run.bash b/src/run.bash
+index 91cd3cc997..ea98403f73 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -50,15 +50,6 @@ fi
+ GOMAXPROCS=10 gomake testshort
+ ) || exit $?
+ 
+-[ "$GOARCH" == arm ] ||
+-(xcd cmd/gofmt
+-if $rebuild; then
+-	gomake clean;
+-	time gomake
+-fi
+-time gomake smoketest
+-) || exit $?
+-
+ (xcd cmd/ebnflint
+ if $rebuild; then
+ 	gomake clean;

@@ -11,6 +11,21 @@ Date:   Wed Nov 29 11:38:03 2017 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_unix_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/syscall/syscall_unix_test.go b/src/syscall/syscall_unix_test.go
+index b1fe78deba..637aece439 100644
+--- a/src/syscall/syscall_unix_test.go
++++ b/src/syscall/syscall_unix_test.go
+@@ -180,6 +180,9 @@ func TestPassFD(t *testing.T) {
+ 		uc.Close()
+ 	})
+ 	_, oobn, _, _, err := uc.ReadMsgUnix(buf, oob)
++	if err != nil {
++		t.Fatalf("ReadMsgUnix: %v", err)
++	}
+ 	closeUnix.Stop()
+ 
+ 	scms, err := syscall.ParseSocketControlMessage(oob[:oobn])

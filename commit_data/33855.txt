@@ -15,6 +15,45 @@ Date:   Tue Sep 12 14:23:09 2017 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/unicode/utf8/utf8.go | 20 ++++++++------------
  1 file changed, 8 insertions(+), 12 deletions(-)
+
+diff --git a/src/unicode/utf8/utf8.go b/src/unicode/utf8/utf8.go
+index 6ccd464373..db845ab2f2 100644
+--- a/src/unicode/utf8/utf8.go
++++ b/src/unicode/utf8/utf8.go
+@@ -110,12 +110,10 @@ func FullRune(p []byte) bool {
+ 	}
+ 	// Must be short or invalid.
+ 	accept := acceptRanges[x>>4]
+-	if n > 1 {
+-		if c := p[1]; c < accept.lo || accept.hi < c {
+-			return true
+-		} else if n > 2 && (p[2] < locb || hicb < p[2]) {
+-			return true
+-		}
++	if n > 1 && (p[1] < accept.lo || accept.hi < p[1]) {
++		return true
++	} else if n > 2 && (p[2] < locb || hicb < p[2]) {
++		return true
+ 	}
+ 	return false
+ }
+@@ -132,12 +130,10 @@ func FullRuneInString(s string) bool {
+ 	}
+ 	// Must be short or invalid.
+ 	accept := acceptRanges[x>>4]
+-	if n > 1 {
+-		if c := s[1]; c < accept.lo || accept.hi < c {
+-			return true
+-		} else if n > 2 && (s[2] < locb || hicb < s[2]) {
+-			return true
+-		}
++	if n > 1 && (s[1] < accept.lo || accept.hi < s[1]) {
++		return true
++	} else if n > 2 && (s[2] < locb || hicb < s[2]) {
++		return true
+ 	}
+ 	return false
+ }

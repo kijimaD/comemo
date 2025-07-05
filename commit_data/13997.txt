@@ -7,6 +7,29 @@ Date:   Mon Oct 1 14:17:25 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6561073
-
+---
  src/cmd/godoc/format.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/format.go b/src/cmd/godoc/format.go
+index 64f4b80305..f9cbdf53cd 100644
+--- a/src/cmd/godoc/format.go
++++ b/src/cmd/godoc/format.go
+@@ -54,6 +54,8 @@ type SegmentWriter func(w io.Writer, text []byte, selections int)
+ // Selection is ignored.
+ //
+ func FormatSelections(w io.Writer, text []byte, lw LinkWriter, links Selection, sw SegmentWriter, selections ...Selection) {
++	// If we have a link writer, make the links
++	// selection the last entry in selections
+ 	if lw != nil {
+ 		selections = append(selections, links)
+ 	}
+@@ -109,7 +111,7 @@ func FormatSelections(w io.Writer, text []byte, lw LinkWriter, links Selection,
+ 		}
+ 		// determine the kind of segment change
+ 		if lw != nil && index == len(selections)-1 {
+-			// we have a link segment change:
++			// we have a link segment change (see start of this function):
+ 			// format the previous selection segment, write the
+ 			// link tag and start a new selection segment
+ 			segment(offs)

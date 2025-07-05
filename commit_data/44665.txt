@@ -18,9 +18,99 @@ Date:   Mon Jun 8 13:58:53 2020 +0800
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s |  4 ++++
  src/cmd/internal/obj/arm64/a.out.go       |  4 ++++
  src/cmd/internal/obj/arm64/anames.go      |  4 ++++
  src/cmd/internal/obj/arm64/asm7.go        | 16 ++++++++++++++++
  4 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 69267bfa63..5a6db05074 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -77,6 +77,10 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	SHA1H	V5, V4                          // a408285e
+ 	SHA1M	V8.S4, V7, V6                   // e620085e
+ 	SHA1P	V11.S4, V10, V9                 // 49110b5e
++	SHA512H	V2.D2, V1, V0                   // 208062ce
++	SHA512H2	V4.D2, V3, V2           // 628464ce
++	SHA512SU0	V9.D2, V8.D2            // 2881c0ce
++	SHA512SU1	V7.D2, V6.D2, V5.D2     // c58867ce
+ 	VADDV	V0.S4, V0                       // 00b8b14e
+ 	VMOVI	$82, V0.B16                     // 40e6024f
+ 	VUADDLV	V6.B16, V6                      // c638306e
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 152c493a65..03e0278a33 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -946,6 +946,10 @@ const (
+ 	ASHA256H2
+ 	ASHA256SU0
+ 	ASHA256SU1
++	ASHA512H
++	ASHA512H2
++	ASHA512SU0
++	ASHA512SU1
+ 	AVADD
+ 	AVADDP
+ 	AVAND
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index 565f70aaf9..65ecd007ea 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -453,6 +453,10 @@ var Anames = []string{
+ 	"SHA256H2",
+ 	"SHA256SU0",
+ 	"SHA256SU1",
++	"SHA512H",
++	"SHA512H2",
++	"SHA512SU0",
++	"SHA512SU1",
+ 	"VADD",
+ 	"VADDP",
+ 	"VAND",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index df17729a76..8f8981479b 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -2747,6 +2747,7 @@ func buildop(ctxt *obj.Link) {
+ 			oprangeset(AAESIMC, t)
+ 			oprangeset(ASHA1SU1, t)
+ 			oprangeset(ASHA256SU0, t)
++			oprangeset(ASHA512SU0, t)
+ 
+ 		case ASHA1C:
+ 			oprangeset(ASHA1P, t)
+@@ -2754,9 +2755,12 @@ func buildop(ctxt *obj.Link) {
+ 
+ 		case ASHA256H:
+ 			oprangeset(ASHA256H2, t)
++			oprangeset(ASHA512H, t)
++			oprangeset(ASHA512H2, t)
+ 
+ 		case ASHA1SU0:
+ 			oprangeset(ASHA256SU1, t)
++			oprangeset(ASHA512SU1, t)
+ 
+ 		case AVADDV:
+ 			oprangeset(AVUADDLV, t)
+@@ -5391,6 +5395,18 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
+ 	case ASHA256SU0:
+ 		return 0x5E<<24 | 2<<20 | 8<<16 | 2<<12 | 2<<10
+ 
++	case ASHA512H:
++		return 0xCE<<24 | 3<<21 | 8<<12
++
++	case ASHA512H2:
++		return 0xCE<<24 | 3<<21 | 8<<12 | 4<<8
++
++	case ASHA512SU1:
++		return 0xCE<<24 | 3<<21 | 8<<12 | 8<<8
++
++	case ASHA512SU0:
++		return 0xCE<<24 | 3<<22 | 8<<12
++
+ 	case AFCVTZSD:
+ 		return FPCVTI(1, 0, 1, 3, 0)
+ 

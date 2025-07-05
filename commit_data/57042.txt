@@ -56,7 +56,7 @@ Date:   Thu Jun 8 17:04:06 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/call.go            | 63 ++++++---------------
  src/cmd/compile/internal/types2/testdata/manual.go |  2 +-
  src/go/types/call.go                               | 66 +++++++---------------
@@ -64,3 +64,285 @@ Date:   Thu Jun 8 17:04:06 2023 -0700
  src/internal/types/testdata/examples/inference2.go | 12 ++--
  .../types/testdata/fixedbugs/issue60688.go         | 16 ++++++
  6 files changed, 61 insertions(+), 100 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index e08e46fff4..af27339967 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -8,7 +8,6 @@ package types2
+ 
+ import (
+ 	"cmd/compile/internal/syntax"
+-	"fmt"
+ 	. "internal/types/errors"
+ 	"strings"
+ 	"unicode"
+@@ -76,17 +75,19 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
+ 			return targs, xlist
+ 		}
+ 
+-		// If the uninstantiated or partially instantiated function x is used in an
+-		// assignment (tsig != nil), use the respective function parameter and result
+-		// types to infer additional type arguments.
++		// If the uninstantiated or partially instantiated function x is used in
++		// an assignment (tsig != nil), infer missing type arguments by treating
++		// the assignment
++		//
++		//    var tvar tsig = x
++		//
++		// like a call g(tvar) of the synthetic generic function g
++		//
++		//    func g[type_parameters_of_x](func_type_of_x)
++		//
+ 		var args []*operand
+ 		var params []*Var
+-		if tsig != nil && sig.tparams != nil && tsig.params.Len() == sig.params.Len() && tsig.results.Len() == sig.results.Len() {
+-			// x is a generic function and the signature arity matches the target function.
+-			// To infer x's missing type arguments, treat the function assignment as a call
+-			// of a synthetic function f where f's parameters are the parameters and results
+-			// of x and where the arguments to the call of f are values of the parameter and
+-			// result types of x.
++		if tsig != nil && sig.tparams != nil {
+ 			if !versionErr && !check.allowVersion(check.pkg, instErrPos, go1_21) {
+ 				if inst != nil {
+ 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
+@@ -94,22 +95,13 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
+ 					check.versionErrorf(instErrPos, go1_21, "implicitly instantiated function in assignment")
+ 				}
+ 			}
+-			n := tsig.params.Len()
+-			m := tsig.results.Len()
+-			args = make([]*operand, n+m)
+-			params = make([]*Var, n+m)
+-			for i := 0; i < n; i++ {
+-				lvar := tsig.params.At(i)
+-				lname := syntax.NewName(x.Pos(), paramName(lvar.name, i, "parameter"))
+-				args[i] = &operand{mode: value, expr: lname, typ: lvar.typ}
+-				params[i] = sig.params.At(i)
+-			}
+-			for i := 0; i < m; i++ {
+-				lvar := tsig.results.At(i)
+-				lname := syntax.NewName(x.Pos(), paramName(lvar.name, i, "result parameter"))
+-				args[n+i] = &operand{mode: value, expr: lname, typ: lvar.typ}
+-				params[n+i] = sig.results.At(i)
+-			}
++			gsig := NewSignatureType(nil, nil, nil, sig.params, sig.results, sig.variadic)
++			params = []*Var{NewVar(x.Pos(), check.pkg, "", gsig)}
++			// The type of the argument operand is tsig, which is the type of the LHS in an assignment
++			// or the result type in a return statement. Create a pseudo-expression for that operand
++			// that makes sense when reported in error messages from infer, below.
++			expr := syntax.NewName(x.Pos(), "variable in assignment")
++			args = []*operand{{mode: value, expr: expr, typ: tsig}}
+ 		}
+ 
+ 		// Rename type parameters to avoid problems with recursive instantiations.
+@@ -140,25 +132,6 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
+ 	return nil, nil
+ }
+ 
+-func paramName(name string, i int, kind string) string {
+-	if name != "" {
+-		return name
+-	}
+-	return nth(i+1) + " " + kind
+-}
+-
+-func nth(n int) string {
+-	switch n {
+-	case 1:
+-		return "1st"
+-	case 2:
+-		return "2nd"
+-	case 3:
+-		return "3rd"
+-	}
+-	return fmt.Sprintf("%dth", n)
+-}
+-
+ func (check *Checker) instantiateSignature(pos syntax.Pos, expr syntax.Expr, typ *Signature, targs []Type, xlist []syntax.Expr) (res *Signature) {
+ 	assert(check != nil)
+ 	assert(len(targs) == typ.TypeParams().Len())
+diff --git a/src/cmd/compile/internal/types2/testdata/manual.go b/src/cmd/compile/internal/types2/testdata/manual.go
+index 96d4ba67c2..57dcc227a5 100644
+--- a/src/cmd/compile/internal/types2/testdata/manual.go
++++ b/src/cmd/compile/internal/types2/testdata/manual.go
+@@ -1,4 +1,4 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
++// Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 9016f6fd50..7258ab1237 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -7,7 +7,6 @@
+ package types
+ 
+ import (
+-	"fmt"
+ 	"go/ast"
+ 	"go/internal/typeparams"
+ 	"go/token"
+@@ -78,17 +77,19 @@ func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *t
+ 			return targs, xlist
+ 		}
+ 
+-		// If the uninstantiated or partially instantiated function x is used in an
+-		// assignment (tsig != nil), use the respective function parameter and result
+-		// types to infer additional type arguments.
++		// If the uninstantiated or partially instantiated function x is used in
++		// an assignment (tsig != nil), infer missing type arguments by treating
++		// the assignment
++		//
++		//    var tvar tsig = x
++		//
++		// like a call g(tvar) of the synthetic generic function g
++		//
++		//    func g[type_parameters_of_x](func_type_of_x)
++		//
+ 		var args []*operand
+ 		var params []*Var
+-		if tsig != nil && sig.tparams != nil && tsig.params.Len() == sig.params.Len() && tsig.results.Len() == sig.results.Len() {
+-			// x is a generic function and the signature arity matches the target function.
+-			// To infer x's missing type arguments, treat the function assignment as a call
+-			// of a synthetic function f where f's parameters are the parameters and results
+-			// of x and where the arguments to the call of f are values of the parameter and
+-			// result types of x.
++		if tsig != nil && sig.tparams != nil {
+ 			if !versionErr && !check.allowVersion(check.pkg, instErrPos, go1_21) {
+ 				if ix != nil {
+ 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
+@@ -96,24 +97,14 @@ func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *t
+ 					check.versionErrorf(instErrPos, go1_21, "implicitly instantiated function in assignment")
+ 				}
+ 			}
+-			n := tsig.params.Len()
+-			m := tsig.results.Len()
+-			args = make([]*operand, n+m)
+-			params = make([]*Var, n+m)
+-			for i := 0; i < n; i++ {
+-				lvar := tsig.params.At(i)
+-				lname := ast.NewIdent(paramName(lvar.name, i, "parameter"))
+-				lname.NamePos = x.Pos() // correct position
+-				args[i] = &operand{mode: value, expr: lname, typ: lvar.typ}
+-				params[i] = sig.params.At(i)
+-			}
+-			for i := 0; i < m; i++ {
+-				lvar := tsig.results.At(i)
+-				lname := ast.NewIdent(paramName(lvar.name, i, "result parameter"))
+-				lname.NamePos = x.Pos() // correct position
+-				args[n+i] = &operand{mode: value, expr: lname, typ: lvar.typ}
+-				params[n+i] = sig.results.At(i)
+-			}
++			gsig := NewSignatureType(nil, nil, nil, sig.params, sig.results, sig.variadic)
++			params = []*Var{NewVar(x.Pos(), check.pkg, "", gsig)}
++			// The type of the argument operand is tsig, which is the type of the LHS in an assignment
++			// or the result type in a return statement. Create a pseudo-expression for that operand
++			// that makes sense when reported in error messages from infer, below.
++			expr := ast.NewIdent("variable in assignment")
++			expr.NamePos = x.Pos() // correct position
++			args = []*operand{{mode: value, expr: expr, typ: tsig}}
+ 		}
+ 
+ 		// Rename type parameters to avoid problems with recursive instantiations.
+@@ -144,25 +135,6 @@ func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *t
+ 	return nil, nil
+ }
+ 
+-func paramName(name string, i int, kind string) string {
+-	if name != "" {
+-		return name
+-	}
+-	return nth(i+1) + " " + kind
+-}
+-
+-func nth(n int) string {
+-	switch n {
+-	case 1:
+-		return "1st"
+-	case 2:
+-		return "2nd"
+-	case 3:
+-		return "3rd"
+-	}
+-	return fmt.Sprintf("%dth", n)
+-}
+-
+ func (check *Checker) instantiateSignature(pos token.Pos, expr ast.Expr, typ *Signature, targs []Type, xlist []ast.Expr) (res *Signature) {
+ 	assert(check != nil)
+ 	assert(len(targs) == typ.TypeParams().Len())
+diff --git a/src/go/types/testdata/manual.go b/src/go/types/testdata/manual.go
+index 96d4ba67c2..57dcc227a5 100644
+--- a/src/go/types/testdata/manual.go
++++ b/src/go/types/testdata/manual.go
+@@ -1,4 +1,4 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
++// Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/internal/types/testdata/examples/inference2.go b/src/internal/types/testdata/examples/inference2.go
+index aa2475b741..6097c2b5eb 100644
+--- a/src/internal/types/testdata/examples/inference2.go
++++ b/src/internal/types/testdata/examples/inference2.go
+@@ -27,9 +27,9 @@ var (
+ 	_  func(int) int = f3[int]
+ 
+ 	v6 func(int, int)     = f4
+-	v7 func(int, string)  = f4 // ERROR "type string of 2nd parameter does not match inferred type int for P"
++	v7 func(int, string)  = f4 // ERROR "type func(int, string) of variable in assignment does not match inferred type func(int, int) for func(P, P)"
+ 	v8 func(int) []int    = f5
+-	v9 func(string) []int = f5 // ERROR "type []int of 1st result parameter does not match inferred type []string for []P"
++	v9 func(string) []int = f5 // ERROR "type func(string) []int of variable in assignment does not match inferred type func(string) []string for func(P) []P"
+ 
+ 	_, _ func(int) = f1, f1
+ 	_, _ func(int) = f1, f2 // ERROR "cannot infer P"
+@@ -49,9 +49,9 @@ func _() {
+ 	v5 = f3[int]
+ 
+ 	v6 = f4
+-	v7 = f4 // ERROR "type string of 2nd parameter does not match inferred type int for P"
++	v7 = f4 // ERROR "type func(int, string) of variable in assignment does not match inferred type func(int, int) for func(P, P)"
+ 	v8 = f5
+-	v9 = f5 // ERROR "type []int of 1st result parameter does not match inferred type []string for []P"
++	v9 = f5 // ERROR "type func(string) []int of variable in assignment does not match inferred type func(string) []string for func(P) []P"
+ }
+ 
+ // Return statements
+@@ -62,11 +62,11 @@ func _() func(int) int { return f3[int] }
+ 
+ func _() func(int, int) { return f4 }
+ func _() func(int, string) {
+-	return f4 /* ERROR "type string of 2nd parameter does not match inferred type int for P" */
++	return f4 /* ERROR "type func(int, string) of variable in assignment does not match inferred type func(int, int) for func(P, P)" */
+ }
+ func _() func(int) []int { return f5 }
+ func _() func(string) []int {
+-	return f5 /* ERROR "type []int of 1st result parameter does not match inferred type []string for []P" */
++	return f5 /* ERROR "type func(string) []int of variable in assignment does not match inferred type func(string) []string for func(P) []P" */
+ }
+ 
+ func _() (_, _ func(int)) { return f1, f1 }
+diff --git a/src/internal/types/testdata/fixedbugs/issue60688.go b/src/internal/types/testdata/fixedbugs/issue60688.go
+new file mode 100644
+index 0000000000..38d90ee8cc
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue60688.go
+@@ -0,0 +1,16 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type String string
++
++func g[P any](P, string) {}
++
++// String and string are not identical and thus must not unify
++// (they are element types of the func type and therefore must
++// be identical to match).
++// The result is an error from type inference, rather than an
++// error from an assignment mismatch.
++var f func(int, String) = g // ERROR "type func(int, String) of variable in assignment does not match inferred type func(int, string) for func(P, string)"

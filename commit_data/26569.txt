@@ -11,7 +11,41 @@ Date:   Mon Feb 8 14:50:45 2016 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/constant/value.go      | 2 +-
  src/go/constant/value_test.go | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index 630581047a..310814df71 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -96,7 +96,7 @@ func (x stringVal) String() string {
+ 		// only the first maxLen-3 runes; then add "...".
+ 		i := 0
+ 		for n := 0; n < maxLen-3; n++ {
+-			_, size := utf8.DecodeRuneInString(s)
++			_, size := utf8.DecodeRuneInString(s[i:])
+ 			i += size
+ 		}
+ 		s = s[:i] + "..."
+diff --git a/src/go/constant/value_test.go b/src/go/constant/value_test.go
+index de1ab0267a..dbd96c07a3 100644
+--- a/src/go/constant/value_test.go
++++ b/src/go/constant/value_test.go
+@@ -204,6 +204,7 @@ func eql(x, y Value) bool {
+ // String tests
+ 
+ var xxx = strings.Repeat("x", 68)
++var issue14262 = `"بموجب الشروط التالية نسب المصنف — يجب عليك أن تنسب العمل بالطريقة التي تحددها المؤلف أو المرخص (ولكن ليس بأي حال من الأحوال أن توحي وتقترح بتحول أو استخدامك للعمل).  المشاركة على قدم المساواة — إذا كنت يعدل ، والتغيير ، أو الاستفادة من هذا العمل ، قد ينتج عن توزيع العمل إلا في ظل تشابه او تطابق فى واحد لهذا الترخيص."`
+ 
+ var stringTests = []struct {
+ 	input, short, exact string
+@@ -225,6 +226,7 @@ var stringTests = []struct {
+ 	{`"` + xxx + `xx"`, `"` + xxx + `xx"`, `"` + xxx + `xx"`},
+ 	{`"` + xxx + `xxx"`, `"` + xxx + `...`, `"` + xxx + `xxx"`},
+ 	{`"` + xxx + xxx + `xxx"`, `"` + xxx + `...`, `"` + xxx + xxx + `xxx"`},
++	{issue14262, `"بموجب الشروط التالية نسب المصنف — يجب عليك أن تنسب العمل بالطريقة ال...`, issue14262},
+ 
+ 	// Int
+ 	{"0", "0", "0"},

@@ -20,10 +20,200 @@ Date:   Thu Jan 24 14:22:17 2013 -0500
     R=iant, gri, iant
     CC=golang-dev
     https://golang.org/cl/7203051
-
+---
  src/pkg/go/types/builtins.go    |  4 ++--
  src/pkg/go/types/conversions.go |  4 ++--
  src/pkg/go/types/expr.go        |  2 +-
  src/pkg/go/types/operand.go     |  6 +++---
  src/pkg/go/types/predicates.go  | 24 ++++++++++++------------
  5 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/go/types/builtins.go b/src/pkg/go/types/builtins.go
+index 3875a3cac9..867f1e9c6d 100644
+--- a/src/pkg/go/types/builtins.go
++++ b/src/pkg/go/types/builtins.go
+@@ -142,7 +142,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 			goto Error
+ 		}
+ 
+-		if !isIdentical(x.typ, y.typ) {
++		if !IsIdentical(x.typ, y.typ) {
+ 			check.invalidArg(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
+ 			goto Error
+ 		}
+@@ -191,7 +191,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 			goto Error
+ 		}
+ 
+-		if !isIdentical(dst, src) {
++		if !IsIdentical(dst, src) {
+ 			check.invalidArg(x.pos(), "arguments to copy %s and %s have different element types %s and %s", x, &y, dst, src)
+ 			goto Error
+ 		}
+diff --git a/src/pkg/go/types/conversions.go b/src/pkg/go/types/conversions.go
+index 0c7c9f706d..65359f319d 100644
+--- a/src/pkg/go/types/conversions.go
++++ b/src/pkg/go/types/conversions.go
+@@ -58,14 +58,14 @@ func (x *operand) isConvertible(T Type) bool {
+ 	V := x.typ
+ 	Vu := underlying(V)
+ 	Tu := underlying(T)
+-	if isIdentical(Vu, Tu) {
++	if IsIdentical(Vu, Tu) {
+ 		return true
+ 	}
+ 
+ 	// "x's type and T are unnamed pointer types and their pointer base types have identical underlying types"
+ 	if V, ok := V.(*Pointer); ok {
+ 		if T, ok := T.(*Pointer); ok {
+-			if isIdentical(underlying(V.Base), underlying(T.Base)) {
++			if IsIdentical(underlying(V.Base), underlying(T.Base)) {
+ 				return true
+ 			}
+ 		}
+diff --git a/src/pkg/go/types/expr.go b/src/pkg/go/types/expr.go
+index f475cacc5a..696a0cae68 100644
+--- a/src/pkg/go/types/expr.go
++++ b/src/pkg/go/types/expr.go
+@@ -444,7 +444,7 @@ func (check *checker) binary(x, y *operand, op token.Token, hint Type) {
+ 		return
+ 	}
+ 
+-	if !isIdentical(x.typ, y.typ) {
++	if !IsIdentical(x.typ, y.typ) {
+ 		check.invalidOp(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
+ 		x.mode = invalid
+ 		return
+diff --git a/src/pkg/go/types/operand.go b/src/pkg/go/types/operand.go
+index ee6ae0c522..6c2281027c 100644
+--- a/src/pkg/go/types/operand.go
++++ b/src/pkg/go/types/operand.go
+@@ -137,7 +137,7 @@ func (x *operand) isAssignable(T Type) bool {
+ 	V := x.typ
+ 
+ 	// x's type is identical to T
+-	if isIdentical(V, T) {
++	if IsIdentical(V, T) {
+ 		return true
+ 	}
+ 
+@@ -146,7 +146,7 @@ func (x *operand) isAssignable(T Type) bool {
+ 
+ 	// x's type V and T have identical underlying types
+ 	// and at least one of V or T is not a named type
+-	if isIdentical(Vu, Tu) {
++	if IsIdentical(Vu, Tu) {
+ 		return !isNamed(V) || !isNamed(T)
+ 	}
+ 
+@@ -161,7 +161,7 @@ func (x *operand) isAssignable(T Type) bool {
+ 	// type, x's type V and T have identical element types,
+ 	// and at least one of V or T is not a named type
+ 	if Vc, ok := Vu.(*Chan); ok && Vc.Dir == ast.SEND|ast.RECV {
+-		if Tc, ok := Tu.(*Chan); ok && isIdentical(Vc.Elt, Tc.Elt) {
++		if Tc, ok := Tu.(*Chan); ok && IsIdentical(Vc.Elt, Tc.Elt) {
+ 			return !isNamed(V) || !isNamed(T)
+ 		}
+ 	}
+diff --git a/src/pkg/go/types/predicates.go b/src/pkg/go/types/predicates.go
+index 21781ea979..3468da5a57 100644
+--- a/src/pkg/go/types/predicates.go
++++ b/src/pkg/go/types/predicates.go
+@@ -92,8 +92,8 @@ func hasNil(typ Type) bool {
+ 	return false
+ }
+ 
+-// identical returns true if x and y are identical.
+-func isIdentical(x, y Type) bool {
++// IsIdentical returns true if x and y are identical.
++func IsIdentical(x, y Type) bool {
+ 	if x == y {
+ 		return true
+ 	}
+@@ -111,13 +111,13 @@ func isIdentical(x, y Type) bool {
+ 		// Two array types are identical if they have identical element types
+ 		// and the same array length.
+ 		if y, ok := y.(*Array); ok {
+-			return x.Len == y.Len && isIdentical(x.Elt, y.Elt)
++			return x.Len == y.Len && IsIdentical(x.Elt, y.Elt)
+ 		}
+ 
+ 	case *Slice:
+ 		// Two slice types are identical if they have identical element types.
+ 		if y, ok := y.(*Slice); ok {
+-			return isIdentical(x.Elt, y.Elt)
++			return IsIdentical(x.Elt, y.Elt)
+ 		}
+ 
+ 	case *Struct:
+@@ -130,7 +130,7 @@ func isIdentical(x, y Type) bool {
+ 				for i, f := range x.Fields {
+ 					g := y.Fields[i]
+ 					if !f.QualifiedName.IsSame(g.QualifiedName) ||
+-						!isIdentical(f.Type, g.Type) ||
++						!IsIdentical(f.Type, g.Type) ||
+ 						f.Tag != g.Tag ||
+ 						f.IsAnonymous != g.IsAnonymous {
+ 						return false
+@@ -143,7 +143,7 @@ func isIdentical(x, y Type) bool {
+ 	case *Pointer:
+ 		// Two pointer types are identical if they have identical base types.
+ 		if y, ok := y.(*Pointer); ok {
+-			return isIdentical(x.Base, y.Base)
++			return IsIdentical(x.Base, y.Base)
+ 		}
+ 
+ 	case *Signature:
+@@ -168,14 +168,14 @@ func isIdentical(x, y Type) bool {
+ 	case *Map:
+ 		// Two map types are identical if they have identical key and value types.
+ 		if y, ok := y.(*Map); ok {
+-			return isIdentical(x.Key, y.Key) && isIdentical(x.Elt, y.Elt)
++			return IsIdentical(x.Key, y.Key) && IsIdentical(x.Elt, y.Elt)
+ 		}
+ 
+ 	case *Chan:
+ 		// Two channel types are identical if they have identical value types
+ 		// and the same direction.
+ 		if y, ok := y.(*Chan); ok {
+-			return x.Dir == y.Dir && isIdentical(x.Elt, y.Elt)
++			return x.Dir == y.Dir && IsIdentical(x.Elt, y.Elt)
+ 		}
+ 
+ 	case *NamedType:
+@@ -197,7 +197,7 @@ func identicalTypes(a, b []*Var) bool {
+ 	}
+ 	for i, x := range a {
+ 		y := b[i]
+-		if !isIdentical(x.Type, y.Type) {
++		if !IsIdentical(x.Type, y.Type) {
+ 			return false
+ 		}
+ 	}
+@@ -217,7 +217,7 @@ func identicalMethods(a, b []*Method) bool {
+ 		m[x.QualifiedName] = x
+ 	}
+ 	for _, y := range b {
+-		if x := m[y.QualifiedName]; x == nil || !isIdentical(x.Type, y.Type) {
++		if x := m[y.QualifiedName]; x == nil || !IsIdentical(x.Type, y.Type) {
+ 			return false
+ 		}
+ 	}
+@@ -282,7 +282,7 @@ func missingMethod(typ Type, T *Interface) (method *Method, wrongType bool) {
+ 	if ityp, _ := underlying(typ).(*Interface); ityp != nil {
+ 		for _, m := range T.Methods {
+ 			mode, sig := lookupField(ityp, m.QualifiedName) // TODO(gri) no need to go via lookupField
+-			if mode != invalid && !isIdentical(sig, m.Type) {
++			if mode != invalid && !IsIdentical(sig, m.Type) {
+ 				return m, true
+ 			}
+ 		}
+@@ -295,7 +295,7 @@ func missingMethod(typ Type, T *Interface) (method *Method, wrongType bool) {
+ 		if mode == invalid {
+ 			return m, false
+ 		}
+-		if !isIdentical(sig, m.Type) {
++		if !IsIdentical(sig, m.Type) {
+ 			return m, true
+ 		}
+ 	}

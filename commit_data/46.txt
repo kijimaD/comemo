@@ -3,6 +3,10 @@ Author: Ken Thompson <ken@golang.org>
 Date:   Fri Mar 28 15:08:58 2008 -0700
 
     SVN=114213
-
+---
  src/c/mpatof.c | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/c/mpatof.c b/src/c/mpatof.c
+old mode 100755
+new mode 100644

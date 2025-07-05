@@ -22,9 +22,140 @@ Date:   Fri Sep 1 11:20:33 2017 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testplugin/src/host/host.go       | 15 +++++++++++++--
  misc/cgo/testplugin/src/plugin1/plugin1.go | 20 +++++++++++++++++++-
  misc/cgo/testplugin/src/plugin2/plugin2.go | 16 ++++++++++++++++
  src/cmd/go/internal/work/build.go          | 11 ++++++++---
  4 files changed, 56 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/testplugin/src/host/host.go b/misc/cgo/testplugin/src/host/host.go
+index 898f44efa1..bba9a62166 100644
+--- a/misc/cgo/testplugin/src/host/host.go
++++ b/misc/cgo/testplugin/src/host/host.go
+@@ -126,10 +126,12 @@ func main() {
+ 		log.Fatalf(`plugin1.F()=%d, want 17`, gotf)
+ 	}
+ 
+-	// plugin2 has no exported symbols, only an init function.
+-	if _, err := plugin.Open("plugin2.so"); err != nil {
++	p2, err := plugin.Open("plugin2.so")
++	if err != nil {
+ 		log.Fatalf("plugin.Open failed: %v", err)
+ 	}
++	// Check that plugin2's init function was called, and
++	// that it modifies the same global variable as the host.
+ 	if got, want := common.X, 2; got != want {
+ 		log.Fatalf("after loading plugin2, common.X=%d, want %d", got, want)
+ 	}
+@@ -142,6 +144,15 @@ func main() {
+ 		log.Fatalf(`plugin.Open("plugin-mismatch.so"): error does not mention "different version": %v`, s)
+ 	}
+ 
++	// Test that unexported types with the same names in
++	// different plugins do not interfere with each other.
++	//
++	// See Issue #21386.
++	UnexportedNameReuse, _ := p.Lookup("UnexportedNameReuse")
++	UnexportedNameReuse.(func())()
++	UnexportedNameReuse, _ = p2.Lookup("UnexportedNameReuse")
++	UnexportedNameReuse.(func())()
++
+ 	testUnnamed()
+ 
+ 	fmt.Println("PASS")
+diff --git a/misc/cgo/testplugin/src/plugin1/plugin1.go b/misc/cgo/testplugin/src/plugin1/plugin1.go
+index edcef2c77e..0a9fa2f2c1 100644
+--- a/misc/cgo/testplugin/src/plugin1/plugin1.go
++++ b/misc/cgo/testplugin/src/plugin1/plugin1.go
+@@ -7,7 +7,10 @@ package main
+ // // No C code required.
+ import "C"
+ 
+-import "common"
++import (
++	"common"
++	"reflect"
++)
+ 
+ func F() int {
+ 	_ = make([]byte, 1<<21) // trigger stack unwind, Issue #18190.
+@@ -33,6 +36,21 @@ func init() {
+ 	call(g)
+ }
+ 
++type sameNameReusedInPlugins struct {
++	X string
++}
++
++type sameNameHolder struct {
++	F *sameNameReusedInPlugins
++}
++
++func UnexportedNameReuse() {
++	h := sameNameHolder{}
++	v := reflect.ValueOf(&h).Elem().Field(0)
++	newval := reflect.New(v.Type().Elem())
++	v.Set(newval)
++}
++
+ func main() {
+ 	panic("plugin1.main called")
+ }
+diff --git a/misc/cgo/testplugin/src/plugin2/plugin2.go b/misc/cgo/testplugin/src/plugin2/plugin2.go
+index 9c507fc365..a67f2de27a 100644
+--- a/misc/cgo/testplugin/src/plugin2/plugin2.go
++++ b/misc/cgo/testplugin/src/plugin2/plugin2.go
+@@ -13,6 +13,7 @@ import "C"
+ 
+ import (
+ 	"common"
++	"reflect"
+ 	"strings"
+ )
+ 
+@@ -22,6 +23,21 @@ func init() {
+ 	common.X = 2
+ }
+ 
++type sameNameReusedInPlugins struct {
++	X string
++}
++
++type sameNameHolder struct {
++	F *sameNameReusedInPlugins
++}
++
++func UnexportedNameReuse() {
++	h := sameNameHolder{}
++	v := reflect.ValueOf(&h).Elem().Field(0)
++	newval := reflect.New(v.Type().Elem())
++	v.Set(newval)
++}
++
+ func main() {
+ 	panic("plugin1.main called")
+ }
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 2659058931..d6c7f0bcff 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -2198,10 +2198,15 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, objdir string, asmhd
+ 		ofile = objdir + out
+ 	}
+ 
+-	gcargs := []string{"-p", p.ImportPath}
+-	if p.Name == "main" {
+-		gcargs[1] = "main"
++	pkgpath := p.ImportPath
++	if cfg.BuildBuildmode == "plugin" {
++		if pkgpath == "command-line-arguments" {
++			pkgpath = "plugin/unnamed-" + p.Internal.BuildID
++		}
++	} else if p.Name == "main" {
++		pkgpath = "main"
+ 	}
++	gcargs := []string{"-p", pkgpath}
+ 	if p.Standard {
+ 		gcargs = append(gcargs, "-std")
+ 	}

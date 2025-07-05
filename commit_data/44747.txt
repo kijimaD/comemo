@@ -31,9 +31,186 @@ Date:   Sat Aug 22 05:47:06 2020 -0700
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/go.mod                |  2 +-
  src/go.sum                |  4 +--
  src/net/http/h2_bundle.go | 70 +++++++++++++++++++++++++++++++++++++++++++----
  src/vendor/modules.txt    |  2 +-
  4 files changed, 68 insertions(+), 10 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index b002f8e516..c75f74b916 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.15
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+-	golang.org/x/net v0.0.0-20200707034311-ab3426394381
++	golang.org/x/net v0.0.0-20200822124328-c89045814202
+ 	golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3 // indirect
+ 	golang.org/x/text v0.3.3-0.20200430171850-afb9336c4530 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 528f7e460e..dc9641be1a 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -2,8 +2,8 @@ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACk
+ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 h1:psW17arqaxU48Z5kZ0CQnkZWQJsqcURM6tKiBApRjXI=
+ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+-golang.org/x/net v0.0.0-20200707034311-ab3426394381 h1:VXak5I6aEWmAXeQjA+QSZzlgNrpq9mjcfDemuexIKsU=
+-golang.org/x/net v0.0.0-20200707034311-ab3426394381/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
++golang.org/x/net v0.0.0-20200822124328-c89045814202 h1:VvcQYSHwXgi7W+TpUR6A9g6Up98WAHf3f/ulnJ62IyA=
++golang.org/x/net v0.0.0-20200822124328-c89045814202/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 81c3671f85..463e7e8ce9 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -5629,7 +5629,7 @@ func (sc *http2serverConn) newWriterAndRequestNoBody(st *http2stream, rp http2re
+ 	var trailer Header
+ 	for _, v := range rp.header["Trailer"] {
+ 		for _, key := range strings.Split(v, ",") {
+-			key = CanonicalHeaderKey(strings.TrimSpace(key))
++			key = CanonicalHeaderKey(textproto.TrimString(key))
+ 			switch key {
+ 			case "Transfer-Encoding", "Trailer", "Content-Length":
+ 				// Bogus. (copy of http1 rules)
+@@ -6606,6 +6606,19 @@ type http2Transport struct {
+ 	// waiting for their turn.
+ 	StrictMaxConcurrentStreams bool
+ 
++	// ReadIdleTimeout is the timeout after which a health check using ping
++	// frame will be carried out if no frame is received on the connection.
++	// Note that a ping response will is considered a received frame, so if
++	// there is no other traffic on the connection, the health check will
++	// be performed every ReadIdleTimeout interval.
++	// If zero, no health check is performed.
++	ReadIdleTimeout time.Duration
++
++	// PingTimeout is the timeout after which the connection will be closed
++	// if a response to Ping is not received.
++	// Defaults to 15s.
++	PingTimeout time.Duration
++
+ 	// t1, if non-nil, is the standard library Transport using
+ 	// this transport. Its settings are used (but not its
+ 	// RoundTrip method, etc).
+@@ -6629,6 +6642,14 @@ func (t *http2Transport) disableCompression() bool {
+ 	return t.DisableCompression || (t.t1 != nil && t.t1.DisableCompression)
+ }
+ 
++func (t *http2Transport) pingTimeout() time.Duration {
++	if t.PingTimeout == 0 {
++		return 15 * time.Second
++	}
++	return t.PingTimeout
++
++}
++
+ // ConfigureTransport configures a net/http HTTP/1 Transport to use HTTP/2.
+ // It returns an error if t1 has already been HTTP/2-enabled.
+ func http2ConfigureTransport(t1 *Transport) error {
+@@ -7174,6 +7195,20 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
+ 	return cc, nil
+ }
+ 
++func (cc *http2ClientConn) healthCheck() {
++	pingTimeout := cc.t.pingTimeout()
++	// We don't need to periodically ping in the health check, because the readLoop of ClientConn will
++	// trigger the healthCheck again if there is no frame received.
++	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
++	defer cancel()
++	err := cc.Ping(ctx)
++	if err != nil {
++		cc.closeForLostPing()
++		cc.t.connPool().MarkDead(cc)
++		return
++	}
++}
++
+ func (cc *http2ClientConn) setGoAway(f *http2GoAwayFrame) {
+ 	cc.mu.Lock()
+ 	defer cc.mu.Unlock()
+@@ -7345,14 +7380,12 @@ func (cc *http2ClientConn) sendGoAway() error {
+ 	return nil
+ }
+ 
+-// Close closes the client connection immediately.
+-//
+-// In-flight requests are interrupted. For a graceful shutdown, use Shutdown instead.
+-func (cc *http2ClientConn) Close() error {
++// closes the client connection immediately. In-flight requests are interrupted.
++// err is sent to streams.
++func (cc *http2ClientConn) closeForError(err error) error {
+ 	cc.mu.Lock()
+ 	defer cc.cond.Broadcast()
+ 	defer cc.mu.Unlock()
+-	err := errors.New("http2: client connection force closed via ClientConn.Close")
+ 	for id, cs := range cc.streams {
+ 		select {
+ 		case cs.resc <- http2resAndError{err: err}:
+@@ -7365,6 +7398,20 @@ func (cc *http2ClientConn) Close() error {
+ 	return cc.tconn.Close()
+ }
+ 
++// Close closes the client connection immediately.
++//
++// In-flight requests are interrupted. For a graceful shutdown, use Shutdown instead.
++func (cc *http2ClientConn) Close() error {
++	err := errors.New("http2: client connection force closed via ClientConn.Close")
++	return cc.closeForError(err)
++}
++
++// closes the client connection immediately. In-flight requests are interrupted.
++func (cc *http2ClientConn) closeForLostPing() error {
++	err := errors.New("http2: client connection lost")
++	return cc.closeForError(err)
++}
++
+ const http2maxAllocFrameSize = 512 << 10
+ 
+ // frameBuffer returns a scratch buffer suitable for writing DATA frames.
+@@ -8236,8 +8283,17 @@ func (rl *http2clientConnReadLoop) run() error {
+ 	rl.closeWhenIdle = cc.t.disableKeepAlives() || cc.singleUse
+ 	gotReply := false // ever saw a HEADERS reply
+ 	gotSettings := false
++	readIdleTimeout := cc.t.ReadIdleTimeout
++	var t *time.Timer
++	if readIdleTimeout != 0 {
++		t = time.AfterFunc(readIdleTimeout, cc.healthCheck)
++		defer t.Stop()
++	}
+ 	for {
+ 		f, err := cc.fr.ReadFrame()
++		if t != nil {
++			t.Reset(readIdleTimeout)
++		}
+ 		if err != nil {
+ 			cc.vlogf("http2: Transport readFrame error on conn %p: (%T) %v", cc, err, err)
+ 		}
+@@ -8968,6 +9024,8 @@ func http2strSliceContains(ss []string, s string) bool {
+ 
+ type http2erringRoundTripper struct{ err error }
+ 
++func (rt http2erringRoundTripper) RoundTripErr() error { return rt.err }
++
+ func (rt http2erringRoundTripper) RoundTrip(*Request) (*Response, error) { return nil, rt.err }
+ 
+ // gzipReader wraps a response body so it can lazily
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index e687d77b4d..d1e4f28e21 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -8,7 +8,7 @@ golang.org/x/crypto/curve25519
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+-# golang.org/x/net v0.0.0-20200707034311-ab3426394381
++# golang.org/x/net v0.0.0-20200822124328-c89045814202
+ ## explicit
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

@@ -12,6 +12,20 @@ Date:   Fri Sep 3 11:18:16 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/ast/ast.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index b0f1330564..f6abb2d175 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -290,7 +290,7 @@ type (
+ 	Ident struct {
+ 		NamePos token.Pos // identifier position
+ 		Name    string    // identifier name
+-		Obj     *Object   // denoted object; or nil
++		Obj     *Object   // denoted object; or nil if the referenced declaration is not found in the parsed scope
+ 	}
+ 
+ 	// An Ellipsis node stands for the "..." type in a

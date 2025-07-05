@@ -10,6 +10,23 @@ Date:   Thu Jul 10 14:35:04 2014 -0700
     R=golang-codereviews, iant, joerg.sonnenberger, dave
     CC=golang-codereviews, joerg
     https://golang.org/cl/108340043
-
+---
  src/cmd/go/build.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 7eb9841dae..9f36c18f01 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1951,9 +1951,9 @@ func (b *builder) libgcc(p *Package) (string, error) {
+ 		return "$LIBGCC", nil
+ 	}
+ 
+-	// clang might not be able to find libgcc, and in that case,
++	// The compiler might not be able to find libgcc, and in that case,
+ 	// it will simply return "libgcc.a", which is of no use to us.
+-	if strings.Contains(gccCmd[0], "clang") && !filepath.IsAbs(string(f)) {
++	if !filepath.IsAbs(string(f)) {
+ 		return "", nil
+ 	}
+ 

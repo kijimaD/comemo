@@ -17,6 +17,21 @@ Date:   Fri Jun 24 04:02:10 2022 +0000
     Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/io/io.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index db88125f50..9d4c0d2506 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -111,7 +111,8 @@ type Closer interface {
+ // interpreted according to whence:
+ // SeekStart means relative to the start of the file,
+ // SeekCurrent means relative to the current offset, and
+-// SeekEnd means relative to the end.
++// SeekEnd means relative to the end
++// (for example, offset = -2 specifies the penultimate byte of the file).
+ // Seek returns the new offset relative to the start of the
+ // file or an error, if any.
+ //

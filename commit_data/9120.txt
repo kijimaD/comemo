@@ -9,7 +9,71 @@ Date:   Mon Jul 18 16:15:01 2011 -0400
     R=rsc, ken, r
     CC=golang-dev
     https://golang.org/cl/4748045
-
+---
  src/pkg/runtime/chan.c |  9 ++++++---
  test/chan/select6.go   | 34 ++++++++++++++++++++++++++++++++++
  2 files changed, 40 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index efaceebf5a..bbe05e041c 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -1167,12 +1167,15 @@ loop:
+ static void
+ dequeueg(WaitQ *q, Hchan *c)
+ {
+-	SudoG **l, *sgp;
+-	
+-	for(l=&q->first; (sgp=*l) != nil; l=&sgp->link) {
++	SudoG **l, *sgp, *prevsgp;
++
++	prevsgp = nil;
++	for(l=&q->first; (sgp=*l) != nil; l=&sgp->link, prevsgp=sgp) {
+ 		if(sgp->g == g) {
+ 			*l = sgp->link;
+ 			freesg(c, sgp);
++			if(q->last == sgp)
++				q->last = prevsgp;
+ 			break;
+ 		}
+ 	}
+diff --git a/test/chan/select6.go b/test/chan/select6.go
+new file mode 100644
+index 0000000000..2ba6810ac3
+--- /dev/null
++++ b/test/chan/select6.go
+@@ -0,0 +1,34 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2075
++// A bug in select corrupts channel queues of failed cases
++// if there are multiple waiters on those channels and the
++// select is the last in the queue. If further waits are made
++// on the channel without draining it first then those waiters
++// will never wake up. In the code below c1 is such a channel.
++
++package main
++
++func main() {
++	c1 := make(chan bool)
++	c2 := make(chan bool)
++	c3 := make(chan bool)
++	go func() { <-c1 }()
++	go func() {
++		select {
++		case <-c1:
++			panic("dummy")
++		case <-c2:
++			c3 <- true
++		}
++		<-c1
++	}()
++	go func() { c2 <- true }()
++	<-c3
++	c1 <- true
++	c1 <- true
++}

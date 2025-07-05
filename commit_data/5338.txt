@@ -7,6 +7,20 @@ Date:   Thu Apr 22 17:04:28 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/970042
-
+---
  src/pkg/os/stat_freebsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/stat_freebsd.go b/src/pkg/os/stat_freebsd.go
+index 0646b29c56..aa15d4b63d 100644
+--- a/src/pkg/os/stat_freebsd.go
++++ b/src/pkg/os/stat_freebsd.go
+@@ -18,7 +18,7 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
+ 	fi.Uid = int(stat.Uid)
+ 	fi.Gid = int(stat.Gid)
+ 	fi.Rdev = uint64(stat.Rdev)
+-	fi.Size = uint64(stat.Size)
++	fi.Size = int64(stat.Size)
+ 	fi.Blksize = int64(stat.Blksize)
+ 	fi.Blocks = stat.Blocks
+ 	fi.Atime_ns = syscall.TimespecToNsec(stat.Atimespec)

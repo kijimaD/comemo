@@ -39,7 +39,7 @@ Date:   Thu Feb 3 13:51:43 2011 -0500
     R=ken2, r
     CC=golang-dev
     https://golang.org/cl/4023063
-
+---
  src/cmd/5a/lex.c    |  2 +-
  src/cmd/5c/swt.c    |  2 +-
  src/cmd/6a/lex.c    |  2 +-
@@ -55,3 +55,435 @@ Date:   Thu Feb 3 13:51:43 2011 -0500
  src/libmach/obj.c   | 46 ++++++++++++++++++++++++----------------------
  src/version.bash    | 13 ++++++-------
  14 files changed, 110 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index b36094a784..e762f56462 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -187,7 +187,7 @@ assemble(char *file)
+ 	pass = 1;
+ 	pinit(file);
+ 
+-	Bprint(&obuf, "%s\n", thestring);
++	Bprint(&obuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+ 
+ 	for(i=0; i<nDlist; i++)
+ 		dodefine(Dlist[i]);
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index 43eb73c943..d45aabc5e6 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -373,7 +373,7 @@ outcode(void)
+ 		}
+ 	}
+ 
+-	Bprint(&outbuf, "%s\n", thestring);
++	Bprint(&outbuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+ 	if(ndynimp > 0 || ndynexp > 0) {
+ 		int i;
+ 
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 1b8bb63445..37144c8884 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -189,7 +189,7 @@ assemble(char *file)
+ 	pass = 1;
+ 	pinit(file);
+ 
+-	Bprint(&obuf, "%s\n", thestring);
++	Bprint(&obuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+ 
+ 	for(i=0; i<nDlist; i++)
+ 		dodefine(Dlist[i]);
+diff --git a/src/cmd/6c/swt.c b/src/cmd/6c/swt.c
+index 47975a0c8e..6d886f4592 100644
+--- a/src/cmd/6c/swt.c
++++ b/src/cmd/6c/swt.c
+@@ -231,7 +231,7 @@ outcode(void)
+ 	}
+ 	Binit(&b, f, OWRITE);
+ 
+-	Bprint(&b, "%s\n", thestring);
++	Bprint(&b, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+ 	if(ndynimp > 0 || ndynexp > 0) {
+ 		int i;
+ 
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index bf298b2665..d5fa959aa8 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -189,7 +189,7 @@ assemble(char *file)
+ 	pass = 1;
+ 	pinit(file);
+ 
+-	Bprint(&obuf, "%s\n", thestring);
++	Bprint(&obuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+ 
+ 	for(i=0; i<nDlist; i++)
+ 		dodefine(Dlist[i]);
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index be48885f81..d07a5439c2 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -230,7 +230,7 @@ outcode(void)
+ 	}
+ 	Binit(&b, f, OWRITE);
+ 
+-	Bprint(&b, "%s\n", thestring);
++	Bprint(&b, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+ 	if(ndynimp > 0 || ndynexp > 0) {
+ 		int i;
+ 
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index ed20e7e8b4..833eba19ae 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -54,7 +54,8 @@ widstruct(Type *t, uint32 o, int flag)
+ 		if(f->type->width < 0)
+ 			fatal("invalid width %lld", f->type->width);
+ 		w = f->type->width;
+-		o = rnd(o, f->type->align);
++		if(f->type->align > 0)
++			o = rnd(o, f->type->align);
+ 		f->width = o;	// really offset for TFIELD
+ 		if(f->nname != N) {
+ 			// this same stackparam logic is in addrescapes
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 45b1257fad..2148d7523b 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -405,7 +405,7 @@ void
+ importfile(Val *f, int line)
+ {
+ 	Biobuf *imp;
+-	char *file;
++	char *file, *p, *q;
+ 	int32 c;
+ 	int len;
+ 	Strlit *path;
+@@ -432,7 +432,7 @@ importfile(Val *f, int line)
+ 		cannedimports("unsafe.6", unsafeimport);
+ 		return;
+ 	}
+-
++	
+ 	path = f->u.sval;
+ 	if(islocalname(path)) {
+ 		cleanbuf = mal(strlen(pathname) + strlen(path->s) + 2);
+@@ -459,10 +459,25 @@ importfile(Val *f, int line)
+ 	len = strlen(namebuf);
+ 	if(len > 2 && namebuf[len-2] == '.' && namebuf[len-1] == 'a') {
+ 		if(!skiptopkgdef(imp)) {
+-			yyerror("import not package file: %s", namebuf);
++			yyerror("import %s: not a package file", file);
+ 			errorexit();
+ 		}
+ 	}
++	
++	// check object header
++	p = Brdstr(imp, '\n', 1);
++	if(strcmp(p, "empty archive") != 0) {
++		if(strncmp(p, "go object ", 10) != 0) {
++			yyerror("import %s: not a go object file", file);
++			errorexit();
++		}
++		q = smprint("%s %s %s", getgoos(), thestring, getgoversion());
++		if(strcmp(p+10, q) != 0) {
++			yyerror("import %s: object is [%s] expected [%s]", file, p+10, q);
++			errorexit();
++		}
++		free(q);
++	}
+ 
+ 	// assume files move (get installed)
+ 	// so don't record the full path.
+@@ -479,6 +494,7 @@ importfile(Val *f, int line)
+ 	curio.infile = file;
+ 	curio.nlsemi = 0;
+ 	typecheckok = 1;
++
+ 	for(;;) {
+ 		c = getc();
+ 		if(c == EOF)
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 0d0d70ac96..fbabe0d43a 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -21,7 +21,7 @@ dumpobj(void)
+ 		errorexit();
+ 	}
+ 
+-	Bprint(bout, "%s\n", thestring);
++	Bprint(bout, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+ 	Bprint(bout, "  exports automatically generated from\n");
+ 	Bprint(bout, "  %s in package \"%s\"\n", curio.infile, localpkg->name);
+ 	dumpexport();
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index cb5e2a831d..0755ca3cd5 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -203,6 +203,7 @@ fatal(char *fmt, ...)
+ 
+ 	flusherrors();
+ 
++*(int*)0=0;
+ 	print("%L: internal compiler error: ", lineno);
+ 	va_start(arg, fmt);
+ 	vfprint(1, fmt, arg);
+@@ -213,7 +214,7 @@ fatal(char *fmt, ...)
+ 	if(strncmp(getgoversion(), "release", 7) == 0) {
+ 		print("\n");
+ 		print("Please file a bug report including a short program that triggers the error.\n");
+-		print("http://code.google.com/p/go/issues/entry?template=compilerbug");
++		print("http://code.google.com/p/go/issues/entry?template=compilerbug\n");
+ 	}
+ 	hcrash();
+ 	errorexit();
+diff --git a/src/cmd/gopack/ar.c b/src/cmd/gopack/ar.c
+index a16e98cfe5..eed98967ad 100644
+--- a/src/cmd/gopack/ar.c
++++ b/src/cmd/gopack/ar.c
+@@ -131,6 +131,7 @@ Arfile *astart, *amiddle, *aend;	/* Temp file control block pointers */
+ int	allobj = 1;			/* set when all members are object files of the same type */
+ int	symdefsize;			/* size of symdef file */
+ char	*pkgstmt;		/* string "package foo" */
++char	*objhdr;		/* string "go object darwin 386 release.2010-01-01 2345+" */
+ int	dupfound;			/* flag for duplicate symbol */
+ Hashchain	*hash[NHASH];		/* hash table of text symbols */
+ 
+@@ -246,6 +247,8 @@ main(int argc, char *argv[])
+ 	argc -= 3;
+ 	argv += 3;
+ 	(*comfun)(cp, argc, argv);	/* do the command */
++	if(errors && cflag)
++		remove(cp);
+ 	cp = 0;
+ 	while (argc--) {
+ 		if (*argv) {
+@@ -590,10 +593,11 @@ void
+ scanobj(Biobuf *b, Arfile *ap, long size)
+ {
+ 	int obj;
+-	vlong offset;
++	vlong offset, offset1;
+ 	Dir *d;
+ 	static int lastobj = -1;
+ 	uchar buf[4];
++	char *p, *t;
+ 
+ 	if (!allobj)			/* non-object file encountered */
+ 		return;
+@@ -628,14 +632,32 @@ scanobj(Biobuf *b, Arfile *ap, long size)
+ 		Bseek(b, offset, 0);
+ 		return;
+ 	}
+-	if (lastobj >= 0 && obj != lastobj) {
++
++	offset1 = Boffset(b);
++	Bseek(b, offset, 0);
++	p = Brdstr(b, '\n', 1);
++	Bseek(b, offset1, 0);
++	if(p == nil || strncmp(p, "go object ", 10) != 0) {
++		fprint(2, "gopack: malformed object file %s\n", file);
++		errors++;
++		Bseek(b, offset, 0);
++		free(p);
++		return;
++	}
++	
++	if ((lastobj >= 0 && obj != lastobj) || (objhdr != nil && strcmp(p, objhdr) != 0)) {
+ 		fprint(2, "gopack: inconsistent object file %s\n", file);
+ 		errors++;
+ 		allobj = 0;
+-		Bseek(b, offset, 0);
++		free(p);
+ 		return;
+ 	}
+ 	lastobj = obj;
++	if(objhdr == nil)
++		objhdr = p;
++	else
++		free(p);
++		
+ 	if (!readar(b, obj, offset+size, 0)) {
+ 		fprint(2, "gopack: invalid symbol reference in file %s\n", file);
+ 		errors++;
+@@ -677,7 +699,7 @@ char*	importblock;
+ void
+ getpkgdef(char **datap, int *lenp)
+ {
+-	char *tag;
++	char *tag, *hdr;
+ 
+ 	if(pkgname == nil) {
+ 		pkgname = "__emptyarchive__";
+@@ -688,7 +710,11 @@ getpkgdef(char **datap, int *lenp)
+ 	if(safe || Sflag)
+ 		tag = "safe";
+ 
+-	*datap = smprint("import\n$$\npackage %s %s\n%s\n$$\n", pkgname, tag, importblock);
++	hdr = "empty archive";
++	if(objhdr != nil)
++		hdr = objhdr;
++
++	*datap = smprint("%s\nimport\n$$\npackage %s %s\n%s\n$$\n", hdr, pkgname, tag, importblock);
+ 	*lenp = strlen(*datap);
+ }
+ 
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index b1a62f25ee..0c9ea0b7c9 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -378,10 +378,10 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
+ 	int n, c1, c2, c3, c4;
+ 	uint32 magic;
+ 	vlong import0, import1, eof;
+-	char src[1024];
++	char *fld[10], *s, *t;
++	int nfld;
+ 
+ 	eof = Boffset(f) + len;
+-	src[0] = '\0';
+ 
+ 	pn = strdup(pn);
+ 	
+@@ -415,22 +415,34 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
+ 	line = Brdline(f, '\n');
+ 	if(line == nil) {
+ 		if(Blinelen(f) > 0) {
+-			diag("%s: malformed object file", pn);
++			diag("%s: not an object file", pn);
+ 			return;
+ 		}
+ 		goto eof;
+ 	}
+ 	n = Blinelen(f) - 1;
+-	if(n != strlen(thestring) || strncmp(line, thestring, n) != 0) {
+-		if(line)
+-			line[n] = '\0';
++	line[n] = '\0';
++	if(strncmp(line, "go object ", 10) != 0) {
+ 		if(strlen(pn) > 3 && strcmp(pn+strlen(pn)-3, ".go") == 0) {
+ 			print("%cl: input %s is not .%c file (use %cg to compile .go files)\n", thechar, pn, thechar, thechar);
+ 			errorexit();
+ 		}
+-		diag("file not %s [%s]\n", thestring, line);
++		if(strcmp(line, thestring) == 0) {
++			// old header format: just $GOOS
++			diag("%s: stale object file", pn);
++			return;
++		}
++		diag("%s: not an object file", pn);
++		return;
++	}
++	t = smprint("%s %s %s", getgoos(), thestring, getgoversion());
++	if(strcmp(line+10, t) != 0) {
++		diag("%s: object is [%s] expected [%s]", pn, line+10, t);
++		free(t);
+ 		return;
+ 	}
++	free(t);
++	line[n] = '\n';
+ 
+ 	/* skip over exports and other info -- ends with \n!\n */
+ 	import0 = Boffset(f);
+diff --git a/src/libmach/obj.c b/src/libmach/obj.c
+index dacb2ae1fa..1ffe7a0ee1 100644
+--- a/src/libmach/obj.c
++++ b/src/libmach/obj.c
+@@ -116,34 +116,24 @@ objtype(Biobuf *bp, char **name)
+ 	int i;
+ 	char buf[MAXIS];
+ 	int c;
+-
+-Retry:
+-	if(Bread(bp, buf, MAXIS) < MAXIS)
+-		return -1;
+-	Bseek(bp, -MAXIS, 1);
+-	for (i = 0; i < Maxobjtype; i++) {
+-		if (obj[i].is && (*obj[i].is)(buf)) {
+-			if (name)
+-				*name = obj[i].name;
+-			return i;
+-		}
+-	}
++	char *p;
+ 
+ 	/*
+-	 * Maybe there's an import block we need to skip
++	 * Look for import block.
+ 	 */
+-	for(i = 0; i < MAXIS; i++) {
+-		if(isalpha(buf[i]) || isdigit(buf[i]))
+-			continue;
+-		if(i == 0 || buf[i] != '\n')
+-			return -1;
+-		break;
+-	}
++	p = Brdline(bp, '\n');
++	if(p == nil)
++		return -1;
++	if(Blinelen(bp) < 10 || strncmp(p, "go object ", 10) != 0)
++		return -1;
++	Bseek(bp, -1, 1);
+ 
+ 	/*
+ 	 * Found one.  Skip until "\n!\n"
+ 	 */
+-	while((c = Bgetc(bp)) != Beof) {
++	for(;;) {
++		if((c = Bgetc(bp)) == Beof)
++			return -1;
+ 		if(c != '\n')
+ 			continue;
+ 		c = Bgetc(bp);
+@@ -156,8 +146,20 @@ Retry:
+ 			Bungetc(bp);
+ 			continue;
+ 		}
+-		goto Retry;
++		break;
+ 	}
++
++	if(Bread(bp, buf, MAXIS) < MAXIS)
++		return -1;
++	Bseek(bp, -MAXIS, 1);
++	for (i = 0; i < Maxobjtype; i++) {
++		if (obj[i].is && (*obj[i].is)(buf)) {
++			if (name)
++				*name = obj[i].name;
++			return i;
++		}
++	}
++
+ 	return -1;
+ }
+ 
+diff --git a/src/version.bash b/src/version.bash
+index 2d29825ff9..0e64831508 100755
+--- a/src/version.bash
++++ b/src/version.bash
+@@ -11,17 +11,16 @@ fi
+ 
+ # Get numerical revision
+ VERSION=$(hg identify -n 2>/dev/null)
+-if [ $? = 0 ]; then
+-	TAG=$(hg identify -t | sed 's!/release!!')
+-else
++if [ $? != 0 ]; then
+ 	OLD=$(hg identify | sed 1q)
+ 	VERSION=$(echo $OLD | awk '{print $1}')
+-	TAG=$(echo $OLD | awk '{print $2}' | sed 's!/release!!')
+ fi
+ 
+-# Append tag if not 'tip'
+-if [[ "$TAG" != "tip" ]]; then
+-	VERSION="$VERSION $TAG"
++# Find most recent known release tag.
++TAG=$(hg tags | awk '$1~/^release\./ {print $1}' | sed -n 1p)
++
++if [ "$TAG" != "" ]; then
++	VERSION="$TAG $VERSION"
+ fi
+ 
+ echo $VERSION

@@ -7,8 +7,72 @@ Date:   Sun Aug 23 18:09:44 2009 -0700
     R=ken
     OCL=33730
     CL=33730
-
+---
  src/cmd/gc/const.c     | 14 ++++++++++++--
  src/cmd/gc/typecheck.c |  5 +++++
  test/golden.out        |  4 +---
  3 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 6beacab6d1..d774773a43 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -100,7 +100,12 @@ convlit1(Node **np, Type *t, int explicit)
+ 	case OLSH:
+ 	case ORSH:
+ 		convlit(&n->left, t);
+-		n->type = n->left->type;
++		t = n->left->type;
++		if(t != T && !isint[t->etype]) {
++			yyerror("invalid operation: %#N (shift of type %T)", n, t);
++			t = T;
++		}
++		n->type = t;
+ 		return;
+ 	}
+ 	// avoided repeated calculations, errors
+@@ -728,7 +733,12 @@ defaultlit(Node **np, Type *t)
+ 	case OLSH:
+ 	case ORSH:
+ 		defaultlit(&n->left, t);
+-		n->type = n->left->type;
++		t = n->left->type;
++		if(t != T && !isint[t->etype]) {
++			yyerror("invalid operation: %#N (shift of type %T)", n, t);
++			t = T;
++		}
++		n->type = t;
+ 		return;
+ 	default:
+ 		defaultlit(&n->left, t);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index fba107f8b3..8c76ebb837 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -335,6 +335,11 @@ reswitch:
+ 			yyerror("invalid operation: %#N (shift count type %T)", n, r->type);
+ 			goto error;
+ 		}
++		t = l->type;
++		if(t != T && t->etype != TIDEAL && !isint[t->etype]) {
++			yyerror("invalid operation: %#N (shift of type %T)", n, t);
++			goto error;
++		}
+ 		// no defaultlit for left
+ 		// the outer context gives the type
+ 		n->type = l->type;
+diff --git a/test/golden.out b/test/golden.out
+index eedbcb2f11..c1a6092e67 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -170,9 +170,7 @@ bugs/bug190.go:15: invalid recursive type func(S) (S)
+ BUG: should compile
+ 
+ =========== bugs/bug193.go
+-BUG: errchk: bugs/bug193.go:13: error message does not match 'shift'
+-bugs/bug193.go:13: fatal error: optoas: no entry LSH-float
+-errchk: bugs/bug193.go:14: missing expected error: 'shift'
++BUG: errchk: bugs/bug193.go:14: missing expected error: 'shift'
+ 
+ =========== bugs/bug194.go
+ bugs/bug194.go:15: array index must be non-negative integer constant

@@ -21,7 +21,58 @@ Date:   Wed Apr 23 10:30:39 2025 +0800
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Meidan Li <limeidan@loongson.cn>
-
+---
  src/cmd/asm/internal/asm/testdata/loong64enc1.s | 12 ++++++++----
  src/cmd/internal/obj/loong64/asm.go             |  7 +++++--
  2 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index ad0ffa33d6..cfda9ba0b4 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -6,12 +6,16 @@
+ 
+ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ lable1:
+-	BFPT	1(PC)			// 00050048
+-	BFPT	lable1	// BFPT 2	//1ffdff4b
++	BFPT	1(PC)				// 00050048
++	BFPT	lable1		// BFPT 2	// 1ffdff4b
++	BFPT	FCC0, lable1	// BFPT FCC0, 2	// 1ff9ff4b
++	BFPT	FCC7, lable1	// BFPT FCC7, 2	// fff5ff4b
+ 
+ lable2:
+-	BFPF	1(PC)			// 00040048
+-	BFPF	lable2	// BFPF 4 	// 1ffcff4b
++	BFPF	1(PC)				// 00040048
++	BFPF	lable2		// BFPF 6 	// 1ffcff4b
++	BFPF	FCC0, lable2	// BFPF FCC0, 6	// 1ff8ff4b
++	BFPF	FCC7, lable2	// BFPF FCC7, 6	// fff4ff4b
+ 
+ 	// relocation in play so the assembled offset should be 0
+ 	JMP	foo(SB)			// 00000050
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 1254695be8..7fdba0c6c2 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -308,7 +308,8 @@ var optab = []Optab{
+ 	{ABEQ, C_REG, C_REG, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
+ 	{ABEQ, C_REG, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
+ 	{ABLEZ, C_REG, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
+-	{ABFPT, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, NOTUSETMP},
++	{ABFPT, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
++	{ABFPT, C_FCCREG, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
+ 
+ 	{AJMP, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // b
+ 	{AJAL, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // bl
+@@ -1985,7 +1986,9 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			width = 21
+ 			// FCC0 is the implicit source operand, now that we
+ 			// don't register-allocate from the FCC bank.
+-			rj = REG_FCC0
++			if rj == 0 {
++				rj = REG_FCC0
++			}
+ 		case ABEQ, ABNE:
+ 			if rd == 0 || rd == REGZERO || rj == REGZERO {
+ 				// BEQZ/BNEZ can be encoded with 21-bit offsets.

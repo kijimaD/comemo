@@ -12,7 +12,61 @@ Date:   Tue Jun 5 00:14:39 2012 +0800
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6282046
-
+---
  test/bench/go1/gob_test.go  |  4 +---
  test/bench/go1/json_test.go | 15 +++++++++------
  2 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/test/bench/go1/gob_test.go b/test/bench/go1/gob_test.go
+index 00eeed57a5..b172b805ad 100644
+--- a/test/bench/go1/gob_test.go
++++ b/test/bench/go1/gob_test.go
+@@ -21,9 +21,7 @@ var (
+ 	gobdata  *JSONResponse
+ )
+ 
+-func gobinit() {
+-	// gobinit is called after json's init,
+-	// because it uses jsondata.
++func init() {
+ 	gobdata = gobResponse(&jsondata)
+ 
+ 	var buf bytes.Buffer
+diff --git a/test/bench/go1/json_test.go b/test/bench/go1/json_test.go
+index 5a3012167b..614e24a810 100644
+--- a/test/bench/go1/json_test.go
++++ b/test/bench/go1/json_test.go
+@@ -17,11 +17,11 @@ import (
+ )
+ 
+ var (
+-	jsonbytes []byte
+-	jsondata  JSONResponse
++	jsonbytes = makeJsonBytes()
++	jsondata  = makeJsonData()
+ )
+ 
+-func init() {
++func makeJsonBytes() []byte {
+ 	var r io.Reader
+ 	r = strings.NewReader(jsonbz2_base64)
+ 	r = base64.NewDecoder(base64.StdEncoding, r)
+@@ -30,12 +30,15 @@ func init() {
+ 	if err != nil {
+ 		panic(err)
+ 	}
+-	jsonbytes = b
++	return b
++}
+ 
+-	if err := json.Unmarshal(jsonbytes, &jsondata); err != nil {
++func makeJsonData() JSONResponse {
++	var v JSONResponse
++	if err := json.Unmarshal(jsonbytes, &v); err != nil {
+ 		panic(err)
+ 	}
+-	gobinit()
++	return v
+ }
+ 
+ type JSONResponse struct {

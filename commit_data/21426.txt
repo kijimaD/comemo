@@ -7,6 +7,19 @@ Date:   Mon Jan 5 15:29:10 2015 +0900
     Change-Id: Ida3b431a06527f6cd604ab4af5ce517959c8619b
     Reviewed-on: https://go-review.googlesource.com/2306
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/crypto/x509/root_darwin_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/crypto/x509/root_darwin_test.go b/src/crypto/x509/root_darwin_test.go
+index 87ea4e344f..2e97b95b54 100644
+--- a/src/crypto/x509/root_darwin_test.go
++++ b/src/crypto/x509/root_darwin_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package x509
+ 
+ import "testing"

@@ -11,6 +11,28 @@ Date:   Sun Sep 4 18:32:05 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/cgi/host_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/net/http/cgi/host_test.go b/src/net/http/cgi/host_test.go
+index 55ca092dbc..860e9b3e8f 100644
+--- a/src/net/http/cgi/host_test.go
++++ b/src/net/http/cgi/host_test.go
+@@ -8,7 +8,6 @@ package cgi
+ 
+ import (
+ 	"bufio"
+-	"bytes"
+ 	"fmt"
+ 	"io"
+ 	"net"
+@@ -540,7 +539,7 @@ func TestEnvOverride(t *testing.T) {
+ 
+ func TestHandlerStderr(t *testing.T) {
+ 	check(t)
+-	var stderr bytes.Buffer
++	var stderr strings.Builder
+ 	h := &Handler{
+ 		Path:   "testdata/test.cgi",
+ 		Root:   "/test.cgi",

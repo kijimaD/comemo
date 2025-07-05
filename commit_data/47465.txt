@@ -18,7 +18,7 @@ Date:   Mon Mar 15 21:48:58 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/sys_windows_386.s         | 22 +++++++++++-----------
  src/runtime/sys_windows_amd64.s       | 22 +++++++++++-----------
  src/runtime/sys_windows_arm.s         | 22 +++++++++++-----------
@@ -28,3 +28,375 @@ Date:   Mon Mar 15 21:48:58 2021 +0000
  src/runtime/zcallback_windows_arm.s   |  2 +-
  src/runtime/zcallback_windows_arm64.s |  2 +-
  8 files changed, 52 insertions(+), 52 deletions(-)
+
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 4f00c58c16..e3fd90e05f 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -7,7 +7,7 @@
+ #include "textflag.h"
+ 
+ // void runtime·asmstdcall(void *c);
+-TEXT runtime·asmstdcall(SB),NOSPLIT,$0
++TEXT runtime·asmstdcall<ABIInternal>(SB),NOSPLIT,$0
+ 	MOVL	fn+0(FP), BX
+ 
+ 	// SetLastError(0).
+@@ -144,29 +144,29 @@ done:
+ 	BYTE $0xC2; WORD $4
+ 	RET // unreached; make assembler happy
+ 
+-TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
++TEXT runtime·exceptiontramp<ABIInternal>(SB),NOSPLIT,$0
+ 	MOVL	$runtime·exceptionhandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+-TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
++TEXT runtime·firstcontinuetramp<ABIInternal>(SB),NOSPLIT,$0-0
+ 	// is never called
+ 	INT	$3
+ 
+-TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
++TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT,$0-0
+ 	MOVL	$runtime·lastcontinuehandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+ // Called by OS using stdcall ABI: bool ctrlhandler(uint32).
+-TEXT runtime·ctrlhandler(SB),NOSPLIT,$0
++TEXT runtime·ctrlhandler<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHL	$runtime·ctrlhandler1(SB)
+ 	NOP	SP	// tell vet SP changed - stop checking offsets
+-	CALL	runtime·externalthreadhandler(SB)
++	CALL	runtime·externalthreadhandler<ABIInternal>(SB)
+ 	MOVL	4(SP), CX
+ 	ADDL	$12, SP
+ 	JMP	CX
+ 
+ // Called by OS using stdcall ABI: uint32 profileloop(void*).
+-TEXT runtime·profileloop(SB),NOSPLIT,$0
++TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHL	$runtime·profileloop1(SB)
+ 	NOP	SP	// tell vet SP changed - stop checking offsets
+ 	CALL	runtime·externalthreadhandler(SB)
+@@ -174,7 +174,7 @@ TEXT runtime·profileloop(SB),NOSPLIT,$0
+ 	ADDL	$12, SP
+ 	JMP	CX
+ 
+-TEXT runtime·externalthreadhandler(SB),NOSPLIT|TOPFRAME,$0
++TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|TOPFRAME,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+ 	PUSHL	BX
+@@ -227,7 +227,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT|TOPFRAME,$0
+ 
+ GLOBL runtime·cbctxts(SB), NOPTR, $4
+ 
+-TEXT runtime·callbackasm1(SB),NOSPLIT,$0
++TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$0
+   	MOVL	0(SP), AX	// will use to find our callback context
+ 
+ 	// remove return address from stack, we are not returning to callbackasm, but to its caller.
+@@ -246,7 +246,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+ 	CLD
+ 
+ 	// determine index into runtime·cbs table
+-	SUBL	$runtime·callbackasm(SB), AX
++	SUBL	$runtime·callbackasm<ABIInternal>(SB), AX
+ 	MOVL	$0, DX
+ 	MOVL	$5, BX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
+ 	DIVL	BX
+@@ -316,7 +316,7 @@ TEXT tstart<>(SB),NOSPLIT,$0
+ 	RET
+ 
+ // uint32 tstart_stdcall(M *newm);
+-TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
++TEXT runtime·tstart_stdcall<ABIInternal>(SB),NOSPLIT,$0
+ 	MOVL	newm+0(FP), BX
+ 
+ 	PUSHL	BX
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index a7c519ae19..574def1038 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -11,7 +11,7 @@
+ #define maxargs 16
+ 
+ // void runtime·asmstdcall(void *c);
+-TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·asmstdcall<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	// asmcgocall will put first argument into CX.
+ 	PUSHQ	CX			// save for later
+ 	MOVQ	libcall_fn(CX), AX
+@@ -190,32 +190,32 @@ done:
+ 
+ 	RET
+ 
+-TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·exceptiontramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVQ	$runtime·exceptionhandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+-TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
++TEXT runtime·firstcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVQ	$runtime·firstcontinuehandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+-TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
++TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVQ	$runtime·lastcontinuehandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+-TEXT runtime·ctrlhandler(SB),NOSPLIT|NOFRAME,$8
++TEXT runtime·ctrlhandler<ABIInternal>(SB),NOSPLIT|NOFRAME,$8
+ 	MOVQ	CX, 16(SP)		// spill
+ 	MOVQ	$runtime·ctrlhandler1(SB), CX
+ 	MOVQ	CX, 0(SP)
+-	CALL	runtime·externalthreadhandler(SB)
++	CALL	runtime·externalthreadhandler<ABIInternal>(SB)
+ 	RET
+ 
+-TEXT runtime·profileloop(SB),NOSPLIT|NOFRAME,$8
++TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT|NOFRAME,$8
+ 	MOVQ	$runtime·profileloop1(SB), CX
+ 	MOVQ	CX, 0(SP)
+-	CALL	runtime·externalthreadhandler(SB)
++	CALL	runtime·externalthreadhandler<ABIInternal>(SB)
+ 	RET
+ 
+-TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
++TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	PUSHQ	BX
+@@ -287,7 +287,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+ 	ADDQ	$8, SP
+ 
+ 	// determine index into runtime·cbs table
+-	MOVQ	$runtime·callbackasm(SB), DX
++	MOVQ	$runtime·callbackasm<ABIInternal>(SB), DX
+ 	SUBQ	DX, AX
+ 	MOVQ	$0, DX
+ 	MOVQ	$5, CX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
+@@ -343,7 +343,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+ 	RET
+ 
+ // uint32 tstart_stdcall(M *newm);
+-TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
++TEXT runtime·tstart_stdcall<ABIInternal>(SB),NOSPLIT,$0
+ 	// CX contains first arg newm
+ 	MOVQ	m_g0(CX), DX		// g
+ 
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 9a5d9b1dd4..275b827fcb 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -9,7 +9,7 @@
+ // Note: For system ABI, R0-R3 are args, R4-R11 are callee-save.
+ 
+ // void runtime·asmstdcall(void *c);
+-TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·asmstdcall<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVM.DB.W [R4, R5, R14], (R13)	// push {r4, r5, lr}
+ 	MOVW	R0, R4			// put libcall * in r4
+ 	MOVW	R13, R5			// save stack pointer in r5
+@@ -221,25 +221,25 @@ TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R0, R13
+ 	B	(R1)
+ 
+-TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·exceptiontramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·exceptionhandler(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+-TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·firstcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·firstcontinuehandler(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+-TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·lastcontinuehandler(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+-TEXT runtime·ctrlhandler(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·ctrlhandler<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·ctrlhandler1(SB), R1
+-	B	runtime·externalthreadhandler(SB)
++	B	runtime·externalthreadhandler<ABIInternal>(SB)
+ 
+-TEXT runtime·profileloop(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·profileloop1(SB), R1
+-	B	runtime·externalthreadhandler(SB)
++	B	runtime·externalthreadhandler<ABIInternal>(SB)
+ 
+ // int32 externalthreadhandler(uint32 arg, int (*func)(uint32))
+ // stack layout:
+@@ -262,7 +262,7 @@ TEXT runtime·profileloop(SB),NOSPLIT|NOFRAME,$0
+ // 0 | slot for LR    |
+ //   +----------------+
+ //
+-TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
++TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+ 	MOVM.DB.W [R4-R11, R14], (R13)		// push {r4-r11, lr}
+ 	SUB	$(m__size + g__size + 20), R13	// space for locals
+ 	MOVW	R14, 0(R13)			// push LR again for anything unwinding the stack
+@@ -310,7 +310,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+ 
+ GLOBL runtime·cbctxts(SB), NOPTR, $4
+ 
+-TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	// On entry, the trampoline in zcallback_windows_arm.s left
+ 	// the callback index in R12 (which is volatile in the C ABI).
+ 
+@@ -349,7 +349,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
+ 	B	(R12)	// return
+ 
+ // uint32 tstart_stdcall(M *newm);
+-TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·tstart_stdcall<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVM.DB.W [R4-R11, R14], (R13)		// push {r4-r11, lr}
+ 
+ 	MOVW	m_g0(R0), g
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index 53960488f9..c8c96acd06 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -17,7 +17,7 @@
+ // load_g and save_g (in tls_arm64.s) clobber R27 (REGTMP) and R0.
+ 
+ // void runtime·asmstdcall(void *c);
+-TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·asmstdcall<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	STP.W	(R29, R30), -32(RSP)	// allocate C ABI stack frame
+ 	STP	(R19, R20), 16(RSP) // save old R19, R20
+ 	MOVD	R0, R19	// save libcall pointer
+@@ -287,29 +287,29 @@ TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	R0, RSP
+ 	B	(R1)
+ 
+-TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
+-	MOVD	$runtime·exceptionhandler(SB), R1
++TEXT runtime·exceptiontramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++	MOVD	$runtime·exceptionhandler<ABIInternal>(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+-TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+-	MOVD	$runtime·firstcontinuehandler(SB), R1
++TEXT runtime·firstcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++	MOVD	$runtime·firstcontinuehandler<ABIInternal>(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+-	MOVD	$runtime·lastcontinuehandler(SB), R1
++	MOVD	$runtime·lastcontinuehandler<ABIInternal>(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+-TEXT runtime·ctrlhandler(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·ctrlhandler<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	$runtime·ctrlhandler1(SB), R1
+-	B	runtime·externalthreadhandler(SB)
++	B	runtime·externalthreadhandler<ABIInternal>(SB)
+ 
+-TEXT runtime·profileloop(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	$runtime·profileloop1(SB), R1
+-	B	runtime·externalthreadhandler(SB)
++	B	runtime·externalthreadhandler<ABIInternal>(SB)
+ 
+ // externalthreadhander called with R0 = uint32 arg, R1 = Go function f.
+ // Need to call f(arg), which returns a uint32, and return it in R0.
+-TEXT runtime·externalthreadhandler(SB),NOSPLIT|TOPFRAME,$96-0
++TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|TOPFRAME,$96-0
+ 	NO_LOCAL_POINTERS
+ 
+ 	// Push C callee-save registers R19-R28. LR, FP already saved.
+@@ -369,7 +369,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT|TOPFRAME,$96-0
+ 
+ GLOBL runtime·cbctxts(SB), NOPTR, $4
+ 
+-TEXT runtime·callbackasm1(SB),NOSPLIT,$208-0
++TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$208-0
+ 	NO_LOCAL_POINTERS
+ 
+ 	// On entry, the trampoline in zcallback_windows_arm64.s left
+@@ -416,7 +416,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$208-0
+ 	RET
+ 
+ // uint32 tstart_stdcall(M *newm);
+-TEXT runtime·tstart_stdcall(SB),NOSPLIT,$96-0
++TEXT runtime·tstart_stdcall<ABIInternal>(SB),NOSPLIT,$96-0
+ 	SAVE_R19_TO_R28(-10*8)
+ 
+ 	MOVD	m_g0(R0), g
+diff --git a/src/runtime/wincallback.go b/src/runtime/wincallback.go
+index 56f0674f4e..8411c98412 100644
+--- a/src/runtime/wincallback.go
++++ b/src/runtime/wincallback.go
+@@ -31,7 +31,7 @@ func genasm386Amd64() {
+ // CALL instruction in runtime·callbackasm. This determines
+ // which Go callback function is executed later on.
+ 
+-TEXT runtime·callbackasm(SB),7,$0
++TEXT runtime·callbackasm<ABIInternal>(SB),7,$0
+ `)
+ 	for i := 0; i < maxCallback; i++ {
+ 		buf.WriteString("\tCALL\truntime·callbackasm1(SB)\n")
+@@ -59,7 +59,7 @@ func genasmArm() {
+ // It then calls the Go implementation for that callback.
+ #include "textflag.h"
+ 
+-TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·callbackasm<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ `)
+ 	for i := 0; i < maxCallback; i++ {
+ 		buf.WriteString(fmt.Sprintf("\tMOVW\t$%d, R12\n", i))
+@@ -87,7 +87,7 @@ func genasmArm64() {
+ // It then calls the Go implementation for that callback.
+ #include "textflag.h"
+ 
+-TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·callbackasm<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ `)
+ 	for i := 0; i < maxCallback; i++ {
+ 		buf.WriteString(fmt.Sprintf("\tMOVD\t$%d, R12\n", i))
+diff --git a/src/runtime/zcallback_windows.s b/src/runtime/zcallback_windows.s
+index 7772eef329..37ffb38aca 100644
+--- a/src/runtime/zcallback_windows.s
++++ b/src/runtime/zcallback_windows.s
+@@ -9,7 +9,7 @@
+ // CALL instruction in runtime·callbackasm. This determines
+ // which Go callback function is executed later on.
+ 
+-TEXT runtime·callbackasm(SB),7,$0
++TEXT runtime·callbackasm<ABIInternal>(SB),7,$0
+ 	CALL	runtime·callbackasm1(SB)
+ 	CALL	runtime·callbackasm1(SB)
+ 	CALL	runtime·callbackasm1(SB)
+diff --git a/src/runtime/zcallback_windows_arm.s b/src/runtime/zcallback_windows_arm.s
+index f943d84cbf..a73a813acb 100644
+--- a/src/runtime/zcallback_windows_arm.s
++++ b/src/runtime/zcallback_windows_arm.s
+@@ -9,7 +9,7 @@
+ // It then calls the Go implementation for that callback.
+ #include "textflag.h"
+ 
+-TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·callbackasm<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$0, R12
+ 	B	runtime·callbackasm1(SB)
+ 	MOVW	$1, R12
+diff --git a/src/runtime/zcallback_windows_arm64.s b/src/runtime/zcallback_windows_arm64.s
+index 69fb05788c..2a6bda0990 100644
+--- a/src/runtime/zcallback_windows_arm64.s
++++ b/src/runtime/zcallback_windows_arm64.s
+@@ -9,7 +9,7 @@
+ // It then calls the Go implementation for that callback.
+ #include "textflag.h"
+ 
+-TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·callbackasm<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	$0, R12
+ 	B	runtime·callbackasm1(SB)
+ 	MOVD	$1, R12

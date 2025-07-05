@@ -7,6 +7,30 @@ Date:   Sun Feb 20 18:53:23 2011 +0100
     R=rsc, r2
     CC=golang-dev
     https://golang.org/cl/4183060
-
+---
  src/pkg/runtime/runtime-gdb.py | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/runtime-gdb.py b/src/pkg/runtime/runtime-gdb.py
+index 677e9bde4c..68dd8abdc6 100644
+--- a/src/pkg/runtime/runtime-gdb.py
++++ b/src/pkg/runtime/runtime-gdb.py
+@@ -13,7 +13,7 @@ path to this file based on the path to the runtime package.
+ #    - pretty printing only works for the 'native' strings. E.g. 'type
+ #      foo string' will make foo a plain struct in the eyes of gdb,
+ #      circumventing the pretty print triggering.
+-#    -
++
+ 
+ import sys, re
+ 
+@@ -39,7 +39,8 @@ class StringTypePrinter:
+ 		return 'string'
+ 
+ 	def to_string(self):
+-		return self.val['str']
++		l = int(self.val['len'])
++		return self.val['str'].string("utf-8", "ignore", l)
+ 
+ 
+ class SliceTypePrinter:

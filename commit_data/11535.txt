@@ -10,7 +10,7 @@ Date:   Tue Jan 31 19:31:30 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5601060
-
+---
  src/Make.ccmd       | 2 +-
  src/Make.clib       | 2 +-
  src/Make.ctool      | 2 +-
@@ -26,3 +26,166 @@ Date:   Tue Jan 31 19:31:30 2012 -0800
  src/cmd/8l/Makefile | 2 +-
  src/lib9/Makefile   | 6 +++---
  14 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/Make.ccmd b/src/Make.ccmd
+index 40cc3a0e8a..ad31944225 100644
+--- a/src/Make.ccmd
++++ b/src/Make.ccmd
+@@ -38,7 +38,7 @@ all: $(TARG)
+ 
+ # Use $(PWD)/$*.c so that gdb shows full path in stack traces.
+ %.$(HOST_O): %.c
+-	$(HOST_CC) $(HOST_CFLAGS) -c "$(PWD)/$*.c"
++	$(HOST_CC) $(HOST_CFLAGS) "$(PWD)/$*.c"
+ 
+ # These are used by enough different Makefiles to be
+ # worth writing down in one place, even if they don't
+diff --git a/src/Make.clib b/src/Make.clib
+index 4a7ea02d9b..367aa998e0 100644
+--- a/src/Make.clib
++++ b/src/Make.clib
+@@ -8,7 +8,7 @@ all: $(LIB)
+ 
+ # Use $(PWD)/$*.c so that gdb shows full path in stack traces.
+ %.$(HOST_O): %.c
+-	$(HOST_CC) $(HOST_CFLAGS) -c "$(PWD)/$*.c"
++	$(HOST_CC) $(HOST_CFLAGS) "$(PWD)/$*.c"
+ 
+ $(OFILES): $(HFILES)
+ 
+diff --git a/src/Make.ctool b/src/Make.ctool
+index 715fab62ae..4257ca422d 100644
+--- a/src/Make.ctool
++++ b/src/Make.ctool
+@@ -40,7 +40,7 @@ all: $(TARG)
+ 
+ # Use $(PWD)/$*.c so that gdb shows full path in stack traces.
+ %.$(HOST_O): %.c
+-	$(HOST_CC) $(HOST_CFLAGS) -c "$(PWD)/$*.c"
++	$(HOST_CC) $(HOST_CFLAGS) "$(PWD)/$*.c"
+ 
+ # These are used by enough different Makefiles to be
+ # worth writing down in one place, even if they don't
+diff --git a/src/Make.inc b/src/Make.inc
+index 1853b9465f..580350e2c8 100644
+--- a/src/Make.inc
++++ b/src/Make.inc
+@@ -122,7 +122,7 @@ HOST_EXTRA_LDFLAGS?=
+ # The -fno-common here is not necessary, but some compilers
+ # on OS X seem to set it by default.  Setting it here keeps the build
+ # working in that non-standard context.
+-HOST_CFLAGS=-fno-common -I"$(GOROOT)/include" $(HOST_EXTRA_CFLAGS)
++HOST_CFLAGS=-c -fno-common -I"$(GOROOT)/include" $(HOST_EXTRA_CFLAGS)
+ HOST_LDFLAGS=$(HOST_EXTRA_LDFLAGS)
+ PWD=$(shell pwd)
+ 
+diff --git a/src/cmd/5c/Makefile b/src/cmd/5c/Makefile
+index cded7f422b..60268e1c95 100644
+--- a/src/cmd/5c/Makefile
++++ b/src/cmd/5c/Makefile
+@@ -31,4 +31,4 @@ LIB=\
+ include ../../Make.ctool
+ 
+ %.$O: ../cc/%.c
+-	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../cc/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -I. -o $@ ../cc/$*.c
+diff --git a/src/cmd/5g/Makefile b/src/cmd/5g/Makefile
+index 8f86f11438..3c2a65fdf1 100644
+--- a/src/cmd/5g/Makefile
++++ b/src/cmd/5g/Makefile
+@@ -33,4 +33,4 @@ LIB=\
+ include ../../Make.ctool
+ 
+ %.$O: ../gc/%.c
+-	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../gc/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -I. -o $@ ../gc/$*.c
+diff --git a/src/cmd/5l/Makefile b/src/cmd/5l/Makefile
+index d116bf9c42..b68190d12a 100644
+--- a/src/cmd/5l/Makefile
++++ b/src/cmd/5l/Makefile
+@@ -40,4 +40,4 @@ enam.c: 5.out.h
+ CLEANFILES+=enam.c
+ 
+ %.$O: ../ld/%.c
+-	$(HOST_CC) $(HOST_CFLAGS) -c -I. ../ld/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -I. ../ld/$*.c
+diff --git a/src/cmd/6c/Makefile b/src/cmd/6c/Makefile
+index fbc237b750..e78b2b1aaa 100644
+--- a/src/cmd/6c/Makefile
++++ b/src/cmd/6c/Makefile
+@@ -33,4 +33,4 @@ LIB=\
+ include ../../Make.ctool
+ 
+ %.$O: ../cc/%.c
+-	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../cc/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -I. -o $@ ../cc/$*.c
+diff --git a/src/cmd/6g/Makefile b/src/cmd/6g/Makefile
+index 52e6d36991..870984a8c6 100644
+--- a/src/cmd/6g/Makefile
++++ b/src/cmd/6g/Makefile
+@@ -32,4 +32,4 @@ LIB=\
+ include ../../Make.ctool
+ 
+ %.$O: ../gc/%.c
+-	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../gc/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -I. -o $@ ../gc/$*.c
+diff --git a/src/cmd/6l/Makefile b/src/cmd/6l/Makefile
+index 612d7e8ad6..43ad9cad03 100644
+--- a/src/cmd/6l/Makefile
++++ b/src/cmd/6l/Makefile
+@@ -45,4 +45,4 @@ enam.c: 6.out.h
+ CLEANFILES+=enam.c
+ 
+ %.$O: ../ld/%.c
+-	$(HOST_CC) $(HOST_CFLAGS) -c -I. ../ld/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -I. ../ld/$*.c
+diff --git a/src/cmd/8c/Makefile b/src/cmd/8c/Makefile
+index 150937147f..f078fbdf58 100644
+--- a/src/cmd/8c/Makefile
++++ b/src/cmd/8c/Makefile
+@@ -34,4 +34,4 @@ LIB=\
+ include ../../Make.ctool
+ 
+ %.$O: ../cc/%.c
+-	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../cc/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -I. -o $@ ../cc/$*.c
+diff --git a/src/cmd/8g/Makefile b/src/cmd/8g/Makefile
+index fd3e30aad5..617cf1bb68 100644
+--- a/src/cmd/8g/Makefile
++++ b/src/cmd/8g/Makefile
+@@ -33,4 +33,4 @@ LIB=\
+ include ../../Make.ctool
+ 
+ %.$O: ../gc/%.c
+-	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../gc/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -I. -o $@ ../gc/$*.c
+diff --git a/src/cmd/8l/Makefile b/src/cmd/8l/Makefile
+index 4af72e6ae6..7e9bd7797f 100644
+--- a/src/cmd/8l/Makefile
++++ b/src/cmd/8l/Makefile
+@@ -46,4 +46,4 @@ CLEANFILES+=enam.c
+ 
+ 
+ %.$O: ../ld/%.c
+-	$(HOST_CC) $(HOST_CFLAGS) -c -I. ../ld/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -I. ../ld/$*.c
+diff --git a/src/lib9/Makefile b/src/lib9/Makefile
+index 31f22c41e9..bf1bf41a15 100644
+--- a/src/lib9/Makefile
++++ b/src/lib9/Makefile
+@@ -111,12 +111,12 @@ include ../Make.clib
+ GOROOT_FINAL?=$(GOROOT)
+ 
+ %.$O: fmt/%.c
+-	$(HOST_CC) -c $(HOST_CFLAGS) -DPLAN9PORT -Ifmt $<
++	$(HOST_CC) $(HOST_CFLAGS) -DPLAN9PORT -Ifmt $<
+ 
+ %.$O: utf/%.c
+-	$(HOST_CC) -c $(HOST_CFLAGS) $<
++	$(HOST_CC) $(HOST_CFLAGS) $<
+ 
+ goos.$O: goos.c
+ 	GOVERSION=`../version.bash` && \
+-		$(HOST_CC) -c $(HOST_CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT_FINAL)"' -DGOVERSION='"'"$$GOVERSION"'"' $<
++		$(HOST_CC) $(HOST_CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT_FINAL)"' -DGOVERSION='"'"$$GOVERSION"'"' $<
+ 

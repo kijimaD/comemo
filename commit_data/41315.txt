@@ -45,7 +45,55 @@ Date:   Tue Sep 24 10:46:08 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/query.go         | 12 +++++++++++-
  src/cmd/go/testdata/script/mod_get_major.txt | 18 ++++++++++++++++++
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 602bf47275..f3c003a7cd 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -471,7 +471,17 @@ func queryPrefixModules(candidateModules []string, queryModule func(path string)
+ 					notExistErr = rErr
+ 				}
+ 			} else if err == nil {
+-				err = r.err
++				if len(found) > 0 {
++					// golang.org/issue/34094: If we have already found a module
++					// containing the target package, ignore errors for modules with
++					// shorter paths.
++
++					// golang.org/issue/34383 is a special case of this: if we have
++					// already found example.com/foo/v2@v2.0.0 with a matching go.mod
++					// file, ignore the error from example.com/foo@v2.0.0.
++				} else {
++					err = r.err
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_get_major.txt b/src/cmd/go/testdata/script/mod_get_major.txt
+new file mode 100644
+index 0000000000..dd1cbe01a3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_major.txt
+@@ -0,0 +1,18 @@
++[!net] skip
++[!exec:git] skip
++
++env GO111MODULE=on
++env GOPROXY=direct
++env GOSUMDB=off
++
++# golang.org/issue/34383: if a module path ends in a major-version suffix,
++# ensure that 'direct' mode can resolve the package to a module.
++
++go get -d vcs-test.golang.org/git/v3pkg.git/v3@v3.0.0
++
++go list -m vcs-test.golang.org/git/v3pkg.git/v3
++stdout '^vcs-test.golang.org/git/v3pkg.git/v3 v3.0.0$'
++
++-- go.mod --
++module example.com
++go 1.13

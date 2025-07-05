@@ -14,9 +14,137 @@ Date:   Thu Dec 10 19:03:28 2009 -0800
     
     R=rsc
     https://golang.org/cl/174051
-
+---
  src/cmd/gofmt/doc.go      |  8 ++++++++
  src/cmd/gofmt/gofmt.go    | 33 +++++++++++++++++++++++----------
  src/pkg/Makefile          |  1 +
  src/pkg/exp/eval/world.go |  2 +-
  4 files changed, 33 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index 4b4adba030..e9b1d6c47f 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -29,6 +29,14 @@ The flags are:
+ 	-tabwidth=8
+ 		tab width in spaces.
+ 
++Flags to aid the transition to the new semicolon-free syntax (these flags will be
++removed eventually):
++
++	-oldparser=true
++		parse old syntax (required semicolons).
++	-oldprinter=true
++		print old syntax (required semicolons).
++
+ Debugging flags:
+ 
+ 	-trace
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index b3a96857d5..115ddb9280 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"bytes";
++	oldParser "exp/parser";
+ 	"flag";
+ 	"fmt";
+ 	"go/ast";
+@@ -30,9 +31,13 @@ var (
+ 	trace		= flag.Bool("trace", false, "print parse trace");
+ 
+ 	// layout control
+-	tabwidth	= flag.Int("tabwidth", 8, "tab width");
+-	tabindent	= flag.Bool("tabindent", false, "indent with tabs independent of -spaces");
+-	usespaces	= flag.Bool("spaces", false, "align with spaces instead of tabs");
++	tabWidth	= flag.Int("tabwidth", 8, "tab width");
++	tabIndent	= flag.Bool("tabindent", false, "indent with tabs independent of -spaces");
++	useSpaces	= flag.Bool("spaces", false, "align with spaces instead of tabs");
++
++	// semicolon transition
++	useOldParser	= flag.Bool("oldparser", true, "parse old syntax (required semicolons)");
++	useOldPrinter	= flag.Bool("oldprinter", true, "print old syntax (required semicolons)");
+ )
+ 
+ 
+@@ -69,13 +74,16 @@ func initParserMode() {
+ 
+ 
+ func initPrinterMode() {
+-	printerMode = uint(0);
+-	if *tabindent {
++	printerMode = printer.NoStringConcat;
++	if *tabIndent {
+ 		printerMode |= printer.TabIndent
+ 	}
+-	if *usespaces {
++	if *useSpaces {
+ 		printerMode |= printer.UseSpaces
+ 	}
++	if !*useOldPrinter {
++		printerMode |= printer.NoSemis
++	}
+ }
+ 
+ 
+@@ -91,7 +99,12 @@ func processFile(f *os.File) os.Error {
+ 		return err
+ 	}
+ 
+-	file, err := parser.ParseFile(f.Name(), src, parserMode);
++	var file *ast.File;
++	if *useOldParser {
++		file, err = oldParser.ParseFile(f.Name(), src, parserMode)
++	} else {
++		file, err = parser.ParseFile(f.Name(), src, parserMode)
++	}
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -101,7 +114,7 @@ func processFile(f *os.File) os.Error {
+ 	}
+ 
+ 	var res bytes.Buffer;
+-	_, err = (&printer.Config{printerMode, *tabwidth, nil}).Fprint(&res, file);
++	_, err = (&printer.Config{printerMode, *tabWidth, nil}).Fprint(&res, file);
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -176,8 +189,8 @@ func walkDir(path string) {
+ func main() {
+ 	flag.Usage = usage;
+ 	flag.Parse();
+-	if *tabwidth < 0 {
+-		fmt.Fprintf(os.Stderr, "negative tabwidth %d\n", *tabwidth);
++	if *tabWidth < 0 {
++		fmt.Fprintf(os.Stderr, "negative tabwidth %d\n", *tabWidth);
+ 		os.Exit(2);
+ 	}
+ 
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 912bc9d604..dee9ad992e 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -55,6 +55,7 @@ DIRS=\
+ 	exp/eval\
+ 	exp/exception\
+ 	exp/iterable\
++	exp/parser\
+ 	expvar\
+ 	flag\
+ 	fmt\
+diff --git a/src/pkg/exp/eval/world.go b/src/pkg/exp/eval/world.go
+index c442f79237..184e737c65 100644
+--- a/src/pkg/exp/eval/world.go
++++ b/src/pkg/exp/eval/world.go
+@@ -9,7 +9,7 @@ package eval
+ 
+ import (
+ 	"go/ast";
+-	"go/parser";
++	parser "exp/parser";
+ 	"go/scanner";
+ 	"go/token";
+ 	"os";

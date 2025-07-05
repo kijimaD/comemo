@@ -11,9 +11,201 @@ Date:   Tue Mar 17 09:26:07 2020 +0800
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/proxy.go |  6 +++---
  src/cmd/go/internal/modfetch/sumdb.go |  2 +-
  src/cmd/go/internal/web/api.go        | 17 +----------------
  src/cmd/go/internal/web/http.go       | 32 ++++++++++++++++----------------
  4 files changed, 21 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 67b06cbcd6..0ca43d4c4a 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -244,12 +244,12 @@ func newProxyRepo(baseURL, path string) (Repo, error) {
+ 		// ok
+ 	case "file":
+ 		if *base != (url.URL{Scheme: base.Scheme, Path: base.Path, RawPath: base.RawPath}) {
+-			return nil, fmt.Errorf("invalid file:// proxy URL with non-path elements: %s", web.Redacted(base))
++			return nil, fmt.Errorf("invalid file:// proxy URL with non-path elements: %s", base.Redacted())
+ 		}
+ 	case "":
+-		return nil, fmt.Errorf("invalid proxy URL missing scheme: %s", web.Redacted(base))
++		return nil, fmt.Errorf("invalid proxy URL missing scheme: %s", base.Redacted())
+ 	default:
+-		return nil, fmt.Errorf("invalid proxy URL scheme (must be https, http, file): %s", web.Redacted(base))
++		return nil, fmt.Errorf("invalid proxy URL scheme (must be https, http, file): %s", base.Redacted())
+ 	}
+ 
+ 	enc, err := module.EscapePath(path)
+diff --git a/src/cmd/go/internal/modfetch/sumdb.go b/src/cmd/go/internal/modfetch/sumdb.go
+index ef2eb213ed..7973f47426 100644
+--- a/src/cmd/go/internal/modfetch/sumdb.go
++++ b/src/cmd/go/internal/modfetch/sumdb.go
+@@ -131,7 +131,7 @@ func (c *dbClient) ReadRemote(path string) ([]byte, error) {
+ 	targ := web.Join(c.base, path)
+ 	data, err := web.GetBytes(targ)
+ 	if false {
+-		fmt.Fprintf(os.Stderr, "%.3fs %s\n", time.Since(start).Seconds(), web.Redacted(targ))
++		fmt.Fprintf(os.Stderr, "%.3fs %s\n", time.Since(start).Seconds(), targ.Redacted())
+ 	}
+ 	return data, err
+ }
+diff --git a/src/cmd/go/internal/web/api.go b/src/cmd/go/internal/web/api.go
+index 209ed6861a..570818843b 100644
+--- a/src/cmd/go/internal/web/api.go
++++ b/src/cmd/go/internal/web/api.go
+@@ -89,7 +89,7 @@ func GetBytes(u *url.URL) ([]byte, error) {
+ 	}
+ 	b, err := ioutil.ReadAll(resp.Body)
+ 	if err != nil {
+-		return nil, fmt.Errorf("reading %s: %v", Redacted(u), err)
++		return nil, fmt.Errorf("reading %s: %v", u.Redacted(), err)
+ 	}
+ 	return b, nil
+ }
+@@ -183,21 +183,6 @@ func Get(security SecurityMode, u *url.URL) (*Response, error) {
+ 	return get(security, u)
+ }
+ 
+-// Redacted returns a redacted string form of the URL,
+-// suitable for printing in error messages.
+-// The string form replaces any non-empty password
+-// in the original URL with "[redacted]".
+-func Redacted(u *url.URL) string {
+-	if u.User != nil {
+-		if _, ok := u.User.Password(); ok {
+-			redacted := *u
+-			redacted.User = url.UserPassword(u.User.Username(), "[redacted]")
+-			u = &redacted
+-		}
+-	}
+-	return u.String()
+-}
+-
+ // OpenBrowser attempts to open the requested URL in a web browser.
+ func OpenBrowser(url string) (opened bool) {
+ 	return openBrowser(url)
+diff --git a/src/cmd/go/internal/web/http.go b/src/cmd/go/internal/web/http.go
+index 5e4319b00e..beb80c505d 100644
+--- a/src/cmd/go/internal/web/http.go
++++ b/src/cmd/go/internal/web/http.go
+@@ -60,14 +60,14 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 
+ 	if os.Getenv("TESTGOPROXY404") == "1" && url.Host == "proxy.golang.org" {
+ 		res := &Response{
+-			URL:        Redacted(url),
++			URL:        url.Redacted(),
+ 			Status:     "404 testing",
+ 			StatusCode: 404,
+ 			Header:     make(map[string][]string),
+ 			Body:       http.NoBody,
+ 		}
+ 		if cfg.BuildX {
+-			fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", Redacted(url), res.Status, time.Since(start).Seconds())
++			fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", url.Redacted(), res.Status, time.Since(start).Seconds())
+ 		}
+ 		return res, nil
+ 	}
+@@ -78,7 +78,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 		// We print extra logging in -x mode instead, which traces what
+ 		// commands are executed.
+ 		if cfg.BuildX {
+-			fmt.Fprintf(os.Stderr, "# get %s\n", Redacted(url))
++			fmt.Fprintf(os.Stderr, "# get %s\n", url.Redacted())
+ 		}
+ 
+ 		req, err := http.NewRequest("GET", url.String(), nil)
+@@ -111,7 +111,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 		fetched, res, err = fetch(secure)
+ 		if err != nil {
+ 			if cfg.BuildX {
+-				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(secure), err)
++				fmt.Fprintf(os.Stderr, "# get %s: %v\n", secure.Redacted(), err)
+ 			}
+ 			if security != Insecure || url.Scheme == "https" {
+ 				// HTTPS failed, and we can't fall back to plain HTTP.
+@@ -126,9 +126,9 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 		case "http":
+ 			if security == SecureOnly {
+ 				if cfg.BuildX {
+-					fmt.Fprintf(os.Stderr, "# get %s: insecure\n", Redacted(url))
++					fmt.Fprintf(os.Stderr, "# get %s: insecure\n", url.Redacted())
+ 				}
+-				return nil, fmt.Errorf("insecure URL: %s", Redacted(url))
++				return nil, fmt.Errorf("insecure URL: %s", url.Redacted())
+ 			}
+ 		case "":
+ 			if security != Insecure {
+@@ -136,9 +136,9 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 			}
+ 		default:
+ 			if cfg.BuildX {
+-				fmt.Fprintf(os.Stderr, "# get %s: unsupported\n", Redacted(url))
++				fmt.Fprintf(os.Stderr, "# get %s: unsupported\n", url.Redacted())
+ 			}
+-			return nil, fmt.Errorf("unsupported scheme: %s", Redacted(url))
++			return nil, fmt.Errorf("unsupported scheme: %s", url.Redacted())
+ 		}
+ 
+ 		insecure := new(urlpkg.URL)
+@@ -146,15 +146,15 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 		insecure.Scheme = "http"
+ 		if insecure.User != nil && security != Insecure {
+ 			if cfg.BuildX {
+-				fmt.Fprintf(os.Stderr, "# get %s: insecure credentials\n", Redacted(insecure))
++				fmt.Fprintf(os.Stderr, "# get %s: insecure credentials\n", insecure.Redacted())
+ 			}
+-			return nil, fmt.Errorf("refusing to pass credentials to insecure URL: %s", Redacted(insecure))
++			return nil, fmt.Errorf("refusing to pass credentials to insecure URL: %s", insecure.Redacted())
+ 		}
+ 
+ 		fetched, res, err = fetch(insecure)
+ 		if err != nil {
+ 			if cfg.BuildX {
+-				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(insecure), err)
++				fmt.Fprintf(os.Stderr, "# get %s: %v\n", insecure.Redacted(), err)
+ 			}
+ 			// HTTP failed, and we already tried HTTPS if applicable.
+ 			// Report the error from the HTTP attempt.
+@@ -165,11 +165,11 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 	// Note: accepting a non-200 OK here, so people can serve a
+ 	// meta import in their http 404 page.
+ 	if cfg.BuildX {
+-		fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", Redacted(fetched), res.Status, time.Since(start).Seconds())
++		fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", fetched.Redacted(), res.Status, time.Since(start).Seconds())
+ 	}
+ 
+ 	r := &Response{
+-		URL:        Redacted(fetched),
++		URL:        fetched.Redacted(),
+ 		Status:     res.Status,
+ 		StatusCode: res.StatusCode,
+ 		Header:     map[string][]string(res.Header),
+@@ -201,7 +201,7 @@ func getFile(u *urlpkg.URL) (*Response, error) {
+ 
+ 	if os.IsNotExist(err) {
+ 		return &Response{
+-			URL:        Redacted(u),
++			URL:        u.Redacted(),
+ 			Status:     http.StatusText(http.StatusNotFound),
+ 			StatusCode: http.StatusNotFound,
+ 			Body:       http.NoBody,
+@@ -211,7 +211,7 @@ func getFile(u *urlpkg.URL) (*Response, error) {
+ 
+ 	if os.IsPermission(err) {
+ 		return &Response{
+-			URL:        Redacted(u),
++			URL:        u.Redacted(),
+ 			Status:     http.StatusText(http.StatusForbidden),
+ 			StatusCode: http.StatusForbidden,
+ 			Body:       http.NoBody,
+@@ -224,7 +224,7 @@ func getFile(u *urlpkg.URL) (*Response, error) {
+ 	}
+ 
+ 	return &Response{
+-		URL:        Redacted(u),
++		URL:        u.Redacted(),
+ 		Status:     http.StatusText(http.StatusOK),
+ 		StatusCode: http.StatusOK,
+ 		Body:       f,

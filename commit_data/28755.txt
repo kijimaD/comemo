@@ -14,7 +14,41 @@ Date:   Wed Jul 13 13:22:47 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/pprof/pprof.go      | 5 +----
  src/runtime/pprof/pprof_test.go | 4 ++++
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index f2cd81adb1..b7c41f13de 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -353,12 +353,9 @@ func printStackRecord(w io.Writer, stk []uintptr, allFrames bool) {
+ 		if name == "" {
+ 			show = true
+ 			fmt.Fprintf(w, "#\t%#x\n", frame.PC)
+-		} else {
++		} else if name != "runtime.goexit" && (show || !strings.HasPrefix(name, "runtime.")) {
+ 			// Hide runtime.goexit and any runtime functions at the beginning.
+ 			// This is useful mainly for allocation traces.
+-			if name == "runtime.goexit" || !show && strings.HasPrefix(name, "runtime.") {
+-				continue
+-			}
+ 			show = true
+ 			fmt.Fprintf(w, "#\t%#x\t%s+%#x\t%s:%d\n", frame.PC, name, frame.PC-frame.Entry, frame.File, frame.Line)
+ 		}
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index a6f5eda458..a0930155a5 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -497,6 +497,10 @@ func TestBlockProfile(t *testing.T) {
+ 		t.Fatalf("Bad profile header:\n%v", prof)
+ 	}
+ 
++	if strings.HasSuffix(prof, "#\t0x0\n\n") {
++		t.Errorf("Useless 0 suffix:\n%v", prof)
++	}
++
+ 	for _, test := range tests {
+ 		if !regexp.MustCompile(strings.Replace(test.re, "\t", "\t+", -1)).MatchString(prof) {
+ 			t.Fatalf("Bad %v entry, expect:\n%v\ngot:\n%v", test.name, test.re, prof)

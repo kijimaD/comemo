@@ -11,7 +11,166 @@ Date:   Wed Apr 8 13:17:57 2015 -0700
     Change-Id: Idfa4f4a5dcaa05974066bafe17bed6cdd2ebedb7
     Reviewed-on: https://go-review.googlesource.com/8662
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/gob/decode.go       | 22 +++++++++---
  src/encoding/gob/encoder_test.go | 76 ++++++++++++++++++----------------------
  2 files changed, 51 insertions(+), 47 deletions(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 3f34cbac57..40dcc8eb7e 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -682,7 +682,11 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, valu
+ // ignoreInterface discards the data for an interface value with no destination.
+ func (dec *Decoder) ignoreInterface(state *decoderState) {
+ 	// Read the name of the concrete type.
+-	b := make([]byte, state.decodeUint())
++	n, ok := state.getLength()
++	if !ok {
++		errorf("bad interface encoding: name too large for buffer")
++	}
++	b := make([]byte, n)
+ 	_, err := state.b.Read(b)
+ 	if err != nil {
+ 		error_(err)
+@@ -692,9 +696,9 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
+ 		error_(dec.err)
+ 	}
+ 	// At this point, the decoder buffer contains a delimited value. Just toss it.
+-	n, ok := state.getLength()
++	n, ok = state.getLength()
+ 	if !ok {
+-		errorf("bad interface encoding: length too large for buffer")
++		errorf("bad interface encoding: data length too large for buffer")
+ 	}
+ 	state.b.Drop(n)
+ }
+@@ -703,7 +707,11 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
+ // The data is encoded as a byte slice.
+ func (dec *Decoder) decodeGobDecoder(ut *userTypeInfo, state *decoderState, value reflect.Value) {
+ 	// Read the bytes for the value.
+-	b := make([]byte, state.decodeUint())
++	n, ok := state.getLength()
++	if !ok {
++		errorf("GobDecoder: length too large for buffer")
++	}
++	b := make([]byte, n)
+ 	_, err := state.b.Read(b)
+ 	if err != nil {
+ 		error_(err)
+@@ -725,7 +733,11 @@ func (dec *Decoder) decodeGobDecoder(ut *userTypeInfo, state *decoderState, valu
+ // ignoreGobDecoder discards the data for a GobDecoder value with no destination.
+ func (dec *Decoder) ignoreGobDecoder(state *decoderState) {
+ 	// Read the bytes for the value.
+-	b := make([]byte, state.decodeUint())
++	n, ok := state.getLength()
++	if !ok {
++		errorf("GobDecoder: length too large for buffer")
++	}
++	b := make([]byte, n)
+ 	_, err := state.b.Read(b)
+ 	if err != nil {
+ 		error_(err)
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index b4c8675d34..87b3e2af13 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -6,8 +6,8 @@ package gob
+ 
+ import (
+ 	"bytes"
++	"encoding/hex"
+ 	"fmt"
+-	"io"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+@@ -187,24 +187,6 @@ func TestWrongTypeDecoder(t *testing.T) {
+ 	badTypeCheck(new(ET4), true, "different type of field", t)
+ }
+ 
+-func corruptDataCheck(s string, err error, t *testing.T) {
+-	b := bytes.NewBufferString(s)
+-	dec := NewDecoder(b)
+-	err1 := dec.Decode(new(ET2))
+-	if err1 != err {
+-		t.Errorf("from %q expected error %s; got %s", s, err, err1)
+-	}
+-}
+-
+-// Check that we survive bad data.
+-func TestBadData(t *testing.T) {
+-	corruptDataCheck("", io.EOF, t)
+-	corruptDataCheck("\x7Fhi", io.ErrUnexpectedEOF, t)
+-	corruptDataCheck("\x03now is the time for all good men", errBadType, t)
+-	// issue 6323.
+-	corruptDataCheck("\x04\x24foo", errRange, t)
+-}
+-
+ // Types not supported at top level by the Encoder.
+ var unsupportedValues = []interface{}{
+ 	make(chan int),
+@@ -955,30 +937,40 @@ func TestErrorForHugeSlice(t *testing.T) {
+ 	}
+ }
+ 
+-// Don't crash, just give error with corrupted length.
+-// Issue 10270.
+-func TestErrorBadDrop(t *testing.T) {
+-	data := []byte{0x05, 0x10, 0x00, 0x28, 0x55, 0x7b, 0x02, 0x02, 0x7f, 0x83, 0x02}
+-	d := NewDecoder(bytes.NewReader(data))
+-	err := d.Decode(nil)
+-	if err == nil {
+-		t.Fatal("decode: no error")
+-	}
+-	if !strings.Contains(err.Error(), "interface encoding") {
+-		t.Fatalf("decode: expected interface encoding error, got %s", err.Error())
+-	}
++type badDataTest struct {
++	input string      // The input encoded as a hex string.
++	error string      // A substring of the error that should result.
++	data  interface{} // What to decode into.
+ }
+ 
+-// Don't crash, just give error with corrupted slice.
+-// Issue 10273.
+-func TestErrorBadSliceLength(t *testing.T) {
+-	data := []byte{0x13, 0x0a, 0x00, 0xfb, 0x5d, 0xad, 0x0b, 0xf8, 0xff, 0x02, 0x02, 0x63, 0xe7, 0x00, 0x02, 0xfa, 0x28, 0x02, 0x02, 0x02, 0xa8, 0x98, 0x59}
+-	d := NewDecoder(bytes.NewReader(data))
+-	err := d.Decode(nil)
+-	if err == nil {
+-		t.Fatal("decode: no error")
+-	}
+-	if !strings.Contains(err.Error(), "slice length too large") {
+-		t.Fatalf("decode: expected slice length too large error, got %s", err.Error())
++var badDataTests = []badDataTest{
++	{"", "EOF", nil},
++	{"7F6869", "unexpected EOF", nil},
++	{"036e6f77206973207468652074696d6520666f7220616c6c20676f6f64206d656e", "unknown type id", new(ET2)},
++	{"0424666f6f", "field numbers out of bounds", new(ET2)}, // Issue 6323.
++	{"05100028557b02027f8302", "interface encoding", nil},   // Issue 10270.
++	// Issue 10273.
++	{"130a00fb5dad0bf8ff020263e70002fa28020202a89859", "slice length too large", nil},
++	{"0f1000fb285d003316020735ff023a65c5", "interface encoding", nil},
++	{"03fffb0616fffc00f902ff02ff03bf005d02885802a311a8120228022c028ee7", "GobDecoder", nil},
++}
++
++// TestBadData tests that various problems caused by malformed input
++// are caught as errors and do not cause panics.
++func TestBadData(t *testing.T) {
++	for i, test := range badDataTests {
++		data, err := hex.DecodeString(test.input)
++		if err != nil {
++			t.Fatalf("#%d: hex error: %s", i, err)
++		}
++		d := NewDecoder(bytes.NewReader(data))
++		err = d.Decode(test.data)
++		if err == nil {
++			t.Errorf("decode: no error")
++			continue
++		}
++		if !strings.Contains(err.Error(), test.error) {
++			t.Errorf("#%d: decode: expected %q error, got %s", i, test.error, err.Error())
++		}
+ 	}
+ }

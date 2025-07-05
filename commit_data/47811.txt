@@ -23,8 +23,122 @@ Date:   Tue Apr 6 19:25:28 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgc.go      |  6 +++---
  src/runtime/mgcsweep.go | 13 ++++++++-----
  src/runtime/mheap.go    | 13 +++++++------
  3 files changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 8c1ff20936..25bf4a226b 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -175,7 +175,7 @@ func gcinit() {
+ 	}
+ 
+ 	// No sweep on the first cycle.
+-	mheap_.sweepdone = 1
++	mheap_.sweepDrained = 1
+ 
+ 	// Set a reasonable initial GC trigger.
+ 	memstats.triggerRatio = 7 / 8.0
+@@ -1187,7 +1187,7 @@ func GC() {
+ 	// First, wait for sweeping to finish. (We know there are no
+ 	// more spans on the sweep queue, but we may be concurrently
+ 	// sweeping spans, so we have to wait.)
+-	for atomic.Load(&work.cycles) == n+1 && atomic.Load(&mheap_.sweepers) != 0 {
++	for atomic.Load(&work.cycles) == n+1 && !isSweepDone() {
+ 		Gosched()
+ 	}
+ 
+@@ -2192,7 +2192,7 @@ func gcSweep(mode gcMode) {
+ 
+ 	lock(&mheap_.lock)
+ 	mheap_.sweepgen += 2
+-	mheap_.sweepdone = 0
++	mheap_.sweepDrained = 0
+ 	mheap_.pagesSwept = 0
+ 	mheap_.sweepArenas = mheap_.allArenas
+ 	mheap_.reclaimIndex = 0
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index ed2091bd2e..ce1fd0ac85 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -238,7 +238,7 @@ func (l *sweepLocker) dispose() {
+ 	// Decrement the number of active sweepers and if this is the
+ 	// last one, mark sweep as complete.
+ 	l.blocking = false
+-	if atomic.Xadd(&mheap_.sweepers, -1) == 0 && atomic.Load(&mheap_.sweepdone) != 0 {
++	if atomic.Xadd(&mheap_.sweepers, -1) == 0 && atomic.Load(&mheap_.sweepDrained) != 0 {
+ 		l.sweepIsDone()
+ 	}
+ }
+@@ -257,7 +257,7 @@ func sweepone() uintptr {
+ 	// increment locks to ensure that the goroutine is not preempted
+ 	// in the middle of sweep thus leaving the span in an inconsistent state for next GC
+ 	_g_.m.locks++
+-	if atomic.Load(&mheap_.sweepdone) != 0 {
++	if atomic.Load(&mheap_.sweepDrained) != 0 {
+ 		_g_.m.locks--
+ 		return ^uintptr(0)
+ 	}
+@@ -271,7 +271,7 @@ func sweepone() uintptr {
+ 	for {
+ 		s := mheap_.nextSpanForSweep()
+ 		if s == nil {
+-			noMoreWork = atomic.Cas(&mheap_.sweepdone, 0, 1)
++			noMoreWork = atomic.Cas(&mheap_.sweepDrained, 0, 1)
+ 			break
+ 		}
+ 		if state := s.state.get(); state != mSpanInUse {
+@@ -335,14 +335,17 @@ func sweepone() uintptr {
+ 	return npages
+ }
+ 
+-// isSweepDone reports whether all spans are swept or currently being swept.
++// isSweepDone reports whether all spans are swept.
+ //
+ // Note that this condition may transition from false to true at any
+ // time as the sweeper runs. It may transition from true to false if a
+ // GC runs; to prevent that the caller must be non-preemptible or must
+ // somehow block GC progress.
+ func isSweepDone() bool {
+-	return mheap_.sweepdone != 0
++	// Check that all spans have at least begun sweeping and there
++	// are no active sweepers. If both are true, then all spans
++	// have finished sweeping.
++	return atomic.Load(&mheap_.sweepDrained) != 0 && atomic.Load(&mheap_.sweepers) == 0
+ }
+ 
+ // Returns only when span s has been swept.
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index f438e789c9..dfc25940d2 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -62,11 +62,12 @@ const (
+ type mheap struct {
+ 	// lock must only be acquired on the system stack, otherwise a g
+ 	// could self-deadlock if its stack grows with the lock held.
+-	lock      mutex
+-	pages     pageAlloc // page allocation data structure
+-	sweepgen  uint32    // sweep generation, see comment in mspan; written during STW
+-	sweepdone uint32    // all spans are swept
+-	sweepers  uint32    // number of active sweepone calls
++	lock  mutex
++	pages pageAlloc // page allocation data structure
++
++	sweepgen     uint32 // sweep generation, see comment in mspan; written during STW
++	sweepDrained uint32 // all spans are swept or are being swept
++	sweepers     uint32 // number of active sweepone calls
+ 
+ 	// allspans is a slice of all mspans ever created. Each mspan
+ 	// appears exactly once.
+@@ -904,7 +905,7 @@ func (h *mheap) alloc(npages uintptr, spanclass spanClass, needzero bool) *mspan
+ 	systemstack(func() {
+ 		// To prevent excessive heap growth, before allocating n pages
+ 		// we need to sweep and reclaim at least n pages.
+-		if h.sweepdone == 0 {
++		if !isSweepDone() {
+ 			h.reclaim(npages)
+ 		}
+ 		s = h.allocSpan(npages, spanAllocHeap, spanclass)

@@ -13,6 +13,28 @@ Date:   Tue Dec 17 12:59:13 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/42550044
-
+---
  src/race.bat | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/race.bat b/src/race.bat
+index 0a6aee9e2b..65b76cd61a 100644
+--- a/src/race.bat
++++ b/src/race.bat
+@@ -15,6 +15,7 @@ echo race.bat must be run from go\src
+ goto end
+ :ok
+ 
++set GOROOT=%CD%\..
+ call make.bat --dist-tool >NUL
+ if errorlevel 1 goto fail
+ .\cmd\dist\dist env -wp >env.bat
+@@ -35,7 +36,7 @@ go install -race cmd/cgo
+ echo # go install -race std
+ go install -race std
+ if errorlevel 1 goto fail
+-echo # go test -race -short -std
++echo # go test -race -short std
+ go test -race -short std
+ if errorlevel 1 goto fail
+ echo # go test -race -run=nothingplease -bench=.* -benchtime=.1s -cpu=4 std

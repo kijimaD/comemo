@@ -15,8 +15,68 @@ Date:   Wed Sep 12 13:58:18 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/135035
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.11.html                     | 14 ++++++++++++++
  src/cmd/go/alldocs.go               |  6 ++++++
  src/cmd/go/internal/help/helpdoc.go |  6 ++++++
  3 files changed, 26 insertions(+)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index afe1939766..16b4c904cb 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -348,6 +348,20 @@ updating. See the <a href="go1.10.html#cgo">Go 1.10 release notes</a> for
+ details. <!-- CL 126275, CL 127156, CL 122217, CL 122575, CL 123177 -->
+ </p>
+ 
++<h3 id="go_command">Go command</h3>
++
++<p><!-- CL 126656 -->
++  The environment variable <code>GOFLAGS</code> may now be used
++  to set default flags for the <code>go</code> command.
++  This is useful in certain situations.
++  Linking can be noticeably slower on underpowered systems due to DWARF,
++  and users may want to set <code>-ldflags=-w</code> by default.
++  For modules, some users and CI systems will want vendoring always,
++  so they should set <code>-mod=vendor</code> by default.
++  For more information, see the <a href="/cmd/go/#hdr-Environment_variables"><code>go</code>
++  command documentation</a>.
++</p>
++
+ <h3 id="godoc">Godoc</h3>
+ 
+ <p>
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 35cabcac14..969d51f5ab 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1449,6 +1449,12 @@
+ // 		The directory where the go command will write
+ // 		temporary source files, packages, and binaries.
+ //
++// Each entry in the GOFLAGS list must be a standalone flag.
++// Because the entries are space-separated, flag values must
++// not contain spaces. In some cases, you can provide multiple flag
++// values instead: for example, to set '-ldflags=-s -w'
++// you can use 'GOFLAGS=-ldflags=-s -ldflags=-w'.
++//
+ // Environment variables for use with cgo:
+ //
+ // 	CC
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index aff4ce12f6..e2c4e61615 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -507,6 +507,12 @@ General-purpose environment variables:
+ 		The directory where the go command will write
+ 		temporary source files, packages, and binaries.
+ 
++Each entry in the GOFLAGS list must be a standalone flag.
++Because the entries are space-separated, flag values must
++not contain spaces. In some cases, you can provide multiple flag
++values instead: for example, to set '-ldflags=-s -w'
++you can use 'GOFLAGS=-ldflags=-s -ldflags=-w'.
++
+ Environment variables for use with cgo:
+ 
+ 	CC

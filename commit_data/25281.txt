@@ -12,7 +12,7 @@ Date:   Thu Oct 8 22:13:44 2015 +1300
     Change-Id: I55899f73037e92227813c491049a3bd6f30bd41f
     Reviewed-on: https://go-review.googlesource.com/15524
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/cgen.go    | 56 ++++++----------------------------
  src/cmd/compile/internal/gc/gsubr.go   |  4 +--
  src/cmd/compile/internal/ppc64/ggen.go |  6 ++--
@@ -20,3 +20,255 @@ Date:   Thu Oct 8 22:13:44 2015 +1300
  src/cmd/internal/obj/ppc64/asm9.go     |  4 +--
  src/cmd/internal/obj/ppc64/obj9.go     |  6 ++--
  6 files changed, 32 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 951f84fca7..d6538a358b 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -810,10 +810,7 @@ func cgen_wbptr(n, res *Node) {
+ 	a := &p.To
+ 	a.Type = obj.TYPE_MEM
+ 	a.Reg = int16(Thearch.REGSP)
+-	a.Offset = 0
+-	if HasLinkRegister() {
+-		a.Offset += int64(Widthptr)
+-	}
++	a.Offset = Ctxt.FixedFrameSize()
+ 	p2 := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, nil)
+ 	p2.To = p.To
+ 	p2.To.Offset += int64(Widthptr)
+@@ -849,10 +846,7 @@ func cgen_wbfat(n, res *Node) {
+ 	a := &p.To
+ 	a.Type = obj.TYPE_MEM
+ 	a.Reg = int16(Thearch.REGSP)
+-	a.Offset = 0
+-	if HasLinkRegister() {
+-		a.Offset += int64(Widthptr)
+-	}
++	a.Offset = Ctxt.FixedFrameSize()
+ 	if needType {
+ 		a.Offset += int64(Widthptr)
+ 	}
+@@ -1686,10 +1680,7 @@ func Igen(n *Node, a *Node, res *Node) {
+ 		a.Op = OINDREG
+ 		a.Reg = int16(Thearch.REGSP)
+ 		a.Addable = true
+-		a.Xoffset = fp.Width
+-		if HasLinkRegister() {
+-			a.Xoffset += int64(Ctxt.Arch.Ptrsize)
+-		}
++		a.Xoffset = fp.Width + Ctxt.FixedFrameSize()
+ 		a.Type = n.Type
+ 		return
+ 
+@@ -2219,11 +2210,7 @@ func stkof(n *Node) int64 {
+ 		var flist Iter
+ 		t = Structfirst(&flist, Getoutarg(t))
+ 		if t != nil {
+-			w := t.Width
+-			if HasLinkRegister() {
+-				w += int64(Ctxt.Arch.Ptrsize)
+-			}
+-			return w
++			return t.Width + Ctxt.FixedFrameSize()
+ 		}
+ 	}
+ 
+@@ -2379,17 +2366,11 @@ func Ginscall(f *Node, proc int) {
+ 		// size of arguments at 0(SP)
+ 		stk.Op = OINDREG
+ 		stk.Reg = int16(Thearch.REGSP)
+-		stk.Xoffset = 0
+-		if HasLinkRegister() {
+-			stk.Xoffset += int64(Ctxt.Arch.Ptrsize)
+-		}
++		stk.Xoffset = Ctxt.FixedFrameSize()
+ 		Thearch.Ginscon(Thearch.Optoas(OAS, Types[TINT32]), int64(Argsize(f.Type)), &stk)
+ 
+ 		// FuncVal* at 8(SP)
+-		stk.Xoffset = int64(Widthptr)
+-		if HasLinkRegister() {
+-			stk.Xoffset += int64(Ctxt.Arch.Ptrsize)
+-		}
++		stk.Xoffset = int64(Widthptr) + Ctxt.FixedFrameSize()
+ 
+ 		var reg Node
+ 		Nodreg(&reg, Types[Tptr], Thearch.REGCALLX2)
+@@ -2447,10 +2428,7 @@ func cgen_callinter(n *Node, res *Node, proc int) {
+ 
+ 	var nodsp Node
+ 	Nodindreg(&nodsp, Types[Tptr], Thearch.REGSP)
+-	nodsp.Xoffset = 0
+-	if HasLinkRegister() {
+-		nodsp.Xoffset += int64(Ctxt.Arch.Ptrsize)
+-	}
++	nodsp.Xoffset = Ctxt.FixedFrameSize()
+ 	if proc != 0 {
+ 		nodsp.Xoffset += 2 * int64(Widthptr) // leave room for size & fn
+ 	}
+@@ -2541,11 +2519,6 @@ func cgen_call(n *Node, proc int) {
+ 	Ginscall(n.Left, proc)
+ }
+ 
+-func HasLinkRegister() bool {
+-	c := Ctxt.Arch.Thechar
+-	return c != '6' && c != '8'
+-}
+-
+ /*
+  * call to n has already been generated.
+  * generate:
+@@ -2568,10 +2541,7 @@ func cgen_callret(n *Node, res *Node) {
+ 	nod.Reg = int16(Thearch.REGSP)
+ 	nod.Addable = true
+ 
+-	nod.Xoffset = fp.Width
+-	if HasLinkRegister() {
+-		nod.Xoffset += int64(Ctxt.Arch.Ptrsize)
+-	}
++	nod.Xoffset = fp.Width + Ctxt.FixedFrameSize()
+ 	nod.Type = fp.Type
+ 	Cgen_as(res, &nod)
+ }
+@@ -2597,10 +2567,7 @@ func cgen_aret(n *Node, res *Node) {
+ 	nod1.Op = OINDREG
+ 	nod1.Reg = int16(Thearch.REGSP)
+ 	nod1.Addable = true
+-	nod1.Xoffset = fp.Width
+-	if HasLinkRegister() {
+-		nod1.Xoffset += int64(Ctxt.Arch.Ptrsize)
+-	}
++	nod1.Xoffset = fp.Width + Ctxt.FixedFrameSize()
+ 	nod1.Type = fp.Type
+ 
+ 	if res.Op != OREGISTER {
+@@ -2858,10 +2825,7 @@ func cgen_append(n, res *Node) {
+ 	arg.Op = OINDREG
+ 	arg.Reg = int16(Thearch.REGSP)
+ 	arg.Addable = true
+-	arg.Xoffset = 0
+-	if HasLinkRegister() {
+-		arg.Xoffset = int64(Ctxt.Arch.Ptrsize)
+-	}
++	arg.Xoffset = Ctxt.FixedFrameSize()
+ 	arg.Type = Ptrto(Types[TUINT8])
+ 	Cgen(typename(res.Type), &arg)
+ 	arg.Xoffset += int64(Widthptr)
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 37c2e99f8f..5c057d5d0c 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -568,9 +568,7 @@ fp:
+ 		n.Op = OINDREG
+ 
+ 		n.Reg = int16(Thearch.REGSP)
+-		if HasLinkRegister() {
+-			n.Xoffset += int64(Ctxt.Arch.Ptrsize)
+-		}
++		n.Xoffset += Ctxt.FixedFrameSize()
+ 
+ 	case 1: // input arg
+ 		n.Class = PPARAM
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 195f2b0f66..d0bdebb2c8 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -69,10 +69,10 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 	}
+ 	if cnt < int64(4*gc.Widthptr) {
+ 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
+-			p = appendpp(p, ppc64.AMOVD, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGSP, 8+frame+lo+i)
++			p = appendpp(p, ppc64.AMOVD, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGSP, gc.Ctxt.FixedFrameSize()+frame+lo+i)
+ 		}
+ 	} else if cnt <= int64(128*gc.Widthptr) {
+-		p = appendpp(p, ppc64.AADD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, ppc64.REGRT1, 0)
++		p = appendpp(p, ppc64.AADD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+frame+lo-8, obj.TYPE_REG, ppc64.REGRT1, 0)
+ 		p.Reg = ppc64.REGSP
+ 		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		f := gc.Sysfunc("duffzero")
+@@ -80,7 +80,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 		gc.Afunclit(&p.To, f)
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+-		p = appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, ppc64.REGTMP, 0)
++		p = appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+frame+lo-8, obj.TYPE_REG, ppc64.REGTMP, 0)
+ 		p = appendpp(p, ppc64.AADD, obj.TYPE_REG, ppc64.REGTMP, 0, obj.TYPE_REG, ppc64.REGRT1, 0)
+ 		p.Reg = ppc64.REGSP
+ 		p = appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, ppc64.REGTMP, 0)
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 75b8d5ee1e..22dbc86510 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -523,6 +523,19 @@ type Link struct {
+ 	Etextp             *LSym
+ }
+ 
++// The smallest possible offset from the hardware stack pointer to a local
++// variable on the stack. Architectures that use a link register save its value
++// on the stack in the function prologue and so always have a pointer between
++// the hardware stack pointer and the local variable area.
++func (ctxt *Link) FixedFrameSize() int64 {
++	switch ctxt.Arch.Thechar {
++	case '6', '8':
++		return 0
++	default:
++		return int64(ctxt.Arch.Ptrsize)
++	}
++}
++
+ type SymVer struct {
+ 	Name    string
+ 	Version int // TODO: make int16 to match LSym.Version?
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 43ff683d74..c7bd835774 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -595,7 +595,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 			return C_LAUTO
+ 
+ 		case obj.NAME_PARAM:
+-			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset + 8
++			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset + ctxt.FixedFrameSize()
+ 			if ctxt.Instoffset >= -BIG && ctxt.Instoffset < BIG {
+ 				return C_SAUTO
+ 			}
+@@ -658,7 +658,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 			return C_LACON
+ 
+ 		case obj.NAME_PARAM:
+-			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset + 8
++			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset + ctxt.FixedFrameSize()
+ 			if ctxt.Instoffset >= -BIG && ctxt.Instoffset < BIG {
+ 				return C_SACON
+ 			}
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index e1f3435393..e72832d445 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -337,7 +337,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			if p.From3.Offset&obj.NOFRAME == 0 {
+ 				// If there is a stack frame at all, it includes
+ 				// space to save the LR.
+-				autosize += 8
++				autosize += int32(ctxt.FixedFrameSize())
+ 			}
+ 
+ 			p.To.Offset = int64(autosize)
+@@ -445,7 +445,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				q = obj.Appendp(ctxt, q)
+ 				q.As = AADD
+ 				q.From.Type = obj.TYPE_CONST
+-				q.From.Offset = int64(autosize) + 8
++				q.From.Offset = int64(autosize) + ctxt.FixedFrameSize()
+ 				q.Reg = REGSP
+ 				q.To.Type = obj.TYPE_REG
+ 				q.To.Reg = REG_R5
+@@ -465,7 +465,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				q = obj.Appendp(ctxt, q)
+ 				q.As = AADD
+ 				q.From.Type = obj.TYPE_CONST
+-				q.From.Offset = 8
++				q.From.Offset = ctxt.FixedFrameSize()
+ 				q.Reg = REGSP
+ 				q.To.Type = obj.TYPE_REG
+ 				q.To.Reg = REG_R6

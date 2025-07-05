@@ -9,6 +9,26 @@ Date:   Mon May 25 14:38:38 2009 -0700
     DELTA=11  (11 added, 0 deleted, 0 changed)
     OCL=29352
     CL=29357
-
+---
  src/lib/os/exec.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/lib/os/exec.go b/src/lib/os/exec.go
+index 1fbd7e7aae..9f0f01e0a8 100644
+--- a/src/lib/os/exec.go
++++ b/src/lib/os/exec.go
+@@ -88,3 +88,14 @@ func Wait(pid int, options uint64) (w *Waitmsg, err Error) {
+ 	return w, nil;
+ }
+ 
++// Getpid returns the process id of the caller.
++func Getpid() int {
++	p, r2, e := syscall.Syscall(syscall.SYS_GETPID, 0, 0, 0);
++	return int(p)
++}
++
++// Getppid returns the process id of the caller's parent.
++func Getppid() int {
++	p, r2, e := syscall.Syscall(syscall.SYS_GETPPID, 0, 0, 0);
++	return int(p)
++}

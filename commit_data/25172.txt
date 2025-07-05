@@ -21,7 +21,38 @@ Date:   Sat Oct 3 17:42:52 2015 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cgo/main.go | 6 +-----
  src/cmd/go/build.go | 2 +-
  2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 02d297ce8b..5e7520db04 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -279,11 +279,7 @@ func main() {
+ 		if nerrors > 0 {
+ 			os.Exit(2)
+ 		}
+-		pkg := f.Package
+-		if dir := os.Getenv("CGOPKGPATH"); dir != "" {
+-			pkg = filepath.Join(dir, pkg)
+-		}
+-		p.PackagePath = pkg
++		p.PackagePath = f.Package
+ 		p.Record(f)
+ 		if *godefs {
+ 			os.Stdout.WriteString(p.godefs(f, input))
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 0c2bc5f268..b894ed6c3a 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2875,7 +2875,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 	cgoCPPFLAGS = append(cgoCPPFLAGS, "-I", obj)
+ 
+ 	// cgo
+-	// TODO: CGOPKGPATH, CGO_FLAGS?
++	// TODO: CGO_FLAGS?
+ 	gofiles := []string{obj + "_cgo_gotypes.go"}
+ 	cfiles := []string{"_cgo_main.c", "_cgo_export.c"}
+ 	for _, fn := range cgofiles {

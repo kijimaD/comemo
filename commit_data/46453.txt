@@ -18,10 +18,139 @@ Date:   Wed Dec 30 14:08:44 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go     | 14 +++++++-------
  src/cmd/compile/internal/ir/node_gen.go | 30 +++++++++++++++++++++++++++---
  src/cmd/compile/internal/ssagen/ssa.go  |  4 +++-
  src/cmd/compile/internal/walk/order.go  |  2 +-
  src/cmd/compile/internal/walk/stmt.go   |  2 +-
  5 files changed, 39 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 55e4b61baf..f435a5bb26 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -159,13 +159,13 @@ const (
+ type CallExpr struct {
+ 	miniExpr
+ 	origNode
+-	X        Node
+-	Args     Nodes
+-	Rargs    Nodes // TODO(rsc): Delete.
+-	Body     Nodes // TODO(rsc): Delete.
+-	IsDDD    bool
+-	Use      CallUse
+-	NoInline bool
++	X         Node
++	Args      Nodes
++	Rargs     Nodes   // TODO(rsc): Delete.
++	KeepAlive []*Name // vars to be kept alive until call returns
++	IsDDD     bool
++	Use       CallUse
++	NoInline  bool
+ }
+ 
+ func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 65c0b239ed..7f494b16cd 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -251,7 +251,7 @@ func (n *CallExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	c.Args = copyNodes(c.Args)
+ 	c.Rargs = copyNodes(c.Rargs)
+-	c.Body = copyNodes(c.Body)
++	c.KeepAlive = copyNames(c.KeepAlive)
+ 	return &c
+ }
+ func (n *CallExpr) doChildren(do func(Node) bool) bool {
+@@ -267,7 +267,7 @@ func (n *CallExpr) doChildren(do func(Node) bool) bool {
+ 	if doNodes(n.Rargs, do) {
+ 		return true
+ 	}
+-	if doNodes(n.Body, do) {
++	if doNames(n.KeepAlive, do) {
+ 		return true
+ 	}
+ 	return false
+@@ -279,7 +279,7 @@ func (n *CallExpr) editChildren(edit func(Node) Node) {
+ 	}
+ 	editNodes(n.Args, edit)
+ 	editNodes(n.Rargs, edit)
+-	editNodes(n.Body, edit)
++	editNames(n.KeepAlive, edit)
+ }
+ 
+ func (n *CaseClause) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+@@ -1381,6 +1381,30 @@ func editCommClauses(list []*CommClause, edit func(Node) Node) {
+ 	}
+ }
+ 
++func copyNames(list []*Name) []*Name {
++	if list == nil {
++		return nil
++	}
++	c := make([]*Name, len(list))
++	copy(c, list)
++	return c
++}
++func doNames(list []*Name, do func(Node) bool) bool {
++	for _, x := range list {
++		if x != nil && do(x) {
++			return true
++		}
++	}
++	return false
++}
++func editNames(list []*Name, edit func(Node) Node) {
++	for i, x := range list {
++		if x != nil {
++			list[i] = edit(x).(*Name)
++		}
++	}
++}
++
+ func copyNodes(list []Node) []Node {
+ 	if list == nil {
+ 		return nil
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index ddf65eb209..022959a934 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4867,7 +4867,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		s.vars[memVar] = call
+ 	}
+ 	// Insert OVARLIVE nodes
+-	s.stmtList(n.Body)
++	for _, name := range n.KeepAlive {
++		s.stmt(ir.NewUnaryExpr(n.Pos(), ir.OVARLIVE, name))
++	}
+ 
+ 	// Finish block for defers
+ 	if k == callDefer || k == callDeferStack {
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index b3d2eaec17..681f5dcc76 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -518,7 +518,7 @@ func (o *orderState) call(nn ir.Node) {
+ 				x := o.copyExpr(arg.X)
+ 				arg.X = x
+ 				x.Name().SetAddrtaken(true) // ensure SSA keeps the x variable
+-				n.Body.Append(typecheck.Stmt(ir.NewUnaryExpr(base.Pos, ir.OVARLIVE, x)))
++				n.KeepAlive = append(n.KeepAlive, x.(*ir.Name))
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index f843d2c4fa..cfd1da46d2 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -228,7 +228,7 @@ func walkGoDefer(n *ir.GoDeferStmt) ir.Node {
+ 
+ 	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
+ 		call := call.(*ir.CallExpr)
+-		if len(call.Body) > 0 {
++		if len(call.KeepAlive) > 0 {
+ 			n.Call = wrapCall(call, &init)
+ 		} else {
+ 			n.Call = walkExpr(call, &init)

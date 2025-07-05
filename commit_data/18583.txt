@@ -8,6 +8,19 @@ Date:   Thu Feb 20 17:24:25 2014 +1100
     R=golang-codereviews, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/66470043
-
+---
  src/pkg/net/http/request_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/net/http/request_test.go b/src/pkg/net/http/request_test.go
+index 61542366b3..68d141398a 100644
+--- a/src/pkg/net/http/request_test.go
++++ b/src/pkg/net/http/request_test.go
+@@ -218,6 +218,7 @@ func TestMultipartReaderOrder(t *testing.T) {
+ 	if err := req.ParseMultipartForm(25); err != nil {
+ 		t.Fatalf("ParseMultipartForm: %v", err)
+ 	}
++	defer req.MultipartForm.RemoveAll()
+ 	if _, err := req.MultipartReader(); err == nil {
+ 		t.Fatal("expected an error from MultipartReader after call to ParseMultipartForm")
+ 	}

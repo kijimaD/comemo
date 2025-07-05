@@ -7,6 +7,27 @@ Date:   Wed Dec 22 08:43:35 2010 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/3779043
-
+---
  src/pkg/bufio/bufio.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index fc4127a940..c13456a632 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -148,7 +148,6 @@ func (b *Reader) Read(p []byte) (n int, err os.Error) {
+ 				b.lastByte = int(p[n-1])
+ 				b.lastRuneSize = -1
+ 			}
+-			p = p[n:]
+ 			return n, b.err
+ 		}
+ 		b.fill()
+@@ -161,7 +160,6 @@ func (b *Reader) Read(p []byte) (n int, err os.Error) {
+ 		n = b.w - b.r
+ 	}
+ 	copy(p[0:n], b.buf[b.r:])
+-	p = p[n:]
+ 	b.r += n
+ 	b.lastByte = int(b.buf[b.r-1])
+ 	b.lastRuneSize = -1

@@ -12,6 +12,20 @@ Date:   Fri Oct 15 23:24:28 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/356313
     Reviewed-by: Austin Clements <austin@google.com>
     Trust: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/extern.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index eca4062e68..b2003ba543 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -144,7 +144,7 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	because it also disables the conservative stack scanning used
+ 	for asynchronously preempted goroutines.
+ 
+-The net, net/http, and crypto/tls packages also refer to debugging variables in GODEBUG.
++The net and net/http packages also refer to debugging variables in GODEBUG.
+ See the documentation for those packages for details.
+ 
+ The GOMAXPROCS variable limits the number of operating system threads that

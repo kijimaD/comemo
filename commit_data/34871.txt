@@ -16,6 +16,29 @@ Date:   Tue Nov 21 19:11:56 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/fs_nacl.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/syscall/fs_nacl.go b/src/syscall/fs_nacl.go
+index 8fee4daee9..33334dc24b 100644
+--- a/src/syscall/fs_nacl.go
++++ b/src/syscall/fs_nacl.go
+@@ -625,6 +625,8 @@ func UtimesNano(path string, ts []Timespec) error {
+ 
+ func Link(path, link string) error {
+ 	fsinit()
++	fs.mu.Lock()
++	defer fs.mu.Unlock()
+ 	ip, _, err := fs.namei(path, false)
+ 	if err != nil {
+ 		return err
+@@ -646,6 +648,8 @@ func Link(path, link string) error {
+ 
+ func Rename(from, to string) error {
+ 	fsinit()
++	fs.mu.Lock()
++	defer fs.mu.Unlock()
+ 	fdp, felem, err := fs.namei(from, true)
+ 	if err != nil {
+ 		return err

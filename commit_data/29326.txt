@@ -16,6 +16,20 @@ Date:   Fri Sep 9 01:30:49 2016 +0000
     Change-Id: Ib88464a0d138227d357033123f6675a77d5d777f
     Reviewed-on: https://go-review.googlesource.com/28786
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  doc/install.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index cfe3e67a64..01681f4d86 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -54,7 +54,7 @@ If your OS or architecture is not on the list, you may be able to
+ </table>
+ 
+ <p>
+-<sup>&#8224;</sup><code>gcc</code> is required only if you plan to use
++<sup>&#8224;</sup>A C compiler is required only if you plan to use
+ <a href="/cmd/cgo">cgo</a>.<br/>
+ <sup>&#8225;</sup>You only need to install the command line tools for
+ <a href="http://developer.apple.com/Xcode/">Xcode</a>. If you have already

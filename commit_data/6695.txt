@@ -11,7 +11,91 @@ Date:   Tue Nov 2 14:04:56 2010 -0700
     R=rsc, r
     CC=golang-dev, jussi
     https://golang.org/cl/2831042
-
+---
  src/pkg/rpc/client.go      |  2 +-
  src/pkg/rpc/server_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 51 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index 2f52d19c6e..601c49715b 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -69,12 +69,12 @@ func (client *Client) send(c *Call) {
+ 	// Encode and send the request.
+ 	request := new(Request)
+ 	client.sending.Lock()
++	defer client.sending.Unlock()
+ 	request.Seq = c.seq
+ 	request.ServiceMethod = c.ServiceMethod
+ 	if err := client.codec.WriteRequest(request, c.Args); err != nil {
+ 		panic("rpc: client encode error: " + err.String())
+ 	}
+-	client.sending.Unlock()
+ }
+ 
+ func (client *Client) input() {
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index e826904c2d..355d51ce46 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"strings"
+ 	"sync"
+ 	"testing"
++	"time"
+ )
+ 
+ var (
+@@ -332,3 +333,52 @@ func TestRegistrationError(t *testing.T) {
+ 		t.Errorf("expected error registering ReplyNotPublic")
+ 	}
+ }
++
++type WriteFailCodec int
++
++func (WriteFailCodec) WriteRequest(*Request, interface{}) os.Error {
++	// the panic caused by this error used to not unlock a lock.
++	return os.NewError("fail")
++}
++
++func (WriteFailCodec) ReadResponseHeader(*Response) os.Error {
++	time.Sleep(60e9)
++	panic("unreachable")
++}
++
++func (WriteFailCodec) ReadResponseBody(interface{}) os.Error {
++	time.Sleep(60e9)
++	panic("unreachable")
++}
++
++func (WriteFailCodec) Close() os.Error {
++	return nil
++}
++
++func TestSendDeadlock(t *testing.T) {
++	client := NewClientWithCodec(WriteFailCodec(0))
++
++	done := make(chan bool)
++	go func() {
++		testSendDeadlock(client)
++		testSendDeadlock(client)
++		done <- true
++	}()
++	for i := 0; i < 50; i++ {
++		time.Sleep(100 * 1e6)
++		_, ok := <-done
++		if ok {
++			return
++		}
++	}
++	t.Fatal("deadlock")
++}
++
++func testSendDeadlock(client *Client) {
++	defer func() {
++		recover()
++	}()
++	args := &Args{7, 8}
++	reply := new(Reply)
++	client.Call("Arith.Add", args, reply)
++}

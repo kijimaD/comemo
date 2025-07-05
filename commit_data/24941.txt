@@ -9,6 +9,22 @@ Date:   Thu Sep 10 07:19:08 2015 -0400
     Change-Id: Icdd8f3cb3bfb781a990e529fce9129d91e98a9ec
     Reviewed-on: https://go-review.googlesource.com/14457
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/note_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/note_test.go b/src/cmd/go/note_test.go
+index 0764b73312..e2d78f3e76 100644
+--- a/src/cmd/go/note_test.go
++++ b/src/cmd/go/note_test.go
+@@ -28,6 +28,10 @@ func TestNoteReading(t *testing.T) {
+ 		t.Skipf("skipping - golang.org/issue/11184")
+ 	}
+ 
++	if runtime.GOOS == "linux" && (runtime.GOARCH == "mips64le" || runtime.GOARCH == "mips64") {
++		t.Skipf("skipping - external linking not supported, golang.org/issue/12560")
++	}
++
+ 	switch runtime.GOOS {
+ 	case "plan9":
+ 		// no external linking

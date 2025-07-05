@@ -16,7 +16,7 @@ Date:   Fri Feb 10 17:45:12 2017 -0500
     Change-Id: Icb85e2755a49166ee3652668279f6ed5ebbca901
     Reviewed-on: https://go-review.googlesource.com/36832
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  26 +--
  src/cmd/compile/internal/ppc64/prog.go       |  24 ++-
  src/cmd/compile/internal/ppc64/ssa.go        | 268 +++++++++++++++++++++++++++
@@ -25,3 +25,1021 @@ Date:   Fri Feb 10 17:45:12 2017 -0500
  src/cmd/compile/internal/ssa/opGen.go        | 209 +++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewritePPC64.go | 245 ++++++++++++++++++++++++
  7 files changed, 834 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1850cbde13..63f9d8720d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2614,26 +2614,26 @@ func intrinsicInit() {
+ 			v := s.newValue2(ssa.OpAtomicLoad32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), args[0], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT32], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS),
++		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64),
+ 		intrinsicKey{"runtime/internal/atomic", "Load64"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoad64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), args[0], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT64], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X),
++		}, sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64),
+ 		intrinsicKey{"runtime/internal/atomic", "Loadp"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoadPtr, ssa.MakeTuple(ptrto(Types[TUINT8]), ssa.TypeMem), args[0], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, ptrto(Types[TUINT8]), v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS),
++		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64),
+ 
+ 		intrinsicKey{"runtime/internal/atomic", "Store"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore32, ssa.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS),
++		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64),
+ 		intrinsicKey{"runtime/internal/atomic", "Store64"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore64, ssa.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+-		}, sys.AMD64, sys.ARM64, sys.S390X),
++		}, sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64),
+ 		intrinsicKey{"runtime/internal/atomic", "StorepNoWB"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStorePtrNoWB, ssa.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+@@ -2643,43 +2643,43 @@ func intrinsicInit() {
+ 			v := s.newValue3(ssa.OpAtomicExchange32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), args[0], args[1], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT32], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS),
++		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64),
+ 		intrinsicKey{"runtime/internal/atomic", "Xchg64"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicExchange64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), args[0], args[1], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT64], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X),
++		}, sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64),
+ 
+ 		intrinsicKey{"runtime/internal/atomic", "Xadd"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicAdd32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), args[0], args[1], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT32], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS),
++		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64),
+ 		intrinsicKey{"runtime/internal/atomic", "Xadd64"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicAdd64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), args[0], args[1], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT64], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X),
++		}, sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64),
+ 
+ 		intrinsicKey{"runtime/internal/atomic", "Cas"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue4(ssa.OpAtomicCompareAndSwap32, ssa.MakeTuple(Types[TBOOL], ssa.TypeMem), args[0], args[1], args[2], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TBOOL], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS),
++		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64),
+ 		intrinsicKey{"runtime/internal/atomic", "Cas64"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue4(ssa.OpAtomicCompareAndSwap64, ssa.MakeTuple(Types[TBOOL], ssa.TypeMem), args[0], args[1], args[2], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TBOOL], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X),
++		}, sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64),
+ 
+ 		intrinsicKey{"runtime/internal/atomic", "And8"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicAnd8, ssa.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+-		}, sys.AMD64, sys.ARM64, sys.MIPS),
++		}, sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64),
+ 		intrinsicKey{"runtime/internal/atomic", "Or8"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, ssa.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+-		}, sys.AMD64, sys.ARM64, sys.MIPS),
++		}, sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64),
+ 
+ 		/******** math ********/
+ 		intrinsicKey{"math", "Sqrt"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index d26d09fce1..6646cf7355 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -92,13 +92,19 @@ var progtable = [ppc64.ALAST & obj.AMask]gc.ProgInfo{
+ 	ppc64.AFNEG & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
+ 
+ 	// Moves
+-	ppc64.AMOVB & obj.AMask:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	ppc64.AMOVBU & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc},
+-	ppc64.AMOVBZ & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	ppc64.AMOVH & obj.AMask:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	ppc64.AMOVHU & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc},
+-	ppc64.AMOVHZ & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	ppc64.AMOVW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	ppc64.AMOVB & obj.AMask:   {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	ppc64.AMOVBU & obj.AMask:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc},
++	ppc64.AMOVBZ & obj.AMask:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	ppc64.AMOVH & obj.AMask:   {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	ppc64.AMOVHU & obj.AMask:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc},
++	ppc64.AMOVHZ & obj.AMask:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	ppc64.AMOVW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	ppc64.ALDAR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
++	ppc64.ALWAR & obj.AMask:   {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move},
++	ppc64.ALBAR & obj.AMask:   {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move},
++	ppc64.ASTDCCC & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
++	ppc64.ASTWCCC & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move},
++	ppc64.ASTBCCC & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move},
+ 
+ 	ppc64.AISEL & obj.AMask: {Flags: gc.SizeQ | gc.RegRead | gc.From3Read | gc.RightWrite},
+ 
+@@ -114,6 +120,10 @@ var progtable = [ppc64.ALAST & obj.AMask]gc.ProgInfo{
+ 	ppc64.AMFVSRD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+ 	ppc64.AMTVSRD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+ 
++	// Misc
++	ppc64.ASYNC & obj.AMask:  {Flags: gc.OK},
++	ppc64.AISYNC & obj.AMask: {Flags: gc.OK},
++
+ 	// Jumps
+ 	ppc64.ABR & obj.AMask:  {Flags: gc.Jump | gc.Break},
+ 	ppc64.ABL & obj.AMask:  {Flags: gc.Call},
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 762a118084..11555c25c4 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -196,6 +196,272 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			p.To.Reg = y
+ 		}
+ 
++	case ssa.OpPPC64LoweredAtomicAnd8,
++		ssa.OpPPC64LoweredAtomicOr8:
++		// SYNC
++		// LBAR		(Rarg0), Rtmp
++		// AND/OR	Rarg1, Rtmp
++		// STBCCC	Rtmp, (Rarg0)
++		// BNE		-3(PC)
++		// ISYNC
++		r0 := v.Args[0].Reg()
++		r1 := v.Args[1].Reg()
++		psync := gc.Prog(ppc64.ASYNC)
++		psync.To.Type = obj.TYPE_NONE
++		p := gc.Prog(ppc64.ALBAR)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = r0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = ppc64.REGTMP
++		p1 := gc.Prog(v.Op.Asm())
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = r1
++		p1.To.Type = obj.TYPE_REG
++		p1.To.Reg = ppc64.REGTMP
++		p2 := gc.Prog(ppc64.ASTBCCC)
++		p2.From.Type = obj.TYPE_REG
++		p2.From.Reg = ppc64.REGTMP
++		p2.To.Type = obj.TYPE_MEM
++		p2.To.Reg = r0
++		p2.RegTo2 = ppc64.REGTMP
++		p3 := gc.Prog(ppc64.ABNE)
++		p3.To.Type = obj.TYPE_BRANCH
++		gc.Patch(p3, p)
++		pisync := gc.Prog(ppc64.AISYNC)
++		pisync.To.Type = obj.TYPE_NONE
++
++	case ssa.OpPPC64LoweredAtomicAdd32,
++		ssa.OpPPC64LoweredAtomicAdd64:
++		// SYNC
++		// LDAR/LWAR    (Rarg0), Rout
++		// ADD		Rarg1, Rout
++		// STDCCC/STWCCC Rout, (Rarg0)
++		// BNE         -3(PC)
++		// ISYNC
++		// MOVW		Rout,Rout (if Add32)
++		ld := ppc64.ALDAR
++		st := ppc64.ASTDCCC
++		if v.Op == ssa.OpPPC64LoweredAtomicAdd32 {
++			ld = ppc64.ALWAR
++			st = ppc64.ASTWCCC
++		}
++		r0 := v.Args[0].Reg()
++		r1 := v.Args[1].Reg()
++		out := v.Reg0()
++		// SYNC
++		psync := gc.Prog(ppc64.ASYNC)
++		psync.To.Type = obj.TYPE_NONE
++		// LDAR or LWAR
++		p := gc.Prog(ld)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = r0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = out
++		// ADD reg1,out
++		p1 := gc.Prog(ppc64.AADD)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = r1
++		p1.To.Reg = out
++		p1.To.Type = obj.TYPE_REG
++		// STDCCC or STWCCC
++		p3 := gc.Prog(st)
++		p3.From.Type = obj.TYPE_REG
++		p3.From.Reg = out
++		p3.To.Type = obj.TYPE_MEM
++		p3.To.Reg = r0
++		// BNE retry
++		p4 := gc.Prog(ppc64.ABNE)
++		p4.To.Type = obj.TYPE_BRANCH
++		gc.Patch(p4, p)
++		// ISYNC
++		pisync := gc.Prog(ppc64.AISYNC)
++		pisync.To.Type = obj.TYPE_NONE
++
++		// Ensure a 32 bit result
++		if v.Op == ssa.OpPPC64LoweredAtomicAdd32 {
++			p5 := gc.Prog(ppc64.AMOVWZ)
++			p5.To.Type = obj.TYPE_REG
++			p5.To.Reg = out
++			p5.From.Type = obj.TYPE_REG
++			p5.From.Reg = out
++		}
++
++	case ssa.OpPPC64LoweredAtomicExchange32,
++		ssa.OpPPC64LoweredAtomicExchange64:
++		// SYNC
++		// LDAR/LWAR    (Rarg0), Rout
++		// STDCCC/STWCCC Rout, (Rarg0)
++		// BNE         -2(PC)
++		// ISYNC
++		ld := ppc64.ALDAR
++		st := ppc64.ASTDCCC
++		if v.Op == ssa.OpPPC64LoweredAtomicExchange32 {
++			ld = ppc64.ALWAR
++			st = ppc64.ASTWCCC
++		}
++		r0 := v.Args[0].Reg()
++		r1 := v.Args[1].Reg()
++		out := v.Reg0()
++		// SYNC
++		psync := gc.Prog(ppc64.ASYNC)
++		psync.To.Type = obj.TYPE_NONE
++		// LDAR or LWAR
++		p := gc.Prog(ld)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = r0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = out
++		// STDCCC or STWCCC
++		p1 := gc.Prog(st)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = r1
++		p1.To.Type = obj.TYPE_MEM
++		p1.To.Reg = r0
++		// BNE retry
++		p2 := gc.Prog(ppc64.ABNE)
++		p2.To.Type = obj.TYPE_BRANCH
++		gc.Patch(p2, p)
++		// ISYNC
++		pisync := gc.Prog(ppc64.AISYNC)
++		pisync.To.Type = obj.TYPE_NONE
++
++	case ssa.OpPPC64LoweredAtomicLoad32,
++		ssa.OpPPC64LoweredAtomicLoad64,
++		ssa.OpPPC64LoweredAtomicLoadPtr:
++		// SYNC
++		// MOVD/MOVW (Rarg0), Rout
++		// CMP Rout,Rout
++		// BNE 1(PC)
++		// ISYNC
++		ld := ppc64.AMOVD
++		cmp := ppc64.ACMP
++		if v.Op == ssa.OpPPC64LoweredAtomicLoad32 {
++			ld = ppc64.AMOVW
++			cmp = ppc64.ACMPW
++		}
++		arg0 := v.Args[0].Reg()
++		out := v.Reg0()
++		// SYNC
++		psync := gc.Prog(ppc64.ASYNC)
++		psync.To.Type = obj.TYPE_NONE
++		// Load
++		p := gc.Prog(ld)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = arg0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = out
++		// CMP
++		p1 := gc.Prog(cmp)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = out
++		p1.To.Type = obj.TYPE_REG
++		p1.To.Reg = out
++		// BNE
++		p2 := gc.Prog(ppc64.ABNE)
++		p2.To.Type = obj.TYPE_BRANCH
++		// ISYNC
++		pisync := gc.Prog(ppc64.AISYNC)
++		pisync.To.Type = obj.TYPE_NONE
++		gc.Patch(p2, pisync)
++
++	case ssa.OpPPC64LoweredAtomicStore32,
++		ssa.OpPPC64LoweredAtomicStore64:
++		// SYNC
++		// MOVD/MOVW arg1,(arg0)
++		st := ppc64.AMOVD
++		if v.Op == ssa.OpPPC64LoweredAtomicStore32 {
++			st = ppc64.AMOVW
++		}
++		arg0 := v.Args[0].Reg()
++		arg1 := v.Args[1].Reg()
++		// SYNC
++		psync := gc.Prog(ppc64.ASYNC)
++		psync.To.Type = obj.TYPE_NONE
++		// Store
++		p := gc.Prog(st)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = arg0
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = arg1
++
++	case ssa.OpPPC64LoweredAtomicCas64,
++		ssa.OpPPC64LoweredAtomicCas32:
++		// SYNC
++		// loop:
++		// LDAR        (Rarg0), Rtmp
++		// CMP         Rarg1, Rtmp
++		// BNE         fail
++		// STDCCC      Rarg2, (Rarg0)
++		// BNE         loop
++		// ISYNC
++		// MOVD        $1, Rout
++		// BR          end
++		// fail:
++		// MOVD        $0, Rout
++		// end:
++		ld := ppc64.ALDAR
++		st := ppc64.ASTDCCC
++		cmp := ppc64.ACMP
++		if v.Op == ssa.OpPPC64LoweredAtomicCas32 {
++			ld = ppc64.ALWAR
++			st = ppc64.ASTWCCC
++			cmp = ppc64.ACMPW
++		}
++		r0 := v.Args[0].Reg()
++		r1 := v.Args[1].Reg()
++		r2 := v.Args[2].Reg()
++		out := v.Reg0()
++		// SYNC
++		psync := gc.Prog(ppc64.ASYNC)
++		psync.To.Type = obj.TYPE_NONE
++		// LDAR or LWAR
++		p := gc.Prog(ld)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = r0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = ppc64.REGTMP
++		// CMP reg1,reg2
++		p1 := gc.Prog(cmp)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = r1
++		p1.To.Reg = ppc64.REGTMP
++		p1.To.Type = obj.TYPE_REG
++		// BNE cas_fail
++		p2 := gc.Prog(ppc64.ABNE)
++		p2.To.Type = obj.TYPE_BRANCH
++		// STDCCC or STWCCC
++		p3 := gc.Prog(st)
++		p3.From.Type = obj.TYPE_REG
++		p3.From.Reg = r2
++		p3.To.Type = obj.TYPE_MEM
++		p3.To.Reg = r0
++		// BNE retry
++		p4 := gc.Prog(ppc64.ABNE)
++		p4.To.Type = obj.TYPE_BRANCH
++		gc.Patch(p4, p)
++		// ISYNC
++		pisync := gc.Prog(ppc64.AISYNC)
++		pisync.To.Type = obj.TYPE_NONE
++		// return true
++		p5 := gc.Prog(ppc64.AMOVD)
++		p5.From.Type = obj.TYPE_CONST
++		p5.From.Offset = 1
++		p5.To.Type = obj.TYPE_REG
++		p5.To.Reg = out
++		// BR done
++		p6 := gc.Prog(obj.AJMP)
++		p6.To.Type = obj.TYPE_BRANCH
++		// return false
++		p7 := gc.Prog(ppc64.AMOVD)
++		p7.From.Type = obj.TYPE_CONST
++		p7.From.Offset = 0
++		p7.To.Type = obj.TYPE_REG
++		p7.To.Reg = out
++		gc.Patch(p2, p7)
++		// done (label)
++		p8 := gc.Prog(obj.ANOP)
++		gc.Patch(p6, p8)
++
+ 	case ssa.OpPPC64LoweredGetClosurePtr:
+ 		// Closure pointer is R11 (already)
+ 		gc.CheckLoweredGetClosurePtr(v)
+@@ -790,6 +1056,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.KeepAlive(v)
+ 	case ssa.OpPhi:
+ 		gc.CheckLoweredPhi(v)
++	case ssa.OpSelect0, ssa.OpSelect1:
++		// nothing to do
+ 
+ 	case ssa.OpPPC64LoweredNilCheck:
+ 		// Issue a load which will fault if arg is nil.
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index f44bb34f9e..0467f4a4f9 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -771,6 +771,27 @@
+ (MOVBstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2) ->
+     (MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
+ 
++// atomic intrinsics
++(AtomicLoad32  ptr mem) -> (LoweredAtomicLoad32 ptr mem)
++(AtomicLoad64  ptr mem) -> (LoweredAtomicLoad64 ptr mem)
++(AtomicLoadPtr ptr mem) -> (LoweredAtomicLoadPtr ptr mem)
++
++(AtomicStore32      ptr val mem) -> (LoweredAtomicStore32 ptr val mem)
++(AtomicStore64      ptr val mem) -> (LoweredAtomicStore64 ptr val mem)
++//(AtomicStorePtrNoWB ptr val mem) -> (STLR  ptr val mem)
++
++(AtomicExchange32 ptr val mem) -> (LoweredAtomicExchange32 ptr val mem)
++(AtomicExchange64 ptr val mem) -> (LoweredAtomicExchange64 ptr val mem)
++
++(AtomicAdd32 ptr val mem) -> (LoweredAtomicAdd32 ptr val mem)
++(AtomicAdd64 ptr val mem) -> (LoweredAtomicAdd64 ptr val mem)
++
++(AtomicCompareAndSwap32 ptr old new_ mem) -> (LoweredAtomicCas32 ptr old new_ mem)
++(AtomicCompareAndSwap64 ptr old new_ mem) -> (LoweredAtomicCas64 ptr old new_ mem)
++
++(AtomicAnd8 ptr val mem) -> (LoweredAtomicAnd8 ptr val mem)
++(AtomicOr8  ptr val mem) -> (LoweredAtomicOr8  ptr val mem)
++
+ // Lowering extension
+ // Note: we always extend to 64 bits even though some ops don't need that many result bits.
+ (SignExt8to16  x) -> (MOVBreg x)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 0402a57086..94917bea2c 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -140,6 +140,8 @@ func init() {
+ 		gpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
+ 		gpstore     = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
+ 		gpstorezero = regInfo{inputs: []regMask{gp | sp | sb}} // ppc64.REGZERO is reserved zero value
++		gpxchg      = regInfo{inputs: []regMask{gp | sp | sb, gp}, outputs: []regMask{gp}}
++		gpcas       = regInfo{inputs: []regMask{gp | sp | sb, gp, gp}, outputs: []regMask{gp}}
+ 		fp01        = regInfo{inputs: nil, outputs: []regMask{fp}}
+ 		fp11        = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+ 		fpgp        = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
+@@ -349,6 +351,65 @@ func init() {
+ 			faultOnNilArg1: true,
+ 		},
+ 
++		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, typ: "Mem", faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, typ: "Mem", faultOnNilArg0: true, hasSideEffects: true},
++
++		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, typ: "UInt32", clobberFlags: true, faultOnNilArg0: true},
++		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, typ: "Int64", clobberFlags: true, faultOnNilArg0: true},
++		{name: "LoweredAtomicLoadPtr", argLength: 2, reg: gpload, typ: "Int64", clobberFlags: true, faultOnNilArg0: true},
++
++		// atomic add32, 64
++		// SYNC
++		// LDAR         (Rarg0), Rout
++		// ADD		Rarg1, Rout
++		// STDCCC       Rout, (Rarg0)
++		// BNE          -3(PC)
++		// ISYNC
++		// return new sum
++
++		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
++
++		// atomic exchange32, 64
++		// SYNC
++		// LDAR         (Rarg0), Rout
++		// STDCCC       Rarg1, (Rarg0)
++		// BNE          -2(PC)
++		// ISYNC
++		// return old val
++
++		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
++
++		// atomic compare and swap.
++		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory. auxint must be zero.
++		// if *arg0 == arg1 {
++		//   *arg0 = arg2
++		//   return (true, memory)
++		// } else {
++		//   return (false, memory)
++		// }
++		// SYNC
++		// LDAR		(Rarg0), Rtmp
++		// CMP		Rarg1, Rtmp
++		// BNE		3(PC)
++		// STDCCC	Rarg2, (Rarg0)
++		// BNE		-4(PC)
++		// CBNZ         Rtmp, -4(PC)
++		// CSET         EQ, Rout
++		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
++
++		// atomic 8 and/or.
++		// *arg0 &= (|=) arg1. arg2=mem. returns memory. auxint must be zero.
++		// LBAR		(Rarg0), Rtmp
++		// AND/OR	Rarg1, Rtmp
++		// STBCCC	Rtmp, (Rarg0), Rtmp
++		// BNE		Rtmp, -3(PC)
++
++		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpstore, asm: "AND", faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicOr8", argLength: 3, reg: gpstore, asm: "OR", faultOnNilArg0: true, hasSideEffects: true},
++
+ 		// (InvertFlags (CMP a b)) == (CMP b a)
+ 		// So if we want (LessThan (CMP a b)) but we can't do that because a is a constant,
+ 		// then we do (LessThan (InvertFlags (CMP b a))) instead.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d8ede8d633..1742197f6e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1379,6 +1379,19 @@ const (
+ 	OpPPC64CALLinter
+ 	OpPPC64LoweredZero
+ 	OpPPC64LoweredMove
++	OpPPC64LoweredAtomicStore32
++	OpPPC64LoweredAtomicStore64
++	OpPPC64LoweredAtomicLoad32
++	OpPPC64LoweredAtomicLoad64
++	OpPPC64LoweredAtomicLoadPtr
++	OpPPC64LoweredAtomicAdd32
++	OpPPC64LoweredAtomicAdd64
++	OpPPC64LoweredAtomicExchange32
++	OpPPC64LoweredAtomicExchange64
++	OpPPC64LoweredAtomicCas64
++	OpPPC64LoweredAtomicCas32
++	OpPPC64LoweredAtomicAnd8
++	OpPPC64LoweredAtomicOr8
+ 	OpPPC64InvertFlags
+ 	OpPPC64FlagEQ
+ 	OpPPC64FlagLT
+@@ -17325,6 +17338,202 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 24, // R3 R4
+ 		},
+ 	},
++	{
++		name:           "LoweredAtomicStore32",
++		argLen:         3,
++		faultOnNilArg0: true,
++		hasSideEffects: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:           "LoweredAtomicStore64",
++		argLen:         3,
++		faultOnNilArg0: true,
++		hasSideEffects: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:           "LoweredAtomicLoad32",
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:           "LoweredAtomicLoad64",
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:           "LoweredAtomicLoadPtr",
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicAdd32",
++		argLen:          3,
++		resultNotInArgs: true,
++		clobberFlags:    true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicAdd64",
++		argLen:          3,
++		resultNotInArgs: true,
++		clobberFlags:    true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicExchange32",
++		argLen:          3,
++		resultNotInArgs: true,
++		clobberFlags:    true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicExchange64",
++		argLen:          3,
++		resultNotInArgs: true,
++		clobberFlags:    true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicCas64",
++		argLen:          4,
++		resultNotInArgs: true,
++		clobberFlags:    true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{2, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicCas32",
++		argLen:          4,
++		resultNotInArgs: true,
++		clobberFlags:    true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{2, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:           "LoweredAtomicAnd8",
++		argLen:         3,
++		faultOnNilArg0: true,
++		hasSideEffects: true,
++		asm:            ppc64.AAND,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:           "LoweredAtomicOr8",
++		argLen:         3,
++		faultOnNilArg0: true,
++		hasSideEffects: true,
++		asm:            ppc64.AOR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:   "InvertFlags",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index bb6678b590..d614fbd866 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -34,6 +34,32 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpAnd8(v, config)
+ 	case OpAndB:
+ 		return rewriteValuePPC64_OpAndB(v, config)
++	case OpAtomicAdd32:
++		return rewriteValuePPC64_OpAtomicAdd32(v, config)
++	case OpAtomicAdd64:
++		return rewriteValuePPC64_OpAtomicAdd64(v, config)
++	case OpAtomicAnd8:
++		return rewriteValuePPC64_OpAtomicAnd8(v, config)
++	case OpAtomicCompareAndSwap32:
++		return rewriteValuePPC64_OpAtomicCompareAndSwap32(v, config)
++	case OpAtomicCompareAndSwap64:
++		return rewriteValuePPC64_OpAtomicCompareAndSwap64(v, config)
++	case OpAtomicExchange32:
++		return rewriteValuePPC64_OpAtomicExchange32(v, config)
++	case OpAtomicExchange64:
++		return rewriteValuePPC64_OpAtomicExchange64(v, config)
++	case OpAtomicLoad32:
++		return rewriteValuePPC64_OpAtomicLoad32(v, config)
++	case OpAtomicLoad64:
++		return rewriteValuePPC64_OpAtomicLoad64(v, config)
++	case OpAtomicLoadPtr:
++		return rewriteValuePPC64_OpAtomicLoadPtr(v, config)
++	case OpAtomicOr8:
++		return rewriteValuePPC64_OpAtomicOr8(v, config)
++	case OpAtomicStore32:
++		return rewriteValuePPC64_OpAtomicStore32(v, config)
++	case OpAtomicStore64:
++		return rewriteValuePPC64_OpAtomicStore64(v, config)
+ 	case OpAvg64u:
+ 		return rewriteValuePPC64_OpAvg64u(v, config)
+ 	case OpClosureCall:
+@@ -770,6 +796,225 @@ func rewriteValuePPC64_OpAndB(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpAtomicAdd32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicAdd32 ptr val mem)
++	// cond:
++	// result: (LoweredAtomicAdd32 ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpPPC64LoweredAtomicAdd32)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAtomicAdd64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicAdd64 ptr val mem)
++	// cond:
++	// result: (LoweredAtomicAdd64 ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpPPC64LoweredAtomicAdd64)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAtomicAnd8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicAnd8 ptr val mem)
++	// cond:
++	// result: (LoweredAtomicAnd8 ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpPPC64LoweredAtomicAnd8)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAtomicCompareAndSwap32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicCompareAndSwap32 ptr old new_ mem)
++	// cond:
++	// result: (LoweredAtomicCas32 ptr old new_ mem)
++	for {
++		ptr := v.Args[0]
++		old := v.Args[1]
++		new_ := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpPPC64LoweredAtomicCas32)
++		v.AddArg(ptr)
++		v.AddArg(old)
++		v.AddArg(new_)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAtomicCompareAndSwap64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicCompareAndSwap64 ptr old new_ mem)
++	// cond:
++	// result: (LoweredAtomicCas64 ptr old new_ mem)
++	for {
++		ptr := v.Args[0]
++		old := v.Args[1]
++		new_ := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpPPC64LoweredAtomicCas64)
++		v.AddArg(ptr)
++		v.AddArg(old)
++		v.AddArg(new_)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAtomicExchange32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicExchange32 ptr val mem)
++	// cond:
++	// result: (LoweredAtomicExchange32 ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpPPC64LoweredAtomicExchange32)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAtomicExchange64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicExchange64 ptr val mem)
++	// cond:
++	// result: (LoweredAtomicExchange64 ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpPPC64LoweredAtomicExchange64)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAtomicLoad32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicLoad32  ptr mem)
++	// cond:
++	// result: (LoweredAtomicLoad32 ptr mem)
++	for {
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64LoweredAtomicLoad32)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAtomicLoad64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicLoad64  ptr mem)
++	// cond:
++	// result: (LoweredAtomicLoad64 ptr mem)
++	for {
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64LoweredAtomicLoad64)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAtomicLoadPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicLoadPtr ptr mem)
++	// cond:
++	// result: (LoweredAtomicLoadPtr ptr mem)
++	for {
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64LoweredAtomicLoadPtr)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAtomicOr8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicOr8  ptr val mem)
++	// cond:
++	// result: (LoweredAtomicOr8  ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpPPC64LoweredAtomicOr8)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAtomicStore32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicStore32      ptr val mem)
++	// cond:
++	// result: (LoweredAtomicStore32 ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpPPC64LoweredAtomicStore32)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAtomicStore64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicStore64      ptr val mem)
++	// cond:
++	// result: (LoweredAtomicStore64 ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpPPC64LoweredAtomicStore64)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpAvg64u(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

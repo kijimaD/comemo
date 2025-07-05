@@ -7,7 +7,57 @@ Date:   Thu Aug 4 15:56:25 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4808071
-
+---
  src/pkg/gob/encode.go      | 2 +-
  src/pkg/gob/timing_test.go | 4 ++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 576a83df0f..317014efda 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -484,7 +484,7 @@ func isZero(val reflect.Value) bool {
+ 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+ 		return val.Uint() == 0
+ 	}
+-	panic("unknown type in isZero" + val.Type().String())
++	panic("unknown type in isZero " + val.Type().String())
+ }
+ 
+ // encGobEncoder encodes a value that implements the GobEncoder interface.
+diff --git a/src/pkg/gob/timing_test.go b/src/pkg/gob/timing_test.go
+index 645f4fe51c..2a2be73364 100644
+--- a/src/pkg/gob/timing_test.go
++++ b/src/pkg/gob/timing_test.go
+@@ -53,6 +53,7 @@ func TestCountEncodeMallocs(t *testing.T) {
+ 	var buf bytes.Buffer
+ 	enc := NewEncoder(&buf)
+ 	bench := &Bench{7, 3.2, "now is the time", []byte("for all good men")}
++	runtime.UpdateMemStats()
+ 	mallocs := 0 - runtime.MemStats.Mallocs
+ 	const count = 1000
+ 	for i := 0; i < count; i++ {
+@@ -61,6 +62,7 @@ func TestCountEncodeMallocs(t *testing.T) {
+ 			t.Fatal("encode:", err)
+ 		}
+ 	}
++	runtime.UpdateMemStats()
+ 	mallocs += runtime.MemStats.Mallocs
+ 	fmt.Printf("mallocs per encode of type Bench: %d\n", mallocs/count)
+ }
+@@ -77,6 +79,7 @@ func TestCountDecodeMallocs(t *testing.T) {
+ 		}
+ 	}
+ 	dec := NewDecoder(&buf)
++	runtime.UpdateMemStats()
+ 	mallocs := 0 - runtime.MemStats.Mallocs
+ 	for i := 0; i < count; i++ {
+ 		*bench = Bench{}
+@@ -85,6 +88,7 @@ func TestCountDecodeMallocs(t *testing.T) {
+ 			t.Fatal("decode:", err)
+ 		}
+ 	}
++	runtime.UpdateMemStats()
+ 	mallocs += runtime.MemStats.Mallocs
+ 	fmt.Printf("mallocs per decode of type Bench: %d\n", mallocs/count)
+ }

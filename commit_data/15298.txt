@@ -10,7 +10,7 @@ Date:   Mon Feb 18 13:43:12 2013 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7323072
-
+---
  src/pkg/runtime/os_darwin.h            | 1 +
  src/pkg/runtime/os_freebsd.h           | 1 +
  src/pkg/runtime/os_linux.h             | 1 +
@@ -34,3 +34,302 @@ Date:   Mon Feb 18 13:43:12 2013 -0500
  src/pkg/runtime/thread_netbsd.c        | 3 ++-
  src/pkg/runtime/thread_openbsd.c       | 3 ++-
  22 files changed, 41 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/os_darwin.h b/src/pkg/runtime/os_darwin.h
+index 83386fa94f..5fcb717cbb 100644
+--- a/src/pkg/runtime/os_darwin.h
++++ b/src/pkg/runtime/os_darwin.h
+@@ -5,6 +5,7 @@
+ #define SIG_DFL ((void*)0)
+ #define SIG_IGN ((void*)1)
+ #define SIGHUP 1
++#define SS_DISABLE 4
+ 
+ int32	runtime·bsdthread_create(void*, M*, G*, void(*)(void));
+ int32	runtime·bsdthread_register(void);
+diff --git a/src/pkg/runtime/os_freebsd.h b/src/pkg/runtime/os_freebsd.h
+index cb01e39e0a..a37ad7cd87 100644
+--- a/src/pkg/runtime/os_freebsd.h
++++ b/src/pkg/runtime/os_freebsd.h
+@@ -1,6 +1,7 @@
+ #define SIG_DFL ((void*)0)
+ #define SIG_IGN ((void*)1)
+ #define SIGHUP 1
++#define SS_DISABLE 4
+ 
+ int32	runtime·thr_new(ThrParam*, int32);
+ void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
+diff --git a/src/pkg/runtime/os_linux.h b/src/pkg/runtime/os_linux.h
+index 5ae5d24feb..a23fe0f735 100644
+--- a/src/pkg/runtime/os_linux.h
++++ b/src/pkg/runtime/os_linux.h
+@@ -5,6 +5,7 @@
+ #define SIG_DFL ((void*)0)
+ #define SIG_IGN ((void*)1)
+ #define SIGHUP 1
++#define SS_DISABLE 2
+ 
+ // Linux-specific system calls
+ int32	runtime·futex(uint32*, int32, uint32, Timespec*, uint32*, uint32);
+diff --git a/src/pkg/runtime/os_netbsd.h b/src/pkg/runtime/os_netbsd.h
+index 13a6279270..19d72fd254 100644
+--- a/src/pkg/runtime/os_netbsd.h
++++ b/src/pkg/runtime/os_netbsd.h
+@@ -5,6 +5,7 @@
+ #define SIG_DFL ((void*)0)
+ #define SIG_IGN ((void*)1)
+ #define SIGHUP 1
++#define SS_DISABLE 4
+ 
+ #define SIG_BLOCK 1
+ #define SIG_UNBLOCK 2
+diff --git a/src/pkg/runtime/os_openbsd.h b/src/pkg/runtime/os_openbsd.h
+index 2c6f3c4e90..a599aad053 100644
+--- a/src/pkg/runtime/os_openbsd.h
++++ b/src/pkg/runtime/os_openbsd.h
+@@ -5,6 +5,7 @@
+ #define SIG_DFL ((void*)0)
+ #define SIG_IGN ((void*)1)
+ #define SIGHUP 1
++#define SS_DISABLE 4
+ 
+ #define SIG_BLOCK 1
+ #define SIG_UNBLOCK 2
+diff --git a/src/pkg/runtime/signal_darwin_386.c b/src/pkg/runtime/signal_darwin_386.c
+index deb16d7a60..132ca931b6 100644
+--- a/src/pkg/runtime/signal_darwin_386.c
++++ b/src/pkg/runtime/signal_darwin_386.c
+@@ -125,6 +125,8 @@ runtime·signalstack(byte *p, int32 n)
+ 	st.ss_sp = p;
+ 	st.ss_size = n;
+ 	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/signal_darwin_amd64.c b/src/pkg/runtime/signal_darwin_amd64.c
+index 33dc9a6be5..4b7256bf43 100644
+--- a/src/pkg/runtime/signal_darwin_amd64.c
++++ b/src/pkg/runtime/signal_darwin_amd64.c
+@@ -135,6 +135,8 @@ runtime·signalstack(byte *p, int32 n)
+ 	st.ss_sp = p;
+ 	st.ss_size = n;
+ 	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/signal_freebsd_386.c b/src/pkg/runtime/signal_freebsd_386.c
+index f9c8f91223..254e5e2772 100644
+--- a/src/pkg/runtime/signal_freebsd_386.c
++++ b/src/pkg/runtime/signal_freebsd_386.c
+@@ -120,6 +120,8 @@ runtime·signalstack(byte *p, int32 n)
+ 	st.ss_sp = (int8*)p;
+ 	st.ss_size = n;
+ 	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/signal_freebsd_amd64.c b/src/pkg/runtime/signal_freebsd_amd64.c
+index 475e69c1df..7dbf36075b 100644
+--- a/src/pkg/runtime/signal_freebsd_amd64.c
++++ b/src/pkg/runtime/signal_freebsd_amd64.c
+@@ -128,6 +128,8 @@ runtime·signalstack(byte *p, int32 n)
+ 	st.ss_sp = (int8*)p;
+ 	st.ss_size = n;
+ 	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/signal_freebsd_arm.c b/src/pkg/runtime/signal_freebsd_arm.c
+index 5b8ad5f173..2a0e9ac913 100644
+--- a/src/pkg/runtime/signal_freebsd_arm.c
++++ b/src/pkg/runtime/signal_freebsd_arm.c
+@@ -143,6 +143,8 @@ runtime·signalstack(byte *p, int32 n)
+ 	st.ss_sp = (uint8*)p;
+ 	st.ss_size = n;
+ 	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/signal_linux_386.c b/src/pkg/runtime/signal_linux_386.c
+index 1fdb03f572..9b45ec3bd2 100644
+--- a/src/pkg/runtime/signal_linux_386.c
++++ b/src/pkg/runtime/signal_linux_386.c
+@@ -116,6 +116,8 @@ runtime·signalstack(byte *p, int32 n)
+ 	st.ss_sp = p;
+ 	st.ss_size = n;
+ 	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/signal_linux_amd64.c b/src/pkg/runtime/signal_linux_amd64.c
+index 30b12fa1be..c4e39a6ab0 100644
+--- a/src/pkg/runtime/signal_linux_amd64.c
++++ b/src/pkg/runtime/signal_linux_amd64.c
+@@ -126,6 +126,8 @@ runtime·signalstack(byte *p, int32 n)
+ 	st.ss_sp = p;
+ 	st.ss_size = n;
+ 	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/signal_linux_arm.c b/src/pkg/runtime/signal_linux_arm.c
+index 577ac29bfa..b5a137c369 100644
+--- a/src/pkg/runtime/signal_linux_arm.c
++++ b/src/pkg/runtime/signal_linux_arm.c
+@@ -132,6 +132,8 @@ runtime·signalstack(byte *p, int32 n)
+ 	st.ss_sp = p;
+ 	st.ss_size = n;
+ 	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/signal_netbsd_386.c b/src/pkg/runtime/signal_netbsd_386.c
+index f788f12f55..08744c4251 100644
+--- a/src/pkg/runtime/signal_netbsd_386.c
++++ b/src/pkg/runtime/signal_netbsd_386.c
+@@ -120,6 +120,8 @@ runtime·signalstack(byte *p, int32 n)
+ 	st.ss_sp = p;
+ 	st.ss_size = n;
+ 	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/signal_netbsd_amd64.c b/src/pkg/runtime/signal_netbsd_amd64.c
+index 5bdc143ad0..46afb682ba 100644
+--- a/src/pkg/runtime/signal_netbsd_amd64.c
++++ b/src/pkg/runtime/signal_netbsd_amd64.c
+@@ -127,6 +127,8 @@ runtime·signalstack(byte *p, int32 n)
+ 	st.ss_sp = p;
+ 	st.ss_size = n;
+ 	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/signal_netbsd_arm.c b/src/pkg/runtime/signal_netbsd_arm.c
+index 5dfea5ca1c..97f62687bd 100644
+--- a/src/pkg/runtime/signal_netbsd_arm.c
++++ b/src/pkg/runtime/signal_netbsd_arm.c
+@@ -149,6 +149,8 @@ runtime·signalstack(byte *p, int32 n)
+ 	st.ss_sp = (uint8*)p;
+ 	st.ss_size = n;
+ 	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/signal_openbsd_386.c b/src/pkg/runtime/signal_openbsd_386.c
+index e1537fed82..516797c8d2 100644
+--- a/src/pkg/runtime/signal_openbsd_386.c
++++ b/src/pkg/runtime/signal_openbsd_386.c
+@@ -116,6 +116,8 @@ runtime·signalstack(byte *p, int32 n)
+ 	st.ss_sp = p;
+ 	st.ss_size = n;
+ 	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/signal_openbsd_amd64.c b/src/pkg/runtime/signal_openbsd_amd64.c
+index a82d5163c6..0d0db770b5 100644
+--- a/src/pkg/runtime/signal_openbsd_amd64.c
++++ b/src/pkg/runtime/signal_openbsd_amd64.c
+@@ -125,6 +125,8 @@ runtime·signalstack(byte *p, int32 n)
+ 	st.ss_sp = p;
+ 	st.ss_size = n;
+ 	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/thread_darwin.c b/src/pkg/runtime/thread_darwin.c
+index df1adf63e9..83c638067d 100644
+--- a/src/pkg/runtime/thread_darwin.c
++++ b/src/pkg/runtime/thread_darwin.c
+@@ -113,7 +113,8 @@ void
+ runtime·minit(void)
+ {
+ 	// Initialize signal handling.
+-	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
++	if(m->gsignal == nil)
++		m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+ 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+ 
+ 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
+@@ -438,10 +439,11 @@ runtime·sigpanic(void)
+ 	runtime·panicstring(runtime·sigtab[g->sig].name);
+ }
+ 
+-// TODO(rsc): place holder to fix build.
++#pragma textflag 7
+ void
+ runtime·osyield(void)
+ {
++	runtime·usleep(1);
+ }
+ 
+ uintptr
+diff --git a/src/pkg/runtime/thread_linux.c b/src/pkg/runtime/thread_linux.c
+index 1a7eb7240c..fdd40c223e 100644
+--- a/src/pkg/runtime/thread_linux.c
++++ b/src/pkg/runtime/thread_linux.c
+@@ -175,7 +175,8 @@ void
+ runtime·minit(void)
+ {
+ 	// Initialize signal handling.
+-	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
++	if(m->gsignal == nil)
++		m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+ 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+ 	runtime·rtsigprocmask(SIG_SETMASK, &sigset_none, nil, sizeof(Sigset));
+ }
+diff --git a/src/pkg/runtime/thread_netbsd.c b/src/pkg/runtime/thread_netbsd.c
+index 21fbc588a9..bbe7df6e98 100644
+--- a/src/pkg/runtime/thread_netbsd.c
++++ b/src/pkg/runtime/thread_netbsd.c
+@@ -193,7 +193,8 @@ runtime·minit(void)
+ 	m->procid = runtime·lwp_self();
+ 
+ 	// Initialize signal handling
+-	m->gsignal = runtime·malg(32*1024);
++	if(m->gsignal == nil)
++		m->gsignal = runtime·malg(32*1024);
+ 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+ 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
+ }
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/thread_openbsd.c
+index 2900f370b7..ce8043f016 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -170,7 +170,8 @@ void
+ runtime·minit(void)
+ {
+ 	// Initialize signal handling
+-	m->gsignal = runtime·malg(32*1024);
++	if(m->gsignal == nil)
++		m->gsignal = runtime·malg(32*1024);
+ 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+ 	runtime·sigprocmask(SIG_SETMASK, sigset_none);
+ }

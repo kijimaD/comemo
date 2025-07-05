@@ -15,6 +15,31 @@ Date:   Thu Apr 13 21:22:22 2017 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/exec_linux_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 9551e7ec71..83cde96b1f 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -207,9 +207,10 @@ func TestGroupCleanup(t *testing.T) {
+ 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+ 	}
+ 	strOut := strings.TrimSpace(string(out))
+-	expected := "uid=0(root) gid=0(root) groups=0(root)"
++	expected := "uid=0(root) gid=0(root)"
+ 	// Just check prefix because some distros reportedly output a
+ 	// context parameter; see https://golang.org/issue/16224.
++	// Alpine does not output groups; see https://golang.org/issue/19938.
+ 	if !strings.HasPrefix(strOut, expected) {
+ 		t.Errorf("id command output: %q, expected prefix: %q", strOut, expected)
+ 	}
+@@ -247,6 +248,7 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
+ 		"uid=0(root) gid=0(root) groups=0(root),65534(nobody)",
+ 		"uid=0(root) gid=0(root) groups=0(root),65534(nogroup)",
+ 		"uid=0(root) gid=0(root) groups=0(root),65534",
++		"uid=0(root) gid=0(root) groups=0(root),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody)", // Alpine; see https://golang.org/issue/19938
+ 	}
+ 	for _, e := range expected {
+ 		if strOut == e {

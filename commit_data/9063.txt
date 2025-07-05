@@ -7,6 +7,20 @@ Date:   Wed Jul 13 15:48:57 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4696047
-
+---
  src/pkg/http/fs_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/fs_test.go b/src/pkg/http/fs_test.go
+index 0c6edba9bc..e278e25399 100644
+--- a/src/pkg/http/fs_test.go
++++ b/src/pkg/http/fs_test.go
+@@ -184,7 +184,7 @@ func TestServeFileMimeType(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	want := "text/css"
++	want := "text/css; charset=utf-8"
+ 	if h := resp.Header.Get("Content-Type"); h != want {
+ 		t.Errorf("Content-Type mismatch: got %q, want %q", h, want)
+ 	}

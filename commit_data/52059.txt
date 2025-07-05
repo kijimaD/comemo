@@ -19,7 +19,7 @@ Date:   Thu Mar 31 19:01:17 2022 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/397494
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/race/README                  |  10 +++++-----
  src/runtime/race/race_darwin_amd64.syso  | Bin 455944 -> 538536 bytes
  src/runtime/race/race_darwin_arm64.syso  | Bin 438560 -> 484988 bytes
@@ -27,3 +27,41 @@ Date:   Thu Mar 31 19:01:17 2022 -0400
  src/runtime/race/race_linux_arm64.syso   | Bin 505224 -> 530736 bytes
  src/runtime/race/race_netbsd_amd64.syso  | Bin 609424 -> 714520 bytes
  6 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/race/README b/src/runtime/race/README
+index fdbf1d55e6..cb82210c6f 100644
+--- a/src/runtime/race/README
++++ b/src/runtime/race/README
+@@ -4,12 +4,12 @@ the LLVM project (https://github.com/llvm/llvm-project/tree/main/compiler-rt).
+ 
+ To update the .syso files use golang.org/x/build/cmd/racebuild.
+ 
+-race_darwin_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 with https://reviews.llvm.org/D114825 applied and Go 7ccbcc90560468937f02609a43cb39a6e13ff797.
+-race_freebsd_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
++race_darwin_amd64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
++race_freebsd_amd64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+ race_linux_amd64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+ race_linux_ppc64le.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
+-race_netbsd_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
++race_netbsd_amd64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+ race_windows_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
+-race_linux_arm64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
+-race_darwin_arm64.syso built with LLVM 00da38ce2d36c07f12c287dc515d37bb7bc410e9 with https://reviews.llvm.org/D114825 applied and Go 7ccbcc90560468937f02609a43cb39a6e13ff797.
++race_linux_arm64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
++race_darwin_arm64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+ race_openbsd_amd64.syso built with LLVM fcf6ae2f070eba73074b6ec8d8281e54d29dbeeb and Go 8f2db14cd35bbd674cb2988a508306de6655e425.
+diff --git a/src/runtime/race/race_darwin_amd64.syso b/src/runtime/race/race_darwin_amd64.syso
+index 6fbe140026..dde17add91 100644
+Binary files a/src/runtime/race/race_darwin_amd64.syso and b/src/runtime/race/race_darwin_amd64.syso differ
+diff --git a/src/runtime/race/race_darwin_arm64.syso b/src/runtime/race/race_darwin_arm64.syso
+index 207099eb1d..4a23df2725 100644
+Binary files a/src/runtime/race/race_darwin_arm64.syso and b/src/runtime/race/race_darwin_arm64.syso differ
+diff --git a/src/runtime/race/race_freebsd_amd64.syso b/src/runtime/race/race_freebsd_amd64.syso
+index 2a5b46f4ce..8be9ff7a64 100644
+Binary files a/src/runtime/race/race_freebsd_amd64.syso and b/src/runtime/race/race_freebsd_amd64.syso differ
+diff --git a/src/runtime/race/race_linux_arm64.syso b/src/runtime/race/race_linux_arm64.syso
+index 9dae738700..c8b3f48ca7 100644
+Binary files a/src/runtime/race/race_linux_arm64.syso and b/src/runtime/race/race_linux_arm64.syso differ
+diff --git a/src/runtime/race/race_netbsd_amd64.syso b/src/runtime/race/race_netbsd_amd64.syso
+index 11af16f046..e6cc4bf2d8 100644
+Binary files a/src/runtime/race/race_netbsd_amd64.syso and b/src/runtime/race/race_netbsd_amd64.syso differ

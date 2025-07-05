@@ -9,6 +9,21 @@ Date:   Tue Mar 15 10:13:25 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4291048
-
+---
  src/pkg/http/httptest/recorder.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/http/httptest/recorder.go b/src/pkg/http/httptest/recorder.go
+index 8d70c2834a..0dd19a617c 100644
+--- a/src/pkg/http/httptest/recorder.go
++++ b/src/pkg/http/httptest/recorder.go
+@@ -42,6 +42,9 @@ func (rw *ResponseRecorder) Write(buf []byte) (int, os.Error) {
+ 	if rw.Body != nil {
+ 		rw.Body.Write(buf)
+ 	}
++	if rw.Code == 0 {
++		rw.Code = http.StatusOK
++	}
+ 	return len(buf), nil
+ }
+ 

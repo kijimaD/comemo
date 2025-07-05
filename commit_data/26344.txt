@@ -11,6 +11,20 @@ Date:   Tue Jan 12 20:51:08 2016 -0800
     Change-Id: Ibb48cd6935b35d9965df70fb8761be5986d79ffc
     Reviewed-on: https://go-review.googlesource.com/18591
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/h2_bundle.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 4be56f50c5..5f08857564 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -5038,7 +5038,7 @@ func (cc *http2ClientConn) streamByID(id uint32, andRemove bool) *http2clientStr
+ 	cc.mu.Lock()
+ 	defer cc.mu.Unlock()
+ 	cs := cc.streams[id]
+-	if andRemove && cs != nil {
++	if andRemove && cs != nil && !cc.closed {
+ 		delete(cc.streams, id)
+ 		close(cs.done)
+ 	}

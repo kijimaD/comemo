@@ -13,6 +13,32 @@ Date:   Thu Aug 16 10:49:35 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/asm_ppc64x.s | 11 ++---------
  1 file changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 0886de9f2b..57877c0194 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -723,18 +723,11 @@ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R0
+ 	UNDEF
+ 
+-#define	TBRL	268
+-#define	TBRU	269		/* Time base Upper/Lower */
++#define	TBR	268
+ 
+ // int64 runtime·cputicks(void)
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+-	MOVW	SPR(TBRU), R4
+-	MOVW	SPR(TBRL), R3
+-	MOVW	SPR(TBRU), R5
+-	CMPW	R4, R5
+-	BNE	-4(PC)
+-	SLD	$32, R5
+-	OR	R5, R3
++	MOVD	SPR(TBR), R3
+ 	MOVD	R3, ret+0(FP)
+ 	RET
+ 

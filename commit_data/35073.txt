@@ -19,7 +19,7 @@ Date:   Mon Dec 4 13:57:48 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/81895
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                              | 125 ++++++++--
  src/cmd/go/internal/cache/cache.go                 |   6 +
  src/cmd/go/internal/test/test.go                   | 256 +++++++++++++++++++--
@@ -39,3 +39,1197 @@ Date:   Mon Dec 4 13:57:48 2017 -0500
  src/testing/internal/testdeps/deps.go              |  62 +++++
  src/testing/testing.go                             |  31 ++-
  18 files changed, 652 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index e0ac90dddf..74e2d8da81 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2479,7 +2479,7 @@ func TestCoveragePattern(t *testing.T) {
+ 	// (as opposed to pattern matching on deps)
+ 	// then it will try to load sleepybad, which does not compile,
+ 	// and the test command will fail.
+-	tg.run("test", "-coverprofile="+filepath.Join(tg.tempdir, "cover.out"), "-coverpkg=sleepy...", "-run=^$", "sleepy1")
++	tg.run("test", "-coverprofile="+tg.path("cover.out"), "-coverpkg=sleepy...", "-run=^$", "sleepy1")
+ }
+ 
+ func TestCoverageErrorLine(t *testing.T) {
+@@ -2530,7 +2530,7 @@ func TestCoverageFunc(t *testing.T) {
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+ 
+ 	tg.run("test", "-outputdir="+tg.tempdir, "-coverprofile=cover.out", "coverasm")
+-	tg.run("tool", "cover", "-func="+filepath.Join(tg.tempdir, "cover.out"))
++	tg.run("tool", "cover", "-func="+tg.path("cover.out"))
+ 	tg.grepStdout(`\tg\t*100.0%`, "did not find g 100% covered")
+ 	tg.grepStdoutNot(`\tf\t*[0-9]`, "reported coverage for assembly function f")
+ }
+@@ -4344,7 +4344,7 @@ func main() {
+ }
+ `)
+ 	tg.setenv("GOPATH", tg.path("go"))
+-	exe := filepath.Join(tg.tempdir, "p.exe")
++	exe := tg.path("p.exe")
+ 	tg.creatingTemp(exe)
+ 	tg.run("build", "-o", exe, "p")
+ }
+@@ -4958,7 +4958,7 @@ func TestCacheCoverage(t *testing.T) {
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+ 	tg.makeTempdir()
+ 
+-	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "c1"))
++	tg.setenv("GOCACHE", tg.path("c1"))
+ 	tg.run("test", "-cover", "strings")
+ 	tg.run("test", "-cover", "math", "strings")
+ }
+@@ -4987,12 +4987,12 @@ func TestIssue22531(t *testing.T) {
+ 	tg.parallel()
+ 	tg.makeTempdir()
+ 	tg.setenv("GOPATH", tg.tempdir)
+-	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "cache"))
++	tg.setenv("GOCACHE", tg.path("cache"))
+ 	tg.tempFile("src/m/main.go", "package main /* c1 */; func main() {}\n")
+ 	tg.run("install", "-x", "m")
+ 	tg.run("list", "-f", "{{.Stale}}", "m")
+ 	tg.grepStdout("false", "reported m as stale after install")
+-	tg.run("tool", "buildid", filepath.Join(tg.tempdir, "bin/m"+exeSuffix))
++	tg.run("tool", "buildid", tg.path("bin/m"+exeSuffix))
+ 
+ 	// The link action ID did not include the full main build ID,
+ 	// even though the full main build ID is written into the
+@@ -5003,7 +5003,7 @@ func TestIssue22531(t *testing.T) {
+ 	tg.run("install", "-x", "m")
+ 	tg.run("list", "-f", "{{.Stale}}", "m")
+ 	tg.grepStdout("false", "reported m as stale after reinstall")
+-	tg.run("tool", "buildid", filepath.Join(tg.tempdir, "bin/m"+exeSuffix))
++	tg.run("tool", "buildid", tg.path("bin/m"+exeSuffix))
+ }
+ 
+ func TestIssue22596(t *testing.T) {
+@@ -5014,17 +5014,17 @@ func TestIssue22596(t *testing.T) {
+ 	defer tg.cleanup()
+ 	tg.parallel()
+ 	tg.makeTempdir()
+-	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "cache"))
++	tg.setenv("GOCACHE", tg.path("cache"))
+ 	tg.tempFile("gopath1/src/p/p.go", "package p; func F(){}\n")
+ 	tg.tempFile("gopath2/src/p/p.go", "package p; func F(){}\n")
+ 
+-	tg.setenv("GOPATH", filepath.Join(tg.tempdir, "gopath1"))
++	tg.setenv("GOPATH", tg.path("gopath1"))
+ 	tg.run("list", "-f={{.Target}}", "p")
+ 	target1 := strings.TrimSpace(tg.getStdout())
+ 	tg.run("install", "p")
+ 	tg.wantNotStale("p", "", "p stale after install")
+ 
+-	tg.setenv("GOPATH", filepath.Join(tg.tempdir, "gopath2"))
++	tg.setenv("GOPATH", tg.path("gopath2"))
+ 	tg.run("list", "-f={{.Target}}", "p")
+ 	target2 := strings.TrimSpace(tg.getStdout())
+ 	tg.must(os.MkdirAll(filepath.Dir(target2), 0777))
+@@ -5043,7 +5043,7 @@ func TestTestCache(t *testing.T) {
+ 	tg.parallel()
+ 	tg.makeTempdir()
+ 	tg.setenv("GOPATH", tg.tempdir)
+-	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "cache"))
++	tg.setenv("GOCACHE", tg.path("cache"))
+ 
+ 	// timeout here should not affect result being cached
+ 	// or being retrieved later.
+@@ -5138,6 +5138,95 @@ func TestTestCache(t *testing.T) {
+ 	tg.grepStdout(`ok  \tt/t4\t\(cached\)`, "did not cache t/t4")
+ }
+ 
++func TestTestCacheInputs(t *testing.T) {
++	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
++		t.Skip("GODEBUG gocacheverify")
++	}
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.setenv("GOCACHE", tg.path("cache"))
++
++	defer os.Remove(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"))
++	tg.must(ioutil.WriteFile(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), []byte("x"), 0644))
++	old := time.Now().Add(-1 * time.Minute)
++	tg.must(os.Chtimes(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), old, old))
++	info, err := os.Stat(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Logf("file.txt: old=%v, info.ModTime=%v", old, info.ModTime()) // help debug when Chtimes lies about succeeding
++	tg.setenv("TESTKEY", "x")
++
++	tg.must(ioutil.WriteFile(filepath.Join(tg.pwd(), "testdata/src/testcache/script.sh"), []byte("#!/bin/sh\nexit 0\n"), 0755))
++	tg.must(os.Chtimes(filepath.Join(tg.pwd(), "testdata/src/testcache/script.sh"), old, old))
++
++	tg.run("test", "testcache")
++	tg.run("test", "testcache")
++	tg.grepStdout(`\(cached\)`, "did not cache")
++
++	tg.setenv("TESTKEY", "y")
++	tg.run("test", "testcache")
++	tg.grepStdoutNot(`\(cached\)`, "did not notice env var change")
++	tg.run("test", "testcache")
++	tg.grepStdout(`\(cached\)`, "did not cache")
++
++	tg.run("test", "testcache", "-run=FileSize")
++	tg.run("test", "testcache", "-run=FileSize")
++	tg.grepStdout(`\(cached\)`, "did not cache")
++	tg.must(ioutil.WriteFile(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), []byte("xxx"), 0644))
++	tg.run("test", "testcache", "-run=FileSize")
++	tg.grepStdoutNot(`\(cached\)`, "did not notice file size change")
++	tg.run("test", "testcache", "-run=FileSize")
++	tg.grepStdout(`\(cached\)`, "did not cache")
++
++	tg.run("test", "testcache", "-run=Chdir")
++	tg.run("test", "testcache", "-run=Chdir")
++	tg.grepStdout(`\(cached\)`, "did not cache")
++	tg.must(ioutil.WriteFile(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), []byte("xxxxx"), 0644))
++	tg.run("test", "testcache", "-run=Chdir")
++	tg.grepStdoutNot(`\(cached\)`, "did not notice file size change")
++	tg.run("test", "testcache", "-run=Chdir")
++	tg.grepStdout(`\(cached\)`, "did not cache")
++
++	tg.must(os.Chtimes(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), old, old))
++	tg.run("test", "testcache", "-run=FileContent")
++	tg.run("test", "testcache", "-run=FileContent")
++	tg.grepStdout(`\(cached\)`, "did not cache")
++	tg.must(ioutil.WriteFile(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), []byte("yyy"), 0644))
++	old2 := old.Add(10 * time.Second)
++	tg.must(os.Chtimes(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), old2, old2))
++	tg.run("test", "testcache", "-run=FileContent")
++	tg.grepStdoutNot(`\(cached\)`, "did not notice file content change")
++	tg.run("test", "testcache", "-run=FileContent")
++	tg.grepStdout(`\(cached\)`, "did not cache")
++
++	tg.run("test", "testcache", "-run=DirList")
++	tg.run("test", "testcache", "-run=DirList")
++	tg.grepStdout(`\(cached\)`, "did not cache")
++	tg.must(os.Remove(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt")))
++	tg.run("test", "testcache", "-run=DirList")
++	tg.grepStdoutNot(`\(cached\)`, "did not notice directory change")
++	tg.run("test", "testcache", "-run=DirList")
++	tg.grepStdout(`\(cached\)`, "did not cache")
++
++	switch runtime.GOOS {
++	case "nacl", "plan9", "windows":
++		// no shell scripts
++	default:
++		tg.run("test", "testcache", "-run=Exec")
++		tg.run("test", "testcache", "-run=Exec")
++		tg.grepStdout(`\(cached\)`, "did not cache")
++		tg.must(os.Chtimes(filepath.Join(tg.pwd(), "testdata/src/testcache/script.sh"), old2, old2))
++		tg.run("test", "testcache", "-run=Exec")
++		tg.grepStdoutNot(`\(cached\)`, "did not notice script change")
++		tg.run("test", "testcache", "-run=Exec")
++		tg.grepStdout(`\(cached\)`, "did not cache")
++	}
++}
++
+ func TestTestVet(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -5151,9 +5240,9 @@ func TestTestVet(t *testing.T) {
+ 		}
+ 	`)
+ 
+-	tg.runFail("test", filepath.Join(tg.tempdir, "p1_test.go"))
++	tg.runFail("test", tg.path("p1_test.go"))
+ 	tg.grepStderr(`Logf format %d`, "did not diagnose bad Logf")
+-	tg.run("test", "-vet=off", filepath.Join(tg.tempdir, "p1_test.go"))
++	tg.run("test", "-vet=off", tg.path("p1_test.go"))
+ 	tg.grepStdout(`^ok`, "did not print test summary")
+ 
+ 	tg.tempFile("p1.go", `
+@@ -5163,12 +5252,12 @@ func TestTestVet(t *testing.T) {
+ 			fmt.Printf("%d") // oops
+ 		}
+ 	`)
+-	tg.runFail("test", filepath.Join(tg.tempdir, "p1.go"))
++	tg.runFail("test", tg.path("p1.go"))
+ 	tg.grepStderr(`Printf format %d`, "did not diagnose bad Printf")
+-	tg.run("test", "-x", "-vet=shift", filepath.Join(tg.tempdir, "p1.go"))
++	tg.run("test", "-x", "-vet=shift", tg.path("p1.go"))
+ 	tg.grepStderr(`[\\/]vet.*-shift`, "did not run vet with -shift")
+ 	tg.grepStdout(`\[no test files\]`, "did not print test summary")
+-	tg.run("test", "-vet=off", filepath.Join(tg.tempdir, "p1.go"))
++	tg.run("test", "-vet=off", tg.path("p1.go"))
+ 	tg.grepStdout(`\[no test files\]`, "did not print test summary")
+ 
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+@@ -5293,8 +5382,8 @@ func TestGoTestJSON(t *testing.T) {
+ 	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
+ 	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
+ 
+-	tg.run("test", "-o", filepath.Join(tg.tempdir, "errors.test.exe"), "-c", "errors")
+-	tg.run("tool", "test2json", "-p", "errors", filepath.Join(tg.tempdir, "errors.test.exe"), "-test.v", "-test.short")
++	tg.run("test", "-o", tg.path("errors.test.exe"), "-c", "errors")
++	tg.run("tool", "test2json", "-p", "errors", tg.path("errors.test.exe"), "-test.v", "-test.short")
+ 	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
+ 	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
+ 	tg.grepStdout(`\{"Action":"pass","Package":"errors"\}`, "did not see final pass")
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index 794d63d20b..edb58826f1 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -97,6 +97,9 @@ const (
+ // GODEBUG=gocacheverify=1.
+ var verify = false
+ 
++// DebugTest is set when GODEBUG=gocachetest=1 is in the environment.
++var DebugTest = false
++
+ func init() { initEnv() }
+ 
+ func initEnv() {
+@@ -110,6 +113,9 @@ func initEnv() {
+ 		if f == "gocachehash=1" {
+ 			debugHash = true
+ 		}
++		if f == "gocachetest=1" {
++			DebugTest = true
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 74a34ad9c4..4239677bdd 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1052,8 +1052,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 		}
+ 	}
+ 	buildAction = a
+-	var installAction *work.Action
+-
++	var installAction, cleanAction *work.Action
+ 	if testC || testNeedBinary {
+ 		// -c or profiling flag: create action to copy binary to ./test.out.
+ 		target := filepath.Join(base.Cwd, testBinary+cfg.ExeSuffix)
+@@ -1071,7 +1070,6 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 			Package: pmain,
+ 			Target:  target,
+ 		}
+-		buildAction = installAction
+ 		runAction = installAction // make sure runAction != nil even if not running test
+ 	}
+ 	if testC {
+@@ -1094,7 +1092,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 		if pxtest != nil {
+ 			addTestVet(b, pxtest, runAction, installAction)
+ 		}
+-		cleanAction := &work.Action{
++		cleanAction = &work.Action{
+ 			Mode:    "test clean",
+ 			Func:    builderCleanTest,
+ 			Deps:    []*work.Action{runAction},
+@@ -1108,6 +1106,14 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 			Package: p,
+ 		}
+ 	}
++	if installAction != nil {
++		if runAction != installAction {
++			installAction.Deps = append(installAction.Deps, runAction)
++		}
++		if cleanAction != nil {
++			cleanAction.Deps = append(cleanAction.Deps, installAction)
++		}
++	}
+ 
+ 	return buildAction, runAction, printAction, nil
+ }
+@@ -1259,7 +1265,11 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 		return nil
+ 	}
+ 
+-	args := str.StringList(work.FindExecCmd(), a.Deps[0].Target, testArgs)
++	testlogArg := []string{}
++	if !c.disableCache {
++		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
++	}
++	args := str.StringList(work.FindExecCmd(), a.Deps[0].Target, testlogArg, testArgs)
+ 
+ 	if testCoverProfile != "" {
+ 		// Write coverage to temporary profile, for merging later.
+@@ -1454,39 +1464,95 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
+ 		return false
+ 	}
+ 
++	// The test cache result fetch is a two-level lookup.
++	//
++	// First, we use the content hash of the test binary
++	// and its command-line arguments to find the
++	// list of environment variables and files consulted
++	// the last time the test was run with those arguments.
++	// (To avoid unnecessary links, we store this entry
++	// under two hashes: id1 uses the linker inputs as a
++	// proxy for the test binary, and id2 uses the actual
++	// test binary. If the linker inputs are unchanged,
++	// this way we avoid the link step, even though we
++	// do not cache link outputs.)
++	//
++	// Second, we compute a hash of the values of the
++	// environment variables and the content of the files
++	// listed in the log from the previous run.
++	// Then we look up test output using a combination of
++	// the hash from the first part (testID) and the hash of the
++	// test inputs (testInputsID).
++	//
++	// In order to store a new test result, we must redo the
++	// testInputsID computation using the log from the run
++	// we want to cache, and then we store that new log and
++	// the new outputs.
++
+ 	h := cache.NewHash("testResult")
+ 	fmt.Fprintf(h, "test binary %s args %q execcmd %q", id, cacheArgs, work.ExecCmd)
+-	// TODO(rsc): How to handle other test dependencies like environment variables or input files?
+-	// We could potentially add new API like testing.UsedEnv(envName string)
+-	// or testing.UsedFile(inputFile string) to let tests declare what external inputs
+-	// they consulted. These could be recorded and rechecked.
+-	// The lookup here would become a two-step lookup: first use the binary+args
+-	// to fetch the list of other inputs, then add the other inputs to produce a
+-	// second key for fetching the results.
+-	// For now, we'll assume that users will use -count=1 (or "go test") to bypass the test result
+-	// cache when modifying those things.
+ 	testID := h.Sum()
+ 	if c.id1 == (cache.ActionID{}) {
+ 		c.id1 = testID
+ 	} else {
+ 		c.id2 = testID
+ 	}
++	if cache.DebugTest {
++		fmt.Fprintf(os.Stderr, "testcache: %s: test ID %x => %x\n", a.Package.ImportPath, id, testID)
++	}
++
++	// Load list of referenced environment variables and files
++	// from last run of testID, and compute hash of that content.
++	data, entry, err := cache.Default().GetBytes(testID)
++	if !bytes.HasPrefix(data, testlogMagic) || data[len(data)-1] != '\n' {
++		if cache.DebugTest {
++			if err != nil {
++				fmt.Fprintf(os.Stderr, "testcache: %s: input list not found: %v\n", a.Package.ImportPath, err)
++			} else {
++				fmt.Fprintf(os.Stderr, "testcache: %s: input list malformed\n", a.Package.ImportPath)
++			}
++		}
++		return false
++	}
++	testInputsID, err := computeTestInputsID(a, data)
++	if err != nil {
++		return false
++	}
++	if cache.DebugTest {
++		fmt.Fprintf(os.Stderr, "testcache: %s: test ID %x => input ID %x => %x\n", a.Package.ImportPath, testID, testInputsID, testAndInputKey(testID, testInputsID))
++	}
+ 
+ 	// Parse cached result in preparation for changing run time to "(cached)".
+ 	// If we can't parse the cached result, don't use it.
+-	data, entry, _ := cache.Default().GetBytes(testID)
++	data, entry, err = cache.Default().GetBytes(testAndInputKey(testID, testInputsID))
+ 	if len(data) == 0 || data[len(data)-1] != '\n' {
++		if cache.DebugTest {
++			if err != nil {
++				fmt.Fprintf(os.Stderr, "testcache: %s: test output not found: %v\n", a.Package.ImportPath, err)
++			} else {
++				fmt.Fprintf(os.Stderr, "testcache: %s: test output malformed\n", a.Package.ImportPath)
++			}
++		}
+ 		return false
+ 	}
+ 	if entry.Time.Before(testCacheExpire) {
++		if cache.DebugTest {
++			fmt.Fprintf(os.Stderr, "testcache: %s: test output expired due to go clean -testcache\n", a.Package.ImportPath)
++		}
+ 		return false
+ 	}
+ 	i := bytes.LastIndexByte(data[:len(data)-1], '\n') + 1
+ 	if !bytes.HasPrefix(data[i:], []byte("ok  \t")) {
++		if cache.DebugTest {
++			fmt.Fprintf(os.Stderr, "testcache: %s: test output malformed\n", a.Package.ImportPath)
++		}
+ 		return false
+ 	}
+ 	j := bytes.IndexByte(data[i+len("ok  \t"):], '\t')
+ 	if j < 0 {
++		if cache.DebugTest {
++			fmt.Fprintf(os.Stderr, "testcache: %s: test output malformed\n", a.Package.ImportPath)
++		}
+ 		return false
+ 	}
+ 	j += i + len("ok  \t") + 1
+@@ -1502,12 +1568,168 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
+ 	return true
+ }
+ 
++var errBadTestInputs = errors.New("error parsing test inputs")
++var testlogMagic = []byte("# test log\n") // known to testing/internal/testdeps/deps.go
++
++// computeTestInputsID computes the "test inputs ID"
++// (see comment in tryCacheWithID above) for the
++// test log.
++func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error) {
++	testlog = bytes.TrimPrefix(testlog, testlogMagic)
++	h := cache.NewHash("testInputs")
++	pwd := a.Package.Dir
++	for _, line := range bytes.Split(testlog, []byte("\n")) {
++		if len(line) == 0 {
++			continue
++		}
++		s := string(line)
++		i := strings.Index(s, " ")
++		if i < 0 {
++			if cache.DebugTest {
++				fmt.Fprintf(os.Stderr, "testcache: %s: input list malformed (%q)\n", a.Package.ImportPath, line)
++			}
++			return cache.ActionID{}, errBadTestInputs
++		}
++		op := s[:i]
++		name := s[i+1:]
++		switch op {
++		default:
++			if cache.DebugTest {
++				fmt.Fprintf(os.Stderr, "testcache: %s: input list malformed (%q)\n", a.Package.ImportPath, line)
++			}
++			return cache.ActionID{}, errBadTestInputs
++		case "getenv":
++			fmt.Fprintf(h, "env %s %x\n", name, hashGetenv(name))
++		case "chdir":
++			pwd = name // always absolute
++			fmt.Fprintf(h, "cbdir %s %x\n", name, hashStat(name))
++		case "stat":
++			if !filepath.IsAbs(name) {
++				name = filepath.Join(pwd, name)
++			}
++			fmt.Fprintf(h, "stat %s %x\n", name, hashStat(name))
++		case "open":
++			if !filepath.IsAbs(name) {
++				name = filepath.Join(pwd, name)
++			}
++			fh, err := hashOpen(name)
++			if err != nil {
++				if cache.DebugTest {
++					fmt.Fprintf(os.Stderr, "testcache: %s: input file %s: %s\n", a.Package.ImportPath, name, err)
++				}
++				return cache.ActionID{}, err
++			}
++			fmt.Fprintf(h, "open %s %x\n", name, fh)
++		}
++	}
++	sum := h.Sum()
++	return sum, nil
++}
++
++func hashGetenv(name string) cache.ActionID {
++	h := cache.NewHash("getenv")
++	v, ok := os.LookupEnv(name)
++	if !ok {
++		h.Write([]byte{0})
++	} else {
++		h.Write([]byte{1})
++		h.Write([]byte(v))
++	}
++	return h.Sum()
++}
++
++const modTimeCutoff = 2 * time.Second
++
++var errFileTooNew = errors.New("file used as input is too new")
++
++func hashOpen(name string) (cache.ActionID, error) {
++	h := cache.NewHash("open")
++	info, err := os.Stat(name)
++	if err != nil {
++		fmt.Fprintf(h, "err %v\n", err)
++		return h.Sum(), nil
++	}
++	hashWriteStat(h, info)
++	if info.IsDir() {
++		names, err := ioutil.ReadDir(name)
++		if err != nil {
++			fmt.Fprintf(h, "err %v\n", err)
++		}
++		for _, f := range names {
++			fmt.Fprintf(h, "file %s ", f.Name())
++			hashWriteStat(h, f)
++		}
++	} else if info.Mode().IsRegular() {
++		// Because files might be very large, do not attempt
++		// to hash the entirety of their content. Instead assume
++		// the mtime and size recorded in hashWriteStat above
++		// are good enough.
++		//
++		// To avoid problems for very recent files where a new
++		// write might not change the mtime due to file system
++		// mtime precision, reject caching if a file was read that
++		// is less than modTimeCutoff old.
++		if time.Since(info.ModTime()) < modTimeCutoff {
++			return cache.ActionID{}, errFileTooNew
++		}
++	}
++	return h.Sum(), nil
++}
++
++func hashStat(name string) cache.ActionID {
++	h := cache.NewHash("stat")
++	if info, err := os.Stat(name); err != nil {
++		fmt.Fprintf(h, "err %v\n", err)
++	} else {
++		hashWriteStat(h, info)
++	}
++	if info, err := os.Lstat(name); err != nil {
++		fmt.Fprintf(h, "err %v\n", err)
++	} else {
++		hashWriteStat(h, info)
++	}
++	return h.Sum()
++}
++
++func hashWriteStat(h io.Writer, info os.FileInfo) {
++	fmt.Fprintf(h, "stat %d %x %v %v\n", info.Size(), uint64(info.Mode()), info.ModTime(), info.IsDir())
++}
++
++// testAndInputKey returns the actual cache key for the pair (testID, testInputsID).
++func testAndInputKey(testID, testInputsID cache.ActionID) cache.ActionID {
++	return cache.Subkey(testID, fmt.Sprintf("inputs:%x", testInputsID))
++}
++
+ func (c *runCache) saveOutput(a *work.Action) {
++	// See comment about two-level lookup in tryCacheWithID above.
++	testlog, err := ioutil.ReadFile(a.Objdir + "testlog.txt")
++	if err != nil || !bytes.HasPrefix(testlog, testlogMagic) || testlog[len(testlog)-1] != '\n' {
++		if cache.DebugTest {
++			if err != nil {
++				fmt.Fprintf(os.Stderr, "testcache: %s: reading testlog: %v\n", a.Package.ImportPath, err)
++			} else {
++				fmt.Fprintf(os.Stderr, "testcache: %s: reading testlog: malformed\n", a.Package.ImportPath)
++			}
++		}
++		return
++	}
++	testInputsID, err := computeTestInputsID(a, testlog)
++	if err != nil {
++		return
++	}
+ 	if c.id1 != (cache.ActionID{}) {
+-		cache.Default().PutNoVerify(c.id1, bytes.NewReader(a.TestOutput.Bytes()))
++		if cache.DebugTest {
++			fmt.Fprintf(os.Stderr, "testcache: %s: save test ID %x => input ID %x => %x\n", a.Package.ImportPath, c.id1, testInputsID, testAndInputKey(c.id1, testInputsID))
++		}
++		cache.Default().PutNoVerify(c.id1, bytes.NewReader(testlog))
++		cache.Default().PutNoVerify(testAndInputKey(c.id1, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
+ 	}
+ 	if c.id2 != (cache.ActionID{}) {
+-		cache.Default().PutNoVerify(c.id2, bytes.NewReader(a.TestOutput.Bytes()))
++		if cache.DebugTest {
++			fmt.Fprintf(os.Stderr, "testcache: %s: save test ID %x => input ID %x => %x\n", a.Package.ImportPath, c.id2, testInputsID, testAndInputKey(c.id2, testInputsID))
++		}
++		cache.Default().PutNoVerify(c.id2, bytes.NewReader(testlog))
++		cache.Default().PutNoVerify(testAndInputKey(c.id2, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/testdata/src/testcache/testcache_test.go b/src/cmd/go/testdata/src/testcache/testcache_test.go
+new file mode 100644
+index 0000000000..9b2d1ea782
+--- /dev/null
++++ b/src/cmd/go/testdata/src/testcache/testcache_test.go
+@@ -0,0 +1,91 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testcache
++
++import (
++	"io/ioutil"
++	"os"
++	"runtime"
++	"testing"
++)
++
++func TestChdir(t *testing.T) {
++	os.Chdir("..")
++	defer os.Chdir("testcache")
++	info, err := os.Stat("testcache/file.txt")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if info.Size()%2 != 1 {
++		t.Fatal("even file")
++	}
++}
++
++func TestOddFileContent(t *testing.T) {
++	f, err := os.Open("file.txt")
++	if err != nil {
++		t.Fatal(err)
++	}
++	data, err := ioutil.ReadAll(f)
++	f.Close()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(data)%2 != 1 {
++		t.Fatal("even file")
++	}
++}
++
++func TestOddFileSize(t *testing.T) {
++	info, err := os.Stat("file.txt")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if info.Size()%2 != 1 {
++		t.Fatal("even file")
++	}
++}
++
++func TestOddGetenv(t *testing.T) {
++	val := os.Getenv("TESTKEY")
++	if len(val)%2 != 1 {
++		t.Fatal("even env value")
++	}
++}
++
++func TestLookupEnv(t *testing.T) {
++	_, ok := os.LookupEnv("TESTKEY")
++	if !ok {
++		t.Fatal("env missing")
++	}
++}
++
++func TestDirList(t *testing.T) {
++	f, err := os.Open(".")
++	if err != nil {
++		t.Fatal(err)
++	}
++	f.Readdirnames(-1)
++	f.Close()
++}
++
++func TestExec(t *testing.T) {
++	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" || runtime.GOOS == "nacl" {
++		t.Skip("non-unix")
++	}
++
++	// Note: not using os/exec to make sure there is no unexpected stat.
++	p, err := os.StartProcess("./script.sh", []string{"script"}, new(os.ProcAttr))
++	if err != nil {
++		t.Fatal(err)
++	}
++	ps, err := p.Wait()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !ps.Success() {
++		t.Fatalf("script failed: %v", err)
++	}
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 4169cb7780..d21eacc6fb 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -154,12 +154,13 @@ var pkgDeps = map[string][]string{
+ 		"syscall",
+ 	},
+ 
+-	"internal/poll": {"L0", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
+-	"os":            {"L1", "os", "syscall", "time", "internal/poll", "internal/syscall/windows"},
+-	"path/filepath": {"L2", "os", "syscall", "internal/syscall/windows"},
+-	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
+-	"os/exec":       {"L2", "os", "context", "path/filepath", "syscall"},
+-	"os/signal":     {"L2", "os", "syscall"},
++	"internal/poll":    {"L0", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
++	"internal/testlog": {"L0"},
++	"os":               {"L1", "os", "syscall", "time", "internal/poll", "internal/syscall/windows", "internal/testlog"},
++	"path/filepath":    {"L2", "os", "syscall", "internal/syscall/windows"},
++	"io/ioutil":        {"L2", "os", "path/filepath", "time"},
++	"os/exec":          {"L2", "os", "context", "path/filepath", "syscall"},
++	"os/signal":        {"L2", "os", "syscall"},
+ 
+ 	// OS enables basic operating system functionality,
+ 	// but not direct use of package syscall, nor os/signal.
+@@ -270,7 +271,7 @@ var pkgDeps = map[string][]string{
+ 	"net/url":                  {"L4"},
+ 	"plugin":                   {"L0", "OS", "CGO"},
+ 	"runtime/pprof/internal/profile": {"L4", "OS", "compress/gzip", "regexp"},
+-	"testing/internal/testdeps":      {"L4", "runtime/pprof", "regexp"},
++	"testing/internal/testdeps":      {"L4", "internal/testlog", "runtime/pprof", "regexp"},
+ 	"text/scanner":                   {"L4", "OS"},
+ 	"text/template/parse":            {"L4"},
+ 
+diff --git a/src/internal/testlog/log.go b/src/internal/testlog/log.go
+new file mode 100644
+index 0000000000..3c5f780ac4
+--- /dev/null
++++ b/src/internal/testlog/log.go
+@@ -0,0 +1,69 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package testlog provides a back-channel communication path
++// between tests and package os, so that cmd/go can see which
++// environment variables and files a test consults.
++package testlog
++
++import "sync/atomic"
++
++// Interface is the interface required of test loggers.
++// The os package will invoke the interface's methods to indicate that
++// it is inspecting the given environment variables or files.
++// Multiple goroutines may call these methods simultaneously.
++type Interface interface {
++	Getenv(key string)
++	Stat(file string)
++	Open(file string)
++	Chdir(dir string)
++}
++
++// logger is the current logger Interface.
++// We use an atomic.Value in case test startup
++// is racing with goroutines started during init.
++// That must not cause a race detector failure,
++// although it will still result in limited visibility
++// into exactly what those goroutines do.
++var logger atomic.Value
++
++// SetLogger sets the test logger implementation for the current process.
++// It must be called only once, at process startup.
++func SetLogger(impl Interface) {
++	if logger.Load() != nil {
++		panic("testlog: SetLogger must be called only once")
++	}
++	logger.Store(&impl)
++}
++
++// Logger returns the current test logger implementation.
++// It returns nil if there is no logger.
++func Logger() Interface {
++	impl := logger.Load()
++	if impl == nil {
++		return nil
++	}
++	return *impl.(*Interface)
++}
++
++// Getenv calls Logger().Getenv, if a logger has been set.
++func Getenv(name string) {
++	if log := Logger(); log != nil {
++		log.Getenv(name)
++	}
++}
++
++// Open calls Logger().Open, if a logger has been set.
++func Open(name string) {
++	if log := Logger(); log != nil {
++		log.Open(name)
++	}
++}
++
++// Stat calls Logger().Stat, if a logger has been set.
++func Stat(name string) {
++	if log := Logger(); log != nil {
++		log.Stat(name)
++	}
++}
+diff --git a/src/os/env.go b/src/os/env.go
+index a03b8f68f5..4e0171f408 100644
+--- a/src/os/env.go
++++ b/src/os/env.go
+@@ -6,7 +6,10 @@
+ 
+ package os
+ 
+-import "syscall"
++import (
++	"internal/testlog"
++	"syscall"
++)
+ 
+ // Expand replaces ${var} or $var in the string based on the mapping function.
+ // For example, os.ExpandEnv(s) is equivalent to os.Expand(s, os.Getenv).
+@@ -78,6 +81,7 @@ func getShellName(s string) (string, int) {
+ // It returns the value, which will be empty if the variable is not present.
+ // To distinguish between an empty value and an unset value, use LookupEnv.
+ func Getenv(key string) string {
++	testlog.Getenv(key)
+ 	v, _ := syscall.Getenv(key)
+ 	return v
+ }
+@@ -88,6 +92,7 @@ func Getenv(key string) string {
+ // Otherwise the returned value will be empty and the boolean will
+ // be false.
+ func LookupEnv(key string) (string, bool) {
++	testlog.Getenv(key)
+ 	return syscall.Getenv(key)
+ }
+ 
+diff --git a/src/os/exec.go b/src/os/exec.go
+index 8a53e5dd1e..1ec94df9e0 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"internal/testlog"
+ 	"runtime"
+ 	"sync"
+ 	"sync/atomic"
+@@ -91,6 +92,7 @@ func FindProcess(pid int) (*Process, error) {
+ //
+ // If there is an error, it will be of type *PathError.
+ func StartProcess(name string, argv []string, attr *ProcAttr) (*Process, error) {
++	testlog.Open(name)
+ 	return startProcess(name, argv, attr)
+ }
+ 
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 0132906933..ed2a55557d 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -401,9 +401,15 @@ var testedAlreadyLeaked = false
+ 
+ // basefds returns the number of expected file descriptors
+ // to be present in a process at start.
+-// stdin, stdout, stderr, epoll/kqueue
++// stdin, stdout, stderr, epoll/kqueue, maybe testlog
+ func basefds() uintptr {
+-	return os.Stderr.Fd() + 1
++	n := os.Stderr.Fd() + 1
++	for _, arg := range os.Args {
++		if strings.HasPrefix(arg, "-test.testlogfile=") {
++			n++
++		}
++	}
++	return n
+ }
+ 
+ func closeUnexpectedFds(t *testing.T, m string) {
+diff --git a/src/os/file.go b/src/os/file.go
+index 542b07447f..cba5d5386a 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -39,6 +39,7 @@ package os
+ import (
+ 	"errors"
+ 	"internal/poll"
++	"internal/testlog"
+ 	"io"
+ 	"syscall"
+ 	"time"
+@@ -228,8 +229,15 @@ func Mkdir(name string, perm FileMode) error {
+ // If there is an error, it will be of type *PathError.
+ func Chdir(dir string) error {
+ 	if e := syscall.Chdir(dir); e != nil {
++		testlog.Open(dir) // observe likely non-existent directory
+ 		return &PathError{"chdir", dir, e}
+ 	}
++	if log := testlog.Logger(); log != nil {
++		wd, err := Getwd()
++		if err == nil {
++			log.Chdir(wd)
++		}
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index e4f8fd987b..3ef0d29aa0 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -6,6 +6,7 @@ package os
+ 
+ import (
+ 	"internal/poll"
++	"internal/testlog"
+ 	"io"
+ 	"runtime"
+ 	"syscall"
+@@ -85,6 +86,8 @@ func syscallMode(i FileMode) (o uint32) {
+ // methods on the returned File can be used for I/O.
+ // If there is an error, it will be of type *PathError.
+ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
++	testlog.Open(name)
++
+ 	var (
+ 		fd     int
+ 		e      error
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index b834f52589..47fde5bbcf 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -8,6 +8,7 @@ package os
+ 
+ import (
+ 	"internal/poll"
++	"internal/testlog"
+ 	"runtime"
+ 	"syscall"
+ )
+@@ -159,6 +160,8 @@ const DevNull = "/dev/null"
+ // methods on the returned File can be used for I/O.
+ // If there is an error, it will be of type *PathError.
+ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
++	testlog.Open(name)
++
+ 	chmod := false
+ 	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
+ 		if _, err := Stat(name); IsNotExist(err) {
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 81a0ab7346..fdc7e1687d 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -7,6 +7,7 @@ package os
+ import (
+ 	"internal/poll"
+ 	"internal/syscall/windows"
++	"internal/testlog"
+ 	"runtime"
+ 	"syscall"
+ 	"unicode/utf16"
+@@ -154,6 +155,8 @@ func openDir(name string) (file *File, err error) {
+ // methods on the returned File can be used for I/O.
+ // If there is an error, it will be of type *PathError.
+ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
++	testlog.Open(name)
++
+ 	if name == "" {
+ 		return nil, &PathError{"open", name, syscall.ENOENT}
+ 	}
+diff --git a/src/os/stat_plan9.go b/src/os/stat_plan9.go
+index 274d0d86f3..b764092ff8 100644
+--- a/src/os/stat_plan9.go
++++ b/src/os/stat_plan9.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"internal/testlog"
+ 	"syscall"
+ 	"time"
+ )
+@@ -89,6 +90,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
+ // Stat returns a FileInfo describing the named file.
+ // If there is an error, it will be of type *PathError.
+ func Stat(name string) (FileInfo, error) {
++	testlog.Stat(name)
+ 	d, err := dirstat(name)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/os/stat_unix.go b/src/os/stat_unix.go
+index 1dd5714f79..0050f62b24 100644
+--- a/src/os/stat_unix.go
++++ b/src/os/stat_unix.go
+@@ -7,6 +7,7 @@
+ package os
+ 
+ import (
++	"internal/testlog"
+ 	"syscall"
+ )
+ 
+@@ -28,6 +29,7 @@ func (f *File) Stat() (FileInfo, error) {
+ // Stat returns a FileInfo describing the named file.
+ // If there is an error, it will be of type *PathError.
+ func Stat(name string) (FileInfo, error) {
++	testlog.Stat(name)
+ 	var fs fileStat
+ 	err := syscall.Stat(name, &fs.sys)
+ 	if err != nil {
+@@ -42,6 +44,7 @@ func Stat(name string) (FileInfo, error) {
+ // describes the symbolic link. Lstat makes no attempt to follow the link.
+ // If there is an error, it will be of type *PathError.
+ func Lstat(name string) (FileInfo, error) {
++	testlog.Stat(name)
+ 	var fs fileStat
+ 	err := syscall.Lstat(name, &fs.sys)
+ 	if err != nil {
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index 71dea3d48f..f88d4e9f12 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -6,6 +6,7 @@ package os
+ 
+ import (
+ 	"internal/syscall/windows"
++	"internal/testlog"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -59,6 +60,7 @@ func (file *File) Stat() (FileInfo, error) {
+ // Stat returns a FileInfo structure describing the named file.
+ // If there is an error, it will be of type *PathError.
+ func Stat(name string) (FileInfo, error) {
++	testlog.Stat(name)
+ 	if len(name) == 0 {
+ 		return nil, &PathError{"Stat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
+ 	}
+@@ -161,6 +163,7 @@ func statWithFindFirstFile(name string, namep *uint16) (FileInfo, error) {
+ // describes the symbolic link. Lstat makes no attempt to follow the link.
+ // If there is an error, it will be of type *PathError.
+ func Lstat(name string) (FileInfo, error) {
++	testlog.Stat(name)
+ 	if len(name) == 0 {
+ 		return nil, &PathError{"Lstat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
+ 	}
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 042f69614e..8c0b3fded1 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -11,9 +11,13 @@
+ package testdeps
+ 
+ import (
++	"bufio"
++	"internal/testlog"
+ 	"io"
+ 	"regexp"
+ 	"runtime/pprof"
++	"strings"
++	"sync"
+ )
+ 
+ // TestDeps is an implementation of the testing.testDeps interface,
+@@ -56,3 +60,61 @@ var ImportPath string
+ func (TestDeps) ImportPath() string {
+ 	return ImportPath
+ }
++
++// testLog implements testlog.Interface, logging actions by package os.
++type testLog struct {
++	mu sync.Mutex
++	w  *bufio.Writer
++}
++
++func (l *testLog) Getenv(key string) {
++	l.add("getenv", key)
++}
++
++func (l *testLog) Open(name string) {
++	l.add("open", name)
++}
++
++func (l *testLog) Stat(name string) {
++	l.add("stat", name)
++}
++
++func (l *testLog) Chdir(name string) {
++	l.add("chdir", name)
++}
++
++// add adds the (op, name) pair to the test log.
++func (l *testLog) add(op, name string) {
++	if strings.Contains(name, "\n") || name == "" {
++		return
++	}
++
++	l.mu.Lock()
++	defer l.mu.Unlock()
++	if l.w == nil {
++		return
++	}
++	l.w.WriteString(op)
++	l.w.WriteByte(' ')
++	l.w.WriteString(name)
++	l.w.WriteByte('\n')
++}
++
++var log testLog
++
++func (TestDeps) StartTestLog(w io.Writer) {
++	log.mu.Lock()
++	log.w = bufio.NewWriter(w)
++	log.w.WriteString("# test log\n") // known to cmd/go/internal/test/test.go
++	log.mu.Unlock()
++
++	testlog.SetLogger(&log)
++}
++
++func (TestDeps) StopTestLog() error {
++	log.mu.Lock()
++	defer log.mu.Unlock()
++	err := log.w.Flush()
++	log.w = nil
++	return err
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index cddd475fd7..402780ad64 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -268,10 +268,12 @@ var (
+ 	timeout              = flag.Duration("test.timeout", 0, "panic test binary after duration `d` (default 0, timeout disabled)")
+ 	cpuListStr           = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
+ 	parallel             = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
++	testlog              = flag.String("test.testlogfile", "", "write test action log to `file` (for use only by cmd/go)")
+ 
+ 	haveExamples bool // are there examples?
+ 
+-	cpuList []int
++	cpuList     []int
++	testlogFile *os.File
+ 
+ 	numFailed uint32 // number of test failures
+ )
+@@ -889,6 +891,8 @@ func (f matchStringOnly) StopCPUProfile()                             {}
+ func (f matchStringOnly) WriteHeapProfile(w io.Writer) error          { return errMain }
+ func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error { return errMain }
+ func (f matchStringOnly) ImportPath() string                          { return "" }
++func (f matchStringOnly) StartTestLog(io.Writer)                      {}
++func (f matchStringOnly) StopTestLog() error                          { return errMain }
+ 
+ // Main is an internal function, part of the implementation of the "go test" command.
+ // It was exported because it is cross-package and predates "internal" packages.
+@@ -916,12 +920,14 @@ type M struct {
+ // The canonical implementation of this interface is
+ // testing/internal/testdeps's TestDeps.
+ type testDeps interface {
++	ImportPath() string
+ 	MatchString(pat, str string) (bool, error)
+ 	StartCPUProfile(io.Writer) error
+ 	StopCPUProfile()
++	StartTestLog(io.Writer)
++	StopTestLog() error
+ 	WriteHeapProfile(io.Writer) error
+ 	WriteProfileTo(string, io.Writer, int) error
+-	ImportPath() string
+ }
+ 
+ // MainStart is meant for use by tests generated by 'go test'.
+@@ -1100,6 +1106,17 @@ func (m *M) before() {
+ 		fmt.Fprintf(os.Stderr, "testing: cannot use -test.coverprofile because test binary was not built with coverage enabled\n")
+ 		os.Exit(2)
+ 	}
++	if *testlog != "" {
++		// Note: Not using toOutputDir.
++		// This file is for use by cmd/go, not users.
++		f, err := os.Create(*testlog)
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
++			os.Exit(2)
++		}
++		m.deps.StartTestLog(f)
++		testlogFile = f
++	}
+ }
+ 
+ // after runs after all testing.
+@@ -1110,6 +1127,16 @@ func (m *M) after() {
+ }
+ 
+ func (m *M) writeProfiles() {
++	if *testlog != "" {
++		if err := m.deps.StopTestLog(); err != nil {
++			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *testlog, err)
++			os.Exit(2)
++		}
++		if err := testlogFile.Close(); err != nil {
++			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *testlog, err)
++			os.Exit(2)
++		}
++	}
+ 	if *cpuProfile != "" {
+ 		m.deps.StopCPUProfile() // flushes profile to disk
+ 	}

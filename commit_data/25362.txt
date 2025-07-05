@@ -23,8 +23,483 @@ Date:   Thu Oct 15 15:59:49 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/15906
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mcentral.go |  22 +++----
  src/runtime/mheap.go    | 157 ++++++++++++++++++++++++++++++------------------
  src/runtime/stack.go    |  22 +++----
  3 files changed, 122 insertions(+), 79 deletions(-)
+
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 161af99089..22c13e0568 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -16,8 +16,8 @@ package runtime
+ type mcentral struct {
+ 	lock      mutex
+ 	sizeclass int32
+-	nonempty  mspan // list of spans with a free object
+-	empty     mspan // list of spans with no free objects (or cached in an mcache)
++	nonempty  mSpanList // list of spans with a free object
++	empty     mSpanList // list of spans with no free objects (or cached in an mcache)
+ }
+ 
+ // Initialize a single central free list.
+@@ -36,9 +36,9 @@ func mCentral_CacheSpan(c *mcentral) *mspan {
+ 	sg := mheap_.sweepgen
+ retry:
+ 	var s *mspan
+-	for s = c.nonempty.next; s != &c.nonempty; s = s.next {
++	for s = c.nonempty.first; s != nil; s = s.next {
+ 		if s.sweepgen == sg-2 && cas(&s.sweepgen, sg-2, sg-1) {
+-			mSpanList_Remove(s)
++			mSpanList_Remove(&c.nonempty, s)
+ 			mSpanList_InsertBack(&c.empty, s)
+ 			unlock(&c.lock)
+ 			mSpan_Sweep(s, true)
+@@ -49,17 +49,17 @@ retry:
+ 			continue
+ 		}
+ 		// we have a nonempty span that does not require sweeping, allocate from it
+-		mSpanList_Remove(s)
++		mSpanList_Remove(&c.nonempty, s)
+ 		mSpanList_InsertBack(&c.empty, s)
+ 		unlock(&c.lock)
+ 		goto havespan
+ 	}
+ 
+-	for s = c.empty.next; s != &c.empty; s = s.next {
++	for s = c.empty.first; s != nil; s = s.next {
+ 		if s.sweepgen == sg-2 && cas(&s.sweepgen, sg-2, sg-1) {
+ 			// we have an empty span that requires sweeping,
+ 			// sweep it and see if we can free some space in it
+-			mSpanList_Remove(s)
++			mSpanList_Remove(&c.empty, s)
+ 			// swept spans are at the end of the list
+ 			mSpanList_InsertBack(&c.empty, s)
+ 			unlock(&c.lock)
+@@ -119,7 +119,7 @@ func mCentral_UncacheSpan(c *mcentral, s *mspan) {
+ 	cap := int32((s.npages << _PageShift) / s.elemsize)
+ 	n := cap - int32(s.ref)
+ 	if n > 0 {
+-		mSpanList_Remove(s)
++		mSpanList_Remove(&c.empty, s)
+ 		mSpanList_Insert(&c.nonempty, s)
+ 	}
+ 	unlock(&c.lock)
+@@ -145,7 +145,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
+ 	if preserve {
+ 		// preserve is set only when called from MCentral_CacheSpan above,
+ 		// the span must be in the empty list.
+-		if s.next == nil {
++		if !mSpan_InList(s) {
+ 			throw("can't preserve unlinked span")
+ 		}
+ 		atomicstore(&s.sweepgen, mheap_.sweepgen)
+@@ -156,7 +156,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
+ 
+ 	// Move to nonempty if necessary.
+ 	if wasempty {
+-		mSpanList_Remove(s)
++		mSpanList_Remove(&c.empty, s)
+ 		mSpanList_Insert(&c.nonempty, s)
+ 	}
+ 
+@@ -172,7 +172,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
+ 	}
+ 
+ 	// s is completely freed, return it to the heap.
+-	mSpanList_Remove(s)
++	mSpanList_Remove(&c.nonempty, s)
+ 	s.needzero = 1
+ 	s.freelist = 0
+ 	unlock(&c.lock)
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 7c313deb5d..7003d6add8 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -15,12 +15,12 @@ import "unsafe"
+ // but all the other global data is here too.
+ type mheap struct {
+ 	lock      mutex
+-	free      [_MaxMHeapList]mspan // free lists of given length
+-	freelarge mspan                // free lists length >= _MaxMHeapList
+-	busy      [_MaxMHeapList]mspan // busy lists of large objects of given length
+-	busylarge mspan                // busy lists of large objects length >= _MaxMHeapList
+-	allspans  **mspan              // all spans out there
+-	gcspans   **mspan              // copy of allspans referenced by gc marker or sweeper
++	free      [_MaxMHeapList]mSpanList // free lists of given length
++	freelarge mSpanList                // free lists length >= _MaxMHeapList
++	busy      [_MaxMHeapList]mSpanList // busy lists of large objects of given length
++	busylarge mSpanList                // busy lists of large objects length >= _MaxMHeapList
++	allspans  **mspan                  // all spans out there
++	gcspans   **mspan                  // copy of allspans referenced by gc marker or sweeper
+ 	nspan     uint32
+ 	sweepgen  uint32 // sweep generation, see comment in mspan
+ 	sweepdone uint32 // all spans are swept
+@@ -77,7 +77,7 @@ var mheap_ mheap
+ 
+ // Every MSpan is in one doubly-linked list,
+ // either one of the MHeap's free lists or one of the
+-// MCentral's span lists.  We use empty MSpan structures as list heads.
++// MCentral's span lists.
+ 
+ // An MSpan representing actual memory has state _MSpanInUse,
+ // _MSpanStack, or _MSpanFree. Transitions between these states are
+@@ -97,13 +97,22 @@ const (
+ 	_MSpanInUse = iota // allocated for garbage collected heap
+ 	_MSpanStack        // allocated for use by stack allocator
+ 	_MSpanFree
+-	_MSpanListHead
+ 	_MSpanDead
+ )
+ 
++// mSpanList heads a linked list of spans.
++//
++// Linked list structure is based on BSD's "tail queue" data structure.
++type mSpanList struct {
++	first *mspan  // first span in list, or nil if none
++	last  **mspan // last span's next field, or first if none
++}
++
+ type mspan struct {
+-	next     *mspan    // in a span linked list
+-	prev     *mspan    // in a span linked list
++	next *mspan     // next span in list, or nil if none
++	prev **mspan    // previous span's next field, or list head's first field if none
++	list *mSpanList // For debugging. TODO: Remove.
++
+ 	start    pageID    // starting page number
+ 	npages   uintptr   // number of pages in span
+ 	freelist gclinkptr // list of free objects
+@@ -320,13 +329,13 @@ func mHeap_MapSpans(h *mheap, arena_used uintptr) {
+ 
+ // Sweeps spans in list until reclaims at least npages into heap.
+ // Returns the actual number of pages reclaimed.
+-func mHeap_ReclaimList(h *mheap, list *mspan, npages uintptr) uintptr {
++func mHeap_ReclaimList(h *mheap, list *mSpanList, npages uintptr) uintptr {
+ 	n := uintptr(0)
+ 	sg := mheap_.sweepgen
+ retry:
+-	for s := list.next; s != list; s = s.next {
++	for s := list.first; s != nil; s = s.next {
+ 		if s.sweepgen == sg-2 && cas(&s.sweepgen, sg-2, sg-1) {
+-			mSpanList_Remove(s)
++			mSpanList_Remove(list, s)
+ 			// swept spans are at the end of the list
+ 			mSpanList_InsertBack(list, s)
+ 			unlock(&h.lock)
+@@ -523,17 +532,20 @@ func mHeap_AllocStack(h *mheap, npage uintptr) *mspan {
+ // The returned span has been removed from the
+ // free list, but its state is still MSpanFree.
+ func mHeap_AllocSpanLocked(h *mheap, npage uintptr) *mspan {
++	var list *mSpanList
+ 	var s *mspan
+ 
+ 	// Try in fixed-size lists up to max.
+ 	for i := int(npage); i < len(h.free); i++ {
+-		if !mSpanList_IsEmpty(&h.free[i]) {
+-			s = h.free[i].next
++		list = &h.free[i]
++		if !mSpanList_IsEmpty(list) {
++			s = list.first
+ 			goto HaveSpan
+ 		}
+ 	}
+ 
+ 	// Best fit in list of large spans.
++	list = &h.freelarge
+ 	s = mHeap_AllocLarge(h, npage)
+ 	if s == nil {
+ 		if !mHeap_Grow(h, npage) {
+@@ -553,8 +565,8 @@ HaveSpan:
+ 	if s.npages < npage {
+ 		throw("MHeap_AllocLocked - bad npages")
+ 	}
+-	mSpanList_Remove(s)
+-	if s.next != nil || s.prev != nil {
++	mSpanList_Remove(list, s)
++	if mSpan_InList(s) {
+ 		throw("still in list")
+ 	}
+ 	if s.npreleased > 0 {
+@@ -593,7 +605,7 @@ HaveSpan:
+ 	memstats.heap_idle -= uint64(npage << _PageShift)
+ 
+ 	//println("spanalloc", hex(s.start<<_PageShift))
+-	if s.next != nil || s.prev != nil {
++	if mSpan_InList(s) {
+ 		throw("still in list")
+ 	}
+ 	return s
+@@ -607,8 +619,8 @@ func mHeap_AllocLarge(h *mheap, npage uintptr) *mspan {
+ // Search list for smallest span with >= npage pages.
+ // If there are multiple smallest spans, take the one
+ // with the earliest starting address.
+-func bestFit(list *mspan, npage uintptr, best *mspan) *mspan {
+-	for s := list.next; s != list; s = s.next {
++func bestFit(list *mSpanList, npage uintptr, best *mspan) *mspan {
++	for s := list.first; s != nil; s = s.next {
+ 		if s.npages < npage {
+ 			continue
+ 		}
+@@ -729,6 +741,7 @@ func mHeap_FreeStack(h *mheap, s *mspan) {
+ 	unlock(&h.lock)
+ }
+ 
++// s must be on a busy list (h.busy or h.busylarge) or unlinked.
+ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool, unusedsince int64) {
+ 	switch s.state {
+ 	case _MSpanStack:
+@@ -752,7 +765,9 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool, unusedsi
+ 		memstats.heap_idle += uint64(s.npages << _PageShift)
+ 	}
+ 	s.state = _MSpanFree
+-	mSpanList_Remove(s)
++	if mSpan_InList(s) {
++		mSpanList_Remove(mHeap_BusyList(h, s.npages), s)
++	}
+ 
+ 	// Stamp newly unused spans. The scavenger will use that
+ 	// info to potentially give back some pages to the OS.
+@@ -767,40 +782,50 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool, unusedsi
+ 	p -= uintptr(unsafe.Pointer(h.arena_start)) >> _PageShift
+ 	if p > 0 {
+ 		t := h_spans[p-1]
+-		if t != nil && t.state != _MSpanInUse && t.state != _MSpanStack {
++		if t != nil && t.state == _MSpanFree {
+ 			s.start = t.start
+ 			s.npages += t.npages
+ 			s.npreleased = t.npreleased // absorb released pages
+ 			s.needzero |= t.needzero
+ 			p -= t.npages
+ 			h_spans[p] = s
+-			mSpanList_Remove(t)
++			mSpanList_Remove(mHeap_FreeList(h, t.npages), t)
+ 			t.state = _MSpanDead
+ 			fixAlloc_Free(&h.spanalloc, unsafe.Pointer(t))
+ 		}
+ 	}
+ 	if (p+s.npages)*ptrSize < h.spans_mapped {
+ 		t := h_spans[p+s.npages]
+-		if t != nil && t.state != _MSpanInUse && t.state != _MSpanStack {
++		if t != nil && t.state == _MSpanFree {
+ 			s.npages += t.npages
+ 			s.npreleased += t.npreleased
+ 			s.needzero |= t.needzero
+ 			h_spans[p+s.npages-1] = s
+-			mSpanList_Remove(t)
++			mSpanList_Remove(mHeap_FreeList(h, t.npages), t)
+ 			t.state = _MSpanDead
+ 			fixAlloc_Free(&h.spanalloc, unsafe.Pointer(t))
+ 		}
+ 	}
+ 
+ 	// Insert s into appropriate list.
+-	if s.npages < uintptr(len(h.free)) {
+-		mSpanList_Insert(&h.free[s.npages], s)
+-	} else {
+-		mSpanList_Insert(&h.freelarge, s)
++	mSpanList_Insert(mHeap_FreeList(h, s.npages), s)
++}
++
++func mHeap_FreeList(h *mheap, npages uintptr) *mSpanList {
++	if npages < uintptr(len(h.free)) {
++		return &h.free[npages]
++	}
++	return &h.freelarge
++}
++
++func mHeap_BusyList(h *mheap, npages uintptr) *mSpanList {
++	if npages < uintptr(len(h.free)) {
++		return &h.busy[npages]
+ 	}
++	return &h.busylarge
+ }
+ 
+-func scavengelist(list *mspan, now, limit uint64) uintptr {
++func scavengelist(list *mSpanList, now, limit uint64) uintptr {
+ 	if _PhysPageSize > _PageSize {
+ 		// golang.org/issue/9993
+ 		// If the physical page size of the machine is larger than
+@@ -815,7 +840,7 @@ func scavengelist(list *mspan, now, limit uint64) uintptr {
+ 	}
+ 
+ 	var sumreleased uintptr
+-	for s := list.next; s != list; s = s.next {
++	for s := list.first; s != nil; s = s.next {
+ 		if (now-uint64(s.unusedsince)) > limit && s.npreleased != s.npages {
+ 			released := (s.npages - s.npreleased) << _PageShift
+ 			memstats.heap_released += uint64(released)
+@@ -857,6 +882,7 @@ func runtime_debug_freeOSMemory() {
+ func mSpan_Init(span *mspan, start pageID, npages uintptr) {
+ 	span.next = nil
+ 	span.prev = nil
++	span.list = nil
+ 	span.start = start
+ 	span.npages = npages
+ 	span.freelist = 0
+@@ -872,47 +898,64 @@ func mSpan_Init(span *mspan, start pageID, npages uintptr) {
+ 	span.needzero = 0
+ }
+ 
++func mSpan_InList(span *mspan) bool {
++	return span.prev != nil
++}
++
+ // Initialize an empty doubly-linked list.
+-func mSpanList_Init(list *mspan) {
+-	list.state = _MSpanListHead
+-	list.next = list
+-	list.prev = list
++func mSpanList_Init(list *mSpanList) {
++	list.first = nil
++	list.last = &list.first
+ }
+ 
+-func mSpanList_Remove(span *mspan) {
+-	if span.prev == nil && span.next == nil {
+-		return
++func mSpanList_Remove(list *mSpanList, span *mspan) {
++	if span.prev == nil || span.list != list {
++		println("failed MSpanList_Remove", span, span.prev, span.list, list)
++		throw("MSpanList_Remove")
+ 	}
+-	span.prev.next = span.next
+-	span.next.prev = span.prev
+-	span.prev = nil
++	if span.next != nil {
++		span.next.prev = span.prev
++	} else {
++		// TODO: After we remove the span.list != list check above,
++		// we could at least still check list.last == &span.next here.
++		list.last = span.prev
++	}
++	*span.prev = span.next
+ 	span.next = nil
++	span.prev = nil
++	span.list = nil
+ }
+ 
+-func mSpanList_IsEmpty(list *mspan) bool {
+-	return list.next == list
++func mSpanList_IsEmpty(list *mSpanList) bool {
++	return list.first == nil
+ }
+ 
+-func mSpanList_Insert(list *mspan, span *mspan) {
+-	if span.next != nil || span.prev != nil {
+-		println("failed MSpanList_Insert", span, span.next, span.prev)
++func mSpanList_Insert(list *mSpanList, span *mspan) {
++	if span.next != nil || span.prev != nil || span.list != nil {
++		println("failed MSpanList_Insert", span, span.next, span.prev, span.list)
+ 		throw("MSpanList_Insert")
+ 	}
+-	span.next = list.next
+-	span.prev = list
+-	span.next.prev = span
+-	span.prev.next = span
++	span.next = list.first
++	if list.first != nil {
++		list.first.prev = &span.next
++	} else {
++		list.last = &span.next
++	}
++	list.first = span
++	span.prev = &list.first
++	span.list = list
+ }
+ 
+-func mSpanList_InsertBack(list *mspan, span *mspan) {
+-	if span.next != nil || span.prev != nil {
+-		println("failed MSpanList_InsertBack", span, span.next, span.prev)
++func mSpanList_InsertBack(list *mSpanList, span *mspan) {
++	if span.next != nil || span.prev != nil || span.list != nil {
++		println("failed MSpanList_InsertBack", span, span.next, span.prev, span.list)
+ 		throw("MSpanList_InsertBack")
+ 	}
+-	span.next = list
+-	span.prev = list.prev
+-	span.next.prev = span
+-	span.prev.next = span
++	span.next = nil
++	span.prev = list.last
++	*list.last = span
++	list.last = &span.next
++	span.list = list
+ }
+ 
+ const (
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index e5cd09498c..56efc2eb4a 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -142,12 +142,12 @@ const (
+ //     order = log_2(size/FixedStack)
+ // There is a free list for each order.
+ // TODO: one lock per order?
+-var stackpool [_NumStackOrders]mspan
++var stackpool [_NumStackOrders]mSpanList
+ var stackpoolmu mutex
+ 
+ // List of stack spans to be freed at the end of GC. Protected by
+ // stackpoolmu.
+-var stackFreeQueue mspan
++var stackFreeQueue mSpanList
+ 
+ // Cached value of haveexperiment("framepointer")
+ var framepointer_enabled bool
+@@ -166,8 +166,8 @@ func stackinit() {
+ // stackpoolmu held.
+ func stackpoolalloc(order uint8) gclinkptr {
+ 	list := &stackpool[order]
+-	s := list.next
+-	if s == list {
++	s := list.first
++	if s == nil {
+ 		// no free stacks.  Allocate another span worth.
+ 		s = mHeap_AllocStack(&mheap_, _StackCacheSize>>_PageShift)
+ 		if s == nil {
+@@ -194,7 +194,7 @@ func stackpoolalloc(order uint8) gclinkptr {
+ 	s.ref++
+ 	if s.freelist.ptr() == nil {
+ 		// all stacks in s are allocated.
+-		mSpanList_Remove(s)
++		mSpanList_Remove(list, s)
+ 	}
+ 	return x
+ }
+@@ -228,7 +228,7 @@ func stackpoolfree(x gclinkptr, order uint8) {
+ 		//    pointer into a free span.
+ 		//
+ 		// By not freeing, we prevent step #4 until GC is done.
+-		mSpanList_Remove(s)
++		mSpanList_Remove(&stackpool[order], s)
+ 		s.freelist = 0
+ 		mHeap_FreeStack(&mheap_, s)
+ 	}
+@@ -994,10 +994,10 @@ func freeStackSpans() {
+ 	// Scan stack pools for empty stack spans.
+ 	for order := range stackpool {
+ 		list := &stackpool[order]
+-		for s := list.next; s != list; {
++		for s := list.first; s != nil; {
+ 			next := s.next
+ 			if s.ref == 0 {
+-				mSpanList_Remove(s)
++				mSpanList_Remove(list, s)
+ 				s.freelist = 0
+ 				mHeap_FreeStack(&mheap_, s)
+ 			}
+@@ -1006,9 +1006,9 @@ func freeStackSpans() {
+ 	}
+ 
+ 	// Free queued stack spans.
+-	for stackFreeQueue.next != &stackFreeQueue {
+-		s := stackFreeQueue.next
+-		mSpanList_Remove(s)
++	for !mSpanList_IsEmpty(&stackFreeQueue) {
++		s := stackFreeQueue.first
++		mSpanList_Remove(&stackFreeQueue, s)
+ 		mHeap_FreeStack(&mheap_, s)
+ 	}
+ 

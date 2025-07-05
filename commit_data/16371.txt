@@ -7,6 +7,19 @@ Date:   Wed May 22 18:51:15 2013 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/9392049
-
+---
  include/README | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/include/README b/include/README
+new file mode 100644
+index 0000000000..b8fb5231a9
+--- /dev/null
++++ b/include/README
+@@ -0,0 +1,6 @@
++The header files under this directory are strictly internal to the gc
++toolchain, so please don't copy them to the system include file
++directory (/usr/include, /usr/local/include, etc.)
++
++Also note that they must be kept as is in $GOROOT/include, or cmd/dist
++will malfunction.

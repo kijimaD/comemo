@@ -11,8 +11,257 @@ Date:   Wed Apr 27 22:18:20 2016 -0400
     Change-Id: I24f582b4b58e1891ba9fd606509990f95cca8051
     Reviewed-on: https://go-review.googlesource.com/19805
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/cgo/asm_mips64x.s       | 74 ++++++++++++++++++++++++++++++++++
  src/runtime/cgo/gcc_linux_mips64x.c | 77 ++++++++++++++++++++++++++++++++++++
  src/runtime/cgo/gcc_mips64x.S       | 79 +++++++++++++++++++++++++++++++++++++
  3 files changed, 230 insertions(+)
+
+diff --git a/src/runtime/cgo/asm_mips64x.s b/src/runtime/cgo/asm_mips64x.s
+new file mode 100644
+index 0000000000..c9d4befa12
+--- /dev/null
++++ b/src/runtime/cgo/asm_mips64x.s
+@@ -0,0 +1,74 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips64 mips64le
++
++#include "textflag.h"
++
++/*
++ * void crosscall2(void (*fn)(void*, int32), void*, int32)
++ * Save registers and call fn with two arguments.
++ */
++TEXT crosscall2(SB),NOSPLIT,$-8
++	/*
++	 * We still need to save all callee save register as before, and then
++	 *  push 2 args for fn (R5 and R6).
++	 * Also note that at procedure entry in gc world, 8(R29) will be the
++	 *  first arg.
++	 */
++	ADDV	$(-8*22), R29
++	MOVV	R5, (8*1)(R29)
++	MOVV	R6, (8*2)(R29)
++	MOVV	R16, (8*3)(R29)
++	MOVV	R17, (8*4)(R29)
++	MOVV	R18, (8*5)(R29)
++	MOVV	R19, (8*6)(R29)
++	MOVV	R20, (8*7)(R29)
++	MOVV	R21, (8*8)(R29)
++	MOVV	R22, (8*9)(R29)
++	MOVV	R23, (8*10)(R29)
++	MOVV	RSB, (8*11)(R29)
++	MOVV	g, (8*12)(R29)
++	MOVV	R31, (8*13)(R29)
++	MOVD	F24, (8*14)(R29)
++	MOVD	F25, (8*15)(R29)
++	MOVD	F26, (8*16)(R29)
++	MOVD	F27, (8*17)(R29)
++	MOVD	F28, (8*18)(R29)
++	MOVD	F29, (8*19)(R29)
++	MOVD	F30, (8*20)(R29)
++	MOVD	F31, (8*21)(R29)
++
++	// Initialize Go ABI environment
++	// prepare SB register = PC & 0xffffffff00000000
++	BGEZAL	R0, 1(PC)
++	SRLV	$32, R31, RSB
++	SLLV	$32, RSB
++	JAL	runtime·reginit(SB)
++	JAL	runtime·load_g(SB)
++	JAL	(R4)
++
++	MOVV	(8*1)(R29), R5
++	MOVV	(8*2)(R29), R6
++	MOVV	(8*3)(R29), R16
++	MOVV	(8*4)(R29), R17
++	MOVV	(8*5)(R29), R18
++	MOVV	(8*6)(R29), R19
++	MOVV	(8*7)(R29), R20
++	MOVV	(8*8)(R29), R21
++	MOVV	(8*9)(R29), R22
++	MOVV	(8*10)(R29), R23
++	MOVV	(8*11)(R29), RSB
++	MOVV	(8*12)(R29), g
++	MOVV	(8*13)(R29), R31
++	MOVD	(8*14)(R29), F24
++	MOVD	(8*15)(R29), F25
++	MOVD	(8*16)(R29), F26
++	MOVD	(8*17)(R29), F27
++	MOVD	(8*18)(R29), F28
++	MOVD	(8*19)(R29), F29
++	MOVD	(8*20)(R29), F30
++	MOVD	(8*21)(R29), F31
++	ADDV	$(8*22), R29
++	RET
+diff --git a/src/runtime/cgo/gcc_linux_mips64x.c b/src/runtime/cgo/gcc_linux_mips64x.c
+new file mode 100644
+index 0000000000..5bf51972a6
+--- /dev/null
++++ b/src/runtime/cgo/gcc_linux_mips64x.c
+@@ -0,0 +1,77 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo
++// +build linux
++// +build mips64 mips64le
++
++#include <pthread.h>
++#include <string.h>
++#include <signal.h>
++#include "libcgo.h"
++
++static void *threadentry(void*);
++
++void (*x_cgo_inittls)(void **tlsg, void **tlsbase);
++void (*setg_gcc)(void*);
++
++void
++_cgo_sys_thread_start(ThreadStart *ts)
++{
++	pthread_attr_t attr;
++	sigset_t ign, oset;
++	pthread_t p;
++	size_t size;
++	int err;
++
++	sigfillset(&ign);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
++
++	// Not sure why the memset is necessary here,
++	// but without it, we get a bogus stack size
++	// out of pthread_attr_getstacksize.  C'est la Linux.
++	memset(&attr, 0, sizeof attr);
++	pthread_attr_init(&attr);
++	size = 0;
++	pthread_attr_getstacksize(&attr, &size);
++	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	ts->g->stackhi = size;
++	err = pthread_create(&p, &attr, threadentry, ts);
++
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
++
++	if (err != 0) {
++		fatalf("pthread_create failed: %s", strerror(err));
++	}
++}
++
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
++static void*
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
++	return nil;
++}
++
++void
++x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
++{
++	pthread_attr_t attr;
++	size_t size;
++
++	setg_gcc = setg;
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stacklo = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
++
++	if (x_cgo_inittls) {
++		x_cgo_inittls(tlsg, tlsbase);
++	}
++}
+diff --git a/src/runtime/cgo/gcc_mips64x.S b/src/runtime/cgo/gcc_mips64x.S
+new file mode 100644
+index 0000000000..adeb7aee8c
+--- /dev/null
++++ b/src/runtime/cgo/gcc_mips64x.S
+@@ -0,0 +1,79 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips64 mips64le
++
++/*
++ * void crosscall1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
++ *
++ * Calling into the gc tool chain, where all registers are caller save.
++ * Called from standard MIPS N64 ABI, where $16-$23, $28, $30, and $f24-$f31
++ * are callee-save, so they must be saved explicitly, along with $31 (LR).
++ */
++.globl crosscall1
++.set noat
++crosscall1:
++	daddiu	$29, $29, -160
++	sd	$31, 0($29)
++	sd	$16, 8($29)
++	sd	$17, 16($29)
++	sd	$18, 24($29)
++	sd	$19, 32($29)
++	sd	$20, 40($29)
++	sd	$21, 48($29)
++	sd	$22, 56($29)
++	sd	$23, 64($29)
++	sd	$28, 72($29)
++	sd	$30, 80($29)
++	sdc1	$f24, 88($29)
++	sdc1	$f25, 96($29)
++	sdc1	$f26, 104($29)
++	sdc1	$f27, 112($29)
++	sdc1	$f28, 120($29)
++	sdc1	$f29, 128($29)
++	sdc1	$f30, 136($29)
++	sdc1	$f31, 144($29)
++
++	dla	$23,_cgo_reginit
++
++	// prepare SB register = pc & 0xffffffff00000000
++	bal	1f
++1:
++	dsrl	$28, $31, 32
++	dsll	$28, $28, 32
++
++	move	$20, $4 // save R4
++	jalr	$23	// call _cgo_reginit, set up Go ABI constant registers
++	move	$1, $6
++	jalr	$5	// call setg_gcc (clobbers R4)
++	jalr	$20	// call fn
++
++	ld	$16, 8($29)
++	ld	$17, 16($29)
++	ld	$18, 24($29)
++	ld	$19, 32($29)
++	ld	$20, 40($29)
++	ld	$21, 48($29)
++	ld	$22, 56($29)
++	ld	$23, 64($29)
++	ld	$28, 72($29)
++	ld	$30, 80($29)
++	ldc1	$f24, 88($29)
++	ldc1	$f25, 96($29)
++	ldc1	$f26, 104($29)
++	ldc1	$f27, 112($29)
++	ldc1	$f28, 120($29)
++	ldc1	$f29, 128($29)
++	ldc1	$f30, 136($29)
++	ldc1	$f31, 144($29)
++	ld	$31, 0($29)
++
++	daddiu	$29, $29, 160
++	jr	$31
++
++.set at
++
++#ifdef __ELF__
++.section .note.GNU-stack,"",%progbits
++#endif

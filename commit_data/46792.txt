@@ -14,7 +14,7 @@ Date:   Thu Jan 28 14:57:55 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/287692
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/memclr_386.s         | 2 ++
  src/runtime/memclr_amd64.s       | 2 ++
  src/runtime/memclr_arm.s         | 2 ++
@@ -29,3 +29,180 @@ Date:   Thu Jan 28 14:57:55 2021 -0500
  src/runtime/memclr_wasm.s        | 2 ++
  src/runtime/stubs.go             | 8 ++++++++
  13 files changed, 32 insertions(+)
+
+diff --git a/src/runtime/memclr_386.s b/src/runtime/memclr_386.s
+index 65f7196312..5e090ef09e 100644
+--- a/src/runtime/memclr_386.s
++++ b/src/runtime/memclr_386.s
+@@ -9,6 +9,8 @@
+ 
+ // NOTE: Windows externalthreadhandler expects memclr to preserve DX.
+ 
++// See memclrNoHeapPointers Go doc for important implementation constraints.
++
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-8
+ 	MOVL	ptr+0(FP), DI
+diff --git a/src/runtime/memclr_amd64.s b/src/runtime/memclr_amd64.s
+index d79078fd00..37fe9745b1 100644
+--- a/src/runtime/memclr_amd64.s
++++ b/src/runtime/memclr_amd64.s
+@@ -9,6 +9,8 @@
+ 
+ // NOTE: Windows externalthreadhandler expects memclr to preserve DX.
+ 
++// See memclrNoHeapPointers Go doc for important implementation constraints.
++
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-16
+ 	MOVQ	ptr+0(FP), DI
+diff --git a/src/runtime/memclr_arm.s b/src/runtime/memclr_arm.s
+index 7326b8be34..f113a1aa2d 100644
+--- a/src/runtime/memclr_arm.s
++++ b/src/runtime/memclr_arm.s
+@@ -30,6 +30,8 @@
+ #define N	R12
+ #define TMP	R12				/* N and TMP don't overlap */
+ 
++// See memclrNoHeapPointers Go doc for important implementation constraints.
++
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-8
+ 	MOVW	ptr+0(FP), TO
+diff --git a/src/runtime/memclr_arm64.s b/src/runtime/memclr_arm64.s
+index a56a6dfb85..bef77651e4 100644
+--- a/src/runtime/memclr_arm64.s
++++ b/src/runtime/memclr_arm64.s
+@@ -4,6 +4,8 @@
+ 
+ #include "textflag.h"
+ 
++// See memclrNoHeapPointers Go doc for important implementation constraints.
++
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
+ 	MOVD	ptr+0(FP), R0
+diff --git a/src/runtime/memclr_mips64x.s b/src/runtime/memclr_mips64x.s
+index 4c2292eae8..d7a3251e20 100644
+--- a/src/runtime/memclr_mips64x.s
++++ b/src/runtime/memclr_mips64x.s
+@@ -7,6 +7,8 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
++// See memclrNoHeapPointers Go doc for important implementation constraints.
++
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
+ 	MOVV	ptr+0(FP), R1
+diff --git a/src/runtime/memclr_mipsx.s b/src/runtime/memclr_mipsx.s
+index 1561a23dbe..eb2a8a7219 100644
+--- a/src/runtime/memclr_mipsx.s
++++ b/src/runtime/memclr_mipsx.s
+@@ -14,6 +14,8 @@
+ #define MOVWLO  MOVWL
+ #endif
+ 
++// See memclrNoHeapPointers Go doc for important implementation constraints.
++
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-8
+ 	MOVW	n+4(FP), R2
+diff --git a/src/runtime/memclr_plan9_386.s b/src/runtime/memclr_plan9_386.s
+index 5b880ae86f..54701a9453 100644
+--- a/src/runtime/memclr_plan9_386.s
++++ b/src/runtime/memclr_plan9_386.s
+@@ -4,6 +4,8 @@
+ 
+ #include "textflag.h"
+ 
++// See memclrNoHeapPointers Go doc for important implementation constraints.
++
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-8
+ 	MOVL	ptr+0(FP), DI
+diff --git a/src/runtime/memclr_plan9_amd64.s b/src/runtime/memclr_plan9_amd64.s
+index ad383cd6b3..8c6a1cc780 100644
+--- a/src/runtime/memclr_plan9_amd64.s
++++ b/src/runtime/memclr_plan9_amd64.s
+@@ -4,6 +4,8 @@
+ 
+ #include "textflag.h"
+ 
++// See memclrNoHeapPointers Go doc for important implementation constraints.
++
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
+ 	MOVQ	ptr+0(FP), DI
+diff --git a/src/runtime/memclr_ppc64x.s b/src/runtime/memclr_ppc64x.s
+index 072963f756..7512620894 100644
+--- a/src/runtime/memclr_ppc64x.s
++++ b/src/runtime/memclr_ppc64x.s
+@@ -6,6 +6,8 @@
+ 
+ #include "textflag.h"
+ 
++// See memclrNoHeapPointers Go doc for important implementation constraints.
++
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT|NOFRAME, $0-16
+ 	MOVD ptr+0(FP), R3
+diff --git a/src/runtime/memclr_riscv64.s b/src/runtime/memclr_riscv64.s
+index ba7704e805..54ddaa4560 100644
+--- a/src/runtime/memclr_riscv64.s
++++ b/src/runtime/memclr_riscv64.s
+@@ -4,6 +4,8 @@
+ 
+ #include "textflag.h"
+ 
++// See memclrNoHeapPointers Go doc for important implementation constraints.
++
+ // void runtime·memclrNoHeapPointers(void*, uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
+ 	MOV	ptr+0(FP), T1
+diff --git a/src/runtime/memclr_s390x.s b/src/runtime/memclr_s390x.s
+index dd14a441cc..fa657ef66e 100644
+--- a/src/runtime/memclr_s390x.s
++++ b/src/runtime/memclr_s390x.s
+@@ -4,6 +4,8 @@
+ 
+ #include "textflag.h"
+ 
++// See memclrNoHeapPointers Go doc for important implementation constraints.
++
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVD	ptr+0(FP), R4
+diff --git a/src/runtime/memclr_wasm.s b/src/runtime/memclr_wasm.s
+index 68ffe2f67b..5a053049f8 100644
+--- a/src/runtime/memclr_wasm.s
++++ b/src/runtime/memclr_wasm.s
+@@ -4,6 +4,8 @@
+ 
+ #include "textflag.h"
+ 
++// See memclrNoHeapPointers Go doc for important implementation constraints.
++
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-16
+ 	MOVD ptr+0(FP), R0
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index b55c3c0590..2ee2c74dfe 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -73,7 +73,15 @@ func badsystemstack() {
+ // *ptr is uninitialized memory (e.g., memory that's being reused
+ // for a new allocation) and hence contains only "junk".
+ //
++// memclrNoHeapPointers ensures that if ptr is pointer-aligned, and n
++// is a multiple of the pointer size, then any pointer-aligned,
++// pointer-sized portion is cleared atomically. Despite the function
++// name, this is necessary because this function is the underlying
++// implementation of typedmemclr and memclrHasPointers. See the doc of
++// memmove for more details.
++//
+ // The (CPU-specific) implementations of this function are in memclr_*.s.
++//
+ //go:noescape
+ func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ 

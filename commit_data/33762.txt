@@ -16,7 +16,117 @@ Date:   Thu Aug 31 01:00:39 2017 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 39 ++++++++++++++++++++-----------------
  src/runtime/map_test.go             | 19 +++++++++++++++++-
  2 files changed, 39 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index e98514255a..68cf12eed9 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1445,11 +1445,12 @@ opswitch:
+ 	case OMAKEMAP:
+ 		t := n.Type
+ 		hmapType := hmap(t)
++		hint := n.Left
+ 
+ 		// var h *hmap
+ 		var h *Node
+ 		if n.Esc == EscNone {
+-			// Allocate hmap and one bucket on stack.
++			// Allocate hmap on stack.
+ 
+ 			// var hv hmap
+ 			hv := temp(hmapType)
+@@ -1459,26 +1460,29 @@ opswitch:
+ 			// h = &hv
+ 			h = nod(OADDR, hv, nil)
+ 
+-			// Allocate one bucket pointed to by hmap.buckets on stack.
+-			// Maximum key/value size is 128 bytes, larger objects
++			// Allocate one bucket pointed to by hmap.buckets on stack if hint
++			// is not larger than BUCKETSIZE. In case hint is larger than
++			// BUCKETSIZE runtime.makemap will allocate the buckets on the heap.
++			// Maximum key and value size is 128 bytes, larger objects
+ 			// are stored with an indirection. So max bucket size is 2048+eps.
++			if !Isconst(hint, CTINT) ||
++				!(hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) > 0) {
++				// var bv bmap
++				bv := temp(bmap(t))
+ 
+-			// var bv bmap
+-			bv := temp(bmap(t))
+-
+-			zero = nod(OAS, bv, nil)
+-			zero = typecheck(zero, Etop)
+-			init.Append(zero)
++				zero = nod(OAS, bv, nil)
++				zero = typecheck(zero, Etop)
++				init.Append(zero)
+ 
+-			// b = &bv
+-			b := nod(OADDR, bv, nil)
+-
+-			// h.buckets = b
+-			bsym := hmapType.Field(5).Sym // hmap.buckets see reflect.go:hmap
+-			na := nod(OAS, nodSym(ODOT, h, bsym), b)
+-			na = typecheck(na, Etop)
+-			init.Append(na)
++				// b = &bv
++				b := nod(OADDR, bv, nil)
+ 
++				// h.buckets = b
++				bsym := hmapType.Field(5).Sym // hmap.buckets see reflect.go:hmap
++				na := nod(OAS, nodSym(ODOT, h, bsym), b)
++				na = typecheck(na, Etop)
++				init.Append(na)
++			}
+ 		} else {
+ 			// h = nil
+ 			h = nodnil()
+@@ -1486,7 +1490,6 @@ opswitch:
+ 
+ 		// When hint fits into int, use makemap instead of
+ 		// makemap64, which is faster and shorter on 32 bit platforms.
+-		hint := n.Left
+ 		fnname := "makemap64"
+ 		argtype := types.Types[TINT64]
+ 
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index f31ef22f3e..1d1de3f740 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -646,14 +646,31 @@ func BenchmarkMapPop100(b *testing.B)   { benchmarkMapPop(b, 100) }
+ func BenchmarkMapPop1000(b *testing.B)  { benchmarkMapPop(b, 1000) }
+ func BenchmarkMapPop10000(b *testing.B) { benchmarkMapPop(b, 10000) }
+ 
++var testNonEscapingMapVariable int = 8
++
+ func TestNonEscapingMap(t *testing.T) {
+ 	n := testing.AllocsPerRun(1000, func() {
+ 		m := make(map[int]int)
+ 		m[0] = 0
+ 	})
+ 	if n != 0 {
+-		t.Fatalf("want 0 allocs, got %v", n)
++		t.Fatalf("no hint: want 0 allocs, got %v", n)
++	}
++	n = testing.AllocsPerRun(1000, func() {
++		m := make(map[int]int, 8)
++		m[0] = 0
++	})
++	if n != 0 {
++		t.Fatalf("with small hint: want 0 allocs, got %v", n)
+ 	}
++	n = testing.AllocsPerRun(1000, func() {
++		m := make(map[int]int, testNonEscapingMapVariable)
++		m[0] = 0
++	})
++	if n != 0 {
++		t.Fatalf("with variable hint: want 0 allocs, got %v", n)
++	}
++
+ }
+ 
+ func benchmarkMapAssignInt32(b *testing.B, n int) {

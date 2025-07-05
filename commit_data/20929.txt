@@ -10,7 +10,7 @@ Date:   Tue Oct 28 15:00:13 2014 -0400
     R=r, iant
     CC=golang-codereviews
     https://golang.org/cl/160670043
-
+---
  src/os/dir_unix.go     |  2 +-
  src/os/file.go         |  9 +++++++++
  src/os/file_plan9.go   | 11 ++++-------
@@ -18,3 +18,160 @@ Date:   Tue Oct 28 15:00:13 2014 -0400
  src/os/file_unix.go    | 10 +++++-----
  src/os/file_windows.go |  4 ++--
  6 files changed, 22 insertions(+), 16 deletions(-)
+
+diff --git a/src/os/dir_unix.go b/src/os/dir_unix.go
+index d353e405e5..589db85274 100644
+--- a/src/os/dir_unix.go
++++ b/src/os/dir_unix.go
+@@ -36,7 +36,7 @@ func (f *File) readdirnames(n int) (names []string, err error) {
+ 		if d.bufp >= d.nbuf {
+ 			d.bufp = 0
+ 			var errno error
+-			d.nbuf, errno = syscall.ReadDirent(f.fd, d.buf)
++			d.nbuf, errno = fixCount(syscall.ReadDirent(f.fd, d.buf))
+ 			if errno != nil {
+ 				return names, NewSyscallError("readdirent", errno)
+ 			}
+diff --git a/src/os/file.go b/src/os/file.go
+index b4a7458016..e12428cbe1 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -255,3 +255,12 @@ var lstat = Lstat
+ func Rename(oldpath, newpath string) error {
+ 	return rename(oldpath, newpath)
+ }
++
++// Many functions in package syscall return a count of -1 instead of 0.
++// Using fixCount(call()) instead of call() corrects the count.
++func fixCount(n int, err error) (int, error) {
++	if n < 0 {
++		n = 0
++	}
++	return n, err
++}
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index a804b81973..22860e20af 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -244,14 +244,14 @@ func (f *File) Sync() (err error) {
+ // read reads up to len(b) bytes from the File.
+ // It returns the number of bytes read and an error, if any.
+ func (f *File) read(b []byte) (n int, err error) {
+-	return syscall.Read(f.fd, b)
++	return fixCount(syscall.Read(f.fd, b))
+ }
+ 
+ // pread reads len(b) bytes from the File starting at byte offset off.
+ // It returns the number of bytes read and the error, if any.
+ // EOF is signaled by a zero count with err set to nil.
+ func (f *File) pread(b []byte, off int64) (n int, err error) {
+-	return syscall.Pread(f.fd, b, off)
++	return fixCount(syscall.Pread(f.fd, b, off))
+ }
+ 
+ // write writes len(b) bytes to the File.
+@@ -259,10 +259,7 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
+ // Since Plan 9 preserves message boundaries, never allow
+ // a zero-byte write.
+ func (f *File) write(b []byte) (n int, err error) {
+-	if len(b) == 0 {
+-		return 0, nil
+-	}
+-	return syscall.Write(f.fd, b)
++	return fixCount(syscall.Write(f.fd, b))
+ }
+ 
+ // pwrite writes len(b) bytes to the File starting at byte offset off.
+@@ -273,7 +270,7 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
+ 	if len(b) == 0 {
+ 		return 0, nil
+ 	}
+-	return syscall.Pwrite(f.fd, b, off)
++	return fixCount(syscall.Pwrite(f.fd, b, off))
+ }
+ 
+ // seek sets the offset for the next Read or Write on file to offset, interpreted
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index 9cff7e5bcc..fbb3b5e4d8 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -18,7 +18,7 @@ func sigpipe() // implemented in package runtime
+ func Readlink(name string) (string, error) {
+ 	for len := 128; ; len *= 2 {
+ 		b := make([]byte, len)
+-		n, e := syscall.Readlink(name, b)
++		n, e := fixCount(syscall.Readlink(name, b))
+ 		if e != nil {
+ 			return "", &PathError{"readlink", name, e}
+ 		}
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index bba0d9c0f6..4e413fbe84 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -187,7 +187,7 @@ func (f *File) read(b []byte) (n int, err error) {
+ 	if needsMaxRW && len(b) > maxRW {
+ 		b = b[:maxRW]
+ 	}
+-	return syscall.Read(f.fd, b)
++	return fixCount(syscall.Read(f.fd, b))
+ }
+ 
+ // pread reads len(b) bytes from the File starting at byte offset off.
+@@ -197,7 +197,7 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
+ 	if needsMaxRW && len(b) > maxRW {
+ 		b = b[:maxRW]
+ 	}
+-	return syscall.Pread(f.fd, b, off)
++	return fixCount(syscall.Pread(f.fd, b, off))
+ }
+ 
+ // write writes len(b) bytes to the File.
+@@ -208,7 +208,7 @@ func (f *File) write(b []byte) (n int, err error) {
+ 		if needsMaxRW && len(bcap) > maxRW {
+ 			bcap = bcap[:maxRW]
+ 		}
+-		m, err := syscall.Write(f.fd, bcap)
++		m, err := fixCount(syscall.Write(f.fd, bcap))
+ 		n += m
+ 
+ 		// If the syscall wrote some data but not all (short write)
+@@ -234,7 +234,7 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
+ 	if needsMaxRW && len(b) > maxRW {
+ 		b = b[:maxRW]
+ 	}
+-	return syscall.Pwrite(f.fd, b, off)
++	return fixCount(syscall.Pwrite(f.fd, b, off))
+ }
+ 
+ // seek sets the offset for the next Read or Write on file to offset, interpreted
+@@ -242,7 +242,7 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
+ // relative to the current offset, and 2 means relative to the end.
+ // It returns the new offset and an error, if any.
+ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
+-	return syscall.Seek(f.fd, offset, whence)
++	return fixCount(syscall.Seek(f.fd, offset, whence))
+ }
+ 
+ // Truncate changes the size of the named file.
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index e78d4abf64..3b5519390b 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -295,7 +295,7 @@ func (f *File) read(b []byte) (n int, err error) {
+ 	if f.isConsole {
+ 		return f.readConsole(b)
+ 	}
+-	return syscall.Read(f.fd, b)
++	return fixCount(syscall.Read(f.fd, b))
+ }
+ 
+ // pread reads len(b) bytes from the File starting at byte offset off.
+@@ -376,7 +376,7 @@ func (f *File) write(b []byte) (n int, err error) {
+ 	if f.isConsole {
+ 		return f.writeConsole(b)
+ 	}
+-	return syscall.Write(f.fd, b)
++	return fixCount(syscall.Write(f.fd, b))
+ }
+ 
+ // pwrite writes len(b) bytes to the File starting at byte offset off.

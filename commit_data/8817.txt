@@ -25,7 +25,7 @@ Date:   Wed Jun 22 10:52:47 2011 -0700
     R=r, rsc, gri
     CC=golang-dev
     https://golang.org/cl/4607052
-
+---
  src/cmd/cgo/gcc.go                            |  4 +-
  src/cmd/gofix/Makefile                        |  1 +
  src/cmd/gofix/oserrorstring.go                | 75 +++++++++++++++++++++++++++
@@ -107,3 +107,2284 @@ Date:   Wed Jun 22 10:52:47 2011 -0700
  src/pkg/xml/read.go                           |  4 +-
  test/fixedbugs/bug243.go                      |  3 +-
  80 files changed, 367 insertions(+), 230 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index e7e99bc56b..6b930f151e 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -230,9 +230,9 @@ func splitQuoted(s string) (r []string, err os.Error) {
+ 		args = append(args, string(arg[:i]))
+ 	}
+ 	if quote != 0 {
+-		err = os.ErrorString("unclosed quote")
++		err = os.NewError("unclosed quote")
+ 	} else if escaped {
+-		err = os.ErrorString("unfinished escaping")
++		err = os.NewError("unfinished escaping")
+ 	}
+ 	return args, err
+ }
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index 7504ddcbdf..b157649e87 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -9,6 +9,7 @@ GOFILES=\
+ 	fix.go\
+ 	netdial.go\
+ 	main.go\
++	oserrorstring.go\
+ 	osopen.go\
+ 	httpfinalurl.go\
+ 	httpheaders.go\
+diff --git a/src/cmd/gofix/oserrorstring.go b/src/cmd/gofix/oserrorstring.go
+new file mode 100644
+index 0000000000..5e61ab9528
+--- /dev/null
++++ b/src/cmd/gofix/oserrorstring.go
+@@ -0,0 +1,75 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++var oserrorstringFix = fix{
++	"oserrorstring",
++	oserrorstring,
++	`Replace os.ErrorString() conversions with calls to os.NewError().
++
++http://codereview.appspot.com/4607052
++`,
++}
++
++func init() {
++	register(oserrorstringFix)
++}
++
++func oserrorstring(f *ast.File) bool {
++	if !imports(f, "os") {
++		return false
++	}
++
++	fixed := false
++	walk(f, func(n interface{}) {
++		// The conversion os.ErrorString(x) looks like a call
++		// of os.ErrorString with one argument.
++		if call := callExpr(n, "os", "ErrorString"); call != nil {
++			// os.ErrorString(args) -> os.NewError(args)
++			call.Fun.(*ast.SelectorExpr).Sel.Name = "NewError"
++			// os.ErrorString(args) -> os.NewError(args)
++			call.Fun.(*ast.SelectorExpr).Sel.Name = "NewError"
++			fixed = true
++			return
++		}
++
++		// Remove os.Error type from variable declarations initialized
++		// with an os.NewError.
++		// (An *ast.ValueSpec may also be used in a const declaration
++		// but those won't be initialized with a call to os.NewError.)
++		if spec, ok := n.(*ast.ValueSpec); ok &&
++			len(spec.Names) == 1 &&
++			isPkgDot(spec.Type, "os", "Error") &&
++			len(spec.Values) == 1 &&
++			callExpr(spec.Values[0], "os", "NewError") != nil {
++			// var name os.Error = os.NewError(x) ->
++			// var name          = os.NewError(x)
++			spec.Type = nil
++			fixed = true
++			return
++		}
++
++		// Other occurrences of os.ErrorString are not fixed
++		// but they are rare.
++
++	})
++	return fixed
++}
++
++
++// callExpr returns the call expression if x is a call to pkg.name with one argument;
++// otherwise it returns nil.
++func callExpr(x interface{}, pkg, name string) *ast.CallExpr {
++	if call, ok := x.(*ast.CallExpr); ok &&
++		len(call.Args) == 1 &&
++		isPkgDot(call.Fun, pkg, name) {
++		return call
++	}
++	return nil
++}
+diff --git a/src/cmd/gofix/oserrorstring_test.go b/src/cmd/gofix/oserrorstring_test.go
+new file mode 100644
+index 0000000000..070d9222ba
+--- /dev/null
++++ b/src/cmd/gofix/oserrorstring_test.go
+@@ -0,0 +1,57 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(oserrorstringTests)
++}
++
++var oserrorstringTests = []testCase{
++	{
++		Name: "oserrorstring.0",
++		In: `package main
++
++import "os"
++
++var _ = os.ErrorString("foo")
++var _ os.Error = os.ErrorString("bar1")
++var _ os.Error = os.NewError("bar2")
++var _ os.Error = MyError("bal") // don't rewrite this one
++
++var (
++	_          = os.ErrorString("foo")
++	_ os.Error = os.ErrorString("bar1")
++	_ os.Error = os.NewError("bar2")
++	_ os.Error = MyError("bal") // don't rewrite this one
++)
++
++func _() (err os.Error) {
++	err = os.ErrorString("foo")
++	return os.ErrorString("foo")
++}
++`,
++		Out: `package main
++
++import "os"
++
++var _ = os.NewError("foo")
++var _ = os.NewError("bar1")
++var _ = os.NewError("bar2")
++var _ os.Error = MyError("bal") // don't rewrite this one
++
++var (
++	_          = os.NewError("foo")
++	_          = os.NewError("bar1")
++	_          = os.NewError("bar2")
++	_ os.Error = MyError("bal") // don't rewrite this one
++)
++
++func _() (err os.Error) {
++	err = os.NewError("foo")
++	return os.NewError("foo")
++}
++`,
++	},
++}
+diff --git a/src/cmd/gofix/testdata/reflect.decoder.go.out b/src/cmd/gofix/testdata/reflect.decoder.go.out
+index 170eedb05f..ece88ecbed 100644
+--- a/src/cmd/gofix/testdata/reflect.decoder.go.out
++++ b/src/cmd/gofix/testdata/reflect.decoder.go.out
+@@ -44,7 +44,7 @@ func NewDecoder(r io.Reader) *Decoder {
+ func (dec *Decoder) recvType(id typeId) {
+ 	// Have we already seen this type?  That's an error
+ 	if id < firstUserId || dec.wireType[id] != nil {
+-		dec.err = os.ErrorString("gob: duplicate type received")
++		dec.err = os.NewError("gob: duplicate type received")
+ 		return
+ 	}
+ 
+@@ -143,7 +143,7 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
+ 		// will be absorbed by recvMessage.)
+ 		if dec.buf.Len() > 0 {
+ 			if !isInterface {
+-				dec.err = os.ErrorString("extra data in buffer")
++				dec.err = os.NewError("extra data in buffer")
+ 				break
+ 			}
+ 			dec.nextUint()
+@@ -165,7 +165,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 	// If e represents a value as opposed to a pointer, the answer won't
+ 	// get back to the caller.  Make sure it's a pointer.
+ 	if value.Type().Kind() != reflect.Ptr {
+-		dec.err = os.ErrorString("gob: attempt to decode into a non-pointer")
++		dec.err = os.NewError("gob: attempt to decode into a non-pointer")
+ 		return dec.err
+ 	}
+ 	return dec.DecodeValue(value)
+diff --git a/src/cmd/gofix/testdata/reflect.encoder.go.out b/src/cmd/gofix/testdata/reflect.encoder.go.out
+index 781ef6504c..925d39301e 100644
+--- a/src/cmd/gofix/testdata/reflect.encoder.go.out
++++ b/src/cmd/gofix/testdata/reflect.encoder.go.out
+@@ -50,7 +50,7 @@ func (enc *Encoder) popWriter() {
+ }
+ 
+ func (enc *Encoder) badType(rt reflect.Type) {
+-	enc.setError(os.ErrorString("gob: can't encode type " + rt.String()))
++	enc.setError(os.NewError("gob: can't encode type " + rt.String()))
+ }
+ 
+ func (enc *Encoder) setError(err os.Error) {
+diff --git a/src/cmd/gofix/testdata/reflect.export.go.out b/src/cmd/gofix/testdata/reflect.export.go.out
+index 486a812e2b..460edb40bf 100644
+--- a/src/cmd/gofix/testdata/reflect.export.go.out
++++ b/src/cmd/gofix/testdata/reflect.export.go.out
+@@ -343,20 +343,20 @@ func (exp *Exporter) Sync(timeout int64) os.Error {
+ func checkChan(chT interface{}, dir Dir) (reflect.Value, os.Error) {
+ 	chanType := reflect.TypeOf(chT)
+ 	if chanType.Kind() != reflect.Chan {
+-		return reflect.Value{}, os.ErrorString("not a channel")
++		return reflect.Value{}, os.NewError("not a channel")
+ 	}
+ 	if dir != Send && dir != Recv {
+-		return reflect.Value{}, os.ErrorString("unknown channel direction")
++		return reflect.Value{}, os.NewError("unknown channel direction")
+ 	}
+ 	switch chanType.ChanDir() {
+ 	case reflect.BothDir:
+ 	case reflect.SendDir:
+ 		if dir != Recv {
+-			return reflect.Value{}, os.ErrorString("to import/export with Send, must provide <-chan")
++			return reflect.Value{}, os.NewError("to import/export with Send, must provide <-chan")
+ 		}
+ 	case reflect.RecvDir:
+ 		if dir != Send {
+-			return reflect.Value{}, os.ErrorString("to import/export with Recv, must provide chan<-")
++			return reflect.Value{}, os.NewError("to import/export with Recv, must provide chan<-")
+ 		}
+ 	}
+ 	return reflect.ValueOf(chT), nil
+@@ -376,7 +376,7 @@ func (exp *Exporter) Export(name string, chT interface{}, dir Dir) os.Error {
+ 	defer exp.mu.Unlock()
+ 	_, present := exp.names[name]
+ 	if present {
+-		return os.ErrorString("channel name already being exported:" + name)
++		return os.NewError("channel name already being exported:" + name)
+ 	}
+ 	exp.names[name] = &chanDir{ch, dir}
+ 	return nil
+@@ -393,7 +393,7 @@ func (exp *Exporter) Hangup(name string) os.Error {
+ 	// TODO drop all instances of channel from client sets
+ 	exp.mu.Unlock()
+ 	if !ok {
+-		return os.ErrorString("netchan export: hangup: no such channel: " + name)
++		return os.NewError("netchan export: hangup: no such channel: " + name)
+ 	}
+ 	chDir.ch.Close()
+ 	return nil
+diff --git a/src/cmd/gofix/testdata/reflect.print.go.out b/src/cmd/gofix/testdata/reflect.print.go.out
+index 079948ccae..10379bd204 100644
+--- a/src/cmd/gofix/testdata/reflect.print.go.out
++++ b/src/cmd/gofix/testdata/reflect.print.go.out
+@@ -185,7 +185,7 @@ func Sprintf(format string, a ...interface{}) string {
+ // Errorf formats according to a format specifier and returns the string 
+ // converted to an os.ErrorString, which satisfies the os.Error interface.
+ func Errorf(format string, a ...interface{}) os.Error {
+-	return os.ErrorString(Sprintf(format, a...))
++	return os.NewError(Sprintf(format, a...))
+ }
+ 
+ // These routines do not take a format string
+diff --git a/src/cmd/gofix/testdata/reflect.read.go.out b/src/cmd/gofix/testdata/reflect.read.go.out
+index 554b2a61b7..a6b126744c 100644
+--- a/src/cmd/gofix/testdata/reflect.read.go.out
++++ b/src/cmd/gofix/testdata/reflect.read.go.out
+@@ -244,7 +244,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 
+ 	switch v := val; v.Kind() {
+ 	default:
+-		return os.ErrorString("unknown type " + v.Type().String())
++		return os.NewError("unknown type " + v.Type().String())
+ 
+ 	case reflect.Slice:
+ 		typ := v.Type()
+@@ -483,7 +483,7 @@ Loop:
+ 	case reflect.Invalid:
+ 		// Probably a comment, handled below
+ 	default:
+-		return os.ErrorString("cannot happen: unknown type " + t.Type().String())
++		return os.NewError("cannot happen: unknown type " + t.Type().String())
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		if !getInt64() {
+ 			return err
+diff --git a/src/cmd/gofix/testdata/reflect.scan.go.out b/src/cmd/gofix/testdata/reflect.scan.go.out
+index 42bc52c92b..2b07115e99 100644
+--- a/src/cmd/gofix/testdata/reflect.scan.go.out
++++ b/src/cmd/gofix/testdata/reflect.scan.go.out
+@@ -167,7 +167,7 @@ type ssave struct {
+ // satisfies io.Reader. It will never be called when used as
+ // intended, so there is no need to make it actually work.
+ func (s *ss) Read(buf []byte) (n int, err os.Error) {
+-	return 0, os.ErrorString("ScanState's Read should not be called. Use ReadRune")
++	return 0, os.NewError("ScanState's Read should not be called. Use ReadRune")
+ }
+ 
+ func (s *ss) ReadRune() (rune int, size int, err os.Error) {
+@@ -240,7 +240,7 @@ func (s *ss) error(err os.Error) {
+ }
+ 
+ func (s *ss) errorString(err string) {
+-	panic(scanError{os.ErrorString(err)})
++	panic(scanError{os.NewError(err)})
+ }
+ 
+ func (s *ss) Token(skipSpace bool, f func(int) bool) (tok []byte, err os.Error) {
+@@ -426,8 +426,8 @@ func (s *ss) typeError(field interface{}, expected string) {
+ 	s.errorString("expected field of type pointer to " + expected + "; found " + reflect.TypeOf(field).String())
+ }
+ 
+-var complexError = os.ErrorString("syntax error scanning complex number")
+-var boolError = os.ErrorString("syntax error scanning boolean")
++var complexError = os.NewError("syntax error scanning complex number")
++var boolError = os.NewError("syntax error scanning boolean")
+ 
+ // consume reads the next rune in the input and reports whether it is in the ok string.
+ // If accept is true, it puts the character into the input token.
+diff --git a/src/cmd/gofix/testdata/reflect.type.go.out b/src/cmd/gofix/testdata/reflect.type.go.out
+index a39b074fed..9cd78296dd 100644
+--- a/src/cmd/gofix/testdata/reflect.type.go.out
++++ b/src/cmd/gofix/testdata/reflect.type.go.out
+@@ -67,7 +67,7 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
+ 		ut.base = pt.Elem()
+ 		if ut.base == slowpoke { // ut.base lapped slowpoke
+ 			// recursive pointer type.
+-			return nil, os.ErrorString("can't represent recursive pointer type " + ut.base.String())
++			return nil, os.NewError("can't represent recursive pointer type " + ut.base.String())
+ 		}
+ 		if ut.indir%2 == 0 {
+ 			slowpoke = slowpoke.Elem()
+@@ -524,7 +524,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
+ 		return st, nil
+ 
+ 	default:
+-		return nil, os.ErrorString("gob NewTypeObject can't handle type: " + rt.String())
++		return nil, os.NewError("gob NewTypeObject can't handle type: " + rt.String())
+ 	}
+ 	return nil, nil
+ }
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 0f127d134b..d209fa82bf 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -160,14 +160,14 @@ func isRemote(pkg string) bool {
+ // download checks out or updates pkg from the remote server.
+ func download(pkg, srcDir string) os.Error {
+ 	if strings.Contains(pkg, "..") {
+-		return os.ErrorString("invalid path (contains ..)")
++		return os.NewError("invalid path (contains ..)")
+ 	}
+ 	var m *vcsMatch
+ 	for _, v := range vcsList {
+ 		for _, host := range v.defaultHosts {
+ 			if hm := host.pattern.FindStringSubmatch(pkg); hm != nil {
+ 				if v.suffix != "" && strings.HasSuffix(hm[1], v.suffix) {
+-					return os.ErrorString("repository " + pkg + " should not have " + v.suffix + " suffix")
++					return os.NewError("repository " + pkg + " should not have " + v.suffix + " suffix")
+ 				}
+ 				repo := host.protocol + "://" + hm[1] + v.suffix
+ 				m = &vcsMatch{v, hm[1], repo}
+@@ -175,7 +175,7 @@ func download(pkg, srcDir string) os.Error {
+ 		}
+ 	}
+ 	if m == nil {
+-		return os.ErrorString("cannot download: " + pkg)
++		return os.NewError("cannot download: " + pkg)
+ 	}
+ 	return vcsCheckout(m.vcs, srcDir, m.prefix, m.repo, pkg)
+ }
+@@ -205,7 +205,7 @@ func vcsCheckout(vcs *vcs, srcDir, pkgprefix, repo, dashpath string) os.Error {
+ 	dst := filepath.Join(srcDir, filepath.FromSlash(pkgprefix))
+ 	dir, err := os.Stat(filepath.Join(dst, vcs.metadir))
+ 	if err == nil && !dir.IsDirectory() {
+-		return os.ErrorString("not a directory: " + dst)
++		return os.NewError("not a directory: " + dst)
+ 	}
+ 	if err != nil {
+ 		parent, _ := filepath.Split(dst)
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 64fae08688..c4383aa077 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -279,7 +279,7 @@ func genRun(dir string, stdin []byte, arg []string, quiet bool) os.Error {
+ 			os.Stderr.Write(out)
+ 			fmt.Fprintf(os.Stderr, "--- %s\n", err)
+ 		}
+-		return os.ErrorString("running " + arg[0] + ": " + err.String())
++		return os.NewError("running " + arg[0] + ": " + err.String())
+ 	}
+ 	return nil
+ }
+diff --git a/src/cmd/gotype/gotype.go b/src/cmd/gotype/gotype.go
+index b6a23ae5fa..501ead443c 100644
+--- a/src/cmd/gotype/gotype.go
++++ b/src/cmd/gotype/gotype.go
+@@ -114,7 +114,7 @@ func parseFiles(fset *token.FileSet, filenames []string) (files map[string]*ast.
+ 		}
+ 		if file := parse(fset, filename, src); file != nil {
+ 			if files[filename] != nil {
+-				report(os.ErrorString(fmt.Sprintf("%q: duplicate file", filename)))
++				report(os.NewError(fmt.Sprintf("%q: duplicate file", filename)))
+ 				continue
+ 			}
+ 			files[filename] = file
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index ad06b6dac5..45d95c3df2 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -16,7 +16,7 @@ import (
+ )
+ 
+ var (
+-	HeaderError os.Error = os.ErrorString("invalid tar header")
++	HeaderError = os.NewError("invalid tar header")
+ )
+ 
+ // A Reader provides sequential access to the contents of a tar archive.
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index 22bdf8d2f8..4d47a82d5f 100755
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -430,7 +430,7 @@ func (z *Int) Scan(s fmt.ScanState, ch int) os.Error {
+ 	case 's', 'v':
+ 		// let scan determine the base
+ 	default:
+-		return os.ErrorString("Int.Scan: invalid verb")
++		return os.NewError("Int.Scan: invalid verb")
+ 	}
+ 	_, _, err := z.scan(s, base)
+ 	return err
+@@ -834,11 +834,11 @@ func (z *Int) GobEncode() ([]byte, os.Error) {
+ // GobDecode implements the gob.GobDecoder interface.
+ func (z *Int) GobDecode(buf []byte) os.Error {
+ 	if len(buf) == 0 {
+-		return os.ErrorString("Int.GobDecode: no data")
++		return os.NewError("Int.GobDecode: no data")
+ 	}
+ 	b := buf[0]
+ 	if b>>1 != intGobVersion {
+-		return os.ErrorString(fmt.Sprintf("Int.GobDecode: encoding version %d not supported", b>>1))
++		return os.NewError(fmt.Sprintf("Int.GobDecode: encoding version %d not supported", b>>1))
+ 	}
+ 	z.neg = b&1 != 0
+ 	z.abs = z.abs.setBytes(buf[1:])
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index 734568e068..6755832bec 100755
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -644,7 +644,7 @@ func hexValue(ch int) Word {
+ func (z nat) scan(r io.RuneScanner, base int) (nat, int, os.Error) {
+ 	// reject illegal bases
+ 	if base < 0 || base == 1 || MaxBase < base {
+-		return z, 0, os.ErrorString("illegal number base")
++		return z, 0, os.NewError("illegal number base")
+ 	}
+ 
+ 	// one char look-ahead
+@@ -721,7 +721,7 @@ func (z nat) scan(r io.RuneScanner, base int) (nat, int, os.Error) {
+ 		return z, 10, nil
+ 	case base != 0 || b != 8:
+ 		// there was neither a mantissa digit nor the octal prefix 0
+-		return z, int(b), os.ErrorString("syntax error scanning number")
++		return z, int(b), os.NewError("syntax error scanning number")
+ 	}
+ 
+ 	return z.norm(), int(b), nil
+diff --git a/src/pkg/big/rat.go b/src/pkg/big/rat.go
+index 1fbf8c4596..b61cbb966b 100644
+--- a/src/pkg/big/rat.go
++++ b/src/pkg/big/rat.go
+@@ -227,10 +227,10 @@ func (z *Rat) Scan(s fmt.ScanState, ch int) os.Error {
+ 		return err
+ 	}
+ 	if strings.IndexRune("efgEFGv", ch) < 0 {
+-		return os.ErrorString("Rat.Scan: invalid verb")
++		return os.NewError("Rat.Scan: invalid verb")
+ 	}
+ 	if _, ok := z.SetString(string(tok)); !ok {
+-		return os.ErrorString("Rat.Scan: invalid syntax")
++		return os.NewError("Rat.Scan: invalid syntax")
+ 	}
+ 	return nil
+ }
+@@ -368,7 +368,7 @@ func (z *Rat) GobEncode() ([]byte, os.Error) {
+ 	n := i - j
+ 	if int(uint32(n)) != n {
+ 		// this should never happen
+-		return nil, os.ErrorString("Rat.GobEncode: numerator too large")
++		return nil, os.NewError("Rat.GobEncode: numerator too large")
+ 	}
+ 	binary.BigEndian.PutUint32(buf[j-4:j], uint32(n))
+ 	j -= 1 + 4
+@@ -384,11 +384,11 @@ func (z *Rat) GobEncode() ([]byte, os.Error) {
+ // GobDecode implements the gob.GobDecoder interface.
+ func (z *Rat) GobDecode(buf []byte) os.Error {
+ 	if len(buf) == 0 {
+-		return os.ErrorString("Rat.GobDecode: no data")
++		return os.NewError("Rat.GobDecode: no data")
+ 	}
+ 	b := buf[0]
+ 	if b>>1 != ratGobVersion {
+-		return os.ErrorString(fmt.Sprintf("Rat.GobDecode: encoding version %d not supported", b>>1))
++		return os.NewError(fmt.Sprintf("Rat.GobDecode: encoding version %d not supported", b>>1))
+ 	}
+ 	const j = 1 + 4
+ 	i := j + binary.BigEndian.Uint32(buf[j-4:j])
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index eaae8bb42c..497e770fb1 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -22,9 +22,11 @@ const (
+ 
+ // Errors introduced by this package.
+ type Error struct {
+-	os.ErrorString
++	ErrorString string
+ }
+ 
++func (err *Error) String() string { return err.ErrorString }
++
+ var (
+ 	ErrInvalidUnreadByte os.Error = &Error{"bufio: invalid use of UnreadByte"}
+ 	ErrInvalidUnreadRune os.Error = &Error{"bufio: invalid use of UnreadRune"}
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index 1acd4e05ca..5de86105d0 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -280,7 +280,7 @@ func (b *Buffer) ReadRune() (r int, size int, err os.Error) {
+ // from any read operation.)
+ func (b *Buffer) UnreadRune() os.Error {
+ 	if b.lastRead != opReadRune {
+-		return os.ErrorString("bytes.Buffer: UnreadRune: previous operation was not ReadRune")
++		return os.NewError("bytes.Buffer: UnreadRune: previous operation was not ReadRune")
+ 	}
+ 	b.lastRead = opInvalid
+ 	if b.off > 0 {
+@@ -295,7 +295,7 @@ func (b *Buffer) UnreadRune() os.Error {
+ // returns an error.
+ func (b *Buffer) UnreadByte() os.Error {
+ 	if b.lastRead != opReadRune && b.lastRead != opRead {
+-		return os.ErrorString("bytes.Buffer: UnreadByte: previous operation was not a read")
++		return os.NewError("bytes.Buffer: UnreadByte: previous operation was not a read")
+ 	}
+ 	b.lastRead = opInvalid
+ 	if b.off > 0 {
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index b0ddc81d25..6ac9293d77 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -36,8 +36,8 @@ func makeReader(r io.Reader) flate.Reader {
+ 	return bufio.NewReader(r)
+ }
+ 
+-var HeaderError os.Error = os.ErrorString("invalid gzip header")
+-var ChecksumError os.Error = os.ErrorString("gzip checksum error")
++var HeaderError = os.NewError("invalid gzip header")
++var ChecksumError = os.NewError("gzip checksum error")
+ 
+ // The gzip file stores a header giving metadata about the compressed file.
+ // That header is exposed as the fields of the Compressor and Decompressor structs.
+diff --git a/src/pkg/compress/zlib/reader.go b/src/pkg/compress/zlib/reader.go
+index 8a3ef1580a..78dabdf4d8 100644
+--- a/src/pkg/compress/zlib/reader.go
++++ b/src/pkg/compress/zlib/reader.go
+@@ -34,9 +34,9 @@ import (
+ 
+ const zlibDeflate = 8
+ 
+-var ChecksumError os.Error = os.ErrorString("zlib checksum error")
+-var HeaderError os.Error = os.ErrorString("invalid zlib header")
+-var DictionaryError os.Error = os.ErrorString("invalid zlib dictionary")
++var ChecksumError = os.NewError("zlib checksum error")
++var HeaderError = os.NewError("invalid zlib header")
++var DictionaryError = os.NewError("invalid zlib dictionary")
+ 
+ type reader struct {
+ 	r            flate.Reader
+diff --git a/src/pkg/crypto/cast5/cast5.go b/src/pkg/crypto/cast5/cast5.go
+index cb62e3132e..e9d4a24e26 100644
+--- a/src/pkg/crypto/cast5/cast5.go
++++ b/src/pkg/crypto/cast5/cast5.go
+@@ -20,7 +20,7 @@ type Cipher struct {
+ 
+ func NewCipher(key []byte) (c *Cipher, err os.Error) {
+ 	if len(key) != KeySize {
+-		return nil, os.ErrorString("CAST5: keys must be 16 bytes")
++		return nil, os.NewError("CAST5: keys must be 16 bytes")
+ 	}
+ 
+ 	c = new(Cipher)
+diff --git a/src/pkg/crypto/dsa/dsa.go b/src/pkg/crypto/dsa/dsa.go
+index f0af8bb427..a5f96fe942 100644
+--- a/src/pkg/crypto/dsa/dsa.go
++++ b/src/pkg/crypto/dsa/dsa.go
+@@ -79,7 +79,7 @@ func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes
+ 		L = 3072
+ 		N = 256
+ 	default:
+-		return os.ErrorString("crypto/dsa: invalid ParameterSizes")
++		return os.NewError("crypto/dsa: invalid ParameterSizes")
+ 	}
+ 
+ 	qBytes := make([]byte, N/8)
+@@ -158,7 +158,7 @@ GeneratePrimes:
+ // PrivateKey must already be valid (see GenerateParameters).
+ func GenerateKey(priv *PrivateKey, rand io.Reader) os.Error {
+ 	if priv.P == nil || priv.Q == nil || priv.G == nil {
+-		return os.ErrorString("crypto/dsa: parameters not set up before generating key")
++		return os.NewError("crypto/dsa: parameters not set up before generating key")
+ 	}
+ 
+ 	x := new(big.Int)
+diff --git a/src/pkg/crypto/openpgp/elgamal/elgamal.go b/src/pkg/crypto/openpgp/elgamal/elgamal.go
+index 3dc4178748..99a6e3e1f2 100644
+--- a/src/pkg/crypto/openpgp/elgamal/elgamal.go
++++ b/src/pkg/crypto/openpgp/elgamal/elgamal.go
+@@ -37,7 +37,7 @@ type PrivateKey struct {
+ func Encrypt(random io.Reader, pub *PublicKey, msg []byte) (c1, c2 *big.Int, err os.Error) {
+ 	pLen := (pub.P.BitLen() + 7) / 8
+ 	if len(msg) > pLen-11 {
+-		err = os.ErrorString("elgamal: message too long")
++		err = os.NewError("elgamal: message too long")
+ 		return
+ 	}
+ 
+@@ -97,7 +97,7 @@ func Decrypt(priv *PrivateKey, c1, c2 *big.Int) (msg []byte, err os.Error) {
+ 	}
+ 
+ 	if firstByteIsTwo != 1 || lookingForIndex != 0 || index < 9 {
+-		return nil, os.ErrorString("elgamal: decryption error")
++		return nil, os.NewError("elgamal: decryption error")
+ 	}
+ 	return em[index+1:], nil
+ }
+diff --git a/src/pkg/crypto/rsa/pkcs1v15.go b/src/pkg/crypto/rsa/pkcs1v15.go
+index 3defa62ea6..6006231145 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15.go
++++ b/src/pkg/crypto/rsa/pkcs1v15.go
+@@ -232,11 +232,11 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
+ func pkcs1v15HashInfo(hash crypto.Hash, inLen int) (hashLen int, prefix []byte, err os.Error) {
+ 	hashLen = hash.Size()
+ 	if inLen != hashLen {
+-		return 0, nil, os.ErrorString("input must be hashed message")
++		return 0, nil, os.NewError("input must be hashed message")
+ 	}
+ 	prefix, ok := hashPrefixes[hash]
+ 	if !ok {
+-		return 0, nil, os.ErrorString("unsupported hash function")
++		return 0, nil, os.NewError("unsupported hash function")
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index 380f715701..6957659f28 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -64,7 +64,7 @@ func (priv *PrivateKey) Validate() os.Error {
+ 	// easy for an attack to generate composites that pass this test.
+ 	for _, prime := range priv.Primes {
+ 		if !big.ProbablyPrime(prime, 20) {
+-			return os.ErrorString("prime factor is composite")
++			return os.NewError("prime factor is composite")
+ 		}
+ 	}
+ 
+@@ -74,7 +74,7 @@ func (priv *PrivateKey) Validate() os.Error {
+ 		modulus.Mul(modulus, prime)
+ 	}
+ 	if modulus.Cmp(priv.N) != 0 {
+-		return os.ErrorString("invalid modulus")
++		return os.NewError("invalid modulus")
+ 	}
+ 	// Check that e and totient(Πprimes) are coprime.
+ 	totient := new(big.Int).Set(bigOne)
+@@ -88,13 +88,13 @@ func (priv *PrivateKey) Validate() os.Error {
+ 	y := new(big.Int)
+ 	big.GcdInt(gcd, x, y, totient, e)
+ 	if gcd.Cmp(bigOne) != 0 {
+-		return os.ErrorString("invalid public exponent E")
++		return os.NewError("invalid public exponent E")
+ 	}
+ 	// Check that de ≡ 1 (mod totient(Πprimes))
+ 	de := new(big.Int).Mul(priv.D, e)
+ 	de.Mod(de, totient)
+ 	if de.Cmp(bigOne) != 0 {
+-		return os.ErrorString("invalid private exponent D")
++		return os.NewError("invalid private exponent D")
+ 	}
+ 	return nil
+ }
+@@ -127,7 +127,7 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (priv *Priva
+ 	priv.E = 3
+ 
+ 	if nprimes < 2 {
+-		return nil, os.ErrorString("rsa.GenerateMultiPrimeKey: nprimes must be >= 2")
++		return nil, os.NewError("rsa.GenerateMultiPrimeKey: nprimes must be >= 2")
+ 	}
+ 
+ 	primes := make([]*big.Int, nprimes)
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index 097e182bda..fac65afd9c 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -790,10 +790,10 @@ func (c *Conn) VerifyHostname(host string) os.Error {
+ 	c.handshakeMutex.Lock()
+ 	defer c.handshakeMutex.Unlock()
+ 	if !c.isClient {
+-		return os.ErrorString("VerifyHostname called on TLS server connection")
++		return os.NewError("VerifyHostname called on TLS server connection")
+ 	}
+ 	if !c.handshakeComplete {
+-		return os.ErrorString("TLS handshake has not yet been performed")
++		return os.NewError("TLS handshake has not yet been performed")
+ 	}
+ 	return c.peerCertificates[0].VerifyHostname(host)
+ }
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index c758c96d4e..15604cea7e 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -40,7 +40,7 @@ func (c *Conn) clientHandshake() os.Error {
+ 	_, err := io.ReadFull(c.config.rand(), hello.random[4:])
+ 	if err != nil {
+ 		c.sendAlert(alertInternalError)
+-		return os.ErrorString("short read from Rand")
++		return os.NewError("short read from Rand")
+ 	}
+ 
+ 	finishedHash.Write(hello.marshal())
+@@ -69,7 +69,7 @@ func (c *Conn) clientHandshake() os.Error {
+ 
+ 	if !hello.nextProtoNeg && serverHello.nextProtoNeg {
+ 		c.sendAlert(alertHandshakeFailure)
+-		return os.ErrorString("server advertised unrequested NPN")
++		return os.NewError("server advertised unrequested NPN")
+ 	}
+ 
+ 	suite, suiteId := mutualCipherSuite(c.config.cipherSuites(), serverHello.cipherSuite)
+@@ -92,7 +92,7 @@ func (c *Conn) clientHandshake() os.Error {
+ 		cert, err := x509.ParseCertificate(asn1Data)
+ 		if err != nil {
+ 			c.sendAlert(alertBadCertificate)
+-			return os.ErrorString("failed to parse certificate from server: " + err.String())
++			return os.NewError("failed to parse certificate from server: " + err.String())
+ 		}
+ 		certs[i] = cert
+ 	}
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index e9431c6fad..44a3240414 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -173,7 +173,7 @@ FindCipherSuite:
+ 			cert, err := x509.ParseCertificate(asn1Data)
+ 			if err != nil {
+ 				c.sendAlert(alertBadCertificate)
+-				return os.ErrorString("could not parse client's certificate: " + err.String())
++				return os.NewError("could not parse client's certificate: " + err.String())
+ 			}
+ 			certs[i] = cert
+ 		}
+@@ -182,7 +182,7 @@ FindCipherSuite:
+ 		for i := 1; i < len(certs); i++ {
+ 			if err := certs[i-1].CheckSignatureFrom(certs[i]); err != nil {
+ 				c.sendAlert(alertBadCertificate)
+-				return os.ErrorString("could not validate certificate signature: " + err.String())
++				return os.NewError("could not validate certificate signature: " + err.String())
+ 			}
+ 		}
+ 
+@@ -229,7 +229,7 @@ FindCipherSuite:
+ 		err = rsa.VerifyPKCS1v15(pub, crypto.MD5SHA1, digest, certVerify.signature)
+ 		if err != nil {
+ 			c.sendAlert(alertBadCertificate)
+-			return os.ErrorString("could not validate signature of connection nonces: " + err.String())
++			return os.NewError("could not validate signature of connection nonces: " + err.String())
+ 		}
+ 
+ 		finishedHash.Write(certVerify.marshal())
+diff --git a/src/pkg/crypto/tls/key_agreement.go b/src/pkg/crypto/tls/key_agreement.go
+index c83ef3f09d..48472fb6a9 100644
+--- a/src/pkg/crypto/tls/key_agreement.go
++++ b/src/pkg/crypto/tls/key_agreement.go
+@@ -32,11 +32,11 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKe
+ 	}
+ 
+ 	if len(ckx.ciphertext) < 2 {
+-		return nil, os.ErrorString("bad ClientKeyExchange")
++		return nil, os.NewError("bad ClientKeyExchange")
+ 	}
+ 	ciphertextLen := int(ckx.ciphertext[0])<<8 | int(ckx.ciphertext[1])
+ 	if ciphertextLen != len(ckx.ciphertext)-2 {
+-		return nil, os.ErrorString("bad ClientKeyExchange")
++		return nil, os.NewError("bad ClientKeyExchange")
+ 	}
+ 	ciphertext := ckx.ciphertext[2:]
+ 
+@@ -54,7 +54,7 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKe
+ }
+ 
+ func (ka rsaKeyAgreement) processServerKeyExchange(config *Config, clientHello *clientHelloMsg, serverHello *serverHelloMsg, cert *x509.Certificate, skx *serverKeyExchangeMsg) os.Error {
+-	return os.ErrorString("unexpected ServerKeyExchange")
++	return os.NewError("unexpected ServerKeyExchange")
+ }
+ 
+ func (ka rsaKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, os.Error) {
+@@ -146,7 +146,7 @@ Curve:
+ 	md5sha1 := md5SHA1Hash(clientHello.random, hello.random, serverECDHParams)
+ 	sig, err := rsa.SignPKCS1v15(config.rand(), config.Certificates[0].PrivateKey, crypto.MD5SHA1, md5sha1)
+ 	if err != nil {
+-		return nil, os.ErrorString("failed to sign ECDHE parameters: " + err.String())
++		return nil, os.NewError("failed to sign ECDHE parameters: " + err.String())
+ 	}
+ 
+ 	skx := new(serverKeyExchangeMsg)
+@@ -162,11 +162,11 @@ Curve:
+ 
+ func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg) ([]byte, os.Error) {
+ 	if len(ckx.ciphertext) == 0 || int(ckx.ciphertext[0]) != len(ckx.ciphertext)-1 {
+-		return nil, os.ErrorString("bad ClientKeyExchange")
++		return nil, os.NewError("bad ClientKeyExchange")
+ 	}
+ 	x, y := ka.curve.Unmarshal(ckx.ciphertext[1:])
+ 	if x == nil {
+-		return nil, os.ErrorString("bad ClientKeyExchange")
++		return nil, os.NewError("bad ClientKeyExchange")
+ 	}
+ 	x, _ = ka.curve.ScalarMult(x, y, ka.privateKey)
+ 	preMasterSecret := make([]byte, (ka.curve.BitSize+7)>>3)
+@@ -176,14 +176,14 @@ func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, ckx *cl
+ 	return preMasterSecret, nil
+ }
+ 
+-var errServerKeyExchange = os.ErrorString("invalid ServerKeyExchange")
++var errServerKeyExchange = os.NewError("invalid ServerKeyExchange")
+ 
+ func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientHello *clientHelloMsg, serverHello *serverHelloMsg, cert *x509.Certificate, skx *serverKeyExchangeMsg) os.Error {
+ 	if len(skx.key) < 4 {
+ 		return errServerKeyExchange
+ 	}
+ 	if skx.key[0] != 3 { // named curve
+-		return os.ErrorString("server selected unsupported curve")
++		return os.NewError("server selected unsupported curve")
+ 	}
+ 	curveid := uint16(skx.key[1])<<8 | uint16(skx.key[2])
+ 
+@@ -195,7 +195,7 @@ func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientH
+ 	case curveP521:
+ 		ka.curve = elliptic.P521()
+ 	default:
+-		return os.ErrorString("server selected unsupported curve")
++		return os.NewError("server selected unsupported curve")
+ 	}
+ 
+ 	publicLen := int(skx.key[3])
+@@ -224,7 +224,7 @@ func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientH
+ 
+ func (ka *ecdheRSAKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, os.Error) {
+ 	if ka.curve == nil {
+-		return nil, nil, os.ErrorString("missing ServerKeyExchange message")
++		return nil, nil, os.NewError("missing ServerKeyExchange message")
+ 	}
+ 	priv, mx, my, err := ka.curve.GenerateKey(config.rand())
+ 	if err != nil {
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index 9e5c9270a7..4f0859fee6 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -147,19 +147,19 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (cert Certificate, err os.Err
+ 	}
+ 
+ 	if len(cert.Certificate) == 0 {
+-		err = os.ErrorString("crypto/tls: failed to parse certificate PEM data")
++		err = os.NewError("crypto/tls: failed to parse certificate PEM data")
+ 		return
+ 	}
+ 
+ 	keyDERBlock, _ := pem.Decode(keyPEMBlock)
+ 	if keyDERBlock == nil {
+-		err = os.ErrorString("crypto/tls: failed to parse key PEM data")
++		err = os.NewError("crypto/tls: failed to parse key PEM data")
+ 		return
+ 	}
+ 
+ 	key, err := x509.ParsePKCS1PrivateKey(keyDERBlock.Bytes)
+ 	if err != nil {
+-		err = os.ErrorString("crypto/tls: failed to parse key: " + err.String())
++		err = os.NewError("crypto/tls: failed to parse key: " + err.String())
+ 		return
+ 	}
+ 
+@@ -173,7 +173,7 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (cert Certificate, err os.Err
+ 	}
+ 
+ 	if x509Cert.PublicKeyAlgorithm != x509.RSA || x509Cert.PublicKey.(*rsa.PublicKey).N.Cmp(key.PublicKey.N) != 0 {
+-		err = os.ErrorString("crypto/tls: private key does not match public key")
++		err = os.NewError("crypto/tls: private key does not match public key")
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/crypto/x509/verify_test.go b/src/pkg/crypto/x509/verify_test.go
+index 6a103dcfba..7a631186a2 100644
+--- a/src/pkg/crypto/x509/verify_test.go
++++ b/src/pkg/crypto/x509/verify_test.go
+@@ -120,7 +120,7 @@ func expectAuthorityUnknown(t *testing.T, i int, err os.Error) (ok bool) {
+ func certificateFromPEM(pemBytes string) (*Certificate, os.Error) {
+ 	block, _ := pem.Decode([]byte(pemBytes))
+ 	if block == nil {
+-		return nil, os.ErrorString("failed to decode PEM")
++		return nil, os.NewError("failed to decode PEM")
+ 	}
+ 	return ParseCertificate(block.Bytes)
+ }
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index b10ffb0a2e..8bafeda5c9 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -58,11 +58,11 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
+ 	}
+ 
+ 	if priv.Version > 1 {
+-		return nil, os.ErrorString("x509: unsupported private key version")
++		return nil, os.NewError("x509: unsupported private key version")
+ 	}
+ 
+ 	if priv.N.Sign() <= 0 || priv.D.Sign() <= 0 || priv.P.Sign() <= 0 || priv.Q.Sign() <= 0 {
+-		return nil, os.ErrorString("private key contains zero or negative value")
++		return nil, os.NewError("private key contains zero or negative value")
+ 	}
+ 
+ 	key = new(rsa.PrivateKey)
+@@ -77,7 +77,7 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
+ 	key.Primes[1] = priv.Q
+ 	for i, a := range priv.AdditionalPrimes {
+ 		if a.Prime.Sign() <= 0 {
+-			return nil, os.ErrorString("private key contains zero or negative prime")
++			return nil, os.NewError("private key contains zero or negative prime")
+ 		}
+ 		key.Primes[i+2] = a.Prime
+ 		// We ignore the other two values because rsa will calculate
+@@ -457,10 +457,10 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature
+ 			return err
+ 		}
+ 		if dsaSig.R.Sign() <= 0 || dsaSig.S.Sign() <= 0 {
+-			return os.ErrorString("DSA signature contained zero or negative values")
++			return os.NewError("DSA signature contained zero or negative values")
+ 		}
+ 		if !dsa.Verify(pub, digest, dsaSig.R, dsaSig.S) {
+-			return os.ErrorString("DSA verification failure")
++			return os.NewError("DSA verification failure")
+ 		}
+ 		return
+ 	}
+@@ -535,7 +535,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
+ 			return nil, err
+ 		}
+ 		if p.Sign() <= 0 || params.P.Sign() <= 0 || params.Q.Sign() <= 0 || params.G.Sign() <= 0 {
+-			return nil, os.ErrorString("zero or negative DSA parameter")
++			return nil, os.NewError("zero or negative DSA parameter")
+ 		}
+ 		pub := &dsa.PublicKey{
+ 			Parameters: dsa.Parameters{
+@@ -571,7 +571,7 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
+ 	}
+ 
+ 	if in.TBSCertificate.SerialNumber.Sign() < 0 {
+-		return nil, os.ErrorString("negative serial number")
++		return nil, os.NewError("negative serial number")
+ 	}
+ 
+ 	out.Version = in.TBSCertificate.Version + 1
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index 220ab94083..346fe2a783 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -81,7 +81,7 @@ func (s *Section) Data() ([]byte, os.Error) {
+ // specified link value.
+ func (f *File) stringTable(link uint32) ([]byte, os.Error) {
+ 	if link <= 0 || link >= uint32(len(f.Sections)) {
+-		return nil, os.ErrorString("section has invalid string table link")
++		return nil, os.NewError("section has invalid string table link")
+ 	}
+ 	return f.Sections[link].Data()
+ }
+@@ -341,27 +341,27 @@ func (f *File) getSymbols(typ SectionType) ([]Symbol, []byte, os.Error) {
+ 		return f.getSymbols32(typ)
+ 	}
+ 
+-	return nil, nil, os.ErrorString("not implemented")
++	return nil, nil, os.NewError("not implemented")
+ }
+ 
+ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, os.Error) {
+ 	symtabSection := f.SectionByType(typ)
+ 	if symtabSection == nil {
+-		return nil, nil, os.ErrorString("no symbol section")
++		return nil, nil, os.NewError("no symbol section")
+ 	}
+ 
+ 	data, err := symtabSection.Data()
+ 	if err != nil {
+-		return nil, nil, os.ErrorString("cannot load symbol section")
++		return nil, nil, os.NewError("cannot load symbol section")
+ 	}
+ 	symtab := bytes.NewBuffer(data)
+ 	if symtab.Len()%Sym32Size != 0 {
+-		return nil, nil, os.ErrorString("length of symbol section is not a multiple of SymSize")
++		return nil, nil, os.NewError("length of symbol section is not a multiple of SymSize")
+ 	}
+ 
+ 	strdata, err := f.stringTable(symtabSection.Link)
+ 	if err != nil {
+-		return nil, nil, os.ErrorString("cannot load string table section")
++		return nil, nil, os.NewError("cannot load string table section")
+ 	}
+ 
+ 	// The first entry is all zeros.
+@@ -390,21 +390,21 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, os.Error) {
+ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, os.Error) {
+ 	symtabSection := f.SectionByType(typ)
+ 	if symtabSection == nil {
+-		return nil, nil, os.ErrorString("no symbol section")
++		return nil, nil, os.NewError("no symbol section")
+ 	}
+ 
+ 	data, err := symtabSection.Data()
+ 	if err != nil {
+-		return nil, nil, os.ErrorString("cannot load symbol section")
++		return nil, nil, os.NewError("cannot load symbol section")
+ 	}
+ 	symtab := bytes.NewBuffer(data)
+ 	if symtab.Len()%Sym64Size != 0 {
+-		return nil, nil, os.ErrorString("length of symbol section is not a multiple of Sym64Size")
++		return nil, nil, os.NewError("length of symbol section is not a multiple of Sym64Size")
+ 	}
+ 
+ 	strdata, err := f.stringTable(symtabSection.Link)
+ 	if err != nil {
+-		return nil, nil, os.ErrorString("cannot load string table section")
++		return nil, nil, os.NewError("cannot load string table section")
+ 	}
+ 
+ 	// The first entry is all zeros.
+@@ -462,12 +462,12 @@ func (f *File) applyRelocations(dst []byte, rels []byte) os.Error {
+ 		return f.applyRelocationsAMD64(dst, rels)
+ 	}
+ 
+-	return os.ErrorString("not implemented")
++	return os.NewError("not implemented")
+ }
+ 
+ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) os.Error {
+ 	if len(rels)%Sym64Size != 0 {
+-		return os.ErrorString("length of relocation section is not a multiple of Sym64Size")
++		return os.NewError("length of relocation section is not a multiple of Sym64Size")
+ 	}
+ 
+ 	symbols, _, err := f.getSymbols(SHT_SYMTAB)
+diff --git a/src/pkg/exec/lp_plan9.go b/src/pkg/exec/lp_plan9.go
+index d0912f9e9e..c4e2a7a0f9 100644
+--- a/src/pkg/exec/lp_plan9.go
++++ b/src/pkg/exec/lp_plan9.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ // ErrNotFound is the error resulting if a path search failed to find an executable file.
+-var ErrNotFound = os.ErrorString("executable file not found in $path")
++var ErrNotFound = os.NewError("executable file not found in $path")
+ 
+ func findExecutable(file string) os.Error {
+ 	d, err := os.Stat(file)
+diff --git a/src/pkg/exec/lp_unix.go b/src/pkg/exec/lp_unix.go
+index 3fc3be8324..cdf7207688 100644
+--- a/src/pkg/exec/lp_unix.go
++++ b/src/pkg/exec/lp_unix.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ // ErrNotFound is the error resulting if a path search failed to find an executable file.
+-var ErrNotFound = os.ErrorString("executable file not found in $PATH")
++var ErrNotFound = os.NewError("executable file not found in $PATH")
+ 
+ func findExecutable(file string) os.Error {
+ 	d, err := os.Stat(file)
+diff --git a/src/pkg/exec/lp_windows.go b/src/pkg/exec/lp_windows.go
+index 1b3acc42bf..401c693b41 100644
+--- a/src/pkg/exec/lp_windows.go
++++ b/src/pkg/exec/lp_windows.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ // ErrNotFound is the error resulting if a path search failed to find an executable file.
+-var ErrNotFound = os.ErrorString("executable file not found in %PATH%")
++var ErrNotFound = os.NewError("executable file not found in %PATH%")
+ 
+ func chkStat(file string) os.Error {
+ 	d, err := os.Stat(file)
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 20a507a3a9..438e0ae265 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -189,7 +189,7 @@ func Sprintf(format string, a ...interface{}) string {
+ // Errorf formats according to a format specifier and returns the string 
+ // converted to an os.ErrorString, which satisfies the os.Error interface.
+ func Errorf(format string, a ...interface{}) os.Error {
+-	return os.ErrorString(Sprintf(format, a...))
++	return os.NewError(Sprintf(format, a...))
+ }
+ 
+ // These routines do not take a format string
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index b111288235..f48fcbb448 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -167,7 +167,7 @@ type ssave struct {
+ // satisfies io.Reader. It will never be called when used as
+ // intended, so there is no need to make it actually work.
+ func (s *ss) Read(buf []byte) (n int, err os.Error) {
+-	return 0, os.ErrorString("ScanState's Read should not be called. Use ReadRune")
++	return 0, os.NewError("ScanState's Read should not be called. Use ReadRune")
+ }
+ 
+ func (s *ss) ReadRune() (rune int, size int, err os.Error) {
+@@ -241,7 +241,7 @@ func (s *ss) error(err os.Error) {
+ }
+ 
+ func (s *ss) errorString(err string) {
+-	panic(scanError{os.ErrorString(err)})
++	panic(scanError{os.NewError(err)})
+ }
+ 
+ func (s *ss) Token(skipSpace bool, f func(int) bool) (tok []byte, err os.Error) {
+@@ -427,8 +427,8 @@ func (s *ss) typeError(field interface{}, expected string) {
+ 	s.errorString("expected field of type pointer to " + expected + "; found " + reflect.TypeOf(field).String())
+ }
+ 
+-var complexError = os.ErrorString("syntax error scanning complex number")
+-var boolError = os.ErrorString("syntax error scanning boolean")
++var complexError = os.NewError("syntax error scanning complex number")
++var boolError = os.NewError("syntax error scanning boolean")
+ 
+ // consume reads the next rune in the input and reports whether it is in the ok string.
+ // If accept is true, it puts the character into the input token.
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index a4de8adb15..98b3b5493c 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -94,7 +94,7 @@ func (x *Xs) Scan(state ScanState, verb int) os.Error {
+ 	}
+ 	s := string(tok)
+ 	if !regexp.MustCompile("^" + string(verb) + "+$").MatchString(s) {
+-		return os.ErrorString("syntax error for xs")
++		return os.NewError("syntax error for xs")
+ 	}
+ 	*x = Xs(s)
+ 	return nil
+@@ -818,7 +818,7 @@ func (r *RecursiveInt) Scan(state ScanState, verb int) (err os.Error) {
+ 	next := new(RecursiveInt)
+ 	_, err = Fscanf(state, ".%v", next)
+ 	if err != nil {
+-		if err == os.ErrorString("input does not match format") || err == io.ErrUnexpectedEOF {
++		if err == os.NewError("input does not match format") || err == io.ErrUnexpectedEOF {
+ 			err = nil
+ 		}
+ 		return
+diff --git a/src/pkg/go/build/dir.go b/src/pkg/go/build/dir.go
+index dda33bb6b6..20f8f2913f 100644
+--- a/src/pkg/go/build/dir.go
++++ b/src/pkg/go/build/dir.go
+@@ -98,7 +98,7 @@ func ScanDir(dir string, allowMain bool) (info *DirInfo, err os.Error) {
+ 			if s == "main" || di.PkgName == "main" {
+ 				return ScanDir(dir, false)
+ 			}
+-			return nil, os.ErrorString("multiple package names in " + dir)
++			return nil, os.NewError("multiple package names in " + dir)
+ 		}
+ 		isCgo := false
+ 		for _, spec := range pf.Imports {
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index b4780e0578..1764c38e4f 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -42,7 +42,7 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
+ 			}
+ 			return buf.Bytes(), nil
+ 		default:
+-			return nil, os.ErrorString("invalid source")
++			return nil, os.NewError("invalid source")
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/go/types/exportdata.go b/src/pkg/go/types/exportdata.go
+index cb08ffe18a..f68133761a 100644
+--- a/src/pkg/go/types/exportdata.go
++++ b/src/pkg/go/types/exportdata.go
+@@ -29,7 +29,7 @@ func readGopackHeader(buf *bufio.Reader) (name string, size int, err os.Error) {
+ 	s := strings.TrimSpace(string(hdr[64+12+6+6+8:][:10]))
+ 	size, err = strconv.Atoi(s)
+ 	if err != nil || hdr[len(hdr)-2] != '`' || hdr[len(hdr)-1] != '\n' {
+-		err = os.ErrorString("invalid archive header")
++		err = os.NewError("invalid archive header")
+ 		return
+ 	}
+ 	name = strings.TrimSpace(string(hdr[:64]))
+@@ -80,7 +80,7 @@ func ExportData(filename string) (rc io.ReadCloser, err os.Error) {
+ 			return
+ 		}
+ 		if name != "__.SYMDEF" {
+-			err = os.ErrorString("go archive does not begin with __.SYMDEF")
++			err = os.NewError("go archive does not begin with __.SYMDEF")
+ 			return
+ 		}
+ 		const block = 4096
+@@ -102,7 +102,7 @@ func ExportData(filename string) (rc io.ReadCloser, err os.Error) {
+ 			return
+ 		}
+ 		if name != "__.PKGDEF" {
+-			err = os.ErrorString("go archive is missing __.PKGDEF")
++			err = os.NewError("go archive is missing __.PKGDEF")
+ 			return
+ 		}
+ 
+@@ -117,7 +117,7 @@ func ExportData(filename string) (rc io.ReadCloser, err os.Error) {
+ 	// Now at __.PKGDEF in archive or still at beginning of file.
+ 	// Either way, line should begin with "go object ".
+ 	if !strings.HasPrefix(string(line), "go object ") {
+-		err = os.ErrorString("not a go object file")
++		err = os.NewError("not a go object file")
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/go/types/gcimporter.go b/src/pkg/go/types/gcimporter.go
+index 2cfed7726a..aa0bb91605 100644
+--- a/src/pkg/go/types/gcimporter.go
++++ b/src/pkg/go/types/gcimporter.go
+@@ -124,7 +124,7 @@ func GcImporter(imports map[string]*ast.Object, path string) (pkg *ast.Object, e
+ 
+ 	filename, id := findPkg(path)
+ 	if filename == "" {
+-		err = os.ErrorString("can't find import: " + id)
++		err = os.NewError("can't find import: " + id)
+ 		return
+ 	}
+ 
+@@ -166,7 +166,7 @@ func (e importError) String() string {
+ 
+ func (p *gcParser) error(err interface{}) {
+ 	if s, ok := err.(string); ok {
+-		err = os.ErrorString(s)
++		err = os.NewError(s)
+ 	}
+ 	// panic with a runtime.Error if err is not an os.Error
+ 	panic(importError{p.scanner.Pos(), err.(os.Error)})
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 8961336cd3..da8e59c742 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -330,7 +330,7 @@ func newDecodeStateFromData(data []byte) *decoderState {
+ // Test instruction execution for decoding.
+ // Do not run the machine yet; instead do individual instructions crafted by hand.
+ func TestScalarDecInstructions(t *testing.T) {
+-	ovfl := os.ErrorString("overflow")
++	ovfl := os.NewError("overflow")
+ 
+ 	// bool
+ 	{
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index f56d72a6a6..415b308250 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -17,9 +17,9 @@ import (
+ )
+ 
+ var (
+-	errBadUint = os.ErrorString("gob: encoded unsigned integer out of range")
+-	errBadType = os.ErrorString("gob: unknown type id or corrupted data")
+-	errRange   = os.ErrorString("gob: bad data: field numbers out of bounds")
++	errBadUint = os.NewError("gob: encoded unsigned integer out of range")
++	errBadType = os.NewError("gob: unknown type id or corrupted data")
++	errRange   = os.NewError("gob: bad data: field numbers out of bounds")
+ )
+ 
+ // decoderState is the execution state of an instance of the decoder. A new state
+@@ -54,8 +54,8 @@ func (dec *Decoder) freeDecoderState(d *decoderState) {
+ 	dec.freeList = d
+ }
+ 
+-func overflow(name string) os.ErrorString {
+-	return os.ErrorString(`value for "` + name + `" out of range`)
++func overflow(name string) os.Error {
++	return os.NewError(`value for "` + name + `" out of range`)
+ }
+ 
+ // decodeUintReader reads an encoded unsigned integer from an io.Reader.
+@@ -135,10 +135,10 @@ type decOp func(i *decInstr, state *decoderState, p unsafe.Pointer)
+ // The 'instructions' of the decoding machine
+ type decInstr struct {
+ 	op     decOp
+-	field  int            // field number of the wire type
+-	indir  int            // how many pointer indirections to reach the value in the struct
+-	offset uintptr        // offset in the structure of the field to encode
+-	ovfl   os.ErrorString // error message for overflow/underflow (for arrays, of the elements)
++	field  int      // field number of the wire type
++	indir  int      // how many pointer indirections to reach the value in the struct
++	offset uintptr  // offset in the structure of the field to encode
++	ovfl   os.Error // error message for overflow/underflow (for arrays, of the elements)
+ }
+ 
+ // Since the encoder writes no zeros, if we arrive at a decoder we have
+@@ -552,7 +552,7 @@ func (dec *Decoder) ignoreSingle(engine *decEngine) {
+ }
+ 
+ // decodeArrayHelper does the work for decoding arrays and slices.
+-func (dec *Decoder) decodeArrayHelper(state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int, ovfl os.ErrorString) {
++func (dec *Decoder) decodeArrayHelper(state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int, ovfl os.Error) {
+ 	instr := &decInstr{elemOp, 0, elemIndir, 0, ovfl}
+ 	for i := 0; i < length; i++ {
+ 		up := unsafe.Pointer(p)
+@@ -567,7 +567,7 @@ func (dec *Decoder) decodeArrayHelper(state *decoderState, p uintptr, elemOp dec
+ // decodeArray decodes an array and stores it through p, that is, p points to the zeroth element.
+ // The length is an unsigned integer preceding the elements.  Even though the length is redundant
+ // (it's part of the type), it's a useful check and is included in the encoding.
+-func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int, ovfl os.ErrorString) {
++func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int, ovfl os.Error) {
+ 	if indir > 0 {
+ 		p = allocate(atyp, p, 1) // All but the last level has been allocated by dec.Indirect
+ 	}
+@@ -579,7 +579,7 @@ func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, p uintpt
+ 
+ // decodeIntoValue is a helper for map decoding.  Since maps are decoded using reflection,
+ // unlike the other items we can't use a pointer directly.
+-func decodeIntoValue(state *decoderState, op decOp, indir int, v reflect.Value, ovfl os.ErrorString) reflect.Value {
++func decodeIntoValue(state *decoderState, op decOp, indir int, v reflect.Value, ovfl os.Error) reflect.Value {
+ 	instr := &decInstr{op, 0, indir, 0, ovfl}
+ 	up := unsafe.Pointer(unsafeAddr(v))
+ 	if indir > 1 {
+@@ -593,7 +593,7 @@ func decodeIntoValue(state *decoderState, op decOp, indir int, v reflect.Value,
+ // Maps are encoded as a length followed by key:value pairs.
+ // Because the internals of maps are not visible to us, we must
+ // use reflection rather than pointer magic.
+-func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, p uintptr, keyOp, elemOp decOp, indir, keyIndir, elemIndir int, ovfl os.ErrorString) {
++func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, p uintptr, keyOp, elemOp decOp, indir, keyIndir, elemIndir int, ovfl os.Error) {
+ 	if indir > 0 {
+ 		p = allocate(mtyp, p, 1) // All but the last level has been allocated by dec.Indirect
+ 	}
+@@ -616,7 +616,7 @@ func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, p uintptr,
+ 
+ // ignoreArrayHelper does the work for discarding arrays and slices.
+ func (dec *Decoder) ignoreArrayHelper(state *decoderState, elemOp decOp, length int) {
+-	instr := &decInstr{elemOp, 0, 0, 0, os.ErrorString("no error")}
++	instr := &decInstr{elemOp, 0, 0, 0, os.NewError("no error")}
+ 	for i := 0; i < length; i++ {
+ 		elemOp(instr, state, nil)
+ 	}
+@@ -633,8 +633,8 @@ func (dec *Decoder) ignoreArray(state *decoderState, elemOp decOp, length int) {
+ // ignoreMap discards the data for a map value with no destination.
+ func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
+ 	n := int(state.decodeUint())
+-	keyInstr := &decInstr{keyOp, 0, 0, 0, os.ErrorString("no error")}
+-	elemInstr := &decInstr{elemOp, 0, 0, 0, os.ErrorString("no error")}
++	keyInstr := &decInstr{keyOp, 0, 0, 0, os.NewError("no error")}
++	elemInstr := &decInstr{elemOp, 0, 0, 0, os.NewError("no error")}
+ 	for i := 0; i < n; i++ {
+ 		keyOp(keyInstr, state, nil)
+ 		elemOp(elemInstr, state, nil)
+@@ -643,7 +643,7 @@ func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
+ 
+ // decodeSlice decodes a slice and stores the slice header through p.
+ // Slices are encoded as an unsigned length followed by the elements.
+-func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl os.ErrorString) {
++func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl os.Error) {
+ 	n := int(uintptr(state.decodeUint()))
+ 	if indir > 0 {
+ 		up := unsafe.Pointer(p)
+@@ -1064,10 +1064,10 @@ func (dec *Decoder) compileSingle(remoteId typeId, ut *userTypeInfo) (engine *de
+ 	engine.instr = make([]decInstr, 1) // one item
+ 	name := rt.String()                // best we can do
+ 	if !dec.compatibleType(rt, remoteId, make(map[reflect.Type]typeId)) {
+-		return nil, os.ErrorString("gob: wrong type received for local value " + name + ": " + dec.typeString(remoteId))
++		return nil, os.NewError("gob: wrong type received for local value " + name + ": " + dec.typeString(remoteId))
+ 	}
+ 	op, indir := dec.decOpFor(remoteId, rt, name, make(map[reflect.Type]*decOp))
+-	ovfl := os.ErrorString(`value for "` + name + `" out of range`)
++	ovfl := os.NewError(`value for "` + name + `" out of range`)
+ 	engine.instr[singletonField] = decInstr{*op, singletonField, indir, 0, ovfl}
+ 	engine.numInstr = 1
+ 	return
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index b83904a710..2819471322 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -44,7 +44,7 @@ func NewDecoder(r io.Reader) *Decoder {
+ func (dec *Decoder) recvType(id typeId) {
+ 	// Have we already seen this type?  That's an error
+ 	if id < firstUserId || dec.wireType[id] != nil {
+-		dec.err = os.ErrorString("gob: duplicate type received")
++		dec.err = os.NewError("gob: duplicate type received")
+ 		return
+ 	}
+ 
+@@ -143,7 +143,7 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
+ 		// will be absorbed by recvMessage.)
+ 		if dec.buf.Len() > 0 {
+ 			if !isInterface {
+-				dec.err = os.ErrorString("extra data in buffer")
++				dec.err = os.NewError("extra data in buffer")
+ 				break
+ 			}
+ 			dec.nextUint()
+@@ -165,7 +165,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 	// If e represents a value as opposed to a pointer, the answer won't
+ 	// get back to the caller.  Make sure it's a pointer.
+ 	if value.Type().Kind() != reflect.Ptr {
+-		dec.err = os.ErrorString("gob: attempt to decode into a non-pointer")
++		dec.err = os.NewError("gob: attempt to decode into a non-pointer")
+ 		return dec.err
+ 	}
+ 	return dec.DecodeValue(value)
+@@ -180,7 +180,7 @@ func (dec *Decoder) DecodeValue(v reflect.Value) os.Error {
+ 		if v.Kind() == reflect.Ptr && !v.IsNil() {
+ 			// That's okay, we'll store through the pointer.
+ 		} else if !v.CanSet() {
+-			return os.ErrorString("gob: DecodeValue of unassignable value")
++			return os.NewError("gob: DecodeValue of unassignable value")
+ 		}
+ 	}
+ 	// Make sure we're single-threaded through here.
+diff --git a/src/pkg/gob/encoder.go b/src/pkg/gob/encoder.go
+index 65ee5bf67c..96101d92ba 100644
+--- a/src/pkg/gob/encoder.go
++++ b/src/pkg/gob/encoder.go
+@@ -50,7 +50,7 @@ func (enc *Encoder) popWriter() {
+ }
+ 
+ func (enc *Encoder) badType(rt reflect.Type) {
+-	enc.setError(os.ErrorString("gob: can't encode type " + rt.String()))
++	enc.setError(os.NewError("gob: can't encode type " + rt.String()))
+ }
+ 
+ func (enc *Encoder) setError(err os.Error) {
+diff --git a/src/pkg/gob/gobencdec_test.go b/src/pkg/gob/gobencdec_test.go
+index 3e1906020f..25cb5d11b8 100644
+--- a/src/pkg/gob/gobencdec_test.go
++++ b/src/pkg/gob/gobencdec_test.go
+@@ -44,7 +44,7 @@ func (g *ByteStruct) GobEncode() ([]byte, os.Error) {
+ 
+ func (g *ByteStruct) GobDecode(data []byte) os.Error {
+ 	if g == nil {
+-		return os.ErrorString("NIL RECEIVER")
++		return os.NewError("NIL RECEIVER")
+ 	}
+ 	// Expect N sequential-valued bytes.
+ 	if len(data) == 0 {
+@@ -53,7 +53,7 @@ func (g *ByteStruct) GobDecode(data []byte) os.Error {
+ 	g.a = data[0]
+ 	for i, c := range data {
+ 		if c != g.a+byte(i) {
+-			return os.ErrorString("invalid data sequence")
++			return os.NewError("invalid data sequence")
+ 		}
+ 	}
+ 	return nil
+@@ -71,7 +71,7 @@ func (g *StringStruct) GobDecode(data []byte) os.Error {
+ 	a := data[0]
+ 	for i, c := range data {
+ 		if c != a+byte(i) {
+-			return os.ErrorString("invalid data sequence")
++			return os.NewError("invalid data sequence")
+ 		}
+ 	}
+ 	g.s = string(data)
+@@ -84,7 +84,7 @@ func (a *ArrayStruct) GobEncode() ([]byte, os.Error) {
+ 
+ func (a *ArrayStruct) GobDecode(data []byte) os.Error {
+ 	if len(data) != len(a.a) {
+-		return os.ErrorString("wrong length in array decode")
++		return os.NewError("wrong length in array decode")
+ 	}
+ 	copy(a.a[:], data)
+ 	return nil
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index c6542633a6..f8e3843a77 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -67,7 +67,7 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
+ 		ut.base = pt.Elem()
+ 		if ut.base == slowpoke { // ut.base lapped slowpoke
+ 			// recursive pointer type.
+-			return nil, os.ErrorString("can't represent recursive pointer type " + ut.base.String())
++			return nil, os.NewError("can't represent recursive pointer type " + ut.base.String())
+ 		}
+ 		if ut.indir%2 == 0 {
+ 			slowpoke = slowpoke.Elem()
+@@ -508,7 +508,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
+ 		return st, nil
+ 
+ 	default:
+-		return nil, os.ErrorString("gob NewTypeObject can't handle type: " + rt.String())
++		return nil, os.NewError("gob NewTypeObject can't handle type: " + rt.String())
+ 	}
+ 	return nil, nil
+ }
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 2883b0493d..4f63b44f26 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -198,7 +198,7 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error)
+ 		if shouldRedirect(r.StatusCode) {
+ 			r.Body.Close()
+ 			if url = r.Header.Get("Location"); url == "" {
+-				err = os.ErrorString(fmt.Sprintf("%d response missing Location header", r.StatusCode))
++				err = os.NewError(fmt.Sprintf("%d response missing Location header", r.StatusCode))
+ 				break
+ 			}
+ 			base = req.URL
+@@ -215,7 +215,7 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error)
+ 
+ func defaultCheckRedirect(req *Request, via []*Request) os.Error {
+ 	if len(via) >= 10 {
+-		return os.ErrorString("stopped after 10 redirects")
++		return os.NewError("stopped after 10 redirects")
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 28a0c51ef5..56512980c8 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -157,7 +157,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 	// TODO(adg): handle multiple ranges
+ 	ranges, err := parseRange(r.Header.Get("Range"), size)
+ 	if err == nil && len(ranges) > 1 {
+-		err = os.ErrorString("multiple ranges not supported")
++		err = os.NewError("multiple ranges not supported")
+ 	}
+ 	if err != nil {
+ 		Error(w, err.String(), StatusRequestedRangeNotSatisfiable)
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 2845f17799..40ed5b2b60 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -35,13 +35,15 @@ const (
+ 
+ // ErrMissingFile is returned by FormFile when the provided file field name
+ // is either not present in the request or not a file field.
+-var ErrMissingFile = os.ErrorString("http: no such file")
++var ErrMissingFile = os.NewError("http: no such file")
+ 
+ // HTTP request parsing errors.
+ type ProtocolError struct {
+-	os.ErrorString
++	ErrorString string
+ }
+ 
++func (err *ProtocolError) String() string { return err.ErrorString }
++
+ var (
+ 	ErrLineTooLong          = &ProtocolError{"header line too long"}
+ 	ErrHeaderTooLong        = &ProtocolError{"header too long"}
+@@ -704,7 +706,7 @@ func (r *Request) ParseForm() (err os.Error) {
+ 	}
+ 	if r.Method == "POST" {
+ 		if r.Body == nil {
+-			return os.ErrorString("missing form body")
++			return os.NewError("missing form body")
+ 		}
+ 		ct := r.Header.Get("Content-Type")
+ 		switch strings.Split(ct, ";", 2)[0] {
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index c907d85fd2..9ad159010b 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -76,12 +76,12 @@ func ProxyFromEnvironment(req *Request) (*URL, os.Error) {
+ 	}
+ 	proxyURL, err := ParseRequestURL(proxy)
+ 	if err != nil {
+-		return nil, os.ErrorString("invalid proxy address")
++		return nil, os.NewError("invalid proxy address")
+ 	}
+ 	if proxyURL.Host == "" {
+ 		proxyURL, err = ParseRequestURL("http://" + proxy)
+ 		if err != nil {
+-			return nil, os.ErrorString("invalid proxy address")
++			return nil, os.NewError("invalid proxy address")
+ 		}
+ 	}
+ 	return proxyURL, nil
+@@ -331,7 +331,7 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, os.Error) {
+ 		if resp.StatusCode != 200 {
+ 			f := strings.Split(resp.Status, " ", 2)
+ 			conn.Close()
+-			return nil, os.ErrorString(f[1])
++			return nil, os.NewError(f[1])
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index 394c87d083..beb0b8200d 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -299,7 +299,7 @@ func getscheme(rawurl string) (scheme, path string, err os.Error) {
+ 			}
+ 		case c == ':':
+ 			if i == 0 {
+-				return "", "", os.ErrorString("missing protocol scheme")
++				return "", "", os.NewError("missing protocol scheme")
+ 			}
+ 			return rawurl[0:i], rawurl[i+1:], nil
+ 		default:
+@@ -354,7 +354,7 @@ func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
+ 	)
+ 
+ 	if rawurl == "" {
+-		err = os.ErrorString("empty url")
++		err = os.NewError("empty url")
+ 		goto Error
+ 	}
+ 	url = new(URL)
+@@ -380,7 +380,7 @@ func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
+ 		url.OpaquePath = true
+ 	} else {
+ 		if viaRequest && !leadingSlash {
+-			err = os.ErrorString("invalid URI for request")
++			err = os.NewError("invalid URI for request")
+ 			goto Error
+ 		}
+ 
+@@ -414,7 +414,7 @@ func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
+ 
+ 		if strings.Contains(rawHost, "%") {
+ 			// Host cannot contain escaped characters.
+-			err = os.ErrorString("hexadecimal escape in host")
++			err = os.NewError("hexadecimal escape in host")
+ 			goto Error
+ 		}
+ 		url.Host = rawHost
+diff --git a/src/pkg/image/gif/reader.go b/src/pkg/image/gif/reader.go
+index 26c013b9ab..98ac01cca2 100644
+--- a/src/pkg/image/gif/reader.go
++++ b/src/pkg/image/gif/reader.go
+@@ -186,7 +186,7 @@ Loop:
+ 				return err
+ 			}
+ 			if c != 0 {
+-				return os.ErrorString("gif: extra data after image")
++				return os.NewError("gif: extra data after image")
+ 			}
+ 
+ 			// Undo the interlacing if necessary.
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 846dcacb5a..5080da2ea0 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -12,9 +12,11 @@ import "os"
+ 
+ // Error represents an unexpected I/O behavior.
+ type Error struct {
+-	os.ErrorString
++	ErrorString string
+ }
+ 
++func (err *Error) String() string { return err.ErrorString }
++
+ // ErrShortWrite means that a write accepted fewer bytes than requested
+ // but failed to return an explicit error.
+ var ErrShortWrite os.Error = &Error{"short write"}
+diff --git a/src/pkg/mail/message.go b/src/pkg/mail/message.go
+index 342e35f18c..fce287bd8e 100644
+--- a/src/pkg/mail/message.go
++++ b/src/pkg/mail/message.go
+@@ -96,7 +96,7 @@ func parseDate(date string) (*time.Time, os.Error) {
+ 			return t, nil
+ 		}
+ 	}
+-	return nil, os.ErrorString("mail: header could not be parsed")
++	return nil, os.NewError("mail: header could not be parsed")
+ }
+ 
+ // A Header represents the key-value pairs in a mail message header.
+@@ -108,7 +108,7 @@ func (h Header) Get(key string) string {
+ 	return textproto.MIMEHeader(h).Get(key)
+ }
+ 
+-var ErrHeaderNotPresent = os.ErrorString("mail: header not in message")
++var ErrHeaderNotPresent = os.NewError("mail: header not in message")
+ 
+ // Date parses the Date header field.
+ func (h Header) Date() (*time.Time, os.Error) {
+@@ -204,7 +204,7 @@ func (p *addrParser) parseAddressList() ([]*Address, os.Error) {
+ 			break
+ 		}
+ 		if !p.consume(',') {
+-			return nil, os.ErrorString("mail: expected comma")
++			return nil, os.NewError("mail: expected comma")
+ 		}
+ 	}
+ 	return list, nil
+@@ -215,7 +215,7 @@ func (p *addrParser) parseAddress() (addr *Address, err os.Error) {
+ 	debug.Printf("parseAddress: %q", *p)
+ 	p.skipSpace()
+ 	if p.empty() {
+-		return nil, os.ErrorString("mail: no address")
++		return nil, os.NewError("mail: no address")
+ 	}
+ 
+ 	// address = name-addr / addr-spec
+@@ -246,14 +246,14 @@ func (p *addrParser) parseAddress() (addr *Address, err os.Error) {
+ 	// angle-addr = "<" addr-spec ">"
+ 	p.skipSpace()
+ 	if !p.consume('<') {
+-		return nil, os.ErrorString("mail: no angle-addr")
++		return nil, os.NewError("mail: no angle-addr")
+ 	}
+ 	spec, err = p.consumeAddrSpec()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	if !p.consume('>') {
+-		return nil, os.ErrorString("mail: unclosed angle-addr")
++		return nil, os.NewError("mail: unclosed angle-addr")
+ 	}
+ 	debug.Printf("parseAddress: spec=%q", spec)
+ 
+@@ -278,7 +278,7 @@ func (p *addrParser) consumeAddrSpec() (spec string, err os.Error) {
+ 	var localPart string
+ 	p.skipSpace()
+ 	if p.empty() {
+-		return "", os.ErrorString("mail: no addr-spec")
++		return "", os.NewError("mail: no addr-spec")
+ 	}
+ 	if p.peek() == '"' {
+ 		// quoted-string
+@@ -295,14 +295,14 @@ func (p *addrParser) consumeAddrSpec() (spec string, err os.Error) {
+ 	}
+ 
+ 	if !p.consume('@') {
+-		return "", os.ErrorString("mail: missing @ in addr-spec")
++		return "", os.NewError("mail: missing @ in addr-spec")
+ 	}
+ 
+ 	// domain = dot-atom / domain-literal
+ 	var domain string
+ 	p.skipSpace()
+ 	if p.empty() {
+-		return "", os.ErrorString("mail: no domain in addr-spec")
++		return "", os.NewError("mail: no domain in addr-spec")
+ 	}
+ 	// TODO(dsymonds): Handle domain-literal
+ 	domain, err = p.consumeAtom(true)
+@@ -323,7 +323,7 @@ func (p *addrParser) consumePhrase() (phrase string, err os.Error) {
+ 		var word string
+ 		p.skipSpace()
+ 		if p.empty() {
+-			return "", os.ErrorString("mail: missing phrase")
++			return "", os.NewError("mail: missing phrase")
+ 		}
+ 		if p.peek() == '"' {
+ 			// quoted-string
+@@ -347,7 +347,7 @@ func (p *addrParser) consumePhrase() (phrase string, err os.Error) {
+ 	// Ignore any error if we got at least one word.
+ 	if err != nil && len(words) == 0 {
+ 		debug.Printf("consumePhrase: hit err: %v", err)
+-		return "", os.ErrorString("mail: missing word in phrase")
++		return "", os.NewError("mail: missing word in phrase")
+ 	}
+ 	phrase = strings.Join(words, " ")
+ 	return phrase, nil
+@@ -361,14 +361,14 @@ func (p *addrParser) consumeQuotedString() (qs string, err os.Error) {
+ Loop:
+ 	for {
+ 		if i >= p.len() {
+-			return "", os.ErrorString("mail: unclosed quoted-string")
++			return "", os.NewError("mail: unclosed quoted-string")
+ 		}
+ 		switch c := (*p)[i]; {
+ 		case c == '"':
+ 			break Loop
+ 		case c == '\\':
+ 			if i+1 == p.len() {
+-				return "", os.ErrorString("mail: unclosed quoted-string")
++				return "", os.NewError("mail: unclosed quoted-string")
+ 			}
+ 			qsb = append(qsb, (*p)[i+1])
+ 			i += 2
+@@ -389,7 +389,7 @@ Loop:
+ // If dot is true, consumeAtom parses an RFC 5322 dot-atom instead.
+ func (p *addrParser) consumeAtom(dot bool) (atom string, err os.Error) {
+ 	if !isAtext(p.peek(), false) {
+-		return "", os.ErrorString("mail: invalid string")
++		return "", os.NewError("mail: invalid string")
+ 	}
+ 	i := 1
+ 	for ; i < p.len() && isAtext((*p)[i], dot); i++ {
+@@ -427,7 +427,7 @@ func (p *addrParser) len() int {
+ func decodeRFC2047Word(s string) (string, os.Error) {
+ 	fields := strings.Split(s, "?", -1)
+ 	if len(fields) != 5 || fields[0] != "=" || fields[4] != "=" {
+-		return "", os.ErrorString("mail: address not RFC 2047 encoded")
++		return "", os.NewError("mail: address not RFC 2047 encoded")
+ 	}
+ 	charset, enc := strings.ToLower(fields[1]), strings.ToLower(fields[2])
+ 	if charset != "iso-8859-1" && charset != "utf-8" {
+diff --git a/src/pkg/net/fd_darwin.go b/src/pkg/net/fd_darwin.go
+index 00a049bfd1..7e3d549ebc 100644
+--- a/src/pkg/net/fd_darwin.go
++++ b/src/pkg/net/fd_darwin.go
+@@ -56,7 +56,7 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, os.Error) {
+ 		return false, os.NewSyscallError("kevent", e)
+ 	}
+ 	if n != 1 || (ev.Flags&syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
+-		return false, os.ErrorString("kqueue phase error")
++		return false, os.NewError("kqueue phase error")
+ 	}
+ 	if ev.Data != 0 {
+ 		return false, os.Errno(int(ev.Data))
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index a811027b1c..43047a78e6 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -294,7 +294,7 @@ func splitNetProto(netProto string) (net string, proto int, err os.Error) {
+ 	onceReadProtocols.Do(readProtocols)
+ 	i := last(netProto, ':')
+ 	if i < 0 { // no colon
+-		return "", 0, os.ErrorString("no IP protocol specified")
++		return "", 0, os.NewError("no IP protocol specified")
+ 	}
+ 	net = netProto[0:i]
+ 	protostr := netProto[i+1:]
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 51db107395..5c84d34348 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -115,7 +115,7 @@ type Listener interface {
+ 	Addr() Addr
+ }
+ 
+-var errMissingAddress = os.ErrorString("missing address")
++var errMissingAddress = os.NewError("missing address")
+ 
+ type OpError struct {
+ 	Op    string
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 5469acffad..94e249d62f 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -281,7 +281,7 @@ func (c *UDPConn) BindToDevice(device string) os.Error {
+ // Closing c does not affect f, and closing f does not affect c.
+ func (c *UDPConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
+ 
+-var errInvalidMulticast = os.ErrorString("invalid IPv4 multicast address")
++var errInvalidMulticast = os.NewError("invalid IPv4 multicast address")
+ 
+ // JoinGroup joins the IPv4 multicast group named by addr.
+ // The UDPConn must use the "udp4" network.
+diff --git a/src/pkg/netchan/common.go b/src/pkg/netchan/common.go
+index a319391bf1..ac1ca12f5f 100644
+--- a/src/pkg/netchan/common.go
++++ b/src/pkg/netchan/common.go
+@@ -153,7 +153,7 @@ func (cs *clientSet) drain(timeout int64) os.Error {
+ 			break
+ 		}
+ 		if timeout > 0 && time.Nanoseconds()-startTime >= timeout {
+-			return os.ErrorString("timeout")
++			return os.NewError("timeout")
+ 		}
+ 		time.Sleep(100 * 1e6) // 100 milliseconds
+ 	}
+@@ -186,7 +186,7 @@ func (cs *clientSet) sync(timeout int64) os.Error {
+ 			break
+ 		}
+ 		if timeout > 0 && time.Nanoseconds()-startTime >= timeout {
+-			return os.ErrorString("timeout")
++			return os.NewError("timeout")
+ 		}
+ 		time.Sleep(100 * 1e6) // 100 milliseconds
+ 	}
+diff --git a/src/pkg/netchan/export.go b/src/pkg/netchan/export.go
+index 1e5ccdb5cb..7df7365153 100644
+--- a/src/pkg/netchan/export.go
++++ b/src/pkg/netchan/export.go
+@@ -343,20 +343,20 @@ func (exp *Exporter) Sync(timeout int64) os.Error {
+ func checkChan(chT interface{}, dir Dir) (reflect.Value, os.Error) {
+ 	chanType := reflect.TypeOf(chT)
+ 	if chanType.Kind() != reflect.Chan {
+-		return reflect.Value{}, os.ErrorString("not a channel")
++		return reflect.Value{}, os.NewError("not a channel")
+ 	}
+ 	if dir != Send && dir != Recv {
+-		return reflect.Value{}, os.ErrorString("unknown channel direction")
++		return reflect.Value{}, os.NewError("unknown channel direction")
+ 	}
+ 	switch chanType.ChanDir() {
+ 	case reflect.BothDir:
+ 	case reflect.SendDir:
+ 		if dir != Recv {
+-			return reflect.Value{}, os.ErrorString("to import/export with Send, must provide <-chan")
++			return reflect.Value{}, os.NewError("to import/export with Send, must provide <-chan")
+ 		}
+ 	case reflect.RecvDir:
+ 		if dir != Send {
+-			return reflect.Value{}, os.ErrorString("to import/export with Recv, must provide chan<-")
++			return reflect.Value{}, os.NewError("to import/export with Recv, must provide chan<-")
+ 		}
+ 	}
+ 	return reflect.ValueOf(chT), nil
+@@ -376,7 +376,7 @@ func (exp *Exporter) Export(name string, chT interface{}, dir Dir) os.Error {
+ 	defer exp.mu.Unlock()
+ 	_, present := exp.names[name]
+ 	if present {
+-		return os.ErrorString("channel name already being exported:" + name)
++		return os.NewError("channel name already being exported:" + name)
+ 	}
+ 	exp.names[name] = &chanDir{ch, dir}
+ 	return nil
+@@ -393,7 +393,7 @@ func (exp *Exporter) Hangup(name string) os.Error {
+ 	// TODO drop all instances of channel from client sets
+ 	exp.mu.Unlock()
+ 	if !ok {
+-		return os.ErrorString("netchan export: hangup: no such channel: " + name)
++		return os.NewError("netchan export: hangup: no such channel: " + name)
+ 	}
+ 	chDir.ch.Close()
+ 	return nil
+diff --git a/src/pkg/netchan/import.go b/src/pkg/netchan/import.go
+index 7d96228c40..ec17d97774 100644
+--- a/src/pkg/netchan/import.go
++++ b/src/pkg/netchan/import.go
+@@ -102,7 +102,7 @@ func (imp *Importer) run() {
+ 			if err.Error != "" {
+ 				impLog("response error:", err.Error)
+ 				select {
+-				case imp.errors <- os.ErrorString(err.Error):
++				case imp.errors <- os.NewError(err.Error):
+ 					continue // errors are not acknowledged
+ 				default:
+ 					imp.shutdown()
+@@ -203,7 +203,7 @@ func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, size,
+ 	defer imp.chanLock.Unlock()
+ 	_, present := imp.names[name]
+ 	if present {
+-		return os.ErrorString("channel name already being imported:" + name)
++		return os.NewError("channel name already being imported:" + name)
+ 	}
+ 	if size < 1 {
+ 		size = 1
+@@ -254,7 +254,7 @@ func (imp *Importer) Hangup(name string) os.Error {
+ 	defer imp.chanLock.Unlock()
+ 	nc := imp.names[name]
+ 	if nc == nil {
+-		return os.ErrorString("netchan import: hangup: no such channel: " + name)
++		return os.NewError("netchan import: hangup: no such channel: " + name)
+ 	}
+ 	imp.names[name] = nil, false
+ 	imp.chans[nc.id] = nil, false
+@@ -279,7 +279,7 @@ func (imp *Importer) Drain(timeout int64) os.Error {
+ 	startTime := time.Nanoseconds()
+ 	for imp.unackedCount() > 0 {
+ 		if timeout > 0 && time.Nanoseconds()-startTime >= timeout {
+-			return os.ErrorString("timeout")
++			return os.NewError("timeout")
+ 		}
+ 		time.Sleep(100 * 1e6)
+ 	}
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index 2c4516ca7d..b4511dd2f4 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -9,20 +9,17 @@ type Error interface {
+ 	String() string
+ }
+ 
+-// A helper type that can be embedded or wrapped to simplify satisfying
+-// Error.
+-type ErrorString string
++// // errorString is a helper type used by NewError.
++type errorString string
+ 
+-func (e ErrorString) String() string  { return string(e) }
+-func (e ErrorString) Temporary() bool { return false }
+-func (e ErrorString) Timeout() bool   { return false }
++func (e errorString) String() string { return string(e) }
+ 
+ // Note: If the name of the function NewError changes,
+ // pkg/go/doc/doc.go should be adjusted since it hardwires
+ // this name in a heuristic.
+ 
+-// NewError converts s to an ErrorString, which satisfies the Error interface.
+-func NewError(s string) Error { return ErrorString(s) }
++// // NewError returns a new error with error.String() == s.
++func NewError(s string) Error { return errorString(s) }
+ 
+ // PathError records an error and the operation and file path that caused it.
+ type PathError struct {
+diff --git a/src/pkg/rand/rand_test.go b/src/pkg/rand/rand_test.go
+index a689da8487..3ebc1141d1 100644
+--- a/src/pkg/rand/rand_test.go
++++ b/src/pkg/rand/rand_test.go
+@@ -45,12 +45,12 @@ func (this *statsResults) checkSimilarDistribution(expected *statsResults) os.Er
+ 	if !nearEqual(this.mean, expected.mean, expected.closeEnough, expected.maxError) {
+ 		s := fmt.Sprintf("mean %v != %v (allowed error %v, %v)", this.mean, expected.mean, expected.closeEnough, expected.maxError)
+ 		fmt.Println(s)
+-		return os.ErrorString(s)
++		return os.NewError(s)
+ 	}
+ 	if !nearEqual(this.stddev, expected.stddev, 0, expected.maxError) {
+ 		s := fmt.Sprintf("stddev %v != %v (allowed error %v, %v)", this.stddev, expected.stddev, expected.closeEnough, expected.maxError)
+ 		fmt.Println(s)
+-		return os.ErrorString(s)
++		return os.NewError(s)
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index a8e560cbe5..b1828614fc 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -23,7 +23,7 @@ func (e ServerError) String() string {
+ 	return string(e)
+ }
+ 
+-const ErrShutdown = os.ErrorString("connection is shut down")
++var ErrShutdown = os.NewError("connection is shut down")
+ 
+ // Call represents an active RPC.
+ type Call struct {
+@@ -110,7 +110,7 @@ func (client *Client) input() {
+ 		if response.Error == "" {
+ 			err = client.codec.ReadResponseBody(c.Reply)
+ 			if err != nil {
+-				c.Error = os.ErrorString("reading body " + err.String())
++				c.Error = os.NewError("reading body " + err.String())
+ 			}
+ 		} else {
+ 			// We've got an error response. Give this to the request;
+@@ -119,7 +119,7 @@ func (client *Client) input() {
+ 			c.Error = ServerError(response.Error)
+ 			err = client.codec.ReadResponseBody(nil)
+ 			if err != nil {
+-				err = os.ErrorString("reading error body: " + err.String())
++				err = os.NewError("reading error body: " + err.String())
+ 			}
+ 		}
+ 		c.done()
+@@ -221,7 +221,7 @@ func DialHTTPPath(network, address, path string) (*Client, os.Error) {
+ 		return NewClient(conn), nil
+ 	}
+ 	if err == nil {
+-		err = os.ErrorString("unexpected HTTP response: " + resp.Status)
++		err = os.NewError("unexpected HTTP response: " + resp.Status)
+ 	}
+ 	conn.Close()
+ 	return nil, &net.OpError{"dial-http", network + " " + address, nil, err}
+diff --git a/src/pkg/rpc/jsonrpc/all_test.go b/src/pkg/rpc/jsonrpc/all_test.go
+index 764ee7ff36..02b9735eb1 100644
+--- a/src/pkg/rpc/jsonrpc/all_test.go
++++ b/src/pkg/rpc/jsonrpc/all_test.go
+@@ -35,7 +35,7 @@ func (t *Arith) Mul(args *Args, reply *Reply) os.Error {
+ 
+ func (t *Arith) Div(args *Args, reply *Reply) os.Error {
+ 	if args.B == 0 {
+-		return os.ErrorString("divide by zero")
++		return os.NewError("divide by zero")
+ 	}
+ 	reply.C = args.A / args.B
+ 	return nil
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index acadeec37f..17ba6a453a 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -242,10 +242,10 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
+ 	if s.typ.PkgPath() != "" && !isExported(sname) && !useName {
+ 		s := "rpc Register: type " + sname + " is not exported"
+ 		log.Print(s)
+-		return os.ErrorString(s)
++		return os.NewError(s)
+ 	}
+ 	if _, present := server.serviceMap[sname]; present {
+-		return os.ErrorString("rpc: service already defined: " + sname)
++		return os.NewError("rpc: service already defined: " + sname)
+ 	}
+ 	s.name = sname
+ 	s.method = make(map[string]*methodType)
+@@ -294,7 +294,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
+ 	if len(s.method) == 0 {
+ 		s := "rpc Register: type " + sname + " has no exported methods of suitable type"
+ 		log.Print(s)
+-		return os.ErrorString(s)
++		return os.NewError(s)
+ 	}
+ 	server.serviceMap[s.name] = s
+ 	return nil
+@@ -491,13 +491,13 @@ func (server *Server) readRequest(codec ServerCodec) (req *Request, service *ser
+ 		if err == os.EOF || err == io.ErrUnexpectedEOF {
+ 			return
+ 		}
+-		err = os.ErrorString("rpc: server cannot decode request: " + err.String())
++		err = os.NewError("rpc: server cannot decode request: " + err.String())
+ 		return
+ 	}
+ 
+ 	serviceMethod := strings.Split(req.ServiceMethod, ".", -1)
+ 	if len(serviceMethod) != 2 {
+-		err = os.ErrorString("rpc: service/method request ill-formed: " + req.ServiceMethod)
++		err = os.NewError("rpc: service/method request ill-formed: " + req.ServiceMethod)
+ 		return
+ 	}
+ 	// Look up the request.
+@@ -505,12 +505,12 @@ func (server *Server) readRequest(codec ServerCodec) (req *Request, service *ser
+ 	service = server.serviceMap[serviceMethod[0]]
+ 	server.Unlock()
+ 	if service == nil {
+-		err = os.ErrorString("rpc: can't find service " + req.ServiceMethod)
++		err = os.NewError("rpc: can't find service " + req.ServiceMethod)
+ 		return
+ 	}
+ 	mtype = service.method[serviceMethod[1]]
+ 	if mtype == nil {
+-		err = os.ErrorString("rpc: can't find method " + req.ServiceMethod)
++		err = os.NewError("rpc: can't find method " + req.ServiceMethod)
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index cfff0c9ad5..1692168a8c 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -52,7 +52,7 @@ func (t *Arith) Mul(args *Args, reply *Reply) os.Error {
+ 
+ func (t *Arith) Div(args Args, reply *Reply) os.Error {
+ 	if args.B == 0 {
+-		return os.ErrorString("divide by zero")
++		return os.NewError("divide by zero")
+ 	}
+ 	reply.C = args.A / args.B
+ 	return nil
+diff --git a/src/pkg/strconv/atoi.go b/src/pkg/strconv/atoi.go
+index 1dfaaa6b51..e1154782b5 100644
+--- a/src/pkg/strconv/atoi.go
++++ b/src/pkg/strconv/atoi.go
+@@ -70,7 +70,7 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
+ 		}
+ 
+ 	default:
+-		err = os.ErrorString("invalid base " + Itoa(b))
++		err = os.NewError("invalid base " + Itoa(b))
+ 		goto Error
+ 	}
+ 
+diff --git a/src/pkg/strings/reader.go b/src/pkg/strings/reader.go
+index 10b0278e1c..8423f7e452 100644
+--- a/src/pkg/strings/reader.go
++++ b/src/pkg/strings/reader.go
+@@ -49,7 +49,7 @@ func (r *Reader) ReadByte() (b byte, err os.Error) {
+ // read yet.
+ func (r *Reader) UnreadByte() os.Error {
+ 	if r.i <= 0 {
+-		return os.ErrorString("strings.Reader: at beginning of string")
++		return os.NewError("strings.Reader: at beginning of string")
+ 	}
+ 	r.i--
+ 	r.prevRune = -1
+@@ -80,7 +80,7 @@ func (r *Reader) ReadRune() (rune int, size int, err os.Error) {
+ // The last method called on r must have been ReadRune.
+ func (r *Reader) UnreadRune() os.Error {
+ 	if r.prevRune < 0 {
+-		return os.ErrorString("strings.Reader: previous operation was not ReadRune")
++		return os.NewError("strings.Reader: previous operation was not ReadRune")
+ 	}
+ 	r.i = r.prevRune
+ 	r.prevRune = -1
+diff --git a/src/pkg/syslog/syslog_unix.go b/src/pkg/syslog/syslog_unix.go
+index fa15e882d0..b1516715bc 100644
+--- a/src/pkg/syslog/syslog_unix.go
++++ b/src/pkg/syslog/syslog_unix.go
+@@ -27,5 +27,5 @@ func unixSyslog() (conn serverConn, err os.Error) {
+ 			}
+ 		}
+ 	}
+-	return nil, os.ErrorString("Unix syslog delivery error")
++	return nil, os.NewError("Unix syslog delivery error")
+ }
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 47d7363425..e0f56129e4 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -355,7 +355,7 @@ func (t *Time) String() string {
+ 	return t.Format(UnixDate)
+ }
+ 
+-var errBad = os.ErrorString("bad") // just a marker; not returned to user
++var errBad = os.NewError("bad") // just a marker; not returned to user
+ 
+ // ParseError describes a problem parsing a time string.
+ type ParseError struct {
+diff --git a/src/pkg/time/tick.go b/src/pkg/time/tick.go
+index dde18000d1..852bae9c93 100644
+--- a/src/pkg/time/tick.go
++++ b/src/pkg/time/tick.go
+@@ -160,7 +160,7 @@ var onceStartTickerLoop sync.Once
+ // ns must be greater than zero; if not, NewTicker will panic.
+ func NewTicker(ns int64) *Ticker {
+ 	if ns <= 0 {
+-		panic(os.ErrorString("non-positive interval for NewTicker"))
++		panic(os.NewError("non-positive interval for NewTicker"))
+ 	}
+ 	c := make(chan int64, 1) //  See comment on send in tickerLoop
+ 	t := &Ticker{
+diff --git a/src/pkg/websocket/client.go b/src/pkg/websocket/client.go
+index e283821969..f066a18320 100644
+--- a/src/pkg/websocket/client.go
++++ b/src/pkg/websocket/client.go
+@@ -19,11 +19,13 @@ import (
+ )
+ 
+ type ProtocolError struct {
+-	os.ErrorString
++	ErrorString string
+ }
+ 
++func (err *ProtocolError) String() string { return string(err.ErrorString) }
++
+ var (
+-	ErrBadScheme            = os.ErrorString("bad scheme")
++	ErrBadScheme            = &ProtocolError{"bad scheme"}
+ 	ErrBadStatus            = &ProtocolError{"bad status"}
+ 	ErrBadUpgrade           = &ProtocolError{"missing or bad upgrade"}
+ 	ErrBadWebSocketOrigin   = &ProtocolError{"missing or bad WebSocket-Origin"}
+diff --git a/src/pkg/xml/read.go b/src/pkg/xml/read.go
+index 1e921457ae..427c311583 100644
+--- a/src/pkg/xml/read.go
++++ b/src/pkg/xml/read.go
+@@ -251,7 +251,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 
+ 	switch v := val; v.Kind() {
+ 	default:
+-		return os.ErrorString("unknown type " + v.Type().String())
++		return os.NewError("unknown type " + v.Type().String())
+ 
+ 	case reflect.Slice:
+ 		typ := v.Type()
+@@ -508,7 +508,7 @@ func copyValue(dst reflect.Value, src []byte) (err os.Error) {
+ 	case reflect.Invalid:
+ 		// Probably a comment, handled below
+ 	default:
+-		return os.ErrorString("cannot happen: unknown type " + t.Type().String())
++		return os.NewError("cannot happen: unknown type " + t.Type().String())
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		if !getInt64() {
+ 			return err
+diff --git a/test/fixedbugs/bug243.go b/test/fixedbugs/bug243.go
+index 0c531968e6..95514cfd65 100644
+--- a/test/fixedbugs/bug243.go
++++ b/test/fixedbugs/bug243.go
+@@ -38,7 +38,7 @@ func Listen(x, y string) (T, string) {
+ }
+ 
+ func (t T) Addr() os.Error {
+-	return os.ErrorString("stringer")
++	return os.NewError("stringer")
+ }
+ 
+ func (t T) Accept() (int, string) {
+@@ -49,4 +49,3 @@ func Dial(x, y, z string) (int, string) {
+ 	global <- 1
+ 	return 0, ""
+ }
+-

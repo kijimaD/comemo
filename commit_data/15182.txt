@@ -7,7 +7,41 @@ Date:   Sun Feb 10 00:08:30 2013 +0800
     R=golang-dev, agl, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/7299064
-
+---
  src/pkg/bytes/bytes.go      | 4 ----
  src/pkg/bytes/bytes_decl.go | 8 ++++++++
  2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 6d40af4436..3bab65ef90 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -37,10 +37,6 @@ func Compare(a, b []byte) int {
+ 	return 0
+ }
+ 
+-// Equal returns a boolean reporting whether a == b.
+-// A nil argument is equivalent to an empty slice.
+-func Equal(a, b []byte) bool
+-
+ func equalPortable(a, b []byte) bool {
+ 	if len(a) != len(b) {
+ 		return false
+diff --git a/src/pkg/bytes/bytes_decl.go b/src/pkg/bytes/bytes_decl.go
+index 5d2b9e6393..ce78be416a 100644
+--- a/src/pkg/bytes/bytes_decl.go
++++ b/src/pkg/bytes/bytes_decl.go
+@@ -4,5 +4,13 @@
+ 
+ package bytes
+ 
++//go:noescape
++
+ // IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
+ func IndexByte(s []byte, c byte) int // asm_$GOARCH.s
++
++//go:noescape
++
++// Equal returns a boolean reporting whether a == b.
++// A nil argument is equivalent to an empty slice.
++func Equal(a, b []byte) bool // asm_$GOARCH.s

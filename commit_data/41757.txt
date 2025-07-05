@@ -9,6 +9,20 @@ Date:   Wed Oct 23 17:46:39 2019 +0000
     Change-Id: I4b3076469f3db8ab0fe888edcf0471f17dc199e6
     Reviewed-on: https://go-review.googlesource.com/c/go/+/202823
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/contrib.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contrib.html b/doc/contrib.html
+index 5699f58fc7..bc19daf14e 100644
+--- a/doc/contrib.html
++++ b/doc/contrib.html
+@@ -115,7 +115,7 @@ Community-related issues should be reported to
+ See the <a href="/conduct">Code of Conduct</a> for more details.
+ </p>
+ 
+-<h3><a href="/doc/contribute.html">Contributing code</a></h3>
++<h3><a href="/doc/contribute.html">Contributing code &amp; documentation</a></h3>
+ 
+ <p>
+ Go is an open source project and we welcome contributions from the community.

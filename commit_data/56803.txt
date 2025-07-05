@@ -15,6 +15,26 @@ Date:   Mon Nov 14 20:29:26 2022 +0000
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/crypto/tls/cipher_suites.go | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 04e6dfe018..589e8b6faf 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -377,14 +377,6 @@ var aesgcmCiphers = map[uint16]bool{
+ 	TLS_AES_256_GCM_SHA384: true,
+ }
+ 
+-var nonAESGCMAEADCiphers = map[uint16]bool{
+-	// TLS 1.2
+-	TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305:   true,
+-	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305: true,
+-	// TLS 1.3
+-	TLS_CHACHA20_POLY1305_SHA256: true,
+-}
+-
+ // aesgcmPreferred returns whether the first known cipher in the preference list
+ // is an AES-GCM cipher, implying the peer has hardware support for it.
+ func aesgcmPreferred(ciphers []uint16) bool {

@@ -9,9 +9,102 @@ Date:   Wed Aug 20 15:46:05 2008 -0700
     R=gri
     OCL=14349
     CL=14349
-
+---
  test/bugs/bug091.go | 25 +++++++++++++++++++++++++
  test/golden.out     |  3 +++
  test/iota.go        |  2 +-
  test/ken/robiota.go | 30 ------------------------------
  4 files changed, 29 insertions(+), 31 deletions(-)
+
+diff --git a/test/bugs/bug091.go b/test/bugs/bug091.go
+new file mode 100644
+index 0000000000..82391ead04
+--- /dev/null
++++ b/test/bugs/bug091.go
+@@ -0,0 +1,25 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f1() {
++	exit:
++		print("hi\n");
++}
++
++func f2() {
++	const c = 1234;
++}
++
++func f3() {
++	i := c;	// BUG: compiles but should not. constant is not in scope in this function
++	goto exit;	// BUG: compiles but should not. label is not in this function
++}
++
++func main() {
++	f3();
++}
+diff --git a/test/golden.out b/test/golden.out
+index 7b3da3cdd9..df2e9b4158 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -185,6 +185,9 @@ BUG: fails incorrectly
+ =========== bugs/bug090.go
+ BUG: compilation succeeds incorrectly
+ 
++=========== bugs/bug091.go
++BUG: compilation succeeds incorrectly
++
+ =========== fixedbugs/bug015.go
+ fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
+ 
+diff --git a/test/iota.go b/test/iota.go
+index 7173d9a0e8..57e6b7615e 100644
+--- a/test/iota.go
++++ b/test/iota.go
+@@ -103,5 +103,5 @@ func main() {
+ 	assert(r == 2.0, "r");
+ 
+ 	assert(s == "a", "s");
+-	assert(t == "b", "s");
++	assert(t == "b", "t");
+ }
+diff --git a/test/ken/robiota.go b/test/ken/robiota.go
+deleted file mode 100644
+index af97fa2a32..0000000000
+--- a/test/ken/robiota.go
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// $G $D/$F.go && $L $F.$A && ./$A.out
+-
+-package main
+-
+-func assert(cond bool, msg string) {
+-	if !cond {
+-		print("assertion fail: " + msg + "\n");
+-		panic(1);
+-	}
+-}
+-
+-const (
+-	x int = iota;
+-	y = iota;
+-	z = 1 << iota;
+-	f float = 2 * iota;
+-	g float = 4.5 * float(iota);
+-);
+-
+-func main() {
+-	assert(x == 0, "x");
+-	assert(y == 1, "y");
+-	assert(z == 4, "z");
+-	assert(f == 6.0, "f");
+-	assert(g == 18.0, "g");
+-}

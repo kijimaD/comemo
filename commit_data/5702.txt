@@ -8,6 +8,20 @@ Date:   Tue Jun 22 14:56:16 2010 -0700
     R=iant
     CC=golang-dev
     https://golang.org/cl/1696044
-
+---
  src/pkg/debug/dwarf/open.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/debug/dwarf/open.go b/src/pkg/debug/dwarf/open.go
+index 3b50351d53..cb009e0e09 100644
+--- a/src/pkg/debug/dwarf/open.go
++++ b/src/pkg/debug/dwarf/open.go
+@@ -4,7 +4,7 @@
+ 
+ // This package provides access to DWARF debugging information
+ // loaded from executable files, as defined in the DWARF 2.0 Standard
+-// at http://dwarfstd.org/dwarf-2.0.0.pdf.
++// at http://dwarfstd.org/doc/dwarf-2.0.0.pdf
+ package dwarf
+ 
+ import (

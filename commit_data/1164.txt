@@ -8,9 +8,270 @@ Date:   Tue Nov 18 17:12:14 2008 -0800
     DELTA=219  (186 added, 32 deleted, 1 changed)
     OCL=19508
     CL=19523
-
+---
  src/lib/strconv/test.bash   |  13 ---
  src/lib/strconv/testatoi.go | 190 ++++++++++++++++++++++++++++++++++++++++++++
  src/lib/strconv/testing.go  |  26 ------
  src/run.bash                |   2 +-
  4 files changed, 191 insertions(+), 40 deletions(-)
+
+diff --git a/src/lib/strconv/test.bash b/src/lib/strconv/test.bash
+deleted file mode 100755
+index ad5576a9df..0000000000
+--- a/src/lib/strconv/test.bash
++++ /dev/null
+@@ -1,13 +0,0 @@
+-#!/bin/bash
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -e
+-set -x
+-
+-make clean
+-make
+-# make test
+-# ./test
+-# rm -f *.6 6.out test
+diff --git a/src/lib/strconv/testatoi.go b/src/lib/strconv/testatoi.go
+new file mode 100644
+index 0000000000..7ffd201380
+--- /dev/null
++++ b/src/lib/strconv/testatoi.go
+@@ -0,0 +1,190 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strconv
++import (
++	"os";
++	"fmt";
++	"strconv"
++)
++
++type Uint64Test struct {
++	in string;
++	out uint64;
++	err *os.Error;
++}
++
++var uint64tests = []Uint64Test {
++	Uint64Test{ "0", 0, nil },
++	Uint64Test{ "1", 1, nil },
++	Uint64Test{ "12345", 12345, nil },
++	Uint64Test{ "012345", 0, os.EINVAL },
++	Uint64Test{ "12345x", 0, os.EINVAL },
++	Uint64Test{ "98765432100", 98765432100, nil },
++	Uint64Test{ "18446744073709551615", 1<<64-1, nil },
++	Uint64Test{ "18446744073709551616", 1<<64-1, os.ERANGE },
++}
++
++type Int64Test struct {
++	in string;
++	out int64;
++	err *os.Error;
++}
++
++var int64tests = []Int64Test {
++	Int64Test{ "0", 0, nil },
++	Int64Test{ "-0", 0, nil },
++	Int64Test{ "1", 1, nil },
++	Int64Test{ "-1", -1, nil },
++	Int64Test{ "12345", 12345, nil },
++	Int64Test{ "-12345", -12345, nil },
++	Int64Test{ "012345", 0, os.EINVAL },
++	Int64Test{ "-012345", 0, os.EINVAL },
++	Int64Test{ "12345x", 0, os.EINVAL },
++	Int64Test{ "-12345x", 0, os.EINVAL },
++	Int64Test{ "98765432100", 98765432100, nil },
++	Int64Test{ "-98765432100", -98765432100, nil },
++	Int64Test{ "9223372036854775807", 1<<63-1, nil },
++	Int64Test{ "-9223372036854775807", -(1<<63-1), nil },
++	Int64Test{ "9223372036854775808", 1<<63-1, os.ERANGE },
++	Int64Test{ "-9223372036854775808", -1<<63, nil },
++	Int64Test{ "9223372036854775809", 1<<63-1, os.ERANGE },
++	Int64Test{ "-9223372036854775809", -1<<63, os.ERANGE },
++}
++
++type Uint32Test struct {
++	in string;
++	out uint32;
++	err *os.Error;
++}
++
++var uint32tests = []Uint32Test {
++	Uint32Test{ "0", 0, nil },
++	Uint32Test{ "1", 1, nil },
++	Uint32Test{ "12345", 12345, nil },
++	Uint32Test{ "012345", 0, os.EINVAL },
++	Uint32Test{ "12345x", 0, os.EINVAL },
++	Uint32Test{ "987654321", 987654321, nil },
++	Uint32Test{ "4294967295", 1<<32-1, nil },
++	Uint32Test{ "4294967296", 1<<32-1, os.ERANGE },
++}
++
++type Int32Test struct {
++	in string;
++	out int32;
++	err *os.Error;
++}
++
++var int32tests = []Int32Test {
++	Int32Test{ "0", 0, nil },
++	Int32Test{ "-0", 0, nil },
++	Int32Test{ "1", 1, nil },
++	Int32Test{ "-1", -1, nil },
++	Int32Test{ "12345", 12345, nil },
++	Int32Test{ "-12345", -12345, nil },
++	Int32Test{ "012345", 0, os.EINVAL },
++	Int32Test{ "-012345", 0, os.EINVAL },
++	Int32Test{ "12345x", 0, os.EINVAL },
++	Int32Test{ "-12345x", 0, os.EINVAL },
++	Int32Test{ "987654321", 987654321, nil },
++	Int32Test{ "-987654321", -987654321, nil },
++	Int32Test{ "2147483647", 1<<31-1, nil },
++	Int32Test{ "-2147483647", -(1<<31-1), nil },
++	Int32Test{ "2147483648", 1<<31-1, os.ERANGE },
++	Int32Test{ "-2147483648", -1<<31, nil },
++	Int32Test{ "2147483649", 1<<31-1, os.ERANGE },
++	Int32Test{ "-2147483649", -1<<31, os.ERANGE },
++}
++
++export func TestAtoui64() bool {
++	ok := true;
++	for i := 0; i < len(uint64tests); i++ {
++		t := &uint64tests[i];
++		out, err := strconv.atoui64(t.in);
++		if t.out != out || t.err != err {
++			fmt.printf("strconv.atoui64(%v) = %v, %v want %v, %v\n",
++				t.in, out, err, t.out, t.err);
++			ok = false;
++		}
++	}
++	return ok;
++}
++
++export func TestAtoi64() bool {
++	ok := true;
++	for i := 0; i < len(int64tests); i++ {
++		t := &int64tests[i];
++		out, err := strconv.atoi64(t.in);
++		if t.out != out || t.err != err {
++			fmt.printf("strconv.atoi64(%v) = %v, %v want %v, %v\n",
++				t.in, out, err, t.out, t.err);
++			ok = false;
++		}
++	}
++	return ok;
++}
++
++func IntSize1() uint {
++	tmp := 1;
++	if tmp<<16<<16 == 0 {
++		return 32;
++	}
++println("tmp<<32 = ", tmp<<32);
++	return 64;
++}
++
++export func TestAtoui() bool {
++	ok := true;
++	switch IntSize1() {
++	case 32:
++		for i := 0; i < len(uint32tests); i++ {
++			t := &uint32tests[i];
++			out, err := strconv.atoui(t.in);
++			if t.out != uint32(out) || t.err != err {
++				fmt.printf("strconv.atoui(%v) = %v, %v want %v, %v\n",
++					t.in, out, err, t.out, t.err);
++				ok = false;
++			}
++		}
++	case 64:
++		for i := 0; i < len(uint64tests); i++ {
++			t := &uint64tests[i];
++			out, err := strconv.atoui(t.in);
++			if t.out != uint64(out) || t.err != err {
++				fmt.printf("strconv.atoui(%v) = %v, %v want %v, %v\n",
++					t.in, out, err, t.out, t.err);
++				ok = false;
++			}
++		}
++	}
++	return ok;
++}
++
++export func TestAtoi() bool {
++	ok := true;
++	switch IntSize1() {
++	case 32:
++		for i := 0; i < len(int32tests); i++ {
++			t := &int32tests[i];
++			out, err := strconv.atoi(t.in);
++			if t.out != int32(out) || t.err != err {
++				fmt.printf("strconv.atoi(%v) = %v, %v want %v, %v\n",
++					t.in, out, err, t.out, t.err);
++				ok = false;
++			}
++		}
++	case 64:
++		for i := 0; i < len(int64tests); i++ {
++			t := &int64tests[i];
++			out, err := strconv.atoi(t.in);
++			if t.out != int64(out) || t.err != err {
++				fmt.printf("strconv.atoi(%v) = %v, %v want %v, %v\n",
++					t.in, out, err, t.out, t.err);
++				ok = false;
++			}
++		}
++	}
++	return ok;
++}
++
+diff --git a/src/lib/strconv/testing.go b/src/lib/strconv/testing.go
+deleted file mode 100644
+index 121baca888..0000000000
+--- a/src/lib/strconv/testing.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package testing
+-
+-export type Test struct {
+-	name string;
+-	f *() bool;
+-}
+-
+-export func Main(tests *[]Test) {
+-	ok := true;
+-	for i := 0; i < len(tests); i++ {
+-		ok1 := tests[i].f();
+-		status := "FAIL";
+-		if ok1 {
+-			status = "PASS"
+-		}
+-		ok = ok && ok1;
+-		println(status, tests[i].name);
+-	}
+-	if !ok {
+-		sys.exit(1);
+-	}
+-}
+diff --git a/src/run.bash b/src/run.bash
+index c554636db4..5d759cfaf9 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -14,7 +14,7 @@ xcd() {
+ (xcd lib/strconv
+ make clean
+ time make
+-bash test.bash
++make test
+ ) || exit $?
+ 
+ (xcd lib/reflect

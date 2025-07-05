@@ -9,6 +9,38 @@ Date:   Fri Jun 19 14:00:39 2009 -0700
     DELTA=21  (21 added, 0 deleted, 0 changed)
     OCL=30518
     CL=30533
-
+---
  test/convert3.go | 25 +++++++++++++++++++++++++
  1 file changed, 25 insertions(+)
+
+diff --git a/test/convert3.go b/test/convert3.go
+new file mode 100644
+index 0000000000..d733ce2c30
+--- /dev/null
++++ b/test/convert3.go
+@@ -0,0 +1,25 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// everything here is legal except the ERROR line
++
++var c chan int
++var d1 chan<- int = c
++var d2 = (chan<- int)(c)
++
++var e *[4]int
++var f1 []int = e
++var f2 = []int(e)
++
++var g = []int(nil)
++
++type H *[4]int
++type J []int
++var h H
++var j1 J = h	// ERROR "compat|illegal"
++var j2 = J(h)

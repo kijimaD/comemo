@@ -9,6 +9,33 @@ Date:   Mon May 18 15:42:09 2009 -0700
     DELTA=88  (53 added, 17 deleted, 18 changed)
     OCL=28452
     CL=29008
-
+---
  src/lib/exvar/exvar.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/exvar/exvar.go b/src/lib/exvar/exvar.go
+index 9d2a172b75..b2c1ad1a0e 100644
+--- a/src/lib/exvar/exvar.go
++++ b/src/lib/exvar/exvar.go
+@@ -66,6 +66,11 @@ func (v *Map) String() string {
+ 	return string(b.Data())
+ }
+ 
++func (v *Map) Init() *Map {
++	v.m = make(map[string] Var);
++	return v
++}
++
+ func (v *Map) Get(key string) Var {
+ 	v.mu.Lock();
+ 	defer v.mu.Unlock();
+@@ -157,8 +162,7 @@ func NewInt(name string) *Int {
+ }
+ 
+ func NewMap(name string) *Map {
+-	v := new(Map);
+-	v.m = make(map[string] Var);
++	v := new(Map).Init();
+ 	Publish(name, v);
+ 	return v
+ }

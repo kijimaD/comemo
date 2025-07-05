@@ -12,6 +12,30 @@ Date:   Fri Jan 20 23:35:28 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5555065
-
+---
  src/cmd/go/test.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index fb222b139d..e28eaeffcb 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -406,6 +406,18 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	if pxtest != nil {
+ 		pmain.imports = append(pmain.imports, pxtest)
+ 	}
++
++	// The generated main also imports testing and regexp.
++	ptesting, err := loadPackage("testing")
++	if err != nil {
++		return nil, nil, nil, err
++	}
++	pregexp, err := loadPackage("regexp")
++	if err != nil {
++		return nil, nil, nil, err
++	}
++	pmain.imports = append(pmain.imports, ptesting, pregexp)
++
+ 	a := b.action(modeBuild, modeBuild, pmain)
+ 	a.objdir = testDir + string(filepath.Separator)
+ 	a.objpkg = filepath.Join(testDir, "main.a")

@@ -7,6 +7,21 @@ Date:   Thu Oct 4 15:14:20 2012 +0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/6593078
-
+---
  lib/godoc/godoc.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index e3e28cbc3c..00d341ee41 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -8,7 +8,8 @@
+   <title>The Go Programming Language</title>
+ {{end}}
+ <link type="text/css" rel="stylesheet" href="/doc/style.css">
+-<script type="text/javascript" src="/doc/jquery.js"></script>
++<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
++<script type="text/javascript">window.jQuery || document.write(unescape("%3Cscript src='/doc/jquery.js' type='text/javascript'%3E%3C/script%3E"));</script>
+ <script type="text/javascript" src="/doc/godocs.js"></script>
+ {{if .SearchBox}}
+ <link rel="search" type="application/opensearchdescription+xml" title="godoc" href="/opensearch.xml" />

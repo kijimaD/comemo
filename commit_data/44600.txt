@@ -15,6 +15,20 @@ Date:   Fri Aug 14 21:30:04 2020 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/issue39292.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue39292.go b/test/fixedbugs/issue39292.go
+index 5d6595c234..1be88653e9 100644
+--- a/test/fixedbugs/issue39292.go
++++ b/test/fixedbugs/issue39292.go
+@@ -6,7 +6,7 @@
+ 
+ package p
+ 
+-type t [10000]*int
++type t [20000]*int
+ 
+ func (t) f() {
+ }

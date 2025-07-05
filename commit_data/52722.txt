@@ -15,6 +15,20 @@ Date:   Thu May 19 13:45:51 2022 -0700
     Run-TryBot: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/proc_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 418e448d2f..f354facc49 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -483,7 +483,7 @@ func TestPingPongHog(t *testing.T) {
+ 	// scheduler isn't working right, the gap should be ~1000X
+ 	// (was 5, increased to 20, see issue 52207).
+ 	const factor = 20
+-	if hogCount > lightCount*factor || lightCount > hogCount*factor {
++	if hogCount/factor > lightCount || lightCount/factor > hogCount {
+ 		t.Fatalf("want hogCount/lightCount in [%v, %v]; got %d/%d = %g", 1.0/factor, factor, hogCount, lightCount, float64(hogCount)/float64(lightCount))
+ 	}
+ }

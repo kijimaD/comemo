@@ -17,6 +17,19 @@ Date:   Mon Apr 11 14:56:11 2022 -0700
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/runtime2.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index b903cc8011..b2c42d0e5c 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -516,6 +516,7 @@ type m struct {
+ 	g0      *g     // goroutine with scheduling stack
+ 	morebuf gobuf  // gobuf arg to morestack
+ 	divmod  uint32 // div/mod denominator for arm - known to liblink
++	_       uint32 // align next field to 8 bytes
+ 
+ 	// Fields not known to debuggers.
+ 	procid        uint64            // for debuggers, but offset not hard-coded

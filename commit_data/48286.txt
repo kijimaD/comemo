@@ -14,8 +14,106 @@ Date:   Fri Apr 23 21:25:06 2021 +0800
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Trust: Michael Pratt <mpratt@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgc.go      | 12 ++++--------
  src/runtime/proc.go     | 41 +++++++++++++++++++++++++++++++++++++++++
  src/runtime/runtime2.go |  3 +++
  3 files changed, 48 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 601593087d..4585663535 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1273,15 +1273,11 @@ func gcBgMarkWorker() {
+ 					// everything out of the run
+ 					// queue so it can run
+ 					// somewhere else.
+-					lock(&sched.lock)
+-					for {
+-						gp, _ := runqget(pp)
+-						if gp == nil {
+-							break
+-						}
+-						globrunqput(gp)
++					if drainQ, n := runqdrain(pp); n > 0 {
++						lock(&sched.lock)
++						globrunqputbatch(&drainQ, int32(n))
++						unlock(&sched.lock)
+ 					}
+-					unlock(&sched.lock)
+ 				}
+ 				// Go back to draining, this time
+ 				// without preemption.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 480afd07dd..d9f8c65530 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5729,6 +5729,8 @@ func globrunqputhead(gp *g) {
+ // Put a batch of runnable goroutines on the global runnable queue.
+ // This clears *batch.
+ // sched.lock must be held.
++// May run during STW, so write barriers are not allowed.
++//go:nowritebarrierrec
+ func globrunqputbatch(batch *gQueue, n int32) {
+ 	assertLockHeld(&sched.lock)
+ 
+@@ -6044,6 +6046,45 @@ func runqget(_p_ *p) (gp *g, inheritTime bool) {
+ 	}
+ }
+ 
++// runqdrain drains the local runnable queue of _p_ and returns all goroutines in it.
++// Executed only by the owner P.
++func runqdrain(_p_ *p) (drainQ gQueue, n uint32) {
++	oldNext := _p_.runnext
++	if oldNext != 0 && _p_.runnext.cas(oldNext, 0) {
++		drainQ.pushBack(oldNext.ptr())
++		n++
++	}
++
++retry:
++	h := atomic.LoadAcq(&_p_.runqhead) // load-acquire, synchronize with other consumers
++	t := _p_.runqtail
++	qn := t - h
++	if qn == 0 {
++		return
++	}
++	if qn > uint32(len(_p_.runq)) { // read inconsistent h and t
++		goto retry
++	}
++
++	if !atomic.CasRel(&_p_.runqhead, h, h+qn) { // cas-release, commits consume
++		goto retry
++	}
++
++	// We've inverted the order in which it gets G's from the local P's runnable queue
++	// and then advances the head pointer because we don't want to mess up the statuses of G's
++	// while runqdrain() and runqsteal() are running in parallel.
++	// Thus we should advance the head pointer before draining the local P into a gQueue,
++	// so that we can update any gp.schedlink only after we take the full ownership of G,
++	// meanwhile, other P's can't access to all G's in local P's runnable queue and steal them.
++	// See https://groups.google.com/g/golang-dev/c/0pTKxEKhHSc/m/6Q85QjdVBQAJ for more details.
++	for i := uint32(0); i < qn; i++ {
++		gp := _p_.runq[(h+i)%uint32(len(_p_.runq))].ptr()
++		drainQ.pushBack(gp)
++		n++
++	}
++	return
++}
++
+ // Grabs a batch of goroutines from _p_'s runnable queue into batch.
+ // Batch is a ring buffer starting at batchHead.
+ // Returns number of grabbed goroutines.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 7fc7174334..0e0eb0b728 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -633,6 +633,9 @@ type p struct {
+ 	// unit and eliminates the (potentially large) scheduling
+ 	// latency that otherwise arises from adding the ready'd
+ 	// goroutines to the end of the run queue.
++	//
++	// Note that while other P's may atomically CAS this to zero,
++	// only the owner P can CAS it to a valid G.
+ 	runnext guintptr
+ 
+ 	// Available G's (status == Gdead)

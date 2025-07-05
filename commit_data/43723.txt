@@ -15,7 +15,55 @@ Date:   Tue Apr 21 16:56:22 2020 -0400
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s | 4 ++++
  src/cmd/internal/obj/s390x/asmz.go        | 4 +++-
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 1ae614ae17..03b84cfa62 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -89,6 +89,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	ADDW	R1, R2, R3            // b9f81032
+ 	ADDW	$8192, R1             // a71a2000
+ 	ADDW	$8192, R1, R2         // ec21200000d8
++	ADDE	R1, R2                // b9880021
+ 	SUB	R3, R4                // b9090043
+ 	SUB	R3, R4, R5            // b9e93054
+ 	SUB	$8192, R3             // a73be000
+@@ -183,6 +184,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	ADDW	4095(R7), R8          // 5a807fff
+ 	ADDW	-1(R1), R2            // e3201fffff5a
+ 	ADDW	4096(R3), R4          // e3403000015a
++	ADDE	4096(R3), R4          // e34030000188
++	ADDE	4096(R3)(R2*1), R4    // e34230000188
++	ADDE	524288(R3)(R4*1), R5  // c0a10008000041aa4000e35a30000088
+ 	MULLD	(R1)(R2*1), R3        // e3321000000c
+ 	MULLW	(R3)(R4*1), R5        // 71543000
+ 	MULLW	4096(R3), R4          // e34030000151
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index dca9d990e0..30c0738c33 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -906,10 +906,10 @@ func buildop(ctxt *obj.Link) {
+ 		case AADD:
+ 			opset(AADDC, r)
+ 			opset(AADDW, r)
++			opset(AADDE, r)
+ 			opset(AMULLD, r)
+ 			opset(AMULLW, r)
+ 		case ADIVW:
+-			opset(AADDE, r)
+ 			opset(ADIVD, r)
+ 			opset(ADIVDU, r)
+ 			opset(ADIVWU, r)
+@@ -3040,6 +3040,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 			opxy = op_AG
+ 		case AADDC:
+ 			opxy = op_ALG
++		case AADDE:
++			opxy = op_ALCG
+ 		case AADDW:
+ 			opx = op_A
+ 			opxy = op_AY

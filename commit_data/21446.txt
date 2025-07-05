@@ -11,6 +11,34 @@ Date:   Mon Dec 29 16:26:25 2014 -0500
     Change-Id: I5624b509a36650bce6834cf394b9da163abbf8c0
     Reviewed-on: https://go-review.googlesource.com/2310
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/cmd/gc/walk.c | 16 +++++++++++++++-
  1 file changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 956b57d28b..ed0cb1425a 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2800,7 +2800,21 @@ appendslice(Node *n, NodeList **init)
+ 
+ 	l = list(l, nif);
+ 
+-	if(flag_race) {
++	if(haspointers(l1->type->type)) {
++		// copy(s[len(l1):len(l1)+len(l2)], l2)
++		nptr1 = nod(OSLICE, s, nod(OKEY,
++			nod(OLEN, l1, N),
++			nod(OADD, nod(OLEN, l1, N), nod(OLEN, l2, N))));
++		nptr1->etype = 1;
++		nptr2 = l2;
++		fn = syslook("typedslicecopy", 1);
++		argtype(fn, l1->type);
++		argtype(fn, l2->type);
++		nt = mkcall1(fn, types[TINT], &l,
++				typename(l1->type->type),
++				nptr1, nptr2);
++		l = list(l, nt);
++	} else if(flag_race) {
+ 		// rely on runtime to instrument copy.
+ 		// copy(s[len(l1):len(l1)+len(l2)], l2)
+ 		nptr1 = nod(OSLICE, s, nod(OKEY,

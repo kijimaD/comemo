@@ -13,7 +13,65 @@ Date:   Sat Oct 14 11:43:17 2017 -0700
     Change-Id: Ie2fb8753ca5280e493810d211c7c66223f94af88
     Reviewed-on: https://go-review.googlesource.com/70950
     Reviewed-by: Filippo Valsorda <hi@filippo.io>
-
+---
  src/crypto/ecdsa/ecdsa.go | 15 +++++++++------
  src/crypto/rsa/rsa.go     | 16 +++++++++-------
  2 files changed, 18 insertions(+), 13 deletions(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 817bf7deb6..755ed284a9 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -64,12 +64,15 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
+ 	return &priv.PublicKey
+ }
+ 
+-// Sign signs msg with priv, reading randomness from rand. This method is
+-// intended to support keys where the private part is kept in, for example, a
+-// hardware module. Common uses should use the Sign function in this package
+-// directly.
+-func (priv *PrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
+-	r, s, err := Sign(rand, priv, msg)
++// Sign signs digest with priv, reading randomness from rand. The opts argument
++// is not currently used but, in keeping with the crypto.Signer interface,
++// should be the hash function used to digest the message.
++//
++// This method implements crypto.Signer, which is an interface to support keys
++// where the private part is kept in, for example, a hardware module. Common
++// uses should use the Sign function in this package directly.
++func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
++	r, s, err := Sign(rand, priv, digest)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 69a2b58a5a..0faca43e43 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -92,17 +92,19 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
+ 	return &priv.PublicKey
+ }
+ 
+-// Sign signs msg with priv, reading randomness from rand. If opts is a
++// Sign signs digest with priv, reading randomness from rand. If opts is a
+ // *PSSOptions then the PSS algorithm will be used, otherwise PKCS#1 v1.5 will
+-// be used. This method is intended to support keys where the private part is
+-// kept in, for example, a hardware module. Common uses should use the Sign*
+-// functions in this package.
+-func (priv *PrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
++// be used.
++//
++// This method implements crypto.Signer, which is an interface to support keys
++// where the private part is kept in, for example, a hardware module. Common
++// uses should use the Sign* functions in this package directly.
++func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+ 	if pssOpts, ok := opts.(*PSSOptions); ok {
+-		return SignPSS(rand, priv, pssOpts.Hash, msg, pssOpts)
++		return SignPSS(rand, priv, pssOpts.Hash, digest, pssOpts)
+ 	}
+ 
+-	return SignPKCS1v15(rand, priv, opts.HashFunc(), msg)
++	return SignPKCS1v15(rand, priv, opts.HashFunc(), digest)
+ }
+ 
+ // Decrypt decrypts ciphertext with priv. If opts is nil or of type

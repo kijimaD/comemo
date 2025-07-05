@@ -18,6 +18,47 @@ Date:   Wed Oct 31 20:42:38 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/link/internal/ld/link.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 48b92724b6..f3f1bba773 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -32,6 +32,7 @@ package ld
+ 
+ import (
+ 	"bufio"
++	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/sym"
+@@ -108,9 +109,27 @@ func (ctxt *Link) ErrorUnresolved(s *sym.Symbol, r *sym.Reloc) {
+ 	k := unresolvedSymKey{from: s, to: r.Sym}
+ 	if !ctxt.unresolvedSymSet[k] {
+ 		ctxt.unresolvedSymSet[k] = true
++
++		// Try to find symbol under another ABI.
++		var reqABI, haveABI obj.ABI
++		haveABI = ^obj.ABI(0)
++		for abi := obj.ABI(0); abi < obj.ABICount; abi++ {
++			v := sym.ABIToVersion(abi)
++			if v == -1 {
++				continue
++			}
++			if v == int(r.Sym.Version) {
++				reqABI = abi
++			} else if ctxt.Syms.ROLookup(r.Sym.Name, v) != nil {
++				haveABI = abi
++			}
++		}
++
+ 		// Give a special error message for main symbol (see #24809).
+ 		if r.Sym.Name == "main.main" {
+ 			Errorf(s, "function main is undeclared in the main package")
++		} else if haveABI != ^obj.ABI(0) {
++			Errorf(s, "relocation target %s not defined for %s (but is defined for %s)", r.Sym.Name, reqABI, haveABI)
+ 		} else {
+ 			Errorf(s, "relocation target %s not defined", r.Sym.Name)
+ 		}

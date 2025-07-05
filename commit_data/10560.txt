@@ -7,6 +7,20 @@ Date:   Thu Dec 1 15:26:28 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5440071
-
+---
  src/pkg/time/zoneinfo_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/zoneinfo_windows.go b/src/pkg/time/zoneinfo_windows.go
+index 5eba0ac97b..beef4de92b 100644
+--- a/src/pkg/time/zoneinfo_windows.go
++++ b/src/pkg/time/zoneinfo_windows.go
+@@ -62,7 +62,7 @@ func pseudoUnix(year int, d *syscall.Systemtime) int64 {
+ 			day -= 7
+ 		}
+ 	}
+-	return t.sec + int64(day-1)*secondsPerDay
++	return t.sec + int64(day-1)*secondsPerDay + internalToUnix
+ }
+ 
+ func initLocalFromTZI(i *syscall.Timezoneinformation) {

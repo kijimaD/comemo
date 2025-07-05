@@ -132,3 +132,1100 @@ Date:   Wed Feb 1 09:35:27 2017 -0500
  src/cmd/internal/src/xpos_test.go                 |   67 ++
  test/fixedbugs/issue11610.go                      |    2 +-
  124 files changed, 6082 insertions(+), 5641 deletions(-)
+
+diff --cc src/cmd/compile/internal/gc/dcl.go
+index 856a7faced,8af78c156a..6cf970dbad
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@@ -5,7 -5,8 +5,9 @@@
+  package gc
+  
+  import (
+++	"cmd/compile/internal/syntax"
+  	"cmd/internal/obj"
++ 	"cmd/internal/src"
+  	"fmt"
+  	"sort"
+  	"strings"
+@@@ -691,20 -696,10 +693,20 @@@ func typedcl0(s *Sym) *Node 
+  
+  // node n, which was returned by typedcl0
+  // is being declared to have uncompiled type t.
+ -// return the ODCLTYPE node to use.
+ -func typedcl1(n *Node, t *Node, local bool) *Node {
+ -	n.Name.Param.Ntype = t
+ -	n.Local = local
+ +// returns the ODCLTYPE node to use.
+- func typedcl1(n *Node, t *Node, pragma Pragma, alias bool) *Node {
+++func typedcl1(n *Node, t *Node, pragma syntax.Pragma, alias bool) *Node {
+ +	if pragma != 0 && alias {
+ +		yyerror("cannot specify directive with type alias")
+ +		pragma = 0
+ +	}
+ +
+ +	n.Local = true
+ +
+ +	p := n.Name.Param
+ +	p.Ntype = t
+ +	p.Pragma = pragma
+ +	p.Alias = alias
+ +
+  	return nod(ODCLTYPE, n, nil)
+  }
+  
+diff --cc src/cmd/compile/internal/gc/main.go
+index f5fb72bca5,1f4f18eb80..a9f041c4c3
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@@ -307,27 -325,11 +327,10 @@@ func Main() 
+  	loadsys()
+  
+  	timings.Start("fe", "parse")
+- 	lexlineno0 := lexlineno
+- 	for _, infile = range flag.Args() {
+- 		linehistpush(infile)
+- 		block = 1
+- 		iota_ = -1000000
+- 		imported_unsafe = false
+- 		parseFile(infile)
+- 		if nsyntaxerrors != 0 {
+- 			errorexit()
+- 		}
+- 
+- 		// Instead of converting EOF into '\n' in getc and count it as an extra line
+- 		// for the line history to work, and which then has to be corrected elsewhere,
+- 		// just add a line here.
+- 		lexlineno++
+- 		linehistpop()
+- 	}
++ 	lines := parseFiles(flag.Args())
+  	timings.Stop()
+- 	timings.AddEvent(int64(lexlineno-lexlineno0), "lines")
++ 	timings.AddEvent(int64(lines), "lines")
+  
+- 	mkpackage(localpkg.Name) // final import not used checks
+ -	testdclstack()
+  	finishUniverse()
+  
+  	typecheckok = true
+@@@ -913,54 -910,37 +917,37 @@@ func mkpackage(pkgname string) 
+  		if pkgname != localpkg.Name {
+  			yyerror("package %s; expected %s", pkgname, localpkg.Name)
+  		}
+- 		for _, s := range localpkg.Syms {
+- 			if s.Def == nil {
+- 				continue
+- 			}
+- 			if s.Def.Op == OPACK {
+- 				// throw away top-level package name leftover
+- 				// from previous file.
+- 				// leave s->block set to cause redeclaration
+- 				// errors if a conflicting top-level name is
+- 				// introduced by a different file.
+- 				if !s.Def.Used && nsyntaxerrors == 0 {
+- 					pkgnotused(s.Def.Lineno, s.Def.Name.Pkg.Path, s.Name)
+- 				}
+- 				s.Def = nil
+- 				continue
+- 			}
+- 
+- 			if s.isAlias() {
+- 				// throw away top-level name left over
+- 				// from previous import . "x"
+- 				if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {
+- 					pkgnotused(s.Def.Name.Pack.Lineno, s.Def.Name.Pack.Name.Pkg.Path, "")
+- 					s.Def.Name.Pack.Used = true
+- 				}
++ 	}
++ }
+  
+- 				s.Def = nil
+- 				continue
++ func clearImports() {
++ 	for _, s := range localpkg.Syms {
++ 		if s.Def == nil {
++ 			continue
++ 		}
++ 		if s.Def.Op == OPACK {
++ 			// throw away top-level package name leftover
++ 			// from previous file.
++ 			// leave s->block set to cause redeclaration
++ 			// errors if a conflicting top-level name is
++ 			// introduced by a different file.
++ 			if !s.Def.Used && nsyntaxerrors == 0 {
++ 				pkgnotused(s.Def.Pos, s.Def.Name.Pkg.Path, s.Name)
+  			}
++ 			s.Def = nil
++ 			continue
+  		}
+- 	}
+  
+- 	if outfile == "" {
+- 		p := infile
+- 		if i := strings.LastIndex(p, "/"); i >= 0 {
+- 			p = p[i+1:]
+- 		}
+- 		if runtime.GOOS == "windows" {
+- 			if i := strings.LastIndex(p, `\`); i >= 0 {
+- 				p = p[i+1:]
+ -		if s.Def.Sym != s && s.Flags&SymAlias == 0 {
+++		if s.isAlias() {
++ 			// throw away top-level name left over
++ 			// from previous import . "x"
++ 			if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {
++ 				pkgnotused(s.Def.Name.Pack.Pos, s.Def.Name.Pack.Name.Pkg.Path, "")
++ 				s.Def.Name.Pack.Used = true
+  			}
++ 
++ 			s.Def = nil
++ 			continue
+  		}
+- 		if i := strings.LastIndex(p, "."); i >= 0 {
+- 			p = p[:i]
+- 		}
+- 		suffix := ".o"
+- 		if writearchive {
+- 			suffix = ".a"
+- 		}
+- 		outfile = p + suffix
+  	}
+  }
+diff --cc src/cmd/compile/internal/gc/noder.go
+index 9dbe769fa7,1207c3f614..e4378544f0
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@@ -12,47 -12,108 +12,109 @@@ import 
+  	"unicode/utf8"
+  
+  	"cmd/compile/internal/syntax"
++ 	"cmd/internal/obj"
++ 	"cmd/internal/src"
+  )
+  
+- func parseFile(filename string) {
+- 	src, err := os.Open(filename)
+- 	if err != nil {
+- 		fmt.Println(err)
+- 		errorexit()
+- 	}
+- 	defer src.Close()
++ func parseFiles(filenames []string) uint {
++ 	var lines uint
++ 	var noders []*noder
+  
+- 	p := noder{baseline: lexlineno}
+- 	file, _ := syntax.Parse(src, p.error, p.pragma, 0) // errors are tracked via p.error
++ 	for _, filename := range filenames {
++ 		p := &noder{err: make(chan syntax.Error)}
++ 		noders = append(noders, p)
+  
+- 	p.file(file)
++ 		go func(filename string) {
++ 			defer close(p.err)
++ 			base := src.NewFileBase(filename, absFilename(filename))
+  
+- 	if !imported_unsafe {
+- 		for _, x := range p.linknames {
+- 			p.error(syntax.Error{Line: x, Msg: "//go:linkname only allowed in Go files that import \"unsafe\""})
+- 		}
++ 			f, err := os.Open(filename)
++ 			if err != nil {
++ 				p.error(syntax.Error{Pos: src.MakePos(base, 0, 0), Msg: err.Error()})
++ 				return
++ 			}
++ 			defer f.Close()
++ 
++ 			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, 0) // errors are tracked via p.error
++ 		}(filename)
+  	}
+  
+- 	if nsyntaxerrors == 0 {
++ 	for _, p := range noders {
++ 		for e := range p.err {
++ 			yyerrorpos(e.Pos, "%s", e.Msg)
++ 		}
++ 
++ 		p.node()
++ 		lines += p.file.Lines
++ 		p.file = nil // release memory
++ 
++ 		if nsyntaxerrors != 0 {
++ 			errorexit()
++ 		}
+ +		// Always run testdclstack here, even when debug_dclstack is not set, as a sanity measure.
+  		testdclstack()
+  	}
++ 
++ 	return lines
++ }
++ 
++ func yyerrorpos(pos src.Pos, format string, args ...interface{}) {
++ 	yyerrorl(Ctxt.PosTable.XPos(pos), format, args...)
+  }
+  
+- // noder transforms package syntax's AST into a Nod tree.
++ var pathPrefix string
++ 
++ func absFilename(name string) string {
++ 	return obj.AbsFile(Ctxt.Pathname, name, pathPrefix)
++ }
++ 
++ // noder transforms package syntax's AST into a Node tree.
+  type noder struct {
+- 	baseline  int32
+- 	linknames []int // tracks //go:linkname lines
++ 	file       *syntax.File
++ 	linknames  []linkname
++ 	pragcgobuf string
++ 	err        chan syntax.Error
++ }
++ 
++ // linkname records a //go:linkname directive.
++ type linkname struct {
++ 	pos    src.Pos
++ 	local  string
++ 	remote string
+  }
+  
+- func (p *noder) file(file *syntax.File) {
+- 	p.lineno(file.PkgName)
+- 	mkpackage(file.PkgName.Value)
++ func (p *noder) node() {
++ 	block = 1
++ 	iota_ = -1000000
++ 	imported_unsafe = false
++ 
++ 	p.lineno(p.file.PkgName)
++ 	mkpackage(p.file.PkgName.Value)
+  
+- 	xtop = append(xtop, p.decls(file.DeclList)...)
++ 	xtop = append(xtop, p.decls(p.file.DeclList)...)
+  
+- 	lexlineno = p.baseline + int32(file.Lines) - 1
+- 	lineno = lexlineno
++ 	for _, n := range p.linknames {
++ 		if imported_unsafe {
++ 			lookup(n.local).Linkname = n.remote
++ 		} else {
++ 			yyerrorpos(n.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
++ 		}
++ 	}
++ 
++ 	pragcgobuf += p.pragcgobuf
++ 
++ 	// For compatibility with old code only (comparisons w/ toolstash):
++ 	// The old line number tracking simply continued incrementing the
++ 	// virtual line number (lexlineno) and using it also for lineno.
++ 	// After processing the last function, the lineno was used for the
++ 	// line number information of the initialization code (fninit).
++ 	// It would be better to use an explicit "<autogenerated>" filename
++ 	// for fninit and set lineno to NoPos here.
++ 	// TODO(gri) fix this once we switched permanently to the new
++ 	// position information.
++ 	lineno = MakePos(p.file.Pos().Base(), uint(p.file.Lines), 0)
++ 
++ 	clearImports()
+  }
+  
+  func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
+@@@ -179,11 -248,14 +241,11 @@@ func (p *noder) constDecl(decl *syntax.
+  
+  func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
+  	name := typedcl0(p.name(decl.Name))
+ -	name.Name.Param.Pragma = decl.Pragma
+  
+ -	var typ *Node
+ -	if decl.Type != nil {
+ -		typ = p.typeExpr(decl.Type)
+ -	}
+ +	// decl.Type may be nil but in that case we got a syntax error during parsing
+ +	typ := p.typeExprOrNil(decl.Type)
+  
+- 	return typedcl1(name, typ, Pragma(decl.Pragma), decl.Alias)
+ -	return typedcl1(name, typ, true)
+++	return typedcl1(name, typ, syntax.Pragma(decl.Pragma), decl.Alias)
+  }
+  
+  func (p *noder) declNames(names []*syntax.Name) []*Node {
+@@@ -1005,55 -1070,25 +1067,26 @@@ func (p *noder) lineno(n syntax.Node) 
+  }
+  
+  func (p *noder) error(err error) {
+- 	line := p.baseline
+- 	var msg string
+- 	if err, ok := err.(syntax.Error); ok {
+- 		line += int32(err.Line) - 1
+- 		msg = err.Msg
+- 	} else {
+- 		msg = err.Error()
+- 	}
+- 	yyerrorl(line, "%s", msg)
++ 	p.err <- err.(syntax.Error)
+  }
+  
+- func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
++ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
+  	switch {
+  	case strings.HasPrefix(text, "line "):
+- 		// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
+- 		i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
+- 		if i < 0 {
+- 			break
+- 		}
+- 		n, err := strconv.Atoi(text[i+1:])
+- 		if err != nil {
+- 			// TODO: make this an error instead? it is almost certainly a bug.
+- 			break
+- 		}
+- 		if n > 1e8 {
+- 			p.error(syntax.Error{Pos: pos, Line: line, Msg: "line number out of range"})
+- 			errorexit()
+- 		}
+- 		if n <= 0 {
+- 			break
+- 		}
+- 		lexlineno = p.baseline + int32(line)
+- 		linehistupdate(text[5:i], n)
++ 		// line directives are handled by syntax package
++ 		panic("unreachable")
+  
+  	case strings.HasPrefix(text, "go:linkname "):
+- 		// Record line number so we can emit an error later if
+- 		// the file doesn't import package unsafe.
+- 		p.linknames = append(p.linknames, line)
+- 
+  		f := strings.Fields(text)
+  		if len(f) != 3 {
+- 			p.error(syntax.Error{Pos: pos, Line: line, Msg: "usage: //go:linkname localname linkname"})
++ 			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:linkname localname linkname"})
+  			break
+  		}
+- 		lookup(f[1]).Linkname = f[2]
++ 		p.linknames = append(p.linknames, linkname{pos, f[1], f[2]})
+  
+  	case strings.HasPrefix(text, "go:cgo_"):
+- 		lineno = p.baseline + int32(line) - 1 // pragcgo may call yyerror
+- 		pragcgobuf += pragcgo(text)
+++		// TODO(gri): lineno = p.baseline + int32(line) - 1 // pragcgo may call yyerror
++ 		p.pragcgobuf += pragcgo(text)
+  		fallthrough // because of //go:cgo_unsafe_args
+  	default:
+  		verb := text
+diff --cc src/cmd/compile/internal/gc/syntax.go
+index 0bd877e26a,3039aeb402..923055c962
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@@ -280,11 -285,10 +285,11 @@@ type Param struct 
+  	Innermost *Node
+  	Outer     *Node
+  
+ -	// OTYPE pragmas
+ +	// OTYPE
+  	//
+  	// TODO: Should Func pragmas also be stored on the Name?
+- 	Pragma Pragma
++ 	Pragma syntax.Pragma
+ +	Alias  bool // node is alias for Ntype (only used when type-checking ODCLTYPE)
+  }
+  
+  // Func holds Node fields used only with function-like nodes.
+diff --cc src/cmd/compile/internal/gc/typecheck.go
+index 1379bb56d4,70d9da4b2d..1467189458
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@@ -159,21 -161,13 +160,21 @@@ func typecheck(n *Node, top int) *Node 
+  				yyerror("%v is not a type", n)
+  			}
+  
+ +		case OTYPE:
+ +			if top&Etype == Etype {
+ +				var trace string
+ +				sprint_depchain(&trace, typecheck_tcstack, n, n)
+- 				yyerrorl(n.Lineno, "invalid recursive type alias %v%s", n, trace)
+++				yyerrorl(n.Pos, "invalid recursive type alias %v%s", n, trace)
+ +			}
+ +
+  		case OLITERAL:
+  			if top&(Erv|Etype) == Etype {
+  				yyerror("%v is not a type", n)
+  				break
+  			}
+ -			sprint_depchain(&fmt_, typecheck_tcstack, n, n)
+ -			yyerrorl(n.Pos, "constant definition loop%s", fmt_)
+ +			var trace string
+ +			sprint_depchain(&trace, typecheck_tcstack, n, n)
+- 			yyerrorl(n.Lineno, "constant definition loop%s", trace)
+++			yyerrorl(n.Pos, "constant definition loop%s", trace)
+  		}
+  
+  		if nsavederrors+nerrors == 0 {
+diff --cc src/cmd/compile/internal/ssa/compile.go
+index 5b461bac48,02d7467334..975845f258
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@@ -5,7 -5,7 +5,8 @@@
+  package ssa
+  
+  import (
+ +	"cmd/internal/obj"
++ 	"cmd/internal/src"
+  	"fmt"
+  	"log"
+  	"os"
+diff --cc src/cmd/compile/internal/ssa/config.go
+index 4931da8d07,1cde6c8530..1cf05ef1cd
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@@ -88,12 -89,12 +89,12 @@@ type Logger interface 
+  	Log() bool
+  
+  	// Fatal reports a compiler error and exits.
+- 	Fatalf(line int32, msg string, args ...interface{})
++ 	Fatalf(pos src.XPos, msg string, args ...interface{})
+  
+  	// Warnl writes compiler messages in the form expected by "errorcheck" tests
+- 	Warnl(line int32, fmt_ string, args ...interface{})
++ 	Warnl(pos src.XPos, fmt_ string, args ...interface{})
+  
+ -	// Fowards the Debug flags from gc
+ +	// Forwards the Debug flags from gc
+  	Debug_checknil() bool
+  	Debug_wb() bool
+  }
+diff --cc src/cmd/compile/internal/ssa/loopreschedchecks.go
+index 8f8055e302,0000000000..7e6f0d890b
+mode 100644,000000..100644
+--- a/src/cmd/compile/internal/ssa/loopreschedchecks.go
++++ b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+@@@ -1,517 -1,0 +1,517 @@@
+ +// Copyright 2016 The Go Authors. All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +package ssa
+ +
+ +import "fmt"
+ +
+ +// an edgeMemCtr records a backedge, together with the memory and
+ +// counter phi functions at the target of the backedge that must
+ +// be updated when a rescheduling check replaces the backedge.
+ +type edgeMemCtr struct {
+ +	e Edge
+ +	m *Value // phi for memory at dest of e
+ +	c *Value // phi for counter at dest of e
+ +}
+ +
+ +// a rewriteTarget is a a value-argindex pair indicating
+ +// where a rewrite is applied.  Note that this is for values,
+ +// not for block controls, because block controls are not targets
+ +// for the rewrites performed in inserting rescheduling checks.
+ +type rewriteTarget struct {
+ +	v *Value
+ +	i int
+ +}
+ +
+ +type rewrite struct {
+ +	before, after *Value          // before is the expected value before rewrite, after is the new value installed.
+ +	rewrites      []rewriteTarget // all the targets for this rewrite.
+ +}
+ +
+ +func (r *rewrite) String() string {
+ +	s := "\n\tbefore=" + r.before.String() + ", after=" + r.after.String()
+ +	for _, rw := range r.rewrites {
+ +		s += ", (i=" + fmt.Sprint(rw.i) + ", v=" + rw.v.LongString() + ")"
+ +	}
+ +	s += "\n"
+ +	return s
+ +}
+ +
+ +const initialRescheduleCounterValue = 1021 // Largest 10-bit prime. 97 nSec loop bodies will check every 100 uSec.
+ +
+ +// insertLoopReschedChecks inserts rescheduling checks on loop backedges.
+ +func insertLoopReschedChecks(f *Func) {
+ +	// TODO: when split information is recorded in export data, insert checks only on backedges that can be reached on a split-call-free path.
+ +
+ +	// Loop reschedule checks decrement a per-function counter
+ +	// shared by all loops, and when the counter becomes non-positive
+ +	// a call is made to a rescheduling check in the runtime.
+ +	//
+ +	// Steps:
+ +	// 1. locate backedges.
+ +	// 2. Record memory definitions at block end so that
+ +	//    the SSA graph for mem can be prperly modified.
+ +	// 3. Define a counter and record its future uses (at backedges)
+ +	//    (Same process as 2, applied to a single definition of the counter.
+ +	//     difference for mem is that there are zero-to-many existing mem
+ +	//     definitions, versus exactly one for the new counter.)
+ +	// 4. Ensure that phi functions that will-be-needed for mem and counter
+ +	//    are present in the graph, initially with trivial inputs.
+ +	// 5. Record all to-be-modified uses of mem and counter;
+ +	//    apply modifications (split into two steps to simplify and
+ +	//    avoided nagging order-dependences).
+ +	// 6. Rewrite backedges to include counter check, reschedule check,
+ +	//    and modify destination phi function appropriately with new
+ +	//    definitions for mem and counter.
+ +
+ +	if f.NoSplit { // nosplit functions don't reschedule.
+ +		return
+ +	}
+ +
+ +	backedges := backedges(f)
+ +	if len(backedges) == 0 { // no backedges means no rescheduling checks.
+ +		return
+ +	}
+ +
+ +	lastMems := findLastMems(f)
+ +
+ +	idom := f.Idom()
+ +	sdom := f.sdom()
+ +
+ +	if f.pass.debug > 2 {
+ +		fmt.Printf("before %s = %s\n", f.Name, sdom.treestructure(f.Entry))
+ +	}
+ +
+ +	tofixBackedges := []edgeMemCtr{}
+ +
+ +	for _, e := range backedges { // TODO: could filter here by calls in loops, if declared and inferred nosplit are recorded in export data.
+ +		tofixBackedges = append(tofixBackedges, edgeMemCtr{e, nil, nil})
+ +	}
+ +
+ +	// It's possible that there is no memory state (no global/pointer loads/stores or calls)
+ +	if lastMems[f.Entry.ID] == nil {
+- 		lastMems[f.Entry.ID] = f.Entry.NewValue0(f.Entry.Line, OpInitMem, TypeMem)
+++		lastMems[f.Entry.ID] = f.Entry.NewValue0(f.Entry.Pos, OpInitMem, TypeMem)
+ +	}
+ +
+ +	memDefsAtBlockEnds := make([]*Value, f.NumBlocks()) // For each block, the mem def seen at its bottom. Could be from earlier block.
+ +
+ +	// Propagate last mem definitions forward through successor blocks.
+ +	po := f.postorder()
+ +	for i := len(po) - 1; i >= 0; i-- {
+ +		b := po[i]
+ +		mem := lastMems[b.ID]
+ +		for j := 0; mem == nil; j++ { // if there's no def, then there's no phi, so the visible mem is identical in all predecessors.
+ +			// loop because there might be backedges that haven't been visited yet.
+ +			mem = memDefsAtBlockEnds[b.Preds[j].b.ID]
+ +		}
+ +		memDefsAtBlockEnds[b.ID] = mem
+ +	}
+ +
+ +	// Set up counter.  There are no phis etc pre-existing for it.
+- 	counter0 := f.Entry.NewValue0I(f.Entry.Line, OpConst32, f.Config.fe.TypeInt32(), initialRescheduleCounterValue)
+++	counter0 := f.Entry.NewValue0I(f.Entry.Pos, OpConst32, f.Config.fe.TypeInt32(), initialRescheduleCounterValue)
+ +	ctrDefsAtBlockEnds := make([]*Value, f.NumBlocks()) // For each block, def visible at its end, if that def will be used.
+ +
+ +	// There's a minor difference between memDefsAtBlockEnds and ctrDefsAtBlockEnds;
+ +	// because the counter only matter for loops and code that reaches them, it is nil for blocks where the ctr is no
+ +	// longer live.  This will avoid creation of dead phi functions.  This optimization is ignored for the mem variable
+ +	// because it is harder and also less likely to be helpful, though dead code elimination ought to clean this out anyhow.
+ +
+ +	for _, emc := range tofixBackedges {
+ +		e := emc.e
+ +		// set initial uses of counter zero (note available-at-bottom and use are the same thing initially.)
+ +		// each back-edge will be rewritten to include a reschedule check, and that will use the counter.
+ +		src := e.b.Preds[e.i].b
+ +		ctrDefsAtBlockEnds[src.ID] = counter0
+ +	}
+ +
+ +	// Push uses towards root
+ +	for _, b := range f.postorder() {
+ +		bd := ctrDefsAtBlockEnds[b.ID]
+ +		if bd == nil {
+ +			continue
+ +		}
+ +		for _, e := range b.Preds {
+ +			p := e.b
+ +			if ctrDefsAtBlockEnds[p.ID] == nil {
+ +				ctrDefsAtBlockEnds[p.ID] = bd
+ +			}
+ +		}
+ +	}
+ +
+ +	// Maps from block to newly-inserted phi function in block.
+ +	newmemphis := make(map[*Block]rewrite)
+ +	newctrphis := make(map[*Block]rewrite)
+ +
+ +	// Insert phi functions as necessary for future changes to flow graph.
+ +	for i, emc := range tofixBackedges {
+ +		e := emc.e
+ +		h := e.b
+ +
+ +		// find the phi function for the memory input at "h", if there is one.
+ +		var headerMemPhi *Value // look for header mem phi
+ +
+ +		for _, v := range h.Values {
+ +			if v.Op == OpPhi && v.Type.IsMemory() {
+ +				headerMemPhi = v
+ +			}
+ +		}
+ +
+ +		if headerMemPhi == nil {
+ +			// if the header is nil, make a trivial phi from the dominator
+ +			mem0 := memDefsAtBlockEnds[idom[h.ID].ID]
+ +			headerMemPhi = newPhiFor(h, mem0)
+ +			newmemphis[h] = rewrite{before: mem0, after: headerMemPhi}
+ +			addDFphis(mem0, h, h, f, memDefsAtBlockEnds, newmemphis)
+ +
+ +		}
+ +		tofixBackedges[i].m = headerMemPhi
+ +
+ +		var headerCtrPhi *Value
+ +		rw, ok := newctrphis[h]
+ +		if !ok {
+ +			headerCtrPhi = newPhiFor(h, counter0)
+ +			newctrphis[h] = rewrite{before: counter0, after: headerCtrPhi}
+ +			addDFphis(counter0, h, h, f, ctrDefsAtBlockEnds, newctrphis)
+ +		} else {
+ +			headerCtrPhi = rw.after
+ +		}
+ +		tofixBackedges[i].c = headerCtrPhi
+ +	}
+ +
+ +	rewriteNewPhis(f.Entry, f.Entry, f, memDefsAtBlockEnds, newmemphis)
+ +	rewriteNewPhis(f.Entry, f.Entry, f, ctrDefsAtBlockEnds, newctrphis)
+ +
+ +	if f.pass.debug > 0 {
+ +		for b, r := range newmemphis {
+ +			fmt.Printf("b=%s, rewrite=%s\n", b, r.String())
+ +		}
+ +
+ +		for b, r := range newctrphis {
+ +			fmt.Printf("b=%s, rewrite=%s\n", b, r.String())
+ +		}
+ +	}
+ +
+ +	// Apply collected rewrites.
+ +	for _, r := range newmemphis {
+ +		for _, rw := range r.rewrites {
+ +			rw.v.SetArg(rw.i, r.after)
+ +		}
+ +	}
+ +
+ +	for _, r := range newctrphis {
+ +		for _, rw := range r.rewrites {
+ +			rw.v.SetArg(rw.i, r.after)
+ +		}
+ +	}
+ +
+- 	zero := f.Entry.NewValue0I(f.Entry.Line, OpConst32, f.Config.fe.TypeInt32(), 0)
+- 	one := f.Entry.NewValue0I(f.Entry.Line, OpConst32, f.Config.fe.TypeInt32(), 1)
+++	zero := f.Entry.NewValue0I(f.Entry.Pos, OpConst32, f.Config.fe.TypeInt32(), 0)
+++	one := f.Entry.NewValue0I(f.Entry.Pos, OpConst32, f.Config.fe.TypeInt32(), 1)
+ +
+ +	// Rewrite backedges to include reschedule checks.
+ +	for _, emc := range tofixBackedges {
+ +		e := emc.e
+ +		headerMemPhi := emc.m
+ +		headerCtrPhi := emc.c
+ +		h := e.b
+ +		i := e.i
+ +		p := h.Preds[i]
+ +		bb := p.b
+ +		mem0 := headerMemPhi.Args[i]
+ +		ctr0 := headerCtrPhi.Args[i]
+ +		// bb e->p h,
+ +		// Because we're going to insert a rare-call, make sure the
+ +		// looping edge still looks likely.
+ +		likely := BranchLikely
+ +		if p.i != 0 {
+ +			likely = BranchUnlikely
+ +		}
+ +		bb.Likely = likely
+ +
+ +		// rewrite edge to include reschedule check
+ +		// existing edges:
+ +		//
+ +		// bb.Succs[p.i] == Edge{h, i}
+ +		// h.Preds[i] == p == Edge{bb,p.i}
+ +		//
+ +		// new block(s):
+ +		// test:
+ +		//    ctr1 := ctr0 - 1
+ +		//    if ctr1 <= 0 { goto sched }
+ +		//    goto join
+ +		// sched:
+ +		//    mem1 := call resched (mem0)
+ +		//    goto join
+ +		// join:
+ +		//    ctr2 := phi(ctr1, counter0) // counter0 is the constant
+ +		//    mem2 := phi(mem0, mem1)
+ +		//    goto h
+ +		//
+ +		// and correct arg i of headerMemPhi and headerCtrPhi
+ +		//
+ +		// EXCEPT: block containing only phi functions is bad
+ +		// for the register allocator.  Therefore, there is no
+ +		// join, and instead branches targeting join instead target
+ +		// the header, and the other phi functions within header are
+ +		// adjusted for the additional input.
+ +
+ +		test := f.NewBlock(BlockIf)
+ +		sched := f.NewBlock(BlockPlain)
+ +
+- 		test.Line = bb.Line
+- 		sched.Line = bb.Line
+++		test.Pos = bb.Pos
+++		sched.Pos = bb.Pos
+ +
+ +		//    ctr1 := ctr0 - 1
+ +		//    if ctr1 <= 0 { goto sched }
+ +		//    goto header
+- 		ctr1 := test.NewValue2(bb.Line, OpSub32, f.Config.fe.TypeInt32(), ctr0, one)
+- 		cmp := test.NewValue2(bb.Line, OpLeq32, f.Config.fe.TypeBool(), ctr1, zero)
+++		ctr1 := test.NewValue2(bb.Pos, OpSub32, f.Config.fe.TypeInt32(), ctr0, one)
+++		cmp := test.NewValue2(bb.Pos, OpLeq32, f.Config.fe.TypeBool(), ctr1, zero)
+ +		test.SetControl(cmp)
+ +		test.AddEdgeTo(sched) // if true
+ +		// if false -- rewrite edge to header.
+ +		// do NOT remove+add, because that will perturb all the other phi functions
+ +		// as well as messing up other edges to the header.
+ +		test.Succs = append(test.Succs, Edge{h, i})
+ +		h.Preds[i] = Edge{test, 1}
+ +		headerMemPhi.SetArg(i, mem0)
+ +		headerCtrPhi.SetArg(i, ctr1)
+ +
+ +		test.Likely = BranchUnlikely
+ +
+ +		// sched:
+ +		//    mem1 := call resched (mem0)
+ +		//    goto header
+ +		resched := f.Config.fe.Syslook("goschedguarded")
+- 		mem1 := sched.NewValue1A(bb.Line, OpStaticCall, TypeMem, resched, mem0)
+++		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, TypeMem, resched, mem0)
+ +		sched.AddEdgeTo(h)
+ +		headerMemPhi.AddArg(mem1)
+ +		headerCtrPhi.AddArg(counter0)
+ +
+ +		bb.Succs[p.i] = Edge{test, 0}
+ +		test.Preds = append(test.Preds, Edge{bb, p.i})
+ +
+ +		// Must correct all the other phi functions in the header for new incoming edge.
+ +		// Except for mem and counter phis, it will be the same value seen on the original
+ +		// backedge at index i.
+ +		for _, v := range h.Values {
+ +			if v.Op == OpPhi && v != headerMemPhi && v != headerCtrPhi {
+ +				v.AddArg(v.Args[i])
+ +			}
+ +		}
+ +	}
+ +
+ +	f.invalidateCFG()
+ +
+ +	if f.pass.debug > 2 {
+ +		sdom = newSparseTree(f, f.Idom())
+ +		fmt.Printf("after %s = %s\n", f.Name, sdom.treestructure(f.Entry))
+ +	}
+ +
+ +	return
+ +}
+ +
+ +// newPhiFor inserts a new Phi function into b,
+ +// with all inputs set to v.
+ +func newPhiFor(b *Block, v *Value) *Value {
+- 	phiV := b.NewValue0(b.Line, OpPhi, v.Type)
+++	phiV := b.NewValue0(b.Pos, OpPhi, v.Type)
+ +
+ +	for range b.Preds {
+ +		phiV.AddArg(v)
+ +	}
+ +	return phiV
+ +}
+ +
+ +// rewriteNewPhis updates newphis[h] to record all places where the new phi function inserted
+ +// in block h will replace a previous definition.  Block b is the block currently being processed;
+ +// if b has its own phi definition then it takes the place of h.
+ +// defsForUses provides information about other definitions of the variable that are present
+ +// (and if nil, indicates that the variable is no longer live)
+ +func rewriteNewPhis(h, b *Block, f *Func, defsForUses []*Value, newphis map[*Block]rewrite) {
+ +	// If b is a block with a new phi, then a new rewrite applies below it in the dominator tree.
+ +	if _, ok := newphis[b]; ok {
+ +		h = b
+ +	}
+ +	change := newphis[h]
+ +	x := change.before
+ +	y := change.after
+ +
+ +	// Apply rewrites to this block
+ +	if x != nil { // don't waste time on the common case of no definition.
+ +		p := &change.rewrites
+ +		for _, v := range b.Values {
+ +			if v == y { // don't rewrite self -- phi inputs are handled below.
+ +				continue
+ +			}
+ +			for i, w := range v.Args {
+ +				if w != x {
+ +					continue
+ +				}
+ +				*p = append(*p, rewriteTarget{v, i})
+ +			}
+ +		}
+ +
+ +		// Rewrite appropriate inputs of phis reached in successors
+ +		// in dominance frontier, self, and dominated.
+ +		// If the variable def reaching uses in b is itself defined in b, then the new phi function
+ +		// does not reach the successors of b.  (This assumes a bit about the structure of the
+ +		// phi use-def graph, but it's true for memory and the inserted counter.)
+ +		if dfu := defsForUses[b.ID]; dfu != nil && dfu.Block != b {
+ +			for _, e := range b.Succs {
+ +				s := e.b
+ +				if sphi, ok := newphis[s]; ok { // saves time to find the phi this way.
+ +					*p = append(*p, rewriteTarget{sphi.after, e.i})
+ +					continue
+ +				}
+ +				for _, v := range s.Values {
+ +					if v.Op == OpPhi && v.Args[e.i] == x {
+ +						*p = append(*p, rewriteTarget{v, e.i})
+ +						break
+ +					}
+ +				}
+ +			}
+ +		}
+ +		newphis[h] = change
+ +	}
+ +
+ +	sdom := f.sdom()
+ +
+ +	for c := sdom[b.ID].child; c != nil; c = sdom[c.ID].sibling {
+ +		rewriteNewPhis(h, c, f, defsForUses, newphis) // TODO: convert to explicit stack from recursion.
+ +	}
+ +}
+ +
+ +// addDFphis creates new trivial phis that are necessary to correctly reflect (within SSA)
+ +// a new definition for variable "x" inserted at h (usually but not necessarily a phi).
+ +// These new phis can only occur at the dominance frontier of h; block s is in the dominance
+ +// frontier of h if h does not strictly dominate s and if s is a successor of a block b where
+ +// either b = h or h strictly dominates b.
+ +// These newly created phis are themselves new definitions that may require addition of their
+ +// own trivial phi functions in their own dominance frontier, and this is handled recursively.
+ +func addDFphis(x *Value, h, b *Block, f *Func, defForUses []*Value, newphis map[*Block]rewrite) {
+ +	oldv := defForUses[b.ID]
+ +	if oldv != x { // either a new definition replacing x, or nil if it is proven that there are no uses reachable from b
+ +		return
+ +	}
+ +	sdom := f.sdom()
+ +	idom := f.Idom()
+ +outer:
+ +	for _, e := range b.Succs {
+ +		s := e.b
+ +		// check phi functions in the dominance frontier
+ +		if sdom.isAncestor(h, s) {
+ +			continue // h dominates s, successor of b, therefore s is not in the frontier.
+ +		}
+ +		if _, ok := newphis[s]; ok {
+ +			continue // successor s of b already has a new phi function, so there is no need to add another.
+ +		}
+ +		if x != nil {
+ +			for _, v := range s.Values {
+ +				if v.Op == OpPhi && v.Args[e.i] == x {
+ +					continue outer // successor s of b has an old phi function, so there is no need to add another.
+ +				}
+ +			}
+ +		}
+ +
+ +		old := defForUses[idom[s.ID].ID] // new phi function is correct-but-redundant, combining value "old" on all inputs.
+ +		headerPhi := newPhiFor(s, old)
+ +		// the new phi will replace "old" in block s and all blocks dominated by s.
+ +		newphis[s] = rewrite{before: old, after: headerPhi} // record new phi, to have inputs labeled "old" rewritten to "headerPhi"
+ +		addDFphis(old, s, s, f, defForUses, newphis)        // the new definition may also create new phi functions.
+ +	}
+ +	for c := sdom[b.ID].child; c != nil; c = sdom[c.ID].sibling {
+ +		addDFphis(x, h, c, f, defForUses, newphis) // TODO: convert to explicit stack from recursion.
+ +	}
+ +}
+ +
+ +// findLastMems maps block ids to last memory-output op in a block, if any
+ +func findLastMems(f *Func) []*Value {
+ +
+ +	var stores []*Value
+ +	lastMems := make([]*Value, f.NumBlocks())
+ +	storeUse := f.newSparseSet(f.NumValues())
+ +	defer f.retSparseSet(storeUse)
+ +	for _, b := range f.Blocks {
+ +		// Find all the stores in this block. Categorize their uses:
+ +		//  storeUse contains stores which are used by a subsequent store.
+ +		storeUse.clear()
+ +		stores = stores[:0]
+ +		var memPhi *Value
+ +		for _, v := range b.Values {
+ +			if v.Op == OpPhi {
+ +				if v.Type.IsMemory() {
+ +					memPhi = v
+ +				}
+ +				continue
+ +			}
+ +			if v.Type.IsMemory() {
+ +				stores = append(stores, v)
+ +				if v.Op == OpSelect1 {
+ +					// Use the arg of the tuple-generating op.
+ +					v = v.Args[0]
+ +				}
+ +				for _, a := range v.Args {
+ +					if a.Block == b && a.Type.IsMemory() {
+ +						storeUse.add(a.ID)
+ +					}
+ +				}
+ +			}
+ +		}
+ +		if len(stores) == 0 {
+ +			lastMems[b.ID] = memPhi
+ +			continue
+ +		}
+ +
+ +		// find last store in the block
+ +		var last *Value
+ +		for _, v := range stores {
+ +			if storeUse.contains(v.ID) {
+ +				continue
+ +			}
+ +			if last != nil {
+ +				b.Fatalf("two final stores - simultaneous live stores %s %s", last, v)
+ +			}
+ +			last = v
+ +		}
+ +		if last == nil {
+ +			b.Fatalf("no last store found - cycle?")
+ +		}
+ +		lastMems[b.ID] = last
+ +	}
+ +	return lastMems
+ +}
+ +
+ +type backedgesState struct {
+ +	b *Block
+ +	i int
+ +}
+ +
+ +// backedges returns a slice of successor edges that are back
+ +// edges.  For reducible loops, edge.b is the header.
+ +func backedges(f *Func) []Edge {
+ +	edges := []Edge{}
+ +	mark := make([]markKind, f.NumBlocks())
+ +	stack := []backedgesState{}
+ +
+ +	mark[f.Entry.ID] = notExplored
+ +	stack = append(stack, backedgesState{f.Entry, 0})
+ +
+ +	for len(stack) > 0 {
+ +		l := len(stack)
+ +		x := stack[l-1]
+ +		if x.i < len(x.b.Succs) {
+ +			e := x.b.Succs[x.i]
+ +			stack[l-1].i++
+ +			s := e.b
+ +			if mark[s.ID] == notFound {
+ +				mark[s.ID] = notExplored
+ +				stack = append(stack, backedgesState{s, 0})
+ +			} else if mark[s.ID] == notExplored {
+ +				edges = append(edges, e)
+ +			}
+ +		} else {
+ +			mark[x.b.ID] = done
+ +			stack = stack[0 : l-1]
+ +		}
+ +	}
+ +	return edges
+ +}
+diff --cc src/cmd/compile/internal/ssa/nilcheck.go
+index 0a34cd1ae6,0a7477c6ff..ac30b705e4
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@@ -101,11 -101,10 +101,11 @@@ func nilcheckelim(f *Func) 
+  						// This is a redundant implicit nil check.
+  						// Logging in the style of the former compiler -- and omit line 1,
+  						// which is usually in generated code.
+- 						if f.Config.Debug_checknil() && v.Line > 1 {
+- 							f.Config.Warnl(v.Line, "removed nil check")
++ 						if f.Config.Debug_checknil() && v.Pos.Line() > 1 {
++ 							f.Config.Warnl(v.Pos, "removed nil check")
+  						}
+  						v.reset(OpUnknown)
+ +						// TODO: f.freeValue(v)
+  						i--
+  						continue
+  					}
+diff --cc src/cmd/compile/internal/ssa/regalloc.go
+index 7bf778609e,bb25debdd6..1f8092e4b9
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@@ -759,7 -760,7 +760,7 @@@ func (s *regAllocState) regalloc(f *Fun
+  			liveSet.add(e.ID)
+  		}
+  		if v := b.Control; v != nil && s.values[v.ID].needReg {
+- 			s.addUse(v.ID, int32(len(b.Values)), b.Line) // pseudo-use by control value
+ -			s.addUse(v.ID, int32(len(b.Values)), b.Pos) // psuedo-use by control value
+++			s.addUse(v.ID, int32(len(b.Values)), b.Pos) // pseudo-use by control value
+  			liveSet.add(v.ID)
+  		}
+  		for i := len(b.Values) - 1; i >= 0; i-- {
+diff --cc src/cmd/compile/internal/ssa/rewritePPC64.go
+index 031459c1ff,dfae789210..c78971f801
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@@ -1548,11 -1548,11 +1548,11 @@@ func rewriteValuePPC64_OpGeq16U(v *Valu
+  		x := v.Args[0]
+  		y := v.Args[1]
+  		v.reset(OpPPC64GreaterEqual)
+- 		v0 := b.NewValue0(v.Line, OpPPC64CMPWU, TypeFlags)
+- 		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+ -		v0 := b.NewValue0(v.Pos, OpPPC64CMPU, TypeFlags)
+++		v0 := b.NewValue0(v.Pos, OpPPC64CMPWU, TypeFlags)
++ 		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
+  		v1.AddArg(x)
+  		v0.AddArg(v1)
+- 		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++ 		v2 := b.NewValue0(v.Pos, OpZeroExt16to32, config.fe.TypeUInt32())
+  		v2.AddArg(y)
+  		v0.AddArg(v2)
+  		v.AddArg(v0)
+@@@ -1603,7 -1603,7 +1603,7 @@@ func rewriteValuePPC64_OpGeq32U(v *Valu
+  		x := v.Args[0]
+  		y := v.Args[1]
+  		v.reset(OpPPC64GreaterEqual)
+- 		v0 := b.NewValue0(v.Line, OpPPC64CMPWU, TypeFlags)
+ -		v0 := b.NewValue0(v.Pos, OpPPC64CMPU, TypeFlags)
+++		v0 := b.NewValue0(v.Pos, OpPPC64CMPWU, TypeFlags)
+  		v0.AddArg(x)
+  		v0.AddArg(y)
+  		v.AddArg(v0)
+@@@ -1692,11 -1692,11 +1692,11 @@@ func rewriteValuePPC64_OpGeq8U(v *Value
+  		x := v.Args[0]
+  		y := v.Args[1]
+  		v.reset(OpPPC64GreaterEqual)
+- 		v0 := b.NewValue0(v.Line, OpPPC64CMPWU, TypeFlags)
+- 		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+ -		v0 := b.NewValue0(v.Pos, OpPPC64CMPU, TypeFlags)
+++		v0 := b.NewValue0(v.Pos, OpPPC64CMPWU, TypeFlags)
++ 		v1 := b.NewValue0(v.Pos, OpZeroExt8to32, config.fe.TypeUInt32())
+  		v1.AddArg(x)
+  		v0.AddArg(v1)
+- 		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++ 		v2 := b.NewValue0(v.Pos, OpZeroExt8to32, config.fe.TypeUInt32())
+  		v2.AddArg(y)
+  		v0.AddArg(v2)
+  		v.AddArg(v0)
+diff --cc src/cmd/compile/internal/syntax/printer_test.go
+index a9969e610a,dc9a32b6d3..14652f4ac6
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@@ -22,20 -22,3 +22,20 @@@ func TestPrint(t *testing.T) 
+  	Fprint(os.Stdout, ast, true)
+  	fmt.Println()
+  }
+ +
+ +func TestPrintString(t *testing.T) {
+ +	for _, want := range []string{
+ +		"package p",
+ +		"package p; type _ = int; type T1 = struct{}; type ( _ = *struct{}; T2 = float32 )",
+ +		// TODO(gri) expand
+ +	} {
+- 		ast, err := ParseBytes([]byte(want), nil, nil, 0)
+++		ast, err := ParseBytes(nil, []byte(want), nil, nil, 0)
+ +		if err != nil {
+ +			t.Error(err)
+ +			continue
+ +		}
+ +		if got := String(ast); got != want {
+ +			t.Errorf("%q: got %q", want, got)
+ +		}
+ +	}
+ +}

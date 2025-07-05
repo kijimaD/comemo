@@ -8,6 +8,45 @@ Date:   Fri Jul 31 12:52:03 2009 -0700
     DELTA=23  (23 added, 0 deleted, 0 changed)
     OCL=32592
     CL=32595
-
+---
  src/pkg/template/template_test.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 7aeec6d379..c293f6646a 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -28,6 +28,7 @@ type S struct {
+ 	integer int;
+ 	raw string;
+ 	innerT T;
++	innerPointerT *T;
+ 	data []T;
+ 	pdata []*T;
+ 	empty []*T;
+@@ -341,3 +342,25 @@ func TestCustomDelims(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Test that a variable evaluates to the field itself and does not further indirection
++func TestVarIndirection(t *testing.T) {
++	s := new(S);
++	// initialized by hand for clarity.
++	s.innerPointerT = &t1;
++
++	var buf bytes.Buffer;
++	input := "{.section @}{innerPointerT}{.end}";
++	tmpl, err := Parse(input, nil);
++	if err != nil {
++		t.Fatal("unexpected parse error:", err);
++	}
++	err = tmpl.Execute(s, &buf);
++	if err != nil {
++		t.Fatal("unexpected execute error:", err)
++	}
++	expect := fmt.Sprintf("%v", &t1);	// output should be hex address of t1
++	if string(buf.Data()) != expect {
++		t.Errorf("for %q: expected %q got %q", input, expect, string(buf.Data()));
++	}
++}

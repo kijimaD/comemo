@@ -11,8 +11,54 @@ Date:   Tue Oct 18 00:34:57 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/fixedbugs/bug332.go | 4 ++--
  test/method2.go          | 4 ++--
  test/run.go              | 8 +++++++-
  3 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/test/fixedbugs/bug332.go b/test/fixedbugs/bug332.go
+index 91ae0b2ac8..d43c2ddcff 100644
+--- a/test/fixedbugs/bug332.go
++++ b/test/fixedbugs/bug332.go
+@@ -13,5 +13,5 @@ func main() {}
+ // issue 1474
+ 
+ // important: no newline on end of next line.
+-// 6g used to print <epoch> instead of bug332.go:111 
+-func (t *T) F() {} // ERROR "bug332"
+\ No newline at end of file
++// 6g used to print <epoch> instead of bug332.go:111
++func (t *T) F() {} // ERROR "undefined: T"
+\ No newline at end of file
+diff --git a/test/method2.go b/test/method2.go
+index aaa850e719..e55aee429b 100644
+--- a/test/method2.go
++++ b/test/method2.go
+@@ -33,5 +33,5 @@ var _ = (*Val).val // ERROR "method"
+ var v Val
+ var pv = &v
+ 
+-var _ = pv.val() // ERROR "method"
+-var _ = pv.val   // ERROR "method"
++var _ = pv.val() // ERROR "pv.val undefined"
++var _ = pv.val   // ERROR "pv.val undefined"
+diff --git a/test/run.go b/test/run.go
+index ad582f38e5..07eff4ddb9 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -855,7 +855,13 @@ func (t *test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (er
+ 		matched := false
+ 		n := len(out)
+ 		for _, errmsg := range errmsgs {
+-			if we.re.MatchString(errmsg) {
++			// Assume errmsg says "file:line: foo".
++			// Cut leading "file:line: " to avoid accidental matching of file name instead of message.
++			text := errmsg
++			if i := strings.Index(text, " "); i >= 0 {
++				text = text[i+1:]
++			}
++			if we.re.MatchString(text) {
+ 				matched = true
+ 			} else {
+ 				out = append(out, errmsg)

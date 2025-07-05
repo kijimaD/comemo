@@ -18,7 +18,98 @@ Date:   Mon Apr 27 17:15:30 2015 -0400
     Change-Id: Iaf002f8730ea42227feaf2f3c51b9a1e57ccffdd
     Reviewed-on: https://go-review.googlesource.com/9402
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/race/testdata/mop_test.go     |  5 +++++
  src/runtime/race/testdata/rwmutex_test.go | 22 ++++++++++++++++++++--
  2 files changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/race/testdata/mop_test.go b/src/runtime/race/testdata/mop_test.go
+index 095ead6c9a..7f95051a8c 100644
+--- a/src/runtime/race/testdata/mop_test.go
++++ b/src/runtime/race/testdata/mop_test.go
+@@ -335,6 +335,8 @@ func TestRaceRange(t *testing.T) {
+ 			}
+ 			done <- true
+ 		}(i)
++		// Ensure the goroutine runs before we continue the loop.
++		runtime.Gosched()
+ 	}
+ 	for i := 0; i < N; i++ {
+ 		<-done
+@@ -1727,13 +1729,16 @@ func TestNoRaceAsFunc4(t *testing.T) {
+ }
+ 
+ func TestRaceHeapParam(t *testing.T) {
++	done := make(chan bool)
+ 	x := func() (x int) {
+ 		go func() {
+ 			x = 42
++			done <- true
+ 		}()
+ 		return
+ 	}()
+ 	_ = x
++	<-done
+ }
+ 
+ func TestNoRaceEmptyStruct(t *testing.T) {
+diff --git a/src/runtime/race/testdata/rwmutex_test.go b/src/runtime/race/testdata/rwmutex_test.go
+index 85cb5df3cb..7ac829d759 100644
+--- a/src/runtime/race/testdata/rwmutex_test.go
++++ b/src/runtime/race/testdata/rwmutex_test.go
+@@ -54,13 +54,16 @@ func TestNoRaceRWMutex(t *testing.T) {
+ func TestRaceRWMutexMultipleReaders(t *testing.T) {
+ 	var mu sync.RWMutex
+ 	var x, y int64 = 0, 1
+-	ch := make(chan bool, 3)
++	ch := make(chan bool, 4)
+ 	go func() {
+ 		mu.Lock()
+ 		defer mu.Unlock()
+ 		x = 2
+ 		ch <- true
+ 	}()
++	// Use three readers so that no matter what order they're
++	// scheduled in, two will be on the same side of the write
++	// lock above.
+ 	go func() {
+ 		mu.RLock()
+ 		y = x + 1
+@@ -73,6 +76,13 @@ func TestRaceRWMutexMultipleReaders(t *testing.T) {
+ 		mu.RUnlock()
+ 		ch <- true
+ 	}()
++	go func() {
++		mu.RLock()
++		y = x + 3
++		mu.RUnlock()
++		ch <- true
++	}()
++	<-ch
+ 	<-ch
+ 	<-ch
+ 	<-ch
+@@ -82,7 +92,7 @@ func TestRaceRWMutexMultipleReaders(t *testing.T) {
+ func TestNoRaceRWMutexMultipleReaders(t *testing.T) {
+ 	var mu sync.RWMutex
+ 	x := int64(0)
+-	ch := make(chan bool, 3)
++	ch := make(chan bool, 4)
+ 	go func() {
+ 		mu.Lock()
+ 		defer mu.Unlock()
+@@ -103,6 +113,14 @@ func TestNoRaceRWMutexMultipleReaders(t *testing.T) {
+ 		mu.RUnlock()
+ 		ch <- true
+ 	}()
++	go func() {
++		mu.RLock()
++		y := x + 3
++		_ = y
++		mu.RUnlock()
++		ch <- true
++	}()
++	<-ch
+ 	<-ch
+ 	<-ch
+ 	<-ch

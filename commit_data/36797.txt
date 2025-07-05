@@ -13,6 +13,29 @@ Date:   Fri May 25 18:20:36 2018 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/common.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index c47c432f01..897a8e09bc 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -7,6 +7,7 @@ package tls
+ import (
+ 	"container/list"
+ 	"crypto"
++	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"crypto/sha512"
+ 	"crypto/x509"
+@@ -945,7 +946,8 @@ func initDefaultCipherSuites() {
+ 
+ 	hasGCMAsm := hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
+ 
+-	if hasGCMAsm {
++	if hasGCMAsm || boring.Enabled {
++		// If BoringCrypto is enabled, always prioritize AES-GCM.
+ 		// If AES-GCM hardware is provided then prioritise AES-GCM
+ 		// cipher suites.
+ 		topCipherSuites = []uint16{

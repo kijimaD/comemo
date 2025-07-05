@@ -7,7 +7,34 @@ Date:   Fri Mar 13 14:20:07 2015 -0700
     Change-Id: Ib42f75c03573cec16801b79a6eb9b1b542028f4f
     Reviewed-on: https://go-review.googlesource.com/7524
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/float.go      | 2 +-
  src/math/big/float_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index feca6921a0..44691c4783 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -289,7 +289,7 @@ func (z *Float) setExp(e int64) {
+ // not require 0.5 <= |mant| < 1.0. Specifically:
+ //
+ //	mant := new(Float)
+-//	new(Float).SetMantExp(mant, x.SetMantExp(mant)).Cmp(x) == 0
++//	new(Float).SetMantExp(mant, x.SetMantExp(mant)).Cmp(x).Eql() is true
+ //
+ // Special cases are:
+ //
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index cc38f68436..86b1c6f7a1 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -279,7 +279,7 @@ func TestFloatSetMantExp(t *testing.T) {
+ 		}
+ 		// test inverse property
+ 		mant := new(Float)
+-		if z.SetMantExp(mant, want.MantExp(mant)).Cmp(want) != 0 {
++		if z.SetMantExp(mant, want.MantExp(mant)).Cmp(want).Neq() {
+ 			t.Errorf("Inverse property not satisfied: got %s; want %s", z.Format('g', 10), test.z)
+ 		}
+ 	}

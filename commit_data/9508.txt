@@ -13,7 +13,39 @@ Date:   Fri Aug 26 15:38:02 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4807057
-
+---
  src/pkg/net/server_test.go   | 4 +++-
  src/pkg/net/tcpsock_posix.go | 5 +++++
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 7d7f7fc01c..a2ff218e70 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -115,7 +115,9 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
+ }
+ 
+ func TestTCPServer(t *testing.T) {
+-	doTest(t, "tcp", "", "127.0.0.1")
++	if syscall.OS != "openbsd" {
++		doTest(t, "tcp", "", "127.0.0.1")
++	}
+ 	doTest(t, "tcp", "0.0.0.0", "127.0.0.1")
+ 	doTest(t, "tcp", "127.0.0.1", "127.0.0.1")
+ 	doTest(t, "tcp4", "", "127.0.0.1")
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index f01c380c46..f2e9197027 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -12,6 +12,11 @@ import (
+ 	"syscall"
+ )
+ 
++// BUG(rsc): On OpenBSD, listening on the "tcp" network does not listen for
++// both IPv4 and IPv6 connections. This is due to the fact that IPv4 traffic
++// will not be routed to an IPv6 socket - two separate sockets are required
++// if both AFs are to be supported. See inet6(4) on OpenBSD for details.
++
+ func sockaddrToTCP(sa syscall.Sockaddr) Addr {
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:

@@ -20,7 +20,59 @@ Date:   Thu Nov 10 17:00:18 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/vcweb/vcstest/vcstest_test.go | 19 +++++++++++++++++++
  src/cmd/go/internal/vcweb/vcweb.go                |  3 +++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/go/internal/vcweb/vcstest/vcstest_test.go b/src/cmd/go/internal/vcweb/vcstest/vcstest_test.go
+index d45782d807..4a6d60039e 100644
+--- a/src/cmd/go/internal/vcweb/vcstest/vcstest_test.go
++++ b/src/cmd/go/internal/vcweb/vcstest/vcstest_test.go
+@@ -20,6 +20,7 @@ import (
+ 	"path/filepath"
+ 	"strings"
+ 	"testing"
++	"time"
+ )
+ 
+ var (
+@@ -87,6 +88,24 @@ func TestScripts(t *testing.T) {
+ 	}
+ 	srv := httptest.NewServer(s)
+ 
++	// To check for data races in the handler, run the root handler to produce an
++	// overview of the script status at an arbitrary point during the test.
++	// (We ignore the output because the expected failure mode is a friendly stack
++	// dump from the race detector.)
++	t.Run("overview", func(t *testing.T) {
++		t.Parallel()
++
++		time.Sleep(1 * time.Millisecond) // Give the other handlers time to race.
++
++		resp, err := http.Get(srv.URL)
++		if err == nil {
++			io.Copy(io.Discard, resp.Body)
++			resp.Body.Close()
++		} else {
++			t.Error(err)
++		}
++	})
++
+ 	t.Cleanup(func() {
+ 		// The subtests spawned by WalkDir run in parallel. When they complete, this
+ 		// Cleanup callback will run. At that point we fetch the root URL (which
+diff --git a/src/cmd/go/internal/vcweb/vcweb.go b/src/cmd/go/internal/vcweb/vcweb.go
+index 5d64b1ee6a..e1f12827c1 100644
+--- a/src/cmd/go/internal/vcweb/vcweb.go
++++ b/src/cmd/go/internal/vcweb/vcweb.go
+@@ -383,6 +383,9 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
+ 		status := ""
+ 		if ri, ok := s.scriptCache.Load(rel); ok {
+ 			r := ri.(*scriptResult)
++			r.mu.RLock()
++			defer r.mu.RUnlock()
++
+ 			if !r.hashTime.IsZero() {
+ 				hashTime = r.hashTime.Format(time.RFC3339)
+ 			}

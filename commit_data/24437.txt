@@ -10,6 +10,20 @@ Date:   Tue Jul 28 10:58:27 2015 -0700
     Change-Id: I6f99fa00ff1d3585e215f4ce84d49344c4fcb8a5
     Reviewed-on: https://go-review.googlesource.com/12779
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 0616be804c..184f9738b4 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1053,7 +1053,7 @@ func cmdbootstrap() {
+ 		xprintf("\n")
+ 	}
+ 
+-	xprintf("##### Building compilers and go_bootstrap for host, %s/%s.\n", gohostos, gohostarch)
++	xprintf("##### Building go_bootstrap for host, %s/%s.\n", gohostos, gohostarch)
+ 	for _, dir := range buildorder {
+ 		install(dir)
+ 	}

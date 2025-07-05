@@ -10,9 +10,279 @@ Date:   Thu Sep 17 23:07:52 2009 -0700
     DELTA=73  (43 added, 1 deleted, 29 changed)
     OCL=34743
     CL=34772
-
+---
  src/cmd/5g/cgen.c  | 58 ++++++++++++++++++++++++++++++++++++++++--------------
  src/cmd/5g/ggen.c  |  3 ++-
  src/cmd/5g/gsubr.c | 31 ++++++++++++++++++-----------
  src/cmd/5g/list.c  | 10 +++++++---
  4 files changed, 72 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 0efeb51221..d6c55a0fa5 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -42,7 +42,7 @@ void
+ cgen(Node *n, Node *res)
+ {
+ 	Node *nl, *nr, *r;
+-	Node n1, n2;
++	Node n1, n2, n3;
+ 	int a, w;
+ 	Prog *p1, *p2, *p3;
+ 	Addr addr;
+@@ -132,7 +132,14 @@ cgen(Node *n, Node *res)
+ 	}
+ 
+ 	if(n->addable) {
+-		gmove(n, res);
++		if (n->op == OREGISTER || is64(n->type) || is64(res->type)) {
++			gmove(n, res);
++		} else {
++			regalloc(&n1, n->type, N);
++			gmove(n, &n1);
++			cgen(&n1, res);
++			regfree(&n1);
++		}
+ 		goto ret;
+ 	}
+ 
+@@ -151,7 +158,6 @@ cgen(Node *n, Node *res)
+ 
+ 	// 64-bit ops are hard on 32-bit machine.
+ 	if(is64(n->type) || is64(res->type) || n->left != N && is64(n->left->type)) {
+-		print("64 bit op %O\n", n->op);
+ 		switch(n->op) {
+ 		// math goes to cgen64.
+ 		case OMINUS:
+@@ -279,8 +285,10 @@ cgen(Node *n, Node *res)
+ 			cgen(nl, &n1);
+ 
+ 			nodconst(&n2, types[tptr], 0);
++			regalloc(&n3, n2.type, N);
+ 			p1 = gins(optoas(OCMP, types[tptr]), &n1, N);
+-			raddr(&n2, p1);
++			raddr(&n3, p1);
++			regfree(&n3);
+ 			p1 = gbranch(optoas(OEQ, types[tptr]), T);
+ 
+ 			n2 = n1;
+@@ -396,7 +404,7 @@ void
+ agen(Node *n, Node *res)
+ {
+ 	Node *nl, *nr;
+-	Node n1, n2, n3, tmp;
++	Node n1, n2, n3, n4, tmp;
+ 	Prog *p1;
+ 	uint32 w;
+ 	uint64 v;
+@@ -492,7 +500,11 @@ agen(Node *n, Node *res)
+ 					n1.type = types[tptr];
+ 					n1.xoffset = Array_nel;
+ 					nodconst(&n2, types[TUINT32], v);
+-					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
++					regalloc(&n4, n2.type, N);
++					cgen(&n2, &n4);
++					p1 = gins(optoas(OCMP, types[TUINT32]), &n1, N);
++					raddr(&n4, p1);
++					regfree(&n4);
+ 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+ 					ginscall(throwindex, 0);
+ 					patch(p1, pc);
+@@ -536,9 +548,14 @@ agen(Node *n, Node *res)
+ 				n1.op = OINDREG;
+ 				n1.type = types[tptr];
+ 				n1.xoffset = Array_nel;
+-			} else
++			} else {
+ 				nodconst(&n1, types[TUINT32], nl->type->bound);
+-			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
++			}
++			regalloc(&n4, n1.type, N);
++			cgen(&n1, &n4);
++			p1 = gins(optoas(OCMP, types[TUINT32]), &n2, N);
++			raddr(&n4, p1);
++			regfree(&n4);
+ 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+ 			ginscall(throwindex, 0);
+ 			patch(p1, pc);
+@@ -702,7 +719,7 @@ bgen(Node *n, int true, Prog *to)
+ 		cgen(&n1, &n2);
+ 		cgen(n, &n3);
+ 		p1 = gins(optoas(OCMP, n->type), &n2, N);
+-		p1->reg = n3.val.u.reg;
++		raddr(&n3, p1);
+ 		a = ABNE;
+ 		if(!true)
+ 			a = ABEQ;
+@@ -783,13 +800,17 @@ bgen(Node *n, int true, Prog *to)
+ 			}
+ 			a = optoas(a, types[tptr]);
+ 			regalloc(&n1, types[tptr], N);
++			regalloc(&n3, types[tptr], N);
+ 			agen(nl, &n1);
+ 			n2 = n1;
+ 			n2.op = OINDREG;
+ 			n2.xoffset = Array_array;
+ 			nodconst(&tmp, types[tptr], 0);
+-			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
++			cgen(&tmp, &n3);
++			p1 = gins(optoas(OCMP, types[tptr]), &n2, N);
++			raddr(&n3, p1);
+ 			patch(gbranch(a, types[tptr]), to);
++			regfree(&n3);
+ 			regfree(&n1);
+ 			break;
+ 		}
+@@ -802,14 +823,18 @@ bgen(Node *n, int true, Prog *to)
+ 			}
+ 			a = optoas(a, types[tptr]);
+ 			regalloc(&n1, types[tptr], N);
++			regalloc(&n3, types[tptr], N);
+ 			agen(nl, &n1);
+ 			n2 = n1;
+ 			n2.op = OINDREG;
+ 			n2.xoffset = 0;
+ 			nodconst(&tmp, types[tptr], 0);
+-			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
++			cgen(&tmp, &n3);
++			p1 = gins(optoas(OCMP, types[tptr]), &n2, N);
++			raddr(&n3, p1);
+ 			patch(gbranch(a, types[tptr]), to);
+ 			regfree(&n1);
++			regfree(&n3);
+ 			break;
+ 		}
+ 
+@@ -826,10 +851,11 @@ bgen(Node *n, int true, Prog *to)
+ 			regalloc(&n1, nl->type, N);
+ 			cgen(nl, &n1);
+ 
+-			regalloc(&n2, nr->type, &n2);
++			regalloc(&n2, nr->type, N);
+ 			cgen(&tmp, &n2);
+ 
+-			gins(optoas(OCMP, nr->type), &n1, &n2);
++			p1 = gins(optoas(OCMP, nr->type), &n1, N);
++			raddr(&n2, p1);
+ 			patch(gbranch(a, nr->type), to);
+ 
+ 			regfree(&n1);
+@@ -969,7 +995,8 @@ sgen(Node *n, Node *res, int32 w)
+ 			p->to.offset = -4;
+ 			p->scond |= C_PBIT;
+ 
+-			gins(ACMP, &src, &nend);
++			p = gins(ACMP, &src, N);
++			raddr(&nend, p);
+ 
+ 			patch(gbranch(ABNE, T), ploop);
+ 
+@@ -994,7 +1021,8 @@ sgen(Node *n, Node *res, int32 w)
+ 			p->to.offset = 4;
+ 			p->scond |= C_PBIT;
+ 
+-			gins(ACMP, &src, &nend);
++			p = gins(ACMP, &src, N);
++			raddr(&nend, p);
+ 
+ 			patch(gbranch(ABNE, T), ploop);
+ 
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 46c335f92e..00b44b080e 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -464,7 +464,8 @@ clearfat(Node *nl)
+ 		p->scond |= C_PBIT;
+ 		pl = p;
+ 
+-		gins(ACMP, &dst, &end);
++		p = gins(ACMP, &dst, N);
++		raddr(&end, p);
+ 		patch(gbranch(ABNE, T), pl);
+ 
+ 		regfree(&end);
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 4458256252..37e9db126e 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -957,15 +957,16 @@ naddr(Node *n, Addr *a)
+ 		a->offset = n->xoffset;
+ 		break;
+ 
+-//	case OPARAM:
+-//		// n->left is PHEAP ONAME for stack parameter.
+-//		// compute address of actual parameter on stack.
+-//		a->etype = simtype[n->left->type->etype];
+-//		a->width = n->left->type->width;
+-//		a->offset = n->xoffset;
+-//		a->sym = n->left->sym;
+-//		a->type = D_PARAM;
+-//		break;
++	case OPARAM:
++		// n->left is PHEAP ONAME for stack parameter.
++		// compute address of actual parameter on stack.
++		a->etype = simtype[n->left->type->etype];
++		a->width = n->left->type->width;
++		a->offset = n->xoffset;
++		a->sym = n->left->sym;
++		a->type = D_OREG;
++		a->name = D_PARAM;
++		break;
+ 
+ 	case ONAME:
+ 		a->etype = 0;
+@@ -1606,7 +1607,11 @@ oindex:
+ 			if(o & OPtrto)
+ 				nodconst(&n2, types[TUINT32], l->type->type->bound);
+ 		}
+-		gins(optoas(OCMP, types[TUINT32]), reg1, &n2);
++		regalloc(&n3, n2.type, N);
++		cgen(&n2, &n3);
++		p1 = gins(optoas(OCMP, types[TUINT32]), reg1, N);
++		raddr(&n3, p1);
++		regfree(&n3);
+ 		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+ 		ginscall(throwindex, 0);
+ 		patch(p1, pc);
+@@ -1648,7 +1653,11 @@ oindex_const:
+ 			n1.type = types[tptr];
+ 			n1.xoffset = Array_nel;
+ 			nodconst(&n2, types[TUINT32], v);
+-			gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
++			regalloc(&n3, types[TUINT32], N);
++			cgen(&n2, &n3);
++			p1 = gins(optoas(OCMP, types[TUINT32]), &n1, N);
++			raddr(&n3, p1);
++			regfree(&n3);
+ 			p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+ 			ginscall(throwindex, 0);
+ 			patch(p1, pc);
+diff --git a/src/cmd/5g/list.c b/src/cmd/5g/list.c
+index c408faba45..01a0bc51d7 100644
+--- a/src/cmd/5g/list.c
++++ b/src/cmd/5g/list.c
+@@ -60,9 +60,10 @@ Pconv(Fmt *fp)
+ 		break;
+ 
+ 	case ADATA:
+-		sconsize = p->reg;
++	case AINIT:
++	case ADYNT:
+ 		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D/%d,%D",
+-			p->loc, p->lineno, p->as, &p->from, sconsize, &p->to);
++			p->loc, p->lineno, p->as, &p->from, p->reg, &p->to);
+ 		break;
+ 
+ 	case ATEXT:
+@@ -99,7 +100,10 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_BRANCH:
+-		snprint(str, sizeof(str), "%d", a->branch->loc);
++		if(a->sym != S)
++			sprint(str, "%s+%d(APC)", a->sym->name, a->offset);
++		else
++			sprint(str, "%d(APC)", a->offset);
+ 		break;
+ 
+ 	case D_CONST:

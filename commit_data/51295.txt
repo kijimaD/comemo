@@ -10,6 +10,38 @@ Date:   Wed Jan 5 21:37:04 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/375799
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index c0b224f977..fa6630719b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification - Go 1.18 Draft (incomplete)",
+-	"Subtitle": "Version of Dec 16, 2021",
++	"Subtitle": "Version of Jan 6, 2022",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -1988,7 +1988,8 @@ More precisely, for a given interface, the set 𝑆 of specific types is defined
+ 	</li>
+ 
+ 	<li>For an interface with type elements, 𝑆 is the intersection
+-		of the specific types of its type elements.
++		of the specific types of its type elements with specific types
++		(type elements that have no specific types are ignored).
+ 	</li>
+ 
+ 	<li>For a non-interface type term <code>T</code>
+@@ -2021,7 +2022,7 @@ interface{ ~string }           // string
+ interface{ int|~string }       // int, string
+ interface{ Celsius|Kelvin }    // Celsius, Kelvin
+ interface{ int; m() }          // int (but type set is empty because int has no method m)
+-interface{ int; any }          // no specific types (intersection is empty)
++interface{ int; any }          // int (any has no specific types and is ignored)
+ interface{ int; string }       // no specific types (intersection is empty)
+ </pre>
+ 

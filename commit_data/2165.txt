@@ -10,7 +10,147 @@ Date:   Thu May 7 17:36:29 2009 -0700
     DELTA=50  (23 added, 17 deleted, 10 changed)
     OCL=28433
     CL=28444
-
+---
  src/lib/net/ip.go  | 13 +++++++------
  src/lib/net/net.go | 47 ++++++++++++++++++++++++++---------------------
  2 files changed, 33 insertions(+), 27 deletions(-)
+
+diff --git a/src/lib/net/ip.go b/src/lib/net/ip.go
+index 717541b8c5..774f048ca8 100644
+--- a/src/lib/net/ip.go
++++ b/src/lib/net/ip.go
+@@ -42,7 +42,7 @@ type IPMask []byte;
+ // IPv4 returns the IP address (in 16-byte form) of the
+ // IPv4 address a.b.c.d.
+ func IPv4(a, b, c, d byte) IP {
+-	p := make([]byte, IPv6len);
++	p := make(IP, IPv6len);
+ 	for i := 0; i < 10; i++ {
+ 		p[i] = 0
+ 	}
+@@ -60,6 +60,7 @@ var (
+ 	IPv4bcast = IPv4(255, 255, 255, 255);	// broadcast
+ 	IPv4allsys = IPv4(224, 0, 0, 1);	// all systems
+ 	IPv4allrouter = IPv4(224, 0, 0, 2);	// all routers
++	IPv4zero = IPv4(0, 0, 0, 0);	// all zeros
+ )
+ 
+ // Well-known IPv6 addresses
+@@ -68,7 +69,7 @@ var (
+ )
+ 
+ // Is p all zeros?
+-func isZeros(p []byte) bool {
++func isZeros(p IP) bool {
+ 	for i := 0; i < len(p); i++ {
+ 		if p[i] != 0 {
+ 			return false
+@@ -106,9 +107,9 @@ func (ip IP) To16() IP {
+ 
+ // Default route masks for IPv4.
+ var (
+-	classAMask IPMask = IPv4(0xff, 0, 0, 0);
+-	classBMask IPMask = IPv4(0xff, 0xff, 0, 0);
+-	classCMask IPMask = IPv4(0xff, 0xff, 0xff, 0);
++	classAMask = IPMask(IPv4(0xff, 0, 0, 0));
++	classBMask = IPMask(IPv4(0xff, 0xff, 0, 0));
++	classCMask = IPMask(IPv4(0xff, 0xff, 0xff, 0));
+ )
+ 
+ // DefaultMask returns the default IP mask for the IP address ip.
+@@ -227,7 +228,7 @@ func (ip IP) String() string {
+ 
+ // If mask is a sequence of 1 bits followed by 0 bits,
+ // return the number of 1 bits.
+-func simpleMaskLength(mask IP) int {
++func simpleMaskLength(mask IPMask) int {
+ 	var i int;
+ 	for i = 0; i < len(mask); i++ {
+ 		if mask[i] != 0xFF {
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index b4bb48b24f..a95907e7ff 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -19,6 +19,24 @@ var (
+ 	UnknownSocketFamily = os.NewError("unknown socket family");
+ )
+ 
++
++// Should we try to use the IPv4 socket interface if we're
++// only dealing with IPv4 sockets?  As long as the host system
++// understands IPv6, it's okay to pass IPv4 addresses to the IPv6
++// interface.  That simplifies our code and is most general.
++// Unfortunately, we need to run on kernels built without IPv6 support too.
++// So probe the kernel to figure it out.
++func kernelSupportsIPv6() bool {
++	fd, e := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP);
++	if fd >= 0 {
++		syscall.Close(fd)
++	}
++	return e == 0
++}
++
++var preferIPv4 = !kernelSupportsIPv6()
++
++
+ func LookupHost(name string) (cname string, addrs []string, err os.Error)
+ 
+ // Split "host:port" into "host" and "port".
+@@ -63,17 +81,21 @@ func joinHostPort(host, port string) string {
+ // Convert "host:port" into IP address and port.
+ // For now, host and port must be numeric literals.
+ // Eventually, we'll have name resolution.
+-func hostPortToIP(net, hostport, mode string) (ip []byte, iport int, err os.Error) {
++func hostPortToIP(net, hostport, mode string) (ip IP, iport int, err os.Error) {
+ 	var host, port string;
+ 	host, port, err = splitHostPort(hostport);
+ 	if err != nil {
+ 		return nil, 0, err
+ 	}
+ 
+-	var addr []byte;
++	var addr IP;
+ 	if host == "" {
+ 		if mode == "listen" {
+-			addr = IPzero;	// wildcard - listen to all
++			if preferIPv4 {
++				addr = IPv4zero;
++			} else {
++				addr = IPzero;	// wildcard - listen to all
++			}
+ 		} else {
+ 			return nil, 0, MissingAddress;
+ 		}
+@@ -296,23 +318,6 @@ func (c *connBase) SetLinger(sec int) os.Error {
+ 
+ // Internet sockets (TCP, UDP)
+ 
+-// Should we try to use the IPv4 socket interface if we're
+-// only dealing with IPv4 sockets?  As long as the host system
+-// understands IPv6, it's okay to pass IPv4 addresses to the IPv6
+-// interface.  That simplifies our code and is most general.
+-// Unfortunately, we need to run on kernels built without IPv6 support too.
+-// So probe the kernel to figure it out.
+-func kernelSupportsIPv6() bool {
+-	fd, e := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP);
+-	if fd >= 0 {
+-		syscall.Close(fd)
+-	}
+-	return e == 0
+-}
+-
+-var preferIPv4 = !kernelSupportsIPv6()
+-
+-
+ func internetSocket(net, laddr, raddr string, proto int64, mode string)
+ 	(fd *netFD, err os.Error)
+ {
+@@ -352,7 +357,7 @@ func internetSocket(net, laddr, raddr string, proto int64, mode string)
+ 		}
+ 	}
+ 
+-	var cvt func(addr []byte, port int) (sa *syscall.Sockaddr, err os.Error);
++	var cvt func(addr IP, port int) (sa *syscall.Sockaddr, err os.Error);
+ 	var family int64;
+ 	if vers == 4 {
+ 		cvt = v4ToSockaddr;

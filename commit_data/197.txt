@@ -5,7 +5,50 @@ Date:   Wed Jun 18 14:17:24 2008 -0700
     add new test bug055
     
     SVN=123431
-
+---
  test/bugs/bug055.go | 21 +++++++++++++++++++++
  test/golden.out     |  4 ++++
  2 files changed, 25 insertions(+)
+
+diff --git a/test/bugs/bug055.go b/test/bugs/bug055.go
+new file mode 100644
+index 0000000000..8812efec8f
+--- /dev/null
++++ b/test/bugs/bug055.go
+@@ -0,0 +1,21 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var i int
++	var j int
++	if true {}
++	{ return }
++	i = 0
++	if true {} else i++
++	type s struct {};
++	i = 0
++	type s int
++	var k = func (a int) int { return a+1 }(3);
++ro:
++}
+diff --git a/test/golden.out b/test/golden.out
+index 67fb83f57b..3fb300d907 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -261,6 +261,10 @@ BUG: len should not be a keyword
+ bugs/bug054.go:22: fatal error: agen: unknown op CALLMETH u(1) l(165) <Element>I{}
+ BUG: known to fail incorrectly
+ 
++=========== bugs/bug055.go
++bug055.go:1: fatal error: cant open: bug055.go
++BUG: known to fail incorrectly
++
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug001.go

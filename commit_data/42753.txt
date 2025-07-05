@@ -13,9 +13,150 @@ Date:   Fri Jan 3 16:35:19 2020 -0500
     Change-Id: I81476ae6716903135781e5da135345456a36b026
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213219
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 16 -------
  src/cmd/go/testdata/example2_test.go               | 21 ---------
  .../test_match_only_example.txt}                   |  8 ++++
  src/cmd/go/testdata/script/test_source_order.txt   | 54 ++++++++++++++++++++++
  4 files changed, 62 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 97f6ff68ec..67b94860d2 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2024,13 +2024,6 @@ func TestShadowingLogic(t *testing.T) {
+ 	}
+ }
+ 
+-// Only succeeds if source order is preserved.
+-func TestSourceFileNameOrderPreserved(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "testdata/example1_test.go", "testdata/example2_test.go")
+-}
+-
+ // Check that coverage analysis works at all.
+ // Don't worry about the exact numbers but require not 0.0%.
+ func checkCoverage(tg *testgoData, data string) {
+@@ -3400,15 +3393,6 @@ func TestMatchesNoBenchmarksIsOK(t *testing.T) {
+ 	tg.grepBoth(okPattern, "go test did not say ok")
+ }
+ 
+-func TestMatchesOnlyExampleIsOK(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	tg.run("test", "-run", "Example", "testdata/example1_test.go")
+-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+-	tg.grepBoth(okPattern, "go test did not say ok")
+-}
+-
+ func TestMatchesOnlyBenchmarkIsOK(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/example2_test.go b/src/cmd/go/testdata/example2_test.go
+deleted file mode 100644
+index 5d13426005..0000000000
+--- a/src/cmd/go/testdata/example2_test.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Make sure that go test runs Example_Y before Example_B, preserving source order.
+-
+-package p
+-
+-import "fmt"
+-
+-func Example_Y() {
+-	n++
+-	fmt.Println(n)
+-	// Output: 3
+-}
+-
+-func Example_B() {
+-	n++
+-	fmt.Println(n)
+-	// Output: 4
+-}
+diff --git a/src/cmd/go/testdata/example1_test.go b/src/cmd/go/testdata/script/test_match_only_example.txt
+similarity index 67%
+rename from src/cmd/go/testdata/example1_test.go
+rename to src/cmd/go/testdata/script/test_match_only_example.txt
+index 87e6c0acfa..515ccb39ad 100644
+--- a/src/cmd/go/testdata/example1_test.go
++++ b/src/cmd/go/testdata/script/test_match_only_example.txt
+@@ -1,3 +1,11 @@
++[short] skip
++
++# Check that it's okay for test pattern to match only examples.
++go test -run Example example1_test.go
++! stderr '^ok.*\[no tests to run\]'
++stdout '^ok'
++
++-- example1_test.go --
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/go/testdata/script/test_source_order.txt b/src/cmd/go/testdata/script/test_source_order.txt
+new file mode 100644
+index 0000000000..2865276ff1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_source_order.txt
+@@ -0,0 +1,54 @@
++[short] skip
++
++# Control
++! go test example2_test.go example1_test.go
++
++# This test only passes if the source order is preserved
++go test example1_test.go example2_test.go
++
++-- example1_test.go --
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure that go test runs Example_Z before Example_A, preserving source order.
++
++package p
++
++import "fmt"
++
++var n int
++
++func Example_Z() {
++	n++
++	fmt.Println(n)
++	// Output: 1
++}
++
++func Example_A() {
++	n++
++	fmt.Println(n)
++	// Output: 2
++}
++-- example2_test.go --
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure that go test runs Example_Y before Example_B, preserving source order.
++
++package p
++
++import "fmt"
++
++func Example_Y() {
++	n++
++	fmt.Println(n)
++	// Output: 3
++}
++
++func Example_B() {
++	n++
++	fmt.Println(n)
++	// Output: 4
++}

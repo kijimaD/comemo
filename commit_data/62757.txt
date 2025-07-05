@@ -11,7 +11,40 @@ Date:   Mon Mar 31 18:10:43 2025 +0800
     Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/timeout_test.go | 5 +----
  src/os/timeout_test.go  | 5 +----
  2 files changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 09adb9bdca..0d009f6999 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -730,10 +730,7 @@ func nextTimeout(actual time.Duration) (next time.Duration, ok bool) {
+ 	// duration by any significant margin. Try the next attempt with an arbitrary
+ 	// factor above that, so that our growth curve is at least exponential.
+ 	next = actual * 5 / 4
+-	if next > maxDynamicTimeout {
+-		return maxDynamicTimeout, true
+-	}
+-	return next, true
++	return min(next, maxDynamicTimeout), true
+ }
+ 
+ // There is a very similar copy of this in os/timeout_test.go.
+diff --git a/src/os/timeout_test.go b/src/os/timeout_test.go
+index e0d2328ba1..5535beece8 100644
+--- a/src/os/timeout_test.go
++++ b/src/os/timeout_test.go
+@@ -282,10 +282,7 @@ func nextTimeout(actual time.Duration) (next time.Duration, ok bool) {
+ 	// duration by any significant margin. Try the next attempt with an arbitrary
+ 	// factor above that, so that our growth curve is at least exponential.
+ 	next = actual * 5 / 4
+-	if next > maxDynamicTimeout {
+-		return maxDynamicTimeout, true
+-	}
+-	return next, true
++	return min(next, maxDynamicTimeout), true
+ }
+ 
+ // There is a very similar copy of this in net/timeout_test.go.

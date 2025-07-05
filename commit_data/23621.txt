@@ -12,7 +12,64 @@ Date:   Mon May 25 23:14:35 2015 +0200
     Change-Id: I04d80203aaff64611992725d613ec13ed2ae721f
     Reviewed-on: https://go-review.googlesource.com/10393
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go |  3 ++-
  src/fmt/format.go   | 14 ++++++--------
  2 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 93121bb3d0..059d09e1bf 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -557,10 +557,11 @@ var fmtTests = []struct {
+ 	{"%0.100f", 1.0, zeroFill("1.", 100, "")},
+ 	{"%0.100f", -1.0, zeroFill("-1.", 100, "")},
+ 
+-	// Used to panic: integer function didn't look at f.prec or f.unicode or f.width.
++	// Used to panic: integer function didn't look at f.prec, f.unicode, f.width or sign.
+ 	{"%#.80x", 42, "0x0000000000000000000000000000000000000000000000000000000000000000000000000000002a"},
+ 	{"%.80U", 42, "U+0000000000000000000000000000000000000000000000000000000000000000000000000000002A"},
+ 	{"%#.80U", '日', "U+000000000000000000000000000000000000000000000000000000000000000000000000000065E5 '日'"},
++	{"%.65d", -44, "-00000000000000000000000000000000000000000000000000000000000000044"},
+ 	{"%+.65d", 44, "+00000000000000000000000000000000000000000000000000000000000000044"},
+ 	{"% .65d", 44, " 00000000000000000000000000000000000000000000000000000000000000044"},
+ 	{"%  +.65d", 44, "+00000000000000000000000000000000000000000000000000000000000000044"},
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index ba984cf84f..ac9f6d881a 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -162,6 +162,11 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 		return
+ 	}
+ 
++	negative := signedness == signed && a < 0
++	if negative {
++		a = -a
++	}
++
+ 	var buf []byte = f.intbuf[0:]
+ 	if f.widPresent || f.precPresent || f.plus || f.space {
+ 		width := f.wid + f.prec // Only one will be set, both are positive; this provides the maximum.
+@@ -177,9 +182,7 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 				width += 1 + 1 + utf8.UTFMax + 1
+ 			}
+ 		}
+-		if f.plus {
+-			width++
+-		} else if f.space {
++		if negative || f.plus || f.space {
+ 			width++
+ 		}
+ 		if width > nByte {
+@@ -188,11 +191,6 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 		}
+ 	}
+ 
+-	negative := signedness == signed && a < 0
+-	if negative {
+-		a = -a
+-	}
+-
+ 	// two ways to ask for extra leading zero digits: %.3d or %03d.
+ 	// apparently the first cancels the second.
+ 	prec := 0

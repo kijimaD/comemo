@@ -13,6 +13,65 @@ Date:   Sun Mar 24 18:21:11 2019 +0100
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/wasm/asm.go | 38 +++++++++++++++++++++++---------------
  1 file changed, 23 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 2665659fe0..abb4409188 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -427,8 +427,11 @@ func writeDataSec(ctxt *ld.Link) {
+ 	// overhead of adding a new segment (same as wasm-opt's memory-packing optimization uses).
+ 	const segmentOverhead = 8
+ 
++	// Generate at most this many segments. A higher number of segments gets rejected by some WebAssembly runtimes.
++	const maxNumSegments = 100000
++
+ 	var segments []*dataSegment
+-	for _, sec := range sections {
++	for secIndex, sec := range sections {
+ 		data := ld.DatblkBytes(ctxt, int64(sec.Vaddr), int64(sec.Length))
+ 		offset := int32(sec.Vaddr)
+ 
+@@ -441,21 +444,26 @@ func writeDataSec(ctxt *ld.Link) {
+ 		for len(data) > 0 {
+ 			dataLen := int32(len(data))
+ 			var segmentEnd, zeroEnd int32
+-			for {
+-				// look for beginning of zeroes
+-				for segmentEnd < dataLen && data[segmentEnd] != 0 {
+-					segmentEnd++
+-				}
+-				// look for end of zeroes
+-				zeroEnd = segmentEnd
+-				for zeroEnd < dataLen && data[zeroEnd] == 0 {
+-					zeroEnd++
+-				}
+-				// emit segment if omitting zeroes reduces the output size
+-				if zeroEnd-segmentEnd >= segmentOverhead || zeroEnd == dataLen {
+-					break
++			if len(segments)+(len(sections)-secIndex) == maxNumSegments {
++				segmentEnd = dataLen
++				zeroEnd = dataLen
++			} else {
++				for {
++					// look for beginning of zeroes
++					for segmentEnd < dataLen && data[segmentEnd] != 0 {
++						segmentEnd++
++					}
++					// look for end of zeroes
++					zeroEnd = segmentEnd
++					for zeroEnd < dataLen && data[zeroEnd] == 0 {
++						zeroEnd++
++					}
++					// emit segment if omitting zeroes reduces the output size
++					if zeroEnd-segmentEnd >= segmentOverhead || zeroEnd == dataLen {
++						break
++					}
++					segmentEnd = zeroEnd
+ 				}
+-				segmentEnd = zeroEnd
+ 			}
+ 
+ 			segments = append(segments, &dataSegment{

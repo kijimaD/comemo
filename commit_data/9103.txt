@@ -7,6 +7,28 @@ Date:   Mon Jul 18 12:59:16 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4756047
-
+---
  src/pkg/http/serve_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 2ba4a168bc..9c8a122ff0 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -820,6 +820,7 @@ func TestHandlerPanic(t *testing.T) {
+ 	go func() {
+ 		buf := make([]byte, 1024)
+ 		_, err := pr.Read(buf)
++		pr.Close()
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -829,7 +830,7 @@ func TestHandlerPanic(t *testing.T) {
+ 	case <-done:
+ 		return
+ 	case <-time.After(5e9):
+-		t.Error("expected server handler to log an error")
++		t.Fatal("expected server handler to log an error")
+ 	}
+ }
+ 

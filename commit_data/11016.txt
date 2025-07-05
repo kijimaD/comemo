@@ -7,8 +7,268 @@ Date:   Tue Jan 3 12:22:02 2012 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5502083
-
+---
  src/pkg/encoding/xml/embed_test.go | 13 +++++----
  src/pkg/encoding/xml/read_test.go  | 11 ++++----
  src/pkg/encoding/xml/xml_test.go   | 54 +++++++++-----------------------------
  3 files changed, 27 insertions(+), 51 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/embed_test.go b/src/pkg/encoding/xml/embed_test.go
+index ec7f478bec..0867d46de5 100644
+--- a/src/pkg/encoding/xml/embed_test.go
++++ b/src/pkg/encoding/xml/embed_test.go
+@@ -4,7 +4,10 @@
+ 
+ package xml
+ 
+-import "testing"
++import (
++	"strings"
++	"testing"
++)
+ 
+ type C struct {
+ 	Name string
+@@ -41,7 +44,7 @@ const _1a = `
+ // Tests that embedded structs are marshalled.
+ func TestEmbedded1(t *testing.T) {
+ 	var a A
+-	if e := Unmarshal(StringReader(_1a), &a); e != nil {
++	if e := Unmarshal(strings.NewReader(_1a), &a); e != nil {
+ 		t.Fatalf("Unmarshal: %s", e)
+ 	}
+ 	if a.FieldA != "foo" {
+@@ -80,7 +83,7 @@ const _2a = `
+ // Tests that conflicting field names get excluded.
+ func TestEmbedded2(t *testing.T) {
+ 	var a A2
+-	if e := Unmarshal(StringReader(_2a), &a); e != nil {
++	if e := Unmarshal(strings.NewReader(_2a), &a); e != nil {
+ 		t.Fatalf("Unmarshal: %s", e)
+ 	}
+ 	if a.XY != "" {
+@@ -99,7 +102,7 @@ type A3 struct {
+ // Tests that private fields are not set.
+ func TestEmbedded3(t *testing.T) {
+ 	var a A3
+-	if e := Unmarshal(StringReader(_2a), &a); e != nil {
++	if e := Unmarshal(strings.NewReader(_2a), &a); e != nil {
+ 		t.Fatalf("Unmarshal: %s", e)
+ 	}
+ 	if a.xy != "" {
+@@ -115,7 +118,7 @@ type A4 struct {
+ // Tests that private fields are not set.
+ func TestEmbedded4(t *testing.T) {
+ 	var a A4
+-	if e := Unmarshal(StringReader(_2a), &a); e != nil {
++	if e := Unmarshal(strings.NewReader(_2a), &a); e != nil {
+ 		t.Fatalf("Unmarshal: %s", e)
+ 	}
+ 	if a.Any != "foo" {
+diff --git a/src/pkg/encoding/xml/read_test.go b/src/pkg/encoding/xml/read_test.go
+index fbb7fd5d2f..842f7b71da 100644
+--- a/src/pkg/encoding/xml/read_test.go
++++ b/src/pkg/encoding/xml/read_test.go
+@@ -6,6 +6,7 @@ package xml
+ 
+ import (
+ 	"reflect"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -13,7 +14,7 @@ import (
+ 
+ func TestUnmarshalFeed(t *testing.T) {
+ 	var f Feed
+-	if err := Unmarshal(StringReader(atomFeedString), &f); err != nil {
++	if err := Unmarshal(strings.NewReader(atomFeedString), &f); err != nil {
+ 		t.Fatalf("Unmarshal: %s", err)
+ 	}
+ 	if !reflect.DeepEqual(f, atomFeed) {
+@@ -298,7 +299,7 @@ var pathTests = []interface{}{
+ func TestUnmarshalPaths(t *testing.T) {
+ 	for _, pt := range pathTests {
+ 		v := reflect.New(reflect.TypeOf(pt).Elem()).Interface()
+-		if err := Unmarshal(StringReader(pathTestString), v); err != nil {
++		if err := Unmarshal(strings.NewReader(pathTestString), v); err != nil {
+ 			t.Fatalf("Unmarshal: %s", err)
+ 		}
+ 		if !reflect.DeepEqual(v, pt) {
+@@ -328,7 +329,7 @@ var badPathTests = []struct {
+ 
+ func TestUnmarshalBadPaths(t *testing.T) {
+ 	for _, tt := range badPathTests {
+-		err := Unmarshal(StringReader(pathTestString), tt.v)
++		err := Unmarshal(strings.NewReader(pathTestString), tt.v)
+ 		if !reflect.DeepEqual(err, tt.e) {
+ 			t.Fatalf("Unmarshal with %#v didn't fail properly: %#v", tt.v, err)
+ 		}
+@@ -337,7 +338,7 @@ func TestUnmarshalBadPaths(t *testing.T) {
+ 
+ func TestUnmarshalAttrs(t *testing.T) {
+ 	var f AttrTest
+-	if err := Unmarshal(StringReader(attrString), &f); err != nil {
++	if err := Unmarshal(strings.NewReader(attrString), &f); err != nil {
+ 		t.Fatalf("Unmarshal: %s", err)
+ 	}
+ 	if !reflect.DeepEqual(f, attrStruct) {
+@@ -393,7 +394,7 @@ type TestThree struct {
+ 
+ func TestUnmarshalWithoutNameType(t *testing.T) {
+ 	var x TestThree
+-	if err := Unmarshal(StringReader(withoutNameTypeData), &x); err != nil {
++	if err := Unmarshal(strings.NewReader(withoutNameTypeData), &x); err != nil {
+ 		t.Fatalf("Unmarshal: %s", err)
+ 	}
+ 	if x.Attr != OK {
+diff --git a/src/pkg/encoding/xml/xml_test.go b/src/pkg/encoding/xml/xml_test.go
+index 25ffc917dc..c6093047d6 100644
+--- a/src/pkg/encoding/xml/xml_test.go
++++ b/src/pkg/encoding/xml/xml_test.go
+@@ -154,36 +154,8 @@ var xmlInput = []string{
+ 	"<t>cdata]]></t>",
+ }
+ 
+-type stringReader struct {
+-	s   string
+-	off int
+-}
+-
+-func (r *stringReader) Read(b []byte) (n int, err error) {
+-	if r.off >= len(r.s) {
+-		return 0, io.EOF
+-	}
+-	for r.off < len(r.s) && n < len(b) {
+-		b[n] = r.s[r.off]
+-		n++
+-		r.off++
+-	}
+-	return
+-}
+-
+-func (r *stringReader) ReadByte() (b byte, err error) {
+-	if r.off >= len(r.s) {
+-		return 0, io.EOF
+-	}
+-	b = r.s[r.off]
+-	r.off++
+-	return
+-}
+-
+-func StringReader(s string) io.Reader { return &stringReader{s, 0} }
+-
+ func TestRawToken(t *testing.T) {
+-	p := NewParser(StringReader(testInput))
++	p := NewParser(strings.NewReader(testInput))
+ 	testRawToken(t, p, rawTokens)
+ }
+ 
+@@ -207,7 +179,7 @@ func (d *downCaser) Read(p []byte) (int, error) {
+ 
+ func TestRawTokenAltEncoding(t *testing.T) {
+ 	sawEncoding := ""
+-	p := NewParser(StringReader(testInputAltEncoding))
++	p := NewParser(strings.NewReader(testInputAltEncoding))
+ 	p.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
+ 		sawEncoding = charset
+ 		if charset != "x-testing-uppercase" {
+@@ -219,7 +191,7 @@ func TestRawTokenAltEncoding(t *testing.T) {
+ }
+ 
+ func TestRawTokenAltEncodingNoConverter(t *testing.T) {
+-	p := NewParser(StringReader(testInputAltEncoding))
++	p := NewParser(strings.NewReader(testInputAltEncoding))
+ 	token, err := p.RawToken()
+ 	if token == nil {
+ 		t.Fatalf("expected a token on first RawToken call")
+@@ -286,7 +258,7 @@ var nestedDirectivesTokens = []Token{
+ }
+ 
+ func TestNestedDirectives(t *testing.T) {
+-	p := NewParser(StringReader(nestedDirectivesInput))
++	p := NewParser(strings.NewReader(nestedDirectivesInput))
+ 
+ 	for i, want := range nestedDirectivesTokens {
+ 		have, err := p.Token()
+@@ -300,7 +272,7 @@ func TestNestedDirectives(t *testing.T) {
+ }
+ 
+ func TestToken(t *testing.T) {
+-	p := NewParser(StringReader(testInput))
++	p := NewParser(strings.NewReader(testInput))
+ 
+ 	for i, want := range cookedTokens {
+ 		have, err := p.Token()
+@@ -315,7 +287,7 @@ func TestToken(t *testing.T) {
+ 
+ func TestSyntax(t *testing.T) {
+ 	for i := range xmlInput {
+-		p := NewParser(StringReader(xmlInput[i]))
++		p := NewParser(strings.NewReader(xmlInput[i]))
+ 		var err error
+ 		for _, err = p.Token(); err == nil; _, err = p.Token() {
+ 		}
+@@ -424,7 +396,7 @@ func TestIssue569(t *testing.T) {
+ 
+ func TestUnquotedAttrs(t *testing.T) {
+ 	data := "<tag attr=azAZ09:-_\t>"
+-	p := NewParser(StringReader(data))
++	p := NewParser(strings.NewReader(data))
+ 	p.Strict = false
+ 	token, err := p.Token()
+ 	if _, ok := err.(*SyntaxError); ok {
+@@ -450,7 +422,7 @@ func TestValuelessAttrs(t *testing.T) {
+ 		{"<input checked />", "input", "checked"},
+ 	}
+ 	for _, test := range tests {
+-		p := NewParser(StringReader(test[0]))
++		p := NewParser(strings.NewReader(test[0]))
+ 		p.Strict = false
+ 		token, err := p.Token()
+ 		if _, ok := err.(*SyntaxError); ok {
+@@ -500,7 +472,7 @@ func TestCopyTokenStartElement(t *testing.T) {
+ 
+ func TestSyntaxErrorLineNum(t *testing.T) {
+ 	testInput := "<P>Foo<P>\n\n<P>Bar</>\n"
+-	p := NewParser(StringReader(testInput))
++	p := NewParser(strings.NewReader(testInput))
+ 	var err error
+ 	for _, err = p.Token(); err == nil; _, err = p.Token() {
+ 	}
+@@ -515,7 +487,7 @@ func TestSyntaxErrorLineNum(t *testing.T) {
+ 
+ func TestTrailingRawToken(t *testing.T) {
+ 	input := `<FOO></FOO>  `
+-	p := NewParser(StringReader(input))
++	p := NewParser(strings.NewReader(input))
+ 	var err error
+ 	for _, err = p.RawToken(); err == nil; _, err = p.RawToken() {
+ 	}
+@@ -526,7 +498,7 @@ func TestTrailingRawToken(t *testing.T) {
+ 
+ func TestTrailingToken(t *testing.T) {
+ 	input := `<FOO></FOO>  `
+-	p := NewParser(StringReader(input))
++	p := NewParser(strings.NewReader(input))
+ 	var err error
+ 	for _, err = p.Token(); err == nil; _, err = p.Token() {
+ 	}
+@@ -537,7 +509,7 @@ func TestTrailingToken(t *testing.T) {
+ 
+ func TestEntityInsideCDATA(t *testing.T) {
+ 	input := `<test><![CDATA[ &val=foo ]]></test>`
+-	p := NewParser(StringReader(input))
++	p := NewParser(strings.NewReader(input))
+ 	var err error
+ 	for _, err = p.Token(); err == nil; _, err = p.Token() {
+ 	}
+@@ -569,7 +541,7 @@ var characterTests = []struct {
+ func TestDisallowedCharacters(t *testing.T) {
+ 
+ 	for i, tt := range characterTests {
+-		p := NewParser(StringReader(tt.in))
++		p := NewParser(strings.NewReader(tt.in))
+ 		var err error
+ 
+ 		for err == nil {

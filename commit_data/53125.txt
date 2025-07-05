@@ -12,8 +12,100 @@ Date:   Wed Feb 16 14:07:06 2022 -0500
     Reviewed-by: Nooras Saba‎ <saba@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go            |  8 ++++----
  .../go/testdata/script/mod_download_issue51114.txt  | 21 +++++++++++++++++++++
  .../go/testdata/script/mod_download_private_vcs.txt | 10 +++-------
  3 files changed, 28 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index b934e362a4..8fb0035f8c 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -792,7 +792,7 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
+ 	file1 := path.Join(r.codeDir, "go.mod")
+ 	gomod1, err1 := r.code.ReadFile(rev, file1, codehost.MaxGoMod)
+ 	if err1 != nil && !os.IsNotExist(err1) {
+-		return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.pathPrefix, file1, rev, err1)
++		return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.codeRoot, file1, rev, err1)
+ 	}
+ 	mpath1 := modfile.ModulePath(gomod1)
+ 	found1 := err1 == nil && (isMajor(mpath1, r.pathMajor) || r.canReplaceMismatchedVersionDueToBug(mpath1))
+@@ -810,7 +810,7 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
+ 		file2 = path.Join(dir2, "go.mod")
+ 		gomod2, err2 := r.code.ReadFile(rev, file2, codehost.MaxGoMod)
+ 		if err2 != nil && !os.IsNotExist(err2) {
+-			return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.pathPrefix, file2, rev, err2)
++			return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.codeRoot, file2, rev, err2)
+ 		}
+ 		mpath2 := modfile.ModulePath(gomod2)
+ 		found2 := err2 == nil && isMajor(mpath2, r.pathMajor)
+@@ -823,9 +823,9 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
+ 		}
+ 		if err2 == nil {
+ 			if mpath2 == "" {
+-				return "", "", nil, fmt.Errorf("%s/%s is missing module path at revision %s", r.pathPrefix, file2, rev)
++				return "", "", nil, fmt.Errorf("%s/%s is missing module path at revision %s", r.codeRoot, file2, rev)
+ 			}
+-			return "", "", nil, fmt.Errorf("%s/%s has non-...%s module path %q at revision %s", r.pathPrefix, file2, r.pathMajor, mpath2, rev)
++			return "", "", nil, fmt.Errorf("%s/%s has non-...%s module path %q at revision %s", r.codeRoot, file2, r.pathMajor, mpath2, rev)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_download_issue51114.txt b/src/cmd/go/testdata/script/mod_download_issue51114.txt
+new file mode 100644
+index 0000000000..92479c6dd3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_download_issue51114.txt
+@@ -0,0 +1,21 @@
++[short] skip
++[!exec:git] skip
++[!net] skip
++[!linux] skip  # Uses XDG_CONFIG_HOME
++
++env GIT_CONFIG_GLOBAL=$WORK/.gitconfig
++env GOPROXY=direct
++
++! go mod download
++stderr '^go: github\.com/golang/notexist/subdir@v0.1.0: reading github\.com/golang/notexist/subdir/go\.mod at revision subdir/v0\.1\.0: '
++
++-- go.mod --
++module test
++
++go 1.18
++
++require github.com/golang/notexist/subdir v0.1.0
++
++-- $WORK/.gitconfig --
++[url "git@github.com:"]
++	insteadOf = https://github.com/
+diff --git a/src/cmd/go/testdata/script/mod_download_private_vcs.txt b/src/cmd/go/testdata/script/mod_download_private_vcs.txt
+index e126793907..da9fe0290b 100644
+--- a/src/cmd/go/testdata/script/mod_download_private_vcs.txt
++++ b/src/cmd/go/testdata/script/mod_download_private_vcs.txt
+@@ -22,22 +22,18 @@ stderr '^If this is a private repository, see https://golang.org/doc/faq#git_htt
+ ! stderr 'unknown revision'
+ ! stdout .
+ 
+-[!linux] stop  # Needs XDG_CONFIG_HOME.
+ [!exec:false] stop
+ 
+ # Test that Git clone errors will be shown to the user instead of a generic
+ # "unknown revision" error. To do this we want to force git ls-remote to return
+ # an error we don't already have special handling for. See golang/go#42751.
+-#
+-# Set XDG_CONFIG_HOME to tell Git where to look for the git config file listed
+-# below, which turns on ssh.
+-env XDG_CONFIG_HOME=$TMPDIR
++env HOME=$WORK${/}home${/}gopher
+ env GIT_SSH_COMMAND=false
+ ! go install github.com/golang/nonexist@master
+ stderr 'fatal: Could not read from remote repository.'
+ ! stderr 'unknown revision'
+ ! stdout .
+ 
+--- $TMPDIR/git/config --
++-- $WORK/home/gopher/.gitconfig --
+ [url "git@github.com:"]
+-    insteadOf = https://github.com/
++	insteadOf = https://github.com/

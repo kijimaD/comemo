@@ -17,7 +17,52 @@ Date:   Fri Sep 11 22:16:47 2020 +0000
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/scanner.go      | 6 ++++++
  src/encoding/json/scanner_test.go | 9 +++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/encoding/json/scanner.go b/src/encoding/json/scanner.go
+index 9dc1903e2d..05218f9cc3 100644
+--- a/src/encoding/json/scanner.go
++++ b/src/encoding/json/scanner.go
+@@ -49,6 +49,12 @@ type SyntaxError struct {
+ 
+ func (e *SyntaxError) Error() string { return e.msg }
+ 
++// Is returns true if target is a SyntaxError.
++func (e *SyntaxError) Is(target error) bool {
++	_, ok := target.(*SyntaxError)
++	return ok
++}
++
+ // A scanner is a JSON scanning state machine.
+ // Callers call scan.reset and then pass bytes in one at a time
+ // by calling scan.step(&scan, c) for each byte.
+diff --git a/src/encoding/json/scanner_test.go b/src/encoding/json/scanner_test.go
+index 3737516a45..c12d9bf3d7 100644
+--- a/src/encoding/json/scanner_test.go
++++ b/src/encoding/json/scanner_test.go
+@@ -6,6 +6,8 @@ package json
+ 
+ import (
+ 	"bytes"
++	"errors"
++	"fmt"
+ 	"math"
+ 	"math/rand"
+ 	"reflect"
+@@ -201,6 +203,13 @@ func TestIndentErrors(t *testing.T) {
+ 	}
+ }
+ 
++func TestSyntaxErrorIs(t *testing.T) {
++	err := fmt.Errorf("apackage: %w: failed to parse struct", &SyntaxError{"some error", 43})
++	if !errors.Is(err, &SyntaxError{}) {
++		t.Fatalf("%v should be unwrapped to a SyntaxError", err)
++	}
++}
++
+ func diff(t *testing.T, a, b []byte) {
+ 	for i := 0; ; i++ {
+ 		if i >= len(a) || i >= len(b) || a[i] != b[i] {

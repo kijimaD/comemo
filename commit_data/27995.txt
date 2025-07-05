@@ -12,6 +12,20 @@ Date:   Sat Apr 23 21:18:34 2016 +0200
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/internal/trace/order.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/trace/order.go b/src/internal/trace/order.go
+index f9ec44c745..8ca2da52aa 100644
+--- a/src/internal/trace/order.go
++++ b/src/internal/trace/order.go
+@@ -133,7 +133,7 @@ func order1007(m map[int][]*Event) (events []*Event, err error) {
+ 			ev.Ts = ts
+ 		}
+ 	}
+-	sort.Sort(eventList(events))
++	sort.Stable(eventList(events))
+ 
+ 	return
+ }

@@ -11,8 +11,48 @@ Date:   Mon Dec 13 15:50:57 2010 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/3618041
-
+---
  doc/progs/run        | 2 +-
  src/cmd/gc/mkbuiltin | 2 +-
  src/make.bash        | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/progs/run b/doc/progs/run
+index 3489a882a9..29f1f81528 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -5,7 +5,7 @@
+ 
+ set -e
+ 
+-eval $(gomake -f ../../src/Make.inc go-env)
++eval $(gomake --no-print-directory -f ../../src/Make.inc go-env)
+ 
+ if [ -z "$O" ]; then
+ 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+diff --git a/src/cmd/gc/mkbuiltin b/src/cmd/gc/mkbuiltin
+index 754844e1f6..4dfff1caa5 100755
+--- a/src/cmd/gc/mkbuiltin
++++ b/src/cmd/gc/mkbuiltin
+@@ -10,7 +10,7 @@
+ 
+ set -e
+ 
+-eval $(gomake -f ../../Make.inc go-env)
++eval $(gomake --no-print-directory -f ../../Make.inc go-env)
+ if [ -z "$GC" ]; then
+ 	echo 'missing $GC - gomake failed?' 1>&2
+ 	exit 1
+diff --git a/src/make.bash b/src/make.bash
+index 2bfc048530..0d0dae61f5 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -90,7 +90,7 @@ done
+ # Implemented as a function so that all.bash can repeat the output
+ # after run.bash finishes running all the tests.
+ installed() {
+-	eval $(gomake -f Make.inc go-env)
++	eval $(gomake --no-print-directory -f Make.inc go-env)
+ 	echo
+ 	echo ---
+ 	echo Installed Go for $GOOS/$GOARCH in "$GOROOT".

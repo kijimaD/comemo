@@ -14,8 +14,78 @@ Date:   Fri Oct 21 10:45:47 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/cmd/go/get.go     |  2 +-
  src/cmd/go/go_test.go | 17 +++++++++++++++++
  src/cmd/go/vcs.go     | 10 +++++++---
  3 files changed, 25 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 4f7562b43d..d5e2aab0eb 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -388,7 +388,7 @@ func downloadPackage(p *Package) error {
+ 							repo = resolved
+ 						}
+ 					}
+-					if remote != repo && p.ImportComment != "" {
++					if remote != repo && rr.isCustom {
+ 						return fmt.Errorf("%s is a custom import path for %s, but %s is checked out from %s", rr.root, repo, dir, remote)
+ 					}
+ 				}
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 2f883c94df..33fc462339 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1180,6 +1180,23 @@ func TestIssue10952(t *testing.T) {
+ 	tg.run("get", "-d", "-u", importPath)
+ }
+ 
++func TestIssue16471(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++	if _, err := exec.LookPath("git"); err != nil {
++		t.Skip("skipping because git binary not found")
++	}
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempDir("src")
++	tg.setenv("GOPATH", tg.path("."))
++	tg.must(os.MkdirAll(tg.path("src/rsc.io/go-get-issue-10952"), 0755))
++	tg.runGit(tg.path("src/rsc.io"), "clone", "https://github.com/zombiezen/go-get-issue-10952")
++	tg.runFail("get", "-u", "rsc.io/go-get-issue-10952")
++	tg.grepStderr("rsc.io/go-get-issue-10952 is a custom import path for https://github.com/rsc/go-get-issue-10952, but .* is checked out from https://github.com/zombiezen/go-get-issue-10952", "did not detect updated import path")
++}
++
+ // Test git clone URL that uses SCP-like syntax and custom import path checking.
+ func TestIssue11457(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 06251a938d..fcdce220a7 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -528,6 +528,9 @@ type repoRoot struct {
+ 	// root is the import path corresponding to the root of the
+ 	// repository
+ 	root string
++
++	// isCustom is true for custom import paths (those defined by HTML meta tags)
++	isCustom bool
+ }
+ 
+ var httpPrefixRE = regexp.MustCompile(`^https?:`)
+@@ -713,9 +716,10 @@ func repoRootForImportDynamic(importPath string, security securityMode) (*repoRo
+ 		return nil, fmt.Errorf("%s: invalid repo root %q; no scheme", urlStr, mmi.RepoRoot)
+ 	}
+ 	rr := &repoRoot{
+-		vcs:  vcsByCmd(mmi.VCS),
+-		repo: mmi.RepoRoot,
+-		root: mmi.Prefix,
++		vcs:      vcsByCmd(mmi.VCS),
++		repo:     mmi.RepoRoot,
++		root:     mmi.Prefix,
++		isCustom: true,
+ 	}
+ 	if rr.vcs == nil {
+ 		return nil, fmt.Errorf("%s: unknown vcs %q", urlStr, mmi.VCS)

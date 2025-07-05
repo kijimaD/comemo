@@ -13,7 +13,7 @@ Date:   Mon Sep 9 12:22:05 2024 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/compile/internal/inline/inlheur/scoring.go   | 2 +-
  src/cmd/compile/internal/syntax/printer.go           | 2 +-
  src/cmd/compile/internal/types2/compiler_internal.go | 2 +-
@@ -25,3 +25,134 @@ Date:   Mon Sep 9 12:22:05 2024 +0800
  src/math/big/ftoa.go                                 | 2 +-
  src/time/zoneinfo_windows.go                         | 2 +-
  10 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/scoring.go b/src/cmd/compile/internal/inline/inlheur/scoring.go
+index 2e39f1e606..28fa643132 100644
+--- a/src/cmd/compile/internal/inline/inlheur/scoring.go
++++ b/src/cmd/compile/internal/inline/inlheur/scoring.go
+@@ -369,7 +369,7 @@ func setupFlagToAdjMaps() {
+ // "call in loop". If the calculated cost of the function is 150, and
+ // the in-loop adjustment is 5 (for example), then there is not much
+ // point treating it as inlinable. On the other hand "bar" has a param
+-// property (parameter "x" feeds unmodified to an "if" statement") and
++// property (parameter "x" feeds unmodified to an "if" statement) and
+ // a return property (always returns same constant) meaning that a
+ // given call _could_ be rescored down as much as -35 points-- thus if
+ // the size of "bar" is 100 (for example) then there is at least a
+diff --git a/src/cmd/compile/internal/syntax/printer.go b/src/cmd/compile/internal/syntax/printer.go
+index 3b234d43f9..1c0bfc190e 100644
+--- a/src/cmd/compile/internal/syntax/printer.go
++++ b/src/cmd/compile/internal/syntax/printer.go
+@@ -931,7 +931,7 @@ func (p *printer) printParameterList(list []*Field, tok token) {
+ // combinesWithName reports whether a name followed by the expression x
+ // syntactically combines to another valid (value) expression. For instance
+ // using *T for x, "name *T" syntactically appears as the expression x*T.
+-// On the other hand, using  P|Q or *P|~Q for x, "name P|Q" or name *P|~Q"
++// On the other hand, using  P|Q or *P|~Q for x, "name P|Q" or "name *P|~Q"
+ // cannot be combined into a valid (value) expression.
+ func combinesWithName(x Expr) bool {
+ 	switch x := x.(type) {
+diff --git a/src/cmd/compile/internal/types2/compiler_internal.go b/src/cmd/compile/internal/types2/compiler_internal.go
+index 790a6779e4..7b976625ef 100644
+--- a/src/cmd/compile/internal/types2/compiler_internal.go
++++ b/src/cmd/compile/internal/types2/compiler_internal.go
+@@ -15,7 +15,7 @@ import (
+ // does not have a name and if the result in the signature also does not have a name,
+ // then the signature and field are renamed to
+ //
+-//	fmt.Sprintf("#rv%d", i+1)`
++//	fmt.Sprintf("#rv%d", i+1)
+ //
+ // the newly named object is inserted into the signature's scope,
+ // and the object and new field name are returned.
+diff --git a/src/cmd/go/internal/vcs/discovery.go b/src/cmd/go/internal/vcs/discovery.go
+index 327b44cb9a..bc2c5a35ac 100644
+--- a/src/cmd/go/internal/vcs/discovery.go
++++ b/src/cmd/go/internal/vcs/discovery.go
+@@ -86,7 +86,7 @@ func parseMetaGoImports(r io.Reader, mod ModuleMode) ([]metaImport, error) {
+ }
+ 
+ // attrValue returns the attribute value for the case-insensitive key
+-// `name', or the empty string if nothing is found.
++// `name`, or the empty string if nothing is found.
+ func attrValue(attrs []xml.Attr, name string) string {
+ 	for _, a := range attrs {
+ 		if strings.EqualFold(a.Name.Local, name) {
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index eb363a2436..02e4c94c3a 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -31,7 +31,7 @@ const ConstInfoPrefix = "go:constinfo."
+ // populate the DWARF compilation unit info entries.
+ const CUInfoPrefix = "go:cuinfo."
+ 
+-// Used to form the symbol name assigned to the DWARF 'abstract subprogram"
++// Used to form the symbol name assigned to the DWARF "abstract subprogram"
+ // info entry for a function
+ const AbstractFuncSuffix = "$abstract"
+ 
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index 4d71c8190a..10609fcd48 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -127,7 +127,7 @@ func (p Pos) String() string {
+ // Format formats a position as "filename:line" or "filename:line:column",
+ // controlled by the showCol flag and if the column is known (!= 0).
+ // For positions relative to line directives, the original position is
+-// shown as well, as in "filename:line[origfile:origline:origcolumn] if
++// shown as well, as in "filename:line[origfile:origline:origcolumn]" if
+ // showOrig is set.
+ func (p Pos) Format(showCol, showOrig bool) string {
+ 	buf := new(bytes.Buffer)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 441cf8d051..b6d956596c 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -32,7 +32,7 @@ import (
+ //
+ // "a < b" means package b can import package a.
+ //
+-// See `go doc internal/dag' for the full syntax.
++// See `go doc internal/dag` for the full syntax.
+ //
+ // All-caps names are pseudo-names for specific points
+ // in the dependency lattice.
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 38d6f62a95..9e79613280 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -401,7 +401,7 @@ func (p *printer) parameters(fields *ast.FieldList, mode paramMode) {
+ // combinesWithName reports whether a name followed by the expression x
+ // syntactically combines to another valid (value) expression. For instance
+ // using *T for x, "name *T" syntactically appears as the expression x*T.
+-// On the other hand, using  P|Q or *P|~Q for x, "name P|Q" or name *P|~Q"
++// On the other hand, using  P|Q or *P|~Q for x, "name P|Q" or "name *P|~Q"
+ // cannot be combined into a valid (value) expression.
+ func combinesWithName(x ast.Expr) bool {
+ 	switch x := x.(type) {
+diff --git a/src/math/big/ftoa.go b/src/math/big/ftoa.go
+index f7a4345d3a..c5939d731d 100644
+--- a/src/math/big/ftoa.go
++++ b/src/math/big/ftoa.go
+@@ -309,7 +309,7 @@ func fmtF(buf []byte, prec int, d decimal) []byte {
+ }
+ 
+ // fmtB appends the string of x in the format mantissa "p" exponent
+-// with a decimal mantissa and a binary exponent, or 0" if x is zero,
++// with a decimal mantissa and a binary exponent, or "0" if x is zero,
+ // and returns the extended buffer.
+ // The mantissa is normalized such that is uses x.Prec() bits in binary
+ // representation.
+diff --git a/src/time/zoneinfo_windows.go b/src/time/zoneinfo_windows.go
+index c9f38ea3e0..55b21fa301 100644
+--- a/src/time/zoneinfo_windows.go
++++ b/src/time/zoneinfo_windows.go
+@@ -20,7 +20,7 @@ var platformZoneSources []string // none: Windows uses system calls instead
+ // time apply to all previous and future years as well.
+ 
+ // matchZoneKey checks if stdname and dstname match the corresponding key
+-// values "MUI_Std" and MUI_Dlt" or "Std" and "Dlt" in the kname key stored
++// values "MUI_Std" and "MUI_Dlt" or "Std" and "Dlt" in the kname key stored
+ // under the open registry key zones.
+ func matchZoneKey(zones registry.Key, kname string, stdname, dstname string) (matched bool, err2 error) {
+ 	k, err := registry.OpenKey(zones, kname, registry.READ)

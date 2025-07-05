@@ -26,6 +26,20 @@ Date:   Mon Mar 18 05:52:30 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/text/template/exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 20d8f98f28..4c899b1c79 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -479,7 +479,7 @@ func (s *state) evalPipeline(dot reflect.Value, pipe *parse.PipeNode) (value ref
+ 		value = s.evalCommand(dot, cmd, value) // previous value is this one's final arg.
+ 		// If the object has type interface{}, dig down one level to the thing inside.
+ 		if value.Kind() == reflect.Interface && value.Type().NumMethod() == 0 {
+-			value = reflect.ValueOf(value.Interface()) // lovely!
++			value = value.Elem()
+ 		}
+ 	}
+ 	for _, variable := range pipe.Decl {

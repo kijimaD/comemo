@@ -11,7 +11,42 @@ Date:   Fri Feb 10 15:01:40 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/vendor/golang.org/x/sys/cpu/endian_big.go    | 11 +++++++++++
  src/vendor/golang.org/x/sys/cpu/endian_little.go | 11 +++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/vendor/golang.org/x/sys/cpu/endian_big.go b/src/vendor/golang.org/x/sys/cpu/endian_big.go
+new file mode 100644
+index 0000000000..93ce03a346
+--- /dev/null
++++ b/src/vendor/golang.org/x/sys/cpu/endian_big.go
+@@ -0,0 +1,11 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build armbe || arm64be || m68k || mips || mips64 || mips64p32 || ppc || ppc64 || s390 || s390x || shbe || sparc || sparc64
++// +build armbe arm64be m68k mips mips64 mips64p32 ppc ppc64 s390 s390x shbe sparc sparc64
++
++package cpu
++
++// IsBigEndian records whether the GOARCH's byte order is big endian.
++const IsBigEndian = true
+diff --git a/src/vendor/golang.org/x/sys/cpu/endian_little.go b/src/vendor/golang.org/x/sys/cpu/endian_little.go
+new file mode 100644
+index 0000000000..fe545966b6
+--- /dev/null
++++ b/src/vendor/golang.org/x/sys/cpu/endian_little.go
+@@ -0,0 +1,11 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build 386 || amd64 || amd64p32 || alpha || arm || arm64 || loong64 || mipsle || mips64le || mips64p32le || nios2 || ppc64le || riscv || riscv64 || sh
++// +build 386 amd64 amd64p32 alpha arm arm64 loong64 mipsle mips64le mips64p32le nios2 ppc64le riscv riscv64 sh
++
++package cpu
++
++// IsBigEndian records whether the GOARCH's byte order is big endian.
++const IsBigEndian = false

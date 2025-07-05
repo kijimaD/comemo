@@ -22,9 +22,99 @@ Date:   Thu Aug 16 11:47:36 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/extern.go   |  5 -----
  src/runtime/mgc.go      |  2 +-
  src/runtime/mgcmark.go  | 22 ++++------------------
  src/runtime/runtime1.go |  2 --
  4 files changed, 5 insertions(+), 26 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 3be1eca09c..640688e004 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -50,11 +50,6 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	gcshrinkstackoff: setting gcshrinkstackoff=1 disables moving goroutines
+ 	onto smaller stacks. In this mode, a goroutine's stack can only grow.
+ 
+-	gcrescanstacks: setting gcrescanstacks=1 enables stack
+-	re-scanning during the STW mark termination phase. This is
+-	helpful for debugging if objects are being prematurely
+-	garbage collected.
+-
+ 	gcstoptheworld: setting gcstoptheworld=1 disables concurrent garbage collection,
+ 	making every garbage collection a stop-the-world event. Setting gcstoptheworld=2
+ 	also disables concurrent sweeping after the garbage collection finishes.
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 9ae5eb7a62..b685415872 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1914,7 +1914,7 @@ func gcMark(start_time int64) {
+ 		//
+ 		// TODO(austin): Move STW marking out of
+ 		// mark termination and eliminate this code path.
+-		if debug.gcstoptheworld == 0 && debug.gcrescanstacks == 0 {
++		if debug.gcstoptheworld == 0 {
+ 			print("runtime: full=", hex(work.full), " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
+ 			panic("non-empty mark queue after concurrent mark")
+ 		}
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index b86b2d012e..07b8f791d4 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -116,11 +116,6 @@ func gcMarkRootPrepare() {
+ 		// contain pointers to unmarked objects, so on the
+ 		// second markroot, there's no need to scan stacks.
+ 		work.nStackRoots = 0
+-
+-		if debug.gcrescanstacks > 0 {
+-			// Scan stacks anyway for debugging.
+-			work.nStackRoots = int(atomic.Loaduintptr(&allglen))
+-		}
+ 	}
+ 
+ 	work.markrootNext = 0
+@@ -138,19 +133,10 @@ func gcMarkRootCheck() {
+ 	lock(&allglock)
+ 	// Check that stacks have been scanned.
+ 	var gp *g
+-	if gcphase == _GCmarktermination && debug.gcrescanstacks > 0 {
+-		for i := 0; i < len(allgs); i++ {
+-			gp = allgs[i]
+-			if !(gp.gcscandone && gp.gcscanvalid) && readgstatus(gp) != _Gdead {
+-				goto fail
+-			}
+-		}
+-	} else {
+-		for i := 0; i < work.nStackRoots; i++ {
+-			gp = allgs[i]
+-			if !gp.gcscandone {
+-				goto fail
+-			}
++	for i := 0; i < work.nStackRoots; i++ {
++		gp = allgs[i]
++		if !gp.gcscandone {
++			goto fail
+ 		}
+ 	}
+ 	unlock(&allglock)
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 85a9ba2521..8b8f4dcb1e 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -305,7 +305,6 @@ var debug struct {
+ 	gccheckmark        int32
+ 	gcpacertrace       int32
+ 	gcshrinkstackoff   int32
+-	gcrescanstacks     int32
+ 	gcstoptheworld     int32
+ 	gctrace            int32
+ 	invalidptr         int32
+@@ -323,7 +322,6 @@ var dbgvars = []dbgVar{
+ 	{"gccheckmark", &debug.gccheckmark},
+ 	{"gcpacertrace", &debug.gcpacertrace},
+ 	{"gcshrinkstackoff", &debug.gcshrinkstackoff},
+-	{"gcrescanstacks", &debug.gcrescanstacks},
+ 	{"gcstoptheworld", &debug.gcstoptheworld},
+ 	{"gctrace", &debug.gctrace},
+ 	{"invalidptr", &debug.invalidptr},

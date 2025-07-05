@@ -10,6 +10,25 @@ Date:   Wed Mar 11 17:52:57 2015 +1100
     Change-Id: I53673876c107bbfaf430123ead78e6524b42ac21
     Reviewed-on: https://go-review.googlesource.com/7351
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/pprof/pprof.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index f5a352da41..61ac67f3b1 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -228,11 +228,11 @@ var indexTmpl = template.Must(template.New("index").Parse(`<html>
+ profiles:<br>
+ <table>
+ {{range .}}
+-<tr><td align=right>{{.Count}}<td><a href="/debug/pprof/{{.Name}}?debug=1">{{.Name}}</a>
++<tr><td align=right>{{.Count}}<td><a href="{{.Name}}?debug=1">{{.Name}}</a>
+ {{end}}
+ </table>
+ <br>
+-<a href="/debug/pprof/goroutine?debug=2">full goroutine stack dump</a><br>
++<a href="goroutine?debug=2">full goroutine stack dump</a><br>
+ </body>
+ </html>
+ `))

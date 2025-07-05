@@ -8,6 +8,20 @@ Date:   Wed Dec 10 13:28:46 2008 -0800
     R=r
     OCL=20909
     CL=20911
-
+---
  src/runtime/runtime.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 3d0ee7f1e6..c075181a02 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -583,6 +583,8 @@ static uint64
+ stringhash(uint32 s, string *a)
+ {
+ 	USED(s);
++	if(*a == nil)
++		return memhash(emptystring->len, emptystring->str);
+ 	return memhash((*a)->len, (*a)->str);
+ }
+ 

@@ -9,6 +9,35 @@ Date:   Sat Mar 23 07:39:43 2013 +0900
     R=golang-dev, dave, rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/7510047
-
+---
  src/pkg/net/unixsock.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/unixsock.go b/src/pkg/net/unixsock.go
+index ae0956958f..977ff91031 100644
+--- a/src/pkg/net/unixsock.go
++++ b/src/pkg/net/unixsock.go
+@@ -12,7 +12,8 @@ type UnixAddr struct {
+ 	Net  string
+ }
+ 
+-// Network returns the address's network name, "unix" or "unixgram".
++// Network returns the address's network name, "unix", "unixgram" or
++// "unixpacket".
+ func (a *UnixAddr) Network() string {
+ 	return a.Net
+ }
+@@ -36,11 +37,9 @@ func (a *UnixAddr) toAddr() Addr {
+ // "unixpacket".
+ func ResolveUnixAddr(net, addr string) (*UnixAddr, error) {
+ 	switch net {
+-	case "unix":
+-	case "unixpacket":
+-	case "unixgram":
++	case "unix", "unixgram", "unixpacket":
++		return &UnixAddr{Name: addr, Net: net}, nil
+ 	default:
+ 		return nil, UnknownNetworkError(net)
+ 	}
+-	return &UnixAddr{addr, net}, nil
+ }

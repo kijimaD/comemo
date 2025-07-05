@@ -16,7 +16,7 @@ Date:   Tue Dec 1 23:55:03 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go      | 30 +-----------------------------
  src/cmd/compile/internal/gc/export.go   |  2 +-
  src/cmd/compile/internal/gc/iimport.go  |  6 +++---
@@ -26,3 +26,227 @@ Date:   Tue Dec 1 23:55:03 2020 -0800
  src/cmd/compile/internal/ir/name.go     | 22 +++++++++++++++++-----
  src/cmd/compile/internal/ir/node.go     |  4 +---
  8 files changed, 28 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 87b389b98b..ce13f0bdfc 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -122,16 +122,6 @@ func declare(n *ir.Name, ctxt ir.Class) {
+ 	autoexport(n, ctxt)
+ }
+ 
+-func addvar(n *ir.Name, t *types.Type, ctxt ir.Class) {
+-	if n == nil || n.Sym() == nil || (n.Op() != ir.ONAME && n.Op() != ir.ONONAME) || t == nil {
+-		base.Fatalf("addvar: n=%v t=%v nil", n, t)
+-	}
+-
+-	n.SetOp(ir.ONAME)
+-	declare(n, ctxt)
+-	n.SetType(t)
+-}
+-
+ // declare variables from grammar
+ // new_name_list (type | [type] = expr_list)
+ func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
+@@ -192,16 +182,6 @@ func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
+ 	return init
+ }
+ 
+-// newnoname returns a new ONONAME Node associated with symbol s.
+-func newnoname(s *types.Sym) ir.Node {
+-	if s == nil {
+-		base.Fatalf("newnoname nil")
+-	}
+-	n := ir.NewNameAt(base.Pos, s)
+-	n.SetOp(ir.ONONAME)
+-	return n
+-}
+-
+ // newFuncNameAt generates a new name node for a function or method.
+ func newFuncNameAt(pos src.XPos, s *types.Sym, fn *ir.Func) *ir.Name {
+ 	if fn.Nname != nil {
+@@ -213,14 +193,6 @@ func newFuncNameAt(pos src.XPos, s *types.Sym, fn *ir.Func) *ir.Name {
+ 	return n
+ }
+ 
+-// this generates a new name node for a name
+-// being declared.
+-func dclname(s *types.Sym) *ir.Name {
+-	n := NewName(s)
+-	n.SetOp(ir.ONONAME) // caller will correct it
+-	return n
+-}
+-
+ func anonfield(typ *types.Type) *ir.Field {
+ 	return symfield(nil, typ)
+ }
+@@ -243,7 +215,7 @@ func oldname(s *types.Sym) ir.Node {
+ 		// Maybe a top-level declaration will come along later to
+ 		// define s. resolve will check s.Def again once all input
+ 		// source has been processed.
+-		return newnoname(s)
++		return ir.NewDeclNameAt(base.Pos, s)
+ 	}
+ 
+ 	if Curfn != nil && n.Op() == ir.ONAME && n.Name().Curfn != nil && n.Name().Curfn != Curfn {
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index f803a17c60..44fc70be03 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -85,7 +85,7 @@ func importsym(ipkg *types.Pkg, s *types.Sym, op ir.Op) ir.Node {
+ 			base.Fatalf("missing ONONAME for %v\n", s)
+ 		}
+ 
+-		n = dclname(s)
++		n = ir.NewDeclNameAt(src.NoXPos, s)
+ 		s.SetPkgDef(n)
+ 		s.Importdef = ipkg
+ 	}
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index b6653dabda..419db285b5 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -175,7 +175,7 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
+ 			if s.Def != nil {
+ 				base.Fatalf("unexpected definition for %v: %v", s, ir.AsNode(s.Def))
+ 			}
+-			s.Def = npos(src.NoXPos, dclname(s))
++			s.Def = ir.NewDeclNameAt(src.NoXPos, s)
+ 		}
+ 	}
+ 
+@@ -833,7 +833,7 @@ func (r *importReader) node() ir.Node {
+ 	case ir.OTYPESW:
+ 		n := ir.NodAt(r.pos(), ir.OTYPESW, nil, nil)
+ 		if s := r.ident(); s != nil {
+-			n.SetLeft(npos(n.Pos(), newnoname(s)))
++			n.SetLeft(ir.NewDeclNameAt(n.Pos(), s))
+ 		}
+ 		right, _ := r.exprsOrNil()
+ 		n.SetRight(right)
+@@ -962,7 +962,7 @@ func (r *importReader) node() ir.Node {
+ 	// statements
+ 	case ir.ODCL:
+ 		pos := r.pos()
+-		lhs := npos(pos, dclname(r.ident()))
++		lhs := ir.NewDeclNameAt(pos, r.ident())
+ 		typ := ir.TypeNode(r.typ())
+ 		return npos(pos, liststmt(variter([]ir.Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
+ 
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index e5677f921f..4c81657628 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -516,9 +516,7 @@ func (p *noder) declNames(names []*syntax.Name) []ir.Node {
+ }
+ 
+ func (p *noder) declName(name *syntax.Name) *ir.Name {
+-	n := dclname(p.name(name))
+-	n.SetPos(p.pos(name))
+-	return n
++	return ir.NewDeclNameAt(p.pos(name), p.name(name))
+ }
+ 
+ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 8146f30377..2dc4281857 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -371,7 +371,8 @@ func staticname(t *types.Type) ir.Node {
+ 	// Don't use lookupN; it interns the resulting string, but these are all unique.
+ 	n := NewName(lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen)))
+ 	statuniqgen++
+-	addvar(n, t, ir.PEXTERN)
++	declare(n, ir.PEXTERN)
++	n.SetType(t)
+ 	n.Sym().Linksym().Set(obj.AttrLocal, true)
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index b315502964..f9984cbe94 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -108,7 +108,7 @@ func initUniverse() {
+ 
+ 	defBasic := func(kind types.Kind, pkg *types.Pkg, name string) *types.Type {
+ 		sym := pkg.Lookup(name)
+-		n := ir.NewNameAt(src.NoXPos, sym)
++		n := ir.NewDeclNameAt(src.NoXPos, sym)
+ 		n.SetOp(ir.OTYPE)
+ 		t := types.NewBasic(kind, n)
+ 		n.SetType(t)
+@@ -145,7 +145,7 @@ func initUniverse() {
+ 
+ 	// error type
+ 	s := ir.BuiltinPkg.Lookup("error")
+-	n := ir.NewNameAt(src.NoXPos, s)
++	n := ir.NewDeclNameAt(src.NoXPos, s)
+ 	n.SetOp(ir.OTYPE)
+ 	types.ErrorType = types.NewNamed(n)
+ 	types.ErrorType.SetUnderlying(makeErrorInterface())
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 76abb454ee..3c62800ad3 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -123,18 +123,27 @@ type Name struct {
+ }
+ 
+ // NewNameAt returns a new ONAME Node associated with symbol s at position pos.
+-// The caller is responsible for setting n.Name.Curfn.
++// The caller is responsible for setting Curfn.
+ func NewNameAt(pos src.XPos, sym *types.Sym) *Name {
+ 	if sym == nil {
+ 		base.Fatalf("NewNameAt nil")
+ 	}
+-	return newNameAt(pos, sym)
++	return newNameAt(pos, ONAME, sym)
++}
++
++// NewDeclNameAt returns a new ONONAME Node associated with symbol s at position pos.
++// The caller is responsible for setting Curfn.
++func NewDeclNameAt(pos src.XPos, sym *types.Sym) *Name {
++	if sym == nil {
++		base.Fatalf("NewDeclNameAt nil")
++	}
++	return newNameAt(pos, ONONAME, sym)
+ }
+ 
+ // newNameAt is like NewNameAt but allows sym == nil.
+-func newNameAt(pos src.XPos, sym *types.Sym) *Name {
++func newNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
+ 	n := new(Name)
+-	n.op = ONAME
++	n.op = op
+ 	n.pos = pos
+ 	n.orig = n
+ 	n.sym = sym
+@@ -163,10 +172,13 @@ func (n *Name) SetIota(x int64)               { n.offset = x }
+ func (*Name) CanBeNtype() {}
+ 
+ func (n *Name) SetOp(op Op) {
++	if n.op != ONONAME {
++		base.Fatalf("%v already has Op %v", n, n.op)
++	}
+ 	switch op {
+ 	default:
+ 		panic(n.no("SetOp " + op.String()))
+-	case OLITERAL, ONONAME, ONAME, OTYPE, OIOTA:
++	case OLITERAL, ONAME, OTYPE, OIOTA:
+ 		n.op = op
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index fc4c593929..d121cc19d4 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -802,9 +802,7 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+ 	case OLABEL:
+ 		return NewLabelStmt(pos, nil)
+ 	case OLITERAL, OTYPE, OIOTA:
+-		n := newNameAt(pos, nil)
+-		n.SetOp(op)
+-		return n
++		return newNameAt(pos, op, nil)
+ 	case OMAKECHAN, OMAKEMAP, OMAKESLICE, OMAKESLICECOPY:
+ 		return NewMakeExpr(pos, op, nleft, nright)
+ 	case OMETHEXPR:

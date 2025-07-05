@@ -11,6 +11,24 @@ Date:   Thu Jan 6 11:36:47 2011 -0500
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/3746047
-
+---
  src/pkg/runtime/cgo/freebsd_amd64.c | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/runtime/cgo/freebsd_amd64.c b/src/pkg/runtime/cgo/freebsd_amd64.c
+index a02fbf1519..fe6ce391f3 100644
+--- a/src/pkg/runtime/cgo/freebsd_amd64.c
++++ b/src/pkg/runtime/cgo/freebsd_amd64.c
+@@ -37,6 +37,12 @@ threadentry(void *v)
+ 
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
++	/*
++	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * change to actual guard pointer.
++	 */
++	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
++
+ 	/*
+ 	 * Set specific keys.  On FreeBSD/ELF, the thread local storage
+ 	 * is just before %fs:0.  Our dynamic 6.out's reserve 16 bytes

@@ -13,6 +13,27 @@ Date:   Fri Nov 17 10:01:06 2017 +0000
     Reviewed-on: https://go-review.googlesource.com/78475
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index 03d6f4218f..28670542e7 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"internal/testenv"
+ 	"io/ioutil"
++	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+@@ -64,6 +65,7 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
+ 	if ok != nil {
+ 		t.Fatalf("Failed to create temporary directory")
+ 	}
++	defer os.RemoveAll(tmpdir)
+ 
+ 	rungo := filepath.Join(tmpdir, "run.go")
+ 	ok = ioutil.WriteFile(rungo, stdout.Bytes(), 0600)

@@ -13,6 +13,21 @@ Date:   Fri Aug 2 14:13:23 2019 -0700
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/decode.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index df1c085917..2b135f0da5 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -72,7 +72,8 @@ import (
+ // use. If the map is nil, Unmarshal allocates a new map. Otherwise Unmarshal
+ // reuses the existing map, keeping existing entries. Unmarshal then stores
+ // key-value pairs from the JSON object into the map. The map's key type must
+-// either be a string, an integer, or implement encoding.TextUnmarshaler.
++// either be any string type, an integer, implement json.Unmarshaler, or
++// implement encoding.TextUnmarshaler.
+ //
+ // If a JSON value is not appropriate for a given target type,
+ // or if a JSON number overflows the target type, Unmarshal

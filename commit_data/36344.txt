@@ -8,7 +8,47 @@ Date:   Tue Apr 17 14:28:00 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/107615
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd_windows.go | 10 ++++++----
  src/net/rawconn.go              |  6 ++++++
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index cd9f88b5f7..75bd1669fb 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -946,11 +946,13 @@ func (fd *FD) RawWrite(f func(uintptr) bool) error {
+ 		return err
+ 	}
+ 	defer fd.writeUnlock()
+-	for {
+-		if f(uintptr(fd.Sysfd)) {
+-			return nil
+-		}
++
++	if f(uintptr(fd.Sysfd)) {
++		return nil
+ 	}
++
++	// TODO(tmm1): find a way to detect socket writability
++	return syscall.EWINDOWS
+ }
+ 
+ func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {
+diff --git a/src/net/rawconn.go b/src/net/rawconn.go
+index 11f01ffda8..e652816739 100644
+--- a/src/net/rawconn.go
++++ b/src/net/rawconn.go
+@@ -9,6 +9,12 @@ import (
+ 	"syscall"
+ )
+ 
++// BUG(tmm1): On Windows, the Write method of syscall.RawConn
++// does not integrate with the runtime's network poller. It cannot
++// wait for the connection to become writeable, and does not respect
++// deadlines. If the user-provided callback returns false, the Write
++// method will fail immediately.
++
+ // BUG(mikio): On NaCl and Plan 9, the Control, Read and Write methods
+ // of syscall.RawConn are not implemented.
+ 

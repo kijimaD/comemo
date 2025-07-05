@@ -14,6 +14,49 @@ Date:   Sun Dec 15 12:57:57 2013 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/38290044
-
+---
  src/pkg/crypto/tls/generate_cert.go | 11 +++++++----
  1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/generate_cert.go b/src/pkg/crypto/tls/generate_cert.go
+index b417ea4640..1b4830c725 100644
+--- a/src/pkg/crypto/tls/generate_cert.go
++++ b/src/pkg/crypto/tls/generate_cert.go
+@@ -43,7 +43,6 @@ func main() {
+ 	priv, err := rsa.GenerateKey(rand.Reader, *rsaBits)
+ 	if err != nil {
+ 		log.Fatalf("failed to generate private key: %s", err)
+-		return
+ 	}
+ 
+ 	var notBefore time.Time
+@@ -65,8 +64,14 @@ func main() {
+ 		notAfter = endOfTime
+ 	}
+ 
++	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
++	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
++	if err != nil {
++		log.Fatalf("failed to generate serial number: %s", err)
++	}
++
+ 	template := x509.Certificate{
+-		SerialNumber: new(big.Int).SetInt64(0),
++		SerialNumber: serialNumber,
+ 		Subject: pkix.Name{
+ 			Organization: []string{"Acme Co"},
+ 		},
+@@ -95,13 +100,11 @@ func main() {
+ 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+ 	if err != nil {
+ 		log.Fatalf("Failed to create certificate: %s", err)
+-		return
+ 	}
+ 
+ 	certOut, err := os.Create("cert.pem")
+ 	if err != nil {
+ 		log.Fatalf("failed to open cert.pem for writing: %s", err)
+-		return
+ 	}
+ 	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+ 	certOut.Close()

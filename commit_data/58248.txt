@@ -17,7 +17,70 @@ Date:   Wed Oct 11 01:55:24 2023 +0000
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/vendor.go            | 10 ++++++++-
  src/cmd/go/testdata/script/mod_vendor_embed.txt | 30 +++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 033d47b104..e95dfbfbb7 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -313,7 +313,15 @@ func vendorPkg(vdir, pkg string) {
+ 			base.Fatalf("internal error: failed to find embedded files of %s: %v\n", pkg, err)
+ 		}
+ 	}
+-	embedPatterns := str.StringList(bp.EmbedPatterns, bp.TestEmbedPatterns, bp.XTestEmbedPatterns)
++	var embedPatterns []string
++	if gover.Compare(modload.MainModules.GoVersion(), "1.22") >= 0 {
++		embedPatterns = bp.EmbedPatterns
++	} else {
++		// Maintain the behavior of https://github.com/golang/go/issues/63473
++		// so that we continue to agree with older versions of the go command
++		// about the contents of vendor directories in existing modules
++		embedPatterns = str.StringList(bp.EmbedPatterns, bp.TestEmbedPatterns, bp.XTestEmbedPatterns)
++	}
+ 	embeds, err := load.ResolveEmbed(bp.Dir, embedPatterns)
+ 	if err != nil {
+ 		base.Fatal(err)
+diff --git a/src/cmd/go/testdata/script/mod_vendor_embed.txt b/src/cmd/go/testdata/script/mod_vendor_embed.txt
+index b14fd99156..1a3b2fef26 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_embed.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_embed.txt
+@@ -12,6 +12,36 @@ cd ../broken_bad_pattern
+ ! go mod vendor
+ stderr 'go: pattern ../foo.txt: invalid pattern syntax'
+ 
++cd ../embed_go122
++go mod vendor
++cmp vendor/example.com/a/samedir_embed.txt ../a/samedir_embed.txt
++cmp vendor/example.com/a/subdir/embed.txt ../a/subdir/embed.txt
++! exists vendor/example.com/a/subdir/test/embed.txt
++! exists vendor/example.com/a/subdir/test/xtest/embed.txt
++-- embed_go122/go.mod --
++module example.com/foo
++go 1.22
++
++require (
++	example.com/a v0.1.0
++)
++
++replace (
++	example.com/a v0.1.0 => ../a
++)
++-- embed_go122/foo.go --
++package main
++
++import (
++	"fmt"
++
++	"example.com/a"
++)
++
++func main() {
++    fmt.Println(a.Str())
++}
++
+ # matchPotentialSourceFile prunes out tests and unbuilt code.
+ # Make sure that they are vendored if they are embedded files.
+ cd ../embed_unbuilt

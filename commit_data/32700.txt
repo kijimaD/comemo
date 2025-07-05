@@ -9,8 +9,54 @@ Date:   Thu Apr 20 11:13:55 2017 +0200
     Change-Id: I1bec3e69031ffcfd7ad71716be9597ec322528ff
     Reviewed-on: https://go-review.googlesource.com/41211
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/os/file_plan9.go   | 4 +++-
  src/os/file_unix.go    | 4 +++-
  src/os/file_windows.go | 4 +++-
  3 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index f1f244a8d4..97acb5878d 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -35,7 +35,9 @@ func (f *File) Fd() uintptr {
+ 	return uintptr(f.fd)
+ }
+ 
+-// NewFile returns a new File with the given file descriptor and name.
++// NewFile returns a new File with the given file descriptor and
++// name. The returned value will be nil if fd is not a valid file
++// descriptor.
+ func NewFile(fd uintptr, name string) *File {
+ 	fdi := int(fd)
+ 	if fdi < 0 {
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index c65cfb6d37..86271d53e8 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -59,7 +59,9 @@ func (f *File) Fd() uintptr {
+ 	return uintptr(f.pfd.Sysfd)
+ }
+ 
+-// NewFile returns a new File with the given file descriptor and name.
++// NewFile returns a new File with the given file descriptor and
++// name. The returned value will be nil if fd is not a valid file
++// descriptor.
+ func NewFile(fd uintptr, name string) *File {
+ 	return newFile(fd, name, false)
+ }
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index c5b83b5dfe..3e916ae9b2 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -64,7 +64,9 @@ func newConsoleFile(h syscall.Handle, name string) *File {
+ 	return newFile(h, name, "console")
+ }
+ 
+-// NewFile returns a new File with the given file descriptor and name.
++// NewFile returns a new File with the given file descriptor and
++// name. The returned value will be nil if fd is not a valid file
++// descriptor.
+ func NewFile(fd uintptr, name string) *File {
+ 	h := syscall.Handle(fd)
+ 	if h == syscall.InvalidHandle {

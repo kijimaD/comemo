@@ -36,6 +36,21 @@ Date:   Fri Dec 8 17:12:41 2017 -0500
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mbitmap.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 6e2f12db15..3a88f17788 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -475,6 +475,9 @@ func (h heapBits) forward(n uintptr) heapBits {
+ // The caller can test morePointers and isPointer by &-ing with bitScan and bitPointer.
+ // The result includes in its higher bits the bits for subsequent words
+ // described by the same bitmap byte.
++//
++// nosplit because it is used during write barriers and must not be preempted.
++//go:nosplit
+ func (h heapBits) bits() uint32 {
+ 	// The (shift & 31) eliminates a test and conditional branch
+ 	// from the generated code.

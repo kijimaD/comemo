@@ -9,8 +9,54 @@ Date:   Wed Mar 27 16:29:12 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8016047
-
+---
  src/cmd/vet/test_asm1.s | 4 +---
  src/cmd/vet/test_asm2.s | 4 +---
  src/cmd/vet/test_asm3.s | 4 +---
  3 files changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/vet/test_asm1.s b/src/cmd/vet/test_asm1.s
+index 2fe31963a4..8cd9eeab6a 100644
+--- a/src/cmd/vet/test_asm1.s
++++ b/src/cmd/vet/test_asm1.s
+@@ -3,9 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build amd64
+-// +build ignore
+-
+-package main
++// +build vet_test
+ 
+ TEXT ·arg1(SB),0,$0-2
+ 	MOVB	x+0(FP), AX
+diff --git a/src/cmd/vet/test_asm2.s b/src/cmd/vet/test_asm2.s
+index 73a4ad4be5..d8679c574e 100644
+--- a/src/cmd/vet/test_asm2.s
++++ b/src/cmd/vet/test_asm2.s
+@@ -3,9 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build 386
+-// +build ignore
+-
+-package main
++// +build vet_test
+ 
+ TEXT ·arg1(SB),0,$0-2
+ 	MOVB	x+0(FP), AX
+diff --git a/src/cmd/vet/test_asm3.s b/src/cmd/vet/test_asm3.s
+index 2c1a54f3ea..bf98805a21 100644
+--- a/src/cmd/vet/test_asm3.s
++++ b/src/cmd/vet/test_asm3.s
+@@ -3,9 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build arm
+-// +build ignore
+-
+-package main
++// +build vet_test
+ 
+ TEXT ·arg1(SB),0,$0-2
+ 	MOVB	x+0(FP), AX

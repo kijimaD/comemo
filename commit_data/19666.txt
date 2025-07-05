@@ -10,6 +10,21 @@ Date:   Thu Jul 3 16:52:34 2014 -0400
     R=golang-codereviews, ruiu
     CC=golang-codereviews
     https://golang.org/cl/110830045
-
+---
  src/pkg/runtime/cgo/gcc_linux_arm.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/cgo/gcc_linux_arm.c b/src/pkg/runtime/cgo/gcc_linux_arm.c
+index a746ca5f5a..95c8e16a25 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_arm.c
++++ b/src/pkg/runtime/cgo/gcc_linux_arm.c
+@@ -36,7 +36,8 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fatalf("pthread_create failed: %s", strerror(err));
++		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
++		abort();
+ 	}
+ }
+ 

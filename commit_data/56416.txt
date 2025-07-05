@@ -17,8 +17,54 @@ Date:   Thu May 4 17:01:53 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go     |  2 +-
  src/go/types/assignments.go                        |  2 +-
  src/internal/types/testdata/fixedbugs/issue3117.go | 13 +++++++++++++
  3 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 15d2a89934..cba102e4f4 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -222,7 +222,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
+ 				return Typ[Invalid]
+ 			}
+ 		}
+-		check.errorf(&x, UnassignableOperand, "cannot assign to %s", &x)
++		check.errorf(&x, UnassignableOperand, "cannot assign to %s (neither addressable nor a map index expression)", x.expr)
+ 		return Typ[Invalid]
+ 	}
+ 
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index b0d11dfb82..1ea51142e0 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -221,7 +221,7 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
+ 				return Typ[Invalid]
+ 			}
+ 		}
+-		check.errorf(&x, UnassignableOperand, "cannot assign to %s", &x)
++		check.errorf(&x, UnassignableOperand, "cannot assign to %s (neither addressable nor a map index expression)", x.expr)
+ 		return Typ[Invalid]
+ 	}
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue3117.go b/src/internal/types/testdata/fixedbugs/issue3117.go
+new file mode 100644
+index 0000000000..16c0afce81
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue3117.go
+@@ -0,0 +1,13 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type S struct {
++	a [1]int
++}
++
++func _(m map[int]S, key int) {
++	m /* ERROR "cannot assign to m[key].a[0] (neither addressable nor a map index expression)" */ [key].a[0] = 0
++}

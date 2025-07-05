@@ -30,7 +30,7 @@ Date:   Mon Apr 24 15:11:39 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  34 ++++--
  src/cmd/compile/internal/ppc64/ssa.go        |   2 +-
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  11 ++
@@ -39,3 +39,495 @@ Date:   Mon Apr 24 15:11:39 2017 -0400
  src/cmd/compile/internal/ssa/rewritePPC64.go | 162 +++++++++++++++++++++++++++
  src/math/bits/bits_test.go                   |   8 +-
  7 files changed, 279 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d12d45f009..7d53595c49 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2730,12 +2730,12 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz64, types.Types[TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+ 	addF("math/bits", "TrailingZeros32",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz32, types.Types[TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+ 	addF("math/bits", "TrailingZeros16",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt16to32, types.Types[TUINT32], args[0])
+@@ -2776,7 +2776,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+ 	addF("math/bits", "Len32",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			if s.config.PtrSize == 4 {
+@@ -2785,7 +2785,7 @@ func init() {
+ 			x := s.newValue1(ssa.OpZeroExt32to64, types.Types[TUINT64], args[0])
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+ 	addF("math/bits", "Len16",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			if s.config.PtrSize == 4 {
+@@ -2795,7 +2795,7 @@ func init() {
+ 			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[TUINT64], args[0])
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+ 	// Note: disabled on AMD64 because the Go code is faster!
+ 	addF("math/bits", "Len8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+@@ -2806,7 +2806,7 @@ func init() {
+ 			x := s.newValue1(ssa.OpZeroExt8to64, types.Types[TUINT64], args[0])
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
+ 		},
+-		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
++		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+ 
+ 	addF("math/bits", "Len",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+@@ -2815,7 +2815,7 @@ func init() {
+ 			}
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+ 	// LeadingZeros is handled because it trivially calls Len.
+ 	addF("math/bits", "Reverse64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+@@ -2845,7 +2845,7 @@ func init() {
+ 			return s.newValue1(ssa.OpBitRev64, types.Types[TINT], args[0])
+ 		},
+ 		sys.ARM64)
+-	makeOnesCount := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: syslook("support_popcnt").Sym.Linksym()})
+ 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), aux, s.sb)
+@@ -2881,17 +2881,27 @@ func init() {
+ 		}
+ 	}
+ 	addF("math/bits", "OnesCount64",
+-		makeOnesCount(ssa.OpPopCount64, ssa.OpPopCount64),
++		makeOnesCountAMD64(ssa.OpPopCount64, ssa.OpPopCount64),
+ 		sys.AMD64)
++	addF("math/bits", "OnesCount64",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpPopCount64, types.Types[TINT], args[0])
++		},
++		sys.PPC64)
+ 	addF("math/bits", "OnesCount32",
+-		makeOnesCount(ssa.OpPopCount32, ssa.OpPopCount32),
++		makeOnesCountAMD64(ssa.OpPopCount32, ssa.OpPopCount32),
+ 		sys.AMD64)
++	addF("math/bits", "OnesCount32",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpPopCount32, types.Types[TINT], args[0])
++		},
++		sys.PPC64)
+ 	addF("math/bits", "OnesCount16",
+-		makeOnesCount(ssa.OpPopCount16, ssa.OpPopCount16),
++		makeOnesCountAMD64(ssa.OpPopCount16, ssa.OpPopCount16),
+ 		sys.AMD64)
+ 	// Note: no OnesCount8, the Go implementation is faster - just a table load.
+ 	addF("math/bits", "OnesCount",
+-		makeOnesCount(ssa.OpPopCount64, ssa.OpPopCount32),
++		makeOnesCountAMD64(ssa.OpPopCount64, ssa.OpPopCount32),
+ 		sys.AMD64)
+ 
+ 	/******** sync/atomic ********/
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 5d902cdae1..a95dabccf0 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -596,7 +596,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = ppc64.REGTMP // Ignored; this is for the carry effect.
+ 
+-	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FRSP:
++	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB:
+ 		r := v.Reg()
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 3caeda2488..c246b309ea 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -244,6 +244,17 @@
+ // (Addr {sym} base) -> (ADDconst {sym} base)
+ (OffPtr [off] ptr) -> (ADD (MOVDconst <typ.Int64> [off]) ptr)
+ 
++(Ctz64 x) -> (POPCNTD (ANDN <types.Int64> (ADDconst <types.Int64> [-1] x) x))
++(Ctz32 x) -> (POPCNTW (MOVWZreg (ANDN <types.Int> (ADDconst <types.Int> [-1] x) x)))
++
++(BitLen64 x) -> (SUB (MOVDconst [64]) (CNTLZD <types.Int> x))
++(BitLen32 x) -> (SUB (MOVDconst [32]) (CNTLZW <types.Int> x))
++
++(PopCount64 x) -> (POPCNTD x)
++(PopCount32 x) -> (POPCNTW (MOVWZreg x))
++(PopCount16 x) -> (POPCNTW (MOVHZreg x))
++(PopCount8 x) -> (POPCNTB (MOVBreg x))
++
+ (And64 x y) -> (AND x y)
+ (And32 x y) -> (AND x y)
+ (And16 x y) -> (AND x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index f198c139da..2e8e239f15 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -198,6 +198,13 @@ func init() {
+ 		{name: "ROTLconst", argLength: 1, reg: gp11, asm: "ROTL", aux: "Int64"},   // arg0 rotate left by auxInt bits
+ 		{name: "ROTLWconst", argLength: 1, reg: gp11, asm: "ROTLW", aux: "Int64"}, // uint32(arg0) rotate left by auxInt bits
+ 
++		{name: "CNTLZD", argLength: 1, reg: gp11, asm: "CNTLZD", clobberFlags: true}, // count leading zeros
++		{name: "CNTLZW", argLength: 1, reg: gp11, asm: "CNTLZW", clobberFlags: true}, // count leading zeros (32 bit)
++
++		{name: "POPCNTD", argLength: 1, reg: gp11, asm: "POPCNTD"}, // number of set bits in arg0
++		{name: "POPCNTW", argLength: 1, reg: gp11, asm: "POPCNTW"}, // number of set bits in each word of arg0 placed in corresponding word
++		{name: "POPCNTB", argLength: 1, reg: gp11, asm: "POPCNTB"}, // number of set bits in each byte of arg0 placed in corresonding byte
++
+ 		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV"},   // arg0/arg1
+ 		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS"}, // arg0/arg1
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 938743897e..ae2dd5f550 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1294,6 +1294,11 @@ const (
+ 	OpPPC64SLWconst
+ 	OpPPC64ROTLconst
+ 	OpPPC64ROTLWconst
++	OpPPC64CNTLZD
++	OpPPC64CNTLZW
++	OpPPC64POPCNTD
++	OpPPC64POPCNTW
++	OpPPC64POPCNTB
+ 	OpPPC64FDIV
+ 	OpPPC64FDIVS
+ 	OpPPC64DIVD
+@@ -16568,6 +16573,73 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "CNTLZD",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          ppc64.ACNTLZD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:         "CNTLZW",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          ppc64.ACNTLZW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "POPCNTD",
++		argLen: 1,
++		asm:    ppc64.APOPCNTD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "POPCNTW",
++		argLen: 1,
++		asm:    ppc64.APOPCNTW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "POPCNTB",
++		argLen: 1,
++		asm:    ppc64.APOPCNTB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:   "FDIV",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index e3eab943d7..4d49b67eb9 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -69,6 +69,10 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpAtomicStore64_0(v)
+ 	case OpAvg64u:
+ 		return rewriteValuePPC64_OpAvg64u_0(v)
++	case OpBitLen32:
++		return rewriteValuePPC64_OpBitLen32_0(v)
++	case OpBitLen64:
++		return rewriteValuePPC64_OpBitLen64_0(v)
+ 	case OpClosureCall:
+ 		return rewriteValuePPC64_OpClosureCall_0(v)
+ 	case OpCom16:
+@@ -97,6 +101,10 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpConstNil_0(v)
+ 	case OpConvert:
+ 		return rewriteValuePPC64_OpConvert_0(v)
++	case OpCtz32:
++		return rewriteValuePPC64_OpCtz32_0(v)
++	case OpCtz64:
++		return rewriteValuePPC64_OpCtz64_0(v)
+ 	case OpCvt32Fto32:
+ 		return rewriteValuePPC64_OpCvt32Fto32_0(v)
+ 	case OpCvt32Fto64:
+@@ -465,6 +473,14 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpPPC64XOR_0(v)
+ 	case OpPPC64XORconst:
+ 		return rewriteValuePPC64_OpPPC64XORconst_0(v)
++	case OpPopCount16:
++		return rewriteValuePPC64_OpPopCount16_0(v)
++	case OpPopCount32:
++		return rewriteValuePPC64_OpPopCount32_0(v)
++	case OpPopCount64:
++		return rewriteValuePPC64_OpPopCount64_0(v)
++	case OpPopCount8:
++		return rewriteValuePPC64_OpPopCount8_0(v)
+ 	case OpRound32F:
+ 		return rewriteValuePPC64_OpRound32F_0(v)
+ 	case OpRound64F:
+@@ -988,6 +1004,46 @@ func rewriteValuePPC64_OpAvg64u_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpBitLen32_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	types := &b.Func.Config.Types
++	_ = types
++	// match: (BitLen32 x)
++	// cond:
++	// result: (SUB (MOVDconst [32]) (CNTLZW <types.Int> x))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64SUB)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, types.Int64)
++		v0.AuxInt = 32
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpPPC64CNTLZW, types.Int)
++		v1.AddArg(x)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpBitLen64_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	types := &b.Func.Config.Types
++	_ = types
++	// match: (BitLen64 x)
++	// cond:
++	// result: (SUB (MOVDconst [64]) (CNTLZD <types.Int> x))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64SUB)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, types.Int64)
++		v0.AuxInt = 64
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpPPC64CNTLZD, types.Int)
++		v1.AddArg(x)
++		v.AddArg(v1)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpClosureCall_0(v *Value) bool {
+ 	// match: (ClosureCall [argwid] entry closure mem)
+ 	// cond:
+@@ -1155,6 +1211,50 @@ func rewriteValuePPC64_OpConvert_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpCtz32_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	types := &b.Func.Config.Types
++	_ = types
++	// match: (Ctz32 x)
++	// cond:
++	// result: (POPCNTW (MOVWZreg (ANDN <types.Int> (ADDconst <types.Int> [-1] x) x)))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64POPCNTW)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, types.Int64)
++		v1 := b.NewValue0(v.Pos, OpPPC64ANDN, types.Int)
++		v2 := b.NewValue0(v.Pos, OpPPC64ADDconst, types.Int)
++		v2.AuxInt = -1
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpCtz64_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	types := &b.Func.Config.Types
++	_ = types
++	// match: (Ctz64 x)
++	// cond:
++	// result: (POPCNTD (ANDN <types.Int64> (ADDconst <types.Int64> [-1] x) x))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64POPCNTD)
++		v0 := b.NewValue0(v.Pos, OpPPC64ANDN, types.Int64)
++		v1 := b.NewValue0(v.Pos, OpPPC64ADDconst, types.Int64)
++		v1.AuxInt = -1
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpCvt32Fto32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -7944,6 +8044,68 @@ func rewriteValuePPC64_OpPPC64XORconst_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64_OpPopCount16_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	types := &b.Func.Config.Types
++	_ = types
++	// match: (PopCount16 x)
++	// cond:
++	// result: (POPCNTW (MOVHZreg x))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64POPCNTW)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZreg, types.Int64)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpPopCount32_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	types := &b.Func.Config.Types
++	_ = types
++	// match: (PopCount32 x)
++	// cond:
++	// result: (POPCNTW (MOVWZreg x))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64POPCNTW)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, types.Int64)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpPopCount64_0(v *Value) bool {
++	// match: (PopCount64 x)
++	// cond:
++	// result: (POPCNTD x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64POPCNTD)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpPopCount8_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	types := &b.Func.Config.Types
++	_ = types
++	// match: (PopCount8 x)
++	// cond:
++	// result: (POPCNTB (MOVBreg x))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64POPCNTB)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVBreg, types.Int64)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpRound32F_0(v *Value) bool {
+ 	// match: (Round32F x)
+ 	// cond:
+diff --git a/src/math/bits/bits_test.go b/src/math/bits/bits_test.go
+index da846049d4..ba05210c9b 100644
+--- a/src/math/bits/bits_test.go
++++ b/src/math/bits/bits_test.go
+@@ -254,26 +254,26 @@ func testOnesCount(t *testing.T, x uint64, want int) {
+ 	if x <= 1<<8-1 {
+ 		got := OnesCount8(uint8(x))
+ 		if got != want {
+-			t.Fatalf("OnesCount8(%#02x) == %d; want %d", x, got, want)
++			t.Fatalf("OnesCount8(%#02x) == %d; want %d", uint8(x), got, want)
+ 		}
+ 	}
+ 
+ 	if x <= 1<<16-1 {
+ 		got := OnesCount16(uint16(x))
+ 		if got != want {
+-			t.Fatalf("OnesCount16(%#04x) == %d; want %d", x, got, want)
++			t.Fatalf("OnesCount16(%#04x) == %d; want %d", uint16(x), got, want)
+ 		}
+ 	}
+ 
+ 	if x <= 1<<32-1 {
+ 		got := OnesCount32(uint32(x))
+ 		if got != want {
+-			t.Fatalf("OnesCount32(%#08x) == %d; want %d", x, got, want)
++			t.Fatalf("OnesCount32(%#08x) == %d; want %d", uint32(x), got, want)
+ 		}
+ 		if UintSize == 32 {
+ 			got = OnesCount(uint(x))
+ 			if got != want {
+-				t.Fatalf("OnesCount(%#08x) == %d; want %d", x, got, want)
++				t.Fatalf("OnesCount(%#08x) == %d; want %d", uint32(x), got, want)
+ 			}
+ 		}
+ 	}

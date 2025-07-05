@@ -18,6 +18,29 @@ Date:   Mon Jun 21 12:09:43 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/pprof/pprof_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index f6ae15daab..7c71d8263b 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -623,7 +623,7 @@ func growstack1() {
+ 
+ //go:noinline
+ func growstack(n int) {
+-	var buf [8 << 16]byte
++	var buf [8 << 18]byte
+ 	use(buf)
+ 	if n > 0 {
+ 		growstack(n - 1)
+@@ -631,7 +631,7 @@ func growstack(n int) {
+ }
+ 
+ //go:noinline
+-func use(x [8 << 16]byte) {}
++func use(x [8 << 18]byte) {}
+ 
+ func TestBlockProfile(t *testing.T) {
+ 	type TestCase struct {

@@ -10,7 +10,7 @@ Date:   Fri Nov 5 16:41:23 2010 -0400
     R=rsc
     CC=golang-dev, royger
     https://golang.org/cl/2943041
-
+---
  src/pkg/syscall/syscall_linux.go        |  2 --
  src/pkg/syscall/syscall_linux_386.go    |  2 ++
  src/pkg/syscall/syscall_linux_amd64.go  |  2 ++
@@ -19,3 +19,276 @@ Date:   Fri Nov 5 16:41:23 2010 -0400
  src/pkg/syscall/zsyscall_linux_amd64.go | 32 ++++++++++++++++----------------
  src/pkg/syscall/zsyscall_linux_arm.go   | 32 ++++++++++++++++----------------
  7 files changed, 54 insertions(+), 50 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 9b4e2db071..d34956c31d 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -623,7 +623,6 @@ func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0)
+ //sys	fcntl(fd int, cmd int, arg int) (val int, errno int)
+ //sys	Fdatasync(fd int) (errno int)
+ //sys	Fsync(fd int) (errno int)
+-//sys	Ftruncate(fd int, length int64) (errno int)
+ //sys	Getdents(fd int, buf []byte) (n int, errno int) = SYS_GETDENTS64
+ //sys	Getpgid(pid int) (pgid int, errno int)
+ //sys	Getpgrp() (pid int)
+@@ -665,7 +664,6 @@ func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0)
+ //sys	Tee(rfd int, wfd int, len int, flags int) (n int64, errno int)
+ //sys	Tgkill(tgid int, tid int, sig int) (errno int)
+ //sys	Times(tms *Tms) (ticks uintptr, errno int)
+-//sys	Truncate(path string, length int64) (errno int)
+ //sys	Umask(mask int) (oldmask int)
+ //sys	Uname(buf *Utsname) (errno int)
+ //sys	Unlink(path string) (errno int)
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 30eb11e260..88b3034346 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -30,6 +30,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	Chown(path string, uid int, gid int) (errno int) = SYS_CHOWN32
+ //sys	Fchown(fd int, uid int, gid int) (errno int) = SYS_FCHOWN32
+ //sys	Fstat(fd int, stat *Stat_t) (errno int) = SYS_FSTAT64
++//sys	Ftruncate(fd int, length int64) (errno int) = SYS_FTRUNCATE64
+ //sys	Getegid() (egid int) = SYS_GETEGID32
+ //sys	Geteuid() (euid int) = SYS_GETEUID32
+ //sys	Getgid() (gid int) = SYS_GETGID32
+@@ -49,6 +50,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	Setreuid(ruid int, euid int) (errno int) = SYS_SETREUID32
+ //sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (errno int)
++//sys	Truncate(path string, length int64) (errno int) = SYS_TRUNCATE64
+ //sys	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
+ //sys	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) = SYS__NEWSELECT
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index d19b95d72a..fda8260689 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -8,6 +8,7 @@ package syscall
+ //sys	Fchown(fd int, uid int, gid int) (errno int)
+ //sys	Fstat(fd int, stat *Stat_t) (errno int)
+ //sys	Fstatfs(fd int, buf *Statfs_t) (errno int)
++//sys	Ftruncate(fd int, length int64) (errno int)
+ //sys	Getegid() (egid int)
+ //sys	Geteuid() (euid int)
+ //sys	Getgid() (gid int)
+@@ -32,6 +33,7 @@ package syscall
+ //sys	Stat(path string, stat *Stat_t) (errno int)
+ //sys	Statfs(path string, buf *Statfs_t) (errno int)
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (errno int)
++//sys	Truncate(path string, length int64) (errno int)
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
+ //sys	bind(s int, addr uintptr, addrlen _Socklen) (errno int)
+ //sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index 8fcfeecf3e..bc6592f156 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -69,6 +69,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+ //sys	Fchown(fd int, uid int, gid int) (errno int)
+ //sys	Fstat(fd int, stat *Stat_t) (errno int) = SYS_FSTAT64
+ //sys	Fstatfs(fd int, buf *Statfs_t) (errno int) = SYS_FSTATFS64
++//sys	Ftruncate(fd int, length int64) (errno int) = SYS_FTRUNCATE64
+ //sys	Getegid() (egid int)
+ //sys	Geteuid() (euid int)
+ //sys	Getgid() (gid int)
+@@ -87,6 +88,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+ //sys	Shutdown(fd int, how int) (errno int)
+ //sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
+ //sys	Statfs(path string, buf *Statfs_t) (errno int) = SYS_STATFS64
++//sys	Truncate(path string, length int64) (errno int) = SYS_TRUNCATE64
+ 
+ // Vsyscalls on amd64.
+ //sys	Gettimeofday(tv *Timeval) (errno int)
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index 968dcb8a90..1d0c1c1c01 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -273,14 +273,6 @@ func Fsync(fd int) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Ftruncate(fd int, length int64) (errno int) {
+-	_, _, e1 := Syscall(SYS_FTRUNCATE, uintptr(fd), uintptr(length), uintptr(length>>32))
+-	errno = int(e1)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getdents(fd int, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+@@ -645,14 +637,6 @@ func Times(tms *Tms) (ticks uintptr, errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Truncate(path string, length int64) (errno int) {
+-	_, _, e1 := Syscall(SYS_TRUNCATE, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(length), uintptr(length>>32))
+-	errno = int(e1)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Umask(mask int) (oldmask int) {
+ 	r0, _, _ := Syscall(SYS_UMASK, uintptr(mask), 0, 0)
+ 	oldmask = int(r0)
+@@ -772,6 +756,14 @@ func Fstat(fd int, stat *Stat_t) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Ftruncate(fd int, length int64) (errno int) {
++	_, _, e1 := Syscall(SYS_FTRUNCATE64, uintptr(fd), uintptr(length), uintptr(length>>32))
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Getegid() (egid int) {
+ 	r0, _, _ := Syscall(SYS_GETEGID32, 0, 0, 0)
+ 	egid = int(r0)
+@@ -934,6 +926,14 @@ func SyncFileRange(fd int, off int64, n int64, flags int) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Truncate(path string, length int64) (errno int) {
++	_, _, e1 := Syscall(SYS_TRUNCATE64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(length), uintptr(length>>32))
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func getgroups(n int, list *_Gid_t) (nn int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_GETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+ 	nn = int(r0)
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index d851d1e54a..e08525be4d 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -273,14 +273,6 @@ func Fsync(fd int) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Ftruncate(fd int, length int64) (errno int) {
+-	_, _, e1 := Syscall(SYS_FTRUNCATE, uintptr(fd), uintptr(length), 0)
+-	errno = int(e1)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getdents(fd int, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+@@ -645,14 +637,6 @@ func Times(tms *Tms) (ticks uintptr, errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Truncate(path string, length int64) (errno int) {
+-	_, _, e1 := Syscall(SYS_TRUNCATE, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(length), 0)
+-	errno = int(e1)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Umask(mask int) (oldmask int) {
+ 	r0, _, _ := Syscall(SYS_UMASK, uintptr(mask), 0, 0)
+ 	oldmask = int(r0)
+@@ -780,6 +764,14 @@ func Fstatfs(fd int, buf *Statfs_t) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Ftruncate(fd int, length int64) (errno int) {
++	_, _, e1 := Syscall(SYS_FTRUNCATE, uintptr(fd), uintptr(length), 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Getegid() (egid int) {
+ 	r0, _, _ := Syscall(SYS_GETEGID, 0, 0, 0)
+ 	egid = int(r0)
+@@ -984,6 +976,14 @@ func SyncFileRange(fd int, off int64, n int64, flags int) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Truncate(path string, length int64) (errno int) {
++	_, _, e1 := Syscall(SYS_TRUNCATE, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(length), 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	fd = int(r0)
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index 03612a8ed1..22db0dfe4d 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -273,14 +273,6 @@ func Fsync(fd int) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Ftruncate(fd int, length int64) (errno int) {
+-	_, _, e1 := Syscall(SYS_FTRUNCATE, uintptr(fd), uintptr(length), uintptr(length>>32))
+-	errno = int(e1)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getdents(fd int, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+@@ -645,14 +637,6 @@ func Times(tms *Tms) (ticks uintptr, errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Truncate(path string, length int64) (errno int) {
+-	_, _, e1 := Syscall(SYS_TRUNCATE, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(length), uintptr(length>>32))
+-	errno = int(e1)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Umask(mask int) (oldmask int) {
+ 	r0, _, _ := Syscall(SYS_UMASK, uintptr(mask), 0, 0)
+ 	oldmask = int(r0)
+@@ -888,6 +872,14 @@ func Fstatfs(fd int, buf *Statfs_t) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Ftruncate(fd int, length int64) (errno int) {
++	_, _, e1 := Syscall(SYS_FTRUNCATE64, uintptr(fd), uintptr(length), uintptr(length>>32))
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Getegid() (egid int) {
+ 	r0, _, _ := Syscall(SYS_GETEGID, 0, 0, 0)
+ 	egid = int(r0)
+@@ -1033,6 +1025,14 @@ func Statfs(path string, buf *Statfs_t) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Truncate(path string, length int64) (errno int) {
++	_, _, e1 := Syscall(SYS_TRUNCATE64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(length), uintptr(length>>32))
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Gettimeofday(tv *Timeval) (errno int) {
+ 	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	errno = int(e1)

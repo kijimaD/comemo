@@ -35,10 +35,925 @@ Date:   Sun Mar 17 23:11:00 2019 -0600
     Change-Id: I0d284863774b1bc8c4ce87443bbaec6103e14ef4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/168038
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/testdata/arith_test.go | 291 +++++++++++++++++
  src/cmd/compile/internal/ssa/gen/generic.rules     |  19 +-
  src/cmd/compile/internal/ssa/rewritegeneric.go     | 348 ++++++++++++++++++++-
  src/cmd/compile/internal/test/divconst_test.go     |  26 ++
  test/codegen/arithmetic.go                         |  11 +
  5 files changed, 679 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/arith_test.go b/src/cmd/compile/internal/gc/testdata/arith_test.go
+index 728ca56892..1ec9ae02c9 100644
+--- a/src/cmd/compile/internal/gc/testdata/arith_test.go
++++ b/src/cmd/compile/internal/gc/testdata/arith_test.go
+@@ -7,6 +7,7 @@
+ package main
+ 
+ import (
++	"math"
+ 	"runtime"
+ 	"testing"
+ )
+@@ -924,6 +925,7 @@ func TestArithmetic(t *testing.T) {
+ 	testShiftRemoval(t)
+ 	testShiftedOps(t)
+ 	testDivFixUp(t)
++	testDivisibleSignedPow2(t)
+ }
+ 
+ // testDivFixUp ensures that signed division fix-ups are being generated.
+@@ -952,3 +954,292 @@ func testDivFixUp(t *testing.T) {
+ 		g64 = z % int64(i)
+ 	}
+ }
++
++//go:noinline
++func divisible_int8_2to1(x int8) bool {
++	return x%(1<<1) == 0
++}
++
++//go:noinline
++func divisible_int8_2to2(x int8) bool {
++	return x%(1<<2) == 0
++}
++
++//go:noinline
++func divisible_int8_2to3(x int8) bool {
++	return x%(1<<3) == 0
++}
++
++//go:noinline
++func divisible_int8_2to4(x int8) bool {
++	return x%(1<<4) == 0
++}
++
++//go:noinline
++func divisible_int8_2to5(x int8) bool {
++	return x%(1<<5) == 0
++}
++
++//go:noinline
++func divisible_int8_2to6(x int8) bool {
++	return x%(1<<6) == 0
++}
++
++//go:noinline
++func divisible_int16_2to1(x int16) bool {
++	return x%(1<<1) == 0
++}
++
++//go:noinline
++func divisible_int16_2to2(x int16) bool {
++	return x%(1<<2) == 0
++}
++
++//go:noinline
++func divisible_int16_2to3(x int16) bool {
++	return x%(1<<3) == 0
++}
++
++//go:noinline
++func divisible_int16_2to4(x int16) bool {
++	return x%(1<<4) == 0
++}
++
++//go:noinline
++func divisible_int16_2to5(x int16) bool {
++	return x%(1<<5) == 0
++}
++
++//go:noinline
++func divisible_int16_2to6(x int16) bool {
++	return x%(1<<6) == 0
++}
++
++//go:noinline
++func divisible_int16_2to7(x int16) bool {
++	return x%(1<<7) == 0
++}
++
++//go:noinline
++func divisible_int16_2to8(x int16) bool {
++	return x%(1<<8) == 0
++}
++
++//go:noinline
++func divisible_int16_2to9(x int16) bool {
++	return x%(1<<9) == 0
++}
++
++//go:noinline
++func divisible_int16_2to10(x int16) bool {
++	return x%(1<<10) == 0
++}
++
++//go:noinline
++func divisible_int16_2to11(x int16) bool {
++	return x%(1<<11) == 0
++}
++
++//go:noinline
++func divisible_int16_2to12(x int16) bool {
++	return x%(1<<12) == 0
++}
++
++//go:noinline
++func divisible_int16_2to13(x int16) bool {
++	return x%(1<<13) == 0
++}
++
++//go:noinline
++func divisible_int16_2to14(x int16) bool {
++	return x%(1<<14) == 0
++}
++
++//go:noinline
++func divisible_int32_2to4(x int32) bool {
++	return x%(1<<4) == 0
++}
++
++//go:noinline
++func divisible_int32_2to15(x int32) bool {
++	return x%(1<<15) == 0
++}
++
++//go:noinline
++func divisible_int32_2to26(x int32) bool {
++	return x%(1<<26) == 0
++}
++
++//go:noinline
++func divisible_int64_2to4(x int64) bool {
++	return x%(1<<4) == 0
++}
++
++//go:noinline
++func divisible_int64_2to15(x int64) bool {
++	return x%(1<<15) == 0
++}
++
++//go:noinline
++func divisible_int64_2to26(x int64) bool {
++	return x%(1<<26) == 0
++}
++
++//go:noinline
++func divisible_int64_2to34(x int64) bool {
++	return x%(1<<34) == 0
++}
++
++//go:noinline
++func divisible_int64_2to48(x int64) bool {
++	return x%(1<<48) == 0
++}
++
++//go:noinline
++func divisible_int64_2to57(x int64) bool {
++	return x%(1<<57) == 0
++}
++
++// testDivisibleSignedPow2 confirms that x%(1<<k)==0 is rewritten correctly
++func testDivisibleSignedPow2(t *testing.T) {
++	var i int64
++	var pow2 = []int64{
++		1,
++		1 << 1,
++		1 << 2,
++		1 << 3,
++		1 << 4,
++		1 << 5,
++		1 << 6,
++		1 << 7,
++		1 << 8,
++		1 << 9,
++		1 << 10,
++		1 << 11,
++		1 << 12,
++		1 << 13,
++		1 << 14,
++	}
++	// exhaustive test for int8
++	for i = math.MinInt8; i <= math.MaxInt8; i++ {
++		if want, got := int8(i)%int8(pow2[1]) == 0, divisible_int8_2to1(int8(i)); got != want {
++			t.Errorf("divisible_int8_2to1(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int8(i)%int8(pow2[2]) == 0, divisible_int8_2to2(int8(i)); got != want {
++			t.Errorf("divisible_int8_2to2(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int8(i)%int8(pow2[3]) == 0, divisible_int8_2to3(int8(i)); got != want {
++			t.Errorf("divisible_int8_2to3(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int8(i)%int8(pow2[4]) == 0, divisible_int8_2to4(int8(i)); got != want {
++			t.Errorf("divisible_int8_2to4(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int8(i)%int8(pow2[5]) == 0, divisible_int8_2to5(int8(i)); got != want {
++			t.Errorf("divisible_int8_2to5(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int8(i)%int8(pow2[6]) == 0, divisible_int8_2to6(int8(i)); got != want {
++			t.Errorf("divisible_int8_2to6(%d) = %v want %v", i, got, want)
++		}
++	}
++	// exhaustive test for int16
++	for i = math.MinInt16; i <= math.MaxInt16; i++ {
++		if want, got := int16(i)%int16(pow2[1]) == 0, divisible_int16_2to1(int16(i)); got != want {
++			t.Errorf("divisible_int16_2to1(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int16(i)%int16(pow2[2]) == 0, divisible_int16_2to2(int16(i)); got != want {
++			t.Errorf("divisible_int16_2to2(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int16(i)%int16(pow2[3]) == 0, divisible_int16_2to3(int16(i)); got != want {
++			t.Errorf("divisible_int16_2to3(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int16(i)%int16(pow2[4]) == 0, divisible_int16_2to4(int16(i)); got != want {
++			t.Errorf("divisible_int16_2to4(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int16(i)%int16(pow2[5]) == 0, divisible_int16_2to5(int16(i)); got != want {
++			t.Errorf("divisible_int16_2to5(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int16(i)%int16(pow2[6]) == 0, divisible_int16_2to6(int16(i)); got != want {
++			t.Errorf("divisible_int16_2to6(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int16(i)%int16(pow2[7]) == 0, divisible_int16_2to7(int16(i)); got != want {
++			t.Errorf("divisible_int16_2to7(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int16(i)%int16(pow2[8]) == 0, divisible_int16_2to8(int16(i)); got != want {
++			t.Errorf("divisible_int16_2to8(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int16(i)%int16(pow2[9]) == 0, divisible_int16_2to9(int16(i)); got != want {
++			t.Errorf("divisible_int16_2to9(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int16(i)%int16(pow2[10]) == 0, divisible_int16_2to10(int16(i)); got != want {
++			t.Errorf("divisible_int16_2to10(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int16(i)%int16(pow2[11]) == 0, divisible_int16_2to11(int16(i)); got != want {
++			t.Errorf("divisible_int16_2to11(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int16(i)%int16(pow2[12]) == 0, divisible_int16_2to12(int16(i)); got != want {
++			t.Errorf("divisible_int16_2to12(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int16(i)%int16(pow2[13]) == 0, divisible_int16_2to13(int16(i)); got != want {
++			t.Errorf("divisible_int16_2to13(%d) = %v want %v", i, got, want)
++		}
++		if want, got := int16(i)%int16(pow2[14]) == 0, divisible_int16_2to14(int16(i)); got != want {
++			t.Errorf("divisible_int16_2to14(%d) = %v want %v", i, got, want)
++		}
++	}
++	// spot check for int32 and int64
++	var (
++		two4  int64 = 1 << 4
++		two15 int64 = 1 << 15
++		two26 int64 = 1 << 26
++		two34 int64 = 1 << 34
++		two48 int64 = 1 << 48
++		two57 int64 = 1 << 57
++	)
++	var xs = []int64{two4, two4 + 3, -3 * two4, -3*two4 + 1,
++		two15, two15 + 3, -3 * two15, -3*two15 + 1,
++		two26, two26 + 37, -5 * two26, -5*two26 + 2,
++		two34, two34 + 356, -7 * two34, -7*two34 + 13,
++		two48, two48 + 3000, -12 * two48, -12*two48 + 1111,
++		two57, two57 + 397654, -15 * two57, -15*two57 + 11234,
++	}
++	for _, x := range xs {
++		if int64(int32(x)) == x {
++			if want, got := int32(x)%int32(two4) == 0, divisible_int32_2to4(int32(x)); got != want {
++				t.Errorf("divisible_int32_2to4(%d) = %v want %v", x, got, want)
++			}
++
++			if want, got := int32(x)%int32(two15) == 0, divisible_int32_2to15(int32(x)); got != want {
++				t.Errorf("divisible_int32_2to15(%d) = %v want %v", x, got, want)
++			}
++
++			if want, got := int32(x)%int32(two26) == 0, divisible_int32_2to26(int32(x)); got != want {
++				t.Errorf("divisible_int32_2to26(%d) = %v want %v", x, got, want)
++			}
++		}
++		// spot check for int64
++		if want, got := x%two4 == 0, divisible_int64_2to4(x); got != want {
++			t.Errorf("divisible_int64_2to4(%d) = %v want %v", x, got, want)
++		}
++
++		if want, got := x%two15 == 0, divisible_int64_2to15(x); got != want {
++			t.Errorf("divisible_int64_2to15(%d) = %v want %v", x, got, want)
++		}
++
++		if want, got := x%two26 == 0, divisible_int64_2to26(x); got != want {
++			t.Errorf("divisible_int64_2to26(%d) = %v want %v", x, got, want)
++		}
++
++		if want, got := x%two34 == 0, divisible_int64_2to34(x); got != want {
++			t.Errorf("divisible_int64_2to34(%d) = %v want %v", x, got, want)
++		}
++
++		if want, got := x%two48 == 0, divisible_int64_2to48(x); got != want {
++			t.Errorf("divisible_int64_2to48(%d) = %v want %v", x, got, want)
++		}
++
++		if want, got := x%two57 == 0, divisible_int64_2to57(x); got != want {
++			t.Errorf("divisible_int64_2to57(%d) = %v want %v", x, got, want)
++		}
++
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 510cec0f4b..27cb9b62d8 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1143,16 +1143,27 @@
+ (Mod32 <t> n (Const32 [c])) && c < 0 && c != -1<<31 -> (Mod32 <t> n (Const32 <t> [-c]))
+ (Mod64 <t> n (Const64 [c])) && c < 0 && c != -1<<63 -> (Mod64 <t> n (Const64 <t> [-c]))
+ 
++// Divisibility check for signed integers for power of two constant are simple mask.
++(Eq8 (Mod8 <t> n (Const8 [c])) (Const8 [0])) && n.Op != OpConst8 && isPowerOfTwo(c&0xff)
++  -> (Eq8 (And8 <t> n (Const8 <t> [(c&0xff)-1])) (Const8 <t> [0]))
++(Eq16 (Mod16 <t> n (Const16 [c])) (Const16 [0])) && n.Op != OpConst16 && isPowerOfTwo(c&0xffff)
++  -> (Eq16 (And16 <t> n (Const16 <t> [(c&0xffff)-1])) (Const16 <t> [0]))
++(Eq32 (Mod32 <t> n (Const32 [c])) (Const32 [0])) && n.Op != OpConst32 && isPowerOfTwo(c&0xffffffff)
++  -> (Eq32 (And32 <t> n (Const32 <t> [(c&0xffffffff)-1])) (Const32 <t> [0]))
++(Eq64 (Mod64 <t> n (Const64 [c])) (Const64 [0])) && n.Op != OpConst64 && isPowerOfTwo(c)
++  -> (Eq64 (And64 <t> n (Const64 <t> [c-1])) (Const64 <t> [0]))
++
++
+ // All other mods by constants, do A%B = A-(A/B*B).
+ // This implements % with two * and a bunch of ancillary ops.
+ // One of the * is free if the user's code also computes A/B.
+-(Mod8   <t> x (Const8  [c])) && x.Op != OpConst8  && (c > 0 || c == -1<<7)
++(Mod8   <t> x (Const8  [c])) && x.Op != OpConst8  && (c > 0 || c == -1<<7) && v.Block.Func.pass.name != "opt"
+   -> (Sub8  x (Mul8  <t> (Div8   <t> x (Const8  <t> [c])) (Const8  <t> [c])))
+-(Mod16  <t> x (Const16 [c])) && x.Op != OpConst16 && (c > 0 || c == -1<<15)
++(Mod16  <t> x (Const16 [c])) && x.Op != OpConst16 && (c > 0 || c == -1<<15) && v.Block.Func.pass.name != "opt"
+   -> (Sub16 x (Mul16 <t> (Div16  <t> x (Const16 <t> [c])) (Const16 <t> [c])))
+-(Mod32  <t> x (Const32 [c])) && x.Op != OpConst32 && (c > 0 || c == -1<<31)
++(Mod32  <t> x (Const32 [c])) && x.Op != OpConst32 && (c > 0 || c == -1<<31) && v.Block.Func.pass.name != "opt"
+   -> (Sub32 x (Mul32 <t> (Div32  <t> x (Const32 <t> [c])) (Const32 <t> [c])))
+-(Mod64  <t> x (Const64 [c])) && x.Op != OpConst64 && (c > 0 || c == -1<<63)
++(Mod64  <t> x (Const64 [c])) && x.Op != OpConst64 && (c > 0 || c == -1<<63) && v.Block.Func.pass.name != "opt"
+   -> (Sub64 x (Mul64 <t> (Div64  <t> x (Const64 <t> [c])) (Const64 <t> [c])))
+ (Mod8u  <t> x (Const8  [c])) && x.Op != OpConst8  && c > 0 && umagicOK(8 ,c)
+   -> (Sub8  x (Mul8  <t> (Div8u  <t> x (Const8  <t> [c])) (Const8  <t> [c])))
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index fe2fbb82c0..fd77e6b391 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -98,17 +98,17 @@ func rewriteValuegeneric(v *Value) bool {
+ 	case OpDiv8u:
+ 		return rewriteValuegeneric_OpDiv8u_0(v)
+ 	case OpEq16:
+-		return rewriteValuegeneric_OpEq16_0(v)
++		return rewriteValuegeneric_OpEq16_0(v) || rewriteValuegeneric_OpEq16_10(v)
+ 	case OpEq32:
+-		return rewriteValuegeneric_OpEq32_0(v)
++		return rewriteValuegeneric_OpEq32_0(v) || rewriteValuegeneric_OpEq32_10(v)
+ 	case OpEq32F:
+ 		return rewriteValuegeneric_OpEq32F_0(v)
+ 	case OpEq64:
+-		return rewriteValuegeneric_OpEq64_0(v)
++		return rewriteValuegeneric_OpEq64_0(v) || rewriteValuegeneric_OpEq64_10(v)
+ 	case OpEq64F:
+ 		return rewriteValuegeneric_OpEq64F_0(v)
+ 	case OpEq8:
+-		return rewriteValuegeneric_OpEq8_0(v)
++		return rewriteValuegeneric_OpEq8_0(v) || rewriteValuegeneric_OpEq8_10(v)
+ 	case OpEqB:
+ 		return rewriteValuegeneric_OpEqB_0(v)
+ 	case OpEqInter:
+@@ -8951,6 +8951,84 @@ func rewriteValuegeneric_OpEq16_0(v *Value) bool {
+ 		v.AuxInt = b2i(c == d)
+ 		return true
+ 	}
++	// match: (Eq16 (Mod16 <t> n (Const16 [c])) (Const16 [0]))
++	// cond: n.Op != OpConst16 && isPowerOfTwo(c&0xffff)
++	// result: (Eq16 (And16 <t> n (Const16 <t> [(c&0xffff)-1])) (Const16 <t> [0]))
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpMod16 {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		n := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst16 {
++			break
++		}
++		c := v_0_1.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst16 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(n.Op != OpConst16 && isPowerOfTwo(c&0xffff)) {
++			break
++		}
++		v.reset(OpEq16)
++		v0 := b.NewValue0(v.Pos, OpAnd16, t)
++		v0.AddArg(n)
++		v1 := b.NewValue0(v.Pos, OpConst16, t)
++		v1.AuxInt = (c & 0xffff) - 1
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Pos, OpConst16, t)
++		v2.AuxInt = 0
++		v.AddArg(v2)
++		return true
++	}
++	// match: (Eq16 (Const16 [0]) (Mod16 <t> n (Const16 [c])))
++	// cond: n.Op != OpConst16 && isPowerOfTwo(c&0xffff)
++	// result: (Eq16 (And16 <t> n (Const16 <t> [(c&0xffff)-1])) (Const16 <t> [0]))
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst16 {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpMod16 {
++			break
++		}
++		t := v_1.Type
++		_ = v_1.Args[1]
++		n := v_1.Args[0]
++		v_1_1 := v_1.Args[1]
++		if v_1_1.Op != OpConst16 {
++			break
++		}
++		c := v_1_1.AuxInt
++		if !(n.Op != OpConst16 && isPowerOfTwo(c&0xffff)) {
++			break
++		}
++		v.reset(OpEq16)
++		v0 := b.NewValue0(v.Pos, OpAnd16, t)
++		v0.AddArg(n)
++		v1 := b.NewValue0(v.Pos, OpConst16, t)
++		v1.AuxInt = (c & 0xffff) - 1
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Pos, OpConst16, t)
++		v2.AuxInt = 0
++		v.AddArg(v2)
++		return true
++	}
+ 	// match: (Eq16 s:(Sub16 x y) (Const16 [0]))
+ 	// cond: s.Uses == 1
+ 	// result: (Eq16 x y)
+@@ -8977,6 +9055,9 @@ func rewriteValuegeneric_OpEq16_0(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValuegeneric_OpEq16_10(v *Value) bool {
+ 	// match: (Eq16 (Const16 [0]) s:(Sub16 x y))
+ 	// cond: s.Uses == 1
+ 	// result: (Eq16 x y)
+@@ -9183,6 +9264,84 @@ func rewriteValuegeneric_OpEq32_0(v *Value) bool {
+ 		v.AuxInt = b2i(c == d)
+ 		return true
+ 	}
++	// match: (Eq32 (Mod32 <t> n (Const32 [c])) (Const32 [0]))
++	// cond: n.Op != OpConst32 && isPowerOfTwo(c&0xffffffff)
++	// result: (Eq32 (And32 <t> n (Const32 <t> [(c&0xffffffff)-1])) (Const32 <t> [0]))
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpMod32 {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		n := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst32 {
++			break
++		}
++		c := v_0_1.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(n.Op != OpConst32 && isPowerOfTwo(c&0xffffffff)) {
++			break
++		}
++		v.reset(OpEq32)
++		v0 := b.NewValue0(v.Pos, OpAnd32, t)
++		v0.AddArg(n)
++		v1 := b.NewValue0(v.Pos, OpConst32, t)
++		v1.AuxInt = (c & 0xffffffff) - 1
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Pos, OpConst32, t)
++		v2.AuxInt = 0
++		v.AddArg(v2)
++		return true
++	}
++	// match: (Eq32 (Const32 [0]) (Mod32 <t> n (Const32 [c])))
++	// cond: n.Op != OpConst32 && isPowerOfTwo(c&0xffffffff)
++	// result: (Eq32 (And32 <t> n (Const32 <t> [(c&0xffffffff)-1])) (Const32 <t> [0]))
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst32 {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpMod32 {
++			break
++		}
++		t := v_1.Type
++		_ = v_1.Args[1]
++		n := v_1.Args[0]
++		v_1_1 := v_1.Args[1]
++		if v_1_1.Op != OpConst32 {
++			break
++		}
++		c := v_1_1.AuxInt
++		if !(n.Op != OpConst32 && isPowerOfTwo(c&0xffffffff)) {
++			break
++		}
++		v.reset(OpEq32)
++		v0 := b.NewValue0(v.Pos, OpAnd32, t)
++		v0.AddArg(n)
++		v1 := b.NewValue0(v.Pos, OpConst32, t)
++		v1.AuxInt = (c & 0xffffffff) - 1
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Pos, OpConst32, t)
++		v2.AuxInt = 0
++		v.AddArg(v2)
++		return true
++	}
+ 	// match: (Eq32 s:(Sub32 x y) (Const32 [0]))
+ 	// cond: s.Uses == 1
+ 	// result: (Eq32 x y)
+@@ -9209,6 +9368,9 @@ func rewriteValuegeneric_OpEq32_0(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValuegeneric_OpEq32_10(v *Value) bool {
+ 	// match: (Eq32 (Const32 [0]) s:(Sub32 x y))
+ 	// cond: s.Uses == 1
+ 	// result: (Eq32 x y)
+@@ -9456,6 +9618,84 @@ func rewriteValuegeneric_OpEq64_0(v *Value) bool {
+ 		v.AuxInt = b2i(c == d)
+ 		return true
+ 	}
++	// match: (Eq64 (Mod64 <t> n (Const64 [c])) (Const64 [0]))
++	// cond: n.Op != OpConst64 && isPowerOfTwo(c)
++	// result: (Eq64 (And64 <t> n (Const64 <t> [c-1])) (Const64 <t> [0]))
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpMod64 {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		n := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst64 {
++			break
++		}
++		c := v_0_1.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(n.Op != OpConst64 && isPowerOfTwo(c)) {
++			break
++		}
++		v.reset(OpEq64)
++		v0 := b.NewValue0(v.Pos, OpAnd64, t)
++		v0.AddArg(n)
++		v1 := b.NewValue0(v.Pos, OpConst64, t)
++		v1.AuxInt = c - 1
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
++		v2.AuxInt = 0
++		v.AddArg(v2)
++		return true
++	}
++	// match: (Eq64 (Const64 [0]) (Mod64 <t> n (Const64 [c])))
++	// cond: n.Op != OpConst64 && isPowerOfTwo(c)
++	// result: (Eq64 (And64 <t> n (Const64 <t> [c-1])) (Const64 <t> [0]))
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64 {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpMod64 {
++			break
++		}
++		t := v_1.Type
++		_ = v_1.Args[1]
++		n := v_1.Args[0]
++		v_1_1 := v_1.Args[1]
++		if v_1_1.Op != OpConst64 {
++			break
++		}
++		c := v_1_1.AuxInt
++		if !(n.Op != OpConst64 && isPowerOfTwo(c)) {
++			break
++		}
++		v.reset(OpEq64)
++		v0 := b.NewValue0(v.Pos, OpAnd64, t)
++		v0.AddArg(n)
++		v1 := b.NewValue0(v.Pos, OpConst64, t)
++		v1.AuxInt = c - 1
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
++		v2.AuxInt = 0
++		v.AddArg(v2)
++		return true
++	}
+ 	// match: (Eq64 s:(Sub64 x y) (Const64 [0]))
+ 	// cond: s.Uses == 1
+ 	// result: (Eq64 x y)
+@@ -9482,6 +9722,9 @@ func rewriteValuegeneric_OpEq64_0(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValuegeneric_OpEq64_10(v *Value) bool {
+ 	// match: (Eq64 (Const64 [0]) s:(Sub64 x y))
+ 	// cond: s.Uses == 1
+ 	// result: (Eq64 x y)
+@@ -9729,6 +9972,84 @@ func rewriteValuegeneric_OpEq8_0(v *Value) bool {
+ 		v.AuxInt = b2i(c == d)
+ 		return true
+ 	}
++	// match: (Eq8 (Mod8 <t> n (Const8 [c])) (Const8 [0]))
++	// cond: n.Op != OpConst8 && isPowerOfTwo(c&0xff)
++	// result: (Eq8 (And8 <t> n (Const8 <t> [(c&0xff)-1])) (Const8 <t> [0]))
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpMod8 {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		n := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst8 {
++			break
++		}
++		c := v_0_1.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst8 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(n.Op != OpConst8 && isPowerOfTwo(c&0xff)) {
++			break
++		}
++		v.reset(OpEq8)
++		v0 := b.NewValue0(v.Pos, OpAnd8, t)
++		v0.AddArg(n)
++		v1 := b.NewValue0(v.Pos, OpConst8, t)
++		v1.AuxInt = (c & 0xff) - 1
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Pos, OpConst8, t)
++		v2.AuxInt = 0
++		v.AddArg(v2)
++		return true
++	}
++	// match: (Eq8 (Const8 [0]) (Mod8 <t> n (Const8 [c])))
++	// cond: n.Op != OpConst8 && isPowerOfTwo(c&0xff)
++	// result: (Eq8 (And8 <t> n (Const8 <t> [(c&0xff)-1])) (Const8 <t> [0]))
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst8 {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpMod8 {
++			break
++		}
++		t := v_1.Type
++		_ = v_1.Args[1]
++		n := v_1.Args[0]
++		v_1_1 := v_1.Args[1]
++		if v_1_1.Op != OpConst8 {
++			break
++		}
++		c := v_1_1.AuxInt
++		if !(n.Op != OpConst8 && isPowerOfTwo(c&0xff)) {
++			break
++		}
++		v.reset(OpEq8)
++		v0 := b.NewValue0(v.Pos, OpAnd8, t)
++		v0.AddArg(n)
++		v1 := b.NewValue0(v.Pos, OpConst8, t)
++		v1.AuxInt = (c & 0xff) - 1
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Pos, OpConst8, t)
++		v2.AuxInt = 0
++		v.AddArg(v2)
++		return true
++	}
+ 	// match: (Eq8 s:(Sub8 x y) (Const8 [0]))
+ 	// cond: s.Uses == 1
+ 	// result: (Eq8 x y)
+@@ -9755,6 +10076,9 @@ func rewriteValuegeneric_OpEq8_0(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValuegeneric_OpEq8_10(v *Value) bool {
+ 	// match: (Eq8 (Const8 [0]) s:(Sub8 x y))
+ 	// cond: s.Uses == 1
+ 	// result: (Eq8 x y)
+@@ -14908,7 +15232,7 @@ func rewriteValuegeneric_OpMod16_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Mod16 <t> x (Const16 [c]))
+-	// cond: x.Op != OpConst16 && (c > 0 || c == -1<<15)
++	// cond: x.Op != OpConst16 && (c > 0 || c == -1<<15) && v.Block.Func.pass.name != "opt"
+ 	// result: (Sub16 x (Mul16 <t> (Div16 <t> x (Const16 <t> [c])) (Const16 <t> [c])))
+ 	for {
+ 		t := v.Type
+@@ -14919,7 +15243,7 @@ func rewriteValuegeneric_OpMod16_0(v *Value) bool {
+ 			break
+ 		}
+ 		c := v_1.AuxInt
+-		if !(x.Op != OpConst16 && (c > 0 || c == -1<<15)) {
++		if !(x.Op != OpConst16 && (c > 0 || c == -1<<15) && v.Block.Func.pass.name != "opt") {
+ 			break
+ 		}
+ 		v.reset(OpSub16)
+@@ -15087,7 +15411,7 @@ func rewriteValuegeneric_OpMod32_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Mod32 <t> x (Const32 [c]))
+-	// cond: x.Op != OpConst32 && (c > 0 || c == -1<<31)
++	// cond: x.Op != OpConst32 && (c > 0 || c == -1<<31) && v.Block.Func.pass.name != "opt"
+ 	// result: (Sub32 x (Mul32 <t> (Div32 <t> x (Const32 <t> [c])) (Const32 <t> [c])))
+ 	for {
+ 		t := v.Type
+@@ -15098,7 +15422,7 @@ func rewriteValuegeneric_OpMod32_0(v *Value) bool {
+ 			break
+ 		}
+ 		c := v_1.AuxInt
+-		if !(x.Op != OpConst32 && (c > 0 || c == -1<<31)) {
++		if !(x.Op != OpConst32 && (c > 0 || c == -1<<31) && v.Block.Func.pass.name != "opt") {
+ 			break
+ 		}
+ 		v.reset(OpSub32)
+@@ -15287,7 +15611,7 @@ func rewriteValuegeneric_OpMod64_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Mod64 <t> x (Const64 [c]))
+-	// cond: x.Op != OpConst64 && (c > 0 || c == -1<<63)
++	// cond: x.Op != OpConst64 && (c > 0 || c == -1<<63) && v.Block.Func.pass.name != "opt"
+ 	// result: (Sub64 x (Mul64 <t> (Div64 <t> x (Const64 <t> [c])) (Const64 <t> [c])))
+ 	for {
+ 		t := v.Type
+@@ -15298,7 +15622,7 @@ func rewriteValuegeneric_OpMod64_0(v *Value) bool {
+ 			break
+ 		}
+ 		c := v_1.AuxInt
+-		if !(x.Op != OpConst64 && (c > 0 || c == -1<<63)) {
++		if !(x.Op != OpConst64 && (c > 0 || c == -1<<63) && v.Block.Func.pass.name != "opt") {
+ 			break
+ 		}
+ 		v.reset(OpSub64)
+@@ -15487,7 +15811,7 @@ func rewriteValuegeneric_OpMod8_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Mod8 <t> x (Const8 [c]))
+-	// cond: x.Op != OpConst8 && (c > 0 || c == -1<<7)
++	// cond: x.Op != OpConst8 && (c > 0 || c == -1<<7) && v.Block.Func.pass.name != "opt"
+ 	// result: (Sub8 x (Mul8 <t> (Div8 <t> x (Const8 <t> [c])) (Const8 <t> [c])))
+ 	for {
+ 		t := v.Type
+@@ -15498,7 +15822,7 @@ func rewriteValuegeneric_OpMod8_0(v *Value) bool {
+ 			break
+ 		}
+ 		c := v_1.AuxInt
+-		if !(x.Op != OpConst8 && (c > 0 || c == -1<<7)) {
++		if !(x.Op != OpConst8 && (c > 0 || c == -1<<7) && v.Block.Func.pass.name != "opt") {
+ 			break
+ 		}
+ 		v.reset(OpSub8)
+diff --git a/src/cmd/compile/internal/test/divconst_test.go b/src/cmd/compile/internal/test/divconst_test.go
+index f585a5b51f..6b0bc4a6fb 100644
+--- a/src/cmd/compile/internal/test/divconst_test.go
++++ b/src/cmd/compile/internal/test/divconst_test.go
+@@ -8,6 +8,8 @@ import (
+ 	"testing"
+ )
+ 
++var boolres bool
++
+ var i64res int64
+ 
+ func BenchmarkDivconstI64(b *testing.B) {
+@@ -16,6 +18,12 @@ func BenchmarkDivconstI64(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkDivisiblePow2constI64(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		boolres = int64(i)%16 == 0
++	}
++}
++
+ var u64res uint64
+ 
+ func BenchmarkDivconstU64(b *testing.B) {
+@@ -32,6 +40,12 @@ func BenchmarkDivconstI32(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkDivisiblePow2constI32(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		boolres = int32(i)%16 == 0
++	}
++}
++
+ var u32res uint32
+ 
+ func BenchmarkDivconstU32(b *testing.B) {
+@@ -48,6 +62,12 @@ func BenchmarkDivconstI16(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkDivisiblePow2constI16(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		boolres = int16(i)%16 == 0
++	}
++}
++
+ var u16res uint16
+ 
+ func BenchmarkDivconstU16(b *testing.B) {
+@@ -64,6 +84,12 @@ func BenchmarkDivconstI8(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkDivisiblePow2constI8(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		boolres = int8(i)%16 == 0
++	}
++}
++
+ var u8res uint8
+ 
+ func BenchmarkDivconstU8(b *testing.B) {
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index b5976be9d2..535e3349fc 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -185,6 +185,17 @@ func Pow2Mods(n1 uint, n2 int) (uint, int) {
+ 	return a, b
+ }
+ 
++// Check that signed divisibility checks get converted to AND on low bits
++func Pow2DivisibleSigned(n int) bool {
++	// 386:"TESTL\t[$]63",-"DIVL"
++	// amd64:"TESTQ\t[$]63",-"DIVQ"
++	// arm:"AND\t[$]63",-".*udiv"
++	// arm64:"AND\t[$]63",-"UDIV"
++	// ppc64:"ANDCC\t[$]63"
++	// ppc64le:"ANDCC\t[$]63"
++	return n%64 == 0 // signed
++}
++
+ // Check that constant modulo divs get turned into MULs
+ func ConstMods(n1 uint, n2 int) (uint, int) {
+ 	// amd64:"MOVQ\t[$]-1085102592571150095","MULQ",-"DIVQ"

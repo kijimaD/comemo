@@ -16,7 +16,7 @@ Date:   Wed Aug 8 17:26:23 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/internal/cpu/cpu.go         | 11 ++++----
  src/internal/cpu/cpu_arm64.go   | 56 ++++++++++++++++++++---------------------
  src/internal/cpu/cpu_ppc64x.go  | 30 +++++++++++-----------
@@ -25,3 +25,284 @@ Date:   Wed Aug 8 17:26:23 2018 -0700
  src/runtime/os_linux_ppc64x.go  | 19 +++++---------
  src/runtime/proc.go             | 12 +++------
  7 files changed, 65 insertions(+), 85 deletions(-)
+
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 701584dd3d..f2dfadbff8 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -6,9 +6,10 @@
+ // used by the Go standard library.
+ package cpu
+ 
+-// debugOptions is set to true by the runtime if go was compiled with GOEXPERIMENT=debugcpu
+-// and GOOS is Linux or Darwin. This variable is linknamed in runtime/proc.go.
+-var debugOptions bool
++// DebugOptions is set to true by the runtime if go was compiled with GOEXPERIMENT=debugcpu
++// and GOOS is Linux or Darwin.
++// This should not be changed after it is initialized.
++var DebugOptions bool
+ 
+ // CacheLinePad is used to pad structs to avoid false sharing.
+ type CacheLinePad struct{ _ [CacheLineSize]byte }
+@@ -121,11 +122,11 @@ type s390x struct {
+ 	_               CacheLinePad
+ }
+ 
+-// initialize examines the processor and sets the relevant variables above.
++// Initialize examines the processor and sets the relevant variables above.
+ // This is called by the runtime package early in program initialization,
+ // before normal init functions are run. env is set by runtime on Linux and Darwin
+ // if go was compiled with GOEXPERIMENT=debugcpu.
+-func initialize(env string) {
++func Initialize(env string) {
+ 	doinit()
+ 	processOptions(env)
+ }
+diff --git a/src/internal/cpu/cpu_arm64.go b/src/internal/cpu/cpu_arm64.go
+index 48607575ba..77b617e49f 100644
+--- a/src/internal/cpu/cpu_arm64.go
++++ b/src/internal/cpu/cpu_arm64.go
+@@ -7,10 +7,10 @@ package cpu
+ const CacheLineSize = 64
+ 
+ // arm64 doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
+-// These are linknamed in runtime/os_linux_arm64.go and are initialized by
+-// archauxv().
+-var hwcap uint
+-var hwcap2 uint
++// These are initialized by archauxv in runtime/os_linux_arm64.go.
++// These should not be changed after they are initialized.
++var HWCap uint
++var HWCap2 uint
+ 
+ // HWCAP/HWCAP2 bits. These are exposed by Linux.
+ const (
+@@ -71,30 +71,30 @@ func doinit() {
+ 	}
+ 
+ 	// HWCAP feature bits
+-	ARM64.HasFP = isSet(hwcap, hwcap_FP)
+-	ARM64.HasASIMD = isSet(hwcap, hwcap_ASIMD)
+-	ARM64.HasEVTSTRM = isSet(hwcap, hwcap_EVTSTRM)
+-	ARM64.HasAES = isSet(hwcap, hwcap_AES)
+-	ARM64.HasPMULL = isSet(hwcap, hwcap_PMULL)
+-	ARM64.HasSHA1 = isSet(hwcap, hwcap_SHA1)
+-	ARM64.HasSHA2 = isSet(hwcap, hwcap_SHA2)
+-	ARM64.HasCRC32 = isSet(hwcap, hwcap_CRC32)
+-	ARM64.HasATOMICS = isSet(hwcap, hwcap_ATOMICS)
+-	ARM64.HasFPHP = isSet(hwcap, hwcap_FPHP)
+-	ARM64.HasASIMDHP = isSet(hwcap, hwcap_ASIMDHP)
+-	ARM64.HasCPUID = isSet(hwcap, hwcap_CPUID)
+-	ARM64.HasASIMDRDM = isSet(hwcap, hwcap_ASIMDRDM)
+-	ARM64.HasJSCVT = isSet(hwcap, hwcap_JSCVT)
+-	ARM64.HasFCMA = isSet(hwcap, hwcap_FCMA)
+-	ARM64.HasLRCPC = isSet(hwcap, hwcap_LRCPC)
+-	ARM64.HasDCPOP = isSet(hwcap, hwcap_DCPOP)
+-	ARM64.HasSHA3 = isSet(hwcap, hwcap_SHA3)
+-	ARM64.HasSM3 = isSet(hwcap, hwcap_SM3)
+-	ARM64.HasSM4 = isSet(hwcap, hwcap_SM4)
+-	ARM64.HasASIMDDP = isSet(hwcap, hwcap_ASIMDDP)
+-	ARM64.HasSHA512 = isSet(hwcap, hwcap_SHA512)
+-	ARM64.HasSVE = isSet(hwcap, hwcap_SVE)
+-	ARM64.HasASIMDFHM = isSet(hwcap, hwcap_ASIMDFHM)
++	ARM64.HasFP = isSet(HWCap, hwcap_FP)
++	ARM64.HasASIMD = isSet(HWCap, hwcap_ASIMD)
++	ARM64.HasEVTSTRM = isSet(HWCap, hwcap_EVTSTRM)
++	ARM64.HasAES = isSet(HWCap, hwcap_AES)
++	ARM64.HasPMULL = isSet(HWCap, hwcap_PMULL)
++	ARM64.HasSHA1 = isSet(HWCap, hwcap_SHA1)
++	ARM64.HasSHA2 = isSet(HWCap, hwcap_SHA2)
++	ARM64.HasCRC32 = isSet(HWCap, hwcap_CRC32)
++	ARM64.HasATOMICS = isSet(HWCap, hwcap_ATOMICS)
++	ARM64.HasFPHP = isSet(HWCap, hwcap_FPHP)
++	ARM64.HasASIMDHP = isSet(HWCap, hwcap_ASIMDHP)
++	ARM64.HasCPUID = isSet(HWCap, hwcap_CPUID)
++	ARM64.HasASIMDRDM = isSet(HWCap, hwcap_ASIMDRDM)
++	ARM64.HasJSCVT = isSet(HWCap, hwcap_JSCVT)
++	ARM64.HasFCMA = isSet(HWCap, hwcap_FCMA)
++	ARM64.HasLRCPC = isSet(HWCap, hwcap_LRCPC)
++	ARM64.HasDCPOP = isSet(HWCap, hwcap_DCPOP)
++	ARM64.HasSHA3 = isSet(HWCap, hwcap_SHA3)
++	ARM64.HasSM3 = isSet(HWCap, hwcap_SM3)
++	ARM64.HasSM4 = isSet(HWCap, hwcap_SM4)
++	ARM64.HasASIMDDP = isSet(HWCap, hwcap_ASIMDDP)
++	ARM64.HasSHA512 = isSet(HWCap, hwcap_SHA512)
++	ARM64.HasSVE = isSet(HWCap, hwcap_SVE)
++	ARM64.HasASIMDFHM = isSet(HWCap, hwcap_ASIMDFHM)
+ }
+ 
+ func isSet(hwc uint, value uint) bool {
+diff --git a/src/internal/cpu/cpu_ppc64x.go b/src/internal/cpu/cpu_ppc64x.go
+index 995cf02081..d3f02efa7f 100644
+--- a/src/internal/cpu/cpu_ppc64x.go
++++ b/src/internal/cpu/cpu_ppc64x.go
+@@ -9,10 +9,10 @@ package cpu
+ const CacheLineSize = 128
+ 
+ // ppc64x doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
+-// These are linknamed in runtime/os_linux_ppc64x.go and are initialized by
+-// archauxv().
+-var hwcap uint
+-var hwcap2 uint
++// These are initialized by archauxv in runtime/os_linux_ppc64x.go.
++// These should not be changed after they are initialized.
++var HWCap uint
++var HWCap2 uint
+ 
+ // HWCAP/HWCAP2 bits. These are exposed by the kernel.
+ const (
+@@ -48,19 +48,19 @@ func doinit() {
+ 	}
+ 
+ 	// HWCAP feature bits
+-	PPC64.HasVMX = isSet(hwcap, _PPC_FEATURE_HAS_ALTIVEC)
+-	PPC64.HasDFP = isSet(hwcap, _PPC_FEATURE_HAS_DFP)
+-	PPC64.HasVSX = isSet(hwcap, _PPC_FEATURE_HAS_VSX)
++	PPC64.HasVMX = isSet(HWCap, _PPC_FEATURE_HAS_ALTIVEC)
++	PPC64.HasDFP = isSet(HWCap, _PPC_FEATURE_HAS_DFP)
++	PPC64.HasVSX = isSet(HWCap, _PPC_FEATURE_HAS_VSX)
+ 
+ 	// HWCAP2 feature bits
+-	PPC64.IsPOWER8 = isSet(hwcap2, _PPC_FEATURE2_ARCH_2_07)
+-	PPC64.HasHTM = isSet(hwcap2, _PPC_FEATURE2_HAS_HTM)
+-	PPC64.HasISEL = isSet(hwcap2, _PPC_FEATURE2_HAS_ISEL)
+-	PPC64.HasVCRYPTO = isSet(hwcap2, _PPC_FEATURE2_HAS_VEC_CRYPTO)
+-	PPC64.HasHTMNOSC = isSet(hwcap2, _PPC_FEATURE2_HTM_NOSC)
+-	PPC64.IsPOWER9 = isSet(hwcap2, _PPC_FEATURE2_ARCH_3_00)
+-	PPC64.HasDARN = isSet(hwcap2, _PPC_FEATURE2_DARN)
+-	PPC64.HasSCV = isSet(hwcap2, _PPC_FEATURE2_SCV)
++	PPC64.IsPOWER8 = isSet(HWCap2, _PPC_FEATURE2_ARCH_2_07)
++	PPC64.HasHTM = isSet(HWCap2, _PPC_FEATURE2_HAS_HTM)
++	PPC64.HasISEL = isSet(HWCap2, _PPC_FEATURE2_HAS_ISEL)
++	PPC64.HasVCRYPTO = isSet(HWCap2, _PPC_FEATURE2_HAS_VEC_CRYPTO)
++	PPC64.HasHTMNOSC = isSet(HWCap2, _PPC_FEATURE2_HTM_NOSC)
++	PPC64.IsPOWER9 = isSet(HWCap2, _PPC_FEATURE2_ARCH_3_00)
++	PPC64.HasDARN = isSet(HWCap2, _PPC_FEATURE2_DARN)
++	PPC64.HasSCV = isSet(HWCap2, _PPC_FEATURE2_SCV)
+ }
+ 
+ func isSet(hwc uint, value uint) bool {
+diff --git a/src/internal/cpu/export_test.go b/src/internal/cpu/export_test.go
+index 4e53c5a084..91bfc1bbc3 100644
+--- a/src/internal/cpu/export_test.go
++++ b/src/internal/cpu/export_test.go
+@@ -5,6 +5,5 @@
+ package cpu
+ 
+ var (
+-	Options      = options
+-	DebugOptions = debugOptions
++	Options = options
+ )
+diff --git a/src/runtime/os_linux_arm64.go b/src/runtime/os_linux_arm64.go
+index 28a0319f10..cbe528b4af 100644
+--- a/src/runtime/os_linux_arm64.go
++++ b/src/runtime/os_linux_arm64.go
+@@ -6,20 +6,10 @@
+ 
+ package runtime
+ 
+-// For go:linkname
+-import _ "unsafe"
++import "internal/cpu"
+ 
+ var randomNumber uint32
+ 
+-// arm64 doesn't have a 'cpuid' instruction equivalent and relies on
+-// HWCAP/HWCAP2 bits for hardware capabilities.
+-
+-//go:linkname cpu_hwcap internal/cpu.hwcap
+-var cpu_hwcap uint
+-
+-//go:linkname cpu_hwcap2 internal/cpu.hwcap2
+-var cpu_hwcap2 uint
+-
+ func archauxv(tag, val uintptr) {
+ 	switch tag {
+ 	case _AT_RANDOM:
+@@ -28,10 +18,13 @@ func archauxv(tag, val uintptr) {
+ 		// it as a byte array.
+ 		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
+ 			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
++
+ 	case _AT_HWCAP:
+-		cpu_hwcap = uint(val)
++		// arm64 doesn't have a 'cpuid' instruction equivalent and relies on
++		// HWCAP/HWCAP2 bits for hardware capabilities.
++		cpu.HWCap = uint(val)
+ 	case _AT_HWCAP2:
+-		cpu_hwcap2 = uint(val)
++		cpu.HWCap2 = uint(val)
+ 	}
+ }
+ 
+diff --git a/src/runtime/os_linux_ppc64x.go b/src/runtime/os_linux_ppc64x.go
+index 2c67864a96..cc79cc4a66 100644
+--- a/src/runtime/os_linux_ppc64x.go
++++ b/src/runtime/os_linux_ppc64x.go
+@@ -7,23 +7,16 @@
+ 
+ package runtime
+ 
+-// For go:linkname
+-import _ "unsafe"
+-
+-// ppc64x doesn't have a 'cpuid' instruction equivalent and relies on
+-// HWCAP/HWCAP2 bits for hardware capabilities.
+-
+-//go:linkname cpu_hwcap internal/cpu.hwcap
+-var cpu_hwcap uint
+-
+-//go:linkname cpu_hwcap2 internal/cpu.hwcap2
+-var cpu_hwcap2 uint
++import "internal/cpu"
+ 
+ func archauxv(tag, val uintptr) {
+ 	switch tag {
+ 	case _AT_HWCAP:
+-		cpu_hwcap = uint(val)
++		// ppc64x doesn't have a 'cpuid' instruction
++		// equivalent and relies on HWCAP/HWCAP2 bits for
++		// hardware capabilities.
++		cpu.HWCap = uint(val)
+ 	case _AT_HWCAP2:
+-		cpu_hwcap2 = uint(val)
++		cpu.HWCap2 = uint(val)
+ 	}
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 7875b38e2e..31b188efd9 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -477,20 +477,14 @@ const (
+ 	_GoidCacheBatch = 16
+ )
+ 
+-//go:linkname internal_cpu_initialize internal/cpu.initialize
+-func internal_cpu_initialize(env string)
+-
+-//go:linkname internal_cpu_debugOptions internal/cpu.debugOptions
+-var internal_cpu_debugOptions bool
+-
+ // cpuinit extracts the environment variable GODEBUGCPU from the environment on
+-// Linux and Darwin if the GOEXPERIMENT debugcpu was set and calls internal/cpu.initialize.
++// Linux and Darwin if the GOEXPERIMENT debugcpu was set and calls internal/cpu.Initialize.
+ func cpuinit() {
+ 	const prefix = "GODEBUGCPU="
+ 	var env string
+ 
+ 	if haveexperiment("debugcpu") && (GOOS == "linux" || GOOS == "darwin") {
+-		internal_cpu_debugOptions = true
++		cpu.DebugOptions = true
+ 
+ 		// Similar to goenv_unix but extracts the environment value for
+ 		// GODEBUGCPU directly.
+@@ -511,7 +505,7 @@ func cpuinit() {
+ 		}
+ 	}
+ 
+-	internal_cpu_initialize(env)
++	cpu.Initialize(env)
+ 
+ 	support_erms = cpu.X86.HasERMS
+ 	support_popcnt = cpu.X86.HasPOPCNT

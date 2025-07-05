@@ -17,7 +17,51 @@ Date:   Tue May 10 21:28:30 2016 -0700
     Run-TryBot: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/go/build/build.go      |  6 +++++-
  src/go/build/build_test.go | 11 +++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index fa258d3dc6..0818aa0501 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -403,7 +403,11 @@ func (p *Package) IsCommand() bool {
+ // ImportDir is like Import but processes the Go package found in
+ // the named directory.
+ func (ctxt *Context) ImportDir(dir string, mode ImportMode) (*Package, error) {
+-	return ctxt.Import(".", dir, mode)
++	p, err := ctxt.Import(".", dir, mode)
++	if err == nil && !ctxt.isDir(p.Dir) {
++		err = fmt.Errorf("%q is not a directory", p.Dir)
++	}
++	return p, err
+ }
+ 
+ // NoGoError is the error used by Import to describe a directory
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index c9f906a7da..6bade1d318 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -5,6 +5,7 @@
+ package build
+ 
+ import (
++	"fmt"
+ 	"internal/testenv"
+ 	"io"
+ 	"os"
+@@ -345,3 +346,13 @@ func TestImportVendorParentFailure(t *testing.T) {
+ 		t.Fatalf("error on failed import does not mention GOROOT/src/vendor directory:\n%s", e)
+ 	}
+ }
++
++// Issue 3248
++func TestBogusDirectory(t *testing.T) {
++	const dir = "/foo/bar/baz/gopher"
++	_, err := ImportDir(dir, FindOnly)
++	want := fmt.Sprintf("%q is not a directory", filepath.FromSlash(dir))
++	if err == nil || err.Error() != want {
++		t.Errorf("got error %q, want %q", err, want)
++	}
++}

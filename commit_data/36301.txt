@@ -17,7 +17,71 @@ Date:   Tue Apr 17 16:28:13 2018 -0400
     Change-Id: Iba9f92898681625e7e3ddef76ae65d7cd61c41e0
     Reviewed-on: https://go-review.googlesource.com/107597
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go |  8 +++++---
  test/escape5.go                    | 34 ++++++++++++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 64ac29e764..dee315d6f0 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1405,11 +1405,13 @@ func (e *EscState) addDereference(n *Node) *Node {
+ 	e.nodeEscState(ind).Loopdepth = e.nodeEscState(n).Loopdepth
+ 	ind.Pos = n.Pos
+ 	t := n.Type
+-	if t.IsKind(types.Tptr) {
++	if t.IsKind(types.Tptr) || t.IsSlice() {
+ 		// This should model our own sloppy use of OIND to encode
+-		// decreasing levels of indirection; i.e., "indirecting" an array
+-		// might yield the type of an element. To be enhanced...
++		// decreasing levels of indirection; i.e., "indirecting" a slice
++		// yields the type of an element.
+ 		t = t.Elem()
++	} else if t.IsString() {
++		t = types.Types[TUINT8]
+ 	}
+ 	ind.Type = t
+ 	return ind
+diff --git a/test/escape5.go b/test/escape5.go
+index d02f735f8f..03283a37f8 100644
+--- a/test/escape5.go
++++ b/test/escape5.go
+@@ -194,3 +194,37 @@ func (t *T24730) g() { // ERROR "t does not escape"
+ 		*z = 2
+ 	}
+ }
++
++// Issue 15730: copy causes unnecessary escape
++
++var sink []byte
++var sink2 []int
++var sink3 []*int
++
++func f15730a(args ...interface{}) { // ERROR "args does not escape"
++	for _, arg := range args {
++		switch a := arg.(type) {
++		case string:
++			copy(sink, a)
++		}
++	}
++}
++
++func f15730b(args ...interface{}) { // ERROR "args does not escape"
++	for _, arg := range args {
++		switch a := arg.(type) {
++		case []int:
++			copy(sink2, a)
++		}
++	}
++}
++
++func f15730c(args ...interface{}) { // ERROR "leaking param content: args"
++	for _, arg := range args {
++		switch a := arg.(type) {
++		case []*int:
++			// copy pointerful data should cause escape
++			copy(sink3, a)
++		}
++	}
++}

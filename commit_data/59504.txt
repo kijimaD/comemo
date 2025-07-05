@@ -27,8 +27,98 @@ Date:   Tue Mar 12 15:00:08 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  .../go/testdata/script/test_ppc64_linker_funcs.txt    |  4 ++++
  src/cmd/internal/obj/ppc64/obj9.go                    | 19 ++++++++++++++++++-
  src/cmd/link/internal/ppc64/asm.go                    | 17 +----------------
  3 files changed, 23 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_ppc64_linker_funcs.txt b/src/cmd/go/testdata/script/test_ppc64_linker_funcs.txt
+index 735b5dcc7f..d789f89f4e 100644
+--- a/src/cmd/go/testdata/script/test_ppc64_linker_funcs.txt
++++ b/src/cmd/go/testdata/script/test_ppc64_linker_funcs.txt
+@@ -14,6 +14,10 @@ go build -ldflags='-linkmode=internal'
+ exec ./abitest
+ stdout success
+ 
++go build -buildmode=pie -o abitest.pie -ldflags='-linkmode=internal'
++exec ./abitest.pie
++stdout success
++
+ -- go.mod --
+ module abitest
+ 
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index ab7e0f6a77..5b7612429e 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -38,6 +38,7 @@ import (
+ 	"internal/buildcfg"
+ 	"log"
+ 	"math/bits"
++	"strings"
+ )
+ 
+ // Test if this value can encoded as a mask for
+@@ -73,6 +74,22 @@ func encodePPC64RLDCMask(mask int64) (mb, me int) {
+ 	return mb, me - 1
+ }
+ 
++// Is this a symbol which should never have a TOC prologue generated?
++// These are special functions which should not have a TOC regeneration
++// prologue.
++func isNOTOCfunc(name string) bool {
++	switch {
++	case name == "runtime.duffzero":
++		return true
++	case name == "runtime.duffcopy":
++		return true
++	case strings.HasPrefix(name, "runtime.elf_"):
++		return true
++	default:
++		return false
++	}
++}
++
+ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	p.From.Class = 0
+ 	p.To.Class = 0
+@@ -794,7 +811,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 			q = p
+ 
+-			if NeedTOCpointer(c.ctxt) && c.cursym.Name != "runtime.duffzero" && c.cursym.Name != "runtime.duffcopy" {
++			if NeedTOCpointer(c.ctxt) && !isNOTOCfunc(c.cursym.Name) {
+ 				// When compiling Go into PIC, without PCrel support, all functions must start
+ 				// with instructions to load the TOC pointer into r2:
+ 				//
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 09647d84b1..de5614e92a 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -474,24 +474,9 @@ func rewriteABIFuncReloc(ctxt *ld.Link, ldr *loader.Loader, tname string, r load
+ 	r.SetAdd(int64((n - minReg) * offMul))
+ 	firstUse = !ldr.AttrReachable(ts)
+ 	if firstUse {
+-		ldr.SetAttrReachable(ts, true)
+ 		// This function only becomes reachable now. It has been dropped from
+ 		// the text section (it was unreachable until now), it needs included.
+-		//
+-		// Similarly, TOC regeneration should not happen for these functions,
+-		// remove it from this save/restore function.
+-		if ldr.AttrShared(ts) {
+-			sb := ldr.MakeSymbolUpdater(ts)
+-			sb.SetData(sb.Data()[8:])
+-			sb.SetSize(sb.Size() - 8)
+-			relocs := sb.Relocs()
+-			// Only one PCREL reloc to .TOC. should be present.
+-			if relocs.Count() != 1 {
+-				log.Fatalf("Unexpected number of relocs in %s\n", ldr.SymName(ts))
+-			}
+-			sb.ResetRelocs()
+-
+-		}
++		ldr.SetAttrReachable(ts, true)
+ 	}
+ 	return ts, firstUse
+ }

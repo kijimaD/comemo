@@ -7,7 +7,32 @@ Date:   Mon Jul 16 09:35:14 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6392065
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 6b535df4d6..5782614e84 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -176,6 +176,7 @@ Patrick Mylund Nielsen <patrick@patrickmn.com>
+ Paul Lalonde <paul.a.lalonde@gmail.com>
+ Paul Sbarra <Sbarra.Paul@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>
++Peter Armitage <peter.armitage@gmail.com>
+ Peter Froehlich <peter.hans.froehlich@gmail.com>
+ Peter Kleiweg <pkleiweg@xs4all.nl>
+ Peter Mundy <go.peter.90@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 4913640ebb..f5f3a0e121 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -253,6 +253,7 @@ Paul Borman <borman@google.com>
+ Paul Lalonde <paul.a.lalonde@gmail.com>
+ Paul Sbarra <Sbarra.Paul@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>
++Peter Armitage <peter.armitage@gmail.com>
+ Peter Froehlich <peter.hans.froehlich@gmail.com>
+ Peter Kleiweg <pkleiweg@xs4all.nl>
+ Peter McKenzie <petermck@google.com>

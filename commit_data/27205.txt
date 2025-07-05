@@ -14,7 +14,100 @@ Date:   Fri Mar 11 08:10:55 2016 +0100
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 15 ++++++---------
  src/fmt/print.go    | 21 +++++++++++----------
  2 files changed, 17 insertions(+), 19 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 16f0aabcd2..8ff53cf487 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -426,10 +426,6 @@ var fmtTests = []struct {
+ 	{"%-08g", complex(negInf, negInf), "(-Inf    -Inf    i)"},
+ 	{"%-08G", complex(NaN, NaN), "(NaN     +NaN    i)"},
+ 
+-	// erroneous formats
+-	{"", 2, "%!(EXTRA int=2)"},
+-	{"%d", "hello", "%!d(string=hello)"},
+-
+ 	// old test/fmt_test.go
+ 	{"%d", 1234, "1234"},
+ 	{"%d", -1234, "-1234"},
+@@ -774,15 +770,15 @@ var fmtTests = []struct {
+ 	{"%d", time.Time{}.Month(), "1"},
+ 
+ 	// erroneous things
++	{"", nil, "%!(EXTRA <nil>)"},
++	{"", 2, "%!(EXTRA int=2)"},
++	{"no args", "hello", "no args%!(EXTRA string=hello)"},
+ 	{"%s %", "hello", "hello %!(NOVERB)"},
+ 	{"%s %.2", "hello", "hello %!(NOVERB)"},
+-	{"%d", "hello", "%!d(string=hello)"},
+-	{"no args", "hello", "no args%!(EXTRA string=hello)"},
+-	{"%s", nil, "%!s(<nil>)"},
+-	{"%T", nil, "<nil>"},
+-	{"%-1", 100, "%!(NOVERB)%!(EXTRA int=100)"},
+ 	{"%017091901790959340919092959340919017929593813360", 0, "%!(NOVERB)%!(EXTRA int=0)"},
+ 	{"%184467440737095516170v", 0, "%!(NOVERB)%!(EXTRA int=0)"},
++	// Extra argument errors should format without flags set.
++	{"%010.2", "12345", "%!(NOVERB)%!(EXTRA string=12345)"},
+ 
+ 	// The "<nil>" show up because maps are printed by
+ 	// first obtaining a list of keys and then looking up
+@@ -973,6 +969,7 @@ var fmtTests = []struct {
+ 	{"%☠", []uint8{0}, "%!☠([]uint8=[0])"},
+ 	{"%☠", [1]byte{0}, "%!☠([1]uint8=[0])"},
+ 	{"%☠", [1]uint8{0}, "%!☠([1]uint8=[0])"},
++	{"%☠", "hello", "%!☠(string=hello)"},
+ 	{"%☠", 1.2345678, "%!☠(float64=1.2345678)"},
+ 	{"%☠", float32(1.2345678), "%!☠(float32=1.2345678)"},
+ 	{"%☠", 1.2345678 + 1.2345678i, "%!☠(complex128=(1.2345678+1.2345678i))"},
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 460712cfe9..e9876913b0 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -1164,8 +1164,6 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ 			p.buf.WriteString(missingString)
+ 			continue
+ 		}
+-		arg := a[argNum]
+-		argNum++
+ 
+ 		if c == 'v' {
+ 			if p.fmt.sharp {
+@@ -1185,23 +1183,26 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ 			p.fmt.zero = false
+ 		}
+ 
+-		p.printArg(arg, c, 0)
++		p.printArg(a[argNum], c, 0)
++		argNum++
+ 	}
+ 
+ 	// Check for extra arguments unless the call accessed the arguments
+ 	// out of order, in which case it's too expensive to detect if they've all
+ 	// been used and arguably OK if they're not.
+ 	if !p.reordered && argNum < len(a) {
++		p.fmt.clearflags()
+ 		p.buf.WriteString(extraString)
+-		for ; argNum < len(a); argNum++ {
+-			arg := a[argNum]
+-			if arg != nil {
++		for i, arg := range a[argNum:] {
++			if i > 0 {
++				p.buf.WriteString(commaSpaceString)
++			}
++			if arg == nil {
++				p.buf.WriteString(nilAngleString)
++			} else {
+ 				p.buf.WriteString(reflect.TypeOf(arg).String())
+ 				p.buf.WriteByte('=')
+-			}
+-			p.printArg(arg, 'v', 0)
+-			if argNum+1 < len(a) {
+-				p.buf.WriteString(commaSpaceString)
++				p.printArg(arg, 'v', 0)
+ 			}
+ 		}
+ 		p.buf.WriteByte(')')

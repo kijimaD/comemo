@@ -12,6 +12,21 @@ Date:   Thu Sep 7 13:57:23 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/api/main_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/main_test.go b/src/cmd/api/main_test.go
+index f3201e92a9..610ea6331c 100644
+--- a/src/cmd/api/main_test.go
++++ b/src/cmd/api/main_test.go
+@@ -490,7 +490,8 @@ func (w *Walker) loadImports() {
+ 		if w.context.Dir != "" {
+ 			cmd.Dir = w.context.Dir
+ 		}
+-		out, err := cmd.CombinedOutput()
++		cmd.Stderr = os.Stderr
++		out, err := cmd.Output()
+ 		if err != nil {
+ 			log.Fatalf("loading imports: %v\n%s", err, out)
+ 		}

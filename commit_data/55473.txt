@@ -13,8 +13,97 @@ Date:   Wed Feb 8 08:44:32 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/net/cgo_unix.go         | 22 ++++++----------------
  src/net/cgo_unix_cgo.go     |  1 -
  src/net/cgo_unix_syscall.go |  1 -
  3 files changed, 6 insertions(+), 18 deletions(-)
+
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 6e43e8271a..b90b579ffc 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -37,7 +37,6 @@ type portLookupResult struct {
+ 
+ type ipLookupResult struct {
+ 	addrs []IPAddr
+-	cname string
+ 	err   error
+ }
+ 
+@@ -133,7 +132,7 @@ func cgoPortLookup(result chan<- portLookupResult, hints *_C_struct_addrinfo, ne
+ 	result <- portLookupResult{port, err}
+ }
+ 
+-func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err error) {
++func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
+ 	acquireThread()
+ 	defer releaseThread()
+ 
+@@ -175,19 +174,10 @@ func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err e
+ 			isTemporary = addrinfoErrno(gerrno).Temporary()
+ 		}
+ 
+-		return nil, "", &DNSError{Err: err.Error(), Name: name, IsNotFound: isErrorNoSuchHost, IsTemporary: isTemporary}
++		return nil, &DNSError{Err: err.Error(), Name: name, IsNotFound: isErrorNoSuchHost, IsTemporary: isTemporary}
+ 	}
+ 	defer _C_freeaddrinfo(res)
+ 
+-	if res != nil {
+-		cname = _C_GoString(*_C_ai_canonname(res))
+-		if cname == "" {
+-			cname = name
+-		}
+-		if len(cname) > 0 && cname[len(cname)-1] != '.' {
+-			cname += "."
+-		}
+-	}
+ 	for r := res; r != nil; r = *_C_ai_next(r) {
+ 		// We only asked for SOCK_STREAM, but check anyhow.
+ 		if *_C_ai_socktype(r) != _C_SOCK_STREAM {
+@@ -204,17 +194,17 @@ func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err e
+ 			addrs = append(addrs, addr)
+ 		}
+ 	}
+-	return addrs, cname, nil
++	return addrs, nil
+ }
+ 
+ func cgoIPLookup(result chan<- ipLookupResult, network, name string) {
+-	addrs, cname, err := cgoLookupIPCNAME(network, name)
+-	result <- ipLookupResult{addrs, cname, err}
++	addrs, err := cgoLookupHostIP(network, name)
++	result <- ipLookupResult{addrs, err}
+ }
+ 
+ func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error, completed bool) {
+ 	if ctx.Done() == nil {
+-		addrs, _, err = cgoLookupIPCNAME(network, name)
++		addrs, err = cgoLookupHostIP(network, name)
+ 		return addrs, err, true
+ 	}
+ 	result := make(chan ipLookupResult, 1)
+diff --git a/src/net/cgo_unix_cgo.go b/src/net/cgo_unix_cgo.go
+index 97427e695d..69876a675a 100644
+--- a/src/net/cgo_unix_cgo.go
++++ b/src/net/cgo_unix_cgo.go
+@@ -55,7 +55,6 @@ func _C_malloc(n uintptr) unsafe.Pointer { return C.malloc(C.size_t(n)) }
+ func _C_free(p unsafe.Pointer)           { C.free(p) }
+ 
+ func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.ai_addr }
+-func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.ai_canonname }
+ func _C_ai_family(ai *_C_struct_addrinfo) *_C_int            { return &ai.ai_family }
+ func _C_ai_flags(ai *_C_struct_addrinfo) *_C_int             { return &ai.ai_flags }
+ func _C_ai_next(ai *_C_struct_addrinfo) **_C_struct_addrinfo { return &ai.ai_next }
+diff --git a/src/net/cgo_unix_syscall.go b/src/net/cgo_unix_syscall.go
+index 0d20a52464..0f643a021d 100644
+--- a/src/net/cgo_unix_syscall.go
++++ b/src/net/cgo_unix_syscall.go
+@@ -59,7 +59,6 @@ func _C_malloc(n uintptr) unsafe.Pointer {
+ }
+ 
+ func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.Addr }
+-func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.Canonname }
+ func _C_ai_family(ai *_C_struct_addrinfo) *_C_int            { return &ai.Family }
+ func _C_ai_flags(ai *_C_struct_addrinfo) *_C_int             { return &ai.Flags }
+ func _C_ai_next(ai *_C_struct_addrinfo) **_C_struct_addrinfo { return &ai.Next }

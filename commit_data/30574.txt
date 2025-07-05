@@ -11,6 +11,28 @@ Date:   Sat Nov 12 17:05:17 2016 +0100
     Change-Id: Idfa413faad487e534489428451bf736b009293d6
     Reviewed-on: https://go-review.googlesource.com/33191
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/hex/hex.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/encoding/hex/hex.go b/src/encoding/hex/hex.go
+index 8c2334871d..b43c1c4b45 100644
+--- a/src/encoding/hex/hex.go
++++ b/src/encoding/hex/hex.go
+@@ -18,6 +18,7 @@ var hextable = [16]byte{
+ }
+ 
+ // EncodedLen returns the length of an encoding of n source bytes.
++// Specifically, it returns n * 2.
+ func EncodedLen(n int) int { return n * 2 }
+ 
+ // Encode encodes src into EncodedLen(len(src))
+@@ -43,6 +44,8 @@ func (e InvalidByteError) Error() string {
+ 	return fmt.Sprintf("encoding/hex: invalid byte: %#U", rune(e))
+ }
+ 
++// DecodedLen returns the length of a decoding of x source bytes.
++// Specifically, it returns x / 2.
+ func DecodedLen(x int) int { return x / 2 }
+ 
+ // Decode decodes src into DecodedLen(len(src)) bytes,

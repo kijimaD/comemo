@@ -15,10 +15,131 @@ Date:   Fri Mar 1 16:41:39 2013 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7459044
-
+---
  src/pkg/runtime/append_test.go | 32 ++++++++++++++++++++++++++++++++
  src/pkg/runtime/arch_386.h     |  3 ++-
  src/pkg/runtime/arch_amd64.h   |  3 ++-
  src/pkg/runtime/arch_arm.h     |  3 ++-
  src/pkg/runtime/slice.c        | 16 +++++++++++++---
  5 files changed, 51 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/append_test.go b/src/pkg/runtime/append_test.go
+index e9fc4a7901..6eb901699b 100644
+--- a/src/pkg/runtime/append_test.go
++++ b/src/pkg/runtime/append_test.go
+@@ -52,6 +52,38 @@ func BenchmarkAppend32Bytes(b *testing.B) {
+ 	benchmarkAppendBytes(b, 32)
+ }
+ 
++func benchmarkAppendStr(b *testing.B, str string) {
++	b.StopTimer()
++	x := make([]byte, 0, N)
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		x = x[0:0]
++		for j := 0; j < N; j++ {
++			x = append(x, str...)
++		}
++	}
++}
++
++func BenchmarkAppendStr1Byte(b *testing.B) {
++	benchmarkAppendStr(b, "1")
++}
++
++func BenchmarkAppendStr4Bytes(b *testing.B) {
++	benchmarkAppendStr(b, "1234")
++}
++
++func BenchmarkAppendStr8Bytes(b *testing.B) {
++	benchmarkAppendStr(b, "12345678")
++}
++
++func BenchmarkAppendStr16Bytes(b *testing.B) {
++	benchmarkAppendStr(b, "1234567890123456")
++}
++
++func BenchmarkAppendStr32Bytes(b *testing.B) {
++	benchmarkAppendStr(b, "12345678901234567890123456789012")
++}
++
+ func BenchmarkAppendSpecialCase(b *testing.B) {
+ 	b.StopTimer()
+ 	x := make([]int, 0, N)
+diff --git a/src/pkg/runtime/arch_386.h b/src/pkg/runtime/arch_386.h
+index cb9d64a70c..4df795f712 100644
+--- a/src/pkg/runtime/arch_386.h
++++ b/src/pkg/runtime/arch_386.h
+@@ -1,5 +1,6 @@
+ enum {
+ 	thechar = '8',
+ 	BigEndian = 0,
+-	CacheLineSize = 64
++	CacheLineSize = 64,
++	appendCrossover = 16
+ };
+diff --git a/src/pkg/runtime/arch_amd64.h b/src/pkg/runtime/arch_amd64.h
+index 35ed1560a2..e83dc91056 100644
+--- a/src/pkg/runtime/arch_amd64.h
++++ b/src/pkg/runtime/arch_amd64.h
+@@ -1,5 +1,6 @@
+ enum {
+ 	thechar = '6',
+ 	BigEndian = 0,
+-	CacheLineSize = 64
++	CacheLineSize = 64,
++	appendCrossover = 16
+ };
+diff --git a/src/pkg/runtime/arch_arm.h b/src/pkg/runtime/arch_arm.h
+index 21dc1a692c..f6af58514f 100644
+--- a/src/pkg/runtime/arch_arm.h
++++ b/src/pkg/runtime/arch_arm.h
+@@ -1,5 +1,6 @@
+ enum {
+ 	thechar = '5',
+ 	BigEndian = 0,
+-	CacheLineSize = 32
++	CacheLineSize = 32,
++	appendCrossover = 16
+ };
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index b517c3aa33..354c54c865 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -110,8 +110,7 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
+ 	p = ret.array+ret.len*w;
+ 	q = y.array;
+ 	w *= y.len;
+-	// TODO: make 16 an architecture-dependent constant.
+-	if(w <= 16) { // 16 empirically tested as approximate crossover on amd64.
++	if(w <= appendCrossover) {
+ 		if(p <= q || w <= p-q) // No overlap.
+ 			while(w-- > 0)
+ 				*p++ = *q++;
+@@ -136,6 +135,8 @@ runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
+ {
+ 	intgo m;
+ 	void *pc;
++	uintptr w;
++	uint8 *p, *q;
+ 
+ 	m = x.len+y.len;
+ 
+@@ -158,7 +159,16 @@ runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
+ 			runtime·racewriterangepc(ret.array+ret.len, y.len, 1, pc, runtime·appendstr);
+ 	}
+ 
+-	runtime·memmove(ret.array + ret.len, y.str, y.len);
++	// Small appends can avoid the overhead of memmove.
++	w = y.len;
++	p = ret.array+ret.len;
++	q = y.str;
++	if(w <= appendCrossover) {
++		while(w-- > 0)
++			*p++ = *q++;
++	} else {
++		runtime·memmove(p, q, w);
++	}
+ 	ret.len += y.len;
+ 	FLUSH(&ret);
+ }

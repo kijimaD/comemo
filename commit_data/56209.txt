@@ -15,7 +15,37 @@ Date:   Tue Apr 18 11:20:58 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Run-TryBot: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/gotoolchain.go                             | 2 +-
  src/cmd/go/{gotoolchain_js.go => gotoolchain_stub.go} | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/gotoolchain.go b/src/cmd/go/gotoolchain.go
+index 5b7468f21f..1552d08ef3 100644
+--- a/src/cmd/go/gotoolchain.go
++++ b/src/cmd/go/gotoolchain.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package main
+ 
+diff --git a/src/cmd/go/gotoolchain_js.go b/src/cmd/go/gotoolchain_stub.go
+similarity index 91%
+rename from src/cmd/go/gotoolchain_js.go
+rename to src/cmd/go/gotoolchain_stub.go
+index 0042ef30c8..9d1d7dbd46 100644
+--- a/src/cmd/go/gotoolchain_js.go
++++ b/src/cmd/go/gotoolchain_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build js
++//go:build js || wasip1
+ 
+ package main
+ 

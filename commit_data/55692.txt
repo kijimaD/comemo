@@ -17,6 +17,22 @@ Date:   Fri Mar 3 16:04:56 2023 +0100
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/runtime/runtime-gdb_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 5af3b7455e..1577d0995d 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -661,6 +661,10 @@ func TestGdbPanic(t *testing.T) {
+ 	t.Parallel()
+ 	checkGdbVersion(t)
+ 
++	if runtime.GOOS == "windows" {
++		t.Skip("no signals on windows")
++	}
++
+ 	dir := t.TempDir()
+ 
+ 	// Build the source code.

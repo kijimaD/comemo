@@ -12,6 +12,20 @@ Date:   Fri Jun 19 15:31:25 2020 +0000
     GitHub-Pull-Request: golang/go#39709
     Reviewed-on: https://go-review.googlesource.com/c/go/+/238997
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/runtime/trace/trace.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/trace/trace.go b/src/runtime/trace/trace.go
+index 7f9d72a846..b34aef03c5 100644
+--- a/src/runtime/trace/trace.go
++++ b/src/runtime/trace/trace.go
+@@ -19,7 +19,7 @@
+ // command runs the test in the current directory and writes the trace
+ // file (trace.out).
+ //
+-//    go test -trace=test.out
++//    go test -trace=trace.out
+ //
+ // This runtime/trace package provides APIs to add equivalent tracing
+ // support to a standalone program. See the Example that demonstrates

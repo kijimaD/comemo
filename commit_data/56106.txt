@@ -19,8 +19,177 @@ Date:   Thu Apr 6 19:36:01 2023 -0700
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/doc/doc_test.go     | 41 ++++++++++++++++++++++++++++++++++--
  src/cmd/doc/pkg.go          | 51 +++++++++++++++++++++++++++++++++++++++------
  src/cmd/doc/testdata/pkg.go |  1 +
  3 files changed, 85 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 6a259ae19e..7690a930e5 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -157,6 +157,7 @@ var tests = []test{
+ 			`Method`,                           // No methods.
+ 			`someArgument[5-8]`,                // No truncated arguments.
+ 			`type T1 T2`,                       // Type alias does not display as type declaration.
++			`ignore:directive`,                 // Directives should be dropped.
+ 		},
+ 	},
+ 	// Package dump -all
+@@ -224,6 +225,7 @@ var tests = []test{
+ 			`func internalFunc`,
+ 			`unexportedField`,
+ 			`func \(unexportedType\)`,
++			`ignore:directive`,
+ 		},
+ 	},
+ 	// Package with just the package declaration. Issue 31457.
+@@ -260,6 +262,7 @@ var tests = []test{
+ 			`Comment about block of constants`, // No comment for constant block.
+ 			`Comment about internal function`,  // No comment for internal function.
+ 			`MultiLine(String|Method|Field)`,   // No data from multi line portions.
++			`ignore:directive`,
+ 		},
+ 	},
+ 	// Package dump -u -all
+@@ -312,7 +315,9 @@ var tests = []test{
+ 			`func \(unexportedType\) ExportedMethod\(\) bool`,
+ 			`func \(unexportedType\) unexportedMethod\(\) bool`,
+ 		},
+-		nil,
++		[]string{
++			`ignore:directive`,
++		},
+ 	},
+ 
+ 	// Single constant.
+@@ -831,7 +836,39 @@ var tests = []test{
+     // Text after pre-formatted block\.`,
+ 			`ExportedField int`,
+ 		},
+-		nil,
++		[]string{"ignore:directive"},
++	},
++	{
++		"formatted doc on entire type",
++		[]string{p, "ExportedFormattedType"},
++		[]string{
++			`type ExportedFormattedType struct`,
++			`	// Comment before exported field with formatting\.
++	//
++	// Example
++	//
++	//	a\.ExportedField = 123
++	//
++	// Text after pre-formatted block\.`,
++			`ExportedField int`,
++		},
++		[]string{"ignore:directive"},
++	},
++	{
++		"formatted doc on entire type with -all",
++		[]string{"-all", p, "ExportedFormattedType"},
++		[]string{
++			`type ExportedFormattedType struct`,
++			`	// Comment before exported field with formatting\.
++	//
++	// Example
++	//
++	//	a\.ExportedField = 123
++	//
++	// Text after pre-formatted block\.`,
++			`ExportedField int`,
++		},
++		[]string{"ignore:directive"},
+ 	},
+ }
+ 
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 4cebdc957a..9779275359 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -849,7 +849,7 @@ func (pkg *Package) typeDoc(typ *doc.Type) {
+ // structs and methods from interfaces (unless the unexported flag is set or we
+ // are asked to show the original source).
+ func trimUnexportedElems(spec *ast.TypeSpec) {
+-	if unexported || showSrc {
++	if showSrc {
+ 		return
+ 	}
+ 	switch typ := spec.Type.(type) {
+@@ -870,6 +870,43 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
+ 	trimmed := false
+ 	list := make([]*ast.Field, 0, len(fields.List))
+ 	for _, field := range fields.List {
++		// When printing fields we normally print field.Doc.
++		// Here we are going to pass the AST to go/format,
++		// which will print the comments from the AST,
++		// not field.Doc which is from go/doc.
++		// The two are similar but not identical;
++		// for example, field.Doc does not include directives.
++		// In order to consistently print field.Doc,
++		// we replace the comment in the AST with field.Doc.
++		// That will cause go/format to print what we want.
++		// See issue #56592.
++		if field.Doc != nil {
++			doc := field.Doc
++			text := doc.Text()
++
++			trailingBlankLine := len(doc.List[len(doc.List)-1].Text) == 2
++			if !trailingBlankLine {
++				// Remove trailing newline.
++				lt := len(text)
++				if lt > 0 && text[lt-1] == '\n' {
++					text = text[:lt-1]
++				}
++			}
++
++			start := doc.List[0].Slash
++			doc.List = doc.List[:0]
++			for _, line := range strings.Split(text, "\n") {
++				prefix := "// "
++				if len(line) > 0 && line[0] == '\t' {
++					prefix = "//"
++				}
++				doc.List = append(doc.List, &ast.Comment{
++					Text: prefix + line,
++				})
++			}
++			doc.List[0].Slash = start
++		}
++
+ 		names := field.Names
+ 		if len(names) == 0 {
+ 			// Embedded type. Use the name of the type. It must be of the form ident or
+@@ -908,11 +945,13 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
+ 		}
+ 		// Trims if any is unexported. Good enough in practice.
+ 		ok := true
+-		for _, name := range names {
+-			if !isExported(name.Name) {
+-				trimmed = true
+-				ok = false
+-				break
++		if !unexported {
++			for _, name := range names {
++				if !isExported(name.Name) {
++					trimmed = true
++					ok = false
++					break
++				}
+ 			}
+ 		}
+ 		if ok {
+diff --git a/src/cmd/doc/testdata/pkg.go b/src/cmd/doc/testdata/pkg.go
+index a693c74918..1b1b8fbebe 100644
+--- a/src/cmd/doc/testdata/pkg.go
++++ b/src/cmd/doc/testdata/pkg.go
+@@ -236,6 +236,7 @@ type ExportedFormattedType struct {
+ 	//	a.ExportedField = 123
+ 	//
+ 	// Text after pre-formatted block.
++	//ignore:directive
+ 	ExportedField int
+ }
+ 

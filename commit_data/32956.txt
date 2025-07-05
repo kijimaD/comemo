@@ -16,8 +16,78 @@ Date:   Fri Jun 16 11:34:28 2017 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/ascii85/ascii85_test.go | 10 +++++++---
  src/encoding/base32/base32_test.go   | 10 +++++++---
  src/encoding/base64/base64_test.go   | 10 +++++++---
  3 files changed, 21 insertions(+), 9 deletions(-)
+
+diff --git a/src/encoding/ascii85/ascii85_test.go b/src/encoding/ascii85/ascii85_test.go
+index ba85b64156..b8be960863 100644
+--- a/src/encoding/ascii85/ascii85_test.go
++++ b/src/encoding/ascii85/ascii85_test.go
+@@ -135,11 +135,15 @@ func TestDecoderBuffering(t *testing.T) {
+ 		decoder := NewDecoder(strings.NewReader(bigtest.encoded))
+ 		buf := make([]byte, len(bigtest.decoded)+12)
+ 		var total int
+-		for total = 0; total < len(bigtest.decoded); {
+-			n, err := decoder.Read(buf[total : total+bs])
+-			testEqual(t, "Read from %q at pos %d = %d, %v, want _, %v", bigtest.encoded, total, n, err, error(nil))
++		var n int
++		var err error
++		for total = 0; total < len(bigtest.decoded) && err == nil; {
++			n, err = decoder.Read(buf[total : total+bs])
+ 			total += n
+ 		}
++		if err != nil && err != io.EOF {
++			t.Errorf("Read from %q at pos %d = %d, unexpected error %v", bigtest.encoded, total, n, err)
++		}
+ 		testEqual(t, "Decoding/%d of %q = %q, want %q", bs, bigtest.encoded, string(buf[0:total]), bigtest.decoded)
+ 	}
+ }
+diff --git a/src/encoding/base32/base32_test.go b/src/encoding/base32/base32_test.go
+index 12256d08ee..ee7525c997 100644
+--- a/src/encoding/base32/base32_test.go
++++ b/src/encoding/base32/base32_test.go
+@@ -284,11 +284,15 @@ func TestDecoderBuffering(t *testing.T) {
+ 		decoder := NewDecoder(StdEncoding, strings.NewReader(bigtest.encoded))
+ 		buf := make([]byte, len(bigtest.decoded)+12)
+ 		var total int
+-		for total = 0; total < len(bigtest.decoded); {
+-			n, err := decoder.Read(buf[total : total+bs])
+-			testEqual(t, "Read from %q at pos %d = %d, %v, want _, %v", bigtest.encoded, total, n, err, error(nil))
++		var n int
++		var err error
++		for total = 0; total < len(bigtest.decoded) && err == nil; {
++			n, err = decoder.Read(buf[total : total+bs])
+ 			total += n
+ 		}
++		if err != nil && err != io.EOF {
++			t.Errorf("Read from %q at pos %d = %d, unexpected error %v", bigtest.encoded, total, n, err)
++		}
+ 		testEqual(t, "Decoding/%d of %q = %q, want %q", bs, bigtest.encoded, string(buf[0:total]), bigtest.decoded)
+ 	}
+ }
+diff --git a/src/encoding/base64/base64_test.go b/src/encoding/base64/base64_test.go
+index 59818d3775..05011fbdf3 100644
+--- a/src/encoding/base64/base64_test.go
++++ b/src/encoding/base64/base64_test.go
+@@ -189,11 +189,15 @@ func TestDecoderBuffering(t *testing.T) {
+ 		decoder := NewDecoder(StdEncoding, strings.NewReader(bigtest.encoded))
+ 		buf := make([]byte, len(bigtest.decoded)+12)
+ 		var total int
+-		for total = 0; total < len(bigtest.decoded); {
+-			n, err := decoder.Read(buf[total : total+bs])
+-			testEqual(t, "Read from %q at pos %d = %d, %v, want _, %v", bigtest.encoded, total, n, err, error(nil))
++		var n int
++		var err error
++		for total = 0; total < len(bigtest.decoded) && err == nil; {
++			n, err = decoder.Read(buf[total : total+bs])
+ 			total += n
+ 		}
++		if err != nil && err != io.EOF {
++			t.Errorf("Read from %q at pos %d = %d, unexpected error %v", bigtest.encoded, total, n, err)
++		}
+ 		testEqual(t, "Decoding/%d of %q = %q, want %q", bs, bigtest.encoded, string(buf[0:total]), bigtest.decoded)
+ 	}
+ }

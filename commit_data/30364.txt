@@ -12,7 +12,72 @@ Date:   Wed Nov 2 11:41:40 2016 -0400
     Change-Id: Id83e5ce11a45f877bdcc991d02b14416d1a2d8d2
     Reviewed-on: https://go-review.googlesource.com/32574
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/bytes_s390x.go     | 14 +++++++-------
  src/strings/strings_s390x.go | 14 +++++++-------
  2 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/bytes/bytes_s390x.go b/src/bytes/bytes_s390x.go
+index 9eec3b7b5d..988c6034aa 100644
+--- a/src/bytes/bytes_s390x.go
++++ b/src/bytes/bytes_s390x.go
+@@ -32,6 +32,13 @@ func Index(s, sep []byte) int {
+ 		return 0
+ 	case n == 1:
+ 		return IndexByte(s, sep[0])
++	case n == len(s):
++		if Equal(sep, s) {
++			return 0
++		}
++		return -1
++	case n > len(s):
++		return -1
+ 	case n <= shortStringLen:
+ 		// Use brute force when s and sep both are small
+ 		if len(s) <= 64 {
+@@ -68,13 +75,6 @@ func Index(s, sep []byte) int {
+ 			}
+ 		}
+ 		return -1
+-	case n == len(s):
+-		if Equal(sep, s) {
+-			return 0
+-		}
+-		return -1
+-	case n > len(s):
+-		return -1
+ 	}
+ 	// Rabin-Karp search
+ 	hashsep, pow := hashStr(sep)
+diff --git a/src/strings/strings_s390x.go b/src/strings/strings_s390x.go
+index 64204ab09e..316a1b896b 100644
+--- a/src/strings/strings_s390x.go
++++ b/src/strings/strings_s390x.go
+@@ -32,6 +32,13 @@ func Index(s, sep string) int {
+ 		return 0
+ 	case n == 1:
+ 		return IndexByte(s, sep[0])
++	case n == len(s):
++		if sep == s {
++			return 0
++		}
++		return -1
++	case n > len(s):
++		return -1
+ 	case n <= shortStringLen:
+ 		// Use brute force when s and sep both are small
+ 		if len(s) <= 64 {
+@@ -68,13 +75,6 @@ func Index(s, sep string) int {
+ 			}
+ 		}
+ 		return -1
+-	case n == len(s):
+-		if sep == s {
+-			return 0
+-		}
+-		return -1
+-	case n > len(s):
+-		return -1
+ 	}
+ 	// Rabin-Karp search
+ 	hashsep, pow := hashStr(sep)

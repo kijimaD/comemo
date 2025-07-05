@@ -9,7 +9,39 @@ Date:   Wed Dec 14 08:21:37 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5485053
-
+---
  src/cmd/gc/dcl.c         |  2 ++
  test/fixedbugs/bug384.go | 12 ++++++++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 235e2ceff4..f9f638ceb1 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1273,6 +1273,8 @@ addmethod(Sym *sf, Type *t, int local)
+ 				t = t->type;
+ 			}
+ 		}
++		if(t->broke) // rely on typecheck having complained before
++			return;
+ 		if(t != T) {
+ 			if(t->sym == S) {
+ 				yyerror("invalid receiver type %T (%T is an unnamed type)", pa, t);
+diff --git a/test/fixedbugs/bug384.go b/test/fixedbugs/bug384.go
+new file mode 100644
+index 0000000000..b3d6466882
+--- /dev/null
++++ b/test/fixedbugs/bug384.go
+@@ -0,0 +1,12 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2500
++
++package foo
++
++// Check that we only get root cause message, no further complaints about r undefined
++func (r *indexWriter) foo() {}  // ERROR "undefined.*indexWriter"

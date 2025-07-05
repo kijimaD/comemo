@@ -11,6 +11,43 @@ Date:   Fri Nov 10 14:50:03 2017 -0500
     Change-Id: I3931b4e296251b99abab9bbbbbdcf94ae8c1e2a6
     Reviewed-on: https://go-review.googlesource.com/77111
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/go/internal/work/exec.go | 18 +++++++++++++++++-
  1 file changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 44f4a91ca5..08f7d00da1 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -223,7 +223,6 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 			"GOCLOBBERDEADHASH",
+ 			"GOSSAFUNC",
+ 			"GO_SSA_PHI_LOC_CUTOFF",
+-			"GSHS_LOGFILE",
+ 			"GOSSAHASH",
+ 		}
+ 		for _, env := range magic {
+@@ -231,6 +230,23 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 				fmt.Fprintf(h, "magic %s=%s\n", env, x)
+ 			}
+ 		}
++		if os.Getenv("GOSSAHASH") != "" {
++			for i := 0; ; i++ {
++				env := fmt.Sprintf("GOSSAHASH%d", i)
++				x := os.Getenv(env)
++				if x == "" {
++					break
++				}
++				fmt.Fprintf(h, "magic %s=%s\n", env, x)
++			}
++		}
++		if os.Getenv("GSHS_LOGFILE") != "" {
++			// Clumsy hack. Compiler writes to this log file,
++			// so do not allow use of cache at all.
++			// We will still write to the cache but it will be
++			// essentially unfindable.
++			fmt.Fprintf(h, "nocache %d\n", time.Now().UnixNano())
++		}
+ 	}
+ 
+ 	// Input files.

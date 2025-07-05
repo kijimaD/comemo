@@ -25,7 +25,7 @@ Date:   Mon Nov 15 16:19:29 2021 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +-
  src/cmd/go/alldocs.go                              |  8 ++--
@@ -52,3 +52,869 @@ Date:   Mon Nov 15 16:19:29 2021 -0500
  src/cmd/vendor/golang.org/x/mod/semver/semver.go   | 10 -----
  src/cmd/vendor/modules.txt                         |  2 +-
  25 files changed, 112 insertions(+), 120 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 014c854a73..75a93e6bd1 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,7 +5,7 @@ go 1.18
+ require (
+ 	github.com/google/pprof v0.0.0-20211104044539-f987b9c94b31
+ 	golang.org/x/arch v0.0.0-20210923205945-b76863e36670
+-	golang.org/x/mod v0.6.0-dev.0.20210913215816-37dd6891021a
++	golang.org/x/mod v0.6.0-dev.0.20211102181907-3a5865c02020
+ 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+ 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+ 	golang.org/x/tools v0.1.8-0.20211116011028-4adea5033c5c
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 4f50e7c6c8..62619b8d01 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -9,8 +9,8 @@ golang.org/x/arch v0.0.0-20210923205945-b76863e36670 h1:18EFjUmQOcUvxNYSkA6jO9VA
+ golang.org/x/arch v0.0.0-20210923205945-b76863e36670/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+ golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa h1:idItI2DDfCokpg0N51B2VtiLdJ4vAuXC9fnCb2gACo4=
+ golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
+-golang.org/x/mod v0.6.0-dev.0.20210913215816-37dd6891021a h1:gAiIC0JKDJwXAQFyqEYxROcAzeeh5ZTwWjKORCFuQxs=
+-golang.org/x/mod v0.6.0-dev.0.20210913215816-37dd6891021a/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
++golang.org/x/mod v0.6.0-dev.0.20211102181907-3a5865c02020 h1:HjtpZuJcnSa+yHlL4Y5aypjDvbHkJne5FS8JRmKI2+I=
++golang.org/x/mod v0.6.0-dev.0.20211102181907-3a5865c02020/go.mod h1:3p9vT2HGsQu2K1YbXdKPJLVgG5VJdoTa1poYQBtP1AY=
+ golang.org/x/sync v0.0.0-20210220032951-036812b2e83c h1:5KslGYwFpkhGh+Q16bwMP3cOontH8FOep7tGV86Y7SQ=
+ golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index a53ff7c66d..6805d56e2c 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1411,8 +1411,8 @@
+ // rewrite the go.mod file. The only time this flag is needed is if no other
+ // flags are specified, as in 'go mod editwork -fmt'.
+ //
+-// The -directory=path and -dropdirectory=path flags
+-// add and drop a directory from the go.work files set of module directories.
++// The -use=path and -dropuse=path flags
++// add and drop a use directive from the go.work file's set of module directories.
+ //
+ // The -replace=old[@v]=new[@v] flag adds a replacement of the given
+ // module path and version pair. If the @v in old@v is omitted, a
+@@ -1426,7 +1426,7 @@
+ // module path and version pair. If the @v is omitted, a replacement without
+ // a version on the left side is dropped.
+ //
+-// The -directory, -dropdirectory, -replace, and -dropreplace,
++// The -use, -dropuse, -replace, and -dropreplace,
+ // editing flags may be repeated, and the changes are applied in the order given.
+ //
+ // The -go=version flag sets the expected Go language version.
+@@ -1448,7 +1448,7 @@
+ // 		Replace   []Replace
+ // 	}
+ //
+-// 	type Directory struct {
++// 	type Use struct {
+ // 		Path       string
+ // 		ModulePath string
+ // 	}
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index ab899fac1e..8bb3875e37 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -565,7 +565,7 @@ func loadWorkFile(path string) (goVersion string, modRoots []string, replaces []
+ 		goVersion = wf.Go.Version
+ 	}
+ 	seen := map[string]bool{}
+-	for _, d := range wf.Directory {
++	for _, d := range wf.Use {
+ 		modRoot := d.Path
+ 		if !filepath.IsAbs(modRoot) {
+ 			modRoot = filepath.Join(workDir, modRoot)
+@@ -606,7 +606,7 @@ func WriteWorkFile(path string, wf *modfile.WorkFile) error {
+ func UpdateWorkFile(wf *modfile.WorkFile) {
+ 	missingModulePaths := map[string]string{} // module directory listed in file -> abspath modroot
+ 
+-	for _, d := range wf.Directory {
++	for _, d := range wf.Use {
+ 		modRoot := d.Path
+ 		if d.ModulePath == "" {
+ 			missingModulePaths[d.Path] = modRoot
+@@ -620,7 +620,7 @@ func UpdateWorkFile(wf *modfile.WorkFile) {
+ 		if err != nil {
+ 			continue // Error will be reported if modules are loaded.
+ 		}
+-		wf.AddDirectory(moddir, f.Module.Mod.Path)
++		wf.AddUse(moddir, f.Module.Mod.Path)
+ 	}
+ }
+ 
+@@ -887,7 +887,7 @@ func CreateWorkFile(ctx context.Context, workFile string, modDirs []string) {
+ 			}
+ 			base.Fatalf("go: error parsing go.mod in directory %s: %v", dir, err)
+ 		}
+-		workF.AddDirectory(ToDirectoryPath(dir), f.Module.Mod.Path)
++		workF.AddUse(ToDirectoryPath(dir), f.Module.Mod.Path)
+ 	}
+ 
+ 	UpdateWorkFile(workF)
+diff --git a/src/cmd/go/internal/workcmd/edit.go b/src/cmd/go/internal/workcmd/edit.go
+index 5158ac9b49..03a27f2bc6 100644
+--- a/src/cmd/go/internal/workcmd/edit.go
++++ b/src/cmd/go/internal/workcmd/edit.go
+@@ -37,8 +37,8 @@ This reformatting is also implied by any other modifications that use or
+ rewrite the go.mod file. The only time this flag is needed is if no other
+ flags are specified, as in 'go mod editwork -fmt'.
+ 
+-The -directory=path and -dropdirectory=path flags
+-add and drop a directory from the go.work files set of module directories.
++The -use=path and -dropuse=path flags
++add and drop a use directive from the go.work file's set of module directories.
+ 
+ The -replace=old[@v]=new[@v] flag adds a replacement of the given
+ module path and version pair. If the @v in old@v is omitted, a
+@@ -52,7 +52,7 @@ The -dropreplace=old[@v] flag drops a replacement of the given
+ module path and version pair. If the @v is omitted, a replacement without
+ a version on the left side is dropped.
+ 
+-The -directory, -dropdirectory, -replace, and -dropreplace,
++The -use, -dropuse, -replace, and -dropreplace,
+ editing flags may be repeated, and the changes are applied in the order given.
+ 
+ The -go=version flag sets the expected Go language version.
+@@ -74,7 +74,7 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
+ 		Replace   []Replace
+ 	}
+ 
+-	type Directory struct {
++	type Use struct {
+ 		Path       string
+ 		ModulePath string
+ 	}
+@@ -106,8 +106,8 @@ func (f flagFunc) Set(s string) error { f(s); return nil }
+ func init() {
+ 	cmdEdit.Run = runEditwork // break init cycle
+ 
+-	cmdEdit.Flag.Var(flagFunc(flagEditworkDirectory), "directory", "")
+-	cmdEdit.Flag.Var(flagFunc(flagEditworkDropDirectory), "dropdirectory", "")
++	cmdEdit.Flag.Var(flagFunc(flagEditworkUse), "use", "")
++	cmdEdit.Flag.Var(flagFunc(flagEditworkDropUse), "dropuse", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagEditworkReplace), "replace", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagEditworkDropReplace), "dropreplace", "")
+ 
+@@ -182,25 +182,25 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.WriteWorkFile(gowork, workFile)
+ }
+ 
+-// flagEditworkDirectory implements the -directory flag.
+-func flagEditworkDirectory(arg string) {
++// flagEditworkUse implements the -use flag.
++func flagEditworkUse(arg string) {
+ 	workedits = append(workedits, func(f *modfile.WorkFile) {
+ 		_, mf, err := modload.ReadModFile(filepath.Join(arg, "go.mod"), nil)
+ 		modulePath := ""
+ 		if err == nil {
+ 			modulePath = mf.Module.Mod.Path
+ 		}
+-		f.AddDirectory(modload.ToDirectoryPath(arg), modulePath)
+-		if err := f.AddDirectory(modload.ToDirectoryPath(arg), ""); err != nil {
+-			base.Fatalf("go: -directory=%s: %v", arg, err)
++		f.AddUse(modload.ToDirectoryPath(arg), modulePath)
++		if err := f.AddUse(modload.ToDirectoryPath(arg), ""); err != nil {
++			base.Fatalf("go: -use=%s: %v", arg, err)
+ 		}
+ 	})
+ }
+ 
+-// flagEditworkDropDirectory implements the -dropdirectory flag.
+-func flagEditworkDropDirectory(arg string) {
++// flagEditworkDropUse implements the -dropuse flag.
++func flagEditworkDropUse(arg string) {
+ 	workedits = append(workedits, func(f *modfile.WorkFile) {
+-		if err := f.DropDirectory(modload.ToDirectoryPath(arg)); err != nil {
++		if err := f.DropUse(modload.ToDirectoryPath(arg)); err != nil {
+ 			base.Fatalf("go: -dropdirectory=%s: %v", arg, err)
+ 		}
+ 	})
+@@ -287,8 +287,8 @@ func editPrintJSON(workFile *modfile.WorkFile) {
+ 	if workFile.Go != nil {
+ 		f.Go = workFile.Go.Version
+ 	}
+-	for _, d := range workFile.Directory {
+-		f.Directory = append(f.Directory, directoryJSON{DiskPath: d.Path, ModPath: d.ModulePath})
++	for _, d := range workFile.Use {
++		f.Use = append(f.Use, useJSON{DiskPath: d.Path, ModPath: d.ModulePath})
+ 	}
+ 
+ 	for _, r := range workFile.Replace {
+@@ -304,12 +304,12 @@ func editPrintJSON(workFile *modfile.WorkFile) {
+ 
+ // workfileJSON is the -json output data structure.
+ type workfileJSON struct {
+-	Go        string `json:",omitempty"`
+-	Directory []directoryJSON
+-	Replace   []replaceJSON
++	Go      string `json:",omitempty"`
++	Use     []useJSON
++	Replace []replaceJSON
+ }
+ 
+-type directoryJSON struct {
++type useJSON struct {
+ 	DiskPath string
+ 	ModPath  string `json:",omitempty"`
+ }
+diff --git a/src/cmd/go/internal/workcmd/use.go b/src/cmd/go/internal/workcmd/use.go
+index b2218280e4..97c493685a 100644
+--- a/src/cmd/go/internal/workcmd/use.go
++++ b/src/cmd/go/internal/workcmd/use.go
+@@ -53,7 +53,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	haveDirs := make(map[string]bool)
+-	for _, dir := range workFile.Directory {
++	for _, dir := range workFile.Use {
+ 		haveDirs[filepath.Join(filepath.Dir(gowork), filepath.FromSlash(dir.Path))] = true
+ 	}
+ 
+@@ -105,10 +105,10 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	for dir := range removeDirs {
+-		workFile.DropDirectory(filepath.ToSlash(dir))
++		workFile.DropUse(filepath.ToSlash(dir))
+ 	}
+ 	for dir := range addDirs {
+-		workFile.AddDirectory(filepath.ToSlash(dir), "")
++		workFile.AddUse(filepath.ToSlash(dir), "")
+ 	}
+ 	modload.UpdateWorkFile(workFile)
+ 	modload.WriteWorkFile(gowork, workFile)
+diff --git a/src/cmd/go/testdata/script/work.txt b/src/cmd/go/testdata/script/work.txt
+index 68bd3ea08b..cbb3746a69 100644
+--- a/src/cmd/go/testdata/script/work.txt
++++ b/src/cmd/go/testdata/script/work.txt
+@@ -34,7 +34,7 @@ go list -mod=readonly all
+ stderr '^go: -mod may only be set to readonly when in workspace mode'
+ go list -mod=mod -workfile=off all
+ 
+-# Test that duplicates in the directory list return an error
++# Test that duplicates in the use list return an error
+ cp go.work go.work.backup
+ cp go.work.dup go.work
+ ! go run example.com/b
+@@ -59,7 +59,7 @@ go build -n -o foo foo.go
+ -- go.work.dup --
+ go 1.18
+ 
+-directory (
++use (
+   a
+   b
+   ../src/a
+@@ -67,14 +67,14 @@ directory (
+ -- go.work.want --
+ go 1.18
+ 
+-directory (
++use (
+ 	./a
+ 	./b
+ )
+ -- go.work.d --
+ go 1.18
+ 
+-directory (
++use (
+ 	a
+ 	b
+ 	d
+@@ -133,7 +133,7 @@ func main() {
+ -- go.work.backwards --
+ go 1.18
+ 
+-directory (
++use (
+     d
+     b
+     a
+diff --git a/src/cmd/go/testdata/script/work_edit.txt b/src/cmd/go/testdata/script/work_edit.txt
+index 060d1f0386..fd04bbda6e 100644
+--- a/src/cmd/go/testdata/script/work_edit.txt
++++ b/src/cmd/go/testdata/script/work_edit.txt
+@@ -3,31 +3,31 @@
+ go work init m
+ cmp go.work go.work.want_initial
+ 
+-go work edit -directory n
+-cmp go.work go.work.want_directory_n
++go work edit -use n
++cmp go.work go.work.want_use_n
+ 
+ go work edit -go 1.18
+ cmp go.work go.work.want_go_118
+ 
+-go work edit -dropdirectory m
+-cmp go.work go.work.want_dropdirectory_m
++go work edit -dropuse m
++cmp go.work go.work.want_dropuse_m
+ 
+ go work edit -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z'
+ cmp go.work go.work.want_add_replaces
+ 
+-go work edit -directory n -directory ../a -directory /b -directory c -directory c
+-cmp go.work go.work.want_multidirectory
++go work edit -use n -use ../a -use /b -use c -use c
++cmp go.work go.work.want_multiuse
+ 
+-go work edit -dropdirectory /b -dropdirectory n
+-cmp go.work go.work.want_multidropdirectory
++go work edit -dropuse /b -dropuse n
++cmp go.work go.work.want_multidropuse
+ 
+ go work edit -dropreplace='x.1@v1.4.0'
+ cmp go.work go.work.want_dropreplace
+ 
+-go work edit -print -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
++go work edit -print -go 1.19 -use b -dropuse c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+ cmp stdout go.work.want_print
+ 
+-go work edit -json -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
++go work edit -json -go 1.19 -use b -dropuse c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+ cmp stdout go.work.want_json
+ 
+ go work edit -print -fmt -workfile $GOPATH/src/unformatted
+@@ -40,38 +40,38 @@ go 1.18
+ -- go.work.want_initial --
+ go 1.18
+ 
+-directory ./m
+--- go.work.want_directory_n --
++use ./m
++-- go.work.want_use_n --
+ go 1.18
+ 
+-directory (
++use (
+ 	./m
+ 	./n
+ )
+ -- go.work.want_go_118 --
+ go 1.18
+ 
+-directory (
++use (
+ 	./m
+ 	./n
+ )
+--- go.work.want_dropdirectory_m --
++-- go.work.want_dropuse_m --
+ go 1.18
+ 
+-directory ./n
++use ./n
+ -- go.work.want_add_replaces --
+ go 1.18
+ 
+-directory ./n
++use ./n
+ 
+ replace (
+ 	x.1 v1.3.0 => y.1 v1.4.0
+ 	x.1 v1.4.0 => ../z
+ )
+--- go.work.want_multidirectory --
++-- go.work.want_multiuse --
+ go 1.18
+ 
+-directory (
++use (
+ 	../a
+ 	./c
+ 	./n
+@@ -82,10 +82,10 @@ replace (
+ 	x.1 v1.3.0 => y.1 v1.4.0
+ 	x.1 v1.4.0 => ../z
+ )
+--- go.work.want_multidropdirectory --
++-- go.work.want_multidropuse --
+ go 1.18
+ 
+-directory (
++use (
+ 	../a
+ 	./c
+ )
+@@ -97,7 +97,7 @@ replace (
+ -- go.work.want_dropreplace --
+ go 1.18
+ 
+-directory (
++use (
+ 	../a
+ 	./c
+ )
+@@ -106,7 +106,7 @@ replace x.1 v1.3.0 => y.1 v1.4.0
+ -- go.work.want_print --
+ go 1.19
+ 
+-directory (
++use (
+ 	../a
+ 	./b
+ )
+@@ -115,7 +115,7 @@ replace x.1 v1.4.0 => ../z
+ -- go.work.want_json --
+ {
+ 	"Go": "1.19",
+-	"Directory": [
++	"Use": [
+ 		{
+ 			"DiskPath": "../a"
+ 		},
+@@ -137,7 +137,7 @@ replace x.1 v1.4.0 => ../z
+ }
+ -- unformatted --
+ go 1.18
+- directory (
++ use (
+  a
+   b
+   c
+@@ -149,7 +149,7 @@ go 1.18
+ -- formatted --
+ go 1.18
+ 
+-directory (
++use (
+ 	a
+ 	b
+ 	c
+diff --git a/src/cmd/go/testdata/script/work_env.txt b/src/cmd/go/testdata/script/work_env.txt
+index de67255696..ec3d3be3ed 100644
+--- a/src/cmd/go/testdata/script/work_env.txt
++++ b/src/cmd/go/testdata/script/work_env.txt
+@@ -19,6 +19,6 @@ stderr '^go: GOWORK cannot be modified$'
+ -- go.work --
+ go 1.18
+ 
+-directory a
++use a
+ -- a/go.mod --
+ module example.com/a
+diff --git a/src/cmd/go/testdata/script/work_prune.txt b/src/cmd/go/testdata/script/work_prune.txt
+index 00c3e10663..7e2ae4e6ce 100644
+--- a/src/cmd/go/testdata/script/work_prune.txt
++++ b/src/cmd/go/testdata/script/work_prune.txt
+@@ -19,7 +19,7 @@ stdout '^v1.1.0$'
+ -- go.work --
+ go 1.18
+ 
+-directory (
++use (
+ 	./a
+ 	./p
+ )
+diff --git a/src/cmd/go/testdata/script/work_replace.txt b/src/cmd/go/testdata/script/work_replace.txt
+index 5a4cb0eebb..81268e5069 100644
+--- a/src/cmd/go/testdata/script/work_replace.txt
++++ b/src/cmd/go/testdata/script/work_replace.txt
+@@ -10,7 +10,7 @@ go list -m example.com/other
+ stdout 'example.com/other v1.0.0 => ./other2'
+ 
+ -- go.work --
+-directory m
++use m
+ 
+ replace example.com/dep => ./dep
+ replace example.com/other => ./other2
+diff --git a/src/cmd/go/testdata/script/work_replace_conflict.txt b/src/cmd/go/testdata/script/work_replace_conflict.txt
+index f91b63cd86..e5677b21d7 100644
+--- a/src/cmd/go/testdata/script/work_replace_conflict.txt
++++ b/src/cmd/go/testdata/script/work_replace_conflict.txt
+@@ -9,8 +9,8 @@ stdout 'example.com/dep v1.0.0 => ./dep1'
+ 
+ -- foo --
+ -- go.work --
+-directory m
+-directory n
++use m
++use n
+ -- m/go.mod --
+ module example.com/m
+ 
+diff --git a/src/cmd/go/testdata/script/work_replace_conflict_override.txt b/src/cmd/go/testdata/script/work_replace_conflict_override.txt
+index ebb517dd7c..c62084bee6 100644
+--- a/src/cmd/go/testdata/script/work_replace_conflict_override.txt
++++ b/src/cmd/go/testdata/script/work_replace_conflict_override.txt
+@@ -5,8 +5,8 @@ go list -m example.com/dep
+ stdout 'example.com/dep v1.0.0 => ./dep3'
+ 
+ -- go.work --
+-directory m
+-directory n
++use m
++use n
+ replace example.com/dep => ./dep3
+ -- m/go.mod --
+ module example.com/m
+diff --git a/src/cmd/go/testdata/script/work_sum.txt b/src/cmd/go/testdata/script/work_sum.txt
+index 20261e7cbd..19dbb90507 100644
+--- a/src/cmd/go/testdata/script/work_sum.txt
++++ b/src/cmd/go/testdata/script/work_sum.txt
+@@ -11,7 +11,7 @@ rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
+ -- go.work --
+ go 1.18
+ 
+-directory .
++use .
+ -- go.mod --
+ go 1.18
+ 
+diff --git a/src/cmd/go/testdata/script/work_sum_mismatch.txt b/src/cmd/go/testdata/script/work_sum_mismatch.txt
+index 42994ea5d5..9e9474304e 100644
+--- a/src/cmd/go/testdata/script/work_sum_mismatch.txt
++++ b/src/cmd/go/testdata/script/work_sum_mismatch.txt
+@@ -17,8 +17,8 @@ For more information, see 'go help module-auth'.
+ -- go.work --
+ go 1.18
+ 
+-directory ./a
+-directory ./b
++use ./a
++use ./b
+ -- a/go.mod --
+ go 1.18
+ 
+diff --git a/src/cmd/go/testdata/script/work_sync.txt b/src/cmd/go/testdata/script/work_sync.txt
+index 16ad8c8cfa..69167d4cc1 100644
+--- a/src/cmd/go/testdata/script/work_sync.txt
++++ b/src/cmd/go/testdata/script/work_sync.txt
+@@ -5,7 +5,7 @@ cmp b/go.mod b/want_go.mod
+ -- go.work --
+ go 1.18
+ 
+-directory (
++use (
+ 	./a
+ 	./b
+ )
+diff --git a/src/cmd/go/testdata/script/work_sync_irrelevant_dependency.txt b/src/cmd/go/testdata/script/work_sync_irrelevant_dependency.txt
+index bbb8579b4f..072323d15d 100644
+--- a/src/cmd/go/testdata/script/work_sync_irrelevant_dependency.txt
++++ b/src/cmd/go/testdata/script/work_sync_irrelevant_dependency.txt
+@@ -11,7 +11,7 @@ cmp b/go.mod b/want_go.mod
+ -- go.work --
+ go 1.18
+ 
+-directory (
++use (
+ 	./a
+ 	./b
+ )
+diff --git a/src/cmd/go/testdata/script/work_sync_relevant_dependency.txt b/src/cmd/go/testdata/script/work_sync_relevant_dependency.txt
+index e95ac26707..d7997027d9 100644
+--- a/src/cmd/go/testdata/script/work_sync_relevant_dependency.txt
++++ b/src/cmd/go/testdata/script/work_sync_relevant_dependency.txt
+@@ -11,7 +11,7 @@ cmp b/go.mod b/want_go.mod
+ -- go.work --
+ go 1.18
+ 
+-directory (
++use (
+ 	./a
+ 	./b
+ )
+diff --git a/src/cmd/go/testdata/script/work_use.txt b/src/cmd/go/testdata/script/work_use.txt
+index dddce0fe22..f5ea89c900 100644
+--- a/src/cmd/go/testdata/script/work_use.txt
++++ b/src/cmd/go/testdata/script/work_use.txt
+@@ -6,21 +6,21 @@ cmp go.work go.want_work_other
+ -- go.work --
+ go 1.18
+ 
+-directory (
++use (
+ 	foo
+ 	foo/bar // doesn't exist
+ )
+ -- go.want_work_r --
+ go 1.18
+ 
+-directory (
++use (
+ 	foo
+ 	foo/bar/baz
+ )
+ -- go.want_work_other --
+ go 1.18
+ 
+-directory (
++use (
+ 	foo
+ 	foo/bar/baz
+ 	other
+diff --git a/src/cmd/go/testdata/script/work_why_download_graph.txt b/src/cmd/go/testdata/script/work_why_download_graph.txt
+index c03b4a7a62..7964c914a2 100644
+--- a/src/cmd/go/testdata/script/work_why_download_graph.txt
++++ b/src/cmd/go/testdata/script/work_why_download_graph.txt
+@@ -24,7 +24,7 @@ stdout 'example.com/a rsc.io/quote@v1.5.2\nexample.com/b example.com/c@v1.0.0\nr
+ -- go.work --
+ go 1.18
+ 
+-directory (
++use (
+     ./a
+     ./b
+ )
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index 98211a450a..ed2f31aa70 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -609,7 +609,7 @@ func (f *WorkFile) add(errs *ErrorList, line *Line, verb string, args []string,
+ 		f.Go = &Go{Syntax: line}
+ 		f.Go.Version = args[0]
+ 
+-	case "directory":
++	case "use":
+ 		if len(args) != 1 {
+ 			errorf("usage: %s local/dir", verb)
+ 			return
+@@ -619,7 +619,7 @@ func (f *WorkFile) add(errs *ErrorList, line *Line, verb string, args []string,
+ 			errorf("invalid quoted string: %v", err)
+ 			return
+ 		}
+-		f.Directory = append(f.Directory, &Directory{
++		f.Use = append(f.Use, &Use{
+ 			Path:   s,
+ 			Syntax: line,
+ 		})
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/work.go b/src/cmd/vendor/golang.org/x/mod/modfile/work.go
+index b1fabff51b..0c0e521525 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/work.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/work.go
+@@ -12,16 +12,16 @@ import (
+ 
+ // A WorkFile is the parsed, interpreted form of a go.work file.
+ type WorkFile struct {
+-	Go        *Go
+-	Directory []*Directory
+-	Replace   []*Replace
++	Go      *Go
++	Use     []*Use
++	Replace []*Replace
+ 
+ 	Syntax *FileSyntax
+ }
+ 
+-// A Directory is a single directory statement.
+-type Directory struct {
+-	Path       string // Directory path of module.
++// A Use is a single directory statement.
++type Use struct {
++	Path       string // Use path of module.
+ 	ModulePath string // Module path in the comment.
+ 	Syntax     *Line
+ }
+@@ -67,7 +67,7 @@ func ParseWork(file string, data []byte, fix VersionFixer) (*WorkFile, error) {
+ 					Err:      fmt.Errorf("unknown block type: %s", strings.Join(x.Token, " ")),
+ 				})
+ 				continue
+-			case "directory", "replace":
++			case "use", "replace":
+ 				for _, l := range x.Line {
+ 					f.add(&errs, l, x.Token[0], l.Token, fix)
+ 				}
+@@ -87,13 +87,13 @@ func ParseWork(file string, data []byte, fix VersionFixer) (*WorkFile, error) {
+ // Cleanup cleans out all the cleared entries.
+ func (f *WorkFile) Cleanup() {
+ 	w := 0
+-	for _, r := range f.Directory {
++	for _, r := range f.Use {
+ 		if r.Path != "" {
+-			f.Directory[w] = r
++			f.Use[w] = r
+ 			w++
+ 		}
+ 	}
+-	f.Directory = f.Directory[:w]
++	f.Use = f.Use[:w]
+ 
+ 	w = 0
+ 	for _, r := range f.Replace {
+@@ -133,60 +133,60 @@ func (f *WorkFile) AddGoStmt(version string) error {
+ 	return nil
+ }
+ 
+-func (f *WorkFile) AddDirectory(diskPath, modulePath string) error {
++func (f *WorkFile) AddUse(diskPath, modulePath string) error {
+ 	need := true
+-	for _, d := range f.Directory {
++	for _, d := range f.Use {
+ 		if d.Path == diskPath {
+ 			if need {
+ 				d.ModulePath = modulePath
+-				f.Syntax.updateLine(d.Syntax, "directory", AutoQuote(diskPath))
++				f.Syntax.updateLine(d.Syntax, "use", AutoQuote(diskPath))
+ 				need = false
+ 			} else {
+ 				d.Syntax.markRemoved()
+-				*d = Directory{}
++				*d = Use{}
+ 			}
+ 		}
+ 	}
+ 
+ 	if need {
+-		f.AddNewDirectory(diskPath, modulePath)
++		f.AddNewUse(diskPath, modulePath)
+ 	}
+ 	return nil
+ }
+ 
+-func (f *WorkFile) AddNewDirectory(diskPath, modulePath string) {
+-	line := f.Syntax.addLine(nil, "directory", AutoQuote(diskPath))
+-	f.Directory = append(f.Directory, &Directory{Path: diskPath, ModulePath: modulePath, Syntax: line})
++func (f *WorkFile) AddNewUse(diskPath, modulePath string) {
++	line := f.Syntax.addLine(nil, "use", AutoQuote(diskPath))
++	f.Use = append(f.Use, &Use{Path: diskPath, ModulePath: modulePath, Syntax: line})
+ }
+ 
+-func (f *WorkFile) SetDirectory(dirs []*Directory) {
++func (f *WorkFile) SetUse(dirs []*Use) {
+ 	need := make(map[string]string)
+ 	for _, d := range dirs {
+ 		need[d.Path] = d.ModulePath
+ 	}
+ 
+-	for _, d := range f.Directory {
++	for _, d := range f.Use {
+ 		if modulePath, ok := need[d.Path]; ok {
+ 			d.ModulePath = modulePath
+ 		} else {
+ 			d.Syntax.markRemoved()
+-			*d = Directory{}
++			*d = Use{}
+ 		}
+ 	}
+ 
+ 	// TODO(#45713): Add module path to comment.
+ 
+ 	for diskPath, modulePath := range need {
+-		f.AddNewDirectory(diskPath, modulePath)
++		f.AddNewUse(diskPath, modulePath)
+ 	}
+ 	f.SortBlocks()
+ }
+ 
+-func (f *WorkFile) DropDirectory(path string) error {
+-	for _, d := range f.Directory {
++func (f *WorkFile) DropUse(path string) error {
++	for _, d := range f.Use {
+ 		if d.Path == path {
+ 			d.Syntax.markRemoved()
+-			*d = Directory{}
++			*d = Use{}
+ 		}
+ 	}
+ 	return nil
+diff --git a/src/cmd/vendor/golang.org/x/mod/module/module.go b/src/cmd/vendor/golang.org/x/mod/module/module.go
+index 89bd3ede27..355b5a4568 100644
+--- a/src/cmd/vendor/golang.org/x/mod/module/module.go
++++ b/src/cmd/vendor/golang.org/x/mod/module/module.go
+@@ -798,6 +798,7 @@ func unescapeString(escaped string) (string, bool) {
+ // GOPRIVATE environment variable, as described by 'go help module-private'.
+ //
+ // It ignores any empty or malformed patterns in the list.
++// Trailing slashes on patterns are ignored.
+ func MatchPrefixPatterns(globs, target string) bool {
+ 	for globs != "" {
+ 		// Extract next non-empty glob in comma-separated list.
+@@ -807,6 +808,7 @@ func MatchPrefixPatterns(globs, target string) bool {
+ 		} else {
+ 			glob, globs = globs, ""
+ 		}
++		glob = strings.TrimSuffix(glob, "/")
+ 		if glob == "" {
+ 			continue
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/mod/semver/semver.go b/src/cmd/vendor/golang.org/x/mod/semver/semver.go
+index 7be398f80d..a30a22bf20 100644
+--- a/src/cmd/vendor/golang.org/x/mod/semver/semver.go
++++ b/src/cmd/vendor/golang.org/x/mod/semver/semver.go
+@@ -32,7 +32,6 @@ type parsed struct {
+ 	short      string
+ 	prerelease string
+ 	build      string
+-	err        string
+ }
+ 
+ // IsValid reports whether v is a valid semantic version string.
+@@ -172,12 +171,10 @@ func Sort(list []string) {
+ 
+ func parse(v string) (p parsed, ok bool) {
+ 	if v == "" || v[0] != 'v' {
+-		p.err = "missing v prefix"
+ 		return
+ 	}
+ 	p.major, v, ok = parseInt(v[1:])
+ 	if !ok {
+-		p.err = "bad major version"
+ 		return
+ 	}
+ 	if v == "" {
+@@ -187,13 +184,11 @@ func parse(v string) (p parsed, ok bool) {
+ 		return
+ 	}
+ 	if v[0] != '.' {
+-		p.err = "bad minor prefix"
+ 		ok = false
+ 		return
+ 	}
+ 	p.minor, v, ok = parseInt(v[1:])
+ 	if !ok {
+-		p.err = "bad minor version"
+ 		return
+ 	}
+ 	if v == "" {
+@@ -202,31 +197,26 @@ func parse(v string) (p parsed, ok bool) {
+ 		return
+ 	}
+ 	if v[0] != '.' {
+-		p.err = "bad patch prefix"
+ 		ok = false
+ 		return
+ 	}
+ 	p.patch, v, ok = parseInt(v[1:])
+ 	if !ok {
+-		p.err = "bad patch version"
+ 		return
+ 	}
+ 	if len(v) > 0 && v[0] == '-' {
+ 		p.prerelease, v, ok = parsePrerelease(v)
+ 		if !ok {
+-			p.err = "bad prerelease"
+ 			return
+ 		}
+ 	}
+ 	if len(v) > 0 && v[0] == '+' {
+ 		p.build, v, ok = parseBuild(v)
+ 		if !ok {
+-			p.err = "bad build"
+ 			return
+ 		}
+ 	}
+ 	if v != "" {
+-		p.err = "junk on end"
+ 		ok = false
+ 		return
+ 	}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 82e04c1d33..fd955a6932 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
+ ## explicit; go 1.17
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+-# golang.org/x/mod v0.6.0-dev.0.20210913215816-37dd6891021a
++# golang.org/x/mod v0.6.0-dev.0.20211102181907-3a5865c02020
+ ## explicit; go 1.17
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

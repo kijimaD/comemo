@@ -10,7 +10,54 @@ Date:   Fri Mar 11 00:44:39 2016 -0800
     Change-Id: Ie39d7d4621e2d5224408243b5789597ca0dc14be
     Reviewed-on: https://go-review.googlesource.com/20593
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/go.go    | 12 ------------
  src/cmd/compile/internal/gc/sinit.go | 12 ++++++++++++
  2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index bd7114d033..ddb6f84a13 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -99,18 +99,6 @@ type Label struct {
+ 	Used bool
+ }
+ 
+-type InitEntry struct {
+-	Xoffset int64 // struct, array only
+-	Expr    *Node // bytes of run-time computed expressions
+-}
+-
+-type InitPlan struct {
+-	Lit  int64
+-	Zero int64
+-	Expr int64
+-	E    []InitEntry
+-}
+-
+ type SymFlags uint8
+ 
+ const (
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 3b0d269395..b1b774a7f1 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -16,6 +16,18 @@ const (
+ 	InitPending    = 2
+ )
+ 
++type InitEntry struct {
++	Xoffset int64 // struct, array only
++	Expr    *Node // bytes of run-time computed expressions
++}
++
++type InitPlan struct {
++	Lit  int64
++	Zero int64
++	Expr int64
++	E    []InitEntry
++}
++
+ var (
+ 	initlist  []*Node
+ 	initplans map[*Node]*InitPlan

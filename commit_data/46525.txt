@@ -19,7 +19,85 @@ Date:   Sat Dec 26 10:13:57 2020 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/go/build/read.go      | 35 +++++++++++++++++++++++++++++++++++
  src/go/build/read_test.go | 20 ++++++++++++++++++++
  2 files changed, 55 insertions(+)
+
+diff --git a/src/go/build/read.go b/src/go/build/read.go
+index 6806a51c24..6da921d471 100644
+--- a/src/go/build/read.go
++++ b/src/go/build/read.go
+@@ -171,6 +171,41 @@ func (r *importReader) findEmbed(first bool) bool {
+ 		case ' ', '\t':
+ 			// leave startLine alone
+ 
++		case '"':
++			startLine = false
++			for r.err == nil {
++				if r.eof {
++					r.syntaxError()
++				}
++				c = r.readByteNoBuf()
++				if c == '\\' {
++					r.readByteNoBuf()
++					if r.err != nil {
++						r.syntaxError()
++						return false
++					}
++					continue
++				}
++				if c == '"' {
++					c = r.readByteNoBuf()
++					goto Reswitch
++				}
++			}
++			goto Reswitch
++
++		case '`':
++			startLine = false
++			for r.err == nil {
++				if r.eof {
++					r.syntaxError()
++				}
++				c = r.readByteNoBuf()
++				if c == '`' {
++					c = r.readByteNoBuf()
++					goto Reswitch
++				}
++			}
++
+ 		case '/':
+ 			c = r.readByteNoBuf()
+ 			switch c {
+diff --git a/src/go/build/read_test.go b/src/go/build/read_test.go
+index 9264d2606f..36c773ecea 100644
+--- a/src/go/build/read_test.go
++++ b/src/go/build/read_test.go
+@@ -255,6 +255,26 @@ var readEmbedTests = []struct {
+ 		"package p\nimport \"embed\"\n//go:embed x y z\nvar files embed.FS",
+ 		[]string{"x", "y", "z"},
+ 	},
++	{
++		"package p\nimport \"embed\"\nvar s = \"/*\"\n//go:embed x\nvar files embed.FS",
++		[]string{"x"},
++	},
++	{
++		`package p
++		 import "embed"
++		 var s = "\"\\\\"
++		 //go:embed x
++		 var files embed.FS`,
++		[]string{"x"},
++	},
++	{
++		"package p\nimport \"embed\"\nvar s = `/*`\n//go:embed x\nvar files embed.FS",
++		[]string{"x"},
++	},
++	{
++		"package p\nimport \"embed\"\nvar s = z/ *y\n//go:embed pointer\nvar pointer embed.FS",
++		[]string{"pointer"},
++	},
+ 	{
+ 		"package p\n//go:embed x y z\n", // no import, no scan
+ 		nil,

@@ -12,6 +12,21 @@ Date:   Tue Oct 31 23:25:09 2017 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/ast.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 96cad8050c..f59f7afcb7 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -144,9 +144,6 @@ func (f *File) ParseGo(name string, src []byte) {
+ // Like ast.CommentGroup's Text method but preserves
+ // leading blank lines, so that line numbers line up.
+ func commentText(g *ast.CommentGroup) string {
+-	if g == nil {
+-		return ""
+-	}
+ 	var pieces []string
+ 	for _, com := range g.List {
+ 		c := com.Text

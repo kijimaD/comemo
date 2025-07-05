@@ -13,8 +13,132 @@ Date:   Wed Apr 29 13:51:49 2015 +1000
     Change-Id: I3affc484f5e32941a36f15517a92ca8d189d9c22
     Reviewed-on: https://go-review.googlesource.com/9465
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/gif/reader.go      | 11 +++++---
  src/image/gif/writer.go      | 10 ++++---
  src/image/gif/writer_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++--
  3 files changed, 74 insertions(+), 9 deletions(-)
+
+diff --git a/src/image/gif/reader.go b/src/image/gif/reader.go
+index 07adeb3a94..bd452eba72 100644
+--- a/src/image/gif/reader.go
++++ b/src/image/gif/reader.go
+@@ -430,10 +430,13 @@ type GIF struct {
+ 	Disposal []byte
+ 	// Config is the global color map (palette), width and height. A nil or
+ 	// empty-color.Palette Config.ColorModel means that each frame has its own
+-	// color map and there is no global color map. For backwards compatibility,
+-	// a zero-valued Config is valid to pass to EncodeAll, and implies that the
+-	// overall GIF's width and height equals the first frame's width and
+-	// height.
++	// color map and there is no global color map. Each frame's bounds must be
++	// within the rectangle defined by the two points (0, 0) and (Config.Width,
++	// Config.Height).
++	//
++	// For backwards compatibility, a zero-valued Config is valid to pass to
++	// EncodeAll, and implies that the overall GIF's width and height equals
++	// the first frame's bounds' Rectangle.Max point.
+ 	Config image.Config
+ 	// BackgroundIndex is the background index in the global color map, for use
+ 	// with the DisposalBackground disposal method.
+diff --git a/src/image/gif/writer.go b/src/image/gif/writer.go
+index a70fc4079a..322b353fcb 100644
+--- a/src/image/gif/writer.go
++++ b/src/image/gif/writer.go
+@@ -191,6 +191,10 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte)
+ 		e.err = errors.New("gif: image block is too large to encode")
+ 		return
+ 	}
++	if !b.In(image.Rectangle{Max: image.Point{e.g.Config.Width, e.g.Config.Height}}) {
++		e.err = errors.New("gif: image block is out of bounds")
++		return
++	}
+ 
+ 	transparentIndex := -1
+ 	for i, c := range pm.Palette {
+@@ -297,9 +301,9 @@ func EncodeAll(w io.Writer, g *GIF) error {
+ 		return errors.New("gif: mismatched image and disposal lengths")
+ 	}
+ 	if e.g.Config == (image.Config{}) {
+-		b := g.Image[0].Bounds()
+-		e.g.Config.Width = b.Dx()
+-		e.g.Config.Height = b.Dy()
++		p := g.Image[0].Bounds().Max
++		e.g.Config.Width = p.X
++		e.g.Config.Height = p.Y
+ 	} else if e.g.Config.ColorModel != nil {
+ 		if _, ok := e.g.Config.ColorModel.(color.Palette); !ok {
+ 			return errors.New("gif: GIF color model must be a color.Palette")
+diff --git a/src/image/gif/writer_test.go b/src/image/gif/writer_test.go
+index 2248ac307a..d661015b17 100644
+--- a/src/image/gif/writer_test.go
++++ b/src/image/gif/writer_test.go
+@@ -297,8 +297,66 @@ func TestEncodeZeroGIF(t *testing.T) {
+ 	}
+ }
+ 
+-// TODO: add test for when individual frames are out of the global bounds.
+-// TODO: add test for when the first frame's bounds are not the same as the global bounds.
++func TestEncodeFrameOutOfBounds(t *testing.T) {
++	images := []*image.Paletted{
++		image.NewPaletted(image.Rect(0, 0, 5, 5), palette.Plan9),
++		image.NewPaletted(image.Rect(2, 2, 8, 8), palette.Plan9),
++		image.NewPaletted(image.Rect(3, 3, 4, 4), palette.Plan9),
++	}
++	for _, upperBound := range []int{6, 10} {
++		g := &GIF{
++			Image:    images,
++			Delay:    make([]int, len(images)),
++			Disposal: make([]byte, len(images)),
++			Config: image.Config{
++				Width:  upperBound,
++				Height: upperBound,
++			},
++		}
++		err := EncodeAll(ioutil.Discard, g)
++		if upperBound >= 8 {
++			if err != nil {
++				t.Errorf("upperBound=%d: %v", upperBound, err)
++			}
++		} else {
++			if err == nil {
++				t.Errorf("upperBound=%d: got nil error, want non-nil", upperBound)
++			}
++		}
++	}
++}
++
++func TestEncodeImplicitConfigSize(t *testing.T) {
++	// For backwards compatibility for Go 1.4 and earlier code, the Config
++	// field is optional, and if zero, the width and height is implied by the
++	// first (and in this case only) frame's width and height.
++	//
++	// A Config only specifies a width and height (two integers) while an
++	// image.Image's Bounds method returns an image.Rectangle (four integers).
++	// For a gif.GIF, the overall bounds' top-left point is always implicitly
++	// (0, 0), and any frame whose bounds have a negative X or Y will be
++	// outside those overall bounds, so encoding should fail.
++	for _, lowerBound := range []int{-1, 0, 1} {
++		images := []*image.Paletted{
++			image.NewPaletted(image.Rect(lowerBound, lowerBound, 4, 4), palette.Plan9),
++		}
++		g := &GIF{
++			Image: images,
++			Delay: make([]int, len(images)),
++		}
++		err := EncodeAll(ioutil.Discard, g)
++		if lowerBound >= 0 {
++			if err != nil {
++				t.Errorf("lowerBound=%d: %v", lowerBound, err)
++			}
++		} else {
++			if err == nil {
++				t.Errorf("lowerBound=%d: got nil error, want non-nil", lowerBound)
++			}
++		}
++	}
++}
++
+ // TODO: add test for when a frame has the same color map (palette) as the global one.
+ 
+ func BenchmarkEncode(b *testing.B) {

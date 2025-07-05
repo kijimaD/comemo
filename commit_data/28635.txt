@@ -9,7 +9,79 @@ Date:   Wed Jun 15 12:53:05 2016 -0400
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/trace/parser.go      | 25 +++++++++++++++++++------
  src/internal/trace/parser_test.go |  4 +++-
  2 files changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 843d0eaf63..c31517f683 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -60,21 +60,34 @@ const (
+ 
+ // Parse parses, post-processes and verifies the trace.
+ func Parse(r io.Reader, bin string) ([]*Event, error) {
+-	ver, rawEvents, strings, err := readTrace(r)
++	ver, events, err := parse(r, bin)
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	if ver < 1007 && bin == "" {
++		return nil, fmt.Errorf("for traces produced by go 1.6 or below, the binary argument must be provided")
++	}
++	return events, nil
++}
++
++// parse parses, post-processes and verifies the trace. It returns the
++// trace version and the list of events.
++func parse(r io.Reader, bin string) (int, []*Event, error) {
++	ver, rawEvents, strings, err := readTrace(r)
++	if err != nil {
++		return 0, nil, err
++	}
+ 	events, stacks, err := parseEvents(ver, rawEvents, strings)
+ 	if err != nil {
+-		return nil, err
++		return 0, nil, err
+ 	}
+ 	events, err = removeFutile(events)
+ 	if err != nil {
+-		return nil, err
++		return 0, nil, err
+ 	}
+ 	err = postProcessTrace(ver, events)
+ 	if err != nil {
+-		return nil, err
++		return 0, nil, err
+ 	}
+ 	// Attach stack traces.
+ 	for _, ev := range events {
+@@ -84,10 +97,10 @@ func Parse(r io.Reader, bin string) ([]*Event, error) {
+ 	}
+ 	if ver < 1007 && bin != "" {
+ 		if err := symbolize(events, bin); err != nil {
+-			return nil, err
++			return 0, nil, err
+ 		}
+ 	}
+-	return events, nil
++	return ver, events, nil
+ }
+ 
+ // rawEvent is a helper type used during parsing.
+diff --git a/src/internal/trace/parser_test.go b/src/internal/trace/parser_test.go
+index 340f106484..daad3e3ad7 100644
+--- a/src/internal/trace/parser_test.go
++++ b/src/internal/trace/parser_test.go
+@@ -42,7 +42,9 @@ func TestParseCanned(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("failed to read input file: %v", err)
+ 		}
+-		_, err = Parse(bytes.NewReader(data), "")
++		// Instead of Parse that requires a proper binary name for old traces,
++		// we use 'parse' that omits symbol lookup if an empty string is given.
++		_, _, err = parse(bytes.NewReader(data), "")
+ 		switch {
+ 		case strings.HasSuffix(f.Name(), "_good"):
+ 			if err != nil {

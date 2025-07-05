@@ -18,7 +18,65 @@ Date:   Fri Jun 1 16:27:49 2012 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6270043
-
+---
  src/pkg/go/parser/parser.go           |  4 ++--
  src/pkg/go/parser/performance_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index aeeda5f3d9..e0c5341d4d 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -296,14 +296,14 @@ func (p *parser) consumeCommentGroup(n int) (comments *ast.CommentGroup, endline
+ func (p *parser) next() {
+ 	p.leadComment = nil
+ 	p.lineComment = nil
+-	line := p.file.Line(p.pos) // current line
++	prev := p.pos
+ 	p.next0()
+ 
+ 	if p.tok == token.COMMENT {
+ 		var comment *ast.CommentGroup
+ 		var endline int
+ 
+-		if p.file.Line(p.pos) == line {
++		if p.file.Line(p.pos) == p.file.Line(prev) {
+ 			// The comment is on same line as the previous token; it
+ 			// cannot be a lead comment but may be a line comment.
+ 			comment, endline = p.consumeCommentGroup(0)
+diff --git a/src/pkg/go/parser/performance_test.go b/src/pkg/go/parser/performance_test.go
+new file mode 100644
+index 0000000000..f2732c0e2b
+--- /dev/null
++++ b/src/pkg/go/parser/performance_test.go
+@@ -0,0 +1,30 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package parser
++
++import (
++	"go/token"
++	"io/ioutil"
++	"testing"
++)
++
++var src = readFile("parser.go")
++
++func readFile(filename string) []byte {
++	data, err := ioutil.ReadFile(filename)
++	if err != nil {
++		panic(err)
++	}
++	return data
++}
++
++func BenchmarkParse(b *testing.B) {
++	b.SetBytes(int64(len(src)))
++	for i := 0; i < b.N; i++ {
++		if _, err := ParseFile(token.NewFileSet(), "", src, ParseComments); err != nil {
++			b.Fatalf("benchmark failed due to parse error: %s", err)
++		}
++	}
++}

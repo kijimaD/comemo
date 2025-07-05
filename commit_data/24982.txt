@@ -17,7 +17,7 @@ Date:   Mon Sep 7 23:18:02 2015 -0700
     Change-Id: I5a8b6b70c6f034f59e5753965234cd42ea36d524
     Reviewed-on: https://go-review.googlesource.com/14530
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  1 +
  src/cmd/compile/internal/gc/builtin/runtime.go |  1 +
  src/cmd/compile/internal/gc/ssa.go             | 62 ++++++++++++++++++++++++--
@@ -28,3 +28,239 @@ Date:   Mon Sep 7 23:18:02 2015 -0700
  src/runtime/stack2.go                          |  4 +-
  test/nosplit.go                                |  4 +-
  9 files changed, 76 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index f09dd5690f..0e5fe2ab60 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -118,6 +118,7 @@ const runtimeimport = "" +
+ 	"func @\"\".writebarrierfat1110 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
+ 	"func @\"\".writebarrierfat1111 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
+ 	"func @\"\".typedmemmove (@\"\".typ·1 *byte, @\"\".dst·2 *any, @\"\".src·3 *any)\n" +
++	"func @\"\".typedmemmove_nostore (@\"\".typ·1 *byte, @\"\".dst·2 *any)\n" +
+ 	"func @\"\".typedslicecopy (@\"\".typ·2 *byte, @\"\".dst·3 any, @\"\".src·4 any) (? int)\n" +
+ 	"func @\"\".selectnbsend (@\"\".chanType·2 *byte, @\"\".hchan·3 chan<- any, @\"\".elem·4 *any) (? bool)\n" +
+ 	"func @\"\".selectnbrecv (@\"\".chanType·2 *byte, @\"\".elem·3 *any, @\"\".hchan·4 <-chan any) (? bool)\n" +
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 6210f10cdf..f8487de45b 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -147,6 +147,7 @@ func writebarrierfat1111(dst *any, _ uintptr, src any)
+ 
+ // *byte is really *runtime.Type
+ func typedmemmove(typ *byte, dst *any, src *any)
++func typedmemmove_nostore(typ *byte, dst *any)
+ func typedslicecopy(typ *byte, dst any, src any) int
+ 
+ func selectnbsend(chanType *byte, hchan chan<- any, elem *any) bool
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 738685b044..e6a5627abf 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"bytes"
++	"crypto/sha1"
+ 	"fmt"
+ 	"html"
+ 	"math"
+@@ -162,7 +163,28 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 
+ 	// TODO: enable codegen more broadly once the codegen stabilizes
+ 	// and runtime support is in (gc maps, write barriers, etc.)
+-	return s.f, usessa || localpkg.Name == os.Getenv("GOSSAPKG")
++	if usessa {
++		return s.f, true
++	}
++	if localpkg.Name != os.Getenv("GOSSAPKG") {
++		return s.f, false
++	}
++	if os.Getenv("GOSSAHASH") == "" {
++		// Use everything in the package
++		return s.f, true
++	}
++	// Check the hash of the name against a partial input hash.
++	// We use this feature to do a binary search within a package to
++	// find a function that is incorrectly compiled.
++	hstr := ""
++	for _, b := range sha1.Sum([]byte(name)) {
++		hstr += fmt.Sprintf("%08b", b)
++	}
++	if strings.HasSuffix(hstr, os.Getenv("GOSSAHASH")) {
++		fmt.Println("GOSSAHASH triggered %s\n", name)
++		return s.f, true
++	}
++	return s.f, false
+ }
+ 
+ type state struct {
+@@ -744,6 +766,7 @@ func (s *state) stmt(n *Node) {
+ 		fn := call.Left
+ 		if call.Op != OCALLFUNC {
+ 			s.Unimplementedf("defer/go of %s", opnames[call.Op])
++			return
+ 		}
+ 
+ 		// Run all argument assignments.  The arg slots have already
+@@ -1852,8 +1875,6 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
+ 	if left.Op == ONAME && isblank(left) {
+ 		return
+ 	}
+-	// TODO: do write barrier
+-	// if wb
+ 	t := left.Type
+ 	dowidth(t)
+ 	if right == nil {
+@@ -1880,6 +1901,41 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
+ 		s.vars[&memvar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
+ 	}
+ 	s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, right, s.mem())
++	if wb {
++		// if writeBarrierEnabled {
++		//   typedmemmove_nostore(t, &l)
++		// }
++		bThen := s.f.NewBlock(ssa.BlockPlain)
++		bNext := s.f.NewBlock(ssa.BlockPlain)
++
++		aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrierEnabled", 0).Sym}
++		flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TBOOL]), aux, s.sb)
++		flag := s.newValue2(ssa.OpLoad, Types[TBOOL], flagaddr, s.mem())
++		b := s.endBlock()
++		b.Kind = ssa.BlockIf
++		b.Likely = ssa.BranchUnlikely
++		b.Control = flag
++		b.AddEdgeTo(bThen)
++		b.AddEdgeTo(bNext)
++
++		s.startBlock(bThen)
++		// NOTE: there must be no GC suspension points between the write above
++		// (the OpStore) and this call to typedmemmove_nostore.
++		// TODO: writebarrierptr_nostore if just one pointer word (or a few?)
++		taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Types[TUINTPTR], typenamesym(left.Type)}, s.sb)
++		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, taddr, s.mem())
++		spplus8 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(Widthptr), s.sp)
++		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus8, addr, s.mem())
++		call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, syslook("typedmemmove_nostore", 0).Sym, s.mem())
++		call.AuxInt = int64(2 * Widthptr)
++		s.vars[&memvar] = call
++		c := s.endBlock()
++		c.Kind = ssa.BlockCall
++		c.Control = call
++		c.AddEdgeTo(bNext)
++
++		s.startBlock(bNext)
++	}
+ }
+ 
+ // zeroVal returns the zero value for type t.
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index 74415fd560..b3ab09d914 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -31,7 +31,6 @@ func doTest(t *testing.T, filename string, kind string) {
+ 	cmd := exec.Command("go", kind, filepath.Join("testdata", filename))
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+-	// TODO: set GOGC=off until we have stackmaps
+ 	if err := cmd.Run(); err != nil {
+ 		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
+ 	}
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index d80547ed1c..5f8afd0cb3 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -277,11 +277,6 @@ func (t *tester) registerStdTest(pkg string) {
+ 
+ // TODO: Remove when SSA codegen is used by default.
+ func (t *tester) registerSSATest(pkg string) {
+-	switch pkg {
+-	// known failures due to GOGC=off
+-	case "runtime", "runtime/pprof", "runtime/trace", "sync":
+-		return
+-	}
+ 	t.tests = append(t.tests, distTest{
+ 		name:    "go_test_ssa:" + pkg,
+ 		heading: "Testing packages with SSA codegen.",
+@@ -297,7 +292,7 @@ func (t *tester) registerSSATest(pkg string) {
+ 			}
+ 			args = append(args, pkg)
+ 			cmd := exec.Command("go", args...)
+-			cmd.Env = mergeEnvLists([]string{"GOSSAPKG=" + path.Base(pkg), "GOGC=off"}, os.Environ())
++			cmd.Env = mergeEnvLists([]string{"GOSSAPKG=" + path.Base(pkg)}, os.Environ())
+ 			cmd.Stdout = os.Stdout
+ 			cmd.Stderr = os.Stderr
+ 			return cmd.Run()
+diff --git a/src/cmd/internal/obj/stack.go b/src/cmd/internal/obj/stack.go
+index 87698b3eeb..b1630b55fc 100644
+--- a/src/cmd/internal/obj/stack.go
++++ b/src/cmd/internal/obj/stack.go
+@@ -41,7 +41,7 @@ const (
+ 	STACKSYSTEM = 0
+ 	StackSystem = STACKSYSTEM
+ 	StackBig    = 4096
+-	StackGuard  = 640*stackGuardMultiplier + StackSystem
++	StackGuard  = 960*stackGuardMultiplier + StackSystem
+ 	StackSmall  = 128
+ 	StackLimit  = StackGuard - StackSystem - StackSmall
+ )
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 0dbe1ffc9d..c94e44f142 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -185,6 +185,14 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	heapBitsBulkBarrier(uintptr(dst), typ.size)
+ }
+ 
++//go:nosplit
++func typedmemmove_nostore(typ *_type, dst unsafe.Pointer) {
++	if typ.kind&kindNoPointers != 0 {
++		return
++	}
++	heapBitsBulkBarrier(uintptr(dst), typ.size)
++}
++
+ //go:linkname reflect_typedmemmove reflect.typedmemmove
+ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	typedmemmove(typ, dst, src)
+diff --git a/src/runtime/stack2.go b/src/runtime/stack2.go
+index 5ec8d8d060..02b82ebe13 100644
+--- a/src/runtime/stack2.go
++++ b/src/runtime/stack2.go
+@@ -54,6 +54,8 @@ The linkers explore all possible call traces involving non-splitting
+ functions to make sure that this limit cannot be violated.
+ */
+ 
++// Constants here match those in cmd/internal/obj/stack.go.
++
+ const (
+ 	// StackSystem is a number of additional bytes to add
+ 	// to each stack below the usual guard area for OS-specific
+@@ -84,7 +86,7 @@ const (
+ 
+ 	// The stack guard is a pointer this many bytes above the
+ 	// bottom of the stack.
+-	_StackGuard = 640*stackGuardMultiplier + _StackSystem
++	_StackGuard = 960*stackGuardMultiplier + _StackSystem
+ 
+ 	// After a stack split check the SP is allowed to be this
+ 	// many bytes below the stack guard.  This saves an instruction
+diff --git a/test/nosplit.go b/test/nosplit.go
+index e5c2a9f30e..e7c00f5783 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -285,12 +285,12 @@ TestCases:
+ 				// Instead of rewriting the test cases above, adjust
+ 				// the first stack frame to use up the extra bytes.
+ 				if i == 0 {
+-					size += 512 - 128
++					size += 832 - 128
+ 					// Noopt builds have a larger stackguard.
+ 					// See ../cmd/dist/buildruntime.go:stackGuardMultiplier
+ 					for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
+ 						if s == "-N" {
+-							size += 640
++							size += 960
+ 						}
+ 					}
+ 				}

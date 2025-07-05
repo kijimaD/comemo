@@ -10,7 +10,39 @@ Date:   Mon May 4 14:35:35 2015 -0400
     Change-Id: Ic6a23500deb72f0e9c8227ab611511e9781fac70
     Reviewed-on: https://go-review.googlesource.com/9690
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/ld/decodesym.go | 4 ++++
  src/cmd/internal/ld/lib.go       | 5 +----
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/ld/decodesym.go b/src/cmd/internal/ld/decodesym.go
+index 19d2502c7a..7dbe4b164e 100644
+--- a/src/cmd/internal/ld/decodesym.go
++++ b/src/cmd/internal/ld/decodesym.go
+@@ -75,6 +75,10 @@ func decodetype_gcprog(s *LSym) *LSym {
+ 	return decode_reloc_sym(s, 1*int32(Thearch.Ptrsize)+8+2*int32(Thearch.Ptrsize))
+ }
+ 
++func decodetype_gcprog_shlib(s *LSym) uint64 {
++	return decode_inuxi(s.P[1*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize):], Thearch.Ptrsize)
++}
++
+ func decodetype_gcmask(s *LSym) []byte {
+ 	if s.Type == obj.SDYNIMPORT {
+ 		// ldshlibsyms makes special efforts to read the value
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index 75a88541b0..6a9c277008 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -1224,10 +1224,7 @@ func ldshlibsyms(shlib string) {
+ 		if decodetype_noptr(t) != 0 || decodetype_usegcprog(t) != 0 {
+ 			continue
+ 		}
+-		// The expression on the next line is a copy of the expression from
+-		// decodetype_gcmask in decodesym.go, which in turn depends on details of
+-		// how the type data is laid out, as seen in gc/reflect.go:dcommontype.
+-		addr := decode_inuxi(t.P[1*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize):], Thearch.Ptrsize)
++		addr := decodetype_gcprog_shlib(t)
+ 		tgcmask, ok := gcmasks[addr]
+ 		if !ok {
+ 			Diag("bits not found for %s at %d", t.Name, addr)

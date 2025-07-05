@@ -14,7 +14,7 @@ Date:   Thu Feb 8 14:07:40 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/562736
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |   7 +-
@@ -41,3 +41,539 @@ Date:   Thu Feb 8 14:07:40 2024 -0500
  src/go.sum                                         |   4 +-
  src/vendor/modules.txt                             |   2 +-
  25 files changed, 149 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 0426e34e3b..ee25bdbd5b 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,7 +8,7 @@ require (
+ 	golang.org/x/build v0.0.0-20240201175143-3ee44a092755
+ 	golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3
+ 	golang.org/x/sync v0.6.0
+-	golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f
++	golang.org/x/sys v0.17.0
+ 	golang.org/x/telemetry v0.0.0-20240131160148-1cb064e7d4f2
+ 	golang.org/x/term v0.16.0
+ 	golang.org/x/tools v0.17.1-0.20240119231502-e1555a36d006
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 0f05b696f2..d4c18669a1 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -14,8 +14,8 @@ golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3 h1:/p/VemLWiTsjHqHwME1Iu+
+ golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/sync v0.6.0 h1:5BMeUDZ7vkXGfEr1x9B4bRcTH4lpkTkpdh0T/J+qjbQ=
+ golang.org/x/sync v0.6.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+-golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f h1:GvGFYRZ5kIldzXQj3UmUiUTMe5spPODuLKQvP38A+Qc=
+-golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/sys v0.17.0 h1:25cE3gD+tdBA7lp7QfhuV+rJiE9YXTcS3VG1SqssI/Y=
++golang.org/x/sys v0.17.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/telemetry v0.0.0-20240131160148-1cb064e7d4f2 h1:FXbfUwJ0hJkKMC/Cj47x49pH41jylMW5eMiIrJgmv2E=
+ golang.org/x/telemetry v0.0.0-20240131160148-1cb064e7d4f2/go.mod h1:ZthVHHkOi8rlMEsfFr3Ie42Ym1NonbFNNRKW3ci0UrU=
+ golang.org/x/term v0.16.0 h1:m+B6fahuftsE9qjo0VWp2FW0mB3MTJvR0BaMQrq0pmE=
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+index f8351ca168..36bf8399f4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+@@ -1785,6 +1785,8 @@ const (
+ 	LANDLOCK_ACCESS_FS_REMOVE_FILE              = 0x20
+ 	LANDLOCK_ACCESS_FS_TRUNCATE                 = 0x4000
+ 	LANDLOCK_ACCESS_FS_WRITE_FILE               = 0x2
++	LANDLOCK_ACCESS_NET_BIND_TCP                = 0x1
++	LANDLOCK_ACCESS_NET_CONNECT_TCP             = 0x2
+ 	LANDLOCK_CREATE_RULESET_VERSION             = 0x1
+ 	LINUX_REBOOT_CMD_CAD_OFF                    = 0x0
+ 	LINUX_REBOOT_CMD_CAD_ON                     = 0x89abcdef
+@@ -2465,6 +2467,7 @@ const (
+ 	PR_MCE_KILL_GET                             = 0x22
+ 	PR_MCE_KILL_LATE                            = 0x0
+ 	PR_MCE_KILL_SET                             = 0x1
++	PR_MDWE_NO_INHERIT                          = 0x2
+ 	PR_MDWE_REFUSE_EXEC_GAIN                    = 0x1
+ 	PR_MPX_DISABLE_MANAGEMENT                   = 0x2c
+ 	PR_MPX_ENABLE_MANAGEMENT                    = 0x2b
+@@ -2669,8 +2672,9 @@ const (
+ 	RTAX_FEATURES                               = 0xc
+ 	RTAX_FEATURE_ALLFRAG                        = 0x8
+ 	RTAX_FEATURE_ECN                            = 0x1
+-	RTAX_FEATURE_MASK                           = 0xf
++	RTAX_FEATURE_MASK                           = 0x1f
+ 	RTAX_FEATURE_SACK                           = 0x2
++	RTAX_FEATURE_TCP_USEC_TS                    = 0x10
+ 	RTAX_FEATURE_TIMESTAMP                      = 0x4
+ 	RTAX_HOPLIMIT                               = 0xa
+ 	RTAX_INITCWND                               = 0xb
+@@ -3104,6 +3108,7 @@ const (
+ 	SOL_TIPC                                    = 0x10f
+ 	SOL_TLS                                     = 0x11a
+ 	SOL_UDP                                     = 0x11
++	SOL_VSOCK                                   = 0x11f
+ 	SOL_X25                                     = 0x106
+ 	SOL_XDP                                     = 0x11b
+ 	SOMAXCONN                                   = 0x1000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_386.go
+index fcf3ecbdde..0cc3ce496e 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_386.go
+@@ -448,4 +448,8 @@ const (
+ 	SYS_SET_MEMPOLICY_HOME_NODE      = 450
+ 	SYS_CACHESTAT                    = 451
+ 	SYS_FCHMODAT2                    = 452
++	SYS_MAP_SHADOW_STACK             = 453
++	SYS_FUTEX_WAKE                   = 454
++	SYS_FUTEX_WAIT                   = 455
++	SYS_FUTEX_REQUEUE                = 456
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go
+index f56dc2504a..856d92d69e 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go
+@@ -371,4 +371,7 @@ const (
+ 	SYS_CACHESTAT               = 451
+ 	SYS_FCHMODAT2               = 452
+ 	SYS_MAP_SHADOW_STACK        = 453
++	SYS_FUTEX_WAKE              = 454
++	SYS_FUTEX_WAIT              = 455
++	SYS_FUTEX_REQUEUE           = 456
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm.go
+index 974bf24676..8d467094cf 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm.go
+@@ -412,4 +412,8 @@ const (
+ 	SYS_SET_MEMPOLICY_HOME_NODE      = 450
+ 	SYS_CACHESTAT                    = 451
+ 	SYS_FCHMODAT2                    = 452
++	SYS_MAP_SHADOW_STACK             = 453
++	SYS_FUTEX_WAKE                   = 454
++	SYS_FUTEX_WAIT                   = 455
++	SYS_FUTEX_REQUEUE                = 456
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go
+index 39a2739e23..edc173244d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go
+@@ -315,4 +315,8 @@ const (
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+ 	SYS_CACHESTAT               = 451
+ 	SYS_FCHMODAT2               = 452
++	SYS_MAP_SHADOW_STACK        = 453
++	SYS_FUTEX_WAKE              = 454
++	SYS_FUTEX_WAIT              = 455
++	SYS_FUTEX_REQUEUE           = 456
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_loong64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_loong64.go
+index cf9c9d77e1..445eba2061 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_loong64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_loong64.go
+@@ -309,4 +309,8 @@ const (
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+ 	SYS_CACHESTAT               = 451
+ 	SYS_FCHMODAT2               = 452
++	SYS_MAP_SHADOW_STACK        = 453
++	SYS_FUTEX_WAKE              = 454
++	SYS_FUTEX_WAIT              = 455
++	SYS_FUTEX_REQUEUE           = 456
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips.go
+index 10b7362ef4..adba01bca7 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips.go
+@@ -432,4 +432,8 @@ const (
+ 	SYS_SET_MEMPOLICY_HOME_NODE      = 4450
+ 	SYS_CACHESTAT                    = 4451
+ 	SYS_FCHMODAT2                    = 4452
++	SYS_MAP_SHADOW_STACK             = 4453
++	SYS_FUTEX_WAKE                   = 4454
++	SYS_FUTEX_WAIT                   = 4455
++	SYS_FUTEX_REQUEUE                = 4456
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64.go
+index cd4d8b4fd3..014c4e9c7a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64.go
+@@ -362,4 +362,8 @@ const (
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 5450
+ 	SYS_CACHESTAT               = 5451
+ 	SYS_FCHMODAT2               = 5452
++	SYS_MAP_SHADOW_STACK        = 5453
++	SYS_FUTEX_WAKE              = 5454
++	SYS_FUTEX_WAIT              = 5455
++	SYS_FUTEX_REQUEUE           = 5456
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64le.go
+index 2c0efca818..ccc97d74d0 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64le.go
+@@ -362,4 +362,8 @@ const (
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 5450
+ 	SYS_CACHESTAT               = 5451
+ 	SYS_FCHMODAT2               = 5452
++	SYS_MAP_SHADOW_STACK        = 5453
++	SYS_FUTEX_WAKE              = 5454
++	SYS_FUTEX_WAIT              = 5455
++	SYS_FUTEX_REQUEUE           = 5456
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mipsle.go
+index a72e31d391..ec2b64a95d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mipsle.go
+@@ -432,4 +432,8 @@ const (
+ 	SYS_SET_MEMPOLICY_HOME_NODE      = 4450
+ 	SYS_CACHESTAT                    = 4451
+ 	SYS_FCHMODAT2                    = 4452
++	SYS_MAP_SHADOW_STACK             = 4453
++	SYS_FUTEX_WAKE                   = 4454
++	SYS_FUTEX_WAIT                   = 4455
++	SYS_FUTEX_REQUEUE                = 4456
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc.go
+index c7d1e37471..21a839e338 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc.go
+@@ -439,4 +439,8 @@ const (
+ 	SYS_SET_MEMPOLICY_HOME_NODE      = 450
+ 	SYS_CACHESTAT                    = 451
+ 	SYS_FCHMODAT2                    = 452
++	SYS_MAP_SHADOW_STACK             = 453
++	SYS_FUTEX_WAKE                   = 454
++	SYS_FUTEX_WAIT                   = 455
++	SYS_FUTEX_REQUEUE                = 456
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64.go
+index f4d4838c87..c11121ec3b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64.go
+@@ -411,4 +411,8 @@ const (
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+ 	SYS_CACHESTAT               = 451
+ 	SYS_FCHMODAT2               = 452
++	SYS_MAP_SHADOW_STACK        = 453
++	SYS_FUTEX_WAKE              = 454
++	SYS_FUTEX_WAIT              = 455
++	SYS_FUTEX_REQUEUE           = 456
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64le.go
+index b64f0e5911..909b631fcb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64le.go
+@@ -411,4 +411,8 @@ const (
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+ 	SYS_CACHESTAT               = 451
+ 	SYS_FCHMODAT2               = 452
++	SYS_MAP_SHADOW_STACK        = 453
++	SYS_FUTEX_WAKE              = 454
++	SYS_FUTEX_WAIT              = 455
++	SYS_FUTEX_REQUEUE           = 456
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
+index 95711195a0..e49bed16ea 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
+@@ -316,4 +316,8 @@ const (
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+ 	SYS_CACHESTAT               = 451
+ 	SYS_FCHMODAT2               = 452
++	SYS_MAP_SHADOW_STACK        = 453
++	SYS_FUTEX_WAKE              = 454
++	SYS_FUTEX_WAIT              = 455
++	SYS_FUTEX_REQUEUE           = 456
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go
+index f94e943bc4..66017d2d32 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go
+@@ -377,4 +377,8 @@ const (
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+ 	SYS_CACHESTAT               = 451
+ 	SYS_FCHMODAT2               = 452
++	SYS_MAP_SHADOW_STACK        = 453
++	SYS_FUTEX_WAKE              = 454
++	SYS_FUTEX_WAIT              = 455
++	SYS_FUTEX_REQUEUE           = 456
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go
+index ba0c2bc515..47bab18dce 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go
+@@ -390,4 +390,8 @@ const (
+ 	SYS_SET_MEMPOLICY_HOME_NODE = 450
+ 	SYS_CACHESTAT               = 451
+ 	SYS_FCHMODAT2               = 452
++	SYS_MAP_SHADOW_STACK        = 453
++	SYS_FUTEX_WAKE              = 454
++	SYS_FUTEX_WAIT              = 455
++	SYS_FUTEX_REQUEUE           = 456
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+index bbf8399ff5..dc0c955eec 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+@@ -174,7 +174,8 @@ type FscryptPolicyV2 struct {
+ 	Contents_encryption_mode  uint8
+ 	Filenames_encryption_mode uint8
+ 	Flags                     uint8
+-	_                         [4]uint8
++	Log2_data_unit_size       uint8
++	_                         [3]uint8
+ 	Master_key_identifier     [16]uint8
+ }
+ 
+@@ -455,60 +456,63 @@ type Ucred struct {
+ }
+ 
+ type TCPInfo struct {
+-	State           uint8
+-	Ca_state        uint8
+-	Retransmits     uint8
+-	Probes          uint8
+-	Backoff         uint8
+-	Options         uint8
+-	Rto             uint32
+-	Ato             uint32
+-	Snd_mss         uint32
+-	Rcv_mss         uint32
+-	Unacked         uint32
+-	Sacked          uint32
+-	Lost            uint32
+-	Retrans         uint32
+-	Fackets         uint32
+-	Last_data_sent  uint32
+-	Last_ack_sent   uint32
+-	Last_data_recv  uint32
+-	Last_ack_recv   uint32
+-	Pmtu            uint32
+-	Rcv_ssthresh    uint32
+-	Rtt             uint32
+-	Rttvar          uint32
+-	Snd_ssthresh    uint32
+-	Snd_cwnd        uint32
+-	Advmss          uint32
+-	Reordering      uint32
+-	Rcv_rtt         uint32
+-	Rcv_space       uint32
+-	Total_retrans   uint32
+-	Pacing_rate     uint64
+-	Max_pacing_rate uint64
+-	Bytes_acked     uint64
+-	Bytes_received  uint64
+-	Segs_out        uint32
+-	Segs_in         uint32
+-	Notsent_bytes   uint32
+-	Min_rtt         uint32
+-	Data_segs_in    uint32
+-	Data_segs_out   uint32
+-	Delivery_rate   uint64
+-	Busy_time       uint64
+-	Rwnd_limited    uint64
+-	Sndbuf_limited  uint64
+-	Delivered       uint32
+-	Delivered_ce    uint32
+-	Bytes_sent      uint64
+-	Bytes_retrans   uint64
+-	Dsack_dups      uint32
+-	Reord_seen      uint32
+-	Rcv_ooopack     uint32
+-	Snd_wnd         uint32
+-	Rcv_wnd         uint32
+-	Rehash          uint32
++	State                uint8
++	Ca_state             uint8
++	Retransmits          uint8
++	Probes               uint8
++	Backoff              uint8
++	Options              uint8
++	Rto                  uint32
++	Ato                  uint32
++	Snd_mss              uint32
++	Rcv_mss              uint32
++	Unacked              uint32
++	Sacked               uint32
++	Lost                 uint32
++	Retrans              uint32
++	Fackets              uint32
++	Last_data_sent       uint32
++	Last_ack_sent        uint32
++	Last_data_recv       uint32
++	Last_ack_recv        uint32
++	Pmtu                 uint32
++	Rcv_ssthresh         uint32
++	Rtt                  uint32
++	Rttvar               uint32
++	Snd_ssthresh         uint32
++	Snd_cwnd             uint32
++	Advmss               uint32
++	Reordering           uint32
++	Rcv_rtt              uint32
++	Rcv_space            uint32
++	Total_retrans        uint32
++	Pacing_rate          uint64
++	Max_pacing_rate      uint64
++	Bytes_acked          uint64
++	Bytes_received       uint64
++	Segs_out             uint32
++	Segs_in              uint32
++	Notsent_bytes        uint32
++	Min_rtt              uint32
++	Data_segs_in         uint32
++	Data_segs_out        uint32
++	Delivery_rate        uint64
++	Busy_time            uint64
++	Rwnd_limited         uint64
++	Sndbuf_limited       uint64
++	Delivered            uint32
++	Delivered_ce         uint32
++	Bytes_sent           uint64
++	Bytes_retrans        uint64
++	Dsack_dups           uint32
++	Reord_seen           uint32
++	Rcv_ooopack          uint32
++	Snd_wnd              uint32
++	Rcv_wnd              uint32
++	Rehash               uint32
++	Total_rto            uint16
++	Total_rto_recoveries uint16
++	Total_rto_time       uint32
+ }
+ 
+ type CanFilter struct {
+@@ -551,7 +555,7 @@ const (
+ 	SizeofIPv6MTUInfo       = 0x20
+ 	SizeofICMPv6Filter      = 0x20
+ 	SizeofUcred             = 0xc
+-	SizeofTCPInfo           = 0xf0
++	SizeofTCPInfo           = 0xf8
+ 	SizeofCanFilter         = 0x8
+ 	SizeofTCPRepairOpt      = 0x8
+ )
+@@ -3399,7 +3403,7 @@ const (
+ 	DEVLINK_PORT_FN_ATTR_STATE                         = 0x2
+ 	DEVLINK_PORT_FN_ATTR_OPSTATE                       = 0x3
+ 	DEVLINK_PORT_FN_ATTR_CAPS                          = 0x4
+-	DEVLINK_PORT_FUNCTION_ATTR_MAX                     = 0x4
++	DEVLINK_PORT_FUNCTION_ATTR_MAX                     = 0x5
+ )
+ 
+ type FsverityDigest struct {
+@@ -4183,7 +4187,8 @@ const (
+ )
+ 
+ type LandlockRulesetAttr struct {
+-	Access_fs uint64
++	Access_fs  uint64
++	Access_net uint64
+ }
+ 
+ type LandlockPathBeneathAttr struct {
+@@ -5134,7 +5139,7 @@ const (
+ 	NL80211_FREQUENCY_ATTR_GO_CONCURRENT                    = 0xf
+ 	NL80211_FREQUENCY_ATTR_INDOOR_ONLY                      = 0xe
+ 	NL80211_FREQUENCY_ATTR_IR_CONCURRENT                    = 0xf
+-	NL80211_FREQUENCY_ATTR_MAX                              = 0x1b
++	NL80211_FREQUENCY_ATTR_MAX                              = 0x1c
+ 	NL80211_FREQUENCY_ATTR_MAX_TX_POWER                     = 0x6
+ 	NL80211_FREQUENCY_ATTR_NO_10MHZ                         = 0x11
+ 	NL80211_FREQUENCY_ATTR_NO_160MHZ                        = 0xc
+@@ -5547,7 +5552,7 @@ const (
+ 	NL80211_REGDOM_TYPE_CUSTOM_WORLD                        = 0x2
+ 	NL80211_REGDOM_TYPE_INTERSECTION                        = 0x3
+ 	NL80211_REGDOM_TYPE_WORLD                               = 0x1
+-	NL80211_REG_RULE_ATTR_MAX                               = 0x7
++	NL80211_REG_RULE_ATTR_MAX                               = 0x8
+ 	NL80211_REKEY_DATA_AKM                                  = 0x4
+ 	NL80211_REKEY_DATA_KCK                                  = 0x2
+ 	NL80211_REKEY_DATA_KEK                                  = 0x1
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/env_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/env_windows.go
+index b8ad192506..d4577a4238 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/env_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/env_windows.go
+@@ -37,14 +37,17 @@ func (token Token) Environ(inheritExisting bool) (env []string, err error) {
+ 		return nil, err
+ 	}
+ 	defer DestroyEnvironmentBlock(block)
+-	blockp := unsafe.Pointer(block)
+-	for {
+-		entry := UTF16PtrToString((*uint16)(blockp))
+-		if len(entry) == 0 {
+-			break
++	size := unsafe.Sizeof(*block)
++	for *block != 0 {
++		// find NUL terminator
++		end := unsafe.Pointer(block)
++		for *(*uint16)(end) != 0 {
++			end = unsafe.Add(end, size)
+ 		}
+-		env = append(env, entry)
+-		blockp = unsafe.Add(blockp, 2*(len(entry)+1))
++
++		entry := unsafe.Slice(block, (uintptr(end)-uintptr(unsafe.Pointer(block)))/size)
++		env = append(env, UTF16ToString(entry))
++		block = (*uint16)(unsafe.Add(end, size))
+ 	}
+ 	return env, nil
+ }
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+index ffb8708ccf..6395a031d4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+@@ -125,8 +125,7 @@ func UTF16PtrToString(p *uint16) string {
+ 	for ptr := unsafe.Pointer(p); *(*uint16)(ptr) != 0; n++ {
+ 		ptr = unsafe.Pointer(uintptr(ptr) + unsafe.Sizeof(*p))
+ 	}
+-
+-	return string(utf16.Decode(unsafe.Slice(p, n)))
++	return UTF16ToString(unsafe.Slice(p, n))
+ }
+ 
+ func Getpagesize() int { return 4096 }
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 74bcaeb752..d98af7eb3c 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -40,7 +40,7 @@ golang.org/x/mod/zip
+ # golang.org/x/sync v0.6.0
+ ## explicit; go 1.18
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f
++# golang.org/x/sys v0.17.0
+ ## explicit; go 1.18
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+diff --git a/src/go.mod b/src/go.mod
+index 6b0e3c58ee..cde7f6998b 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -8,6 +8,6 @@ require (
+ )
+ 
+ require (
+-	golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f // indirect
++	golang.org/x/sys v0.17.0 // indirect
+ 	golang.org/x/text v0.14.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index c59bf5956b..0031e51469 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -2,7 +2,7 @@ golang.org/x/crypto v0.18.0 h1:PGVlW0xEltQnzFZ55hkuX5+KLyrMYhHld1YHO4AKcdc=
+ golang.org/x/crypto v0.18.0/go.mod h1:R0j02AL6hcrfOiy9T4ZYp/rcWeMxM3L6QYxlOuEG1mg=
+ golang.org/x/net v0.20.1-0.20240110153537-07e05fd6e95a h1:VHlux4LIHGkrTO1cETOIekMY3h7UnpTakEdoxS/+o28=
+ golang.org/x/net v0.20.1-0.20240110153537-07e05fd6e95a/go.mod h1:z8BVo6PvndSri0LbOE3hAn0apkU+1YvI6E70E9jsnvY=
+-golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f h1:GvGFYRZ5kIldzXQj3UmUiUTMe5spPODuLKQvP38A+Qc=
+-golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/sys v0.17.0 h1:25cE3gD+tdBA7lp7QfhuV+rJiE9YXTcS3VG1SqssI/Y=
++golang.org/x/sys v0.17.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+ golang.org/x/text v0.14.0/go.mod h1:18ZOQIKpY8NJVqYksKHtTdi31H5itFRjB5/qKTNYzSU=
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 56f7d546ee..ed7a2b3bd8 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -17,7 +17,7 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f
++# golang.org/x/sys v0.17.0
+ ## explicit; go 1.18
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.14.0

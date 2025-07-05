@@ -7,7 +7,81 @@ Date:   Fri Jul 30 14:48:30 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1907045
-
+---
  .hgtags                |  1 -
  doc/devel/release.html | 53 ++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 53 insertions(+), 1 deletion(-)
+
+diff --git a/.hgtags b/.hgtags
+index 7549cc569c..0956f5bcce 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -24,4 +24,3 @@ f776656df34c009f2aad142bf7b34a778404acd1 release.2010-06-09
+ 113ec27f29f18825444f6f8a3cdc156c1df28e87 release.2010-06-21
+ b761e0299e9bf66298778cf170b0f64216e3cf7d release.2010-07-01
+ 5992bf56aa72efcea87d8dff14985fc8fcc68575 release.2010-07-14
+-5992bf56aa72efcea87d8dff14985fc8fcc68575 release
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index ffdb8d4c46..8383ba8fa8 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -5,6 +5,59 @@
+ <p>This page summarizes the changes between tagged releases of Go.
+ For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
+ 
++<h3 id="2010-07-29">2010-07-29</h3>
++
++<pre>
++* 5g: more soft float support and several bugfixes.
++* asn1: Enumerated, Flag and GeneralizedTime support.
++* build: clean.bash to check that GOOS and GOARCH are set.
++* bytes: add IndexFunc and LastIndexFunc (thanks Fazlul Shahriar),
++	add Title.
++* cgo: If CC is set in environment, use it rather than "gcc",
++	use new command line syntax: -- separates cgo flags from gcc flags.
++* codereview: avoid crash if no config,
++	don't run gofmt with an empty file list,
++	make 'hg submit' work with Mercurial 1.6.
++* crypto/ocsp: add package to parse OCSP responses.
++* crypto/tls: add client-side SNI support and PeerCertificates.
++* exp/bignum: delete package - functionality subsumed by package big.
++* fmt.Print: fix bug in placement of spaces introduced when ...T went in.
++* fmt.Scanf: handle trailing spaces.
++* gc: fix smaller-than-pointer-sized receivers in interfaces,
++	floating point precision/normalization fixes,
++	graceful exit on seg fault,
++	import dot shadowing bug,
++	many fixes including better handling of invalid input,
++	print error detail about failure to open import.
++* gccgo_install.html: add description of the port to RTEMS (thanks Vinu Rajashekhar).
++* gobs: fix bug in singleton arrays.
++* godoc: display synopses for all packages that have some kind of documentation..
++* gofmt: fix some linebreak issues.
++* http: add https client support (thanks Fazlul Shahriar),
++	write body when content length unknown (thanks James Whitehead).
++* io: MultiReader and MultiWriter (thanks Brad Fitzpatrick),
++	fix another race condition in Pipes.
++* ld: many fixes including better handling of invalid input.
++* libmach: correct handling of .5 files with D_REGREG addresses.
++* linux/386: use Xen-friendly ELF TLS instruction sequence.
++* mime: add AddExtensionType (thanks Yuusei Kuwana).
++* misc/vim: syntax file recognizes constants like 1e9 (thanks Petar Maymounkov).
++* net: TCPConn.SetNoDelay, back by popular demand.
++* net(windows): fix crashing Read/Write when passed empty slice on (thanks Alex Brainman),
++	implement LookupHost/Port/SRV (thanks Wei Guangjing),
++	properly handle EOF in (*netFD).Read() (thanks Alex Brainman).
++* runtime: fix bug introduced in revision 4a01b8d28570 (thanks Alex Brainman),
++	rename cgo2c, *.cgo to goc2c, *.goc (thanks Peter Mundy).
++* scanner: better comment.
++* strings: add Title.
++* syscall: add ForkExec, Syscall12 on Windows (thanks Daniel Theophanes),
++	improve windows errno handling (thanks Alex Brainman).
++* syscall(windows): fix FormatMessage (thanks Peter Mundy),
++	implement Pipe() (thanks Wei Guangjing).
++* time: fix parsing of minutes in time zones.
++* utf16(windows): fix cyclic dependency when testing (thanks Peter Mundy).
++</pre>
++
+ <h3 id="2010-07-14">2010-07-14</h3>
+ 
+ <pre>

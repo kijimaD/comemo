@@ -19,8 +19,170 @@ Date:   Wed May 17 11:42:27 2023 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/internal/typecheck/expr.go | 17 ++------
  src/cmd/compile/internal/typecheck/stmt.go | 16 ++------
  src/cmd/compile/internal/typecheck/subr.go | 64 ++++++++++++++++++------------
  3 files changed, 46 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 96f368363a..425724426a 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -535,20 +535,9 @@ func tcDotType(n *ir.TypeAssertExpr) ir.Node {
+ 	base.AssertfAt(n.Type() != nil, n.Pos(), "missing type: %v", n)
+ 
+ 	if n.Type() != nil && !n.Type().IsInterface() {
+-		var missing, have *types.Field
+-		var ptr int
+-		if !implements(n.Type(), t, &missing, &have, &ptr) {
+-			if have != nil && have.Sym == missing.Sym {
+-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (wrong type for %v method)\n"+
+-					"\t\thave %v%S\n\t\twant %v%S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+-			} else if ptr != 0 {
+-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (%v method has pointer receiver)", n.Type(), t, missing.Sym)
+-			} else if have != nil {
+-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (missing %v method)\n"+
+-					"\t\thave %v%S\n\t\twant %v%S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+-			} else {
+-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (missing %v method)", n.Type(), t, missing.Sym)
+-			}
++		why := ImplementsExplain(n.Type(), t)
++		if why != "" {
++			base.Fatalf("impossible type assertion:\n\t%s", why)
+ 			n.SetType(nil)
+ 			return n
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 3ad116144b..72e91c4fde 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -587,8 +587,6 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 				continue
+ 			}
+ 
+-			var missing, have *types.Field
+-			var ptr int
+ 			if ir.IsNil(n1) { // case nil:
+ 				if nilCase != nil {
+ 					base.ErrorfAt(ncase.Pos(), errors.DuplicateCase, "multiple nil cases in type switch (first at %v)", ir.Line(nilCase))
+@@ -604,16 +602,10 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 				base.ErrorfAt(ncase.Pos(), errors.NotAType, "%L is not a type", n1)
+ 				continue
+ 			}
+-			if !n1.Type().IsInterface() && !implements(n1.Type(), t, &missing, &have, &ptr) {
+-				if have != nil {
+-					base.ErrorfAt(ncase.Pos(), errors.ImpossibleAssert, "impossible type switch case: %L cannot have dynamic type %v"+
+-						" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", guard.X, n1.Type(), missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+-				} else if ptr != 0 {
+-					base.ErrorfAt(ncase.Pos(), errors.ImpossibleAssert, "impossible type switch case: %L cannot have dynamic type %v"+
+-						" (%v method has pointer receiver)", guard.X, n1.Type(), missing.Sym)
+-				} else {
+-					base.ErrorfAt(ncase.Pos(), errors.ImpossibleAssert, "impossible type switch case: %L cannot have dynamic type %v"+
+-						" (missing %v method)", guard.X, n1.Type(), missing.Sym)
++			if !n1.Type().IsInterface() {
++				why := ImplementsExplain(n1.Type(), t)
++				if why != "" {
++					base.ErrorfAt(ncase.Pos(), errors.ImpossibleAssert, "impossible type switch case: %L cannot have dynamic type %v (%s)" , guard.X, n1.Type(), why)
+ 				}
+ 				continue
+ 			}
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 557d993f1c..8554805fa6 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -372,8 +372,6 @@ func Assignop1(src, dst *types.Type) (ir.Op, string) {
+ 
+ 	// 3. dst is an interface type and src implements dst.
+ 	if dst.IsInterface() && src.Kind() != types.TNIL {
+-		var missing, have *types.Field
+-		var ptr int
+ 		if src.IsShape() {
+ 			// Shape types implement things they have already
+ 			// been typechecked to implement, even if they
+@@ -385,28 +383,12 @@ func Assignop1(src, dst *types.Type) (ir.Op, string) {
+ 			// to interface type, not just type arguments themselves.
+ 			return ir.OCONVIFACE, ""
+ 		}
+-		if implements(src, dst, &missing, &have, &ptr) {
+-			return ir.OCONVIFACE, ""
+-		}
+ 
+-		var why string
+-		if isptrto(src, types.TINTER) {
+-			why = fmt.Sprintf(":\n\t%v is pointer to interface, not interface", src)
+-		} else if have != nil && have.Sym == missing.Sym && have.Nointerface() {
+-			why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
+-		} else if have != nil && have.Sym == missing.Sym {
+-			why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+
+-				"\t\thave %v%S\n\t\twant %v%S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+-		} else if ptr != 0 {
+-			why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", src, dst, missing.Sym)
+-		} else if have != nil {
+-			why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+
+-				"\t\thave %v%S\n\t\twant %v%S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+-		} else {
+-			why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)", src, dst, missing.Sym)
++		why := ImplementsExplain(src, dst)
++		if why == "" {
++			return ir.OCONVIFACE, ""
+ 		}
+-
+-		return ir.OXXX, why
++		return ir.OXXX, ":\n\t" + why
+ 	}
+ 
+ 	if isptrto(dst, types.TINTER) {
+@@ -415,10 +397,8 @@ func Assignop1(src, dst *types.Type) (ir.Op, string) {
+ 	}
+ 
+ 	if src.IsInterface() && dst.Kind() != types.TBLANK {
+-		var missing, have *types.Field
+-		var ptr int
+ 		var why string
+-		if implements(dst, src, &missing, &have, &ptr) {
++		if Implements(dst, src) {
+ 			why = ": need type assertion"
+ 		}
+ 		return ir.OXXX, why
+@@ -709,6 +689,40 @@ func ifacelookdot(s *types.Sym, t *types.Type, ignorecase bool) *types.Field {
+ 	return m
+ }
+ 
++// Implements reports whether t implements the interface iface. t can be
++// an interface, a type parameter, or a concrete type.
++func Implements(t, iface *types.Type) bool {
++	var missing, have *types.Field
++	var ptr int
++	return implements(t, iface, &missing, &have, &ptr)
++}
++
++// ImplementsExplain reports whether t implements the interface iface. t can be
++// an interface, a type parameter, or a concrete type. If t does not implement
++// iface, a non-empty string is returned explaining why.
++func ImplementsExplain(t, iface *types.Type) string {
++	var missing, have *types.Field
++	var ptr int
++	if implements(t, iface, &missing, &have, &ptr) {
++		return ""
++	}
++
++	if isptrto(t, types.TINTER) {
++		return fmt.Sprintf("%v is pointer to interface, not interface", t)
++	} else if have != nil && have.Sym == missing.Sym && have.Nointerface() {
++		return fmt.Sprintf("%v does not implement %v (%v method is marked 'nointerface')", t, iface, missing.Sym)
++	} else if have != nil && have.Sym == missing.Sym {
++		return fmt.Sprintf("%v does not implement %v (wrong type for %v method)\n"+
++		"\t\thave %v%S\n\t\twant %v%S", t, iface, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
++	} else if ptr != 0 {
++		return fmt.Sprintf("%v does not implement %v (%v method has pointer receiver)", t, iface, missing.Sym)
++	} else if have != nil {
++		return fmt.Sprintf("%v does not implement %v (missing %v method)\n"+
++		"\t\thave %v%S\n\t\twant %v%S", t, iface, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
++	}
++	return fmt.Sprintf("%v does not implement %v (missing %v method)", t, iface, missing.Sym)
++}
++
+ // implements reports whether t implements the interface iface. t can be
+ // an interface, a type parameter, or a concrete type. If implements returns
+ // false, it stores a method of iface that is not implemented in *m. If the

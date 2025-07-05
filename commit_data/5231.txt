@@ -16,6 +16,20 @@ Date:   Tue Apr 6 10:28:55 2010 -0700
     R=r, rsc1, rsc
     CC=golang-dev
     https://golang.org/cl/812044
-
+---
  src/pkg/syscall/syscall.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall.go b/src/pkg/syscall/syscall.go
+index 372149bf2c..46f5c98764 100644
+--- a/src/pkg/syscall/syscall.go
++++ b/src/pkg/syscall/syscall.go
+@@ -9,6 +9,8 @@
+ // packages rather than this one if you can.
+ // For details of the functions and data types in this package consult
+ // the manuals for the appropriate operating system.
++// These calls return errno == 0 to indicate success; otherwise
++// errno is an operating system error number describing the failure.
+ package syscall
+ 
+ func Syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)

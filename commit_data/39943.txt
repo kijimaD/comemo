@@ -16,8 +16,105 @@ Date:   Tue Jan 8 10:34:16 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go                                | 16 ----------------
  src/cmd/go/internal/web/http.go                      | 20 ++++++++++++++------
  src/cmd/go/testdata/script/get_insecure_redirect.txt | 11 +++++++++++
  3 files changed, 25 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index d7e9ab4c74..473f62ca5b 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3407,22 +3407,6 @@ func TestGoGetDotSlashDownload(t *testing.T) {
+ 	tg.run("get", "./pprof_mac_fix")
+ }
+ 
+-// Issue 13037: Was not parsing <meta> tags in 404 served over HTTPS
+-func TestGoGetHTTPS404(t *testing.T) {
+-	testenv.MustHaveExternalNetwork(t)
+-	switch runtime.GOOS {
+-	case "darwin", "linux", "freebsd":
+-	default:
+-		t.Skipf("test case does not work on %s", runtime.GOOS)
+-	}
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.tempDir("src")
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.run("get", "bazil.org/fuse/fs/fstestutil")
+-}
+-
+ // Test that you cannot import a main package.
+ // See golang.org/issue/4210 and golang.org/issue/17475.
+ func TestImportMain(t *testing.T) {
+diff --git a/src/cmd/go/internal/web/http.go b/src/cmd/go/internal/web/http.go
+index 6e347fbf86..c1714b4d38 100644
+--- a/src/cmd/go/internal/web/http.go
++++ b/src/cmd/go/internal/web/http.go
+@@ -25,10 +25,6 @@ import (
+ 	"cmd/internal/browser"
+ )
+ 
+-// httpClient is the default HTTP client, but a variable so it can be
+-// changed by tests, without modifying http.DefaultClient.
+-var httpClient = http.DefaultClient
+-
+ // impatientInsecureHTTPClient is used in -insecure mode,
+ // when we're connecting to https servers that might not be there
+ // or might be using self-signed certificates.
+@@ -42,6 +38,18 @@ var impatientInsecureHTTPClient = &http.Client{
+ 	},
+ }
+ 
++// securityPreservingHTTPClient is like the default HTTP client, but rejects
++// redirects to plain-HTTP URLs if the original URL was secure.
++var securityPreservingHTTPClient = &http.Client{
++	CheckRedirect: func(req *http.Request, via []*http.Request) error {
++		if len(via) > 0 && via[0].URL.Scheme == "https" && req.URL.Scheme != "https" {
++			lastHop := via[len(via)-1].URL
++			return fmt.Errorf("redirected from secure URL %s to insecure URL %s", lastHop, req.URL)
++		}
++		return nil
++	},
++}
++
+ type HTTPError struct {
+ 	status     string
+ 	StatusCode int
+@@ -54,7 +62,7 @@ func (e *HTTPError) Error() string {
+ 
+ // Get returns the data from an HTTP GET request for the given URL.
+ func Get(url string) ([]byte, error) {
+-	resp, err := httpClient.Get(url)
++	resp, err := securityPreservingHTTPClient.Get(url)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -87,7 +95,7 @@ func GetMaybeInsecure(importPath string, security SecurityMode) (urlStr string,
+ 		if security == Insecure && scheme == "https" { // fail earlier
+ 			res, err = impatientInsecureHTTPClient.Get(urlStr)
+ 		} else {
+-			res, err = httpClient.Get(urlStr)
++			res, err = securityPreservingHTTPClient.Get(urlStr)
+ 		}
+ 		return
+ 	}
+diff --git a/src/cmd/go/testdata/script/get_insecure_redirect.txt b/src/cmd/go/testdata/script/get_insecure_redirect.txt
+new file mode 100644
+index 0000000000..c3520bfcab
+--- /dev/null
++++ b/src/cmd/go/testdata/script/get_insecure_redirect.txt
+@@ -0,0 +1,11 @@
++# golang.org/issue/13037: 'go get' was not parsing <meta> tags in 404 served over HTTPS.
++# golang.org/issue/29591: 'go get' was following plain-HTTP redirects even without -insecure.
++
++[!net] skip
++
++env GOPROXY=
++
++! go get -d vcs-test.golang.org/insecure/go/insecure
++stderr 'redirected .* to insecure URL'
++
++go get -d -insecure vcs-test.golang.org/insecure/go/insecure

@@ -12,7 +12,143 @@ Date:   Thu Apr 14 20:36:52 2011 -0700
     R=rsc, petar-m, r
     CC=golang-dev
     https://golang.org/cl/4406047
-
+---
  src/pkg/http/request.go           | 31 ++++++++++++++++++--
  src/pkg/http/requestwrite_test.go | 61 +++++++++++++++++++++++++++++++++++++++
  2 files changed, 90 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index d82894fab0..5eebf8333b 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -199,10 +199,14 @@ const defaultUserAgent = "Go http package"
+ //	UserAgent (defaults to defaultUserAgent)
+ //	Referer
+ //	Header
++//	Cookie
++//	ContentLength
++//	TransferEncoding
+ //	Body
+ //
+-// If Body is present, Write forces "Transfer-Encoding: chunked" as a header
+-// and then closes Body when finished sending it.
++// If Body is present but Content-Length is <= 0, Write adds
++// "Transfer-Encoding: chunked" to the header. Body is closed after
++// it is sent.
+ func (req *Request) Write(w io.Writer) os.Error {
+ 	return req.write(w, false)
+ }
+@@ -420,6 +424,29 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
+ 	return n, cr.err
+ }
+ 
++// NewRequest returns a new Request given a method, URL, and optional body.
++func NewRequest(method, url string, body io.Reader) (*Request, os.Error) {
++	u, err := ParseURL(url)
++	if err != nil {
++		return nil, err
++	}
++	rc, ok := body.(io.ReadCloser)
++	if !ok && body != nil {
++		rc = ioutil.NopCloser(body)
++	}
++	req := &Request{
++		Method:     method,
++		URL:        u,
++		Proto:      "HTTP/1.1",
++		ProtoMajor: 1,
++		ProtoMinor: 1,
++		Header:     make(Header),
++		Body:       rc,
++		Host:       u.Host,
++	}
++	return req, nil
++}
++
+ // ReadRequest reads and parses a request from b.
+ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 
+diff --git a/src/pkg/http/requestwrite_test.go b/src/pkg/http/requestwrite_test.go
+index 726baa2668..bb000c701f 100644
+--- a/src/pkg/http/requestwrite_test.go
++++ b/src/pkg/http/requestwrite_test.go
+@@ -6,7 +6,10 @@ package http
+ 
+ import (
+ 	"bytes"
++	"io"
+ 	"io/ioutil"
++	"os"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -133,6 +136,41 @@ var reqWriteTests = []reqWriteTest{
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			"6\r\nabcdef\r\n0\r\n\r\n",
+ 	},
++
++	// HTTP/1.1 POST with Content-Length, no chunking
++	{
++		Request{
++			Method: "POST",
++			URL: &URL{
++				Scheme: "http",
++				Host:   "www.google.com",
++				Path:   "/search",
++			},
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			Header:        Header{},
++			Close:         true,
++			ContentLength: 6,
++		},
++
++		[]byte("abcdef"),
++
++		"POST /search HTTP/1.1\r\n" +
++			"Host: www.google.com\r\n" +
++			"User-Agent: Go http package\r\n" +
++			"Connection: close\r\n" +
++			"Content-Length: 6\r\n" +
++			"\r\n" +
++			"abcdef",
++
++		"POST http://www.google.com/search HTTP/1.1\r\n" +
++			"User-Agent: Go http package\r\n" +
++			"Connection: close\r\n" +
++			"Content-Length: 6\r\n" +
++			"\r\n" +
++			"abcdef",
++	},
++
+ 	// default to HTTP/1.1
+ 	{
+ 		Request{
+@@ -189,3 +227,26 @@ func TestRequestWrite(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type closeChecker struct {
++	io.Reader
++	closed bool
++}
++
++func (rc *closeChecker) Close() os.Error {
++	rc.closed = true
++	return nil
++}
++
++// TestRequestWriteClosesBody tests that Request.Write does close its request.Body.
++// It also indirectly tests NewRequest and that it doesn't wrap an existing Closer
++// inside a NopCloser.
++func TestRequestWriteClosesBody(t *testing.T) {
++	rc := &closeChecker{Reader: strings.NewReader("my body")}
++	req, _ := NewRequest("GET", "http://foo.com/", rc)
++	buf := new(bytes.Buffer)
++	req.Write(buf)
++	if !rc.closed {
++		t.Error("body not closed after write")
++	}
++}

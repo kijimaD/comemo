@@ -14,6 +14,52 @@ Date:   Mon Jul 9 16:15:01 2018 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/issue26248.go | 39 +++++++++++++++++++++++++++++++++++++++
  1 file changed, 39 insertions(+)
+
+diff --git a/test/fixedbugs/issue26248.go b/test/fixedbugs/issue26248.go
+new file mode 100644
+index 0000000000..2f04e48224
+--- /dev/null
++++ b/test/fixedbugs/issue26248.go
+@@ -0,0 +1,39 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 26248: gccgo miscompiles interface field expression.
++// In G().M where G returns an interface, G() is evaluated twice.
++
++package main
++
++type I interface {
++	M()
++}
++
++type T struct{}
++
++func (T) M() {}
++
++var g = 0
++
++//go:noinline
++func G() I {
++	g++
++	return T{}
++}
++
++//go:noinline
++func Use(interface{}) {}
++
++func main() {
++	x := G().M
++	Use(x)
++
++	if g != 1 {
++		println("want 1, got", g)
++		panic("FAIL")
++	}
++}

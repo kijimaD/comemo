@@ -27,8 +27,84 @@ Date:   Mon Jan 8 12:11:00 2018 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/test2json/test2json.go            | 25 ++++++++++++++++++++++
  .../internal/test2json/testdata/benchshort.json    |  7 ++++++
  .../internal/test2json/testdata/benchshort.test    |  5 +++++
  3 files changed, 37 insertions(+)
+
+diff --git a/src/cmd/internal/test2json/test2json.go b/src/cmd/internal/test2json/test2json.go
+index fa0708357b..483fb1de52 100644
+--- a/src/cmd/internal/test2json/test2json.go
++++ b/src/cmd/internal/test2json/test2json.go
+@@ -16,6 +16,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"time"
++	"unicode"
+ 	"unicode/utf8"
+ )
+ 
+@@ -349,6 +350,15 @@ func (l *lineBuffer) write(b []byte) {
+ 		for i < len(l.b) {
+ 			j := bytes.IndexByte(l.b[i:], '\n')
+ 			if j < 0 {
++				if !l.mid {
++					if j := bytes.IndexByte(l.b[i:], '\t'); j >= 0 {
++						if isBenchmarkName(bytes.TrimRight(l.b[i:i+j], " ")) {
++							l.part(l.b[i : i+j+1])
++							l.mid = true
++							i += j + 1
++						}
++					}
++				}
+ 				break
+ 			}
+ 			e := i + j + 1
+@@ -390,6 +400,21 @@ func (l *lineBuffer) flush() {
+ 	}
+ }
+ 
++var benchmark = []byte("Benchmark")
++
++// isBenchmarkName reports whether b is a valid benchmark name
++// that might appear as the first field in a benchmark result line.
++func isBenchmarkName(b []byte) bool {
++	if !bytes.HasPrefix(b, benchmark) {
++		return false
++	}
++	if len(b) == len(benchmark) { // just "Benchmark"
++		return true
++	}
++	r, _ := utf8.DecodeRune(b[len(benchmark):])
++	return !unicode.IsLower(r)
++}
++
+ // trimUTF8 returns a length t as close to len(b) as possible such that b[:t]
+ // does not end in the middle of a possibly-valid UTF-8 sequence.
+ //
+diff --git a/src/cmd/internal/test2json/testdata/benchshort.json b/src/cmd/internal/test2json/testdata/benchshort.json
+new file mode 100644
+index 0000000000..8c61d95d8d
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/benchshort.json
+@@ -0,0 +1,7 @@
++{"Action":"output","Output":"# This file ends in an early EOF to trigger the Benchmark prefix test,\n"}
++{"Action":"output","Output":"# which only happens when a benchmark prefix is seen ahead of the \\n.\n"}
++{"Action":"output","Output":"# Normally that's due to the benchmark running and the \\n coming later,\n"}
++{"Action":"output","Output":"# but to avoid questions of timing, we just use a file with no \\n at all.\n"}
++{"Action":"output","Output":"BenchmarkFoo   \t"}
++{"Action":"output","Output":"10000 early EOF"}
++{"Action":"fail"}
+diff --git a/src/cmd/internal/test2json/testdata/benchshort.test b/src/cmd/internal/test2json/testdata/benchshort.test
+new file mode 100644
+index 0000000000..0b173ab20d
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/benchshort.test
+@@ -0,0 +1,5 @@
++# This file ends in an early EOF to trigger the Benchmark prefix test,
++# which only happens when a benchmark prefix is seen ahead of the \n.
++# Normally that's due to the benchmark running and the \n coming later,
++# but to avoid questions of timing, we just use a file with no \n at all.
++BenchmarkFoo   	10000 early EOF
+\ No newline at end of file

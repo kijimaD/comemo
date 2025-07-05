@@ -8,7 +8,56 @@ Date:   Tue Aug 26 09:01:52 2014 +0400
     R=golang-codereviews, dvyukov
     CC=golang-codereviews, khr
     https://golang.org/cl/132880043
-
+---
  src/pkg/runtime/proc.c       | 20 ++++++++++++++++++++
  src/pkg/runtime/runtime1.goc | 12 ------------
  2 files changed, 20 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 483903d6d9..1f687ebc92 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -3292,3 +3292,23 @@ haveexperiment(int8 *name)
+ 	}
+ 	return 0;
+ }
++
++#pragma textflag NOSPLIT
++void
++sync·runtime_procPin(intptr p)
++{
++	M *mp;
++
++	mp = g->m;
++	// Disable preemption.
++	mp->locks++;
++	p = mp->p->id;
++	FLUSH(&p);
++}
++
++#pragma textflag NOSPLIT
++void
++sync·runtime_procUnpin()
++{
++	g->m->locks--;
++}
+diff --git a/src/pkg/runtime/runtime1.goc b/src/pkg/runtime/runtime1.goc
+index a95a4f944d..9529d6504b 100644
+--- a/src/pkg/runtime/runtime1.goc
++++ b/src/pkg/runtime/runtime1.goc
+@@ -114,15 +114,3 @@ func runtime∕pprof·runtime_cyclesPerSecond() (res int64) {
+ 	res = runtime·tickspersecond();
+ }
+ 
+-func sync·runtime_procPin() (p int) {
+-	M *mp;
+-
+-	mp = g->m;
+-	// Disable preemption.
+-	mp->locks++;
+-	p = mp->p->id;
+-}
+-
+-func sync·runtime_procUnpin() {
+-	g->m->locks--;
+-}

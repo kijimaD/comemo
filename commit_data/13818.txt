@@ -9,9 +9,92 @@ Date:   Thu Sep 13 18:40:50 2012 +0200
     R=dave, remyoudompheng, rsc
     CC=golang-dev
     https://golang.org/cl/6490082
-
+---
  src/cmd/gc/dcl.c    | 11 +++++++----
  src/cmd/gc/export.c |  8 ++++++--
  src/cmd/gc/go.h     |  1 +
  src/cmd/gc/subr.c   |  5 ++++-
  4 files changed, 18 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 63a55c74b1..1f50910526 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -150,11 +150,14 @@ testdclstack(void)
+ void
+ redeclare(Sym *s, char *where)
+ {
+-	if(s->lastlineno == 0)
++	Strlit *pkgstr;
++
++	if(s->lastlineno == 0) {
++		pkgstr = s->origpkg ? s->origpkg->path : s->pkg->path;
+ 		yyerror("%S redeclared %s\n"
+-			"\tprevious declaration during import",
+-			s, where);
+-	else
++			"\tprevious declaration during import \"%Z\"",
++			s, where, pkgstr);
++	} else
+ 		yyerror("%S redeclared %s\n"
+ 			"\tprevious declaration at %L",
+ 			s, where, s->lastlineno);
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index bbed8ae36e..77a82dafb8 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -349,8 +349,12 @@ dumpexport(void)
+ Sym*
+ importsym(Sym *s, int op)
+ {
+-	if(s->def != N && s->def->op != op)
+-		redeclare(s, "during import");
++	char *pkgstr;
++
++	if(s->def != N && s->def->op != op) {
++		pkgstr = smprint("during import \"%Z\"", importpkg->path);
++		redeclare(s, pkgstr);
++	}
+ 
+ 	// mark the symbol so it is not reexported
+ 	if(s->def == N) {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 5ce9fb9e94..67793bd435 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -365,6 +365,7 @@ struct	Sym
+ 	Label*	label;	// corresponding label (ephemeral)
+ 	int32	block;		// blocknumber to catch redeclaration
+ 	int32	lastlineno;	// last declaration for diagnostic
++	Pkg*	origpkg;	// original package for . import
+ };
+ #define	S	((Sym*)0)
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 0cd7e6c4b0..c04c1edc71 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -382,6 +382,7 @@ importdot(Pkg *opkg, Node *pack)
+ 	Sym *s, *s1;
+ 	uint32 h;
+ 	int n;
++	char *pkgerror;
+ 
+ 	n = 0;
+ 	for(h=0; h<NHASH; h++) {
+@@ -394,12 +395,14 @@ importdot(Pkg *opkg, Node *pack)
+ 				continue;
+ 			s1 = lookup(s->name);
+ 			if(s1->def != N) {
+-				redeclare(s1, "during import");
++				pkgerror = smprint("during import \"%Z\"", opkg->path);
++				redeclare(s1, pkgerror);
+ 				continue;
+ 			}
+ 			s1->def = s->def;
+ 			s1->block = s->block;
+ 			s1->def->pack = pack;
++			s1->origpkg = opkg;
+ 			n++;
+ 		}
+ 	}

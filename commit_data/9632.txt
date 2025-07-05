@@ -8,10 +8,83 @@ Date:   Thu Sep 8 17:27:41 2011 +1000
     R=golang-dev, r, alex.brainman
     CC=golang-dev, rsc
     https://golang.org/cl/4984051
-
+---
  src/pkg/os/file_posix.go            | 2 +-
  src/pkg/os/file_windows.go          | 9 ---------
  src/pkg/os/path.go                  | 2 +-
  src/pkg/syscall/mkerrors_windows.sh | 2 +-
  src/pkg/syscall/zerrors_windows.go  | 2 +-
  5 files changed, 4 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index 14ddd92c4a..ff8554bfc8 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -46,7 +46,7 @@ func Remove(name string) Error {
+ 	// both errors will be ENOTDIR, so it's okay to
+ 	// use the error from unlink.
+ 	// For windows syscall.ENOTDIR is set
+-	// to syscall.ERROR_DIRECTORY, hopefully it should
++	// to syscall.ERROR_PATH_NOT_FOUND, hopefully it should
+ 	// do the trick.
+ 	if e1 != syscall.ENOTDIR {
+ 		e = e1
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 0cdd2fdf65..a3f5b44597 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -92,15 +92,6 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
+ 	if e == nil {
+ 		return r, nil
+ 	}
+-	// Imitating Unix behavior by replacing syscall.ERROR_PATH_NOT_FOUND with
+-	// os.ENOTDIR. Not sure if we should go into that.
+-	if e2, ok := e.(*PathError); ok {
+-		if e3, ok := e2.Error.(Errno); ok {
+-			if e3 == Errno(syscall.ERROR_PATH_NOT_FOUND) {
+-				return nil, &PathError{"open", name, ENOTDIR}
+-			}
+-		}
+-	}
+ 	return nil, e
+ }
+ 
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index a8dfce3075..b190c51e6d 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -68,7 +68,7 @@ func RemoveAll(path string) Error {
+ 	// Otherwise, is this a directory we need to recurse into?
+ 	dir, serr := Lstat(path)
+ 	if serr != nil {
+-		if serr, ok := serr.(*PathError); ok && serr.Error == ENOENT {
++		if serr, ok := serr.(*PathError); ok && (serr.Error == ENOENT || serr.Error == ENOTDIR) {
+ 			return nil
+ 		}
+ 		return serr
+diff --git a/src/pkg/syscall/mkerrors_windows.sh b/src/pkg/syscall/mkerrors_windows.sh
+index af95edd001..a76f250fda 100755
+--- a/src/pkg/syscall/mkerrors_windows.sh
++++ b/src/pkg/syscall/mkerrors_windows.sh
+@@ -76,7 +76,7 @@ done
+ # These are go errors that will be mapped directly to windows errors
+ goerrors='
+ ENOENT:ERROR_FILE_NOT_FOUND
+-ENOTDIR:ERROR_DIRECTORY
++ENOTDIR:ERROR_PATH_NOT_FOUND
+ '
+ 
+ # Pull out just the error names for later.
+diff --git a/src/pkg/syscall/zerrors_windows.go b/src/pkg/syscall/zerrors_windows.go
+index ae4506fac0..799ed490a2 100644
+--- a/src/pkg/syscall/zerrors_windows.go
++++ b/src/pkg/syscall/zerrors_windows.go
+@@ -6,7 +6,7 @@ package syscall
+ // Go names for Windows errors.
+ const (
+ 	ENOENT  = ERROR_FILE_NOT_FOUND
+-	ENOTDIR = ERROR_DIRECTORY
++	ENOTDIR = ERROR_PATH_NOT_FOUND
+ )
+ 
+ // Windows reserves errors >= 1<<29 for application use.

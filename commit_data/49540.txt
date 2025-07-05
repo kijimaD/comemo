@@ -8,8 +8,70 @@ Date:   Thu Aug 26 11:56:52 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/345471
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types2/instantiate.go |  2 +-
  src/cmd/compile/internal/types2/subst.go       |  6 ------
  src/cmd/compile/internal/types2/typelists.go   | 13 +++++++++++++
  3 files changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index f9cde24dfc..4113d248b8 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -75,7 +75,7 @@ func Instantiate(env *Environment, typ Type, targs []Type, validate bool) (Type,
+ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, posList []syntax.Pos) (res Type) {
+ 	assert(check != nil)
+ 	if check.conf.Trace {
+-		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
++		check.trace(pos, "-- instantiating %s with %s", typ, NewTypeList(targs))
+ 		check.indent++
+ 		defer func() {
+ 			check.indent--
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index ff8dd13b6d..7c33e7ade4 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -281,12 +281,6 @@ func instantiatedHash(typ *Named, targs []Type) string {
+ 	return string(res[:i])
+ }
+ 
+-func typeListString(list []Type) string {
+-	var buf bytes.Buffer
+-	writeTypeList(&buf, list, nil, nil)
+-	return buf.String()
+-}
+-
+ // typOrNil is like typ but if the argument is nil it is replaced with Typ[Invalid].
+ // A nil type may appear in pathological cases such as type T[P any] []func(_ T([]_))
+ // where an array/slice element is accessed before it is set up.
+diff --git a/src/cmd/compile/internal/types2/typelists.go b/src/cmd/compile/internal/types2/typelists.go
+index 3258a5e9f8..c3befb077f 100644
+--- a/src/cmd/compile/internal/types2/typelists.go
++++ b/src/cmd/compile/internal/types2/typelists.go
+@@ -4,6 +4,8 @@
+ 
+ package types2
+ 
++import "bytes"
++
+ // TParamList holds a list of type parameters.
+ type TParamList struct{ tparams []*TypeParam }
+ 
+@@ -52,6 +54,17 @@ func (l *TypeList) list() []Type {
+ 	return l.types
+ }
+ 
++func (l *TypeList) String() string {
++	if l == nil || len(l.types) == 0 {
++		return "[]"
++	}
++	var buf bytes.Buffer
++	buf.WriteByte('[')
++	writeTypeList(&buf, l.types, nil, nil)
++	buf.WriteByte(']')
++	return buf.String()
++}
++
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 

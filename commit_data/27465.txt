@@ -12,8 +12,95 @@ Date:   Tue Mar 29 16:35:33 2016 +1100
     Reviewed-on: https://go-review.googlesource.com/21196
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/cgi/host.go           | 10 +++++++++-
  src/net/http/cgi/host_test.go      | 18 ++++++++++++++++++
  src/net/http/cgi/testdata/test.cgi |  4 ++++
  3 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/cgi/host.go b/src/net/http/cgi/host.go
+index b2657b13a8..2eea64334b 100644
+--- a/src/net/http/cgi/host.go
++++ b/src/net/http/cgi/host.go
+@@ -58,6 +58,7 @@ type Handler struct {
+ 	InheritEnv []string    // environment variables to inherit from host, as "key"
+ 	Logger     *log.Logger // optional log for errors or nil to use log.Print
+ 	Args       []string    // optional arguments to pass to child process
++	Stderr     io.Writer   // optional stderr for the child process; nil means os.Stderr
+ 
+ 	// PathLocationHandler specifies the root http Handler that
+ 	// should handle internal redirects when the CGI process
+@@ -70,6 +71,13 @@ type Handler struct {
+ 	PathLocationHandler http.Handler
+ }
+ 
++func (h *Handler) stderr() io.Writer {
++	if h.Stderr != nil {
++		return h.Stderr
++	}
++	return os.Stderr
++}
++
+ // removeLeadingDuplicates remove leading duplicate in environments.
+ // It's possible to override environment like following.
+ //    cgi.Handler{
+@@ -204,7 +212,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		Args:   append([]string{h.Path}, h.Args...),
+ 		Dir:    cwd,
+ 		Env:    env,
+-		Stderr: os.Stderr, // for now
++		Stderr: h.stderr(),
+ 	}
+ 	if req.ContentLength != 0 {
+ 		cmd.Stdin = req.Body
+diff --git a/src/net/http/cgi/host_test.go b/src/net/http/cgi/host_test.go
+index 33277640ea..70c5aff5e2 100644
+--- a/src/net/http/cgi/host_test.go
++++ b/src/net/http/cgi/host_test.go
+@@ -8,6 +8,7 @@ package cgi
+ 
+ import (
+ 	"bufio"
++	"bytes"
+ 	"fmt"
+ 	"io"
+ 	"net"
+@@ -500,6 +501,23 @@ func TestEnvOverride(t *testing.T) {
+ 	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
+ }
+ 
++func TestHandlerStderr(t *testing.T) {
++	check(t)
++	var stderr bytes.Buffer
++	h := &Handler{
++		Path:   "testdata/test.cgi",
++		Root:   "/test.cgi",
++		Stderr: &stderr,
++	}
++
++	rw := httptest.NewRecorder()
++	req := newRequest("GET /test.cgi?writestderr=1 HTTP/1.0\nHost: example.com\n\n")
++	h.ServeHTTP(rw, req)
++	if got, want := stderr.String(), "Hello, stderr!\n"; got != want {
++		t.Errorf("Stderr = %q; want %q", got, want)
++	}
++}
++
+ func TestRemoveLeadingDuplicates(t *testing.T) {
+ 	tests := []struct {
+ 		env  []string
+diff --git a/src/net/http/cgi/testdata/test.cgi b/src/net/http/cgi/testdata/test.cgi
+index ec7ee6f386..667fce217e 100755
+--- a/src/net/http/cgi/testdata/test.cgi
++++ b/src/net/http/cgi/testdata/test.cgi
+@@ -23,6 +23,10 @@ print "X-CGI-Pid: $$\r\n";
+ print "X-Test-Header: X-Test-Value\r\n";
+ print "\r\n";
+ 
++if ($params->{"writestderr"}) {
++    print STDERR "Hello, stderr!\n";
++}
++
+ if ($params->{"bigresponse"}) {
+     # 17 MB, for OS X: golang.org/issue/4958
+     for (1..(17 * 1024)) {

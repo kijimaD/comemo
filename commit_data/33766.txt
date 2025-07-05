@@ -13,9 +13,84 @@ Date:   Fri Aug 18 14:56:12 2017 +0300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64enc.s | 16 ++++++++--------
  src/cmd/internal/obj/x86/a.out.go            |  1 +
  src/cmd/internal/obj/x86/anames.go           |  1 +
  src/cmd/internal/obj/x86/asm6.go             |  5 +++++
  4 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc.s b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+index ed80f6f92e..040e944b70 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+@@ -3315,14 +3315,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	//TODO: PALIGNR $7, (R11), M3           // 410f3a0f1b07
+ 	//TODO: PALIGNR $7, M2, M3              // 0f3a0fda07
+ 	//TODO: PALIGNR $7, M3, M3              // 0f3a0fdb07
+-	//TODO: PALIGNR $7, (BX), X2            // 660f3a0f1307
+-	//TODO: PALIGNR $7, (R11), X2           // 66410f3a0f1307
+-	//TODO: PALIGNR $7, X2, X2              // 660f3a0fd207
+-	//TODO: PALIGNR $7, X11, X2             // 66410f3a0fd307
+-	//TODO: PALIGNR $7, (BX), X11           // 66440f3a0f1b07
+-	//TODO: PALIGNR $7, (R11), X11          // 66450f3a0f1b07
+-	//TODO: PALIGNR $7, X2, X11             // 66440f3a0fda07
+-	//TODO: PALIGNR $7, X11, X11            // 66450f3a0fdb07
++	PALIGNR $7, (BX), X2                    // 660f3a0f1307
++	PALIGNR $7, (R11), X2                   // 66410f3a0f1307
++	PALIGNR $7, X2, X2                      // 660f3a0fd207
++	PALIGNR $7, X11, X2                     // 66410f3a0fd307
++	PALIGNR $7, (BX), X11                   // 66440f3a0f1b07
++	PALIGNR $7, (R11), X11                  // 66450f3a0f1b07
++	PALIGNR $7, X2, X11                     // 66440f3a0fda07
++	PALIGNR $7, X11, X11                    // 66450f3a0fdb07
+ 	PAND (BX), M2                           // 0fdb13
+ 	PAND (R11), M2                          // 410fdb13
+ 	PAND M2, M2                             // 0fdbd2
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index 778bdc6383..c48093934e 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -627,6 +627,7 @@ const (
+ 	APADDUSB
+ 	APADDUSW
+ 	APADDW
++	APALIGNR
+ 	APAND
+ 	APANDN
+ 	APAVGB
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index 45b39aa552..b15325dcad 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -570,6 +570,7 @@ var Anames = []string{
+ 	"PADDUSB",
+ 	"PADDUSW",
+ 	"PADDW",
++	"PALIGNR",
+ 	"PAND",
+ 	"PANDN",
+ 	"PAVGB",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 16e58ad94d..e031a396e8 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -786,6 +786,10 @@ var ylddqu = []ytab{
+ 	{Ym, Ynone, Yxr, Zm_r, 1},
+ }
+ 
++var ypalignr = []ytab{
++	{Yu8, Yxm, Yxr, Zibm_r, 2},
++}
++
+ // VEX instructions that come in two forms:
+ //	VTHING xmm2/m128, xmmV, xmm1
+ //	VTHING ymm2/m256, ymmV, ymm1
+@@ -1274,6 +1278,7 @@ var optab =
+ 	{APADDUSB, ymm, Py1, [23]uint8{0xdc, Pe, 0xdc}},
+ 	{APADDUSW, ymm, Py1, [23]uint8{0xdd, Pe, 0xdd}},
+ 	{APADDW, ymm, Py1, [23]uint8{0xfd, Pe, 0xfd}},
++	{APALIGNR, ypalignr, Pq, [23]uint8{0x3a, 0x0f}},
+ 	{APAND, ymm, Py1, [23]uint8{0xdb, Pe, 0xdb}},
+ 	{APANDN, ymm, Py1, [23]uint8{0xdf, Pe, 0xdf}},
+ 	{APAUSE, ynone, Px, [23]uint8{0xf3, 0x90}},

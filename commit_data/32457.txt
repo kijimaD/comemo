@@ -11,6 +11,28 @@ Date:   Tue Apr 25 17:20:04 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bitset.go | 10 ----------
  1 file changed, 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bitset.go b/src/cmd/compile/internal/gc/bitset.go
+index a88f0405a5..c8992fa217 100644
+--- a/src/cmd/compile/internal/gc/bitset.go
++++ b/src/cmd/compile/internal/gc/bitset.go
+@@ -14,16 +14,6 @@ func (f *bitset8) set(mask uint8, b bool) {
+ 	}
+ }
+ 
+-type bitset16 uint16
+-
+-func (f *bitset16) set(mask uint16, b bool) {
+-	if b {
+-		*(*uint16)(f) |= mask
+-	} else {
+-		*(*uint16)(f) &^= mask
+-	}
+-}
+-
+ type bitset32 uint32
+ 
+ func (f *bitset32) set(mask uint32, b bool) {

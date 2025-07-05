@@ -6,7 +6,7 @@ Date:   Thu Nov 5 14:30:18 2009 -0800
     
     R=rsc
     http://go/go-review/1016053
-
+---
  src/pkg/exp/ogle/abort.go     |   2 +-
  src/pkg/exp/ogle/arch.go      |  10 +--
  src/pkg/exp/ogle/cmd.go       |  21 ++++---
@@ -19,3 +19,1018 @@ Date:   Thu Nov 5 14:30:18 2009 -0800
  src/pkg/exp/ogle/rvalue.go    |  50 +++++++--------
  src/pkg/exp/ogle/vars.go      |  20 +++---
  11 files changed, 197 insertions(+), 208 deletions(-)
+
+diff --git a/src/pkg/exp/ogle/abort.go b/src/pkg/exp/ogle/abort.go
+index 087c57b5f4..f7bf11527f 100644
+--- a/src/pkg/exp/ogle/abort.go
++++ b/src/pkg/exp/ogle/abort.go
+@@ -15,7 +15,7 @@ type aborter interface {
+ 	Abort(err os.Error);
+ }
+ 
+-type ogleAborter chan os.Error;
++type ogleAborter chan os.Error
+ 
+ func (a ogleAborter) Abort(err os.Error) {
+ 	a <- err;
+diff --git a/src/pkg/exp/ogle/arch.go b/src/pkg/exp/ogle/arch.go
+index 30a2bcf58b..16ed4728c5 100644
+--- a/src/pkg/exp/ogle/arch.go
++++ b/src/pkg/exp/ogle/arch.go
+@@ -51,7 +51,7 @@ type Arch interface {
+ 	ParseClosure(data []byte) (frame int, ok bool);
+ }
+ 
+-type ArchLSB struct {}
++type ArchLSB struct{}
+ 
+ func (ArchLSB) ToWord(data []byte) proc.Word {
+ 	var v proc.Word;
+@@ -86,16 +86,16 @@ func (ArchLSB) FromFloat64(f float64) uint64 {
+ 	return math.Float64bits(f);
+ }
+ 
+-type ArchAlignedMultiple struct {}
++type ArchAlignedMultiple struct{}
+ 
+ func (ArchAlignedMultiple) Align(offset, width int) int {
+-	return ((offset - 1) | (width - 1)) + 1;
++	return ((offset-1)|(width-1))+1;
+ }
+ 
+ type amd64 struct {
+ 	ArchLSB;
+ 	ArchAlignedMultiple;
+-	gReg int;
++	gReg	int;
+ }
+ 
+ func (a *amd64) IntSize() int {
+@@ -136,4 +136,4 @@ func (a *amd64) ParseClosure(data []byte) (int, bool) {
+ 	return 0, false;
+ }
+ 
+-var Amd64 = &amd64{gReg: -1};
++var Amd64 = &amd64{gReg: -1}
+diff --git a/src/pkg/exp/ogle/cmd.go b/src/pkg/exp/ogle/cmd.go
+index f60621343b..4805c92437 100644
+--- a/src/pkg/exp/ogle/cmd.go
++++ b/src/pkg/exp/ogle/cmd.go
+@@ -18,7 +18,7 @@ import (
+ 	"strings";
+ )
+ 
+-var world *eval.World;
++var world *eval.World
+ var curProc *Process
+ 
+ func Main() {
+@@ -74,7 +74,7 @@ func newScanner(input []byte) (*scanner.Scanner, *scanner.ErrorVector) {
+  */
+ 
+ // A UsageError occurs when a command is called with illegal arguments.
+-type UsageError string;
++type UsageError string
+ 
+ func (e UsageError) String() string {
+ 	return string(e);
+@@ -82,11 +82,11 @@ func (e UsageError) String() string {
+ 
+ // A cmd represents a single command with a handler.
+ type cmd struct {
+-	cmd string;
+-	handler func([]byte) os.Error;
++	cmd	string;
++	handler	func([]byte) os.Error;
+ }
+ 
+-var cmds = []cmd {
++var cmds = []cmd{
+ 	cmd{"load", cmdLoad},
+ 	cmd{"bt", cmdBt},
+ }
+@@ -104,7 +104,7 @@ func getCmd(line []byte) (*cmd, []byte) {
+ 	slit := string(lit);
+ 	for i := range cmds {
+ 		if cmds[i].cmd == slit {
+-			return &cmds[i], line[pos.Offset + len(lit):len(line)];
++			return &cmds[i], line[pos.Offset + len(lit) : len(line)];
+ 		}
+ 	}
+ 	return nil, nil;
+@@ -325,7 +325,8 @@ func printCurFrame() {
+ }
+ 
+ // fnOut moves the current frame to the caller of the current frame.
+-func fnOutSig() {}
++func fnOutSig() {
++}
+ func fnOut(t *eval.Thread, args []eval.Value, res []eval.Value) {
+ 	if curProc == nil {
+ 		t.Abort(NoCurrentGoroutine{});
+@@ -339,7 +340,8 @@ func fnOut(t *eval.Thread, args []eval.Value, res []eval.Value) {
+ }
+ 
+ // fnContWait continues the current process and waits for a stopping event.
+-func fnContWaitSig() {}
++func fnContWaitSig() {
++}
+ func fnContWait(t *eval.Thread, args []eval.Value, res []eval.Value) {
+ 	if curProc == nil {
+ 		t.Abort(NoCurrentGoroutine{});
+@@ -357,7 +359,8 @@ func fnContWait(t *eval.Thread, args []eval.Value, res []eval.Value) {
+ }
+ 
+ // fnBpSet sets a breakpoint at the entry to the named function.
+-func fnBpSetSig(string) {}
++func fnBpSetSig(string) {
++}
+ func fnBpSet(t *eval.Thread, args []eval.Value, res []eval.Value) {
+ 	// TODO(austin) This probably shouldn't take a symbol name.
+ 	// Perhaps it should take an interface that provides PC's.
+diff --git a/src/pkg/exp/ogle/event.go b/src/pkg/exp/ogle/event.go
+index 9dc7a8445f..c66c791e2e 100644
+--- a/src/pkg/exp/ogle/event.go
++++ b/src/pkg/exp/ogle/event.go
+@@ -32,8 +32,8 @@ type EventHandler func(e Event) (EventAction, os.Error)
+ type EventAction int
+ 
+ const (
+-	EARemoveSelf EventAction = 0x100;
+-	EADefault    EventAction = iota;
++	EARemoveSelf	EventAction	= 0x100;
++	EADefault	EventAction	= iota;
+ 	EAStop;
+ 	EAContinue;
+ )
+@@ -60,19 +60,19 @@ type Event interface {
+ 
+ type commonHook struct {
+ 	// Head of handler chain
+-	head *handler;
++	head	*handler;
+ 	// Number of non-internal handlers
+-	len int;
++	len	int;
+ }
+ 
+ type handler struct {
+-	eh EventHandler;
++	eh	EventHandler;
+ 	// True if this handler must be run before user-defined
+ 	// handlers in order to ensure correctness.
+-	internal bool;
++	internal	bool;
+ 	// True if this handler has been removed from the chain.
+-	removed bool;
+-	next *handler;
++	removed	bool;
++	next	*handler;
+ }
+ 
+ func (h *commonHook) AddHandler(eh EventHandler) {
+@@ -146,9 +146,9 @@ func (h *commonHook) handle(e Event) (EventAction, os.Error) {
+ 
+ type commonEvent struct {
+ 	// The process of this event
+-	p *Process;
++	p	*Process;
+ 	// The goroutine of this event.
+-	t *Goroutine;
++	t	*Goroutine;
+ }
+ 
+ func (e *commonEvent) Process() *Process {
+@@ -182,8 +182,8 @@ func EventStop(ev Event) (EventAction, os.Error) {
+ 
+ type breakpointHook struct {
+ 	commonHook;
+-	p *Process;
+-	pc proc.Word;
++	p	*Process;
++	pc	proc.Word;
+ }
+ 
+ // A Breakpoint event occurs when a process reaches a particular
+@@ -191,8 +191,8 @@ type breakpointHook struct {
+ // will be the goroutine that reached the program counter.
+ type Breakpoint struct {
+ 	commonEvent;
+-	osThread proc.Thread;
+-	pc proc.Word;
++	osThread	proc.Thread;
++	pc		proc.Word;
+ }
+ 
+ func (h *breakpointHook) AddHandler(eh EventHandler) {
+@@ -256,7 +256,7 @@ func (h *goroutineCreateHook) String() string {
+ // be the newly created goroutine.
+ type GoroutineCreate struct {
+ 	commonEvent;
+-	parent *Goroutine;
++	parent	*Goroutine;
+ }
+ 
+ // Parent returns the goroutine that created this goroutine.  May be
+diff --git a/src/pkg/exp/ogle/frame.go b/src/pkg/exp/ogle/frame.go
+index bf2b391349..d7fae6856f 100644
+--- a/src/pkg/exp/ogle/frame.go
++++ b/src/pkg/exp/ogle/frame.go
+@@ -16,18 +16,18 @@ type Frame struct {
+ 	// pc is the PC of the next instruction that will execute in
+ 	// this frame.  For lower frames, this is the instruction
+ 	// following the CALL instruction.
+-	pc, sp, fp proc.Word;
++	pc, sp, fp	proc.Word;
+ 	// The runtime.Stktop of the active stack segment
+-	stk remoteStruct;
++	stk	remoteStruct;
+ 	// The function this stack frame is in
+-	fn *gosym.Func;
++	fn	*gosym.Func;
+ 	// The path and line of the CALL or current instruction.  Note
+ 	// that this differs slightly from the meaning of Frame.pc.
+-	path string;
+-	line int;
++	path	string;
++	line	int;
+ 	// The inner and outer frames of this frame.  outer is filled
+ 	// in lazily.
+-	inner, outer *Frame;
++	inner, outer	*Frame;
+ }
+ 
+ // newFrame returns the top-most Frame of the given g's thread.
+diff --git a/src/pkg/exp/ogle/goroutine.go b/src/pkg/exp/ogle/goroutine.go
+index 4d458c5611..ad1b893342 100644
+--- a/src/pkg/exp/ogle/goroutine.go
++++ b/src/pkg/exp/ogle/goroutine.go
+@@ -13,9 +13,9 @@ import (
+ 
+ // A Goroutine represents a goroutine in a remote process.
+ type Goroutine struct {
+-	g remoteStruct;
+-	frame *Frame;
+-	dead bool;
++	g	remoteStruct;
++	frame	*Frame;
++	dead	bool;
+ }
+ 
+ func (t *Goroutine) String() string {
+diff --git a/src/pkg/exp/ogle/process.go b/src/pkg/exp/ogle/process.go
+index 984364f239..07074992b3 100644
+--- a/src/pkg/exp/ogle/process.go
++++ b/src/pkg/exp/ogle/process.go
+@@ -34,7 +34,7 @@ func (e UnknownArchitecture) String() string {
+ 
+ // A ProcessNotStopped error occurs when attempting to read or write
+ // memory or registers of a process that is not stopped.
+-type ProcessNotStopped struct {}
++type ProcessNotStopped struct{}
+ 
+ func (e ProcessNotStopped) String() string {
+ 	return "process not stopped";
+@@ -43,8 +43,8 @@ func (e ProcessNotStopped) String() string {
+ // An UnknownGoroutine error is an internal error representing an
+ // unrecognized G structure pointer.
+ type UnknownGoroutine struct {
+-	OSThread proc.Thread;
+-	Goroutine proc.Word;
++	OSThread	proc.Thread;
++	Goroutine	proc.Word;
+ }
+ 
+ func (e UnknownGoroutine) String() string {
+@@ -54,7 +54,7 @@ func (e UnknownGoroutine) String() string {
+ // A NoCurrentGoroutine error occurs when no goroutine is currently
+ // selected in a process (or when there are no goroutines in a
+ // process).
+-type NoCurrentGoroutine struct {}
++type NoCurrentGoroutine struct{}
+ 
+ func (e NoCurrentGoroutine) String() string {
+ 	return "no current goroutine";
+@@ -63,45 +63,45 @@ func (e NoCurrentGoroutine) String() string {
+ // A Process represents a remote attached process.
+ type Process struct {
+ 	Arch;
+-	proc proc.Process;
++	proc	proc.Process;
+ 
+ 	// The symbol table of this process
+-	syms *gosym.Table;
++	syms	*gosym.Table;
+ 
+ 	// A possibly-stopped OS thread, or nil
+-	threadCache proc.Thread;
++	threadCache	proc.Thread;
+ 
+ 	// Types parsed from the remote process
+-	types map[proc.Word] *remoteType;
++	types	map[proc.Word]*remoteType;
+ 
+ 	// Types and values from the remote runtime package
+-	runtime runtimeValues;
++	runtime	runtimeValues;
+ 
+ 	// Runtime field indexes
+-	f runtimeIndexes;
++	f	runtimeIndexes;
+ 
+ 	// Globals from the sys package (or from no package)
+-	sys struct {
+-		lessstack, goexit, newproc, deferproc, newprocreadylocked *gosym.Func;
+-		allg remotePtr;
+-		g0 remoteStruct;
++	sys	struct {
++		lessstack, goexit, newproc, deferproc, newprocreadylocked	*gosym.Func;
++		allg								remotePtr;
++		g0								remoteStruct;
+ 	};
+ 
+ 	// Event queue
+-	posted []Event;
+-	pending []Event;
+-	event Event;
++	posted	[]Event;
++	pending	[]Event;
++	event	Event;
+ 
+ 	// Event hooks
+-	breakpointHooks map[proc.Word] *breakpointHook;
+-	goroutineCreateHook *goroutineCreateHook;
+-	goroutineExitHook *goroutineExitHook;
++	breakpointHooks		map[proc.Word]*breakpointHook;
++	goroutineCreateHook	*goroutineCreateHook;
++	goroutineExitHook	*goroutineExitHook;
+ 
+ 	// Current goroutine, or nil if there are no goroutines
+-	curGoroutine *Goroutine;
++	curGoroutine	*Goroutine;
+ 
+ 	// Goroutines by the address of their G structure
+-	goroutines map[proc.Word] *Goroutine;
++	goroutines	map[proc.Word]*Goroutine;
+ }
+ 
+ /*
+@@ -115,11 +115,11 @@ func NewProcess(tproc proc.Process, arch Arch, syms *gosym.Table) (*Process, os.
+ 		Arch: arch,
+ 		proc: tproc,
+ 		syms: syms,
+-		types: make(map[proc.Word] *remoteType),
+-		breakpointHooks: make(map[proc.Word] *breakpointHook),
++		types: make(map[proc.Word]*remoteType),
++		breakpointHooks: make(map[proc.Word]*breakpointHook),
+ 		goroutineCreateHook: new(goroutineCreateHook),
+ 		goroutineExitHook: new(goroutineExitHook),
+-		goroutines: make(map[proc.Word] *Goroutine),
++		goroutines: make(map[proc.Word]*Goroutine),
+ 	};
+ 
+ 	// Fill in remote runtime
+diff --git a/src/pkg/exp/ogle/rruntime.go b/src/pkg/exp/ogle/rruntime.go
+index 2af636926f..7ce258a79c 100644
+--- a/src/pkg/exp/ogle/rruntime.go
++++ b/src/pkg/exp/ogle/rruntime.go
+@@ -31,19 +31,19 @@ import (
+  */
+ 
+ type rt1String struct {
+-	str uintptr;
+-	len int;
++	str	uintptr;
++	len	int;
+ }
+ 
+ type rt1Slice struct {
+-	array uintptr;
+-	len int;
+-	cap int;
++	array	uintptr;
++	len	int;
++	cap	int;
+ }
+ 
+ type rt1Eface struct {
+-	typ uintptr;
+-	ptr uintptr;
++	typ	uintptr;
++	ptr	uintptr;
+ }
+ 
+ /*
+@@ -53,17 +53,17 @@ type rt1Eface struct {
+  */
+ 
+ type rt1UncommonType struct {
+-	name *string;
+-	pkgPath *string;
++	name	*string;
++	pkgPath	*string;
+ 	//methods []method;
+ }
+ 
+ type rt1CommonType struct {
+-	size uintptr;
+-	hash uint32;
+-	alg, align, fieldAlign uint8;
+-	string *string;
+-	uncommonType *rt1UncommonType;
++	size			uintptr;
++	hash			uint32;
++	alg, align, fieldAlign	uint8;
++	string			*string;
++	uncommonType		*rt1UncommonType;
+ }
+ 
+ type rt1Type struct {
+@@ -71,37 +71,37 @@ type rt1Type struct {
+ 	// discriminator as an opaque pointer and taking advantage of
+ 	// the commonType prologue on all Type's makes type parsing
+ 	// much simpler.
+-	typ uintptr;
+-	ptr *rt1CommonType;
++	typ	uintptr;
++	ptr	*rt1CommonType;
+ }
+ 
+ type rt1StructField struct {
+-	name *string;
+-	pkgPath *string;
+-	typ *rt1Type;
+-	tag *string;
+-	offset uintptr;
++	name	*string;
++	pkgPath	*string;
++	typ	*rt1Type;
++	tag	*string;
++	offset	uintptr;
+ }
+ 
+ type rt1StructType struct {
+ 	rt1CommonType;
+-	fields []rt1StructField;
++	fields	[]rt1StructField;
+ }
+ 
+ type rt1PtrType struct {
+ 	rt1CommonType;
+-	elem *rt1Type;
++	elem	*rt1Type;
+ }
+ 
+ type rt1SliceType struct {
+ 	rt1CommonType;
+-	elem *rt1Type;
++	elem	*rt1Type;
+ }
+ 
+ type rt1ArrayType struct {
+ 	rt1CommonType;
+-	elem *rt1Type;
+-	len uintptr;
++	elem	*rt1Type;
++	len	uintptr;
+ }
+ 
+ /*
+@@ -113,30 +113,30 @@ type rt1ArrayType struct {
+ // Fields beginning with _ are only for padding
+ 
+ type rt1Stktop struct {
+-	stackguard uintptr;
+-	stackbase *rt1Stktop;
+-	gobuf rt1Gobuf;
+-	_args uint32;
+-	_fp uintptr;
++	stackguard	uintptr;
++	stackbase	*rt1Stktop;
++	gobuf		rt1Gobuf;
++	_args		uint32;
++	_fp		uintptr;
+ }
+ 
+ type rt1Gobuf struct {
+-	sp uintptr;
+-	pc uintptr;
+-	g *rt1G;
+-	r0 uintptr;
++	sp	uintptr;
++	pc	uintptr;
++	g	*rt1G;
++	r0	uintptr;
+ }
+ 
+ type rt1G struct {
+-	_stackguard uintptr;
+-	stackbase *rt1Stktop;
+-	_defer uintptr;
+-	sched rt1Gobuf;
+-	_stack0 uintptr;
+-	_entry uintptr;
+-	alllink *rt1G;
+-	_param uintptr;
+-	status int16;
++	_stackguard	uintptr;
++	stackbase	*rt1Stktop;
++	_defer		uintptr;
++	sched		rt1Gobuf;
++	_stack0		uintptr;
++	_entry		uintptr;
++	alllink		*rt1G;
++	_param		uintptr;
++	status		int16;
+ 	// Incomplete
+ }
+ 
+@@ -148,7 +148,7 @@ var rt1GStatus = runtimeGStatus{
+ 	Gwaiting: 4,
+ 	Gmoribund: 5,
+ 	Gdead: 6,
+-};
++}
+ 
+ // runtimeIndexes stores the indexes of fields in the runtime
+ // structures.  It is filled in using reflection, so the name of the
+@@ -156,48 +156,48 @@ var rt1GStatus = runtimeGStatus{
+ // exactly and the names of the index fields must be the capitalized
+ // version of the names of the fields in the runtime structures above.
+ type runtimeIndexes struct {
+-	String struct {
++	String	struct {
+ 		Str, Len int;
+ 	};
+-	Slice struct {
++	Slice	struct {
+ 		Array, Len, Cap int;
+ 	};
+-	Eface struct {
++	Eface	struct {
+ 		Typ, Ptr int;
+ 	};
+ 
+-	UncommonType struct {
++	UncommonType	struct {
+ 		Name, PkgPath int;
+ 	};
+-	CommonType struct {
++	CommonType	struct {
+ 		Size, Hash, Alg, Align, FieldAlign, String, UncommonType int;
+ 	};
+-	Type struct {
++	Type	struct {
+ 		Typ, Ptr int;
+ 	};
+-	StructField struct {
++	StructField	struct {
+ 		Name, PkgPath, Typ, Tag, Offset int;
+ 	};
+-	StructType struct {
++	StructType	struct {
+ 		Fields int;
+ 	};
+-	PtrType struct {
++	PtrType	struct {
+ 		Elem int;
+ 	};
+-	SliceType struct {
++	SliceType	struct {
+ 		Elem int;
+ 	};
+-	ArrayType struct {
++	ArrayType	struct {
+ 		Elem, Len int;
+ 	};
+ 
+-	Stktop struct {
++	Stktop	struct {
+ 		Stackguard, Stackbase, Gobuf int;
+ 	};
+-	Gobuf struct {
++	Gobuf	struct {
+ 		Sp, Pc, G int;
+ 	};
+-	G struct {
++	G	struct {
+ 		Stackbase, Sched, Status, Alllink int;
+ 	};
+ }
+@@ -211,23 +211,23 @@ type runtimeGStatus struct {
+ // in the remote runtime package.
+ type runtimeValues struct {
+ 	// Runtime data headers
+-	String, Slice, Eface *remoteType;
++	String, Slice, Eface	*remoteType;
+ 	// Runtime type structures
+ 	Type, CommonType, UncommonType, StructField, StructType, PtrType,
+-	ArrayType, SliceType *remoteType;
++		ArrayType, SliceType	*remoteType;
+ 	// Runtime scheduler structures
+-	Stktop, Gobuf, G *remoteType;
++	Stktop, Gobuf, G	*remoteType;
+ 	// Addresses of *runtime.XType types.  These are the
+ 	// discriminators on the runtime.Type interface.  We use local
+ 	// reflection to fill these in from the remote symbol table,
+ 	// so the names must match the runtime names.
+ 	PBoolType,
+-	PUint8Type, PUint16Type, PUint32Type, PUint64Type, PUintType, PUintptrType,
+-	PInt8Type, PInt16Type, PInt32Type, PInt64Type, PIntType,
+-	PFloat32Type, PFloat64Type, PFloatType,
+-	PArrayType, PStringType, PStructType, PPtrType, PFuncType,
+-	PInterfaceType, PSliceType, PMapType, PChanType,
+-	PDotDotDotType, PUnsafePointerType proc.Word;
++		PUint8Type, PUint16Type, PUint32Type, PUint64Type, PUintType, PUintptrType,
++		PInt8Type, PInt16Type, PInt32Type, PInt64Type, PIntType,
++		PFloat32Type, PFloat64Type, PFloatType,
++		PArrayType, PStringType, PStructType, PPtrType, PFuncType,
++		PInterfaceType, PSliceType, PMapType, PChanType,
++		PDotDotDotType, PUnsafePointerType	proc.Word;
+ 	// G status values
+ 	runtimeGStatus;
+ }
+@@ -247,14 +247,14 @@ func fillRuntimeIndexes(runtime *runtimeValues, out *runtimeIndexes) {
+ 		et := runtimev.FieldByName(name).Interface().(*remoteType).Type.(*eval.StructType);
+ 
+ 		// Get the field indexes of the interpreter struct type
+-		indexes := make(map[string] int, len(et.Elems));
++		indexes := make(map[string]int, len(et.Elems));
+ 		for j, f := range et.Elems {
+ 			if f.Anonymous {
+ 				continue;
+ 			}
+ 			name := f.Name;
+ 			if name[0] >= 'a' && name[0] <= 'z' {
+-				name = string(name[0] + 'A' - 'a') + name[1:len(name)];
++				name = string(name[0]+'A'-'a')+name[1:len(name)];
+ 			}
+ 			indexes[name] = j;
+ 		}
+diff --git a/src/pkg/exp/ogle/rtype.go b/src/pkg/exp/ogle/rtype.go
+index f70b918c0d..6d890fc929 100644
+--- a/src/pkg/exp/ogle/rtype.go
++++ b/src/pkg/exp/ogle/rtype.go
+@@ -17,16 +17,16 @@ const debugParseRemoteType = false
+ type remoteType struct {
+ 	eval.Type;
+ 	// The size of values of this type in bytes.
+-	size int;
++	size	int;
+ 	// The field alignment of this type.  Only used for
+ 	// manually-constructed types.
+-	fieldAlign int;
++	fieldAlign	int;
+ 	// The maker function to turn a remote address of a value of
+ 	// this type into an interpreter Value.
+-	mk maker;
++	mk	maker;
+ }
+ 
+-var manualTypes = make(map[Arch] map[eval.Type] *remoteType)
++var manualTypes = make(map[Arch]map[eval.Type]*remoteType)
+ 
+ // newManualType constructs a remote type from an interpreter Type
+ // using the size and alignment properties of the given architecture.
+@@ -40,7 +40,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
+ 	// Get the type map for this architecture
+ 	typeMap, _ := manualTypes[arch];
+ 	if typeMap == nil {
+-		typeMap = make(map[eval.Type] *remoteType);
++		typeMap = make(map[eval.Type]*remoteType);
+ 		manualTypes[arch] = typeMap;
+ 
+ 		// Construct basic types for this architecture
+@@ -51,13 +51,13 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
+ 			}
+ 			typeMap[t] = &remoteType{t, size, fieldAlign, mk};
+ 		};
+-		basicType(eval.Uint8Type,   mkUint8,   1, 0);
+-		basicType(eval.Uint32Type,  mkUint32,  4, 0);
++		basicType(eval.Uint8Type, mkUint8, 1, 0);
++		basicType(eval.Uint32Type, mkUint32, 4, 0);
+ 		basicType(eval.UintptrType, mkUintptr, arch.PtrSize(), 0);
+-		basicType(eval.Int16Type,   mkInt16,   2, 0);
+-		basicType(eval.Int32Type,   mkInt32,   4, 0);
+-		basicType(eval.IntType,     mkInt,     arch.IntSize(), 0);
+-		basicType(eval.StringType,  mkString,  arch.PtrSize() + arch.IntSize(), arch.PtrSize());
++		basicType(eval.Int16Type, mkInt16, 2, 0);
++		basicType(eval.Int32Type, mkInt32, 4, 0);
++		basicType(eval.IntType, mkInt, arch.IntSize(), 0);
++		basicType(eval.StringType, mkString, arch.PtrSize() + arch.IntSize(), arch.PtrSize());
+ 	}
+ 
+ 	if rt, ok := typeMap[t]; ok {
+@@ -68,9 +68,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
+ 	switch t := t.(type) {
+ 	case *eval.PtrType:
+ 		var elem *remoteType;
+-		mk := func(r remote) eval.Value {
+-			return remotePtr{r, elem};
+-		};
++		mk := func(r remote) eval.Value { return remotePtr{r, elem} };
+ 		rt = &remoteType{t, arch.PtrSize(), arch.PtrSize(), mk};
+ 		// Construct the element type after registering the
+ 		// type to break cycles.
+@@ -79,17 +77,13 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
+ 
+ 	case *eval.ArrayType:
+ 		elem := newManualType(t.Elem, arch);
+-		mk := func(r remote) eval.Value {
+-			return remoteArray{r, t.Len, elem};
+-		};
+-		rt = &remoteType{t, elem.size*int(t.Len), elem.fieldAlign, mk};
++		mk := func(r remote) eval.Value { return remoteArray{r, t.Len, elem} };
++		rt = &remoteType{t, elem.size * int(t.Len), elem.fieldAlign, mk};
+ 
+ 	case *eval.SliceType:
+ 		elem := newManualType(t.Elem, arch);
+-		mk := func(r remote) eval.Value {
+-			return remoteSlice{r, elem};
+-		};
+-		rt = &remoteType{t, arch.PtrSize() + 2*arch.IntSize(), arch.PtrSize(), mk};
++		mk := func(r remote) eval.Value { return remoteSlice{r, elem} };
++		rt = &remoteType{t, arch.PtrSize() + 2 * arch.IntSize(), arch.PtrSize(), mk};
+ 
+ 	case *eval.StructType:
+ 		layout := make([]remoteStructField, len(t.Elems));
+@@ -105,9 +99,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
+ 			layout[i].fieldType = elem;
+ 			offset += elem.size;
+ 		}
+-		mk := func(r remote) eval.Value {
+-			return remoteStruct{r, layout};
+-		};
++		mk := func(r remote) eval.Value { return remoteStruct{r, layout} };
+ 		rt = &remoteType{t, offset, fieldAlign, mk};
+ 
+ 	default:
+@@ -118,7 +110,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
+ 	return rt;
+ }
+ 
+-var prtIndent = "";
++var prtIndent = ""
+ 
+ // parseRemoteType parses a Type structure in a remote process to
+ // construct the corresponding interpreter type and remote type.
+@@ -152,7 +144,9 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
+ 		}
+ 		log.Stderrf("%sParsing type at %#x (%s)", prtIndent, addr, name);
+ 		prtIndent += " ";
+-		defer func() { prtIndent = prtIndent[0:len(prtIndent)-1] }();
++		defer func() {
++			prtIndent = prtIndent[0 : len(prtIndent)-1];
++		}();
+ 	}
+ 
+ 	// Get Type header
+@@ -230,9 +224,7 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
+ 		len := int64(typ.field(p.f.ArrayType.Len).(remoteUint).aGet(a));
+ 		elem := parseRemoteType(a, typ.field(p.f.ArrayType.Elem).(remotePtr).aGet(a).(remoteStruct));
+ 		t = eval.NewArrayType(len, elem.Type);
+-		mk = func(r remote) eval.Value {
+-			return remoteArray{r, len, elem};
+-		};
++		mk = func(r remote) eval.Value { return remoteArray{r, len, elem} };
+ 
+ 	case p.runtime.PStructType:
+ 		// Cast to a StructType
+@@ -257,27 +249,21 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
+ 		}
+ 
+ 		t = eval.NewStructType(fields);
+-		mk = func(r remote) eval.Value {
+-			return remoteStruct{r, layout};
+-		};
++		mk = func(r remote) eval.Value { return remoteStruct{r, layout} };
+ 
+ 	case p.runtime.PPtrType:
+ 		// Cast to a PtrType
+ 		typ := p.runtime.PtrType.mk(typ.addr()).(remoteStruct);
+ 		elem := parseRemoteType(a, typ.field(p.f.PtrType.Elem).(remotePtr).aGet(a).(remoteStruct));
+ 		t = eval.NewPtrType(elem.Type);
+-		mk = func(r remote) eval.Value {
+-			return remotePtr{r, elem};
+-		};
++		mk = func(r remote) eval.Value { return remotePtr{r, elem} };
+ 
+ 	case p.runtime.PSliceType:
+ 		// Cast to a SliceType
+ 		typ := p.runtime.SliceType.mk(typ.addr()).(remoteStruct);
+ 		elem := parseRemoteType(a, typ.field(p.f.SliceType.Elem).(remotePtr).aGet(a).(remoteStruct));
+ 		t = eval.NewSliceType(elem.Type);
+-		mk = func(r remote) eval.Value {
+-			return remoteSlice{r, elem};
+-		};
++		mk = func(r remote) eval.Value { return remoteSlice{r, elem} };
+ 
+ 	case p.runtime.PMapType, p.runtime.PChanType, p.runtime.PFuncType, p.runtime.PInterfaceType, p.runtime.PUnsafePointerType, p.runtime.PDotDotDotType:
+ 		// TODO(austin)
+diff --git a/src/pkg/exp/ogle/rvalue.go b/src/pkg/exp/ogle/rvalue.go
+index 9077e238b5..1cfd8f78fe 100644
+--- a/src/pkg/exp/ogle/rvalue.go
++++ b/src/pkg/exp/ogle/rvalue.go
+@@ -38,8 +38,8 @@ type remoteValue interface {
+ 
+ // remote represents an address in a remote process.
+ type remote struct {
+-	base proc.Word;
+-	p *Process;
++	base	proc.Word;
++	p	*Process;
+ }
+ 
+ func (v remote) Get(a aborter, size int) uint64 {
+@@ -140,8 +140,8 @@ func mkBool(r remote) eval.Value {
+  */
+ 
+ type remoteUint struct {
+-	r remote;
+-	size int;
++	r	remote;
++	size	int;
+ }
+ 
+ func (v remoteUint) String() string {
+@@ -201,8 +201,8 @@ func mkUintptr(r remote) eval.Value {
+  */
+ 
+ type remoteInt struct {
+-	r remote;
+-	size int;
++	r	remote;
++	size	int;
+ }
+ 
+ func (v remoteInt) String() string {
+@@ -258,8 +258,8 @@ func mkInt(r remote) eval.Value {
+  */
+ 
+ type remoteFloat struct {
+-	r remote;
+-	size int;
++	r	remote;
++	size	int;
+ }
+ 
+ func (v remoteFloat) String() string {
+@@ -291,7 +291,7 @@ func (v remoteFloat) Set(t *eval.Thread, x float64) {
+ 
+ func (v remoteFloat) aSet(a aborter, x float64) {
+ 	var bits uint64;
+-	switch v.size{
++	switch v.size {
+ 	case 4:
+ 		bits = uint64(v.r.p.FromFloat32(float32(x)));
+ 	case 8:
+@@ -370,9 +370,9 @@ func mkString(r remote) eval.Value {
+  */
+ 
+ type remoteArray struct {
+-	r remote;
+-	len int64;
+-	elemType *remoteType;
++	r		remote;
++	len		int64;
++	elemType	*remoteType;
+ }
+ 
+ func (v remoteArray) String() string {
+@@ -383,11 +383,11 @@ func (v remoteArray) String() string {
+ 		}
+ 		res += v.elem(i).String();
+ 	}
+-	return res + "}";
++	return res+"}";
+ }
+ 
+ func (v remoteArray) Assign(t *eval.Thread, o eval.Value) {
+- 	// TODO(austin) Could do a bigger memcpy if o is a
++	// TODO(austin) Could do a bigger memcpy if o is a
+ 	// remoteArray in the same Process.
+ 	oa := o.(eval.ArrayValue);
+ 	for i := int64(0); i < v.len; i++ {
+@@ -404,11 +404,11 @@ func (v remoteArray) Elem(t *eval.Thread, i int64) eval.Value {
+ }
+ 
+ func (v remoteArray) elem(i int64) eval.Value {
+-	return v.elemType.mk(v.r.plus(proc.Word(int64(v.elemType.size) * i)));
++	return v.elemType.mk(v.r.plus(proc.Word(int64(v.elemType.size)*i)));
+ }
+ 
+ func (v remoteArray) Sub(i int64, len int64) eval.ArrayValue {
+-	return remoteArray{v.r.plus(proc.Word(int64(v.elemType.size) * i)), len, v.elemType};
++	return remoteArray{v.r.plus(proc.Word(int64(v.elemType.size)*i)), len, v.elemType};
+ }
+ 
+ /*
+@@ -416,13 +416,13 @@ func (v remoteArray) Sub(i int64, len int64) eval.ArrayValue {
+  */
+ 
+ type remoteStruct struct {
+-	r remote;
+-	layout []remoteStructField;
++	r	remote;
++	layout	[]remoteStructField;
+ }
+ 
+ type remoteStructField struct {
+-	offset int;
+-	fieldType *remoteType;
++	offset		int;
++	fieldType	*remoteType;
+ }
+ 
+ func (v remoteStruct) String() string {
+@@ -433,7 +433,7 @@ func (v remoteStruct) String() string {
+ 		}
+ 		res += v.field(i).String();
+ 	}
+-	return res + "}";
++	return res+"}";
+ }
+ 
+ func (v remoteStruct) Assign(t *eval.Thread, o eval.Value) {
+@@ -471,8 +471,8 @@ func (v remoteStruct) addr() remote {
+ // remotePtr.Get() will be structs.
+ 
+ type remotePtr struct {
+-	r remote;
+-	elemType *remoteType;
++	r		remote;
++	elemType	*remoteType;
+ }
+ 
+ func (v remotePtr) String() string {
+@@ -526,8 +526,8 @@ func (v remotePtr) addr() remote {
+  */
+ 
+ type remoteSlice struct {
+-	r remote;
+-	elemType *remoteType;
++	r		remote;
++	elemType	*remoteType;
+ }
+ 
+ func (v remoteSlice) String() string {
+diff --git a/src/pkg/exp/ogle/vars.go b/src/pkg/exp/ogle/vars.go
+index 539b5b3453..58ddbff161 100644
+--- a/src/pkg/exp/ogle/vars.go
++++ b/src/pkg/exp/ogle/vars.go
+@@ -19,8 +19,8 @@ import (
+ // A NotOnStack error occurs when attempting to access a variable in a
+ // remote frame where that remote frame is not on the current stack.
+ type NotOnStack struct {
+-	Fn *gosym.Func;
+-	Goroutine *Goroutine;
++	Fn		*gosym.Func;
++	Goroutine	*Goroutine;
+ }
+ 
+ func (e NotOnStack) String() string {
+@@ -33,9 +33,9 @@ func (e NotOnStack) String() string {
+ // stack and returns a structure containing the local variables of
+ // that function.
+ type remoteFramePtr struct {
+-	p *Process;
+-	fn *gosym.Func;
+-	rt *remoteType;
++	p	*Process;
++	fn	*gosym.Func;
++	rt	*remoteType;
+ }
+ 
+ func (v remoteFramePtr) String() string {
+@@ -115,10 +115,10 @@ func (v remotePackage) Field(t *eval.Thread, i int) eval.Value {
+ // fields for each global and function in that package.
+ func (p *Process) populateWorld(w *eval.World) os.Error {
+ 	type def struct {
+-		t eval.Type;
+-		v eval.Value;
++		t	eval.Type;
++		v	eval.Value;
+ 	}
+-	packages := make(map[string] map[string] def);
++	packages := make(map[string]map[string]def);
+ 
+ 	for _, s := range p.syms.Syms {
+ 		if s.ReceiverName() != "" {
+@@ -135,7 +135,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
+ 		}
+ 		pkg, ok := packages[pkgName];
+ 		if !ok {
+-			pkg = make(map[string] def);
++			pkg = make(map[string]def);
+ 			packages[pkgName] = pkg;
+ 		}
+ 
+@@ -221,7 +221,7 @@ func (p *Process) typeOfSym(s *gosym.Sym) (*remoteType, os.Error) {
+ // The offsets in this struct type are such that the struct can be
+ // instantiated at this function's frame pointer.
+ func (p *Process) makeFrameType(s *gosym.Func) (*remoteType, os.Error) {
+-	n := len(s.Params) + len(s.Locals);
++	n := len(s.Params)+len(s.Locals);
+ 	fields := make([]eval.StructField, n);
+ 	layout := make([]remoteStructField, n);
+ 	i := 0;

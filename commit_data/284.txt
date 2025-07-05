@@ -5,8 +5,112 @@ Date:   Thu Jul 3 16:48:59 2008 -0700
     fix some tests
     
     SVN=125987
-
+---
  test/bugs/bug064.go | 23 +++++++++++++++++++++++
  test/golden.out     | 28 +++++++++++++++++-----------
  test/simassign.go   | 17 ++++++++++++++++-
  3 files changed, 56 insertions(+), 12 deletions(-)
+
+diff --git a/test/bugs/bug064.go b/test/bugs/bug064.go
+new file mode 100644
+index 0000000000..41c130d8dd
+--- /dev/null
++++ b/test/bugs/bug064.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go || echo BUG: compilation should succeed
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func
++swap(x, y int) (u, v int) {
++	return y, x
++}
++
++func
++main()
++{
++	a := 1;
++	b := 2;
++	a, b = swap(swap(a, b));
++	if a != 2 || b != 1 {
++		panic "bad swap";
++	}
++}
+diff --git a/test/golden.out b/test/golden.out
+index d5bd978390..c0d6c054b3 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -318,19 +318,25 @@ BUG: known to fail incorrectly
+ BUG: known to succeed incorrectly
+ 
+ =========== bugs/bug063.go
+-bugs/bug063.go:4: illegal combination of literals XOR 7
+-bugs/bug063.go:4: expression must be a constant
+-bugs/bug063.go:4: expression must be a constant
+-bugs/bug063.go:4: expression must be a constant
+-bugs/bug063.go:4: expression must be a constant
+-bugs/bug063.go:4: expression must be a constant
+-bugs/bug063.go:4: expression must be a constant
+-bugs/bug063.go:4: expression must be a constant
+-bugs/bug063.go:4: expression must be a constant
+-bugs/bug063.go:4: expression must be a constant
+-bugs/bug063.go:4: fatal error: too many errors
++bugs/bug063.go:5: illegal combination of literals XOR 7
++bugs/bug063.go:5: expression must be a constant
++bugs/bug063.go:5: expression must be a constant
++bugs/bug063.go:5: expression must be a constant
++bugs/bug063.go:5: expression must be a constant
++bugs/bug063.go:5: expression must be a constant
++bugs/bug063.go:5: expression must be a constant
++bugs/bug063.go:5: expression must be a constant
++bugs/bug063.go:5: expression must be a constant
++bugs/bug063.go:5: expression must be a constant
++bugs/bug063.go:5: fatal error: too many errors
+ BUG: should compile without problems
+ 
++=========== bugs/bug064.go
++bugs/bug064.go:15: illegal types for operand: CALL
++	(<int32>INT32)
++	({<u><int32>INT32;<v><int32>INT32;})
++BUG: compilation should succeed
++
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug001.go
+diff --git a/test/simassign.go b/test/simassign.go
+index aeb988d7db..5b8c3f39fa 100644
+--- a/test/simassign.go
++++ b/test/simassign.go
+@@ -33,7 +33,13 @@ testit() bool
+ 		i == 9;
+ }
+ 
+-func main()
++func
++swap(x, y int) (u, v int) {
++	return y, x
++}
++
++func
++main()
+ {
+ 	a = 1;
+ 	b = 2;
+@@ -65,4 +71,13 @@ func main()
+ 		printit();
+ 		panic;
+ 	}
++
++	a, b = swap(1, 2);
++	if a != 2 || b != 1 {
++		panic "bad swap";
++	}
++//BUG	a, b = swap(swap(a, b));
++//	if a != 2 || b != 1 {
++//		panic "bad swap";
++//	}
+ }

@@ -9,6 +9,29 @@ Date:   Sat Aug 6 10:12:03 2016 -0700
     Change-Id: Icac6705828bd9b29379596ba64b34d922b9002c3
     Reviewed-on: https://go-review.googlesource.com/25548
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/install.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 0e6b86fdaf..cfe3e67a64 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -17,7 +17,7 @@
+ <p>
+ <a href="https://golang.org/dl/" target="_blank">Official binary
+ distributions</a> are available for the FreeBSD (release 8-STABLE and above),
+-Linux, Mac OS X (10.7 and above), and Windows operating systems and
++Linux, Mac OS X (10.8 and above), and Windows operating systems and
+ the 32-bit (<code>386</code>) and 64-bit (<code>amd64</code>) x86 processor
+ architectures.
+ </p>
+@@ -49,7 +49,7 @@ If your OS or architecture is not on the list, you may be able to
+ <tr><td colspan="3"><hr></td></tr>
+ <tr><td>FreeBSD 8-STABLE or later</td> <td>amd64</td> <td>Debian GNU/kFreeBSD not supported</td></tr>
+ <tr><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm</td> <td>CentOS/RHEL 5.x not supported</td></tr>
+-<tr><td>Mac OS X 10.7 or later</td> <td>amd64</td> <td>use the clang or gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup></td></tr>
++<tr><td>Mac OS X 10.7 or later</td> <td>amd64</td> <td>use the clang or gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup> for <code>cgo</code> support</td></tr>
+ <tr><td>Windows XP or later</td> <td>amd64, 386</td> <td>use MinGW gcc<sup>&#8224;</sup>. No need for cygwin or msys.</td></tr>
+ </table>
+ 

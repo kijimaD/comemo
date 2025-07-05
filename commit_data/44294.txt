@@ -9,6 +9,21 @@ Date:   Wed Jun 3 18:25:46 2020 -0700
     Change-Id: I344dd93ed7a75f88e7f937c80f5a6ad6c0327a07
     Reviewed-on: https://go-review.googlesource.com/c/go/+/236417
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.15.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 492cac0b09..ea96dcfe5f 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -390,7 +390,8 @@ TODO
+ <dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
+   <dd>
+     <p><!-- CL 215001 -->
+-      TODO: <a href="https://golang.org/cl/215001">https://golang.org/cl/215001</a>: do not remove trailing zeros for %g and %G with #(sharp) flag
++      The printing verbs <code>%#g</code> and <code>%#G</code> now preserve
++      trailing zeros for floating-point values.
+     </p>
+   </dd>
+ </dl><!-- fmt -->

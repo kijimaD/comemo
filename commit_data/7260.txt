@@ -7,6 +7,18 @@ Date:   Thu Jan 27 23:03:52 2011 +1000
     R=golang-dev, dsymonds, adg
     CC=golang-dev
     https://golang.org/cl/4102044
-
+---
  misc/vim/syntax/go.vim | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/vim/syntax/go.vim b/misc/vim/syntax/go.vim
+index a6b6359187..bef2a50c5e 100644
+--- a/misc/vim/syntax/go.vim
++++ b/misc/vim/syntax/go.vim
+@@ -198,4 +198,6 @@ endif
+ hi def link     goExtraType         Type
+ hi def link     goSpaceError        Error
+ 
++syn sync minlines=500
++
+ let b:current_syntax = "go"

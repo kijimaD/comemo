@@ -11,6 +11,28 @@ Date:   Mon Oct 20 23:01:32 2014 +0200
     R=rsc
     CC=aram, golang-codereviews
     https://golang.org/cl/155590043
-
+---
  src/os/exec/exec_test.go | 10 +---------
  1 file changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 5fd439b8bb..bc9c00effe 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -258,15 +258,7 @@ var testedAlreadyLeaked = false
+ // basefds returns the number of expected file descriptors
+ // to be present in a process at start.
+ func basefds() uintptr {
+-	n := os.Stderr.Fd() + 1
+-
+-	// Go runtime for 32-bit Plan 9 requires that /dev/bintime
+-	// be kept open.
+-	// See ../../runtime/time_plan9_386.c:/^runtime·nanotime
+-	if runtime.GOOS == "plan9" && runtime.GOARCH == "386" {
+-		n++
+-	}
+-	return n
++	return os.Stderr.Fd() + 1
+ }
+ 
+ func closeUnexpectedFds(t *testing.T, m string) {

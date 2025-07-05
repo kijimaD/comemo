@@ -7,6 +7,19 @@ Date:   Wed Nov 2 11:23:05 2016 +0100
     Change-Id: I436528a4f81634448a60b1183d1b65a3bf4f48c1
     Reviewed-on: https://go-review.googlesource.com/32590
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  doc/go1.8.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.8.txt b/doc/go1.8.txt
+index e516b8df95..d8d2b2635e 100644
+--- a/doc/go1.8.txt
++++ b/doc/go1.8.txt
+@@ -176,6 +176,7 @@ go/build: do not record go:binary-only-package if build tags not satisfied (CL 3
+ go/doc: add IsPredeclared function (CL 29870)
+ go/doc: allow ToHTML to properly handle URLs containing semicolons (CL 25385)
+ go/internal/gcimporter: fail gracefully on export format skew (CL 27816)
++go/token: fix race in FileSet.PositionFor. (CL 25345)
+ go/types: expose Default function, which converts untyped T to T (CL 30715)
+ go/types: handle imported aliases (CL 32534)
+ go/types: match cmd/compile's alignment for complex64 (CL 31939)

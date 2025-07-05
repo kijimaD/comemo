@@ -5,6 +5,19 @@ Date:   Thu Apr 3 16:59:46 2008 -0700
     remove noisy print
     
     SVN=114939
-
+---
  src/lib/container/vector.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/lib/container/vector.go b/src/lib/container/vector.go
+index 4b7c8ec0c0..f08b340ab8 100644
+--- a/src/lib/container/vector.go
++++ b/src/lib/container/vector.go
+@@ -27,7 +27,6 @@ type Vector struct {
+ // BUG: workaround for non-constant allocation.
+ // i must be a power of 10.
+ func Alloc(i int) *[]Element {
+-	print "Alloc ", i, "\n";
+ 	switch i {
+ 	case 1:
+ 		return new([1]Element);

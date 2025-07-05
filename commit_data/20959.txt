@@ -24,10 +24,95 @@ Date:   Wed Oct 29 20:37:44 2014 -0400
     R=r
     CC=golang-codereviews
     https://golang.org/cl/170720043
-
+---
  src/runtime/asm_386.s      | 6 ++++++
  src/runtime/asm_amd64.s    | 6 ++++++
  src/runtime/asm_amd64p32.s | 6 ++++++
  src/runtime/asm_arm.s      | 6 ++++++
  src/runtime/proc.c         | 8 +++-----
  5 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 0d46a9eff7..b4b81d7397 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -2284,3 +2284,9 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
+ 	MOVL	m_curg(AX), AX
+ 	MOVL	(g_stack+stack_hi)(AX), AX
+ 	RET
++
++// The top-most function running on a goroutine
++// returns to goexit+PCQuantum.
++TEXT runtime·goexit(SB),NOSPLIT,$0-0
++	BYTE	$0x90	// NOP
++	CALL	runtime·goexit1(SB)	// does not return
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index a9b082beb8..39d7c78f23 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -2229,3 +2229,9 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
+ 	MOVQ	m_curg(AX), AX
+ 	MOVQ	(g_stack+stack_hi)(AX), AX
+ 	RET
++
++// The top-most function running on a goroutine
++// returns to goexit+PCQuantum.
++TEXT runtime·goexit(SB),NOSPLIT,$0-0
++	BYTE	$0x90	// NOP
++	CALL	runtime·goexit1(SB)	// does not return
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 28875bc55a..a1116b5d47 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -1079,3 +1079,9 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVL	$0, AX
+ 	RET
++
++// The top-most function running on a goroutine
++// returns to goexit+PCQuantum.
++TEXT runtime·goexit(SB),NOSPLIT,$0-0
++	BYTE	$0x90	// NOP
++	CALL	runtime·goexit1(SB)	// does not return
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index e94b4c1ff6..0f3b5eeb8b 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -1320,3 +1320,9 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$8
+ 	MOVW	saveG-8(SP), g
+ 	MOVW	saveR11-4(SP), R11
+ 	RET
++
++// The top-most function running on a goroutine
++// returns to goexit+PCQuantum.
++TEXT runtime·goexit(SB),NOSPLIT,$-4-0
++	MOVW	R0, R0	// NOP
++	BL	runtime·goexit1(SB)	// does not return
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index b46f67065a..4be51e1e16 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -1643,12 +1643,10 @@ runtime·gosched_m(G *gp)
+ }
+ 
+ // Finishes execution of the current goroutine.
+-// Need to mark it as nosplit, because it runs with sp > stackbase.
+-// Since it does not return it does not matter.  But if it is preempted
+-// at the split stack check, GC will complain about inconsistent sp.
++// Must be NOSPLIT because it is called from Go.
+ #pragma textflag NOSPLIT
+ void
+-runtime·goexit(void)
++runtime·goexit1(void)
+ {
+ 	void (*fn)(G*);
+ 
+@@ -2192,7 +2190,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
+ 
+ 	runtime·memclr((byte*)&newg->sched, sizeof newg->sched);
+ 	newg->sched.sp = (uintptr)sp;
+-	newg->sched.pc = (uintptr)runtime·goexit;
++	newg->sched.pc = (uintptr)runtime·goexit + PCQuantum; // +PCQuantum so that previous instruction is in same function
+ 	newg->sched.g = newg;
+ 	runtime·gostartcallfn(&newg->sched, fn);
+ 	newg->gopc = (uintptr)callerpc;

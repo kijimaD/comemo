@@ -21,7 +21,38 @@ Date:   Tue Jun 21 15:17:22 2022 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/cgo_stub.go | 2 --
  src/net/netgo.go    | 6 +++++-
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/cgo_stub.go b/src/net/cgo_stub.go
+index cc84ca47ae..298d829f6f 100644
+--- a/src/net/cgo_stub.go
++++ b/src/net/cgo_stub.go
+@@ -8,8 +8,6 @@ package net
+ 
+ import "context"
+ 
+-func init() { netGo = true }
+-
+ type addrinfoErrno int
+ 
+ func (eai addrinfoErrno) Error() string   { return "<nil>" }
+diff --git a/src/net/netgo.go b/src/net/netgo.go
+index f91c91b614..75baa88035 100644
+--- a/src/net/netgo.go
++++ b/src/net/netgo.go
+@@ -2,7 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build netgo
++// Default netGo to true if the netgo build tag is being used, or the
++// C library DNS routines are not available. Note that the C library
++// routines are always available on Windows.
++
++//go:build netgo || (!cgo && !windows)
+ 
+ package net
+ 

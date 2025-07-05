@@ -21,6 +21,29 @@ Date:   Fri Mar 19 15:55:30 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/modfile.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 2afa831583..6cbad46c4d 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -29,7 +29,6 @@ import (
+ // module-module "all" pattern no longer closes over the dependencies of
+ // tests outside of the main module.
+ const narrowAllVersionV = "v1.16"
+-const go116EnableNarrowAll = true
+ 
+ var modFile *modfile.File
+ 
+@@ -300,9 +299,6 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
+ // (Otherwise — as in Go 1.16+ — the "all" pattern includes only the packages
+ // transitively *imported by* the packages and tests in the main module.)
+ func (i *modFileIndex) allPatternClosesOverTests() bool {
+-	if !go116EnableNarrowAll {
+-		return true
+-	}
+ 	if i != nil && semver.Compare(i.goVersionV, narrowAllVersionV) < 0 {
+ 		// The module explicitly predates the change in "all" for lazy loading, so
+ 		// continue to use the older interpretation. (If i == nil, we not in any

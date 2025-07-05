@@ -15,7 +15,7 @@ Date:   Thu May 25 00:33:44 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/gotoolchain.go                 |  6 +++---
  src/cmd/go/internal/gover/latest.go       |  2 +-
  src/cmd/go/internal/gover/mod.go          |  2 +-
@@ -23,3 +23,126 @@ Date:   Thu May 25 00:33:44 2023 -0400
  src/cmd/go/internal/modfetch/toolchain.go |  2 +-
  src/cmd/go/internal/modload/init.go       |  2 +-
  6 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/gotoolchain.go b/src/cmd/go/gotoolchain.go
+index ef56c23d32..ae442db82b 100644
+--- a/src/cmd/go/gotoolchain.go
++++ b/src/cmd/go/gotoolchain.go
+@@ -81,7 +81,7 @@ func switchGoToolchain() {
+ 	if x, y, ok := strings.Cut(gotoolchain, "+"); ok { // go1.2.3+auto
+ 		orig := gotoolchain
+ 		minToolchain, gotoolchain = x, y
+-		minVers = gover.ToolchainVersion(minToolchain)
++		minVers = gover.FromToolchain(minToolchain)
+ 		if minVers == "" {
+ 			base.Fatalf("invalid GOTOOLCHAIN %q: invalid minimum toolchain %q", orig, minToolchain)
+ 		}
+@@ -125,7 +125,7 @@ func switchGoToolchain() {
+ 				// (including its environment and go env -w file).
+ 			} else if toolchain != "" {
+ 				// Accept toolchain only if it is >= our min.
+-				toolVers := gover.ToolchainVersion(toolchain)
++				toolVers := gover.FromToolchain(toolchain)
+ 				if gover.Compare(toolVers, minVers) >= 0 {
+ 					gotoolchain = toolchain
+ 				}
+@@ -149,7 +149,7 @@ func switchGoToolchain() {
+ 	// We want to allow things like go1.20.3 but also gccgo-go1.20.3.
+ 	// We want to disallow mistakes / bad ideas like GOTOOLCHAIN=bash,
+ 	// since we will find that in the path lookup.
+-	// gover.ToolchainVersion has already done this check (except for the 1)
++	// gover.FromToolchain has already done this check (except for the 1)
+ 	// but doing it again makes sure we don't miss it on unexpected code paths.
+ 	if !strings.HasPrefix(gotoolchain, "go1") && !strings.Contains(gotoolchain, "-go1") {
+ 		base.Fatalf("invalid GOTOOLCHAIN %q", gotoolchain)
+diff --git a/src/cmd/go/internal/gover/latest.go b/src/cmd/go/internal/gover/latest.go
+index 56d3f2d049..16357b8d30 100644
+--- a/src/cmd/go/internal/gover/latest.go
++++ b/src/cmd/go/internal/gover/latest.go
+@@ -21,7 +21,7 @@ func Local() string {
+ 	if TestVersion != "" {
+ 		v = TestVersion
+ 	}
+-	if v := ToolchainVersion(v); v != "" {
++	if v := FromToolchain(v); v != "" {
+ 		return v
+ 	}
+ 
+diff --git a/src/cmd/go/internal/gover/mod.go b/src/cmd/go/internal/gover/mod.go
+index c68738d46d..19f522c099 100644
+--- a/src/cmd/go/internal/gover/mod.go
++++ b/src/cmd/go/internal/gover/mod.go
+@@ -73,7 +73,7 @@ func ModSort(list []module.Version) {
+ func ModIsValid(path, vers string) bool {
+ 	if IsToolchain(path) {
+ 		if path == "toolchain" {
+-			return IsValid(ToolchainVersion(vers))
++			return IsValid(FromToolchain(vers))
+ 		}
+ 		return IsValid(vers)
+ 	}
+diff --git a/src/cmd/go/internal/gover/toolchain.go b/src/cmd/go/internal/gover/toolchain.go
+index d3a2353550..c7f6e3185e 100644
+--- a/src/cmd/go/internal/gover/toolchain.go
++++ b/src/cmd/go/internal/gover/toolchain.go
+@@ -11,18 +11,18 @@ import (
+ 	"strings"
+ )
+ 
+-// ToolchainVersion returns the Go version for the named toolchain,
++// FromToolchain returns the Go version for the named toolchain,
+ // derived from the name itself (not by running the toolchain).
+ // A toolchain is named "goVERSION" or "anything-goVERSION".
+ // A suffix after the VERSION introduced by a +, -, space, or tab is removed.
+ // Examples:
+ //
+-//	ToolchainVersion("go1.2.3") == "1.2.3"
+-//	ToolchainVersion("go1.2.3+bigcorp") == "1.2.3"
+-//	ToolchainVersion("go1.2.3-bigcorp") == "1.2.3"
+-//	ToolchainVersion("gccgo-go1.23rc4") == "1.23rc4"
+-//	ToolchainVersion("invalid") == ""
+-func ToolchainVersion(name string) string {
++//	FromToolchain("go1.2.3") == "1.2.3"
++//	FromToolchain("go1.2.3+bigcorp") == "1.2.3"
++//	FromToolchain("go1.2.3-bigcorp") == "1.2.3"
++//	FromToolchain("gccgo-go1.23rc4") == "1.23rc4"
++//	FromToolchain("invalid") == ""
++func FromToolchain(name string) string {
+ 	var v string
+ 	if strings.HasPrefix(name, "go") {
+ 		v = name[2:]
+@@ -43,7 +43,7 @@ func maybeToolchainVersion(name string) string {
+ 	if IsValid(name) {
+ 		return name
+ 	}
+-	return ToolchainVersion(name)
++	return FromToolchain(name)
+ }
+ 
+ // Startup records the information that went into the startup-time version switch.
+diff --git a/src/cmd/go/internal/modfetch/toolchain.go b/src/cmd/go/internal/modfetch/toolchain.go
+index 13e0d8d2ac..623f68f97b 100644
+--- a/src/cmd/go/internal/modfetch/toolchain.go
++++ b/src/cmd/go/internal/modfetch/toolchain.go
+@@ -66,7 +66,7 @@ func (r *toolchainRepo) Versions(ctx context.Context, prefix string) (*Versions,
+ 		})
+ 	} else {
+ 		sort.Slice(list, func(i, j int) bool {
+-			return gover.Compare(gover.ToolchainVersion(list[i]), gover.ToolchainVersion(list[j])) < 0
++			return gover.Compare(gover.FromToolchain(list[i]), gover.FromToolchain(list[j])) < 0
+ 		})
+ 	}
+ 	versions.List = list
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index a5363c908b..e8ff9204ad 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1562,7 +1562,7 @@ func commitRequirements(ctx context.Context) (err error) {
+ 	}
+ 
+ 	// Update go and toolchain lines.
+-	tv := gover.ToolchainVersion(toolchain)
++	tv := gover.FromToolchain(toolchain)
+ 	// Set go version if missing.
+ 	if modFile.Go == nil || modFile.Go.Version == "" {
+ 		v := modFileGoVersion(modFile)

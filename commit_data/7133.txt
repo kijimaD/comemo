@@ -7,6 +7,29 @@ Date:   Tue Jan 18 08:10:22 2011 -0800
     R=rsc, iant2
     CC=golang-dev
     https://golang.org/cl/3974044
-
+---
  src/pkg/syscall/syscall_linux.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index f7551c1056..d0f314c88b 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -253,12 +253,15 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
+ 	for i := 0; i < n; i++ {
+ 		sa.raw.Path[i] = int8(name[i])
+ 	}
++	// length is family (uint16), name, NUL.
++	sl := 2 + _Socklen(n) + 1
+ 	if sa.raw.Path[0] == '@' {
+ 		sa.raw.Path[0] = 0
++		// Don't count trailing NUL for abstract address.
++		sl--
+ 	}
+ 
+-	// length is family (uint16), name, NUL.
+-	return uintptr(unsafe.Pointer(&sa.raw)), 2 + _Socklen(n) + 1, 0
++	return uintptr(unsafe.Pointer(&sa.raw)), sl, 0
+ }
+ 
+ type SockaddrLinklayer struct {

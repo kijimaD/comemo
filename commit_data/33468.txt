@@ -11,7 +11,7 @@ Date:   Thu Aug 17 12:23:34 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/fmt_test.go                |  6 ++---
  src/cmd/compile/internal/gc/ssa.go         |  2 +-
  src/cmd/compile/internal/ssa/debug.go      | 16 ++++++------
@@ -23,3 +23,444 @@ Date:   Thu Aug 17 12:23:34 2017 -0700
  src/cmd/compile/internal/ssa/stackalloc.go |  6 ++---
  src/cmd/compile/internal/ssa/value.go      |  4 +--
  10 files changed, 50 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 2052a4200e..0e5a3192ce 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -575,7 +575,7 @@ var knownFormats = map[string]string{
+ 	"*cmd/compile/internal/ssa.FuncDebug %v":          "",
+ 	"*cmd/compile/internal/ssa.LocalSlot %+v":         "",
+ 	"*cmd/compile/internal/ssa.LocalSlot %v":          "",
+-	"*cmd/compile/internal/ssa.Register %v":           "",
++	"*cmd/compile/internal/ssa.Register %s":           "",
+ 	"*cmd/compile/internal/ssa.SparseTreeNode %v":     "",
+ 	"*cmd/compile/internal/ssa.Value %s":              "",
+ 	"*cmd/compile/internal/ssa.Value %v":              "",
+@@ -643,8 +643,8 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/ssa.GCNode %v":              "",
+ 	"cmd/compile/internal/ssa.ID %d":                  "",
+ 	"cmd/compile/internal/ssa.ID %v":                  "",
+-	"cmd/compile/internal/ssa.LocalSlot %v":           "",
+-	"cmd/compile/internal/ssa.Location %v":            "",
++	"cmd/compile/internal/ssa.LocalSlot %s":           "",
++	"cmd/compile/internal/ssa.Location %s":            "",
+ 	"cmd/compile/internal/ssa.Op %s":                  "",
+ 	"cmd/compile/internal/ssa.Op %v":                  "",
+ 	"cmd/compile/internal/ssa.ValAndOff %s":           "",
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index faaeed6a33..798a01ae16 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4773,7 +4773,7 @@ func CheckLoweredPhi(v *ssa.Value) {
+ 	loc := f.RegAlloc[v.ID]
+ 	for _, a := range v.Args {
+ 		if aloc := f.RegAlloc[a.ID]; aloc != loc { // TODO: .Equal() instead?
+-			v.Fatalf("phi arg at different location than phi: %v @ %v, but arg %v @ %v\n%s\n", v, loc, a, aloc, v.Block.Func)
++			v.Fatalf("phi arg at different location than phi: %v @ %s, but arg %v @ %s\n%s\n", v, loc, a, aloc, v.Block.Func)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 55db45b642..91b11716bb 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -115,9 +115,9 @@ func (v *VarLoc) String() string {
+ 			continue
+ 		}
+ 		if registers != nil {
+-			regnames = append(regnames, registers[reg].Name())
++			regnames = append(regnames, registers[reg].String())
+ 		} else {
+-			regnames = append(regnames, fmt.Sprintf("reg%v", reg))
++			regnames = append(regnames, fmt.Sprintf("reg%d", reg))
+ 		}
+ 	}
+ 	loc += strings.Join(regnames, ",")
+@@ -193,7 +193,7 @@ func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
+ 	if state.loggingEnabled {
+ 		var names []string
+ 		for i, name := range f.Names {
+-			names = append(names, fmt.Sprintf("%v = %v", i, name))
++			names = append(names, fmt.Sprintf("%d = %s", i, name))
+ 		}
+ 		state.logf("Name table: %v\n", strings.Join(names, ", "))
+ 	}
+@@ -333,7 +333,7 @@ func BuildFuncDebug(f *Func, loggingEnabled bool) *FuncDebug {
+ // isSynthetic reports whether if slot represents a compiler-inserted variable,
+ // e.g. an autotmp or an anonymous return value that needed a stack slot.
+ func isSynthetic(slot *LocalSlot) bool {
+-	c := slot.Name()[0]
++	c := slot.String()[0]
+ 	return c == '.' || c == '~'
+ }
+ 
+@@ -470,11 +470,11 @@ func (state *debugState) processValue(locs *FuncDebug, v *Value, vSlots []SlotID
+ 		for _, slot := range vSlots {
+ 			last := locs.lastLoc(slot)
+ 			if last == nil {
+-				state.unexpected(v, "regkill of already dead %v, %+v\n", vReg, state.slots[slot])
++				state.unexpected(v, "regkill of already dead %s, %+v\n", vReg, state.slots[slot])
+ 				continue
+ 			}
+ 			if state.loggingEnabled {
+-				state.logf("at %v: %v regkilled out of %v\n", v.ID, state.slots[slot], vReg.Name())
++				state.logf("at %v: %v regkilled out of %s\n", v.ID, state.slots[slot], vReg)
+ 			}
+ 			if last.End != nil {
+ 				state.unexpected(v, "regkill of dead slot, died at %v\n", last.End)
+@@ -509,7 +509,7 @@ func (state *debugState) processValue(locs *FuncDebug, v *Value, vSlots []SlotID
+ 			}
+ 			last := locs.lastLoc(slot)
+ 			if last == nil {
+-				state.unexpected(v, "spill of unnamed register %v\n", vReg)
++				state.unexpected(v, "spill of unnamed register %s\n", vReg)
+ 				break
+ 			}
+ 			last.End = v
+@@ -536,7 +536,7 @@ func (state *debugState) processValue(locs *FuncDebug, v *Value, vSlots []SlotID
+ 
+ 		for _, slot := range vSlots {
+ 			if state.loggingEnabled {
+-				state.logf("at %v: %v now in %v\n", v.ID, state.slots[slot], vReg.Name())
++				state.logf("at %v: %v now in %s\n", v.ID, state.slots[slot], vReg)
+ 			}
+ 			last := locs.lastLoc(slot)
+ 			if last != nil && last.End == nil {
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index 120f84fdcf..b2a2e25ed9 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -100,7 +100,7 @@ func decomposeBuiltIn(f *Func) {
+ 			// floats are never decomposed, even ones bigger than RegSize
+ 			newNames = append(newNames, name)
+ 		case t.Size() > f.Config.RegSize:
+-			f.Fatalf("undecomposed named type %v %v", name, t)
++			f.Fatalf("undecomposed named type %s %v", name, t)
+ 		default:
+ 			newNames = append(newNames, name)
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 6efe93e74f..bb87378bdd 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -361,13 +361,13 @@ func (v *Value) LongHTML() string {
+ 	}
+ 	r := v.Block.Func.RegAlloc
+ 	if int(v.ID) < len(r) && r[v.ID] != nil {
+-		s += " : " + html.EscapeString(r[v.ID].Name())
++		s += " : " + html.EscapeString(r[v.ID].String())
+ 	}
+ 	var names []string
+ 	for name, values := range v.Block.Func.NamedValues {
+ 		for _, value := range values {
+ 			if value == v {
+-				names = append(names, name.Name())
++				names = append(names, name.String())
+ 				break // drop duplicates.
+ 			}
+ 		}
+@@ -482,7 +482,7 @@ func (p htmlFuncPrinter) endDepCycle() {
+ }
+ 
+ func (p htmlFuncPrinter) named(n LocalSlot, vals []*Value) {
+-	fmt.Fprintf(p.w, "<li>name %s: ", n.Name())
++	fmt.Fprintf(p.w, "<li>name %s: ", n)
+ 	for _, val := range vals {
+ 		fmt.Fprintf(p.w, "%s ", val.HTML())
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/location.go b/src/cmd/compile/internal/ssa/location.go
+index dc01bd4235..a482a608a1 100644
+--- a/src/cmd/compile/internal/ssa/location.go
++++ b/src/cmd/compile/internal/ssa/location.go
+@@ -11,18 +11,18 @@ import (
+ 
+ // A place that an ssa variable can reside.
+ type Location interface {
+-	Name() string // name to use in assembly templates: %rax, 16(%rsp), ...
++	String() string // name to use in assembly templates: AX, 16(SP), ...
+ }
+ 
+-// A Register is a machine register, like %rax.
++// A Register is a machine register, like AX.
+ // They are numbered densely from 0 (for each architecture).
+ type Register struct {
+-	num    int32
++	num    int32 // dense numbering
+ 	objNum int16 // register number from cmd/internal/obj/$ARCH
+ 	name   string
+ }
+ 
+-func (r *Register) Name() string {
++func (r *Register) String() string {
+ 	return r.name
+ }
+ 
+@@ -60,7 +60,7 @@ type LocalSlot struct {
+ 	SplitOffset int64      // .. at this offset.
+ }
+ 
+-func (s LocalSlot) Name() string {
++func (s LocalSlot) String() string {
+ 	if s.Off == 0 {
+ 		return fmt.Sprintf("%v[%v]", s.N, s.Type)
+ 	}
+@@ -69,13 +69,13 @@ func (s LocalSlot) Name() string {
+ 
+ type LocPair [2]Location
+ 
+-func (t LocPair) Name() string {
++func (t LocPair) String() string {
+ 	n0, n1 := "nil", "nil"
+ 	if t[0] != nil {
+-		n0 = t[0].Name()
++		n0 = t[0].String()
+ 	}
+ 	if t[1] != nil {
+-		n1 = t[1].Name()
++		n1 = t[1].String()
+ 	}
+ 	return fmt.Sprintf("<%s,%s>", n0, n1)
+ }
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index d2a87eb615..d66530a373 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -78,7 +78,7 @@ func (p stringFuncPrinter) startDepCycle() {
+ func (p stringFuncPrinter) endDepCycle() {}
+ 
+ func (p stringFuncPrinter) named(n LocalSlot, vals []*Value) {
+-	fmt.Fprintf(p.w, "name %s: %v\n", n.Name(), vals)
++	fmt.Fprintf(p.w, "name %s: %v\n", n, vals)
+ }
+ 
+ func fprintFunc(p funcPrinter, f *Func) {
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 0abaeaeeb5..35d1d6ea9e 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -317,7 +317,7 @@ func (s *regAllocState) freeOrResetReg(r register, resetting bool) {
+ 
+ 	// Mark r as unused.
+ 	if s.f.pass.debug > regDebug {
+-		fmt.Printf("freeReg %s (dump %s/%s)\n", s.registers[r].Name(), v, s.regs[r].c)
++		fmt.Printf("freeReg %s (dump %s/%s)\n", &s.registers[r], v, s.regs[r].c)
+ 	}
+ 	if !resetting && s.f.Config.ctxt.Flag_locationlists && len(s.valueNames[v.ID]) != 0 {
+ 		kill := s.curBlock.NewValue0(src.NoXPos, OpRegKill, types.TypeVoid)
+@@ -357,7 +357,7 @@ func (s *regAllocState) setOrig(c *Value, v *Value) {
+ // r must be unused.
+ func (s *regAllocState) assignReg(r register, v *Value, c *Value) {
+ 	if s.f.pass.debug > regDebug {
+-		fmt.Printf("assignReg %s %s/%s\n", s.registers[r].Name(), v, c)
++		fmt.Printf("assignReg %s %s/%s\n", &s.registers[r], v, c)
+ 	}
+ 	if s.regs[r].v != nil {
+ 		s.f.Fatalf("tried to assign register %d to %s/%s but it is already used by %s", r, v, c, s.regs[r].v)
+@@ -422,7 +422,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
+ 		c := s.curBlock.NewValue1(v2.Pos, OpCopy, v2.Type, s.regs[r].c)
+ 		s.copies[c] = false
+ 		if s.f.pass.debug > regDebug {
+-			fmt.Printf("copy %s to %s : %s\n", v2, c, s.registers[r2].Name())
++			fmt.Printf("copy %s to %s : %s\n", v2, c, &s.registers[r2])
+ 		}
+ 		s.setOrig(c, v2)
+ 		s.assignReg(r2, v2, c)
+@@ -531,7 +531,7 @@ func (s *regAllocState) init(f *Func) {
+ 	s.SBReg = noRegister
+ 	s.GReg = noRegister
+ 	for r := register(0); r < s.numRegs; r++ {
+-		switch s.registers[r].Name() {
++		switch s.registers[r].String() {
+ 		case "SP":
+ 			s.SPReg = r
+ 		case "SB":
+@@ -877,7 +877,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			if s.f.pass.debug > regDebug {
+ 				fmt.Printf("starting merge block %s with end state of %s:\n", b, p)
+ 				for _, x := range s.endRegs[p.ID] {
+-					fmt.Printf("  %s: orig:%s cache:%s\n", s.registers[x.r].Name(), x.v, x.c)
++					fmt.Printf("  %s: orig:%s cache:%s\n", &s.registers[x.r], x.v, x.c)
+ 				}
+ 			}
+ 
+@@ -933,7 +933,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 						c := p.NewValue1(a.Pos, OpCopy, a.Type, s.regs[r].c)
+ 						s.copies[c] = false
+ 						if s.f.pass.debug > regDebug {
+-							fmt.Printf("copy %s to %s : %s\n", a, c, s.registers[r2].Name())
++							fmt.Printf("copy %s to %s : %s\n", a, c, &s.registers[r2])
+ 						}
+ 						s.setOrig(c, a)
+ 						s.assignReg(r2, a, c)
+@@ -1012,7 +1012,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			if s.f.pass.debug > regDebug {
+ 				fmt.Printf("after phis\n")
+ 				for _, x := range s.startRegs[b.ID] {
+-					fmt.Printf("  %s: v%d\n", s.registers[x.r].Name(), x.v.ID)
++					fmt.Printf("  %s: v%d\n", &s.registers[x.r], x.v.ID)
+ 				}
+ 			}
+ 		}
+@@ -1177,7 +1177,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				fmt.Printf("  out:")
+ 				for _, r := range dinfo[idx].out {
+ 					if r != noRegister {
+-						fmt.Printf(" %s", s.registers[r].Name())
++						fmt.Printf(" %s", &s.registers[r])
+ 					}
+ 				}
+ 				fmt.Println()
+@@ -1185,7 +1185,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 					fmt.Printf("  in%d:", i)
+ 					for _, r := range dinfo[idx].in[i] {
+ 						if r != noRegister {
+-							fmt.Printf(" %s", s.registers[r].Name())
++							fmt.Printf(" %s", &s.registers[r])
+ 						}
+ 					}
+ 					fmt.Println()
+@@ -1857,11 +1857,11 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
+ 		for _, vid := range e.cachedVals {
+ 			a := e.cache[vid]
+ 			for _, c := range a {
+-				fmt.Printf("src %s: v%d cache=%s\n", e.s.f.getHome(c.ID).Name(), vid, c)
++				fmt.Printf("src %s: v%d cache=%s\n", e.s.f.getHome(c.ID), vid, c)
+ 			}
+ 		}
+ 		for _, d := range e.destinations {
+-			fmt.Printf("dst %s: v%d\n", d.loc.Name(), d.vid)
++			fmt.Printf("dst %s: v%d\n", d.loc, d.vid)
+ 		}
+ 	}
+ }
+@@ -1918,7 +1918,7 @@ func (e *edgeState) process() {
+ 		c := e.contents[loc].c
+ 		r := e.findRegFor(c.Type)
+ 		if e.s.f.pass.debug > regDebug {
+-			fmt.Printf("breaking cycle with v%d in %s:%s\n", vid, loc.Name(), c)
++			fmt.Printf("breaking cycle with v%d in %s:%s\n", vid, loc, c)
+ 		}
+ 		e.erase(r)
+ 		if _, isReg := loc.(*Register); isReg {
+@@ -1964,13 +1964,13 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
+ 	var c *Value
+ 	var src Location
+ 	if e.s.f.pass.debug > regDebug {
+-		fmt.Printf("moving v%d to %s\n", vid, loc.Name())
++		fmt.Printf("moving v%d to %s\n", vid, loc)
+ 		fmt.Printf("sources of v%d:", vid)
+ 	}
+ 	for _, w := range e.cache[vid] {
+ 		h := e.s.f.getHome(w.ID)
+ 		if e.s.f.pass.debug > regDebug {
+-			fmt.Printf(" %s:%s", h.Name(), w)
++			fmt.Printf(" %s:%s", h, w)
+ 		}
+ 		_, isreg := h.(*Register)
+ 		if src == nil || isreg {
+@@ -1980,7 +1980,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
+ 	}
+ 	if e.s.f.pass.debug > regDebug {
+ 		if src != nil {
+-			fmt.Printf(" [use %s]\n", src.Name())
++			fmt.Printf(" [use %s]\n", src)
+ 		} else {
+ 			fmt.Printf(" [no source]\n")
+ 		}
+@@ -2074,7 +2074,7 @@ func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, pos src.XPos
+ 	}
+ 	if e.s.f.pass.debug > regDebug {
+ 		fmt.Printf("%s\n", c.LongString())
+-		fmt.Printf("v%d now available in %s:%s\n", vid, loc.Name(), c)
++		fmt.Printf("v%d now available in %s:%s\n", vid, loc, c)
+ 	}
+ }
+ 
+@@ -2098,7 +2098,7 @@ func (e *edgeState) erase(loc Location) {
+ 	for i, c := range a {
+ 		if e.s.f.getHome(c.ID) == loc {
+ 			if e.s.f.pass.debug > regDebug {
+-				fmt.Printf("v%d no longer available in %s:%s\n", vid, loc.Name(), c)
++				fmt.Printf("v%d no longer available in %s:%s\n", vid, loc, c)
+ 			}
+ 			a[i], a = a[len(a)-1], a[:len(a)-1]
+ 			if e.s.f.Config.ctxt.Flag_locationlists {
+@@ -2174,7 +2174,7 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
+ 					// TODO: reuse these slots. They'll need to be erased first.
+ 					e.set(t, vid, x, false, c.Pos)
+ 					if e.s.f.pass.debug > regDebug {
+-						fmt.Printf("  SPILL %s->%s %s\n", r.Name(), t.Name(), x.LongString())
++						fmt.Printf("  SPILL %s->%s %s\n", r, t, x.LongString())
+ 					}
+ 				}
+ 				// r will now be overwritten by the caller. At some point
+@@ -2189,7 +2189,7 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
+ 	for _, vid := range e.cachedVals {
+ 		a := e.cache[vid]
+ 		for _, c := range a {
+-			fmt.Printf("v%d: %s %s\n", vid, c, e.s.f.getHome(c.ID).Name())
++			fmt.Printf("v%d: %s %s\n", vid, c, e.s.f.getHome(c.ID))
+ 		}
+ 	}
+ 	e.s.f.Fatalf("can't find empty register on edge %s->%s", e.p, e.b)
+@@ -2412,7 +2412,7 @@ func (s *regAllocState) computeLive() {
+ 						if !first {
+ 							fmt.Printf(",")
+ 						}
+-						fmt.Print(s.registers[r].Name())
++						fmt.Print(&s.registers[r])
+ 						first = false
+ 					}
+ 					fmt.Printf("]")
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 341bb7b871..ca7f95dee1 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -153,7 +153,7 @@ func (s *stackAllocState) stackalloc() {
+ 		}
+ 		loc := LocalSlot{N: v.Aux.(GCNode), Type: v.Type, Off: v.AuxInt}
+ 		if f.pass.debug > stackDebug {
+-			fmt.Printf("stackalloc %s to %s\n", v, loc.Name())
++			fmt.Printf("stackalloc %s to %s\n", v, loc)
+ 		}
+ 		f.setHome(v, loc)
+ 	}
+@@ -216,7 +216,7 @@ func (s *stackAllocState) stackalloc() {
+ 					}
+ 				}
+ 				if f.pass.debug > stackDebug {
+-					fmt.Printf("stackalloc %s to %s\n", v, name.Name())
++					fmt.Printf("stackalloc %s to %s\n", v, name)
+ 				}
+ 				s.nNamedSlot++
+ 				f.setHome(v, name)
+@@ -253,7 +253,7 @@ func (s *stackAllocState) stackalloc() {
+ 			// Use the stack variable at that index for v.
+ 			loc := locs[i]
+ 			if f.pass.debug > stackDebug {
+-				fmt.Printf("stackalloc %s to %s\n", v, loc.Name())
++				fmt.Printf("stackalloc %s to %s\n", v, loc)
+ 			}
+ 			f.setHome(v, loc)
+ 			slots[v.ID] = i
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 6df535153a..73cb6a1b34 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -109,13 +109,13 @@ func (v *Value) LongString() string {
+ 	}
+ 	r := v.Block.Func.RegAlloc
+ 	if int(v.ID) < len(r) && r[v.ID] != nil {
+-		s += " : " + r[v.ID].Name()
++		s += " : " + r[v.ID].String()
+ 	}
+ 	var names []string
+ 	for name, values := range v.Block.Func.NamedValues {
+ 		for _, value := range values {
+ 			if value == v {
+-				names = append(names, name.Name())
++				names = append(names, name.String())
+ 				break // drop duplicates.
+ 			}
+ 		}

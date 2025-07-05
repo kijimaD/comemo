@@ -9,6 +9,20 @@ Date:   Tue Jun 9 08:03:13 2020 +0000
     GitHub-Pull-Request: golang/go#39467
     Reviewed-on: https://go-review.googlesource.com/c/go/+/237059
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 85c79bbebb..4872fa9851 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -479,7 +479,7 @@ func DupCloseOnExec(fd int) (int, string, error) {
+ 	return dupCloseOnExecOld(fd)
+ }
+ 
+-// dupCloseOnExecUnixOld is the traditional way to dup an fd and
++// dupCloseOnExecOld is the traditional way to dup an fd and
+ // set its O_CLOEXEC bit, using two system calls.
+ func dupCloseOnExecOld(fd int) (int, string, error) {
+ 	syscall.ForkLock.RLock()

@@ -8,7 +8,7 @@ Date:   Thu Dec 18 15:42:28 2008 -0800
     DELTA=1551  (1550 added, 0 deleted, 1 changed)
     OCL=21404
     CL=21538
-
+---
  src/lib/Makefile        |   1 +
  src/lib/malloc.go       |  19 +++
  src/runtime/Makefile    |   6 +
@@ -25,3 +25,1708 @@ Date:   Thu Dec 18 15:42:28 2008 -0800
  test/mallocrand.go      |  86 ++++++++++++
  test/mallocrep.go       |  56 ++++++++
  15 files changed, 1565 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 7221a9c3e6..2c28ec5d44 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -27,6 +27,7 @@ FILES=\
+ 	bignum\
+ 	bufio\
+ 	flag\
++	malloc\
+ 	once\
+ 	rand\
+ 	sort\
+diff --git a/src/lib/malloc.go b/src/lib/malloc.go
+new file mode 100644
+index 0000000000..11e2e28df0
+--- /dev/null
++++ b/src/lib/malloc.go
+@@ -0,0 +1,19 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Go declarations for malloc.
++// The actual functions are written in C
++// and part of the runtime library.
++
++package malloc
++
++type Stats struct {
++	alloc	uint64;
++	sys	uint64;
++};
++
++export func Alloc(uint64) *byte;
++export func Free(*byte);
++export func GetStats() *Stats;
++
+diff --git a/src/runtime/Makefile b/src/runtime/Makefile
+index 4575318039..f5de98f3e9 100644
+--- a/src/runtime/Makefile
++++ b/src/runtime/Makefile
+@@ -23,6 +23,12 @@ LIBOFILES=\
+ 	iface.$O\
+ 	array.$O\
+ 	mem.$O\
++	malloc.$O\
++	mcache.$O\
++	mcentral.$O\
++	mfixalloc.$O\
++	mheap.$O\
++	msize.$O\
+ 	print.$O\
+ 	rune.$O\
+ 	proc.$O\
+diff --git a/src/runtime/malloc.c b/src/runtime/malloc.c
+new file mode 100644
+index 0000000000..6246fa9d52
+--- /dev/null
++++ b/src/runtime/malloc.c
+@@ -0,0 +1,169 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// See malloc.h for overview.
++//
++// TODO(rsc): double-check stats.
++// TODO(rsc): solve "stack overflow during malloc" problem.
++
++#include "runtime.h"
++#include "malloc.h"
++
++MHeap mheap;
++MStats mstats;
++
++// Allocate an object of at least size bytes.
++// Small objects are allocated from the per-thread cache's free lists.
++// Large objects (> 32 kB) are allocated straight from the heap.
++void*
++malloc(uintptr size)
++{
++	int32 sizeclass;
++	MCache *c;
++	uintptr npages;
++	MSpan *s;
++	void *v;
++
++	if(size == 0)
++		size = 1;
++
++	if(size <= MaxSmallSize) {
++		// Allocate from mcache free lists.
++		sizeclass = SizeToClass(size);
++		size = class_to_size[sizeclass];
++		c = m->mcache;
++		v = MCache_Alloc(c, sizeclass, size);
++		if(v == nil)
++			return nil;
++		mstats.alloc += size;
++		return v;
++	}
++
++	// TODO(rsc): Report tracebacks for very large allocations.
++
++	// Allocate directly from heap.
++	npages = size >> PageShift;
++	if((size & PageMask) != 0)
++		npages++;
++	s = MHeap_Alloc(&mheap, npages, 0);
++	if(s == nil)
++		return nil;
++	mstats.alloc += npages<<PageShift;
++	return (void*)(s->start << PageShift);
++}
++
++// Free the object whose base pointer is v.
++void
++free(void *v)
++{
++	int32 sizeclass, size;
++	uintptr page, tmp;
++	MSpan *s;
++	MCache *c;
++
++	// Find size class for v.
++	page = (uintptr)v >> PageShift;
++	sizeclass = MHeapMapCache_GET(&mheap.mapcache, page, tmp);
++	if(sizeclass == 0) {
++		// Missed in cache.
++		s = MHeap_Lookup(&mheap, page);
++		if(s == nil)
++			throw("free - invalid pointer");
++		sizeclass = s->sizeclass;
++		if(sizeclass == 0) {
++			// Large object.
++			mstats.alloc -= s->npages<<PageShift;
++			sys·memclr(v, s->npages<<PageShift);
++			MHeap_Free(&mheap, s);
++			return;
++		}
++		MHeapMapCache_SET(&mheap.mapcache, page, sizeclass);
++	}
++
++	// Small object.
++	c = m->mcache;
++	size = class_to_size[sizeclass];
++	sys·memclr(v, size);
++	mstats.alloc -= size;
++	MCache_Free(c, v, sizeclass, size);
++}
++
++MCache*
++allocmcache(void)
++{
++	return FixAlloc_Alloc(&mheap.cachealloc);
++}
++
++void
++mallocinit(void)
++{
++	InitSizes();
++	MHeap_Init(&mheap, SysAlloc);
++	m->mcache = allocmcache();
++
++	// See if it works.
++	free(malloc(1));
++}
++
++// TODO(rsc): Move elsewhere.
++enum
++{
++	NHUNK		= 20<<20,
++
++	PROT_NONE	= 0x00,
++	PROT_READ	= 0x01,
++	PROT_WRITE	= 0x02,
++	PROT_EXEC	= 0x04,
++
++	MAP_FILE	= 0x0000,
++	MAP_SHARED	= 0x0001,
++	MAP_PRIVATE	= 0x0002,
++	MAP_FIXED	= 0x0010,
++	MAP_ANON	= 0x1000,	// not on Linux - TODO(rsc)
++};
++
++void*
++SysAlloc(uintptr n)
++{
++	mstats.sys += n;
++	return sys·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
++}
++
++void
++SysUnused(void *v, uintptr n)
++{
++	// TODO(rsc): call madvise MADV_DONTNEED
++}
++
++void
++SysFree(void *v, uintptr n)
++{
++	USED(v);
++	USED(n);
++	// TODO(rsc): call munmap
++}
++
++
++// Go function stubs.
++
++void
++malloc·Alloc(uintptr n, byte *p)
++{
++	p = malloc(n);
++	FLUSH(&p);
++}
++
++void
++malloc·Free(byte *p)
++{
++	free(p);
++}
++
++void
++malloc·GetStats(MStats *s)
++{
++	s = &mstats;
++	FLUSH(&s);
++}
++
+diff --git a/src/runtime/malloc.h b/src/runtime/malloc.h
+new file mode 100644
+index 0000000000..e2a4af9ef8
+--- /dev/null
++++ b/src/runtime/malloc.h
+@@ -0,0 +1,364 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Memory allocator, based on tcmalloc.
++// http://goog-perftools.sourceforge.net/doc/tcmalloc.html
++
++// The main allocator works in runs of pages.
++// Small allocation sizes (up to and including 32 kB) are
++// rounded to one of about 100 size classes, each of which
++// has its own free list of objects of exactly that size.
++// Any free page of memory can be split into a set of objects
++// of one size class, which are then managed using free list
++// allocators.
++//
++// The allocator's data structures are:
++//
++//	FixAlloc: a free-list allocator for fixed-size objects,
++//		used to manage storage used by the allocator.
++//	MHeap: the malloc heap, managed at page (4096-byte) granularity.
++//	MSpan: a run of pages managed by the MHeap.
++//	MHeapMap: a mapping from page IDs to MSpans.
++//	MHeapMapCache: a small cache of MHeapMap mapping page IDs
++//		to size classes for pages used for small objects.
++//	MCentral: a shared free list for a given size class.
++//	MCache: a per-thread (in Go, per-M) cache for small objects.
++//	MStats: allocation statistics.
++//
++// Allocating a small object proceeds up a hierarchy of caches:
++//
++//	1. Round the size up to one of the small size classes
++//	   and look in the corresponding MCache free list.
++//	   If the list is not empty, allocate an object from it.
++//	   This can all be done without acquiring a lock.
++//
++//	2. If the MCache free list is empty, replenish it by
++//	   taking a bunch of objects from the MCentral free list.
++//	   Moving a bunch amortizes the cost of acquiring the MCentral lock.
++//
++//	3. If the MCentral free list is empty, replenish it by
++//	   allocating a run of pages from the MHeap and then
++//	   chopping that memory into a objects of the given size.
++//	   Allocating many objects amortizes the cost of locking
++//	   the heap.
++//
++//	4. If the MHeap is empty or has no page runs large enough,
++//	   allocate a new group of pages (at least 1MB) from the
++//	   operating system.  Allocating a large run of pages
++//	   amortizes the cost of talking to the operating system.
++//
++// Freeing a small object proceeds up the same hierarchy:
++//
++//	1. Look up the size class for the object and add it to
++//	   the MCache free list.
++//
++//	2. If the MCache free list is too long or the MCache has
++//	   too much memory, return some to the MCentral free lists.
++//
++//	3. If all the objects in a given span have returned to
++//	   the MCentral list, return that span to the page heap.
++//
++//	4. If the heap has too much memory, return some to the
++//	   operating system.
++//
++//	TODO(rsc): Steps 2, 3, 4 are not implemented.
++//
++// Allocating and freeing a large object uses the page heap
++// directly, bypassing the MCache and MCentral free lists.
++//
++// This C code was written with an eye toward translating to Go
++// in the future.  Methods have the form Type_Method(Type *t, ...).
++
++
++typedef struct FixAlloc	FixAlloc;
++typedef struct MCentral	MCentral;
++typedef struct MCache	MCache;
++typedef struct MHeap	MHeap;
++typedef struct MHeapMap	MHeapMap;
++typedef struct MHeapMapCache	MHeapMapCache;
++typedef struct MSpan	MSpan;
++typedef struct MStats	MStats;
++
++enum
++{
++	PageShift	= 12,
++	PageSize	= 1<<PageShift,
++	PageMask	= PageSize - 1,
++};
++typedef	uintptr	PageID;		// address >> PageShift
++
++enum
++{
++	// Tunable constants.
++	NumSizeClasses = 133,		// Number of size classes (must match msize.c)
++	MaxSmallSize = 32<<10,
++
++	FixAllocChunk = 128<<10,	// Chunk size for FixAlloc
++	MaxMCacheListLen = 256,		// Maximum objects on MCacheList
++	MaxMCacheSize = 2<<20,		// Maximum bytes in one MCache
++	MaxMHeapList = 1<<(20 - PageShift),	// Maximum page length for fixed-size list in MHeap.
++	HeapAllocChunk = 1<<20,		// Chunk size for heap growth
++};
++
++
++// SysAlloc obtains a large chunk of memory from the operating system,
++// typically on the order of a hundred kilobytes or a megabyte.
++//
++// SysUnused notifies the operating system that the contents
++// of the memory region are no longer needed and can be reused
++// for other purposes.  The program reserves the right to start
++// accessing those pages in the future.
++//
++// SysFree returns it unconditionally; this is only used if
++// an out-of-memory error has been detected midway through
++// an allocation.  It is okay if SysFree is a no-op.
++
++void*	SysAlloc(uintptr nbytes);
++void	SysFree(void *v, uintptr nbytes);
++void	SysUnused(void *v, uintptr nbytes);
++
++
++// FixAlloc is a simple free-list allocator for fixed size objects.
++// Malloc uses a FixAlloc wrapped around SysAlloc to manages its
++// MCache and MSpan objects.
++//
++// Memory returned by FixAlloc_Alloc is not zeroed.
++// The caller is responsible for locking around FixAlloc calls.
++struct FixAlloc
++{
++	uintptr size;
++	void *(*alloc)(uintptr);
++	void *list;
++	byte *chunk;
++	uint32 nchunk;
++};
++
++void	FixAlloc_Init(FixAlloc *f, uintptr size, void *(*alloc)(uintptr));
++void*	FixAlloc_Alloc(FixAlloc *f);
++void	FixAlloc_Free(FixAlloc *f, void *p);
++
++
++// Statistics.
++// Shared with Go: if you edit this structure, also edit ../lib/malloc.go.
++typedef struct MStats MStats;
++struct MStats
++{
++	uint64	alloc;
++	uint64	sys;
++};
++extern MStats mstats;
++
++
++// Size classes.  Computed and initialized by InitSizes.
++//
++// SizeToClass(0 <= n <= MaxSmallSize) returns the size class,
++//	1 <= sizeclass < NumSizeClasses, for n.
++//	Size class 0 is reserved to mean "not small".
++//
++// class_to_size[i] = largest size in class i
++// class_to_allocnpages[i] = number of pages to allocate when
++// 	making new objects in class i
++// class_to_transfercount[i] = number of objects to move when
++//	taking a bunch of objects out of the central lists
++//	and putting them in the thread free list.
++
++int32	SizeToClass(int32);
++extern	int32	class_to_size[NumSizeClasses];
++extern	int32	class_to_allocnpages[NumSizeClasses];
++extern	int32	class_to_transfercount[NumSizeClasses];
++extern	void	InitSizes(void);
++
++
++// Per-thread (in Go, per-M) cache for small objects.
++// No locking needed because it is per-thread (per-M).
++typedef struct MCacheList MCacheList;
++struct MCacheList
++{
++	void *list;
++	uint32 nlist;
++};
++
++struct MCache
++{
++	MCacheList list[NumSizeClasses];
++	uint64 size;
++};
++
++void*	MCache_Alloc(MCache *c, int32 sizeclass, uintptr size);
++void	MCache_Free(MCache *c, void *p, int32 sizeclass, uintptr size);
++
++
++// An MSpan is a run of pages.
++enum
++{
++	MSpanInUse = 0,
++	MSpanFree
++};
++struct MSpan
++{
++	MSpan	*next;		// in a span linked list
++	MSpan	*prev;		// in a span linked list
++	PageID	start;		// starting page number
++	uintptr	npages;		// number of pages in span
++	void	*freelist;	// list of free objects
++	uint32	ref;		// number of allocated objects in this span
++	uint32	sizeclass;	// size class
++	uint32	state;		// MSpanInUse or MSpanFree
++};
++
++void	MSpan_Init(MSpan *span, PageID start, uintptr npages);
++
++// Every MSpan is in one doubly-linked list,
++// either one of the MHeap's free lists or one of the
++// MCentral's span lists.  We use empty MSpan structures as list heads.
++void	MSpanList_Init(MSpan *list);
++bool	MSpanList_IsEmpty(MSpan *list);
++void	MSpanList_Insert(MSpan *list, MSpan *span);
++void	MSpanList_Remove(MSpan *span);	// from whatever list it is in
++
++
++// Central list of free objects of a given size.
++typedef struct MCentral MCentral;
++struct MCentral
++{
++	Lock;
++	int32 sizeclass;
++	MSpan nonempty;
++	MSpan empty;
++	int32 nfree;
++};
++
++void	MCentral_Init(MCentral *c, int32 sizeclass);
++int32	MCentral_AllocList(MCentral *c, int32 n, void **start, void **end);
++void	MCentral_FreeList(MCentral *c, int32 n, void *start, void *end);
++
++
++// Free(v) must be able to determine the MSpan containing v.
++// The MHeapMap is a 3-level radix tree mapping page numbers to MSpans.
++//
++// NOTE(rsc): On a 32-bit platform (= 20-bit page numbers),
++// we can swap in a 2-level radix tree.
++//
++// NOTE(rsc): We use a 3-level tree because tcmalloc does, but
++// having only three levels requires approximately 1 MB per node
++// in the tree, making the minimum map footprint 3 MB.
++// Using a 4-level tree would cut the minimum footprint to 256 kB.
++// On the other hand, it's just virtual address space: most of
++// the memory is never going to be touched, thus never paged in.
++
++typedef struct MHeapMap MHeapMap;
++typedef struct MHeapMapNode2 MHeapMapNode2;
++typedef struct MHeapMapNode3 MHeapMapNode3;
++
++enum
++{
++	// 64 bit address - 12 bit page size = 52 bits to map
++	MHeapMap_Level1Bits = 18,
++	MHeapMap_Level2Bits = 18,
++	MHeapMap_Level3Bits = 16,
++
++	MHeapMap_TotalBits =
++		MHeapMap_Level1Bits +
++		MHeapMap_Level2Bits +
++		MHeapMap_Level3Bits,
++
++	MHeapMap_Level1Mask = (1<<MHeapMap_Level1Bits) - 1,
++	MHeapMap_Level2Mask = (1<<MHeapMap_Level2Bits) - 1,
++	MHeapMap_Level3Mask = (1<<MHeapMap_Level3Bits) - 1,
++};
++
++struct MHeapMap
++{
++	void *(*allocator)(uintptr);
++	MHeapMapNode2 *p[1<<MHeapMap_Level1Bits];
++};
++
++struct MHeapMapNode2
++{
++	MHeapMapNode3 *p[1<<MHeapMap_Level2Bits];
++};
++
++struct MHeapMapNode3
++{
++	MSpan *s[1<<MHeapMap_Level3Bits];
++};
++
++void	MHeapMap_Init(MHeapMap *m, void *(*allocator)(uintptr));
++bool	MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr npages);
++MSpan*	MHeapMap_Get(MHeapMap *m, PageID k);
++void	MHeapMap_Set(MHeapMap *m, PageID k, MSpan *v);
++
++
++// Much of the time, free(v) needs to know only the size class for v,
++// not which span it came from.  The MHeapMap finds the size class
++// by looking up the span.
++//
++// An MHeapMapCache is a simple direct-mapped cache translating
++// page numbers to size classes.  It avoids the expensive MHeapMap
++// lookup for hot pages.
++//
++// The cache entries are 64 bits, with the page number in the low part
++// and the value at the top.
++//
++// NOTE(rsc): On a machine with 32-bit addresses (= 20-bit page numbers),
++// we can use a 16-bit cache entry by not storing the redundant 12 bits
++// of the key that are used as the entry index.  Here in 64-bit land,
++// that trick won't work unless the hash table has 2^28 entries.
++enum
++{
++	MHeapMapCache_HashBits = 12
++};
++
++typedef struct MHeapMapCache MHeapMapCache;
++struct MHeapMapCache
++{
++	uintptr array[1<<MHeapMapCache_HashBits];
++};
++
++// All macros for speed (sorry).
++#define HMASK	((1<<MHeapMapCache_HashBits)-1)
++#define KBITS	MHeapMap_TotalBits
++#define KMASK	((1LL<<KBITS)-1)
++
++#define MHeapMapCache_SET(cache, key, value) \
++	((cache)->array[(key) & HMASK] = (key) | ((uintptr)(value) << KBITS))
++
++#define MHeapMapCache_GET(cache, key, tmp) \
++	(tmp = (cache)->array[(key) & HMASK], \
++	 (tmp & KMASK) == (key) ? (tmp >> KBITS) : 0)
++
++
++// Main malloc heap.
++// The heap itself is the "free[]" and "large" arrays,
++// but all the other global data is here too.
++typedef struct MHeap MHeap;
++struct MHeap
++{
++	Lock;
++	MSpan free[MaxMHeapList];	// free lists of given length
++	MSpan large;			// free lists length >= MaxMHeapList
++
++	// span lookup
++	MHeapMap map;
++	MHeapMapCache mapcache;
++
++	// central free lists for small size classes.
++	// the union makes sure that the MCentrals are
++	// spaced 64 bytes apart, so that each MCentral.Lock
++	// gets its own cache line.
++	union {
++		MCentral;
++		byte pad[64];
++	} central[NumSizeClasses];
++
++	FixAlloc spanalloc;	// allocator for Span*
++	FixAlloc cachealloc;	// allocator for MCache*
++};
++extern MHeap mheap;
++
++void	MHeap_Init(MHeap *h, void *(*allocator)(uintptr));
++MSpan*	MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass);
++void	MHeap_Free(MHeap *h, MSpan *s);
++MSpan*	MHeap_Lookup(MHeap *h, PageID p);
++
+diff --git a/src/runtime/mcache.c b/src/runtime/mcache.c
+new file mode 100644
+index 0000000000..01a718ac34
+--- /dev/null
++++ b/src/runtime/mcache.c
+@@ -0,0 +1,61 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Per-thread (in Go, per-M) malloc cache for small objects.
++//
++// See malloc.h for an overview.
++
++#include "runtime.h"
++#include "malloc.h"
++
++void*
++MCache_Alloc(MCache *c, int32 sizeclass, uintptr size)
++{
++	MCacheList *l;
++	void *v, *start, *end;
++	int32 n;
++
++	// Allocate from list.
++	l = &c->list[sizeclass];
++	if(l->list == nil) {
++		// Replenish using central lists.
++		n = MCentral_AllocList(&mheap.central[sizeclass],
++			class_to_transfercount[sizeclass], &start, &end);
++		if(n == 0)
++			return nil;
++		l->list = start;
++		l->nlist = n;
++		c->size += n*size;
++	}
++	v = l->list;
++	l->list = *(void**)v;
++	l->nlist--;
++	c->size -= size;
++
++	// v is zeroed except for the link pointer
++	// that we used above; zero that.
++	*(void**)v = nil;
++	return v;
++}
++
++void
++MCache_Free(MCache *c, void *p, int32 sizeclass, uintptr size)
++{
++	MCacheList *l;
++
++	// Put back on list.
++	l = &c->list[sizeclass];
++	*(void**)p = l->list;
++	l->list = p;
++	l->nlist++;
++	c->size += size;
++
++	if(l->nlist >= MaxMCacheListLen) {
++		// TODO(rsc): Release to central cache.
++	}
++	if(c->size >= MaxMCacheSize) {
++		// TODO(rsc): Scavenge.
++	}
++}
++
+diff --git a/src/runtime/mcentral.c b/src/runtime/mcentral.c
+new file mode 100644
+index 0000000000..775ccb32d5
+--- /dev/null
++++ b/src/runtime/mcentral.c
+@@ -0,0 +1,191 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Central free lists.
++//
++// See malloc.h for an overview.
++//
++// The MCentral doesn't actually contain the list of free objects; the MSpan does.
++// Each MCentral is two lists of MSpans: those with free objects (c->nonempty)
++// and those that are completely allocated (c->empty).
++//
++// TODO(rsc): tcmalloc uses a "transfer cache" to split the list
++// into sections of class_to_transfercount[sizeclass] objects
++// so that it is faster to move those lists between MCaches and MCentrals.
++
++#include "runtime.h"
++#include "malloc.h"
++
++static bool MCentral_Grow(MCentral *c);
++static void* MCentral_Alloc(MCentral *c);
++static void MCentral_Free(MCentral *c, void *v);
++
++// Initialize a single central free list.
++void
++MCentral_Init(MCentral *c, int32 sizeclass)
++{
++	c->sizeclass = sizeclass;
++	MSpanList_Init(&c->nonempty);
++	MSpanList_Init(&c->empty);
++}
++
++// Allocate up to n objects from the central free list.
++// Return the number of objects allocated.
++// The objects are linked together by their first words.
++// On return, *pstart points at the first object and *pend at the last.
++int32
++MCentral_AllocList(MCentral *c, int32 n, void **pstart, void **pend)
++{
++	void *start, *end, *v;
++	int32 i;
++
++	*pstart = nil;
++	*pend = nil;
++
++	lock(c);
++
++	// Replenish central list if empty.
++	if(MSpanList_IsEmpty(&c->nonempty)) {
++		if(!MCentral_Grow(c)) {
++			unlock(c);
++			return 0;
++		}
++	}
++
++	// Copy from list, up to n.
++	start = nil;
++	end = nil;
++	for(i=0; i<n; i++) {
++		v = MCentral_Alloc(c);
++		if(v == nil)
++			break;
++		if(start == nil)
++			start = v;
++		else
++			*(void**)end = v;
++		end = v;
++	}
++	c->nfree -= i;
++
++	unlock(c);
++	*pstart = start;
++	*pend = end;
++	return i;
++}
++
++// Helper: allocate one object from the central free list.
++static void*
++MCentral_Alloc(MCentral *c)
++{
++	MSpan *s;
++	void *v;
++
++	if(MSpanList_IsEmpty(&c->nonempty))
++		return nil;
++	s = c->nonempty.next;
++	v = s->freelist;
++	s->freelist = *(void**)v;
++	if(s->freelist == nil) {
++		MSpanList_Remove(s);
++		MSpanList_Insert(&c->empty, s);
++	}
++	s->ref++;
++	return v;
++}
++
++// Free n objects back into the central free list.
++// Return the number of objects allocated.
++// The objects are linked together by their first words.
++// On return, *pstart points at the first object and *pend at the last.
++void
++MCentral_FreeList(MCentral *c, int32 n, void *start, void *end)
++{
++	void *v, *next;
++
++	// Assume *(void**)end = nil marks end of list.
++	// n and end would be useful if we implemented
++	// the transfer cache optimization in the TODO above.
++	USED(n);
++	USED(end);
++
++	lock(c);
++	for(v=start; v; v=next) {
++		next = *(void**)v;
++		MCentral_Free(c, v);
++	}
++	unlock(c);
++}
++
++// Helper: free one object back into the central free list.
++static void
++MCentral_Free(MCentral *c, void *v)
++{
++	MSpan *s;
++	PageID p;
++
++	// Find span for v.
++	p = (uintptr)v >> PageShift;
++	s = MHeap_Lookup(&mheap, p);
++	if(s == nil || s->ref == 0)
++		throw("invalid free");
++
++	// Move to nonempty if necessary.
++	if(s->freelist == nil) {
++		MSpanList_Remove(s);
++		MSpanList_Insert(&c->nonempty, s);
++	}
++
++	// Add v back to s's free list.
++	*(void**)v = s->freelist;
++	s->freelist = v;
++	c->nfree++;
++
++	// If s is completely freed, return it to the heap.
++	if(--s->ref == 0) {
++		MSpanList_Remove(s);
++		c->nfree -= (s->npages << PageShift) / class_to_size[c->sizeclass];
++		unlock(c);
++		MHeap_Free(&mheap, s);
++		lock(c);
++	}
++}
++
++// Fetch a new span from the heap and
++// carve into objects for the free list.
++static bool
++MCentral_Grow(MCentral *c)
++{
++	int32 n, npages, size;
++	void **tail;
++	byte *p, *end;
++	MSpan *s;
++
++	unlock(c);
++	npages = class_to_allocnpages[c->sizeclass];
++	s = MHeap_Alloc(&mheap, npages, c->sizeclass);
++	if(s == nil) {
++		// TODO(rsc): Log out of memory
++		lock(c);
++		return false;
++	}
++
++	// Carve span into sequence of blocks.
++	tail = &s->freelist;
++	p = (byte*)(s->start << PageShift);
++	end = p + (npages << PageShift);
++	size = class_to_size[c->sizeclass];
++	n = 0;
++	for(; p + size <= end; p += size) {
++		*tail = p;
++		tail = (void**)p;
++		n++;
++	}
++	*tail = nil;
++
++	lock(c);
++	c->nfree += n;
++	MSpanList_Insert(&c->nonempty, s);
++	return true;
++}
++
+diff --git a/src/runtime/mfixalloc.c b/src/runtime/mfixalloc.c
+new file mode 100644
+index 0000000000..904ca7e2af
+--- /dev/null
++++ b/src/runtime/mfixalloc.c
+@@ -0,0 +1,52 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Fixed-size object allocator.  Returned memory is not zeroed.
++//
++// See malloc.h for overview.
++
++#include "runtime.h"
++#include "malloc.h"
++
++// Initialize f to allocate objects of the given size,
++// using the allocator to obtain chunks of memory.
++void
++FixAlloc_Init(FixAlloc *f, uintptr size, void *(*alloc)(uintptr))
++{
++	f->size = size;
++	f->alloc = alloc;
++	f->list = nil;
++	f->chunk = nil;
++	f->nchunk = 0;
++}
++
++void*
++FixAlloc_Alloc(FixAlloc *f)
++{
++	void *v;
++
++	if(f->list) {
++		v = f->list;
++		f->list = *(void**)f->list;
++		return v;
++	}
++	if(f->nchunk < f->size) {
++		f->chunk = f->alloc(FixAllocChunk);
++		if(f->chunk == nil)
++			throw("out of memory (FixAlloc)");
++		f->nchunk = FixAllocChunk;
++	}
++	v = f->chunk;
++	f->chunk += f->size;
++	f->nchunk -= f->size;
++	return v;
++}
++
++void
++FixAlloc_Free(FixAlloc *f, void *p)
++{
++	*(void**)p = f->list;
++	f->list = p;
++}
++
+diff --git a/src/runtime/mheap.c b/src/runtime/mheap.c
+new file mode 100644
+index 0000000000..9c6de16afc
+--- /dev/null
++++ b/src/runtime/mheap.c
+@@ -0,0 +1,361 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Page heap.
++//
++// See malloc.h for overview.
++//
++// When a MSpan is in the heap free list, state == MSpanFree
++// and heapmap(s->start) == span, heapmap(s->start+s->npages-1) == span.
++//
++// When a MSpan is allocated, state == MSpanInUse
++// and heapmap(i) == span for all s->start <= i < s->start+s->npages.
++
++#include "runtime.h"
++#include "malloc.h"
++
++static MSpan *MHeap_AllocLocked(MHeap*, uintptr, int32);
++static bool MHeap_Grow(MHeap*, uintptr);
++static void MHeap_FreeLocked(MHeap*, MSpan*);
++static MSpan *MHeap_AllocLarge(MHeap*, uintptr);
++static MSpan *BestFit(MSpan*, uintptr, MSpan*);
++
++// Initialize the heap; fetch memory using alloc.
++void
++MHeap_Init(MHeap *h, void *(*alloc)(uintptr))
++{
++	int32 i;
++
++	FixAlloc_Init(&h->spanalloc, sizeof(MSpan), alloc);
++	FixAlloc_Init(&h->cachealloc, sizeof(MCache), alloc);
++	MHeapMap_Init(&h->map, alloc);
++	// h->mapcache needs no init
++	for(i=0; i<nelem(h->free); i++)
++		MSpanList_Init(&h->free[i]);
++	MSpanList_Init(&h->large);
++	for(i=0; i<nelem(h->central); i++)
++		MCentral_Init(&h->central[i], i);
++}
++
++// Allocate a new span of npage pages from the heap
++// and record its size class in the HeapMap and HeapMapCache.
++MSpan*
++MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass)
++{
++	MSpan *s;
++
++	lock(h);
++	s = MHeap_AllocLocked(h, npage, sizeclass);
++	unlock(h);
++	return s;
++}
++
++static MSpan*
++MHeap_AllocLocked(MHeap *h, uintptr npage, int32 sizeclass)
++{
++	uintptr n;
++	MSpan *s, *t;
++
++	// Try in fixed-size lists up to max.
++	for(n=npage; n < nelem(h->free); n++) {
++		if(!MSpanList_IsEmpty(&h->free[n])) {
++			s = h->free[n].next;
++			goto HaveSpan;
++		}
++	}
++
++	// Best fit in list of large spans.
++	if((s = MHeap_AllocLarge(h, npage)) == nil) {
++		if(!MHeap_Grow(h, npage))
++			return nil;
++		if((s = MHeap_AllocLarge(h, npage)) == nil)
++			return nil;
++	}
++
++HaveSpan:
++	// Mark span in use.
++	if(s->state != MSpanFree)
++		throw("MHeap_AllocLocked - MSpan not free");
++	if(s->npages < npage)
++		throw("MHeap_AllocLocked - bad npages");
++	MSpanList_Remove(s);
++	s->state = MSpanInUse;
++
++	if(s->npages > npage) {
++		// Trim extra and put it back in the heap.
++		t = FixAlloc_Alloc(&h->spanalloc);
++		MSpan_Init(t, s->start + npage, s->npages - npage);
++		s->npages = npage;
++		MHeapMap_Set(&h->map, t->start - 1, s);
++		MHeapMap_Set(&h->map, t->start, t);
++		MHeapMap_Set(&h->map, t->start + t->npages - 1, t);
++		t->state = MSpanInUse;
++		MHeap_FreeLocked(h, t);
++	}
++
++	// If span is being used for small objects, cache size class.
++	// No matter what, cache span info, because gc needs to be
++	// able to map interior pointer to containing span.
++	s->sizeclass = sizeclass;
++	for(n=0; n<npage; n++) {
++		MHeapMap_Set(&h->map, s->start+n, s);
++		if(sizeclass != 0)
++			MHeapMapCache_SET(&h->mapcache, s->start+n, sizeclass);
++	}
++
++	return s;
++}
++
++// Allocate a span of exactly npage pages from the list of large spans.
++static MSpan*
++MHeap_AllocLarge(MHeap *h, uintptr npage)
++{
++	return BestFit(&h->large, npage, nil);
++}
++
++// Search list for smallest span with >= npage pages.
++// If there are multiple smallest spans, take the one
++// with the earliest starting address.
++static MSpan*
++BestFit(MSpan *list, uintptr npage, MSpan *best)
++{
++	MSpan *s;
++
++	for(s=list->next; s != list; s=s->next) {
++		if(s->npages < npage)
++			continue;
++		if(best == nil
++		|| s->npages < best->npages
++		|| (s->npages == best->npages && s->start < best->start))
++			best = s;
++	}
++	return best;
++}
++
++// Try to add at least npage pages of memory to the heap,
++// returning whether it worked.
++static bool
++MHeap_Grow(MHeap *h, uintptr npage)
++{
++	uintptr ask;
++	void *v;
++	MSpan *s;
++
++	// Ask for a big chunk, to reduce the number of mappings
++	// the operating system needs to track; also amortizes
++	// the overhead of an operating system mapping.
++	ask = npage<<PageShift;
++	if(ask < HeapAllocChunk)
++		ask = HeapAllocChunk;
++
++	v = SysAlloc(ask);
++	if(v == nil) {
++		if(ask > (npage<<PageShift)) {
++			ask = npage<<PageShift;
++			v = SysAlloc(ask);
++		}
++		if(v == nil)
++			return false;
++	}
++
++	// NOTE(rsc): In tcmalloc, if we've accumulated enough
++	// system allocations, the heap map gets entirely allocated
++	// in 32-bit mode.  (In 64-bit mode that's not practical.)
++
++	if(!MHeapMap_Preallocate(&h->map, ((uintptr)v>>PageShift) - 1, (ask>>PageShift) + 2)) {
++		SysFree(v, ask);
++		return false;
++	}
++
++	s = FixAlloc_Alloc(&h->spanalloc);
++	MSpan_Init(s, (uintptr)v>>PageShift, ask>>PageShift);
++	MHeapMap_Set(&h->map, s->start, s);
++	MHeapMap_Set(&h->map, s->start + s->npages - 1, s);
++	s->state = MSpanInUse;
++	MHeap_FreeLocked(h, s);
++	return true;
++}
++
++// Look up the span at the given page number.
++MSpan*
++MHeap_Lookup(MHeap *h, PageID p)
++{
++	return MHeapMap_Get(&h->map, p);
++}
++
++// Free the span back into the heap.
++void
++MHeap_Free(MHeap *h, MSpan *s)
++{
++	lock(h);
++	MHeap_FreeLocked(h, s);
++	unlock(h);
++}
++
++static void
++MHeap_FreeLocked(MHeap *h, MSpan *s)
++{
++	MSpan *t;
++
++	if(s->state != MSpanInUse || s->ref != 0)
++		throw("MHeap_FreeLocked - invalid free");
++	s->state = MSpanFree;
++	MSpanList_Remove(s);
++
++	// Coalesce with earlier, later spans.
++	if((t = MHeapMap_Get(&h->map, s->start - 1)) != nil && t->state != MSpanInUse) {
++		s->start = t->start;
++		s->npages += t->npages;
++		MHeapMap_Set(&h->map, s->start, s);
++		MSpanList_Remove(t);
++		FixAlloc_Free(&h->spanalloc, t);
++	}
++	if((t = MHeapMap_Get(&h->map, s->start + s->npages)) != nil && t->state != MSpanInUse) {
++		s->npages += t->npages;
++		MHeapMap_Set(&h->map, s->start + s->npages - 1, s);
++		MSpanList_Remove(t);
++		FixAlloc_Free(&h->spanalloc, t);
++	}
++
++	// Insert s into appropriate list.
++	if(s->npages < nelem(h->free))
++		MSpanList_Insert(&h->free[s->npages], s);
++	else
++		MSpanList_Insert(&h->large, s);
++
++	// TODO(rsc): IncrementalScavenge() to return memory to OS.
++}
++
++// 3-level radix tree mapping page ids to Span*.
++void
++MHeapMap_Init(MHeapMap *m, void *(*allocator)(size_t))
++{
++	m->allocator = allocator;
++}
++
++MSpan*
++MHeapMap_Get(MHeapMap *m, PageID k)
++{
++	int32 i1, i2, i3;
++
++	i3 = k & MHeapMap_Level3Mask;
++	k >>= MHeapMap_Level3Bits;
++	i2 = k & MHeapMap_Level2Mask;
++	k >>= MHeapMap_Level2Bits;
++	i1 = k & MHeapMap_Level1Mask;
++	k >>= MHeapMap_Level1Bits;
++	if(k != 0)
++		throw("MHeapMap_Get");
++
++	return m->p[i1]->p[i2]->s[i3];
++}
++
++void
++MHeapMap_Set(MHeapMap *m, PageID k, MSpan *s)
++{
++	int32 i1, i2, i3;
++
++	i3 = k & MHeapMap_Level3Mask;
++	k >>= MHeapMap_Level3Bits;
++	i2 = k & MHeapMap_Level2Mask;
++	k >>= MHeapMap_Level2Bits;
++	i1 = k & MHeapMap_Level1Mask;
++	k >>= MHeapMap_Level1Bits;
++	if(k != 0)
++		throw("MHeapMap_Set");
++
++	m->p[i1]->p[i2]->s[i3] = s;
++}
++
++// Allocate the storage required for entries [k, k+1, ..., k+len-1]
++// so that Get and Set calls need not check for nil pointers.
++bool
++MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
++{
++	uintptr end;
++	int32 i1, i2;
++	MHeapMapNode2 *p2;
++	MHeapMapNode3 *p3;
++
++	end = k+len;
++	while(k < end) {
++		if((k >> MHeapMap_TotalBits) != 0)
++			return false;
++		i2 = (k >> MHeapMap_Level3Bits) & MHeapMap_Level2Mask;
++		i1 = (k >> (MHeapMap_Level3Bits + MHeapMap_Level2Bits)) & MHeapMap_Level1Mask;
++
++		// first-level pointer
++		if((p2 = m->p[i1]) == nil) {
++			p2 = m->allocator(sizeof *p2);
++			if(p2 == nil)
++				return false;
++			sys·memclr((byte*)p2, sizeof *p2);
++			m->p[i1] = p2;
++		}
++
++		// second-level pointer
++		if(p2->p[i2] == nil) {
++			p3 = m->allocator(sizeof *p3);
++			if(p3 == nil)
++				return false;
++			sys·memclr((byte*)p3, sizeof *p3);
++			p2->p[i2] = p3;
++		}
++
++		// advance key past this leaf node
++		k = ((k >> MHeapMap_Level3Bits) + 1) << MHeapMap_Level3Bits;
++	}
++	return true;
++}
++
++// Initialize a new span with the given start and npages.
++void
++MSpan_Init(MSpan *span, PageID start, uintptr npages)
++{
++	span->next = nil;
++	span->prev = nil;
++	span->start = start;
++	span->npages = npages;
++	span->freelist = nil;
++	span->ref = 0;
++	span->sizeclass = 0;
++	span->state = 0;
++}
++
++// Initialize an empty doubly-linked list.
++void
++MSpanList_Init(MSpan *list)
++{
++	list->next = list;
++	list->prev = list;
++}
++
++void
++MSpanList_Remove(MSpan *span)
++{
++	if(span->prev == nil && span->next == nil)
++		return;
++	span->prev->next = span->next;
++	span->next->prev = span->prev;
++	span->prev = nil;
++	span->next = nil;
++}
++
++bool
++MSpanList_IsEmpty(MSpan *list)
++{
++	return list->next == list;
++}
++
++void
++MSpanList_Insert(MSpan *list, MSpan *span)
++{
++	if(span->next != nil || span->prev != nil)
++		throw("MSpanList_Insert");
++	span->next = list->next;
++	span->prev = list;
++	span->next->prev = span;
++	span->prev->next = span;
++}
++
+diff --git a/src/runtime/msize.c b/src/runtime/msize.c
+new file mode 100644
+index 0000000000..84de243f6a
+--- /dev/null
++++ b/src/runtime/msize.c
+@@ -0,0 +1,164 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Malloc small size classes.
++//
++// See malloc.h for overview.
++//
++// The size classes are chosen so that rounding an allocation
++// request up to the next size class wastes at most 12.5% (1.125x).
++//
++// Each size class has its own page count that gets allocated
++// and chopped up when new objects of the size class are needed.
++// That page count is chosen so that chopping up the run of
++// pages into objects of the given size wastes at most 12.5% (1.125x)
++// of the memory.  It is not necessary that the cutoff here be
++// the same as above.
++//
++// The two sources of waste multiply, so the worst possible case
++// for the above constraints would be that allocations of some
++// size might have a 26.6% (1.266x) overhead.
++// In practice, only one of the wastes comes into play for a
++// given size (sizes < 512 waste mainly on the round-up,
++// sizes > 512 waste mainly on the page chopping).
++//
++// TODO(rsc): Compute max waste for any given size.
++
++#include "runtime.h"
++#include "malloc.h"
++
++int32 class_to_size[NumSizeClasses];
++int32 class_to_allocnpages[NumSizeClasses];
++int32 class_to_transfercount[NumSizeClasses];
++
++// The SizeToClass lookup is implemented using two arrays,
++// one mapping sizes <= 1024 to their class and one mapping
++// sizes >= 1024 and <= MaxSmallSize to their class.
++// All objects are 8-aligned, so the first array is indexed by
++// the size divided by 8 (rounded up).  Objects >= 1024 bytes
++// are 128-aligned, so the second array is indexed by the
++// size divided by 128 (rounded up).  The arrays are filled in
++// by InitSizes.
++
++static int32 size_to_class8[1024/8 + 1];
++static int32 size_to_class128[(MaxSmallSize-1024)/128 + 1];
++
++int32
++SizeToClass(int32 size)
++{
++	if(size > MaxSmallSize)
++		throw("SizeToClass - invalid size");
++	if(size > 1024-8)
++		return size_to_class128[(size-1024+127) >> 7];
++	return size_to_class8[(size+7)>>3];
++}
++
++void
++InitSizes(void)
++{
++	int32 align, sizeclass, size, i, nextsize, n;
++	uintptr allocsize, npages;
++
++	// Initialize the class_to_size table (and choose class sizes in the process).
++	class_to_size[0] = 0;
++	sizeclass = 1;	// 0 means no class
++	align = 8;
++	for(size = align; size <= MaxSmallSize; size += align) {
++		if((size&(size-1)) == 0) {	// bump alignment once in a while
++			if(size >= 2048)
++				align = 256;
++			else if(size >= 128)
++				align = size / 8;
++			else if(size >= 16)
++				align = 16;	// required for x86 SSE instructions, if we want to use them
++		}
++		if((align&(align-1)) != 0)
++			throw("InitSizes - bug");
++
++		// Make the allocnpages big enough that
++		// the leftover is less than 1/8 of the total,
++		// so wasted space is at most 12.5%.
++		allocsize = PageSize;
++		while(allocsize%size > (PageSize/8))
++			allocsize += PageSize;
++		npages = allocsize >> PageShift;
++
++		// If the previous sizeclass chose the same
++		// allocation size and fit the same number of
++		// objects into the page, we might as well
++		// use just this size instead of having two
++		// different sizes.
++		if(sizeclass > 1
++		&& npages == class_to_allocnpages[sizeclass-1]
++		&& allocsize/size == allocsize/class_to_size[sizeclass-1]) {
++			class_to_size[sizeclass-1] = size;
++			continue;
++		}
++
++		class_to_allocnpages[sizeclass] = npages;
++		class_to_size[sizeclass] = size;
++		sizeclass++;
++	}
++	if(sizeclass != NumSizeClasses) {
++		printf("sizeclass=%d NumSizeClasses=%d\n", sizeclass, NumSizeClasses);
++		throw("InitSizes - bad NumSizeClasses");
++	}
++
++	// Initialize the size_to_class tables.
++	nextsize = 0;
++	for (sizeclass = 1; sizeclass < NumSizeClasses; sizeclass++) {
++		for(; nextsize < 1024 && nextsize <= class_to_size[sizeclass]; nextsize+=8)
++			size_to_class8[nextsize/8] = sizeclass;
++		if(nextsize >= 1024)
++			for(; nextsize <= class_to_size[sizeclass]; nextsize += 128)
++				size_to_class128[(nextsize-1024)/128] = sizeclass;
++	}
++
++	// Double-check SizeToClass.
++	if(0) {
++		for(n=0; n < MaxSmallSize; n++) {
++			sizeclass = SizeToClass(n);
++			if(sizeclass < 1 || sizeclass >= NumSizeClasses || class_to_size[sizeclass] < n) {
++				printf("size=%d sizeclass=%d class_to_size=%d\n", n, sizeclass, class_to_size[sizeclass]);
++				printf("incorrect SizeToClass");
++				goto dump;
++			}
++			if(sizeclass > 1 && class_to_size[sizeclass-1] >= n) {
++				printf("size=%d sizeclass=%d class_to_size=%d\n", n, sizeclass, class_to_size[sizeclass]);
++				printf("SizeToClass too big");
++				goto dump;
++			}
++		}
++	}
++
++	// Initialize the class_to_transfercount table.
++	for(sizeclass = 1; sizeclass < NumSizeClasses; sizeclass++) {
++		n = 64*1024 / class_to_size[sizeclass];
++		if(n < 2)
++			n = 2;
++		if(n > 32)
++			n = 32;
++		class_to_transfercount[sizeclass] = n;
++	}
++	return;
++
++dump:
++	if(1){
++		printf("NumSizeClasses=%d\n", NumSizeClasses);
++		printf("class_to_size:");
++		for(sizeclass=0; sizeclass<NumSizeClasses; sizeclass++)
++			printf(" %d", class_to_size[sizeclass]);
++		printf("\n\n");
++		printf("size_to_class8:");
++		for(i=0; i<nelem(size_to_class8); i++)
++			printf(" %d=>%d(%d)\n", i*8, size_to_class8[i], class_to_size[size_to_class8[i]]);
++		printf("\n");
++		printf("size_to_class128:");
++		for(i=0; i<nelem(size_to_class128); i++)
++			printf(" %d=>%d(%d)\n", i*128, size_to_class128[i], class_to_size[size_to_class128[i]]);
++		printf("\n");
++	}
++	throw("InitSizes failed");
++}
++
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 68d06788e4..2d9ce77efd 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "malloc.h"	/* so that acid generated from proc.c includes malloc data structures */
+ 
+ typedef struct Sched Sched;
+ 
+@@ -95,6 +96,8 @@ schedinit(void)
+ 	int32 n;
+ 	byte *p;
+ 
++	mallocinit();
++
+ 	sched.gomaxprocs = 1;
+ 	p = getenv("GOMAXPROCS");
+ 	if(p != nil && (n = atoi(p)) != 0)
+@@ -403,6 +406,8 @@ starttheworld(void)
+ void
+ mstart(void)
+ {
++	if(m->mcache == nil)
++		m->mcache = allocmcache();
+ 	minit();
+ 	scheduler();
+ }
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index dbd31621f2..97d675c98d 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -49,6 +49,7 @@ typedef	struct	Stktop		Stktop;
+ typedef	struct	String		*string;
+ typedef	struct	Usema		Usema;
+ typedef	struct	SigTab	SigTab;
++typedef	struct	MCache	MCache;
+ 
+ /*
+  * per cpu declaration
+@@ -163,7 +164,7 @@ struct	M
+ 	M*	schedlink;
+ 	Mem	mem;
+ 	uint32	machport;	// Return address for Mach IPC (OS X)
+-	void*	freelist[SmallFreeClasses];
++	MCache	*mcache;
+ };
+ struct	Stktop
+ {
+@@ -280,6 +281,8 @@ Func*	findfunc(uint64);
+ int32	funcline(Func*, uint64);
+ void*	stackalloc(uint32);
+ void	stackfree(void*);
++MCache*	allocmcache(void);
++void	mallocinit(void);
+ 
+ #pragma	varargck	argpos	printf	1
+ 
+diff --git a/test/malloc1.go b/test/malloc1.go
+new file mode 100644
+index 0000000000..fe1a5c0d5f
+--- /dev/null
++++ b/test/malloc1.go
+@@ -0,0 +1,26 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// trivial malloc test
++
++package main
++
++import (
++	"flag";
++	"fmt";
++	"malloc";
++)
++
++var chatty bool;
++var chatty_flag = flag.Bool("v", false, &chatty, "chatty");
++
++func main() {
++	malloc.Free(malloc.Alloc(1));
++	if chatty {
++		fmt.printf("%+v %v\n", *malloc.GetStats(), uint64(0));
++	}
++}
++
+diff --git a/test/mallocrand.go b/test/mallocrand.go
+new file mode 100644
+index 0000000000..63e70f3787
+--- /dev/null
++++ b/test/mallocrand.go
+@@ -0,0 +1,86 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Random malloc test.
++
++package main
++
++import (
++	"flag";
++	"malloc";
++	"rand";
++	"unsafe";
++)
++
++var chatty bool;
++var chatty_flag = flag.Bool("v", false, &chatty, "chatty");
++
++var footprint uint64;
++var allocated uint64;
++func bigger() {
++	if f := malloc.GetStats().sys; footprint < f {
++		footprint = f;
++		if chatty {
++			println("Footprint", footprint, " for ", allocated);
++		}
++		if footprint > 1e9 {
++			panicln("too big");
++		}
++	}
++}
++
++// Prime the data structures by allocating one of
++// each block in order.  After this, there should be
++// little reason to ask for more memory from the OS.
++func prime() {
++	for i := 0; i < 16; i++ {
++		b := malloc.Alloc(1<<uint(i));
++		malloc.Free(b);
++	}
++	for i := uint64(0); i < 256; i++ {
++		b := malloc.Alloc(i<<12);
++		malloc.Free(b);
++	}
++}
++
++func memset(b *byte, c byte, n uint64) {
++	np := uintptr(n);
++	for i := uintptr(0); i < np; i++ {
++		*(b.(unsafe.pointer).(uintptr)+i).(unsafe.pointer).(*byte) = c;
++	}
++}
++
++func main() {
++	flag.Parse();
++//	prime();
++	var blocks [1] struct { base *byte; siz uint64; };
++	for i := 0; i < 1<<12; i++ {
++		if i%(1<<10) == 0 && chatty {
++			println(i);
++		}
++		b := rand.rand() % len(blocks);
++		if blocks[b].base != nil {
++		//	println("Free", blocks[b].siz, blocks[b].base);
++			malloc.Free(blocks[b].base);
++			blocks[b].base = nil;
++			allocated -= blocks[b].siz;
++			continue
++		}
++		siz := uint64(rand.rand() >> (11 + rand.urand32() % 20));
++		base := malloc.Alloc(siz);
++	//	ptr := uint64(syscall.BytePtr(base))+uint64(siz/2);
++	//	obj, size, ref, ok := allocator.find(ptr);
++	//	if obj != base || *ref != 0 || !ok {
++	//		panicln("find", siz, obj, ref, ok);
++	//	}
++		blocks[b].base = base;
++		blocks[b].siz = siz;
++		allocated += siz;
++	//	println("Alloc", siz, base);
++		memset(base, 0xbb, siz);
++		bigger();
++	}
++}
+diff --git a/test/mallocrep.go b/test/mallocrep.go
+new file mode 100644
+index 0000000000..2911b4a051
+--- /dev/null
++++ b/test/mallocrep.go
+@@ -0,0 +1,56 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Repeated malloc test.
++
++package main
++
++import (
++	"flag";
++	"malloc"
++)
++
++var chatty bool;
++var chatty_flag = flag.Bool("v", false, &chatty, "chatty");
++
++var oldsys uint64;
++func bigger() {
++	if st := malloc.GetStats(); oldsys < st.sys {
++		oldsys = st.sys;
++		if chatty {
++			println(st.sys, " system bytes for ", st.alloc, " Go bytes");
++		}
++		if st.sys > 1e9 {
++			panicln("too big");
++		}
++	}
++}
++
++func main() {
++	flag.Parse();
++	for i := 0; i < 1<<8; i++ {
++		for j := 1; j <= 1<<22; j<<=1 {
++			if i == 0 && chatty {
++				println("First alloc:", j);
++			}
++			b := malloc.Alloc(uint64(j));
++			malloc.Free(b);
++			if a := malloc.GetStats().alloc; a != 0 {
++				panicln("malloc wrong count", a);
++			}
++			bigger();
++		}
++		if i%(1<<10) == 0 && chatty {
++			println(i);
++		}
++		if i == 0 {
++			if chatty {
++				println("Primed", i);
++			}
++		//	malloc.frozen = true;
++		}
++	}
++}

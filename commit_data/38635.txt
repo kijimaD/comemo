@@ -15,10 +15,144 @@ Date:   Mon Nov 5 20:39:45 2018 -0500
     Change-Id: Ie55efdec671d639cf1e716acef0c5f103e91a7ce
     Reviewed-on: https://go-review.googlesource.com/c/147617
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/common.go                 | 16 ++++++++++++++++
  src/crypto/tls/handshake_client_test.go  |  2 +-
  src/crypto/tls/handshake_server.go       | 18 ++++++++++++++----
  src/crypto/tls/handshake_server_test.go  |  5 +++++
  src/crypto/tls/handshake_server_tls13.go | 21 +++++++++++++++++++++
  5 files changed, 57 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index ad7793b10b..62d786aeae 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -189,6 +189,14 @@ var helloRetryRequestRandom = []byte{ // See RFC 8446, Section 4.1.3.
+ 	0x07, 0x9E, 0x09, 0xE2, 0xC8, 0xA8, 0x33, 0x9C,
+ }
+ 
++const (
++	// downgradeCanaryTLS12 or downgradeCanaryTLS11 is embedded in the server
++	// random as a downgrade protection if the server would be capable of
++	// negotiating a higher version. See RFC 8446, Section 4.1.3.
++	downgradeCanaryTLS12 = "DOWNGRD\x01"
++	downgradeCanaryTLS11 = "DOWNGRD\x00"
++)
++
+ // ConnectionState records basic TLS details about the connection.
+ type ConnectionState struct {
+ 	Version                     uint16                // TLS version used by the connection (e.g. VersionTLS12)
+@@ -774,6 +782,14 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
+ 	return versions
+ }
+ 
++func (c *Config) maxSupportedVersion(isClient bool) uint16 {
++	supportedVersions := c.supportedVersions(isClient)
++	if len(supportedVersions) == 0 {
++		return 0
++	}
++	return supportedVersions[0]
++}
++
+ // supportedVersionsFromMax returns a list of supported versions derived from a
+ // legacy maximum version value. Note that only versions supported by this
+ // library are returned. Any newer peer will use supportedVersions anyway.
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 17e558cf64..1015dd0568 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -309,7 +309,7 @@ func (test *clientTest) run(t *testing.T, write bool) {
+ 	// TODO(filippo): regenerate client tests all at once after CL 146217,
+ 	// RSA-PSS and client-side TLS 1.3 are landed.
+ 	if !write && !strings.Contains(test.name, "TLSv13") {
+-		t.Skip("recorded client tests are out of date")
++		t.Skip("recorded server tests are out of date")
+ 	}
+ 
+ 	var clientConn, serverConn net.Conn
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index c3ab276724..2745f3313f 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -210,7 +210,18 @@ Curves:
+ 	}
+ 
+ 	hs.hello.random = make([]byte, 32)
+-	_, err := io.ReadFull(c.config.rand(), hs.hello.random)
++	serverRandom := hs.hello.random
++	// Downgrade protection canaries. See RFC 8446, Section 4.1.3.
++	maxVers := c.config.maxSupportedVersion(false)
++	if maxVers >= VersionTLS12 && c.vers < maxVers {
++		if c.vers == VersionTLS12 {
++			copy(serverRandom[24:], downgradeCanaryTLS12)
++		} else {
++			copy(serverRandom[24:], downgradeCanaryTLS11)
++		}
++		serverRandom = serverRandom[:24]
++	}
++	_, err := io.ReadFull(c.config.rand(), serverRandom)
+ 	if err != nil {
+ 		c.sendAlert(alertInternalError)
+ 		return err
+@@ -299,11 +310,10 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
+ 		return errors.New("tls: no cipher suite supported by both client and server")
+ 	}
+ 
+-	// See RFC 7507.
+ 	for _, id := range hs.clientHello.cipherSuites {
+ 		if id == TLS_FALLBACK_SCSV {
+-			// The client is doing a fallback connection.
+-			if hs.clientHello.vers < c.config.supportedVersions(false)[0] {
++			// The client is doing a fallback connection. See RFC 7507.
++			if hs.clientHello.vers < c.config.maxSupportedVersion(false) {
+ 				c.sendAlert(alertInappropriateFallback)
+ 				return errors.New("tls: client using inappropriate protocol fallback")
+ 			}
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index ef7f30dd2a..76b74df701 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -622,6 +622,11 @@ func (test *serverTest) loadData() (flows [][]byte, err error) {
+ }
+ 
+ func (test *serverTest) run(t *testing.T, write bool) {
++	// TODO(filippo): regenerate server tests all at once.
++	if !write && !strings.Contains(test.name, "TLSv13") {
++		t.Skip("recorded client tests are out of date")
++	}
++
+ 	checkOpenSSLVersion(t)
+ 
+ 	var clientConn, serverConn net.Conn
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index 17bac61e19..4d13ff39d9 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -96,6 +96,27 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
+ 		return errors.New("tls: client used the legacy version field to negotiate TLS 1.3")
+ 	}
+ 
++	// Abort if the client is doing a fallback and landing lower than what we
++	// support. See RFC 7507, which however does not specify the interaction
++	// with supported_versions. The only difference is that with
++	// supported_versions a client has a chance to attempt a [TLS 1.2, TLS 1.4]
++	// handshake in case TLS 1.3 is broken but 1.2 is not. Alas, in that case,
++	// it will have to drop the TLS_FALLBACK_SCSV protection if it falls back to
++	// TLS 1.2, because a TLS 1.3 server would abort here. The situation before
++	// supported_versions was not better because there was just no way to do a
++	// TLS 1.4 handshake without risking the server selecting TLS 1.3.
++	for _, id := range hs.clientHello.cipherSuites {
++		if id == TLS_FALLBACK_SCSV {
++			// Use c.vers instead of max(supported_versions) because an attacker
++			// could defeat this by adding an arbitrary high version otherwise.
++			if c.vers < c.config.maxSupportedVersion(false) {
++				c.sendAlert(alertInappropriateFallback)
++				return errors.New("tls: client using inappropriate protocol fallback")
++			}
++			break
++		}
++	}
++
+ 	if len(hs.clientHello.compressionMethods) != 1 ||
+ 		hs.clientHello.compressionMethods[0] != compressionNone {
+ 		c.sendAlert(alertIllegalParameter)

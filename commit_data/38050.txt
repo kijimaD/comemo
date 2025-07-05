@@ -10,6 +10,27 @@ Date:   Thu Sep 27 14:52:41 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/138182
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  doc/debugging_with_gdb.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/debugging_with_gdb.html b/doc/debugging_with_gdb.html
+index f3b4e37a28..a6b0054d4f 100644
+--- a/doc/debugging_with_gdb.html
++++ b/doc/debugging_with_gdb.html
+@@ -180,6 +180,15 @@ from it.</li>
+ that needs to be quoted.  It objects even more strongly to method names of
+ the form <code>pkg.(*MyType).Meth</code>.
+ <li>All global variables are lumped into package <code>"main"</code>.</li>
++<li>As of Go 1.11, debug information is compressed by default.
++Older versions of gdb, such as the one available by default on MacOS,
++do not understand the compression.
++You can generate uncompressed debug information by using <code>go
++build -ldflags=-compressdwarf=false</code>.
++(For convenience you can put the <code>-ldflags</code> option in
++the <a href="/cmd/go/#hdr-Environment_variables"><code>GOFLAGS</code>
++environment variable</a> so that you don't have to specify it each time.)
++</li>
+ </ol>
+ 
+ <h2 id="Tutorial">Tutorial</h2>

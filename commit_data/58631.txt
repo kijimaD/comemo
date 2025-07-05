@@ -16,7 +16,150 @@ Date:   Mon Nov 20 21:19:35 2023 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/trace/v2/gen.go                   | 53 +++++++++++++++++++++++++++++++
  src/internal/trace/traceviewer/emitter.go | 46 ++++++++++++++++++++++++++-
  2 files changed, 98 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/trace/v2/gen.go b/src/cmd/trace/v2/gen.go
+index ac20dd1131..ad1599db92 100644
+--- a/src/cmd/trace/v2/gen.go
++++ b/src/cmd/trace/v2/gen.go
+@@ -73,6 +73,11 @@ func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace, opts *gen
+ 	}
+ 	for i, task := range opts.tasks {
+ 		emitTask(ctx, task, i)
++		if opts.mode&traceviewer.ModeGoroutineOriented != 0 {
++			for _, region := range task.Regions {
++				emitRegion(ctx, region)
++			}
++		}
+ 	}
+ 	g.Finish(ctx)
+ }
+@@ -130,6 +135,54 @@ func emitTask(ctx *traceContext, task *trace.UserTaskSummary, sortIndex int) {
+ 	}
+ }
+ 
++// emitRegion emits goroutine-based slice events to the UI. The caller
++// must be emitting for a goroutine-oriented trace.
++//
++// TODO(mknyszek): Make regions part of the regular generator loop and
++// treat them like ranges so that we can emit regions in traces oriented
++// by proc or thread.
++func emitRegion(ctx *traceContext, region *trace.UserRegionSummary) {
++	if region.Name == "" {
++		return
++	}
++	// Collect information about the region.
++	var startStack, endStack tracev2.Stack
++	goroutine := tracev2.NoGoroutine
++	startTime, endTime := ctx.startTime, ctx.endTime
++	if region.Start != nil {
++		startStack = region.Start.Stack()
++		startTime = region.Start.Time()
++		goroutine = region.Start.Goroutine()
++	}
++	if region.End != nil {
++		endStack = region.End.Stack()
++		endTime = region.End.Time()
++		goroutine = region.End.Goroutine()
++	}
++	if goroutine == tracev2.NoGoroutine {
++		return
++	}
++	arg := struct {
++		TaskID uint64 `json:"taskid"`
++	}{
++		TaskID: uint64(region.TaskID),
++	}
++	ctx.AsyncSlice(traceviewer.AsyncSliceEvent{
++		SliceEvent: traceviewer.SliceEvent{
++			Name:     region.Name,
++			Ts:       ctx.elapsed(startTime),
++			Dur:      endTime.Sub(startTime),
++			Resource: uint64(goroutine),
++			Stack:    ctx.Stack(viewerFrames(startStack)),
++			EndStack: ctx.Stack(viewerFrames(endStack)),
++			Arg:      arg,
++		},
++		Category:       "Region",
++		Scope:          fmt.Sprintf("%x", region.TaskID),
++		TaskColorIndex: uint64(region.TaskID),
++	})
++}
++
+ // Building blocks for generators.
+ 
+ // stackSampleGenerator implements a generic handler for stack sample events.
+diff --git a/src/internal/trace/traceviewer/emitter.go b/src/internal/trace/traceviewer/emitter.go
+index ad3112d8b9..c91c743a7b 100644
+--- a/src/internal/trace/traceviewer/emitter.go
++++ b/src/internal/trace/traceviewer/emitter.go
+@@ -317,6 +317,7 @@ type Emitter struct {
+ 	resources                    map[uint64]string
+ 	focusResource                uint64
+ 	tasks                        map[uint64]task
++	asyncSliceSeq                uint64
+ }
+ 
+ type task struct {
+@@ -376,7 +377,6 @@ func (e *Emitter) slice(s SliceEvent, sectionID uint64, cname string) {
+ 		Arg:      s.Arg,
+ 		Cname:    cname,
+ 	})
+-
+ }
+ 
+ type SliceEvent struct {
+@@ -389,6 +389,50 @@ type SliceEvent struct {
+ 	Arg      any
+ }
+ 
++func (e *Emitter) AsyncSlice(s AsyncSliceEvent) {
++	if !e.tsWithinRange(s.Ts) && !e.tsWithinRange(s.Ts+s.Dur) {
++		return
++	}
++	if e.filter != nil && !e.filter(s.Resource) {
++		return
++	}
++	cname := ""
++	if s.TaskColorIndex != 0 {
++		cname = pickTaskColor(s.TaskColorIndex)
++	}
++	e.asyncSliceSeq++
++	e.OptionalEvent(&format.Event{
++		Category: s.Category,
++		Name:     s.Name,
++		Phase:    "b",
++		Time:     viewerTime(s.Ts),
++		TID:      s.Resource,
++		ID:       e.asyncSliceSeq,
++		Scope:    s.Scope,
++		Stack:    s.Stack,
++		Cname:    cname,
++	})
++	e.OptionalEvent(&format.Event{
++		Category: s.Category,
++		Name:     s.Name,
++		Phase:    "e",
++		Time:     viewerTime(s.Ts + s.Dur),
++		TID:      s.Resource,
++		ID:       e.asyncSliceSeq,
++		Scope:    s.Scope,
++		Stack:    s.EndStack,
++		Arg:      s.Arg,
++		Cname:    cname,
++	})
++}
++
++type AsyncSliceEvent struct {
++	SliceEvent
++	Category       string
++	Scope          string
++	TaskColorIndex uint64 // Take on the same color as the task with this ID.
++}
++
+ func (e *Emitter) Instant(i InstantEvent) {
+ 	if !e.tsWithinRange(i.Ts) {
+ 		return

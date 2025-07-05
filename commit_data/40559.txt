@@ -13,6 +13,19 @@ Date:   Tue May 28 11:37:12 2019 -0400
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/testing/internal/testdeps/deps.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 14512e9632..af08dd768a 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -98,7 +98,6 @@ func (l *testLog) add(op, name string) {
+ }
+ 
+ var log testLog
+-var didSetLogger bool
+ 
+ func (TestDeps) StartTestLog(w io.Writer) {
+ 	log.mu.Lock()

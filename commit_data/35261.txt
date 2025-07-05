@@ -21,10 +21,100 @@ Date:   Mon Jan 22 20:07:58 2018 -0500
     Change-Id: I3088eceebbe35174f2eefe8d558b7c8b59d3eeac
     Reviewed-on: https://go-review.googlesource.com/89135
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                       | 10 ++++++++++
  src/cmd/go/internal/test/test.go            | 11 ++++++++++-
  src/cmd/go/testdata/src/coverdot1/p.go      |  3 +++
  src/cmd/go/testdata/src/coverdot2/p.go      |  5 +++++
  src/cmd/go/testdata/src/coverdot2/p_test.go |  7 +++++++
  5 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 8662c81c93..7eaaf48759 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2437,6 +2437,16 @@ func TestCoverageRuns(t *testing.T) {
+ 	checkCoverage(tg, data)
+ }
+ 
++func TestCoverageDotImport(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.run("test", "-coverpkg=coverdot1,coverdot2", "coverdot2")
++	data := tg.getStdout() + tg.getStderr()
++	checkCoverage(tg, data)
++}
++
+ // Check that coverage analysis uses set mode.
+ // Also check that coverage profiles merge correctly.
+ func TestCoverageUsesSetMode(t *testing.T) {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 5147c5b778..7f7ce63eda 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -6,6 +6,7 @@ package test
+ 
+ import (
+ 	"bytes"
++	"crypto/sha256"
+ 	"errors"
+ 	"fmt"
+ 	"go/ast"
+@@ -1091,13 +1092,21 @@ func isTestFile(file string) bool {
+ func declareCoverVars(importPath string, files ...string) map[string]*load.CoverVar {
+ 	coverVars := make(map[string]*load.CoverVar)
+ 	coverIndex := 0
++	// We create the cover counters as new top-level variables in the package.
++	// We need to avoid collisions with user variables (GoCover_0 is unlikely but still)
++	// and more importantly with dot imports of other covered packages,
++	// so we append 12 hex digits from the SHA-256 of the import path.
++	// The point is only to avoid accidents, not to defeat users determined to
++	// break things.
++	sum := sha256.Sum256([]byte(importPath))
++	h := fmt.Sprintf("%x", sum[:6])
+ 	for _, file := range files {
+ 		if isTestFile(file) {
+ 			continue
+ 		}
+ 		coverVars[file] = &load.CoverVar{
+ 			File: filepath.Join(importPath, file),
+-			Var:  fmt.Sprintf("GoCover_%d", coverIndex),
++			Var:  fmt.Sprintf("GoCover_%d_%x", coverIndex, h),
+ 		}
+ 		coverIndex++
+ 	}
+diff --git a/src/cmd/go/testdata/src/coverdot1/p.go b/src/cmd/go/testdata/src/coverdot1/p.go
+new file mode 100644
+index 0000000000..cda364f929
+--- /dev/null
++++ b/src/cmd/go/testdata/src/coverdot1/p.go
+@@ -0,0 +1,3 @@
++package coverdot1
++
++func F() {}
+diff --git a/src/cmd/go/testdata/src/coverdot2/p.go b/src/cmd/go/testdata/src/coverdot2/p.go
+new file mode 100644
+index 0000000000..80f79aec83
+--- /dev/null
++++ b/src/cmd/go/testdata/src/coverdot2/p.go
+@@ -0,0 +1,5 @@
++package coverdot2
++
++import . "coverdot1"
++
++func G() { F() }
+diff --git a/src/cmd/go/testdata/src/coverdot2/p_test.go b/src/cmd/go/testdata/src/coverdot2/p_test.go
+new file mode 100644
+index 0000000000..da66e3e7af
+--- /dev/null
++++ b/src/cmd/go/testdata/src/coverdot2/p_test.go
+@@ -0,0 +1,7 @@
++package coverdot2
++
++import "testing"
++
++func TestG(t *testing.T) {
++	G()
++}

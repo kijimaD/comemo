@@ -11,8 +11,110 @@ Date:   Tue Jun 23 13:59:18 2015 -0700
     Change-Id: Ie0a82bcfab782c514d1947e7a6b190e286afd159
     Reviewed-on: https://go-review.googlesource.com/11367
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/expr.go            | 16 ++++++++++++----
  src/go/types/stmt.go            |  4 ++--
  src/go/types/testdata/expr0.src |  6 ++++++
  3 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index e9baf93aeb..63a014a929 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -78,7 +78,8 @@ func (check *Checker) op(m opPredicates, x *operand, op token.Token) bool {
+ 	return true
+ }
+ 
+-func (check *Checker) unary(x *operand, op token.Token) {
++// The unary expression e may be nil. It's passed in for better error messages only.
++func (check *Checker) unary(x *operand, e *ast.UnaryExpr, op token.Token) {
+ 	switch op {
+ 	case token.AND:
+ 		// spec: "As an exception to the addressability
+@@ -125,6 +126,9 @@ func (check *Checker) unary(x *operand, op token.Token) {
+ 		// Typed constants must be representable in
+ 		// their type after each constant operation.
+ 		if isTyped(typ) {
++			if e != nil {
++				x.expr = e // for better error message
++			}
+ 			check.representable(x, typ)
+ 		}
+ 		return
+@@ -721,7 +725,8 @@ var binaryOpPredicates = opPredicates{
+ 	token.LOR:  isBoolean,
+ }
+ 
+-func (check *Checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token) {
++// The binary expression e may be nil. It's passed in for better error messages only.
++func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, op token.Token) {
+ 	var y operand
+ 
+ 	check.expr(x, lhs)
+@@ -787,6 +792,9 @@ func (check *Checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token) {
+ 		// Typed constants must be representable in
+ 		// their type after each constant operation.
+ 		if isTyped(typ) {
++			if e != nil {
++				x.expr = e // for better error message
++			}
+ 			check.representable(x, typ)
+ 		}
+ 		return
+@@ -1374,7 +1382,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
+-		check.unary(x, e.Op)
++		check.unary(x, e, e.Op)
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
+@@ -1384,7 +1392,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		}
+ 
+ 	case *ast.BinaryExpr:
+-		check.binary(x, e.X, e.Y, e.Op)
++		check.binary(x, e, e.X, e.Y, e.Op)
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 6efe86c9f8..7fdcb7925c 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -277,7 +277,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		}
+ 		var x operand
+ 		Y := &ast.BasicLit{ValuePos: s.X.Pos(), Kind: token.INT, Value: "1"} // use x's position
+-		check.binary(&x, s.X, Y, op)
++		check.binary(&x, nil, s.X, Y, op)
+ 		if x.mode == invalid {
+ 			return
+ 		}
+@@ -309,7 +309,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 				return
+ 			}
+ 			var x operand
+-			check.binary(&x, s.Lhs[0], s.Rhs[0], op)
++			check.binary(&x, nil, s.Lhs[0], s.Rhs[0], op)
+ 			if x.mode == invalid {
+ 				return
+ 			}
+diff --git a/src/go/types/testdata/expr0.src b/src/go/types/testdata/expr0.src
+index 5afb5d738e..3120c6f078 100644
+--- a/src/go/types/testdata/expr0.src
++++ b/src/go/types/testdata/expr0.src
+@@ -25,6 +25,12 @@ var (
+ 	b12 = <-b0 /* ERROR "cannot receive" */
+ 	b13 = & & /* ERROR "cannot take address" */ b0
+ 
++	// byte
++	_ = byte(0)
++	_ = byte(- /* ERROR "cannot convert" */ 1)
++	_ = - /* ERROR "-byte\(1\) \(constant -1 of type byte\) overflows byte" */ byte(1) // test for issue 11367
++	_ = byte /* ERROR "overflows byte" */ (0) - byte(1)
++
+ 	// int
+ 	i0 = 1
+ 	i1 int = i0

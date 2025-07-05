@@ -14,6 +14,27 @@ Date:   Wed Feb 12 10:14:12 2020 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/mod.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/mod.go b/src/cmd/go/internal/modcmd/mod.go
+index 1750522158..d72d0cacd6 100644
+--- a/src/cmd/go/internal/modcmd/mod.go
++++ b/src/cmd/go/internal/modcmd/mod.go
+@@ -7,7 +7,6 @@ package modcmd
+ 
+ import (
+ 	"cmd/go/internal/base"
+-	"cmd/go/internal/cfg"
+ )
+ 
+ var CmdMod = &base.Command{
+@@ -32,7 +31,3 @@ See 'go help modules' for an overview of module functionality.
+ 		cmdWhy,
+ 	},
+ }
+-
+-func addModFlags(cmd *base.Command) {
+-	cmd.Flag.StringVar(&cfg.ModFile, "modfile", "", "")
+-}

@@ -7,6 +7,22 @@ Date:   Fri Jan 27 13:59:32 2012 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5569075
-
+---
  src/cmd/gc/subr.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 0a377822ea..64a0070776 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1149,7 +1149,9 @@ assignop(Type *src, Type *dst, char **why)
+ 	if(why != nil)
+ 		*why = "";
+ 
+-	if(safemode && (importpkg == nil || importpkg == localpkg) && src != T && src->etype == TUNSAFEPTR) {
++	// TODO(rsc,lvd): This behaves poorly in the presence of inlining.
++	// https://code.google.com/p/go/issues/detail?id=2795
++	if(safemode && importpkg == nil && src != T && src->etype == TUNSAFEPTR) {
+ 		yyerror("cannot use unsafe.Pointer");
+ 		errorexit();
+ 	}

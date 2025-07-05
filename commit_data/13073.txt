@@ -7,7 +7,135 @@ Date:   Tue May 15 12:52:18 2012 -0400
     R=golang-dev, for.go.yong
     CC=golang-dev
     https://golang.org/cl/6197080
-
+---
  src/cmd/5l/obj.c | 20 ++++++++++----------
  src/cmd/8l/obj.c | 18 +++++++++---------
  2 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index b57ef6edfb..069509ec57 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -296,16 +296,16 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 	Sym *s;
+ 	Auto *u;
+ 
+-	a->type = Bgetc(f);
+-	a->reg = Bgetc(f);
+-	c = Bgetc(f);
++	a->type = BGETC(f);
++	a->reg = BGETC(f);
++	c = BGETC(f);
+ 	if(c < 0 || c > NSYM){
+ 		print("sym out of range: %d\n", c);
+ 		Bputc(f, ALAST+1);
+ 		return;
+ 	}
+ 	a->sym = h[c];
+-	a->name = Bgetc(f);
++	a->name = BGETC(f);
+ 
+ 	if((schar)a->reg < 0 || a->reg > NREG) {
+ 		print("register out of range %d\n", a->reg);
+@@ -338,7 +338,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 		break;
+ 
+ 	case D_REGREG:
+-		a->offset = Bgetc(f);
++		a->offset = BGETC(f);
+ 		break;
+ 
+ 	case D_CONST2:
+@@ -422,7 +422,7 @@ newloop:
+ loop:
+ 	if(f->state == Bracteof || Boffset(f) >= eof)
+ 		goto eof;
+-	o = Bgetc(f);
++	o = BGETC(f);
+ 	if(o == Beof)
+ 		goto eof;
+ 
+@@ -435,8 +435,8 @@ loop:
+ 		sig = 0;
+ 		if(o == ASIGNAME)
+ 			sig = Bget4(f);
+-		v = Bgetc(f); /* type */
+-		o = Bgetc(f); /* sym */
++		v = BGETC(f); /* type */
++		o = BGETC(f); /* sym */
+ 		r = 0;
+ 		if(v == D_STATIC)
+ 			r = version;
+@@ -486,8 +486,8 @@ loop:
+ 
+ 	p = mal(sizeof(Prog));
+ 	p->as = o;
+-	p->scond = Bgetc(f);
+-	p->reg = Bgetc(f);
++	p->scond = BGETC(f);
++	p->reg = BGETC(f);
+ 	p->line = Bget4(f);
+ 
+ 	zaddr(f, &p->from, h);
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 823d0a22df..5e4bb1bfb6 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -333,7 +333,7 @@ zsym(char *pn, Biobuf *f, Sym *h[])
+ {	
+ 	int o;
+ 	
+-	o = Bgetc(f);
++	o = BGETC(f);
+ 	if(o < 0 || o >= NSYM || h[o] == nil)
+ 		mangle(pn);
+ 	return h[o];
+@@ -347,12 +347,12 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 	Sym *s;
+ 	Auto *u;
+ 
+-	t = Bgetc(f);
++	t = BGETC(f);
+ 	a->index = D_NONE;
+ 	a->scale = 0;
+ 	if(t & T_INDEX) {
+-		a->index = Bgetc(f);
+-		a->scale = Bgetc(f);
++		a->index = BGETC(f);
++		a->scale = BGETC(f);
+ 	}
+ 	a->type = D_NONE;
+ 	a->offset = 0;
+@@ -376,7 +376,7 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 		a->type = D_SCONST;
+ 	}
+ 	if(t & T_TYPE)
+-		a->type = Bgetc(f);
++		a->type = BGETC(f);
+ 	adrgotype = S;
+ 	if(t & T_GOTYPE)
+ 		adrgotype = zsym(pn, f, h);
+@@ -452,10 +452,10 @@ newloop:
+ loop:
+ 	if(f->state == Bracteof || Boffset(f) >= eof)
+ 		goto eof;
+-	o = Bgetc(f);
++	o = BGETC(f);
+ 	if(o == Beof)
+ 		goto eof;
+-	o |= Bgetc(f) << 8;
++	o |= BGETC(f) << 8;
+ 	if(o <= AXXX || o >= ALAST) {
+ 		if(o < 0)
+ 			goto eof;
+@@ -468,8 +468,8 @@ loop:
+ 		sig = 0;
+ 		if(o == ASIGNAME)
+ 			sig = Bget4(f);
+-		v = Bgetc(f);	/* type */
+-		o = Bgetc(f);	/* sym */
++		v = BGETC(f);	/* type */
++		o = BGETC(f);	/* sym */
+ 		r = 0;
+ 		if(v == D_STATIC)
+ 			r = version;

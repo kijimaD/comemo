@@ -7,7 +7,32 @@ Date:   Fri Mar 25 12:30:09 2011 -0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/4276077
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index cbac729b2d..6c5ad5f7f7 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -108,6 +108,7 @@ Pieter Droogendijk <pieter@binky.org.uk>
+ Raif S. Naffah <go@naffah-raif.name>
+ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+ Robert Hencke <robert.hencke@gmail.com>
++Roger Pau Monné <royger@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>
+ Ross Light <rlight2@gmail.com>
+ Ryan Hitchman <hitchmanr@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e6294a6057..b650fe0b86 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -164,6 +164,7 @@ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+ Rob Pike <r@golang.org>
+ Robert Griesemer <gri@golang.org>
+ Robert Hencke <robert.hencke@gmail.com>
++Roger Pau Monné <royger@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>
+ Ross Light <rlight2@gmail.com>
+ Russ Cox <rsc@golang.org>

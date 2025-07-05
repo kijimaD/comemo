@@ -12,6 +12,20 @@ Date:   Tue Jun 28 09:58:19 2022 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Eric Fang <eric.fang@arm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/plugin/plugin_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/plugin/plugin_test.go b/src/plugin/plugin_test.go
+index 8185095f85..557987cfa6 100644
+--- a/src/plugin/plugin_test.go
++++ b/src/plugin/plugin_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !linux || (linux && !arm64)
+-
+ package plugin_test
+ 
+ import (

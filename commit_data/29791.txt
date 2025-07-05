@@ -22,10 +22,324 @@ Date:   Mon Aug 8 17:24:07 2016 -0400
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/cmd/trace/main.go             |  5 +++-
  src/cmd/trace/trace.go            | 49 +++++++++++++++++++------------
  src/cmd/trace/trace_test.go       | 62 +++++++++++++++++++++++++++++++++++++++
  src/internal/trace/parser_test.go | 47 +++--------------------------
  src/internal/trace/writer.go      | 45 ++++++++++++++++++++++++++++
  5 files changed, 145 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index 1b84d838f0..3611012290 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -89,7 +89,10 @@ func main() {
+ 		events:  events,
+ 		endTime: int64(1<<63 - 1),
+ 	}
+-	data := generateTrace(params)
++	data, err := generateTrace(params)
++	if err != nil {
++		dief("%v\n", err)
++	}
+ 
+ 	log.Printf("Splitting trace...")
+ 	ranges = splitTrace(data)
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index d87a5bac38..7670d330e1 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -160,7 +160,11 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+ 		params.gs = trace.RelatedGoroutines(events, goid)
+ 	}
+ 
+-	data := generateTrace(params)
++	data, err := generateTrace(params)
++	if err != nil {
++		log.Printf("failed to generate trace: %v", err)
++		return
++	}
+ 
+ 	if startStr, endStr := r.FormValue("start"), r.FormValue("end"); startStr != "" && endStr != "" {
+ 		// If start/end arguments are present, we are rendering a range of the trace.
+@@ -307,7 +311,7 @@ type SortIndexArg struct {
+ // If gtrace=true, generate trace for goroutine goid, otherwise whole trace.
+ // startTime, endTime determine part of the trace that we are interested in.
+ // gset restricts goroutines that are included in the resulting trace.
+-func generateTrace(params *traceParams) ViewerData {
++func generateTrace(params *traceParams) (ViewerData, error) {
+ 	ctx := &traceContext{traceParams: params}
+ 	ctx.frameTree.children = make(map[uint64]frameNode)
+ 	ctx.data.Frames = make(map[string]ViewerFrame)
+@@ -408,9 +412,10 @@ func generateTrace(params *traceParams) ViewerData {
+ 			ctx.grunning--
+ 			ctx.emitGoroutineCounters(ev)
+ 		case trace.EvGoWaiting:
+-			ctx.grunnable--
++			ctx.grunnable-- // cancels out the effect of EvGoCreate at the beginning
+ 			ctx.emitGoroutineCounters(ev)
+ 		case trace.EvGoInSyscall:
++			ctx.grunnable-- // cancels out the effect of EvGoCreate at the beginning
+ 			ctx.insyscall++
+ 			ctx.emitThreadCounters(ev)
+ 		case trace.EvHeapAlloc:
+@@ -420,6 +425,9 @@ func generateTrace(params *traceParams) ViewerData {
+ 			ctx.nextGC = ev.Args[0]
+ 			ctx.emitHeapCounters(ev)
+ 		}
++		if ctx.grunnable < 0 || ctx.grunning < 0 || ctx.insyscall < 0 {
++			return ctx.data, fmt.Errorf("invalid state after processing %v: runnable=%d running=%d insyscall=%d", ev, ctx.grunnable, ctx.grunning, ctx.insyscall)
++		}
+ 	}
+ 
+ 	ctx.data.footer = len(ctx.data.Events)
+@@ -459,7 +467,7 @@ func generateTrace(params *traceParams) ViewerData {
+ 		ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: 0, Arg: &SortIndexArg{-1}})
+ 	}
+ 
+-	return ctx.data
++	return ctx.data, nil
+ }
+ 
+ func (ctx *traceContext) emit(e *ViewerEvent) {
+@@ -491,11 +499,12 @@ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) {
+ 	})
+ }
+ 
++type heapCountersArg struct {
++	Allocated uint64
++	NextGC    uint64
++}
++
+ func (ctx *traceContext) emitHeapCounters(ev *trace.Event) {
+-	type Arg struct {
+-		Allocated uint64
+-		NextGC    uint64
+-	}
+ 	if ctx.gtrace {
+ 		return
+ 	}
+@@ -503,29 +512,31 @@ func (ctx *traceContext) emitHeapCounters(ev *trace.Event) {
+ 	if ctx.nextGC > ctx.heapAlloc {
+ 		diff = ctx.nextGC - ctx.heapAlloc
+ 	}
+-	ctx.emit(&ViewerEvent{Name: "Heap", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &Arg{ctx.heapAlloc, diff}})
++	ctx.emit(&ViewerEvent{Name: "Heap", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &heapCountersArg{ctx.heapAlloc, diff}})
++}
++
++type goroutineCountersArg struct {
++	Running  uint64
++	Runnable uint64
+ }
+ 
+ func (ctx *traceContext) emitGoroutineCounters(ev *trace.Event) {
+-	type Arg struct {
+-		Running  uint64
+-		Runnable uint64
+-	}
+ 	if ctx.gtrace {
+ 		return
+ 	}
+-	ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &Arg{ctx.grunning, ctx.grunnable}})
++	ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{ctx.grunning, ctx.grunnable}})
++}
++
++type threadCountersArg struct {
++	Running   uint64
++	InSyscall uint64
+ }
+ 
+ func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
+-	type Arg struct {
+-		Running   uint64
+-		InSyscall uint64
+-	}
+ 	if ctx.gtrace {
+ 		return
+ 	}
+-	ctx.emit(&ViewerEvent{Name: "Threads", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &Arg{ctx.prunning, ctx.insyscall}})
++	ctx.emit(&ViewerEvent{Name: "Threads", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &threadCountersArg{ctx.prunning, ctx.insyscall}})
+ }
+ 
+ func (ctx *traceContext) emitInstant(ev *trace.Event, name string) {
+diff --git a/src/cmd/trace/trace_test.go b/src/cmd/trace/trace_test.go
+new file mode 100644
+index 0000000000..73a2883f1e
+--- /dev/null
++++ b/src/cmd/trace/trace_test.go
+@@ -0,0 +1,62 @@
++package main
++
++import (
++	"internal/trace"
++	"testing"
++)
++
++// TestGoroutineCount tests runnable/running goroutine counts computed by generateTrace
++// remain in the valid range.
++//   - the counts must not be negative. generateTrace will return an error.
++//   - the counts must not include goroutines blocked waiting on channels or in syscall.
++func TestGoroutineCount(t *testing.T) {
++	w := trace.NewWriter()
++	w.Emit(trace.EvBatch, 0, 0)  // start of per-P batch event [pid, timestamp]
++	w.Emit(trace.EvFrequency, 1) // [ticks per second]
++
++	// In this test, we assume a valid trace contains EvGoWaiting or EvGoInSyscall
++	// event for every blocked goroutine.
++
++	// goroutine 10: blocked
++	w.Emit(trace.EvGoCreate, 1, 10, 1, 1) // [timestamp, new goroutine id, new stack id, stack id]
++	w.Emit(trace.EvGoWaiting, 1, 10)      // [timestamp, goroutine id]
++
++	// goroutine 20: in syscall
++	w.Emit(trace.EvGoCreate, 1, 20, 2, 1)
++	w.Emit(trace.EvGoInSyscall, 1, 20) // [timestamp, goroutine id]
++
++	// goroutine 30: runnable
++	w.Emit(trace.EvGoCreate, 1, 30, 5, 1)
++
++	w.Emit(trace.EvProcStart, 2, 0) // [timestamp, thread id]
++
++	// goroutine 40: runnable->running->runnable
++	w.Emit(trace.EvGoCreate, 1, 40, 7, 1)
++	w.Emit(trace.EvGoStartLocal, 1, 40) // [timestamp, goroutine id]
++	w.Emit(trace.EvGoSched, 1, 8)       // [timestamp, stack]
++
++	events, err := trace.Parse(w, "")
++	if err != nil {
++		t.Fatalf("failed to parse test trace: %v", err)
++	}
++
++	params := &traceParams{
++		events:  events,
++		endTime: int64(1<<63 - 1),
++	}
++
++	// If the counts drop below 0, generateTrace will return an error.
++	viewerData, err := generateTrace(params)
++	if err != nil {
++		t.Fatalf("generateTrace failed: %v", err)
++	}
++	for _, ev := range viewerData.Events {
++		if ev.Name == "Goroutines" {
++			cnt := ev.Arg.(*goroutineCountersArg)
++			if cnt.Runnable+cnt.Running > 2 {
++				t.Errorf("goroutine count=%+v; want no more than 2 goroutines in runnable/running state", cnt)
++			}
++			t.Logf("read %+v %+v", ev, cnt)
++		}
++	}
++}
+diff --git a/src/internal/trace/parser_test.go b/src/internal/trace/parser_test.go
+index daad3e3ad7..d6f580aed5 100644
+--- a/src/internal/trace/parser_test.go
++++ b/src/internal/trace/parser_test.go
+@@ -90,52 +90,13 @@ func TestParseVersion(t *testing.T) {
+ 
+ func TestTimestampOverflow(t *testing.T) {
+ 	// Test that parser correctly handles large timestamps (long tracing).
+-	w := newWriter()
+-	w.emit(EvBatch, 0, 0)
+-	w.emit(EvFrequency, 1e9)
++	w := NewWriter()
++	w.Emit(EvBatch, 0, 0)
++	w.Emit(EvFrequency, 1e9)
+ 	for ts := uint64(1); ts < 1e16; ts *= 2 {
+-		w.emit(EvGoCreate, ts, ts, 0, 0)
++		w.Emit(EvGoCreate, ts, ts, 0, 0)
+ 	}
+ 	if _, err := Parse(w, ""); err != nil {
+ 		t.Fatalf("failed to parse: %v", err)
+ 	}
+ }
+-
+-type writer struct {
+-	bytes.Buffer
+-}
+-
+-func newWriter() *writer {
+-	w := new(writer)
+-	w.Write([]byte("go 1.7 trace\x00\x00\x00\x00"))
+-	return w
+-}
+-
+-func (w *writer) emit(typ byte, args ...uint64) {
+-	nargs := byte(len(args)) - 1
+-	if nargs > 3 {
+-		nargs = 3
+-	}
+-	buf := []byte{typ | nargs<<6}
+-	if nargs == 3 {
+-		buf = append(buf, 0)
+-	}
+-	for _, a := range args {
+-		buf = appendVarint(buf, a)
+-	}
+-	if nargs == 3 {
+-		buf[1] = byte(len(buf) - 2)
+-	}
+-	n, err := w.Write(buf)
+-	if n != len(buf) || err != nil {
+-		panic("failed to write")
+-	}
+-}
+-
+-func appendVarint(buf []byte, v uint64) []byte {
+-	for ; v >= 0x80; v >>= 7 {
+-		buf = append(buf, 0x80|byte(v))
+-	}
+-	buf = append(buf, byte(v))
+-	return buf
+-}
+diff --git a/src/internal/trace/writer.go b/src/internal/trace/writer.go
+new file mode 100644
+index 0000000000..a481f50a7e
+--- /dev/null
++++ b/src/internal/trace/writer.go
+@@ -0,0 +1,45 @@
++package trace
++
++import "bytes"
++
++// Writer is a test trace writer.
++type Writer struct {
++	bytes.Buffer
++}
++
++func NewWriter() *Writer {
++	w := new(Writer)
++	w.Write([]byte("go 1.7 trace\x00\x00\x00\x00"))
++	return w
++}
++
++// Emit writes an event record to the trace.
++// See Event types for valid types and required arguments.
++func (w *Writer) Emit(typ byte, args ...uint64) {
++	nargs := byte(len(args)) - 1
++	if nargs > 3 {
++		nargs = 3
++	}
++	buf := []byte{typ | nargs<<6}
++	if nargs == 3 {
++		buf = append(buf, 0)
++	}
++	for _, a := range args {
++		buf = appendVarint(buf, a)
++	}
++	if nargs == 3 {
++		buf[1] = byte(len(buf) - 2)
++	}
++	n, err := w.Write(buf)
++	if n != len(buf) || err != nil {
++		panic("failed to write")
++	}
++}
++
++func appendVarint(buf []byte, v uint64) []byte {
++	for ; v >= 0x80; v >>= 7 {
++		buf = append(buf, 0x80|byte(v))
++	}
++	buf = append(buf, byte(v))
++	return buf
++}

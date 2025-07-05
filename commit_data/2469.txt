@@ -15,7 +15,7 @@ Date:   Wed Jun 17 15:12:16 2009 -0700
     DELTA=548  (183 added, 183 deleted, 182 changed)
     OCL=30381
     CL=30442
-
+---
  src/libmach_amd64/8db.c            | 133 +++++++++++++++++++++-----------
  src/pkg/runtime/Makefile           |   1 +
  src/pkg/runtime/amd64/asm.h        |  26 +++++++
@@ -28,3 +28,1262 @@ Date:   Wed Jun 17 15:12:16 2009 -0700
  src/pkg/runtime/proc.c             | 154 ++++++++++++-------------------------
  src/pkg/runtime/runtime.h          |  77 +++++++++++--------
  11 files changed, 349 insertions(+), 349 deletions(-)
+
+diff --git a/src/libmach_amd64/8db.c b/src/libmach_amd64/8db.c
+index 8706d57289..b73275899e 100644
+--- a/src/libmach_amd64/8db.c
++++ b/src/libmach_amd64/8db.c
+@@ -30,9 +30,15 @@
+ #include <libc.h>
+ #include <bio.h>
+ #include <mach_amd64.h>
++#define Ureg UregAmd64
+ #include <ureg_amd64.h>
++#undef Ureg
++#define Ureg Ureg386
++#include <ureg_x86.h>
++#undef Ureg
+ 
+-typedef struct Ureg Ureg_amd64;
++typedef struct UregAmd64 UregAmd64;
++typedef struct Ureg386 Ureg386;
+ 
+ /*
+  * i386-specific debugger interface
+@@ -52,7 +58,8 @@ static	char	STARTSYM[] =	"_main";
+ static	char	GOSTARTSYM[] =	"sys·goexit";
+ static	char	PROFSYM[] =	"_mainp";
+ static	char	FRAMENAME[] =	".frame";
+-static	char	RETFROMNEWSTACK[] = "retfromnewstack";
++static	char	LESSSTACK[] = "sys·lessstack";
++static	char	MORESTACK[] = "sys·morestack";
+ static char *excname[] =
+ {
+ [0]	"divide error",
+@@ -124,23 +131,6 @@ i386excep(Map *map, Rgetter rget)
+ 		return excname[c];
+ }
+ 
+-// borrowed from src/runtime/runtime.h
+-struct	Stktop
+-{
+-	uint8*	oldbase;
+-	uint8*	oldsp;
+-	uint64	magic;
+-	uint8*	oldguard;
+-};
+-
+-struct	G
+-{
+-	uvlong	stackguard;	// must not move
+-	uvlong	stackbase;	// must not move
+-	uvlong	stack0;		// first stack segment
+-	// rest not needed
+-};
+-
+ static int
+ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
+ {
+@@ -149,21 +139,35 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
+ 	Symbol s, f, s1;
+ 	extern Mach mamd64;
+ 	int isamd64;
+-	struct Stktop *stktop;
+-	struct G g;
+-	uvlong r15;
+-	uvlong retfromnewstack;
++	uvlong g, m, lessstack, morestack, stktop;
+ 
+ 	isamd64 = (mach == &mamd64);
+-	retfromnewstack = 0;
+-	if(isamd64) {
+-		get8(map, offsetof(Ureg_amd64, r15), &r15);
+-		get8(map, r15+offsetof(struct G, stackguard), &g.stackguard);
+-		get8(map, r15+offsetof(struct G, stackbase), &g.stackbase);
+-		get8(map, r15+offsetof(struct G, stack0), &g.stack0);
+-		if(lookup(0, RETFROMNEWSTACK, &s))
+-			retfromnewstack = s.value;
++
++	// ../pkg/runtime/runtime.h
++	// G is
++	//	byte* stackguard
++	//	byte* stackbase (= Stktop*)
++	//	Defer* defer
++	//	Gobuf sched
++	// TODO(rsc): Need some way to get at the g for other threads.
++	// Probably need to pass it into the trace function.
++	g = 0;
++	if(isamd64)
++		geta(map, offsetof(struct UregAmd64, r15), &g);
++	else {
++		// TODO(rsc): How to fetch g on 386?
+ 	}
++	stktop = 0;
++	if(g != 0)
++		geta(map, g+1*mach->szaddr, &stktop);
++
++	lessstack = 0;
++	if(lookup(0, LESSSTACK, &s))
++		lessstack = s.value;
++	morestack = 0;
++	if(lookup(0, MORESTACK, &s))
++		morestack = s.value;
++
+ 	USED(link);
+ 	osp = 0;
+ 	i = 0;
+@@ -171,13 +175,19 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
+ 	for(;;) {
+ 		if(!findsym(pc, CTEXT, &s)) {
+ 			// check for closure return sequence
+-			uchar buf[8];
++			uchar buf[8], *p;
+ 			if(get1(map, pc, buf, 8) < 0)
+ 				break;
+ 			// ADDQ $xxx, SP; RET
+-			if(buf[0] != 0x48 || buf[1] != 0x81 || buf[2] != 0xc4 || buf[7] != 0xc3)
++			p = buf;
++			if(mach == &mamd64) {
++				if(p[0] != 0x48)
++					break;
++				p++;
++			}
++			if(p[0] != 0x81 || p[1] != 0xc4 || p[6] != 0xc3)
+ 				break;
+-			sp += buf[3] | (buf[4]<<8) | (buf[5]<<16) | (buf[6]<<24);
++			sp += p[2] | (p[3]<<8) | (p[4]<<16) | (p[5]<<24);
+ 			if(geta(map, sp, &pc) < 0)
+ 				break;
+ 			sp += mach->szaddr;
+@@ -193,16 +203,53 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
+ 		   strcmp(PROFSYM, s.name) == 0)
+ 			break;
+ 
+-		if(pc == retfromnewstack) {
+-			stktop = (struct Stktop*)g.stackbase;
+-			get8(map, (uvlong)&stktop->oldbase, &g.stackbase);
+-			get8(map, (uvlong)&stktop->oldguard, &g.stackguard);
+-			get8(map, (uvlong)&stktop->oldsp, &sp);
+-			get8(map, sp+8, &pc);
+-			(*trace)(map, pc, sp +  8, &s1);
+-			sp += 16;  // two irrelevant calls on stack - morestack, plus the call morestack made
++		if(s.value == morestack) {
++			// In the middle of morestack.
++			// Caller is m->morepc.
++			// Caller's caller is in m->morearg.
++			// TODO(rsc): 386
++			geta(map, offsetof(struct UregAmd64, r14), &m);
++
++			pc = 0;
++			sp = 0;
++			pc1 = 0;
++			s1 = s;
++			memset(&s, 0, sizeof s);
++			geta(map, m+1*mach->szaddr, &pc1);	// m->morepc
++			geta(map, m+2*mach->szaddr, &sp);	// m->morebuf.sp
++			geta(map, m+3*mach->szaddr, &pc);	// m->morebuf.pc
++			findsym(pc1, CTEXT, &s);
++			(*trace)(map, pc1, sp-mach->szaddr, &s1);	// morestack symbol; caller's PC/SP
++
++			// caller's caller
++			s1 = s;
++			findsym(pc, CTEXT, &s);
++			(*trace)(map, pc, sp, &s1);		// morestack's caller; caller's caller's PC/SP
++			continue;
++		} 
++
++		if(pc == lessstack) {
++			// ../pkg/runtime/runtime.h
++			// Stktop is
++			//	byte* stackguard
++			//	byte* stackbase
++			//	Gobuf gobuf
++			//		byte* sp;
++			//		byte* pc;
++			//		G*	g;
++			if(!isamd64)
++				fprint(2, "warning: cannot unwind stack split on 386\n");
++			if(stktop == 0)
++				break;
++			pc = 0;
++			sp = 0;
++			geta(map, stktop+2*mach->szaddr, &sp);
++			geta(map, stktop+3*mach->szaddr, &pc);
++			geta(map, stktop+1*mach->szaddr, &stktop);
++			(*trace)(map, pc, sp, &s1);
+ 			continue;
+ 		}
++
+ 		s1 = s;
+ 		pc1 = 0;
+ 		if(pc != s.value) {	/* not at first instruction */
+@@ -227,7 +274,7 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
+ 		if(pc == 0)
+ 			break;
+ 
+-		if(pc != retfromnewstack)
++		if(pc != lessstack)
+ 			(*trace)(map, pc, sp, &s1);
+ 		sp += mach->szaddr;
+ 
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index cd0bdaaf4a..498bf0bef1 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -75,6 +75,7 @@ HFILES=\
+ 	runtime.h\
+ 	hashmap.h\
+ 	malloc.h\
++	$(GOARCH)/asm.h\
+ 	$(GOOS)/os.h\
+ 	$(GOOS)/$(GOARCH)/defs.h\
+ 
+diff --git a/src/pkg/runtime/amd64/asm.h b/src/pkg/runtime/amd64/asm.h
+new file mode 100644
+index 0000000000..c32da75445
+--- /dev/null
++++ b/src/pkg/runtime/amd64/asm.h
+@@ -0,0 +1,26 @@
++// Assembly constants
++
++#define	g	R15
++#define	m	R14
++
++// offsets in m
++#define	m_g0		0
++#define	m_morepc	8
++#define	m_morebuf	16
++#define	m_morearg	40
++#define	m_cret		48
++#define	m_procid	56
++#define	m_gsignal	64
++#define	m_tls		72
++#define	m_sched		104
++
++// offsets in gobuf
++#define	gobuf_sp	0
++#define	gobuf_pc	8
++#define	gobuf_g		16
++
++// offsets in g
++#define	g_stackguard	0
++#define	g_stackbase	8
++#define	g_defer		16
++#define	g_sched		24
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 6fc01bbc98..825acc4657 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -2,11 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "amd64/asm.h"
+ 
+ TEXT	_rt0_amd64(SB),7,$-8
+ 
+ 	// copy arguments forward on an even stack
+-
+ 	MOVQ	0(SP), AX		// argc
+ 	LEAQ	8(SP), BX		// argv
+ 	SUBQ	$(4*8+7), SP		// 2args 2auto
+@@ -15,16 +15,14 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	MOVQ	BX, 24(SP)
+ 
+ 	// set the per-goroutine and per-mach registers
+-
+-	LEAQ	m0(SB), R14		// dedicated m. register
+-	LEAQ	g0(SB), R15		// dedicated g. register
+-	MOVQ	R15, 0(R14)		// m has pointer to its g0
++	LEAQ	m0(SB), m
++	LEAQ	g0(SB), g
++	MOVQ	g, m_g0(m)		// m has pointer to its g0
+ 
+ 	// create istack out of the given (operating system) stack
+-
+ 	LEAQ	(-8192+104)(SP), AX
+-	MOVQ	AX, 0(R15)		// 0(R15) is stack limit (w 104b guard)
+-	MOVQ	SP, 8(R15)		// 8(R15) is base
++	MOVQ	AX, g_stackguard(g)
++	MOVQ	SP, g_stackbase(g)
+ 
+ 	CLD				// convention is D is always left cleared
+ 	CALL	check(SB)
+@@ -39,7 +37,7 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 
+ 	// create a new goroutine to start program
+ 	PUSHQ	$mainstart(SB)		// entry
+-	PUSHQ	$16			// arg size
++	PUSHQ	$0			// arg size
+ 	CALL	sys·newproc(SB)
+ 	POPQ	AX
+ 	POPQ	AX
+@@ -67,57 +65,105 @@ TEXT	breakpoint(SB),7,$0
+ /*
+  *  go-routine
+  */
+-TEXT gogo(SB), 7, $0
+-	MOVQ	8(SP), AX		// gobuf
+-	MOVQ	0(AX), SP		// restore SP
+-	MOVQ	8(AX), AX
+-	MOVQ	AX, 0(SP)		// put PC on the stack
+-	MOVL	$1, AX			// return 1
+-	RET
+ 
++// uintptr gosave(Gobuf*)
++// save state in Gobuf; setjmp
+ TEXT gosave(SB), 7, $0
+ 	MOVQ	8(SP), AX		// gobuf
+-	MOVQ	SP, 0(AX)		// save SP
+-	MOVQ	0(SP), BX
+-	MOVQ	BX, 8(AX)		// save PC
++	LEAQ	8(SP), BX		// caller's SP
++	MOVQ	BX, gobuf_sp(AX)
++	MOVQ	0(SP), BX		// caller's PC
++	MOVQ	BX, gobuf_pc(AX)
++	MOVQ	g, gobuf_g(AX)
+ 	MOVL	$0, AX			// return 0
+ 	RET
+ 
++// void gogo(Gobuf*, uintptr)
++// restore state from Gobuf; longjmp
++TEXT gogo(SB), 7, $0
++	MOVQ	16(SP), AX		// return 2nd arg
++	MOVQ	8(SP), BX		// gobuf
++	MOVQ	gobuf_g(BX), g
++	MOVQ	0(g), CX		// make sure g != nil
++	MOVQ	gobuf_sp(BX), SP	// restore SP
++	MOVQ	gobuf_pc(BX), BX
++	JMP	BX
++
++// void gogocall(Gobuf*, void (*fn)(void))
++// restore state from Gobuf but then call fn.
++// (call fn, returning to state in Gobuf)
++TEXT gogocall(SB), 7, $0
++	MOVQ	16(SP), AX		// fn
++	MOVQ	8(SP), BX		// gobuf
++	MOVQ	gobuf_g(BX), g
++	MOVQ	0(g), CX		// make sure g != nil
++	MOVQ	gobuf_sp(BX), SP	// restore SP
++	MOVQ	gobuf_pc(BX), BX
++	PUSHQ	BX
++	JMP	AX
++	POPQ	BX	// not reached
++
+ /*
+  * support for morestack
+  */
+ 
++// Called during function prolog when more stack is needed.
++TEXT sys·morestack(SB),7,$0
++	// Called from f.
++	// Set m->morebuf to f's caller.
++	MOVQ	8(SP), AX	// f's caller's PC
++	MOVQ	AX, (m_morebuf+gobuf_pc)(m)
++	LEAQ	16(SP), AX	// f's caller's SP
++	MOVQ	AX, (m_morebuf+gobuf_sp)(m)
++	MOVQ	g, (m_morebuf+gobuf_g)(m)
++
++	// Set m->morepc to f's PC.
++	MOVQ	0(SP), AX
++	MOVQ	AX, m_morepc(m)
++
++	// Call newstack on m's scheduling stack.
++	MOVQ	m_g0(m), g
++	MOVQ	(m_sched+gobuf_sp)(m), SP
++	CALL	newstack(SB)
++	MOVQ	$0, 0x1003	// crash if newstack returns
++	RET
++
++// Return point when leaving stack.
++TEXT sys·lessstack(SB), 7, $0
++	// Save return value in m->cret
++	MOVQ	AX, m_cret(m)
++
++	// Call oldstack on m's scheduling stack.
++	MOVQ	m_g0(m), g
++	MOVQ	(m_sched+gobuf_sp)(m), SP
++	CALL	oldstack(SB)
++	MOVQ	$0, 0x1004	// crash if oldstack returns
++	RET
++
+ // morestack trampolines
+ TEXT	sys·morestack00+0(SB),7,$0
+ 	MOVQ	$0, AX
+-	MOVQ	AX, 8(R14)
++	MOVQ	AX, m_morearg(m)
+ 	MOVQ	$sys·morestack+0(SB), AX
+ 	JMP	AX
+ 
+ TEXT	sys·morestack01+0(SB),7,$0
+ 	SHLQ	$32, AX
+-	MOVQ	AX, 8(R14)
++	MOVQ	AX, m_morearg(m)
+ 	MOVQ	$sys·morestack+0(SB), AX
+ 	JMP	AX
+ 
+ TEXT	sys·morestack10+0(SB),7,$0
+ 	MOVLQZX	AX, AX
+-	MOVQ	AX, 8(R14)
++	MOVQ	AX, m_morearg(m)
+ 	MOVQ	$sys·morestack+0(SB), AX
+ 	JMP	AX
+ 
+ TEXT	sys·morestack11+0(SB),7,$0
+-	MOVQ	AX, 8(R14)
++	MOVQ	AX, m_morearg(m)
+ 	MOVQ	$sys·morestack+0(SB), AX
+ 	JMP	AX
+ 
+-TEXT	sys·morestackx(SB),7,$0
+-	POPQ	AX
+-	SHLQ	$35, AX
+-	MOVQ	AX, 8(R14)
+-	MOVQ	$sys·morestack(SB), AX
+-	JMP	AX
+-
+ // subcases of morestack01
+ // with const of 8,16,...48
+ TEXT	sys·morestack8(SB),7,$0
+@@ -150,31 +196,13 @@ TEXT	sys·morestack48(SB),7,$0
+ 	MOVQ	$sys·morestackx(SB), AX
+ 	JMP	AX
+ 
+-// return point when leaving new stack.  save AX, jmp to lessstack to switch back
+-TEXT retfromnewstack(SB), 7, $0
+-	MOVQ	AX, 16(R14)	// save AX in m->cret
+-	MOVQ	$lessstack(SB), AX
++TEXT	sys·morestackx(SB),7,$0
++	POPQ	AX
++	SHLQ	$35, AX
++	MOVQ	AX, m_morearg(m)
++	MOVQ	$sys·morestack(SB), AX
+ 	JMP	AX
+ 
+-// gogo, returning 2nd arg instead of 1
+-TEXT gogoret(SB), 7, $0
+-	MOVQ	16(SP), AX			// return 2nd arg
+-	MOVQ	8(SP), BX		// gobuf
+-	MOVQ	0(BX), SP		// restore SP
+-	MOVQ	8(BX), BX
+-	MOVQ	BX, 0(SP)		// put PC on the stack
+-	RET
+-
+-TEXT setspgoto(SB), 7, $0
+-	MOVQ	8(SP), AX		// SP
+-	MOVQ	16(SP), BX		// fn to call
+-	MOVQ	24(SP), CX		// fn to return
+-	MOVQ	AX, SP
+-	PUSHQ	CX
+-	JMP	BX
+-	POPQ	AX	// not reached
+-	RET
+-
+ // bool cas(int32 *val, int32 old, int32 new)
+ // Atomically:
+ //	if(*val == old){
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index 16d7bed72e..80e79b0e8b 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -24,12 +24,11 @@ traceback(byte *pc0, byte *sp, G *g)
+ 
+ 	stk = (Stktop*)g->stackbase;
+ 	for(n=0; n<100; n++) {
+-		while(pc == (uint64)retfromnewstack) {
++		if(pc == (uint64)sys·lessstack) {
+ 			// pop to earlier stack block
+-			sp = stk->oldsp;
+-			stk = (Stktop*)stk->oldbase;
+-			pc = *(uint64*)(sp+8);
+-			sp += 16;	// two irrelevant calls on stack: morestack plus its call
++			pc = (uintptr)stk->gobuf.pc;
++			sp = stk->gobuf.sp;
++			stk = (Stktop*)stk->stackbase;
+ 		}
+ 		f = findfunc(pc);
+ 		if(f == nil) {
+@@ -46,8 +45,8 @@ traceback(byte *pc0, byte *sp, G *g)
+ 			printf("%p unknown pc\n", pc);
+ 			return;
+ 		}
+-		if(f->frame < 8)	// assembly funcs say 0 but lie
+-			sp += 8;
++		if(f->frame < sizeof(uintptr))	// assembly funcs say 0 but lie
++			sp += sizeof(uintptr);
+ 		else
+ 			sp += f->frame;
+ 
+@@ -56,7 +55,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ 		//		main(0x1, 0x2, 0x3)
+ 		printf("%S", f->name);
+ 		if(pc > f->entry)
+-			printf("+%X", pc - f->entry);
++			printf("+%p", (uintptr)(pc - f->entry));
+ 		printf(" %S:%d\n", f->src, funcline(f, pc-1));	// -1 to get to CALL instr.
+ 		printf("\t%S(", f->name);
+ 		for(i = 0; i < f->args; i++) {
+@@ -70,7 +69,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ 		}
+ 		prints(")\n");
+ 
+-		pc = *(uint64*)(sp-8);
++		pc = *(uintptr*)(sp-sizeof(uintptr));
+ 		if(pc <= 0x1000)
+ 			return;
+ 	}
+@@ -106,20 +105,19 @@ runtime·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbo
+ 	// now unwind n levels
+ 	stk = (Stktop*)g->stackbase;
+ 	while(n-- > 0) {
+-		while(pc == (uint64)retfromnewstack) {
+-			sp = stk->oldsp;
+-			stk = (Stktop*)stk->oldbase;
+-			pc = *(uint64*)(sp+8);
+-			sp += 16;
++		while(pc == (uintptr)sys·lessstack) {
++			pc = (uintptr)stk->gobuf.pc;
++			sp = stk->gobuf.sp;
++			stk = (Stktop*)stk->stackbase;
+ 		}
+ 
+-		if(f->frame < 8)	// assembly functions lie
+-			sp += 8;
++		if(f->frame < sizeof(uintptr))	// assembly functions lie
++			sp += sizeof(uintptr);
+ 		else
+ 			sp += f->frame;
+ 
+ 	loop:
+-		pc = *(uint64*)(sp-8);
++		pc = *((uintptr*)sp - 1);
+ 		if(pc <= 0x1000 || (f = findfunc(pc)) == nil) {
+ 			// dangerous, but let's try this.
+ 			// see if it is a closure.
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index b46c823ae4..b8f046497f 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -8,6 +8,8 @@
+ // or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
+ //
+ 
++#include "amd64/asm.h"
++
+ // Exit the entire program (like C exit)
+ TEXT	exit(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 exit status
+@@ -25,8 +27,8 @@ TEXT	exit1(SB),7,$-8
+ 	CALL	notok(SB)
+ 	RET
+ 
+-TEXT	sys·write(SB),7,$-8
+-	MOVL	8(SP), DI		// arg 1 fid
++TEXT	write(SB),7,$-8
++	MOVL	8(SP), DI		// arg 1 fd
+ 	MOVQ	16(SP), SI		// arg 2 buf
+ 	MOVL	24(SP), DX		// arg 3 count
+ 	MOVL	$(0x2000000+4), AX	// syscall entry
+@@ -35,44 +37,6 @@ TEXT	sys·write(SB),7,$-8
+ 	CALL	notok(SB)
+ 	RET
+ 
+-TEXT	open(SB),7,$-8
+-	MOVQ	8(SP), DI
+-	MOVL	16(SP), SI
+-	MOVL	20(SP), DX
+-	MOVQ	$0, R10
+-	MOVL	$(0x2000000+5), AX	// syscall entry
+-	SYSCALL
+-	RET
+-
+-TEXT	close(SB),7,$-8
+-	MOVL	8(SP), DI
+-	MOVL	$(0x2000000+6), AX	// syscall entry
+-	SYSCALL
+-	RET
+-
+-TEXT	fstat(SB),7,$-8
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVL	$(0x2000000+339), AX	// syscall entry; really fstat64
+-	SYSCALL
+-	RET
+-
+-TEXT	read(SB),7,$-8
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVL	24(SP), DX
+-	MOVL	$(0x2000000+3), AX	// syscall entry
+-	SYSCALL
+-	RET
+-
+-TEXT	write(SB),7,$-8
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVL	24(SP), DX
+-	MOVL	$(0x2000000+4), AX	// syscall entry
+-	SYSCALL
+-	RET
+-
+ TEXT	sigaction(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 sig
+ 	MOVQ	16(SP), SI		// arg 2 act
+@@ -86,10 +50,10 @@ TEXT	sigaction(SB),7,$-8
+ 	RET
+ 
+ TEXT sigtramp(SB),7,$40
+-	MOVQ	32(R14), R15	// g = m->gsignal
+-	MOVL	DX,0(SP)
+-	MOVQ	CX,8(SP)
+-	MOVQ	R8,16(SP)
++	MOVQ	m_gsignal(m), g
++	MOVL	DX, 0(SP)
++	MOVQ	CX, 8(SP)
++	MOVQ	R8, 16(SP)
+ 	MOVQ	R8, 24(SP)	// save ucontext
+ 	MOVQ	SI, 32(SP)	// save infostyle
+ 	CALL	DI
+@@ -154,9 +118,9 @@ TEXT bsdthread_create(SB),7,$-8
+ 	// The ones in quotes pass through to the thread callback
+ 	// uninterpreted, so we can put whatever we want there.
+ 	MOVQ	fn+32(SP), DI	// "func"
+-	MOVQ	m+16(SP), SI	// "arg"
++	MOVQ	mm+16(SP), SI	// "arg"
+ 	MOVQ	stk+8(SP), DX	// stack
+-	MOVQ	g+24(SP), R10	// "pthread"
++	MOVQ	gg+24(SP), R10	// "pthread"
+ // TODO(rsc): why do we get away with 0 flags here but not on 386?
+ 	MOVQ	$0, R8	// flags
+ 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
+@@ -176,9 +140,9 @@ TEXT bsdthread_create(SB),7,$-8
+ //	R9 = flags (= 0)
+ //	SP = stack - C_64_REDZONE_LEN (= stack - 128)
+ TEXT bsdthread_start(SB),7,$-8
+-	MOVQ	CX, R14	// m
+-	MOVQ	DI, R15	// g
+-	MOVQ	SI, 24(R14)	// thread port is m->procid
++	MOVQ	CX, m
++	MOVQ	DI, g
++	MOVQ	SI, m_procid(m)	// thread port is m->procid
+ 	CALL	DX	// fn
+ 	CALL	exit1(SB)
+ 	RET
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index f90c704faf..8ee0ed2f90 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -6,6 +6,8 @@
+ // System calls and other sys.stuff for AMD64, Linux
+ //
+ 
++#include "amd64/asm.h"
++
+ TEXT	exit(SB),7,$0-8
+ 	MOVL	8(SP), DI
+ 	MOVL	$231, AX	// exitgroup - force all os threads to exi
+@@ -26,27 +28,6 @@ TEXT	open(SB),7,$0-16
+ 	SYSCALL
+ 	RET
+ 
+-TEXT	close(SB),7,$0-8
+-	MOVL	8(SP), DI
+-	MOVL	$3, AX			// syscall entry
+-	SYSCALL
+-	RET
+-
+-TEXT	fstat(SB),7,$0-16
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVL	$5, AX			// syscall entry
+-	SYSCALL
+-	RET
+-
+-TEXT	read(SB),7,$0-24
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVL	24(SP), DX
+-	MOVL	$0, AX			// syscall entry
+-	SYSCALL
+-	RET
+-
+ TEXT	write(SB),7,$0-24
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+@@ -73,10 +54,10 @@ TEXT	rt_sigaction(SB),7,$0-32
+ 	RET
+ 
+ TEXT	sigtramp(SB),7,$24-16
+-	MOVQ	32(R14), R15	// g = m->gsignal
+-	MOVQ	DI,0(SP)
+-	MOVQ	SI,8(SP)
+-	MOVQ	DX,16(SP)
++	MOVQ	m_gsignal(m), g
++	MOVQ	DI, 0(SP)
++	MOVQ	SI, 8(SP)
++	MOVQ	DX, 16(SP)
+ 	CALL	sighandler(SB)
+ 	RET
+ 
+@@ -151,8 +132,8 @@ TEXT clone(SB),7,$0
+ 
+ 	// Copy m, g, fn off parent stack for use by child.
+ 	// Careful: Linux system call clobbers CX and R11.
+-	MOVQ	m+24(SP), R8
+-	MOVQ	g+32(SP), R9
++	MOVQ	mm+24(SP), R8
++	MOVQ	gg+32(SP), R9
+ 	MOVQ	fn+40(SP), R12
+ 
+ 	MOVL	$56, AX
+@@ -165,13 +146,13 @@ TEXT clone(SB),7,$0
+ 
+ 	// In child, set up new stack
+ 	MOVQ	SI, SP
+-	MOVQ	R8, R14	// m
+-	MOVQ	R9, R15	// g
++	MOVQ	R8, m
++	MOVQ	R9, g
+ 
+ 	// Initialize m->procid to Linux tid
+ 	MOVL	$186, AX	// gettid
+ 	SYSCALL
+-	MOVQ	AX, 24(R14)
++	MOVQ	AX, m_procid(m)
+ 
+ 	// Call fn
+ 	CALL	R12
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 75f2003783..fedc94066d 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -66,12 +66,12 @@ scanstack(G *g)
+ 	Stktop *stk;
+ 	byte *sp;
+ 
+-	sp = g->sched.SP;
++	sp = g->sched.sp;
+ 	stk = (Stktop*)g->stackbase;
+ 	while(stk) {
+ 		scanblock(0, sp, (byte*)stk - sp);
+-		sp = stk->oldsp;
+-		stk = (Stktop*)stk->oldbase;
++		sp = stk->gobuf.sp;
++		stk = (Stktop*)stk->stackbase;
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index 5295e338d1..c7e09030e1 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -25,7 +25,7 @@ dump(byte *p, int32 n)
+ void
+ prints(int8 *s)
+ {
+-	sys·write(1, s, findnull((byte*)s));
++	write(1, s, findnull((byte*)s));
+ }
+ 
+ // Very simple printf.  Only for debugging prints.
+@@ -42,7 +42,7 @@ printf(int8 *s, ...)
+ 		if(*p != '%')
+ 			continue;
+ 		if(p > lp)
+-			sys·write(1, lp, p-lp);
++			write(1, lp, p-lp);
+ 		p++;
+ 		narg = nil;
+ 		switch(*p) {
+@@ -95,7 +95,7 @@ printf(int8 *s, ...)
+ 		lp = p+1;
+ 	}
+ 	if(p > lp)
+-		sys·write(1, lp, p-lp);
++		write(1, lp, p-lp);
+ }
+ 
+ 
+@@ -110,10 +110,10 @@ void
+ sys·printbool(bool v)
+ {
+ 	if(v) {
+-		sys·write(1, (byte*)"true", 4);
++		write(1, (byte*)"true", 4);
+ 		return;
+ 	}
+-	sys·write(1, (byte*)"false", 5);
++	write(1, (byte*)"false", 5);
+ }
+ 
+ void
+@@ -124,15 +124,15 @@ sys·printfloat(float64 v)
+ 	float64 h;
+ 
+ 	if(isNaN(v)) {
+-		sys·write(1, "NaN", 3);
++		write(1, "NaN", 3);
+ 		return;
+ 	}
+ 	if(isInf(v, 0)) {
+-		sys·write(1, "+Inf", 4);
++		write(1, "+Inf", 4);
+ 		return;
+ 	}
+ 	if(isInf(v, -1)) {
+-		sys·write(1, "+Inf", 4);
++		write(1, "+Inf", 4);
+ 		return;
+ 	}
+ 
+@@ -191,7 +191,7 @@ sys·printfloat(float64 v)
+ 	buf[n+4] = (e/100) + '0';
+ 	buf[n+5] = (e/10)%10 + '0';
+ 	buf[n+6] = (e%10) + '0';
+-	sys·write(1, buf, n+7);
++	write(1, buf, n+7);
+ }
+ 
+ void
+@@ -206,14 +206,14 @@ sys·printuint(uint64 v)
+ 			break;
+ 		v = v/10;
+ 	}
+-	sys·write(1, buf+i, nelem(buf)-i);
++	write(1, buf+i, nelem(buf)-i);
+ }
+ 
+ void
+ sys·printint(int64 v)
+ {
+ 	if(v < 0) {
+-		sys·write(1, "-", 1);
++		write(1, "-", 1);
+ 		v = -v;
+ 	}
+ 	sys·printuint(v);
+@@ -233,7 +233,7 @@ sys·printhex(uint64 v)
+ 		buf[--i] = '0';
+ 	buf[--i] = 'x';
+ 	buf[--i] = '0';
+-	sys·write(1, buf+i, nelem(buf)-i);
++	write(1, buf+i, nelem(buf)-i);
+ }
+ 
+ void
+@@ -248,21 +248,21 @@ sys·printstring(String v)
+ 	extern int32 maxstring;
+ 
+ 	if(v.len > maxstring) {
+-		sys·write(1, "[invalid string]", 16);
++		write(1, "[invalid string]", 16);
+ 		return;
+ 	}
+ 	if(v.len > 0)
+-		sys·write(1, v.str, v.len);
++		write(1, v.str, v.len);
+ }
+ 
+ void
+ sys·printsp(void)
+ {
+-	sys·write(1, " ", 1);
++	write(1, " ", 1);
+ }
+ 
+ void
+ sys·printnl(void)
+ {
+-	sys·write(1, "\n", 1);
++	write(1, "\n", 1);
+ }
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index ada3efd4f6..87b89f6a1a 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -149,7 +149,7 @@ tracebackothers(G *me)
+ 		if(g == me || g->status == Gdead)
+ 			continue;
+ 		printf("\ngoroutine %d:\n", g->goid);
+-		traceback(g->sched.PC, g->sched.SP+sizeof(uintptr), g);  // gogo adjusts SP by one word
++		traceback(g->sched.pc, g->sched.sp, g);
+ 	}
+ }
+ 
+@@ -387,7 +387,7 @@ matchmg(void)
+ 			m->id = sched.mcount++;
+ 			if(debug) {
+ 				lock(&debuglock);
+-				printf("alloc m%d g%d\n", m->id, g->goid);
++				printf("alloc m=%p m%d g%d\n", m, m->id, g->goid);
+ 				unlock(&debuglock);
+ 			}
+ 			newosproc(m, m->g0, m->g0->stackbase, mstart);
+@@ -402,7 +402,7 @@ scheduler(void)
+ 	G* gp;
+ 
+ 	lock(&sched);
+-	if(gosave(&m->sched)){
++	if(gosave(&m->sched) != 0){
+ 		// Jumped here via gosave/gogo, so didn't
+ 		// execute lock(&sched) above.
+ 		lock(&sched);
+@@ -446,14 +446,15 @@ scheduler(void)
+ 	gp->status = Grunning;
+ 	if(debug > 1) {
+ 		lock(&debuglock);
+-		printf("m%d run g%d at %p\n", m->id, gp->goid, gp->sched.PC);
+-		traceback(gp->sched.PC, gp->sched.SP+sizeof(uintptr), gp);
++		printf("m%d run g%d at %p\n", m->id, gp->goid, gp->sched.pc);
++		traceback(gp->sched.pc, gp->sched.sp, gp);
+ 		unlock(&debuglock);
+ 	}
+ 	m->curg = gp;
+ 	gp->m = m;
+-	g = gp;
+-	gogo(&gp->sched);
++	if(gp->sched.pc == (byte*)goexit)	// kickoff
++		gogocall(&gp->sched, (void(*)(void))gp->entry);
++	gogo(&gp->sched, 1);
+ }
+ 
+ // Enter scheduler.  If g->status is Grunning,
+@@ -465,10 +466,8 @@ gosched(void)
+ {
+ 	if(g == m->g0)
+ 		throw("gosched of g0");
+-	if(gosave(&g->sched) == 0){
+-		g = m->g0;
+-		gogo(&m->sched);
+-	}
++	if(gosave(&g->sched) == 0)
++		gogo(&m->sched, 1);
+ }
+ 
+ // The goroutine g is about to enter a system call.
+@@ -606,53 +605,28 @@ enum
+ void
+ oldstack(void)
+ {
+-	Stktop *top;
++	Stktop *top, old;
+ 	uint32 args;
+ 	byte *sp;
+-	uintptr oldsp, oldpc, oldbase, oldguard;
+-
+-// printf("oldstack m->cret=%p\n", m->cret);
+-
+-	top = (Stktop*)m->curg->stackbase;
++	G *g1;
+ 
+-	args = (top->magic>>32) & 0xffffLL;
++//printf("oldstack m->cret=%p\n", m->cret);
+ 
++	g1 = m->curg;
++	top = (Stktop*)g1->stackbase;
+ 	sp = (byte*)top;
++	old = *top;
++	args = old.args;
+ 	if(args > 0) {
+-		args = (args+7) & ~7;
+ 		sp -= args;
+-		mcpy(top->oldsp+2*sizeof(uintptr), sp, args);
++		mcpy(top->gobuf.sp, sp, args);
+ 	}
+ 
+-	oldsp = (uintptr)top->oldsp + sizeof(uintptr);
+-	oldpc = *(uintptr*)oldsp;
+-	oldbase = (uintptr)top->oldbase;
+-	oldguard = (uintptr)top->oldguard;
+-
+-	stackfree((byte*)m->curg->stackguard - StackGuard);
+-
+-	m->curg->stackbase = (byte*)oldbase;
+-	m->curg->stackguard = (byte*)oldguard;
+-	m->morestack.SP = (byte*)oldsp;
+-	m->morestack.PC = (byte*)oldpc;
+-
+-	// These two lines must happen in sequence;
+-	// once g has been changed, must switch to g's stack
+-	// before calling any non-assembly functions.
+-	// TODO(rsc): Perhaps make the new g a parameter
+-	// to gogoret and setspgoto, so that g is never
+-	// explicitly assigned to without also setting
+-	// the stack pointer.
+-	g = m->curg;
+-	gogoret(&m->morestack, m->cret);
+-}
++	stackfree((byte*)g1->stackguard - StackGuard);
++	g1->stackbase = old.stackbase;
++	g1->stackguard = old.stackguard;
+ 
+-#pragma textflag 7
+-void
+-lessstack(void)
+-{
+-	g = m->g0;
+-	setspgoto(m->sched.SP, oldstack, nil);
++	gogo(&old.gobuf, m->cret);
+ }
+ 
+ void
+@@ -661,75 +635,49 @@ newstack(void)
+ 	int32 frame, args;
+ 	Stktop *top;
+ 	byte *stk, *sp;
+-	void (*fn)(void);
+-
+-	frame = m->morearg & 0xffffffffLL;
+-	args = (m->morearg>>32) & 0xffffLL;
++	G *g1;
++	Gobuf label;
+ 
+-// printf("newstack frame=%d args=%d moresp=%p morepc=%p\n", frame, args, m->moresp, *(uintptr*)m->moresp);
++	frame = m->moreframe;
++	args = m->moreargs;
++	
++	// Round up to align things nicely.
++	// This is sufficient for both 32- and 64-bit machines.
++	args = (args+7) & ~7;
+ 
+ 	if(frame < StackBig)
+ 		frame = StackBig;
+ 	frame += 1024;	// for more functions, Stktop.
+ 	stk = stackalloc(frame);
+ 
+-	top = (Stktop*)(stk+frame-sizeof(*top));
++//printf("newstack frame=%d args=%d morepc=%p gobuf=%p, %p newstk=%p\n", frame, args, m->morepc, g->sched.pc, g->sched.sp, stk);
+ 
+-	top->oldbase = m->curg->stackbase;
+-	top->oldguard = m->curg->stackguard;
+-	top->oldsp = m->moresp;
+-	top->magic = m->morearg;
++	g1 = m->curg;
++	top = (Stktop*)(stk+frame-sizeof(*top));
++	top->stackbase = g1->stackbase;
++	top->stackguard = g1->stackguard;
++	top->gobuf = m->morebuf;
++	top->args = args;
+ 
+-	m->curg->stackbase = (byte*)top;
+-	m->curg->stackguard = stk + StackGuard;
++	g1->stackbase = (byte*)top;
++	g1->stackguard = stk + StackGuard;
+ 
+ 	sp = (byte*)top;
+-
+ 	if(args > 0) {
+-		// Copy args.  There have been two function calls
+-		// since they got pushed, so skip over those return
+-		// addresses.
+-		args = (args+7) & ~7;
+ 		sp -= args;
+-		mcpy(sp, m->moresp+2*sizeof(uintptr), args);
++		mcpy(sp, top->gobuf.sp, args);
+ 	}
+ 
+-	g = m->curg;
+-
+-	// sys.morestack's return address
+-	fn = (void(*)(void))(*(uintptr*)m->moresp);
+-
+-// printf("fn=%p\n", fn);
+-
+-	setspgoto(sp, fn, retfromnewstack);
++	// Continue as if lessstack had just called m->morepc
++	// (the PC that decided to grow the stack).
++	label.sp = sp;
++	label.pc = (byte*)sys·lessstack;
++	label.g = m->curg;
++	gogocall(&label, m->morepc);
+ 
+ 	*(int32*)345 = 123;	// never return
+ }
+ 
+-#pragma textflag 7
+-void
+-sys·morestack(uintptr u)
+-{
+-	while(g == m->g0) {
+-		// very bad news
+-		*(int32*)0x1001 = 123;
+-	}
+-
+-	// Morestack's frame is about 0x30 bytes on amd64.
+-	// If that the frame ends below the stack bottom, we've already
+-	// overflowed.  Stop right now.
+-	while((byte*)&u - 0x30 < m->curg->stackguard - StackGuard) {
+-		// very bad news
+-		*(int32*)0x1002 = 123;
+-	}
+-
+-	g = m->g0;
+-	m->moresp = (byte*)(&u-1);
+-	setspgoto(m->sched.SP, newstack, nil);
+-
+-	*(int32*)0x1003 = 123;	// never return
+-}
+-
+ G*
+ malg(int32 stacksize)
+ {
+@@ -786,12 +734,10 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ 	sp -= siz;
+ 	mcpy(sp, (byte*)&arg0, siz);
+ 
+-	sp -= sizeof(uintptr);
+-	*(byte**)sp = (byte*)goexit;
+-
+-	sp -= sizeof(uintptr);	// retpc used by gogo
+-	newg->sched.SP = sp;
+-	newg->sched.PC = fn;
++	newg->sched.sp = sp;
++	newg->sched.pc = (byte*)goexit;
++	newg->sched.g = newg;
++	newg->entry = fn;
+ 
+ 	sched.gcount++;
+ 	goidgen++;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index dc80a088dc..59dba49d84 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -134,16 +134,25 @@ struct	Array
+ };
+ struct	Gobuf
+ {
+-	byte*	SP;
+-	byte*	PC;
++	// Offsets of fields in this struct are known to assembly.
++	// Any changes made here must be reflected in */asm.h.
++	// The debuggers also know the layout of this struct.
++	byte*	sp;
++	byte*	pc;
++	G*	g;
+ };
+ struct	G
+ {
+-	byte*	stackguard;	// must not move
+-	byte*	stackbase;	// must not move
+-	Defer*	defer;		// must not move
++	// Offsets of fields in this block are known to assembly.
++	// Any changes made here must be reflected in */asm.h.
++	byte*	stackguard;	// cannot move - also known to linker, debuggers
++	byte*	stackbase;	// cannot move - also known to debuggers
++	Defer*	defer;
++	Gobuf	sched;		// cannot move - also known to debuggers
++
++	// Fields not known to assembly.
+ 	byte*	stack0;		// first stack segment
+-	Gobuf	sched;
++	byte*	entry;		// initial function
+ 	G*	alllink;	// on allg
+ 	void*	param;		// passed parameter on wakeup
+ 	int16	status;
+@@ -151,7 +160,7 @@ struct	G
+ 	int32	selgen;		// valid sudog pointer
+ 	G*	schedlink;
+ 	bool	readyonstop;
+-	M*	m;		// for debuggers
++	M*	m;		// for debuggers, but offset not hard-coded
+ };
+ struct	Mem
+ {
+@@ -162,19 +171,24 @@ struct	Mem
+ };
+ struct	M
+ {
+-	G*	g0;		// g0 w interrupt stack - must not move
+-	uint64	morearg;	// arg to morestack - must not move
+-	uint64	cret;		// return value from C - must not move
+-	uint64	procid;		// for debuggers - must not move
+-	G*	gsignal;	// signal-handling G - must not move
+-	G*	curg;		// current running goroutine - must not move
+-	G*	lastg;		// last running goroutine - to emulate fifo - must not move
+-	uint32	tls[8];		// thread-local storage (for 386 extern register) - must not move
+-	Gobuf	sched;
+-	Gobuf	morestack;
+-	byte*	moresp;
+-	int32	siz1;
+-	int32	siz2;
++	// Offsets of fields in this block are known to assembly.
++	// Any changes made here must be reflected in */asm.h.
++	// These are known to debuggers.
++	G*	g0;		// goroutine with scheduling stack
++	void	(*morepc)(void);
++	Gobuf	morebuf;	// gobuf arg to morestack
++
++	// Known to assembly, but not to debuggers.
++	uint32	moreframe;	// size arguments to morestack
++	uint32	moreargs;
++	uintptr	cret;		// return value from C
++	uint64	procid;		// for debuggers, but offset not hard-coded
++	G*	gsignal;	// signal-handling G
++	uint32	tls[8];		// thread-local storage (for 386 extern register)
++	Gobuf	sched;	// scheduling stack
++	G*	curg;		// current running goroutine
++
++	// Fields not known to assembly.
+ 	int32	id;
+ 	int32	mallocing;
+ 	int32	gcing;
+@@ -188,10 +202,11 @@ struct	M
+ };
+ struct	Stktop
+ {
+-	uint8*	oldbase;
+-	uint8*	oldsp;
+-	uint64	magic;
+-	uint8*	oldguard;
++	// The debuggers know the layout of this struct.
++	uint8*	stackguard;
++	uint8*	stackbase;
++	Gobuf	gobuf;
++	uint32	args;
+ };
+ struct	Alg
+ {
+@@ -287,12 +302,11 @@ int32	charntorune(int32*, uint8*, int32);
+ /*
+  * very low level c-called
+  */
+-int32	gogo(Gobuf*);
+-int32	gosave(Gobuf*);
+-int32	gogoret(Gobuf*, uint64);
+-void	retfromnewstack(void);
++void	gogo(Gobuf*, uintptr);
++void	gogocall(Gobuf*, void(*)(void));
++uintptr	gosave(Gobuf*);
++void	sys·lessstack(void);
+ void	goargs(void);
+-void	setspgoto(byte*, void(*)(void), void(*)(void));
+ void	FLUSH(void*);
+ void*	getu(void);
+ void	throw(int8*);
+@@ -311,10 +325,7 @@ int32	gotraceback(void);
+ void	traceback(uint8 *pc, uint8 *sp, G* gp);
+ void	tracebackothers(G*);
+ int32	open(byte*, int32, ...);
+-int32	read(int32, void*, int32);
+ int32	write(int32, void*, int32);
+-void	close(int32);
+-int32	fstat(int32, void*);
+ bool	cas(uint32*, uint32, uint32);
+ void	jmpdefer(byte*, void*);
+ void	exit1(int32);
+@@ -395,7 +406,6 @@ void	notewakeup(Note*);
+  */
+ #ifndef __GNUC__
+ #define sys_memclr sys·memclr
+-#define sys_write sys·write
+ #define sys_catstring sys·catstring
+ #define sys_cmpstring sys·cmpstring
+ #define sys_getcallerpc sys·getcallerpc
+@@ -421,7 +431,6 @@ void	notewakeup(Note*);
+ /*
+  * low level go-called
+  */
+-void	sys_write(int32, void*, int32);
+ uint8*	sys_mmap(byte*, uint32, int32, int32, int32, uint32);
+ void	sys_memclr(byte*, uint32);
+ void	sys_setcallerpc(void*, void*);

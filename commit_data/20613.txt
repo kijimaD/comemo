@@ -10,9 +10,71 @@ Date:   Wed Sep 24 16:53:34 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews, r
     https://golang.org/cl/146240043
-
+---
  src/cmd/gc/fmt.c                  | 15 +++++----------
  test/fixedbugs/issue8280.dir/a.go |  3 +++
  test/fixedbugs/issue8280.dir/b.go |  5 +++++
  test/fixedbugs/issue8280.go       |  9 +++++++++
  4 files changed, 22 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 98556a658f..f67757449b 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1108,16 +1108,11 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 
+ 	case ONAME:
+ 		// Special case: name used as local variable in export.
+-		switch(n->class&~PHEAP){
+-		case PAUTO:
+-		case PPARAM:
+-		case PPARAMOUT:
+-			// _ becomes ~b%d internally; print as _ for export
+-			if(fmtmode == FExp && n->sym && n->sym->name[0] == '~' && n->sym->name[1] == 'b')
+-				return fmtprint(f, "_");
+-			if(fmtmode == FExp && n->sym && !isblank(n) && n->vargen > 0)
+-				return fmtprint(f, "%S·%d", n->sym, n->vargen);
+-		}
++		// _ becomes ~b%d internally; print as _ for export
++		if(fmtmode == FExp && n->sym && n->sym->name[0] == '~' && n->sym->name[1] == 'b')
++			return fmtprint(f, "_");
++		if(fmtmode == FExp && n->sym && !isblank(n) && n->vargen > 0)
++			return fmtprint(f, "%S·%d", n->sym, n->vargen);
+ 
+ 		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
+ 		// but for export, this should be rendered as (*pkg.T).meth.
+diff --git a/test/fixedbugs/issue8280.dir/a.go b/test/fixedbugs/issue8280.dir/a.go
+new file mode 100644
+index 0000000000..588536e79a
+--- /dev/null
++++ b/test/fixedbugs/issue8280.dir/a.go
+@@ -0,0 +1,3 @@
++package a
++
++var Bar = func() (_ int) { return 0 }
+diff --git a/test/fixedbugs/issue8280.dir/b.go b/test/fixedbugs/issue8280.dir/b.go
+new file mode 100644
+index 0000000000..c46c554588
+--- /dev/null
++++ b/test/fixedbugs/issue8280.dir/b.go
+@@ -0,0 +1,5 @@
++package b
++
++import "./a"
++
++var foo = a.Bar
+diff --git a/test/fixedbugs/issue8280.go b/test/fixedbugs/issue8280.go
+new file mode 100644
+index 0000000000..91256c852d
+--- /dev/null
++++ b/test/fixedbugs/issue8280.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8280: cannot import package exporting a func var returning a result named _
++
++package ignored

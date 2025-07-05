@@ -7,6 +7,22 @@ Date:   Thu Feb 16 11:34:41 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5656070
-
+---
  src/make.bat | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/make.bat b/src/make.bat
+index e6921aa791..d1e340be39 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -42,7 +42,9 @@ del env.bat
+ echo .
+ 
+ echo # Building compilers and Go bootstrap tool.
+-.\cmd\dist\dist bootstrap -a -v
++set buildall=-a
++if x%1==x--no-clean set buildall=
++.\cmd\dist\dist bootstrap %buildall% -v
+ if errorlevel 1 goto fail
+ :: Delay move of dist tool to now, because bootstrap cleared tool directory.
+ move .\cmd\dist\dist.exe %GOTOOLDIR%\dist.exe

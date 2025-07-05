@@ -16,6 +16,19 @@ Date:   Tue Feb 16 12:58:48 2021 -0500
     Trust: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 6013e0ab0a..2fb790a6ea 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -55,6 +55,7 @@ func isRuntimeDepPkg(pkg string) bool {
+ 	switch pkg {
+ 	case "runtime",
+ 		"sync/atomic",      // runtime may call to sync/atomic, due to go:linkname
++		"internal/abi",     // used by reflectcall (and maybe more)
+ 		"internal/bytealg", // for IndexByte
+ 		"internal/cpu":     // for cpu features
+ 		return true

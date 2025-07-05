@@ -14,8 +14,58 @@ Date:   Fri Sep 27 13:03:07 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/get/path.go           | 3 ---
  src/cmd/go/internal/module/module.go      | 3 ---
  src/cmd/go/internal/module/module_test.go | 3 ++-
  3 files changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/get/path.go b/src/cmd/go/internal/get/path.go
+index 67d7b8a47c..95169fa5f1 100644
+--- a/src/cmd/go/internal/get/path.go
++++ b/src/cmd/go/internal/get/path.go
+@@ -44,9 +44,6 @@ func checkPath(path string, fileName bool) error {
+ 	if path[0] == '-' {
+ 		return fmt.Errorf("leading dash")
+ 	}
+-	if strings.Contains(path, "..") {
+-		return fmt.Errorf("double dot")
+-	}
+ 	if strings.Contains(path, "//") {
+ 		return fmt.Errorf("double slash")
+ 	}
+diff --git a/src/cmd/go/internal/module/module.go b/src/cmd/go/internal/module/module.go
+index 3d1ad27628..3b70574e23 100644
+--- a/src/cmd/go/internal/module/module.go
++++ b/src/cmd/go/internal/module/module.go
+@@ -231,9 +231,6 @@ func checkPath(path string, fileName bool) error {
+ 	if path[0] == '-' {
+ 		return fmt.Errorf("leading dash")
+ 	}
+-	if strings.Contains(path, "..") {
+-		return fmt.Errorf("double dot")
+-	}
+ 	if strings.Contains(path, "//") {
+ 		return fmt.Errorf("double slash")
+ 	}
+diff --git a/src/cmd/go/internal/module/module_test.go b/src/cmd/go/internal/module/module_test.go
+index b9f07bf57d..2c22ee7939 100644
+--- a/src/cmd/go/internal/module/module_test.go
++++ b/src/cmd/go/internal/module/module_test.go
+@@ -80,7 +80,7 @@ var checkPathTests = []struct {
+ 	{"x./z", false, false, false},
+ 	{".x/z", false, false, true},
+ 	{"-x/z", false, false, false},
+-	{"x..y/z", false, false, false},
++	{"x..y/z", true, true, true},
+ 	{"x.y/z/../../w", false, false, false},
+ 	{"x.y//z", false, false, false},
+ 	{"x.y/z//w", false, false, false},
+@@ -173,6 +173,7 @@ var checkPathTests = []struct {
+ 	// When we do, we'll enable them everywhere, not just for GitHub.
+ 	{"github.com/user/unicode/испытание", false, false, true},
+ 
++	{".../x", false, false, false},
+ 	{"../x", false, false, false},
+ 	{"./y", false, false, false},
+ 	{"x:y", false, false, false},

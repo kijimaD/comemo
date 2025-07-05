@@ -15,6 +15,20 @@ Date:   Fri Nov 5 17:09:22 2021 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/syscall/mkall.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/mkall.sh b/src/syscall/mkall.sh
+index dffb52864b..5fc91d3815 100755
+--- a/src/syscall/mkall.sh
++++ b/src/syscall/mkall.sh
+@@ -283,7 +283,7 @@ netbsd_arm64)
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+ openbsd_386)
+-	GOOSARCH_in="syscall_openbsd1.go syscall_openbsd_$GOARCH.go"
++	GOOSARCH_in="syscall_openbsd_libc.go syscall_openbsd_$GOARCH.go"
+ 	mkerrors="$mkerrors -m32"
+ 	mksyscall="./mksyscall.pl -l32 -openbsd -libc"
+ 	mksysctl="./mksysctl_openbsd.pl"

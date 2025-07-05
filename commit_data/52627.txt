@@ -15,6 +15,38 @@ Date:   Mon May 9 08:55:41 2022 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/go/internal/mvs/mvs.go | 13 +++++--------
  1 file changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index d25d447b0e..a1b51557a3 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -194,6 +194,11 @@ func Req(mainModule module.Version, base []string, reqs Reqs) ([]module.Version,
+ 	// that list came from a previous operation that paged
+ 	// in all the requirements, so there's no I/O to overlap now.
+ 
++	max := map[string]string{}
++	for _, m := range list {
++		max[m.Path] = m.Version
++	}
++
+ 	// Compute postorder, cache requirements.
+ 	var postorder []module.Version
+ 	reqCache := map[module.Version][]module.Version{}
+@@ -236,14 +241,6 @@ func Req(mainModule module.Version, base []string, reqs Reqs) ([]module.Version,
+ 		}
+ 		return nil
+ 	}
+-	max := map[string]string{}
+-	for _, m := range list {
+-		if v, ok := max[m.Path]; ok {
+-			max[m.Path] = reqs.Max(m.Version, v)
+-		} else {
+-			max[m.Path] = m.Version
+-		}
+-	}
+ 	// First walk the base modules that must be listed.
+ 	var min []module.Version
+ 	haveBase := map[string]bool{}

@@ -9,6 +9,19 @@ Date:   Mon Jun 5 09:21:10 2017 -0500
     Change-Id: I7c0fde6a4cf460017619dbcce1c1ddaa7af1022a
     Reviewed-on: https://go-review.googlesource.com/44811
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bufio/bufio.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 936854b24f..bbdfad4ba8 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -458,6 +458,7 @@ func (b *Reader) ReadString(delim byte) (string, error) {
+ }
+ 
+ // WriteTo implements io.WriterTo.
++// This may make multiple calls to the Read method of the underlying Reader.
+ func (b *Reader) WriteTo(w io.Writer) (n int64, err error) {
+ 	n, err = b.writeBuf(w)
+ 	if err != nil {

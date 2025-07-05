@@ -12,7 +12,70 @@ Date:   Wed Aug 8 15:00:56 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_windows.go   | 12 ++++++++++--
  src/syscall/types_windows_arm.go | 22 ++++++++++++++++++++++
  2 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index b234f3d67d..638a81882a 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -9,6 +9,7 @@ package syscall
+ import (
+ 	errorspkg "errors"
+ 	"internal/race"
++	"runtime"
+ 	"sync"
+ 	"unicode/utf16"
+ 	"unsafe"
+@@ -340,12 +341,19 @@ const ptrSize = unsafe.Sizeof(uintptr(0))
+ // See https://msdn.microsoft.com/en-us/library/windows/desktop/aa365542(v=vs.85).aspx
+ func setFilePointerEx(handle Handle, distToMove int64, newFilePointer *int64, whence uint32) error {
+ 	var e1 Errno
+-	if ptrSize == 8 {
++	switch runtime.GOARCH {
++	default:
++		panic("unsupported architecture")
++	case "amd64":
+ 		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 4, uintptr(handle), uintptr(distToMove), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0, 0)
+-	} else {
++	case "386":
+ 		// distToMove is a LARGE_INTEGER:
+ 		// https://msdn.microsoft.com/en-us/library/windows/desktop/aa383713(v=vs.85).aspx
+ 		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 5, uintptr(handle), uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0)
++	case "arm":
++		// distToMove must be 8-byte aligned per ARM calling convention
++		// https://msdn.microsoft.com/en-us/library/dn736986.aspx#Anchor_7
++		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 6, uintptr(handle), 0, uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence))
+ 	}
+ 	if e1 != 0 {
+ 		return errnoErr(e1)
+diff --git a/src/syscall/types_windows_arm.go b/src/syscall/types_windows_arm.go
+new file mode 100644
+index 0000000000..e72e9f5ced
+--- /dev/null
++++ b/src/syscall/types_windows_arm.go
+@@ -0,0 +1,22 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++type WSAData struct {
++	Version      uint16
++	HighVersion  uint16
++	Description  [WSADESCRIPTION_LEN + 1]byte
++	SystemStatus [WSASYS_STATUS_LEN + 1]byte
++	MaxSockets   uint16
++	MaxUdpDg     uint16
++	VendorInfo   *byte
++}
++
++type Servent struct {
++	Name    *byte
++	Aliases **byte
++	Port    uint16
++	Proto   *byte
++}

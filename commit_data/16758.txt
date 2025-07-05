@@ -37,8 +37,74 @@ Date:   Fri Jul 12 17:42:01 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/11042046
-
+---
  src/pkg/encoding/json/decode.go      |  2 +-
  src/pkg/encoding/json/decode_test.go | 29 -----------------------------
  src/pkg/encoding/json/encode.go      |  4 ++--
  3 files changed, 3 insertions(+), 32 deletions(-)
+
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index e608ef4a61..62ac294b89 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -660,7 +660,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 		default:
+ 			d.saveError(&UnmarshalTypeError{"string", v.Type()})
+ 		case reflect.Slice:
+-			if v.Type().Elem().Kind() != reflect.Uint8 {
++			if v.Type() != byteSliceType {
+ 				d.saveError(&UnmarshalTypeError{"string", v.Type()})
+ 				break
+ 			}
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index dfc688cdc4..65e6d6ec38 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -1186,32 +1186,3 @@ func TestSkipArrayObjects(t *testing.T) {
+ 		t.Errorf("got error %q, want nil", err)
+ 	}
+ }
+-
+-// Test that types of byte slices (such as net.IP) both
+-// marshal and unmarshal.
+-func TestByteSliceType(t *testing.T) {
+-	type A []byte
+-	type S struct {
+-		A A
+-	}
+-
+-	for x, in := range []S{
+-		S{},
+-		S{A: []byte{'1'}},
+-		S{A: []byte{'1', '2', '3', '4', '5'}},
+-	} {
+-		data, err := Marshal(&in)
+-		if err != nil {
+-			t.Errorf("#%d: got Marshal error %q, want nil", x, err)
+-			continue
+-		}
+-		var out S
+-		err = Unmarshal(data, &out)
+-		if err != nil {
+-			t.Fatalf("#%d: got Unmarshal error %q, want nil", x, err)
+-		}
+-		if !reflect.DeepEqual(&out, &in) {
+-			t.Fatalf("#%d: got %v, want %v", x, &out, &in)
+-		}
+-	}
+-}
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 7cc9398c97..be4a7b1fa6 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -44,8 +44,8 @@ import (
+ // The angle brackets "<" and ">" are escaped to "\u003c" and "\u003e"
+ // to keep some browsers from misinterpreting JSON output as HTML.
+ //
+-// Array and slice values encode as JSON arrays, except that a slice of
+-// bytes encodes as a base64-encoded string, and a nil slice
++// Array and slice values encode as JSON arrays, except that
++// []byte encodes as a base64-encoded string, and a nil slice
+ // encodes as the null JSON object.
+ //
+ // Struct values encode as JSON objects. Each exported struct field

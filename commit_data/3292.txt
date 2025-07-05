@@ -10,6 +10,39 @@ Date:   Wed Sep 16 16:38:49 2009 -0700
     DELTA=15  (1 added, 3 deleted, 11 changed)
     OCL=34706
     CL=34708
-
+---
  src/pkg/go/token/token.go | 20 +++++++++-----------
  1 file changed, 9 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/go/token/token.go b/src/pkg/go/token/token.go
+index e0ee0decf9..1ea6c46e9d 100644
+--- a/src/pkg/go/token/token.go
++++ b/src/pkg/go/token/token.go
+@@ -352,18 +352,16 @@ func (pos *Position) IsValid() bool {
+ }
+ 
+ 
+-func (pos *Position) String() string {
+-	if pos != nil {
+-		s := pos.Filename;
+-		if pos.IsValid() {
+-			if s != "" {
+-				s += ":";
+-			}
+-			s += fmt.Sprintf("%d:%d", pos.Line, pos.Column);
+-		}
++func (pos Position) String() string {
++	s := pos.Filename;
++	if pos.IsValid() {
+ 		if s != "" {
+-			return s;
++			s += ":";
+ 		}
++		s += fmt.Sprintf("%d:%d", pos.Line, pos.Column);
++	}
++	if s == "" {
++		s = "???";
+ 	}
+-	return "<unknown position>";
++	return s;
+ }

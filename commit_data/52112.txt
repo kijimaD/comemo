@@ -20,8 +20,163 @@ Date:   Mon Mar 14 12:31:33 2022 -0400
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/42710.txt               |  2 ++
  src/hash/maphash/maphash.go      | 48 ++++++++++++++++++++++++++++++++
  src/hash/maphash/maphash_test.go | 60 ++++++++++++++++++++++++++--------------
  3 files changed, 90 insertions(+), 20 deletions(-)
+
+diff --git a/api/next/42710.txt b/api/next/42710.txt
+new file mode 100644
+index 0000000000..7879758d16
+--- /dev/null
++++ b/api/next/42710.txt
+@@ -0,0 +1,2 @@
++pkg hash/maphash, func Bytes(Seed, []uint8) uint64 #42710
++pkg hash/maphash, func String(Seed, string) uint64 #42710
+diff --git a/src/hash/maphash/maphash.go b/src/hash/maphash/maphash.go
+index d022d746a7..973fb68701 100644
+--- a/src/hash/maphash/maphash.go
++++ b/src/hash/maphash/maphash.go
+@@ -33,6 +33,54 @@ type Seed struct {
+ 	s uint64
+ }
+ 
++// Bytes returns the hash of b with the given seed.
++//
++// Bytes is equivalent to, but more convenient and efficient than:
++//
++//	var h Hash
++//	h.SetSeed(seed)
++//	h.Write(b)
++//	return h.Sum()
++func Bytes(seed Seed, b []byte) uint64 {
++	state := seed.s
++	if state == 0 {
++		panic("maphash: use of uninitialized Seed")
++	}
++	if len(b) == 0 {
++		return rthash(nil, 0, state) // avoid &b[0] index panic below
++	}
++	if len(b) > bufSize {
++		b = b[:len(b):len(b)] // merge len and cap calculations when reslicing
++		for len(b) > bufSize {
++			state = rthash(&b[0], bufSize, state)
++			b = b[bufSize:]
++		}
++	}
++	return rthash(&b[0], len(b), state)
++}
++
++// String returns the hash of s with the given seed.
++//
++// String is equivalent to, but more convenient and efficient than:
++//
++//	var h Hash
++//	h.SetSeed(seed)
++//	h.WriteString(s)
++//	return h.Sum()
++func String(seed Seed, s string) uint64 {
++	state := seed.s
++	if state == 0 {
++		panic("maphash: use of uninitialized Seed")
++	}
++	for len(s) > bufSize {
++		p := (*byte)((*unsafeheader.String)(unsafe.Pointer(&s)).Data)
++		state = rthash(p, bufSize, state)
++		s = s[bufSize:]
++	}
++	p := (*byte)((*unsafeheader.String)(unsafe.Pointer(&s)).Data)
++	return rthash(p, len(s), state)
++}
++
+ // A Hash computes a seeded hash of a byte sequence.
+ //
+ // The zero Hash is a valid Hash ready to use.
+diff --git a/src/hash/maphash/maphash_test.go b/src/hash/maphash/maphash_test.go
+index 78cdfc0e73..7526989073 100644
+--- a/src/hash/maphash/maphash_test.go
++++ b/src/hash/maphash/maphash_test.go
+@@ -6,6 +6,7 @@ package maphash
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"hash"
+ 	"testing"
+ )
+@@ -87,6 +88,14 @@ func TestHashGrouping(t *testing.T) {
+ 			t.Errorf("hash %d not identical to a single Write", i)
+ 		}
+ 	}
++
++	if sum1 := Bytes(hh[0].Seed(), b); sum1 != hh[0].Sum64() {
++		t.Errorf("hash using Bytes not identical to a single Write")
++	}
++
++	if sum1 := String(hh[0].Seed(), string(b)); sum1 != hh[0].Sum64() {
++		t.Errorf("hash using String not identical to a single Write")
++	}
+ }
+ 
+ func TestHashBytesVsString(t *testing.T) {
+@@ -208,28 +217,39 @@ var _ hash.Hash64 = &Hash{}
+ func benchmarkSize(b *testing.B, size int) {
+ 	h := &Hash{}
+ 	buf := make([]byte, size)
+-	b.SetBytes(int64(size))
+-	b.ResetTimer()
+-
+-	for i := 0; i < b.N; i++ {
+-		h.Reset()
+-		h.Write(buf)
+-		h.Sum64()
+-	}
+-}
+-
+-func BenchmarkHash8Bytes(b *testing.B) {
+-	benchmarkSize(b, 8)
+-}
++	s := string(buf)
++
++	b.Run("Write", func(b *testing.B) {
++		b.SetBytes(int64(size))
++		for i := 0; i < b.N; i++ {
++			h.Reset()
++			h.Write(buf)
++			h.Sum64()
++		}
++	})
+ 
+-func BenchmarkHash320Bytes(b *testing.B) {
+-	benchmarkSize(b, 320)
+-}
++	b.Run("Bytes", func(b *testing.B) {
++		b.SetBytes(int64(size))
++		seed := h.Seed()
++		for i := 0; i < b.N; i++ {
++			Bytes(seed, buf)
++		}
++	})
+ 
+-func BenchmarkHash1K(b *testing.B) {
+-	benchmarkSize(b, 1024)
++	b.Run("String", func(b *testing.B) {
++		b.SetBytes(int64(size))
++		seed := h.Seed()
++		for i := 0; i < b.N; i++ {
++			String(seed, s)
++		}
++	})
+ }
+ 
+-func BenchmarkHash8K(b *testing.B) {
+-	benchmarkSize(b, 8192)
++func BenchmarkHash(b *testing.B) {
++	sizes := []int{4, 8, 16, 32, 64, 256, 320, 1024, 4096, 16384}
++	for _, size := range sizes {
++		b.Run(fmt.Sprint("n=", size), func(b *testing.B) {
++			benchmarkSize(b, size)
++		})
++	}
+ }

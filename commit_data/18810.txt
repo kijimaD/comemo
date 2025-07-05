@@ -10,6 +10,20 @@ Date:   Fri Mar 7 14:44:31 2014 -0800
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/71900045
-
+---
  src/pkg/os/doc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/os/doc.go b/src/pkg/os/doc.go
+index a954e313d1..bc700b6b45 100644
+--- a/src/pkg/os/doc.go
++++ b/src/pkg/os/doc.go
+@@ -39,6 +39,8 @@ func (p *Process) Kill() error {
+ // Wait waits for the Process to exit, and then returns a
+ // ProcessState describing its status and an error, if any.
+ // Wait releases any resources associated with the Process.
++// On most operating systems, the Process must be a child
++// of the current process or an error will be returned.
+ func (p *Process) Wait() (*ProcessState, error) {
+ 	return p.wait()
+ }

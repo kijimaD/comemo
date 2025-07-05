@@ -13,7 +13,63 @@ Date:   Fri Jun 21 17:07:28 2024 +0000
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/go/build/deps_test.go              | 6 ++----
  src/internal/concurrent/hashtriemap.go | 9 +++++++--
  2 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 6a31180418..dd824471c7 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -103,7 +103,8 @@ var depsRules = `
+ 	< internal/godebug
+ 	< internal/reflectlite
+ 	< errors
+-	< internal/oserror;
++	< internal/oserror
++	< internal/concurrent;
+ 
+ 	cmp, runtime, math/bits
+ 	< iter
+@@ -164,9 +165,6 @@ var depsRules = `
+ 	MATH
+ 	< runtime/metrics;
+ 
+-	RUNTIME, math/rand/v2
+-	< internal/concurrent;
+-
+ 	MATH, unicode/utf8
+ 	< strconv;
+ 
+diff --git a/src/internal/concurrent/hashtriemap.go b/src/internal/concurrent/hashtriemap.go
+index fb9223fa29..be74a608fa 100644
+--- a/src/internal/concurrent/hashtriemap.go
++++ b/src/internal/concurrent/hashtriemap.go
+@@ -7,7 +7,6 @@ package concurrent
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"math/rand/v2"
+ 	"sync"
+ 	"sync/atomic"
+ 	"unsafe"
+@@ -34,7 +33,7 @@ func NewHashTrieMap[K, V comparable]() *HashTrieMap[K, V] {
+ 		keyHash:  mapType.Hasher,
+ 		keyEqual: mapType.Key.Equal,
+ 		valEqual: mapType.Elem.Equal,
+-		seed:     uintptr(rand.Uint64()),
++		seed:     uintptr(runtime_rand()),
+ 	}
+ 	return ht
+ }
+@@ -406,3 +405,9 @@ func (n *node[K, V]) indirect() *indirect[K, V] {
+ 	}
+ 	return (*indirect[K, V])(unsafe.Pointer(n))
+ }
++
++// Pull in runtime.rand so that we don't need to take a dependency
++// on math/rand/v2.
++//
++//go:linkname runtime_rand runtime.rand
++func runtime_rand() uint64

@@ -12,6 +12,41 @@ Date:   Tue Oct 26 09:15:17 2021 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/internal/poll/splice_linux.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/poll/splice_linux.go b/src/internal/poll/splice_linux.go
+index 6869a40b24..2d87c3d023 100644
+--- a/src/internal/poll/splice_linux.go
++++ b/src/internal/poll/splice_linux.go
+@@ -154,14 +154,18 @@ func splice(out int, in int, max int, flags int) (int, error) {
+ 	return int(n), err
+ }
+ 
+-type splicePipe struct {
++type splicePipeFields struct {
+ 	rfd  int
+ 	wfd  int
+ 	data int
++}
++
++type splicePipe struct {
++	splicePipeFields
+ 
+ 	// We want to use a finalizer, so ensure that the size is
+ 	// large enough to not use the tiny allocator.
+-	_ [24 - 3*unsafe.Sizeof(int(0))]byte
++	_ [24 - unsafe.Sizeof(splicePipeFields{})%24]byte
+ }
+ 
+ // splicePipePool caches pipes to avoid high-frequency construction and destruction of pipe buffers.
+@@ -222,7 +226,7 @@ func newPipe() (sp *splicePipe) {
+ 		return nil
+ 	}
+ 
+-	sp = &splicePipe{rfd: fds[0], wfd: fds[1]}
++	sp = &splicePipe{splicePipeFields: splicePipeFields{rfd: fds[0], wfd: fds[1]}}
+ 
+ 	if p == nil {
+ 		p = new(bool)

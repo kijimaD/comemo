@@ -16,6 +16,26 @@ Date:   Mon Mar 21 19:27:35 2016 +1300
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/objfile.go | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 130347e7fd..6bf3d73a41 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -255,14 +255,6 @@ overwrite:
+ 		}
+ 	}
+ 
+-	if len(s.P) > 0 && dup != nil && len(dup.P) > 0 && strings.HasPrefix(s.Name, "gclocals·") {
+-		// content-addressed garbage collection liveness bitmap symbol.
+-		// double check for hash collisions.
+-		if !bytes.Equal(s.P, dup.P) {
+-			log.Fatalf("dupok hash collision for %s in %s and %s", s.Name, s.File, pn)
+-		}
+-	}
+-
+ 	if s.Type == obj.STEXT {
+ 		s.Args = rdint32(f)
+ 		s.Locals = rdint32(f)

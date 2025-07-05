@@ -25,9 +25,85 @@ Date:   Thu Jun 15 18:16:51 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/race/race_linux_test.go | 28 ++++++++++++++++++++++++++++
  src/runtime/race_amd64.s            |  2 +-
  src/runtime/race_arm64.s            |  2 +-
  src/runtime/race_ppc64le.s          |  2 +-
  4 files changed, 31 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/race/race_linux_test.go b/src/runtime/race/race_linux_test.go
+index e8a2d0fd8c..947ed7ca39 100644
+--- a/src/runtime/race/race_linux_test.go
++++ b/src/runtime/race/race_linux_test.go
+@@ -35,3 +35,31 @@ func TestAtomicMmap(t *testing.T) {
+ 		t.Fatalf("bad atomic value: %v, want 2", *a)
+ 	}
+ }
++
++func TestAtomicPageBoundary(t *testing.T) {
++	// Test that atomic access near (but not cross) a page boundary
++	// doesn't fault. See issue 60825.
++
++	// Mmap two pages of memory, and make the second page inaccessible,
++	// so we have an address at the end of a page.
++	pagesize := syscall.Getpagesize()
++	b, err := syscall.Mmap(0, 0, 2*pagesize, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE)
++	if err != nil {
++		t.Fatalf("mmap failed %s", err)
++	}
++	defer syscall.Munmap(b)
++	err = syscall.Mprotect(b[pagesize:], syscall.PROT_NONE)
++	if err != nil {
++		t.Fatalf("mprotect high failed %s\n", err)
++	}
++
++	// This should not fault.
++	a := (*uint32)(unsafe.Pointer(&b[pagesize-4]))
++	atomic.StoreUint32(a, 1)
++	if x := atomic.LoadUint32(a); x != 1 {
++		t.Fatalf("bad atomic value: %v, want 1", x)
++	}
++	if x := atomic.AddUint32(a, 1); x != 2 {
++		t.Fatalf("bad atomic value: %v, want 2", x)
++	}
++}
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index 0697be7180..4fa130e861 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -333,7 +333,7 @@ TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0-25
+ TEXT	racecallatomic<>(SB), NOSPLIT|NOFRAME, $0-0
+ 	// Trigger SIGSEGV early.
+ 	MOVQ	16(SP), R12
+-	MOVL	(R12), R13
++	MOVBLZX	(R12), R13
+ 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
+ 	CMPQ	R12, runtime·racearenastart(SB)
+ 	JB	racecallatomic_data
+diff --git a/src/runtime/race_arm64.s b/src/runtime/race_arm64.s
+index edbb3b12c7..c818345852 100644
+--- a/src/runtime/race_arm64.s
++++ b/src/runtime/race_arm64.s
+@@ -348,7 +348,7 @@ TEXT	racecallatomic<>(SB), NOSPLIT, $0
+ 
+ 	// Trigger SIGSEGV early.
+ 	MOVD	40(RSP), R3	// 1st arg is addr. after two times BL, get it at 40(RSP)
+-	MOVD	(R3), R13	// segv here if addr is bad
++	MOVB	(R3), R13	// segv here if addr is bad
+ 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
+ 	MOVD	runtime·racearenastart(SB), R10
+ 	CMP	R10, R3
+diff --git a/src/runtime/race_ppc64le.s b/src/runtime/race_ppc64le.s
+index 5fd4f785c8..39cfffc39b 100644
+--- a/src/runtime/race_ppc64le.s
++++ b/src/runtime/race_ppc64le.s
+@@ -363,7 +363,7 @@ TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0-25
+ TEXT	racecallatomic<>(SB), NOSPLIT, $0-0
+ 	// Trigger SIGSEGV early if address passed to atomic function is bad.
+ 	MOVD	(R6), R7	// 1st arg is addr
+-	MOVD	(R7), R9	// segv here if addr is bad
++	MOVB	(R7), R9	// segv here if addr is bad
+ 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
+ 	MOVD	runtime·racearenastart(SB), R9
+ 	CMP	R7, R9

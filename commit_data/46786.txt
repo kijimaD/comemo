@@ -12,10 +12,106 @@ Date:   Wed Jan 27 18:04:46 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/resolver.go        | 25 +++++++++++-----------
  .../types2/testdata/importdecl0/importdecl0a.src   |  2 +-
  test/fixedbugs/issue43962.dir/a.go                 |  5 +++++
  test/fixedbugs/issue43962.dir/b.go                 |  7 ++++++
  test/fixedbugs/issue43962.go                       |  9 ++++++++
  5 files changed, 35 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 2a84015cfc..44fa51a8e5 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -250,14 +250,6 @@ func (check *Checker) collectObjects() {
+ 					continue
+ 				}
+ 
+-				// add package to list of explicit imports
+-				// (this functionality is provided as a convenience
+-				// for clients; it is not needed for type-checking)
+-				if !pkgImports[imp] {
+-					pkgImports[imp] = true
+-					pkg.imports = append(pkg.imports, imp)
+-				}
+-
+ 				// local name overrides imported package name
+ 				name := imp.name
+ 				if s.LocalPkgName != nil {
+@@ -267,10 +259,19 @@ func (check *Checker) collectObjects() {
+ 						check.errorf(s.LocalPkgName, `cannot rename import "C"`)
+ 						continue
+ 					}
+-					if name == "init" {
+-						check.errorf(s.LocalPkgName, "cannot declare init - must be func")
+-						continue
+-					}
++				}
++
++				if name == "init" {
++					check.errorf(s.LocalPkgName, "cannot import package as init - init must be a func")
++					continue
++				}
++
++				// add package to list of explicit imports
++				// (this functionality is provided as a convenience
++				// for clients; it is not needed for type-checking)
++				if !pkgImports[imp] {
++					pkgImports[imp] = true
++					pkg.imports = append(pkg.imports, imp)
+ 				}
+ 
+ 				pkgName := NewPkgName(s.Pos(), pkg, name, imp)
+diff --git a/src/cmd/compile/internal/types2/testdata/importdecl0/importdecl0a.src b/src/cmd/compile/internal/types2/testdata/importdecl0/importdecl0a.src
+index e96fca3cdd..5ceb96e1fa 100644
+--- a/src/cmd/compile/internal/types2/testdata/importdecl0/importdecl0a.src
++++ b/src/cmd/compile/internal/types2/testdata/importdecl0/importdecl0a.src
+@@ -10,7 +10,7 @@ import (
+ 	// we can have multiple blank imports (was bug)
+ 	_ "math"
+ 	_ "net/rpc"
+-	init /* ERROR "cannot declare init" */ "fmt"
++	init /* ERROR "cannot import package as init" */ "fmt"
+ 	// reflect defines a type "flag" which shows up in the gc export data
+ 	"reflect"
+ 	. /* ERROR "imported but not used" */ "reflect"
+diff --git a/test/fixedbugs/issue43962.dir/a.go b/test/fixedbugs/issue43962.dir/a.go
+new file mode 100644
+index 0000000000..168b2063b4
+--- /dev/null
++++ b/test/fixedbugs/issue43962.dir/a.go
+@@ -0,0 +1,5 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package init
+diff --git a/test/fixedbugs/issue43962.dir/b.go b/test/fixedbugs/issue43962.dir/b.go
+new file mode 100644
+index 0000000000..f55fea11c1
+--- /dev/null
++++ b/test/fixedbugs/issue43962.dir/b.go
+@@ -0,0 +1,7 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a" // ERROR "cannot import package as init"
+diff --git a/test/fixedbugs/issue43962.go b/test/fixedbugs/issue43962.go
+new file mode 100644
+index 0000000000..dca4d077d5
+--- /dev/null
++++ b/test/fixedbugs/issue43962.go
+@@ -0,0 +1,9 @@
++// errorcheckdir
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 43962: Importing a package called "init" is an error.
++
++package ignored

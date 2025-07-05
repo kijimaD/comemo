@@ -20,7 +20,7 @@ Date:   Thu Sep 14 20:00:02 2017 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go        | 33 +++++++++++++++
  src/cmd/compile/internal/gc/ssa.go             | 11 +++--
  src/cmd/compile/internal/s390x/ssa.go          |  7 ++++
@@ -30,3 +30,337 @@ Date:   Thu Sep 14 20:00:02 2017 +0100
  src/cmd/compile/internal/ssa/opGen.go          | 21 ++++++++++
  src/cmd/compile/internal/ssa/rewriteS390X.go   | 56 ++++++++++++++++++++++++++
  8 files changed, 159 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 906e118435..97d5b7f096 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -1457,6 +1457,39 @@ var linuxS390XTests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tFLOGR\t"},
+ 	},
++	// Intrinsic tests for math.
++	{
++		fn: `
++		func ceil(x float64) float64 {
++			return math.Ceil(x)
++		}
++		`,
++		pos: []string{"\tFIDBR\t[$]6"},
++	},
++	{
++		fn: `
++		func floor(x float64) float64 {
++			return math.Floor(x)
++		}
++		`,
++		pos: []string{"\tFIDBR\t[$]7"},
++	},
++	{
++		fn: `
++		func round(x float64) float64 {
++			return math.Round(x)
++		}
++		`,
++		pos: []string{"\tFIDBR\t[$]1"},
++	},
++	{
++		fn: `
++		func trunc(x float64) float64 {
++			return math.Trunc(x)
++		}
++		`,
++		pos: []string{"\tFIDBR\t[$]5"},
++	},
+ 	{
+ 		// check that stack store is optimized away
+ 		fn: `
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 04f1a9230e..94446d88e4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2734,17 +2734,22 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpTrunc, types.Types[TFLOAT64], args[0])
+ 		},
+-		sys.PPC64)
++		sys.PPC64, sys.S390X)
+ 	addF("math", "Ceil",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCeil, types.Types[TFLOAT64], args[0])
+ 		},
+-		sys.PPC64)
++		sys.PPC64, sys.S390X)
+ 	addF("math", "Floor",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpFloor, types.Types[TFLOAT64], args[0])
+ 		},
+-		sys.PPC64)
++		sys.PPC64, sys.S390X)
++	addF("math", "Round",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpRound, types.Types[TFLOAT64], args[0])
++		},
++		sys.S390X)
+ 
+ 	/******** math/bits ********/
+ 	addF("math/bits", "TrailingZeros64",
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 6e637487cd..19899ecd5b 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -207,6 +207,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.Reg = r2
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
++	case ssa.OpS390XFIDBR:
++		switch v.AuxInt {
++		case 0, 1, 3, 4, 5, 6, 7:
++			opregregimm(s, v.Op.Asm(), v.Reg(), v.Args[0].Reg(), v.AuxInt)
++		default:
++			v.Fatalf("invalid FIDBR mask: %v", v.AuxInt)
++		}
+ 	case ssa.OpS390XDIVD, ssa.OpS390XDIVW,
+ 		ssa.OpS390XDIVDU, ssa.OpS390XDIVWU,
+ 		ssa.OpS390XMODD, ssa.OpS390XMODW,
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 8a627e75f5..d03ca32f8f 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -107,7 +107,12 @@
+ (Bswap64 x) -> (MOVDBR x)
+ (Bswap32 x) -> (MOVWBR x)
+ 
+-(Sqrt x) -> (FSQRT x)
++// math package intrinsics
++(Sqrt  x) -> (FSQRT x)
++(Floor x) -> (FIDBR [7] x)
++(Ceil  x) -> (FIDBR [6] x)
++(Trunc x) -> (FIDBR [5] x)
++(Round x) -> (FIDBR [1] x)
+ 
+ // Atomic loads.
+ (AtomicLoad32 ptr mem) -> (MOVWZatomicload ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 2a08a276d9..b3303989d3 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -206,6 +206,17 @@ func init() {
+ 		{name: "FMSUBS", argLength: 3, reg: fp31, asm: "FMSUBS", resultInArg0: true},                                             // fp32 arg1 * arg2 - arg0
+ 		{name: "FMSUB", argLength: 3, reg: fp31, asm: "FMSUB", resultInArg0: true},                                               // fp64 arg1 * arg2 - arg0
+ 
++		// Round to integer, float64 only.
++		//
++		// aux | rounding mode
++		// ----+-----------------------------------
++		//   1 | round to nearest, ties away from 0
++		//   4 | round to nearest, ties to even
++		//   5 | round toward 0
++		//   6 | round toward +∞
++		//   7 | round toward -∞
++		{name: "FIDBR", argLength: 1, reg: fp11, asm: "FIDBR", aux: "Int8"},
++
+ 		{name: "FMOVSload", argLength: 2, reg: fpload, asm: "FMOVS", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"}, // fp32 load
+ 		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "FMOVD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"}, // fp64 load
+ 		{name: "FMOVSconst", reg: fp01, asm: "FMOVS", aux: "Float32", rematerializeable: true},                               // fp32 constant
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 6f8d10a939..2967d29941 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -255,10 +255,23 @@ var genericOps = []opData{
+ 	{name: "PopCount32", argLength: 1}, // Count bits in arg[0]
+ 	{name: "PopCount64", argLength: 1}, // Count bits in arg[0]
+ 
+-	{name: "Sqrt", argLength: 1},  // sqrt(arg0), float64 only
+-	{name: "Floor", argLength: 1}, // floor(arg0), float64 only
+-	{name: "Ceil", argLength: 1},  // ceil(arg0), float64 only
+-	{name: "Trunc", argLength: 1}, // trunc(arg0), float64 only
++	// Square root, float64 only.
++	// Special cases:
++	//   +∞  → +∞
++	//   ±0  → ±0 (sign preserved)
++	//   x<0 → NaN
++	//   NaN → NaN
++	{name: "Sqrt", argLength: 1}, // √arg0
++
++	// Round to integer, float64 only.
++	// Special cases:
++	//   ±∞  → ±∞ (sign preserved)
++	//   ±0  → ±0 (sign preserved)
++	//   NaN → NaN
++	{name: "Floor", argLength: 1}, // round arg0 toward -∞
++	{name: "Ceil", argLength: 1},  // round arg0 toward +∞
++	{name: "Trunc", argLength: 1}, // round arg0 toward 0
++	{name: "Round", argLength: 1}, // round arg0 to nearest, ties away from 0
+ 
+ 	// Data movement, max argument length for Phi is indefinite so just pick
+ 	// a really large number
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index c99733e500..6cac15abcc 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1448,6 +1448,7 @@ const (
+ 	OpS390XFMADD
+ 	OpS390XFMSUBS
+ 	OpS390XFMSUB
++	OpS390XFIDBR
+ 	OpS390XFMOVSload
+ 	OpS390XFMOVDload
+ 	OpS390XFMOVSconst
+@@ -1836,6 +1837,7 @@ const (
+ 	OpFloor
+ 	OpCeil
+ 	OpTrunc
++	OpRound
+ 	OpPhi
+ 	OpCopy
+ 	OpConvert
+@@ -18602,6 +18604,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "FIDBR",
++		auxType: auxInt8,
++		argLen:  1,
++		asm:     s390x.AFIDBR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:           "FMOVSload",
+ 		auxType:        auxSymOff,
+@@ -22437,6 +22453,11 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "Round",
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:    "Phi",
+ 		argLen:  -1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 8ff1f256f7..78758981d0 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -73,6 +73,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpBswap32_0(v)
+ 	case OpBswap64:
+ 		return rewriteValueS390X_OpBswap64_0(v)
++	case OpCeil:
++		return rewriteValueS390X_OpCeil_0(v)
+ 	case OpClosureCall:
+ 		return rewriteValueS390X_OpClosureCall_0(v)
+ 	case OpCom16:
+@@ -161,6 +163,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpEqB_0(v)
+ 	case OpEqPtr:
+ 		return rewriteValueS390X_OpEqPtr_0(v)
++	case OpFloor:
++		return rewriteValueS390X_OpFloor_0(v)
+ 	case OpGeq16:
+ 		return rewriteValueS390X_OpGeq16_0(v)
+ 	case OpGeq16U:
+@@ -371,6 +375,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpOr8_0(v)
+ 	case OpOrB:
+ 		return rewriteValueS390X_OpOrB_0(v)
++	case OpRound:
++		return rewriteValueS390X_OpRound_0(v)
+ 	case OpRound32F:
+ 		return rewriteValueS390X_OpRound32F_0(v)
+ 	case OpRound64F:
+@@ -685,6 +691,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpSub8_0(v)
+ 	case OpSubPtr:
+ 		return rewriteValueS390X_OpSubPtr_0(v)
++	case OpTrunc:
++		return rewriteValueS390X_OpTrunc_0(v)
+ 	case OpTrunc16to8:
+ 		return rewriteValueS390X_OpTrunc16to8_0(v)
+ 	case OpTrunc32to16:
+@@ -1172,6 +1180,18 @@ func rewriteValueS390X_OpBswap64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpCeil_0(v *Value) bool {
++	// match: (Ceil x)
++	// cond:
++	// result: (FIDBR [6] x)
++	for {
++		x := v.Args[0]
++		v.reset(OpS390XFIDBR)
++		v.AuxInt = 6
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueS390X_OpClosureCall_0(v *Value) bool {
+ 	// match: (ClosureCall [argwid] entry closure mem)
+ 	// cond:
+@@ -1911,6 +1931,18 @@ func rewriteValueS390X_OpEqPtr_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpFloor_0(v *Value) bool {
++	// match: (Floor x)
++	// cond:
++	// result: (FIDBR [7] x)
++	for {
++		x := v.Args[0]
++		v.reset(OpS390XFIDBR)
++		v.AuxInt = 7
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueS390X_OpGeq16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -4913,6 +4945,18 @@ func rewriteValueS390X_OpOrB_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpRound_0(v *Value) bool {
++	// match: (Round x)
++	// cond:
++	// result: (FIDBR [1] x)
++	for {
++		x := v.Args[0]
++		v.reset(OpS390XFIDBR)
++		v.AuxInt = 1
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueS390X_OpRound32F_0(v *Value) bool {
+ 	// match: (Round32F x)
+ 	// cond:
+@@ -36200,6 +36244,18 @@ func rewriteValueS390X_OpSubPtr_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpTrunc_0(v *Value) bool {
++	// match: (Trunc x)
++	// cond:
++	// result: (FIDBR [5] x)
++	for {
++		x := v.Args[0]
++		v.reset(OpS390XFIDBR)
++		v.AuxInt = 5
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueS390X_OpTrunc16to8_0(v *Value) bool {
+ 	// match: (Trunc16to8 x)
+ 	// cond:

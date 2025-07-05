@@ -13,6 +13,30 @@ Date:   Thu Aug 12 12:12:56 2021 -0400
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Run-TryBot: Carlos Amedee <carlos@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  doc/go1.17.html | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 972f9c3559..b65d13a040 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -14,13 +14,13 @@ Do not send CLs removing the interior tags from such phrases.
+   main ul li { margin: 0.5em 0; }
+ </style>
+ 
+-<h2 id="introduction">DRAFT RELEASE NOTES — Introduction to Go 1.17</h2>
++<h2 id="introduction">Introduction to Go 1.17</h2>
+ 
+ <p>
+-  <strong>
+-    Go 1.17 is not yet released. These are work-in-progress
+-    release notes. Go 1.17 is expected to be released in August 2021.
+-  </strong>
++  The latest Go release, version 1.17, arrives six months after <a href="/doc/go1.16">Go 1.16</a>.
++  Most of its changes are in the implementation of the toolchain, runtime, and libraries.
++  As always, the release maintains the Go 1 <a href="/doc/go1compat">promise of compatibility</a>.
++  We expect almost all Go programs to continue to compile and run as before.
+ </p>
+ 
+ <h2 id="language">Changes to the language</h2>

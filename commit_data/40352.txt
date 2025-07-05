@@ -21,7 +21,7 @@ Date:   Thu Apr 18 15:42:58 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mem_aix.go     |  3 +++
  src/runtime/mem_bsd.go     |  3 +++
  src/runtime/mem_darwin.go  |  3 +++
@@ -31,3 +31,153 @@ Date:   Thu Apr 18 15:42:58 2019 +0000
  src/runtime/mem_windows.go |  3 +++
  src/runtime/mheap.go       | 14 ++++++++++++++
  8 files changed, 44 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/mem_aix.go b/src/runtime/mem_aix.go
+index 660861a9f1..eeebfa73ad 100644
+--- a/src/runtime/mem_aix.go
++++ b/src/runtime/mem_aix.go
+@@ -35,6 +35,9 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ func sysUsed(v unsafe.Pointer, n uintptr) {
+ }
+ 
++func sysHugePage(v unsafe.Pointer, n uintptr) {
++}
++
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index 3977e4ae9e..08a2391610 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -29,6 +29,9 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ func sysUsed(v unsafe.Pointer, n uintptr) {
+ }
+ 
++func sysHugePage(v unsafe.Pointer, n uintptr) {
++}
++
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+diff --git a/src/runtime/mem_darwin.go b/src/runtime/mem_darwin.go
+index fd5bba9aa7..86d9fca85a 100644
+--- a/src/runtime/mem_darwin.go
++++ b/src/runtime/mem_darwin.go
+@@ -33,6 +33,9 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
+ 	madvise(v, n, _MADV_FREE_REUSE)
+ }
+ 
++func sysHugePage(v unsafe.Pointer, n uintptr) {
++}
++
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+diff --git a/src/runtime/mem_js.go b/src/runtime/mem_js.go
+index 7da4beda2a..de90f5305f 100644
+--- a/src/runtime/mem_js.go
++++ b/src/runtime/mem_js.go
+@@ -26,6 +26,9 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ func sysUsed(v unsafe.Pointer, n uintptr) {
+ }
+ 
++func sysHugePage(v unsafe.Pointer, n uintptr) {
++}
++
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index bf399227a1..cda2c78eaf 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -117,16 +117,19 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ }
+ 
+ func sysUsed(v unsafe.Pointer, n uintptr) {
+-	if physHugePageSize != 0 {
+-		// Partially undo the NOHUGEPAGE marks from sysUnused
+-		// for whole huge pages between v and v+n. This may
+-		// leave huge pages off at the end points v and v+n
+-		// even though allocations may cover these entire huge
+-		// pages. We could detect this and undo NOHUGEPAGE on
+-		// the end points as well, but it's probably not worth
+-		// the cost because when neighboring allocations are
+-		// freed sysUnused will just set NOHUGEPAGE again.
++	// Partially undo the NOHUGEPAGE marks from sysUnused
++	// for whole huge pages between v and v+n. This may
++	// leave huge pages off at the end points v and v+n
++	// even though allocations may cover these entire huge
++	// pages. We could detect this and undo NOHUGEPAGE on
++	// the end points as well, but it's probably not worth
++	// the cost because when neighboring allocations are
++	// freed sysUnused will just set NOHUGEPAGE again.
++	sysHugePage(v, n)
++}
+ 
++func sysHugePage(v unsafe.Pointer, n uintptr) {
++	if physHugePageSize != 0 {
+ 		// Round v up to a huge page boundary.
+ 		beg := (uintptr(v) + (physHugePageSize - 1)) &^ (physHugePageSize - 1)
+ 		// Round v+n down to a huge page boundary.
+diff --git a/src/runtime/mem_plan9.go b/src/runtime/mem_plan9.go
+index 2359f138bc..688cdd31ca 100644
+--- a/src/runtime/mem_plan9.go
++++ b/src/runtime/mem_plan9.go
+@@ -173,6 +173,9 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ func sysUsed(v unsafe.Pointer, n uintptr) {
+ }
+ 
++func sysHugePage(v unsafe.Pointer, n uintptr) {
++}
++
+ func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+ 	// sysReserve has already allocated all heap memory,
+ 	// but has not adjusted stats.
+diff --git a/src/runtime/mem_windows.go b/src/runtime/mem_windows.go
+index fc52ec59a0..f752136706 100644
+--- a/src/runtime/mem_windows.go
++++ b/src/runtime/mem_windows.go
+@@ -81,6 +81,9 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
+ 	}
+ }
+ 
++func sysHugePage(v unsafe.Pointer, n uintptr) {
++}
++
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 1aea52966e..6022087479 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -502,6 +502,8 @@ func (h *mheap) coalesce(s *mspan) {
+ 		h.free.insert(other)
+ 	}
+ 
++	hpBefore := s.hugePages()
++
+ 	// Coalesce with earlier, later spans.
+ 	if before := spanOf(s.base() - 1); before != nil && before.state == mSpanFree {
+ 		if s.scavenged == before.scavenged {
+@@ -519,6 +521,18 @@ func (h *mheap) coalesce(s *mspan) {
+ 			realign(s, after, after)
+ 		}
+ 	}
++
++	if !s.scavenged && s.hugePages() > hpBefore {
++		// If s has grown such that it now may contain more huge pages than it
++		// did before, then mark the whole region as huge-page-backable.
++		//
++		// Otherwise, on systems where we break up huge pages (like Linux)
++		// s may not be backed by huge pages because it could be made up of
++		// pieces which are broken up in the underlying VMA. The primary issue
++		// with this is that it can lead to a poor estimate of the amount of
++		// free memory backed by huge pages for determining the scavenging rate.
++		sysHugePage(unsafe.Pointer(s.base()), s.npages*pageSize)
++	}
+ }
+ 
+ // hugePages returns the number of aligned physical huge pages in the memory

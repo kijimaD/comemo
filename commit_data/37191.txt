@@ -9,6 +9,31 @@ Date:   Mon Jul 9 21:19:11 2018 +0000
     Change-Id: Ic5be0e2e379d422ef72b956a794d65613a0dd7be
     Reviewed-on: https://go-review.googlesource.com/122815
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  api/go1.11.txt | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/api/go1.11.txt b/api/go1.11.txt
+index d474cf0e8d..ead2a59e16 100644
+--- a/api/go1.11.txt
++++ b/api/go1.11.txt
+@@ -445,9 +445,19 @@ pkg net, method (*ListenConfig) ListenPacket(context.Context, string, string) (P
+ pkg net, type Dialer struct, Control func(string, string, syscall.RawConn) error
+ pkg net, type ListenConfig struct
+ pkg net, type ListenConfig struct, Control func(string, string, syscall.RawConn) error
++pkg net/http, const SameSiteDefaultMode = 1
++pkg net/http, const SameSiteDefaultMode SameSite
++pkg net/http, const SameSiteLaxMode = 2
++pkg net/http, const SameSiteLaxMode SameSite
++pkg net/http, const SameSiteStrictMode = 3
++pkg net/http, const SameSiteStrictMode SameSite
+ pkg net/http, const StatusMisdirectedRequest = 421
+ pkg net/http, const StatusMisdirectedRequest ideal-int
++pkg net/http, type Cookie struct, SameSite SameSite
++pkg net/http, type SameSite int
++pkg net/http, type Transport struct, MaxConnsPerHost int
+ pkg net/http/httptrace, type ClientTrace struct, Got1xxResponse func(int, textproto.MIMEHeader) error
++pkg net/http/httptrace, type ClientTrace struct, WroteHeaderField func(string, []string)
+ pkg os, const ModeIrregular = 524288
+ pkg os, const ModeIrregular FileMode
+ pkg os, const ModeType = 2399666176

@@ -10,8 +10,261 @@ Date:   Fri Oct 27 13:07:38 2017 -0400
     Change-Id: Ia5da791d4cfbfa1fd9a8e905b3188f63819ade73
     Reviewed-on: https://go-review.googlesource.com/73990
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/dist/test.go  | 21 +++++++++++++++++++++
  src/make.bash         |  8 ++++++++
  3 files changed, 80 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 9e15753fb2..10035ccf8d 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -9,12 +9,14 @@ import (
+ 	"encoding/json"
+ 	"flag"
+ 	"fmt"
++	"log"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+ 	"sync"
++	"time"
+ )
+ 
+ // Initialization for any invocation.
+@@ -1003,6 +1005,45 @@ func cmdenv() {
+ 	}
+ }
+ 
++var (
++	timeLogEnabled = os.Getenv("GOBUILDTIMELOGFILE") != ""
++	timeLogMu      sync.Mutex
++	timeLogFile    *os.File
++	timeLogStart   time.Time
++)
++
++func timelog(op, name string) {
++	if !timeLogEnabled {
++		return
++	}
++	timeLogMu.Lock()
++	defer timeLogMu.Unlock()
++	if timeLogFile == nil {
++		f, err := os.OpenFile(os.Getenv("GOBUILDTIMELOGFILE"), os.O_RDWR|os.O_APPEND, 0666)
++		if err != nil {
++			log.Fatal(err)
++		}
++		buf := make([]byte, 100)
++		n, _ := f.Read(buf)
++		s := string(buf[:n])
++		if i := strings.Index(s, "\n"); i >= 0 {
++			s = s[:i]
++		}
++		i := strings.Index(s, " start")
++		if i < 0 {
++			log.Fatalf("time log %s does not begin with start line", os.Getenv("GOBULDTIMELOGFILE"))
++		}
++		t, err := time.Parse(time.UnixDate, s[:i])
++		if err != nil {
++			log.Fatalf("cannot parse time log line %q: %v", s, err)
++		}
++		timeLogStart = t
++		timeLogFile = f
++	}
++	t := time.Now()
++	fmt.Fprintf(timeLogFile, "%s %+.1fs %s %s\n", t.Format(time.UnixDate), t.Sub(timeLogStart).Seconds(), op, name)
++}
++
+ // The bootstrap command runs a build from scratch,
+ // stopping at having installed the go_bootstrap command.
+ //
+@@ -1017,6 +1058,9 @@ func cmdenv() {
+ // if $X was already present in os.Environ(), most systems preferred
+ // that setting, not the new one.
+ func cmdbootstrap() {
++	timelog("start", "dist bootstrap")
++	defer timelog("end", "dist bootstrap")
++
+ 	var noBanner bool
+ 	var debug bool
+ 	flag.BoolVar(&rebuildall, "a", rebuildall, "rebuild all")
+@@ -1041,6 +1085,7 @@ func cmdbootstrap() {
+ 
+ 	setup()
+ 
++	timelog("build", "toolchain1")
+ 	checkCC()
+ 	bootstrapBuildTools()
+ 
+@@ -1057,6 +1102,7 @@ func cmdbootstrap() {
+ 	os.Setenv("GOARCH", goarch)
+ 	os.Setenv("GOOS", goos)
+ 
++	timelog("build", "go_bootstrap")
+ 	xprintf("##### Building go_bootstrap.\n")
+ 	for _, dir := range buildlist {
+ 		installed[dir] = make(chan struct{})
+@@ -1092,6 +1138,7 @@ func cmdbootstrap() {
+ 	//
+ 	//	toolchain2 = mk(new toolchain, toolchain1, go_bootstrap)
+ 	//
++	timelog("build", "toolchain2")
+ 	xprintf("\n##### Building Go toolchain2 using go_bootstrap and Go toolchain1.\n")
+ 	os.Setenv("CC", defaultcc)
+ 	if goos == oldgoos && goarch == oldgoarch {
+@@ -1123,6 +1170,7 @@ func cmdbootstrap() {
+ 	//
+ 	//	toolchain3 = mk(new toolchain, toolchain2, go_bootstrap)
+ 	//
++	timelog("build", "toolchain3")
+ 	xprintf("\n##### Building Go toolchain3 using go_bootstrap and Go toolchain2.\n")
+ 	goInstall(append([]string{"-a"}, toolchain...)...)
+ 	if debug {
+@@ -1134,16 +1182,19 @@ func cmdbootstrap() {
+ 
+ 	if goos == oldgoos && goarch == oldgoarch {
+ 		// Common case - not setting up for cross-compilation.
++		timelog("build", "toolchain")
+ 		xprintf("\n##### Building packages and commands for %s/%s\n", goos, goarch)
+ 	} else {
+ 		// GOOS/GOARCH does not match GOHOSTOS/GOHOSTARCH.
+ 		// Finish GOHOSTOS/GOHOSTARCH installation and then
+ 		// run GOOS/GOARCH installation.
++		timelog("build", "host toolchain")
+ 		xprintf("\n##### Building packages and commands for host, %s/%s\n", goos, goarch)
+ 		goInstall("std", "cmd")
+ 		checkNotStale(goBootstrap, "std", "cmd")
+ 		checkNotStale(cmdGo, "std", "cmd")
+ 
++		timelog("build", "target toolchain")
+ 		xprintf("\n##### Building packages and commands for target, %s/%s\n", goos, goarch)
+ 		goos = oldgoos
+ 		goarch = oldgoarch
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index f46d6c21ad..49791b6c1d 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -87,6 +87,8 @@ type distTest struct {
+ }
+ 
+ func (t *tester) run() {
++	timelog("start", "dist test")
++
+ 	var exeSuffix string
+ 	if goos == "windows" {
+ 		exeSuffix = ".exe"
+@@ -205,6 +207,7 @@ func (t *tester) run() {
+ 		}
+ 	}
+ 	t.runPending(nil)
++	timelog("end", "dist test")
+ 	if t.failed {
+ 		fmt.Println("\nFAILED")
+ 		os.Exit(1)
+@@ -268,6 +271,8 @@ func (t *tester) registerStdTest(pkg string) {
+ 				return nil
+ 			}
+ 			t.runPending(dt)
++			timelog("start", dt.name)
++			defer timelog("end", dt.name)
+ 			ranGoTest = true
+ 			args := []string{
+ 				"test",
+@@ -304,6 +309,8 @@ func (t *tester) registerRaceBenchTest(pkg string) {
+ 				return nil
+ 			}
+ 			t.runPending(dt)
++			timelog("start", dt.name)
++			defer timelog("end", dt.name)
+ 			ranGoBench = true
+ 			args := []string{
+ 				"test",
+@@ -414,6 +421,8 @@ func (t *tester) registerTests() {
+ 			heading: "cmd/go terminal test",
+ 			fn: func(dt *distTest) error {
+ 				t.runPending(dt)
++				timelog("start", dt.name)
++				defer timelog("end", dt.name)
+ 				if !stdOutErrAreTerminals() {
+ 					fmt.Println("skipping terminal test; stdout/stderr not terminals")
+ 					return nil
+@@ -438,6 +447,8 @@ func (t *tester) registerTests() {
+ 			heading: "moved GOROOT",
+ 			fn: func(dt *distTest) error {
+ 				t.runPending(dt)
++				timelog("start", dt.name)
++				defer timelog("end", dt.name)
+ 				moved := goroot + "-moved"
+ 				if err := os.Rename(goroot, moved); err != nil {
+ 					if goos == "windows" {
+@@ -696,6 +707,8 @@ func (t *tester) registerTest1(seq bool, name, dirBanner, bin string, args ...st
+ 		fn: func(dt *distTest) error {
+ 			if seq {
+ 				t.runPending(dt)
++				timelog("start", name)
++				defer timelog("end", name)
+ 				return t.dirCmd(filepath.Join(goroot, "src", dirBanner), bin, args...).Run()
+ 			}
+ 			t.addCmd(dt, filepath.Join(goroot, "src", dirBanner), bin, args...)
+@@ -867,6 +880,8 @@ func (t *tester) registerHostTest(name, heading, dir, pkg string) {
+ 		heading: heading,
+ 		fn: func(dt *distTest) error {
+ 			t.runPending(dt)
++			timelog("start", name)
++			defer timelog("end", name)
+ 			return t.runHostTest(dir, pkg)
+ 		},
+ 	})
+@@ -946,10 +961,13 @@ func (t *tester) runPending(nextTest *distTest) {
+ 		w.end = make(chan bool)
+ 		go func(w *work) {
+ 			if !<-w.start {
++				timelog("skip", w.dt.name)
+ 				w.out = []byte(fmt.Sprintf("skipped due to earlier error\n"))
+ 			} else {
++				timelog("start", w.dt.name)
+ 				w.out, w.err = w.cmd.CombinedOutput()
+ 			}
++			timelog("end", w.dt.name)
+ 			w.end <- true
+ 		}(w)
+ 	}
+@@ -1024,6 +1042,9 @@ func (t *tester) cgoTestSOSupported() bool {
+ func (t *tester) cgoTestSO(dt *distTest, testpath string) error {
+ 	t.runPending(dt)
+ 
++	timelog("start", dt.name)
++	defer timelog("end", dt.name)
++
+ 	dir := filepath.Join(goroot, testpath)
+ 
+ 	// build shared object
+diff --git a/src/make.bash b/src/make.bash
+index 4e1b7b6bd8..9827abd331 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -51,6 +51,10 @@
+ #
+ # GO_DISTFLAGS: extra flags to provide to "dist bootstrap".
+ # (Or just pass them to the make.bash command line.)
++#
++# GOBUILDTIMELOGFILE: If set, make.bash and all.bash write
++# timing information to this file. Useful for profiling where the
++# time goes when these scripts run.
+ 
+ set -e
+ 
+@@ -61,6 +65,10 @@ if [ ! -f run.bash ]; then
+ 	exit 1
+ fi
+ 
++if [ "$GOBUILDTIMELOGFILE" != "" ]; then
++	echo $(date) start make.bash >"$GOBUILDTIMELOGFILE"
++fi
++
+ # Test for Windows.
+ case "$(uname)" in
+ *MINGW* | *WIN32* | *CYGWIN*)

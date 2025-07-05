@@ -15,9 +15,216 @@ Date:   Sat Sep 22 10:01:35 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6552059
-
+---
  src/cmd/5g/gsubr.c |  8 ++++++++
  src/cmd/5g/reg.c   | 37 ++++++++++++++++++++++++++++++++++---
  src/cmd/6g/reg.c   | 10 +++++++---
  src/cmd/8g/reg.c   |  7 +++++--
  4 files changed, 54 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 19036a36f7..8ad610a76f 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1199,6 +1199,11 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	if(n == N)
+ 		return;
+ 
++	if(n->type != T && n->type->etype != TIDEAL) {
++		dowidth(n->type);
++		a->width = n->type->width;
++	}
++
+ 	switch(n->op) {
+ 	default:
+ 		fatal("naddr: bad %O %D", n->op, a);
+@@ -1378,6 +1383,9 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			fatal("naddr: OADDR %d\n", a->type);
+ 		}
+ 	}
++	
++	if(a->width < 0)
++		fatal("naddr: bad width for %N -> %D", n, a);
+ }
+ 
+ /*
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index d130fc6ba2..c7fb2e02dd 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -416,10 +416,14 @@ regopt(Prog *firstp)
+ 				addrs.b[z] |= bit.b[z];
+ 		}
+ 
+-//		print("bit=%2d addr=%d et=%-6E w=%-2d s=%S + %lld\n",
+-//			i, v->addr, v->etype, v->width, v->sym, v->offset);
++		if(debug['R'] && debug['v'])
++			print("bit=%2d addr=%d et=%-6E w=%-2d s=%N + %lld\n",
++				i, v->addr, v->etype, v->width, v->node, v->offset);
+ 	}
+ 
++	if(debug['R'] && debug['v'])
++		dumpit("pass1", firstr);
++
+ 	/*
+ 	 * pass 2
+ 	 * turn branch references to pointers
+@@ -448,6 +452,9 @@ regopt(Prog *firstp)
+ 		print("	addr = %Q\n", addrs);
+ 	}
+ 
++	if(debug['R'] && debug['v'])
++		dumpit("pass2", firstr);
++
+ 	/*
+ 	 * pass 2.5
+ 	 * find looping structure
+@@ -457,6 +464,9 @@ regopt(Prog *firstp)
+ 	change = 0;
+ 	loopit(firstr, nr);
+ 
++	if(debug['R'] && debug['v'])
++		dumpit("pass2.5", firstr);
++
+ 	/*
+ 	 * pass 3
+ 	 * iterate propagating usage
+@@ -484,6 +494,9 @@ loop11:
+ 	if(change)
+ 		goto loop1;
+ 
++	if(debug['R'] && debug['v'])
++		dumpit("pass3", firstr);
++
+ 
+ 	/*
+ 	 * pass 4
+@@ -500,6 +513,9 @@ loop2:
+ 
+ 	addsplits();
+ 
++	if(debug['R'] && debug['v'])
++		dumpit("pass4", firstr);
++
+ 	if(debug['R'] > 1) {
+ 		print("\nprop structure:\n");
+ 		for(r = firstr; r != R; r = r->link) {
+@@ -551,6 +567,9 @@ loop2:
+ 		r->act.b[0] &= ~REGBITS;
+ 	}
+ 
++	if(debug['R'] && debug['v'])
++		dumpit("pass4.5", firstr);
++
+ 	/*
+ 	 * pass 5
+ 	 * isolate regions
+@@ -613,6 +632,9 @@ loop2:
+ brk:
+ 	qsort(region, nregion, sizeof(region[0]), rcmp);
+ 
++	if(debug['R'] && debug['v'])
++		dumpit("pass5", firstr);
++
+ 	/*
+ 	 * pass 6
+ 	 * determine used registers (paint2)
+@@ -641,6 +663,10 @@ brk:
+ 			paint3(rgp->enter, rgp->varno, vreg, rgp->regno);
+ 		rgp++;
+ 	}
++
++	if(debug['R'] && debug['v'])
++		dumpit("pass6", firstr);
++
+ 	/*
+ 	 * pass 7
+ 	 * peep-hole on basic block
+@@ -649,6 +675,9 @@ brk:
+ 		peep();
+ 	}
+ 
++	if(debug['R'] && debug['v'])
++		dumpit("pass7", firstr);
++
+ 	/*
+ 	 * last pass
+ 	 * eliminate nops
+@@ -935,6 +964,8 @@ mkvar(Reg *r, Adr *a)
+ 	et = a->etype;
+ 	o = a->offset;
+ 	w = a->width;
++	if(w < 0)
++		fatal("bad width %d for %D", w, a);
+ 
+ 	for(i=0; i<nvar; i++) {
+ 		v = var+i;
+@@ -1705,7 +1736,7 @@ fixjmp(Prog *firstp)
+ 	}
+ 	if(debug['R'] && debug['v'])
+ 		print("\n");
+-
++	
+ 	// pass 2: mark all reachable code alive
+ 	mark(firstp);
+ 	
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 21663c82fc..398e6a70d9 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -579,8 +579,9 @@ regopt(Prog *firstp)
+ 				addrs.b[z] |= bit.b[z];
+ 		}
+ 
+-//		print("bit=%2d addr=%d et=%-6E w=%-2d s=%S + %lld\n",
+-//			i, v->addr, v->etype, v->width, v->sym, v->offset);
++		if(debug['R'] && debug['v'])
++			print("bit=%2d addr=%d et=%-6E w=%-2d s=%N + %lld\n",
++				i, v->addr, v->etype, v->width, v->node, v->offset);
+ 	}
+ 
+ 	if(debug['R'] && debug['v'])
+@@ -996,6 +997,8 @@ mkvar(Reg *r, Adr *a)
+ 	et = a->etype;
+ 	o = a->offset;
+ 	w = a->width;
++	if(w < 0)
++		fatal("bad width %d for %D", w, a);
+ 
+ 	flag = 0;
+ 	for(i=0; i<nvar; i++) {
+@@ -1038,7 +1041,8 @@ mkvar(Reg *r, Adr *a)
+ 	v->node = node;
+ 
+ 	if(debug['R'])
+-		print("bit=%2d et=%2E w=%d %#N %D\n", i, et, w, node, a);
++		print("bit=%2d et=%2d w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
++
+ 	ostats.nvar++;
+ 
+ 	bit = blsh(i);
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 4ba9054ca9..bc80537cc3 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -474,8 +474,9 @@ regopt(Prog *firstp)
+ 				addrs.b[z] |= bit.b[z];
+ 		}
+ 
+-//		print("bit=%2d addr=%d et=%-6E w=%-2d s=%S + %lld\n",
+-//			i, v->addr, v->etype, v->width, v->sym, v->offset);
++		if(debug['R'] && debug['v'])
++			print("bit=%2d addr=%d et=%-6E w=%-2d s=%N + %lld\n",
++				i, v->addr, v->etype, v->width, v->node, v->offset);
+ 	}
+ 
+ 	if(debug['R'] && debug['v'])
+@@ -864,6 +865,8 @@ mkvar(Reg *r, Adr *a)
+ 	et = a->etype;
+ 	o = a->offset;
+ 	w = a->width;
++	if(w < 0)
++		fatal("bad width %d for %D", w, a);
+ 
+ 	flag = 0;
+ 	for(i=0; i<nvar; i++) {

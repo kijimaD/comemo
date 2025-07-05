@@ -9,6 +9,25 @@ Date:   Tue Apr 11 13:27:41 2017 -0700
     Change-Id: I28e4cd6924f1b965a429a6a5ebfc4c0f952e8ae6
     Reviewed-on: https://go-review.googlesource.com/40390
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/time.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 5283b7eb21..ff016a6cad 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -81,8 +81,11 @@ import "errors"
+ //
+ // Programs using times should typically store and pass them as values,
+ // not pointers. That is, time variables and struct fields should be of
+-// type time.Time, not *time.Time. A Time value can be used by
+-// multiple goroutines simultaneously.
++// type time.Time, not *time.Time.
++//
++// A Time value can be used by multiple goroutines simultaneously except
++// that the methods GobDecode, UnmarshalBinary, UnmarshalJSON and
++// UnmarshalText are not concurrency-safe.
+ //
+ // Time instants can be compared using the Before, After, and Equal methods.
+ // The Sub method subtracts two instants, producing a Duration.

@@ -15,7 +15,7 @@ Date:   Wed Aug 30 04:57:57 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/importer/iimport.go |  6 ++----
  src/debug/elf/file.go                        | 21 +++++----------------
  src/debug/elf/reader.go                      |  6 +++---
@@ -24,3 +24,187 @@ Date:   Wed Aug 30 04:57:57 2023 +0000
  src/debug/pe/string.go                       |  2 +-
  src/debug/pe/symbol.go                       |  2 +-
  7 files changed, 15 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 24d3d4b6e7..498134755d 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -77,8 +77,6 @@ const (
+ 	unionType
+ )
+ 
+-const io_SeekCurrent = 1 // io.SeekCurrent (not defined in Go 1.4)
+-
+ // ImportData imports a package from the serialized package data
+ // and returns the number of bytes consumed and a reference to the package.
+ // If the export data version is not recognized or the format is otherwise
+@@ -108,10 +106,10 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
+ 	sLen := int64(r.uint64())
+ 	dLen := int64(r.uint64())
+ 
+-	whence, _ := r.Seek(0, io_SeekCurrent)
++	whence, _ := r.Seek(0, io.SeekCurrent)
+ 	stringData := data[whence : whence+sLen]
+ 	declData := data[whence+sLen : whence+sLen+dLen]
+-	r.Seek(sLen+dLen, io_SeekCurrent)
++	r.Seek(sLen+dLen, io.SeekCurrent)
+ 
+ 	p := iimporter{
+ 		exportVersion: version,
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 87773541f0..4765c468d8 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -29,17 +29,6 @@ import (
+ 	"strings"
+ )
+ 
+-// seekStart, seekCurrent, seekEnd are copies of
+-// io.SeekStart, io.SeekCurrent, and io.SeekEnd.
+-// We can't use the ones from package io because
+-// we want this code to build with Go 1.4 during
+-// cmd/dist bootstrap.
+-const (
+-	seekStart   int = 0
+-	seekCurrent int = 1
+-	seekEnd     int = 2
+-)
+-
+ // TODO: error reporting detail
+ 
+ /*
+@@ -332,7 +321,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	switch f.Class {
+ 	case ELFCLASS32:
+ 		hdr := new(Header32)
+-		sr.Seek(0, seekStart)
++		sr.Seek(0, io.SeekStart)
+ 		if err := binary.Read(sr, f.ByteOrder, hdr); err != nil {
+ 			return nil, err
+ 		}
+@@ -351,7 +340,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		shstrndx = int(hdr.Shstrndx)
+ 	case ELFCLASS64:
+ 		hdr := new(Header64)
+-		sr.Seek(0, seekStart)
++		sr.Seek(0, io.SeekStart)
+ 		if err := binary.Read(sr, f.ByteOrder, hdr); err != nil {
+ 			return nil, err
+ 		}
+@@ -402,7 +391,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	f.Progs = make([]*Prog, phnum)
+ 	for i := 0; i < phnum; i++ {
+ 		off := phoff + int64(i)*int64(phentsize)
+-		sr.Seek(off, seekStart)
++		sr.Seek(off, io.SeekStart)
+ 		p := new(Prog)
+ 		switch f.Class {
+ 		case ELFCLASS32:
+@@ -453,7 +442,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	// header at index 0.
+ 	if shoff > 0 && shnum == 0 {
+ 		var typ, link uint32
+-		sr.Seek(shoff, seekStart)
++		sr.Seek(shoff, io.SeekStart)
+ 		switch f.Class {
+ 		case ELFCLASS32:
+ 			sh := new(Section32)
+@@ -506,7 +495,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	names := make([]uint32, 0, c)
+ 	for i := 0; i < shnum; i++ {
+ 		off := shoff + int64(i)*int64(shentsize)
+-		sr.Seek(off, seekStart)
++		sr.Seek(off, io.SeekStart)
+ 		s := new(Section)
+ 		switch f.Class {
+ 		case ELFCLASS32:
+diff --git a/src/debug/elf/reader.go b/src/debug/elf/reader.go
+index a45843619e..eab437318d 100644
+--- a/src/debug/elf/reader.go
++++ b/src/debug/elf/reader.go
+@@ -63,11 +63,11 @@ func (r *readSeekerFromReader) Read(p []byte) (n int, err error) {
+ func (r *readSeekerFromReader) Seek(offset int64, whence int) (int64, error) {
+ 	var newOffset int64
+ 	switch whence {
+-	case seekStart:
++	case io.SeekStart:
+ 		newOffset = offset
+-	case seekCurrent:
++	case io.SeekCurrent:
+ 		newOffset = r.offset + offset
+-	case seekEnd:
++	case io.SeekEnd:
+ 		newOffset = r.size + offset
+ 	default:
+ 		return 0, os.ErrInvalid
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index 06c160105f..e7be4ef1a0 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -27,9 +27,6 @@ import (
+ 	"strings"
+ )
+ 
+-// Avoid use of post-Go 1.4 io features, to make safe for toolchain bootstrap.
+-const seekStart = 0
+-
+ // A File represents an open PE file.
+ type File struct {
+ 	FileHeader
+@@ -92,7 +89,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	} else {
+ 		base = int64(0)
+ 	}
+-	sr.Seek(base, seekStart)
++	sr.Seek(base, io.SeekStart)
+ 	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
+ 		return nil, err
+ 	}
+@@ -129,7 +126,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	}
+ 
+ 	// Seek past file header.
+-	_, err = sr.Seek(base+int64(binary.Size(f.FileHeader)), seekStart)
++	_, err = sr.Seek(base+int64(binary.Size(f.FileHeader)), io.SeekStart)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/debug/pe/section.go b/src/debug/pe/section.go
+index 70d0c220ce..bab067e06b 100644
+--- a/src/debug/pe/section.go
++++ b/src/debug/pe/section.go
+@@ -54,7 +54,7 @@ func readRelocs(sh *SectionHeader, r io.ReadSeeker) ([]Reloc, error) {
+ 	if sh.NumberOfRelocations <= 0 {
+ 		return nil, nil
+ 	}
+-	_, err := r.Seek(int64(sh.PointerToRelocations), seekStart)
++	_, err := r.Seek(int64(sh.PointerToRelocations), io.SeekStart)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("fail to seek to %q section relocations: %v", sh.Name, err)
+ 	}
+diff --git a/src/debug/pe/string.go b/src/debug/pe/string.go
+index a156bbef05..6cd08aed71 100644
+--- a/src/debug/pe/string.go
++++ b/src/debug/pe/string.go
+@@ -31,7 +31,7 @@ func readStringTable(fh *FileHeader, r io.ReadSeeker) (StringTable, error) {
+ 		return nil, nil
+ 	}
+ 	offset := fh.PointerToSymbolTable + COFFSymbolSize*fh.NumberOfSymbols
+-	_, err := r.Seek(int64(offset), seekStart)
++	_, err := r.Seek(int64(offset), io.SeekStart)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("fail to seek to string table: %v", err)
+ 	}
+diff --git a/src/debug/pe/symbol.go b/src/debug/pe/symbol.go
+index 2e03af76bd..02f24ec29d 100644
+--- a/src/debug/pe/symbol.go
++++ b/src/debug/pe/symbol.go
+@@ -55,7 +55,7 @@ func readCOFFSymbols(fh *FileHeader, r io.ReadSeeker) ([]COFFSymbol, error) {
+ 	if fh.NumberOfSymbols <= 0 {
+ 		return nil, nil
+ 	}
+-	_, err := r.Seek(int64(fh.PointerToSymbolTable), seekStart)
++	_, err := r.Seek(int64(fh.PointerToSymbolTable), io.SeekStart)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("fail to seek to symbol table: %v", err)
+ 	}

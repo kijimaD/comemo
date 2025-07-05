@@ -7,6 +7,24 @@ Date:   Mon Dec 22 15:24:30 2014 -0800
     Change-Id: Ieb305b2a4d4ef28d70a8b8ece703f495c5af0529
     Reviewed-on: https://go-review.googlesource.com/2051
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/hashmap.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 14557f8835..dd3877d21e 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -150,10 +150,10 @@ func evacuated(b *bmap) bool {
+ }
+ 
+ func (b *bmap) overflow(t *maptype) *bmap {
+-	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize) - ptrSize))
++	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize) - regSize))
+ }
+ func (b *bmap) setoverflow(t *maptype, ovf *bmap) {
+-	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize) - ptrSize)) = ovf
++	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize) - regSize)) = ovf
+ }
+ 
+ func makemap(t *maptype, hint int64) *hmap {

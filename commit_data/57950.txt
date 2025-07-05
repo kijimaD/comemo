@@ -11,6 +11,22 @@ Date:   Tue Sep 12 16:14:36 2023 +0200
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/testing/testing.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 1bc8aff00d..d89a99454d 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -771,9 +771,7 @@ func (c *common) decorate(s string, skip int) string {
+ 	if file != "" {
+ 		if *fullPath {
+ 			// If relative path, truncate file name at last file name separator.
+-		} else if index := strings.LastIndex(file, "/"); index >= 0 {
+-			file = file[index+1:]
+-		} else if index = strings.LastIndex(file, "\\"); index >= 0 {
++		} else if index := strings.LastIndexAny(file, `/\`); index >= 0 {
+ 			file = file[index+1:]
+ 		}
+ 	} else {

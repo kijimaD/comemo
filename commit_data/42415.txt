@@ -9,6 +9,20 @@ Date:   Tue Nov 19 16:14:50 2019 -0800
     Change-Id: I0c5fed46a69a9663e46a9414468ec610063ea05a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/207849
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/time/sleep.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index 4e61d0a6c1..37de846b11 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -64,7 +64,7 @@ type Timer struct {
+ // 	}
+ //
+ // This cannot be done concurrent to other receives from the Timer's
+-// channel.
++// channel or other calls to the Timer's Stop method.
+ //
+ // For a timer created with AfterFunc(d, f), if t.Stop returns false, then the timer
+ // has already expired and the function f has been started in its own goroutine;

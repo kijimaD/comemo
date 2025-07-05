@@ -12,8 +12,150 @@ Date:   Tue Mar 29 10:33:47 2011 -0400
     R=golang-dev, rsc1, r
     CC=golang-dev
     https://golang.org/cl/4291075
-
+---
  src/pkg/asn1/asn1.go      | 34 ++++++++++++++++++++++++++++++++--
  src/pkg/asn1/asn1_test.go |  3 ++-
  src/pkg/asn1/common.go    | 10 ++++++++--
  3 files changed, 42 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index d06b1d4d77..c5314517b3 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -389,6 +389,11 @@ func parseSequenceOf(bytes []byte, sliceType *reflect.SliceType, elemType reflec
+ 		if err != nil {
+ 			return
+ 		}
++		// We pretend that GENERAL STRINGs are PRINTABLE STRINGs so
++		// that a sequence of them can be parsed into a []string.
++		if t.tag == tagGeneralString {
++			t.tag = tagPrintableString
++		}
+ 		if t.class != classUniversal || t.isCompound != compoundType || t.tag != expectedTag {
+ 			err = StructuralError{"sequence tag mismatch"}
+ 			return
+@@ -516,7 +521,11 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		return
+ 	}
+ 	if params.explicit {
+-		if t.class == classContextSpecific && t.tag == *params.tag && (t.length == 0 || t.isCompound) {
++		expectedClass := classContextSpecific
++		if params.application {
++			expectedClass = classApplication
++		}
++		if t.class == expectedClass && t.tag == *params.tag && (t.length == 0 || t.isCompound) {
+ 			if t.length > 0 {
+ 				t, offset, err = parseTagAndLength(bytes, offset)
+ 				if err != nil {
+@@ -551,6 +560,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 	if universalTag == tagPrintableString && t.tag == tagIA5String {
+ 		universalTag = tagIA5String
+ 	}
++	// Likewise for GeneralString
++	if universalTag == tagPrintableString && t.tag == tagGeneralString {
++		universalTag = tagGeneralString
++	}
+ 
+ 	// Special case for time: UTCTime and GeneralizedTime both map to the
+ 	// Go type time.Time.
+@@ -566,6 +579,11 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		expectedTag = *params.tag
+ 	}
+ 
++	if !params.explicit && params.application && params.tag != nil {
++		expectedClass = classApplication
++		expectedTag = *params.tag
++	}
++
+ 	// We have unwrapped any explicit tagging at this point.
+ 	if t.class != expectedClass || t.tag != expectedTag || t.isCompound != compoundType {
+ 		// Tags don't match. Again, it could be an optional element.
+@@ -701,6 +719,12 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 			v, err = parseIA5String(innerBytes)
+ 		case tagT61String:
+ 			v, err = parseT61String(innerBytes)
++		case tagGeneralString:
++			// GeneralString is specified in ISO-2022/ECMA-35,
++			// A brief review suggests that it includes structures
++			// that allow the encoding to change midstring and
++			// such. We give up and pass it as an 8-bit string.
++			v, err = parseT61String(innerBytes)
+ 		default:
+ 			err = SyntaxError{fmt.Sprintf("internal error: unknown string type %d", universalTag)}
+ 		}
+@@ -776,8 +800,14 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
+ // Other ASN.1 types are not supported; if it encounters them,
+ // Unmarshal returns a parse error.
+ func Unmarshal(b []byte, val interface{}) (rest []byte, err os.Error) {
++	return UnmarshalWithParams(b, val, "")
++}
++
++// UnmarshalWithParams allows field parameters to be specified for the
++// top-level element. The form of the params is the same as the field tags.
++func UnmarshalWithParams(b []byte, val interface{}, params string) (rest []byte, err os.Error) {
+ 	v := reflect.NewValue(val).(*reflect.PtrValue).Elem()
+-	offset, err := parseField(v, b, 0, fieldParameters{})
++	offset, err := parseField(v, b, 0, parseFieldParameters(params))
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/asn1/asn1_test.go b/src/pkg/asn1/asn1_test.go
+index 34b5f1ecda..b7767656a4 100644
+--- a/src/pkg/asn1/asn1_test.go
++++ b/src/pkg/asn1/asn1_test.go
+@@ -249,11 +249,12 @@ var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParame
+ 	{"printable", fieldParameters{stringType: tagPrintableString}},
+ 	{"optional", fieldParameters{optional: true}},
+ 	{"explicit", fieldParameters{explicit: true, tag: new(int)}},
++	{"application", fieldParameters{application: true, tag: new(int)}},
+ 	{"optional,explicit", fieldParameters{optional: true, explicit: true, tag: new(int)}},
+ 	{"default:42", fieldParameters{defaultValue: newInt64(42)}},
+ 	{"tag:17", fieldParameters{tag: newInt(17)}},
+ 	{"optional,explicit,default:42,tag:17", fieldParameters{optional: true, explicit: true, defaultValue: newInt64(42), tag: newInt(17)}},
+-	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, newInt64(42), newInt(17), 0, false}},
++	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, false, newInt64(42), newInt(17), 0, false}},
+ 	{"set", fieldParameters{set: true}},
+ }
+ 
+diff --git a/src/pkg/asn1/common.go b/src/pkg/asn1/common.go
+index 4a5eca1450..f2254a41bb 100644
+--- a/src/pkg/asn1/common.go
++++ b/src/pkg/asn1/common.go
+@@ -32,6 +32,7 @@ const (
+ 	tagIA5String       = 22
+ 	tagUTCTime         = 23
+ 	tagGeneralizedTime = 24
++	tagGeneralString   = 27
+ )
+ 
+ const (
+@@ -67,7 +68,8 @@ type tagAndLength struct {
+ // fieldParameters is the parsed representation of tag string from a structure field.
+ type fieldParameters struct {
+ 	optional     bool   // true iff the field is OPTIONAL
+-	explicit     bool   // true iff and EXPLICIT tag is in use.
++	explicit     bool   // true iff an EXPLICIT tag is in use.
++	application  bool   // true iff an APPLICATION tag is in use.
+ 	defaultValue *int64 // a default value for INTEGER typed fields (maybe nil).
+ 	tag          *int   // the EXPLICIT or IMPLICIT tag (maybe nil).
+ 	stringType   int    // the string tag to use when marshaling.
+@@ -89,7 +91,6 @@ func parseFieldParameters(str string) (ret fieldParameters) {
+ 			ret.explicit = true
+ 			if ret.tag == nil {
+ 				ret.tag = new(int)
+-				*ret.tag = 0
+ 			}
+ 		case part == "ia5":
+ 			ret.stringType = tagIA5String
+@@ -109,6 +110,11 @@ func parseFieldParameters(str string) (ret fieldParameters) {
+ 			}
+ 		case part == "set":
+ 			ret.set = true
++		case part == "application":
++			ret.application = true
++			if ret.tag == nil {
++				ret.tag = new(int)
++			}
+ 		}
+ 	}
+ 	return

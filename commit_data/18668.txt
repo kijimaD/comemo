@@ -35,7 +35,7 @@ Date:   Wed Feb 26 15:52:58 2014 -0800
     R=dvyukov, bradfitz, khr, rsc
     CC=golang-codereviews
     https://golang.org/cl/46810043
-
+---
  src/pkg/runtime/gc_test.go |  70 ++++++++++++++
  src/pkg/runtime/malloc.goc | 229 +++++++++++++++++----------------------------
  src/pkg/runtime/malloc.h   |  34 +++----
@@ -45,3 +45,1105 @@ Date:   Wed Feb 26 15:52:58 2014 -0800
  src/pkg/runtime/mheap.c    |   2 +
  src/pkg/runtime/runtime.h  |   4 -
  8 files changed, 382 insertions(+), 286 deletions(-)
+
+diff --git a/src/pkg/runtime/gc_test.go b/src/pkg/runtime/gc_test.go
+index dbd68c1c75..75322478e4 100644
+--- a/src/pkg/runtime/gc_test.go
++++ b/src/pkg/runtime/gc_test.go
+@@ -151,3 +151,73 @@ func TestGcRescan(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkSetTypeNoPtr1(b *testing.B) {
++	type NoPtr1 struct {
++		p uintptr
++	}
++	var p *NoPtr1
++	for i := 0; i < b.N; i++ {
++		p = &NoPtr1{}
++	}
++	_ = p
++}
++func BenchmarkSetTypeNoPtr2(b *testing.B) {
++	type NoPtr2 struct {
++		p, q uintptr
++	}
++	var p *NoPtr2
++	for i := 0; i < b.N; i++ {
++		p = &NoPtr2{}
++	}
++	_ = p
++}
++func BenchmarkSetTypePtr1(b *testing.B) {
++	type Ptr1 struct {
++		p *byte
++	}
++	var p *Ptr1
++	for i := 0; i < b.N; i++ {
++		p = &Ptr1{}
++	}
++	_ = p
++}
++func BenchmarkSetTypePtr2(b *testing.B) {
++	type Ptr2 struct {
++		p, q *byte
++	}
++	var p *Ptr2
++	for i := 0; i < b.N; i++ {
++		p = &Ptr2{}
++	}
++	_ = p
++}
++
++func BenchmarkAllocation(b *testing.B) {
++	type T struct {
++		x, y *byte
++	}
++	ngo := runtime.GOMAXPROCS(0)
++	work := make(chan bool, b.N+ngo)
++	result := make(chan *T)
++	for i := 0; i < b.N; i++ {
++		work <- true
++	}
++	for i := 0; i < ngo; i++ {
++		work <- false
++	}
++	for i := 0; i < ngo; i++ {
++		go func() {
++			var x *T
++			for <-work {
++				for i := 0; i < 1000; i++ {
++					x = &T{}
++				}
++			}
++			result <- x
++		}()
++	}
++	for i := 0; i < ngo; i++ {
++		<-result
++	}
++}
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index b41182328a..07ca9aa1d4 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -27,8 +27,9 @@ extern MStats mstats;	// defined in zruntime_def_$GOOS_$GOARCH.go
+ 
+ extern volatile intgo runtime·MemProfileRate;
+ 
+-static void* largealloc(uint32, uintptr*);
++static MSpan* largealloc(uint32, uintptr*);
+ static void profilealloc(void *v, uintptr size, uintptr typ);
++static void settype(MSpan *s, void *v, uintptr typ);
+ 
+ // Allocate an object of at least size bytes.
+ // Small objects are allocated from the per-thread cache's free lists.
+@@ -41,7 +42,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 	uintptr tinysize, size1;
+ 	intgo rate;
+ 	MCache *c;
+-	MCacheList *l;
++	MSpan *s;
+ 	MLink *v, *next;
+ 	byte *tiny;
+ 
+@@ -53,8 +54,8 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 	}
+ 	if(m->mallocing)
+ 		runtime·throw("malloc/free - deadlock");
+-	// Disable preemption during settype_flush.
+-	// We can not use m->mallocing for this, because settype_flush calls mallocgc.
++	// Disable preemption during settype.
++	// We can not use m->mallocing for this, because settype calls mallocgc.
+ 	m->locks++;
+ 	m->mallocing = 1;
+ 
+@@ -118,15 +119,15 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 				}
+ 			}
+ 			// Allocate a new TinySize block.
+-			l = &c->list[TinySizeClass];
+-			if(l->list == nil)
+-				runtime·MCache_Refill(c, TinySizeClass);
+-			v = l->list;
++			s = c->alloc[TinySizeClass];
++			if(s->freelist == nil)
++				s = runtime·MCache_Refill(c, TinySizeClass);
++			v = s->freelist;
+ 			next = v->next;
++			s->freelist = next;
++			s->ref++;
+ 			if(next != nil)  // prefetching nil leads to a DTLB miss
+ 				PREFETCH(next);
+-			l->list = next;
+-			l->nlist--;
+ 			((uint64*)v)[0] = 0;
+ 			((uint64*)v)[1] = 0;
+ 			// See if we need to replace the existing tiny block with the new one
+@@ -145,15 +146,15 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 		else
+ 			sizeclass = runtime·size_to_class128[(size-1024+127) >> 7];
+ 		size = runtime·class_to_size[sizeclass];
+-		l = &c->list[sizeclass];
+-		if(l->list == nil)
+-			runtime·MCache_Refill(c, sizeclass);
+-		v = l->list;
++		s = c->alloc[sizeclass];
++		if(s->freelist == nil)
++			s = runtime·MCache_Refill(c, sizeclass);
++		v = s->freelist;
+ 		next = v->next;
++		s->freelist = next;
++		s->ref++;
+ 		if(next != nil)  // prefetching nil leads to a DTLB miss
+ 			PREFETCH(next);
+-		l->list = next;
+-		l->nlist--;
+ 		if(!(flag & FlagNoZero)) {
+ 			v->next = nil;
+ 			// block is zeroed iff second word is zero ...
+@@ -164,7 +165,8 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 		c->local_cachealloc += size;
+ 	} else {
+ 		// Allocate directly from heap.
+-		v = largealloc(flag, &size);
++		s = largealloc(flag, &size);
++		v = (void*)(s->start << PageShift);
+ 	}
+ 
+ 	if(flag & FlagNoGC)
+@@ -175,21 +177,12 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 	if(DebugTypeAtBlockEnd)
+ 		*(uintptr*)((uintptr)v+size-sizeof(uintptr)) = typ;
+ 
++	m->mallocing = 0;
+ 	// TODO: save type even if FlagNoScan?  Potentially expensive but might help
+ 	// heap profiling/tracing.
+-	if(UseSpanType && !(flag & FlagNoScan) && typ != 0) {
+-		uintptr *buf, i;
+-
+-		buf = m->settype_buf;
+-		i = m->settype_bufsize;
+-		buf[i++] = (uintptr)v;
+-		buf[i++] = typ;
+-		m->settype_bufsize = i;
+-	}
++	if(UseSpanType && !(flag & FlagNoScan) && typ != 0)
++		settype(s, v, typ);
+ 
+-	m->mallocing = 0;
+-	if(UseSpanType && !(flag & FlagNoScan) && typ != 0 && m->settype_bufsize == nelem(m->settype_buf))
+-		runtime·settype_flush(m);
+ 	if(raceenabled)
+ 		runtime·racemalloc(v, size);
+ 
+@@ -215,7 +208,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 	return v;
+ }
+ 
+-static void*
++static MSpan*
+ largealloc(uint32 flag, uintptr *sizep)
+ {
+ 	uintptr npages, size;
+@@ -237,7 +230,7 @@ largealloc(uint32 flag, uintptr *sizep)
+ 	v = (void*)(s->start << PageShift);
+ 	// setup for mark sweep
+ 	runtime·markspan(v, 0, 0, true);
+-	return v;
++	return s;
+ }
+ 
+ static void
+@@ -318,7 +311,7 @@ runtime·free(void *v)
+ 		s->needzero = 1;
+ 		// Must mark v freed before calling unmarkspan and MHeap_Free:
+ 		// they might coalesce v into other spans and change the bitmap further.
+-		runtime·markfreed(v, size);
++		runtime·markfreed(v);
+ 		runtime·unmarkspan(v, 1<<PageShift);
+ 		if(runtime·debug.efence)
+ 			runtime·SysFree((void*)(s->start<<PageShift), size, &mstats.heap_sys);
+@@ -335,9 +328,17 @@ runtime·free(void *v)
+ 		// Must mark v freed before calling MCache_Free:
+ 		// it might coalesce v and other blocks into a bigger span
+ 		// and change the bitmap further.
+-		runtime·markfreed(v, size);
+ 		c->local_nsmallfree[sizeclass]++;
+-		runtime·MCache_Free(c, v, sizeclass, size);
++		if(c->alloc[sizeclass] == s) {
++			// We own the span, so we can just add v to the freelist
++			runtime·markfreed(v);
++			((MLink*)v)->next = s->freelist;
++			s->freelist = v;
++			s->ref--;
++		} else {
++			// Someone else owns this span.  Add to free queue.
++			runtime·MCache_Free(c, v, sizeclass, size);
++		}
+ 	}
+ 	m->mallocing = 0;
+ }
+@@ -390,37 +391,6 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
+ 	return 1;
+ }
+ 
+-MCache*
+-runtime·allocmcache(void)
+-{
+-	intgo rate;
+-	MCache *c;
+-
+-	runtime·lock(&runtime·mheap);
+-	c = runtime·FixAlloc_Alloc(&runtime·mheap.cachealloc);
+-	runtime·unlock(&runtime·mheap);
+-	runtime·memclr((byte*)c, sizeof(*c));
+-
+-	// Set first allocation sample size.
+-	rate = runtime·MemProfileRate;
+-	if(rate > 0x3fffffff)	// make 2*rate not overflow
+-		rate = 0x3fffffff;
+-	if(rate != 0)
+-		c->next_sample = runtime·fastrand1() % (2*rate);
+-
+-	return c;
+-}
+-
+-void
+-runtime·freemcache(MCache *c)
+-{
+-	runtime·MCache_ReleaseAll(c);
+-	runtime·lock(&runtime·mheap);
+-	runtime·purgecachedstats(c);
+-	runtime·FixAlloc_Free(&runtime·mheap.cachealloc, c);
+-	runtime·unlock(&runtime·mheap);
+-}
+-
+ void
+ runtime·purgecachedstats(MCache *c)
+ {
+@@ -696,94 +666,67 @@ runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat)
+ 	return p;
+ }
+ 
+-static Lock settype_lock;
+-
+-void
+-runtime·settype_flush(M *mp)
++static void
++settype(MSpan *s, void *v, uintptr typ)
+ {
+-	uintptr *buf, *endbuf;
+ 	uintptr size, ofs, j, t;
+ 	uintptr ntypes, nbytes2, nbytes3;
+ 	uintptr *data2;
+ 	byte *data3;
+-	void *v;
+-	uintptr typ, p;
+-	MSpan *s;
+ 
+-	buf = mp->settype_buf;
+-	endbuf = buf + mp->settype_bufsize;
+-
+-	runtime·lock(&settype_lock);
+-	while(buf < endbuf) {
+-		v = (void*)*buf;
+-		*buf = 0;
+-		buf++;
+-		typ = *buf;
+-		buf++;
+-
+-		// (Manually inlined copy of runtime·MHeap_Lookup)
+-		p = (uintptr)v>>PageShift;
+-		p -= (uintptr)runtime·mheap.arena_start >> PageShift;
+-		s = runtime·mheap.spans[p];
+-
+-		if(s->sizeclass == 0) {
+-			s->types.compression = MTypes_Single;
+-			s->types.data = typ;
+-			continue;
++	if(s->sizeclass == 0) {
++		s->types.compression = MTypes_Single;
++		s->types.data = typ;
++		return;
++	}
++	size = s->elemsize;
++	ofs = ((uintptr)v - (s->start<<PageShift)) / size;
++
++	switch(s->types.compression) {
++	case MTypes_Empty:
++		ntypes = (s->npages << PageShift) / size;
++		nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
++		data3 = runtime·mallocgc(nbytes3, 0, FlagNoProfiling|FlagNoScan|FlagNoInvokeGC);
++		s->types.compression = MTypes_Bytes;
++		s->types.data = (uintptr)data3;
++		((uintptr*)data3)[1] = typ;
++		data3[8*sizeof(uintptr) + ofs] = 1;
++		break;
++		
++	case MTypes_Words:
++		((uintptr*)s->types.data)[ofs] = typ;
++		break;
++		
++	case MTypes_Bytes:
++		data3 = (byte*)s->types.data;
++		for(j=1; j<8; j++) {
++			if(((uintptr*)data3)[j] == typ) {
++				break;
++			}
++			if(((uintptr*)data3)[j] == 0) {
++				((uintptr*)data3)[j] = typ;
++				break;
++			}
+ 		}
+-
+-		size = s->elemsize;
+-		ofs = ((uintptr)v - (s->start<<PageShift)) / size;
+-
+-		switch(s->types.compression) {
+-		case MTypes_Empty:
++		if(j < 8) {
++			data3[8*sizeof(uintptr) + ofs] = j;
++		} else {
+ 			ntypes = (s->npages << PageShift) / size;
+-			nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
+-			data3 = runtime·mallocgc(nbytes3, 0, FlagNoProfiling|FlagNoScan|FlagNoInvokeGC);
+-			s->types.compression = MTypes_Bytes;
+-			s->types.data = (uintptr)data3;
+-			((uintptr*)data3)[1] = typ;
+-			data3[8*sizeof(uintptr) + ofs] = 1;
+-			break;
+-
+-		case MTypes_Words:
+-			((uintptr*)s->types.data)[ofs] = typ;
+-			break;
+-
+-		case MTypes_Bytes:
+-			data3 = (byte*)s->types.data;
+-			for(j=1; j<8; j++) {
+-				if(((uintptr*)data3)[j] == typ) {
+-					break;
+-				}
+-				if(((uintptr*)data3)[j] == 0) {
+-					((uintptr*)data3)[j] = typ;
+-					break;
+-				}
+-			}
+-			if(j < 8) {
+-				data3[8*sizeof(uintptr) + ofs] = j;
+-			} else {
+-				ntypes = (s->npages << PageShift) / size;
+-				nbytes2 = ntypes * sizeof(uintptr);
+-				data2 = runtime·mallocgc(nbytes2, 0, FlagNoProfiling|FlagNoScan|FlagNoInvokeGC);
+-				s->types.compression = MTypes_Words;
+-				s->types.data = (uintptr)data2;
+-
+-				// Move the contents of data3 to data2. Then deallocate data3.
+-				for(j=0; j<ntypes; j++) {
+-					t = data3[8*sizeof(uintptr) + j];
+-					t = ((uintptr*)data3)[t];
+-					data2[j] = t;
+-				}
+-				data2[ofs] = typ;
++			nbytes2 = ntypes * sizeof(uintptr);
++			data2 = runtime·mallocgc(nbytes2, 0, FlagNoProfiling|FlagNoScan|FlagNoInvokeGC);
++			s->types.compression = MTypes_Words;
++			s->types.data = (uintptr)data2;
++			
++			// Move the contents of data3 to data2. Then deallocate data3.
++			for(j=0; j<ntypes; j++) {
++				t = data3[8*sizeof(uintptr) + j];
++				t = ((uintptr*)data3)[t];
++				data2[j] = t;
+ 			}
+-			break;
++			data2[ofs] = typ;
+ 		}
++		break;
+ 	}
+-	runtime·unlock(&settype_lock);
+-
+-	mp->settype_bufsize = 0;
+ }
+ 
+ uintptr
+@@ -816,9 +759,7 @@ runtime·gettype(void *v)
+ 			runtime·throw("runtime·gettype: invalid compression kind");
+ 		}
+ 		if(0) {
+-			runtime·lock(&settype_lock);
+ 			runtime·printf("%p -> %d,%X\n", v, (int32)s->types.compression, (int64)t);
+-			runtime·unlock(&settype_lock);
+ 		}
+ 		return t;
+ 	}
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index ed2f98c8d2..c1e7d30e76 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -20,7 +20,7 @@
+ //	MHeap: the malloc heap, managed at page (4096-byte) granularity.
+ //	MSpan: a run of pages managed by the MHeap.
+ //	MCentral: a shared free list for a given size class.
+-//	MCache: a per-thread (in Go, per-M) cache for small objects.
++//	MCache: a per-thread (in Go, per-P) cache for small objects.
+ //	MStats: allocation statistics.
+ //
+ // Allocating a small object proceeds up a hierarchy of caches:
+@@ -281,8 +281,6 @@ extern	int8	runtime·size_to_class128[(MaxSmallSize-1024)/128 + 1];
+ extern	void	runtime·InitSizes(void);
+ 
+ 
+-// Per-thread (in Go, per-M) cache for small objects.
+-// No locking needed because it is per-thread (per-M).
+ typedef struct MCacheList MCacheList;
+ struct MCacheList
+ {
+@@ -290,6 +288,8 @@ struct MCacheList
+ 	uint32 nlist;
+ };
+ 
++// Per-thread (in Go, per-P) cache for small objects.
++// No locking needed because it is per-thread (per-P).
+ struct MCache
+ {
+ 	// The following members are accessed on every malloc,
+@@ -301,7 +301,8 @@ struct MCache
+ 	byte*	tiny;
+ 	uintptr	tinysize;
+ 	// The rest is not accessed on every malloc.
+-	MCacheList list[NumSizeClasses];
++	MSpan*	alloc[NumSizeClasses];	// spans to allocate from
++	MCacheList free[NumSizeClasses];// lists of explicitly freed objects
+ 	// Local allocator stats, flushed during GC.
+ 	uintptr local_nlookup;		// number of pointer lookups
+ 	uintptr local_largefree;	// bytes freed for large objects (>MaxSmallSize)
+@@ -309,8 +310,8 @@ struct MCache
+ 	uintptr local_nsmallfree[NumSizeClasses];	// number of frees for small objects (<=MaxSmallSize)
+ };
+ 
+-void	runtime·MCache_Refill(MCache *c, int32 sizeclass);
+-void	runtime·MCache_Free(MCache *c, void *p, int32 sizeclass, uintptr size);
++MSpan*	runtime·MCache_Refill(MCache *c, int32 sizeclass);
++void	runtime·MCache_Free(MCache *c, MLink *p, int32 sizeclass, uintptr size);
+ void	runtime·MCache_ReleaseAll(MCache *c);
+ 
+ // MTypes describes the types of blocks allocated within a span.
+@@ -409,8 +410,9 @@ struct MSpan
+ 	// if sweepgen == h->sweepgen, the span is swept and ready to use
+ 	// h->sweepgen is incremented by 2 after every GC
+ 	uint32	sweepgen;
+-	uint16	ref;		// number of allocated objects in this span
++	uint16	ref;		// capacity - number of objects in freelist
+ 	uint8	sizeclass;	// size class
++	bool	incache;	// being used by an MCache
+ 	uint8	state;		// MSpanInUse etc
+ 	uint8	needzero;	// needs to be zeroed before allocation
+ 	uintptr	elemsize;	// computed from sizeclass or from npages
+@@ -418,8 +420,9 @@ struct MSpan
+ 	uintptr npreleased;	// number of pages released to the OS
+ 	byte	*limit;		// end of data in span
+ 	MTypes	types;		// types of allocated objects in this span
+-	Lock	specialLock;	// TODO: use to protect types also (instead of settype_lock)
++	Lock	specialLock;	// guards specials list
+ 	Special	*specials;	// linked list of special records sorted by offset.
++	MLink	*freebuf;	// objects freed explicitly, not incorporated into freelist yet
+ };
+ 
+ void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
+@@ -441,15 +444,16 @@ struct MCentral
+ {
+ 	Lock;
+ 	int32 sizeclass;
+-	MSpan nonempty;
+-	MSpan empty;
+-	int32 nfree;
++	MSpan nonempty;	// list of spans with a free object
++	MSpan empty;	// list of spans with no free objects (or cached in an MCache)
++	int32 nfree;	// # of objects available in nonempty spans
+ };
+ 
+ void	runtime·MCentral_Init(MCentral *c, int32 sizeclass);
+-int32	runtime·MCentral_AllocList(MCentral *c, MLink **first);
+-void	runtime·MCentral_FreeList(MCentral *c, MLink *first);
++MSpan*	runtime·MCentral_CacheSpan(MCentral *c);
++void	runtime·MCentral_UncacheSpan(MCentral *c, MSpan *s);
+ bool	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end);
++void	runtime·MCentral_FreeList(MCentral *c, MLink *start); // TODO: need this?
+ 
+ // Main malloc heap.
+ // The heap itself is the "free[]" and "large" arrays,
+@@ -520,7 +524,7 @@ uintptr	runtime·sweepone(void);
+ void	runtime·markscan(void *v);
+ void	runtime·marknogc(void *v);
+ void	runtime·checkallocated(void *v, uintptr n);
+-void	runtime·markfreed(void *v, uintptr n);
++void	runtime·markfreed(void *v);
+ void	runtime·checkfreed(void *v, uintptr n);
+ extern	int32	runtime·checking;
+ void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
+@@ -529,8 +533,6 @@ void	runtime·purgecachedstats(MCache*);
+ void*	runtime·cnew(Type*);
+ void*	runtime·cnewarray(Type*, intgo);
+ 
+-void	runtime·settype_flush(M*);
+-void	runtime·settype_sysfree(MSpan*);
+ uintptr	runtime·gettype(void*);
+ 
+ enum
+diff --git a/src/pkg/runtime/mcache.c b/src/pkg/runtime/mcache.c
+index 863030e743..0b4bbd90be 100644
+--- a/src/pkg/runtime/mcache.c
++++ b/src/pkg/runtime/mcache.c
+@@ -10,69 +10,119 @@
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
+ 
++extern volatile intgo runtime·MemProfileRate;
++
++// dummy MSpan that contains no free objects.
++static MSpan emptymspan;
++
++MCache*
++runtime·allocmcache(void)
++{
++	intgo rate;
++	MCache *c;
++	int32 i;
++
++	runtime·lock(&runtime·mheap);
++	c = runtime·FixAlloc_Alloc(&runtime·mheap.cachealloc);
++	runtime·unlock(&runtime·mheap);
++	runtime·memclr((byte*)c, sizeof(*c));
++	for(i = 0; i < NumSizeClasses; i++)
++		c->alloc[i] = &emptymspan;
++
++	// Set first allocation sample size.
++	rate = runtime·MemProfileRate;
++	if(rate > 0x3fffffff)	// make 2*rate not overflow
++		rate = 0x3fffffff;
++	if(rate != 0)
++		c->next_sample = runtime·fastrand1() % (2*rate);
++
++	return c;
++}
++
+ void
++runtime·freemcache(MCache *c)
++{
++	runtime·MCache_ReleaseAll(c);
++	runtime·lock(&runtime·mheap);
++	runtime·purgecachedstats(c);
++	runtime·FixAlloc_Free(&runtime·mheap.cachealloc, c);
++	runtime·unlock(&runtime·mheap);
++}
++
++// Gets a span that has a free object in it and assigns it
++// to be the cached span for the given sizeclass.  Returns this span.
++MSpan*
+ runtime·MCache_Refill(MCache *c, int32 sizeclass)
+ {
+ 	MCacheList *l;
++	MSpan *s;
+ 
+-	// Replenish using central lists.
+-	l = &c->list[sizeclass];
+-	if(l->list)
+-		runtime·throw("MCache_Refill: the list is not empty");
+-	l->nlist = runtime·MCentral_AllocList(&runtime·mheap.central[sizeclass], &l->list);
+-	if(l->list == nil)
+-		runtime·throw("out of memory");
+-}
++	m->locks++;
++	// Return the current cached span to the central lists.
++	s = c->alloc[sizeclass];
++	if(s->freelist != nil)
++		runtime·throw("refill on a nonempty span");
++	if(s != &emptymspan)
++		runtime·MCentral_UncacheSpan(&runtime·mheap.central[sizeclass], s);
+ 
+-// Take n elements off l and return them to the central free list.
+-static void
+-ReleaseN(MCacheList *l, int32 n, int32 sizeclass)
+-{
+-	MLink *first, **lp;
+-	int32 i;
++	// Push any explicitly freed objects to the central lists.
++	// Not required, but it seems like a good time to do it.
++	l = &c->free[sizeclass];
++	if(l->nlist > 0) {
++		runtime·MCentral_FreeList(&runtime·mheap.central[sizeclass], l->list);
++		l->list = nil;
++		l->nlist = 0;
++	}
+ 
+-	// Cut off first n elements.
+-	first = l->list;
+-	lp = &l->list;
+-	for(i=0; i<n; i++)
+-		lp = &(*lp)->next;
+-	l->list = *lp;
+-	*lp = nil;
+-	l->nlist -= n;
+-
+-	// Return them to central free list.
+-	runtime·MCentral_FreeList(&runtime·mheap.central[sizeclass], first);
++	// Get a new cached span from the central lists.
++	s = runtime·MCentral_CacheSpan(&runtime·mheap.central[sizeclass]);
++	if(s == nil)
++		runtime·throw("out of memory");
++	if(s->freelist == nil) {
++		runtime·printf("%d %d\n", s->ref, (int32)((s->npages << PageShift) / s->elemsize));
++		runtime·throw("empty span");
++	}
++	c->alloc[sizeclass] = s;
++	m->locks--;
++	return s;
+ }
+ 
+ void
+-runtime·MCache_Free(MCache *c, void *v, int32 sizeclass, uintptr size)
++runtime·MCache_Free(MCache *c, MLink *p, int32 sizeclass, uintptr size)
+ {
+ 	MCacheList *l;
+-	MLink *p;
+ 
+-	// Put back on list.
+-	l = &c->list[sizeclass];
+-	p = v;
++	// Put on free list.
++	l = &c->free[sizeclass];
+ 	p->next = l->list;
+ 	l->list = p;
+ 	l->nlist++;
+ 	c->local_cachealloc -= size;
+ 
+-	// We transfer span at a time from MCentral to MCache,
+-	// if we have 2 times more than that, release a half back.
+-	if(l->nlist >= 2*(runtime·class_to_allocnpages[sizeclass]<<PageShift)/size)
+-		ReleaseN(l, l->nlist/2, sizeclass);
++	// We transfer a span at a time from MCentral to MCache,
++	// so we'll do the same in the other direction.
++	if(l->nlist >= (runtime·class_to_allocnpages[sizeclass]<<PageShift)/size) {
++		runtime·MCentral_FreeList(&runtime·mheap.central[sizeclass], l->list);
++		l->list = nil;
++		l->nlist = 0;
++	}
+ }
+ 
+ void
+ runtime·MCache_ReleaseAll(MCache *c)
+ {
+ 	int32 i;
++	MSpan *s;
+ 	MCacheList *l;
+ 
+ 	for(i=0; i<NumSizeClasses; i++) {
+-		l = &c->list[i];
+-		if(l->list) {
++		s = c->alloc[i];
++		if(s != &emptymspan) {
++			runtime·MCentral_UncacheSpan(&runtime·mheap.central[i], s);
++			c->alloc[i] = &emptymspan;
++		}
++		l = &c->free[i];
++		if(l->nlist > 0) {
+ 			runtime·MCentral_FreeList(&runtime·mheap.central[i], l->list);
+ 			l->list = nil;
+ 			l->nlist = 0;
+diff --git a/src/pkg/runtime/mcentral.c b/src/pkg/runtime/mcentral.c
+index 0dd5ac0fe5..203558fca5 100644
+--- a/src/pkg/runtime/mcentral.c
++++ b/src/pkg/runtime/mcentral.c
+@@ -19,7 +19,8 @@
+ #include "malloc.h"
+ 
+ static bool MCentral_Grow(MCentral *c);
+-static void MCentral_Free(MCentral *c, void *v);
++static void MCentral_Free(MCentral *c, MLink *v);
++static void MCentral_ReturnToHeap(MCentral *c, MSpan *s);
+ 
+ // Initialize a single central free list.
+ void
+@@ -30,12 +31,9 @@ runtime·MCentral_Init(MCentral *c, int32 sizeclass)
+ 	runtime·MSpanList_Init(&c->empty);
+ }
+ 
+-// Allocate a list of objects from the central free list.
+-// Return the number of objects allocated.
+-// The objects are linked together by their first words.
+-// On return, *pfirst points at the first object.
+-int32
+-runtime·MCentral_AllocList(MCentral *c, MLink **pfirst)
++// Allocate a span to use in an MCache.
++MSpan*
++runtime·MCentral_CacheSpan(MCentral *c)
+ {
+ 	MSpan *s;
+ 	int32 cap, n;
+@@ -85,25 +83,63 @@ retry:
+ 	// Replenish central list if empty.
+ 	if(!MCentral_Grow(c)) {
+ 		runtime·unlock(c);
+-		*pfirst = nil;
+-		return 0;
++		return nil;
+ 	}
+-	s = c->nonempty.next;
++	goto retry;
+ 
+ havespan:
+ 	cap = (s->npages << PageShift) / s->elemsize;
+ 	n = cap - s->ref;
+-	*pfirst = s->freelist;
+-	s->freelist = nil;
+-	s->ref += n;
++	if(n == 0)
++		runtime·throw("empty span");
++	if(s->freelist == nil)
++		runtime·throw("freelist empty");
+ 	c->nfree -= n;
+ 	runtime·MSpanList_Remove(s);
+ 	runtime·MSpanList_InsertBack(&c->empty, s);
++	s->incache = true;
++	runtime·unlock(c);
++	return s;
++}
++
++// Return span from an MCache.
++void
++runtime·MCentral_UncacheSpan(MCentral *c, MSpan *s)
++{
++	MLink *v;
++	int32 cap, n;
++
++	runtime·lock(c);
++
++	s->incache = false;
++
++	// Move any explicitly freed items from the freebuf to the freelist.
++	while((v = s->freebuf) != nil) {
++		s->freebuf = v->next;
++		runtime·markfreed(v);
++		v->next = s->freelist;
++		s->freelist = v;
++		s->ref--;
++	}
++
++	if(s->ref == 0) {
++		// Free back to heap.  Unlikely, but possible.
++		MCentral_ReturnToHeap(c, s); // unlocks c
++		return;
++	}
++	
++	cap = (s->npages << PageShift) / s->elemsize;
++	n = cap - s->ref;
++	if(n > 0) {
++		c->nfree += n;
++		runtime·MSpanList_Remove(s);
++		runtime·MSpanList_Insert(&c->nonempty, s);
++	}
+ 	runtime·unlock(c);
+-	return n;
+ }
+ 
+-// Free the list of objects back into the central free list.
++// Free the list of objects back into the central free list c.
++// Called from runtime·free.
+ void
+ runtime·MCentral_FreeList(MCentral *c, MLink *start)
+ {
+@@ -118,52 +154,58 @@ runtime·MCentral_FreeList(MCentral *c, MLink *start)
+ }
+ 
+ // Helper: free one object back into the central free list.
++// Caller must hold lock on c on entry.  Holds lock on exit.
+ static void
+-MCentral_Free(MCentral *c, void *v)
++MCentral_Free(MCentral *c, MLink *v)
+ {
+ 	MSpan *s;
+-	MLink *p;
+-	int32 size;
+ 
+ 	// Find span for v.
+ 	s = runtime·MHeap_Lookup(&runtime·mheap, v);
+ 	if(s == nil || s->ref == 0)
+ 		runtime·throw("invalid free");
++	if(s->sweepgen != runtime·mheap.sweepgen)
++		runtime·throw("free into unswept span");
++	
++	// If the span is currently being used unsynchronized by an MCache,
++	// we can't modify the freelist.  Add to the freebuf instead.  The
++	// items will get moved to the freelist when the span is returned
++	// by the MCache.
++	if(s->incache) {
++		v->next = s->freebuf;
++		s->freebuf = v;
++		return;
++	}
+ 
+-	// Move to nonempty if necessary.
++	// Move span to nonempty if necessary.
+ 	if(s->freelist == nil) {
+ 		runtime·MSpanList_Remove(s);
+ 		runtime·MSpanList_Insert(&c->nonempty, s);
+ 	}
+ 
+-	// Add v back to s's free list.
+-	p = v;
+-	p->next = s->freelist;
+-	s->freelist = p;
++	// Add the object to span's free list.
++	runtime·markfreed(v);
++	v->next = s->freelist;
++	s->freelist = v;
++	s->ref--;
+ 	c->nfree++;
+ 
+ 	// If s is completely freed, return it to the heap.
+-	if(--s->ref == 0) {
+-		size = runtime·class_to_size[c->sizeclass];
+-		runtime·MSpanList_Remove(s);
+-		runtime·unmarkspan((byte*)(s->start<<PageShift), s->npages<<PageShift);
+-		s->needzero = 1;
+-		s->freelist = nil;
+-		c->nfree -= (s->npages << PageShift) / size;
+-		runtime·unlock(c);
+-		runtime·MHeap_Free(&runtime·mheap, s, 0);
++	if(s->ref == 0) {
++		MCentral_ReturnToHeap(c, s); // unlocks c
+ 		runtime·lock(c);
+ 	}
+ }
+ 
+ // Free n objects from a span s back into the central free list c.
+ // Called during sweep.
+-// Returns true if the span was returned to heap.
++// Returns true if the span was returned to heap.  Sets sweepgen to
++// the latest generation.
+ bool
+ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end)
+ {
+-	int32 size;
+-
++	if(s->incache)
++		runtime·throw("freespan into cached span");
+ 	runtime·lock(c);
+ 
+ 	// Move to nonempty if necessary.
+@@ -177,6 +219,12 @@ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *
+ 	s->freelist = start;
+ 	s->ref -= n;
+ 	c->nfree += n;
++	
++	// delay updating sweepgen until here.  This is the signal that
++	// the span may be used in an MCache, so it must come after the
++	// linked list operations above (actually, just after the
++	// lock of c above.)
++	runtime·atomicstore(&s->sweepgen, runtime·mheap.sweepgen);
+ 
+ 	if(s->ref != 0) {
+ 		runtime·unlock(c);
+@@ -184,14 +232,7 @@ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *
+ 	}
+ 
+ 	// s is completely freed, return it to the heap.
+-	size = runtime·class_to_size[c->sizeclass];
+-	runtime·MSpanList_Remove(s);
+-	s->needzero = 1;
+-	s->freelist = nil;
+-	c->nfree -= (s->npages << PageShift) / size;
+-	runtime·unlock(c);
+-	runtime·unmarkspan((byte*)(s->start<<PageShift), s->npages<<PageShift);
+-	runtime·MHeap_Free(&runtime·mheap, s, 0);
++	MCentral_ReturnToHeap(c, s); // unlocks c
+ 	return true;
+ }
+ 
+@@ -246,3 +287,21 @@ MCentral_Grow(MCentral *c)
+ 	runtime·MSpanList_Insert(&c->nonempty, s);
+ 	return true;
+ }
++
++// Return s to the heap.  s must be unused (s->ref == 0).  Unlocks c.
++static void
++MCentral_ReturnToHeap(MCentral *c, MSpan *s)
++{
++	int32 size;
++
++	size = runtime·class_to_size[c->sizeclass];
++	runtime·MSpanList_Remove(s);
++	s->needzero = 1;
++	s->freelist = nil;
++	if(s->ref != 0)
++		runtime·throw("ref wrong");
++	c->nfree -= (s->npages << PageShift) / size;
++	runtime·unlock(c);
++	runtime·unmarkspan((byte*)(s->start<<PageShift), s->npages<<PageShift);
++	runtime·MHeap_Free(&runtime·mheap, s, 0);
++}
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 8d91a6db2e..5849e57474 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1865,7 +1865,13 @@ runtime·MSpan_Sweep(MSpan *s)
+ 		}
+ 	}
+ 
+-	if(!sweepgenset) {
++	// We need to set s->sweepgen = h->sweepgen only when all blocks are swept,
++	// because of the potential for a concurrent free/SetFinalizer.
++	// But we need to set it before we make the span available for allocation
++	// (return it to heap or mcentral), because allocation code assumes that a
++	// span is already swept if available for allocation.
++
++	if(!sweepgenset && nfree == 0) {
+ 		// The span must be in our exclusive ownership until we update sweepgen,
+ 		// check for potential races.
+ 		if(s->state != MSpanInUse || s->sweepgen != sweepgen-1) {
+@@ -1875,11 +1881,12 @@ runtime·MSpan_Sweep(MSpan *s)
+ 		}
+ 		runtime·atomicstore(&s->sweepgen, sweepgen);
+ 	}
+-	if(nfree) {
++	if(nfree > 0) {
+ 		c->local_nsmallfree[cl] += nfree;
+ 		c->local_cachealloc -= nfree * size;
+ 		runtime·xadd64(&mstats.next_gc, -(uint64)(nfree * size * (gcpercent + 100)/100));
+ 		res = runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, head.next, end);
++		//MCentral_FreeSpan updates sweepgen
+ 	}
+ 	return res;
+ }
+@@ -1948,6 +1955,8 @@ runtime·sweepone(void)
+ 		}
+ 		if(s->sweepgen != sg-2 || !runtime·cas(&s->sweepgen, sg-2, sg-1))
+ 			continue;
++		if(s->incache)
++			runtime·throw("sweep of incache span");
+ 		npages = s->npages;
+ 		if(!runtime·MSpan_Sweep(s))
+ 			npages = 0;
+@@ -2292,7 +2301,6 @@ gc(struct gc_args *args)
+ 	int64 t0, t1, t2, t3, t4;
+ 	uint64 heap0, heap1, obj, ninstr;
+ 	GCStats stats;
+-	M *mp;
+ 	uint32 i;
+ 	Eface eface;
+ 
+@@ -2302,9 +2310,6 @@ gc(struct gc_args *args)
+ 	if(CollectStats)
+ 		runtime·memclr((byte*)&gcstats, sizeof(gcstats));
+ 
+-	for(mp=runtime·allm; mp; mp=mp->alllink)
+-		runtime·settype_flush(mp);
+-
+ 	m->locks++;	// disable gc during mallocs in parforalloc
+ 	if(work.markfor == nil)
+ 		work.markfor = runtime·parforalloc(MaxGcproc);
+@@ -2617,59 +2622,30 @@ runtime·marknogc(void *v)
+ void
+ runtime·markscan(void *v)
+ {
+-	uintptr *b, obits, bits, off, shift;
++	uintptr *b, off, shift;
+ 
+ 	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
+ 	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
+ 	shift = off % wordsPerBitmapWord;
+-
+-	for(;;) {
+-		obits = *b;
+-		if((obits>>shift & bitMask) != bitAllocated)
+-			runtime·throw("bad initial state for markscan");
+-		bits = obits | bitScan<<shift;
+-		if(runtime·gomaxprocs == 1) {
+-			*b = bits;
+-			break;
+-		} else {
+-			// more than one goroutine is potentially running: use atomic op
+-			if(runtime·casp((void**)b, (void*)obits, (void*)bits))
+-				break;
+-		}
+-	}
++	*b |= bitScan<<shift;
+ }
+ 
+-// mark the block at v of size n as freed.
++// mark the block at v as freed.
+ void
+-runtime·markfreed(void *v, uintptr n)
++runtime·markfreed(void *v)
+ {
+-	uintptr *b, obits, bits, off, shift;
++	uintptr *b, off, shift;
+ 
+ 	if(0)
+-		runtime·printf("markfreed %p+%p\n", v, n);
++		runtime·printf("markfreed %p\n", v);
+ 
+-	if((byte*)v+n > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
++	if((byte*)v > (byte*)runtime·mheap.arena_used || (byte*)v < runtime·mheap.arena_start)
+ 		runtime·throw("markfreed: bad pointer");
+ 
+ 	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;  // word offset
+ 	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
+ 	shift = off % wordsPerBitmapWord;
+-
+-	for(;;) {
+-		obits = *b;
+-		// This could be a free of a gc-eligible object (bitAllocated + others) or
+-		// a FlagNoGC object (bitBlockBoundary set).  In either case, we revert to
+-		// a simple no-scan allocated object because it is going on a free list.
+-		bits = (obits & ~(bitMask<<shift)) | (bitAllocated<<shift);
+-		if(runtime·gomaxprocs == 1) {
+-			*b = bits;
+-			break;
+-		} else {
+-			// more than one goroutine is potentially running: use atomic op
+-			if(runtime·casp((void**)b, (void*)obits, (void*)bits))
+-				break;
+-		}
+-	}
++	*b = (*b & ~(bitMask<<shift)) | (bitAllocated<<shift);
+ }
+ 
+ // check that the block at v of size n is marked freed.
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index d89512d3f1..f845be6617 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -571,6 +571,7 @@ runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)
+ 	span->freelist = nil;
+ 	span->ref = 0;
+ 	span->sizeclass = 0;
++	span->incache = false;
+ 	span->elemsize = 0;
+ 	span->state = MSpanDead;
+ 	span->unusedsince = 0;
+@@ -579,6 +580,7 @@ runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)
+ 	span->specialLock.key = 0;
+ 	span->specials = nil;
+ 	span->needzero = 0;
++	span->freebuf = nil;
+ }
+ 
+ // Initialize an empty doubly-linked list.
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index e040c18272..f833642707 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -351,10 +351,6 @@ struct	M
+ 	bool	needextram;
+ 	bool	(*waitunlockf)(G*, void*);
+ 	void*	waitlock;
+-
+-	uintptr	settype_buf[1024];
+-	uintptr	settype_bufsize;
+-
+ #ifdef GOOS_windows
+ 	void*	thread;		// thread handle
+ 	// these are here because they are too large to be on the stack

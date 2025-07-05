@@ -7,6 +7,19 @@ Date:   Sun Apr 19 21:12:48 2009 -0700
     R=ken
     OCL=27621
     CL=27621
-
+---
  test/decl.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/decl.go b/test/decl.go
+index 596a6e5fc9..c2919d32b0 100644
+--- a/test/decl.go
++++ b/test/decl.go
+@@ -32,6 +32,6 @@ func main() {
+ 		m, h, s := f3();
+ 	}
+ 	if x() != "3" {
+-		println("g() failed");
++		println("x() failed");
+ 	}
+ }

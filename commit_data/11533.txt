@@ -18,7 +18,7 @@ Date:   Tue Jan 31 18:14:44 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5552056
-
+---
  include/plan9/386/u.h      | 14 ++++++++++++++
  include/plan9/libc.h       | 19 +++++++++++++++++++
  include/plan9/mach.h       |  7 +++++++
@@ -26,3 +26,95 @@ Date:   Tue Jan 31 18:14:44 2012 -0800
  include/plan9/ureg_arm.h   |  5 +++++
  include/plan9/ureg_x86.h   |  5 +++++
  6 files changed, 55 insertions(+)
+
+diff --git a/include/plan9/386/u.h b/include/plan9/386/u.h
+new file mode 100644
+index 0000000000..3f4a55cb20
+--- /dev/null
++++ b/include/plan9/386/u.h
+@@ -0,0 +1,14 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "/386/include/u.h"
++
++typedef char   int8;
++typedef uchar  uint8;
++typedef short  int16;
++typedef ushort uint16;
++typedef int    int32;
++typedef uint   uint32;
++typedef vlong  int64;
++typedef uvlong uint64;
+diff --git a/include/plan9/libc.h b/include/plan9/libc.h
+new file mode 100644
+index 0000000000..aaf5dd052a
+--- /dev/null
++++ b/include/plan9/libc.h
+@@ -0,0 +1,19 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "/sys/include/libc.h"
++#include "/sys/include/ctype.h"
++
++enum
++{
++	Runemax = 0x10FFFF, /* maximum rune value */
++};
++
++#pragma src "/sys/src/go/src/lib9"
++#pragma lib "/sys/src/go/lib/$M/lib9.a"
++
++char*	getgoos(void);
++char*	getgoarch(void);
++char*	getgoroot(void);
++char*	getgoversion(void);
+diff --git a/include/plan9/mach.h b/include/plan9/mach.h
+new file mode 100644
+index 0000000000..a354204bff
+--- /dev/null
++++ b/include/plan9/mach.h
+@@ -0,0 +1,7 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#pragma src "/sys/src/go/src/libmach"
++#pragma lib "/sys/src/go/lib/$M/libmach.a"
++#include "../mach.h"
+diff --git a/include/plan9/ureg_amd64.h b/include/plan9/ureg_amd64.h
+new file mode 100644
+index 0000000000..8aaa83f526
+--- /dev/null
++++ b/include/plan9/ureg_amd64.h
+@@ -0,0 +1,5 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "/amd64/include/ureg.h"
+diff --git a/include/plan9/ureg_arm.h b/include/plan9/ureg_arm.h
+new file mode 100644
+index 0000000000..f83c19a2f3
+--- /dev/null
++++ b/include/plan9/ureg_arm.h
+@@ -0,0 +1,5 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "/arm/include/ureg.h"
+diff --git a/include/plan9/ureg_x86.h b/include/plan9/ureg_x86.h
+new file mode 100644
+index 0000000000..7d73a48653
+--- /dev/null
++++ b/include/plan9/ureg_x86.h
+@@ -0,0 +1,5 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "/386/include/ureg.h"

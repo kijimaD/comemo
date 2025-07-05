@@ -18,8 +18,170 @@ Date:   Tue Jan 31 11:34:16 2023 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/expr.go    | 19 ++++++++++++-------
  src/go/types/expr.go                       | 20 +++++++++++++-------
  src/internal/types/testdata/check/expr0.go |  9 +++++++++
  3 files changed, 34 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 0433f8af95..472e30a069 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -178,7 +178,8 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
+ 		return
+ 	}
+ 
+-	switch e.Op {
++	op := e.Op
++	switch op {
+ 	case syntax.And:
+ 		// spec: "As an exception to the addressability
+ 		// requirement x may also be a composite literal."
+@@ -215,13 +216,17 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
+ 		return
+ 
+ 	case syntax.Tilde:
+-		// Provide a better error position and message than what check.op below could do.
+-		check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint")
+-		x.mode = invalid
+-		return
++		// Provide a better error position and message than what check.op below would do.
++		if !allInteger(x.typ) {
++			check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint")
++			x.mode = invalid
++			return
++		}
++		check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint (use ^ for bitwise complement)")
++		op = syntax.Xor
+ 	}
+ 
+-	if !check.op(unaryOpPredicates, x, e.Op) {
++	if !check.op(unaryOpPredicates, x, op) {
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -235,7 +240,7 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
+ 		if isUnsigned(x.typ) {
+ 			prec = uint(check.conf.sizeof(x.typ) * 8)
+ 		}
+-		x.val = constant.UnaryOp(op2tok[e.Op], x.val, prec)
++		x.val = constant.UnaryOp(op2tok[op], x.val, prec)
+ 		x.expr = e
+ 		check.overflow(x)
+ 		return
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index b85a2c7466..f09a29b126 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -164,7 +164,9 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
+ 	if x.mode == invalid {
+ 		return
+ 	}
+-	switch e.Op {
++
++	op := e.Op
++	switch op {
+ 	case token.AND:
+ 		// spec: "As an exception to the addressability
+ 		// requirement x may also be a composite literal."
+@@ -202,13 +204,17 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
+ 		return
+ 
+ 	case token.TILDE:
+-		// Provide a better error position and message than what check.op below could do.
+-		check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint")
+-		x.mode = invalid
+-		return
++		// Provide a better error position and message than what check.op below would do.
++		if !allInteger(x.typ) {
++			check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint")
++			x.mode = invalid
++			return
++		}
++		check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint (use ^ for bitwise complement)")
++		op = token.XOR
+ 	}
+ 
+-	if !check.op(unaryOpPredicates, x, e.Op) {
++	if !check.op(unaryOpPredicates, x, op) {
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -222,7 +228,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
+ 		if isUnsigned(x.typ) {
+ 			prec = uint(check.conf.sizeof(x.typ) * 8)
+ 		}
+-		x.val = constant.UnaryOp(e.Op, x.val, prec)
++		x.val = constant.UnaryOp(op, x.val, prec)
+ 		x.expr = e
+ 		check.overflow(x, x.Pos())
+ 		return
+diff --git a/src/internal/types/testdata/check/expr0.go b/src/internal/types/testdata/check/expr0.go
+index 552bd8fa8f..eba991ecd3 100644
+--- a/src/internal/types/testdata/check/expr0.go
++++ b/src/internal/types/testdata/check/expr0.go
+@@ -24,12 +24,14 @@ var (
+ 	b11 = &b0
+ 	b12 = <-b0 /* ERROR "cannot receive" */
+ 	b13 = & & /* ERROR "cannot take address" */ b0
++	b14 = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ b0
+ 
+ 	// byte
+ 	_ = byte(0)
+ 	_ = byte(- /* ERROR "cannot convert" */ 1)
+ 	_ = - /* ERROR "-byte(1) (constant -1 of type byte) overflows byte" */ byte(1) // test for issue 11367
+ 	_ = byte /* ERROR "overflows byte" */ (0) - byte(1)
++	_ = ~ /* ERROR "cannot use ~ outside of interface or type constraint (use ^ for bitwise complement)" */ byte(0)
+ 
+ 	// int
+ 	i0 = 1
+@@ -51,6 +53,7 @@ var (
+ 	i16 = &i0
+ 	i17 = *i16
+ 	i18 = <-i16 /* ERROR "cannot receive" */
++	i19 = ~ /* ERROR "cannot use ~ outside of interface or type constraint (use ^ for bitwise complement)" */ i0
+ 
+ 	// uint
+ 	u0 = uint(1)
+@@ -73,6 +76,7 @@ var (
+ 	u17 = *u16
+ 	u18 = <-u16 /* ERROR "cannot receive" */
+ 	u19 = ^uint(0)
++	u20 = ~ /* ERROR "cannot use ~ outside of interface or type constraint (use ^ for bitwise complement)" */ u0
+ 
+ 	// float64
+ 	f0 = float64(1)
+@@ -94,6 +98,7 @@ var (
+ 	f16 = &f0
+ 	f17 = *u16
+ 	f18 = <-u16 /* ERROR "cannot receive" */
++	f19 = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ f0
+ 
+ 	// complex128
+ 	c0 = complex128(1)
+@@ -115,6 +120,7 @@ var (
+ 	c16 = &c0
+ 	c17 = *u16
+ 	c18 = <-u16 /* ERROR "cannot receive" */
++	c19 = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ c0
+ 
+ 	// string
+ 	s0 = "foo"
+@@ -126,6 +132,7 @@ var (
+ 	s6 = &s4
+ 	s7 = *s6
+ 	s8 = <-s7
++	s9 = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ s0
+ 
+ 	// channel
+ 	ch chan int
+@@ -145,6 +152,8 @@ var (
+ 	// ok is of type bool
+ 	ch11, myok = <-ch
+ 	_ mybool = myok /* ERRORx `cannot use .* in variable declaration` */
++	ch12 = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ ch
++
+ )
+ 
+ // address of composite literals

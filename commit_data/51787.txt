@@ -19,7 +19,49 @@ Date:   Tue Mar 15 10:21:08 2022 +1100
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Trust: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/text/template/parse/parse.go      | 8 ++++----
  src/text/template/parse/parse_test.go | 4 ++++
  2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index b0cbe9dfc8..ce548b0886 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -415,8 +415,8 @@ func (t *Tree) action() (n Node) {
+ //	{{break}}
+ // Break keyword is past.
+ func (t *Tree) breakControl(pos Pos, line int) Node {
+-	if token := t.next(); token.typ != itemRightDelim {
+-		t.unexpected(token, "in {{break}}")
++	if token := t.nextNonSpace(); token.typ != itemRightDelim {
++		t.unexpected(token, "{{break}}")
+ 	}
+ 	if t.rangeDepth == 0 {
+ 		t.errorf("{{break}} outside {{range}}")
+@@ -428,8 +428,8 @@ func (t *Tree) breakControl(pos Pos, line int) Node {
+ //	{{continue}}
+ // Continue keyword is past.
+ func (t *Tree) continueControl(pos Pos, line int) Node {
+-	if token := t.next(); token.typ != itemRightDelim {
+-		t.unexpected(token, "in {{continue}}")
++	if token := t.nextNonSpace(); token.typ != itemRightDelim {
++		t.unexpected(token, "{{continue}}")
+ 	}
+ 	if t.rangeDepth == 0 {
+ 		t.errorf("{{continue}} outside {{range}}")
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index 0c4778c7b3..fdb25d78f5 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -260,6 +260,10 @@ var parseTests = []parseTest{
+ 	{"newline in pipeline", "{{\n\"x\"\n|\nprintf\n}}", noError, `{{"x" | printf}}`},
+ 	{"newline in comment", "{{/*\nhello\n*/}}", noError, ""},
+ 	{"newline in comment", "{{-\n/*\nhello\n*/\n-}}", noError, ""},
++	{"spaces around continue", "{{range .SI}}{{.}}{{ continue }}{{end}}", noError,
++		`{{range .SI}}{{.}}{{continue}}{{end}}`},
++	{"spaces around break", "{{range .SI}}{{.}}{{ break }}{{end}}", noError,
++		`{{range .SI}}{{.}}{{break}}{{end}}`},
+ 
+ 	// Errors.
+ 	{"unclosed action", "hello{{range", hasError, ""},

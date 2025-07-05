@@ -7,6 +7,20 @@ Date:   Wed Feb 3 16:53:19 2010 -0800
     TBR=r
     CC=golang-dev
     https://golang.org/cl/199091
-
+---
  src/pkg/debug/gosym/pclntab_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/debug/gosym/pclntab_test.go b/src/pkg/debug/gosym/pclntab_test.go
+index 84e952f8a8..8752e3c9fa 100644
+--- a/src/pkg/debug/gosym/pclntab_test.go
++++ b/src/pkg/debug/gosym/pclntab_test.go
+@@ -144,7 +144,7 @@ func TestLineAline(t *testing.T) {
+ }
+ 
+ // gotest: if [ "$(uname)-$(uname -m)" = Linux-x86_64 ]; then
+-// gotest:    mkdir -p _test && $AS pclinetest.s && $LD -E main -l -o _test/pclinetest pclinetest.$O
++// gotest:    mkdir -p _test && $AS pclinetest.s && $LD -E main -o _test/pclinetest pclinetest.$O
+ // gotest: fi
+ func TestPCLine(t *testing.T) {
+ 	if !dotest() {

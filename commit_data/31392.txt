@@ -11,9 +11,101 @@ Date:   Tue Feb 14 12:01:01 2017 +1100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/amd64/obj.go | 14 ++------------
  src/cmd/link/internal/ld/lib.go    |  5 +++++
  src/cmd/link/internal/ld/pe.go     | 14 ++++++++++++++
  src/cmd/link/internal/x86/obj.go   | 14 ++------------
  4 files changed, 23 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 1ecade8906..52ea8ffe0f 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -142,18 +142,8 @@ func archinit(ctxt *ld.Link) {
+ 		}
+ 
+ 	case obj.Hwindows, obj.Hwindowsgui: /* PE executable */
+-		ld.Peinit(ctxt)
+-
+-		ld.HEADR = ld.PEFILEHEADR
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = ld.PEBASE + int64(ld.PESECTHEADR)
+-		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+-		if *ld.FlagRound == -1 {
+-			*ld.FlagRound = int(ld.PESECTALIGN)
+-		}
++		// ld.HEADR, ld.FlagTextAddr, ld.FlagDataAddr and ld.FlagRound are set in ld.Peinit
++		return
+ 	}
+ 
+ 	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 74d79d394c..7f056826c8 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -430,6 +430,11 @@ func (ctxt *Link) loadlib() {
+ 	// We now have enough information to determine the link mode.
+ 	determineLinkMode(ctxt)
+ 
++	// Recalculate pe parameters now that we have Linkmode set.
++	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
++		Peinit(ctxt)
++	}
++
+ 	if Linkmode == LinkExternal && SysArch.Family == sys.PPC64 {
+ 		toc := ctxt.Syms.Lookup(".TOC.", 0)
+ 		toc.Type = obj.SDYNIMPORT
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index e3ebc3ae28..6a1c19520c 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -455,6 +455,20 @@ func Peinit(ctxt *Link) {
+ 	ctxt.xdefine("__image_base__", obj.SDATA, PEBASE)
+ 
+ 	ctxt.xdefine("_image_base__", obj.SDATA, PEBASE)
++
++	HEADR = PEFILEHEADR
++	if *FlagTextAddr == -1 {
++		*FlagTextAddr = PEBASE + int64(PESECTHEADR)
++	}
++	if *FlagDataAddr == -1 {
++		*FlagDataAddr = 0
++	}
++	if *FlagRound == -1 {
++		*FlagRound = int(PESECTALIGN)
++	}
++	if *FlagDataAddr != 0 && *FlagRound != 0 {
++		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*FlagDataAddr), uint32(*FlagRound))
++	}
+ }
+ 
+ func pewrite() {
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index 8ae351df97..ba1dfcd4d0 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -134,18 +134,8 @@ func archinit(ctxt *ld.Link) {
+ 		}
+ 
+ 	case obj.Hwindows, obj.Hwindowsgui: /* PE executable */
+-		ld.Peinit(ctxt)
+-
+-		ld.HEADR = ld.PEFILEHEADR
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = ld.PEBASE + int64(ld.PESECTHEADR)
+-		}
+-		if *ld.FlagDataAddr == -1 {
+-			*ld.FlagDataAddr = 0
+-		}
+-		if *ld.FlagRound == -1 {
+-			*ld.FlagRound = int(ld.PESECTALIGN)
+-		}
++		// ld.HEADR, ld.FlagTextAddr, ld.FlagDataAddr and ld.FlagRound are set in ld.Peinit
++		return
+ 	}
+ 
+ 	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {

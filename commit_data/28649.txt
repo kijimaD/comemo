@@ -9,6 +9,23 @@ Date:   Mon Jun 20 15:39:03 2016 -0700
     Change-Id: I94467f2adf861eb38f3119ad30d46a87456d5305
     Reviewed-on: https://go-review.googlesource.com/24281
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/text/template/doc.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/text/template/doc.go b/src/text/template/doc.go
+index 48e9aa7395..fe59e3f74e 100644
+--- a/src/text/template/doc.go
++++ b/src/text/template/doc.go
+@@ -74,8 +74,9 @@ data, defined in detail in the corresponding sections that follow.
+ /*
+ 
+ 	{{pipeline}}
+-		The default textual representation of the value of the pipeline
+-		is copied to the output.
++		The default textual representation (the same as would be
++		printed by fmt.Print) of the value of the pipeline is copied
++		to the output.
+ 
+ 	{{if pipeline}} T1 {{end}}
+ 		If the value of the pipeline is empty, no output is generated;

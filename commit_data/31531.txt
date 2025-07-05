@@ -21,7 +21,63 @@ Date:   Tue Feb 28 10:29:58 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/shift.go          | 23 +++++++++++++++++++++++
  src/cmd/vet/testdata/shift.go |  5 +++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/vet/shift.go b/src/cmd/vet/shift.go
+index 55f3ea369f..83009ecff7 100644
+--- a/src/cmd/vet/shift.go
++++ b/src/cmd/vet/shift.go
+@@ -47,6 +47,29 @@ func checkLongShift(f *File, node ast.Node, x, y ast.Expr) {
+ 		// like ^uint(0) >> 63 for 32/64 bit detection and compatibility.
+ 		return
+ 	}
++
++	// Ignore shifts where the shift amount is calculated using unsafe.
++	// These are used for bit-twiddling tricks.
++	var hasUnsafe bool
++	ast.Inspect(y, func(n ast.Node) bool {
++		sel, ok := n.(*ast.SelectorExpr)
++		if !ok {
++			return true
++		}
++		pkg, ok := sel.X.(*ast.Ident)
++		if !ok {
++			return true
++		}
++		if pkg.Name == "unsafe" {
++			hasUnsafe = true
++			return false
++		}
++		return true
++	})
++	if hasUnsafe {
++		return
++	}
++
+ 	v := f.pkg.types[y].Value
+ 	if v == nil {
+ 		return
+diff --git a/src/cmd/vet/testdata/shift.go b/src/cmd/vet/testdata/shift.go
+index 99acaadf6d..50d628d2c4 100644
+--- a/src/cmd/vet/testdata/shift.go
++++ b/src/cmd/vet/testdata/shift.go
+@@ -6,6 +6,8 @@
+ 
+ package testdata
+ 
++import "unsafe"
++
+ func ShiftTest() {
+ 	var i8 int8
+ 	_ = i8 << 7
+@@ -77,4 +79,7 @@ func ShiftTest() {
+ 	p >>= 32    // ERROR "p might be too small for shift of 32"
+ 
+ 	const oneIf64Bit = ^uint(0) >> 63 // allow large shifts of constants; they are used for 32/64 bit compatibility tricks
++
++	var h uintptr
++	h = h<<8 | (h >> (8 * (unsafe.Sizeof(h) - 1))) // shifts by unsafe amounts are safe
+ }

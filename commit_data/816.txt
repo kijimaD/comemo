@@ -8,10 +8,82 @@ Date:   Tue Oct 7 10:03:34 2008 -0700
     DELTA=7  (0 added, 0 deleted, 7 changed)
     OCL=16600
     CL=16630
-
+---
  src/cmd/gc/sys.go      | 2 +-
  src/cmd/gc/sysimport.c | 4 ++--
  src/runtime/rune.c     | 4 ++--
  src/runtime/runtime.h  | 2 +-
  test/utf.go            | 2 +-
  5 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 37c523d992..8e2e6ac76d 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -76,7 +76,7 @@ export func	goexit();
+ export func	readfile(string) (string, bool);	// read file into string; boolean status
+ export func	writefile(string, string) (bool);	// write string into file; boolean status
+ export func	bytestorune(*byte, int32, int32) (int32, int32);	// convert bytes to runes
+-export func	stringtorune(string, int32, int32) (int32, int32);	// convert bytes to runes
++export func	stringtorune(string, int32) (int32, int32);	// convert bytes to runes
+ 
+ export func	exit(int32);
+ 
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index c3b7cbfc1f..1ef5d20be0 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -1,4 +1,4 @@
+-char *sysimport =
++char *sysimport = 
+ 	"package sys\n"
+ 	"type sys.any any\n"
+ 	"type sys.uint32 uint32\n"
+@@ -66,7 +66,7 @@ char *sysimport =
+ 	"export func sys.readfile (? sys.string) (? sys.string, ? sys.bool)\n"
+ 	"export func sys.writefile (? sys.string, ? sys.string) (? sys.bool)\n"
+ 	"export func sys.bytestorune (? *sys.uint8, ? sys.int32, ? sys.int32) (? sys.int32, ? sys.int32)\n"
+-	"export func sys.stringtorune (? sys.string, ? sys.int32, ? sys.int32) (? sys.int32, ? sys.int32)\n"
++	"export func sys.stringtorune (? sys.string, ? sys.int32) (? sys.int32, ? sys.int32)\n"
+ 	"export func sys.exit (? sys.int32)\n"
+ 	"\n"
+ 	"$$\n";
+diff --git a/src/runtime/rune.c b/src/runtime/rune.c
+index d705a5e36f..5738ca3646 100644
+--- a/src/runtime/rune.c
++++ b/src/runtime/rune.c
+@@ -235,9 +235,9 @@ sys·bytestorune(byte *str, int32 off, int32 length, int32 outrune, int32 outcou
+ }
+ 
+ void
+-sys·stringtorune(string str, int32 off, int32 length, int32 outrune, int32 outcount)
++sys·stringtorune(string str, int32 off, int32 outrune, int32 outcount)
+ {
+-	outcount = charntorune(&outrune, str->str + off, length);
++	outcount = charntorune(&outrune, str->str + off, str->len - off);
+ 	FLUSH(&outrune);
+ 	FLUSH(&outcount);
+ }
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index f590472439..f182aebae7 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -293,4 +293,4 @@ void	sys·intstring(int64, string);
+  */
+ void	sys·readfile(string, string, bool);
+ void	sys·bytestorune(byte*, int32, int32, int32, int32);
+-void	sys·stringtorune(string, int32, int32, int32, int32);
++void	sys·stringtorune(string, int32, int32, int32);
+diff --git a/test/utf.go b/test/utf.go
+index 206f67c731..f38f4edd8c 100644
+--- a/test/utf.go
++++ b/test/utf.go
+@@ -21,7 +21,7 @@ func main() {
+ 	var l = len(s);
+ 	for w, i, j := 0,0,0; i < l; i += w {
+ 		var r int32;
+-		r, w = sys.stringtorune(s, i, l);
++		r, w = sys.stringtorune(s, i);
+ 		if w == 0 { panic("zero width in string") }
+ 		if r != chars[j] { panic("wrong value from string") }
+ 		j++;

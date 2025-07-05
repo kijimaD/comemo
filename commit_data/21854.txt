@@ -13,9 +13,84 @@ Date:   Fri Feb 6 16:58:07 2015 +1100
     Change-Id: I3aa5774859cec28e584d16bcc1fef0705d95288c
     Reviewed-on: https://go-review.googlesource.com/3984
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/sys_unix.go         | 2 ++
  src/time/zoneinfo_plan9.go   | 9 +++++----
  src/time/zoneinfo_unix.go    | 6 ++++++
  src/time/zoneinfo_windows.go | 9 +++++----
  4 files changed, 18 insertions(+), 8 deletions(-)
+
+diff --git a/src/time/sys_unix.go b/src/time/sys_unix.go
+index 379e13d6a5..e592415daa 100644
+--- a/src/time/sys_unix.go
++++ b/src/time/sys_unix.go
+@@ -74,3 +74,5 @@ func preadn(fd uintptr, buf []byte, off int) error {
+ 	}
+ 	return nil
+ }
++
++func isNotExist(err error) bool { return err == syscall.ENOENT }
+diff --git a/src/time/zoneinfo_plan9.go b/src/time/zoneinfo_plan9.go
+index 4bb0cb3909..2b8cb659e9 100644
+--- a/src/time/zoneinfo_plan9.go
++++ b/src/time/zoneinfo_plan9.go
+@@ -148,11 +148,12 @@ func initLocal() {
+ }
+ 
+ func loadLocation(name string) (*Location, error) {
+-	if z, err := loadZoneFile(runtime.GOROOT()+"/lib/time/zoneinfo.zip", name); err == nil {
+-		z.name = name
+-		return z, nil
++	z, err := loadZoneFile(runtime.GOROOT()+"/lib/time/zoneinfo.zip", name)
++	if err != nil {
++		return nil, err
+ 	}
+-	return nil, errors.New("unknown time zone " + name)
++	z.name = name
++	return z, nil
+ }
+ 
+ func forceZipFileForTesting(zipOnly bool) {
+diff --git a/src/time/zoneinfo_unix.go b/src/time/zoneinfo_unix.go
+index ab7e4612e4..66540969d5 100644
+--- a/src/time/zoneinfo_unix.go
++++ b/src/time/zoneinfo_unix.go
+@@ -74,11 +74,17 @@ func initLocal() {
+ }
+ 
+ func loadLocation(name string) (*Location, error) {
++	var firstErr error
+ 	for _, zoneDir := range zoneDirs {
+ 		if z, err := loadZoneFile(zoneDir, name); err == nil {
+ 			z.name = name
+ 			return z, nil
++		} else if firstErr == nil && !isNotExist(err) {
++			firstErr = err
+ 		}
+ 	}
++	if firstErr != nil {
++		return nil, firstErr
++	}
+ 	return nil, errors.New("unknown time zone " + name)
+ }
+diff --git a/src/time/zoneinfo_windows.go b/src/time/zoneinfo_windows.go
+index 02d8e0edcc..5077f4bd86 100644
+--- a/src/time/zoneinfo_windows.go
++++ b/src/time/zoneinfo_windows.go
+@@ -260,11 +260,12 @@ func initLocal() {
+ }
+ 
+ func loadLocation(name string) (*Location, error) {
+-	if z, err := loadZoneFile(runtime.GOROOT()+`\lib\time\zoneinfo.zip`, name); err == nil {
+-		z.name = name
+-		return z, nil
++	z, err := loadZoneFile(runtime.GOROOT()+`\lib\time\zoneinfo.zip`, name)
++	if err != nil {
++		return nil, err
+ 	}
+-	return nil, errors.New("unknown time zone " + name)
++	z.name = name
++	return z, nil
+ }
+ 
+ func forceZipFileForTesting(zipOnly bool) {

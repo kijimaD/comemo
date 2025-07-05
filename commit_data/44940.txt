@@ -19,8 +19,94 @@ Date:   Thu Sep 17 02:59:28 2020 +0000
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Trust: Bryan C. Mills <bcmills@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/alldocs.go                       |  5 +++--
  src/cmd/go/internal/work/build.go           | 12 ++++++++----
  src/cmd/go/testdata/script/build_output.txt | 26 ++++++++++++++++++++++++++
  3 files changed, 37 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index b7e5bbed2d..5f1c7aaecb 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -93,8 +93,9 @@
+ //
+ // The -o flag forces build to write the resulting executable or object
+ // to the named output file or directory, instead of the default behavior described
+-// in the last two paragraphs. If the named output is a directory that exists,
+-// then any resulting executables will be written to that directory.
++// in the last two paragraphs. If the named output is an existing directory or
++// ends with a slash or backslash, then any resulting executables
++// will be written to that directory.
+ //
+ // The -i flag installs the packages that are dependencies of the target.
+ //
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 990e5d9ecd..86423f118c 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -53,8 +53,9 @@ serving only as a check that the packages can be built.
+ 
+ The -o flag forces build to write the resulting executable or object
+ to the named output file or directory, instead of the default behavior described
+-in the last two paragraphs. If the named output is a directory that exists,
+-then any resulting executables will be written to that directory.
++in the last two paragraphs. If the named output is an existing directory or
++ends with a slash or backslash, then any resulting executables
++will be written to that directory.
+ 
+ The -i flag installs the packages that are dependencies of the target.
+ 
+@@ -387,10 +388,13 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	if cfg.BuildO != "" {
+-		// If the -o name exists and is a directory, then
++		// If the -o name exists and is a directory or
++		// ends with a slash or backslash, then
+ 		// write all main packages to that directory.
+ 		// Otherwise require only a single package be built.
+-		if fi, err := os.Stat(cfg.BuildO); err == nil && fi.IsDir() {
++		if fi, err := os.Stat(cfg.BuildO); (err == nil && fi.IsDir()) ||
++			strings.HasSuffix(cfg.BuildO, "/") ||
++			strings.HasSuffix(cfg.BuildO, string(os.PathSeparator)) {
+ 			if !explicitO {
+ 				base.Fatalf("go build: build output %q already exists and is a directory", cfg.BuildO)
+ 			}
+diff --git a/src/cmd/go/testdata/script/build_output.txt b/src/cmd/go/testdata/script/build_output.txt
+index ced7cf82a6..1e82950dbc 100644
+--- a/src/cmd/go/testdata/script/build_output.txt
++++ b/src/cmd/go/testdata/script/build_output.txt
+@@ -18,6 +18,32 @@ go build -o myprog x.go
+ exists -exec myprog
+ ! exists myprogr.exe
+ 
++! exists bin
++go build -o bin/x x.go
++exists -exec bin/x
++rm bin
++
++! exists bin
++go build -o bin/ x.go
++exists -exec bin/x$GOEXE
++rm bin
++
++[windows] ! exists bin
++[windows] go build -o bin\x x.go
++[windows] exists -exec bin\x
++[windows] rm bin
++
++[windows] ! exists bin
++[windows] go build -o bin\ x.go
++[windows] exists -exec bin\x.exe
++[windows] rm bin
++
++! exists bin
++mkdir bin
++go build -o bin x.go
++exists -exec bin/x$GOEXE
++rm bin
++
+ go build p.go
+ ! exists p
+ ! exists p.a

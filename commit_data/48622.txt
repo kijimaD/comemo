@@ -13,6 +13,26 @@ Date:   Thu Jun 3 12:26:18 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/mbitmap.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 32b8db7a50..819acf40bd 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -386,10 +386,10 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
+ 	// If s is nil, the virtual address has never been part of the heap.
+ 	// This pointer may be to some mmap'd region, so we allow it.
+ 	if s == nil {
+-		if GOARCH == "amd64" && p == clobberdeadPtr && debug.invalidptr != 0 {
+-			// Crash if clobberdeadPtr is seen. Only on AMD64 for now, as
+-			// it is the only platform where compiler's clobberdead mode is
+-			// implemented. On AMD64 clobberdeadPtr cannot be a valid address.
++		if (GOARCH == "amd64" || GOARCH == "arm64") && p == clobberdeadPtr && debug.invalidptr != 0 {
++			// Crash if clobberdeadPtr is seen. Only on AMD64 and ARM64 for now,
++			// as they are the only platform where compiler's clobberdead mode is
++			// implemented. On these platforms clobberdeadPtr cannot be a valid address.
+ 			badPointer(s, p, refBase, refOff)
+ 		}
+ 		return

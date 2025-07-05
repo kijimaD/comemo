@@ -9,7 +9,61 @@ Date:   Sun Aug 4 23:32:40 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12436043
-
+---
  src/pkg/runtime/cgocall.c | 15 +--------------
  src/pkg/runtime/runtime.h |  2 --
  2 files changed, 1 insertion(+), 16 deletions(-)
+
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 07aef495cf..91a55131e6 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -98,15 +98,6 @@ static void unwindm(void);
+ static void endcgo(void);
+ static FuncVal endcgoV = { endcgo };
+ 
+-// Gives a hint that the next syscall
+-// executed by the current goroutine will block.
+-// Currently used only on windows.
+-void
+-net·runtime_blockingSyscallHint(void)
+-{
+-	g->blockingsyscall = true;
+-}
+-
+ void
+ runtime·cgocall(void (*fn)(void*), void *arg)
+ {
+@@ -158,11 +149,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 	 * so it is safe to call while "in a system call", outside
+ 	 * the $GOMAXPROCS accounting.
+ 	 */
+-	if(g->blockingsyscall) {
+-		g->blockingsyscall = false;
+-		runtime·entersyscallblock();
+-	} else
+-		runtime·entersyscall();
++	runtime·entersyscall();
+ 	runtime·asmcgocall(fn, arg);
+ 	runtime·exitsyscall();
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 705845d3f1..1ecdfffcab 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -269,7 +269,6 @@ struct	G
+ 	bool	ispanic;
+ 	bool	issystem;	// do not output in stack dump
+ 	bool	isbackground;	// ignore in deadlock detector
+-	bool	blockingsyscall;	// hint that the next syscall will block
+ 	bool	preempt;	// preemption signal, duplicates stackguard0 = StackPreempt
+ 	int8	raceignore;	// ignore race detection events
+ 	M*	m;		// for debuggers, but offset not hard-coded
+@@ -313,7 +312,6 @@ struct	M
+ 	int32	dying;
+ 	int32	profilehz;
+ 	int32	helpgc;
+-	bool	blockingsyscall;
+ 	bool	spinning;
+ 	uint32	fastrand;
+ 	uint64	ncgocall;	// number of cgo calls in total

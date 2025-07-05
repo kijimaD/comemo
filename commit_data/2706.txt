@@ -8,8 +8,126 @@ Date:   Tue Jul 14 15:29:29 2009 -0700
     DELTA=42  (37 added, 5 deleted, 0 changed)
     OCL=31618
     CL=31633
-
+---
  src/pkg/syscall/types_darwin.c         | 16 +++++++++++++++-
  src/pkg/syscall/ztypes_darwin_386.go   | 13 +++++++++++--
  src/pkg/syscall/ztypes_darwin_amd64.go | 13 +++++++++++--
  3 files changed, 37 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/syscall/types_darwin.c b/src/pkg/syscall/types_darwin.c
+index 65afd6ca6c..e205db155f 100644
+--- a/src/pkg/syscall/types_darwin.c
++++ b/src/pkg/syscall/types_darwin.c
+@@ -45,6 +45,13 @@ enum
+ };
+ 
+ 
++// Basic types
++
++typedef short $_C_short;
++typedef int $_C_int;
++typedef long $_C_long;
++typedef long long $_C_long_long;
++
+ // Time
+ 
+ typedef struct timespec $Timespec;
+@@ -55,7 +62,6 @@ typedef struct timeval $Timeval;
+ typedef struct rusage $Rusage;
+ typedef struct rlimit $Rlimit;
+ 
+-typedef int $_C_int;
+ typedef gid_t $_Gid_t;
+ 
+ // Files
+@@ -185,6 +191,14 @@ typedef struct sockaddr_any $RawSockaddrAny;
+ typedef socklen_t $_Socklen;
+ typedef struct linger $Linger;
+ 
++// Ptrace requests
++enum {
++	$_PTRACE_TRACEME = PT_TRACE_ME,
++	$_PTRACE_CONT = PT_CONTINUE,
++	$_PTRACE_KILL = PT_KILL,
++};
++
++
+ // Events (kqueue, kevent)
+ 
+ enum {
+diff --git a/src/pkg/syscall/ztypes_darwin_386.go b/src/pkg/syscall/ztypes_darwin_386.go
+index 29d0d96763..87bca145fe 100644
+--- a/src/pkg/syscall/ztypes_darwin_386.go
++++ b/src/pkg/syscall/ztypes_darwin_386.go
+@@ -78,6 +78,9 @@ const (
+ 	SizeofSockaddrInet6 = 0x1c;
+ 	SizeofSockaddrAny = 0x1c;
+ 	SizeofSockaddrUnix = 0x6a;
++	_PTRACE_TRACEME = 0;
++	_PTRACE_CONT = 0x7;
++	_PTRACE_KILL = 0x8;
+ 	EVFILT_READ = -0x1;
+ 	EVFILT_WRITE = -0x2;
+ 	EVFILT_AIO = -0x3;
+@@ -103,6 +106,14 @@ const (
+ 
+ // Types
+ 
++type _C_short int16
++
++type _C_int int32
++
++type _C_long int32
++
++type _C_long_long int64
++
+ type Timespec struct {
+ 	Sec int32;
+ 	Nsec int32;
+@@ -137,8 +148,6 @@ type Rlimit struct {
+ 	Max uint64;
+ }
+ 
+-type _C_int int32
+-
+ type _Gid_t uint32
+ 
+ type Stat_t struct {
+diff --git a/src/pkg/syscall/ztypes_darwin_amd64.go b/src/pkg/syscall/ztypes_darwin_amd64.go
+index 0523c50a4b..81a556c828 100644
+--- a/src/pkg/syscall/ztypes_darwin_amd64.go
++++ b/src/pkg/syscall/ztypes_darwin_amd64.go
+@@ -78,6 +78,9 @@ const (
+ 	SizeofSockaddrInet6 = 0x1c;
+ 	SizeofSockaddrAny = 0x1c;
+ 	SizeofSockaddrUnix = 0x6a;
++	_PTRACE_TRACEME = 0;
++	_PTRACE_CONT = 0x7;
++	_PTRACE_KILL = 0x8;
+ 	EVFILT_READ = -0x1;
+ 	EVFILT_WRITE = -0x2;
+ 	EVFILT_AIO = -0x3;
+@@ -103,6 +106,14 @@ const (
+ 
+ // Types
+ 
++type _C_short int16
++
++type _C_int int32
++
++type _C_long int64
++
++type _C_long_long int64
++
+ type Timespec struct {
+ 	Sec int64;
+ 	Nsec int64;
+@@ -138,8 +149,6 @@ type Rlimit struct {
+ 	Max uint64;
+ }
+ 
+-type _C_int int32
+-
+ type _Gid_t uint32
+ 
+ type Stat_t struct {

@@ -12,7 +12,7 @@ Date:   Sun Apr 12 20:05:14 2020 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules   | 16 ++++----
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  2 +-
  src/cmd/compile/internal/ssa/gen/Wasm.rules    |  2 +-
@@ -21,3 +21,242 @@ Date:   Sun Apr 12 20:05:14 2020 -0700
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 17 ++++++++-
  src/cmd/compile/internal/ssa/rewriteWasm.go    | 17 ++++++++-
  7 files changed, 91 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 26ad55b413..bda8429c5f 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -400,14 +400,14 @@
+ 	(REPSTOSQ destptr (MOVQconst [s/8]) (MOVQconst [0]) mem)
+ 
+ // Lowering constants
+-(Const8   ...) -> (MOVLconst ...)
+-(Const16  ...) -> (MOVLconst ...)
+-(Const32  ...) -> (MOVLconst ...)
+-(Const64  ...) -> (MOVQconst ...)
+-(Const32F ...) -> (MOVSSconst ...)
+-(Const64F ...) -> (MOVSDconst ...)
+-(ConstNil ...) -> (MOVQconst ...)
+-(ConstBool ...) -> (MOVLconst ...)
++(Const8   [c]) => (MOVLconst [int32(c)])
++(Const16  [c]) => (MOVLconst [int32(c)])
++(Const32  ...) => (MOVLconst ...)
++(Const64  ...) => (MOVQconst ...)
++(Const32F ...) => (MOVSSconst ...)
++(Const64F ...) => (MOVSDconst ...)
++(ConstNil    ) => (MOVQconst [0])
++(ConstBool [c]) => (MOVLconst [int32(b2i(c))])
+ 
+ // Lowering calls
+ (StaticCall ...) -> (CALLstatic ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 95aadeb2b8..a8bb453e22 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -442,7 +442,7 @@
+ (MOVDconst <t> [c]) && !is32Bit(c) && int32(c) <  0 -> (ADD (SLLI <t> [32] (MOVDconst [c>>32+1])) (MOVDconst [int64(int32(c))]))
+ (MOVDconst <t> [c]) && !is32Bit(c) && int32(c) >= 0 -> (ADD (SLLI <t> [32] (MOVDconst [c>>32+0])) (MOVDconst [int64(int32(c))]))
+ 
+-(Addr ...) -> (MOVaddr ...)
++(Addr {sym} base) => (MOVaddr {sym} [0] base)
+ (LocalAddr {sym} base _) -> (MOVaddr {sym} base)
+ 
+ // Conditional branches
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index fb65897747..fb6df163ff 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -316,7 +316,7 @@
+ (GetClosurePtr ...) -> (LoweredGetClosurePtr ...)
+ (GetCallerPC ...) -> (LoweredGetCallerPC ...)
+ (GetCallerSP ...) -> (LoweredGetCallerSP ...)
+-(Addr ...) -> (LoweredAddr ...)
++(Addr {sym} base) => (LoweredAddr {sym} [0] base)
+ (LocalAddr {sym} base _) -> (LoweredAddr {sym} base)
+ 
+ // Write barrier.
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index a1d7203a2e..52dc3634cf 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -181,6 +181,9 @@ func genRulesSuffix(arch arch, suff string) {
+ 	for _, op := range ops {
+ 		eop, ok := parseEllipsisRules(oprules[op], arch)
+ 		if ok {
++			if strings.Contains(oprules[op][0].rule, "=>") && opByName(arch, op).aux != opByName(arch, eop).aux {
++				panic(fmt.Sprintf("can't use ... for ops that have different aux types: %s and %s", op, eop))
++			}
+ 			swc := &Case{expr: exprf(op)}
+ 			swc.add(stmtf("v.Op = %s", eop))
+ 			swc.add(stmtf("return true"))
+@@ -1683,17 +1686,21 @@ func checkEllipsisRuleCandidate(rule Rule, arch arch) {
+ 	var auxint2, aux2 string
+ 	var args2 []string
+ 	var usingCopy string
++	var eop opData
+ 	if result[0] != '(' {
+ 		// Check for (Foo x) -> x, which can be converted to (Foo ...) -> (Copy ...).
+ 		args2 = []string{result}
+ 		usingCopy = " using Copy"
+ 	} else {
+-		_, _, _, auxint2, aux2, args2 = parseValue(result, arch, rule.loc)
++		eop, _, _, auxint2, aux2, args2 = parseValue(result, arch, rule.loc)
+ 	}
+ 	// Check that all restrictions in match are reproduced exactly in result.
+ 	if aux != aux2 || auxint != auxint2 || len(args) != len(args2) {
+ 		return
+ 	}
++	if strings.Contains(rule.rule, "=>") && op.aux != eop.aux {
++		return
++	}
+ 	for i := range args {
+ 		if args[i] != args2[i] {
+ 			return
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index f4f83597eb..df36e41d2d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -646,8 +646,7 @@ func rewriteValueAMD64(v *Value) bool {
+ 	case OpCondSelect:
+ 		return rewriteValueAMD64_OpCondSelect(v)
+ 	case OpConst16:
+-		v.Op = OpAMD64MOVLconst
+-		return true
++		return rewriteValueAMD64_OpConst16(v)
+ 	case OpConst32:
+ 		v.Op = OpAMD64MOVLconst
+ 		return true
+@@ -661,14 +660,11 @@ func rewriteValueAMD64(v *Value) bool {
+ 		v.Op = OpAMD64MOVSDconst
+ 		return true
+ 	case OpConst8:
+-		v.Op = OpAMD64MOVLconst
+-		return true
++		return rewriteValueAMD64_OpConst8(v)
+ 	case OpConstBool:
+-		v.Op = OpAMD64MOVLconst
+-		return true
++		return rewriteValueAMD64_OpConstBool(v)
+ 	case OpConstNil:
+-		v.Op = OpAMD64MOVQconst
+-		return true
++		return rewriteValueAMD64_OpConstNil(v)
+ 	case OpCtz16:
+ 		return rewriteValueAMD64_OpCtz16(v)
+ 	case OpCtz16NonZero:
+@@ -29457,6 +29453,45 @@ func rewriteValueAMD64_OpCondSelect(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpConst16(v *Value) bool {
++	// match: (Const16 [c])
++	// result: (MOVLconst [int32(c)])
++	for {
++		c := auxIntToInt16(v.AuxInt)
++		v.reset(OpAMD64MOVLconst)
++		v.AuxInt = int32ToAuxInt(int32(c))
++		return true
++	}
++}
++func rewriteValueAMD64_OpConst8(v *Value) bool {
++	// match: (Const8 [c])
++	// result: (MOVLconst [int32(c)])
++	for {
++		c := auxIntToInt8(v.AuxInt)
++		v.reset(OpAMD64MOVLconst)
++		v.AuxInt = int32ToAuxInt(int32(c))
++		return true
++	}
++}
++func rewriteValueAMD64_OpConstBool(v *Value) bool {
++	// match: (ConstBool [c])
++	// result: (MOVLconst [int32(b2i(c))])
++	for {
++		c := auxIntToBool(v.AuxInt)
++		v.reset(OpAMD64MOVLconst)
++		v.AuxInt = int32ToAuxInt(int32(b2i(c)))
++		return true
++	}
++}
++func rewriteValueAMD64_OpConstNil(v *Value) bool {
++	// match: (ConstNil )
++	// result: (MOVQconst [0])
++	for {
++		v.reset(OpAMD64MOVQconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpCtz16(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 6a0f7f1c96..5b2746a514 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -30,8 +30,7 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		v.Op = OpRISCV64ADD
+ 		return true
+ 	case OpAddr:
+-		v.Op = OpRISCV64MOVaddr
+-		return true
++		return rewriteValueRISCV64_OpAddr(v)
+ 	case OpAnd16:
+ 		v.Op = OpRISCV64AND
+ 		return true
+@@ -641,6 +640,20 @@ func rewriteValueRISCV64(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueRISCV64_OpAddr(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (Addr {sym} base)
++	// result: (MOVaddr {sym} [0] base)
++	for {
++		sym := auxToSym(v.Aux)
++		base := v_0
++		v.reset(OpRISCV64MOVaddr)
++		v.AuxInt = int32ToAuxInt(0)
++		v.Aux = symToAux(sym)
++		v.AddArg(base)
++		return true
++	}
++}
+ func rewriteValueRISCV64_OpAvg64u(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index a046152a6e..399ed67eff 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -34,8 +34,7 @@ func rewriteValueWasm(v *Value) bool {
+ 		v.Op = OpWasmI64Add
+ 		return true
+ 	case OpAddr:
+-		v.Op = OpWasmLoweredAddr
+-		return true
++		return rewriteValueWasm_OpAddr(v)
+ 	case OpAnd16:
+ 		v.Op = OpWasmI64And
+ 		return true
+@@ -663,6 +662,20 @@ func rewriteValueWasm(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueWasm_OpAddr(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (Addr {sym} base)
++	// result: (LoweredAddr {sym} [0] base)
++	for {
++		sym := auxToSym(v.Aux)
++		base := v_0
++		v.reset(OpWasmLoweredAddr)
++		v.AuxInt = int32ToAuxInt(0)
++		v.Aux = symToAux(sym)
++		v.AddArg(base)
++		return true
++	}
++}
+ func rewriteValueWasm_OpBitLen64(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block

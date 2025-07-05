@@ -18,6 +18,45 @@ Date:   Thu Oct 28 15:57:45 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  .../testdata/script/test_fuzz_non_crash_signal.txt   | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt b/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
+index f1a4c6669f..31d54bcb70 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
+@@ -10,6 +10,15 @@
+ ! exists testdata
+ ! stdout unreachable
+ ! stderr unreachable
++stdout 'fuzzing process terminated by unexpected signal; no crash will be recorded: signal: terminated'
++
++# FuzzKill sends itself a signal that cannot be caught by the worker process
++# and does not appear to be a crash.
++# We should not save a crasher.
++! go test -fuzz=FuzzKill
++! exists testdata
++! stdout unreachable
++! stderr unreachable
+ stdout 'fuzzing process terminated by unexpected signal; no crash will be recorded: signal: killed'
+ 
+ # FuzzCrash sends itself a signal that looks like a crash.
+@@ -33,6 +42,17 @@ import (
+ )
+ 
+ func FuzzNonCrash(f *testing.F) {
++	f.Fuzz(func(*testing.T, bool) {
++		pid := syscall.Getpid()
++		if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
++			panic(err)
++		}
++		// signal may not be received immediately. Wait for it.
++		select{}
++	})
++}
++
++func FuzzKill(f *testing.F) {
+ 	f.Fuzz(func(*testing.T, bool) {
+ 		pid := syscall.Getpid()
+ 		if err := syscall.Kill(pid, syscall.SIGKILL); err != nil {

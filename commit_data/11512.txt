@@ -12,6 +12,21 @@ Date:   Tue Jan 31 11:22:47 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5545073
-
+---
  src/pkg/crypto/tls/handshake_client.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index 632ceea9c1..687e5ef11b 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -59,7 +59,8 @@ func (c *Conn) clientHandshake() error {
+ 	finishedHash.Write(serverHello.marshal())
+ 
+ 	vers, ok := mutualVersion(serverHello.vers)
+-	if !ok {
++	if !ok || vers < versionTLS10 {
++		// TLS 1.0 is the minimum version supported as a client.
+ 		return c.sendAlert(alertProtocolVersion)
+ 	}
+ 	c.vers = vers

@@ -28,8 +28,145 @@ Date:   Fri Nov 20 21:23:45 2020 +0100
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/chan.go                    | 48 +++++++++++++++++++++++++++++-----
  src/runtime/race/testdata/chan_test.go | 22 ++++++++++++++++
  src/runtime/select.go                  |  4 +--
  3 files changed, 65 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 254816e369..ba56e2cc40 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -215,7 +215,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+ 		// Space is available in the channel buffer. Enqueue the element to send.
+ 		qp := chanbuf(c, c.sendx)
+ 		if raceenabled {
+-			racereleaseacquire(qp)
++			racenotify(c, c.sendx, nil)
+ 		}
+ 		typedmemmove(c.elemtype, qp, ep)
+ 		c.sendx++
+@@ -297,9 +297,8 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
+ 			// Pretend we go through the buffer, even though
+ 			// we copy directly. Note that we need to increment
+ 			// the head/tail locations only when raceenabled.
+-			qp := chanbuf(c, c.recvx)
+-			racereleaseacquire(qp)
+-			racereleaseacquireg(sg.g, qp)
++			racenotify(c, c.recvx, nil)
++			racenotify(c, c.recvx, sg)
+ 			c.recvx++
+ 			if c.recvx == c.dataqsiz {
+ 				c.recvx = 0
+@@ -532,7 +531,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ 		// Receive directly from queue
+ 		qp := chanbuf(c, c.recvx)
+ 		if raceenabled {
+-			racereleaseacquire(qp)
++			racenotify(c, c.recvx, nil)
+ 		}
+ 		if ep != nil {
+ 			typedmemmove(c.elemtype, ep, qp)
+@@ -621,8 +620,8 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
+ 		// queue is full, those are both the same slot.
+ 		qp := chanbuf(c, c.recvx)
+ 		if raceenabled {
+-			racereleaseacquire(qp)
+-			racereleaseacquireg(sg.g, qp)
++			racenotify(c, c.recvx, nil)
++			racenotify(c, c.recvx, sg)
+ 		}
+ 		// copy data from queue to receiver
+ 		if ep != nil {
+@@ -833,3 +832,38 @@ func racesync(c *hchan, sg *sudog) {
+ 	racereleaseg(sg.g, chanbuf(c, 0))
+ 	raceacquire(chanbuf(c, 0))
+ }
++
++// Notify the race detector of a send or receive involving buffer entry idx
++// and a channel c or its communicating partner sg.
++// This function handles the special case of c.elemsize==0.
++func racenotify(c *hchan, idx uint, sg *sudog) {
++	// We could have passed the unsafe.Pointer corresponding to entry idx
++	// instead of idx itself.  However, in a future version of this function,
++	// we can use idx to better handle the case of elemsize==0.
++	// A future improvement to the detector is to call TSan with c and idx:
++	// this way, Go will continue to not allocating buffer entries for channels
++	// of elemsize==0, yet the race detector can be made to handle multiple
++	// sync objects underneath the hood (one sync object per idx)
++	qp := chanbuf(c, idx)
++	// When elemsize==0, we don't allocate a full buffer for the channel.
++	// Instead of individual buffer entries, the race detector uses the
++	// c.buf as the only buffer entry.  This simplification prevents us from
++	// following the memory model's happens-before rules (rules that are
++	// implemented in racereleaseacquire).  Instead, we accumulate happens-before
++	// information in the synchronization object associated with c.buf.
++	if c.elemsize == 0 {
++		if sg == nil {
++			raceacquire(qp)
++			racerelease(qp)
++		} else {
++			raceacquireg(sg.g, qp)
++			racereleaseg(sg.g, qp)
++		}
++	} else {
++		if sg == nil {
++			racereleaseacquire(qp)
++		} else {
++			racereleaseacquireg(sg.g, qp)
++		}
++	}
++}
+diff --git a/src/runtime/race/testdata/chan_test.go b/src/runtime/race/testdata/chan_test.go
+index 3e57b8221c..e39ad4f99c 100644
+--- a/src/runtime/race/testdata/chan_test.go
++++ b/src/runtime/race/testdata/chan_test.go
+@@ -763,3 +763,25 @@ func TestNoRaceCloseHappensBeforeRead(t *testing.T) {
+ 		<-read
+ 	}
+ }
++
++// Test that we call the proper race detector function when c.elemsize==0.
++// See https://github.com/golang/go/issues/42598
++func TestNoRaceElemetSize0(t *testing.T) {
++	var x, y int
++	var c = make(chan struct{}, 2)
++	c <- struct{}{}
++	c <- struct{}{}
++	go func() {
++		x += 1
++		<-c
++	}()
++	go func() {
++		y += 1
++		<-c
++	}()
++	time.Sleep(10 * time.Millisecond)
++	c <- struct{}{}
++	c <- struct{}{}
++	x += 1
++	y += 1
++}
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index f04b130b15..e72761bfa9 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -415,7 +415,7 @@ bufrecv:
+ 		if cas.elem != nil {
+ 			raceWriteObjectPC(c.elemtype, cas.elem, casePC(casi), chanrecvpc)
+ 		}
+-		racereleaseacquire(chanbuf(c, c.recvx))
++		racenotify(c, c.recvx, nil)
+ 	}
+ 	if msanenabled && cas.elem != nil {
+ 		msanwrite(cas.elem, c.elemtype.size)
+@@ -437,7 +437,7 @@ bufrecv:
+ bufsend:
+ 	// can send to buffer
+ 	if raceenabled {
+-		racereleaseacquire(chanbuf(c, c.sendx))
++		racenotify(c, c.sendx, nil)
+ 		raceReadObjectPC(c.elemtype, cas.elem, casePC(casi), chansendpc)
+ 	}
+ 	if msanenabled {

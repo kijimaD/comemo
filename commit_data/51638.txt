@@ -15,6 +15,21 @@ Date:   Wed Feb 9 11:42:54 2022 -0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types/fmt.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index 09814ac46d..93061d724d 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -157,6 +157,9 @@ func symfmt(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
+ // symbols from the given package in the given mode.
+ // If it returns the empty string, no qualification is needed.
+ func pkgqual(pkg *Pkg, verb rune, mode fmtMode) string {
++	if pkg == nil {
++		return ""
++	}
+ 	if verb != 'S' {
+ 		switch mode {
+ 		case fmtGo: // This is for the user

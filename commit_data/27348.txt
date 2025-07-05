@@ -18,10 +18,349 @@ Date:   Fri Jan 29 16:57:02 2016 +0100
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/testing/benchmark.go  |  20 ++++----
  src/testing/match.go      | 116 ++++++++++++++++++++++++++++++++++++++++++++++
  src/testing/match_test.go |  67 ++++++++++++++++++++++++++
  src/testing/sub_test.go   |   8 ++--
  src/testing/testing.go    |  22 ++++-----
  5 files changed, 207 insertions(+), 26 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 3e85392d03..2e2e82e82e 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -338,6 +338,8 @@ func benchmarkName(name string, n int) string {
+ }
+ 
+ type benchContext struct {
++	match *matcher
++
+ 	maxLen int // The largest recorded benchmark name.
+ 	extLen int // Maximum extension length.
+ }
+@@ -361,16 +363,12 @@ func runBenchmarksInternal(matchString func(pat, str string) (bool, error), benc
+ 		}
+ 	}
+ 	ctx := &benchContext{
++		match:  newMatcher(matchString, *matchBenchmarks, "-test.bench"),
+ 		extLen: len(benchmarkName("", maxprocs)),
+ 	}
+ 	var bs []InternalBenchmark
+ 	for _, Benchmark := range benchmarks {
+-		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
+-		if err != nil {
+-			fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.bench: %s\n", err)
+-			os.Exit(1)
+-		}
+-		if matched {
++		if _, matched := ctx.match.fullName(nil, Benchmark.Name); matched {
+ 			bs = append(bs, Benchmark)
+ 			benchName := benchmarkName(Benchmark.Name, maxprocs)
+ 			if l := len(benchName) + ctx.extLen + 1; l > ctx.maxLen {
+@@ -443,13 +441,17 @@ func (b *B) runBench(name string, f func(b *B)) bool {
+ 	benchmarkLock.Unlock()
+ 	defer benchmarkLock.Lock()
+ 
+-	if b.level > 0 {
+-		name = b.name + "/" + name
++	benchName, ok := b.name, true
++	if b.context != nil {
++		benchName, ok = b.context.match.fullName(&b.common, name)
++	}
++	if !ok {
++		return true
+ 	}
+ 	sub := &B{
+ 		common: common{
+ 			signal: make(chan bool),
+-			name:   name,
++			name:   benchName,
+ 			parent: &b.common,
+ 			level:  b.level + 1,
+ 		},
+diff --git a/src/testing/match.go b/src/testing/match.go
+new file mode 100644
+index 0000000000..d0c52142ba
+--- /dev/null
++++ b/src/testing/match.go
+@@ -0,0 +1,116 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing
++
++import (
++	"fmt"
++	"os"
++	"strconv"
++	"sync"
++)
++
++// matcher sanitizes, uniques, and filters names of subtests and subbenchmarks.
++type matcher struct {
++	filter    string
++	matchFunc func(pat, str string) (bool, error)
++
++	mu       sync.Mutex
++	subNames map[string]int64
++}
++
++// TODO: fix test_main to avoid race and improve caching.
++var matchMutex sync.Mutex
++
++func newMatcher(matchString func(pat, str string) (bool, error), pattern, name string) *matcher {
++	// Verify filters before doing any processing.
++	if _, err := matchString(pattern, "non-empty"); err != nil {
++		fmt.Fprintf(os.Stderr, "testing: invalid regexp for %s: %s\n", name, err)
++		os.Exit(1)
++	}
++	return &matcher{
++		filter:    pattern,
++		matchFunc: matchString,
++		subNames:  map[string]int64{},
++	}
++}
++
++func (m *matcher) fullName(c *common, subname string) (name string, ok bool) {
++	name = subname
++
++	m.mu.Lock()
++	defer m.mu.Unlock()
++
++	if c != nil && c.level > 0 {
++		name = m.unique(c.name, rewrite(subname))
++	}
++
++	matchMutex.Lock()
++	defer matchMutex.Unlock()
++
++	if c != nil && c.level == 0 {
++		if matched, _ := m.matchFunc(m.filter, subname); !matched {
++			return name, false
++		}
++	}
++	return name, true
++}
++
++// unique creates a unique name for the given parent and subname by affixing it
++// with one ore more counts, if necessary.
++func (m *matcher) unique(parent, subname string) string {
++	name := fmt.Sprintf("%s/%s", parent, subname)
++	empty := subname == ""
++	for {
++		next, exists := m.subNames[name]
++		if !empty && !exists {
++			m.subNames[name] = 1 // next count is 1
++			return name
++		}
++		// Name was already used. We increment with the count and append a
++		// string with the count.
++		m.subNames[name] = next + 1
++
++		// Add a count to guarantee uniqueness.
++		name = fmt.Sprintf("%s#%02d", name, next)
++		empty = false
++	}
++}
++
++// rewrite rewrites a subname to having only printable characters and no white
++// space.
++func rewrite(s string) string {
++	b := []byte{}
++	for _, r := range s {
++		switch {
++		case isSpace(r):
++			b = append(b, '_')
++		case !strconv.IsPrint(r):
++			s := strconv.QuoteRune(r)
++			b = append(b, s[1:len(s)-1]...)
++		default:
++			b = append(b, string(r)...)
++		}
++	}
++	return string(b)
++}
++
++func isSpace(r rune) bool {
++	if r < 0x2000 {
++		switch r {
++		// Note: not the same as Unicode Z class.
++		case '\t', '\n', '\v', '\f', '\r', ' ', 0x85, 0xA0, 0x1680:
++			return true
++		}
++	} else {
++		if r <= 0x200a {
++			return true
++		}
++		switch r {
++		case 0x2028, 0x2029, 0x202f, 0x205f, 0x3000:
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/testing/match_test.go b/src/testing/match_test.go
+new file mode 100644
+index 0000000000..68f3e9e867
+--- /dev/null
++++ b/src/testing/match_test.go
+@@ -0,0 +1,67 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing
++
++import (
++	"regexp"
++	"unicode"
++)
++
++// Verify that our IsSpace agrees with unicode.IsSpace.
++func TestIsSpace(t *T) {
++	n := 0
++	for r := rune(0); r <= unicode.MaxRune; r++ {
++		if isSpace(r) != unicode.IsSpace(r) {
++			t.Errorf("IsSpace(%U)=%t incorrect", r, isSpace(r))
++			n++
++			if n > 10 {
++				return
++			}
++		}
++	}
++}
++
++func TestNaming(t *T) {
++	m := newMatcher(regexp.MatchString, "", "")
++
++	parent := &common{name: "x", level: 1} // top-level test.
++
++	// Rig the matcher with some preloaded values.
++	m.subNames["x/b"] = 1000
++
++	testCases := []struct {
++		name, want string
++	}{
++		// Uniqueness
++		{"", "x/#00"},
++		{"", "x/#01"},
++
++		{"t", "x/t"},
++		{"t", "x/t#01"},
++		{"t", "x/t#02"},
++
++		{"a#01", "x/a#01"}, // user has subtest with this name.
++		{"a", "x/a"},       // doesn't conflict with this name.
++		{"a", "x/a#01#01"}, // conflict, add disambiguating string.
++		{"a", "x/a#02"},    // This string is claimed now, so resume
++		{"a", "x/a#03"},    // with counting.
++		{"a#02", "x/a#02#01"},
++
++		{"b", "x/b#1000"}, // rigged, see above
++		{"b", "x/b#1001"},
++
++		// // Sanitizing
++		{"A:1 B:2", "x/A:1_B:2"},
++		{"s\t\r\u00a0", "x/s___"},
++		{"\x01", `x/\x01`},
++		{"\U0010ffff", `x/\U0010ffff`},
++	}
++
++	for i, tc := range testCases {
++		if got, _ := m.fullName(parent, tc.name); got != tc.want {
++			t.Errorf("%d:%s: got %q; want %q", i, tc.name, got, tc.want)
++		}
++	}
++}
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 07f6785c13..58def85441 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -6,6 +6,7 @@ package testing
+ 
+ import (
+ 	"io/ioutil"
++	"regexp"
+ 	"sync/atomic"
+ 	"time"
+ )
+@@ -305,11 +306,12 @@ func TestTRun(t *T) {
+ 		},
+ 	}}
+ 	for _, tc := range testCases {
+-		ctx := newTestContext(tc.maxPar)
++		ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
+ 		root := &T{
+ 			common: common{
+-				barrier: make(chan bool),
+-				w:       ioutil.Discard,
++				signal: make(chan bool),
++				name:   "Test",
++				w:      ioutil.Discard,
+ 			},
+ 			context: ctx,
+ 		}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 03a7fbfddd..5c6f16e41a 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -551,9 +551,9 @@ func tRunner(t *T, fn func(t *T)) {
+ // run runs f as a subtest of t called name. It reports whether f succeeded.
+ // Run will block until all its parallel subtests have completed.
+ func (t *T) run(name string, f func(t *T)) bool {
+-	testName := name
+-	if t.level > 0 {
+-		testName = t.name + "/" + name
++	testName, ok := t.context.match.fullName(&t.common, name)
++	if !ok {
++		return true
+ 	}
+ 	t = &T{
+ 		common: common{
+@@ -583,6 +583,8 @@ func (t *T) run(name string, f func(t *T)) bool {
+ // testContext holds all fields that are common to all tests. This includes
+ // synchronization primitives to run at most *parallel tests.
+ type testContext struct {
++	match *matcher
++
+ 	mu sync.Mutex
+ 
+ 	// Channel used to signal tests that are ready to be run in parallel.
+@@ -599,8 +601,9 @@ type testContext struct {
+ 	maxParallel int
+ }
+ 
+-func newTestContext(maxParallel int) *testContext {
++func newTestContext(maxParallel int, m *matcher) *testContext {
+ 	return &testContext{
++		match:         m,
+ 		startParallel: make(chan bool),
+ 		maxParallel:   maxParallel,
+ 		running:       1, // Set the count to 1 for the main (sequential) test.
+@@ -707,7 +710,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 	}
+ 	for _, procs := range cpuList {
+ 		runtime.GOMAXPROCS(procs)
+-		ctx := newTestContext(*parallel)
++		ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
+ 		t := &T{
+ 			common: common{
+ 				signal:  make(chan bool),
+@@ -718,15 +721,6 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 		}
+ 		tRunner(t, func(t *T) {
+ 			for _, test := range tests {
+-				// TODO: a version of this will be the Run method.
+-				matched, err := matchString(*match, test.Name)
+-				if err != nil {
+-					fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.run: %s\n", err)
+-					os.Exit(1)
+-				}
+-				if !matched {
+-					continue
+-				}
+ 				t.run(test.Name, test.F)
+ 			}
+ 			// Run catching the signal rather than the tRunner as a separate

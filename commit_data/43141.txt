@@ -12,6 +12,22 @@ Date:   Thu Mar 12 11:25:39 2020 +1100
     Change-Id: Ide673b0b97983c2c2319a9311dc3d0a10567e6c4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/223097
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/io/io.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 9cc3086c19..3dea70b947 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -236,6 +236,10 @@ type WriterAt interface {
+ // ReadByte reads and returns the next byte from the input or
+ // any error encountered. If ReadByte returns an error, no input
+ // byte was consumed, and the returned byte value is undefined.
++//
++// ReadByte provides an efficient interface for byte-at-time
++// processing. A Reader that does not implement  ByteReader
++// can be wrapped using bufio.NewReader to add this method.
+ type ByteReader interface {
+ 	ReadByte() (byte, error)
+ }

@@ -11,10 +11,100 @@ Date:   Tue Oct 28 21:53:31 2014 -0400
     R=r
     CC=golang-codereviews
     https://golang.org/cl/165780043
-
+---
  src/runtime/extern.go | 6 ++++++
  src/runtime/mgc0.c    | 4 ++--
  src/runtime/runtime.c | 4 ++++
  src/runtime/runtime.h | 2 ++
  src/runtime/stack.c   | 4 ++--
  5 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index b8db5d0c4b..1b8052bb56 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -39,6 +39,12 @@ a comma-separated list of name=val pairs. Supported names are:
+ 	gcdead: setting gcdead=1 causes the garbage collector to clobber all stack slots
+ 	that it thinks are dead.
+ 
++	invalidptr: defaults to invalidptr=1, causing the garbage collector and stack
++	copier to crash the program if an invalid pointer value (for example, 1)
++	is found in a pointer-typed location. Setting invalidptr=0 disables this check.
++	This should only be used as a temporary workaround to diagnose buggy code.
++	The real fix is to not store integers in pointer-typed locations.
++
+ 	scheddetail: setting schedtrace=X and scheddetail=1 causes the scheduler to emit
+ 	detailed multiline info every X milliseconds, describing state of the scheduler,
+ 	processors, threads and goroutines.
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index cba2beaa74..1b41bf9a79 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -330,7 +330,7 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
+ 			if(obj == nil)
+ 				continue;
+ 			if(obj < arena_start || obj >= arena_used) {
+-				if((uintptr)obj < PhysPageSize) {
++				if((uintptr)obj < PhysPageSize && runtime·invalidptr) {
+ 					s = nil;
+ 					goto badobj;
+ 				}
+@@ -375,7 +375,7 @@ scanblock(byte *b, uintptr n, byte *ptrmask)
+ 					else
+ 						runtime·printf(" span=%p-%p-%p state=%d\n", (uintptr)s->start<<PageShift, s->limit, (uintptr)(s->start+s->npages)<<PageShift, s->state);
+ 					if(ptrmask != nil)
+-						runtime·throw("bad pointer");
++						runtime·throw("invalid heap pointer");
+ 					// Add to badblock list, which will cause the garbage collection
+ 					// to keep repeating until it has traced the chain of pointers
+ 					// leading to obj all the way back to a root.
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index b3503fb909..c823691ec5 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -276,9 +276,13 @@ struct DbgVar
+ 	int32*	value;
+ };
+ 
++// Do we report invalid pointers found during stack or heap scans?
++int32 runtime·invalidptr = 1;
++
+ #pragma dataflag NOPTR /* dbgvar has no heap pointers */
+ static DbgVar dbgvar[] = {
+ 	{"allocfreetrace", &runtime·debug.allocfreetrace},
++	{"invalidptr", &runtime·invalidptr},
+ 	{"efence", &runtime·debug.efence},
+ 	{"gctrace", &runtime·debug.gctrace},
+ 	{"gcdead", &runtime·debug.gcdead},
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index a84a32525e..2a60740063 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -657,6 +657,8 @@ enum {
+ byte*	runtime·startup_random_data;
+ uint32	runtime·startup_random_data_len;
+ 
++int32	runtime·invalidptr;
++
+ enum {
+ 	// hashinit wants this many random bytes
+ 	HashRandomBytes = 32
+diff --git a/src/runtime/stack.c b/src/runtime/stack.c
+index e402691f45..ed8f4f8727 100644
+--- a/src/runtime/stack.c
++++ b/src/runtime/stack.c
+@@ -401,12 +401,12 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
+ 			break;
+ 		case BitsPointer:
+ 			p = scanp[i];
+-			if(f != nil && (byte*)0 < p && (p < (byte*)PageSize || (uintptr)p == PoisonGC || (uintptr)p == PoisonStack)) {
++			if(f != nil && (byte*)0 < p && (p < (byte*)PageSize && runtime·invalidptr || (uintptr)p == PoisonGC || (uintptr)p == PoisonStack)) {
+ 				// Looks like a junk value in a pointer slot.
+ 				// Live analysis wrong?
+ 				g->m->traceback = 2;
+ 				runtime·printf("runtime: bad pointer in frame %s at %p: %p\n", runtime·funcname(f), &scanp[i], p);
+-				runtime·throw("bad pointer!");
++				runtime·throw("invalid stack pointer");
+ 			}
+ 			if(minp <= p && p < maxp) {
+ 				if(StackDebug >= 3)

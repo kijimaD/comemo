@@ -9,7 +9,50 @@ Date:   Fri Aug 23 10:05:56 2019 -0600
     Change-Id: Ia8ac9943a920a056ba7dbc69c1c70fa188f7aca8
     Reviewed-on: https://go-review.googlesource.com/c/go/+/191578
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go1.13.html | 18 ++++++++++++++++++
  src/fmt/scan.go |  2 +-
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index 5760669fe5..0dd2532965 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -667,6 +667,24 @@ godoc
+ 
+ <dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
+   <dd>
++    <!-- CL 160245 -->
++    <p>
++      The printing verbs <code>%x</code> and <code>%X</code> now format floating-point and
++      complex numbers in hexadecimal notation, in lower-case and upper-case respectively.
++    </p>
++
++    <!-- CL 160246 -->
++    <p>
++      The new printing verb <code>%O</code> formats integers in base 8, emitting the <code>0o</code> prefix.
++    </p>
++
++    <!-- CL 160247 -->
++    <p>
++      The scanner now accepts hexadecimal floating-point values, digit-separating underscores
++      and leading <code>0b</code> and <code>0o</code> prefixes.
++      See the <a href="#language">Changes to the language</a> for details.
++    </p>
++
+     <!-- CL 176998 -->
+     <p>The <a href="/pkg/fmt/#Errorf"><code>Errorf</code></a> function
+       has a new verb, <code>%w</code>, whose operand must be an error.
+diff --git a/src/fmt/scan.go b/src/fmt/scan.go
+index 74ada20de7..0dab2c98f7 100644
+--- a/src/fmt/scan.go
++++ b/src/fmt/scan.go
+@@ -609,7 +609,7 @@ func (s *ss) scanRune(bitSize int) int64 {
+ 	return r
+ }
+ 
+-// scanBasePrefix reports whether the integer begins with a bas prefix
++// scanBasePrefix reports whether the integer begins with a base prefix
+ // and returns the base, digit string, and whether a zero was found.
+ // It is called only if the verb is %v.
+ func (s *ss) scanBasePrefix() (base int, digits string, zeroFound bool) {

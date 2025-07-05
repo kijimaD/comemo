@@ -9,6 +9,52 @@ Date:   Sat Apr 11 19:23:05 2015 -0400
     Change-Id: Ia8c912e91259a5073aa3ab2b6509a18aa9a1fce7
     Reviewed-on: https://go-review.googlesource.com/8818
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/os/exec/exec_test.go | 19 ++++++++++---------
  1 file changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index d3dec57992..db84eabf26 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -27,10 +27,12 @@ import (
+ 	"time"
+ )
+ 
++// iOS cannot fork
++var iOS = runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
++
+ func helperCommand(t *testing.T, s ...string) *exec.Cmd {
+-	if runtime.GOOS == "nacl" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm") {
+-		// iOS cannot fork
+-		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++	if runtime.GOOS == "nacl" || iOS {
++		t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 	cs := []string{"-test.run=TestHelperProcess", "--"}
+ 	cs = append(cs, s...)
+@@ -50,8 +52,8 @@ func TestEcho(t *testing.T) {
+ }
+ 
+ func TestCommandRelativeName(t *testing.T) {
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+-		t.Skip("skipping on darwin/arm")
++	if iOS {
++		t.Skip("skipping on darwin/%s, cannot fork", runtime.GOARCH)
+ 	}
+ 
+ 	// Run our own binary as a relative path
+@@ -428,10 +430,9 @@ func TestExtraFiles(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "nacl", "windows":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+-	case "darwin":
+-		if runtime.GOARCH == "arm" {
+-			t.Skipf("skipping test on %s/%s", runtime.GOOS, runtime.GOARCH)
+-		}
++	}
++	if iOS {
++		t.Skipf("skipping test on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+ 	// Ensure that file descriptors have not already been leaked into

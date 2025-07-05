@@ -7,7 +7,35 @@ Date:   Sat Sep 25 21:24:12 2010 +1000
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/2204050
-
+---
  src/pkg/syscall/syscall_nacl.go       | 2 ++
  src/pkg/syscall/ztypes_windows_386.go | 3 +++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_nacl.go b/src/pkg/syscall/syscall_nacl.go
+index 1eca1a328d..a9f6787f60 100644
+--- a/src/pkg/syscall/syscall_nacl.go
++++ b/src/pkg/syscall/syscall_nacl.go
+@@ -252,6 +252,8 @@ const (
+ 	SO_RCVBUF
+ 	SO_REUSEADDR
+ 	SO_SNDBUF
++	IPPROTO_IPV6
++	IPV6_V6ONLY
+ 	TCP_NODELAY
+ 	WNOHANG
+ 	WSTOPPED
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index 44a7da1942..0780d190ac 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -307,6 +307,9 @@ const (
+ 	SO_SNDBUF                = 0x1001
+ 	SO_UPDATE_ACCEPT_CONTEXT = 0x700b
+ 
++	IPPROTO_IPV6 = 0x29
++	IPV6_V6ONLY  = 0x1a
++
+ 	SOMAXCONN = 5
+ 
+ 	TCP_NODELAY = 1

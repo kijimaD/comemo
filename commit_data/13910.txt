@@ -17,7 +17,7 @@ Date:   Sun Sep 23 13:16:14 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6549054
-
+---
  test/args.go                 |   3 ++
  test/bounds.go               |   2 +-
  test/bugs/bug395.go          |   3 ++
@@ -60,3 +60,686 @@ Date:   Sun Sep 23 13:16:14 2012 -0400
  test/sinit.go                |   3 ++
  test/testlib                 |   7 ++-
  41 files changed, 212 insertions(+), 11 deletions(-)
+
+diff --git a/test/args.go b/test/args.go
+index db624e9c2c..9cfddc338b 100644
+--- a/test/args.go
++++ b/test/args.go
+@@ -1,5 +1,8 @@
+ // $G $F.go && $L $F.$A && ./$A.out arg1 arg2
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/bounds.go b/test/bounds.go
+index 7b2b528d6e..4a16f64d3d 100644
+--- a/test/bounds.go
++++ b/test/bounds.go
+@@ -1,4 +1,4 @@
+-// errchk -0 $G -m -l $D/$F.go
++// errorcheck -0 -m -l
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/bugs/bug395.go b/test/bugs/bug395.go
+index adf74497cd..4632dcd0f7 100644
+--- a/test/bugs/bug395.go
++++ b/test/bugs/bug395.go
+@@ -1,6 +1,9 @@
+ // echo bug395 is broken  # takes 90+ seconds to break
+ // # $G $D/$F.go || echo bug395
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/bugs/bug434.go b/test/bugs/bug434.go
+index 65047fd4a7..5eec7a577e 100644
+--- a/test/bugs/bug434.go
++++ b/test/bugs/bug434.go
+@@ -1,5 +1,8 @@
+ // $G $D/$F.dir/one.go && $G $D/$F.dir/two.go || echo BUG:bug434
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/ddd3.go b/test/ddd3.go
+index 82fce31499..d8de0a77e9 100644
+--- a/test/ddd3.go
++++ b/test/ddd3.go
+@@ -1,5 +1,8 @@
+ // $G $D/ddd2.go && $G $D/$F.go && $L $F.$A && ./$A.out
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/dwarf/main.go b/test/dwarf/main.go
+index 7f2ec4c00a..175a09c779 100644
+--- a/test/dwarf/main.go
++++ b/test/dwarf/main.go
+@@ -1,5 +1,8 @@
+ // $G $D/$F.go $D/z*.go && $L $F.$A && ./$A.out
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/escape2.go b/test/escape2.go
+index 462caee9fc..8f48ef7bd6 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1,4 +1,4 @@
+-// errchk -0 $G -m -l $D/$F.go
++// errorcheck -0 -m -l
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/escape4.go b/test/escape4.go
+index 8875708963..cc3ac78f04 100644
+--- a/test/escape4.go
++++ b/test/escape4.go
+@@ -1,4 +1,4 @@
+-// errchk -0 $G -m $D/$F.go
++// errorcheck -0 -m
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug083.go b/test/fixedbugs/bug083.go
+index 984969d47f..8bdecaadb5 100644
+--- a/test/fixedbugs/bug083.go
++++ b/test/fixedbugs/bug083.go
+@@ -1,5 +1,8 @@
+ // $G $D/$F.dir/bug0.go && errchk $G $D/$F.dir/bug1.go
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug133.go b/test/fixedbugs/bug133.go
+index 2beeb074f5..a6baac26ca 100644
+--- a/test/fixedbugs/bug133.go
++++ b/test/fixedbugs/bug133.go
+@@ -1,5 +1,8 @@
+ // $G $D/$F.dir/bug0.go && $G $D/$F.dir/bug1.go && errchk $G $D/$F.dir/bug2.go
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug160.go b/test/fixedbugs/bug160.go
+index 8fd53ea079..c5e166a0cf 100644
+--- a/test/fixedbugs/bug160.go
++++ b/test/fixedbugs/bug160.go
+@@ -1,5 +1,8 @@
+ // $G $D/bug160.dir/x.go && $G $D/bug160.dir/y.go && $L y.$A && ./$A.out
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug191.go b/test/fixedbugs/bug191.go
+index 44fcccfc00..11a6e58e51 100644
+--- a/test/fixedbugs/bug191.go
++++ b/test/fixedbugs/bug191.go
+@@ -1,5 +1,8 @@
+ // $G $D/bug191.dir/a.go && $G $D/bug191.dir/b.go && $G $D/$F.go && $L $F.$A
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug248.go b/test/fixedbugs/bug248.go
+index 055bf1fd7e..98cda35c49 100644
+--- a/test/fixedbugs/bug248.go
++++ b/test/fixedbugs/bug248.go
+@@ -5,6 +5,9 @@
+ // $L bug2.$A &&
+ // ./$A.out || echo BUG: failed to compile
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug302.go b/test/fixedbugs/bug302.go
+index 1088b2f3c2..dc7637fe52 100644
+--- a/test/fixedbugs/bug302.go
++++ b/test/fixedbugs/bug302.go
+@@ -1,5 +1,8 @@
+ // $G $D/bug302.dir/p.go && pack grc pp.a p.$A && $G $D/bug302.dir/main.go
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug313.go b/test/fixedbugs/bug313.go
+index eb2a0223b6..9009c5e8ff 100644
+--- a/test/fixedbugs/bug313.go
++++ b/test/fixedbugs/bug313.go
+@@ -1,5 +1,8 @@
+ // errchk $G -e $D/$F.dir/[ab].go
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug322.go b/test/fixedbugs/bug322.go
+index ad0e62dc8c..401a8600a9 100644
+--- a/test/fixedbugs/bug322.go
++++ b/test/fixedbugs/bug322.go
+@@ -1,5 +1,8 @@
+ // $G $D/$F.dir/lib.go && $G $D/$F.dir/main.go && $L main.$A && ./$A.out || echo BUG: fails incorrectly
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug324.go b/test/fixedbugs/bug324.go
+index 3da75630ac..ee090ae42f 100644
+--- a/test/fixedbugs/bug324.go
++++ b/test/fixedbugs/bug324.go
+@@ -1,5 +1,8 @@
+ // $G $D/$F.dir/p.go && $G $D/$F.dir/main.go && $L main.$A && ./$A.out
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug345.go b/test/fixedbugs/bug345.go
+index 874710ce88..e3705f6c18 100644
+--- a/test/fixedbugs/bug345.go
++++ b/test/fixedbugs/bug345.go
+@@ -1,5 +1,8 @@
+ // $G $D/$F.dir/io.go && errchk $G -e $D/$F.dir/main.go
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug367.go b/test/fixedbugs/bug367.go
+index 25d11a1531..bf8edcd1b8 100644
+--- a/test/fixedbugs/bug367.go
++++ b/test/fixedbugs/bug367.go
+@@ -1,5 +1,8 @@
+ // $G $D/$F.dir/p.go && $G $D/$F.dir/main.go && $L main.$A && ./$A.out || echo BUG: should not fail
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug369.go b/test/fixedbugs/bug369.go
+index 4d98e85082..2ee8568e04 100644
+--- a/test/fixedbugs/bug369.go
++++ b/test/fixedbugs/bug369.go
+@@ -2,6 +2,9 @@
+ // $G -o fast.$A $D/bug369.dir/pkg.go &&
+ // run
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug382.go b/test/fixedbugs/bug382.go
+index 3f5d05cd5f..10c71d4662 100644
+--- a/test/fixedbugs/bug382.go
++++ b/test/fixedbugs/bug382.go
+@@ -1,5 +1,8 @@
+ // $G $D/$F.dir/pkg.go && $G $D/$F.go || echo "Bug 382"
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file
+diff --git a/test/fixedbugs/bug385_32.go b/test/fixedbugs/bug385_32.go
+index b9ecbb4c10..5ac4136e7d 100644
+--- a/test/fixedbugs/bug385_32.go
++++ b/test/fixedbugs/bug385_32.go
+@@ -1,5 +1,8 @@
+ // [ $A == 6 ] || errchk $G -e $D/$F.go
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug385_64.go b/test/fixedbugs/bug385_64.go
+index 7476b17d50..76afa9a335 100644
+--- a/test/fixedbugs/bug385_64.go
++++ b/test/fixedbugs/bug385_64.go
+@@ -1,5 +1,8 @@
+ // [ $A != 6 ]  || errchk $G -e $D/$F.go
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug414.go b/test/fixedbugs/bug414.go
+index 8824b1a1ed..5612fd5c23 100644
+--- a/test/fixedbugs/bug414.go
++++ b/test/fixedbugs/bug414.go
+@@ -1,5 +1,8 @@
+ // $G $D/$F.dir/p1.go && $G $D/$F.dir/main.go && $L main.$A && ./$A.out
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug424.go b/test/fixedbugs/bug424.go
+index 42cff54d45..41524543a8 100644
+--- a/test/fixedbugs/bug424.go
++++ b/test/fixedbugs/bug424.go
+@@ -1,5 +1,8 @@
+ // $G $D/$F.dir/lib.go && $G $D/$F.go && $L $F.$A && ./$A.out
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug429.go b/test/fixedbugs/bug429.go
+index c1bd1d4bb9..794d293db2 100644
+--- a/test/fixedbugs/bug429.go
++++ b/test/fixedbugs/bug429.go
+@@ -1,5 +1,8 @@
+ // $G $D/$F.go && $L $F.$A && ! ./$A.out || echo BUG: bug429
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug437.go b/test/fixedbugs/bug437.go
+index bc046bde27..b1e76a6a74 100644
+--- a/test/fixedbugs/bug437.go
++++ b/test/fixedbugs/bug437.go
+@@ -1,5 +1,8 @@
+ // $G $D/$F.dir/one.go && $G $D/$F.dir/two.go && $G $D/$F.go && $L $F.$A && ./$A.out
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/import3.go b/test/import3.go
+index 274fcfe42a..0a5ba1d01a 100644
+--- a/test/import3.go
++++ b/test/import3.go
+@@ -1,5 +1,8 @@
+ // $G $D/import2.go && $G $D/$F.go
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/import4.go b/test/import4.go
+index cbfebf7e18..f35f567818 100644
+--- a/test/import4.go
++++ b/test/import4.go
+@@ -1,5 +1,8 @@
+ // $G $D/empty.go && errchk $G $D/$F.go
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/index.go b/test/index.go
+index f9e2413c16..447d708969 100644
+--- a/test/index.go
++++ b/test/index.go
+@@ -4,6 +4,9 @@
+ // ./$A.out -pass 2 >tmp.go && errchk $G -e tmp.go
+ // rm -f tmp.go $A.out1
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/interface/embed1.go b/test/interface/embed1.go
+index ee502a162f..07b873a633 100644
+--- a/test/interface/embed1.go
++++ b/test/interface/embed1.go
+@@ -1,5 +1,8 @@
+ // $G $D/embed0.go && $G $D/$F.go && $L $F.$A && ./$A.out
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/interface/private.go b/test/interface/private.go
+index 14dfc1ae55..0a42385ea7 100644
+--- a/test/interface/private.go
++++ b/test/interface/private.go
+@@ -1,5 +1,8 @@
+ // $G $D/${F}1.go && errchk $G $D/$F.go
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/interface/recursive2.go b/test/interface/recursive2.go
+index 5129ceb022..3a1059960c 100644
+--- a/test/interface/recursive2.go
++++ b/test/interface/recursive2.go
+@@ -1,5 +1,8 @@
+ // $G $D/recursive1.go && $G $D/$F.go
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/linkx.go b/test/linkx.go
+index d2c9545679..12d446ffc1 100644
+--- a/test/linkx.go
++++ b/test/linkx.go
+@@ -1,5 +1,8 @@
+ // $G $D/$F.go && $L -X main.tbd hello $F.$A && ./$A.out
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/method4.go b/test/method4.go
+index 77e409b91f..7e7b1ff3b9 100644
+--- a/test/method4.go
++++ b/test/method4.go
+@@ -1,5 +1,8 @@
+ // $G $D/method4a.go && $G $D/$F.go && $L $F.$A && ./$A.out
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/nul1.go b/test/nul1.go
+index 142d4deb1f..968c952951 100644
+--- a/test/nul1.go
++++ b/test/nul1.go
+@@ -3,6 +3,9 @@
+ // errchk $G -e tmp.go
+ // rm -f tmp.go
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/rotate.go b/test/rotate.go
+index 916407453f..aa334b4218 100644
+--- a/test/rotate.go
++++ b/test/rotate.go
+@@ -2,6 +2,9 @@
+ // ./$A.out >tmp.go && $G tmp.go && $L -o $A.out1 tmp.$A && ./$A.out1
+ // rm -f tmp.go $A.out1
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/run.go b/test/run.go
+index c82c138be5..10dbceff5d 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -20,6 +20,7 @@ import (
+ 	"log"
+ 	"os"
+ 	"os/exec"
++	"path"
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+@@ -109,15 +110,17 @@ func main() {
+ 		<-test.donec
+ 		_, isSkip := test.err.(skipError)
+ 		errStr := "pass"
+-		if isSkip {
+-			errStr = "skip"
+-		}
+ 		if test.err != nil {
+ 			errStr = test.err.Error()
+ 			if !isSkip {
+ 				failed = true
+ 			}
+ 		}
++		if isSkip && !skipOkay[path.Join(test.dir, test.gofile)] {
++			errStr = "unexpected skip for " + path.Join(test.dir, test.gofile) + ": " + errStr
++			isSkip = false
++			failed = true
++		}
+ 		resCount[errStr]++
+ 		if isSkip && !*verbose && !*showSkips {
+ 			continue
+@@ -251,7 +254,8 @@ func (t *test) run() {
+ 		action = action[2:]
+ 	}
+ 
+-	var args []string
++	var args, flags []string
++	wantError := false
+ 	f := strings.Fields(action)
+ 	if len(f) > 0 {
+ 		action = f[0]
+@@ -262,8 +266,19 @@ func (t *test) run() {
+ 	case "cmpout":
+ 		action = "run" // the run case already looks for <dir>/<test>.out files
+ 		fallthrough
+-	case "compile", "compiledir", "build", "run", "errorcheck", "runoutput":
++	case "compile", "compiledir", "build", "run", "runoutput":
++		t.action = action
++	case "errorcheck":
+ 		t.action = action
++		wantError = true
++		for len(args) > 0 && strings.HasPrefix(args[0], "-") {
++			if args[0] == "-0" {
++				wantError = false
++			} else {
++				flags = append(flags, args[0])
++			}
++			args = args[1:]
++		}
+ 	case "skip":
+ 		t.action = "skip"
+ 		return
+@@ -302,7 +317,21 @@ func (t *test) run() {
+ 		t.err = fmt.Errorf("unimplemented action %q", action)
+ 
+ 	case "errorcheck":
+-		out, _ := runcmd("go", "tool", gc, "-e", "-o", "a."+letter, long)
++		cmdline := []string{"go", "tool", gc, "-e", "-o", "a." + letter}
++		cmdline = append(cmdline, flags...)
++		cmdline = append(cmdline, long)
++		out, err := runcmd(cmdline...)
++		if wantError {
++			if err == nil {
++				t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
++				return
++			}
++		} else {
++			if err != nil {
++				t.err = fmt.Errorf("%s\n%s", err, out)
++				return
++			}
++		}
+ 		t.err = t.errorCheck(string(out), long, t.gofile)
+ 		return
+ 
+@@ -400,7 +429,7 @@ func (t *test) errorCheck(outStr string, full, short string) (err error) {
+ 	// 6g error messages continue onto additional lines with leading tabs.
+ 	// Split the output at the beginning of each line that doesn't begin with a tab.
+ 	for _, line := range strings.Split(outStr, "\n") {
+-		if strings.HasSuffix(line, "\r") {	// remove '\r', output by compiler on windows
++		if strings.HasSuffix(line, "\r") { // remove '\r', output by compiler on windows
+ 			line = line[:len(line)-1]
+ 		}
+ 		if strings.HasPrefix(line, "\t") {
+@@ -517,3 +546,62 @@ func (t *test) wantedErrors() (errs []wantedError) {
+ 
+ 	return
+ }
++
++var skipOkay = map[string]bool{
++	"args.go":                 true,
++	"ddd3.go":                 true,
++	"import3.go":              true,
++	"import4.go":              true,
++	"index.go":                true,
++	"linkx.go":                true,
++	"method4.go":              true,
++	"nul1.go":                 true,
++	"rotate.go":               true,
++	"sigchld.go":              true,
++	"sinit.go":                true,
++	"interface/embed1.go":     true,
++	"interface/private.go":    true,
++	"interface/recursive2.go": true,
++	"dwarf/main.go":           true,
++	"dwarf/z1.go":             true,
++	"dwarf/z10.go":            true,
++	"dwarf/z11.go":            true,
++	"dwarf/z12.go":            true,
++	"dwarf/z13.go":            true,
++	"dwarf/z14.go":            true,
++	"dwarf/z15.go":            true,
++	"dwarf/z16.go":            true,
++	"dwarf/z17.go":            true,
++	"dwarf/z18.go":            true,
++	"dwarf/z19.go":            true,
++	"dwarf/z2.go":             true,
++	"dwarf/z20.go":            true,
++	"dwarf/z3.go":             true,
++	"dwarf/z4.go":             true,
++	"dwarf/z5.go":             true,
++	"dwarf/z6.go":             true,
++	"dwarf/z7.go":             true,
++	"dwarf/z8.go":             true,
++	"dwarf/z9.go":             true,
++	"fixedbugs/bug083.go":     true,
++	"fixedbugs/bug133.go":     true,
++	"fixedbugs/bug160.go":     true,
++	"fixedbugs/bug191.go":     true,
++	"fixedbugs/bug248.go":     true,
++	"fixedbugs/bug302.go":     true,
++	"fixedbugs/bug313.go":     true,
++	"fixedbugs/bug322.go":     true,
++	"fixedbugs/bug324.go":     true,
++	"fixedbugs/bug345.go":     true,
++	"fixedbugs/bug367.go":     true,
++	"fixedbugs/bug369.go":     true,
++	"fixedbugs/bug382.go":     true,
++	"fixedbugs/bug385_32.go":  true,
++	"fixedbugs/bug385_64.go":  true,
++	"fixedbugs/bug414.go":     true,
++	"fixedbugs/bug424.go":     true,
++	"fixedbugs/bug429.go":     true,
++	"fixedbugs/bug437.go":     true,
++	"bugs/bug395.go":          true,
++	"bugs/bug434.go":          true,
++}
+diff --git a/test/sigchld.go b/test/sigchld.go
+index 25625a6f41..c1cfc2a8d0 100644
+--- a/test/sigchld.go
++++ b/test/sigchld.go
+@@ -1,6 +1,9 @@
+ // [ "$GOOS" == windows ] ||
+ // ($G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out)
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/sinit.go b/test/sinit.go
+index 1bc2810376..ffb8ef7511 100644
+--- a/test/sinit.go
++++ b/test/sinit.go
+@@ -1,5 +1,8 @@
+ // $G -S $D/$F.go | egrep initdone >/dev/null && echo BUG sinit || true
+ 
++// NOTE: This test is not run by 'run.go' and so not run by all.bash.
++// To run this test you must use the ./run shell script.
++
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/testlib b/test/testlib
+index 84cda7b371..90f400dd89 100644
+--- a/test/testlib
++++ b/test/testlib
+@@ -48,7 +48,12 @@ cmpout() {
+ }
+ 
+ errorcheck() {
+-	errchk $G -e $D/$F.go
++	zero=""
++	if [ "$1" = "-0" ]; then
++		zero="-0"
++		shift
++	fi
++	errchk $zero $G -e $* $D/$F.go
+ }
+ 
+ skip() {

@@ -19,7 +19,7 @@ Date:   Thu Aug 18 13:54:43 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/script/cmds.go                   | 3 ---
  src/cmd/go/internal/script/state.go                  | 7 -------
  src/cmd/go/script_test.go                            | 6 ++----
@@ -30,3 +30,174 @@ Date:   Thu Aug 18 13:54:43 2022 -0400
  src/cmd/go/testdata/script/mod_gobuild_import.txt    | 4 ++--
  src/cmd/go/testdata/script/modfile_flag.txt          | 2 +-
  9 files changed, 15 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/go/internal/script/cmds.go b/src/cmd/go/internal/script/cmds.go
+index 1e98db1e2c..c0bd31ed65 100644
+--- a/src/cmd/go/internal/script/cmds.go
++++ b/src/cmd/go/internal/script/cmds.go
+@@ -707,9 +707,6 @@ func match(s *State, args []string, text, name string) error {
+ 		text = string(data)
+ 	}
+ 
+-	// Matching against workdir would be misleading.
+-	text = strings.ReplaceAll(text, s.workdir, "$WORK")
+-
+ 	if n > 0 {
+ 		count := len(re.FindAllString(text, -1))
+ 		if count != n {
+diff --git a/src/cmd/go/internal/script/state.go b/src/cmd/go/internal/script/state.go
+index fcbe90531a..f40c4426da 100644
+--- a/src/cmd/go/internal/script/state.go
++++ b/src/cmd/go/internal/script/state.go
+@@ -132,13 +132,6 @@ func (s *State) ExpandEnv(str string, inRegexp bool) string {
+ 	return os.Expand(str, func(key string) string {
+ 		e := s.envMap[key]
+ 		if inRegexp {
+-			// Replace workdir with $WORK, since we have done the same substitution in
+-			// the text we're about to compare against.
+-			//
+-			// TODO(bcmills): This seems out-of-place in the script engine.
+-			// See if we can remove it.
+-			e = strings.ReplaceAll(e, s.workdir, "$WORK")
+-
+ 			// Quote to literal strings: we want paths like C:\work\go1.4 to remain
+ 			// paths rather than regular expressions.
+ 			e = regexp.QuoteMeta(e)
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index e362ec3466..f0fe6d0460 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -115,11 +115,9 @@ func TestScript(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 
+-			if *testWork {
+-				work, _ := s.LookupEnv("WORK")
+-				t.Logf("$WORK=%s", work)
+-			}
+ 			t.Log(time.Now().UTC().Format(time.RFC3339))
++			work, _ := s.LookupEnv("WORK")
++			t.Logf("$WORK=%s", work)
+ 
+ 			// With -testsum, if a go.mod file is present in the test's initial
+ 			// working directory, run 'go mod tidy'.
+diff --git a/src/cmd/go/testdata/script/build_n_cgo.txt b/src/cmd/go/testdata/script/build_n_cgo.txt
+index 7aa77aea42..fa01927720 100644
+--- a/src/cmd/go/testdata/script/build_n_cgo.txt
++++ b/src/cmd/go/testdata/script/build_n_cgo.txt
+@@ -4,6 +4,7 @@
+ # See issue golang.org/issue/37012.
+ go build -n
+ ! stderr '[/\\]\$WORK'
++stderr '[ =]\$WORK'
+ 
+ -- go.mod --
+ module m
+diff --git a/src/cmd/go/testdata/script/build_relative_tmpdir.txt b/src/cmd/go/testdata/script/build_relative_tmpdir.txt
+index 3e98a67b81..ea7412e116 100644
+--- a/src/cmd/go/testdata/script/build_relative_tmpdir.txt
++++ b/src/cmd/go/testdata/script/build_relative_tmpdir.txt
+@@ -5,14 +5,14 @@ cd $WORK
+ mkdir tmp
+ env GOTMPDIR=tmp
+ go build -work a
+-stderr 'WORK=\$WORK' # the test script itself converts the absolute directory back to $WORK
++stderr 'WORK='$WORK
+ 
+ # Similarly if TMP/TMPDIR is relative.
+ env GOTMPDIR=
+ env TMP=tmp    # Windows
+ env TMPDIR=tmp # Unix
+ go build -work a
+-stderr 'WORK=\$WORK'
++stderr 'WORK='$WORK
+ 
+ -- a/a.go --
+ package a
+diff --git a/src/cmd/go/testdata/script/cache_unix.txt b/src/cmd/go/testdata/script/cache_unix.txt
+index 0e07ba6382..975960fd39 100644
+--- a/src/cmd/go/testdata/script/cache_unix.txt
++++ b/src/cmd/go/testdata/script/cache_unix.txt
+@@ -17,17 +17,17 @@ env HOME=$WORK/home
+ 
+ # With all three set, we should prefer GOCACHE.
+ go env GOCACHE
+-stdout '\$WORK/gocache$'
++stdout $WORK'/gocache$'
+ 
+ # Without GOCACHE, we should prefer XDG_CACHE_HOME over HOME.
+ env GOCACHE=
+ go env GOCACHE
+-stdout '\$WORK/xdg/go-build$$'
++stdout $WORK'/xdg/go-build$$'
+ 
+ # With only HOME set, we should use $HOME/.cache.
+ env XDG_CACHE_HOME=
+ go env GOCACHE
+-stdout '\$WORK/home/.cache/go-build$'
++stdout $WORK'/home/.cache/go-build$'
+ 
+ # With no guidance from the environment, we must disable the cache, but that
+ # should not cause commands that do not write to the cache to fail.
+diff --git a/src/cmd/go/testdata/script/mod_empty_err.txt b/src/cmd/go/testdata/script/mod_empty_err.txt
+index c4359bcccc..4b4a0076e0 100644
+--- a/src/cmd/go/testdata/script/mod_empty_err.txt
++++ b/src/cmd/go/testdata/script/mod_empty_err.txt
+@@ -4,20 +4,20 @@ env GO111MODULE=on
+ cd $WORK
+ 
+ go list -e -f {{.Error}} .
+-stdout 'no Go files in \$WORK'
++stdout 'no Go files in '$WORK
+ 
+ go list -e -f {{.Error}} ./empty
+-stdout 'no Go files in \$WORK[/\\]empty'
++stdout 'no Go files in '$WORK${/}'empty'
+ 
+ go list -e -f {{.Error}} ./exclude
+-stdout 'build constraints exclude all Go files in \$WORK[/\\]exclude'
++stdout 'build constraints exclude all Go files in '$WORK${/}'exclude'
+ 
+ go list -e -f {{.Error}} ./missing
+ stdout 'stat '$WORK'[/\\]missing: directory not found'
+ 
+ # use 'go build -n' because 'go list' reports no error.
+ ! go build -n ./testonly
+-stderr 'example.com/m/testonly: no non-test Go files in \$WORK[/\\]testonly'
++stderr 'example.com/m/testonly: no non-test Go files in '$WORK${/}'testonly'
+ 
+ -- $WORK/go.mod --
+ module example.com/m
+diff --git a/src/cmd/go/testdata/script/mod_gobuild_import.txt b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+index c13ae844b5..70af331595 100644
+--- a/src/cmd/go/testdata/script/mod_gobuild_import.txt
++++ b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+@@ -55,13 +55,13 @@ stdout w1.go
+ env GO111MODULE=on
+ exec $WORK/testfindonly$GOEXE gobuild.example.com/x/y/z/i $WORK
+ ! stdout 'build constraints'
+-stdout '^dir=\$WORK.+i err=<nil>$'
++stdout '^dir='$WORK'.+i err=<nil>$'
+ 
+ # Issue 37153: Import with empty srcDir should work.
+ env GO111MODULE=on
+ exec $WORK/testfindonly$GOEXE gobuild.example.com/x/y/z/i ''
+ ! stdout 'build constraints'
+-stdout '^dir=\$WORK.+i err=<nil>$'
++stdout '^dir='$WORK'.+i err=<nil>$'
+ 
+ -- go.mod --
+ module gobuild.example.com/x/y/z
+diff --git a/src/cmd/go/testdata/script/modfile_flag.txt b/src/cmd/go/testdata/script/modfile_flag.txt
+index 398e523a9c..6d28759849 100644
+--- a/src/cmd/go/testdata/script/modfile_flag.txt
++++ b/src/cmd/go/testdata/script/modfile_flag.txt
+@@ -14,7 +14,7 @@ grep example.com/m go.alt.mod
+ # 'go env GOMOD' should print the path to the real file.
+ # 'go env' does not recognize the '-modfile' flag.
+ go env GOMOD
+-stdout '^\$WORK[/\\]gopath[/\\]src[/\\]go.mod$'
++stdout '^'$WORK${/}gopath${/}src${/}'go\.mod$'
+ 
+ # 'go list -m' should print the effective go.mod file as GoMod though.
+ go list -m -f '{{.GoMod}}'

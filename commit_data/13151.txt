@@ -8,6 +8,23 @@ Date:   Fri May 25 00:08:52 2012 +0800
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/6249048
-
+---
  src/cmd/cc/scon.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cc/scon.c b/src/cmd/cc/scon.c
+index 193331f774..f6031a5be7 100644
+--- a/src/cmd/cc/scon.c
++++ b/src/cmd/cc/scon.c
+@@ -175,7 +175,10 @@ evconst(Node *n)
+ 		break;
+ 
+ 	case OLSHR:
+-		v = (uvlong)l->vconst >> r->vconst;
++		if(l->type->width != sizeof(uvlong))
++			v = ((uvlong)l->vconst & 0xffffffffULL) >> r->vconst;
++		else
++			v = (uvlong)l->vconst >> r->vconst;
+ 		break;
+ 
+ 	case OASHR:

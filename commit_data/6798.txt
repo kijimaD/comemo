@@ -7,7 +7,7 @@ Date:   Tue Nov 30 18:21:26 2010 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3308041
-
+---
  src/pkg/runtime/Makefile                |   7 ++
  src/pkg/runtime/chan_defs.go            |  56 +++++++++
  src/pkg/runtime/darwin/runtime_defs.go  |  23 ++++
@@ -25,3 +25,754 @@ Date:   Tue Nov 30 18:21:26 2010 +0100
  src/pkg/runtime/type.go                 |   2 +
  src/pkg/runtime/windows/runtime_defs.go |  20 ++++
  16 files changed, 621 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index a208458ed7..5fe756ac89 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -26,6 +26,13 @@ GOFILES=\
+ 	softfloat64.go\
+ 	type.go\
+ 	version.go\
++	chan_defs.go\
++	hashmap_defs.go\
++	iface_defs.go\
++	malloc_defs.go\
++	mheapmap$(SIZE)_defs.go\
++	runtime_defs.go\
++	$(GOOS)/runtime_defs.go\
+ 
+ GOFILES_tiny=\
+ 	tiny/io.go\
+diff --git a/src/pkg/runtime/chan_defs.go b/src/pkg/runtime/chan_defs.go
+new file mode 100644
+index 0000000000..5cfea6e15a
+--- /dev/null
++++ b/src/pkg/runtime/chan_defs.go
+@@ -0,0 +1,56 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Go definitions of internal structures. Master is chan.c
++
++package runtime
++
++type sudoG struct {
++	g      *g_
++	selgen uint32
++	offset int16
++	isfree int8
++	link   *sudoG
++	elem   [8]byte
++}
++
++type waitQ struct {
++	first *sudoG
++	last  *sudoG
++}
++
++type hChan struct {
++	qcount    uint32
++	dataqsiz  uint32
++	elemsize  uint16
++	closed    uint16
++	elemalign uint8
++	elemalg   *alg
++	senddataq *link
++	recvdataq *link
++	recvq     waitQ
++	sendq     waitQ
++	free      sudoG
++	lock
++}
++
++type link struct {
++	link *link
++	elem [8]byte
++}
++
++type scase struct {
++	chan_ *hChan
++	pc    *byte
++	send  uint16
++	so    uint16
++	elemp *byte // union elem [8]byte
++}
++
++type select_ struct {
++	tcase uint16
++	ncase uint16
++	link  *select_
++	scase [1]*scase
++}
+diff --git a/src/pkg/runtime/darwin/runtime_defs.go b/src/pkg/runtime/darwin/runtime_defs.go
+new file mode 100644
+index 0000000000..cf0b414a95
+--- /dev/null
++++ b/src/pkg/runtime/darwin/runtime_defs.go
+@@ -0,0 +1,23 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Go definitions of internal structures. Master is runtime.h
++
++package runtime
++
++type lock struct {
++	key  uint32
++	sema uint32
++}
++
++type usema struct {
++	u uint32
++	k uint32
++}
++
++
++type note struct {
++	wakeup int32
++	sema   usema
++}
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 8ab57d03f6..77c3e8e3a6 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -35,24 +35,6 @@ func Callers(skip int, pc []uintptr) int
+ // given program counter address, or else nil.
+ func FuncForPC(pc uintptr) *Func
+ 
+-// NOTE(rsc): Func must match struct Func in runtime.h
+-
+-// Func records information about a function in the program,
+-// in particular  the mapping from program counters to source
+-// line numbers within that function.
+-type Func struct {
+-	name   string
+-	typ    string
+-	src    string
+-	pcln   []byte
+-	entry  uintptr
+-	pc0    uintptr
+-	ln0    int32
+-	frame  int32
+-	args   int32
+-	locals int32
+-}
+-
+ // Name returns the name of the function.
+ func (f *Func) Name() string { return f.name }
+ 
+diff --git a/src/pkg/runtime/freebsd/runtime_defs.go b/src/pkg/runtime/freebsd/runtime_defs.go
+new file mode 100644
+index 0000000000..86de13316e
+--- /dev/null
++++ b/src/pkg/runtime/freebsd/runtime_defs.go
+@@ -0,0 +1,14 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// OS-Specific Go definitions of internal structures. Master is runtime.h
++
++package runtime
++
++type lock struct {
++	key  uint32
++	sema uint32
++}
++
++type note lock
+diff --git a/src/pkg/runtime/hashmap_defs.go b/src/pkg/runtime/hashmap_defs.go
+new file mode 100644
+index 0000000000..57780df879
+--- /dev/null
++++ b/src/pkg/runtime/hashmap_defs.go
+@@ -0,0 +1,51 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Go definitions of internal structures. Master is hashmap.[c,h]
++
++package runtime
++
++type hash_hash uintptr
++
++type hash_entry struct {
++	hash hash_hash
++	key  byte // dwarf.c substitutes the real type
++	val  byte // for key and val
++}
++
++type hash_subtable struct {
++	power       uint8
++	used        uint8
++	datasize    uint8
++	max_probes  uint8
++	limit_bytes int16
++	end         *hash_entry
++	entry       hash_entry // TODO: [0]hash_entry
++}
++
++type hash struct {
++	count       uint32
++	datasize    uint8
++	max_power   uint8
++	max_probes  uint8
++	indirectval uint8
++	changes     int32
++	data_hash   func(uint32, uintptr) hash_hash
++	data_eq     func(uint32, uintptr, uintptr) uint32
++	data_del    func(uint32, uintptr, uintptr)
++	st          *hash_subtable
++	keysize     uint32
++	valsize     uint32
++	datavo      uint32
++	ko0         uint32
++	vo0         uint32
++	ko1         uint32
++	vo1         uint32
++	po1         uint32
++	ko2         uint32
++	vo2         uint32
++	po2         uint32
++	keyalg      *alg
++	valalg      *alg
++}
+diff --git a/src/pkg/runtime/iface_defs.go b/src/pkg/runtime/iface_defs.go
+new file mode 100644
+index 0000000000..69d52ef9a6
+--- /dev/null
++++ b/src/pkg/runtime/iface_defs.go
+@@ -0,0 +1,18 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++/*
++ * Must match iface.c:/Itable and compilers.
++ * NOTE: type.go has an Itable, that is the version of Itab used by the reflection code.
++ */
++type itab struct {
++	Itype  *Type
++	Type   *Type
++	link   *itab
++	bad    int32
++	unused int32
++	Fn     func() // TODO: [0]func()
++}
+diff --git a/src/pkg/runtime/linux/runtime_defs.go b/src/pkg/runtime/linux/runtime_defs.go
+new file mode 100644
+index 0000000000..86de13316e
+--- /dev/null
++++ b/src/pkg/runtime/linux/runtime_defs.go
+@@ -0,0 +1,14 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// OS-Specific Go definitions of internal structures. Master is runtime.h
++
++package runtime
++
++type lock struct {
++	key  uint32
++	sema uint32
++}
++
++type note lock
+diff --git a/src/pkg/runtime/malloc_defs.go b/src/pkg/runtime/malloc_defs.go
+new file mode 100644
+index 0000000000..bfb96f409e
+--- /dev/null
++++ b/src/pkg/runtime/malloc_defs.go
+@@ -0,0 +1,130 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Go definitions of internal structures. Master is malloc.h
++
++package runtime
++
++import "unsafe"
++
++const (
++	pageShift = 12
++	pageSize  = 1 << pageShift
++	pageMask  = pageSize - 1
++)
++
++type pageID uintptr
++
++const (
++	numSizeClasses   = 67
++	maxSmallSize     = 32 << 10
++	fixAllocChunk    = 128 << 10
++	maxMCacheListLen = 256
++	maxMCacheSize    = 2 << 20
++	maxMHeapList     = 1 << 8 // 1 << (20 - pageShift)
++	heapAllocChunk   = 1 << 20
++)
++
++type mLink struct {
++	next *mLink
++}
++
++type fixAlloc struct {
++	size   uintptr
++	alloc  func(uintptr)
++	first  func(unsafe.Pointer, *byte)
++	arg    unsafe.Pointer
++	list   *mLink
++	chunk  *byte
++	nchunk uint32
++	inuse  uintptr
++	sys    uintptr
++}
++
++
++// MStats? used to be in extern.go
++
++type mCacheList struct {
++	list     *mLink
++	nlist    uint32
++	nlistmin uint32
++}
++
++type mCache struct {
++	list          [numSizeClasses]mCacheList
++	size          uint64
++	local_alloc   int64
++	local_objects int64
++	next_sample   int32
++}
++
++type mSpan struct {
++	next      *mSpan
++	prev      *mSpan
++	allnext   *mSpan
++	start     pageID
++	npages    uintptr
++	freelist  *mLink
++	ref       uint32
++	sizeclass uint32
++	state     uint32
++	//	union {
++	gcref *uint32 // sizeclass > 0
++	//		gcref0 uint32;	// sizeclass == 0
++	//	}
++}
++
++type mCentral struct {
++	lock
++	sizeclass int32
++	nonempty  mSpan
++	empty     mSpan
++	nfree     int32
++}
++
++type mHeap struct {
++	lock
++	free        [maxMHeapList]mSpan
++	large       mSpan
++	allspans    *mSpan
++	map_        mHeapMap
++	min         *byte
++	max         *byte
++	closure_min *byte
++	closure_max *byte
++
++	central [numSizeClasses]struct {
++		pad [64]byte
++		// union: mCentral
++	}
++
++	spanalloc  fixAlloc
++	cachealloc fixAlloc
++}
++
++const (
++	refFree = iota
++	refStack
++	refNone
++	refSome
++	refcountOverhead = 4
++	refNoPointers    = 0x80000000
++	refHasFinalizer  = 0x40000000
++	refProfiled      = 0x20000000
++	refNoProfiling   = 0x10000000
++	refFlags         = 0xFFFF0000
++)
++
++const (
++	mProf_None = iota
++	mProf_Sample
++	mProf_All
++)
++
++type finalizer struct {
++	next *finalizer
++	fn   func(unsafe.Pointer)
++	arg  unsafe.Pointer
++	nret int32
++}
+diff --git a/src/pkg/runtime/mheapmap32_defs.go b/src/pkg/runtime/mheapmap32_defs.go
+new file mode 100644
+index 0000000000..755725b460
+--- /dev/null
++++ b/src/pkg/runtime/mheapmap32_defs.go
+@@ -0,0 +1,23 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++const (
++	mHeapMap_Level1Bits = 10
++	mHeapMap_Level2Bits = 10
++	mHeapMap_TotalBits  = mHeapMap_Level1Bits + mHeapMap_Level2Bits
++
++	mHeapMap_Level1Mask = (1 << mHeapMap_Level1Bits) - 1
++	mHeapMap_Level2Mask = (1 << mHeapMap_Level2Bits) - 1
++)
++
++type mHeapMap struct {
++	allocator func(uintptr)
++	p         [1 << mHeapMap_Level1Bits]*mHeapMapNode2
++}
++
++type mHeapMapNode2 struct {
++	s [1 << mHeapMap_Level2Bits]*mSpan
++}
+diff --git a/src/pkg/runtime/mheapmap64_defs.go b/src/pkg/runtime/mheapmap64_defs.go
+new file mode 100644
+index 0000000000..d7ba2b4200
+--- /dev/null
++++ b/src/pkg/runtime/mheapmap64_defs.go
+@@ -0,0 +1,31 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++const (
++	mHeapMap_Level1Bits = 18
++	mHeapMap_Level2Bits = 18
++	mHeapMap_Level3Bits = 16
++	mHeapMap_TotalBits  = mHeapMap_Level1Bits + mHeapMap_Level2Bits + mHeapMap_Level3Bits
++
++	mHeapMap_Level1Mask = (1 << mHeapMap_Level1Bits) - 1
++	mHeapMap_Level2Mask = (1 << mHeapMap_Level2Bits) - 1
++	mHeapMap_Level3Mask = (1 << mHeapMap_Level3Bits) - 1
++)
++
++type mHeapMap struct {
++	allocator func(uintptr)
++	p         [1 << mHeapMap_Level1Bits]*mHeapMapNode2
++}
++
++
++type mHeapMapNode2 struct {
++	p [1 << mHeapMap_Level2Bits]*mHeapMapNode3
++}
++
++
++type mHeapMapNode3 struct {
++	s [1 << mHeapMap_Level3Bits]*mSpan
++}
+diff --git a/src/pkg/runtime/nacl/runtime_defs.go b/src/pkg/runtime/nacl/runtime_defs.go
+new file mode 100644
+index 0000000000..86de13316e
+--- /dev/null
++++ b/src/pkg/runtime/nacl/runtime_defs.go
+@@ -0,0 +1,14 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// OS-Specific Go definitions of internal structures. Master is runtime.h
++
++package runtime
++
++type lock struct {
++	key  uint32
++	sema uint32
++}
++
++type note lock
+diff --git a/src/pkg/runtime/runtime_defs.go b/src/pkg/runtime/runtime_defs.go
+new file mode 100644
+index 0000000000..3591444fa3
+--- /dev/null
++++ b/src/pkg/runtime/runtime_defs.go
+@@ -0,0 +1,204 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Go definitions of internal structures. Master is runtime.h
++
++// TODO(lvd): automate conversion to all the _defs.go files
++
++package runtime
++
++import "unsafe"
++
++const (
++	gidle = iota
++	grunnable
++	grunning
++	gsyscall
++	gwaiting
++	gmoribund
++	gdead
++	grecovery
++)
++
++// const ( Structrnd = sizeof(uintptr) )
++
++type string_ struct {
++	str *byte
++	len int32
++}
++
++type iface struct {
++	tab  *itab
++	data unsafe.Pointer
++}
++
++type eface struct {
++	type_ *Type
++	data  unsafe.Pointer
++}
++
++type complex64 struct {
++	real float32
++	imag float32
++}
++
++type complex128 struct {
++	real float64
++	imag float64
++}
++
++type slice struct {
++	array *byte
++	len   uint32
++	cap   uint32
++}
++
++type gobuf struct {
++	sp *byte
++	pc *byte
++	g  *g_
++}
++
++type g_ struct {
++	stackguard  *byte
++	stackbase   *byte
++	defer_      *defer_
++	panic_      *panic_
++	sched       gobuf
++	stack0      *byte
++	entry       *byte
++	alllink     *g_
++	param       unsafe.Pointer
++	status      int16
++	goid        int32
++	selgen      uint32
++	schedlink   *g_
++	readyonstop bool
++	ispanic     bool
++	m           *m_
++	lockedm     *m_
++	sig         int32
++	sigcode0    uintptr
++	sigcode1    uintptr
++}
++
++type m_ struct {
++	g0        *g_
++	morepc    unsafe.Pointer
++	morefp    unsafe.Pointer
++	morebuf   gobuf
++	moreframe uint32
++	moreargs  uint32
++	cret      uintptr
++	procid    uint64
++	gsignal   *g_
++	tls       [8]uint32
++	sched     gobuf
++	curg      *g_
++	id        int32
++	mallocing int32
++	gcing     int32
++	locks     int32
++	nomemprof int32
++	waitnextg int32
++	havenextg note
++	nextg     *g_
++	alllink   *m_
++	schedlink *m_
++	machport  uint32
++	mcache    *mCache
++	lockedg   *g_
++	freg      [8]uint64
++	// gostack	unsafe.Pointer  // __WINDOWS__
++}
++
++type stktop struct {
++	stackguard *uint8
++	stackbase  *uint8
++	gobuf      gobuf
++	args       uint32
++	fp         *uint8
++	free       bool
++	panic_     bool
++}
++
++type alg struct {
++	hash  func(uint32, unsafe.Pointer) uintptr
++	equal func(uint32, unsafe.Pointer, unsafe.Pointer) uint32
++	print func(uint32, unsafe.Pointer)
++	copy  func(uint32, unsafe.Pointer, unsafe.Pointer)
++}
++
++type sigtab struct {
++	flags int32
++	name  *int8
++}
++
++const (
++	sigCatch = (1 << iota)
++	sigIgnore
++	sigRestart
++	sigQueue
++	sigPanic
++)
++
++type Func struct {
++	name   string
++	typ    string
++	src    string
++	pcln   []byte
++	entry  uintptr
++	pc0    uintptr
++	ln0    int32
++	frame  int32
++	args   int32
++	locals int32
++}
++
++const (
++	aMEM = iota
++	aNOEQ
++	aSTRING
++	aINTER
++	aNILINTER
++	aMEMWORD
++	amax
++)
++
++type defer_ struct {
++	siz  int32
++	sp   *byte
++	pc   *byte
++	fn   *byte
++	link *defer_
++	args [8]byte // padded to actual size
++}
++
++type panic_ struct {
++	arg       eface
++	stackbase *byte
++	link      *panic_
++	recovered bool
++}
++
++/*
++ * external data
++
++// extern	register	G*	g;
++// extern	register	M*	m;
++
++var (
++	algarray    [amax]Alg
++	emptystring String
++	allg        *g_
++	allm        *M
++	goidgen     int32
++	gomaxprocs  int32
++	panicking   int32
++	fd          int32
++	gcwaiting   int32
++	goos        *int8
++)
++
++*/
+diff --git a/src/pkg/runtime/tiny/runtime_defs.go b/src/pkg/runtime/tiny/runtime_defs.go
+new file mode 100644
+index 0000000000..86de13316e
+--- /dev/null
++++ b/src/pkg/runtime/tiny/runtime_defs.go
+@@ -0,0 +1,14 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// OS-Specific Go definitions of internal structures. Master is runtime.h
++
++package runtime
++
++type lock struct {
++	key  uint32
++	sema uint32
++}
++
++type note lock
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+index bc21868226..d92fe5f2a3 100644
+--- a/src/pkg/runtime/type.go
++++ b/src/pkg/runtime/type.go
+@@ -195,6 +195,8 @@ type StructType struct {
+ 
+ /*
+  * Must match iface.c:/Itab and compilers.
++ * NOTE: this is the version used by the reflection code, there is another
++ * one in iface_defs.go that is closer to the original C version.
+  */
+ type Itable struct {
+ 	Itype  *Type // (*tab.inter).(*InterfaceType) is the interface type
+diff --git a/src/pkg/runtime/windows/runtime_defs.go b/src/pkg/runtime/windows/runtime_defs.go
+new file mode 100644
+index 0000000000..3a0917a251
+--- /dev/null
++++ b/src/pkg/runtime/windows/runtime_defs.go
+@@ -0,0 +1,20 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Go definitions of internal structures. Master is runtime.h
++
++package runtime
++
++const (
++	Windows = 1
++)
++
++// const ( Structrnd = sizeof(uintptr) )
++
++type lock struct {
++	key   uint32
++	event unsafe.Pointer
++}
++
++type note lock

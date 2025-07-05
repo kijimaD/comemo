@@ -21,9 +21,228 @@ Date:   Thu Oct 31 16:18:08 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/loong64enc1.s | 22 +++++++-
  src/cmd/internal/obj/loong64/a.out.go           | 34 ++++++++++++-
  src/cmd/internal/obj/loong64/anames.go          | 22 +++++++-
  src/cmd/internal/obj/loong64/asm.go             | 68 ++++++++++++++++++++++---
  4 files changed, 133 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 2688f7f22c..fd3cdcb753 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -49,8 +49,26 @@ lable2:
+ 	SLLV	R4, R5, R6		// a6901800
+ 	ROTRV	R4, R5			// a5901b00
+ 	ROTRV	R4, R5, R6		// a6901b00
+-	CLO	R4, R5			// 85100000
+-	CLZ	R4, R5			// 85140000
++	CLOW	R4, R5			// 85100000
++	CLZW	R4, R5			// 85140000
++	CTOW	R4, R5			// 85180000
++	CTZW	R4, R5			// 851c0000
++	CLOV	R4, R5			// 85200000
++	CLZV	R4, R5			// 85240000
++	CTOV	R4, R5			// 85280000
++	CTZV	R4, R5			// 852c0000
++	REVB2H	R4, R5			// 85300000
++	REVB4H	R4, R5			// 85340000
++	REVB2W	R4, R5			// 85380000
++	REVBV	R4, R5			// 853c0000
++	REVH2W	R4, R5			// 85400000
++	REVHV	R4, R5			// 85440000
++	BITREV4B	R4, R5		// 85480000
++	BITREVW	R4, R5			// 85500000
++	BITREV8B	R4, R5		// 854c0000
++	BITREVV	R4, R5			// 85540000
++	EXTWB	R4, R5			// 855c0000
++	EXTWH	R4, R5			// 85580000
+ 	CPUCFG	R4, R5			// 856c0000
+ 	ADDF	F4, F5			// a5900001
+ 	ADDF	F4, F5, F6		// a6900001
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index a2a809cbc0..6653b7fe98 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -249,8 +249,6 @@ const (
+ 
+ 	ABNE
+ 	ABREAK
+-	ACLO
+-	ACLZ
+ 
+ 	ACMPEQD
+ 	ACMPEQF
+@@ -439,6 +437,38 @@ const (
+ 	AAMMINDBWU
+ 	AAMMINDBVU
+ 
++	// 2.2.3.1
++	AEXTWB
++	AEXTWH
++
++	// 2.2.3.2
++	ACLOW
++	ACLOV
++	ACLZW
++	ACLZV
++	ACTOW
++	ACTOV
++	ACTZW
++	ACTZV
++
++	// 2.2.3.4
++	AREVBV
++	AREVB2W
++	AREVB4H
++	AREVB2H
++
++	// 2.2.3.5
++	AREVH2W
++	AREVHV
++
++	// 2.2.3.6
++	ABITREV4B
++	ABITREV8B
++
++	// 2.2.3.7
++	ABITREVW
++	ABITREVV
++
+ 	// 2.2.3.8
+ 	ABSTRINSW
+ 	ABSTRINSV
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index 2dc6319c4b..2cbf305196 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -22,8 +22,6 @@ var Anames = []string{
+ 	"BFPT",
+ 	"BNE",
+ 	"BREAK",
+-	"CLO",
+-	"CLZ",
+ 	"CMPEQD",
+ 	"CMPEQF",
+ 	"CMPGED",
+@@ -177,6 +175,26 @@ var Anames = []string{
+ 	"AMMAXDBVU",
+ 	"AMMINDBWU",
+ 	"AMMINDBVU",
++	"EXTWB",
++	"EXTWH",
++	"CLOW",
++	"CLOV",
++	"CLZW",
++	"CLZV",
++	"CTOW",
++	"CTOV",
++	"CTZW",
++	"CTZV",
++	"REVBV",
++	"REVB2W",
++	"REVB4H",
++	"REVB2H",
++	"REVH2W",
++	"REVHV",
++	"BITREV4B",
++	"BITREV8B",
++	"BITREVW",
++	"BITREVV",
+ 	"BSTRINSW",
+ 	"BSTRINSV",
+ 	"BSTRPICKW",
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 926b9952a2..985c054ece 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -86,7 +86,7 @@ var optab = []Optab{
+ 	{AADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 2, 4, 0, 0},
+ 	{ACMPEQF, C_FREG, C_FREG, C_NONE, C_FCCREG, C_NONE, 2, 4, 0, 0},
+ 
+-	{ACLO, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
++	{ACLOW, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
+ 	{AABSF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
+ 	{AMOVVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
+ 	{AMOVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
+@@ -1207,8 +1207,26 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ARDTIMEHW, r0)
+ 			opset(ARDTIMED, r0)
+ 
+-		case ACLO:
+-			opset(ACLZ, r0)
++		case ACLOW:
++			opset(ACLZW, r0)
++			opset(ACTOW, r0)
++			opset(ACTZW, r0)
++			opset(ACLOV, r0)
++			opset(ACLZV, r0)
++			opset(ACTOV, r0)
++			opset(ACTZV, r0)
++			opset(AREVB2H, r0)
++			opset(AREVB4H, r0)
++			opset(AREVB2W, r0)
++			opset(AREVBV, r0)
++			opset(AREVH2W, r0)
++			opset(AREVHV, r0)
++			opset(ABITREV4B, r0)
++			opset(ABITREV8B, r0)
++			opset(ABITREVW, r0)
++			opset(ABITREVV, r0)
++			opset(AEXTWB, r0)
++			opset(AEXTWH, r0)
+ 			opset(ACPUCFG, r0)
+ 
+ 		case ATEQ:
+@@ -2023,10 +2041,46 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 
+ func (c *ctxt0) oprr(a obj.As) uint32 {
+ 	switch a {
+-	case ACLO:
+-		return 0x4 << 10
+-	case ACLZ:
+-		return 0x5 << 10
++	case ACLOW:
++		return 0x4 << 10 // clo.w
++	case ACLZW:
++		return 0x5 << 10 // clz.w
++	case ACTOW:
++		return 0x6 << 10 // cto.w
++	case ACTZW:
++		return 0x7 << 10 // ctz.w
++	case ACLOV:
++		return 0x8 << 10 // clo.d
++	case ACLZV:
++		return 0x9 << 10 // clz.d
++	case ACTOV:
++		return 0xa << 10 // cto.d
++	case ACTZV:
++		return 0xb << 10 // ctz.d
++	case AREVB2H:
++		return 0xc << 10 // revb.2h
++	case AREVB4H:
++		return 0xd << 10 // revb.4h
++	case AREVB2W:
++		return 0xe << 10 // revb.2w
++	case AREVBV:
++		return 0xf << 10 // revb.d
++	case AREVH2W:
++		return 0x10 << 10 // revh.2w
++	case AREVHV:
++		return 0x11 << 10 // revh.d
++	case ABITREV4B:
++		return 0x12 << 10 // bitrev.4b
++	case ABITREV8B:
++		return 0x13 << 10 // bitrev.8b
++	case ABITREVW:
++		return 0x14 << 10 // bitrev.w
++	case ABITREVV:
++		return 0x15 << 10 // bitrev.d
++	case AEXTWH:
++		return 0x16 << 10 // ext.w.h
++	case AEXTWB:
++		return 0x17 << 10 // ext.w.h
+ 	case ACPUCFG:
+ 		return 0x1b << 10
+ 	case ARDTIMELW:

@@ -11,7 +11,50 @@ Date:   Sun Apr 15 22:22:13 2018 +0100
     Change-Id: I2c68700a2b33f8feb3d307ce7c966590a3e960af
     Reviewed-on: https://go-review.googlesource.com/107137
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/context/benchmark_test.go | 18 ++++++++++++++++++
  src/context/context.go        |  5 +++--
  2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/context/benchmark_test.go b/src/context/benchmark_test.go
+index 3c526dd106..6dd8510ff4 100644
+--- a/src/context/benchmark_test.go
++++ b/src/context/benchmark_test.go
+@@ -96,3 +96,21 @@ func buildContextTree(root Context, depth int) {
+ 		root, _ = WithCancel(root)
+ 	}
+ }
++
++func BenchmarkCheckCanceled(b *testing.B) {
++	ctx, cancel := WithCancel(Background())
++	cancel()
++	b.Run("Err", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			ctx.Err()
++		}
++	})
++	b.Run("Done", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			select {
++			case <-ctx.Done():
++			default:
++			}
++		}
++	})
++}
+diff --git a/src/context/context.go b/src/context/context.go
+index 06580e0465..1b4fa41b8c 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -334,8 +334,9 @@ func (c *cancelCtx) Done() <-chan struct{} {
+ 
+ func (c *cancelCtx) Err() error {
+ 	c.mu.Lock()
+-	defer c.mu.Unlock()
+-	return c.err
++	err := c.err
++	c.mu.Unlock()
++	return err
+ }
+ 
+ func (c *cancelCtx) String() string {

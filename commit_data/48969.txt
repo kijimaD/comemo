@@ -13,8 +13,54 @@ Date:   Wed Jun 30 11:21:32 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/332011
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go        | 7 +++----
  src/cmd/compile/internal/types2/sizeof_test.go | 2 +-
  src/cmd/compile/internal/types2/type.go        | 2 +-
  3 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 34dafce8bf..3377270ef8 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -479,11 +479,10 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 			var why string
+ 			if tpar := asTypeParam(x.typ); tpar != nil {
+ 				// Type parameter bounds don't specify fields, so don't mention "field".
+-				switch obj := tpar.Bound().obj.(type) {
+-				case nil:
++				if tname := tpar.Bound().obj; tname != nil {
++					why = check.sprintf("interface %s has no method %s", tname.name, sel)
++				} else {
+ 					why = check.sprintf("type bound for %s has no method %s", x.typ, sel)
+-				case *TypeName:
+-					why = check.sprintf("interface %s has no method %s", obj.name, sel)
+ 				}
+ 			} else {
+ 				why = check.sprintf("type %s has no field or method %s", x.typ, sel)
+diff --git a/src/cmd/compile/internal/types2/sizeof_test.go b/src/cmd/compile/internal/types2/sizeof_test.go
+index 82e1221b67..0b1f7dacad 100644
+--- a/src/cmd/compile/internal/types2/sizeof_test.go
++++ b/src/cmd/compile/internal/types2/sizeof_test.go
+@@ -28,7 +28,7 @@ func TestSizeof(t *testing.T) {
+ 		{Tuple{}, 12, 24},
+ 		{Signature{}, 44, 88},
+ 		{Union{}, 24, 48},
+-		{Interface{}, 44, 88},
++		{Interface{}, 40, 80},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+ 		{Named{}, 84, 160},
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index 05e6d77d22..f8aa453d5c 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -264,7 +264,7 @@ func (s *Signature) Variadic() bool { return s.variadic }
+ 
+ // An Interface represents an interface type.
+ type Interface struct {
+-	obj       Object        // type name object defining this interface; or nil (for better error messages)
++	obj       *TypeName     // corresponding declared object; or nil (for better error messages)
+ 	methods   []*Func       // ordered list of explicitly declared methods
+ 	embeddeds []Type        // ordered list of explicitly embedded elements
+ 	embedPos  *[]syntax.Pos // positions of embedded elements; or nil (for error messages) - use pointer to save space

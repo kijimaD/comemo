@@ -11,9 +11,614 @@ Date:   Mon May 4 15:14:22 2009 -0700
     DELTA=605  (314 added, 186 deleted, 105 changed)
     OCL=28143
     CL=28239
-
+---
  src/lib/Makefile      |   2 +-
  src/lib/exvar.go      | 323 +++++++++++++++++++++++---------------------------
  src/lib/exvar_test.go | 115 +++++++-----------
  src/lib/http/triv.go  |  20 +++-
  4 files changed, 208 insertions(+), 252 deletions(-)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 17e1745f3e..f9c61f11dc 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -99,7 +99,7 @@ test: test.files
+ bignum.6: fmt.dirinstall
+ bufio.6: io.dirinstall os.dirinstall
+ exec.6: os.dirinstall strings.install
+-exvar.6: fmt.dirinstall http.dirinstall
++exvar.6: fmt.dirinstall http.dirinstall log.install strconv.dirinstall sync.dirinstall
+ flag.6: fmt.dirinstall os.dirinstall strconv.dirinstall
+ log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
+ path.6: io.dirinstall
+diff --git a/src/lib/exvar.go b/src/lib/exvar.go
+index 6f69614ebd..9d2a172b75 100644
+--- a/src/lib/exvar.go
++++ b/src/lib/exvar.go
+@@ -3,231 +3,200 @@
+ // license that can be found in the LICENSE file.
+ 
+ // The exvar package provides a standardized interface to public variables,
+-// such as operation counters in servers.
++// such as operation counters in servers. It exposes these variables via
++// HTTP at /debug/vars in JSON format.
+ package exvar
+ 
+ import (
+ 	"fmt";
+ 	"http";
+ 	"io";
++	"log";
++	"strconv";
++	"sync";
+ )
+ 
+-// If mismatched names are used (e.g. calling IncrementInt on a mapVar), the
+-// var name is silently mapped to these. We will consider variables starting
+-// with reservedPrefix to be reserved by this package, and so we avoid the
+-// possibility of a user doing IncrementInt("x-mismatched-map", 1).
+-// TODO(dsymonds): Enforce this.
+-const (
+-	reservedPrefix = "x-";
+-	mismatchedInt = reservedPrefix + "mismatched-int";
+-	mismatchedMap = reservedPrefix + "mismatched-map";
+-	mismatchedStr = reservedPrefix + "mismatched-str";
+-)
+-
+-// exVar is an abstract type for all exported variables.
+-type exVar interface {
++// Var is an abstract type for all exported variables.
++type Var interface {
+ 	String() string;
+ }
+ 
+-// intVar is an integer variable, and satisfies the exVar interface.
+-type intVar int;
++// Int is a 64-bit integer variable, and satisfies the Var interface.
++type Int struct {
++	i int64;
++	mu sync.Mutex;
++}
+ 
+-func (i intVar) String() string {
+-	return fmt.Sprint(int(i))
++func (v *Int) String() string {
++	return strconv.Itoa64(v.i)
+ }
+ 
+-// mapVar is a map variable, and satisfies the exVar interface.
+-type mapVar map[string] int;
++func (v *Int) Add(delta int64) {
++	v.mu.Lock();
++	defer v.mu.Unlock();
++	v.i += delta;
++}
+ 
+-func (m mapVar) String() string {
+-	s := "map:x";  // TODO(dsymonds): the 'x' should be user-specified!
+-	for k, v := range m {
+-		s += fmt.Sprintf(" %s:%v", k, v)
+-	}
+-	return s
++// Map is a string-to-Var map variable, and satisfies the Var interface.
++type Map struct {
++	m map[string] Var;
++	mu sync.Mutex;
+ }
+ 
+-// strVar is a string variable, and satisfies the exVar interface.
+-type strVar string;
++// KeyValue represents a single entry in a Map.
++type KeyValue struct {
++	Key string;
++	Value Var;
++}
+ 
+-func (s strVar) String() string {
+-	return fmt.Sprintf("%q", s)
++func (v *Map) String() string {
++	v.mu.Lock();
++	defer v.mu.Unlock();
++	b := new(io.ByteBuffer);
++	fmt.Fprintf(b, "{");
++	first := true;
++	for key, val := range v.m {
++		if !first {
++			fmt.Fprintf(b, ", ");
++		}
++		fmt.Fprintf(b, "\"%s\": %v", key, val.String());
++		first = false;
++	}
++	fmt.Fprintf(b, "}");
++	return string(b.Data())
+ }
+ 
+-// TODO(dsymonds):
+-// - dynamic lookup vars (via chan?)
++func (v *Map) Get(key string) Var {
++	v.mu.Lock();
++	defer v.mu.Unlock();
++	if av, ok := v.m[key]; ok {
++		return av
++	}
++	return nil
++}
+ 
+-type exVars struct {
+-	vars map[string] exVar;
+-	// TODO(dsymonds): docstrings
++func (v *Map) Set(key string, av Var) {
++	v.mu.Lock();
++	defer v.mu.Unlock();
++	v.m[key] = av;
+ }
+ 
+-// Singleton worker goroutine.
+-// Functions needing access to the global state have to pass a closure to the
+-// worker channel, which is read by a single workerFunc running in a goroutine.
+-// Nil values are silently ignored, so you can send nil to the worker channel
+-// after the closure if you want to block until your work is done. This risks
+-// blocking you, though. The workSync function wraps this as a convenience.
++func (v *Map) Add(key string, delta int64) {
++	v.mu.Lock();
++	defer v.mu.Unlock();
++	av, ok := v.m[key];
++	if !ok {
++		av = new(Int);
++		v.m[key] = av;
++	}
+ 
+-type workFunction func(*exVars);
++	// Add to Int; ignore otherwise.
++	if iv, ok := av.(*Int); ok {
++		iv.Add(delta);
++	}
++}
+ 
+-// The main worker function that runs in a goroutine.
+-// It never ends in normal operation.
+-func startWorkerFunc() <-chan workFunction {
+-	ch := make(chan workFunction);
++// TODO(rsc): Make sure map access in separate thread is safe.
++func (v *Map) iterate(c <-chan KeyValue) {
++	for k, v := range v.m {
++		c <- KeyValue{ k, v };
++	}
++	close(c);
++}
+ 
+-	state := &exVars{ make(map[string] exVar) };
++func (v *Map) Iter() <-chan KeyValue {
++	c := make(chan KeyValue);
++	go v.iterate(c);
++	return c
++}
+ 
+-	go func() {
+-		for f := range ch {
+-			if f != nil {
+-				f(state)
+-			}
+-		}
+-	}();
+-	return ch
++// String is a string variable, and satisfies the Var interface.
++type String struct {
++	s string;
+ }
+ 
+-var worker = startWorkerFunc();
++func (v *String) String() string {
++	return strconv.Quote(v.s)
++}
+ 
+-// workSync will enqueue the given workFunction and wait for it to finish.
+-func workSync(f workFunction) {
+-	worker <- f;
+-	worker <- nil  // will only be sent after f() completes.
++func (v *String) Set(value string) {
++	v.s = value;
+ }
+ 
+-// getOrInitIntVar either gets or initializes an intVar called name.
+-func (state *exVars) getOrInitIntVar(name string) *intVar {
+-	if v, ok := state.vars[name]; ok {
+-		// Existing var
+-		if iv, ok := v.(*intVar); ok {
+-			return iv
+-		}
+-		// Type mismatch.
+-		return state.getOrInitIntVar(mismatchedInt)
+-	}
+-	// New var
+-	iv := new(intVar);
+-	state.vars[name] = iv;
+-	return iv
+-}
+-
+-// getOrInitMapVar either gets or initializes a mapVar called name.
+-func (state *exVars) getOrInitMapVar(name string) *mapVar {
+-	if v, ok := state.vars[name]; ok {
+-		// Existing var
+-		if mv, ok := v.(*mapVar); ok {
+-			return mv
+-		}
+-		// Type mismatch.
+-		return state.getOrInitMapVar(mismatchedMap)
+-	}
+-	// New var
+-	var m mapVar = make(map[string] int);
+-	state.vars[name] = &m;
+-	return &m
+-}
+-
+-// getOrInitStrVar either gets or initializes a strVar called name.
+-func (state *exVars) getOrInitStrVar(name string) *strVar {
+-	if v, ok := state.vars[name]; ok {
+-		// Existing var
+-		if mv, ok := v.(*strVar); ok {
+-			return mv
+-		}
+-		// Type mismatch.
+-		return state.getOrInitStrVar(mismatchedStr)
++
++// All published variables.
++var vars map[string] Var = make(map[string] Var);
++var mutex sync.Mutex;
++
++// Publish declares an named exported variable. This should be called from a
++// package's init function when it creates its Vars. If the name is already
++// registered then this will log.Crash.
++func Publish(name string, v Var) {
++	mutex.Lock();
++	defer mutex.Unlock();
++	if _, existing := vars[name]; existing {
++		log.Crash("Reuse of exported var name:", name);
+ 	}
+-	// New var
+-	sv := new(strVar);
+-	state.vars[name] = sv;
+-	return sv
+-}
+-
+-// IncrementInt adds inc to the integer-valued var called name.
+-func IncrementInt(name string, inc int) {
+-	workSync(func(state *exVars) {
+-		*state.getOrInitIntVar(name) += inc
+-	})
+-}
+-
+-// IncrementMapInt adds inc to the keyed value in the map-valued var called name.
+-func IncrementMapInt(name string, key string, inc int) {
+-	workSync(func(state *exVars) {
+-		mv := state.getOrInitMapVar(name);
+-		if v, ok := mv[key]; ok {
+-			mv[key] += inc
+-		} else {
+-			mv[key] = inc
+-		}
+-	})
++	vars[name] = v;
+ }
+ 
+-// SetInt sets the integer-valued var called name to value.
+-func SetInt(name string, value int) {
+-	workSync(func(state *exVars) {
+-		*state.getOrInitIntVar(name) = value
+-	})
++// Get retrieves a named exported variable.
++func Get(name string) Var {
++	if v, ok := vars[name]; ok {
++		return v
++	}
++	return nil
+ }
+ 
+-// SetMapInt sets the keyed value in the map-valued var called name.
+-func SetMapInt(name string, key string, value int) {
+-	workSync(func(state *exVars) {
+-		state.getOrInitMapVar(name)[key] = value
+-	})
++// Convenience functions for creating new exported variables.
++
++func NewInt(name string) *Int {
++	v := new(Int);
++	Publish(name, v);
++	return v
+ }
+ 
+-// SetStr sets the string-valued var called name to value.
+-func SetStr(name string, value string) {
+-	workSync(func(state *exVars) {
+-		*state.getOrInitStrVar(name) = value
+-	})
++func NewMap(name string) *Map {
++	v := new(Map);
++	v.m = make(map[string] Var);
++	Publish(name, v);
++	return v
+ }
+ 
+-// GetInt retrieves an integer-valued var called name.
+-func GetInt(name string) int {
+-	var i int;
+-	workSync(func(state *exVars) {
+-		i = *state.getOrInitIntVar(name)
+-	});
+-	return i
++func NewString(name string) *String {
++	v := new(String);
++	Publish(name, v);
++	return v
+ }
+ 
+-// GetMapInt retrieves the keyed value for a map-valued var called name.
+-func GetMapInt(name string, key string) int {
+-	var i int;
+-	var ok bool;
+-	workSync(func(state *exVars) {
+-		i, ok = state.getOrInitMapVar(name)[key]
+-	});
+-	return i
++// TODO(rsc): Make sure map access in separate thread is safe.
++func iterate(c <-chan KeyValue) {
++	for k, v := range vars {
++		c <- KeyValue{ k, v };
++	}
++	close(c);
+ }
+ 
+-// GetStr retrieves a string-valued var called name.
+-func GetStr(name string) string {
+-	var s string;
+-	workSync(func(state *exVars) {
+-		s = *state.getOrInitStrVar(name)
+-	});
+-	return s
++func Iter() <-chan KeyValue {
++	c := make(chan KeyValue);
++	go iterate(c);
++	return c
+ }
+ 
+-// String produces a string of all the vars in textual format.
+-func String() string {
+-	s := "";
+-	workSync(func(state *exVars) {
+-		for name, value := range state.vars {
+-			s += fmt.Sprintln(name, value)
++func exvarHandler(c *http.Conn, req *http.Request) {
++	c.SetHeader("content-type", "application/json; charset=utf-8");
++	fmt.Fprintf(c, "{\n");
++	first := true;
++	for name, value := range vars {
++		if !first {
++			fmt.Fprintf(c, ",\n");
+ 		}
+-	});
+-	return s
++		first = false;
++		fmt.Fprintf(c, "  %q: %s", name, value);
++	}
++	fmt.Fprintf(c, "\n}\n");
+ }
+ 
+-// ExvarHandler is a HTTP handler that displays exported variables.
+-// Use it like this:
+-//   http.Handle("/exvar", http.HandlerFunc(exvar.ExvarHandler));
+-func ExvarHandler(c *http.Conn, req *http.Request) {
+-	// TODO(dsymonds): Support different output= args.
+-	c.SetHeader("content-type", "text/plain; charset=utf-8");
+-	io.WriteString(c, String());
++func init() {
++	http.Handle("/debug/vars", http.HandlerFunc(exvarHandler));
+ }
+diff --git a/src/lib/exvar_test.go b/src/lib/exvar_test.go
+index 89a470a08d..28fbf3cf22 100644
+--- a/src/lib/exvar_test.go
++++ b/src/lib/exvar_test.go
+@@ -7,99 +7,74 @@ package exvar
+ import (
+ 	"exvar";
+ 	"fmt";
++	"json";
+ 	"testing";
+ )
+ 
+-func TestSimpleCounter(t *testing.T) {
+-	// Unknown exvar should be zero.
+-	x := GetInt("requests");
+-	if x != 0 {
+-		t.Errorf("GetInt(nonexistent) = %v, want 0", x)
++func TestInt(t *testing.T) {
++	reqs := NewInt("requests");
++	if reqs.i != 0 {
++		t.Errorf("reqs.i = %v, want 4", reqs.i)
+ 	}
+-
+-	IncrementInt("requests", 1);
+-	IncrementInt("requests", 3);
+-	x = GetInt("requests");
+-	if x != 4 {
+-		t.Errorf("GetInt('requests') = %v, want 4", x)
+-	}
+-
+-	out := String();
+-	if out != "requests 4\n" {
+-		t.Errorf("String() = \"%v\", want \"requests 4\n\"",
+-		         out);
++	if reqs != Get("requests").(*Int) {
++		t.Errorf("Get() failed.")
+ 	}
+-}
+ 
+-func TestStringVar(t *testing.T) {
+-	// Unknown exvar should be empty string.
+-	if s := GetStr("name"); s != "" {
+-		t.Errorf("GetStr(nonexistent) = %q, want ''", s)
++	reqs.Add(1);
++	reqs.Add(3);
++	if reqs.i != 4 {
++		t.Errorf("reqs.i = %v, want 4", reqs.i)
+ 	}
+ 
+-	SetStr("name", "Mike");
+-	if s := GetStr("name"); s != "Mike" {
+-		t.Errorf("GetStr('name') = %q, want 'Mike'", s)
++	if s := reqs.String(); s != "4" {
++		t.Errorf("reqs.String() = %q, want \"4\"", s);
+ 	}
+ }
+ 
+-func TestMismatchedCounters(t *testing.T) {
+-	// Make sure some vars exist.
+-	GetInt("requests");
+-	GetMapInt("colours", "red");
+-	GetStr("name");
+-
+-	IncrementInt("colours", 1);
+-	if x := GetInt("x-mismatched-int"); x != 1 {
+-		t.Errorf("GetInt('x-mismatched-int') = %v, want 1", x)
++func TestString(t *testing.T) {
++	name := NewString("my-name");
++	if name.s != "" {
++		t.Errorf("name.s = %q, want \"\"", name.s)
+ 	}
+ 
+-	IncrementMapInt("requests", "orange", 1);
+-	if x := GetMapInt("x-mismatched-map", "orange"); x != 1 {
+-		t.Errorf("GetMapInt('x-mismatched-map', 'orange') = %v, want 1", x)
++	name.Set("Mike");
++	if name.s != "Mike" {
++		t.Errorf("name.s = %q, want \"Mike\"", name.s)
+ 	}
+ 
+-	SetStr("requests", "apple");
+-	if s := GetStr("x-mismatched-str"); s != "apple" {
+-		t.Errorf("GetStr('x-mismatched-str') = %q, want 'apple'", s)
++	if s := name.String(); s != "\"Mike\"" {
++		t.Errorf("reqs.String() = %q, want \"\"Mike\"\"", s);
+ 	}
+ }
+ 
+ func TestMapCounter(t *testing.T) {
+-	// Unknown exvar should be zero.
+-	if x := GetMapInt("colours", "red"); x != 0 {
+-		t.Errorf("GetMapInt(non, existent) = %v, want 0", x)
+-	}
++	colours := NewMap("bike-shed-colours");
+ 
+-	IncrementMapInt("colours", "red", 1);
+-	IncrementMapInt("colours", "red", 2);
+-	IncrementMapInt("colours", "blue", 4);
+-	if x := GetMapInt("colours", "red"); x != 3 {
+-		t.Errorf("GetMapInt('colours', 'red') = %v, want 3", x)
++	colours.Add("red", 1);
++	colours.Add("red", 2);
++	colours.Add("blue", 4);
++	if x := colours.m["red"].(*Int).i; x != 3 {
++		t.Errorf("colours.m[\"red\"] = %v, want 3", x)
+ 	}
+-	if x := GetMapInt("colours", "blue"); x != 4 {
+-		t.Errorf("GetMapInt('colours', 'blue') = %v, want 4", x)
++	if x := colours.m["blue"].(*Int).i; x != 4 {
++		t.Errorf("colours.m[\"blue\"] = %v, want 4", x)
+ 	}
+ 
+-	// TODO(dsymonds): Test String()
+-}
+-
+-func hammer(name string, total int, done chan <- int) {
+-	for i := 0; i < total; i++ {
+-		IncrementInt(name, 1)
++	// colours.String() should be '{"red":3, "blue":4}',
++	// though the order of red and blue could vary.
++	s := colours.String();
++	j, ok, errtok := json.StringToJson(s);
++	if !ok {
++		t.Errorf("colours.String() isn't valid JSON: %v", errtok)
+ 	}
+-	done <- 1
+-}
+-
+-func TestHammer(t *testing.T) {
+-	SetInt("hammer-times", 0);
+-	sync := make(chan int);
+-	hammer_times := int(1e5);
+-	go hammer("hammer-times", hammer_times, sync);
+-	go hammer("hammer-times", hammer_times, sync);
+-	<-sync;
+-	<-sync;
+-	if final := GetInt("hammer-times"); final != 2 * hammer_times {
+-		t.Errorf("hammer-times = %v, want %v", final, 2 * hammer_times)
++	if j.Kind() != json.MapKind {
++		t.Error("colours.String() didn't produce a map.")
++	}
++	red := j.Get("red");
++	if red.Kind() != json.NumberKind {
++		t.Error("red.Kind() is not a NumberKind.")
++	}
++	if x := red.Number(); x != 3 {
++		t.Error("red = %v, want 3", x)
+ 	}
+ }
+diff --git a/src/lib/http/triv.go b/src/lib/http/triv.go
+index 7678b3fff8..c452e2f5c3 100644
+--- a/src/lib/http/triv.go
++++ b/src/lib/http/triv.go
+@@ -17,8 +17,9 @@ import (
+ 
+ 
+ // hello world, the web server
++var helloRequests = exvar.NewInt("hello-requests");
+ func HelloServer(c *http.Conn, req *http.Request) {
+-	exvar.IncrementInt("hello-requests", 1);
++	helloRequests.Add(1);
+ 	io.WriteString(c, "hello, world!\n");
+ }
+ 
+@@ -27,16 +28,23 @@ type Counter struct {
+ 	n int;
+ }
+ 
++// This makes Counter satisfy the exvar.Var interface, so we can export
++// it directly.
++func (ctr *Counter) String() string {
++	return fmt.Sprintf("%d", ctr.n)
++}
++
+ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+-	exvar.IncrementInt("counter-requests", 1);
+ 	fmt.Fprintf(c, "counter = %d\n", ctr.n);
+ 	ctr.n++;
+ }
+ 
+ // simple file server
+ var webroot = flag.String("root", "/home/rsc", "web root directory")
++var pathVar = exvar.NewMap("file-requests");
+ func FileServer(c *http.Conn, req *http.Request) {
+ 	c.SetHeader("content-type", "text/plain; charset=utf-8");
++	pathVar.Add(req.Url.Path, 1);
+ 	path := *webroot + req.Url.Path;	// TODO: insecure: use os.CleanName
+ 	f, err := os.Open(path, os.O_RDONLY, 0);
+ 	if err != nil {
+@@ -89,13 +97,17 @@ func (ch Chan) ServeHTTP(c *http.Conn, req *http.Request) {
+ 
+ func main() {
+ 	flag.Parse();
+-	http.Handle("/counter", new(Counter));
++
++	// The counter is published as a variable directly.
++	ctr := new(Counter);
++	http.Handle("/counter", ctr);
++	exvar.Publish("counter", ctr);
++
+ 	http.Handle("/go/", http.HandlerFunc(FileServer));
+ 	http.Handle("/flags", http.HandlerFunc(FlagServer));
+ 	http.Handle("/args", http.HandlerFunc(ArgServer));
+ 	http.Handle("/go/hello", http.HandlerFunc(HelloServer));
+ 	http.Handle("/chan", ChanCreate());
+-	http.Handle("/exvar", http.HandlerFunc(exvar.ExvarHandler));
+ 	err := http.ListenAndServe(":12345", nil);
+ 	if err != nil {
+ 		panic("ListenAndServe: ", err.String())

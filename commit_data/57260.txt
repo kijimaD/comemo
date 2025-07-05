@@ -14,6 +14,19 @@ Date:   Thu Jul 20 17:41:06 2023 -0700
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/level.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/log/slog/level.go b/src/log/slog/level.go
+index b2365f0aa5..cd1213af64 100644
+--- a/src/log/slog/level.go
++++ b/src/log/slog/level.go
+@@ -23,7 +23,6 @@ type Level int
+ // First, we wanted the default level to be Info, Since Levels are ints, Info is
+ // the default value for int, zero.
+ //
+-
+ // Second, we wanted to make it easy to use levels to specify logger verbosity.
+ // Since a larger level means a more severe event, a logger that accepts events
+ // with smaller (or more negative) level means a more verbose logger. Logger

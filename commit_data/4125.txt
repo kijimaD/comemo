@@ -7,7 +7,31 @@ Date:   Wed Nov 18 09:11:17 2009 -0800
     R=dho
     CC=golang-dev
     https://golang.org/cl/156067
-
+---
  doc/progs/run            | 2 +-
  misc/cgo/stdio/test.bash | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/doc/progs/run b/doc/progs/run
+index 486ef2680c..46de912507 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/misc/cgo/stdio/test.bash b/misc/cgo/stdio/test.bash
+index 82e3f7b45b..8918aab92c 100755
+--- a/misc/cgo/stdio/test.bash
++++ b/misc/cgo/stdio/test.bash
+@@ -3,6 +3,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++if [ "$(uname)" = "FreeBSD" ]; then exit 0; fi
++
+ set -e
+ gomake hello fib chain
+ echo '*' hello >run.out

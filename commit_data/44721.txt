@@ -18,7 +18,52 @@ Date:   Mon Aug 24 13:42:45 2020 +0000
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/requestwrite_test.go | 20 ++++++++++++++++++++
  src/net/http/transfer.go          |  2 +-
  2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/requestwrite_test.go b/src/net/http/requestwrite_test.go
+index fc6257cb33..9ac6701cfd 100644
+--- a/src/net/http/requestwrite_test.go
++++ b/src/net/http/requestwrite_test.go
+@@ -588,6 +588,26 @@ var reqWriteTests = []reqWriteTest{
+ 		},
+ 		WantError: errors.New("net/http: can't write control character in Request.URL"),
+ 	},
++
++	26: { // Request with nil body and PATCH method. Issue #40978
++		Req: Request{
++			Method:        "PATCH",
++			URL:           mustParseURL("/"),
++			Host:          "example.com",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			ContentLength: 0, // as if unset by user
++		},
++		Body: nil,
++		WantWrite: "PATCH / HTTP/1.1\r\n" +
++			"Host: example.com\r\n" +
++			"User-Agent: Go-http-client/1.1\r\n" +
++			"Content-Length: 0\r\n\r\n",
++		WantProxy: "PATCH / HTTP/1.1\r\n" +
++			"Host: example.com\r\n" +
++			"User-Agent: Go-http-client/1.1\r\n" +
++			"Content-Length: 0\r\n\r\n",
++	},
+ }
+ 
+ func TestRequestWrite(t *testing.T) {
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 50d434b1fb..ab009177bc 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -258,7 +258,7 @@ func (t *transferWriter) shouldSendContentLength() bool {
+ 		return false
+ 	}
+ 	// Many servers expect a Content-Length for these methods
+-	if t.Method == "POST" || t.Method == "PUT" {
++	if t.Method == "POST" || t.Method == "PUT" || t.Method == "PATCH" {
+ 		return true
+ 	}
+ 	if t.ContentLength == 0 && isIdentity(t.TransferEncoding) {

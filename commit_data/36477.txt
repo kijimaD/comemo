@@ -11,8 +11,61 @@ Date:   Mon Apr 30 17:36:23 2018 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue25143.go | 22 ++++++++++++++++++++++
  src/cmd/cgo/ast.go          |  1 +
  3 files changed, 24 insertions(+)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index bcea630ad2..4462df0059 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -88,6 +88,7 @@ func Test6907Go(t *testing.T)                { test6907Go(t) }
+ func Test21897(t *testing.T)                 { test21897(t) }
+ func Test22906(t *testing.T)                 { test22906(t) }
+ func Test24206(t *testing.T)                 { test24206(t) }
++func Test25143(t *testing.T)                 { test25143(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B)  { benchCgoCall(b) }
+ func BenchmarkGoString(b *testing.B) { benchGoString(b) }
+diff --git a/misc/cgo/test/issue25143.go b/misc/cgo/test/issue25143.go
+new file mode 100644
+index 0000000000..607bfe4ba0
+--- /dev/null
++++ b/misc/cgo/test/issue25143.go
+@@ -0,0 +1,22 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import "C"
++import "testing"
++
++func issue25143sum(ns ...C.int) C.int {
++	total := C.int(0)
++	for _, n := range ns {
++		total += n
++	}
++	return total
++}
++
++func test25143(t *testing.T) {
++	if got, want := issue25143sum(1, 2, 3), C.int(6); got != want {
++		t.Errorf("issue25143sum(1, 2, 3) == %v, expected %v", got, want)
++	}
++}
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 58e0ee78cb..8dceb25ca6 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -356,6 +356,7 @@ func (f *File) walk(x interface{}, context astContext, visit func(*File, interfa
+ 	case *ast.BadExpr:
+ 	case *ast.Ident:
+ 	case *ast.Ellipsis:
++		f.walk(&n.Elt, ctxType, visit)
+ 	case *ast.BasicLit:
+ 	case *ast.FuncLit:
+ 		f.walk(n.Type, ctxType, visit)

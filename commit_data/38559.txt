@@ -15,6 +15,20 @@ Date:   Sun Oct 28 11:19:33 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index ed5bce861e..17d7cb3414 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -542,7 +542,7 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
+ 	}
+ 	baseAndOffset := func(ptr *Value) (base *Value, offset int64) {
+ 		base, offset = ptr, 0
+-		if base.Op == OpOffPtr {
++		for base.Op == OpOffPtr {
+ 			offset += base.AuxInt
+ 			base = base.Args[0]
+ 		}

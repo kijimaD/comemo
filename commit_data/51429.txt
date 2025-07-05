@@ -16,7 +16,7 @@ Date:   Wed Jan 26 13:46:45 2022 -0800
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go             |  2 +-
  src/cmd/compile/internal/noder/writer.go           |  3 +--
  src/cmd/compile/internal/types2/expr.go            |  6 +-----
@@ -25,3 +25,138 @@ Date:   Wed Jan 26 13:46:45 2022 -0800
  src/go/types/testdata/fixedbugs/issue50833.go2     | 16 +++++++++++++++
  test/typeparam/issue50833.go                       | 23 ++++++++++++++++++++++
  7 files changed, 59 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 6891d1ec30..8a9afeb095 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -332,7 +332,7 @@ func (g *irgen) exprs(exprs []syntax.Expr) []ir.Node {
+ }
+ 
+ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
+-	if ptr, ok := typ.Underlying().(*types2.Pointer); ok {
++	if ptr, ok := types2.StructuralType(typ).(*types2.Pointer); ok {
+ 		n := ir.NewAddrExpr(g.pos(lit), g.compLit(ptr.Elem(), lit))
+ 		n.SetOp(ir.OPTRLIT)
+ 		return typed(g.typ(typ), n)
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 73f2df8e39..933f577825 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1338,8 +1338,7 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
+ 	w.typ(tv.Type)
+ 
+ 	typ := tv.Type
+-	// TODO(mdempsky): Use types2.StructuralType here too? See #50833.
+-	if ptr, ok := typ.Underlying().(*types2.Pointer); ok {
++	if ptr, ok := types2.StructuralType(typ).(*types2.Pointer); ok {
+ 		typ = ptr.Elem()
+ 	}
+ 	str, isStruct := types2.StructuralType(typ).(*types2.Struct)
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 3d6d9153ee..7a668d20f1 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1262,11 +1262,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		case hint != nil:
+ 			// no composite literal type present - use hint (element type of enclosing type)
+ 			typ = hint
+-			base = typ
+-			if !isTypeParam(typ) {
+-				base = under(typ)
+-			}
+-			base, _ = deref(base) // *T implies &T{}
++			base, _ = deref(structuralType(typ)) // *T implies &T{}
+ 
+ 		default:
+ 			// TODO(gri) provide better error messages depending on context
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50833.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50833.go2
+new file mode 100644
+index 0000000000..e912e4d67d
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50833.go2
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type (
++	S  struct{ f int }
++	PS *S
++)
++
++func a() []*S { return []*S{{f: 1}} }
++func b() []PS { return []PS{{f: 1}} }
++
++func c[P *S]() []P { return []P{{f: 1}} }
++func d[P PS]() []P { return []P{{f: 1}} }
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 36f0f467be..44e0288d3e 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1241,11 +1241,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		case hint != nil:
+ 			// no composite literal type present - use hint (element type of enclosing type)
+ 			typ = hint
+-			base = typ
+-			if !isTypeParam(typ) {
+-				base = under(typ)
+-			}
+-			base, _ = deref(base) // *T implies &T{}
++			base, _ = deref(structuralType(typ)) // *T implies &T{}
+ 
+ 		default:
+ 			// TODO(gri) provide better error messages depending on context
+diff --git a/src/go/types/testdata/fixedbugs/issue50833.go2 b/src/go/types/testdata/fixedbugs/issue50833.go2
+new file mode 100644
+index 0000000000..e912e4d67d
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue50833.go2
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type (
++	S  struct{ f int }
++	PS *S
++)
++
++func a() []*S { return []*S{{f: 1}} }
++func b() []PS { return []PS{{f: 1}} }
++
++func c[P *S]() []P { return []P{{f: 1}} }
++func d[P PS]() []P { return []P{{f: 1}} }
+diff --git a/test/typeparam/issue50833.go b/test/typeparam/issue50833.go
+new file mode 100644
+index 0000000000..07c1a86a6a
+--- /dev/null
++++ b/test/typeparam/issue50833.go
+@@ -0,0 +1,23 @@
++// run -gcflags=-G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type (
++	S  struct{ f int }
++	PS *S
++)
++
++func a() []*S { return []*S{{f: 1}} }
++func b() []PS { return []PS{{f: 1}} }
++
++func c[P *S]() []P { return []P{{f: 1}} }
++func d[P PS]() []P { return []P{{f: 1}} }
++
++func main() {
++	c[*S]()
++	d[PS]()
++}

@@ -15,8 +15,65 @@ Date:   Fri Aug 18 16:05:33 2017 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Matt Layher <mdlayher@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 4 ++--
  src/cmd/internal/obj/sym.go        | 4 ----
  src/cmd/trace/trace.go             | 3 ---
  3 files changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 2f56d8ab51..8cd67ec203 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -227,13 +227,13 @@ func (o Op) format(s fmt.State, verb rune, mode fmtMode) {
+ 
+ func (o Op) oconv(s fmt.State, flag FmtFlag, mode fmtMode) {
+ 	if flag&FmtSharp != 0 || mode != FDbg {
+-		if o >= 0 && int(o) < len(goopnames) && goopnames[o] != "" {
++		if int(o) < len(goopnames) && goopnames[o] != "" {
+ 			fmt.Fprint(s, goopnames[o])
+ 			return
+ 		}
+ 	}
+ 
+-	if o >= 0 && int(o) < len(opnames) && opnames[o] != "" {
++	if int(o) < len(opnames) && opnames[o] != "" {
+ 		fmt.Fprint(s, opnames[o])
+ 		return
+ 	}
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 3fb2df169a..2d32f5a436 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -34,7 +34,6 @@ package obj
+ import (
+ 	"cmd/internal/objabi"
+ 	"fmt"
+-	"log"
+ 	"math"
+ )
+ 
+@@ -46,9 +45,6 @@ func Linknew(arch *LinkArch) *Link {
+ 	ctxt.Pathname = objabi.WorkingDir()
+ 
+ 	ctxt.Headtype.Set(objabi.GOOS)
+-	if ctxt.Headtype < 0 {
+-		log.Fatalf("unknown goos %s", objabi.GOOS)
+-	}
+ 
+ 	ctxt.Flag_optimize = true
+ 	ctxt.Framepointer_enabled = objabi.Framepointer_enabled(objabi.GOOS, arch.Name)
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 30dde5ae26..7475cec94a 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -449,9 +449,6 @@ func generateTrace(params *traceParams) (ViewerData, error) {
+ 		if setGStateErr != nil {
+ 			return ctx.data, setGStateErr
+ 		}
+-		if ctx.gstates[gRunnable] < 0 || ctx.gstates[gRunning] < 0 || ctx.threadStats.insyscall < 0 {
+-			return ctx.data, fmt.Errorf("invalid state after processing %v: runnable=%d running=%d insyscall=%d", ev, ctx.gstates[gRunnable], ctx.gstates[gRunning], ctx.threadStats.insyscall)
+-		}
+ 
+ 		// Ignore events that are from uninteresting goroutines
+ 		// or outside of the interesting timeframe.

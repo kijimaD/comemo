@@ -17,7 +17,7 @@ Date:   Thu Oct 24 09:17:54 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/list/list.go                   | 15 +++++++----
  src/cmd/go/internal/modload/list.go                | 19 +++++++++++---
  .../go/testdata/script/mod_convert_vendor_json.txt |  2 +-
@@ -26,3 +26,215 @@ Date:   Thu Oct 24 09:17:54 2019 -0400
  src/cmd/go/testdata/script/mod_vendor.txt          | 30 +++++++++++++++-------
  src/cmd/go/testdata/script/mod_vendor_auto.txt     |  8 +++---
  7 files changed, 60 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 7965a84f99..b393c67ddb 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -381,17 +381,22 @@ func runList(cmd *base.Command, args []string) {
+ 			base.Fatalf("go list -test cannot be used with -m")
+ 		}
+ 
+-		buildModIsDefault := (cfg.BuildMod == "")
+ 		if modload.Init(); !modload.Enabled() {
+ 			base.Fatalf("go list -m: not using modules")
+ 		}
+ 
+ 		modload.InitMod() // Parses go.mod and sets cfg.BuildMod.
+ 		if cfg.BuildMod == "vendor" {
+-			if buildModIsDefault {
+-				base.Fatalf("go list -m: can't list modules using the vendor directory\n\tUse -mod=mod or -mod=readonly to ignore it.")
+-			} else {
+-				base.Fatalf("go list -m: can't list modules with -mod=vendor\n\tUse -mod=mod or -mod=readonly to ignore the vendor directory.")
++			for _, arg := range args {
++				// In vendor mode, the module graph is incomplete: it contains only the
++				// explicit module dependencies and the modules that supply packages in
++				// the import graph. Reject queries that imply more information than that.
++				if arg == "all" {
++					base.Fatalf("go list -m: can't compute 'all' using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)")
++				}
++				if strings.Contains(arg, "...") {
++					base.Fatalf("go list -m: can't match module patterns using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)")
++				}
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index 6c0b3945cb..cd162f8875 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -11,6 +11,7 @@ import (
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/modinfo"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/par"
+@@ -124,10 +125,20 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
+ 					}
+ 					continue
+ 				}
+-				mods = append(mods, &modinfo.ModulePublic{
+-					Path:  arg,
+-					Error: modinfoError(arg, "", errors.New("not a known dependency")),
+-				})
++				if cfg.BuildMod == "vendor" {
++					// In vendor mode, we can't determine whether a missing module is “a
++					// known dependency” because the module graph is incomplete.
++					// Give a more explicit error message.
++					mods = append(mods, &modinfo.ModulePublic{
++						Path:  arg,
++						Error: modinfoError(arg, "", errors.New("can't resolve module using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)")),
++					})
++				} else {
++					mods = append(mods, &modinfo.ModulePublic{
++						Path:  arg,
++						Error: modinfoError(arg, "", errors.New("not a known dependency")),
++					})
++				}
+ 			} else {
+ 				fmt.Fprintf(os.Stderr, "warning: pattern %q matched no module dependencies\n", arg)
+ 			}
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_json.txt b/src/cmd/go/testdata/script/mod_convert_vendor_json.txt
+index 2f5ccec32c..df6db36574 100644
+--- a/src/cmd/go/testdata/script/mod_convert_vendor_json.txt
++++ b/src/cmd/go/testdata/script/mod_convert_vendor_json.txt
+@@ -10,7 +10,7 @@ stderr '\s*cd \.\. && go mod init'
+ # The command we suggested should succeed.
+ cd ..
+ go mod init
+-go list -mod=mod -m all
++go list -m
+ stdout '^m$'
+ 
+ -- $WORK/test/vendor/vendor.json --
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt b/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt
+index 6f3a145430..8b6a1414be 100644
+--- a/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt
++++ b/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt
+@@ -10,7 +10,7 @@ stderr '\s*cd \.\. && go mod init'
+ # The command we suggested should succeed.
+ cd ..
+ go mod init
+-go list -mod=mod -m all
++go list -m
+ stdout '^m$'
+ 
+ -- $WORK/test/vendor/manifest --
+diff --git a/src/cmd/go/testdata/script/mod_getmode_vendor.txt b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+index baa79a083a..430bf1ef44 100644
+--- a/src/cmd/go/testdata/script/mod_getmode_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+@@ -11,10 +11,17 @@ stdout '^rsc.io/quote v1.5.1 .*vendor[\\/]rsc.io[\\/]quote$'
+ stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text[\\/]language$'
+ 
+ ! go list -mod=vendor -m rsc.io/quote@latest
+-stderr 'go list -m: can''t list modules with -mod=vendor\n\tUse -mod=mod or -mod=readonly to ignore the vendor directory.'
++stderr 'go list -m: rsc.io/quote@latest: module lookup disabled by -mod=vendor'
+ ! go get -mod=vendor -u
+ stderr 'flag provided but not defined: -mod'
+ 
++# Since we don't have a complete module graph, 'go list -m' queries
++# that require the complete graph should fail with a useful error.
++! go list -mod=vendor -m all
++stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
++! go list -mod=vendor -m ...
++stderr 'go list -m: can''t match module patterns using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
++
+ -- go.mod --
+ module x
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor.txt b/src/cmd/go/testdata/script/mod_vendor.txt
+index 17fb2f3c16..bb3e634b3a 100644
+--- a/src/cmd/go/testdata/script/mod_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_vendor.txt
+@@ -32,19 +32,28 @@ stdout 'src[\\/]x'
+ go list -mod=vendor -f {{.Dir}} x
+ stdout 'src[\\/]vendor[\\/]x'
+ 
+-# 'go list -mod=vendor -m' does not have enough information to list modules
+-# accurately, and should fail.
+-! go list -mod=vendor -f {{.Dir}} -m x
+-stderr 'can''t list modules with -mod=vendor\n\tUse -mod=mod or -mod=readonly to ignore the vendor directory.'
++# 'go list -mod=vendor -m' should successfully list vendored modules,
++# but should not provide a module directory because no directory contains
++# the complete module.
++go list -mod=vendor -f '{{.Version}} {{.Dir}}' -m x
++stdout '^v1.0.0 $'
++
++# 'go list -mod=vendor -m' on a transitive dependency that does not
++# provide vendored packages should give a helpful error rather than
++# 'not a known dependency'.
++! go list -mod=vendor -f '{{.Version}} {{.Dir}}' -m diamondright
++stderr 'go list -m: module diamondright: can''t resolve module using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+ 
+ # 'go list -mod=mod' should report packages outside the import graph,
+ # but 'go list -mod=vendor' should error out for them.
+ go list -mod=mod -f {{.Dir}} w
+ stdout 'src[\\/]w'
+-
+ ! go list -mod=vendor -f {{.Dir}} w
+ stderr 'src[\\/]vendor[\\/]w'
+ 
++go list -mod=mod -f {{.Dir}} diamondright
++stdout 'src[\\/]diamondright'
++
+ # Test dependencies should not be copied.
+ ! exists vendor/x/testdata
+ ! exists vendor/a/foo/bar/b/ignored.go
+@@ -79,6 +88,8 @@ go fmt -mod=vendor ./...
+ -- go.mod --
+ module m
+ 
++go 1.13
++
+ require (
+ 	a v1.0.0
+ 	diamondroot v0.0.0
+@@ -264,10 +275,11 @@ require (
+ -- diamondroot/x.go --
+ package diamondroot
+ 
+-import (
+-	_ "diamondleft"
+-	_ "diamondright"
+-)
++import _ "diamondleft"
++-- diamondroot/unused/unused.go --
++package unused
++
++import _ "diamondright"
+ -- diamondleft/go.mod --
+ module diamondleft
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor_auto.txt b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+index 6e79f6b994..873644b438 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_auto.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+@@ -17,10 +17,10 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
+ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+ 
+ ! go list -m all
+-stderr 'can''t list modules with -mod=vendor\n\tUse -mod=mod or -mod=readonly to ignore the vendor directory.'
++stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+ 
+ ! go list -m -f '{{.Dir}}' all
+-stderr 'can''t list modules with -mod=vendor\n\tUse -mod=mod or -mod=readonly to ignore the vendor directory.'
++stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+ 
+ # An explicit -mod=mod should force the vendor directory to be ignored.
+ env GOFLAGS=-mod=mod
+@@ -106,10 +106,10 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+ # ...but 'go list -m' should continue to fail, this time without
+ # referring to a -mod default that the user didn't set.
+ ! go list -m all
+-stderr 'can''t list modules using the vendor directory\n\tUse -mod=mod or -mod=readonly to ignore it.'
++stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+ 
+ ! go list -m -f '{{.Dir}}' all
+-stderr 'can''t list modules using the vendor directory\n\tUse -mod=mod or -mod=readonly to ignore it.'
++stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+ 
+ 
+ # 'go mod init' should work if there is already a GOPATH-mode vendor directory

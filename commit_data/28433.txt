@@ -11,6 +11,20 @@ Date:   Tue May 24 11:39:48 2016 -0700
     Change-Id: I452c0b748e4ca9ebde3e6cea188bf7774372148e
     Reviewed-on: https://go-review.googlesource.com/23401
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/encoding/csv/reader.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index 5d5e3e5bf7..89283bb303 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -3,6 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package csv reads and writes comma-separated values (CSV) files.
++// There are many kinds of CSV files; this package supports the format
++// described in RFC 4180.
+ //
+ // A csv file contains zero or more records of one or more fields per record.
+ // Each record is separated by the newline character. The final record may

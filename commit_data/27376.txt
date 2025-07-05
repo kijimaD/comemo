@@ -33,7 +33,7 @@ Date:   Wed Mar 23 16:01:15 2016 +1100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go    | 17 ++++++---------
  src/cmd/compile/internal/gc/dcl.go      |  9 +++-----
  src/cmd/compile/internal/gc/export.go   |  5 ++---
@@ -43,3 +43,338 @@ Date:   Wed Mar 23 16:01:15 2016 +1100
  src/cmd/compile/internal/gc/racewalk.go |  6 ++----
  src/cmd/compile/internal/gc/subr.go     | 23 ++++++++------------
  8 files changed, 57 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 012de65e63..6555cd80d0 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -117,9 +117,8 @@ func convlit1(n *Node, t *Type, explicit bool) *Node {
+ 	}
+ 
+ 	if n.Op == OLITERAL {
+-		nn := Nod(OXXX, nil, nil)
+-		*nn = *n
+-		n = nn
++		nn := *n
++		n = &nn
+ 	}
+ 
+ 	switch n.Op {
+@@ -559,11 +558,10 @@ func evconst(n *Node) {
+ 					i2++
+ 				}
+ 
+-				nl := Nod(OXXX, nil, nil)
+-				*nl = *s[i1]
+-				nl.Orig = nl
++				nl := *s[i1]
++				nl.Orig = &nl
+ 				nl.SetVal(Val{strings.Join(strs, "")})
+-				s[i1] = nl
++				s[i1] = &nl
+ 				s = append(s[:i1+1], s[i2:]...)
+ 			}
+ 		}
+@@ -1250,9 +1248,8 @@ func defaultlit(n *Node, t *Type) *Node {
+ 	}
+ 
+ 	if n.Op == OLITERAL {
+-		nn := Nod(OXXX, nil, nil)
+-		*nn = *n
+-		n = nn
++		nn := *n
++		n = &nn
+ 	}
+ 
+ 	lno := setlineno(n)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index e06720728d..c55d0e34cc 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -605,7 +605,6 @@ func funcargs(nt *Node) {
+ 	// declare the out arguments.
+ 	gen := nt.List.Len()
+ 	var i int = 0
+-	var nn *Node
+ 	for _, n = range nt.Rlist.Slice() {
+ 		if n.Op != ODCLFIELD {
+ 			Fatalf("funcargs out %v", Oconv(n.Op, 0))
+@@ -629,13 +628,11 @@ func funcargs(nt *Node) {
+ 			// So the two cases must be distinguished.
+ 			// We do not record a pointer to the original node (n->orig).
+ 			// Having multiple names causes too much confusion in later passes.
+-			nn = Nod(OXXX, nil, nil)
+-
+-			*nn = *n.Left
+-			nn.Orig = nn
++			nn := *n.Left
++			nn.Orig = &nn
+ 			nn.Sym = LookupN("~b", gen)
+ 			gen++
+-			n.Left = nn
++			n.Left = &nn
+ 		}
+ 
+ 		n.Left.Name.Param.Ntype = n.Right
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index b814a4c469..fdbb66486f 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -522,9 +522,8 @@ func importconst(s *Sym, t *Type, n *Node) {
+ 	}
+ 
+ 	if n.Sym != nil {
+-		n1 := Nod(OXXX, nil, nil)
+-		*n1 = *n
+-		n = n1
++		n1 := *n
++		n = &n1
+ 	}
+ 
+ 	n.Orig = newname(s)
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 67b344c971..b96da806a5 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -613,8 +613,8 @@ func Tempname(nn *Node, t *Type) {
+ }
+ 
+ func temp(t *Type) *Node {
+-	n := Nod(OXXX, nil, nil)
+-	Tempname(n, t)
++	var n Node
++	Tempname(&n, t)
+ 	n.Sym.Def.Used = true
+ 	return n.Orig
+ }
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index ce0b6c38d8..ff0791c537 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -249,8 +249,7 @@ func inlcopy(n *Node) *Node {
+ 		return n
+ 	}
+ 
+-	m := Nod(OXXX, nil, nil)
+-	*m = *n
++	m := *n
+ 	if m.Func != nil {
+ 		m.Func.Inl.Set(nil)
+ 	}
+@@ -261,7 +260,7 @@ func inlcopy(n *Node) *Node {
+ 	m.Ninit.Set(inlcopylist(n.Ninit.Slice()))
+ 	m.Nbody.Set(inlcopylist(n.Nbody.Slice()))
+ 
+-	return m
++	return &m
+ }
+ 
+ // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
+@@ -968,24 +967,24 @@ func (subst *inlsubst) node(n *Node) *Node {
+ 		m.Left = newname(Lookup(p))
+ 
+ 		return m
+-	}
+-
+-	m := Nod(OXXX, nil, nil)
+-	*m = *n
+-	m.Ninit.Set(nil)
++	default:
++		m := Nod(OXXX, nil, nil)
++		*m = *n
++		m.Ninit.Set(nil)
+ 
+-	if n.Op == OCLOSURE {
+-		Fatalf("cannot inline function containing closure: %v", Nconv(n, FmtSign))
+-	}
++		if n.Op == OCLOSURE {
++			Fatalf("cannot inline function containing closure: %v", Nconv(n, FmtSign))
++		}
+ 
+-	m.Left = subst.node(n.Left)
+-	m.Right = subst.node(n.Right)
+-	m.List.Set(subst.list(n.List))
+-	m.Rlist.Set(subst.list(n.Rlist))
+-	m.Ninit.Set(append(m.Ninit.Slice(), subst.list(n.Ninit)...))
+-	m.Nbody.Set(subst.list(n.Nbody))
++		m.Left = subst.node(n.Left)
++		m.Right = subst.node(n.Right)
++		m.List.Set(subst.list(n.List))
++		m.Rlist.Set(subst.list(n.Rlist))
++		m.Ninit.Set(append(m.Ninit.Slice(), subst.list(n.Ninit)...))
++		m.Nbody.Set(subst.list(n.Nbody))
+ 
+-	return m
++		return m
++	}
+ }
+ 
+ // Plaster over linenumbers
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 95802835c0..f5c630d9b1 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -107,12 +107,10 @@ func ordercheapexpr(n *Node, order *Order) *Node {
+ 		if l == n.Left {
+ 			return n
+ 		}
+-		a := Nod(OXXX, nil, nil)
+-		*a = *n
+-		a.Orig = a
++		a := *n
++		a.Orig = &a
+ 		a.Left = l
+-		a = typecheck(a, Erv)
+-		return a
++		return typecheck(&a, Erv)
+ 	}
+ 
+ 	return ordercopyexpr(n, n.Type, order, 0)
+@@ -135,24 +133,20 @@ func ordersafeexpr(n *Node, order *Order) *Node {
+ 		if l == n.Left {
+ 			return n
+ 		}
+-		a := Nod(OXXX, nil, nil)
+-		*a = *n
+-		a.Orig = a
++		a := *n
++		a.Orig = &a
+ 		a.Left = l
+-		a = typecheck(a, Erv)
+-		return a
++		return typecheck(&a, Erv)
+ 
+ 	case ODOTPTR, OIND:
+ 		l := ordercheapexpr(n.Left, order)
+ 		if l == n.Left {
+ 			return n
+ 		}
+-		a := Nod(OXXX, nil, nil)
+-		*a = *n
+-		a.Orig = a
++		a := *n
++		a.Orig = &a
+ 		a.Left = l
+-		a = typecheck(a, Erv)
+-		return a
++		return typecheck(&a, Erv)
+ 
+ 	case OINDEX, OINDEXMAP:
+ 		var l *Node
+@@ -165,17 +159,15 @@ func ordersafeexpr(n *Node, order *Order) *Node {
+ 		if l == n.Left && r == n.Right {
+ 			return n
+ 		}
+-		a := Nod(OXXX, nil, nil)
+-		*a = *n
+-		a.Orig = a
++		a := *n
++		a.Orig = &a
+ 		a.Left = l
+ 		a.Right = r
+-		a = typecheck(a, Erv)
+-		return a
++		return typecheck(&a, Erv)
++	default:
++		Fatalf("ordersafeexpr %v", Oconv(n.Op, 0))
++		return nil // not reached
+ 	}
+-
+-	Fatalf("ordersafeexpr %v", Oconv(n.Op, 0))
+-	return nil // not reached
+ }
+ 
+ // Istemp reports whether n is a temporary variable.
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 35a2cf035d..77a6e728f3 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -65,12 +65,10 @@ func instrument(fn *Node) {
+ 		// nodpc is the PC of the caller as extracted by
+ 		// getcallerpc. We use -widthptr(FP) for x86.
+ 		// BUG: this will not work on arm.
+-		nodpc := Nod(OXXX, nil, nil)
+-
+-		*nodpc = *nodfp
++		nodpc := *nodfp
+ 		nodpc.Type = Types[TUINTPTR]
+ 		nodpc.Xoffset = int64(-Widthptr)
+-		nd := mkcall("racefuncenter", nil, nil, nodpc)
++		nd := mkcall("racefuncenter", nil, nil, &nodpc)
+ 		fn.Func.Enter.Set(append([]*Node{nd}, fn.Func.Enter.Slice()...))
+ 		nd = mkcall("racefuncexit", nil, nil)
+ 		fn.Func.Exit.Append(nd)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 8790e94ed1..99f4a776a8 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -516,12 +516,10 @@ func treecopy(n *Node, lineno int32) *Node {
+ 		return nil
+ 	}
+ 
+-	var m *Node
+ 	switch n.Op {
+ 	default:
+-		m = Nod(OXXX, nil, nil)
+-		*m = *n
+-		m.Orig = m
++		m := *n
++		m.Orig = &m
+ 		m.Left = treecopy(n.Left, lineno)
+ 		m.Right = treecopy(n.Right, lineno)
+ 		m.List.Set(listtreecopy(n.List.Slice(), lineno))
+@@ -532,6 +530,7 @@ func treecopy(n *Node, lineno int32) *Node {
+ 			Dump("treecopy", n)
+ 			Fatalf("treecopy Name")
+ 		}
++		return &m
+ 
+ 	case ONONAME:
+ 		if n.Sym == Lookup("iota") {
+@@ -539,23 +538,20 @@ func treecopy(n *Node, lineno int32) *Node {
+ 			// but make a copy of the Node* just in case,
+ 			// so that all the copies of this const definition
+ 			// don't have the same iota value.
+-			m = Nod(OXXX, nil, nil)
+-			*m = *n
++			m := *n
+ 			if lineno != 0 {
+ 				m.Lineno = lineno
+ 			}
+ 			m.Name = new(Name)
+ 			*m.Name = *n.Name
+ 			m.Name.Iota = iota_
+-			break
++			return &m
+ 		}
+-		fallthrough
++		return n
+ 
+ 	case ONAME, OLITERAL, OTYPE:
+-		m = n
++		return n
+ 	}
+-
+-	return m
+ }
+ 
+ // isnil reports whether n represents the universal untyped zero value "nil".
+@@ -1085,8 +1081,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
+ // The result of substArgTypes MUST be assigned back to old, e.g.
+ // 	n.Left = substArgTypes(n.Left, t1, t2)
+ func substArgTypes(old *Node, types ...*Type) *Node {
+-	n := Nod(OXXX, nil, nil)
+-	*n = *old // make shallow copy
++	n := *old // make shallow copy
+ 
+ 	for _, t := range types {
+ 		dowidth(t)
+@@ -1095,7 +1090,7 @@ func substArgTypes(old *Node, types ...*Type) *Node {
+ 	if len(types) > 0 {
+ 		Fatalf("substArgTypes: too many argument types")
+ 	}
+-	return n
++	return &n
+ }
+ 
+ // substAny walks t, replacing instances of "any" with successive

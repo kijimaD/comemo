@@ -9,6 +9,62 @@ Date:   Tue Jan 17 14:20:27 2012 -0800
     R=golang-dev, rsc, adg
     CC=golang-dev
     https://golang.org/cl/5539079
-
+---
  src/pkg/testing/testing.go | 30 +++++++++++++++++++++++++++++-
  1 file changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index cfe212dc1d..f1acb97e1b 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package testing provides support for automated testing of Go packages.
+-// It is intended to be used in concert with the ``gotest'' utility, which automates
++// It is intended to be used in concert with the ``go test'' command, which automates
+ // execution of any function of the form
+ //     func TestXxx(*testing.T)
+ // where Xxx can be any alphanumeric string (but the first letter must not be in
+@@ -21,6 +21,7 @@
+ //             fmt.Sprintf("hello")
+ //         }
+ //     }
++//
+ // The benchmark package will vary b.N until the benchmark function lasts
+ // long enough to be timed reliably.  The output
+ //     testing.BenchmarkHello    10000000    282 ns/op
+@@ -36,6 +37,33 @@
+ //             big.Len()
+ //         }
+ //     }
++//
++// The package also runs and verifies example code. Example functions
++// include an introductory comment that is compared with the standard output
++// of the function when the tests are run, as in this example of an example:
++//
++//     // hello
++//     func ExampleHello() {
++//             fmt.Println("hello")
++//     }
++//
++// Example functions without comments are compiled but not executed.
++//
++// The naming convention to declare examples for a function F, a type T and
++// method M on type T are:
++//
++//     func ExampleF() { ... }
++//     func ExampleT() { ... }
++//     func ExampleT_M() { ... }
++//
++// Multiple example functions for a type/function/method may be provided by
++// appending a distinct suffix to the name. The suffix must start with a
++// lower-case letter.
++//
++//     func ExampleF_suffix() { ... }
++//     func ExampleT_suffix() { ... }
++//     func ExampleT_M_suffix() { ... }
++//
+ package testing
+ 
+ import (

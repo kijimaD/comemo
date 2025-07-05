@@ -13,6 +13,27 @@ Date:   Wed Dec 14 11:20:21 2011 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5477093
-
+---
  src/pkg/net/http/transport.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index dc70be43f2..33ad32861b 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -539,12 +539,13 @@ func (pc *persistConn) readLoop() {
+ 		resp, err := ReadResponse(pc.br, rc.req)
+ 
+ 		if err == nil {
+-			if rc.addedGzip && resp.Header.Get("Content-Encoding") == "gzip" {
++			hasBody := rc.req.Method != "HEAD" && resp.ContentLength != 0
++			if rc.addedGzip && hasBody && resp.Header.Get("Content-Encoding") == "gzip" {
+ 				resp.Header.Del("Content-Encoding")
+ 				resp.Header.Del("Content-Length")
+ 				resp.ContentLength = -1
+ 				gzReader, zerr := gzip.NewReader(resp.Body)
+-				if err != nil {
++				if zerr != nil {
+ 					pc.close()
+ 					err = zerr
+ 				} else {

@@ -14,7 +14,7 @@ Date:   Tue Aug 18 16:46:24 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/internal/poll/fd_fsync_posix.go    |  4 +++-
  src/internal/poll/fd_opendir_darwin.go |  8 ++++++-
  src/internal/poll/fd_posix.go          | 28 +++++++++++++++++++++---
@@ -28,3 +28,421 @@ Date:   Tue Aug 18 16:46:24 2020 -0700
  src/os/stat_unix.go                    |  8 +++++--
  src/runtime/trace/trace_stack_test.go  |  2 +-
  12 files changed, 133 insertions(+), 34 deletions(-)
+
+diff --git a/src/internal/poll/fd_fsync_posix.go b/src/internal/poll/fd_fsync_posix.go
+index 69358297f4..dd7956f14d 100644
+--- a/src/internal/poll/fd_fsync_posix.go
++++ b/src/internal/poll/fd_fsync_posix.go
+@@ -14,5 +14,7 @@ func (fd *FD) Fsync() error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	return syscall.Fsync(fd.Sysfd)
++	return ignoringEINTR(func() error {
++		return syscall.Fsync(fd.Sysfd)
++	})
+ }
+diff --git a/src/internal/poll/fd_opendir_darwin.go b/src/internal/poll/fd_opendir_darwin.go
+index c7d3318c72..8eb770c358 100644
+--- a/src/internal/poll/fd_opendir_darwin.go
++++ b/src/internal/poll/fd_opendir_darwin.go
+@@ -19,7 +19,13 @@ func (fd *FD) OpenDir() (uintptr, string, error) {
+ 	if err != nil {
+ 		return 0, call, err
+ 	}
+-	dir, err := fdopendir(fd2)
++	var dir uintptr
++	for {
++		dir, err = fdopendir(fd2)
++		if err != syscall.EINTR {
++			break
++		}
++	}
+ 	if err != nil {
+ 		syscall.Close(fd2)
+ 		return 0, "fdopendir", err
+diff --git a/src/internal/poll/fd_posix.go b/src/internal/poll/fd_posix.go
+index 54747b4c99..e5fb05c9c2 100644
+--- a/src/internal/poll/fd_posix.go
++++ b/src/internal/poll/fd_posix.go
+@@ -35,7 +35,9 @@ func (fd *FD) Fchmod(mode uint32) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	return syscall.Fchmod(fd.Sysfd, mode)
++	return ignoringEINTR(func() error {
++		return syscall.Fchmod(fd.Sysfd, mode)
++	})
+ }
+ 
+ // Fchown wraps syscall.Fchown.
+@@ -44,7 +46,9 @@ func (fd *FD) Fchown(uid, gid int) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	return syscall.Fchown(fd.Sysfd, uid, gid)
++	return ignoringEINTR(func() error {
++		return syscall.Fchown(fd.Sysfd, uid, gid)
++	})
+ }
+ 
+ // Ftruncate wraps syscall.Ftruncate.
+@@ -53,7 +57,9 @@ func (fd *FD) Ftruncate(size int64) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	return syscall.Ftruncate(fd.Sysfd, size)
++	return ignoringEINTR(func() error {
++		return syscall.Ftruncate(fd.Sysfd, size)
++	})
+ }
+ 
+ // RawControl invokes the user-defined function f for a non-IO
+@@ -66,3 +72,19 @@ func (fd *FD) RawControl(f func(uintptr)) error {
+ 	f(uintptr(fd.Sysfd))
+ 	return nil
+ }
++
++// ignoringEINTR makes a function call and repeats it if it returns
++// an EINTR error. This appears to be required even though we install all
++// signal handlers with SA_RESTART: see #22838, #38033, #38836, #40846.
++// Also #20400 and #36644 are issues in which a signal handler is
++// installed without setting SA_RESTART. None of these are the common case,
++// but there are enough of them that it seems that we can't avoid
++// an EINTR loop.
++func ignoringEINTR(fn func() error) error {
++	for {
++		err := fn()
++		if err != syscall.EINTR {
++			return err
++		}
++	}
++}
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 4872fa9851..1d5101eac3 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -152,7 +152,7 @@ func (fd *FD) Read(p []byte) (int, error) {
+ 		p = p[:maxRW]
+ 	}
+ 	for {
+-		n, err := ignoringEINTR(syscall.Read, fd.Sysfd, p)
++		n, err := ignoringEINTRIO(syscall.Read, fd.Sysfd, p)
+ 		if err != nil {
+ 			n = 0
+ 			if err == syscall.EAGAIN && fd.pd.pollable() {
+@@ -264,7 +264,7 @@ func (fd *FD) Write(p []byte) (int, error) {
+ 		if fd.IsStream && max-nn > maxRW {
+ 			max = nn + maxRW
+ 		}
+-		n, err := ignoringEINTR(syscall.Write, fd.Sysfd, p[nn:max])
++		n, err := ignoringEINTRIO(syscall.Write, fd.Sysfd, p[nn:max])
+ 		if n > 0 {
+ 			nn += n
+ 		}
+@@ -423,7 +423,7 @@ func (fd *FD) ReadDirent(buf []byte) (int, error) {
+ 	}
+ 	defer fd.decref()
+ 	for {
+-		n, err := ignoringEINTR(syscall.ReadDirent, fd.Sysfd, buf)
++		n, err := ignoringEINTRIO(syscall.ReadDirent, fd.Sysfd, buf)
+ 		if err != nil {
+ 			n = 0
+ 			if err == syscall.EAGAIN && fd.pd.pollable() {
+@@ -452,7 +452,9 @@ func (fd *FD) Fstat(s *syscall.Stat_t) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	return syscall.Fstat(fd.Sysfd, s)
++	return ignoringEINTR(func() error {
++		return syscall.Fstat(fd.Sysfd, s)
++	})
+ }
+ 
+ // tryDupCloexec indicates whether F_DUPFD_CLOEXEC should be used.
+@@ -514,7 +516,7 @@ func (fd *FD) WriteOnce(p []byte) (int, error) {
+ 		return 0, err
+ 	}
+ 	defer fd.writeUnlock()
+-	return ignoringEINTR(syscall.Write, fd.Sysfd, p)
++	return ignoringEINTRIO(syscall.Write, fd.Sysfd, p)
+ }
+ 
+ // RawRead invokes the user-defined function f for a read operation.
+@@ -555,14 +557,8 @@ func (fd *FD) RawWrite(f func(uintptr) bool) error {
+ 	}
+ }
+ 
+-// ignoringEINTR makes a function call and repeats it if it returns
+-// an EINTR error. This appears to be required even though we install
+-// all signal handlers with SA_RESTART: see #22838, #38033, #38836.
+-// Also #20400 and #36644 are issues in which a signal handler is
+-// installed without setting SA_RESTART. None of these are the common case,
+-// but there are enough of them that it seems that we can't avoid
+-// an EINTR loop.
+-func ignoringEINTR(fn func(fd int, p []byte) (int, error), fd int, p []byte) (int, error) {
++// ignoringEINTRIO is like ignoringEINTR, but just for IO calls.
++func ignoringEINTRIO(fn func(fd int, p []byte) (int, error), fd int, p []byte) (int, error) {
+ 	for {
+ 		n, err := fn(fd, p)
+ 		if err != syscall.EINTR {
+diff --git a/src/os/dir_darwin.go b/src/os/dir_darwin.go
+index 2f9ba78d68..87797e2dda 100644
+--- a/src/os/dir_darwin.go
++++ b/src/os/dir_darwin.go
+@@ -47,6 +47,9 @@ func (f *File) readdirnames(n int) (names []string, err error) {
+ 	var entptr *syscall.Dirent
+ 	for len(names) < size || n == -1 {
+ 		if res := readdir_r(d.dir, &dirent, &entptr); res != 0 {
++			if syscall.Errno(res) == syscall.EINTR {
++				continue
++			}
+ 			return names, wrapSyscallError("readdir", syscall.Errno(res))
+ 		}
+ 		if entptr == nil { // EOF
+diff --git a/src/os/file.go b/src/os/file.go
+index a2b71cb61a..05d2f83283 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -255,7 +255,10 @@ func Mkdir(name string, perm FileMode) error {
+ 	if runtime.GOOS == "windows" && isWindowsNulName(name) {
+ 		return &PathError{"mkdir", name, syscall.ENOTDIR}
+ 	}
+-	e := syscall.Mkdir(fixLongPath(name), syscallMode(perm))
++	longName := fixLongPath(name)
++	e := ignoringEINTR(func() error {
++		return syscall.Mkdir(longName, syscallMode(perm))
++	})
+ 
+ 	if e != nil {
+ 		return &PathError{"mkdir", name, e}
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index eb158905ab..043500744b 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -558,3 +558,7 @@ func (c *rawConn) Write(f func(uintptr) bool) error {
+ func newRawConn(file *File) (*rawConn, error) {
+ 	return nil, syscall.EPLAN9
+ }
++
++func ignoringEINTR(fn func() error) error {
++	return fn()
++}
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index 24ea554b62..ae23d22d0a 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -76,7 +76,11 @@ func syscallMode(i FileMode) (o uint32) {
+ 
+ // See docs in file.go:Chmod.
+ func chmod(name string, mode FileMode) error {
+-	if e := syscall.Chmod(fixLongPath(name), syscallMode(mode)); e != nil {
++	longName := fixLongPath(name)
++	e := ignoringEINTR(func() error {
++		return syscall.Chmod(longName, syscallMode(mode))
++	})
++	if e != nil {
+ 		return &PathError{"chmod", name, e}
+ 	}
+ 	return nil
+@@ -101,7 +105,10 @@ func (f *File) chmod(mode FileMode) error {
+ // On Windows or Plan 9, Chown always returns the syscall.EWINDOWS or
+ // EPLAN9 error, wrapped in *PathError.
+ func Chown(name string, uid, gid int) error {
+-	if e := syscall.Chown(name, uid, gid); e != nil {
++	e := ignoringEINTR(func() error {
++		return syscall.Chown(name, uid, gid)
++	})
++	if e != nil {
+ 		return &PathError{"chown", name, e}
+ 	}
+ 	return nil
+@@ -114,7 +121,10 @@ func Chown(name string, uid, gid int) error {
+ // On Windows, it always returns the syscall.EWINDOWS error, wrapped
+ // in *PathError.
+ func Lchown(name string, uid, gid int) error {
+-	if e := syscall.Lchown(name, uid, gid); e != nil {
++	e := ignoringEINTR(func() error {
++		return syscall.Lchown(name, uid, gid)
++	})
++	if e != nil {
+ 		return &PathError{"lchown", name, e}
+ 	}
+ 	return nil
+@@ -222,3 +232,19 @@ func (f *File) checkValid(op string) error {
+ 	}
+ 	return nil
+ }
++
++// ignoringEINTR makes a function call and repeats it if it returns an
++// EINTR error. This appears to be required even though we install all
++// signal handlers with SA_RESTART: see #22838, #38033, #38836, #40846.
++// Also #20400 and #36644 are issues in which a signal handler is
++// installed without setting SA_RESTART. None of these are the common case,
++// but there are enough of them that it seems that we can't avoid
++// an EINTR loop.
++func ignoringEINTR(fn func() error) error {
++	for {
++		err := fn()
++		if err != syscall.EINTR {
++			return err
++		}
++	}
++}
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index f2c00ae0cb..5446dd5003 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -39,7 +39,9 @@ func rename(oldname, newname string) error {
+ 			return &LinkError{"rename", oldname, newname, syscall.EEXIST}
+ 		}
+ 	}
+-	err = syscall.Rename(oldname, newname)
++	err = ignoringEINTR(func() error {
++		return syscall.Rename(oldname, newname)
++	})
+ 	if err != nil {
+ 		return &LinkError{"rename", oldname, newname, err}
+ 	}
+@@ -129,7 +131,9 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
+ 		switch runtime.GOOS {
+ 		case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":
+ 			var st syscall.Stat_t
+-			err := syscall.Fstat(fdi, &st)
++			err := ignoringEINTR(func() error {
++				return syscall.Fstat(fdi, &st)
++			})
+ 			typ := st.Mode & syscall.S_IFMT
+ 			// Don't try to use kqueue with regular files on *BSDs.
+ 			// On FreeBSD a regular file is always
+@@ -264,7 +268,10 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
+ // If the file is a symbolic link, it changes the size of the link's target.
+ // If there is an error, it will be of type *PathError.
+ func Truncate(name string, size int64) error {
+-	if e := syscall.Truncate(name, size); e != nil {
++	e := ignoringEINTR(func() error {
++		return syscall.Truncate(name, size)
++	})
++	if e != nil {
+ 		return &PathError{"truncate", name, e}
+ 	}
+ 	return nil
+@@ -277,11 +284,15 @@ func Remove(name string) error {
+ 	// whether name is a file or directory.
+ 	// Try both: it is cheaper on average than
+ 	// doing a Stat plus the right one.
+-	e := syscall.Unlink(name)
++	e := ignoringEINTR(func() error {
++		return syscall.Unlink(name)
++	})
+ 	if e == nil {
+ 		return nil
+ 	}
+-	e1 := syscall.Rmdir(name)
++	e1 := ignoringEINTR(func() error {
++		return syscall.Rmdir(name)
++	})
+ 	if e1 == nil {
+ 		return nil
+ 	}
+@@ -316,7 +327,9 @@ func tempDir() string {
+ // Link creates newname as a hard link to the oldname file.
+ // If there is an error, it will be of type *LinkError.
+ func Link(oldname, newname string) error {
+-	e := syscall.Link(oldname, newname)
++	e := ignoringEINTR(func() error {
++		return syscall.Link(oldname, newname)
++	})
+ 	if e != nil {
+ 		return &LinkError{"link", oldname, newname, e}
+ 	}
+@@ -326,7 +339,9 @@ func Link(oldname, newname string) error {
+ // Symlink creates newname as a symbolic link to oldname.
+ // If there is an error, it will be of type *LinkError.
+ func Symlink(oldname, newname string) error {
+-	e := syscall.Symlink(oldname, newname)
++	e := ignoringEINTR(func() error {
++		return syscall.Symlink(oldname, newname)
++	})
+ 	if e != nil {
+ 		return &LinkError{"symlink", oldname, newname, e}
+ 	}
+@@ -365,7 +380,16 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
+ func Readlink(name string) (string, error) {
+ 	for len := 128; ; len *= 2 {
+ 		b := make([]byte, len)
+-		n, e := fixCount(syscall.Readlink(name, b))
++		var (
++			n int
++			e error
++		)
++		for {
++			n, e = fixCount(syscall.Readlink(name, b))
++			if e != syscall.EINTR {
++				break
++			}
++		}
+ 		// buffer too small
+ 		if runtime.GOOS == "aix" && e == syscall.ERANGE {
+ 			continue
+diff --git a/src/os/getwd.go b/src/os/getwd.go
+index 6d25466bb4..f3afd8c06c 100644
+--- a/src/os/getwd.go
++++ b/src/os/getwd.go
+@@ -45,7 +45,16 @@ func Getwd() (dir string, err error) {
+ 	// If the operating system provides a Getwd call, use it.
+ 	// Otherwise, we're trying to find our way back to ".".
+ 	if syscall.ImplementsGetwd {
+-		s, e := syscall.Getwd()
++		var (
++			s string
++			e error
++		)
++		for {
++			s, e = syscall.Getwd()
++			if e != syscall.EINTR {
++				break
++			}
++		}
+ 		if useSyscallwd(e) {
+ 			return s, NewSyscallError("getwd", e)
+ 		}
+diff --git a/src/os/stat_unix.go b/src/os/stat_unix.go
+index 0a7e6029ac..ef74a43758 100644
+--- a/src/os/stat_unix.go
++++ b/src/os/stat_unix.go
+@@ -28,7 +28,9 @@ func (f *File) Stat() (FileInfo, error) {
+ // statNolog stats a file with no test logging.
+ func statNolog(name string) (FileInfo, error) {
+ 	var fs fileStat
+-	err := syscall.Stat(name, &fs.sys)
++	err := ignoringEINTR(func() error {
++		return syscall.Stat(name, &fs.sys)
++	})
+ 	if err != nil {
+ 		return nil, &PathError{"stat", name, err}
+ 	}
+@@ -39,7 +41,9 @@ func statNolog(name string) (FileInfo, error) {
+ // lstatNolog lstats a file with no test logging.
+ func lstatNolog(name string) (FileInfo, error) {
+ 	var fs fileStat
+-	err := syscall.Lstat(name, &fs.sys)
++	err := ignoringEINTR(func() error {
++		return syscall.Lstat(name, &fs.sys)
++	})
+ 	if err != nil {
+ 		return nil, &PathError{"lstat", name, err}
+ 	}
+diff --git a/src/runtime/trace/trace_stack_test.go b/src/runtime/trace/trace_stack_test.go
+index cfc0419b72..be3adc9801 100644
+--- a/src/runtime/trace/trace_stack_test.go
++++ b/src/runtime/trace/trace_stack_test.go
+@@ -252,7 +252,7 @@ func TestTraceSymbolize(t *testing.T) {
+ 			{trace.EvGoSysCall, []frame{
+ 				{"syscall.read", 0},
+ 				{"syscall.Read", 0},
+-				{"internal/poll.ignoringEINTR", 0},
++				{"internal/poll.ignoringEINTRIO", 0},
+ 				{"internal/poll.(*FD).Read", 0},
+ 				{"os.(*File).read", 0},
+ 				{"os.(*File).Read", 0},

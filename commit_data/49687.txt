@@ -32,7 +32,66 @@ Date:   Mon Aug 9 08:14:04 2021 +0000
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s |  8 ++++++--
  src/cmd/internal/obj/riscv/obj.go           | 12 +++++++++---
  2 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 5a209ac17e..1977d92f62 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -295,10 +295,14 @@ start:
+ 
+ 	// MOV pseudo-instructions
+ 	MOV	X5, X6					// 13830200
+-	MOV	$2047, X5				// 9b02f07f
+-	MOV	$-2048, X5				// 9b020080
++	MOV	$2047, X5				// 9302f07f
++	MOV	$-2048, X5				// 93020080
+ 	MOV	$2048, X5				// b71200009b820280
+ 	MOV	$-2049, X5				// b7f2ffff9b82f27f
++	MOV	$4096, X5				// b7120000
++	MOV	$2147479552, X5				// b7f2ff7f
++	MOV	$2147483647, X5				// b70200809b82f2ff
++	MOV	$-2147483647, X5			// b70200809b821200
+ 
+ 	// Converted to load of symbol (AUIPC + LD)
+ 	MOV	$4294967296, X5				// 9702000083b20200
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index b4aded3768..1140542739 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1669,6 +1669,9 @@ func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction
+ 		return nil
+ 	}
+ 	ins.rs2 = REG_TMP
++	if low == 0 {
++		return []*instruction{insLUI, ins}
++	}
+ 	return []*instruction{insLUI, insADDIW, ins}
+ }
+ 
+@@ -1768,7 +1771,7 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
+ 		}
+ 
+ 		// MOV $c, R -> ADD $c, ZERO, R
+-		ins.as, ins.rs1, ins.rs2, ins.imm = AADDIW, REG_ZERO, obj.REG_NONE, low
++		ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, REG_ZERO, obj.REG_NONE, low
+ 
+ 		// LUI is only necessary if the constant does not fit in 12 bits.
+ 		if high == 0 {
+@@ -1778,8 +1781,11 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
+ 		// LUI top20bits(c), R
+ 		// ADD bottom12bits(c), R, R
+ 		insLUI := &instruction{as: ALUI, rd: ins.rd, imm: high}
+-		ins.rs1 = ins.rd
+-		inss = []*instruction{insLUI, ins}
++		inss = []*instruction{insLUI}
++		if low != 0 {
++			ins.as, ins.rs1 = AADDIW, ins.rd
++			inss = append(inss, ins)
++		}
+ 
+ 	case p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_REG:
+ 		// Handle register to register moves.

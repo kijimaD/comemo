@@ -15,6 +15,20 @@ Date:   Wed Jun 14 18:31:44 2023 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/macho.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index f48653b910..6722eed4ba 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -877,7 +877,7 @@ func asmbMacho(ctxt *Link) {
+ }
+ 
+ func symkind(ldr *loader.Loader, s loader.Sym) int {
+-	if ldr.SymType(s) == sym.SDYNIMPORT {
++	if t := ldr.SymType(s); t == sym.SDYNIMPORT || t == sym.SHOSTOBJ || t == sym.SUNDEFEXT {
+ 		return SymKindUndef
+ 	}
+ 	if ldr.AttrCgoExport(s) {

@@ -12,9 +12,237 @@ Date:   Mon Dec 29 19:32:07 2014 -0800
     Change-Id: Ic83976437739ec6c1acad5f209ed45e501dbb93a
     Reviewed-on: https://go-review.googlesource.com/2157
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/client_test.go | 24 ++++-----------
  src/net/http/http_test.go   | 41 +++++++++++++++++++++++++
  src/net/http/server.go      | 73 ++++++++++++++++++++++++++++++++++++++++-----
  src/net/http/transfer.go    |  1 -
  4 files changed, 112 insertions(+), 27 deletions(-)
+
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 206ab49711..18645ff00d 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -1027,24 +1027,12 @@ func TestClientTrailers(t *testing.T) {
+ 				r.Trailer.Get("Client-Trailer-B"))
+ 		}
+ 
+-		// TODO: golang.org/issue/7759: there's no way yet for
+-		// the server to set trailers without hijacking, so do
+-		// that for now, just to test the client.  Later, in
+-		// Go 1.4, it should be implicit that any mutations
+-		// to w.Header() after the initial write are the
+-		// trailers to be sent, if and only if they were
+-		// previously declared with w.Header().Set("Trailer",
+-		// ..keys..)
+-		w.(Flusher).Flush()
+-		conn, buf, _ := w.(Hijacker).Hijack()
+-		t := Header{}
+-		t.Set("Server-Trailer-A", "valuea")
+-		t.Set("Server-Trailer-C", "valuec") // skipping B
+-		buf.WriteString("0\r\n")            // eof
+-		t.Write(buf)
+-		buf.WriteString("\r\n") // end of trailers
+-		buf.Flush()
+-		conn.Close()
++		// How handlers set Trailers: declare it ahead of time
++		// with the Trailer header, and then mutate the
++		// Header() of those values later, after the response
++		// has been written (we wrote to w above).
++		w.Header().Set("Server-Trailer-A", "valuea")
++		w.Header().Set("Server-Trailer-C", "valuec") // skipping B
+ 	}))
+ 	defer ts.Close()
+ 
+diff --git a/src/net/http/http_test.go b/src/net/http/http_test.go
+new file mode 100644
+index 0000000000..8948601632
+--- /dev/null
++++ b/src/net/http/http_test.go
+@@ -0,0 +1,41 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests of internal functions with no better homes.
++
++package http
++
++import (
++	"reflect"
++	"testing"
++)
++
++func TestForeachHeaderElement(t *testing.T) {
++	tests := []struct {
++		in   string
++		want []string
++	}{
++		{"Foo", []string{"Foo"}},
++		{" Foo", []string{"Foo"}},
++		{"Foo ", []string{"Foo"}},
++		{" Foo ", []string{"Foo"}},
++
++		{"foo", []string{"foo"}},
++		{"anY-cAsE", []string{"anY-cAsE"}},
++
++		{"", nil},
++		{",,,,  ,  ,,   ,,, ,", nil},
++
++		{" Foo,Bar, Baz,lower,,Quux ", []string{"Foo", "Bar", "Baz", "lower", "Quux"}},
++	}
++	for _, tt := range tests {
++		var got []string
++		foreachHeaderElement(tt.in, func(v string) {
++			got = append(got, v)
++		})
++		if !reflect.DeepEqual(got, tt.want) {
++			t.Errorf("foreachHeaderElement(%q) = %q; want %q", tt.in, got, tt.want)
++		}
++	}
++}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 008d5aa7a7..8cdaf14989 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -15,6 +15,7 @@ import (
+ 	"io/ioutil"
+ 	"log"
+ 	"net"
++	"net/textproto"
+ 	"net/url"
+ 	"os"
+ 	"path"
+@@ -55,9 +56,11 @@ type Handler interface {
+ // A ResponseWriter interface is used by an HTTP handler to
+ // construct an HTTP response.
+ type ResponseWriter interface {
+-	// Header returns the header map that will be sent by WriteHeader.
+-	// Changing the header after a call to WriteHeader (or Write) has
+-	// no effect.
++	// Header returns the header map that will be sent by
++	// WriteHeader. Changing the header after a call to
++	// WriteHeader (or Write) has no effect unless the modified
++	// headers were declared as trailers by setting the
++	// "Trailer" header before the call to WriteHeader.
+ 	Header() Header
+ 
+ 	// Write writes the data to the connection as part of an HTTP reply.
+@@ -288,10 +291,21 @@ func (cw *chunkWriter) close() {
+ 		cw.writeHeader(nil)
+ 	}
+ 	if cw.chunking {
+-		// zero EOF chunk, trailer key/value pairs (currently
+-		// unsupported in Go's server), followed by a blank
+-		// line.
+-		cw.res.conn.buf.WriteString("0\r\n\r\n")
++		bw := cw.res.conn.buf // conn's bufio writer
++		// zero chunk to mark EOF
++		bw.WriteString("0\r\n")
++		if len(cw.res.trailers) > 0 {
++			trailers := make(Header)
++			for _, h := range cw.res.trailers {
++				if vv := cw.res.handlerHeader[h]; len(vv) > 0 {
++					trailers[h] = vv
++				}
++			}
++			trailers.Write(bw) // the writer handles noting errors
++		}
++		// final blank line after the trailers (whether
++		// present or not)
++		bw.WriteString("\r\n")
+ 	}
+ }
+ 
+@@ -332,6 +346,12 @@ type response struct {
+ 	// input from it.
+ 	requestBodyLimitHit bool
+ 
++	// trailers are the headers to be sent after the handler
++	// finishes writing the body.  This field is initialized from
++	// the Trailer response header when the response header is
++	// written.
++	trailers []string
++
+ 	handlerDone bool // set true when the handler exits
+ 
+ 	// Buffers for Date and Content-Length
+@@ -339,6 +359,19 @@ type response struct {
+ 	clenBuf [10]byte
+ }
+ 
++// declareTrailer is called for each Trailer header when the
++// response header is written. It notes that a header will need to be
++// written in the trailers at the end of the response.
++func (w *response) declareTrailer(k string) {
++	k = CanonicalHeaderKey(k)
++	switch k {
++	case "Transfer-Encoding", "Content-Length", "Trailer":
++		// Forbidden by RFC 2616 14.40.
++		return
++	}
++	w.trailers = append(w.trailers, k)
++}
++
+ // requestTooLarge is called by maxBytesReader when too much input has
+ // been read from the client.
+ func (w *response) requestTooLarge() {
+@@ -747,6 +780,12 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 	}
+ 	var setHeader extraHeader
+ 
++	trailers := false
++	for _, v := range cw.header["Trailer"] {
++		trailers = true
++		foreachHeaderElement(v, cw.res.declareTrailer)
++	}
++
+ 	// If the handler is done but never sent a Content-Length
+ 	// response header and this is our first (and last) write, set
+ 	// it, even to zero. This helps HTTP/1.0 clients keep their
+@@ -759,7 +798,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 	// write non-zero bytes.  If it's actually 0 bytes and the
+ 	// handler never looked at the Request.Method, we just don't
+ 	// send a Content-Length header.
+-	if w.handlerDone && bodyAllowedForStatus(w.status) && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
++	if w.handlerDone && !trailers && bodyAllowedForStatus(w.status) && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
+ 		w.contentLength = int64(len(p))
+ 		setHeader.contentLength = strconv.AppendInt(cw.res.clenBuf[:0], int64(len(p)), 10)
+ 	}
+@@ -885,6 +924,24 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 	w.conn.buf.Write(crlf)
+ }
+ 
++// foreachHeaderElement splits v according to the "#rule" construction
++// in RFC 2616 section 2.1 and calls fn for each non-empty element.
++func foreachHeaderElement(v string, fn func(string)) {
++	v = textproto.TrimString(v)
++	if v == "" {
++		return
++	}
++	if !strings.Contains(v, ",") {
++		fn(v)
++		return
++	}
++	for _, f := range strings.Split(v, ",") {
++		if f = textproto.TrimString(f); f != "" {
++			fn(f)
++		}
++	}
++}
++
+ // statusLines is a cache of Status-Line strings, keyed by code (for
+ // HTTP/1.1) or negative code (for HTTP/1.0). This is faster than a
+ // map keyed by struct of two fields. This map's max size is bounded
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 520500330b..fd9389adf0 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -232,7 +232,6 @@ func (t *transferWriter) WriteBody(w io.Writer) error {
+ 			t.ContentLength, ncopy)
+ 	}
+ 
+-	// TODO(petar): Place trailer writer code here.
+ 	if chunked(t.TransferEncoding) {
+ 		// Write Trailer header
+ 		if t.Trailer != nil {

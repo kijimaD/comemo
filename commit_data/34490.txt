@@ -20,7 +20,114 @@ Date:   Tue Oct 24 16:34:33 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types/type.go | 21 ++++++++++------
  test/notinheap3.go                     | 45 ++++++++++++++++++++++++++++++++++
  2 files changed, 59 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index fbf0d88fb4..82829a1179 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1364,7 +1364,14 @@ func (t *Type) IsUntyped() bool {
+ 	return false
+ }
+ 
++// TODO(austin): We probably only need HasHeapPointer. See
++// golang.org/cl/73412 for discussion.
++
+ func Haspointers(t *Type) bool {
++	return Haspointers1(t, false)
++}
++
++func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
+ 	switch t.Etype {
+ 	case TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64,
+ 		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL:
+@@ -1374,28 +1381,28 @@ func Haspointers(t *Type) bool {
+ 		if t.NumElem() == 0 { // empty array has no pointers
+ 			return false
+ 		}
+-		return Haspointers(t.Elem())
++		return Haspointers1(t.Elem(), ignoreNotInHeap)
+ 
+ 	case TSTRUCT:
+ 		for _, t1 := range t.Fields().Slice() {
+-			if Haspointers(t1.Type) {
++			if Haspointers1(t1.Type, ignoreNotInHeap) {
+ 				return true
+ 			}
+ 		}
+ 		return false
++
++	case TPTR32, TPTR64:
++		return !(ignoreNotInHeap && t.Elem().NotInHeap())
+ 	}
+ 
+ 	return true
+ }
+ 
+ // HasHeapPointer returns whether t contains a heap pointer.
+-// This is used for write barrier insertion, so we ignore
++// This is used for write barrier insertion, so it ignores
+ // pointers to go:notinheap types.
+ func (t *Type) HasHeapPointer() bool {
+-	if t.IsPtr() && t.Elem().NotInHeap() {
+-		return false
+-	}
+-	return Haspointers(t)
++	return Haspointers1(t, true)
+ }
+ 
+ func (t *Type) Symbol() *obj.LSym {
+diff --git a/test/notinheap3.go b/test/notinheap3.go
+new file mode 100644
+index 0000000000..e01c7a0a82
+--- /dev/null
++++ b/test/notinheap3.go
+@@ -0,0 +1,45 @@
++// errorcheck -+ -0 -l -d=wb
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test write barrier elimination for notinheap.
++
++package p
++
++type t1 struct {
++	x *nih
++	y [1024]byte // Prevent write decomposition
++}
++
++type t2 struct {
++	x *ih
++	y [1024]byte
++}
++
++//go:notinheap
++type nih struct {
++	x uintptr
++}
++
++type ih struct { // In-heap type
++	x uintptr
++}
++
++var (
++	v1 t1
++	v2 t2
++)
++
++func f() {
++	// Test direct writes
++	v1.x = nil // no barrier
++	v2.x = nil // ERROR "write barrier"
++}
++
++func g() {
++	// Test aggregate writes
++	v1 = t1{x: nil} // no barrier
++	v2 = t2{x: nil} // ERROR "write barrier"
++}

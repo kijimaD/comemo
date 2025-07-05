@@ -16,7 +16,134 @@ Date:   Wed Jan 30 09:25:16 2013 -0800
     R=dave, rsc, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/7038045
-
+---
  src/pkg/net/ip_test.go | 32 ++++++++++++++++++++++++++++
  src/pkg/net/ipsock.go  | 57 ++++++++++++++++++++++++++++++++++++++++++--------
  2 files changed, 80 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/net/ip_test.go b/src/pkg/net/ip_test.go
+index 8324d2a327..f8b7f067fa 100644
+--- a/src/pkg/net/ip_test.go
++++ b/src/pkg/net/ip_test.go
+@@ -269,6 +269,28 @@ var splitjointests = []struct {
+ 	{"127.0.0.1", "1234", "127.0.0.1:1234"},
+ 	{"::1", "80", "[::1]:80"},
+ 	{"google.com", "https%foo", "google.com:https%foo"}, // Go 1.0 behavior
++	{"", "0", ":0"},
++	{"127.0.0.1", "", "127.0.0.1:"},           // Go 1.0 behaviour
++	{"www.google.com", "", "www.google.com:"}, // Go 1.0 behaviour
++}
++
++var splitfailuretests = []struct {
++	HostPort string
++	Err      string
++}{
++	{"www.google.com", "missing port in address"},
++	{"127.0.0.1", "missing port in address"},
++	{"[::1]", "missing port in address"},
++	{"::1", "too many colons in address"},
++
++	// Test cases that didn't fail in Go 1.0
++	{"[foo:bar]", "missing port in address"},
++	{"[foo:bar]baz", "missing port in address"},
++	{"[foo]:[bar]:baz", "too many colons in address"},
++	{"[foo]bar:baz", "missing port in address"},
++	{"[foo]:[bar]baz", "unexpected '[' in address"},
++	{"foo[bar]:baz", "unexpected '[' in address"},
++	{"foo]bar:baz", "unexpected ']' in address"},
+ }
+ 
+ func TestSplitHostPort(t *testing.T) {
+@@ -277,6 +299,16 @@ func TestSplitHostPort(t *testing.T) {
+ 			t.Errorf("SplitHostPort(%q) = %q, %q, %v; want %q, %q, nil", tt.Join, host, port, err, tt.Host, tt.Port)
+ 		}
+ 	}
++	for _, tt := range splitfailuretests {
++		if _, _, err := SplitHostPort(tt.HostPort); err == nil {
++			t.Errorf("SplitHostPort(%q) should have failed", tt.HostPort)
++		} else {
++			e := err.(*AddrError)
++			if e.Err != tt.Err {
++				t.Errorf("SplitHostPort(%q) = _, _, %q; want %q", tt.HostPort, e.Err, tt.Err)
++			}
++		}
++	}
+ }
+ 
+ func TestJoinHostPort(t *testing.T) {
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 5636c85b4f..1ef4892896 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -77,23 +77,62 @@ func SplitHostPort(hostport string) (host, port string, err error) {
+ }
+ 
+ func splitHostPort(hostport string) (host, port, zone string, err error) {
++	j, k := 0, 0
++
+ 	// The port starts after the last colon.
+ 	i := last(hostport, ':')
+ 	if i < 0 {
+-		err = &AddrError{"missing port in address", hostport}
+-		return
++		goto missingPort
+ 	}
+-	host, port = hostport[:i], hostport[i+1:]
+-	// Can put brackets around host ...
+-	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
+-		host = host[1 : len(host)-1]
++
++	if hostport[0] == '[' {
++		// Expect the first ']' just before the last ':'.
++		end := byteIndex(hostport, ']')
++		if end < 0 {
++			err = &AddrError{"missing ']' in address", hostport}
++			return
++		}
++		switch end + 1 {
++		case len(hostport):
++			// There can't be a ':' behind the ']' now.
++			goto missingPort
++		case i:
++			// The expected result.
++		default:
++			// Either ']' isn't followed by a colon, or it is
++			// followed by a colon that is not the last one.
++			if hostport[end+1] == ':' {
++				goto tooManyColons
++			}
++			goto missingPort
++		}
++		host = hostport[1:end]
++		j, k = 1, end+1 // there can't be a '[' resp. ']' before these positions
+ 	} else {
+-		// ... but if there are no brackets, no colons.
++		host = hostport[:i]
++
+ 		if byteIndex(host, ':') >= 0 {
+-			err = &AddrError{"too many colons in address", hostport}
+-			return
++			goto tooManyColons
+ 		}
+ 	}
++	if byteIndex(hostport[j:], '[') >= 0 {
++		err = &AddrError{"unexpected '[' in address", hostport}
++		return
++	}
++	if byteIndex(hostport[k:], ']') >= 0 {
++		err = &AddrError{"unexpected ']' in address", hostport}
++		return
++	}
++
++	port = hostport[i+1:]
++	return
++
++missingPort:
++	err = &AddrError{"missing port in address", hostport}
++	return
++
++tooManyColons:
++	err = &AddrError{"too many colons in address", hostport}
+ 	return
+ }
+ 

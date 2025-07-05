@@ -16,6 +16,28 @@ Date:   Tue Aug 22 14:22:53 2023 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/time/time.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index cc9dd6652a..3d4416e76b 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -939,14 +939,11 @@ func Since(t Time) Duration {
+ // Until returns the duration until t.
+ // It is shorthand for t.Sub(time.Now()).
+ func Until(t Time) Duration {
+-	var now Time
+ 	if t.wall&hasMonotonic != 0 {
+ 		// Common case optimization: if t has monotonic time, then Sub will use only it.
+-		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
+-	} else {
+-		now = Now()
++		return subMono(t.ext, runtimeNano()-startNano)
+ 	}
+-	return t.Sub(now)
++	return t.Sub(Now())
+ }
+ 
+ // AddDate returns the time corresponding to adding the

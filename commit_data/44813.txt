@@ -18,7 +18,38 @@ Date:   Tue Sep 1 10:00:23 2020 +1000
     Change-Id: If6d2818294b2bd94ea0fe5fd6ce77e54b3e167a6
     Reviewed-on: https://go-review.googlesource.com/c/go/+/251758
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/test.go | 1 +
  src/cmd/cgo/doc.go    | 7 +++++++
  2 files changed, 8 insertions(+)
+
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index 35bc3a1447..05fa52b381 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -319,6 +319,7 @@ typedef enum {
+ 
+ // issue 4339
+ // We've historically permitted #include <>, so test it here.  Issue 29333.
++// Also see issue 41059.
+ #include <issue4339.h>
+ 
+ // issue 4417
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index ca18c45d9d..b3f371b08c 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -112,6 +112,13 @@ The default C and C++ compilers may be changed by the CC and CXX
+ environment variables, respectively; those environment variables
+ may include command line options.
+ 
++The cgo tool will always invoke the C compiler with the source file's
++directory in the include path; i.e. -I${SRCDIR} is always implied. This
++means that if a header file foo/bar.h exists both in the source
++directory and also in the system include directory (or some other place
++specified by a -I flag), then "#include <foo/bar.h>" will always find the
++local version in preference to any other version.
++
+ The cgo tool is enabled by default for native builds on systems where
+ it is expected to work. It is disabled by default when
+ cross-compiling. You can control this by setting the CGO_ENABLED

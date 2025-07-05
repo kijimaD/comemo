@@ -17,8 +17,64 @@ Date:   Thu Feb 13 23:56:53 2014 -0500
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/63680043
-
+---
  src/cmd/gc/plive.c | 8 +++-----
  src/cmd/gc/popt.c  | 8 +++++++-
  test/live.go       | 8 ++++++++
  3 files changed, 18 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 20aeb51557..d353672985 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -519,12 +519,10 @@ newcfg(Prog *firstp)
+ 				break;
+ 			bb->last = p;
+ 
+-			// Pattern match an unconditional branch followed by a
+-			// dead return instruction.  This avoids a creating
++			// Stop before an unreachable RET, to avoid creating
+ 			// unreachable control flow nodes.
+-			if(p->link != nil && p->link->link == nil)
+-				if (p->as == AJMP && p->link->as == ARET && p->link->opt == nil)
+-					break;
++			if(p->link != nil && p->link->as == ARET && p->link->mode == -1)
++				break;
+ 
+ 			// Collect basic blocks with selectgo calls.
+ 			if(isselectgocall(p))
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index cfb2791acf..7fcf5db10d 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -146,7 +146,13 @@ fixjmp(Prog *firstp)
+ 		if(p->opt == dead) {
+ 			if(p->link == P && p->as == ARET && last && last->as != ARET) {
+ 				// This is the final ARET, and the code so far doesn't have one.
+-				// Let it stay.
++				// Let it stay. The register allocator assumes that all live code in
++				// the function can be traversed by starting at all the RET instructions
++				// and following predecessor links. If we remove the final RET,
++				// this assumption will not hold in the case of an infinite loop
++				// at the end of a function.
++				// Keep the RET but mark it dead for the liveness analysis.
++				p->mode = -1;
+ 			} else {
+ 				if(debug['R'] && debug['v'])
+ 					print("del %P\n", p);
+diff --git a/test/live.go b/test/live.go
+index ec2df7e5f8..032d39812d 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -113,3 +113,11 @@ func f9() bool {
+ 	x := i9
+ 	return x != 99
+ }
++
++// liveness formerly confused by UNDEF followed by RET,
++// leading to "live at entry to f10: ~r1" (unnamed result).
++
++func f10() string {
++	panic(1)
++}
++

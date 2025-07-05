@@ -15,6 +15,27 @@ Date:   Mon Jan 26 16:43:20 2015 +0300
     Change-Id: Ic975db61b1fd5b7f9ee78896d4cc7d93c593c532
     Reviewed-on: https://go-review.googlesource.com/3284
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/range.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 55fadae723..14bb1be88c 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -98,13 +98,13 @@ typecheckrange(Node *n)
+ 	}
+ 
+ out:
+-	typechecklist(n->nbody, Etop);
+-
+ 	// second half of dance
+ 	n->typecheck = 1;
+ 	for(ll=n->list; ll; ll=ll->next)
+ 		if(ll->n->typecheck == 0)
+ 			typecheck(&ll->n, Erv | Easgn);
++
++	typechecklist(n->nbody, Etop);
+ }
+ 
+ void

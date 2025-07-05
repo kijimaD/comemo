@@ -16,6 +16,22 @@ Date:   Fri Sep 27 17:24:38 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/testdata/script/list_pkgconfig_error.txt | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/list_pkgconfig_error.txt b/src/cmd/go/testdata/script/list_pkgconfig_error.txt
+index d40d45e39c..f554d2a4ed 100644
+--- a/src/cmd/go/testdata/script/list_pkgconfig_error.txt
++++ b/src/cmd/go/testdata/script/list_pkgconfig_error.txt
+@@ -2,9 +2,7 @@
+ [!exec:pkg-config] skip 'test requires pkg-config tool'
+ 
+ ! go list -export .
+-# 'Package .* not found appears' in pkg-config and pkgconf; while
+-# 'could not find package .*' appears in u-config. See #68283.
+-stderr '#^ example\n#pkg-config .*\n(.*\n)*(Package .* not found)|(could not find package .*)'
++stderr '^# example\n# \[pkg-config .*\]\n(.*\n)*Package .* not found'
+ 
+ -- go.mod --
+ module example

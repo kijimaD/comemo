@@ -19,7 +19,52 @@ Date:   Thu May 21 10:59:29 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modfetch/proxy.go        | 10 +++++++++-
  src/cmd/go/testdata/script/mod_gonoproxy.txt |  5 +++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 3971598733..1c35d0b99b 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -171,6 +171,14 @@ func proxyList() ([]proxySpec, error) {
+ 				fallBackOnError: fallBackOnError,
+ 			})
+ 		}
++
++		if len(proxyOnce.list) == 0 ||
++			len(proxyOnce.list) == 1 && proxyOnce.list[0].url == "noproxy" {
++			// There were no proxies, other than the implicit "noproxy" added when
++			// GONOPROXY is set. This can happen if GOPROXY is a non-empty string
++			// like "," or " ".
++			proxyOnce.err = fmt.Errorf("GOPROXY list is not the empty string, but contains no entries")
++		}
+ 	})
+ 
+ 	return proxyOnce.list, proxyOnce.err
+@@ -191,7 +199,7 @@ func TryProxies(f func(proxy string) error) error {
+ 		return err
+ 	}
+ 	if len(proxies) == 0 {
+-		return f("off")
++		panic("GOPROXY list is empty")
+ 	}
+ 
+ 	// We try to report the most helpful error to the user. "direct" and "noproxy"
+diff --git a/src/cmd/go/testdata/script/mod_gonoproxy.txt b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+index d7848c7d26..a9e0ca4010 100644
+--- a/src/cmd/go/testdata/script/mod_gonoproxy.txt
++++ b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+@@ -18,6 +18,11 @@ env GOPRIVATE='*/quote,*/*mple*,golang.org/x'
+ env GONOPROXY=none # that is, proxy all despite GOPRIVATE
+ go get rsc.io/quote
+ 
++# When GOPROXY is not empty but contains no entries, an error should be reported.
++env GOPROXY=','
++! go get golang.org/x/text
++stderr '^go get golang.org/x/text: GOPROXY list is not the empty string, but contains no entries$'
++
+ # When GOPROXY=off, fetching modules not matched by GONOPROXY fails.
+ env GONOPROXY=*/fortune
+ env GOPROXY=off

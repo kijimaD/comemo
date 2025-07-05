@@ -14,6 +14,24 @@ Date:   Tue Oct 11 15:09:02 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/signal/doc.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/os/signal/doc.go b/src/os/signal/doc.go
+index ab262edc58..1b9f40d9a8 100644
+--- a/src/os/signal/doc.go
++++ b/src/os/signal/doc.go
+@@ -164,6 +164,12 @@ signal, and raises it again, to invoke any non-Go handler or default
+ system handler. If the program does not exit, the Go handler then
+ reinstalls itself and continues execution of the program.
+ 
++If a SIGPIPE signal is received, the Go program will invoke the
++special handling described above if the SIGPIPE is received on a Go
++thread.  If the SIGPIPE is received on a non-Go thread the signal will
++be forwarded to the non-Go handler, if any; if there is none the
++default system handler will cause the program to terminate.
++
+ # Non-Go programs that call Go code
+ 
+ When Go code is built with options like -buildmode=c-shared, it will

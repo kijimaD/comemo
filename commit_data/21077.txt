@@ -9,6 +9,20 @@ Date:   Tue Nov 11 23:28:26 2014 -0500
     TBR=r
     CC=golang-codereviews
     https://golang.org/cl/171590043
-
+---
  src/runtime/cgo/freebsd.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/cgo/freebsd.go b/src/runtime/cgo/freebsd.go
+index f0628b7aa0..3b01432365 100644
+--- a/src/runtime/cgo/freebsd.go
++++ b/src/runtime/cgo/freebsd.go
+@@ -15,5 +15,8 @@ import _ "unsafe"
+ //go:linkname _environ environ
+ //go:linkname _progname __progname
+ 
++//go:cgo_export_static environ
++//go:cgo_export_static __progname
++
+ var _environ uintptr
+ var _progname uintptr

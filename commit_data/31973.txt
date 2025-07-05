@@ -16,10 +16,192 @@ Date:   Mon Mar 27 14:48:24 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go    | 12 ++++--------
  src/cmd/compile/internal/gc/subr.go   |  9 +++++++++
  src/cmd/compile/internal/gc/swt.go    | 16 ++++++++++------
  src/cmd/compile/internal/gc/syntax.go |  6 +++---
  src/cmd/compile/internal/gc/walk.go   | 15 ++++++++++++---
  5 files changed, 38 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 23aa436543..608f6cce8d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2156,9 +2156,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 
+ 	// Call growslice
+ 	s.startBlock(grow)
+-	sym := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: Linksym(typenamesym(n.Type.Elem()))})
+-	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], sym, s.sb)
+-
++	taddr := s.expr(n.Left)
+ 	r := s.rtcall(growslice, true, []*Type{pt, Types[TINT], Types[TINT]}, taddr, p, l, c, nl)
+ 
+ 	if inplace {
+@@ -3969,9 +3967,8 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
+ // commaok indicates whether to panic or return a bool.
+ // If commaok is false, resok will be nil.
+ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+-	iface := s.expr(n.Left)            // input interface
+-	lineno = n.Pos                     // for typename call
+-	target := s.expr(typename(n.Type)) // target type
++	iface := s.expr(n.Left)   // input interface
++	target := s.expr(n.Right) // target type
+ 	byteptr := s.f.Config.Types.BytePtr
+ 
+ 	if n.Type.IsInterface() {
+@@ -4105,8 +4102,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 	if !commaok {
+ 		// on failure, panic by calling panicdottype
+ 		s.startBlock(bFail)
+-		sym := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: byteptr, Sym: Linksym(typenamesym(n.Left.Type))})
+-		taddr := s.newValue1A(ssa.OpAddr, byteptr, sym, s.sb)
++		taddr := s.expr(n.Right.Right)
+ 		if n.Left.Type.IsEmptyInterface() {
+ 			s.rtcall(panicdottypeE, false, nil, itab, target, taddr)
+ 		} else {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index f98076ac05..13e85640c9 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1980,6 +1980,15 @@ func liststmt(l []*Node) *Node {
+ 	return n
+ }
+ 
++func (l Nodes) asblock() *Node {
++	n := nod(OBLOCK, nil, nil)
++	n.List = l
++	if l.Len() != 0 {
++		n.Pos = l.First().Pos
++	}
++	return n
++}
++
+ func ngotype(n *Node) *Sym {
+ 	if n.Type != nil {
+ 		return typenamesym(n.Type)
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 679c144545..d9f196e855 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -4,7 +4,9 @@
+ 
+ package gc
+ 
+-import "sort"
++import (
++	"sort"
++)
+ 
+ const (
+ 	// expression switch
+@@ -825,16 +827,16 @@ func (s *typeSwitch) walk(sw *Node) {
+ // case body if the variable is of type t.
+ func (s *typeSwitch) typeone(t *Node) *Node {
+ 	var name *Node
+-	var init []*Node
++	var init Nodes
+ 	if t.Rlist.Len() == 0 {
+ 		name = nblank
+ 		nblank = typecheck(nblank, Erv|Easgn)
+ 	} else {
+ 		name = t.Rlist.First()
+-		init = []*Node{nod(ODCL, name, nil)}
++		init.Append(nod(ODCL, name, nil))
+ 		a := nod(OAS, name, nil)
+ 		a = typecheck(a, Etop)
+-		init = append(init, a)
++		init.Append(a)
+ 	}
+ 
+ 	a := nod(OAS2, nil, nil)
+@@ -843,13 +845,15 @@ func (s *typeSwitch) typeone(t *Node) *Node {
+ 	b.Type = t.Left.Type // interface.(type)
+ 	a.Rlist.Set1(b)
+ 	a = typecheck(a, Etop)
+-	init = append(init, a)
++	a = walkexpr(a, &init)
++	init.Append(a)
+ 
+ 	c := nod(OIF, nil, nil)
+ 	c.Left = s.okname
+ 	c.Nbody.Set1(t.Right) // if ok { goto l }
+ 
+-	return liststmt(append(init, c))
++	init.Append(c)
++	return init.asblock()
+ }
+ 
+ // walkCases generates an AST implementing the cases in cc.
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index b1cf638530..3bc3baee8a 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -382,7 +382,7 @@ const (
+ 	OADDSTR          // +{List} (string addition, list elements are strings)
+ 	OADDR            // &Left
+ 	OANDAND          // Left && Right
+-	OAPPEND          // append(List)
++	OAPPEND          // append(List); after walk, Left may contain elem type descriptor
+ 	OARRAYBYTESTR    // Type(Left) (Type is string, Left is a []byte)
+ 	OARRAYBYTESTRTMP // Type(Left) (Type is string, Left is a []byte, ephemeral)
+ 	OARRAYRUNESTR    // Type(Left) (Type is string, Left is a []rune)
+@@ -430,8 +430,8 @@ const (
+ 	ODOTMETH   // Left.Sym (Left is non-interface, Right is method name)
+ 	ODOTINTER  // Left.Sym (Left is interface, Right is method name)
+ 	OXDOT      // Left.Sym (before rewrite to one of the preceding)
+-	ODOTTYPE   // Left.Right or Left.Type (.Right during parsing, .Type once resolved)
+-	ODOTTYPE2  // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE)
++	ODOTTYPE   // Left.Right or Left.Type (.Right during parsing, .Type once resolved); after walk, .Right contains address of interface type descriptor and .Right.Right contains address of concrete type descriptor
++	ODOTTYPE2  // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE); after walk, .Right contains address of interface type descriptor
+ 	OEQ        // Left == Right
+ 	ONE        // Left != Right
+ 	OLT        // Left < Right
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index c7e35097b8..92ecaed8ec 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -504,7 +504,7 @@ opswitch:
+ 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
+ 
+ 	case ONOT, OMINUS, OPLUS, OCOM, OREAL, OIMAG, ODOTMETH, ODOTINTER,
+-		OIND, OSPTR, OITAB, OIDATA, ODOTTYPE, ODOTTYPE2, OADDR:
++		OIND, OSPTR, OITAB, OIDATA, OADDR:
+ 		n.Left = walkexpr(n.Left, init)
+ 
+ 	case OEFACE, OAND, OSUB, OMUL, OLT, OLE, OGE, OGT, OADD, OOR, OXOR:
+@@ -515,6 +515,14 @@ opswitch:
+ 		usefield(n)
+ 		n.Left = walkexpr(n.Left, init)
+ 
++	case ODOTTYPE, ODOTTYPE2:
++		n.Left = walkexpr(n.Left, init)
++		// Set up interface type addresses for back end.
++		n.Right = typename(n.Type)
++		if n.Op == ODOTTYPE {
++			n.Right.Right = typename(n.Left.Type)
++		}
++
+ 	case ODOTPTR:
+ 		usefield(n)
+ 		if n.Op == ODOTPTR && n.Left.Type.Elem().Width == 0 {
+@@ -706,6 +714,8 @@ opswitch:
+ 			if r.Op == OAPPEND {
+ 				// Left in place for back end.
+ 				// Do not add a new write barrier.
++				// Set up address of type for back end.
++				r.Left = typename(r.Type.Elem())
+ 				break opswitch
+ 			}
+ 			// Otherwise, lowered for race detector.
+@@ -839,8 +849,7 @@ opswitch:
+ 
+ 	case OAS2DOTTYPE:
+ 		walkexprlistsafe(n.List.Slice(), init)
+-		e := n.Rlist.First() // i.(T)
+-		e.Left = walkexpr(e.Left, init)
++		n.Rlist.SetFirst(walkexpr(n.Rlist.First(), init))
+ 
+ 	case OCONVIFACE:
+ 		n.Left = walkexpr(n.Left, init)

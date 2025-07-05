@@ -19,7 +19,7 @@ Date:   Sun Jul 19 00:32:02 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/243944
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/embed.go     | 273 +++++++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/main.go      |   8 +-
  src/cmd/compile/internal/gc/noder.go     | 145 ++++++++++++++--
@@ -29,3 +29,1057 @@ Date:   Sun Jul 19 00:32:02 2020 -0400
  src/cmd/internal/obj/link.go             |  29 +++-
  src/cmd/internal/obj/objfile.go          |  49 +++++-
  8 files changed, 682 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/embed.go b/src/cmd/compile/internal/gc/embed.go
+new file mode 100644
+index 0000000000..103949c1f9
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/embed.go
+@@ -0,0 +1,273 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import (
++	"cmd/compile/internal/syntax"
++	"cmd/compile/internal/types"
++	"cmd/internal/obj"
++	"encoding/json"
++	"io/ioutil"
++	"log"
++	"path"
++	"sort"
++	"strconv"
++	"strings"
++)
++
++var embedlist []*Node
++
++var embedCfg struct {
++	Patterns map[string][]string
++	Files    map[string]string
++}
++
++func readEmbedCfg(file string) {
++	data, err := ioutil.ReadFile(file)
++	if err != nil {
++		log.Fatalf("-embedcfg: %v", err)
++	}
++	if err := json.Unmarshal(data, &embedCfg); err != nil {
++		log.Fatalf("%s: %v", file, err)
++	}
++	if embedCfg.Patterns == nil {
++		log.Fatalf("%s: invalid embedcfg: missing Patterns", file)
++	}
++	if embedCfg.Files == nil {
++		log.Fatalf("%s: invalid embedcfg: missing Files", file)
++	}
++}
++
++const (
++	embedUnknown = iota
++	embedBytes
++	embedString
++	embedFiles
++)
++
++var numLocalEmbed int
++
++func varEmbed(p *noder, names []*Node, typ *Node, exprs []*Node, embeds []PragmaEmbed) (newExprs []*Node) {
++	haveEmbed := false
++	for _, decl := range p.file.DeclList {
++		imp, ok := decl.(*syntax.ImportDecl)
++		if !ok {
++			// imports always come first
++			break
++		}
++		path, _ := strconv.Unquote(imp.Path.Value)
++		if path == "embed" {
++			haveEmbed = true
++			break
++		}
++	}
++
++	pos := embeds[0].Pos
++	if !haveEmbed {
++		p.yyerrorpos(pos, "invalid go:embed: missing import \"embed\"")
++		return exprs
++	}
++	if embedCfg.Patterns == nil {
++		p.yyerrorpos(pos, "invalid go:embed: build system did not supply embed configuration")
++		return exprs
++	}
++	if len(names) > 1 {
++		p.yyerrorpos(pos, "go:embed cannot apply to multiple vars")
++		return exprs
++	}
++	if len(exprs) > 0 {
++		p.yyerrorpos(pos, "go:embed cannot apply to var with initializer")
++		return exprs
++	}
++	if typ == nil {
++		// Should not happen, since len(exprs) == 0 now.
++		p.yyerrorpos(pos, "go:embed cannot apply to var without type")
++		return exprs
++	}
++
++	kind := embedKindApprox(typ)
++	if kind == embedUnknown {
++		p.yyerrorpos(pos, "go:embed cannot apply to var of type %v", typ)
++		return exprs
++	}
++
++	// Build list of files to store.
++	have := make(map[string]bool)
++	var list []string
++	for _, e := range embeds {
++		for _, pattern := range e.Patterns {
++			files, ok := embedCfg.Patterns[pattern]
++			if !ok {
++				p.yyerrorpos(e.Pos, "invalid go:embed: build system did not map pattern: %s", pattern)
++			}
++			for _, file := range files {
++				if embedCfg.Files[file] == "" {
++					p.yyerrorpos(e.Pos, "invalid go:embed: build system did not map file: %s", file)
++					continue
++				}
++				if !have[file] {
++					have[file] = true
++					list = append(list, file)
++				}
++				if kind == embedFiles {
++					for dir := path.Dir(file); dir != "." && !have[dir]; dir = path.Dir(dir) {
++						have[dir] = true
++						list = append(list, dir+"/")
++					}
++				}
++			}
++		}
++	}
++	sort.Slice(list, func(i, j int) bool {
++		return embedFileLess(list[i], list[j])
++	})
++
++	if kind == embedString || kind == embedBytes {
++		if len(list) > 1 {
++			p.yyerrorpos(pos, "invalid go:embed: multiple files for type %v", typ)
++			return exprs
++		}
++	}
++
++	v := names[0]
++	if dclcontext != PEXTERN {
++		numLocalEmbed++
++		v = newnamel(v.Pos, lookupN("embed.", numLocalEmbed))
++		v.Sym.Def = asTypesNode(v)
++		v.Name.Param.Ntype = typ
++		v.SetClass(PEXTERN)
++		externdcl = append(externdcl, v)
++		exprs = []*Node{v}
++	}
++
++	v.Name.Param.SetEmbedFiles(list)
++	embedlist = append(embedlist, v)
++	return exprs
++}
++
++// embedKindApprox determines the kind of embedding variable, approximately.
++// The match is approximate because we haven't done scope resolution yet and
++// can't tell whether "string" and "byte" really mean "string" and "byte".
++// The result must be confirmed later, after type checking, using embedKind.
++func embedKindApprox(typ *Node) int {
++	if typ.Sym != nil && typ.Sym.Name == "FS" && (typ.Sym.Pkg.Path == "embed" || (typ.Sym.Pkg == localpkg && myimportpath == "embed")) {
++		return embedFiles
++	}
++	// These are not guaranteed to match only string and []byte -
++	// maybe the local package has redefined one of those words.
++	// But it's the best we can do now during the noder.
++	// The stricter check happens later, in initEmbed calling embedKind.
++	if typ.Sym != nil && typ.Sym.Name == "string" && typ.Sym.Pkg == localpkg {
++		return embedString
++	}
++	if typ.Op == OTARRAY && typ.Left == nil && typ.Right.Sym != nil && typ.Right.Sym.Name == "byte" && typ.Right.Sym.Pkg == localpkg {
++		return embedBytes
++	}
++	return embedUnknown
++}
++
++// embedKind determines the kind of embedding variable.
++func embedKind(typ *types.Type) int {
++	if typ.Sym != nil && typ.Sym.Name == "FS" && (typ.Sym.Pkg.Path == "embed" || (typ.Sym.Pkg == localpkg && myimportpath == "embed")) {
++		return embedFiles
++	}
++	if typ == types.Types[TSTRING] {
++		return embedString
++	}
++	if typ.Sym == nil && typ.IsSlice() && typ.Elem() == types.Bytetype {
++		return embedBytes
++	}
++	return embedUnknown
++}
++
++func embedFileNameSplit(name string) (dir, elem string, isDir bool) {
++	if name[len(name)-1] == '/' {
++		isDir = true
++		name = name[:len(name)-1]
++	}
++	i := len(name) - 1
++	for i >= 0 && name[i] != '/' {
++		i--
++	}
++	if i < 0 {
++		return ".", name, isDir
++	}
++	return name[:i], name[i+1:], isDir
++}
++
++// embedFileLess implements the sort order for a list of embedded files.
++// See the comment inside ../../../../embed/embed.go's Files struct for rationale.
++func embedFileLess(x, y string) bool {
++	xdir, xelem, _ := embedFileNameSplit(x)
++	ydir, yelem, _ := embedFileNameSplit(y)
++	return xdir < ydir || xdir == ydir && xelem < yelem
++}
++
++func dumpembeds() {
++	for _, v := range embedlist {
++		initEmbed(v)
++	}
++}
++
++// initEmbed emits the init data for a //go:embed variable,
++// which is either a string, a []byte, or an embed.FS.
++func initEmbed(v *Node) {
++	files := v.Name.Param.EmbedFiles()
++	switch kind := embedKind(v.Type); kind {
++	case embedUnknown:
++		yyerrorl(v.Pos, "go:embed cannot apply to var of type %v", v.Type)
++
++	case embedString, embedBytes:
++		file := files[0]
++		fsym, size, err := fileStringSym(v.Pos, embedCfg.Files[file], kind == embedString, nil)
++		if err != nil {
++			yyerrorl(v.Pos, "embed %s: %v", file, err)
++		}
++		sym := v.Sym.Linksym()
++		off := 0
++		off = dsymptr(sym, off, fsym, 0)       // data string
++		off = duintptr(sym, off, uint64(size)) // len
++		if kind == embedBytes {
++			duintptr(sym, off, uint64(size)) // cap for slice
++		}
++
++	case embedFiles:
++		slicedata := Ctxt.Lookup(`"".` + v.Sym.Name + `.files`)
++		off := 0
++		// []files pointed at by Files
++		off = dsymptr(slicedata, off, slicedata, 3*Widthptr) // []file, pointing just past slice
++		off = duintptr(slicedata, off, uint64(len(files)))
++		off = duintptr(slicedata, off, uint64(len(files)))
++
++		// embed/embed.go type file is:
++		//	name string
++		//	data string
++		//	hash [16]byte
++		// Emit one of these per file in the set.
++		const hashSize = 16
++		hash := make([]byte, hashSize)
++		for _, file := range files {
++			off = dsymptr(slicedata, off, stringsym(v.Pos, file), 0) // file string
++			off = duintptr(slicedata, off, uint64(len(file)))
++			if strings.HasSuffix(file, "/") {
++				// entry for directory - no data
++				off = duintptr(slicedata, off, 0)
++				off = duintptr(slicedata, off, 0)
++				off += hashSize
++			} else {
++				fsym, size, err := fileStringSym(v.Pos, embedCfg.Files[file], true, hash)
++				if err != nil {
++					yyerrorl(v.Pos, "embed %s: %v", file, err)
++				}
++				off = dsymptr(slicedata, off, fsym, 0) // data string
++				off = duintptr(slicedata, off, uint64(size))
++				off = int(slicedata.WriteBytes(Ctxt, int64(off), hash))
++			}
++		}
++		ggloblsym(slicedata, int32(off), obj.RODATA|obj.LOCAL)
++		sym := v.Sym.Linksym()
++		dsymptr(sym, 0, slicedata, 0)
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 949755a0e2..4b401f2aa4 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -34,8 +34,6 @@ import (
+ 	"strings"
+ )
+ 
+-var imported_unsafe bool
+-
+ var (
+ 	buildid      string
+ 	spectre      string
+@@ -240,6 +238,7 @@ func Main(archInit func(*Arch)) {
+ 	flag.BoolVar(&flagDWARF, "dwarf", !Wasm, "generate DWARF symbols")
+ 	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", true, "add location lists to DWARF in optimized mode")
+ 	flag.IntVar(&genDwarfInline, "gendwarfinl", 2, "generate DWARF inline info records")
++	objabi.Flagfn1("embedcfg", "read go:embed configuration from `file`", readEmbedCfg)
+ 	objabi.Flagfn1("importmap", "add `definition` of the form source=actual to import map", addImportMap)
+ 	objabi.Flagfn1("importcfg", "read import configuration from `file`", readImportCfg)
+ 	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set pkg directory `suffix`")
+@@ -597,7 +596,7 @@ func Main(archInit func(*Arch)) {
+ 	timings.Start("fe", "typecheck", "top1")
+ 	for i := 0; i < len(xtop); i++ {
+ 		n := xtop[i]
+-		if op := n.Op; op != ODCL && op != OAS && op != OAS2 && (op != ODCLTYPE || !n.Left.Name.Param.Alias) {
++		if op := n.Op; op != ODCL && op != OAS && op != OAS2 && (op != ODCLTYPE || !n.Left.Name.Param.Alias()) {
+ 			xtop[i] = typecheck(n, ctxStmt)
+ 		}
+ 	}
+@@ -609,7 +608,7 @@ func Main(archInit func(*Arch)) {
+ 	timings.Start("fe", "typecheck", "top2")
+ 	for i := 0; i < len(xtop); i++ {
+ 		n := xtop[i]
+-		if op := n.Op; op == ODCL || op == OAS || op == OAS2 || op == ODCLTYPE && n.Left.Name.Param.Alias {
++		if op := n.Op; op == ODCL || op == OAS || op == OAS2 || op == ODCLTYPE && n.Left.Name.Param.Alias() {
+ 			xtop[i] = typecheck(n, ctxStmt)
+ 		}
+ 	}
+@@ -1177,7 +1176,6 @@ func importfile(f *Val) *types.Pkg {
+ 	}
+ 
+ 	if path_ == "unsafe" {
+-		imported_unsafe = true
+ 		return unsafepkg
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 85e710086a..67d24ef0bc 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -11,6 +11,7 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
++	"unicode"
+ 	"unicode/utf8"
+ 
+ 	"cmd/compile/internal/syntax"
+@@ -90,7 +91,11 @@ func (p *noder) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
+ 		} else {
+ 			// line directive base
+ 			p0 := b0.Pos()
+-			p1 := src.MakePos(p.makeSrcPosBase(p0.Base()), p0.Line(), p0.Col())
++			p0b := p0.Base()
++			if p0b == b0 {
++				panic("infinite recursion in makeSrcPosBase")
++			}
++			p1 := src.MakePos(p.makeSrcPosBase(p0b), p0.Line(), p0.Col())
+ 			b1 = src.NewLinePragmaBase(p1, fn, fileh(fn), b0.Line(), b0.Col())
+ 		}
+ 		p.basemap[b0] = b1
+@@ -130,11 +135,13 @@ type noder struct {
+ 		base *src.PosBase
+ 	}
+ 
+-	file       *syntax.File
+-	linknames  []linkname
+-	pragcgobuf [][]string
+-	err        chan syntax.Error
+-	scope      ScopeID
++	file           *syntax.File
++	linknames      []linkname
++	pragcgobuf     [][]string
++	err            chan syntax.Error
++	scope          ScopeID
++	importedUnsafe bool
++	importedEmbed  bool
+ 
+ 	// scopeVars is a stack tracking the number of variables declared in the
+ 	// current function at the moment each open scope was opened.
+@@ -236,7 +243,8 @@ type linkname struct {
+ 
+ func (p *noder) node() {
+ 	types.Block = 1
+-	imported_unsafe = false
++	p.importedUnsafe = false
++	p.importedEmbed = false
+ 
+ 	p.setlineno(p.file.PkgName)
+ 	mkpackage(p.file.PkgName.Value)
+@@ -249,7 +257,7 @@ func (p *noder) node() {
+ 	xtop = append(xtop, p.decls(p.file.DeclList)...)
+ 
+ 	for _, n := range p.linknames {
+-		if !imported_unsafe {
++		if !p.importedUnsafe {
+ 			p.yyerrorpos(n.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
+ 			continue
+ 		}
+@@ -324,7 +332,6 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 
+ 	val := p.basicLit(imp.Path)
+ 	ipkg := importfile(&val)
+-
+ 	if ipkg == nil {
+ 		if nerrors == 0 {
+ 			Fatalf("phase error in import")
+@@ -332,6 +339,13 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 		return
+ 	}
+ 
++	if ipkg == unsafepkg {
++		p.importedUnsafe = true
++	}
++	if ipkg.Path == "embed" {
++		p.importedEmbed = true
++	}
++
+ 	ipkg.Direct = true
+ 
+ 	var my *types.Sym
+@@ -373,6 +387,20 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
+ 	}
+ 
+ 	if pragma, ok := decl.Pragma.(*Pragma); ok {
++		if len(pragma.Embeds) > 0 {
++			if !p.importedEmbed {
++				// This check can't be done when building the list pragma.Embeds
++				// because that list is created before the noder starts walking over the file,
++				// so at that point it hasn't seen the imports.
++				// We're left to check now, just before applying the //go:embed lines.
++				for _, e := range pragma.Embeds {
++					p.yyerrorpos(e.Pos, "//go:embed only allowed in Go files that import \"embed\"")
++				}
++			} else {
++				exprs = varEmbed(p, names, typ, exprs, pragma.Embeds)
++			}
++			pragma.Embeds = nil
++		}
+ 		p.checkUnused(pragma)
+ 	}
+ 
+@@ -455,17 +483,17 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
+ 
+ 	param := n.Name.Param
+ 	param.Ntype = typ
+-	param.Alias = decl.Alias
++	param.SetAlias(decl.Alias)
+ 	if pragma, ok := decl.Pragma.(*Pragma); ok {
+ 		if !decl.Alias {
+-			param.Pragma = pragma.Flag & TypePragmas
++			param.SetPragma(pragma.Flag & TypePragmas)
+ 			pragma.Flag &^= TypePragmas
+ 		}
+ 		p.checkUnused(pragma)
+ 	}
+ 
+ 	nod := p.nod(decl, ODCLTYPE, n, nil)
+-	if param.Alias && !langSupported(1, 9, localpkg) {
++	if param.Alias() && !langSupported(1, 9, localpkg) {
+ 		yyerrorl(nod.Pos, "type aliases only supported as of -lang=go1.9")
+ 	}
+ 	return nod
+@@ -1493,13 +1521,15 @@ var allowedStdPragmas = map[string]bool{
+ 	"go:cgo_import_dynamic": true,
+ 	"go:cgo_ldflag":         true,
+ 	"go:cgo_dynamic_linker": true,
++	"go:embed":              true,
+ 	"go:generate":           true,
+ }
+ 
+ // *Pragma is the value stored in a syntax.Pragma during parsing.
+ type Pragma struct {
+-	Flag PragmaFlag  // collected bits
+-	Pos  []PragmaPos // position of each individual flag
++	Flag   PragmaFlag  // collected bits
++	Pos    []PragmaPos // position of each individual flag
++	Embeds []PragmaEmbed
+ }
+ 
+ type PragmaPos struct {
+@@ -1507,12 +1537,22 @@ type PragmaPos struct {
+ 	Pos  syntax.Pos
+ }
+ 
++type PragmaEmbed struct {
++	Pos      syntax.Pos
++	Patterns []string
++}
++
+ func (p *noder) checkUnused(pragma *Pragma) {
+ 	for _, pos := range pragma.Pos {
+ 		if pos.Flag&pragma.Flag != 0 {
+ 			p.yyerrorpos(pos.Pos, "misplaced compiler directive")
+ 		}
+ 	}
++	if len(pragma.Embeds) > 0 {
++		for _, e := range pragma.Embeds {
++			p.yyerrorpos(e.Pos, "misplaced go:embed directive")
++		}
++	}
+ }
+ 
+ func (p *noder) checkUnusedDuringParse(pragma *Pragma) {
+@@ -1521,6 +1561,11 @@ func (p *noder) checkUnusedDuringParse(pragma *Pragma) {
+ 			p.error(syntax.Error{Pos: pos.Pos, Msg: "misplaced compiler directive"})
+ 		}
+ 	}
++	if len(pragma.Embeds) > 0 {
++		for _, e := range pragma.Embeds {
++			p.error(syntax.Error{Pos: e.Pos, Msg: "misplaced go:embed directive"})
++		}
++	}
+ }
+ 
+ // pragma is called concurrently if files are parsed concurrently.
+@@ -1565,6 +1610,17 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
+ 		}
+ 		p.linknames = append(p.linknames, linkname{pos, f[1], target})
+ 
++	case text == "go:embed", strings.HasPrefix(text, "go:embed "):
++		args, err := parseGoEmbed(text[len("go:embed"):])
++		if err != nil {
++			p.error(syntax.Error{Pos: pos, Msg: err.Error()})
++		}
++		if len(args) == 0 {
++			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:embed pattern..."})
++			break
++		}
++		pragma.Embeds = append(pragma.Embeds, PragmaEmbed{pos, args})
++
+ 	case strings.HasPrefix(text, "go:cgo_import_dynamic "):
+ 		// This is permitted for general use because Solaris
+ 		// code relies on it in golang.org/x/sys/unix and others.
+@@ -1637,3 +1693,64 @@ func mkname(sym *types.Sym) *Node {
+ 	}
+ 	return n
+ }
++
++// parseGoEmbed parses the text following "//go:embed" to extract the glob patterns.
++// It accepts unquoted space-separated patterns as well as double-quoted and back-quoted Go strings.
++// go/build/read.go also processes these strings and contains similar logic.
++func parseGoEmbed(args string) ([]string, error) {
++	var list []string
++	for args = strings.TrimSpace(args); args != ""; args = strings.TrimSpace(args) {
++		var path string
++	Switch:
++		switch args[0] {
++		default:
++			i := len(args)
++			for j, c := range args {
++				if unicode.IsSpace(c) {
++					i = j
++					break
++				}
++			}
++			path = args[:i]
++			args = args[i:]
++
++		case '`':
++			i := strings.Index(args[1:], "`")
++			if i < 0 {
++				return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args)
++			}
++			path = args[1 : 1+i]
++			args = args[1+i+1:]
++
++		case '"':
++			i := 1
++			for ; i < len(args); i++ {
++				if args[i] == '\\' {
++					i++
++					continue
++				}
++				if args[i] == '"' {
++					q, err := strconv.Unquote(args[:i+1])
++					if err != nil {
++						return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args[:i+1])
++					}
++					path = q
++					args = args[i+1:]
++					break Switch
++				}
++			}
++			if i >= len(args) {
++				return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args)
++			}
++		}
++
++		if args != "" {
++			r, _ := utf8.DecodeRuneInString(args)
++			if !unicode.IsSpace(r) {
++				return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args)
++			}
++		}
++		list = append(list, path)
++	}
++	return list, nil
++}
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index f6557e2d15..226eb45252 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -14,6 +14,8 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"io"
++	"io/ioutil"
++	"os"
+ 	"sort"
+ 	"strconv"
+ )
+@@ -125,6 +127,7 @@ func dumpdata() {
+ 	itabsLen := len(itabs)
+ 	dumpimportstrings()
+ 	dumpbasictypes()
++	dumpembeds()
+ 
+ 	// Calls to dumpsignats can generate functions,
+ 	// like method wrappers and hash and equality routines.
+@@ -358,28 +361,31 @@ func dbvec(s *obj.LSym, off int, bv bvec) int {
+ 	return off
+ }
+ 
++const (
++	stringSymPrefix  = "go.string."
++	stringSymPattern = ".gostring.%d.%x"
++)
++
++// stringsym returns a symbol containing the string s.
++// The symbol contains the string data, not a string header.
+ func stringsym(pos src.XPos, s string) (data *obj.LSym) {
+ 	var symname string
+ 	if len(s) > 100 {
+ 		// Huge strings are hashed to avoid long names in object files.
+ 		// Indulge in some paranoia by writing the length of s, too,
+ 		// as protection against length extension attacks.
++		// Same pattern is known to fileStringSym below.
+ 		h := sha256.New()
+ 		io.WriteString(h, s)
+-		symname = fmt.Sprintf(".gostring.%d.%x", len(s), h.Sum(nil))
++		symname = fmt.Sprintf(stringSymPattern, len(s), h.Sum(nil))
+ 	} else {
+ 		// Small strings get named directly by their contents.
+ 		symname = strconv.Quote(s)
+ 	}
+ 
+-	const prefix = "go.string."
+-	symdataname := prefix + symname
+-
+-	symdata := Ctxt.Lookup(symdataname)
+-
++	symdata := Ctxt.Lookup(stringSymPrefix + symname)
+ 	if !symdata.OnList() {
+-		// string data
+-		off := dsname(symdata, 0, s, pos, "string")
++		off := dstringdata(symdata, 0, s, pos, "string")
+ 		ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+ 		symdata.Set(obj.AttrContentAddressable, true)
+ 	}
+@@ -387,26 +393,122 @@ func stringsym(pos src.XPos, s string) (data *obj.LSym) {
+ 	return symdata
+ }
+ 
+-var slicebytes_gen int
++// fileStringSym returns a symbol for the contents and the size of file.
++// If readonly is true, the symbol shares storage with any literal string
++// or other file with the same content and is placed in a read-only section.
++// If readonly is false, the symbol is a read-write copy separate from any other,
++// for use as the backing store of a []byte.
++// The content hash of file is copied into hash. (If hash is nil, nothing is copied.)
++// The returned symbol contains the data itself, not a string header.
++func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.LSym, int64, error) {
++	f, err := os.Open(file)
++	if err != nil {
++		return nil, 0, err
++	}
++	defer f.Close()
++	info, err := f.Stat()
++	if err != nil {
++		return nil, 0, err
++	}
++	if !info.Mode().IsRegular() {
++		return nil, 0, fmt.Errorf("not a regular file")
++	}
++	size := info.Size()
++	if size <= 1*1024 {
++		data, err := ioutil.ReadAll(f)
++		if err != nil {
++			return nil, 0, err
++		}
++		if int64(len(data)) != size {
++			return nil, 0, fmt.Errorf("file changed between reads")
++		}
++		var sym *obj.LSym
++		if readonly {
++			sym = stringsym(pos, string(data))
++		} else {
++			sym = slicedata(pos, string(data)).Sym.Linksym()
++		}
++		if len(hash) > 0 {
++			sum := sha256.Sum256(data)
++			copy(hash, sum[:])
++		}
++		return sym, size, nil
++	}
++	if size > 2e9 {
++		// ggloblsym takes an int32,
++		// and probably the rest of the toolchain
++		// can't handle such big symbols either.
++		// See golang.org/issue/9862.
++		return nil, 0, fmt.Errorf("file too large")
++	}
+ 
+-func slicebytes(nam *Node, s string) {
+-	slicebytes_gen++
+-	symname := fmt.Sprintf(".gobytes.%d", slicebytes_gen)
++	// File is too big to read and keep in memory.
++	// Compute hash if needed for read-only content hashing or if the caller wants it.
++	var sum []byte
++	if readonly || len(hash) > 0 {
++		h := sha256.New()
++		n, err := io.Copy(h, f)
++		if err != nil {
++			return nil, 0, err
++		}
++		if n != size {
++			return nil, 0, fmt.Errorf("file changed between reads")
++		}
++		sum = h.Sum(nil)
++		copy(hash, sum)
++	}
++
++	var symdata *obj.LSym
++	if readonly {
++		symname := fmt.Sprintf(stringSymPattern, size, sum)
++		symdata = Ctxt.Lookup(stringSymPrefix + symname)
++		if !symdata.OnList() {
++			info := symdata.NewFileInfo()
++			info.Name = file
++			info.Size = size
++			ggloblsym(symdata, int32(size), obj.DUPOK|obj.RODATA|obj.LOCAL)
++			// Note: AttrContentAddressable cannot be set here,
++			// because the content-addressable-handling code
++			// does not know about file symbols.
++		}
++	} else {
++		// Emit a zero-length data symbol
++		// and then fix up length and content to use file.
++		symdata = slicedata(pos, "").Sym.Linksym()
++		symdata.Size = size
++		symdata.Type = objabi.SNOPTRDATA
++		info := symdata.NewFileInfo()
++		info.Name = file
++		info.Size = size
++	}
++
++	return symdata, size, nil
++}
++
++var slicedataGen int
++
++func slicedata(pos src.XPos, s string) *Node {
++	slicedataGen++
++	symname := fmt.Sprintf(".gobytes.%d", slicedataGen)
+ 	sym := localpkg.Lookup(symname)
+ 	symnode := newname(sym)
+ 	sym.Def = asTypesNode(symnode)
+ 
+ 	lsym := sym.Linksym()
+-	off := dsname(lsym, 0, s, nam.Pos, "slice")
++	off := dstringdata(lsym, 0, s, pos, "slice")
+ 	ggloblsym(lsym, int32(off), obj.NOPTR|obj.LOCAL)
+ 
++	return symnode
++}
++
++func slicebytes(nam *Node, s string) {
+ 	if nam.Op != ONAME {
+ 		Fatalf("slicebytes %v", nam)
+ 	}
+-	slicesym(nam, symnode, int64(len(s)))
++	slicesym(nam, slicedata(nam.Pos, s), int64(len(s)))
+ }
+ 
+-func dsname(s *obj.LSym, off int, t string, pos src.XPos, what string) int {
++func dstringdata(s *obj.LSym, off int, t string, pos src.XPos, what string) int {
+ 	// Objects that are too large will cause the data section to overflow right away,
+ 	// causing a cryptic error message by the linker. Check for oversize objects here
+ 	// and provide a useful error message instead.
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index e3b4963977..83b5db834f 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -480,11 +480,87 @@ type Param struct {
+ 	Innermost *Node
+ 	Outer     *Node
+ 
+-	// OTYPE
+-	//
+-	// TODO: Should Func pragmas also be stored on the Name?
+-	Pragma PragmaFlag
+-	Alias  bool // node is alias for Ntype (only used when type-checking ODCLTYPE)
++	// OTYPE & ONAME //go:embed info,
++	// sharing storage to reduce gc.Param size.
++	// Extra is nil, or else *Extra is a *paramType or an *embedFileList.
++	Extra *interface{}
++}
++
++type paramType struct {
++	flag  PragmaFlag
++	alias bool
++}
++
++type embedFileList []string
++
++// Pragma returns the PragmaFlag for p, which must be for an OTYPE.
++func (p *Param) Pragma() PragmaFlag {
++	if p.Extra == nil {
++		return 0
++	}
++	return (*p.Extra).(*paramType).flag
++}
++
++// SetPragma sets the PragmaFlag for p, which must be for an OTYPE.
++func (p *Param) SetPragma(flag PragmaFlag) {
++	if p.Extra == nil {
++		if flag == 0 {
++			return
++		}
++		p.Extra = new(interface{})
++		*p.Extra = &paramType{flag: flag}
++		return
++	}
++	(*p.Extra).(*paramType).flag = flag
++}
++
++// Alias reports whether p, which must be for an OTYPE, is a type alias.
++func (p *Param) Alias() bool {
++	if p.Extra == nil {
++		return false
++	}
++	t, ok := (*p.Extra).(*paramType)
++	if !ok {
++		return false
++	}
++	return t.alias
++}
++
++// SetAlias sets whether p, which must be for an OTYPE, is a type alias.
++func (p *Param) SetAlias(alias bool) {
++	if p.Extra == nil {
++		if !alias {
++			return
++		}
++		p.Extra = new(interface{})
++		*p.Extra = &paramType{alias: alias}
++		return
++	}
++	(*p.Extra).(*paramType).alias = alias
++}
++
++// EmbedFiles returns the list of embedded files for p,
++// which must be for an ONAME var.
++func (p *Param) EmbedFiles() []string {
++	if p.Extra == nil {
++		return nil
++	}
++	return *(*p.Extra).(*embedFileList)
++}
++
++// SetEmbedFiles sets the list of embedded files for p,
++// which must be for an ONAME var.
++func (p *Param) SetEmbedFiles(list []string) {
++	if p.Extra == nil {
++		if len(list) == 0 {
++			return
++		}
++		f := embedFileList(list)
++		p.Extra = new(interface{})
++		*p.Extra = &f
++		return
++	}
++	*(*p.Extra).(*embedFileList) = list
+ }
+ 
+ // Functions
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index a4b462da1d..ce817db446 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -257,12 +257,12 @@ func typecheck(n *Node, top int) (res *Node) {
+ 				// are substituted.
+ 				cycle := cycleFor(n)
+ 				for _, n1 := range cycle {
+-					if n1.Name != nil && !n1.Name.Param.Alias {
++					if n1.Name != nil && !n1.Name.Param.Alias() {
+ 						// Cycle is ok. But if n is an alias type and doesn't
+ 						// have a type yet, we have a recursive type declaration
+ 						// with aliases that we can't handle properly yet.
+ 						// Report an error rather than crashing later.
+-						if n.Name != nil && n.Name.Param.Alias && n.Type == nil {
++						if n.Name != nil && n.Name.Param.Alias() && n.Type == nil {
+ 							lineno = n.Pos
+ 							Fatalf("cannot handle alias type declaration (issue #25838): %v", n)
+ 						}
+@@ -3504,7 +3504,7 @@ func setUnderlying(t, underlying *types.Type) {
+ 	}
+ 
+ 	// Propagate go:notinheap pragma from the Name to the Type.
+-	if n.Name != nil && n.Name.Param != nil && n.Name.Param.Pragma&NotInHeap != 0 {
++	if n.Name != nil && n.Name.Param != nil && n.Name.Param.Pragma()&NotInHeap != 0 {
+ 		t.SetNotInHeap(true)
+ 	}
+ 
+@@ -3676,7 +3676,7 @@ func typecheckdef(n *Node) {
+ 		n.Name.Defn = typecheck(n.Name.Defn, ctxStmt) // fills in n.Type
+ 
+ 	case OTYPE:
+-		if p := n.Name.Param; p.Alias {
++		if p := n.Name.Param; p.Alias() {
+ 			// Type alias declaration: Simply use the rhs type - no need
+ 			// to create a new type.
+ 			// If we have a syntax error, p.Ntype may be nil.
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index ad4708138f..2037beca72 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -401,7 +401,7 @@ type LSym struct {
+ 	P      []byte
+ 	R      []Reloc
+ 
+-	Extra *interface{} // *FuncInfo if present
++	Extra *interface{} // *FuncInfo or *FileInfo, if present
+ 
+ 	Pkg    string
+ 	PkgIdx int32
+@@ -454,6 +454,33 @@ func (s *LSym) Func() *FuncInfo {
+ 	return f
+ }
+ 
++// A FileInfo contains extra fields for SDATA symbols backed by files.
++// (If LSym.Extra is a *FileInfo, LSym.P == nil.)
++type FileInfo struct {
++	Name string // name of file to read into object file
++	Size int64  // length of file
++}
++
++// NewFileInfo allocates and returns a FileInfo for LSym.
++func (s *LSym) NewFileInfo() *FileInfo {
++	if s.Extra != nil {
++		log.Fatalf("invalid use of LSym - NewFileInfo with Extra of type %T", *s.Extra)
++	}
++	f := new(FileInfo)
++	s.Extra = new(interface{})
++	*s.Extra = f
++	return f
++}
++
++// File returns the *FileInfo associated with s, or else nil.
++func (s *LSym) File() *FileInfo {
++	if s.Extra == nil {
++		return nil
++	}
++	f, _ := (*s.Extra).(*FileInfo)
++	return f
++}
++
+ type InlMark struct {
+ 	// When unwinding from an instruction in an inlined body, mark
+ 	// where we should unwind to.
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index a24a7b878f..bb58b4f0c2 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -16,6 +16,8 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 	"io"
++	"log"
++	"os"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+@@ -147,14 +149,20 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
+ 
+ 	// Data indexes
+ 	h.Offsets[goobj.BlkDataIdx] = w.Offset()
+-	dataOff := uint32(0)
++	dataOff := int64(0)
+ 	for _, list := range lists {
+ 		for _, s := range list {
+-			w.Uint32(dataOff)
+-			dataOff += uint32(len(s.P))
++			w.Uint32(uint32(dataOff))
++			dataOff += int64(len(s.P))
++			if file := s.File(); file != nil {
++				dataOff += int64(file.Size)
++			}
+ 		}
+ 	}
+-	w.Uint32(dataOff)
++	if int64(uint32(dataOff)) != dataOff {
++		log.Fatalf("data too large")
++	}
++	w.Uint32(uint32(dataOff))
+ 
+ 	// Relocs
+ 	h.Offsets[goobj.BlkReloc] = w.Offset()
+@@ -179,6 +187,9 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
+ 	for _, list := range lists {
+ 		for _, s := range list {
+ 			w.Bytes(s.P)
++			if file := s.File(); file != nil {
++				w.writeFile(ctxt, file)
++			}
+ 		}
+ 	}
+ 
+@@ -218,6 +229,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
+ 
+ type writer struct {
+ 	*goobj.Writer
++	filebuf []byte
+ 	ctxt    *Link
+ 	pkgpath string   // the package import path (escaped), "" if unknown
+ 	pkglist []string // list of packages referenced, indexed by ctxt.pkgIdx
+@@ -232,6 +244,35 @@ func (w *writer) init() {
+ 	}
+ }
+ 
++func (w *writer) writeFile(ctxt *Link, file *FileInfo) {
++	f, err := os.Open(file.Name)
++	if err != nil {
++		ctxt.Diag("%v", err)
++		return
++	}
++	defer f.Close()
++	if w.filebuf == nil {
++		w.filebuf = make([]byte, 1024)
++	}
++	buf := w.filebuf
++	written := int64(0)
++	for {
++		n, err := f.Read(buf)
++		w.Bytes(buf[:n])
++		written += int64(n)
++		if err == io.EOF {
++			break
++		}
++		if err != nil {
++			ctxt.Diag("%v", err)
++			return
++		}
++	}
++	if written != file.Size {
++		ctxt.Diag("copy %s: unexpected length %d != %d", file.Name, written, file.Size)
++	}
++}
++
+ func (w *writer) StringTable() {
+ 	w.AddString("")
+ 	for _, p := range w.ctxt.Imports {

@@ -8,8 +8,57 @@ Date:   Tue Nov 12 20:07:08 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/18430044
-
+---
  src/cmd/5a/doc.go | 4 ++++
  src/cmd/6a/doc.go | 6 +++++-
  src/cmd/8a/doc.go | 5 +++++
  3 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5a/doc.go b/src/cmd/5a/doc.go
+index 29725db04e..74d025fe2c 100644
+--- a/src/cmd/5a/doc.go
++++ b/src/cmd/5a/doc.go
+@@ -10,6 +10,10 @@
+ 
+ 	http://plan9.bell-labs.com/magic/man2html/1/8a
+ 
++Go-specific considerations are documented at
++
++	http://golang.org/doc/asm.html
++
+ Its target architecture is the ARM, referred to by these tools as arm.
+ 
+ */
+diff --git a/src/cmd/6a/doc.go b/src/cmd/6a/doc.go
+index a5f3f87f09..9fdc6ed3a5 100644
+--- a/src/cmd/6a/doc.go
++++ b/src/cmd/6a/doc.go
+@@ -10,7 +10,11 @@
+ 
+ 	http://plan9.bell-labs.com/magic/man2html/1/8a
+ 
+-Its target architecture is the x86-64, referred to by these tools as amd64.
++Go-specific considerations are documented at
++
++	http://golang.org/doc/asm.html
++
++IIts target architecture is the x86-64, referred to by these tools as amd64.
+ 
+ */
+ package main
+diff --git a/src/cmd/8a/doc.go b/src/cmd/8a/doc.go
+index 737c56f133..bdf2fcfbb7 100644
+--- a/src/cmd/8a/doc.go
++++ b/src/cmd/8a/doc.go
+@@ -10,6 +10,11 @@
+ 
+ 	http://plan9.bell-labs.com/magic/man2html/1/8a
+ 
++Go-specific considerations are documented at
++
++	http://golang.org/doc/asm.html
++
++I
+ Its target architecture is the x86, referred to by these tools for historical reasons as 386.
+ 
+ */

@@ -14,6 +14,48 @@ Date:   Fri Mar 7 16:02:25 2014 +1100
     R=rsc, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/72020043
-
+---
  src/cmd/6a/lex.c | 18 +++++++++++-------
  1 file changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 98f3e42725..e24fbc9dc4 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -63,6 +63,8 @@ Lconv(Fmt *fp)
+ 	return linklinefmt(ctxt, fp);
+ }
+ 
++LinkArch*       thelinkarch = &linkamd64;
++
+ void
+ main(int argc, char *argv[])
+ {
+@@ -72,18 +74,20 @@ main(int argc, char *argv[])
+ 	thechar = '6';
+ 	thestring = "amd64";
+ 
+-	ctxt = linknew(&linkamd64);
+-	ctxt->diag = yyerror;
+-	ctxt->bso = &bstdout;
+-	Binit(&bstdout, 1, OWRITE);
+-	listinit6();
+-	fmtinstall('L', Lconv);
+-
+ 	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
+ 	// but not other values.	
+ 	p = getgoarch();
+ 	if(strncmp(p, thestring, strlen(thestring)) != 0)
+ 		sysfatal("cannot use %cc with GOARCH=%s", thechar, p);
++	if(strcmp(p, "amd64p32") == 0)
++		thelinkarch = &linkamd64p32;
++
++	ctxt = linknew(thelinkarch);
++	ctxt->diag = yyerror;
++	ctxt->bso = &bstdout;
++	Binit(&bstdout, 1, OWRITE);
++	listinit6();
++	fmtinstall('L', Lconv);
+ 
+ 	ensuresymb(NSYMB);
+ 	memset(debug, 0, sizeof(debug));

@@ -7,7 +7,7 @@ Date:   Thu Dec 1 14:33:24 2011 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5451070
-
+---
  misc/cgo/gmp/pi.go                   | 2 +-
  misc/swig/callback/run.go            | 2 +-
  src/cmd/godoc/httpzip.go             | 4 ++--
@@ -17,3 +17,141 @@ Date:   Thu Dec 1 14:33:24 2011 -0800
  src/pkg/html/template/escape.go      | 2 +-
  src/pkg/html/template/escape_test.go | 2 +-
  8 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/misc/cgo/gmp/pi.go b/misc/cgo/gmp/pi.go
+index 45f61abbd6..3e40624cfa 100644
+--- a/misc/cgo/gmp/pi.go
++++ b/misc/cgo/gmp/pi.go
+@@ -38,8 +38,8 @@ POSSIBILITY OF SUCH DAMAGE.
+ package main
+ 
+ import (
+-	big "gmp"
+ 	"fmt"
++	big "gmp"
+ 	"runtime"
+ )
+ 
+diff --git a/misc/swig/callback/run.go b/misc/swig/callback/run.go
+index a76e636cb5..b3f13ad908 100644
+--- a/misc/swig/callback/run.go
++++ b/misc/swig/callback/run.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ import (
+-	"swig/callback"
+ 	"fmt"
++	"swig/callback"
+ )
+ 
+ type GoCallback struct{}
+diff --git a/src/cmd/godoc/httpzip.go b/src/cmd/godoc/httpzip.go
+index 198a348cbf..9f3da08749 100644
+--- a/src/cmd/godoc/httpzip.go
++++ b/src/cmd/godoc/httpzip.go
+@@ -165,8 +165,8 @@ func (fs *httpZipFS) Open(name string) (http.File, error) {
+ 		&fileInfo{
+ 			name,
+ 			os.ModeDir,
+-			0,  // no size for directory
+-			time.Time{},  // no mtime for directory
++			0,           // no size for directory
++			time.Time{}, // no mtime for directory
+ 		},
+ 		nil,
+ 		fs.list[index:],
+diff --git a/src/cmd/gofix/timefileinfo.go b/src/cmd/gofix/timefileinfo.go
+index 9a037d79a6..cff8309cc1 100644
+--- a/src/cmd/gofix/timefileinfo.go
++++ b/src/cmd/gofix/timefileinfo.go
+@@ -69,7 +69,7 @@ var timefileinfoTypeConfig = &TypeConfig{
+ //
+ func timefileinfoIsOld(f *ast.File, typeof map[interface{}]string) bool {
+ 	old := false
+-	
++
+ 	// called records the expressions that appear as
+ 	// the function part of a function call, so that
+ 	// we can distinguish a ref to the possibly new time.UTC
+diff --git a/src/pkg/archive/zip/writer_test.go b/src/pkg/archive/zip/writer_test.go
+index 25491dc753..1188103568 100644
+--- a/src/pkg/archive/zip/writer_test.go
++++ b/src/pkg/archive/zip/writer_test.go
+@@ -21,12 +21,12 @@ type WriteTest struct {
+ }
+ 
+ var writeTests = []WriteTest{
+-	WriteTest{
++	{
+ 		Name:   "foo",
+ 		Data:   []byte("Rabbits, guinea pigs, gophers, marsupial rats, and quolls."),
+ 		Method: Store,
+ 	},
+-	WriteTest{
++	{
+ 		Name:   "bar",
+ 		Data:   nil, // large data set in the test
+ 		Method: Deflate,
+diff --git a/src/pkg/html/render_test.go b/src/pkg/html/render_test.go
+index d166a3b873..1b68b258f2 100644
+--- a/src/pkg/html/render_test.go
++++ b/src/pkg/html/render_test.go
+@@ -30,11 +30,11 @@ func TestRenderer(t *testing.T) {
+ 						Type: ElementNode,
+ 						Data: "p",
+ 						Attr: []Attribute{
+-							Attribute{
++							{
+ 								Key: "id",
+ 								Val: "A",
+ 							},
+-							Attribute{
++							{
+ 								Key: "foo",
+ 								Val: `abc"def`,
+ 							},
+@@ -48,7 +48,7 @@ func TestRenderer(t *testing.T) {
+ 								Type: ElementNode,
+ 								Data: "b",
+ 								Attr: []Attribute{
+-									Attribute{
++									{
+ 										Key: "empty",
+ 										Val: "",
+ 									},
+@@ -64,7 +64,7 @@ func TestRenderer(t *testing.T) {
+ 								Type: ElementNode,
+ 								Data: "i",
+ 								Attr: []Attribute{
+-									Attribute{
++									{
+ 										Key: "backslash",
+ 										Val: `\`,
+ 									},
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index 4a7a9354c9..2f6be3b6c2 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -716,7 +716,7 @@ func (e *escaper) editTextNode(n *parse.TextNode, text []byte) {
+ // commit applies changes to actions and template calls needed to contextually
+ // autoescape content and adds any derived templates to the set.
+ func (e *escaper) commit() {
+-	for name, _ := range e.output {
++	for name := range e.output {
+ 		e.template(name).Funcs(funcMap)
+ 	}
+ 	for _, t := range e.derived {
+diff --git a/src/pkg/html/template/escape_test.go b/src/pkg/html/template/escape_test.go
+index b4daca7d6b..9f85193539 100644
+--- a/src/pkg/html/template/escape_test.go
++++ b/src/pkg/html/template/escape_test.go
+@@ -1597,7 +1597,7 @@ func TestRedundantFuncs(t *testing.T) {
+ 
+ 	for n0, m := range redundantFuncs {
+ 		f0 := funcMap[n0].(func(...interface{}) string)
+-		for n1, _ := range m {
++		for n1 := range m {
+ 			f1 := funcMap[n1].(func(...interface{}) string)
+ 			for _, input := range inputs {
+ 				want := f0(input)

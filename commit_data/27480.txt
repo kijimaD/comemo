@@ -13,7 +13,96 @@ Date:   Tue Mar 29 07:30:17 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/esc.go | 25 +++++++++++++------------
  test/fixedbugs/issue15013.go       | 24 ++++++++++++++++++++++++
  2 files changed, 37 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 51e6371c6d..2820c8aad7 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1478,17 +1478,16 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		lls := ll.Slice()
+ 		sawRcvr := false
+ 		var src *Node
+-	DclLoop:
+ 		for _, n2 := range fn.Name.Defn.Func.Dcl {
+ 			switch n2.Class {
+ 			case PPARAM:
+ 				if n.Op != OCALLFUNC && !sawRcvr {
+ 					escassignNilWhy(e, n2, n.Left.Left, "call receiver")
+ 					sawRcvr = true
+-					continue DclLoop
++					continue
+ 				}
+ 				if len(lls) == 0 {
+-					continue DclLoop
++					continue
+ 				}
+ 				src = lls[0]
+ 				if n2.Isddd && !n.Isddd {
+@@ -1502,7 +1501,17 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 				}
+ 				escassignNilWhy(e, n2, src, "arg to recursive call")
+ 				if src != lls[0] {
+-					break DclLoop
++					// "..." arguments are untracked
++					for _, n2 := range lls {
++						if Debug['m'] > 3 {
++							fmt.Printf("%v::esccall:: ... <- %v, untracked\n", linestr(lineno), Nconv(n2, FmtShort))
++						}
++						escassignSinkNilWhy(e, src, n2, "... arg to recursive call")
++					}
++					// No more PPARAM processing, but keep
++					// going for PPARAMOUT.
++					lls = nil
++					continue
+ 				}
+ 				lls = lls[1:]
+ 
+@@ -1511,14 +1520,6 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 			}
+ 		}
+ 
+-		// "..." arguments are untracked
+-		for _, n2 := range lls {
+-			if Debug['m'] > 3 {
+-				fmt.Printf("%v::esccall:: ... <- %v, untracked\n", linestr(lineno), Nconv(n2, FmtShort))
+-			}
+-			escassignSinkNilWhy(e, src, n2, "... arg to recursive call")
+-		}
+-
+ 		return
+ 	}
+ 
+diff --git a/test/fixedbugs/issue15013.go b/test/fixedbugs/issue15013.go
+new file mode 100644
+index 0000000000..4520d4ca65
+--- /dev/null
++++ b/test/fixedbugs/issue15013.go
+@@ -0,0 +1,24 @@
++// compile
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// CL 21202 introduced a compiler crash in the handling of a varargs
++// function in the same recursive group as a function that calls it.
++// Nothing in the standard library caught the problem, so adding a test.
++
++package p
++
++func F1(p *int, a ...*int) (int, *int) {
++	if p == nil {
++		return F2(), a[0]
++	}
++	return 0, a[0]
++}
++
++func F2() int {
++	var i0, i1 int
++	a, _ := F1(&i0, &i1)
++	return a
++}

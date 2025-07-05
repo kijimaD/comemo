@@ -7,7 +7,32 @@ Date:   Thu Sep 11 19:09:25 2008 -0700
     R=r
     OCL=15192
     CL=15192
-
+---
  src/cmd/gc/walk.c | 1 +
  src/runtime/map.c | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 8850867db7..e5fdb540fc 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -406,6 +406,7 @@ loop:
+ 		case OINDEXPTR:
+ 			if(cl == 2 && cr == 1) {
+ 				// a,b = map[] - mapaccess2
++				walktype(r->left, Erv);
+ 				if(!isptrto(r->left->type, TMAP))
+ 					break;
+ 				l = mapop(n, top);
+diff --git a/src/runtime/map.c b/src/runtime/map.c
+index 5500c9f91b..0a4b3b8e84 100644
+--- a/src/runtime/map.c
++++ b/src/runtime/map.c
+@@ -114,6 +114,7 @@ sys·mapaccess1(Hmap *m, ...)
+ 	}
+ 
+ 	m->valalg->copy(m->valsize, av, 0);
++	throw("sys·mapaccess1: key not in map");
+ 
+ out:
+ 	if(debug) {

@@ -7,6 +7,25 @@ Date:   Wed Mar 13 07:26:21 2013 +0800
     R=golang-dev, bradfitz, dave, rsc
     CC=golang-dev
     https://golang.org/cl/7547044
-
+---
  src/pkg/net/protoconn_test.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/protoconn_test.go b/src/pkg/net/protoconn_test.go
+index 25b0dfbca9..b59925e01c 100644
+--- a/src/pkg/net/protoconn_test.go
++++ b/src/pkg/net/protoconn_test.go
+@@ -15,9 +15,11 @@ import (
+ 	"time"
+ )
+ 
+-// testUnixAddr uses ioutil.TempFile to get a name that is unique.
++// testUnixAddr uses ioutil.TempFile to get a name that is unique. It
++// also uses /tmp directory in case it is prohibited to create UNIX
++// sockets in TMPDIR.
+ func testUnixAddr() string {
+-	f, err := ioutil.TempFile("", "nettest")
++	f, err := ioutil.TempFile("/tmp", "nettest")
+ 	if err != nil {
+ 		panic(err)
+ 	}

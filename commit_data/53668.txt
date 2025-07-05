@@ -14,8 +14,47 @@ Date:   Mon Jun 13 11:05:18 2022 -0500
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Paul Murphy <murp@ibm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/except.txt       | 1 +
  api/next/53356.txt   | 1 +
  src/debug/elf/elf.go | 4 ++--
  3 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index 2acd444adf..eaaf86a2ec 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -1,3 +1,4 @@
++pkg debug/elf, const R_PPC64_SECTOFF_LO_DS = 61
+ pkg encoding/json, method (*RawMessage) MarshalJSON() ([]uint8, error)
+ pkg math, const MaxFloat64 = 1.79769e+308  // 179769313486231570814527423731704356798100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+ pkg math, const SmallestNonzeroFloat32 = 1.4013e-45  // 17516230804060213386546619791123951641/12500000000000000000000000000000000000000000000000000000000000000000000000000000000
+diff --git a/api/next/53356.txt b/api/next/53356.txt
+new file mode 100644
+index 0000000000..607c5ecde6
+--- /dev/null
++++ b/api/next/53356.txt
+@@ -0,0 +1 @@
++pkg debug/elf, const R_PPC64_SECTOFF_LO_DS = 62 #53356
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index 095c0898ec..f3ad6e27af 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -2564,7 +2564,7 @@ const (
+ 	R_PPC64_GOT16_LO_DS        R_PPC64 = 59
+ 	R_PPC64_PLT16_LO_DS        R_PPC64 = 60
+ 	R_PPC64_SECTOFF_DS         R_PPC64 = 61
+-	R_PPC64_SECTOFF_LO_DS      R_PPC64 = 61
++	R_PPC64_SECTOFF_LO_DS      R_PPC64 = 62
+ 	R_PPC64_TOC16_DS           R_PPC64 = 63
+ 	R_PPC64_TOC16_LO_DS        R_PPC64 = 64
+ 	R_PPC64_PLTGOT16_DS        R_PPC64 = 65
+@@ -2673,7 +2673,7 @@ var rppc64Strings = []intName{
+ 	{59, "R_PPC64_GOT16_LO_DS"},
+ 	{60, "R_PPC64_PLT16_LO_DS"},
+ 	{61, "R_PPC64_SECTOFF_DS"},
+-	{61, "R_PPC64_SECTOFF_LO_DS"},
++	{62, "R_PPC64_SECTOFF_LO_DS"},
+ 	{63, "R_PPC64_TOC16_DS"},
+ 	{64, "R_PPC64_TOC16_LO_DS"},
+ 	{65, "R_PPC64_PLTGOT16_DS"},

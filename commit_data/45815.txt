@@ -15,7 +15,41 @@ Date:   Thu Nov 19 13:58:52 2020 -0500
     Trust: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/build.go     | 2 +-
  src/cmd/go/internal/modload/buildlist.go | 9 ---------
  2 files changed, 1 insertion(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index b9e344045d..8ad5f834de 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -75,7 +75,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
+ 		return moduleInfo(ctx, m, fromBuildList, listRetracted)
+ 	}
+ 
+-	for _, m := range LoadedModules() {
++	for _, m := range buildList {
+ 		if m.Path == path {
+ 			fromBuildList := true
+ 			return moduleInfo(ctx, m, fromBuildList, listRetracted)
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 5b9984a492..bec22dba1f 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -49,15 +49,6 @@ func LoadAllModules(ctx context.Context) []module.Version {
+ 	return capVersionSlice(buildList)
+ }
+ 
+-// LoadedModules returns the list of module requirements loaded or set by a
+-// previous call (typically LoadAllModules or LoadPackages), starting with the
+-// Target module and in a deterministic (stable) order.
+-//
+-// The caller must not modify the returned list, but may append to it.
+-func LoadedModules() []module.Version {
+-	return capVersionSlice(buildList)
+-}
+-
+ // Selected returns the selected version of the module with the given path, or
+ // the empty string if the given module has no selected version
+ // (either because it is not required or because it is the Target module).

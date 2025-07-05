@@ -14,6 +14,31 @@ Date:   Mon Nov 27 16:48:48 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/runtime-gdb_test.go | 12 ++++++++----
  1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index f0922e16b5..fe62f96e86 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -22,11 +22,15 @@ import (
+ 
+ func checkGdbEnvironment(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+-	if runtime.GOOS == "darwin" {
++	switch runtime.GOOS {
++	case "darwin":
+ 		t.Skip("gdb does not work on darwin")
+-	}
+-	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64" {
+-		t.Skip("skipping gdb tests on linux/ppc64; see golang.org/issue/17366")
++	case "netbsd":
++		t.Skip("test times out on NetBSD for unknown reasons; issue 22893")
++	case "linux":
++		if runtime.GOARCH == "ppc64" {
++			t.Skip("skipping gdb tests on linux/ppc64; see golang.org/issue/17366")
++		}
+ 	}
+ 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
+ 		t.Skip("gdb test can fail with GOROOT_FINAL pending")

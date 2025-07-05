@@ -11,6 +11,81 @@ Date:   Tue Dec 11 12:23:04 2012 -0500
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6845112
-
+---
  src/cmd/gc/lex.c | 37 +++++++------------------------------
  1 file changed, 7 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 1b433a9a24..6481ceb1e1 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1296,13 +1296,13 @@ tnum:
+ 			if(cp == lexbuf+2)
+ 				yyerror("malformed hex constant");
+ 			if(c == 'p')
+-				goto casep;
++				goto caseep;
+ 			goto ncu;
+ 		}
+ 	}
+ 
+ 	if(c == 'p')	// 0p begins floating point zero
+-		goto casep;
++		goto caseep;
+ 
+ 	c1 = 0;
+ 	for(;;) {
+@@ -1320,7 +1320,7 @@ tnum:
+ 	if(c == '.')
+ 		goto casedot;
+ 	if(c == 'e' || c == 'E')
+-		goto casee;
++		goto caseep;
+ 	if(c == 'i')
+ 		goto casei;
+ 	if(c1)
+@@ -1330,10 +1330,8 @@ tnum:
+ dc:
+ 	if(c == '.')
+ 		goto casedot;
+-	if(c == 'e' || c == 'E')
+-		goto casee;
+-	if(c == 'p' || c == 'P')
+-		goto casep;
++	if(c == 'e' || c == 'E' || c == 'p' || c == 'P')
++		goto caseep;
+ 	if(c == 'i')
+ 		goto casei;
+ 
+@@ -1369,29 +1367,8 @@ casedot:
+ 	if(c != 'e' && c != 'E')
+ 		goto caseout;
+ 
+-casee:
+-	*cp++ = 'e';
+-	c = getc();
+-	if(c == '+' || c == '-') {
+-		*cp++ = c;
+-		c = getc();
+-	}
+-	if(!yy_isdigit(c))
+-		yyerror("malformed fp constant exponent");
+-	while(yy_isdigit(c)) {
+-		if(cp+10 >= ep) {
+-			yyerror("identifier too long");
+-			errorexit();
+-		}
+-		*cp++ = c;
+-		c = getc();
+-	}
+-	if(c == 'i')
+-		goto casei;
+-	goto caseout;
+-
+-casep:
+-	*cp++ = 'p';
++caseep:
++	*cp++ = c;
+ 	c = getc();
+ 	if(c == '+' || c == '-') {
+ 		*cp++ = c;

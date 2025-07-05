@@ -11,8 +11,73 @@ Date:   Wed Apr 29 12:20:38 2020 -0400
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/data.go |  5 ++++-
  src/cmd/link/internal/ld/lib.go  | 20 ++++++++++----------
  src/cmd/link/internal/x86/asm.go |  4 ++--
  3 files changed, 16 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index a4e9a4c1e8..1cf3e9a7fc 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -253,7 +253,10 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arch
+ 			case 8:
+ 				o = int64(target.Arch.ByteOrder.Uint64(P[off:]))
+ 			}
+-			if out, ok := thearch.Archreloc2(target, ldr, syms, &r, s, o); ok {
++			var out int64
++			var ok bool
++			out, needExtReloc, ok = thearch.Archreloc2(target, ldr, syms, &r, &rr, s, o)
++			if ok {
+ 				o = out
+ 			} else {
+ 				err.Errorf(s, "unknown reloc to %v: %d (%s)", ldr.SymName(rs), rt, sym.RelocName(target.Arch, rt))
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index baccb8baae..3b76f3a236 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -235,18 +235,18 @@ type Arch struct {
+ 	Adddynrel      func(*Target, *loader.Loader, *ArchSyms, *sym.Symbol, *sym.Reloc) bool
+ 	Adddynrel2     func(*Target, *loader.Loader, *ArchSyms, loader.Sym, *loader.Reloc2, int) bool
+ 	Archinit       func(*Link)
+-	// Archreloc is an arch-specific hook that assists in
+-	// relocation processing (invoked by 'relocsym'); it handles
+-	// target-specific relocation tasks. Here "rel" is the current
+-	// relocation being examined, "sym" is the symbol containing the
+-	// chunk of data to which the relocation applies, and "off" is the
+-	// contents of the to-be-relocated data item (from sym.P). Return
+-	// value is the appropriately relocated value (to be written back
+-	// to the same spot in sym.P) and a boolean indicating
+-	// success/failure (a failing value indicates a fatal error).
++	// Archreloc is an arch-specific hook that assists in relocation processing
++	// (invoked by 'relocsym'); it handles target-specific relocation tasks.
++	// Here "rel" is the current relocation being examined, "sym" is the symbol
++	// containing the chunk of data to which the relocation applies, and "off"
++	// is the contents of the to-be-relocated data item (from sym.P). Return
++	// value is the appropriately relocated value (to be written back to the
++	// same spot in sym.P), a boolean indicating if the external relocations'
++	// been used, and a boolean indicating success/failure (a failing value
++	// indicates a fatal error).
+ 	Archreloc func(target *Target, syms *ArchSyms, rel *sym.Reloc, sym *sym.Symbol,
+ 		offset int64) (relocatedOffset int64, success bool)
+-	Archreloc2 func(*Target, *loader.Loader, *ArchSyms, *loader.Reloc2, loader.Sym, int64) (int64, bool)
++	Archreloc2 func(*Target, *loader.Loader, *ArchSyms, *loader.Reloc2, *loader.ExtReloc, loader.Sym, int64) (int64, bool, bool)
+ 	// Archrelocvariant is a second arch-specific hook used for
+ 	// relocation processing; it handles relocations where r.Type is
+ 	// insufficient to describe the relocation (r.Variant !=
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 0cf4009c4e..0a0052a4f5 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -435,8 +435,8 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, secto
+ 	return true
+ }
+ 
+-func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r *loader.Reloc2, sym loader.Sym, val int64) (int64, bool) {
+-	return val, false
++func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r *loader.Reloc2, rr *loader.ExtReloc, sym loader.Sym, val int64) (int64, bool, bool) {
++	return val, false, false
+ }
+ 
+ func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {

@@ -7,6 +7,30 @@ Date:   Sun Jun 28 12:21:42 2015 -0700
     Change-Id: I67947e0e3189093e830120941ee49f9f32086f0e
     Reviewed-on: https://go-review.googlesource.com/11615
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/builtin/builtin.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/builtin/builtin.go b/src/builtin/builtin.go
+index 51550a459c..d63ad22c32 100644
+--- a/src/builtin/builtin.go
++++ b/src/builtin/builtin.go
+@@ -236,14 +236,14 @@ func panic(v interface{})
+ // panicking.
+ func recover() interface{}
+ 
+-// The print built-in function formats its arguments in an implementation-
+-// specific way and writes the result to standard error.
++// The print built-in function formats its arguments in an
++// implementation-specific way and writes the result to standard error.
+ // Print is useful for bootstrapping and debugging; it is not guaranteed
+ // to stay in the language.
+ func print(args ...Type)
+ 
+-// The println built-in function formats its arguments in an implementation-
+-// specific way and writes the result to standard error.
++// The println built-in function formats its arguments in an
++// implementation-specific way and writes the result to standard error.
+ // Spaces are always added between arguments and a newline is appended.
+ // Println is useful for bootstrapping and debugging; it is not guaranteed
+ // to stay in the language.

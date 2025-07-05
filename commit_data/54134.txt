@@ -15,7 +15,48 @@ Date:   Tue Sep 27 09:16:32 2022 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/clean/clean.go | 6 ++----
  src/cmd/go/internal/load/pkg.go    | 4 ++--
  2 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 2417cc077e..368288f0fc 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -340,16 +340,14 @@ func clean(p *load.Package) {
+ 			continue
+ 		}
+ 
+-		if strings.HasSuffix(name, "_test.go") {
+-			base := name[:len(name)-len("_test.go")]
++		if base, found := strings.CutSuffix(name, "_test.go"); found {
+ 			allRemove = append(allRemove, base+".test", base+".test.exe")
+ 		}
+ 
+-		if strings.HasSuffix(name, ".go") {
++		if base, found := strings.CutSuffix(name, ".go"); found {
+ 			// TODO(adg,rsc): check that this .go file is actually
+ 			// in "package main", and therefore capable of building
+ 			// to an executable file.
+-			base := name[:len(name)-len(".go")]
+ 			allRemove = append(allRemove, base, base+".exe")
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index a6e380b89f..cebec51d42 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -3115,10 +3115,10 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args
+ 	}
+ 	patterns := make([]string, len(args))
+ 	for i, arg := range args {
+-		if !strings.HasSuffix(arg, "@"+version) {
++		p, found := strings.CutSuffix(arg, "@"+version)
++		if !found {
+ 			return nil, fmt.Errorf("%s: all arguments must refer to packages in the same module at the same version (@%s)", arg, version)
+ 		}
+-		p := arg[:len(arg)-len(version)-1]
+ 		switch {
+ 		case build.IsLocalImport(p):
+ 			return nil, fmt.Errorf("%s: argument must be a package path, not a relative path", arg)

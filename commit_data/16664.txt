@@ -10,7 +10,34 @@ Date:   Thu Jun 27 11:23:26 2013 -0700
     R=gobot
     CC=golang-dev
     https://golang.org/cl/10701043
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 61160d1b4c..e9190e2aad 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -118,7 +118,7 @@ Florian Uekermann <florian@uekermann-online.de>
+ Florian Weimer <fw@deneb.enyo.de>
+ Francisco Souza <franciscossouza@gmail.com>
+ Frederick Kelly Mayle III <frederickmayle@gmail.com>
+-Frithjof Schulze <schulze@math.uni-hannover.de>
++Frithjof Schulze <schulze@math.uni-hannover.de> <sfrithjof@gmail.com>
+ Gary Burd <gary@beagledreams.com>
+ Georg Reinke <guelfey@gmail.com>
+ Gerasimos Dimitriadis <gedimitr@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e48d72fda6..4faedfe4d0 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -176,7 +176,7 @@ Florian Weimer <fw@deneb.enyo.de>
+ Francesc Campoy <campoy@golang.org>
+ Francisco Souza <franciscossouza@gmail.com>
+ Frederick Kelly Mayle III <frederickmayle@gmail.com>
+-Frithjof Schulze <schulze@math.uni-hannover.de>
++Frithjof Schulze <schulze@math.uni-hannover.de> <sfrithjof@gmail.com>
+ Fumitoshi Ukai <ukai@google.com>
+ Gaal Yahas <gaal@google.com>
+ Gary Burd <gary@beagledreams.com> <gary.burd@gmail.com>

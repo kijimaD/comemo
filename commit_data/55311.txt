@@ -19,9 +19,226 @@ Date:   Tue Dec 20 15:25:17 2022 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/irgen.go   |  6 +--
  src/cmd/compile/internal/noder/noder.go   | 81 +++----------------------------
  src/cmd/compile/internal/noder/posmap.go  | 12 -----
  src/cmd/compile/internal/noder/unified.go |  8 +--
  4 files changed, 13 insertions(+), 94 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 1369c2e565..f0addc4892 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -19,16 +19,14 @@ var versionErrorRx = regexp.MustCompile(`requires go[0-9]+\.[0-9]+ or later`)
+ 
+ // checkFiles configures and runs the types2 checker on the given
+ // parsed source files and then returns the result.
+-func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
++func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 	if base.SyntaxErrors() != 0 {
+ 		base.ErrorExit()
+ 	}
+ 
+ 	// setup and syntax error reporting
+-	var m posMap
+ 	files := make([]*syntax.File, len(noders))
+ 	for i, p := range noders {
+-		m.join(&p.posMap)
+ 		files[i] = p.file
+ 	}
+ 
+@@ -117,7 +115,7 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+ 		base.FatalfAt(src.NoXPos, "conf.Check error: %v", err)
+ 	}
+ 
+-	return m, pkg, info
++	return pkg, info
+ }
+ 
+ // A cycleFinder detects anonymous interface cycles (go.dev/issue/56103).
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 1db9618d96..10619bf569 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -21,7 +21,6 @@ import (
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/objabi"
+-	"cmd/internal/src"
+ )
+ 
+ func LoadPackage(filenames []string) {
+@@ -62,9 +61,10 @@ func LoadPackage(filenames []string) {
+ 	}()
+ 
+ 	var lines uint
++	var m posMap
+ 	for _, p := range noders {
+ 		for e := range p.err {
+-			p.errorAt(e.Pos, "%s", e.Msg)
++			base.ErrorfAt(m.makeXPos(e.Pos), "%s", e.Msg)
+ 		}
+ 		if p.file == nil {
+ 			base.ErrorExit()
+@@ -73,11 +73,7 @@ func LoadPackage(filenames []string) {
+ 	}
+ 	base.Timer.AddEvent(int64(lines), "lines")
+ 
+-	unified(noders)
+-}
+-
+-func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {
+-	base.ErrorfAt(p.makeXPos(pos), format, args...)
++	unified(m, noders)
+ }
+ 
+ // trimFilename returns the "trimmed" filename of b, which is the
+@@ -101,14 +97,10 @@ func trimFilename(b *syntax.PosBase) string {
+ 
+ // noder transforms package syntax's AST into a Node tree.
+ type noder struct {
+-	posMap
+-
+-	file           *syntax.File
+-	linknames      []linkname
+-	pragcgobuf     [][]string
+-	err            chan syntax.Error
+-	importedUnsafe bool
+-	importedEmbed  bool
++	file       *syntax.File
++	linknames  []linkname
++	pragcgobuf [][]string
++	err        chan syntax.Error
+ }
+ 
+ // linkname records a //go:linkname directive.
+@@ -118,28 +110,6 @@ type linkname struct {
+ 	remote string
+ }
+ 
+-func (p *noder) processPragmas() {
+-	for _, l := range p.linknames {
+-		if !p.importedUnsafe {
+-			p.errorAt(l.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
+-			continue
+-		}
+-		n := ir.AsNode(typecheck.Lookup(l.local).Def)
+-		if n == nil || n.Op() != ir.ONAME {
+-			if types.AllowsGoVersion(1, 18) {
+-				p.errorAt(l.pos, "//go:linkname must refer to declared function or variable")
+-			}
+-			continue
+-		}
+-		if n.Sym().Linkname != "" {
+-			p.errorAt(l.pos, "duplicate //go:linkname for %s", l.local)
+-			continue
+-		}
+-		n.Sym().Linkname = l.remote
+-	}
+-	typecheck.Target.CgoPragmas = append(typecheck.Target.CgoPragmas, p.pragcgobuf...)
+-}
+-
+ var unOps = [...]ir.Op{
+ 	syntax.Recv: ir.ORECV,
+ 	syntax.Mul:  ir.ODEREF,
+@@ -176,23 +146,6 @@ var binOps = [...]ir.Op{
+ 	syntax.Shr:    ir.ORSH,
+ }
+ 
+-func wrapname(pos src.XPos, x ir.Node) ir.Node {
+-	// These nodes do not carry line numbers.
+-	// Introduce a wrapper node to give them the correct line.
+-	switch x.Op() {
+-	case ir.OTYPE, ir.OLITERAL:
+-		if x.Sym() == nil {
+-			break
+-		}
+-		fallthrough
+-	case ir.ONAME, ir.ONONAME:
+-		p := ir.NewParenExpr(pos, x)
+-		p.SetImplicit(true)
+-		return p
+-	}
+-	return x
+-}
+-
+ // error is called concurrently if files are parsed concurrently.
+ func (p *noder) error(err error) {
+ 	p.err <- err.(syntax.Error)
+@@ -442,26 +395,6 @@ func Renameinit() *types.Sym {
+ 	return s
+ }
+ 
+-func varEmbed(makeXPos func(syntax.Pos) src.XPos, name *ir.Name, decl *syntax.VarDecl, pragma *pragmas, haveEmbed bool) {
+-	pragmaEmbeds := pragma.Embeds
+-	pragma.Embeds = nil
+-	if len(pragmaEmbeds) == 0 {
+-		return
+-	}
+-
+-	if err := checkEmbed(decl, haveEmbed, typecheck.DeclContext != ir.PEXTERN); err != nil {
+-		base.ErrorfAt(makeXPos(pragmaEmbeds[0].Pos), "%s", err)
+-		return
+-	}
+-
+-	var embeds []ir.Embed
+-	for _, e := range pragmaEmbeds {
+-		embeds = append(embeds, ir.Embed{Pos: makeXPos(e.Pos), Patterns: e.Patterns})
+-	}
+-	typecheck.Target.Embeds = append(typecheck.Target.Embeds, name)
+-	name.Embed = &embeds
+-}
+-
+ func checkEmbed(decl *syntax.VarDecl, haveEmbed, withinFunc bool) error {
+ 	switch {
+ 	case !haveEmbed:
+diff --git a/src/cmd/compile/internal/noder/posmap.go b/src/cmd/compile/internal/noder/posmap.go
+index 6c7e57c996..439daf454e 100644
+--- a/src/cmd/compile/internal/noder/posmap.go
++++ b/src/cmd/compile/internal/noder/posmap.go
+@@ -72,15 +72,3 @@ func (m *posMap) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
+ 
+ 	return b1
+ }
+-
+-func (m *posMap) join(other *posMap) {
+-	if m.bases == nil {
+-		m.bases = make(map[*syntax.PosBase]*src.PosBase)
+-	}
+-	for k, v := range other.bases {
+-		if m.bases[k] != nil {
+-			base.Fatalf("duplicate posmap bases")
+-		}
+-		m.bases[k] = v
+-	}
+-}
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index ed97a09302..f1788c210e 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -68,11 +68,11 @@ var localPkgReader *pkgReader
+ // the unified IR has the full typed AST needed for introspection during step (1).
+ // In other words, we have all the necessary information to build the generic IR form
+ // (see writer.captureVars for an example).
+-func unified(noders []*noder) {
++func unified(m posMap, noders []*noder) {
+ 	inline.InlineCall = unifiedInlineCall
+ 	typecheck.HaveInlineBody = unifiedHaveInlineBody
+ 
+-	data := writePkgStub(noders)
++	data := writePkgStub(m, noders)
+ 
+ 	// We already passed base.Flag.Lang to types2 to handle validating
+ 	// the user's source code. Bump it up now to the current version and
+@@ -202,8 +202,8 @@ func readBodies(target *ir.Package, duringInlining bool) {
+ // writePkgStub type checks the given parsed source files,
+ // writes an export data package stub representing them,
+ // and returns the result.
+-func writePkgStub(noders []*noder) string {
+-	m, pkg, info := checkFiles(noders)
++func writePkgStub(m posMap, noders []*noder) string {
++	pkg, info := checkFiles(m, noders)
+ 
+ 	pw := newPkgWriter(m, pkg, info)
+ 

@@ -11,6 +11,29 @@ Date:   Thu Aug 29 13:21:21 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/13352045
-
+---
  src/pkg/sort/sort_test.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/sort/sort_test.go b/src/pkg/sort/sort_test.go
+index 3b705d7a24..6c36f30e0e 100644
+--- a/src/pkg/sort/sort_test.go
++++ b/src/pkg/sort/sort_test.go
+@@ -520,10 +520,16 @@ func TestCountSortOps(t *testing.T)   { countOps(t, Sort, "Sort  ") }
+ func bench(b *testing.B, size int, algo func(Interface), name string) {
+ 	b.StopTimer()
+ 	data := make(intPairs, size)
++	x := ^uint32(0)
+ 	for i := 0; i < b.N; i++ {
+ 		for n := size - 3; n <= size+3; n++ {
+ 			for i := 0; i < len(data); i++ {
+-				data[i].a = rand.Intn(n / 5)
++				x += x
++				x ^= 1
++				if int32(x) < 0 {
++					x ^= 0x88888eef
++				}
++				data[i].a = int(x % uint32(n/5))
+ 			}
+ 			data.initB()
+ 			b.StartTimer()

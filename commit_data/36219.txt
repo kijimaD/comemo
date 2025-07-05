@@ -16,6 +16,20 @@ Date:   Thu Apr 5 10:07:41 2018 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 435660950f..80a7632f64 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1266,7 +1266,7 @@ func (ctxt *Link) hostlink() {
+ 	// does not work, the resulting programs will not run. See
+ 	// issue #17847. To avoid this problem pass -no-pie to the
+ 	// toolchain if it is supported.
+-	if ctxt.BuildMode == BuildModeExe {
++	if ctxt.BuildMode == BuildModeExe && !ctxt.linkShared {
+ 		src := filepath.Join(*flagTmpdir, "trivial.c")
+ 		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
+ 			Errorf(nil, "WriteFile trivial.c failed: %v", err)

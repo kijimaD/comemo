@@ -14,6 +14,20 @@ Date:   Fri Oct 28 12:33:49 2022 -0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 76dcc1ab73..235ab0adb7 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -263,7 +263,7 @@
+ //	            t.Skip()
+ //	        }
+ //	        if _, err := json.Marshal(v); err != nil {
+-//	            t.Error("Marshal: %v", err)
++//	            t.Errorf("Marshal: %v", err)
+ //	        }
+ //	    })
+ //	}

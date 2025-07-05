@@ -15,6 +15,23 @@ Date:   Fri Jul 18 13:05:21 2014 +0400
     R=golang-codereviews, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/116880043
-
+---
  src/pkg/runtime/mgc0.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 8b9779da6b..2d478acdc4 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -2172,7 +2172,10 @@ runtime·updatememstats(GCStats *stats)
+ 	}
+ 
+ 	// Flush MCache's to MCentral.
+-	runtime·mcall(flushallmcaches_m);
++	if(g == g->m->g0)
++		flushallmcaches();
++	else
++		runtime·mcall(flushallmcaches_m);
+ 
+ 	// Aggregate local stats.
+ 	cachestats();

@@ -9,7 +9,63 @@ Date:   Mon Jul 18 17:34:42 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4757047
-
+---
  src/pkg/exp/template/exec.go      | 8 ++++++--
  src/pkg/exp/template/exec_test.go | 7 ++++---
  2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index 169c8c6918..4ec738f0df 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -589,12 +589,16 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n node) reflect.Value {
+ }
+ 
+ // indirect returns the item at the end of indirection, and a bool to indicate if it's nil.
++// We indirect through pointers and empty interfaces (only) because
++// non-empty interfaces have methods we might need.
+ func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
+-	for v.Kind() == reflect.Ptr {
++	for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
+ 		if v.IsNil() {
+ 			return v, true
+ 		}
+-		v = v.Elem()
++		if v.Kind() == reflect.Ptr || v.NumMethod() == 0 {
++			v = v.Elem()
++		}
+ 	}
+ 	return v, false
+ }
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index efac443668..eb5ab71187 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -69,7 +69,7 @@ var tVal = &T{
+ 	Empty1: 3,
+ 	Empty2: "empty2",
+ 	Empty3: []int{7, 8},
+-	Empty4: &U{"v"},
++	Empty4: &U{"UinEmpty"},
+ 	PI:     newInt(23),
+ 	PSI:    newIntSlice(21, 22, 23),
+ 	Tmpl:   New("x").MustParse("test template"), // "x" is the value of .X
+@@ -210,7 +210,8 @@ var execTests = []execTest{
+ 	{"empty with int", "{{.Empty1}}", "3", tVal, true},
+ 	{"empty with string", "{{.Empty2}}", "empty2", tVal, true},
+ 	{"empty with slice", "{{.Empty3}}", "[7 8]", tVal, true},
+-	{"empty with struct", "{{.Empty4}}", "{v}", tVal, true},
++	{"empty with struct", "{{.Empty4}}", "{UinEmpty}", tVal, true},
++	{"empty with struct, field", "{{.Empty4.V}}", "UinEmpty", tVal, true},
+ 
+ 	// Method calls.
+ 	{".Method0", "-{{.Method0}}-", "-M0-", tVal, true},
+@@ -308,7 +309,7 @@ var execTests = []execTest{
+ 	{"with slice", "{{with .SI}}{{.}}{{else}}EMPTY{{end}}", "[3 4 5]", tVal, true},
+ 	{"with emptymap", "{{with .MSIEmpty}}{{.}}{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+ 	{"with map", "{{with .MSIone}}{{.}}{{else}}EMPTY{{end}}", "map[one:1]", tVal, true},
+-	{"with empty interface, struct field", "{{with .Empty4}}{{.V}}{{end}}", "v", tVal, true},
++	{"with empty interface, struct field", "{{with .Empty4}}{{.V}}{{end}}", "UinEmpty", tVal, true},
+ 	{"with $x int", "{{with $x := .I}}{{$x}}{{end}}", "17", tVal, true},
+ 	{"with $x struct.U.V", "{{with $x := $}}{{$x.U.V}}{{end}}", "v", tVal, true},
+ 	{"with variable and action", "{{with $x := $}}{{$y := $.U.V}},{{$y}}{{end}}", "v,v", tVal, true},

@@ -82,7 +82,7 @@ Date:   Wed May 20 16:30:49 2015 -0400
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/asm_386.s      |  34 ++++++++-
  src/runtime/asm_amd64.s    |  34 ++++++++-
  src/runtime/asm_amd64p32.s |  35 ++++++++-
@@ -97,3 +97,805 @@ Date:   Wed May 20 16:30:49 2015 -0400
  src/runtime/stubs.go       |   7 ++
  src/runtime/traceback.go   |  33 ++++++++-
  13 files changed, 481 insertions(+), 23 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 13362012dd..a5943dcbc7 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -341,6 +341,22 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
+ 	MOVL	$0, DX
+ 	JMP runtime·morestack(SB)
+ 
++TEXT runtime·stackBarrier(SB),NOSPLIT,$0
++	// We came here via a RET to an overwritten return PC.
++	// AX may be live. Other registers are available.
++
++	// Get the original return PC, g.stkbar[g.stkbarPos].savedLRVal.
++	get_tls(CX)
++	MOVL	g(CX), CX
++	MOVL	(g_stkbar+slice_array)(CX), DX
++	MOVL	g_stkbarPos(CX), BX
++	IMULL	$stkbar__size, BX	// Too big for SIB.
++	MOVL	stkbar_savedLRVal(DX)(BX*1), BX
++	// Record that this stack barrier was hit.
++	ADDL	$1, g_stkbarPos(CX)
++	// Jump to the original return PC.
++	JMP	BX
++
+ // reflectcall: call a function with the given argument list
+ // func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
+ // we don't have variable-sized frames, so we use a small number
+@@ -860,17 +876,31 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 	INT	$3
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT,$0-8
++TEXT runtime·getcallerpc(SB),NOSPLIT,$4-8
+ 	MOVL	argp+0(FP),AX		// addr of first arg
+ 	MOVL	-4(AX),AX		// get calling pc
++	CMPL	AX, runtime·stackBarrierPC(SB)
++	JNE	nobar
++	// Get original return PC.
++	CALL	runtime·nextBarrierPC(SB)
++	MOVL	0(SP), AX
++nobar:
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$0-8
++TEXT runtime·setcallerpc(SB),NOSPLIT,$4-8
+ 	MOVL	argp+0(FP),AX		// addr of first arg
+ 	MOVL	pc+4(FP), BX
++	MOVL	-4(AX), CX
++	CMPL	CX, runtime·stackBarrierPC(SB)
++	JEQ	setbar
+ 	MOVL	BX, -4(AX)		// set calling pc
+ 	RET
++setbar:
++	// Set the stack barrier return PC.
++	MOVL	BX, 0(SP)
++	CALL	runtime·setNextBarrierPC(SB)
++	RET
+ 
+ TEXT runtime·getcallersp(SB), NOSPLIT, $0-8
+ 	MOVL	argp+0(FP), AX
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 0f9aeb8f37..d43e660cb4 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -336,6 +336,22 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
+ 	MOVL	$0, DX
+ 	JMP	runtime·morestack(SB)
+ 
++TEXT runtime·stackBarrier(SB),NOSPLIT,$0
++	// We came here via a RET to an overwritten return PC.
++	// AX may be live. Other registers are available.
++
++	// Get the original return PC, g.stkbar[g.stkbarPos].savedLRVal.
++	get_tls(CX)
++	MOVQ	g(CX), CX
++	MOVQ	(g_stkbar+slice_array)(CX), DX
++	MOVQ	g_stkbarPos(CX), BX
++	IMULQ	$stkbar__size, BX	// Too big for SIB.
++	MOVQ	stkbar_savedLRVal(DX)(BX*1), BX
++	// Record that this stack barrier was hit.
++	ADDQ	$1, g_stkbarPos(CX)
++	// Jump to the original return PC.
++	JMP	BX
++
+ // reflectcall: call a function with the given argument list
+ // func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
+ // we don't have variable-sized frames, so we use a small number
+@@ -860,17 +876,31 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 	INT	$3
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT,$0-16
++TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
+ 	MOVQ	argp+0(FP),AX		// addr of first arg
+ 	MOVQ	-8(AX),AX		// get calling pc
++	CMPQ	AX, runtime·stackBarrierPC(SB)
++	JNE	nobar
++	// Get original return PC.
++	CALL	runtime·nextBarrierPC(SB)
++	MOVQ	0(SP), AX
++nobar:
+ 	MOVQ	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$0-16
++TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
+ 	MOVQ	argp+0(FP),AX		// addr of first arg
+ 	MOVQ	pc+8(FP), BX
++	MOVQ	-8(AX), CX
++	CMPQ	CX, runtime·stackBarrierPC(SB)
++	JEQ	setbar
+ 	MOVQ	BX, -8(AX)		// set calling pc
+ 	RET
++setbar:
++	// Set the stack barrier return PC.
++	MOVQ	BX, 0(SP)
++	CALL	runtime·setNextBarrierPC(SB)
++	RET
+ 
+ TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
+ 	MOVQ	argp+0(FP), AX
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 5e9210fca9..393e1b203f 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -289,6 +289,23 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
+ 	MOVL	$0, DX
+ 	JMP	runtime·morestack(SB)
+ 
++TEXT runtime·stackBarrier(SB),NOSPLIT,$0
++	// We came here via a RET to an overwritten return PC.
++	// AX may be live. Other registers are available.
++
++	// Get the original return PC, g.stkbar[g.stkbarPos].savedLRVal.
++	get_tls(CX)
++	MOVL	g(CX), CX
++	MOVL	(g_stkbar+slice_array)(CX), DX
++	MOVL	g_stkbarPos(CX), BX
++	IMULL	$stkbar__size, BX	// Too big for SIB.
++	ADDL	DX, BX
++	MOVL	stkbar_savedLRVal(BX), BX
++	// Record that this stack barrier was hit.
++	ADDL	$1, g_stkbarPos(CX)
++	// Jump to the original return PC.
++	JMP	BX
++
+ // reflectcall: call a function with the given argument list
+ // func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
+ // we don't have variable-sized frames, so we use a small number
+@@ -616,17 +633,31 @@ TEXT runtime·memclr(SB),NOSPLIT,$0-8
+ 	STOSB
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT,$0-12
++TEXT runtime·getcallerpc(SB),NOSPLIT,$8-12
+ 	MOVL	argp+0(FP),AX		// addr of first arg
+ 	MOVL	-8(AX),AX		// get calling pc
++	CMPL	AX, runtime·stackBarrierPC(SB)
++	JNE	nobar
++	// Get original return PC.
++	CALL	runtime·nextBarrierPC(SB)
++	MOVL	0(SP), AX
++nobar:
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$0-8
++TEXT runtime·setcallerpc(SB),NOSPLIT,$8-8
+ 	MOVL	argp+0(FP),AX		// addr of first arg
+ 	MOVL	pc+4(FP), BX		// pc to set
++	MOVL	-8(AX), CX
++	CMPL	CX, runtime·stackBarrierPC(SB)
++	JEQ	setbar
+ 	MOVQ	BX, -8(AX)		// set calling pc
+ 	RET
++setbar:
++	// Set the stack barrier return PC.
++	MOVL	BX, 0(SP)
++	CALL	runtime·setNextBarrierPC(SB)
++	RET
+ 
+ TEXT runtime·getcallersp(SB),NOSPLIT,$0-12
+ 	MOVL	argp+0(FP), AX
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index e69b1ef7c2..291aa83cd8 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -309,6 +309,23 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
+ 	MOVW	$0, R7
+ 	B runtime·morestack(SB)
+ 
++TEXT runtime·stackBarrier(SB),NOSPLIT,$0
++	// We came here via a RET to an overwritten LR.
++	// R0 may be live. Other registers are available.
++
++	// Get the original return PC, g.stkbar[g.stkbarPos].savedLRVal.
++	MOVW	(g_stkbar+slice_array)(g), R4
++	MOVW	g_stkbarPos(g), R5
++	MOVW	$stkbar__size, R6
++	MUL	R5, R6
++	ADD	R4, R6
++	MOVW	stkbar_savedLRVal(R6), R6
++	// Record that this stack barrier was hit.
++	ADD	$1, R5
++	MOVW	R5, g_stkbarPos(g)
++	// Jump to the original return PC.
++	B	(R6)
++
+ // reflectcall: call a function with the given argument list
+ // func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
+ // we don't have variable-sized frames, so we use a small number
+@@ -645,14 +662,30 @@ TEXT setg<>(SB),NOSPLIT,$-4-0
+ 	MOVW	g, R0
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-8
+-	MOVW	0(R13), R0
++TEXT runtime·getcallerpc(SB),NOSPLIT,$4-8
++	MOVW	8(R13), R0		// LR saved by caller
++	MOVW	runtime·stackBarrierPC(SB), R1
++	CMP	R0, R1
++	BNE	nobar
++	// Get original return PC.
++	BL	runtime·nextBarrierPC(SB)
++	MOVW	4(R13), R0
++nobar:
+ 	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$-4-8
++TEXT runtime·setcallerpc(SB),NOSPLIT,$4-8
+ 	MOVW	pc+4(FP), R0
+-	MOVW	R0, 0(R13)
++	MOVW	8(R13), R1
++	MOVW	runtime·stackBarrierPC(SB), R2
++	CMP	R1, R2
++	BEQ	setbar
++	MOVW	R0, 8(R13)		// set LR in caller
++	RET
++setbar:
++	// Set the stack barrier return PC.
++	MOVW	R0, 4(R13)
++	BL	runtime·setNextBarrierPC(SB)
+ 	RET
+ 
+ TEXT runtime·getcallersp(SB),NOSPLIT,$-4-8
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 03488a6751..2321c3855f 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -307,6 +307,23 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
+ 	MOVW	$0, R26
+ 	B runtime·morestack(SB)
+ 
++TEXT runtime·stackBarrier(SB),NOSPLIT,$0
++	// We came here via a RET to an overwritten LR.
++	// R0 may be live (see return0). Other registers are available.
++
++	// Get the original return PC, g.stkbar[g.stkbarPos].savedLRVal.
++	MOVD	(g_stkbar+slice_array)(g), R4
++	MOVD	g_stkbarPos(g), R5
++	MOVD	$stkbar__size, R6
++	MUL	R5, R6
++	ADD	R4, R6
++	MOVD	stkbar_savedLRVal(R6), R6
++	// Record that this stack barrier was hit.
++	ADD	$1, R5
++	MOVD	R5, g_stkbarPos(g)
++	// Jump to the original return PC.
++	B	(R6)
++
+ // reflectcall: call a function with the given argument list
+ // func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
+ // we don't have variable-sized frames, so we use a small number
+@@ -743,14 +760,30 @@ TEXT setg_gcc<>(SB),NOSPLIT,$8
+ 	MOVD	savedR27-8(SP), R27
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT,$-8-16
+-	MOVD	0(RSP), R0
++TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
++	MOVD	16(RSP), R0		// LR saved by caller
++	MOVD	runtime·stackBarrierPC(SB), R1
++	CMP	R0, R1
++	BNE	nobar
++	// Get original return PC.
++	BL	runtime·nextBarrierPC(SB)
++	MOVD	8(RSP), R0
++nobar:
+ 	MOVD	R0, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$-8-16
++TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
+ 	MOVD	pc+8(FP), R0
+-	MOVD	R0, 0(RSP)		// set calling pc
++	MOVD	16(RSP), R1
++	MOVD	runtime·stackBarrierPC(SB), R2
++	CMP	R1, R2
++	BEQ	setbar
++	MOVD	R0, 16(RSP)		// set LR in caller
++	RET
++setbar:
++	// Set the stack barrier return PC.
++	MOVD	R0, 8(RSP)
++	BL	runtime·setNextBarrierPC(SB)
+ 	RET
+ 
+ TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 53870f6640..d31adb88f2 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -304,6 +304,24 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
+ 	MOVD	R0, R11
+ 	BR	runtime·morestack(SB)
+ 
++TEXT runtime·stackBarrier(SB),NOSPLIT,$0
++	// We came here via a RET to an overwritten LR.
++	// R3 may be live. Other registers are available.
++
++	// Get the original return PC, g.stkbar[g.stkbarPos].savedLRVal.
++	MOVD	(g_stkbar+slice_array)(g), R4
++	MOVD	g_stkbarPos(g), R5
++	MOVD	$stkbar__size, R6
++	MULLD	R5, R6
++	ADD	R4, R6
++	MOVD	stkbar_savedLRVal(R6), R6
++	// Record that this stack barrier was hit.
++	ADD	$1, R5
++	MOVD	R5, g_stkbarPos(g)
++	// Jump to the original return PC.
++	MOVD	R6, CTR
++	BR	(CTR)
++
+ // reflectcall: call a function with the given argument list
+ // func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
+ // we don't have variable-sized frames, so we use a small number
+@@ -883,15 +901,31 @@ TEXT setg_gcc<>(SB),NOSPLIT,$-8-0
+ 	MOVD	R4, LR
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT,$-8-16
+-	MOVD	0(R1), R3
++TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
++	MOVD	16(R1), R3		// LR saved by caller
++	MOVD	runtime·stackBarrierPC(SB), R4
++	CMP	R3, R4
++	BNE	nobar
++	// Get original return PC.
++	BL	runtime·nextBarrierPC(SB)
++	MOVD	8(R1), R3
++nobar:
+ 	MOVD	R3, ret+8(FP)
+ 	RETURN
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$-8-16
++TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
+ 	MOVD	pc+8(FP), R3
+-	MOVD	R3, 0(R1)		// set calling pc
++	MOVD	16(R1), R4
++	MOVD	runtime·stackBarrierPC(SB), R5
++	CMP	R4, R5
++	BEQ	setbar
++	MOVD	R3, 16(R1)		// set LR in caller
+ 	RETURN
++setbar:
++	// Set the stack barrier return PC.
++	MOVD	R3, 8(R1)
++	BL	runtime·setNextBarrierPC(SB)
++	RET
+ 
+ TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
+ 	MOVD	argp+0(FP), R3
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 53a0a00ae7..674160cb3a 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -27,6 +27,9 @@ import "unsafe"
+ // slot is the destination (dst) in go code
+ // ptr is the value that goes into the slot (src) in the go code
+ //
++//
++// Dealing with memory ordering:
++//
+ // Dijkstra pointed out that maintaining the no black to white
+ // pointers means that white to white pointers not need
+ // to be noted by the write barrier. Furthermore if either
+@@ -54,7 +57,20 @@ import "unsafe"
+ // Peterson/Dekker algorithms for mutual exclusion). Rather than require memory
+ // barriers, which will slow down both the mutator and the GC, we always grey
+ // the ptr object regardless of the slot's color.
+-//go:nowritebarrier
++//
++//
++// Stack writes:
++//
++// The compiler omits write barriers for writes to the current frame,
++// but if a stack pointer has been passed down the call stack, the
++// compiler will generate a write barrier for writes through that
++// pointer (because it doesn't know it's not a heap pointer).
++//
++// One might be tempted to ignore the write barrier if slot points
++// into to the stack. Don't do it! Mark termination only re-scans
++// frames that have potentially been active since the concurrent scan,
++// so it depends on write barriers to track changes to pointers in
++// stack frames that have not been active. go:nowritebarrier
+ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
+ 	switch gcphase {
+ 	default:
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index c4c922bda8..f491e51a05 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -283,6 +283,9 @@ func gcphasework(gp *g) {
+ //go:nowritebarrier
+ func scanstack(gp *g) {
+ 	if gp.gcscanvalid {
++		if gcphase == _GCmarktermination {
++			gcRemoveStackBarriers(gp)
++		}
+ 		return
+ 	}
+ 
+@@ -312,11 +315,66 @@ func scanstack(gp *g) {
+ 		throw("can't scan gchelper stack")
+ 	}
+ 
++	var barrierOffset, nextBarrier uintptr
++	switch gcphase {
++	case _GCscan:
++		// Install stack barriers during stack scan.
++		barrierOffset = firstStackBarrierOffset
++		nextBarrier = gp.sched.sp + barrierOffset
++
++		if gp.stkbarPos != 0 || len(gp.stkbar) != 0 {
++			// If this happens, it's probably because we
++			// scanned a stack twice in the same phase.
++			print("stkbarPos=", gp.stkbarPos, " len(stkbar)=", len(gp.stkbar), " goid=", gp.goid, " gcphase=", gcphase, "\n")
++			throw("g already has stack barriers")
++		}
++
++	case _GCmarktermination:
++		if int(gp.stkbarPos) == len(gp.stkbar) {
++			// gp hit all of the stack barriers (or there
++			// were none). Re-scan the whole stack.
++			nextBarrier = ^uintptr(0)
++		} else {
++			// Only re-scan up to the lowest un-hit
++			// barrier. Any frames above this have not
++			// executed since the _GCscan scan of gp and
++			// any writes through up-pointers to above
++			// this barrier had write barriers.
++			nextBarrier = gp.stkbar[gp.stkbarPos].savedLRPtr
++			if debugStackBarrier {
++				print("rescan below ", hex(nextBarrier), " in [", hex(gp.sched.sp), ",", hex(gp.stack.hi), ") goid=", gp.goid, "\n")
++			}
++		}
++
++		gcRemoveStackBarriers(gp)
++
++	default:
++		throw("scanstack in wrong phase")
++	}
++
+ 	gcw := &getg().m.p.ptr().gcw
++	n := 0
+ 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
+-		// Pick up gcw as free variable so gentraceback and friends can
+-		// keep the same signature.
+ 		scanframeworker(frame, unused, gcw)
++
++		if frame.fp > nextBarrier {
++			// We skip installing a barrier on bottom-most
++			// frame because on LR machines this LR is not
++			// on the stack.
++			if gcphase == _GCscan && n != 0 {
++				gcInstallStackBarrier(gp, frame)
++				barrierOffset *= 2
++				nextBarrier = gp.sched.sp + barrierOffset
++			} else if gcphase == _GCmarktermination {
++				// We just scanned a frame containing
++				// a return to a stack barrier. Since
++				// this frame never returned, we can
++				// stop scanning.
++				return false
++			}
++		}
++		n++
++
+ 		return true
+ 	}
+ 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
+@@ -423,6 +481,122 @@ func gcMaxStackBarriers(stackSize int) (n int) {
+ 	return n + 1
+ }
+ 
++// gcInstallStackBarrier installs a stack barrier over the return PC of frame.
++//go:nowritebarrier
++func gcInstallStackBarrier(gp *g, frame *stkframe) {
++	if frame.lr == 0 {
++		if debugStackBarrier {
++			print("not installing stack barrier with no LR, goid=", gp.goid, "\n")
++		}
++		return
++	}
++
++	// Save the return PC and overwrite it with stackBarrier.
++	var lrUintptr uintptr
++	if usesLR {
++		lrUintptr = frame.sp
++	} else {
++		lrUintptr = frame.fp - regSize
++	}
++	lrPtr := (*uintreg)(unsafe.Pointer(lrUintptr))
++	if debugStackBarrier {
++		print("install stack barrier at ", hex(lrUintptr), " over ", hex(*lrPtr), ", goid=", gp.goid, "\n")
++		if uintptr(*lrPtr) != frame.lr {
++			print("frame.lr=", hex(frame.lr))
++			throw("frame.lr differs from stack LR")
++		}
++	}
++
++	gp.stkbar = gp.stkbar[:len(gp.stkbar)+1]
++	stkbar := &gp.stkbar[len(gp.stkbar)-1]
++	stkbar.savedLRPtr = lrUintptr
++	stkbar.savedLRVal = uintptr(*lrPtr)
++	*lrPtr = uintreg(stackBarrierPC)
++}
++
++// gcRemoveStackBarriers removes all stack barriers installed in gp's stack.
++//go:nowritebarrier
++func gcRemoveStackBarriers(gp *g) {
++	if debugStackBarrier && gp.stkbarPos != 0 {
++		print("hit ", gp.stkbarPos, " stack barriers, goid=", gp.goid, "\n")
++	}
++
++	// Remove stack barriers that we didn't hit.
++	for _, stkbar := range gp.stkbar[gp.stkbarPos:] {
++		gcRemoveStackBarrier(gp, stkbar)
++	}
++
++	// Clear recorded stack barriers so copystack doesn't try to
++	// adjust them.
++	gp.stkbarPos = 0
++	gp.stkbar = gp.stkbar[:0]
++}
++
++// gcRemoveStackBarrier removes a single stack barrier. It is the
++// inverse operation of gcInstallStackBarrier.
++//go:nowritebarrier
++func gcRemoveStackBarrier(gp *g, stkbar stkbar) {
++	if debugStackBarrier {
++		print("remove stack barrier at ", hex(stkbar.savedLRPtr), " with ", hex(stkbar.savedLRVal), ", goid=", gp.goid, "\n")
++	}
++	lrPtr := (*uintreg)(unsafe.Pointer(stkbar.savedLRPtr))
++	if val := *lrPtr; val != uintreg(stackBarrierPC) {
++		printlock()
++		print("at *", hex(stkbar.savedLRPtr), " expected stack barrier PC ", hex(stackBarrierPC), ", found ", hex(val), ", goid=", gp.goid, "\n")
++		print("gp.stkbar=")
++		gcPrintStkbars(gp.stkbar)
++		print(", gp.stkbarPos=", gp.stkbarPos, ", gp.stack=[", hex(gp.stack.lo), ",", hex(gp.stack.hi), ")\n")
++		throw("stack barrier lost")
++	}
++	*lrPtr = uintreg(stkbar.savedLRVal)
++}
++
++// gcPrintStkbars prints a []stkbar for debugging.
++func gcPrintStkbars(stkbar []stkbar) {
++	print("[")
++	for i, s := range stkbar {
++		if i > 0 {
++			print(" ")
++		}
++		print("*", hex(s.savedLRPtr), "=", hex(s.savedLRVal))
++	}
++	print("]")
++}
++
++// gcSkipBarriers marks all stack barriers up to sp as hit. This is
++// used during stack unwinding for panic/recover. This must run on the
++// system stack to ensure gp's stack does not get copied.
++func gcSkipBarriers(gp *g, sp uintptr) {
++	// On LR machines, if there is a stack barrier on the return
++	// from the frame containing sp, this will mark it as hit even
++	// though it isn't, but it's okay to be conservative.
++	before := gp.stkbarPos
++	for int(gp.stkbarPos) < len(gp.stkbar) && gp.stkbar[gp.stkbarPos].savedLRPtr < sp {
++		gp.stkbarPos++
++	}
++	if debugStackBarrier && gp.stkbarPos != before {
++		print("skip barriers below ", hex(sp), " in goid=", gp.goid, ": ")
++		gcPrintStkbars(gp.stkbar[before:gp.stkbarPos])
++		print("\n")
++	}
++}
++
++// nextBarrierPC returns the original return PC of the next stack barrier.
++// Used by getcallerpc, so it must be nosplit.
++//go:nosplit
++func nextBarrierPC() uintptr {
++	gp := getg()
++	return gp.stkbar[gp.stkbarPos].savedLRVal
++}
++
++// setNextBarrierPC sets the return PC of the next stack barrier.
++// Used by setcallerpc, so it must be nosplit.
++//go:nosplit
++func setNextBarrierPC(pc uintptr) {
++	gp := getg()
++	gp.stkbar[gp.stkbarPos].savedLRVal = pc
++}
++
+ // TODO(austin): Can we consolidate the gcDrain* functions?
+ 
+ // gcDrain scans objects in work buffers, blackening grey
+diff --git a/src/runtime/panic1.go b/src/runtime/panic1.go
+index c14cf27176..91450fc432 100644
+--- a/src/runtime/panic1.go
++++ b/src/runtime/panic1.go
+@@ -29,6 +29,7 @@ func recovery(gp *g) {
+ 	// Make the deferproc for this d return again,
+ 	// this time returning 1.  The calling function will
+ 	// jump to the standard return epilogue.
++	gcSkipBarriers(gp, sp)
+ 	gp.sched.sp = sp
+ 	gp.sched.pc = pc
+ 	gp.sched.lr = 0
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index 5c2388d0e6..1965e9e262 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -545,6 +545,12 @@ func adjustsudogs(gp *g, adjinfo *adjustinfo) {
+ 	}
+ }
+ 
++func adjuststkbar(gp *g, adjinfo *adjustinfo) {
++	for i := int(gp.stkbarPos); i < len(gp.stkbar); i++ {
++		adjustpointer(adjinfo, (unsafe.Pointer)(&gp.stkbar[i].savedLRPtr))
++	}
++}
++
+ func fillstack(stk stack, b byte) {
+ 	for p := stk.lo; p < stk.hi; p++ {
+ 		*(*byte)(unsafe.Pointer(p)) = b
+@@ -583,6 +589,7 @@ func copystack(gp *g, newsize uintptr) {
+ 	adjustdefers(gp, &adjinfo)
+ 	adjustpanics(gp, &adjinfo)
+ 	adjustsudogs(gp, &adjinfo)
++	adjuststkbar(gp, &adjinfo)
+ 
+ 	// copy the stack to the new location
+ 	if stackPoisonCopy != 0 {
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index 17e33327ae..b6f20686bf 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -309,6 +309,39 @@ func TestPanicUseStack(t *testing.T) {
+ 	panic(1)
+ }
+ 
++func TestPanicFar(t *testing.T) {
++	var xtree *xtreeNode
++	pc := make([]uintptr, 10000)
++	defer func() {
++		// At this point we created a large stack and unwound
++		// it via recovery. Force a stack walk, which will
++		// check the consistency of stack barriers.
++		Callers(0, pc)
++	}()
++	defer func() {
++		recover()
++	}()
++	useStackAndCall(100, func() {
++		// Kick off the GC and make it do something nontrivial
++		// to keep stack barriers installed for a while.
++		xtree = makeTree(18)
++		// Give the GC time to install stack barriers.
++		time.Sleep(time.Millisecond)
++		panic(1)
++	})
++}
++
++type xtreeNode struct {
++	l, r *xtreeNode
++}
++
++func makeTree(d int) *xtreeNode {
++	if d == 0 {
++		return new(xtreeNode)
++	}
++	return &xtreeNode{makeTree(d - 1), makeTree(d - 1)}
++}
++
+ // use about n KB of stack and call f
+ func useStackAndCall(n int, f func()) {
+ 	if n == 0 {
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 6d5a98b5df..aa84951eb4 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -216,6 +216,13 @@ const _NoArgs = ^uintptr(0)
+ func morestack()
+ func rt0_go()
+ 
++// stackBarrier records that the stack has been unwound past a certain
++// point. It is installed over a return PC on the stack. It must
++// retrieve the original return PC from g.stkbuf, increment
++// g.stkbufPos to record that the barrier was hit, and jump to the
++// original return PC.
++func stackBarrier()
++
+ // return0 is a stub used to return 0 from deferproc.
+ // It is called at the very end of deferproc to signal
+ // the calling Go function that it should not jump
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 5ed601e6f3..48ef6e5e27 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -47,6 +47,7 @@ var (
+ 	gcBgMarkWorkerPC     uintptr
+ 	systemstack_switchPC uintptr
+ 	systemstackPC        uintptr
++	stackBarrierPC       uintptr
+ 
+ 	gogoPC uintptr
+ 
+@@ -73,6 +74,7 @@ func tracebackinit() {
+ 	gcBgMarkWorkerPC = funcPC(gcBgMarkWorker)
+ 	systemstack_switchPC = funcPC(systemstack_switch)
+ 	systemstackPC = funcPC(systemstack)
++	stackBarrierPC = funcPC(stackBarrier)
+ 
+ 	// used by sigprof handler
+ 	gogoPC = funcPC(gogo)
+@@ -135,6 +137,11 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		throw("gentraceback cannot trace user goroutine on its own stack")
+ 	}
+ 	gotraceback := gotraceback(nil)
++
++	// Fix up returns to the stack barrier by fetching the
++	// original return PC from gp.stkbar.
++	stkbar := gp.stkbar[gp.stkbarPos:]
++
+ 	if pc0 == ^uintptr(0) && sp0 == ^uintptr(0) { // Signal to fetch saved values from gp.
+ 		if gp.syscallsp != 0 {
+ 			pc0 = gp.syscallpc
+@@ -207,6 +214,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			sp := frame.sp
+ 			if flags&_TraceJumpStack != 0 && f.entry == systemstackPC && gp == g.m.g0 && gp.m.curg != nil {
+ 				sp = gp.m.curg.sched.sp
++				stkbar = gp.m.curg.stkbar[gp.m.curg.stkbarPos:]
+ 			}
+ 			frame.fp = sp + uintptr(funcspdelta(f, frame.pc))
+ 			if !usesLR {
+@@ -230,14 +238,28 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			}
+ 			frame.lr = 0
+ 		} else {
++			var lrPtr uintptr
+ 			if usesLR {
+ 				if n == 0 && frame.sp < frame.fp || frame.lr == 0 {
+-					frame.lr = *(*uintptr)(unsafe.Pointer(frame.sp))
++					lrPtr = frame.sp
++					frame.lr = *(*uintptr)(unsafe.Pointer(lrPtr))
+ 				}
+ 			} else {
+ 				if frame.lr == 0 {
+-					frame.lr = uintptr(*(*uintreg)(unsafe.Pointer(frame.fp - regSize)))
++					lrPtr = frame.fp - regSize
++					frame.lr = uintptr(*(*uintreg)(unsafe.Pointer(lrPtr)))
++				}
++			}
++			if frame.lr == stackBarrierPC {
++				// Recover original PC.
++				if stkbar[0].savedLRPtr != lrPtr {
++					print("found next stack barrier at ", hex(lrPtr), "; expected ")
++					gcPrintStkbars(stkbar)
++					print("\n")
++					throw("missed stack barrier")
+ 				}
++				frame.lr = stkbar[0].savedLRVal
++				stkbar = stkbar[1:]
+ 			}
+ 			flr = findfunc(frame.lr)
+ 			if flr == nil {
+@@ -450,6 +472,13 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		throw("traceback has leftover defers")
+ 	}
+ 
++	if callback != nil && n < max && len(stkbar) > 0 {
++		print("runtime: g", gp.goid, ": leftover stack barriers ")
++		gcPrintStkbars(stkbar)
++		print("\n")
++		throw("traceback has leftover stack barriers")
++	}
++
+ 	return n
+ }
+ 

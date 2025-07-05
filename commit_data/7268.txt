@@ -11,8 +11,96 @@ Date:   Fri Jan 28 09:42:51 2011 -0500
     R=adg, r
     CC=golang-dev
     https://golang.org/cl/4030044
-
+---
  doc/codelab/wiki/Makefile |  3 ++-
  doc/codelab/wiki/get.go   |  6 +++---
  doc/codelab/wiki/test.sh  | 30 ++++++++++++++----------------
  3 files changed, 19 insertions(+), 20 deletions(-)
+
+diff --git a/doc/codelab/wiki/Makefile b/doc/codelab/wiki/Makefile
+index eff15cd62d..0d948ed4b8 100644
+--- a/doc/codelab/wiki/Makefile
++++ b/doc/codelab/wiki/Makefile
+@@ -19,6 +19,7 @@ test: get.bin
+ 
+ %.bin: %.$O
+ 	$(LD) -o $@ $<
+-%.$O:
++
++%.$O: %.go
+ 	$(GC) $*.go
+ 
+diff --git a/doc/codelab/wiki/get.go b/doc/codelab/wiki/get.go
+index ff941a3484..7c583bda9b 100644
+--- a/doc/codelab/wiki/get.go
++++ b/doc/codelab/wiki/get.go
+@@ -13,18 +13,18 @@ import (
+ 
+ var (
+ 	post = flag.String("post", "", "urlencoded form data to POST")
+-	port = flag.Bool("port", false, "find open port and print to stdout")
++	addr = flag.Bool("addr", false, "find open address and print to stdout")
+ )
+ 
+ func main() {
+ 	flag.Parse()
+-	if *port {
++	if *addr {
+ 		l, err := net.Listen("tcp", "127.0.0.1:0")
+ 		if err != nil {
+ 			log.Exit(err)
+ 		}
+ 		defer l.Close()
+-		fmt.Print(l.Addr().(*net.TCPAddr).Port)
++		fmt.Print(l.Addr())
+ 		return
+ 	}
+ 	url := flag.Arg(0)
+diff --git a/doc/codelab/wiki/test.sh b/doc/codelab/wiki/test.sh
+index fab2b00e7e..95ff145b97 100755
+--- a/doc/codelab/wiki/test.sh
++++ b/doc/codelab/wiki/test.sh
+@@ -1,29 +1,27 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ 
++set -e
+ wiki_pid=
+-
+ cleanup() {
+ 	kill $wiki_pid
+ 	rm -f test_*.out Test.txt final-test.bin final-test.go
+-	exit ${1:-1}
+ }
+-trap cleanup INT
++trap cleanup 0 INT
+ 
+-port=$(./get.bin -port)
+-sed s/8080/$port/ < final.go > final-test.go
+-gomake final-test.bin || cleanup 1
++gomake get.bin
++addr=$(./get.bin -addr)
++sed s/:8080/$addr/ < final.go > final-test.go
++gomake final-test.bin
+ ./final-test.bin &
+ wiki_pid=$!
+ 
+ sleep 1
+ 
+-./get.bin http://127.0.0.1:$port/edit/Test > test_edit.out
+-diff -u test_edit.out test_edit.good || cleanup 1
+-./get.bin -post=body=some%20content http://127.0.0.1:$port/save/Test
+-diff -u Test.txt test_Test.txt.good || cleanup 1
+-./get.bin http://127.0.0.1:$port/view/Test > test_view.out
+-diff -u test_view.out test_view.good || cleanup 1
+-
+-echo "Passed"
+-cleanup 0
++./get.bin http://$addr/edit/Test > test_edit.out
++diff -u test_edit.out test_edit.good
++./get.bin -post=body=some%20content http://$addr/save/Test
++diff -u Test.txt test_Test.txt.good
++./get.bin http://$addr/view/Test > test_view.out
++diff -u test_view.out test_view.good
+ 
++echo PASS

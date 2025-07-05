@@ -20,6 +20,21 @@ Date:   Tue Oct 25 00:31:45 2016 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/lookup_plan9.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index b5cf7aaab5..11f2349afe 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -122,6 +122,9 @@ func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, e
+ 	// host names in local network (e.g. from /lib/ndb/local)
+ 	lines, err := queryCS(ctx, "net", host, "1")
+ 	if err != nil {
++		if stringsHasSuffix(err.Error(), "dns failure") {
++			err = errNoSuchHost
++		}
+ 		return
+ 	}
+ loop:

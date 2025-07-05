@@ -13,8 +13,119 @@ Date:   Mon Mar 24 11:48:34 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/76400048
-
+---
  src/pkg/bufio/bufio.go      | 14 +++++++++---
  src/pkg/bufio/bufio_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/bufio/scan.go       |  2 +-
  3 files changed, 66 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index ef74471915..de81b4ddfd 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -38,6 +38,7 @@ type Reader struct {
+ }
+ 
+ const minReadBufferSize = 16
++const maxConsecutiveEmptyReads = 100
+ 
+ // NewReaderSize returns a new Reader whose buffer has at least the specified
+ // size. If the argument io.Reader is already a Reader with large enough
+@@ -625,9 +626,16 @@ func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
+ 				return n, err1
+ 			}
+ 		}
+-		m, err = r.Read(b.buf[b.n:])
+-		if m == 0 {
+-			break
++		nr := 0
++		for nr < maxConsecutiveEmptyReads {
++			m, err = r.Read(b.buf[b.n:])
++			if m != 0 || err != nil {
++				break
++			}
++			nr++
++		}
++		if nr == maxConsecutiveEmptyReads {
++			return n, io.ErrNoProgress
+ 		}
+ 		b.n += m
+ 		n += int64(m)
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 3dd5ceb61d..800c6d2717 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -1060,6 +1060,60 @@ func TestWriterReadFromWhileFull(t *testing.T) {
+ 	}
+ }
+ 
++type emptyThenNonEmptyReader struct {
++	r io.Reader
++	n int
++}
++
++func (r *emptyThenNonEmptyReader) Read(p []byte) (int, error) {
++	if r.n <= 0 {
++		return r.r.Read(p)
++	}
++	r.n--
++	return 0, nil
++}
++
++// Test for golang.org/issue/7611
++func TestWriterReadFromUntilEOF(t *testing.T) {
++	buf := new(bytes.Buffer)
++	w := NewWriterSize(buf, 5)
++
++	// Partially fill buffer
++	n, err := w.Write([]byte("0123"))
++	if n != 4 || err != nil {
++		t.Fatalf("Write returned (%v, %v), want (4, nil)", n, err)
++	}
++
++	// Use ReadFrom to read in some data.
++	r := &emptyThenNonEmptyReader{r: strings.NewReader("abcd"), n: 3}
++	n2, err := w.ReadFrom(r)
++	if n2 != 4 || err != nil {
++		t.Fatalf("ReadFrom returned (%v, %v), want (4, nil)", n2, err)
++	}
++	w.Flush()
++	if got, want := string(buf.Bytes()), "0123abcd"; got != want {
++		t.Fatalf("buf.Bytes() returned %q, want %q", got, want)
++	}
++}
++
++func TestWriterReadFromErrNoProgress(t *testing.T) {
++	buf := new(bytes.Buffer)
++	w := NewWriterSize(buf, 5)
++
++	// Partially fill buffer
++	n, err := w.Write([]byte("0123"))
++	if n != 4 || err != nil {
++		t.Fatalf("Write returned (%v, %v), want (4, nil)", n, err)
++	}
++
++	// Use ReadFrom to read in some data.
++	r := &emptyThenNonEmptyReader{r: strings.NewReader("abcd"), n: 100}
++	n2, err := w.ReadFrom(r)
++	if n2 != 0 || err != io.ErrNoProgress {
++		t.Fatalf("buf.Bytes() returned (%v, %v), want (0, io.ErrNoProgress)", n2, err)
++	}
++}
++
+ func TestReaderReset(t *testing.T) {
+ 	r := NewReader(strings.NewReader("foo foo"))
+ 	buf := make([]byte, 3)
+diff --git a/src/pkg/bufio/scan.go b/src/pkg/bufio/scan.go
+index 77b2c2ac6f..3f8d2a82a6 100644
+--- a/src/pkg/bufio/scan.go
++++ b/src/pkg/bufio/scan.go
+@@ -172,7 +172,7 @@ func (s *Scanner) Scan() bool {
+ 				break
+ 			}
+ 			loop++
+-			if loop > 100 {
++			if loop > maxConsecutiveEmptyReads {
+ 				s.setErr(io.ErrNoProgress)
+ 				break
+ 			}

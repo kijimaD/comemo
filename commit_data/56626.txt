@@ -11,7 +11,48 @@ Date:   Thu May 18 11:40:19 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/builtins.go | 7 +++----
  src/go/types/builtins.go                    | 7 +++----
  2 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 1a79fc8ebd..e8c0859fa0 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -636,12 +636,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		if nargs > 0 {
+ 			params = make([]Type, nargs)
+ 			for i, a := range args {
+-				*x = *a
+-				check.assignment(x, nil, "argument to "+predeclaredFuncs[id].name)
+-				if x.mode == invalid {
++				check.assignment(a, nil, "argument to "+predeclaredFuncs[id].name)
++				if a.mode == invalid {
+ 					return
+ 				}
+-				params[i] = x.typ
++				params[i] = a.typ
+ 			}
+ 		}
+ 
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 80cfeb3880..d40d8d77cc 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -635,12 +635,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		if nargs > 0 {
+ 			params = make([]Type, nargs)
+ 			for i, a := range args {
+-				*x = *a
+-				check.assignment(x, nil, "argument to "+predeclaredFuncs[id].name)
+-				if x.mode == invalid {
++				check.assignment(a, nil, "argument to "+predeclaredFuncs[id].name)
++				if a.mode == invalid {
+ 					return
+ 				}
+-				params[i] = x.typ
++				params[i] = a.typ
+ 			}
+ 		}
+ 

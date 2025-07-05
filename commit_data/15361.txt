@@ -18,7 +18,7 @@ Date:   Thu Feb 21 12:52:26 2013 -0800
     R=golang-dev, bradfitz, cshapiro, dave, rsc
     CC=golang-dev
     https://golang.org/cl/7399045
-
+---
  src/cmd/5g/peep.c               |  3 +++
  src/cmd/5l/5.out.h              |  1 +
  src/cmd/5l/l.h                  |  2 ++
@@ -40,3 +40,338 @@ Date:   Thu Feb 21 12:52:26 2013 -0800
  src/pkg/runtime/traceback_arm.c |  2 +-
  src/pkg/runtime/traceback_x86.c |  2 +-
  20 files changed, 59 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 4e35cf75a7..1fcdd3dd67 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -1189,6 +1189,9 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 			if(v->reg == (uchar)REGARG)
+ 				return 3;
+ 		return 0;
++
++	case ALOCALS:	/* funny */
++		return 0;
+ 	}
+ }
+ 
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index c987001777..1ffe9dc85e 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -197,6 +197,7 @@ enum	as
+ 	AMULAWB,
+ 	
+ 	AUSEFIELD,
++	ALOCALS,
+ 
+ 	ALAST,
+ };
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 0a04559e9a..ce4f720126 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -147,6 +147,8 @@ struct	Sym
+ 	int32	size;
+ 	int32	align;	// if non-zero, required alignment in bytes
+ 	int32	elfsym;
++	int32	locals;	// size of stack frame locals area
++	int32	args;	// size of stack frame incoming arguments area
+ 	uchar	special;
+ 	uchar	fnptr;	// used as fn ptr
+ 	uchar	stkcheck;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 10c33f25d6..c9e38dc389 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -573,6 +573,11 @@ loop:
+ 		pc++;
+ 		break;
+ 
++	case ALOCALS:
++		cursym->locals = p->to.offset;
++		pc++;
++		break;
++
+ 	case ATEXT:
+ 		if(cursym != nil && cursym->text) {
+ 			histtoauto();
+@@ -610,6 +615,7 @@ loop:
+ 		s->type = STEXT;
+ 		s->text = p;
+ 		s->value = pc;
++		s->args = p->to.offset2;
+ 		lastp = p;
+ 		p->pc = pc;
+ 		pc++;
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index ece1ff89ce..fd30e91a52 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -830,6 +830,7 @@ buildop(void)
+ 		case ARFE:
+ 		case ATEXT:
+ 		case AUSEFIELD:
++		case ALOCALS:
+ 		case ACASE:
+ 		case ABCASE:
+ 			break;
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 3946861de4..d348c1304e 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -758,6 +758,7 @@ enum	as
+ 	APSHUFD,
+ 	
+ 	AUSEFIELD,
++	ALOCALS,
+ 
+ 	ALAST
+ };
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index b8b7913308..ffb8a45522 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -154,6 +154,8 @@ struct	Sym
+ 	int32	got;
+ 	int32	align;	// if non-zero, required alignment in bytes
+ 	int32	elfsym;
++	int32	locals;	// size of stack frame locals area
++	int32	args;	// size of stack frame incoming arguments area
+ 	Sym*	hash;	// in hash table
+ 	Sym*	allsym;	// in all symbol list
+ 	Sym*	next;	// in text or data list
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 1cb4bd2aaa..e90a66e5dc 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -586,6 +586,11 @@ loop:
+ 		pc++;
+ 		goto loop;
+ 
++	case ALOCALS:
++		cursym->locals = p->to.offset;
++		pc++;
++		goto loop;
++
+ 	case ATEXT:
+ 		s = p->from.sym;
+ 		if(s->text != nil) {
+@@ -629,6 +634,7 @@ loop:
+ 		}
+ 		s->type = STEXT;
+ 		s->value = pc;
++		s->args = p->to.offset >> 32;
+ 		lastp = p;
+ 		p->pc = pc++;
+ 		goto loop;
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index 4f8406637c..43f34d9747 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -1316,6 +1316,7 @@ Optab optab[] =
+ 	{ APSHUFD,	yaes2,	Pq,	0x70,(0) },
+ 
+ 	{ AUSEFIELD,	ynop,	Px, 0,0 },
++	{ ALOCALS },
+ 
+ 	{ AEND },
+ 	0
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 6a2d46c62e..ae1397dd8d 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -568,6 +568,7 @@ enum	as
+ 	AXORPS,
+ 	
+ 	AUSEFIELD,
++	ALOCALS,
+ 
+ 	ALAST
+ };
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 8b172f4047..f88f058e35 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -138,6 +138,8 @@ struct	Sym
+ 	int32	got;
+ 	int32	align;	// if non-zero, required alignment in bytes
+ 	int32	elfsym;
++	int32	locals;	// size of stack frame locals area
++	int32	args;	// size of stack frame incoming arguments area
+ 	Sym*	hash;	// in hash table
+ 	Sym*	allsym;	// in all symbol list
+ 	Sym*	next;	// in text or data list
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 5704acd5de..bd5684a350 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -595,6 +595,11 @@ loop:
+ 		pc++;
+ 		goto loop;
+ 
++	case ALOCALS:
++		cursym->locals = p->to.offset;
++		pc++;
++		goto loop;
++
+ 	case ATEXT:
+ 		s = p->from.sym;
+ 		if(s->text != nil) {
+@@ -633,6 +638,7 @@ loop:
+ 		}
+ 		s->type = STEXT;
+ 		s->value = pc;
++		s->args = p->to.offset2;
+ 		lastp = p;
+ 		p->pc = pc++;
+ 		goto loop;
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index 865871ce5c..ae808ec770 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -961,6 +961,7 @@ Optab optab[] =
+ 	{ AXORPS,	yxm,	Pm, 0x57 },
+ 
+ 	{ AUSEFIELD,	ynop,	Px, 0,0 },
++	{ ALOCALS },
+ 
+ 	0
+ };
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index a07ad77342..23c71ae0e5 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -14,7 +14,7 @@ compile(Node *fn)
+ {
+ 	Plist *pl;
+ 	Node nod1, *n;
+-	Prog *ptxt;
++	Prog *plocals, *ptxt;
+ 	int32 lno;
+ 	Type *t;
+ 	Iter save;
+@@ -87,6 +87,8 @@ compile(Node *fn)
+ 
+ 	ginit();
+ 
++	plocals = gins(ALOCALS, N, N);
++
+ 	for(t=curfn->paramfld; t; t=t->down)
+ 		gtrack(tracksym(t->type));
+ 
+@@ -132,6 +134,9 @@ compile(Node *fn)
+ 
+ 	oldstksize = stksize;
+ 	allocauto(ptxt);
++
++	plocals->to.offset = stksize;
++
+ 	if(0)
+ 		print("allocauto: %lld to %lld\n", oldstksize, (vlong)stksize);
+ 
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index d388236996..4f0b87466b 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1626,8 +1626,10 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 
+ 		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
+ 
+-		/* frame, auto and param after */
++		/* frame, locals, args, auto and param after */
+ 		put(nil, ".frame", 'm', s->text->to.offset+PtrSize, 0, 0, 0);
++		put(nil, ".locals", 'm', s->locals, 0, 0, 0);
++		put(nil, ".args", 'm', s->args, 0, 0, 0);
+ 
+ 		for(a=s->autom; a; a=a->link)
+ 			if(a->type == D_AUTO)
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 8df005f952..fbaffd1d56 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -42,8 +42,8 @@ type Func struct { // Keep in sync with runtime.h:struct Func
+ 	pc0    uintptr // starting pc, ln for table
+ 	ln0    int32
+ 	frame  int32 // stack frame size
+-	args   int32 // number of 32-bit in/out args
+-	locals int32 // number of 32-bit locals
++	args   int32 // in/out args size
++	locals int32 // locals size
+ }
+ 
+ // FuncForPC returns a *Func describing the function that contains the
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 4ca7cc7dc9..75a3d047d7 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -353,8 +353,8 @@ struct	Func
+ 	uintptr	pc0;	// starting pc, ln for table
+ 	int32	ln0;
+ 	int32	frame;	// stack frame size
+-	int32	args;	// number of 32-bit in/out args
+-	int32	locals;	// number of 32-bit locals
++	int32	args;	// in/out args size
++	int32	locals;	// locals size
+ };
+ 
+ // layout of Itab known to compilers
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 2cb7263ee7..85a1096d10 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -124,17 +124,17 @@ dofunc(Sym *sym)
+ 			f->frame = -sizeof(uintptr);
+ 		break;
+ 	case 'm':
+-		if(nfunc > 0 && func != nil)
+-			func[nfunc-1].frame += sym->value;
+-		break;
+-	case 'p':
+-		if(nfunc > 0 && func != nil) {
+-			f = &func[nfunc-1];
+-			// args counts 32-bit words.
+-			// sym->value is the arg's offset.
+-			// don't know width of this arg, so assume it is 64 bits.
+-			if(f->args < sym->value/4 + 2)
+-				f->args = sym->value/4 + 2;
++		if(nfunc <= 0 || func == nil)
++			break;
++		if(runtime·strcmp(sym->name, (byte*)".frame") == 0)
++			func[nfunc-1].frame = sym->value;
++		else if(runtime·strcmp(sym->name, (byte*)".locals") == 0)
++			func[nfunc-1].locals = sym->value;
++		else if(runtime·strcmp(sym->name, (byte*)".args") == 0)
++			func[nfunc-1].args = sym->value;
++		else {
++			runtime·printf("invalid 'm' symbol named '%s'\n", sym->name);
++			runtime·throw("mangled symbol table");
+ 		}
+ 		break;
+ 	case 'f':
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 8ce000c1fe..5c831685e4 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -128,7 +128,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ 				if(m->throwing && gp == m->curg)
+ 					runtime·printf("[fp=%p] ", fp);
+ 				runtime·printf("%S(", f->name);
+-				for(i = 0; i < f->args; i++) {
++				for(i = 0; i < f->args/sizeof(uintptr); i++) {
+ 					if(i != 0)
+ 						runtime·prints(", ");
+ 					runtime·printhex(((uintptr*)fp)[1+i]);
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index a11df6b781..f5d8f2a3ff 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -130,7 +130,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ 				if(m->throwing && gp == m->curg)
+ 					runtime·printf("[fp=%p] ", fp);
+ 				runtime·printf("%S(", f->name);
+-				for(i = 0; i < f->args; i++) {
++				for(i = 0; i < f->args/sizeof(uintptr); i++) {
+ 					if(i != 0)
+ 						runtime·prints(", ");
+ 					runtime·printhex(((uintptr*)fp)[i]);

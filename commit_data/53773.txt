@@ -17,9 +17,55 @@ Date:   Wed Aug 31 17:29:28 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go                    | 3 ++-
  .../compile/internal/types2/testdata/{ => local}/issue47996.go   | 0
  src/go/types/check_test.go                                       | 1 +
  src/go/types/testdata/local/issue47996.go                        | 9 +++++++++
  4 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 8099b8b8d3..cce686ce66 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -305,7 +305,8 @@ func TestSpec(t *testing.T)     { testDirFiles(t, "../../../../go/types/testdata
+ func TestExamples(t *testing.T) { testDirFiles(t, "../../../../go/types/testdata/examples", 45, false) } // TODO(gri) narrow column tolerance
+ func TestFixedbugs(t *testing.T) {
+ 	testDirFiles(t, "../../../../go/types/testdata/fixedbugs", 100, false)
+-} // TODO(gri) narrow column tolerance
++}                            // TODO(gri) narrow column tolerance
++func TestLocal(t *testing.T) { testDirFiles(t, "testdata/local", 0, false) }
+ 
+ func testDirFiles(t *testing.T, dir string, colDelta uint, manual bool) {
+ 	testenv.MustHaveGoBuild(t)
+diff --git a/src/cmd/compile/internal/types2/testdata/issue47996.go b/src/cmd/compile/internal/types2/testdata/local/issue47996.go
+similarity index 100%
+rename from src/cmd/compile/internal/types2/testdata/issue47996.go
+rename to src/cmd/compile/internal/types2/testdata/local/issue47996.go
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 8f7bbe4d0e..3f68385ade 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -362,6 +362,7 @@ func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "t
+ func TestSpec(t *testing.T)      { testDirFiles(t, "testdata/spec", false) }
+ func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", false) }
+ func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", false) }
++func TestLocal(t *testing.T)     { testDirFiles(t, "testdata/local", false) }
+ 
+ func testDirFiles(t *testing.T, dir string, manual bool) {
+ 	testenv.MustHaveGoBuild(t)
+diff --git a/src/go/types/testdata/local/issue47996.go b/src/go/types/testdata/local/issue47996.go
+new file mode 100644
+index 0000000000..4d28920823
+--- /dev/null
++++ b/src/go/types/testdata/local/issue47996.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// don't crash
++// TODO(gri) make this test work for go/types
++// func T[P] m() {}

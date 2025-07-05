@@ -21,6 +21,17 @@ Date:   Mon Mar 25 23:12:21 2019 +0000
     GitHub-Pull-Request: golang/go#31042
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169238
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/root_linux.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/crypto/x509/root_linux.go b/src/crypto/x509/root_linux.go
+index aa1785e4c6..267775dc5f 100644
+--- a/src/crypto/x509/root_linux.go
++++ b/src/crypto/x509/root_linux.go
+@@ -11,4 +11,5 @@ var certFiles = []string{
+ 	"/etc/ssl/ca-bundle.pem",                            // OpenSUSE
+ 	"/etc/pki/tls/cacert.pem",                           // OpenELEC
+ 	"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", // CentOS/RHEL 7
++	"/etc/ssl/cert.pem",                                 // Alpine Linux
+ }

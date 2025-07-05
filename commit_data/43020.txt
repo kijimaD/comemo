@@ -18,6 +18,24 @@ Date:   Mon Mar 2 10:16:39 2020 -0500
     Change-Id: If0451e9c6431f6fab7137de43727297a80def05b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/221818
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/client.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index a496f1c0c7..ec24516833 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -265,6 +265,12 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
+ 		}
+ 		return nil, didTimeout, err
+ 	}
++	if resp == nil {
++		return nil, didTimeout, fmt.Errorf("http: RoundTripper implementation (%T) returned a nil *Response with a nil error", rt)
++	}
++	if resp.Body == nil {
++		return nil, didTimeout, fmt.Errorf("http: RoundTripper implementation (%T) returned a *Response with a nil Body", rt)
++	}
+ 	if !deadline.IsZero() {
+ 		resp.Body = &cancelTimerBody{
+ 			stop:          stopTimer,

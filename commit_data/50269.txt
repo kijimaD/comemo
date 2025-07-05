@@ -12,8 +12,54 @@ Date:   Tue Oct 12 00:33:43 2021 +0900
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Alexander Rakoczy <alex@golang.org>
-
+---
  src/internal/poll/sendfile_bsd.go | 4 ++--
  src/net/sendfile_stub.go          | 4 ++--
  src/net/sendfile_unix_alt.go      | 4 ++--
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/internal/poll/sendfile_bsd.go b/src/internal/poll/sendfile_bsd.go
+index 3ba30a2154..5531e533c5 100644
+--- a/src/internal/poll/sendfile_bsd.go
++++ b/src/internal/poll/sendfile_bsd.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd
+-// +build dragonfly freebsd
++//go:build darwin || dragonfly || freebsd
++// +build darwin dragonfly freebsd
+ 
+ package poll
+ 
+diff --git a/src/net/sendfile_stub.go b/src/net/sendfile_stub.go
+index 5753bc0289..c079064262 100644
+--- a/src/net/sendfile_stub.go
++++ b/src/net/sendfile_stub.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || (js && wasm) || netbsd || openbsd
+-// +build aix darwin js,wasm netbsd openbsd
++//go:build aix || (js && wasm) || netbsd || openbsd
++// +build aix js,wasm netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/net/sendfile_unix_alt.go b/src/net/sendfile_unix_alt.go
+index 54667d672f..cd63dcc32c 100644
+--- a/src/net/sendfile_unix_alt.go
++++ b/src/net/sendfile_unix_alt.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd || solaris
+-// +build dragonfly freebsd solaris
++//go:build darwin || dragonfly || freebsd || solaris
++// +build darwin dragonfly freebsd solaris
+ 
+ package net
+ 

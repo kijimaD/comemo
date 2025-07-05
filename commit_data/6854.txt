@@ -7,8 +7,87 @@ Date:   Tue Dec 7 15:54:04 2010 -0500
     R=stephenm, rsc
     CC=golang-dev
     https://golang.org/cl/2985042
-
+---
  src/pkg/http/client.go   | 15 ++++-----------
  src/pkg/http/url.go      | 12 ++++++++++++
  src/pkg/http/url_test.go | 21 +++++++++++++++++++++
  3 files changed, 37 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 87f5c34d87..e902369e7c 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -199,20 +199,13 @@ func PostForm(url string, data map[string]string) (r *Response, err os.Error) {
+ 	return send(&req)
+ }
+ 
++// TODO: remove this function when PostForm takes a multimap.
+ func urlencode(data map[string]string) (b *bytes.Buffer) {
+-	b = new(bytes.Buffer)
+-	first := true
++	m := make(map[string][]string, len(data))
+ 	for k, v := range data {
+-		if first {
+-			first = false
+-		} else {
+-			b.WriteByte('&')
+-		}
+-		b.WriteString(URLEscape(k))
+-		b.WriteByte('=')
+-		b.WriteString(URLEscape(v))
++		m[k] = []string{v}
+ 	}
+-	return
++	return bytes.NewBuffer([]byte(EncodeQuery(m)))
+ }
+ 
+ // Head issues a HEAD to the specified URL.
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index b878c009f9..f0ac4c1dfd 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -515,3 +515,15 @@ func (url *URL) String() string {
+ 	}
+ 	return result
+ }
++
++// EncodeQuery encodes the query represented as a multimap.
++func EncodeQuery(m map[string][]string) string {
++	parts := make([]string, 0, len(m)) // will be large enough for most uses
++	for k, vs := range m {
++		prefix := URLEscape(k) + "="
++		for _, v := range vs {
++			parts = append(parts, prefix+URLEscape(v))
++		}
++	}
++	return strings.Join(parts, "&")
++}
+diff --git a/src/pkg/http/url_test.go b/src/pkg/http/url_test.go
+index 8198e5f3e7..59b4750aa4 100644
+--- a/src/pkg/http/url_test.go
++++ b/src/pkg/http/url_test.go
+@@ -507,3 +507,24 @@ func TestUnescapeUserinfo(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type qMap map[string][]string
++
++type EncodeQueryTest struct {
++	m        qMap
++	expected string
++}
++
++var encodeQueryTests = []EncodeQueryTest{
++	{nil, ""},
++	{qMap{"q": {"puppies"}, "oe": {"utf8"}}, "q=puppies&oe=utf8"},
++	{qMap{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7"},
++}
++
++func TestEncodeQuery(t *testing.T) {
++	for _, tt := range encodeQueryTests {
++		if q := EncodeQuery(tt.m); q != tt.expected {
++			t.Errorf(`EncodeQuery(%+v) = %q, want %q`, tt.m, q, tt.expected)
++		}
++	}
++}

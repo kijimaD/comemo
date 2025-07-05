@@ -13,8 +13,81 @@ Date:   Thu Feb 3 09:19:20 2011 -0500
     R=bradfitzgo
     CC=golang-dev
     https://golang.org/cl/4124043
-
+---
  src/pkg/crypto/openpgp/armor/armor.go      |  2 +-
  src/pkg/crypto/openpgp/armor/armor_test.go | 14 ++++++--------
  src/pkg/crypto/openpgp/armor/encode.go     |  9 ++++-----
  3 files changed, 11 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/armor/armor.go b/src/pkg/crypto/openpgp/armor/armor.go
+index 97080f6c6d..0c5ae9d716 100644
+--- a/src/pkg/crypto/openpgp/armor/armor.go
++++ b/src/pkg/crypto/openpgp/armor/armor.go
+@@ -112,7 +112,7 @@ func (l *lineReader) Read(p []byte) (n int, err os.Error) {
+ 		return 0, os.EOF
+ 	}
+ 
+-	if len(line) != 64 {
++	if len(line) > 64 {
+ 		return 0, ArmorCorrupt
+ 	}
+ 
+diff --git a/src/pkg/crypto/openpgp/armor/armor_test.go b/src/pkg/crypto/openpgp/armor/armor_test.go
+index e4ffd414b6..9334e94e96 100644
+--- a/src/pkg/crypto/openpgp/armor/armor_test.go
++++ b/src/pkg/crypto/openpgp/armor/armor_test.go
+@@ -34,7 +34,7 @@ func TestDecodeEncode(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ 
+-	if adler32.Checksum(contents) != 0x789d7f00 {
++	if adler32.Checksum(contents) != 0x27b144be {
+ 		t.Errorf("contents: got: %x", contents)
+ 	}
+ 
+@@ -73,13 +73,11 @@ func TestLongHeader(t *testing.T) {
+ const armorExample1 = `-----BEGIN PGP SIGNATURE-----
+ Version: GnuPG v1.4.10 (GNU/Linux)
+ 
+-iQEcBAABAgAGBQJMtFESAAoJEKsQXJGvOPsVj40H/1WW6jaMXv4BW+1ueDSMDwM8
+-kx1fLOXbVM5/Kn5LStZNt1jWWnpxdz7eq3uiqeCQjmqUoRde3YbB2EMnnwRbAhpp
+-cacnAvy9ZQ78OTxUdNW1mhX5bS6q1MTEJnl+DcyigD70HG/yNNQD7sOPMdYQw0TA
+-byQBwmLwmTsuZsrYqB68QyLHI+DUugn+kX6Hd2WDB62DKa2suoIUIHQQCd/ofwB3
+-WfCYInXQKKOSxu2YOg2Eb4kLNhSMc1i9uKUWAH+sdgJh7NBgdoE4MaNtBFkHXRvv
+-okWuf3+xA9ksp1npSY/mDvgHijmjvtpRDe6iUeqfCn8N9u9CBg8geANgaG8+QA4=
+-=wfQG
++iJwEAAECAAYFAk1Fv/0ACgkQo01+GMIMMbsYTwQAiAw+QAaNfY6WBdplZ/uMAccm
++4g+81QPmTSGHnetSb6WBiY13kVzK4HQiZH8JSkmmroMLuGeJwsRTEL4wbjRyUKEt
++p1xwUZDECs234F1xiG5enc5SGlRtP7foLBz9lOsjx+LEcA4sTl5/2eZR9zyFZqWW
++TxRjs+fJCIFuo71xb1g=
++=/teI
+ -----END PGP SIGNATURE-----`
+ 
+ const armorLongLine = `-----BEGIN PGP SIGNATURE-----
+diff --git a/src/pkg/crypto/openpgp/armor/encode.go b/src/pkg/crypto/openpgp/armor/encode.go
+index 410e734602..0f7de02412 100644
+--- a/src/pkg/crypto/openpgp/armor/encode.go
++++ b/src/pkg/crypto/openpgp/armor/encode.go
+@@ -116,6 +116,7 @@ func (e *encoding) Close() (err os.Error) {
+ 	if err != nil {
+ 		return
+ 	}
++	e.breaker.Close()
+ 
+ 	var checksumBytes [3]byte
+ 	checksumBytes[0] = byte(e.crc >> 16)
+@@ -144,11 +145,9 @@ func Encode(out io.Writer, blockType string, headers map[string]string) (w io.Wr
+ 		}
+ 	}
+ 
+-	if len(headers) > 0 {
+-		_, err := out.Write(newline)
+-		if err != nil {
+-			return
+-		}
++	_, err = out.Write(newline)
++	if err != nil {
++		return
+ 	}
+ 
+ 	e := &encoding{

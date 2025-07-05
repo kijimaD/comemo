@@ -9,6 +9,20 @@ Date:   Mon Sep 26 12:43:21 2016 -0700
     Change-Id: Iaadf0da4ee9cc97146c5e6ac2d93de9ae6893880
     Reviewed-on: https://go-review.googlesource.com/29790
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/printer/printer.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index a3eaa6638e..2390544b6f 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -1292,6 +1292,8 @@ func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{
+ 
+ // Fprint "pretty-prints" an AST node to output.
+ // It calls Config.Fprint with default settings.
++// Note that gofmt uses tabs for indentation but spaces for alignent;
++// use format.Node (package go/format) for output that matches gofmt.
+ //
+ func Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
+ 	return (&Config{Tabwidth: 8}).Fprint(output, fset, node)

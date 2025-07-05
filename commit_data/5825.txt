@@ -9,10 +9,149 @@ Date:   Thu Jul 15 16:14:06 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1862042
-
+---
  src/cmd/5g/ggen.c        |  4 ++--
  src/cmd/6g/ggen.c        |  4 ++--
  src/cmd/8g/ggen.c        | 10 +++++-----
  src/cmd/gc/walk.c        | 10 +++++++++-
  test/fixedbugs/bug293.go | 37 +++++++++++++++++++++++++++++++++++++
  5 files changed, 55 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index bbcb7f728f..2776ac7681 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -87,12 +87,12 @@ compile(Node *fn)
+ 
+ 	if(pret)
+ 		patch(pret, pc);
++	if(hasdefer)
++		ginscall(deferreturn, 0);
+ 	if(curfn->exit)
+ 		genlist(curfn->exit);
+ 	if(nerrors != 0)
+ 		goto ret;
+-	if(hasdefer)
+-		ginscall(deferreturn, 0);
+ 	pc->as = ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+ 
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 21b6237a31..c7a4a642e6 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -90,13 +90,13 @@ compile(Node *fn)
+ 	if(pret)
+ 		patch(pret, pc);
+ 	ginit();
++	if(hasdefer)
++		ginscall(deferreturn, 0);
+ 	if(curfn->exit)
+ 		genlist(curfn->exit);
+ 	gclean();
+ 	if(nerrors != 0)
+ 		goto ret;
+-	if(hasdefer)
+-		ginscall(deferreturn, 0);
+ 	pc->as = ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+ 
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index e9a5454eb2..7fbbdd3441 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -92,11 +92,6 @@ compile(Node *fn)
+ 	if(pret)
+ 		patch(pret, pc);
+ 	ginit();
+-	if(curfn->exit)
+-		genlist(curfn->exit);
+-	gclean();
+-	if(nerrors != 0)
+-		goto ret;
+ 	if(hasdefer) {
+ 		// On Native client, insert call to no-op function
+ 		// to force alignment immediately before call to deferreturn,
+@@ -107,6 +102,11 @@ compile(Node *fn)
+ 			ginscall(naclnop, 0);
+ 		ginscall(deferreturn, 0);
+ 	}
++	if(curfn->exit)
++		genlist(curfn->exit);
++	gclean();
++	if(nerrors != 0)
++		goto ret;
+ 	pc->as = ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 50d2ba3ea1..78365353b3 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -365,7 +365,7 @@ walkstmt(Node **np)
+ 	NodeList *init;
+ 	NodeList *ll, *rl;
+ 	int cl, lno;
+-	Node *n;
++	Node *n, *f;
+ 
+ 	n = *np;
+ 	if(n == N)
+@@ -492,6 +492,14 @@ walkstmt(Node **np)
+ 				n->list = nil;
+ 				break;
+ 			}
++			if(count(n->list) == 1 && count(rl) > 1) {
++				// OAS2FUNC in disguise
++				f = n->list->n;
++				if(f->op != OCALLFUNC && f->op != OCALLMETH && f->op != OCALLINTER)
++					fatal("expected return of call, have %#N", f);
++				n->list = concat(list1(f), ascompatet(n->op, rl, &f->type, 0, &n->ninit));
++				break;
++			}
+ 			ll = ascompatee(n->op, rl, n->list, &n->ninit);
+ 			n->list = reorder3(ll);
+ 			break;
+diff --git a/test/fixedbugs/bug293.go b/test/fixedbugs/bug293.go
+new file mode 100644
+index 0000000000..ca9b71a3ac
+--- /dev/null
++++ b/test/fixedbugs/bug293.go
+@@ -0,0 +1,37 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// http://code.google.com/p/go/issues/detail?id=846
++
++package main
++
++func x() (a int, b bool) {
++	defer func(){
++		a++
++	}()
++	a, b = y()
++	return
++}
++
++func x2() (a int, b bool) {
++	defer func(){
++		a++
++	}()
++	return y()
++}
++
++func y() (int, bool) {
++	return 4, false
++}
++
++func main() {
++	if a, _ := x(); a != 5 {
++		println("BUG", a)
++	}
++	if a, _ := x2(); a != 5 {
++		println("BUG", a)
++	}
++}

@@ -45,8 +45,150 @@ Date:   Wed Mar 4 11:34:50 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6782
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mbitmap.go | 14 +++++++++++-
  src/runtime/mheap.go   | 10 +++++++++
  src/runtime/msize.go   | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 82 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 4592044363..6b46ad18cb 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -202,7 +202,19 @@ func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits) {
+ 	}
+ 	base = s.base()
+ 	if p-base >= s.elemsize {
+-		base += (p - base) / s.elemsize * s.elemsize
++		// n := (p - base) / s.elemsize, using division by multiplication
++		n := uintptr(uint64(p-base) >> s.divShift * uint64(s.divMul) >> s.divShift2)
++
++		const debugMagic = false
++		if debugMagic {
++			n2 := (p - base) / s.elemsize
++			if n != n2 {
++				println("runtime: bad div magic", (p - base), s.elemsize, s.divShift, s.divMul, s.divShift2)
++				throw("bad div magic")
++			}
++		}
++
++		base += n * s.elemsize
+ 	}
+ 	if base == p {
+ 		print("runtime: failed to find block beginning for ", hex(p), " s=", hex(s.start*_PageSize), " s.limit=", hex(s.limit), "\n")
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 94ef4de56a..fc4dfeea97 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -101,11 +101,14 @@ type mspan struct {
+ 	// if sweepgen == h->sweepgen, the span is swept and ready to use
+ 	// h->sweepgen is incremented by 2 after every GC
+ 	sweepgen    uint32
++	divMul      uint32   // for divide by elemsize - divMagic.mul
+ 	ref         uint16   // capacity - number of objects in freelist
+ 	sizeclass   uint8    // size class
+ 	incache     bool     // being used by an mcache
+ 	state       uint8    // mspaninuse etc
+ 	needzero    uint8    // needs to be zeroed before allocation
++	divShift    uint8    // for divide by elemsize - divMagic.shift
++	divShift2   uint8    // for divide by elemsize - divMagic.shift2
+ 	elemsize    uintptr  // computed from sizeclass or from npages
+ 	unusedsince int64    // first time spotted by gc in mspanfree state
+ 	npreleased  uintptr  // number of pages released to the os
+@@ -385,8 +388,15 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan
+ 		s.sizeclass = uint8(sizeclass)
+ 		if sizeclass == 0 {
+ 			s.elemsize = s.npages << _PageShift
++			s.divShift = 0
++			s.divMul = 0
++			s.divShift2 = 0
+ 		} else {
+ 			s.elemsize = uintptr(class_to_size[sizeclass])
++			m := &class_to_divmagic[sizeclass]
++			s.divShift = m.shift
++			s.divMul = m.mul
++			s.divShift2 = m.shift2
+ 		}
+ 
+ 		// update stats, sweep lists
+diff --git a/src/runtime/msize.go b/src/runtime/msize.go
+index 370cae629e..f2a7cb9ddd 100644
+--- a/src/runtime/msize.go
++++ b/src/runtime/msize.go
+@@ -48,6 +48,8 @@ package runtime
+ 
+ var class_to_size [_NumSizeClasses]int32
+ var class_to_allocnpages [_NumSizeClasses]int32
++var class_to_divmagic [_NumSizeClasses]divMagic
++
+ var size_to_class8 [1024/8 + 1]int8
+ var size_to_class128 [(_MaxSmallSize-1024)/128 + 1]int8
+ 
+@@ -144,6 +146,11 @@ func initSizes() {
+ 	for i := 0; i < len(class_to_size); i++ {
+ 		memstats.by_size[i].size = uint32(class_to_size[i])
+ 	}
++
++	for i := 1; i < len(class_to_size); i++ {
++		class_to_divmagic[i] = computeDivMagic(uint32(class_to_size[i]))
++	}
++
+ 	return
+ 
+ dump:
+@@ -182,3 +189,55 @@ func roundupsize(size uintptr) uintptr {
+ 	}
+ 	return round(size, _PageSize)
+ }
++
++// divMagic holds magic constants to implement division
++// by a particular constant as a shift, multiply, and shift.
++// That is, given
++//	m = computeMagic(d)
++// then
++//	n/d == ((n>>m.shift) * m.mul) >> m.shift2
++//
++// The magic computation picks m such that
++//	d = d₁*d₂
++//	d₂= 2^m.shift
++//	m.mul = ⌈2^m.shift2 / d₁⌉
++//
++// The magic computation here is tailored for malloc block sizes
++// and does not handle arbitrary d correctly. Malloc block sizes d are
++// always even, so the first shift implements the factors of 2 in d
++// and then the mul and second shift implement the odd factor
++// that remains. Because the first shift divides n by at least 2 (actually 8)
++// before the multiply gets involved, the huge corner cases that
++// require additional adjustment are impossible, so the usual
++// fixup is not needed.
++//
++// For more details see Hacker's Delight, Chapter 10, and
++// http://ridiculousfish.com/blog/posts/labor-of-division-episode-i.html
++// http://ridiculousfish.com/blog/posts/labor-of-division-episode-iii.html
++type divMagic struct {
++	shift  uint8
++	mul    uint32
++	shift2 uint8
++}
++
++func computeDivMagic(d uint32) divMagic {
++	var m divMagic
++
++	// Compute pre-shift by factoring power of 2 out of d.
++	for d&1 == 0 {
++		m.shift++
++		d >>= 1
++	}
++
++	// Compute largest k such that ⌈2^k / d⌉ fits in a 32-bit int.
++	// This is always a good enough approximation.
++	// We could use smaller k for some divisors but there's no point.
++	k := uint8(63)
++	d64 := uint64(d)
++	for ((1<<k)+d64-1)/d64 >= 1<<32 {
++		k--
++	}
++	m.mul = uint32(((1 << k) + d64 - 1) / d64) //  ⌈2^k / d⌉
++	m.shift2 = k
++	return m
++}

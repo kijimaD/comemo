@@ -22,7 +22,99 @@ Date:   Wed Jul 8 16:20:51 2020 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/list_load_err.txt | 26 +++++++++++++++++++++-----
  src/go/build/build.go                        | 19 +++++++++++--------
  2 files changed, 32 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/list_load_err.txt b/src/cmd/go/testdata/script/list_load_err.txt
+index b3b72713e5..0cfa7fbed2 100644
+--- a/src/cmd/go/testdata/script/list_load_err.txt
++++ b/src/cmd/go/testdata/script/list_load_err.txt
+@@ -2,26 +2,42 @@
+ # other files in the same package cause go/build.Import to return an error.
+ # Verfifies golang.org/issue/38568
+ 
+-
+ go list -e -deps ./scan
+ stdout m/want
+ 
+-
+ go list -e -deps ./multi
+ stdout m/want
+ 
+-
+ go list -e -deps ./constraint
+ stdout m/want
+ 
+-
+ [cgo] go list -e -test -deps ./cgotest
+ [cgo] stdout m/want
+ 
+-
+ [cgo] go list -e -deps ./cgoflag
+ [cgo] stdout m/want
+ 
++
++# go list -e should include files with errors in GoFiles, TestGoFiles, and
++# other lists, assuming they match constraints.
++# Verifies golang.org/issue/39986
++go list -e -f '{{range .GoFiles}}{{.}},{{end}}' ./scan
++stdout '^good.go,scan.go,$'
++
++go list -e -f '{{range .GoFiles}}{{.}},{{end}}' ./multi
++stdout '^a.go,b.go,$'
++
++go list -e -f '{{range .GoFiles}}{{.}},{{end}}' ./constraint
++stdout '^good.go,$'
++go list -e -f '{{range .IgnoredGoFiles}}{{.}},{{end}}' ./constraint
++stdout '^constraint.go,$'
++
++[cgo] go list -e -f '{{range .XTestGoFiles}}{{.}},{{end}}' ./cgotest
++[cgo] stdout '^cgo_test.go,$'
++
++[cgo] go list -e -f '{{range .GoFiles}}{{.}},{{end}}' ./cgoflag
++[cgo] stdout '^cgoflag.go,$'
++
+ -- go.mod --
+ module m
+ 
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index b85fa96de1..8afa9d5240 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -879,14 +879,17 @@ Found:
+ 
+ 		if info.parseErr != nil {
+ 			badFile(name, info.parseErr)
+-			continue
++			// Fall through: we might still have a partial AST in info.parsed,
++			// and we want to list files with parse errors anyway.
+ 		}
+-		pf := info.parsed
+ 
+-		pkg := pf.Name.Name
+-		if pkg == "documentation" {
+-			p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
+-			continue
++		var pkg string
++		if info.parsed != nil {
++			pkg = info.parsed.Name.Name
++			if pkg == "documentation" {
++				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
++				continue
++			}
+ 		}
+ 
+ 		isTest := strings.HasSuffix(name, "_test.go")
+@@ -910,8 +913,8 @@ Found:
+ 			})
+ 		}
+ 		// Grab the first package comment as docs, provided it is not from a test file.
+-		if pf.Doc != nil && p.Doc == "" && !isTest && !isXTest {
+-			p.Doc = doc.Synopsis(pf.Doc.Text())
++		if info.parsed != nil && info.parsed.Doc != nil && p.Doc == "" && !isTest && !isXTest {
++			p.Doc = doc.Synopsis(info.parsed.Doc.Text())
+ 		}
+ 
+ 		if mode&ImportComment != 0 {

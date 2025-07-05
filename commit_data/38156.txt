@@ -12,7 +12,35 @@ Date:   Thu Oct 4 17:30:42 2018 -0700
     Change-Id: Ic1a03bfec0a6a70d876aa6cfb936973abe58fe6c
     Reviewed-on: https://go-review.googlesource.com/c/139902
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/scope.go           | 3 ---
  src/go/types/testdata/expr3.src | 2 +-
  2 files changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index 839a60db2e..6cf5cc66f9 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -15,9 +15,6 @@ import (
+ 	"strings"
+ )
+ 
+-// TODO(gri) Provide scopes with a name or other mechanism so that
+-//           objects can use that information for better printing.
+-
+ // A Scope maintains a set of objects and links to its containing
+ // (parent) and contained (children) scopes. Objects may be inserted
+ // and looked up by name. The zero value for Scope is a ready-to-use
+diff --git a/src/go/types/testdata/expr3.src b/src/go/types/testdata/expr3.src
+index b4c8163324..d562f0b16b 100644
+--- a/src/go/types/testdata/expr3.src
++++ b/src/go/types/testdata/expr3.src
+@@ -497,7 +497,7 @@ func _calls() {
+ 	f1(x ... /* ERROR "cannot use ..." */ )
+ 	f1(g0 /* ERROR "used as value" */ ())
+ 	f1(g1())
+-	// f1(g2()) // TODO(gri) missing position in error message
++	f1(g2 /* ERROR "cannot use g2" */ /* ERROR "too many arguments" */ ())
+ 
+ 	f2() /* ERROR "too few arguments" */
+ 	f2(3.14) /* ERROR "too few arguments" */

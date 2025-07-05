@@ -13,7 +13,7 @@ Date:   Fri Apr 17 17:27:07 2015 -0700
     Change-Id: Ie603af75d8f164310fc16446052d83743961f3ca
     Reviewed-on: https://go-review.googlesource.com/9164
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/export_linux_test.go |  9 +++++++
  src/runtime/export_test.go       |  2 ++
  src/runtime/norace_linux_test.go | 37 +++++++++++++++++++++++++++++
@@ -28,3 +28,563 @@ Date:   Fri Apr 17 17:27:07 2015 -0700
  src/runtime/sys_linux_arm64.s    | 21 ++++++++---------
  src/runtime/sys_linux_ppc64x.s   | 19 +++++++--------
  13 files changed, 135 insertions(+), 147 deletions(-)
+
+diff --git a/src/runtime/export_linux_test.go b/src/runtime/export_linux_test.go
+new file mode 100644
+index 0000000000..c8b9746676
+--- /dev/null
++++ b/src/runtime/export_linux_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Export guts for testing.
++
++package runtime
++
++var NewOSProc0 = newosproc0
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 905218b22b..a2b098d51e 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -22,6 +22,8 @@ var Entersyscall = entersyscall
+ var Exitsyscall = exitsyscall
+ var LockedOSThread = lockedOSThread
+ 
++var FuncPC = funcPC
++
+ type LFNode struct {
+ 	Next    uint64
+ 	Pushcnt uintptr
+diff --git a/src/runtime/norace_linux_test.go b/src/runtime/norace_linux_test.go
+new file mode 100644
+index 0000000000..3f6d4e77e5
+--- /dev/null
++++ b/src/runtime/norace_linux_test.go
+@@ -0,0 +1,37 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The file contains tests that can not run under race detector for some reason.
++// +build !race
++
++package runtime_test
++
++import (
++	"runtime"
++	"testing"
++	"time"
++	"unsafe"
++)
++
++var newOSProcDone bool
++
++//go:nosplit
++func newOSProcCreated() {
++	newOSProcDone = true
++}
++
++func TestNewOSProc0(t *testing.T) {
++	runtime.NewOSProc0(0x800000, unsafe.Pointer(runtime.FuncPC(newOSProcCreated)))
++	check, end := time.Tick(1*time.Second), time.Tick(5*time.Second)
++	for {
++		select {
++		case <-check:
++			if newOSProcDone {
++				return
++			}
++		case <-end:
++			t.Fatalf("couldn't create new OS process")
++		}
++	}
++}
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index 4214fa7cf7..a286dcd960 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -143,16 +143,16 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	}
+ }
+ 
+-// Version of newosproc that doesn't require any Go structs to be allocated.
++// Version of newosproc that doesn't require a valid G.
+ //go:nosplit
+-func newosproc0(stacksize uintptr, fn unsafe.Pointer, fnarg unsafe.Pointer) {
++func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+ 	var dummy uint64
+ 	stack := sysAlloc(stacksize, &dummy)
+ 	if stack == nil {
+ 		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
+ 		exit(1)
+ 	}
+-	ret := clone0(cloneFlags, unsafe.Pointer(uintptr(stack)+stacksize), fn, fnarg)
++	ret := clone(cloneFlags, unsafe.Pointer(uintptr(stack)+stacksize), nil, nil, fn)
+ 	if ret < 0 {
+ 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+ 		exit(1)
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 8e4c05db93..abea5d61aa 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -12,9 +12,6 @@ func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer,
+ //go:noescape
+ func clone(flags int32, stk, mm, gg, fn unsafe.Pointer) int32
+ 
+-//go:noescape
+-func clone0(flags int32, stk, fn, fnarg unsafe.Pointer) int32
+-
+ //go:noescape
+ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
+ 
+diff --git a/src/runtime/rt0_linux_386.s b/src/runtime/rt0_linux_386.s
+index f98642bc03..633e8069df 100644
+--- a/src/runtime/rt0_linux_386.s
++++ b/src/runtime/rt0_linux_386.s
+@@ -42,7 +42,6 @@ nocgo:
+ 	MOVL	$0x800000, 0(SP)                    // stacksize = 8192KB
+ 	MOVL	$_rt0_386_linux_lib_go(SB), AX
+ 	MOVL	AX, 4(SP)                           // fn
+-	MOVL	$0, 8(SP)                           // fnarg
+ 	MOVL	$runtime·newosproc0(SB), AX
+ 	CALL	AX
+ 
+diff --git a/src/runtime/rt0_linux_amd64.s b/src/runtime/rt0_linux_amd64.s
+index ee1dbc6cd1..cd7c55e6f5 100644
+--- a/src/runtime/rt0_linux_amd64.s
++++ b/src/runtime/rt0_linux_amd64.s
+@@ -12,13 +12,13 @@ TEXT _rt0_amd64_linux(SB),NOSPLIT,$-8
+ 
+ // When building with -buildmode=c-shared, this symbol is called when the shared
+ // library is loaded.
+-TEXT _rt0_amd64_linux_lib(SB),NOSPLIT,$0x58
+-	MOVQ	BX, 0x18(SP)
+-	MOVQ	BP, 0x20(SP)
+-	MOVQ	R12, 0x28(SP)
+-	MOVQ	R13, 0x30(SP)
+-	MOVQ	R14, 0x38(SP)
+-	MOVQ	R15, 0x40(SP)
++TEXT _rt0_amd64_linux_lib(SB),NOSPLIT,$0x40
++	MOVQ	BX, 0x10(SP)
++	MOVQ	BP, 0x18(SP)
++	MOVQ	R12, 0x20(SP)
++	MOVQ	R13, 0x28(SP)
++	MOVQ	R14, 0x30(SP)
++	MOVQ	R15, 0x38(SP)
+ 
+ 	MOVQ	DI, _rt0_amd64_linux_lib_argc<>(SB)
+ 	MOVQ	SI, _rt0_amd64_linux_lib_argv<>(SB)
+@@ -36,17 +36,16 @@ nocgo:
+ 	MOVQ	$8388608, 0(SP)                    // stacksize
+ 	MOVQ	$_rt0_amd64_linux_lib_go(SB), AX
+ 	MOVQ	AX, 8(SP)                          // fn
+-	MOVQ	$0, 0x10(SP)                       // fnarg
+ 	MOVQ	$runtime·newosproc0(SB), AX
+ 	CALL	AX
+ 
+ restore:
+-	MOVQ	0x18(SP), BX
+-	MOVQ	0x20(SP), BP
+-	MOVQ	0x28(SP), R12
+-	MOVQ	0x30(SP), R13
+-	MOVQ	0x38(SP), R14
+-	MOVQ	0x40(SP), R15
++	MOVQ	0x10(SP), BX
++	MOVQ	0x18(SP), BP
++	MOVQ	0x20(SP), R12
++	MOVQ	0x28(SP), R13
++	MOVQ	0x30(SP), R14
++	MOVQ	0x38(SP), R15
+ 	RET
+ 
+ TEXT _rt0_amd64_linux_lib_go(SB),NOSPLIT,$0
+diff --git a/src/runtime/rt0_linux_arm.s b/src/runtime/rt0_linux_arm.s
+index 878a6dd194..b71a3f9267 100644
+--- a/src/runtime/rt0_linux_arm.s
++++ b/src/runtime/rt0_linux_arm.s
+@@ -12,15 +12,15 @@ TEXT _rt0_arm_linux(SB),NOSPLIT,$-4
+ 
+ // When building with -buildmode=c-shared, this symbol is called when the shared
+ // library is loaded.
+-TEXT _rt0_arm_linux_lib(SB),NOSPLIT,$40
++TEXT _rt0_arm_linux_lib(SB),NOSPLIT,$32
+ 	// Preserve callee-save registers.  Raspberry Pi's dlopen(), for example,
+ 	// actually cares that R11 is preserved.
+-	MOVW	R4, 16(R13)
+-	MOVW	R5, 20(R13)
+-	MOVW	R6, 24(R13)
+-	MOVW	R7, 28(R13)
+-	MOVW	R8, 32(R13)
+-	MOVW	R11, 36(R13)
++	MOVW	R4, 12(R13)
++	MOVW	R5, 16(R13)
++	MOVW	R6, 20(R13)
++	MOVW	R7, 24(R13)
++	MOVW	R8, 28(R13)
++	MOVW	R11, 32(R13)
+ 
+ 	// Save argc/argv.
+ 	MOVW	R0, _rt0_arm_linux_lib_argc<>(SB)
+@@ -37,19 +37,17 @@ TEXT _rt0_arm_linux_lib(SB),NOSPLIT,$40
+ nocgo:
+ 	MOVW	$0x800000, R0                     // stacksize = 8192KB
+ 	MOVW	$_rt0_arm_linux_lib_go<>(SB), R1  // fn
+-	MOVW	$0, R2                            // fnarg
+ 	MOVW	R0, 4(R13)
+ 	MOVW	R1, 8(R13)
+-	MOVW	R2, 12(R13)
+ 	BL	runtime·newosproc0(SB)
+ rr:
+ 	// Restore callee-save registers and return.
+-	MOVW	16(R13), R4
+-	MOVW	20(R13), R5
+-	MOVW	24(R13), R6
+-	MOVW	28(R13), R7
+-	MOVW	32(R13), R8
+-	MOVW	36(R13), R11
++	MOVW	12(R13), R4
++	MOVW	16(R13), R5
++	MOVW	20(R13), R6
++	MOVW	24(R13), R7
++	MOVW	28(R13), R8
++	MOVW	32(R13), R11
+ 	RET
+ 
+ TEXT _rt0_arm_linux_lib_go<>(SB),NOSPLIT,$8
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index d69054feb5..679a81d66d 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -291,18 +291,18 @@ TEXT runtime·futex(SB),NOSPLIT,$0
+ // int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
+ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVL	$120, AX	// clone
+-	MOVL	flags+4(SP), BX
+-	MOVL	stack+8(SP), CX
++	MOVL	flags+0(FP), BX
++	MOVL	stack+4(FP), CX
+ 	MOVL	$0, DX	// parent tid ptr
+ 	MOVL	$0, DI	// child tid ptr
+ 
+ 	// Copy mp, gp, fn off parent stack for use by child.
+ 	SUBL	$16, CX
+-	MOVL	mm+12(SP), SI
++	MOVL	mm+8(FP), SI
+ 	MOVL	SI, 0(CX)
+-	MOVL	gg+16(SP), SI
++	MOVL	gg+12(FP), SI
+ 	MOVL	SI, 4(CX)
+-	MOVL	fn+20(SP), SI
++	MOVL	fn+16(FP), SI
+ 	MOVL	SI, 8(CX)
+ 	MOVL	$1234, 12(CX)
+ 
+@@ -319,7 +319,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	RET
+ 
+ 	// Paranoia: check that SP is as we expect.
+-	MOVL	mm+8(FP), BP
++	MOVL	12(SP), BP
+ 	CMPL	BP, $1234
+ 	JEQ	2(PC)
+ 	INT	$3
+@@ -328,10 +328,14 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVL	$224, AX
+ 	CALL	*runtime·_vdso(SB)
+ 
+-	// In child on new stack.  Reload registers (paranoia).
+-	MOVL	0(SP), BX	// m
+-	MOVL	flags+0(FP), DX	// g
+-	MOVL	stk+4(FP), SI	// fn
++	MOVL	0(SP), BX	    // m
++	MOVL	4(SP), DX	    // g
++	MOVL	8(SP), SI	    // fn
++
++	CMPL	BX, $0
++	JEQ	nog
++	CMPL	DX, $0
++	JEQ	nog
+ 
+ 	MOVL	AX, m_procid(BX)	// save tid as m->procid
+ 
+@@ -365,16 +369,11 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	CALL	runtime·emptyfunc(SB)
+ 	POPAL
+ 
++nog:
+ 	CALL	SI	// fn()
+ 	CALL	runtime·exit1(SB)
+ 	MOVL	$0x1234, 0x1005
+ 
+-// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
+-TEXT runtime·clone0(SB),NOSPLIT,$0
+-	// TODO(spetrovic): Implement this method.
+-	MOVL	$-1, ret+16(FP)
+-	RET
+-
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVL	$186, AX	// sigaltstack
+ 	MOVL	new+4(SP), BX
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 43a65b7ccd..3a0c47fb63 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -302,14 +302,16 @@ TEXT runtime·futex(SB),NOSPLIT,$0
+ 
+ // int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
+ TEXT runtime·clone(SB),NOSPLIT,$0
+-	MOVL	flags+8(SP), DI
+-	MOVQ	stack+16(SP), SI
++	MOVL	flags+0(FP), DI
++	MOVQ	stack+8(FP), SI
++	MOVQ	$0, DX
++	MOVQ	$0, R10
+ 
+ 	// Copy mp, gp, fn off parent stack for use by child.
+ 	// Careful: Linux system call clobbers CX and R11.
+-	MOVQ	mm+24(SP), R8
+-	MOVQ	gg+32(SP), R9
+-	MOVQ	fn+40(SP), R12
++	MOVQ	mp+16(FP), R8
++	MOVQ	gp+24(FP), R9
++	MOVQ	fn+32(FP), R12
+ 
+ 	MOVL	$56, AX
+ 	SYSCALL
+@@ -323,6 +325,12 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	// In child, on new stack.
+ 	MOVQ	SI, SP
+ 
++	// If g or m are nil, skip Go-related setup.
++	CMPQ	R8, $0    // m
++	JEQ	nog
++	CMPQ	R9, $0    // g
++	JEQ	nog
++
+ 	// Initialize m->procid to Linux tid
+ 	MOVL	$186, AX	// gettid
+ 	SYSCALL
+@@ -338,6 +346,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVQ	R9, g(CX)
+ 	CALL	runtime·stackcheck(SB)
+ 
++nog:
+ 	// Call fn
+ 	CALL	R12
+ 
+@@ -347,34 +356,6 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	JMP	-3(PC)	// keep exiting
+ 
+-// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
+-TEXT runtime·clone0(SB),NOSPLIT,$16-36
+-	MOVL	flags+0(FP), DI
+-	MOVQ	stack+8(FP), SI
+-	MOVQ	fn+16(FP), R12      // used by the child
+-	MOVQ	fnarg+24(FP), R13   // used by the child
+-	MOVL	$0, DX
+-	MOVL	$0, R10
+-	MOVL	$56, AX
+-	SYSCALL
+-
+-	CMPQ	AX, $0
+-	JEQ	child
+-	// In parent, return.
+-	MOVL	AX, ret+32(FP)
+-	RET
+-child:
+-	MOVQ	SI, SP
+-	MOVQ	R12, AX  // fn
+-	MOVQ	R13, DI  // fnarg
+-	CALL	AX
+-
+-	// fn shouldn't return; if it does, exit.
+-	MOVL	$111, DI
+-	MOVL	$60, AX
+-	SYSCALL
+-	JMP	-3(PC)	// keep exiting
+-
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVQ	new+8(SP), DI
+ 	MOVQ	old+16(SP), SI
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index bbd7eb9eb3..9d21eaebcb 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -241,7 +241,6 @@ TEXT runtime·futex(SB),NOSPLIT,$0
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+-
+ // int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
+ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVW	flags+0(FP), R0
+@@ -279,8 +278,15 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	BEQ	2(PC)
+ 	BL	runtime·abort(SB)
+ 
+-	MOVW	4(R13), g
+-	MOVW	0(R13), R8
++	MOVW	0(R13), R8    // m
++	MOVW	4(R13), R0    // g
++
++	CMP	$0, R8
++	BEQ	nog
++	CMP	$0, R0
++	BEQ	nog
++
++	MOVW	R0, g
+ 	MOVW	R8, g_m(g)
+ 
+ 	// paranoia; check they are not nil
+@@ -295,54 +301,17 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVW	g_m(g), R8
+ 	MOVW	R0, m_procid(R8)
+ 
++nog:
+ 	// Call fn
+ 	MOVW	8(R13), R0
+ 	MOVW	$16(R13), R13
+ 	BL	(R0)
+ 
+-	MOVW	$0, R0
+-	MOVW	R0, 4(R13)
+-	BL	runtime·exit1(SB)
+-
+ 	// It shouldn't return
+-	MOVW	$1234, R0
+-	MOVW	$1005, R1
+-	MOVW	R0, (R1)
+-
+-// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
+-TEXT runtime·clone0(SB),NOSPLIT,$0-20
+-	MOVW	flags+0(FP), R0
+-	MOVW	stack+4(FP), R1
+-	// Update child's future stack and save fn and fnarg on it.
+-	MOVW	$-8(R1), R1
+-	MOVW	fn+8(FP), R6
+-	MOVW	R6, 0(R1)
+-	MOVW	fnarg+12(FP), R6
+-	MOVW	R6, 4(R1)
+-	MOVW	$0, R2	// parent tid ptr
+-	MOVW	$0, R3	// tls_val
+-	MOVW	$0, R4	// child tid ptr
+-	MOVW	$0, R5
+-	MOVW	$SYS_clone, R7
+-	SWI	$0
+-
+-	// In parent, return.
+-	CMP	$0, R0
+-	BEQ	3(PC)
+-	MOVW	R0, ret+16(FP)
+-	RET
+-
+-	// In child.
+-	MOVW	0(R13), R6   // fn
+-	MOVW	4(R13), R0   // fnarg
+-	MOVW	$8(R13), R13
+-	BL	(R6)
+-
+ 	MOVW	$0, R0
+ 	MOVW	R0, 4(R13)
+ 	BL	runtime·exit1(SB)
+ 
+-	// It shouldn't return
+ 	MOVW	$1234, R0
+ 	MOVW	$1005, R1
+ 	MOVW	R0, (R1)
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 52b34e8f41..ea8520c51d 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -333,14 +333,19 @@ child:
+ 	MOVD	$0, R0
+ 	MOVD	R0, (R0)	// crash
+ 
+-	// Initialize m->procid to Linux tid
+ good:
++	// Initialize m->procid to Linux tid
+ 	MOVD	$SYS_gettid, R8
+ 	SVC
+ 
+-	MOVD	-24(RSP), R12
+-	MOVD	-16(RSP), R11
+-	MOVD	-8(RSP), R10
++	MOVD	-24(RSP), R12     // fn
++	MOVD	-16(RSP), R11     // g
++	MOVD	-8(RSP), R10      // m
++
++	CMP	$0, R10
++	BEQ	nog
++	CMP	$0, R11
++	BEQ	nog
+ 
+ 	MOVD	R0, m_procid(R10)
+ 
+@@ -351,6 +356,7 @@ good:
+ 	MOVD	R11, g
+ 	//CALL	runtime·stackcheck(SB)
+ 
++nog:
+ 	// Call fn
+ 	MOVD	R12, R0
+ 	BL	(R0)
+@@ -362,13 +368,6 @@ again:
+ 	SVC
+ 	B	again	// keep exiting
+ 
+-// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
+-TEXT runtime·clone0(SB),NOSPLIT,$0
+-	// TODO(spetrovic): Implement this method.
+-	MOVW	$-1, R0
+-	MOVW	R0, ret+32(FP)
+-	RET
+-
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVD	new+0(FP), R0
+ 	MOVD	old+8(FP), R1
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index fd7ce4fa48..ff397f003b 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -323,9 +323,14 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
+ 	// Initialize m->procid to Linux tid
+ 	SYSCALL $SYS_gettid
+ 
+-	MOVD	-24(R1), R12
+-	MOVD	-16(R1), R8
+-	MOVD	-8(R1), R7
++	MOVD	-24(R1), R12       // fn
++	MOVD	-16(R1), R8        // g
++	MOVD	-8(R1), R7         // m
++
++	CMP	R7, $0
++	BEQ	nog
++	CMP	R8, $0
++	BEQ	nog
+ 
+ 	MOVD	R3, m_procid(R7)
+ 
+@@ -336,6 +341,7 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
+ 	MOVD	R8, g
+ 	//CALL	runtime·stackcheck(SB)
+ 
++nog:
+ 	// Call fn
+ 	MOVD	R12, CTR
+ 	BL	(CTR)
+@@ -345,13 +351,6 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
+ 	SYSCALL $SYS_exit_group
+ 	BR	-2(PC)	// keep exiting
+ 
+-// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
+-TEXT runtime·clone0(SB),NOSPLIT,$0
+-	// TODO(spetrovic): Implement this method.
+-	MOVW	$-1, R3
+-	MOVW	R3, ret+32(FP)
+-	RETURN
+-
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVD	new+0(FP), R3
+ 	MOVD	old+8(FP), R4

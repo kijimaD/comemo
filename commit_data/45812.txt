@@ -14,9 +14,91 @@ Date:   Thu Nov 19 17:49:05 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/271806
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go                  | 12 ++++++++++--
  src/cmd/compile/internal/types2/fixedbugs/issue20583.src | 12 ++++++++++++
  src/cmd/compile/internal/types2/stmt.go                  |  2 +-
  src/go/types/expr.go                                     |  2 +-
  4 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 94649ca4cc..e166e9926c 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -897,7 +897,7 @@ var binaryOpPredicates = opPredicates{
+ }
+ 
+ // The binary expression e may be nil. It's passed in for better error messages only.
+-func (check *Checker) binary(x *operand, e *syntax.Operation, lhs, rhs syntax.Expr, op syntax.Operator) {
++func (check *Checker) binary(x *operand, e *syntax.Operation, lhs, rhs syntax.Expr, op syntax.Operator, opPos syntax.Pos) {
+ 	var y operand
+ 
+ 	check.expr(x, lhs)
+@@ -977,6 +977,14 @@ func (check *Checker) binary(x *operand, e *syntax.Operation, lhs, rhs syntax.Ex
+ 			tok = token.QUO_ASSIGN
+ 		}
+ 		x.val = constant.BinaryOp(xval, tok, yval)
++		// report error if valid operands lead to an invalid result
++		if xval.Kind() != constant.Unknown && yval.Kind() != constant.Unknown && x.val.Kind() == constant.Unknown {
++			// TODO(gri) We should report exactly what went wrong. At the
++			//           moment we don't have the (go/constant) API for that.
++			//           See also TODO in go/constant/value.go.
++			check.errorf(opPos, "constant result is not representable")
++			// TODO(gri) Should we mark operands with unknown values as invalid?
++		}
+ 		// Typed constants must be representable in
+ 		// their type after each constant operation.
+ 		if isTyped(typ) {
+@@ -1791,7 +1799,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		}
+ 
+ 		// binary expression
+-		check.binary(x, e, e.X, e.Y, e.Op)
++		check.binary(x, e, e.X, e.Y, e.Op, e.Y.Pos()) // TODO(gri) should have OpPos here (like in go/types)
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
+diff --git a/src/cmd/compile/internal/types2/fixedbugs/issue20583.src b/src/cmd/compile/internal/types2/fixedbugs/issue20583.src
+new file mode 100644
+index 0000000000..efc1acee0f
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/fixedbugs/issue20583.src
+@@ -0,0 +1,12 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue20583
++const (
++	_ = 6e886451608 /* ERROR malformed constant */ /2
++	_ = 6e886451608i /* ERROR malformed constant */ /2
++	_ = 0 * 1e+1000000000 // ERROR malformed constant
++	x = 1e100000000
++	_ = x*x*x*x*x*x*x /* ERROR not representable */ // TODO(gri) this error should be at the last *
++)
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 2f1347faf4..d88f65b15e 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -396,7 +396,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 			}
+ 
+ 			var x operand
+-			check.binary(&x, nil, lhs[0], rhs[0], s.Op)
++			check.binary(&x, nil, lhs[0], rhs[0], s.Op, rhs[0].Pos()) // TODO(gri) should have TokPos here (like in go/types)
+ 			if x.mode == invalid {
+ 				return
+ 			}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 4e19f30477..eb2056125a 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -890,7 +890,7 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
+ 			// TODO(gri) We should report exactly what went wrong. At the
+ 			//           moment we don't have the (go/constant) API for that.
+ 			//           See also TODO in go/constant/value.go.
+-			check.errorf(atPos(e.OpPos), _InvalidConstVal, "constant result is not representable")
++			check.errorf(atPos(opPos), _InvalidConstVal, "constant result is not representable")
+ 			// TODO(gri) Should we mark operands with unknown values as invalid?
+ 		}
+ 		// Typed constants must be representable in

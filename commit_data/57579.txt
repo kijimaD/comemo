@@ -18,7 +18,7 @@ Date:   Wed Aug 16 18:56:41 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/escape/call.go         |  4 +-
  src/cmd/compile/internal/ir/func.go             | 97 +++++++------------------
  src/cmd/compile/internal/noder/reader.go        | 36 +++------
@@ -32,3 +32,514 @@ Date:   Wed Aug 16 18:56:41 2023 -0700
  src/cmd/compile/internal/typecheck/stmt.go      |  1 -
  src/cmd/compile/internal/typecheck/typecheck.go | 37 ----------
  12 files changed, 41 insertions(+), 200 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index fe0c542ed6..d87dca23e1 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -256,9 +256,8 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
+ 	}
+ 
+ 	// Create a new no-argument function that we'll hand off to defer.
+-	fn := ir.NewClosureFunc(n.Pos(), true)
++	fn := ir.NewClosureFunc(n.Pos(), n.Pos(), types.NewSignature(nil, nil, nil), e.curfn, typecheck.Target)
+ 	fn.SetWrapper(true)
+-	fn.Nname.SetType(types.NewSignature(nil, nil, nil))
+ 	fn.SetEsc(escFuncTagged) // no params; effectively tagged already
+ 	fn.Body = []ir.Node{call}
+ 	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
+@@ -272,6 +271,7 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
+ 	}
+ 
+ 	clo := fn.OClosure
++
+ 	if n.Op() == ir.OGO {
+ 		clo.IsGoWrap = true
+ 	}
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index fa45ccb2df..406c614d19 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -390,80 +390,37 @@ func closureName(outerfn *Func, pos src.XPos) *types.Sym {
+ 	return pkg.Lookup(fmt.Sprintf("%s.%s%d", outer, prefix, *gen))
+ }
+ 
+-// NewClosureFunc creates a new Func to represent a function literal.
+-// If hidden is true, then the closure is marked hidden (i.e., as a
+-// function literal contained within another function, rather than a
+-// package-scope variable initialization expression).
+-func NewClosureFunc(pos src.XPos, hidden bool) *Func {
+-	fn := NewFunc(pos)
+-	fn.SetIsHiddenClosure(hidden)
+-
+-	fn.Nname = NewNameAt(pos, BlankNode.Sym(), nil)
+-	fn.Nname.Func = fn
+-	fn.Nname.Defn = fn
+-
+-	fn.OClosure = &ClosureExpr{Func: fn}
+-	fn.OClosure.op = OCLOSURE
+-	fn.OClosure.pos = pos
+-
+-	return fn
+-}
+-
+-// NameClosure generates a unique for the given function literal,
+-// which must have appeared within outerfn.
+-func NameClosure(clo *ClosureExpr, outerfn *Func) {
+-	fn := clo.Func
+-	if fn.IsHiddenClosure() != (outerfn != nil) {
+-		base.FatalfAt(clo.Pos(), "closure naming inconsistency: hidden %v, but outer %v", fn.IsHiddenClosure(), outerfn)
+-	}
+-
+-	name := fn.Nname
+-	if !IsBlank(name) {
+-		base.FatalfAt(clo.Pos(), "closure already named: %v", name)
+-	}
++// NewClosureFunc creates a new Func to represent a function literal
++// with the given type.
++//
++// fpos the position used for the underlying ODCLFUNC and ONAME,
++// whereas cpos is the position used for the OCLOSURE. They're
++// separate because in the presence of inlining, the OCLOSURE node
++// should have an inline-adjusted position, whereas the ODCLFUNC and
++// ONAME must not.
++//
++// outerfn is the enclosing function, if any. The returned function is
++// appending to pkg.Funcs.
++func NewClosureFunc(fpos, cpos src.XPos, typ *types.Type, outerfn *Func, pkg *Package) *Func {
++	fn := NewFunc(fpos)
++	fn.SetIsHiddenClosure(outerfn != nil)
+ 
+-	name.SetSym(closureName(outerfn, clo.Pos()))
++	name := NewNameAt(fpos, closureName(outerfn, cpos), typ)
+ 	MarkFunc(name)
+-}
++	name.Func = fn
++	name.Defn = fn
++	fn.Nname = name
+ 
+-// UseClosure checks that the given function literal has been setup
+-// correctly, and then returns it as an expression.
+-// It must be called after clo.Func.ClosureVars has been set.
+-func UseClosure(clo *ClosureExpr, pkg *Package) Node {
+-	fn := clo.Func
+-	name := fn.Nname
++	clo := &ClosureExpr{Func: fn}
++	clo.op = OCLOSURE
++	clo.pos = cpos
++	fn.OClosure = clo
+ 
+-	if IsBlank(name) {
+-		base.FatalfAt(fn.Pos(), "unnamed closure func: %v", fn)
+-	}
+-	// Caution: clo.Typecheck() is still 0 when UseClosure is called by
+-	// tcClosure.
+-	if fn.Typecheck() != 1 || name.Typecheck() != 1 {
+-		base.FatalfAt(fn.Pos(), "missed typecheck: %v", fn)
+-	}
+-	if clo.Type() == nil || name.Type() == nil {
+-		base.FatalfAt(fn.Pos(), "missing types: %v", fn)
+-	}
+-	if !types.Identical(clo.Type(), name.Type()) {
+-		base.FatalfAt(fn.Pos(), "mismatched types: %v", fn)
+-	}
+-
+-	if base.Flag.W > 1 {
+-		s := fmt.Sprintf("new closure func: %v", fn)
+-		Dump(s, fn)
+-	}
++	fn.SetTypecheck(1)
++	clo.SetType(typ)
++	clo.SetTypecheck(1)
+ 
+-	if pkg != nil {
+-		pkg.Funcs = append(pkg.Funcs, fn)
+-	}
++	pkg.Funcs = append(pkg.Funcs, fn)
+ 
+-	if false && IsTrivialClosure(clo) {
+-		// TODO(mdempsky): Investigate if we can/should optimize this
+-		// case. walkClosure already handles it later, but it could be
+-		// useful to recognize earlier (e.g., it might allow multiple
+-		// inlined calls to a function to share a common trivial closure
+-		// func, rather than cloning it for each inlined call).
+-	}
+-
+-	return clo
++	return fn
+ }
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index c51963e1c2..d71a1fc5fa 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -755,6 +755,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
+ 
+ 		name.Func = ir.NewFunc(r.pos())
+ 		name.Func.Nname = name
++		name.Func.SetTypecheck(1)
+ 
+ 		if r.hasTypeParams() {
+ 			name.Func.SetDupok(true)
+@@ -999,6 +1000,7 @@ func (r *reader) method(rext *reader) *types.Field {
+ 
+ 	name.Func = ir.NewFunc(r.pos())
+ 	name.Func.Nname = name
++	name.Func.SetTypecheck(1)
+ 
+ 	if r.hasTypeParams() {
+ 		name.Func.SetDupok(true)
+@@ -1096,8 +1098,6 @@ func (r *reader) funcExt(name *ir.Name, method *types.Sym) {
+ 		}
+ 	}
+ 
+-	typecheck.Func(fn)
+-
+ 	if r.Bool() {
+ 		assert(name.Defn == nil)
+ 
+@@ -2722,15 +2722,9 @@ func (r *reader) syntheticClosure(origPos src.XPos, typ *types.Type, ifaceHack b
+ 	// position instead. See also the explanation in reader.funcLit.
+ 	inlPos := r.inlPos(origPos)
+ 
+-	fn := ir.NewClosureFunc(origPos, r.curfn != nil)
++	// TODO(mdempsky): Remove hard-coding of typecheck.Target.
++	fn := ir.NewClosureFunc(origPos, inlPos, typ, r.curfn, typecheck.Target)
+ 	fn.SetWrapper(true)
+-	clo := fn.OClosure
+-	clo.SetPos(inlPos)
+-	ir.NameClosure(clo, r.curfn)
+-
+-	setType(fn.Nname, typ)
+-	typecheck.Func(fn)
+-	setType(clo, fn.Type())
+ 
+ 	var init ir.Nodes
+ 	for i, n := range captures {
+@@ -2767,8 +2761,7 @@ func (r *reader) syntheticClosure(origPos src.XPos, typ *types.Type, ifaceHack b
+ 	bodyReader[fn] = pri
+ 	pri.funcBody(fn)
+ 
+-	// TODO(mdempsky): Remove hard-coding of typecheck.Target.
+-	return ir.InitExpr(init, ir.UseClosure(clo, typecheck.Target))
++	return ir.InitExpr(init, fn.OClosure)
+ }
+ 
+ // syntheticSig duplicates and returns the params and results lists
+@@ -3120,14 +3113,8 @@ func (r *reader) funcLit() ir.Node {
+ 	xtype2 := r.signature(nil)
+ 	r.suppressInlPos--
+ 
+-	fn := ir.NewClosureFunc(pos, r.curfn != nil)
+-	clo := fn.OClosure
+-	clo.SetPos(r.inlPos(pos)) // see comment above
+-	ir.NameClosure(clo, r.curfn)
+-
+-	setType(fn.Nname, xtype2)
+-	typecheck.Func(fn)
+-	setType(clo, fn.Type())
++	// TODO(mdempsky): Remove hard-coding of typecheck.Target.
++	fn := ir.NewClosureFunc(pos, r.inlPos(pos), xtype2, r.curfn, typecheck.Target)
+ 
+ 	fn.ClosureVars = make([]*ir.Name, 0, r.Len())
+ 	for len(fn.ClosureVars) < cap(fn.ClosureVars) {
+@@ -3141,8 +3128,7 @@ func (r *reader) funcLit() ir.Node {
+ 
+ 	r.addBody(fn, nil)
+ 
+-	// TODO(mdempsky): Remove hard-coding of typecheck.Target.
+-	return ir.UseClosure(clo, typecheck.Target)
++	return fn.OClosure
+ }
+ 
+ func (r *reader) exprList() []ir.Node {
+@@ -3463,6 +3449,7 @@ func unifiedInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.Inlined
+ 	// TODO(mdempsky): This still feels clumsy. Can we do better?
+ 	tmpfn := ir.NewFunc(fn.Pos())
+ 	tmpfn.Nname = ir.NewNameAt(fn.Nname.Pos(), callerfn.Sym(), fn.Type())
++	tmpfn.SetTypecheck(1)
+ 	tmpfn.Closgen = callerfn.Closgen
+ 	defer func() { callerfn.Closgen = tmpfn.Closgen }()
+ 
+@@ -3638,6 +3625,7 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
+ 
+ 	tmpfn := ir.NewFunc(fn.Pos())
+ 	tmpfn.Nname = ir.NewNameAt(fn.Nname.Pos(), fn.Sym(), fn.Type())
++	tmpfn.SetTypecheck(1)
+ 	tmpfn.ClosureVars = fn.ClosureVars
+ 
+ 	{
+@@ -3861,7 +3849,6 @@ func wrapMethodValue(recvType *types.Type, method *types.Field, target *ir.Packa
+ 	recv := ir.NewHiddenParam(pos, fn, typecheck.Lookup(".this"), recvType)
+ 
+ 	if !needed {
+-		typecheck.Func(fn)
+ 		return
+ 	}
+ 
+@@ -3883,6 +3870,7 @@ func newWrapperFunc(pos src.XPos, sym *types.Sym, wrapper *types.Type, method *t
+ 	fn.Nname = name
+ 
+ 	setType(name, sig)
++	fn.SetTypecheck(1)
+ 
+ 	// TODO(mdempsky): De-duplicate with similar logic in funcargs.
+ 	defParams := func(class ir.Class, params *types.Type) {
+@@ -3899,8 +3887,6 @@ func newWrapperFunc(pos src.XPos, sym *types.Sym, wrapper *types.Type, method *t
+ }
+ 
+ func finishWrapperFunc(fn *ir.Func, target *ir.Package) {
+-	typecheck.Func(fn)
+-
+ 	ir.WithFunc(fn, func() {
+ 		typecheck.Stmts(fn.Body)
+ 	})
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 25c7b77831..58d4e02937 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -83,8 +83,6 @@ func unified(m posMap, noders []*noder) {
+ 
+ 	target := typecheck.Target
+ 
+-	typecheck.TypecheckAllowed = true
+-
+ 	localPkgReader = newPkgReader(pkgbits.NewPkgDecoder(types.LocalPkg.Path, data))
+ 	readPackage(localPkgReader, types.LocalPkg, true)
+ 
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index 48c6b03527..4a4bc1f399 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -52,7 +52,6 @@ func MakeInit() {
+ 	fn.Body = nf
+ 	typecheck.FinishFuncBody()
+ 
+-	typecheck.Func(fn)
+ 	ir.WithFunc(fn, func() {
+ 		typecheck.Stmts(nf)
+ 	})
+@@ -145,7 +144,6 @@ func MakeTask() {
+ 
+ 			fnInit.Body.Append(asancall)
+ 			typecheck.FinishFuncBody()
+-			typecheck.Func(fnInit)
+ 			ir.CurFunc = fnInit
+ 			typecheck.Stmts(fnInit.Body)
+ 			ir.CurFunc = nil
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index 20b5b76265..a561c1e8b5 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -237,7 +237,6 @@ func hashFunc(t *types.Type) *ir.Func {
+ 	typecheck.FinishFuncBody()
+ 
+ 	fn.SetDupok(true)
+-	typecheck.Func(fn)
+ 
+ 	ir.WithFunc(fn, func() {
+ 		typecheck.Stmts(fn.Body)
+@@ -623,7 +622,6 @@ func eqFunc(t *types.Type) *ir.Func {
+ 	typecheck.FinishFuncBody()
+ 
+ 	fn.SetDupok(true)
+-	typecheck.Func(fn)
+ 
+ 	ir.WithFunc(fn, func() {
+ 		typecheck.Stmts(fn.Body)
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 2b08d5a63b..f01563e776 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -324,7 +324,6 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 
+ 	typecheck.FinishFuncBody()
+ 
+-	typecheck.Func(fn)
+ 	ir.CurFunc = fn
+ 	typecheck.Stmts(fn.Body)
+ 
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 016d0692ed..cc97d2fcf7 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -1055,8 +1055,6 @@ func tryWrapGlobalMapInit(n ir.Node) (mapvar *ir.Name, genfn *ir.Func, call ir.N
+ 	newfn.Body = append(newfn.Body, as)
+ 	typecheck.FinishFuncBody()
+ 
+-	typecheck.Func(newfn)
+-
+ 	const no = `
+ 	// Register new function with decls.
+ 	typecheck.Target.Decls = append(typecheck.Target.Decls, newfn)
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index c0b7c76176..9da2c8f324 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -34,6 +34,7 @@ func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.F
+ 	checkdupfields("argument", typ.Recvs().FieldSlice(), typ.Params().FieldSlice(), typ.Results().FieldSlice())
+ 	fn.Nname.SetType(typ)
+ 	fn.Nname.SetTypecheck(1)
++	fn.SetTypecheck(1)
+ 
+ 	return fn
+ }
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index eb17e63d9a..3084ac8f34 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -146,62 +146,6 @@ func MethodValueType(n *ir.SelectorExpr) *types.Type {
+ 	return t
+ }
+ 
+-// tcClosure typechecks an OCLOSURE node. It also creates the named
+-// function associated with the closure.
+-// TODO: This creation of the named function should probably really be done in a
+-// separate pass from type-checking.
+-func tcClosure(clo *ir.ClosureExpr, top int) ir.Node {
+-	fn := clo.Func
+-
+-	// We used to allow IR builders to typecheck the underlying Func
+-	// themselves, but that led to too much variety and inconsistency
+-	// around who's responsible for naming the function, typechecking
+-	// it, or adding it to Target.Decls.
+-	//
+-	// It's now all or nothing. Callers are still allowed to do these
+-	// themselves, but then they assume responsibility for all of them.
+-	if fn.Typecheck() == 1 {
+-		base.FatalfAt(fn.Pos(), "underlying closure func already typechecked: %v", fn)
+-	}
+-
+-	ir.NameClosure(clo, ir.CurFunc)
+-	Func(fn)
+-
+-	// Type check the body now, but only if we're inside a function.
+-	// At top level (in a variable initialization: curfn==nil) we're not
+-	// ready to type check code yet; we'll check it later, because the
+-	// underlying closure function we create is added to Target.Decls.
+-	if ir.CurFunc != nil {
+-		oldfn := ir.CurFunc
+-		ir.CurFunc = fn
+-		Stmts(fn.Body)
+-		ir.CurFunc = oldfn
+-	}
+-
+-	out := 0
+-	for _, v := range fn.ClosureVars {
+-		if v.Type() == nil {
+-			// If v.Type is nil, it means v looked like it was going to be
+-			// used in the closure, but isn't. This happens in struct
+-			// literals like s{f: x} where we can't distinguish whether f is
+-			// a field identifier or expression until resolving s.
+-			continue
+-		}
+-
+-		// type check closed variables outside the closure, so that the
+-		// outer frame also captures them.
+-		Expr(v.Outer)
+-
+-		fn.ClosureVars[out] = v
+-		out++
+-	}
+-	fn.ClosureVars = fn.ClosureVars[:out]
+-
+-	clo.SetType(fn.Type())
+-
+-	return ir.UseClosure(clo, Target)
+-}
+-
+ // type check function definition
+ // To be called by typecheck, not directly.
+ // (Call typecheck.Func instead.)
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 274a3e3bbd..b902fd9a58 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -63,7 +63,6 @@ func assign(stmt ir.Node, lhs, rhs []ir.Node) {
+ 	// so that the conversion below happens).
+ 
+ 	checkLHS := func(i int, typ *types.Type) {
+-		lhs[i] = Resolve(lhs[i])
+ 		if n := lhs[i]; typ != nil && ir.DeclaredBy(n, stmt) && n.Type() == nil {
+ 			base.Assertf(typ.Kind() == types.TNIL, "unexpected untyped nil")
+ 			n.SetType(defaultType(typ))
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 8790eac28a..a36acb9300 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -21,10 +21,6 @@ import (
+ // to be included in the package-level init function.
+ var InitTodoFunc = ir.NewFunc(base.Pos)
+ 
+-var inimport bool // set during import
+-
+-var TypecheckAllowed bool
+-
+ var (
+ 	NeedRuntimeType = func(*types.Type) {}
+ )
+@@ -105,20 +101,6 @@ const (
+ // marks variables that escape the local frame.
+ // rewrites n.Op to be more specific in some cases.
+ 
+-// Resolve resolves an ONONAME node to a definition, if any. If n is not an ONONAME node,
+-// Resolve returns n unchanged. If n is an ONONAME node and not in the same package,
+-// then n.Sym() is resolved using import data. Otherwise, Resolve returns
+-// n.Sym().Def. An ONONAME node can be created using ir.NewIdent(), so an imported
+-// symbol can be resolved via Resolve(ir.NewIdent(src.NoXPos, sym)).
+-func Resolve(n ir.Node) (res ir.Node) {
+-	if n == nil || n.Op() != ir.ONONAME {
+-		return n
+-	}
+-
+-	base.Fatalf("unexpected NONAME node: %+v", n)
+-	panic("unreachable")
+-}
+-
+ func typecheckslice(l []ir.Node, top int) {
+ 	for i := range l {
+ 		l[i] = typecheck(l[i], top)
+@@ -203,23 +185,11 @@ func cycleTrace(cycle []ir.Node) string {
+ 
+ var typecheck_tcstack []ir.Node
+ 
+-func Func(fn *ir.Func) {
+-	new := Stmt(fn)
+-	if new != fn {
+-		base.Fatalf("typecheck changed func")
+-	}
+-}
+-
+ // typecheck type checks node n.
+ // The result of typecheck MUST be assigned back to n, e.g.
+ //
+ //	n.Left = typecheck(n.Left, top)
+ func typecheck(n ir.Node, top int) (res ir.Node) {
+-	// cannot type check until all the source has been parsed
+-	if !TypecheckAllowed {
+-		base.Fatalf("early typecheck")
+-	}
+-
+ 	if n == nil {
+ 		return nil
+ 	}
+@@ -236,9 +206,6 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
+ 		n = n.(*ir.ParenExpr).X
+ 	}
+ 
+-	// Resolve definition of name and value of iota lazily.
+-	n = Resolve(n)
+-
+ 	// Skip typecheck if already done.
+ 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
+ 	if n.Typecheck() == 1 || n.Typecheck() == 3 {
+@@ -681,10 +648,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 		n := n.(*ir.UnaryExpr)
+ 		return tcUnsafeData(n)
+ 
+-	case ir.OCLOSURE:
+-		n := n.(*ir.ClosureExpr)
+-		return tcClosure(n, top)
+-
+ 	case ir.OITAB:
+ 		n := n.(*ir.UnaryExpr)
+ 		return tcITab(n)

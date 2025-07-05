@@ -19,7 +19,102 @@ Date:   Fri Aug 28 12:13:37 2020 +0200
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/testing/testing.go      | 26 ++++++++++++++++++++------
  src/testing/testing_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 52 insertions(+), 6 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index a64206f349..66f296234a 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -413,10 +413,10 @@ type common struct {
+ 	signal   chan bool // To signal a test is done.
+ 	sub      []*T      // Queue of subtests to be run in parallel.
+ 
+-	tempDirOnce sync.Once
+-	tempDir     string
+-	tempDirErr  error
+-	tempDirSeq  int32
++	tempDirMu  sync.Mutex
++	tempDir    string
++	tempDirErr error
++	tempDirSeq int32
+ }
+ 
+ // Short reports whether the -test.short flag is set.
+@@ -903,7 +903,19 @@ var tempDirReplacer struct {
+ func (c *common) TempDir() string {
+ 	// Use a single parent directory for all the temporary directories
+ 	// created by a test, each numbered sequentially.
+-	c.tempDirOnce.Do(func() {
++	c.tempDirMu.Lock()
++	var nonExistent bool
++	if c.tempDir == "" { // Usually the case with js/wasm
++		nonExistent = true
++	} else {
++		_, err := os.Stat(c.tempDir)
++		nonExistent = os.IsNotExist(err)
++		if err != nil && !nonExistent {
++			c.Fatalf("TempDir: %v", err)
++		}
++	}
++
++	if nonExistent {
+ 		c.Helper()
+ 
+ 		// ioutil.TempDir doesn't like path separators in its pattern,
+@@ -921,7 +933,9 @@ func (c *common) TempDir() string {
+ 				}
+ 			})
+ 		}
+-	})
++	}
++	c.tempDirMu.Unlock()
++
+ 	if c.tempDirErr != nil {
+ 		c.Fatalf("TempDir: %v", c.tempDirErr)
+ 	}
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index dbef7066e0..d665a334e4 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -19,6 +19,38 @@ func TestMain(m *testing.M) {
+ 	os.Exit(m.Run())
+ }
+ 
++func TestTempDirInCleanup(t *testing.T) {
++	var dir string
++
++	t.Run("test", func(t *testing.T) {
++		t.Cleanup(func() {
++			dir = t.TempDir()
++		})
++		_ = t.TempDir()
++	})
++
++	fi, err := os.Stat(dir)
++	if fi != nil {
++		t.Fatalf("Directory %q from user Cleanup still exists", dir)
++	}
++	if !os.IsNotExist(err) {
++		t.Fatalf("Unexpected error: %v", err)
++	}
++}
++
++func TestTempDirInBenchmark(t *testing.T) {
++	testing.Benchmark(func(b *testing.B) {
++		if !b.Run("test", func(b *testing.B) {
++			// Add a loop so that the test won't fail. See issue 38677.
++			for i := 0; i < b.N; i++ {
++				_ = b.TempDir()
++			}
++		}) {
++			t.Fatal("Sub test failure in a benchmark")
++		}
++	})
++}
++
+ func TestTempDir(t *testing.T) {
+ 	testTempDir(t)
+ 	t.Run("InSubtest", testTempDir)

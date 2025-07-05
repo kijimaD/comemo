@@ -17,9 +17,354 @@ Date:   Thu Apr 7 17:19:29 2016 +0900
     Change-Id: I9e9ecce308952ed5683066c3d1bb6a7b36458c65
     Reviewed-on: https://go-review.googlesource.com/21642
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/error_test.go   |  49 +++++++++++++++++++
  src/net/ip.go           |  24 +++++----
  src/net/ip_test.go      | 126 +++++++++++++++++++++++++++++++++++++++++-------
  src/net/ipsock_posix.go |  36 ++++++++------
  4 files changed, 192 insertions(+), 43 deletions(-)
+
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index c3a4d32382..40f235c924 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -206,6 +206,55 @@ func TestProtocolDialError(t *testing.T) {
+ 	}
+ }
+ 
++func TestDialAddrError(t *testing.T) {
++	switch runtime.GOOS {
++	case "nacl", "plan9":
++		t.Skipf("not supported on %s", runtime.GOOS)
++	}
++
++	for _, tt := range []struct {
++		network string
++		lit     string
++		addr    *TCPAddr
++	}{
++		{"tcp4", "::1", nil},
++		{"tcp4", "", &TCPAddr{IP: IPv6loopback}},
++		// We don't test the {"tcp6", "byte sequence", nil}
++		// case for now because there is no easy way to
++		// control name resolution.
++		{"tcp6", "", &TCPAddr{IP: IP{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}}},
++	} {
++		var err error
++		var c Conn
++		if tt.lit != "" {
++			c, err = Dial(tt.network, JoinHostPort(tt.lit, "0"))
++		} else {
++			c, err = DialTCP(tt.network, nil, tt.addr)
++		}
++		if err == nil {
++			c.Close()
++			t.Errorf("%s %q/%v: should fail", tt.network, tt.lit, tt.addr)
++			continue
++		}
++		if perr := parseDialError(err); perr != nil {
++			t.Error(perr)
++			continue
++		}
++		aerr, ok := err.(*OpError).Err.(*AddrError)
++		if !ok {
++			t.Errorf("%s %q/%v: should be AddrError: %v", tt.network, tt.lit, tt.addr, err)
++			continue
++		}
++		want := tt.lit
++		if tt.lit == "" {
++			want = tt.addr.IP.String()
++		}
++		if aerr.Addr != want {
++			t.Fatalf("%s: got %q; want %q", tt.network, aerr.Addr, want)
++		}
++	}
++}
++
+ var listenErrorTests = []struct {
+ 	network, address string
+ }{
+diff --git a/src/net/ip.go b/src/net/ip.go
+index 0501f5a6a3..a2361bbdbf 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -252,9 +252,11 @@ func (ip IP) Mask(mask IPMask) IP {
+ }
+ 
+ // String returns the string form of the IP address ip.
+-// If the address is an IPv4 address, the string representation
+-// is dotted decimal ("74.125.19.99").  Otherwise the representation
+-// is IPv6 ("2001:4860:0:2001::68").
++// It returns one of 4 forms:
++//   - "<nil>", if ip has length 0
++//   - dotted decimal ("192.0.2.1"), if ip is an IPv4 or IP4-mapped IPv6 address
++//   - IPv6 ("2001:db9::1"), if ip is a valid IPv6 address
++//   - the hexadecimal form of ip, without punctuation, if no other cases apply
+ func (ip IP) String() string {
+ 	p := ip
+ 
+@@ -270,7 +272,7 @@ func (ip IP) String() string {
+ 			uitoa(uint(p4[3]))
+ 	}
+ 	if len(p) != IPv6len {
+-		return "?"
++		return hexString(ip)
+ 	}
+ 
+ 	// Find longest run of zeros.
+@@ -312,6 +314,14 @@ func (ip IP) String() string {
+ 	return string(b)
+ }
+ 
++func hexString(b []byte) string {
++	s := make([]byte, len(b)*2)
++	for i, tn := range b {
++		s[i*2], s[i*2+1] = hexDigit[tn>>4], hexDigit[tn&0xf]
++	}
++	return string(s)
++}
++
+ // ipEmptyString is like ip.String except that it returns
+ // an empty string when ip is unset.
+ func ipEmptyString(ip IP) string {
+@@ -426,11 +436,7 @@ func (m IPMask) String() string {
+ 	if len(m) == 0 {
+ 		return "<nil>"
+ 	}
+-	buf := make([]byte, len(m)*2)
+-	for i, b := range m {
+-		buf[i*2], buf[i*2+1] = hexDigit[b>>4], hexDigit[b&0xf]
+-	}
+-	return string(buf)
++	return hexString(m)
+ }
+ 
+ func networkNumberAndMask(n *IPNet) (ip IP, m IPMask) {
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 2006085818..87c12133c3 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"bytes"
+ 	"reflect"
+ 	"runtime"
+ 	"testing"
+@@ -124,30 +125,119 @@ func TestMarshalEmptyIP(t *testing.T) {
+ }
+ 
+ var ipStringTests = []struct {
+-	in  IP
+-	out string // see RFC 5952
++	in  IP     // see RFC 791 and RFC 4291
++	str string // see RFC 791, RFC 4291 and RFC 5952
++	byt []byte
++	error
+ }{
+-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1}, "2001:db8::123:12:1"},
+-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1}, "2001:db8::1"},
+-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1}, "2001:db8:0:1:0:1:0:1"},
+-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0}, "2001:db8:1:0:1:0:1:0"},
+-	{IP{0x20, 0x1, 0, 0, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0x1}, "2001::1:0:0:1"},
+-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0}, "2001:db8:0:0:1::"},
+-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0x1}, "2001:db8::1:0:0:1"},
+-	{IP{0x20, 0x1, 0xD, 0xB8, 0, 0, 0, 0, 0, 0xA, 0, 0xB, 0, 0xC, 0, 0xD}, "2001:db8::a:b:c:d"},
+-	{IPv4(192, 168, 0, 1), "192.168.0.1"},
+-	{nil, ""},
++	// IPv4 address
++	{
++		IP{192, 0, 2, 1},
++		"192.0.2.1",
++		[]byte("192.0.2.1"),
++		nil,
++	},
++	{
++		IP{0, 0, 0, 0},
++		"0.0.0.0",
++		[]byte("0.0.0.0"),
++		nil,
++	},
++
++	// IPv4-mapped IPv6 address
++	{
++		IP{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 192, 0, 2, 1},
++		"192.0.2.1",
++		[]byte("192.0.2.1"),
++		nil,
++	},
++	{
++		IP{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0, 0, 0, 0},
++		"0.0.0.0",
++		[]byte("0.0.0.0"),
++		nil,
++	},
++
++	// IPv6 address
++	{
++		IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1},
++		"2001:db8::123:12:1",
++		[]byte("2001:db8::123:12:1"),
++		nil,
++	},
++	{
++		IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1},
++		"2001:db8::1",
++		[]byte("2001:db8::1"),
++		nil,
++	},
++	{
++		IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1},
++		"2001:db8:0:1:0:1:0:1",
++		[]byte("2001:db8:0:1:0:1:0:1"),
++		nil,
++	},
++	{
++		IP{0x20, 0x1, 0xd, 0xb8, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0},
++		"2001:db8:1:0:1:0:1:0",
++		[]byte("2001:db8:1:0:1:0:1:0"),
++		nil,
++	},
++	{
++		IP{0x20, 0x1, 0, 0, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0x1},
++		"2001::1:0:0:1",
++		[]byte("2001::1:0:0:1"),
++		nil,
++	},
++	{
++		IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0},
++		"2001:db8:0:0:1::",
++		[]byte("2001:db8:0:0:1::"),
++		nil,
++	},
++	{
++		IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0x1},
++		"2001:db8::1:0:0:1",
++		[]byte("2001:db8::1:0:0:1"),
++		nil,
++	},
++	{
++		IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0xa, 0, 0xb, 0, 0xc, 0, 0xd},
++		"2001:db8::a:b:c:d",
++		[]byte("2001:db8::a:b:c:d"),
++		nil,
++	},
++	{
++		IPv6unspecified,
++		"::",
++		[]byte("::"),
++		nil,
++	},
++
++	// IP wildcard equivalent address in Dial/Listen API
++	{
++		nil,
++		"<nil>",
++		nil,
++		nil,
++	},
++
++	// Opaque byte sequence
++	{
++		IP{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef},
++		"0123456789abcdef",
++		nil,
++		&AddrError{Err: "invalid IP address", Addr: "0123456789abcdef"},
++	},
+ }
+ 
+ func TestIPString(t *testing.T) {
+ 	for _, tt := range ipStringTests {
+-		if tt.in != nil {
+-			if out := tt.in.String(); out != tt.out {
+-				t.Errorf("IP.String(%v) = %q, want %q", tt.in, out, tt.out)
+-			}
++		if out := tt.in.String(); out != tt.str {
++			t.Errorf("IP.String(%v) = %q, want %q", tt.in, out, tt.str)
+ 		}
+-		if out, err := tt.in.MarshalText(); string(out) != tt.out || err != nil {
+-			t.Errorf("IP.MarshalText(%v) = %q, %v, want %q, nil", tt.in, out, err, tt.out)
++		if out, err := tt.in.MarshalText(); !bytes.Equal(out, tt.byt) || !reflect.DeepEqual(err, tt.error) {
++			t.Errorf("IP.MarshalText(%v) = %v, %v, want %v, %v", tt.in, out, err, tt.byt, tt.error)
+ 		}
+ 	}
+ }
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index 28cdb210ae..644964e78d 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -4,8 +4,6 @@
+ 
+ // +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
+ 
+-// Internet protocol family sockets for POSIX
+-
+ package net
+ 
+ import (
+@@ -52,7 +50,7 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ 	}{
+ 		// IPv6 communication capability
+ 		{laddr: TCPAddr{IP: ParseIP("::1")}, value: 1},
+-		// IPv6 IPv4-mapped address communication capability
++		// IPv4-mapped IPv6 address communication capability
+ 		{laddr: TCPAddr{IP: IPv4(127, 0, 0, 1)}, value: 0},
+ 	}
+ 	var supps [2]bool
+@@ -154,8 +152,6 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family
+ 	return syscall.AF_INET6, false
+ }
+ 
+-// Internet sockets (TCP, UDP, IP)
+-
+ func internetSocket(net string, laddr, raddr sockaddr, deadline time.Time, sotype, proto int, mode string, cancel <-chan struct{}) (fd *netFD, err error) {
+ 	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
+ 	return socket(net, family, sotype, proto, ipv6only, laddr, raddr, deadline, cancel)
+@@ -167,27 +163,35 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
+ 		if len(ip) == 0 {
+ 			ip = IPv4zero
+ 		}
+-		if ip = ip.To4(); ip == nil {
++		ip4 := ip.To4()
++		if ip4 == nil {
+ 			return nil, &AddrError{Err: "non-IPv4 address", Addr: ip.String()}
+ 		}
+ 		sa := &syscall.SockaddrInet4{Port: port}
+-		copy(sa.Addr[:], ip)
++		copy(sa.Addr[:], ip4)
+ 		return sa, nil
+ 	case syscall.AF_INET6:
+-		if len(ip) == 0 {
+-			ip = IPv6zero
+-		}
+-		// IPv4 callers use 0.0.0.0 to mean "announce on any available address".
+-		// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
+-		// which it refuses to do. Rewrite to the IPv6 unspecified address.
+-		if ip.Equal(IPv4zero) {
++		// In general, an IP wildcard address, which is either
++		// "0.0.0.0" or "::", means the entire IP addressing
++		// space. For some historical reason, it is used to
++		// specify "any available address" on some operations
++		// of IP node.
++		//
++		// When the IP node supports IPv4-mapped IPv6 address,
++		// we allow an listener to listen to the wildcard
++		// address of both IP addressing spaces by specifying
++		// IPv6 wildcard address.
++		if len(ip) == 0 || ip.Equal(IPv4zero) {
+ 			ip = IPv6zero
+ 		}
+-		if ip = ip.To16(); ip == nil {
++		// We accept any IPv6 address including IPv4-mapped
++		// IPv6 address.
++		ip6 := ip.To16()
++		if ip6 == nil {
+ 			return nil, &AddrError{Err: "non-IPv6 address", Addr: ip.String()}
+ 		}
+ 		sa := &syscall.SockaddrInet6{Port: port, ZoneId: uint32(zoneToInt(zone))}
+-		copy(sa.Addr[:], ip)
++		copy(sa.Addr[:], ip6)
+ 		return sa, nil
+ 	}
+ 	return nil, &AddrError{Err: "invalid address family", Addr: ip.String()}

@@ -11,6 +11,25 @@ Date:   Sat Sep 3 18:29:43 2016 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/compress/flate/deflate.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/compress/flate/deflate.go b/src/compress/flate/deflate.go
+index 9f53d51a6e..ccf6d527d8 100644
+--- a/src/compress/flate/deflate.go
++++ b/src/compress/flate/deflate.go
+@@ -702,10 +702,12 @@ func (w *Writer) Write(data []byte) (n int, err error) {
+ 	return w.d.write(data)
+ }
+ 
+-// Flush flushes any pending compressed data to the underlying writer.
++// Flush flushes any pending data to the underlying writer.
+ // It is useful mainly in compressed network protocols, to ensure that
+ // a remote reader has enough data to reconstruct a packet.
+ // Flush does not return until the data has been written.
++// Calling Flush when there is no pending data still causes the Writer
++// to emit a sync marker of at least 4 bytes.
+ // If the underlying writer returns an error, Flush returns that error.
+ //
+ // In the terminology of the zlib library, Flush is equivalent to Z_SYNC_FLUSH.

@@ -7,6 +7,21 @@ Date:   Wed Apr 15 09:01:38 2015 -0700
     Change-Id: Ia0d7c2f08f8f124bcd62c7f9744227812d68903d
     Reviewed-on: https://go-review.googlesource.com/8941
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.txt | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index d0259f15a5..a98f83aa99 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -29,7 +29,9 @@ database/sql: add Stats (https://golang.org/cl/7950)
+ encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
+ flag: new nicer format for PrintDefaults (https://golang.org/cl/7330)
+ fmt: empty slices now print nothing with %x (bug fix) (https://golang.org/cl/8864)
++fmt: reflect.Value now prints what it holds (https://golang.org/cl/8731)
+ go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptyStmt.Semicolon position (https://golang.org/cl/5720)
++io: add CopyBuffer, Copy with user-provided buffer (https://golang.org/cl/8730)
+ log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
+ log: add LUTC flag (https://golang.org/cl/8761)
+ math/big: add arbitrary precision Floats (many cl's)

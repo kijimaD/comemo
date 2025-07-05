@@ -10,6 +10,29 @@ Date:   Thu Jan 30 19:15:15 2020 -0800
     Change-Id: Ifa9a17b5b16bfcfbfe1d113a2b66a63ea3a6b59c
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217131
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.14.html | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 949b3d9383..a7e7ac13b2 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -532,6 +532,17 @@ TODO
+ 
+ </dl><!-- math/big -->
+ 
++<dl id="net/http/httptest"><dt><a href="/net/http/httptest/">net/http/httptest</a></dt>
++  <dd>
++    <p><!-- CL 201557 -->
++      The
++      new <a href="/pkg/net/http/httptest/#Server"><code>Server</code></a>
++      field <a href="/pkg/net/http/httptest/#Server.EnableHTTP2"><code>EnableHTTP2</code></a>
++      supports enabling HTTP/2 on the test server.
++    </p>
++  </dd>
++</dl><!-- net/http/httptest -->
++
+ <dl id="plugin"><dt><a href="/pkg/plugin/">plugin</a></dt>
+   <dd>
+     <p><!-- CL 191617 -->

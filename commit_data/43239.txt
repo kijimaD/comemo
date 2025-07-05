@@ -14,9 +14,68 @@ Date:   Fri Mar 20 11:37:54 2020 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/malloc.go      | 4 ++--
  src/runtime/mgcmark.go     | 2 +-
  src/runtime/mgcsweepbuf.go | 2 +-
  src/runtime/msize.go       | 4 ++--
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 483ea0aee5..346d7f4742 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1035,9 +1035,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		} else {
+ 			var sizeclass uint8
+ 			if size <= smallSizeMax-8 {
+-				sizeclass = size_to_class8[(size+smallSizeDiv-1)/smallSizeDiv]
++				sizeclass = size_to_class8[divRoundUp(size, smallSizeDiv)]
+ 			} else {
+-				sizeclass = size_to_class128[(size-smallSizeMax+largeSizeDiv-1)/largeSizeDiv]
++				sizeclass = size_to_class128[divRoundUp(size-smallSizeMax, largeSizeDiv)]
+ 			}
+ 			size = uintptr(class_to_size[sizeclass])
+ 			spc := makeSpanClass(sizeclass, noscan)
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 2c17d8befa..301d8020f1 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -54,7 +54,7 @@ func gcMarkRootPrepare() {
+ 
+ 	// Compute how many data and BSS root blocks there are.
+ 	nBlocks := func(bytes uintptr) int {
+-		return int((bytes + rootBlockBytes - 1) / rootBlockBytes)
++		return int(divRoundUp(bytes, rootBlockBytes))
+ 	}
+ 
+ 	work.nDataRoots = 0
+diff --git a/src/runtime/mgcsweepbuf.go b/src/runtime/mgcsweepbuf.go
+index 78288229c8..1f722c3d58 100644
+--- a/src/runtime/mgcsweepbuf.go
++++ b/src/runtime/mgcsweepbuf.go
+@@ -144,7 +144,7 @@ func (b *gcSweepBuf) pop() *mspan {
+ // intervening pops. Spans that are pushed after the call may also
+ // appear in these blocks.
+ func (b *gcSweepBuf) numBlocks() int {
+-	return int((atomic.Load(&b.index) + gcSweepBlockEntries - 1) / gcSweepBlockEntries)
++	return int(divRoundUp(uintptr(atomic.Load(&b.index)), gcSweepBlockEntries))
+ }
+ 
+ // block returns the spans in the i'th block of buffer b. block is
+diff --git a/src/runtime/msize.go b/src/runtime/msize.go
+index 11d06ce025..c56aa5a7b2 100644
+--- a/src/runtime/msize.go
++++ b/src/runtime/msize.go
+@@ -13,9 +13,9 @@ package runtime
+ func roundupsize(size uintptr) uintptr {
+ 	if size < _MaxSmallSize {
+ 		if size <= smallSizeMax-8 {
+-			return uintptr(class_to_size[size_to_class8[(size+smallSizeDiv-1)/smallSizeDiv]])
++			return uintptr(class_to_size[size_to_class8[divRoundUp(size, smallSizeDiv)]])
+ 		} else {
+-			return uintptr(class_to_size[size_to_class128[(size-smallSizeMax+largeSizeDiv-1)/largeSizeDiv]])
++			return uintptr(class_to_size[size_to_class128[divRoundUp(size-smallSizeMax, largeSizeDiv)]])
+ 		}
+ 	}
+ 	if size+_PageSize < size {

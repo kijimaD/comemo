@@ -17,9 +17,245 @@ Date:   Wed Jul 27 09:56:38 2022 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |   4 +
  src/cmd/compile/internal/ssa/rewritegeneric.go | 152 +++++++++++++++++++++++++
  src/cmd/compile/internal/ssagen/ssa.go         |   2 +-
  test/codegen/slices.go                         |  15 +++
  4 files changed, 172 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index d5cc107fab..744cc839f4 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -165,6 +165,8 @@
+ 
+ // Convert x * 1 to x.
+ (Mul(8|16|32|64)  (Const(8|16|32|64)  [1]) x) => x
++(Select0 (Mul(32|64)uover (Const(32|64) [1]) x)) => x
++(Select1 (Mul(32|64)uover (Const(32|64) [1]) x)) => (ConstBool [false])
+ 
+ // Convert x * -1 to -x.
+ (Mul(8|16|32|64)  (Const(8|16|32|64)  [-1]) x) => (Neg(8|16|32|64)  x)
+@@ -531,6 +533,8 @@
+ (Add(64|32|16|8) (Const(64|32|16|8) [0]) x) => x
+ (Sub(64|32|16|8) x x) => (Const(64|32|16|8) [0])
+ (Mul(64|32|16|8) (Const(64|32|16|8) [0]) _) => (Const(64|32|16|8) [0])
++(Select0 (Mul(64|32)uover (Const(64|32) [0]) x)) => (Const(64|32) [0])
++(Select1 (Mul(64|32)uover (Const(64|32) [0]) x)) => (ConstBool [false])
+ 
+ (Com(64|32|16|8) (Com(64|32|16|8)  x)) => x
+ (Com(64|32|16|8) (Const(64|32|16|8) [c])) => (Const(64|32|16|8) [^c])
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index f61b6ca3ec..99346edd4b 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -21260,6 +21260,82 @@ func rewriteValuegeneric_OpSelect0(v *Value) bool {
+ 		v.AddArg2(lo, y)
+ 		return true
+ 	}
++	// match: (Select0 (Mul32uover (Const32 [1]) x))
++	// result: x
++	for {
++		if v_0.Op != OpMul32uover {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			if v_0_0.Op != OpConst32 || auxIntToInt32(v_0_0.AuxInt) != 1 {
++				continue
++			}
++			x := v_0_1
++			v.copyOf(x)
++			return true
++		}
++		break
++	}
++	// match: (Select0 (Mul64uover (Const64 [1]) x))
++	// result: x
++	for {
++		if v_0.Op != OpMul64uover {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			if v_0_0.Op != OpConst64 || auxIntToInt64(v_0_0.AuxInt) != 1 {
++				continue
++			}
++			x := v_0_1
++			v.copyOf(x)
++			return true
++		}
++		break
++	}
++	// match: (Select0 (Mul64uover (Const64 [0]) x))
++	// result: (Const64 [0])
++	for {
++		if v_0.Op != OpMul64uover {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			if v_0_0.Op != OpConst64 || auxIntToInt64(v_0_0.AuxInt) != 0 {
++				continue
++			}
++			v.reset(OpConst64)
++			v.AuxInt = int64ToAuxInt(0)
++			return true
++		}
++		break
++	}
++	// match: (Select0 (Mul32uover (Const32 [0]) x))
++	// result: (Const32 [0])
++	for {
++		if v_0.Op != OpMul32uover {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			if v_0_0.Op != OpConst32 || auxIntToInt32(v_0_0.AuxInt) != 0 {
++				continue
++			}
++			v.reset(OpConst32)
++			v.AuxInt = int32ToAuxInt(0)
++			return true
++		}
++		break
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpSelect1(v *Value) bool {
+@@ -21280,6 +21356,82 @@ func rewriteValuegeneric_OpSelect1(v *Value) bool {
+ 		v.AddArg2(lo, y)
+ 		return true
+ 	}
++	// match: (Select1 (Mul32uover (Const32 [1]) x))
++	// result: (ConstBool [false])
++	for {
++		if v_0.Op != OpMul32uover {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			if v_0_0.Op != OpConst32 || auxIntToInt32(v_0_0.AuxInt) != 1 {
++				continue
++			}
++			v.reset(OpConstBool)
++			v.AuxInt = boolToAuxInt(false)
++			return true
++		}
++		break
++	}
++	// match: (Select1 (Mul64uover (Const64 [1]) x))
++	// result: (ConstBool [false])
++	for {
++		if v_0.Op != OpMul64uover {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			if v_0_0.Op != OpConst64 || auxIntToInt64(v_0_0.AuxInt) != 1 {
++				continue
++			}
++			v.reset(OpConstBool)
++			v.AuxInt = boolToAuxInt(false)
++			return true
++		}
++		break
++	}
++	// match: (Select1 (Mul64uover (Const64 [0]) x))
++	// result: (ConstBool [false])
++	for {
++		if v_0.Op != OpMul64uover {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			if v_0_0.Op != OpConst64 || auxIntToInt64(v_0_0.AuxInt) != 0 {
++				continue
++			}
++			v.reset(OpConstBool)
++			v.AuxInt = boolToAuxInt(false)
++			return true
++		}
++		break
++	}
++	// match: (Select1 (Mul32uover (Const32 [0]) x))
++	// result: (ConstBool [false])
++	for {
++		if v_0.Op != OpMul32uover {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			if v_0_0.Op != OpConst32 || auxIntToInt32(v_0_0.AuxInt) != 0 {
++				continue
++			}
++			v.reset(OpConstBool)
++			v.AuxInt = boolToAuxInt(false)
++			return true
++		}
++		break
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 86b5358e3c..805b47ce7d 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1421,7 +1421,7 @@ func (s *state) stmt(n ir.Node) {
+ 		s.callResult(n, callNormal)
+ 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class == ir.PFUNC {
+ 			if fn := n.X.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
+-				n.X.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap") {
++				n.X.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" || fn == "panicunsafeslicenilptr") {
+ 				m := s.mem()
+ 				b := s.endBlock()
+ 				b.Kind = ssa.BlockExit
+diff --git a/test/codegen/slices.go b/test/codegen/slices.go
+index d20aa9eddf..99bdd50e52 100644
+--- a/test/codegen/slices.go
++++ b/test/codegen/slices.go
+@@ -6,6 +6,8 @@
+ 
+ package codegen
+ 
++import "unsafe"
++
+ // This file contains code generation tests related to the handling of
+ // slice types.
+ 
+@@ -368,3 +370,16 @@ func SliceWithSubtractBound(a []int, b int) []int {
+ 	// ppc64:"SUBC",-"NEG"
+ 	return a[(3 - b):]
+ }
++
++// --------------------------------------- //
++//   Code generation for unsafe.Slice      //
++// --------------------------------------- //
++
++func Slice1(p *byte, i int) []byte {
++	// amd64:-"MULQ"
++	return unsafe.Slice(p, i)
++}
++func Slice0(p *struct{}, i int) []struct{} {
++	// amd64:-"MULQ"
++	return unsafe.Slice(p, i)
++}

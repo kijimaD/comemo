@@ -8,6 +8,107 @@ Date:   Tue Nov 11 16:06:47 2014 +1100
     R=r
     CC=golang-codereviews
     https://golang.org/cl/173920043
-
+---
  doc/go1.4.html | 55 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 55 insertions(+)
+
+diff --git a/doc/go1.4.html b/doc/go1.4.html
+index ac63ade60a..d96440708d 100644
+--- a/doc/go1.4.html
++++ b/doc/go1.4.html
+@@ -637,12 +637,29 @@ See the relevant package documentation for more information about each change.
+ 
+ <ul>
+ 
++<li>
++The <a href="/pkg/archive/zip/"><code>archive/zip</code></a> package's
++<a href="/pkg/archive/zip/#Writer"><code>Writer</code></a> now supports a
++<a href="/pkg/archive/zip/#Writer.Flush"><code>Flush</code></a> method.
++</li>
++
+ <li>
+ The <a href="/pkg/compress/flate/"><code>compress/flate</code></a>,
+ <a href="/pkg/compress/gzip/"><code>compress/gzip</code></a>,
+ and <a href="/pkg/compress/zlib/"><code>compress/zlib</code></a>
+ packages now support a <code>Reset</code> method
+ for the decompressors, allowing them to reuse buffers and improve performance.
++The <a href="/pkg/compress/gzip/"><code>compress/gzip</code></a> package also has a
++<a href="/pkg/compress/gzip/#Reader.Multistream"><code>Multistream</code></a> method to control support
++for multistream files.
++</li>
++
++<li>
++The <a href="/pkg/crypto/"><code>crypto</code></a> package now has a
++<a href="/pkg/crypto/#Signer"><code>Signer</code></a> interface, implemented by the
++<code>PrivateKey</code> types in
++<a href="/pkg/crypto/ecdsa"><code>crypto/ecdsa</code></a> and
++<a href="/pkg/crypto/rsa"><code>crypto/rsa</code></a>.
+ </li>
+ 
+ <li>
+@@ -665,6 +682,16 @@ to help clients detect fallback attacks.
+ those attacks.)
+ </li>
+ 
++<li>
++The <a href="/pkg/database/sql/"><code>database/sql</code></a> package can now list all registered
++<a href="/pkg/database/sql/#Drivers"><code>Drivers</code></a>.
++</li>
++
++<li>
++The <a href="/pkg/debug/dwarf/"><code>debug/dwarf</code></a> package now supports
++<a href="/pkg/debug/dwarf/#UnspecifiedType"><code>UnspecifiedType</code></a>s.
++</li>
++
+ <li>
+ In the <a href="/pkg/encoding/asn1/"><code>encoding/asn1</code></a> package,
+ optional elements with a default value will now only be omitted if they have that value.
+@@ -685,6 +712,11 @@ in some cases, especially involving arrays, it can be faster.
+ There is no functional change.
+ </li>
+ 
++<li>
++The <a href="/pkg/encoding/xml/"><code>encoding/xml</code></a> package's
++<a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> can now report its input offset.
++</li>
++
+ <li>
+ In the <a href="/pkg/fmt/"><code>fmt</code></a> package,
+ formatting of pointers to maps has changed to be consistent with that of pointers
+@@ -693,6 +725,28 @@ For instance, <code>&amp;map[string]int{"one":</code> <code>1}</code> now prints
+ <code>&amp;map[one:</code> <code>1]</code> rather than as a hexadecimal pointer value.
+ </li>
+ 
++<li>
++The <a href="/pkg/image/"><code>image</code></a> package's
++<a href="/pkg/image/#Image"><code>Image</code></a>
++implementations like
++<a href="/pkg/image/#RGBA"><code>RGBA</code></a> and
++<a href="/pkg/image/#Gray"><code>Gray</code></a> have specialized
++<a href="/pkg/image/#RGBA.RGBAAt"><code>RGBAAt</code></a> and
++<a href="/pkg/image/#Gray.GrayAt"><code>GrayAt</code></a> methods alongside the general
++<a href="/pkg/image/#Image.At"><code>At</code></a> method.
++</li>
++
++<li>
++The <a href="/pkg/image/png/"><code>image/png</code></a> package now has an
++<a href="/pkg/image/png/#Encoder"><code>Encoder</code></a>
++type to control the compression level used for encoding.
++</li>
++
++<li>
++The <a href="/pkg/math/"><code>math</code></a> package now has a
++<a href="/pkg/math/#Nextafter32"><code>Nextafter32</code><a/> function.
++</li>
++
+ <li>
+ The <a href="/pkg/net/http/"><code>net/http</code></a> package's
+ <a href="/pkg/net/http/#Request"><code>Request</code></a> type
+@@ -721,6 +775,7 @@ The <a href="/pkg/os/"><code>os</code></a> package
+ now implements symbolic links on the Windows operating system
+ through the <a href="/pkg/os/#Symlink"><code>Symlink</code></a> function.
+ Other operating systems already have this functionality.
++There is also a new <a href="/pkg/os/#Unsetenv"><code>Unsetenv</code></a> function.
+ </li>
+ 
+ <li>

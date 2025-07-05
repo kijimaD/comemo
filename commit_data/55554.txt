@@ -21,8 +21,56 @@ Date:   Sat Feb 18 04:37:17 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/import.go                 | 4 +++-
  src/cmd/go/testdata/script/mod_go_version_missing.txt | 3 +--
  src/cmd/go/testdata/script/mod_std_vendor.txt         | 4 +---
  3 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 90f2a7401a..a8b4a2d21f 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -546,10 +546,12 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
+ 		return module.Version{}, &ImportMissingError{Path: path, isStd: true}
+ 	}
+ 
+-	if cfg.BuildMod == "readonly" && !allowMissingModuleImports {
++	if (cfg.BuildMod == "readonly" || cfg.BuildMod == "vendor") && !allowMissingModuleImports {
+ 		// In readonly mode, we can't write go.mod, so we shouldn't try to look up
+ 		// the module. If readonly mode was enabled explicitly, include that in
+ 		// the error message.
++		// In vendor mode, we cannot use the network or module cache, so we
++		// shouldn't try to look up the module
+ 		var queryErr error
+ 		if cfg.BuildModExplicit {
+ 			queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+diff --git a/src/cmd/go/testdata/script/mod_go_version_missing.txt b/src/cmd/go/testdata/script/mod_go_version_missing.txt
+index f40b48fc7f..e9a8e7291d 100644
+--- a/src/cmd/go/testdata/script/mod_go_version_missing.txt
++++ b/src/cmd/go/testdata/script/mod_go_version_missing.txt
+@@ -27,8 +27,7 @@ cmp go.mod go.mod.orig
+ 
+ ! go list -mod=vendor all
+ ! stderr '^go: inconsistent vendoring'
+-stderr 'go: finding module for package example.com/badedit'
+-stderr 'cannot query module due to -mod=vendor'
++stderr 'cannot find module providing package example.com/badedit: import lookup disabled by -mod=vendor'
+ 
+ # When we set -mod=mod, the go version should be updated immediately,
+ # to the current version, converting the requirements from eager to lazy.
+diff --git a/src/cmd/go/testdata/script/mod_std_vendor.txt b/src/cmd/go/testdata/script/mod_std_vendor.txt
+index 7e4c210d3c..ed47542a4e 100644
+--- a/src/cmd/go/testdata/script/mod_std_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_std_vendor.txt
+@@ -22,9 +22,7 @@ cd broken
+ ! go build -mod=readonly
+ stderr 'disabled by -mod=readonly'
+ ! go build -mod=vendor
+-stderr 'go: finding module for package golang.org/x/net/http2/hpack'
+-stderr 'http.go:5:2: cannot query module due to -mod=vendor'
+-
++stderr 'http.go:5:2: cannot find module providing package golang.org/x/net/http2/hpack: import lookup disabled by -mod=vendor'
+ 
+ # ...even if they explicitly use the "cmd/vendor/" or "vendor/" prefix.
+ cd ../importcmd

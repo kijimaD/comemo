@@ -7,6 +7,19 @@ Date:   Wed Sep 14 20:03:21 2011 +0200
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/5009045
-
+---
  .hgignore | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.hgignore b/.hgignore
+index 71dadfbcd1..e8bd79c9e9 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -43,6 +43,7 @@ src/cmd/goinstall/syslist.go
+ src/pkg/Make.deps
+ src/pkg/exp/norm/maketables
+ src/pkg/exp/norm/maketesttables
++src/pkg/exp/norm/normregtest
+ src/pkg/exp/ogle/ogle
+ src/pkg/go/build/syslist.go
+ src/pkg/os/signal/unix.go

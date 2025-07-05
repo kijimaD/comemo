@@ -14,6 +14,25 @@ Date:   Wed Jul 29 15:11:42 2015 -0400
     Change-Id: Ice97c30bc8b36d06b7b88d778d87fab8e1827fdc
     Reviewed-on: https://go-review.googlesource.com/12847
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/arm64/ggen.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index 851ca4e30f..6b0b40efbd 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -19,6 +19,13 @@ func defframe(ptxt *obj.Prog) {
+ 
+ 	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
+ 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
++
++	// arm64 requires that the frame size (not counting saved LR)
++	// be empty or be 8 mod 16. If not, pad it.
++	if frame != 0 && frame%16 != 8 {
++		frame += 8
++	}
++
+ 	ptxt.To.Offset = int64(frame)
+ 
+ 	// insert code to zero ambiguously live variables

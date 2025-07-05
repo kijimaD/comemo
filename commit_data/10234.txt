@@ -14,7 +14,7 @@ Date:   Fri Nov 4 08:34:37 2011 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5306092
-
+---
  src/cmd/gofix/error.go         |  3 ++-
  src/cmd/gofix/filepath.go      |  5 ++++
  src/cmd/gofix/fix.go           | 54 +++++++++++++++---------------------------
@@ -40,3 +40,509 @@ Date:   Fri Nov 4 08:34:37 2011 +1100
  src/cmd/gofix/stringssplit.go  |  5 ++++
  src/cmd/gofix/url.go           |  5 ++++
  24 files changed, 133 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/gofix/error.go b/src/cmd/gofix/error.go
+index e0ced633d9..5e20ff683b 100644
+--- a/src/cmd/gofix/error.go
++++ b/src/cmd/gofix/error.go
+@@ -11,11 +11,12 @@ import (
+ )
+ 
+ func init() {
+-	fixes = append(fixes, errorFix)
++	register(errorFix)
+ }
+ 
+ var errorFix = fix{
+ 	"error",
++	"2011-11-02",
+ 	errorFn,
+ 	`Use error instead of os.Error.
+ 
+diff --git a/src/cmd/gofix/filepath.go b/src/cmd/gofix/filepath.go
+index 3edccabfa6..f31226018a 100644
+--- a/src/cmd/gofix/filepath.go
++++ b/src/cmd/gofix/filepath.go
+@@ -8,8 +8,13 @@ import (
+ 	"go/ast"
+ )
+ 
++func init() {
++	register(filepathFix)
++}
++
+ var filepathFix = fix{
+ 	"filepath",
++	"2011-06-26",
+ 	filepathFunc,
+ 	`Adapt code from filepath.[List]SeparatorString to string(filepath.[List]Separator).
+ 
+diff --git a/src/cmd/gofix/fix.go b/src/cmd/gofix/fix.go
+index f7b55b073d..394685a15a 100644
+--- a/src/cmd/gofix/fix.go
++++ b/src/cmd/gofix/fix.go
+@@ -24,45 +24,29 @@ import (
+ 
+ type fix struct {
+ 	name string
++	date string // date that fix was introduced, in YYYY-MM-DD format
+ 	f    func(*ast.File) bool
+ 	desc string
+ }
+ 
+-// main runs sort.Sort(fixes) before printing list of fixes.
+-type fixlist []fix
+-
+-func (f fixlist) Len() int           { return len(f) }
+-func (f fixlist) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+-func (f fixlist) Less(i, j int) bool { return f[i].name < f[j].name }
+-
+-var fixes = fixlist{
+-	// NOTE: This list must be in chronological order,
+-	// so that code using APIs that changed multiple times
+-	// can be updated in the correct order.
+-	// Add new fixes to bottom of list.  Do not sort.
+-	httpserverFix,
+-	procattrFix,
+-	netdialFix,
+-	netlookupFix,
+-	tlsdialFix,
+-	osopenFix,
+-	reflectFix,
+-	httpFinalURLFix,
+-	httpHeadersFix,
+-	oserrorstringFix,
+-	sortsliceFix,
+-	filepathFix,
+-	httpFileSystemFix,
+-	stringssplitFix,
+-	signalFix,
+-	sorthelpersFix,
+-	urlFix,
+-	netudpgroupFix,
+-	imagenewFix,
+-	mathFix,
+-	ioCopyNFix,
+-	imagecolorFix,
+-	mapdeleteFix,
++// main runs sort.Sort(byName(fixes)) before printing list of fixes.
++type byName []fix
++
++func (f byName) Len() int           { return len(f) }
++func (f byName) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
++func (f byName) Less(i, j int) bool { return f[i].name < f[j].name }
++
++// main runs sort.Sort(byDate(fixes)) before applying fixes.
++type byDate []fix
++
++func (f byDate) Len() int           { return len(f) }
++func (f byDate) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
++func (f byDate) Less(i, j int) bool { return f[i].date < f[j].date }
++
++var fixes []fix
++
++func register(f fix) {
++	fixes = append(fixes, f)
+ }
+ 
+ // walk traverses the AST x, calling visit(y) for each node y in the tree but
+diff --git a/src/cmd/gofix/httpfinalurl.go b/src/cmd/gofix/httpfinalurl.go
+index 6051a2f3f9..49b9f1c516 100644
+--- a/src/cmd/gofix/httpfinalurl.go
++++ b/src/cmd/gofix/httpfinalurl.go
+@@ -8,8 +8,13 @@ import (
+ 	"go/ast"
+ )
+ 
++func init() {
++	register(httpFinalURLFix)
++}
++
+ var httpFinalURLFix = fix{
+ 	"httpfinalurl",
++	"2011-05-13",
+ 	httpfinalurl,
+ 	`Adapt http Get calls to not have a finalURL result parameter.
+ 
+diff --git a/src/cmd/gofix/httpfs.go b/src/cmd/gofix/httpfs.go
+index 317330619e..625dd0f7db 100644
+--- a/src/cmd/gofix/httpfs.go
++++ b/src/cmd/gofix/httpfs.go
+@@ -9,8 +9,13 @@ import (
+ 	"go/token"
+ )
+ 
++func init() {
++	register(httpFileSystemFix)
++}
++
+ var httpFileSystemFix = fix{
+ 	"httpfs",
++	"2011-06-27",
+ 	httpfs,
+ 	`Adapt http FileServer to take a FileSystem.
+ 
+diff --git a/src/cmd/gofix/httpheaders.go b/src/cmd/gofix/httpheaders.go
+index e9856f5db4..0bce12b512 100644
+--- a/src/cmd/gofix/httpheaders.go
++++ b/src/cmd/gofix/httpheaders.go
+@@ -8,8 +8,13 @@ import (
+ 	"go/ast"
+ )
+ 
++func init() {
++	register(httpHeadersFix)
++}
++
+ var httpHeadersFix = fix{
+ 	"httpheaders",
++	"2011-06-16",
+ 	httpheaders,
+ 	`Rename http Referer, UserAgent, Cookie, SetCookie, which are now methods.
+ 
+diff --git a/src/cmd/gofix/httpserver.go b/src/cmd/gofix/httpserver.go
+index cf8d16a978..7aa6517864 100644
+--- a/src/cmd/gofix/httpserver.go
++++ b/src/cmd/gofix/httpserver.go
+@@ -9,8 +9,13 @@ import (
+ 	"go/token"
+ )
+ 
++func init() {
++	register(httpserverFix)
++}
++
+ var httpserverFix = fix{
+ 	"httpserver",
++	"2011-03-15",
+ 	httpserver,
+ 	`Adapt http server methods and functions to changes
+ made to the http ResponseWriter interface.
+diff --git a/src/cmd/gofix/imagecolor.go b/src/cmd/gofix/imagecolor.go
+index c7900e4657..1aac40a6fd 100644
+--- a/src/cmd/gofix/imagecolor.go
++++ b/src/cmd/gofix/imagecolor.go
+@@ -8,8 +8,13 @@ import (
+ 	"go/ast"
+ )
+ 
++func init() {
++	register(imagecolorFix)
++}
++
+ var imagecolorFix = fix{
+ 	"imagecolor",
++	"2011-10-04",
+ 	imagecolor,
+ 	`Adapt code to types moved from image to color.
+ 
+diff --git a/src/cmd/gofix/imagenew.go b/src/cmd/gofix/imagenew.go
+index 07cbef5697..b4e36d4f0c 100644
+--- a/src/cmd/gofix/imagenew.go
++++ b/src/cmd/gofix/imagenew.go
+@@ -8,8 +8,13 @@ import (
+ 	"go/ast"
+ )
+ 
++func init() {
++	register(imagenewFix)
++}
++
+ var imagenewFix = fix{
+ 	"imagenew",
++	"2011-09-14",
+ 	imagenew,
+ 	`Adapt image.NewXxx calls to pass an image.Rectangle instead of (w, h int).
+ 
+diff --git a/src/cmd/gofix/iocopyn.go b/src/cmd/gofix/iocopyn.go
+index f911dd7403..720f3c6890 100644
+--- a/src/cmd/gofix/iocopyn.go
++++ b/src/cmd/gofix/iocopyn.go
+@@ -8,8 +8,13 @@ import (
+ 	"go/ast"
+ )
+ 
++func init() {
++	register(ioCopyNFix)
++}
++
+ var ioCopyNFix = fix{
+ 	"iocopyn",
++	"2011-09-30",
+ 	ioCopyN,
+ 	`Rename io.Copyn to io.CopyN.
+ 
+diff --git a/src/cmd/gofix/main.go b/src/cmd/gofix/main.go
+index 1d0f4b0f07..fbb705c076 100644
+--- a/src/cmd/gofix/main.go
++++ b/src/cmd/gofix/main.go
+@@ -40,7 +40,7 @@ func usage() {
+ 	fmt.Fprintf(os.Stderr, "usage: gofix [-diff] [-r fixname,...] [-force fixname,...] [path ...]\n")
+ 	flag.PrintDefaults()
+ 	fmt.Fprintf(os.Stderr, "\nAvailable rewrites are:\n")
+-	sort.Sort(fixes)
++	sort.Sort(byName(fixes))
+ 	for _, f := range fixes {
+ 		fmt.Fprintf(os.Stderr, "\n%s\n", f.name)
+ 		desc := strings.TrimSpace(f.desc)
+@@ -54,6 +54,8 @@ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 
++	sort.Sort(byDate(fixes))
++
+ 	if *allowedRewrites != "" {
+ 		allowed = make(map[string]bool)
+ 		for _, f := range strings.Split(*allowedRewrites, ",") {
+diff --git a/src/cmd/gofix/mapdelete.go b/src/cmd/gofix/mapdelete.go
+index b99602dcc2..db89c7bf45 100644
+--- a/src/cmd/gofix/mapdelete.go
++++ b/src/cmd/gofix/mapdelete.go
+@@ -6,8 +6,13 @@ package main
+ 
+ import "go/ast"
+ 
++func init() {
++	register(mapdeleteFix)
++}
++
+ var mapdeleteFix = fix{
+ 	"mapdelete",
++	"2011-10-18",
+ 	mapdelete,
+ 	`Use delete(m, k) instead of m[k] = 0, false.
+ 
+diff --git a/src/cmd/gofix/math.go b/src/cmd/gofix/math.go
+index a9a11ed615..2ec837eb00 100644
+--- a/src/cmd/gofix/math.go
++++ b/src/cmd/gofix/math.go
+@@ -6,8 +6,13 @@ package main
+ 
+ import "go/ast"
+ 
++func init() {
++	register(mathFix)
++}
++
+ var mathFix = fix{
+ 	"math",
++	"2011-09-29",
+ 	math,
+ 	`Remove the leading F from math functions such as Fabs.
+ 
+diff --git a/src/cmd/gofix/netdial.go b/src/cmd/gofix/netdial.go
+index 6984cdc372..2de994cffe 100644
+--- a/src/cmd/gofix/netdial.go
++++ b/src/cmd/gofix/netdial.go
+@@ -8,8 +8,15 @@ import (
+ 	"go/ast"
+ )
+ 
++func init() {
++	register(netdialFix)
++	register(tlsdialFix)
++	register(netlookupFix)
++}
++
+ var netdialFix = fix{
+ 	"netdial",
++	"2011-03-28",
+ 	netdial,
+ 	`Adapt 3-argument calls of net.Dial to use 2-argument form.
+ 
+@@ -19,6 +26,7 @@ http://codereview.appspot.com/4244055
+ 
+ var tlsdialFix = fix{
+ 	"tlsdial",
++	"2011-03-28",
+ 	tlsdial,
+ 	`Adapt 4-argument calls of tls.Dial to use 3-argument form.
+ 
+@@ -28,6 +36,7 @@ http://codereview.appspot.com/4244055
+ 
+ var netlookupFix = fix{
+ 	"netlookup",
++	"2011-03-28",
+ 	netlookup,
+ 	`Adapt 3-result calls to net.LookupHost to use 2-result form.
+ 
+diff --git a/src/cmd/gofix/netudpgroup.go b/src/cmd/gofix/netudpgroup.go
+index 9bbb2d7919..12a2efa287 100644
+--- a/src/cmd/gofix/netudpgroup.go
++++ b/src/cmd/gofix/netudpgroup.go
+@@ -8,8 +8,13 @@ import (
+ 	"go/ast"
+ )
+ 
++func init() {
++	register(netudpgroupFix)
++}
++
+ var netudpgroupFix = fix{
+ 	"netudpgroup",
++	"2011-08-18",
+ 	netudpgroup,
+ 	`Adapt 1-argument calls of net.(*UDPConn).JoinGroup, LeaveGroup to use 2-argument form.
+ 
+diff --git a/src/cmd/gofix/oserrorstring.go b/src/cmd/gofix/oserrorstring.go
+index 416333fc12..a75a2c12d3 100644
+--- a/src/cmd/gofix/oserrorstring.go
++++ b/src/cmd/gofix/oserrorstring.go
+@@ -8,8 +8,13 @@ import (
+ 	"go/ast"
+ )
+ 
++func init() {
++	register(oserrorstringFix)
++}
++
+ var oserrorstringFix = fix{
+ 	"oserrorstring",
++	"2011-06-22",
+ 	oserrorstring,
+ 	`Replace os.ErrorString() conversions with calls to os.NewError().
+ 
+diff --git a/src/cmd/gofix/osopen.go b/src/cmd/gofix/osopen.go
+index 7e7fbbb037..af2796ac22 100644
+--- a/src/cmd/gofix/osopen.go
++++ b/src/cmd/gofix/osopen.go
+@@ -8,8 +8,13 @@ import (
+ 	"go/ast"
+ )
+ 
++func init() {
++	register(osopenFix)
++}
++
+ var osopenFix = fix{
+ 	"osopen",
++	"2011-04-04",
+ 	osopen,
+ 	`Adapt os.Open calls to new, easier API and rename O_CREAT O_CREATE.
+ 
+diff --git a/src/cmd/gofix/procattr.go b/src/cmd/gofix/procattr.go
+index 86a8fd1035..ea375ec9dd 100644
+--- a/src/cmd/gofix/procattr.go
++++ b/src/cmd/gofix/procattr.go
+@@ -9,8 +9,13 @@ import (
+ 	"go/token"
+ )
+ 
++func init() {
++	register(procattrFix)
++}
++
+ var procattrFix = fix{
+ 	"procattr",
++	"2011-03-15",
+ 	procattr,
+ 	`Adapt calls to os.StartProcess to use new ProcAttr type.
+ 
+diff --git a/src/cmd/gofix/reflect.go b/src/cmd/gofix/reflect.go
+index 2227d69b44..6670ef2774 100644
+--- a/src/cmd/gofix/reflect.go
++++ b/src/cmd/gofix/reflect.go
+@@ -15,8 +15,13 @@ import (
+ 	"strings"
+ )
+ 
++func init() {
++	register(reflectFix)
++}
++
+ var reflectFix = fix{
+ 	"reflect",
++	"2011-04-08",
+ 	reflectFn,
+ 	`Adapt code to new reflect API.
+ 
+diff --git a/src/cmd/gofix/signal.go b/src/cmd/gofix/signal.go
+index 9b548bd089..5a583d41e9 100644
+--- a/src/cmd/gofix/signal.go
++++ b/src/cmd/gofix/signal.go
+@@ -9,8 +9,13 @@ import (
+ 	"strings"
+ )
+ 
++func init() {
++	register(signalFix)
++}
++
+ var signalFix = fix{
+ 	"signal",
++	"2011-06-29",
+ 	signal,
+ 	`Adapt code to types moved from os/signal to signal.
+ 
+diff --git a/src/cmd/gofix/sorthelpers.go b/src/cmd/gofix/sorthelpers.go
+index 74d0daa3a9..fa549313eb 100644
+--- a/src/cmd/gofix/sorthelpers.go
++++ b/src/cmd/gofix/sorthelpers.go
+@@ -8,8 +8,13 @@ import (
+ 	"go/ast"
+ )
+ 
++func init() {
++	register(sorthelpersFix)
++}
++
+ var sorthelpersFix = fix{
+ 	"sorthelpers",
++	"2011-07-08",
+ 	sorthelpers,
+ 	`Adapt code from sort.Sort[Ints|Float64s|Strings] to sort.[Ints|Float64s|Strings].
+ `,
+diff --git a/src/cmd/gofix/sortslice.go b/src/cmd/gofix/sortslice.go
+index 847f0d57fb..89267b847e 100644
+--- a/src/cmd/gofix/sortslice.go
++++ b/src/cmd/gofix/sortslice.go
+@@ -8,8 +8,13 @@ import (
+ 	"go/ast"
+ )
+ 
++func init() {
++	register(sortsliceFix)
++}
++
+ var sortsliceFix = fix{
+ 	"sortslice",
++	"2011-06-26",
+ 	sortslice,
+ 	`Adapt code from sort.[Float64|Int|String]Array to  sort.[Float64|Int|String]Slice.
+ 		
+diff --git a/src/cmd/gofix/stringssplit.go b/src/cmd/gofix/stringssplit.go
+index e3886dd729..d89ecf039c 100644
+--- a/src/cmd/gofix/stringssplit.go
++++ b/src/cmd/gofix/stringssplit.go
+@@ -9,8 +9,13 @@ import (
+ 	"go/token"
+ )
+ 
++func init() {
++	register(stringssplitFix)
++}
++
+ var stringssplitFix = fix{
+ 	"stringssplit",
++	"2011-06-28",
+ 	stringssplit,
+ 	`Restore strings.Split to its original meaning and add strings.SplitN. Bytes too.
+ 
+diff --git a/src/cmd/gofix/url.go b/src/cmd/gofix/url.go
+index d90f2b0cc1..49aac739b3 100644
+--- a/src/cmd/gofix/url.go
++++ b/src/cmd/gofix/url.go
+@@ -6,8 +6,13 @@ package main
+ 
+ import "go/ast"
+ 
++func init() {
++	register(urlFix)
++}
++
+ var urlFix = fix{
+ 	"url",
++	"2011-08-17",
+ 	url,
+ 	`Move the URL pieces of package http into a new package, url.
+ 

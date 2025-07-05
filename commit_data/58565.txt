@@ -13,8 +13,55 @@ Date:   Sun Nov 19 21:00:17 2023 -0800
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/inline/inl.go           |  2 +-
  test/fixedbugs/{issue35073.go => issue35073a.go} |  0
  test/fixedbugs/issue35073b.go                    | 23 +++++++++++++++++++++++
  3 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index d89be8437d..d808c438ca 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -863,7 +863,7 @@ func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.Inlin
+ 				if base.Debug.Checkptr != 0 {
+ 					switch types.ReflectSymName(s) {
+ 					case "Value.UnsafeAddr", "Value.Pointer":
+-						return n
++						n.NoInline = true
+ 					}
+ 				}
+ 			}
+diff --git a/test/fixedbugs/issue35073.go b/test/fixedbugs/issue35073a.go
+similarity index 100%
+rename from test/fixedbugs/issue35073.go
+rename to test/fixedbugs/issue35073a.go
+diff --git a/test/fixedbugs/issue35073b.go b/test/fixedbugs/issue35073b.go
+new file mode 100644
+index 0000000000..8cdc6c184d
+--- /dev/null
++++ b/test/fixedbugs/issue35073b.go
+@@ -0,0 +1,23 @@
++// errorcheck -0 -d=checkptr -m
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that we can inline the receiver arguments for
++// reflect.Value.UnsafeAddr/Pointer, even in checkptr mode.
++
++package main
++
++import (
++	"reflect"
++	"unsafe"
++)
++
++func main() {
++	n := 10                      // ERROR "moved to heap: n"
++	m := make(map[string]string) // ERROR "moved to heap: m" "make\(map\[string\]string\) escapes to heap"
++
++	_ = unsafe.Pointer(reflect.ValueOf(&n).Elem().UnsafeAddr()) // ERROR "inlining call"
++	_ = unsafe.Pointer(reflect.ValueOf(&m).Elem().Pointer())    // ERROR "inlining call"
++}

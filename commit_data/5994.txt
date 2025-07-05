@@ -8,6 +8,25 @@ Date:   Tue Aug 10 16:55:02 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1941041
-
+---
  src/pkg/rpc/client.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index d742d099fb..50b8838358 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -94,10 +94,12 @@ func (client *Client) input() {
+ 		client.pending[seq] = c, false
+ 		client.mutex.Unlock()
+ 		err = client.codec.ReadResponseBody(c.Reply)
+-		// Empty strings should turn into nil os.Errors
+ 		if response.Error != "" {
+ 			c.Error = os.ErrorString(response.Error)
++		} else if err != nil {
++			c.Error = err
+ 		} else {
++			// Empty strings should turn into nil os.Errors
+ 			c.Error = nil
+ 		}
+ 		// We don't want to block here.  It is the caller's responsibility to make

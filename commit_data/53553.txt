@@ -12,7 +12,7 @@ Date:   Mon Jul 11 11:58:39 2022 +0300
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/internal/syscall/windows/memory_windows.go   | 20 +++++--
  src/internal/syscall/windows/syscall_windows.go  | 27 +++++++++
  src/internal/syscall/windows/zsyscall_windows.go | 18 ++++++
@@ -22,3 +22,346 @@ Date:   Mon Jul 11 11:58:39 2022 +0300
  src/runtime/pprof/proto_test.go                  | 30 ++++++++++
  src/runtime/pprof/proto_windows.go               | 73 ++++++++++++++++++++++++
  8 files changed, 216 insertions(+), 25 deletions(-)
+
+diff --git a/src/internal/syscall/windows/memory_windows.go b/src/internal/syscall/windows/memory_windows.go
+index ba30f92c1a..8fb34cf349 100644
+--- a/src/internal/syscall/windows/memory_windows.go
++++ b/src/internal/syscall/windows/memory_windows.go
+@@ -5,12 +5,20 @@
+ package windows
+ 
+ type MemoryBasicInformation struct {
+-	BaseAddress       uintptr
+-	AllocationBase    uintptr
++	// A pointer to the base address of the region of pages.
++	BaseAddress uintptr
++	// A pointer to the base address of a range of pages allocated by the VirtualAlloc function.
++	// The page pointed to by the BaseAddress member is contained within this allocation range.
++	AllocationBase uintptr
++	// The memory protection option when the region was initially allocated
+ 	AllocationProtect uint32
+ 	PartitionId       uint16
+-	RegionSize        uintptr
+-	State             uint32
+-	Protect           uint32
+-	Type              uint32
++	// The size of the region beginning at the base address in which all pages have identical attributes, in bytes.
++	RegionSize uintptr
++	// The state of the pages in the region.
++	State uint32
++	// The access protection of the pages in the region.
++	Protect uint32
++	// The type of pages in the region.
++	Type uint32
+ }
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index b37085e13b..de7cda2094 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -36,6 +36,7 @@ func UTF16PtrToString(p *uint16) string {
+ }
+ 
+ const (
++	ERROR_BAD_LENGTH             syscall.Errno = 24
+ 	ERROR_SHARING_VIOLATION      syscall.Errno = 32
+ 	ERROR_LOCK_VIOLATION         syscall.Errno = 33
+ 	ERROR_NOT_SUPPORTED          syscall.Errno = 50
+@@ -156,6 +157,32 @@ const (
+ //sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
+ //sys	VirtualQuery(address uintptr, buffer *MemoryBasicInformation, length uintptr) (err error) = kernel32.VirtualQuery
+ 
++const (
++	// flags for CreateToolhelp32Snapshot
++	TH32CS_SNAPMODULE   = 0x08
++	TH32CS_SNAPMODULE32 = 0x10
++)
++
++const MAX_MODULE_NAME32 = 255
++
++type ModuleEntry32 struct {
++	Size         uint32
++	ModuleID     uint32
++	ProcessID    uint32
++	GlblcntUsage uint32
++	ProccntUsage uint32
++	ModBaseAddr  uintptr
++	ModBaseSize  uint32
++	ModuleHandle syscall.Handle
++	Module       [MAX_MODULE_NAME32 + 1]uint16
++	ExePath      [syscall.MAX_PATH]uint16
++}
++
++const SizeofModuleEntry32 = unsafe.Sizeof(ModuleEntry32{})
++
++//sys	Module32First(snapshot syscall.Handle, moduleEntry *ModuleEntry32) (err error) = kernel32.Module32FirstW
++//sys	Module32Next(snapshot syscall.Handle, moduleEntry *ModuleEntry32) (err error) = kernel32.Module32NextW
++
+ const (
+ 	WSA_FLAG_OVERLAPPED        = 0x01
+ 	WSA_FLAG_NO_HANDLE_INHERIT = 0x80
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 962607aba2..afd64e318e 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -62,6 +62,8 @@ var (
+ 	procGetFinalPathNameByHandleW    = modkernel32.NewProc("GetFinalPathNameByHandleW")
+ 	procGetModuleFileNameW           = modkernel32.NewProc("GetModuleFileNameW")
+ 	procLockFileEx                   = modkernel32.NewProc("LockFileEx")
++	procModule32FirstW               = modkernel32.NewProc("Module32FirstW")
++	procModule32NextW                = modkernel32.NewProc("Module32NextW")
+ 	procMoveFileExW                  = modkernel32.NewProc("MoveFileExW")
+ 	procMultiByteToWideChar          = modkernel32.NewProc("MultiByteToWideChar")
+ 	procSetFileInformationByHandle   = modkernel32.NewProc("SetFileInformationByHandle")
+@@ -225,6 +227,22 @@ func LockFileEx(file syscall.Handle, flags uint32, reserved uint32, bytesLow uin
+ 	return
+ }
+ 
++func Module32First(snapshot syscall.Handle, moduleEntry *ModuleEntry32) (err error) {
++	r1, _, e1 := syscall.Syscall(procModule32FirstW.Addr(), 2, uintptr(snapshot), uintptr(unsafe.Pointer(moduleEntry)), 0)
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func Module32Next(snapshot syscall.Handle, moduleEntry *ModuleEntry32) (err error) {
++	r1, _, e1 := syscall.Syscall(procModule32NextW.Addr(), 2, uintptr(snapshot), uintptr(unsafe.Pointer(moduleEntry)), 0)
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) {
+ 	r1, _, e1 := syscall.Syscall(procMoveFileExW.Addr(), 3, uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(to)), uintptr(flags))
+ 	if r1 == 0 {
+diff --git a/src/runtime/pprof/pe.go b/src/runtime/pprof/pe.go
+new file mode 100644
+index 0000000000..41054585e9
+--- /dev/null
++++ b/src/runtime/pprof/pe.go
+@@ -0,0 +1,19 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pprof
++
++import "os"
++
++// peBuildID returns a best effort unique ID for the named executable.
++//
++// It would be wasteful to calculate the hash of the whole file,
++// instead use the binary name and the last modified time for the buildid.
++func peBuildID(file string) string {
++	s, err := os.Stat(file)
++	if err != nil {
++		return file
++	}
++	return file + s.ModTime().String()
++}
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index 085027cd98..9c82925165 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"internal/abi"
+ 	"io"
+-	"os"
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+@@ -46,10 +45,11 @@ type profileBuilder struct {
+ 
+ type memMap struct {
+ 	// initialized as reading mapping
+-	start         uintptr
+-	end           uintptr
+-	offset        uint64
+-	file, buildID string
++	start   uintptr // Address at which the binary (or DLL) is loaded into memory.
++	end     uintptr // The limit of the address range occupied by this mapping.
++	offset  uint64  // Offset in the binary that corresponds to the first mapped address.
++	file    string  // The object this entry is loaded from.
++	buildID string  // A string that uniquely identifies a particular program version with high probability.
+ 
+ 	funcs symbolizeFlag
+ 	fake  bool // map entry was faked; /proc/self/maps wasn't available
+@@ -640,20 +640,6 @@ func (b *profileBuilder) emitLocation() uint64 {
+ 	return id
+ }
+ 
+-// readMapping reads /proc/self/maps and writes mappings to b.pb.
+-// It saves the address ranges of the mappings in b.mem for use
+-// when emitting locations.
+-func (b *profileBuilder) readMapping() {
+-	data, _ := os.ReadFile("/proc/self/maps")
+-	parseProcSelfMaps(data, b.addMapping)
+-	if len(b.mem) == 0 { // pprof expects a map entry, so fake one.
+-		b.addMappingEntry(0, 0, 0, "", "", true)
+-		// TODO(hyangah): make addMapping return *memMap or
+-		// take a memMap struct, and get rid of addMappingEntry
+-		// that takes a bunch of positional arguments.
+-	}
+-}
+-
+ var space = []byte(" ")
+ var newline = []byte("\n")
+ 
+diff --git a/src/runtime/pprof/proto_other.go b/src/runtime/pprof/proto_other.go
+new file mode 100644
+index 0000000000..4a7fe79501
+--- /dev/null
++++ b/src/runtime/pprof/proto_other.go
+@@ -0,0 +1,30 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !windows
++
++package pprof
++
++import (
++	"errors"
++	"os"
++)
++
++// readMapping reads /proc/self/maps and writes mappings to b.pb.
++// It saves the address ranges of the mappings in b.mem for use
++// when emitting locations.
++func (b *profileBuilder) readMapping() {
++	data, _ := os.ReadFile("/proc/self/maps")
++	parseProcSelfMaps(data, b.addMapping)
++	if len(b.mem) == 0 { // pprof expects a map entry, so fake one.
++		b.addMappingEntry(0, 0, 0, "", "", true)
++		// TODO(hyangah): make addMapping return *memMap or
++		// take a memMap struct, and get rid of addMappingEntry
++		// that takes a bunch of positional arguments.
++	}
++}
++
++func readMainModuleMapping() (start, end uint64, err error) {
++	return 0, 0, errors.New("not implemented")
++}
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index 84a051a536..797c6502b4 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -101,6 +101,36 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
+ 		addr2 = mprof.Mapping[1].Start
+ 		map2 = mprof.Mapping[1]
+ 		map2.BuildID, _ = elfBuildID(map2.File)
++	case "windows":
++		addr1 = uint64(abi.FuncPCABIInternal(f1))
++		addr2 = uint64(abi.FuncPCABIInternal(f2))
++
++		exe, err := os.Executable()
++		if err != nil {
++			t.Fatal(err)
++		}
++
++		start, end, err := readMainModuleMapping()
++		if err != nil {
++			t.Fatal(err)
++		}
++
++		map1 = &profile.Mapping{
++			ID:           1,
++			Start:        start,
++			Limit:        end,
++			File:         exe,
++			BuildID:      peBuildID(exe),
++			HasFunctions: true,
++		}
++		map2 = &profile.Mapping{
++			ID:           1,
++			Start:        start,
++			Limit:        end,
++			File:         exe,
++			BuildID:      peBuildID(exe),
++			HasFunctions: true,
++		}
+ 	case "js":
+ 		addr1 = uint64(abi.FuncPCABIInternal(f1))
+ 		addr2 = uint64(abi.FuncPCABIInternal(f2))
+diff --git a/src/runtime/pprof/proto_windows.go b/src/runtime/pprof/proto_windows.go
+new file mode 100644
+index 0000000000..d5ae4a5eec
+--- /dev/null
++++ b/src/runtime/pprof/proto_windows.go
+@@ -0,0 +1,73 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pprof
++
++import (
++	"errors"
++	"internal/syscall/windows"
++	"syscall"
++)
++
++// readMapping adds memory mapping information to the profile.
++func (b *profileBuilder) readMapping() {
++	snap, err := createModuleSnapshot()
++	if err != nil {
++		// pprof expects a map entry, so fake one, when we haven't added anything yet.
++		b.addMappingEntry(0, 0, 0, "", "", true)
++		return
++	}
++	defer func() { _ = syscall.CloseHandle(snap) }()
++
++	var module windows.ModuleEntry32
++	module.Size = uint32(windows.SizeofModuleEntry32)
++	err = windows.Module32First(snap, &module)
++	if err != nil {
++		// pprof expects a map entry, so fake one, when we haven't added anything yet.
++		b.addMappingEntry(0, 0, 0, "", "", true)
++		return
++	}
++	for err == nil {
++		exe := syscall.UTF16ToString(module.ExePath[:])
++		b.addMappingEntry(
++			uint64(module.ModBaseAddr),
++			uint64(module.ModBaseAddr)+uint64(module.ModBaseSize),
++			0,
++			exe,
++			peBuildID(exe),
++			false,
++		)
++		err = windows.Module32Next(snap, &module)
++	}
++}
++
++func readMainModuleMapping() (start, end uint64, err error) {
++	snap, err := createModuleSnapshot()
++	if err != nil {
++		return 0, 0, err
++	}
++	defer func() { _ = syscall.CloseHandle(snap) }()
++
++	var module windows.ModuleEntry32
++	module.Size = uint32(windows.SizeofModuleEntry32)
++	err = windows.Module32First(snap, &module)
++	if err != nil {
++		return 0, 0, err
++	}
++
++	return uint64(module.ModBaseAddr), uint64(module.ModBaseAddr) + uint64(module.ModBaseSize), nil
++}
++
++func createModuleSnapshot() (syscall.Handle, error) {
++	for {
++		snap, err := syscall.CreateToolhelp32Snapshot(windows.TH32CS_SNAPMODULE|windows.TH32CS_SNAPMODULE32, uint32(syscall.Getpid()))
++		var errno syscall.Errno
++		if err != nil && errors.As(err, &errno) && errno == windows.ERROR_BAD_LENGTH {
++			// When CreateToolhelp32Snapshot(SNAPMODULE|SNAPMODULE32, ...) fails
++			// with ERROR_BAD_LENGTH then it should be retried until it succeeds.
++			continue
++		}
++		return snap, err
++	}
++}

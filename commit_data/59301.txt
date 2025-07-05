@@ -12,7 +12,7 @@ Date:   Wed Feb 28 15:47:28 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/check.go           |  3 +-
  src/cmd/compile/internal/types2/validtype.go       | 30 +++++++++-----
  src/go/types/check.go                              |  3 +-
@@ -20,3 +20,218 @@ Date:   Wed Feb 28 15:47:28 2024 -0800
  .../types/testdata/fixedbugs/issue65711.go         | 25 ++++++++++++
  src/internal/types/testdata/fixedbugs/issue6977.go | 47 ++++++++++++----------
  6 files changed, 96 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 8c2bac2850..f36dff3d4a 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -110,7 +110,8 @@ type Checker struct {
+ 	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+ 	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+ 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+-	valids  instanceLookup         // valid *Named (incl. instantiated) types per the validType check
++	// see TODO in validtype.go
++	// valids  instanceLookup      // valid *Named (incl. instantiated) types per the validType check
+ 
+ 	// pkgPathMap maps package names to the set of distinct import paths we've
+ 	// seen for that name, anywhere in the import graph. It is used for
+diff --git a/src/cmd/compile/internal/types2/validtype.go b/src/cmd/compile/internal/types2/validtype.go
+index c5668096a5..7b8649a4fb 100644
+--- a/src/cmd/compile/internal/types2/validtype.go
++++ b/src/cmd/compile/internal/types2/validtype.go
+@@ -71,14 +71,25 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named)
+ 		}
+ 
+ 	case *Named:
+-		// Exit early if we already know t is valid.
+-		// This is purely an optimization but it prevents excessive computation
+-		// times in pathological cases such as testdata/fixedbugs/issue6977.go.
+-		// (Note: The valids map could also be allocated locally, once for each
+-		// validType call.)
+-		if check.valids.lookup(t) != nil {
+-			break
+-		}
++		// TODO(gri) The optimization below is incorrect (see go.dev/issue/65711):
++		//           in that issue `type A[P any] [1]P` is a valid type on its own
++		//           and the (uninstantiated) A is recorded in check.valids. As a
++		//           consequence, when checking the remaining declarations, which
++		//           are not valid, the validity check ends prematurely because A
++		//           is considered valid, even though its validity depends on the
++		//           type argument provided to it.
++		//
++		//           A correct optimization is important for pathological cases.
++		//           Keep code around for reference until we found an optimization.
++		//
++		// // Exit early if we already know t is valid.
++		// // This is purely an optimization but it prevents excessive computation
++		// // times in pathological cases such as testdata/fixedbugs/issue6977.go.
++		// // (Note: The valids map could also be allocated locally, once for each
++		// // validType call.)
++		// if check.valids.lookup(t) != nil {
++		// 	break
++		// }
+ 
+ 		// Don't report a 2nd error if we already know the type is invalid
+ 		// (e.g., if a cycle was detected earlier, via under).
+@@ -140,7 +151,8 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named)
+ 			return false
+ 		}
+ 
+-		check.valids.add(t) // t is valid
++		// see TODO above
++		// check.valids.add(t) // t is valid
+ 
+ 	case *TypeParam:
+ 		// A type parameter stands for the type (argument) it was instantiated with.
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index be992215d1..d9c290066b 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -114,7 +114,8 @@ type Checker struct {
+ 	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+ 	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+ 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+-	valids  instanceLookup         // valid *Named (incl. instantiated) types per the validType check
++	// see TODO in validtype.go
++	// valids instanceLookup // valid *Named (incl. instantiated) types per the validType check
+ 
+ 	// pkgPathMap maps package names to the set of distinct import paths we've
+ 	// seen for that name, anywhere in the import graph. It is used for
+diff --git a/src/go/types/validtype.go b/src/go/types/validtype.go
+index 66dba2ea4c..851540cfcb 100644
+--- a/src/go/types/validtype.go
++++ b/src/go/types/validtype.go
+@@ -73,14 +73,25 @@ func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) b
+ 		}
+ 
+ 	case *Named:
+-		// Exit early if we already know t is valid.
+-		// This is purely an optimization but it prevents excessive computation
+-		// times in pathological cases such as testdata/fixedbugs/issue6977.go.
+-		// (Note: The valids map could also be allocated locally, once for each
+-		// validType call.)
+-		if check.valids.lookup(t) != nil {
+-			break
+-		}
++		// TODO(gri) The optimization below is incorrect (see go.dev/issue/65711):
++		//           in that issue `type A[P any] [1]P` is a valid type on its own
++		//           and the (uninstantiated) A is recorded in check.valids. As a
++		//           consequence, when checking the remaining declarations, which
++		//           are not valid, the validity check ends prematurely because A
++		//           is considered valid, even though its validity depends on the
++		//           type argument provided to it.
++		//
++		//           A correct optimization is important for pathological cases.
++		//           Keep code around for reference until we found an optimization.
++		//
++		// // Exit early if we already know t is valid.
++		// // This is purely an optimization but it prevents excessive computation
++		// // times in pathological cases such as testdata/fixedbugs/issue6977.go.
++		// // (Note: The valids map could also be allocated locally, once for each
++		// // validType call.)
++		// if check.valids.lookup(t) != nil {
++		// 	break
++		// }
+ 
+ 		// Don't report a 2nd error if we already know the type is invalid
+ 		// (e.g., if a cycle was detected earlier, via under).
+@@ -142,7 +153,8 @@ func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) b
+ 			return false
+ 		}
+ 
+-		check.valids.add(t) // t is valid
++		// see TODO above
++		// check.valids.add(t) // t is valid
+ 
+ 	case *TypeParam:
+ 		// A type parameter stands for the type (argument) it was instantiated with.
+diff --git a/src/internal/types/testdata/fixedbugs/issue65711.go b/src/internal/types/testdata/fixedbugs/issue65711.go
+new file mode 100644
+index 0000000000..09013d0ca5
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue65711.go
+@@ -0,0 +1,25 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type A[P any] [1]P
++
++type B[P any] A /* ERROR "invalid recursive type" */ [P]
++
++type C B[C]
++
++// test case from issue
++
++type Foo[T any] struct {
++	baz T
++}
++
++type Bar[T any] struct {
++	foo Foo /* ERROR "invalid recursive type" */ [T]
++}
++
++type Baz struct {
++	bar Bar[Baz]
++}
+diff --git a/src/internal/types/testdata/fixedbugs/issue6977.go b/src/internal/types/testdata/fixedbugs/issue6977.go
+index c455d3a849..ffe4a7464b 100644
+--- a/src/internal/types/testdata/fixedbugs/issue6977.go
++++ b/src/internal/types/testdata/fixedbugs/issue6977.go
+@@ -54,29 +54,32 @@ type (
+         T8 interface { T7; T7 }
+         T9 interface { T8; T8 }
+ 
+-        T10 interface { T9; T9 }
+-        T11 interface { T10; T10 }
+-        T12 interface { T11; T11 }
+-        T13 interface { T12; T12 }
+-        T14 interface { T13; T13 }
+-        T15 interface { T14; T14 }
+-        T16 interface { T15; T15 }
+-        T17 interface { T16; T16 }
+-        T18 interface { T17; T17 }
+-        T19 interface { T18; T18 }
+-
+-        T20 interface { T19; T19 }
+-        T21 interface { T20; T20 }
+-        T22 interface { T21; T21 }
+-        T23 interface { T22; T22 }
+-        T24 interface { T23; T23 }
+-        T25 interface { T24; T24 }
+-        T26 interface { T25; T25 }
+-        T27 interface { T26; T26 }
+-        T28 interface { T27; T27 }
+-        T29 interface { T28; T28 }
++        // TODO(gri) Enable this longer test once we have found a solution
++        //           for the incorrect optimization in the validType check
++        //           (see TODO in validtype.go).
++        // T10 interface { T9; T9 }
++        // T11 interface { T10; T10 }
++        // T12 interface { T11; T11 }
++        // T13 interface { T12; T12 }
++        // T14 interface { T13; T13 }
++        // T15 interface { T14; T14 }
++        // T16 interface { T15; T15 }
++        // T17 interface { T16; T16 }
++        // T18 interface { T17; T17 }
++        // T19 interface { T18; T18 }
++
++        // T20 interface { T19; T19 }
++        // T21 interface { T20; T20 }
++        // T22 interface { T21; T21 }
++        // T23 interface { T22; T22 }
++        // T24 interface { T23; T23 }
++        // T25 interface { T24; T24 }
++        // T26 interface { T25; T25 }
++        // T27 interface { T26; T26 }
++        // T28 interface { T27; T27 }
++        // T29 interface { T28; T28 }
+ )
+ 
+ // Verify that m is present.
+-var x T29
++var x T9 // T29
+ var _ = x.m

@@ -12,8 +12,178 @@ Date:   Wed Sep 14 16:49:44 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm64/gsubr.go | 35 ----------------------------
  src/cmd/compile/internal/ppc64/gsubr.go | 41 ---------------------------------
  src/cmd/compile/internal/s390x/gsubr.go | 39 -------------------------------
  3 files changed, 115 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/gsubr.go b/src/cmd/compile/internal/arm64/gsubr.go
+index 9e73959923..564c5aeabd 100644
+--- a/src/cmd/compile/internal/arm64/gsubr.go
++++ b/src/cmd/compile/internal/arm64/gsubr.go
+@@ -69,35 +69,6 @@ func ginscon(as obj.As, c int64, n2 *gc.Node) {
+ 	rawgins(as, &n1, n2)
+ }
+ 
+-/*
+- * generate
+- *	as n, $c (CMP)
+- */
+-func ginscon2(as obj.As, n2 *gc.Node, c int64) {
+-	var n1 gc.Node
+-
+-	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
+-
+-	switch as {
+-	default:
+-		gc.Fatalf("ginscon2")
+-
+-	case arm64.ACMP:
+-		if -arm64.BIG <= c && c <= arm64.BIG {
+-			gcmp(as, n2, &n1)
+-			return
+-		}
+-	}
+-
+-	// MOV n1 into register first
+-	var ntmp gc.Node
+-	gc.Regalloc(&ntmp, gc.Types[gc.TINT64], nil)
+-
+-	rawgins(arm64.AMOVD, &n1, &ntmp)
+-	gcmp(as, n2, &ntmp)
+-	gc.Regfree(&ntmp)
+-}
+-
+ // gins is called by the front end.
+ // It synthesizes some multiple-instruction sequences
+ // so the front end can stay simpler.
+@@ -108,12 +79,6 @@ func gins(as obj.As, f, t *gc.Node) *obj.Prog {
+ 			return nil // caller must not use
+ 		}
+ 	}
+-	if as == arm64.ACMP {
+-		if x, ok := t.IntLiteral(); ok {
+-			ginscon2(as, f, x)
+-			return nil // caller must not use
+-		}
+-	}
+ 	return rawgins(as, f, t)
+ }
+ 
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+index 3fa151feed..ab9c16ced8 100644
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -76,41 +76,6 @@ func ginscon(as obj.As, c int64, n2 *gc.Node) {
+ 	rawgins(as, &n1, n2)
+ }
+ 
+-/*
+- * generate
+- *	as n, $c (CMP/CMPU)
+- */
+-func ginscon2(as obj.As, n2 *gc.Node, c int64) {
+-	var n1 gc.Node
+-
+-	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
+-
+-	switch as {
+-	default:
+-		gc.Fatalf("ginscon2")
+-
+-	case ppc64.ACMP:
+-		if -ppc64.BIG <= c && c <= ppc64.BIG {
+-			rawgins(as, n2, &n1)
+-			return
+-		}
+-
+-	case ppc64.ACMPU:
+-		if 0 <= c && c <= 2*ppc64.BIG {
+-			rawgins(as, n2, &n1)
+-			return
+-		}
+-	}
+-
+-	// MOV n1 into register first
+-	var ntmp gc.Node
+-	gc.Regalloc(&ntmp, gc.Types[gc.TINT64], nil)
+-
+-	rawgins(ppc64.AMOVD, &n1, &ntmp)
+-	rawgins(as, n2, &ntmp)
+-	gc.Regfree(&ntmp)
+-}
+-
+ // gins is called by the front end.
+ // It synthesizes some multiple-instruction sequences
+ // so the front end can stay simpler.
+@@ -121,12 +86,6 @@ func gins(as obj.As, f, t *gc.Node) *obj.Prog {
+ 			return nil // caller must not use
+ 		}
+ 	}
+-	if as == ppc64.ACMP || as == ppc64.ACMPU {
+-		if x, ok := t.IntLiteral(); ok {
+-			ginscon2(as, f, x)
+-			return nil // caller must not use
+-		}
+-	}
+ 	return rawgins(as, f, t)
+ }
+ 
+diff --git a/src/cmd/compile/internal/s390x/gsubr.go b/src/cmd/compile/internal/s390x/gsubr.go
+index b8925ff40d..c6ab09fad4 100644
+--- a/src/cmd/compile/internal/s390x/gsubr.go
++++ b/src/cmd/compile/internal/s390x/gsubr.go
+@@ -69,39 +69,6 @@ func ginscon(as obj.As, c int64, n2 *gc.Node) {
+ 	rawgins(as, &n1, n2)
+ }
+ 
+-// generate
+-//	as n, $c (CMP/CMPU)
+-func ginscon2(as obj.As, n2 *gc.Node, c int64) {
+-	var n1 gc.Node
+-
+-	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
+-
+-	switch as {
+-	default:
+-		gc.Fatalf("ginscon2")
+-
+-	case s390x.ACMP:
+-		if -s390x.BIG <= c && c <= s390x.BIG {
+-			rawgins(as, n2, &n1)
+-			return
+-		}
+-
+-	case s390x.ACMPU:
+-		if 0 <= c && c <= 2*s390x.BIG {
+-			rawgins(as, n2, &n1)
+-			return
+-		}
+-	}
+-
+-	// MOV n1 into register first
+-	var ntmp gc.Node
+-	gc.Regalloc(&ntmp, gc.Types[gc.TINT64], nil)
+-
+-	rawgins(s390x.AMOVD, &n1, &ntmp)
+-	rawgins(as, n2, &ntmp)
+-	gc.Regfree(&ntmp)
+-}
+-
+ // gmvc tries to move f to t using a mvc instruction.
+ // If successful it returns true, otherwise it returns false.
+ func gmvc(f, t *gc.Node) bool {
+@@ -172,12 +139,6 @@ func gins(as obj.As, f, t *gc.Node) *obj.Prog {
+ 				return nil // caller must not use
+ 			}
+ 		}
+-		if as == s390x.ACMP || as == s390x.ACMPU {
+-			if x, ok := intLiteral(t); ok {
+-				ginscon2(as, f, x)
+-				return nil // caller must not use
+-			}
+-		}
+ 	}
+ 	return rawgins(as, f, t)
+ }

@@ -15,7 +15,7 @@ Date:   Mon Aug 8 00:14:43 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  test/fixedbugs/bug514.go                    |  8 ++++++--
  test/fixedbugs/issue40954.go                | 13 +++++++++----
  test/fixedbugs/issue42032.go                |  6 +++++-
@@ -23,3 +23,174 @@ Date:   Mon Aug 8 00:14:43 2022 +0700
  test/fixedbugs/issue46903.go                | 12 ++++++++----
  test/{typeparam => fixedbugs}/issue51733.go |  6 ++++--
  6 files changed, 39 insertions(+), 15 deletions(-)
+
+diff --git a/test/fixedbugs/bug514.go b/test/fixedbugs/bug514.go
+index 3fb7f32a30..9b23185337 100644
+--- a/test/fixedbugs/bug514.go
++++ b/test/fixedbugs/bug514.go
+@@ -4,14 +4,18 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ package main
+ 
++import "runtime/cgo"
++
+ type iface interface {
+ 	Get() int
+ }
+ 
+-//go:notinheap
+ type notInHeap struct {
++	_ cgo.Incomplete
+ 	i int
+ }
+ 
+@@ -29,7 +33,7 @@ type embed struct {
+ 
+ var val = 1234
+ 
+-var valNotInHeap = notInHeap{val}
++var valNotInHeap = notInHeap{i: val}
+ 
+ func main() {
+ 	i := val
+diff --git a/test/fixedbugs/issue40954.go b/test/fixedbugs/issue40954.go
+index 53e9ccf387..0beaabb743 100644
+--- a/test/fixedbugs/issue40954.go
++++ b/test/fixedbugs/issue40954.go
+@@ -4,24 +4,29 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ package main
+ 
+ import (
++	"runtime/cgo"
+ 	"unsafe"
+ )
+ 
+-//go:notinheap
+-type S struct{ x int }
++type S struct {
++	_ cgo.Incomplete
++	x int
++}
+ 
+ func main() {
+ 	var i int
+ 	p := (*S)(unsafe.Pointer(uintptr(unsafe.Pointer(&i))))
+ 	v := uintptr(unsafe.Pointer(p))
+-	// p is a pointer to a go:notinheap type. Like some C libraries,
++	// p is a pointer to a not-in-heap type. Like some C libraries,
+ 	// we stored an integer in that pointer. That integer just happens
+ 	// to be the address of i.
+ 	// v is also the address of i.
+-	// p has a base type which is marked go:notinheap, so it
++	// p has a base type which is marked not-in-heap, so it
+ 	// should not be adjusted when the stack is copied.
+ 	recurse(100, p, v)
+ }
+diff --git a/test/fixedbugs/issue42032.go b/test/fixedbugs/issue42032.go
+index c456b1db02..eb11859101 100644
+--- a/test/fixedbugs/issue42032.go
++++ b/test/fixedbugs/issue42032.go
+@@ -4,10 +4,14 @@
+ // source code is governed by a BSD-style license that can be found in
+ // the LICENSE file.
+ 
++//go:build cgo
++
+ package main
+ 
+-//go:notinheap
++import "runtime/cgo"
++
+ type NIH struct {
++	_ cgo.Incomplete
+ }
+ 
+ type T struct {
+diff --git a/test/fixedbugs/issue42076.go b/test/fixedbugs/issue42076.go
+index 3e954813c9..ef8db2da30 100644
+--- a/test/fixedbugs/issue42076.go
++++ b/test/fixedbugs/issue42076.go
+@@ -4,12 +4,17 @@
+ // source code is governed by a BSD-style license that can be found in
+ // the LICENSE file.
+ 
++//go:build cgo
++
+ package main
+ 
+-import "reflect"
++import (
++	"reflect"
++	"runtime/cgo"
++)
+ 
+-//go:notinheap
+ type NIH struct {
++	_ cgo.Incomplete
+ }
+ 
+ var x, y NIH
+diff --git a/test/fixedbugs/issue46903.go b/test/fixedbugs/issue46903.go
+index 3237a583d5..d77564add2 100644
+--- a/test/fixedbugs/issue46903.go
++++ b/test/fixedbugs/issue46903.go
+@@ -1,6 +1,6 @@
+ // run
+-//go:build goexperiment.unified
+-// +build goexperiment.unified
++//go:build goexperiment.unified && cgo
++// +build goexperiment.unified,cgo
+ 
+ // TODO(mdempsky): Enable test unconditionally. This test should pass
+ // for non-unified mode too.
+@@ -11,8 +11,12 @@
+ 
+ package main
+ 
+-//go:notinheap
+-type A struct{ B }
++import "runtime/cgo"
++
++type A struct {
++	B
++	_ cgo.Incomplete
++}
+ type B struct{ x byte }
+ type I interface{ M() *B }
+ 
+diff --git a/test/typeparam/issue51733.go b/test/fixedbugs/issue51733.go
+similarity index 89%
+rename from test/typeparam/issue51733.go
+rename to test/fixedbugs/issue51733.go
+index 03624f1865..933c3e868c 100644
+--- a/test/typeparam/issue51733.go
++++ b/test/fixedbugs/issue51733.go
+@@ -4,15 +4,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++
+ package main
+ 
+ import (
+ 	"log"
++	"runtime/cgo"
+ 	"unsafe"
+ )
+ 
+-//go:notinheap
+-type S struct{}
++type S struct{ _ cgo.Incomplete }
+ 
+ func main() {
+ 	p := (*S)(unsafe.Pointer(uintptr(0x8000)))

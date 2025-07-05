@@ -9,6 +9,41 @@ Date:   Wed Jun 7 20:04:11 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/fixedbugs/bug502.go | 28 ++++++++++++++++++++++++++++
  1 file changed, 28 insertions(+)
+
+diff --git a/test/fixedbugs/bug502.go b/test/fixedbugs/bug502.go
+new file mode 100644
+index 0000000000..cff73e7d7f
+--- /dev/null
++++ b/test/fixedbugs/bug502.go
+@@ -0,0 +1,28 @@
++// build
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Linking this with gccgo got an undefined symbol reference,
++// because the private method in testing.TB led gccgo to assume that
++// the interface method table would be defined in the testing package.
++
++package main
++
++import "testing"
++
++type I interface {
++	testing.TB
++	Parallel()
++}
++
++func F(i I) {
++	i.Log("F")
++}
++
++var t testing.T
++
++func main() {
++	F(&t)
++}

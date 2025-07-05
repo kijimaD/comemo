@@ -10,6 +10,23 @@ Date:   Tue Dec 5 13:24:45 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/82015
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/flag/flag.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index d638e49b42..edde5282cf 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -43,8 +43,9 @@
+ 	The last form is not permitted for boolean flags because the
+ 	meaning of the command
+ 		cmd -x *
+-	will change if there is a file called 0, false, etc.  You must
+-	use the -flag=false form to turn off a boolean flag.
++	where * is a Unix shell wildcard, will change if there is a file
++	called 0, false, etc. You must use the -flag=false form to turn
++	off a boolean flag.
+ 
+ 	Flag parsing stops just before the first non-flag argument
+ 	("-" is a non-flag argument) or after the terminator "--".

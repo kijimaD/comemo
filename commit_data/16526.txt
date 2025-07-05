@@ -8,7 +8,7 @@ Date:   Mon Jun 10 22:40:35 2013 +0400
     R=golang-dev, dave, iant
     CC=golang-dev
     https://golang.org/cl/10085043
-
+---
  src/pkg/runtime/race.c                    | 16 ++++++++++++
  src/pkg/runtime/race.go                   |  2 ++
  src/pkg/runtime/race/testdata/mop_test.go | 43 +++++++++++++++++++++++++++++++
@@ -18,3 +18,214 @@ Date:   Mon Jun 10 22:40:35 2013 +0400
  src/pkg/syscall/syscall_unix.go           | 15 ++++++++---
  src/pkg/syscall/syscall_windows.go        |  6 +++++
  8 files changed, 94 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index ce2a856781..3a094896f9 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -330,6 +330,22 @@ runtime·RaceWrite(void *addr)
+ 	memoryaccess(addr, 0, (uintptr)runtime·getcallerpc(&addr), true);
+ }
+ 
++// func RaceReadRange(addr unsafe.Pointer, len int)
++#pragma textflag 7
++void
++runtime·RaceReadRange(void *addr, intgo len)
++{
++	rangeaccess(addr, len, 1, 0, (uintptr)runtime·getcallerpc(&addr), false);
++}
++
++// func RaceWriteRange(addr unsafe.Pointer, len int)
++#pragma textflag 7
++void
++runtime·RaceWriteRange(void *addr, intgo len)
++{
++	rangeaccess(addr, len, 1, 0, (uintptr)runtime·getcallerpc(&addr), true);
++}
++
+ // func RaceDisable()
+ void
+ runtime·RaceDisable(void)
+diff --git a/src/pkg/runtime/race.go b/src/pkg/runtime/race.go
+index 1d64ba3894..2a9124d642 100644
+--- a/src/pkg/runtime/race.go
++++ b/src/pkg/runtime/race.go
+@@ -24,6 +24,8 @@ func RaceReleaseMerge(addr unsafe.Pointer)
+ 
+ func RaceRead(addr unsafe.Pointer)
+ func RaceWrite(addr unsafe.Pointer)
++func RaceReadRange(addr unsafe.Pointer, len int)
++func RaceWriteRange(addr unsafe.Pointer, len int)
+ 
+ func RaceSemacquire(s *uint32)
+ func RaceSemrelease(s *uint32)
+diff --git a/src/pkg/runtime/race/testdata/mop_test.go b/src/pkg/runtime/race/testdata/mop_test.go
+index 6d30989193..de2576cf6f 100644
+--- a/src/pkg/runtime/race/testdata/mop_test.go
++++ b/src/pkg/runtime/race/testdata/mop_test.go
+@@ -5,8 +5,11 @@
+ package race_test
+ 
+ import (
++	"crypto/sha1"
+ 	"errors"
+ 	"fmt"
++	"io"
++	"os"
+ 	"runtime"
+ 	"sync"
+ 	"testing"
+@@ -1627,3 +1630,43 @@ func TestRaceNestedStruct(t *testing.T) {
+ 	y.x.y = 42
+ 	<-c
+ }
++
++func TestRaceIssue5567(t *testing.T) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
++	in := make(chan []byte)
++	res := make(chan error)
++	go func() {
++		var err error
++		defer func() {
++			close(in)
++			res <- err
++		}()
++		path := "mop_test.go"
++		f, err := os.Open(path)
++		if err != nil {
++			return
++		}
++		defer f.Close()
++		var n, total int
++		b := make([]byte, 17) // the race is on b buffer
++		for err == nil {
++			n, err = f.Read(b)
++			total += n
++			if n > 0 {
++				in <- b[:n]
++			}
++		}
++		if err == io.EOF {
++			err = nil
++		}
++	}()
++	h := sha1.New()
++	for b := range in {
++		h.Write(b)
++	}
++	_ = h.Sum(nil)
++	err := <-res
++	if err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/src/pkg/syscall/race.go b/src/pkg/syscall/race.go
+index 81778846f2..e69c1119a2 100644
+--- a/src/pkg/syscall/race.go
++++ b/src/pkg/syscall/race.go
+@@ -20,3 +20,11 @@ func raceAcquire(addr unsafe.Pointer) {
+ func raceReleaseMerge(addr unsafe.Pointer) {
+ 	runtime.RaceReleaseMerge(addr)
+ }
++
++func raceReadRange(addr unsafe.Pointer, len int) {
++	runtime.RaceReadRange(addr, len)
++}
++
++func raceWriteRange(addr unsafe.Pointer, len int) {
++	runtime.RaceWriteRange(addr, len)
++}
+diff --git a/src/pkg/syscall/race0.go b/src/pkg/syscall/race0.go
+index e94fb47afb..b02f882fd0 100644
+--- a/src/pkg/syscall/race0.go
++++ b/src/pkg/syscall/race0.go
+@@ -17,3 +17,9 @@ func raceAcquire(addr unsafe.Pointer) {
+ 
+ func raceReleaseMerge(addr unsafe.Pointer) {
+ }
++
++func raceReadRange(addr unsafe.Pointer, len int) {
++}
++
++func raceWriteRange(addr unsafe.Pointer, len int) {
++}
+diff --git a/src/pkg/syscall/syscall_plan9.go b/src/pkg/syscall/syscall_plan9.go
+index bc2505758e..2e1c064c46 100644
+--- a/src/pkg/syscall/syscall_plan9.go
++++ b/src/pkg/syscall/syscall_plan9.go
+@@ -120,17 +120,10 @@ func Getppid() (ppid int) {
+ }
+ 
+ func Read(fd int, p []byte) (n int, err error) {
+-	n, err = Pread(fd, p, -1)
+-	if raceenabled && err == nil {
+-		raceAcquire(unsafe.Pointer(&ioSync))
+-	}
+-	return
++	return Pread(fd, p, -1)
+ }
+ 
+ func Write(fd int, p []byte) (n int, err error) {
+-	if raceenabled {
+-		raceReleaseMerge(unsafe.Pointer(&ioSync))
+-	}
+ 	return Pwrite(fd, p, -1)
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index fee1fc491f..f29395b2db 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -130,8 +130,13 @@ func (s Signal) String() string {
+ 
+ func Read(fd int, p []byte) (n int, err error) {
+ 	n, err = read(fd, p)
+-	if raceenabled && err == nil {
+-		raceAcquire(unsafe.Pointer(&ioSync))
++	if raceenabled {
++		if n > 0 {
++			raceWriteRange(unsafe.Pointer(&p[0]), n)
++		}
++		if err == nil {
++			raceAcquire(unsafe.Pointer(&ioSync))
++		}
+ 	}
+ 	return
+ }
+@@ -140,7 +145,11 @@ func Write(fd int, p []byte) (n int, err error) {
+ 	if raceenabled {
+ 		raceReleaseMerge(unsafe.Pointer(&ioSync))
+ 	}
+-	return write(fd, p)
++	n, err = write(fd, p)
++	if raceenabled && n > 0 {
++		raceReadRange(unsafe.Pointer(&p[0]), n)
++	}
++	return
+ }
+ 
+ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index d7c3265a14..4c7f34e957 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -272,6 +272,9 @@ func Read(fd Handle, p []byte) (n int, err error) {
+ 		return 0, e
+ 	}
+ 	if raceenabled {
++		if done > 0 {
++			raceWriteRange(unsafe.Pointer(&p[0]), int(done))
++		}
+ 		raceAcquire(unsafe.Pointer(&ioSync))
+ 	}
+ 	return int(done), nil
+@@ -286,6 +289,9 @@ func Write(fd Handle, p []byte) (n int, err error) {
+ 	if e != nil {
+ 		return 0, e
+ 	}
++	if raceenabled && done > 0 {
++		raceReadRange(unsafe.Pointer(&p[0]), int(done))
++	}
+ 	return int(done), nil
+ }
+ 

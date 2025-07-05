@@ -7,6 +7,10 @@ Date:   Mon Feb 20 01:00:00 2012 -0600
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5688048
-
+---
  misc/dist/windows/images/Banner.jpg | Bin 11219 -> 6643 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/misc/dist/windows/images/Banner.jpg b/misc/dist/windows/images/Banner.jpg
+index 636479614c..ce65f63af9 100644
+Binary files a/misc/dist/windows/images/Banner.jpg and b/misc/dist/windows/images/Banner.jpg differ

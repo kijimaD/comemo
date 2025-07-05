@@ -11,7 +11,37 @@ Date:   Tue Aug 3 13:35:14 2010 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/1914041
-
+---
  src/pkg/strings/strings.go      | 6 ++++--
  src/pkg/strings/strings_test.go | 1 +
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 12be04c239..c332f4567d 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -28,8 +28,10 @@ func explode(s string, n int) []string {
+ 		a[i] = string(rune)
+ 		cur += size
+ 	}
+-	// add the rest
+-	a[i] = s[cur:]
++	// add the rest, if there is any
++	if cur < len(s) {
++		a[i] = s[cur:]
++	}
+ 	return a
+ }
+ 
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 9e8feceaa2..3206f5e143 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -109,6 +109,7 @@ type ExplodeTest struct {
+ }
+ 
+ var explodetests = []ExplodeTest{
++	ExplodeTest{"", -1, []string{}},
+ 	ExplodeTest{abcd, 4, []string{"a", "b", "c", "d"}},
+ 	ExplodeTest{faces, 3, []string{"☺", "☻", "☹"}},
+ 	ExplodeTest{abcd, 2, []string{"a", "bcd"}},

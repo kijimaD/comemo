@@ -16,7 +16,7 @@ Date:   Tue Jun 8 18:45:18 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/test/inl_test.go |   2 -
  src/runtime/malloc.go                     |  11 ---
  src/runtime/mgc.go                        |  18 ++--
@@ -24,3 +24,346 @@ Date:   Tue Jun 8 18:45:18 2021 -0400
  src/runtime/proc.go                       |  12 +--
  src/runtime/runtime2.go                   |   8 +-
  6 files changed, 50 insertions(+), 142 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 5b0db83301..bbdbe0c37c 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -42,7 +42,6 @@ func TestIntendedInlining(t *testing.T) {
+ 			"bucketMask",
+ 			"bucketShift",
+ 			"chanbuf",
+-			"deferclass",
+ 			"evacuated",
+ 			"fastlog2",
+ 			"fastrand",
+@@ -63,7 +62,6 @@ func TestIntendedInlining(t *testing.T) {
+ 			"subtract1",
+ 			"subtractb",
+ 			"tophash",
+-			"totaldefersize",
+ 			"(*bmap).keys",
+ 			"(*bmap).overflow",
+ 			"(*waitq).enqueue",
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 2759bbdaf9..c5f62483ff 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -420,8 +420,6 @@ func mallocinit() {
+ 		throw("bad TinySizeClass")
+ 	}
+ 
+-	testdefersizes()
+-
+ 	if heapArenaBitmapBytes&(heapArenaBitmapBytes-1) != 0 {
+ 		// heapBits expects modular arithmetic on bitmap
+ 		// addresses to work.
+@@ -1088,15 +1086,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 
+ 	var scanSize uintptr
+ 	if !noscan {
+-		// If allocating a defer+arg block, now that we've picked a malloc size
+-		// large enough to hold everything, cut the "asked for" size down to
+-		// just the defer header, so that the GC bitmap will record the arg block
+-		// as containing nothing at all (as if it were unused space at the end of
+-		// a malloc block caused by size rounding).
+-		// The defer arg areas are scanned as part of scanstack.
+-		if typ == deferType {
+-			dataSize = unsafe.Sizeof(_defer{})
+-		}
+ 		heapBitsSetType(uintptr(x), size, dataSize, typ)
+ 		if dataSize > typ.size {
+ 			// Array allocation. If there are any
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index c239fa0f63..34b5b482a3 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1558,19 +1558,17 @@ func clearpools() {
+ 	sched.sudogcache = nil
+ 	unlock(&sched.sudoglock)
+ 
+-	// Clear central defer pools.
++	// Clear central defer pool.
+ 	// Leave per-P pools alone, they have strictly bounded size.
+ 	lock(&sched.deferlock)
+-	for i := range sched.deferpool {
+-		// disconnect cached list before dropping it on the floor,
+-		// so that a dangling ref to one entry does not pin all of them.
+-		var d, dlink *_defer
+-		for d = sched.deferpool[i]; d != nil; d = dlink {
+-			dlink = d.link
+-			d.link = nil
+-		}
+-		sched.deferpool[i] = nil
++	// disconnect cached list before dropping it on the floor,
++	// so that a dangling ref to one entry does not pin all of them.
++	var d, dlink *_defer
++	for d = sched.deferpool; d != nil; d = dlink {
++		dlink = d.link
++		d.link = nil
+ 	}
++	sched.deferpool = nil
+ 	unlock(&sched.deferlock)
+ }
+ 
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 39013163b6..86d41c4e1c 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -236,7 +236,7 @@ func deferproc(fn func()) {
+ 	sp := getcallersp()
+ 	callerpc := getcallerpc()
+ 
+-	d := newdefer(0)
++	d := newdefer()
+ 	if d._panic != nil {
+ 		throw("deferproc: d.panic != nil after newdefer")
+ 	}
+@@ -302,107 +302,38 @@ func deferprocStack(d *_defer) {
+ 	// been set and must not be clobbered.
+ }
+ 
+-// Small malloc size classes >= 16 are the multiples of 16: 16, 32, 48, 64, 80, 96, 112, 128, 144, ...
+-// Each P holds a pool for defers with small arg sizes.
+-// Assign defer allocations to pools by rounding to 16, to match malloc size classes.
+-
+-const (
+-	deferHeaderSize = unsafe.Sizeof(_defer{})
+-	minDeferAlloc   = (deferHeaderSize + 15) &^ 15
+-	minDeferArgs    = minDeferAlloc - deferHeaderSize
+-)
+-
+-// defer size class for arg size sz
+-//go:nosplit
+-func deferclass(siz uintptr) uintptr {
+-	if siz <= minDeferArgs {
+-		return 0
+-	}
+-	return (siz - minDeferArgs + 15) / 16
+-}
+-
+-// total size of memory block for defer with arg size sz
+-func totaldefersize(siz uintptr) uintptr {
+-	if siz <= minDeferArgs {
+-		return minDeferAlloc
+-	}
+-	return deferHeaderSize + siz
+-}
+-
+-// Ensure that defer arg sizes that map to the same defer size class
+-// also map to the same malloc size class.
+-func testdefersizes() {
+-	var m [len(p{}.deferpool)]int32
+-
+-	for i := range m {
+-		m[i] = -1
+-	}
+-	for i := uintptr(0); ; i++ {
+-		defersc := deferclass(i)
+-		if defersc >= uintptr(len(m)) {
+-			break
+-		}
+-		siz := roundupsize(totaldefersize(i))
+-		if m[defersc] < 0 {
+-			m[defersc] = int32(siz)
+-			continue
+-		}
+-		if m[defersc] != int32(siz) {
+-			print("bad defer size class: i=", i, " siz=", siz, " defersc=", defersc, "\n")
+-			throw("bad defer size class")
+-		}
+-	}
+-}
+-
+-var deferType *_type // type of _defer struct
+-
+-func init() {
+-	var x interface{}
+-	x = (*_defer)(nil)
+-	deferType = (*(**ptrtype)(unsafe.Pointer(&x))).elem
+-}
++// Each P holds a pool for defers.
+ 
+ // Allocate a Defer, usually using per-P pool.
+ // Each defer must be released with freedefer.  The defer is not
+ // added to any defer chain yet.
+-//
+-// This must not grow the stack because there may be a frame without
+-// stack map information when this is called.
+-//
+-//go:nosplit
+-func newdefer(siz int32) *_defer {
++func newdefer() *_defer {
+ 	var d *_defer
+-	sc := deferclass(uintptr(siz))
+ 	gp := getg()
+-	if sc < uintptr(len(p{}.deferpool)) {
+-		pp := gp.m.p.ptr()
+-		if len(pp.deferpool[sc]) == 0 && sched.deferpool[sc] != nil {
+-			// Take the slow path on the system stack so
+-			// we don't grow newdefer's stack.
+-			systemstack(func() {
+-				lock(&sched.deferlock)
+-				for len(pp.deferpool[sc]) < cap(pp.deferpool[sc])/2 && sched.deferpool[sc] != nil {
+-					d := sched.deferpool[sc]
+-					sched.deferpool[sc] = d.link
+-					d.link = nil
+-					pp.deferpool[sc] = append(pp.deferpool[sc], d)
+-				}
+-				unlock(&sched.deferlock)
+-			})
+-		}
+-		if n := len(pp.deferpool[sc]); n > 0 {
+-			d = pp.deferpool[sc][n-1]
+-			pp.deferpool[sc][n-1] = nil
+-			pp.deferpool[sc] = pp.deferpool[sc][:n-1]
+-		}
+-	}
+-	if d == nil {
+-		// Allocate new defer+args.
++	pp := gp.m.p.ptr()
++	if len(pp.deferpool) == 0 && sched.deferpool != nil {
++		// Take the slow path on the system stack so
++		// we don't grow newdefer's stack.
+ 		systemstack(func() {
+-			total := roundupsize(totaldefersize(uintptr(siz)))
+-			d = (*_defer)(mallocgc(total, deferType, true))
++			lock(&sched.deferlock)
++			for len(pp.deferpool) < cap(pp.deferpool)/2 && sched.deferpool != nil {
++				d := sched.deferpool
++				sched.deferpool = d.link
++				d.link = nil
++				pp.deferpool = append(pp.deferpool, d)
++			}
++			unlock(&sched.deferlock)
+ 		})
+ 	}
++	if n := len(pp.deferpool); n > 0 {
++		d = pp.deferpool[n-1]
++		pp.deferpool[n-1] = nil
++		pp.deferpool = pp.deferpool[:n-1]
++	}
++	if d == nil {
++		// Allocate new defer.
++		d = new(_defer)
++	}
+ 	d.heap = true
+ 	return d
+ }
+@@ -424,23 +355,19 @@ func freedefer(d *_defer) {
+ 	if !d.heap {
+ 		return
+ 	}
+-	sc := deferclass(0)
+-	if sc >= uintptr(len(p{}.deferpool)) {
+-		return
+-	}
+ 	pp := getg().m.p.ptr()
+-	if len(pp.deferpool[sc]) == cap(pp.deferpool[sc]) {
++	if len(pp.deferpool) == cap(pp.deferpool) {
+ 		// Transfer half of local cache to the central cache.
+ 		//
+ 		// Take this slow path on the system stack so
+ 		// we don't grow freedefer's stack.
+ 		systemstack(func() {
+ 			var first, last *_defer
+-			for len(pp.deferpool[sc]) > cap(pp.deferpool[sc])/2 {
+-				n := len(pp.deferpool[sc])
+-				d := pp.deferpool[sc][n-1]
+-				pp.deferpool[sc][n-1] = nil
+-				pp.deferpool[sc] = pp.deferpool[sc][:n-1]
++			for len(pp.deferpool) > cap(pp.deferpool)/2 {
++				n := len(pp.deferpool)
++				d := pp.deferpool[n-1]
++				pp.deferpool[n-1] = nil
++				pp.deferpool = pp.deferpool[:n-1]
+ 				if first == nil {
+ 					first = d
+ 				} else {
+@@ -449,8 +376,8 @@ func freedefer(d *_defer) {
+ 				last = d
+ 			}
+ 			lock(&sched.deferlock)
+-			last.link = sched.deferpool[sc]
+-			sched.deferpool[sc] = first
++			last.link = sched.deferpool
++			sched.deferpool = first
+ 			unlock(&sched.deferlock)
+ 		})
+ 	}
+@@ -469,7 +396,7 @@ func freedefer(d *_defer) {
+ 	// both of which throw.
+ 	d.link = nil
+ 
+-	pp.deferpool[sc] = append(pp.deferpool[sc], d)
++	pp.deferpool = append(pp.deferpool, d)
+ }
+ 
+ // Separate function so that it can split stack.
+@@ -720,7 +647,7 @@ func addOneOpenDeferFrame(gp *g, pc uintptr, sp unsafe.Pointer) {
+ 					throw("missing deferreturn")
+ 				}
+ 
+-				d1 := newdefer(0)
++				d1 := newdefer()
+ 				d1.openDefer = true
+ 				d1._panic = nil
+ 				// These are the pc/sp to set after we've
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d6f3af690b..4a116130a5 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4784,9 +4784,7 @@ func (pp *p) init(id int32) {
+ 	pp.id = id
+ 	pp.status = _Pgcstop
+ 	pp.sudogcache = pp.sudogbuf[:0]
+-	for i := range pp.deferpool {
+-		pp.deferpool[i] = pp.deferpoolbuf[i][:0]
+-	}
++	pp.deferpool = pp.deferpoolbuf[:0]
+ 	pp.wbBuf.reset()
+ 	if pp.mcache == nil {
+ 		if id == 0 {
+@@ -4864,12 +4862,10 @@ func (pp *p) destroy() {
+ 		pp.sudogbuf[i] = nil
+ 	}
+ 	pp.sudogcache = pp.sudogbuf[:0]
+-	for i := range pp.deferpool {
+-		for j := range pp.deferpoolbuf[i] {
+-			pp.deferpoolbuf[i][j] = nil
+-		}
+-		pp.deferpool[i] = pp.deferpoolbuf[i][:0]
++	for j := range pp.deferpoolbuf {
++		pp.deferpoolbuf[j] = nil
+ 	}
++	pp.deferpool = pp.deferpoolbuf[:0]
+ 	systemstack(func() {
+ 		for i := 0; i < pp.mspancache.len; i++ {
+ 			// Safe to call since the world is stopped.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index cf4b0bff43..75c4818599 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -613,8 +613,8 @@ type p struct {
+ 	pcache      pageCache
+ 	raceprocctx uintptr
+ 
+-	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.go)
+-	deferpoolbuf [5][32]*_defer
++	deferpool    []*_defer // pool of available defer structs (see panic.go)
++	deferpoolbuf [32]*_defer
+ 
+ 	// Cache of goroutine ids, amortizes accesses to runtime·sched.goidgen.
+ 	goidcache    uint64
+@@ -801,9 +801,9 @@ type schedt struct {
+ 	sudoglock  mutex
+ 	sudogcache *sudog
+ 
+-	// Central pool of available defer structs of different sizes.
++	// Central pool of available defer structs.
+ 	deferlock mutex
+-	deferpool [5]*_defer
++	deferpool *_defer
+ 
+ 	// freem is the list of m's waiting to be freed when their
+ 	// m.exited is set. Linked through m.freelink.

@@ -9,7 +9,7 @@ Date:   Tue Aug 9 16:49:36 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4839056
-
+---
  src/pkg/exp/template/funcs.go            | 53 +++++++++++++++++++++-----------
  src/pkg/exp/template/parse.go            | 24 +++++++++------
  src/pkg/exp/template/parse/parse.go      | 21 ++++++-------
@@ -17,3 +17,332 @@ Date:   Tue Aug 9 16:49:36 2011 +1000
  src/pkg/exp/template/parse/set.go        |  3 +-
  src/pkg/exp/template/set.go              | 17 +++++-----
  6 files changed, 73 insertions(+), 50 deletions(-)
+
+diff --git a/src/pkg/exp/template/funcs.go b/src/pkg/exp/template/funcs.go
+index 0fbc0e4c6d..579c70099c 100644
+--- a/src/pkg/exp/template/funcs.go
++++ b/src/pkg/exp/template/funcs.go
+@@ -22,22 +22,31 @@ import (
+ // during execution, execution terminates and Execute returns an error.
+ type FuncMap map[string]interface{}
+ 
+-var builtins = map[string]reflect.Value{
+-	"and":     reflect.ValueOf(and),
+-	"html":    reflect.ValueOf(HTMLEscaper),
+-	"index":   reflect.ValueOf(index),
+-	"js":      reflect.ValueOf(JSEscaper),
+-	"not":     reflect.ValueOf(not),
+-	"or":      reflect.ValueOf(or),
+-	"print":   reflect.ValueOf(fmt.Sprint),
+-	"printf":  reflect.ValueOf(fmt.Sprintf),
+-	"println": reflect.ValueOf(fmt.Sprintln),
+-	"url":     reflect.ValueOf(URLEscaper),
++var builtins = FuncMap{
++	"and":     and,
++	"html":    HTMLEscaper,
++	"index":   index,
++	"js":      JSEscaper,
++	"not":     not,
++	"or":      or,
++	"print":   fmt.Sprint,
++	"printf":  fmt.Sprintf,
++	"println": fmt.Sprintln,
++	"url":     URLEscaper,
+ }
+ 
+-// addFuncs adds to values the functions in funcs, converting them to reflect.Values.
+-func addFuncs(values map[string]reflect.Value, funcMap FuncMap) {
+-	for name, fn := range funcMap {
++var builtinFuncs = createValueFuncs(builtins)
++
++// createValueFuncs turns a FuncMap into a map[string]reflect.Value
++func createValueFuncs(funcMap FuncMap) map[string]reflect.Value {
++	m := make(map[string]reflect.Value)
++	addValueFuncs(m, funcMap)
++	return m
++}
++
++// addValueFuncs adds to values the functions in funcs, converting them to reflect.Values.
++func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
++	for name, fn := range in {
+ 		v := reflect.ValueOf(fn)
+ 		if v.Kind() != reflect.Func {
+ 			panic("value for " + name + " not a function")
+@@ -45,7 +54,15 @@ func addFuncs(values map[string]reflect.Value, funcMap FuncMap) {
+ 		if !goodFunc(v.Type()) {
+ 			panic(fmt.Errorf("can't handle multiple results from method/function %q", name))
+ 		}
+-		values[name] = v
++		out[name] = v
++	}
++}
++
++// addFuncs adds to values the functions in funcs. It does no checking of the input -
++// call addValueFuncs first.
++func addFuncs(out, in FuncMap) {
++	for name, fn := range in {
++		out[name] = fn
+ 	}
+ }
+ 
+@@ -64,16 +81,16 @@ func goodFunc(typ reflect.Type) bool {
+ // findFunction looks for a function in the template, set, and global map.
+ func findFunction(name string, tmpl *Template, set *Set) (reflect.Value, bool) {
+ 	if tmpl != nil {
+-		if fn := tmpl.funcs[name]; fn.IsValid() {
++		if fn := tmpl.execFuncs[name]; fn.IsValid() {
+ 			return fn, true
+ 		}
+ 	}
+ 	if set != nil {
+-		if fn := set.funcs[name]; fn.IsValid() {
++		if fn := set.execFuncs[name]; fn.IsValid() {
+ 			return fn, true
+ 		}
+ 	}
+-	if fn := builtins[name]; fn.IsValid() {
++	if fn := builtinFuncs[name]; fn.IsValid() {
+ 		return fn, true
+ 	}
+ 	return reflect.Value{}, false
+diff --git a/src/pkg/exp/template/parse.go b/src/pkg/exp/template/parse.go
+index 9cc48c48f4..6db00c1c11 100644
+--- a/src/pkg/exp/template/parse.go
++++ b/src/pkg/exp/template/parse.go
+@@ -14,8 +14,12 @@ import (
+ type Template struct {
+ 	name string
+ 	*parse.Tree
+-	funcs map[string]reflect.Value
+-	set   *Set // can be nil.
++	// We use two maps, one for parsing and one for execution.
++	// This separation makes the API cleaner since it doesn't
++	// expose reflection to the client.
++	parseFuncs FuncMap
++	execFuncs  map[string]reflect.Value
++	set        *Set // can be nil.
+ }
+ 
+ // Name returns the name of the template.
+@@ -28,8 +32,9 @@ func (t *Template) Name() string {
+ // New allocates a new template with the given name.
+ func New(name string) *Template {
+ 	return &Template{
+-		name:  name,
+-		funcs: make(map[string]reflect.Value),
++		name:       name,
++		parseFuncs: make(FuncMap),
++		execFuncs:  make(map[string]reflect.Value),
+ 	}
+ }
+ 
+@@ -38,14 +43,15 @@ func New(name string) *Template {
+ // return type.
+ // The return value is the template, so calls can be chained.
+ func (t *Template) Funcs(funcMap FuncMap) *Template {
+-	addFuncs(t.funcs, funcMap)
++	addValueFuncs(t.execFuncs, funcMap)
++	addFuncs(t.parseFuncs, funcMap)
+ 	return t
+ }
+ 
+ // Parse parses the template definition string to construct an internal
+ // representation of the template for execution.
+ func (t *Template) Parse(s string) (tmpl *Template, err os.Error) {
+-	t.Tree, err = parse.New(t.name).Parse(s, t.funcs, builtins)
++	t.Tree, err = parse.New(t.name).Parse(s, t.parseFuncs, builtins)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -57,11 +63,11 @@ func (t *Template) Parse(s string) (tmpl *Template, err os.Error) {
+ // to the set.
+ // Function bindings are checked against those in the set.
+ func (t *Template) ParseInSet(s string, set *Set) (tmpl *Template, err os.Error) {
+-	var setFuncs map[string]reflect.Value
++	var setFuncs FuncMap
+ 	if set != nil {
+-		setFuncs = set.funcs
++		setFuncs = set.parseFuncs
+ 	}
+-	t.Tree, err = parse.New(t.name).Parse(s, t.funcs, setFuncs, builtins)
++	t.Tree, err = parse.New(t.name).Parse(s, t.parseFuncs, setFuncs, builtins)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/exp/template/parse/parse.go b/src/pkg/exp/template/parse/parse.go
+index 2ee08da74b..f8f9023e54 100644
+--- a/src/pkg/exp/template/parse/parse.go
++++ b/src/pkg/exp/template/parse/parse.go
+@@ -9,7 +9,6 @@ package parse
+ import (
+ 	"fmt"
+ 	"os"
+-	"reflect"
+ 	"runtime"
+ 	"strconv"
+ 	"unicode"
+@@ -20,7 +19,7 @@ type Tree struct {
+ 	Name string    // Name is the name of the template.
+ 	Root *ListNode // Root is the top-level root of the parse tree.
+ 	// Parsing only; cleared after parse.
+-	funcs     []map[string]reflect.Value
++	funcs     []map[string]interface{}
+ 	lex       *lexer
+ 	token     [2]item // two-token lookahead for parser.
+ 	peekCount int
+@@ -61,7 +60,7 @@ func (t *Tree) peek() item {
+ // Parsing.
+ 
+ // New allocates a new template with the given name.
+-func New(name string, funcs ...map[string]reflect.Value) *Tree {
++func New(name string, funcs ...map[string]interface{}) *Tree {
+ 	return &Tree{
+ 		Name:  name,
+ 		funcs: funcs,
+@@ -110,7 +109,7 @@ func (t *Tree) recover(errp *os.Error) {
+ }
+ 
+ // startParse starts the template parsing from the lexer.
+-func (t *Tree) startParse(funcs []map[string]reflect.Value, lex *lexer) {
++func (t *Tree) startParse(funcs []map[string]interface{}, lex *lexer) {
+ 	t.Root = nil
+ 	t.lex = lex
+ 	t.vars = []string{"$"}
+@@ -147,7 +146,7 @@ func (t *Tree) atEOF() bool {
+ 
+ // Parse parses the template definition string to construct an internal
+ // representation of the template for execution.
+-func (t *Tree) Parse(s string, funcs ...map[string]reflect.Value) (tree *Tree, err os.Error) {
++func (t *Tree) Parse(s string, funcs ...map[string]interface{}) (tree *Tree, err os.Error) {
+ 	defer t.recover(&err)
+ 	t.startParse(funcs, lex(t.Name, s))
+ 	t.parse(true)
+@@ -371,7 +370,7 @@ Loop:
+ 		case itemError:
+ 			t.errorf("%s", token.val)
+ 		case itemIdentifier:
+-			if _, ok := t.findFunction(token.val); !ok {
++			if !t.hasFunction(token.val) {
+ 				t.errorf("function %q not defined", token.val)
+ 			}
+ 			cmd.append(newIdentifier(token.val))
+@@ -405,17 +404,17 @@ Loop:
+ 	return cmd
+ }
+ 
+-// findFunction looks for a function in the Tree's maps.
+-func (t *Tree) findFunction(name string) (reflect.Value, bool) {
++// hasFunction reports if a function name exists in the Tree's maps.
++func (t *Tree) hasFunction(name string) bool {
+ 	for _, funcMap := range t.funcs {
+ 		if funcMap == nil {
+ 			continue
+ 		}
+-		if fn := funcMap[name]; fn.IsValid() {
+-			return fn, true
++		if funcMap[name] != nil {
++			return true
+ 		}
+ 	}
+-	return reflect.Value{}, false
++	return false
+ }
+ 
+ // popVars trims the variable list to the specified length
+diff --git a/src/pkg/exp/template/parse/parse_test.go b/src/pkg/exp/template/parse/parse_test.go
+index f57dab8b23..1928c319de 100644
+--- a/src/pkg/exp/template/parse/parse_test.go
++++ b/src/pkg/exp/template/parse/parse_test.go
+@@ -7,7 +7,6 @@ package parse
+ import (
+ 	"flag"
+ 	"fmt"
+-	"reflect"
+ 	"testing"
+ )
+ 
+@@ -231,8 +230,8 @@ var parseTests = []parseTest{
+ 	{"too many decls in range", "{{range $u, $v, $w := 3}}{{end}}", hasError, ""},
+ }
+ 
+-var builtins = map[string]reflect.Value{
+-	"printf": reflect.ValueOf(fmt.Sprintf),
++var builtins = map[string]interface{}{
++	"printf": fmt.Sprintf,
+ }
+ 
+ func TestParse(t *testing.T) {
+diff --git a/src/pkg/exp/template/parse/set.go b/src/pkg/exp/template/parse/set.go
+index 91173d5c12..4820da925b 100644
+--- a/src/pkg/exp/template/parse/set.go
++++ b/src/pkg/exp/template/parse/set.go
+@@ -7,14 +7,13 @@ package parse
+ import (
+ 	"fmt"
+ 	"os"
+-	"reflect"
+ 	"strconv"
+ )
+ 
+ // Set returns a slice of Trees created by parsing the template set
+ // definition in the argument string. If an error is encountered,
+ // parsing stops and an empty slice is returned with the error.
+-func Set(text string, funcs ...map[string]reflect.Value) (tree map[string]*Tree, err os.Error) {
++func Set(text string, funcs ...map[string]interface{}) (tree map[string]*Tree, err os.Error) {
+ 	tree = make(map[string]*Tree)
+ 	defer (*Tree)(nil).recover(&err)
+ 	lex := lex("set", text)
+diff --git a/src/pkg/exp/template/set.go b/src/pkg/exp/template/set.go
+index f6f2a2c276..7f2813c048 100644
+--- a/src/pkg/exp/template/set.go
++++ b/src/pkg/exp/template/set.go
+@@ -16,14 +16,16 @@ import (
+ // The zero value represents an empty set.
+ // A template may be a member of multiple sets.
+ type Set struct {
+-	tmpl  map[string]*Template
+-	funcs map[string]reflect.Value
++	tmpl       map[string]*Template
++	parseFuncs FuncMap
++	execFuncs  map[string]reflect.Value
+ }
+ 
+ func (s *Set) init() {
+ 	if s.tmpl == nil {
+ 		s.tmpl = make(map[string]*Template)
+-		s.funcs = make(map[string]reflect.Value)
++		s.parseFuncs = make(FuncMap)
++		s.execFuncs = make(map[string]reflect.Value)
+ 	}
+ }
+ 
+@@ -33,7 +35,8 @@ func (s *Set) init() {
+ // The return value is the set, so calls can be chained.
+ func (s *Set) Funcs(funcMap FuncMap) *Set {
+ 	s.init()
+-	addFuncs(s.funcs, funcMap)
++	addValueFuncs(s.execFuncs, funcMap)
++	addFuncs(s.parseFuncs, funcMap)
+ 	return s
+ }
+ 
+@@ -71,8 +74,8 @@ func (s *Set) Template(name string) *Template {
+ }
+ 
+ // FuncMap returns the set's function map.
+-func (s *Set) FuncMap() map[string]reflect.Value {
+-	return s.funcs
++func (s *Set) FuncMap() FuncMap {
++	return s.parseFuncs
+ }
+ 
+ // Execute applies the named template to the specified data object, writing
+@@ -90,7 +93,7 @@ func (s *Set) Execute(wr io.Writer, name string, data interface{}) os.Error {
+ // to the set.  If a template is redefined, the element in the set is
+ // overwritten with the new definition.
+ func (s *Set) Parse(text string) (*Set, os.Error) {
+-	trees, err := parse.Set(text, s.funcs, builtins)
++	trees, err := parse.Set(text, s.parseFuncs, builtins)
+ 	if err != nil {
+ 		return nil, err
+ 	}

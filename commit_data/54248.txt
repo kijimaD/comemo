@@ -13,6 +13,19 @@ Date:   Thu Sep 29 21:53:47 2022 +0800
     Run-TryBot: Robert Griesemer <gri@google.com>
     Run-TryBot: xie cui <523516579@qq.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/strconv/ftoa.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/strconv/ftoa.go b/src/strconv/ftoa.go
+index f602d0ffe6..fcbf4df13b 100644
+--- a/src/strconv/ftoa.go
++++ b/src/strconv/ftoa.go
+@@ -373,7 +373,6 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
+ type decimalSlice struct {
+ 	d      []byte
+ 	nd, dp int
+-	neg    bool
+ }
+ 
+ // %e: -d.ddddde±dd

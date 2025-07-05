@@ -19,7 +19,78 @@ Date:   Tue Nov 22 09:27:27 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5422043
-
+---
  src/pkg/html/parse.go      | 22 +++++++++++++++++++---
  src/pkg/html/parse_test.go |  2 +-
  2 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 9b7e934ac3..b74831b34e 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -319,9 +319,17 @@ func (p *parser) resetInsertionMode() {
+ 	p.im = inBodyIM
+ }
+ 
++const whitespace = " \t\r\n\f"
++
+ // Section 11.2.5.4.1.
+ func initialIM(p *parser) bool {
+ 	switch p.tok.Type {
++	case TextToken:
++		p.tok.Data = strings.TrimLeft(p.tok.Data, whitespace)
++		if len(p.tok.Data) == 0 {
++			// It was all whitespace, so ignore it.
++			return true
++		}
+ 	case CommentToken:
+ 		p.doc.Add(&Node{
+ 			Type: CommentNode,
+@@ -345,6 +353,12 @@ func initialIM(p *parser) bool {
+ // Section 11.2.5.4.2.
+ func beforeHTMLIM(p *parser) bool {
+ 	switch p.tok.Type {
++	case TextToken:
++		p.tok.Data = strings.TrimLeft(p.tok.Data, whitespace)
++		if len(p.tok.Data) == 0 {
++			// It was all whitespace, so ignore it.
++			return true
++		}
+ 	case StartTagToken:
+ 		if p.tok.Data == "html" {
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+@@ -383,7 +397,11 @@ func beforeHeadIM(p *parser) bool {
+ 	case ErrorToken:
+ 		implied = true
+ 	case TextToken:
+-		// TODO: distinguish whitespace text from others.
++		p.tok.Data = strings.TrimLeft(p.tok.Data, whitespace)
++		if len(p.tok.Data) == 0 {
++			// It was all whitespace, so ignore it.
++			return true
++		}
+ 		implied = true
+ 	case StartTagToken:
+ 		switch p.tok.Data {
+@@ -417,8 +435,6 @@ func beforeHeadIM(p *parser) bool {
+ 	return !implied
+ }
+ 
+-const whitespace = " \t\r\n\f"
+-
+ // Section 11.2.5.4.4.
+ func inHeadIM(p *parser) bool {
+ 	var (
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 48918947fc..808300a289 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -134,7 +134,7 @@ func TestParser(t *testing.T) {
+ 	}{
+ 		// TODO(nigeltao): Process all the test cases from all the .dat files.
+ 		{"tests1.dat", -1},
+-		{"tests2.dat", 47},
++		{"tests2.dat", 50},
+ 		{"tests3.dat", 0},
+ 	}
+ 	for _, tf := range testFiles {

@@ -9,7 +9,34 @@ Date:   Sun Nov 15 12:57:28 2009 -0800
     
     R=r
     https://golang.org/cl/155049
-
+---
  src/Make.pkg        | 2 +-
  src/libcgo/Makefile | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index dc0e70f37a..1377792075 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -112,7 +112,7 @@ _CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
+ 	gcc $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo4.c
+ 
+ $(elem)_%.so: %.cgo4.o
+-	gcc $(_CGO_CFLAGS_$(GOARCH)) $(_CGO_LDFLAGS_$(GOOS)) -o $@ $*.cgo4.o $(CGO_LDFLAGS)
++	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ $*.cgo4.o $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
+ 
+ $(pkgdir)/$(dir)/$(elem)_%.so: $(elem)_%.so
+ 	@test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
+diff --git a/src/libcgo/Makefile b/src/libcgo/Makefile
+index a323823503..0cd19fbba4 100644
+--- a/src/libcgo/Makefile
++++ b/src/libcgo/Makefile
+@@ -24,7 +24,7 @@ LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup /usr/lib/libpthread.dyl
+ 	gcc $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.S
+ 
+ libcgo.so: $(OFILES)
+-	gcc $(CFLAGS_$(GOARCH)) $(LDFLAGS_$(GOOS)) -o libcgo.so $(OFILES)
++	gcc $(CFLAGS_$(GOARCH)) -o libcgo.so $(OFILES) $(LDFLAGS_$(GOOS))
+ 
+ $(GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so: libcgo.so
+ 	cp libcgo.so $@

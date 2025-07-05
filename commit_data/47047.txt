@@ -18,9 +18,122 @@ Date:   Mon Feb 22 17:02:46 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/295271
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/issues_test.go | 22 ++++++++++++++++++++++
  src/cmd/compile/internal/types2/typestring.go  | 10 ++++++++--
  src/go/types/issues_test.go                    | 22 ++++++++++++++++++++++
  src/go/types/typestring.go                     | 11 +++++++++--
  4 files changed, 61 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index a36b832f04..e1f5c92fc4 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -546,3 +546,25 @@ func TestIssue43088(t *testing.T) {
+ 	Comparable(T1)
+ 	Comparable(T2)
+ }
++
++func TestIssue44515(t *testing.T) {
++	typ := Unsafe.Scope().Lookup("Pointer").Type()
++
++	got := TypeString(typ, nil)
++	want := "unsafe.Pointer"
++	if got != want {
++		t.Errorf("got %q; want %q", got, want)
++	}
++
++	qf := func(pkg *Package) string {
++		if pkg == Unsafe {
++			return "foo"
++		}
++		return ""
++	}
++	got = TypeString(typ, qf)
++	want = "foo.Pointer"
++	if got != want {
++		t.Errorf("got %q; want %q", got, want)
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index af44624d2c..40016697b7 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -98,9 +98,15 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		buf.WriteString("<nil>")
+ 
+ 	case *Basic:
+-		if t.kind == UnsafePointer {
+-			buf.WriteString("unsafe.")
++		// exported basic types go into package unsafe
++		// (currently this is just unsafe.Pointer)
++		if isExported(t.name) {
++			if obj, _ := Unsafe.scope.Lookup(t.name).(*TypeName); obj != nil {
++				writeTypeName(buf, obj, qf)
++				break
++			}
+ 		}
++
+ 		if gcCompatibilityMode {
+ 			// forget the alias names
+ 			switch t.kind {
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 34850eb034..9ed2934c74 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -549,3 +549,25 @@ func TestIssue43088(t *testing.T) {
+ 	Comparable(T1)
+ 	Comparable(T2)
+ }
++
++func TestIssue44515(t *testing.T) {
++	typ := Unsafe.Scope().Lookup("Pointer").Type()
++
++	got := TypeString(typ, nil)
++	want := "unsafe.Pointer"
++	if got != want {
++		t.Errorf("got %q; want %q", got, want)
++	}
++
++	qf := func(pkg *Package) string {
++		if pkg == Unsafe {
++			return "foo"
++		}
++		return ""
++	}
++	got = TypeString(typ, qf)
++	want = "foo.Pointer"
++	if got != want {
++		t.Errorf("got %q; want %q", got, want)
++	}
++}
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 4697bd31e6..a0caded160 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -9,6 +9,7 @@ package types
+ import (
+ 	"bytes"
+ 	"fmt"
++	"go/token"
+ 	"unicode/utf8"
+ )
+ 
+@@ -98,9 +99,15 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		buf.WriteString("<nil>")
+ 
+ 	case *Basic:
+-		if t.kind == UnsafePointer {
+-			buf.WriteString("unsafe.")
++		// exported basic types go into package unsafe
++		// (currently this is just unsafe.Pointer)
++		if token.IsExported(t.name) {
++			if obj, _ := Unsafe.scope.Lookup(t.name).(*TypeName); obj != nil {
++				writeTypeName(buf, obj, qf)
++				break
++			}
+ 		}
++
+ 		if gcCompatibilityMode {
+ 			// forget the alias names
+ 			switch t.kind {

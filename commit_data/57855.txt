@@ -13,6 +13,20 @@ Date:   Wed Aug 30 12:00:03 2023 +0000
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Rob Pike <r@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/encoding/gob/decode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 868893312e..1b33503bc7 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -395,7 +395,7 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
+ 			value.SetLen(ln)
+ 			sub := value.Slice(i, ln)
+ 			if _, err := state.b.Read(sub.Bytes()); err != nil {
+-				errorf("error decoding []byte at %d: %s", err, i)
++				errorf("error decoding []byte at %d: %s", i, err)
+ 			}
+ 			i = ln
+ 		}

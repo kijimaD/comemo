@@ -18,7 +18,59 @@ Date:   Fri May 24 15:18:00 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                    |  6 +++--
  src/cmd/go/testdata/script/list_pgo_issue66218.txt | 28 ++++++++++++++++++++++
  2 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index b5346b1be7..7c402b419e 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2943,8 +2943,10 @@ func setPGOProfilePath(pkgs []*Package) {
+ 					}
+ 					p1 := new(Package)
+ 					*p1 = *p
+-					// Unalias the Internal.Imports slice, which is we're going to
+-					// modify. We don't copy other slices as we don't change them.
++					// Unalias the Imports and Internal.Imports slices,
++					// which we're going to modify. We don't copy other slices as
++					// we don't change them.
++					p1.Imports = slices.Clone(p.Imports)
+ 					p1.Internal.Imports = slices.Clone(p.Internal.Imports)
+ 					p1.Internal.ForMain = pmain.ImportPath
+ 					visited[p] = p1
+diff --git a/src/cmd/go/testdata/script/list_pgo_issue66218.txt b/src/cmd/go/testdata/script/list_pgo_issue66218.txt
+new file mode 100644
+index 0000000000..9e9cd6c484
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_pgo_issue66218.txt
+@@ -0,0 +1,28 @@
++# Test that pgo properly splits off the Imports field so that list doesn't alias
++# the non-pgo variant's slice when it modifies the pgo variant's Imports field to
++# add the [.ForMain] suffix.
++
++go list -f 'ImportPath: "{{.ImportPath}}", Imports: "{{.Imports}}", ImportMap: "{{.ImportMap}}"' m/a m/b
++cmp stdout want
++
++-- want --
++ImportPath: "m/a", Imports: "[m/b [m/a]]", ImportMap: "map[m/b:m/b [m/a]]"
++ImportPath: "m/b", Imports: "[m/c]", ImportMap: "map[]"
++-- go.mod --
++module m
++
++go 1.23
++
++-- a/a.go --
++package main
++
++import _ "m/b"
++-- a/default.pgo --
++-- b/b.go --
++package a
++
++import _ "m/c"
++
++-- c/c.go --
++package c
++

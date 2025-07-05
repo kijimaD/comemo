@@ -26,8 +26,99 @@ Date:   Fri Dec 4 12:43:25 2015 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/request_test.go |  4 +++-
  src/net/url/url.go           | 17 +++++++++++++++--
  src/net/url/url_test.go      | 11 +++++++++++
  3 files changed, 29 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index ddbf8418e1..0ecdf85a56 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -539,10 +539,12 @@ func TestRequestWriteBufferedWriter(t *testing.T) {
+ 
+ func TestRequestBadHost(t *testing.T) {
+ 	got := []string{}
+-	req, err := NewRequest("GET", "http://foo.com with spaces/after", nil)
++	req, err := NewRequest("GET", "http://foo/after", nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	req.Host = "foo.com with spaces"
++	req.URL.Host = "foo.com with spaces"
+ 	req.Write(logWrites{t, &got})
+ 	want := []string{
+ 		"GET /after HTTP/1.1\r\n",
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 510ac77ede..3ea75637ac 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -83,6 +83,12 @@ func (e EscapeError) Error() string {
+ 	return "invalid URL escape " + strconv.Quote(string(e))
+ }
+ 
++type InvalidHostError string
++
++func (e InvalidHostError) Error() string {
++	return "invalid character " + strconv.Quote(string(e)) + " in host name"
++}
++
+ // Return true if the specified character should be escaped when
+ // appearing in a URL string, according to RFC 3986.
+ //
+@@ -99,9 +105,13 @@ func shouldEscape(c byte, mode encoding) bool {
+ 		//	sub-delims = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
+ 		// as part of reg-name.
+ 		// We add : because we include :port as part of host.
+-		// We add [ ] because we include [ipv6]:port as part of host
++		// We add [ ] because we include [ipv6]:port as part of host.
++		// We add < > because they're the only characters left that
++		// we could possibly allow, and Parse will reject them if we
++		// escape them (because hosts can't use %-encoding for
++		// ASCII bytes).
+ 		switch c {
+-		case '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=', ':', '[', ']':
++		case '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=', ':', '[', ']', '<', '>', '"':
+ 			return false
+ 		}
+ 	}
+@@ -193,6 +203,9 @@ func unescape(s string, mode encoding) (string, error) {
+ 			hasPlus = mode == encodeQueryComponent
+ 			i++
+ 		default:
++			if (mode == encodeHost || mode == encodeZone) && s[i] < 0x80 && shouldEscape(s[i], mode) {
++				return "", InvalidHostError(s[i : i+1])
++			}
+ 			i++
+ 		}
+ 	}
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index b1c3ceb0b7..643905d5a7 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -521,6 +521,16 @@ var urltests = []URLTest{
+ 		},
+ 		"",
+ 	},
++	// test that we can reparse the host names we accept.
++	{
++		"myscheme://authority<\"hi\">/foo",
++		&URL{
++			Scheme: "myscheme",
++			Host:   "authority<\"hi\">",
++			Path:   "/foo",
++		},
++		"",
++	},
+ }
+ 
+ // more useful string for debugging than fmt's struct printer
+@@ -1239,6 +1249,7 @@ func TestParseAuthority(t *testing.T) {
+ 		{"mysql://x@y(1.2.3.4:123)/foo", false},
+ 		{"mysql://x@y([2001:db8::1]:123)/foo", false},
+ 		{"http://[]%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a/", true}, // golang.org/issue/11208
++		{"http://a b.com/", true},                                                                       // no space in host name please
+ 	}
+ 	for _, tt := range tests {
+ 		u, err := Parse(tt.in)

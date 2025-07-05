@@ -14,9 +14,81 @@ Date:   Fri Mar 4 14:53:26 2016 -0500
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/reflect/all_test.go | 2 ++
  src/reflect/set_test.go | 2 ++
  src/reflect/type.go     | 6 +++++-
  src/runtime/type.go     | 6 +++++-
  4 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 5df228db1a..352b2046e7 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -5019,6 +5019,8 @@ var nameTests = []nameTest{
+ 	{[]D1{}, ""},
+ 	{(chan D1)(nil), ""},
+ 	{(func() D1)(nil), ""},
++	{(<-chan D1)(nil), ""},
++	{(chan<- D1)(nil), ""},
+ }
+ 
+ func TestNames(t *testing.T) {
+diff --git a/src/reflect/set_test.go b/src/reflect/set_test.go
+index a3b5af55c7..bc35c78e1b 100644
+--- a/src/reflect/set_test.go
++++ b/src/reflect/set_test.go
+@@ -194,11 +194,13 @@ var assignableTests = []struct {
+ 	{new(*int), new(IntPtr), true},
+ 	{new(IntPtr), new(*int), true},
+ 	{new(IntPtr), new(IntPtr1), false},
++	{new(Ch), new(<-chan interface{}), true},
+ 	// test runs implementsTests too
+ }
+ 
+ type IntPtr *int
+ type IntPtr1 *int
++type Ch <-chan interface{}
+ 
+ func TestAssignableTo(t *testing.T) {
+ 	for _, tt := range append(assignableTests, implementsTests...) {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index dd8084ed0f..425b275881 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -563,10 +563,14 @@ func (t *rtype) Name() string {
+ 	if hasPrefix(t.string, "chan ") {
+ 		return ""
+ 	}
++	if hasPrefix(t.string, "chan<-") {
++		return ""
++	}
+ 	if hasPrefix(t.string, "func(") {
+ 		return ""
+ 	}
+-	if t.string[0] == '[' || t.string[0] == '*' {
++	switch t.string[0] {
++	case '[', '*', '<':
+ 		return ""
+ 	}
+ 	i := len(t.string) - 1
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 18c6a32ecb..2312f819ea 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -42,10 +42,14 @@ func (t *_type) name() string {
+ 	if hasPrefix(t._string, "chan ") {
+ 		return ""
+ 	}
++	if hasPrefix(t._string, "chan<-") {
++		return ""
++	}
+ 	if hasPrefix(t._string, "func(") {
+ 		return ""
+ 	}
+-	if t._string[0] == '[' || t._string[0] == '*' {
++	switch t._string[0] {
++	case '[', '*', '<':
+ 		return ""
+ 	}
+ 	i := len(t._string) - 1

@@ -16,10 +16,272 @@ Date:   Wed Aug 31 11:44:43 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/script/cmds.go       | 38 ++++++++++++++++
  src/cmd/go/scriptcmds_test.go            | 30 -------------
  src/cmd/go/testdata/script/README        | 10 +++--
  src/cmd/go/testdata/script/mod_find.txt  |  2 +-
  src/cmd/go/testdata/script/reuse_git.txt | 74 +++++---------------------------
  5 files changed, 55 insertions(+), 99 deletions(-)
+
+diff --git a/src/cmd/go/internal/script/cmds.go b/src/cmd/go/internal/script/cmds.go
+index c0bd31ed65..9fb092e0d8 100644
+--- a/src/cmd/go/internal/script/cmds.go
++++ b/src/cmd/go/internal/script/cmds.go
+@@ -43,6 +43,7 @@ func DefaultCmds() map[string]Cmd {
+ 		"mkdir":   Mkdir(),
+ 		"mv":      Mv(),
+ 		"rm":      Rm(),
++		"replace": Replace(),
+ 		"sleep":   Sleep(),
+ 		"stderr":  Stderr(),
+ 		"stdout":  Stdout(),
+@@ -867,6 +868,43 @@ func Program(name string, interrupt os.Signal, gracePeriod time.Duration) Cmd {
+ 		})
+ }
+ 
++// Replace replaces all occurrences of a string in a file with another string.
++func Replace() Cmd {
++	return Command(
++		CmdUsage{
++			Summary: "replace strings in a file",
++			Args:    "[old new]... file",
++			Detail: []string{
++				"The 'old' and 'new' arguments are unquoted as if in quoted Go strings.",
++			},
++		},
++		func(s *State, args ...string) (WaitFunc, error) {
++			if len(args)%2 != 1 {
++				return nil, ErrUsage
++			}
++
++			oldNew := make([]string, 0, len(args)-1)
++			for _, arg := range args[:len(args)-1] {
++				s, err := strconv.Unquote(`"` + arg + `"`)
++				if err != nil {
++					return nil, err
++				}
++				oldNew = append(oldNew, s)
++			}
++
++			r := strings.NewReplacer(oldNew...)
++			file := s.Path(args[len(args)-1])
++
++			data, err := os.ReadFile(file)
++			if err != nil {
++				return nil, err
++			}
++			replaced := r.Replace(string(data))
++
++			return nil, os.WriteFile(file, []byte(replaced), 0666)
++		})
++}
++
+ // Rm removes a file or directory.
+ //
+ // If a directory, Rm also recursively removes that directory's
+diff --git a/src/cmd/go/scriptcmds_test.go b/src/cmd/go/scriptcmds_test.go
+index a0cbafb8ea..2a9900782b 100644
+--- a/src/cmd/go/scriptcmds_test.go
++++ b/src/cmd/go/scriptcmds_test.go
+@@ -5,7 +5,6 @@
+ package main_test
+ 
+ import (
+-	"bytes"
+ 	"cmd/go/internal/script"
+ 	"cmd/go/internal/script/scripttest"
+ 	"cmd/go/internal/work"
+@@ -30,7 +29,6 @@ func scriptCommands(interrupt os.Signal, gracePeriod time.Duration) map[string]s
+ 		cmds[name] = cmd
+ 	}
+ 
+-	add("addcrlf", scriptAddCRLF())
+ 	add("cc", scriptCC(cmdExec))
+ 	cmdGo := scriptGo(interrupt, gracePeriod)
+ 	add("go", cmdGo)
+@@ -39,34 +37,6 @@ func scriptCommands(interrupt os.Signal, gracePeriod time.Duration) map[string]s
+ 	return cmds
+ }
+ 
+-// scriptAddCRLF adds CRLF line endings to the named files.
+-func scriptAddCRLF() script.Cmd {
+-	return script.Command(
+-		script.CmdUsage{
+-			Summary: "convert line endings to CRLF",
+-			Args:    "file...",
+-		},
+-		func(s *script.State, args ...string) (script.WaitFunc, error) {
+-			if len(args) == 0 {
+-				return nil, script.ErrUsage
+-			}
+-
+-			for _, file := range args {
+-				file = s.Path(file)
+-				data, err := os.ReadFile(file)
+-				if err != nil {
+-					return nil, err
+-				}
+-				err = os.WriteFile(file, bytes.ReplaceAll(data, []byte("\n"), []byte("\r\n")), 0666)
+-				if err != nil {
+-					return nil, err
+-				}
+-			}
+-
+-			return nil, nil
+-		})
+-}
+-
+ // scriptCC runs the C compiler along with platform specific options.
+ func scriptCC(cmdExec script.Cmd) script.Cmd {
+ 	return script.Command(
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index b3902eded5..58c9170d5d 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -204,10 +204,6 @@ for manual debugging of failing tests:
+ 	$
+ 
+ The available commands are:
+-addcrlf file...
+-	convert line endings to CRLF
+-
+-
+ cat files...
+ 	concatenate files and print to the script's stdout buffer
+ 
+@@ -304,6 +300,12 @@ mv old new
+ 	OS-specific restrictions may apply when old and new are in
+ 	different directories.
+ 
++replace [old new]... file
++	replace strings in a file
++
++	The 'old' and 'new' arguments are unquoted as if in quoted
++	Go strings.
++
+ rm path...
+ 	remove a file or directory
+ 
+diff --git a/src/cmd/go/testdata/script/mod_find.txt b/src/cmd/go/testdata/script/mod_find.txt
+index 1e01973ff4..9c2037b6e0 100644
+--- a/src/cmd/go/testdata/script/mod_find.txt
++++ b/src/cmd/go/testdata/script/mod_find.txt
+@@ -8,7 +8,7 @@ stderr 'module x'
+ 
+ # Import comment works even with CRLF line endings.
+ rm go.mod
+-addcrlf x.go
++replace '\n' '\r\n' x.go
+ go mod init
+ stderr 'module x'
+ 
+diff --git a/src/cmd/go/testdata/script/reuse_git.txt b/src/cmd/go/testdata/script/reuse_git.txt
+index 8c23bde49b..8df47541be 100644
+--- a/src/cmd/go/testdata/script/reuse_git.txt
++++ b/src/cmd/go/testdata/script/reuse_git.txt
+@@ -321,6 +321,8 @@ stdout '"Reuse": true'
+ ! stdout '"(Dir|Info|GoMod|Zip)"'
+ 
+ # reuse attempt with stale hash should reinvoke git, not report reuse
++cp tagtestsv022.json tagtestsv022badhash.json
++replace '57952' '56952XXX' tagtestsv022badhash.json
+ go mod download -reuse=tagtestsv022badhash.json -x -json vcs-test.golang.org/git/tagtests.git@v0.2.2
+ stderr 'git fetch'
+ ! stdout '"Reuse": true'
+@@ -337,6 +339,8 @@ stdout '"GoMod"'
+ stdout '"Zip"'
+ 
+ # reuse with stale repo URL
++cp tagtestsv022.json tagtestsv022badurl.json
++replace 'git/tagtests\"' 'git/tagtestsXXX\"' tagtestsv022badurl.json
+ go mod download -reuse=tagtestsv022badurl.json -x -json vcs-test.golang.org/git/tagtests.git@v0.2.2
+ ! stdout '"Reuse": true'
+ stdout '"URL": "https://vcs-test.golang.org/git/tagtests"'
+@@ -346,80 +350,22 @@ stdout '"GoMod"'
+ stdout '"Zip"'
+ 
+ # reuse with stale VCS
++cp tagtestsv022.json tagtestsv022badvcs.json
++replace '\"git\"' '\"gitXXX\"' tagtestsv022badvcs.json
+ go mod download -reuse=tagtestsv022badvcs.json -x -json vcs-test.golang.org/git/tagtests.git@v0.2.2
+ ! stdout '"Reuse": true'
+ stdout '"URL": "https://vcs-test.golang.org/git/tagtests"'
+ 
+ # reuse with stale Dir
++cp tagtestsv022.json tagtestsv022baddir.json
++replace '\t\t\"Ref\":' '\t\t\"Subdir\": \"subdir\",\n\t\t\"Ref\":' tagtestsv022baddir.json
+ go mod download -reuse=tagtestsv022baddir.json -x -json vcs-test.golang.org/git/tagtests.git@v0.2.2
+ ! stdout '"Reuse": true'
+ stdout '"URL": "https://vcs-test.golang.org/git/tagtests"'
+ 
+ # reuse with stale TagSum
++cp tagtests.json tagtestsbadtagsum.json
++replace 'sMEOGo=' 'sMEoGo=XXX' tagtestsbadtagsum.json
+ go mod download -reuse=tagtestsbadtagsum.json -x -json vcs-test.golang.org/git/tagtests.git@latest
+ ! stdout '"Reuse": true'
+ stdout '"TagSum": "t1:Dp7yRKDuE8WjG0429PN9hYWjqhy2te7P9Oki/sMEOGo="'
+-
+--- tagtestsv022badhash.json --
+-{
+-	"Path": "vcs-test.golang.org/git/tagtests.git",
+-	"Version": "v0.2.2",
+-	"Origin": {
+-		"VCS": "git",
+-		"URL": "https://vcs-test.golang.org/git/tagtests",
+-		"Ref": "refs/tags/v0.2.2",
+-		"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952XXX"
+-	}
+-}
+-
+--- tagtestsbadtagsum.json --
+-{
+-	"Path": "vcs-test.golang.org/git/tagtests.git",
+-	"Version": "v0.2.2",
+-	"Query": "latest",
+-	"Origin": {
+-		"VCS": "git",
+-		"URL": "https://vcs-test.golang.org/git/tagtests",
+-		"TagSum": "t1:Dp7yRKDuE8WjG0429PN9hYWjqhy2te7P9Oki/sMEOGo=XXX",
+-		"Ref": "refs/tags/v0.2.2",
+-		"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952"
+-	},
+-	"Reuse": true
+-}
+-
+--- tagtestsv022badvcs.json --
+-{
+-	"Path": "vcs-test.golang.org/git/tagtests.git",
+-	"Version": "v0.2.2",
+-	"Origin": {
+-		"VCS": "gitXXX",
+-		"URL": "https://vcs-test.golang.org/git/tagtests",
+-		"Ref": "refs/tags/v0.2.2",
+-		"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952"
+-	}
+-}
+-
+--- tagtestsv022baddir.json --
+-{
+-	"Path": "vcs-test.golang.org/git/tagtests.git",
+-	"Version": "v0.2.2",
+-	"Origin": {
+-		"VCS": "git",
+-		"URL": "https://vcs-test.golang.org/git/tagtests",
+-		"Subdir": "subdir",
+-		"Ref": "refs/tags/v0.2.2",
+-		"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952"
+-	}
+-}
+-
+--- tagtestsv022badurl.json --
+-{
+-	"Path": "vcs-test.golang.org/git/tagtests.git",
+-	"Version": "v0.2.2",
+-	"Origin": {
+-		"VCS": "git",
+-		"URL": "https://vcs-test.golang.org/git/tagtestsXXX",
+-		"Ref": "refs/tags/v0.2.2",
+-		"Hash": "59356c8cd18c5fe9a598167d98a6843e52d57952"
+-	}
+-}

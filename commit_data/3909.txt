@@ -7,7 +7,59 @@ Date:   Sun Nov 8 20:45:39 2009 -0800
     
     R=rsc
     http://go/go-review/1026029
-
+---
  src/pkg/reflect/type.go |  2 +-
  test/bench/fasta.go     | 20 +-------------------
  2 files changed, 2 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index e14892d580..53ce76a2c9 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -5,7 +5,7 @@
+ // The reflect package implements run-time reflection, allowing a program to
+ // manipulate objects with arbitrary types.  The typical use is to take a
+ // value with static type interface{} and extract its dynamic type
+-// information by calling Typeof(), which returns an object with interface
++// information by calling Typeof, which returns an object with interface
+ // type Type.  That contains a pointer to a struct of type *StructType,
+ // *IntType, etc. representing the details of the underlying type.  A type
+ // switch or type assertion can reveal which.
+diff --git a/test/bench/fasta.go b/test/bench/fasta.go
+index 7919f72045..52a55447e4 100644
+--- a/test/bench/fasta.go
++++ b/test/bench/fasta.go
+@@ -66,7 +66,7 @@ type AminoAcid struct {
+ var	lastrandom uint32 = 42
+ 
+ // Random number between 0.0 and 1.0
+-func Zmyrandom() float {
++func myrandom() float {
+ 	const (
+ 		IM = 139968;
+ 		IA = 3877;
+@@ -77,24 +77,6 @@ func Zmyrandom() float {
+ 	return float(int32(lastrandom)) / IM;
+ }
+ 
+-// TODO: delete this when compiler does the reduction for us
+-func
+-myrandom() float
+-{
+-	const (
+-		IM = 139968;
+-		IA = 3877;
+-		IC = 29573;
+-		S = 46;
+-		IM1 = ((1<<S) + IM) / IM;
+-	)
+-
+-	n := (lastrandom * IA + IC);
+-	q := uint32((uint64(n) * IM1) >> S);
+-	lastrandom = n - q*IM;
+-	return float(int32(lastrandom)) / IM;
+-}
+-
+ func AccumulateProbabilities(genelist []AminoAcid) {
+ 	for i := 1; i < len(genelist); i++ {
+ 		genelist[i].p += genelist[i-1].p;

@@ -14,7 +14,7 @@ Date:   Wed May 4 08:58:02 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/modindex/build.go      |  4 +--
  src/cmd/internal/notsha256/example_test.go | 41 ------------------------------
  src/crypto/aes/cipher.go                   |  3 +--
@@ -29,3 +29,420 @@ Date:   Wed May 4 08:58:02 2022 -0400
  src/crypto/tls/cipher_suites.go            | 10 +++-----
  src/go/build/build.go                      |  6 +++--
  13 files changed, 35 insertions(+), 87 deletions(-)
+
+diff --git a/src/cmd/go/internal/modindex/build.go b/src/cmd/go/internal/modindex/build.go
+index 78bd12636d..9d52be851b 100644
+--- a/src/cmd/go/internal/modindex/build.go
++++ b/src/cmd/go/internal/modindex/build.go
+@@ -887,8 +887,8 @@ func (ctxt *Context) eval(x constraint.Expr, allTags map[string]bool) bool {
+ //	$GOARCH
+ //	boringcrypto
+ //	ctxt.Compiler
+-//	linux (if GOOS = android)
+-//	solaris (if GOOS = illumos)
++//	linux (if GOOS == android)
++//	solaris (if GOOS == illumos)
+ //	tag (if tag is listed in ctxt.BuildTags or ctxt.ReleaseTags)
+ //
+ // It records all consulted tags in allTags.
+diff --git a/src/cmd/internal/notsha256/example_test.go b/src/cmd/internal/notsha256/example_test.go
+deleted file mode 100644
+index 06e9c379c9..0000000000
+--- a/src/cmd/internal/notsha256/example_test.go
++++ /dev/null
+@@ -1,41 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package notsha256_test
+-
+-import (
+-	"crypto/sha256"
+-	"fmt"
+-	"io"
+-	"log"
+-	"os"
+-)
+-
+-func ExampleSum256() {
+-	sum := sha256.Sum256([]byte("hello world\n"))
+-	fmt.Printf("%x", sum)
+-	// Output: a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447
+-}
+-
+-func ExampleNew() {
+-	h := sha256.New()
+-	h.Write([]byte("hello world\n"))
+-	fmt.Printf("%x", h.Sum(nil))
+-	// Output: a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447
+-}
+-
+-func ExampleNew_file() {
+-	f, err := os.Open("file.txt")
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	defer f.Close()
+-
+-	h := sha256.New()
+-	if _, err := io.Copy(h, f); err != nil {
+-		log.Fatal(err)
+-	}
+-
+-	fmt.Printf("%x", h.Sum(nil))
+-}
+diff --git a/src/crypto/aes/cipher.go b/src/crypto/aes/cipher.go
+index 29d01796eb..db0ee38b78 100644
+--- a/src/crypto/aes/cipher.go
++++ b/src/crypto/aes/cipher.go
+@@ -6,12 +6,11 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
++	"crypto/internal/boring"
+ 	"crypto/internal/subtle"
+ 	"strconv"
+ )
+ 
+-import "crypto/internal/boring"
+-
+ // The AES block size in bytes.
+ const BlockSize = 16
+ 
+diff --git a/src/crypto/aes/cipher_asm.go b/src/crypto/aes/cipher_asm.go
+index b7e59d7edb..1482b22d08 100644
+--- a/src/crypto/aes/cipher_asm.go
++++ b/src/crypto/aes/cipher_asm.go
+@@ -8,13 +8,12 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
++	"crypto/internal/boring"
+ 	"crypto/internal/subtle"
+ 	"internal/cpu"
+ 	"internal/goarch"
+ )
+ 
+-import "crypto/internal/boring"
+-
+ // defined in asm_*.s
+ 
+ //go:noescape
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 7ce7542872..d0e52ad864 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -24,6 +24,7 @@ import (
+ 	"crypto/aes"
+ 	"crypto/cipher"
+ 	"crypto/elliptic"
++	"crypto/internal/boring"
+ 	"crypto/internal/boring/bbig"
+ 	"crypto/internal/randutil"
+ 	"crypto/sha512"
+@@ -31,8 +32,6 @@ import (
+ 	"io"
+ 	"math/big"
+ 
+-	"crypto/internal/boring"
+-
+ 	"golang.org/x/crypto/cryptobyte"
+ 	"golang.org/x/crypto/cryptobyte/asn1"
+ )
+diff --git a/src/crypto/hmac/hmac.go b/src/crypto/hmac/hmac.go
+index 34805765d5..ed3ebc0602 100644
+--- a/src/crypto/hmac/hmac.go
++++ b/src/crypto/hmac/hmac.go
+@@ -22,12 +22,11 @@ timing side-channels:
+ package hmac
+ 
+ import (
++	"crypto/internal/boring"
+ 	"crypto/subtle"
+ 	"hash"
+ )
+ 
+-import "crypto/internal/boring"
+-
+ // FIPS 198-1:
+ // https://csrc.nist.gov/publications/fips/fips198-1/FIPS-198-1_final.pdf
+ 
+diff --git a/src/crypto/internal/boring/aes.go b/src/crypto/internal/boring/aes.go
+index 515b60bb8a..eaa1adc892 100644
+--- a/src/crypto/internal/boring/aes.go
++++ b/src/crypto/internal/boring/aes.go
+@@ -72,9 +72,6 @@ type extraModes interface {
+ 	NewCBCDecrypter(iv []byte) cipher.BlockMode
+ 	NewCTR(iv []byte) cipher.Stream
+ 	NewGCM(nonceSize, tagSize int) (cipher.AEAD, error)
+-
+-	// Invented for BoringCrypto.
+-	NewGCMTLS() (cipher.AEAD, error)
+ }
+ 
+ var _ extraModes = (*aesCipher)(nil)
+@@ -235,8 +232,8 @@ func (c *aesCipher) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+ 	return c.newGCM(false)
+ }
+ 
+-func (c *aesCipher) NewGCMTLS() (cipher.AEAD, error) {
+-	return c.newGCM(true)
++func NewGCMTLS(c cipher.Block) (cipher.AEAD, error) {
++	return c.(*aesCipher).newGCM(true)
+ }
+ 
+ func (c *aesCipher) newGCM(tls bool) (cipher.AEAD, error) {
+diff --git a/src/crypto/internal/boring/notboring.go b/src/crypto/internal/boring/notboring.go
+index bb88fb0004..53096a68d1 100644
+--- a/src/crypto/internal/boring/notboring.go
++++ b/src/crypto/internal/boring/notboring.go
+@@ -50,6 +50,7 @@ func SHA512([]byte) [64]byte { panic("boringcrypto: not available") }
+ func NewHMAC(h func() hash.Hash, key []byte) hash.Hash { panic("boringcrypto: not available") }
+ 
+ func NewAESCipher(key []byte) (cipher.Block, error) { panic("boringcrypto: not available") }
++func NewGCMTLS(cipher.Block) (cipher.AEAD, error)   { panic("boringcrypto: not available") }
+ 
+ type PublicKeyECDSA struct{ _ int }
+ type PrivateKeyECDSA struct{ _ int }
+diff --git a/src/crypto/rand/rand_unix.go b/src/crypto/rand/rand_unix.go
+index 830983c74a..746e90cc91 100644
+--- a/src/crypto/rand/rand_unix.go
++++ b/src/crypto/rand/rand_unix.go
+@@ -10,6 +10,7 @@
+ package rand
+ 
+ import (
++	"crypto/internal/boring"
+ 	"errors"
+ 	"io"
+ 	"os"
+@@ -19,8 +20,6 @@ import (
+ 	"time"
+ )
+ 
+-import "crypto/internal/boring"
+-
+ const urandomDevice = "/dev/urandom"
+ 
+ func init() {
+diff --git a/src/crypto/rsa/pkcs1v15.go b/src/crypto/rsa/pkcs1v15.go
+index 8cf3b6e255..ab19229a6c 100644
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@ -6,16 +6,14 @@ package rsa
+ 
+ import (
+ 	"crypto"
++	"crypto/internal/boring"
++	"crypto/internal/randutil"
+ 	"crypto/subtle"
+ 	"errors"
+ 	"io"
+ 	"math/big"
+-
+-	"crypto/internal/randutil"
+ )
+ 
+-import "crypto/internal/boring"
+-
+ // This file implements encryption and decryption using PKCS #1 v1.5 padding.
+ 
+ // PKCS1v15DecrypterOpts is for passing options to PKCS #1 v1.5 decryption using
+@@ -32,7 +30,7 @@ type PKCS1v15DecryptOptions struct {
+ // scheme from PKCS #1 v1.5.  The message must be no longer than the
+ // length of the public modulus minus 11 bytes.
+ //
+-// The rand parameter is used as a source of entropy to ensure that
++// The random parameter is used as a source of entropy to ensure that
+ // encrypting the same message twice doesn't result in the same
+ // ciphertext.
+ //
+@@ -84,14 +82,14 @@ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, erro
+ }
+ 
+ // DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS #1 v1.5.
+-// If rand != nil, it uses RSA blinding to avoid timing side-channel attacks.
++// If random != nil, it uses RSA blinding to avoid timing side-channel attacks.
+ //
+ // Note that whether this function returns an error or not discloses secret
+ // information. If an attacker can cause this function to run repeatedly and
+ // learn whether each instance returned an error then they can decrypt and
+ // forge signatures as if they had the private key. See
+ // DecryptPKCS1v15SessionKey for a way of solving this problem.
+-func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) ([]byte, error) {
++func DecryptPKCS1v15(random io.Reader, priv *PrivateKey, ciphertext []byte) ([]byte, error) {
+ 	if err := checkPub(&priv.PublicKey); err != nil {
+ 		return nil, err
+ 	}
+@@ -108,7 +106,7 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) ([]byt
+ 		return out, nil
+ 	}
+ 
+-	valid, out, index, err := decryptPKCS1v15(rand, priv, ciphertext)
++	valid, out, index, err := decryptPKCS1v15(random, priv, ciphertext)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -119,7 +117,7 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) ([]byt
+ }
+ 
+ // DecryptPKCS1v15SessionKey decrypts a session key using RSA and the padding scheme from PKCS #1 v1.5.
+-// If rand != nil, it uses RSA blinding to avoid timing side-channel attacks.
++// If random != nil, it uses RSA blinding to avoid timing side-channel attacks.
+ // It returns an error if the ciphertext is the wrong length or if the
+ // ciphertext is greater than the public modulus. Otherwise, no error is
+ // returned. If the padding is valid, the resulting plaintext message is copied
+@@ -137,7 +135,7 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) ([]byt
+ // a random value was used (because it'll be different for the same ciphertext)
+ // and thus whether the padding was correct. This defeats the point of this
+ // function. Using at least a 16-byte key will protect against this attack.
+-func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) error {
++func DecryptPKCS1v15SessionKey(random io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) error {
+ 	if err := checkPub(&priv.PublicKey); err != nil {
+ 		return err
+ 	}
+@@ -146,7 +144,7 @@ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []by
+ 		return ErrDecryption
+ 	}
+ 
+-	valid, em, index, err := decryptPKCS1v15(rand, priv, ciphertext)
++	valid, em, index, err := decryptPKCS1v15(random, priv, ciphertext)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -163,12 +161,12 @@ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []by
+ }
+ 
+ // decryptPKCS1v15 decrypts ciphertext using priv and blinds the operation if
+-// rand is not nil. It returns one or zero in valid that indicates whether the
++// random is not nil. It returns one or zero in valid that indicates whether the
+ // plaintext was correctly structured. In either case, the plaintext is
+ // returned in em so that it may be read independently of whether it was valid
+ // in order to maintain constant memory access patterns. If the plaintext was
+ // valid then index contains the index of the original message in em.
+-func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid int, em []byte, index int, err error) {
++func decryptPKCS1v15(random io.Reader, priv *PrivateKey, ciphertext []byte) (valid int, em []byte, index int, err error) {
+ 	k := priv.Size()
+ 	if k < 11 {
+ 		err = ErrDecryption
+@@ -188,7 +186,7 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
+ 	} else {
+ 		c := new(big.Int).SetBytes(ciphertext)
+ 		var m *big.Int
+-		m, err = decrypt(rand, priv, c)
++		m, err = decrypt(random, priv, c)
+ 		if err != nil {
+ 			return
+ 		}
+@@ -220,15 +218,15 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
+ }
+ 
+ // nonZeroRandomBytes fills the given slice with non-zero random octets.
+-func nonZeroRandomBytes(s []byte, rand io.Reader) (err error) {
+-	_, err = io.ReadFull(rand, s)
++func nonZeroRandomBytes(s []byte, random io.Reader) (err error) {
++	_, err = io.ReadFull(random, s)
+ 	if err != nil {
+ 		return
+ 	}
+ 
+ 	for i := 0; i < len(s); i++ {
+ 		for s[i] == 0 {
+-			_, err = io.ReadFull(rand, s[i:i+1])
++			_, err = io.ReadFull(random, s[i:i+1])
+ 			if err != nil {
+ 				return
+ 			}
+@@ -268,7 +266,7 @@ var hashPrefixes = map[crypto.Hash][]byte{
+ // function. If hash is zero, hashed is signed directly. This isn't
+ // advisable except for interoperability.
+ //
+-// If rand is not nil then RSA blinding will be used to avoid timing
++// If random is not nil then RSA blinding will be used to avoid timing
+ // side-channel attacks.
+ //
+ // This function is deterministic. Thus, if the set of possible
+diff --git a/src/crypto/rsa/pss.go b/src/crypto/rsa/pss.go
+index 16ebc0e6a7..29e79bd342 100644
+--- a/src/crypto/rsa/pss.go
++++ b/src/crypto/rsa/pss.go
+@@ -9,14 +9,13 @@ package rsa
+ import (
+ 	"bytes"
+ 	"crypto"
++	"crypto/internal/boring"
+ 	"errors"
+ 	"hash"
+ 	"io"
+ 	"math/big"
+ )
+ 
+-import "crypto/internal/boring"
+-
+ // Per RFC 8017, Section 9.1
+ //
+ //     EM = MGF1 xor DB || H( 8*0x00 || mHash || salt ) || 0xbc
+@@ -298,6 +297,7 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte,
+ 		}
+ 		return boring.SignRSAPSS(bkey, hash, digest, saltLength)
+ 	}
++	boring.UnreachableExceptTests()
+ 
+ 	salt := make([]byte, saltLength)
+ 	if _, err := io.ReadFull(rand, salt); err != nil {
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 3004b31698..9a1fa3104b 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -4,14 +4,13 @@
+ 
+ package tls
+ 
+-import "crypto/internal/boring"
+-
+ import (
+ 	"crypto"
+ 	"crypto/aes"
+ 	"crypto/cipher"
+ 	"crypto/des"
+ 	"crypto/hmac"
++	"crypto/internal/boring"
+ 	"crypto/rc4"
+ 	"crypto/sha1"
+ 	"crypto/sha256"
+@@ -517,12 +516,9 @@ func aeadAESGCM(key, noncePrefix []byte) aead {
+ 	if err != nil {
+ 		panic(err)
+ 	}
+-	type gcmtls interface {
+-		NewGCMTLS() (cipher.AEAD, error)
+-	}
+ 	var aead cipher.AEAD
+-	if aesTLS, ok := aes.(gcmtls); ok {
+-		aead, err = aesTLS.NewGCMTLS()
++	if boring.Enabled {
++		aead, err = boring.NewGCMTLS(aes)
+ 	} else {
+ 		boring.Unreachable()
+ 		aead, err = cipher.NewGCM(aes)
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 039b422dab..bfe3f444ca 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1883,11 +1883,13 @@ func (ctxt *Context) eval(x constraint.Expr, allTags map[string]bool) bool {
+ //	cgo (if cgo is enabled)
+ //	$GOOS
+ //	$GOARCH
+-//	boringcrypto
+ //	ctxt.Compiler
+ //	linux (if GOOS = android)
+ //	solaris (if GOOS = illumos)
+-//	tag (if tag is listed in ctxt.BuildTags or ctxt.ReleaseTags)
++//	darwin (if GOOS = ios)
++//	unix (if this is a Unix GOOS)
++//	boringcrypto (if GOEXPERIMENT=boringcrypto is enabled)
++//	tag (if tag is listed in ctxt.BuildTags, ctxt.ToolTags, or ctxt.ReleaseTags)
+ //
+ // It records all consulted tags in allTags.
+ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {

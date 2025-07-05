@@ -8,7 +8,27 @@ Date:   Thu Sep 3 13:56:06 2009 -0700
     DELTA=42  (21 added, 20 deleted, 1 changed)
     OCL=34328
     CL=34333
-
+---
  src/pkg/runtime/rune.c             | 3 ++-
  test/{bugs => fixedbugs}/bug204.go | 0
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/rune.c b/src/pkg/runtime/rune.c
+index 652ccdfa66..598edc6f36 100644
+--- a/src/pkg/runtime/rune.c
++++ b/src/pkg/runtime/rune.c
+@@ -161,8 +161,9 @@ bad:
+ 	*rune = Bad;
+ 	return 1;
+ badlen:
++	// was return 0, but return 1 is more convenient for the runtime.
+ 	*rune = Bad;
+-	return 0;
++	return 1;
+ 
+ }
+ 
+diff --git a/test/bugs/bug204.go b/test/fixedbugs/bug204.go
+similarity index 100%
+rename from test/bugs/bug204.go
+rename to test/fixedbugs/bug204.go

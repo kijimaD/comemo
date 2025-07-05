@@ -18,7 +18,7 @@ Date:   Fri Mar 17 13:35:31 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/amd64/galign.go  | 22 +++++++--------
  src/cmd/compile/internal/amd64/ssa.go     |  2 --
  src/cmd/compile/internal/arm/galign.go    | 20 ++++++-------
@@ -40,3 +40,666 @@ Date:   Fri Mar 17 13:35:31 2017 -0700
  src/cmd/compile/internal/x86/ssa.go       | 13 ---------
  src/cmd/compile/main.go                   | 37 ++++++++++++------------
  20 files changed, 129 insertions(+), 160 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 8ced62fe0f..68fd9ece82 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -12,20 +12,20 @@ import (
+ 
+ var leaptr = x86.ALEAQ
+ 
+-func Init() {
+-	gc.Thearch.LinkArch = &x86.Linkamd64
++func Init(arch *gc.Arch) {
++	arch.LinkArch = &x86.Linkamd64
+ 	if obj.GOARCH == "amd64p32" {
+-		gc.Thearch.LinkArch = &x86.Linkamd64p32
++		arch.LinkArch = &x86.Linkamd64p32
+ 		leaptr = x86.ALEAL
+ 	}
+-	gc.Thearch.REGSP = x86.REGSP
+-	gc.Thearch.MAXWIDTH = 1 << 50
++	arch.REGSP = x86.REGSP
++	arch.MAXWIDTH = 1 << 50
+ 
+-	gc.Thearch.Defframe = defframe
+-	gc.Thearch.Ginsnop = ginsnop
+-	gc.Thearch.Proginfo = proginfo
++	arch.Defframe = defframe
++	arch.Ginsnop = ginsnop
++	arch.Proginfo = proginfo
+ 
+-	gc.Thearch.SSAMarkMoves = ssaMarkMoves
+-	gc.Thearch.SSAGenValue = ssaGenValue
+-	gc.Thearch.SSAGenBlock = ssaGenBlock
++	arch.SSAMarkMoves = ssaMarkMoves
++	arch.SSAGenValue = ssaGenValue
++	arch.SSAGenBlock = ssaGenBlock
+ }
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 7e39d9784c..8333613e4a 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -910,8 +910,6 @@ var nefJumps = [2][2]gc.FloatingEQNEJump{
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetPos(b.Pos)
+-
+ 	switch b.Kind {
+ 	case ssa.BlockPlain:
+ 		if b.Succs[0].Block() != next {
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index 5d9555a246..26f384363c 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -10,16 +10,16 @@ import (
+ 	"cmd/internal/obj/arm"
+ )
+ 
+-func Init() {
+-	gc.Thearch.LinkArch = &arm.Linkarm
+-	gc.Thearch.REGSP = arm.REGSP
+-	gc.Thearch.MAXWIDTH = (1 << 32) - 1
++func Init(arch *gc.Arch) {
++	arch.LinkArch = &arm.Linkarm
++	arch.REGSP = arm.REGSP
++	arch.MAXWIDTH = (1 << 32) - 1
+ 
+-	gc.Thearch.Defframe = defframe
+-	gc.Thearch.Ginsnop = ginsnop
+-	gc.Thearch.Proginfo = proginfo
++	arch.Defframe = defframe
++	arch.Ginsnop = ginsnop
++	arch.Proginfo = proginfo
+ 
+-	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+-	gc.Thearch.SSAGenValue = ssaGenValue
+-	gc.Thearch.SSAGenBlock = ssaGenBlock
++	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
++	arch.SSAGenValue = ssaGenValue
++	arch.SSAGenBlock = ssaGenBlock
+ }
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 768918a6ca..278a6cd1aa 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -788,8 +788,6 @@ var blockJump = map[ssa.BlockKind]struct {
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetPos(b.Pos)
+-
+ 	switch b.Kind {
+ 	case ssa.BlockPlain:
+ 		if b.Succs[0].Block() != next {
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index 6a8953af36..6a93e1073e 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -10,16 +10,16 @@ import (
+ 	"cmd/internal/obj/arm64"
+ )
+ 
+-func Init() {
+-	gc.Thearch.LinkArch = &arm64.Linkarm64
+-	gc.Thearch.REGSP = arm64.REGSP
+-	gc.Thearch.MAXWIDTH = 1 << 50
++func Init(arch *gc.Arch) {
++	arch.LinkArch = &arm64.Linkarm64
++	arch.REGSP = arm64.REGSP
++	arch.MAXWIDTH = 1 << 50
+ 
+-	gc.Thearch.Defframe = defframe
+-	gc.Thearch.Ginsnop = ginsnop
+-	gc.Thearch.Proginfo = proginfo
++	arch.Defframe = defframe
++	arch.Ginsnop = ginsnop
++	arch.Proginfo = proginfo
+ 
+-	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+-	gc.Thearch.SSAGenValue = ssaGenValue
+-	gc.Thearch.SSAGenBlock = ssaGenBlock
++	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
++	arch.SSAGenValue = ssaGenValue
++	arch.SSAGenBlock = ssaGenBlock
+ }
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 1b5c913df1..3aae1d9e23 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -700,8 +700,6 @@ var blockJump = map[ssa.BlockKind]struct {
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetPos(b.Pos)
+-
+ 	switch b.Kind {
+ 	case ssa.BlockPlain:
+ 		if b.Succs[0].Block() != next {
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index addecbf168..bcb2ac3d0c 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -107,11 +107,13 @@ var benchfile string
+ // Main parses flags and Go source files specified in the command-line
+ // arguments, type-checks the parsed Go package, compiles functions to machine
+ // code, and finally writes the compiled package definition to disk.
+-func Main() {
++func Main(archInit func(*Arch)) {
+ 	timings.Start("fe", "init")
+ 
+ 	defer hidePanic()
+ 
++	archInit(&Thearch)
++
+ 	Ctxt = obj.Linknew(Thearch.LinkArch)
+ 	Ctxt.DebugInfo = debuginfo
+ 	Ctxt.DiagFunc = yyerror
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 773aecbddc..5e03e6a3a1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4286,6 +4286,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 			next = f.Blocks[i+1]
+ 		}
+ 		x := pc
++		s.SetPos(b.Pos)
+ 		Thearch.SSAGenBlock(&s, b, next)
+ 		if logProgs {
+ 			for ; x != pc; x = x.Link {
+diff --git a/src/cmd/compile/internal/mips/galign.go b/src/cmd/compile/internal/mips/galign.go
+index 9c7791740a..406ae99a2b 100644
+--- a/src/cmd/compile/internal/mips/galign.go
++++ b/src/cmd/compile/internal/mips/galign.go
+@@ -11,17 +11,17 @@ import (
+ 	"cmd/internal/obj/mips"
+ )
+ 
+-func Init() {
+-	gc.Thearch.LinkArch = &mips.Linkmips
++func Init(arch *gc.Arch) {
++	arch.LinkArch = &mips.Linkmips
+ 	if obj.GOARCH == "mipsle" {
+-		gc.Thearch.LinkArch = &mips.Linkmipsle
++		arch.LinkArch = &mips.Linkmipsle
+ 	}
+-	gc.Thearch.REGSP = mips.REGSP
+-	gc.Thearch.MAXWIDTH = (1 << 31) - 1
+-	gc.Thearch.Defframe = defframe
+-	gc.Thearch.Ginsnop = ginsnop
+-	gc.Thearch.Proginfo = proginfo
+-	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+-	gc.Thearch.SSAGenValue = ssaGenValue
+-	gc.Thearch.SSAGenBlock = ssaGenBlock
++	arch.REGSP = mips.REGSP
++	arch.MAXWIDTH = (1 << 31) - 1
++	arch.Defframe = defframe
++	arch.Ginsnop = ginsnop
++	arch.Proginfo = proginfo
++	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
++	arch.SSAGenValue = ssaGenValue
++	arch.SSAGenBlock = ssaGenBlock
+ }
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 8ef39b5f60..3753edcdac 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -773,8 +773,6 @@ var blockJump = map[ssa.BlockKind]struct {
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetPos(b.Pos)
+-
+ 	switch b.Kind {
+ 	case ssa.BlockPlain:
+ 		if b.Succs[0].Block() != next {
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index 6392a38793..657db028fd 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -11,19 +11,19 @@ import (
+ 	"cmd/internal/obj/mips"
+ )
+ 
+-func Init() {
+-	gc.Thearch.LinkArch = &mips.Linkmips64
++func Init(arch *gc.Arch) {
++	arch.LinkArch = &mips.Linkmips64
+ 	if obj.GOARCH == "mips64le" {
+-		gc.Thearch.LinkArch = &mips.Linkmips64le
++		arch.LinkArch = &mips.Linkmips64le
+ 	}
+-	gc.Thearch.REGSP = mips.REGSP
+-	gc.Thearch.MAXWIDTH = 1 << 50
++	arch.REGSP = mips.REGSP
++	arch.MAXWIDTH = 1 << 50
+ 
+-	gc.Thearch.Defframe = defframe
+-	gc.Thearch.Ginsnop = ginsnop
+-	gc.Thearch.Proginfo = proginfo
++	arch.Defframe = defframe
++	arch.Ginsnop = ginsnop
++	arch.Proginfo = proginfo
+ 
+-	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+-	gc.Thearch.SSAGenValue = ssaGenValue
+-	gc.Thearch.SSAGenBlock = ssaGenBlock
++	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
++	arch.SSAGenValue = ssaGenValue
++	arch.SSAGenBlock = ssaGenBlock
+ }
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 42f16be85c..0dd2c1e33b 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -538,8 +538,6 @@ var blockJump = map[ssa.BlockKind]struct {
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetPos(b.Pos)
+-
+ 	switch b.Kind {
+ 	case ssa.BlockPlain:
+ 		if b.Succs[0].Block() != next {
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 7586dd3d99..f31c993bb4 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -10,21 +10,21 @@ import (
+ 	"cmd/internal/obj/ppc64"
+ )
+ 
+-func Init() {
+-	gc.Thearch.LinkArch = &ppc64.Linkppc64
++func Init(arch *gc.Arch) {
++	arch.LinkArch = &ppc64.Linkppc64
+ 	if obj.GOARCH == "ppc64le" {
+-		gc.Thearch.LinkArch = &ppc64.Linkppc64le
++		arch.LinkArch = &ppc64.Linkppc64le
+ 	}
+-	gc.Thearch.REGSP = ppc64.REGSP
+-	gc.Thearch.MAXWIDTH = 1 << 50
++	arch.REGSP = ppc64.REGSP
++	arch.MAXWIDTH = 1 << 50
+ 
+-	gc.Thearch.Defframe = defframe
+-	gc.Thearch.Ginsnop = ginsnop2
+-	gc.Thearch.Proginfo = proginfo
++	arch.Defframe = defframe
++	arch.Ginsnop = ginsnop2
++	arch.Proginfo = proginfo
+ 
+-	gc.Thearch.SSAMarkMoves = ssaMarkMoves
+-	gc.Thearch.SSAGenValue = ssaGenValue
+-	gc.Thearch.SSAGenBlock = ssaGenBlock
++	arch.SSAMarkMoves = ssaMarkMoves
++	arch.SSAGenValue = ssaGenValue
++	arch.SSAGenBlock = ssaGenBlock
+ 
+ 	initvariants()
+ 	initproginfo()
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index dabf0c15e4..c6ca810b16 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -1021,10 +1021,7 @@ var blockJump = [...]struct {
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetPos(b.Pos)
+-
+ 	switch b.Kind {
+-
+ 	case ssa.BlockDefer:
+ 		// defer returns in R3:
+ 		// 0 if we should continue executing
+diff --git a/src/cmd/compile/internal/s390x/galign.go b/src/cmd/compile/internal/s390x/galign.go
+index ba653c8d21..225fb69d6b 100644
+--- a/src/cmd/compile/internal/s390x/galign.go
++++ b/src/cmd/compile/internal/s390x/galign.go
+@@ -9,16 +9,16 @@ import (
+ 	"cmd/internal/obj/s390x"
+ )
+ 
+-func Init() {
+-	gc.Thearch.LinkArch = &s390x.Links390x
+-	gc.Thearch.REGSP = s390x.REGSP
+-	gc.Thearch.MAXWIDTH = 1 << 50
++func Init(arch *gc.Arch) {
++	arch.LinkArch = &s390x.Links390x
++	arch.REGSP = s390x.REGSP
++	arch.MAXWIDTH = 1 << 50
+ 
+-	gc.Thearch.Defframe = defframe
+-	gc.Thearch.Ginsnop = ginsnop
+-	gc.Thearch.Proginfo = proginfo
++	arch.Defframe = defframe
++	arch.Ginsnop = ginsnop
++	arch.Proginfo = proginfo
+ 
+-	gc.Thearch.SSAMarkMoves = ssaMarkMoves
+-	gc.Thearch.SSAGenValue = ssaGenValue
+-	gc.Thearch.SSAGenBlock = ssaGenBlock
++	arch.SSAMarkMoves = ssaMarkMoves
++	arch.SSAGenValue = ssaGenValue
++	arch.SSAGenBlock = ssaGenBlock
+ }
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index c17106d709..e99bf67349 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -751,8 +751,6 @@ var blockJump = [...]struct {
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetPos(b.Pos)
+-
+ 	switch b.Kind {
+ 	case ssa.BlockPlain:
+ 		if b.Succs[0].Block() != next {
+diff --git a/src/cmd/compile/internal/x86/387.go b/src/cmd/compile/internal/x86/387.go
+index 952292b096..898a916f1a 100644
+--- a/src/cmd/compile/internal/x86/387.go
++++ b/src/cmd/compile/internal/x86/387.go
+@@ -12,9 +12,8 @@ import (
+ 	"math"
+ )
+ 
+-// Generates code for v using 387 instructions.  Reports whether
+-// the instruction was handled by this routine.
+-func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
++// Generates code for v using 387 instructions.
++func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) {
+ 	// The SSA compiler pretends that it has an SSE backend.
+ 	// If we don't have one of those, we need to translate
+ 	// all the SSE ops to equivalent 387 ops. That's what this
+@@ -28,7 +27,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x86.REG_F0
+ 		popAndSave(s, v)
+-		return true
++
+ 	case ssa.Op386MOVSSconst2, ssa.Op386MOVSDconst2:
+ 		p := gc.Prog(loadPush(v.Type))
+ 		p.From.Type = obj.TYPE_MEM
+@@ -36,7 +35,6 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x86.REG_F0
+ 		popAndSave(s, v)
+-		return true
+ 
+ 	case ssa.Op386MOVSSload, ssa.Op386MOVSDload, ssa.Op386MOVSSloadidx1, ssa.Op386MOVSDloadidx1, ssa.Op386MOVSSloadidx4, ssa.Op386MOVSDloadidx8:
+ 		p := gc.Prog(loadPush(v.Type))
+@@ -57,7 +55,6 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x86.REG_F0
+ 		popAndSave(s, v)
+-		return true
+ 
+ 	case ssa.Op386MOVSSstore, ssa.Op386MOVSDstore:
+ 		// Push to-be-stored value on top of stack.
+@@ -77,7 +74,6 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 		gc.AddAux(&p.To, v)
+-		return true
+ 
+ 	case ssa.Op386MOVSSstoreidx1, ssa.Op386MOVSDstoreidx1, ssa.Op386MOVSSstoreidx4, ssa.Op386MOVSDstoreidx8:
+ 		push(s, v.Args[2])
+@@ -105,7 +101,6 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 			p.To.Scale = 8
+ 			p.To.Index = v.Args[1].Reg()
+ 		}
+-		return true
+ 
+ 	case ssa.Op386ADDSS, ssa.Op386ADDSD, ssa.Op386SUBSS, ssa.Op386SUBSD,
+ 		ssa.Op386MULSS, ssa.Op386MULSD, ssa.Op386DIVSS, ssa.Op386DIVSD:
+@@ -151,8 +146,6 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 			s.AddrScratch(&p.From)
+ 		}
+ 
+-		return true
+-
+ 	case ssa.Op386UCOMISS, ssa.Op386UCOMISD:
+ 		push(s, v.Args[0])
+ 
+@@ -183,19 +176,15 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x86.REG_AX
+ 
+-		return true
+-
+ 	case ssa.Op386SQRTSD:
+ 		push(s, v.Args[0])
+ 		gc.Prog(x86.AFSQRT)
+ 		popAndSave(s, v)
+-		return true
+ 
+ 	case ssa.Op386FCHS:
+ 		push(s, v.Args[0])
+ 		gc.Prog(x86.AFCHS)
+ 		popAndSave(s, v)
+-		return true
+ 
+ 	case ssa.Op386CVTSL2SS, ssa.Op386CVTSL2SD:
+ 		p := gc.Prog(x86.AMOVL)
+@@ -207,7 +196,6 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x86.REG_F0
+ 		popAndSave(s, v)
+-		return true
+ 
+ 	case ssa.Op386CVTTSD2SL, ssa.Op386CVTTSS2SL:
+ 		push(s, v.Args[0])
+@@ -237,13 +225,11 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p = gc.Prog(x86.AFLDCW)
+ 		s.AddrScratch(&p.From)
+ 		p.From.Offset += 4
+-		return true
+ 
+ 	case ssa.Op386CVTSS2SD:
+ 		// float32 -> float64 is a nop
+ 		push(s, v.Args[0])
+ 		popAndSave(s, v)
+-		return true
+ 
+ 	case ssa.Op386CVTSD2SS:
+ 		// Round to nearest float32.
+@@ -257,11 +243,11 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x86.REG_F0
+ 		popAndSave(s, v)
+-		return true
+ 
+ 	case ssa.OpLoadReg:
+ 		if !v.Type.IsFloat() {
+-			return false
++			ssaGenValue(s, v)
++			return
+ 		}
+ 		// Load+push the value we need.
+ 		p := gc.Prog(loadPush(v.Type))
+@@ -270,11 +256,11 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p.To.Reg = x86.REG_F0
+ 		// Move the value to its assigned register.
+ 		popAndSave(s, v)
+-		return true
+ 
+ 	case ssa.OpStoreReg:
+ 		if !v.Type.IsFloat() {
+-			return false
++			ssaGenValue(s, v)
++			return
+ 		}
+ 		push(s, v.Args[0])
+ 		var op obj.As
+@@ -288,21 +274,21 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = x86.REG_F0
+ 		gc.AddrAuto(&p.To, v)
+-		return true
+ 
+ 	case ssa.OpCopy:
+ 		if !v.Type.IsFloat() {
+-			return false
++			ssaGenValue(s, v)
++			return
+ 		}
+ 		push(s, v.Args[0])
+ 		popAndSave(s, v)
+-		return true
+ 
+ 	case ssa.Op386CALLstatic, ssa.Op386CALLclosure, ssa.Op386CALLinter:
+-		flush387(s)  // Calls must empty the FP stack.
+-		return false // then issue the call as normal
++		flush387(s) // Calls must empty the FP stack.
++		fallthrough // then issue the call as normal
++	default:
++		ssaGenValue(s, v)
+ 	}
+-	return false
+ }
+ 
+ // push pushes v onto the floating-point stack.  v must be in a register.
+@@ -355,3 +341,10 @@ func flush387(s *gc.SSAGenState) {
+ 		delete(s.SSEto387, k)
+ 	}
+ }
++
++func ssaGenBlock387(s *gc.SSAGenState, b, next *ssa.Block) {
++	// Empty the 387's FP stack before the block ends.
++	flush387(s)
++
++	ssaGenBlock(s, b, next)
++}
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index ca28f1a6ab..d09d9a995c 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -12,24 +12,26 @@ import (
+ 	"os"
+ )
+ 
+-func Init() {
+-	gc.Thearch.LinkArch = &x86.Link386
+-	gc.Thearch.REGSP = x86.REGSP
++func Init(arch *gc.Arch) {
++	arch.LinkArch = &x86.Link386
++	arch.REGSP = x86.REGSP
+ 	switch v := obj.GO386; v {
+ 	case "387":
+-		gc.Thearch.Use387 = true
++		arch.Use387 = true
++		arch.SSAGenValue = ssaGenValue387
++		arch.SSAGenBlock = ssaGenBlock387
+ 	case "sse2":
++		arch.SSAGenValue = ssaGenValue
++		arch.SSAGenBlock = ssaGenBlock
+ 	default:
+ 		fmt.Fprintf(os.Stderr, "unsupported setting GO386=%s\n", v)
+ 		gc.Exit(1)
+ 	}
+-	gc.Thearch.MAXWIDTH = (1 << 32) - 1
++	arch.MAXWIDTH = (1 << 32) - 1
+ 
+-	gc.Thearch.Defframe = defframe
+-	gc.Thearch.Ginsnop = ginsnop
+-	gc.Thearch.Proginfo = proginfo
++	arch.Defframe = defframe
++	arch.Ginsnop = ginsnop
++	arch.Proginfo = proginfo
+ 
+-	gc.Thearch.SSAMarkMoves = ssaMarkMoves
+-	gc.Thearch.SSAGenValue = ssaGenValue
+-	gc.Thearch.SSAGenBlock = ssaGenBlock
++	arch.SSAMarkMoves = ssaMarkMoves
+ }
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 73c654cdd4..c6bf491298 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -114,12 +114,6 @@ func opregreg(op obj.As, dest, src int16) *obj.Prog {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	if gc.Thearch.Use387 {
+-		if ssaGenValue387(s, v) {
+-			return // v was handled by 387 generation.
+-		}
+-	}
+-
+ 	switch v.Op {
+ 	case ssa.Op386ADDL:
+ 		r := v.Reg()
+@@ -778,13 +772,6 @@ var nefJumps = [2][2]gc.FloatingEQNEJump{
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetPos(b.Pos)
+-
+-	if gc.Thearch.Use387 {
+-		// Empty the 387's FP stack before the block ends.
+-		flush387(s)
+-	}
+-
+ 	switch b.Kind {
+ 	case ssa.BlockPlain:
+ 		if b.Succs[0].Block() != next {
+diff --git a/src/cmd/compile/main.go b/src/cmd/compile/main.go
+index c3c0b6a068..e67e862dd5 100644
+--- a/src/cmd/compile/main.go
++++ b/src/cmd/compile/main.go
+@@ -20,33 +20,32 @@ import (
+ 	"os"
+ )
+ 
++var archInits = map[string]func(*gc.Arch){
++	"386":      x86.Init,
++	"amd64":    amd64.Init,
++	"amd64p32": amd64.Init,
++	"arm":      arm.Init,
++	"arm64":    arm64.Init,
++	"mips":     mips.Init,
++	"mipsle":   mips.Init,
++	"mips64":   mips64.Init,
++	"mips64le": mips64.Init,
++	"ppc64":    ppc64.Init,
++	"ppc64le":  ppc64.Init,
++	"s390x":    s390x.Init,
++}
++
+ func main() {
+ 	// disable timestamps for reproducible output
+ 	log.SetFlags(0)
+ 	log.SetPrefix("compile: ")
+ 
+-	switch obj.GOARCH {
+-	default:
++	archInit, ok := archInits[obj.GOARCH]
++	if !ok {
+ 		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", obj.GOARCH)
+ 		os.Exit(2)
+-	case "386":
+-		x86.Init()
+-	case "amd64", "amd64p32":
+-		amd64.Init()
+-	case "arm":
+-		arm.Init()
+-	case "arm64":
+-		arm64.Init()
+-	case "mips", "mipsle":
+-		mips.Init()
+-	case "mips64", "mips64le":
+-		mips64.Init()
+-	case "ppc64", "ppc64le":
+-		ppc64.Init()
+-	case "s390x":
+-		s390x.Init()
+ 	}
+ 
+-	gc.Main()
++	gc.Main(archInit)
+ 	gc.Exit(0)
+ }

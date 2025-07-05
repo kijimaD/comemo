@@ -14,9 +14,85 @@ Date:   Tue May 10 12:52:52 2022 -0400
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/crawler.go |  4 +++-
  test/fixedbugs/issue52279.dir/lib.go          | 23 +++++++++++++++++++++++
  test/fixedbugs/issue52279.dir/main.go         |  5 +++++
  test/fixedbugs/issue52279.go                  |  7 +++++++
  4 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/crawler.go b/src/cmd/compile/internal/typecheck/crawler.go
+index 40b518983a..f14d885564 100644
+--- a/src/cmd/compile/internal/typecheck/crawler.go
++++ b/src/cmd/compile/internal/typecheck/crawler.go
+@@ -234,7 +234,7 @@ func (p *crawler) checkForFullyInst(t *types.Type) {
+ 		for i, t1 := range t.RParams() {
+ 			shapes[i] = Shapify(t1, i, baseType.RParams()[i])
+ 		}
+-		for j := range t.Methods().Slice() {
++		for j, tmethod := range t.Methods().Slice() {
+ 			baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
+ 			dictsym := MakeDictSym(baseNname.Sym(), t.RParams(), true)
+ 			if dictsym.Def == nil {
+@@ -255,6 +255,8 @@ func (p *crawler) checkForFullyInst(t *types.Type) {
+ 				ImportedBody(methNode.Func)
+ 				methNode.Func.SetExportInline(true)
+ 			}
++			// Make sure that any associated types are also exported. (See #52279)
++			p.checkForFullyInst(tmethod.Type)
+ 		}
+ 	}
+ 
+diff --git a/test/fixedbugs/issue52279.dir/lib.go b/test/fixedbugs/issue52279.dir/lib.go
+new file mode 100644
+index 0000000000..e20de30bd5
+--- /dev/null
++++ b/test/fixedbugs/issue52279.dir/lib.go
+@@ -0,0 +1,23 @@
++package lib
++
++type FMap[K comparable, V comparable] map[K]V
++
++//go:noinline
++func (m FMap[K, V]) Flip() FMap[V, K] {
++	out := make(FMap[V, K])
++	return out
++}
++
++type MyType uint8
++
++const (
++	FIRST MyType = 0
++)
++
++var typeStrs = FMap[MyType, string]{
++	FIRST: "FIRST",
++}
++
++func (self MyType) String() string {
++	return typeStrs[self]
++}
+diff --git a/test/fixedbugs/issue52279.dir/main.go b/test/fixedbugs/issue52279.dir/main.go
+new file mode 100644
+index 0000000000..8c7e069c5b
+--- /dev/null
++++ b/test/fixedbugs/issue52279.dir/main.go
+@@ -0,0 +1,5 @@
++package main
++
++import "./lib"
++
++func main() { lib.FIRST.String() }
+diff --git a/test/fixedbugs/issue52279.go b/test/fixedbugs/issue52279.go
+new file mode 100644
+index 0000000000..aefbe67310
+--- /dev/null
++++ b/test/fixedbugs/issue52279.go
+@@ -0,0 +1,7 @@
++// rundir
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

@@ -21,7 +21,201 @@ Date:   Wed Apr 16 23:01:02 2014 -0700
     R=nigeltao
     CC=bradfitz, golang-codereviews
     https://golang.org/cl/86050045
-
+---
  src/pkg/net/http/cookie.go      | 56 ++++++++++-------------------
  src/pkg/net/http/cookie_test.go | 79 ++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 97 insertions(+), 38 deletions(-)
+
+diff --git a/src/pkg/net/http/cookie.go b/src/pkg/net/http/cookie.go
+index a1759214f3..dc60ba87f5 100644
+--- a/src/pkg/net/http/cookie.go
++++ b/src/pkg/net/http/cookie.go
+@@ -76,11 +76,7 @@ func readSetCookies(h Header) []*Cookie {
+ 				attr, val = attr[:j], attr[j+1:]
+ 			}
+ 			lowerAttr := strings.ToLower(attr)
+-			parseCookieValueFn := parseCookieValue
+-			if lowerAttr == "expires" {
+-				parseCookieValueFn = parseCookieExpiresValue
+-			}
+-			val, success = parseCookieValueFn(val)
++			val, success = parseCookieValue(val)
+ 			if !success {
+ 				c.Unparsed = append(c.Unparsed, parts[i])
+ 				continue
+@@ -298,12 +294,23 @@ func sanitizeCookieName(n string) string {
+ //           ; US-ASCII characters excluding CTLs,
+ //           ; whitespace DQUOTE, comma, semicolon,
+ //           ; and backslash
++// We loosen this as spaces and commas are common in cookie values
++// but we produce a quoted cookie-value in when value starts or ends
++// with a comma or space.
++// See http://golang.org/issue/7243 for the discussion.
+ func sanitizeCookieValue(v string) string {
+-	return sanitizeOrWarn("Cookie.Value", validCookieValueByte, v)
++	v = sanitizeOrWarn("Cookie.Value", validCookieValueByte, v)
++	if len(v) == 0 {
++		return v
++	}
++	if v[0] == ' ' || v[0] == ',' || v[len(v)-1] == ' ' || v[len(v)-1] == ',' {
++		return `"` + v + `"`
++	}
++	return v
+ }
+ 
+ func validCookieValueByte(b byte) bool {
+-	return 0x20 < b && b < 0x7f && b != '"' && b != ',' && b != ';' && b != '\\'
++	return 0x20 <= b && b < 0x7f && b != '"' && b != ';' && b != '\\'
+ }
+ 
+ // path-av           = "Path=" path-value
+@@ -338,38 +345,13 @@ func sanitizeOrWarn(fieldName string, valid func(byte) bool, v string) string {
+ 	return string(buf)
+ }
+ 
+-func unquoteCookieValue(v string) string {
+-	if len(v) > 1 && v[0] == '"' && v[len(v)-1] == '"' {
+-		return v[1 : len(v)-1]
+-	}
+-	return v
+-}
+-
+-func isCookieByte(c byte) bool {
+-	switch {
+-	case c == 0x21, 0x23 <= c && c <= 0x2b, 0x2d <= c && c <= 0x3a,
+-		0x3c <= c && c <= 0x5b, 0x5d <= c && c <= 0x7e:
+-		return true
+-	}
+-	return false
+-}
+-
+-func isCookieExpiresByte(c byte) (ok bool) {
+-	return isCookieByte(c) || c == ',' || c == ' '
+-}
+-
+ func parseCookieValue(raw string) (string, bool) {
+-	return parseCookieValueUsing(raw, isCookieByte)
+-}
+-
+-func parseCookieExpiresValue(raw string) (string, bool) {
+-	return parseCookieValueUsing(raw, isCookieExpiresByte)
+-}
+-
+-func parseCookieValueUsing(raw string, validByte func(byte) bool) (string, bool) {
+-	raw = unquoteCookieValue(raw)
++	// Strip the quotes, if present.
++	if len(raw) > 1 && raw[0] == '"' && raw[len(raw)-1] == '"' {
++		raw = raw[1 : len(raw)-1]
++	}
+ 	for i := 0; i < len(raw); i++ {
+-		if !validByte(raw[i]) {
++		if !validCookieValueByte(raw[i]) {
+ 			return "", false
+ 		}
+ 	}
+diff --git a/src/pkg/net/http/cookie_test.go b/src/pkg/net/http/cookie_test.go
+index 1aa9d49d96..f78f37299f 100644
+--- a/src/pkg/net/http/cookie_test.go
++++ b/src/pkg/net/http/cookie_test.go
+@@ -52,6 +52,44 @@ var writeSetCookiesTests = []struct {
+ 		&Cookie{Name: "cookie-8", Value: "eight", Domain: "::1"},
+ 		"cookie-8=eight",
+ 	},
++	// The "special" cookies have values containing commas or spaces which
++	// are disallowed by RFC 6265 but are common in the wild.
++	{
++		&Cookie{Name: "special-1", Value: "a z"},
++		`special-1=a z`,
++	},
++	{
++		&Cookie{Name: "special-2", Value: " z"},
++		`special-2=" z"`,
++	},
++	{
++		&Cookie{Name: "special-3", Value: "a "},
++		`special-3="a "`,
++	},
++	{
++		&Cookie{Name: "special-4", Value: " "},
++		`special-4=" "`,
++	},
++	{
++		&Cookie{Name: "special-5", Value: "a,z"},
++		`special-5=a,z`,
++	},
++	{
++		&Cookie{Name: "special-6", Value: ",z"},
++		`special-6=",z"`,
++	},
++	{
++		&Cookie{Name: "special-7", Value: "a,"},
++		`special-7="a,"`,
++	},
++	{
++		&Cookie{Name: "special-8", Value: ","},
++		`special-8=","`,
++	},
++	{
++		&Cookie{Name: "empty-value", Value: ""},
++		`empty-value=`,
++	},
+ }
+ 
+ func TestWriteSetCookies(t *testing.T) {
+@@ -178,6 +216,40 @@ var readSetCookiesTests = []struct {
+ 			Raw:      "ASP.NET_SessionId=foo; path=/; HttpOnly",
+ 		}},
+ 	},
++	// Make sure we can properly read back the Set-Cookie headers we create
++	// for values containing spaces or commas:
++	{
++		Header{"Set-Cookie": {`special-1=a z`}},
++		[]*Cookie{{Name: "special-1", Value: "a z", Raw: `special-1=a z`}},
++	},
++	{
++		Header{"Set-Cookie": {`special-2=" z"`}},
++		[]*Cookie{{Name: "special-2", Value: " z", Raw: `special-2=" z"`}},
++	},
++	{
++		Header{"Set-Cookie": {`special-3="a "`}},
++		[]*Cookie{{Name: "special-3", Value: "a ", Raw: `special-3="a "`}},
++	},
++	{
++		Header{"Set-Cookie": {`special-4=" "`}},
++		[]*Cookie{{Name: "special-4", Value: " ", Raw: `special-4=" "`}},
++	},
++	{
++		Header{"Set-Cookie": {`special-5=a,z`}},
++		[]*Cookie{{Name: "special-5", Value: "a,z", Raw: `special-5=a,z`}},
++	},
++	{
++		Header{"Set-Cookie": {`special-6=",z"`}},
++		[]*Cookie{{Name: "special-6", Value: ",z", Raw: `special-6=",z"`}},
++	},
++	{
++		Header{"Set-Cookie": {`special-7=a,`}},
++		[]*Cookie{{Name: "special-7", Value: "a,", Raw: `special-7=a,`}},
++	},
++	{
++		Header{"Set-Cookie": {`special-8=","`}},
++		[]*Cookie{{Name: "special-8", Value: ",", Raw: `special-8=","`}},
++	},
+ 
+ 	// TODO(bradfitz): users have reported seeing this in the
+ 	// wild, but do browsers handle it? RFC 6265 just says "don't
+@@ -264,9 +336,14 @@ func TestCookieSanitizeValue(t *testing.T) {
+ 		in, want string
+ 	}{
+ 		{"foo", "foo"},
+-		{"foo bar", "foobar"},
++		{"foo;bar", "foobar"},
++		{"foo\\bar", "foobar"},
++		{"foo\"bar", "foobar"},
+ 		{"\x00\x7e\x7f\x80", "\x7e"},
+ 		{`"withquotes"`, "withquotes"},
++		{"a z", "a z"},
++		{" z", `" z"`},
++		{"a ", `"a "`},
+ 	}
+ 	for _, tt := range tests {
+ 		if got := sanitizeCookieValue(tt.in); got != tt.want {

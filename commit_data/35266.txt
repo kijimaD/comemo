@@ -15,9 +15,119 @@ Date:   Thu Jan 25 10:50:02 2018 -0800
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.10.html                   |  7 +++++++
  src/database/sql/driver/driver.go |  4 ++++
  src/database/sql/fakedb_test.go   |  5 -----
  src/database/sql/sql_test.go      | 40 +++------------------------------------
  4 files changed, 14 insertions(+), 42 deletions(-)
+
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index fba4dcf190..9ea7325891 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -814,6 +814,13 @@ formats the X.509 distinguished name in the standard RFC 2253 format.
+ <dl id="database/sql/driver"><dt><a href="/pkg/database/sql/driver/">database/sql/driver</a></dt>
+ <dd>
+ <p>
++Drivers that currently hold on to the destination buffer provdied by
++<a href="/pkg/database/sql/driver/#Rows.Next"><code>driver.Rows.Next</code></a> should ensure they no longer
++write to a buffer assignedd to the destination array outside of that call.
++Drivers must be careful that underlying buffers are not modified when closing
++<a href="/pkg/database/sql/driver/#Rows"><code>driver.Rows</code></a>.
++</p>
++<p>
+ Drivers that want to construct a <a href="/pkg/database/sql/#DB"><code>sql.DB</code></a> for
+ their clients can now implement the <a href="/pkg/database/sql/driver/#Connector"><code>Connector</code></a> interface
+ and call the new <a href="/pkg/database/sql/#OpenDB"><code>sql.OpenDB</code></a> function,
+diff --git a/src/database/sql/driver/driver.go b/src/database/sql/driver/driver.go
+index 19a3a4f7c9..1e54b4cf2c 100644
+--- a/src/database/sql/driver/driver.go
++++ b/src/database/sql/driver/driver.go
+@@ -379,6 +379,10 @@ type Rows interface {
+ 	// size as the Columns() are wide.
+ 	//
+ 	// Next should return io.EOF when there are no more rows.
++	//
++	// The dest should not be written to outside of Next. Care
++	// should be taken when closing Rows not to modify
++	// a buffer held in dest.
+ 	Next(dest []Value) error
+ }
+ 
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index e795412de0..abb8d40fc0 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -1020,11 +1020,6 @@ func (rc *rowsCursor) touchMem() {
+ }
+ 
+ func (rc *rowsCursor) Close() error {
+-	if !rc.closed {
+-		for _, bs := range rc.bytesClone {
+-			bs[0] = 255 // first byte corrupted
+-		}
+-	}
+ 	rc.touchMem()
+ 	rc.parentMem.touchMem()
+ 	rc.closed = true
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 8137eff82b..ae6bf7102e 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -663,43 +663,6 @@ func TestPoolExhaustOnCancel(t *testing.T) {
+ 	}
+ }
+ 
+-func TestByteOwnership(t *testing.T) {
+-	db := newTestDB(t, "people")
+-	defer closeDB(t, db)
+-	rows, err := db.Query("SELECT|people|name,photo|")
+-	if err != nil {
+-		t.Fatalf("Query: %v", err)
+-	}
+-	type row struct {
+-		name  []byte
+-		photo RawBytes
+-	}
+-	got := []row{}
+-	for rows.Next() {
+-		var r row
+-		err = rows.Scan(&r.name, &r.photo)
+-		if err != nil {
+-			t.Fatalf("Scan: %v", err)
+-		}
+-		got = append(got, r)
+-	}
+-	corruptMemory := []byte("\xffPHOTO")
+-	want := []row{
+-		{name: []byte("Alice"), photo: corruptMemory},
+-		{name: []byte("Bob"), photo: corruptMemory},
+-		{name: []byte("Chris"), photo: corruptMemory},
+-	}
+-	if !reflect.DeepEqual(got, want) {
+-		t.Errorf("mismatch.\n got: %#v\nwant: %#v", got, want)
+-	}
+-
+-	var photo RawBytes
+-	err = db.QueryRow("SELECT|people|photo|name=?", "Alice").Scan(&photo)
+-	if err == nil {
+-		t.Error("want error scanning into RawBytes from QueryRow")
+-	}
+-}
+-
+ func TestRowsColumns(t *testing.T) {
+ 	db := newTestDB(t, "people")
+ 	defer closeDB(t, db)
+@@ -3192,8 +3155,11 @@ func TestIssue18429(t *testing.T) {
+ 			// reported.
+ 			rows, _ := tx.QueryContext(ctx, "WAIT|"+qwait+"|SELECT|people|name|")
+ 			if rows != nil {
++				var name string
+ 				// Call Next to test Issue 21117 and check for races.
+ 				for rows.Next() {
++					// Scan the buffer so it is read and checked for races.
++					rows.Scan(&name)
+ 				}
+ 				rows.Close()
+ 			}

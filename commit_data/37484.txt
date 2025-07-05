@@ -24,6 +24,25 @@ Date:   Fri Aug 3 11:34:11 2018 -0400
     Change-Id: Ib2cf29c0d90956ca02b997ef6e7fa56fc8044efe
     Reviewed-on: https://go-review.googlesource.com/127815
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/mwbbuf.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index c02ccd8ab7..4df16d55b8 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -163,6 +163,13 @@ func wbBufFlush(dst *uintptr, src uintptr) {
+ 	// Note: Every possible return from this function must reset
+ 	// the buffer's next pointer to prevent buffer overflow.
+ 
++	// This *must not* modify its arguments because this
++	// function's argument slots do double duty in gcWriteBarrier
++	// as register spill slots. Currently, not modifying the
++	// arguments is sufficient to keep the spill slots unmodified
++	// (which seems unlikely to change since it costs little and
++	// helps with debugging).
++
+ 	if getg().m.dying > 0 {
+ 		// We're going down. Not much point in write barriers
+ 		// and this way we can allow write barriers in the

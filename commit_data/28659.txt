@@ -14,6 +14,22 @@ Date:   Wed Jun 22 06:27:31 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/yacc/yacc.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/yacc/yacc.go b/src/cmd/yacc/yacc.go
+index 6f67ab6566..8a5df052ec 100644
+--- a/src/cmd/yacc/yacc.go
++++ b/src/cmd/yacc/yacc.go
+@@ -683,6 +683,10 @@ outer:
+ 		levprd[nprod] = 0
+ 	}
+ 
++	if TEMPSIZE < ntokens+nnonter+1 {
++		errorf("too many tokens (%d) or non-terminals (%d)", ntokens, nnonter)
++	}
++
+ 	//
+ 	// end of all rules
+ 	// dump out the prefix code

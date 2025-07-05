@@ -14,7 +14,86 @@ Date:   Fri Apr 26 15:39:14 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  .../cgo/internal/testsanitizers/testdata/tsan15.go | 60 ++++++++++++++++++++++
  src/cmd/cgo/internal/testsanitizers/tsan_test.go   |  1 +
  2 files changed, 61 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/testdata/tsan15.go b/src/cmd/cgo/internal/testsanitizers/testdata/tsan15.go
+new file mode 100644
+index 0000000000..994db52afd
+--- /dev/null
++++ b/src/cmd/cgo/internal/testsanitizers/testdata/tsan15.go
+@@ -0,0 +1,60 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Test case for issue 66427.
++// Running under TSAN, this fails with "signal handler
++// spoils errno".
++
++/*
++#include <pthread.h>
++#include <signal.h>
++#include <stdlib.h>
++
++void go_callback();
++
++static void *thr(void *arg) {
++	int i;
++	for (i = 0; i < 10; i++)
++		go_callback();
++	return 0;
++}
++
++static void *sendthr(void *arg) {
++	pthread_t th = *(pthread_t*)arg;
++	while (1) {
++		int r = pthread_kill(th, SIGWINCH);
++		if (r < 0)
++			break;
++	}
++	return 0;
++}
++
++static void foo() {
++	pthread_t *th = malloc(sizeof(pthread_t));
++	pthread_t th2;
++	pthread_create(th, 0, thr, 0);
++	pthread_create(&th2, 0, sendthr, th);
++	pthread_join(*th, 0);
++}
++*/
++import "C"
++
++import (
++	"time"
++)
++
++//export go_callback
++func go_callback() {}
++
++func main() {
++	go func() {
++		for {
++			C.foo()
++		}
++	}()
++
++	time.Sleep(1000 * time.Millisecond)
++}
+diff --git a/src/cmd/cgo/internal/testsanitizers/tsan_test.go b/src/cmd/cgo/internal/testsanitizers/tsan_test.go
+index 8e758e6ea7..94c00ef7f4 100644
+--- a/src/cmd/cgo/internal/testsanitizers/tsan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/tsan_test.go
+@@ -54,6 +54,7 @@ func TestTSAN(t *testing.T) {
+ 		{src: "tsan12.go", needsRuntime: true},
+ 		{src: "tsan13.go", needsRuntime: true},
+ 		{src: "tsan14.go", needsRuntime: true},
++		{src: "tsan15.go", needsRuntime: true},
+ 	}
+ 	for _, tc := range cases {
+ 		tc := tc

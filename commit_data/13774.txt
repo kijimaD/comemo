@@ -7,7 +7,71 @@ Date:   Fri Sep 7 17:15:42 2012 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/6493097
-
+---
  src/pkg/text/scanner/scanner.go      | 12 ++++++------
  src/pkg/text/scanner/scanner_test.go |  7 +++++--
  2 files changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/text/scanner/scanner.go b/src/pkg/text/scanner/scanner.go
+index 6492d322f8..e0d86e343d 100644
+--- a/src/pkg/text/scanner/scanner.go
++++ b/src/pkg/text/scanner/scanner.go
+@@ -5,7 +5,8 @@
+ // Package scanner provides a scanner and tokenizer for UTF-8-encoded text.
+ // It takes an io.Reader providing the source, which then can be tokenized
+ // through repeated calls to the Scan function.  For compatibility with
+-// existing tools, the NUL character is not allowed.
++// existing tools, the NUL character is not allowed. If the first character
++// in the source is a UTF-8 encoded byte order mark (BOM), it is discarded.
+ //
+ // By default, a Scanner skips white space and Go comments and recognizes all
+ // literals as defined by the Go language specification.  It may be
+@@ -208,11 +209,6 @@ func (s *Scanner) Init(src io.Reader) *Scanner {
+ 	return s
+ }
+ 
+-// TODO(gri): The code for next() and the internal scanner state could benefit
+-//            from a rethink. While next() is optimized for the common ASCII
+-//            case, the "corrections" needed for proper position tracking undo
+-//            some of the attempts for fast-path optimization.
+-
+ // next reads and returns the next Unicode character. It is designed such
+ // that only a minimal amount of work needs to be done in the common ASCII
+ // case (one test to check for both ASCII and end-of-buffer, and one test
+@@ -316,7 +312,11 @@ func (s *Scanner) Next() rune {
+ // character of the source.
+ func (s *Scanner) Peek() rune {
+ 	if s.ch < 0 {
++		// this code is only run for the very first character
+ 		s.ch = s.next()
++		if s.ch == '\uFEFF' {
++			s.ch = s.next() // ignore BOM
++		}
+ 	}
+ 	return s.ch
+ }
+diff --git a/src/pkg/text/scanner/scanner_test.go b/src/pkg/text/scanner/scanner_test.go
+index be3998a35a..496eed4a31 100644
+--- a/src/pkg/text/scanner/scanner_test.go
++++ b/src/pkg/text/scanner/scanner_test.go
+@@ -358,8 +358,10 @@ func TestScanSelectedMask(t *testing.T) {
+ }
+ 
+ func TestScanNext(t *testing.T) {
+-	s := new(Scanner).Init(bytes.NewBufferString("if a == bcd /* comment */ {\n\ta += c\n} // line comment ending in eof"))
+-	checkTok(t, s, 1, s.Scan(), Ident, "if")
++	const BOM = '\uFEFF'
++	BOMs := string(BOM)
++	s := new(Scanner).Init(bytes.NewBufferString(BOMs + "if a == bcd /* com" + BOMs + "ment */ {\n\ta += c\n}" + BOMs + "// line comment ending in eof"))
++	checkTok(t, s, 1, s.Scan(), Ident, "if") // the first BOM is ignored
+ 	checkTok(t, s, 1, s.Scan(), Ident, "a")
+ 	checkTok(t, s, 1, s.Scan(), '=', "=")
+ 	checkTok(t, s, 0, s.Next(), '=', "")
+@@ -372,6 +374,7 @@ func TestScanNext(t *testing.T) {
+ 	checkTok(t, s, 0, s.Next(), '=', "")
+ 	checkTok(t, s, 2, s.Scan(), Ident, "c")
+ 	checkTok(t, s, 3, s.Scan(), '}', "}")
++	checkTok(t, s, 3, s.Scan(), BOM, BOMs)
+ 	checkTok(t, s, 3, s.Scan(), -1, "")
+ 	if s.ErrorCount != 0 {
+ 		t.Errorf("%d errors", s.ErrorCount)

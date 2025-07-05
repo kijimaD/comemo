@@ -15,6 +15,27 @@ Date:   Sat Jan 30 22:01:00 2016 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/regexp/backtrack.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/regexp/backtrack.go b/src/regexp/backtrack.go
+index fd95604fe4..3a1100dde8 100644
+--- a/src/regexp/backtrack.go
++++ b/src/regexp/backtrack.go
+@@ -254,7 +254,6 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
+ 
+ 			}
+ 			panic("bad arg in InstCapture")
+-			continue
+ 
+ 		case syntax.InstEmptyWidth:
+ 			if syntax.EmptyOp(inst.Arg)&^i.context(pos) != 0 {
+@@ -299,7 +298,6 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
+ 			// Otherwise, continue on in hope of a longer match.
+ 			continue
+ 		}
+-		panic("unreachable")
+ 	}
+ 
+ 	return m.matched

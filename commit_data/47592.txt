@@ -23,9 +23,308 @@ Date:   Mon Mar 22 22:10:13 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/parser/resolver_test.go                   | 170 +++++++++++++++++++++++
  src/go/parser/testdata/resolution/issue45136.src |  29 ++++
  src/go/parser/testdata/resolution/issue45160.src |  25 ++++
  src/go/parser/testdata/resolution/resolution.src |  50 +++++++
  4 files changed, 274 insertions(+)
+
+diff --git a/src/go/parser/resolver_test.go b/src/go/parser/resolver_test.go
+new file mode 100644
+index 0000000000..018214e437
+--- /dev/null
++++ b/src/go/parser/resolver_test.go
+@@ -0,0 +1,170 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package parser
++
++import (
++	"fmt"
++	"go/ast"
++	"go/scanner"
++	"go/token"
++	"os"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++// TestResolution checks that identifiers are resolved to the declarations
++// annotated in the source, by comparing the positions of the resulting
++// Ident.Obj.Decl to positions marked in the source via special comments.
++//
++// In the test source, any comment prefixed with '=' or '@' (or both) marks the
++// previous token position as the declaration ('=') or a use ('@') of an
++// identifier. The text following '=' and '@' in the comment string is the
++// label to use for the location.  Declaration labels must be unique within the
++// file, and use labels must refer to an existing declaration label. It's OK
++// for a comment to denote both the declaration and use of a label (e.g.
++// '=@foo'). Leading and trailing whitespace is ignored. Any comment not
++// beginning with '=' or '@' is ignored.
++func TestResolution(t *testing.T) {
++	dir := filepath.Join("testdata", "resolution")
++	fis, err := os.ReadDir(dir)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	for _, fi := range fis {
++		t.Run(fi.Name(), func(t *testing.T) {
++			fset := token.NewFileSet()
++			path := filepath.Join(dir, fi.Name())
++			src := readFile(path) // panics on failure
++			file, err := ParseFile(fset, path, src, 0)
++			if err != nil {
++				t.Fatal(err)
++			}
++
++			// Compare the positions of objects resolved during parsing (fromParser)
++			// to those annotated in source comments (fromComments).
++
++			handle := fset.File(file.Package)
++			fromParser := declsFromParser(file)
++			fromComments := declsFromComments(handle, src)
++
++			pos := func(pos token.Pos) token.Position {
++				p := handle.Position(pos)
++				// The file name is implied by the subtest, so remove it to avoid
++				// clutter in error messages.
++				p.Filename = ""
++				return p
++			}
++			for k, want := range fromComments {
++				if got := fromParser[k]; got != want {
++					t.Errorf("%s resolved to %s, want %s", pos(k), pos(got), pos(want))
++				}
++				delete(fromParser, k)
++			}
++			// What remains in fromParser are unexpected resolutions.
++			for k, got := range fromParser {
++				t.Errorf("%s resolved to %s, want no object", pos(k), pos(got))
++			}
++		})
++	}
++}
++
++// declsFromParser walks the file and collects the map associating an
++// identifier position with its declaration position.
++func declsFromParser(file *ast.File) map[token.Pos]token.Pos {
++	objmap := map[token.Pos]token.Pos{}
++	ast.Inspect(file, func(node ast.Node) bool {
++		if ident, _ := node.(*ast.Ident); ident != nil && ident.Obj != nil {
++			objmap[ident.Pos()] = ident.Obj.Pos()
++		}
++		return true
++	})
++	return objmap
++}
++
++// declsFromComments looks at comments annotating uses and declarations, and
++// maps each identifier use to its corresponding declaration. See the
++// description of these annotations in the documentation for TestResolution.
++func declsFromComments(handle *token.File, src []byte) map[token.Pos]token.Pos {
++	decls, uses := positionMarkers(handle, src)
++
++	objmap := make(map[token.Pos]token.Pos)
++	// Join decls and uses on name, to build the map of use->decl.
++	for name, posns := range uses {
++		declpos, ok := decls[name]
++		if !ok {
++			panic(fmt.Sprintf("missing declaration for %s", name))
++		}
++		for _, pos := range posns {
++			objmap[pos] = declpos
++		}
++	}
++	return objmap
++}
++
++// positionMarkers extracts named positions from the source denoted by comments
++// prefixed with '=' (declarations) and '@' (uses): for example '@foo' or
++// '=@bar'. It returns a map of name->position for declarations, and
++// name->position(s) for uses.
++func positionMarkers(handle *token.File, src []byte) (decls map[string]token.Pos, uses map[string][]token.Pos) {
++	var s scanner.Scanner
++	s.Init(handle, src, nil, scanner.ScanComments)
++	decls = make(map[string]token.Pos)
++	uses = make(map[string][]token.Pos)
++	var prev token.Pos // position of last non-comment, non-semicolon token
++
++scanFile:
++	for {
++		pos, tok, lit := s.Scan()
++		switch tok {
++		case token.EOF:
++			break scanFile
++		case token.COMMENT:
++			name, decl, use := annotatedObj(lit)
++			if len(name) > 0 {
++				if decl {
++					if _, ok := decls[name]; ok {
++						panic(fmt.Sprintf("duplicate declaration markers for %s", name))
++					}
++					decls[name] = prev
++				}
++				if use {
++					uses[name] = append(uses[name], prev)
++				}
++			}
++		case token.SEMICOLON:
++			// ignore automatically inserted semicolon
++			if lit == "\n" {
++				continue scanFile
++			}
++			fallthrough
++		default:
++			prev = pos
++		}
++	}
++	return decls, uses
++}
++
++func annotatedObj(lit string) (name string, decl, use bool) {
++	if lit[1] == '*' {
++		lit = lit[:len(lit)-2] // strip trailing */
++	}
++	lit = strings.TrimSpace(lit[2:])
++
++scanLit:
++	for idx, r := range lit {
++		switch r {
++		case '=':
++			decl = true
++		case '@':
++			use = true
++		default:
++			name = lit[idx:]
++			break scanLit
++		}
++	}
++	return
++}
+diff --git a/src/go/parser/testdata/resolution/issue45136.src b/src/go/parser/testdata/resolution/issue45136.src
+new file mode 100644
+index 0000000000..5e507fabe5
+--- /dev/null
++++ b/src/go/parser/testdata/resolution/issue45136.src
+@@ -0,0 +1,29 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue45136
++
++type obj /* =@obj */ struct {
++	name /*=@name */ string
++}
++
++func _ /* =@blank */ () {
++	var foo /* =@foo */ = "foo"
++	obj /* @obj */ ["foo"]
++	obj /* @obj */ .run()
++
++	// TODO(#45136): the next two statements are missing objects.
++	obj{
++		name: foo /* @foo */,
++	}
++	obj{
++		name: "bar",
++	}.run()
++
++	var _ /* @=blank4 */ = File{key: obj /* @obj */{}}
++	var _ /* @=blank3 */ = File{obj{}}
++
++	[]obj /* @obj */ {foo /* @foo */}
++	x /* =@x1 */ := obj /* @obj */{}
++}
+diff --git a/src/go/parser/testdata/resolution/issue45160.src b/src/go/parser/testdata/resolution/issue45160.src
+new file mode 100644
+index 0000000000..77cf0fa9c0
+--- /dev/null
++++ b/src/go/parser/testdata/resolution/issue45160.src
+@@ -0,0 +1,25 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue45160
++
++func mklink1 /* =@mklink1func */() {}
++
++func _ /* =@blank */ () {
++	var tests /* =@tests */ = []dirLinkTest /* @dirLinkTest */ {
++		{
++			mklink1 /* @mklink1func */: func() {},
++			mklink2: func(link /* =@link */, target /* =@target */ string) error {
++				return nil
++			},
++		},
++	}
++}
++
++type dirLinkTest /* =@dirLinkTest */ struct {
++	mklink1 /* =@mklink1field */ func(string, string) error
++	mklink2 /* =@mklink2field */ func(string, string) error
++}
++
++func mklink2 /* =@mklink2func */() {}
+diff --git a/src/go/parser/testdata/resolution/resolution.src b/src/go/parser/testdata/resolution/resolution.src
+new file mode 100644
+index 0000000000..e1ecdb5393
+--- /dev/null
++++ b/src/go/parser/testdata/resolution/resolution.src
+@@ -0,0 +1,50 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package resolution
++
++func f /* =@fdecl */(n /* =@narg */ ast.Node) bool {
++		if n /* =@ninit */, ok /* =@ok */ := n /* @narg */ .(*ast.SelectorExpr); ok /* @ok */ {
++			sel = n /* @ninit */
++	}
++}
++
++type c /* =@cdecl */ map[token.Pos]resolvedObj
++
++func (v /* =@vdecl */ c /* @cdecl */) Visit(node /* =@nodearg */ ast.Node) (w /* =@w */ ast.Visitor) {}
++
++const (
++	basic /* =@basic */ = iota
++	labelOk // =@labelOk
++)
++
++func _ /* =@blankFunc */ () {
++	x /* =@x1 */ := c /* @cdecl */{}
++	switch x /* =@x2 */ := x /* @x1 */; x /* =@x3 */ := x /* @x2 */.(type) {
++	case c /* @cdecl */:
++	default:
++	}
++loop /* =@loop */:
++	for {
++		if true {
++			break loop /* @loop */
++		}
++	}
++	select {
++	case err /* =@err1 */ := <-_:
++		return err /* @err1 */
++	case err /* =@err2 */ := <-_:
++		return err /* @err2 */
++	}
++}
++
++var cycle /* =@cycle */ = cycle /* @cycle */ + 1
++
++type chain /* =@chain */ struct {
++	next /* =@next */ *chain /* @chain */
++}
++
++func recursive /* =@recursive */() {
++	recursive /* @recursive */ ()
++}

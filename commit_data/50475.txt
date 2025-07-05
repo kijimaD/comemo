@@ -15,6 +15,20 @@ Date:   Wed Oct 27 20:21:07 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/go/build/deps_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 64f084152a..ab85c99602 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -621,7 +621,7 @@ func TestDependencies(t *testing.T) {
+ 	}
+ }
+ 
+-var buildIgnore = []byte("\n// +build ignore")
++var buildIgnore = []byte("\n//go:build ignore")
+ 
+ func findImports(pkg string) ([]string, error) {
+ 	vpkg := pkg

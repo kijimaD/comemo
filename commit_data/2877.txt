@@ -9,7 +9,43 @@ Date:   Tue Aug 4 17:31:19 2009 -0700
     DELTA=10  (5 added, 0 deleted, 5 changed)
     OCL=32742
     CL=32756
-
+---
  test/bench/timing.log |  4 ++++
  test/bench/timing.sh  | 11 ++++++-----
  2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/test/bench/timing.log b/test/bench/timing.log
+index 8060d8e9f8..d7d921ea05 100644
+--- a/test/bench/timing.log
++++ b/test/bench/timing.log
+@@ -34,3 +34,7 @@ nbody 50000000
+ 	gccgo -O2 nbody.go	118.55u 0.02s 120.32r
+ 	gc nbody	100.84u 0.00s 100.85r
+ 	gc_B nbody	103.33u 0.00s 103.39r
++[
++hacked Sqrt in assembler
++	gc nbody	31.97u 0.00s 32.01r
++]
+diff --git a/test/bench/timing.sh b/test/bench/timing.sh
+index 2cd5d8d785..0c1127c95d 100755
+--- a/test/bench/timing.sh
++++ b/test/bench/timing.sh
+@@ -30,12 +30,13 @@ fasta() {
+ }
+ 
+ revcomp() {
+-	6.out -n 25000000 > x
++	gcc -O2 fasta.c
++	a.out 25000000 > x
+ 	echo 'reverse-complement < output-of-fasta-25000000'
+-	run 'gcc -O2 reverse-complement.c' a.out 25000000 < x
+-	run 'gccgo -O2 reverse-complement.go' a.out -n 25000000 < x
+-	run 'gc reverse-complement' $O.out -n 25000000 < x
+-	run 'gc_B reverse-complement' $O.out -n 25000000 < x
++	run 'gcc -O2 reverse-complement.c' a.out < x
++	run 'gccgo -O2 reverse-complement.go' a.out < x
++	run 'gc reverse-complement' $O.out < x
++	run 'gc_B reverse-complement' $O.out < x
+ 	rm x
+ }
+ 

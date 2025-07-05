@@ -8,6 +8,20 @@ Date:   Sat Jun 28 10:11:26 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/101510047
-
+---
  src/pkg/crypto/cipher/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/cipher/example_test.go b/src/pkg/crypto/cipher/example_test.go
+index 373f6791be..5677f6f2fe 100644
+--- a/src/pkg/crypto/cipher/example_test.go
++++ b/src/pkg/crypto/cipher/example_test.go
+@@ -240,7 +240,7 @@ func ExampleStreamReader() {
+ 	}
+ 
+ 	// Note that this example is simplistic in that it omits any
+-	// authentication of the encrypted data. It you were actually to use
++	// authentication of the encrypted data. If you were actually to use
+ 	// StreamReader in this manner, an attacker could flip arbitrary bits in
+ 	// the output.
+ }

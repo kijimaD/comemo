@@ -20,7 +20,7 @@ Date:   Wed Dec 7 16:57:27 2022 -0800
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/syntax/testing.go         | 41 ++++++++++------------
  src/cmd/compile/internal/syntax/testing_test.go    | 37 ++++++++++---------
  src/cmd/compile/internal/types2/check_test.go      |  8 +++--
@@ -29,3 +29,231 @@ Date:   Wed Dec 7 16:57:27 2022 -0800
  src/internal/types/testdata/check/stmt0.go         |  2 +-
  .../types/testdata/fixedbugs/issue43190.go         |  2 +-
  7 files changed, 52 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/testing.go b/src/cmd/compile/internal/syntax/testing.go
+index 6a97dc0c2a..202b2efc3e 100644
+--- a/src/cmd/compile/internal/syntax/testing.go
++++ b/src/cmd/compile/internal/syntax/testing.go
+@@ -9,7 +9,6 @@ package syntax
+ import (
+ 	"io"
+ 	"regexp"
+-	"strings"
+ )
+ 
+ // CommentsDo parses the given source and calls the provided handler for each
+@@ -23,21 +22,18 @@ func CommentsDo(src io.Reader, handler func(line, col uint, text string)) {
+ 	}
+ }
+ 
+-// ERROR comments must start with text `ERROR "msg"` or `ERROR msg`.
+-// Space around "msg" or msg is ignored.
+-var errRx = regexp.MustCompile(`^ *ERROR *"?([^"]*)"?`)
+-
+-// ErrorMap collects all comments with comment text of the form
+-// `ERROR "msg"` or `ERROR msg` from the given src and returns them
+-// as []Error lists in a map indexed by line number. The position
+-// for each Error is the position of the token immediately preceding
+-// the comment, the Error message is the message msg extracted from
+-// the comment, with all errors that are on the same line collected
+-// in a slice, in source order. If there is no preceding token (the
+-// `ERROR` comment appears in the beginning of the file), then the
+-// recorded position is unknown (line, col = 0, 0). If there are no
+-// ERROR comments, the result is nil.
+-func ErrorMap(src io.Reader) (errmap map[uint][]Error) {
++// CommentMap collects all comments in the given src with comment text
++// that matches the supplied regular expression rx and returns them as
++// []Error lists in a map indexed by line number. The comment text is
++// the comment with any comment markers ("//", "/*", or "*/") stripped.
++// The position for each Error is the position of the token immediately
++// preceding the comment and the Error message is the comment text,
++// with all comments that are on the same line collected in a slice, in
++// source order. If there is no preceding token (the matching comment
++// appears at the beginning of the file), then the recorded position
++// is unknown (line, col = 0, 0). If there are no matching comments,
++// the result is nil.
++func CommentMap(src io.Reader, rx *regexp.Regexp) (res map[uint][]Error) {
+ 	// position of previous token
+ 	var base *PosBase
+ 	var prev struct{ line, col uint }
+@@ -45,18 +41,19 @@ func ErrorMap(src io.Reader) (errmap map[uint][]Error) {
+ 	var s scanner
+ 	s.init(src, func(_, _ uint, text string) {
+ 		if text[0] != '/' {
+-			return // error, ignore
++			return // not a comment, ignore
+ 		}
+ 		if text[1] == '*' {
+ 			text = text[:len(text)-2] // strip trailing */
+ 		}
+-		if s := errRx.FindStringSubmatch(text[2:]); len(s) == 2 {
++		text = text[2:] // strip leading // or /*
++		if rx.MatchString(text) {
+ 			pos := MakePos(base, prev.line, prev.col)
+-			err := Error{pos, strings.TrimSpace(s[1])}
+-			if errmap == nil {
+-				errmap = make(map[uint][]Error)
++			err := Error{pos, text}
++			if res == nil {
++				res = make(map[uint][]Error)
+ 			}
+-			errmap[prev.line] = append(errmap[prev.line], err)
++			res[prev.line] = append(res[prev.line], err)
+ 		}
+ 	}, comments)
+ 
+diff --git a/src/cmd/compile/internal/syntax/testing_test.go b/src/cmd/compile/internal/syntax/testing_test.go
+index d34e5eafaf..7e439c5523 100644
+--- a/src/cmd/compile/internal/syntax/testing_test.go
++++ b/src/cmd/compile/internal/syntax/testing_test.go
+@@ -6,22 +6,23 @@ package syntax
+ 
+ import (
+ 	"fmt"
++	"regexp"
+ 	"strings"
+ 	"testing"
+ )
+ 
+-func TestErrorMap(t *testing.T) {
+-	const src = `/* ERROR 0:0 */ /* ERROR "0:0" */ // ERROR 0:0
++func TestCommentMap(t *testing.T) {
++	const src = `/* ERROR "0:0" */ /* ERROR "0:0" */ // ERROR "0:0"
+ // ERROR "0:0"
+-x /* ERROR 3:1 */                // ignore automatically inserted semicolon here
+-/* ERROR 3:1 */                  // position of x on previous line
+-   x /* ERROR 5:4 */ ;           // do not ignore this semicolon
+-/* ERROR 5:22 */                 // position of ; on previous line
+-	package /* ERROR 7:2 */  // indented with tab
+-        import  /* ERROR 8:9 */  // indented with blanks
++x /* ERROR "3:1" */                // ignore automatically inserted semicolon here
++/* ERROR "3:1" */                  // position of x on previous line
++   x /* ERROR "5:4" */ ;           // do not ignore this semicolon
++/* ERROR "5:24" */                 // position of ; on previous line
++	package /* ERROR "7:2" */  // indented with tab
++        import  /* ERROR "8:9" */  // indented with blanks
+ `
+-	m := ErrorMap(strings.NewReader(src))
+-	got := 0 // number of errors found
++	m := CommentMap(strings.NewReader(src), regexp.MustCompile("^ ERROR "))
++	found := 0 // number of errors found
+ 	for line, errlist := range m {
+ 		for _, err := range errlist {
+ 			if err.Pos.Line() != line {
+@@ -29,17 +30,19 @@ x /* ERROR 3:1 */                // ignore automatically inserted semicolon here
+ 				continue
+ 			}
+ 			// err.Pos.Line() == line
+-			msg := fmt.Sprintf("%d:%d", line, err.Pos.Col())
+-			if err.Msg != msg {
+-				t.Errorf("%v: got msg %q; want %q", err, err.Msg, msg)
++
++			got := strings.TrimSpace(err.Msg[len(" ERROR "):])
++			want := fmt.Sprintf(`"%d:%d"`, line, err.Pos.Col())
++			if got != want {
++				t.Errorf("%v: got msg %q; want %q", err, got, want)
+ 				continue
+ 			}
++			found++
+ 		}
+-		got += len(errlist)
+ 	}
+ 
+-	want := strings.Count(src, "ERROR")
+-	if got != want {
+-		t.Errorf("ErrorMap got %d errors; want %d", got, want)
++	want := strings.Count(src, " ERROR ")
++	if found != want {
++		t.Errorf("CommentMap got %d errors; want %d", found, want)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index c4c28cc04d..645b5b1572 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -184,7 +184,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 			t.Error(err)
+ 			continue
+ 		}
+-		if m := syntax.ErrorMap(f); len(m) > 0 {
++		if m := syntax.CommentMap(f, regexp.MustCompile("^ ERROR ")); len(m) > 0 {
+ 			errmap[filename] = m
+ 		}
+ 		f.Close()
+@@ -207,7 +207,11 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 		// one of errors in list should match the current error
+ 		index := -1 // list index of matching message, if any
+ 		for i, want := range list {
+-			rx, err := regexp.Compile(want.Msg)
++			pattern := strings.TrimSpace(want.Msg[len(" ERROR "):])
++			if n := len(pattern); n >= 2 && pattern[0] == '"' && pattern[n-1] == '"' {
++				pattern = pattern[1 : n-1]
++			}
++			rx, err := regexp.Compile(pattern)
+ 			if err != nil {
+ 				t.Errorf("%s:%d:%d: %v", filename, line, want.Pos.Col(), err)
+ 				continue
+diff --git a/src/internal/types/testdata/check/builtins0.go b/src/internal/types/testdata/check/builtins0.go
+index 308f70b9cc..b54d339069 100644
+--- a/src/internal/types/testdata/check/builtins0.go
++++ b/src/internal/types/testdata/check/builtins0.go
+@@ -707,7 +707,7 @@ func Alignof1() {
+ 	_ = unsafe.Alignof(new(struct{}))
+ 	_ = unsafe.Alignof(1<<10)
+ 	_ = unsafe.Alignof(1 << /* ERROR constant shift overflow */ 1000)
+-	_ = unsafe.Alignof(nil /* ERROR "untyped nil */ )
++	_ = unsafe.Alignof(nil /* ERROR untyped nil */ )
+ 	unsafe /* ERROR not used */ .Alignof(x)
+ 
+ 	var y S0
+diff --git a/src/internal/types/testdata/check/decls3.go b/src/internal/types/testdata/check/decls3.go
+index 01d4ffe4b5..947ab307ba 100644
+--- a/src/internal/types/testdata/check/decls3.go
++++ b/src/internal/types/testdata/check/decls3.go
+@@ -221,16 +221,16 @@ func _() {
+ 	_ = S2{}.B
+ 	_ = S2{}.C
+ 	_ = S2{}.D /* ERROR "no field or method" */
+-	_ = S3{}.S1 /* ERROR "ambiguous selector S3{}.S1" */
++	_ = S3{}.S1 /* ERROR "ambiguous selector S3{}\.S1" */
+ 	_ = S3{}.A
+-	_ = S3{}.B /* ERROR "ambiguous selector" S3{}.B */
++	_ = S3{}.B /* ERROR "ambiguous selector S3{}\.B" */
+ 	_ = S3{}.D
+ 	_ = S3{}.E
+ 	_ = S4{}.A
+ 	_ = S4{}.B /* ERROR "no field or method" */
+-	_ = S5{}.X /* ERROR "ambiguous selector S5{}.X" */
++	_ = S5{}.X /* ERROR "ambiguous selector S5{}\.X" */
+ 	_ = S5{}.Y
+-	_ = S10{}.X /* ERROR "ambiguous selector S10{}.X" */
++	_ = S10{}.X /* ERROR "ambiguous selector S10{}\.X" */
+ 	_ = S10{}.Y
+ }
+ 
+diff --git a/src/internal/types/testdata/check/stmt0.go b/src/internal/types/testdata/check/stmt0.go
+index c456aace7c..3e8cb6836b 100644
+--- a/src/internal/types/testdata/check/stmt0.go
++++ b/src/internal/types/testdata/check/stmt0.go
+@@ -509,7 +509,7 @@ func switches0() {
+ 	switch a {
+ 	case [3]int{1, 2, 3}:
+ 	case [3]int{1, 2, 3}: // no duplicate detection
+-	case [ /* ERROR "mismatched types */ 4]int{4, 5, 6}:
++	case [ /* ERROR "mismatched types" */ 4]int{4, 5, 6}:
+ 	}
+ 
+ 	// switch on channel
+diff --git a/src/internal/types/testdata/fixedbugs/issue43190.go b/src/internal/types/testdata/fixedbugs/issue43190.go
+index d1b46b59f2..ace0487229 100644
+--- a/src/internal/types/testdata/fixedbugs/issue43190.go
++++ b/src/internal/types/testdata/fixedbugs/issue43190.go
+@@ -11,7 +11,7 @@ import ; // ERROR missing import path
+ import "" // ERROR invalid import path \(empty string\)
+ import
+ var /* ERROR missing import path */ _ int
+-import .; //  ERROR missing import path
++import .; // ERROR missing import path
+ import 'x' // ERROR import path must be a string
+ var _ int
+ import /* ERROR imports must appear before other declarations */ _ "math"

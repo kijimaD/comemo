@@ -11,8 +11,95 @@ Date:   Wed Mar 30 10:59:29 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21332
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/parser.go    | 8 ++++----
  src/cmd/compile/internal/gc/type.go      | 8 ++++----
  src/cmd/compile/internal/gc/typecheck.go | 4 ++--
  3 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 27ebf9bece..a0aae5af27 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -3050,7 +3050,7 @@ func (p *parser) hidden_type_misc() *Type {
+ 		default:
+ 			// LCHAN hidden_type_non_recv_chan
+ 			s2 := p.hidden_type_non_recv_chan()
+-			ss := typeChan(s2, Cboth)
++			ss := typChan(s2, Cboth)
+ 			return ss
+ 
+ 		case '(':
+@@ -3058,14 +3058,14 @@ func (p *parser) hidden_type_misc() *Type {
+ 			p.next()
+ 			s3 := p.hidden_type_recv_chan()
+ 			p.want(')')
+-			ss := typeChan(s3, Cboth)
++			ss := typChan(s3, Cboth)
+ 			return ss
+ 
+ 		case LCOMM:
+ 			// LCHAN hidden_type
+ 			p.next()
+ 			s3 := p.hidden_type()
+-			ss := typeChan(s3, Csend)
++			ss := typChan(s3, Csend)
+ 			return ss
+ 		}
+ 
+@@ -3084,7 +3084,7 @@ func (p *parser) hidden_type_recv_chan() *Type {
+ 	p.want(LCHAN)
+ 	s3 := p.hidden_type()
+ 
+-	ss := typeChan(s3, Crecv)
++	ss := typChan(s3, Crecv)
+ 	return ss
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 0700d4942a..6dbfaf1886 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -251,16 +251,16 @@ func typSlice(elem *Type) *Type {
+ 	return t
+ }
+ 
+-// typeDDDArray returns a new [...]T array Type.
+-func typeDDDArray(elem *Type) *Type {
++// typDDDArray returns a new [...]T array Type.
++func typDDDArray(elem *Type) *Type {
+ 	t := typ(TARRAY)
+ 	t.Type = elem
+ 	t.Bound = dddBound
+ 	return t
+ }
+ 
+-// typeChan returns a new chan Type with direction dir.
+-func typeChan(elem *Type, dir uint8) *Type {
++// typChan returns a new chan Type with direction dir.
++func typChan(elem *Type, dir uint8) *Type {
+ 	t := typ(TCHAN)
+ 	t.Type = elem
+ 	t.Chan = dir
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index b7ea9ac193..f7f0fa2812 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -342,7 +342,7 @@ OpSwitch:
+ 		if l == nil {
+ 			t = typSlice(r.Type)
+ 		} else if l.Op == ODDD {
+-			t = typeDDDArray(r.Type)
++			t = typDDDArray(r.Type)
+ 			if top&Ecomplit == 0 && n.Diag == 0 {
+ 				t.Broke = true
+ 				n.Diag = 1
+@@ -413,7 +413,7 @@ OpSwitch:
+ 			n.Type = nil
+ 			return n
+ 		}
+-		t := typeChan(l.Type, uint8(n.Etype)) // TODO(marvin): Fix Node.EType type union.
++		t := typChan(l.Type, uint8(n.Etype)) // TODO(marvin): Fix Node.EType type union.
+ 		n.Op = OTYPE
+ 		n.Type = t
+ 		n.Left = nil

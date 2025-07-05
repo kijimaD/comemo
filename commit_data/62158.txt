@@ -18,8 +18,99 @@ Date:   Thu Feb 6 11:13:19 2025 +0100
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/all.bat  |  4 ++--
  src/make.bat | 39 +--------------------------------------
  src/race.bat |  2 +-
  3 files changed, 4 insertions(+), 41 deletions(-)
+
+diff --git a/src/all.bat b/src/all.bat
+index 483151b893..cb4536284e 100644
+--- a/src/all.bat
++++ b/src/all.bat
+@@ -11,9 +11,9 @@ echo all.bat must be run from go\src
+ exit /b 1
+ :ok
+ 
+-call .\make.bat --no-banner --no-local || goto fail
++call .\make.bat --no-banner || goto fail
+ call .\run.bat --no-rebuild || goto fail
+-"%GOTOOLDIR%/dist" banner
++..\bin\go tool dist banner
+ goto :eof
+ 
+ :fail
+diff --git a/src/make.bat b/src/make.bat
+index 57e4e5f80c..0d5dd2761a 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -34,18 +34,7 @@
+ 
+ @echo off
+ 
+-:: Keep environment variables within this script
+-:: unless invoked with --no-local.
+-if x%1==x-no-local goto nolocal
+-if x%2==x-no-local goto nolocal
+-if x%3==x-no-local goto nolocal
+-if x%4==x-no-local goto nolocal
+-if x%1==x--no-local goto nolocal
+-if x%2==x--no-local goto nolocal
+-if x%3==x--no-local goto nolocal
+-if x%4==x--no-local goto nolocal
+ setlocal
+-:nolocal
+ 
+ if exist make.bat goto ok
+ echo Must run make.bat from Go src directory.
+@@ -117,36 +106,10 @@ if x%2==x--dist-tool goto copydist
+ if x%3==x--dist-tool goto copydist
+ if x%4==x--dist-tool goto copydist
+ 
+-set bootstrapflags=
+-if x%1==x-no-clean set bootstrapflags=-no-clean
+-if x%2==x-no-clean set bootstrapflags=-no-clean
+-if x%3==x-no-clean set bootstrapflags=-no-clean
+-if x%4==x-no-clean set bootstrapflags=-no-clean
+-if x%1==x--no-clean set bootstrapflags=-no-clean
+-if x%2==x--no-clean set bootstrapflags=-no-clean
+-if x%3==x--no-clean set bootstrapflags=-no-clean
+-if x%4==x--no-clean set bootstrapflags=-no-clean
+-if x%1==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
+-if x%2==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
+-if x%3==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
+-if x%4==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
+-if x%1==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
+-if x%2==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
+-if x%3==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
+-if x%4==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
+-if x%1==x-distpack set bootstrapflags=%bootstrapflags% -distpack
+-if x%2==x-distpack set bootstrapflags=%bootstrapflags% -distpack
+-if x%3==x-distpack set bootstrapflags=%bootstrapflags% -distpack
+-if x%4==x-distpack set bootstrapflags=%bootstrapflags% -distpack
+-if x%1==x--distpack set bootstrapflags=%bootstrapflags% -distpack
+-if x%2==x--distpack set bootstrapflags=%bootstrapflags% -distpack
+-if x%3==x--distpack set bootstrapflags=%bootstrapflags% -distpack
+-if x%4==x--distpack set bootstrapflags=%bootstrapflags% -distpack
+-
+ :: Run dist bootstrap to complete make.bash.
+ :: Bootstrap installs a proper cmd/dist, built with the new toolchain.
+ :: Throw ours, built with the bootstrap toolchain, away after bootstrap.
+-.\cmd\dist\dist.exe bootstrap -a %vflag% %bootstrapflags% || goto fail
++.\cmd\dist\dist.exe bootstrap -a %* || goto fail
+ del .\cmd\dist\dist.exe
+ goto :eof
+ 
+diff --git a/src/race.bat b/src/race.bat
+index 2f6ba91475..7f1e0a1987 100644
+--- a/src/race.bat
++++ b/src/race.bat
+@@ -25,7 +25,7 @@ echo Race detector is only supported on windows/amd64.
+ goto fail
+ 
+ :continue
+-call .\make.bat --no-banner --no-local || goto fail
++call .\make.bat --no-banner || goto fail
+ echo # go install -race std
+ go install -race std || goto fail
+ go tool dist test -race || goto fail

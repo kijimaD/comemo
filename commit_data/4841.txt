@@ -7,7 +7,36 @@ Date:   Wed Feb 10 17:21:34 2010 -0800
     R=kaib
     CC=golang-dev
     https://golang.org/cl/207062
-
+---
  test/arm-pass.txt   | 1 -
  test/golden-arm.out | 5 -----
  2 files changed, 6 deletions(-)
+
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index c2dae8c0d6..cdaa35fae8 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -129,7 +129,6 @@ fixedbugs/bug116.go
+ fixedbugs/bug117.go
+ fixedbugs/bug118.go
+ fixedbugs/bug119.go
+-fixedbugs/bug120.go
+ fixedbugs/bug121.go
+ fixedbugs/bug122.go
+ fixedbugs/bug123.go
+diff --git a/test/golden-arm.out b/test/golden-arm.out
+index e4cb19e167..dff4be70db 100644
+--- a/test/golden-arm.out
++++ b/test/golden-arm.out
+@@ -71,11 +71,6 @@ throw: interface conversion
+ panic PC=xxx
+ [1]   Segmentation fault      "${@}"
+ 
+-=========== fixedbugs/bug120.go
+-Bad float64 const: 123.5 want 123.5 got %¤
+-[1]   Segmentation fault      "${@}"
+-BUG: bug120
+-
+ =========== fixedbugs/bug148.go
+ 2 3
+ interface is main.T, not main.T

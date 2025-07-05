@@ -10,7 +10,95 @@ Date:   Tue Mar 31 18:05:50 2020 +0800
     Change-Id: I43d363e3337939bab69b856831caf06803a292d2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/227801
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  doc/asm.html                      | 25 ++++++++++++++++++++++++
  src/cmd/internal/obj/arm64/doc.go | 40 +++++++++++++++++++++++++++++++++++++++
  2 files changed, 65 insertions(+)
+
+diff --git a/doc/asm.html b/doc/asm.html
+index d89072e319..dbbe8f2cd1 100644
+--- a/doc/asm.html
++++ b/doc/asm.html
+@@ -437,6 +437,31 @@ This is a wrapper function and should not count as disabling <code>recover</code
+ (For <code>TEXT</code> items.)
+ This function is a closure so it uses its incoming context register.
+ </li>
++<li>
++<code>LOCAL</code> = 128
++<br>
++This symbol is local to the dynamic shared object.
++</li>
++<li>
++<code>TLSBSS</code> = 256
++<br>
++(For <code>DATA</code> and <code>GLOBL</code> items.)
++Put this data in thread local storage.
++</li>
++<li>
++<code>NOFRAME</code> = 512
++<br>
++(For <code>TEXT</code> items.)
++Do not insert instructions to allocate a stack frame and save/restore the return
++address, even if this is not a leaf function.
++Only valid on functions that declare a frame size of 0.
++</li>
++<li>
++<code>TOPFRAME</code> = 2048
++<br>
++(For <code>TEXT</code> items.)
++Function is the top of the call stack. Traceback should stop at this function.
++</li>
+ </ul>
+ 
+ <h3 id="runtime">Runtime Coordination</h3>
+diff --git a/src/cmd/internal/obj/arm64/doc.go b/src/cmd/internal/obj/arm64/doc.go
+index 031aa789ee..df516b6382 100644
+--- a/src/cmd/internal/obj/arm64/doc.go
++++ b/src/cmd/internal/obj/arm64/doc.go
+@@ -45,6 +45,46 @@ instructions and floating-point(scalar) instructions.
+     AESD V22.B16, V19.B16             <=>      aesd v19.16b, v22.16b
+     SCVTFWS R3, F16                   <=>      scvtf s17, w6
+ 
++6. Align directive
++
++Go asm supports the PCALIGN directive, which indicates that the next instruction should be aligned
++to a specified boundary by padding with NOOP instruction. The alignment value supported on arm64
++must be a power of 2 and in the range of [8, 2048].
++
++  Examples:
++    PCALIGN $16
++    MOVD $2, R0          // This instruction is aligned with 16 bytes.
++    PCALIGN $1024
++    MOVD $3, R1          // This instruction is aligned with 1024 bytes.
++
++PCALING also changes the function alignment. If a function has one or more PCALIGN directives,
++its address will be aligned to the same or coarser boundary, which is the maximum of all the
++alignment values.
++
++In the following example, the function Add is aligned with 128 bytes.
++  Examples:
++    TEXT ·Add(SB),$40-16
++    MOVD $2, R0
++    PCALIGN $32
++    MOVD $4, R1
++    PCALIGN $128
++    MOVD $8, R2
++    RET
++
++On arm64, functions in Go are aligned to 16 bytes by default, we can also use PCALGIN to set the
++function alignment. The functions that need to be aligned are preferably using NOFRAME and NOSPLIT
++to avoid the impact of the prologues inserted by the assembler, so that the function address will
++have the same alignment as the first hand-written instruction.
++
++In the following example, PCALIGN at the entry of the function Add will align its address to 2048 bytes.
++
++  Examples:
++    TEXT ·Add(SB),NOSPLIT|NOFRAME,$0
++      PCALIGN $2048
++      MOVD $1, R0
++      MOVD $1, R1
++      RET
++
+ Special Cases.
+ 
+ (1) umov is written as VMOV.

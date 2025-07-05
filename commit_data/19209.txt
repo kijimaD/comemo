@@ -10,8 +10,82 @@ Date:   Sat Apr 19 14:47:20 2014 +1000
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/88820043
-
+---
  src/cmd/nm/pe.go                | 14 ++++++++++++++
  src/pkg/runtime/arch_amd64.h    |  6 +++++-
  src/pkg/runtime/runtime_test.go |  4 ----
  3 files changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/nm/pe.go b/src/cmd/nm/pe.go
+index 7175e2295c..52d05e51d0 100644
+--- a/src/cmd/nm/pe.go
++++ b/src/cmd/nm/pe.go
+@@ -9,6 +9,7 @@ package main
+ import (
+ 	"debug/pe"
+ 	"os"
++	"sort"
+ )
+ 
+ func peSymbols(f *os.File) []Sym {
+@@ -18,6 +19,10 @@ func peSymbols(f *os.File) []Sym {
+ 		return nil
+ 	}
+ 
++	// Build sorted list of addresses of all symbols.
++	// We infer the size of a symbol by looking at where the next symbol begins.
++	var addrs []uint64
++
+ 	var imageBase uint64
+ 	switch oh := p.OptionalHeader.(type) {
+ 	case *pe.OptionalHeader32:
+@@ -78,6 +83,15 @@ func peSymbols(f *os.File) []Sym {
+ 			sym.Addr += imageBase + uint64(sect.VirtualAddress)
+ 		}
+ 		syms = append(syms, sym)
++		addrs = append(addrs, sym.Addr)
++	}
++
++	sort.Sort(uint64s(addrs))
++	for i := range syms {
++		j := sort.Search(len(addrs), func(x int) bool { return addrs[x] > syms[i].Addr })
++		if j < len(addrs) {
++			syms[i].Size = int64(addrs[j] - syms[i].Addr)
++		}
+ 	}
+ 
+ 	return syms
+diff --git a/src/pkg/runtime/arch_amd64.h b/src/pkg/runtime/arch_amd64.h
+index 060c4d4f53..c8a21847c4 100644
+--- a/src/pkg/runtime/arch_amd64.h
++++ b/src/pkg/runtime/arch_amd64.h
+@@ -8,9 +8,13 @@ enum {
+ 	CacheLineSize = 64,
+ #ifdef GOOS_solaris
+ 	RuntimeGogoBytes = 80,
++#else
++#ifdef GOOS_windows
++	RuntimeGogoBytes = 80,
+ #else
+ 	RuntimeGogoBytes = 64,
+-#endif
++#endif	// Windows
++#endif	// Solaris
+ 	PhysPageSize = 4096,
+ 	PCQuantum = 1
+ };
+diff --git a/src/pkg/runtime/runtime_test.go b/src/pkg/runtime/runtime_test.go
+index a14e06e7ad..62e59c78db 100644
+--- a/src/pkg/runtime/runtime_test.go
++++ b/src/pkg/runtime/runtime_test.go
+@@ -95,10 +95,6 @@ func BenchmarkDeferMany(b *testing.B) {
+ // The value reported will include the padding between runtime.gogo and the
+ // next function in memory. That's fine.
+ func TestRuntimeGogoBytes(t *testing.T) {
+-	// TODO(brainman): delete when issue 6973 is fixed.
+-	if GOOS == "windows" {
+-		t.Skip("skipping broken test on windows")
+-	}
+ 	dir, err := ioutil.TempDir("", "go-build")
+ 	if err != nil {
+ 		t.Fatalf("failed to create temp directory: %v", err)

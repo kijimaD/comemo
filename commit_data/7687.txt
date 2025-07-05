@@ -7,6 +7,20 @@ Date:   Mon Mar 7 15:30:51 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4239066
-
+---
  src/pkg/os/os_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 2ea8acdc43..b45546c8a2 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -614,7 +614,7 @@ func TestChdirAndGetwd(t *testing.T) {
+ 	}
+ 	// These are chosen carefully not to be symlinks on a Mac
+ 	// (unlike, say, /var, /etc, and /tmp).
+-	dirs := []string{"/bin", "/", "/usr/bin"}
++	dirs := []string{"/", "/usr/bin"}
+ 	for mode := 0; mode < 2; mode++ {
+ 		for _, d := range dirs {
+ 			if mode == 0 {

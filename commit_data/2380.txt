@@ -9,7 +9,7 @@ Date:   Thu Jun 4 13:33:40 2009 -0700
     DELTA=349  (342 added, 1 deleted, 6 changed)
     OCL=29882
     CL=29886
-
+---
  src/lib/os/dir_linux_386.go            |  83 +++++++++++++++++++++++++
  src/lib/os/stat_linux_386.go           |  47 ++++++++++++++
  src/lib/syscall/PORT                   |   4 ++
@@ -19,3 +19,443 @@ Date:   Thu Jun 4 13:33:40 2009 -0700
  src/lib/syscall/syscall_linux_amd64.go |   8 +++
  src/lib/syscall/types_linux_386.c      |   5 ++
  8 files changed, 362 insertions(+), 7 deletions(-)
+
+diff --git a/src/lib/os/dir_linux_386.go b/src/lib/os/dir_linux_386.go
+new file mode 100644
+index 0000000000..c4594a52df
+--- /dev/null
++++ b/src/lib/os/dir_linux_386.go
+@@ -0,0 +1,83 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO(rsc): Once the porting dust settles, consider
++// whether this file should be dir_linux.go (and similarly
++// dir_darwin.go) instead of having one copy per architecture.
++
++package os
++
++import (
++	"os";
++	"syscall";
++	"unsafe";
++)
++
++const (
++	blockSize = 4096	// TODO(r): use statfs
++)
++
++func clen(n []byte) int {
++	for i := 0; i < len(n); i++ {
++		if n[i] == 0 {
++			return i
++		}
++	}
++	return len(n)
++}
++
++// Negative count means read until EOF.
++func readdirnames(file *File, count int) (names []string, err Error) {
++	// If this file has no dirinfo, create one.
++	if file.dirinfo == nil {
++		file.dirinfo = new(dirInfo);
++		// The buffer must be at least a block long.
++		// TODO(r): use fstatfs to find fs block size.
++		file.dirinfo.buf = make([]byte, blockSize);
++	}
++	d := file.dirinfo;
++	size := count;
++	if size < 0 {
++		size = 100
++	}
++	names = make([]string, 0, size);	// Empty with room to grow.
++	for count != 0 {
++		// Refill the buffer if necessary
++		if d.bufp >= d.nbuf {
++			var errno int;
++			d.nbuf, errno = syscall.Getdents(file.fd, d.buf);
++			if d.nbuf < 0 {
++				return names, ErrnoToError(errno)
++			}
++			if d.nbuf == 0 {
++				break	// EOF
++			}
++			d.bufp = 0;
++		}
++		// Drain the buffer
++		for count != 0 && d.bufp < d.nbuf {
++			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]));
++			d.bufp += int(dirent.Reclen);
++			if dirent.Ino == 0 {	// File absent in directory.
++				continue
++			}
++			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
++			var name = string(bytes[0:clen(bytes)]);
++			if name == "." || name == ".." {	// Useless names
++				continue
++			}
++			count--;
++			if len(names) == cap(names) {
++				nnames := make([]string, len(names), 2*len(names));
++				for i := 0; i < len(names); i++ {
++					nnames[i] = names[i]
++				}
++				names = nnames;
++			}
++			names = names[0:len(names)+1];
++			names[len(names)-1] = name;
++		}
++	}
++	return names, nil;
++}
+diff --git a/src/lib/os/stat_linux_386.go b/src/lib/os/stat_linux_386.go
+new file mode 100644
+index 0000000000..13ee942c97
+--- /dev/null
++++ b/src/lib/os/stat_linux_386.go
+@@ -0,0 +1,47 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO(rsc): Once the porting dust settles, consider
++// whether this file should be stat_linux.go (and similarly
++// stat_darwin.go) instead of having one copy per architecture.
++
++// 386, Linux
++
++package os
++
++import (
++	"os";
++	"syscall";
++)
++
++func isSymlink(stat *syscall.Stat_t) bool {
++	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
++}
++
++func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
++	dir.Dev = stat.Dev;
++	dir.Ino = uint64(stat.Ino);
++	dir.Nlink = uint64(stat.Nlink);
++	dir.Mode = stat.Mode;
++	dir.Uid = stat.Uid;
++	dir.Gid = stat.Gid;
++	dir.Rdev = stat.Rdev;
++	dir.Size = uint64(stat.Size);
++	dir.Blksize = uint64(stat.Blksize);
++	dir.Blocks = uint64(stat.Blocks);
++	dir.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atim));
++	dir.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtim));
++	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctim));
++	for i := len(name) - 1; i >= 0; i-- {
++		if name[i] == '/' {
++			name = name[i+1:len(name)];
++			break;
++		}
++	}
++	dir.Name = name;
++	if isSymlink(lstat) && !isSymlink(stat) {
++		dir.FollowedSymlink = true;
++	}
++	return dir;
++}
+diff --git a/src/lib/syscall/PORT b/src/lib/syscall/PORT
+index 2f0fe147be..f3addcdb07 100755
+--- a/src/lib/syscall/PORT
++++ b/src/lib/syscall/PORT
+@@ -99,6 +99,10 @@ darwin_amd64)
+ 	mktypes="godefs -gsyscall -f-m64"
+ 	mkerrors="mkerrors"
+ 	;;
++linux_386)
++	mksysnum="mksysnum_linux /usr/include/asm/unistd_32.h"
++	mktypes="godefs -gsyscall -f-m32"
++	;;
+ linux_amd64)
+ 	mksysnum="mksysnum_linux /usr/include/asm/unistd_64.h"
+ 	mktypes="godefs -gsyscall -f-m64"
+diff --git a/src/lib/syscall/asm_linux_386.s b/src/lib/syscall/asm_linux_386.s
+new file mode 100644
+index 0000000000..c6b01792d7
+--- /dev/null
++++ b/src/lib/syscall/asm_linux_386.s
+@@ -0,0 +1,108 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//
++// System calls for 386, Linux
++//
++
++// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
++// Trap # in AX, args in BX CX DX SI DI, return in AX
++
++TEXT	syscall·Syscall(SB),7,$0
++	CALL	sys·entersyscall(SB)
++	MOVL	4(SP), AX	// syscall entry
++	MOVL	8(SP), BX
++	MOVL	12(SP), CX
++	MOVL	16(SP), DX
++	MOVL	$0, SI
++	MOVL	$0,  DI
++	INT	$0x80
++	CMPL	AX, $0xfffff001
++	JLS	ok
++	MOVL	$-1, 20(SP)	// r1
++	MOVL	$0, 24(SP)	// r2
++	NEGL	AX
++	MOVL	AX, 28(SP)  // errno
++	CALL	sys·exitsyscall(SB)
++	RET
++ok:
++	MOVL	AX, 20(SP)	// r1
++	MOVL	DX, 24(SP)	// r2
++	MOVL	$0, 28(SP)	// errno
++	CALL	sys·exitsyscall(SB)
++	RET
++
++// Actually Syscall5 but the rest of the code expects it to be named Syscall6.
++TEXT	syscall·Syscall6(SB),7,$0
++	CALL	sys·entersyscall(SB)
++	MOVL	4(SP), AX	// syscall entry
++	MOVL	8(SP), BX
++	MOVL	12(SP), CX
++	MOVL	16(SP), DX
++	MOVL	20(SP), SI
++	MOVL	24(SP), DI
++	// 28(SP) is ignored
++	INT	$0x80
++	CMPL	AX, $0xfffff001
++	JLS	ok6
++	MOVL	$-1, 32(SP)	// r1
++	MOVL	$0, 36(SP)	// r2
++	NEGL	AX
++	MOVL	AX, 40(SP)  // errno
++	CALL	sys·exitsyscall(SB)
++	RET
++ok6:
++	MOVL	AX, 32(SP)	// r1
++	MOVL	DX, 36(SP)	// r2
++	MOVL	$0, 40(SP)	// errno
++	CALL	sys·exitsyscall(SB)
++	RET
++
++TEXT syscall·RawSyscall(SB),7,$0
++	MOVL	4(SP), AX	// syscall entry
++	MOVL	8(SP), BX
++	MOVL	12(SP), CX
++	MOVL	16(SP), DX
++	MOVL	$0, SI
++	MOVL	$0,  DI
++	INT	$0x80
++	CMPL	AX, $0xfffff001
++	JLS	ok1
++	MOVL	$-1, 20(SP)	// r1
++	MOVL	$0, 24(SP)	// r2
++	NEGL	AX
++	MOVL	AX, 28(SP)  // errno
++	CALL	sys·exitsyscall(SB)
++	RET
++ok1:
++	MOVL	AX, 20(SP)	// r1
++	MOVL	DX, 24(SP)	// r2
++	MOVL	$0, 28(SP)	// errno
++	RET
++
++#define SYS_SOCKETCALL 102	/* from zsysnum_linux_386.go */
++
++// func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
++// Kernel interface gets call sub-number and pointer to a0.
++TEXT syscall·socketcall(SB),7,$0
++	CALL	sys·entersyscall(SB)
++	MOVL	$SYS_SOCKETCALL, AX	// syscall entry
++	MOVL	4(SP), BX	// socket call number
++	LEAL		8(SP), CX	// pointer to call arguments
++	MOVL	$0, DX
++	MOVL	$0, SI
++	MOVL	$0,  DI
++	INT	$0x80
++	CMPL	AX, $0xfffff001
++	JLS	oksock
++	MOVL	$-1, 28(SP)	// n
++	NEGL	AX
++	MOVL	AX, 32(SP)  // errno
++	CALL	sys·exitsyscall(SB)
++	RET
++oksock:
++	MOVL	AX, 28(SP)	// n
++	MOVL	$0, 32(SP)	// errno
++	CALL	sys·exitsyscall(SB)
++	RET
+diff --git a/src/lib/syscall/syscall_linux.go b/src/lib/syscall/syscall_linux.go
+index e89c9bcb62..50f3938d7f 100644
+--- a/src/lib/syscall/syscall_linux.go
++++ b/src/lib/syscall/syscall_linux.go
+@@ -182,12 +182,13 @@ func Sleep(nsec int64) (errno int) {
+ 	return err;
+ }
+ 
+-//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
+-//sys	bind(s int, addr uintptr, addrlen _Socklen) (errno int)
+-//sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
+-//sys	socket(domain int, typ int, proto int) (fd int, errno int)
+-//sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+-//sys	Listen(s int, n int) (errno int)
++// Implemented in syscall_linux_*.go
++func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
++func bind(s int, addr uintptr, addrlen _Socklen) (errno int)
++func connect(s int, addr uintptr, addrlen _Socklen) (errno int)
++func socket(domain int, typ int, proto int) (fd int, errno int)
++func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
++func Listen(s int, n int) (errno int)
+ 
+ // For testing: clients can set this flag to force
+ // creation of IPv6 sockets to return EAFNOSUPPORT.
+@@ -454,7 +455,6 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+ //sys	Setsid() (pid int)
+ //sys	Settimeofday(tv *Timeval) (errno int)
+ //sys	Setuid(uid int) (errno int)
+-//sys	Shutdown(fd int, how int) (errno int)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, errno int)
+ //sys	Stat(path string, stat *Stat_t) (errno int)
+ //sys	Statfs(path string, buf *Statfs_t) (errno int)
+diff --git a/src/lib/syscall/syscall_linux_386.go b/src/lib/syscall/syscall_linux_386.go
+new file mode 100644
+index 0000000000..9bf3f9cf00
+--- /dev/null
++++ b/src/lib/syscall/syscall_linux_386.go
+@@ -0,0 +1,100 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++import (
++	"syscall";
++	"unsafe";
++)
++
++func Getpagesize() int {
++	return 4096
++}
++
++func TimespecToNsec(ts Timespec) int64 {
++	return int64(ts.Sec)*1e9 + int64(ts.Nsec);
++}
++
++func NsecToTimespec(nsec int64) (ts Timespec) {
++	ts.Sec = int32(nsec / 1e9);
++	ts.Nsec = int32(nsec % 1e9);
++	return;
++}
++
++func TimevalToNsec(tv Timeval) int64 {
++	return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3;
++}
++
++func NsecToTimeval(nsec int64) (tv Timeval) {
++	nsec += 999;	// round up to microsecond
++	tv.Sec = int32(nsec/1e9);
++	tv.Usec = int32(nsec%1e9 / 1e3);
++	return;
++}
++
++// On x86 Linux, all the socket calls go through an extra indirection,
++// I think because the 5-register system call interface can't handle
++// the 6-argument calls like sendto and recvfrom.  Instead the
++// arguments to the underlying system call are the number below
++// and a pointer to an array of uintptr.  We hide the pointer in the
++// socketcall assembly to avoid allocation on every system call.
++
++const (
++	// see linux/net.h
++	_SOCKET = 1;
++	_BIND = 2;
++	_CONNECT = 3;
++	_LISTEN = 4;
++	_ACCEPT = 5;
++	_GETSOCKNAME = 6;
++	_GETPEERNAME = 7;
++	_SOCKETPAIR = 8;
++	_SEND = 9;
++	_RECV = 10;
++	_SENDTO = 11;
++	_RECVFROM = 12;
++	_SHUTDOWN = 13;
++	_SETSOCKOPT = 14;
++	_GETSOCKOPT = 15;
++	_SENDMSG = 16;
++	_RECVMSG = 17;
++)
++
++func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
++
++func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
++	fd, errno = socketcall(_SOCKET, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0);
++	return;
++}
++
++func bind(s int, addr uintptr, addrlen _Socklen) (errno int) {
++	var _ int;
++	_, errno = socketcall(_BIND, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0);
++	return;
++}
++
++func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
++	var _ int;
++	_, errno = socketcall(_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0);
++	return;
++}
++
++func socket(domain int, typ int, proto int) (fd int, errno int) {
++	fd, errno = socketcall(_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto), 0, 0, 0);
++	return;
++}
++
++func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
++	var _ int;
++	_, errno = socketcall(_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0);
++	return;
++}
++
++func Listen(s int, n int) (errno int) {
++	var _ int;
++	_, errno = socketcall(_LISTEN, uintptr(s), uintptr(n), 0, 0, 0, 0);
++	return;
++}
++
+diff --git a/src/lib/syscall/syscall_linux_amd64.go b/src/lib/syscall/syscall_linux_amd64.go
+index 24426405be..a2a58c35ba 100644
+--- a/src/lib/syscall/syscall_linux_amd64.go
++++ b/src/lib/syscall/syscall_linux_amd64.go
+@@ -6,6 +6,14 @@ package syscall
+ 
+ import "syscall"
+ 
++//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
++//sys	bind(s int, addr uintptr, addrlen _Socklen) (errno int)
++//sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
++//sys	socket(domain int, typ int, proto int) (fd int, errno int)
++//sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
++//sys	Listen(s int, n int) (errno int)
++//sys	Shutdown(fd int, how int) (errno int)
++
+ func Getpagesize() int {
+ 	return 4096
+ }
+diff --git a/src/lib/syscall/types_linux_386.c b/src/lib/syscall/types_linux_386.c
+new file mode 100644
+index 0000000000..37ce7d76e9
+--- /dev/null
++++ b/src/lib/syscall/types_linux_386.c
+@@ -0,0 +1,5 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Nothing to see here

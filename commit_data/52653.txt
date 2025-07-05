@@ -39,7 +39,7 @@ Date:   Thu Mar 17 13:27:40 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/main.go                | 11 +++++--
  src/cmd/compile/internal/gc/obj.go                 | 12 +++++++
  .../compile/internal/importer/gcimporter_test.go   |  2 +-
@@ -66,3 +66,588 @@ Date:   Thu Mar 17 13:27:40 2022 -0700
  test/fixedbugs/issue20014.out                      |  2 +-
  test/fixedbugs/issue9355.go                        |  8 ++---
  25 files changed, 100 insertions(+), 100 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index e9483decaa..70f1a2f847 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -73,8 +73,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	base.DebugSSA = ssa.PhaseOption
+ 	base.ParseFlags()
+ 
+-	types.LocalPkg = types.NewPkg("", "")
+-	types.LocalPkg.Prefix = "\"\""
++	types.LocalPkg = types.NewPkg(base.Ctxt.Pkgpath, "")
+ 
+ 	// We won't know localpkg's height until after import
+ 	// processing. In the mean time, set to MaxPkgHeight to ensure
+@@ -140,7 +139,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 
+ 	types.ParseLangFlag()
+ 
+-	symABIs := ssagen.NewSymABIs(base.Ctxt.Pkgpath)
++	symABIs := ssagen.NewSymABIs()
+ 	if base.Flag.SymABIs != "" {
+ 		symABIs.ReadSymABIs(base.Flag.SymABIs)
+ 	}
+@@ -188,8 +187,14 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 
+ 	// Parse and typecheck input.
+ 	noder.LoadPackage(flag.Args())
++
++	// As a convenience to users (toolchain maintainers, in particular),
++	// when compiling a package named "main", we default the package
++	// path to "main" if the -p flag was not specified.
+ 	if base.Ctxt.Pkgpath == obj.UnlinkablePkg && types.LocalPkg.Name == "main" {
+ 		base.Ctxt.Pkgpath = "main"
++		types.LocalPkg.Path = "main"
++		types.LocalPkg.Prefix = "main"
+ 	}
+ 
+ 	dwarfgen.RecordPackageName()
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index fea2df85e5..e33f726e34 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -20,6 +20,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"encoding/json"
+ 	"fmt"
++	"strings"
+ )
+ 
+ // These modes say which kind of object file to generate.
+@@ -279,6 +280,17 @@ func addGCLocals() {
+ 
+ func ggloblnod(nam *ir.Name) {
+ 	s := nam.Linksym()
++
++	// main_inittask and runtime_inittask in package runtime (and in
++	// test/initempty.go) aren't real variable declarations, but
++	// linknamed variables pointing to the compiler's generated
++	// .inittask symbol. The real symbol was already written out in
++	// pkginit.Task, so we need to avoid writing them out a second time
++	// here, otherwise base.Ctxt.Globl will fail.
++	if strings.HasSuffix(s.Name, "..inittask") && s.OnList() {
++		return
++	}
++
+ 	s.Gotype = reflectdata.TypeLinksym(nam.Type())
+ 	flags := 0
+ 	if nam.Readonly() {
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index 3b6d77747b..2fbd3f00d2 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -44,7 +44,7 @@ func compile(t *testing.T, dirname, filename, outdirname string) string {
+ 	}
+ 	basename := filepath.Base(filename)
+ 	outname := filepath.Join(outdirname, basename[:len(basename)-2]+"o")
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", outname, filename)
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p", strings.TrimSuffix(outname, ".o"), "-o", outname, filename)
+ 	cmd.Dir = dirname
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index d4f6d105ba..6e63ff4123 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -82,7 +82,6 @@ func unified(noders []*noder) {
+ 	base.Flag.Lang = fmt.Sprintf("go1.%d", goversion.Version)
+ 	types.ParseLangFlag()
+ 
+-	assert(types.LocalPkg.Path == "")
+ 	types.LocalPkg.Height = 0 // reset so pkgReader.pkgIdx doesn't complain
+ 	target := typecheck.Target
+ 
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 39f0ad794f..772a9e27c8 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -224,6 +224,7 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) int {
+ 	case types2.Unsafe:
+ 		w.String("unsafe")
+ 	default:
++		// TODO(mdempsky): Write out pkg.Path() for curpkg too.
+ 		var path string
+ 		if pkg != w.p.curpkg {
+ 			path = pkg.Path()
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index e776750954..5b44b7098d 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -411,14 +411,8 @@ func dimportpath(p *types.Pkg) {
+ 		return
+ 	}
+ 
+-	str := p.Path
+-	if p == types.LocalPkg {
+-		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
+-		str = base.Ctxt.Pkgpath
+-	}
+-
+ 	s := base.Ctxt.Lookup("type..importpath." + p.Prefix + ".")
+-	ot := dnameData(s, 0, str, "", nil, false)
++	ot := dnameData(s, 0, p.Path, "", nil, false)
+ 	objw.Global(s, int32(ot), obj.DUPOK|obj.RODATA)
+ 	s.Set(obj.AttrContentAddressable, true)
+ 	p.Pathsym = s
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 65ff960c84..86ae583eab 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -392,6 +392,14 @@ func (f *Func) computeZeroMap() map[ID]ZeroRegion {
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			if mem, ok := IsNewObject(v); ok {
++				// While compiling package runtime itself, we might see user
++				// calls to newobject, which will have result type
++				// unsafe.Pointer instead. We can't easily infer how large the
++				// allocated memory is, so just skip it.
++				if types.LocalPkg.Path == "runtime" && v.Type.IsUnsafePtr() {
++					continue
++				}
++
+ 				nptr := v.Type.Elem().Size() / ptrSize
+ 				if nptr > 64 {
+ 					nptr = 64
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 1e8ab54a4c..50ea86d8fc 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -17,7 +17,6 @@ import (
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+-	"cmd/internal/objabi"
+ )
+ 
+ // SymABIs records information provided by the assembler about symbol
+@@ -25,33 +24,27 @@ import (
+ type SymABIs struct {
+ 	defs map[string]obj.ABI
+ 	refs map[string]obj.ABISet
+-
+-	localPrefix string
+ }
+ 
+-func NewSymABIs(myimportpath string) *SymABIs {
+-	var localPrefix string
+-	if myimportpath != "" {
+-		localPrefix = objabi.PathToPrefix(myimportpath) + "."
+-	}
+-
++func NewSymABIs() *SymABIs {
+ 	return &SymABIs{
+-		defs:        make(map[string]obj.ABI),
+-		refs:        make(map[string]obj.ABISet),
+-		localPrefix: localPrefix,
++		defs: make(map[string]obj.ABI),
++		refs: make(map[string]obj.ABISet),
+ 	}
+ }
+ 
+ // canonicalize returns the canonical name used for a linker symbol in
+ // s's maps. Symbols in this package may be written either as "".X or
+ // with the package's import path already in the symbol. This rewrites
+-// both to `"".`, which matches compiler-generated linker symbol names.
++// both to use the full path, which matches compiler-generated linker
++// symbol names.
+ func (s *SymABIs) canonicalize(linksym string) string {
+-	// If the symbol is already prefixed with localPrefix,
+-	// rewrite it to start with "" so it matches the
+-	// compiler's internal symbol names.
+-	if s.localPrefix != "" && strings.HasPrefix(linksym, s.localPrefix) {
+-		return `"".` + linksym[len(s.localPrefix):]
++	// If the symbol is already prefixed with "", rewrite it to start
++	// with LocalPkg.Prefix.
++	//
++	// TODO(mdempsky): Have cmd/asm stop writing out symbols like this.
++	if strings.HasPrefix(linksym, `"".`) {
++		return types.LocalPkg.Prefix + linksym[2:]
+ 	}
+ 	return linksym
+ }
+@@ -140,13 +133,12 @@ func (s *SymABIs) GenABIWrappers() {
+ 			continue
+ 		}
+ 		sym := nam.Sym()
+-		var symName string
+-		if sym.Linkname != "" {
+-			symName = s.canonicalize(sym.Linkname)
+-		} else {
+-			// These names will already be canonical.
++
++		symName := sym.Linkname
++		if symName == "" {
+ 			symName = sym.Pkg.Prefix + "." + sym.Name
+ 		}
++		symName = s.canonicalize(symName)
+ 
+ 		// Apply definitions.
+ 		defABI, hasDefABI := s.defs[symName]
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index 2ea1a81c7a..621da9cbf6 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -266,6 +266,14 @@ func WriteFuncSyms() {
+ 	for _, nam := range funcsyms {
+ 		s := nam.Sym()
+ 		sf := s.Pkg.Lookup(ir.FuncSymName(s)).Linksym()
++
++		// While compiling package runtime, we might try to create
++		// funcsyms for functions from both types.LocalPkg and
++		// ir.Pkgs.Runtime.
++		if base.Flag.CompilingRuntime && sf.OnList() {
++			continue
++		}
++
+ 		// Function values must always reference ABIInternal
+ 		// entry points.
+ 		target := s.Linksym()
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index d183425724..e9b97e6c87 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -459,6 +459,7 @@ func StaticName(t *types.Type) *ir.Name {
+ 	statuniqgen++
+ 	typecheck.Declare(n, ir.PEXTERN)
+ 	n.SetType(t)
++	n.Linksym().Set(obj.AttrStatic, true)
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index 3c02cb8681..c0eeb8685f 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -145,10 +145,6 @@ func symfmt(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
+ 		b.WriteString(q)
+ 		b.WriteByte('.')
+ 		switch mode {
+-		case fmtTypeIDName:
+-			// If name is a generic instantiation, it might have local package placeholders
+-			// in it. Replace those placeholders with the package name. See issue 49547.
+-			name = strings.Replace(name, LocalPkg.Prefix, q, -1)
+ 		case fmtTypeIDHash:
+ 			// If name is a generic instantiation, don't hash the instantiating types.
+ 			// This isn't great, but it is safe. If we hash the instantiating types, then
+@@ -261,24 +257,13 @@ func (t *Type) String() string {
+ 	return tconv(t, 0, fmtGo)
+ }
+ 
+-// LinkString returns an unexpanded string description of t, suitable
+-// for use in link symbols. "Unexpanded" here means that the
+-// description uses `"".` to qualify identifiers from the current
+-// package, and "expansion" refers to the renaming step performed by
+-// the linker to replace these qualifiers with proper `path/to/pkg.`
+-// qualifiers.
++// LinkString returns a string description of t, suitable for use in
++// link symbols.
+ //
+-// After expansion, the description corresponds to type identity. That
+-// is, for any pair of types t1 and t2, Identical(t1, t2) and
+-// expand(t1.LinkString()) == expand(t2.LinkString()) report the same
+-// value.
+-//
+-// Within a single compilation unit, LinkString always returns the
+-// same unexpanded description for identical types. Thus it's safe to
+-// use as a map key to implement a type-identity-keyed map. However,
+-// make sure all LinkString calls used for this purpose happen within
+-// the same compile process; the string keys are not stable across
+-// multiple processes.
++// The description corresponds to type identity. That is, for any pair
++// of types t1 and t2, Identical(t1, t2) == (t1.LinkString() ==
++// t2.LinkString()) is true. Thus it's safe to use as a map key to
++// implement a type-identity-keyed map.
+ func (t *Type) LinkString() string {
+ 	return tconv(t, 0, fmtTypeID)
+ }
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index 29e367aa4c..3229382353 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -408,15 +408,7 @@ func (ctxt *Link) DwarfGlobal(myimportpath, typename string, varSym *LSym) {
+ 	if myimportpath == "" || varSym.Local() {
+ 		return
+ 	}
+-	var varname string
+-	if varSym.Pkg == "_" {
+-		// The frontend uses package "_" to mark symbols that should not
+-		// be referenced by index, e.g. linkname'd symbols.
+-		varname = varSym.Name
+-	} else {
+-		// Convert "".<name> into a fully qualified package.sym name.
+-		varname = objabi.PathToPrefix(myimportpath) + varSym.Name[len(`""`):]
+-	}
++	varname := varSym.Name
+ 	dieSymName := dwarf.InfoPrefix + varname
+ 	dieSym := ctxt.LookupInit(dieSymName, func(s *LSym) {
+ 		s.Type = objabi.SDWARFVAR
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 58aeb87c4f..1c2bfa9391 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -904,7 +904,7 @@ type Link struct {
+ 	Flag_maymorestack  string // If not "", call this function before stack checks
+ 	Bso                *bufio.Writer
+ 	Pathname           string
+-	Pkgpath            string           // the current package's import path, "" if unknown
++	Pkgpath            string           // the current package's import path
+ 	hashmu             sync.Mutex       // protects hash, funchash
+ 	hash               map[string]*LSym // name -> sym mapping
+ 	funchash           map[string]*LSym // name -> sym mapping for ABIInternal syms
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index e5bbdd51a7..ed33b21bbf 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -171,6 +171,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	if s.OnList() {
+ 		ctxt.Diag("symbol %s listed multiple times", s.Name)
+ 	}
++	// TODO(mdempsky): Remove once cmd/asm stops writing "" symbols.
+ 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
+ 	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
+ 	s.Func().FuncFlag = ctxt.toFuncFlag(flag)
+@@ -224,9 +225,6 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
+ 	} else if flag&TLSBSS != 0 {
+ 		s.Type = objabi.STLSBSS
+ 	}
+-	if strings.HasPrefix(s.Name, "\"\"."+StaticNamePref) {
+-		s.Set(AttrStatic, true)
+-	}
+ }
+ 
+ // EmitEntryLiveness generates PCDATA Progs after p to switch to the
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index d86f81fac8..b2614ea44c 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"bytes"
+ 	"cmd/internal/sys"
+ 	"debug/macho"
++	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+@@ -1077,6 +1078,10 @@ func TestUnlinkableObj(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	t.Parallel()
+ 
++	if buildcfg.Experiment.Unified {
++		t.Skip("TODO(mdempsky): Fix ICE when importing unlinkable objects for GOEXPERIMENT=unified")
++	}
++
+ 	tmpdir := t.TempDir()
+ 
+ 	xSrc := filepath.Join(tmpdir, "x.go")
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index c10915fdf5..6dced31ffb 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -51,7 +51,7 @@ func compile(t *testing.T, dirname, filename, outdirname string) string {
+ 	}
+ 	basename := filepath.Base(filename)
+ 	outname := filepath.Join(outdirname, basename[:len(basename)-2]+"o")
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", outname, filename)
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p", strings.TrimSuffix(outname, ".o"), "-o", outname, filename)
+ 	cmd.Dir = dirname
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+diff --git a/src/internal/reflectlite/all_test.go b/src/internal/reflectlite/all_test.go
+index eb6aaa9c28..bb3cad470c 100644
+--- a/src/internal/reflectlite/all_test.go
++++ b/src/internal/reflectlite/all_test.go
+@@ -974,8 +974,8 @@ var nameTests = []nameTest{
+ 		F()
+ 	})(nil), ""},
+ 	{(*TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678)(nil), "TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678"},
+-	{(*B[A])(nil), "B[reflectlite_test.A]"},
+-	{(*B[B[A]])(nil), "B[reflectlite_test.B[reflectlite_test.A]]"},
++	{(*B[A])(nil), "B[internal/reflectlite_test.A]"},
++	{(*B[B[A]])(nil), "B[internal/reflectlite_test.B[internal/reflectlite_test.A]]"},
+ }
+ 
+ func TestNames(t *testing.T) {
+diff --git a/test/codegen/clobberdead.go b/test/codegen/clobberdead.go
+index c490790bb6..732be5f73b 100644
+--- a/test/codegen/clobberdead.go
++++ b/test/codegen/clobberdead.go
+@@ -15,16 +15,16 @@ var p1, p2, p3 T
+ func F() {
+ 	// 3735936685 is 0xdeaddead. On ARM64 R27 is REGTMP.
+ 	// clobber x, y at entry. not clobber z (stack object).
+-	// amd64:`MOVL\t\$3735936685, ""\.x`, `MOVL\t\$3735936685, ""\.y`, -`MOVL\t\$3735936685, ""\.z`
+-	// arm64:`MOVW\tR27, ""\.x`, `MOVW\tR27, ""\.y`, -`MOVW\tR27, ""\.z`
++	// amd64:`MOVL\t\$3735936685, command-line-arguments\.x`, `MOVL\t\$3735936685, command-line-arguments\.y`, -`MOVL\t\$3735936685, command-line-arguments\.z`
++	// arm64:`MOVW\tR27, command-line-arguments\.x`, `MOVW\tR27, command-line-arguments\.y`, -`MOVW\tR27, command-line-arguments\.z`
+ 	x, y, z := p1, p2, p3
+ 	addrTaken(&z)
+ 	// x is dead at the call (the value of x is loaded before the CALL), y is not
+-	// amd64:`MOVL\t\$3735936685, ""\.x`, -`MOVL\t\$3735936685, ""\.y`
+-	// arm64:`MOVW\tR27, ""\.x`, -`MOVW\tR27, ""\.y`
++	// amd64:`MOVL\t\$3735936685, command-line-arguments\.x`, -`MOVL\t\$3735936685, command-line-arguments\.y`
++	// arm64:`MOVW\tR27, command-line-arguments\.x`, -`MOVW\tR27, command-line-arguments\.y`
+ 	use(x)
+-	// amd64:`MOVL\t\$3735936685, ""\.x`, `MOVL\t\$3735936685, ""\.y`
+-	// arm64:`MOVW\tR27, ""\.x`, `MOVW\tR27, ""\.y`
++	// amd64:`MOVL\t\$3735936685, command-line-arguments\.x`, `MOVL\t\$3735936685, command-line-arguments\.y`
++	// arm64:`MOVW\tR27, command-line-arguments\.x`, `MOVW\tR27, command-line-arguments\.y`
+ 	use(y)
+ }
+ 
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index 181bb93496..7e9d4745f1 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -45,7 +45,7 @@ func CompareString3(s string) bool {
+ // Check that arrays compare use 2/4/8 byte compares
+ 
+ func CompareArray1(a, b [2]byte) bool {
+-	// amd64:`CMPW\t""[.+_a-z0-9]+\(SP\), [A-Z]`
++	// amd64:`CMPW\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
+ 	// arm64:-`MOVBU\t`
+ 	// ppc64le:-`MOVBZ\t`
+ 	// s390x:-`MOVBZ\t`
+@@ -53,25 +53,25 @@ func CompareArray1(a, b [2]byte) bool {
+ }
+ 
+ func CompareArray2(a, b [3]uint16) bool {
+-	// amd64:`CMPL\t""[.+_a-z0-9]+\(SP\), [A-Z]`
+-	// amd64:`CMPW\t""[.+_a-z0-9]+\(SP\), [A-Z]`
++	// amd64:`CMPL\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
++	// amd64:`CMPW\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
+ 	return a == b
+ }
+ 
+ func CompareArray3(a, b [3]int16) bool {
+-	// amd64:`CMPL\t""[.+_a-z0-9]+\(SP\), [A-Z]`
+-	// amd64:`CMPW\t""[.+_a-z0-9]+\(SP\), [A-Z]`
++	// amd64:`CMPL\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
++	// amd64:`CMPW\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
+ 	return a == b
+ }
+ 
+ func CompareArray4(a, b [12]int8) bool {
+-	// amd64:`CMPQ\t""[.+_a-z0-9]+\(SP\), [A-Z]`
+-	// amd64:`CMPL\t""[.+_a-z0-9]+\(SP\), [A-Z]`
++	// amd64:`CMPQ\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
++	// amd64:`CMPL\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
+ 	return a == b
+ }
+ 
+ func CompareArray5(a, b [15]byte) bool {
+-	// amd64:`CMPQ\t""[.+_a-z0-9]+\(SP\), [A-Z]`
++	// amd64:`CMPQ\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
+ 	return a == b
+ }
+ 
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index 0292d7f0f3..1427f7a7d5 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -335,7 +335,7 @@ func load_op_no_merge(p, q *int) {
+ 
+ // Make sure offsets are folded into loads and stores.
+ func offsets_fold(_, a [20]byte) (b [20]byte) {
+-	// arm64:`MOVD\t""\.a\+[0-9]+\(FP\), R[0-9]+`,`MOVD\tR[0-9]+, ""\.b\+[0-9]+\(FP\)`
++	// arm64:`MOVD\tcommand-line-arguments\.a\+[0-9]+\(FP\), R[0-9]+`,`MOVD\tR[0-9]+, command-line-arguments\.b\+[0-9]+\(FP\)`
+ 	b = a
+ 	return
+ }
+diff --git a/test/codegen/memops.go b/test/codegen/memops.go
+index fb8208f984..7e59d88560 100644
+--- a/test/codegen/memops.go
++++ b/test/codegen/memops.go
+@@ -13,23 +13,23 @@ var x32 [2]uint32
+ var x64 [2]uint64
+ 
+ func compMem1() int {
+-	// amd64:`CMPB\t"".x\+1\(SB\), [$]0`
++	// amd64:`CMPB\tcommand-line-arguments.x\+1\(SB\), [$]0`
+ 	if x[1] {
+ 		return 1
+ 	}
+-	// amd64:`CMPB\t"".x8\+1\(SB\), [$]7`
++	// amd64:`CMPB\tcommand-line-arguments.x8\+1\(SB\), [$]7`
+ 	if x8[1] == 7 {
+ 		return 1
+ 	}
+-	// amd64:`CMPW\t"".x16\+2\(SB\), [$]7`
++	// amd64:`CMPW\tcommand-line-arguments.x16\+2\(SB\), [$]7`
+ 	if x16[1] == 7 {
+ 		return 1
+ 	}
+-	// amd64:`CMPL\t"".x32\+4\(SB\), [$]7`
++	// amd64:`CMPL\tcommand-line-arguments.x32\+4\(SB\), [$]7`
+ 	if x32[1] == 7 {
+ 		return 1
+ 	}
+-	// amd64:`CMPQ\t"".x64\+8\(SB\), [$]7`
++	// amd64:`CMPQ\tcommand-line-arguments.x64\+8\(SB\), [$]7`
+ 	if x64[1] == 7 {
+ 		return 1
+ 	}
+diff --git a/test/codegen/select.go b/test/codegen/select.go
+index 4426924b36..82f6d1c7ef 100644
+--- a/test/codegen/select.go
++++ b/test/codegen/select.go
+@@ -10,7 +10,7 @@ func f() {
+ 	ch1 := make(chan int)
+ 	ch2 := make(chan int)
+ 	for {
+-		// amd64:-`MOVQ\t[$]0, ""..autotmp_3`
++		// amd64:-`MOVQ\t[$]0, command-line-arguments..autotmp_3`
+ 		select {
+ 		case <-ch1:
+ 		case <-ch2:
+diff --git a/test/codegen/zerosize.go b/test/codegen/zerosize.go
+index 292c5a018b..ecf3305461 100644
+--- a/test/codegen/zerosize.go
++++ b/test/codegen/zerosize.go
+@@ -12,12 +12,12 @@ package codegen
+ 
+ func zeroSize() {
+ 	c := make(chan struct{})
+-	// amd64:`MOVQ\t\$0, ""\.s\+56\(SP\)`
++	// amd64:`MOVQ\t\$0, command-line-arguments\.s\+56\(SP\)`
+ 	var s *int
+ 	// force s to be a stack object, also use some (fixed) stack space
+ 	g(&s, 1, 2, 3, 4, 5)
+ 
+-	// amd64:`LEAQ\t""\..*\+55\(SP\)`
++	// amd64:`LEAQ\tcommand-line-arguments\..*\+55\(SP\)`
+ 	c <- struct{}{}
+ }
+ 
+diff --git a/test/fixedbugs/issue20014.out b/test/fixedbugs/issue20014.out
+index 252e78da5e..3f79c77ba3 100644
+--- a/test/fixedbugs/issue20014.out
++++ b/test/fixedbugs/issue20014.out
+@@ -2,5 +2,5 @@
+ 0
+ 0
+ 0
+-main.T.X
+ issue20014.dir/a.T.X
++main.T.X
+diff --git a/test/fixedbugs/issue9355.go b/test/fixedbugs/issue9355.go
+index 31376153ac..1c3999c67c 100644
+--- a/test/fixedbugs/issue9355.go
++++ b/test/fixedbugs/issue9355.go
+@@ -32,10 +32,10 @@ func main() {
+ 
+ 	// 6g/8g print the offset as dec, but 5g/9g print the offset as hex.
+ 	patterns := []string{
+-		`rel 0\+\d t=1 \"\"\.x\+8\r?\n`,       // y = &x.b
+-		`rel 0\+\d t=1 \"\"\.x\+(28|1c)\r?\n`, // z = &x.d.q
+-		`rel 0\+\d t=1 \"\"\.b\+5\r?\n`,       // c = &b[5]
+-		`rel 0\+\d t=1 \"\"\.x\+(88|58)\r?\n`, // w = &x.f[3].r
++		`rel 0\+\d t=1 p\.x\+8\r?\n`,       // y = &x.b
++		`rel 0\+\d t=1 p\.x\+(28|1c)\r?\n`, // z = &x.d.q
++		`rel 0\+\d t=1 p\.b\+5\r?\n`,       // c = &b[5]
++		`rel 0\+\d t=1 p\.x\+(88|58)\r?\n`, // w = &x.f[3].r
+ 	}
+ 	for _, p := range patterns {
+ 		if ok, err := regexp.Match(p, out); !ok || err != nil {

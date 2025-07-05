@@ -28,6 +28,45 @@ Date:   Thu Sep 19 23:35:34 2019 -0700
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/debug/dwarf/buf.go | 19 ++++++++++---------
  1 file changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/debug/dwarf/buf.go b/src/debug/dwarf/buf.go
+index 3e6ce293fd..c3822a0dac 100644
+--- a/src/debug/dwarf/buf.go
++++ b/src/debug/dwarf/buf.go
+@@ -7,6 +7,7 @@
+ package dwarf
+ 
+ import (
++	"bytes"
+ 	"encoding/binary"
+ 	"strconv"
+ )
+@@ -79,16 +80,16 @@ func (b *buf) bytes(n int) []byte {
+ func (b *buf) skip(n int) { b.bytes(n) }
+ 
+ func (b *buf) string() string {
+-	for i := 0; i < len(b.data); i++ {
+-		if b.data[i] == 0 {
+-			s := string(b.data[0:i])
+-			b.data = b.data[i+1:]
+-			b.off += Offset(i + 1)
+-			return s
+-		}
++	i := bytes.IndexByte(b.data, 0)
++	if i < 0 {
++		b.error("underflow")
++		return ""
+ 	}
+-	b.error("underflow")
+-	return ""
++
++	s := string(b.data[0:i])
++	b.data = b.data[i+1:]
++	b.off += Offset(i + 1)
++	return s
+ }
+ 
+ func (b *buf) uint16() uint16 {

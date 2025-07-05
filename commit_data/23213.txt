@@ -7,7 +7,41 @@ Date:   Thu Apr 30 10:16:23 2015 +0300
     Change-Id: I1add1b92f5c2688a99133d90bf9789d770fd9f05
     Reviewed-on: https://go-review.googlesource.com/9503
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/os/file_plan9.go   | 2 +-
  src/strings/strings.go | 9 +--------
  2 files changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 132594eede..6850884d58 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -319,7 +319,7 @@ func hasPrefix(s, prefix string) bool {
+ 	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
+ }
+ 
+-// Variant of LastIndex from the strings package.
++// LastIndexByte from the strings package.
+ func lastIndex(s string, sep byte) int {
+ 	for i := len(s) - 1; i >= 0; i-- {
+ 		if s[i] == sep {
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 7b8a6b536b..567a3c5bfa 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -185,14 +185,7 @@ func LastIndex(s, sep string) int {
+ 	case n == 0:
+ 		return len(s)
+ 	case n == 1:
+-		// special case worth making fast
+-		c := sep[0]
+-		for i := len(s) - 1; i >= 0; i-- {
+-			if s[i] == c {
+-				return i
+-			}
+-		}
+-		return -1
++		return LastIndexByte(s, sep[0])
+ 	case n == len(s):
+ 		if sep == s {
+ 			return 0

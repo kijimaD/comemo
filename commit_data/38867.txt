@@ -13,9 +13,73 @@ Date:   Mon Dec 3 19:20:47 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/go/internal/gccgoimporter/importer_test.go         |  1 +
  src/go/internal/gccgoimporter/parser.go                |  8 ++++++++
  src/go/internal/gccgoimporter/testdata/nointerface.go  | 12 ++++++++++++
  src/go/internal/gccgoimporter/testdata/nointerface.gox |  8 ++++++++
  4 files changed, 29 insertions(+)
+
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index 9725fd429f..b659cfc1df 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -89,6 +89,7 @@ var importerTests = [...]importerTest{
+ 	{pkgpath: "escapeinfo", name: "NewT", want: "func NewT(data []byte) *T"},
+ 	{pkgpath: "issue27856", name: "M", want: "type M struct{E F}"},
+ 	{pkgpath: "v1reflect", name: "Type", want: "type Type interface{Align() int; AssignableTo(u Type) bool; Bits() int; ChanDir() ChanDir; Elem() Type; Field(i int) StructField; FieldAlign() int; FieldByIndex(index []int) StructField; FieldByName(name string) (StructField, bool); FieldByNameFunc(match func(string) bool) (StructField, bool); Implements(u Type) bool; In(i int) Type; IsVariadic() bool; Key() Type; Kind() Kind; Len() int; Method(int) Method; MethodByName(string) (Method, bool); Name() string; NumField() int; NumIn() int; NumMethod() int; NumOut() int; Out(i int) Type; PkgPath() string; Size() uintptr; String() string; common() *commonType; rawString() string; runtimeType() *runtimeType; uncommon() *uncommonType}"},
++	{pkgpath: "nointerface", name: "I", want: "type I int"},
+ }
+ 
+ func TestGoxImporter(t *testing.T) {
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index 7d075db4ce..5414046be4 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -541,6 +541,14 @@ func (p *parser) parseNamedType(nlist []int) types.Type {
+ 		// collect associated methods
+ 		for p.tok == scanner.Ident {
+ 			p.expectKeyword("func")
++			if p.tok == '/' {
++				// Skip a /*nointerface*/ comment.
++				p.expect('/')
++				p.expect('*')
++				p.expect(scanner.Ident)
++				p.expect('*')
++				p.expect('/')
++			}
+ 			p.expect('(')
+ 			receiver, _ := p.parseParam(pkg)
+ 			p.expect(')')
+diff --git a/src/go/internal/gccgoimporter/testdata/nointerface.go b/src/go/internal/gccgoimporter/testdata/nointerface.go
+new file mode 100644
+index 0000000000..6a545f2493
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/nointerface.go
+@@ -0,0 +1,12 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package nointerface
++
++type I int
++
++//go:nointerface
++func (p *I) Get() int { return int(*p) }
++
++func (p *I) Set(v int) { *p = I(v) }
+diff --git a/src/go/internal/gccgoimporter/testdata/nointerface.gox b/src/go/internal/gccgoimporter/testdata/nointerface.gox
+new file mode 100644
+index 0000000000..7b73d179e3
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/nointerface.gox
+@@ -0,0 +1,8 @@
++v3;
++package nointerface
++pkgpath nointerface
++types 3 2 133 17
++type 1 "I" <type -11>
++ func /*nointerface*/ (p <esc:0x1> <type 2>) Get () <type -11>
++ func (p <esc:0x1> <type 2>) Set (v <type -11>)
++type 2 *<type 1>

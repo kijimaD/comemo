@@ -12,8 +12,81 @@ Date:   Fri Jun 11 13:41:49 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1616042
-
+---
  src/cmd/5l/asm.c | 6 ++++--
  src/cmd/6l/asm.c | 6 ++++--
  src/cmd/8l/asm.c | 6 +++---
  3 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 62c2a07ad8..45e6e734fb 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -532,6 +532,8 @@ asmb(void)
+ 			asmthumbmap();
+ 		if(dlm)
+ 			asmdyn();
++		if(!debug['s'])
++			strnput("", INITRND-(8+symsize+lcsize)%INITRND);
+ 		cflush();
+ 		seek(cout, symo, 0);
+ 		lputl(symsize);
+@@ -679,8 +681,8 @@ asmb(void)
+ 			ph->off = symo;
+ 			ph->vaddr = symdatva;
+ 			ph->paddr = symdatva;
+-			ph->filesz = 8+symsize+lcsize;
+-			ph->memsz = 8+symsize+lcsize;
++			ph->filesz = rnd(8+symsize+lcsize, INITRND);
++			ph->memsz = rnd(8+symsize+lcsize, INITRND);
+ 			ph->align = INITRND;
+ 		}
+ 
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index c104d23d4b..b45557ebe7 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -620,6 +620,8 @@ asmb(void)
+ 			asmlc();
+ 		if(dlm)
+ 			asmdyn();
++		if(!debug['s'])
++			strnput("", INITRND-(8+symsize+lcsize)%INITRND);
+ 		cflush();
+ 		seek(cout, symo, 0);
+ 		lputl(symsize);
+@@ -753,8 +755,8 @@ asmb(void)
+ 			ph->off = symo;
+ 			ph->vaddr = symdatva;
+ 			ph->paddr = symdatva;
+-			ph->filesz = 8+symsize+lcsize;
+-			ph->memsz = 8+symsize+lcsize;
++			ph->filesz = rnd(8+symsize+lcsize, INITRND);
++			ph->memsz = rnd(8+symsize+lcsize, INITRND);
+ 			ph->align = INITRND;
+ 		}
+ 
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 797209169d..a7f894aa28 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -642,7 +642,7 @@ asmb(void)
+ 			asmlc();
+ 		if(dlm)
+ 			asmdyn();
+-		if(HEADTYPE == 10)
++		if(HEADTYPE == 10 || (iself && !debug['s']))
+ 			strnput("", INITRND-(8+symsize+lcsize)%INITRND);
+ 		cflush();
+ 		seek(cout, symo, 0);
+@@ -884,8 +884,8 @@ asmb(void)
+ 			ph->off = symo;
+ 			ph->vaddr = symdatva;
+ 			ph->paddr = symdatva;
+-			ph->filesz = 8+symsize+lcsize;
+-			ph->memsz = 8+symsize+lcsize;
++			ph->filesz = rnd(8+symsize+lcsize, INITRND);
++			ph->memsz = rnd(8+symsize+lcsize, INITRND);
+ 			ph->align = INITRND;
+ 		}
+ 

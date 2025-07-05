@@ -10,6 +10,11 @@ Date:   Fri Feb 13 17:30:16 2015 -0500
     Change-Id: Idd88fdbf2a1453374fa12109b949b1c4d149a4f8
     Reviewed-on: https://go-review.googlesource.com/4853
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/{gcwork.go => mgcwork.go} | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/runtime/gcwork.go b/src/runtime/mgcwork.go
+similarity index 100%
+rename from src/runtime/gcwork.go
+rename to src/runtime/mgcwork.go

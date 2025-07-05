@@ -16,7 +16,315 @@ Date:   Fri Apr 29 14:17:04 2016 +1000
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/bv.go    | 73 ++++++++++--------------------------
  src/cmd/compile/internal/gc/plive.go | 40 ++++++++++----------
  2 files changed, 39 insertions(+), 74 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bv.go b/src/cmd/compile/internal/gc/bv.go
+index 33c49ed69c..d1c2192c17 100644
+--- a/src/cmd/compile/internal/gc/bv.go
++++ b/src/cmd/compile/internal/gc/bv.go
+@@ -7,32 +7,20 @@ package gc
+ import "fmt"
+ 
+ const (
+-	WORDSIZE  = 4
+ 	WORDBITS  = 32
+ 	WORDMASK  = WORDBITS - 1
+ 	WORDSHIFT = 5
+ )
+ 
+-// A Bvec is a bit vector.
+-type Bvec struct {
++// A bvec is a bit vector.
++type bvec struct {
+ 	n int32    // number of bits in vector
+ 	b []uint32 // words holding bits
+ }
+ 
+-func bvsize(n uint32) uint32 {
+-	return ((n + WORDBITS - 1) / WORDBITS) * WORDSIZE
+-}
+-
+-func bvbits(bv Bvec) int32 {
+-	return bv.n
+-}
+-
+-func bvwords(bv Bvec) int32 {
+-	return (bv.n + WORDBITS - 1) / WORDBITS
+-}
+-
+-func bvalloc(n int32) Bvec {
+-	return Bvec{n, make([]uint32, bvsize(uint32(n))/4)}
++func bvalloc(n int32) bvec {
++	nword := (n + WORDBITS - 1) / WORDBITS
++	return bvec{n, make([]uint32, nword)}
+ }
+ 
+ type bulkBvec struct {
+@@ -50,20 +38,20 @@ func bvbulkalloc(nbit int32, count int32) bulkBvec {
+ 	}
+ }
+ 
+-func (b *bulkBvec) next() Bvec {
+-	out := Bvec{b.nbit, b.words[:b.nword]}
++func (b *bulkBvec) next() bvec {
++	out := bvec{b.nbit, b.words[:b.nword]}
+ 	b.words = b.words[b.nword:]
+ 	return out
+ }
+ 
+ // difference
+-func bvandnot(dst Bvec, src1 Bvec, src2 Bvec) {
++func bvandnot(dst bvec, src1 bvec, src2 bvec) {
+ 	for i, x := range src1.b {
+ 		dst.b[i] = x &^ src2.b[i]
+ 	}
+ }
+ 
+-func bveq(bv1 Bvec, bv2 Bvec) bool {
++func bveq(bv1 bvec, bv2 bvec) bool {
+ 	if bv1.n != bv2.n {
+ 		Fatalf("bvequal: lengths %d and %d are not equal", bv1.n, bv2.n)
+ 	}
+@@ -75,28 +63,13 @@ func bveq(bv1 Bvec, bv2 Bvec) bool {
+ 	return true
+ }
+ 
+-func bvcopy(dst Bvec, src Bvec) {
++func bvcopy(dst bvec, src bvec) {
+ 	for i, x := range src.b {
+ 		dst.b[i] = x
+ 	}
+ }
+ 
+-func bvconcat(src1 Bvec, src2 Bvec) Bvec {
+-	dst := bvalloc(src1.n + src2.n)
+-	for i := int32(0); i < src1.n; i++ {
+-		if bvget(src1, i) != 0 {
+-			bvset(dst, i)
+-		}
+-	}
+-	for i := int32(0); i < src2.n; i++ {
+-		if bvget(src2, i) != 0 {
+-			bvset(dst, i+src1.n)
+-		}
+-	}
+-	return dst
+-}
+-
+-func bvget(bv Bvec, i int32) int {
++func bvget(bv bvec, i int32) int {
+ 	if i < 0 || i >= bv.n {
+ 		Fatalf("bvget: index %d is out of bounds with length %d\n", i, bv.n)
+ 	}
+@@ -105,7 +78,7 @@ func bvget(bv Bvec, i int32) int {
+ 
+ // bvnext returns the smallest index >= i for which bvget(bv, i) == 1.
+ // If there is no such index, bvnext returns -1.
+-func bvnext(bv Bvec, i int32) int32 {
++func bvnext(bv bvec, i int32) int32 {
+ 	if i >= bv.n {
+ 		return -1
+ 	}
+@@ -134,7 +107,7 @@ func bvnext(bv Bvec, i int32) int32 {
+ 	return i
+ }
+ 
+-func bvisempty(bv Bvec) bool {
++func bvisempty(bv bvec) bool {
+ 	for i := int32(0); i < bv.n; i += WORDBITS {
+ 		if bv.b[i>>WORDSHIFT] != 0 {
+ 			return false
+@@ -143,7 +116,7 @@ func bvisempty(bv Bvec) bool {
+ 	return true
+ }
+ 
+-func bvnot(bv Bvec) {
++func bvnot(bv bvec) {
+ 	i := int32(0)
+ 	w := int32(0)
+ 	for ; i < bv.n; i, w = i+WORDBITS, w+1 {
+@@ -152,41 +125,33 @@ func bvnot(bv Bvec) {
+ }
+ 
+ // union
+-func bvor(dst Bvec, src1 Bvec, src2 Bvec) {
++func bvor(dst bvec, src1 bvec, src2 bvec) {
+ 	for i, x := range src1.b {
+ 		dst.b[i] = x | src2.b[i]
+ 	}
+ }
+ 
+ // intersection
+-func bvand(dst Bvec, src1 Bvec, src2 Bvec) {
++func bvand(dst bvec, src1 bvec, src2 bvec) {
+ 	for i, x := range src1.b {
+ 		dst.b[i] = x & src2.b[i]
+ 	}
+ }
+ 
+-func bvprint(bv Bvec) {
++func bvprint(bv bvec) {
+ 	fmt.Printf("#*")
+ 	for i := int32(0); i < bv.n; i++ {
+ 		fmt.Printf("%d", bvget(bv, i))
+ 	}
+ }
+ 
+-func bvreset(bv Bvec, i int32) {
+-	if i < 0 || i >= bv.n {
+-		Fatalf("bvreset: index %d is out of bounds with length %d\n", i, bv.n)
+-	}
+-	mask := uint32(^(1 << uint(i%WORDBITS)))
+-	bv.b[i/WORDBITS] &= mask
+-}
+-
+-func bvresetall(bv Bvec) {
++func bvresetall(bv bvec) {
+ 	for i := range bv.b {
+ 		bv.b[i] = 0
+ 	}
+ }
+ 
+-func bvset(bv Bvec, i int32) {
++func bvset(bv bvec, i int32) {
+ 	if i < 0 || i >= bv.n {
+ 		Fatalf("bvset: index %d is out of bounds with length %d\n", i, bv.n)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 5f96aa29cb..a15a4670ae 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -65,9 +65,9 @@ type BasicBlock struct {
+ 	//	uevar: upward exposed variables (used before set in block)
+ 	//	varkill: killed variables (set in block)
+ 	//	avarinit: addrtaken variables set or used (proof of initialization)
+-	uevar    Bvec
+-	varkill  Bvec
+-	avarinit Bvec
++	uevar    bvec
++	varkill  bvec
++	avarinit bvec
+ 
+ 	// Computed during livenesssolve using control flow information:
+ 	//
+@@ -77,10 +77,10 @@ type BasicBlock struct {
+ 	//		(initialized in block or at exit from any predecessor block)
+ 	//	avarinitall: addrtaken variables certainly initialized at block exit
+ 	//		(initialized in block or at exit from all predecessor blocks)
+-	livein      Bvec
+-	liveout     Bvec
+-	avarinitany Bvec
+-	avarinitall Bvec
++	livein      bvec
++	liveout     bvec
++	avarinitany bvec
++	avarinitall bvec
+ }
+ 
+ // A collection of global state used by liveness analysis.
+@@ -92,8 +92,8 @@ type Liveness struct {
+ 
+ 	// An array with a bit vector for each safe point tracking live pointers
+ 	// in the arguments and locals area, indexed by bb.rpo.
+-	argslivepointers []Bvec
+-	livepointers     []Bvec
++	argslivepointers []bvec
++	livepointers     []bvec
+ }
+ 
+ // Constructs a new basic block containing a single instruction.
+@@ -550,7 +550,7 @@ func isfunny(n *Node) bool {
+ // The avarinit output serves as a signal that the data has been
+ // initialized, because any use of a variable must come after its
+ // initialization.
+-func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarinit Bvec) {
++func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarinit bvec) {
+ 	bvresetall(uevar)
+ 	bvresetall(varkill)
+ 	bvresetall(avarinit)
+@@ -701,7 +701,7 @@ func newliveness(fn *Node, ptxt *obj.Prog, cfg []*BasicBlock, vars []*Node) *Liv
+ 	return &result
+ }
+ 
+-func printeffects(p *obj.Prog, uevar Bvec, varkill Bvec, avarinit Bvec) {
++func printeffects(p *obj.Prog, uevar bvec, varkill bvec, avarinit bvec) {
+ 	fmt.Printf("effects of %v", p)
+ 	fmt.Printf("\nuevar: ")
+ 	bvprint(uevar)
+@@ -728,7 +728,7 @@ func printnode(node *Node) {
+ }
+ 
+ // Pretty print a list of variables. The vars argument is a slice of *Nodes.
+-func printvars(name string, bv Bvec, vars []*Node) {
++func printvars(name string, bv bvec, vars []*Node) {
+ 	fmt.Printf("%s:", name)
+ 	for i, node := range vars {
+ 		if bvget(bv, int32(i)) != 0 {
+@@ -864,7 +864,7 @@ func checkptxt(fn *Node, firstp *obj.Prog) {
+ // and then simply copied into bv at the correct offset on future calls with
+ // the same type t. On https://rsc.googlecode.com/hg/testdata/slow.go, onebitwalktype1
+ // accounts for 40% of the 6g execution time.
+-func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
++func onebitwalktype1(t *Type, xoffset *int64, bv bvec) {
+ 	if t.Align > 0 && *xoffset&int64(t.Align-1) != 0 {
+ 		Fatalf("onebitwalktype1: invalid initial alignment, %v", t)
+ 	}
+@@ -961,7 +961,7 @@ func argswords() int32 {
+ // Generates live pointer value maps for arguments and local variables. The
+ // this argument and the in arguments are always assumed live. The vars
+ // argument is a slice of *Nodes.
+-func onebitlivepointermap(lv *Liveness, liveout Bvec, vars []*Node, args Bvec, locals Bvec) {
++func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, locals bvec) {
+ 	var xoffset int64
+ 
+ 	for i := int32(0); ; i++ {
+@@ -1158,7 +1158,7 @@ func livenesssolve(lv *Liveness) {
+ 
+ // This function is slow but it is only used for generating debug prints.
+ // Check whether n is marked live in args/locals.
+-func islive(n *Node, args Bvec, locals Bvec) bool {
++func islive(n *Node, args bvec, locals bvec) bool {
+ 	switch n.Class {
+ 	case PPARAM, PPARAMOUT:
+ 		for i := 0; int64(i) < n.Type.Width/int64(Widthptr); i++ {
+@@ -1435,7 +1435,7 @@ const (
+ 	Hp = 16777619
+ )
+ 
+-func hashbitmap(h uint32, bv Bvec) uint32 {
++func hashbitmap(h uint32, bv bvec) uint32 {
+ 	n := int((bv.n + 31) / 32)
+ 	for i := 0; i < n; i++ {
+ 		w := bv.b[i]
+@@ -1524,8 +1524,8 @@ func livenesscompact(lv *Liveness) {
+ 	// array so that we can tell where the coalesced bitmaps stop
+ 	// and so that we don't double-free when cleaning up.
+ 	for j := uniq; j < n; j++ {
+-		lv.livepointers[j] = Bvec{}
+-		lv.argslivepointers[j] = Bvec{}
++		lv.livepointers[j] = bvec{}
++		lv.argslivepointers[j] = bvec{}
+ 	}
+ 
+ 	// Rewrite PCDATA instructions to use new numbering.
+@@ -1539,7 +1539,7 @@ func livenesscompact(lv *Liveness) {
+ 	}
+ }
+ 
+-func printbitset(printed bool, name string, vars []*Node, bits Bvec) bool {
++func printbitset(printed bool, name string, vars []*Node, bits bvec) bool {
+ 	started := false
+ 	for i, n := range vars {
+ 		if bvget(bits, int32(i)) == 0 {
+@@ -1666,7 +1666,7 @@ func livenessprintdebug(lv *Liveness) {
+ // first word dumped is the total number of bitmaps. The second word is the
+ // length of the bitmaps. All bitmaps are assumed to be of equal length. The
+ // words that are followed are the raw bitmap words.
+-func onebitwritesymbol(arr []Bvec, sym *Sym) {
++func onebitwritesymbol(arr []bvec, sym *Sym) {
+ 	off := 4                                  // number of bitmaps, to fill in later
+ 	off = duint32(sym, off, uint32(arr[0].n)) // number of bits in each bitmap
+ 	var i int

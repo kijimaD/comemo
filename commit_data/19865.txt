@@ -16,7 +16,7 @@ Date:   Fri Aug 1 06:21:08 2014 -0700
     R=golang-codereviews, dvyukov, minux, ruiu, bradfitz, khr
     CC=golang-codereviews
     https://golang.org/cl/120930043
-
+---
  src/pkg/runtime/memclr_386.s          | 1 +
  src/pkg/runtime/memclr_amd64.s        | 1 +
  src/pkg/runtime/memclr_plan9_386.s    | 1 +
@@ -25,3 +25,88 @@ Date:   Fri Aug 1 06:21:08 2014 -0700
  src/pkg/runtime/memmove_plan9_386.s   | 1 +
  src/pkg/runtime/memmove_plan9_amd64.s | 1 +
  7 files changed, 7 insertions(+)
+
+diff --git a/src/pkg/runtime/memclr_386.s b/src/pkg/runtime/memclr_386.s
+index 4b7580cb49..aeabad413e 100644
+--- a/src/pkg/runtime/memclr_386.s
++++ b/src/pkg/runtime/memclr_386.s
+@@ -63,6 +63,7 @@ clr_loop:
+ clr_1or2:
+ 	MOVB	AX, (DI)
+ 	MOVB	AX, -1(DI)(BX*1)
++	RET
+ clr_0:
+ 	RET
+ clr_3or4:
+diff --git a/src/pkg/runtime/memclr_amd64.s b/src/pkg/runtime/memclr_amd64.s
+index 6b79363b24..01c6a415c0 100644
+--- a/src/pkg/runtime/memclr_amd64.s
++++ b/src/pkg/runtime/memclr_amd64.s
+@@ -62,6 +62,7 @@ clr_loop:
+ clr_1or2:
+ 	MOVB	AX, (DI)
+ 	MOVB	AX, -1(DI)(BX*1)
++	RET
+ clr_0:
+ 	RET
+ clr_3or4:
+diff --git a/src/pkg/runtime/memclr_plan9_386.s b/src/pkg/runtime/memclr_plan9_386.s
+index 9b496785a2..ed5dbbd3c6 100644
+--- a/src/pkg/runtime/memclr_plan9_386.s
++++ b/src/pkg/runtime/memclr_plan9_386.s
+@@ -32,6 +32,7 @@ clr_tail:
+ clr_1or2:
+ 	MOVB	AX, (DI)
+ 	MOVB	AX, -1(DI)(BX*1)
++	RET
+ clr_0:
+ 	RET
+ clr_3or4:
+diff --git a/src/pkg/runtime/memmove_386.s b/src/pkg/runtime/memmove_386.s
+index 1fd9ba2bcc..51b08d56d3 100644
+--- a/src/pkg/runtime/memmove_386.s
++++ b/src/pkg/runtime/memmove_386.s
+@@ -115,6 +115,7 @@ move_1or2:
+ 	MOVB	-1(SI)(BX*1), CX
+ 	MOVB	AX, (DI)
+ 	MOVB	CX, -1(DI)(BX*1)
++	RET
+ move_0:
+ 	RET
+ move_3or4:
+diff --git a/src/pkg/runtime/memmove_amd64.s b/src/pkg/runtime/memmove_amd64.s
+index 672fce90b3..339c5dd410 100644
+--- a/src/pkg/runtime/memmove_amd64.s
++++ b/src/pkg/runtime/memmove_amd64.s
+@@ -122,6 +122,7 @@ move_1or2:
+ 	MOVB	-1(SI)(BX*1), CX
+ 	MOVB	AX, (DI)
+ 	MOVB	CX, -1(DI)(BX*1)
++	RET
+ move_0:
+ 	RET
+ move_3or4:
+diff --git a/src/pkg/runtime/memmove_plan9_386.s b/src/pkg/runtime/memmove_plan9_386.s
+index 187616cd0a..5ac5c27d40 100644
+--- a/src/pkg/runtime/memmove_plan9_386.s
++++ b/src/pkg/runtime/memmove_plan9_386.s
+@@ -101,6 +101,7 @@ move_1or2:
+ 	MOVB	-1(SI)(BX*1), CX
+ 	MOVB	AX, (DI)
+ 	MOVB	CX, -1(DI)(BX*1)
++	RET
+ move_0:
+ 	RET
+ move_3or4:
+diff --git a/src/pkg/runtime/memmove_plan9_amd64.s b/src/pkg/runtime/memmove_plan9_amd64.s
+index 60108273cf..3664e45ae2 100644
+--- a/src/pkg/runtime/memmove_plan9_amd64.s
++++ b/src/pkg/runtime/memmove_plan9_amd64.s
+@@ -104,6 +104,7 @@ move_1or2:
+ 	MOVB	-1(SI)(BX*1), CX
+ 	MOVB	AX, (DI)
+ 	MOVB	CX, -1(DI)(BX*1)
++	RET
+ move_0:
+ 	RET
+ move_3or4:

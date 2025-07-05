@@ -15,9 +15,101 @@ Date:   Tue Mar 19 11:23:59 2024 +0100
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/asan/asan.go      | 4 ++--
  src/internal/asan/noasan.go    | 6 ++----
  src/syscall/syscall_unix.go    | 8 ++++----
  src/syscall/syscall_windows.go | 4 ++--
  4 files changed, 10 insertions(+), 12 deletions(-)
+
+diff --git a/src/internal/asan/asan.go b/src/internal/asan/asan.go
+index 0a8148e5b9..56814ebfb2 100644
+--- a/src/internal/asan/asan.go
++++ b/src/internal/asan/asan.go
+@@ -13,7 +13,7 @@ import (
+ const Enabled = true
+ 
+ //go:linkname Read runtime.asanread
+-func Read(addr unsafe.Pointer, len int)
++func Read(addr unsafe.Pointer, len uintptr)
+ 
+ //go:linkname Write runtime.asanwrite
+-func Write(addr unsafe.Pointer, len int)
++func Write(addr unsafe.Pointer, len uintptr)
+diff --git a/src/internal/asan/noasan.go b/src/internal/asan/noasan.go
+index e01b46a104..c510d35146 100644
+--- a/src/internal/asan/noasan.go
++++ b/src/internal/asan/noasan.go
+@@ -12,8 +12,6 @@ import (
+ 
+ const Enabled = false
+ 
+-func Read(addr unsafe.Pointer, len int) {
+-}
++func Read(addr unsafe.Pointer, len uintptr) {}
+ 
+-func Write(addr unsafe.Pointer, len int) {
+-}
++func Write(addr unsafe.Pointer, len uintptr) {}
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 79aac51c8f..ecd5952975 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -193,7 +193,7 @@ func Read(fd int, p []byte) (n int, err error) {
+ 		msan.Write(unsafe.Pointer(&p[0]), uintptr(n))
+ 	}
+ 	if asan.Enabled && n > 0 {
+-		asan.Write(unsafe.Pointer(&p[0]), n)
++		asan.Write(unsafe.Pointer(&p[0]), uintptr(n))
+ 	}
+ 	return
+ }
+@@ -217,7 +217,7 @@ func Write(fd int, p []byte) (n int, err error) {
+ 		msan.Read(unsafe.Pointer(&p[0]), uintptr(n))
+ 	}
+ 	if asan.Enabled && n > 0 {
+-		asan.Read(unsafe.Pointer(&p[0]), n)
++		asan.Read(unsafe.Pointer(&p[0]), uintptr(n))
+ 	}
+ 	return
+ }
+@@ -236,7 +236,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 		msan.Write(unsafe.Pointer(&p[0]), uintptr(n))
+ 	}
+ 	if asan.Enabled && n > 0 {
+-		asan.Write(unsafe.Pointer(&p[0]), n)
++		asan.Write(unsafe.Pointer(&p[0]), uintptr(n))
+ 	}
+ 	return
+ }
+@@ -253,7 +253,7 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 		msan.Read(unsafe.Pointer(&p[0]), uintptr(n))
+ 	}
+ 	if asan.Enabled && n > 0 {
+-		asan.Read(unsafe.Pointer(&p[0]), n)
++		asan.Read(unsafe.Pointer(&p[0]), uintptr(n))
+ 	}
+ 	return
+ }
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 032f814304..59ce2b0206 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -452,7 +452,7 @@ func ReadFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
+ 		msan.Write(unsafe.Pointer(&p[0]), uintptr(*done))
+ 	}
+ 	if asan.Enabled && *done > 0 {
+-		asan.Write(unsafe.Pointer(&p[0]), int(*done))
++		asan.Write(unsafe.Pointer(&p[0]), uintptr(*done))
+ 	}
+ 	return err
+ }
+@@ -469,7 +469,7 @@ func WriteFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error
+ 		msan.Read(unsafe.Pointer(&p[0]), uintptr(*done))
+ 	}
+ 	if asan.Enabled && *done > 0 {
+-		asan.Read(unsafe.Pointer(&p[0]), int(*done))
++		asan.Read(unsafe.Pointer(&p[0]), uintptr(*done))
+ 	}
+ 	return err
+ }

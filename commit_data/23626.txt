@@ -21,10 +21,204 @@ Date:   Wed May 20 16:16:04 2015 -0400
     Change-Id: Ia14408be06aafa9ca4867f4e70bddb3fe0e96665
     Reviewed-on: https://go-review.googlesource.com/10313
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go      | 13 +++++++++++++
  src/runtime/mgcmark.go  | 21 +++++++++++++++++++++
  src/runtime/proc1.go    |  6 ++++--
  src/runtime/runtime2.go |  8 ++++++++
  src/runtime/stack1.go   | 23 +++++++++++++++++++----
  5 files changed, 65 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 62a8dae801..f5877e6847 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -125,6 +125,19 @@ const (
+ 	_RootSpans       = 3
+ 	_RootFlushCaches = 4
+ 	_RootCount       = 5
++
++	// firstStackBarrierOffset is the approximate byte offset at
++	// which to place the first stack barrier from the current SP.
++	// This is a lower bound on how much stack will have to be
++	// re-scanned during mark termination. Subsequent barriers are
++	// placed at firstStackBarrierOffset * 2^n offsets.
++	//
++	// For debugging, this can be set to 0, which will install a
++	// stack barrier at every frame. If you do this, you may also
++	// have to raise _StackMin, since the stack barrier
++	// bookkeeping will use a large amount of each stack.
++	firstStackBarrierOffset = 1024
++	debugStackBarrier       = false
+ )
+ 
+ // heapminimum is the minimum heap size at which to trigger GC.
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 62fa33895b..6bc2d73d55 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -399,6 +399,27 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
+ 	}
+ }
+ 
++// gcMaxStackBarriers returns the maximum number of stack barriers
++// that can be installed in a stack of stackSize bytes.
++func gcMaxStackBarriers(stackSize int) (n int) {
++	if firstStackBarrierOffset == 0 {
++		// Special debugging case for inserting stack barriers
++		// at every frame. Steal half of the stack for the
++		// []stkbar. Technically, if the stack were to consist
++		// solely of return PCs we would need two thirds of
++		// the stack, but stealing that much breaks things and
++		// this doesn't happen in practice.
++		return stackSize / 2 / int(unsafe.Sizeof(stkbar{}))
++	}
++
++	offset := firstStackBarrierOffset
++	for offset < stackSize {
++		n++
++		offset *= 2
++	}
++	return n + 1
++}
++
+ // TODO(austin): Can we consolidate the gcDrain* functions?
+ 
+ // gcDrain scans objects in work buffers, blackening grey
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 20664c4879..ba092c7f88 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -2157,7 +2157,7 @@ func malg(stacksize int32) *g {
+ 	if stacksize >= 0 {
+ 		stacksize = round2(_StackSystem + stacksize)
+ 		systemstack(func() {
+-			newg.stack = stackalloc(uint32(stacksize))
++			newg.stack, newg.stkbar = stackalloc(uint32(stacksize))
+ 		})
+ 		newg.stackguard0 = newg.stack.lo + _StackGuard
+ 		newg.stackguard1 = ^uintptr(0)
+@@ -2285,6 +2285,8 @@ func gfput(_p_ *p, gp *g) {
+ 		gp.stack.lo = 0
+ 		gp.stack.hi = 0
+ 		gp.stackguard0 = 0
++		gp.stkbar = nil
++		gp.stkbarPos = 0
+ 	}
+ 
+ 	gp.schedlink.set(_p_.gfree)
+@@ -2328,7 +2330,7 @@ retry:
+ 		if gp.stack.lo == 0 {
+ 			// Stack was deallocated in gfput.  Allocate a new one.
+ 			systemstack(func() {
+-				gp.stack = stackalloc(_FixedStack)
++				gp.stack, gp.stkbar = stackalloc(_FixedStack)
+ 			})
+ 			gp.stackguard0 = gp.stack.lo + _StackGuard
+ 			gp.stackAlloc = _FixedStack
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 1954d42a17..8b0e1081da 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -202,6 +202,12 @@ type stack struct {
+ 	hi uintptr
+ }
+ 
++// stkbar records the state of a G's stack barrier.
++type stkbar struct {
++	savedLRPtr uintptr // location overwritten by stack barrier PC
++	savedLRVal uintptr // value overwritten at savedLRPtr
++}
++
+ type g struct {
+ 	// Stack parameters.
+ 	// stack describes the actual stack memory: [stack.lo, stack.hi).
+@@ -220,6 +226,8 @@ type g struct {
+ 	sched        gobuf
+ 	syscallsp    uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
+ 	syscallpc    uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
++	stkbar       []stkbar       // stack barriers, from low to high
++	stkbarPos    uintptr        // index of lowest stack barrier not hit
+ 	param        unsafe.Pointer // passed parameter on wakeup
+ 	atomicstatus uint32
+ 	goid         int64
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index e593b8a3a8..f77e87cdf9 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -175,7 +175,7 @@ func stackcache_clear(c *mcache) {
+ 	unlock(&stackpoolmu)
+ }
+ 
+-func stackalloc(n uint32) stack {
++func stackalloc(n uint32) (stack, []stkbar) {
+ 	// Stackalloc must be called on scheduler stack, so that we
+ 	// never try to grow the stack during the code that stackalloc runs.
+ 	// Doing so would cause a deadlock (issue 1547).
+@@ -190,12 +190,18 @@ func stackalloc(n uint32) stack {
+ 		print("stackalloc ", n, "\n")
+ 	}
+ 
++	// Compute the size of stack barrier array.
++	maxstkbar := gcMaxStackBarriers(int(n))
++	nstkbar := unsafe.Sizeof(stkbar{}) * uintptr(maxstkbar)
++
+ 	if debug.efence != 0 || stackFromSystem != 0 {
+ 		v := sysAlloc(round(uintptr(n), _PageSize), &memstats.stacks_sys)
+ 		if v == nil {
+ 			throw("out of memory (stackalloc)")
+ 		}
+-		return stack{uintptr(v), uintptr(v) + uintptr(n)}
++		top := uintptr(n) - nstkbar
++		stkbarSlice := slice{add(v, top), 0, maxstkbar}
++		return stack{uintptr(v), uintptr(v) + top}, *(*[]stkbar)(unsafe.Pointer(&stkbarSlice))
+ 	}
+ 
+ 	// Small stacks are allocated with a fixed-size free-list allocator.
+@@ -243,7 +249,9 @@ func stackalloc(n uint32) stack {
+ 	if stackDebug >= 1 {
+ 		print("  allocated ", v, "\n")
+ 	}
+-	return stack{uintptr(v), uintptr(v) + uintptr(n)}
++	top := uintptr(n) - nstkbar
++	stkbarSlice := slice{add(v, top), 0, maxstkbar}
++	return stack{uintptr(v), uintptr(v) + top}, *(*[]stkbar)(unsafe.Pointer(&stkbarSlice))
+ }
+ 
+ func stackfree(stk stack, n uintptr) {
+@@ -556,7 +564,7 @@ func copystack(gp *g, newsize uintptr) {
+ 	used := old.hi - gp.sched.sp
+ 
+ 	// allocate new stack
+-	new := stackalloc(uint32(newsize))
++	new, newstkbar := stackalloc(uint32(newsize))
+ 	if stackPoisonCopy != 0 {
+ 		fillstack(new, 0xfd)
+ 	}
+@@ -582,12 +590,17 @@ func copystack(gp *g, newsize uintptr) {
+ 	}
+ 	memmove(unsafe.Pointer(new.hi-used), unsafe.Pointer(old.hi-used), used)
+ 
++	// copy old stack barriers to new stack barrier array
++	newstkbar = newstkbar[:len(gp.stkbar)]
++	copy(newstkbar, gp.stkbar)
++
+ 	// Swap out old stack for new one
+ 	gp.stack = new
+ 	gp.stackguard0 = new.lo + _StackGuard // NOTE: might clobber a preempt request
+ 	gp.sched.sp = new.hi - used
+ 	oldsize := gp.stackAlloc
+ 	gp.stackAlloc = newsize
++	gp.stkbar = newstkbar
+ 
+ 	// free old stack
+ 	if stackPoisonCopy != 0 {
+@@ -794,6 +807,8 @@ func shrinkstack(gp *g) {
+ 			stackfree(gp.stack, gp.stackAlloc)
+ 			gp.stack.lo = 0
+ 			gp.stack.hi = 0
++			gp.stkbar = nil
++			gp.stkbarPos = 0
+ 		}
+ 		return
+ 	}

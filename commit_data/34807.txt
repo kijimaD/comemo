@@ -28,10 +28,292 @@ Date:   Fri Nov 10 11:45:16 2017 -0500
     Change-Id: I7611815be22e7c5c0d4fc3fa11832c42b32c4eb3
     Reviewed-on: https://go-review.googlesource.com/77153
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/ast.go        | 57 +++++++++++++++++++++++------------
  src/cmd/cgo/gcc.go        | 76 ++++++++++++++++++++++-------------------------
  src/cmd/cgo/main.go       |  9 ++++++
  src/cmd/cgo/out.go        |  3 +-
  src/cmd/dist/buildtool.go |  1 +
  5 files changed, 86 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index f59f7afcb7..58e0ee78cb 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -58,6 +58,8 @@ func (f *File) ParseGo(name string, src []byte) {
+ 	// so we use ast1 to look for the doc comments on import "C"
+ 	// and on exported functions, and we use ast2 for translating
+ 	// and reprinting.
++	// In cgo mode, we ignore ast2 and just apply edits directly
++	// the text behind ast1. In godefs mode we modify and print ast2.
+ 	ast1 := parse(name, src, parser.ParseComments)
+ 	ast2 := parse(name, src, 0)
+ 
+@@ -97,30 +99,47 @@ func (f *File) ParseGo(name string, src []byte) {
+ 	}
+ 
+ 	// In ast2, strip the import "C" line.
+-	w := 0
+-	for _, decl := range ast2.Decls {
+-		d, ok := decl.(*ast.GenDecl)
+-		if !ok {
+-			ast2.Decls[w] = decl
++	if *godefs {
++		w := 0
++		for _, decl := range ast2.Decls {
++			d, ok := decl.(*ast.GenDecl)
++			if !ok {
++				ast2.Decls[w] = decl
++				w++
++				continue
++			}
++			ws := 0
++			for _, spec := range d.Specs {
++				s, ok := spec.(*ast.ImportSpec)
++				if !ok || s.Path.Value != `"C"` {
++					d.Specs[ws] = spec
++					ws++
++				}
++			}
++			if ws == 0 {
++				continue
++			}
++			d.Specs = d.Specs[0:ws]
++			ast2.Decls[w] = d
+ 			w++
+-			continue
+ 		}
+-		ws := 0
+-		for _, spec := range d.Specs {
+-			s, ok := spec.(*ast.ImportSpec)
+-			if !ok || s.Path.Value != `"C"` {
+-				d.Specs[ws] = spec
+-				ws++
++		ast2.Decls = ast2.Decls[0:w]
++	} else {
++		for _, decl := range ast2.Decls {
++			d, ok := decl.(*ast.GenDecl)
++			if !ok {
++				continue
++			}
++			for _, spec := range d.Specs {
++				if s, ok := spec.(*ast.ImportSpec); ok && s.Path.Value == `"C"` {
++					// Replace "C" with _ "unsafe", to keep program valid.
++					// (Deleting import statement or clause is not safe if it is followed
++					// in the source by an explicit semicolon.)
++					f.Edit.Replace(f.offset(s.Path.Pos()), f.offset(s.Path.End()), `_ "unsafe"`)
++				}
+ 			}
+ 		}
+-		if ws == 0 {
+-			continue
+-		}
+-		d.Specs = d.Specs[0:ws]
+-		ast2.Decls[w] = d
+-		w++
+ 	}
+-	ast2.Decls = ast2.Decls[0:w]
+ 
+ 	// Accumulate pointers to uses of C.x.
+ 	if f.Ref == nil {
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 15cba77abf..66efc67465 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -169,21 +169,8 @@ func (p *Package) Translate(f *File) {
+ 		p.loadDWARF(f, needType)
+ 	}
+ 	if p.rewriteCalls(f) {
+-		// Add `import _cgo_unsafe "unsafe"` as the first decl
+-		// after the package statement.
+-		imp := &ast.GenDecl{
+-			Tok: token.IMPORT,
+-			Specs: []ast.Spec{
+-				&ast.ImportSpec{
+-					Name: ast.NewIdent("_cgo_unsafe"),
+-					Path: &ast.BasicLit{
+-						Kind:  token.STRING,
+-						Value: `"unsafe"`,
+-					},
+-				},
+-			},
+-		}
+-		f.AST.Decls = append([]ast.Decl{imp}, f.AST.Decls...)
++		// Add `import _cgo_unsafe "unsafe"` after the package statement.
++		f.Edit.Insert(f.offset(f.AST.Name.End()), "; import _cgo_unsafe \"unsafe\"")
+ 	}
+ 	p.rewriteRef(f)
+ }
+@@ -718,8 +705,9 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
+ 		stmts = append(stmts, stmt)
+ 	}
+ 
++	const cgoMarker = "__cgo__###__marker__"
+ 	fcall := &ast.CallExpr{
+-		Fun:  call.Call.Fun,
++		Fun:  ast.NewIdent(cgoMarker),
+ 		Args: nargs,
+ 	}
+ 	ftype := &ast.FuncType{
+@@ -741,31 +729,26 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
+ 		}
+ 	}
+ 
+-	// There is a Ref pointing to the old call.Call.Fun.
++	// If this call expects two results, we have to
++	// adjust the results of the function we generated.
+ 	for _, ref := range f.Ref {
+-		if ref.Expr == &call.Call.Fun {
+-			ref.Expr = &fcall.Fun
+-
+-			// If this call expects two results, we have to
+-			// adjust the results of the function we generated.
+-			if ref.Context == ctxCall2 {
+-				if ftype.Results == nil {
+-					// An explicit void argument
+-					// looks odd but it seems to
+-					// be how cgo has worked historically.
+-					ftype.Results = &ast.FieldList{
+-						List: []*ast.Field{
+-							&ast.Field{
+-								Type: ast.NewIdent("_Ctype_void"),
+-							},
++		if ref.Expr == &call.Call.Fun && ref.Context == ctxCall2 {
++			if ftype.Results == nil {
++				// An explicit void argument
++				// looks odd but it seems to
++				// be how cgo has worked historically.
++				ftype.Results = &ast.FieldList{
++					List: []*ast.Field{
++						&ast.Field{
++							Type: ast.NewIdent("_Ctype_void"),
+ 						},
+-					}
++					},
+ 				}
+-				ftype.Results.List = append(ftype.Results.List,
+-					&ast.Field{
+-						Type: ast.NewIdent("error"),
+-					})
+ 			}
++			ftype.Results.List = append(ftype.Results.List,
++				&ast.Field{
++					Type: ast.NewIdent("error"),
++				})
+ 		}
+ 	}
+ 
+@@ -779,14 +762,16 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
+ 			Results: []ast.Expr{fcall},
+ 		}
+ 	}
+-	call.Call.Fun = &ast.FuncLit{
++	lit := &ast.FuncLit{
+ 		Type: ftype,
+ 		Body: &ast.BlockStmt{
+ 			List: append(stmts, fbody),
+ 		},
+ 	}
+-	call.Call.Lparen = token.NoPos
+-	call.Call.Rparen = token.NoPos
++	text := strings.Replace(gofmt(lit), "\n", ";", -1)
++	repl := strings.Split(text, cgoMarker)
++	f.Edit.Insert(f.offset(call.Call.Fun.Pos()), repl[0])
++	f.Edit.Insert(f.offset(call.Call.Fun.End()), repl[1])
+ 
+ 	return needsUnsafe
+ }
+@@ -1175,6 +1160,7 @@ func (p *Package) rewriteRef(f *File) {
+ 				error_(r.Pos(), "must call C.%s", fixGo(r.Name.Go))
+ 			}
+ 		}
++
+ 		if *godefs {
+ 			// Substitute definition for mangled type name.
+ 			if id, ok := expr.(*ast.Ident); ok {
+@@ -1196,7 +1182,17 @@ func (p *Package) rewriteRef(f *File) {
+ 			expr = &ast.Ident{NamePos: pos, Name: x.Name}
+ 		}
+ 
++		// Change AST, because some later processing depends on it,
++		// and also because -godefs mode still prints the AST.
++		old := *r.Expr
+ 		*r.Expr = expr
++
++		// Record source-level edit for cgo output.
++		repl := gofmt(expr)
++		if r.Name.Kind != "type" {
++			repl = "(" + repl + ")"
++		}
++		f.Edit.Replace(f.offset(old.Pos()), f.offset(old.End()), repl)
+ 	}
+ 
+ 	// Remove functions only used as expressions, so their respective
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 8db73d91bb..0c1c863a7a 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -25,6 +25,7 @@ import (
+ 	"sort"
+ 	"strings"
+ 
++	"cmd/internal/edit"
+ 	"cmd/internal/objabi"
+ )
+ 
+@@ -57,6 +58,11 @@ type File struct {
+ 	ExpFunc  []*ExpFunc          // exported functions for this file
+ 	Name     map[string]*Name    // map from Go name to Name
+ 	NamePos  map[*Name]token.Pos // map from Name to position of the first reference
++	Edit     *edit.Buffer
++}
++
++func (f *File) offset(p token.Pos) int {
++	return fset.Position(p).Offset
+ }
+ 
+ func nameKeys(m map[string]*Name) []string {
+@@ -284,6 +290,7 @@ func main() {
+ 		}
+ 
+ 		f := new(File)
++		f.Edit = edit.NewBuffer(b)
+ 		f.ParseGo(input, b)
+ 		f.DiscardCgoDirectives()
+ 		fs[i] = f
+@@ -308,7 +315,9 @@ func main() {
+ 				if cref.Name.Kind != "type" {
+ 					break
+ 				}
++				old := *cref.Expr
+ 				*cref.Expr = cref.Name.Type.Go
++				f.Edit.Replace(f.offset(old.Pos()), f.offset(old.End()), gofmt(cref.Name.Type.Go))
+ 			}
+ 		}
+ 		if nerrors > 0 {
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index af49e6e817..8ae96a031e 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -535,7 +535,8 @@ func (p *Package) writeOutput(f *File, srcfile string) {
+ 
+ 	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
+ 	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n\n")
+-	conf.Fprint(fgo1, fset, f.AST)
++	fmt.Fprintf(fgo1, "//line %s:1\n", srcfile)
++	fgo1.Write(f.Edit.Bytes())
+ 
+ 	// While we process the vars and funcs, also write gcc output.
+ 	// Gcc output starts with the preamble.
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 1b7b4bf1ee..24d2e1e7d6 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -52,6 +52,7 @@ var bootstrapDirs = []string{
+ 	"cmd/internal/bio",
+ 	"cmd/internal/gcprog",
+ 	"cmd/internal/dwarf",
++	"cmd/internal/edit",
+ 	"cmd/internal/objabi",
+ 	"cmd/internal/obj",
+ 	"cmd/internal/obj/arm",

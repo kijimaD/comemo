@@ -20,7 +20,7 @@ Date:   Thu Mar 29 18:22:23 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go       |  8 +---
  src/cmd/compile/internal/syntax/nodes.go   | 18 ++++----
  src/cmd/compile/internal/syntax/parser.go  | 73 ++++++++++++------------------
@@ -28,3 +28,303 @@ Date:   Thu Mar 29 18:22:23 2018 -0700
  test/fixedbugs/issue24470.go               | 15 ++++++
  test/syntax/typesw.go                      |  2 +-
  6 files changed, 61 insertions(+), 73 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index e2f60c1a8d..9947f248be 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -598,13 +598,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 		n.SetSliceBounds(index[0], index[1], index[2])
+ 		return n
+ 	case *syntax.AssertExpr:
+-		if expr.Type == nil {
+-			panic("unexpected AssertExpr")
+-		}
+-		// TODO(mdempsky): parser.pexpr uses p.expr(), but
+-		// seems like the type field should be parsed with
+-		// ntype? Shrug, doesn't matter here.
+-		return p.nod(expr, ODOTTYPE, p.expr(expr.X), p.expr(expr.Type))
++		return p.nod(expr, ODOTTYPE, p.expr(expr.X), p.typeExpr(expr.Type))
+ 	case *syntax.Operation:
+ 		if expr.Op == syntax.Add && expr.Y != nil {
+ 			return p.sum(expr)
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index 8df9fd5c4e..c1da4adf52 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -198,12 +198,19 @@ type (
+ 
+ 	// X.(Type)
+ 	AssertExpr struct {
+-		X Expr
+-		// TODO(gri) consider using Name{"..."} instead of nil (permits attaching of comments)
++		X    Expr
+ 		Type Expr
+ 		expr
+ 	}
+ 
++	// X.(type)
++	// Lhs := X.(type)
++	TypeSwitchGuard struct {
++		Lhs *Name // nil means no Lhs :=
++		X   Expr  // X.(type)
++		expr
++	}
++
+ 	Operation struct {
+ 		Op   Operator
+ 		X, Y Expr // Y == nil means unary expression
+@@ -413,13 +420,6 @@ type (
+ 		simpleStmt
+ 	}
+ 
+-	TypeSwitchGuard struct {
+-		// TODO(gri) consider using Name{"..."} instead of nil (permits attaching of comments)
+-		Lhs *Name // nil means no Lhs :=
+-		X   Expr  // X.(type)
+-		expr
+-	}
+-
+ 	CaseClause struct {
+ 		Cases Expr // nil means default clause
+ 		Body  []Stmt
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index db0fb39c8c..68d09ef697 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -907,6 +907,7 @@ loop:
+ 				p.next()
+ 				if p.got(_Type) {
+ 					t := new(TypeSwitchGuard)
++					// t.Lhs is filled in by parser.simpleStmt
+ 					t.pos = pos
+ 					t.X = x
+ 					x = t
+@@ -914,7 +915,7 @@ loop:
+ 					t := new(AssertExpr)
+ 					t.pos = pos
+ 					t.X = x
+-					t.Type = p.expr()
++					t.Type = p.type_()
+ 					x = t
+ 				}
+ 				p.want(_Rparen)
+@@ -1584,12 +1585,12 @@ func (p *parser) bad() *BadExpr {
+ var ImplicitOne = &BasicLit{Value: "1"}
+ 
+ // SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | ShortVarDecl .
+-func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
++func (p *parser) simpleStmt(lhs Expr, keyword token) SimpleStmt {
+ 	if trace {
+ 		defer p.trace("simpleStmt")()
+ 	}
+ 
+-	if rangeOk && p.tok == _Range {
++	if keyword == _For && p.tok == _Range {
+ 		// _Range expr
+ 		if debug && lhs != nil {
+ 			panic("invalid call of simpleStmt")
+@@ -1636,51 +1637,35 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
+ 	}
+ 
+ 	// expr_list
+-	pos := p.pos()
+ 	switch p.tok {
+-	case _Assign:
+-		p.next()
+-
+-		if rangeOk && p.tok == _Range {
+-			// expr_list '=' _Range expr
+-			return p.newRangeClause(lhs, false)
++	case _Assign, _Define:
++		pos := p.pos()
++		var op Operator
++		if p.tok == _Define {
++			op = Def
+ 		}
+-
+-		// expr_list '=' expr_list
+-		return p.newAssignStmt(pos, 0, lhs, p.exprList())
+-
+-	case _Define:
+ 		p.next()
+ 
+-		if rangeOk && p.tok == _Range {
+-			// expr_list ':=' range expr
+-			return p.newRangeClause(lhs, true)
++		if keyword == _For && p.tok == _Range {
++			// expr_list op= _Range expr
++			return p.newRangeClause(lhs, op == Def)
+ 		}
+ 
+-		// expr_list ':=' expr_list
++		// expr_list op= expr_list
+ 		rhs := p.exprList()
+ 
+-		if x, ok := rhs.(*TypeSwitchGuard); ok {
+-			switch lhs := lhs.(type) {
+-			case *Name:
++		if x, ok := rhs.(*TypeSwitchGuard); ok && keyword == _Switch && op == Def {
++			if lhs, ok := lhs.(*Name); ok {
++				// switch … lhs := rhs.(type)
+ 				x.Lhs = lhs
+-			case *ListExpr:
+-				p.errorAt(lhs.Pos(), fmt.Sprintf("cannot assign 1 value to %d variables", len(lhs.ElemList)))
+-				// make the best of what we have
+-				if lhs, ok := lhs.ElemList[0].(*Name); ok {
+-					x.Lhs = lhs
+-				}
+-			default:
+-				p.errorAt(lhs.Pos(), fmt.Sprintf("invalid variable name %s in type switch", String(lhs)))
++				s := new(ExprStmt)
++				s.pos = x.Pos()
++				s.X = x
++				return s
+ 			}
+-			s := new(ExprStmt)
+-			s.pos = x.Pos()
+-			s.X = x
+-			return s
+ 		}
+ 
+-		as := p.newAssignStmt(pos, Def, lhs, rhs)
+-		return as
++		return p.newAssignStmt(pos, op, lhs, rhs)
+ 
+ 	default:
+ 		p.syntaxError("expecting := or = or comma")
+@@ -1820,7 +1805,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
+ 		if p.got(_Var) {
+ 			p.syntaxError(fmt.Sprintf("var declaration not allowed in %s initializer", keyword.String()))
+ 		}
+-		init = p.simpleStmt(nil, keyword == _For)
++		init = p.simpleStmt(nil, keyword)
+ 		// If we have a range clause, we are done (can only happen for keyword == _For).
+ 		if _, ok := init.(*RangeClause); ok {
+ 			p.xnest = outer
+@@ -1847,17 +1832,17 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
+ 					p.syntaxError("expecting for loop condition")
+ 					goto done
+ 				}
+-				condStmt = p.simpleStmt(nil, false)
++				condStmt = p.simpleStmt(nil, 0 /* range not permitted */)
+ 			}
+ 			p.want(_Semi)
+ 			if p.tok != _Lbrace {
+-				post = p.simpleStmt(nil, false)
++				post = p.simpleStmt(nil, 0 /* range not permitted */)
+ 				if a, _ := post.(*AssignStmt); a != nil && a.Op == Def {
+ 					p.syntaxErrorAt(a.Pos(), "cannot declare in post statement of for loop")
+ 				}
+ 			}
+ 		} else if p.tok != _Lbrace {
+-			condStmt = p.simpleStmt(nil, false)
++			condStmt = p.simpleStmt(nil, keyword)
+ 		}
+ 	} else {
+ 		condStmt = init
+@@ -2003,7 +1988,7 @@ func (p *parser) commClause() *CommClause {
+ 	switch p.tok {
+ 	case _Case:
+ 		p.next()
+-		c.Comm = p.simpleStmt(nil, false)
++		c.Comm = p.simpleStmt(nil, 0)
+ 
+ 		// The syntax restricts the possible simple statements here to:
+ 		//
+@@ -2049,7 +2034,7 @@ func (p *parser) stmtOrNil() Stmt {
+ 		if label, ok := lhs.(*Name); ok && p.tok == _Colon {
+ 			return p.labeledStmtOrNil(label)
+ 		}
+-		return p.simpleStmt(lhs, false)
++		return p.simpleStmt(lhs, 0)
+ 	}
+ 
+ 	switch p.tok {
+@@ -2068,13 +2053,13 @@ func (p *parser) stmtOrNil() Stmt {
+ 	case _Operator, _Star:
+ 		switch p.op {
+ 		case Add, Sub, Mul, And, Xor, Not:
+-			return p.simpleStmt(nil, false) // unary operators
++			return p.simpleStmt(nil, 0) // unary operators
+ 		}
+ 
+ 	case _Literal, _Func, _Lparen, // operands
+ 		_Lbrack, _Struct, _Map, _Chan, _Interface, // composite types
+ 		_Arrow: // receive operator
+-		return p.simpleStmt(nil, false)
++		return p.simpleStmt(nil, 0)
+ 
+ 	case _For:
+ 		return p.forStmt()
+diff --git a/src/cmd/compile/internal/syntax/printer.go b/src/cmd/compile/internal/syntax/printer.go
+index f4c2b6dde6..8ff3bfa794 100644
+--- a/src/cmd/compile/internal/syntax/printer.go
++++ b/src/cmd/compile/internal/syntax/printer.go
+@@ -393,13 +393,13 @@ func (p *printer) printRawNode(n Node) {
+ 		p.print(_Rbrack)
+ 
+ 	case *AssertExpr:
+-		p.print(n.X, _Dot, _Lparen)
+-		if n.Type != nil {
+-			p.printNode(n.Type)
+-		} else {
+-			p.print(_Type)
++		p.print(n.X, _Dot, _Lparen, n.Type, _Rparen)
++
++	case *TypeSwitchGuard:
++		if n.Lhs != nil {
++			p.print(n.Lhs, blank, _Define, blank)
+ 		}
+-		p.print(_Rparen)
++		p.print(n.X, _Dot, _Lparen, _Type, _Rparen)
+ 
+ 	case *CallExpr:
+ 		p.print(n.Fun, _Lparen)
+@@ -557,12 +557,6 @@ func (p *printer) printRawNode(n Node) {
+ 		}
+ 		p.printSwitchBody(n.Body)
+ 
+-	case *TypeSwitchGuard:
+-		if n.Lhs != nil {
+-			p.print(n.Lhs, blank, _Define, blank)
+-		}
+-		p.print(n.X, _Dot, _Lparen, _Type, _Rparen)
+-
+ 	case *SelectStmt:
+ 		p.print(_Select, blank) // for now
+ 		p.printSelectBody(n.Body)
+diff --git a/test/fixedbugs/issue24470.go b/test/fixedbugs/issue24470.go
+new file mode 100644
+index 0000000000..d0e5e23fa9
+--- /dev/null
++++ b/test/fixedbugs/issue24470.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that we get "use of .(type) outside type switch"
++// before any other (misleading) errors. Test case from issue.
++
++package p
++
++func f(i interface{}) {
++	if x, ok := i.(type); ok { // ERROR "outside type switch"
++	}
++}
+diff --git a/test/syntax/typesw.go b/test/syntax/typesw.go
+index 8d89860d11..f9120e8851 100644
+--- a/test/syntax/typesw.go
++++ b/test/syntax/typesw.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main() {
+-	switch main() := interface{}(nil).(type) {	// ERROR "invalid variable name"
++	switch main() := interface{}(nil).(type) {	// ERROR "invalid variable name|used as value"
+ 	default:
+ 	}
+ }

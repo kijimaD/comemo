@@ -7,7 +7,41 @@ Date:   Thu Dec 22 09:38:35 2011 +1100
     R=golang-dev, dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/5505056
-
+---
  misc/dashboard/godashboard/main.html        |  3 +++
  misc/dashboard/godashboard/static/style.css | 11 +++++++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/misc/dashboard/godashboard/main.html b/misc/dashboard/godashboard/main.html
+index 5390afce60..0e8b97b1dc 100644
+--- a/misc/dashboard/godashboard/main.html
++++ b/misc/dashboard/godashboard/main.html
+@@ -18,6 +18,9 @@
+     <h1>Go Dashboard</h1>
+     
+     <h2>Build Status</h2>
++
++    <p class="notice">The build status dashboard has moved to <a href="http://build.golang.org">build.golang.org</a>.</p>
++
+     <table class="alternate" cellpadding="0" cellspacing="0">
+       <tr>
+         <th></th>
+diff --git a/misc/dashboard/godashboard/static/style.css b/misc/dashboard/godashboard/static/style.css
+index d6d23b536c..0ce583a54c 100644
+--- a/misc/dashboard/godashboard/static/style.css
++++ b/misc/dashboard/godashboard/static/style.css
+@@ -116,3 +116,14 @@ div.paginate a.inactive {
+ td.time {
+ 	font-family: monospace;
+ }
++.notice {
++	padding: 10px;
++	margin: 10px;
++	border: 2px solid #FF6;
++	background: #900;
++	color: white;
++	text-align: center;
++}
++.notice a {
++	color: #FF6;
++}

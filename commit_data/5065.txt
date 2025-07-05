@@ -7,9 +7,61 @@ Date:   Tue Mar 16 18:45:48 2010 -0700
     R=r
     CC=giles, golang-dev
     https://golang.org/cl/600041
-
+---
  src/pkg/syscall/Makefile         | 1 +
  src/pkg/syscall/syscall_386.go   | 7 +++++++
  src/pkg/syscall/syscall_amd64.go | 7 +++++++
  src/pkg/syscall/syscall_arm.go   | 7 +++++++
  4 files changed, 22 insertions(+)
+
+diff --git a/src/pkg/syscall/Makefile b/src/pkg/syscall/Makefile
+index 5673da9d27..ca3338b10c 100644
+--- a/src/pkg/syscall/Makefile
++++ b/src/pkg/syscall/Makefile
+@@ -9,6 +9,7 @@ GOFILES=\
+ 	errstr.go\
+ 	exec.go\
+ 	syscall.go\
++	syscall_$(GOARCH).go\
+ 	syscall_$(GOOS).go\
+ 	syscall_$(GOOS)_$(GOARCH).go\
+ 	zerrors_$(GOOS)_$(GOARCH).go\
+diff --git a/src/pkg/syscall/syscall_386.go b/src/pkg/syscall/syscall_386.go
+new file mode 100644
+index 0000000000..cb948b87a2
+--- /dev/null
++++ b/src/pkg/syscall/syscall_386.go
+@@ -0,0 +1,7 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++const ARCH = "386"
+diff --git a/src/pkg/syscall/syscall_amd64.go b/src/pkg/syscall/syscall_amd64.go
+new file mode 100644
+index 0000000000..75c3eac6f2
+--- /dev/null
++++ b/src/pkg/syscall/syscall_amd64.go
+@@ -0,0 +1,7 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++const ARCH = "amd64"
+diff --git a/src/pkg/syscall/syscall_arm.go b/src/pkg/syscall/syscall_arm.go
+new file mode 100644
+index 0000000000..b9d1ca0c08
+--- /dev/null
++++ b/src/pkg/syscall/syscall_arm.go
+@@ -0,0 +1,7 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++const ARCH = "arm"

@@ -8,6 +8,20 @@ Date:   Wed Sep 16 15:14:12 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=34696
     CL=34700
-
+---
  src/cmd/6l/mkenam | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6l/mkenam b/src/cmd/6l/mkenam
+index fc918281b1..5cabb26333 100644
+--- a/src/cmd/6l/mkenam
++++ b/src/cmd/6l/mkenam
+@@ -28,7 +28,7 @@
+ # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ # THE SOFTWARE.
+ 
+-ed - ../6l/6.out.h <<'!'
++/bin/ed - ../6l/6.out.h <<'!'
+ v/^	A/d
+ ,s/^	A/	"/
+ g/ .*$/s///

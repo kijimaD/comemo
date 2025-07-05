@@ -12,7 +12,79 @@ Date:   Tue Apr 11 09:54:08 2017 +0900
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/os_test.go      | 39 +++++++++++++++++++++++++++++++++++++++
  src/os/stat_windows.go |  4 ++--
  2 files changed, 41 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index fcfcc43620..410bfc8007 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -174,6 +174,45 @@ func TestStat(t *testing.T) {
+ 	}
+ }
+ 
++func TestStatError(t *testing.T) {
++	defer chtmpdir(t)()
++
++	path := "no-such-file"
++	Remove(path) // Just in case
++
++	fi, err := Stat(path)
++	if err == nil {
++		t.Fatal("got nil, want error")
++	}
++	if fi != nil {
++		t.Errorf("got %v, want nil", fi)
++	}
++	if perr, ok := err.(*PathError); !ok {
++		t.Errorf("got %T, want %T", err, perr)
++	}
++
++	testenv.MustHaveSymlink(t)
++
++	link := "symlink"
++	Remove(link) // Just in case
++	err = Symlink(path, link)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer Remove(link)
++
++	fi, err = Stat(link)
++	if err == nil {
++		t.Fatal("got nil, want error")
++	}
++	if fi != nil {
++		t.Errorf("got %v, want nil", fi)
++	}
++	if perr, ok := err.(*PathError); !ok {
++		t.Errorf("got %T, want %T", err, perr)
++	}
++}
++
+ func TestFstat(t *testing.T) {
+ 	path := sfdir + "/" + sfname
+ 	file, err1 := Open(path)
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index fe0ca8d1b2..3c640ce992 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -66,14 +66,14 @@ func Stat(name string) (FileInfo, error) {
+ 	for i := 0; i < 255; i++ {
+ 		fi, err = Lstat(name)
+ 		if err != nil {
+-			return fi, err
++			return nil, err
+ 		}
+ 		if fi.Mode()&ModeSymlink == 0 {
+ 			return fi, nil
+ 		}
+ 		newname, err := Readlink(name)
+ 		if err != nil {
+-			return fi, err
++			return nil, err
+ 		}
+ 		if isAbs(newname) {
+ 			name = newname

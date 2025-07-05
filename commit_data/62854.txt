@@ -13,7 +13,45 @@ Date:   Wed Feb 14 17:54:00 2024 -0800
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/proc.go     | 8 ++++++--
  src/runtime/runtime2.go | 7 ++++---
  2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index db7a5b2bb1..44c6d0b4e4 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3387,8 +3387,12 @@ top:
+ 	// blocked thread (e.g. it has already returned from netpoll, but does
+ 	// not set lastpoll yet), this thread will do blocking netpoll below
+ 	// anyway.
+-	if netpollinited() && netpollAnyWaiters() && sched.lastpoll.Load() != 0 {
+-		if list, delta := netpoll(0); !list.empty() { // non-blocking
++	// We only poll from one thread at a time to avoid kernel contention
++	// on machines with many cores.
++	if netpollinited() && netpollAnyWaiters() && sched.lastpoll.Load() != 0 && sched.pollingNet.Swap(1) == 0 {
++		list, delta := netpoll(0)
++		sched.pollingNet.Store(0)
++		if !list.empty() { // non-blocking
+ 			gp := list.pop()
+ 			injectglist(&list)
+ 			netpollAdjustWaiters(delta)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index e56b45053e..27d14b890b 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -757,9 +757,10 @@ type p struct {
+ }
+ 
+ type schedt struct {
+-	goidgen   atomic.Uint64
+-	lastpoll  atomic.Int64 // time of last network poll, 0 if currently polling
+-	pollUntil atomic.Int64 // time to which current poll is sleeping
++	goidgen    atomic.Uint64
++	lastpoll   atomic.Int64 // time of last network poll, 0 if currently polling
++	pollUntil  atomic.Int64 // time to which current poll is sleeping
++	pollingNet atomic.Int32 // 1 if some P doing non-blocking network poll
+ 
+ 	lock mutex
+ 

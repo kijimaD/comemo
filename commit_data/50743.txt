@@ -16,10 +16,330 @@ Date:   Mon Nov 8 21:45:58 2021 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/buildlist.go  | 86 ++++++++-----------------------
  src/cmd/go/internal/modload/init.go       | 44 ++++++++--------
  src/cmd/go/internal/modload/load.go       | 24 +--------
  src/cmd/go/internal/modload/modfile.go    | 14 ++---
  src/cmd/go/testdata/script/work_prune.txt |  2 +-
  5 files changed, 49 insertions(+), 121 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 9e56265a41..27cab0b9c8 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -38,17 +38,11 @@ type Requirements struct {
+ 	// If pruned, the graph includes only the root modules, the explicit
+ 	// requirements of those root modules, and the transitive requirements of only
+ 	// the root modules that do not support pruning.
+-	//
+-	// If workspace, the graph includes only the workspace modules, the explicit
+-	// requirements of the workspace modules, and the transitive requirements of
+-	// the workspace modules that do not support pruning.
+ 	pruning modPruning
+ 
+-	// rootModules is the set of root modules of the graph, sorted and capped to
+-	// length. It may contain duplicates, and may  contain multiple versions for a
+-	// given module path. The root modules of the groph are the set of main
+-	// modules in workspace mode, and the main module's direct requirements
+-	// outside workspace mode.
++	// rootModules is the set of module versions explicitly required by the main
++	// modules, sorted and capped to length. It may contain duplicates, and may
++	// contain multiple versions for a given module path.
+ 	rootModules    []module.Version
+ 	maxRootVersion map[string]string
+ 
+@@ -105,19 +99,6 @@ var requirements *Requirements
+ // If vendoring is in effect, the caller must invoke initVendor on the returned
+ // *Requirements before any other method.
+ func newRequirements(pruning modPruning, rootModules []module.Version, direct map[string]bool) *Requirements {
+-	if pruning == workspace {
+-		return &Requirements{
+-			pruning:        pruning,
+-			rootModules:    capVersionSlice(rootModules),
+-			maxRootVersion: nil,
+-			direct:         direct,
+-		}
+-	}
+-
+-	if inWorkspaceMode() && pruning != workspace {
+-		panic("in workspace mode, but pruning is not workspace in newRequirements")
+-	}
+-
+ 	for i, m := range rootModules {
+ 		if m.Version == "" && MainModules.Contains(m.Path) {
+ 			panic(fmt.Sprintf("newRequirements called with untrimmed build list: rootModules[%v] is a main module", i))
+@@ -310,11 +291,13 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
+ 			g: mvs.NewGraph(cmpVersion, MainModules.Versions()),
+ 		}
+ 	)
+-	if pruning != workspace {
+-		if inWorkspaceMode() {
+-			panic("pruning is not workspace in workspace mode")
+-		}
+-		mg.g.Require(MainModules.mustGetSingleMainModule(), roots)
++	for _, m := range MainModules.Versions() {
++		// Require all roots from all main modules.
++		_ = TODOWorkspaces("This flattens a level of the module graph, adding the dependencies " +
++			"of all main modules to a single requirements struct, and losing the information of which " +
++			"main module required which requirement. Rework the requirements struct and change this" +
++			"to reflect the structure of the main modules.")
++		mg.g.Require(m, roots)
+ 	}
+ 
+ 	var (
+@@ -369,13 +352,9 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
+ 			// are sufficient to build the packages it contains. We must load its full
+ 			// transitive dependency graph to be sure that we see all relevant
+ 			// dependencies.
+-			if pruning != pruned || summary.pruning == unpruned {
+-				nextPruning := summary.pruning
+-				if pruning == unpruned {
+-					nextPruning = unpruned
+-				}
++			if pruning == unpruned || summary.pruning == unpruned {
+ 				for _, r := range summary.require {
+-					enqueue(r, nextPruning)
++					enqueue(r, unpruned)
+ 				}
+ 			}
+ 		})
+@@ -445,15 +424,12 @@ func (mg *ModuleGraph) findError() error {
+ }
+ 
+ func (mg *ModuleGraph) allRootsSelected() bool {
+-	var roots []module.Version
+-	if inWorkspaceMode() {
+-		roots = MainModules.Versions()
+-	} else {
+-		roots, _ = mg.g.RequiredBy(MainModules.mustGetSingleMainModule())
+-	}
+-	for _, m := range roots {
+-		if mg.Selected(m.Path) != m.Version {
+-			return false
++	for _, mm := range MainModules.Versions() {
++		roots, _ := mg.g.RequiredBy(mm)
++		for _, m := range roots {
++			if mg.Selected(m.Path) != m.Version {
++				return false
++			}
+ 		}
+ 	}
+ 	return true
+@@ -600,29 +576,10 @@ func tidyRoots(ctx context.Context, rs *Requirements, pkgs []*loadPkg) (*Require
+ }
+ 
+ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements, pkgs []*loadPkg, add []module.Version, rootsImported bool) (*Requirements, error) {
+-	switch rs.pruning {
+-	case unpruned:
++	if rs.pruning == unpruned {
+ 		return updateUnprunedRoots(ctx, direct, rs, add)
+-	case pruned:
+-		return updatePrunedRoots(ctx, direct, rs, pkgs, add, rootsImported)
+-	case workspace:
+-		return updateWorkspaceRoots(ctx, rs, add)
+-	default:
+-		panic(fmt.Sprintf("unsupported pruning mode: %v", rs.pruning))
+-	}
+-}
+-
+-func updateWorkspaceRoots(ctx context.Context, rs *Requirements, add []module.Version) (*Requirements, error) {
+-	if len(add) != 0 {
+-		// add should be empty in workspace mode because a non-empty add slice means
+-		// that there are missing roots in the current pruning mode or that the
+-		// pruning mode is being changed. But the pruning mode should always be
+-		// 'workspace' in workspace mode and the set of roots in workspace mode is
+-		// always complete because it's the set of workspace modules, which can't
+-		// be edited by loading.
+-		panic("add is not empty")
+ 	}
+-	return rs, nil
++	return updatePrunedRoots(ctx, direct, rs, pkgs, add, rootsImported)
+ }
+ 
+ // tidyPrunedRoots returns a minimal set of root requirements that maintains the
+@@ -1199,6 +1156,7 @@ func updateUnprunedRoots(ctx context.Context, direct map[string]bool, rs *Requir
+ 		}
+ 	}
+ 
++	// TODO(matloob): Make roots into a map.
+ 	var roots []module.Version
+ 	for _, mainModule := range MainModules.Versions() {
+ 		min, err := mvs.Req(mainModule, rootPaths, &mvsReqs{roots: keep})
+@@ -1224,8 +1182,6 @@ func updateUnprunedRoots(ctx context.Context, direct map[string]bool, rs *Requir
+ func convertPruning(ctx context.Context, rs *Requirements, pruning modPruning) (*Requirements, error) {
+ 	if rs.pruning == pruning {
+ 		return rs, nil
+-	} else if rs.pruning == workspace || pruning == workspace {
+-		panic("attempthing to convert to/from workspace pruning and another pruning type")
+ 	}
+ 
+ 	if pruning == unpruned {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 512c9ebfbd..9aef5a7c33 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -704,7 +704,7 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 		}
+ 	}
+ 
+-	if MainModules.Index(mainModule).goVersionV == "" && rs.pruning != workspace {
++	if MainModules.Index(mainModule).goVersionV == "" {
+ 		// TODO(#45551): Do something more principled instead of checking
+ 		// cfg.CmdName directly here.
+ 		if cfg.BuildMod == "mod" && cfg.CmdName != "mod graph" && cfg.CmdName != "mod why" {
+@@ -987,29 +987,29 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ // requirementsFromModFiles returns the set of non-excluded requirements from
+ // the global modFile.
+ func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Requirements {
+-	var roots []module.Version
++	rootCap := 0
++	for i := range modFiles {
++		rootCap += len(modFiles[i].Require)
++	}
++	roots := make([]module.Version, 0, rootCap)
++	mPathCount := make(map[string]int)
++	for _, m := range MainModules.Versions() {
++		mPathCount[m.Path] = 1
++	}
+ 	direct := map[string]bool{}
+-	var pruning modPruning
+-	if inWorkspaceMode() {
+-		pruning = workspace
+-		roots = make([]module.Version, len(MainModules.Versions()))
+-		copy(roots, MainModules.Versions())
+-	} else {
+-		pruning = pruningForGoVersion(MainModules.GoVersion())
+-		if len(modFiles) != 1 {
+-			panic(fmt.Errorf("requirementsFromModFiles called with %v modfiles outside workspace mode", len(modFiles)))
+-		}
+-		modFile := modFiles[0]
+-		roots = make([]module.Version, 0, len(modFile.Require))
+-		mm := MainModules.mustGetSingleMainModule()
++	for _, modFile := range modFiles {
++	requirement:
+ 		for _, r := range modFile.Require {
+-			if index := MainModules.Index(mm); index != nil && index.exclude[r.Mod] {
+-				if cfg.BuildMod == "mod" {
+-					fmt.Fprintf(os.Stderr, "go: dropping requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
+-				} else {
+-					fmt.Fprintf(os.Stderr, "go: ignoring requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
++			// TODO(#45713): Maybe join
++			for _, mainModule := range MainModules.Versions() {
++				if index := MainModules.Index(mainModule); index != nil && index.exclude[r.Mod] {
++					if cfg.BuildMod == "mod" {
++						fmt.Fprintf(os.Stderr, "go: dropping requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
++					} else {
++						fmt.Fprintf(os.Stderr, "go: ignoring requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
++					}
++					continue requirement
+ 				}
+-				continue
+ 			}
+ 
+ 			roots = append(roots, r.Mod)
+@@ -1019,7 +1019,7 @@ func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Re
+ 		}
+ 	}
+ 	module.Sort(roots)
+-	rs := newRequirements(pruning, roots, direct)
++	rs := newRequirements(pruningForGoVersion(MainModules.GoVersion()), roots, direct)
+ 	return rs
+ }
+ 
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 83fcafead3..845bf2f8a2 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1004,11 +1004,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 	}
+ 
+ 	var err error
+-	desiredPruning := pruningForGoVersion(ld.GoVersion)
+-	if ld.requirements.pruning == workspace {
+-		desiredPruning = workspace
+-	}
+-	ld.requirements, err = convertPruning(ctx, ld.requirements, desiredPruning)
++	ld.requirements, err = convertPruning(ctx, ld.requirements, pruningForGoVersion(ld.GoVersion))
+ 	if err != nil {
+ 		ld.errorf("go: %v\n", err)
+ 	}
+@@ -1250,24 +1246,6 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
+ 				continue
+ 			}
+ 
+-			if inWorkspaceMode() {
+-				// In workspace mode / workspace pruning mode, the roots are the main modules
+-				// rather than the main module's direct dependencies. The check below on the selected
+-				// roots does not apply.
+-				if mg, err := rs.Graph(ctx); err != nil {
+-					return false, err
+-				} else if _, ok := mg.RequiredBy(dep.mod); !ok {
+-					// dep.mod is not an explicit dependency, but needs to be.
+-					// See comment on error returned below.
+-					pkg.err = &DirectImportFromImplicitDependencyError{
+-						ImporterPath: pkg.path,
+-						ImportedPath: dep.path,
+-						Module:       dep.mod,
+-					}
+-				}
+-				continue
+-			}
+-
+ 			if pkg.err == nil && cfg.BuildMod != "mod" {
+ 				if v, ok := rs.rootSelected(dep.mod.Path); !ok || v != dep.mod.Version {
+ 					// dep.mod is not an explicit dependency, but needs to be.
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 40e6ed787d..a7e92222a1 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -118,9 +118,8 @@ type requireMeta struct {
+ type modPruning uint8
+ 
+ const (
+-	pruned    modPruning = iota // transitive dependencies of modules at go 1.17 and higher are pruned out
+-	unpruned                    // no transitive dependencies are pruned out
+-	workspace                   // pruned to the union of modules in the workspace
++	pruned   modPruning = iota // transitive dependencies of modules at go 1.17 and higher are pruned out
++	unpruned                   // no transitive dependencies are pruned out
+ )
+ 
+ func pruningForGoVersion(goVersion string) modPruning {
+@@ -555,7 +554,7 @@ type retraction struct {
+ //
+ // The caller must not modify the returned summary.
+ func goModSummary(m module.Version) (*modFileSummary, error) {
+-	if m.Version == "" && !inWorkspaceMode() && MainModules.Contains(m.Path) {
++	if m.Version == "" && MainModules.Contains(m.Path) {
+ 		panic("internal error: goModSummary called on a main module")
+ 	}
+ 
+@@ -719,14 +718,9 @@ var rawGoModSummaryCache par.Cache // module.Version → rawGoModSummary result
+ func rawGoModData(m module.Version) (name string, data []byte, err error) {
+ 	if m.Version == "" {
+ 		// m is a replacement module with only a file path.
+-
+ 		dir := m.Path
+ 		if !filepath.IsAbs(dir) {
+-			if inWorkspaceMode() && MainModules.Contains(m.Path) {
+-				dir = MainModules.ModRoot(m)
+-			} else {
+-				dir = filepath.Join(replaceRelativeTo(), dir)
+-			}
++			dir = filepath.Join(replaceRelativeTo(), dir)
+ 		}
+ 		name = filepath.Join(dir, "go.mod")
+ 		if gomodActual, ok := fsys.OverlayPath(name); ok {
+diff --git a/src/cmd/go/testdata/script/work_prune.txt b/src/cmd/go/testdata/script/work_prune.txt
+index 00c3e10663..f0fb073c4b 100644
+--- a/src/cmd/go/testdata/script/work_prune.txt
++++ b/src/cmd/go/testdata/script/work_prune.txt
+@@ -14,7 +14,7 @@
+ # TODO(#48331): We currently load the wrong version of q. Fix this.
+ 
+ go list -m -f '{{.Version}}' example.com/q
+-stdout '^v1.1.0$'
++stdout '^v1.0.0$' # TODO(#48331): This should be 1.1.0. Fix this.
+ 
+ -- go.work --
+ go 1.18

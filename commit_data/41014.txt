@@ -16,7 +16,34 @@ Date:   Sat Jun 1 00:36:02 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/select.go | 2 +-
  src/runtime/select.go                 | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index a09d779af6..e0ed1e2a9f 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -388,7 +388,7 @@ func scasetype() *types.Type {
+ 			namedfield("elem", types.Types[TUNSAFEPTR]),
+ 			namedfield("kind", types.Types[TUINT16]),
+ 			namedfield("pc", types.Types[TUINTPTR]),
+-			namedfield("releasetime", types.Types[TUINT64]),
++			namedfield("releasetime", types.Types[TINT64]),
+ 		})
+ 		scase.SetNoalg(true)
+ 	}
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 85be1bc64d..86182890cc 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -14,7 +14,7 @@ const debugSelect = false
+ 
+ // scase.kind values.
+ // Known to compiler.
+-// Changes here must also be made in src/cmd/compile/internal/gc/select.go's walkselect.
++// Changes here must also be made in src/cmd/compile/internal/gc/select.go's walkselectcases.
+ const (
+ 	caseNil = iota
+ 	caseRecv

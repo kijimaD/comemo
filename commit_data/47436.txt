@@ -18,6 +18,20 @@ Date:   Mon Mar 15 18:16:05 2021 +0000
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Robert Findley <rfindley@google.com>
-
+---
  src/crypto/rsa/rsa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 178ade666a..6fd59b3940 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -401,7 +401,7 @@ func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
+ //
+ // The label parameter may contain arbitrary data that will not be encrypted,
+ // but which gives important context to the message. For example, if a given
+-// public key is used to decrypt two types of messages then distinct label
++// public key is used to encrypt two types of messages then distinct label
+ // values could be used to ensure that a ciphertext for one purpose cannot be
+ // used for another by an attacker. If not required it can be empty.
+ //

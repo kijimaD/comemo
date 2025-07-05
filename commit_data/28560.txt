@@ -9,6 +9,31 @@ Date:   Thu Jun 2 17:17:02 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/exec_linux_test.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 1afe88cb1b..a562c9cbf2 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -145,7 +145,18 @@ func TestUnshare(t *testing.T) {
+ 		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
+ 	}
+ 
+-	cmd := exec.Command("cat", "/proc/net/dev")
++	path := "/proc/net/dev"
++	if _, err := os.Stat(path); err != nil {
++		if os.IsNotExist(err) {
++			t.Skip("kernel doesn't support proc filesystem")
++		}
++		if os.IsPermission(err) {
++			t.Skip("unable to test proc filesystem due to permissions")
++		}
++		t.Fatal(err)
++	}
++
++	cmd := exec.Command("cat", path)
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{
+ 		Unshareflags: syscall.CLONE_NEWNET,
+ 	}

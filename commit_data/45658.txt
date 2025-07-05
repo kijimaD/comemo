@@ -14,6 +14,28 @@ Date:   Sun Nov 1 15:40:37 2020 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/race.bash | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/race.bash b/src/race.bash
+index e83c175df3..e2b96bcffe 100755
+--- a/src/race.bash
++++ b/src/race.bash
+@@ -9,14 +9,13 @@
+ set -e
+ 
+ function usage {
+-	echo 'race detector is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64 and darwin/amd64' 1>&2
++	echo 'race detector is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64, and darwin/arm64' 1>&2
+ 	exit 1
+ }
+ 
+ case $(uname) in
+ "Darwin")
+-	# why Apple? why?
+-	if sysctl machdep.cpu.extfeatures | grep -qv EM64T; then
++	if [ $(uname -m) != "x86_64" ] && [ $(uname -m) != "arm64" ]; then
+ 		usage
+ 	fi
+ 	;;

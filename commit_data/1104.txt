@@ -9,6 +9,39 @@ Date:   Tue Nov 11 15:55:32 2008 -0800
     R=ken
     OCL=19026
     CL=19026
-
+---
  src/cmd/gc/walk.c | 14 +++++++-------
  1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 13ad69a65a..e68833c42e 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -597,13 +597,6 @@ loop:
+ 		if(isptrarray(t) && isptrdarray(l->type))
+ 			goto ret;
+ 
+-		// interface and structure
+-		et = isandss(n->type, l);
+-		if(et != Inone) {
+-			indir(n, ifaceop(n->type, l, et));
+-			goto ret;
+-		}
+-
+ 		// structure literal
+ 		if(t->etype == TSTRUCT) {
+ 			indir(n, structlit(n));
+@@ -624,6 +617,13 @@ loop:
+ 			goto ret;
+ 		}
+ 
++		// interface and structure
++		et = isandss(n->type, l);
++		if(et != Inone) {
++			indir(n, ifaceop(n->type, l, et));
++			goto ret;
++		}
++
+ 		if(l->type != T)
+ 			yyerror("cannot convert %T to %T", l->type, t);
+ 		goto ret;

@@ -23,7 +23,37 @@ Date:   Sun Dec 16 18:44:31 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go         | 3 ++-
  src/cmd/go/testdata/script/gcflags_patterns.txt | 4 ++++
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 29618e29c3..38f12abf18 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -212,7 +212,8 @@ var BuildDump string // name of function to dump after initial build of ssa
+ // BOOT_GO_GCFLAGS=-d='ssa/~^.*scc$/off' GO_GCFLAGS='-d=ssa/~^.*scc$/off' ./make.bash
+ //
+ func PhaseOption(phase, flag string, val int, valString string) string {
+-	if phase == "help" {
++	switch phase {
++	case "", "help":
+ 		lastcr := 0
+ 		phasenames := "    check, all, build, intrinsics"
+ 		for _, p := range passes {
+diff --git a/src/cmd/go/testdata/script/gcflags_patterns.txt b/src/cmd/go/testdata/script/gcflags_patterns.txt
+index f2e6e2b67d..c790ddda0a 100644
+--- a/src/cmd/go/testdata/script/gcflags_patterns.txt
++++ b/src/cmd/go/testdata/script/gcflags_patterns.txt
+@@ -27,6 +27,10 @@ stderr 'compile.* -e.* -p z1'
+ go test -c -n -gcflags='all=-e' z1
+ stderr 'compile.* -e.* -p z3 '
+ 
++# this particular -gcflags argument made the compiler crash
++! go build -gcflags=-d=ssa/ z1
++stderr 'PhaseOptions usage'
++
+ # -ldflags for implicit test package applies to test binary
+ go test -c -n -gcflags=-N -ldflags=-X=x.y=z z1
+ stderr 'compile.* -N .*z_test.go'

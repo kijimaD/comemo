@@ -11,6 +11,22 @@ Date:   Thu Jul 20 17:20:46 2017 +1000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/stat_windows.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index 667b99905d..e7a4e0d54a 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -16,9 +16,7 @@ func (file *File) Stat() (FileInfo, error) {
+ 	if file == nil {
+ 		return nil, ErrInvalid
+ 	}
+-	if file == nil {
+-		return nil, syscall.EINVAL
+-	}
++
+ 	if file.isdir() {
+ 		// I don't know any better way to do that for directory
+ 		return Stat(file.dirinfo.path)

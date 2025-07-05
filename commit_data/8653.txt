@@ -9,6 +9,20 @@ Date:   Wed Jun 8 10:46:15 2011 +1000
     R=rsc, jeff, r
     CC=golang-dev
     https://golang.org/cl/4517143
-
+---
  src/cmd/gc/subr.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 5d93df67e3..1dd357950a 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -105,7 +105,7 @@ hcrash(void)
+ 		flusherrors();
+ 		if(outfile)
+ 			unlink(outfile);
+-		abort();
++		*(volatile int*)0 = 0;
+ 	}
+ }
+ 

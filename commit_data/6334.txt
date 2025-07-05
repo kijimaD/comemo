@@ -7,7 +7,33 @@ Date:   Tue Sep 21 22:58:09 2010 -0400
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/2250042
-
+---
  src/pkg/strings/strings.go      | 2 +-
  src/pkg/strings/strings_test.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 89da9dc224..e3989c7582 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -463,7 +463,7 @@ func lastIndexFunc(s string, f func(r int) bool, truth bool) int {
+ 				}
+ 			}
+ 			if start < 0 {
+-				return -1
++				start = 0
+ 			}
+ 			var wid int
+ 			rune, wid = utf8.DecodeRuneInString(s[start:end])
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 3206f5e143..57bc7a3b37 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -514,6 +514,7 @@ var indexFuncTests = []IndexFuncTest{
+ 	IndexFuncTest{"\xc0☺\xc0\xc0", not(isValidRune), 0, 5},
+ 	IndexFuncTest{"ab\xc0a\xc0cd", not(isValidRune), 2, 4},
+ 	IndexFuncTest{"a\xe0\x80cd", not(isValidRune), 1, 2},
++	IndexFuncTest{"\x80\x80\x80\x80", not(isValidRune), 0, 3},
+ }
+ 
+ func TestIndexFunc(t *testing.T) {

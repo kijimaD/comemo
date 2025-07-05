@@ -48,7 +48,7 @@ Date:   Tue Oct 31 21:50:48 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/75473
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/build.go                  |  5 +++-
  src/cmd/dist/test.go                   |  4 ++-
  src/cmd/go/go_test.go                  | 30 ++++++++++++++++++++-
@@ -58,3 +58,379 @@ Date:   Tue Oct 31 21:50:48 2017 -0400
  src/cmd/go/internal/work/buildid.go    | 38 ++++++++++++++++++++++++++-
  src/cmd/go/internal/work/exec.go       | 48 +++++++++++++++++++++++++++++++---
  8 files changed, 144 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 03f11f0bfb..7f884bd48d 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -229,7 +229,10 @@ func xinit() {
+ 	// Use a build cache separate from the default user one.
+ 	// Also one that will be wiped out during startup, so that
+ 	// make.bash really does start from a clean slate.
+-	os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
++	// But if the user has specified no caching, don't cache.
++	if os.Getenv("GOCACHE") != "off" {
++		os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
++	}
+ 
+ 	// Make the environment more predictable.
+ 	os.Setenv("LANG", "C")
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 30f5bd7466..543acb8232 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -466,15 +466,17 @@ func (t *tester) registerTests() {
+ 				}
+ 
+ 				// Run `go test fmt` in the moved GOROOT.
++				// Disable GOCACHE because it points back at the old GOROOT.
+ 				cmd := exec.Command(filepath.Join(moved, "bin", "go"), "test", "fmt")
+ 				cmd.Stdout = os.Stdout
+ 				cmd.Stderr = os.Stderr
+ 				// Don't set GOROOT in the environment.
+ 				for _, e := range os.Environ() {
+-					if !strings.HasPrefix(e, "GOROOT=") {
++					if !strings.HasPrefix(e, "GOROOT=") && !strings.HasPrefix(e, "GOCACHE=") {
+ 						cmd.Env = append(cmd.Env, e)
+ 					}
+ 				}
++				cmd.Env = append(cmd.Env, "GOCACHE=off")
+ 				err := cmd.Run()
+ 
+ 				if rerr := os.Rename(moved, goroot); rerr != nil {
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 5e31ef3d35..51696db6c2 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3736,7 +3736,7 @@ func TestBinaryOnlyPackages(t *testing.T) {
+ 	`)
+ 	tg.wantNotStale("p1", "binary-only package", "should NOT want to rebuild p1 (first)")
+ 	tg.run("install", "-x", "p1") // no-op, up to date
+-	tg.grepBothNot("/compile", "should not have run compiler")
++	tg.grepBothNot(`[\\/]compile`, "should not have run compiler")
+ 	tg.run("install", "p2") // does not rebuild p1 (or else p2 will fail)
+ 	tg.wantNotStale("p2", "", "should NOT want to rebuild p2")
+ 
+@@ -4689,3 +4689,31 @@ func TestUpxCompression(t *testing.T) {
+ 		t.Fatalf("bad output from compressed go binary:\ngot %q; want %q", out, "hello upx")
+ 	}
+ }
++
++func TestBuildCache(t *testing.T) {
++	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
++		t.Skip("GODEBUG gocacheverify")
++	}
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.makeTempdir()
++	tg.setenv("GOCACHE", tg.tempdir)
++
++	// complex/x is a trivial non-main package.
++	tg.run("build", "-x", "complex/w")
++	tg.grepStderr(`[\\/]compile|gccgo`, "did not run compiler")
++
++	tg.run("build", "-x", "complex/w")
++	tg.grepStderrNot(`[\\/]compile|gccgo`, "did not run compiler")
++
++	// complex is a non-trivial main package.
++	// the link step should not be cached.
++	tg.run("build", "-o", os.DevNull, "-x", "complex")
++	tg.grepStderr(`[\\/]link|gccgo`, "did not run linker")
++
++	tg.run("build", "-o", os.DevNull, "-x", "complex")
++	tg.grepStderr(`[\\/]link|gccgo`, "did not run linker")
++
++}
+diff --git a/src/cmd/go/internal/cache/hash.go b/src/cmd/go/internal/cache/hash.go
+index 7440d5e89e..937814510c 100644
+--- a/src/cmd/go/internal/cache/hash.go
++++ b/src/cmd/go/internal/cache/hash.go
+@@ -10,6 +10,7 @@ import (
+ 	"hash"
+ 	"io"
+ 	"os"
++	"runtime"
+ 	"sync"
+ )
+ 
+@@ -19,12 +20,22 @@ var debugHash = false // set when GODEBUG=gocachehash=1
+ const HashSize = 32
+ 
+ // A Hash provides access to the canonical hash function used to index the cache.
+-// The current implementation uses SHA256, but clients must not assume this.
++// The current implementation uses salted SHA256, but clients must not assume this.
+ type Hash struct {
+ 	h    hash.Hash
+ 	name string // for debugging
+ }
+ 
++// hashSalt is a salt string added to the beginning of every hash
++// created by NewHash. Using the Go version makes sure that different
++// versions of the go command (or even different Git commits during
++// work on the development branch) do not address the same cache
++// entries, so that a bug in one version does not affect the execution
++// of other versions. This salt will result in additional ActionID files
++// in the cache, but not additional copies of the large output files,
++// which are still addressed by unsalted SHA256.
++var hashSalt = []byte(runtime.Version())
++
+ // NewHash returns a new Hash.
+ // The caller is expected to Write data to it and then call Sum.
+ func NewHash(name string) *Hash {
+@@ -32,6 +43,7 @@ func NewHash(name string) *Hash {
+ 	if debugHash {
+ 		fmt.Fprintf(os.Stderr, "HASH[%s]\n", h.name)
+ 	}
++	h.Write(hashSalt)
+ 	return h
+ }
+ 
+@@ -62,6 +74,8 @@ var hashFileCache struct {
+ // It caches repeated lookups for a given file,
+ // and the cache entry for a file can be initialized
+ // using SetFileHash.
++// The hash used by FileHash is not the same as
++// the hash used by NewHash.
+ func FileHash(file string) ([HashSize]byte, error) {
+ 	hashFileCache.Lock()
+ 	out, ok := hashFileCache.m[file]
+diff --git a/src/cmd/go/internal/cache/hash_test.go b/src/cmd/go/internal/cache/hash_test.go
+index 312380f6e2..3bf7143039 100644
+--- a/src/cmd/go/internal/cache/hash_test.go
++++ b/src/cmd/go/internal/cache/hash_test.go
+@@ -12,6 +12,12 @@ import (
+ )
+ 
+ func TestHash(t *testing.T) {
++	oldSalt := hashSalt
++	hashSalt = nil
++	defer func() {
++		hashSalt = oldSalt
++	}()
++
+ 	h := NewHash("alice")
+ 	h.Write([]byte("hello world"))
+ 	sum := fmt.Sprintf("%x", h.Sum())
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 7fbb8b5fba..71d5ef3e79 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -20,6 +20,7 @@ import (
+ 	"sync"
+ 
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/internal/buildid"
+@@ -68,10 +69,11 @@ type Action struct {
+ 	triggers []*Action // inverse of deps
+ 
+ 	// Generated files, directories.
+-	Objdir  string // directory for intermediate objects
+-	Target  string // goal of the action: the created package or executable
+-	built   string // the actual created package or executable
+-	buildID string // build ID of action output
++	Objdir   string         // directory for intermediate objects
++	Target   string         // goal of the action: the created package or executable
++	built    string         // the actual created package or executable
++	actionID cache.ActionID // cache ID of action input
++	buildID  string         // build ID of action output
+ 
+ 	needVet bool       // Mode=="build": need to fill in vet config
+ 	vetCfg  *vetConfig // vet config
+@@ -313,8 +315,6 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
+ 			Func:    (*Builder).build,
+ 			Objdir:  b.NewObjdir(),
+ 		}
+-		a.Target = a.Objdir + "_pkg_.a"
+-		a.built = a.Target
+ 
+ 		for _, p1 := range p.Internal.Imports {
+ 			a.Deps = append(a.Deps, b.CompileAction(depMode, depMode, p1))
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 1ac7fbc2dd..935b638fd9 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -238,8 +238,9 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
+ 	// to appear in the output by chance, but that should be taken care of by
+ 	// the actionID half; if it also appeared in the input that would be like an
+ 	// engineered 96-bit partial SHA256 collision.
++	a.actionID = actionHash
+ 	actionID := hashToString(actionHash)
+-	contentID := "(MISSING CONTENT ID)" // same length has hashToString result
++	contentID := actionID // temporary placeholder, likely unique
+ 	a.buildID = actionID + buildIDSeparator + contentID
+ 
+ 	// Executable binaries also record the main build ID in the middle.
+@@ -329,6 +330,25 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
+ 		return true
+ 	}
+ 
++	// Check the build artifact cache.
++	// We treat hits in this cache as being "stale" for the purposes of go list
++	// (in effect, "stale" means whether p.Target is up-to-date),
++	// but we're still happy to use results from the build artifact cache.
++	if c := cache.Default(); c != nil {
++		outputID, size, err := c.Get(actionHash)
++		if err == nil {
++			file := c.OutputFile(outputID)
++			info, err1 := os.Stat(file)
++			buildID, err2 := buildid.ReadFile(file)
++			if err1 == nil && err2 == nil && info.Size() == size {
++				a.built = file
++				a.Target = "DO NOT USE - using cache"
++				a.buildID = buildID
++				return true
++			}
++		}
++	}
++
+ 	return false
+ }
+ 
+@@ -379,5 +399,21 @@ func (b *Builder) updateBuildID(a *Action, target string) error {
+ 	if err := w.Close(); err != nil {
+ 		return err
+ 	}
++
++	// Cache package builds, but not binaries (link steps).
++	// The expectation is that binaries are not reused
++	// nearly as often as individual packages, and they're
++	// much larger, so the cache-footprint-to-utility ratio
++	// of binaries is much lower for binaries.
++	// Not caching the link step also makes sure that repeated "go run" at least
++	// always rerun the linker, so that they don't get too fast.
++	// (We don't want people thinking go is a scripting language.)
++	if c := cache.Default(); c != nil && a.Mode == "build" {
++		r, err := os.Open(target)
++		if err == nil {
++			c.Put(a.actionID, r)
++		}
++	}
++
+ 	return nil
+ }
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 680a756bb6..ae69642e46 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -258,7 +258,30 @@ func (b *Builder) build(a *Action) (err error) {
+ 	cached := false
+ 	if !p.BinaryOnly {
+ 		if b.useCache(a, p, b.buildActionID(a), p.Target) {
+-			if !a.needVet {
++			// If this build triggers a header install, run cgo to get the header.
++			// TODO(rsc): Once we can cache multiple file outputs from an action,
++			// the header should be cached, and then this awful test can be deleted.
++			// Need to look for install header actions depending on this action,
++			// or depending on a link that depends on this action.
++			needHeader := false
++			if (a.Package.UsesCgo() || a.Package.UsesSwig()) && (cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-header") {
++				for _, t1 := range a.triggers {
++					if t1.Mode == "install header" {
++						needHeader = true
++						goto CheckedHeader
++					}
++				}
++				for _, t1 := range a.triggers {
++					for _, t2 := range t1.triggers {
++						if t2.Mode == "install header" {
++							needHeader = true
++							goto CheckedHeader
++						}
++					}
++				}
++			}
++		CheckedHeader:
++			if b.ComputeStaleOnly || !a.needVet && !needHeader {
+ 				return nil
+ 			}
+ 			cached = true
+@@ -387,6 +410,9 @@ func (b *Builder) build(a *Action) (err error) {
+ 		cgoObjects = append(cgoObjects, outObj...)
+ 		gofiles = append(gofiles, outGo...)
+ 	}
++	if cached && !a.needVet {
++		return nil
++	}
+ 
+ 	// Sanity check only, since Package.load already checked as well.
+ 	if len(gofiles) == 0 {
+@@ -591,6 +617,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 		return err
+ 	}
+ 
++	a.built = objpkg
+ 	return nil
+ }
+ 
+@@ -733,8 +760,7 @@ func (b *Builder) link(a *Action) (err error) {
+ 		}
+ 	}
+ 
+-	objpkg := a.Objdir + "_pkg_.a"
+-	if err := BuildToolchain.ld(b, a, a.Target, importcfg, objpkg); err != nil {
++	if err := BuildToolchain.ld(b, a, a.Target, importcfg, a.Deps[0].built); err != nil {
+ 		return err
+ 	}
+ 
+@@ -746,12 +772,17 @@ func (b *Builder) link(a *Action) (err error) {
+ 	// essentially impossible to safely fork+exec due to a fundamental
+ 	// incompatibility between ETXTBSY and threads on modern Unix systems.
+ 	// See golang.org/issue/22220.
++	// Not calling updateBuildID means we also don't insert these
++	// binaries into the build object cache. That's probably a net win:
++	// less cache space wasted on large binaries we are not likely to
++	// need again. (On the other hand it does make repeated go test slower.)
+ 	if !a.Package.Internal.OmitDebug {
+ 		if err := b.updateBuildID(a, a.Target); err != nil {
+ 			return err
+ 		}
+ 	}
+ 
++	a.built = a.Target
+ 	return nil
+ }
+ 
+@@ -899,6 +930,7 @@ func (b *Builder) linkShared(a *Action) (err error) {
+ 
+ 	// TODO(rsc): There is a missing updateBuildID here,
+ 	// but we have to decide where to store the build ID in these files.
++	a.built = a.Target
+ 	return BuildToolchain.ldShared(b, a.Deps[0].Deps, a.Target, importcfg, a.Deps)
+ }
+ 
+@@ -957,7 +989,7 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
+ 
+ 	defer b.cleanup(a1)
+ 
+-	return b.moveOrCopyFile(a, a.Target, a1.Target, perm, false)
++	return b.moveOrCopyFile(a, a.Target, a1.built, perm, false)
+ }
+ 
+ // cleanup removes a's object dir to keep the amount of
+@@ -983,6 +1015,11 @@ func (b *Builder) moveOrCopyFile(a *Action, dst, src string, perm os.FileMode, f
+ 	// If we can update the mode and rename to the dst, do it.
+ 	// Otherwise fall back to standard copy.
+ 
++	// If the source is in the build cache, we need to copy it.
++	if strings.HasPrefix(src, cache.DefaultDir()) {
++		return b.copyFile(a, dst, src, perm, force)
++	}
++
+ 	// If the destination directory has the group sticky bit set,
+ 	// we have to copy the file to retain the correct permissions.
+ 	// https://golang.org/issue/18878
+@@ -1097,6 +1134,9 @@ func (b *Builder) installHeader(a *Action) error {
+ 	if _, err := os.Stat(src); os.IsNotExist(err) {
+ 		// If the file does not exist, there are no exported
+ 		// functions, and we do not install anything.
++		// TODO(rsc): Once we know that caching is rebuilding
++		// at the right times (not missing rebuilds), here we should
++		// probably delete the installed header, if any.
+ 		if cfg.BuildX {
+ 			b.Showcmd("", "# %s not created", src)
+ 		}

@@ -13,8 +13,56 @@ Date:   Fri May 19 10:07:04 2023 +0800
     Run-TryBot: xie cui <523516579@qq.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  api/next/59584.txt          |  2 ++
  src/html/template/error.go  | 11 +++--------
  src/html/template/escape.go |  2 +-
  3 files changed, 6 insertions(+), 9 deletions(-)
+
+diff --git a/api/next/59584.txt b/api/next/59584.txt
+new file mode 100644
+index 0000000000..4d8036dece
+--- /dev/null
++++ b/api/next/59584.txt
+@@ -0,0 +1,2 @@
++pkg html/template, const ErrJSTemplate = 12 #59584
++pkg html/template, const ErrJSTemplate ErrorCode #59584
+diff --git a/src/html/template/error.go b/src/html/template/error.go
+index d7d6f5b3ab..a763924d4a 100644
+--- a/src/html/template/error.go
++++ b/src/html/template/error.go
+@@ -215,18 +215,13 @@ const (
+ 	//   disallowed. Avoid using "html" and "urlquery" entirely in new templates.
+ 	ErrPredefinedEscaper
+ 
+-	// errJSTmplLit: "... appears in a JS template literal"
++	// ErrJSTemplate: "... appears in a JS template literal"
+ 	// Example:
+-	//     <script>var tmpl = `{{.Interp}`</script>
++	//     <script>var tmpl = `{{.Interp}}`</script>
+ 	// Discussion:
+ 	//   Package html/template does not support actions inside of JS template
+ 	//   literals.
+-	//
+-	// TODO(rolandshoemaker): we cannot add this as an exported error in a minor
+-	// release, since it is backwards incompatible with the other minor
+-	// releases. As such we need to leave it unexported, and then we'll add it
+-	// in the next major release.
+-	errJSTmplLit
++	ErrJSTemplate
+ )
+ 
+ func (e *Error) Error() string {
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index a62ef159f0..80d40feab6 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -233,7 +233,7 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 		} else {
+ 			return context{
+ 				state: stateError,
+-				err:   errorf(errJSTmplLit, n, n.Line, "%s appears in a JS template literal", n),
++				err:   errorf(ErrJSTemplate, n, n.Line, "%s appears in a JS template literal", n),
+ 			}
+ 		}
+ 	case stateJSRegexp:

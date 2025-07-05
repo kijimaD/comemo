@@ -14,6 +14,25 @@ Date:   Sun Jul 3 14:22:06 2016 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/expvar/expvar.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index d5465c518f..fde763d7ce 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -322,6 +322,13 @@ func expvarHandler(w http.ResponseWriter, r *http.Request) {
+ 	fmt.Fprintf(w, "\n}\n")
+ }
+ 
++// Handler returns the expvar HTTP Handler.
++//
++// This is only needed to install the handler in a non-standard location.
++func Handler() http.Handler {
++	return http.HandlerFunc(expvarHandler)
++}
++
+ func cmdline() interface{} {
+ 	return os.Args
+ }

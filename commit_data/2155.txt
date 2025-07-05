@@ -10,6 +10,22 @@ Date:   Wed May 6 17:05:46 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=28371
     CL=28379
-
+---
  src/lib/os/error.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/os/error.go b/src/lib/os/error.go
+index f2960a59c1..5acefd2adb 100644
+--- a/src/lib/os/error.go
++++ b/src/lib/os/error.go
+@@ -14,8 +14,8 @@ type Error interface {
+ // A helper type that can be embedded or wrapped to simplify satisfying
+ // Error.
+ type ErrorString string
+-func (e *ErrorString) String() string {
+-	return *e
++func (e ErrorString) String() string {
++	return e
+ }
+ 
+ // Errno is the Unix error number.  Names such as EINVAL are simple

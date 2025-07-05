@@ -9,9 +9,73 @@ Date:   Mon Mar 20 02:32:42 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go  | 2 +-
  src/cmd/compile/internal/gc/dcl.go      | 2 +-
  src/cmd/compile/internal/gc/type.go     | 6 ++++++
  src/cmd/compile/internal/gc/universe.go | 2 +-
  4 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index d7d48cb07e..e7308df2a8 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -533,7 +533,7 @@ func (p *importer) typ() *Type {
+ 			t = Types[TINTER]
+ 		} else {
+ 			t = p.newtyp(TINTER)
+-			t.SetFields(ml)
++			t.SetInterface(ml)
+ 		}
+ 		checkwidth(t)
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 583c440259..6fca2062d0 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -897,7 +897,7 @@ func tointerface0(t *Type, l []*Node) *Type {
+ 		}
+ 	}
+ 	sort.Sort(methcmp(fields))
+-	t.SetFields(fields)
++	t.SetInterface(fields)
+ 
+ 	checkdupfields("method", t)
+ 	checkwidth(t)
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index b1eb05764e..e4841708f6 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -865,6 +865,7 @@ func (t *Type) FieldSlice() []*Field {
+ 
+ // SetFields sets struct/interface type t's fields/methods to fields.
+ func (t *Type) SetFields(fields []*Field) {
++	t.wantEtype(TSTRUCT)
+ 	for _, f := range fields {
+ 		// If type T contains a field F with a go:notinheap
+ 		// type, then T must also be go:notinheap. Otherwise,
+@@ -879,6 +880,11 @@ func (t *Type) SetFields(fields []*Field) {
+ 	t.Fields().Set(fields)
+ }
+ 
++func (t *Type) SetInterface(methods []*Field) {
++	t.wantEtype(TINTER)
++	t.Fields().Set(methods)
++}
++
+ func (t *Type) isDDDArray() bool {
+ 	if t.Etype != TARRAY {
+ 		return false
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index a54a05a8f5..b6fbd2d566 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -382,7 +382,7 @@ func makeErrorInterface() *Type {
+ 	field.Type = f
+ 
+ 	t := typ(TINTER)
+-	t.SetFields([]*Field{field})
++	t.SetInterface([]*Field{field})
+ 	return t
+ }
+ 

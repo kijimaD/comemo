@@ -10,6 +10,20 @@ Date:   Tue Sep 7 16:10:31 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/reflect/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 1d637d134e..afb802e641 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1428,7 +1428,7 @@ var ptrMap sync.Map // map[*rtype]*ptrType
+ // For example, if t represents type Foo, PtrTo(t) represents *Foo.
+ //
+ // Deprecated: use PointerTo. PtrTo is the old spelling.
+-// The two functions behaves identically.
++// The two functions behave identically.
+ func PtrTo(t Type) Type { return PointerTo(t) }
+ 
+ // PointerTo returns the pointer type with element t.

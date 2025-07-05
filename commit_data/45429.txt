@@ -13,6 +13,20 @@ Date:   Thu Aug 6 01:57:11 2020 +0900
     Trust: Damien Neil <dneil@google.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/net/http/transport_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 58f0d9db98..e69133e786 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -412,7 +412,7 @@ func TestTransportReadToEndReusesConn(t *testing.T) {
+ 			w.WriteHeader(200)
+ 			w.(Flusher).Flush()
+ 		} else {
+-			w.Header().Set("Content-Type", strconv.Itoa(len(msg)))
++			w.Header().Set("Content-Length", strconv.Itoa(len(msg)))
+ 			w.WriteHeader(200)
+ 		}
+ 		w.Write([]byte(msg))

@@ -28,6 +28,22 @@ Date:   Mon Feb 11 14:27:43 2019 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 791fc063b7..31e6ab5b6d 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -209,6 +209,10 @@ func dumpasmhdr() {
+ 		}
+ 		switch n.Op {
+ 		case OLITERAL:
++			t := n.Val().Ctype()
++			if t == CTFLT || t == CTCPLX {
++				break
++			}
+ 			fmt.Fprintf(b, "#define const_%s %#v\n", n.Sym.Name, n.Val())
+ 
+ 		case OTYPE:

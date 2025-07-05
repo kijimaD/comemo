@@ -17,8 +17,205 @@ Date:   Mon Mar 24 03:08:33 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/crash_test.go                          | 75 ++++++++++++++++++++++
  .../testdata/testprog/finalizer_deadlock.go        | 74 +++++++++++++++++++++
  src/runtime/traceback.go                           | 15 +++++
  3 files changed, 164 insertions(+)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 0265c28be1..6585a6f275 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"errors"
+ 	"flag"
+ 	"fmt"
++	"internal/profile"
+ 	"internal/testenv"
+ 	traceparse "internal/trace"
+ 	"io"
+@@ -1100,3 +1101,77 @@ func TestNetpollWaiters(t *testing.T) {
+ 		t.Fatalf("output is not %q\n%s", want, output)
+ 	}
+ }
++
++// The runtime.runfinq frame should appear in panics, even if runtime frames
++// are normally hidden (GOTRACEBACK=all).
++func TestFinalizerDeadlockPanic(t *testing.T) {
++	t.Parallel()
++	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GOTRACEBACK=all", "GO_TEST_FINALIZER_DEADLOCK=panic")
++
++	want := "runtime.runfinq()"
++	if !strings.Contains(output, want) {
++		t.Errorf("output does not contain %q:\n%s", want, output)
++	}
++}
++
++// The runtime.runfinq frame should appear in runtime.Stack, even though
++// runtime frames are normally hidden.
++func TestFinalizerDeadlockStack(t *testing.T) {
++	t.Parallel()
++	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=stack")
++
++	want := "runtime.runfinq()"
++	if !strings.Contains(output, want) {
++		t.Errorf("output does not contain %q:\n%s", want, output)
++	}
++}
++
++// The runtime.runfinq frame should appear in goroutine profiles.
++func TestFinalizerDeadlockPprofProto(t *testing.T) {
++	t.Parallel()
++	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=pprof_proto")
++
++	p, err := profile.Parse(strings.NewReader(output))
++	if err != nil {
++		// Logging the binary proto data is not very nice, but it might
++		// be a text error message instead.
++		t.Logf("Output: %s", output)
++		t.Fatalf("Error parsing proto output: %v", err)
++	}
++
++	want := "runtime.runfinq"
++	for _, s := range p.Sample {
++		for _, loc := range s.Location {
++			for _, line := range loc.Line {
++				if line.Function.Name == want {
++					// Done!
++					return
++				}
++			}
++		}
++	}
++
++	t.Errorf("Profile does not contain %q:\n%s", want, p)
++}
++
++// The runtime.runfinq frame should appear in goroutine profiles (debug=1).
++func TestFinalizerDeadlockPprofDebug1(t *testing.T) {
++	t.Parallel()
++	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=pprof_debug1")
++
++	want := "runtime.runfinq+"
++	if !strings.Contains(output, want) {
++		t.Errorf("output does not contain %q:\n%s", want, output)
++	}
++}
++
++// The runtime.runfinq frame should appear in goroutine profiles (debug=2).
++func TestFinalizerDeadlockPprofDebug2(t *testing.T) {
++	t.Parallel()
++	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=pprof_debug2")
++
++	want := "runtime.runfinq()"
++	if !strings.Contains(output, want) {
++		t.Errorf("output does not contain %q:\n%s", want, output)
++	}
++}
+diff --git a/src/runtime/testdata/testprog/finalizer_deadlock.go b/src/runtime/testdata/testprog/finalizer_deadlock.go
+new file mode 100644
+index 0000000000..a55145fa15
+--- /dev/null
++++ b/src/runtime/testdata/testprog/finalizer_deadlock.go
+@@ -0,0 +1,74 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"flag"
++	"fmt"
++	"os"
++	"runtime"
++	"runtime/pprof"
++)
++
++var finalizerDeadlockMode = flag.String("finalizer-deadlock-mode", "panic", "Trigger mode of FinalizerDeadlock")
++
++func init() {
++	register("FinalizerDeadlock", FinalizerDeadlock)
++}
++
++func FinalizerDeadlock() {
++	flag.Parse()
++
++	started := make(chan struct{})
++	b := new([16]byte)
++	runtime.SetFinalizer(b, func(*[16]byte) {
++		started <- struct{}{}
++		select {}
++	})
++	b = nil
++
++	runtime.GC()
++
++	<-started
++	// We know the finalizer has started running. The goroutine might still
++	// be running or it may now be blocked. Either is fine, the goroutine
++	// should appear in stacks either way.
++
++	mode := os.Getenv("GO_TEST_FINALIZER_DEADLOCK")
++	switch mode {
++	case "panic":
++		panic("panic")
++	case "stack":
++		buf := make([]byte, 4096)
++		for {
++			n := runtime.Stack(buf, true)
++			if n >= len(buf) {
++				buf = make([]byte, 2*len(buf))
++				continue
++			}
++			buf = buf[:n]
++			break
++		}
++		fmt.Printf("%s\n", string(buf))
++	case "pprof_proto":
++		if err := pprof.Lookup("goroutine").WriteTo(os.Stdout, 0); err != nil {
++			fmt.Fprintf(os.Stderr, "Error writing profile: %v\n", err)
++			os.Exit(1)
++		}
++	case "pprof_debug1":
++		if err := pprof.Lookup("goroutine").WriteTo(os.Stdout, 1); err != nil {
++			fmt.Fprintf(os.Stderr, "Error writing profile: %v\n", err)
++			os.Exit(1)
++		}
++	case "pprof_debug2":
++		if err := pprof.Lookup("goroutine").WriteTo(os.Stdout, 2); err != nil {
++			fmt.Fprintf(os.Stderr, "Error writing profile: %v\n", err)
++			os.Exit(1)
++		}
++	default:
++		fmt.Fprintf(os.Stderr, "Unknown mode %q. GO_TEST_FINALIZER_DEADLOCK must be one of panic, stack, pprof_proto, pprof_debug1, pprof_debug2\n", mode)
++		os.Exit(1)
++	}
++}
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 91c0720dcc..d71c1d5d0b 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1131,6 +1131,21 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
+ 		return false
+ 	}
+ 
++	// Always show runtime.runfinq as context that this goroutine is
++	// running finalizers, otherwise there is no obvious indicator.
++	//
++	// TODO(prattmic): A more general approach would be to always show the
++	// outermost frame (besides runtime.goexit), even if it is a runtime.
++	// Hiding the outermost frame allows the apparent outermost frame to
++	// change across different traces, which seems impossible.
++	//
++	// Unfortunately, implementing this requires looking ahead at the next
++	// frame, which goes against traceback's incremental approach (see big
++	// coment in traceback1).
++	if sf.funcID == abi.FuncID_runfinq {
++		return true
++	}
++
+ 	name := sf.name()
+ 
+ 	// Special case: always show runtime.gopanic frame

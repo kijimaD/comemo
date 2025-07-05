@@ -8,7 +8,34 @@ Date:   Wed May 13 20:28:05 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10041
     Run-TryBot: Minux Ma <minux@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/internal/gc/big/float_test.go | 2 +-
  src/math/big/float_test.go            | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/gc/big/float_test.go b/src/cmd/internal/gc/big/float_test.go
+index 2a48ec4465..de79b07aaf 100644
+--- a/src/cmd/internal/gc/big/float_test.go
++++ b/src/cmd/internal/gc/big/float_test.go
+@@ -1656,7 +1656,7 @@ func TestFloatCmpSpecialValues(t *testing.T) {
+ 					want = +1
+ 				}
+ 				if got != want {
+-					t.Errorf("(%g).Cmp(%g) = %s; want %s", x, y, got, want)
++					t.Errorf("(%g).Cmp(%g) = %v; want %v", x, y, got, want)
+ 				}
+ 			}
+ 		}
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 5b5a0247b1..5d241a503b 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -1659,7 +1659,7 @@ func TestFloatCmpSpecialValues(t *testing.T) {
+ 					want = +1
+ 				}
+ 				if got != want {
+-					t.Errorf("(%g).Cmp(%g) = %s; want %s", x, y, got, want)
++					t.Errorf("(%g).Cmp(%g) = %v; want %v", x, y, got, want)
+ 				}
+ 			}
+ 		}

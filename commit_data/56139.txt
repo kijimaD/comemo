@@ -13,6 +13,36 @@ Date:   Tue Apr 11 02:44:55 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/build.go | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index a76c312709..6dbc9951a9 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1452,7 +1452,10 @@ func cmdbootstrap() {
+ 	bootstrapBuildTools()
+ 
+ 	// Remember old content of $GOROOT/bin for comparison below.
+-	oldBinFiles, _ := filepath.Glob(pathf("%s/bin/*", goroot))
++	oldBinFiles, err := filepath.Glob(pathf("%s/bin/*", goroot))
++	if err != nil {
++		fatalf("glob: %v", err)
++	}
+ 
+ 	// For the main bootstrap, building for host os/arch.
+ 	oldgoos = goos
+@@ -1592,7 +1595,11 @@ func cmdbootstrap() {
+ 
+ 	// Check that there are no new files in $GOROOT/bin other than
+ 	// go and gofmt and $GOOS_$GOARCH (target bin when cross-compiling).
+-	binFiles, _ := filepath.Glob(pathf("%s/bin/*", goroot))
++	binFiles, err := filepath.Glob(pathf("%s/bin/*", goroot))
++	if err != nil {
++		fatalf("glob: %v", err)
++	}
++
+ 	ok := map[string]bool{}
+ 	for _, f := range oldBinFiles {
+ 		ok[f] = true

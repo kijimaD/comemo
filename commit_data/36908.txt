@@ -10,6 +10,20 @@ Date:   Fri Jun 8 18:28:37 2018 +0200
     Change-Id: Iba527145686487b052da438fca40159e57e61a81
     Reviewed-on: https://go-review.googlesource.com/117475
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/wasm/wasm_exec.js | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index e579ecf677..151de2e2d1 100755
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -51,7 +51,7 @@
+ 
+ 	global.Go = class {
+ 		constructor() {
+-			this.argv = [];
++			this.argv = ["js"];
+ 			this.env = {};
+ 			this.exit = (code) => {
+ 				if (code !== 0) {

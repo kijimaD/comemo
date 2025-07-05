@@ -11,6 +11,35 @@ Date:   Tue Jan 30 21:16:09 2018 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index beccbb5689..eaff7177b6 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -416,6 +416,9 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
+ 		var err error
+ 		if debugDeprecatedImportcfgDir != "" {
+ 			bp, err = cfg.BuildContext.ImportDir(debugDeprecatedImportcfgDir, 0)
++		} else if DebugDeprecatedImportcfg.enabled {
++			bp = new(build.Package)
++			err = fmt.Errorf("unknown import path %q: not in import cfg", importPath)
+ 		} else {
+ 			buildMode := build.ImportComment
+ 			if mode&UseVendor == 0 || path != origPath {
+@@ -514,6 +517,13 @@ func isDir(path string) bool {
+ // x/vendor/path, vendor/path, or else stay path if none of those exist.
+ // VendoredImportPath returns the expanded path or, if no expansion is found, the original.
+ func VendoredImportPath(parent *Package, path string) (found string) {
++	if DebugDeprecatedImportcfg.enabled {
++		if d, i := DebugDeprecatedImportcfg.lookup(parent, path); d != "" {
++			return i
++		}
++		return path
++	}
++
+ 	if parent == nil || parent.Root == "" {
+ 		return path
+ 	}

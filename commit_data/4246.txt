@@ -8,6 +8,20 @@ Date:   Mon Nov 30 12:50:02 2009 -0800
     R=rsc
     CC=r
     https://golang.org/cl/164043
-
+---
  src/pkg/strings/strings.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 1578b3db69..013af680a2 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -223,7 +223,7 @@ func Repeat(s string, count int) string {
+ // ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
+ func ToUpper(s string) string	{ return Map(unicode.ToUpper, s) }
+ 
+-// ToUpper returns a copy of the string s with all Unicode letters mapped to their lower case.
++// ToLower returns a copy of the string s with all Unicode letters mapped to their lower case.
+ func ToLower(s string) string	{ return Map(unicode.ToLower, s) }
+ 
+ // ToTitle returns a copy of the string s with all Unicode letters mapped to their title case.

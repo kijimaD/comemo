@@ -18,7 +18,68 @@ Date:   Mon Apr 25 15:59:42 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/22445
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 13 ++++++-------
  src/cmd/compile/internal/gc/reflect.go | 11 +++++++++++
  2 files changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 512da43d51..0dc61374f1 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -123,12 +123,11 @@ const posInfoFormat = false
+ // TODO(gri) remove eventually
+ const forceNewExport = false // force new export format - DO NOT SUBMIT with this flag set
+ 
+-// forceNumberedParams keeps parameter numbering in exported parameter names
+-// even where we don't really need it (because the parameter names are not used
+-// elsewhere). Leave it enabled for now to remove this difference in generated
+-// object files so we can more easily compare old and new format.
+-// TODO(gri) remove once we switched to new format
+-const forceNumberedParams = true
++// forceObjFileStability enforces additional constraints in export data
++// and other parts of the compiler to eliminate object file differences
++// only due to the choice of export format.
++// TODO(gri) disable and remove once there is only one export format again
++const forceObjFileStability = true
+ 
+ const exportVersion = "v0"
+ 
+@@ -882,7 +881,7 @@ func parName(f *Field, numbered bool) string {
+ 	// Functions that can be inlined use numbered parameters so we can distingish them
+ 	// from other names in their context after inlining (i.e., the parameter numbering
+ 	// is a form of parameter rewriting). See issue 4326 for an example and test case.
+-	if forceNumberedParams || numbered {
++	if forceObjFileStability || numbered {
+ 		if !strings.Contains(name, "·") && f.Nname != nil && f.Nname.Name != nil && f.Nname.Name.Vargen > 0 {
+ 			name = fmt.Sprintf("%s·%d", name, f.Nname.Name.Vargen) // append Vargen
+ 		}
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index a578820256..ceed55a2a5 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1391,6 +1391,11 @@ func dumptypestructs() {
+ 	}
+ 
+ 	// generate import strings for imported packages
++	if forceObjFileStability {
++		// Sorting the packages is not necessary but to compare binaries created
++		// using textual and binary format we sort by path to reduce differences.
++		sort.Sort(pkgByPath(pkgs))
++	}
+ 	for _, p := range pkgs {
+ 		if p.Direct {
+ 			dimportpath(p)
+@@ -1429,6 +1434,12 @@ func dumptypestructs() {
+ 	}
+ }
+ 
++type pkgByPath []*Pkg
++
++func (a pkgByPath) Len() int           { return len(a) }
++func (a pkgByPath) Less(i, j int) bool { return a[i].Path < a[j].Path }
++func (a pkgByPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
++
+ func dalgsym(t *Type) *Sym {
+ 	var s *Sym
+ 	var hashfunc *Sym

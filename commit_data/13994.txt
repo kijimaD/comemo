@@ -7,6 +7,19 @@ Date:   Mon Oct 1 16:33:06 2012 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6594053
-
+---
  src/cmd/gc/esc.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index c5faa041c8..20a77c2b1e 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -416,6 +416,7 @@ esc(EscState *e, Node *n)
+ 		//	fatal("escape anaylysis missed or messed up a label: %+N", n);
+ 
+ 		n->left->sym->label = nil;
++		break;
+ 
+ 	case ORANGE:
+ 		// Everything but fixed array is a dereference.

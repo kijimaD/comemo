@@ -10,7 +10,54 @@ Date:   Tue May 3 11:10:26 2016 +0200
     Reviewed-on: https://go-review.googlesource.com/22730
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Sean Lake <odysseus9672@gmail.com>
-
+---
  misc/cgo/fortran/test.bash | 16 ++++++++++++++++
  src/cmd/dist/test.go       |  2 +-
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/fortran/test.bash b/misc/cgo/fortran/test.bash
+index d397dcb682..3d1bc9de8e 100755
+--- a/misc/cgo/fortran/test.bash
++++ b/misc/cgo/fortran/test.bash
+@@ -9,12 +9,28 @@ set -e
+ 
+ FC=$1
+ 
++goos=$(go env GOOS)
++
++libext="so"
++if [ "$goos" == "darwin" ]; then
++	libext="dylib"
++fi
++
++case "$FC" in
++*gfortran*)
++  libpath=$(dirname $($FC -print-file-name=libgfortran.$libext))
++  export CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-rpath,$libpath -L $libpath"
++  ;;
++esac
++
+ if ! $FC helloworld/helloworld.f90 -o main.exe >& /dev/null; then
+   echo "skipping Fortran test: could not build helloworld.f90 with $FC"
+   exit 0
+ fi
+ rm -f main.exe
+ 
++status=0
++
+ if ! go test; then
+   echo "FAIL: go test"
+   status=1
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 11c22f4fd3..92559c9d7e 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -445,7 +445,7 @@ func (t *tester) registerTests() {
+ 		if fortran == "" {
+ 			fortran, _ = exec.LookPath("gfortran")
+ 		}
+-		if t.hasBash() && fortran != "" && t.goos != "dragonfly" { // see golang.org/issue/14544
++		if t.hasBash() && fortran != "" {
+ 			t.tests = append(t.tests, distTest{
+ 				name:    "cgo_fortran",
+ 				heading: "../misc/cgo/fortran",

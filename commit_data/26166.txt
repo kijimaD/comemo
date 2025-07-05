@@ -11,6 +11,20 @@ Date:   Tue Dec 22 15:24:21 2015 -0800
     Change-Id: Iab19ddf8182d087e9a4b4d34a9eeabd1d2aa02d6
     Reviewed-on: https://go-review.googlesource.com/18104
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/crypto/cipher/gcm.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index cf13319dfe..5f18f8c490 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -37,7 +37,7 @@ type AEAD interface {
+ 	// value passed to Seal.
+ 	//
+ 	// The ciphertext and dst may alias exactly or not at all. To reuse
+-	// ciphertext's storage for the encrypted output, use ciphertext[:0] as dst.
++	// ciphertext's storage for the decrypted output, use ciphertext[:0] as dst.
+ 	Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error)
+ }
+ 

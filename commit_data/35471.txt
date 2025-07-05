@@ -16,7 +16,7 @@ Date:   Thu Feb 15 12:20:27 2018 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/poll/hook_cloexec.go        |  2 +-
  src/internal/poll/sock_cloexec.go        |  2 +-
  src/internal/poll/sys_cloexec.go         |  2 +-
@@ -33,3 +33,239 @@ Date:   Thu Feb 15 12:20:27 2018 +0100
  src/syscall/ztypes_netbsd_amd64.go       |  4 ++++
  src/syscall/ztypes_netbsd_arm.go         |  4 ++++
  15 files changed, 75 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/poll/hook_cloexec.go b/src/internal/poll/hook_cloexec.go
+index 73df6ed6be..4b670b9d0e 100644
+--- a/src/internal/poll/hook_cloexec.go
++++ b/src/internal/poll/hook_cloexec.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd linux
++// +build dragonfly freebsd linux netbsd
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/sock_cloexec.go b/src/internal/poll/sock_cloexec.go
+index 0d5c8bdabf..e46b4d3032 100644
+--- a/src/internal/poll/sock_cloexec.go
++++ b/src/internal/poll/sock_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build dragonfly freebsd linux
++// +build dragonfly freebsd linux netbsd
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/sys_cloexec.go b/src/internal/poll/sys_cloexec.go
+index 9ed35bdaf4..4755dc3e53 100644
+--- a/src/internal/poll/sys_cloexec.go
++++ b/src/internal/poll/sys_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that do not
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build darwin nacl netbsd openbsd solaris
++// +build darwin nacl openbsd solaris
+ 
+ package poll
+ 
+diff --git a/src/net/internal/socktest/sys_cloexec.go b/src/net/internal/socktest/sys_cloexec.go
+index d1b8f4f374..3d70a4f026 100644
+--- a/src/net/internal/socktest/sys_cloexec.go
++++ b/src/net/internal/socktest/sys_cloexec.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd linux
++// +build dragonfly freebsd linux netbsd
+ 
+ package socktest
+ 
+diff --git a/src/net/main_cloexec_test.go b/src/net/main_cloexec_test.go
+index fa1ed02057..c35c3b2673 100644
+--- a/src/net/main_cloexec_test.go
++++ b/src/net/main_cloexec_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd linux
++// +build dragonfly freebsd linux netbsd
+ 
+ package net
+ 
+diff --git a/src/net/sock_cloexec.go b/src/net/sock_cloexec.go
+index 06ff10d834..e224a5fb41 100644
+--- a/src/net/sock_cloexec.go
++++ b/src/net/sock_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build dragonfly freebsd linux
++// +build dragonfly freebsd linux netbsd
+ 
+ package net
+ 
+diff --git a/src/net/sys_cloexec.go b/src/net/sys_cloexec.go
+index c4dc6c75ee..fe6b0cc764 100644
+--- a/src/net/sys_cloexec.go
++++ b/src/net/sys_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that do not
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build darwin nacl netbsd openbsd solaris
++// +build darwin nacl openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index 90837e01f9..ef8f9bcc51 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -118,6 +118,25 @@ func Pipe2(p []int, flags int) error {
+ 	return err
+ }
+ 
++//sys paccept(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, sigmask *sigset, flags int) (nfd int, err error)
++func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
++	var rsa RawSockaddrAny
++	var len _Socklen = SizeofSockaddrAny
++	nfd, err = paccept(fd, &rsa, &len, nil, flags)
++	if err != nil {
++		return
++	}
++	if len > SizeofSockaddrAny {
++		panic("RawSockaddrAny too small")
++	}
++	sa, err = anyToSockaddr(&rsa)
++	if err != nil {
++		Close(nfd)
++		nfd = 0
++	}
++	return
++}
++
+ //sys getdents(fd int, buf []byte) (n int, err error)
+ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 	return getdents(fd, buf)
+diff --git a/src/syscall/types_netbsd.go b/src/syscall/types_netbsd.go
+index c3497564d9..30ab2dc845 100644
+--- a/src/syscall/types_netbsd.go
++++ b/src/syscall/types_netbsd.go
+@@ -242,3 +242,7 @@ type Termios C.struct_termios
+ // Sysctl
+ 
+ type Sysctlnode C.struct_sysctlnode
++
++// Signals
++
++type sigset C.sigset_t
+diff --git a/src/syscall/zsyscall_netbsd_386.go b/src/syscall/zsyscall_netbsd_386.go
+index 156292a84e..aeb8bd6bc4 100644
+--- a/src/syscall/zsyscall_netbsd_386.go
++++ b/src/syscall/zsyscall_netbsd_386.go
+@@ -271,6 +271,17 @@ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func paccept(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, sigmask *sigset, flags int) (nfd int, err error) {
++	r0, _, e1 := Syscall6(SYS_PACCEPT, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(unsafe.Pointer(sigmask)), uintptr(flags), 0)
++	nfd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func getdents(fd int, buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+diff --git a/src/syscall/zsyscall_netbsd_amd64.go b/src/syscall/zsyscall_netbsd_amd64.go
+index 1af62b715e..a4de164382 100644
+--- a/src/syscall/zsyscall_netbsd_amd64.go
++++ b/src/syscall/zsyscall_netbsd_amd64.go
+@@ -271,6 +271,17 @@ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func paccept(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, sigmask *sigset, flags int) (nfd int, err error) {
++	r0, _, e1 := Syscall6(SYS_PACCEPT, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(unsafe.Pointer(sigmask)), uintptr(flags), 0)
++	nfd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func getdents(fd int, buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+diff --git a/src/syscall/zsyscall_netbsd_arm.go b/src/syscall/zsyscall_netbsd_arm.go
+index b03b19169e..1b33ea1918 100644
+--- a/src/syscall/zsyscall_netbsd_arm.go
++++ b/src/syscall/zsyscall_netbsd_arm.go
+@@ -271,6 +271,17 @@ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func paccept(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, sigmask *sigset, flags int) (nfd int, err error) {
++	r0, _, e1 := Syscall6(SYS_PACCEPT, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(unsafe.Pointer(sigmask)), uintptr(flags), 0)
++	nfd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func getdents(fd int, buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+diff --git a/src/syscall/ztypes_netbsd_386.go b/src/syscall/ztypes_netbsd_386.go
+index 009c55d1f2..737abb87c7 100644
+--- a/src/syscall/ztypes_netbsd_386.go
++++ b/src/syscall/ztypes_netbsd_386.go
+@@ -402,3 +402,7 @@ type Sysctlnode struct {
+ 	X_sysctl_parent [8]byte
+ 	X_sysctl_desc   [8]byte
+ }
++
++type sigset struct {
++	X__bits [4]uint32
++}
+diff --git a/src/syscall/ztypes_netbsd_amd64.go b/src/syscall/ztypes_netbsd_amd64.go
+index f807d984ec..cf059f79ff 100644
+--- a/src/syscall/ztypes_netbsd_amd64.go
++++ b/src/syscall/ztypes_netbsd_amd64.go
+@@ -409,3 +409,7 @@ type Sysctlnode struct {
+ 	X_sysctl_parent [8]byte
+ 	X_sysctl_desc   [8]byte
+ }
++
++type sigset struct {
++	X__bits [4]uint32
++}
+diff --git a/src/syscall/ztypes_netbsd_arm.go b/src/syscall/ztypes_netbsd_arm.go
+index 119903f817..c532b3a7af 100644
+--- a/src/syscall/ztypes_netbsd_arm.go
++++ b/src/syscall/ztypes_netbsd_arm.go
+@@ -407,3 +407,7 @@ type Sysctlnode struct {
+ 	X_sysctl_parent [8]byte
+ 	X_sysctl_desc   [8]byte
+ }
++
++type sigset struct {
++	X__bits [4]uint32
++}

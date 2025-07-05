@@ -10,7 +10,58 @@ Date:   Mon Jan 23 16:53:19 2012 -0800
     R=rsc, golang-dev
     CC=golang-dev
     https://golang.org/cl/5570049
-
+---
  src/pkg/go/doc/doc.go    | 19 +++++++++++--------
  src/pkg/go/doc/reader.go |  1 -
  2 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 0259a6fec9..851bbd9acd 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -17,11 +17,13 @@ type Package struct {
+ 	ImportPath string
+ 	Imports    []string
+ 	Filenames  []string
+-	Consts     []*Value
+-	Types      []*Type
+-	Vars       []*Value
+-	Funcs      []*Func
+ 	Bugs       []string
++
++	// declarations
++	Consts []*Value
++	Types  []*Type
++	Vars   []*Value
++	Funcs  []*Func
+ }
+ 
+ // Value is the documentation for a (possibly grouped) var or const declaration.
+@@ -42,10 +44,11 @@ type Method struct {
+ 
+ // Type is the documentation for type declaration.
+ type Type struct {
+-	Doc     string
+-	Name    string
+-	Type    *ast.TypeSpec
+-	Decl    *ast.GenDecl
++	Doc  string
++	Name string
++	Decl *ast.GenDecl
++
++	// associated declarations
+ 	Consts  []*Value  // sorted list of constants of (mostly) this type
+ 	Vars    []*Value  // sorted list of variables of (mostly) this type
+ 	Funcs   []*Func   // sorted list of functions returning this type
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index 926cf537eb..2b6286e26c 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -520,7 +520,6 @@ func (doc *docReader) makeTypes(m map[string]*typeInfo) []*Type {
+ 				}
+ 				decl.Doc = nil // doc consumed - remove from ast.Decl node
+ 				t.Doc = doc.Text()
+-				t.Type = typespec
+ 			}
+ 			t.Consts = makeValues(old.values, token.CONST)
+ 			t.Vars = makeValues(old.values, token.VAR)

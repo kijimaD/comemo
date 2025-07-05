@@ -19,8 +19,84 @@ Date:   Thu May 15 10:50:40 2025 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/link/internal/ld/asmb.go   |  5 +----
  src/cmd/link/internal/ld/data.go   | 12 +++++++-----
  src/cmd/link/internal/ld/outbuf.go |  6 ++----
  3 files changed, 10 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index ca9a57741c..2088e13be1 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -195,10 +195,7 @@ func relocSectFn(ctxt *Link, relocSect func(*Link, *OutBuf, *sym.Section, []load
+ 		fn = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
+ 			wg.Add(1)
+ 			sem <- 1
+-			out, err := ctxt.Out.View(sect.Reloff)
+-			if err != nil {
+-				panic(err)
+-			}
++			out := ctxt.Out.View(sect.Reloff)
+ 			go func() {
+ 				relocSect(ctxt, out, sect, syms)
+ 				wg.Done()
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 939de11876..42756e86bb 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1063,7 +1063,8 @@ func writeBlocks(ctxt *Link, out *OutBuf, sem chan int, ldr *loader.Loader, syms
+ 		}
+ 
+ 		// Start the block output operator.
+-		if o, err := out.View(uint64(out.Offset() + written)); err == nil {
++		if ctxt.Out.isMmapped() {
++			o := out.View(uint64(out.Offset() + written))
+ 			sem <- 1
+ 			wg.Add(1)
+ 			go func(o *OutBuf, ldr *loader.Loader, syms []loader.Sym, addr, size int64, pad []byte) {
+@@ -1142,15 +1143,16 @@ type writeFn func(*Link, *OutBuf, int64, int64)
+ 
+ // writeParallel handles scheduling parallel execution of data write functions.
+ func writeParallel(wg *sync.WaitGroup, fn writeFn, ctxt *Link, seek, vaddr, length uint64) {
+-	if out, err := ctxt.Out.View(seek); err != nil {
+-		ctxt.Out.SeekSet(int64(seek))
+-		fn(ctxt, ctxt.Out, int64(vaddr), int64(length))
+-	} else {
++	if ctxt.Out.isMmapped() {
++		out := ctxt.Out.View(seek)
+ 		wg.Add(1)
+ 		go func() {
+ 			defer wg.Done()
+ 			fn(ctxt, out, int64(vaddr), int64(length))
+ 		}()
++	} else {
++		ctxt.Out.SeekSet(int64(seek))
++		fn(ctxt, ctxt.Out, int64(vaddr), int64(length))
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/outbuf.go b/src/cmd/link/internal/ld/outbuf.go
+index 54fafcaf99..8732fcc5fe 100644
+--- a/src/cmd/link/internal/ld/outbuf.go
++++ b/src/cmd/link/internal/ld/outbuf.go
+@@ -92,9 +92,7 @@ func NewOutBuf(arch *sys.Arch) *OutBuf {
+ 	}
+ }
+ 
+-var viewError = errors.New("output not mmapped")
+-
+-func (out *OutBuf) View(start uint64) (*OutBuf, error) {
++func (out *OutBuf) View(start uint64) *OutBuf {
+ 	return &OutBuf{
+ 		arch:   out.arch,
+ 		name:   out.name,
+@@ -102,7 +100,7 @@ func (out *OutBuf) View(start uint64) (*OutBuf, error) {
+ 		heap:   out.heap,
+ 		off:    int64(start),
+ 		isView: true,
+-	}, nil
++	}
+ }
+ 
+ var viewCloseError = errors.New("cannot Close OutBuf from View")

@@ -27,10 +27,166 @@ Date:   Wed Mar 8 15:40:28 2017 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testsanitizers/test.bash |  9 ++-----
  misc/cgo/testsanitizers/tsan11.go | 55 +++++++++++++++++++++++++++++++++++++++
  src/runtime/lock_futex.go         |  6 +++++
  src/runtime/lock_sema.go          | 11 +++++---
  src/runtime/proc.go               |  4 +++
  5 files changed, 75 insertions(+), 10 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index 67925e52ee..556ef10820 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -190,17 +190,12 @@ if test "$tsan" = "yes"; then
+     fi
+ 
+     if test "$ok" = "true"; then
+-	# This test requires rebuilding os/user with -fsanitize=thread.
++	# These tests require rebuilding os/user with -fsanitize=thread.
+ 	testtsan tsan5.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+-
+-	# This test requires rebuilding runtime/cgo with -fsanitize=thread.
+ 	testtsan tsan6.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+-
+-	# This test requires rebuilding runtime/cgo with -fsanitize=thread.
+ 	testtsan tsan7.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+-
+-	# This test requires rebuilding runtime/cgo with -fsanitize=thread.
+ 	testtsan tsan10.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
++	testtsan tsan11.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+     fi
+ fi
+ 
+diff --git a/misc/cgo/testsanitizers/tsan11.go b/misc/cgo/testsanitizers/tsan11.go
+new file mode 100644
+index 0000000000..70ac9c8ae2
+--- /dev/null
++++ b/misc/cgo/testsanitizers/tsan11.go
+@@ -0,0 +1,55 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// This program hung when run under the C/C++ ThreadSanitizer. TSAN defers
++// asynchronous signals until the signaled thread calls into libc. The runtime's
++// sysmon goroutine idles itself using direct usleep syscalls, so it could
++// run for an arbitrarily long time without triggering the libc interceptors.
++// See https://golang.org/issue/18717.
++
++import (
++	"os"
++	"os/signal"
++	"syscall"
++)
++
++/*
++#cgo CFLAGS: -g -fsanitize=thread
++#cgo LDFLAGS: -g -fsanitize=thread
++
++#include <signal.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++static void raise_usr2(int signo) {
++	raise(SIGUSR2);
++}
++
++static void register_handler(int signo) {
++	struct sigaction sa;
++	memset(&sa, 0, sizeof(sa));
++	sigemptyset(&sa.sa_mask);
++	sa.sa_flags = SA_ONSTACK;
++	sa.sa_handler = raise_usr2;
++
++	if (sigaction(SIGUSR1, &sa, NULL) != 0) {
++		perror("failed to register SIGUSR1 handler");
++		exit(EXIT_FAILURE);
++	}
++}
++*/
++import "C"
++
++func main() {
++	ch := make(chan os.Signal)
++	signal.Notify(ch, syscall.SIGUSR2)
++
++	C.register_handler(C.int(syscall.SIGUSR1))
++	syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
++
++	<-ch
++}
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index 341c74ff39..c3ed3be00b 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -185,8 +185,14 @@ func notetsleep_internal(n *note, ns int64) bool {
+ 
+ 	deadline := nanotime() + ns
+ 	for {
++		if _cgo_yield != nil && ns > 10e6 {
++			ns = 10e6
++		}
+ 		gp.m.blocked = true
+ 		futexsleep(key32(&n.key), 0, ns)
++		if _cgo_yield != nil {
++			asmcgocall(_cgo_yield, nil)
++		}
+ 		gp.m.blocked = false
+ 		if atomic.Load(key32(&n.key)) != 0 {
+ 			break
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index e00b99164f..4a8295ff47 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -198,10 +198,9 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
+ 		if _cgo_yield == nil {
+ 			semasleep(-1)
+ 		} else {
+-			// Sleep for an arbitrary-but-moderate interval to poll libc interceptors.
++			// Sleep in arbitrary-but-moderate intervals to poll libc interceptors.
+ 			const ns = 10e6
+-			for atomic.Loaduintptr(&n.key) == 0 {
+-				semasleep(ns)
++			for semasleep(ns) < 0 {
+ 				asmcgocall(_cgo_yield, nil)
+ 			}
+ 		}
+@@ -213,12 +212,18 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
+ 	for {
+ 		// Registered. Sleep.
+ 		gp.m.blocked = true
++		if _cgo_yield != nil && ns > 10e6 {
++			ns = 10e6
++		}
+ 		if semasleep(ns) >= 0 {
+ 			gp.m.blocked = false
+ 			// Acquired semaphore, semawakeup unregistered us.
+ 			// Done.
+ 			return true
+ 		}
++		if _cgo_yield != nil {
++			asmcgocall(_cgo_yield, nil)
++		}
+ 		gp.m.blocked = false
+ 		// Interrupted or timed out. Still registered. Semaphore not acquired.
+ 		ns = deadline - nanotime()
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 5b907502d6..caeb51205b 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3755,6 +3755,10 @@ func sysmon() {
+ 			}
+ 			unlock(&sched.lock)
+ 		}
++		// trigger libc interceptors if needed
++		if _cgo_yield != nil {
++			asmcgocall(_cgo_yield, nil)
++		}
+ 		// poll network if not polled for more than 10ms
+ 		lastpoll := int64(atomic.Load64(&sched.lastpoll))
+ 		now := nanotime()

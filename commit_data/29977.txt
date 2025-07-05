@@ -9,7 +9,7 @@ Date:   Tue Oct 18 22:56:14 2016 -0400
     Change-Id: If203d802a919e00594ddc1282782fc59a083fd63
     Reviewed-on: https://go-review.googlesource.com/31458
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/exec_linux.go            | 2 +-
  src/syscall/syscall_linux_386.go     | 5 +++--
  src/syscall/syscall_linux_amd64.go   | 5 +++--
@@ -19,3 +19,127 @@ Date:   Tue Oct 18 22:56:14 2016 -0400
  src/syscall/syscall_linux_ppc64x.go  | 5 +++--
  src/syscall/syscall_linux_s390x.go   | 5 +++--
  8 files changed, 21 insertions(+), 14 deletions(-)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 39764f7076..b0cad52f7b 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -214,7 +214,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		// and disabled setgroups, because otherwise unprivileged user namespace
+ 		// will fail with any non-empty SysProcAttr.Credential.
+ 		if !(sys.GidMappings != nil && !sys.GidMappingsEnableSetgroups && ngroups == 0) {
+-			_, _, err1 = RawSyscall(SYS_SETGROUPS, ngroups, groups, 0)
++			_, _, err1 = RawSyscall(_SYS_setgroups, ngroups, groups, 0)
+ 			if err1 != 0 {
+ 				goto childerror
+ 			}
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index c8339e909a..00cf262738 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -10,8 +10,9 @@ package syscall
+ import "unsafe"
+ 
+ const (
+-	_SYS_dup      = SYS_DUP2
+-	_SYS_getdents = SYS_GETDENTS64
++	_SYS_dup       = SYS_DUP2
++	_SYS_getdents  = SYS_GETDENTS64
++	_SYS_setgroups = SYS_SETGROUPS32
+ )
+ 
+ func setTimespec(sec, nsec int64) Timespec {
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index 684bd9cd05..0184d7d850 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -5,8 +5,9 @@
+ package syscall
+ 
+ const (
+-	_SYS_dup      = SYS_DUP2
+-	_SYS_getdents = SYS_GETDENTS64
++	_SYS_dup       = SYS_DUP2
++	_SYS_getdents  = SYS_GETDENTS64
++	_SYS_setgroups = SYS_SETGROUPS
+ )
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index 6371169382..2ed31f0bb9 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -7,8 +7,9 @@ package syscall
+ import "unsafe"
+ 
+ const (
+-	_SYS_dup      = SYS_DUP2
+-	_SYS_getdents = SYS_GETDENTS64
++	_SYS_dup       = SYS_DUP2
++	_SYS_getdents  = SYS_GETDENTS64
++	_SYS_setgroups = SYS_SETGROUPS32
+ )
+ 
+ func setTimespec(sec, nsec int64) Timespec {
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 0903ba3ece..4462139c8b 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -5,8 +5,9 @@
+ package syscall
+ 
+ const (
+-	_SYS_dup      = SYS_DUP3
+-	_SYS_getdents = SYS_GETDENTS64
++	_SYS_dup       = SYS_DUP3
++	_SYS_getdents  = SYS_GETDENTS64
++	_SYS_setgroups = SYS_SETGROUPS
+ )
+ 
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index f203156f2b..9fd7982d2f 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -15,7 +15,8 @@ const (
+ 	// to support older kernels, we have to use getdents for mips64.
+ 	// Also note that struct dirent is different for these two.
+ 	// Lookup linux_dirent{,64} in kernel source code for details.
+-	_SYS_getdents = SYS_GETDENTS
++	_SYS_getdents  = SYS_GETDENTS
++	_SYS_setgroups = SYS_SETGROUPS
+ )
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index 006889c5e3..307abc9f53 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -8,8 +8,9 @@
+ package syscall
+ 
+ const (
+-	_SYS_dup      = SYS_DUP2
+-	_SYS_getdents = SYS_GETDENTS64
++	_SYS_dup       = SYS_DUP2
++	_SYS_getdents  = SYS_GETDENTS64
++	_SYS_setgroups = SYS_SETGROUPS
+ )
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index fea6c20508..148790e756 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -7,8 +7,9 @@ package syscall
+ import "unsafe"
+ 
+ const (
+-	_SYS_dup      = SYS_DUP2
+-	_SYS_getdents = SYS_GETDENTS64
++	_SYS_dup       = SYS_DUP2
++	_SYS_getdents  = SYS_GETDENTS64
++	_SYS_setgroups = SYS_SETGROUPS
+ )
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)

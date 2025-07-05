@@ -11,7 +11,7 @@ Date:   Tue Jan 18 15:21:37 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/379256
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go                      | 1 -
  src/cmd/compile/internal/types2/conversions.go                   | 4 ++--
  src/cmd/compile/internal/types2/testdata/check/shifts.src        | 2 +-
@@ -22,3 +22,134 @@ Date:   Tue Jan 18 15:21:37 2022 -0800
  src/go/types/testdata/fixedbugs/issue45114.go                    | 8 ++++++++
  test/fixedbugs/bug193.go                                         | 4 +---
  9 files changed, 23 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 28c1f97e87..2493bfb200 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -109,7 +109,6 @@ func TestValuesInfo(t *testing.T) {
+ 		{`package c5d; var _ = string(65)`, `65`, `untyped int`, `65`},
+ 		{`package c5e; var _ = string('A')`, `'A'`, `untyped rune`, `65`},
+ 		{`package c5f; type T string; var _ = T('A')`, `'A'`, `untyped rune`, `65`},
+-		{`package c5g; var s uint; var _ = string(1 << s)`, `1 << s`, `untyped int`, ``},
+ 
+ 		{`package d0; var _ = []byte("foo")`, `"foo"`, `string`, `"foo"`},
+ 		{`package d1; var _ = []byte(string("foo"))`, `"foo"`, `string`, `"foo"`},
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index 253868cf93..7fe1d5056b 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -98,13 +98,13 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 		// - For conversions of untyped constants to non-constant types, also
+ 		//   use the default type (e.g., []byte("foo") should report string
+ 		//   not []byte as type for the constant "foo").
+-		// - For integer to string conversions, keep the argument type.
++		// - For constant integer to string conversions, keep the argument type.
+ 		//   (See also the TODO below.)
+ 		if x.typ == Typ[UntypedNil] {
+ 			// ok
+ 		} else if IsInterface(T) && !isTypeParam(T) || constArg && !isConstType(T) {
+ 			final = Default(x.typ)
+-		} else if isInteger(x.typ) && allString(T) {
++		} else if x.mode == constant_ && isInteger(x.typ) && allString(T) {
+ 			final = x.typ
+ 		}
+ 		check.updateExprType(x.expr, final, true)
+diff --git a/src/cmd/compile/internal/types2/testdata/check/shifts.src b/src/cmd/compile/internal/types2/testdata/check/shifts.src
+index 60db731cf4..37bc84c0f6 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/shifts.src
++++ b/src/cmd/compile/internal/types2/testdata/check/shifts.src
+@@ -381,7 +381,7 @@ func issue21727() {
+ 	var a = make([]int, 1<<s + 1.2 /* ERROR "truncated to int" */ )
+ 	var _ = a[1<<s - 2.3 /* ERROR "truncated to int" */ ]
+ 	var _ int = 1<<s + 3.4 /* ERROR "truncated to int" */
+-	var _ = string(1 << s)
++	var _ = string(1 /* ERROR shifted operand 1 .* must be integer */ << s)
+ 	var _ = string(1.0 /* ERROR "cannot convert" */ << s)
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45114.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45114.go
+new file mode 100644
+index 0000000000..009366010e
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45114.go
+@@ -0,0 +1,8 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var s uint
++var _ = string(1 /* ERROR shifted operand 1 .* must be integer */ << s)
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 6a1bf26984..8c80494de7 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -127,7 +127,6 @@ func TestValuesInfo(t *testing.T) {
+ 		{`package c5d; var _ = string(65)`, `65`, `untyped int`, `65`},
+ 		{`package c5e; var _ = string('A')`, `'A'`, `untyped rune`, `65`},
+ 		{`package c5f; type T string; var _ = T('A')`, `'A'`, `untyped rune`, `65`},
+-		{`package c5g; var s uint; var _ = string(1 << s)`, `1 << s`, `untyped int`, ``},
+ 
+ 		{`package d0; var _ = []byte("foo")`, `"foo"`, `string`, `"foo"`},
+ 		{`package d1; var _ = []byte(string("foo"))`, `"foo"`, `string`, `"foo"`},
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index a5b359e539..84741359c0 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -96,11 +96,11 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 		//   use the default type (e.g., []byte("foo") should report string
+ 		//   not []byte as type for the constant "foo").
+ 		// - Keep untyped nil for untyped nil arguments.
+-		// - For integer to string conversions, keep the argument type.
++		// - For constant integer to string conversions, keep the argument type.
+ 		//   (See also the TODO below.)
+ 		if IsInterface(T) && !isTypeParam(T) || constArg && !isConstType(T) || x.isNil() {
+ 			final = Default(x.typ) // default type of untyped nil is untyped nil
+-		} else if isInteger(x.typ) && allString(T) {
++		} else if x.mode == constant_ && isInteger(x.typ) && allString(T) {
+ 			final = x.typ
+ 		}
+ 		check.updateExprType(x.expr, final, true)
+diff --git a/src/go/types/testdata/check/shifts.src b/src/go/types/testdata/check/shifts.src
+index 4d3c59a50f..16a67aee63 100644
+--- a/src/go/types/testdata/check/shifts.src
++++ b/src/go/types/testdata/check/shifts.src
+@@ -380,7 +380,7 @@ func issue21727() {
+ 	var a = make([]int, 1<<s + 1.2 /* ERROR "truncated to int" */ )
+ 	var _ = a[1<<s - 2.3 /* ERROR "truncated to int" */ ]
+ 	var _ int = 1<<s + 3.4 /* ERROR "truncated to int" */
+-	var _ = string(1 << s)
++	var _ = string(1 /* ERROR shifted operand 1 .* must be integer */ << s)
+ 	var _ = string(1.0 /* ERROR "cannot convert" */ << s)
+ }
+ 
+diff --git a/src/go/types/testdata/fixedbugs/issue45114.go b/src/go/types/testdata/fixedbugs/issue45114.go
+new file mode 100644
+index 0000000000..009366010e
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue45114.go
+@@ -0,0 +1,8 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var s uint
++var _ = string(1 /* ERROR shifted operand 1 .* must be integer */ << s)
+diff --git a/test/fixedbugs/bug193.go b/test/fixedbugs/bug193.go
+index 36073220f9..64e06da897 100644
+--- a/test/fixedbugs/bug193.go
++++ b/test/fixedbugs/bug193.go
+@@ -11,8 +11,6 @@ func main() {
+ 	ss := 1 << s
+ 	y1 := float64(ss)
+ 	y2 := float64(1 << s) // ERROR "shift"
+-	// see issues #45114, #45117
+-	// y3 := string(1 << s)  // DISABLED "shift"
+-	y3 := 0
++	y3 := string(1 << s)  // ERROR "shift"
+ 	_, _, _, _, _ = s, ss, y1, y2, y3
+ }

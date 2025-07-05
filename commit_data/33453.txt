@@ -9,9 +9,108 @@ Date:   Wed Aug 2 23:25:07 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/internal/boring/boring.go    |  4 ++++
  src/crypto/internal/boring/notboring.go |  8 ++++++++
  src/crypto/internal/boring/rand.go      | 25 +++++++++++++++++++++++++
  src/crypto/rand/rand_unix.go            |  7 +++++++
  4 files changed, 44 insertions(+)
+
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+index 5982a22743..615b1efadc 100644
+--- a/src/crypto/internal/boring/boring.go
++++ b/src/crypto/internal/boring/boring.go
+@@ -37,3 +37,7 @@ func UnreachableExceptTests() {
+ 		panic("boringcrypto: invalid code execution")
+ 	}
+ }
++
++type fail string
++
++func (e fail) Error() string { return "boringcrypto: " + string(e) + " failed" }
+diff --git a/src/crypto/internal/boring/notboring.go b/src/crypto/internal/boring/notboring.go
+index 42c10c667b..9aa25ddc7b 100644
+--- a/src/crypto/internal/boring/notboring.go
++++ b/src/crypto/internal/boring/notboring.go
+@@ -15,3 +15,11 @@ func Unreachable() {}
+ // UnreachableExceptTests marks code that should be unreachable
+ // when BoringCrypto is in use. It is a no-op without BoringCrypto.
+ func UnreachableExceptTests() {}
++
++type randReader int
++
++func (randReader) Read(b []byte) (int, error) {
++	panic("boringcrypto: not available")
++}
++
++const RandReader = randReader(0)
+diff --git a/src/crypto/internal/boring/rand.go b/src/crypto/internal/boring/rand.go
+new file mode 100644
+index 0000000000..522bc33978
+--- /dev/null
++++ b/src/crypto/internal/boring/rand.go
+@@ -0,0 +1,25 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux,amd64
++// +build !cmd_go_bootstrap
++
++package boring
++
++// #include "goboringcrypto.h"
++import "C"
++import "unsafe"
++
++type randReader int
++
++func (randReader) Read(b []byte) (int, error) {
++	// Note: RAND_bytes should never fail; the return value exists only for historical reasons.
++	// We check it even so.
++	if len(b) > 0 && C._goboringcrypto_RAND_bytes((*C.uint8_t)(unsafe.Pointer(&b[0])), C.size_t(len(b))) == 0 {
++		return 0, fail("RAND_bytes")
++	}
++	return len(b), nil
++}
++
++const RandReader = randReader(0)
+diff --git a/src/crypto/rand/rand_unix.go b/src/crypto/rand/rand_unix.go
+index 631972b92a..f7cd74693d 100644
+--- a/src/crypto/rand/rand_unix.go
++++ b/src/crypto/rand/rand_unix.go
+@@ -13,6 +13,7 @@ import (
+ 	"bufio"
+ 	"crypto/aes"
+ 	"crypto/cipher"
++	"crypto/internal/boring"
+ 	"io"
+ 	"os"
+ 	"runtime"
+@@ -26,6 +27,10 @@ const urandomDevice = "/dev/urandom"
+ // This is sufficient on Linux, OS X, and FreeBSD.
+ 
+ func init() {
++	if boring.Enabled {
++		Reader = boring.RandReader
++		return
++	}
+ 	if runtime.GOOS == "plan9" {
+ 		Reader = newReader(nil)
+ 	} else {
+@@ -45,6 +50,7 @@ type devReader struct {
+ var altGetRandom func([]byte) (ok bool)
+ 
+ func (r *devReader) Read(b []byte) (n int, err error) {
++	boring.Unreachable()
+ 	if altGetRandom != nil && r.name == urandomDevice && altGetRandom(b) {
+ 		return len(b), nil
+ 	}
+@@ -108,6 +114,7 @@ type reader struct {
+ }
+ 
+ func (r *reader) Read(b []byte) (n int, err error) {
++	boring.Unreachable()
+ 	r.mu.Lock()
+ 	defer r.mu.Unlock()
+ 	n = len(b)

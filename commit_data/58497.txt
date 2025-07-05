@@ -20,7 +20,67 @@ Date:   Tue Nov 14 10:34:59 2023 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/542216
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  .../internal/inline/inlheur/analyze_func_flags.go      | 18 ++++++++++++++++--
  .../internal/inline/inlheur/testdata/props/calls.go    |  6 +++---
  2 files changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+index 8211c452d5..588d2f4f59 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+@@ -148,14 +148,28 @@ func branchCombine(p1, p2 pstate) pstate {
+ // as updating disposition of intermediate nodes.
+ func (ffa *funcFlagsAnalyzer) stateForList(list ir.Nodes) pstate {
+ 	st := psTop
+-	for i := range list {
++	// Walk the list backwards so that we can update the state for
++	// earlier list elements based on what we find out about their
++	// successors. Example:
++	//
++	//        if ... {
++	//  L10:    foo()
++	//  L11:    <stmt>
++	//  L12:    panic(...)
++	//        }
++	//
++	// After combining the dispositions for line 11 and 12, we want to
++	// update the state for the call at line 10 based on that combined
++	// disposition (if L11 has no path to "return", then the call at
++	// line 10 will be on a panic path).
++	for i := len(list) - 1; i >= 0; i-- {
+ 		n := list[i]
+ 		psi := ffa.getstate(n)
+ 		if debugTrace&debugTraceFuncFlags != 0 {
+ 			fmt.Fprintf(os.Stderr, "=-= %v: stateForList n=%s ps=%s\n",
+ 				ir.Line(n), n.Op().String(), psi.String())
+ 		}
+-		st = blockCombine(st, psi)
++		st = blockCombine(psi, st)
+ 		ffa.updatestate(n, st)
+ 	}
+ 	if st == psTop {
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
+index 1d35a1ad47..f9cc023da3 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
+@@ -59,8 +59,8 @@ func T_calls_in_pseudo_loop(x int, q []string) {
+ // calls.go T_calls_on_panic_paths 67 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
+-// callsite: calls.go:69:9|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+-// callsite: calls.go:73:9|1 flagstr "" flagval 0 score 2 mask 0 maskstr ""
++// callsite: calls.go:69:9|0 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
++// callsite: calls.go:73:9|1 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
+ // callsite: calls.go:77:12|2 flagstr "CallSiteOnPanicPath" flagval 2 score 102 mask 1 maskstr "panicPathAdj"
+ // <endcallsites>
+ // <endfuncpreamble>
+@@ -87,7 +87,7 @@ func T_calls_on_panic_paths(x int, q []string) {
+ // callsite: calls.go:103:9|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // callsite: calls.go:112:9|1 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // callsite: calls.go:115:9|2 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+-// callsite: calls.go:119:12|3 flagstr "" flagval 0 score 62 mask 0 maskstr ""
++// callsite: calls.go:119:12|3 flagstr "CallSiteOnPanicPath" flagval 2 score 102 mask 1 maskstr "panicPathAdj"
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_calls_not_on_panic_paths(x int, q []string) {

@@ -18,8 +18,55 @@ Date:   Wed Feb 14 20:54:28 2018 -0800
     Change-Id: I8d8f9b55b0dff009b75c1530d729bf9092c5aea6
     Reviewed-on: https://go-review.googlesource.com/94160
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/scanner.go      |  4 ----
  src/cmd/compile/internal/syntax/scanner_test.go |  2 +-
  test/fixedbugs/issue23587.go                    | 12 ++++++++++++
  3 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index 1e0ff2e3cc..dbb2387f8f 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -242,10 +242,6 @@ redo:
+ 		s.op, s.prec = Or, precAdd
+ 		goto assignop
+ 
+-	case '~':
+-		s.error("bitwise complement operator is ^")
+-		fallthrough
+-
+ 	case '^':
+ 		s.op, s.prec = Xor, precAdd
+ 		c = s.getr()
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index 4bfe5871fa..0b7c2cfe43 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -343,7 +343,7 @@ func TestScanErrors(t *testing.T) {
+ 		{"\U0001d7d8" /* 𝟘 */, "identifier cannot begin with digit U+1D7D8 '𝟘'", 0, 0},
+ 		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid identifier character U+00BD '½'", 0, 8 /* byte offset */},
+ 
+-		{"x + ~y", "bitwise complement operator is ^", 0, 4},
++		{"x + ~y", "invalid character U+007E '~'", 0, 4},
+ 		{"foo$bar = 0", "invalid character U+0024 '$'", 0, 3},
+ 		{"const x = 0xyz", "malformed hex constant", 0, 12},
+ 		{"0123456789", "malformed octal constant", 0, 10},
+diff --git a/test/fixedbugs/issue23587.go b/test/fixedbugs/issue23587.go
+new file mode 100644
+index 0000000000..bd5df27755
+--- /dev/null
++++ b/test/fixedbugs/issue23587.go
+@@ -0,0 +1,12 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(x int) {
++	_ = ~x    // ERROR "invalid character"
++	_ = x ~ x // ERROR "invalid character" "unexpected x at end of statement"
++}

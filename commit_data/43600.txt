@@ -14,10 +14,116 @@ Date:   Mon Apr 13 15:38:03 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/data.go       |  2 --
  src/cmd/link/internal/ld/dwarf.go      | 13 -------------
  src/cmd/link/internal/ld/lib.go        | 10 ++++++++++
  src/cmd/link/internal/ld/main.go       |  2 ++
  src/cmd/link/internal/loader/loader.go | 16 +++++++++-------
  5 files changed, 21 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index d8c11fa4c0..aea643fb5f 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1923,8 +1923,6 @@ func (ctxt *Link) dodata() {
+ 		ctxt.datap = append(ctxt.datap, data[symn]...)
+ 	}
+ 
+-	dwarfGenerateDebugSyms(ctxt)
+-
+ 	var i int
+ 	for ; i < len(dwarfp); i++ {
+ 		s := dwarfp[i]
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 3ee945c7a0..7bb4253325 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1970,17 +1970,6 @@ func dwarfGenerateDebugSyms(ctxt *Link) {
+ }
+ 
+ func (d *dwctxt2) dwarfGenerateDebugSyms() {
+-
+-	// Hack: because the "wavefront" hasn't been pushed all the way
+-	// up to dodata(), there will have been changes made to the sym.Symbol's
+-	// that are not yet reflected in the loader. Call a temporary
+-	// loader routine that copies any changes back.
+-	// WARNING: changing a symbol's content will usually require
+-	// calling the loader cloneToExternal method, meaning that there
+-	// can be an increase in memory, so this is likely to mess up any
+-	// benchmarking runs.
+-	d.ldr.PropagateSymbolChangesBackToLoader()
+-
+ 	abbrev := d.writeabbrev()
+ 	syms := []loader.Sym{abbrev}
+ 
+@@ -2036,8 +2025,6 @@ func (d *dwctxt2) dwarfGenerateDebugSyms() {
+ 		}
+ 	}
+ 	dwarfp2 = syms
+-	anonVerReplacement := d.linkctxt.Syms.IncVersion()
+-	dwarfp = d.ldr.PropagateLoaderChangesToSymbols(dwarfp2, anonVerReplacement)
+ }
+ 
+ func (d *dwctxt2) collectlocs(syms []loader.Sym, units []*sym.CompilationUnit) []loader.Sym {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 727cb056fc..108171aaf8 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2801,6 +2801,16 @@ func (ctxt *Link) loadlibfull() {
+ 	// Convert special symbols created by pcln.
+ 	pclntabFirstFunc = ctxt.loader.Syms[pclntabFirstFunc2]
+ 	pclntabLastFunc = ctxt.loader.Syms[pclntabLastFunc2]
++
++	// Populate dwarfp from dwarfp2. If we see a symbol index on dwarfp2
++	// whose loader.Syms entry is nil, something went wrong.
++	for _, symIdx := range dwarfp2 {
++		s := ctxt.loader.Syms[symIdx]
++		if s == nil {
++			panic(fmt.Sprintf("nil sym for dwarfp2 element %d", symIdx))
++		}
++		dwarfp = append(dwarfp, s)
++	}
+ }
+ 
+ func (ctxt *Link) dumpsyms() {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 182ebdf9d7..2f2700652f 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -298,6 +298,8 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	container := ctxt.pclntab()
+ 	bench.Start("findfunctab")
+ 	ctxt.findfunctab(container)
++	bench.Start("dwarfGenerateDebugSyms")
++	dwarfGenerateDebugSyms(ctxt)
+ 	bench.Start("loadlibfull")
+ 	ctxt.loadlibfull() // XXX do it here for now
+ 	bench.Start("symtab")
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index ff5d8ed322..3b77aa70e1 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2204,13 +2204,15 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
+ 		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
+ 		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
+ 		// NB: for the test below, we can skip most anonymous symbols
+-		// since they will never be turned into sym.Symbols (ex:
+-		// funcdata), however DWARF subprogram DIE symbols (which are
+-		// nameless) will eventually need to be turned into
+-		// sym.Symbols (with relocations), so the simplest thing to do
+-		// is include them as part of this loop.
+-		if name == "" && t != sym.SDWARFINFO {
+-			continue
++		// since they will never be turned into sym.Symbols (eg:
++		// funcdata). DWARF symbols are an exception however -- we
++		// want to include all reachable but nameless DWARF symbols.
++		if name == "" {
++			switch t {
++			case sym.SDWARFINFO, sym.SDWARFRANGE, sym.SDWARFLOC, sym.SDWARFLINES:
++			default:
++				continue
++			}
+ 		}
+ 		ver := abiToVer(osym.ABI(), r.version)
+ 		if t == sym.SXREF {

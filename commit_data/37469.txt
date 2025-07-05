@@ -15,6 +15,41 @@ Date:   Thu Aug 2 22:39:00 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/127597
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/wasm/asm.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 7cc6bef6b7..bffbc7c8a6 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"io"
+ 	"regexp"
++	"runtime"
+ )
+ 
+ const (
+@@ -172,6 +173,7 @@ func asmb(ctxt *ld.Link) {
+ 		writeBuildID(ctxt, buildid)
+ 	}
+ 
++	writeGoVersion(ctxt)
+ 	writeTypeSec(ctxt, types)
+ 	writeImportSec(ctxt, hostImports)
+ 	writeFunctionSec(ctxt, fns)
+@@ -220,6 +222,13 @@ func writeBuildID(ctxt *ld.Link, buildid []byte) {
+ 	writeSecSize(ctxt, sizeOffset)
+ }
+ 
++func writeGoVersion(ctxt *ld.Link) {
++	sizeOffset := writeSecHeader(ctxt, sectionCustom)
++	writeName(ctxt.Out, "go.version")
++	ctxt.Out.Write([]byte(runtime.Version()))
++	writeSecSize(ctxt, sizeOffset)
++}
++
+ // writeTypeSec writes the section that declares all function types
+ // so they can be referenced by index.
+ func writeTypeSec(ctxt *ld.Link, types []*wasmFuncType) {

@@ -14,7 +14,34 @@ Date:   Thu Jul 16 13:14:56 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12301
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/root_cgo_darwin.go  | 2 +-
  src/crypto/x509/root_darwin_armx.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/x509/root_cgo_darwin.go b/src/crypto/x509/root_cgo_darwin.go
+index 9fb08ddf0b..bf4a5cdfee 100644
+--- a/src/crypto/x509/root_cgo_darwin.go
++++ b/src/crypto/x509/root_cgo_darwin.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo,!arm,!arm64
++// +build cgo,!arm,!arm64,!ios
+ 
+ package x509
+ 
+diff --git a/src/crypto/x509/root_darwin_armx.go b/src/crypto/x509/root_darwin_armx.go
+index 62b7d24c91..a3000cc7b5 100644
+--- a/src/crypto/x509/root_darwin_armx.go
++++ b/src/crypto/x509/root_darwin_armx.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build darwin
+-// +build arm arm64
++// +build arm arm64 ios
+ 
+ package x509
+ 

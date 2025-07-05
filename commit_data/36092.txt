@@ -9,6 +9,20 @@ Date:   Tue Apr 3 17:08:45 2018 +0000
     GitHub-Pull-Request: golang/go#24664
     Reviewed-on: https://go-review.googlesource.com/104515
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  README.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/README.md b/README.md
+index bb3d895d45..8cf23cae1e 100644
+--- a/README.md
++++ b/README.md
+@@ -31,7 +31,7 @@ in your web browser for source installation instructions.
+ 
+ ### Contributing
+ 
+-Go is the work of hundreds of contributors. We appreciate your help!
++Go is the work of thousands of contributors. We appreciate your help!
+ 
+ To contribute, please read the contribution guidelines:
+ 	https://golang.org/doc/contribute.html

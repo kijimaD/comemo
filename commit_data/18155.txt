@@ -12,6 +12,20 @@ Date:   Fri Jan 3 10:41:56 2014 +1100
     R=dave
     CC=golang-codereviews
     https://golang.org/cl/47300043
-
+---
  src/pkg/runtime/map_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/map_test.go b/src/pkg/runtime/map_test.go
+index f57d1f57c1..b8586483fd 100644
+--- a/src/pkg/runtime/map_test.go
++++ b/src/pkg/runtime/map_test.go
+@@ -428,7 +428,7 @@ func TestMapIterOrder(t *testing.T) {
+ 		}
+ 		first := ord()
+ 		ok := false
+-		for try := 0; try < 5; try++ {
++		for try := 0; try < 100; try++ {
+ 			if !reflect.DeepEqual(first, ord()) {
+ 				ok = true
+ 				break

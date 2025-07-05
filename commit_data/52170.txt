@@ -12,9 +12,122 @@ Date:   Fri Apr 8 15:23:14 2022 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go                              |  4 +++
  src/cmd/go/script_test.go                          |  4 ++-
  src/cmd/go/testdata/script/README                  |  2 ++
  .../go/testdata/script/build_trimpath_goroot.txt   | 38 +++++++++++++++++++---
  4 files changed, 42 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 426228a831..b17c776650 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -78,6 +78,10 @@ func tooSlow(t *testing.T) {
+ // (temp) directory.
+ var testGOROOT string
+ 
++// testGOROOT_FINAL is the GOROOT_FINAL with which the test binary is assumed to
++// have been built.
++var testGOROOT_FINAL = os.Getenv("GOROOT_FINAL")
++
+ var testGOCACHE string
+ 
+ var testGo string
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 76c542f32a..6254cf97c1 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -175,7 +175,7 @@ func (ts *testScript) setup() {
+ 		"GOPROXY=" + proxyURL,
+ 		"GOPRIVATE=",
+ 		"GOROOT=" + testGOROOT,
+-		"GOROOT_FINAL=" + os.Getenv("GOROOT_FINAL"), // causes spurious rebuilds and breaks the "stale" built-in if not propagated
++		"GOROOT_FINAL=" + testGOROOT_FINAL, // causes spurious rebuilds and breaks the "stale" built-in if not propagated
+ 		"GOTRACEBACK=system",
+ 		"TESTGO_GOROOT=" + testGOROOT,
+ 		"GOSUMDB=" + testSumDBVerifierKey,
+@@ -385,6 +385,8 @@ Script:
+ 						}
+ 					}
+ 				}
++			case "mismatched-goroot":
++				ok = testGOROOT_FINAL != "" && testGOROOT_FINAL != testGOROOT
+ 			default:
+ 				if strings.HasPrefix(cond.tag, "exec:") {
+ 					prog := cond.tag[len("exec:"):]
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 17b582d662..85e575d56e 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -90,6 +90,8 @@ should only run when the condition is satisfied. The available conditions are:
+    - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
+    - [GODEBUG:value] for whether value is one of the comma-separated entries in the GODEBUG variable
+    - [buildmode:value] for whether -buildmode=value is supported
++   - [trimpath] for whether the 'go' binary was built with -trimpath
++   - [mismatched-goroot] for whether the test's GOROOT_FINAL does not match the real GOROOT
+ 
+ A condition can be negated: [!short] means to run the rest of the line
+ when testing.Short() is false. Multiple conditions may be given for a single
+diff --git a/src/cmd/go/testdata/script/build_trimpath_goroot.txt b/src/cmd/go/testdata/script/build_trimpath_goroot.txt
+index 7b870ab739..91e5107e58 100644
+--- a/src/cmd/go/testdata/script/build_trimpath_goroot.txt
++++ b/src/cmd/go/testdata/script/build_trimpath_goroot.txt
+@@ -8,24 +8,52 @@
+ # TODO(#51483): when runtime.GOROOT() returns the empty string,
+ # go/build should default to 'go env GOROOT' instead.
+ 
+-env GOROOT=
+ env GOROOT_FINAL=
+ 
++[trimpath] env GOROOT=
+ [trimpath] ! go env GOROOT
+ [trimpath] stderr '^go: cannot find GOROOT directory: ''go'' binary is trimmed and GOROOT is not set$'
+-[trimpath] stop
++[trimpath] env GOROOT=$TESTGO_GOROOT
++
++[short] stop
+ 
++# With GOROOT still set but GOROOT_FINAL unset, 'go build' and 'go test -c'
++# should cause runtime.GOROOT() to report either the correct GOROOT
++# (without -trimpath) or no GOROOT at all (with -trimpath).
+ 
+-[short] skip
++go build -o example.exe .
++go build -trimpath -o example-trimpath.exe .
++go test -c -o example.test.exe .
++go test -trimpath -c -o example.test-trimpath.exe .
+ 
+-go run .
++env GOROOT=
++
++exec ./example.exe
+ stdout '^GOROOT '$TESTGO_GOROOT'$'
+ stdout '^runtime '$TESTGO_GOROOT${/}src${/}runtime'$'
+ 
+-go test -v .
++! exec ./example-trimpath.exe
++stdout '^GOROOT $'
++stderr 'cannot find package "runtime" in any of:\n\t\(\$GOROOT not set\)\n\t'$WORK${/}gopath${/}src${/}runtime' \(from \$GOPATH\)\n\z'
++
++exec ./example.test.exe -test.v
+ stdout '^GOROOT '$TESTGO_GOROOT'$'
+ stdout '^runtime '$TESTGO_GOROOT${/}src${/}runtime'$'
+ 
++! exec ./example.test-trimpath.exe -test.v
++stdout '^GOROOT $'
++stderr 'cannot find package "runtime" in any of:\n\t\(\$GOROOT not set\)\n\t'$WORK${/}gopath${/}src${/}runtime' \(from \$GOPATH\)$'
++
++# If a correct GOROOT is baked in to the 'go' command itself, 'go run' and
++# 'go test' should not implicitly set GOROOT in the process environment
++# (because that could mask an unexpected production dependency on the GOROOT
++# environment variable), but 'go generate' should (because the generator may
++# reasonably expect to be able to locate the GOROOT for which it is generating
++# code).
++
++[trimpath] stop
++[mismatched-goroot] stop
++
+ ! go run -trimpath .
+ stdout '^GOROOT $'
+ stderr 'cannot find package "runtime" in any of:\n\t\(\$GOROOT not set\)\n\t'$WORK${/}gopath${/}src${/}runtime' \(from \$GOPATH\)\nexit status 1\n\z'

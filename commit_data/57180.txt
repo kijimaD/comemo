@@ -45,10 +45,214 @@ Date:   Fri Jun 30 17:24:57 2023 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  doc/godebug.md                  |  4 +++
  src/internal/godebugs/table.go  |  1 +
  src/net/dial.go                 | 14 +++++++--
  src/net/mptcpsock_linux_test.go | 66 +++++++++++++++++++++++++++++------------
  src/runtime/metrics/doc.go      |  4 +++
  5 files changed, 68 insertions(+), 21 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 43dbcd645a..7a6d70e487 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -142,6 +142,10 @@ forms, controlled by the
+ respectively.
+ This behavior was backported to Go 1.19.8+ and Go 1.20.3+.
+ 
++Go 1.21 adds the support of Multipath TCP but it is only used if the application
++explicitly asked for it. This behavior can be controlled by the
++[`multipathtcp` setting](/pkg/net#Dialer.SetMultipathTCP).
++
+ There is no plan to remove any of these settings.
+ 
+ ### Go 1.20
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 0fdd146b24..243f9efce1 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -37,6 +37,7 @@ var All = []Info{
+ 	//{Name: "multipartfiles", Package: "mime/multipart"},
+ 	{Name: "multipartmaxheaders", Package: "mime/multipart"},
+ 	{Name: "multipartmaxparts", Package: "mime/multipart"},
++	{Name: "multipathtcp", Package: "net"},
+ 	{Name: "netdns", Package: "net", Opaque: true},
+ 	{Name: "panicnil", Package: "runtime", Changed: 21, Old: "1"},
+ 	{Name: "randautoseed", Package: "math/rand"},
+diff --git a/src/net/dial.go b/src/net/dial.go
+index fd1da1ebef..79bc4958bb 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"context"
++	"internal/godebug"
+ 	"internal/nettrace"
+ 	"syscall"
+ 	"time"
+@@ -21,6 +22,8 @@ const (
+ 	defaultMPTCPEnabled = false
+ )
+ 
++var multipathtcp = godebug.New("multipathtcp")
++
+ // mptcpStatus is a tristate for Multipath TCP, see go.dev/issue/56539
+ type mptcpStatus uint8
+ 
+@@ -39,6 +42,13 @@ func (m *mptcpStatus) get() bool {
+ 		return false
+ 	}
+ 
++	// If MPTCP is forced via GODEBUG=multipathtcp=1
++	if multipathtcp.Value() == "1" {
++		multipathtcp.IncNonDefault()
++
++		return true
++	}
++
+ 	return defaultMPTCPEnabled
+ }
+ 
+@@ -329,7 +339,7 @@ func (d *Dialer) MultipathTCP() bool {
+ 
+ // SetMultipathTCP directs the Dial methods to use, or not use, MPTCP,
+ // if supported by the operating system. This method overrides the
+-// system default.
++// system default and the GODEBUG=multipathtcp=... setting if any.
+ //
+ // If MPTCP is not available on the host or not supported by the server,
+ // the Dial methods will fall back to TCP.
+@@ -690,7 +700,7 @@ func (lc *ListenConfig) MultipathTCP() bool {
+ 
+ // SetMultipathTCP directs the Listen method to use, or not use, MPTCP,
+ // if supported by the operating system. This method overrides the
+-// system default.
++// system default and the GODEBUG=multipathtcp=... setting if any.
+ //
+ // If MPTCP is not available on the host or not supported by the client,
+ // the Listen method will fall back to TCP.
+diff --git a/src/net/mptcpsock_linux_test.go b/src/net/mptcpsock_linux_test.go
+index bf8fc951c5..5134aba75e 100644
+--- a/src/net/mptcpsock_linux_test.go
++++ b/src/net/mptcpsock_linux_test.go
+@@ -12,15 +12,22 @@ import (
+ 	"testing"
+ )
+ 
+-func newLocalListenerMPTCP(t *testing.T) Listener {
++func newLocalListenerMPTCP(t *testing.T, envVar bool) Listener {
+ 	lc := &ListenConfig{}
+-	if lc.MultipathTCP() {
+-		t.Error("MultipathTCP should be off by default")
+-	}
+ 
+-	lc.SetMultipathTCP(true)
+-	if !lc.MultipathTCP() {
+-		t.Fatal("MultipathTCP is not on after having been forced to on")
++	if envVar {
++		if !lc.MultipathTCP() {
++			t.Fatal("MultipathTCP Listen is not on despite GODEBUG=multipathtcp=1")
++		}
++	} else {
++		if lc.MultipathTCP() {
++			t.Error("MultipathTCP should be off by default")
++		}
++
++		lc.SetMultipathTCP(true)
++		if !lc.MultipathTCP() {
++			t.Fatal("MultipathTCP is not on after having been forced to on")
++		}
+ 	}
+ 
+ 	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+@@ -64,15 +71,22 @@ func postAcceptMPTCP(ls *localServer, ch chan<- error) {
+ 	}
+ }
+ 
+-func dialerMPTCP(t *testing.T, addr string) {
++func dialerMPTCP(t *testing.T, addr string, envVar bool) {
+ 	d := &Dialer{}
+-	if d.MultipathTCP() {
+-		t.Error("MultipathTCP should be off by default")
+-	}
+ 
+-	d.SetMultipathTCP(true)
+-	if !d.MultipathTCP() {
+-		t.Fatal("MultipathTCP is not on after having been forced to on")
++	if envVar {
++		if !d.MultipathTCP() {
++			t.Fatal("MultipathTCP Dialer is not on despite GODEBUG=multipathtcp=1")
++		}
++	} else {
++		if d.MultipathTCP() {
++			t.Error("MultipathTCP should be off by default")
++		}
++
++		d.SetMultipathTCP(true)
++		if !d.MultipathTCP() {
++			t.Fatal("MultipathTCP is not on after having been forced to on")
++		}
+ 	}
+ 
+ 	c, err := d.Dial("tcp", addr)
+@@ -128,12 +142,16 @@ func canCreateMPTCPSocket() bool {
+ 	return true
+ }
+ 
+-func TestMultiPathTCP(t *testing.T) {
+-	if !canCreateMPTCPSocket() {
+-		t.Skip("Cannot create MPTCP sockets")
++func testMultiPathTCP(t *testing.T, envVar bool) {
++	if envVar {
++		t.Log("Test with GODEBUG=multipathtcp=1")
++		t.Setenv("GODEBUG", "multipathtcp=1")
++	} else {
++		t.Log("Test with GODEBUG=multipathtcp=0")
++		t.Setenv("GODEBUG", "multipathtcp=0")
+ 	}
+ 
+-	ln := newLocalListenerMPTCP(t)
++	ln := newLocalListenerMPTCP(t, envVar)
+ 
+ 	// similar to tcpsock_test:TestIPv6LinkLocalUnicastTCP
+ 	ls := (&streamListener{Listener: ln}).newLocalServer()
+@@ -153,7 +171,7 @@ func TestMultiPathTCP(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	dialerMPTCP(t, ln.Addr().String())
++	dialerMPTCP(t, ln.Addr().String(), envVar)
+ 
+ 	if err := <-genericCh; err != nil {
+ 		t.Error(err)
+@@ -162,3 +180,13 @@ func TestMultiPathTCP(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ }
++
++func TestMultiPathTCP(t *testing.T) {
++	if !canCreateMPTCPSocket() {
++		t.Skip("Cannot create MPTCP sockets")
++	}
++
++	for _, envVar := range []bool{false, true} {
++		testMultiPathTCP(t, envVar)
++	}
++}
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 5c52f78477..b4d32d135a 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -273,6 +273,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		the mime/multipart package due to a non-default
+ 		GODEBUG=multipartmaxparts=... setting.
+ 
++	/godebug/non-default-behavior/multipathtcp:events
++		The number of non-default behaviors executed by the net package
++		due to a non-default GODEBUG=multipathtcp=... setting.
++
+ 	/godebug/non-default-behavior/panicnil:events
+ 		The number of non-default behaviors executed by the runtime
+ 		package due to a non-default GODEBUG=panicnil=... setting.

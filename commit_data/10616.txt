@@ -13,7 +13,7 @@ Date:   Mon Dec 5 15:48:46 2011 -0500
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5447069
-
+---
  doc/talks/io2010/eval1.go                    |  6 ++----
  doc/talks/io2010/eval2.go                    |  6 ++----
  misc/cgo/stdio/fib.go                        |  2 +-
@@ -72,3 +72,1414 @@ Date:   Mon Dec 5 15:48:46 2011 -0500
  test/fixedbugs/bug120.go                     |  8 ++++----
  test/fixedbugs/bug260.go                     | 12 ++++++------
  57 files changed, 150 insertions(+), 153 deletions(-)
+
+diff --git a/doc/talks/io2010/eval1.go b/doc/talks/io2010/eval1.go
+index 2d7fc3be6c..582f43e8ea 100644
+--- a/doc/talks/io2010/eval1.go
++++ b/doc/talks/io2010/eval1.go
+@@ -101,7 +101,6 @@ func main() {
+ 	}
+ }
+ 
+-
+ // Custom grammar and values
+ 
+ var precTab = map[string]int{
+@@ -125,7 +124,7 @@ func newVal(lit string) Value {
+ 	if err == nil {
+ 		return Int(x)
+ 	}
+-	b, err := strconv.Atob(lit)
++	b, err := strconv.ParseBool(lit)
+ 	if err == nil {
+ 		return Bool(b)
+ 	}
+@@ -175,7 +174,7 @@ func (x Int) BinaryOp(op string, y Value) Value {
+ 
+ type Bool bool
+ 
+-func (x Bool) String() string { return strconv.Btoa(bool(x)) }
++func (x Bool) String() string { return strconv.FormatBool(bool(x)) }
+ func (x Bool) BinaryOp(op string, y Value) Value {
+ 	switch y := y.(type) {
+ 	case Error:
+@@ -195,7 +194,6 @@ func (x Bool) BinaryOp(op string, y Value) Value {
+ 	return Error(fmt.Sprintf("illegal operation: '%v %s %v'", x, op, y))
+ }
+ 
+-
+ func trace(newVal func(string) Value) func(string) Value {
+ 	return func(s string) Value {
+ 		v := newVal(s)
+diff --git a/doc/talks/io2010/eval2.go b/doc/talks/io2010/eval2.go
+index 5524c8b3aa..6f826e12d0 100644
+--- a/doc/talks/io2010/eval2.go
++++ b/doc/talks/io2010/eval2.go
+@@ -101,7 +101,6 @@ func main() {
+ 	}
+ }
+ 
+-
+ // Custom grammar and values
+ 
+ var precTab = map[string]int{
+@@ -125,7 +124,7 @@ func newVal(lit string) Value {
+ 	if err == nil {
+ 		return Int(x)
+ 	}
+-	b, err := strconv.Atob(lit)
++	b, err := strconv.ParseBool(lit)
+ 	if err == nil {
+ 		return Bool(b)
+ 	}
+@@ -184,7 +183,7 @@ func (x Int) BinaryOp(op string, y Value) Value {
+ 
+ type Bool bool
+ 
+-func (x Bool) String() string { return strconv.Btoa(bool(x)) }
++func (x Bool) String() string { return strconv.FormatBool(bool(x)) }
+ func (x Bool) BinaryOp(op string, y Value) Value {
+ 	switch y := y.(type) {
+ 	case Error:
+@@ -227,7 +226,6 @@ func (x String) BinaryOp(op string, y Value) Value {
+ 	return Error(fmt.Sprintf("illegal operation: '%v %s %v'", x, op, y))
+ }
+ 
+-
+ func trace(newVal func(string) Value) func(string) Value {
+ 	return func(s string) Value {
+ 		v := newVal(s)
+diff --git a/misc/cgo/stdio/fib.go b/misc/cgo/stdio/fib.go
+index c02e31fd8d..431d9cefee 100644
+--- a/misc/cgo/stdio/fib.go
++++ b/misc/cgo/stdio/fib.go
+@@ -26,7 +26,7 @@ func fibber(c, out chan int64, i int64) {
+ 	}
+ 	for {
+ 		j := <-c
+-		stdio.Stdout.WriteString(strconv.Itoa64(j) + "\n")
++		stdio.Stdout.WriteString(strconv.FormatInt(j, 10) + "\n")
+ 		out <- j
+ 		<-out
+ 		i += j
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+index 9de54a3694..0f26059948 100644
+--- a/misc/dashboard/builder/http.go
++++ b/misc/dashboard/builder/http.go
+@@ -134,7 +134,7 @@ func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) erro
+ 		"builder": b.name,
+ 		"key":     b.key,
+ 		"path":    pkg,
+-		"ok":      strconv.Btoa(ok),
++		"ok":      strconv.FormatBool(ok),
+ 		"log":     buildLog,
+ 		"info":    info,
+ 	})
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 20cac1944b..646857419d 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -355,7 +355,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 				// with enum-derived constants.  Otherwise
+ 				// in the cgo -godefs output half the constants
+ 				// are in hex and half are in whatever the #define used.
+-				i, err := strconv.Btoi64(n.Define, 0)
++				i, err := strconv.ParseInt(n.Define, 0, 64)
+ 				if err == nil {
+ 					n.Const = fmt.Sprintf("%#x", i)
+ 				} else {
+@@ -1333,7 +1333,7 @@ func (c *typeConv) Opaque(n int64) ast.Expr {
+ func (c *typeConv) intExpr(n int64) ast.Expr {
+ 	return &ast.BasicLit{
+ 		Kind:  token.INT,
+-		Value: strconv.Itoa64(n),
++		Value: strconv.FormatInt(n, 10),
+ 	}
+ }
+ 
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 7c5382a3c4..2147e62f08 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -489,7 +489,7 @@ func selectTag(goVersion string, tags []string) (match string) {
+ 	const rPrefix = "release.r"
+ 	if strings.HasPrefix(goVersion, rPrefix) {
+ 		p := "go.r"
+-		v, err := strconv.Atof64(goVersion[len(rPrefix):])
++		v, err := strconv.ParseFloat(goVersion[len(rPrefix):], 64)
+ 		if err != nil {
+ 			return ""
+ 		}
+@@ -498,7 +498,7 @@ func selectTag(goVersion string, tags []string) (match string) {
+ 			if !strings.HasPrefix(t, p) {
+ 				continue
+ 			}
+-			tf, err := strconv.Atof64(t[len(p):])
++			tf, err := strconv.ParseFloat(t[len(p):], 64)
+ 			if err != nil {
+ 				continue
+ 			}
+diff --git a/src/cmd/gotest/flag.go b/src/cmd/gotest/flag.go
+index 0e7c619df4..b0b0cae5cc 100644
+--- a/src/cmd/gotest/flag.go
++++ b/src/cmd/gotest/flag.go
+@@ -156,7 +156,7 @@ func flag(i int) (f *flagSpec, value string, extra bool) {
+ 
+ // setBoolFlag sets the addressed boolean to the value.
+ func setBoolFlag(flag *bool, value string) {
+-	x, err := strconv.Atob(value)
++	x, err := strconv.ParseBool(value)
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "gotest: illegal bool flag value %s\n", value)
+ 		usage()
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 76955e2ec0..13fe2700f9 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -80,7 +80,7 @@ func (tr *Reader) octal(b []byte) int64 {
+ 	for len(b) > 0 && (b[len(b)-1] == ' ' || b[len(b)-1] == '\x00') {
+ 		b = b[0 : len(b)-1]
+ 	}
+-	x, err := strconv.Btoui64(cString(b), 8)
++	x, err := strconv.ParseUint(cString(b), 8, 64)
+ 	if err != nil {
+ 		tr.err = err
+ 	}
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index b9310b3f18..d35726bf9d 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -79,7 +79,7 @@ func (tw *Writer) cString(b []byte, s string) {
+ 
+ // Encode x as an octal ASCII string and write it into b with leading zeros.
+ func (tw *Writer) octal(b []byte, x int64) {
+-	s := strconv.Itob64(x, 8)
++	s := strconv.FormatInt(x, 8)
+ 	// leading zeros, but leave room for a NUL.
+ 	for len(s)+1 < len(b) {
+ 		s = "0" + s
+@@ -90,7 +90,7 @@ func (tw *Writer) octal(b []byte, x int64) {
+ // Write x into b, either as octal or as binary (GNUtar/star extension).
+ func (tw *Writer) numeric(b []byte, x int64) {
+ 	// Try octal first.
+-	s := strconv.Itob64(x, 8)
++	s := strconv.FormatInt(x, 8)
+ 	if len(s) < len(b) {
+ 		tw.octal(b, x)
+ 		return
+diff --git a/src/pkg/compress/flate/huffman_bit_writer.go b/src/pkg/compress/flate/huffman_bit_writer.go
+index efd99c6b95..8d0b4f9c1e 100644
+--- a/src/pkg/compress/flate/huffman_bit_writer.go
++++ b/src/pkg/compress/flate/huffman_bit_writer.go
+@@ -106,8 +106,8 @@ func newHuffmanBitWriter(w io.Writer) *huffmanBitWriter {
+ }
+ 
+ func (err WrongValueError) Error() string {
+-	return "huffmanBitWriter: " + err.name + " should belong to [" + strconv.Itoa64(int64(err.from)) + ";" +
+-		strconv.Itoa64(int64(err.to)) + "] but actual value is " + strconv.Itoa64(int64(err.value))
++	return "huffmanBitWriter: " + err.name + " should belong to [" + strconv.FormatInt(int64(err.from), 10) + ";" +
++		strconv.FormatInt(int64(err.to), 10) + "] but actual value is " + strconv.FormatInt(int64(err.value), 10)
+ }
+ 
+ func (w *huffmanBitWriter) flushBits() {
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index 3f0c94864a..3f2042bfe9 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -25,7 +25,7 @@ const (
+ type CorruptInputError int64
+ 
+ func (e CorruptInputError) Error() string {
+-	return "flate: corrupt input before offset " + strconv.Itoa64(int64(e))
++	return "flate: corrupt input before offset " + strconv.FormatInt(int64(e), 10)
+ }
+ 
+ // An InternalError reports an error in the flate code itself.
+@@ -40,7 +40,7 @@ type ReadError struct {
+ }
+ 
+ func (e *ReadError) Error() string {
+-	return "flate: read error at offset " + strconv.Itoa64(e.Offset) + ": " + e.Err.Error()
++	return "flate: read error at offset " + strconv.FormatInt(e.Offset, 10) + ": " + e.Err.Error()
+ }
+ 
+ // A WriteError reports an error encountered while writing output.
+@@ -50,7 +50,7 @@ type WriteError struct {
+ }
+ 
+ func (e *WriteError) Error() string {
+-	return "flate: write error at offset " + strconv.Itoa64(e.Offset) + ": " + e.Err.Error()
++	return "flate: write error at offset " + strconv.FormatInt(e.Offset, 10) + ": " + e.Err.Error()
+ }
+ 
+ // Huffman decoder is based on
+diff --git a/src/pkg/crypto/openpgp/write.go b/src/pkg/crypto/openpgp/write.go
+index 60dae01e64..bdee57d767 100644
+--- a/src/pkg/crypto/openpgp/write.go
++++ b/src/pkg/crypto/openpgp/write.go
+@@ -183,7 +183,7 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
+ 	for i := range to {
+ 		encryptKeys[i] = to[i].encryptionKey()
+ 		if encryptKeys[i].PublicKey == nil {
+-			return nil, error_.InvalidArgumentError("cannot encrypt a message to key id " + strconv.Uitob64(to[i].PrimaryKey.KeyId, 16) + " because it has no encryption keys")
++			return nil, error_.InvalidArgumentError("cannot encrypt a message to key id " + strconv.FormatUint(to[i].PrimaryKey.KeyId, 16) + " because it has no encryption keys")
+ 		}
+ 
+ 		sig := to[i].primaryIdentity().SelfSignature
+diff --git a/src/pkg/crypto/tls/handshake_server_test.go b/src/pkg/crypto/tls/handshake_server_test.go
+index e00c32c550..d98e13decf 100644
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -159,7 +159,7 @@ func TestHandshakeServerSSLv3(t *testing.T) {
+ 
+ var serve = flag.Bool("serve", false, "run a TLS server on :10443")
+ var testCipherSuites = flag.String("ciphersuites",
+-	"0x"+strconv.Itob(int(TLS_RSA_WITH_RC4_128_SHA), 16),
++	"0x"+strconv.FormatInt(int64(TLS_RSA_WITH_RC4_128_SHA), 16),
+ 	"cipher suites to accept in serving mode")
+ 
+ func TestRunServer(t *testing.T) {
+@@ -170,7 +170,7 @@ func TestRunServer(t *testing.T) {
+ 	suites := strings.Split(*testCipherSuites, ",")
+ 	testConfig.CipherSuites = make([]uint16, len(suites))
+ 	for i := range suites {
+-		suite, err := strconv.Btoui64(suites[i], 0)
++		suite, err := strconv.ParseUint(suites[i], 0, 64)
+ 		if err != nil {
+ 			panic(err)
+ 		}
+diff --git a/src/pkg/debug/dwarf/buf.go b/src/pkg/debug/dwarf/buf.go
+index 6b4af7d53d..6dc28d2568 100644
+--- a/src/pkg/debug/dwarf/buf.go
++++ b/src/pkg/debug/dwarf/buf.go
+@@ -149,5 +149,5 @@ type DecodeError struct {
+ }
+ 
+ func (e DecodeError) Error() string {
+-	return "decoding dwarf section " + e.Name + " at offset 0x" + strconv.Itob64(int64(e.Offset), 16) + ": " + e.Err
++	return "decoding dwarf section " + e.Name + " at offset 0x" + strconv.FormatInt(int64(e.Offset), 16) + ": " + e.Err
+ }
+diff --git a/src/pkg/debug/dwarf/const.go b/src/pkg/debug/dwarf/const.go
+index 1a3fec155c..918b153d07 100644
+--- a/src/pkg/debug/dwarf/const.go
++++ b/src/pkg/debug/dwarf/const.go
+@@ -178,7 +178,7 @@ func (a Attr) GoString() string {
+ 			return "dwarf.Attr" + s
+ 		}
+ 	}
+-	return "dwarf.Attr(" + strconv.Itoa64(int64(a)) + ")"
++	return "dwarf.Attr(" + strconv.FormatInt(int64(a), 10) + ")"
+ }
+ 
+ // A format is a DWARF data encoding format.
+@@ -347,7 +347,7 @@ func (t Tag) GoString() string {
+ 			return "dwarf.Tag" + s
+ 		}
+ 	}
+-	return "dwarf.Tag(" + strconv.Itoa64(int64(t)) + ")"
++	return "dwarf.Tag(" + strconv.FormatInt(int64(t), 10) + ")"
+ }
+ 
+ // Location expression operators.
+diff --git a/src/pkg/debug/dwarf/type.go b/src/pkg/debug/dwarf/type.go
+index e8ce8d57b8..9be66658fe 100644
+--- a/src/pkg/debug/dwarf/type.go
++++ b/src/pkg/debug/dwarf/type.go
+@@ -110,7 +110,7 @@ type ArrayType struct {
+ }
+ 
+ func (t *ArrayType) String() string {
+-	return "[" + strconv.Itoa64(t.Count) + "]" + t.Type.String()
++	return "[" + strconv.FormatInt(t.Count, 10) + "]" + t.Type.String()
+ }
+ 
+ func (t *ArrayType) Size() int64 { return t.Count * t.Type.Size() }
+@@ -171,10 +171,10 @@ func (t *StructType) Defn() string {
+ 			s += "; "
+ 		}
+ 		s += f.Name + " " + f.Type.String()
+-		s += "@" + strconv.Itoa64(f.ByteOffset)
++		s += "@" + strconv.FormatInt(f.ByteOffset, 10)
+ 		if f.BitSize > 0 {
+-			s += " : " + strconv.Itoa64(f.BitSize)
+-			s += "@" + strconv.Itoa64(f.BitOffset)
++			s += " : " + strconv.FormatInt(f.BitSize, 10)
++			s += "@" + strconv.FormatInt(f.BitOffset, 10)
+ 		}
+ 	}
+ 	s += "}"
+@@ -206,7 +206,7 @@ func (t *EnumType) String() string {
+ 		if i > 0 {
+ 			s += "; "
+ 		}
+-		s += v.Name + "=" + strconv.Itoa64(v.Val)
++		s += v.Name + "=" + strconv.FormatInt(v.Val, 10)
+ 	}
+ 	s += "}"
+ 	return s
+diff --git a/src/pkg/debug/elf/elf.go b/src/pkg/debug/elf/elf.go
+index c71b230bd9..03e42b0346 100644
+--- a/src/pkg/debug/elf/elf.go
++++ b/src/pkg/debug/elf/elf.go
+@@ -1490,11 +1490,11 @@ func stringName(i uint32, names []intName, goSyntax bool) string {
+ 			if goSyntax {
+ 				s = "elf." + s
+ 			}
+-			return s + "+" + strconv.Uitoa64(uint64(i-n.i))
++			return s + "+" + strconv.FormatUint(uint64(i-n.i), 10)
+ 		}
+ 	}
+ 
+-	return strconv.Uitoa64(uint64(i))
++	return strconv.FormatUint(uint64(i), 10)
+ }
+ 
+ func flagName(i uint32, names []intName, goSyntax bool) string {
+@@ -1512,10 +1512,10 @@ func flagName(i uint32, names []intName, goSyntax bool) string {
+ 		}
+ 	}
+ 	if len(s) == 0 {
+-		return "0x" + strconv.Uitob64(uint64(i), 16)
++		return "0x" + strconv.FormatUint(uint64(i), 16)
+ 	}
+ 	if i != 0 {
+-		s += "+0x" + strconv.Uitob64(uint64(i), 16)
++		s += "+0x" + strconv.FormatUint(uint64(i), 16)
+ 	}
+ 	return s
+ }
+diff --git a/src/pkg/debug/macho/macho.go b/src/pkg/debug/macho/macho.go
+index 1386f5acf5..bc14226c56 100644
+--- a/src/pkg/debug/macho/macho.go
++++ b/src/pkg/debug/macho/macho.go
+@@ -278,7 +278,7 @@ func stringName(i uint32, names []intName, goSyntax bool) string {
+ 			return n.s
+ 		}
+ 	}
+-	return strconv.Uitoa64(uint64(i))
++	return strconv.FormatUint(uint64(i), 10)
+ }
+ 
+ func flagName(i uint32, names []intName, goSyntax bool) string {
+@@ -296,10 +296,10 @@ func flagName(i uint32, names []intName, goSyntax bool) string {
+ 		}
+ 	}
+ 	if len(s) == 0 {
+-		return "0x" + strconv.Uitob64(uint64(i), 16)
++		return "0x" + strconv.FormatUint(uint64(i), 16)
+ 	}
+ 	if i != 0 {
+-		s += "+0x" + strconv.Uitob64(uint64(i), 16)
++		s += "+0x" + strconv.FormatUint(uint64(i), 16)
+ 	}
+ 	return s
+ }
+diff --git a/src/pkg/encoding/ascii85/ascii85.go b/src/pkg/encoding/ascii85/ascii85.go
+index 6f592f3d72..7d004b5e5d 100644
+--- a/src/pkg/encoding/ascii85/ascii85.go
++++ b/src/pkg/encoding/ascii85/ascii85.go
+@@ -168,7 +168,7 @@ func (e *encoder) Close() error {
+ type CorruptInputError int64
+ 
+ func (e CorruptInputError) Error() string {
+-	return "illegal ascii85 data at input byte " + strconv.Itoa64(int64(e))
++	return "illegal ascii85 data at input byte " + strconv.FormatInt(int64(e), 10)
+ }
+ 
+ // Decode decodes src into dst, returning both the number
+diff --git a/src/pkg/encoding/asn1/common.go b/src/pkg/encoding/asn1/common.go
+index 01f4f7b6ec..f7cb3acbb8 100644
+--- a/src/pkg/encoding/asn1/common.go
++++ b/src/pkg/encoding/asn1/common.go
+@@ -98,7 +98,7 @@ func parseFieldParameters(str string) (ret fieldParameters) {
+ 		case part == "printable":
+ 			ret.stringType = tagPrintableString
+ 		case strings.HasPrefix(part, "default:"):
+-			i, err := strconv.Atoi64(part[8:])
++			i, err := strconv.ParseInt(part[8:], 10, 64)
+ 			if err == nil {
+ 				ret.defaultValue = new(int64)
+ 				*ret.defaultValue = i
+diff --git a/src/pkg/encoding/base32/base32.go b/src/pkg/encoding/base32/base32.go
+index 494c760d87..c75c7c19d1 100644
+--- a/src/pkg/encoding/base32/base32.go
++++ b/src/pkg/encoding/base32/base32.go
+@@ -216,7 +216,7 @@ func (enc *Encoding) EncodedLen(n int) int { return (n + 4) / 5 * 8 }
+ type CorruptInputError int64
+ 
+ func (e CorruptInputError) Error() string {
+-	return "illegal base32 data at input byte " + strconv.Itoa64(int64(e))
++	return "illegal base32 data at input byte " + strconv.FormatInt(int64(e), 10)
+ }
+ 
+ // decode is like Decode but returns an additional 'end' value, which
+diff --git a/src/pkg/encoding/base64/base64.go b/src/pkg/encoding/base64/base64.go
+index 945128947a..889b565e3f 100644
+--- a/src/pkg/encoding/base64/base64.go
++++ b/src/pkg/encoding/base64/base64.go
+@@ -203,7 +203,7 @@ func (enc *Encoding) EncodedLen(n int) int { return (n + 2) / 3 * 4 }
+ type CorruptInputError int64
+ 
+ func (e CorruptInputError) Error() string {
+-	return "illegal base64 data at input byte " + strconv.Itoa64(int64(e))
++	return "illegal base64 data at input byte " + strconv.FormatInt(int64(e), 10)
+ }
+ 
+ // decode is like Decode but returns an additional 'end' value, which
+diff --git a/src/pkg/encoding/git85/git.go b/src/pkg/encoding/git85/git.go
+index b6ad6e2dd3..d383213ce8 100644
+--- a/src/pkg/encoding/git85/git.go
++++ b/src/pkg/encoding/git85/git.go
+@@ -15,7 +15,7 @@ import (
+ type CorruptInputError int64
+ 
+ func (e CorruptInputError) Error() string {
+-	return "illegal git85 data at input byte " + strconv.Itoa64(int64(e))
++	return "illegal git85 data at input byte " + strconv.FormatInt(int64(e), 10)
+ }
+ 
+ const encode = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~"
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index 2ea06c50c2..0a70092629 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -642,7 +642,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value) {
+ 		default:
+ 			d.error(&UnmarshalTypeError{"number", v.Type()})
+ 		case reflect.Interface:
+-			n, err := strconv.Atof64(s)
++			n, err := strconv.ParseFloat(s, 64)
+ 			if err != nil {
+ 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+ 				break
+@@ -650,7 +650,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value) {
+ 			v.Set(reflect.ValueOf(n))
+ 
+ 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+-			n, err := strconv.Atoi64(s)
++			n, err := strconv.ParseInt(s, 10, 64)
+ 			if err != nil || v.OverflowInt(n) {
+ 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+ 				break
+@@ -658,7 +658,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value) {
+ 			v.SetInt(n)
+ 
+ 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+-			n, err := strconv.Atoui64(s)
++			n, err := strconv.ParseUint(s, 10, 64)
+ 			if err != nil || v.OverflowUint(n) {
+ 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+ 				break
+@@ -666,7 +666,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value) {
+ 			v.SetUint(n)
+ 
+ 		case reflect.Float32, reflect.Float64:
+-			n, err := strconv.AtofN(s, v.Type().Bits())
++			n, err := strconv.ParseFloat(s, v.Type().Bits())
+ 			if err != nil || v.OverflowFloat(n) {
+ 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+ 				break
+@@ -798,7 +798,7 @@ func (d *decodeState) literalInterface() interface{} {
+ 		if c != '-' && (c < '0' || c > '9') {
+ 			d.error(errPhase)
+ 		}
+-		n, err := strconv.Atof64(string(item))
++		n, err := strconv.ParseFloat(string(item), 64)
+ 		if err != nil {
+ 			d.saveError(&UnmarshalTypeError{"number " + string(item), reflect.TypeOf(0.0)})
+ 		}
+@@ -813,7 +813,7 @@ func getu4(s []byte) rune {
+ 	if len(s) < 6 || s[0] != '\\' || s[1] != 'u' {
+ 		return -1
+ 	}
+-	r, err := strconv.Btoui64(string(s[2:6]), 16)
++	r, err := strconv.ParseUint(string(s[2:6]), 16, 64)
+ 	if err != nil {
+ 		return -1
+ 	}
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 14284f50e4..69deaf2a40 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -275,13 +275,13 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
+ 		}
+ 
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+-		writeString(e, strconv.Itoa64(v.Int()))
++		writeString(e, strconv.FormatInt(v.Int(), 10))
+ 
+ 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+-		writeString(e, strconv.Uitoa64(v.Uint()))
++		writeString(e, strconv.FormatUint(v.Uint(), 10))
+ 
+ 	case reflect.Float32, reflect.Float64:
+-		writeString(e, strconv.FtoaN(v.Float(), 'g', -1, v.Type().Bits()))
++		writeString(e, strconv.FormatFloat(v.Float(), 'g', -1, v.Type().Bits()))
+ 
+ 	case reflect.String:
+ 		if quoted {
+diff --git a/src/pkg/encoding/xml/marshal.go b/src/pkg/encoding/xml/marshal.go
+index 691b70d251..e94fdbc531 100644
+--- a/src/pkg/encoding/xml/marshal.go
++++ b/src/pkg/encoding/xml/marshal.go
+@@ -173,15 +173,15 @@ func (p *printer) marshalValue(val reflect.Value, name string) error {
+ 
+ 	switch k := val.Kind(); k {
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+-		p.WriteString(strconv.Itoa64(val.Int()))
++		p.WriteString(strconv.FormatInt(val.Int(), 10))
+ 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+-		p.WriteString(strconv.Uitoa64(val.Uint()))
++		p.WriteString(strconv.FormatUint(val.Uint(), 10))
+ 	case reflect.Float32, reflect.Float64:
+-		p.WriteString(strconv.Ftoa64(val.Float(), 'g', -1))
++		p.WriteString(strconv.FormatFloat(val.Float(), 'g', -1, 64))
+ 	case reflect.String:
+ 		Escape(p, []byte(val.String()))
+ 	case reflect.Bool:
+-		p.WriteString(strconv.Btoa(val.Bool()))
++		p.WriteString(strconv.FormatBool(val.Bool()))
+ 	case reflect.Array:
+ 		// will be [...]byte
+ 		bytes := make([]byte, val.Len())
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index c6a3d75a80..6dd3654100 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -486,19 +486,19 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
+ 	// Helper functions for integer and unsigned integer conversions
+ 	var itmp int64
+ 	getInt64 := func() bool {
+-		itmp, err = strconv.Atoi64(string(src))
++		itmp, err = strconv.ParseInt(string(src), 10, 64)
+ 		// TODO: should check sizes
+ 		return err == nil
+ 	}
+ 	var utmp uint64
+ 	getUint64 := func() bool {
+-		utmp, err = strconv.Atoui64(string(src))
++		utmp, err = strconv.ParseUint(string(src), 10, 64)
+ 		// TODO: check for overflow?
+ 		return err == nil
+ 	}
+ 	var ftmp float64
+ 	getFloat64 := func() bool {
+-		ftmp, err = strconv.Atof64(string(src))
++		ftmp, err = strconv.ParseFloat(string(src), 64)
+ 		// TODO: check for overflow?
+ 		return err == nil
+ 	}
+@@ -525,7 +525,7 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
+ 		}
+ 		t.SetFloat(ftmp)
+ 	case reflect.Bool:
+-		value, err := strconv.Atob(strings.TrimSpace(string(src)))
++		value, err := strconv.ParseBool(strings.TrimSpace(string(src)))
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/pkg/encoding/xml/xml.go b/src/pkg/encoding/xml/xml.go
+index d67a299f5b..d001c40892 100644
+--- a/src/pkg/encoding/xml/xml.go
++++ b/src/pkg/encoding/xml/xml.go
+@@ -889,9 +889,9 @@ Input:
+ 				var n uint64
+ 				var err error
+ 				if i >= 3 && s[1] == 'x' {
+-					n, err = strconv.Btoui64(s[2:], 16)
++					n, err = strconv.ParseUint(s[2:], 16, 64)
+ 				} else {
+-					n, err = strconv.Btoui64(s[1:], 10)
++					n, err = strconv.ParseUint(s[1:], 10, 64)
+ 				}
+ 				if err == nil && n <= unicode.MaxRune {
+ 					text = string(n)
+diff --git a/src/pkg/exp/norm/maketables.go b/src/pkg/exp/norm/maketables.go
+index 39bab7f0b6..9a97831716 100644
+--- a/src/pkg/exp/norm/maketables.go
++++ b/src/pkg/exp/norm/maketables.go
+@@ -226,7 +226,7 @@ func parseDecomposition(s string, skipfirst bool) (a []rune, e error) {
+ 		decomp = decomp[1:]
+ 	}
+ 	for _, d := range decomp {
+-		point, err := strconv.Btoui64(d, 16)
++		point, err := strconv.ParseUint(d, 16, 64)
+ 		if err != nil {
+ 			return a, err
+ 		}
+@@ -240,7 +240,7 @@ func parseCharacter(line string) {
+ 	if len(field) != NumField {
+ 		logger.Fatalf("%5s: %d fields (expected %d)\n", line, len(field), NumField)
+ 	}
+-	x, err := strconv.Btoui64(field[FCodePoint], 16)
++	x, err := strconv.ParseUint(field[FCodePoint], 16, 64)
+ 	point := int(x)
+ 	if err != nil {
+ 		logger.Fatalf("%.5s...: %s", line, err)
+@@ -264,7 +264,7 @@ func parseCharacter(line string) {
+ 	if state != SLast {
+ 		firstChar = lastChar
+ 	}
+-	x, err = strconv.Atoui64(field[FCanonicalCombiningClass])
++	x, err = strconv.ParseUint(field[FCanonicalCombiningClass], 10, 64)
+ 	if err != nil {
+ 		logger.Fatalf("%U: bad ccc field: %s", int(x), err)
+ 	}
+@@ -336,7 +336,7 @@ func parseExclusion(line string) int {
+ 	if len(matches) != 2 {
+ 		logger.Fatalf("%s: %d matches (expected 1)\n", line, len(matches))
+ 	}
+-	point, err := strconv.Btoui64(matches[1], 16)
++	point, err := strconv.ParseUint(matches[1], 16, 64)
+ 	if err != nil {
+ 		logger.Fatalf("%.5s...: %s", line, err)
+ 	}
+@@ -792,13 +792,13 @@ func testDerived() {
+ 			continue
+ 		}
+ 		rng := strings.Split(qc[1], "..")
+-		i, err := strconv.Btoui64(rng[0], 16)
++		i, err := strconv.ParseUint(rng[0], 16, 64)
+ 		if err != nil {
+ 			log.Fatal(err)
+ 		}
+ 		j := i
+ 		if len(rng) > 1 {
+-			j, err = strconv.Btoui64(rng[1], 16)
++			j, err = strconv.ParseUint(rng[1], 16, 64)
+ 			if err != nil {
+ 				log.Fatal(err)
+ 			}
+diff --git a/src/pkg/exp/norm/normregtest.go b/src/pkg/exp/norm/normregtest.go
+index 6610c257e5..d214ce11bc 100644
+--- a/src/pkg/exp/norm/normregtest.go
++++ b/src/pkg/exp/norm/normregtest.go
+@@ -171,7 +171,7 @@ func loadTestData() {
+ 		counter++
+ 		for j := 1; j < len(m)-1; j++ {
+ 			for _, split := range strings.Split(m[j], " ") {
+-				r, err := strconv.Btoui64(split, 16)
++				r, err := strconv.ParseUint(split, 16, 64)
+ 				if err != nil {
+ 					logger.Fatal(err)
+ 				}
+diff --git a/src/pkg/exp/sql/convert.go b/src/pkg/exp/sql/convert.go
+index 48e281203b..24315a0d35 100644
+--- a/src/pkg/exp/sql/convert.go
++++ b/src/pkg/exp/sql/convert.go
+@@ -95,7 +95,7 @@ func convertAssign(dest, src interface{}) error {
+ 	switch dv.Kind() {
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		s := asString(src)
+-		i64, err := strconv.Atoi64(s)
++		i64, err := strconv.ParseInt(s, 10, 64)
+ 		if err != nil {
+ 			return fmt.Errorf("converting string %q to a %s: %v", s, dv.Kind(), err)
+ 		}
+@@ -106,7 +106,7 @@ func convertAssign(dest, src interface{}) error {
+ 		return nil
+ 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+ 		s := asString(src)
+-		u64, err := strconv.Atoui64(s)
++		u64, err := strconv.ParseUint(s, 10, 64)
+ 		if err != nil {
+ 			return fmt.Errorf("converting string %q to a %s: %v", s, dv.Kind(), err)
+ 		}
+@@ -117,7 +117,7 @@ func convertAssign(dest, src interface{}) error {
+ 		return nil
+ 	case reflect.Float32, reflect.Float64:
+ 		s := asString(src)
+-		f64, err := strconv.Atof64(s)
++		f64, err := strconv.ParseFloat(s, 64)
+ 		if err != nil {
+ 			return fmt.Errorf("converting string %q to a %s: %v", s, dv.Kind(), err)
+ 		}
+diff --git a/src/pkg/exp/sql/driver/types.go b/src/pkg/exp/sql/driver/types.go
+index 6e0ce4339c..086b529c84 100644
+--- a/src/pkg/exp/sql/driver/types.go
++++ b/src/pkg/exp/sql/driver/types.go
+@@ -54,13 +54,13 @@ func (boolType) ConvertValue(src interface{}) (interface{}, error) {
+ 	case bool:
+ 		return s, nil
+ 	case string:
+-		b, err := strconv.Atob(s)
++		b, err := strconv.ParseBool(s)
+ 		if err != nil {
+ 			return nil, fmt.Errorf("sql/driver: couldn't convert %q into type bool", s)
+ 		}
+ 		return b, nil
+ 	case []byte:
+-		b, err := strconv.Atob(string(s))
++		b, err := strconv.ParseBool(string(s))
+ 		if err != nil {
+ 			return nil, fmt.Errorf("sql/driver: couldn't convert %q into type bool", s)
+ 		}
+diff --git a/src/pkg/exp/types/gcimporter.go b/src/pkg/exp/types/gcimporter.go
+index b5fc357802..6adcc2a9ad 100644
+--- a/src/pkg/exp/types/gcimporter.go
++++ b/src/pkg/exp/types/gcimporter.go
+@@ -305,7 +305,7 @@ func (p *gcParser) parseArrayType() Type {
+ 	lit := p.expect(scanner.Int)
+ 	p.expect(']')
+ 	elt := p.parseType()
+-	n, err := strconv.Atoui64(lit)
++	n, err := strconv.ParseUint(lit, 10, 64)
+ 	if err != nil {
+ 		p.error(err)
+ 	}
+@@ -622,10 +622,11 @@ func (p *gcParser) parseNumber() Const {
+ 		// exponent (base 2)
+ 		p.next()
+ 		sign, val = p.parseInt()
+-		exp, err := strconv.Atoui(val)
++		exp64, err := strconv.ParseUint(val, 10, 0)
+ 		if err != nil {
+ 			p.error(err)
+ 		}
++		exp := uint(exp64)
+ 		if sign == "-" {
+ 			denom := big.NewInt(1)
+ 			denom.Lsh(denom, exp)
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index 629280acf7..40f5441ddc 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -44,7 +44,7 @@ type Int struct {
+ 	mu sync.Mutex
+ }
+ 
+-func (v *Int) String() string { return strconv.Itoa64(v.i) }
++func (v *Int) String() string { return strconv.FormatInt(v.i, 10) }
+ 
+ func (v *Int) Add(delta int64) {
+ 	v.mu.Lock()
+@@ -64,7 +64,7 @@ type Float struct {
+ 	mu sync.Mutex
+ }
+ 
+-func (v *Float) String() string { return strconv.Ftoa64(v.f, 'g', -1) }
++func (v *Float) String() string { return strconv.FormatFloat(v.f, 'g', -1, 64) }
+ 
+ // Add adds delta to v.
+ func (v *Float) Add(delta float64) {
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index 9f115d592b..406ea77799 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -79,7 +79,7 @@ func newBoolValue(val bool, p *bool) *boolValue {
+ }
+ 
+ func (b *boolValue) Set(s string) bool {
+-	v, err := strconv.Atob(s)
++	v, err := strconv.ParseBool(s)
+ 	*b = boolValue(v)
+ 	return err == nil
+ }
+@@ -95,7 +95,7 @@ func newIntValue(val int, p *int) *intValue {
+ }
+ 
+ func (i *intValue) Set(s string) bool {
+-	v, err := strconv.Btoi64(s, 0)
++	v, err := strconv.ParseInt(s, 0, 64)
+ 	*i = intValue(v)
+ 	return err == nil
+ }
+@@ -111,7 +111,7 @@ func newInt64Value(val int64, p *int64) *int64Value {
+ }
+ 
+ func (i *int64Value) Set(s string) bool {
+-	v, err := strconv.Btoi64(s, 0)
++	v, err := strconv.ParseInt(s, 0, 64)
+ 	*i = int64Value(v)
+ 	return err == nil
+ }
+@@ -127,7 +127,7 @@ func newUintValue(val uint, p *uint) *uintValue {
+ }
+ 
+ func (i *uintValue) Set(s string) bool {
+-	v, err := strconv.Btoui64(s, 0)
++	v, err := strconv.ParseUint(s, 0, 64)
+ 	*i = uintValue(v)
+ 	return err == nil
+ }
+@@ -143,7 +143,7 @@ func newUint64Value(val uint64, p *uint64) *uint64Value {
+ }
+ 
+ func (i *uint64Value) Set(s string) bool {
+-	v, err := strconv.Btoui64(s, 0)
++	v, err := strconv.ParseUint(s, 0, 64)
+ 	*i = uint64Value(v)
+ 	return err == nil
+ }
+@@ -174,7 +174,7 @@ func newFloat64Value(val float64, p *float64) *float64Value {
+ }
+ 
+ func (f *float64Value) Set(s string) bool {
+-	v, err := strconv.Atof64(s)
++	v, err := strconv.ParseFloat(s, 64)
+ 	*f = float64Value(v)
+ 	return err == nil
+ }
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 3957a5a261..fbafa9d9ad 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -360,44 +360,44 @@ func (f *fmt) plusSpace(s string) {
+ }
+ 
+ // fmt_e64 formats a float64 in the form -1.23e+12.
+-func (f *fmt) fmt_e64(v float64) { f.plusSpace(strconv.Ftoa64(v, 'e', doPrec(f, 6))) }
++func (f *fmt) fmt_e64(v float64) { f.plusSpace(strconv.FormatFloat(v, 'e', doPrec(f, 6), 64)) }
+ 
+ // fmt_E64 formats a float64 in the form -1.23E+12.
+-func (f *fmt) fmt_E64(v float64) { f.plusSpace(strconv.Ftoa64(v, 'E', doPrec(f, 6))) }
++func (f *fmt) fmt_E64(v float64) { f.plusSpace(strconv.FormatFloat(v, 'E', doPrec(f, 6), 64)) }
+ 
+ // fmt_f64 formats a float64 in the form -1.23.
+-func (f *fmt) fmt_f64(v float64) { f.plusSpace(strconv.Ftoa64(v, 'f', doPrec(f, 6))) }
++func (f *fmt) fmt_f64(v float64) { f.plusSpace(strconv.FormatFloat(v, 'f', doPrec(f, 6), 64)) }
+ 
+ // fmt_g64 formats a float64 in the 'f' or 'e' form according to size.
+-func (f *fmt) fmt_g64(v float64) { f.plusSpace(strconv.Ftoa64(v, 'g', doPrec(f, -1))) }
++func (f *fmt) fmt_g64(v float64) { f.plusSpace(strconv.FormatFloat(v, 'g', doPrec(f, -1), 64)) }
+ 
+ // fmt_g64 formats a float64 in the 'f' or 'E' form according to size.
+-func (f *fmt) fmt_G64(v float64) { f.plusSpace(strconv.Ftoa64(v, 'G', doPrec(f, -1))) }
++func (f *fmt) fmt_G64(v float64) { f.plusSpace(strconv.FormatFloat(v, 'G', doPrec(f, -1), 64)) }
+ 
+ // fmt_fb64 formats a float64 in the form -123p3 (exponent is power of 2).
+-func (f *fmt) fmt_fb64(v float64) { f.plusSpace(strconv.Ftoa64(v, 'b', 0)) }
++func (f *fmt) fmt_fb64(v float64) { f.plusSpace(strconv.FormatFloat(v, 'b', 0, 64)) }
+ 
+ // float32
+ // cannot defer to float64 versions
+ // because it will get rounding wrong in corner cases.
+ 
+ // fmt_e32 formats a float32 in the form -1.23e+12.
+-func (f *fmt) fmt_e32(v float32) { f.plusSpace(strconv.Ftoa32(v, 'e', doPrec(f, 6))) }
++func (f *fmt) fmt_e32(v float32) { f.plusSpace(strconv.FormatFloat(float64(v), 'e', doPrec(f, 6), 32)) }
+ 
+ // fmt_E32 formats a float32 in the form -1.23E+12.
+-func (f *fmt) fmt_E32(v float32) { f.plusSpace(strconv.Ftoa32(v, 'E', doPrec(f, 6))) }
++func (f *fmt) fmt_E32(v float32) { f.plusSpace(strconv.FormatFloat(float64(v), 'E', doPrec(f, 6), 32)) }
+ 
+ // fmt_f32 formats a float32 in the form -1.23.
+-func (f *fmt) fmt_f32(v float32) { f.plusSpace(strconv.Ftoa32(v, 'f', doPrec(f, 6))) }
++func (f *fmt) fmt_f32(v float32) { f.plusSpace(strconv.FormatFloat(float64(v), 'f', doPrec(f, 6), 32)) }
+ 
+ // fmt_g32 formats a float32 in the 'f' or 'e' form according to size.
+-func (f *fmt) fmt_g32(v float32) { f.plusSpace(strconv.Ftoa32(v, 'g', doPrec(f, -1))) }
++func (f *fmt) fmt_g32(v float32) { f.plusSpace(strconv.FormatFloat(float64(v), 'g', doPrec(f, -1), 32)) }
+ 
+ // fmt_G32 formats a float32 in the 'f' or 'E' form according to size.
+-func (f *fmt) fmt_G32(v float32) { f.plusSpace(strconv.Ftoa32(v, 'G', doPrec(f, -1))) }
++func (f *fmt) fmt_G32(v float32) { f.plusSpace(strconv.FormatFloat(float64(v), 'G', doPrec(f, -1), 32)) }
+ 
+ // fmt_fb32 formats a float32 in the form -123p3 (exponent is power of 2).
+-func (f *fmt) fmt_fb32(v float32) { f.padString(strconv.Ftoa32(v, 'b', 0)) }
++func (f *fmt) fmt_fb32(v float32) { f.padString(strconv.FormatFloat(float64(v), 'b', 0, 32)) }
+ 
+ // fmt_c64 formats a complex64 according to the verb.
+ func (f *fmt) fmt_c64(v complex64, verb rune) {
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 85571e80c7..281525112e 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -613,7 +613,7 @@ func (s *ss) scanInt(verb rune, bitSize int) int64 {
+ 		}
+ 	}
+ 	tok := s.scanNumber(digits, haveDigits)
+-	i, err := strconv.Btoi64(tok, base)
++	i, err := strconv.ParseInt(tok, base, 64)
+ 	if err != nil {
+ 		s.error(err)
+ 	}
+@@ -643,7 +643,7 @@ func (s *ss) scanUint(verb rune, bitSize int) uint64 {
+ 		base, digits, haveDigits = s.scanBasePrefix()
+ 	}
+ 	tok := s.scanNumber(digits, haveDigits)
+-	i, err := strconv.Btoui64(tok, base)
++	i, err := strconv.ParseUint(tok, base, 64)
+ 	if err != nil {
+ 		s.error(err)
+ 	}
+@@ -719,7 +719,7 @@ func (s *ss) convertFloat(str string, n int) float64 {
+ 	if p := strings.Index(str, "p"); p >= 0 {
+ 		// Atof doesn't handle power-of-2 exponents,
+ 		// but they're easy to evaluate.
+-		f, err := strconv.AtofN(str[:p], n)
++		f, err := strconv.ParseFloat(str[:p], n)
+ 		if err != nil {
+ 			// Put full string into error.
+ 			if e, ok := err.(*strconv.NumError); ok {
+@@ -737,7 +737,7 @@ func (s *ss) convertFloat(str string, n int) float64 {
+ 		}
+ 		return math.Ldexp(f, n)
+ 	}
+-	f, err := strconv.AtofN(str, n)
++	f, err := strconv.ParseFloat(str, n)
+ 	if err != nil {
+ 		s.error(err)
+ 	}
+diff --git a/src/pkg/html/template/css_test.go b/src/pkg/html/template/css_test.go
+index 0d94bdcf18..a735638b03 100644
+--- a/src/pkg/html/template/css_test.go
++++ b/src/pkg/html/template/css_test.go
+@@ -113,7 +113,7 @@ func TestDecodeCSS(t *testing.T) {
+ 
+ func TestHexDecode(t *testing.T) {
+ 	for i := 0; i < 0x200000; i += 101 /* coprime with 16 */ {
+-		s := strconv.Itob(i, 16)
++		s := strconv.FormatInt(int64(i), 16)
+ 		if got := int(hexDecode([]byte(s))); got != i {
+ 			t.Errorf("%s: want %d but got %d", s, i, got)
+ 		}
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index 48089ff75c..641eae1bb8 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -429,7 +429,7 @@ func Encode(w io.Writer, m image.Image) error {
+ 	// also rejected.
+ 	mw, mh := int64(m.Bounds().Dx()), int64(m.Bounds().Dy())
+ 	if mw <= 0 || mh <= 0 || mw >= 1<<32 || mh >= 1<<32 {
+-		return FormatError("invalid image size: " + strconv.Itoa64(mw) + "x" + strconv.Itoa64(mw))
++		return FormatError("invalid image size: " + strconv.FormatInt(mw, 10) + "x" + strconv.FormatInt(mw, 10))
+ 	}
+ 
+ 	var e encoder
+diff --git a/src/pkg/net/http/cgi/child.go b/src/pkg/net/http/cgi/child.go
+index e188cd4a25..e6c3ef911a 100644
+--- a/src/pkg/net/http/cgi/child.go
++++ b/src/pkg/net/http/cgi/child.go
+@@ -70,7 +70,7 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
+ 	r.Host = params["HTTP_HOST"]
+ 
+ 	if lenstr := params["CONTENT_LENGTH"]; lenstr != "" {
+-		clen, err := strconv.Atoi64(lenstr)
++		clen, err := strconv.ParseInt(lenstr, 10, 64)
+ 		if err != nil {
+ 			return nil, errors.New("cgi: bad CONTENT_LENGTH in environment: " + lenstr)
+ 		}
+diff --git a/src/pkg/net/http/chunked.go b/src/pkg/net/http/chunked.go
+index 74c41aabd4..60a478fd8f 100644
+--- a/src/pkg/net/http/chunked.go
++++ b/src/pkg/net/http/chunked.go
+@@ -48,7 +48,7 @@ func (cr *chunkedReader) beginChunk() {
+ 	if cr.err != nil {
+ 		return
+ 	}
+-	cr.n, cr.err = strconv.Btoui64(line, 16)
++	cr.n, cr.err = strconv.ParseUint(line, 16, 64)
+ 	if cr.err != nil {
+ 		return
+ 	}
+@@ -147,7 +147,7 @@ func (cw *chunkedWriter) Write(data []byte) (n int, err error) {
+ 		return 0, nil
+ 	}
+ 
+-	head := strconv.Itob(len(data), 16) + "\r\n"
++	head := strconv.FormatInt(int64(len(data)), 16) + "\r\n"
+ 
+ 	if _, err = io.WriteString(cw.Wire, head); err != nil {
+ 		return 0, err
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index 70e7849f16..1392ca68ad 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -220,7 +220,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 
+ 	w.Header().Set("Accept-Ranges", "bytes")
+ 	if w.Header().Get("Content-Encoding") == "" {
+-		w.Header().Set("Content-Length", strconv.Itoa64(size))
++		w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
+ 	}
+ 
+ 	w.WriteHeader(code)
+@@ -295,7 +295,7 @@ func parseRange(s string, size int64) ([]httpRange, error) {
+ 		if start == "" {
+ 			// If no start is specified, end specifies the
+ 			// range start relative to the end of the file.
+-			i, err := strconv.Atoi64(end)
++			i, err := strconv.ParseInt(end, 10, 64)
+ 			if err != nil {
+ 				return nil, errors.New("invalid range")
+ 			}
+@@ -305,7 +305,7 @@ func parseRange(s string, size int64) ([]httpRange, error) {
+ 			r.start = size - i
+ 			r.length = size - r.start
+ 		} else {
+-			i, err := strconv.Atoi64(start)
++			i, err := strconv.ParseInt(start, 10, 64)
+ 			if err != nil || i > size || i < 0 {
+ 				return nil, errors.New("invalid range")
+ 			}
+@@ -314,7 +314,7 @@ func parseRange(s string, size int64) ([]httpRange, error) {
+ 				// If no end is specified, range extends to end of the file.
+ 				r.length = size - r.start
+ 			} else {
+-				i, err := strconv.Atoi64(end)
++				i, err := strconv.ParseInt(end, 10, 64)
+ 				if err != nil || r.start > i {
+ 					return nil, errors.New("invalid range")
+ 				}
+diff --git a/src/pkg/net/http/httputil/chunked.go b/src/pkg/net/http/httputil/chunked.go
+index 69bcc0e816..29eaf3475f 100644
+--- a/src/pkg/net/http/httputil/chunked.go
++++ b/src/pkg/net/http/httputil/chunked.go
+@@ -50,7 +50,7 @@ func (cr *chunkedReader) beginChunk() {
+ 	if cr.err != nil {
+ 		return
+ 	}
+-	cr.n, cr.err = strconv.Btoui64(line, 16)
++	cr.n, cr.err = strconv.ParseUint(line, 16, 64)
+ 	if cr.err != nil {
+ 		return
+ 	}
+@@ -149,7 +149,7 @@ func (cw *chunkedWriter) Write(data []byte) (n int, err error) {
+ 		return 0, nil
+ 	}
+ 
+-	head := strconv.Itob(len(data), 16) + "\r\n"
++	head := strconv.FormatInt(int64(len(data)), 16) + "\r\n"
+ 
+ 	if _, err = io.WriteString(cw.Wire, head); err != nil {
+ 		return 0, err
+diff --git a/src/pkg/net/http/pprof/pprof.go b/src/pkg/net/http/pprof/pprof.go
+index 2de147579d..21eac4743a 100644
+--- a/src/pkg/net/http/pprof/pprof.go
++++ b/src/pkg/net/http/pprof/pprof.go
+@@ -63,7 +63,7 @@ func Heap(w http.ResponseWriter, r *http.Request) {
+ // Profile responds with the pprof-formatted cpu profile.
+ // The package initialization registers it as /debug/pprof/profile.
+ func Profile(w http.ResponseWriter, r *http.Request) {
+-	sec, _ := strconv.Atoi64(r.FormValue("seconds"))
++	sec, _ := strconv.ParseInt(r.FormValue("seconds"), 10, 64)
+ 	if sec == 0 {
+ 		sec = 30
+ 	}
+@@ -111,7 +111,7 @@ func Symbol(w http.ResponseWriter, r *http.Request) {
+ 		if err == nil {
+ 			word = word[0 : len(word)-1] // trim +
+ 		}
+-		pc, _ := strconv.Btoui64(string(word), 0)
++		pc, _ := strconv.ParseUint(string(word), 0, 64)
+ 		if pc != 0 {
+ 			f := runtime.FuncForPC(uintptr(pc))
+ 			if f != nil {
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 125f3f214b..c100e4d5c6 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -288,7 +288,7 @@ func (w *response) WriteHeader(code int) {
+ 	var contentLength int64
+ 	if clenStr := w.header.Get("Content-Length"); clenStr != "" {
+ 		var err error
+-		contentLength, err = strconv.Atoi64(clenStr)
++		contentLength, err = strconv.ParseInt(clenStr, 10, 64)
+ 		if err == nil {
+ 			hasCL = true
+ 		} else {
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index d25c8fcde4..ef9564af9c 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -147,7 +147,7 @@ func (t *transferWriter) WriteHeader(w io.Writer) (err error) {
+ 	// TransferEncoding)
+ 	if t.shouldSendContentLength() {
+ 		io.WriteString(w, "Content-Length: ")
+-		_, err = io.WriteString(w, strconv.Itoa64(t.ContentLength)+"\r\n")
++		_, err = io.WriteString(w, strconv.FormatInt(t.ContentLength, 10)+"\r\n")
+ 		if err != nil {
+ 			return
+ 		}
+@@ -432,7 +432,7 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
+ 	// Logic based on Content-Length
+ 	cl := strings.TrimSpace(header.Get("Content-Length"))
+ 	if cl != "" {
+-		n, err := strconv.Atoi64(cl)
++		n, err := strconv.ParseInt(cl, 10, 64)
+ 		if err != nil || n < 0 {
+ 			return -1, &badStringError{"bad Content-Length", cl}
+ 		}
+diff --git a/src/pkg/net/mail/message.go b/src/pkg/net/mail/message.go
+index e1afa32062..bf22c711e4 100644
+--- a/src/pkg/net/mail/message.go
++++ b/src/pkg/net/mail/message.go
+@@ -481,7 +481,7 @@ func (qd qDecoder) Read(p []byte) (n int, err error) {
+ 		if _, err := io.ReadFull(qd.r, qd.scratch[:2]); err != nil {
+ 			return 0, err
+ 		}
+-		x, err := strconv.Btoi64(string(qd.scratch[:2]), 16)
++		x, err := strconv.ParseInt(string(qd.scratch[:2]), 16, 64)
+ 		if err != nil {
+ 			return 0, fmt.Errorf("mail: invalid RFC 2047 encoding: %q", qd.scratch[:2])
+ 		}
+diff --git a/src/pkg/old/template/parse.go b/src/pkg/old/template/parse.go
+index b8c806472e..e1bfa47249 100644
+--- a/src/pkg/old/template/parse.go
++++ b/src/pkg/old/template/parse.go
+@@ -424,11 +424,11 @@ func (t *Template) newVariable(words []string) *variableElement {
+ 			}
+ 
+ 		case '.', '+', '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+-			v, err := strconv.Btoi64(word, 0)
++			v, err := strconv.ParseInt(word, 0, 64)
+ 			if err == nil {
+ 				args[i] = v
+ 			} else {
+-				v, err := strconv.Atof64(word)
++				v, err := strconv.ParseFloat(word, 64)
+ 				args[i], lerr = v, err
+ 			}
+ 
+diff --git a/src/pkg/reflect/tostring_test.go b/src/pkg/reflect/tostring_test.go
+index 5f5c52b778..7486a9bfca 100644
+--- a/src/pkg/reflect/tostring_test.go
++++ b/src/pkg/reflect/tostring_test.go
+@@ -23,14 +23,14 @@ func valueToString(val Value) string {
+ 	typ := val.Type()
+ 	switch val.Kind() {
+ 	case Int, Int8, Int16, Int32, Int64:
+-		return strconv.Itoa64(val.Int())
++		return strconv.FormatInt(val.Int(), 10)
+ 	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
+-		return strconv.Uitoa64(val.Uint())
++		return strconv.FormatUint(val.Uint(), 10)
+ 	case Float32, Float64:
+-		return strconv.Ftoa64(val.Float(), 'g', -1)
++		return strconv.FormatFloat(val.Float(), 'g', -1, 64)
+ 	case Complex64, Complex128:
+ 		c := val.Complex()
+-		return strconv.Ftoa64(real(c), 'g', -1) + "+" + strconv.Ftoa64(imag(c), 'g', -1) + "i"
++		return strconv.FormatFloat(real(c), 'g', -1, 64) + "+" + strconv.FormatFloat(imag(c), 'g', -1, 64) + "i"
+ 	case String:
+ 		return val.String()
+ 	case Bool:
+@@ -88,7 +88,7 @@ func valueToString(val Value) string {
+ 		return typ.String() + "(" + valueToString(val.Elem()) + ")"
+ 	case Func:
+ 		v := val
+-		return typ.String() + "(" + strconv.Uitoa64(uint64(v.Pointer())) + ")"
++		return typ.String() + "(" + strconv.FormatUint(uint64(v.Pointer()), 10) + ")"
+ 	default:
+ 		panic("valueToString: can't print type " + typ.String())
+ 	}
+diff --git a/src/pkg/regexp/syntax/prog.go b/src/pkg/regexp/syntax/prog.go
+index f5b697a59a..84ebb83558 100644
+--- a/src/pkg/regexp/syntax/prog.go
++++ b/src/pkg/regexp/syntax/prog.go
+@@ -267,7 +267,7 @@ func dumpProg(b *bytes.Buffer, p *Prog) {
+ }
+ 
+ func u32(i uint32) string {
+-	return strconv.Uitoa64(uint64(i))
++	return strconv.FormatUint(uint64(i), 10)
+ }
+ 
+ func dumpInst(b *bytes.Buffer, i *Inst) {
+diff --git a/src/pkg/regexp/syntax/regexp.go b/src/pkg/regexp/syntax/regexp.go
+index b5ddab1d16..adcfe29449 100644
+--- a/src/pkg/regexp/syntax/regexp.go
++++ b/src/pkg/regexp/syntax/regexp.go
+@@ -277,7 +277,7 @@ func escape(b *bytes.Buffer, r rune, force bool) {
+ 	default:
+ 		if r < 0x100 {
+ 			b.WriteString(`\x`)
+-			s := strconv.Itob(int(r), 16)
++			s := strconv.FormatInt(int64(r), 16)
+ 			if len(s) == 1 {
+ 				b.WriteRune('0')
+ 			}
+@@ -285,7 +285,7 @@ func escape(b *bytes.Buffer, r rune, force bool) {
+ 			break
+ 		}
+ 		b.WriteString(`\x{`)
+-		b.WriteString(strconv.Itob(int(r), 16))
++		b.WriteString(strconv.FormatInt(int64(r), 16))
+ 		b.WriteString(`}`)
+ 	}
+ }
+diff --git a/src/pkg/text/template/parse/node.go b/src/pkg/text/template/parse/node.go
+index a4e5514768..4f43424239 100644
+--- a/src/pkg/text/template/parse/node.go
++++ b/src/pkg/text/template/parse/node.go
+@@ -267,7 +267,7 @@ func newNumber(text string, typ itemType) (*NumberNode, error) {
+ 	}
+ 	// Imaginary constants can only be complex unless they are zero.
+ 	if len(text) > 0 && text[len(text)-1] == 'i' {
+-		f, err := strconv.Atof64(text[:len(text)-1])
++		f, err := strconv.ParseFloat(text[:len(text)-1], 64)
+ 		if err == nil {
+ 			n.IsComplex = true
+ 			n.Complex128 = complex(0, f)
+@@ -276,12 +276,12 @@ func newNumber(text string, typ itemType) (*NumberNode, error) {
+ 		}
+ 	}
+ 	// Do integer test first so we get 0x123 etc.
+-	u, err := strconv.Btoui64(text, 0) // will fail for -0; fixed below.
++	u, err := strconv.ParseUint(text, 0, 64) // will fail for -0; fixed below.
+ 	if err == nil {
+ 		n.IsUint = true
+ 		n.Uint64 = u
+ 	}
+-	i, err := strconv.Btoi64(text, 0)
++	i, err := strconv.ParseInt(text, 0, 64)
+ 	if err == nil {
+ 		n.IsInt = true
+ 		n.Int64 = i
+@@ -298,7 +298,7 @@ func newNumber(text string, typ itemType) (*NumberNode, error) {
+ 		n.IsFloat = true
+ 		n.Float64 = float64(n.Uint64)
+ 	} else {
+-		f, err := strconv.Atof64(text)
++		f, err := strconv.ParseFloat(text, 64)
+ 		if err == nil {
+ 			n.IsFloat = true
+ 			n.Float64 = f
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 9590e281a6..6d1e79b542 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -339,7 +339,7 @@ func checkTime(time Time, test *ParseTest, t *testing.T) {
+ 		t.Errorf("%s: bad second: %d not %d", test.name, time.Second(), 57)
+ 	}
+ 	// Nanoseconds must be checked against the precision of the input.
+-	nanosec, err := strconv.Atoui("012345678"[:test.fracDigits] + "000000000"[:9-test.fracDigits])
++	nanosec, err := strconv.ParseUint("012345678"[:test.fracDigits]+"000000000"[:9-test.fracDigits], 10, 0)
+ 	if err != nil {
+ 		panic(err)
+ 	}
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index a405da3076..393f8eadea 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -199,7 +199,7 @@ func parseCategory(line string) (state State) {
+ 	if len(field) != NumField {
+ 		logger.Fatalf("%5s: %d fields (expected %d)\n", line, len(field), NumField)
+ 	}
+-	point, err := strconv.Btoui64(field[FCodePoint], 16)
++	point, err := strconv.ParseUint(field[FCodePoint], 16, 64)
+ 	if err != nil {
+ 		logger.Fatalf("%.5s...: %s", line, err)
+ 	}
+@@ -261,7 +261,7 @@ func (char *Char) letterValue(s string, cas string) rune {
+ 	if s == "" {
+ 		return 0
+ 	}
+-	v, err := strconv.Btoui64(s, 16)
++	v, err := strconv.ParseUint(s, 16, 64)
+ 	if err != nil {
+ 		char.dump(cas)
+ 		logger.Fatalf("%U: bad letter(%s): %s", char.codePoint, s, err)
+@@ -377,11 +377,11 @@ func loadCasefold() {
+ 			// Only care about 'common' and 'simple' foldings.
+ 			continue
+ 		}
+-		p1, err := strconv.Btoui64(field[0], 16)
++		p1, err := strconv.ParseUint(field[0], 16, 64)
+ 		if err != nil {
+ 			logger.Fatalf("CaseFolding.txt %.5s...: %s", line, err)
+ 		}
+-		p2, err := strconv.Btoui64(field[2], 16)
++		p2, err := strconv.ParseUint(field[2], 16, 64)
+ 		if err != nil {
+ 			logger.Fatalf("CaseFolding.txt %.5s...: %s", line, err)
+ 		}
+@@ -628,13 +628,13 @@ func parseScript(line string, scripts map[string][]Script) {
+ 	if len(matches) != 4 {
+ 		logger.Fatalf("%s: %d matches (expected 3)\n", line, len(matches))
+ 	}
+-	lo, err := strconv.Btoui64(matches[1], 16)
++	lo, err := strconv.ParseUint(matches[1], 16, 64)
+ 	if err != nil {
+ 		logger.Fatalf("%.5s...: %s", line, err)
+ 	}
+ 	hi := lo
+ 	if len(matches[2]) > 2 { // ignore leading ..
+-		hi, err = strconv.Btoui64(matches[2][2:], 16)
++		hi, err = strconv.ParseUint(matches[2][2:], 16, 64)
+ 		if err != nil {
+ 			logger.Fatalf("%.5s...: %s", line, err)
+ 		}
+diff --git a/src/pkg/websocket/hixie.go b/src/pkg/websocket/hixie.go
+index ec7b7ae0a4..d0ddbeeb48 100644
+--- a/src/pkg/websocket/hixie.go
++++ b/src/pkg/websocket/hixie.go
+@@ -365,13 +365,13 @@ func hixie76ClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer)
+ 	key2, number2 := generateKeyNumber()
+ 	if config.handshakeData != nil {
+ 		key1 = config.handshakeData["key1"]
+-		n, err := strconv.Atoui(config.handshakeData["number1"])
++		n, err := strconv.ParseUint(config.handshakeData["number1"], 10, 32)
+ 		if err != nil {
+ 			panic(err)
+ 		}
+ 		number1 = uint32(n)
+ 		key2 = config.handshakeData["key2"]
+-		n, err = strconv.Atoui(config.handshakeData["number2"])
++		n, err = strconv.ParseUint(config.handshakeData["number2"], 10, 32)
+ 		if err != nil {
+ 			panic(err)
+ 		}
+diff --git a/test/fixedbugs/bug120.go b/test/fixedbugs/bug120.go
+index 2a71957d84..bf401bf304 100644
+--- a/test/fixedbugs/bug120.go
++++ b/test/fixedbugs/bug120.go
+@@ -41,16 +41,16 @@ func main() {
+ 	ok := true
+ 	for i := 0; i < len(tests); i++ {
+ 		t := tests[i]
+-		v := strconv.Ftoa64(t.f, 'g', -1)
++		v := strconv.FormatFloat(t.f, 'g', -1, 64)
+ 		if v != t.out {
+ 			println("Bad float64 const:", t.in, "want", t.out, "got", v)
+-			x, err := strconv.Atof64(t.out)
++			x, err := strconv.ParseFloat(t.out, 64)
+ 			if err != nil {
+ 				println("bug120: strconv.Atof64", t.out)
+ 				panic("fail")
+ 			}
+-			println("\twant exact:", strconv.Ftoa64(x, 'g', 1000))
+-			println("\tgot exact: ", strconv.Ftoa64(t.f, 'g', 1000))
++			println("\twant exact:", strconv.FormatFloat(x, 'g', 1000, 64))
++			println("\tgot exact: ", strconv.FormatFloat(t.f, 'g', 1000, 64))
+ 			ok = false
+ 		}
+ 	}
+diff --git a/test/fixedbugs/bug260.go b/test/fixedbugs/bug260.go
+index 34757c70ee..91dc89f77a 100644
+--- a/test/fixedbugs/bug260.go
++++ b/test/fixedbugs/bug260.go
+@@ -24,8 +24,8 @@ func main() {
+ 	report := len(os.Args) > 1
+ 	status := 0
+ 	var b1 [10]T1
+-	a0, _ := strconv.Btoui64(fmt.Sprintf("%p", &b1[0])[2:], 16)
+-	a1, _ := strconv.Btoui64(fmt.Sprintf("%p", &b1[1])[2:], 16)
++	a0, _ := strconv.ParseUint(fmt.Sprintf("%p", &b1[0])[2:], 16, 64)
++	a1, _ := strconv.ParseUint(fmt.Sprintf("%p", &b1[1])[2:], 16, 64)
+ 	if a1 != a0+1 {
+ 		fmt.Println("FAIL")
+ 		if report {
+@@ -34,8 +34,8 @@ func main() {
+ 		status = 1
+ 	}
+ 	var b2 [10]T2
+-	a0, _ = strconv.Btoui64(fmt.Sprintf("%p", &b2[0])[2:], 16)
+-	a1, _ = strconv.Btoui64(fmt.Sprintf("%p", &b2[1])[2:], 16)
++	a0, _ = strconv.ParseUint(fmt.Sprintf("%p", &b2[0])[2:], 16, 64)
++	a1, _ = strconv.ParseUint(fmt.Sprintf("%p", &b2[1])[2:], 16, 64)
+ 	if a1 != a0+2 {
+ 		if status == 0 {
+ 			fmt.Println("FAIL")
+@@ -46,8 +46,8 @@ func main() {
+ 		}
+ 	}
+ 	var b4 [10]T4
+-	a0, _ = strconv.Btoui64(fmt.Sprintf("%p", &b4[0])[2:], 16)
+-	a1, _ = strconv.Btoui64(fmt.Sprintf("%p", &b4[1])[2:], 16)
++	a0, _ = strconv.ParseUint(fmt.Sprintf("%p", &b4[0])[2:], 16, 64)
++	a1, _ = strconv.ParseUint(fmt.Sprintf("%p", &b4[1])[2:], 16, 64)
+ 	if a1 != a0+4 {
+ 		if status == 0 {
+ 			fmt.Println("FAIL")

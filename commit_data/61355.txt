@@ -12,6 +12,20 @@ Date:   Thu Oct 31 07:12:15 2024 +0000
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/math/big/int.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 944b70c062..df44e9dccf 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -288,7 +288,7 @@ func (z *Int) Rem(x, y *Int) *Int {
+ //	r = x - y*q
+ //
+ // (See Daan Leijen, “Division and Modulus for Computer Scientists”.)
+-// See [DivMod] for Euclidean division and modulus (unlike Go).
++// See [Int.DivMod] for Euclidean division and modulus (unlike Go).
+ func (z *Int) QuoRem(x, y, r *Int) (*Int, *Int) {
+ 	z.abs, r.abs = z.abs.div(r.abs, x.abs, y.abs)
+ 	z.neg, r.neg = len(z.abs) > 0 && x.neg != y.neg, len(r.abs) > 0 && x.neg // 0 has no sign

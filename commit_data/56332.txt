@@ -20,8 +20,93 @@ Date:   Tue Jan 17 11:33:28 2023 -0600
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/loadelf/ldelf.go | 12 ++++++++++--
  src/cmd/link/internal/loader/loader.go |  3 +++
  src/cmd/link/internal/ppc64/asm.go     | 12 ++++++++++--
  3 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index c1bfec059d..77247b47f4 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -639,11 +639,15 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 			case 0:
+ 				// No local entry. R2 is preserved.
+ 			case 1:
+-				// These require R2 be saved and restored by the caller. This isn't supported today.
+-				return errorf("%s: unable to handle local entry type 1", sb.Name())
++				// This is kind of a hack, but pass the hint about this symbol's
++				// usage of R2 (R2 is a caller-save register not a TOC pointer, and
++				// this function does not have a distinct local entry) by setting
++				// its SymLocalentry to 1.
++				l.SetSymLocalentry(s, 1)
+ 			case 7:
+ 				return errorf("%s: invalid sym.other 0x%x", sb.Name(), elfsym.other)
+ 			default:
++				// Convert the word sized offset into bytes.
+ 				l.SetSymLocalentry(s, 4<<uint(flag-2))
+ 			}
+ 		}
+@@ -1061,6 +1065,7 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
+ 		I386 | uint32(elf.R_386_GOTPC)<<16,
+ 		I386 | uint32(elf.R_386_GOT32X)<<16,
+ 		PPC64 | uint32(elf.R_PPC64_REL24)<<16,
++		PPC64 | uint32(elf.R_PPC64_REL24_NOTOC)<<16,
+ 		PPC64 | uint32(elf.R_PPC_REL32)<<16,
+ 		S390X | uint32(elf.R_390_32)<<16,
+ 		S390X | uint32(elf.R_390_PC32)<<16,
+@@ -1077,6 +1082,9 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
+ 		ARM64 | uint32(elf.R_AARCH64_ABS64)<<16,
+ 		ARM64 | uint32(elf.R_AARCH64_PREL64)<<16,
+ 		PPC64 | uint32(elf.R_PPC64_ADDR64)<<16,
++		PPC64 | uint32(elf.R_PPC64_PCREL34)<<16,
++		PPC64 | uint32(elf.R_PPC64_GOT_PCREL34)<<16,
++		PPC64 | uint32(elf.R_PPC64_PLT_PCREL34_NOTOC)<<16,
+ 		S390X | uint32(elf.R_390_GLOB_DAT)<<16,
+ 		S390X | uint32(elf.R_390_RELATIVE)<<16,
+ 		S390X | uint32(elf.R_390_GOTOFF)<<16,
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 455ef587d1..4bccce047b 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1582,6 +1582,9 @@ func (l *Loader) SetSymPkg(i Sym, pkg string) {
+ }
+ 
+ // SymLocalentry returns an offset in bytes of the "local entry" of a symbol.
++//
++// On PPC64, a value of 1 indicates the symbol does not use or preserve a TOC
++// pointer in R2, nor does it have a distinct local entry.
+ func (l *Loader) SymLocalentry(i Sym) uint8 {
+ 	return l.localentry[i]
+ }
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index c716c2a5e0..121fbf8fa5 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -189,7 +189,11 @@ func genstubs(ctxt *ld.Link, ldr *loader.Loader) {
+ 
+ 					// Turn this reloc into an R_CALLPOWER, and convert the TOC restore into a nop.
+ 					su.SetRelocType(i, objabi.R_CALLPOWER)
+-					su.SetRelocAdd(i, r.Add()+int64(ldr.SymLocalentry(r.Sym())))
++					localEoffset := int64(ldr.SymLocalentry(r.Sym()))
++					if localEoffset == 1 {
++						ldr.Errorf(s, "Unsupported NOTOC call to %s", ldr.SymName(r.Sym()))
++					}
++					su.SetRelocAdd(i, r.Add()+localEoffset)
+ 					r.SetSiz(4)
+ 					rewritetonop(&ctxt.Target, ldr, su, int64(r.Off()+4), 0xFFFFFFFF, OP_TOCRESTORE)
+ 				}
+@@ -435,7 +439,11 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
+ 		// callee. Hence, we need to go to the local entry
+ 		// point.  (If we don't do this, the callee will try
+ 		// to use r12 to compute r2.)
+-		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymLocalentry(targ)))
++		localEoffset := int64(ldr.SymLocalentry(targ))
++		if localEoffset == 1 {
++			ldr.Errorf(s, "Unsupported NOTOC call to %s", targ)
++		}
++		su.SetRelocAdd(rIdx, r.Add()+localEoffset)
+ 
+ 		if targType == sym.SDYNIMPORT {
+ 			// Should have been handled in elfsetupplt

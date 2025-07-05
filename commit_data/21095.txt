@@ -8,6 +8,26 @@ Date:   Fri Nov 14 11:43:01 2014 +1100
     R=bradfitz, alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/168600044
-
+---
  src/net/http/fs.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 7bd777b712..e322f710a5 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -22,8 +22,12 @@ import (
+ 	"time"
+ )
+ 
+-// A Dir implements http.FileSystem using the native file
+-// system restricted to a specific directory tree.
++// A Dir implements FileSystem using the native file system restricted to a
++// specific directory tree.
++//
++// While the FileSystem.Open method takes '/'-separated paths, a Dir's string
++// value is a filename on the native file system, not a URL, so it is separated
++// by filepath.Separator, which isn't necessarily '/'.
+ //
+ // An empty Dir is treated as ".".
+ type Dir string

@@ -13,7 +13,56 @@ Date:   Thu Sep 21 12:56:30 2017 +0900
     Change-Id: Ibb2f6492f1fa59368f2dfd4cff19783997539875
     Reviewed-on: https://go-review.googlesource.com/65170
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/objfile/macho.go |  2 +-
  src/cmd/nm/nm.go                  | 10 +++++++++-
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/macho.go b/src/cmd/internal/objfile/macho.go
+index d6d545c23e..7a8999e5ba 100644
+--- a/src/cmd/internal/objfile/macho.go
++++ b/src/cmd/internal/objfile/macho.go
+@@ -30,7 +30,7 @@ func openMacho(r io.ReaderAt) (rawFile, error) {
+ 
+ func (f *machoFile) symbols() ([]Sym, error) {
+ 	if f.macho.Symtab == nil {
+-		return nil, fmt.Errorf("missing symbol table")
++		return nil, nil
+ 	}
+ 
+ 	// Build sorted list of addresses of all symbols.
+diff --git a/src/cmd/nm/nm.go b/src/cmd/nm/nm.go
+index 65ef5b4295..457239921b 100644
+--- a/src/cmd/nm/nm.go
++++ b/src/cmd/nm/nm.go
+@@ -110,15 +110,19 @@ func nm(file string) {
+ 
+ 	entries := f.Entries()
+ 
++	var found bool
++
+ 	for _, e := range entries {
+ 		syms, err := e.Symbols()
+ 		if err != nil {
+ 			errorf("reading %s: %v", file, err)
+ 		}
+ 		if len(syms) == 0 {
+-			errorf("reading %s: no symbols", file)
++			continue
+ 		}
+ 
++		found = true
++
+ 		switch *sortOrder {
+ 		case "address":
+ 			sort.Slice(syms, func(i, j int) bool { return syms[i].Addr < syms[j].Addr })
+@@ -155,5 +159,9 @@ func nm(file string) {
+ 		}
+ 	}
+ 
++	if !found {
++		errorf("reading %s: no symbols", file)
++	}
++
+ 	w.Flush()
+ }

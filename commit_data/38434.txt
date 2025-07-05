@@ -9,8 +9,71 @@ Date:   Mon Oct 29 10:24:05 2018 -0700
     Change-Id: Ie57ade565d0407a4bffaa86fb4475ff083168e79
     Reviewed-on: https://go-review.googlesource.com/c/145537
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/math/big/float.go | 8 +++++++-
  src/math/big/int.go   | 7 +++++++
  src/math/big/rat.go   | 7 +++++++
  3 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 6b0cb3f1ed..d5e801b2c8 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -43,7 +43,7 @@ const debugFloat = false // enable for debugging
+ // precision of the argument with the largest precision value before any
+ // rounding takes place, and the rounding mode remains unchanged. Thus,
+ // uninitialized Floats provided as result arguments will have their
+-// precision set to a reasonable value determined by the operands and
++// precision set to a reasonable value determined by the operands, and
+ // their mode is the zero value for RoundingMode (ToNearestEven).
+ //
+ // By setting the desired precision to 24 or 53 and using matching rounding
+@@ -56,6 +56,12 @@ const debugFloat = false // enable for debugging
+ // The zero (uninitialized) value for a Float is ready to use and represents
+ // the number +0.0 exactly, with precision 0 and rounding mode ToNearestEven.
+ //
++// Operations always take pointer arguments (*Float) rather
++// than Float values, and each unique Float value requires
++// its own unique *Float pointer. To "copy" a Float value,
++// an existing (or newly allocated) Float must be set to
++// a new value using the Float.Set method; shallow copies
++// of Floats are not supported and may lead to errors.
+ type Float struct {
+ 	prec uint32
+ 	mode RoundingMode
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 47a288ab44..dab9a5cc0f 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -15,6 +15,13 @@ import (
+ 
+ // An Int represents a signed multi-precision integer.
+ // The zero value for an Int represents the value 0.
++//
++// Operations always take pointer arguments (*Int) rather
++// than Int values, and each unique Int value requires
++// its own unique *Int pointer. To "copy" an Int value,
++// an existing (or newly allocated) Int must be set to
++// a new value using the Int.Set method; shallow copies
++// of Ints are not supported and may lead to errors.
+ type Int struct {
+ 	neg bool // sign
+ 	abs nat  // absolute value of the integer
+diff --git a/src/math/big/rat.go b/src/math/big/rat.go
+index 46d58fcf36..5d0800ca93 100644
+--- a/src/math/big/rat.go
++++ b/src/math/big/rat.go
+@@ -13,6 +13,13 @@ import (
+ 
+ // A Rat represents a quotient a/b of arbitrary precision.
+ // The zero value for a Rat represents the value 0.
++//
++// Operations always take pointer arguments (*Rat) rather
++// than Rat values, and each unique Rat value requires
++// its own unique *Rat pointer. To "copy" a Rat value,
++// an existing (or newly allocated) Rat must be set to
++// a new value using the Rat.Set method; shallow copies
++// of Rats are not supported and may lead to errors.
+ type Rat struct {
+ 	// To make zero values for Rat work w/o initialization,
+ 	// a zero value of b (len(b) == 0) acts like b == 1.

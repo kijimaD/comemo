@@ -7,7 +7,36 @@ Date:   Tue Jan 10 20:08:53 2012 -0800
     R=lvd, r
     CC=golang-dev
     https://golang.org/cl/5531058
-
+---
  src/cmd/gc/lex.c | 7 +++++++
  test/escape2.go  | 2 +-
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index f777a7e44e..db6dfc3e11 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -234,6 +234,13 @@ main(int argc, char *argv[])
+ 		print("%cg version %s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
+ 		exits(0);
+ 	} ARGEND
++	
++	// enable inlining.  for now:
++	//	default: inlining on.  (debug['l'] == 1)
++	//	-l: inlining off  (debug['l'] == 0)
++	//	-ll, -lll: inlining on again, with extra debugging (debug['l'] > 1)
++	if(debug['l'] <= 1)
++		debug['l'] = 1 - debug['l'];
+ 
+ 	if(argc < 1)
+ 		usage();
+diff --git a/test/escape2.go b/test/escape2.go
+index e4d5084c79..c2cbefbe61 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1,4 +1,4 @@
+-// errchk -0 $G -m $D/$F.go
++// errchk -0 $G -m -l $D/$F.go
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style

@@ -8,6 +8,32 @@ Date:   Thu Feb 5 16:11:14 2009 -0800
     DELTA=4  (0 added, 1 deleted, 3 changed)
     OCL=24478
     CL=24487
-
+---
  doc/go_spec.txt | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go_spec.txt b/doc/go_spec.txt
+index 2516942194..65b6426369 100644
+--- a/doc/go_spec.txt
++++ b/doc/go_spec.txt
+@@ -3,7 +3,7 @@ The Go Programming Language Specification (DRAFT)
+ 
+ Robert Griesemer, Rob Pike, Ken Thompson
+ 
+-(January 30, 2009)
++(February 5, 2009)
+ 
+ ----
+ 
+@@ -1647,9 +1647,8 @@ More precisely:
+ 	  have the same array length.
+ 
+ 	- Two struct types are equal if they have the same number of fields in the
+-	  same order, corresponding fields are either both named or both anonymous,
+-	  and corresponding field types are equal. Note that field names
+-	  do not have to match.
++	  same order, corresponding fields either have both the same name or
++	  are both anonymous, and corresponding field types are identical.
+ 
+ 	- Two pointer types are equal if they have equal base types.
+ 

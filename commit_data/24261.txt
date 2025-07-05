@@ -7,6 +7,23 @@ Date:   Fri Jul 17 10:45:48 2015 -0600
     Change-Id: Icbaad6e5cbfc5430a651538fe90c0a9ee664faf4
     Reviewed-on: https://go-review.googlesource.com/12360
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 306fe1274e..60368784e8 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -42,7 +42,10 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool)
+ 					if a.Op != OpCopy {
+ 						continue
+ 					}
+-					for a.Op == OpCopy {
++					// Rewriting can generate OpCopy loops.
++					// They are harmless (see removePredecessor),
++					// but take care not to loop forever.
++					for a.Op == OpCopy && a != a.Args[0] {
+ 						a = a.Args[0]
+ 					}
+ 					v.Args[i] = a

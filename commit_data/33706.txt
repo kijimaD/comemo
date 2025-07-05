@@ -9,6 +9,20 @@ Date:   Tue Aug 29 21:32:41 2017 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index a56edad3b4..9d9b43152e 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -157,7 +157,7 @@ func mapbucket(t *types.Type) *types.Type {
+ 	// the type of the overflow field to uintptr in this case.
+ 	// See comment on hmap.overflow in ../../../../runtime/hashmap.go.
+ 	otyp := types.NewPtr(bucket)
+-	if !types.Haspointers(t.Val()) && !types.Haspointers(t.Key()) && t.Val().Width <= MAXVALSIZE && t.Key().Width <= MAXKEYSIZE {
++	if !types.Haspointers(valtype) && !types.Haspointers(keytype) {
+ 		otyp = types.Types[TUINTPTR]
+ 	}
+ 	overflow := makefield("overflow", otyp)

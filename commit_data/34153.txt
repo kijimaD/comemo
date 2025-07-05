@@ -18,10 +18,130 @@ Date:   Wed Oct 4 11:42:37 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go        |  2 +-
  src/cmd/compile/internal/gc/reflect.go   | 14 +++++++-------
  src/cmd/compile/internal/gc/ssa.go       |  2 +-
  src/cmd/compile/internal/gc/subr.go      |  8 +++-----
  src/cmd/compile/internal/gc/typecheck.go |  4 ++--
  5 files changed, 14 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 3f1c4221fe..663750c9f5 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -198,7 +198,7 @@ var compiling_runtime bool
+ // Compiling the standard library
+ var compiling_std bool
+ 
+-var compiling_wrappers int
++var compiling_wrappers bool
+ 
+ var use_writebarrier bool
+ 
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 7b4f0fe0e9..fd9e3e0a8e 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -438,18 +438,18 @@ func methods(t *types.Type) []*Sig {
+ 		if !sig.isym.Siggen() {
+ 			sig.isym.SetSiggen(true)
+ 			if !eqtype(this, it) || this.Width < int64(Widthptr) {
+-				compiling_wrappers = 1
+-				genwrapper(it, f, sig.isym, 1)
+-				compiling_wrappers = 0
++				compiling_wrappers = true
++				genwrapper(it, f, sig.isym, true)
++				compiling_wrappers = false
+ 			}
+ 		}
+ 
+ 		if !sig.tsym.Siggen() {
+ 			sig.tsym.SetSiggen(true)
+ 			if !eqtype(this, t) {
+-				compiling_wrappers = 1
+-				genwrapper(t, f, sig.tsym, 0)
+-				compiling_wrappers = 0
++				compiling_wrappers = true
++				genwrapper(t, f, sig.tsym, false)
++				compiling_wrappers = false
+ 			}
+ 		}
+ 	}
+@@ -500,7 +500,7 @@ func imethods(t *types.Type) []*Sig {
+ 		isym := methodsym(method, t, false)
+ 		if !isym.Siggen() {
+ 			isym.SetSiggen(true)
+-			genwrapper(t, f, isym, 0)
++			genwrapper(t, f, isym, false)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9664ed4da7..763ac24a10 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -780,7 +780,7 @@ func (s *state) stmt(n *Node) {
+ 		s.stmtList(n.List)
+ 		b := s.exit()
+ 		b.Kind = ssa.BlockRetJmp // override BlockRet
+-		b.Aux = n.Left.Sym.Linksym()
++		b.Aux = n.Sym.Linksym()
+ 
+ 	case OCONTINUE, OBREAK:
+ 		var to *ssa.Block
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 08658af603..5b0a06d21c 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1671,7 +1671,7 @@ func structargs(tl *types.Type, mustname bool) []*Node {
+ //	rcvr - U
+ //	method - M func (t T)(), a TFIELD type struct
+ //	newnam - the eventual mangled name of this function
+-func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface int) {
++func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface bool) {
+ 	if false && Debug['r'] != 0 {
+ 		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", rcvr, method, newnam)
+ 	}
+@@ -1688,7 +1688,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface
+ 
+ 	t := nod(OTFUNC, nil, nil)
+ 	l := []*Node{this}
+-	if iface != 0 && rcvr.Width < int64(Widthptr) {
++	if iface && rcvr.Width < int64(Widthptr) {
+ 		// Building method for interface table and receiver
+ 		// is smaller than the single pointer-sized word
+ 		// that the interface call will pass in.
+@@ -1746,9 +1746,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface
+ 		as := nod(OAS, this.Left, nod(OCONVNOP, dot, nil))
+ 		as.Right.Type = rcvr
+ 		fn.Nbody.Append(as)
+-		n := nod(ORETJMP, nil, nil)
+-		n.Left = newname(methodsym(method.Sym, methodrcvr, false))
+-		fn.Nbody.Append(n)
++		fn.Nbody.Append(nodSym(ORETJMP, nil, methodsym(method.Sym, methodrcvr, false)))
+ 		// When tail-calling, we can't use a frame pointer.
+ 		fn.Func.SetNoFramePointer(true)
+ 	} else {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 39570f1cf4..a6c54f4569 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -266,7 +266,7 @@ func indexlit(n *Node) *Node {
+ // 	n.Left = typecheck1(n.Left, top)
+ func typecheck1(n *Node, top int) *Node {
+ 	switch n.Op {
+-	case OXDOT, ODOT, ODOTPTR, ODOTMETH, ODOTINTER:
++	case OXDOT, ODOT, ODOTPTR, ODOTMETH, ODOTINTER, ORETJMP:
+ 		// n.Sym is a field/method name, not a variable.
+ 	default:
+ 		if n.Sym != nil {
+@@ -2143,7 +2143,7 @@ func typecheck1(n *Node, top int) *Node {
+ 		}
+ 	}
+ 
+-	if safemode && !inimport && compiling_wrappers == 0 && t != nil && t.Etype == TUNSAFEPTR {
++	if safemode && !inimport && !compiling_wrappers && t != nil && t.Etype == TUNSAFEPTR {
+ 		yyerror("cannot use unsafe.Pointer")
+ 	}
+ 

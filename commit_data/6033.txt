@@ -7,7 +7,45 @@ Date:   Tue Aug 17 09:44:16 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1985042
-
+---
  src/pkg/template/template.go      | 7 ++++---
  src/pkg/template/template_test.go | 1 +
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index debcad4c0b..19d94c8fe2 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -234,9 +234,7 @@ func (t *Template) nextItem() []byte {
+ 			break
+ 		}
+ 	}
+-	if trimSpace {
+-		start = i
+-	} else if i > start {
++	if !trimSpace && i > start {
+ 		// white space is valid text
+ 		t.p = i
+ 		return t.buf[start:i]
+@@ -252,6 +250,9 @@ Switch:
+ 		i += len(t.ldelim) // position after delimiter
+ 		if i+1 < len(t.buf) && (t.buf[i] == '.' || t.buf[i] == '#') {
+ 			special = true
++			if trimSpace {
++				start = i - len(t.ldelim)
++			}
+ 		}
+ 		for ; i < len(t.buf); i++ {
+ 			if t.buf[i] == '\n' {
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 8157972e42..3ce6a4bb40 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -98,6 +98,7 @@ var tests = []*Test{
+ 	&Test{" {.space}   \n", " ", ""},
+ 	&Test{" {.tab}   \n", "\t", ""},
+ 	&Test{"     {#comment}   \n", "", ""},
++	&Test{"\tSome Text\t\n", "\tSome Text\t\n", ""},
+ 
+ 	// Variables at top level
+ 	&Test{

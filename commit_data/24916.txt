@@ -27,7 +27,7 @@ Date:   Tue Sep 8 14:58:12 2015 -0700
     Change-Id: I3774be650bfa6370cb993d0899aa669c211de7b2
     Reviewed-on: https://go-review.googlesource.com/14391
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/text/template/doc.go              | 25 +++++++++
  src/text/template/example_test.go     |  9 ++--
  src/text/template/exec_test.go        | 29 +++++------
@@ -35,3 +35,327 @@ Date:   Tue Sep 8 14:58:12 2015 -0700
  src/text/template/parse/lex_test.go   | 15 +++++-
  src/text/template/parse/parse_test.go |  7 +++
  6 files changed, 153 insertions(+), 28 deletions(-)
+
+diff --git a/src/text/template/doc.go b/src/text/template/doc.go
+index 0ce63f66d5..cd36f44da7 100644
+--- a/src/text/template/doc.go
++++ b/src/text/template/doc.go
+@@ -36,6 +36,31 @@ Here is a trivial example that prints "17 items are made of wool".
+ 
+ More intricate examples appear below.
+ 
++Text and spaces
++
++By default, all text between actions is copied verbatim when the template is
++executed. For example, the string " items are made of " in the example above appears
++on standard output when the program is run.
++
++However, to aid in formatting template source code, if an action's left delimiter
++(by default "{{") is followed immediately by a minus sign and ASCII space character
++("{{- "), all trailing white space is trimmed from the immediately preceding text.
++Similarly, if the right delimiter ("}}") is preceded by a space and minus sign
++(" -}}"), all leading white space is trimmed from the immediately following text.
++In these trim markers, the ASCII space must be present; "{{-3}}" parses as an
++action containing the number -3.
++
++For instance, when executing the template whose source is
++
++	"{{23 -}} < {{- 45}}"
++
++the generated output would be
++
++	"23<45"
++
++For this trimming, the definition of white space characters is the same as in Go:
++space, horizontal tab, carriage return, and newline.
++
+ Actions
+ 
+ Here is the list of actions. "Arguments" and "pipelines" are evaluations of
+diff --git a/src/text/template/example_test.go b/src/text/template/example_test.go
+index de1d51851f..cae8ff48d7 100644
+--- a/src/text/template/example_test.go
++++ b/src/text/template/example_test.go
+@@ -15,9 +15,12 @@ func ExampleTemplate() {
+ 	const letter = `
+ Dear {{.Name}},
+ {{if .Attended}}
+-It was a pleasure to see you at the wedding.{{else}}
+-It is a shame you couldn't make it to the wedding.{{end}}
+-{{with .Gift}}Thank you for the lovely {{.}}.
++It was a pleasure to see you at the wedding.
++{{- else}}
++It is a shame you couldn't make it to the wedding.
++{{- end}}
++{{with .Gift -}}
++Thank you for the lovely {{.}}.
+ {{end}}
+ Best wishes,
+ Josie
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 07ebb550ea..9fd01320c2 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -797,18 +797,19 @@ type Tree struct {
+ }
+ 
+ // Use different delimiters to test Set.Delims.
++// Also test the trimming of leading and trailing spaces.
+ const treeTemplate = `
+-	(define "tree")
++	(- define "tree" -)
+ 	[
+-		(.Val)
+-		(with .Left)
+-			(template "tree" .)
+-		(end)
+-		(with .Right)
+-			(template "tree" .)
+-		(end)
++		(- .Val -)
++		(- with .Left -)
++			(template "tree" . -)
++		(- end -)
++		(- with .Right -)
++			(- template "tree" . -)
++		(- end -)
+ 	]
+-	(end)
++	(- end -)
+ `
+ 
+ func TestTree(t *testing.T) {
+@@ -853,19 +854,13 @@ func TestTree(t *testing.T) {
+ 		t.Fatal("parse error:", err)
+ 	}
+ 	var b bytes.Buffer
+-	stripSpace := func(r rune) rune {
+-		if r == '\t' || r == '\n' {
+-			return -1
+-		}
+-		return r
+-	}
+ 	const expect = "[1[2[3[4]][5[6]]][7[8[9]][10[11]]]]"
+ 	// First by looking up the template.
+ 	err = tmpl.Lookup("tree").Execute(&b, tree)
+ 	if err != nil {
+ 		t.Fatal("exec error:", err)
+ 	}
+-	result := strings.Map(stripSpace, b.String())
++	result := b.String()
+ 	if result != expect {
+ 		t.Errorf("expected %q got %q", expect, result)
+ 	}
+@@ -875,7 +870,7 @@ func TestTree(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("exec error:", err)
+ 	}
+-	result = strings.Map(stripSpace, b.String())
++	result = b.String()
+ 	if result != expect {
+ 		t.Errorf("expected %q got %q", expect, result)
+ 	}
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index 8f9fe1d4d8..9061731b2b 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -83,6 +83,21 @@ var key = map[string]itemType{
+ 
+ const eof = -1
+ 
++// Trimming spaces.
++// If the action begins "{{- " rather than "{{", then all space/tab/newlines
++// preceding the action are trimmed; conversely if it ends " -}}" the
++// leading spaces are trimmed. This is done entirely in the lexer; the
++// parser never sees it happen. We require an ASCII space to be
++// present to avoid ambiguity with things like "{{-3}}". It reads
++// better with the space present anyway. For simplicity, only ASCII
++// space does the job.
++const (
++	spaceChars      = " \t\r\n" // These are the space characters defined by Go itself.
++	leftTrimMarker  = "- "      // Attached to left delimiter, trims trailing spaces from preceding text.
++	rightTrimMarker = " -"      // Attached to right delimiter, trims leading spaces from following text.
++	trimMarkerLen   = Pos(len(leftTrimMarker))
++)
++
+ // stateFn represents the state of the scanner as a function that returns the next state.
+ type stateFn func(*lexer) stateFn
+ 
+@@ -220,10 +235,18 @@ const (
+ // lexText scans until an opening action delimiter, "{{".
+ func lexText(l *lexer) stateFn {
+ 	for {
+-		if strings.HasPrefix(l.input[l.pos:], l.leftDelim) {
++		delim, trimSpace := l.atLeftDelim()
++		if delim {
++			trimLength := Pos(0)
++			if trimSpace {
++				trimLength = rightTrimLength(l.input[l.start:l.pos])
++			}
++			l.pos -= trimLength
+ 			if l.pos > l.start {
+ 				l.emit(itemText)
+ 			}
++			l.pos += trimLength
++			l.ignore()
+ 			return lexLeftDelim
+ 		}
+ 		if l.next() == eof {
+@@ -238,13 +261,56 @@ func lexText(l *lexer) stateFn {
+ 	return nil
+ }
+ 
+-// lexLeftDelim scans the left delimiter, which is known to be present.
++// atLeftDelim reports whether the lexer is at a left delimiter, possibly followed by a trim marker.
++func (l *lexer) atLeftDelim() (delim, trimSpaces bool) {
++	if !strings.HasPrefix(l.input[l.pos:], l.leftDelim) {
++		return false, false
++	}
++	// The left delim might have the marker afterwards.
++	trimSpaces = strings.HasPrefix(l.input[l.pos+Pos(len(l.leftDelim)):], leftTrimMarker)
++	return true, trimSpaces
++}
++
++// rightTrimLength returns the length of the spaces at the end of the string.
++func rightTrimLength(s string) Pos {
++	return Pos(len(s) - len(strings.TrimRight(s, spaceChars)))
++}
++
++// atRightDelim reports whether the lexer is at a right delimiter, possibly preceded by a trim marker.
++func (l *lexer) atRightDelim() (delim, trimSpaces bool) {
++	if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
++		return true, false
++	}
++	// The right delim might have the marker before.
++	if strings.HasPrefix(l.input[l.pos:], rightTrimMarker) {
++		if strings.HasPrefix(l.input[l.pos+trimMarkerLen:], l.rightDelim) {
++			return true, true
++		}
++	}
++	return false, false
++}
++
++// leftTrimLength returns the length of the spaces at the beginning of the string.
++func leftTrimLength(s string) Pos {
++	return Pos(len(s) - len(strings.TrimLeft(s, spaceChars)))
++}
++
++// lexLeftDelim scans the left delimiter, which is known to be present, possibly with a trim marker.
+ func lexLeftDelim(l *lexer) stateFn {
+ 	l.pos += Pos(len(l.leftDelim))
+-	if strings.HasPrefix(l.input[l.pos:], leftComment) {
++	trimSpace := strings.HasPrefix(l.input[l.pos:], leftTrimMarker)
++	afterMarker := Pos(0)
++	if trimSpace {
++		afterMarker = trimMarkerLen
++	}
++	if strings.HasPrefix(l.input[l.pos+afterMarker:], leftComment) {
++		l.pos += afterMarker
++		l.ignore()
+ 		return lexComment
+ 	}
+ 	l.emit(itemLeftDelim)
++	l.pos += afterMarker
++	l.ignore()
+ 	l.parenDepth = 0
+ 	return lexInsideAction
+ }
+@@ -257,19 +323,34 @@ func lexComment(l *lexer) stateFn {
+ 		return l.errorf("unclosed comment")
+ 	}
+ 	l.pos += Pos(i + len(rightComment))
+-	if !strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
++	delim, trimSpace := l.atRightDelim()
++	if !delim {
+ 		return l.errorf("comment ends before closing delimiter")
+-
++	}
++	if trimSpace {
++		l.pos += trimMarkerLen
+ 	}
+ 	l.pos += Pos(len(l.rightDelim))
++	if trimSpace {
++		l.pos += leftTrimLength(l.input[l.pos:])
++	}
+ 	l.ignore()
+ 	return lexText
+ }
+ 
+-// lexRightDelim scans the right delimiter, which is known to be present.
++// lexRightDelim scans the right delimiter, which is known to be present, possibly with a trim marker.
+ func lexRightDelim(l *lexer) stateFn {
++	trimSpace := strings.HasPrefix(l.input[l.pos:], rightTrimMarker)
++	if trimSpace {
++		l.pos += trimMarkerLen
++		l.ignore()
++	}
+ 	l.pos += Pos(len(l.rightDelim))
+ 	l.emit(itemRightDelim)
++	if trimSpace {
++		l.pos += leftTrimLength(l.input[l.pos:])
++		l.ignore()
++	}
+ 	return lexText
+ }
+ 
+@@ -278,7 +359,8 @@ func lexInsideAction(l *lexer) stateFn {
+ 	// Either number, quoted string, or identifier.
+ 	// Spaces separate arguments; runs of spaces turn into itemSpace.
+ 	// Pipe symbols separate and are emitted.
+-	if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
++	delim, _ := l.atRightDelim()
++	if delim {
+ 		if l.parenDepth == 0 {
+ 			return lexRightDelim
+ 		}
+diff --git a/src/text/template/parse/lex_test.go b/src/text/template/parse/lex_test.go
+index be551d8780..17dbe28a9f 100644
+--- a/src/text/template/parse/lex_test.go
++++ b/src/text/template/parse/lex_test.go
+@@ -278,6 +278,19 @@ var lexTests = []lexTest{
+ 		tRight,
+ 		tEOF,
+ 	}},
++	{"trimming spaces before and after", "hello- {{- 3 -}} -world", []item{
++		{itemText, 0, "hello-"},
++		tLeft,
++		{itemNumber, 0, "3"},
++		tRight,
++		{itemText, 0, "-world"},
++		tEOF,
++	}},
++	{"trimming spaces before and after comment", "hello- {{- /* hello */ -}} -world", []item{
++		{itemText, 0, "hello-"},
++		{itemText, 0, "-world"},
++		tEOF,
++	}},
+ 	// errors
+ 	{"badchar", "#{{\x01}}", []item{
+ 		{itemText, 0, "#"},
+@@ -339,7 +352,7 @@ var lexTests = []lexTest{
+ 		{itemText, 0, "hello-"},
+ 		{itemError, 0, `unclosed comment`},
+ 	}},
+-	{"text with comment close separted from delim", "hello-{{/* */ }}-world", []item{
++	{"text with comment close separated from delim", "hello-{{/* */ }}-world", []item{
+ 		{itemText, 0, "hello-"},
+ 		{itemError, 0, `comment ends before closing delimiter`},
+ 	}},
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index 200d50c194..28b5f7cb90 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -228,6 +228,13 @@ var parseTests = []parseTest{
+ 		`{{with .X}}"hello"{{end}}`},
+ 	{"with with else", "{{with .X}}hello{{else}}goodbye{{end}}", noError,
+ 		`{{with .X}}"hello"{{else}}"goodbye"{{end}}`},
++	// Trimming spaces.
++	{"trim left", "x \r\n\t{{- 3}}", noError, `"x"{{3}}`},
++	{"trim right", "{{3 -}}\n\n\ty", noError, `{{3}}"y"`},
++	{"trim left and right", "x \r\n\t{{- 3 -}}\n\n\ty", noError, `"x"{{3}}"y"`},
++	{"comment trim left", "x \r\n\t{{- /* hi */}}", noError, `"x"`},
++	{"comment trim right", "{{/* hi */ -}}\n\n\ty", noError, `"y"`},
++	{"comment trim left and right", "x \r\n\t{{- /* */ -}}\n\n\ty", noError, `"x""y"`},
+ 	// Errors.
+ 	{"unclosed action", "hello{{range", hasError, ""},
+ 	{"unmatched end", "{{end}}", hasError, ""},

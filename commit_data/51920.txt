@@ -12,7 +12,67 @@ Date:   Sun Oct 31 21:16:15 2021 +0800
     Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64Ops.go | 8 ++++----
  src/cmd/compile/internal/ssa/opGen.go          | 8 ++++----
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index 0093fa158d..f09910782d 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -241,10 +241,10 @@ func init() {
+ 		{name: "MOVconvert", argLength: 2, reg: gp11, asm: "MOV"}, // arg0, but converted to int/ptr as appropriate; arg1=mem
+ 
+ 		// Calls
+-		{name: "CALLstatic", argLength: 1, reg: call, aux: "CallOff", call: true},               // call static function aux.(*gc.Sym). arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLtail", argLength: 1, reg: call, aux: "CallOff", call: true, tailCall: true}, // tail call static function aux.(*gc.Sym). arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLclosure", argLength: 3, reg: callClosure, aux: "CallOff", call: true},       // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+-		{name: "CALLinter", argLength: 2, reg: callInter, aux: "CallOff", call: true},           // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: -1, reg: call, aux: "CallOff", call: true},               // call static function aux.(*gc.Sym). last arg=mem, auxint=argsize, returns mem
++		{name: "CALLtail", argLength: -1, reg: call, aux: "CallOff", call: true, tailCall: true}, // tail call static function aux.(*gc.Sym). last arg=mem, auxint=argsize, returns mem
++		{name: "CALLclosure", argLength: -1, reg: callClosure, aux: "CallOff", call: true},       // call function via closure. arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
++		{name: "CALLinter", argLength: -1, reg: callInter, aux: "CallOff", call: true},           // call fn by pointer. arg0=codeptr, last arg=mem, auxint=argsize, returns mem
+ 
+ 		// duffzero
+ 		// arg0 = address of memory to zero (in X25, changed as side effect)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index dfd9bc5f02..cbd49b512d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -28875,7 +28875,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:    "CALLstatic",
+ 		auxType: auxCallOff,
+-		argLen:  1,
++		argLen:  -1,
+ 		call:    true,
+ 		reg: regInfo{
+ 			clobbers: 9223372035781033968, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+@@ -28884,7 +28884,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:     "CALLtail",
+ 		auxType:  auxCallOff,
+-		argLen:   1,
++		argLen:   -1,
+ 		call:     true,
+ 		tailCall: true,
+ 		reg: regInfo{
+@@ -28894,7 +28894,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:    "CALLclosure",
+ 		auxType: auxCallOff,
+-		argLen:  3,
++		argLen:  -1,
+ 		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -28907,7 +28907,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:    "CALLinter",
+ 		auxType: auxCallOff,
+-		argLen:  2,
++		argLen:  -1,
+ 		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{

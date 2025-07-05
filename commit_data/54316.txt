@@ -14,7 +14,34 @@ Date:   Tue Oct 4 10:30:55 2022 +0800
     Run-TryBot: hopehook <hopehook@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go          | 2 +-
  src/cmd/go/internal/vet/vet.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index f83a7e261b..57d7c4ebf7 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1814,7 +1814,7 @@
+ // or additional checks.
+ // For example, the 'shadow' analyzer can be built and run using these commands:
+ //
+-//	go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
++//	go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow@latest
+ //	go vet -vettool=$(which shadow)
+ //
+ // The build flags supported by go vet are those that control package resolution
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index ee672d1a30..e5f8af1c37 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -42,7 +42,7 @@ The -vettool=prog flag selects a different analysis tool with alternative
+ or additional checks.
+ For example, the 'shadow' analyzer can be built and run using these commands:
+ 
+-  go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
++  go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow@latest
+   go vet -vettool=$(which shadow)
+ 
+ The build flags supported by go vet are those that control package resolution

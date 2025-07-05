@@ -7,7 +7,66 @@ Date:   Tue Mar 16 10:44:13 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/579041
-
+---
  .hgtags                |  1 -
  doc/devel/release.html | 38 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/.hgtags b/.hgtags
+index d0eb781fb1..c6d3e68028 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -13,4 +13,3 @@ db4262ce882d8445764312d41547ee8f11a7f7a9 release.2010-02-04
+ 53fec18b83e2b93baafba4733b59bb86b8c1988e release.2010-02-17
+ 4a0661b86e50eae734dbe43ed1312c4a0304676b release.2010-02-23
+ a215d03e7ee1013b2abe3f1e2c84457ec51c68e4 release.2010-03-04
+-a215d03e7ee1013b2abe3f1e2c84457ec51c68e4 release
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 4312374132..c9fb0a3feb 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -5,6 +5,44 @@
+ <p>This page summarizes the changes between tagged releases of Go.
+ For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
+ 
++<h3 id="2010-03-15">2010-03-15</h3>
++
++<pre>
++This release includes a language change: support for complex numbers.
++	http://golang.org/doc/go_spec.html#Imaginary_literals
++	http://golang.org/doc/go_spec.html#Complex_numbers
++There is no library support as yet.
++
++This release also includes the goinstall command-line tool. 
++	http://golang.org/cmd/goinstall/
++	http://groups.google.com/group/golang-nuts/t/f091704771128e32
++
++* 5g/6g/8g: fix double function call in slice.
++* arm: cleanup build warnings. (thanks Dean Prichard)
++* big: fix mistakes with probablyPrime.
++* bufio: add WriteRune.
++* bytes: add ReadRune and WriteRune to bytes.Buffer.
++* cc: stack split bug fix.
++* crypto: add SHA-224 to sha256, add sha512 package. (thanks Conrad Meyer)
++* crypto/ripemd160: new package. (thanks Raif S. Naffah)
++* crypto/rsa: don't use safe primes.
++* gc: avoid fixed length buffer cleanbuf. (thanks Dean Prichard)
++	better compilation of floating point +=
++	fix crash on complicated arg to make slice.
++	remove duplicate errors, give better error for I.(T)
++* godoc: support for multiple packages in a directory, other fixes.
++* gofmt: bug fixes.
++* hash: add Sum64 interface.
++* hash/crc32: add Update function.
++* hash/crc64: new package implementing 64-bit CRC.
++* math: add ilogb, logb, remainder. (thanks Charles L. Dorian) 
++* regexp: add ReplaceAllFunc, ReplaceAllStringFunc.
++* runtime: clock garbage collection on bytes allocated, not pages in use.
++* strings: make Split(s, "", n) faster. (thanks Spring Mc)
++* syscall: minimal mingw version of syscall. (thanks Alex Brainman)
++* template: add ParseFile, MustParseFile.
++</pre>
++
+ <h3 id="2010-03-04">2010-03-04</h3>
+ 
+ <pre>

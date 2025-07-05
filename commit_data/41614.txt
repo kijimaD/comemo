@@ -10,6 +10,34 @@ Date:   Tue Oct 15 07:52:23 2019 -0700
     Change-Id: Ie934861e51eeafe8a7fd6653c4223a5f5d45efe8
     Reviewed-on: https://go-review.googlesource.com/c/go/+/201198
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/os/exec_posix.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/os/exec_posix.go b/src/os/exec_posix.go
+index f6c7a49c1b..95ccc246a8 100644
+--- a/src/os/exec_posix.go
++++ b/src/os/exec_posix.go
+@@ -7,6 +7,7 @@
+ package os
+ 
+ import (
++	"runtime"
+ 	"syscall"
+ )
+ 
+@@ -49,9 +50,14 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
+ 	}
+ 
+ 	pid, h, e := syscall.StartProcess(name, argv, sysattr)
++
++	// Make sure we don't run the finalizers of attr.Files.
++	runtime.KeepAlive(attr)
++
+ 	if e != nil {
+ 		return nil, &PathError{"fork/exec", name, e}
+ 	}
++
+ 	return newProcess(pid, h), nil
+ }
+ 

@@ -7,7 +7,34 @@ Date:   Tue May 9 12:48:23 2017 -0700
     Change-Id: Iec6cd81c9787d3419850aa97e75052956ad139bc
     Reviewed-on: https://go-review.googlesource.com/c/go/+/221789
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/cmd/compile/internal/x86/387.go | 2 +-
  test/codegen/README                 | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/x86/387.go b/src/cmd/compile/internal/x86/387.go
+index 18838fb4ca..796aa82f19 100644
+--- a/src/cmd/compile/internal/x86/387.go
++++ b/src/cmd/compile/internal/x86/387.go
+@@ -326,7 +326,7 @@ func push(s *gc.SSAGenState, v *ssa.Value) {
+ }
+ 
+ // popAndSave pops a value off of the floating-point stack and stores
+-// it in the reigster assigned to v.
++// it in the register assigned to v.
+ func popAndSave(s *gc.SSAGenState, v *ssa.Value) {
+ 	r := v.Reg()
+ 	if _, ok := s.SSEto387[r]; ok {
+diff --git a/test/codegen/README b/test/codegen/README
+index f6877e701d..d6b8cf5b32 100644
+--- a/test/codegen/README
++++ b/test/codegen/README
+@@ -125,7 +125,7 @@ As a general guideline, test functions should be small, to avoid
+ possible interactions between unrelated lines of code that may be
+ introduced, for example, by the compiler's optimization passes.
+ 
+-Any given line of Go code could get assigned more instructions that it
++Any given line of Go code could get assigned more instructions than it
+ may appear from reading the source. In particular, matching all MOV
+ instructions should be avoided; the compiler may add them for
+ unrelated reasons and this may render the test ineffective.

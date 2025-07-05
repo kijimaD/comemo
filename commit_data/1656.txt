@@ -12,9 +12,254 @@ Date:   Tue Feb 10 11:27:45 2009 -0800
     DELTA=116  (79 added, 12 deleted, 25 changed)
     OCL=24756
     CL=24768
-
+---
  src/lib/os/dir_amd64_darwin.go | 66 +++++++++++++++++++++++-------------------
  src/lib/os/os_file.go          | 21 +++++++++++++-
  src/lib/os/os_test.go          | 51 +++++++++++++++++++++++++++++---
  src/lib/syscall/file_darwin.go |  3 --
  4 files changed, 104 insertions(+), 37 deletions(-)
+
+diff --git a/src/lib/os/dir_amd64_darwin.go b/src/lib/os/dir_amd64_darwin.go
+index f1401825c8..e66f540c85 100644
+--- a/src/lib/os/dir_amd64_darwin.go
++++ b/src/lib/os/dir_amd64_darwin.go
+@@ -10,36 +10,44 @@ import (
+ 	"unsafe";
+ )
+ 
++const (
++	blockSize = 4096	// TODO(r): use statfs
++)
++
+ // Negative count means read until EOF.
+ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
+-	// Getdirentries needs the file offset - it's too hard for the kernel to remember
+-	// a number it already has written down.
+-	base, err1 := syscall.Seek(fd.fd, 0, 1);
+-	if err1 != 0 {
+-		return nil, os.ErrnoToError(err1)
++	// If this fd has no dirinfo, create one.
++	if fd.dirinfo == nil {
++		fd.dirinfo = new(DirInfo);
++		// The buffer must be at least a block long.
++		// TODO(r): use fstatfs to find fs block size.
++		fd.dirinfo.buf = make([]byte, blockSize);
+ 	}
+-	// The buffer must be at least a block long.
+-	// TODO(r): use fstatfs to find fs block size.
+-	var buf = make([]byte, 8192);
+-	names = make([]string, 0, 100);	// TODO: could be smarter about size
+-	for {
+-		if count == 0 {
+-			break
+-		}
+-		ret, err2 := syscall.Getdirentries(fd.fd, &buf[0], int64(len(buf)), &base);
+-		if ret < 0 || err2 != 0 {
+-			return names, os.ErrnoToError(err2)
+-		}
+-		if ret == 0 {
+-			break
+-		}
+-		for w, i := uintptr(0),uintptr(0); i < uintptr(ret); i += w {
+-			if count == 0 {
+-				break
++	d := fd.dirinfo;
++	size := count;
++	if size < 0 {
++		size = 100
++	}
++	names = make([]string, 0, size);	// Empty with room to grow.
++	for count != 0 {
++		// Refill the buffer if necessary
++		if d.bufp == d.nbuf {
++			var errno int64;
++			// Final argument is (basep *int64) and the syscall doesn't take nil.
++			d.nbuf, errno = syscall.Getdirentries(fd.fd, &d.buf[0], int64(len(d.buf)), new(int64));
++			if d.nbuf < 0 {
++				return names, os.ErrnoToError(errno)
+ 			}
+-			dirent := unsafe.Pointer((uintptr(unsafe.Pointer(&buf[0])) + i)).(*syscall.Dirent);
+-			w = uintptr(dirent.Reclen);
+-			if dirent.Ino == 0 {
++			if d.nbuf == 0 {
++				break	// EOF
++			}
++			d.bufp = 0;
++		}
++		// Drain the buffer
++		for count != 0 && d.bufp < d.nbuf {
++			dirent := unsafe.Pointer(&d.buf[d.bufp]).(*syscall.Dirent);
++			d.bufp += int64(dirent.Reclen);
++			if dirent.Ino == 0 {	// File absent in directory.
+ 				continue
+ 			}
+ 			count--;
+@@ -54,7 +62,7 @@ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
+ 			names[len(names)-1] = string(dirent.Name[0:dirent.Namlen]);
+ 		}
+ 	}
+-	return names, nil;
++	return names, nil
+ }
+ 
+ // TODO(r): see comment in dir_amd64_linux.go
+@@ -74,7 +82,7 @@ func Readdir(fd *FD, count int) (dirs []Dir, err *os.Error) {
+ 	}
+ 	// The buffer must be at least a block long.
+ 	// TODO(r): use fstatfs to find fs block size.
+-	var buf = make([]byte, 8192);
++	var buf = make([]byte, blockSize);
+ 	dirs = make([]Dir, 0, 100);	// TODO: could be smarter about size
+ 	for {
+ 		if count == 0 {
+@@ -106,7 +114,7 @@ func Readdir(fd *FD, count int) (dirs []Dir, err *os.Error) {
+ 			}
+ 			dirs = dirs[0:len(dirs)+1];
+ 			filename := string(dirent.Name[0:dirent.Namlen]);
+-			dirp, err := Stat(dirname + filename);
++			dirp, err := Lstat(dirname + filename);
+ 			if dirp == nil || err != nil {
+ 				dirs[len(dirs)-1].Name = filename;	// rest will be zeroed out
+ 			} else {
+diff --git a/src/lib/os/os_file.go b/src/lib/os/os_file.go
+index 25b14d03f2..cd924bd205 100644
+--- a/src/lib/os/os_file.go
++++ b/src/lib/os/os_file.go
+@@ -7,10 +7,18 @@ package os
+ import syscall "syscall"
+ import os "os"
+ 
++// Auxiliary information if the FD describes a directory
++type DirInfo struct {	// TODO(r): 6g bug means this can't be private
++	buf	[]byte;	// buffer for directory I/O
++	nbuf	int64;	// length of buf; return value from Getdirentries
++	bufp	int64;	// location of next record in buf.
++}
++
+ // FDs are wrappers for file descriptors
+ type FD struct {
+ 	fd int64;
+ 	name	string;
++	dirinfo	*DirInfo;	// nil unless directory being read
+ }
+ 
+ func (fd *FD) Fd() int64 {
+@@ -25,7 +33,7 @@ func NewFD(fd int64, name string) *FD {
+ 	if fd < 0 {
+ 		return nil
+ 	}
+-	return &FD{fd, name}
++	return &FD{fd, name, nil}
+ }
+ 
+ var (
+@@ -90,6 +98,17 @@ func (fd *FD) Write(b []byte) (ret int, err *Error) {
+ 	return int(r), ErrnoToError(e)
+ }
+ 
++func (fd *FD) Seek(offset int64, whence int) (ret int64, err *Error) {
++	r, e := syscall.Seek(fd.fd, offset, int64(whence));
++	if e != 0 {
++		return -1, ErrnoToError(e)
++	}
++	if fd.dirinfo != nil && r != 0 {
++		return -1, ErrnoToError(syscall.EISDIR)
++	}
++	return r, nil
++}
++
+ func (fd *FD) WriteString(s string) (ret int, err *Error) {
+ 	if fd == nil {
+ 		return 0, EINVAL
+diff --git a/src/lib/os/os_test.go b/src/lib/os/os_test.go
+index 5e0c2bf4bc..5c37a6b139 100644
+--- a/src/lib/os/os_test.go
++++ b/src/lib/os/os_test.go
+@@ -101,11 +101,11 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
+ 	fd, err := Open(dir, O_RDONLY, 0);
+ 	defer fd.Close();
+ 	if err != nil {
+-		t.Fatalf("open %q failed: %s\n", dir, err.String());
++		t.Fatalf("open %q failed: %v\n", dir, err);
+ 	}
+ 	s, err2 := Readdirnames(fd, -1);
+ 	if err2 != nil {
+-		t.Fatal("readdirnames . failed:", err);
++		t.Fatalf("readdirnames %q failed: %v", err2);
+ 	}
+ 	for i, m := range contents {
+ 		found := false;
+@@ -127,11 +127,11 @@ func testReaddir(dir string, contents []string, t *testing.T) {
+ 	fd, err := Open(dir, O_RDONLY, 0);
+ 	defer fd.Close();
+ 	if err != nil {
+-		t.Fatalf("open %q failed: %s\n", dir, err.String());
++		t.Fatalf("open %q failed: %v", dir, err);
+ 	}
+ 	s, err2 := Readdir(fd, -1);
+ 	if err2 != nil {
+-		t.Fatal("readdir . failed:", err);
++		t.Fatalf("readdir %q failed: %v", dir, err2);
+ 	}
+ 	for i, m := range contents {
+ 		found := false;
+@@ -158,3 +158,46 @@ func TestReaddir(t *testing.T) {
+ 	testReaddir(".", dot, t);
+ 	testReaddir("/etc", etc, t);
+ }
++
++// Read the directory one entry at a time.
++func smallReaddirnames(fd *FD, length int, t *testing.T) []string {
++	names := make([]string, length);
++	count := 0;
++	for {
++		d, err := Readdirnames(fd, 1);
++		if err != nil {
++			t.Fatalf("readdir %q failed: %v", fd.Name(), err);
++		}
++		if len(d) == 0 {
++			break
++		}
++		names[count] = d[0];
++		count++;
++	}
++	return names[0:count]
++}
++
++// Check that reading a directory one entry at a time gives the same result
++// as reading it all at once.
++func TestReaddirnamesOneAtATime(t *testing.T) {
++	dir := "/usr/bin";	// big directory that doesn't change often.
++	fd, err := Open(dir, O_RDONLY, 0);
++	defer fd.Close();
++	if err != nil {
++		t.Fatalf("open %q failed: %v", dir, err);
++	}
++	all, err1 := Readdirnames(fd, -1);
++	if err1 != nil {
++		t.Fatalf("readdirnames %q failed: %v", dir, err1);
++	}
++	fd1, err2 := Open(dir, O_RDONLY, 0);
++	if err2 != nil {
++		t.Fatalf("open %q failed: %v\n", dir, err2);
++	}
++	small := smallReaddirnames(fd1, len(all)+100, t);	// +100 in case we screw up
++	for i, n := range all {
++		if small[i] != n {
++			t.Errorf("small read %q %q mismatch: %v\n", small[i], n);
++		}
++	}
++}
+diff --git a/src/lib/syscall/file_darwin.go b/src/lib/syscall/file_darwin.go
+index c1e43c31ff..5d128f743c 100644
+--- a/src/lib/syscall/file_darwin.go
++++ b/src/lib/syscall/file_darwin.go
+@@ -96,8 +96,5 @@ func Dup2(fd1, fd2 int64) (ret int64, errno int64) {
+ 
+ func Getdirentries(fd int64, buf *byte, nbytes int64, basep *int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall6(SYS_GETDIRENTRIES64, fd, int64(uintptr(unsafe.Pointer(buf))), nbytes, int64(uintptr(unsafe.Pointer(basep))), 0, 0);
+-	if r1 != -1 {
+-		*basep = r2
+-	}
+ 	return r1, err;
+ }

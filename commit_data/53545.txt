@@ -15,8 +15,56 @@ Date:   Thu Aug 18 20:16:15 2022 -0700
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/go/types/resolver.go                      |  2 +-
  src/go/types/signature.go                     |  2 +-
  src/go/types/testdata/check/decls2/decls2a.go | 10 +++++-----
  3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index ae21c6d927..ae0289ad83 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -394,7 +394,7 @@ func (check *Checker) collectObjects() {
+ 				if d.decl.Recv.NumFields() == 0 {
+ 					// regular function
+ 					if d.decl.Recv != nil {
+-						check.error(d.decl.Recv, _BadRecv, "method is missing receiver")
++						check.error(d.decl.Recv, _BadRecv, "method has no receiver")
+ 						// treat as function
+ 					}
+ 					if name == "init" || (name == "main" && check.pkg.name == "main") {
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 82177a1c58..f44d257d8f 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -196,7 +196,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 			recv = NewParam(token.NoPos, nil, "", Typ[Invalid]) // ignore recv below
+ 		default:
+ 			// more than one receiver
+-			check.error(recvList[len(recvList)-1], _InvalidRecv, "method must have exactly one receiver")
++			check.error(recvList[len(recvList)-1], _InvalidRecv, "method has multiple receivers")
+ 			fallthrough // continue with first receiver
+ 		case 1:
+ 			recv = recvList[0]
+diff --git a/src/go/types/testdata/check/decls2/decls2a.go b/src/go/types/testdata/check/decls2/decls2a.go
+index 9dff17349c..cccbf29793 100644
+--- a/src/go/types/testdata/check/decls2/decls2a.go
++++ b/src/go/types/testdata/check/decls2/decls2a.go
+@@ -86,11 +86,11 @@ func (ptr /* ERROR "invalid receiver" */ ) _() {}
+ func (* /* ERROR "invalid receiver" */ ptr) _() {}
+ 
+ // Methods with zero or multiple receivers.
+-func ( /* ERROR "missing receiver" */ ) _() {}
+-func (T3, * /* ERROR "exactly one receiver" */ T3) _() {}
+-func (T3, T3, T3 /* ERROR "exactly one receiver" */ ) _() {}
+-func (a, b /* ERROR "exactly one receiver" */ T3) _() {}
+-func (a, b, c /* ERROR "exactly one receiver" */ T3) _() {}
++func ( /* ERROR "method has no receiver" */ ) _() {}
++func (T3, * /* ERROR "method has multiple receivers" */ T3) _() {}
++func (T3, T3, T3 /* ERROR "method has multiple receivers" */ ) _() {}
++func (a, b /* ERROR "method has multiple receivers" */ T3) _() {}
++func (a, b, c /* ERROR "method has multiple receivers" */ T3) _() {}
+ 
+ // Methods associated with non-local or unnamed types.
+ func (int /* ERROR "cannot define new methods on non-local type int" */ ) m() {}

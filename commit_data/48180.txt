@@ -32,10 +32,141 @@ Date:   Thu Apr 29 15:01:29 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/315170
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/except.txt                                            |  2 ++
  src/cmd/compile/internal/types2/testdata/check/const1.src | 10 +++++-----
  src/go/types/testdata/check/const1.src                    | 10 +++++-----
  src/math/all_test.go                                      |  9 +++++++++
  src/math/const.go                                         |  4 ++--
  5 files changed, 23 insertions(+), 12 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index 6f6f839ba6..f5a7aa854e 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -1,4 +1,6 @@
+ pkg encoding/json, method (*RawMessage) MarshalJSON() ([]uint8, error)
++pkg math, const MaxFloat64 = 1.79769e+308  // 179769313486231570814527423731704356798100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
++pkg math, const SmallestNonzeroFloat64 = 4.94066e-324  // 4940656458412465441765687928682213723651/1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+ pkg math/big, const MaxBase = 36
+ pkg math/big, type Word uintptr
+ pkg net, func ListenUnixgram(string, *UnixAddr) (*UDPConn, error)
+diff --git a/src/cmd/compile/internal/types2/testdata/check/const1.src b/src/cmd/compile/internal/types2/testdata/check/const1.src
+index 56b6bd4ca5..c9128017cf 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/const1.src
++++ b/src/cmd/compile/internal/types2/testdata/check/const1.src
+@@ -6,6 +6,8 @@
+ 
+ package const1
+ 
++import "math"
++
+ const(
+ 	mi = ^int(0)
+ 	mu = ^uint(0)
+@@ -48,7 +50,7 @@ const (
+ 	//           without overflow. For now we match the compiler.
+ 	//           See also issue #44057.
+ 	// smallestFloat64 = 1.0 / (1<<(1023 - 1 + 52))
+-	smallestFloat64 = 4.940656458412465441765687928682213723651e-324
++	smallestFloat64 = math.SmallestNonzeroFloat64
+ )
+ 
+ const (
+@@ -63,7 +65,7 @@ const (
+ 	//           without overflow. For now we match the compiler.
+ 	//           See also issue #44057.
+ 	// maxFloat64 = 1<<1023 * (1<<53 - 1) / (1.0<<52)
+-	maxFloat64 = 1.797693134862315708145274237317043567981e+308
++	maxFloat64 = math.MaxFloat64
+ )
+ 
+ const (
+@@ -281,9 +283,7 @@ const (
+ 	_ = assert(float64(smallestFloat32) == smallestFloat32)
+ 	_ = assert(float64(smallestFloat32/2) == smallestFloat32/2)
+ 	_ = assert(float64(smallestFloat64) == smallestFloat64)
+-	// TODO(gri) With the change to the declaration of smallestFloat64
+-	//           this now fails to be true. See issue #44058.
+-	// _ = assert(float64(smallestFloat64/2) == 0)
++	_ = assert(float64(smallestFloat64/2) == 0)
+ )
+ 
+ const (
+diff --git a/src/go/types/testdata/check/const1.src b/src/go/types/testdata/check/const1.src
+index 56b6bd4ca5..c9128017cf 100644
+--- a/src/go/types/testdata/check/const1.src
++++ b/src/go/types/testdata/check/const1.src
+@@ -6,6 +6,8 @@
+ 
+ package const1
+ 
++import "math"
++
+ const(
+ 	mi = ^int(0)
+ 	mu = ^uint(0)
+@@ -48,7 +50,7 @@ const (
+ 	//           without overflow. For now we match the compiler.
+ 	//           See also issue #44057.
+ 	// smallestFloat64 = 1.0 / (1<<(1023 - 1 + 52))
+-	smallestFloat64 = 4.940656458412465441765687928682213723651e-324
++	smallestFloat64 = math.SmallestNonzeroFloat64
+ )
+ 
+ const (
+@@ -63,7 +65,7 @@ const (
+ 	//           without overflow. For now we match the compiler.
+ 	//           See also issue #44057.
+ 	// maxFloat64 = 1<<1023 * (1<<53 - 1) / (1.0<<52)
+-	maxFloat64 = 1.797693134862315708145274237317043567981e+308
++	maxFloat64 = math.MaxFloat64
+ )
+ 
+ const (
+@@ -281,9 +283,7 @@ const (
+ 	_ = assert(float64(smallestFloat32) == smallestFloat32)
+ 	_ = assert(float64(smallestFloat32/2) == smallestFloat32/2)
+ 	_ = assert(float64(smallestFloat64) == smallestFloat64)
+-	// TODO(gri) With the change to the declaration of smallestFloat64
+-	//           this now fails to be true. See issue #44058.
+-	// _ = assert(float64(smallestFloat64/2) == 0)
++	_ = assert(float64(smallestFloat64/2) == 0)
+ )
+ 
+ const (
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index d154457999..55c805e199 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -3196,6 +3196,15 @@ func TestFloatMinMax(t *testing.T) {
+ 	}
+ }
+ 
++func TestFloatMinima(t *testing.T) {
++	if q := float32(SmallestNonzeroFloat32 / 2); q != 0 {
++		t.Errorf("float32(SmallestNonzeroFloat32 / 2) = %g, want 0", q)
++	}
++	if q := float64(SmallestNonzeroFloat64 / 2); q != 0 {
++		t.Errorf("float64(SmallestNonzeroFloat64 / 2) = %g, want 0", q)
++	}
++}
++
+ var indirectSqrt = Sqrt
+ 
+ // TestFloat32Sqrt checks the correctness of the float32 square root optimization result.
+diff --git a/src/math/const.go b/src/math/const.go
+index 0fc8715dd0..441b295ed4 100644
+--- a/src/math/const.go
++++ b/src/math/const.go
+@@ -31,8 +31,8 @@ const (
+ 	MaxFloat32             = 3.40282346638528859811704183484516925440e+38  // 2**127 * (2**24 - 1) / 2**23
+ 	SmallestNonzeroFloat32 = 1.401298464324817070923729583289916131280e-45 // 1 / 2**(127 - 1 + 23)
+ 
+-	MaxFloat64             = 1.797693134862315708145274237317043567981e+308 // 2**1023 * (2**53 - 1) / 2**52
+-	SmallestNonzeroFloat64 = 4.940656458412465441765687928682213723651e-324 // 1 / 2**(1023 - 1 + 52)
++	MaxFloat64             = 1.79769313486231570814527423731704356798070e+308   // 2**1023 * (2**53 - 1) / 2**52
++	SmallestNonzeroFloat64 = 4.9406564584124654417656879286822137236505980e-324 // 1 / 2**(1023 - 1 + 52)
+ )
+ 
+ // Integer limit values.

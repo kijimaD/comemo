@@ -8,8 +8,981 @@ Date:   Sun Oct 26 08:28:33 2008 -0700
     DELTA=427  (53 added, 302 deleted, 72 changed)
     OCL=17857
     CL=17868
-
+---
  src/lib/reflect/type.go  | 124 ++++++----------------
  src/lib/reflect/value.go | 267 ++++++++++-------------------------------------
  src/lib/regexp/regexp.go |  93 +++++------------
  3 files changed, 117 insertions(+), 367 deletions(-)
+
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index 506a1a0ca3..c70ad7990f 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -47,28 +47,33 @@ export type Type interface {
+ 	Size()	uint64;
+ }
+ 
+-// -- Basic
+-
+-type BasicType struct{
++// Fields and methods common to all types
++type Common struct {
+ 	kind	int;
+ 	name	string;
+ 	size	uint64;
+ }
+ 
+-func NewBasicType(name string, kind int, size uint64) Type {
+-	return &BasicType{kind, name, size}
++func (c *Common) Name() string {
++	return c.name
+ }
+ 
+-func (t *BasicType) Name() string {
+-	return t.name
++func (c *Common) Kind() int {
++	return c.kind
+ }
+ 
+-func (t *BasicType) Kind() int {
+-	return t.kind
++func (c *Common) Size() uint64 {
++	return c.size
++}
++
++// -- Basic
++
++type BasicType struct {
++	Common
+ }
+ 
+-func (t *BasicType) Size() uint64 {
+-	return t.size
++func NewBasicType(name string, kind int, size uint64) Type {
++	return &BasicType{ Common{kind, name, size} }
+ }
+ 
+ // Prebuilt basic types
+@@ -114,24 +119,12 @@ export type PtrType interface {
+ }
+ 
+ type PtrTypeStruct struct {
+-	name	string;
++	Common;
+ 	sub	*StubType;
+ }
+ 
+ func NewPtrTypeStruct(name string, sub *StubType) *PtrTypeStruct {
+-	return &PtrTypeStruct{name, sub}
+-}
+-
+-func (t *PtrTypeStruct) Kind() int {
+-	return PtrKind
+-}
+-
+-func (t *PtrTypeStruct) Name() string {
+-	return t.name
+-}
+-
+-func (t *PtrTypeStruct) Size() uint64 {
+-	return ptrsize
++	return &PtrTypeStruct{ Common{PtrKind, name, ptrsize}, sub}
+ }
+ 
+ func (t *PtrTypeStruct) Sub() Type {
+@@ -147,22 +140,14 @@ export type ArrayType interface {
+ }
+ 
+ type ArrayTypeStruct struct {
+-	name	string;
++	Common;
+ 	elem	*StubType;
+ 	open	bool;	// otherwise fixed size
+ 	len	uint64;
+ }
+ 
+ func NewArrayTypeStruct(name string, open bool, len uint64, elem *StubType) *ArrayTypeStruct {
+-	return &ArrayTypeStruct{name, elem, open, len}
+-}
+-
+-func (t *ArrayTypeStruct) Kind() int {
+-	return ArrayKind
+-}
+-
+-func (t *ArrayTypeStruct) Name() string {
+-	return t.name
++	return &ArrayTypeStruct{ Common{ArrayKind, name, 0}, elem, open, len}
+ }
+ 
+ func (t *ArrayTypeStruct) Size() uint64 {
+@@ -193,21 +178,13 @@ export type MapType interface {
+ }
+ 
+ type MapTypeStruct struct {
+-	name	string;
++	Common;
+ 	key	*StubType;
+ 	elem	*StubType;
+ }
+ 
+ func NewMapTypeStruct(name string, key, elem *StubType) *MapTypeStruct {
+-	return &MapTypeStruct{name, key, elem}
+-}
+-
+-func (t *MapTypeStruct) Kind() int {
+-	return MapKind
+-}
+-
+-func (t *MapTypeStruct) Name() string {
+-	return t.name
++	return &MapTypeStruct{ Common{MapKind, name, 0}, key, elem}
+ }
+ 
+ func (t *MapTypeStruct) Size() uint64 {
+@@ -237,21 +214,13 @@ export const (	// channel direction
+ )
+ 
+ type ChanTypeStruct struct {
+-	name	string;
++	Common;
+ 	elem	*StubType;
+ 	dir	int;
+ }
+ 
+ func NewChanTypeStruct(name string, dir int, elem *StubType) *ChanTypeStruct {
+-	return &ChanTypeStruct{name, elem, dir}
+-}
+-
+-func (t *ChanTypeStruct) Kind() int {
+-	return ChanKind
+-}
+-
+-func (t *ChanTypeStruct) Name() string {
+-	return t.name
++	return &ChanTypeStruct{ Common{ChanKind, name, 0}, elem, dir}
+ }
+ 
+ func (t *ChanTypeStruct) Size() uint64 {
+@@ -260,7 +229,6 @@ func (t *ChanTypeStruct) Size() uint64 {
+ }
+ 
+ func (t *ChanTypeStruct) Dir() int {
+-	// -1 is open array?  TODO
+ 	return t.dir
+ }
+ 
+@@ -283,24 +251,19 @@ type Field struct {
+ }
+ 
+ type StructTypeStruct struct {
+-	name	string;
++	Common;
+ 	field	*[]Field;
+ }
+ 
+ func NewStructTypeStruct(name string, field *[]Field) *StructTypeStruct {
+-	return &StructTypeStruct{name, field}
+-}
+-
+-func (t *StructTypeStruct) Kind() int {
+-	return StructKind
+-}
+-
+-func (t *StructTypeStruct) Name() string {
+-	return t.name
++	return &StructTypeStruct{ Common{StructKind, name, 0}, field}
+ }
+ 
+ // TODO: not portable; depends on 6g
+ func (t *StructTypeStruct) Size() uint64 {
++	if t.size > 0 {
++		return t.size
++	}
+ 	size := uint64(0);
+ 	for i := 0; i < len(t.field); i++ {
+ 		elemsize := t.field[i].typ.Get().Size();
+@@ -316,6 +279,7 @@ func (t *StructTypeStruct) Size() uint64 {
+ 		size += elemsize;
+ 	}
+ 	size = (size + 7) & ((1<<64 - 1) & ^7);
++	t.size = size;
+ 	return size;
+ }
+ 
+@@ -338,12 +302,12 @@ export type InterfaceType interface {
+ }
+ 
+ type InterfaceTypeStruct struct {
+-	name	string;
++	Common;
+ 	field	*[]Field;
+ }
+ 
+ func NewInterfaceTypeStruct(name string, field *[]Field) *InterfaceTypeStruct {
+-	return &InterfaceTypeStruct{name, field}
++	return &InterfaceTypeStruct{ Common{InterfaceKind, name, interfacesize}, field }
+ }
+ 
+ func (t *InterfaceTypeStruct) Field(i int) (name string, typ Type, offset uint64) {
+@@ -354,18 +318,6 @@ func (t *InterfaceTypeStruct) Len() int {
+ 	return len(t.field)
+ }
+ 
+-func (t *InterfaceTypeStruct) Kind() int {
+-	return InterfaceKind
+-}
+-
+-func (t *InterfaceTypeStruct) Name() string {
+-	return t.name
+-}
+-
+-func (t *InterfaceTypeStruct) Size() uint64 {
+-	return interfacesize
+-}
+-
+ // -- Func
+ 
+ export type FuncType interface {
+@@ -374,21 +326,13 @@ export type FuncType interface {
+ }
+ 
+ type FuncTypeStruct struct {
+-	name	string;
++	Common;
+ 	in	*StructTypeStruct;
+ 	out	*StructTypeStruct;
+ }
+ 
+ func NewFuncTypeStruct(name string, in, out *StructTypeStruct) *FuncTypeStruct {
+-	return &FuncTypeStruct{name, in, out}
+-}
+-
+-func (t *FuncTypeStruct) Kind() int {
+-	return FuncKind
+-}
+-
+-func (t *FuncTypeStruct) Name() string {
+-	return t.name
++	return &FuncTypeStruct{ Common{FuncKind, name, 0}, in, out }
+ }
+ 
+ func (t *FuncTypeStruct) Size() uint64 {
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 80ad46e6d8..890fd9bdb9 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -19,6 +19,22 @@ export type Value interface {
+ 	Type()	Type;
+ }
+ 
++// Common fields and functionality for all values
++
++type CommonV struct {	// BUG: want to call this Common but 6g does not hide the name
++	kind	int;
++	typ	Type;
++	addr	Addr;
++}
++
++func (c *CommonV) Kind() int {
++	return c.kind
++}
++
++func (c *CommonV) Type() Type {
++	return c.typ
++}
++
+ func NewValueAddr(typ Type, addr Addr) Value
+ 
+ type Creator *(typ Type, addr Addr) Value
+@@ -50,19 +66,11 @@ export type Int8Value interface {
+ }
+ 
+ type Int8ValueStruct struct {
+-	addr	Addr
++	CommonV
+ }
+ 
+ func Int8Creator(typ Type, addr Addr) Value {
+-	return &Int8ValueStruct{addr}
+-}
+-
+-func (v *Int8ValueStruct) Kind() int {
+-	return Int8Kind
+-}
+-
+-func (v *Int8ValueStruct) Type() Type {
+-	return Int8
++	return &Int8ValueStruct{ CommonV{Int8Kind, typ, addr} }
+ }
+ 
+ func (v *Int8ValueStruct) Get() int8 {
+@@ -83,19 +91,11 @@ export type Int16Value interface {
+ }
+ 
+ type Int16ValueStruct struct {
+-	addr	Addr
++	CommonV
+ }
+ 
+ func Int16Creator(typ Type, addr Addr) Value {
+-	return &Int16ValueStruct{addr}
+-}
+-
+-func (v *Int16ValueStruct) Kind() int {
+-	return Int16Kind
+-}
+-
+-func (v *Int16ValueStruct) Type() Type {
+-	return Int16
++	return &Int16ValueStruct{ CommonV{Int16Kind, typ, addr} }
+ }
+ 
+ func (v *Int16ValueStruct) Get() int16 {
+@@ -116,19 +116,11 @@ export type Int32Value interface {
+ }
+ 
+ type Int32ValueStruct struct {
+-	addr	Addr
++	CommonV
+ }
+ 
+ func Int32Creator(typ Type, addr Addr) Value {
+-	return &Int32ValueStruct{addr}
+-}
+-
+-func (v *Int32ValueStruct) Type() Type {
+-	return Int32
+-}
+-
+-func (v *Int32ValueStruct) Kind() int {
+-	return Int32Kind
++	return &Int32ValueStruct{ CommonV{Int32Kind, typ, addr} }
+ }
+ 
+ func (v *Int32ValueStruct) Get() int32 {
+@@ -149,19 +141,11 @@ export type Int64Value interface {
+ }
+ 
+ type Int64ValueStruct struct {
+-	addr	Addr
++	CommonV
+ }
+ 
+ func Int64Creator(typ Type, addr Addr) Value {
+-	return &Int64ValueStruct{addr}
+-}
+-
+-func (v *Int64ValueStruct) Kind() int {
+-	return Int64Kind
+-}
+-
+-func (v *Int64ValueStruct) Type() Type {
+-	return Int64
++	return &Int64ValueStruct{ CommonV{Int64Kind, typ, addr} }
+ }
+ 
+ func (v *Int64ValueStruct) Get() int64 {
+@@ -182,19 +166,11 @@ export type Uint8Value interface {
+ }
+ 
+ type Uint8ValueStruct struct {
+-	addr	Addr
++	CommonV
+ }
+ 
+ func Uint8Creator(typ Type, addr Addr) Value {
+-	return &Uint8ValueStruct{addr}
+-}
+-
+-func (v *Uint8ValueStruct) Kind() int {
+-	return Uint8Kind
+-}
+-
+-func (v *Uint8ValueStruct) Type() Type {
+-	return Uint8
++	return &Uint8ValueStruct{ CommonV{Uint8Kind, typ, addr} }
+ }
+ 
+ func (v *Uint8ValueStruct) Get() uint8 {
+@@ -215,19 +191,11 @@ export type Uint16Value interface {
+ }
+ 
+ type Uint16ValueStruct struct {
+-	addr	Addr
++	CommonV
+ }
+ 
+ func Uint16Creator(typ Type, addr Addr) Value {
+-	return &Uint16ValueStruct{addr}
+-}
+-
+-func (v *Uint16ValueStruct) Kind() int {
+-	return Uint16Kind
+-}
+-
+-func (v *Uint16ValueStruct) Type() Type {
+-	return Uint16
++	return &Uint16ValueStruct{ CommonV{Uint16Kind, typ, addr} }
+ }
+ 
+ func (v *Uint16ValueStruct) Get() uint16 {
+@@ -248,19 +216,11 @@ export type Uint32Value interface {
+ }
+ 
+ type Uint32ValueStruct struct {
+-	addr	Addr
++	CommonV
+ }
+ 
+ func Uint32Creator(typ Type, addr Addr) Value {
+-	return &Uint32ValueStruct{addr}
+-}
+-
+-func (v *Uint32ValueStruct) Kind() int {
+-	return Uint32Kind
+-}
+-
+-func (v *Uint32ValueStruct) Type() Type {
+-	return Uint32
++	return &Uint32ValueStruct{ CommonV{Uint32Kind, typ, addr} }
+ }
+ 
+ func (v *Uint32ValueStruct) Get() uint32 {
+@@ -281,19 +241,11 @@ export type Uint64Value interface {
+ }
+ 
+ type Uint64ValueStruct struct {
+-	addr	Addr
++	CommonV
+ }
+ 
+ func Uint64Creator(typ Type, addr Addr) Value {
+-	return &Uint64ValueStruct{addr}
+-}
+-
+-func (v *Uint64ValueStruct) Kind() int {
+-	return Uint64Kind
+-}
+-
+-func (v *Uint64ValueStruct) Type() Type {
+-	return Uint64
++	return &Uint64ValueStruct{ CommonV{Uint64Kind, typ, addr} }
+ }
+ 
+ func (v *Uint64ValueStruct) Get() uint64 {
+@@ -314,19 +266,11 @@ export type Float32Value interface {
+ }
+ 
+ type Float32ValueStruct struct {
+-	addr	Addr
++	CommonV
+ }
+ 
+ func Float32Creator(typ Type, addr Addr) Value {
+-	return &Float32ValueStruct{addr}
+-}
+-
+-func (v *Float32ValueStruct) Kind() int {
+-	return Float32Kind
+-}
+-
+-func (v *Float32ValueStruct) Type() Type {
+-	return Float32
++	return &Float32ValueStruct{ CommonV{Float32Kind, typ, addr} }
+ }
+ 
+ func (v *Float32ValueStruct) Get() float32 {
+@@ -347,19 +291,11 @@ export type Float64Value interface {
+ }
+ 
+ type Float64ValueStruct struct {
+-	addr	Addr
++	CommonV
+ }
+ 
+ func Float64Creator(typ Type, addr Addr) Value {
+-	return &Float64ValueStruct{addr}
+-}
+-
+-func (v *Float64ValueStruct) Kind() int {
+-	return Float64Kind
+-}
+-
+-func (v *Float64ValueStruct) Type() Type {
+-	return Float64
++	return &Float64ValueStruct{ CommonV{Float64Kind, typ, addr} }
+ }
+ 
+ func (v *Float64ValueStruct) Get() float64 {
+@@ -380,19 +316,11 @@ export type Float80Value interface {
+ }
+ 
+ type Float80ValueStruct struct {
+-	addr	Addr
++	CommonV
+ }
+ 
+ func Float80Creator(typ Type, addr Addr) Value {
+-	return &Float80ValueStruct{addr}
+-}
+-
+-func (v *Float80ValueStruct) Kind() int {
+-	return Float80Kind
+-}
+-
+-func (v *Float80ValueStruct) Type() Type {
+-	return Float80
++	return &Float80ValueStruct{ CommonV{Float80Kind, typ, addr} }
+ }
+ 
+ /*
+@@ -417,19 +345,11 @@ export type StringValue interface {
+ }
+ 
+ type StringValueStruct struct {
+-	addr	Addr
++	CommonV
+ }
+ 
+ func StringCreator(typ Type, addr Addr) Value {
+-	return &StringValueStruct{addr}
+-}
+-
+-func (v *StringValueStruct) Kind() int {
+-	return StringKind
+-}
+-
+-func (v *StringValueStruct) Type() Type {
+-	return String
++	return &StringValueStruct{ CommonV{StringKind, typ, addr} }
+ }
+ 
+ func (v *StringValueStruct) Get() string {
+@@ -450,16 +370,7 @@ export type PtrValue interface {
+ }
+ 
+ type PtrValueStruct struct {
+-	addr	Addr;
+-	typ	Type;
+-}
+-
+-func (v *PtrValueStruct) Kind() int {
+-	return PtrKind
+-}
+-
+-func (v *PtrValueStruct) Type() Type {
+-	return v.typ
++	CommonV
+ }
+ 
+ func (v *PtrValueStruct) Get() Addr {
+@@ -471,10 +382,10 @@ func (v *PtrValueStruct) Sub() Value {
+ }
+ 
+ func PtrCreator(typ Type, addr Addr) Value {
+-	return &PtrValueStruct{addr, typ};
++	return &PtrValueStruct{ CommonV{PtrKind, typ, addr} };
+ }
+ 
+-// -- Array	TODO: finish and test
++// -- Array
+ 
+ export type ArrayValue interface {
+ 	Kind()	int;
+@@ -485,11 +396,11 @@ export type ArrayValue interface {
+ }
+ 
+ type OpenArrayValueStruct struct {
+-	addr	Addr;
+-	typ	Type;
++	CommonV;
+ 	elemtype	Type;
+ 	elemsize	uint64;
+ }
++
+ /*
+ 	Run-time representation of open arrays looks like this:
+ 		struct	Array {
+@@ -498,14 +409,6 @@ type OpenArrayValueStruct struct {
+ 		};
+ */
+ 
+-func (v *OpenArrayValueStruct) Kind() int {
+-	return ArrayKind
+-}
+-
+-func (v *OpenArrayValueStruct) Type() Type {
+-	return v.typ
+-}
+-
+ func (v *OpenArrayValueStruct) Open() bool {
+ 	return true
+ }
+@@ -520,21 +423,12 @@ func (v *OpenArrayValueStruct) Elem(i uint64) Value {
+ }
+ 
+ type FixedArrayValueStruct struct {
+-	addr	Addr;
+-	typ	Type;
++	CommonV;
+ 	elemtype	Type;
+ 	elemsize	uint64;
+ 	len	uint64;
+ }
+ 
+-func (v *FixedArrayValueStruct) Kind() int {
+-	return ArrayKind
+-}
+-
+-func (v *FixedArrayValueStruct) Type() Type {
+-	return v.typ
+-}
+-
+ func (v *FixedArrayValueStruct) Open() bool {
+ 	return false
+ }
+@@ -552,6 +446,7 @@ func ArrayCreator(typ Type, addr Addr) Value {
+ 	arraytype := typ.(ArrayType);
+ 	if arraytype.Open() {
+ 		v := new(OpenArrayValueStruct);
++		v.kind = ArrayKind;
+ 		v.addr = addr;
+ 		v.typ = typ;
+ 		v.elemtype = arraytype.Elem();
+@@ -559,6 +454,7 @@ func ArrayCreator(typ Type, addr Addr) Value {
+ 		return v;
+ 	}
+ 	v := new(FixedArrayValueStruct);
++	v.kind = ArrayKind;
+ 	v.addr = addr;
+ 	v.typ = typ;
+ 	v.elemtype = arraytype.Elem();
+@@ -577,20 +473,11 @@ export type MapValue interface {
+ }
+ 
+ type MapValueStruct struct {
+-	addr	Addr;
+-	typ	Type;
++	CommonV
+ }
+ 
+ func MapCreator(typ Type, addr Addr) Value {
+-	return &MapValueStruct{addr, typ}
+-}
+-
+-func (v *MapValueStruct) Kind() int {
+-	return MapKind
+-}
+-
+-func (v *MapValueStruct) Type() Type {
+-	return v.typ
++	return &MapValueStruct{ CommonV{MapKind, typ, addr} }
+ }
+ 
+ func (v *MapValueStruct) Len() int {
+@@ -610,20 +497,11 @@ export type ChanValue interface {
+ }
+ 
+ type ChanValueStruct struct {
+-	addr	Addr;
+-	typ	Type;
++	CommonV
+ }
+ 
+ func ChanCreator(typ Type, addr Addr) Value {
+-	return &ChanValueStruct{addr, typ}
+-}
+-
+-func (v *ChanValueStruct) Kind() int {
+-	return ChanKind
+-}
+-
+-func (v *ChanValueStruct) Type() Type {
+-	return v.typ
++	return &ChanValueStruct{ CommonV{ChanKind, typ, addr} }
+ }
+ 
+ // -- Struct
+@@ -636,19 +514,10 @@ export type StructValue interface {
+ }
+ 
+ type StructValueStruct struct {
+-	addr	Addr;
+-	typ	Type;
++	CommonV;
+ 	field	*[]Value;
+ }
+ 
+-func (v *StructValueStruct) Kind() int {
+-	return StructKind
+-}
+-
+-func (v *StructValueStruct) Type() Type {
+-	return v.typ
+-}
+-
+ func (v *StructValueStruct) Len() int {
+ 	return len(v.field)
+ }
+@@ -659,10 +528,8 @@ func (v *StructValueStruct) Field(i int) Value {
+ 
+ func StructCreator(typ Type, addr Addr) Value {
+ 	t := typ.(StructType);
+-	v := new(StructValueStruct);
+-	v.addr = addr;
+ 	nfield := t.Len();
+-	v.field = new([]Value, nfield);
++	v := &StructValueStruct{ CommonV{StructKind, typ, addr}, new([]Value, nfield) };
+ 	for i := 0; i < nfield; i++ {
+ 		name, ftype, offset := t.Field(i);
+ 		v.field[i] = NewValueAddr(ftype, addr + offset);
+@@ -679,20 +546,11 @@ export type InterfaceValue interface {
+ }
+ 
+ type InterfaceValueStruct struct {
+-	addr	Addr;
+-	typ	Type;
++	CommonV
+ }
+ 
+ func InterfaceCreator(typ Type, addr Addr) Value {
+-	return &InterfaceValueStruct{addr, typ}
+-}
+-
+-func (v *InterfaceValueStruct) Kind() int {
+-	return InterfaceKind
+-}
+-
+-func (v *InterfaceValueStruct) Type() Type {
+-	return v.typ
++	return &InterfaceValueStruct{ CommonV{InterfaceKind, typ, addr} }
+ }
+ 
+ // -- Func
+@@ -703,20 +561,11 @@ export type FuncValue interface {
+ }
+ 
+ type FuncValueStruct struct {
+-	addr	Addr;
+-	typ	Type;
++	CommonV
+ }
+ 
+ func FuncCreator(typ Type, addr Addr) Value {
+-	return &FuncValueStruct{addr, typ}
+-}
+-
+-func (v *FuncValueStruct) Kind() int {
+-	return FuncKind
+-}
+-
+-func (v *FuncValueStruct) Type() Type {
+-	return v.typ
++	return &FuncValueStruct{ CommonV{FuncKind, typ, addr} }
+ }
+ 
+ var creator *map[int] Creator
+diff --git a/src/lib/regexp/regexp.go b/src/lib/regexp/regexp.go
+index bde707700a..4b0aefce9c 100644
+--- a/src/lib/regexp/regexp.go
++++ b/src/lib/regexp/regexp.go
+@@ -35,6 +35,17 @@ type Inst interface {
+ 	Print();
+ }
+ 
++// Fields and methods common to all instructions
++type Common struct {
++	next	Inst;
++	index	int;
++}
++
++func (c *Common) Next() Inst { return c.next }
++func (c *Common) SetNext(i Inst) { c.next = i }
++func (c *Common) Index() int { return c.index }
++func (c *Common) SetIndex(i int) { c.index = i }
++
+ type RE struct {
+ 	expr	string;	// the original expression
+ 	ch	*chan<- *RE;	// reply channel when we're done
+@@ -61,68 +72,43 @@ const (
+ 
+ // --- START start of program
+ type Start struct {
+-	next	Inst;
+-	index	int;
++	Common
+ }
+ 
+ func (start *Start) Type() int { return START }
+-func (start *Start) Next() Inst { return start.next }
+-func (start *Start) SetNext(i Inst) { start.next = i }
+-func (start *Start) Index() int { return start.index }
+-func (start *Start) SetIndex(i int) { start.index = i }
+ func (start *Start) Print() { print("start") }
+ 
+ // --- END end of program
+ type End struct {
+-	next	Inst;
+-	index	int;
++	Common
+ }
+ 
+ func (end *End) Type() int { return END }
+-func (end *End) Next() Inst { return end.next }
+-func (end *End) SetNext(i Inst) { end.next = i }
+-func (end *End) Index() int { return end.index }
+-func (end *End) SetIndex(i int) { end.index = i }
+ func (end *End) Print() { print("end") }
+ 
+ // --- BOT beginning of text
+ type Bot struct {
+-	next	Inst;
+-	index	int;
++	Common
+ }
+ 
+ func (bot *Bot) Type() int { return BOT }
+-func (bot *Bot) Next() Inst { return bot.next }
+-func (bot *Bot) SetNext(i Inst) { bot.next = i }
+-func (bot *Bot) Index() int { return bot.index }
+-func (bot *Bot) SetIndex(i int) { bot.index = i }
+ func (bot *Bot) Print() { print("bot") }
+ 
+ // --- EOT end of text
+ type Eot struct {
+-	next	Inst;
+-	index	int;
++	Common
+ }
+ 
+ func (eot *Eot) Type() int { return EOT }
+-func (eot *Eot) Next() Inst { return eot.next }
+-func (eot *Eot) SetNext(i Inst) { eot.next = i }
+-func (eot *Eot) Index() int { return eot.index }
+-func (eot *Eot) SetIndex(i int) { eot.index = i }
+ func (eot *Eot) Print() { print("eot") }
+ 
+ // --- CHAR a regular character
+ type Char struct {
+-	next	Inst;
+-	index	int;
++	Common;
+ 	char	int;
+ }
+ 
+ func (char *Char) Type() int { return CHAR }
+-func (char *Char) Next() Inst { return char.next }
+-func (char *Char) SetNext(i Inst) { char.next = i }
+-func (char *Char) Index() int { return char.index }
+-func (char *Char) SetIndex(i int) { char.index = i }
+ func (char *Char) Print() { print("char ", string(char.char)) }
+ 
+ func NewChar(char int) *Char {
+@@ -134,8 +120,7 @@ func NewChar(char int) *Char {
+ // --- CHARCLASS [a-z]
+ 
+ type CharClass struct {
+-	next	Inst;
+-	index	int;
++	Common;
+ 	char	int;
+ 	negate	bool;	// is character class negated? ([^a-z])
+ 	// Vector of int, stored pairwise: [a-z] is (a,z); x is (x,x):
+@@ -143,10 +128,7 @@ type CharClass struct {
+ }
+ 
+ func (cclass *CharClass) Type() int { return CHARCLASS }
+-func (cclass *CharClass) Next() Inst { return cclass.next }
+-func (cclass *CharClass) SetNext(i Inst) { cclass.next = i }
+-func (cclass *CharClass) Index() int { return cclass.index }
+-func (cclass *CharClass) SetIndex(i int) { cclass.index = i }
++
+ func (cclass *CharClass) Print() {
+ 	print("charclass");
+ 	if cclass.negate {
+@@ -188,70 +170,45 @@ func NewCharClass() *CharClass {
+ 
+ // --- ANY any character
+ type Any struct {
+-	next	Inst;
+-	index	int;
++	Common
+ }
+ 
+ func (any *Any) Type() int { return ANY }
+-func (any *Any) Next() Inst { return any.next }
+-func (any *Any) SetNext(i Inst) { any.next = i }
+-func (any *Any) Index() int { return any.index }
+-func (any *Any) SetIndex(i int) { any.index = i }
+ func (any *Any) Print() { print("any") }
+ 
+ // --- BRA parenthesized expression
+ type Bra struct {
+-	next	Inst;
+-	index	int;
++	Common;
+ 	n	int;	// subexpression number
+ }
+ 
+ func (bra *Bra) Type() int { return BRA }
+-func (bra *Bra) Next() Inst { return bra.next }
+-func (bra *Bra) SetNext(i Inst) { bra.next = i }
+-func (bra *Bra) Index() int { return bra.index }
+-func (bra *Bra) SetIndex(i int) { bra.index = i }
+-func (bra *Bra) Print() { print("bra"); }
++func (bra *Bra) Print() { print("bra", bra.n); }
+ 
+ // --- EBRA end of parenthesized expression
+ type Ebra struct {
+-	next	Inst;
+-	index	int;
++	Common;
+ 	n	int;	// subexpression number
+ }
+ 
+ func (ebra *Ebra) Type() int { return EBRA }
+-func (ebra *Ebra) Next() Inst { return ebra.next }
+-func (ebra *Ebra) SetNext(i Inst) { ebra.next = i }
+-func (ebra *Ebra) Index() int { return ebra.index }
+-func (ebra *Ebra) SetIndex(i int) { ebra.index = i }
+ func (ebra *Ebra) Print() { print("ebra ", ebra.n); }
+ 
+ // --- ALT alternation
+ type Alt struct {
+-	next	Inst;
+-	index	int;
++	Common;
+ 	left	Inst;	// other branch
+ }
+ 
+ func (alt *Alt) Type() int { return ALT }
+-func (alt *Alt) Next() Inst { return alt.next }
+-func (alt *Alt) SetNext(i Inst) { alt.next = i }
+-func (alt *Alt) Index() int { return alt.index }
+-func (alt *Alt) SetIndex(i int) { alt.index = i }
+ func (alt *Alt) Print() { print("alt(", alt.left.Index(), ")"); }
+ 
+ // --- NOP no operation
+ type Nop struct {
+-	next	Inst;
+-	index	int;
++	Common
+ }
+ 
+ func (nop *Nop) Type() int { return NOP }
+-func (nop *Nop) Next() Inst { return nop.next }
+-func (nop *Nop) SetNext(i Inst) { nop.next = i }
+-func (nop *Nop) Index() int { return nop.index }
+-func (nop *Nop) SetIndex(i int) { nop.index = i }
+ func (nop *Nop) Print() { print("nop") }
+ 
+ // report error and exit compiling/executing goroutine
+@@ -312,7 +269,7 @@ Grammar:
+ 		'$'
+ 		'.'
+ 		character
+-		'[' character-ranges ']'
++		'[' [ '^' ] character-ranges ']'
+ 		'(' regexp ')'
+ 
+ */

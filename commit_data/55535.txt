@@ -33,6 +33,32 @@ Date:   Thu Feb 16 14:37:50 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index b211680e1c..9c8b14df00 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -39,6 +39,7 @@ import (
+ 	"cmd/go/internal/slices"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
++	"cmd/internal/buildid"
+ 	"cmd/internal/quoted"
+ 	"cmd/internal/sys"
+ )
+@@ -2544,6 +2545,12 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
+ 		}
+ 	}
+ 
++	// Tell gcc to not insert truly random numbers into the build process
++	// this ensures LTO won't create random numbers for symbols.
++	if b.gccSupportsFlag(compiler, "-frandom-seed=1") {
++		flags = append(flags, "-frandom-seed="+buildid.HashToString(a.actionID))
++	}
++
+ 	overlayPath := file
+ 	if p, ok := a.nonGoOverlay[overlayPath]; ok {
+ 		overlayPath = p

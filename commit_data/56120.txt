@@ -15,6 +15,20 @@ Date:   Tue Apr 11 16:26:53 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Bypass: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/net/dial_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index d25a642a0a..57f685e547 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -883,8 +883,6 @@ func TestCancelAfterDial(t *testing.T) {
+ // if the machine has halfway configured IPv6 such that it can bind on
+ // "::" not connect back to that same address.
+ func TestDialListenerAddr(t *testing.T) {
+-	mustHaveExternalNetwork(t)
+-
+ 	if !testableNetwork("tcp4") {
+ 		t.Skipf("skipping: can't listen on tcp4")
+ 	}

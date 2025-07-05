@@ -24,9 +24,77 @@ Date:   Sat Jun 30 23:29:41 2018 +0000
     GitHub-Pull-Request: golang/go#24322
     Reviewed-on: https://go-review.googlesource.com/99835
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/work/init.go | 4 ++--
  src/race.bash                    | 7 ++++++-
  src/runtime/cgo/netbsd.go        | 2 ++
  src/runtime/race/race.go         | 2 +-
  4 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 1081e5147e..608f5648a4 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -47,9 +47,9 @@ func instrumentInit() {
+ 		platform := cfg.Goos + "/" + cfg.Goarch
+ 		switch platform {
+ 		default:
+-			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, freebsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
++			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, freebsd/amd64, netbsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+ 			os.Exit(2)
+-		case "linux/amd64", "linux/ppc64le", "freebsd/amd64", "darwin/amd64", "windows/amd64":
++		case "linux/amd64", "linux/ppc64le", "freebsd/amd64", "netbsd/amd64", "darwin/amd64", "windows/amd64":
+ 			// race supported on these platforms
+ 		}
+ 	}
+diff --git a/src/race.bash b/src/race.bash
+index 73cb1e583b..d673f503a9 100755
+--- a/src/race.bash
++++ b/src/race.bash
+@@ -9,7 +9,7 @@
+ set -e
+ 
+ function usage {
+-	echo 'race detector is only supported on linux/amd64, linux/ppc64le, freebsd/amd64 and darwin/amd64' 1>&2
++	echo 'race detector is only supported on linux/amd64, linux/ppc64le, freebsd/amd64, netbsd/amd64 and darwin/amd64' 1>&2
+ 	exit 1
+ }
+ 
+@@ -30,6 +30,11 @@ case $(uname) in
+ 		usage
+ 	fi
+ 	;;
++"NetBSD")
++	if [ $(uname -m) != "amd64" ]; then
++		usage
++	fi
++	;;
+ *)
+ 	usage
+ 	;;
+diff --git a/src/runtime/cgo/netbsd.go b/src/runtime/cgo/netbsd.go
+index 2cecd0c57a..74d0aed014 100644
+--- a/src/runtime/cgo/netbsd.go
++++ b/src/runtime/cgo/netbsd.go
+@@ -14,6 +14,8 @@ import _ "unsafe" // for go:linkname
+ 
+ //go:linkname _environ environ
+ //go:linkname _progname __progname
++//go:linkname ___ps_strings __ps_strings
+ 
+ var _environ uintptr
+ var _progname uintptr
++var ___ps_strings uintptr
+diff --git a/src/runtime/race/race.go b/src/runtime/race/race.go
+index f702c7a5d4..95e965411b 100644
+--- a/src/runtime/race/race.go
++++ b/src/runtime/race/race.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build race,linux,amd64 race,freebsd,amd64 race,darwin,amd64 race,windows,amd64 race,linux,ppc64le
++// +build race,linux,amd64 race,freebsd,amd64 race,netbsd,amd64 race,darwin,amd64 race,windows,amd64 race,linux,ppc64le
+ 
+ package race
+ 

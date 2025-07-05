@@ -11,7 +11,7 @@ Date:   Fri Sep 9 09:49:47 2016 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/fix/context.go       | 25 +++++++++++++++++++++++++
  src/cmd/fix/context_test.go  | 42 ++++++++++++++++++++++++++++++++++++++++++
  src/cmd/fix/fix.go           |  9 +++++----
@@ -20,3 +20,187 @@ Date:   Fri Sep 9 09:49:47 2016 -0500
  src/cmd/fix/netipv6zone.go   |  8 ++++----
  src/cmd/fix/printerconfig.go |  8 ++++----
  7 files changed, 92 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/fix/context.go b/src/cmd/fix/context.go
+new file mode 100644
+index 0000000000..926a06cccf
+--- /dev/null
++++ b/src/cmd/fix/context.go
+@@ -0,0 +1,25 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++func init() {
++	register(contextFix)
++}
++
++var contextFix = fix{
++	name:     "context",
++	date:     "2016-09-09",
++	f:        ctxfix,
++	desc:     `Change imports of golang.org/x/net/context to context`,
++	disabled: true,
++}
++
++func ctxfix(f *ast.File) bool {
++	return rewriteImport(f, "golang.org/x/net/context", "context")
++}
+diff --git a/src/cmd/fix/context_test.go b/src/cmd/fix/context_test.go
+new file mode 100644
+index 0000000000..935d0d7235
+--- /dev/null
++++ b/src/cmd/fix/context_test.go
+@@ -0,0 +1,42 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(contextTests, ctxfix)
++}
++
++var contextTests = []testCase{
++	{
++		Name: "context.0",
++		In: `package main
++
++import "golang.org/x/net/context"
++
++var _ = "golang.org/x/net/context"
++`,
++		Out: `package main
++
++import "context"
++
++var _ = "golang.org/x/net/context"
++`,
++	},
++	{
++		Name: "context.1",
++		In: `package main
++
++import ctx "golang.org/x/net/context"
++
++var _ = ctx.Background()
++`,
++		Out: `package main
++
++import ctx "context"
++
++var _ = ctx.Background()
++`,
++	},
++}
+diff --git a/src/cmd/fix/fix.go b/src/cmd/fix/fix.go
+index ab16a217de..03c828a581 100644
+--- a/src/cmd/fix/fix.go
++++ b/src/cmd/fix/fix.go
+@@ -17,10 +17,11 @@ import (
+ )
+ 
+ type fix struct {
+-	name string
+-	date string // date that fix was introduced, in YYYY-MM-DD format
+-	f    func(*ast.File) bool
+-	desc string
++	name     string
++	date     string // date that fix was introduced, in YYYY-MM-DD format
++	f        func(*ast.File) bool
++	desc     string
++	disabled bool // whether this fix should be disabled by default
+ }
+ 
+ // main runs sort.Sort(byName(fixes)) before printing list of fixes.
+diff --git a/src/cmd/fix/gotypes.go b/src/cmd/fix/gotypes.go
+index bb29a0c49a..8a4019cc8c 100644
+--- a/src/cmd/fix/gotypes.go
++++ b/src/cmd/fix/gotypes.go
+@@ -14,10 +14,10 @@ func init() {
+ }
+ 
+ var gotypesFix = fix{
+-	"gotypes",
+-	"2015-07-16",
+-	gotypes,
+-	`Change imports of golang.org/x/tools/go/{exact,types} to go/{constant,types}`,
++	name: "gotypes",
++	date: "2015-07-16",
++	f:    gotypes,
++	desc: `Change imports of golang.org/x/tools/go/{exact,types} to go/{constant,types}`,
+ }
+ 
+ func gotypes(f *ast.File) bool {
+diff --git a/src/cmd/fix/main.go b/src/cmd/fix/main.go
+index 8b62346595..3b4130b3bf 100644
+--- a/src/cmd/fix/main.go
++++ b/src/cmd/fix/main.go
+@@ -45,7 +45,11 @@ func usage() {
+ 	fmt.Fprintf(os.Stderr, "\nAvailable rewrites are:\n")
+ 	sort.Sort(byName(fixes))
+ 	for _, f := range fixes {
+-		fmt.Fprintf(os.Stderr, "\n%s\n", f.name)
++		if f.disabled {
++			fmt.Fprintf(os.Stderr, "\n%s (disabled)\n", f.name)
++		} else {
++			fmt.Fprintf(os.Stderr, "\n%s\n", f.name)
++		}
+ 		desc := strings.TrimSpace(f.desc)
+ 		desc = strings.Replace(desc, "\n", "\n\t", -1)
+ 		fmt.Fprintf(os.Stderr, "\t%s\n", desc)
+@@ -139,6 +143,9 @@ func processFile(filename string, useStdin bool) error {
+ 		if allowed != nil && !allowed[fix.name] {
+ 			continue
+ 		}
++		if fix.disabled && !force[fix.name] {
++			continue
++		}
+ 		if fix.f(newFile) {
+ 			fixed = true
+ 			fmt.Fprintf(&fixlog, " %s", fix.name)
+diff --git a/src/cmd/fix/netipv6zone.go b/src/cmd/fix/netipv6zone.go
+index 49cd307fa1..3e502bda07 100644
+--- a/src/cmd/fix/netipv6zone.go
++++ b/src/cmd/fix/netipv6zone.go
+@@ -11,10 +11,10 @@ func init() {
+ }
+ 
+ var netipv6zoneFix = fix{
+-	"netipv6zone",
+-	"2012-11-26",
+-	netipv6zone,
+-	`Adapt element key to IPAddr, UDPAddr or TCPAddr composite literals.
++	name: "netipv6zone",
++	date: "2012-11-26",
++	f:    netipv6zone,
++	desc: `Adapt element key to IPAddr, UDPAddr or TCPAddr composite literals.
+ 
+ https://codereview.appspot.com/6849045/
+ `,
+diff --git a/src/cmd/fix/printerconfig.go b/src/cmd/fix/printerconfig.go
+index 286c5f250f..6d93996872 100644
+--- a/src/cmd/fix/printerconfig.go
++++ b/src/cmd/fix/printerconfig.go
+@@ -11,10 +11,10 @@ func init() {
+ }
+ 
+ var printerconfigFix = fix{
+-	"printerconfig",
+-	"2012-12-11",
+-	printerconfig,
+-	`Add element keys to Config composite literals.`,
++	name: "printerconfig",
++	date: "2012-12-11",
++	f:    printerconfig,
++	desc: `Add element keys to Config composite literals.`,
+ }
+ 
+ func printerconfig(f *ast.File) bool {

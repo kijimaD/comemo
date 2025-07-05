@@ -12,6 +12,24 @@ Date:   Tue Jun 27 09:54:32 2023 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/writer.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 178c3eb1a9..afe452bc9c 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -2612,9 +2612,9 @@ func (w *writer) pkgObjs(names ...*syntax.Name) {
+ // hasImplicitTypeParams reports whether obj is a defined type with
+ // implicit type parameters (e.g., declared within a generic function
+ // or method).
+-func (p *pkgWriter) hasImplicitTypeParams(obj *types2.TypeName) bool {
+-	if obj.Pkg() == p.curpkg {
+-		decl, ok := p.typDecls[obj]
++func (pw *pkgWriter) hasImplicitTypeParams(obj *types2.TypeName) bool {
++	if obj.Pkg() == pw.curpkg {
++		decl, ok := pw.typDecls[obj]
+ 		assert(ok)
+ 		if len(decl.implicits) != 0 {
+ 			return true

@@ -13,7 +13,71 @@ Date:   Thu Jun 4 13:23:25 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/10712
     Reviewed-by: Adam Langley <agl@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
-
+---
  src/encoding/asn1/asn1.go      | 11 +++++++++++
  src/encoding/asn1/asn1_test.go | 19 +++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 7172c1c786..b4457e02dc 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -20,6 +20,7 @@ package asn1
+ // everything by any means.
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"math/big"
+ 	"reflect"
+@@ -389,6 +390,12 @@ type RawContent []byte
+ // don't distinguish between ordered and unordered objects in this code.
+ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset int, err error) {
+ 	offset = initOffset
++	// parseTagAndLength should not be called without at least a single
++	// byte to read. Thus this check is for robustness:
++	if offset >= len(bytes) {
++		err = errors.New("asn1: internal error in parseTagAndLength")
++		return
++	}
+ 	b := bytes[offset]
+ 	offset++
+ 	ret.class = int(b >> 6)
+@@ -611,6 +618,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		if params.application {
+ 			expectedClass = classApplication
+ 		}
++		if offset == len(bytes) {
++			err = StructuralError{"explicit tag has no child"}
++			return
++		}
+ 		if t.class == expectedClass && t.tag == *params.tag && (t.length == 0 || t.isCompound) {
+ 			if t.length > 0 {
+ 				t, offset, err = parseTagAndLength(bytes, offset)
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index 1a2ae2569f..32e9ff2b0c 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -867,3 +867,22 @@ func TestImplicitTaggedTime(t *testing.T) {
+ 		t.Errorf("Wrong result. Got %v, want %v", result.Time, expected)
+ 	}
+ }
++
++type truncatedExplicitTagTest struct {
++	Test int `asn1:"explicit,tag:0"`
++}
++
++func TestTruncatedExplicitTag(t *testing.T) {
++	// This crashed Unmarshal in the past. See #11154.
++	der := []byte{
++		0x30, // SEQUENCE
++		0x02, // two bytes long
++		0xa0, // context-specific, tag 0
++		0x30, // 48 bytes long
++	}
++
++	var result truncatedExplicitTagTest
++	if _, err := Unmarshal(der, &result); err == nil {
++		t.Error("Unmarshal returned without error")
++	}
++}

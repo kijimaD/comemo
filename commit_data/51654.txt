@@ -15,9 +15,126 @@ Date:   Sun Feb 27 21:08:29 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  .../types2/testdata/fixedbugs/issue51376.go2       | 24 ++++++++++++++++++++++
  src/cmd/compile/internal/types2/unify.go           | 12 +++++------
  src/go/types/testdata/fixedbugs/issue51376.go2     | 24 ++++++++++++++++++++++
  src/go/types/unify.go                              | 12 +++++------
  4 files changed, 60 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51376.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51376.go2
+new file mode 100644
+index 0000000000..4eba071801
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51376.go2
+@@ -0,0 +1,24 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Map map[string]int
++
++func f[M ~map[K]V, K comparable, V any](M) {}
++func g[M map[K]V, K comparable, V any](M) {}
++
++func _[M1 ~map[K]V, M2 map[K]V, K comparable, V any]() {
++        var m1 M1
++        f(m1)
++        g( /* ERROR M1 does not implement map\[K\]V */ m1) // M1 has tilde
++
++        var m2 M2
++        f(m2)
++        g(m2) // M1 does not have tilde
++
++        var m3 Map
++        f(m3)
++        g( /* ERROR Map does not implement map\[string\]int */ m3) // M in g does not have tilde
++}
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 03a9534c94..97d327cf8b 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -359,17 +359,17 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 	// (see issue #50755 for a test case).
+ 	if enableCoreTypeUnification && !u.exact {
+ 		if isTypeParam(x) && !hasName(y) {
+-			// Caution: This may not be correct in light of ~ constraints.
+-			//          See issue #51376.
+-			// TODO(gri) investigate!
+-			//
+ 			// When considering the type parameter for unification
+-			// we look at the adjusted core type (coreTerm).
++			// we look at the adjusted core term (adjusted core type
++			// with tilde information).
+ 			// If the adjusted core type is a named type N; the
+ 			// corresponding core type is under(N). Since !u.exact
+ 			// and y doesn't have a name, unification will end up
+ 			// comparing under(N) to y, so we can just use the core
+-			// type instead. Optimization.
++			// type instead. And we can ignore the tilde because we
++			// already look at the underlying types on both sides
++			// and we have known types on both sides.
++			// Optimization.
+ 			if cx := coreType(x); cx != nil {
+ 				if traceInference {
+ 					u.tracef("core %s ≡ %s", x, y)
+diff --git a/src/go/types/testdata/fixedbugs/issue51376.go2 b/src/go/types/testdata/fixedbugs/issue51376.go2
+new file mode 100644
+index 0000000000..d51607b7ab
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51376.go2
+@@ -0,0 +1,24 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Map map[string]int
++
++func f[M ~map[K]V, K comparable, V any](M) {}
++func g[M map[K]V, K comparable, V any](M) {}
++
++func _[M1 ~map[K]V, M2 map[K]V, K comparable, V any]() {
++        var m1 M1
++        f(m1)
++        g /* ERROR M1 does not implement map\[K\]V */ (m1) // M1 has tilde
++
++        var m2 M2
++        f(m2)
++        g(m2) // M1 does not have tilde
++
++        var m3 Map
++        f(m3)
++        g /* ERROR Map does not implement map\[string\]int */ (m3) // M in g does not have tilde
++}
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index e8d355ed31..7b9aeeee0a 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -359,17 +359,17 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 	// (see issue #50755 for a test case).
+ 	if enableCoreTypeUnification && !u.exact {
+ 		if isTypeParam(x) && !hasName(y) {
+-			// Caution: This may not be correct in light of ~ constraints.
+-			//          See issue #51376.
+-			// TODO(gri) investigate!
+-			//
+ 			// When considering the type parameter for unification
+-			// we look at the adjusted core type (coreTerm).
++			// we look at the adjusted core term (adjusted core type
++			// with tilde information).
+ 			// If the adjusted core type is a named type N; the
+ 			// corresponding core type is under(N). Since !u.exact
+ 			// and y doesn't have a name, unification will end up
+ 			// comparing under(N) to y, so we can just use the core
+-			// type instead. Optimization.
++			// type instead. And we can ignore the tilde because we
++			// already look at the underlying types on both sides
++			// and we have known types on both sides.
++			// Optimization.
+ 			if cx := coreType(x); cx != nil {
+ 				if traceInference {
+ 					u.tracef("core %s ≡ %s", x, y)

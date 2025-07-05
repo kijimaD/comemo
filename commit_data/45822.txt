@@ -12,6 +12,20 @@ Date:   Fri Nov 20 16:44:15 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/272026
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/diagnostics.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/diagnostics.html b/doc/diagnostics.html
+index f9368886c4..438cdce45f 100644
+--- a/doc/diagnostics.html
++++ b/doc/diagnostics.html
+@@ -455,7 +455,7 @@ environmental variable is set accordingly.</p>
+ each collection, summarizing the amount of memory collected
+ and the length of the pause.</li>
+ <li>GODEBUG=inittrace=1 prints a summary of execution time and memory allocation
+-information for completed package initilization work.</li>
++information for completed package initialization work.</li>
+ <li>GODEBUG=schedtrace=X prints scheduling events every X milliseconds.</li>
+ </ul>
+ 

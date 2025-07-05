@@ -15,10 +15,113 @@ Date:   Thu Feb 29 14:28:09 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go                 |  3 +++
  src/cmd/compile/internal/typecheck/_builtin/runtime.go |  1 +
  src/cmd/compile/internal/typecheck/builtin.go          |  1 +
  src/cmd/compile/internal/walk/builtin.go               | 14 +++++++++-----
  src/runtime/chan.go                                    | 12 ++++++++----
  5 files changed, 22 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 6335aff832..2e3ad3232b 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6350,6 +6350,9 @@ func (s *state) referenceTypeBuiltin(n *ir.UnaryExpr, x *ssa.Value) *ssa.Value {
+ 	if n.X.Type().IsChan() && n.Op() == ir.OLEN {
+ 		s.Fatalf("cannot inline len(chan)") // must use runtime.chanlen now
+ 	}
++	if n.X.Type().IsChan() && n.Op() == ir.OCAP {
++		s.Fatalf("cannot inline cap(chan)") // must use runtime.chancap now
++	}
+ 	// if n == nil {
+ 	//   return 0
+ 	// } else {
+diff --git a/src/cmd/compile/internal/typecheck/_builtin/runtime.go b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+index 1ae9fe21d9..3fee023afb 100644
+--- a/src/cmd/compile/internal/typecheck/_builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+@@ -161,6 +161,7 @@ func chanrecv2(hchan <-chan any, elem *any) bool
+ func chansend1(hchan chan<- any, elem *any)
+ func closechan(hchan chan<- any)
+ func chanlen(hchan any) int
++func chancap(hchan any) int
+ 
+ var writeBarrier struct {
+ 	enabled bool
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 975eff3f50..e3ef360a03 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -138,6 +138,7 @@ var runtimeDecls = [...]struct {
+ 	{"chansend1", funcTag, 103},
+ 	{"closechan", funcTag, 104},
+ 	{"chanlen", funcTag, 105},
++	{"chancap", funcTag, 105},
+ 	{"writeBarrier", varTag, 107},
+ 	{"typedmemmove", funcTag, 108},
+ 	{"typedmemclr", funcTag, 109},
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 9a2c1353bb..512420e6d5 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -261,10 +261,14 @@ func walkLenCap(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
+ 		_, len := backingArrayPtrLen(cheapExpr(conv.X, init))
+ 		return len
+ 	}
+-	if isChanLen(n) {
++	if isChanLenCap(n) {
++		name := "chanlen"
++		if n.Op() == ir.OCAP {
++			name = "chancap"
++		}
+ 		// cannot use chanfn - closechan takes any, not chan any,
+ 		// because it accepts both send-only and recv-only channels.
+-		fn := typecheck.LookupRuntime("chanlen", n.X.Type())
++		fn := typecheck.LookupRuntime(name, n.X.Type())
+ 		return mkcall1(fn, n.Type(), init, n.X)
+ 	}
+ 
+@@ -892,9 +896,9 @@ func isByteCount(n ir.Node) bool {
+ 		(n.(*ir.UnaryExpr).X.Op() == ir.OBYTES2STR || n.(*ir.UnaryExpr).X.Op() == ir.OBYTES2STRTMP)
+ }
+ 
+-// isChanLen reports whether n is of the form len(c) for a channel c.
++// isChanLenCap reports whether n is of the form len(c) or cap(c) for a channel c.
+ // Note that this does not check for -n or instrumenting because this
+ // is a correctness rewrite, not an optimization.
+-func isChanLen(n ir.Node) bool {
+-	return n.Op() == ir.OLEN && n.(*ir.UnaryExpr).X.Type().IsChan()
++func isChanLenCap(n ir.Node) bool {
++	return (n.Op() == ir.OLEN || n.Op() == ir.OCAP) && n.(*ir.UnaryExpr).X.Type().IsChan()
+ }
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index c793d6cef3..b14ebc31d2 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -731,6 +731,13 @@ func chanlen(c *hchan) int {
+ 	return int(c.qcount)
+ }
+ 
++func chancap(c *hchan) int {
++	if c == nil {
++		return 0
++	}
++	return int(c.dataqsiz)
++}
++
+ //go:linkname reflect_chanlen reflect.chanlen
+ func reflect_chanlen(c *hchan) int {
+ 	return chanlen(c)
+@@ -743,10 +750,7 @@ func reflectlite_chanlen(c *hchan) int {
+ 
+ //go:linkname reflect_chancap reflect.chancap
+ func reflect_chancap(c *hchan) int {
+-	if c == nil {
+-		return 0
+-	}
+-	return int(c.dataqsiz)
++	return chancap(c)
+ }
+ 
+ //go:linkname reflect_chanclose reflect.chanclose

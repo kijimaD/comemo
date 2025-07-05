@@ -12,6 +12,28 @@ Date:   Thu Jul 29 13:36:36 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/runtime/iface.go | 10 ----------
  1 file changed, 10 deletions(-)
+
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 71bd2d2f07..79a49c0dff 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -214,16 +214,6 @@ imethods:
+ 		if ipkg == "" {
+ 			ipkg = inter.pkgpath.name()
+ 		}
+-		if iname == "==" {
+-			// Don't need '==' method right now (from comparable),
+-			// just fill in with a random pointer for now.
+-			if k == 0 {
+-				fun0 = unsafe.Pointer(m)
+-			} else {
+-				methods[k] = unsafe.Pointer(m)
+-			}
+-			continue imethods
+-		}
+ 		for ; j < nt; j++ {
+ 			t := &xmhdr[j]
+ 			tname := typ.nameOff(t.name)

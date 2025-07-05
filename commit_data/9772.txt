@@ -7,7 +7,32 @@ Date:   Thu Sep 22 13:05:13 2011 +1000
     R=golang-dev, adg
     CC=golang-dev, sbarra.paul
     https://golang.org/cl/5044045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 898bb2e88b..e15ad26ba8 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -125,6 +125,7 @@ Paolo Giarrusso <p.giarrusso@gmail.com>
+ Pascal S. de Kloe <pascal@quies.net>
+ Patrick Gavlin <pgavlin@gmail.com>
+ Paul Lalonde <paul.a.lalonde@gmail.com>
++Paul Sbarra <Sbarra.Paul@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>
+ Peter Froehlich <peter.hans.froehlich@gmail.com>
+ Peter Mundy <go.peter.90@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index efa2cffed7..ca5d5fffbb 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -189,6 +189,7 @@ Pascal S. de Kloe <pascal@quies.net>
+ Patrick Gavlin <pgavlin@gmail.com>
+ Paul Borman <borman@google.com>
+ Paul Lalonde <paul.a.lalonde@gmail.com>
++Paul Sbarra <Sbarra.Paul@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>
+ Peter Froehlich <peter.hans.froehlich@gmail.com>
+ Peter McKenzie <petermck@google.com>

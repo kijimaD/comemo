@@ -49,6 +49,33 @@ Date:   Wed Jul 24 22:00:58 2019 +0900
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/image/png/writer.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/image/png/writer.go b/src/image/png/writer.go
+index 2bd4fde692..53adc1633c 100644
+--- a/src/image/png/writer.go
++++ b/src/image/png/writer.go
+@@ -426,10 +426,11 @@ func (e *encoder) writeImage(w io.Writer, m image.Image, cb int, level int) erro
+ 
+ 			var a uint8
+ 			var c int
++			pixelsPerByte := 8 / bitsPerPixel
+ 			for x := b.Min.X; x < b.Max.X; x++ {
+ 				a = a<<uint(bitsPerPixel) | pi.ColorIndexAt(x, y)
+ 				c++
+-				if c == 8/bitsPerPixel {
++				if c == pixelsPerByte {
+ 					cr[0][i] = a
+ 					i += 1
+ 					a = 0
+@@ -437,7 +438,7 @@ func (e *encoder) writeImage(w io.Writer, m image.Image, cb int, level int) erro
+ 				}
+ 			}
+ 			if c != 0 {
+-				for c != 8/bitsPerPixel {
++				for c != pixelsPerByte {
+ 					a = a << uint(bitsPerPixel)
+ 					c++
+ 				}

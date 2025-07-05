@@ -11,7 +11,47 @@ Date:   Mon May 23 14:27:51 2011 -0700
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/4529080
-
+---
  misc/chrome/gophertool/README.txt | 8 ++++++++
  misc/chrome/gophertool/popup.html | 7 ++++---
  2 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/misc/chrome/gophertool/README.txt b/misc/chrome/gophertool/README.txt
+new file mode 100644
+index 0000000000..a7c0b4b268
+--- /dev/null
++++ b/misc/chrome/gophertool/README.txt
+@@ -0,0 +1,8 @@
++To install:
++
++1) chrome://extensions/
++2) click "[+] Developer Mode" in top right
++3) "Load unpacked extension..."
++4) pick $GOROOT/misc/chrome/gophertool
++
++Done.  It'll now auto-reload from source.
+diff --git a/misc/chrome/gophertool/popup.html b/misc/chrome/gophertool/popup.html
+index a953054c78..4e30ced86c 100644
+--- a/misc/chrome/gophertool/popup.html
++++ b/misc/chrome/gophertool/popup.html
+@@ -13,7 +13,7 @@ function focusinput() {
+ }
+ 
+ var numericRE = /^\d+$/;
+-var commitRE = /^[0-9a-f]{6,20}$/;
++var commitRE = /^(?:\d+:)?([0-9a-f]{6,20})$/; // e.g "8486:ab29d2698a47" or "ab29d2698a47"
+ var pkgRE = /^[a-z0-9_\/]+$/;
+ 
+ function navigate() {
+@@ -38,8 +38,9 @@ function navigate() {
+      return success("http://codereview.appspot.com/" + t + "/");
+    }
+ 
+-   if (commitRE.test(t)) {
+-     return success("http://code.google.com/p/go/source/detail?r=" + t);
++   var match = commitRE.exec(t);
++   if (match) {
++     return success("http://code.google.com/p/go/source/detail?r=" + match[1])
+    }
+ 
+    if (pkgRE.test(t)) {

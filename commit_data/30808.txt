@@ -20,7 +20,113 @@ Date:   Wed Nov 30 08:30:31 2016 -0800
     Reviewed-by: Yolan Romailler <y@romailler.ch>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/dsa/dsa.go      | 18 ++++++++++++++++--
  src/crypto/dsa/dsa_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 54 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/dsa/dsa.go b/src/crypto/dsa/dsa.go
+index e9b6a0c253..633c1f4a66 100644
+--- a/src/crypto/dsa/dsa.go
++++ b/src/crypto/dsa/dsa.go
+@@ -189,17 +189,21 @@ func fermatInverse(k, P *big.Int) *big.Int {
+ // Note that FIPS 186-3 section 4.6 specifies that the hash should be truncated
+ // to the byte-length of the subgroup. This function does not perform that
+ // truncation itself.
++//
++// Be aware that calling Sign with an attacker-controlled PrivateKey may
++// require an arbitrary amount of CPU.
+ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
+ 	// FIPS 186-3, section 4.6
+ 
+ 	n := priv.Q.BitLen()
+-	if n&7 != 0 {
++	if priv.Q.Sign() <= 0 || priv.P.Sign() <= 0 || priv.G.Sign() <= 0 || priv.X.Sign() <= 0 || n&7 != 0 {
+ 		err = ErrInvalidPublicKey
+ 		return
+ 	}
+ 	n >>= 3
+ 
+-	for {
++	var attempts int
++	for attempts = 10; attempts > 0; attempts-- {
+ 		k := new(big.Int)
+ 		buf := make([]byte, n)
+ 		for {
+@@ -208,6 +212,10 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ 				return
+ 			}
+ 			k.SetBytes(buf)
++			// priv.Q must be >= 128 because the test above
++			// requires it to be > 0 and that
++			//    ceil(log_2(Q)) mod 8 = 0
++			// Thus this loop will quickly terminate.
+ 			if k.Sign() > 0 && k.Cmp(priv.Q) < 0 {
+ 				break
+ 			}
+@@ -235,6 +243,12 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ 		}
+ 	}
+ 
++	// Only degenerate private keys will require more than a handful of
++	// attempts.
++	if attempts == 0 {
++		return nil, nil, ErrInvalidPublicKey
++	}
++
+ 	return
+ }
+ 
+diff --git a/src/crypto/dsa/dsa_test.go b/src/crypto/dsa/dsa_test.go
+index 568416d0df..b89aeaebea 100644
+--- a/src/crypto/dsa/dsa_test.go
++++ b/src/crypto/dsa/dsa_test.go
+@@ -73,6 +73,14 @@ func TestParameterGeneration(t *testing.T) {
+ 	testParameterGeneration(t, L3072N256, 3072, 256)
+ }
+ 
++func fromHex(s string) *big.Int {
++	result, ok := new(big.Int).SetString(s, 16)
++	if !ok {
++		panic(s)
++	}
++	return result
++}
++
+ func TestSignAndVerify(t *testing.T) {
+ 	var priv PrivateKey
+ 	priv.P, _ = new(big.Int).SetString("A9B5B793FB4785793D246BAE77E8FF63CA52F442DA763C440259919FE1BC1D6065A9350637A04F75A2F039401D49F08E066C4D275A5A65DA5684BC563C14289D7AB8A67163BFBF79D85972619AD2CFF55AB0EE77A9002B0EF96293BDD0F42685EBB2C66C327079F6C98000FBCB79AACDE1BC6F9D5C7B1A97E3D9D54ED7951FEF", 16)
+@@ -83,3 +91,33 @@ func TestSignAndVerify(t *testing.T) {
+ 
+ 	testSignAndVerify(t, 0, &priv)
+ }
++
++func TestSigningWithDegenerateKeys(t *testing.T) {
++	// Signing with degenerate private keys should not cause an infinite
++	// loop.
++	badKeys := []struct{
++		p, q, g, y, x string
++	}{
++		{"00", "01", "00", "00", "00"},
++		{"01", "ff", "00", "00", "00"},
++	}
++
++	for i, test := range badKeys {
++		priv := PrivateKey{
++			PublicKey: PublicKey{
++				Parameters: Parameters {
++					P: fromHex(test.p),
++					Q: fromHex(test.q),
++					G: fromHex(test.g),
++				},
++				Y: fromHex(test.y),
++			},
++			X: fromHex(test.x),
++		}
++
++		hashed := []byte("testing")
++		if _, _, err := Sign(rand.Reader, &priv, hashed); err == nil {
++			t.Errorf("#%d: unexpected success", i)
++		}
++	}
++}

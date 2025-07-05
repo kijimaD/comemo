@@ -14,6 +14,21 @@ Date:   Thu Apr 13 14:06:43 2017 +0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 9ba7798069..9aa966d14c 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -340,7 +340,8 @@ var stdOutErrAreTerminals func() bool
+ func (t *tester) registerTests() {
+ 	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-vetall") {
+ 		// Run vet over std and cmd and call it quits.
+-		for osarch := range cgoEnabled {
++		for k := range cgoEnabled {
++			osarch := k
+ 			t.tests = append(t.tests, distTest{
+ 				name:    "vet/" + osarch,
+ 				heading: "go vet std cmd",

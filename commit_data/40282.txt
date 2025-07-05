@@ -15,7 +15,186 @@ Date:   Tue Apr 30 14:03:07 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go |   7 ++
  test/fixedbugs/issue29504.go       | 147 +++++++++++++++++++++++++++++++++++++
  2 files changed, 154 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 128fabde26..6f30446e75 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2732,6 +2732,8 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask)
+ 			return
+ 		}
+ 		if left.Op == OINDEX && left.Left.Type.IsArray() {
++			s.pushLine(left.Pos)
++			defer s.popLine()
+ 			// We're assigning to an element of an ssa-able array.
+ 			// a[i] = v
+ 			t := left.Left.Type
+@@ -3894,6 +3896,11 @@ func etypesign(e types.EType) int8 {
+ // If bounded is true then this address does not require a nil check for its operand
+ // even if that would otherwise be implied.
+ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
++	if n.Op != ONAME {
++		s.pushLine(n.Pos)
++		defer s.popLine()
++	}
++
+ 	t := types.NewPtr(n.Type)
+ 	switch n.Op {
+ 	case ONAME:
+diff --git a/test/fixedbugs/issue29504.go b/test/fixedbugs/issue29504.go
+new file mode 100644
+index 0000000000..e311f84edc
+--- /dev/null
++++ b/test/fixedbugs/issue29504.go
+@@ -0,0 +1,147 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure that in code involving indexing, the bounds
++// check always fails at the line number of the '[' token.
++
++package main
++
++import (
++	"fmt"
++	"runtime"
++	"strings"
++)
++
++type T struct{ a, b, c, d, e int } // unSSAable
++
++func main() {
++	shouldPanic(func() {
++		var a [1]int
++		sink = a /*line :999999:1*/ [ /*line :100:1*/ i]
++	})
++	shouldPanic(func() {
++		var a [3]int
++		sink = a /*line :999999:1*/ [ /*line :200:1*/ i]
++	})
++	shouldPanic(func() {
++		var a []int
++		sink = a /*line :999999:1*/ [ /*line :300:1*/ i]
++	})
++	shouldPanic(func() {
++		var a [1]int
++		a /*line :999999:1*/ [ /*line :400:1*/ i] = 1
++	})
++	shouldPanic(func() {
++		var a [3]int
++		a /*line :999999:1*/ [ /*line :500:1*/ i] = 1
++	})
++	shouldPanic(func() {
++		var a []int
++		a /*line :999999:1*/ [ /*line :600:1*/ i] = 1
++	})
++
++	shouldPanic(func() {
++		var a [3]T
++		sinkT = a /*line :999999:1*/ [ /*line :700:1*/ i]
++	})
++	shouldPanic(func() {
++		var a []T
++		sinkT = a /*line :999999:1*/ [ /*line :800:1*/ i]
++	})
++	shouldPanic(func() {
++		var a [3]T
++		a /*line :999999:1*/ [ /*line :900:1*/ i] = T{}
++	})
++	shouldPanic(func() {
++		var a []T
++		a /*line :999999:1*/ [ /*line :1000:1*/ i] = T{}
++	})
++
++	shouldPanic(func() {
++		var a [3]int
++		sinkS = a /*line :999999:1*/ [ /*line :1100:1*/ i:]
++	})
++	shouldPanic(func() {
++		var a []int
++		sinkS = a /*line :999999:1*/ [ /*line :1200:1*/ i:]
++	})
++	shouldPanic(func() {
++		var a [3]int
++		sinkS = a /*line :999999:1*/ [: /*line :1300:1*/ i]
++	})
++	shouldPanic(func() {
++		var a []int
++		sinkS = a /*line :999999:1*/ [: /*line :1400:1*/ i]
++	})
++
++	shouldPanic(func() {
++		var a [3]T
++		sinkST = a /*line :999999:1*/ [ /*line :1500:1*/ i:]
++	})
++	shouldPanic(func() {
++		var a []T
++		sinkST = a /*line :999999:1*/ [ /*line :1600:1*/ i:]
++	})
++	shouldPanic(func() {
++		var a [3]T
++		sinkST = a /*line :999999:1*/ [: /*line :1700:1*/ i]
++	})
++	shouldPanic(func() {
++		var a []T
++		sinkST = a /*line :999999:1*/ [: /*line :1800:1*/ i]
++	})
++
++	shouldPanic(func() {
++		s := "foo"
++		sinkB = s /*line :999999:1*/ [ /*line :1900:1*/ i]
++	})
++	shouldPanic(func() {
++		s := "foo"
++		sinkStr = s /*line :999999:1*/ [ /*line :2000:1*/ i:]
++	})
++	shouldPanic(func() {
++		s := "foo"
++		sinkStr = s /*line :999999:1*/ [: /*line :2100:1*/ i]
++	})
++
++	if bad {
++		panic("ERRORS")
++	}
++}
++
++var i = 9
++var sink int
++var sinkS []int
++var sinkT T
++var sinkST []T
++var sinkB byte
++var sinkStr string
++
++var bad = false
++
++func shouldPanic(f func()) {
++	defer func() {
++		if recover() == nil {
++			panic("did not panic")
++		}
++		var pcs [10]uintptr
++		n := runtime.Callers(1, pcs[:])
++		iter := runtime.CallersFrames(pcs[:n])
++		buf := ""
++		for {
++			frame, more := iter.Next()
++			buf += fmt.Sprintf("%s:%d %s\n", frame.File, frame.Line, frame.Function)
++			if !more {
++				break
++			}
++		}
++		if !strings.Contains(buf, "999999") {
++			fmt.Printf("could not find marker line in traceback:\n%s\n", buf)
++			bad = true
++		}
++	}()
++	f()
++}

@@ -7,6 +7,20 @@ Date:   Fri Jul 12 12:30:18 2013 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/11064044
-
+---
  src/run.bat | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.bat b/src/run.bat
+index 6f8ab0e7d6..a60de185dd 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -43,7 +43,7 @@ if errorlevel 1 goto fail
+ echo.
+ 
+ echo # runtime -cpu=1,2,4
+-go test runtime -short -timeout=240s -cpu=1,2,4
++go test runtime -short -timeout=300s -cpu=1,2,4
+ if errorlevel 1 goto fail
+ echo.
+ 

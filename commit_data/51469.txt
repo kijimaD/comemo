@@ -15,9 +15,112 @@ Date:   Tue Feb 1 16:59:41 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/workcmd/edit.go        | 26 +++++++++++++++-----------
  src/cmd/go/internal/workcmd/sync.go        |  6 ++++--
  src/cmd/go/internal/workcmd/use.go         |  3 +++
  src/cmd/go/testdata/script/work_nowork.txt | 20 ++++++++++++++++++++
  4 files changed, 42 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/workcmd/edit.go b/src/cmd/go/internal/workcmd/edit.go
+index 879ddc3b1d..e7b1b13271 100644
+--- a/src/cmd/go/internal/workcmd/edit.go
++++ b/src/cmd/go/internal/workcmd/edit.go
+@@ -115,17 +115,6 @@ func init() {
+ }
+ 
+ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+-	anyFlags :=
+-		*editGo != "" ||
+-			*editJSON ||
+-			*editPrint ||
+-			*editFmt ||
+-			len(workedits) > 0
+-
+-	if !anyFlags {
+-		base.Fatalf("go: no flags specified (see 'go help work edit').")
+-	}
+-
+ 	if *editJSON && *editPrint {
+ 		base.Fatalf("go: cannot use both -json and -print")
+ 	}
+@@ -147,6 +136,21 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 
++	if gowork == "" {
++		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using -workfile flag)")
++	}
++
++	anyFlags :=
++		*editGo != "" ||
++			*editJSON ||
++			*editPrint ||
++			*editFmt ||
++			len(workedits) > 0
++
++	if !anyFlags {
++		base.Fatalf("go: no flags specified (see 'go help work edit').")
++	}
++
+ 	workFile, err := modload.ReadWorkFile(gowork)
+ 	if err != nil {
+ 		base.Fatalf("go: errors parsing %s:\n%s", base.ShortPath(gowork), err)
+diff --git a/src/cmd/go/internal/workcmd/sync.go b/src/cmd/go/internal/workcmd/sync.go
+index 1cca817517..948fc5d370 100644
+--- a/src/cmd/go/internal/workcmd/sync.go
++++ b/src/cmd/go/internal/workcmd/sync.go
+@@ -43,9 +43,11 @@ func init() {
+ }
+ 
+ func runSync(ctx context.Context, cmd *base.Command, args []string) {
+-	modload.InitWorkfile()
+-
+ 	modload.ForceUseModules = true
++	modload.InitWorkfile()
++	if modload.WorkFilePath() == "" {
++		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using -workfile flag)")
++	}
+ 
+ 	workGraph := modload.LoadModGraph(ctx, "")
+ 	_ = workGraph
+diff --git a/src/cmd/go/internal/workcmd/use.go b/src/cmd/go/internal/workcmd/use.go
+index a5ba6c7133..d3bc1b7d55 100644
+--- a/src/cmd/go/internal/workcmd/use.go
++++ b/src/cmd/go/internal/workcmd/use.go
+@@ -49,6 +49,9 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.InitWorkfile()
+ 	gowork = modload.WorkFilePath()
+ 
++	if gowork == "" {
++		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using -workfile flag)")
++	}
+ 	workFile, err := modload.ReadWorkFile(gowork)
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+diff --git a/src/cmd/go/testdata/script/work_nowork.txt b/src/cmd/go/testdata/script/work_nowork.txt
+new file mode 100644
+index 0000000000..b0320cbccb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_nowork.txt
+@@ -0,0 +1,20 @@
++! go work use
++stderr '^go: no go\.work file found\n\t\(run ''go work init'' first or specify path using -workfile flag\)$'
++
++! go work use .
++stderr '^go: no go\.work file found\n\t\(run ''go work init'' first or specify path using -workfile flag\)$'
++
++! go work edit
++stderr '^go: no go\.work file found\n\t\(run ''go work init'' first or specify path using -workfile flag\)$'
++
++! go work edit -go=1.18
++stderr '^go: no go\.work file found\n\t\(run ''go work init'' first or specify path using -workfile flag\)$'
++
++! go work sync
++stderr '^go: no go\.work file found\n\t\(run ''go work init'' first or specify path using -workfile flag\)$'
++
++-- go.mod --
++module example
++go 1.18
++-- README.txt --
++There is no go.work file here.

@@ -9,7 +9,75 @@ Date:   Thu Oct 11 09:53:37 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/6640054
-
+---
  doc/play/playground.js | 30 ++++++++++++++++++++++++------
  doc/root.html          |  2 --
  2 files changed, 24 insertions(+), 8 deletions(-)
+
+diff --git a/doc/play/playground.js b/doc/play/playground.js
+index 3f766a9bf1..0f56fc0564 100644
+--- a/doc/play/playground.js
++++ b/doc/play/playground.js
+@@ -3,13 +3,14 @@
+ // license that can be found in the LICENSE file.
+ 
+ // opts is an object with these keys
+-// 	codeEl - code editor element
+-// 	outputEl - program output element
++//	codeEl - code editor element
++//	outputEl - program output element
+ //	runEl - run button element
+-// 	fmtEl - fmt button element (optional)
+-// 	shareEl - share button element (optional)
+-// 	shareURLEl - share URL text input element (optional)
+-// 	shareRedirect - base URL to redirect to on share (optional)
++//	fmtEl - fmt button element (optional)
++//	shareEl - share button element (optional)
++//	shareURLEl - share URL text input element (optional)
++//	shareRedirect - base URL to redirect to on share (optional)
++//	toysEl - toys select element (optional)
+ //	enableHistory - enable using HTML5 history API (optional)
+ function playground(opts) {
+ 	var code = $(opts['codeEl']);
+@@ -226,4 +227,21 @@ function playground(opts) {
+ 			});
+ 		});
+ 	}
++
++	if (opts['toysEl'] != null) {
++		$(opts['toysEl']).bind('change', function() {
++			var toy = $(this).val();
++			$.ajax("/doc/play/"+toy, {
++				processData: false,
++				type: "GET",
++				complete: function(xhr) {
++					if (xhr.status != 200) {
++						alert("Server error; try again.")
++						return;
++					}
++					setBody(xhr.responseText);
++				}
++			});
++		});
++	}
+ }
+diff --git a/doc/root.html b/doc/root.html
+index 3b4b43a5e0..cc2bfd1ba9 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -85,7 +85,6 @@ Linux, Mac OS X, Windows, and more.
+ <div style="clear: both;"></div>
+ 
+ <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+-<script type="text/javascript" src="/doc/play/playground.js"></script>
+ <script type="text/javascript">
+ google.load("feeds", "1");
+ 
+@@ -122,7 +121,6 @@ function init() {
+ 
+ 	// Set up playground.
+ 	playground({
+-		"simple":        true,
+ 		"codeEl":        "#learn .code",
+ 		"outputEl":      "#learn .output",
+ 		"runEl":         "#learn .run",

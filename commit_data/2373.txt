@@ -9,8 +9,55 @@ Date:   Wed Jun 3 03:25:34 2009 -0700
     DELTA=13  (13 added, 0 deleted, 0 changed)
     OCL=29429
     CL=29819
-
+---
  src/lib/os/types.go                     | 5 +++++
  src/lib/syscall/syscall_darwin_amd64.go | 4 ++++
  src/lib/syscall/syscall_linux_amd64.go  | 4 ++++
  3 files changed, 13 insertions(+)
+
+diff --git a/src/lib/os/types.go b/src/lib/os/types.go
+index 73363f4534..b5db866606 100644
+--- a/src/lib/os/types.go
++++ b/src/lib/os/types.go
+@@ -9,6 +9,11 @@ import "syscall"
+ // An operating-system independent representation of Unix data structures.
+ // OS-specific routines in this directory convert the OS-local versions to these.
+ 
++// Getpagesize returns the underlying system's memory page size.
++func Getpagesize() int{
++	return syscall.Getpagesize()
++}
++
+ // A Dir describes a file and is returned by Stat, Fstat, and Lstat
+ type Dir struct {
+ 	Dev	uint64;	// device number of file system holding file.
+diff --git a/src/lib/syscall/syscall_darwin_amd64.go b/src/lib/syscall/syscall_darwin_amd64.go
+index 31e91cda36..8620232230 100644
+--- a/src/lib/syscall/syscall_darwin_amd64.go
++++ b/src/lib/syscall/syscall_darwin_amd64.go
+@@ -6,6 +6,10 @@ package syscall
+ 
+ import "syscall"
+ 
++func Getpagesize() int {
++	return 4096
++}
++
+ func TimespecToNsec(ts Timespec) int64 {
+ 	return int64(ts.Sec)*1e9 + int64(ts.Nsec);
+ }
+diff --git a/src/lib/syscall/syscall_linux_amd64.go b/src/lib/syscall/syscall_linux_amd64.go
+index 8b3404d3e3..24426405be 100644
+--- a/src/lib/syscall/syscall_linux_amd64.go
++++ b/src/lib/syscall/syscall_linux_amd64.go
+@@ -6,6 +6,10 @@ package syscall
+ 
+ import "syscall"
+ 
++func Getpagesize() int {
++	return 4096
++}
++
+ func TimespecToNsec(ts Timespec) int64 {
+ 	return int64(ts.Sec)*1e9 + int64(ts.Nsec);
+ }

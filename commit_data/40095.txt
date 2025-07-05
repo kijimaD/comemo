@@ -19,7 +19,7 @@ Date:   Tue Mar 26 18:21:53 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dnsclient_unix.go                          | 58 +++++++++++------
  src/net/dnsclient_unix_test.go                     | 74 ++++++++++++++++++++++
  src/net/dnsconfig_unix.go                          | 30 +++++----
@@ -27,3 +27,316 @@ Date:   Tue Mar 26 18:21:53 2019 +0000
  src/net/testdata/single-request-reopen-resolv.conf |  1 +
  src/net/testdata/single-request-resolv.conf        |  1 +
  6 files changed, 155 insertions(+), 31 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 5472494356..4e7462b66f 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -569,34 +569,52 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order
+ 	resolvConf.mu.RLock()
+ 	conf := resolvConf.dnsConfig
+ 	resolvConf.mu.RUnlock()
+-	type racer struct {
++	type result struct {
+ 		p      dnsmessage.Parser
+ 		server string
+ 		error
+ 	}
+-	lane := make(chan racer, 1)
++	lane := make(chan result, 1)
+ 	qtypes := [...]dnsmessage.Type{dnsmessage.TypeA, dnsmessage.TypeAAAA}
+-	var lastErr error
+-	for _, fqdn := range conf.nameList(name) {
+-		for _, qtype := range qtypes {
++	var queryFn func(fqdn string, qtype dnsmessage.Type)
++	var responseFn func(fqdn string, qtype dnsmessage.Type) result
++	if conf.singleRequest {
++		queryFn = func(fqdn string, qtype dnsmessage.Type) {}
++		responseFn = func(fqdn string, qtype dnsmessage.Type) result {
++			dnsWaitGroup.Add(1)
++			defer dnsWaitGroup.Done()
++			p, server, err := r.tryOneName(ctx, conf, fqdn, qtype)
++			return result{p, server, err}
++		}
++	} else {
++		queryFn = func(fqdn string, qtype dnsmessage.Type) {
+ 			dnsWaitGroup.Add(1)
+ 			go func(qtype dnsmessage.Type) {
+ 				p, server, err := r.tryOneName(ctx, conf, fqdn, qtype)
+-				lane <- racer{p, server, err}
++				lane <- result{p, server, err}
+ 				dnsWaitGroup.Done()
+ 			}(qtype)
+ 		}
++		responseFn = func(fqdn string, qtype dnsmessage.Type) result {
++			return <-lane
++		}
++	}
++	var lastErr error
++	for _, fqdn := range conf.nameList(name) {
++		for _, qtype := range qtypes {
++			queryFn(fqdn, qtype)
++		}
+ 		hitStrictError := false
+-		for range qtypes {
+-			racer := <-lane
+-			if racer.error != nil {
+-				if nerr, ok := racer.error.(Error); ok && nerr.Temporary() && r.strictErrors() {
++		for _, qtype := range qtypes {
++			result := responseFn(fqdn, qtype)
++			if result.error != nil {
++				if nerr, ok := result.error.(Error); ok && nerr.Temporary() && r.strictErrors() {
+ 					// This error will abort the nameList loop.
+ 					hitStrictError = true
+-					lastErr = racer.error
++					lastErr = result.error
+ 				} else if lastErr == nil || fqdn == name+"." {
+ 					// Prefer error for original name.
+-					lastErr = racer.error
++					lastErr = result.error
+ 				}
+ 				continue
+ 			}
+@@ -618,12 +636,12 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order
+ 
+ 		loop:
+ 			for {
+-				h, err := racer.p.AnswerHeader()
++				h, err := result.p.AnswerHeader()
+ 				if err != nil && err != dnsmessage.ErrSectionDone {
+ 					lastErr = &DNSError{
+ 						Err:    "cannot marshal DNS message",
+ 						Name:   name,
+-						Server: racer.server,
++						Server: result.server,
+ 					}
+ 				}
+ 				if err != nil {
+@@ -631,35 +649,35 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order
+ 				}
+ 				switch h.Type {
+ 				case dnsmessage.TypeA:
+-					a, err := racer.p.AResource()
++					a, err := result.p.AResource()
+ 					if err != nil {
+ 						lastErr = &DNSError{
+ 							Err:    "cannot marshal DNS message",
+ 							Name:   name,
+-							Server: racer.server,
++							Server: result.server,
+ 						}
+ 						break loop
+ 					}
+ 					addrs = append(addrs, IPAddr{IP: IP(a.A[:])})
+ 
+ 				case dnsmessage.TypeAAAA:
+-					aaaa, err := racer.p.AAAAResource()
++					aaaa, err := result.p.AAAAResource()
+ 					if err != nil {
+ 						lastErr = &DNSError{
+ 							Err:    "cannot marshal DNS message",
+ 							Name:   name,
+-							Server: racer.server,
++							Server: result.server,
+ 						}
+ 						break loop
+ 					}
+ 					addrs = append(addrs, IPAddr{IP: IP(aaaa.AAAA[:])})
+ 
+ 				default:
+-					if err := racer.p.SkipAnswer(); err != nil {
++					if err := result.p.SkipAnswer(); err != nil {
+ 						lastErr = &DNSError{
+ 							Err:    "cannot marshal DNS message",
+ 							Name:   name,
+-							Server: racer.server,
++							Server: result.server,
+ 						}
+ 						break loop
+ 					}
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 810f400f0b..51d54a4cca 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -17,6 +17,7 @@ import (
+ 	"reflect"
+ 	"strings"
+ 	"sync"
++	"sync/atomic"
+ 	"testing"
+ 	"time"
+ 
+@@ -1621,3 +1622,76 @@ func TestTXTRecordTwoStrings(t *testing.T) {
+ 		t.Errorf("txt[1], got %q, want %q", txt[1], want)
+ 	}
+ }
++
++// Issue 29644: support single-request resolv.conf option in pure Go resolver.
++// The A and AAAA queries will be sent sequentially, not in parallel.
++func TestSingleRequestLookup(t *testing.T) {
++	defer dnsWaitGroup.Wait()
++	var (
++		firstcalled int32
++		ipv4        int32 = 1
++		ipv6        int32 = 2
++	)
++	fake := fakeDNSServer{rh: func(n, s string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
++		r := dnsmessage.Message{
++			Header: dnsmessage.Header{
++				ID:       q.ID,
++				Response: true,
++			},
++			Questions: q.Questions,
++		}
++		for _, question := range q.Questions {
++			switch question.Type {
++			case dnsmessage.TypeA:
++				if question.Name.String() == "slowipv4.example.net." {
++					time.Sleep(10 * time.Millisecond)
++				}
++				if !atomic.CompareAndSwapInt32(&firstcalled, 0, ipv4) {
++					t.Errorf("the A query was received after the AAAA query !")
++				}
++				r.Answers = append(r.Answers, dnsmessage.Resource{
++					Header: dnsmessage.ResourceHeader{
++						Name:   q.Questions[0].Name,
++						Type:   dnsmessage.TypeA,
++						Class:  dnsmessage.ClassINET,
++						Length: 4,
++					},
++					Body: &dnsmessage.AResource{
++						A: TestAddr,
++					},
++				})
++			case dnsmessage.TypeAAAA:
++				atomic.CompareAndSwapInt32(&firstcalled, 0, ipv6)
++				r.Answers = append(r.Answers, dnsmessage.Resource{
++					Header: dnsmessage.ResourceHeader{
++						Name:   q.Questions[0].Name,
++						Type:   dnsmessage.TypeAAAA,
++						Class:  dnsmessage.ClassINET,
++						Length: 16,
++					},
++					Body: &dnsmessage.AAAAResource{
++						AAAA: TestAddr6,
++					},
++				})
++			}
++		}
++		return r, nil
++	}}
++	r := Resolver{PreferGo: true, Dial: fake.DialContext}
++
++	conf, err := newResolvConfTest()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conf.teardown()
++	if err := conf.writeAndUpdate([]string{"options single-request"}); err != nil {
++		t.Fatal(err)
++	}
++	for _, name := range []string{"hostname.example.net", "slowipv4.example.net"} {
++		firstcalled = 0
++		_, err := r.LookupIPAddr(context.Background(), name)
++		if err != nil {
++			t.Error(err)
++		}
++	}
++}
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index 842d408e56..3ca8d71f5f 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -21,17 +21,18 @@ var (
+ )
+ 
+ type dnsConfig struct {
+-	servers    []string      // server addresses (in host:port form) to use
+-	search     []string      // rooted suffixes to append to local name
+-	ndots      int           // number of dots in name to trigger absolute lookup
+-	timeout    time.Duration // wait before giving up on a query, including retries
+-	attempts   int           // lost packets before giving up on server
+-	rotate     bool          // round robin among servers
+-	unknownOpt bool          // anything unknown was encountered
+-	lookup     []string      // OpenBSD top-level database "lookup" order
+-	err        error         // any error that occurs during open of resolv.conf
+-	mtime      time.Time     // time of resolv.conf modification
+-	soffset    uint32        // used by serverOffset
++	servers       []string      // server addresses (in host:port form) to use
++	search        []string      // rooted suffixes to append to local name
++	ndots         int           // number of dots in name to trigger absolute lookup
++	timeout       time.Duration // wait before giving up on a query, including retries
++	attempts      int           // lost packets before giving up on server
++	rotate        bool          // round robin among servers
++	unknownOpt    bool          // anything unknown was encountered
++	lookup        []string      // OpenBSD top-level database "lookup" order
++	err           error         // any error that occurs during open of resolv.conf
++	mtime         time.Time     // time of resolv.conf modification
++	soffset       uint32        // used by serverOffset
++	singleRequest bool          // use sequential A and AAAA queries instead of parallel queries
+ }
+ 
+ // See resolv.conf(5) on a Linux machine.
+@@ -115,6 +116,13 @@ func dnsReadConfig(filename string) *dnsConfig {
+ 					conf.attempts = n
+ 				case s == "rotate":
+ 					conf.rotate = true
++				case s == "single-request" || s == "single-request-reopen":
++					// Linux option:
++					// http://man7.org/linux/man-pages/man5/resolv.conf.5.html
++					// "By default, glibc performs IPv4 and IPv6 lookups in parallel [...]
++					//  This option disables the behavior and makes glibc
++					//  perform the IPv6 and IPv4 requests sequentially."
++					conf.singleRequest = true
+ 				default:
+ 					conf.unknownOpt = true
+ 				}
+diff --git a/src/net/dnsconfig_unix_test.go b/src/net/dnsconfig_unix_test.go
+index 0797559d1a..f16f90ad50 100644
+--- a/src/net/dnsconfig_unix_test.go
++++ b/src/net/dnsconfig_unix_test.go
+@@ -102,6 +102,28 @@ var dnsReadConfigTests = []struct {
+ 			search:   []string{"c.symbolic-datum-552.internal."},
+ 		},
+ 	},
++	{
++		name: "testdata/single-request-resolv.conf",
++		want: &dnsConfig{
++			servers:       defaultNS,
++			ndots:         1,
++			singleRequest: true,
++			timeout:       5 * time.Second,
++			attempts:      2,
++			search:        []string{"domain.local."},
++		},
++	},
++	{
++		name: "testdata/single-request-reopen-resolv.conf",
++		want: &dnsConfig{
++			servers:       defaultNS,
++			ndots:         1,
++			singleRequest: true,
++			timeout:       5 * time.Second,
++			attempts:      2,
++			search:        []string{"domain.local."},
++		},
++	},
+ }
+ 
+ func TestDNSReadConfig(t *testing.T) {
+diff --git a/src/net/testdata/single-request-reopen-resolv.conf b/src/net/testdata/single-request-reopen-resolv.conf
+new file mode 100644
+index 0000000000..9bddeb3844
+--- /dev/null
++++ b/src/net/testdata/single-request-reopen-resolv.conf
+@@ -0,0 +1 @@
++options single-request-reopen
+\ No newline at end of file
+diff --git a/src/net/testdata/single-request-resolv.conf b/src/net/testdata/single-request-resolv.conf
+new file mode 100644
+index 0000000000..5595d29a66
+--- /dev/null
++++ b/src/net/testdata/single-request-resolv.conf
+@@ -0,0 +1 @@
++options single-request
+\ No newline at end of file

@@ -13,8 +13,139 @@ Date:   Wed Nov 28 14:19:28 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  misc/cgo/errors/errors_test.go    |  1 +
  misc/cgo/errors/src/issue26745.go | 17 +++++++++++++++++
  src/cmd/cgo/gcc.go                | 37 ++++++++++++++++++++++++++++++-------
  3 files changed, 48 insertions(+), 7 deletions(-)
+
+diff --git a/misc/cgo/errors/errors_test.go b/misc/cgo/errors/errors_test.go
+index d2a72a46f4..59054f4703 100644
+--- a/misc/cgo/errors/errors_test.go
++++ b/misc/cgo/errors/errors_test.go
+@@ -121,6 +121,7 @@ func TestReportsTypeErrors(t *testing.T) {
+ 		"issue16591.go",
+ 		"issue18452.go",
+ 		"issue18889.go",
++		"issue26745.go",
+ 		"issue28721.go",
+ 	} {
+ 		check(t, file)
+diff --git a/misc/cgo/errors/src/issue26745.go b/misc/cgo/errors/src/issue26745.go
+new file mode 100644
+index 0000000000..0e224538db
+--- /dev/null
++++ b/misc/cgo/errors/src/issue26745.go
+@@ -0,0 +1,17 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// int a;
++// void CF(int i) {}
++import "C"
++
++func F1(i int) int {
++	return C.a + 1 // ERROR HERE: :13
++}
++
++func F2(i int) {
++	C.CF(i) // ERROR HERE: :6
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 321d4db040..1f257d7958 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -891,6 +891,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
+ 	// Write _cgoCheckPointer calls to sbCheck.
+ 	var sbCheck bytes.Buffer
+ 	for i, param := range params {
++		origArg := args[i]
+ 		arg, nu := p.mangle(f, &args[i])
+ 		if nu {
+ 			needsUnsafe = true
+@@ -910,7 +911,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
+ 		}
+ 
+ 		if !p.needsPointerCheck(f, param.Go, args[i]) {
+-			fmt.Fprintf(&sb, "_cgo%d := %s; ", i, gofmtLine(arg))
++			fmt.Fprintf(&sb, "_cgo%d := %s; ", i, gofmtPos(arg, origArg.Pos()))
+ 			continue
+ 		}
+ 
+@@ -924,7 +925,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
+ 			continue
+ 		}
+ 
+-		fmt.Fprintf(&sb, "_cgo%d := %s; ", i, gofmtLine(arg))
++		fmt.Fprintf(&sb, "_cgo%d := %s; ", i, gofmtPos(arg, origArg.Pos()))
+ 		fmt.Fprintf(&sbCheck, "_cgoCheckPointer(_cgo%d); ", i)
+ 	}
+ 
+@@ -1147,10 +1148,10 @@ func (p *Package) checkIndex(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) boo
+ 		return false
+ 	}
+ 
+-	fmt.Fprintf(sb, "_cgoIndex%d := %s; ", i, gofmtLine(index.X))
++	fmt.Fprintf(sb, "_cgoIndex%d := %s; ", i, gofmtPos(index.X, index.X.Pos()))
+ 	origX := index.X
+ 	index.X = ast.NewIdent(fmt.Sprintf("_cgoIndex%d", i))
+-	fmt.Fprintf(sb, "_cgo%d := %s; ", i, gofmtLine(arg))
++	fmt.Fprintf(sb, "_cgo%d := %s; ", i, gofmtPos(arg, arg.Pos()))
+ 	index.X = origX
+ 
+ 	fmt.Fprintf(sbCheck, "_cgoCheckPointer(_cgo%d, _cgoIndex%d); ", i, i)
+@@ -1182,11 +1183,11 @@ func (p *Package) checkAddr(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool
+ 		return false
+ 	}
+ 
+-	fmt.Fprintf(sb, "_cgoBase%d := %s; ", i, gofmtLine(*px))
++	fmt.Fprintf(sb, "_cgoBase%d := %s; ", i, gofmtPos(*px, (*px).Pos()))
+ 
+ 	origX := *px
+ 	*px = ast.NewIdent(fmt.Sprintf("_cgoBase%d", i))
+-	fmt.Fprintf(sb, "_cgo%d := %s; ", i, gofmtLine(arg))
++	fmt.Fprintf(sb, "_cgo%d := %s; ", i, gofmtPos(arg, arg.Pos()))
+ 	*px = origX
+ 
+ 	// Use "0 == 0" to do the right thing in the unlikely event
+@@ -1388,7 +1389,18 @@ func (p *Package) rewriteRef(f *File) {
+ 
+ 		// Record source-level edit for cgo output.
+ 		if !r.Done {
+-			repl := gofmt(expr)
++			repl := gofmtPos(expr, old.Pos())
++			end := fset.Position(old.End())
++			// Subtract 1 from the column if we are going to
++			// append a close parenthesis. That will set the
++			// correct column for the following characters.
++			sub := 0
++			if r.Name.Kind != "type" {
++				sub = 1
++			}
++			if end.Column > sub {
++				repl = fmt.Sprintf("%s/*line :%d:%d*/", repl, end.Line, end.Column-sub)
++			}
+ 			if r.Name.Kind != "type" {
+ 				repl = "(" + repl + ")"
+ 			}
+@@ -1506,6 +1518,17 @@ func (p *Package) rewriteName(f *File, r *Ref) ast.Expr {
+ 	return expr
+ }
+ 
++// gofmtPos returns the gofmt-formatted string for an AST node,
++// with a comment setting the position before the node.
++func gofmtPos(n ast.Expr, pos token.Pos) string {
++	s := gofmtLine(n)
++	p := fset.Position(pos)
++	if p.Column == 0 {
++		return s
++	}
++	return fmt.Sprintf("/*line :%d:%d*/%s", p.Line, p.Column, s)
++}
++
+ // gccBaseCmd returns the start of the compiler command line.
+ // It uses $CC if set, or else $GCC, or else the compiler recorded
+ // during the initial build as defaultCC.

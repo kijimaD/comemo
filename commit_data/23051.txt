@@ -22,7 +22,48 @@ Date:   Mon Apr 20 11:47:08 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9115
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go | 10 ++++++++++
  src/cmd/go/pkg.go   |  8 ++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 6734d53d5b..e470cacda8 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -425,6 +425,16 @@ func runBuild(cmd *Command, args []string) {
+ 	if buildBuildmode == "shared" {
+ 		a = b.libaction(libname(args))
+ 		mode = depMode
++
++		// Currently build mode shared forces external linking
++		// mode, and external linking mode forces an import of
++		// runtime/cgo.
++		var stk importStack
++		p := loadPackage("runtime/cgo", &stk)
++		if p.Error != nil {
++			fatalf("load runtime/cgo: %v", p.Error)
++		}
++		a.deps = append(a.deps, b.action(mode, depMode, p))
+ 	} else {
+ 		a = &action{}
+ 	}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 8bf0f568f7..11986ccfbf 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -534,6 +534,14 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 	if len(p.CgoFiles) > 0 && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
+ 		importPaths = append(importPaths, "syscall")
+ 	}
++
++	// Currently build mode c-shared, or -linkshared, forces
++	// external linking mode, and external linking mode forces an
++	// import of runtime/cgo.
++	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || buildLinkshared) {
++		importPaths = append(importPaths, "runtime/cgo")
++	}
++
+ 	// Everything depends on runtime, except runtime and unsafe.
+ 	if !p.Standard || (p.ImportPath != "runtime" && p.ImportPath != "unsafe") {
+ 		importPaths = append(importPaths, "runtime")

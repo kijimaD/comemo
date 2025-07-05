@@ -16,6 +16,34 @@ Date:   Tue Jan 31 18:38:01 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/cgo_unix.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 0cb71c7d38..d76652f054 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -260,17 +260,21 @@ func cgoLookupAddrPTR(addr string, sa *_C_struct_sockaddr, salen _C_socklen_t) (
+ 		}
+ 	}
+ 	if gerrno != 0 {
++		isErrorNoSuchHost := false
+ 		isTemporary := false
+ 		switch gerrno {
+ 		case _C_EAI_SYSTEM:
+ 			if err == nil { // see golang.org/issue/6232
+ 				err = syscall.EMFILE
+ 			}
++		case _C_EAI_NONAME:
++			err = errNoSuchHost
++			isErrorNoSuchHost = true
+ 		default:
+ 			err = addrinfoErrno(gerrno)
+ 			isTemporary = addrinfoErrno(gerrno).Temporary()
+ 		}
+-		return nil, &DNSError{Err: err.Error(), Name: addr, IsTemporary: isTemporary}
++		return nil, &DNSError{Err: err.Error(), Name: addr, IsTemporary: isTemporary, IsNotFound: isErrorNoSuchHost}
+ 	}
+ 	for i := 0; i < len(b); i++ {
+ 		if b[i] == 0 {

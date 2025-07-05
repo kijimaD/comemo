@@ -14,6 +14,19 @@ Date:   Fri Jan 15 11:30:49 2021 -0500
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
     Trust: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/decl.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index a822e08b1e..e62edfadb2 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -342,7 +342,6 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 				if tn == t.obj {
+ 					check.cycleError(path[i:])
+ 					t.info = invalid
+-					t.underlying = Typ[Invalid]
+ 					return t.info
+ 				}
+ 			}

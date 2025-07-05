@@ -12,7 +12,7 @@ Date:   Tue Oct 29 16:46:26 2019 -0400
     Change-Id: I2ae1d5593dfd5ee2b4d979664aec74aab4a8a704
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204157
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/tls/auth.go                   | 21 +++++++-------
  src/crypto/tls/common.go                 | 49 +++++++++++++++++++++-----------
  src/crypto/tls/handshake_client.go       | 12 ++++----
@@ -23,3 +23,405 @@ Date:   Tue Oct 29 16:46:26 2019 -0400
  src/crypto/tls/prf.go                    | 29 ++++---------------
  src/crypto/tls/tls_test.go               | 17 +++++++++++
  9 files changed, 96 insertions(+), 90 deletions(-)
+
+diff --git a/src/crypto/tls/auth.go b/src/crypto/tls/auth.go
+index c62c9af76b..72e2abf1d1 100644
+--- a/src/crypto/tls/auth.go
++++ b/src/crypto/tls/auth.go
+@@ -57,11 +57,10 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
+ 		if !isSupportedSignatureAlgorithm(sigAlg, ourSigAlgs) {
+ 			continue
+ 		}
+-		hashAlg, err := hashFromSignatureScheme(sigAlg)
++		sigType, hashAlg, err := typeAndHashFromSignatureScheme(sigAlg)
+ 		if err != nil {
+-			panic("tls: supported signature algorithm has an unknown hash function")
++			return 0, 0, 0, fmt.Errorf("tls: internal error: %v", err)
+ 		}
+-		sigType := signatureFromSignatureScheme(sigAlg)
+ 		switch pubkey.(type) {
+ 		case *rsa.PublicKey:
+ 			if sigType == signaturePKCS1v15 || sigType == signatureRSAPSS {
+@@ -89,30 +88,30 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
+ 	case signatureECDSA:
+ 		pubKey, ok := pubkey.(*ecdsa.PublicKey)
+ 		if !ok {
+-			return errors.New("tls: ECDSA signing requires a ECDSA public key")
++			return fmt.Errorf("expected an ECDSA public key, got %T", pubkey)
+ 		}
+ 		ecdsaSig := new(ecdsaSignature)
+ 		if _, err := asn1.Unmarshal(sig, ecdsaSig); err != nil {
+ 			return err
+ 		}
+ 		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
+-			return errors.New("tls: ECDSA signature contained zero or negative values")
++			return errors.New("ECDSA signature contained zero or negative values")
+ 		}
+ 		if !ecdsa.Verify(pubKey, signed, ecdsaSig.R, ecdsaSig.S) {
+-			return errors.New("tls: ECDSA verification failure")
++			return errors.New("ECDSA verification failure")
+ 		}
+ 	case signatureEd25519:
+ 		pubKey, ok := pubkey.(ed25519.PublicKey)
+ 		if !ok {
+-			return errors.New("tls: Ed25519 signing requires a Ed25519 public key")
++			return fmt.Errorf("expected an Ed25519 public key, got %T", pubkey)
+ 		}
+ 		if !ed25519.Verify(pubKey, signed, sig) {
+-			return errors.New("tls: Ed25519 verification failure")
++			return errors.New("Ed25519 verification failure")
+ 		}
+ 	case signaturePKCS1v15:
+ 		pubKey, ok := pubkey.(*rsa.PublicKey)
+ 		if !ok {
+-			return errors.New("tls: RSA signing requires a RSA public key")
++			return fmt.Errorf("expected an RSA public key, got %T", pubkey)
+ 		}
+ 		if err := rsa.VerifyPKCS1v15(pubKey, hashFunc, signed, sig); err != nil {
+ 			return err
+@@ -120,14 +119,14 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
+ 	case signatureRSAPSS:
+ 		pubKey, ok := pubkey.(*rsa.PublicKey)
+ 		if !ok {
+-			return errors.New("tls: RSA signing requires a RSA public key")
++			return fmt.Errorf("expected an RSA public key, got %T", pubkey)
+ 		}
+ 		signOpts := &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash}
+ 		if err := rsa.VerifyPSS(pubKey, hashFunc, signed, sig, signOpts); err != nil {
+ 			return err
+ 		}
+ 	default:
+-		return errors.New("tls: unknown signature algorithm")
++		return errors.New("internal error: unknown signature type")
+ 	}
+ 	return nil
+ }
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 14662e3ea9..bad1ed0814 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -339,6 +339,38 @@ const (
+ 	ECDSAWithSHA1 SignatureScheme = 0x0203
+ )
+ 
++// typeAndHashFromSignatureScheme returns the corresponding signature type and
++// crypto.Hash for a given TLS SignatureScheme.
++func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType uint8, hash crypto.Hash, err error) {
++	switch signatureAlgorithm {
++	case PKCS1WithSHA1, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512:
++		sigType = signaturePKCS1v15
++	case PSSWithSHA256, PSSWithSHA384, PSSWithSHA512:
++		sigType = signatureRSAPSS
++	case ECDSAWithSHA1, ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512:
++		sigType = signatureECDSA
++	case Ed25519:
++		sigType = signatureEd25519
++	default:
++		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
++	}
++	switch signatureAlgorithm {
++	case PKCS1WithSHA1, ECDSAWithSHA1:
++		hash = crypto.SHA1
++	case PKCS1WithSHA256, PSSWithSHA256, ECDSAWithP256AndSHA256:
++		hash = crypto.SHA256
++	case PKCS1WithSHA384, PSSWithSHA384, ECDSAWithP384AndSHA384:
++		hash = crypto.SHA384
++	case PKCS1WithSHA512, PSSWithSHA512, ECDSAWithP521AndSHA512:
++		hash = crypto.SHA512
++	case Ed25519:
++		hash = directSigning
++	default:
++		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
++	}
++	return sigType, hash, nil
++}
++
+ // ClientHelloInfo contains information from a ClientHello message in order to
+ // guide certificate selection in the GetCertificate callback.
+ type ClientHelloInfo struct {
+@@ -1151,20 +1183,3 @@ func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlg
+ 	}
+ 	return false
+ }
+-
+-// signatureFromSignatureScheme maps a signature algorithm to the underlying
+-// signature method (without hash function).
+-func signatureFromSignatureScheme(signatureAlgorithm SignatureScheme) uint8 {
+-	switch signatureAlgorithm {
+-	case PKCS1WithSHA1, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512:
+-		return signaturePKCS1v15
+-	case PSSWithSHA256, PSSWithSHA384, PSSWithSHA512:
+-		return signatureRSAPSS
+-	case ECDSAWithSHA1, ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512:
+-		return signatureECDSA
+-	case Ed25519:
+-		return signatureEd25519
+-	default:
+-		return 0
+-	}
+-}
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 75d710b2e2..dd7d10b809 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -581,11 +581,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
+ 		if certVerify.hasSignatureAlgorithm {
+ 			certVerify.signatureAlgorithm = signatureAlgorithm
+ 		}
+-		signed, err := hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret)
+-		if err != nil {
+-			c.sendAlert(alertInternalError)
+-			return err
+-		}
++		signed := hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret)
+ 		signOpts := crypto.SignerOpts(hashFunc)
+ 		if sigType == signatureRSAPSS {
+ 			signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: hashFunc}
+@@ -878,7 +874,11 @@ func certificateRequestInfoFromMsg(certReq *certificateRequestMsg) *CertificateR
+ 	// See RFC 5246, Section 7.4.4 (where it calls this "somewhat complicated").
+ 	cri.SignatureSchemes = make([]SignatureScheme, 0, len(certReq.supportedSignatureAlgorithms))
+ 	for _, sigScheme := range certReq.supportedSignatureAlgorithms {
+-		switch signatureFromSignatureScheme(sigScheme) {
++		sigType, _, err := typeAndHashFromSignatureScheme(sigScheme)
++		if err != nil {
++			continue
++		}
++		switch sigType {
+ 		case signatureECDSA, signatureEd25519:
+ 			if ecAvail {
+ 				cri.SignatureSchemes = append(cri.SignatureSchemes, sigScheme)
+diff --git a/src/crypto/tls/handshake_client_tls13.go b/src/crypto/tls/handshake_client_tls13.go
+index a561cbfe3c..b21ce3b8e9 100644
+--- a/src/crypto/tls/handshake_client_tls13.go
++++ b/src/crypto/tls/handshake_client_tls13.go
+@@ -448,23 +448,21 @@ func (hs *clientHandshakeStateTLS13) readServerCertificate() error {
+ 	// See RFC 8446, Section 4.4.3.
+ 	if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms) {
+ 		c.sendAlert(alertIllegalParameter)
+-		return errors.New("tls: invalid certificate signature algorithm")
++		return errors.New("tls: certificate used with invalid signature algorithm")
+ 	}
+-	sigType := signatureFromSignatureScheme(certVerify.signatureAlgorithm)
+-	sigHash, err := hashFromSignatureScheme(certVerify.signatureAlgorithm)
+-	if sigType == 0 || err != nil {
+-		c.sendAlert(alertInternalError)
+-		return err
++	sigType, sigHash, err := typeAndHashFromSignatureScheme(certVerify.signatureAlgorithm)
++	if err != nil {
++		return c.sendAlert(alertInternalError)
+ 	}
+ 	if sigType == signaturePKCS1v15 || sigHash == crypto.SHA1 {
+ 		c.sendAlert(alertIllegalParameter)
+-		return errors.New("tls: invalid certificate signature algorithm")
++		return errors.New("tls: certificate used with invalid signature algorithm")
+ 	}
+ 	signed := signedMessage(sigHash, serverSignatureContext, hs.transcript)
+ 	if err := verifyHandshakeSignature(sigType, c.peerCertificates[0].PublicKey,
+ 		sigHash, signed, certVerify.signature); err != nil {
+ 		c.sendAlert(alertDecryptError)
+-		return errors.New("tls: invalid certificate signature")
++		return errors.New("tls: invalid signature by the server certificate: " + err.Error())
+ 	}
+ 
+ 	hs.transcript.Write(certVerify.marshal())
+@@ -572,9 +570,8 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
+ 		return errors.New("tls: server doesn't support selected certificate")
+ 	}
+ 
+-	sigType := signatureFromSignatureScheme(certVerifyMsg.signatureAlgorithm)
+-	sigHash, err := hashFromSignatureScheme(certVerifyMsg.signatureAlgorithm)
+-	if sigType == 0 || err != nil {
++	sigType, sigHash, err := typeAndHashFromSignatureScheme(certVerifyMsg.signatureAlgorithm)
++	if err != nil {
+ 		return c.sendAlert(alertInternalError)
+ 	}
+ 
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index ab5be72f76..db0a756698 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -560,13 +560,10 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 			return err
+ 		}
+ 
+-		signed, err := hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret)
+-		if err == nil {
+-			err = verifyHandshakeSignature(sigType, pub, hashFunc, signed, certVerify.signature)
+-		}
+-		if err != nil {
+-			c.sendAlert(alertBadCertificate)
+-			return errors.New("tls: could not validate signature of connection nonces: " + err.Error())
++		signed := hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret)
++		if err := verifyHandshakeSignature(sigType, pub, hashFunc, signed, certVerify.signature); err != nil {
++			c.sendAlert(alertDecryptError)
++			return errors.New("tls: invalid signature by the client certificate: " + err.Error())
+ 		}
+ 
+ 		hs.finishedHash.Write(certVerify.marshal())
+@@ -717,7 +714,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
+ 		chains, err := certs[0].Verify(opts)
+ 		if err != nil {
+ 			c.sendAlert(alertBadCertificate)
+-			return errors.New("tls: failed to verify client's certificate: " + err.Error())
++			return errors.New("tls: failed to verify client certificate: " + err.Error())
+ 		}
+ 
+ 		c.verifiedChains = chains
+@@ -738,7 +735,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
+ 	case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey:
+ 	default:
+ 		c.sendAlert(alertUnsupportedCertificate)
+-		return fmt.Errorf("tls: client's certificate contains an unsupported public key of type %T", certs[0].PublicKey)
++		return fmt.Errorf("tls: client certificate contains an unsupported public key of type %T", certs[0].PublicKey)
+ 	}
+ 
+ 	c.peerCertificates = certs
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index feaa5bb6fa..8887b8046c 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -620,9 +620,8 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
+ 	certVerifyMsg.hasSignatureAlgorithm = true
+ 	certVerifyMsg.signatureAlgorithm = hs.sigAlg
+ 
+-	sigType := signatureFromSignatureScheme(hs.sigAlg)
+-	sigHash, err := hashFromSignatureScheme(hs.sigAlg)
+-	if sigType == 0 || err != nil {
++	sigType, sigHash, err := typeAndHashFromSignatureScheme(hs.sigAlg)
++	if err != nil {
+ 		return c.sendAlert(alertInternalError)
+ 	}
+ 
+@@ -801,23 +800,21 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
+ 		// See RFC 8446, Section 4.4.3.
+ 		if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms) {
+ 			c.sendAlert(alertIllegalParameter)
+-			return errors.New("tls: invalid certificate signature algorithm")
++			return errors.New("tls: client certificate used with invalid signature algorithm")
+ 		}
+-		sigType := signatureFromSignatureScheme(certVerify.signatureAlgorithm)
+-		sigHash, err := hashFromSignatureScheme(certVerify.signatureAlgorithm)
+-		if sigType == 0 || err != nil {
+-			c.sendAlert(alertInternalError)
+-			return err
++		sigType, sigHash, err := typeAndHashFromSignatureScheme(certVerify.signatureAlgorithm)
++		if err != nil {
++			return c.sendAlert(alertInternalError)
+ 		}
+ 		if sigType == signaturePKCS1v15 || sigHash == crypto.SHA1 {
+ 			c.sendAlert(alertIllegalParameter)
+-			return errors.New("tls: invalid certificate signature algorithm")
++			return errors.New("tls: client certificate used with invalid signature algorithm")
+ 		}
+ 		signed := signedMessage(sigHash, clientSignatureContext, hs.transcript)
+ 		if err := verifyHandshakeSignature(sigType, c.peerCertificates[0].PublicKey,
+ 			sigHash, signed, certVerify.signature); err != nil {
+ 			c.sendAlert(alertDecryptError)
+-			return errors.New("tls: invalid certificate signature")
++			return errors.New("tls: invalid signature by the client certificate: " + err.Error())
+ 		}
+ 
+ 		hs.transcript.Write(certVerify.marshal())
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index 3b10cb4542..496dc2d6cf 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -300,7 +300,10 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
+ 	sig = sig[2:]
+ 
+ 	signed := hashForServerKeyExchange(sigType, hashFunc, ka.version, clientHello.random, serverHello.random, serverECDHParams)
+-	return verifyHandshakeSignature(sigType, cert.PublicKey, hashFunc, signed, sig)
++	if err := verifyHandshakeSignature(sigType, cert.PublicKey, hashFunc, signed, sig); err != nil {
++		return errors.New("tls: invalid signature by the server certificate: " + err.Error())
++	}
++	return nil
+ }
+ 
+ func (ka *ecdheKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error) {
+diff --git a/src/crypto/tls/prf.go b/src/crypto/tls/prf.go
+index aeba5fcbd7..13bfa009ca 100644
+--- a/src/crypto/tls/prf.go
++++ b/src/crypto/tls/prf.go
+@@ -140,25 +140,6 @@ func keysFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clie
+ 	return
+ }
+ 
+-// hashFromSignatureScheme returns the corresponding crypto.Hash for a given
+-// hash from a TLS SignatureScheme.
+-func hashFromSignatureScheme(signatureAlgorithm SignatureScheme) (crypto.Hash, error) {
+-	switch signatureAlgorithm {
+-	case PKCS1WithSHA1, ECDSAWithSHA1:
+-		return crypto.SHA1, nil
+-	case PKCS1WithSHA256, PSSWithSHA256, ECDSAWithP256AndSHA256:
+-		return crypto.SHA256, nil
+-	case PKCS1WithSHA384, PSSWithSHA384, ECDSAWithP384AndSHA384:
+-		return crypto.SHA384, nil
+-	case PKCS1WithSHA512, PSSWithSHA512, ECDSAWithP521AndSHA512:
+-		return crypto.SHA512, nil
+-	case Ed25519:
+-		return directSigning, nil
+-	default:
+-		return 0, fmt.Errorf("tls: unsupported signature algorithm: %#04x", signatureAlgorithm)
+-	}
+-}
+-
+ func newFinishedHash(version uint16, cipherSuite *cipherSuite) finishedHash {
+ 	var buffer []byte
+ 	if version >= VersionTLS12 {
+@@ -234,26 +215,26 @@ func (h finishedHash) serverSum(masterSecret []byte) []byte {
+ 
+ // hashForClientCertificate returns the handshake messages so far, pre-hashed if
+ // necessary, suitable for signing by a TLS client certificate.
+-func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash, masterSecret []byte) ([]byte, error) {
++func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash, masterSecret []byte) []byte {
+ 	if (h.version >= VersionTLS12 || sigType == signatureEd25519) && h.buffer == nil {
+ 		panic("tls: handshake hash for a client certificate requested after discarding the handshake buffer")
+ 	}
+ 
+ 	if sigType == signatureEd25519 {
+-		return h.buffer, nil
++		return h.buffer
+ 	}
+ 
+ 	if h.version >= VersionTLS12 {
+ 		hash := hashAlg.New()
+ 		hash.Write(h.buffer)
+-		return hash.Sum(nil), nil
++		return hash.Sum(nil)
+ 	}
+ 
+ 	if sigType == signatureECDSA {
+-		return h.server.Sum(nil), nil
++		return h.server.Sum(nil)
+ 	}
+ 
+-	return h.Sum(), nil
++	return h.Sum()
+ }
+ 
+ // discardHandshakeBuffer is called when there is no more need to
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index c06e580b44..6770d617bf 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -1045,3 +1045,20 @@ func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {
+ }
+ 
+ func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
++
++// TestSupportedSignatureAlgorithms checks that all supportedSignatureAlgorithms
++// have valid type and hash information.
++func TestSupportedSignatureAlgorithms(t *testing.T) {
++	for _, sigAlg := range supportedSignatureAlgorithms {
++		sigType, hash, err := typeAndHashFromSignatureScheme(sigAlg)
++		if err != nil {
++			t.Errorf("%#04x: unexpected error: %v", sigAlg, err)
++		}
++		if sigType == 0 {
++			t.Errorf("%#04x: missing signature type", sigAlg)
++		}
++		if hash == 0 && sigAlg != Ed25519 {
++			t.Errorf("%#04x: missing hash", sigAlg)
++		}
++	}
++}

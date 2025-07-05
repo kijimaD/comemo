@@ -7,7 +7,7 @@ Date:   Thu Feb 23 18:47:26 2012 +1100
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5674112
-
+---
  test/helloworld.go   | 2 ++
  test/if.go           | 2 ++
  test/import.go       | 4 ++--
@@ -37,3 +37,390 @@ Date:   Thu Feb 23 18:47:26 2012 +1100
  test/method2.go      | 3 +++
  test/method3.go      | 2 +-
  28 files changed, 66 insertions(+), 11 deletions(-)
+
+diff --git a/test/helloworld.go b/test/helloworld.go
+index 16c95f0068..9c33cab3be 100644
+--- a/test/helloworld.go
++++ b/test/helloworld.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that we can do page 1 of the C book.
++
+ package main
+ 
+ func main() {
+diff --git a/test/if.go b/test/if.go
+index 13955781f9..25cc141648 100644
+--- a/test/if.go
++++ b/test/if.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test if statements in various forms.
++
+ package main
+ 
+ func assertequal(is, shouldbe int, msg string) {
+diff --git a/test/import.go b/test/import.go
+index a02a4ad8a4..d135cd2845 100644
+--- a/test/import.go
++++ b/test/import.go
+@@ -4,8 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// check that when import gives multiple names
+-// to a type, they're still all the same type
++// Test that when import gives multiple names
++// to a single type, they still all refer to the same type.
+ 
+ package main
+ 
+diff --git a/test/import1.go b/test/import1.go
+index f5b8926a70..56b29d58c0 100644
+--- a/test/import1.go
++++ b/test/import1.go
+@@ -4,7 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// check for import conflicts
++// Verify that import conflicts are detected by the compiler.
++// Does not compile.
+ 
+ package main
+ 
+diff --git a/test/import2.go b/test/import2.go
+index 0efc285fac..0acfabcc18 100644
+--- a/test/import2.go
++++ b/test/import2.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Various declarations of exported variables and functions.
++// Imported by import3.go.
++
+ package p
+ 
+ var C1 chan <- chan int = (chan<- (chan int))(nil)
+diff --git a/test/import3.go b/test/import3.go
+index e4900b93dd..274fcfe42a 100644
+--- a/test/import3.go
++++ b/test/import3.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check that all the types from import2.go made it
++// Test that all the types from import2.go made it
+ // intact and with the same meaning, by assigning to or using them.
+ 
+ package main
+diff --git a/test/import4.go b/test/import4.go
+index 1ae1d0e4ad..cbfebf7e18 100644
+--- a/test/import4.go
++++ b/test/import4.go
+@@ -4,9 +4,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++// Verify that various kinds of "imported and not used"
++// errors are caught by the compiler.
++// Does not compile.
+ 
+-// various kinds of imported and not used
++package main
+ 
+ // standard
+ import "fmt"	// ERROR "imported and not used.*fmt"
+diff --git a/test/import5.go b/test/import5.go
+index acd03c9ce9..54d22fd9e1 100644
+--- a/test/import5.go
++++ b/test/import5.go
+@@ -4,7 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// import paths are slash-separated; reject backslash
++// Verify that imports with backslashes are rejected by the compiler.
++// Does not compile.
++// TODO: make more thorough.
+ 
+ package main
+ 
+diff --git a/test/index.go b/test/index.go
+index 38aa33dd30..eb0c45495d 100644
+--- a/test/index.go
++++ b/test/index.go
+@@ -9,6 +9,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Generate test of index and slice bounds checks.
++// The output is compiled and run.
+ 
+ package main
+ 
+diff --git a/test/indirect.go b/test/indirect.go
+index df8d3c7366..bb20f3009b 100644
+--- a/test/indirect.go
++++ b/test/indirect.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test various safe uses of indirection.
++
+ package main
+ 
+ var m0 map[string]int
+diff --git a/test/indirect1.go b/test/indirect1.go
+index e49eeb0650..51da4cc7c4 100644
+--- a/test/indirect1.go
++++ b/test/indirect1.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that illegal uses of indirection are caught by the compiler.
++// Does not compile.
++
+ package main
+ 
+ var m0 map[string]int
+diff --git a/test/init.go b/test/init.go
+index 0146f4b3ee..f4689443cf 100644
+--- a/test/init.go
++++ b/test/init.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that erroneous use of init is detected.
++// Does not compile.
++
+ package main
+ 
+ import "runtime"
+diff --git a/test/initialize.go b/test/initialize.go
+index 5bab5a708d..1307e02096 100644
+--- a/test/initialize.go
++++ b/test/initialize.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test initialization of package-level variables.
++
+ package main
+ 
+ import "fmt"
+diff --git a/test/initializerr.go b/test/initializerr.go
+index c2703e3eb4..48908c3478 100644
+--- a/test/initializerr.go
++++ b/test/initializerr.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that erroneous initialization expressions are caught by the compiler
++// Does not compile.
++
+ package main
+ 
+ type S struct {
+diff --git a/test/int_lit.go b/test/int_lit.go
+index a109fa9574..78deaea130 100644
+--- a/test/int_lit.go
++++ b/test/int_lit.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test integer literal syntax.
++
+ package main
+ 
+ import "os"
+diff --git a/test/intcvt.go b/test/intcvt.go
+index 81b04effdc..3920528a40 100644
+--- a/test/intcvt.go
++++ b/test/intcvt.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test implicit and explicit conversions of constants.
++
+ package main
+ 
+ const (
+diff --git a/test/iota.go b/test/iota.go
+index 7e9e352797..7187dbe335 100644
+--- a/test/iota.go
++++ b/test/iota.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test iota.
++
+ package main
+ 
+ func assert(cond bool, msg string) {
+diff --git a/test/label.go b/test/label.go
+index 8f2df4ccbc..b30c27ec44 100644
+--- a/test/label.go
++++ b/test/label.go
+@@ -4,7 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Pass 1 label errors.
++// Verify that erroneous labels are caught by the compiler.
++// This set is caught by pass 1.
++// Does not compile.
+ 
+ package main
+ 
+diff --git a/test/label1.go b/test/label1.go
+index 8a192c2910..f923a18820 100644
+--- a/test/label1.go
++++ b/test/label1.go
+@@ -4,7 +4,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Pass 2 label errors.
++
++// Verify that erroneous labels are caught by the compiler.
++// This set is caught by pass 2. That's why this file is label1.go.
++// Does not compile.
+ 
+ package main
+ 
+diff --git a/test/linkx.go b/test/linkx.go
+index caa815a391..d2c9545679 100644
+--- a/test/linkx.go
++++ b/test/linkx.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test the -X facility of the gc linker (6l etc.).
++
+ package main
+ 
+ var tbd string
+diff --git a/test/literal.go b/test/literal.go
+index 396d75c01f..ba185fc9ac 100644
+--- a/test/literal.go
++++ b/test/literal.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test literal syntax for basic types.
++
+ package main
+ 
+ var nbad int
+diff --git a/test/mallocfin.go b/test/mallocfin.go
+index 2f9f8386da..be6d79b2b8 100644
+--- a/test/mallocfin.go
++++ b/test/mallocfin.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// trivial finalizer test
++// Test basic operation of finalizers.
+ 
+ package main
+ 
+diff --git a/test/map.go b/test/map.go
+index c7f1d05a98..6dec0dfd71 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test maps, almost exhaustively.
++
+ package main
+ 
+ import (
+diff --git a/test/map1.go b/test/map1.go
+index 44708c11bb..369e49da5d 100644
+--- a/test/map1.go
++++ b/test/map1.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test map declarations of many types, including erroneous ones.
++// Does not compile.
++
+ package main
+ 
+ func main() {}
+diff --git a/test/method.go b/test/method.go
+index 40b42ac7aa..6080ce5a77 100644
+--- a/test/method.go
++++ b/test/method.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simple methods of various types, with pointer and
++// value receivers.
++
+ package main
+ 
+ type S string
+diff --git a/test/method1.go b/test/method1.go
+index bbbdbfa1c1..365b8ca553 100644
+--- a/test/method1.go
++++ b/test/method1.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that method redeclarations are caught by the compiler.
++// Does not compile.
++
+ package main
+ 
+ type T struct { }
+diff --git a/test/method2.go b/test/method2.go
+index 7db1c3abb5..b63da10dc6 100644
+--- a/test/method2.go
++++ b/test/method2.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that pointers and interface types cannot be method receivers.
++// Does not compile.
++
+ package main
+ 
+ type T struct {
+diff --git a/test/method3.go b/test/method3.go
+index 5711ffd94c..fd64771527 100644
+--- a/test/method3.go
++++ b/test/method3.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// test that methods on slices work
++// Test methods on slices.
+ 
+ package main
+ 

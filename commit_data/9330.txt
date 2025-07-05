@@ -10,7 +10,55 @@ Date:   Wed Aug 10 08:08:53 2011 -0700
     R=golang-dev, nigeltao
     CC=golang-dev
     https://golang.org/cl/4808087
-
+---
  src/pkg/http/request.go      |  6 +++---
  src/pkg/http/request_test.go | 12 ++++++++++++
  2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index a1c98a1f8f..7aae8b4235 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -729,6 +729,9 @@ func (r *Request) ParseForm() (err os.Error) {
+ // ParseMultipartForm calls ParseForm if necessary.
+ // After one call to ParseMultipartForm, subsequent calls have no effect.
+ func (r *Request) ParseMultipartForm(maxMemory int64) os.Error {
++	if r.MultipartForm == multipartByReader {
++		return os.NewError("http: multipart handled by MultipartReader")
++	}
+ 	if r.Form == nil {
+ 		err := r.ParseForm()
+ 		if err != nil {
+@@ -738,9 +741,6 @@ func (r *Request) ParseMultipartForm(maxMemory int64) os.Error {
+ 	if r.MultipartForm != nil {
+ 		return nil
+ 	}
+-	if r.MultipartForm == multipartByReader {
+-		return os.NewError("http: multipart handled by MultipartReader")
+-	}
+ 
+ 	mr, err := r.multipartReader()
+ 	if err == ErrNotMultipart {
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index e03ed3b053..b5482db38b 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -219,6 +219,18 @@ func TestEmptyMultipartRequest(t *testing.T) {
+ 	testMissingFile(t, req)
+ }
+ 
++func TestRequestMultipartCallOrder(t *testing.T) {
++	req := newTestMultipartRequest(t)
++	_, err := req.MultipartReader()
++	if err != nil {
++		t.Fatalf("MultipartReader: %v", err)
++	}
++	err = req.ParseMultipartForm(1024)
++	if err == nil {
++		t.Errorf("expected an error from ParseMultipartForm after call to MultipartReader")
++	}
++}
++
+ func testMissingFile(t *testing.T, req *Request) {
+ 	f, fh, err := req.FormFile("missing")
+ 	if f != nil {

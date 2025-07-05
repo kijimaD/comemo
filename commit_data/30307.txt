@@ -9,6 +9,31 @@ Date:   Mon Oct 31 15:30:59 2016 +0000
     Change-Id: I0cfa8b3397be324dabfb8f33b6548a03c10571eb
     Reviewed-on: https://go-review.googlesource.com/32334
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/build/deps_test.go | 13 +++++++------
  1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index f1b9e1dd5f..cb101abe7c 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -170,12 +170,13 @@ var pkgDeps = map[string][]string{
+ 	"log": {"L1", "os", "fmt", "time"},
+ 
+ 	// Packages used by testing must be low-level (L2+fmt).
+-	"regexp":         {"L2", "regexp/syntax"},
+-	"regexp/syntax":  {"L2"},
+-	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os", "time"},
+-	"runtime/pprof":  {"L2", "fmt", "os", "text/tabwriter"},
+-	"runtime/trace":  {"L0"},
+-	"text/tabwriter": {"L2"},
++	"regexp":                       {"L2", "regexp/syntax"},
++	"regexp/syntax":                {"L2"},
++	"runtime/debug":                {"L2", "fmt", "io/ioutil", "os", "time"},
++	"runtime/pprof/internal/gzip0": {"L2"},
++	"runtime/pprof":                {"L2", "fmt", "os", "text/tabwriter"},
++	"runtime/trace":                {"L0"},
++	"text/tabwriter":               {"L2"},
+ 
+ 	"testing":          {"L2", "flag", "fmt", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
+ 	"testing/iotest":   {"L2", "log"},

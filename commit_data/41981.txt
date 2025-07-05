@@ -20,8 +20,163 @@ Date:   Tue Oct 1 11:22:07 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go |  2 +-
  test/uintptrescapes2.go              | 40 +++++++++++++++++------
  test/uintptrescapes3.go              | 63 ++++++++++++++++++++++++++++++++++++
  3 files changed, 95 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 90d7baa602..461f51b7c9 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -411,7 +411,7 @@ func (o *Order) call(n *Node) {
+ 	n.Right = o.expr(n.Right, nil) // ODDDARG temp
+ 	o.exprList(n.List)
+ 
+-	if n.Op != OCALLFUNC {
++	if n.Op != OCALLFUNC && n.Op != OCALLMETH {
+ 		return
+ 	}
+ 	keepAlive := func(i int) {
+diff --git a/test/uintptrescapes2.go b/test/uintptrescapes2.go
+index 866efd94d8..3ff1d94042 100644
+--- a/test/uintptrescapes2.go
++++ b/test/uintptrescapes2.go
+@@ -1,4 +1,4 @@
+-// errorcheck -0 -m -live
++// errorcheck -0 -l -m -live
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -13,31 +13,53 @@ import (
+ )
+ 
+ //go:uintptrescapes
+-//go:noinline
+ func F1(a uintptr) {} // ERROR "escaping uintptr"
+ 
+ //go:uintptrescapes
+-//go:noinline
+ func F2(a ...uintptr) {} // ERROR "escaping ...uintptr"
+ 
+ //go:uintptrescapes
+-//go:noinline
+ func F3(uintptr) {} // ERROR "escaping uintptr"
+ 
+ //go:uintptrescapes
+-//go:noinline
+ func F4(...uintptr) {} // ERROR "escaping ...uintptr"
+ 
+-func G() {
++type T struct{}
++
++//go:uintptrescapes
++func (T) M1(a uintptr) {} // ERROR "escaping uintptr"
++
++//go:uintptrescapes
++func (T) M2(a ...uintptr) {} // ERROR "escaping ...uintptr" "leaking param: a"
++
++func TestF1() {
+ 	var t int                        // ERROR "moved to heap"
+ 	F1(uintptr(unsafe.Pointer(&t)))  // ERROR "live at call to F1: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
++}
++
++func TestF3() {
+ 	var t2 int                       // ERROR "moved to heap"
+-	F3(uintptr(unsafe.Pointer(&t2))) // ERROR "live at call to F3: .?autotmp"
++	F3(uintptr(unsafe.Pointer(&t2))) // ERROR "live at call to F3: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+ }
+ 
+-func H() {
++func TestM1() {
++	var t T
++	var v int                         // ERROR "moved to heap"
++	t.M1(uintptr(unsafe.Pointer(&v))) // ERROR "live at call to T.M1: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
++}
++
++func TestF2() {
+ 	var v int                                 // ERROR "moved to heap"
+ 	F2(0, 1, uintptr(unsafe.Pointer(&v)), 2)  // ERROR "live at call to newobject: .?autotmp" "live at call to F2: .?autotmp" "escapes to heap" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
++}
++
++func TestF4() {
+ 	var v2 int                                // ERROR "moved to heap"
+-	F4(0, 1, uintptr(unsafe.Pointer(&v2)), 2) // ERROR "live at call to newobject: .?autotmp" "live at call to F4: .?autotmp" "escapes to heap"
++	F4(0, 1, uintptr(unsafe.Pointer(&v2)), 2) // ERROR "live at call to newobject: .?autotmp" "live at call to F4: .?autotmp" "escapes to heap" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
++}
++
++func TestM2() {
++	var t T
++	var v int                                  // ERROR "moved to heap"
++	t.M2(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to newobject: .?autotmp" "live at call to T.M2: .?autotmp"  "escapes to heap" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+ }
+diff --git a/test/uintptrescapes3.go b/test/uintptrescapes3.go
+new file mode 100644
+index 0000000000..92be5d1eef
+--- /dev/null
++++ b/test/uintptrescapes3.go
+@@ -0,0 +1,63 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that //go:uintptrescapes works for methods.
++
++package main
++
++import (
++	"fmt"
++	"runtime"
++	"unsafe"
++)
++
++var callback func()
++
++//go:noinline
++//go:uintptrescapes
++func F(ptr uintptr) { callback() }
++
++//go:noinline
++//go:uintptrescapes
++func Fv(ptrs ...uintptr) { callback() }
++
++type T struct{}
++
++//go:noinline
++//go:uintptrescapes
++func (T) M(ptr uintptr) { callback() }
++
++//go:noinline
++//go:uintptrescapes
++func (T) Mv(ptrs ...uintptr) { callback() }
++
++// Each test should pass uintptr(ptr) as an argument to a function call,
++// which in turn should call callback. The callback checks that ptr is kept alive.
++var tests = []func(ptr unsafe.Pointer){
++	func(ptr unsafe.Pointer) { F(uintptr(ptr)) },
++	func(ptr unsafe.Pointer) { Fv(uintptr(ptr)) },
++	func(ptr unsafe.Pointer) { T{}.M(uintptr(ptr)) },
++	func(ptr unsafe.Pointer) { T{}.Mv(uintptr(ptr)) },
++}
++
++func main() {
++	for i, test := range tests {
++		finalized := false
++
++		ptr := new([64]byte)
++		runtime.SetFinalizer(ptr, func(*[64]byte) {
++			finalized = true
++		})
++
++		callback = func() {
++			runtime.GC()
++			if finalized {
++				fmt.Printf("test #%d failed\n", i)
++			}
++		}
++		test(unsafe.Pointer(ptr))
++	}
++}

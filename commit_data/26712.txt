@@ -11,7 +11,46 @@ Date:   Tue Feb 23 13:35:12 2016 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/mparith2.go | 8 ++++++--
  test/fixedbugs/bug108.go                | 2 +-
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/mparith2.go b/src/cmd/compile/internal/gc/mparith2.go
+index 28c3a00825..67faf29479 100644
+--- a/src/cmd/compile/internal/gc/mparith2.go
++++ b/src/cmd/compile/internal/gc/mparith2.go
+@@ -217,7 +217,11 @@ func mplshfixfix(a, b *Mpint) {
+ 
+ 	s := Mpgetfix(b)
+ 	if s < 0 || s >= Mpprec {
+-		Yyerror("stupid shift: %d", s)
++		msg := "shift count too large"
++		if s < 0 {
++			msg = "invalid negative shift count"
++		}
++		Yyerror("%s: %d", msg, s)
+ 		Mpmovecfix(a, 0)
+ 		return
+ 	}
+@@ -236,7 +240,7 @@ func mprshfixfix(a, b *Mpint) {
+ 
+ 	s := Mpgetfix(b)
+ 	if s < 0 {
+-		Yyerror("stupid shift: %d", s)
++		Yyerror("invalid negative shift count: %d", s)
+ 		if a.Val.Sign() < 0 {
+ 			Mpmovecfix(a, -1)
+ 		} else {
+diff --git a/test/fixedbugs/bug108.go b/test/fixedbugs/bug108.go
+index 9f2a27ebd9..cfec4c9f1f 100644
+--- a/test/fixedbugs/bug108.go
++++ b/test/fixedbugs/bug108.go
+@@ -6,6 +6,6 @@
+ 
+ package main
+ func f() {
+-	v := 1 << 1025;		// ERROR "overflow|stupid shift"
++	v := 1 << 1025;		// ERROR "overflow|shift count too large"
+ 	_ = v
+ }

@@ -8,9 +8,152 @@ Date:   Thu Apr 10 21:45:41 2014 -0700
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/86060044
-
+---
  src/pkg/bytes/reader.go        | 12 ++++++------
  src/pkg/bytes/reader_test.go   |  4 ++--
  src/pkg/strings/reader.go      | 12 ++++++------
  src/pkg/strings/reader_test.go |  4 ++--
  4 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/bytes/reader.go b/src/pkg/bytes/reader.go
+index 61845e350b..73b7213446 100644
+--- a/src/pkg/bytes/reader.go
++++ b/src/pkg/bytes/reader.go
+@@ -45,7 +45,7 @@ func (r *Reader) Read(b []byte) (n int, err error) {
+ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
+ 	// cannot modify state - see io.ReaderAt
+ 	if off < 0 {
+-		return 0, errors.New("bytes: invalid offset")
++		return 0, errors.New("bytes.Reader.ReadAt: negative offset")
+ 	}
+ 	if off >= int64(len(r.s)) {
+ 		return 0, io.EOF
+@@ -68,11 +68,11 @@ func (r *Reader) ReadByte() (b byte, err error) {
+ }
+ 
+ func (r *Reader) UnreadByte() error {
++	r.prevRune = -1
+ 	if r.i <= 0 {
+-		return errors.New("bytes.Reader: at beginning of slice")
++		return errors.New("bytes.Reader.UnreadByte: at beginning of slice")
+ 	}
+ 	r.i--
+-	r.prevRune = -1
+ 	return nil
+ }
+ 
+@@ -93,7 +93,7 @@ func (r *Reader) ReadRune() (ch rune, size int, err error) {
+ 
+ func (r *Reader) UnreadRune() error {
+ 	if r.prevRune < 0 {
+-		return errors.New("bytes.Reader: previous operation was not ReadRune")
++		return errors.New("bytes.Reader.UnreadRune: previous operation was not ReadRune")
+ 	}
+ 	r.i = int64(r.prevRune)
+ 	r.prevRune = -1
+@@ -112,10 +112,10 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
+ 	case 2:
+ 		abs = int64(len(r.s)) + offset
+ 	default:
+-		return 0, errors.New("bytes: invalid whence")
++		return 0, errors.New("bytes.Reader.Seek: invalid whence")
+ 	}
+ 	if abs < 0 {
+-		return 0, errors.New("bytes: negative position")
++		return 0, errors.New("bytes.Reader.Seek: negative position")
+ 	}
+ 	r.i = abs
+ 	return abs, nil
+diff --git a/src/pkg/bytes/reader_test.go b/src/pkg/bytes/reader_test.go
+index 7abaee7fad..f1a51b1be4 100644
+--- a/src/pkg/bytes/reader_test.go
++++ b/src/pkg/bytes/reader_test.go
+@@ -27,7 +27,7 @@ func TestReader(t *testing.T) {
+ 		{seek: os.SEEK_SET, off: 0, n: 20, want: "0123456789"},
+ 		{seek: os.SEEK_SET, off: 1, n: 1, want: "1"},
+ 		{seek: os.SEEK_CUR, off: 1, wantpos: 3, n: 2, want: "34"},
+-		{seek: os.SEEK_SET, off: -1, seekerr: "bytes: negative position"},
++		{seek: os.SEEK_SET, off: -1, seekerr: "bytes.Reader.Seek: negative position"},
+ 		{seek: os.SEEK_SET, off: 1 << 33, wantpos: 1 << 33},
+ 		{seek: os.SEEK_CUR, off: 1, wantpos: 1<<33 + 1},
+ 		{seek: os.SEEK_SET, n: 5, want: "01234"},
+@@ -84,7 +84,7 @@ func TestReaderAt(t *testing.T) {
+ 		{1, 9, "123456789", nil},
+ 		{11, 10, "", io.EOF},
+ 		{0, 0, "", nil},
+-		{-1, 0, "", "bytes: invalid offset"},
++		{-1, 0, "", "bytes.Reader.ReadAt: negative offset"},
+ 	}
+ 	for i, tt := range tests {
+ 		b := make([]byte, tt.n)
+diff --git a/src/pkg/strings/reader.go b/src/pkg/strings/reader.go
+index c02d33bd61..ee83ceb505 100644
+--- a/src/pkg/strings/reader.go
++++ b/src/pkg/strings/reader.go
+@@ -44,7 +44,7 @@ func (r *Reader) Read(b []byte) (n int, err error) {
+ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
+ 	// cannot modify state - see io.ReaderAt
+ 	if off < 0 {
+-		return 0, errors.New("strings: invalid offset")
++		return 0, errors.New("strings.Reader.ReadAt: negative offset")
+ 	}
+ 	if off >= int64(len(r.s)) {
+ 		return 0, io.EOF
+@@ -67,11 +67,11 @@ func (r *Reader) ReadByte() (b byte, err error) {
+ }
+ 
+ func (r *Reader) UnreadByte() error {
++	r.prevRune = -1
+ 	if r.i <= 0 {
+-		return errors.New("strings.Reader: at beginning of string")
++		return errors.New("strings.Reader.UnreadByte: at beginning of string")
+ 	}
+ 	r.i--
+-	r.prevRune = -1
+ 	return nil
+ }
+ 
+@@ -92,7 +92,7 @@ func (r *Reader) ReadRune() (ch rune, size int, err error) {
+ 
+ func (r *Reader) UnreadRune() error {
+ 	if r.prevRune < 0 {
+-		return errors.New("strings.Reader: previous operation was not ReadRune")
++		return errors.New("strings.Reader.UnreadRune: previous operation was not ReadRune")
+ 	}
+ 	r.i = int64(r.prevRune)
+ 	r.prevRune = -1
+@@ -111,10 +111,10 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
+ 	case 2:
+ 		abs = int64(len(r.s)) + offset
+ 	default:
+-		return 0, errors.New("strings: invalid whence")
++		return 0, errors.New("strings.Reader.Seek: invalid whence")
+ 	}
+ 	if abs < 0 {
+-		return 0, errors.New("strings: negative position")
++		return 0, errors.New("strings.Reader.Seek: negative position")
+ 	}
+ 	r.i = abs
+ 	return abs, nil
+diff --git a/src/pkg/strings/reader_test.go b/src/pkg/strings/reader_test.go
+index 5995f21038..4d95355af7 100644
+--- a/src/pkg/strings/reader_test.go
++++ b/src/pkg/strings/reader_test.go
+@@ -27,7 +27,7 @@ func TestReader(t *testing.T) {
+ 		{seek: os.SEEK_SET, off: 0, n: 20, want: "0123456789"},
+ 		{seek: os.SEEK_SET, off: 1, n: 1, want: "1"},
+ 		{seek: os.SEEK_CUR, off: 1, wantpos: 3, n: 2, want: "34"},
+-		{seek: os.SEEK_SET, off: -1, seekerr: "strings: negative position"},
++		{seek: os.SEEK_SET, off: -1, seekerr: "strings.Reader.Seek: negative position"},
+ 		{seek: os.SEEK_SET, off: 1 << 33, wantpos: 1 << 33},
+ 		{seek: os.SEEK_CUR, off: 1, wantpos: 1<<33 + 1},
+ 		{seek: os.SEEK_SET, n: 5, want: "01234"},
+@@ -84,7 +84,7 @@ func TestReaderAt(t *testing.T) {
+ 		{1, 9, "123456789", nil},
+ 		{11, 10, "", io.EOF},
+ 		{0, 0, "", nil},
+-		{-1, 0, "", "strings: invalid offset"},
++		{-1, 0, "", "strings.Reader.ReadAt: negative offset"},
+ 	}
+ 	for i, tt := range tests {
+ 		b := make([]byte, tt.n)

@@ -10,6 +10,36 @@ Date:   Fri Nov 5 15:34:20 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/net/netip/netip_test.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index 63af853cb3..a6327f0dea 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -1889,6 +1889,24 @@ func TestInvalidAddrPortString(t *testing.T) {
+ 	}
+ }
+ 
++func TestAsSlice(t *testing.T) {
++	tests := []struct {
++		in   Addr
++		want []byte
++	}{
++		{in: Addr{}, want: nil},
++		{in: mustIP("1.2.3.4"), want: []byte{1, 2, 3, 4}},
++		{in: mustIP("ffff::1"), want: []byte{0xff, 0xff, 15: 1}},
++	}
++
++	for _, test := range tests {
++		got := test.in.AsSlice()
++		if !bytes.Equal(got, test.want) {
++			t.Errorf("%v.AsSlice() = %v want %v", test.in, got, test.want)
++		}
++	}
++}
++
+ var sink16 [16]byte
+ 
+ func BenchmarkAs16(b *testing.B) {

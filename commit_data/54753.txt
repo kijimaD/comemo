@@ -35,7 +35,7 @@ Date:   Fri Nov 11 12:36:31 2022 -0500
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go                |  12 +--
  src/cmd/go/internal/fsys/fsys.go     |  20 +++--
  src/cmd/go/internal/modindex/read.go |   6 +-
@@ -60,3 +60,773 @@ Date:   Fri Nov 11 12:36:31 2022 -0500
  src/runtime/runtime.go               |  30 +++++--
  src/runtime/runtime1.go              |   2 +-
  23 files changed, 245 insertions(+), 98 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index eebc3266c8..a852fea805 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2348,9 +2348,11 @@ func TestUpxCompression(t *testing.T) {
+ 	}
+ }
+ 
++var gocacheverify = godebug.New("gocacheverify")
++
+ func TestCacheListStale(t *testing.T) {
+ 	tooSlow(t)
+-	if godebug.Get("gocacheverify") == "1" {
++	if gocacheverify.Value() == "1" {
+ 		t.Skip("GODEBUG gocacheverify")
+ 	}
+ 	tg := testgo(t)
+@@ -2373,7 +2375,7 @@ func TestCacheListStale(t *testing.T) {
+ func TestCacheCoverage(t *testing.T) {
+ 	tooSlow(t)
+ 
+-	if godebug.Get("gocacheverify") == "1" {
++	if gocacheverify.Value() == "1" {
+ 		t.Skip("GODEBUG gocacheverify")
+ 	}
+ 
+@@ -2407,7 +2409,7 @@ func TestIssue22588(t *testing.T) {
+ 
+ func TestIssue22531(t *testing.T) {
+ 	tooSlow(t)
+-	if godebug.Get("gocacheverify") == "1" {
++	if gocacheverify.Value() == "1" {
+ 		t.Skip("GODEBUG gocacheverify")
+ 	}
+ 	tg := testgo(t)
+@@ -2436,7 +2438,7 @@ func TestIssue22531(t *testing.T) {
+ 
+ func TestIssue22596(t *testing.T) {
+ 	tooSlow(t)
+-	if godebug.Get("gocacheverify") == "1" {
++	if gocacheverify.Value() == "1" {
+ 		t.Skip("GODEBUG gocacheverify")
+ 	}
+ 	tg := testgo(t)
+@@ -2466,7 +2468,7 @@ func TestIssue22596(t *testing.T) {
+ func TestTestCache(t *testing.T) {
+ 	tooSlow(t)
+ 
+-	if godebug.Get("gocacheverify") == "1" {
++	if gocacheverify.Value() == "1" {
+ 		t.Skip("GODEBUG gocacheverify")
+ 	}
+ 	tg := testgo(t)
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index 311e033930..07bdc16aba 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -36,27 +36,29 @@ func Trace(op, path string) {
+ 	traceMu.Lock()
+ 	defer traceMu.Unlock()
+ 	fmt.Fprintf(traceFile, "%d gofsystrace %s %s\n", os.Getpid(), op, path)
+-	if traceStack != "" {
+-		if match, _ := pathpkg.Match(traceStack, path); match {
++	if pattern := gofsystracestack.Value(); pattern != "" {
++		if match, _ := pathpkg.Match(pattern, path); match {
+ 			traceFile.Write(debug.Stack())
+ 		}
+ 	}
+ }
+ 
+ var (
+-	doTrace    bool
+-	traceStack string
+-	traceFile  *os.File
+-	traceMu    sync.Mutex
++	doTrace   bool
++	traceFile *os.File
++	traceMu   sync.Mutex
++
++	gofsystrace      = godebug.New("gofsystrace")
++	gofsystracelog   = godebug.New("gofsystracelog")
++	gofsystracestack = godebug.New("gofsystracestack")
+ )
+ 
+ func init() {
+-	if godebug.Get("gofsystrace") != "1" {
++	if gofsystrace.Value() != "1" {
+ 		return
+ 	}
+ 	doTrace = true
+-	traceStack = godebug.Get("gofsystracestack")
+-	if f := godebug.Get("gofsystracelog"); f != "" {
++	if f := gofsystracelog.Value(); f != "" {
+ 		// Note: No buffering on writes to this file, so no need to worry about closing it at exit.
+ 		var err error
+ 		traceFile, err = os.OpenFile(f, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 3e068d5600..eaf921b6df 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -37,7 +37,7 @@ import (
+ // It will be removed before the release.
+ // TODO(matloob): Remove enabled once we have more confidence on the
+ // module index.
+-var enabled bool = godebug.Get("goindex") != "0"
++var enabled = godebug.New("goindex").Value() != "0"
+ 
+ // Module represents and encoded module index file. It is used to
+ // do the equivalent of build.Import of packages in the module and answer other
+@@ -368,6 +368,8 @@ func relPath(path, modroot string) string {
+ 	return str.TrimFilePathPrefix(filepath.Clean(path), filepath.Clean(modroot))
+ }
+ 
++var installgorootAll = godebug.New("installgoroot").Value() == "all"
++
+ // Import is the equivalent of build.Import given the information in Module.
+ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *build.Package, err error) {
+ 	defer unprotect(protect(), &err)
+@@ -436,7 +438,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
+ 				p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
+ 
+ 				// Set the install target if applicable.
+-				if !p.Goroot || (strings.EqualFold(godebug.Get("installgoroot"), "all") && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
++				if !p.Goroot || (installgorootAll && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
+ 					p.PkgObj = ctxt.joinPath(p.Root, pkga)
+ 				}
+ 			}
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index df86c65939..9ebc25bf00 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -813,6 +813,8 @@ func signaturePublicKeyAlgoMismatchError(expectedPubKeyAlgo PublicKeyAlgorithm,
+ 	return fmt.Errorf("x509: signature algorithm specifies an %s public key, but have public key of type %T", expectedPubKeyAlgo.String(), pubKey)
+ }
+ 
++var x509sha1 = godebug.New("x509sha1")
++
+ // checkSignature verifies that signature is a valid signature over signed from
+ // a crypto.PublicKey.
+ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey, allowSHA1 bool) (err error) {
+@@ -835,7 +837,7 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
+ 		return InsecureAlgorithmError(algo)
+ 	case crypto.SHA1:
+ 		// SHA-1 signatures are mostly disabled. See go.dev/issue/41682.
+-		if !allowSHA1 && godebug.Get("x509sha1") != "1" {
++		if !allowSHA1 && x509sha1.Value() != "1" {
+ 			return InsecureAlgorithmError(algo)
+ 		}
+ 		fallthrough
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 6925154da1..53d4b27e10 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -521,6 +521,8 @@ func nameExt(name string) string {
+ 	return name[i:]
+ }
+ 
++var installgoroot = godebug.New("installgoroot")
++
+ // Import returns details about the Go package named by the import path,
+ // interpreting local import paths relative to the srcDir directory.
+ // If the path is a local import path naming a package that can be imported
+@@ -783,7 +785,7 @@ Found:
+ 			p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
+ 
+ 			// Set the install target if applicable.
+-			if !p.Goroot || (strings.EqualFold(godebug.Get("installgoroot"), "all") && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
++			if !p.Goroot || (installgoroot.Value() == "all" && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
+ 				p.PkgObj = ctxt.joinPath(p.Root, pkga)
+ 			}
+ 		}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index dea9935c12..39609521c3 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -52,13 +52,10 @@ var depsRules = `
+ 	internal/goarch, unsafe
+ 	< internal/abi;
+ 
+-	unsafe
+-	< internal/godebug;
+-
+ 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
+ 	internal/abi, internal/cpu, internal/goarch,
+ 	internal/coverage/rtcov, internal/goexperiment,
+-	internal/goos, internal/godebug, unsafe
++	internal/goos, unsafe
+ 	< internal/bytealg
+ 	< internal/itoa
+ 	< internal/unsafeheader
+@@ -70,6 +67,7 @@ var depsRules = `
+ 	< sync/atomic
+ 	< internal/race
+ 	< sync
++	< internal/godebug
+ 	< internal/reflectlite
+ 	< errors
+ 	< internal/oserror, math/bits
+diff --git a/src/internal/cpu/cpu_test.go b/src/internal/cpu/cpu_test.go
+index c95cd51726..5aa277f960 100644
+--- a/src/internal/cpu/cpu_test.go
++++ b/src/internal/cpu/cpu_test.go
+@@ -48,7 +48,7 @@ func TestDisableAllCapabilities(t *testing.T) {
+ func TestAllCapabilitiesDisabled(t *testing.T) {
+ 	MustHaveDebugOptionsSupport(t)
+ 
+-	if godebug.Get("cpu.all") != "off" {
++	if godebug.New("cpu.all").Value() != "off" {
+ 		t.Skipf("skipping test: GODEBUG=cpu.all=off not set")
+ 	}
+ 
+diff --git a/src/internal/cpu/cpu_x86_test.go b/src/internal/cpu/cpu_x86_test.go
+index 43d6b211ea..d7be4308a2 100644
+--- a/src/internal/cpu/cpu_x86_test.go
++++ b/src/internal/cpu/cpu_x86_test.go
+@@ -28,7 +28,7 @@ func TestDisableSSE3(t *testing.T) {
+ func TestSSE3DebugOption(t *testing.T) {
+ 	MustHaveDebugOptionsSupport(t)
+ 
+-	if godebug.Get("cpu.sse3") != "off" {
++	if godebug.New("cpu.sse3").Value() != "off" {
+ 		t.Skipf("skipping test: GODEBUG=cpu.sse3=off not set")
+ 	}
+ 
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index d0eb92dd9f..7d4fe06198 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -21,7 +21,6 @@ import (
+ 	"reflect"
+ 	"runtime"
+ 	"strings"
+-	"sync"
+ 	"time"
+ )
+ 
+@@ -1077,14 +1076,8 @@ var zeroVals []any = []any{
+ 	uint64(0),
+ }
+ 
+-var (
+-	debugInfo     bool
+-	debugInfoOnce sync.Once
+-)
++var debugInfo = godebug.New("fuzzdebug").Value() == "1"
+ 
+ func shouldPrintDebugInfo() bool {
+-	debugInfoOnce.Do(func() {
+-		debugInfo = godebug.Get("fuzzdebug") == "1"
+-	})
+ 	return debugInfo
+ }
+diff --git a/src/internal/godebug/export_test.go b/src/internal/godebug/export_test.go
+deleted file mode 100644
+index e84d9a9912..0000000000
+--- a/src/internal/godebug/export_test.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package godebug
+-
+-var Xget = get
+diff --git a/src/internal/godebug/godebug.go b/src/internal/godebug/godebug.go
+index 65a8c4e305..dbcd98042d 100644
+--- a/src/internal/godebug/godebug.go
++++ b/src/internal/godebug/godebug.go
+@@ -2,36 +2,163 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package godebug parses the GODEBUG environment variable.
++// Package godebug makes the settings in the $GODEBUG environment variable
++// available to other packages. These settings are often used for compatibility
++// tweaks, when we need to change a default behavior but want to let users
++// opt back in to the original. For example GODEBUG=http2server=0 disables
++// HTTP/2 support in the net/http server.
++//
++// In typical usage, code should declare a Setting as a global
++// and then call Value each time the current setting value is needed:
++//
++//	var http2server = godebug.New("http2server")
++//
++//	func ServeConn(c net.Conn) {
++//		if http2server.Value() == "0" {
++//			disallow HTTP/2
++//			...
++//		}
++//		...
++//	}
+ package godebug
+ 
+-import _ "unsafe" // go:linkname
++import (
++	"sync"
++	"sync/atomic"
++	_ "unsafe" // go:linkname
++)
+ 
+-//go:linkname getGODEBUG
+-func getGODEBUG() string
++// A Setting is a single setting in the $GODEBUG environment variable.
++type Setting struct {
++	name  string
++	once  sync.Once
++	value *atomic.Pointer[string]
++}
++
++// New returns a new Setting for the $GODEBUG setting with the given name.
++func New(name string) *Setting {
++	return &Setting{name: name}
++}
++
++// Name returns the name of the setting.
++func (s *Setting) Name() string {
++	return s.name
++}
+ 
+-// Get returns the value for the provided GODEBUG key.
+-func Get(key string) string {
+-	return get(getGODEBUG(), key)
++// String returns a printable form for the setting: name=value.
++func (s *Setting) String() string {
++	return s.name + "=" + s.Value()
+ }
+ 
+-// get returns the value part of key=value in s (a GODEBUG value).
+-func get(s, key string) string {
+-	for i := 0; i < len(s)-len(key)-1; i++ {
+-		if i > 0 && s[i-1] != ',' {
+-			continue
++// cache is a cache of all the GODEBUG settings,
++// a locked map[string]*atomic.Pointer[string].
++//
++// All Settings with the same name share a single
++// *atomic.Pointer[string], so that when GODEBUG
++// changes only that single atomic string pointer
++// needs to be updated.
++//
++// A name appears in the values map either if it is the
++// name of a Setting for which Value has been called
++// at least once, or if the name has ever appeared in
++// a name=value pair in the $GODEBUG environment variable.
++// Once entered into the map, the name is never removed.
++var cache sync.Map // name string -> value *atomic.Pointer[string]
++
++var empty string
++
++// Value returns the current value for the GODEBUG setting s.
++//
++// Value maintains an internal cache that is synchronized
++// with changes to the $GODEBUG environment variable,
++// making Value efficient to call as frequently as needed.
++// Clients should therefore typically not attempt their own
++// caching of Value's result.
++func (s *Setting) Value() string {
++	s.once.Do(func() {
++		v, ok := cache.Load(s.name)
++		if !ok {
++			p := new(atomic.Pointer[string])
++			p.Store(&empty)
++			v, _ = cache.LoadOrStore(s.name, p)
+ 		}
+-		afterKey := s[i+len(key):]
+-		if afterKey[0] != '=' || s[i:i+len(key)] != key {
+-			continue
++		s.value = v.(*atomic.Pointer[string])
++	})
++	return *s.value.Load()
++}
++
++// setUpdate is provided by package runtime.
++// It calls update(def, env), where def is the default GODEBUG setting
++// and env is the current value of the $GODEBUG environment variable.
++// After that first call, the runtime calls update(def, env)
++// again each time the environment variable changes
++// (due to use of os.Setenv, for example).
++//
++//go:linkname setUpdate
++func setUpdate(update func(string, string))
++
++func init() {
++	setUpdate(update)
++}
++
++var updateMu sync.Mutex
++
++// update records an updated GODEBUG setting.
++// def is the default GODEBUG setting for the running binary,
++// and env is the current value of the $GODEBUG environment variable.
++func update(def, env string) {
++	updateMu.Lock()
++	defer updateMu.Unlock()
++
++	// Update all the cached values, creating new ones as needed.
++	// We parse the environment variable first, so that any settings it has
++	// are already locked in place (did[name] = true) before we consider
++	// the defaults.
++	did := make(map[string]bool)
++	parse(did, env)
++	parse(did, def)
++
++	// Clear any cached values that are no longer present.
++	cache.Range(func(name, v any) bool {
++		if !did[name.(string)] {
++			v.(*atomic.Pointer[string]).Store(&empty)
+ 		}
+-		val := afterKey[1:]
+-		for i, b := range val {
+-			if b == ',' {
+-				return val[:i]
++		return true
++	})
++}
++
++// parse parses the GODEBUG setting string s,
++// which has the form k=v,k2=v2,k3=v3.
++// Later settings override earlier ones.
++// Parse only updates settings k=v for which did[k] = false.
++// It also sets did[k] = true for settings that it updates.
++func parse(did map[string]bool, s string) {
++	// Scan the string backward so that later settings are used
++	// and earlier settings are ignored.
++	// Note that a forward scan would cause cached values
++	// to temporarily use the ignored value before being
++	// updated to the "correct" one.
++	end := len(s)
++	eq := -1
++	for i := end - 1; i >= -1; i-- {
++		if i == -1 || s[i] == ',' {
++			if eq >= 0 {
++				name, value := s[i+1:eq], s[eq+1:end]
++				if !did[name] {
++					did[name] = true
++					v, ok := cache.Load(name)
++					if !ok {
++						p := new(atomic.Pointer[string])
++						p.Store(&empty)
++						v, _ = cache.LoadOrStore(name, p)
++					}
++					v.(*atomic.Pointer[string]).Store(&value)
++				}
+ 			}
++			eq = -1
++			end = i
++		} else if s[i] == '=' {
++			eq = i
+ 		}
+-		return val
+ 	}
+-	return ""
+ }
+diff --git a/src/internal/godebug/godebug_test.go b/src/internal/godebug/godebug_test.go
+index d7a2a7a8d8..319229dac9 100644
+--- a/src/internal/godebug/godebug_test.go
++++ b/src/internal/godebug/godebug_test.go
+@@ -10,28 +10,30 @@ import (
+ )
+ 
+ func TestGet(t *testing.T) {
++	foo := New("foo")
+ 	tests := []struct {
+ 		godebug string
+-		key     string
++		setting *Setting
+ 		want    string
+ 	}{
+-		{"", "", ""},
+-		{"", "foo", ""},
+-		{"foo=bar", "foo", "bar"},
+-		{"foo=bar,after=x", "foo", "bar"},
+-		{"before=x,foo=bar,after=x", "foo", "bar"},
+-		{"before=x,foo=bar", "foo", "bar"},
+-		{",,,foo=bar,,,", "foo", "bar"},
+-		{"foodecoy=wrong,foo=bar", "foo", "bar"},
+-		{"foo=", "foo", ""},
+-		{"foo", "foo", ""},
+-		{",foo", "foo", ""},
+-		{"foo=bar,baz", "loooooooong", ""},
++		{"", New(""), ""},
++		{"", foo, ""},
++		{"foo=bar", foo, "bar"},
++		{"foo=bar,after=x", foo, "bar"},
++		{"before=x,foo=bar,after=x", foo, "bar"},
++		{"before=x,foo=bar", foo, "bar"},
++		{",,,foo=bar,,,", foo, "bar"},
++		{"foodecoy=wrong,foo=bar", foo, "bar"},
++		{"foo=", foo, ""},
++		{"foo", foo, ""},
++		{",foo", foo, ""},
++		{"foo=bar,baz", New("loooooooong"), ""},
+ 	}
+ 	for _, tt := range tests {
+-		got := Xget(tt.godebug, tt.key)
++		t.Setenv("GODEBUG", tt.godebug)
++		got := tt.setting.Value()
+ 		if got != tt.want {
+-			t.Errorf("get(%q, %q) = %q; want %q", tt.godebug, tt.key, got, tt.want)
++			t.Errorf("get(%q, %q) = %q; want %q", tt.godebug, tt.setting.Name(), got, tt.want)
+ 		}
+ 	}
+ }
+diff --git a/src/internal/intern/intern.go b/src/internal/intern/intern.go
+index c7639b4668..0e6852f729 100644
+--- a/src/internal/intern/intern.go
++++ b/src/internal/intern/intern.go
+@@ -66,10 +66,12 @@ var (
+ 	valSafe = safeMap()         // non-nil in safe+leaky mode
+ )
+ 
++var intern = godebug.New("intern")
++
+ // safeMap returns a non-nil map if we're in safe-but-leaky mode,
+ // as controlled by GODEBUG=intern=leaky
+ func safeMap() map[key]*Value {
+-	if godebug.Get("intern") == "leaky" {
++	if intern.Value() == "leaky" {
+ 		return map[key]*Value{}
+ 	}
+ 	return nil
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index f6b015aba2..0157d7198b 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -408,12 +408,14 @@ type lockedSource struct {
+ //go:linkname fastrand64
+ func fastrand64() uint64
+ 
++var randautoseed = godebug.New("randautoseed")
++
+ // source returns r.s, allocating and seeding it if needed.
+ // The caller must have locked r.
+ func (r *lockedSource) source() *rngSource {
+ 	if r.s == nil {
+ 		var seed int64
+-		if godebug.Get("randautoseed") == "0" {
++		if randautoseed.Value() == "0" {
+ 			seed = 1
+ 		} else {
+ 			seed = int64(fastrand64())
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 77099ca100..b6bc195683 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -301,6 +301,8 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ 	return fallbackOrder
+ }
+ 
++var netdns = godebug.New("netdns")
++
+ // goDebugNetDNS parses the value of the GODEBUG "netdns" value.
+ // The netdns value can be of the form:
+ //
+@@ -314,7 +316,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ //
+ // etc.
+ func goDebugNetDNS() (dnsMode string, debugLevel int) {
+-	goDebug := godebug.Get("netdns")
++	goDebug := netdns.Value()
+ 	parsePart := func(s string) {
+ 		if s == "" {
+ 			return
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 698d0636fa..c3c3f91d9a 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -3313,11 +3313,13 @@ func (srv *Server) onceSetNextProtoDefaults_Serve() {
+ 	}
+ }
+ 
++var http2server = godebug.New("http2server")
++
+ // onceSetNextProtoDefaults configures HTTP/2, if the user hasn't
+ // configured otherwise. (by setting srv.TLSNextProto non-nil)
+ // It must only be called via srv.nextProtoOnce (use srv.setupHTTP2_*).
+ func (srv *Server) onceSetNextProtoDefaults() {
+-	if omitBundledHTTP2 || godebug.Get("http2server") == "0" {
++	if omitBundledHTTP2 || http2server.Value() == "0" {
+ 		return
+ 	}
+ 	// Enable HTTP/2 by default if the user hasn't otherwise
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 184cf27518..e4434e8076 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -362,11 +362,13 @@ func (t *Transport) hasCustomTLSDialer() bool {
+ 	return t.DialTLS != nil || t.DialTLSContext != nil
+ }
+ 
++var http2client = godebug.New("http2client")
++
+ // onceSetNextProtoDefaults initializes TLSNextProto.
+ // It must be called via t.nextProtoOnce.Do.
+ func (t *Transport) onceSetNextProtoDefaults() {
+ 	t.tlsNextProtoWasNil = (t.TLSNextProto == nil)
+-	if godebug.Get("http2client") == "0" {
++	if http2client.Value() == "0" {
+ 		return
+ 	}
+ 
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 46b09b9c0c..2f4bdffe9c 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -348,6 +348,9 @@ type ctxResult struct {
+ 	timer *time.Timer
+ }
+ 
++var execwait = godebug.New("execwait")
++var execerrdot = godebug.New("execerrdot")
++
+ // Command returns the Cmd struct to execute the named program with
+ // the given arguments.
+ //
+@@ -376,8 +379,8 @@ func Command(name string, arg ...string) *Cmd {
+ 		Args: append([]string{name}, arg...),
+ 	}
+ 
+-	if execwait := godebug.Get("execwait"); execwait != "" {
+-		if execwait == "2" {
++	if v := execwait.Value(); v != "" {
++		if v == "2" {
+ 			// Obtain the caller stack. (This is equivalent to runtime/debug.Stack,
+ 			// copied to avoid importing the whole package.)
+ 			stack := make([]byte, 1024)
+diff --git a/src/os/exec/lp_plan9.go b/src/os/exec/lp_plan9.go
+index 092684f03a..59538d98a3 100644
+--- a/src/os/exec/lp_plan9.go
++++ b/src/os/exec/lp_plan9.go
+@@ -6,7 +6,6 @@ package exec
+ 
+ import (
+ 	"errors"
+-	"internal/godebug"
+ 	"io/fs"
+ 	"os"
+ 	"path/filepath"
+@@ -54,7 +53,7 @@ func LookPath(file string) (string, error) {
+ 	for _, dir := range filepath.SplitList(path) {
+ 		path := filepath.Join(dir, file)
+ 		if err := findExecutable(path); err == nil {
+-			if !filepath.IsAbs(path) && godebug.Get("execerrdot") != "0" {
++			if !filepath.IsAbs(path) && execerrdot.Value() != "0" {
+ 				return path, &Error{file, ErrDot}
+ 			}
+ 			return path, nil
+diff --git a/src/os/exec/lp_unix.go b/src/os/exec/lp_unix.go
+index af68c2f268..2af9b01cf6 100644
+--- a/src/os/exec/lp_unix.go
++++ b/src/os/exec/lp_unix.go
+@@ -8,7 +8,6 @@ package exec
+ 
+ import (
+ 	"errors"
+-	"internal/godebug"
+ 	"internal/syscall/unix"
+ 	"io/fs"
+ 	"os"
+@@ -70,7 +69,7 @@ func LookPath(file string) (string, error) {
+ 		}
+ 		path := filepath.Join(dir, file)
+ 		if err := findExecutable(path); err == nil {
+-			if !filepath.IsAbs(path) && godebug.Get("execerrdot") != "0" {
++			if !filepath.IsAbs(path) && execerrdot.Value() != "0" {
+ 				return path, &Error{file, ErrDot}
+ 			}
+ 			return path, nil
+diff --git a/src/os/exec/lp_windows.go b/src/os/exec/lp_windows.go
+index ec45db7459..97bfa58244 100644
+--- a/src/os/exec/lp_windows.go
++++ b/src/os/exec/lp_windows.go
+@@ -6,7 +6,6 @@ package exec
+ 
+ import (
+ 	"errors"
+-	"internal/godebug"
+ 	"io/fs"
+ 	"os"
+ 	"path/filepath"
+@@ -103,7 +102,7 @@ func LookPath(file string) (string, error) {
+ 	)
+ 	if _, found := syscall.Getenv("NoDefaultCurrentDirectoryInExePath"); !found {
+ 		if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
+-			if godebug.Get("execerrdot") == "0" {
++			if execerrdot.Value() == "0" {
+ 				return f, nil
+ 			}
+ 			dotf, dotErr = f, &Error{file, ErrDot}
+@@ -128,7 +127,7 @@ func LookPath(file string) (string, error) {
+ 				}
+ 			}
+ 
+-			if !filepath.IsAbs(f) && godebug.Get("execerrdot") != "0" {
++			if !filepath.IsAbs(f) && execerrdot.Value() != "0" {
+ 				return f, &Error{file, ErrDot}
+ 			}
+ 			return f, nil
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index bc60b3ca75..9f68738aa7 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -66,14 +66,26 @@ func syscall_Exit(code int) {
+ 	exit(int32(code))
+ }
+ 
+-var godebugenv atomic.Pointer[string] // set by parsedebugvars
++var godebugDefault string
++var godebugUpdate atomic.Pointer[func(string, string)]
++var godebugEnv atomic.Pointer[string] // set by parsedebugvars
++
++//go:linkname godebug_setUpdate internal/godebug.setUpdate
++func godebug_setUpdate(update func(string, string)) {
++	p := new(func(string, string))
++	*p = update
++	godebugUpdate.Store(p)
++	godebugNotify()
++}
+ 
+-//go:linkname godebug_getGODEBUG internal/godebug.getGODEBUG
+-func godebug_getGODEBUG() string {
+-	if p := godebugenv.Load(); p != nil {
+-		return *p
++func godebugNotify() {
++	if update := godebugUpdate.Load(); update != nil {
++		var env string
++		if p := godebugEnv.Load(); p != nil {
++			env = *p
++		}
++		(*update)(godebugDefault, env)
+ 	}
+-	return ""
+ }
+ 
+ //go:linkname syscall_runtimeSetenv syscall.runtimeSetenv
+@@ -82,7 +94,8 @@ func syscall_runtimeSetenv(key, value string) {
+ 	if key == "GODEBUG" {
+ 		p := new(string)
+ 		*p = value
+-		godebugenv.Store(p)
++		godebugEnv.Store(p)
++		godebugNotify()
+ 	}
+ }
+ 
+@@ -90,7 +103,8 @@ func syscall_runtimeSetenv(key, value string) {
+ func syscall_runtimeUnsetenv(key string) {
+ 	unsetenv_c(key)
+ 	if key == "GODEBUG" {
+-		godebugenv.Store(nil)
++		godebugEnv.Store(nil)
++		godebugNotify()
+ 	}
+ }
+ 
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index a29608329c..76dca9ca77 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -375,7 +375,7 @@ func parsedebugvars() {
+ 	}
+ 
+ 	globalGODEBUG = gogetenv("GODEBUG")
+-	godebugenv.StoreNoWB(&globalGODEBUG)
++	godebugEnv.StoreNoWB(&globalGODEBUG)
+ 	for p := globalGODEBUG; p != ""; {
+ 		field := ""
+ 		i := bytealg.IndexByteString(p, ',')

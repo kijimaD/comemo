@@ -10,7 +10,53 @@ Date:   Tue Apr 14 09:56:05 2015 -0700
     Change-Id: I49edd98d73400c1757b6085dec86752de569c01a
     Reviewed-on: https://go-review.googlesource.com/8923
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/reflect/example_test.go | 15 +++++++++++++++
  src/reflect/type.go         |  4 ++--
  2 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/example_test.go b/src/reflect/example_test.go
+index cca28eeece..8ebf9765b8 100644
+--- a/src/reflect/example_test.go
++++ b/src/reflect/example_test.go
+@@ -6,6 +6,8 @@ package reflect_test
+ 
+ import (
+ 	"fmt"
++	"io"
++	"os"
+ 	"reflect"
+ )
+ 
+@@ -64,3 +66,16 @@ func ExampleStructTag() {
+ 	// Output:
+ 	// blue gopher
+ }
++
++func ExampleTypeOf() {
++	// As interface types are only used for static typing, a
++	// common idiom to find the reflection Type for an interface
++	// type Foo is to use a *Foo value.
++	writerType := reflect.TypeOf((*io.Writer)(nil)).Elem()
++
++	fileType := reflect.TypeOf((*os.File)(nil))
++	fmt.Println(fileType.Implements(writerType))
++
++	// Output:
++	// true
++}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 48d9b85797..3e46ce0aaa 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1009,8 +1009,8 @@ func (t *structType) FieldByName(name string) (f StructField, present bool) {
+ 	return t.FieldByNameFunc(func(s string) bool { return s == name })
+ }
+ 
+-// TypeOf returns the reflection Type of the value in the interface{}.
+-// TypeOf(nil) returns nil.
++// TypeOf returns the reflection Type that represents the dynamic type of i.
++// If i is a nil interface value, TypeOf returns nil.
+ func TypeOf(i interface{}) Type {
+ 	eface := *(*emptyInterface)(unsafe.Pointer(&i))
+ 	return toType(eface.typ)

@@ -14,8 +14,67 @@ Date:   Sun Sep 28 08:27:05 2014 -0700
     R=rsc, r
     CC=golang-codereviews
     https://golang.org/cl/151000043
-
+---
  src/cmd/ld/data.c | 9 +++++++--
  src/cmd/ld/lib.c  | 4 +++-
  test/linkx.go     | 2 +-
  3 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 89226bfe28..9983a9281c 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -620,6 +620,7 @@ addstrdata(char *name, char *value)
+ {
+ 	LSym *s, *sp;
+ 	char *p;
++	uchar reachable;
+ 
+ 	p = smprint("%s.str", name);
+ 	sp = linklookup(ctxt, p, 0);
+@@ -630,13 +631,17 @@ addstrdata(char *name, char *value)
+ 	s = linklookup(ctxt, name, 0);
+ 	s->size = 0;
+ 	s->dupok = 1;
++	reachable = s->reachable;
+ 	addaddr(ctxt, s, sp);
+ 	adduint32(ctxt, s, strlen(value));
+ 	if(PtrSize == 8)
+ 		adduint32(ctxt, s, 0);  // round struct to pointer width
+ 
+-	// in case reachability has already been computed
+-	sp->reachable = s->reachable;
++	// addstring, addaddr, etc., mark the symbols as reachable.
++	// In this case that is not necessarily true, so stick to what
++	// we know before entering this function.
++	s->reachable = reachable;
++	sp->reachable = reachable;
+ }
+ 
+ vlong
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 3edf7253d4..f889aba8a9 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -222,8 +222,10 @@ loadlib(void)
+ 		// Since we are simulating the import, we have to provide this string.
+ 		cgostrsym = "go.string.\"runtime/cgo\"";
+ 		if(linkrlookup(ctxt, cgostrsym, 0) == nil) {
++			s = linklookup(ctxt, cgostrsym, 0);
++			s->type = SRODATA;
++			s->reachable = 1;
+ 			addstrdata(cgostrsym, "runtime/cgo");
+-			linklookup(ctxt, cgostrsym, 0)->type = SRODATA;
+ 		}
+ 	}
+ 
+diff --git a/test/linkx.go b/test/linkx.go
+index 36d16aec9b..06888a229a 100644
+--- a/test/linkx.go
++++ b/test/linkx.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L -X main.tbd hello -X main.overwrite trumped $F.$A && ./$A.out
++// $G $D/$F.go && $L -X main.tbd hello -X main.overwrite trumped -X main.nosuchsymbol neverseen $F.$A && ./$A.out
+ 
+ // NOTE: This test is not run by 'run.go' and so not run by all.bash.
+ // To run this test you must use the ./run shell script.

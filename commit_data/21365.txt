@@ -12,10 +12,110 @@ Date:   Sat Dec 20 14:13:44 2014 -0500
     Reviewed-on: https://go-review.googlesource.com/1888
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/backdoor.go              | 11 +++++++++++
  misc/cgo/test/backdoor/backdoor.go     |  7 -------
  misc/cgo/test/backdoor/runtime_gccgo.c | 18 ------------------
  misc/cgo/test/backdoor/thunk.s         | 17 -----------------
  misc/cgo/test/callback.go              |  4 ----
  5 files changed, 11 insertions(+), 46 deletions(-)
+
+diff --git a/misc/cgo/test/backdoor.go b/misc/cgo/test/backdoor.go
+new file mode 100644
+index 0000000000..6fb33d66cb
+--- /dev/null
++++ b/misc/cgo/test/backdoor.go
+@@ -0,0 +1,11 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import _ "unsafe"
++
++//go:linkname lockedOSThread runtime.lockedOSThread
++//extern runtime_lockedOSThread
++func lockedOSThread() bool
+diff --git a/misc/cgo/test/backdoor/backdoor.go b/misc/cgo/test/backdoor/backdoor.go
+deleted file mode 100644
+index 27b71b1f57..0000000000
+--- a/misc/cgo/test/backdoor/backdoor.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package backdoor
+-
+-func LockedOSThread() bool // in thunk.s or runtime_gccgo.c
+diff --git a/misc/cgo/test/backdoor/runtime_gccgo.c b/misc/cgo/test/backdoor/runtime_gccgo.c
+deleted file mode 100644
+index b75f47b92d..0000000000
+--- a/misc/cgo/test/backdoor/runtime_gccgo.c
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Expose some runtime functions for testing.
+-// This is the gccgo version of thunk.s.
+-
+-// +build gccgo
+-
+-_Bool runtime_lockedOSThread(void);
+-
+-_Bool LockedOSThread(void) asm(GOPKGPATH ".LockedOSThread");
+-
+-_Bool
+-LockedOSThread(void)
+-{
+-	return runtime_lockedOSThread();
+-}
+diff --git a/misc/cgo/test/backdoor/thunk.s b/misc/cgo/test/backdoor/thunk.s
+deleted file mode 100644
+index 8240faf63b..0000000000
+--- a/misc/cgo/test/backdoor/thunk.s
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Assembly to get into package runtime without using exported symbols.
+-
+-// +build amd64 amd64p32 arm 386
+-// +build gc
+-
+-#include "textflag.h"
+-
+-#ifdef GOARCH_arm
+-#define JMP B
+-#endif
+-
+-TEXT ·LockedOSThread(SB),NOSPLIT,$0-0
+-	JMP	runtime·lockedOSThread(SB)
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index 44167e6e9e..6e1e5569fc 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -22,8 +22,6 @@ import (
+ 	"strings"
+ 	"testing"
+ 	"unsafe"
+-
+-	"./backdoor"
+ )
+ 
+ // nestedCall calls into C, back into Go, and finally to f.
+@@ -50,8 +48,6 @@ func testCallbackGC(t *testing.T) {
+ 	nestedCall(runtime.GC)
+ }
+ 
+-var lockedOSThread = backdoor.LockedOSThread
+-
+ func testCallbackPanic(t *testing.T) {
+ 	// Make sure panic during callback unwinds properly.
+ 	if lockedOSThread() {

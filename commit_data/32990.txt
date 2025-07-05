@@ -12,9 +12,209 @@ Date:   Sun Jan 8 17:22:34 2017 +0900
     Change-Id: Ie269453ef49ec2db893391dc3ed2f7b641c14249
     Reviewed-on: https://go-review.googlesource.com/34878
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/iprawsock.go | 17 ++++++++++-------
  src/net/tcpsock.go   | 23 ++++++++++++++---------
  src/net/udpsock.go   | 42 +++++++++++++++++++++++++-----------------
  src/net/unixsock.go  | 36 ++++++++++++++++++------------------
  4 files changed, 67 insertions(+), 51 deletions(-)
+
+diff --git a/src/net/iprawsock.go b/src/net/iprawsock.go
+index e703d5609a..c574814fa9 100644
+--- a/src/net/iprawsock.go
++++ b/src/net/iprawsock.go
+@@ -215,14 +215,17 @@ func DialIP(network string, laddr, raddr *IPAddr) (*IPConn, error) {
+ 	return c, nil
+ }
+ 
+-// ListenIP listens for incoming IP packets addressed to the local
+-// address laddr. The returned connection's ReadFrom and WriteTo
+-// methods can be used to receive and send IP packets with per-packet
+-// addressing.
+-func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
+-	c, err := listenIP(context.Background(), netProto, laddr)
++// ListenIP acts like ListenPacket for IP networks.
++//
++// The network must be an IP network name; see func Dial for details.
++//
++// If the IP field of laddr is nil or an unspecified IP address,
++// ListenIP listens on all available IP addresses of the local system
++// except multicast IP addresses.
++func ListenIP(network string, laddr *IPAddr) (*IPConn, error) {
++	c, err := listenIP(context.Background(), network, laddr)
+ 	if err != nil {
+-		return nil, &OpError{Op: "listen", Net: netProto, Source: nil, Addr: laddr.opAddr(), Err: err}
++		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
+ 	}
+ 	return c, nil
+ }
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index 717bfff72b..80d0f390de 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -292,22 +292,27 @@ func (l *TCPListener) File() (f *os.File, err error) {
+ 	return
+ }
+ 
+-// ListenTCP announces on the TCP address laddr and returns a TCP
+-// listener. Net must be "tcp", "tcp4", or "tcp6".  If laddr has a
+-// port of 0, ListenTCP will choose an available port. The caller can
+-// use the Addr method of TCPListener to retrieve the chosen address.
+-func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
+-	switch net {
++// ListenTCP acts like Listen for TCP networks.
++//
++// The network must be a TCP network name; see func Dial for details.
++//
++// If the IP field of laddr is nil or an unspecified IP address,
++// ListenTCP listens on all available unicast and anycast IP addresses
++// of the local system.
++// If the Port field of laddr is 0, a port number is automatically
++// chosen.
++func ListenTCP(network string, laddr *TCPAddr) (*TCPListener, error) {
++	switch network {
+ 	case "tcp", "tcp4", "tcp6":
+ 	default:
+-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(net)}
++		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(network)}
+ 	}
+ 	if laddr == nil {
+ 		laddr = &TCPAddr{}
+ 	}
+-	ln, err := listenTCP(context.Background(), net, laddr)
++	ln, err := listenTCP(context.Background(), network, laddr)
+ 	if err != nil {
+-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: err}
++		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
+ 	}
+ 	return ln, nil
+ }
+diff --git a/src/net/udpsock.go b/src/net/udpsock.go
+index 18c6597c50..073bce83a1 100644
+--- a/src/net/udpsock.go
++++ b/src/net/udpsock.go
+@@ -216,36 +216,44 @@ func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+ 	return c, nil
+ }
+ 
+-// ListenUDP listens for incoming UDP packets addressed to the local
+-// address laddr. Net must be "udp", "udp4", or "udp6".  If laddr has
+-// a port of 0, ListenUDP will choose an available port.
+-// The LocalAddr method of the returned UDPConn can be used to
+-// discover the port. The returned connection's ReadFrom and WriteTo
+-// methods can be used to receive and send UDP packets with per-packet
+-// addressing.
+-func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
+-	switch net {
++// ListenUDP acts like ListenPacket for UDP networks.
++//
++// The network must be a UDP network name; see func Dial for details.
++//
++// If the IP field of laddr is nil or an unspecified IP address,
++// ListenUDP listens on all available IP addresses of the local system
++// except multicast IP addresses.
++// If the Port field of laddr is 0, a port number is automatically
++// chosen.
++func ListenUDP(network string, laddr *UDPAddr) (*UDPConn, error) {
++	switch network {
+ 	case "udp", "udp4", "udp6":
+ 	default:
+-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(net)}
++		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(network)}
+ 	}
+ 	if laddr == nil {
+ 		laddr = &UDPAddr{}
+ 	}
+-	c, err := listenUDP(context.Background(), net, laddr)
++	c, err := listenUDP(context.Background(), network, laddr)
+ 	if err != nil {
+-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: err}
++		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
+ 	}
+ 	return c, nil
+ }
+ 
+-// ListenMulticastUDP listens for incoming multicast UDP packets
+-// addressed to the group address gaddr on the interface ifi.
+-// Network must be "udp", "udp4" or "udp6".
+-// ListenMulticastUDP uses the system-assigned multicast interface
+-// when ifi is nil, although this is not recommended because the
++// ListenMulticastUDP acts like ListenPacket for UDP networks but
++// takes a group address on a specific network interface.
++//
++// The network must be a UDP network name; see func Dial for details.
++//
++// ListenMulticastUDP listens on all available IP addresses of the
++// local system including the group, multicast IP address.
++// If ifi is nil, ListenMulticastUDP uses the system-assigned
++// multicast interface, although this is not recommended because the
+ // assignment depends on platforms and sometimes it might require
+ // routing configuration.
++// If the Port field of gaddr is 0, a port number is automatically
++// chosen.
+ //
+ // ListenMulticastUDP is just for convenience of simple, small
+ // applications. There are golang.org/x/net/ipv4 and
+diff --git a/src/net/unixsock.go b/src/net/unixsock.go
+index 04d6ae3a8e..18c793445f 100644
+--- a/src/net/unixsock.go
++++ b/src/net/unixsock.go
+@@ -300,40 +300,40 @@ func (l *UnixListener) File() (f *os.File, err error) {
+ 	return
+ }
+ 
+-// ListenUnix announces on the Unix domain socket laddr and returns a
+-// Unix listener. The network net must be "unix" or "unixpacket".
+-func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
+-	switch net {
++// ListenUnix acts like Listen for Unix networks.
++//
++// The network must be "unix" or "unixpacket".
++func ListenUnix(network string, laddr *UnixAddr) (*UnixListener, error) {
++	switch network {
+ 	case "unix", "unixpacket":
+ 	default:
+-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(net)}
++		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(network)}
+ 	}
+ 	if laddr == nil {
+-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: errMissingAddress}
++		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: errMissingAddress}
+ 	}
+-	ln, err := listenUnix(context.Background(), net, laddr)
++	ln, err := listenUnix(context.Background(), network, laddr)
+ 	if err != nil {
+-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: err}
++		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
+ 	}
+ 	return ln, nil
+ }
+ 
+-// ListenUnixgram listens for incoming Unix datagram packets addressed
+-// to the local address laddr. The network net must be "unixgram".
+-// The returned connection's ReadFrom and WriteTo methods can be used
+-// to receive and send packets with per-packet addressing.
+-func ListenUnixgram(net string, laddr *UnixAddr) (*UnixConn, error) {
+-	switch net {
++// ListenUnixgram acts like ListenPacket for Unix networks.
++//
++// The network must be "unixgram".
++func ListenUnixgram(network string, laddr *UnixAddr) (*UnixConn, error) {
++	switch network {
+ 	case "unixgram":
+ 	default:
+-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(net)}
++		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(network)}
+ 	}
+ 	if laddr == nil {
+-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: nil, Err: errMissingAddress}
++		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: nil, Err: errMissingAddress}
+ 	}
+-	c, err := listenUnixgram(context.Background(), net, laddr)
++	c, err := listenUnixgram(context.Background(), network, laddr)
+ 	if err != nil {
+-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: err}
++		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
+ 	}
+ 	return c, nil
+ }

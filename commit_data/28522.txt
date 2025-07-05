@@ -29,6 +29,61 @@ Date:   Fri May 27 19:47:55 2016 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/tls/tls_test.go | 18 ++++++++----------
  1 file changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 47f02beeda..5b665bf532 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -481,20 +481,19 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
+ 
+ 	N := b.N
+ 
+-	var serr error
+ 	go func() {
+ 		for i := 0; i < N; i++ {
+ 			sconn, err := ln.Accept()
+ 			if err != nil {
+-				serr = err
+-				return
++				// panic rather than synchronize to avoid benchmark overhead
++				// (cannot call b.Fatal in goroutine)
++				panic(fmt.Errorf("accept: %v", err))
+ 			}
+ 			serverConfig := *testConfig
+ 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
+ 			srv := Server(sconn, &serverConfig)
+ 			if err := srv.Handshake(); err != nil {
+-				serr = fmt.Errorf("handshake: %v", err)
+-				return
++				panic(fmt.Errorf("handshake: %v", err))
+ 			}
+ 			io.Copy(srv, srv)
+ 		}
+@@ -570,20 +569,19 @@ func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
+ 
+ 	N := b.N
+ 
+-	var serr error
+ 	go func() {
+ 		for i := 0; i < N; i++ {
+ 			sconn, err := ln.Accept()
+ 			if err != nil {
+-				serr = err
+-				return
++				// panic rather than synchronize to avoid benchmark overhead
++				// (cannot call b.Fatal in goroutine)
++				panic(fmt.Errorf("accept: %v", err))
+ 			}
+ 			serverConfig := *testConfig
+ 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
+ 			srv := Server(&slowConn{sconn, bps}, &serverConfig)
+ 			if err := srv.Handshake(); err != nil {
+-				serr = fmt.Errorf("handshake: %v", err)
+-				return
++				panic(fmt.Errorf("handshake: %v", err))
+ 			}
+ 			io.Copy(srv, srv)
+ 		}

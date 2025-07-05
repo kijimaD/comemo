@@ -7,6 +7,27 @@ Date:   Tue Aug 25 19:21:45 2015 -0500
     Change-Id: Iacd302350cf0a8a8164d937e5c4ac55e6a07d380
     Reviewed-on: https://go-review.googlesource.com/13942
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index ce20e7bdfd..a0ad2caeaa 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1646,6 +1646,15 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
+ 		default:
+ 			s.Fatalf("bad sized integer type %s", t)
+ 		}
++	case t.IsFloat():
++		switch t.Size() {
++		case 4:
++			return s.constFloat32(t, 0)
++		case 8:
++			return s.constFloat64(t, 0)
++		default:
++			s.Fatalf("bad sized float type %s", t)
++		}
+ 	case t.IsString():
+ 		return s.entryNewValue0A(ssa.OpConstString, t, "")
+ 	case t.IsPtr():

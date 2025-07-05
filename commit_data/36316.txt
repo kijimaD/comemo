@@ -10,6 +10,19 @@ Date:   Wed Apr 18 17:28:34 2018 +0800
     Change-Id: Icff54b489040b1ce66c644a21343c6576304cf75
     Reviewed-on: https://go-review.googlesource.com/107663
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/doc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/text/template/doc.go b/src/text/template/doc.go
+index 69587cd06d..4b243067b0 100644
+--- a/src/text/template/doc.go
++++ b/src/text/template/doc.go
+@@ -69,6 +69,7 @@ data, defined in detail in the corresponding sections that follow.
+ 
+ */
+ //	{{/* a comment */}}
++//	{{- /* a comment with white space trimmed from preceding and following text */ -}}
+ //		A comment; discarded. May contain newlines.
+ //		Comments do not nest and must start and end at the
+ //		delimiters, as shown here.

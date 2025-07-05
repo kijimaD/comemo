@@ -11,6 +11,46 @@ Date:   Wed Nov 9 17:02:33 2016 -0800
     Change-Id: I6655a5537a60d4ea3ee13029a56a75b150f8c8f8
     Reviewed-on: https://go-review.googlesource.com/33020
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/gofmt/gofmt.go | 13 +++++++++----
  1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 4cf91336a3..467af87459 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -243,15 +243,17 @@ func diff(b1, b2 []byte) (data []byte, err error) {
+ // implemented.
+ func writeFile(filename string, data []byte, perm os.FileMode) error {
+ 	// open temp file
+-	f, err := ioutil.TempFile(filepath.Dir(filename), "tmp")
++	f, err := ioutil.TempFile(filepath.Dir(filename), "gofmt-")
+ 	if err != nil {
+ 		return err
+ 	}
++	tmpname := f.Name()
+ 	err = f.Chmod(perm)
+ 	if err != nil {
++		f.Close()
++		os.Remove(tmpname)
+ 		return err
+ 	}
+-	tmpname := f.Name()
+ 
+ 	// write data to temp file
+ 	n, err := f.Write(data)
+@@ -261,9 +263,12 @@ func writeFile(filename string, data []byte, perm os.FileMode) error {
+ 	if err1 := f.Close(); err == nil {
+ 		err = err1
+ 	}
++	if err == nil {
++		err = os.Rename(tmpname, filename)
++	}
+ 	if err != nil {
+-		return err
++		os.Remove(tmpname)
+ 	}
+ 
+-	return os.Rename(tmpname, filename)
++	return err
+ }

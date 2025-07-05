@@ -12,7 +12,42 @@ Date:   Thu Mar 10 12:33:33 2016 +0100
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/fmt/fmt_test.go | 3 +++
  src/fmt/format.go   | 2 ++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 55f46dd833..cc4c71cb09 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -914,6 +914,9 @@ var fmtTests = []struct {
+ 	{"%06v", []interface{}{+10.0 + 10i, 10}, "[(000010+00010i) 000010]"},
+ 	{"%06v", []interface{}{-10.0 + 10i, 10}, "[(-00010+00010i) 000010]"},
+ 
++	// integer formatting should not alter padding for other elements.
++	{"%03.6v", []interface{}{1, 2.0, "x"}, "[000001 002 00x]"},
++
+ 	// Complex fmt used to leave the plus flag set for future entries in the array
+ 	// causing +2+0i and +3+0i instead of 2+0i and 3+0i.
+ 	{"%v", []complex64{1, 2, 3}, "[(1+0i) (2+0i) (3+0i)]"},
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index b6786b9aed..1c612c1218 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -221,6 +221,7 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 
+ 	// two ways to ask for extra leading zero digits: %.3d or %03d.
+ 	// apparently the first cancels the second.
++	oldZero := f.zero // f.zero is used in f.pad but modified below; restored at end of function.
+ 	prec := 0
+ 	if f.precPresent {
+ 		prec = f.prec
+@@ -305,6 +306,7 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 	}
+ 
+ 	f.pad(buf[i:])
++	f.zero = oldZero
+ }
+ 
+ // truncate truncates the string to the specified precision, if present.

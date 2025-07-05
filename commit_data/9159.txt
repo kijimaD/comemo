@@ -11,6 +11,22 @@ Date:   Thu Jul 21 22:20:09 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4809046
-
+---
  src/pkg/http/server.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index dd4547c25f..b3fb8e101c 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -255,7 +255,9 @@ func (w *response) WriteHeader(code int) {
+ 	} else {
+ 		// If no content type, apply sniffing algorithm to body.
+ 		if w.header.Get("Content-Type") == "" {
+-			w.needSniff = true
++			// NOTE(dsymonds): the sniffing mechanism in this file is currently broken.
++			//w.needSniff = true
++			w.header.Set("Content-Type", "text/html; charset=utf-8")
+ 		}
+ 	}
+ 

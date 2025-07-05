@@ -27,6 +27,55 @@ Date:   Wed Aug 11 15:34:29 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/proc.go | 22 +++++++---------------
  1 file changed, 7 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 764f12769e..cde1a11583 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4104,7 +4104,10 @@ func exitsyscall0(gp *g) {
+ 	schedule() // Never returns.
+ }
+ 
+-func beforefork() {
++// Called from syscall package before fork.
++//go:linkname syscall_runtime_BeforeFork syscall.runtime_BeforeFork
++//go:nosplit
++func syscall_runtime_BeforeFork() {
+ 	gp := getg().m.curg
+ 
+ 	// Block signals during a fork, so that the child does not run
+@@ -4121,14 +4124,10 @@ func beforefork() {
+ 	gp.stackguard0 = stackFork
+ }
+ 
+-// Called from syscall package before fork.
+-//go:linkname syscall_runtime_BeforeFork syscall.runtime_BeforeFork
++// Called from syscall package after fork in parent.
++//go:linkname syscall_runtime_AfterFork syscall.runtime_AfterFork
+ //go:nosplit
+-func syscall_runtime_BeforeFork() {
+-	systemstack(beforefork)
+-}
+-
+-func afterfork() {
++func syscall_runtime_AfterFork() {
+ 	gp := getg().m.curg
+ 
+ 	// See the comments in beforefork.
+@@ -4139,13 +4138,6 @@ func afterfork() {
+ 	gp.m.locks--
+ }
+ 
+-// Called from syscall package after fork in parent.
+-//go:linkname syscall_runtime_AfterFork syscall.runtime_AfterFork
+-//go:nosplit
+-func syscall_runtime_AfterFork() {
+-	systemstack(afterfork)
+-}
+-
+ // inForkedChild is true while manipulating signals in the child process.
+ // This is used to avoid calling libc functions in case we are using vfork.
+ var inForkedChild bool

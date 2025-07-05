@@ -12,8 +12,74 @@ Date:   Tue Feb 27 18:54:50 2018 +0000
     Change-Id: I735393b5ce28cb83815a1c3f7cd2e7bb5080a32d
     Reviewed-on: https://go-review.googlesource.com/97455
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 10 +++++++++-
  src/cmd/compile/internal/gc/universe.go  | 11 +++++++++++
  test/fixedbugs/issue22822.go             | 16 ++++++++++++++++
  3 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 75ecaa3d41..562c37f24d 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1250,7 +1250,15 @@ func typecheck1(n *Node, top int) *Node {
+ 		default:
+ 			n.Op = OCALLFUNC
+ 			if t.Etype != TFUNC {
+-				yyerror("cannot call non-function %v (type %v)", l, t)
++				name := l.String()
++				if isBuiltinFuncName(name) {
++					// be more specific when the function
++					// name matches a predeclared function
++					yyerror("cannot call non-function %s (type %v), declared at %s",
++						name, t, linestr(l.Name.Defn.Pos))
++				} else {
++					yyerror("cannot call non-function %s (type %v)", name, t)
++				}
+ 				n.Type = nil
+ 				return n
+ 			}
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index ea901db744..a255ae08c0 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -65,6 +65,17 @@ var builtinFuncs = [...]struct {
+ 	{"recover", ORECOVER},
+ }
+ 
++// isBuiltinFuncName reports whether name matches a builtin function
++// name.
++func isBuiltinFuncName(name string) bool {
++	for _, fn := range builtinFuncs {
++		if fn.name == name {
++			return true
++		}
++	}
++	return false
++}
++
+ var unsafeFuncs = [...]struct {
+ 	name string
+ 	op   Op
+diff --git a/test/fixedbugs/issue22822.go b/test/fixedbugs/issue22822.go
+new file mode 100644
+index 0000000000..e449ddb186
+--- /dev/null
++++ b/test/fixedbugs/issue22822.go
+@@ -0,0 +1,16 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that calling a function shadowing a built-in provides a good
++// error message.
++
++package main
++
++func F() {
++	slice := []int{1, 2, 3}
++	len := int(2)
++	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at"
++}

@@ -23,7 +23,123 @@ Date:   Mon Sep 27 19:23:17 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/internal/gcimporter/iimport.go | 19 +++++++++----------
  src/go/types/signature.go             | 26 +++++++++++++++++++++++++-
  2 files changed, 34 insertions(+), 11 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index f570aab2bf..2a02c04ef3 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -304,8 +304,7 @@ func (r *importReader) obj(name string) {
+ 		if tag == 'G' {
+ 			tparams = r.tparamList()
+ 		}
+-		sig := r.signature(nil)
+-		sig.SetTypeParams(tparams)
++		sig := r.signature(nil, nil, tparams)
+ 		r.declare(types.NewFunc(pos, r.currPkg, name, sig))
+ 
+ 	case 'T', 'U':
+@@ -329,19 +328,19 @@ func (r *importReader) obj(name string) {
+ 				mpos := r.pos()
+ 				mname := r.ident()
+ 				recv := r.param()
+-				msig := r.signature(recv)
+ 
+ 				// If the receiver has any targs, set those as the
+ 				// rparams of the method (since those are the
+ 				// typeparams being used in the method sig/body).
+-				targs := baseType(msig.Recv().Type()).TypeArgs()
++				targs := baseType(recv.Type()).TypeArgs()
++				var rparams []*types.TypeParam
+ 				if targs.Len() > 0 {
+-					rparams := make([]*types.TypeParam, targs.Len())
++					rparams = make([]*types.TypeParam, targs.Len())
+ 					for i := range rparams {
+ 						rparams[i], _ = targs.At(i).(*types.TypeParam)
+ 					}
+-					msig.SetRecvTypeParams(rparams)
+ 				}
++				msig := r.signature(recv, rparams, nil)
+ 
+ 				named.AddMethod(types.NewFunc(mpos, r.currPkg, mname, msig))
+ 			}
+@@ -576,7 +575,7 @@ func (r *importReader) doType(base *types.Named) types.Type {
+ 		return types.NewMap(r.typ(), r.typ())
+ 	case signatureType:
+ 		r.currPkg = r.pkg()
+-		return r.signature(nil)
++		return r.signature(nil, nil, nil)
+ 
+ 	case structType:
+ 		r.currPkg = r.pkg()
+@@ -616,7 +615,7 @@ func (r *importReader) doType(base *types.Named) types.Type {
+ 				recv = types.NewVar(token.NoPos, r.currPkg, "", base)
+ 			}
+ 
+-			msig := r.signature(recv)
++			msig := r.signature(recv, nil, nil)
+ 			methods[i] = types.NewFunc(mpos, r.currPkg, mname, msig)
+ 		}
+ 
+@@ -673,11 +672,11 @@ func (r *importReader) kind() itag {
+ 	return itag(r.uint64())
+ }
+ 
+-func (r *importReader) signature(recv *types.Var) *types.Signature {
++func (r *importReader) signature(recv *types.Var, rparams, tparams []*types.TypeParam) *types.Signature {
+ 	params := r.paramList()
+ 	results := r.paramList()
+ 	variadic := params.Len() > 0 && r.bool()
+-	return types.NewSignature(recv, params, results, variadic)
++	return types.NewSignatureType(recv, rparams, tparams, params, results, variadic)
+ }
+ 
+ func (r *importReader) tparamList() []*types.TypeParam {
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index bf6c775b89..df38e7124b 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -34,7 +34,18 @@ type Signature struct {
+ // and results, either of which may be nil. If variadic is set, the function
+ // is variadic, it must have at least one parameter, and the last parameter
+ // must be of unnamed slice type.
++//
++// Deprecated: Use NewSignatureType instead which allows for type parameters.
+ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
++	return NewSignatureType(recv, nil, nil, params, results, variadic)
++}
++
++// NewSignatureType creates a new function type for the given receiver,
++// receiver type parameters, type parameters, parameters, and results. If
++// variadic is set, params must hold at least one parameter and the last
++// parameter must be of unnamed slice type. If recv is non-nil, typeParams must
++// be empty. If recvTypeParams is non-empty, recv must be non-nil.
++func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params, results *Tuple, variadic bool) *Signature {
+ 	if variadic {
+ 		n := params.Len()
+ 		if n == 0 {
+@@ -44,7 +55,20 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
+ 			panic("variadic parameter must be of unnamed slice type")
+ 		}
+ 	}
+-	return &Signature{recv: recv, params: params, results: results, variadic: variadic}
++	sig := &Signature{recv: recv, params: params, results: results, variadic: variadic}
++	if len(recvTypeParams) != 0 {
++		if recv == nil {
++			panic("function with receiver type parameters must have a receiver")
++		}
++		sig.rparams = bindTParams(recvTypeParams)
++	}
++	if len(typeParams) != 0 {
++		if recv != nil {
++			panic("function with type parameters cannot have a receiver")
++		}
++		sig.tparams = bindTParams(typeParams)
++	}
++	return sig
+ }
+ 
+ // Recv returns the receiver of signature s (if a method), or nil if a

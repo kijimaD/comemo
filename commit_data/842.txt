@@ -8,6 +8,20 @@ Date:   Fri Oct 10 14:50:23 2008 -0700
     DELTA=2  (0 added, 2 deleted, 0 changed)
     OCL=16927
     CL=16927
-
+---
  test/interface1.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/test/interface1.go b/test/interface1.go
+index a6430cd1b6..3870d168c3 100644
+--- a/test/interface1.go
++++ b/test/interface1.go
+@@ -6,8 +6,6 @@
+ 
+ package main
+ 
+-package main
+-
+ type Inst interface {
+ 	Next()	*Inst;
+ }

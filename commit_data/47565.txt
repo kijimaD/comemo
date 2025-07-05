@@ -18,7 +18,63 @@ Date:   Wed Mar 24 13:55:31 2021 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go  |  1 -
  src/cmd/compile/internal/ssagen/abi.go | 25 +------------------------
  2 files changed, 1 insertion(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 33c2c862b0..4b7ef155a1 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -82,7 +82,6 @@ type CmdFlags struct {
+ 	CompilingRuntime bool "flag:\"+\" help:\"compiling runtime\""
+ 
+ 	// Longer names
+-	ABIWrapLimit       int          "help:\"emit at most N ABI wrappers (for debugging)\""
+ 	AsmHdr             string       "help:\"write assembly header to `file`\""
+ 	Bench              string       "help:\"append benchmark times to `file`\""
+ 	BlockProfile       string       "help:\"write block profile to `file`\""
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index b6137756d4..2f8678060d 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -21,29 +21,6 @@ import (
+ 	"cmd/internal/objabi"
+ )
+ 
+-// useNewABIWrapGen returns TRUE if the compiler should generate an
+-// ABI wrapper for the function 'f'.
+-func useABIWrapGen(f *ir.Func) bool {
+-	if !objabi.Experiment.RegabiWrappers {
+-		return false
+-	}
+-
+-	// Support limit option for bisecting.
+-	if base.Flag.ABIWrapLimit == 1 {
+-		return false
+-	}
+-	if base.Flag.ABIWrapLimit < 1 {
+-		return true
+-	}
+-	base.Flag.ABIWrapLimit--
+-	if base.Debug.ABIWrap != 0 && base.Flag.ABIWrapLimit == 1 {
+-		fmt.Fprintf(os.Stderr, "=-= limit reached after new wrapper for %s\n",
+-			f.LSym.Name)
+-	}
+-
+-	return true
+-}
+-
+ // symabiDefs and symabiRefs record the defined and referenced ABIs of
+ // symbols required by non-Go code. These are keyed by link symbol
+ // name, where the local package prefix is always `"".`
+@@ -199,7 +176,7 @@ func selectLSym(f *ir.Func, hasBody bool) {
+ 		}
+ 
+ 		if needABIWrapper {
+-			if !useABIWrapGen(f) {
++			if !objabi.Experiment.RegabiWrappers {
+ 				// Fallback: use alias instead. FIXME.
+ 
+ 				// These LSyms have the same name as the

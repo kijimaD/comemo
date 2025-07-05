@@ -12,7 +12,118 @@ Date:   Mon Jun 5 13:02:32 2017 +0300
     Change-Id: I0d516577298bc36daa9a94313c3874d64dc079e6
     Reviewed-on: https://go-review.googlesource.com/44831
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/testdata/print.go | 53 ++++++++++++++++++++++++++++++++++++++++++-
  src/cmd/vet/types.go          | 17 ++++++++++----
  2 files changed, 64 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/vet/testdata/print.go b/src/cmd/vet/testdata/print.go
+index 76e7bd71f1..219b895ea0 100644
+--- a/src/cmd/vet/testdata/print.go
++++ b/src/cmd/vet/testdata/print.go
+@@ -403,7 +403,7 @@ var notPercentDV notPercentDStruct
+ type percentSStruct struct {
+ 	a string
+ 	b []byte
+-	c stringerarray
++	C stringerarray
+ }
+ 
+ var percentSV percentSStruct
+@@ -472,3 +472,54 @@ func UnknownStructFprintln() {
+ 	s := unknownStruct{}
+ 	s.Fprintln(os.Stdout, "hello, world!") // OK
+ }
++
++// Issue 17798: unexported stringer cannot be formatted.
++type unexportedStringer struct {
++	t stringer
++}
++type unexportedStringerOtherFields struct {
++	s string
++	t stringer
++	S string
++}
++
++// Issue 17798: unexported error cannot be formatted.
++type unexportedError struct {
++	e error
++}
++type unexportedErrorOtherFields struct {
++	s string
++	e error
++	S string
++}
++
++type errorer struct{}
++
++func (e errorer) Error() string { return "errorer" }
++
++func UnexportedStringerOrError() {
++	us := unexportedStringer{}
++	fmt.Printf("%s", us)  // ERROR "arg us for printf verb %s of wrong type"
++	fmt.Printf("%s", &us) // ERROR "arg &us for printf verb %s of wrong type"
++
++	usf := unexportedStringerOtherFields{
++		s: "foo",
++		S: "bar",
++	}
++	fmt.Printf("%s", usf)  // ERROR "arg usf for printf verb %s of wrong type"
++	fmt.Printf("%s", &usf) // ERROR "arg &usf for printf verb %s of wrong type"
++
++	ue := unexportedError{
++		e: &errorer{},
++	}
++	fmt.Printf("%s", ue)  // ERROR "arg ue for printf verb %s of wrong type"
++	fmt.Printf("%s", &ue) // ERROR "arg &ue for printf verb %s of wrong type"
++
++	uef := unexportedErrorOtherFields{
++		s: "foo",
++		e: &errorer{},
++		S: "bar",
++	}
++	fmt.Printf("%s", uef)  // ERROR "arg uef for printf verb %s of wrong type"
++	fmt.Printf("%s", &uef) // ERROR "arg &uef for printf verb %s of wrong type"
++}
+diff --git a/src/cmd/vet/types.go b/src/cmd/vet/types.go
+index 77bd1c1c99..48efa52c0b 100644
+--- a/src/cmd/vet/types.go
++++ b/src/cmd/vet/types.go
+@@ -134,10 +134,8 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
+ 		return true
+ 	}
+ 	// If we can use a string, might arg (dynamically) implement the Stringer or Error interface?
+-	if t&argString != 0 {
+-		if types.AssertableTo(errorType, typ) || stringerType != nil && types.AssertableTo(stringerType, typ) {
+-			return true
+-		}
++	if t&argString != 0 && isConvertibleToString(typ) {
++		return true
+ 	}
+ 
+ 	typ = typ.Underlying()
+@@ -261,6 +259,10 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
+ 	return false
+ }
+ 
++func isConvertibleToString(typ types.Type) bool {
++	return types.AssertableTo(errorType, typ) || stringerType != nil && types.AssertableTo(stringerType, typ)
++}
++
+ // hasBasicType reports whether x's type is a types.Basic with the given kind.
+ func (f *File) hasBasicType(x ast.Expr, kind types.BasicKind) bool {
+ 	t := f.pkg.types[x].Type
+@@ -275,7 +277,12 @@ func (f *File) hasBasicType(x ast.Expr, kind types.BasicKind) bool {
+ // type. For instance, with "%d" all the elements must be printable with the "%d" format.
+ func (f *File) matchStructArgType(t printfArgType, typ *types.Struct, arg ast.Expr, inProgress map[types.Type]bool) bool {
+ 	for i := 0; i < typ.NumFields(); i++ {
+-		if !f.matchArgTypeInternal(t, typ.Field(i).Type(), arg, inProgress) {
++		typf := typ.Field(i)
++		if !f.matchArgTypeInternal(t, typf.Type(), arg, inProgress) {
++			return false
++		}
++		if t&argString != 0 && !typf.Exported() && isConvertibleToString(typf.Type()) {
++			// Issue #17798: unexported Stringer or error cannot be properly fomatted.
+ 			return false
+ 		}
+ 	}

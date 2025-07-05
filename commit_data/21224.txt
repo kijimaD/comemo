@@ -7,7 +7,36 @@ Date:   Tue Dec 9 00:13:10 2014 -0500
     Change-Id: I74c2578d1620b37a6486eca00a774b9a736a8899
     Reviewed-on: https://go-review.googlesource.com/1222
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/bug302.dir/main.go | 4 ++--
  test/fixedbugs/bug302.go          | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/bug302.dir/main.go b/test/fixedbugs/bug302.dir/main.go
+index 9f874d08f5..281f908fc4 100644
+--- a/test/fixedbugs/bug302.dir/main.go
++++ b/test/fixedbugs/bug302.dir/main.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ // Check that the export information is correct in p.6.
+-import _ "./p"
++import _ "p"
+ 
+ // Check that it's still correct in pp.a (which contains p.6).
+-import _ "./pp"
++import _ "pp"
+ 
+diff --git a/test/fixedbugs/bug302.go b/test/fixedbugs/bug302.go
+index 65c98c4624..327d52254c 100644
+--- a/test/fixedbugs/bug302.go
++++ b/test/fixedbugs/bug302.go
+@@ -25,7 +25,7 @@ func main() {
+ 
+ 	run("go", "tool", a+"g", filepath.Join("fixedbugs", "bug302.dir", "p.go"))
+ 	run("go", "tool", "pack", "grc", "pp.a", "p."+a)
+-	run("go", "tool", a+"g", filepath.Join("fixedbugs", "bug302.dir", "main.go"))
++	run("go", "tool", a+"g", "-I", ".", filepath.Join("fixedbugs", "bug302.dir", "main.go"))
+ 	os.Remove("p."+a)
+ 	os.Remove("pp.a")
+ 	os.Remove("main."+a)

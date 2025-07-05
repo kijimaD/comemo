@@ -5,9 +5,160 @@ Date:   Fri Jun 6 20:43:29 2008 -0700
     div and mod operators
     
     SVN=121576
-
+---
  src/cmd/6g/cgen.c  |  7 +++++--
  src/cmd/6g/gen.c   | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/6g/gg.h    |  1 +
  src/cmd/6g/gsubr.c | 10 ++++++++++
  4 files changed, 69 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index ef77fa19fd..07bb11c3b2 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -112,9 +112,7 @@ cgen(Node *n, Node *res)
+ 		goto sbop;
+ 
+ 	// asymmetric binary
+-	case OMOD:
+ 	case OSUB:
+-	case ODIV:
+ 	case OLSH:
+ 	case ORSH:
+ 		a = optoas(n->op, nl->type);
+@@ -237,6 +235,11 @@ cgen(Node *n, Node *res)
+ 		cgen_call(n);
+ 		cgen_callret(n, res);
+ 		break;
++
++	case OMOD:
++	case ODIV:
++		cgen_div(n->op, nl, nr, res);
++		break;
+ 	}
+ 	goto ret;
+ 
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 47e5037640..165a91a83f 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -826,3 +826,56 @@ cgen_as(Node *nl, Node *nr, int op)
+ 	}
+ 	cgen(nr, nl);
+ }
++
++void
++cgen_div(int op, Node *nl, Node *nr, Node *res)
++{
++	Node n1, n2, n3;
++	int a;
++
++	if(reg[D_AX] || reg[D_DX]) {
++		fatal("registers occupide");
++	}
++
++	a = optoas(op, nl->type);
++
++	// hold down the DX:AX registers
++	nodreg(&n1, types[TINT64], D_AX);
++	nodreg(&n2, types[TINT64], D_DX);
++	regalloc(&n1, nr->type, &n1);
++	regalloc(&n2, nr->type, &n2);
++
++	if(!issigned[nl->type->etype]) {
++		nodconst(&n3, nl->type, 0);
++		gmove(&n3, &n2);
++	}
++
++	if(nl->ullman >= nr->ullman) {
++		cgen(nl, &n1);
++		if(issigned[nl->type->etype])
++			gins(ACDQ, N, N);
++		if(!nr->addable) {
++			regalloc(&n3, nr->type, res);
++			cgen(nr, &n3);
++			gins(a, &n3, N);
++			regfree(&n3);
++		} else
++			gins(a, nr, N);
++	} else {
++		regalloc(&n3, nr->type, res);
++		cgen(nr, &n3);
++		cgen(nl, &n1);
++		if(issigned[nl->type->etype])
++			gins(ACDQ, N, N);
++		gins(a, &n3, N);
++		regfree(&n3);
++	}
++
++	if(op == ODIV)
++		gmove(&n1, res);
++	else
++		gmove(&n2, res);
++
++	regfree(&n1);
++	regfree(&n2);
++}
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 5cd31b4aeb..290b10114b 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -117,6 +117,7 @@ void	cgen_call(Node*);
+ void	cgen_callmeth(Node*);
+ void	cgen_callinter(Node*, Node*);
+ void	cgen_callret(Node*, Node*);
++void	cgen_div(int, Node*, Node*, Node*);
+ void	genpanic(void);
+ int	needconvert(Type*, Type*);
+ void	genconv(Type*, Type*);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 9ced8fe2f5..125e4c8323 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1397,36 +1397,46 @@ optoas(int op, Type *t)
+ 		break;
+ 
+ 	case CASE(ODIV, TINT8):
++	case CASE(OMOD, TINT8):
+ 		a = AIDIVB;
+ 		break;
+ 
+ 	case CASE(ODIV, TUINT8):
++	case CASE(OMOD, TUINT8):
+ 		a = ADIVB;
+ 		break;
+ 
+ 	case CASE(ODIV, TINT16):
++	case CASE(OMOD, TINT16):
+ 		a = AIDIVW;
+ 		break;
+ 
+ 	case CASE(ODIV, TUINT16):
++	case CASE(OMOD, TUINT16):
+ 		a = ADIVW;
+ 		break;
+ 
+ 	case CASE(ODIV, TINT32):
++	case CASE(OMOD, TINT32):
+ 		a = AIDIVL;
+ 		break;
+ 
+ 	case CASE(ODIV, TUINT32):
+ 	case CASE(ODIV, TPTR32):
++	case CASE(OMOD, TUINT32):
++	case CASE(OMOD, TPTR32):
+ 		a = ADIVL;
+ 		break;
+ 
+ 	case CASE(ODIV, TINT64):
++	case CASE(OMOD, TINT64):
+ 		a = AIDIVQ;
+ 		break;
+ 
+ 	case CASE(ODIV, TUINT64):
+ 	case CASE(ODIV, TPTR64):
++	case CASE(OMOD, TUINT64):
++	case CASE(OMOD, TPTR64):
+ 		a = ADIVQ;
+ 		break;
+ 

@@ -17,9 +17,712 @@ Date:   Thu Feb 5 10:47:44 2015 -0500
     Change-Id: I1a1bed0f98b594c3864fe95075dd95f9b52113e0
     Reviewed-on: https://go-review.googlesource.com/4645
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/gc/mparith1.c |  34 ++++++------
  src/cmd/gc/mparith2.c | 145 ++++++++++++++++++++------------------------------
  src/cmd/gc/popt.c     |  13 +++--
  src/cmd/gc/reg.c      |  27 +++++-----
  4 files changed, 99 insertions(+), 120 deletions(-)
+
+diff --git a/src/cmd/gc/mparith1.c b/src/cmd/gc/mparith1.c
+index d85dc73bd9..6a0eb2d6d9 100644
+--- a/src/cmd/gc/mparith1.c
++++ b/src/cmd/gc/mparith1.c
+@@ -235,9 +235,9 @@ mppow10flt(Mpflt *a, int p)
+ static void
+ mphextofix(Mpint *a, char *s, int n)
+ {
+-	char *hexdigitp, *end, c;
++	char c;
+ 	long d;
+-	int bit;
++	int bit, hexdigitp, end;
+ 
+ 	while(*s == '0') {
+ 		s++;
+@@ -250,9 +250,9 @@ mphextofix(Mpint *a, char *s, int n)
+ 		return;
+ 	}
+ 
+-	end = s+n-1;
+-	for(hexdigitp=end; hexdigitp>=s; hexdigitp--) {
+-		c = *hexdigitp;
++	end = n-1;
++	for(hexdigitp=end; hexdigitp>=0; hexdigitp--) {
++		c = s[hexdigitp];
+ 		if(c >= '0' && c <= '9')
+ 			d = c-'0';
+ 		else if(c >= 'A' && c <= 'F')
+@@ -348,7 +348,8 @@ mpatoflt(Mpflt *a, char *as)
+ 		mpnorm(a);
+ 	}
+ 	for(;;) {
+-		switch(c = *s++) {
++		c = *s++;
++		switch(c) {
+ 		default:
+ 			yyerror("malformed constant: %s (at %c)", as, c);
+ 			goto bad;
+@@ -542,7 +543,8 @@ bad:
+ int
+ Bconv(Fmt *fp)
+ {
+-	char buf[500], *p;
++	char buf[500];
++	int p;
+ 	Mpint *xval, q, r, ten, sixteen;
+ 	int f, digit;
+ 
+@@ -554,8 +556,8 @@ Bconv(Fmt *fp)
+ 		mpnegfix(&q);
+ 	}
+ 
+-	p = &buf[sizeof(buf)];
+-	*--p = 0;
++	p = sizeof(buf);
++	buf[--p] = 0;
+ 	if(fp->flags & FmtSharp) {
+ 		// Hexadecimal
+ 		mpmovecfix(&sixteen, 16);
+@@ -563,27 +565,27 @@ Bconv(Fmt *fp)
+ 			mpdivmodfixfix(&q, &r, &q, &sixteen);
+ 			digit = mpgetfix(&r);
+ 			if(digit < 10)
+-				*--p = digit + '0';
++				buf[--p] = digit + '0';
+ 			else
+-				*--p = digit - 10 + 'A';
++				buf[--p] = digit - 10 + 'A';
+ 			if(mptestfix(&q) <= 0)
+ 				break;
+ 		}
+-		*--p = 'x';
+-		*--p = '0';
++		buf[--p] = 'x';
++		buf[--p] = '0';
+ 	} else {
+ 		// Decimal
+ 		mpmovecfix(&ten, 10);
+ 		for(;;) {
+ 			mpdivmodfixfix(&q, &r, &q, &ten);
+-			*--p = mpgetfix(&r) + '0';
++			buf[--p] = mpgetfix(&r) + '0';
+ 			if(mptestfix(&q) <= 0)
+ 				break;
+ 		}
+ 	}
+ 	if(f)
+-		*--p = '-';
+-	return fmtstrcpy(fp, p);
++		buf[--p] = '-';
++	return fmtstrcpy(fp, &buf[p]);
+ }
+ 
+ int
+diff --git a/src/cmd/gc/mparith2.c b/src/cmd/gc/mparith2.c
+index fd9f591cea..37aafbb5f5 100644
+--- a/src/cmd/gc/mparith2.c
++++ b/src/cmd/gc/mparith2.c
+@@ -14,12 +14,10 @@ static int
+ mplen(Mpint *a)
+ {
+ 	int i, n;
+-	long *a1;
+ 
+ 	n = -1;
+-	a1 = &a->a[0];
+ 	for(i=0; i<Mpprec; i++) {
+-		if(*a1++ != 0)
++		if(a->a[i] != 0)
+ 			n = i;
+ 	}
+ 	return n+1;
+@@ -32,19 +30,18 @@ mplen(Mpint *a)
+ static void
+ mplsh(Mpint *a, int quiet)
+ {
+-	long *a1, x;
++	long x;
+ 	int i, c;
+ 
+ 	c = 0;
+-	a1 = &a->a[0];
+ 	for(i=0; i<Mpprec; i++) {
+-		x = (*a1 << 1) + c;
++		x = (a->a[i] << 1) + c;
+ 		c = 0;
+ 		if(x >= Mpbase) {
+ 			x -= Mpbase;
+ 			c = 1;
+ 		}
+-		*a1++ = x;
++		a->a[i] = x;
+ 	}
+ 	a->ovf = c;
+ 	if(a->ovf && !quiet)
+@@ -58,20 +55,17 @@ mplsh(Mpint *a, int quiet)
+ static void
+ mplshw(Mpint *a, int quiet)
+ {
+-	long *a1;
+ 	int i;
+ 
+-	a1 = &a->a[Mpprec-1];
+-	if(*a1) {
++	i = Mpprec-1;
++	if(a->a[i]) {
+ 		a->ovf = 1;
+ 		if(!quiet)
+ 			yyerror("constant shift overflow");
+ 	}
+-	for(i=1; i<Mpprec; i++) {
+-		a1[0] = a1[-1];
+-		a1--;
+-	}
+-	a1[0] = 0;
++	for(; i > 0; i--)
++		a->a[i] = a->a[i-1];
++	a->a[i] = 0;
+ }
+ 
+ //
+@@ -81,15 +75,14 @@ mplshw(Mpint *a, int quiet)
+ static void
+ mprsh(Mpint *a)
+ {
+-	long *a1, x, lo;
++	long x, lo;
+ 	int i, c;
+ 
+ 	c = 0;
+ 	lo = a->a[0] & 1;
+-	a1 = &a->a[Mpprec];
+-	for(i=0; i<Mpprec; i++) {
+-		x = *--a1;
+-		*a1 = (x + c) >> 1;
++	for(i=Mpprec-1; i>=0; i--) {
++		x = a->a[i];
++		a->a[i] = (x + c) >> 1;
+ 		c = 0;
+ 		if(x & 1)
+ 			c = Mpbase;
+@@ -105,16 +98,14 @@ mprsh(Mpint *a)
+ static void
+ mprshw(Mpint *a)
+ {
+-	long *a1, lo;
++	long lo;
+ 	int i;
+ 
+ 	lo = a->a[0];
+-	a1 = &a->a[0];
+-	for(i=1; i<Mpprec; i++) {
+-		a1[0] = a1[1];
+-		a1++;
++	for(i=0; i<Mpprec-1; i++) {
++		a->a[i] = a->a[i+1];
+ 	}
+-	a1[0] = 0;
++	a->a[i] = 0;
+ 	if(a->neg && lo != 0)
+ 		mpaddcfix(a, -1);
+ }
+@@ -125,7 +116,7 @@ mprshw(Mpint *a)
+ static int
+ mpcmp(Mpint *a, Mpint *b)
+ {
+-	long x, *a1, *b1;
++	long x;
+ 	int i;
+ 
+ 	if(a->ovf || b->ovf) {
+@@ -134,11 +125,8 @@ mpcmp(Mpint *a, Mpint *b)
+ 		return 0;
+ 	}
+ 
+-	a1 = &a->a[0] + Mpprec;
+-	b1 = &b->a[0] + Mpprec;
+-
+-	for(i=0; i<Mpprec; i++) {
+-		x = *--a1 - *--b1;
++	for(i=Mpprec-1; i>=0; i--) {
++		x = a->a[i] - b->a[i];
+ 		if(x > 0)
+ 			return +1;
+ 		if(x < 0)
+@@ -154,19 +142,18 @@ mpcmp(Mpint *a, Mpint *b)
+ static void
+ mpneg(Mpint *a)
+ {
+-	long x, *a1;
++	long x;
+ 	int i, c;
+ 
+-	a1 = &a->a[0];
+ 	c = 0;
+ 	for(i=0; i<Mpprec; i++) {
+-		x = -*a1 -c;
++		x = -a->a[i] -c;
+ 		c = 0;
+ 		if(x < 0) {
+ 			x += Mpbase;
+ 			c = 1;
+ 		}
+-		*a1++ = x;
++		a->a[i] = x;
+ 	}
+ }
+ 
+@@ -202,7 +189,7 @@ void
+ mpaddfixfix(Mpint *a, Mpint *b, int quiet)
+ {
+ 	int i, c;
+-	long x, *a1, *b1;
++	long x;
+ 
+ 	if(a->ovf || b->ovf) {
+ 		if(nsavederrors+nerrors == 0)
+@@ -212,20 +199,18 @@ mpaddfixfix(Mpint *a, Mpint *b, int quiet)
+ 	}
+ 
+ 	c = 0;
+-	a1 = &a->a[0];
+-	b1 = &b->a[0];
+ 	if(a->neg != b->neg)
+ 		goto sub;
+ 
+ 	// perform a+b
+ 	for(i=0; i<Mpprec; i++) {
+-		x = *a1 + *b1++ + c;
++		x = a->a[i] + b->a[i] + c;
+ 		c = 0;
+ 		if(x >= Mpbase) {
+ 			x -= Mpbase;
+ 			c = 1;
+ 		}
+-		*a1++ = x;
++		a->a[i] = x;
+ 	}
+ 	a->ovf = c;
+ 	if(a->ovf && !quiet)
+@@ -242,26 +227,26 @@ sub:
+ 
+ 	case 1:
+ 		for(i=0; i<Mpprec; i++) {
+-			x = *a1 - *b1++ - c;
++			x = a->a[i] - b->a[i] - c;
+ 			c = 0;
+ 			if(x < 0) {
+ 				x += Mpbase;
+ 				c = 1;
+ 			}
+-			*a1++ = x;
++			a->a[i] = x;
+ 		}
+ 		break;
+ 
+ 	case -1:
+ 		a->neg ^= 1;
+ 		for(i=0; i<Mpprec; i++) {
+-			x = *b1++ - *a1 - c;
++			x = b->a[i] - a->a[i] - c;
+ 			c = 0;
+ 			if(x < 0) {
+ 				x += Mpbase;
+ 				c = 1;
+ 			}
+-			*a1++ = x;
++			a->a[i] = x;
+ 		}
+ 		break;
+ 	}
+@@ -272,8 +257,9 @@ mpmulfixfix(Mpint *a, Mpint *b)
+ {
+ 
+ 	int i, j, na, nb;
+-	long *a1, x;
++	long x;
+ 	Mpint s, q;
++	Mpint *c;
+ 
+ 	if(a->ovf || b->ovf) {
+ 		if(nsavederrors+nerrors == 0)
+@@ -288,17 +274,17 @@ mpmulfixfix(Mpint *a, Mpint *b)
+ 	nb = mplen(b);
+ 	if(na > nb) {
+ 		mpmovefixfix(&s, a);
+-		a1 = &b->a[0];
++		c = b;
+ 		na = nb;
+ 	} else {
+ 		mpmovefixfix(&s, b);
+-		a1 = &a->a[0];
++		c = a;
+ 	}
+ 	s.neg = 0;
+ 
+ 	mpmovecfix(&q, 0);
+ 	for(i=0; i<na; i++) {
+-		x = *a1++;
++		x = c->a[i];
+ 		for(j=0; j<Mpscale; j++) {
+ 			if(x & 1) {
+ 				if(s.ovf) {
+@@ -326,7 +312,7 @@ mpmulfract(Mpint *a, Mpint *b)
+ {
+ 
+ 	int i, j;
+-	long *a1, x;
++	long x;
+ 	Mpint s, q;
+ 
+ 	if(a->ovf || b->ovf) {
+@@ -337,16 +323,16 @@ mpmulfract(Mpint *a, Mpint *b)
+ 	}
+ 
+ 	mpmovefixfix(&s, b);
+-	a1 = &a->a[Mpprec];
+ 	s.neg = 0;
+ 	mpmovecfix(&q, 0);
+ 
+-	x = *--a1;
++	i = Mpprec-1;
++	x = a->a[i];
+ 	if(x != 0)
+ 		yyerror("mpmulfract not normal");
+ 
+-	for(i=0; i<Mpprec-1; i++) {
+-		x = *--a1;
++	for(i--; i >= 0; i--) {
++		x = a->a[i];
+ 		if(x == 0) {
+ 			mprshw(&s);
+ 			continue;
+@@ -369,7 +355,7 @@ void
+ mporfixfix(Mpint *a, Mpint *b)
+ {
+ 	int i;
+-	long x, *a1, *b1;
++	long x;
+ 
+ 	x = 0;
+ 	if(a->ovf || b->ovf) {
+@@ -386,11 +372,9 @@ mporfixfix(Mpint *a, Mpint *b)
+ 	if(b->neg)
+ 		mpneg(b);
+ 
+-	a1 = &a->a[0];
+-	b1 = &b->a[0];
+ 	for(i=0; i<Mpprec; i++) {
+-		x = *a1 | *b1++;
+-		*a1++ = x;
++		x = a->a[i] | b->a[i];
++		a->a[i] = x;
+ 	}
+ 
+ 	if(b->neg)
+@@ -405,7 +389,7 @@ void
+ mpandfixfix(Mpint *a, Mpint *b)
+ {
+ 	int i;
+-	long x, *a1, *b1;
++	long x;
+ 
+ 	x = 0;
+ 	if(a->ovf || b->ovf) {
+@@ -422,11 +406,9 @@ mpandfixfix(Mpint *a, Mpint *b)
+ 	if(b->neg)
+ 		mpneg(b);
+ 
+-	a1 = &a->a[0];
+-	b1 = &b->a[0];
+ 	for(i=0; i<Mpprec; i++) {
+-		x = *a1 & *b1++;
+-		*a1++ = x;
++		x = a->a[i] & b->a[i];
++		a->a[i] = x;
+ 	}
+ 
+ 	if(b->neg)
+@@ -441,7 +423,7 @@ void
+ mpandnotfixfix(Mpint *a, Mpint *b)
+ {
+ 	int i;
+-	long x, *a1, *b1;
++	long x;
+ 
+ 	x = 0;
+ 	if(a->ovf || b->ovf) {
+@@ -458,11 +440,9 @@ mpandnotfixfix(Mpint *a, Mpint *b)
+ 	if(b->neg)
+ 		mpneg(b);
+ 
+-	a1 = &a->a[0];
+-	b1 = &b->a[0];
+ 	for(i=0; i<Mpprec; i++) {
+-		x = *a1 & ~*b1++;
+-		*a1++ = x;
++		x = a->a[i] & ~b->a[i];
++		a->a[i] = x;
+ 	}
+ 
+ 	if(b->neg)
+@@ -477,7 +457,7 @@ void
+ mpxorfixfix(Mpint *a, Mpint *b)
+ {
+ 	int i;
+-	long x, *a1, *b1;
++	long x;
+ 
+ 	x = 0;
+ 	if(a->ovf || b->ovf) {
+@@ -494,11 +474,9 @@ mpxorfixfix(Mpint *a, Mpint *b)
+ 	if(b->neg)
+ 		mpneg(b);
+ 
+-	a1 = &a->a[0];
+-	b1 = &b->a[0];
+ 	for(i=0; i<Mpprec; i++) {
+-		x = *a1 ^ *b1++;
+-		*a1++ = x;
++		x = a->a[i] ^ b->a[i];
++		a->a[i] = x;
+ 	}
+ 
+ 	if(b->neg)
+@@ -585,7 +563,6 @@ void
+ mpmovecfix(Mpint *a, vlong c)
+ {
+ 	int i;
+-	long *a1;
+ 	vlong x;
+ 
+ 	a->neg = 0;
+@@ -597,9 +574,8 @@ mpmovecfix(Mpint *a, vlong c)
+ 		x = -(uvlong)x;
+ 	}
+ 
+-	a1 = &a->a[0];
+ 	for(i=0; i<Mpprec; i++) {
+-		*a1++ = x&Mpmask;
++		a->a[i] = x&Mpmask;
+ 		x >>= Mpscale;
+ 	}
+ }
+@@ -658,13 +634,11 @@ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
+ static int
+ mpiszero(Mpint *a)
+ {
+-	long *a1;
+ 	int i;
+-	a1 = &a->a[0] + Mpprec;
+-	for(i=0; i<Mpprec; i++) {
+-		if(*--a1 != 0)
++
++	for(i=Mpprec-1; i>=0; i--)
++		if(a->a[i] != 0)
+ 			return 0;
+-	}
+ 	return 1;
+ }
+ 
+@@ -673,16 +647,15 @@ mpdivfract(Mpint *a, Mpint *b)
+ {
+ 	Mpint n, d;
+ 	int i, j, neg;
+-	long *a1, x;
++	long x;
+ 
+ 	mpmovefixfix(&n, a);	// numerator
+ 	mpmovefixfix(&d, b);	// denominator
+-	a1 = &a->a[Mpprec];	// quotient
+ 
+ 	neg = n.neg ^ d.neg;
+ 	n.neg = 0;
+ 	d.neg = 0;
+-	for(i=0; i<Mpprec; i++) {
++	for(i=Mpprec-1; i >= 0; i--) {
+ 		x = 0;
+ 		for(j=0; j<Mpscale; j++) {
+ 			x <<= 1;
+@@ -693,7 +666,7 @@ mpdivfract(Mpint *a, Mpint *b)
+ 			}
+ 			mprsh(&d);
+ 		}
+-		*--a1 = x;
++		a->a[i] = x;
+ 	}
+ 	a->neg = neg;
+ }
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index 83f155564a..af7e5b1ff3 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -618,7 +618,8 @@ mergetemp(Prog *firstp)
+ 	nkill = 0;
+ 
+ 	// Special case.
+-	for(v = var; v < var+nvar; v++) {
++	for(i = 0; i < nvar; i++) {
++		v = &var[i];
+ 		if(v->addr)
+ 			continue;
+ 		// Used in only one instruction, which had better be a write.
+@@ -665,7 +666,8 @@ mergetemp(Prog *firstp)
+ 	// Each flood uses a new value of gen so that we don't have
+ 	// to clear all the r->active words after each variable.
+ 	gen = 0;
+-	for(v = var; v < var+nvar; v++) {
++	for(i = 0; i < nvar; i++) {
++		v = &var[i];
+ 		gen++;
+ 		for(f = v->use; f != nil; f = (Flow*)f->data)
+ 			mergewalk(v, f, gen);
+@@ -740,7 +742,8 @@ mergetemp(Prog *firstp)
+ 
+ 	if(debugmerge > 0 && debug['v']) {
+ 		print("%S [%d - %d]\n", curfn->nname->sym, nvar, nkill);
+-		for(v=var; v<var+nvar; v++) {
++		for(i = 0; i < nvar; i++) {
++			v = &var[i];
+ 			print("var %#N %T %lld-%lld", v->node, v->node->type, v->start, v->end);
+ 			if(v->addr)
+ 				print(" addr=1");
+@@ -779,8 +782,10 @@ mergetemp(Prog *firstp)
+ 	}
+ 
+ 	// Clear aux structures.
+-	for(v=var; v<var+nvar; v++)
++	for(i = 0; i < nvar; i++) {
++		v = &var[i];
+ 		v->node->opt = nil;
++	}
+ 	free(var);
+ 	free(bystart);
+ 	free(inuse);
+diff --git a/src/cmd/gc/reg.c b/src/cmd/gc/reg.c
+index 878705bd85..67409c2127 100644
+--- a/src/cmd/gc/reg.c
++++ b/src/cmd/gc/reg.c
+@@ -103,6 +103,7 @@ regopt(Prog *firstp)
+ 	int nreg;
+ 	char **regnames;
+ 	Bits bit;
++	Rgn *rgp;
+ 
+ 	if(first) {
+ 		fmtinstall('Q', Qconv);
+@@ -198,7 +199,8 @@ regopt(Prog *firstp)
+ 	}
+ 
+ 	for(i=0; i<nvar; i++) {
+-		Var *v = var+i;
++		Var *v;
++		v = var+i;
+ 		if(v->addr) {
+ 			bit = blsh(i);
+ 			for(z=0; z<BITS; z++)
+@@ -206,7 +208,7 @@ regopt(Prog *firstp)
+ 		}
+ 
+ 		if(debug['R'] && debug['v'])
+-			print("bit=%2d addr=%d et=%-6E w=%-2d s=%N + %lld\n",
++			print("bit=%2d addr=%d et=%E w=%-2d s=%N + %lld\n",
+ 				i, v->addr, v->etype, v->width, v->node, v->offset);
+ 	}
+ 
+@@ -334,7 +336,6 @@ loop2:
+ 	}
+ 	for(f = firstf; f != nil; f = f->link)
+ 		((Reg*)f->data)->act = zbits;
+-	rgp = region;
+ 	nregion = 0;
+ 	for(f = firstf; f != nil; f = f->link) {
+ 		r = (Reg*)f->data;
+@@ -361,10 +362,10 @@ loop2:
+ 					print("too many regions\n");
+ 				goto brk;
+ 			}
++			rgp = &region[nregion];
+ 			rgp->enter = f;
+ 			rgp->varno = i;
+ 			rgp->cost = change;
+-			rgp++;
+ 			nregion++;
+ 		}
+ 	}
+@@ -379,10 +380,10 @@ brk:
+ 	 * determine used registers (paint2)
+ 	 * replace code (paint3)
+ 	 */
+-	rgp = region;
+ 	if(debug['R'] && debug['v'])
+ 		print("\nregisterizing\n");
+ 	for(i=0; i<nregion; i++) {
++		rgp = &region[i];
+ 		if(debug['R'] && debug['v'])
+ 			print("region %d: cost %d varno %d enter %lld\n", i, rgp->cost, rgp->varno, rgp->enter->prog->pc);
+ 		bit = blsh(rgp->varno);
+@@ -393,12 +394,11 @@ brk:
+ 				Var *v;
+ 
+ 				v = var + rgp->varno;
+-				print("registerize %N+%lld (bit=%2d et=%2E) in %R usedreg=%#llx vreg=%#llx\n",
++				print("registerize %N+%lld (bit=%2d et=%E) in %R usedreg=%#llx vreg=%#llx\n",
+ 						v->node, v->offset, rgp->varno, v->etype, rgp->regno, usedreg, vreg);
+ 			}
+ 			paint3(rgp->enter, rgp->varno, vreg, rgp->regno);
+ 		}
+-		rgp++;
+ 	}
+ 
+ 	/*
+@@ -477,7 +477,7 @@ walkvardef(Node *n, Flow *f, int active)
+ 		if(f1->prog->as == AVARKILL && f1->prog->to.node == n)
+ 			break;
+ 		for(v=n->opt; v!=nil; v=v->nextinnode) {
+-			bn = v - var;
++			bn = v->id;
+ 			biset(&((Reg*)f1->data)->act, bn);
+ 		}
+ 		if(f1->prog->as == ACALL)
+@@ -680,6 +680,7 @@ mkvar(Flow *f, Adr *a)
+ 	i = nvar;
+ 	nvar++;
+ 	v = var+i;
++	v->id = i;
+ 	v->offset = o;
+ 	v->name = n;
+ 	v->etype = et;
+@@ -739,7 +740,7 @@ mkvar(Flow *f, Adr *a)
+ 		v->addr = 1;
+ 
+ 	if(debug['R'])
+-		print("bit=%2d et=%2E w=%lld+%lld %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
++		print("bit=%2d et=%E w=%lld+%lld %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+ 	ostats.nvar++;
+ 
+ 	return bit;
+@@ -753,7 +754,7 @@ prop(Flow *f, Bits ref, Bits cal)
+ {
+ 	Flow *f1, *f2;
+ 	Reg *r, *r1;
+-	int z, i, j;
++	int z, i;
+ 	Var *v, *v1;
+ 
+ 	for(f1 = f; f1 != nil; f1 = f1->p1) {
+@@ -820,11 +821,9 @@ prop(Flow *f, Bits ref, Bits cal)
+ 					// v is the head of the list or if the head's bit is not yet turned on.
+ 					// This will set the bits at most twice, keeping the overall loop linear.
+ 					v1 = v->node->opt;
+-					j = v1 - var;
+-					if(v == v1 || !btest(&cal, j)) {
++					if(v == v1 || !btest(&cal, v1->id)) {
+ 						for(; v1 != nil; v1 = v1->nextinnode) {
+-							j = v1 - var;
+-							biset(&cal, j);
++							biset(&cal, v1->id);
+ 						}
+ 					}
+ 				}

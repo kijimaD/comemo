@@ -28,7 +28,235 @@ Date:   Thu Nov 1 12:39:20 2012 -0700
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/6750053
-
+---
  src/pkg/encoding/binary/binary.go      | 49 ++++++++++++++++----
  src/pkg/encoding/binary/binary_test.go | 81 +++++++++++++++++++++++++++-------
  2 files changed, 107 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index 712e490e65..06670141e1 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -125,6 +125,9 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
+ // of fixed-size values.
+ // Bytes read from r are decoded using the specified byte order
+ // and written to successive fields of the data.
++// When reading into structs, the field data for fields with
++// blank (_) field names is skipped; i.e., blank field names
++// may be used for padding.
+ func Read(r io.Reader, order ByteOrder, data interface{}) error {
+ 	// Fast path for basic types.
+ 	if n := intDestSize(data); n != 0 {
+@@ -154,7 +157,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
+ 		return nil
+ 	}
+ 
+-	// Fallback to reflect-based.
++	// Fallback to reflect-based decoding.
+ 	var v reflect.Value
+ 	switch d := reflect.ValueOf(data); d.Kind() {
+ 	case reflect.Ptr:
+@@ -181,6 +184,8 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
+ // values, or a pointer to such data.
+ // Bytes written to w are encoded using the specified byte order
+ // and read from successive fields of the data.
++// When writing structs, zero values are are written for fields
++// with blank (_) field names.
+ func Write(w io.Writer, order ByteOrder, data interface{}) error {
+ 	// Fast path for basic types.
+ 	var b [8]byte
+@@ -239,6 +244,8 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
+ 		_, err := w.Write(bs)
+ 		return err
+ 	}
++
++	// Fallback to reflect-based encoding.
+ 	v := reflect.Indirect(reflect.ValueOf(data))
+ 	size := dataSize(v)
+ 	if size < 0 {
+@@ -300,15 +307,13 @@ func sizeof(t reflect.Type) int {
+ 	return -1
+ }
+ 
+-type decoder struct {
++type coder struct {
+ 	order ByteOrder
+ 	buf   []byte
+ }
+ 
+-type encoder struct {
+-	order ByteOrder
+-	buf   []byte
+-}
++type decoder coder
++type encoder coder
+ 
+ func (d *decoder) uint8() uint8 {
+ 	x := d.buf[0]
+@@ -379,9 +384,19 @@ func (d *decoder) value(v reflect.Value) {
+ 		}
+ 
+ 	case reflect.Struct:
++		t := v.Type()
+ 		l := v.NumField()
+ 		for i := 0; i < l; i++ {
+-			d.value(v.Field(i))
++			// Note: Calling v.CanSet() below is an optimization.
++			// It would be sufficient to check the field name,
++			// but creating the StructField info for each field is
++			// costly (run "go test -bench=ReadStruct" and compare
++			// results when making changes to this code).
++			if v := v.Field(i); v.CanSet() || t.Field(i).Name != "_" {
++				d.value(v)
++			} else {
++				d.skip(v)
++			}
+ 		}
+ 
+ 	case reflect.Slice:
+@@ -435,9 +450,15 @@ func (e *encoder) value(v reflect.Value) {
+ 		}
+ 
+ 	case reflect.Struct:
++		t := v.Type()
+ 		l := v.NumField()
+ 		for i := 0; i < l; i++ {
+-			e.value(v.Field(i))
++			// see comment for corresponding code in decoder.value()
++			if v := v.Field(i); v.CanSet() || t.Field(i).Name != "_" {
++				e.value(v)
++			} else {
++				e.skip(v)
++			}
+ 		}
+ 
+ 	case reflect.Slice:
+@@ -492,6 +513,18 @@ func (e *encoder) value(v reflect.Value) {
+ 	}
+ }
+ 
++func (d *decoder) skip(v reflect.Value) {
++	d.buf = d.buf[dataSize(v):]
++}
++
++func (e *encoder) skip(v reflect.Value) {
++	n := dataSize(v)
++	for i := range e.buf[0:n] {
++		e.buf[i] = 0
++	}
++	e.buf = e.buf[n:]
++}
++
+ // intDestSize returns the size of the integer that ptrType points to,
+ // or 0 if the type is not supported.
+ func intDestSize(ptrType interface{}) int {
+diff --git a/src/pkg/encoding/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+index ff361b7e37..cfad8d36c7 100644
+--- a/src/pkg/encoding/binary/binary_test.go
++++ b/src/pkg/encoding/binary/binary_test.go
+@@ -120,18 +120,14 @@ func testWrite(t *testing.T, order ByteOrder, b []byte, s1 interface{}) {
+ 	checkResult(t, "Write", order, err, buf.Bytes(), b)
+ }
+ 
+-func TestBigEndianRead(t *testing.T) { testRead(t, BigEndian, big, s) }
+-
+-func TestLittleEndianRead(t *testing.T) { testRead(t, LittleEndian, little, s) }
+-
+-func TestBigEndianWrite(t *testing.T) { testWrite(t, BigEndian, big, s) }
+-
+-func TestLittleEndianWrite(t *testing.T) { testWrite(t, LittleEndian, little, s) }
++func TestLittleEndianRead(t *testing.T)     { testRead(t, LittleEndian, little, s) }
++func TestLittleEndianWrite(t *testing.T)    { testWrite(t, LittleEndian, little, s) }
++func TestLittleEndianPtrWrite(t *testing.T) { testWrite(t, LittleEndian, little, &s) }
+ 
++func TestBigEndianRead(t *testing.T)     { testRead(t, BigEndian, big, s) }
++func TestBigEndianWrite(t *testing.T)    { testWrite(t, BigEndian, big, s) }
+ func TestBigEndianPtrWrite(t *testing.T) { testWrite(t, BigEndian, big, &s) }
+ 
+-func TestLittleEndianPtrWrite(t *testing.T) { testWrite(t, LittleEndian, little, &s) }
+-
+ func TestReadSlice(t *testing.T) {
+ 	slice := make([]int32, 2)
+ 	err := Read(bytes.NewBuffer(src), BigEndian, slice)
+@@ -147,20 +143,75 @@ func TestWriteSlice(t *testing.T) {
+ func TestWriteT(t *testing.T) {
+ 	buf := new(bytes.Buffer)
+ 	ts := T{}
+-	err := Write(buf, BigEndian, ts)
+-	if err == nil {
+-		t.Errorf("WriteT: have nil, want non-nil")
++	if err := Write(buf, BigEndian, ts); err == nil {
++		t.Errorf("WriteT: have err == nil, want non-nil")
+ 	}
+ 
+ 	tv := reflect.Indirect(reflect.ValueOf(ts))
+ 	for i, n := 0, tv.NumField(); i < n; i++ {
+-		err = Write(buf, BigEndian, tv.Field(i).Interface())
+-		if err == nil {
+-			t.Errorf("WriteT.%v: have nil, want non-nil", tv.Field(i).Type())
++		if err := Write(buf, BigEndian, tv.Field(i).Interface()); err == nil {
++			t.Errorf("WriteT.%v: have err == nil, want non-nil", tv.Field(i).Type())
+ 		}
+ 	}
+ }
+ 
++type BlankFields struct {
++	A uint32
++	_ int32
++	B float64
++	_ [4]int16
++	C byte
++	_ [7]byte
++	_ struct {
++		f [8]float32
++	}
++}
++
++type BlankFieldsProbe struct {
++	A  uint32
++	P0 int32
++	B  float64
++	P1 [4]int16
++	C  byte
++	P2 [7]byte
++	P3 struct {
++		F [8]float32
++	}
++}
++
++func TestBlankFields(t *testing.T) {
++	buf := new(bytes.Buffer)
++	b1 := BlankFields{A: 1234567890, B: 2.718281828, C: 42}
++	if err := Write(buf, LittleEndian, &b1); err != nil {
++		t.Error(err)
++	}
++
++	// zero values must have been written for blank fields
++	var p BlankFieldsProbe
++	if err := Read(buf, LittleEndian, &p); err != nil {
++		t.Error(err)
++	}
++
++	// quick test: only check first value of slices
++	if p.P0 != 0 || p.P1[0] != 0 || p.P2[0] != 0 || p.P3.F[0] != 0 {
++		t.Errorf("non-zero values for originally blank fields: %#v", p)
++	}
++
++	// write p and see if we can probe only some fields
++	if err := Write(buf, LittleEndian, &p); err != nil {
++		t.Error(err)
++	}
++
++	// read should ignore blank fields in b2
++	var b2 BlankFields
++	if err := Read(buf, LittleEndian, &b2); err != nil {
++		t.Error(err)
++	}
++	if b1.A != b2.A || b1.B != b2.B || b1.C != b2.C {
++		t.Errorf("%#v != %#v", b1, b2)
++	}
++}
++
+ type byteSliceReader struct {
+ 	remain []byte
+ }

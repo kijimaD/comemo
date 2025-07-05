@@ -8,7 +8,34 @@ Date:   Thu Nov 20 17:19:45 2008 -0800
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=19745
     CL=19745
-
+---
  src/runtime/print.c     | 2 +-
  src/runtime/rt2_amd64.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/print.c b/src/runtime/print.c
+index de9cabfbb1..26d59a7390 100644
+--- a/src/runtime/print.c
++++ b/src/runtime/print.c
+@@ -32,7 +32,7 @@ void
+ sys·printpc(void *p)
+ {
+ 	prints("PC=0x");
+-	sys·printpointer(sys·getcallerpc(p));
++	sys·printpointer((byte*)sys·getcallerpc(p) - 1);	// -1 to get to CALL instr.
+ }
+ 
+ void
+diff --git a/src/runtime/rt2_amd64.c b/src/runtime/rt2_amd64.c
+index a3433678b2..38eeddb495 100644
+--- a/src/runtime/rt2_amd64.c
++++ b/src/runtime/rt2_amd64.c
+@@ -70,7 +70,7 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
+ 
+ 		/* print this frame */
+ 		prints("0x");
+-		sys·printpointer(callpc);
++		sys·printpointer(callpc  - 1);	// -1 to get to CALL instr.
+ 		prints("?zi\n");
+ 		prints("\t");
+ 		prints(name);

@@ -7,7 +7,32 @@ Date:   Thu Oct 18 15:37:53 2012 +0900
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6733043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 827a4b2055..dcfc031b47 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -221,6 +221,7 @@ Shivakumar GN <shivakumar.gn@gmail.com>
+ Spring Mc <heresy.mc@gmail.com>
+ Stefan Nilsson <snilsson@nada.kth.se> <trolleriprofessorn@gmail.com>
+ Stéphane Travostino <stephane.travostino@gmail.com>
++Stephen McQuay <stephen@mcquay.me>
+ Stephen Weinberg <stephen@q5comm.com>
+ Sven Almgren <sven@tras.se>
+ Szabolcs Nagy <nsz@port70.net>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 175c8f59e0..9d54d4ce9f 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -319,6 +319,7 @@ Spring Mc <heresy.mc@gmail.com>
+ Stefan Nilsson <snilsson@nada.kth.se> <trolleriprofessorn@gmail.com>
+ Stéphane Travostino <stephane.travostino@gmail.com>
+ Stephen Ma <stephenm@golang.org>
++Stephen McQuay <stephen@mcquay.me>
+ Stephen Weinberg <stephen@q5comm.com>
+ Sugu Sougoumarane <ssougou@gmail.com>
+ Sven Almgren <sven@tras.se>

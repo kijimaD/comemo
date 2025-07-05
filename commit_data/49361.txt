@@ -15,6 +15,20 @@ Date:   Sun Aug 15 19:47:08 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/operand.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 8336451e9c..19326b8342 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -273,7 +273,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 
+ 	// x is an untyped value representable by a value of type T.
+ 	if isUntyped(Vu) {
+-		if t, ok := Tu.(*TypeParam); ok {
++		if t, ok := under(T).(*TypeParam); ok {
+ 			return t.is(func(t *term) bool {
+ 				// TODO(gri) this could probably be more efficient
+ 				if t.tilde {

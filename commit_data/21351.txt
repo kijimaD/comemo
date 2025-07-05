@@ -10,6 +10,25 @@ Date:   Tue Dec 23 12:09:38 2014 +1100
     Change-Id: Ib65bd172cca046a52861759a4232d7b4b6514fa8
     Reviewed-on: https://go-review.googlesource.com/1994
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/run.bash | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 8da06d6803..dbd3ddb6af 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -47,8 +47,12 @@ fi
+ # at least runtime/debug test will fail.
+ unset GOROOT_FINAL
+ 
+-# increase timeout for ARM up to 3 times the normal value
++# TODO(adg): create an environment variable and to permit the builders to
++# specify the timeout scale.
+ timeout_scale=1
++# the freebsd-* builders are slow, and there's no easy way to make them faster.
++[ "$GOOS" == "freebsd" ] && timeout_scale=2
++# increase timeout for ARM up to 3 times the normal value
+ [ "$GOARCH" == "arm" ] && timeout_scale=3
+ 
+ echo '##### Testing packages.'

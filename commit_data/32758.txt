@@ -32,6 +32,31 @@ Date:   Tue Nov 8 17:54:30 2016 +1100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strings/strings.go | 11 ++---------
  1 file changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index d3bfe1f729..1226e1f50f 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -698,17 +698,10 @@ func LastIndexFunc(s string, f func(rune) bool) int {
+ // truth==false, the sense of the predicate function is
+ // inverted.
+ func indexFunc(s string, f func(rune) bool, truth bool) int {
+-	start := 0
+-	for start < len(s) {
+-		wid := 1
+-		r := rune(s[start])
+-		if r >= utf8.RuneSelf {
+-			r, wid = utf8.DecodeRuneInString(s[start:])
+-		}
++	for i, r := range s {
+ 		if f(r) == truth {
+-			return start
++			return i
+ 		}
+-		start += wid
+ 	}
+ 	return -1
+ }

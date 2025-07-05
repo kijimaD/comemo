@@ -27,7 +27,7 @@ Date:   Fri Oct 6 14:03:55 2017 -0400
     Change-Id: I01c0a66e30a80fa7254e3f2879283d3cd7aa03b4
     Reviewed-on: https://go-review.googlesource.com/69053
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/nacl/testzip.proto                      |   3 +
  src/cmd/buildid/buildid.go                   |  73 ++++++++++++++
  src/cmd/buildid/doc.go                       |  18 ++++
@@ -45,3 +45,911 @@ Date:   Fri Oct 6 14:03:55 2017 -0400
  src/cmd/internal/buildid/testdata/a.pe       | Bin 0 -> 3584 bytes
  src/cmd/internal/buildid/testdata/p.a        | Bin 0 -> 682 bytes
  16 files changed, 436 insertions(+), 141 deletions(-)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 14d541d67b..ab9abbf21e 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -31,6 +31,9 @@ go	src=..
+ 			internal
+ 				objfile
+ 					objfile.go
++				buildid
++					testdata
++						+
+ 			gofmt
+ 				gofmt.go
+ 				gofmt_test.go
+diff --git a/src/cmd/buildid/buildid.go b/src/cmd/buildid/buildid.go
+new file mode 100644
+index 0000000000..8d810ffdd9
+--- /dev/null
++++ b/src/cmd/buildid/buildid.go
+@@ -0,0 +1,73 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"flag"
++	"fmt"
++	"log"
++	"os"
++	"strings"
++
++	"cmd/internal/buildid"
++)
++
++func usage() {
++	fmt.Fprintf(os.Stderr, "usage: go tool buildid [-w] file\n")
++	flag.PrintDefaults()
++	os.Exit(2)
++}
++
++var wflag = flag.Bool("w", false, "write build ID")
++
++func main() {
++	log.SetPrefix("buildid: ")
++	log.SetFlags(0)
++	flag.Usage = usage
++	flag.Parse()
++	if flag.NArg() != 1 {
++		usage()
++	}
++
++	file := flag.Arg(0)
++	id, err := buildid.ReadFile(file)
++	if err != nil {
++		log.Fatal(err)
++	}
++	if !*wflag {
++		fmt.Printf("%s\n", id)
++		return
++	}
++
++	f, err := os.Open(file)
++	if err != nil {
++		log.Fatal(err)
++	}
++	matches, hash, err := buildid.FindAndHash(f, id, 0)
++	if err != nil {
++		log.Fatal(err)
++	}
++	f.Close()
++
++	tail := id
++	if i := strings.LastIndex(id, "."); i >= 0 {
++		tail = tail[i+1:]
++	}
++	if len(tail) != len(hash)*2 {
++		log.Fatalf("%s: cannot find %d-byte hash in id %s", file, len(hash), id)
++	}
++	newID := id[:len(id)-len(tail)] + fmt.Sprintf("%x", hash)
++
++	f, err = os.OpenFile(file, os.O_WRONLY, 0)
++	if err != nil {
++		log.Fatal(err)
++	}
++	if err := buildid.Rewrite(f, matches, newID); err != nil {
++		log.Fatal(err)
++	}
++	if err := f.Close(); err != nil {
++		log.Fatal(err)
++	}
++}
+diff --git a/src/cmd/buildid/doc.go b/src/cmd/buildid/doc.go
+new file mode 100644
+index 0000000000..d1ec155c97
+--- /dev/null
++++ b/src/cmd/buildid/doc.go
+@@ -0,0 +1,18 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Buildid displays or updates the build ID stored in a Go package or binary.
++
++Usage:
++	go tool buildid [-w] file
++
++By default, buildid prints the build ID found in the named file.
++If the -w option is given, buildid rewrites the build ID found in
++the file to accurately record a content hash of the file.
++
++This tool is only intended for use by the go command or
++other build systems.
++*/
++package main
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index 660db75000..e25bbc3f40 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -84,19 +84,6 @@ var builddeps = map[string][]string{
+ 		"strings",       // cmd/go/internal/bug
+ 	},
+ 
+-	"cmd/go/internal/buildid": {
+-		"bytes",               // cmd/go/internal/buildid
+-		"cmd/go/internal/cfg", // cmd/go/internal/buildid
+-		"debug/elf",           // cmd/go/internal/buildid
+-		"debug/macho",         // cmd/go/internal/buildid
+-		"encoding/binary",     // cmd/go/internal/buildid
+-		"fmt",                 // cmd/go/internal/buildid
+-		"io",                  // cmd/go/internal/buildid
+-		"os",                  // cmd/go/internal/buildid
+-		"strconv",             // cmd/go/internal/buildid
+-		"strings",             // cmd/go/internal/buildid
+-	},
+-
+ 	"cmd/go/internal/cfg": {
+ 		"cmd/internal/objabi", // cmd/go/internal/cfg
+ 		"fmt",           // cmd/go/internal/cfg
+@@ -234,24 +221,24 @@ var builddeps = map[string][]string{
+ 	},
+ 
+ 	"cmd/go/internal/load": {
+-		"cmd/go/internal/base",    // cmd/go/internal/load
+-		"cmd/go/internal/buildid", // cmd/go/internal/load
+-		"cmd/go/internal/cfg",     // cmd/go/internal/load
+-		"cmd/go/internal/str",     // cmd/go/internal/load
+-		"crypto/sha1",             // cmd/go/internal/load
+-		"fmt",                     // cmd/go/internal/load
+-		"go/build",                // cmd/go/internal/load
+-		"go/token",                // cmd/go/internal/load
+-		"io/ioutil",               // cmd/go/internal/load
+-		"log",                     // cmd/go/internal/load
+-		"os",                      // cmd/go/internal/load
+-		"path",                    // cmd/go/internal/load
+-		"path/filepath",           // cmd/go/internal/load
+-		"regexp",                  // cmd/go/internal/load
+-		"runtime",                 // cmd/go/internal/load
+-		"sort",                    // cmd/go/internal/load
+-		"strings",                 // cmd/go/internal/load
+-		"unicode",                 // cmd/go/internal/load
++		"cmd/go/internal/base", // cmd/go/internal/load
++		"cmd/go/internal/cfg",  // cmd/go/internal/load
++		"cmd/go/internal/str",  // cmd/go/internal/load
++		"cmd/internal/buildid", // cmd/go/internal/load
++		"crypto/sha1",          // cmd/go/internal/load
++		"fmt",                  // cmd/go/internal/load
++		"go/build",             // cmd/go/internal/load
++		"go/token",             // cmd/go/internal/load
++		"io/ioutil",            // cmd/go/internal/load
++		"log",                  // cmd/go/internal/load
++		"os",                   // cmd/go/internal/load
++		"path",                 // cmd/go/internal/load
++		"path/filepath",        // cmd/go/internal/load
++		"regexp",               // cmd/go/internal/load
++		"runtime",              // cmd/go/internal/load
++		"sort",                 // cmd/go/internal/load
++		"strings",              // cmd/go/internal/load
++		"unicode",              // cmd/go/internal/load
+ 	},
+ 
+ 	"cmd/go/internal/run": {
+@@ -293,7 +280,6 @@ var builddeps = map[string][]string{
+ 		"path",                    // cmd/go/internal/test
+ 		"path/filepath",           // cmd/go/internal/test
+ 		"regexp",                  // cmd/go/internal/test
+-		"runtime",                 // cmd/go/internal/test
+ 		"sort",                    // cmd/go/internal/test
+ 		"strings",                 // cmd/go/internal/test
+ 		"text/template",           // cmd/go/internal/test
+@@ -338,32 +324,44 @@ var builddeps = map[string][]string{
+ 	},
+ 
+ 	"cmd/go/internal/work": {
+-		"bufio",                   // cmd/go/internal/work
+-		"bytes",                   // cmd/go/internal/work
+-		"cmd/go/internal/base",    // cmd/go/internal/work
+-		"cmd/go/internal/buildid", // cmd/go/internal/work
+-		"cmd/go/internal/cfg",     // cmd/go/internal/work
+-		"cmd/go/internal/load",    // cmd/go/internal/work
+-		"cmd/go/internal/str",     // cmd/go/internal/work
+-		"container/heap",          // cmd/go/internal/work
+-		"debug/elf",               // cmd/go/internal/work
+-		"errors",                  // cmd/go/internal/work
+-		"flag",                    // cmd/go/internal/work
+-		"fmt",                     // cmd/go/internal/work
+-		"go/build",                // cmd/go/internal/work
+-		"io",                      // cmd/go/internal/work
+-		"io/ioutil",               // cmd/go/internal/work
+-		"log",                     // cmd/go/internal/work
+-		"os",                      // cmd/go/internal/work
+-		"os/exec",                 // cmd/go/internal/work
+-		"path",                    // cmd/go/internal/work
+-		"path/filepath",           // cmd/go/internal/work
+-		"regexp",                  // cmd/go/internal/work
+-		"runtime",                 // cmd/go/internal/work
+-		"strconv",                 // cmd/go/internal/work
+-		"strings",                 // cmd/go/internal/work
+-		"sync",                    // cmd/go/internal/work
+-		"time",                    // cmd/go/internal/work
++		"bufio",                // cmd/go/internal/work
++		"bytes",                // cmd/go/internal/work
++		"cmd/go/internal/base", // cmd/go/internal/work
++		"cmd/go/internal/cfg",  // cmd/go/internal/work
++		"cmd/go/internal/load", // cmd/go/internal/work
++		"cmd/go/internal/str",  // cmd/go/internal/work
++		"cmd/internal/buildid", // cmd/go/internal/work
++		"container/heap",       // cmd/go/internal/work
++		"debug/elf",            // cmd/go/internal/work
++		"errors",               // cmd/go/internal/work
++		"flag",                 // cmd/go/internal/work
++		"fmt",                  // cmd/go/internal/work
++		"go/build",             // cmd/go/internal/work
++		"io",                   // cmd/go/internal/work
++		"io/ioutil",            // cmd/go/internal/work
++		"log",                  // cmd/go/internal/work
++		"os",                   // cmd/go/internal/work
++		"os/exec",              // cmd/go/internal/work
++		"path",                 // cmd/go/internal/work
++		"path/filepath",        // cmd/go/internal/work
++		"regexp",               // cmd/go/internal/work
++		"runtime",              // cmd/go/internal/work
++		"strconv",              // cmd/go/internal/work
++		"strings",              // cmd/go/internal/work
++		"sync",                 // cmd/go/internal/work
++		"time",                 // cmd/go/internal/work
++	},
++
++	"cmd/internal/buildid": {
++		"bytes",           // cmd/internal/buildid
++		"crypto/sha256",   // cmd/internal/buildid
++		"debug/elf",       // cmd/internal/buildid
++		"debug/macho",     // cmd/internal/buildid
++		"encoding/binary", // cmd/internal/buildid
++		"fmt",             // cmd/internal/buildid
++		"io",              // cmd/internal/buildid
++		"os",              // cmd/internal/buildid
++		"strconv",         // cmd/internal/buildid
+ 	},
+ 
+ 	"cmd/internal/objabi": {
+@@ -422,6 +420,12 @@ var builddeps = map[string][]string{
+ 		"internal/cpu", // crypto/sha1
+ 	},
+ 
++	"crypto/sha256": {
++		"crypto",       // crypto/sha256
++		"hash",         // crypto/sha256
++		"internal/cpu", // crypto/sha256
++	},
++
+ 	"debug/dwarf": {
+ 		"encoding/binary", // debug/dwarf
+ 		"errors",          // debug/dwarf
+@@ -754,7 +758,8 @@ var builddeps = map[string][]string{
+ 	},
+ 
+ 	"path/filepath": {
+-		"errors",       // path/filepath
++		"errors",                   // path/filepath
++		"internal/syscall/windows", // path/filepath
+ 		"os",           // path/filepath
+ 		"runtime",      // path/filepath
+ 		"sort",         // path/filepath
+diff --git a/src/cmd/dist/mkdeps.go b/src/cmd/dist/mkdeps.go
+index 339e66e954..d8da0122e8 100644
+--- a/src/cmd/dist/mkdeps.go
++++ b/src/cmd/dist/mkdeps.go
+@@ -158,9 +158,11 @@ func importsAndDepsOf(pkgs ...string) (map[string][]string, map[string][]string)
+ 		cmd := exec.Command("go", args...)
+ 		t := strings.Split(target, "/")
+ 		cmd.Env = append(os.Environ(), "GOOS="+t[0], "GOARCH="+t[1])
++		var stderr bytes.Buffer
++		cmd.Stderr = &stderr
+ 		out, err := cmd.Output()
+-		if err != nil {
+-			log.Fatalf("GOOS=%s GOARCH=%s go list: %v", t[0], t[1], err)
++		if err != nil && !strings.Contains(stderr.String(), "build constraints exclude all Go files") {
++			log.Fatalf("GOOS=%s GOARCH=%s go list: %v\n%s\n%s", t[0], t[1], err, stderr.Bytes(), out)
+ 		}
+ 		helped := false
+ 		for _, line := range strings.Split(string(out), "\n") {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index ae9aad4fff..50f9a68e0e 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -20,9 +20,9 @@ import (
+ 	"unicode"
+ 
+ 	"cmd/go/internal/base"
+-	"cmd/go/internal/buildid"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/str"
++	"cmd/internal/buildid"
+ )
+ 
+ var IgnoreImports bool // control whether we ignore imports in packages
+@@ -1116,7 +1116,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 
+ 	if p.BinaryOnly {
+ 		// For binary-only package, use build ID from supplied package binary.
+-		buildID, err := buildid.ReadBuildID(p.Name, p.Target)
++		buildID, err := buildid.ReadFile(p.Target)
+ 		if err == nil {
+ 			p.Internal.BuildID = buildID
+ 		}
+@@ -1540,7 +1540,7 @@ func isStale(p *Package) (bool, string) {
+ 	// It also catches changes in toolchain, like when flipping between
+ 	// two versions of Go compiling a single GOPATH.
+ 	// See issue 8290 and issue 10702.
+-	targetBuildID, err := buildid.ReadBuildID(p.Name, p.Target)
++	targetBuildID, err := buildid.ReadFile(p.Target)
+ 	if err == nil && targetBuildID != p.Internal.BuildID {
+ 		return true, "build ID mismatch"
+ 	}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 88d880152d..67f2dd6617 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -29,10 +29,10 @@ import (
+ 	"time"
+ 
+ 	"cmd/go/internal/base"
+-	"cmd/go/internal/buildid"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/str"
++	"cmd/internal/buildid"
+ )
+ 
+ var CmdBuild = &base.Command{
+diff --git a/src/cmd/go/note_test.go b/src/cmd/go/note_test.go
+index 1bbbd0d8a0..13ccfc74c0 100644
+--- a/src/cmd/go/note_test.go
++++ b/src/cmd/go/note_test.go
+@@ -9,33 +9,19 @@ import (
+ 	"runtime"
+ 	"testing"
+ 
+-	"cmd/go/internal/buildid"
++	"cmd/internal/buildid"
+ )
+ 
+ func TestNoteReading(t *testing.T) {
+-	testNoteReading(t)
+-}
+-
+-func TestNoteReading2K(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		t.Skipf("2kB is not enough on %s", runtime.GOOS)
+-	}
+-	// Set BuildIDReadSize to 2kB to exercise Mach-O parsing more strictly.
+-	defer func(old int) {
+-		buildid.BuildIDReadSize = old
+-	}(buildid.BuildIDReadSize)
+-	buildid.BuildIDReadSize = 2 * 1024
+-
+-	testNoteReading(t)
+-}
+-
+-func testNoteReading(t *testing.T) {
++	// cmd/internal/buildid already has tests that the basic reading works.
++	// This test is essentially checking that -ldflags=-buildid=XXX works,
++	// both in internal and external linking mode.
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.tempFile("hello.go", `package main; func main() { print("hello, world\n") }`)
+ 	const buildID = "TestNoteReading-Build-ID"
+ 	tg.run("build", "-ldflags", "-buildid="+buildID, "-o", tg.path("hello.exe"), tg.path("hello.go"))
+-	id, err := buildid.ReadBuildIDFromBinary(tg.path("hello.exe"))
++	id, err := buildid.ReadFile(tg.path("hello.exe"))
+ 	if err != nil {
+ 		t.Fatalf("reading build ID from hello binary: %v", err)
+ 	}
+@@ -54,8 +40,8 @@ func testNoteReading(t *testing.T) {
+ 		t.Skipf("skipping - external linking not supported")
+ 	}
+ 
+-	tg.run("build", "-ldflags", "-buildid="+buildID+" -linkmode=external", "-o", tg.path("hello.exe"), tg.path("hello.go"))
+-	id, err = buildid.ReadBuildIDFromBinary(tg.path("hello.exe"))
++	tg.run("build", "-ldflags", "-buildid="+buildID+" -linkmode=external", "-o", tg.path("hello2.exe"), tg.path("hello.go"))
++	id, err = buildid.ReadFile(tg.path("hello2.exe"))
+ 	if err != nil {
+ 		t.Fatalf("reading build ID from hello binary (linkmode=external): %v", err)
+ 	}
+@@ -67,13 +53,13 @@ func testNoteReading(t *testing.T) {
+ 	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
+ 		// Test while forcing use of the gold linker, since in the past
+ 		// we've had trouble reading the notes generated by gold.
+-		err := tg.doRun([]string{"build", "-ldflags", "-buildid=" + buildID + " -linkmode=external -extldflags=-fuse-ld=gold", "-o", tg.path("hello.exe"), tg.path("hello.go")})
++		err := tg.doRun([]string{"build", "-ldflags", "-buildid=" + buildID + " -linkmode=external -extldflags=-fuse-ld=gold", "-o", tg.path("hello3.exe"), tg.path("hello.go")})
+ 		if err != nil && (tg.grepCountBoth("invalid linker") > 0 || tg.grepCountBoth("gold") > 0) {
+ 			// It's not an error if gold isn't there.
+ 			t.Log("skipping gold test")
+ 			break
+ 		}
+-		id, err = buildid.ReadBuildIDFromBinary(tg.path("hello.exe"))
++		id, err = buildid.ReadFile(tg.path("hello3.exe"))
+ 		if err != nil {
+ 			t.Fatalf("reading build ID from hello binary (linkmode=external -extldflags=-fuse-ld=gold): %v", err)
+ 		}
+diff --git a/src/cmd/go/internal/buildid/buildid.go b/src/cmd/internal/buildid/buildid.go
+similarity index 69%
+rename from src/cmd/go/internal/buildid/buildid.go
+rename to src/cmd/internal/buildid/buildid.go
+index 091c9090c8..883790e41b 100644
+--- a/src/cmd/go/internal/buildid/buildid.go
++++ b/src/cmd/internal/buildid/buildid.go
+@@ -6,12 +6,10 @@ package buildid
+ 
+ import (
+ 	"bytes"
+-	"cmd/go/internal/cfg"
+ 	"fmt"
+ 	"io"
+ 	"os"
+ 	"strconv"
+-	"strings"
+ )
+ 
+ var (
+@@ -27,23 +25,21 @@ var (
+ 	buildid  = []byte("build id ")
+ )
+ 
+-// ReadBuildID reads the build ID from an archive or binary.
+-// It only supports the gc toolchain.
+-// Other toolchain maintainers should adjust this function.
+-func ReadBuildID(name, target string) (id string, err error) {
+-	if cfg.BuildToolchainName != "gc" {
+-		return "", errBuildIDToolchain
++// ReadFile reads the build ID from an archive or executable file.
++// It only supports archives from the gc toolchain.
++// TODO(rsc): Figure out what gccgo and llvm are going to do for archives.
++func ReadFile(name string) (id string, err error) {
++	f, err := os.Open(name)
++	if err != nil {
++		return "", err
+ 	}
+ 
+-	// For commands, read build ID directly from binary.
+-	if name == "main" {
+-		return ReadBuildIDFromBinary(target)
++	buf := make([]byte, 8)
++	if _, err := f.ReadAt(buf, 0); err != nil {
++		return "", err
+ 	}
+-
+-	// Otherwise, we expect to have an archive (.a) file,
+-	// and we can read the build ID from the Go export data.
+-	if !strings.HasSuffix(target, ".a") {
+-		return "", &os.PathError{Op: "parse", Path: target, Err: errBuildIDUnknown}
++	if string(buf) != "!<arch>\n" {
++		return readBinary(name, f)
+ 	}
+ 
+ 	// Read just enough of the target to fetch the build ID.
+@@ -56,10 +52,6 @@ func ReadBuildID(name, target string) (id string, err error) {
+ 	//
+ 	// The variable-sized strings are GOOS, GOARCH, and the experiment list (X:none).
+ 	// Reading the first 1024 bytes should be plenty.
+-	f, err := os.Open(target)
+-	if err != nil {
+-		return "", err
+-	}
+ 	data := make([]byte, 1024)
+ 	n, err := io.ReadFull(f, data)
+ 	f.Close()
+@@ -69,7 +61,7 @@ func ReadBuildID(name, target string) (id string, err error) {
+ 	}
+ 
+ 	bad := func() (string, error) {
+-		return "", &os.PathError{Op: "parse", Path: target, Err: errBuildIDMalformed}
++		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+ 	}
+ 
+ 	// Archive header.
+@@ -122,9 +114,9 @@ var (
+ 	}
+ )
+ 
+-var BuildIDReadSize = 32 * 1024 // changed for testing
++var readSize = 32 * 1024 // changed for testing
+ 
+-// ReadBuildIDFromBinary reads the build ID from a binary.
++// readBinary reads the build ID from a binary.
+ //
+ // ELF binaries store the build ID in a proper PT_NOTE section.
+ //
+@@ -133,11 +125,7 @@ var BuildIDReadSize = 32 * 1024 // changed for testing
+ // of the text segment, which should appear near the beginning
+ // of the file. This is clumsy but fairly portable. Custom locations
+ // can be added for other binary types as needed, like we did for ELF.
+-func ReadBuildIDFromBinary(filename string) (id string, err error) {
+-	if filename == "" {
+-		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDUnknown}
+-	}
+-
++func readBinary(name string, f *os.File) (id string, err error) {
+ 	// Read the first 32 kB of the binary file.
+ 	// That should be enough to find the build ID.
+ 	// In ELF files, the build ID is in the leading headers,
+@@ -151,13 +139,7 @@ func ReadBuildIDFromBinary(filename string) (id string, err error) {
+ 	//	Plan 9: 0x20
+ 	//	Windows: 0x600
+ 	//
+-	f, err := os.Open(filename)
+-	if err != nil {
+-		return "", err
+-	}
+-	defer f.Close()
+-
+-	data := make([]byte, BuildIDReadSize)
++	data := make([]byte, readSize)
+ 	_, err = io.ReadFull(f, data)
+ 	if err == io.ErrUnexpectedEOF {
+ 		err = nil
+@@ -167,19 +149,18 @@ func ReadBuildIDFromBinary(filename string) (id string, err error) {
+ 	}
+ 
+ 	if bytes.HasPrefix(data, elfPrefix) {
+-		return readELFGoBuildID(filename, f, data)
++		return readELF(name, f, data)
+ 	}
+ 	for _, m := range machoPrefixes {
+ 		if bytes.HasPrefix(data, m) {
+-			return readMachoGoBuildID(filename, f, data)
++			return readMacho(name, f, data)
+ 		}
+ 	}
+-
+-	return readRawGoBuildID(filename, data)
++	return readRaw(name, data)
+ }
+ 
+-// readRawGoBuildID finds the raw build ID stored in text segment data.
+-func readRawGoBuildID(filename string, data []byte) (id string, err error) {
++// readRaw finds the raw build ID stored in text segment data.
++func readRaw(name string, data []byte) (id string, err error) {
+ 	i := bytes.Index(data, goBuildPrefix)
+ 	if i < 0 {
+ 		// Missing. Treat as successful but build ID empty.
+@@ -188,14 +169,13 @@ func readRawGoBuildID(filename string, data []byte) (id string, err error) {
+ 
+ 	j := bytes.Index(data[i+len(goBuildPrefix):], goBuildEnd)
+ 	if j < 0 {
+-		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDMalformed}
++		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+ 	}
+ 
+ 	quoted := data[i+len(goBuildPrefix)-1 : i+len(goBuildPrefix)+j+1]
+ 	id, err = strconv.Unquote(string(quoted))
+ 	if err != nil {
+-		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDMalformed}
++		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+ 	}
+-
+ 	return id, nil
+ }
+diff --git a/src/cmd/internal/buildid/buildid_test.go b/src/cmd/internal/buildid/buildid_test.go
+new file mode 100644
+index 0000000000..15481dd762
+--- /dev/null
++++ b/src/cmd/internal/buildid/buildid_test.go
+@@ -0,0 +1,137 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package buildid
++
++import (
++	"bytes"
++	"crypto/sha256"
++	"io/ioutil"
++	"os"
++	"reflect"
++	"testing"
++)
++
++const (
++	expectedID = "abcdefghijklmnopqrstuvwxyz.1234567890123456789012345678901234567890123456789012345678901234"
++	newID      = "bcdefghijklmnopqrstuvwxyza.2345678901234567890123456789012345678901234567890123456789012341"
++)
++
++func TestReadFile(t *testing.T) {
++	var files = []string{
++		"p.a",
++		"a.elf",
++		"a.macho",
++		"a.pe",
++	}
++
++	f, err := ioutil.TempFile("", "buildid-test-")
++	if err != nil {
++		t.Fatal(err)
++	}
++	tmp := f.Name()
++	defer os.Remove(tmp)
++	f.Close()
++
++	for _, f := range files {
++		id, err := ReadFile("testdata/" + f)
++		if id != expectedID || err != nil {
++			t.Errorf("ReadFile(testdata/%s) = %q, %v, want %q, nil", f, id, err, expectedID)
++		}
++		old := readSize
++		readSize = 2048
++		id, err = ReadFile("testdata/" + f)
++		readSize = old
++		if id != expectedID || err != nil {
++			t.Errorf("ReadFile(testdata/%s) [readSize=2k] = %q, %v, want %q, nil", f, id, err, expectedID)
++		}
++
++		data, err := ioutil.ReadFile("testdata/" + f)
++		if err != nil {
++			t.Fatal(err)
++		}
++		m, _, err := FindAndHash(bytes.NewReader(data), expectedID, 1024)
++		if err != nil {
++			t.Errorf("FindAndHash(testdata/%s): %v", f, err)
++			continue
++		}
++		if err := ioutil.WriteFile(tmp, data, 0666); err != nil {
++			t.Error(err)
++			continue
++		}
++		tf, err := os.OpenFile(tmp, os.O_WRONLY, 0)
++		if err != nil {
++			t.Error(err)
++			continue
++		}
++		err = Rewrite(tf, m, newID)
++		err2 := tf.Close()
++		if err != nil {
++			t.Errorf("Rewrite(testdata/%s): %v", f, err)
++			continue
++		}
++		if err2 != nil {
++			t.Fatal(err2)
++		}
++
++		id, err = ReadFile(tmp)
++		if id != newID || err != nil {
++			t.Errorf("ReadFile(testdata/%s after Rewrite) = %q, %v, want %q, nil", f, id, err, newID)
++		}
++	}
++}
++
++func TestFindAndHash(t *testing.T) {
++	buf := make([]byte, 64)
++	buf2 := make([]byte, 64)
++	id := make([]byte, 8)
++	zero := make([]byte, 8)
++	for i := range id {
++		id[i] = byte(i)
++	}
++	numError := 0
++	errorf := func(msg string, args ...interface{}) {
++		t.Errorf(msg, args...)
++		if numError++; numError > 20 {
++			t.Logf("stopping after too many errors")
++			t.FailNow()
++		}
++	}
++	for bufSize := len(id); bufSize <= len(buf); bufSize++ {
++		for j := range buf {
++			for k := 0; k < 2*len(id) && j+k < len(buf); k++ {
++				for i := range buf {
++					buf[i] = 1
++				}
++				copy(buf[j:], id)
++				copy(buf[j+k:], id)
++				var m []int64
++				if j+len(id) <= j+k {
++					m = append(m, int64(j))
++				}
++				if j+k+len(id) <= len(buf) {
++					m = append(m, int64(j+k))
++				}
++				copy(buf2, buf)
++				for _, p := range m {
++					copy(buf2[p:], zero)
++				}
++				h := sha256.Sum256(buf2)
++
++				matches, hash, err := FindAndHash(bytes.NewReader(buf), string(id), bufSize)
++				if err != nil {
++					errorf("bufSize=%d j=%d k=%d: findAndHash: %v", bufSize, j, k, err)
++					continue
++				}
++				if !reflect.DeepEqual(matches, m) {
++					errorf("bufSize=%d j=%d k=%d: findAndHash: matches=%v, want %v", bufSize, j, k, matches, m)
++					continue
++				}
++				if hash != h {
++					errorf("bufSize=%d j=%d k=%d: findAndHash: matches correct, but hash=%x, want %x", bufSize, j, k, hash, h)
++				}
++			}
++		}
++	}
++}
+diff --git a/src/cmd/go/internal/buildid/note.go b/src/cmd/internal/buildid/note.go
+similarity index 88%
+rename from src/cmd/go/internal/buildid/note.go
+rename to src/cmd/internal/buildid/note.go
+index 68c91e2704..5156cbd88c 100644
+--- a/src/cmd/go/internal/buildid/note.go
++++ b/src/cmd/internal/buildid/note.go
+@@ -73,7 +73,7 @@ var elfGoNote = []byte("Go\x00\x00")
+ // The Go build ID is stored in a note described by an ELF PT_NOTE prog
+ // header. The caller has already opened filename, to get f, and read
+ // at least 4 kB out, in data.
+-func readELFGoBuildID(filename string, f *os.File, data []byte) (buildid string, err error) {
++func readELF(name string, f *os.File, data []byte) (buildid string, err error) {
+ 	// Assume the note content is in the data, already read.
+ 	// Rewrite the ELF header to set shnum to 0, so that we can pass
+ 	// the data to elf.NewFile and it will decode the Prog list but not
+@@ -93,7 +93,7 @@ func readELFGoBuildID(filename string, f *os.File, data []byte) (buildid string,
+ 
+ 	ef, err := elf.NewFile(bytes.NewReader(data))
+ 	if err != nil {
+-		return "", &os.PathError{Path: filename, Op: "parse", Err: err}
++		return "", &os.PathError{Path: name, Op: "parse", Err: err}
+ 	}
+ 	for _, p := range ef.Progs {
+ 		if p.Type != elf.PT_NOTE || p.Filesz < 16 {
+@@ -151,23 +151,23 @@ func readELFGoBuildID(filename string, f *os.File, data []byte) (buildid string,
+ // The caller has already opened filename, to get f, and read a few kB out, in data.
+ // Sadly, that's not guaranteed to hold the note, because there is an arbitrary amount
+ // of other junk placed in the file ahead of the main text.
+-func readMachoGoBuildID(filename string, f *os.File, data []byte) (buildid string, err error) {
++func readMacho(name string, f *os.File, data []byte) (buildid string, err error) {
+ 	// If the data we want has already been read, don't worry about Mach-O parsing.
+ 	// This is both an optimization and a hedge against the Mach-O parsing failing
+ 	// in the future due to, for example, the name of the __text section changing.
+-	if b, err := readRawGoBuildID(filename, data); b != "" && err == nil {
++	if b, err := readRaw(name, data); b != "" && err == nil {
+ 		return b, err
+ 	}
+ 
+ 	mf, err := macho.NewFile(f)
+ 	if err != nil {
+-		return "", &os.PathError{Path: filename, Op: "parse", Err: err}
++		return "", &os.PathError{Path: name, Op: "parse", Err: err}
+ 	}
+ 
+ 	sect := mf.Section("__text")
+ 	if sect == nil {
+ 		// Every binary has a __text section. Something is wrong.
+-		return "", &os.PathError{Path: filename, Op: "parse", Err: fmt.Errorf("cannot find __text section")}
++		return "", &os.PathError{Path: name, Op: "parse", Err: fmt.Errorf("cannot find __text section")}
+ 	}
+ 
+ 	// It should be in the first few bytes, but read a lot just in case,
+@@ -175,13 +175,13 @@ func readMachoGoBuildID(filename string, f *os.File, data []byte) (buildid strin
+ 	// There shouldn't be much difference between reading 4kB and 32kB:
+ 	// the hard part is getting to the data, not transferring it.
+ 	n := sect.Size
+-	if n > uint64(BuildIDReadSize) {
+-		n = uint64(BuildIDReadSize)
++	if n > uint64(readSize) {
++		n = uint64(readSize)
+ 	}
+ 	buf := make([]byte, n)
+ 	if _, err := f.ReadAt(buf, int64(sect.Offset)); err != nil {
+ 		return "", err
+ 	}
+ 
+-	return readRawGoBuildID(filename, buf)
++	return readRaw(name, buf)
+ }
+diff --git a/src/cmd/internal/buildid/rewrite.go b/src/cmd/internal/buildid/rewrite.go
+new file mode 100644
+index 0000000000..5be54552a6
+--- /dev/null
++++ b/src/cmd/internal/buildid/rewrite.go
+@@ -0,0 +1,91 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package buildid
++
++import (
++	"bytes"
++	"crypto/sha256"
++	"fmt"
++	"io"
++)
++
++// FindAndHash reads all of r and returns the offsets of occurrences of id.
++// While reading, findAndHash also computes and returns
++// a hash of the content of r, but with occurrences of id replaced by zeros.
++// FindAndHash reads bufSize bytes from r at a time.
++// If bufSize == 0, FindAndHash uses a reasonable default.
++func FindAndHash(r io.Reader, id string, bufSize int) (matches []int64, hash [32]byte, err error) {
++	if bufSize == 0 {
++		bufSize = 31 * 1024 // bufSize+little will likely fit in 32 kB
++	}
++	if len(id) > bufSize {
++		return nil, [32]byte{}, fmt.Errorf("buildid.FindAndHash: buffer too small")
++	}
++	zeros := make([]byte, len(id))
++	idBytes := []byte(id)
++
++	// The strategy is to read the file through buf, looking for id,
++	// but we need to worry about what happens if id is broken up
++	// and returned in parts by two different reads.
++	// We allocate a tiny buffer (at least len(id)) and a big buffer (bufSize bytes)
++	// next to each other in memory and then copy the tail of
++	// one read into the tiny buffer before reading new data into the big buffer.
++	// The search for id is over the entire tiny+big buffer.
++	tiny := (len(id) + 127) &^ 127 // round up to 128-aligned
++	buf := make([]byte, tiny+bufSize)
++	h := sha256.New()
++	start := tiny
++	for offset := int64(0); ; {
++		// The file offset maintained by the loop corresponds to &buf[tiny].
++		// buf[start:tiny] is left over from previous iteration.
++		// After reading n bytes into buf[tiny:], we process buf[start:tiny+n].
++		n, err := io.ReadFull(r, buf[tiny:])
++		if err != io.ErrUnexpectedEOF && err != io.EOF && err != nil {
++			return nil, [32]byte{}, err
++		}
++
++		// Process any matches.
++		for {
++			i := bytes.Index(buf[start:tiny+n], idBytes)
++			if i < 0 {
++				break
++			}
++			matches = append(matches, offset+int64(start+i-tiny))
++			h.Write(buf[start : start+i])
++			h.Write(zeros)
++			start += i + len(id)
++		}
++		if n < bufSize {
++			// Did not fill buffer, must be at end of file.
++			h.Write(buf[start : tiny+n])
++			break
++		}
++
++		// Process all but final tiny bytes of buf (bufSize = len(buf)-tiny).
++		// Note that start > len(buf)-tiny is possible, if the search above
++		// found an id ending in the final tiny fringe. That's OK.
++		if start < len(buf)-tiny {
++			h.Write(buf[start : len(buf)-tiny])
++			start = len(buf) - tiny
++		}
++
++		// Slide ending tiny-sized fringe to beginning of buffer.
++		copy(buf[0:], buf[bufSize:])
++		start -= bufSize
++		offset += int64(bufSize)
++	}
++	h.Sum(hash[:0])
++	return matches, hash, nil
++}
++
++func Rewrite(w io.WriterAt, pos []int64, id string) error {
++	b := []byte(id)
++	for _, p := range pos {
++		if _, err := w.WriteAt(b, p); err != nil {
++			return err
++		}
++	}
++	return nil
++}
+diff --git a/src/cmd/internal/buildid/testdata/a.elf b/src/cmd/internal/buildid/testdata/a.elf
+new file mode 100755
+index 0000000000..f63128921a
+Binary files /dev/null and b/src/cmd/internal/buildid/testdata/a.elf differ
+diff --git a/src/cmd/internal/buildid/testdata/a.macho b/src/cmd/internal/buildid/testdata/a.macho
+new file mode 100755
+index 0000000000..fbbd57c1fe
+Binary files /dev/null and b/src/cmd/internal/buildid/testdata/a.macho differ
+diff --git a/src/cmd/internal/buildid/testdata/a.pe b/src/cmd/internal/buildid/testdata/a.pe
+new file mode 100755
+index 0000000000..91202728c3
+Binary files /dev/null and b/src/cmd/internal/buildid/testdata/a.pe differ
+diff --git a/src/cmd/internal/buildid/testdata/p.a b/src/cmd/internal/buildid/testdata/p.a
+new file mode 100644
+index 0000000000..dcc3e76ef8
+Binary files /dev/null and b/src/cmd/internal/buildid/testdata/p.a differ

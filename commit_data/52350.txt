@@ -26,7 +26,7 @@ Date:   Mon Mar 7 14:07:14 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/HACKING.md        |  8 ++++++--
  src/runtime/os3_plan9.go      |  2 +-
  src/runtime/panic.go          | 39 ++++++++++++++++++++++++++++++++-------
@@ -37,3 +37,231 @@ Date:   Mon Mar 7 14:07:14 2022 -0500
  src/runtime/signal_windows.go |  2 +-
  src/runtime/traceback.go      |  4 ++--
  9 files changed, 49 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/HACKING.md b/src/runtime/HACKING.md
+index d3d00ae06c..0ab6bcaee5 100644
+--- a/src/runtime/HACKING.md
++++ b/src/runtime/HACKING.md
+@@ -93,8 +93,12 @@ messages are prefixed with "runtime:".
+ For unrecoverable errors where user code is expected to be at fault for the
+ failure (such as racing map writes), use `fatal`.
+ 
+-For runtime error debugging, it's useful to run with
+-`GOTRACEBACK=system` or `GOTRACEBACK=crash`.
++For runtime error debugging, it may be useful to run with `GOTRACEBACK=system`
++or `GOTRACEBACK=crash`. The output of `panic` and `fatal` is as described by
++`GOTRACEBACK`. The output of `throw` always includes runtime frames, metadata
++and all goroutines regardless of `GOTRACEBACK` (i.e., equivalent to
++`GOTRACEBACK=system). Whether `throw` crashes or not is still controlled by
++`GOTRACEBACK`.
+ 
+ Synchronization
+ ===============
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index a06d74e279..e901b3e9dd 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -120,7 +120,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 		return _NCONT
+ 	}
+ Throw:
+-	_g_.m.throwing = 1
++	_g_.m.throwing = throwTypeRuntime
+ 	_g_.m.caughtsig.set(gp)
+ 	startpanic_m()
+ 	print(notestr, "\n")
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 2e6f7af2ce..d9c72dfc1c 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -11,6 +11,28 @@ import (
+ 	"unsafe"
+ )
+ 
++// throwType indicates the current type of ongoing throw, which affects the
++// amount of detail printed to stderr. Higher values include more detail.
++type throwType uint32
++
++const (
++	// throwTypeNone means that we are not throwing.
++	throwTypeNone throwType = iota
++
++	// throwTypeUser is a throw due to a problem with the application.
++	//
++	// These throws do not include runtime frames, system goroutines, or
++	// frame metadata.
++	throwTypeUser
++
++	// throwTypeRuntime is a throw due to a problem with Go itself.
++	//
++	// These throws include as much information as possible to aid in
++	// debugging the runtime, including runtime frames, system goroutines,
++	// and frame metadata.
++	throwTypeRuntime
++)
++
+ // We have two different ways of doing defers. The older way involves creating a
+ // defer record at the time that a defer statement is executing and adding it to a
+ // defer chain. This chain is inspected by the deferreturn call at all function
+@@ -1003,13 +1025,16 @@ func throw(s string) {
+ 		print("fatal error: ", s, "\n")
+ 	})
+ 
+-	fatalthrow()
++	fatalthrow(throwTypeRuntime)
+ }
+ 
+ // fatal triggers a fatal error that dumps a stack trace and exits.
+ //
+ // fatal is equivalent to throw, but is used when user code is expected to be
+ // at fault for the failure, such as racing map writes.
++//
++// fatal does not include runtime frames, system goroutines, or frame metadata
++// (fp, sp, pc) in the stack trace unless GOTRACEBACK=system or higher.
+ //go:nosplit
+ func fatal(s string) {
+ 	// Everything fatal does should be recursively nosplit so it
+@@ -1018,7 +1043,7 @@ func fatal(s string) {
+ 		print("fatal error: ", s, "\n")
+ 	})
+ 
+-	fatalthrow()
++	fatalthrow(throwTypeUser)
+ }
+ 
+ // runningPanicDefers is non-zero while running deferred functions for panic.
+@@ -1063,13 +1088,13 @@ func recovery(gp *g) {
+ // process.
+ //
+ //go:nosplit
+-func fatalthrow() {
++func fatalthrow(t throwType) {
+ 	pc := getcallerpc()
+ 	sp := getcallersp()
+ 	gp := getg()
+ 
+-	if gp.m.throwing == 0 {
+-		gp.m.throwing = 1
++	if gp.m.throwing == throwTypeNone {
++		gp.m.throwing = t
+ 	}
+ 
+ 	// Switch to the system stack to avoid any stack growth, which may make
+@@ -1216,7 +1241,7 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
+ 			print("\n")
+ 			goroutineheader(gp)
+ 			traceback(pc, sp, 0, gp)
+-		} else if level >= 2 || _g_.m.throwing > 0 {
++		} else if level >= 2 || _g_.m.throwing >= throwTypeRuntime {
+ 			print("\nruntime stack:\n")
+ 			traceback(pc, sp, 0, gp)
+ 		}
+@@ -1258,7 +1283,7 @@ func canpanic(gp *g) bool {
+ 	if gp == nil || gp != mp.curg {
+ 		return false
+ 	}
+-	if mp.locks != 0 || mp.mallocing != 0 || mp.throwing != 0 || mp.preemptoff != "" || mp.dying != 0 {
++	if mp.locks != 0 || mp.mallocing != 0 || mp.throwing != throwTypeNone || mp.preemptoff != "" || mp.dying != 0 {
+ 		return false
+ 	}
+ 	status := readgstatus(gp)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 7ea3f9c56e..2bf5c55730 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4088,7 +4088,6 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+ 	_g_ := getg()
+ 
+ 	if fn == nil {
+-		_g_.m.throwing = -1 // do not dump full stacks
+ 		fatal("go of nil func value")
+ 	}
+ 	acquirem() // disable preemption because it can be holding p in a local var
+@@ -5045,7 +5044,6 @@ func checkdead() {
+ 		}
+ 	}
+ 
+-	getg().m.throwing = -1 // do not dump full stacks
+ 	unlock(&sched.lock)    // unlock so that GODEBUG=scheddetail=1 doesn't hang
+ 	fatal("all goroutines are asleep - deadlock!")
+ }
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 5429aa2e5b..62ecbdf59b 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -38,9 +38,13 @@ func gotraceback() (level int32, all, crash bool) {
+ 	_g_ := getg()
+ 	t := atomic.Load(&traceback_cache)
+ 	crash = t&tracebackCrash != 0
+-	all = _g_.m.throwing > 0 || t&tracebackAll != 0
++	all = _g_.m.throwing >= throwTypeUser || t&tracebackAll != 0
+ 	if _g_.m.traceback != 0 {
+ 		level = int32(_g_.m.traceback)
++	} else if _g_.m.throwing >= throwTypeRuntime {
++		// Always include runtime frames in runtime throws unless
++		// otherwise overridden by m.traceback.
++		level = 2
+ 	} else {
+ 		level = int32(t >> tracebackShift)
+ 	}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index b2c42d0e5c..e4b7bec926 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -532,7 +532,7 @@ type m struct {
+ 	oldp          puintptr // the p that was attached before executing a syscall
+ 	id            int64
+ 	mallocing     int32
+-	throwing      int32
++	throwing      throwType
+ 	preemptoff    string // if != "", keep curg running on this m
+ 	locks         int32
+ 	dying         int32
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 3db789396d..66a5c941a3 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -698,7 +698,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		return
+ 	}
+ 
+-	_g_.m.throwing = 1
++	_g_.m.throwing = throwTypeRuntime
+ 	_g_.m.caughtsig.set(gp)
+ 
+ 	if crashing == 0 {
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 16c36d07f1..c5cf38c5c2 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -226,7 +226,7 @@ func winthrow(info *exceptionrecord, r *context, gp *g) {
+ 	}
+ 	print("\n")
+ 
+-	_g_.m.throwing = 1
++	_g_.m.throwing = throwTypeRuntime
+ 	_g_.m.caughtsig.set(gp)
+ 
+ 	level, _, docrash := gotraceback()
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 9187d1ff13..ca10d0420e 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -447,7 +447,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 				if frame.pc > f.entry() {
+ 					print(" +", hex(frame.pc-f.entry()))
+ 				}
+-				if gp.m != nil && gp.m.throwing > 0 && gp == gp.m.curg || level >= 2 {
++				if gp.m != nil && gp.m.throwing >= throwTypeRuntime && gp == gp.m.curg || level >= 2 {
+ 					print(" fp=", hex(frame.fp), " sp=", hex(frame.sp), " pc=", hex(frame.pc))
+ 				}
+ 				print("\n")
+@@ -913,7 +913,7 @@ func gcallers(gp *g, skip int, pcbuf []uintptr) int {
+ // be printed during a traceback.
+ func showframe(f funcInfo, gp *g, firstFrame bool, funcID, childID funcID) bool {
+ 	g := getg()
+-	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
++	if g.m.throwing >= throwTypeRuntime && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
+ 		return true
+ 	}
+ 	return showfuncinfo(f, firstFrame, funcID, childID)

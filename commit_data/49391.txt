@@ -12,9 +12,133 @@ Date:   Mon Aug 16 13:37:45 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/decl.go      |  2 +-
  src/go/types/named.go     |  6 +++---
  src/go/types/signature.go |  8 ++++----
  src/go/types/typeparam.go | 14 +++++++-------
  4 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 35aa5e2d5a..c6505b63a1 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -631,7 +631,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 	}
+ }
+ 
+-func (check *Checker) collectTypeParams(list *ast.FieldList) *TypeParams {
++func (check *Checker) collectTypeParams(list *ast.FieldList) *TParamList {
+ 	var tparams []*TypeName
+ 	// Declare type parameters up-front, with empty interface as type bound.
+ 	// The scope of type parameters starts at the beginning of the type parameter
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 1a8e6a9062..1841038fdb 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -20,7 +20,7 @@ type Named struct {
+ 	fromRHS    Type        // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
+ 	underlying Type        // possibly a *Named during setup; never a *Named once set up completely
+ 	instance   *instance   // syntactic information for lazy instantiation
+-	tparams    *TypeParams // type parameters, or nil
++	tparams    *TParamList // type parameters, or nil
+ 	targs      []Type      // type arguments (after instantiation), or nil
+ 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
+ 
+@@ -80,7 +80,7 @@ func (t *Named) load() *Named {
+ }
+ 
+ // newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
+-func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams *TypeParams, methods []*Func) *Named {
++func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams *TParamList, methods []*Func) *Named {
+ 	typ := &Named{check: check, obj: obj, orig: orig, fromRHS: underlying, underlying: underlying, tparams: tparams, methods: methods}
+ 	if typ.orig == nil {
+ 		typ.orig = typ
+@@ -120,7 +120,7 @@ func (t *Named) _Orig() *Named { return t.orig }
+ 
+ // TParams returns the type parameters of the named type t, or nil.
+ // The result is non-nil for an (originally) parameterized type even if it is instantiated.
+-func (t *Named) TParams() *TypeParams { return t.load().tparams }
++func (t *Named) TParams() *TParamList { return t.load().tparams }
+ 
+ // SetTParams sets the type parameters of the named type t.
+ func (t *Named) SetTParams(tparams []*TypeName) { t.load().tparams = bindTParams(tparams) }
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index ffe612d9b7..9bfb1683a7 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -21,8 +21,8 @@ type Signature struct {
+ 	// and store it in the Func Object) because when type-checking a function
+ 	// literal we call the general type checker which returns a general Type.
+ 	// We then unpack the *Signature and use the scope for the literal body.
+-	rparams  *TypeParams // receiver type parameters from left to right, or nil
+-	tparams  *TypeParams // type parameters from left to right, or nil
++	rparams  *TParamList // receiver type parameters from left to right, or nil
++	tparams  *TParamList // type parameters from left to right, or nil
+ 	scope    *Scope      // function scope, present for package-local signatures
+ 	recv     *Var        // nil if not a method
+ 	params   *Tuple      // (incoming) parameters from left to right; or nil
+@@ -56,13 +56,13 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
+ func (s *Signature) Recv() *Var { return s.recv }
+ 
+ // TParams returns the type parameters of signature s, or nil.
+-func (s *Signature) TParams() *TypeParams { return s.tparams }
++func (s *Signature) TParams() *TParamList { return s.tparams }
+ 
+ // SetTParams sets the type parameters of signature s.
+ func (s *Signature) SetTParams(tparams []*TypeName) { s.tparams = bindTParams(tparams) }
+ 
+ // RParams returns the receiver type parameters of signature s, or nil.
+-func (s *Signature) RParams() *TypeParams { return s.rparams }
++func (s *Signature) RParams() *TParamList { return s.rparams }
+ 
+ // SetRParams sets the receiver type params of signature s.
+ func (s *Signature) SetRParams(rparams []*TypeName) { s.rparams = bindTParams(rparams) }
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index ce8b4a7073..6392504947 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -85,28 +85,28 @@ func (t *TypeParam) SetConstraint(bound Type) {
+ func (t *TypeParam) Underlying() Type { return t }
+ func (t *TypeParam) String() string   { return TypeString(t, nil) }
+ 
+-// TypeParams holds a list of type parameters bound to a type.
+-type TypeParams struct{ tparams []*TypeName }
++// TParamList holds a list of type parameters bound to a type.
++type TParamList struct{ tparams []*TypeName }
+ 
+ // Len returns the number of type parameters in the list.
+ // It is safe to call on a nil receiver.
+-func (tps *TypeParams) Len() int {
++func (tps *TParamList) Len() int {
+ 	return len(tps.list())
+ }
+ 
+ // At returns the i'th type parameter in the list.
+-func (tps *TypeParams) At(i int) *TypeName {
++func (tps *TParamList) At(i int) *TypeName {
+ 	return tps.list()[i]
+ }
+ 
+-func (tps *TypeParams) list() []*TypeName {
++func (tps *TParamList) list() []*TypeName {
+ 	if tps == nil {
+ 		return nil
+ 	}
+ 	return tps.tparams
+ }
+ 
+-func bindTParams(list []*TypeName) *TypeParams {
++func bindTParams(list []*TypeName) *TParamList {
+ 	if len(list) == 0 {
+ 		return nil
+ 	}
+@@ -117,7 +117,7 @@ func bindTParams(list []*TypeName) *TypeParams {
+ 		}
+ 		typ.index = i
+ 	}
+-	return &TypeParams{tparams: list}
++	return &TParamList{tparams: list}
+ }
+ 
+ // ----------------------------------------------------------------------------

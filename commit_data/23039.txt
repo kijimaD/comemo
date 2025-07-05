@@ -22,9 +22,216 @@ Date:   Mon Mar 16 14:22:00 2015 -0400
     Change-Id: I98b2078147a60d01d6228b99afd414ef857e4fba
     Reviewed-on: https://go-review.googlesource.com/8836
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/malloc.go   | 13 ++++----
  src/runtime/mgc.go      | 28 ++++++++++++++--
  src/runtime/mgcmark.go  | 87 ++++++++++++++++++++++++++++++++++---------------
  src/runtime/runtime2.go |  4 +++
  4 files changed, 95 insertions(+), 37 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 5fe0b160e6..84a2ad71a4 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -686,13 +686,12 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 
+ 	if shouldtriggergc() {
+ 		startGC(gcBackgroundMode)
+-	} else if shouldhelpgc && atomicloaduint(&bggc.working) == 1 {
+-		// bggc.lock not taken since race on bggc.working is benign.
+-		// At worse we don't call gchelpwork.
+-		// Delay the gchelpwork until the epilogue so that it doesn't
+-		// interfere with the inner working of malloc such as
+-		// mcache refills that might happen while doing the gchelpwork
+-		systemstack(gchelpwork)
++	} else if gcphase == _GCmark {
++		// Assist garbage collector. We delay this until the
++		// epilogue so that it doesn't interfere with the
++		// inner working of malloc such as mcache refills that
++		// might happen while doing the gcAssistAlloc.
++		gcAssistAlloc(size, shouldhelpgc)
+ 	}
+ 
+ 	return x
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 122b160c23..fba57db9ac 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -206,6 +206,11 @@ type gcControllerState struct {
+ 	// workRatioAvg is a moving average of the scan work ratio
+ 	// (scan work per byte marked).
+ 	workRatioAvg float64
++
++	// assistRatio is the ratio of allocated bytes to scan work
++	// that should be performed by mutator assists. This is
++	// computed at the beginning of each cycle.
++	assistRatio float64
+ }
+ 
+ // startCycle resets the GC controller's state and computes estimates
+@@ -225,9 +230,23 @@ func (c *gcControllerState) startCycle() {
+ 	}
+ 
+ 	// Compute the expected work based on last cycle's marked bytes.
+-	// (Currently unused)
+ 	scanWorkExpected := uint64(float64(memstats.heap_marked) * c.workRatioAvg)
+-	_ = scanWorkExpected
++
++	// Compute the mutator assist ratio so by the time the mutator
++	// allocates the remaining heap bytes up to next_gc, it will
++	// have done (or stolen) the estimated amount of scan work.
++	heapGoal := memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
++	heapDistance := int64(heapGoal) - int64(memstats.heap_live)
++	if heapDistance <= 1024*1024 {
++		// heapDistance can be negative if GC start is delayed
++		// or if the allocation that pushed heap_live over
++		// next_gc is large or if the trigger is really close
++		// to GOGC. We don't want to set the assist negative
++		// (or divide by zero, or set it really high), so
++		// enforce a minimum on the distance.
++		heapDistance = 1024 * 1024
++	}
++	c.assistRatio = float64(scanWorkExpected) / float64(heapDistance)
+ }
+ 
+ // endCycle updates the GC controller state at the end of the
+@@ -440,7 +459,8 @@ func gc(mode int) {
+ 			gcscan_m()
+ 			gctimer.cycle.installmarkwb = nanotime()
+ 
+-			// Enter mark phase and enable write barriers.
++			// Enter mark phase, enabling write barriers
++			// and mutator assists.
+ 			if debug.gctrace > 0 {
+ 				tInstallWB = nanotime()
+ 			}
+@@ -769,6 +789,8 @@ func gcResetGState() (numgs int) {
+ 	for _, gp := range allgs {
+ 		gp.gcworkdone = false  // set to true in gcphasework
+ 		gp.gcscanvalid = false // stack has not been scanned
++		gp.gcalloc = 0
++		gp.gcscanwork = 0
+ 	}
+ 	numgs = len(allgs)
+ 	unlock(&allglock)
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 5868243428..c28388f3ed 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -167,41 +167,74 @@ func markroot(desc *parfor, i uint32) {
+ 	gcw.dispose()
+ }
+ 
+-// gchelpwork does a small bounded amount of gc work. The purpose is to
+-// shorten the time (as measured by allocations) spent doing a concurrent GC.
+-// The number of mutator calls is roughly propotional to the number of allocations
+-// made by that mutator. This slows down the allocation while speeding up the GC.
++// gcAssistAlloc records and allocation of size bytes and, if
++// allowAssist is true, may assist GC scanning in proportion to the
++// allocations performed by this mutator since the last assist.
++//
++// It should only be called during gcphase == _GCmark.
+ //go:nowritebarrier
+-func gchelpwork() {
+-	switch gcphase {
+-	default:
+-		throw("gcphasework in bad gcphase")
+-	case _GCoff, _GCquiesce, _GCstw:
+-		// No work.
+-	case _GCsweep:
+-		// We could help by calling sweepone to sweep a single span.
+-		// _ = sweepone()
+-	case _GCscan:
+-		// scan the stack, mark the objects, put pointers in work buffers
+-		// hanging off the P where this is being run.
+-		// scanstack(gp)
+-	case _GCmark:
+-		// drain your own currentwbuf first in the hopes that it will
+-		// be more cache friendly.
++func gcAssistAlloc(size uintptr, allowAssist bool) {
++	// Find the G responsible for this assist.
++	gp := getg()
++	if gp.m.curg != nil {
++		gp = gp.m.curg
++	}
++
++	// Record allocation.
++	gp.gcalloc += size
++
++	if !allowAssist {
++		return
++	}
++
++	// Compute the amount of assist scan work we need to do.
++	scanWork := int64(gcController.assistRatio*float64(gp.gcalloc)) - gp.gcscanwork
++	// scanWork can be negative if the last assist scanned a large
++	// object and we're still ahead of our assist goal.
++	if scanWork <= 0 {
++		return
++	}
++
++	// Steal as much credit as we can from the background GC's
++	// scan credit. This is racy and may drop the background
++	// credit below 0 if two mutators steal at the same time. This
++	// will just cause steals to fail until credit is accumulated
++	// again, so in the long run it doesn't really matter, but we
++	// do have to handle the negative credit case.
++	bgScanCredit := atomicloadint64(&gcController.bgScanCredit)
++	stolen := int64(0)
++	if bgScanCredit > 0 {
++		if bgScanCredit < scanWork {
++			stolen = bgScanCredit
++		} else {
++			stolen = scanWork
++		}
++		xaddint64(&gcController.bgScanCredit, -scanWork)
++
++		scanWork -= stolen
++		gp.gcscanwork += stolen
++
++		if scanWork == 0 {
++			return
++		}
++	}
++
++	// Perform assist work
++	systemstack(func() {
++		// drain own current wbuf first in the hopes that it
++		// will be more cache friendly.
+ 		var gcw gcWork
+ 		gcw.initFromCache()
+-		const helpScanWork = 500 // pointers to trace
+-		gcDrainN(&gcw, helpScanWork)
++		startScanWork := gcw.scanWork
++		gcDrainN(&gcw, scanWork)
++		// Record that we did this much scan work.
++		gp.gcscanwork += gcw.scanWork - startScanWork
+ 		// TODO(austin): This is the vast majority of our
+ 		// disposes. Instead of constantly disposing, keep a
+ 		// per-P gcWork cache (probably combined with the
+ 		// write barrier wbuf cache).
+ 		gcw.dispose()
+-	case _GCmarktermination:
+-		// We should never be here since the world is stopped.
+-		// All available mark work will be emptied before returning.
+-		throw("gcphasework in bad gcphase")
+-	}
++	})
+ }
+ 
+ // The gp has been moved to a GC safepoint. GC phase specific
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index a59d77df85..18722bc6d3 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -241,6 +241,10 @@ type g struct {
+ 	racectx      uintptr
+ 	waiting      *sudog // sudog structures this g is waiting on (that have a valid elem ptr)
+ 	readyg       *g     // scratch for readyExecute
++
++	// Per-G gcController state
++	gcalloc    uintptr // bytes allocated during this GC cycle
++	gcscanwork int64   // scan work done (or stolen) this GC cycle
+ }
+ 
+ type mts struct {

@@ -11,7 +11,7 @@ Date:   Fri Nov 8 00:06:02 2019 +0900
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 ++--
  .../google/pprof/internal/driver/webhtml.go        | 24 ++++++++++++++--------
@@ -20,3 +20,172 @@ Date:   Fri Nov 8 00:06:02 2019 +0900
  .../google/pprof/internal/plugin/plugin.go         |  2 +-
  src/cmd/vendor/modules.txt                         |  2 +-
  7 files changed, 35 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 896b863d4e..ab756c8007 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,7 +3,7 @@ module cmd
+ go 1.14
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20190515194954-54271f7e092f
++	github.com/google/pprof v0.0.0-20191105193234-27840fff0d09
+ 	github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44 // indirect
+ 	golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1
+ 	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index fa14805f04..09bfadab81 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,5 +1,5 @@
+-github.com/google/pprof v0.0.0-20190515194954-54271f7e092f h1:Jnx61latede7zDD3DiiP4gmNz33uK0U5HDUaF0a/HVQ=
+-github.com/google/pprof v0.0.0-20190515194954-54271f7e092f/go.mod h1:zfwlbNMJ+OItoe0UupaVj+oy1omPYYDuagoSzA8v9mc=
++github.com/google/pprof v0.0.0-20191105193234-27840fff0d09 h1:k2LrtvxLSqJVi/o6O71W+AdZgHzU/mNX7kOXzWUORn0=
++github.com/google/pprof v0.0.0-20191105193234-27840fff0d09/go.mod h1:zfwlbNMJ+OItoe0UupaVj+oy1omPYYDuagoSzA8v9mc=
+ github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44 h1:pKqc8lAAA6rcwpvsephnRuZp4VHbfszZRClvqAE6Sq8=
+ github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+ golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1 h1:A71BZbKSu+DtCNry/x5JKn20C+64DirDHmePEA8k0FY=
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+index f1077dd044..89b8882a6b 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+@@ -14,10 +14,12 @@
+ 
+ package driver
+ 
+-import "html/template"
++import (
++	"html/template"
+ 
+-import "github.com/google/pprof/third_party/d3"
+-import "github.com/google/pprof/third_party/d3flamegraph"
++	"github.com/google/pprof/third_party/d3"
++	"github.com/google/pprof/third_party/d3flamegraph"
++)
+ 
+ // addTemplates adds a set of template definitions to templates.
+ func addTemplates(templates *template.Template) {
+@@ -91,7 +93,7 @@ a {
+   text-align: left;
+ }
+ .header input {
+-  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' style='pointer-events:none;display:block;width:100%25;height:100%25;fill:#757575'%3E%3Cpath d='M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61.0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E") no-repeat 4px center/20px 20px;
++  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' style='pointer-events:none;display:block;width:100%25;height:100%25;fill:%23757575'%3E%3Cpath d='M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61.0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E") no-repeat 4px center/20px 20px;
+   border: 1px solid #d1d2d3;
+   border-radius: 2px 0 0 2px;
+   padding: 0.25em;
+@@ -610,8 +612,9 @@ function viewer(baseUrl, nodes) {
+ 
+   function handleKey(e) {
+     if (e.keyCode != 13) return;
+-    window.location.href =
+-        updateUrl(new URL(window.location.href), 'f');
++    setHrefParams(window.location, function (params) {
++      params.set('f', search.value);
++    });
+     e.preventDefault();
+   }
+ 
+@@ -650,9 +653,11 @@ function viewer(baseUrl, nodes) {
+     })
+ 
+     // add matching items that are not currently selected.
+-    for (let n = 0; n < nodes.length; n++) {
+-      if (!selected.has(n) && match(nodes[n])) {
+-        select(n, document.getElementById('node' + n));
++    if (nodes) {
++      for (let n = 0; n < nodes.length; n++) {
++        if (!selected.has(n) && match(nodes[n])) {
++          select(n, document.getElementById('node' + n));
++        }
+       }
+     }
+ 
+@@ -1089,6 +1094,7 @@ function viewer(baseUrl, nodes) {
+       .transitionDuration(750)
+       .transitionEase(d3.easeCubic)
+       .inverted(true)
++      .sort(true)
+       .title('')
+       .tooltip(false)
+       .details(document.getElementById('flamegraphdetails'));
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+index 5c7f449e4b..4006085538 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+@@ -334,7 +334,7 @@ func dotToSvg(dot []byte) ([]byte, error) {
+ 		return nil, err
+ 	}
+ 
+-	// Fix dot bug related to unquoted amperands.
++	// Fix dot bug related to unquoted ampersands.
+ 	svg := bytes.Replace(out.Bytes(), []byte("&;"), []byte("&amp;;"), -1)
+ 
+ 	// Cleanup for embedding by dropping stuff before the <svg> start.
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
+index 757be02947..d2397a93d8 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
+@@ -28,9 +28,19 @@ import (
+ )
+ 
+ var (
++	// Removes package name and method arugments for Java method names.
++	// See tests for examples.
+ 	javaRegExp = regexp.MustCompile(`^(?:[a-z]\w*\.)*([A-Z][\w\$]*\.(?:<init>|[a-z][\w\$]*(?:\$\d+)?))(?:(?:\()|$)`)
+-	goRegExp   = regexp.MustCompile(`^(?:[\w\-\.]+\/)+(.+)`)
+-	cppRegExp  = regexp.MustCompile(`^(?:(?:\(anonymous namespace\)::)(\w+$))|(?:(?:\(anonymous namespace\)::)?(?:[_a-zA-Z]\w*\::|)*(_*[A-Z]\w*::~?[_a-zA-Z]\w*)$)`)
++	// Removes package name and method arugments for Go function names.
++	// See tests for examples.
++	goRegExp = regexp.MustCompile(`^(?:[\w\-\.]+\/)+(.+)`)
++	// Strips C++ namespace prefix from a C++ function / method name.
++	// NOTE: Make sure to keep the template parameters in the name. Normally,
++	// template parameters are stripped from the C++ names but when
++	// -symbolize=demangle=templates flag is used, they will not be.
++	// See tests for examples.
++	cppRegExp                = regexp.MustCompile(`^(?:[_a-zA-Z]\w*::)+(_*[A-Z]\w*::~?[_a-zA-Z]\w*(?:<.*>)?)`)
++	cppAnonymousPrefixRegExp = regexp.MustCompile(`^\(anonymous namespace\)::`)
+ )
+ 
+ // Graph summarizes a performance profile into a format that is
+@@ -191,7 +201,7 @@ type NodeSet map[NodeInfo]bool
+ // works as a unique identifier; however, in a tree multiple nodes may share
+ // identical NodeInfos. A *Node does uniquely identify a node so we can use that
+ // instead. Though a *Node also uniquely identifies a node in a graph,
+-// currently, during trimming, graphs are rebult from scratch using only the
++// currently, during trimming, graphs are rebuilt from scratch using only the
+ // NodeSet, so there would not be the required context of the initial graph to
+ // allow for the use of *Node.
+ type NodePtrSet map[*Node]bool
+@@ -429,6 +439,7 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
+ 
+ // ShortenFunctionName returns a shortened version of a function's name.
+ func ShortenFunctionName(f string) string {
++	f = cppAnonymousPrefixRegExp.ReplaceAllString(f, "")
+ 	for _, re := range []*regexp.Regexp{goRegExp, javaRegExp, cppRegExp} {
+ 		if matches := re.FindStringSubmatch(f); len(matches) >= 2 {
+ 			return strings.Join(matches[1:], "")
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go b/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
+index 23338bc040..a304284c31 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
+@@ -34,7 +34,7 @@ type Options struct {
+ 	UI      UI
+ 
+ 	// HTTPServer is a function that should block serving http requests,
+-	// including the handlers specfied in args.  If non-nil, pprof will
++	// including the handlers specified in args.  If non-nil, pprof will
+ 	// invoke this function if necessary to provide a web interface.
+ 	//
+ 	// If HTTPServer is nil, pprof will use its own internal HTTP server.
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 6fda775a78..e1a880c677 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# github.com/google/pprof v0.0.0-20190515194954-54271f7e092f
++# github.com/google/pprof v0.0.0-20191105193234-27840fff0d09
+ ## explicit
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils

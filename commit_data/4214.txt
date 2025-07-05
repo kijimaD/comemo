@@ -6,6 +6,38 @@ Date:   Tue Nov 24 14:11:53 2009 -0800
     
     R=iant
     https://golang.org/cl/160057
-
+---
  src/pkg/debug/proc/proc_linux.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/debug/proc/proc_linux.go b/src/pkg/debug/proc/proc_linux.go
+index 28b85dcdff..c17e6855b8 100644
+--- a/src/pkg/debug/proc/proc_linux.go
++++ b/src/pkg/debug/proc/proc_linux.go
+@@ -456,12 +456,12 @@ func (t *thread) wait() {
+ // necessary, and invokes state transition handlers.
+ //
+ // Must be called from the monitor thread.
+-func (t *thread) setState(new threadState) {
+-	old := t.state;
+-	t.state = new;
+-	t.logTrace("state %v -> %v", old, new);
++func (t *thread) setState(newState threadState) {
++	oldState := t.state;
++	t.state = newState;
++	t.logTrace("state %v -> %v", oldState, newState);
+ 
+-	if !old.isRunning() && (new.isRunning() || new.isZombie()) {
++	if !oldState.isRunning() && (newState.isRunning() || newState.isZombie()) {
+ 		// Start waiting on this thread
+ 		go t.wait()
+ 	}
+@@ -475,7 +475,7 @@ func (t *thread) setState(new threadState) {
+ 	t.proc.transitionHandlers = new(vector.Vector);
+ 	for _, h := range handlers.Data() {
+ 		h := h.(*transitionHandler);
+-		h.handle(t, old, new);
++		h.handle(t, oldState, newState);
+ 	}
+ }
+ 

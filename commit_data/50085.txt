@@ -15,7 +15,50 @@ Date:   Thu Sep 30 17:42:15 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/data.go   | 7 -------
  src/cmd/link/internal/ld/symtab.go | 6 ++++++
  2 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 1d65c49381..21169f66ef 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1165,13 +1165,6 @@ func symalign(ldr *loader.Loader, s loader.Sym) int32 {
+ 	} else if align != 0 {
+ 		return min
+ 	}
+-	// FIXME: figure out a way to avoid checking by name here.
+-	sname := ldr.SymName(s)
+-	if strings.HasPrefix(sname, "go.string.") || strings.HasPrefix(sname, "type..namedata.") {
+-		// String data is just bytes.
+-		// If we align it, we waste a lot of space to padding.
+-		return min
+-	}
+ 	align = int32(thearch.Maxalign)
+ 	ssz := ldr.SymSize(s)
+ 	for int64(align) > ssz && align > min {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 76cca41d25..4d099b1133 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -549,6 +549,9 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 			symGroupType[s] = sym.SGOSTRING
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+ 			ldr.SetCarrierSym(s, symgostring)
++			if ldr.SymAlign(s) == 0 {
++				ldr.SetSymAlign(s, 1) // String data is just bytes, no padding.
++			}
+ 
+ 		case strings.HasPrefix(name, "runtime.gcbits."):
+ 			symGroupType[s] = sym.SGCBITS
+@@ -608,6 +611,9 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 					ldr.SetCarrierSym(s, symtype)
+ 				}
+ 			}
++			if strings.HasPrefix(name, "type..namedata.") && ldr.SymAlign(s) == 0 {
++				ldr.SetSymAlign(s, 1) // String data is just bytes, no padding.
++			}
+ 		}
+ 	}
+ 

@@ -14,8 +14,72 @@ Date:   Thu Sep 25 15:08:52 2008 -0700
     DELTA=11  (7 added, 0 deleted, 4 changed)
     OCL=15857
     CL=15880
-
+---
  test/bugs/bug104.go | 10 ++++++++++
  test/errchk         |  8 ++++----
  test/golden.out     |  2 ++
  3 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/test/bugs/bug104.go b/test/bugs/bug104.go
+new file mode 100644
+index 0000000000..dd4bb5834f
+--- /dev/null
++++ b/test/bugs/bug104.go
+@@ -0,0 +1,10 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++func f() string {
++	return 0	// ERROR "conversion|type"
++}
+diff --git a/test/errchk b/test/errchk
+index 19fa1a5ccb..2b27b851cd 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -34,7 +34,7 @@ rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT
+ trap "rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT" 0 1 2 3 14 15
+ 
+ if $* >$TMPOUT 2>$TMPERR; then
+-  echo 1>&2 "errchk: command succeeded unexpectedly: " "$@"
++  echo 1>&2 "BUG: errchk: command succeeded unexpectedly: " "$@"
+   cat $TMPOUT
+   cat 1>&2 $TMPERR
+   rm -f $TMPOUT $TMPERR
+@@ -52,17 +52,17 @@ pr -n -t $SOURCEFILE | grep '// ERROR' | while read line; do
+   grep -v "$SOURCEFILE:$lineno" < $TMPALL > $TMPTMP
+   mv -f $TMPTMP $TMPALL
+   if test -z "$errmsg"; then
+-    echo 1>&2 "errchk: $SOURCEFILE: missing expected error message on line $lineno: '$regexp'"
++    echo 1>&2 "BUG: errchk: $SOURCEFILE: missing expected error message on line $lineno: '$regexp'"
+     echo 1 > $TMPSTAT
+   elif ! echo "$errmsg" | egrep -q "$regexp"; then
+-    echo 1>&2 "errchk: $SOURCEFILE: error message on line $lineno does not match '$regexp'"
++    echo 1>&2 "BUG: errchk: $SOURCEFILE: error message on line $lineno does not match '$regexp'"
+     echo 1>&2 $errmsg
+     echo 1 > $TMPSTAT
+   fi
+ done
+ 
+ if test -s $TMPALL; then
+-  echo 1>&2 "errchk: $SOURCEFILE: unmatched error messages:"
++  echo 1>&2 "BUG: errchk: $SOURCEFILE: unmatched error messages:"
+   echo 1>&2 "=================================================="
+   cat 1>&2 $TMPALL
+   echo 1>&2 "=================================================="
+diff --git a/test/golden.out b/test/golden.out
+index f82bc7a44e..fe816db098 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -166,6 +166,8 @@ SIGSEGV: segmentation violation
+ Faulting address: 0x0
+ pc: xxx
+ 
++=========== bugs/bug104.go
++BUG: errchk: command succeeded unexpectedly:  6g bugs/bug104.go
+ 
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32

@@ -9,6 +9,20 @@ Date:   Sat Oct 6 06:53:32 2018 +0000
     GitHub-Pull-Request: golang/go#28051
     Reviewed-on: https://go-review.googlesource.com/c/140302
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/sync/runtime.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sync/runtime.go b/src/sync/runtime.go
+index be16bcc8f7..a13d9f6cf1 100644
+--- a/src/sync/runtime.go
++++ b/src/sync/runtime.go
+@@ -54,7 +54,7 @@ func init() {
+ }
+ 
+ // Active spinning runtime support.
+-// runtime_canSpin returns true is spinning makes sense at the moment.
++// runtime_canSpin returns true if spinning makes sense at the moment.
+ func runtime_canSpin(i int) bool
+ 
+ // runtime_doSpin does active spinning.

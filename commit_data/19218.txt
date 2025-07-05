@@ -10,6 +10,22 @@ Date:   Mon Apr 21 20:36:35 2014 +1000
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/89810043
-
+---
  src/cmd/nm/nm_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index 761c5325f2..b2320bdf9f 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -19,6 +19,10 @@ import (
+ var testData uint32
+ 
+ func checkSymbols(t *testing.T, nmoutput []byte) {
++	switch runtime.GOOS {
++	case "linux", "darwin", "solaris":
++		t.Skip("skipping test; see http://golang.org/issue/7829")
++	}
+ 	var checkSymbolsFound, testDataFound bool
+ 	scanner := bufio.NewScanner(bytes.NewBuffer(nmoutput))
+ 	for scanner.Scan() {

@@ -15,8 +15,127 @@ Date:   Thu Aug 23 14:01:59 2018 +0200
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go      | 45 ++++++++++++++++--------------------
  src/cmd/link/internal/ld/main.go     |  1 +
  src/cmd/link/internal/sym/symbols.go | 10 +++++++-
  3 files changed, 30 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index bfb9d9b772..1b6d5d1704 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -577,27 +577,6 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 	}
+ 
+-	// If type. symbols are visible in the symbol table, rename them
+-	// using a SHA-1 prefix. This reduces binary size (the full
+-	// string of a type symbol can be multiple kilobytes) and removes
+-	// characters that upset external linkers.
+-	//
+-	// Keep the type.. prefix, which parts of the linker (like the
+-	// DWARF generator) know means the symbol is not decodable.
+-	//
+-	// Leave type.runtime. symbols alone, because other parts of
+-	// the linker manipulates them, and also symbols whose names
+-	// would not be shortened by this process.
+-	if typeSymbolMangling(ctxt) {
+-		*FlagW = true // disable DWARF generation
+-		for _, s := range ctxt.Syms.Allsym {
+-			newName := typeSymbolMangle(s.Name)
+-			if newName != s.Name {
+-				ctxt.Syms.Rename(s.Name, newName, int(s.Version))
+-			}
+-		}
+-	}
+-
+ 	// If package versioning is required, generate a hash of the
+ 	// packages used in the link.
+ 	if ctxt.BuildMode == BuildModeShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
+@@ -657,23 +636,39 @@ func (ctxt *Link) loadlib() {
+ 	}
+ }
+ 
+-// typeSymbolMangling reports whether the linker should shorten the
+-// names of symbols that represent Go types.
++// mangleTypeSym shortens the names of symbols that represent Go types
++// if they are visible in the symbol table.
+ //
+ // As the names of these symbols are derived from the string of
+ // the type, they can run to many kilobytes long. So we shorten
+ // them using a SHA-1 when the name appears in the final binary.
++// This also removes characters that upset external linkers.
+ //
+ // These are the symbols that begin with the prefix 'type.' and
+ // contain run-time type information used by the runtime and reflect
+ // packages. All Go binaries contain these symbols, but only only
+ // those programs loaded dynamically in multiple parts need these
+ // symbols to have entries in the symbol table.
+-func typeSymbolMangling(ctxt *Link) bool {
+-	return ctxt.BuildMode == BuildModeShared || ctxt.linkShared || ctxt.BuildMode == BuildModePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil
++func (ctxt *Link) mangleTypeSym() {
++	if ctxt.BuildMode != BuildModeShared && !ctxt.linkShared && ctxt.BuildMode != BuildModePlugin && ctxt.Syms.ROLookup("plugin.Open", 0) == nil {
++		return
++	}
++
++	*FlagW = true // disable DWARF generation
++	for _, s := range ctxt.Syms.Allsym {
++		newName := typeSymbolMangle(s.Name)
++		if newName != s.Name {
++			ctxt.Syms.Rename(s.Name, newName, int(s.Version), ctxt.Reachparent)
++		}
++	}
+ }
+ 
+ // typeSymbolMangle mangles the given symbol name into something shorter.
++//
++// Keep the type.. prefix, which parts of the linker (like the
++// DWARF generator) know means the symbol is not decodable.
++// Leave type.runtime. symbols alone, because other parts of
++// the linker manipulates them.
+ func typeSymbolMangle(name string) string {
+ 	if !strings.HasPrefix(name, "type.") {
+ 		return name
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 23462f1154..0c5ac47043 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -211,6 +211,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	if objabi.Fieldtrack_enabled != 0 {
+ 		fieldtrack(ctxt)
+ 	}
++	ctxt.mangleTypeSym()
+ 	ctxt.callgraph()
+ 
+ 	ctxt.doelf()
+diff --git a/src/cmd/link/internal/sym/symbols.go b/src/cmd/link/internal/sym/symbols.go
+index 98a5ae67b8..f9405db185 100644
+--- a/src/cmd/link/internal/sym/symbols.go
++++ b/src/cmd/link/internal/sym/symbols.go
+@@ -95,7 +95,7 @@ func (syms *Symbols) IncVersion() int {
+ }
+ 
+ // Rename renames a symbol.
+-func (syms *Symbols) Rename(old, new string, v int) {
++func (syms *Symbols) Rename(old, new string, v int, reachparent map[*Symbol]*Symbol) {
+ 	s := syms.hash[v][old]
+ 	s.Name = new
+ 	if s.Extname == old {
+@@ -108,8 +108,16 @@ func (syms *Symbols) Rename(old, new string, v int) {
+ 		syms.hash[v][new] = s
+ 	} else {
+ 		if s.Type == 0 {
++			dup.Attr |= s.Attr
++			if s.Attr.Reachable() && reachparent != nil {
++				reachparent[dup] = reachparent[s]
++			}
+ 			*s = *dup
+ 		} else if dup.Type == 0 {
++			s.Attr |= dup.Attr
++			if dup.Attr.Reachable() && reachparent != nil {
++				reachparent[s] = reachparent[dup]
++			}
+ 			*dup = *s
+ 			syms.hash[v][new] = s
+ 		}

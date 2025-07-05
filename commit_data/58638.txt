@@ -17,6 +17,46 @@ Date:   Tue Nov 21 16:59:44 2023 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/544235
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/trace2.go | 19 +++++++++++--------
  1 file changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/trace2.go b/src/runtime/trace2.go
+index 1a58015989..59ea190089 100644
+--- a/src/runtime/trace2.go
++++ b/src/runtime/trace2.go
+@@ -443,6 +443,7 @@ func traceAdvance(stopTrace bool) {
+ 	// held, we can be certain that when there are no writers there are
+ 	// also no stale generation values left. Therefore, it's safe to flush
+ 	// any buffers that remain in that generation's slot.
++	const debugDeadlock = false
+ 	systemstack(func() {
+ 		// Track iterations for some rudimentary deadlock detection.
+ 		i := 0
+@@ -479,16 +480,18 @@ func traceAdvance(stopTrace bool) {
+ 				osyield()
+ 			}
+ 
+-			// Try to detect a deadlock. We probably shouldn't loop here
+-			// this many times.
+-			if i > 100000 && !detectedDeadlock {
+-				detectedDeadlock = true
+-				println("runtime: failing to flush")
+-				for mp := mToFlush; mp != nil; mp = mp.trace.link {
+-					print("runtime: m=", mp.id, "\n")
++			if debugDeadlock {
++				// Try to detect a deadlock. We probably shouldn't loop here
++				// this many times.
++				if i > 100000 && !detectedDeadlock {
++					detectedDeadlock = true
++					println("runtime: failing to flush")
++					for mp := mToFlush; mp != nil; mp = mp.trace.link {
++						print("runtime: m=", mp.id, "\n")
++					}
+ 				}
++				i++
+ 			}
+-			i++
+ 		}
+ 	})
+ 

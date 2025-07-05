@@ -18,6 +18,22 @@ Date:   Thu Sep 1 10:48:58 2022 +0200
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/debug/macho/file.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/debug/macho/file.go b/src/debug/macho/file.go
+index e35b4df508..3c95803371 100644
+--- a/src/debug/macho/file.go
++++ b/src/debug/macho/file.go
+@@ -249,8 +249,8 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	if f.Magic == Magic64 {
+ 		offset = fileHeaderSize64
+ 	}
+-	dat := make([]byte, f.Cmdsz)
+-	if _, err := r.ReadAt(dat, offset); err != nil {
++	dat, err := saferio.ReadDataAt(r, uint64(f.Cmdsz), offset)
++	if err != nil {
+ 		return nil, err
+ 	}
+ 	c := saferio.SliceCap([]Load{}, uint64(f.Ncmd))

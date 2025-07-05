@@ -19,7 +19,7 @@ Date:   Wed Apr 9 12:07:03 2025 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/internal/poll/sendfile.go                 |  2 +-
  src/internal/poll/sendfile_unix.go            | 12 +++---
  src/internal/poll/sendfile_windows.go         | 13 +++---
@@ -32,3 +32,343 @@ Date:   Wed Apr 9 12:07:03 2025 +0200
  src/os/zero_copy_linux.go                     |  2 +-
  src/os/zero_copy_solaris.go                   |  2 +-
  11 files changed, 23 insertions(+), 138 deletions(-)
+
+diff --git a/src/internal/poll/sendfile.go b/src/internal/poll/sendfile.go
+index 41b0481c1a..696d93353e 100644
+--- a/src/internal/poll/sendfile.go
++++ b/src/internal/poll/sendfile.go
+@@ -4,4 +4,4 @@
+ 
+ package poll
+ 
+-var TestHookDidSendFile = func(dstFD *FD, src int, written int64, err error, handled bool) {}
++var TestHookDidSendFile = func(dstFD *FD, src uintptr, written int64, err error, handled bool) {}
+diff --git a/src/internal/poll/sendfile_unix.go b/src/internal/poll/sendfile_unix.go
+index 1105e05691..4b7e9fea9e 100644
+--- a/src/internal/poll/sendfile_unix.go
++++ b/src/internal/poll/sendfile_unix.go
+@@ -27,29 +27,29 @@ import (
+ // If handled is false, sendfile was unable to perform the copy,
+ // has not modified the source or destination,
+ // and the caller should perform the copy using a fallback implementation.
+-func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool) {
++func SendFile(dstFD *FD, src uintptr, size int64) (n int64, err error, handled bool) {
+ 	if goos := runtime.GOOS; goos == "linux" || goos == "android" {
+ 		// Linux's sendfile doesn't require any setup:
+ 		// It sends from the current position of the source file and
+ 		// updates the position of the source after sending.
+-		return sendFile(dstFD, src, nil, size)
++		return sendFile(dstFD, int(src), nil, size)
+ 	}
+ 
+ 	// Non-Linux sendfile implementations don't use the current position of the source file,
+ 	// so we need to look up the position, pass it explicitly, and adjust it after
+ 	// sendfile returns.
+ 	start, err := ignoringEINTR2(func() (int64, error) {
+-		return syscall.Seek(src, 0, io.SeekCurrent)
++		return syscall.Seek(int(src), 0, io.SeekCurrent)
+ 	})
+ 	if err != nil {
+ 		return 0, err, false
+ 	}
+ 
+ 	pos := start
+-	n, err, handled = sendFile(dstFD, src, &pos, size)
++	n, err, handled = sendFile(dstFD, int(src), &pos, size)
+ 	if n > 0 {
+ 		ignoringEINTR2(func() (int64, error) {
+-			return syscall.Seek(src, start+n, io.SeekStart)
++			return syscall.Seek(int(src), start+n, io.SeekStart)
+ 		})
+ 	}
+ 	return n, err, handled
+@@ -58,7 +58,7 @@ func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool)
+ // sendFile wraps the sendfile system call.
+ func sendFile(dstFD *FD, src int, offset *int64, size int64) (written int64, err error, handled bool) {
+ 	defer func() {
+-		TestHookDidSendFile(dstFD, src, written, err, handled)
++		TestHookDidSendFile(dstFD, uintptr(src), written, err, handled)
+ 	}()
+ 	if err := dstFD.writeLock(); err != nil {
+ 		return 0, err, false
+diff --git a/src/internal/poll/sendfile_windows.go b/src/internal/poll/sendfile_windows.go
+index f6d807d5d0..d72bcd5871 100644
+--- a/src/internal/poll/sendfile_windows.go
++++ b/src/internal/poll/sendfile_windows.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ // SendFile wraps the TransmitFile call.
+-func SendFile(fd *FD, src syscall.Handle, size int64) (written int64, err error, handled bool) {
++func SendFile(fd *FD, src uintptr, size int64) (written int64, err error, handled bool) {
+ 	defer func() {
+ 		TestHookDidSendFile(fd, 0, written, err, written > 0)
+ 	}()
+@@ -18,7 +18,8 @@ func SendFile(fd *FD, src syscall.Handle, size int64) (written int64, err error,
+ 		// TransmitFile does not work with pipes
+ 		return 0, syscall.ESPIPE, false
+ 	}
+-	if ft, _ := syscall.GetFileType(src); ft == syscall.FILE_TYPE_PIPE {
++	hsrc := syscall.Handle(src)
++	if ft, _ := syscall.GetFileType(hsrc); ft == syscall.FILE_TYPE_PIPE {
+ 		return 0, syscall.ESPIPE, false
+ 	}
+ 
+@@ -29,11 +30,11 @@ func SendFile(fd *FD, src syscall.Handle, size int64) (written int64, err error,
+ 
+ 	// Get the file size so we don't read past the end of the file.
+ 	var fi syscall.ByHandleFileInformation
+-	if err := syscall.GetFileInformationByHandle(src, &fi); err != nil {
++	if err := syscall.GetFileInformationByHandle(hsrc, &fi); err != nil {
+ 		return 0, err, false
+ 	}
+ 	fileSize := int64(fi.FileSizeHigh)<<32 + int64(fi.FileSizeLow)
+-	startpos, err := syscall.Seek(src, 0, io.SeekCurrent)
++	startpos, err := syscall.Seek(hsrc, 0, io.SeekCurrent)
+ 	if err != nil {
+ 		return 0, err, false
+ 	}
+@@ -49,7 +50,7 @@ func SendFile(fd *FD, src syscall.Handle, size int64) (written int64, err error,
+ 			// Some versions of Windows (Windows 10 1803) do not set
+ 			// file position after TransmitFile completes.
+ 			// So just use Seek to set file position.
+-			_, serr := syscall.Seek(src, startpos+written, io.SeekStart)
++			_, serr := syscall.Seek(hsrc, startpos+written, io.SeekStart)
+ 			if err != nil {
+ 				err = serr
+ 			}
+@@ -62,7 +63,7 @@ func SendFile(fd *FD, src syscall.Handle, size int64) (written int64, err error,
+ 	const maxChunkSizePerCall = int64(0x7fffffff - 1)
+ 
+ 	o := &fd.wop
+-	o.handle = src
++	o.handle = hsrc
+ 	for size > 0 {
+ 		chunkSize := maxChunkSizePerCall
+ 		if chunkSize > size {
+diff --git a/src/net/sendfile_unix_alt.go b/src/net/sendfile.go
+similarity index 89%
+rename from src/net/sendfile_unix_alt.go
+rename to src/net/sendfile.go
+index db788753f1..0a41241561 100644
+--- a/src/net/sendfile_unix_alt.go
++++ b/src/net/sendfile.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (darwin && !ios) || dragonfly || freebsd || solaris
++//go:build linux || (darwin && !ios) || dragonfly || freebsd || solaris || windows
+ 
+ package net
+ 
+@@ -44,7 +44,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 
+ 	var werr error
+ 	err = sc.Read(func(fd uintptr) bool {
+-		written, werr, handled = poll.SendFile(&c.pfd, int(fd), remain)
++		written, werr, handled = poll.SendFile(&c.pfd, fd, remain)
+ 		return true
+ 	})
+ 	if err == nil {
+diff --git a/src/net/sendfile_linux.go b/src/net/sendfile_linux.go
+deleted file mode 100644
+index 75af617416..0000000000
+--- a/src/net/sendfile_linux.go
++++ /dev/null
+@@ -1,55 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package net
+-
+-import (
+-	"internal/poll"
+-	"io"
+-	"os"
+-)
+-
+-const supportsSendfile = true
+-
+-// sendFile copies the contents of r to c using the sendfile
+-// system call to minimize copies.
+-//
+-// if handled == true, sendFile returns the number (potentially zero) of bytes
+-// copied and any non-EOF error.
+-//
+-// if handled == false, sendFile performed no work.
+-func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+-	var remain int64 = 0 // 0 indicates sending until EOF
+-
+-	lr, ok := r.(*io.LimitedReader)
+-	if ok {
+-		remain, r = lr.N, lr.R
+-		if remain <= 0 {
+-			return 0, nil, true
+-		}
+-	}
+-	f, ok := r.(*os.File)
+-	if !ok {
+-		return 0, nil, false
+-	}
+-
+-	sc, err := f.SyscallConn()
+-	if err != nil {
+-		return 0, nil, false
+-	}
+-
+-	var werr error
+-	err = sc.Read(func(fd uintptr) bool {
+-		written, werr, handled = poll.SendFile(&c.pfd, int(fd), remain)
+-		return true
+-	})
+-	if err == nil {
+-		err = werr
+-	}
+-
+-	if lr != nil {
+-		lr.N = remain - written
+-	}
+-	return written, wrapSyscallError("sendfile", err), handled
+-}
+diff --git a/src/net/sendfile_test.go b/src/net/sendfile_test.go
+index 2b23f86ff0..b5039ff1d1 100644
+--- a/src/net/sendfile_test.go
++++ b/src/net/sendfile_test.go
+@@ -49,7 +49,7 @@ func expectSendfile(t *testing.T, wantConn Conn, f func()) {
+ 		gotFD      *poll.FD
+ 		gotErr     error
+ 	)
+-	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
++	poll.TestHookDidSendFile = func(dstFD *poll.FD, src uintptr, written int64, err error, handled bool) {
+ 		if called {
+ 			t.Error("internal/poll.SendFile called multiple times, want one call")
+ 		}
+diff --git a/src/net/sendfile_windows.go b/src/net/sendfile_windows.go
+deleted file mode 100644
+index 731528f716..0000000000
+--- a/src/net/sendfile_windows.go
++++ /dev/null
+@@ -1,61 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package net
+-
+-import (
+-	"internal/poll"
+-	"io"
+-	"syscall"
+-)
+-
+-const supportsSendfile = true
+-
+-// TODO: deduplicate this file with sendfile_linux.go and sendfile_unix_alt.go.
+-
+-// sendFile copies the contents of r to c using the sendfile
+-// system call to minimize copies.
+-//
+-// if handled == true, sendFile returns the number (potentially zero) of bytes
+-// copied and any non-EOF error.
+-//
+-// if handled == false, sendFile performed no work.
+-func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+-	var remain int64 = 0 // by default, copy until EOF.
+-
+-	lr, ok := r.(*io.LimitedReader)
+-	if ok {
+-		remain, r = lr.N, lr.R
+-		if remain <= 0 {
+-			return 0, nil, true
+-		}
+-	}
+-
+-	// r might be an *os.File or an os.fileWithoutWriteTo.
+-	// Type assert to an interface rather than *os.File directly to handle the latter case.
+-	f, ok := r.(syscall.Conn)
+-	if !ok {
+-		return 0, nil, false
+-	}
+-
+-	sc, err := f.SyscallConn()
+-	if err != nil {
+-		return 0, nil, false
+-	}
+-
+-	var werr error
+-	err = sc.Read(func(fd uintptr) bool {
+-		written, werr, handled = poll.SendFile(&c.pfd, syscall.Handle(fd), remain)
+-		return true
+-	})
+-	if err == nil {
+-		err = werr
+-	}
+-
+-	if lr != nil {
+-		lr.N = remain - written
+-	}
+-
+-	return written, wrapSyscallError("sendfile", err), handled
+-}
+diff --git a/src/os/readfrom_solaris_test.go b/src/os/readfrom_solaris_test.go
+index b11fbef0ff..b460f4c113 100644
+--- a/src/os/readfrom_solaris_test.go
++++ b/src/os/readfrom_solaris_test.go
+@@ -48,10 +48,10 @@ func hookSendFileTB(tb testing.TB) *copyFileHook {
+ 	tb.Cleanup(func() {
+ 		poll.TestHookDidSendFile = orig
+ 	})
+-	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
++	poll.TestHookDidSendFile = func(dstFD *poll.FD, src uintptr, written int64, err error, handled bool) {
+ 		hook.called = true
+ 		hook.dstfd = dstFD.Sysfd
+-		hook.srcfd = src
++		hook.srcfd = int(src)
+ 		hook.written = written
+ 		hook.err = err
+ 		hook.handled = handled
+diff --git a/src/os/writeto_linux_test.go b/src/os/writeto_linux_test.go
+index 59caecd0da..7d11bda74f 100644
+--- a/src/os/writeto_linux_test.go
++++ b/src/os/writeto_linux_test.go
+@@ -111,10 +111,10 @@ func hookSendFile(t *testing.T) *sendFileHook {
+ 	t.Cleanup(func() {
+ 		poll.TestHookDidSendFile = orig
+ 	})
+-	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
++	poll.TestHookDidSendFile = func(dstFD *poll.FD, src uintptr, written int64, err error, handled bool) {
+ 		h.called = true
+ 		h.dstfd = dstFD.Sysfd
+-		h.srcfd = src
++		h.srcfd = int(src)
+ 		h.written = written
+ 		h.err = err
+ 		h.handled = handled
+diff --git a/src/os/zero_copy_linux.go b/src/os/zero_copy_linux.go
+index 9d666a3c79..af30a68168 100644
+--- a/src/os/zero_copy_linux.go
++++ b/src/os/zero_copy_linux.go
+@@ -28,7 +28,7 @@ func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
+ 	}
+ 
+ 	rerr := sc.Read(func(fd uintptr) (done bool) {
+-		written, err, handled = poll.SendFile(pfd, int(fd), 0)
++		written, err, handled = poll.SendFile(pfd, fd, 0)
+ 		return true
+ 	})
+ 
+diff --git a/src/os/zero_copy_solaris.go b/src/os/zero_copy_solaris.go
+index 94a8de6062..6000700fce 100644
+--- a/src/os/zero_copy_solaris.go
++++ b/src/os/zero_copy_solaris.go
+@@ -78,7 +78,7 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
+ 	// https://docs.oracle.com/cd/E88353_01/html/E37843/sendfile-3c.html and
+ 	// https://illumos.org/man/3EXT/sendfile for more details.
+ 	rerr := sc.Read(func(fd uintptr) bool {
+-		written, err, handled = poll.SendFile(&f.pfd, int(fd), remain)
++		written, err, handled = poll.SendFile(&f.pfd, fd, remain)
+ 		return true
+ 	})
+ 	if lr != nil {

@@ -14,7 +14,65 @@ Date:   Thu Oct 24 17:20:42 2024 -0700
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/smtp/smtp.go      |  4 +---
  src/net/smtp/smtp_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/smtp/smtp.go b/src/net/smtp/smtp.go
+index d750a2854c..522d80e4eb 100644
+--- a/src/net/smtp/smtp.go
++++ b/src/net/smtp/smtp.go
+@@ -413,9 +413,7 @@ func (c *Client) Noop() error {
+ 
+ // Quit sends the QUIT command and closes the connection to the server.
+ func (c *Client) Quit() error {
+-	if err := c.hello(); err != nil {
+-		return err
+-	}
++	c.hello() // ignore error; we're quitting anyhow
+ 	_, _, err := c.cmd(221, "QUIT")
+ 	if err != nil {
+ 		return err
+diff --git a/src/net/smtp/smtp_test.go b/src/net/smtp/smtp_test.go
+index c91c99b1f5..389eda9ad5 100644
+--- a/src/net/smtp/smtp_test.go
++++ b/src/net/smtp/smtp_test.go
+@@ -288,6 +288,37 @@ Goodbye.
+ QUIT
+ `
+ 
++func TestHELOFailed(t *testing.T) {
++	serverLines := `502 EH?
++502 EH?
++221 OK
++`
++	clientLines := `EHLO localhost
++HELO localhost
++QUIT
++`
++
++	server := strings.Join(strings.Split(serverLines, "\n"), "\r\n")
++	client := strings.Join(strings.Split(clientLines, "\n"), "\r\n")
++	var cmdbuf strings.Builder
++	bcmdbuf := bufio.NewWriter(&cmdbuf)
++	var fake faker
++	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
++	c := &Client{Text: textproto.NewConn(fake), localName: "localhost"}
++
++	if err := c.Hello("localhost"); err == nil {
++		t.Fatal("expected EHLO to fail")
++	}
++	if err := c.Quit(); err != nil {
++		t.Errorf("QUIT failed: %s", err)
++	}
++	bcmdbuf.Flush()
++	actual := cmdbuf.String()
++	if client != actual {
++		t.Errorf("Got:\n%s\nWant:\n%s", actual, client)
++	}
++}
++
+ func TestExtensions(t *testing.T) {
+ 	fake := func(server string) (c *Client, bcmdbuf *bufio.Writer, cmdbuf *strings.Builder) {
+ 		server = strings.Join(strings.Split(server, "\n"), "\r\n")

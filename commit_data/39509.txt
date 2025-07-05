@@ -56,8 +56,109 @@ Date:   Tue Jan 22 09:10:59 2019 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  7 ++++
  src/cmd/compile/internal/ssa/rewriteARM64.go | 48 ++++++++++++++++++++++++++++
  test/codegen/mathbits.go                     |  5 +++
  3 files changed, 60 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 3f49a9bcf9..133a893610 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -133,6 +133,13 @@
+ (BitRev16 x) -> (SRLconst [48] (RBIT <typ.UInt64> x))
+ (BitRev8 x) -> (SRLconst [56] (RBIT <typ.UInt64> x))
+ 
++// In fact, UMOD will be translated into UREM instruction, and UREM is originally translated into
++// UDIV and MSUB instructions. But if there is already an identical UDIV instruction just before or
++// after UREM (case like quo, rem := z/y, z%y), then the second UDIV instruction becomes redundant.
++// The purpose of this rule is to have this extra UDIV instruction removed in CSE pass.
++(UMOD <typ.UInt64> x y) -> (MSUB <typ.UInt64> x y (UDIV <typ.UInt64> x y))
++(UMODW <typ.UInt32> x y) -> (MSUBW <typ.UInt32> x y (UDIVW <typ.UInt32> x y))
++
+ // boolean ops -- booleans are represented with 0=false, 1=true
+ (AndB x y) -> (AND x y)
+ (OrB x y) -> (OR x y)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index fe815efb14..45801a4003 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -30667,6 +30667,30 @@ func rewriteValueARM64_OpARM64UDIVW_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64UMOD_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (UMOD <typ.UInt64> x y)
++	// cond:
++	// result: (MSUB <typ.UInt64> x y (UDIV <typ.UInt64> x y))
++	for {
++		if v.Type != typ.UInt64 {
++			break
++		}
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARM64MSUB)
++		v.Type = typ.UInt64
++		v.AddArg(x)
++		v.AddArg(y)
++		v0 := b.NewValue0(v.Pos, OpARM64UDIV, typ.UInt64)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (UMOD _ (MOVDconst [1]))
+ 	// cond:
+ 	// result: (MOVDconst [0])
+@@ -30724,6 +30748,30 @@ func rewriteValueARM64_OpARM64UMOD_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64UMODW_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (UMODW <typ.UInt32> x y)
++	// cond:
++	// result: (MSUBW <typ.UInt32> x y (UDIVW <typ.UInt32> x y))
++	for {
++		if v.Type != typ.UInt32 {
++			break
++		}
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARM64MSUBW)
++		v.Type = typ.UInt32
++		v.AddArg(x)
++		v.AddArg(y)
++		v0 := b.NewValue0(v.Pos, OpARM64UDIVW, typ.UInt32)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (UMODW _ (MOVDconst [c]))
+ 	// cond: uint32(c)==1
+ 	// result: (MOVDconst [0])
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index b2a8e3ea7a..cc3c91eb0d 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -476,6 +476,11 @@ func Div(hi, lo, x uint) (q, r uint) {
+ 	return bits.Div(hi, lo, x)
+ }
+ 
++func Div32(hi, lo, x uint32) (q, r uint32) {
++	// arm64:"ORR","UDIV","MSUB",-"UREM"
++	return bits.Div32(hi, lo, x)
++}
++
+ func Div64(hi, lo, x uint64) (q, r uint64) {
+ 	// amd64:"DIVQ"
+ 	return bits.Div64(hi, lo, x)

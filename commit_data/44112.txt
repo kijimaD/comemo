@@ -11,7 +11,7 @@ Date:   Fri May 8 14:09:57 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go   |  2 +-
  src/cmd/link/internal/arm/asm.go     |  2 +-
  src/cmd/link/internal/arm64/asm.go   |  2 +-
@@ -25,3 +25,299 @@ Date:   Fri May 8 14:09:57 2020 -0400
  src/cmd/link/internal/wasm/asm.go    | 63 ++++++++++++++++++++----------------
  src/cmd/link/internal/x86/asm.go     |  2 +-
  12 files changed, 48 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index a0eaf64c8e..c05767022c 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -722,7 +722,7 @@ func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	wg.Wait()
+ }
+ 
+-func asmb2(ctxt *ld.Link) {
++func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	machlink := int64(0)
+ 	if ctxt.HeadType == objabi.Hdarwin {
+ 		machlink = ld.Domacholink(ctxt)
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 275b5fe34f..5990179fe7 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -696,7 +696,7 @@ func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	wg.Wait()
+ }
+ 
+-func asmb2(ctxt *ld.Link) {
++func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+ 
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 8e0c75621c..306eb7d46c 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -825,7 +825,7 @@ func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	wg.Wait()
+ }
+ 
+-func asmb2(ctxt *ld.Link) {
++func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	machlink := uint32(0)
+ 	if ctxt.HeadType == objabi.Hdarwin {
+ 		machlink = uint32(ld.Domacholink(ctxt))
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 7f25e0c18d..20c483ea44 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -266,7 +266,7 @@ type Arch struct {
+ 	// segments), for which we have computed the size and offset. Asmb2
+ 	// writes the rest.
+ 	Asmb  func(*Link, *loader.Loader)
+-	Asmb2 func(*Link)
++	Asmb2 func(*Link, *loader.Loader)
+ 
+ 	Elfreloc1   func(*Link, *sym.Reloc, int64) bool
+ 	Elfreloc2   func(*Link, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 5b16314955..3c28a8b6da 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -320,19 +320,18 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	thearch.Asmb(ctxt, ctxt.loader)
+ 	bench.Start("reloc")
+ 	ctxt.reloc()
+-	newasmb2 := ctxt.IsDarwin() || ctxt.IsWindows()
++	newasmb2 := ctxt.IsDarwin() || ctxt.IsWindows() || ctxt.IsWasm()
+ 	if !newasmb2 {
+ 		bench.Start("loadlibfull")
+ 		// We don't need relocations at this point.
+-		// Wasm is an exception, where it applies text relocations in Asmb2.
+-		needReloc := ctxt.IsWasm()
++		needReloc := false
+ 		// On AMD64 ELF, we directly use the loader's ExtRelocs, so we don't
+ 		// need conversion. Otherwise we do.
+ 		needExtReloc := ctxt.IsExternal() && !(ctxt.IsAMD64() && ctxt.IsELF)
+ 		ctxt.loadlibfull(symGroupType, needReloc, needExtReloc) // XXX do it here for now
+ 	}
+ 	bench.Start("Asmb2")
+-	thearch.Asmb2(ctxt)
++	thearch.Asmb2(ctxt, ctxt.loader)
+ 
+ 	bench.Start("Munmap")
+ 	ctxt.Out.Close() // Close handles Munmapping if necessary.
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index e372a5a7ec..67b3726271 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -184,7 +184,7 @@ func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	wg.Wait()
+ }
+ 
+-func asmb2(ctxt *ld.Link) {
++func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+ 
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 317ede70a7..c67753c290 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -193,7 +193,7 @@ func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	wg.Wait()
+ }
+ 
+-func asmb2(ctxt *ld.Link) {
++func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+ 
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index b0adf27f9b..c6ee3d6033 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -1106,7 +1106,7 @@ func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	wg.Wait()
+ }
+ 
+-func asmb2(ctxt *ld.Link) {
++func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+ 
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index b82f98fda8..f76a42b1c0 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -129,7 +129,7 @@ func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	wg.Wait()
+ }
+ 
+-func asmb2(ctxt *ld.Link) {
++func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	ld.Symsize = 0
+ 	ld.Lcsize = 0
+ 	symo := uint32(0)
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index a39ddcf787..3e7b1ffb14 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -503,7 +503,7 @@ func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	wg.Wait()
+ }
+ 
+-func asmb2(ctxt *ld.Link) {
++func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+ 
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 1eb3291db6..e52f44b94a 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -119,7 +119,7 @@ func asmb(ctxt *ld.Link, ldr *loader.Loader) {
+ 
+ // asmb writes the final WebAssembly module binary.
+ // Spec: https://webassembly.github.io/spec/core/binary/modules.html
+-func asmb2(ctxt *ld.Link) {
++func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
+ 	types := []*wasmFuncType{
+ 		// For normal Go functions, the single parameter is PC_B,
+ 		// the return value is
+@@ -135,13 +135,15 @@ func asmb2(ctxt *ld.Link) {
+ 			Type: lookupType(&wasmFuncType{Params: []byte{I32}}, &types),
+ 		},
+ 	}
+-	hostImportMap := make(map[*sym.Symbol]int64)
+-	for _, fn := range ctxt.Textp {
+-		for _, r := range fn.R {
+-			if r.Type == objabi.R_WASMIMPORT {
+-				hostImportMap[r.Sym] = int64(len(hostImports))
++	hostImportMap := make(map[loader.Sym]int64)
++	for _, fn := range ctxt.Textp2 {
++		relocs := ldr.Relocs(fn)
++		for ri := 0; ri < relocs.Count(); ri++ {
++			r := relocs.At2(ri)
++			if r.Type() == objabi.R_WASMIMPORT {
++				hostImportMap[r.Sym()] = int64(len(hostImports))
+ 				hostImports = append(hostImports, &wasmFunc{
+-					Name: r.Sym.Name,
++					Name: ldr.SymName(r.Sym()),
+ 					Type: lookupType(&wasmFuncType{Params: []byte{I32}}, &types),
+ 				})
+ 			}
+@@ -150,41 +152,45 @@ func asmb2(ctxt *ld.Link) {
+ 
+ 	// collect functions with WebAssembly body
+ 	var buildid []byte
+-	fns := make([]*wasmFunc, len(ctxt.Textp))
+-	for i, fn := range ctxt.Textp {
++	fns := make([]*wasmFunc, len(ctxt.Textp2))
++	for i, fn := range ctxt.Textp2 {
+ 		wfn := new(bytes.Buffer)
+-		if fn.Name == "go.buildid" {
++		if ldr.SymName(fn) == "go.buildid" {
+ 			writeUleb128(wfn, 0) // number of sets of locals
+ 			writeI32Const(wfn, 0)
+ 			wfn.WriteByte(0x0b) // end
+-			buildid = fn.P
++			buildid = ldr.Data(fn)
+ 		} else {
+ 			// Relocations have variable length, handle them here.
++			relocs := ldr.Relocs(fn)
++			P := ldr.Data(fn)
+ 			off := int32(0)
+-			for _, r := range fn.R {
+-				wfn.Write(fn.P[off:r.Off])
+-				off = r.Off
+-				switch r.Type {
++			for ri := 0; ri < relocs.Count(); ri++ {
++				r := relocs.At2(ri)
++				wfn.Write(P[off:r.Off()])
++				off = r.Off()
++				rs := ldr.ResolveABIAlias(r.Sym())
++				switch r.Type() {
+ 				case objabi.R_ADDR:
+-					writeSleb128(wfn, r.Sym.Value+r.Add)
++					writeSleb128(wfn, ldr.SymValue(rs)+r.Add())
+ 				case objabi.R_CALL:
+-					writeSleb128(wfn, int64(len(hostImports))+r.Sym.Value>>16-funcValueOffset)
++					writeSleb128(wfn, int64(len(hostImports))+ldr.SymValue(rs)>>16-funcValueOffset)
+ 				case objabi.R_WASMIMPORT:
+-					writeSleb128(wfn, hostImportMap[r.Sym])
++					writeSleb128(wfn, hostImportMap[rs])
+ 				default:
+-					ld.Errorf(fn, "bad reloc type %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
++					ldr.Errorf(fn, "bad reloc type %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()))
+ 					continue
+ 				}
+ 			}
+-			wfn.Write(fn.P[off:])
++			wfn.Write(P[off:])
+ 		}
+ 
+ 		typ := uint32(0)
+-		if sig, ok := wasmFuncTypes[fn.Name]; ok {
++		if sig, ok := wasmFuncTypes[ldr.SymName(fn)]; ok {
+ 			typ = lookupType(sig, &types)
+ 		}
+ 
+-		name := nameRegexp.ReplaceAllString(fn.Name, "_")
++		name := nameRegexp.ReplaceAllString(ldr.SymName(fn), "_")
+ 		fns[i] = &wasmFunc{Name: name, Type: typ, Code: wfn.Bytes()}
+ 	}
+ 
+@@ -200,9 +206,9 @@ func asmb2(ctxt *ld.Link) {
+ 	writeImportSec(ctxt, hostImports)
+ 	writeFunctionSec(ctxt, fns)
+ 	writeTableSec(ctxt, fns)
+-	writeMemorySec(ctxt)
++	writeMemorySec(ctxt, ldr)
+ 	writeGlobalSec(ctxt)
+-	writeExportSec(ctxt, len(hostImports))
++	writeExportSec(ctxt, ldr, len(hostImports))
+ 	writeElementSec(ctxt, uint64(len(hostImports)), uint64(len(fns)))
+ 	writeCodeSec(ctxt, fns)
+ 	writeDataSec(ctxt)
+@@ -311,10 +317,10 @@ func writeTableSec(ctxt *ld.Link, fns []*wasmFunc) {
+ 
+ // writeMemorySec writes the section that declares linear memories. Currently one linear memory is being used.
+ // Linear memory always starts at address zero. More memory can be requested with the GrowMemory instruction.
+-func writeMemorySec(ctxt *ld.Link) {
++func writeMemorySec(ctxt *ld.Link, ldr *loader.Loader) {
+ 	sizeOffset := writeSecHeader(ctxt, sectionMemory)
+ 
+-	dataSection := ctxt.Syms.Lookup("runtime.data", 0).Sect
++	dataSection := ldr.SymSect(ldr.Lookup("runtime.data", 0))
+ 	dataEnd := dataSection.Vaddr + dataSection.Length
+ 	var initialSize = dataEnd + 16<<20 // 16MB, enough for runtime init without growing
+ 
+@@ -362,13 +368,14 @@ func writeGlobalSec(ctxt *ld.Link) {
+ // writeExportSec writes the section that declares exports.
+ // Exports can be accessed by the WebAssembly host, usually JavaScript.
+ // The wasm_export_* functions and the linear memory get exported.
+-func writeExportSec(ctxt *ld.Link, lenHostImports int) {
++func writeExportSec(ctxt *ld.Link, ldr *loader.Loader, lenHostImports int) {
+ 	sizeOffset := writeSecHeader(ctxt, sectionExport)
+ 
+ 	writeUleb128(ctxt.Out, 4) // number of exports
+ 
+ 	for _, name := range []string{"run", "resume", "getsp"} {
+-		idx := uint32(lenHostImports) + uint32(ctxt.Syms.ROLookup("wasm_export_"+name, 0).Value>>16) - funcValueOffset
++		s := ldr.Lookup("wasm_export_"+name, 0)
++		idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+ 		writeName(ctxt.Out, name)           // inst.exports.run/resume/getsp in wasm_exec.js
+ 		ctxt.Out.WriteByte(0x00)            // func export
+ 		writeUleb128(ctxt.Out, uint64(idx)) // funcidx
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index ddf04083af..824e20b828 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -587,7 +587,7 @@ func asmb(ctxt *ld.Link, _ *loader.Loader) {
+ 	wg.Wait()
+ }
+ 
+-func asmb2(ctxt *ld.Link) {
++func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	machlink := uint32(0)
+ 	if ctxt.HeadType == objabi.Hdarwin {
+ 		machlink = uint32(ld.Domacholink(ctxt))

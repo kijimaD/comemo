@@ -12,6 +12,29 @@ Date:   Wed Jan 29 17:09:28 2020 -0500
     Change-Id: I773868fd027e9cc2187f0a738900f0fcb7711635
     Reviewed-on: https://go-review.googlesource.com/c/go/+/216877
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.14.html | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 2aa10bc585..b4f9fdf090 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -539,6 +539,17 @@ TODO
+ 
+ </dl><!-- runtime -->
+ 
++<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof">runtime/pprof</a></dt>
++  <dd>
++    <p><!-- CL 204636, 205097 -->
++    The generated profile no longer includes the pseudo-PCs used for inline
++    marks. Symbol information of inlined functions is encoded in
++    <a href="https://github.com/google/pprof/blob/5e96527/proto/profile.proto#L177-L184">the format</a>
++    the pprof tool expects. This is a fix for the regression introduced
++    during recent releases.
++    </p>
++</dl><!-- runtime/pprof -->
++
+ <dl id="signal"><dt><a href="/pkg/signal/">signal</a></dt>
+   <dd>
+     <p><!-- CL 187739 -->

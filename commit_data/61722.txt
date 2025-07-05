@@ -15,9 +15,224 @@ Date:   Wed Nov 20 17:48:30 2024 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Jakub Ciolek <jakub@ciolek.dev>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/ARM64.rules |  4 ++--
  src/cmd/compile/internal/ssa/rewriteARM64.go  | 32 +++++++++++++--------------
  test/fixedbugs/issue70481.go                  | 20 +++++++++++++++++
  test/fixedbugs/issue70481.out                 | 19 ++++++++++++++++
  4 files changed, 57 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 070329a539..6652d2ec01 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -1150,8 +1150,8 @@
+ // madd/msub can't take constant arguments, so do a bit of reordering if a non-constant is available.
+ (ADD a p:(ADDconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (ADDconst [c] (ADD <v.Type> a m))
+ (ADD a p:(SUBconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (SUBconst [c] (ADD <v.Type> a m))
+-(SUB a p:(ADDconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (ADDconst [c] (SUB <v.Type> a m))
+-(SUB a p:(SUBconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (SUBconst [c] (SUB <v.Type> a m))
++(SUB a p:(ADDconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (SUBconst [c] (SUB <v.Type> a m))
++(SUB a p:(SUBconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (ADDconst [c] (SUB <v.Type> a m))
+ 
+ // optimize ADCSflags, SBCSflags and friends
+ (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (ADCzerocarry <typ.UInt64> c)))) => (ADCSflags x y c)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index ab838e6635..6fabb77c0d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -16606,7 +16606,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 	}
+ 	// match: (SUB a p:(ADDconst [c] m:(MUL _ _)))
+ 	// cond: p.Uses==1 && m.Uses==1
+-	// result: (ADDconst [c] (SUB <v.Type> a m))
++	// result: (SUBconst [c] (SUB <v.Type> a m))
+ 	for {
+ 		a := v_0
+ 		p := v_1
+@@ -16618,7 +16618,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		if m.Op != OpARM64MUL || !(p.Uses == 1 && m.Uses == 1) {
+ 			break
+ 		}
+-		v.reset(OpARM64ADDconst)
++		v.reset(OpARM64SUBconst)
+ 		v.AuxInt = int64ToAuxInt(c)
+ 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
+ 		v0.AddArg2(a, m)
+@@ -16627,7 +16627,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 	}
+ 	// match: (SUB a p:(ADDconst [c] m:(MULW _ _)))
+ 	// cond: p.Uses==1 && m.Uses==1
+-	// result: (ADDconst [c] (SUB <v.Type> a m))
++	// result: (SUBconst [c] (SUB <v.Type> a m))
+ 	for {
+ 		a := v_0
+ 		p := v_1
+@@ -16639,7 +16639,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		if m.Op != OpARM64MULW || !(p.Uses == 1 && m.Uses == 1) {
+ 			break
+ 		}
+-		v.reset(OpARM64ADDconst)
++		v.reset(OpARM64SUBconst)
+ 		v.AuxInt = int64ToAuxInt(c)
+ 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
+ 		v0.AddArg2(a, m)
+@@ -16648,7 +16648,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 	}
+ 	// match: (SUB a p:(ADDconst [c] m:(MNEG _ _)))
+ 	// cond: p.Uses==1 && m.Uses==1
+-	// result: (ADDconst [c] (SUB <v.Type> a m))
++	// result: (SUBconst [c] (SUB <v.Type> a m))
+ 	for {
+ 		a := v_0
+ 		p := v_1
+@@ -16660,7 +16660,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		if m.Op != OpARM64MNEG || !(p.Uses == 1 && m.Uses == 1) {
+ 			break
+ 		}
+-		v.reset(OpARM64ADDconst)
++		v.reset(OpARM64SUBconst)
+ 		v.AuxInt = int64ToAuxInt(c)
+ 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
+ 		v0.AddArg2(a, m)
+@@ -16669,7 +16669,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 	}
+ 	// match: (SUB a p:(ADDconst [c] m:(MNEGW _ _)))
+ 	// cond: p.Uses==1 && m.Uses==1
+-	// result: (ADDconst [c] (SUB <v.Type> a m))
++	// result: (SUBconst [c] (SUB <v.Type> a m))
+ 	for {
+ 		a := v_0
+ 		p := v_1
+@@ -16681,7 +16681,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		if m.Op != OpARM64MNEGW || !(p.Uses == 1 && m.Uses == 1) {
+ 			break
+ 		}
+-		v.reset(OpARM64ADDconst)
++		v.reset(OpARM64SUBconst)
+ 		v.AuxInt = int64ToAuxInt(c)
+ 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
+ 		v0.AddArg2(a, m)
+@@ -16690,7 +16690,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 	}
+ 	// match: (SUB a p:(SUBconst [c] m:(MUL _ _)))
+ 	// cond: p.Uses==1 && m.Uses==1
+-	// result: (SUBconst [c] (SUB <v.Type> a m))
++	// result: (ADDconst [c] (SUB <v.Type> a m))
+ 	for {
+ 		a := v_0
+ 		p := v_1
+@@ -16702,7 +16702,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		if m.Op != OpARM64MUL || !(p.Uses == 1 && m.Uses == 1) {
+ 			break
+ 		}
+-		v.reset(OpARM64SUBconst)
++		v.reset(OpARM64ADDconst)
+ 		v.AuxInt = int64ToAuxInt(c)
+ 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
+ 		v0.AddArg2(a, m)
+@@ -16711,7 +16711,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 	}
+ 	// match: (SUB a p:(SUBconst [c] m:(MULW _ _)))
+ 	// cond: p.Uses==1 && m.Uses==1
+-	// result: (SUBconst [c] (SUB <v.Type> a m))
++	// result: (ADDconst [c] (SUB <v.Type> a m))
+ 	for {
+ 		a := v_0
+ 		p := v_1
+@@ -16723,7 +16723,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		if m.Op != OpARM64MULW || !(p.Uses == 1 && m.Uses == 1) {
+ 			break
+ 		}
+-		v.reset(OpARM64SUBconst)
++		v.reset(OpARM64ADDconst)
+ 		v.AuxInt = int64ToAuxInt(c)
+ 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
+ 		v0.AddArg2(a, m)
+@@ -16732,7 +16732,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 	}
+ 	// match: (SUB a p:(SUBconst [c] m:(MNEG _ _)))
+ 	// cond: p.Uses==1 && m.Uses==1
+-	// result: (SUBconst [c] (SUB <v.Type> a m))
++	// result: (ADDconst [c] (SUB <v.Type> a m))
+ 	for {
+ 		a := v_0
+ 		p := v_1
+@@ -16744,7 +16744,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		if m.Op != OpARM64MNEG || !(p.Uses == 1 && m.Uses == 1) {
+ 			break
+ 		}
+-		v.reset(OpARM64SUBconst)
++		v.reset(OpARM64ADDconst)
+ 		v.AuxInt = int64ToAuxInt(c)
+ 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
+ 		v0.AddArg2(a, m)
+@@ -16753,7 +16753,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 	}
+ 	// match: (SUB a p:(SUBconst [c] m:(MNEGW _ _)))
+ 	// cond: p.Uses==1 && m.Uses==1
+-	// result: (SUBconst [c] (SUB <v.Type> a m))
++	// result: (ADDconst [c] (SUB <v.Type> a m))
+ 	for {
+ 		a := v_0
+ 		p := v_1
+@@ -16765,7 +16765,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		if m.Op != OpARM64MNEGW || !(p.Uses == 1 && m.Uses == 1) {
+ 			break
+ 		}
+-		v.reset(OpARM64SUBconst)
++		v.reset(OpARM64ADDconst)
+ 		v.AuxInt = int64ToAuxInt(c)
+ 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
+ 		v0.AddArg2(a, m)
+diff --git a/test/fixedbugs/issue70481.go b/test/fixedbugs/issue70481.go
+new file mode 100644
+index 0000000000..b73df8512b
+--- /dev/null
++++ b/test/fixedbugs/issue70481.go
+@@ -0,0 +1,20 @@
++// run
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++const maxUint64 = (1 << 64) - 1
++
++//go:noinline
++func f(n uint64) uint64 {
++	return maxUint64 - maxUint64%n
++}
++
++func main() {
++	for i := uint64(1); i < 20; i++ {
++		println(i, maxUint64-f(i))
++	}
++}
+diff --git a/test/fixedbugs/issue70481.out b/test/fixedbugs/issue70481.out
+new file mode 100644
+index 0000000000..bd41333d93
+--- /dev/null
++++ b/test/fixedbugs/issue70481.out
+@@ -0,0 +1,19 @@
++1 0
++2 1
++3 0
++4 3
++5 0
++6 3
++7 1
++8 7
++9 6
++10 5
++11 4
++12 3
++13 2
++14 1
++15 0
++16 15
++17 0
++18 15
++19 16

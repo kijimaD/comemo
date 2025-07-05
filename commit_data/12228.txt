@@ -9,6 +9,20 @@ Date:   Mon Feb 27 16:23:22 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5700079
-
+---
  src/pkg/testing/example.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/testing/example.go b/src/pkg/testing/example.go
+index c48d0d8159..70b69e9962 100644
+--- a/src/pkg/testing/example.go
++++ b/src/pkg/testing/example.go
+@@ -23,7 +23,7 @@ type InternalExample struct {
+ }
+ 
+ func RunExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ok bool) {
+-	if *match != "" {
++	if *match != "" && *matchExamples == "" {
+ 		return // Don't run examples if testing is restricted: we're debugging.
+ 	}
+ 	ok = true

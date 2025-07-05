@@ -22,8 +22,128 @@ Date:   Tue Sep 22 02:12:03 2020 -0700
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go |  9 ++++---
  src/cmd/compile/internal/gc/inl.go    | 49 +++++++++++++++++++++++++++++++++++
  test/escape_closure.go                | 17 ++++++++++--
  3 files changed, 69 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 79df584ab1..93965d4fac 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -771,10 +771,11 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
+ 		var fn *Node
+ 		switch call.Op {
+ 		case OCALLFUNC:
+-			if call.Left.Op == ONAME && call.Left.Class() == PFUNC {
+-				fn = call.Left
+-			} else if call.Left.Op == OCLOSURE {
+-				fn = call.Left.Func.Closure.Func.Nname
++			switch v := staticValue(call.Left); {
++			case v.Op == ONAME && v.Class() == PFUNC:
++				fn = v
++			case v.Op == OCLOSURE:
++				fn = v.Func.Closure.Func.Nname
+ 			}
+ 		case OCALLMETH:
+ 			fn = asNode(call.Left.Type.FuncType().Nname)
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 5740864b12..cac51685df 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -751,6 +751,55 @@ func inlinableClosure(n *Node) *Node {
+ 	return f
+ }
+ 
++func staticValue(n *Node) *Node {
++	for {
++		n1 := staticValue1(n)
++		if n1 == nil {
++			return n
++		}
++		n = n1
++	}
++}
++
++// staticValue1 implements a simple SSA-like optimization.
++func staticValue1(n *Node) *Node {
++	if n.Op != ONAME || n.Class() != PAUTO || n.Name.Addrtaken() {
++		return nil
++	}
++
++	defn := n.Name.Defn
++	if defn == nil {
++		return nil
++	}
++
++	var rhs *Node
++FindRHS:
++	switch defn.Op {
++	case OAS:
++		rhs = defn.Right
++	case OAS2:
++		for i, lhs := range defn.List.Slice() {
++			if lhs == n {
++				rhs = defn.Rlist.Index(i)
++				break FindRHS
++			}
++		}
++		Fatalf("%v missing from LHS of %v", n, defn)
++	default:
++		return nil
++	}
++	if rhs == nil {
++		Fatalf("RHS is nil: %v", defn)
++	}
++
++	unsafe, _ := reassigned(n)
++	if unsafe {
++		return nil
++	}
++
++	return rhs
++}
++
+ // reassigned takes an ONAME node, walks the function in which it is defined, and returns a boolean
+ // indicating whether the name has any assignments other than its declaration.
+ // The second return value is the first such assignment encountered in the walk, if any. It is mostly
+diff --git a/test/escape_closure.go b/test/escape_closure.go
+index 3b14027fa4..9152319fe0 100644
+--- a/test/escape_closure.go
++++ b/test/escape_closure.go
+@@ -50,7 +50,7 @@ func ClosureCallArgs4() {
+ }
+ 
+ func ClosureCallArgs5() {
+-	x := 0                     // ERROR "moved to heap: x"
++	x := 0 // ERROR "moved to heap: x"
+ 	// TODO(mdempsky): We get "leaking param: p" here because the new escape analysis pass
+ 	// can tell that p flows directly to sink, but it's a little weird. Re-evaluate.
+ 	sink = func(p *int) *int { // ERROR "leaking param: p" "func literal does not escape"
+@@ -132,7 +132,7 @@ func ClosureCallArgs14() {
+ }
+ 
+ func ClosureCallArgs15() {
+-	x := 0                      // ERROR "moved to heap: x"
++	x := 0 // ERROR "moved to heap: x"
+ 	p := &x
+ 	sink = func(p **int) *int { // ERROR "leaking param content: p" "func literal does not escape"
+ 		return *p
+@@ -164,3 +164,16 @@ func ClosureLeak2a(a ...string) string { // ERROR "leaking param content: a"
+ func ClosureLeak2b(f func() string) string { // ERROR "f does not escape"
+ 	return f()
+ }
++
++func ClosureIndirect() {
++	f := func(p *int) {} // ERROR "p does not escape" "func literal does not escape"
++	f(new(int))          // ERROR "new\(int\) does not escape"
++
++	g := f
++	g(new(int)) // ERROR "new\(int\) does not escape"
++
++	h := nopFunc
++	h(new(int)) // ERROR "new\(int\) does not escape"
++}
++
++func nopFunc(p *int) {} // ERROR "p does not escape"

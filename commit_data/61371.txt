@@ -18,10 +18,95 @@ Date:   Thu Oct 31 16:04:33 2024 -0700
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/internal/runtime/maps/map.go                   | 1 +
  src/internal/runtime/maps/runtime_fast32_swiss.go  | 2 ++
  src/internal/runtime/maps/runtime_fast64_swiss.go  | 2 ++
  src/internal/runtime/maps/runtime_faststr_swiss.go | 2 ++
  src/internal/runtime/maps/table.go                 | 1 +
  5 files changed, 8 insertions(+)
+
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index 4643960247..9ebc72a524 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -560,6 +560,7 @@ func (m *Map) putSlotSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Point
+ 	match = g.ctrls().matchEmptyOrDeleted()
+ 	if match == 0 {
+ 		fatal("small map with no empty slot (concurrent map writes?)")
++		return nil
+ 	}
+ 
+ 	i := match.first()
+diff --git a/src/internal/runtime/maps/runtime_fast32_swiss.go b/src/internal/runtime/maps/runtime_fast32_swiss.go
+index 84c85772f4..95c2a5ec1f 100644
+--- a/src/internal/runtime/maps/runtime_fast32_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast32_swiss.go
+@@ -27,6 +27,7 @@ func runtime_mapaccess1_fast32(typ *abi.SwissMapType, m *Map, key uint32) unsafe
+ 
+ 	if m.writing != 0 {
+ 		fatal("concurrent map read and map write")
++		return nil
+ 	}
+ 
+ 	if m.dirLen == 0 {
+@@ -91,6 +92,7 @@ func runtime_mapaccess2_fast32(typ *abi.SwissMapType, m *Map, key uint32) (unsaf
+ 
+ 	if m.writing != 0 {
+ 		fatal("concurrent map read and map write")
++		return nil, false
+ 	}
+ 
+ 	if m.dirLen == 0 {
+diff --git a/src/internal/runtime/maps/runtime_fast64_swiss.go b/src/internal/runtime/maps/runtime_fast64_swiss.go
+index 7c9ce87cdc..d00e4b6258 100644
+--- a/src/internal/runtime/maps/runtime_fast64_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast64_swiss.go
+@@ -27,6 +27,7 @@ func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe
+ 
+ 	if m.writing != 0 {
+ 		fatal("concurrent map read and map write")
++		return nil
+ 	}
+ 
+ 	if m.dirLen == 0 {
+@@ -91,6 +92,7 @@ func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsaf
+ 
+ 	if m.writing != 0 {
+ 		fatal("concurrent map read and map write")
++		return nil, false
+ 	}
+ 
+ 	if m.dirLen == 0 {
+diff --git a/src/internal/runtime/maps/runtime_faststr_swiss.go b/src/internal/runtime/maps/runtime_faststr_swiss.go
+index ab0213ba33..08172334e7 100644
+--- a/src/internal/runtime/maps/runtime_faststr_swiss.go
++++ b/src/internal/runtime/maps/runtime_faststr_swiss.go
+@@ -55,6 +55,7 @@ func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsaf
+ 
+ 	if m.writing != 0 {
+ 		fatal("concurrent map read and map write")
++		return nil
+ 	}
+ 
+ 	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
+@@ -112,6 +113,7 @@ func runtime_mapaccess2_faststr(typ *abi.SwissMapType, m *Map, key string) (unsa
+ 
+ 	if m.writing != 0 {
+ 		fatal("concurrent map read and map write")
++		return nil, false
+ 	}
+ 
+ 	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
+diff --git a/src/internal/runtime/maps/table.go b/src/internal/runtime/maps/table.go
+index 494ede7911..7b3895c0a1 100644
+--- a/src/internal/runtime/maps/table.go
++++ b/src/internal/runtime/maps/table.go
+@@ -608,6 +608,7 @@ func (it *Iter) Next() {
+ 
+ 	if it.m.writing != 0 {
+ 		fatal("concurrent map iteration and map write")
++		return
+ 	}
+ 
+ 	if it.dirIdx < 0 {

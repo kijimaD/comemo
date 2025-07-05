@@ -9,7 +9,52 @@ Date:   Mon Sep 14 12:01:04 2015 -0700
     Change-Id: I5463970a6259527003eb0e12903a338cc78e0683
     Reviewed-on: https://go-review.googlesource.com/14564
     Reviewed-by: Chris Manghane <cmang@golang.org>
-
+---
  src/go/parser/parser.go     |  9 +++++++--
  src/go/parser/short_test.go | 12 +++++++-----
  2 files changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index e82c0bd122..855caa3daa 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -410,9 +410,14 @@ func (p *parser) expectClosing(tok token.Token, context string) token.Pos {
+ func (p *parser) expectSemi() {
+ 	// semicolon is optional before a closing ')' or '}'
+ 	if p.tok != token.RPAREN && p.tok != token.RBRACE {
+-		if p.tok == token.SEMICOLON {
++		switch p.tok {
++		case token.COMMA:
++			// permit a ',' instead of a ';' but complain
++			p.errorExpected(p.pos, "';'")
++			fallthrough
++		case token.SEMICOLON:
+ 			p.next()
+-		} else {
++		default:
+ 			p.errorExpected(p.pos, "';'")
+ 			syncStmt(p)
+ 		}
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index ef2ffadbd9..7cbdaf2e24 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -101,11 +101,13 @@ var invalids = []string{
+ 	`package p; func f() { defer func() {} /* ERROR HERE "function must be invoked" */ }`,
+ 	`package p; func f() { go func() { func() { f(x func /* ERROR "missing ','" */ (){}) } } }`,
+ 	`package p; func f(x func(), u v func /* ERROR "missing ','" */ ()){}`,
+-	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,           // issue 8656
+-	`package p; var x /* ERROR "missing variable type or initialization" */ , y, z;`, // issue 9639
+-	`package p; const x /* ERROR "missing constant value" */ ;`,                      // issue 9639
+-	`package p; const x /* ERROR "missing constant value" */ int;`,                   // issue 9639
+-	`package p; const (x = 0; y; z /* ERROR "missing constant value" */ int);`,       // issue 9639
++	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,                 // issue 8656
++	`package p; var x /* ERROR "missing variable type or initialization" */ , y, z;`,       // issue 9639
++	`package p; const x /* ERROR "missing constant value" */ ;`,                            // issue 9639
++	`package p; const x /* ERROR "missing constant value" */ int;`,                         // issue 9639
++	`package p; const (x = 0; y; z /* ERROR "missing constant value" */ int);`,             // issue 9639
++	`package p; var _ = struct { x int, /* ERROR "expected ';', found ','" */ }{}`,         // issue 12437
++	`package p; var _ = struct { x int, /* ERROR "expected ';', found ','" */ y float }{}`, // issue 12437
+ }
+ 
+ func TestInvalid(t *testing.T) {

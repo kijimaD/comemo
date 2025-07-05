@@ -8,6 +8,52 @@ Date:   Thu Feb 11 13:59:10 2010 -0800
     R=adg
     CC=golang-dev, rsc
     https://golang.org/cl/207069
-
+---
  src/cmd/godoc/mapping.go | 30 +++++++++++++++---------------
  1 file changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/godoc/mapping.go b/src/cmd/godoc/mapping.go
+index 62f85a0747..1143a4bdc0 100644
+--- a/src/cmd/godoc/mapping.go
++++ b/src/cmd/godoc/mapping.go
+@@ -141,21 +141,6 @@ func split(path string) (head, tail string) {
+ // string is returned.
+ //
+ func (m *Mapping) ToAbsolute(path string) string {
+-	for _, e := range m.list {
+-		if strings.HasPrefix(path, e.path) {
+-			// /absolute/prefix/foo -> prefix/foo
+-			return pathutil.Join(e.prefix, path[len(e.path):]) // Join will remove a trailing '/'
+-		}
+-	}
+-	return "" // no match
+-}
+-
+-
+-// ToRelative maps an absolute path to a relative path using the Mapping
+-// specified by the receiver. If the path cannot be mapped, the empty
+-// string is returned.
+-//
+-func (m *Mapping) ToRelative(path string) string {
+ 	prefix, tail := split(path)
+ 	for _, e := range m.list {
+ 		switch {
+@@ -174,3 +159,18 @@ func (m *Mapping) ToRelative(path string) string {
+ 
+ 	return "" // no match
+ }
++
++
++// ToRelative maps an absolute path to a relative path using the Mapping
++// specified by the receiver. If the path cannot be mapped, the empty
++// string is returned.
++//
++func (m *Mapping) ToRelative(path string) string {
++	for _, e := range m.list {
++		if strings.HasPrefix(path, e.path) {
++			// /absolute/prefix/foo -> prefix/foo
++			return pathutil.Join(e.prefix, path[len(e.path):]) // Join will remove a trailing '/'
++		}
++	}
++	return "" // no match
++}

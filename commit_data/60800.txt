@@ -15,6 +15,21 @@ Date:   Sat Aug 31 00:26:37 2024 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/dist/buildtool.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index d1094f49fd..09fa44e429 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -312,9 +312,6 @@ var (
+ 
+ func bootstrapFixImports(srcFile string) string {
+ 	text := readfile(srcFile)
+-	if !strings.Contains(srcFile, "/cmd/") && !strings.Contains(srcFile, `\cmd\`) {
+-		text = regexp.MustCompile(`\bany\b`).ReplaceAllString(text, "interface{}")
+-	}
+ 	lines := strings.SplitAfter(text, "\n")
+ 	inBlock := false
+ 	inComment := false

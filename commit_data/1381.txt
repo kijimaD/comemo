@@ -8,7 +8,7 @@ Date:   Fri Dec 19 12:05:22 2008 -0800
     DELTA=192  (145 added, 8 deleted, 39 changed)
     OCL=21609
     CL=21614
-
+---
  src/cmd/gc/go.h       |   2 +
  src/cmd/gc/subr.c     |   6 +++
  src/runtime/chan.c    |  19 +++++----
@@ -18,3 +18,377 @@ Date:   Fri Dec 19 12:05:22 2008 -0800
  src/runtime/runtime.h |  15 ++++++-
  test/bigalg.go        | 110 ++++++++++++++++++++++++++++++++++++++++++++++++++
  8 files changed, 188 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index bd1e34662c..6cd2eab5a6 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -41,6 +41,8 @@ enum
+ 	ASTRING,
+ 	APTR,
+ 	AINTER,
++	AARRAY,
++	ASTRUCT,
+ 
+ 	BADWIDTH	= -1000000000
+ };
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index e1fb97d62b..90cc9dc0b2 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -301,6 +301,12 @@ algtype(Type *t)
+ 	if(isptr[t->etype])
+ 		a = APTR;	// pointer
+ 	else
++	if(t->etype == TARRAY)
++		a = AARRAY;
++	else
++	if(t->etype == TSTRUCT)
++		a = ASTRUCT;
++	else
+ 	if(isinter(t))
+ 		a = AINTER;	// interface
+ //	else
+diff --git a/src/runtime/chan.c b/src/runtime/chan.c
+index 14b5ce3a6f..8296cdc023 100644
+--- a/src/runtime/chan.c
++++ b/src/runtime/chan.c
+@@ -86,14 +86,17 @@ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
+ 	Hchan *c;
+ 	int32 i;
+ 
+-	if(elemalg >= nelem(algarray)) {
+-		prints("0<=");
+-		sys·printint(elemalg);
+-		prints("<");
+-		sys·printint(nelem(algarray));
+-		prints("\n");
+-
+-		throw("sys·newchan: elem algorithm out of range");
++	switch(elemalg){
++	case ASIMP:
++	case ASTRING:
++	case APTR:
++	case AINTER:
++	case AARRAY:
++	case ASTRUCT:
++		break;
++	default:
++		printf("chan(alg=%d)\n", elemalg);
++		throw("sys·newchan: unsupported channel element type");
+ 	}
+ 
+ 	c = mal(sizeof(*c));
+diff --git a/src/runtime/hashmap.c b/src/runtime/hashmap.c
+index 5b32fe5881..5be990c49c 100644
+--- a/src/runtime/hashmap.c
++++ b/src/runtime/hashmap.c
+@@ -663,19 +663,30 @@ sys·newmap(uint32 keysize, uint32 valsize,
+ {
+ 	Hmap *h;
+ 
+-	if(keyalg >= 4 ||
+-	   valalg >= 4) {
+-		prints("0<=");
+-		sys·printint(keyalg);
+-		prints("<");
+-		sys·printint(nelem(algarray));
+-		prints("\n0<=");
+-		sys·printint(valalg);
+-		prints("<");
+-		sys·printint(nelem(algarray));
+-		prints("\n");
+-
+-		throw("sys·newmap: key/val algorithm out of range");
++	switch(keyalg) {
++	case ASIMP:
++	case ASTRING:
++	case APTR:
++	case AINTER:
++	case AARRAY:
++	case ASTRUCT:
++		break;
++	default:
++		printf("map(keyalg=%d)\n", keyalg);
++		throw("sys·newmap: unsupported map key type");
++	}
++
++	switch(valalg) {
++	case ASIMP:
++	case ASTRING:
++	case APTR:
++	case AINTER:
++	case AARRAY:
++	case ASTRUCT:
++		break;
++	default:
++		printf("map(valalg=%d)\n", valalg);
++		throw("sys·newmap: unsupported map value type");
+ 	}
+ 
+ 	h = mal(sizeof(*h));
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index 5062075c34..a5259db4f8 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -6,18 +6,13 @@
+ 
+ static	int32	debug	= 0;
+ 
+-enum
+-{
+-	ASIMP		= 0,
+-	ASTRING,
+-	APTR,
+-	AINTER,
+-};
+-
+ typedef	struct	Sigt	Sigt;
+ typedef	struct	Sigi	Sigi;
+ typedef	struct	Map	Map;
+ 
++/*
++ * the layout of Sigt and Sigi are known to the compiler
++ */
+ struct	Sigt
+ {
+ 	byte*	name;
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index c075181a02..708abd4cab 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -580,7 +580,7 @@ memcopy(uint32 s, void *a, void *b)
+ }
+ 
+ static uint64
+-stringhash(uint32 s, string *a)
++strhash(uint32 s, string *a)
+ {
+ 	USED(s);
+ 	if(*a == nil)
+@@ -589,21 +589,21 @@ stringhash(uint32 s, string *a)
+ }
+ 
+ static uint32
+-stringequal(uint32 s, string *a, string *b)
++strequal(uint32 s, string *a, string *b)
+ {
+ 	USED(s);
+ 	return cmpstring(*a, *b) == 0;
+ }
+ 
+ static void
+-stringprint(uint32 s, string *a)
++strprint(uint32 s, string *a)
+ {
+ 	USED(s);
+ 	sys·printstring(*a);
+ }
+ 
+ static void
+-stringcopy(uint32 s, string *a, string *b)
++strcopy(uint32 s, string *a, string *b)
+ {
+ 	USED(s);
+ 	if(b == nil) {
+@@ -614,28 +614,28 @@ stringcopy(uint32 s, string *a, string *b)
+ }
+ 
+ static uint64
+-pointerhash(uint32 s, void **a)
++ptrhash(uint32 s, void **a)
+ {
+ 	return memhash(s, *a);
+ }
+ 
+ static uint32
+-pointerequal(uint32 s, void **a, void **b)
++ptrequal(uint32 s, void **a, void **b)
+ {
+ 	USED(s, a, b);
+-	prints("pointerequal\n");
++	prints("ptrequal\n");
+ 	return 0;
+ }
+ 
+ static void
+-pointerprint(uint32 s, void **a)
++ptrprint(uint32 s, void **a)
+ {
+ 	USED(s, a);
+-	prints("pointerprint\n");
++	prints("ptrprint\n");
+ }
+ 
+ static void
+-pointercopy(uint32 s, void **a, void **b)
++ptrcopy(uint32 s, void **a, void **b)
+ {
+ 	USED(s);
+ 	if(b == nil) {
+@@ -646,12 +646,13 @@ pointercopy(uint32 s, void **a, void **b)
+ }
+ 
+ Alg
+-algarray[4] =
+-{
+-	{	memhash,	memequal,	memprint,	memcopy	},  // 0
+-	{	stringhash,	stringequal,	stringprint,	stringcopy	},  // 1
+-//	{	pointerhash,	pointerequal,	pointerprint,	pointercopy	},  // 2
+-	{	memhash,	memequal,	memprint,	memcopy	},  // 2 - treat pointers as ints
+-	{	memhash,	memequal,	memprint,	memcopy	},  // 3 - treat interfaces as memory
++algarray[] =
++{
++[ASIMP]		{ memhash, memequal, memprint, memcopy },
++[ASTRING]	{ strhash, strequal, strprint, strcopy },
++[APTR]		{ memhash, memequal, memprint, memcopy },	// TODO: ptr routines
++[AINTER]	{ memhash, memequal, memprint, memcopy },	// TODO: interface routines
++[ASTRUCT]	{ memhash, memequal, memprint, memcopy },	// TODO: what goes here?
++[AARRAY]	{ memhash, memequal, memprint, memcopy },	// TODO: what goes here?
+ };
+ 
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index fc4e5ba462..c0f943abf4 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -214,10 +214,23 @@ struct	Func
+ #define	nelem(x)	(sizeof(x)/sizeof((x)[0]))
+ #define	nil		((void*)0)
+ 
++/*
++ * known to compiler
++ */
++enum
++{
++	ASIMP		= 0,
++	ASTRING,
++	APTR,
++	AINTER,
++	AARRAY,
++	ASTRUCT,
++};
++
+ /*
+  * external data
+  */
+-extern	Alg	algarray[4];
++extern	Alg	algarray[];
+ extern	string	emptystring;
+ G*	allg;
+ int32	goidgen;
+diff --git a/test/bigalg.go b/test/bigalg.go
+new file mode 100644
+index 0000000000..0f92f66ab3
+--- /dev/null
++++ b/test/bigalg.go
+@@ -0,0 +1,110 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"os";
++	"fmt";
++)
++
++type T struct {
++	a float64;
++	b int64;
++	c string;
++	d byte;
++}
++
++var a = []int{ 1, 2, 3 }
++var NIL []int;
++
++func arraycmptest() {
++	a1 := a;
++	if NIL != nil {
++		println("fail1:", NIL, "!= nil");
++	}
++	if nil != NIL {
++		println("fail2: nil !=", NIL);
++	}
++	if a == nil || nil == a {
++		println("fail3:", a, "== nil");
++	}
++	if a == NIL || NIL == a {
++		println("fail4:", a, "==", NIL);
++	}
++	if a != a {
++		println("fail5:", a, "!=", a);
++	}
++	if a1 != a {
++		println("fail6:", a1, "!=", a);
++	}
++}
++
++var t = T{1.5, 123, "hello", 255}
++var mt = new(map[int]T)
++var ma = new(map[int][]int)
++
++func maptest() {
++	mt[0] = t;
++	t1 := mt[0];
++	if t1.a != t.a || t1.b != t.b || t1.c != t.c || t1.d != t.d {
++		println("fail: map val struct", t1.a, t1.b, t1.c, t1.d);
++	}
++
++	ma[1] = a;
++	a1 := ma[1];
++	if a1 != a {
++		println("fail: map val array", a, a1);
++	}
++}
++
++var mt1 = new(map[T]int)
++var ma1 = new(map[[]int] int)
++
++func maptest2() {
++	mt1[t] = 123;
++	t1 := t;
++	val, ok := mt1[t1];
++	if val != 123 || !ok {
++		println("fail: map key struct", val, ok);
++	}
++
++	ma1[a] = 345;
++	a1 := a;
++	val, ok = ma1[a1];
++	if val != 345 || !ok {
++		panic("map key array", val, ok);
++	}
++}
++
++var ct = new(chan T)
++var ca = new(chan []int)
++
++func send() {
++	ct <- t;
++	ca <- a;
++}
++
++func chantest() {
++	go send();
++
++	t1 := <-ct;
++	if t1.a != t.a || t1.b != t.b || t1.c != t.c || t1.d != t.d {
++		println("fail: chan struct", t1.a, t1.b, t1.c, t1.d);
++	}
++
++	a1 := <-ca;
++	if a1 != a {
++		println("fail: chan array", a, a1);
++	}
++}
++
++func main() {
++	arraycmptest();
++	maptest();
++	maptest2();
++	chantest();
++}

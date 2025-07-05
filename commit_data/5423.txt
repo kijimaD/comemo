@@ -9,6 +9,20 @@ Date:   Mon May 3 18:35:32 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1065041
-
+---
  misc/dashboard/godashboard/gobuild.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/godashboard/gobuild.py b/misc/dashboard/godashboard/gobuild.py
+index 4a5b858c30..aac90b3267 100644
+--- a/misc/dashboard/godashboard/gobuild.py
++++ b/misc/dashboard/godashboard/gobuild.py
+@@ -575,7 +575,7 @@ class GetBenchmarks(webapp.RequestHandler):
+             sep = "\n\t"
+             for builder, iter, ns in bybuilder:
+                 self.response.out.write('%s{ "builder": "%s", "iterations": %s, "nsperop": %s }' %
+-                    (sep, builder, str(iter).replace("L", ""), str(nsperop).replace("L", "")))
++                    (sep, builder, str(iter).replace("L", ""), str(ns).replace("L", "")))
+                 sep = ",\n\t"
+             self.response.out.write('\n}\n')
+             return

@@ -17,6 +17,27 @@ Date:   Mon Nov 7 15:40:48 2016 -0500
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/tls_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 83b1f4ca9d..1a5286c383 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -668,6 +668,7 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
+ 				panic(fmt.Errorf("accept: %v", err))
+ 			}
+ 			serverConfig := testConfig.Clone()
++			serverConfig.CipherSuites = nil // the defaults may prefer faster ciphers
+ 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
+ 			srv := Server(sconn, serverConfig)
+ 			if err := srv.Handshake(); err != nil {
+@@ -681,6 +682,7 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
+ 
+ 	b.SetBytes(totalBytes)
+ 	clientConfig := testConfig.Clone()
++	clientConfig.CipherSuites = nil // the defaults may prefer faster ciphers
+ 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
+ 
+ 	buf := make([]byte, bufsize)

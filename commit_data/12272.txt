@@ -7,6 +7,20 @@ Date:   Wed Feb 29 08:45:57 2012 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5707062
-
+---
  src/pkg/encoding/gob/encoder_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/gob/encoder_test.go b/src/pkg/encoding/gob/encoder_test.go
+index 3bfae30f39..050786dfd1 100644
+--- a/src/pkg/encoding/gob/encoder_test.go
++++ b/src/pkg/encoding/gob/encoder_test.go
+@@ -709,7 +709,7 @@ func TestGobPtrSlices(t *testing.T) {
+ 		t.Fatal("decode:", err)
+ 	}
+ 	if !reflect.DeepEqual(in, out) {
+-		t.Fatal("got %v; wanted %v", out, in)
++		t.Fatalf("got %v; wanted %v", out, in)
+ 	}
+ }
+ 

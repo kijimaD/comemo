@@ -9,6 +9,22 @@ Date:   Tue Jan 21 16:27:39 2014 -0800
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/55370043
-
+---
  src/pkg/syscall/flock.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/flock.go b/src/pkg/syscall/flock.go
+index 5e5f8b5d17..62736ae9dc 100644
+--- a/src/pkg/syscall/flock.go
++++ b/src/pkg/syscall/flock.go
+@@ -12,8 +12,8 @@ import "unsafe"
+ // systems by flock_linux_32bit.go to be SYS_FCNTL64.
+ var fcntl64Syscall uintptr = SYS_FCNTL
+ 
+-// Lock performs a fcntl syscall for F_GETLK, F_SETLK or F_SETLKW commands.
+-func (lk *Flock_t) Lock(fd uintptr, cmd int) error {
++// FcntlFlock performs a fcntl syscall for the F_GETLK, F_SETLK or F_SETLKW command.
++func FcntlFlock(fd uintptr, cmd int, lk *Flock_t) error {
+ 	_, _, errno := Syscall(fcntl64Syscall, fd, uintptr(cmd), uintptr(unsafe.Pointer(lk)))
+ 	if errno == 0 {
+ 		return nil

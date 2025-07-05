@@ -7,8 +7,72 @@ Date:   Thu Mar 17 13:57:36 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3559041
-
+---
  src/pkg/os/dir_darwin.go  | 3 +--
  src/pkg/os/dir_freebsd.go | 3 +--
  src/pkg/os/dir_linux.go   | 3 +--
  3 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/os/dir_darwin.go b/src/pkg/os/dir_darwin.go
+index 861bcef27d..55d96879cf 100644
+--- a/src/pkg/os/dir_darwin.go
++++ b/src/pkg/os/dir_darwin.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ const (
+-	blockSize = 4096 // TODO(r): use statfs
++	blockSize = 4096
+ )
+ 
+ // Readdirnames reads the contents of the directory associated with file and
+@@ -23,7 +23,6 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	if file.dirinfo == nil {
+ 		file.dirinfo = new(dirInfo)
+ 		// The buffer must be at least a block long.
+-		// TODO(r): use fstatfs to find fs block size.
+ 		file.dirinfo.buf = make([]byte, blockSize)
+ 	}
+ 	d := file.dirinfo
+diff --git a/src/pkg/os/dir_freebsd.go b/src/pkg/os/dir_freebsd.go
+index 2ebe368a65..c9802e3362 100644
+--- a/src/pkg/os/dir_freebsd.go
++++ b/src/pkg/os/dir_freebsd.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ const (
+-	blockSize = 4096 // TODO(r): use statfs
++	blockSize = 4096
+ )
+ 
+ func (file *File) Readdirnames(count int) (names []string, err Error) {
+@@ -18,7 +18,6 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	if file.dirinfo == nil {
+ 		file.dirinfo = new(dirInfo)
+ 		// The buffer must be at least a block long.
+-		// TODO(r): use fstatfs to find fs block size.
+ 		file.dirinfo.buf = make([]byte, blockSize)
+ 	}
+ 	d := file.dirinfo
+diff --git a/src/pkg/os/dir_linux.go b/src/pkg/os/dir_linux.go
+index 09aad6367d..554b98a140 100644
+--- a/src/pkg/os/dir_linux.go
++++ b/src/pkg/os/dir_linux.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ const (
+-	blockSize = 4096 // TODO(r): use statfs
++	blockSize = 4096
+ )
+ 
+ func clen(n []byte) int {
+@@ -27,7 +27,6 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	if file.dirinfo == nil {
+ 		file.dirinfo = new(dirInfo)
+ 		// The buffer must be at least a block long.
+-		// TODO(r): use fstatfs to find fs block size.
+ 		file.dirinfo.buf = make([]byte, blockSize)
+ 	}
+ 	d := file.dirinfo

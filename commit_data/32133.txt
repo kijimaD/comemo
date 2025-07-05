@@ -13,6 +13,32 @@ Date:   Fri Apr 7 08:53:38 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 84425622a1..7a8becb35a 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1312,16 +1312,16 @@ opswitch:
+ 						continue
+ 					}
+ 					var step int
+-					var convType *Type
++					var convType *types.Type
+ 					switch {
+ 					case remains >= 8 && combine64bit:
+-						convType = Types[TINT64]
++						convType = types.Types[TINT64]
+ 						step = 8
+ 					case remains >= 4:
+-						convType = Types[TUINT32]
++						convType = types.Types[TUINT32]
+ 						step = 4
+ 					case remains >= 2:
+-						convType = Types[TUINT16]
++						convType = types.Types[TUINT16]
+ 						step = 2
+ 					}
+ 					ncsubstr := nod(OINDEX, ncs, nodintconst(int64(i)))

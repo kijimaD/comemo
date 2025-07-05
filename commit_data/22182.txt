@@ -19,7 +19,7 @@ Date:   Wed Feb 25 14:52:17 2015 +1100
     Change-Id: I473a7c9a295d6f776fcdc75dcce06cbe9e3564ee
     Reviewed-on: https://go-review.googlesource.com/5837
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/syscall_linux.go          |  74 ++++++--
  src/syscall/syscall_linux_386.go      |   1 -
  src/syscall/syscall_linux_amd64.go    |   1 -
@@ -31,3 +31,2264 @@ Date:   Wed Feb 25 14:52:17 2015 +1100
  src/syscall/zsyscall_linux_ppc64.go   | 308 ++++++++--------------------------
  src/syscall/zsyscall_linux_ppc64le.go | 308 ++++++++--------------------------
  10 files changed, 410 insertions(+), 1208 deletions(-)
+
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 8841cc5f7d..813ef28e1b 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -17,10 +17,38 @@ import "unsafe"
+  * Wrapped
+  */
+ 
+-//sys	open(path string, mode int, perm uint32) (fd int, err error)
++func Access(path string, mode uint32) (err error) {
++	return Faccessat(_AT_FDCWD, path, mode, 0)
++}
++
++func Chmod(path string, mode uint32) (err error) {
++	return Fchmodat(_AT_FDCWD, path, mode, 0)
++}
++
++func Chown(path string, uid int, gid int) (err error) {
++	return Fchownat(_AT_FDCWD, path, uid, gid, 0)
++}
++
++func Creat(path string, mode uint32) (fd int, err error) {
++	return Open(path, O_CREAT|O_WRONLY|O_TRUNC, mode)
++}
++
++//sys	linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flags int) (err error)
++
++func Link(oldpath string, newpath string) (err error) {
++	return linkat(_AT_FDCWD, oldpath, _AT_FDCWD, newpath, 0)
++}
++
++func Mkdir(path string, mode uint32) (err error) {
++	return Mkdirat(_AT_FDCWD, path, mode)
++}
++
++func Mknod(path string, mode uint32, dev int) (err error) {
++	return Mknodat(_AT_FDCWD, path, mode, dev)
++}
+ 
+ func Open(path string, mode int, perm uint32) (fd int, err error) {
+-	return open(path, mode|O_LARGEFILE, perm)
++	return openat(_AT_FDCWD, path, mode|O_LARGEFILE, perm)
+ }
+ 
+ //sys	openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
+@@ -29,6 +57,36 @@ func Openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
+ 	return openat(dirfd, path, flags|O_LARGEFILE, mode)
+ }
+ 
++//sys	readlinkat(dirfd int, path string, buf []byte) (n int, err error)
++
++func Readlink(path string, buf []byte) (n int, err error) {
++	return readlinkat(_AT_FDCWD, path, buf)
++}
++
++func Rename(oldpath string, newpath string) (err error) {
++	return Renameat(_AT_FDCWD, oldpath, _AT_FDCWD, newpath)
++}
++
++func Rmdir(path string) error {
++	return unlinkat(_AT_FDCWD, path, _AT_REMOVEDIR)
++}
++
++//sys	symlinkat(oldpath string, newdirfd int, newpath string) (err error)
++
++func Symlink(oldpath string, newpath string) (err error) {
++	return symlinkat(oldpath, _AT_FDCWD, newpath)
++}
++
++func Unlink(path string) error {
++	return unlinkat(_AT_FDCWD, path, 0)
++}
++
++//sys	unlinkat(dirfd int, path string, flags int) (err error)
++
++func Unlinkat(dirfd int, path string) error {
++	return unlinkat(dirfd, path, 0)
++}
++
+ //sys	utimes(path string, times *[2]Timeval) (err error)
+ 
+ func Utimes(path string, tv []Timeval) (err error) {
+@@ -757,14 +815,11 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
+ /*
+  * Direct access
+  */
+-//sys	Access(path string, mode uint32) (err error)
+ //sys	Acct(path string) (err error)
+ //sys	Adjtimex(buf *Timex) (state int, err error)
+ //sys	Chdir(path string) (err error)
+-//sys	Chmod(path string, mode uint32) (err error)
+ //sys	Chroot(path string) (err error)
+ //sys	Close(fd int) (err error)
+-//sys	Creat(path string, mode uint32) (fd int, err error)
+ //sysnb	Dup(oldfd int) (fd int, err error)
+ //sysnb	Dup3(oldfd int, newfd int, flags int) (err error)
+ //sysnb	EpollCreate(size int) (fd int, err error)
+@@ -797,22 +852,16 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
+ //sysnb	InotifyRmWatch(fd int, watchdesc uint32) (success int, err error)
+ //sysnb	Kill(pid int, sig Signal) (err error)
+ //sys	Klogctl(typ int, buf []byte) (n int, err error) = SYS_SYSLOG
+-//sys	Link(oldpath string, newpath string) (err error)
+ //sys	Listxattr(path string, dest []byte) (sz int, err error)
+-//sys	Mkdir(path string, mode uint32) (err error)
+ //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
+-//sys	Mknod(path string, mode uint32, dev int) (err error)
+ //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (err error)
+ //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
+ //sys	Pause() (err error)
+ //sys	PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
+ //sysnb prlimit(pid int, resource int, old *Rlimit, newlimit *Rlimit) (err error) = SYS_PRLIMIT64
+ //sys	read(fd int, p []byte) (n int, err error)
+-//sys	Readlink(path string, buf []byte) (n int, err error)
+ //sys	Removexattr(path string, attr string) (err error)
+-//sys	Rename(oldpath string, newpath string) (err error)
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+-//sys	Rmdir(path string) (err error)
+ //sys	Setdomainname(p []byte) (err error)
+ //sys	Sethostname(p []byte) (err error)
+ //sysnb	Setpgid(pid int, pgid int) (err error)
+@@ -834,7 +883,6 @@ func Setgid(uid int) (err error) {
+ 
+ //sys	Setpriority(which int, who int, prio int) (err error)
+ //sys	Setxattr(path string, attr string, data []byte, flags int) (err error)
+-//sys	Symlink(oldpath string, newpath string) (err error)
+ //sys	Sync()
+ //sysnb	Sysinfo(info *Sysinfo_t) (err error)
+ //sys	Tee(rfd int, wfd int, len int, flags int) (n int64, err error)
+@@ -842,8 +890,6 @@ func Setgid(uid int) (err error) {
+ //sysnb	Times(tms *Tms) (ticks uintptr, err error)
+ //sysnb	Umask(mask int) (oldmask int)
+ //sysnb	Uname(buf *Utsname) (err error)
+-//sys	Unlink(path string) (err error)
+-//sys	Unlinkat(dirfd int, path string) (err error)
+ //sys	Unmount(target string, flags int) (err error) = SYS_UMOUNT2
+ //sys	Unshare(flags int) (err error)
+ //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index 8f94ff402a..0dcc6be2e9 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -56,7 +56,6 @@ func Pipe2(p []int, flags int) (err error) {
+ 
+ // 64-bit file system and 32-bit uid calls
+ // (386 default is 32-bit file system and 16-bit uid).
+-//sys	Chown(path string, uid int, gid int) (err error) = SYS_CHOWN32
+ //sysnb	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
+ //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index ecc41ed21e..8d0777c713 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -4,7 +4,6 @@
+ 
+ package syscall
+ 
+-//sys	Chown(path string, uid int, gid int) (err error)
+ //sysnb	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index bd8cbd8bb2..ebbaa17eab 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -78,7 +78,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ 
+ // 64-bit file system and 32-bit uid calls
+ // (16-bit uid calls are not always supported in newer kernels)
+-//sys	Chown(path string, uid int, gid int) (err error) = SYS_CHOWN32
+ //sysnb	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
+ //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index 6d94317987..c266c855e2 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -7,7 +7,6 @@
+ 
+ package syscall
+ 
+-//sys	Chown(path string, uid int, gid int) (err error)
+ //sysnb	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index 5c1f49042a..87459026f0 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -7,15 +7,20 @@ import "unsafe"
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func open(path string, mode int, perm uint32) (fd int, err error) {
++func linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flags int) (err error) {
+ 	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
++	_p0, err = BytePtrFromString(oldpath)
+ 	if err != nil {
+ 		return
+ 	}
+-	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(perm))
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_LINKAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), uintptr(flags), 0)
+ 	use(unsafe.Pointer(_p0))
+-	fd = int(r0)
++	use(unsafe.Pointer(_p1))
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+@@ -41,6 +46,67 @@ func openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func readlinkat(dirfd int, path string, buf []byte) (n int, err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	var _p1 unsafe.Pointer
++	if len(buf) > 0 {
++		_p1 = unsafe.Pointer(&buf[0])
++	} else {
++		_p1 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall6(SYS_READLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(buf)), 0, 0)
++	use(unsafe.Pointer(_p0))
++	n = int(r0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func symlinkat(oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_SYMLINKAT, uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)))
++	use(unsafe.Pointer(_p0))
++	use(unsafe.Pointer(_p1))
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func unlinkat(dirfd int, path string, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UNLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(flags))
++	use(unsafe.Pointer(_p0))
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func utimes(path string, times *[2]Timeval) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -165,22 +231,6 @@ func mount(source string, target string, fstype string, flags uintptr, data *byt
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Access(path string, mode uint32) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Acct(path string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -224,22 +274,6 @@ func Chdir(path string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Chmod(path string, mode uint32) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Chroot(path string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -266,23 +300,6 @@ func Close(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Creat(path string, mode uint32) (fd int, err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	r0, _, e1 := Syscall(SYS_CREAT, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Dup(oldfd int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(oldfd), 0, 0)
+ 	fd = int(r0)
+@@ -666,28 +683,6 @@ func Klogctl(typ int, buf []byte) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Link(oldpath string, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_LINK, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+-	use(unsafe.Pointer(_p0))
+-	use(unsafe.Pointer(_p1))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Listxattr(path string, dest []byte) (sz int, err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -711,22 +706,6 @@ func Listxattr(path string, dest []byte) (sz int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Mkdir(path string, mode uint32) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Mkdirat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -743,22 +722,6 @@ func Mkdirat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Mknod(path string, mode uint32, dev int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev))
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Mknodat(dirfd int, path string, mode uint32, dev int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -844,29 +807,6 @@ func read(fd int, p []byte) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Readlink(path string, buf []byte) (n int, err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 unsafe.Pointer
+-	if len(buf) > 0 {
+-		_p1 = unsafe.Pointer(&buf[0])
+-	} else {
+-		_p1 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(buf)))
+-	use(unsafe.Pointer(_p0))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Removexattr(path string, attr string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -889,28 +829,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Rename(oldpath string, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_RENAME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+-	use(unsafe.Pointer(_p0))
+-	use(unsafe.Pointer(_p1))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(oldpath)
+@@ -933,22 +851,6 @@ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err e
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Rmdir(path string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_RMDIR, uintptr(unsafe.Pointer(_p0)), 0, 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1050,28 +952,6 @@ func Setxattr(path string, attr string, data []byte, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Symlink(oldpath string, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_SYMLINK, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+-	use(unsafe.Pointer(_p0))
+-	use(unsafe.Pointer(_p1))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Sync() {
+ 	Syscall(SYS_SYNC, 0, 0, 0)
+ 	return
+@@ -1139,38 +1019,6 @@ func Uname(buf *Utsname) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Unlink(path string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UNLINK, uintptr(unsafe.Pointer(_p0)), 0, 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Unlinkat(dirfd int, path string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UNLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Unmount(target string, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(target)
+@@ -1386,22 +1234,6 @@ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Chown(path string, uid int, gid int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_CHOWN32, uintptr(unsafe.Pointer(_p0)), uintptr(uid), uintptr(gid))
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index 6b00fed185..c163c964a1 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -7,15 +7,20 @@ import "unsafe"
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func open(path string, mode int, perm uint32) (fd int, err error) {
++func linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flags int) (err error) {
+ 	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
++	_p0, err = BytePtrFromString(oldpath)
+ 	if err != nil {
+ 		return
+ 	}
+-	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(perm))
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_LINKAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), uintptr(flags), 0)
+ 	use(unsafe.Pointer(_p0))
+-	fd = int(r0)
++	use(unsafe.Pointer(_p1))
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+@@ -41,6 +46,67 @@ func openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func readlinkat(dirfd int, path string, buf []byte) (n int, err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	var _p1 unsafe.Pointer
++	if len(buf) > 0 {
++		_p1 = unsafe.Pointer(&buf[0])
++	} else {
++		_p1 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall6(SYS_READLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(buf)), 0, 0)
++	use(unsafe.Pointer(_p0))
++	n = int(r0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func symlinkat(oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_SYMLINKAT, uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)))
++	use(unsafe.Pointer(_p0))
++	use(unsafe.Pointer(_p1))
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func unlinkat(dirfd int, path string, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UNLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(flags))
++	use(unsafe.Pointer(_p0))
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func utimes(path string, times *[2]Timeval) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -165,22 +231,6 @@ func mount(source string, target string, fstype string, flags uintptr, data *byt
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Access(path string, mode uint32) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Acct(path string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -224,22 +274,6 @@ func Chdir(path string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Chmod(path string, mode uint32) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Chroot(path string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -266,23 +300,6 @@ func Close(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Creat(path string, mode uint32) (fd int, err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	r0, _, e1 := Syscall(SYS_CREAT, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Dup(oldfd int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(oldfd), 0, 0)
+ 	fd = int(r0)
+@@ -666,28 +683,6 @@ func Klogctl(typ int, buf []byte) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Link(oldpath string, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_LINK, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+-	use(unsafe.Pointer(_p0))
+-	use(unsafe.Pointer(_p1))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Listxattr(path string, dest []byte) (sz int, err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -711,22 +706,6 @@ func Listxattr(path string, dest []byte) (sz int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Mkdir(path string, mode uint32) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Mkdirat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -743,22 +722,6 @@ func Mkdirat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Mknod(path string, mode uint32, dev int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev))
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Mknodat(dirfd int, path string, mode uint32, dev int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -844,29 +807,6 @@ func read(fd int, p []byte) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Readlink(path string, buf []byte) (n int, err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 unsafe.Pointer
+-	if len(buf) > 0 {
+-		_p1 = unsafe.Pointer(&buf[0])
+-	} else {
+-		_p1 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(buf)))
+-	use(unsafe.Pointer(_p0))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Removexattr(path string, attr string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -889,28 +829,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Rename(oldpath string, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_RENAME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+-	use(unsafe.Pointer(_p0))
+-	use(unsafe.Pointer(_p1))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(oldpath)
+@@ -933,22 +851,6 @@ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err e
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Rmdir(path string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_RMDIR, uintptr(unsafe.Pointer(_p0)), 0, 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1050,28 +952,6 @@ func Setxattr(path string, attr string, data []byte, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Symlink(oldpath string, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_SYMLINK, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+-	use(unsafe.Pointer(_p0))
+-	use(unsafe.Pointer(_p1))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Sync() {
+ 	Syscall(SYS_SYNC, 0, 0, 0)
+ 	return
+@@ -1139,38 +1019,6 @@ func Uname(buf *Utsname) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Unlink(path string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UNLINK, uintptr(unsafe.Pointer(_p0)), 0, 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Unlinkat(dirfd int, path string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UNLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Unmount(target string, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(target)
+@@ -1366,22 +1214,6 @@ func Munlockall() (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Chown(path string, uid int, gid int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_CHOWN, uintptr(unsafe.Pointer(_p0)), uintptr(uid), uintptr(gid))
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index 599e5f4f51..976a2936fd 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -7,15 +7,20 @@ import "unsafe"
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func open(path string, mode int, perm uint32) (fd int, err error) {
++func linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flags int) (err error) {
+ 	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
++	_p0, err = BytePtrFromString(oldpath)
+ 	if err != nil {
+ 		return
+ 	}
+-	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(perm))
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_LINKAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), uintptr(flags), 0)
+ 	use(unsafe.Pointer(_p0))
+-	fd = int(r0)
++	use(unsafe.Pointer(_p1))
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+@@ -41,6 +46,67 @@ func openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func readlinkat(dirfd int, path string, buf []byte) (n int, err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	var _p1 unsafe.Pointer
++	if len(buf) > 0 {
++		_p1 = unsafe.Pointer(&buf[0])
++	} else {
++		_p1 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall6(SYS_READLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(buf)), 0, 0)
++	use(unsafe.Pointer(_p0))
++	n = int(r0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func symlinkat(oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_SYMLINKAT, uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)))
++	use(unsafe.Pointer(_p0))
++	use(unsafe.Pointer(_p1))
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func unlinkat(dirfd int, path string, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UNLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(flags))
++	use(unsafe.Pointer(_p0))
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func utimes(path string, times *[2]Timeval) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -165,22 +231,6 @@ func mount(source string, target string, fstype string, flags uintptr, data *byt
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Access(path string, mode uint32) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Acct(path string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -224,22 +274,6 @@ func Chdir(path string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Chmod(path string, mode uint32) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Chroot(path string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -266,23 +300,6 @@ func Close(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Creat(path string, mode uint32) (fd int, err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	r0, _, e1 := Syscall(SYS_CREAT, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Dup(oldfd int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(oldfd), 0, 0)
+ 	fd = int(r0)
+@@ -666,28 +683,6 @@ func Klogctl(typ int, buf []byte) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Link(oldpath string, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_LINK, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+-	use(unsafe.Pointer(_p0))
+-	use(unsafe.Pointer(_p1))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Listxattr(path string, dest []byte) (sz int, err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -711,22 +706,6 @@ func Listxattr(path string, dest []byte) (sz int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Mkdir(path string, mode uint32) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Mkdirat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -743,22 +722,6 @@ func Mkdirat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Mknod(path string, mode uint32, dev int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev))
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Mknodat(dirfd int, path string, mode uint32, dev int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -844,29 +807,6 @@ func read(fd int, p []byte) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Readlink(path string, buf []byte) (n int, err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 unsafe.Pointer
+-	if len(buf) > 0 {
+-		_p1 = unsafe.Pointer(&buf[0])
+-	} else {
+-		_p1 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(buf)))
+-	use(unsafe.Pointer(_p0))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Removexattr(path string, attr string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -889,28 +829,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Rename(oldpath string, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_RENAME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+-	use(unsafe.Pointer(_p0))
+-	use(unsafe.Pointer(_p1))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(oldpath)
+@@ -933,22 +851,6 @@ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err e
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Rmdir(path string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_RMDIR, uintptr(unsafe.Pointer(_p0)), 0, 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1050,28 +952,6 @@ func Setxattr(path string, attr string, data []byte, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Symlink(oldpath string, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_SYMLINK, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+-	use(unsafe.Pointer(_p0))
+-	use(unsafe.Pointer(_p1))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Sync() {
+ 	Syscall(SYS_SYNC, 0, 0, 0)
+ 	return
+@@ -1139,38 +1019,6 @@ func Uname(buf *Utsname) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Unlink(path string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UNLINK, uintptr(unsafe.Pointer(_p0)), 0, 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Unlinkat(dirfd int, path string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UNLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Unmount(target string, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(target)
+@@ -1555,22 +1403,6 @@ func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Chown(path string, uid int, gid int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_CHOWN32, uintptr(unsafe.Pointer(_p0)), uintptr(uid), uintptr(gid))
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index 3f94cdceaf..f8c3518366 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -7,15 +7,20 @@ import "unsafe"
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func open(path string, mode int, perm uint32) (fd int, err error) {
++func linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flags int) (err error) {
+ 	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
++	_p0, err = BytePtrFromString(oldpath)
+ 	if err != nil {
+ 		return
+ 	}
+-	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(perm))
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_LINKAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), uintptr(flags), 0)
+ 	use(unsafe.Pointer(_p0))
+-	fd = int(r0)
++	use(unsafe.Pointer(_p1))
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+@@ -41,6 +46,67 @@ func openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func readlinkat(dirfd int, path string, buf []byte) (n int, err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	var _p1 unsafe.Pointer
++	if len(buf) > 0 {
++		_p1 = unsafe.Pointer(&buf[0])
++	} else {
++		_p1 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall6(SYS_READLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(buf)), 0, 0)
++	use(unsafe.Pointer(_p0))
++	n = int(r0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func symlinkat(oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_SYMLINKAT, uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)))
++	use(unsafe.Pointer(_p0))
++	use(unsafe.Pointer(_p1))
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func unlinkat(dirfd int, path string, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UNLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(flags))
++	use(unsafe.Pointer(_p0))
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func utimes(path string, times *[2]Timeval) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -165,22 +231,6 @@ func mount(source string, target string, fstype string, flags uintptr, data *byt
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Access(path string, mode uint32) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Acct(path string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -224,22 +274,6 @@ func Chdir(path string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Chmod(path string, mode uint32) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Chroot(path string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -266,23 +300,6 @@ func Close(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Creat(path string, mode uint32) (fd int, err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	r0, _, e1 := Syscall(SYS_CREAT, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Dup(oldfd int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(oldfd), 0, 0)
+ 	fd = int(r0)
+@@ -666,28 +683,6 @@ func Klogctl(typ int, buf []byte) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Link(oldpath string, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_LINK, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+-	use(unsafe.Pointer(_p0))
+-	use(unsafe.Pointer(_p1))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Listxattr(path string, dest []byte) (sz int, err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -711,22 +706,6 @@ func Listxattr(path string, dest []byte) (sz int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Mkdir(path string, mode uint32) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Mkdirat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -743,22 +722,6 @@ func Mkdirat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Mknod(path string, mode uint32, dev int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev))
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Mknodat(dirfd int, path string, mode uint32, dev int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -844,29 +807,6 @@ func read(fd int, p []byte) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Readlink(path string, buf []byte) (n int, err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 unsafe.Pointer
+-	if len(buf) > 0 {
+-		_p1 = unsafe.Pointer(&buf[0])
+-	} else {
+-		_p1 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(buf)))
+-	use(unsafe.Pointer(_p0))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Removexattr(path string, attr string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -889,28 +829,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Rename(oldpath string, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_RENAME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+-	use(unsafe.Pointer(_p0))
+-	use(unsafe.Pointer(_p1))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(oldpath)
+@@ -933,22 +851,6 @@ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err e
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Rmdir(path string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_RMDIR, uintptr(unsafe.Pointer(_p0)), 0, 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1050,28 +952,6 @@ func Setxattr(path string, attr string, data []byte, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Symlink(oldpath string, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_SYMLINK, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+-	use(unsafe.Pointer(_p0))
+-	use(unsafe.Pointer(_p1))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Sync() {
+ 	Syscall(SYS_SYNC, 0, 0, 0)
+ 	return
+@@ -1139,38 +1019,6 @@ func Uname(buf *Utsname) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Unlink(path string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UNLINK, uintptr(unsafe.Pointer(_p0)), 0, 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Unlinkat(dirfd int, path string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UNLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Unmount(target string, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(target)
+@@ -1366,22 +1214,6 @@ func Munlockall() (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Chown(path string, uid int, gid int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_CHOWN, uintptr(unsafe.Pointer(_p0)), uintptr(uid), uintptr(gid))
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index 3f94cdceaf..f8c3518366 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -7,15 +7,20 @@ import "unsafe"
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func open(path string, mode int, perm uint32) (fd int, err error) {
++func linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flags int) (err error) {
+ 	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
++	_p0, err = BytePtrFromString(oldpath)
+ 	if err != nil {
+ 		return
+ 	}
+-	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(perm))
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_LINKAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), uintptr(flags), 0)
+ 	use(unsafe.Pointer(_p0))
+-	fd = int(r0)
++	use(unsafe.Pointer(_p1))
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+@@ -41,6 +46,67 @@ func openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func readlinkat(dirfd int, path string, buf []byte) (n int, err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	var _p1 unsafe.Pointer
++	if len(buf) > 0 {
++		_p1 = unsafe.Pointer(&buf[0])
++	} else {
++		_p1 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall6(SYS_READLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(buf)), 0, 0)
++	use(unsafe.Pointer(_p0))
++	n = int(r0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func symlinkat(oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_SYMLINKAT, uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)))
++	use(unsafe.Pointer(_p0))
++	use(unsafe.Pointer(_p1))
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func unlinkat(dirfd int, path string, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UNLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(flags))
++	use(unsafe.Pointer(_p0))
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func utimes(path string, times *[2]Timeval) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -165,22 +231,6 @@ func mount(source string, target string, fstype string, flags uintptr, data *byt
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Access(path string, mode uint32) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Acct(path string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -224,22 +274,6 @@ func Chdir(path string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Chmod(path string, mode uint32) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Chroot(path string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -266,23 +300,6 @@ func Close(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Creat(path string, mode uint32) (fd int, err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	r0, _, e1 := Syscall(SYS_CREAT, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Dup(oldfd int) (fd int, err error) {
+ 	r0, _, e1 := RawSyscall(SYS_DUP, uintptr(oldfd), 0, 0)
+ 	fd = int(r0)
+@@ -666,28 +683,6 @@ func Klogctl(typ int, buf []byte) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Link(oldpath string, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_LINK, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+-	use(unsafe.Pointer(_p0))
+-	use(unsafe.Pointer(_p1))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Listxattr(path string, dest []byte) (sz int, err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -711,22 +706,6 @@ func Listxattr(path string, dest []byte) (sz int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Mkdir(path string, mode uint32) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(_p0)), uintptr(mode), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Mkdirat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -743,22 +722,6 @@ func Mkdirat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Mknod(path string, mode uint32, dev int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(_p0)), uintptr(mode), uintptr(dev))
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Mknodat(dirfd int, path string, mode uint32, dev int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -844,29 +807,6 @@ func read(fd int, p []byte) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Readlink(path string, buf []byte) (n int, err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 unsafe.Pointer
+-	if len(buf) > 0 {
+-		_p1 = unsafe.Pointer(&buf[0])
+-	} else {
+-		_p1 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(buf)))
+-	use(unsafe.Pointer(_p0))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Removexattr(path string, attr string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -889,28 +829,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Rename(oldpath string, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_RENAME, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+-	use(unsafe.Pointer(_p0))
+-	use(unsafe.Pointer(_p1))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(oldpath)
+@@ -933,22 +851,6 @@ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err e
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Rmdir(path string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_RMDIR, uintptr(unsafe.Pointer(_p0)), 0, 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1050,28 +952,6 @@ func Setxattr(path string, attr string, data []byte, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Symlink(oldpath string, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_SYMLINK, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
+-	use(unsafe.Pointer(_p0))
+-	use(unsafe.Pointer(_p1))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Sync() {
+ 	Syscall(SYS_SYNC, 0, 0, 0)
+ 	return
+@@ -1139,38 +1019,6 @@ func Uname(buf *Utsname) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Unlink(path string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UNLINK, uintptr(unsafe.Pointer(_p0)), 0, 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Unlinkat(dirfd int, path string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_UNLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), 0)
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Unmount(target string, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(target)
+@@ -1366,22 +1214,6 @@ func Munlockall() (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Chown(path string, uid int, gid int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_CHOWN, uintptr(unsafe.Pointer(_p0)), uintptr(uid), uintptr(gid))
+-	use(unsafe.Pointer(_p0))
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {

@@ -8,7 +8,7 @@ Date:   Fri Aug 29 16:20:48 2014 -0400
     R=golang-codereviews, r, iant
     CC=dvyukov, golang-codereviews, khr
     https://golang.org/cl/139930043
-
+---
  src/pkg/runtime/alg.go               |   4 +-
  src/pkg/runtime/asm_386.s            |   3 +
  src/pkg/runtime/asm_amd64.s          |   3 +
@@ -33,3 +33,1397 @@ Date:   Fri Aug 29 16:20:48 2014 -0400
  src/pkg/runtime/stack.go             | 105 +++++++++++++
  src/pkg/runtime/stubs.go             |  23 ++-
  23 files changed, 620 insertions(+), 541 deletions(-)
+
+diff --git a/src/pkg/runtime/alg.go b/src/pkg/runtime/alg.go
+index be6eaac230..909612454d 100644
+--- a/src/pkg/runtime/alg.go
++++ b/src/pkg/runtime/alg.go
+@@ -7,8 +7,8 @@ package runtime
+ import "unsafe"
+ 
+ const (
+-	c0 = uintptr((8-uint64(ptrSize))/4*2860486313 + (uint64(ptrSize)-4)/4*33054211828000289)
+-	c1 = uintptr((8-uint64(ptrSize))/4*3267000013 + (uint64(ptrSize)-4)/4*23344194077549503)
++	c0 = uintptr((8-ptrSize)/4*2860486313 + (ptrSize-4)/4*33054211828000289)
++	c1 = uintptr((8-ptrSize)/4*3267000013 + (ptrSize-4)/4*23344194077549503)
+ )
+ 
+ const (
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index e18d877895..b40b75521a 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -505,6 +505,9 @@ TEXT runtime·cas(SB), NOSPLIT, $0-13
+ TEXT runtime·casuintptr(SB), NOSPLIT, $0-13
+ 	JMP	runtime·cas(SB)
+ 
++TEXT runtime·atomicloaduintptr(SB), NOSPLIT, $0-8
++	JMP	runtime·atomicload(SB)
++
+ // bool runtime·cas64(uint64 *val, uint64 old, uint64 new)
+ // Atomically:
+ //	if(*val == *old){
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 3dafc83708..01ec391153 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -624,6 +624,9 @@ cas64_fail:
+ TEXT runtime·casuintptr(SB), NOSPLIT, $0-25
+ 	JMP	runtime·cas64(SB)
+ 
++TEXT runtime·atomicloaduintptr(SB), NOSPLIT, $0-16
++	JMP	runtime·atomicload64(SB)
++
+ // bool casp(void **val, void *old, void *new)
+ // Atomically:
+ //	if(*val == old){
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 0a5819b059..9073144cff 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -565,6 +565,9 @@ TEXT runtime·cas(SB), NOSPLIT, $0-17
+ TEXT runtime·casuintptr(SB), NOSPLIT, $0-17
+ 	JMP	runtime·cas(SB)
+ 
++TEXT runtime·atomicloaduintptr(SB), NOSPLIT, $0-12
++	JMP	runtime·atomicload(SB)
++
+ // bool	runtime·cas64(uint64 *val, uint64 old, uint64 new)
+ // Atomically:
+ //	if(*val == *old){
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index f7b90a692e..702eda61bd 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -693,6 +693,9 @@ casfail:
+ TEXT runtime·casuintptr(SB), NOSPLIT, $0-13
+ 	B	runtime·cas(SB)
+ 
++TEXT runtime·atomicloaduintptr(SB), NOSPLIT, $0-8
++	B	runtime·atomicload(SB)
++
+ TEXT runtime·stackguard(SB),NOSPLIT,$0-8
+ 	MOVW	R13, R1
+ 	MOVW	g_stackguard(g), R2
+diff --git a/src/pkg/runtime/export_futex_test.go b/src/pkg/runtime/export_futex_test.go
+index 1477828a7d..96281f6509 100644
+--- a/src/pkg/runtime/export_futex_test.go
++++ b/src/pkg/runtime/export_futex_test.go
+@@ -6,8 +6,5 @@
+ 
+ package runtime
+ 
+-func futexsleep(addr *uint32, val uint32, ns int64)
+-func futexwakeup(addr *uint32, val uint32)
+-
+ var Futexsleep = futexsleep
+ var Futexwakeup = futexwakeup
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index 3068fa34ba..5579449c4f 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -18,7 +18,6 @@ var Fcmp64 = fcmp64
+ var Fintto64 = fintto64
+ var F64toint = f64toint
+ 
+-func entersyscall()
+ func lockedOSThread() bool
+ func stackguard() (sp, limit uintptr)
+ 
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+deleted file mode 100644
+index a0fe102cc2..0000000000
+--- a/src/pkg/runtime/lock_futex.c
++++ /dev/null
+@@ -1,227 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build dragonfly freebsd linux
+-
+-#include "runtime.h"
+-#include "stack.h"
+-#include "../../cmd/ld/textflag.h"
+-
+-// This implementation depends on OS-specific implementations of
+-//
+-//	runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+-//		Atomically,
+-//			if(*addr == val) sleep
+-//		Might be woken up spuriously; that's allowed.
+-//		Don't sleep longer than ns; ns < 0 means forever.
+-//
+-//	runtime·futexwakeup(uint32 *addr, uint32 cnt)
+-//		If any procs are sleeping on addr, wake up at most cnt.
+-
+-enum
+-{
+-	MUTEX_UNLOCKED = 0,
+-	MUTEX_LOCKED = 1,
+-	MUTEX_SLEEPING = 2,
+-
+-	ACTIVE_SPIN = 4,
+-	ACTIVE_SPIN_CNT = 30,
+-	PASSIVE_SPIN = 1,
+-};
+-
+-// Possible lock states are MUTEX_UNLOCKED, MUTEX_LOCKED and MUTEX_SLEEPING.
+-// MUTEX_SLEEPING means that there is presumably at least one sleeping thread.
+-// Note that there can be spinning threads during all states - they do not
+-// affect mutex's state.
+-void
+-runtime·lock(Mutex *l)
+-{
+-	uint32 i, v, wait, spin;
+-
+-	if(g->m->locks++ < 0)
+-		runtime·throw("runtime·lock: lock count");
+-
+-	// Speculative grab for lock.
+-	v = runtime·xchg((uint32*)&l->key, MUTEX_LOCKED);
+-	if(v == MUTEX_UNLOCKED)
+-		return;
+-
+-	// wait is either MUTEX_LOCKED or MUTEX_SLEEPING
+-	// depending on whether there is a thread sleeping
+-	// on this mutex.  If we ever change l->key from
+-	// MUTEX_SLEEPING to some other value, we must be
+-	// careful to change it back to MUTEX_SLEEPING before
+-	// returning, to ensure that the sleeping thread gets
+-	// its wakeup call.
+-	wait = v;
+-
+-	// On uniprocessor's, no point spinning.
+-	// On multiprocessors, spin for ACTIVE_SPIN attempts.
+-	spin = 0;
+-	if(runtime·ncpu > 1)
+-		spin = ACTIVE_SPIN;
+-
+-	for(;;) {
+-		// Try for lock, spinning.
+-		for(i = 0; i < spin; i++) {
+-			while(l->key == MUTEX_UNLOCKED)
+-				if(runtime·cas((uint32*)&l->key, MUTEX_UNLOCKED, wait))
+-					return;
+-			runtime·procyield(ACTIVE_SPIN_CNT);
+-		}
+-
+-		// Try for lock, rescheduling.
+-		for(i=0; i < PASSIVE_SPIN; i++) {
+-			while(l->key == MUTEX_UNLOCKED)
+-				if(runtime·cas((uint32*)&l->key, MUTEX_UNLOCKED, wait))
+-					return;
+-			runtime·osyield();
+-		}
+-
+-		// Sleep.
+-		v = runtime·xchg((uint32*)&l->key, MUTEX_SLEEPING);
+-		if(v == MUTEX_UNLOCKED)
+-			return;
+-		wait = MUTEX_SLEEPING;
+-		runtime·futexsleep((uint32*)&l->key, MUTEX_SLEEPING, -1);
+-	}
+-}
+-
+-void
+-runtime·unlock(Mutex *l)
+-{
+-	uint32 v;
+-
+-	v = runtime·xchg((uint32*)&l->key, MUTEX_UNLOCKED);
+-	if(v == MUTEX_UNLOCKED)
+-		runtime·throw("unlock of unlocked lock");
+-	if(v == MUTEX_SLEEPING)
+-		runtime·futexwakeup((uint32*)&l->key, 1);
+-
+-	if(--g->m->locks < 0)
+-		runtime·throw("runtime·unlock: lock count");
+-	if(g->m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+-		g->stackguard0 = StackPreempt;
+-}
+-
+-// One-time notifications.
+-void
+-runtime·noteclear(Note *n)
+-{
+-	n->key = 0;
+-}
+-
+-void
+-runtime·notewakeup(Note *n)
+-{
+-	uint32 old;
+-
+-	old = runtime·xchg((uint32*)&n->key, 1);
+-	if(old != 0) {
+-		runtime·printf("notewakeup - double wakeup (%d)\n", old);
+-		runtime·throw("notewakeup - double wakeup");
+-	}
+-	runtime·futexwakeup((uint32*)&n->key, 1);
+-}
+-
+-void
+-runtime·notewakeup_m(void)
+-{
+-	Note *n;
+-
+-	n = g->m->ptrarg[0];
+-	g->m->ptrarg[0] = nil;
+-	runtime·notewakeup(n);
+-}
+-
+-void
+-runtime·notesleep(Note *n)
+-{
+-	if(g != g->m->g0)
+-		runtime·throw("notesleep not on g0");
+-	while(runtime·atomicload((uint32*)&n->key) == 0) {
+-		g->m->blocked = true;
+-		runtime·futexsleep((uint32*)&n->key, 0, -1);
+-		g->m->blocked = false;
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-static bool
+-notetsleep(Note *n, int64 ns, int64 deadline, int64 now)
+-{
+-	// Conceptually, deadline and now are local variables.
+-	// They are passed as arguments so that the space for them
+-	// does not count against our nosplit stack sequence.
+-
+-	if(ns < 0) {
+-		while(runtime·atomicload((uint32*)&n->key) == 0) {
+-			g->m->blocked = true;
+-			runtime·futexsleep((uint32*)&n->key, 0, -1);
+-			g->m->blocked = false;
+-		}
+-		return true;
+-	}
+-
+-	if(runtime·atomicload((uint32*)&n->key) != 0)
+-		return true;
+-
+-	deadline = runtime·nanotime() + ns;
+-	for(;;) {
+-		g->m->blocked = true;
+-		runtime·futexsleep((uint32*)&n->key, 0, ns);
+-		g->m->blocked = false;
+-		if(runtime·atomicload((uint32*)&n->key) != 0)
+-			break;
+-		now = runtime·nanotime();
+-		if(now >= deadline)
+-			break;
+-		ns = deadline - now;
+-	}
+-	return runtime·atomicload((uint32*)&n->key) != 0;
+-}
+-
+-bool
+-runtime·notetsleep(Note *n, int64 ns)
+-{
+-	bool res;
+-
+-	if(g != g->m->g0 && !g->m->gcing)
+-		runtime·throw("notetsleep not on g0");
+-
+-	res = notetsleep(n, ns, 0, 0);
+-	return res;
+-}
+-
+-// same as runtime·notetsleep, but called on user g (not g0)
+-// calls only nosplit functions between entersyscallblock/exitsyscall
+-bool
+-runtime·notetsleepg(Note *n, int64 ns)
+-{
+-	bool res;
+-
+-	if(g == g->m->g0)
+-		runtime·throw("notetsleepg on g0");
+-
+-	runtime·entersyscallblock();
+-	res = notetsleep(n, ns, 0, 0);
+-	runtime·exitsyscall();
+-	return res;
+-}
+-
+-void
+-runtime·notetsleepg_m(void)
+-{
+-	Note *n;
+-	int64 ns;
+-
+-	n = g->m->ptrarg[0];
+-	g->m->ptrarg[0] = nil;
+-	ns = g->m->scalararg[0] + ((int64)g->m->scalararg[1] << 32);
+-
+-	runtime·entersyscallblock_m();
+-	notetsleep(n, ns, 0, 0);
+-	// caller will call exitsyscall on g stack
+-	runtime·gogo(&g->m->curg->sched);
+-}
+diff --git a/src/pkg/runtime/lock_futex.go b/src/pkg/runtime/lock_futex.go
+new file mode 100644
+index 0000000000..725962341d
+--- /dev/null
++++ b/src/pkg/runtime/lock_futex.go
+@@ -0,0 +1,205 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build dragonfly freebsd linux
++
++package runtime
++
++import "unsafe"
++
++// This implementation depends on OS-specific implementations of
++//
++//	runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
++//		Atomically,
++//			if(*addr == val) sleep
++//		Might be woken up spuriously; that's allowed.
++//		Don't sleep longer than ns; ns < 0 means forever.
++//
++//	runtime·futexwakeup(uint32 *addr, uint32 cnt)
++//		If any procs are sleeping on addr, wake up at most cnt.
++
++const (
++	mutex_unlocked = 0
++	mutex_locked   = 1
++	mutex_sleeping = 2
++
++	active_spin     = 4
++	active_spin_cnt = 30
++	passive_spin    = 1
++)
++
++// Possible lock states are mutex_unlocked, mutex_locked and mutex_sleeping.
++// mutex_sleeping means that there is presumably at least one sleeping thread.
++// Note that there can be spinning threads during all states - they do not
++// affect mutex's state.
++
++func futexsleep(addr *uint32, val uint32, ns int64)
++func futexwakeup(addr *uint32, cnt uint32)
++
++// We use the uintptr mutex.key and note.key as a uint32.
++func key32(p *uintptr) *uint32 {
++	return (*uint32)(unsafe.Pointer(p))
++}
++
++func lock(l *mutex) {
++	gp := getg()
++
++	if gp.m.locks < 0 {
++		gothrow("runtime·lock: lock count")
++	}
++	gp.m.locks++
++
++	// Speculative grab for lock.
++	v := xchg(key32(&l.key), mutex_locked)
++	if v == mutex_unlocked {
++		return
++	}
++
++	// wait is either MUTEX_LOCKED or MUTEX_SLEEPING
++	// depending on whether there is a thread sleeping
++	// on this mutex.  If we ever change l->key from
++	// MUTEX_SLEEPING to some other value, we must be
++	// careful to change it back to MUTEX_SLEEPING before
++	// returning, to ensure that the sleeping thread gets
++	// its wakeup call.
++	wait := v
++
++	// On uniprocessors, no point spinning.
++	// On multiprocessors, spin for ACTIVE_SPIN attempts.
++	spin := 0
++	if ncpu > 1 {
++		spin = active_spin
++	}
++	for {
++		// Try for lock, spinning.
++		for i := 0; i < spin; i++ {
++			for l.key == mutex_unlocked {
++				if cas(key32(&l.key), mutex_unlocked, wait) {
++					return
++				}
++			}
++			procyield(active_spin_cnt)
++		}
++
++		// Try for lock, rescheduling.
++		for i := 0; i < passive_spin; i++ {
++			for l.key == mutex_unlocked {
++				if cas(key32(&l.key), mutex_unlocked, wait) {
++					return
++				}
++			}
++			osyield()
++		}
++
++		// Sleep.
++		v = xchg(key32(&l.key), mutex_sleeping)
++		if v == mutex_unlocked {
++			return
++		}
++		wait = mutex_sleeping
++		futexsleep(key32(&l.key), mutex_sleeping, -1)
++	}
++}
++
++func unlock(l *mutex) {
++	v := xchg(key32(&l.key), mutex_unlocked)
++	if v == mutex_unlocked {
++		gothrow("unlock of unlocked lock")
++	}
++	if v == mutex_sleeping {
++		futexwakeup(key32(&l.key), 1)
++	}
++
++	gp := getg()
++	gp.m.locks--
++	if gp.m.locks < 0 {
++		gothrow("runtime·unlock: lock count")
++	}
++	if gp.m.locks == 0 && gp.preempt { // restore the preemption request in case we've cleared it in newstack
++		gp.stackguard0 = stackPreempt
++	}
++}
++
++// One-time notifications.
++func noteclear(n *note) {
++	n.key = 0
++}
++
++func notewakeup(n *note) {
++	old := xchg(key32(&n.key), 1)
++	if old != 0 {
++		print("notewakeup - double wakeup (", old, ")\n")
++		gothrow("notewakeup - double wakeup")
++	}
++	futexwakeup(key32(&n.key), 1)
++}
++
++func notesleep(n *note) {
++	gp := getg()
++	if gp != gp.m.g0 {
++		gothrow("notesleep not on g0")
++	}
++	for atomicload(key32(&n.key)) == 0 {
++		gp.m.blocked = true
++		futexsleep(key32(&n.key), 0, -1)
++		gp.m.blocked = false
++	}
++}
++
++//go:nosplit
++func notetsleep_internal(n *note, ns int64) bool {
++	gp := getg()
++
++	if ns < 0 {
++		for atomicload(key32(&n.key)) == 0 {
++			gp.m.blocked = true
++			futexsleep(key32(&n.key), 0, -1)
++			gp.m.blocked = false
++		}
++		return true
++	}
++
++	if atomicload(key32(&n.key)) != 0 {
++		return true
++	}
++
++	deadline := nanotime() + ns
++	for {
++		gp.m.blocked = true
++		futexsleep(key32(&n.key), 0, ns)
++		gp.m.blocked = false
++		if atomicload(key32(&n.key)) != 0 {
++			break
++		}
++		now := nanotime()
++		if now >= deadline {
++			break
++		}
++		ns = deadline - now
++	}
++	return atomicload(key32(&n.key)) != 0
++}
++
++func notetsleep(n *note, ns int64) bool {
++	gp := getg()
++	if gp != gp.m.g0 && gp.m.gcing == 0 {
++		gothrow("notetsleep not on g0")
++	}
++
++	return notetsleep_internal(n, ns)
++}
++
++// same as runtime·notetsleep, but called on user g (not g0)
++// calls only nosplit functions between entersyscallblock/exitsyscall
++func notetsleepg(n *note, ns int64) bool {
++	gp := getg()
++	if gp == gp.m.g0 {
++		gothrow("notetsleepg on g0")
++	}
++
++	entersyscallblock()
++	ok := notetsleep_internal(n, ns)
++	exitsyscall()
++	return ok
++}
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+deleted file mode 100644
+index 71283493ed..0000000000
+--- a/src/pkg/runtime/lock_sema.c
++++ /dev/null
+@@ -1,295 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build darwin nacl netbsd openbsd plan9 solaris windows
+-
+-#include "runtime.h"
+-#include "stack.h"
+-#include "../../cmd/ld/textflag.h"
+-
+-// This implementation depends on OS-specific implementations of
+-//
+-//	uintptr runtime·semacreate(void)
+-//		Create a semaphore, which will be assigned to m->waitsema.
+-//		The zero value is treated as absence of any semaphore,
+-//		so be sure to return a non-zero value.
+-//
+-//	int32 runtime·semasleep(int64 ns)
+-//		If ns < 0, acquire m->waitsema and return 0.
+-//		If ns >= 0, try to acquire m->waitsema for at most ns nanoseconds.
+-//		Return 0 if the semaphore was acquired, -1 if interrupted or timed out.
+-//
+-//	int32 runtime·semawakeup(M *mp)
+-//		Wake up mp, which is or will soon be sleeping on mp->waitsema.
+-//
+-
+-enum
+-{
+-	LOCKED = 1,
+-
+-	ACTIVE_SPIN = 4,
+-	ACTIVE_SPIN_CNT = 30,
+-	PASSIVE_SPIN = 1,
+-};
+-
+-void
+-runtime·lock(Mutex *l)
+-{
+-	uintptr v;
+-	uint32 i, spin;
+-
+-	if(g->m->locks++ < 0)
+-		runtime·throw("runtime·lock: lock count");
+-
+-	// Speculative grab for lock.
+-	if(runtime·casp((void**)&l->key, nil, (void*)LOCKED))
+-		return;
+-
+-	if(g->m->waitsema == 0)
+-		g->m->waitsema = runtime·semacreate();
+-
+-	// On uniprocessor's, no point spinning.
+-	// On multiprocessors, spin for ACTIVE_SPIN attempts.
+-	spin = 0;
+-	if(runtime·ncpu > 1)
+-		spin = ACTIVE_SPIN;
+-
+-	for(i=0;; i++) {
+-		v = (uintptr)runtime·atomicloadp((void**)&l->key);
+-		if((v&LOCKED) == 0) {
+-unlocked:
+-			if(runtime·casp((void**)&l->key, (void*)v, (void*)(v|LOCKED)))
+-				return;
+-			i = 0;
+-		}
+-		if(i<spin)
+-			runtime·procyield(ACTIVE_SPIN_CNT);
+-		else if(i<spin+PASSIVE_SPIN)
+-			runtime·osyield();
+-		else {
+-			// Someone else has it.
+-			// l->waitm points to a linked list of M's waiting
+-			// for this lock, chained through m->nextwaitm.
+-			// Queue this M.
+-			for(;;) {
+-				g->m->nextwaitm = (void*)(v&~LOCKED);
+-				if(runtime·casp((void**)&l->key, (void*)v, (void*)((uintptr)g->m|LOCKED)))
+-					break;
+-				v = (uintptr)runtime·atomicloadp((void**)&l->key);
+-				if((v&LOCKED) == 0)
+-					goto unlocked;
+-			}
+-			if(v&LOCKED) {
+-				// Queued.  Wait.
+-				runtime·semasleep(-1);
+-				i = 0;
+-			}
+-		}
+-	}
+-}
+-
+-void
+-runtime·unlock(Mutex *l)
+-{
+-	uintptr v;
+-	M *mp;
+-
+-	for(;;) {
+-		v = (uintptr)runtime·atomicloadp((void**)&l->key);
+-		if(v == LOCKED) {
+-			if(runtime·casp((void**)&l->key, (void*)LOCKED, nil))
+-				break;
+-		} else {
+-			// Other M's are waiting for the lock.
+-			// Dequeue an M.
+-			mp = (void*)(v&~LOCKED);
+-			if(runtime·casp((void**)&l->key, (void*)v, mp->nextwaitm)) {
+-				// Dequeued an M.  Wake it.
+-				runtime·semawakeup(mp);
+-				break;
+-			}
+-		}
+-	}
+-
+-	if(--g->m->locks < 0)
+-		runtime·throw("runtime·unlock: lock count");
+-	if(g->m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+-		g->stackguard0 = StackPreempt;
+-}
+-
+-// One-time notifications.
+-void
+-runtime·noteclear(Note *n)
+-{
+-	n->key = 0;
+-}
+-
+-void
+-runtime·notewakeup(Note *n)
+-{
+-	M *mp;
+-
+-	do
+-		mp = runtime·atomicloadp((void**)&n->key);
+-	while(!runtime·casp((void**)&n->key, mp, (void*)LOCKED));
+-
+-	// Successfully set waitm to LOCKED.
+-	// What was it before?
+-	if(mp == nil) {
+-		// Nothing was waiting.  Done.
+-	} else if(mp == (M*)LOCKED) {
+-		// Two notewakeups!  Not allowed.
+-		runtime·throw("notewakeup - double wakeup");
+-	} else {
+-		// Must be the waiting m.  Wake it up.
+-		runtime·semawakeup(mp);
+-	}
+-}
+-
+-void
+-runtime·notewakeup_m(void)
+-{
+-	Note *n;
+-
+-	n = g->m->ptrarg[0];
+-	g->m->ptrarg[0] = nil;
+-	runtime·notewakeup(n);
+-}
+-
+-void
+-runtime·notesleep(Note *n)
+-{
+-	if(g != g->m->g0)
+-		runtime·throw("notesleep not on g0");
+-
+-	if(g->m->waitsema == 0)
+-		g->m->waitsema = runtime·semacreate();
+-	if(!runtime·casp((void**)&n->key, nil, g->m)) {  // must be LOCKED (got wakeup)
+-		if(n->key != LOCKED)
+-			runtime·throw("notesleep - waitm out of sync");
+-		return;
+-	}
+-	// Queued.  Sleep.
+-	g->m->blocked = true;
+-	runtime·semasleep(-1);
+-	g->m->blocked = false;
+-}
+-
+-#pragma textflag NOSPLIT
+-static bool
+-notetsleep(Note *n, int64 ns, int64 deadline, M *mp)
+-{
+-	// Conceptually, deadline and mp are local variables.
+-	// They are passed as arguments so that the space for them
+-	// does not count against our nosplit stack sequence.
+-
+-	// Register for wakeup on n->waitm.
+-	if(!runtime·casp((void**)&n->key, nil, g->m)) {  // must be LOCKED (got wakeup already)
+-		if(n->key != LOCKED)
+-			runtime·throw("notetsleep - waitm out of sync");
+-		return true;
+-	}
+-
+-	if(ns < 0) {
+-		// Queued.  Sleep.
+-		g->m->blocked = true;
+-		runtime·semasleep(-1);
+-		g->m->blocked = false;
+-		return true;
+-	}
+-
+-	deadline = runtime·nanotime() + ns;
+-	for(;;) {
+-		// Registered.  Sleep.
+-		g->m->blocked = true;
+-		if(runtime·semasleep(ns) >= 0) {
+-			g->m->blocked = false;
+-			// Acquired semaphore, semawakeup unregistered us.
+-			// Done.
+-			return true;
+-		}
+-		g->m->blocked = false;
+-
+-		// Interrupted or timed out.  Still registered.  Semaphore not acquired.
+-		ns = deadline - runtime·nanotime();
+-		if(ns <= 0)
+-			break;
+-		// Deadline hasn't arrived.  Keep sleeping.
+-	}
+-
+-	// Deadline arrived.  Still registered.  Semaphore not acquired.
+-	// Want to give up and return, but have to unregister first,
+-	// so that any notewakeup racing with the return does not
+-	// try to grant us the semaphore when we don't expect it.
+-	for(;;) {
+-		mp = runtime·atomicloadp((void**)&n->key);
+-		if(mp == g->m) {
+-			// No wakeup yet; unregister if possible.
+-			if(runtime·casp((void**)&n->key, mp, nil))
+-				return false;
+-		} else if(mp == (M*)LOCKED) {
+-			// Wakeup happened so semaphore is available.
+-			// Grab it to avoid getting out of sync.
+-			g->m->blocked = true;
+-			if(runtime·semasleep(-1) < 0)
+-				runtime·throw("runtime: unable to acquire - semaphore out of sync");
+-			g->m->blocked = false;
+-			return true;
+-		} else
+-			runtime·throw("runtime: unexpected waitm - semaphore out of sync");
+-	}
+-}
+-
+-bool
+-runtime·notetsleep(Note *n, int64 ns)
+-{
+-	bool res;
+-
+-	if(g != g->m->g0 && !g->m->gcing)
+-		runtime·throw("notetsleep not on g0");
+-
+-	if(g->m->waitsema == 0)
+-		g->m->waitsema = runtime·semacreate();
+-
+-	res = notetsleep(n, ns, 0, nil);
+-	return res;
+-}
+-
+-// same as runtime·notetsleep, but called on user g (not g0)
+-// calls only nosplit functions between entersyscallblock/exitsyscall
+-bool
+-runtime·notetsleepg(Note *n, int64 ns)
+-{
+-	bool res;
+-
+-	if(g == g->m->g0)
+-		runtime·throw("notetsleepg on g0");
+-
+-	if(g->m->waitsema == 0)
+-		g->m->waitsema = runtime·semacreate();
+-
+-	runtime·entersyscallblock();
+-	res = notetsleep(n, ns, 0, nil);
+-	runtime·exitsyscall();
+-	return res;
+-}
+-
+-void
+-runtime·notetsleepg_m(void)
+-{
+-	Note *n;
+-	int64 ns;
+-
+-	n = g->m->ptrarg[0];
+-	g->m->ptrarg[0] = nil;
+-	ns = g->m->scalararg[0] + ((int64)g->m->scalararg[1] << 32);
+-
+-	if(g->m->waitsema == 0)
+-		g->m->waitsema = runtime·semacreate();
+-
+-	runtime·entersyscallblock_m();
+-	notetsleep(n, ns, 0, nil);
+-	// caller will call exitsyscall on g stack
+-	runtime·gogo(&g->m->curg->sched);
+-}
+diff --git a/src/pkg/runtime/lock_sema.go b/src/pkg/runtime/lock_sema.go
+new file mode 100644
+index 0000000000..e0476f3291
+--- /dev/null
++++ b/src/pkg/runtime/lock_sema.go
+@@ -0,0 +1,264 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin nacl netbsd openbsd plan9 solaris windows
++
++package runtime
++
++import "unsafe"
++
++// This implementation depends on OS-specific implementations of
++//
++//	uintptr runtime·semacreate(void)
++//		Create a semaphore, which will be assigned to m->waitsema.
++//		The zero value is treated as absence of any semaphore,
++//		so be sure to return a non-zero value.
++//
++//	int32 runtime·semasleep(int64 ns)
++//		If ns < 0, acquire m->waitsema and return 0.
++//		If ns >= 0, try to acquire m->waitsema for at most ns nanoseconds.
++//		Return 0 if the semaphore was acquired, -1 if interrupted or timed out.
++//
++//	int32 runtime·semawakeup(M *mp)
++//		Wake up mp, which is or will soon be sleeping on mp->waitsema.
++//
++const (
++	locked uintptr = 1
++
++	active_spin     = 4
++	active_spin_cnt = 30
++	passive_spin    = 1
++)
++
++func semacreate() uintptr
++func semasleep(int64) int32
++func semawakeup(mp *m)
++
++func lock(l *mutex) {
++	gp := getg()
++	if gp.m.locks < 0 {
++		gothrow("runtime·lock: lock count")
++	}
++	gp.m.locks++
++
++	// Speculative grab for lock.
++	if casuintptr(&l.key, 0, locked) {
++		return
++	}
++	if gp.m.waitsema == 0 {
++		gp.m.waitsema = semacreate()
++	}
++
++	// On uniprocessor's, no point spinning.
++	// On multiprocessors, spin for ACTIVE_SPIN attempts.
++	spin := 0
++	if ncpu > 1 {
++		spin = active_spin
++	}
++Loop:
++	for i := 0; ; i++ {
++		v := atomicloaduintptr(&l.key)
++		if v&locked == 0 {
++			// Unlocked. Try to lock.
++			if casuintptr(&l.key, v, v|locked) {
++				return
++			}
++			i = 0
++		}
++		if i < spin {
++			procyield(active_spin_cnt)
++		} else if i < spin+passive_spin {
++			osyield()
++		} else {
++			// Someone else has it.
++			// l->waitm points to a linked list of M's waiting
++			// for this lock, chained through m->nextwaitm.
++			// Queue this M.
++			for {
++				gp.m.nextwaitm = (*m)((unsafe.Pointer)(v &^ locked))
++				if casuintptr(&l.key, v, uintptr(unsafe.Pointer(gp.m))|locked) {
++					break
++				}
++				v = atomicloaduintptr(&l.key)
++				if v&locked == 0 {
++					continue Loop
++				}
++			}
++			if v&locked != 0 {
++				// Queued.  Wait.
++				semasleep(-1)
++				i = 0
++			}
++		}
++	}
++}
++
++func unlock(l *mutex) {
++	gp := getg()
++	var mp *m
++	for {
++		v := atomicloaduintptr(&l.key)
++		if v == locked {
++			if casuintptr(&l.key, locked, 0) {
++				break
++			}
++		} else {
++			// Other M's are waiting for the lock.
++			// Dequeue an M.
++			mp = (*m)((unsafe.Pointer)(v &^ locked))
++			if casuintptr(&l.key, v, uintptr(unsafe.Pointer(mp.nextwaitm))) {
++				// Dequeued an M.  Wake it.
++				semawakeup(mp)
++				break
++			}
++		}
++	}
++	gp.m.locks--
++	if gp.m.locks < 0 {
++		gothrow("runtime·unlock: lock count")
++	}
++	if gp.m.locks == 0 && gp.preempt { // restore the preemption request in case we've cleared it in newstack
++		gp.stackguard0 = stackPreempt
++	}
++}
++
++// One-time notifications.
++func noteclear(n *note) {
++	n.key = 0
++}
++
++func notewakeup(n *note) {
++	var v uintptr
++	for {
++		v = atomicloaduintptr(&n.key)
++		if casuintptr(&n.key, v, locked) {
++			break
++		}
++	}
++
++	// Successfully set waitm to locked.
++	// What was it before?
++	switch {
++	case v == 0:
++		// Nothing was waiting. Done.
++	case v == locked:
++		// Two notewakeups!  Not allowed.
++		gothrow("notewakeup - double wakeup")
++	default:
++		// Must be the waiting m.  Wake it up.
++		semawakeup((*m)(unsafe.Pointer(v)))
++	}
++}
++
++func notesleep(n *note) {
++	gp := getg()
++	if gp != gp.m.g0 {
++		gothrow("notesleep not on g0")
++	}
++	if gp.m.waitsema == 0 {
++		gp.m.waitsema = semacreate()
++	}
++	if !casuintptr(&n.key, 0, uintptr(unsafe.Pointer(gp.m))) {
++		// Must be locked (got wakeup).
++		if n.key != locked {
++			gothrow("notesleep - waitm out of sync")
++		}
++		return
++	}
++	// Queued.  Sleep.
++	gp.m.blocked = true
++	semasleep(-1)
++	gp.m.blocked = false
++}
++
++//go:nosplit
++func notetsleep_internal(n *note, ns int64) bool {
++	gp := getg()
++	// Register for wakeup on n->waitm.
++	if !casuintptr(&n.key, 0, uintptr(unsafe.Pointer(gp.m))) {
++		// Must be locked (got wakeup).
++		if n.key != locked {
++			gothrow("notetsleep - waitm out of sync")
++		}
++		return true
++	}
++	if ns < 0 {
++		// Queued.  Sleep.
++		gp.m.blocked = true
++		semasleep(-1)
++		gp.m.blocked = false
++		return true
++	}
++	deadline := nanotime() + ns
++	for {
++		// Registered.  Sleep.
++		gp.m.blocked = true
++		if semasleep(ns) >= 0 {
++			gp.m.blocked = false
++			// Acquired semaphore, semawakeup unregistered us.
++			// Done.
++			return true
++		}
++		gp.m.blocked = false
++		// Interrupted or timed out.  Still registered.  Semaphore not acquired.
++		ns = deadline - nanotime()
++		if ns <= 0 {
++			break
++		}
++		// Deadline hasn't arrived.  Keep sleeping.
++	}
++
++	// Deadline arrived.  Still registered.  Semaphore not acquired.
++	// Want to give up and return, but have to unregister first,
++	// so that any notewakeup racing with the return does not
++	// try to grant us the semaphore when we don't expect it.
++	for {
++		v := atomicloaduintptr(&n.key)
++		switch v {
++		case uintptr(unsafe.Pointer(gp.m)):
++			// No wakeup yet; unregister if possible.
++			if casuintptr(&n.key, v, 0) {
++				return false
++			}
++		case locked:
++			// Wakeup happened so semaphore is available.
++			// Grab it to avoid getting out of sync.
++			gp.m.blocked = true
++			if semasleep(-1) < 0 {
++				gothrow("runtime: unable to acquire - semaphore out of sync")
++			}
++			gp.m.blocked = false
++			return true
++		default:
++			gothrow("runtime: unexpected waitm - semaphore out of sync")
++		}
++	}
++}
++
++func notetsleep(n *note, ns int64) bool {
++	gp := getg()
++	if gp != gp.m.g0 && gp.m.gcing == 0 {
++		gothrow("notetsleep not on g0")
++	}
++	if gp.m.waitsema == 0 {
++		gp.m.waitsema = semacreate()
++	}
++	return notetsleep_internal(n, ns)
++}
++
++// same as runtime·notetsleep, but called on user g (not g0)
++// calls only nosplit functions between entersyscallblock/exitsyscall
++func notetsleepg(n *note, ns int64) bool {
++	gp := getg()
++	if gp == gp.m.g0 {
++		gothrow("notetsleepg on g0")
++	}
++	if gp.m.waitsema == 0 {
++		gp.m.waitsema = semacreate()
++	}
++	entersyscallblock()
++	ok := notetsleep_internal(n, ns)
++	exitsyscall()
++	return ok
++}
+diff --git a/src/pkg/runtime/os_darwin.go b/src/pkg/runtime/os_darwin.go
+index 37ed55cf45..4eefec1f64 100644
+--- a/src/pkg/runtime/os_darwin.go
++++ b/src/pkg/runtime/os_darwin.go
+@@ -25,3 +25,5 @@ func mach_semaphore_wait(sema uint32) int32
+ func mach_semaphore_timedwait(sema, sec, nsec uint32) int32
+ func mach_semaphore_signal(sema uint32) int32
+ func mach_semaphore_signal_all(sema uint32) int32
++
++const stackSystem = 0
+diff --git a/src/pkg/runtime/os_dragonfly.go b/src/pkg/runtime/os_dragonfly.go
+index ec7ddef533..3e7fc8d4ee 100644
+--- a/src/pkg/runtime/os_dragonfly.go
++++ b/src/pkg/runtime/os_dragonfly.go
+@@ -19,3 +19,5 @@ func kevent(fd int32, ev1 unsafe.Pointer, nev1 int32, ev2 unsafe.Pointer, nev2 i
+ func closeonexec(fd int32)
+ func sys_umtx_sleep(addr unsafe.Pointer, val, timeout int32) int32
+ func sys_umtx_wakeup(addr unsafe.Pointer, val int32) int32
++
++const stackSystem = 0
+diff --git a/src/pkg/runtime/os_freebsd.go b/src/pkg/runtime/os_freebsd.go
+index a973d3f76c..14d1b7ca9d 100644
+--- a/src/pkg/runtime/os_freebsd.go
++++ b/src/pkg/runtime/os_freebsd.go
+@@ -18,3 +18,5 @@ func kqueue() int32
+ func kevent(fd int32, ev1 unsafe.Pointer, nev1 int32, ev2 unsafe.Pointer, nev2 int32, ts unsafe.Pointer) int32
+ func closeonexec(fd int32)
+ func sys_umtx_op(addr unsafe.Pointer, mode int32, val uint32, ptr2, ts unsafe.Pointer) int32
++
++const stackSystem = 0
+diff --git a/src/pkg/runtime/os_linux.go b/src/pkg/runtime/os_linux.go
+index fc82382160..ba52a31e90 100644
+--- a/src/pkg/runtime/os_linux.go
++++ b/src/pkg/runtime/os_linux.go
+@@ -20,3 +20,5 @@ func epollctl(epfd, op, fd int32, ev unsafe.Pointer) int32
+ func epollwait(epfd int32, ev unsafe.Pointer, nev, timeout int32) int32
+ func closeonexec(fd int32)
+ func sched_getaffinity(pid, len uintptr, buf *uintptr) int32
++
++const stackSystem = 0
+diff --git a/src/pkg/runtime/os_nacl.go b/src/pkg/runtime/os_nacl.go
+index 5620c8f796..2ab51b8b1d 100644
+--- a/src/pkg/runtime/os_nacl.go
++++ b/src/pkg/runtime/os_nacl.go
+@@ -22,3 +22,5 @@ func nacl_cond_broadcast(cond int32) int32
+ func nacl_cond_timed_wait_abs(cond, lock int32, ts unsafe.Pointer) int32
+ func nacl_thread_create(fn, stk, tls, xx unsafe.Pointer) int32
+ func nacl_nanosleep(ts, extra unsafe.Pointer) int32
++
++const stackSystem = 0
+diff --git a/src/pkg/runtime/os_netbsd.go b/src/pkg/runtime/os_netbsd.go
+index 5cdf52211d..15607685e2 100644
+--- a/src/pkg/runtime/os_netbsd.go
++++ b/src/pkg/runtime/os_netbsd.go
+@@ -21,3 +21,5 @@ func lwp_create(ctxt unsafe.Pointer, flags uintptr, lwpid unsafe.Pointer) int32
+ func lwp_park(abstime unsafe.Pointer, unpark int32, hint, unparkhint unsafe.Pointer) int32
+ func lwp_unpark(lwp int32, hint unsafe.Pointer) int32
+ func lwp_self() int32
++
++const stackSystem = 0
+diff --git a/src/pkg/runtime/os_openbsd.go b/src/pkg/runtime/os_openbsd.go
+index 4982f903e3..681bdde82e 100644
+--- a/src/pkg/runtime/os_openbsd.go
++++ b/src/pkg/runtime/os_openbsd.go
+@@ -18,3 +18,5 @@ func closeonexec(fd int32)
+ func tfork(param unsafe.Pointer, psize uintptr, mm, gg, fn unsafe.Pointer) int32
+ func thrsleep(ident unsafe.Pointer, clock_id int32, tsp, lock, abort unsafe.Pointer) int32
+ func thrwakeup(ident unsafe.Pointer, n int32) int32
++
++const stackSystem = 0
+diff --git a/src/pkg/runtime/os_plan9.go b/src/pkg/runtime/os_plan9.go
+index a50211a77b..7b215c754c 100644
+--- a/src/pkg/runtime/os_plan9.go
++++ b/src/pkg/runtime/os_plan9.go
+@@ -22,3 +22,7 @@ func nsec(*int64) int64
+ func sigtramp(ureg, msg unsafe.Pointer)
+ func setfpmasks()
+ func errstr() string
++
++// The size of the note handler frame varies among architectures,
++// but 512 bytes should be enough for every implementation.
++const stackSystem = 512
+diff --git a/src/pkg/runtime/os_solaris.go b/src/pkg/runtime/os_solaris.go
+index 7bc42ef52d..556c1504bc 100644
+--- a/src/pkg/runtime/os_solaris.go
++++ b/src/pkg/runtime/os_solaris.go
+@@ -93,3 +93,5 @@ func sysvicall6(fn *libcFunc, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(libcall))
+ 	return libcall.r1
+ }
++
++const stackSystem = 0
+diff --git a/src/pkg/runtime/os_windows.go b/src/pkg/runtime/os_windows.go
+index a1b9594318..57bd431f78 100644
+--- a/src/pkg/runtime/os_windows.go
++++ b/src/pkg/runtime/os_windows.go
+@@ -21,3 +21,5 @@ func asmstdcall(fn unsafe.Pointer)
+ func getlasterror() uint32
+ func setlasterror(err uint32)
+ func usleep1(usec uint32)
++
++const stackSystem = 512 * ptrSize
+diff --git a/src/pkg/runtime/stack.go b/src/pkg/runtime/stack.go
+new file mode 100644
+index 0000000000..ae7e96a005
+--- /dev/null
++++ b/src/pkg/runtime/stack.go
+@@ -0,0 +1,105 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++/*
++Stack layout parameters.
++Included both by runtime (compiled via 6c) and linkers (compiled via gcc).
++
++The per-goroutine g->stackguard is set to point stackGuard bytes
++above the bottom of the stack.  Each function compares its stack
++pointer against g->stackguard to check for overflow.  To cut one
++instruction from the check sequence for functions with tiny frames,
++the stack is allowed to protrude stackSmall bytes below the stack
++guard.  Functions with large frames don't bother with the check and
++always call morestack.  The sequences are (for amd64, others are
++similar):
++
++	guard = g->stackguard
++	frame = function's stack frame size
++	argsize = size of function arguments (call + return)
++
++	stack frame size <= stackSmall:
++		CMPQ guard, SP
++		JHI 3(PC)
++		MOVQ m->morearg, $(argsize << 32)
++		CALL morestack(SB)
++
++	stack frame size > stackSmall but < stackBig
++		LEAQ (frame-stackSmall)(SP), R0
++		CMPQ guard, R0
++		JHI 3(PC)
++		MOVQ m->morearg, $(argsize << 32)
++		CALL morestack(SB)
++
++	stack frame size >= stackBig:
++		MOVQ m->morearg, $((argsize << 32) | frame)
++		CALL morestack(SB)
++
++The bottom stackGuard - stackSmall bytes are important: there has
++to be enough room to execute functions that refuse to check for
++stack overflow, either because they need to be adjacent to the
++actual caller's frame (deferproc) or because they handle the imminent
++stack overflow (morestack).
++
++For example, deferproc might call malloc, which does one of the
++above checks (without allocating a full frame), which might trigger
++a call to morestack.  This sequence needs to fit in the bottom
++section of the stack.  On amd64, morestack's frame is 40 bytes, and
++deferproc's frame is 56 bytes.  That fits well within the
++stackGuard - stackSmall = 128 bytes at the bottom.
++The linkers explore all possible call traces involving non-splitting
++functions to make sure that this limit cannot be violated.
++*/
++
++const (
++	// stackSystem is a number of additional bytes to add
++	// to each stack below the usual guard area for OS-specific
++	// purposes like signal handling. Used on Windows and on
++	// Plan 9 because they do not use a separate stack.
++	// Defined in os_*.go.
++
++	// The amount of extra stack to allocate beyond the size
++	// needed for the single frame that triggered the split.
++	stackExtra = 2048
++
++	// The minimum stack segment size to allocate.
++	// If the amount needed for the splitting frame + stackExtra
++	// is less than this number, the stack will have this size instead.
++	stackMin           = 8192
++	stackSystemRounded = stackSystem + (-stackSystem & (stackMin - 1))
++	Fixedstack         = stackMin + stackSystemRounded
++
++	// Functions that need frames bigger than this use an extra
++	// instruction to do the stack split check, to avoid overflow
++	// in case SP - framesize wraps below zero.
++	// This value can be no bigger than the size of the unmapped
++	// space at zero.
++	stackBig = 4096
++
++	// The stack guard is a pointer this many bytes above the
++	// bottom of the stack.
++	stackGuard = 256 + stackSystem
++
++	// After a stack split check the SP is allowed to be this
++	// many bytes below the stack guard.  This saves an instruction
++	// in the checking sequence for tiny frames.
++	stackSmall = 96
++
++	// The maximum number of bytes that a chain of NOSPLIT
++	// functions can use.
++	stackLimit = stackGuard - stackSystem - stackSmall
++
++	// The assumed size of the top-of-stack data block.
++	// The actual size can be smaller than this but cannot be larger.
++	// Checked in proc.c's runtime.malg.
++	stackTop = 88
++
++	// Goroutine preemption request.
++	// Stored into g->stackguard0 to cause split stack check failure.
++	// Must be greater than any real sp.
++	// 0xfffffade in hex.
++	stackPreempt = ^uintptr(1313)
++)
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 9e5a2cf04a..90d43ea713 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -11,9 +11,7 @@ import "unsafe"
+ // Assembly implementations are in various files, see comments with
+ // each function.
+ 
+-const (
+-	ptrSize = unsafe.Sizeof((*byte)(nil))
+-)
++const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
+ 
+ //go:noescape
+ func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
+@@ -88,9 +86,7 @@ var (
+ 	setgcpercent_m,
+ 	setmaxthreads_m,
+ 	ready_m,
+-	park_m,
+-	notewakeup_m,
+-	notetsleepg_m mFunction
++	park_m mFunction
+ )
+ 
+ func blockevent(int64, int32)
+@@ -162,6 +158,8 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
+ 	return unsafe.Pointer(x ^ 0)
+ }
+ 
++func entersyscall()
++func entersyscallblock()
+ func exitsyscall()
+ 
+ func goroutineheader(gp *g)
+@@ -195,13 +193,6 @@ func osyield()
+ func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
+ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer
+ func readgogc() int32
+-func notetsleepg(n *note, ns int64)
+-func notetsleep(n *note, ns int64)
+-func notewakeup(n *note)
+-func notesleep(n *note)
+-func noteclear(n *note)
+-func lock(lk *mutex)
+-func unlock(lk *mutex)
+ func purgecachedstats(c *mcache)
+ func gostringnocopy(b *byte) string
+ 
+@@ -244,6 +235,9 @@ func atomicstore64(ptr *uint64, val uint64)
+ //go:noescape
+ func atomicstorep(ptr unsafe.Pointer, val unsafe.Pointer)
+ 
++//go:noescape
++func atomicstoreuintptr(ptr *uintptr, new uintptr)
++
+ //go:noescape
+ func atomicload(ptr *uint32) uint32
+ 
+@@ -253,6 +247,9 @@ func atomicload64(ptr *uint64) uint64
+ //go:noescape
+ func atomicloadp(ptr unsafe.Pointer) unsafe.Pointer
+ 
++//go:noescape
++func atomicloaduintptr(ptr *uintptr) uintptr
++
+ //go:noescape
+ func atomicor8(ptr *uint8, val uint8)
+ 

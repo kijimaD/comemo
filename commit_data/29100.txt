@@ -12,7 +12,7 @@ Date:   Thu Aug 25 16:40:50 2016 +1000
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/asm/internal/asm/parse.go      |  8 --------
  src/cmd/compile/internal/gc/bimport.go |  2 +-
  src/cmd/compile/internal/gc/dcl.go     | 10 +---------
@@ -25,3 +25,238 @@ Date:   Thu Aug 25 16:40:50 2016 +1000
  src/cmd/internal/gcprog/gcprog.go      |  1 -
  src/cmd/internal/goobj/read.go         |  1 -
  11 files changed, 4 insertions(+), 95 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 40206e6dc1..406c65e446 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -941,14 +941,6 @@ func (p *Parser) atof(str string) float64 {
+ 	return value
+ }
+ 
+-func (p *Parser) atos(str string) string {
+-	value, err := strconv.Unquote(str)
+-	if err != nil {
+-		p.errorf("%s", err)
+-	}
+-	return value
+-}
+-
+ // EOF represents the end of input.
+ var EOF = lex.Make(scanner.EOF, "EOF")
+ 
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index ff7ea418d1..be196ceee5 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -444,7 +444,7 @@ func (p *importer) typ() *Type {
+ 			result := p.paramList()
+ 			nointerface := p.bool()
+ 
+-			n := methodname1(newname(sym), recv[0].Right)
++			n := methodname(newname(sym), recv[0].Right)
+ 			n.Type = functype(recv[0], params, result)
+ 			checkwidth(n.Type)
+ 			addmethod(sym, n.Type, tsym.Pkg, false, nointerface)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index a4b98ec7c5..7c2d2a43cf 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1123,15 +1123,7 @@ bad:
+ 	return nil
+ }
+ 
+-func methodname(n *Node, t *Type) *Node {
+-	s := methodsym(n.Sym, t, 0)
+-	if s == nil {
+-		return n
+-	}
+-	return newname(s)
+-}
+-
+-func methodname1(n *Node, t *Node) *Node {
++func methodname(n *Node, t *Node) *Node {
+ 	star := ""
+ 	if t.Op == OIND {
+ 		star = "*"
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index e86875d95c..fa76554711 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -103,23 +103,6 @@ func (n *Node) isParamHeapCopy() bool {
+ 	return n.Op == ONAME && n.Class == PAUTOHEAP && n.Name.Param.Stackcopy != nil
+ }
+ 
+-// paramClass reports the parameter class (PPARAM or PPARAMOUT)
+-// of the node, which may be an unmoved on-stack parameter
+-// or the on-heap or on-stack copy of a parameter that moved to the heap.
+-// If the node is not a parameter, paramClass returns Pxxx.
+-func (n *Node) paramClass() Class {
+-	if n.Op != ONAME {
+-		return Pxxx
+-	}
+-	if n.Class == PPARAM || n.Class == PPARAMOUT {
+-		return n.Class
+-	}
+-	if n.isParamHeapCopy() {
+-		return n.Name.Param.Stackcopy.Class
+-	}
+-	return Pxxx
+-}
+-
+ // moveToHeap records the parameter or local variable n as moved to the heap.
+ func moveToHeap(n *Node) {
+ 	if Debug['r'] != 0 {
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 918d43d090..44c6df9e5e 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -258,7 +258,7 @@ func (p *noder) funcHeader(fun *syntax.FuncDecl) *Node {
+ 		// Receiver MethodName Signature
+ 
+ 		f.Func.Shortname = newfuncname(name)
+-		f.Func.Nname = methodname1(f.Func.Shortname, t.Left.Right)
++		f.Func.Nname = methodname(f.Func.Shortname, t.Left.Right)
+ 	}
+ 
+ 	f.Func.Nname.Name.Defn = f
+@@ -955,10 +955,6 @@ func (p *noder) newname(name *syntax.Name) *Node {
+ 	return newname(p.name(name))
+ }
+ 
+-func (p *noder) oldname(name *syntax.Name) *Node {
+-	return oldname(p.name(name))
+-}
+-
+ func (p *noder) wrapname(n syntax.Node, x *Node) *Node {
+ 	// These nodes do not carry line numbers.
+ 	// Introduce a wrapper node to give them the correct line.
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index b5c06d165d..ed69c7a677 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -337,24 +337,6 @@ func datagostring(sval string, a *obj.Addr) {
+ 	a.Etype = uint8(TSTRING)
+ }
+ 
+-func dgostringptr(s *Sym, off int, str string) int {
+-	if str == "" {
+-		return duintptr(s, off, 0)
+-	}
+-	return dgostrlitptr(s, off, &str)
+-}
+-
+-func dgostrlitptr(s *Sym, off int, lit *string) int {
+-	if lit == nil {
+-		return duintptr(s, off, 0)
+-	}
+-	off = int(Rnd(int64(off), int64(Widthptr)))
+-	symhdr, _ := stringsym(*lit)
+-	Linksym(s).WriteAddr(Ctxt, int64(off), Widthptr, symhdr, 0)
+-	off += Widthptr
+-	return off
+-}
+-
+ func dsname(s *Sym, off int, t string) int {
+ 	return dsnameLSym(Linksym(s), off, t)
+ }
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 19202674a6..d910be0644 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -1891,7 +1891,7 @@ func (p *parser) fndcl() *Node {
+ 
+ 		f := Nod(ODCLFUNC, nil, nil)
+ 		f.Func.Shortname = newfuncname(name)
+-		f.Func.Nname = methodname1(f.Func.Shortname, recv.Right)
++		f.Func.Nname = methodname(f.Func.Shortname, recv.Right)
+ 		f.Func.Nname.Name.Defn = f
+ 		f.Func.Nname.Name.Param.Ntype = t
+ 		declare(f.Func.Nname, PFUNC)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 646f2e1833..928575c3fa 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3434,20 +3434,6 @@ var u64_f32 u2fcvtTab = u2fcvtTab{
+ 	one:   (*state).constInt64,
+ }
+ 
+-// Excess generality on a machine with 64-bit integer registers.
+-// Not used on AMD64.
+-var u32_f32 u2fcvtTab = u2fcvtTab{
+-	geq:   ssa.OpGeq32,
+-	cvt2F: ssa.OpCvt32to32F,
+-	and:   ssa.OpAnd32,
+-	rsh:   ssa.OpRsh32Ux32,
+-	or:    ssa.OpOr32,
+-	add:   ssa.OpAdd32F,
+-	one: func(s *state, t ssa.Type, x int64) *ssa.Value {
+-		return s.constInt32(t, int32(x))
+-	},
+-}
+-
+ func (s *state) uint64Tofloat64(n *Node, x *ssa.Value, ft, tt *Type) *ssa.Value {
+ 	return s.uintTofloat(&u64_f64, n, x, ft, tt)
+ }
+@@ -4119,20 +4105,6 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 	f.Config.HTML.Close()
+ }
+ 
+-// movZero generates a register indirect move with a 0 immediate and keeps track of bytes left and next offset
+-func movZero(as obj.As, width int64, nbytes int64, offset int64, regnum int16) (nleft int64, noff int64) {
+-	p := Prog(as)
+-	// TODO: use zero register on archs that support it.
+-	p.From.Type = obj.TYPE_CONST
+-	p.From.Offset = 0
+-	p.To.Type = obj.TYPE_MEM
+-	p.To.Reg = regnum
+-	p.To.Offset = offset
+-	offset += width
+-	nleft = nbytes - width
+-	return nleft, offset
+-}
+-
+ type FloatingEQNEJump struct {
+ 	Jump  obj.As
+ 	Index int
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 9da83a3435..3810bb878e 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -677,12 +677,6 @@ func (t *Type) wantEtype(et EType) {
+ 	}
+ }
+ 
+-func (t *Type) wantEtype2(et1, et2 EType) {
+-	if t.Etype != et1 && t.Etype != et2 {
+-		Fatalf("want %v or %v, but have %v", et1, et2, t)
+-	}
+-}
+-
+ func (t *Type) RecvsP() **Type {
+ 	t.wantEtype(TFUNC)
+ 	return &t.Extra.(*FuncType).Receiver
+diff --git a/src/cmd/internal/gcprog/gcprog.go b/src/cmd/internal/gcprog/gcprog.go
+index 7880917ecf..c8bf206468 100644
+--- a/src/cmd/internal/gcprog/gcprog.go
++++ b/src/cmd/internal/gcprog/gcprog.go
+@@ -37,7 +37,6 @@ const progMaxLiteral = 127 // maximum n for literal n bit code
+ // to describe the data type, and then finally call End.
+ type Writer struct {
+ 	writeByte func(byte)
+-	symoff    int
+ 	index     int64
+ 	b         [progMaxLiteral]byte
+ 	nb        int
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 329f80146d..81f1726860 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -244,7 +244,6 @@ type objReader struct {
+ 	dataOffset int64
+ 	limit      int64
+ 	tmp        [256]byte
+-	pkg        string
+ 	pkgprefix  string
+ }
+ 

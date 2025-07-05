@@ -13,6 +13,20 @@ Date:   Thu Aug 28 11:45:30 2014 -0400
     TBR=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/132350043
-
+---
  src/pkg/runtime/iface.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/iface.go b/src/pkg/runtime/iface.go
+index 3180ea4524..57882fb704 100644
+--- a/src/pkg/runtime/iface.go
++++ b/src/pkg/runtime/iface.go
+@@ -427,7 +427,7 @@ func efacethash(e interface{}) uint32 {
+ }
+ 
+ func iterate_itabs(fn func(*itab)) {
+-	for _, h := range hash {
++	for _, h := range &hash {
+ 		for ; h != nil; h = h.link {
+ 			fn(h)
+ 		}

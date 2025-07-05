@@ -7,9 +7,88 @@ Date:   Fri Aug 7 13:14:01 2009 -0700
     R=ken
     OCL=32886
     CL=32886
-
+---
  src/cmd/gc/dcl.c         |  4 +++-
  src/cmd/gc/go.h          |  1 +
  src/cmd/gc/walk.c        |  8 +++++++-
  test/fixedbugs/bug181.go | 11 +++++++++++
  4 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 1768f2e121..fe64ee08d7 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -900,8 +900,10 @@ stotype(NodeList *l, int et, Type **t)
+ 				t1 = n->type;
+ 				if(t1->sym == S && isptr[t1->etype])
+ 					t1 = t1->type;
+-				if(t1 != T && isptr[t1->etype])
++				if(isptr[t1->etype])
+ 					yyerror("embedded type cannot be a pointer");
++				else if(t1->etype == TFORW && t1->embedlineno == 0)
++					t1->embedlineno = lineno;
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 3c11d038a0..3ddeca1dff 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -175,6 +175,7 @@ struct	Type
+ 	int32	bound;		// negative is dynamic array
+ 
+ 	int32	maplineno;	// first use of TFORW as map key
++	int32	embedlineno;	// first use of TFORW as embedded type
+ };
+ #define	T	((Type*)0)
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 044a29643b..2298c659cb 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -111,7 +111,7 @@ walkdeflist(NodeList *l)
+ void
+ walkdef(Node *n)
+ {
+-	int lno, maplineno;
++	int lno, maplineno, embedlineno;
+ 	NodeList *init;
+ 	Node *e;
+ 	Type *t;
+@@ -210,6 +210,7 @@ walkdef(Node *n)
+ 		// copy new type and clear fields
+ 		// that don't come along
+ 		maplineno = n->type->maplineno;
++		embedlineno = n->type->embedlineno;
+ 		*n->type = *t;
+ 		t = n->type;
+ 		t->sym = n->sym;
+@@ -226,6 +227,11 @@ walkdef(Node *n)
+ 			lineno = maplineno;
+ 			maptype(n->type, types[TBOOL]);
+ 		}
++		if(embedlineno) {
++			lineno = embedlineno;
++			if(isptr[t->etype])
++				yyerror("embedded type cannot be a pointer");
++		}
+ 		break;
+ 	}
+ 
+diff --git a/test/fixedbugs/bug181.go b/test/fixedbugs/bug181.go
+new file mode 100644
+index 0000000000..f87bc9d4ee
+--- /dev/null
++++ b/test/fixedbugs/bug181.go
+@@ -0,0 +1,11 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T *struct {
++	T;	// ERROR "embed.*pointer"
++}

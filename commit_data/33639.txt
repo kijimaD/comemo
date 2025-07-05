@@ -114,10 +114,869 @@ Date:   Thu Aug 24 10:51:34 2017 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm/ssa.go        |   4 +-
  src/cmd/compile/internal/ssa/gen/ARM.rules |  22 ++
  src/cmd/compile/internal/ssa/gen/ARMOps.go |   6 +
  src/cmd/compile/internal/ssa/opGen.go      |  86 +++++
  src/cmd/compile/internal/ssa/rewriteARM.go | 534 +++++++++++++++++++++++++++++
  5 files changed, 650 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 93abee3da0..d0d864d25d 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -516,7 +516,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 		gc.AddAux(&p.To, v)
+-	case ssa.OpARMMOVWloadidx:
++	case ssa.OpARMMOVWloadidx, ssa.OpARMMOVBUloadidx, ssa.OpARMMOVBloadidx, ssa.OpARMMOVHUloadidx, ssa.OpARMMOVHloadidx:
+ 		// this is just shift 0 bits
+ 		fallthrough
+ 	case ssa.OpARMMOVWloadshiftLL:
+@@ -528,7 +528,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpARMMOVWloadshiftRA:
+ 		p := genshift(s, v.Op.Asm(), 0, v.Args[1].Reg(), v.Reg(), arm.SHIFT_AR, v.AuxInt)
+ 		p.From.Reg = v.Args[0].Reg()
+-	case ssa.OpARMMOVWstoreidx:
++	case ssa.OpARMMOVWstoreidx, ssa.OpARMMOVBstoreidx, ssa.OpARMMOVHstoreidx:
+ 		// this is just shift 0 bits
+ 		fallthrough
+ 	case ssa.OpARMMOVWstoreshiftLL:
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index d66e50f17a..b80747ad31 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -499,6 +499,10 @@
+ (MOVWloadshiftLL ptr idx [c] (MOVWstoreshiftLL ptr2 idx [d] x _)) && c==d && isSamePtr(ptr, ptr2) -> x
+ (MOVWloadshiftRL ptr idx [c] (MOVWstoreshiftRL ptr2 idx [d] x _)) && c==d && isSamePtr(ptr, ptr2) -> x
+ (MOVWloadshiftRA ptr idx [c] (MOVWstoreshiftRA ptr2 idx [d] x _)) && c==d && isSamePtr(ptr, ptr2) -> x
++(MOVBUloadidx ptr idx (MOVBstoreidx ptr2 idx x _)) && isSamePtr(ptr, ptr2) -> (MOVBUreg x)
++(MOVBloadidx ptr idx (MOVBstoreidx ptr2 idx x _)) && isSamePtr(ptr, ptr2) -> (MOVBreg x)
++(MOVHUloadidx ptr idx (MOVHstoreidx ptr2 idx x _)) && isSamePtr(ptr, ptr2) -> (MOVHUreg x)
++(MOVHloadidx ptr idx (MOVHstoreidx ptr2 idx x _)) && isSamePtr(ptr, ptr2) -> (MOVHreg x)
+ 
+ // fold constant into arithmatic ops
+ (ADD x (MOVWconst [c])) -> (ADDconst [c] x)
+@@ -1152,13 +1156,31 @@
+ (MOVWstore [0] {sym} (ADDshiftLL ptr idx [c]) val mem) && sym == nil && !config.nacl -> (MOVWstoreshiftLL ptr idx [c] val mem)
+ (MOVWstore [0] {sym} (ADDshiftRL ptr idx [c]) val mem) && sym == nil && !config.nacl -> (MOVWstoreshiftRL ptr idx [c] val mem)
+ (MOVWstore [0] {sym} (ADDshiftRA ptr idx [c]) val mem) && sym == nil && !config.nacl -> (MOVWstoreshiftRA ptr idx [c] val mem)
++(MOVBUload [0] {sym} (ADD ptr idx) mem) && sym == nil && !config.nacl -> (MOVBUloadidx ptr idx mem)
++(MOVBload [0] {sym} (ADD ptr idx) mem) && sym == nil && !config.nacl -> (MOVBloadidx ptr idx mem)
++(MOVBstore [0] {sym} (ADD ptr idx) val mem) && sym == nil && !config.nacl -> (MOVBstoreidx ptr idx val mem)
++(MOVHUload [0] {sym} (ADD ptr idx) mem) && sym == nil && !config.nacl -> (MOVHUloadidx ptr idx mem)
++(MOVHload [0] {sym} (ADD ptr idx) mem) && sym == nil && !config.nacl -> (MOVHloadidx ptr idx mem)
++(MOVHstore [0] {sym} (ADD ptr idx) val mem) && sym == nil && !config.nacl -> (MOVHstoreidx ptr idx val mem)
+ 
+ // constant folding in indexed loads and stores
+ (MOVWloadidx ptr (MOVWconst [c]) mem) -> (MOVWload [c] ptr mem)
+ (MOVWloadidx (MOVWconst [c]) ptr mem) -> (MOVWload [c] ptr mem)
++(MOVBloadidx ptr (MOVWconst [c]) mem) -> (MOVBload [c] ptr mem)
++(MOVBloadidx (MOVWconst [c]) ptr mem) -> (MOVBload [c] ptr mem)
++(MOVBUloadidx ptr (MOVWconst [c]) mem) -> (MOVBUload [c] ptr mem)
++(MOVBUloadidx (MOVWconst [c]) ptr mem) -> (MOVBUload [c] ptr mem)
++(MOVHUloadidx ptr (MOVWconst [c]) mem) -> (MOVHUload [c] ptr mem)
++(MOVHUloadidx (MOVWconst [c]) ptr mem) -> (MOVHUload [c] ptr mem)
++(MOVHloadidx ptr (MOVWconst [c]) mem) -> (MOVHload [c] ptr mem)
++(MOVHloadidx (MOVWconst [c]) ptr mem) -> (MOVHload [c] ptr mem)
+ 
+ (MOVWstoreidx ptr (MOVWconst [c]) val mem) -> (MOVWstore [c] ptr val mem)
+ (MOVWstoreidx (MOVWconst [c]) ptr val mem) -> (MOVWstore [c] ptr val mem)
++(MOVBstoreidx ptr (MOVWconst [c]) val mem) -> (MOVBstore [c] ptr val mem)
++(MOVBstoreidx (MOVWconst [c]) ptr val mem) -> (MOVBstore [c] ptr val mem)
++(MOVHstoreidx ptr (MOVWconst [c]) val mem) -> (MOVHstore [c] ptr val mem)
++(MOVHstoreidx (MOVWconst [c]) ptr val mem) -> (MOVHstore [c] ptr val mem)
+ 
+ (MOVWloadidx ptr (SLLconst idx [c]) mem) -> (MOVWloadshiftLL ptr idx [c] mem)
+ (MOVWloadidx (SLLconst idx [c]) ptr mem) -> (MOVWloadshiftLL ptr idx [c] mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 40be5d6647..8cbb73f291 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -346,11 +346,17 @@ func init() {
+ 		{name: "MOVWloadshiftLL", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32"}, // load from arg0 + arg1<<auxInt. arg2=mem
+ 		{name: "MOVWloadshiftRL", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32"}, // load from arg0 + arg1>>auxInt, unsigned shift. arg2=mem
+ 		{name: "MOVWloadshiftRA", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32"}, // load from arg0 + arg1>>auxInt, signed shift. arg2=mem
++		{name: "MOVBUloadidx", argLength: 3, reg: gp2load, asm: "MOVBU"},                 // load from arg0 + arg1. arg2=mem
++		{name: "MOVBloadidx", argLength: 3, reg: gp2load, asm: "MOVB"},                   // load from arg0 + arg1. arg2=mem
++		{name: "MOVHUloadidx", argLength: 3, reg: gp2load, asm: "MOVHU"},                 // load from arg0 + arg1. arg2=mem
++		{name: "MOVHloadidx", argLength: 3, reg: gp2load, asm: "MOVH"},                   // load from arg0 + arg1. arg2=mem
+ 
+ 		{name: "MOVWstoreidx", argLength: 4, reg: gp2store, asm: "MOVW"},                   // store arg2 to arg0 + arg1. arg3=mem
+ 		{name: "MOVWstoreshiftLL", argLength: 4, reg: gp2store, asm: "MOVW", aux: "Int32"}, // store arg2 to arg0 + arg1<<auxInt. arg3=mem
+ 		{name: "MOVWstoreshiftRL", argLength: 4, reg: gp2store, asm: "MOVW", aux: "Int32"}, // store arg2 to arg0 + arg1>>auxInt, unsigned shift. arg3=mem
+ 		{name: "MOVWstoreshiftRA", argLength: 4, reg: gp2store, asm: "MOVW", aux: "Int32"}, // store arg2 to arg0 + arg1>>auxInt, signed shift. arg3=mem
++		{name: "MOVBstoreidx", argLength: 4, reg: gp2store, asm: "MOVB"},                   // store arg2 to arg0 + arg1. arg3=mem
++		{name: "MOVHstoreidx", argLength: 4, reg: gp2store, asm: "MOVH"},                   // store arg2 to arg0 + arg1. arg3=mem
+ 
+ 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVBS"},  // move from arg0, sign-extended from byte
+ 		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU"}, // move from arg0, unsign-extended from byte
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 6739c86ad2..bf6149591d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -847,10 +847,16 @@ const (
+ 	OpARMMOVWloadshiftLL
+ 	OpARMMOVWloadshiftRL
+ 	OpARMMOVWloadshiftRA
++	OpARMMOVBUloadidx
++	OpARMMOVBloadidx
++	OpARMMOVHUloadidx
++	OpARMMOVHloadidx
+ 	OpARMMOVWstoreidx
+ 	OpARMMOVWstoreshiftLL
+ 	OpARMMOVWstoreshiftRL
+ 	OpARMMOVWstoreshiftRA
++	OpARMMOVBstoreidx
++	OpARMMOVHstoreidx
+ 	OpARMMOVBreg
+ 	OpARMMOVBUreg
+ 	OpARMMOVHreg
+@@ -10651,6 +10657,62 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "MOVBUloadidx",
++		argLen: 3,
++		asm:    arm.AMOVBU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 22527},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
++				{0, 4294998015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP R14 SB
++			},
++			outputs: []outputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++		},
++	},
++	{
++		name:   "MOVBloadidx",
++		argLen: 3,
++		asm:    arm.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 22527},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
++				{0, 4294998015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP R14 SB
++			},
++			outputs: []outputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++		},
++	},
++	{
++		name:   "MOVHUloadidx",
++		argLen: 3,
++		asm:    arm.AMOVHU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 22527},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
++				{0, 4294998015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP R14 SB
++			},
++			outputs: []outputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++		},
++	},
++	{
++		name:   "MOVHloadidx",
++		argLen: 3,
++		asm:    arm.AMOVH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 22527},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
++				{0, 4294998015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP R14 SB
++			},
++			outputs: []outputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++		},
++	},
+ 	{
+ 		name:   "MOVWstoreidx",
+ 		argLen: 4,
+@@ -10702,6 +10764,30 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "MOVBstoreidx",
++		argLen: 4,
++		asm:    arm.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 22527},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
++				{2, 22527},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
++				{0, 4294998015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP R14 SB
++			},
++		},
++	},
++	{
++		name:   "MOVHstoreidx",
++		argLen: 4,
++		asm:    arm.AMOVH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 22527},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
++				{2, 22527},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
++				{0, 4294998015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP R14 SB
++			},
++		},
++	},
+ 	{
+ 		name:   "MOVBreg",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index b1efbd2c0d..095f8c1356 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -137,14 +137,20 @@ func rewriteValueARM(v *Value) bool {
+ 		return rewriteValueARM_OpARMLessThanU_0(v)
+ 	case OpARMMOVBUload:
+ 		return rewriteValueARM_OpARMMOVBUload_0(v)
++	case OpARMMOVBUloadidx:
++		return rewriteValueARM_OpARMMOVBUloadidx_0(v)
+ 	case OpARMMOVBUreg:
+ 		return rewriteValueARM_OpARMMOVBUreg_0(v)
+ 	case OpARMMOVBload:
+ 		return rewriteValueARM_OpARMMOVBload_0(v)
++	case OpARMMOVBloadidx:
++		return rewriteValueARM_OpARMMOVBloadidx_0(v)
+ 	case OpARMMOVBreg:
+ 		return rewriteValueARM_OpARMMOVBreg_0(v)
+ 	case OpARMMOVBstore:
+ 		return rewriteValueARM_OpARMMOVBstore_0(v)
++	case OpARMMOVBstoreidx:
++		return rewriteValueARM_OpARMMOVBstoreidx_0(v)
+ 	case OpARMMOVDload:
+ 		return rewriteValueARM_OpARMMOVDload_0(v)
+ 	case OpARMMOVDstore:
+@@ -155,14 +161,20 @@ func rewriteValueARM(v *Value) bool {
+ 		return rewriteValueARM_OpARMMOVFstore_0(v)
+ 	case OpARMMOVHUload:
+ 		return rewriteValueARM_OpARMMOVHUload_0(v)
++	case OpARMMOVHUloadidx:
++		return rewriteValueARM_OpARMMOVHUloadidx_0(v)
+ 	case OpARMMOVHUreg:
+ 		return rewriteValueARM_OpARMMOVHUreg_0(v)
+ 	case OpARMMOVHload:
+ 		return rewriteValueARM_OpARMMOVHload_0(v)
++	case OpARMMOVHloadidx:
++		return rewriteValueARM_OpARMMOVHloadidx_0(v)
+ 	case OpARMMOVHreg:
+ 		return rewriteValueARM_OpARMMOVHreg_0(v)
+ 	case OpARMMOVHstore:
+ 		return rewriteValueARM_OpARMMOVHstore_0(v)
++	case OpARMMOVHstoreidx:
++		return rewriteValueARM_OpARMMOVHstoreidx_0(v)
+ 	case OpARMMOVWload:
+ 		return rewriteValueARM_OpARMMOVWload_0(v)
+ 	case OpARMMOVWloadidx:
+@@ -5755,6 +5767,10 @@ func rewriteValueARM_OpARMLessThanU_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM_OpARMMOVBUload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem)
+ 	// cond:
+ 	// result: (MOVBUload [off1+off2] {sym} ptr mem)
+@@ -5846,6 +5862,95 @@ func rewriteValueARM_OpARMMOVBUload_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBUload [0] {sym} (ADD ptr idx) mem)
++	// cond: sym == nil && !config.nacl
++	// result: (MOVBUloadidx ptr idx mem)
++	for {
++		if v.AuxInt != 0 {
++			break
++		}
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADD {
++			break
++		}
++		_ = v_0.Args[1]
++		ptr := v_0.Args[0]
++		idx := v_0.Args[1]
++		mem := v.Args[1]
++		if !(sym == nil && !config.nacl) {
++			break
++		}
++		v.reset(OpARMMOVBUloadidx)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMOVBUloadidx_0(v *Value) bool {
++	// match: (MOVBUloadidx ptr idx (MOVBstoreidx ptr2 idx x _))
++	// cond: isSamePtr(ptr, ptr2)
++	// result: (MOVBUreg x)
++	for {
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		idx := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpARMMOVBstoreidx {
++			break
++		}
++		_ = v_2.Args[3]
++		ptr2 := v_2.Args[0]
++		if idx != v_2.Args[1] {
++			break
++		}
++		x := v_2.Args[2]
++		if !(isSamePtr(ptr, ptr2)) {
++			break
++		}
++		v.reset(OpARMMOVBUreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVBUloadidx ptr (MOVWconst [c]) mem)
++	// cond:
++	// result: (MOVBUload [c] ptr mem)
++	for {
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		v.reset(OpARMMOVBUload)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVBUloadidx (MOVWconst [c]) ptr mem)
++	// cond:
++	// result: (MOVBUload [c] ptr mem)
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0.AuxInt
++		ptr := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARMMOVBUload)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpARMMOVBUreg_0(v *Value) bool {
+@@ -5905,6 +6010,10 @@ func rewriteValueARM_OpARMMOVBUreg_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM_OpARMMOVBload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVBload [off1] {sym} (ADDconst [off2] ptr) mem)
+ 	// cond:
+ 	// result: (MOVBload [off1+off2] {sym} ptr mem)
+@@ -5996,6 +6105,95 @@ func rewriteValueARM_OpARMMOVBload_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBload [0] {sym} (ADD ptr idx) mem)
++	// cond: sym == nil && !config.nacl
++	// result: (MOVBloadidx ptr idx mem)
++	for {
++		if v.AuxInt != 0 {
++			break
++		}
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADD {
++			break
++		}
++		_ = v_0.Args[1]
++		ptr := v_0.Args[0]
++		idx := v_0.Args[1]
++		mem := v.Args[1]
++		if !(sym == nil && !config.nacl) {
++			break
++		}
++		v.reset(OpARMMOVBloadidx)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMOVBloadidx_0(v *Value) bool {
++	// match: (MOVBloadidx ptr idx (MOVBstoreidx ptr2 idx x _))
++	// cond: isSamePtr(ptr, ptr2)
++	// result: (MOVBreg x)
++	for {
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		idx := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpARMMOVBstoreidx {
++			break
++		}
++		_ = v_2.Args[3]
++		ptr2 := v_2.Args[0]
++		if idx != v_2.Args[1] {
++			break
++		}
++		x := v_2.Args[2]
++		if !(isSamePtr(ptr, ptr2)) {
++			break
++		}
++		v.reset(OpARMMOVBreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVBloadidx ptr (MOVWconst [c]) mem)
++	// cond:
++	// result: (MOVBload [c] ptr mem)
++	for {
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		v.reset(OpARMMOVBload)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVBloadidx (MOVWconst [c]) ptr mem)
++	// cond:
++	// result: (MOVBload [c] ptr mem)
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0.AuxInt
++		ptr := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARMMOVBload)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpARMMOVBreg_0(v *Value) bool {
+@@ -6058,6 +6256,10 @@ func rewriteValueARM_OpARMMOVBreg_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM_OpARMMOVBstore_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+ 	// cond:
+ 	// result: (MOVBstore [off1+off2] {sym} ptr val mem)
+@@ -6219,6 +6421,77 @@ func rewriteValueARM_OpARMMOVBstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVBstore [0] {sym} (ADD ptr idx) val mem)
++	// cond: sym == nil && !config.nacl
++	// result: (MOVBstoreidx ptr idx val mem)
++	for {
++		if v.AuxInt != 0 {
++			break
++		}
++		sym := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADD {
++			break
++		}
++		_ = v_0.Args[1]
++		ptr := v_0.Args[0]
++		idx := v_0.Args[1]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(sym == nil && !config.nacl) {
++			break
++		}
++		v.reset(OpARMMOVBstoreidx)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMOVBstoreidx_0(v *Value) bool {
++	// match: (MOVBstoreidx ptr (MOVWconst [c]) val mem)
++	// cond:
++	// result: (MOVBstore [c] ptr val mem)
++	for {
++		_ = v.Args[3]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_1.AuxInt
++		val := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpARMMOVBstore)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVBstoreidx (MOVWconst [c]) ptr val mem)
++	// cond:
++	// result: (MOVBstore [c] ptr val mem)
++	for {
++		_ = v.Args[3]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0.AuxInt
++		ptr := v.Args[1]
++		val := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpARMMOVBstore)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpARMMOVDload_0(v *Value) bool {
+@@ -6564,6 +6837,10 @@ func rewriteValueARM_OpARMMOVFstore_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM_OpARMMOVHUload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem)
+ 	// cond:
+ 	// result: (MOVHUload [off1+off2] {sym} ptr mem)
+@@ -6655,6 +6932,95 @@ func rewriteValueARM_OpARMMOVHUload_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVHUload [0] {sym} (ADD ptr idx) mem)
++	// cond: sym == nil && !config.nacl
++	// result: (MOVHUloadidx ptr idx mem)
++	for {
++		if v.AuxInt != 0 {
++			break
++		}
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADD {
++			break
++		}
++		_ = v_0.Args[1]
++		ptr := v_0.Args[0]
++		idx := v_0.Args[1]
++		mem := v.Args[1]
++		if !(sym == nil && !config.nacl) {
++			break
++		}
++		v.reset(OpARMMOVHUloadidx)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMOVHUloadidx_0(v *Value) bool {
++	// match: (MOVHUloadidx ptr idx (MOVHstoreidx ptr2 idx x _))
++	// cond: isSamePtr(ptr, ptr2)
++	// result: (MOVHUreg x)
++	for {
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		idx := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpARMMOVHstoreidx {
++			break
++		}
++		_ = v_2.Args[3]
++		ptr2 := v_2.Args[0]
++		if idx != v_2.Args[1] {
++			break
++		}
++		x := v_2.Args[2]
++		if !(isSamePtr(ptr, ptr2)) {
++			break
++		}
++		v.reset(OpARMMOVHUreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHUloadidx ptr (MOVWconst [c]) mem)
++	// cond:
++	// result: (MOVHUload [c] ptr mem)
++	for {
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		v.reset(OpARMMOVHUload)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVHUloadidx (MOVWconst [c]) ptr mem)
++	// cond:
++	// result: (MOVHUload [c] ptr mem)
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0.AuxInt
++		ptr := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARMMOVHUload)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpARMMOVHUreg_0(v *Value) bool {
+@@ -6739,6 +7105,10 @@ func rewriteValueARM_OpARMMOVHUreg_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM_OpARMMOVHload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVHload [off1] {sym} (ADDconst [off2] ptr) mem)
+ 	// cond:
+ 	// result: (MOVHload [off1+off2] {sym} ptr mem)
+@@ -6830,6 +7200,95 @@ func rewriteValueARM_OpARMMOVHload_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVHload [0] {sym} (ADD ptr idx) mem)
++	// cond: sym == nil && !config.nacl
++	// result: (MOVHloadidx ptr idx mem)
++	for {
++		if v.AuxInt != 0 {
++			break
++		}
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADD {
++			break
++		}
++		_ = v_0.Args[1]
++		ptr := v_0.Args[0]
++		idx := v_0.Args[1]
++		mem := v.Args[1]
++		if !(sym == nil && !config.nacl) {
++			break
++		}
++		v.reset(OpARMMOVHloadidx)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMOVHloadidx_0(v *Value) bool {
++	// match: (MOVHloadidx ptr idx (MOVHstoreidx ptr2 idx x _))
++	// cond: isSamePtr(ptr, ptr2)
++	// result: (MOVHreg x)
++	for {
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		idx := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpARMMOVHstoreidx {
++			break
++		}
++		_ = v_2.Args[3]
++		ptr2 := v_2.Args[0]
++		if idx != v_2.Args[1] {
++			break
++		}
++		x := v_2.Args[2]
++		if !(isSamePtr(ptr, ptr2)) {
++			break
++		}
++		v.reset(OpARMMOVHreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHloadidx ptr (MOVWconst [c]) mem)
++	// cond:
++	// result: (MOVHload [c] ptr mem)
++	for {
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		v.reset(OpARMMOVHload)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVHloadidx (MOVWconst [c]) ptr mem)
++	// cond:
++	// result: (MOVHload [c] ptr mem)
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0.AuxInt
++		ptr := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARMMOVHload)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpARMMOVHreg_0(v *Value) bool {
+@@ -6942,6 +7401,10 @@ func rewriteValueARM_OpARMMOVHreg_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM_OpARMMOVHstore_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+ 	// cond:
+ 	// result: (MOVHstore [off1+off2] {sym} ptr val mem)
+@@ -7059,6 +7522,77 @@ func rewriteValueARM_OpARMMOVHstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVHstore [0] {sym} (ADD ptr idx) val mem)
++	// cond: sym == nil && !config.nacl
++	// result: (MOVHstoreidx ptr idx val mem)
++	for {
++		if v.AuxInt != 0 {
++			break
++		}
++		sym := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADD {
++			break
++		}
++		_ = v_0.Args[1]
++		ptr := v_0.Args[0]
++		idx := v_0.Args[1]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(sym == nil && !config.nacl) {
++			break
++		}
++		v.reset(OpARMMOVHstoreidx)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMOVHstoreidx_0(v *Value) bool {
++	// match: (MOVHstoreidx ptr (MOVWconst [c]) val mem)
++	// cond:
++	// result: (MOVHstore [c] ptr val mem)
++	for {
++		_ = v.Args[3]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_1.AuxInt
++		val := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpARMMOVHstore)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVHstoreidx (MOVWconst [c]) ptr val mem)
++	// cond:
++	// result: (MOVHstore [c] ptr val mem)
++	for {
++		_ = v.Args[3]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0.AuxInt
++		ptr := v.Args[1]
++		val := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpARMMOVHstore)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpARMMOVWload_0(v *Value) bool {

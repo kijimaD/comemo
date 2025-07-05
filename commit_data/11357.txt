@@ -7,6 +7,19 @@ Date:   Tue Jan 24 14:15:37 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5569054
-
+---
  src/cmd/go/vcs.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index b2abd988a4..074d63bd40 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -286,6 +286,7 @@ var vcsPaths = []*vcsPath{
+ 	{
+ 		prefix: "github.com/",
+ 		re:     `^(?P<root>github\.com/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`,
++		vcs:    "git",
+ 		repo:   "https://{root}",
+ 		check:  noVCSSuffix,
+ 	},

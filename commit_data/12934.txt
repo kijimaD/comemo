@@ -11,6 +11,22 @@ Date:   Mon Apr 23 23:47:36 2012 +0800
     R=dave, remyoudompheng, mtj, rsc
     CC=golang-dev
     https://golang.org/cl/6094047
-
+---
  src/pkg/math/abs_arm.s | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/math/abs_arm.s b/src/pkg/math/abs_arm.s
+index 23f6a2a2de..d7a406bec1 100644
+--- a/src/pkg/math/abs_arm.s
++++ b/src/pkg/math/abs_arm.s
+@@ -3,4 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ TEXT ·Abs(SB),7,$0
+-	B ·abs(SB)
++	MOVW	lo+0(FP), R0
++	MOVW	hi+4(FP), R1
++	AND 	$((1<<31)-1), R1
++	MOVW	R0, resultlo+8(FP)
++	MOVW	R1, resulthi+12(FP)
++	RET

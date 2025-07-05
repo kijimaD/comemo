@@ -149,7 +149,7 @@ Date:   Wed Apr 14 21:57:24 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/310331
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/math/acosh.go        |   7 ++-
  src/math/arith_s390x.go  | 101 +++++++++++++++++++++++++++--
  src/math/asin.go         |  14 ++++-
@@ -233,3 +233,3048 @@ Date:   Wed Apr 14 21:57:24 2021 -0400
  src/math/tan.go          |   7 ++-
  src/math/tanh.go         |   7 ++-
  82 files changed, 813 insertions(+), 1081 deletions(-)
+
+diff --git a/src/math/acosh.go b/src/math/acosh.go
+index 41ca87123c..f74e0b62fb 100644
+--- a/src/math/acosh.go
++++ b/src/math/acosh.go
+@@ -39,7 +39,12 @@ package math
+ //	Acosh(+Inf) = +Inf
+ //	Acosh(x) = NaN if x < 1
+ //	Acosh(NaN) = NaN
+-func Acosh(x float64) float64
++func Acosh(x float64) float64 {
++	if haveArchAcosh {
++		return archAcosh(x)
++	}
++	return acosh(x)
++}
+ 
+ func acosh(x float64) float64 {
+ 	const Large = 1 << 28 // 2**28
+diff --git a/src/math/arith_s390x.go b/src/math/arith_s390x.go
+index 90a7d4f710..129156a9f6 100644
+--- a/src/math/arith_s390x.go
++++ b/src/math/arith_s390x.go
+@@ -6,72 +6,165 @@ package math
+ 
+ import "internal/cpu"
+ 
++func expTrampolineSetup(x float64) float64
++func expAsm(x float64) float64
++
++func logTrampolineSetup(x float64) float64
++func logAsm(x float64) float64
++
++// Below here all functions are grouped in stubs.go for other
++// architectures.
++
++const haveArchLog10 = true
++
++func archLog10(x float64) float64
+ func log10TrampolineSetup(x float64) float64
+ func log10Asm(x float64) float64
+ 
++const haveArchCos = true
++
++func archCos(x float64) float64
+ func cosTrampolineSetup(x float64) float64
+ func cosAsm(x float64) float64
+ 
++const haveArchCosh = true
++
++func archCosh(x float64) float64
+ func coshTrampolineSetup(x float64) float64
+ func coshAsm(x float64) float64
+ 
++const haveArchSin = true
++
++func archSin(x float64) float64
+ func sinTrampolineSetup(x float64) float64
+ func sinAsm(x float64) float64
+ 
++const haveArchSinh = true
++
++func archSinh(x float64) float64
+ func sinhTrampolineSetup(x float64) float64
+ func sinhAsm(x float64) float64
+ 
++const haveArchTanh = true
++
++func archTanh(x float64) float64
+ func tanhTrampolineSetup(x float64) float64
+ func tanhAsm(x float64) float64
+ 
++const haveArchLog1p = true
++
++func archLog1p(x float64) float64
+ func log1pTrampolineSetup(x float64) float64
+ func log1pAsm(x float64) float64
+ 
++const haveArchAtanh = true
++
++func archAtanh(x float64) float64
+ func atanhTrampolineSetup(x float64) float64
+ func atanhAsm(x float64) float64
+ 
++const haveArchAcos = true
++
++func archAcos(x float64) float64
+ func acosTrampolineSetup(x float64) float64
+ func acosAsm(x float64) float64
+ 
++const haveArchAcosh = true
++
++func archAcosh(x float64) float64
+ func acoshTrampolineSetup(x float64) float64
+ func acoshAsm(x float64) float64
+ 
++const haveArchAsin = true
++
++func archAsin(x float64) float64
+ func asinTrampolineSetup(x float64) float64
+ func asinAsm(x float64) float64
+ 
++const haveArchAsinh = true
++
++func archAsinh(x float64) float64
+ func asinhTrampolineSetup(x float64) float64
+ func asinhAsm(x float64) float64
+ 
++const haveArchErf = true
++
++func archErf(x float64) float64
+ func erfTrampolineSetup(x float64) float64
+ func erfAsm(x float64) float64
+ 
++const haveArchErfc = true
++
++func archErfc(x float64) float64
+ func erfcTrampolineSetup(x float64) float64
+ func erfcAsm(x float64) float64
+ 
++const haveArchAtan = true
++
++func archAtan(x float64) float64
+ func atanTrampolineSetup(x float64) float64
+ func atanAsm(x float64) float64
+ 
++const haveArchAtan2 = true
++
++func archAtan2(y, x float64) float64
+ func atan2TrampolineSetup(x, y float64) float64
+ func atan2Asm(x, y float64) float64
+ 
++const haveArchCbrt = true
++
++func archCbrt(x float64) float64
+ func cbrtTrampolineSetup(x float64) float64
+ func cbrtAsm(x float64) float64
+ 
+-func logTrampolineSetup(x float64) float64
+-func logAsm(x float64) float64
++const haveArchTan = true
+ 
++func archTan(x float64) float64
+ func tanTrampolineSetup(x float64) float64
+ func tanAsm(x float64) float64
+ 
+-func expTrampolineSetup(x float64) float64
+-func expAsm(x float64) float64
++const haveArchExpm1 = true
+ 
++func archExpm1(x float64) float64
+ func expm1TrampolineSetup(x float64) float64
+ func expm1Asm(x float64) float64
+ 
++const haveArchPow = true
++
++func archPow(x, y float64) float64
+ func powTrampolineSetup(x, y float64) float64
+ func powAsm(x, y float64) float64
+ 
++const haveArchFrexp = false
++
++func archFrexp(x float64) (float64, int) {
++	panic("not implemented")
++}
++
++const haveArchLdexp = false
++
++func archLdexp(frac float64, exp int) float64 {
++	panic("not implemented")
++}
++
++const haveArchLog2 = false
++
++func archLog2(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchMod = false
++
++func archMod(x, y float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchRemainder = false
++
++func archRemainder(x, y float64) float64 {
++	panic("not implemented")
++}
++
+ // hasVX reports whether the machine has the z/Architecture
+ // vector facility installed and enabled.
+ var hasVX = cpu.S390X.HasVX
+diff --git a/src/math/asin.go b/src/math/asin.go
+index 88b851e550..989a74155b 100644
+--- a/src/math/asin.go
++++ b/src/math/asin.go
+@@ -16,7 +16,12 @@ package math
+ // Special cases are:
+ //	Asin(±0) = ±0
+ //	Asin(x) = NaN if x < -1 or x > 1
+-func Asin(x float64) float64
++func Asin(x float64) float64 {
++	if haveArchAsin {
++		return archAsin(x)
++	}
++	return asin(x)
++}
+ 
+ func asin(x float64) float64 {
+ 	if x == 0 {
+@@ -48,7 +53,12 @@ func asin(x float64) float64 {
+ //
+ // Special case is:
+ //	Acos(x) = NaN if x < -1 or x > 1
+-func Acos(x float64) float64
++func Acos(x float64) float64 {
++	if haveArchAcos {
++		return archAcos(x)
++	}
++	return acos(x)
++}
+ 
+ func acos(x float64) float64 {
+ 	return Pi/2 - Asin(x)
+diff --git a/src/math/asinh.go b/src/math/asinh.go
+index 65ae4c652d..6dcb241c1f 100644
+--- a/src/math/asinh.go
++++ b/src/math/asinh.go
+@@ -36,7 +36,12 @@ package math
+ //	Asinh(±0) = ±0
+ //	Asinh(±Inf) = ±Inf
+ //	Asinh(NaN) = NaN
+-func Asinh(x float64) float64
++func Asinh(x float64) float64 {
++	if haveArchAsinh {
++		return archAsinh(x)
++	}
++	return asinh(x)
++}
+ 
+ func asinh(x float64) float64 {
+ 	const (
+diff --git a/src/math/atan.go b/src/math/atan.go
+index 7fcc90b8b0..69af860161 100644
+--- a/src/math/atan.go
++++ b/src/math/atan.go
+@@ -92,7 +92,12 @@ func satan(x float64) float64 {
+ // Special cases are:
+ //      Atan(±0) = ±0
+ //      Atan(±Inf) = ±Pi/2
+-func Atan(x float64) float64
++func Atan(x float64) float64 {
++	if haveArchAtan {
++		return archAtan(x)
++	}
++	return atan(x)
++}
+ 
+ func atan(x float64) float64 {
+ 	if x == 0 {
+diff --git a/src/math/atan2.go b/src/math/atan2.go
+index d84b332c99..11d7e81acd 100644
+--- a/src/math/atan2.go
++++ b/src/math/atan2.go
+@@ -26,7 +26,12 @@ package math
+ //	Atan2(y<0, -Inf) = -Pi
+ //	Atan2(+Inf, x) = +Pi/2
+ //	Atan2(-Inf, x) = -Pi/2
+-func Atan2(y, x float64) float64
++func Atan2(y, x float64) float64 {
++	if haveArchAtan2 {
++		return archAtan2(y, x)
++	}
++	return atan2(y, x)
++}
+ 
+ func atan2(y, x float64) float64 {
+ 	// special cases
+diff --git a/src/math/atanh.go b/src/math/atanh.go
+index 8904bd6dd2..fe8bd6d8a4 100644
+--- a/src/math/atanh.go
++++ b/src/math/atanh.go
+@@ -44,7 +44,12 @@ package math
+ //	Atanh(-1) = -Inf
+ //	Atanh(x) = NaN if x < -1 or x > 1
+ //	Atanh(NaN) = NaN
+-func Atanh(x float64) float64
++func Atanh(x float64) float64 {
++	if haveArchAtanh {
++		return archAtanh(x)
++	}
++	return atanh(x)
++}
+ 
+ func atanh(x float64) float64 {
+ 	const NearZero = 1.0 / (1 << 28) // 2**-28
+diff --git a/src/math/cbrt.go b/src/math/cbrt.go
+index 4afd4a8f30..45c8ecb3a8 100644
+--- a/src/math/cbrt.go
++++ b/src/math/cbrt.go
+@@ -22,7 +22,12 @@ package math
+ //	Cbrt(±0) = ±0
+ //	Cbrt(±Inf) = ±Inf
+ //	Cbrt(NaN) = NaN
+-func Cbrt(x float64) float64
++func Cbrt(x float64) float64 {
++	if haveArchCbrt {
++		return archCbrt(x)
++	}
++	return cbrt(x)
++}
+ 
+ func cbrt(x float64) float64 {
+ 	const (
+diff --git a/src/math/dim.go b/src/math/dim.go
+index d2e5d47f5c..6a857bbe41 100644
+--- a/src/math/dim.go
++++ b/src/math/dim.go
+@@ -32,7 +32,12 @@ func Dim(x, y float64) float64 {
+ //	Max(x, NaN) = Max(NaN, x) = NaN
+ //	Max(+0, ±0) = Max(±0, +0) = +0
+ //	Max(-0, -0) = -0
+-func Max(x, y float64) float64
++func Max(x, y float64) float64 {
++	if haveArchMax {
++		return archMax(x, y)
++	}
++	return max(x, y)
++}
+ 
+ func max(x, y float64) float64 {
+ 	// special cases
+@@ -59,7 +64,12 @@ func max(x, y float64) float64 {
+ //	Min(x, -Inf) = Min(-Inf, x) = -Inf
+ //	Min(x, NaN) = Min(NaN, x) = NaN
+ //	Min(-0, ±0) = Min(±0, -0) = -0
+-func Min(x, y float64) float64
++func Min(x, y float64) float64 {
++	if haveArchMin {
++		return archMin(x, y)
++	}
++	return min(x, y)
++}
+ 
+ func min(x, y float64) float64 {
+ 	// special cases
+diff --git a/src/math/dim_amd64.s b/src/math/dim_amd64.s
+index 85c02e6e52..253f03b97e 100644
+--- a/src/math/dim_amd64.s
++++ b/src/math/dim_amd64.s
+@@ -8,8 +8,8 @@
+ #define NaN    0x7FF8000000000001
+ #define NegInf 0xFFF0000000000000
+ 
+-// func ·Max(x, y float64) float64
+-TEXT ·Max(SB),NOSPLIT,$0
++// func ·archMax(x, y float64) float64
++TEXT ·archMax(SB),NOSPLIT,$0
+ 	// +Inf special cases
+ 	MOVQ    $PosInf, AX
+ 	MOVQ    x+0(FP), R8
+@@ -52,8 +52,8 @@ isMaxZero:
+ 	MOVQ    R9, ret+16(FP) // return other 0
+ 	RET
+ 
+-// func Min(x, y float64) float64
+-TEXT ·Min(SB),NOSPLIT,$0
++// func archMin(x, y float64) float64
++TEXT ·archMin(SB),NOSPLIT,$0
+ 	// -Inf special cases
+ 	MOVQ    $NegInf, AX
+ 	MOVQ    x+0(FP), R8
+diff --git a/src/math/dim_arm64.s b/src/math/dim_arm64.s
+index 2cb866ff3e..f112003dc0 100644
+--- a/src/math/dim_arm64.s
++++ b/src/math/dim_arm64.s
+@@ -8,8 +8,8 @@
+ #define NaN    0x7FF8000000000001
+ #define NegInf 0xFFF0000000000000
+ 
+-// func ·Max(x, y float64) float64
+-TEXT ·Max(SB),NOSPLIT,$0
++// func ·archMax(x, y float64) float64
++TEXT ·archMax(SB),NOSPLIT,$0
+ 	// +Inf special cases
+ 	MOVD	$PosInf, R0
+ 	MOVD	x+0(FP), R1
+@@ -28,8 +28,8 @@ isPosInf: // return +Inf
+ 	MOVD	R0, ret+16(FP)
+ 	RET
+ 
+-// func Min(x, y float64) float64
+-TEXT ·Min(SB),NOSPLIT,$0
++// func archMin(x, y float64) float64
++TEXT ·archMin(SB),NOSPLIT,$0
+ 	// -Inf special cases
+ 	MOVD	$NegInf, R0
+ 	MOVD	x+0(FP), R1
+diff --git a/src/math/dim_asm.go b/src/math/dim_asm.go
+new file mode 100644
+index 0000000000..9ba742a407
+--- /dev/null
++++ b/src/math/dim_asm.go
+@@ -0,0 +1,16 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build amd64 || arm64 || riscv64 || s390x
++// +build amd64 arm64 riscv64 s390x
++
++package math
++
++const haveArchMax = true
++
++func archMax(x, y float64) float64
++
++const haveArchMin = true
++
++func archMin(x, y float64) float64
+diff --git a/src/math/dim_noasm.go b/src/math/dim_noasm.go
+new file mode 100644
+index 0000000000..ea46577d8d
+--- /dev/null
++++ b/src/math/dim_noasm.go
+@@ -0,0 +1,20 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !amd64 && !arm64 && !riscv64 && !s390x
++// +build !amd64,!arm64,!riscv64,!s390x
++
++package math
++
++const haveArchMax = false
++
++func archMax(x, y float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchMin = false
++
++func archMin(x, y float64) float64 {
++	panic("not implemented")
++}
+diff --git a/src/math/dim_riscv64.s b/src/math/dim_riscv64.s
+index 38f5fe7a91..5b2fd3d063 100644
+--- a/src/math/dim_riscv64.s
++++ b/src/math/dim_riscv64.s
+@@ -9,8 +9,8 @@
+ #define	PosInf	0x080
+ #define	NaN	0x200
+ 
+-// func Max(x, y float64) float64
+-TEXT ·Max(SB),NOSPLIT,$0
++// func archMax(x, y float64) float64
++TEXT ·archMax(SB),NOSPLIT,$0
+ 	MOVD	x+0(FP), F0
+ 	MOVD	y+8(FP), F1
+ 	FCLASSD	F0, X5
+@@ -39,8 +39,8 @@ isMaxY: // return y
+ 	MOVD	F1, ret+16(FP)
+ 	RET
+ 
+-// func Min(x, y float64) float64
+-TEXT ·Min(SB),NOSPLIT,$0
++// func archMin(x, y float64) float64
++TEXT ·archMin(SB),NOSPLIT,$0
+ 	MOVD	x+0(FP), F0
+ 	MOVD	y+8(FP), F1
+ 	FCLASSD	F0, X5
+diff --git a/src/math/dim_s390x.s b/src/math/dim_s390x.s
+index 74fdd75b9c..12770261f2 100644
+--- a/src/math/dim_s390x.s
++++ b/src/math/dim_s390x.s
+@@ -11,7 +11,7 @@
+ #define NegInf 0xFFF0000000000000
+ 
+ // func ·Max(x, y float64) float64
+-TEXT ·Max(SB),NOSPLIT,$0
++TEXT ·archMax(SB),NOSPLIT,$0
+ 	// +Inf special cases
+ 	MOVD    $PosInf, R4
+ 	MOVD    x+0(FP), R8
+@@ -52,8 +52,8 @@ isMaxZero:
+ 	MOVD    R9, ret+16(FP) // return other 0
+ 	RET
+ 
+-// func Min(x, y float64) float64
+-TEXT ·Min(SB),NOSPLIT,$0
++// func archMin(x, y float64) float64
++TEXT ·archMin(SB),NOSPLIT,$0
+ 	// -Inf special cases
+ 	MOVD    $NegInf, R4
+ 	MOVD    x+0(FP), R8
+diff --git a/src/math/erf.go b/src/math/erf.go
+index 9b4048f687..4d6fe472f1 100644
+--- a/src/math/erf.go
++++ b/src/math/erf.go
+@@ -185,7 +185,12 @@ const (
+ //	Erf(+Inf) = 1
+ //	Erf(-Inf) = -1
+ //	Erf(NaN) = NaN
+-func Erf(x float64) float64
++func Erf(x float64) float64 {
++	if haveArchErf {
++		return archErf(x)
++	}
++	return erf(x)
++}
+ 
+ func erf(x float64) float64 {
+ 	const (
+@@ -264,7 +269,12 @@ func erf(x float64) float64 {
+ //	Erfc(+Inf) = 0
+ //	Erfc(-Inf) = 2
+ //	Erfc(NaN) = NaN
+-func Erfc(x float64) float64
++func Erfc(x float64) float64 {
++	if haveArchErfc {
++		return archErfc(x)
++	}
++	return erfc(x)
++}
+ 
+ func erfc(x float64) float64 {
+ 	const Tiny = 1.0 / (1 << 56) // 2**-56
+diff --git a/src/math/exp.go b/src/math/exp.go
+index bd4c5c9b71..d05eb91fb0 100644
+--- a/src/math/exp.go
++++ b/src/math/exp.go
+@@ -11,7 +11,12 @@ package math
+ //	Exp(NaN) = NaN
+ // Very large values overflow to 0 or +Inf.
+ // Very small values underflow to 1.
+-func Exp(x float64) float64
++func Exp(x float64) float64 {
++	if haveArchExp {
++		return archExp(x)
++	}
++	return exp(x)
++}
+ 
+ // The original C code, the long comment, and the constants
+ // below are from FreeBSD's /usr/src/lib/msun/src/e_exp.c
+@@ -132,7 +137,12 @@ func exp(x float64) float64 {
+ // Exp2 returns 2**x, the base-2 exponential of x.
+ //
+ // Special cases are the same as Exp.
+-func Exp2(x float64) float64
++func Exp2(x float64) float64 {
++	if haveArchExp2 {
++		return archExp2(x)
++	}
++	return exp2(x)
++}
+ 
+ func exp2(x float64) float64 {
+ 	const (
+diff --git a/src/math/exp2_asm.go b/src/math/exp2_asm.go
+new file mode 100644
+index 0000000000..76d258f125
+--- /dev/null
++++ b/src/math/exp2_asm.go
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build arm64
++// +build arm64
++
++package math
++
++const haveArchExp2 = true
++
++func archExp2(x float64) float64
+diff --git a/src/math/exp2_noasm.go b/src/math/exp2_noasm.go
+new file mode 100644
+index 0000000000..1b0ac87ebf
+--- /dev/null
++++ b/src/math/exp2_noasm.go
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !arm64
++// +build !arm64
++
++package math
++
++const haveArchExp2 = false
++
++func archExp2(x float64) float64 {
++	panic("not implemented")
++}
+diff --git a/src/math/exp_amd64.go b/src/math/exp_amd64.go
+new file mode 100644
+index 0000000000..654ccce481
+--- /dev/null
++++ b/src/math/exp_amd64.go
+@@ -0,0 +1,12 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build amd64
++// +build amd64
++
++package math
++
++import "internal/cpu"
++
++var useFMA = cpu.X86.HasAVX && cpu.X86.HasFMA
+diff --git a/src/math/exp_amd64.s b/src/math/exp_amd64.s
+index b3e1c22d04..02b71c81eb 100644
+--- a/src/math/exp_amd64.s
++++ b/src/math/exp_amd64.s
+@@ -37,7 +37,7 @@ DATA exprodata<>+64(SB)/8, $2.4801587301587301587e-5
+ GLOBL exprodata<>+0(SB), RODATA, $72
+ 
+ // func Exp(x float64) float64
+-TEXT ·Exp(SB),NOSPLIT,$0
++TEXT ·archExp(SB),NOSPLIT,$0
+ 	// test bits for not-finite
+ 	MOVQ    x+0(FP), BX
+ 	MOVQ    $~(1<<63), AX // sign bit mask
+diff --git a/src/math/exp_arm64.s b/src/math/exp_arm64.s
+index 19736cbf44..44673abefe 100644
+--- a/src/math/exp_arm64.s
++++ b/src/math/exp_arm64.s
+@@ -23,7 +23,7 @@
+ // This is an assembly implementation of the method used for function Exp in file exp.go.
+ //
+ // func Exp(x float64) float64
+-TEXT ·Exp(SB),$0-16
++TEXT ·archExp(SB),$0-16
+ 	FMOVD	x+0(FP), F0	// F0 = x
+ 	FCMPD	F0, F0
+ 	BNE	isNaN		// x = NaN, return NaN
+@@ -109,7 +109,7 @@ overflow:
+ // This is an assembly implementation of the method used for function Exp2 in file exp.go.
+ //
+ // func Exp2(x float64) float64
+-TEXT ·Exp2(SB),$0-16
++TEXT ·archExp2(SB),$0-16
+ 	FMOVD	x+0(FP), F0	// F0 = x
+ 	FCMPD	F0, F0
+ 	BNE	isNaN		// x = NaN, return NaN
+diff --git a/src/math/exp_asm.go b/src/math/exp_asm.go
+index 654ccce481..a1673ea1dd 100644
+--- a/src/math/exp_asm.go
++++ b/src/math/exp_asm.go
+@@ -1,12 +1,12 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
++// Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build amd64
+-// +build amd64
++//go:build amd64 || arm64 || s390x
++// +build amd64 arm64 s390x
+ 
+ package math
+ 
+-import "internal/cpu"
++const haveArchExp = true
+ 
+-var useFMA = cpu.X86.HasAVX && cpu.X86.HasFMA
++func archExp(x float64) float64
+diff --git a/src/math/exp_noasm.go b/src/math/exp_noasm.go
+new file mode 100644
+index 0000000000..b757e6e230
+--- /dev/null
++++ b/src/math/exp_noasm.go
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !amd64 && !arm64 && !s390x
++// +build !amd64,!arm64,!s390x
++
++package math
++
++const haveArchExp = false
++
++func archExp(x float64) float64 {
++	panic("not implemented")
++}
+diff --git a/src/math/expm1.go b/src/math/expm1.go
+index 8e77398adc..66d3421661 100644
+--- a/src/math/expm1.go
++++ b/src/math/expm1.go
+@@ -121,7 +121,12 @@ package math
+ //	Expm1(-Inf) = -1
+ //	Expm1(NaN) = NaN
+ // Very large values overflow to -1 or +Inf.
+-func Expm1(x float64) float64
++func Expm1(x float64) float64 {
++	if haveArchExpm1 {
++		return archExpm1(x)
++	}
++	return expm1(x)
++}
+ 
+ func expm1(x float64) float64 {
+ 	const (
+diff --git a/src/math/floor.go b/src/math/floor.go
+index 18e89ef89f..7913a900e3 100644
+--- a/src/math/floor.go
++++ b/src/math/floor.go
+@@ -10,7 +10,12 @@ package math
+ //	Floor(±0) = ±0
+ //	Floor(±Inf) = ±Inf
+ //	Floor(NaN) = NaN
+-func Floor(x float64) float64
++func Floor(x float64) float64 {
++	if haveArchFloor {
++		return archFloor(x)
++	}
++	return floor(x)
++}
+ 
+ func floor(x float64) float64 {
+ 	if x == 0 || IsNaN(x) || IsInf(x, 0) {
+@@ -33,7 +38,12 @@ func floor(x float64) float64 {
+ //	Ceil(±0) = ±0
+ //	Ceil(±Inf) = ±Inf
+ //	Ceil(NaN) = NaN
+-func Ceil(x float64) float64
++func Ceil(x float64) float64 {
++	if haveArchCeil {
++		return archCeil(x)
++	}
++	return ceil(x)
++}
+ 
+ func ceil(x float64) float64 {
+ 	return -Floor(-x)
+@@ -45,7 +55,12 @@ func ceil(x float64) float64 {
+ //	Trunc(±0) = ±0
+ //	Trunc(±Inf) = ±Inf
+ //	Trunc(NaN) = NaN
+-func Trunc(x float64) float64
++func Trunc(x float64) float64 {
++	if haveArchTrunc {
++		return archTrunc(x)
++	}
++	return trunc(x)
++}
+ 
+ func trunc(x float64) float64 {
+ 	if x == 0 || IsNaN(x) || IsInf(x, 0) {
+diff --git a/src/math/floor_386.s b/src/math/floor_386.s
+index 0960eecde2..1990cb0c8c 100644
+--- a/src/math/floor_386.s
++++ b/src/math/floor_386.s
+@@ -4,8 +4,8 @@
+ 
+ #include "textflag.h"
+ 
+-// func Ceil(x float64) float64
+-TEXT ·Ceil(SB),NOSPLIT,$0
++// func archCeil(x float64) float64
++TEXT ·archCeil(SB),NOSPLIT,$0
+ 	FMOVD   x+0(FP), F0  // F0=x
+ 	FSTCW   -2(SP)       // save old Control Word
+ 	MOVW    -2(SP), AX
+@@ -18,8 +18,8 @@ TEXT ·Ceil(SB),NOSPLIT,$0
+ 	FMOVDP  F0, ret+8(FP)
+ 	RET
+ 
+-// func Floor(x float64) float64
+-TEXT ·Floor(SB),NOSPLIT,$0
++// func archFloor(x float64) float64
++TEXT ·archFloor(SB),NOSPLIT,$0
+ 	FMOVD   x+0(FP), F0  // F0=x
+ 	FSTCW   -2(SP)       // save old Control Word
+ 	MOVW    -2(SP), AX
+@@ -32,8 +32,8 @@ TEXT ·Floor(SB),NOSPLIT,$0
+ 	FMOVDP  F0, ret+8(FP)
+ 	RET
+ 
+-// func Trunc(x float64) float64
+-TEXT ·Trunc(SB),NOSPLIT,$0
++// func archTrunc(x float64) float64
++TEXT ·archTrunc(SB),NOSPLIT,$0
+ 	FMOVD   x+0(FP), F0  // F0=x
+ 	FSTCW   -2(SP)       // save old Control Word
+ 	MOVW    -2(SP), AX
+diff --git a/src/math/floor_amd64.s b/src/math/floor_amd64.s
+index 4ef02eb09a..088049958a 100644
+--- a/src/math/floor_amd64.s
++++ b/src/math/floor_amd64.s
+@@ -6,8 +6,8 @@
+ 
+ #define Big		0x4330000000000000 // 2**52
+ 
+-// func Floor(x float64) float64
+-TEXT ·Floor(SB),NOSPLIT,$0
++// func archFloor(x float64) float64
++TEXT ·archFloor(SB),NOSPLIT,$0
+ 	MOVQ	x+0(FP), AX
+ 	MOVQ	$~(1<<63), DX // sign bit mask
+ 	ANDQ	AX,DX // DX = |x|
+@@ -28,8 +28,8 @@ isBig_floor:
+ 	MOVQ    AX, ret+8(FP) // return x
+ 	RET
+ 
+-// func Ceil(x float64) float64
+-TEXT ·Ceil(SB),NOSPLIT,$0
++// func archCeil(x float64) float64
++TEXT ·archCeil(SB),NOSPLIT,$0
+ 	MOVQ	x+0(FP), AX
+ 	MOVQ	$~(1<<63), DX // sign bit mask
+ 	MOVQ	AX, BX // BX = copy of x
+@@ -54,8 +54,8 @@ isBig_ceil:
+ 	MOVQ	AX, ret+8(FP)
+ 	RET
+ 
+-// func Trunc(x float64) float64
+-TEXT ·Trunc(SB),NOSPLIT,$0
++// func archTrunc(x float64) float64
++TEXT ·archTrunc(SB),NOSPLIT,$0
+ 	MOVQ	x+0(FP), AX
+ 	MOVQ	$~(1<<63), DX // sign bit mask
+ 	MOVQ	AX, BX // BX = copy of x
+diff --git a/src/math/floor_arm64.s b/src/math/floor_arm64.s
+index 6d240d4cd8..d9c5df7b24 100644
+--- a/src/math/floor_arm64.s
++++ b/src/math/floor_arm64.s
+@@ -4,22 +4,22 @@
+ 
+ #include "textflag.h"
+ 
+-// func Floor(x float64) float64
+-TEXT ·Floor(SB),NOSPLIT,$0
++// func archFloor(x float64) float64
++TEXT ·archFloor(SB),NOSPLIT,$0
+ 	FMOVD	x+0(FP), F0
+ 	FRINTMD	F0, F0
+ 	FMOVD	F0, ret+8(FP)
+ 	RET
+ 
+-// func Ceil(x float64) float64
+-TEXT ·Ceil(SB),NOSPLIT,$0
++// func archCeil(x float64) float64
++TEXT ·archCeil(SB),NOSPLIT,$0
+ 	FMOVD	x+0(FP), F0
+ 	FRINTPD	F0, F0
+ 	FMOVD	F0, ret+8(FP)
+ 	RET
+ 
+-// func Trunc(x float64) float64
+-TEXT ·Trunc(SB),NOSPLIT,$0
++// func archTrunc(x float64) float64
++TEXT ·archTrunc(SB),NOSPLIT,$0
+ 	FMOVD	x+0(FP), F0
+ 	FRINTZD	F0, F0
+ 	FMOVD	F0, ret+8(FP)
+diff --git a/src/math/floor_asm.go b/src/math/floor_asm.go
+new file mode 100644
+index 0000000000..1265e5171e
+--- /dev/null
++++ b/src/math/floor_asm.go
+@@ -0,0 +1,20 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build 386 || amd64 || arm64 || ppc64 || ppc64le || s390x || wasm
++// +build 386 amd64 arm64 ppc64 ppc64le s390x wasm
++
++package math
++
++const haveArchFloor = true
++
++func archFloor(x float64) float64
++
++const haveArchCeil = true
++
++func archCeil(x float64) float64
++
++const haveArchTrunc = true
++
++func archTrunc(x float64) float64
+diff --git a/src/math/floor_noasm.go b/src/math/floor_noasm.go
+new file mode 100644
+index 0000000000..821af21020
+--- /dev/null
++++ b/src/math/floor_noasm.go
+@@ -0,0 +1,26 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !386 && !amd64 && !arm64 && !ppc64 && !ppc64le && !s390x && !wasm
++// +build !386,!amd64,!arm64,!ppc64,!ppc64le,!s390x,!wasm
++
++package math
++
++const haveArchFloor = false
++
++func archFloor(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchCeil = false
++
++func archCeil(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchTrunc = false
++
++func archTrunc(x float64) float64 {
++	panic("not implemented")
++}
+diff --git a/src/math/floor_ppc64x.s b/src/math/floor_ppc64x.s
+index 2ab011d5b5..29b92a62c3 100644
+--- a/src/math/floor_ppc64x.s
++++ b/src/math/floor_ppc64x.s
+@@ -6,19 +6,19 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·Floor(SB),NOSPLIT,$0
++TEXT ·archFloor(SB),NOSPLIT,$0
+ 	FMOVD   x+0(FP), F0
+ 	FRIM	F0, F0
+ 	FMOVD   F0, ret+8(FP)
+ 	RET
+ 
+-TEXT ·Ceil(SB),NOSPLIT,$0
++TEXT ·archCeil(SB),NOSPLIT,$0
+ 	FMOVD   x+0(FP), F0
+ 	FRIP    F0, F0
+ 	FMOVD	F0, ret+8(FP)
+ 	RET
+ 
+-TEXT ·Trunc(SB),NOSPLIT,$0
++TEXT ·archTrunc(SB),NOSPLIT,$0
+ 	FMOVD   x+0(FP), F0
+ 	FRIZ    F0, F0
+ 	FMOVD   F0, ret+8(FP)
+diff --git a/src/math/floor_s390x.s b/src/math/floor_s390x.s
+index 896e79b807..b5dd462e52 100644
+--- a/src/math/floor_s390x.s
++++ b/src/math/floor_s390x.s
+@@ -4,22 +4,22 @@
+ 
+ #include "textflag.h"
+ 
+-// func Floor(x float64) float64
+-TEXT ·Floor(SB),NOSPLIT,$0
++// func archFloor(x float64) float64
++TEXT ·archFloor(SB),NOSPLIT,$0
+ 	FMOVD	x+0(FP), F0
+ 	FIDBR	$7, F0, F0
+ 	FMOVD	F0, ret+8(FP)
+ 	RET
+ 
+-// func Ceil(x float64) float64
+-TEXT ·Ceil(SB),NOSPLIT,$0
++// func archCeil(x float64) float64
++TEXT ·archCeil(SB),NOSPLIT,$0
+ 	FMOVD	x+0(FP), F0
+ 	FIDBR	$6, F0, F0
+ 	FMOVD	F0, ret+8(FP)
+ 	RET
+ 
+-// func Trunc(x float64) float64
+-TEXT ·Trunc(SB),NOSPLIT,$0
++// func archTrunc(x float64) float64
++TEXT ·archTrunc(SB),NOSPLIT,$0
+ 	FMOVD	x+0(FP), F0
+ 	FIDBR	$5, F0, F0
+ 	FMOVD	F0, ret+8(FP)
+diff --git a/src/math/floor_wasm.s b/src/math/floor_wasm.s
+index 4d8a0eb070..3751471574 100644
+--- a/src/math/floor_wasm.s
++++ b/src/math/floor_wasm.s
+@@ -4,21 +4,21 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·Floor(SB),NOSPLIT,$0
++TEXT ·archFloor(SB),NOSPLIT,$0
+ 	Get SP
+ 	F64Load x+0(FP)
+ 	F64Floor
+ 	F64Store ret+8(FP)
+ 	RET
+ 
+-TEXT ·Ceil(SB),NOSPLIT,$0
++TEXT ·archCeil(SB),NOSPLIT,$0
+ 	Get SP
+ 	F64Load x+0(FP)
+ 	F64Ceil
+ 	F64Store ret+8(FP)
+ 	RET
+ 
+-TEXT ·Trunc(SB),NOSPLIT,$0
++TEXT ·archTrunc(SB),NOSPLIT,$0
+ 	Get SP
+ 	F64Load x+0(FP)
+ 	F64Trunc
+diff --git a/src/math/frexp.go b/src/math/frexp.go
+index 0e26feb666..3c8a909ed0 100644
+--- a/src/math/frexp.go
++++ b/src/math/frexp.go
+@@ -13,7 +13,12 @@ package math
+ //	Frexp(±0) = ±0, 0
+ //	Frexp(±Inf) = ±Inf, 0
+ //	Frexp(NaN) = NaN, 0
+-func Frexp(f float64) (frac float64, exp int)
++func Frexp(f float64) (frac float64, exp int) {
++	if haveArchFrexp {
++		return archFrexp(f)
++	}
++	return frexp(f)
++}
+ 
+ func frexp(f float64) (frac float64, exp int) {
+ 	// special cases
+diff --git a/src/math/hypot.go b/src/math/hypot.go
+index c7f19d4d38..12af17766d 100644
+--- a/src/math/hypot.go
++++ b/src/math/hypot.go
+@@ -16,7 +16,12 @@ package math
+ //	Hypot(p, ±Inf) = +Inf
+ //	Hypot(NaN, q) = NaN
+ //	Hypot(p, NaN) = NaN
+-func Hypot(p, q float64) float64
++func Hypot(p, q float64) float64 {
++	if haveArchHypot {
++		return archHypot(p, q)
++	}
++	return hypot(p, q)
++}
+ 
+ func hypot(p, q float64) float64 {
+ 	// special cases
+diff --git a/src/math/hypot_386.s b/src/math/hypot_386.s
+index a89cdf7c1b..80a8fd3fd0 100644
+--- a/src/math/hypot_386.s
++++ b/src/math/hypot_386.s
+@@ -4,8 +4,8 @@
+ 
+ #include "textflag.h"
+ 
+-// func Hypot(p, q float64) float64
+-TEXT ·Hypot(SB),NOSPLIT,$0
++// func archHypot(p, q float64) float64
++TEXT ·archHypot(SB),NOSPLIT,$0
+ // test bits for not-finite
+ 	MOVL    p_hi+4(FP), AX   // high word p
+ 	ANDL    $0x7ff00000, AX
+diff --git a/src/math/hypot_amd64.s b/src/math/hypot_amd64.s
+index d7983a7d7b..fe326c9281 100644
+--- a/src/math/hypot_amd64.s
++++ b/src/math/hypot_amd64.s
+@@ -7,8 +7,8 @@
+ #define PosInf 0x7FF0000000000000
+ #define NaN 0x7FF8000000000001
+ 
+-// func Hypot(p, q float64) float64
+-TEXT ·Hypot(SB),NOSPLIT,$0
++// func archHypot(p, q float64) float64
++TEXT ·archHypot(SB),NOSPLIT,$0
+ 	// test bits for special cases
+ 	MOVQ    p+0(FP), BX
+ 	MOVQ    $~(1<<63), AX
+diff --git a/src/math/hypot_asm.go b/src/math/hypot_asm.go
+new file mode 100644
+index 0000000000..9435af41cf
+--- /dev/null
++++ b/src/math/hypot_asm.go
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build 386 || amd64
++// +build 386 amd64
++
++package math
++
++const haveArchHypot = true
++
++func archHypot(p, q float64) float64
+diff --git a/src/math/hypot_noasm.go b/src/math/hypot_noasm.go
+new file mode 100644
+index 0000000000..bc41b136e5
+--- /dev/null
++++ b/src/math/hypot_noasm.go
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !386 && !amd64
++// +build !386,!amd64
++
++package math
++
++const haveArchHypot = false
++
++func archHypot(p, q float64) float64 {
++	panic("not implemented")
++}
+diff --git a/src/math/ldexp.go b/src/math/ldexp.go
+index aa50a49ade..55c82f1e84 100644
+--- a/src/math/ldexp.go
++++ b/src/math/ldexp.go
+@@ -11,7 +11,12 @@ package math
+ //	Ldexp(±0, exp) = ±0
+ //	Ldexp(±Inf, exp) = ±Inf
+ //	Ldexp(NaN, exp) = NaN
+-func Ldexp(frac float64, exp int) float64
++func Ldexp(frac float64, exp int) float64 {
++	if haveArchLdexp {
++		return archLdexp(frac, exp)
++	}
++	return ldexp(frac, exp)
++}
+ 
+ func ldexp(frac float64, exp int) float64 {
+ 	// special cases
+diff --git a/src/math/log.go b/src/math/log.go
+index e328348328..1b3e306adf 100644
+--- a/src/math/log.go
++++ b/src/math/log.go
+@@ -77,7 +77,12 @@ package math
+ //	Log(0) = -Inf
+ //	Log(x < 0) = NaN
+ //	Log(NaN) = NaN
+-func Log(x float64) float64
++func Log(x float64) float64 {
++	if haveArchLog {
++		return archLog(x)
++	}
++	return log(x)
++}
+ 
+ func log(x float64) float64 {
+ 	const (
+diff --git a/src/math/log10.go b/src/math/log10.go
+index ccd079d891..e6916a53b6 100644
+--- a/src/math/log10.go
++++ b/src/math/log10.go
+@@ -6,7 +6,12 @@ package math
+ 
+ // Log10 returns the decimal logarithm of x.
+ // The special cases are the same as for Log.
+-func Log10(x float64) float64
++func Log10(x float64) float64 {
++	if haveArchLog10 {
++		return archLog10(x)
++	}
++	return log10(x)
++}
+ 
+ func log10(x float64) float64 {
+ 	return Log(x) * (1 / Ln10)
+@@ -14,7 +19,12 @@ func log10(x float64) float64 {
+ 
+ // Log2 returns the binary logarithm of x.
+ // The special cases are the same as for Log.
+-func Log2(x float64) float64
++func Log2(x float64) float64 {
++	if haveArchLog2 {
++		return archLog2(x)
++	}
++	return log2(x)
++}
+ 
+ func log2(x float64) float64 {
+ 	frac, exp := Frexp(x)
+diff --git a/src/math/log1p.go b/src/math/log1p.go
+index e34e1ff4f2..c117f7245d 100644
+--- a/src/math/log1p.go
++++ b/src/math/log1p.go
+@@ -92,7 +92,12 @@ package math
+ //	Log1p(-1) = -Inf
+ //	Log1p(x < -1) = NaN
+ //	Log1p(NaN) = NaN
+-func Log1p(x float64) float64
++func Log1p(x float64) float64 {
++	if haveArchLog1p {
++		return archLog1p(x)
++	}
++	return log1p(x)
++}
+ 
+ func log1p(x float64) float64 {
+ 	const (
+diff --git a/src/math/log_amd64.s b/src/math/log_amd64.s
+index 3d7638979f..d84091f23a 100644
+--- a/src/math/log_amd64.s
++++ b/src/math/log_amd64.s
+@@ -19,7 +19,7 @@
+ #define PosInf 0x7FF0000000000000
+ 
+ // func Log(x float64) float64
+-TEXT ·Log(SB),NOSPLIT,$0
++TEXT ·archLog(SB),NOSPLIT,$0
+ 	// test bits for special cases
+ 	MOVQ    x+0(FP), BX
+ 	MOVQ    $~(1<<63), AX // sign bit mask
+diff --git a/src/math/log_asm.go b/src/math/log_asm.go
+new file mode 100644
+index 0000000000..4d3b7ee065
+--- /dev/null
++++ b/src/math/log_asm.go
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build amd64 || s390x
++// +build amd64 s390x
++
++package math
++
++const haveArchLog = true
++
++func archLog(x float64) float64
+diff --git a/src/math/log_stub.go b/src/math/log_stub.go
+new file mode 100644
+index 0000000000..e169716436
+--- /dev/null
++++ b/src/math/log_stub.go
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !amd64 && !s390x
++// +build !amd64,!s390x
++
++package math
++
++const haveArchLog = false
++
++func archLog(x float64) float64 {
++	panic("not implemented")
++}
+diff --git a/src/math/mod.go b/src/math/mod.go
+index 7efc018a5d..6bc5f28832 100644
+--- a/src/math/mod.go
++++ b/src/math/mod.go
+@@ -18,7 +18,12 @@ package math
+ //	Mod(x, 0) = NaN
+ //	Mod(x, ±Inf) = x
+ //	Mod(x, NaN) = NaN
+-func Mod(x, y float64) float64
++func Mod(x, y float64) float64 {
++	if haveArchMod {
++		return archMod(x, y)
++	}
++	return mod(x, y)
++}
+ 
+ func mod(x, y float64) float64 {
+ 	if y == 0 || IsInf(x, 0) || IsNaN(x) || IsNaN(y) {
+diff --git a/src/math/modf.go b/src/math/modf.go
+index c5bb89455f..bf08dc6556 100644
+--- a/src/math/modf.go
++++ b/src/math/modf.go
+@@ -10,7 +10,12 @@ package math
+ // Special cases are:
+ //	Modf(±Inf) = ±Inf, NaN
+ //	Modf(NaN) = NaN, NaN
+-func Modf(f float64) (int float64, frac float64)
++func Modf(f float64) (int float64, frac float64) {
++	if haveArchModf {
++		return archModf(f)
++	}
++	return modf(f)
++}
+ 
+ func modf(f float64) (int float64, frac float64) {
+ 	if f < 1 {
+diff --git a/src/math/modf_arm64.s b/src/math/modf_arm64.s
+index 7c70ef33ac..1e4a329a4b 100644
+--- a/src/math/modf_arm64.s
++++ b/src/math/modf_arm64.s
+@@ -4,8 +4,8 @@
+ 
+ #include "textflag.h"
+ 
+-// func Modf(f float64) (int float64, frac float64)
+-TEXT ·Modf(SB),NOSPLIT,$0
++// func archModf(f float64) (int float64, frac float64)
++TEXT ·archModf(SB),NOSPLIT,$0
+ 	MOVD	f+0(FP), R0
+ 	FMOVD	R0, F0
+ 	FRINTZD	F0, F1
+diff --git a/src/math/modf_asm.go b/src/math/modf_asm.go
+new file mode 100644
+index 0000000000..ce431a9d8d
+--- /dev/null
++++ b/src/math/modf_asm.go
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build arm64 || ppc64 || ppc64le
++// +build arm64 ppc64 ppc64le
++
++package math
++
++const haveArchModf = true
++
++func archModf(f float64) (int float64, frac float64)
+diff --git a/src/math/modf_noasm.go b/src/math/modf_noasm.go
+new file mode 100644
+index 0000000000..9607a0894b
+--- /dev/null
++++ b/src/math/modf_noasm.go
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !arm64 && !ppc64 && !ppc64le
++// +build !arm64,!ppc64,!ppc64le
++
++package math
++
++const haveArchModf = false
++
++func archModf(f float64) (int float64, frac float64) {
++	panic("not implemented")
++}
+diff --git a/src/math/modf_ppc64x.s b/src/math/modf_ppc64x.s
+index da58653d69..caa435eef9 100644
+--- a/src/math/modf_ppc64x.s
++++ b/src/math/modf_ppc64x.s
+@@ -6,8 +6,8 @@
+ 
+ #include "textflag.h"
+ 
+-// func Modf(f float64) (int float64, frac float64)
+-TEXT ·Modf(SB),NOSPLIT,$0
++// func archModf(f float64) (int float64, frac float64)
++TEXT ·archModf(SB),NOSPLIT,$0
+ 	FMOVD	f+0(FP), F0
+ 	FRIZ	F0, F1
+ 	FMOVD	F1, int+8(FP)
+diff --git a/src/math/pow.go b/src/math/pow.go
+index 2219a906b8..e45a044ae1 100644
+--- a/src/math/pow.go
++++ b/src/math/pow.go
+@@ -35,7 +35,12 @@ func isOddInt(x float64) bool {
+ //	Pow(+Inf, y) = +0 for y < 0
+ //	Pow(-Inf, y) = Pow(-0, -y)
+ //	Pow(x, y) = NaN for finite x < 0 and finite non-integer y
+-func Pow(x, y float64) float64
++func Pow(x, y float64) float64 {
++	if haveArchPow {
++		return archPow(x, y)
++	}
++	return pow(x, y)
++}
+ 
+ func pow(x, y float64) float64 {
+ 	switch {
+diff --git a/src/math/remainder.go b/src/math/remainder.go
+index 7c77d6eb3b..bf8bfd5553 100644
+--- a/src/math/remainder.go
++++ b/src/math/remainder.go
+@@ -34,7 +34,12 @@ package math
+ //	Remainder(x, 0) = NaN
+ //	Remainder(x, ±Inf) = x
+ //	Remainder(x, NaN) = NaN
+-func Remainder(x, y float64) float64
++func Remainder(x, y float64) float64 {
++	if haveArchRemainder {
++		return archRemainder(x, y)
++	}
++	return remainder(x, y)
++}
+ 
+ func remainder(x, y float64) float64 {
+ 	const (
+diff --git a/src/math/sin.go b/src/math/sin.go
+index 3b6dbe3397..d95bb548e8 100644
+--- a/src/math/sin.go
++++ b/src/math/sin.go
+@@ -114,7 +114,12 @@ var _cos = [...]float64{
+ // Special cases are:
+ //	Cos(±Inf) = NaN
+ //	Cos(NaN) = NaN
+-func Cos(x float64) float64
++func Cos(x float64) float64 {
++	if haveArchCos {
++		return archCos(x)
++	}
++	return cos(x)
++}
+ 
+ func cos(x float64) float64 {
+ 	const (
+@@ -175,7 +180,12 @@ func cos(x float64) float64 {
+ //	Sin(±0) = ±0
+ //	Sin(±Inf) = NaN
+ //	Sin(NaN) = NaN
+-func Sin(x float64) float64
++func Sin(x float64) float64 {
++	if haveArchSin {
++		return archSin(x)
++	}
++	return sin(x)
++}
+ 
+ func sin(x float64) float64 {
+ 	const (
+diff --git a/src/math/sinh.go b/src/math/sinh.go
+index 573a37e35f..9fe9b4e17a 100644
+--- a/src/math/sinh.go
++++ b/src/math/sinh.go
+@@ -22,7 +22,12 @@ package math
+ //	Sinh(±0) = ±0
+ //	Sinh(±Inf) = ±Inf
+ //	Sinh(NaN) = NaN
+-func Sinh(x float64) float64
++func Sinh(x float64) float64 {
++	if haveArchSinh {
++		return archSinh(x)
++	}
++	return sinh(x)
++}
+ 
+ func sinh(x float64) float64 {
+ 	// The coefficients are #2029 from Hart & Cheney. (20.36D)
+@@ -69,7 +74,12 @@ func sinh(x float64) float64 {
+ //	Cosh(±0) = 1
+ //	Cosh(±Inf) = +Inf
+ //	Cosh(NaN) = NaN
+-func Cosh(x float64) float64
++func Cosh(x float64) float64 {
++	if haveArchCosh {
++		return archCosh(x)
++	}
++	return cosh(x)
++}
+ 
+ func cosh(x float64) float64 {
+ 	x = Abs(x)
+diff --git a/src/math/sqrt.go b/src/math/sqrt.go
+index 1077a62897..903d57d5e0 100644
+--- a/src/math/sqrt.go
++++ b/src/math/sqrt.go
+@@ -89,7 +89,12 @@ package math
+ //	Sqrt(±0) = ±0
+ //	Sqrt(x < 0) = NaN
+ //	Sqrt(NaN) = NaN
+-func Sqrt(x float64) float64
++func Sqrt(x float64) float64 {
++	if haveArchSqrt {
++		return archSqrt(x)
++	}
++	return sqrt(x)
++}
+ 
+ // Note: Sqrt is implemented in assembly on some systems.
+ // Others have assembly stubs that jump to func sqrt below.
+diff --git a/src/math/sqrt_386.s b/src/math/sqrt_386.s
+index 5a5c33a79a..90aec13b8d 100644
+--- a/src/math/sqrt_386.s
++++ b/src/math/sqrt_386.s
+@@ -4,8 +4,8 @@
+ 
+ #include "textflag.h"
+ 
+-// func Sqrt(x float64) float64
+-TEXT ·Sqrt(SB),NOSPLIT,$0
++// func archSqrt(x float64) float64
++TEXT ·archSqrt(SB),NOSPLIT,$0
+ 	FMOVD   x+0(FP),F0
+ 	FSQRT
+ 	FMOVDP  F0,ret+8(FP)
+diff --git a/src/math/sqrt_amd64.s b/src/math/sqrt_amd64.s
+index 1102903055..c3b110e7c0 100644
+--- a/src/math/sqrt_amd64.s
++++ b/src/math/sqrt_amd64.s
+@@ -4,8 +4,8 @@
+ 
+ #include "textflag.h"
+ 
+-// func Sqrt(x float64) float64
+-TEXT ·Sqrt(SB), NOSPLIT, $0
++// func archSqrt(x float64) float64
++TEXT ·archSqrt(SB), NOSPLIT, $0
+ 	XORPS  X0, X0 // break dependency
+ 	SQRTSD x+0(FP), X0
+ 	MOVSD  X0, ret+8(FP)
+diff --git a/src/math/sqrt_arm.s b/src/math/sqrt_arm.s
+index ffc7d1026d..64792ecaf7 100644
+--- a/src/math/sqrt_arm.s
++++ b/src/math/sqrt_arm.s
+@@ -4,8 +4,8 @@
+ 
+ #include "textflag.h"
+ 
+-// func Sqrt(x float64) float64
+-TEXT ·Sqrt(SB),NOSPLIT,$0
++// func archSqrt(x float64) float64
++TEXT ·archSqrt(SB),NOSPLIT,$0
+ 	MOVB	runtime·goarm(SB), R11
+ 	CMP	$5, R11
+ 	BEQ	arm5
+diff --git a/src/math/sqrt_arm64.s b/src/math/sqrt_arm64.s
+index 3041d25722..36ba41ab4a 100644
+--- a/src/math/sqrt_arm64.s
++++ b/src/math/sqrt_arm64.s
+@@ -4,8 +4,8 @@
+ 
+ #include "textflag.h"
+ 
+-// func Sqrt(x float64) float64
+-TEXT ·Sqrt(SB),NOSPLIT,$0
++// func archSqrt(x float64) float64
++TEXT ·archSqrt(SB),NOSPLIT,$0
+ 	FMOVD	x+0(FP), F0
+ 	FSQRTD	F0, F0
+ 	FMOVD	F0, ret+8(FP)
+diff --git a/src/math/sqrt_asm.go b/src/math/sqrt_asm.go
+new file mode 100644
+index 0000000000..b9102568ed
+--- /dev/null
++++ b/src/math/sqrt_asm.go
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build 386 || amd64 || arm64 || arm || mips || mipsle || ppc64 || ppc64le || s390x || riscv64 || wasm
++// +build 386 amd64 arm64 arm mips mipsle ppc64 ppc64le s390x riscv64 wasm
++
++package math
++
++const haveArchSqrt = true
++
++func archSqrt(x float64) float64
+diff --git a/src/math/sqrt_mipsx.s b/src/math/sqrt_mipsx.s
+index a63ea9ec9f..c619c19ec2 100644
+--- a/src/math/sqrt_mipsx.s
++++ b/src/math/sqrt_mipsx.s
+@@ -6,8 +6,8 @@
+ 
+ #include "textflag.h"
+ 
+-// func Sqrt(x float64) float64
+-TEXT ·Sqrt(SB),NOSPLIT,$0
++// func archSqrt(x float64) float64
++TEXT ·archSqrt(SB),NOSPLIT,$0
+ #ifdef GOMIPS_softfloat
+ 	JMP ·sqrt(SB)
+ #else
+diff --git a/src/math/sqrt_noasm.go b/src/math/sqrt_noasm.go
+new file mode 100644
+index 0000000000..7b546b7e8c
+--- /dev/null
++++ b/src/math/sqrt_noasm.go
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !386 && !amd64 && !arm64 && !arm && !mips && !mipsle && !ppc64 && !ppc64le && !s390x && !riscv64 && !wasm
++// +build !386,!amd64,!arm64,!arm,!mips,!mipsle,!ppc64,!ppc64le,!s390x,!riscv64,!wasm
++
++package math
++
++const haveArchSqrt = false
++
++func archSqrt(x float64) float64 {
++	panic("not implemented")
++}
+diff --git a/src/math/sqrt_ppc64x.s b/src/math/sqrt_ppc64x.s
+index 0469f4d0e1..174b63e35a 100644
+--- a/src/math/sqrt_ppc64x.s
++++ b/src/math/sqrt_ppc64x.s
+@@ -6,8 +6,8 @@
+ 
+ #include "textflag.h"
+ 
+-// func Sqrt(x float64) float64
+-TEXT ·Sqrt(SB),NOSPLIT,$0
++// func archSqrt(x float64) float64
++TEXT ·archSqrt(SB),NOSPLIT,$0
+ 	FMOVD	x+0(FP), F0
+ 	FSQRT	F0, F0
+ 	FMOVD	F0, ret+8(FP)
+diff --git a/src/math/sqrt_riscv64.s b/src/math/sqrt_riscv64.s
+index 048171b9fb..f223510c42 100644
+--- a/src/math/sqrt_riscv64.s
++++ b/src/math/sqrt_riscv64.s
+@@ -6,8 +6,8 @@
+ 
+ #include "textflag.h"
+ 
+-// func Sqrt(x float64) float64
+-TEXT ·Sqrt(SB),NOSPLIT,$0
++// func archSqrt(x float64) float64
++TEXT ·archSqrt(SB),NOSPLIT,$0
+ 	MOVD	x+0(FP), F0
+ 	FSQRTD	F0, F0
+ 	MOVD	F0, ret+8(FP)
+diff --git a/src/math/sqrt_s390x.s b/src/math/sqrt_s390x.s
+index 37ca0bec91..fa31f75362 100644
+--- a/src/math/sqrt_s390x.s
++++ b/src/math/sqrt_s390x.s
+@@ -4,8 +4,8 @@
+ 
+ #include "textflag.h"
+ 
+-// func Sqrt(x float64) float64
+-TEXT ·Sqrt(SB),NOSPLIT,$0
++// func archSqrt(x float64) float64
++TEXT ·archSqrt(SB),NOSPLIT,$0
+ 	FMOVD x+0(FP), F1
+ 	FSQRT F1, F1
+ 	FMOVD F1, ret+8(FP)
+diff --git a/src/math/sqrt_wasm.s b/src/math/sqrt_wasm.s
+index cbfe598a43..fa6799ddc6 100644
+--- a/src/math/sqrt_wasm.s
++++ b/src/math/sqrt_wasm.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·Sqrt(SB),NOSPLIT,$0
++TEXT ·archSqrt(SB),NOSPLIT,$0
+ 	Get SP
+ 	F64Load x+0(FP)
+ 	F64Sqrt
+diff --git a/src/math/stubs.go b/src/math/stubs.go
+new file mode 100644
+index 0000000000..e1345eb841
+--- /dev/null
++++ b/src/math/stubs.go
+@@ -0,0 +1,161 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !s390x
++// +build !s390x
++
++// This is a large group of functions that most architectures don't
++// implement in assembly.
++
++package math
++
++const haveArchAcos = false
++
++func archAcos(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchAcosh = false
++
++func archAcosh(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchAsin = false
++
++func archAsin(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchAsinh = false
++
++func archAsinh(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchAtan = false
++
++func archAtan(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchAtan2 = false
++
++func archAtan2(y, x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchAtanh = false
++
++func archAtanh(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchCbrt = false
++
++func archCbrt(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchCos = false
++
++func archCos(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchCosh = false
++
++func archCosh(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchErf = false
++
++func archErf(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchErfc = false
++
++func archErfc(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchExpm1 = false
++
++func archExpm1(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchFrexp = false
++
++func archFrexp(x float64) (float64, int) {
++	panic("not implemented")
++}
++
++const haveArchLdexp = false
++
++func archLdexp(frac float64, exp int) float64 {
++	panic("not implemented")
++}
++
++const haveArchLog10 = false
++
++func archLog10(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchLog2 = false
++
++func archLog2(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchLog1p = false
++
++func archLog1p(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchMod = false
++
++func archMod(x, y float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchPow = false
++
++func archPow(x, y float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchRemainder = false
++
++func archRemainder(x, y float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchSin = false
++
++func archSin(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchSinh = false
++
++func archSinh(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchTan = false
++
++func archTan(x float64) float64 {
++	panic("not implemented")
++}
++
++const haveArchTanh = false
++
++func archTanh(x float64) float64 {
++	panic("not implemented")
++}
+diff --git a/src/math/stubs_386.s b/src/math/stubs_386.s
+deleted file mode 100644
+index bccb3edd11..0000000000
+--- a/src/math/stubs_386.s
++++ /dev/null
+@@ -1,98 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Acos(SB), NOSPLIT, $0
+-	JMP ·acos(SB)
+-
+-TEXT ·Acosh(SB), NOSPLIT, $0
+-	JMP ·acosh(SB)
+-
+-TEXT ·Asin(SB), NOSPLIT, $0
+-	JMP ·asin(SB)
+-
+-TEXT ·Asinh(SB), NOSPLIT, $0
+-	JMP ·asinh(SB)
+-
+-TEXT ·Atan(SB), NOSPLIT, $0
+-	JMP ·atan(SB)
+-
+-TEXT ·Atan2(SB), NOSPLIT, $0
+-	JMP ·atan2(SB)
+-
+-TEXT ·Atanh(SB), NOSPLIT, $0
+-	JMP ·atanh(SB)
+-
+-TEXT ·Cbrt(SB), NOSPLIT, $0
+-	JMP ·cbrt(SB)
+-
+-TEXT ·Cos(SB), NOSPLIT, $0
+-	JMP ·cos(SB)
+-
+-TEXT ·Cosh(SB), NOSPLIT, $0
+-	JMP ·cosh(SB)
+-
+-TEXT ·Erf(SB), NOSPLIT, $0
+-	JMP ·erf(SB)
+-
+-TEXT ·Erfc(SB), NOSPLIT, $0
+-	JMP ·erfc(SB)
+-
+-TEXT ·Exp(SB), NOSPLIT, $0
+-	JMP ·exp(SB)
+-
+-TEXT ·Exp2(SB), NOSPLIT, $0
+-	JMP ·exp2(SB)
+-
+-TEXT ·Expm1(SB), NOSPLIT, $0
+-	JMP ·expm1(SB)
+-
+-TEXT ·Frexp(SB), NOSPLIT, $0
+-	JMP ·frexp(SB)
+-
+-TEXT ·Ldexp(SB), NOSPLIT, $0
+-	JMP ·ldexp(SB)
+-
+-TEXT ·Log10(SB), NOSPLIT, $0
+-	JMP ·log10(SB)
+-
+-TEXT ·Log2(SB), NOSPLIT, $0
+-	JMP ·log2(SB)
+-
+-TEXT ·Log1p(SB), NOSPLIT, $0
+-	JMP ·log1p(SB)
+-
+-TEXT ·Log(SB), NOSPLIT, $0
+-	JMP ·log(SB)
+-
+-TEXT ·Max(SB), NOSPLIT, $0
+-	JMP ·max(SB)
+-
+-TEXT ·Min(SB), NOSPLIT, $0
+-	JMP ·min(SB)
+-
+-TEXT ·Mod(SB), NOSPLIT, $0
+-	JMP ·mod(SB)
+-
+-TEXT ·Modf(SB), NOSPLIT, $0
+-	JMP ·modf(SB)
+-
+-TEXT ·Pow(SB), NOSPLIT, $0
+-	JMP ·pow(SB)
+-
+-TEXT ·Remainder(SB), NOSPLIT, $0
+-	JMP ·remainder(SB)
+-
+-TEXT ·Sin(SB), NOSPLIT, $0
+-	JMP ·sin(SB)
+-
+-TEXT ·Sinh(SB), NOSPLIT, $0
+-	JMP ·sinh(SB)
+-
+-TEXT ·Tan(SB), NOSPLIT, $0
+-	JMP ·tan(SB)
+-
+-TEXT ·Tanh(SB), NOSPLIT, $0
+-	JMP ·tanh(SB)
+diff --git a/src/math/stubs_amd64.s b/src/math/stubs_amd64.s
+deleted file mode 100644
+index 31e01fd266..0000000000
+--- a/src/math/stubs_amd64.s
++++ /dev/null
+@@ -1,86 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Acos(SB), NOSPLIT, $0
+-	JMP ·acos(SB)
+-
+-TEXT ·Acosh(SB), NOSPLIT, $0
+-	JMP ·acosh(SB)
+-
+-TEXT ·Asin(SB), NOSPLIT, $0
+-	JMP ·asin(SB)
+-
+-TEXT ·Asinh(SB), NOSPLIT, $0
+-	JMP ·asinh(SB)
+-
+-TEXT ·Atan(SB), NOSPLIT, $0
+-	JMP ·atan(SB)
+-
+-TEXT ·Atan2(SB), NOSPLIT, $0
+-	JMP ·atan2(SB)
+-
+-TEXT ·Atanh(SB), NOSPLIT, $0
+-	JMP ·atanh(SB)
+-
+-TEXT ·Cbrt(SB), NOSPLIT, $0
+-	JMP ·cbrt(SB)
+-
+-TEXT ·Cos(SB), NOSPLIT, $0
+-	JMP ·cos(SB)
+-
+-TEXT ·Cosh(SB), NOSPLIT, $0
+-	JMP ·cosh(SB)
+-
+-TEXT ·Erf(SB), NOSPLIT, $0
+-	JMP ·erf(SB)
+-
+-TEXT ·Erfc(SB), NOSPLIT, $0
+-	JMP ·erfc(SB)
+-
+-TEXT ·Exp2(SB), NOSPLIT, $0
+-	JMP ·exp2(SB)
+-
+-TEXT ·Expm1(SB), NOSPLIT, $0
+-	JMP ·expm1(SB)
+-
+-TEXT ·Frexp(SB), NOSPLIT, $0
+-	JMP ·frexp(SB)
+-
+-TEXT ·Ldexp(SB), NOSPLIT, $0
+-	JMP ·ldexp(SB)
+-
+-TEXT ·Log10(SB), NOSPLIT, $0
+-	JMP ·log10(SB)
+-
+-TEXT ·Log2(SB), NOSPLIT, $0
+-	JMP ·log2(SB)
+-
+-TEXT ·Log1p(SB), NOSPLIT, $0
+-	JMP ·log1p(SB)
+-
+-TEXT ·Mod(SB), NOSPLIT, $0
+-	JMP ·mod(SB)
+-
+-TEXT ·Modf(SB), NOSPLIT, $0
+-	JMP ·modf(SB)
+-
+-TEXT ·Pow(SB), NOSPLIT, $0
+-	JMP ·pow(SB)
+-
+-TEXT ·Remainder(SB), NOSPLIT, $0
+-	JMP ·remainder(SB)
+-
+-TEXT ·Sin(SB), NOSPLIT, $0
+-	JMP ·sin(SB)
+-
+-TEXT ·Sinh(SB), NOSPLIT, $0
+-	JMP ·sinh(SB)
+-
+-TEXT ·Tan(SB), NOSPLIT, $0
+-	JMP ·tan(SB)
+-
+-TEXT ·Tanh(SB), NOSPLIT, $0
+-	JMP ·tanh(SB)
+diff --git a/src/math/stubs_arm.s b/src/math/stubs_arm.s
+deleted file mode 100644
+index 31bf872e43..0000000000
+--- a/src/math/stubs_arm.s
++++ /dev/null
+@@ -1,110 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Acos(SB), NOSPLIT, $0
+-	B ·acos(SB)
+-
+-TEXT ·Acosh(SB), NOSPLIT, $0
+-	B ·acosh(SB)
+-
+-TEXT ·Asin(SB), NOSPLIT, $0
+-	B ·asin(SB)
+-
+-TEXT ·Asinh(SB), NOSPLIT, $0
+-	B ·asinh(SB)
+-
+-TEXT ·Atan(SB), NOSPLIT, $0
+-	B ·atan(SB)
+-
+-TEXT ·Atan2(SB), NOSPLIT, $0
+-	B ·atan2(SB)
+-
+-TEXT ·Atanh(SB), NOSPLIT, $0
+-	B ·atanh(SB)
+-
+-TEXT ·Cbrt(SB), NOSPLIT, $0
+-	B ·cbrt(SB)
+-
+-TEXT ·Cos(SB), NOSPLIT, $0
+-	B ·cos(SB)
+-
+-TEXT ·Cosh(SB), NOSPLIT, $0
+-	B ·cosh(SB)
+-
+-TEXT ·Erf(SB), NOSPLIT, $0
+-	B ·erf(SB)
+-
+-TEXT ·Erfc(SB), NOSPLIT, $0
+-	B ·erfc(SB)
+-
+-TEXT ·Exp2(SB), NOSPLIT, $0
+-	B ·exp2(SB)
+-
+-TEXT ·Exp(SB), NOSPLIT, $0
+-	B ·exp(SB)
+-
+-TEXT ·Expm1(SB), NOSPLIT, $0
+-	B ·expm1(SB)
+-
+-TEXT ·Floor(SB), NOSPLIT, $0
+-	B ·floor(SB)
+-
+-TEXT ·Ceil(SB), NOSPLIT, $0
+-	B ·ceil(SB)
+-
+-TEXT ·Trunc(SB), NOSPLIT, $0
+-	B ·trunc(SB)
+-
+-TEXT ·Frexp(SB), NOSPLIT, $0
+-	B ·frexp(SB)
+-
+-TEXT ·Hypot(SB), NOSPLIT, $0
+-	B ·hypot(SB)
+-
+-TEXT ·Ldexp(SB), NOSPLIT, $0
+-	B ·ldexp(SB)
+-
+-TEXT ·Log10(SB), NOSPLIT, $0
+-	B ·log10(SB)
+-
+-TEXT ·Log2(SB), NOSPLIT, $0
+-	B ·log2(SB)
+-
+-TEXT ·Log1p(SB), NOSPLIT, $0
+-	B ·log1p(SB)
+-
+-TEXT ·Log(SB), NOSPLIT, $0
+-	B ·log(SB)
+-
+-TEXT ·Max(SB), NOSPLIT, $0
+-	B ·max(SB)
+-
+-TEXT ·Min(SB), NOSPLIT, $0
+-	B ·min(SB)
+-
+-TEXT ·Mod(SB), NOSPLIT, $0
+-	B ·mod(SB)
+-
+-TEXT ·Modf(SB), NOSPLIT, $0
+-	B ·modf(SB)
+-
+-TEXT ·Pow(SB), NOSPLIT, $0
+-	JMP ·pow(SB)
+-
+-TEXT ·Remainder(SB), NOSPLIT, $0
+-	B ·remainder(SB)
+-
+-TEXT ·Sin(SB), NOSPLIT, $0
+-	B ·sin(SB)
+-
+-TEXT ·Sinh(SB), NOSPLIT, $0
+-	B ·sinh(SB)
+-
+-TEXT ·Tan(SB), NOSPLIT, $0
+-	B ·tan(SB)
+-
+-TEXT ·Tanh(SB), NOSPLIT, $0
+-	B ·tanh(SB)
+diff --git a/src/math/stubs_arm64.s b/src/math/stubs_arm64.s
+deleted file mode 100644
+index 24564d0c8e..0000000000
+--- a/src/math/stubs_arm64.s
++++ /dev/null
+@@ -1,88 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build arm64
+-
+-#include "textflag.h"
+-
+-TEXT ·Asin(SB), NOSPLIT, $0
+-	B ·asin(SB)
+-
+-TEXT ·Acos(SB), NOSPLIT, $0
+-	B ·acos(SB)
+-
+-TEXT ·Asinh(SB), NOSPLIT, $0
+-	B ·asinh(SB)
+-
+-TEXT ·Acosh(SB), NOSPLIT, $0
+-	B ·acosh(SB)
+-
+-TEXT ·Atan2(SB), NOSPLIT, $0
+-	B ·atan2(SB)
+-
+-TEXT ·Atan(SB), NOSPLIT, $0
+-	B ·atan(SB)
+-
+-TEXT ·Atanh(SB), NOSPLIT, $0
+-	B ·atanh(SB)
+-
+-TEXT ·Erf(SB), NOSPLIT, $0
+-	B ·erf(SB)
+-
+-TEXT ·Erfc(SB), NOSPLIT, $0
+-	B ·erfc(SB)
+-
+-TEXT ·Cbrt(SB), NOSPLIT, $0
+-	B ·cbrt(SB)
+-
+-TEXT ·Cosh(SB), NOSPLIT, $0
+-	B ·cosh(SB)
+-
+-TEXT ·Expm1(SB), NOSPLIT, $0
+-	B ·expm1(SB)
+-
+-TEXT ·Frexp(SB), NOSPLIT, $0
+-	B ·frexp(SB)
+-
+-TEXT ·Hypot(SB), NOSPLIT, $0
+-	B ·hypot(SB)
+-
+-TEXT ·Ldexp(SB), NOSPLIT, $0
+-	B ·ldexp(SB)
+-
+-TEXT ·Log10(SB), NOSPLIT, $0
+-	B ·log10(SB)
+-
+-TEXT ·Log2(SB), NOSPLIT, $0
+-	B ·log2(SB)
+-
+-TEXT ·Log1p(SB), NOSPLIT, $0
+-	B ·log1p(SB)
+-
+-TEXT ·Log(SB), NOSPLIT, $0
+-	B ·log(SB)
+-
+-TEXT ·Mod(SB), NOSPLIT, $0
+-	B ·mod(SB)
+-
+-TEXT ·Remainder(SB), NOSPLIT, $0
+-	B ·remainder(SB)
+-
+-TEXT ·Sin(SB), NOSPLIT, $0
+-	B ·sin(SB)
+-
+-TEXT ·Sinh(SB), NOSPLIT, $0
+-	B ·sinh(SB)
+-
+-TEXT ·Cos(SB), NOSPLIT, $0
+-	B ·cos(SB)
+-
+-TEXT ·Tan(SB), NOSPLIT, $0
+-	B ·tan(SB)
+-
+-TEXT ·Tanh(SB), NOSPLIT, $0
+-	B ·tanh(SB)
+-
+-TEXT ·Pow(SB), NOSPLIT, $0
+-	B ·pow(SB)
+diff --git a/src/math/stubs_mips64x.s b/src/math/stubs_mips64x.s
+deleted file mode 100644
+index 187b0699f6..0000000000
+--- a/src/math/stubs_mips64x.s
++++ /dev/null
+@@ -1,115 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build mips64 mips64le
+-
+-#include "textflag.h"
+-
+-TEXT ·Asin(SB), NOSPLIT, $0
+-	JMP ·asin(SB)
+-
+-TEXT ·Acos(SB), NOSPLIT, $0
+-	JMP ·acos(SB)
+-
+-TEXT ·Asinh(SB), NOSPLIT, $0
+-	JMP ·asinh(SB)
+-
+-TEXT ·Acosh(SB), NOSPLIT, $0
+-	JMP ·acosh(SB)
+-
+-TEXT ·Atan2(SB), NOSPLIT, $0
+-	JMP ·atan2(SB)
+-
+-TEXT ·Atan(SB), NOSPLIT, $0
+-	JMP ·atan(SB)
+-
+-TEXT ·Atanh(SB), NOSPLIT, $0
+-	JMP ·atanh(SB)
+-
+-TEXT ·Min(SB), NOSPLIT, $0
+-	JMP ·min(SB)
+-
+-TEXT ·Max(SB), NOSPLIT, $0
+-	JMP ·max(SB)
+-
+-TEXT ·Erf(SB), NOSPLIT, $0
+-	JMP ·erf(SB)
+-
+-TEXT ·Erfc(SB), NOSPLIT, $0
+-	JMP ·erfc(SB)
+-
+-TEXT ·Exp2(SB), NOSPLIT, $0
+-	JMP ·exp2(SB)
+-
+-TEXT ·Expm1(SB), NOSPLIT, $0
+-	JMP ·expm1(SB)
+-
+-TEXT ·Exp(SB), NOSPLIT, $0
+-	JMP ·exp(SB)
+-
+-TEXT ·Floor(SB), NOSPLIT, $0
+-	JMP ·floor(SB)
+-
+-TEXT ·Ceil(SB), NOSPLIT, $0
+-	JMP ·ceil(SB)
+-
+-TEXT ·Trunc(SB), NOSPLIT, $0
+-	JMP ·trunc(SB)
+-
+-TEXT ·Frexp(SB), NOSPLIT, $0
+-	JMP ·frexp(SB)
+-
+-TEXT ·Hypot(SB), NOSPLIT, $0
+-	JMP ·hypot(SB)
+-
+-TEXT ·Ldexp(SB), NOSPLIT, $0
+-	JMP ·ldexp(SB)
+-
+-TEXT ·Log10(SB), NOSPLIT, $0
+-	JMP ·log10(SB)
+-
+-TEXT ·Log2(SB), NOSPLIT, $0
+-	JMP ·log2(SB)
+-
+-TEXT ·Log1p(SB), NOSPLIT, $0
+-	JMP ·log1p(SB)
+-
+-TEXT ·Log(SB), NOSPLIT, $0
+-	JMP ·log(SB)
+-
+-TEXT ·Modf(SB), NOSPLIT, $0
+-	JMP ·modf(SB)
+-
+-TEXT ·Mod(SB), NOSPLIT, $0
+-	JMP ·mod(SB)
+-
+-TEXT ·Remainder(SB), NOSPLIT, $0
+-	JMP ·remainder(SB)
+-
+-TEXT ·Sin(SB), NOSPLIT, $0
+-	JMP ·sin(SB)
+-
+-TEXT ·Sinh(SB), NOSPLIT, $0
+-	JMP ·sinh(SB)
+-
+-TEXT ·Cos(SB), NOSPLIT, $0
+-	JMP ·cos(SB)
+-
+-TEXT ·Cosh(SB), NOSPLIT, $0
+-	JMP ·cosh(SB)
+-
+-TEXT ·Sqrt(SB), NOSPLIT, $0
+-	JMP ·sqrt(SB)
+-
+-TEXT ·Tan(SB), NOSPLIT, $0
+-	JMP ·tan(SB)
+-
+-TEXT ·Tanh(SB), NOSPLIT, $0
+-	JMP ·tanh(SB)
+-
+-TEXT ·Cbrt(SB), NOSPLIT, $0
+-	JMP ·cbrt(SB)
+-
+-TEXT ·Pow(SB), NOSPLIT, $0
+-	JMP ·pow(SB)
+diff --git a/src/math/stubs_mipsx.s b/src/math/stubs_mipsx.s
+deleted file mode 100644
+index 4b82449b14..0000000000
+--- a/src/math/stubs_mipsx.s
++++ /dev/null
+@@ -1,113 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build mips mipsle
+-
+-#include "textflag.h"
+-
+-TEXT ·Asin(SB), NOSPLIT, $0
+-	JMP ·asin(SB)
+-
+-TEXT ·Acos(SB), NOSPLIT, $0
+-	JMP ·acos(SB)
+-
+-TEXT ·Asinh(SB), NOSPLIT, $0
+-	JMP ·asinh(SB)
+-
+-TEXT ·Acosh(SB), NOSPLIT, $0
+-	JMP ·acosh(SB)
+-
+-TEXT ·Atan2(SB), NOSPLIT, $0
+-	JMP ·atan2(SB)
+-
+-TEXT ·Atan(SB), NOSPLIT, $0
+-	JMP ·atan(SB)
+-
+-TEXT ·Atanh(SB), NOSPLIT, $0
+-	JMP ·atanh(SB)
+-
+-TEXT ·Min(SB), NOSPLIT, $0
+-	JMP ·min(SB)
+-
+-TEXT ·Max(SB), NOSPLIT, $0
+-	JMP ·max(SB)
+-
+-TEXT ·Erf(SB), NOSPLIT, $0
+-	JMP ·erf(SB)
+-
+-TEXT ·Erfc(SB), NOSPLIT, $0
+-	JMP ·erfc(SB)
+-
+-TEXT ·Exp2(SB), NOSPLIT, $0
+-	JMP ·exp2(SB)
+-
+-TEXT ·Expm1(SB), NOSPLIT, $0
+-	JMP ·expm1(SB)
+-
+-TEXT ·Exp(SB), NOSPLIT, $0
+-	JMP ·exp(SB)
+-
+-TEXT ·Floor(SB), NOSPLIT, $0
+-	JMP ·floor(SB)
+-
+-TEXT ·Ceil(SB), NOSPLIT, $0
+-	JMP ·ceil(SB)
+-
+-TEXT ·Trunc(SB), NOSPLIT, $0
+-	JMP ·trunc(SB)
+-
+-TEXT ·Frexp(SB), NOSPLIT, $0
+-	JMP ·frexp(SB)
+-
+-TEXT ·Hypot(SB), NOSPLIT, $0
+-	JMP ·hypot(SB)
+-
+-TEXT ·Ldexp(SB), NOSPLIT, $0
+-	JMP ·ldexp(SB)
+-
+-TEXT ·Log10(SB), NOSPLIT, $0
+-	JMP ·log10(SB)
+-
+-TEXT ·Log2(SB), NOSPLIT, $0
+-	JMP ·log2(SB)
+-
+-TEXT ·Log1p(SB), NOSPLIT, $0
+-	JMP ·log1p(SB)
+-
+-TEXT ·Log(SB), NOSPLIT, $0
+-	JMP ·log(SB)
+-
+-TEXT ·Modf(SB), NOSPLIT, $0
+-	JMP ·modf(SB)
+-
+-TEXT ·Mod(SB), NOSPLIT, $0
+-	JMP ·mod(SB)
+-
+-TEXT ·Remainder(SB), NOSPLIT, $0
+-	JMP ·remainder(SB)
+-
+-TEXT ·Sin(SB), NOSPLIT, $0
+-	JMP ·sin(SB)
+-
+-TEXT ·Sinh(SB), NOSPLIT, $0
+-	JMP ·sinh(SB)
+-
+-TEXT ·Cos(SB), NOSPLIT, $0
+-	JMP ·cos(SB)
+-
+-TEXT ·Cosh(SB), NOSPLIT, $0
+-	JMP ·cosh(SB)
+-
+-TEXT ·Tan(SB), NOSPLIT, $0
+-	JMP ·tan(SB)
+-
+-TEXT ·Tanh(SB), NOSPLIT, $0
+-	JMP ·tanh(SB)
+-
+-TEXT ·Cbrt(SB), NOSPLIT, $0
+-	JMP ·cbrt(SB)
+-
+-TEXT ·Pow(SB), NOSPLIT, $0
+-	JMP ·pow(SB)
+-
+diff --git a/src/math/stubs_ppc64x.s b/src/math/stubs_ppc64x.s
+deleted file mode 100644
+index e7be07e8e3..0000000000
+--- a/src/math/stubs_ppc64x.s
++++ /dev/null
+@@ -1,101 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ppc64 ppc64le
+-
+-#include "textflag.h"
+-
+-TEXT ·Asin(SB), NOSPLIT, $0
+-	BR ·asin(SB)
+-
+-TEXT ·Acos(SB), NOSPLIT, $0
+-	BR ·acos(SB)
+-
+-TEXT ·Asinh(SB), NOSPLIT, $0
+-	BR ·asinh(SB)
+-
+-TEXT ·Acosh(SB), NOSPLIT, $0
+-	BR ·acosh(SB)
+-
+-TEXT ·Atan2(SB), NOSPLIT, $0
+-	BR ·atan2(SB)
+-
+-TEXT ·Atan(SB), NOSPLIT, $0
+-	BR ·atan(SB)
+-
+-TEXT ·Atanh(SB), NOSPLIT, $0
+-	BR ·atanh(SB)
+-
+-TEXT ·Min(SB), NOSPLIT, $0
+-	BR ·min(SB)
+-
+-TEXT ·Max(SB), NOSPLIT, $0
+-	BR ·max(SB)
+-
+-TEXT ·Erf(SB), NOSPLIT, $0
+-	BR ·erf(SB)
+-
+-TEXT ·Erfc(SB), NOSPLIT, $0
+-	BR ·erfc(SB)
+-
+-TEXT ·Exp2(SB), NOSPLIT, $0
+-	BR ·exp2(SB)
+-
+-TEXT ·Expm1(SB), NOSPLIT, $0
+-	BR ·expm1(SB)
+-
+-TEXT ·Exp(SB), NOSPLIT, $0
+-	BR ·exp(SB)
+-
+-TEXT ·Frexp(SB), NOSPLIT, $0
+-	BR ·frexp(SB)
+-
+-TEXT ·Hypot(SB), NOSPLIT, $0
+-	BR ·hypot(SB)
+-
+-TEXT ·Ldexp(SB), NOSPLIT, $0
+-	BR ·ldexp(SB)
+-
+-TEXT ·Log10(SB), NOSPLIT, $0
+-	BR ·log10(SB)
+-
+-TEXT ·Log2(SB), NOSPLIT, $0
+-	BR ·log2(SB)
+-
+-TEXT ·Log1p(SB), NOSPLIT, $0
+-	BR ·log1p(SB)
+-
+-TEXT ·Log(SB), NOSPLIT, $0
+-	BR ·log(SB)
+-
+-TEXT ·Mod(SB), NOSPLIT, $0
+-	BR ·mod(SB)
+-
+-TEXT ·Remainder(SB), NOSPLIT, $0
+-	BR ·remainder(SB)
+-
+-TEXT ·Sin(SB), NOSPLIT, $0
+-	BR ·sin(SB)
+-
+-TEXT ·Sinh(SB), NOSPLIT, $0
+-	BR ·sinh(SB)
+-
+-TEXT ·Cos(SB), NOSPLIT, $0
+-	BR ·cos(SB)
+-
+-TEXT ·Cosh(SB), NOSPLIT, $0
+-	BR ·cosh(SB)
+-
+-TEXT ·Tan(SB), NOSPLIT, $0
+-	BR ·tan(SB)
+-
+-TEXT ·Tanh(SB), NOSPLIT, $0
+-	BR ·tanh(SB)
+-
+-TEXT ·Cbrt(SB), NOSPLIT, $0
+-	BR ·cbrt(SB)
+-
+-TEXT ·Pow(SB), NOSPLIT, $0
+-	BR ·pow(SB)
+-
+diff --git a/src/math/stubs_riscv64.s b/src/math/stubs_riscv64.s
+deleted file mode 100644
+index b36efb8b35..0000000000
+--- a/src/math/stubs_riscv64.s
++++ /dev/null
+@@ -1,104 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Asin(SB),NOSPLIT,$0
+-	JMP ·asin(SB)
+-
+-TEXT ·Acos(SB),NOSPLIT,$0
+-	JMP ·acos(SB)
+-
+-TEXT ·Asinh(SB),NOSPLIT,$0
+-        JMP ·asinh(SB)
+-
+-TEXT ·Acosh(SB),NOSPLIT,$0
+-        JMP ·acosh(SB)
+-
+-TEXT ·Atan2(SB),NOSPLIT,$0
+-	JMP ·atan2(SB)
+-
+-TEXT ·Atan(SB),NOSPLIT,$0
+-	JMP ·atan(SB)
+-
+-TEXT ·Atanh(SB),NOSPLIT,$0
+-	JMP ·atanh(SB)
+-
+-TEXT ·Erf(SB),NOSPLIT,$0
+-	JMP ·erf(SB)
+-
+-TEXT ·Erfc(SB),NOSPLIT,$0
+-	JMP ·erfc(SB)
+-
+-TEXT ·Exp2(SB),NOSPLIT,$0
+-	JMP ·exp2(SB)
+-
+-TEXT ·Expm1(SB),NOSPLIT,$0
+-	JMP ·expm1(SB)
+-
+-TEXT ·Exp(SB),NOSPLIT,$0
+-	JMP ·exp(SB)
+-
+-TEXT ·Floor(SB),NOSPLIT,$0
+-	JMP ·floor(SB)
+-
+-TEXT ·Ceil(SB),NOSPLIT,$0
+-	JMP ·ceil(SB)
+-
+-TEXT ·Trunc(SB),NOSPLIT,$0
+-	JMP ·trunc(SB)
+-
+-TEXT ·Frexp(SB),NOSPLIT,$0
+-	JMP ·frexp(SB)
+-
+-TEXT ·Hypot(SB),NOSPLIT,$0
+-	JMP ·hypot(SB)
+-
+-TEXT ·Ldexp(SB),NOSPLIT,$0
+-	JMP ·ldexp(SB)
+-
+-TEXT ·Log10(SB),NOSPLIT,$0
+-	JMP ·log10(SB)
+-
+-TEXT ·Log2(SB),NOSPLIT,$0
+-	JMP ·log2(SB)
+-
+-TEXT ·Log1p(SB),NOSPLIT,$0
+-	JMP ·log1p(SB)
+-
+-TEXT ·Log(SB),NOSPLIT,$0
+-	JMP ·log(SB)
+-
+-TEXT ·Modf(SB),NOSPLIT,$0
+-	JMP ·modf(SB)
+-
+-TEXT ·Mod(SB),NOSPLIT,$0
+-	JMP ·mod(SB)
+-
+-TEXT ·Remainder(SB),NOSPLIT,$0
+-	JMP ·remainder(SB)
+-
+-TEXT ·Sin(SB),NOSPLIT,$0
+-	JMP ·sin(SB)
+-
+-TEXT ·Sinh(SB),NOSPLIT,$0
+-	JMP ·sinh(SB)
+-
+-TEXT ·Cos(SB),NOSPLIT,$0
+-	JMP ·cos(SB)
+-
+-TEXT ·Cosh(SB),NOSPLIT,$0
+-	JMP ·cosh(SB)
+-
+-TEXT ·Tan(SB),NOSPLIT,$0
+-	JMP ·tan(SB)
+-
+-TEXT ·Tanh(SB),NOSPLIT,$0
+-	JMP ·tanh(SB)
+-
+-TEXT ·Cbrt(SB),NOSPLIT,$0
+-	JMP ·cbrt(SB)
+-
+-TEXT ·Pow(SB),NOSPLIT,$0
+-	JMP ·pow(SB)
+diff --git a/src/math/stubs_s390x.s b/src/math/stubs_s390x.s
+index d0087aba15..7400179195 100644
+--- a/src/math/stubs_s390x.s
++++ b/src/math/stubs_s390x.s
+@@ -4,31 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·Exp2(SB), NOSPLIT, $0
+-	BR ·exp2(SB)
+-
+-TEXT ·Frexp(SB), NOSPLIT, $0
+-	BR ·frexp(SB)
+-
+-TEXT ·Hypot(SB), NOSPLIT, $0
+-	BR ·hypot(SB)
+-
+-TEXT ·Ldexp(SB), NOSPLIT, $0
+-	BR ·ldexp(SB)
+-
+-TEXT ·Log2(SB), NOSPLIT, $0
+-	BR ·log2(SB)
+-
+-TEXT ·Modf(SB), NOSPLIT, $0
+-	BR ·modf(SB)
+-
+-TEXT ·Mod(SB), NOSPLIT, $0
+-	BR ·mod(SB)
+-
+-TEXT ·Remainder(SB), NOSPLIT, $0
+-	BR ·remainder(SB)
+-
+-TEXT ·Log10(SB), NOSPLIT, $0
++TEXT ·archLog10(SB), NOSPLIT, $0
+ 	MOVD ·log10vectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -49,7 +25,7 @@ vectorimpl:
+ GLOBL ·log10vectorfacility+0x00(SB), NOPTR, $8
+ DATA ·log10vectorfacility+0x00(SB)/8, $·log10TrampolineSetup(SB)
+ 
+-TEXT ·Cos(SB), NOSPLIT, $0
++TEXT ·archCos(SB), NOSPLIT, $0
+ 	MOVD ·cosvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -70,7 +46,7 @@ vectorimpl:
+ GLOBL ·cosvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·cosvectorfacility+0x00(SB)/8, $·cosTrampolineSetup(SB)
+ 
+-TEXT ·Cosh(SB), NOSPLIT, $0
++TEXT ·archCosh(SB), NOSPLIT, $0
+ 	MOVD ·coshvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -91,7 +67,7 @@ vectorimpl:
+ GLOBL ·coshvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·coshvectorfacility+0x00(SB)/8, $·coshTrampolineSetup(SB)
+ 
+-TEXT ·Sin(SB), NOSPLIT, $0
++TEXT ·archSin(SB), NOSPLIT, $0
+ 	MOVD ·sinvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -112,7 +88,7 @@ vectorimpl:
+ GLOBL ·sinvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·sinvectorfacility+0x00(SB)/8, $·sinTrampolineSetup(SB)
+ 
+-TEXT ·Sinh(SB), NOSPLIT, $0
++TEXT ·archSinh(SB), NOSPLIT, $0
+ 	MOVD ·sinhvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -133,7 +109,7 @@ vectorimpl:
+ GLOBL ·sinhvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·sinhvectorfacility+0x00(SB)/8, $·sinhTrampolineSetup(SB)
+ 
+-TEXT ·Tanh(SB), NOSPLIT, $0
++TEXT ·archTanh(SB), NOSPLIT, $0
+ 	MOVD ·tanhvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -154,7 +130,7 @@ vectorimpl:
+ GLOBL ·tanhvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·tanhvectorfacility+0x00(SB)/8, $·tanhTrampolineSetup(SB)
+ 
+-TEXT ·Log1p(SB), NOSPLIT, $0
++TEXT ·archLog1p(SB), NOSPLIT, $0
+ 	MOVD ·log1pvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -175,7 +151,7 @@ vectorimpl:
+ GLOBL ·log1pvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·log1pvectorfacility+0x00(SB)/8, $·log1pTrampolineSetup(SB)
+ 
+-TEXT ·Atanh(SB), NOSPLIT, $0
++TEXT ·archAtanh(SB), NOSPLIT, $0
+ 	MOVD ·atanhvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -196,7 +172,7 @@ vectorimpl:
+ GLOBL ·atanhvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·atanhvectorfacility+0x00(SB)/8, $·atanhTrampolineSetup(SB)
+ 
+-TEXT ·Acos(SB), NOSPLIT, $0
++TEXT ·archAcos(SB), NOSPLIT, $0
+ 	MOVD ·acosvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -217,7 +193,7 @@ vectorimpl:
+ GLOBL ·acosvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·acosvectorfacility+0x00(SB)/8, $·acosTrampolineSetup(SB)
+ 
+-TEXT ·Asin(SB), NOSPLIT, $0
++TEXT ·archAsin(SB), NOSPLIT, $0
+ 	MOVD ·asinvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -238,7 +214,7 @@ vectorimpl:
+ GLOBL ·asinvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·asinvectorfacility+0x00(SB)/8, $·asinTrampolineSetup(SB)
+ 
+-TEXT ·Asinh(SB), NOSPLIT, $0
++TEXT ·archAsinh(SB), NOSPLIT, $0
+ 	MOVD ·asinhvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -259,7 +235,7 @@ vectorimpl:
+ GLOBL ·asinhvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·asinhvectorfacility+0x00(SB)/8, $·asinhTrampolineSetup(SB)
+ 
+-TEXT ·Acosh(SB), NOSPLIT, $0
++TEXT ·archAcosh(SB), NOSPLIT, $0
+ 	MOVD ·acoshvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -280,7 +256,7 @@ vectorimpl:
+ GLOBL ·acoshvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·acoshvectorfacility+0x00(SB)/8, $·acoshTrampolineSetup(SB)
+ 
+-TEXT ·Erf(SB), NOSPLIT, $0
++TEXT ·archErf(SB), NOSPLIT, $0
+ 	MOVD ·erfvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -301,7 +277,7 @@ vectorimpl:
+ GLOBL ·erfvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·erfvectorfacility+0x00(SB)/8, $·erfTrampolineSetup(SB)
+ 
+-TEXT ·Erfc(SB), NOSPLIT, $0
++TEXT ·archErfc(SB), NOSPLIT, $0
+ 	MOVD ·erfcvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -322,7 +298,7 @@ vectorimpl:
+ GLOBL ·erfcvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·erfcvectorfacility+0x00(SB)/8, $·erfcTrampolineSetup(SB)
+ 
+-TEXT ·Atan(SB), NOSPLIT, $0
++TEXT ·archAtan(SB), NOSPLIT, $0
+ 	MOVD ·atanvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -343,7 +319,7 @@ vectorimpl:
+ GLOBL ·atanvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·atanvectorfacility+0x00(SB)/8, $·atanTrampolineSetup(SB)
+ 
+-TEXT ·Atan2(SB), NOSPLIT, $0
++TEXT ·archAtan2(SB), NOSPLIT, $0
+ 	MOVD ·atan2vectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -364,7 +340,7 @@ vectorimpl:
+ GLOBL ·atan2vectorfacility+0x00(SB), NOPTR, $8
+ DATA ·atan2vectorfacility+0x00(SB)/8, $·atan2TrampolineSetup(SB)
+ 
+-TEXT ·Cbrt(SB), NOSPLIT, $0
++TEXT ·archCbrt(SB), NOSPLIT, $0
+ 	MOVD ·cbrtvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -385,7 +361,7 @@ vectorimpl:
+ GLOBL ·cbrtvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·cbrtvectorfacility+0x00(SB)/8, $·cbrtTrampolineSetup(SB)
+ 
+-TEXT ·Log(SB), NOSPLIT, $0
++TEXT ·archLog(SB), NOSPLIT, $0
+ 	MOVD ·logvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -406,7 +382,7 @@ vectorimpl:
+ GLOBL ·logvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·logvectorfacility+0x00(SB)/8, $·logTrampolineSetup(SB)
+ 
+-TEXT ·Tan(SB), NOSPLIT, $0
++TEXT ·archTan(SB), NOSPLIT, $0
+ 	MOVD ·tanvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -427,7 +403,7 @@ vectorimpl:
+ GLOBL ·tanvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·tanvectorfacility+0x00(SB)/8, $·tanTrampolineSetup(SB)
+ 
+-TEXT ·Exp(SB), NOSPLIT, $0
++TEXT ·archExp(SB), NOSPLIT, $0
+ 	MOVD ·expvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -448,7 +424,7 @@ vectorimpl:
+ GLOBL ·expvectorfacility+0x00(SB), NOPTR, $8
+ DATA ·expvectorfacility+0x00(SB)/8, $·expTrampolineSetup(SB)
+ 
+-TEXT ·Expm1(SB), NOSPLIT, $0
++TEXT ·archExpm1(SB), NOSPLIT, $0
+ 	MOVD ·expm1vectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+@@ -469,7 +445,7 @@ vectorimpl:
+ GLOBL ·expm1vectorfacility+0x00(SB), NOPTR, $8
+ DATA ·expm1vectorfacility+0x00(SB)/8, $·expm1TrampolineSetup(SB)
+ 
+-TEXT ·Pow(SB), NOSPLIT, $0
++TEXT ·archPow(SB), NOSPLIT, $0
+ 	MOVD ·powvectorfacility+0x00(SB), R1
+ 	BR   (R1)
+ 
+diff --git a/src/math/stubs_wasm.s b/src/math/stubs_wasm.s
+deleted file mode 100644
+index c97a2d7dd5..0000000000
+--- a/src/math/stubs_wasm.s
++++ /dev/null
+@@ -1,101 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Asin(SB), NOSPLIT, $0
+-	JMP ·asin(SB)
+-
+-TEXT ·Asinh(SB), NOSPLIT, $0
+-	JMP ·asinh(SB)
+-
+-TEXT ·Acos(SB), NOSPLIT, $0
+-	JMP ·acos(SB)
+-
+-TEXT ·Acosh(SB), NOSPLIT, $0
+-	JMP ·acosh(SB)
+-
+-TEXT ·Atan(SB), NOSPLIT, $0
+-	JMP ·atan(SB)
+-
+-TEXT ·Atanh(SB), NOSPLIT, $0
+-	JMP ·atanh(SB)
+-
+-TEXT ·Atan2(SB), NOSPLIT, $0
+-	JMP ·atan2(SB)
+-
+-TEXT ·Cbrt(SB), NOSPLIT, $0
+-	JMP ·cbrt(SB)
+-
+-TEXT ·Cos(SB), NOSPLIT, $0
+-	JMP ·cos(SB)
+-
+-TEXT ·Cosh(SB), NOSPLIT, $0
+-	JMP ·cosh(SB)
+-
+-TEXT ·Erf(SB), NOSPLIT, $0
+-	JMP ·erf(SB)
+-
+-TEXT ·Erfc(SB), NOSPLIT, $0
+-	JMP ·erfc(SB)
+-
+-TEXT ·Exp(SB), NOSPLIT, $0
+-	JMP ·exp(SB)
+-
+-TEXT ·Expm1(SB), NOSPLIT, $0
+-	JMP ·expm1(SB)
+-
+-TEXT ·Exp2(SB), NOSPLIT, $0
+-	JMP ·exp2(SB)
+-
+-TEXT ·Frexp(SB), NOSPLIT, $0
+-	JMP ·frexp(SB)
+-
+-TEXT ·Hypot(SB), NOSPLIT, $0
+-	JMP ·hypot(SB)
+-
+-TEXT ·Ldexp(SB), NOSPLIT, $0
+-	JMP ·ldexp(SB)
+-
+-TEXT ·Log(SB), NOSPLIT, $0
+-	JMP ·log(SB)
+-
+-TEXT ·Log1p(SB), NOSPLIT, $0
+-	JMP ·log1p(SB)
+-
+-TEXT ·Log10(SB), NOSPLIT, $0
+-	JMP ·log10(SB)
+-
+-TEXT ·Log2(SB), NOSPLIT, $0
+-	JMP ·log2(SB)
+-
+-TEXT ·Max(SB), NOSPLIT, $0
+-	JMP ·max(SB)
+-
+-TEXT ·Min(SB), NOSPLIT, $0
+-	JMP ·min(SB)
+-
+-TEXT ·Mod(SB), NOSPLIT, $0
+-	JMP ·mod(SB)
+-
+-TEXT ·Modf(SB), NOSPLIT, $0
+-	JMP ·modf(SB)
+-
+-TEXT ·Pow(SB), NOSPLIT, $0
+-	JMP ·pow(SB)
+-
+-TEXT ·Remainder(SB), NOSPLIT, $0
+-	JMP ·remainder(SB)
+-
+-TEXT ·Sin(SB), NOSPLIT, $0
+-	JMP ·sin(SB)
+-
+-TEXT ·Sinh(SB), NOSPLIT, $0
+-	JMP ·sinh(SB)
+-
+-TEXT ·Tan(SB), NOSPLIT, $0
+-	JMP ·tan(SB)
+-
+-TEXT ·Tanh(SB), NOSPLIT, $0
+-	JMP ·tanh(SB)
+diff --git a/src/math/tan.go b/src/math/tan.go
+index 49b1239208..a25417f527 100644
+--- a/src/math/tan.go
++++ b/src/math/tan.go
+@@ -79,7 +79,12 @@ var _tanQ = [...]float64{
+ //	Tan(±0) = ±0
+ //	Tan(±Inf) = NaN
+ //	Tan(NaN) = NaN
+-func Tan(x float64) float64
++func Tan(x float64) float64 {
++	if haveArchTan {
++		return archTan(x)
++	}
++	return tan(x)
++}
+ 
+ func tan(x float64) float64 {
+ 	const (
+diff --git a/src/math/tanh.go b/src/math/tanh.go
+index 0b7fb7f854..a825678424 100644
+--- a/src/math/tanh.go
++++ b/src/math/tanh.go
+@@ -71,7 +71,12 @@ var tanhQ = [...]float64{
+ //	Tanh(±0) = ±0
+ //	Tanh(±Inf) = ±1
+ //	Tanh(NaN) = NaN
+-func Tanh(x float64) float64
++func Tanh(x float64) float64 {
++	if haveArchTanh {
++		return archTanh(x)
++	}
++	return tanh(x)
++}
+ 
+ func tanh(x float64) float64 {
+ 	const MAXLOG = 8.8029691931113054295988e+01 // log(2**127)

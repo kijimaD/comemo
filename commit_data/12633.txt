@@ -9,7 +9,34 @@ Date:   Wed Mar 14 12:49:57 2012 -0400
     R=golang-dev, adg, rsc
     CC=golang-dev
     https://golang.org/cl/5825046
-
+---
  src/cmd/go/doc.go | 2 +-
  src/cmd/go/get.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index eb9c38b639..775f305d2b 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -213,7 +213,7 @@ Get downloads and installs the packages named by the import paths,
+ along with their dependencies.
+ 
+ The -a, -n, -v, -x, and -p flags have the same meaning as in 'go build'
+-and 'go install'.  See 'go help install'.
++and 'go install'.  See 'go help build'.
+ 
+ The -d flag instructs get to stop after downloading the packages; that is,
+ it instructs get not to install the packages.
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index b6a26f0e20..abaf5ffa0a 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -24,7 +24,7 @@ Get downloads and installs the packages named by the import paths,
+ along with their dependencies.
+ 
+ The -a, -n, -v, -x, and -p flags have the same meaning as in 'go build'
+-and 'go install'.  See 'go help install'.
++and 'go install'.  See 'go help build'.
+ 
+ The -d flag instructs get to stop after downloading the packages; that is,
+ it instructs get not to install the packages.

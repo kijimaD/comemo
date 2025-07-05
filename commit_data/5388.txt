@@ -7,7 +7,35 @@ Date:   Wed Apr 28 13:07:19 2010 -0700
     R=r
     CC=golang-dev, rsc
     https://golang.org/cl/1014043
-
+---
  src/pkg/fmt/fmt_test.go | 1 +
  src/pkg/fmt/print.go    | 4 ++++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 54006dff8b..dd5f2d5450 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -264,6 +264,7 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%d", "hello", "%d(string=hello)"},
+ 	fmtTest{"no args", "hello", "no args?(extra string=hello)"},
+ 	fmtTest{"%s", nil, "%s(<nil>)"},
++	fmtTest{"%T", nil, "<nil>"},
+ }
+ 
+ func TestSprintf(t *testing.T) {
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index c8d9e753a1..fb1c3f707d 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -1030,6 +1030,10 @@ func (p *pp) doprintf(format string, a []interface{}) {
+ 
+ 		// the value's type
+ 		case 'T':
++			if field == nil {
++				p.buf.Write(nilAngleBytes)
++				break
++			}
+ 			p.buf.WriteString(reflect.Typeof(field).String())
+ 
+ 		default:

@@ -7,6 +7,20 @@ Date:   Sat Mar 30 15:10:53 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8201043
-
+---
  src/pkg/runtime/gc_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/gc_test.go b/src/pkg/runtime/gc_test.go
+index 3475339bfe..26fc77de11 100644
+--- a/src/pkg/runtime/gc_test.go
++++ b/src/pkg/runtime/gc_test.go
+@@ -13,7 +13,7 @@ import (
+ 
+ func TestGcSys(t *testing.T) {
+ 	if os.Getenv("GOGC") == "off" {
+-		t.Fatalf("GOGC=off in environment; test cannot pass")
++		t.Skip("skipping test; GOGC=off in environment")
+ 	}
+ 	data := struct{ Short bool }{testing.Short()}
+ 	got := executeTest(t, testGCSysSource, &data)

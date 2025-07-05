@@ -12,7 +12,65 @@ Date:   Mon Jun 3 16:44:35 2013 -0400
     R=cshapiro, iant
     CC=golang-dev
     https://golang.org/cl/9685047
-
+---
  src/cmd/ld/lib.c         | 4 ++--
  src/pkg/runtime/symtab.c | 8 ++++----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 88c9f6a607..7084debcc0 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1914,13 +1914,13 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 		/* frame, locals, args, auto, param and pointers after */
+ 		put(nil, ".frame", 'm', (uint32)s->text->to.offset+PtrSize, 0, 0, 0);
+ 		put(nil, ".locals", 'm', s->locals, 0, 0, 0);
+-		if((s->text->textflag & NOSPLIT) && (s->args == 0) && (s->nptrs < 0))
++		if((s->text->textflag & NOSPLIT) && s->args == 0 && s->nptrs < 0) {
+ 			// This might be a vararg function and have no
+ 			// predetermined argument size.  This check is
+ 			// approximate and will also match 0 argument
+ 			// nosplit functions compiled by 6c.
+ 			put(nil, ".args", 'm', ArgsSizeUnknown, 0, 0, 0);
+-		else
++		} else
+ 			put(nil, ".args", 'm', s->args, 0, 0, 0);
+ 		if(s->nptrs >= 0) {
+ 			put(nil, ".nptrs", 'm', s->nptrs, 0, 0, 0);
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 126d0c5204..461707b98e 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -204,7 +204,7 @@ dofunc(Sym *sym)
+ 		if(runtime·strcmp(sym->name, (byte*)"etext") == 0)
+ 			break;
+ 		if(sym->value < lastvalue) {
+-			runtime·printf("symbols out of order: %p before %p\n", lastvalue, sym->value);
++			runtime·printf("runtime: symbols out of order: %p before %p\n", lastvalue, sym->value);
+ 			runtime·throw("malformed symbol table");
+ 		}
+ 		lastvalue = sym->value;
+@@ -230,7 +230,7 @@ dofunc(Sym *sym)
+ 		else if(runtime·strcmp(sym->name, (byte*)".nptrs") == 0) {
+ 			// TODO(cshapiro): use a dense representation for gc information
+ 			if(sym->value != func[nfunc-1].args/sizeof(uintptr)) {
+-				runtime·printf("pointer map size and argument size disagree\n");
++				runtime·printf("runtime: pointer map size and argument size disagree\n");
+ 				runtime·throw("mangled symbol table");
+ 			}
+ 			cap = ROUND(sym->value, 32) / 32;
+@@ -239,12 +239,12 @@ dofunc(Sym *sym)
+ 			func[nfunc-1].ptrs.cap = cap;
+ 		} else if(runtime·strcmp(sym->name, (byte*)".ptrs") == 0) {
+ 			if(func[nfunc-1].ptrs.len >= func[nfunc-1].ptrs.cap) {
+-				runtime·printf("more pointer map entries read than argument words\n");
++				runtime·printf("runtime: more pointer map entries read than argument words\n");
+ 				runtime·throw("mangled symbol table");
+ 			}
+ 			((uint32*)func[nfunc-1].ptrs.array)[func[nfunc-1].ptrs.len++] = sym->value;
+ 		} else {
+-			runtime·printf("invalid '%c' symbol named '%s'\n", (int8)sym->symtype, sym->name);
++			runtime·printf("runtime: invalid '%c' symbol named '%s'\n", (int8)sym->symtype, sym->name);
+ 			runtime·throw("mangled symbol table");
+ 		}
+ 		break;

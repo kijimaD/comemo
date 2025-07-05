@@ -11,6 +11,29 @@ Date:   Wed Jan 3 12:59:09 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/ipsock_posix.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index d659bf063a..8372aaa742 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -24,7 +24,7 @@ import (
+ // general. Unfortunately, we need to run on kernels built without
+ // IPv6 support too. So probe the kernel to figure it out.
+ func (p *ipStackCapabilities) probe() {
+-	s, err := socketFunc(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
++	s, err := sysSocket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+ 	switch err {
+ 	case syscall.EAFNOSUPPORT, syscall.EPROTONOSUPPORT:
+ 	case nil:
+@@ -48,7 +48,7 @@ func (p *ipStackCapabilities) probe() {
+ 		probes = probes[:1]
+ 	}
+ 	for i := range probes {
+-		s, err := socketFunc(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
++		s, err := sysSocket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+ 		if err != nil {
+ 			continue
+ 		}

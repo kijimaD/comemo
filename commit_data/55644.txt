@@ -25,8 +25,62 @@ Date:   Fri Feb 17 11:19:32 2023 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go | 7 +++++++
  src/cmd/compile/internal/ir/func.go    | 8 ++++++++
  src/cmd/compile/internal/types/type.go | 5 +++++
  3 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 5b855252c0..03f565e9d3 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -290,6 +290,13 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
+ 		return
+ 	}
+ 
++	// If fn is synthetic hash or eq function, cannot inline it.
++	// The function is not generated in Unified IR frontend at this moment.
++	if ir.IsEqOrHashFunc(fn) {
++		reason = "type eq/hash function"
++		return
++	}
++
+ 	if fn.Typecheck() == 0 {
+ 		base.Fatalf("CanInline on non-typechecked function %v", fn)
+ 	}
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index fba62283d5..967ebb02c2 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -275,6 +275,14 @@ func PkgFuncName(f *Func) string {
+ 	return pkg.Path + "." + s.Name
+ }
+ 
++// IsEqOrHashFunc reports whether f is type eq/hash function.
++func IsEqOrHashFunc(f *Func) bool {
++	if f == nil || f.Nname == nil {
++		return false
++	}
++	return types.IsTypePkg(f.Sym().Pkg)
++}
++
+ var CurFunc *Func
+ 
+ // WithFunc invokes do with CurFunc and base.Pos set to curfn and
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index ed7054e641..77389495e1 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1857,6 +1857,11 @@ func IsReflectPkg(p *Pkg) bool {
+ 	return p.Path == "reflect"
+ }
+ 
++// IsTypePkg reports whether p is pesudo package type.
++func IsTypePkg(p *Pkg) bool {
++	return p == typepkg
++}
++
+ // ReceiverBaseType returns the underlying type, if any,
+ // that owns methods with receiver parameter t.
+ // The result is either a named type or an anonymous struct.

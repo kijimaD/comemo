@@ -10,8 +10,62 @@ Date:   Mon Aug 29 11:01:03 2011 -0700
     R=golang-dev, dsymonds, rsc, bradfitz, bradfitz
     CC=golang-dev, mike.rosset
     https://golang.org/cl/4973044
-
+---
  src/pkg/archive/tar/testdata/writer.tar | Bin 3072 -> 3584 bytes
  src/pkg/archive/tar/writer.go           |   2 +-
  src/pkg/archive/tar/writer_test.go      |  19 +++++++++++++++++++
  3 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/archive/tar/testdata/writer.tar b/src/pkg/archive/tar/testdata/writer.tar
+index 0358f91b98..e6d816ad07 100644
+Binary files a/src/pkg/archive/tar/testdata/writer.tar and b/src/pkg/archive/tar/testdata/writer.tar differ
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index 8673bad316..c6ce2241af 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -134,7 +134,7 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+ 	tw.numeric(s.next(12), hdr.Mtime)      // 136:148
+ 	s.next(8)                              // chksum (148:156)
+ 	s.next(1)[0] = hdr.Typeflag            // 156:157
+-	s.next(100)                            // linkname (157:257)
++	tw.cString(s.next(100), hdr.Linkname)  // linkname (157:257)
+ 	copy(s.next(8), []byte("ustar\x0000")) // 257:265
+ 	tw.cString(s.next(32), hdr.Uname)      // 265:297
+ 	tw.cString(s.next(32), hdr.Gname)      // 297:329
+diff --git a/src/pkg/archive/tar/writer_test.go b/src/pkg/archive/tar/writer_test.go
+index 838cb7e1fe..6cc9386882 100644
+--- a/src/pkg/archive/tar/writer_test.go
++++ b/src/pkg/archive/tar/writer_test.go
+@@ -24,6 +24,10 @@ type writerTest struct {
+ }
+ 
+ var writerTests = []*writerTest{
++	// The writer test file was produced with this command:
++	// tar (GNU tar) 1.26
++	//   ln -s small.txt link.txt
++	//   tar -b 1 --format=ustar -c -f writer.tar small.txt small2.txt link.txt
+ 	&writerTest{
+ 		file: "testdata/writer.tar",
+ 		entries: []*writerTestEntry{
+@@ -55,6 +59,21 @@ var writerTests = []*writerTest{
+ 				},
+ 				contents: "Google.com\n",
+ 			},
++			&writerTestEntry{
++				header: &Header{
++					Name:     "link.txt",
++					Mode:     0777,
++					Uid:      1000,
++					Gid:      1000,
++					Size:     0,
++					Mtime:    1314603082,
++					Typeflag: '2',
++					Linkname: "small.txt",
++					Uname:    "strings",
++					Gname:    "strings",
++				},
++				// no contents
++			},
+ 		},
+ 	},
+ 	// The truncated test file was produced using these commands:

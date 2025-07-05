@@ -11,7 +11,7 @@ Date:   Thu Aug 6 17:44:56 2009 -0700
     DELTA=163  (125 added, 11 deleted, 27 changed)
     OCL=32808
     CL=32853
-
+---
  src/cmd/gofmt/gofmt.go                 |  4 ++
  src/pkg/go/ast/ast.go                  |  4 +-
  src/pkg/go/parser/parser.go            | 66 +++++++++++++++++++++--------
@@ -19,3 +19,375 @@ Date:   Thu Aug 6 17:44:56 2009 -0700
  src/pkg/go/printer/testdata/golden1.go | 15 +++++++
  src/pkg/go/printer/testdata/source1.go | 21 ++++++++++
  6 files changed, 150 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index b1e8b50619..503cd46416 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -38,6 +38,7 @@ var (
+ 	usespaces = flag.Bool("spaces", false, "align with blanks instead of tabs");
+ 	optcommas = flag.Bool("optcommas", false, "print optional commas");
+ 	optsemis = flag.Bool("optsemis", false, "print optional semicolons");
++	reverse = flag.Bool("reverse", false, "print top-level declarations in reverse order without forward-declarations");
+ )
+ 
+ 
+@@ -116,6 +117,9 @@ func printerMode() uint {
+ 	if *optsemis {
+ 		mode |= printer.OptSemis;
+ 	}
++	if *reverse {
++		mode |= printer.Reverse;
++	}
+ 	return mode;
+ }
+ 
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index cc1d69213d..2e606b9423 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -219,7 +219,7 @@ type (
+ 	//
+ 	TypeAssertExpr struct {
+ 		X Expr;  // expression
+-		Type Expr;  // asserted type
++		Type Expr;  // asserted type; nil means type switch X.(type)
+ 	};
+ 
+ 	// A CallExpr node represents an expression followed by an argument list.
+@@ -546,7 +546,7 @@ type (
+ 	// A TypeCaseClause represents a case of a type switch statement.
+ 	TypeCaseClause struct {
+ 		token.Position;  // position of "case" or "default" keyword
+-		Type Expr;  // nil means default case
++		Types []Expr;  // nil means default case
+ 		Colon token.Position;  // position of ":"
+ 		Body []Stmt;  // statement list; or nil
+ 	};
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 270403aaca..f0fa487cc3 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -952,8 +952,7 @@ func (p *parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
+ 	p.expect(token.LPAREN);
+ 	var typ ast.Expr;
+ 	if p.tok == token.TYPE {
+-		// special case for type switch
+-		typ = &ast.Ident{p.pos, "type"};
++		// type switch: typ == nil
+ 		p.next();
+ 	} else {
+ 		typ = p.parseType();
+@@ -1078,6 +1077,11 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
+ 	case *ast.SelectorExpr:
+ 	case *ast.IndexExpr:
+ 	case *ast.TypeAssertExpr:
++		if t.Type == nil {
++			// the form X.(type) is only allowed in type switch expressions
++			p.errorExpected(x.Pos(), "expression");
++			x = &ast.BadExpr{x.Pos()};
++		}
+ 	case *ast.CallExpr:
+ 	case *ast.StarExpr:
+ 	case *ast.UnaryExpr:
+@@ -1353,15 +1357,6 @@ func (p *parser) parseBranchStmt(tok token.Token) *ast.BranchStmt {
+ }
+ 
+ 
+-func (p *parser) isExpr(s ast.Stmt) bool {
+-	if s == nil {
+-		return true;
+-	}
+-	dummy, isExpr := s.(*ast.ExprStmt);
+-	return isExpr;
+-}
+-
+-
+ func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
+ 	if s == nil {
+ 		return nil;
+@@ -1411,7 +1406,7 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
+ 	}
+ 
+ 	pos := p.expect(token.IF);
+-	s1, s2, dummy := p.parseControlClause(false);
++	s1, s2, _ := p.parseControlClause(false);
+ 	body := p.parseBlockStmt();
+ 	var else_ ast.Stmt;
+ 	if p.tok == token.ELSE {
+@@ -1445,6 +1440,28 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
+ }
+ 
+ 
++func (p *parser) parseTypeList() []ast.Expr {
++	if p.trace {
++		defer un(trace(p, "TypeList"));
++	}
++
++	list := vector.New(0);
++	list.Push(p.parseType());
++	for p.tok == token.COMMA {
++		p.next();
++		list.Push(p.parseType());
++	}
++
++	// convert list
++	exprs := make([]ast.Expr, list.Len());
++	for i := 0; i < list.Len(); i++ {
++		exprs[i] = list.At(i).(ast.Expr);
++	}
++
++	return exprs;
++}
++
++
+ func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
+ 	if p.trace {
+ 		defer un(trace(p, "TypeCaseClause"));
+@@ -1452,10 +1469,10 @@ func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
+ 
+ 	// TypeSwitchCase
+ 	pos := p.pos;
+-	var typ ast.Expr;
++	var types []ast.Expr;
+ 	if p.tok == token.CASE {
+ 		p.next();
+-		typ = p.parseType();
++		types = p.parseTypeList();
+ 	} else {
+ 		p.expect(token.DEFAULT);
+ 	}
+@@ -1463,7 +1480,21 @@ func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
+ 	colon := p.expect(token.COLON);
+ 	body := p.parseStmtList();
+ 
+-	return &ast.TypeCaseClause{pos, typ, colon, body};
++	return &ast.TypeCaseClause{pos, types, colon, body};
++}
++
++
++func isExprSwitch(s ast.Stmt) bool {
++	if s == nil {
++		return true;
++	}
++	if e, ok := s.(*ast.ExprStmt); ok {
++		if a, ok := e.X.(*ast.TypeAssertExpr); ok {
++			return a.Type != nil;  // regular type assertion
++		}
++		return true;
++	}
++	return false;
+ }
+ 
+ 
+@@ -1473,10 +1504,9 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
+ 	}
+ 
+ 	pos := p.expect(token.SWITCH);
+-	s1, s2, dummy := p.parseControlClause(false);
++	s1, s2, _ := p.parseControlClause(false);
+ 
+-	if p.isExpr(s2) {
+-		// expression switch
++	if isExprSwitch(s2) {
+ 		lbrace := p.expect(token.LBRACE);
+ 		cases := vector.New(0);
+ 		for p.tok == token.CASE || p.tok == token.DEFAULT {
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index b2d34ef5c7..d863c01c3d 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -32,6 +32,7 @@ const (
+ 	UseSpaces;  // use spaces instead of tabs for indentation and alignment
+ 	OptCommas;  // print optional commas
+ 	OptSemis;  // print optional semicolons
++	Reverse;  // print top-level declarations in reverse order without forward-declarations
+ )
+ 
+ 
+@@ -682,7 +683,11 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 	case *ast.TypeAssertExpr:
+ 		p.expr1(x.X, token.HighestPrec);
+ 		p.print(token.PERIOD, token.LPAREN);
+-		p.expr(x.Type);
++		if x.Type != nil {
++			p.expr(x.Type);
++		} else {
++			p.print(token.TYPE);
++		}
+ 		p.print(token.RPAREN);
+ 
+ 	case *ast.IndexExpr:
+@@ -722,6 +727,10 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 		p.expr(x.Elt);
+ 
+ 	case *ast.StructType:
++		if x.Fields == nil && p.mode & Reverse != 0 && p.level == 0 {
++			// omit top-level forward declarations in reverse mode
++			return true;
++		}
+ 		p.print(token.STRUCT);
+ 		optSemi = p.fieldList(x.Lbrace, x.Fields, x.Rbrace, false);
+ 
+@@ -730,6 +739,10 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 		p.signature(x.Params, x.Results);
+ 
+ 	case *ast.InterfaceType:
++		if x.Methods == nil && p.mode & Reverse != 0 && p.level == 0 {
++			// omit top-level forward declarations in reverse mode
++			return true;
++		}
+ 		p.print(token.INTERFACE);
+ 		optSemi = p.fieldList(x.Lbrace, x.Methods, x.Rbrace, true);
+ 
+@@ -941,9 +954,9 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
+ 		optSemi = true;
+ 
+ 	case *ast.TypeCaseClause:
+-		if s.Type != nil {
++		if s.Types != nil {
+ 			p.print(token.CASE, blank);
+-			p.expr(s.Type);
++			p.exprList(s.Types);
+ 		} else {
+ 			p.print(token.DEFAULT);
+ 		}
+@@ -1070,13 +1083,25 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ 			p.print(d.Lparen, token.LPAREN);
+ 			if len(d.Specs) > 0 {
+ 				p.print(+1, newline);
+-				for i, s := range d.Specs {
+-					if i > 0 {
+-						p.print(token.SEMICOLON);
+-						p.lineComment(comment);
+-						p.print(newline);
++				if p.mode & Reverse != 0 && p.level == 0 {
++					for i := len(d.Specs)-1; i >= 0; i-- {
++						s := d.Specs[i];
++						if i < len(d.Specs)-1 {
++							p.print(token.SEMICOLON);
++							p.lineComment(comment);
++							p.print(newline);
++						}
++						comment, optSemi = p.spec(s);
++					}
++				} else {
++					for i, s := range d.Specs {
++						if i > 0 {
++							p.print(token.SEMICOLON);
++							p.lineComment(comment);
++							p.print(newline);
++						}
++						comment, optSemi = p.spec(s);
+ 					}
+-					comment, optSemi = p.spec(s);
+ 				}
+ 				if p.optSemis() {
+ 					p.print(token.SEMICOLON);
+@@ -1094,6 +1119,10 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ 		}
+ 
+ 	case *ast.FuncDecl:
++		if d.Body == nil && p.mode & Reverse != 0 {
++			// omit forward declarations in reverse mode
++			break;
++		}
+ 		p.leadComment(d.Doc);
+ 		p.print(lineTag(d.Pos()), token.FUNC, blank);
+ 		if recv := d.Recv; recv != nil {
+@@ -1131,13 +1160,25 @@ func (p *printer) file(src *ast.File) {
+ 	p.print(src.Pos(), token.PACKAGE, blank);
+ 	p.expr(src.Name);
+ 
+-	for _, d := range src.Decls {
+-		p.print(newline, newline);
+-		comment, _ := p.decl(d);
+-		if p.optSemis() {
+-			p.print(token.SEMICOLON);
++	if p.mode & Reverse != 0 {
++		for i := len(src.Decls)-1; i >= 0; i-- {
++			d := src.Decls[i];
++			p.print(newline, newline);
++			comment, _ := p.decl(d);
++			if p.optSemis() {
++				p.print(token.SEMICOLON);
++			}
++			p.lineComment(comment);
++		}
++	} else {
++		for _, d := range src.Decls {
++			p.print(newline, newline);
++			comment, _ := p.decl(d);
++			if p.optSemis() {
++				p.print(token.SEMICOLON);
++			}
++			p.lineComment(comment);
+ 		}
+-		p.lineComment(comment);
+ 	}
+ 
+ 	p.print(newline);
+@@ -1181,7 +1222,10 @@ func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int) (int, o
+ 			comment, _ := p.decl(n);
+ 			p.lineComment(comment);  // no newline at end
+ 		case *ast.File:
+-			p.comment = n.Comments;
++			if mode & Reverse == 0 {
++				// don't print comments in reverse mode
++				p.comment = n.Comments;
++			}
+ 			p.file(n);
+ 		default:
+ 			p.errors <- os.NewError("unsupported node type");
+diff --git a/src/pkg/go/printer/testdata/golden1.go b/src/pkg/go/printer/testdata/golden1.go
+index b36497f255..084c65d287 100644
+--- a/src/pkg/go/printer/testdata/golden1.go
++++ b/src/pkg/go/printer/testdata/golden1.go
+@@ -57,3 +57,18 @@ func abs(x int) int {
+ 	}
+ 	return x
+ }
++
++func typeswitch(x interface {}) {
++	switch v := x.(type) {
++	case bool, int, float:
++	case string:
++	default:
++	}
++	switch x.(type) {}
++	switch v0, ok := x.(int); v := x.(type) {}
++	switch v0, ok := x.(int); x.(type) {
++	case bool, int, float:
++	case string:
++	default:
++	}
++}
+diff --git a/src/pkg/go/printer/testdata/source1.go b/src/pkg/go/printer/testdata/source1.go
+index b0a9c71eb0..162f00005b 100644
+--- a/src/pkg/go/printer/testdata/source1.go
++++ b/src/pkg/go/printer/testdata/source1.go
+@@ -58,3 +58,24 @@ func abs(x int) int {
+ 	}
+ 	return x;
+ }
++
++
++func typeswitch(x interface{}) {
++	switch v := x.(type) {
++	case bool, int, float:
++	case string:
++	default:
++	}
++
++	switch x.(type) {
++	}
++
++	switch v0, ok := x.(int); v := x.(type) {
++	}
++
++	switch v0, ok := x.(int); x.(type) {
++	case bool, int, float:
++	case string:
++	default:
++	}
++}

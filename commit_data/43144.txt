@@ -14,6 +14,20 @@ Date:   Thu Mar 12 10:50:53 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index c71149baa3..8f2ffee36f 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -214,7 +214,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 		fmt.Fprintf(h, "module %s@%s\n", p.Module.Path, p.Module.Version)
+ 	}
+ 	if p.Module != nil {
+-		fmt.Fprintf(h, "go %s", p.Module.GoVersion)
++		fmt.Fprintf(h, "go %s\n", p.Module.GoVersion)
+ 	}
+ 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+ 	fmt.Fprintf(h, "import %q\n", p.ImportPath)

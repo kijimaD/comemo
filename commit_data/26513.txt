@@ -10,6 +10,26 @@ Date:   Fri Jan 29 17:45:23 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/19093
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/doc.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/doc.go b/src/os/doc.go
+index 389a8eb14c..869a28a8a4 100644
+--- a/src/os/doc.go
++++ b/src/os/doc.go
+@@ -7,9 +7,13 @@ package os
+ import "time"
+ 
+ // FindProcess looks for a running process by its pid.
++//
+ // The Process it returns can be used to obtain information
+ // about the underlying operating system process.
+-func FindProcess(pid int) (p *Process, err error) {
++//
++// On Unix systems, FindProcess always succeeds and returns a Process
++// for the given pid, regardless of whether the process exists.
++func FindProcess(pid int) (*Process, error) {
+ 	return findProcess(pid)
+ }
+ 

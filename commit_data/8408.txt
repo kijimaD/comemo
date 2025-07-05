@@ -9,8 +9,51 @@ Date:   Mon May 16 16:24:17 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4550047
-
+---
  src/cmd/5l/asm.c | 3 +++
  src/cmd/6l/asm.c | 3 +++
  src/cmd/8l/asm.c | 3 +++
  3 files changed, 9 insertions(+)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 98d5cb899c..3463a82b3f 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -89,6 +89,9 @@ needlib(char *name)
+ 	char *p;
+ 	Sym *s;
+ 
++	if(*name == '\0')
++		return 0;
++
+ 	/* reuse hash code in symbol table */
+ 	p = smprint(".dynlib.%s", name);
+ 	s = lookup(p, 0);
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 9aeef3c4d8..c976ac50e4 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -108,6 +108,9 @@ needlib(char *name)
+ 	char *p;
+ 	Sym *s;
+ 
++	if(*name == '\0')
++		return 0;
++
+ 	/* reuse hash code in symbol table */
+ 	p = smprint(".elfload.%s", name);
+ 	s = lookup(p, 0);
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 535d8bdd38..7de7753a27 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -104,6 +104,9 @@ needlib(char *name)
+ 	char *p;
+ 	Sym *s;
+ 
++	if(*name == '\0')
++		return 0;
++
+ 	/* reuse hash code in symbol table */
+ 	p = smprint(".dynlib.%s", name);
+ 	s = lookup(p, 0);

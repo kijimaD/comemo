@@ -26,7 +26,7 @@ Date:   Thu Dec 1 17:42:02 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/abi/abiutils.go           |  6 +-
  src/cmd/compile/internal/compare/compare_test.go   | 22 +++----
  src/cmd/compile/internal/escape/call.go            |  2 +-
@@ -50,3 +50,839 @@ Date:   Thu Dec 1 17:42:02 2022 -0800
  src/cmd/compile/internal/walk/compare.go           |  2 +-
  src/cmd/compile/internal/walk/select.go            |  2 +-
  22 files changed, 75 insertions(+), 148 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index a88f8c4b06..9fc0bc45c8 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -717,19 +717,19 @@ func setup() {
+ 		nxp := src.NoXPos
+ 		bp := types.NewPtr(types.Types[types.TUINT8])
+ 		it := types.Types[types.TINT]
+-		synthSlice = types.NewStruct(types.NoPkg, []*types.Field{
++		synthSlice = types.NewStruct([]*types.Field{
+ 			types.NewField(nxp, fname("ptr"), bp),
+ 			types.NewField(nxp, fname("len"), it),
+ 			types.NewField(nxp, fname("cap"), it),
+ 		})
+ 		types.CalcStructSize(synthSlice)
+-		synthString = types.NewStruct(types.NoPkg, []*types.Field{
++		synthString = types.NewStruct([]*types.Field{
+ 			types.NewField(nxp, fname("data"), bp),
+ 			types.NewField(nxp, fname("len"), it),
+ 		})
+ 		types.CalcStructSize(synthString)
+ 		unsp := types.Types[types.TUNSAFEPTR]
+-		synthIface = types.NewStruct(types.NoPkg, []*types.Field{
++		synthIface = types.NewStruct([]*types.Field{
+ 			types.NewField(nxp, fname("f1"), unsp),
+ 			types.NewField(nxp, fname("f2"), unsp),
+ 		})
+diff --git a/src/cmd/compile/internal/compare/compare_test.go b/src/cmd/compile/internal/compare/compare_test.go
+index db34657334..c65537f64c 100644
+--- a/src/cmd/compile/internal/compare/compare_test.go
++++ b/src/cmd/compile/internal/compare/compare_test.go
+@@ -53,11 +53,11 @@ func TestEqStructCost(t *testing.T) {
+ 	}{
+ 		{"struct without fields", 0, 0,
+ 			func() *types.Type {
+-				return types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				return types.NewStruct([]*types.Field{})
+ 			}},
+ 		{"struct with 1 byte field", 1, 1,
+ 			func() *types.Type {
+-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				parent := types.NewStruct([]*types.Field{})
+ 				fields := []*types.Field{
+ 					newByteField(parent, 0),
+ 				}
+@@ -67,7 +67,7 @@ func TestEqStructCost(t *testing.T) {
+ 		},
+ 		{"struct with 8 byte fields", 1, 8,
+ 			func() *types.Type {
+-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				parent := types.NewStruct([]*types.Field{})
+ 				fields := make([]*types.Field, 8)
+ 				for i := range fields {
+ 					fields[i] = newByteField(parent, int64(i))
+@@ -78,7 +78,7 @@ func TestEqStructCost(t *testing.T) {
+ 		},
+ 		{"struct with 16 byte fields", 2, 16,
+ 			func() *types.Type {
+-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				parent := types.NewStruct([]*types.Field{})
+ 				fields := make([]*types.Field, 16)
+ 				for i := range fields {
+ 					fields[i] = newByteField(parent, int64(i))
+@@ -89,7 +89,7 @@ func TestEqStructCost(t *testing.T) {
+ 		},
+ 		{"struct with 32 byte fields", 4, 32,
+ 			func() *types.Type {
+-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				parent := types.NewStruct([]*types.Field{})
+ 				fields := make([]*types.Field, 32)
+ 				for i := range fields {
+ 					fields[i] = newByteField(parent, int64(i))
+@@ -100,7 +100,7 @@ func TestEqStructCost(t *testing.T) {
+ 		},
+ 		{"struct with 2 int32 fields", 1, 2,
+ 			func() *types.Type {
+-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				parent := types.NewStruct([]*types.Field{})
+ 				fields := make([]*types.Field, 2)
+ 				for i := range fields {
+ 					fields[i] = newField(parent, int64(i*4), types.TINT32)
+@@ -111,7 +111,7 @@ func TestEqStructCost(t *testing.T) {
+ 		},
+ 		{"struct with 2 int32 fields and 1 int64", 2, 3,
+ 			func() *types.Type {
+-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				parent := types.NewStruct([]*types.Field{})
+ 				fields := make([]*types.Field, 3)
+ 				fields[0] = newField(parent, int64(0), types.TINT32)
+ 				fields[1] = newField(parent, int64(4), types.TINT32)
+@@ -122,7 +122,7 @@ func TestEqStructCost(t *testing.T) {
+ 		},
+ 		{"struct with 1 int field and 1 string", 3, 3,
+ 			func() *types.Type {
+-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				parent := types.NewStruct([]*types.Field{})
+ 				fields := make([]*types.Field, 2)
+ 				fields[0] = newField(parent, int64(0), types.TINT64)
+ 				fields[1] = newField(parent, int64(8), types.TSTRING)
+@@ -132,7 +132,7 @@ func TestEqStructCost(t *testing.T) {
+ 		},
+ 		{"struct with 2 strings", 4, 4,
+ 			func() *types.Type {
+-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				parent := types.NewStruct([]*types.Field{})
+ 				fields := make([]*types.Field, 2)
+ 				fields[0] = newField(parent, int64(0), types.TSTRING)
+ 				fields[1] = newField(parent, int64(8), types.TSTRING)
+@@ -142,7 +142,7 @@ func TestEqStructCost(t *testing.T) {
+ 		},
+ 		{"struct with 1 large byte array field", 26, 101,
+ 			func() *types.Type {
+-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				parent := types.NewStruct([]*types.Field{})
+ 				fields := []*types.Field{
+ 					newArrayField(parent, 0, 101, types.TUINT16),
+ 				}
+@@ -152,7 +152,7 @@ func TestEqStructCost(t *testing.T) {
+ 		},
+ 		{"struct with string array field", 4, 4,
+ 			func() *types.Type {
+-				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				parent := types.NewStruct([]*types.Field{})
+ 				fields := []*types.Field{
+ 					newArrayField(parent, 0, 2, types.TSTRING),
+ 				}
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index e2235520e5..94bc8874da 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -244,7 +244,7 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
+ 	// Create a new no-argument function that we'll hand off to defer.
+ 	fn := ir.NewClosureFunc(n.Pos(), true)
+ 	fn.SetWrapper(true)
+-	fn.Nname.SetType(types.NewSignature(types.LocalPkg, nil, nil, nil, nil))
++	fn.Nname.SetType(types.NewSignature(nil, nil, nil))
+ 	fn.Body = []ir.Node{call}
+ 	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
+ 		// If the callee is a named function, link to the original callee.
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index ac6d2fa931..8a8ed8608c 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -506,7 +506,7 @@ func (r *reader) doTyp() *types.Type {
+ 	case pkgbits.TypePointer:
+ 		return types.NewPtr(r.typ())
+ 	case pkgbits.TypeSignature:
+-		return r.signature(types.LocalPkg, nil)
++		return r.signature(nil)
+ 	case pkgbits.TypeSlice:
+ 		return types.NewSlice(r.typ())
+ 	case pkgbits.TypeStruct:
+@@ -549,8 +549,6 @@ func (r *reader) unionType() *types.Type {
+ }
+ 
+ func (r *reader) interfaceType() *types.Type {
+-	tpkg := types.LocalPkg // TODO(mdempsky): Remove after iexport is gone.
+-
+ 	nmethods, nembeddeds := r.Len(), r.Len()
+ 	implicit := nmethods == 0 && nembeddeds == 1 && r.Bool()
+ 	assert(!implicit) // implicit interfaces only appear in constraints
+@@ -560,9 +558,8 @@ func (r *reader) interfaceType() *types.Type {
+ 
+ 	for i := range methods {
+ 		pos := r.pos()
+-		pkg, sym := r.selector()
+-		tpkg = pkg
+-		mtyp := r.signature(pkg, types.FakeRecv())
++		_, sym := r.selector()
++		mtyp := r.signature(types.FakeRecv())
+ 		methods[i] = types.NewField(pos, sym, mtyp)
+ 	}
+ 	for i := range embeddeds {
+@@ -572,16 +569,14 @@ func (r *reader) interfaceType() *types.Type {
+ 	if len(fields) == 0 {
+ 		return types.Types[types.TINTER] // empty interface
+ 	}
+-	return types.NewInterface(tpkg, fields, false)
++	return types.NewInterface(fields)
+ }
+ 
+ func (r *reader) structType() *types.Type {
+-	tpkg := types.LocalPkg // TODO(mdempsky): Remove after iexport is gone.
+ 	fields := make([]*types.Field, r.Len())
+ 	for i := range fields {
+ 		pos := r.pos()
+-		pkg, sym := r.selector()
+-		tpkg = pkg
++		_, sym := r.selector()
+ 		ftyp := r.typ()
+ 		tag := r.String()
+ 		embedded := r.Bool()
+@@ -593,26 +588,26 @@ func (r *reader) structType() *types.Type {
+ 		}
+ 		fields[i] = f
+ 	}
+-	return types.NewStruct(tpkg, fields)
++	return types.NewStruct(fields)
+ }
+ 
+-func (r *reader) signature(tpkg *types.Pkg, recv *types.Field) *types.Type {
++func (r *reader) signature(recv *types.Field) *types.Type {
+ 	r.Sync(pkgbits.SyncSignature)
+ 
+-	params := r.params(&tpkg)
+-	results := r.params(&tpkg)
++	params := r.params()
++	results := r.params()
+ 	if r.Bool() { // variadic
+ 		params[len(params)-1].SetIsDDD(true)
+ 	}
+ 
+-	return types.NewSignature(tpkg, recv, nil, params, results)
++	return types.NewSignature(recv, params, results)
+ }
+ 
+-func (r *reader) params(tpkg **types.Pkg) []*types.Field {
++func (r *reader) params() []*types.Field {
+ 	r.Sync(pkgbits.SyncParams)
+ 	fields := make([]*types.Field, r.Len())
+ 	for i := range fields {
+-		*tpkg, fields[i] = r.param()
++		_, fields[i] = r.param()
+ 	}
+ 	return fields
+ }
+@@ -742,7 +737,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
+ 			sym = Renameinit()
+ 		}
+ 		name := do(ir.ONAME, true)
+-		setType(name, r.signature(sym.Pkg, nil))
++		setType(name, r.signature(nil))
+ 
+ 		name.Func = ir.NewFunc(r.pos())
+ 		name.Func.Nname = name
+@@ -981,10 +976,10 @@ func (r *reader) typeParamNames() {
+ func (r *reader) method(rext *reader) *types.Field {
+ 	r.Sync(pkgbits.SyncMethod)
+ 	pos := r.pos()
+-	pkg, sym := r.selector()
++	_, sym := r.selector()
+ 	r.typeParamNames()
+ 	_, recv := r.param()
+-	typ := r.signature(pkg, recv)
++	typ := r.signature(recv)
+ 
+ 	name := ir.NewNameAt(pos, ir.MethodSym(recv.Type, sym))
+ 	setType(name, typ)
+@@ -2581,7 +2576,7 @@ func (r *reader) curry(pos src.XPos, ifaceHack bool, fun ir.Node, arg0, arg1 ir.
+ 
+ 	params, results := syntheticSig(fun.Type())
+ 	params = params[len(captured)-1:] // skip curried parameters
+-	typ := types.NewSignature(types.NoPkg, nil, nil, params, results)
++	typ := types.NewSignature(nil, params, results)
+ 
+ 	addBody := func(pos src.XPos, r *reader, captured []ir.Node) {
+ 		recvs, params := r.syntheticArgs(pos)
+@@ -2619,7 +2614,7 @@ func (r *reader) methodExprWrap(pos src.XPos, recv *types.Type, implicits []int,
+ 		params = append(params[:1], params[2:]...)
+ 	}
+ 
+-	typ := types.NewSignature(types.NoPkg, nil, nil, params, results)
++	typ := types.NewSignature(nil, params, results)
+ 
+ 	addBody := func(pos src.XPos, r *reader, captured []ir.Node) {
+ 		recvs, args := r.syntheticArgs(pos)
+@@ -3073,7 +3068,7 @@ func (r *reader) funcLit() ir.Node {
+ 	// allocation of the closure is credited (#49171).
+ 	r.suppressInlPos++
+ 	pos := r.pos()
+-	xtype2 := r.signature(types.LocalPkg, nil)
++	xtype2 := r.signature(nil)
+ 	r.suppressInlPos--
+ 
+ 	fn := ir.NewClosureFunc(pos, r.curfn != nil)
+@@ -3926,7 +3921,7 @@ func newWrapperType(recvType *types.Type, method *types.Field) *types.Type {
+ 	params := clone(sig.Params().FieldSlice())
+ 	results := clone(sig.Results().FieldSlice())
+ 
+-	return types.NewSignature(types.NoPkg, recv, nil, params, results)
++	return types.NewSignature(recv, params, results)
+ }
+ 
+ func addTailCall(pos src.XPos, fn *ir.Func, recv ir.Node, method *types.Field) {
+@@ -3994,5 +3989,5 @@ func shapeSig(fn *ir.Func, dict *readerDict) *types.Type {
+ 		results[i] = types.NewField(result.Pos, result.Sym, result.Type)
+ 	}
+ 
+-	return types.NewSignature(types.LocalPkg, recv, nil, params, results)
++	return types.NewSignature(recv, params, results)
+ }
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index 57593fdb9b..9d4c435764 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -116,7 +116,7 @@ func Task() *ir.Name {
+ 			// runtime.asanregisterglobals(unsafe.Pointer(&globals[0]), ni)
+ 			asanf := typecheck.NewName(ir.Pkgs.Runtime.Lookup("asanregisterglobals"))
+ 			ir.MarkFunc(asanf)
+-			asanf.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
++			asanf.SetType(types.NewSignature(nil, []*types.Field{
+ 				types.NewField(base.Pos, nil, types.Types[types.TUNSAFEPTR]),
+ 				types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+ 			}, nil))
+diff --git a/src/cmd/compile/internal/pkginit/initAsanGlobals.go b/src/cmd/compile/internal/pkginit/initAsanGlobals.go
+index 63aa361694..464787a2d7 100644
+--- a/src/cmd/compile/internal/pkginit/initAsanGlobals.go
++++ b/src/cmd/compile/internal/pkginit/initAsanGlobals.go
+@@ -161,7 +161,7 @@ func createtypes() (*types.Type, *types.Type, *types.Type) {
+ 	fname := typecheck.Lookup
+ 	nxp := src.NoXPos
+ 	nfield := types.NewField
+-	asanGlobal := types.NewStruct(types.NoPkg, []*types.Field{
++	asanGlobal := types.NewStruct([]*types.Field{
+ 		nfield(nxp, fname("beg"), up),
+ 		nfield(nxp, fname("size"), up),
+ 		nfield(nxp, fname("sizeWithRedzone"), up),
+@@ -173,14 +173,14 @@ func createtypes() (*types.Type, *types.Type, *types.Type) {
+ 	})
+ 	types.CalcSize(asanGlobal)
+ 
+-	asanLocation := types.NewStruct(types.NoPkg, []*types.Field{
++	asanLocation := types.NewStruct([]*types.Field{
+ 		nfield(nxp, fname("filename"), up),
+ 		nfield(nxp, fname("line"), i32),
+ 		nfield(nxp, fname("column"), i32),
+ 	})
+ 	types.CalcSize(asanLocation)
+ 
+-	defString := types.NewStruct(types.NoPkg, []*types.Field{
++	defString := types.NewStruct([]*types.Field{
+ 		types.NewField(nxp, fname("data"), up),
+ 		types.NewField(nxp, fname("len"), up),
+ 	})
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index 8f0c4e8bc3..2f2f986df0 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -268,7 +268,7 @@ func hashfor(t *types.Type) ir.Node {
+ 	// TODO(austin): This creates an ir.Name with a nil Func.
+ 	n := typecheck.NewName(sym)
+ 	ir.MarkFunc(n)
+-	n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
++	n.SetType(types.NewSignature(nil, []*types.Field{
+ 		types.NewField(base.Pos, nil, types.NewPtr(t)),
+ 		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+ 	}, []*types.Field{
+@@ -583,7 +583,7 @@ func hashmem(t *types.Type) ir.Node {
+ 	// TODO(austin): This creates an ir.Name with a nil Func.
+ 	n := typecheck.NewName(sym)
+ 	ir.MarkFunc(n)
+-	n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
++	n.SetType(types.NewSignature(nil, []*types.Field{
+ 		types.NewField(base.Pos, nil, types.NewPtr(t)),
+ 		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+ 		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 9d71bf665f..afc3ee4fc9 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -140,7 +140,7 @@ func MapBucketType(t *types.Type) *types.Type {
+ 	field = append(field, overflow)
+ 
+ 	// link up fields
+-	bucket := types.NewStruct(types.NoPkg, field[:])
++	bucket := types.NewStruct(field[:])
+ 	bucket.SetNoalg(true)
+ 	types.CalcSize(bucket)
+ 
+@@ -234,7 +234,7 @@ func MapType(t *types.Type) *types.Type {
+ 		makefield("extra", types.Types[types.TUNSAFEPTR]),
+ 	}
+ 
+-	hmap := types.NewStruct(types.NoPkg, fields)
++	hmap := types.NewStruct(fields)
+ 	hmap.SetNoalg(true)
+ 	types.CalcSize(hmap)
+ 
+@@ -297,7 +297,7 @@ func MapIterType(t *types.Type) *types.Type {
+ 	}
+ 
+ 	// build iterator struct holding the above fields
+-	hiter := types.NewStruct(types.NoPkg, fields)
++	hiter := types.NewStruct(fields)
+ 	hiter.SetNoalg(true)
+ 	types.CalcSize(hiter)
+ 	if hiter.Size() != int64(12*types.PtrSize) {
+@@ -1402,7 +1402,7 @@ func writtenByWriteBasicTypes(typ *types.Type) bool {
+ 	if typ.Sym() == nil && typ.Kind() == types.TFUNC {
+ 		f := typ.FuncType()
+ 		// func(error) string
+-		if f.Receiver.NumFields() == 0 && f.TParams.NumFields() == 0 &&
++		if f.Receiver.NumFields() == 0 &&
+ 			f.Params.NumFields() == 1 && f.Results.NumFields() == 1 &&
+ 			f.Params.FieldType(0) == types.ErrorType &&
+ 			f.Results.FieldType(0) == types.Types[types.TSTRING] {
+@@ -1451,7 +1451,7 @@ func WriteBasicTypes() {
+ 
+ 		// emit type for func(error) string,
+ 		// which is the type of an auto-generated wrapper.
+-		writeType(types.NewPtr(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
++		writeType(types.NewPtr(types.NewSignature(nil, []*types.Field{
+ 			types.NewField(base.Pos, nil, types.ErrorType),
+ 		}, []*types.Field{
+ 			types.NewField(base.Pos, nil, types.Types[types.TSTRING]),
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 4b6b28fad1..654db8f317 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7947,7 +7947,7 @@ func deferstruct() *types.Type {
+ 	}
+ 
+ 	// build struct holding the above fields
+-	s := types.NewStruct(types.NoPkg, fields)
++	s := types.NewStruct(fields)
+ 	s.SetNoalg(true)
+ 	types.CalcStructSize(s)
+ 	return s
+diff --git a/src/cmd/compile/internal/test/abiutils_test.go b/src/cmd/compile/internal/test/abiutils_test.go
+index 3f8ee3dbe9..8ed7622632 100644
+--- a/src/cmd/compile/internal/test/abiutils_test.go
++++ b/src/cmd/compile/internal/test/abiutils_test.go
+@@ -313,7 +313,7 @@ func TestABIUtilsInterfaces(t *testing.T) {
+ 	fldt := mkFuncType(types.FakeRecvType(), []*types.Type{},
+ 		[]*types.Type{types.Types[types.TSTRING]})
+ 	field := types.NewField(src.NoXPos, typecheck.Lookup("F"), fldt)
+-	nei := types.NewInterface(types.LocalPkg, []*types.Field{field}, false)
++	nei := types.NewInterface([]*types.Field{field})
+ 	i16 := types.Types[types.TINT16]
+ 	tb := types.Types[types.TBOOL]
+ 	s1 := mkstruct([]*types.Type{i16, i16, tb})
+diff --git a/src/cmd/compile/internal/test/abiutilsaux_test.go b/src/cmd/compile/internal/test/abiutilsaux_test.go
+index b945633133..07b8eb7289 100644
+--- a/src/cmd/compile/internal/test/abiutilsaux_test.go
++++ b/src/cmd/compile/internal/test/abiutilsaux_test.go
+@@ -39,7 +39,7 @@ func mkstruct(fieldtypes []*types.Type) *types.Type {
+ 		f := types.NewField(src.NoXPos, nil, t)
+ 		fields[k] = f
+ 	}
+-	s := types.NewStruct(types.LocalPkg, fields)
++	s := types.NewStruct(fields)
+ 	return s
+ }
+ 
+@@ -57,7 +57,7 @@ func mkFuncType(rcvr *types.Type, ins []*types.Type, outs []*types.Type) *types.
+ 	if rcvr != nil {
+ 		rf = mkParamResultField(rcvr, q, ir.PPARAM)
+ 	}
+-	return types.NewSignature(types.LocalPkg, rf, nil, inf, outf)
++	return types.NewSignature(rf, inf, outf)
+ }
+ 
+ type expectedDump struct {
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 7de24ad2c8..6aa5e391fc 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -11,7 +11,7 @@ import (
+ //
+ //go:noinline
+ func newSig(params, results []*types.Field) *types.Type {
+-	return types.NewSignature(types.NoPkg, nil, nil, params, results)
++	return types.NewSignature(nil, params, results)
+ }
+ 
+ func params(tlist ...*types.Type) []*types.Field {
+@@ -340,7 +340,7 @@ func runtimeTypes() []*types.Type {
+ 	typs[102] = types.NewChan(typs[2], types.Csend)
+ 	typs[103] = newSig(params(typs[102], typs[3]), nil)
+ 	typs[104] = types.NewArray(typs[0], 3)
+-	typs[105] = types.NewStruct(types.NoPkg, []*types.Field{types.NewField(src.NoXPos, Lookup("enabled"), typs[6]), types.NewField(src.NoXPos, Lookup("pad"), typs[104]), types.NewField(src.NoXPos, Lookup("needed"), typs[6]), types.NewField(src.NoXPos, Lookup("cgo"), typs[6]), types.NewField(src.NoXPos, Lookup("alignme"), typs[24])})
++	typs[105] = types.NewStruct([]*types.Field{types.NewField(src.NoXPos, Lookup("enabled"), typs[6]), types.NewField(src.NoXPos, Lookup("pad"), typs[104]), types.NewField(src.NoXPos, Lookup("needed"), typs[6]), types.NewField(src.NoXPos, Lookup("cgo"), typs[6]), types.NewField(src.NoXPos, Lookup("alignme"), typs[24])})
+ 	typs[106] = newSig(params(typs[1], typs[3], typs[3]), nil)
+ 	typs[107] = newSig(params(typs[1], typs[3]), nil)
+ 	typs[108] = newSig(params(typs[1], typs[3], typs[15], typs[3], typs[15]), params(typs[15]))
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index 5d69506e9e..5ea15937a2 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -29,7 +29,7 @@ func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.F
+ 		recv1 = declareParam(ir.PPARAM, -1, recv)
+ 	}
+ 
+-	typ := types.NewSignature(types.LocalPkg, recv1, nil, declareParams(ir.PPARAM, params), declareParams(ir.PPARAMOUT, results))
++	typ := types.NewSignature(recv1, declareParams(ir.PPARAM, params), declareParams(ir.PPARAMOUT, results))
+ 	checkdupfields("argument", typ.Recvs().FieldSlice(), typ.Params().FieldSlice(), typ.Results().FieldSlice())
+ 	fn.Nname.SetType(typ)
+ 	fn.Nname.SetTypecheck(1)
+@@ -328,5 +328,5 @@ func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
+ 		results[i] = types.NewField(base.Pos, nil, t.Type)
+ 	}
+ 
+-	return types.NewSignature(types.LocalPkg, nil, nil, params, results)
++	return types.NewSignature(nil, params, results)
+ }
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 5f7537e5cc..bc27f20cd0 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -120,7 +120,7 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
+ 		}
+ 		fields = append(fields, types.NewField(base.Pos, v.Sym(), typ))
+ 	}
+-	typ := types.NewStruct(types.NoPkg, fields)
++	typ := types.NewStruct(fields)
+ 	typ.SetNoalg(true)
+ 	return typ
+ }
+@@ -129,7 +129,7 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
+ // needed in the closure for a OMETHVALUE node. The address of a variable of
+ // the returned type can be cast to a func.
+ func MethodValueType(n *ir.SelectorExpr) *types.Type {
+-	t := types.NewStruct(types.NoPkg, []*types.Field{
++	t := types.NewStruct([]*types.Field{
+ 		types.NewField(base.Pos, Lookup("F"), types.Types[types.TUINTPTR]),
+ 		types.NewField(base.Pos, Lookup("R"), n.X.Type()),
+ 	})
+diff --git a/src/cmd/compile/internal/typecheck/mkbuiltin.go b/src/cmd/compile/internal/typecheck/mkbuiltin.go
+index 0ac3e47935..28afac5d7a 100644
+--- a/src/cmd/compile/internal/typecheck/mkbuiltin.go
++++ b/src/cmd/compile/internal/typecheck/mkbuiltin.go
+@@ -44,7 +44,7 @@ func main() {
+ // Not inlining this function removes a significant chunk of init code.
+ //go:noinline
+ func newSig(params, results []*types.Field) *types.Type {
+-	return types.NewSignature(types.NoPkg, nil, nil, params, results)
++	return types.NewSignature(nil, params, results)
+ }
+ 
+ func params(tlist ...*types.Type) []*types.Field {
+@@ -201,7 +201,7 @@ func (i *typeInterner) mktype(t ast.Expr) string {
+ 	case *ast.StarExpr:
+ 		return fmt.Sprintf("types.NewPtr(%s)", i.subtype(t.X))
+ 	case *ast.StructType:
+-		return fmt.Sprintf("types.NewStruct(types.NoPkg, %s)", i.fields(t.Fields, true))
++		return fmt.Sprintf("types.NewStruct(%s)", i.fields(t.Fields, true))
+ 
+ 	default:
+ 		log.Fatalf("unhandled type: %#v", t)
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index 108283c9c9..0016fb9606 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -488,9 +488,6 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 			}
+ 			b.WriteString("func")
+ 		}
+-		if t.NumTParams() > 0 {
+-			tconv2(b, t.TParams(), 0, mode, visited)
+-		}
+ 		tconv2(b, t.Params(), 0, mode, visited)
+ 
+ 		switch t.NumResults() {
+diff --git a/src/cmd/compile/internal/types/sizeof_test.go b/src/cmd/compile/internal/types/sizeof_test.go
+index e83426654c..76ccbd54a5 100644
+--- a/src/cmd/compile/internal/types/sizeof_test.go
++++ b/src/cmd/compile/internal/types/sizeof_test.go
+@@ -21,12 +21,12 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Sym{}, 32, 64},
+-		{Type{}, 60, 104},
++		{Type{}, 56, 96},
+ 		{Map{}, 20, 40},
+ 		{Forward{}, 20, 32},
+-		{Func{}, 28, 48},
+-		{Struct{}, 16, 32},
+-		{Interface{}, 8, 16},
++		{Func{}, 20, 32},
++		{Struct{}, 12, 24},
++		{Interface{}, 0, 0},
+ 		{Chan{}, 8, 16},
+ 		{Array{}, 12, 16},
+ 		{FuncArgs{}, 4, 8},
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 5e4c1b9139..ed7054e641 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -189,11 +189,6 @@ type Type struct {
+ 	// instantiated from a generic type, and is otherwise set to nil.
+ 	// TODO(danscales): choose a better name.
+ 	rparams *[]*Type
+-
+-	// For an instantiated generic type, the base generic type.
+-	// This backpointer is useful, because the base type is the type that has
+-	// the method bodies.
+-	origType *Type
+ }
+ 
+ func (*Type) CanBeAnSSAAux() {}
+@@ -234,11 +229,6 @@ func (t *Type) Sym() *Sym {
+ 	return nil
+ }
+ 
+-// OrigType returns the original generic type that t is an
+-// instantiation of, if any.
+-func (t *Type) OrigType() *Type        { return t.origType }
+-func (t *Type) SetOrigType(orig *Type) { t.origType = orig }
+-
+ // Underlying returns the underlying type of type t.
+ func (t *Type) Underlying() *Type { return t.underlying }
+ 
+@@ -279,34 +269,6 @@ func (t *Type) IsFullyInstantiated() bool {
+ 	return len(t.RParams()) > 0
+ }
+ 
+-// NoPkg is a nil *Pkg value for clarity.
+-// It's intended for use when constructing types that aren't exported
+-// and thus don't need to be associated with any package.
+-var NoPkg *Pkg = nil
+-
+-// Pkg returns the package that t appeared in.
+-//
+-// Pkg is only defined for function, struct, and interface types
+-// (i.e., types with named elements). This information isn't used by
+-// cmd/compile itself, but we need to track it because it's exposed by
+-// the go/types API.
+-//
+-// Deprecated: Pkg exists only for iexport, which will go away after
+-// Go 1.20. It should not be used by other code.
+-func (t *Type) Pkg() *Pkg {
+-	switch t.kind {
+-	case TFUNC:
+-		return t.extra.(*Func).pkg
+-	case TSTRUCT:
+-		return t.extra.(*Struct).pkg
+-	case TINTER:
+-		return t.extra.(*Interface).pkg
+-	default:
+-		base.Fatalf("Pkg: unexpected kind: %v", t)
+-		return nil
+-	}
+-}
+-
+ // Map contains Type fields specific to maps.
+ type Map struct {
+ 	Key  *Type // Key type
+@@ -340,9 +302,6 @@ type Func struct {
+ 	Receiver *Type // function receiver
+ 	Results  *Type // function results
+ 	Params   *Type // function params
+-	TParams  *Type // type params of receiver (if method) or function
+-
+-	pkg *Pkg
+ 
+ 	// Argwid is the total width of the function receiver, params, and results.
+ 	// It gets calculated via a temporary TFUNCARGS type.
+@@ -359,7 +318,6 @@ func (t *Type) FuncType() *Func {
+ // StructType contains Type fields specific to struct types.
+ type Struct struct {
+ 	fields Fields
+-	pkg    *Pkg
+ 
+ 	// Maps have three associated internal structs (see struct MapType).
+ 	// Map links such structs back to their map type.
+@@ -387,8 +345,6 @@ func (t *Type) StructType() *Struct {
+ 
+ // Interface contains Type fields specific to interface types.
+ type Interface struct {
+-	pkg      *Pkg
+-	implicit bool
+ }
+ 
+ // Ptr contains Type fields specific to pointer types.
+@@ -859,12 +815,10 @@ func (t *Type) wantEtype(et Kind) {
+ }
+ 
+ func (t *Type) Recvs() *Type   { return t.FuncType().Receiver }
+-func (t *Type) TParams() *Type { return t.FuncType().TParams }
+ func (t *Type) Params() *Type  { return t.FuncType().Params }
+ func (t *Type) Results() *Type { return t.FuncType().Results }
+ 
+ func (t *Type) NumRecvs() int   { return t.FuncType().Receiver.NumFields() }
+-func (t *Type) NumTParams() int { return t.FuncType().TParams.NumFields() }
+ func (t *Type) NumParams() int  { return t.FuncType().Params.NumFields() }
+ func (t *Type) NumResults() int { return t.FuncType().Results.NumFields() }
+ 
+@@ -1732,7 +1686,7 @@ func newBasic(kind Kind, obj Object) *Type {
+ 
+ // NewInterface returns a new interface for the given methods and
+ // embedded types. Embedded types are specified as fields with no Sym.
+-func NewInterface(pkg *Pkg, methods []*Field, implicit bool) *Type {
++func NewInterface(methods []*Field) *Type {
+ 	t := newType(TINTER)
+ 	t.SetInterface(methods)
+ 	for _, f := range methods {
+@@ -1742,24 +1696,9 @@ func NewInterface(pkg *Pkg, methods []*Field, implicit bool) *Type {
+ 			break
+ 		}
+ 	}
+-	t.extra.(*Interface).pkg = pkg
+-	t.extra.(*Interface).implicit = implicit
+ 	return t
+ }
+ 
+-// IsImplicit reports whether an interface is implicit (i.e. elided from a type
+-// parameter constraint).
+-func (t *Type) IsImplicit() bool {
+-	t.wantEtype(TINTER)
+-	return t.extra.(*Interface).implicit
+-}
+-
+-// MarkImplicit marks the interface as implicit.
+-func (t *Type) MarkImplicit() {
+-	t.wantEtype(TINTER)
+-	t.extra.(*Interface).implicit = true
+-}
+-
+ const BOGUS_FUNARG_OFFSET = -1000000000
+ 
+ func unzeroFieldOffsets(f []*Field) {
+@@ -1769,8 +1708,8 @@ func unzeroFieldOffsets(f []*Field) {
+ }
+ 
+ // NewSignature returns a new function type for the given receiver,
+-// parameters, results, and type parameters, any of which may be nil.
+-func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Type {
++// parameters, and results, any of which may be nil.
++func NewSignature(recv *Field, params, results []*Field) *Type {
+ 	var recvs []*Field
+ 	if recv != nil {
+ 		recvs = []*Field{recv}
+@@ -1780,7 +1719,7 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
+ 	ft := t.FuncType()
+ 
+ 	funargs := func(fields []*Field, funarg Funarg) *Type {
+-		s := NewStruct(NoPkg, fields)
++		s := NewStruct(fields)
+ 		s.StructType().Funarg = funarg
+ 		return s
+ 	}
+@@ -1791,11 +1730,8 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
+ 	unzeroFieldOffsets(params)
+ 	unzeroFieldOffsets(results)
+ 	ft.Receiver = funargs(recvs, FunargRcvr)
+-	// TODO(danscales): just use nil here (save memory) if no tparams
+-	ft.TParams = funargs(tparams, FunargTparams)
+ 	ft.Params = funargs(params, FunargParams)
+ 	ft.Results = funargs(results, FunargResults)
+-	ft.pkg = pkg
+ 	if fieldsHasShape(recvs) || fieldsHasShape(params) || fieldsHasShape(results) {
+ 		t.SetHasShape(true)
+ 	}
+@@ -1804,10 +1740,9 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
+ }
+ 
+ // NewStruct returns a new struct with the given fields.
+-func NewStruct(pkg *Pkg, fields []*Field) *Type {
++func NewStruct(fields []*Field) *Type {
+ 	t := newType(TSTRUCT)
+ 	t.SetFields(fields)
+-	t.extra.(*Struct).pkg = pkg
+ 	if fieldsHasShape(fields) {
+ 		t.SetHasShape(true)
+ 	}
+diff --git a/src/cmd/compile/internal/types/universe.go b/src/cmd/compile/internal/types/universe.go
+index 473311034e..d1800f217c 100644
+--- a/src/cmd/compile/internal/types/universe.go
++++ b/src/cmd/compile/internal/types/universe.go
+@@ -58,7 +58,7 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
+ 	}
+ 
+ 	Types[TANY] = newType(TANY) // note: an old placeholder type, NOT the new builtin 'any' alias for interface{}
+-	Types[TINTER] = NewInterface(LocalPkg, nil, false)
++	Types[TINTER] = NewInterface(nil)
+ 	CheckSize(Types[TINTER])
+ 
+ 	defBasic := func(kind Kind, pkg *Pkg, name string) *Type {
+@@ -111,7 +111,7 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
+ 	// any type (interface)
+ 	DeferCheckSize()
+ 	AnyType = defBasic(TFORW, BuiltinPkg, "any")
+-	AnyType.SetUnderlying(NewInterface(BuiltinPkg, []*Field{}, false))
++	AnyType.SetUnderlying(NewInterface(nil))
+ 	ResumeCheckSize()
+ 
+ 	Types[TUNSAFEPTR] = defBasic(TUNSAFEPTR, UnsafePkg, "Pointer")
+@@ -140,15 +140,15 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
+ }
+ 
+ func makeErrorInterface() *Type {
+-	sig := NewSignature(NoPkg, FakeRecv(), nil, nil, []*Field{
++	sig := NewSignature(FakeRecv(), nil, []*Field{
+ 		NewField(src.NoXPos, nil, Types[TSTRING]),
+ 	})
+ 	method := NewField(src.NoXPos, LocalPkg.Lookup("Error"), sig)
+-	return NewInterface(NoPkg, []*Field{method}, false)
++	return NewInterface([]*Field{method})
+ }
+ 
+ // makeComparableInterface makes the predefined "comparable" interface in the
+ // built-in package. It has a unique name, but no methods.
+ func makeComparableInterface() *Type {
+-	return NewInterface(NoPkg, nil, false)
++	return NewInterface(nil)
+ }
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 42750c2125..1fa3ac0f18 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -68,7 +68,7 @@ func directClosureCall(n *ir.CallExpr) {
+ 
+ 	// Create new function type with parameters prepended, and
+ 	// then update type and declarations.
+-	typ = types.NewSignature(typ.Pkg(), nil, nil, append(params, typ.Params().FieldSlice()...), typ.Results().FieldSlice())
++	typ = types.NewSignature(nil, append(params, typ.Params().FieldSlice()...), typ.Results().FieldSlice())
+ 	f.SetType(typ)
+ 	clofn.Dcl = append(decls, clofn.Dcl...)
+ 
+diff --git a/src/cmd/compile/internal/walk/compare.go b/src/cmd/compile/internal/walk/compare.go
+index fe9c5d8833..0382894f38 100644
+--- a/src/cmd/compile/internal/walk/compare.go
++++ b/src/cmd/compile/internal/walk/compare.go
+@@ -473,7 +473,7 @@ func eqFor(t *types.Type) (n ir.Node, needsize bool) {
+ 		// TODO(austin): This creates an ir.Name with a nil Func.
+ 		n := typecheck.NewName(sym)
+ 		ir.MarkFunc(n)
+-		n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
++		n.SetType(types.NewSignature(nil, []*types.Field{
+ 			types.NewField(base.Pos, nil, types.NewPtr(t)),
+ 			types.NewField(base.Pos, nil, types.NewPtr(t)),
+ 		}, []*types.Field{
+diff --git a/src/cmd/compile/internal/walk/select.go b/src/cmd/compile/internal/walk/select.go
+index 570e9b54ab..13beb70bd9 100644
+--- a/src/cmd/compile/internal/walk/select.go
++++ b/src/cmd/compile/internal/walk/select.go
+@@ -287,7 +287,7 @@ var scase *types.Type
+ // Keep in sync with src/runtime/select.go.
+ func scasetype() *types.Type {
+ 	if scase == nil {
+-		scase = types.NewStruct(types.NoPkg, []*types.Field{
++		scase = types.NewStruct([]*types.Field{
+ 			types.NewField(base.Pos, typecheck.Lookup("c"), types.Types[types.TUNSAFEPTR]),
+ 			types.NewField(base.Pos, typecheck.Lookup("elem"), types.Types[types.TUNSAFEPTR]),
+ 		})

@@ -19,8 +19,213 @@ Date:   Mon Aug 21 08:45:57 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/hashmap.go      |  4 ++
  src/runtime/hashmap_fast.go | 98 ++++++++++++++-------------------------------
  src/runtime/runtime_test.go |  2 +-
  3 files changed, 35 insertions(+), 69 deletions(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 77a09b676a..9456500f00 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -192,6 +192,10 @@ func (b *bmap) setoverflow(t *maptype, ovf *bmap) {
+ 	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-sys.PtrSize)) = ovf
+ }
+ 
++func (b *bmap) keys() unsafe.Pointer {
++	return add(unsafe.Pointer(b), dataOffset)
++}
++
+ // incrnoverflow increments h.noverflow.
+ // noverflow counts the number of overflow buckets.
+ // This is used to trigger same-size map growth.
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/hashmap_fast.go
+index e83c72d0f9..de52f2cc04 100644
+--- a/src/runtime/hashmap_fast.go
++++ b/src/runtime/hashmap_fast.go
+@@ -40,15 +40,10 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 		}
+ 	}
+ 	for {
+-		for i := uintptr(0); i < bucketCnt; i++ {
+-			k := *((*uint32)(add(unsafe.Pointer(b), dataOffset+i*4)))
+-			if k != key {
+-				continue
++		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 4) {
++			if *(*uint32)(k) == key && b.tophash[i] != empty {
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
+ 			}
+-			if b.tophash[i] == empty {
+-				continue
+-			}
+-			return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+@@ -88,15 +83,10 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
+ 		}
+ 	}
+ 	for {
+-		for i := uintptr(0); i < bucketCnt; i++ {
+-			k := *((*uint32)(add(unsafe.Pointer(b), dataOffset+i*4)))
+-			if k != key {
+-				continue
++		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 4) {
++			if *(*uint32)(k) == key && b.tophash[i] != empty {
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize)), true
+ 			}
+-			if b.tophash[i] == empty {
+-				continue
+-			}
+-			return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize)), true
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+@@ -136,15 +126,10 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 		}
+ 	}
+ 	for {
+-		for i := uintptr(0); i < bucketCnt; i++ {
+-			k := *((*uint64)(add(unsafe.Pointer(b), dataOffset+i*8)))
+-			if k != key {
+-				continue
++		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 8) {
++			if *(*uint64)(k) == key && b.tophash[i] != empty {
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
+ 			}
+-			if b.tophash[i] == empty {
+-				continue
+-			}
+-			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+@@ -184,15 +169,10 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
+ 		}
+ 	}
+ 	for {
+-		for i := uintptr(0); i < bucketCnt; i++ {
+-			k := *((*uint64)(add(unsafe.Pointer(b), dataOffset+i*8)))
+-			if k != key {
+-				continue
++		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 8) {
++			if *(*uint64)(k) == key && b.tophash[i] != empty {
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize)), true
+ 			}
+-			if b.tophash[i] == empty {
+-				continue
+-			}
+-			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize)), true
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+@@ -218,12 +198,9 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 		b := (*bmap)(h.buckets)
+ 		if key.len < 32 {
+ 			// short key, doing lots of comparisons is ok
+-			for i := uintptr(0); i < bucketCnt; i++ {
+-				if b.tophash[i] == empty {
+-					continue
+-				}
+-				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
+-				if k.len != key.len {
++			for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
++				k := (*stringStruct)(kptr)
++				if k.len != key.len || b.tophash[i] == empty {
+ 					continue
+ 				}
+ 				if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
+@@ -234,12 +211,9 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 		}
+ 		// long key, try not to do more comparisons than necessary
+ 		keymaybe := uintptr(bucketCnt)
+-		for i := uintptr(0); i < bucketCnt; i++ {
+-			if b.tophash[i] == empty {
+-				continue
+-			}
+-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
+-			if k.len != key.len {
++		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
++			k := (*stringStruct)(kptr)
++			if k.len != key.len || b.tophash[i] == empty {
+ 				continue
+ 			}
+ 			if k.str == key.str {
+@@ -283,12 +257,9 @@ dohash:
+ 	}
+ 	top := tophash(hash)
+ 	for {
+-		for i := uintptr(0); i < bucketCnt; i++ {
+-			if b.tophash[i] != top {
+-				continue
+-			}
+-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
+-			if k.len != key.len {
++		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
++			k := (*stringStruct)(kptr)
++			if k.len != key.len || b.tophash[i] != top {
+ 				continue
+ 			}
+ 			if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
+@@ -319,12 +290,9 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 		b := (*bmap)(h.buckets)
+ 		if key.len < 32 {
+ 			// short key, doing lots of comparisons is ok
+-			for i := uintptr(0); i < bucketCnt; i++ {
+-				if b.tophash[i] == empty {
+-					continue
+-				}
+-				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
+-				if k.len != key.len {
++			for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
++				k := (*stringStruct)(kptr)
++				if k.len != key.len || b.tophash[i] == empty {
+ 					continue
+ 				}
+ 				if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
+@@ -335,12 +303,9 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 		}
+ 		// long key, try not to do more comparisons than necessary
+ 		keymaybe := uintptr(bucketCnt)
+-		for i := uintptr(0); i < bucketCnt; i++ {
+-			if b.tophash[i] == empty {
+-				continue
+-			}
+-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
+-			if k.len != key.len {
++		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
++			k := (*stringStruct)(kptr)
++			if k.len != key.len || b.tophash[i] == empty {
+ 				continue
+ 			}
+ 			if k.str == key.str {
+@@ -384,12 +349,9 @@ dohash:
+ 	}
+ 	top := tophash(hash)
+ 	for {
+-		for i := uintptr(0); i < bucketCnt; i++ {
+-			if b.tophash[i] != top {
+-				continue
+-			}
+-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
+-			if k.len != key.len {
++		for i, kptr := uintptr(0), b.keys(); i < bucketCnt; i, kptr = i+1, add(kptr, 2*sys.PtrSize) {
++			k := (*stringStruct)(kptr)
++			if k.len != key.len || b.tophash[i] != top {
+ 				continue
+ 			}
+ 			if k.str == key.str || memequal(k.str, key.str, uintptr(key.len)) {
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 25dfe921fe..2355da9774 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -369,7 +369,7 @@ func TestIntendedInlining(t *testing.T) {
+ 	t.Parallel()
+ 
+ 	// want is the list of function names that should be inlined.
+-	want := []string{"tophash", "add"}
++	want := []string{"tophash", "add", "(*bmap).keys"}
+ 
+ 	m := make(map[string]bool, len(want))
+ 	for _, s := range want {

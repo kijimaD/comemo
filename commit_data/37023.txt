@@ -22,9 +22,113 @@ Date:   Mon Jun 18 14:38:45 2018 -0700
     Change-Id: I54babb87e5d665d2c1ef6116c1de1b8c50b1138e
     Reviewed-on: https://go-review.googlesource.com/119595
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 16 ++++++++++------
  src/cmd/compile/internal/gc/bimport.go |  2 +-
  src/cmd/compile/internal/gc/iexport.go | 16 ++++++++++------
  src/cmd/compile/internal/gc/iimport.go |  2 +-
  4 files changed, 22 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index c2672cb319..0d4997ccfc 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1128,16 +1128,20 @@ func (p *exporter) stmtList(list Nodes) {
+ 		}
+ 		// TODO inlining produces expressions with ninits. we can't export these yet.
+ 		// (from fmt.go:1461ff)
+-		if opprec[n.Op] < 0 {
+-			p.stmt(n)
+-		} else {
+-			p.expr(n)
+-		}
++		p.node(n)
+ 	}
+ 
+ 	p.op(OEND)
+ }
+ 
++func (p *exporter) node(n *Node) {
++	if opprec[n.Op] < 0 {
++		p.stmt(n)
++	} else {
++		p.expr(n)
++	}
++}
++
+ func (p *exporter) exprList(list Nodes) {
+ 	if p.trace {
+ 		if list.Len() == 0 {
+@@ -1552,7 +1556,7 @@ func (p *exporter) exprsOrNil(a, b *Node) {
+ 		p.expr(a)
+ 	}
+ 	if ab&2 != 0 {
+-		p.expr(b)
++		p.node(b)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 8215e4652f..c19f548e18 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -1209,7 +1209,7 @@ func (p *importer) exprsOrNil() (a, b *Node) {
+ 		a = p.expr()
+ 	}
+ 	if ab&2 != 0 {
+-		b = p.expr()
++		b = p.node()
+ 	}
+ 	return
+ }
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index f6e9b8b061..3abbd15e16 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -970,15 +970,19 @@ func (w *exportWriter) linkname(s *types.Sym) {
+ 
+ func (w *exportWriter) stmtList(list Nodes) {
+ 	for _, n := range list.Slice() {
+-		if opprec[n.Op] < 0 {
+-			w.stmt(n)
+-		} else {
+-			w.expr(n)
+-		}
++		w.node(n)
+ 	}
+ 	w.op(OEND)
+ }
+ 
++func (w *exportWriter) node(n *Node) {
++	if opprec[n.Op] < 0 {
++		w.stmt(n)
++	} else {
++		w.expr(n)
++	}
++}
++
+ // Caution: stmt will emit more than one node for statement nodes n that have a non-empty
+ // n.Ninit and where n cannot have a natural init section (such as in "if", "for", etc.).
+ func (w *exportWriter) stmt(n *Node) {
+@@ -1338,7 +1342,7 @@ func (w *exportWriter) exprsOrNil(a, b *Node) {
+ 		w.expr(a)
+ 	}
+ 	if ab&2 != 0 {
+-		w.expr(b)
++		w.node(b)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 4d66b4b042..d158899aaa 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -1060,7 +1060,7 @@ func (r *importReader) exprsOrNil() (a, b *Node) {
+ 		a = r.expr()
+ 	}
+ 	if ab&2 != 0 {
+-		b = r.expr()
++		b = r.node()
+ 	}
+ 	return
+ }

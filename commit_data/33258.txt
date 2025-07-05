@@ -9,6 +9,20 @@ Date:   Wed Aug 9 08:11:34 2017 -0700
     Change-Id: Iece69f425d06ab1cf02743b1033cfed2e96667ab
     Reviewed-on: https://go-review.googlesource.com/54290
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 19f61cc585..8c5a228558 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -158,7 +158,7 @@ completed and update the <code>AUTHORS</code> file.
+ Changes to Go must be reviewed before they are accepted, no matter who makes the change.
+ A custom git command called <code>git-codereview</code>, discussed below,
+ helps manage the code review process through a Google-hosted
+-<a href="https://go-review.googlesource.com/">instance</a> Gerrit.
++<a href="https://go-review.googlesource.com/">instance</a> of Gerrit.
+ </p>
+ 
+ <h3 id="git-codereview_install">Install the git-codereview command</h3>

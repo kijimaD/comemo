@@ -18,9 +18,102 @@ Date:   Mon Jul 17 11:14:23 2017 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue20910.c  | 19 +++++++++++++++++++
  misc/cgo/test/issue20910.go | 19 +++++++++++++++++++
  src/cmd/cgo/out.go          |  6 +++---
  4 files changed, 42 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index f7cf6f613c..a44eff27b8 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -80,5 +80,6 @@ func Test20369(t *testing.T)                 { test20369(t) }
+ func Test18720(t *testing.T)                 { test18720(t) }
+ func Test20266(t *testing.T)                 { test20266(t) }
+ func Test20129(t *testing.T)                 { test20129(t) }
++func Test20910(t *testing.T)                 { test20910(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue20910.c b/misc/cgo/test/issue20910.c
+new file mode 100644
+index 0000000000..e8d623fc98
+--- /dev/null
++++ b/misc/cgo/test/issue20910.c
+@@ -0,0 +1,19 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <assert.h>
++#include <stdlib.h>
++#include <string.h>
++#include "_cgo_export.h"
++
++/* Test calling a Go function with multiple return values.  */
++
++void
++callMulti(void)
++{
++	struct multi_return result = multi();
++	assert(strcmp(result.r0, "multi") == 0);
++	assert(result.r1 == 0);
++	free(result.r0);
++}
+diff --git a/misc/cgo/test/issue20910.go b/misc/cgo/test/issue20910.go
+new file mode 100644
+index 0000000000..69d7d9249a
+--- /dev/null
++++ b/misc/cgo/test/issue20910.go
+@@ -0,0 +1,19 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++//void callMulti(void);
++import "C"
++
++import "testing"
++
++//export multi
++func multi() (*C.char, C.int) {
++	return C.CString("multi"), 0
++}
++
++func test20910(t *testing.T) {
++	C.callMulti()
++}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 228f981c94..6e1a47669d 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -985,7 +985,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 		default:
+ 			// Declare a result struct.
+ 			fmt.Fprintf(fgcch, "\n/* Return type for %s */\n", exp.ExpName)
+-			fmt.Fprintf(fgcch, "struct %s_result {\n", exp.ExpName)
++			fmt.Fprintf(fgcch, "struct %s_return {\n", exp.ExpName)
+ 			forFieldList(fntype.Results,
+ 				func(i int, aname string, atype ast.Expr) {
+ 					t := p.cgoType(atype)
+@@ -996,7 +996,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 					fmt.Fprint(fgcch, "\n")
+ 				})
+ 			fmt.Fprintf(fgcch, "};\n")
+-			fmt.Fprintf(cdeclBuf, "struct %s_result", exp.ExpName)
++			fmt.Fprintf(cdeclBuf, "struct %s_return", exp.ExpName)
+ 		}
+ 
+ 		cRet := cdeclBuf.String()
+@@ -1022,7 +1022,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 			fmt.Fprintf(fgcch, "\n%s", exp.Doc)
+ 		}
+ 
+-		fmt.Fprintf(fgcch, "extern %s %s %s;\n", cRet, exp.ExpName, cParams)
++		fmt.Fprintf(fgcch, "extern %s %s%s;\n", cRet, exp.ExpName, cParams)
+ 
+ 		// We need to use a name that will be exported by the
+ 		// Go code; otherwise gccgo will make it static and we

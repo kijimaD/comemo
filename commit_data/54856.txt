@@ -23,7 +23,7 @@ Date:   Fri Nov 4 15:12:32 2022 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go        | 27 ++++++++++++++++++++++
  src/cmd/compile/internal/types2/builtins_test.go   |  5 ++++
  src/cmd/compile/internal/types2/universe.go        |  2 ++
@@ -35,3 +35,234 @@ Date:   Fri Nov 4 15:12:32 2022 -0700
  src/internal/types/testdata/check/builtins1.go     | 14 +++++++++++
  .../types/testdata/fixedbugs/issue56351.go         | 11 +++++++++
  10 files changed, 113 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index aab4ae95dd..531e41dd7d 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -232,6 +232,33 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		x.typ = Typ[Int]
+ 		x.val = val
+ 
++	case _Clear:
++		// clear(m)
++		if !check.allowVersion(check.pkg, 1, 21) {
++			check.versionErrorf(call.Fun, "go1.21", "clear")
++			return
++		}
++
++		if !underIs(x.typ, func(u Type) bool {
++			switch u := u.(type) {
++			case *Map, *Slice:
++				return true
++			case *Pointer:
++				if _, ok := under(u.base).(*Array); ok {
++					return true
++				}
++			}
++			check.errorf(x, InvalidClear, invalidArg+"cannot clear %s: argument must be (or constrained by) map, slice, or array pointer", x)
++			return false
++		}) {
++			return
++		}
++
++		x.mode = novalue
++		if check.recordTypes() {
++			check.recordBuiltinType(call.Fun, makeSig(nil, x.typ))
++		}
++
+ 	case _Close:
+ 		// close(c)
+ 		if !underIs(x.typ, func(u Type) bool {
+diff --git a/src/cmd/compile/internal/types2/builtins_test.go b/src/cmd/compile/internal/types2/builtins_test.go
+index e382c47b91..12c139f492 100644
+--- a/src/cmd/compile/internal/types2/builtins_test.go
++++ b/src/cmd/compile/internal/types2/builtins_test.go
+@@ -41,6 +41,11 @@ var builtinCalls = []struct {
+ 	{"len", `type S []byte; var s S; _ = len(s)`, `func(p.S) int`},
+ 	{"len", `var s P; _ = len(s)`, `func(P) int`},
+ 
++	{"clear", `var m map[float64]int; clear(m)`, `func(map[float64]int)`},
++	{"clear", `var s []byte; clear(s)`, `func([]byte)`},
++	{"clear", `var p *[10]int; clear(p)`, `func(*[10]int)`},
++	{"clear", `var s P; clear(s)`, `func(P)`},
++
+ 	{"close", `var c chan int; close(c)`, `func(chan int)`},
+ 	{"close", `var c chan<- chan string; close(c)`, `func(chan<- chan string)`},
+ 
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index 301526c8d6..3fe849e737 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -145,6 +145,7 @@ const (
+ 	// universe scope
+ 	_Append builtinId = iota
+ 	_Cap
++	_Clear
+ 	_Close
+ 	_Complex
+ 	_Copy
+@@ -182,6 +183,7 @@ var predeclaredFuncs = [...]struct {
+ }{
+ 	_Append:  {"append", 1, true, expression},
+ 	_Cap:     {"cap", 1, false, expression},
++	_Clear:   {"clear", 1, false, statement},
+ 	_Close:   {"close", 1, false, statement},
+ 	_Complex: {"complex", 2, false, expression},
+ 	_Copy:    {"copy", 2, false, statement},
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index a923ef557f..d3bca606b2 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -233,6 +233,33 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		x.typ = Typ[Int]
+ 		x.val = val
+ 
++	case _Clear:
++		// clear(m)
++		if !check.allowVersion(check.pkg, 1, 21) {
++			check.error(call.Fun, UnsupportedFeature, "clear requires go1.21 or later")
++			return
++		}
++
++		if !underIs(x.typ, func(u Type) bool {
++			switch u := u.(type) {
++			case *Map, *Slice:
++				return true
++			case *Pointer:
++				if _, ok := under(u.base).(*Array); ok {
++					return true
++				}
++			}
++			check.errorf(x, InvalidClear, invalidArg+"cannot clear %s: argument must be (or constrained by) map, slice, or array pointer", x)
++			return false
++		}) {
++			return
++		}
++
++		x.mode = novalue
++		if check.Types != nil {
++			check.recordBuiltinType(call.Fun, makeSig(nil, x.typ))
++		}
++
+ 	case _Close:
+ 		// close(c)
+ 		if !underIs(x.typ, func(u Type) bool {
+diff --git a/src/go/types/builtins_test.go b/src/go/types/builtins_test.go
+index a794f2fb54..fb71c4887b 100644
+--- a/src/go/types/builtins_test.go
++++ b/src/go/types/builtins_test.go
+@@ -42,6 +42,11 @@ var builtinCalls = []struct {
+ 	{"len", `type S []byte; var s S; _ = len(s)`, `func(p.S) int`},
+ 	{"len", `var s P; _ = len(s)`, `func(P) int`},
+ 
++	{"clear", `var m map[float64]int; clear(m)`, `func(map[float64]int)`},
++	{"clear", `var s []byte; clear(s)`, `func([]byte)`},
++	{"clear", `var p *[10]int; clear(p)`, `func(*[10]int)`},
++	{"clear", `var s P; clear(s)`, `func(P)`},
++
+ 	{"close", `var c chan int; close(c)`, `func(chan int)`},
+ 	{"close", `var c chan<- chan string; close(c)`, `func(chan<- chan string)`},
+ 
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 8551ee00ff..9103fca713 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -146,6 +146,7 @@ const (
+ 	// universe scope
+ 	_Append builtinId = iota
+ 	_Cap
++	_Clear
+ 	_Close
+ 	_Complex
+ 	_Copy
+@@ -183,6 +184,7 @@ var predeclaredFuncs = [...]struct {
+ }{
+ 	_Append:  {"append", 1, true, expression},
+ 	_Cap:     {"cap", 1, false, expression},
++	_Clear:   {"clear", 1, false, statement},
+ 	_Close:   {"close", 1, false, statement},
+ 	_Complex: {"complex", 2, false, expression},
+ 	_Copy:    {"copy", 2, false, statement},
+diff --git a/src/internal/types/errors/codes.go b/src/internal/types/errors/codes.go
+index 7bf7b218bd..7a0c0e16b8 100644
+--- a/src/internal/types/errors/codes.go
++++ b/src/internal/types/errors/codes.go
+@@ -1430,4 +1430,13 @@ const (
+ 	// InvalidUnsafeStringData occurs if it is used in a package
+ 	// compiled for a language version before go1.20.
+ 	_ // not used anymore
++
++	// InvalidClear occurs when clear is called with an argument
++	// that is not of map, slice, or pointer-to-array type.
++	//
++	// Example:
++	//  func _(x int) {
++	//  	clear(x)
++	//  }
++	InvalidClear
+ )
+diff --git a/src/internal/types/testdata/check/builtins0.go b/src/internal/types/testdata/check/builtins0.go
+index c4bce41473..308f70b9cc 100644
+--- a/src/internal/types/testdata/check/builtins0.go
++++ b/src/internal/types/testdata/check/builtins0.go
+@@ -139,6 +139,17 @@ func cap3() {
+ 	)
+ }
+ 
++func clear1() {
++	var a [10]int
++	var m map[float64]string
++	var s []byte
++	clear(a /* ERROR cannot clear a */)
++	clear(&a)
++	clear(m)
++	clear(s)
++	clear([]int{})
++}
++
+ func close1() {
+ 	var c chan int
+ 	var r <-chan int
+diff --git a/src/internal/types/testdata/check/builtins1.go b/src/internal/types/testdata/check/builtins1.go
+index 861597399e..3348861582 100644
+--- a/src/internal/types/testdata/check/builtins1.go
++++ b/src/internal/types/testdata/check/builtins1.go
+@@ -8,6 +8,20 @@ package builtins
+ 
+ import "unsafe"
+ 
++// clear
++
++func _[T any](x T) {
++	clear(x /* ERROR cannot clear x */)
++}
++
++func _[T ~map[int]string | ~[]byte | ~*[10]int](x T) {
++	clear(x)
++}
++
++func _[T ~map[int]string | ~[]byte | ~*[10]int | string](x T) {
++	clear(x /* ERROR cannot clear x */)
++}
++
+ // close
+ 
+ type C0 interface{ int }
+diff --git a/src/internal/types/testdata/fixedbugs/issue56351.go b/src/internal/types/testdata/fixedbugs/issue56351.go
+new file mode 100644
+index 0000000000..d7d04b0043
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue56351.go
+@@ -0,0 +1,11 @@
++// -lang=go1.20
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _(s []int) {
++	clear /* ERROR clear requires go1\.21 or later */ (s)
++}

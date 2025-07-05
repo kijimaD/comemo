@@ -7,6 +7,20 @@ Date:   Thu Dec 6 14:13:28 2018 -0500
     Change-Id: I930942c7e057a36332ac06762f6aadf07574a7d5
     Reviewed-on: https://go-review.googlesource.com/c/152977
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.12.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 4c2765021f..0e381eb679 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -406,7 +406,7 @@ for {
+ <dl id="math/bits"><dt><a href="/pkg/math/bits/">math/bits</a></dt>
+   <dd>
+     <p><!-- CL 123157 -->
+-      TODO: <a href="https://golang.org/cl/123157">https://golang.org/cl/123157</a>: add extended precision Add, Sub, Mul, Div
++    New extended precision operations <a href="/pkg/math/bits/#Add"><code>Add</code></a>, <a href="/pkg/math/bits/#Sub"><code>Sub</code></a>, <a href="/pkg/math/bits/#Mul"><code>Mul</code></a>, and <a href="/pkg/math/bits/#Div"><code>Div</code></a> are available in <code>int</code>, <code>int32</code>, and <code>int64</code> versions.
+     </p>
+ 
+ </dl><!-- math/bits -->

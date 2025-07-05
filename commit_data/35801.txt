@@ -29,7 +29,161 @@ Date:   Thu Jan 11 16:32:02 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/87480
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 73 +++++++++++++++++++++++++++++++++++
  test/prove.go                         | 54 ++++++++++++++++++++++++++
  2 files changed, 127 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 10a16917b6..f723ea5e90 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -305,6 +305,53 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+ 			v.Block.Func.Warnl(parent.Pos, "parent=%s, new limits %s %s %s", parent, v, w, lim.String())
+ 		}
+ 	}
++
++	// Process fence-post implications.
++	//
++	// First, make the condition > or >=.
++	if r == lt || r == lt|eq {
++		v, w = w, v
++		r = reverseBits[r]
++	}
++	switch r {
++	case gt:
++		if x, delta := isConstDelta(v); x != nil && delta == 1 {
++			// x+1 > w  ⇒  x >= w
++			//
++			// This is useful for eliminating the
++			// growslice branch of append.
++			ft.update(parent, x, w, d, gt|eq)
++		} else if x, delta := isConstDelta(w); x != nil && delta == -1 {
++			// v > x-1  ⇒  v >= x
++			ft.update(parent, v, x, d, gt|eq)
++		}
++	case gt | eq:
++		if x, delta := isConstDelta(v); x != nil && delta == -1 {
++			// x-1 >= w && x > min  ⇒  x > w
++			//
++			// Useful for i > 0; s[i-1].
++			lim, ok := ft.limits[x.ID]
++			if ok && lim.min > opMin[v.Op] {
++				ft.update(parent, x, w, d, gt)
++			}
++		} else if x, delta := isConstDelta(w); x != nil && delta == 1 {
++			// v >= x+1 && x < max  ⇒  v > x
++			lim, ok := ft.limits[x.ID]
++			if ok && lim.max < opMax[w.Op] {
++				ft.update(parent, v, x, d, gt)
++			}
++		}
++	}
++}
++
++var opMin = map[Op]int64{
++	OpAdd64: math.MinInt64, OpSub64: math.MinInt64,
++	OpAdd32: math.MinInt32, OpSub32: math.MinInt32,
++}
++
++var opMax = map[Op]int64{
++	OpAdd64: math.MaxInt64, OpSub64: math.MaxInt64,
++	OpAdd32: math.MaxInt32, OpSub32: math.MaxInt32,
+ }
+ 
+ // isNonNegative returns true if v is known to be non-negative.
+@@ -803,3 +850,29 @@ func isNonNegative(v *Value) bool {
+ 	}
+ 	return false
+ }
++
++// isConstDelta returns non-nil if v is equivalent to w+delta (signed).
++func isConstDelta(v *Value) (w *Value, delta int64) {
++	cop := OpConst64
++	switch v.Op {
++	case OpAdd32, OpSub32:
++		cop = OpConst32
++	}
++	switch v.Op {
++	case OpAdd64, OpAdd32:
++		if v.Args[0].Op == cop {
++			return v.Args[1], v.Args[0].AuxInt
++		}
++		if v.Args[1].Op == cop {
++			return v.Args[0], v.Args[1].AuxInt
++		}
++	case OpSub64, OpSub32:
++		if v.Args[1].Op == cop {
++			aux := v.Args[1].AuxInt
++			if aux != -aux { // Overflow; too bad
++				return v.Args[0], -aux
++			}
++		}
++	}
++	return nil, 0
++}
+diff --git a/test/prove.go b/test/prove.go
+index 13e18cd728..97614939ac 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -506,6 +506,60 @@ func lim1(x, y, z int) {
+ 	}
+ }
+ 
++// fence1–4 correspond to the four fence-post implications.
++
++func fence1(b []int, x, y int) {
++	// Test proofs that rely on fence-post implications.
++	if x+1 > y {
++		if x < y { // ERROR "Disproved Less64$"
++			return
++		}
++	}
++	if len(b) < cap(b) {
++		// This eliminates the growslice path.
++		b = append(b, 1) // ERROR "Disproved Greater64$"
++	}
++}
++
++func fence2(x, y int) {
++	if x-1 < y {
++		if x > y { // ERROR "Disproved Greater64$"
++			return
++		}
++	}
++}
++
++func fence3(b []int, x, y int64) {
++	if x-1 >= y {
++		if x <= y { // Can't prove because x may have wrapped.
++			return
++		}
++	}
++
++	if x != math.MinInt64 && x-1 >= y {
++		if x <= y { // ERROR "Disproved Leq64$"
++			return
++		}
++	}
++
++	if n := len(b); n > 0 {
++		b[n-1] = 0 // ERROR "Proved IsInBounds$"
++	}
++}
++
++func fence4(x, y int64) {
++	if x >= y+1 {
++		if x <= y {
++			return
++		}
++	}
++	if y != math.MaxInt64 && x >= y+1 {
++		if x <= y { // ERROR "Disproved Leq64$"
++			return
++		}
++	}
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

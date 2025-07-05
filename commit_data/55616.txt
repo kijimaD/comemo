@@ -111,10 +111,212 @@ Date:   Thu Dec 8 03:51:04 2022 -0800
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/bytes/bytes.go              | 34 ++++++++++++++++++++++------------
  src/internal/bytealg/bytealg.go |  5 +++++
  src/runtime/slice.go            |  8 ++++++++
  src/strings/builder.go          |  3 ++-
  src/strings/strings.go          | 29 ++++++++++++++++++++---------
  5 files changed, 57 insertions(+), 22 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index ea8146c166..1b2dbd4c33 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -533,12 +533,22 @@ func Join(s [][]byte, sep []byte) []byte {
+ 		// Just return a copy.
+ 		return append([]byte(nil), s[0]...)
+ 	}
+-	n := len(sep) * (len(s) - 1)
++
++	var n int
++	if len(sep) > 0 {
++		if len(sep) >= maxInt/(len(s)-1) {
++			panic("bytes: Join output length overflow")
++		}
++		n += len(sep) * (len(s) - 1)
++	}
+ 	for _, v := range s {
++		if len(v) > maxInt-n {
++			panic("bytes: Join output length overflow")
++		}
+ 		n += len(v)
+ 	}
+ 
+-	b := make([]byte, n)
++	b := bytealg.MakeNoZero(n)
+ 	bp := copy(b, s[0])
+ 	for _, v := range s[1:] {
+ 		bp += copy(b[bp:], sep)
+@@ -589,22 +599,22 @@ func Repeat(b []byte, count int) []byte {
+ 	if count == 0 {
+ 		return []byte{}
+ 	}
++
+ 	// Since we cannot return an error on overflow,
+-	// we should panic if the repeat will generate
+-	// an overflow.
++	// we should panic if the repeat will generate an overflow.
+ 	// See golang.org/issue/16237.
+ 	if count < 0 {
+ 		panic("bytes: negative Repeat count")
+-	} else if len(b)*count/count != len(b) {
+-		panic("bytes: Repeat count causes overflow")
+ 	}
++	if len(b) >= maxInt/count {
++		panic("bytes: Repeat output length overflow")
++	}
++	n := len(b) * count
+ 
+ 	if len(b) == 0 {
+ 		return []byte{}
+ 	}
+ 
+-	n := len(b) * count
+-
+ 	// Past a certain chunk size it is counterproductive to use
+ 	// larger chunks as the source of the write, as when the source
+ 	// is too large we are basically just thrashing the CPU D-cache.
+@@ -623,9 +633,9 @@ func Repeat(b []byte, count int) []byte {
+ 			chunkMax = len(b)
+ 		}
+ 	}
+-	nb := make([]byte, n)
++	nb := bytealg.MakeNoZero(n)
+ 	bp := copy(nb, b)
+-	for bp < len(nb) {
++	for bp < n {
+ 		chunk := bp
+ 		if chunk > chunkMax {
+ 			chunk = chunkMax
+@@ -653,7 +663,7 @@ func ToUpper(s []byte) []byte {
+ 			// Just return a copy.
+ 			return append([]byte(""), s...)
+ 		}
+-		b := make([]byte, len(s))
++		b := bytealg.MakeNoZero(len(s))
+ 		for i := 0; i < len(s); i++ {
+ 			c := s[i]
+ 			if 'a' <= c && c <= 'z' {
+@@ -683,7 +693,7 @@ func ToLower(s []byte) []byte {
+ 		if !hasUpper {
+ 			return append([]byte(""), s...)
+ 		}
+-		b := make([]byte, len(s))
++		b := bytealg.MakeNoZero(len(s))
+ 		for i := 0; i < len(s); i++ {
+ 			c := s[i]
+ 			if 'A' <= c && c <= 'Z' {
+diff --git a/src/internal/bytealg/bytealg.go b/src/internal/bytealg/bytealg.go
+index ebebce75fe..28f2742c0e 100644
+--- a/src/internal/bytealg/bytealg.go
++++ b/src/internal/bytealg/bytealg.go
+@@ -148,3 +148,8 @@ func IndexRabinKarp(s, substr string) int {
+ 	}
+ 	return -1
+ }
++
++// MakeNoZero makes a slice of length and capacity n without zeroing the bytes.
++// It is the caller's responsibility to ensure uninitialized bytes
++// do not leak to the end user.
++func MakeNoZero(n int) []byte
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 459dc8891e..04062f59fc 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -345,3 +345,11 @@ func slicecopy(toPtr unsafe.Pointer, toLen int, fromPtr unsafe.Pointer, fromLen
+ 	}
+ 	return n
+ }
++
++//go:linkname bytealg_MakeNoZero internal/bytealg.MakeNoZero
++func bytealg_MakeNoZero(len int) []byte {
++	if uintptr(len) > maxAlloc {
++		panicmakeslicelen()
++	}
++	return unsafe.Slice((*byte)(mallocgc(uintptr(len), nil, false)), len)
++}
+diff --git a/src/strings/builder.go b/src/strings/builder.go
+index 7710464a0d..299ad51255 100644
+--- a/src/strings/builder.go
++++ b/src/strings/builder.go
+@@ -5,6 +5,7 @@
+ package strings
+ 
+ import (
++	"internal/bytealg"
+ 	"unicode/utf8"
+ 	"unsafe"
+ )
+@@ -65,7 +66,7 @@ func (b *Builder) Reset() {
+ // grow copies the buffer to a new, larger buffer so that there are at least n
+ // bytes of capacity beyond len(b.buf).
+ func (b *Builder) grow(n int) {
+-	buf := make([]byte, len(b.buf), 2*cap(b.buf)+n)
++	buf := bytealg.MakeNoZero(2*cap(b.buf) + n)[:len(b.buf)]
+ 	copy(buf, b.buf)
+ 	b.buf = buf
+ }
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 3f7d6fd1a2..2dd4321142 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -13,6 +13,8 @@ import (
+ 	"unicode/utf8"
+ )
+ 
++const maxInt = int(^uint(0) >> 1)
++
+ // explode splits s into a slice of UTF-8 strings,
+ // one string per Unicode character up to a maximum of n (n < 0 means no limit).
+ // Invalid UTF-8 bytes are sliced individually.
+@@ -436,9 +438,19 @@ func Join(elems []string, sep string) string {
+ 	case 1:
+ 		return elems[0]
+ 	}
+-	n := len(sep) * (len(elems) - 1)
+-	for i := 0; i < len(elems); i++ {
+-		n += len(elems[i])
++
++	var n int
++	if len(sep) > 0 {
++		if len(sep) >= maxInt/(len(elems)-1) {
++			panic("strings: Join output length overflow")
++		}
++		n += len(sep) * (len(elems) - 1)
++	}
++	for _, elem := range elems {
++		if len(elem) > maxInt-n {
++			panic("strings: Join output length overflow")
++		}
++		n += len(elem)
+ 	}
+ 
+ 	var b Builder
+@@ -536,21 +548,20 @@ func Repeat(s string, count int) string {
+ 	}
+ 
+ 	// Since we cannot return an error on overflow,
+-	// we should panic if the repeat will generate
+-	// an overflow.
++	// we should panic if the repeat will generate an overflow.
+ 	// See golang.org/issue/16237.
+ 	if count < 0 {
+ 		panic("strings: negative Repeat count")
+-	} else if len(s)*count/count != len(s) {
+-		panic("strings: Repeat count causes overflow")
+ 	}
++	if len(s) >= maxInt/count {
++		panic("strings: Repeat output length overflow")
++	}
++	n := len(s) * count
+ 
+ 	if len(s) == 0 {
+ 		return ""
+ 	}
+ 
+-	n := len(s) * count
+-
+ 	// Past a certain chunk size it is counterproductive to use
+ 	// larger chunks as the source of the write, as when the source
+ 	// is too large we are basically just thrashing the CPU D-cache.

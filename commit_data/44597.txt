@@ -18,7 +18,63 @@ Date:   Thu May 7 00:35:28 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/sinit.go |  6 +++++-
  test/fixedbugs/issue38905.go         | 18 ++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 4a2edc7d21..71ed558461 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -506,6 +506,7 @@ const (
+ // fixedlit handles struct, array, and slice literals.
+ // TODO: expand documentation.
+ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes) {
++	isBlank := var_ == nblank
+ 	var splitnode func(*Node) (a *Node, value *Node)
+ 	switch n.Op {
+ 	case OARRAYLIT, OSLICELIT:
+@@ -520,6 +521,9 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
+ 			}
+ 			a := nod(OINDEX, var_, nodintconst(k))
+ 			k++
++			if isBlank {
++				a = nblank
++			}
+ 			return a, r
+ 		}
+ 	case OSTRUCTLIT:
+@@ -527,7 +531,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
+ 			if r.Op != OSTRUCTKEY {
+ 				Fatalf("fixedlit: rhs not OSTRUCTKEY: %v", r)
+ 			}
+-			if r.Sym.IsBlank() {
++			if r.Sym.IsBlank() || isBlank {
+ 				return nblank, r.Left
+ 			}
+ 			setlineno(r)
+diff --git a/test/fixedbugs/issue38905.go b/test/fixedbugs/issue38905.go
+new file mode 100644
+index 0000000000..6f411b8605
+--- /dev/null
++++ b/test/fixedbugs/issue38905.go
+@@ -0,0 +1,18 @@
++// compile
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure that literal value can be passed to struct
++// blank field with expressions where candiscard(value)
++// returns false, see #38905.
++
++package p
++
++type t struct{ _ u }
++type u [10]struct{ f int }
++
++func f(x int) t   { return t{u{{1 / x}, {1 % x}}} }
++func g(p *int) t  { return t{u{{*p}}} }
++func h(s []int) t { return t{u{{s[0]}}} }

@@ -30,8 +30,76 @@ Date:   Tue Dec 12 16:26:45 2023 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/internal/poll/fd_windows.go                  |  3 +--
  src/internal/syscall/windows/syscall_windows.go  | 21 ++++++++++++++++-----
  src/internal/syscall/windows/zsyscall_windows.go |  2 +-
  3 files changed, 18 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 9df39edced..2095a6aa29 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -1037,8 +1037,7 @@ func (fd *FD) Fchmod(mode uint32) error {
+ 
+ 	var du windows.FILE_BASIC_INFO
+ 	du.FileAttributes = attrs
+-	l := uint32(unsafe.Sizeof(d))
+-	return windows.SetFileInformationByHandle(fd.Sysfd, windows.FileBasicInfo, uintptr(unsafe.Pointer(&du)), l)
++	return windows.SetFileInformationByHandle(fd.Sysfd, windows.FileBasicInfo, unsafe.Pointer(&du), uint32(unsafe.Sizeof(du)))
+ }
+ 
+ // Fchdir wraps syscall.Fchdir.
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 5854ca60b5..d10e30cb68 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -129,11 +129,22 @@ type SecurityAttributes struct {
+ }
+ 
+ type FILE_BASIC_INFO struct {
+-	CreationTime   syscall.Filetime
+-	LastAccessTime syscall.Filetime
+-	LastWriteTime  syscall.Filetime
+-	ChangedTime    syscall.Filetime
++	CreationTime   int64
++	LastAccessTime int64
++	LastWriteTime  int64
++	ChangedTime    int64
+ 	FileAttributes uint32
++
++	// Pad out to 8-byte alignment.
++	//
++	// Without this padding, TestChmod fails due to an argument validation error
++	// in SetFileInformationByHandle on windows/386.
++	//
++	// https://learn.microsoft.com/en-us/cpp/build/reference/zp-struct-member-alignment?view=msvc-170
++	// says that “The C/C++ headers in the Windows SDK assume the platform's
++	// default alignment is used.” What we see here is padding rather than
++	// alignment, but maybe it is related.
++	_ uint32
+ }
+ 
+ const (
+@@ -150,7 +161,7 @@ const (
+ //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
+ //sys	MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) = MoveFileExW
+ //sys	GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
+-//sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
++//sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf unsafe.Pointer, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
+ //sys	VirtualQuery(address uintptr, buffer *MemoryBasicInformation, length uintptr) (err error) = kernel32.VirtualQuery
+ //sys	GetTempPath2(buflen uint32, buf *uint16) (n uint32, err error) = GetTempPath2W
+ 
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 5a587ad4f1..931f157cf1 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -342,7 +342,7 @@ func RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry
+ 	return
+ }
+ 
+-func SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) {
++func SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf unsafe.Pointer, bufsize uint32) (err error) {
+ 	r1, _, e1 := syscall.Syscall6(procSetFileInformationByHandle.Addr(), 4, uintptr(handle), uintptr(fileInformationClass), uintptr(buf), uintptr(bufsize), 0, 0)
+ 	if r1 == 0 {
+ 		err = errnoErr(e1)

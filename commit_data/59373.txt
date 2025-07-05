@@ -22,7 +22,49 @@ Date:   Thu Mar 7 14:49:30 2024 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/walk/order.go |  7 ++++++-
  test/fixedbugs/issue66096.go           | 17 +++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 179fbdb99e..de180a4a8d 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -643,7 +643,12 @@ func (o *orderState) stmt(n ir.Node) {
+ 			indexLHS.Index = o.cheapExpr(indexLHS.Index)
+ 
+ 			call := n.Y.(*ir.CallExpr)
+-			indexRHS := call.Args[0].(*ir.IndexExpr)
++			arg0 := call.Args[0]
++			// ir.SameSafeExpr skips OCONVNOPs, so we must do the same here (#66096).
++			for arg0.Op() == ir.OCONVNOP {
++				arg0 = arg0.(*ir.ConvExpr).X
++			}
++			indexRHS := arg0.(*ir.IndexExpr)
+ 			indexRHS.X = indexLHS.X
+ 			indexRHS.Index = indexLHS.Index
+ 
+diff --git a/test/fixedbugs/issue66096.go b/test/fixedbugs/issue66096.go
+new file mode 100644
+index 0000000000..f8621a18b4
+--- /dev/null
++++ b/test/fixedbugs/issue66096.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Message struct {
++	Header map[string][]string
++}
++
++func f() {
++	m := Message{Header: map[string][]string{}}
++	m.Header[""] = append([]string(m.Header[""]), "")
++	_ = m
++}

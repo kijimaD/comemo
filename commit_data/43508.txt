@@ -9,6 +9,46 @@ Date:   Sun Apr 5 22:21:11 2020 +0800
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/internal/obj/ppc64/asm9.go | 11 ++++++-----
  1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 90bee3d9b6..288e5f3360 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -54,7 +54,8 @@ type ctxt9 struct {
+ // Instruction layout.
+ 
+ const (
+-	funcAlign = 16
++	funcAlign     = 16
++	funcAlignMask = funcAlign - 1
+ )
+ 
+ const (
+@@ -622,11 +623,11 @@ var xcmp [C_NCLASS][C_NCLASS]bool
+ func addpad(pc, a int64, ctxt *obj.Link) int {
+ 	switch a {
+ 	case 8:
+-		if pc%8 != 0 {
++		if pc&7 != 0 {
+ 			return 4
+ 		}
+ 	case 16:
+-		switch pc % 16 {
++		switch pc & 15 {
+ 		case 4, 12:
+ 			return 4
+ 		case 8:
+@@ -735,8 +736,8 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		c.cursym.Size = pc
+ 	}
+ 
+-	if pc%funcAlign != 0 {
+-		pc += funcAlign - (pc % funcAlign)
++	if r := pc & funcAlignMask; r != 0 {
++		pc += funcAlign - r
+ 	}
+ 
+ 	c.cursym.Size = pc

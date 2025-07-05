@@ -10,6 +10,14 @@ Date:   Mon Feb 5 13:44:05 2024 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/next/6-stdlib/99-minor/sync/61696.md | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/next/6-stdlib/99-minor/sync/61696.md b/doc/next/6-stdlib/99-minor/sync/61696.md
+new file mode 100644
+index 0000000000..9cb8a3689c
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/sync/61696.md
+@@ -0,0 +1 @@
++TODO(laciferin@gmail.com)

@@ -25,8 +25,299 @@ Date:   Wed Aug 9 13:12:50 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/54433
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/common.go   | 101 +++++++++++++++++++++++++++++++++++
  src/archive/tar/tar_test.go | 127 ++++++++++++++++++++++++++++++++++++++++++++
  src/archive/tar/writer.go   |  18 ++++++-
  3 files changed, 245 insertions(+), 1 deletion(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index d49c5c3fd9..5b7bbe5a1e 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -17,6 +17,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path"
++	"strconv"
+ 	"time"
+ )
+ 
+@@ -67,6 +68,106 @@ func (h *Header) FileInfo() os.FileInfo {
+ 	return headerFileInfo{h}
+ }
+ 
++// allowedFormats determines which formats can be used. The value returned
++// is the logical OR of multiple possible formats. If the value is
++// formatUnknown, then the input Header cannot be encoded.
++//
++// As a by-product of checking the fields, this function returns paxHdrs, which
++// contain all fields that could not be directly encoded.
++func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
++	format = formatUSTAR | formatPAX | formatGNU
++	paxHdrs = make(map[string]string)
++
++	verifyString := func(s string, size int, gnuLong bool, paxKey string) {
++		// NUL-terminator is optional for path and linkpath.
++		// Technically, it is required for uname and gname,
++		// but neither GNU nor BSD tar checks for it.
++		tooLong := len(s) > size
++		if !isASCII(s) || (tooLong && !gnuLong) {
++			// TODO(dsnet): GNU supports UTF-8 (without NUL) for strings.
++			format &^= formatGNU // No GNU
++		}
++		if !isASCII(s) || tooLong {
++			// TODO(dsnet): If the path is splittable, it is possible to still
++			// use the USTAR format.
++			format &^= formatUSTAR // No USTAR
++			if paxKey == paxNone {
++				format &^= formatPAX // No PAX
++			} else {
++				paxHdrs[paxKey] = s
++			}
++		}
++	}
++	verifyNumeric := func(n int64, size int, paxKey string) {
++		if !fitsInBase256(size, n) {
++			format &^= formatGNU // No GNU
++		}
++		if !fitsInOctal(size, n) {
++			format &^= formatUSTAR // No USTAR
++			if paxKey == paxNone {
++				format &^= formatPAX // No PAX
++			} else {
++				paxHdrs[paxKey] = strconv.FormatInt(n, 10)
++			}
++		}
++	}
++	verifyTime := func(ts time.Time, size int, ustarField bool, paxKey string) {
++		if ts.IsZero() {
++			return // Always okay
++		}
++		needsNano := ts.Nanosecond() != 0
++		if !fitsInBase256(size, ts.Unix()) || needsNano {
++			format &^= formatGNU // No GNU
++		}
++		if !fitsInOctal(size, ts.Unix()) || needsNano || !ustarField {
++			format &^= formatUSTAR // No USTAR
++			if paxKey == paxNone {
++				format &^= formatPAX // No PAX
++			} else {
++				// TODO(dsnet): Support PAX time here.
++				// paxHdrs[paxKey] = formatPAXTime(ts)
++			}
++		}
++	}
++
++	// TODO(dsnet): Add GNU long name support.
++	const supportGNULong = false
++
++	var blk block
++	var v7 = blk.V7()
++	var ustar = blk.USTAR()
++	verifyString(h.Name, len(v7.Name()), supportGNULong, paxPath)
++	verifyString(h.Linkname, len(v7.LinkName()), supportGNULong, paxLinkpath)
++	verifyString(h.Uname, len(ustar.UserName()), false, paxUname)
++	verifyString(h.Gname, len(ustar.GroupName()), false, paxGname)
++	verifyNumeric(h.Mode, len(v7.Mode()), paxNone)
++	verifyNumeric(int64(h.Uid), len(v7.UID()), paxUid)
++	verifyNumeric(int64(h.Gid), len(v7.GID()), paxGid)
++	verifyNumeric(h.Size, len(v7.Size()), paxSize)
++	verifyNumeric(h.Devmajor, len(ustar.DevMajor()), paxNone)
++	verifyNumeric(h.Devminor, len(ustar.DevMinor()), paxNone)
++	verifyTime(h.ModTime, len(v7.ModTime()), true, paxMtime)
++	// TODO(dsnet): Support atime and ctime fields.
++	// verifyTime(h.AccessTime, len(gnu.AccessTime()), false, paxAtime)
++	// verifyTime(h.ChangeTime, len(gnu.ChangeTime()), false, paxCtime)
++
++	if !isHeaderOnlyType(h.Typeflag) && h.Size < 0 {
++		return formatUnknown, nil
++	}
++	if len(h.Xattrs) > 0 {
++		for k, v := range h.Xattrs {
++			paxHdrs[paxXattr+k] = v
++		}
++		format &= formatPAX // PAX only
++	}
++	for k, v := range paxHdrs {
++		if !validPAXRecord(k, v) {
++			return formatUnknown, nil // Invalid PAX key
++		}
++	}
++	return format, paxHdrs
++}
++
+ // headerFileInfo implements os.FileInfo.
+ type headerFileInfo struct {
+ 	h *Header
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index fb7a9dcfc4..e1d64a6957 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"internal/testenv"
+ 	"io/ioutil"
++	"math"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+@@ -329,3 +330,129 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestHeaderAllowedFormats(t *testing.T) {
++	prettyFormat := func(f int) string {
++		if f == formatUnknown {
++			return "(formatUnknown)"
++		}
++		var fs []string
++		if f&formatUSTAR > 0 {
++			fs = append(fs, "formatUSTAR")
++		}
++		if f&formatPAX > 0 {
++			fs = append(fs, "formatPAX")
++		}
++		if f&formatGNU > 0 {
++			fs = append(fs, "formatGNU")
++		}
++		return "(" + strings.Join(fs, " | ") + ")"
++	}
++
++	vectors := []struct {
++		header  *Header           // Input header
++		paxHdrs map[string]string // Expected PAX headers that may be needed
++		formats int               // Expected formats that can encode the header
++	}{{
++		header:  &Header{},
++		formats: formatUSTAR | formatPAX | formatGNU,
++	}, {
++		header:  &Header{Size: 077777777777},
++		formats: formatUSTAR | formatPAX | formatGNU,
++	}, {
++		header:  &Header{Size: 077777777777 + 1},
++		paxHdrs: map[string]string{paxSize: "8589934592"},
++		formats: formatPAX | formatGNU,
++	}, {
++		header:  &Header{Mode: 07777777},
++		formats: formatUSTAR | formatPAX | formatGNU,
++	}, {
++		header:  &Header{Mode: 07777777 + 1},
++		formats: formatGNU,
++	}, {
++		header:  &Header{Devmajor: -123},
++		formats: formatGNU,
++	}, {
++		header:  &Header{Devmajor: 1<<56 - 1},
++		formats: formatGNU,
++	}, {
++		header:  &Header{Devmajor: 1 << 56},
++		formats: formatUnknown,
++	}, {
++		header:  &Header{Devmajor: -1 << 56},
++		formats: formatGNU,
++	}, {
++		header:  &Header{Devmajor: -1<<56 - 1},
++		formats: formatUnknown,
++	}, {
++		header:  &Header{Name: "用戶名", Devmajor: -1 << 56},
++		formats: formatUnknown,
++	}, {
++		header:  &Header{Size: math.MaxInt64},
++		paxHdrs: map[string]string{paxSize: "9223372036854775807"},
++		formats: formatPAX | formatGNU,
++	}, {
++		header:  &Header{Size: math.MinInt64},
++		paxHdrs: map[string]string{paxSize: "-9223372036854775808"},
++		formats: formatUnknown,
++	}, {
++		header:  &Header{Uname: "0123456789abcdef0123456789abcdef"},
++		formats: formatUSTAR | formatPAX | formatGNU,
++	}, {
++		header:  &Header{Uname: "0123456789abcdef0123456789abcdefx"},
++		paxHdrs: map[string]string{paxUname: "0123456789abcdef0123456789abcdefx"},
++		formats: formatPAX,
++	}, {
++		header:  &Header{Name: "foobar"},
++		formats: formatUSTAR | formatPAX | formatGNU,
++	}, {
++		header:  &Header{Name: strings.Repeat("a", nameSize)},
++		formats: formatUSTAR | formatPAX | formatGNU,
++	}, {
++		header:  &Header{Linkname: "用戶名"},
++		paxHdrs: map[string]string{paxLinkpath: "用戶名"},
++		formats: formatPAX,
++	}, {
++		header:  &Header{Linkname: strings.Repeat("用戶名\x00", nameSize)},
++		paxHdrs: map[string]string{paxLinkpath: strings.Repeat("用戶名\x00", nameSize)},
++		formats: formatUnknown,
++	}, {
++		header:  &Header{Linkname: "\x00hello"},
++		paxHdrs: map[string]string{paxLinkpath: "\x00hello"},
++		formats: formatUnknown,
++	}, {
++		header:  &Header{Uid: 07777777},
++		formats: formatUSTAR | formatPAX | formatGNU,
++	}, {
++		header:  &Header{Uid: 07777777 + 1},
++		paxHdrs: map[string]string{paxUid: "2097152"},
++		formats: formatPAX | formatGNU,
++	}, {
++		header:  &Header{Xattrs: nil},
++		formats: formatUSTAR | formatPAX | formatGNU,
++	}, {
++		header:  &Header{Xattrs: map[string]string{"foo": "bar"}},
++		paxHdrs: map[string]string{paxXattr + "foo": "bar"},
++		formats: formatPAX,
++	}, {
++		header:  &Header{Xattrs: map[string]string{"用戶名": "\x00hello"}},
++		paxHdrs: map[string]string{paxXattr + "用戶名": "\x00hello"},
++		formats: formatPAX,
++	}, {
++		header:  &Header{ModTime: time.Unix(0, 0)},
++		formats: formatUSTAR | formatPAX | formatGNU,
++	}, {
++		header:  &Header{ModTime: time.Unix(077777777777, 0)},
++		formats: formatUSTAR | formatPAX | formatGNU,
++	}}
++
++	for i, v := range vectors {
++		formats, paxHdrs := v.header.allowedFormats()
++		if formats != v.formats {
++			t.Errorf("test %d, allowedFormats(...): got %v, want %v", i, prettyFormat(formats), prettyFormat(v.formats))
++		}
++		if formats&formatPAX > 0 && !reflect.DeepEqual(paxHdrs, v.paxHdrs) && !(len(paxHdrs) == 0 && len(v.paxHdrs) == 0) {
++			t.Errorf("test %d, allowedFormats(...):\ngot  %v\nwant %s", i, paxHdrs, v.paxHdrs)
++		}
++	}
++}
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 2fdf53f598..8efd149fba 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -77,7 +77,23 @@ var (
+ // WriteHeader calls Flush if it is not the first header.
+ // Calling after a Close will return ErrWriteAfterClose.
+ func (tw *Writer) WriteHeader(hdr *Header) error {
+-	return tw.writeHeader(hdr, true)
++	// TODO(dsnet): Add PAX timestamps with nanosecond support.
++	hdrCpy := *hdr
++	hdrCpy.ModTime = hdrCpy.ModTime.Truncate(time.Second)
++
++	switch allowedFormats, _ := hdrCpy.allowedFormats(); {
++	case allowedFormats&formatUSTAR > 0:
++		// TODO(dsnet): Implement and call specialized writeUSTARHeader.
++		return tw.writeHeader(&hdrCpy, true)
++	case allowedFormats&formatPAX > 0:
++		// TODO(dsnet): Implement and call specialized writePAXHeader.
++		return tw.writeHeader(&hdrCpy, true)
++	case allowedFormats&formatGNU > 0:
++		// TODO(dsnet): Implement and call specialized writeGNUHeader.
++		return tw.writeHeader(&hdrCpy, true)
++	default:
++		return ErrHeader
++	}
+ }
+ 
+ // WriteHeader writes hdr and prepares to accept the file's contents.

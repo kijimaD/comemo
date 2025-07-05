@@ -8,7 +8,7 @@ Date:   Fri Nov 14 10:57:48 2008 -0800
     DELTA=8  (1 added, 0 deleted, 7 changed)
     OCL=19245
     CL=19245
-
+---
  src/cmd/cc/cc.h              | 2 +-
  src/cmd/clean.bash           | 2 +-
  src/cmd/make.bash            | 2 +-
@@ -16,3 +16,89 @@ Date:   Fri Nov 14 10:57:48 2008 -0800
  src/lib/reflect/typestring.c | 2 +-
  src/runtime/runtime.c        | 1 +
  6 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index b453755947..eefe5bed9e 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -61,7 +61,7 @@ typedef	struct	Bits	Bits;
+ #define	NTERM		10
+ #define	MAXALIGN	7
+ 
+-#define	SIGN(n)		((vlong)1<<(n-1))
++#define	SIGN(n)		((uvlong)1<<(n-1))
+ #define	MASK(n)		(SIGN(n)|(SIGN(n)-1))
+ 
+ #define	BITS	5
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 14151d86d6..41f4917d9e 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in 6l 6a 6c 6g gc cc ar db nm blyacc acid
++for i in 6l 6a 6c 6g gc cc ar db nm blyacc acid cov prof
+ do
+ 	cd $i
+ 	make clean
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index 103b17fa6f..980659ff72 100644
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -12,7 +12,7 @@ bash mkenam
+ make enam.o
+ cd ..
+ 
+-for i in cc 6l 6a 6c gc 6g ar db nm blyacc acid
++for i in cc 6l 6a 6c gc 6g ar db nm blyacc acid cov prof
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i
+diff --git a/src/cmd/prof/main.c b/src/cmd/prof/main.c
+index a4223e75a8..c4380b9b38 100644
+--- a/src/cmd/prof/main.c
++++ b/src/cmd/prof/main.c
+@@ -321,13 +321,13 @@ main(int argc, char *argv[])
+ 		collapse = 0;
+ 		break;
+ 	case 'd':
+-		delta_msec = atoi(EARGF(Usage));
++		delta_msec = atoi(EARGF(Usage()));
+ 		break;
+ 	case 't':
+-		total_sec = atoi(EARGF(Usage));
++		total_sec = atoi(EARGF(Usage()));
+ 		break;
+ 	case 'p':
+-		pid = atoi(EARGF(Usage));
++		pid = atoi(EARGF(Usage()));
+ 		break;
+ 	case 'f':
+ 		functions = 1;
+diff --git a/src/lib/reflect/typestring.c b/src/lib/reflect/typestring.c
+index a5e6398ad3..07144b3e06 100644
+--- a/src/lib/reflect/typestring.c
++++ b/src/lib/reflect/typestring.c
+@@ -4,7 +4,7 @@
+ 
+ extern char gotypestrings[];	// really a go String, but we don't have the definition here
+ 
+-void FLUSH(void *v) { }
++void FLUSH(void*) { }
+ 
+ void reflect·typestrings(void *s) {
+ 	s = gotypestrings;
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index ea2c432396..766f16f6d4 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -674,6 +674,7 @@ memcopy(uint32 s, void *a, void *b)
+ static uint64
+ stringhash(uint32 s, string *a)
+ {
++	USED(s);
+ 	return memhash((*a)->len, (*a)->str);
+ }
+ 

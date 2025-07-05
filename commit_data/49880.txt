@@ -21,10 +21,158 @@ Date:   Sun Sep 19 09:23:21 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go |  3 ++-
  src/cmd/compile/internal/typecheck/iimport.go | 16 +++++++++-------
  test/typeparam/issue48462.dir/a.go            | 22 ++++++++++++++++++++++
  test/typeparam/issue48462.dir/main.go         | 23 +++++++++++++++++++++++
  test/typeparam/issue48462.go                  |  7 +++++++
  5 files changed, 63 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index a9522c3887..def9408544 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1472,7 +1472,7 @@ func isNonEmptyAssign(n ir.Node) bool {
+ // non-empty n.Ninit and where n is not a non-empty assignment or a node with a natural init
+ // section (such as in "if", "for", etc.).
+ func (w *exportWriter) stmt(n ir.Node) {
+-	if len(n.Init()) > 0 && !ir.StmtWithInit(n.Op()) && !isNonEmptyAssign(n) {
++	if len(n.Init()) > 0 && !ir.StmtWithInit(n.Op()) && !isNonEmptyAssign(n) && n.Op() != ir.ORANGE {
+ 		// can't use stmtList here since we don't want the final OEND
+ 		for _, n := range n.Init() {
+ 			w.stmt(n)
+@@ -1573,6 +1573,7 @@ func (w *exportWriter) stmt(n ir.Node) {
+ 		n := n.(*ir.RangeStmt)
+ 		w.op(ir.ORANGE)
+ 		w.pos(n.Pos())
++		w.stmtList(n.Init())
+ 		w.exprsOrNil(n.Key, n.Value)
+ 		w.expr(n.X)
+ 		w.stmtList(n.Body)
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 3b3c2a2e2a..a7339903fc 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1515,7 +1515,7 @@ func (r *importReader) node() ir.Node {
+ 		if go117ExportTypes {
+ 			n.SetOp(op)
+ 		}
+-		*n.PtrInit() = init
++		n.SetInit(init)
+ 		n.IsDDD = r.bool()
+ 		if go117ExportTypes {
+ 			n.SetType(r.exoticType())
+@@ -1660,26 +1660,28 @@ func (r *importReader) node() ir.Node {
+ 	case ir.OIF:
+ 		pos, init := r.pos(), r.stmtList()
+ 		n := ir.NewIfStmt(pos, r.expr(), r.stmtList(), r.stmtList())
+-		*n.PtrInit() = init
++		n.SetInit(init)
+ 		return n
+ 
+ 	case ir.OFOR:
+ 		pos, init := r.pos(), r.stmtList()
+ 		cond, post := r.exprsOrNil()
+ 		n := ir.NewForStmt(pos, nil, cond, post, r.stmtList())
+-		*n.PtrInit() = init
++		n.SetInit(init)
+ 		return n
+ 
+ 	case ir.ORANGE:
+-		pos := r.pos()
++		pos, init := r.pos(), r.stmtList()
+ 		k, v := r.exprsOrNil()
+-		return ir.NewRangeStmt(pos, k, v, r.expr(), r.stmtList())
++		n := ir.NewRangeStmt(pos, k, v, r.expr(), r.stmtList())
++		n.SetInit(init)
++		return n
+ 
+ 	case ir.OSELECT:
+ 		pos := r.pos()
+ 		init := r.stmtList()
+ 		n := ir.NewSelectStmt(pos, r.commList())
+-		*n.PtrInit() = init
++		n.SetInit(init)
+ 		return n
+ 
+ 	case ir.OSWITCH:
+@@ -1687,7 +1689,7 @@ func (r *importReader) node() ir.Node {
+ 		init := r.stmtList()
+ 		x, _ := r.exprsOrNil()
+ 		n := ir.NewSwitchStmt(pos, x, r.caseList(x))
+-		*n.PtrInit() = init
++		n.SetInit(init)
+ 		return n
+ 
+ 	// case OCASE:
+diff --git a/test/typeparam/issue48462.dir/a.go b/test/typeparam/issue48462.dir/a.go
+new file mode 100644
+index 0000000000..26c704dbe4
+--- /dev/null
++++ b/test/typeparam/issue48462.dir/a.go
+@@ -0,0 +1,22 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func Unique[T comparable](set []T) []T {
++	nset := make([]T, 0, 8)
++
++loop:
++	for _, s := range set {
++		for _, e := range nset {
++			if s == e {
++				continue loop
++			}
++		}
++
++		nset = append(nset, s)
++	}
++
++	return nset
++}
+diff --git a/test/typeparam/issue48462.dir/main.go b/test/typeparam/issue48462.dir/main.go
+new file mode 100644
+index 0000000000..8054ddd327
+--- /dev/null
++++ b/test/typeparam/issue48462.dir/main.go
+@@ -0,0 +1,23 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"reflect"
++
++	"a"
++)
++
++func main() {
++	e := []int{1, 2, 2, 3, 1, 6}
++
++	got := a.Unique(e)
++	want := []int{1, 2, 3, 6}
++	if !reflect.DeepEqual(got, want) {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++}
+diff --git a/test/typeparam/issue48462.go b/test/typeparam/issue48462.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/issue48462.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

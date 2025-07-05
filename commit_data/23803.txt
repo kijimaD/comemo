@@ -15,6 +15,33 @@ Date:   Sun Jun 14 23:06:39 2015 +0100
     Change-Id: Ic6951f5e7781b122cd881df324a38e519d6d66f0
     Reviewed-on: https://go-review.googlesource.com/11073
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/cse.go | 11 ++++++-----
  1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index aba24aeabc..660712612a 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -26,15 +26,16 @@ func cse(f *Func) {
+ 	// Make initial partition based on opcode/type/aux/nargs
+ 	// TODO(khr): types are not canonical, so we may split unnecessarily.  Fix that.
+ 	type key struct {
+-		op    Op
+-		typ   Type
+-		aux   interface{}
+-		nargs int
++		op     Op
++		typ    Type
++		aux    interface{}
++		auxint int64
++		nargs  int
+ 	}
+ 	m := map[key]eqclass{}
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+-			k := key{v.Op, v.Type, v.Aux, len(v.Args)}
++			k := key{v.Op, v.Type, v.Aux, v.AuxInt, len(v.Args)}
+ 			m[k] = append(m[k], v)
+ 		}
+ 	}

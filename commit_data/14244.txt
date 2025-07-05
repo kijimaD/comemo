@@ -11,8 +11,60 @@ Date:   Tue Oct 30 23:58:43 2012 +0800
     R=iant, rsc, r
     CC=golang-dev
     https://golang.org/cl/6783050
-
+---
  misc/cgo/test/issue4273.c  | 10 ++++++++++
  misc/cgo/test/issue4273b.c | 11 +++++++++++
  src/cmd/ld/ldelf.c         |  7 +++++++
  3 files changed, 28 insertions(+)
+
+diff --git a/misc/cgo/test/issue4273.c b/misc/cgo/test/issue4273.c
+new file mode 100644
+index 0000000000..a3fcf3b0a8
+--- /dev/null
++++ b/misc/cgo/test/issue4273.c
+@@ -0,0 +1,10 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#ifdef __ELF__
++__attribute__((weak))
++__attribute__((visibility("hidden")))
++void _compilerrt_abort_impl(const char *file, int line, const char *func) {
++}
++#endif
+diff --git a/misc/cgo/test/issue4273b.c b/misc/cgo/test/issue4273b.c
+new file mode 100644
+index 0000000000..93e2f4fab5
+--- /dev/null
++++ b/misc/cgo/test/issue4273b.c
+@@ -0,0 +1,11 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#ifdef __ELF__
++extern void _compilerrt_abort_impl(const char *file, int line, const char *func);
++
++void __my_abort(const char *file, int line, const char *func) {
++	_compilerrt_abort_impl(file, line, func);
++}
++#endif
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index e0f989c065..19c582b007 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -807,6 +807,13 @@ readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
+ 					s->type = SHIDDEN;
+ 				}
+ 			break;
++		case ElfSymBindWeak:
++			if(needSym) {
++				s = newsym(sym->name, 0);
++				if(sym->other == 2)
++					s->type = SHIDDEN;
++			}
++			break;
+ 		default:
+ 			werrstr("%s: invalid symbol binding %d", sym->name, sym->bind);
+ 			return -1;

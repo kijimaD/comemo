@@ -15,9 +15,143 @@ Date:   Sat Nov 3 09:33:31 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/cmd/compile/fmt_test.go            | 60 ++++++++++++++++++----------------
  src/cmd/compile/internal/gc/dwinl.go   |  2 +-
  src/cmd/compile/internal/gc/iexport.go |  2 +-
  src/cmd/compile/internal/gc/plive.go   |  6 ++--
  4 files changed, 36 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 1195117c2d..eaa2aa8dbd 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -599,6 +599,7 @@ var knownFormats = map[string]string{
+ 	"*cmd/compile/internal/types.Type %v":             "",
+ 	"*cmd/internal/obj.Addr %v":                       "",
+ 	"*cmd/internal/obj.LSym %v":                       "",
++	"*math/big.Float %f":                              "",
+ 	"*math/big.Int %#x":                               "",
+ 	"*math/big.Int %s":                                "",
+ 	"*math/big.Int %v":                                "",
+@@ -706,33 +707,34 @@ var knownFormats = map[string]string{
+ 	"interface{} %v":                                  "",
+ 	"map[*cmd/compile/internal/gc.Node]*cmd/compile/internal/ssa.Value %v": "",
+ 	"map[cmd/compile/internal/ssa.ID]uint32 %v":                            "",
+-	"reflect.Type %s":  "",
+-	"rune %#U":         "",
+-	"rune %c":          "",
+-	"string %-*s":      "",
+-	"string %-16s":     "",
+-	"string %-6s":      "",
+-	"string %.*s":      "",
+-	"string %q":        "",
+-	"string %s":        "",
+-	"string %v":        "",
+-	"time.Duration %d": "",
+-	"time.Duration %v": "",
+-	"uint %04x":        "",
+-	"uint %5d":         "",
+-	"uint %d":          "",
+-	"uint %x":          "",
+-	"uint16 %d":        "",
+-	"uint16 %v":        "",
+-	"uint16 %x":        "",
+-	"uint32 %#x":       "",
+-	"uint32 %d":        "",
+-	"uint32 %v":        "",
+-	"uint32 %x":        "",
+-	"uint64 %08x":      "",
+-	"uint64 %d":        "",
+-	"uint64 %x":        "",
+-	"uint8 %d":         "",
+-	"uint8 %x":         "",
+-	"uintptr %d":       "",
++	"math/big.Accuracy %s":                                                 "",
++	"reflect.Type %s":                                                      "",
++	"rune %#U":                                                             "",
++	"rune %c":                                                              "",
++	"string %-*s":                                                          "",
++	"string %-16s":                                                         "",
++	"string %-6s":                                                          "",
++	"string %.*s":                                                          "",
++	"string %q":                                                            "",
++	"string %s":                                                            "",
++	"string %v":                                                            "",
++	"time.Duration %d":                                                     "",
++	"time.Duration %v":                                                     "",
++	"uint %04x":                                                            "",
++	"uint %5d":                                                             "",
++	"uint %d":                                                              "",
++	"uint %x":                                                              "",
++	"uint16 %d":                                                            "",
++	"uint16 %v":                                                            "",
++	"uint16 %x":                                                            "",
++	"uint32 %#x":                                                           "",
++	"uint32 %d":                                                            "",
++	"uint32 %v":                                                            "",
++	"uint32 %x":                                                            "",
++	"uint64 %08x":                                                          "",
++	"uint64 %d":                                                            "",
++	"uint64 %x":                                                            "",
++	"uint8 %d":                                                             "",
++	"uint8 %x":                                                             "",
++	"uintptr %d":                                                           "",
+ }
+diff --git a/src/cmd/compile/internal/gc/dwinl.go b/src/cmd/compile/internal/gc/dwinl.go
+index 51251c9139..ade76f40f8 100644
+--- a/src/cmd/compile/internal/gc/dwinl.go
++++ b/src/cmd/compile/internal/gc/dwinl.go
+@@ -300,7 +300,7 @@ func beginRange(calls []dwarf.InlCall, p *obj.Prog, ii int, imap map[int]int) *d
+ 	}
+ 	callIdx, found := imap[ii]
+ 	if !found {
+-		Fatalf("internal error: can't find inlIndex %d in imap for prog at %d\n", ii, p.Pc)
++		Fatalf("can't find inlIndex %d in imap for prog at %d\n", ii, p.Pc)
+ 	}
+ 	call := &calls[callIdx]
+ 
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index d21378df4a..e77ca9a6c1 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -909,7 +909,7 @@ func (w *exportWriter) mpfloat(f *big.Float, typ *types.Type) {
+ 
+ 	manti, acc := mant.Int(nil)
+ 	if acc != big.Exact {
+-		Fatalf("exporter: internal error")
++		Fatalf("mantissa scaling failed for %f (%s)", f, acc)
+ 	}
+ 	w.mpint(manti, typ)
+ 	if manti.Sign() != 0 {
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 601815f7c5..2c31d5feb9 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1019,7 +1019,7 @@ func (lv *Liveness) epilogue() {
+ 				live := lv.livevars[index]
+ 				if v.Op.IsCall() && live.regs != 0 {
+ 					lv.printDebug()
+-					v.Fatalf("internal error: %v register %s recorded as live at call", lv.fn.Func.Nname, live.regs.niceString(lv.f.Config))
++					v.Fatalf("%v register %s recorded as live at call", lv.fn.Func.Nname, live.regs.niceString(lv.f.Config))
+ 				}
+ 				index++
+ 			}
+@@ -1038,7 +1038,7 @@ func (lv *Liveness) epilogue() {
+ 	// input parameters.
+ 	for j, n := range lv.vars {
+ 		if n.Class() != PPARAM && lv.stackMaps[0].Get(int32(j)) {
+-			Fatalf("internal error: %v %L recorded as live on entry", lv.fn.Func.Nname, n)
++			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Func.Nname, n)
+ 		}
+ 	}
+ 	// Check that no registers are live at function entry.
+@@ -1047,7 +1047,7 @@ func (lv *Liveness) epilogue() {
+ 	// so it doesn't appear live at entry.
+ 	if regs := lv.regMaps[0]; regs != 0 {
+ 		lv.printDebug()
+-		lv.f.Fatalf("internal error: %v register %s recorded as live on entry", lv.fn.Func.Nname, regs.niceString(lv.f.Config))
++		lv.f.Fatalf("%v register %s recorded as live on entry", lv.fn.Func.Nname, regs.niceString(lv.f.Config))
+ 	}
+ }
+ 

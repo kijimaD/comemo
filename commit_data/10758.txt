@@ -10,7 +10,54 @@ Date:   Tue Dec 13 14:03:25 2011 -0800
     R=golang-dev, adg, rsc
     CC=golang-dev
     https://golang.org/cl/5487066
-
+---
  src/cmd/gofmt/doc.go   | 6 ++----
  src/cmd/gofmt/gofmt.go | 8 ++------
  2 files changed, 4 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index 3a20c21e0e..65842a3b15 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -36,10 +36,8 @@ The flags are:
+ Formatting control flags:
+ 	-comments=true
+ 		Print comments; if false, all comments are elided from the output.
+-	-spaces
+-		Align with spaces instead of tabs.
+-	-tabindent
+-		Indent with tabs independent of -spaces.
++	-tabs=true
++		Indent with tabs; if false, spaces are used instead.
+ 	-tabwidth=8
+ 		Tab width in spaces.
+ 
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index b9042271ab..0023e2f218 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -34,8 +34,7 @@ var (
+ 	// layout control
+ 	comments  = flag.Bool("comments", true, "print comments")
+ 	tabWidth  = flag.Int("tabwidth", 8, "tab width")
+-	tabIndent = flag.Bool("tabindent", true, "indent with tabs independent of -spaces")
+-	useSpaces = flag.Bool("spaces", true, "align with spaces instead of tabs")
++	tabIndent = flag.Bool("tabs", true, "indent with tabs")
+ 
+ 	// debugging
+ 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to this file")
+@@ -71,13 +70,10 @@ func initParserMode() {
+ }
+ 
+ func initPrinterMode() {
+-	printerMode = uint(0)
++	printerMode = printer.UseSpaces
+ 	if *tabIndent {
+ 		printerMode |= printer.TabIndent
+ 	}
+-	if *useSpaces {
+-		printerMode |= printer.UseSpaces
+-	}
+ }
+ 
+ func isGoFile(f os.FileInfo) bool {

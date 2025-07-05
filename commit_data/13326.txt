@@ -10,8 +10,57 @@ Date:   Fri Jun 8 14:28:29 2012 -0400
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/6297065
-
+---
  src/pkg/syscall/syscall_windows.go        | 4 ++--
  src/pkg/syscall/zsyscall_windows_386.go   | 2 +-
  src/pkg/syscall/zsyscall_windows_amd64.go | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 35f3bbfdc2..72eedce04f 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -201,7 +201,7 @@ func NewCallback(fn interface{}) uintptr
+ //sys	RegQueryInfoKey(key Handle, class *uint16, classLen *uint32, reserved *uint32, subkeysLen *uint32, maxSubkeyLen *uint32, maxClassLen *uint32, valuesLen *uint32, maxValueNameLen *uint32, maxValueLen *uint32, saLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegQueryInfoKeyW
+ //sys	RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegEnumKeyExW
+ //sys	RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno error) = advapi32.RegQueryValueExW
+-//sys	GetCurrentProcessId() (pid uint32) = kernel32.GetCurrentProcessId
++//sys	getCurrentProcessId() (pid uint32) = kernel32.GetCurrentProcessId
+ 
+ // syscall interface implementation for other packages
+ 
+@@ -702,7 +702,7 @@ func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (err error) {
+ }
+ func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) { return EWINDOWS }
+ 
+-func Getpid() (pid int) { return int(GetCurrentProcessId()) }
++func Getpid() (pid int) { return int(getCurrentProcessId()) }
+ 
+ func FindFirstFile(name *uint16, data *Win32finddata) (handle Handle, err error) {
+ 	// NOTE(rsc): The Win32finddata struct is wrong for the system call:
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 02be967268..368fecb8da 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -1181,7 +1181,7 @@ func RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32
+ 	return
+ }
+ 
+-func GetCurrentProcessId() (pid uint32) {
++func getCurrentProcessId() (pid uint32) {
+ 	r0, _, _ := Syscall(procGetCurrentProcessId.Addr(), 0, 0, 0, 0)
+ 	pid = uint32(r0)
+ 	return
+diff --git a/src/pkg/syscall/zsyscall_windows_amd64.go b/src/pkg/syscall/zsyscall_windows_amd64.go
+index 6f95e52962..a6d44eb07c 100644
+--- a/src/pkg/syscall/zsyscall_windows_amd64.go
++++ b/src/pkg/syscall/zsyscall_windows_amd64.go
+@@ -1181,7 +1181,7 @@ func RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32
+ 	return
+ }
+ 
+-func GetCurrentProcessId() (pid uint32) {
++func getCurrentProcessId() (pid uint32) {
+ 	r0, _, _ := Syscall(procGetCurrentProcessId.Addr(), 0, 0, 0, 0)
+ 	pid = uint32(r0)
+ 	return

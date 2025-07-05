@@ -27,7 +27,7 @@ Date:   Fri Nov 4 09:50:20 2011 -0400
     R=bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/5327064
-
+---
  src/cmd/gofix/Makefile               |  1 +
  src/cmd/gofix/fix.go                 |  2 +-
  src/cmd/gofix/htmlerr.go             | 47 ++++++++++++++++++++++++++++++++++++
@@ -39,3 +39,258 @@ Date:   Fri Nov 4 09:50:20 2011 -0400
  src/pkg/html/token.go                |  4 +--
  src/pkg/html/token_test.go           | 10 ++++----
  10 files changed, 103 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index fea50cccc5..85bef2815f 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -9,6 +9,7 @@ GOFILES=\
+ 	error.go\
+ 	filepath.go\
+ 	fix.go\
++	htmlerr.go\
+ 	httpfinalurl.go\
+ 	httpfs.go\
+ 	httpheaders.go\
+diff --git a/src/cmd/gofix/fix.go b/src/cmd/gofix/fix.go
+index 394685a15a..f153da9701 100644
+--- a/src/cmd/gofix/fix.go
++++ b/src/cmd/gofix/fix.go
+@@ -481,7 +481,7 @@ func newPkgDot(pos token.Pos, pkg, name string) ast.Expr {
+ 	}
+ }
+ 
+-// renameTop renames all references to the top-level name top.
++// renameTop renames all references to the top-level name old.
+ // It returns true if it makes any changes.
+ func renameTop(f *ast.File, old, new string) bool {
+ 	var fixed bool
+diff --git a/src/cmd/gofix/htmlerr.go b/src/cmd/gofix/htmlerr.go
+new file mode 100644
+index 0000000000..b5105c8226
+--- /dev/null
++++ b/src/cmd/gofix/htmlerr.go
+@@ -0,0 +1,47 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++func init() {
++	register(htmlerrFix)
++}
++
++var htmlerrFix = fix{
++	"htmlerr",
++	"2011-11-04",
++	htmlerr,
++	`Rename html's Tokenizer.Error method to Err.
++
++http://codereview.appspot.com/5327064/
++`,
++}
++
++var htmlerrTypeConfig = &TypeConfig{
++	Func: map[string]string{
++		"html.NewTokenizer": "html.Tokenizer",
++	},
++}
++
++func htmlerr(f *ast.File) bool {
++	if !imports(f, "html") {
++		return false
++	}
++
++	typeof, _ := typecheck(htmlerrTypeConfig, f)
++
++	fixed := false
++	walk(f, func(n interface{}) {
++		s, ok := n.(*ast.SelectorExpr)
++		if ok && typeof[s.X] == "html.Tokenizer" && s.Sel.Name == "Error" {
++			s.Sel.Name = "Err"
++			fixed = true
++		}
++	})
++	return fixed
++}
+diff --git a/src/cmd/gofix/htmlerr_test.go b/src/cmd/gofix/htmlerr_test.go
+new file mode 100644
+index 0000000000..043abc42a2
+--- /dev/null
++++ b/src/cmd/gofix/htmlerr_test.go
+@@ -0,0 +1,39 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(htmlerrTests, htmlerr)
++}
++
++var htmlerrTests = []testCase{
++	{
++		Name: "htmlerr.0",
++		In: `package main
++
++import (
++	"html"
++)
++
++func f() {
++	e := errors.New("")
++	t := html.NewTokenizer(r)
++	_, _ = e.Error(), t.Error()
++}
++`,
++		Out: `package main
++
++import (
++	"html"
++)
++
++func f() {
++	e := errors.New("")
++	t := html.NewTokenizer(r)
++	_, _ = e.Error(), t.Err()
++}
++`,
++	},
++}
+diff --git a/src/pkg/compress/bzip2/bit_reader.go b/src/pkg/compress/bzip2/bit_reader.go
+index d058c14833..b2c13e50ca 100644
+--- a/src/pkg/compress/bzip2/bit_reader.go
++++ b/src/pkg/compress/bzip2/bit_reader.go
+@@ -37,7 +37,7 @@ func newBitReader(r io.Reader) bitReader {
+ 
+ // ReadBits64 reads the given number of bits and returns them in the
+ // least-significant part of a uint64. In the event of an error, it returns 0
+-// and the error can be obtained by calling Error().
++// and the error can be obtained by calling Err().
+ func (br *bitReader) ReadBits64(bits uint) (n uint64) {
+ 	for bits > br.bits {
+ 		b, err := br.r.ReadByte()
+@@ -82,6 +82,6 @@ func (br *bitReader) ReadBit() bool {
+ 	return n != 0
+ }
+ 
+-func (br *bitReader) Error() error {
++func (br *bitReader) Err() error {
+ 	return br.err
+ }
+diff --git a/src/pkg/compress/bzip2/bzip2.go b/src/pkg/compress/bzip2/bzip2.go
+index 343cca03e3..3dc8c62061 100644
+--- a/src/pkg/compress/bzip2/bzip2.go
++++ b/src/pkg/compress/bzip2/bzip2.go
+@@ -80,7 +80,7 @@ func (bz2 *reader) Read(buf []byte) (n int, err error) {
+ 
+ 	if !bz2.setupDone {
+ 		err = bz2.setup()
+-		brErr := bz2.br.Error()
++		brErr := bz2.br.Err()
+ 		if brErr != nil {
+ 			err = brErr
+ 		}
+@@ -91,7 +91,7 @@ func (bz2 *reader) Read(buf []byte) (n int, err error) {
+ 	}
+ 
+ 	n, err = bz2.read(buf)
+-	brErr := bz2.br.Error()
++	brErr := bz2.br.Err()
+ 	if brErr != nil {
+ 		err = brErr
+ 	}
+diff --git a/src/pkg/exp/sql/sql.go b/src/pkg/exp/sql/sql.go
+index 1af8e063cf..291af7f67d 100644
+--- a/src/pkg/exp/sql/sql.go
++++ b/src/pkg/exp/sql/sql.go
+@@ -620,7 +620,7 @@ func (s *Stmt) Close() error {
+ //         err = rows.Scan(&id, &name)
+ //         ...
+ //     }
+-//     err = rows.Error() // get any Error encountered during iteration
++//     err = rows.Err() // get any error encountered during iteration
+ //     ...
+ type Rows struct {
+ 	db          *DB
+@@ -651,8 +651,8 @@ func (rs *Rows) Next() bool {
+ 	return rs.lasterr == nil
+ }
+ 
+-// Error returns the error, if any, that was encountered during iteration.
+-func (rs *Rows) Error() error {
++// Err returns the error, if any, that was encountered during iteration.
++func (rs *Rows) Err() error {
+ 	if rs.lasterr == io.EOF {
+ 		return nil
+ 	}
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 811e265473..fae0975d37 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -250,7 +250,7 @@ func (p *parser) read() error {
+ 	p.tok = p.tokenizer.Token()
+ 	switch p.tok.Type {
+ 	case ErrorToken:
+-		return p.tokenizer.Error()
++		return p.tokenizer.Err()
+ 	case SelfClosingTagToken:
+ 		p.hasSelfClosingToken = true
+ 		p.tok.Type = StartTagToken
+diff --git a/src/pkg/html/token.go b/src/pkg/html/token.go
+index 9213844728..2c138227b1 100644
+--- a/src/pkg/html/token.go
++++ b/src/pkg/html/token.go
+@@ -149,9 +149,9 @@ type Tokenizer struct {
+ 	textIsRaw bool
+ }
+ 
+-// Error returns the error associated with the most recent ErrorToken token.
++// Err returns the error associated with the most recent ErrorToken token.
+ // This is typically io.EOF, meaning the end of tokenization.
+-func (z *Tokenizer) Error() error {
++func (z *Tokenizer) Err() error {
+ 	if z.tt != ErrorToken {
+ 		return nil
+ 	}
+diff --git a/src/pkg/html/token_test.go b/src/pkg/html/token_test.go
+index 76cc9f835d..61d4e67c06 100644
+--- a/src/pkg/html/token_test.go
++++ b/src/pkg/html/token_test.go
+@@ -427,7 +427,7 @@ loop:
+ 		if tt.golden != "" {
+ 			for i, s := range strings.Split(tt.golden, "$") {
+ 				if z.Next() == ErrorToken {
+-					t.Errorf("%s token %d: want %q got error %v", tt.desc, i, s, z.Error())
++					t.Errorf("%s token %d: want %q got error %v", tt.desc, i, s, z.Err())
+ 					continue loop
+ 				}
+ 				actual := z.Token().String()
+@@ -438,8 +438,8 @@ loop:
+ 			}
+ 		}
+ 		z.Next()
+-		if z.Error() != io.EOF {
+-			t.Errorf("%s: want EOF got %q", tt.desc, z.Error())
++		if z.Err() != io.EOF {
++			t.Errorf("%s: want EOF got %q", tt.desc, z.Err())
+ 		}
+ 	}
+ }
+@@ -543,8 +543,8 @@ loop:
+ 		tt := z.Next()
+ 		switch tt {
+ 		case ErrorToken:
+-			if z.Error() != io.EOF {
+-				t.Error(z.Error())
++			if z.Err() != io.EOF {
++				t.Error(z.Err())
+ 			}
+ 			break loop
+ 		case TextToken:

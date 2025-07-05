@@ -13,7 +13,70 @@ Date:   Sat Feb 18 18:37:38 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/37250
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/schedule.go      |  2 +-
  src/cmd/compile/internal/ssa/schedule_test.go | 41 +++++++++++++++++++++++++++
  2 files changed, 42 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 35edd77b8d..b0a2f23102 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -400,7 +400,7 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value
+ 					stack = append(stack, a)
+ 					sset.add(a.ID)
+ 					argsdone = false
+-					continue
++					break
+ 				}
+ 				if storeNumber[a.ID]/3 > max {
+ 					max = storeNumber[a.ID] / 3
+diff --git a/src/cmd/compile/internal/ssa/schedule_test.go b/src/cmd/compile/internal/ssa/schedule_test.go
+index 0ff57e3689..c3f16b6bd2 100644
+--- a/src/cmd/compile/internal/ssa/schedule_test.go
++++ b/src/cmd/compile/internal/ssa/schedule_test.go
+@@ -55,3 +55,44 @@ func isSingleLiveMem(f *Func) bool {
+ 	}
+ 	return true
+ }
++
++func TestStoreOrder(t *testing.T) {
++	// In the function below, v2 depends on v3 and v4, v4 depends on v3, and v3 depends on store v5.
++	// storeOrder did not handle this case correctly.
++	c := testConfig(t)
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("mem0", OpInitMem, TypeMem, 0, nil),
++			Valu("a", OpAdd64, TypeInt64, 0, nil, "b", "c"),            // v2
++			Valu("b", OpLoad, TypeInt64, 0, nil, "ptr", "mem1"),        // v3
++			Valu("c", OpNeg64, TypeInt64, 0, nil, "b"),                 // v4
++			Valu("mem1", OpStore, TypeMem, 8, nil, "ptr", "v", "mem0"), // v5
++			Valu("mem2", OpStore, TypeMem, 0, nil, "ptr", "a", "mem1"),
++			Valu("ptr", OpConst64, TypeInt64, 0xABCD, nil),
++			Valu("v", OpConst64, TypeInt64, 12, nil),
++			Goto("exit")),
++		Bloc("exit",
++			Exit("mem2")))
++
++	CheckFunc(fun.f)
++	order := storeOrder(fun.f.Blocks[0].Values, fun.f.newSparseSet(fun.f.NumValues()), make([]int32, fun.f.NumValues()))
++
++	// check that v2, v3, v4 is sorted after v5
++	var ai, bi, ci, si int
++	for i, v := range order {
++		switch v.ID {
++		case 2:
++			ai = i
++		case 3:
++			bi = i
++		case 4:
++			ci = i
++		case 5:
++			si = i
++		}
++	}
++	if ai < si || bi < si || ci < si {
++		t.Logf("Func: %s", fun.f)
++		t.Errorf("store order is wrong: got %v, want v2 v3 v4 after v5", order)
++	}
++}

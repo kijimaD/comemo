@@ -12,6 +12,22 @@ Date:   Wed Jul 7 14:58:36 2021 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  doc/asm.html | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/asm.html b/doc/asm.html
+index 7173d9bd51..d578800086 100644
+--- a/doc/asm.html
++++ b/doc/asm.html
+@@ -827,10 +827,6 @@ The other codes are <code>-&gt;</code> (arithmetic right shift),
+ 
+ <h3 id="arm64">ARM64</h3>
+ 
+-<p>
+-The ARM64 port is in an experimental state.
+-</p>
+-
+ <p>
+ <code>R18</code> is the "platform register", reserved on the Apple platform.
+ To prevent accidental misuse, the register is named <code>R18_PLATFORM</code>.

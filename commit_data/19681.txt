@@ -8,6 +8,23 @@ Date:   Tue Jul 8 13:44:41 2014 -0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/107590043
-
+---
  src/cmd/nm/nm_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index f4e47a42da..74773877f3 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -55,8 +55,9 @@ func checkSymbols(t *testing.T, nmoutput []byte) {
+ }
+ 
+ func TestNM(t *testing.T) {
+-	if runtime.GOOS == "nacl" {
+-		t.Skip("skipping on nacl")
++	switch runtime.GOOS {
++	case "android", "nacl":
++		t.Skipf("skipping on %s", runtime.GOOS)
+ 	}
+ 
+ 	tmpDir, err := ioutil.TempDir("", "TestNM")

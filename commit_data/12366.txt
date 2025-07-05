@@ -7,6 +7,20 @@ Date:   Mon Mar 5 17:07:10 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5730053
-
+---
  doc/root.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index 2029d4c6d2..cf42ba318d 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -39,7 +39,7 @@ simple, reliable, and efficient software.
+ 
+ <div id="gopher"></div>
+ 
+-<a href="/install/" id="start">
++<a href="/doc/install" id="start">
+ <div class="big">Download Go</div>
+ <div class="desc">
+ Binary distributions available for<br>

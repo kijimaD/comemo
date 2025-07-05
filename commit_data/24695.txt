@@ -12,6 +12,27 @@ Date:   Sun Aug 23 19:51:22 2015 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/asn1/marshal.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index 67a019db2d..c901963186 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -627,7 +627,7 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters)
+ 		})
+ 	}
+ 
+-	return nil
++	return err
+ }
+ 
+ // Marshal returns the ASN.1 encoding of val.
+@@ -648,5 +648,5 @@ func Marshal(val interface{}) ([]byte, error) {
+ 		return nil, err
+ 	}
+ 	_, err = f.writeTo(&out)
+-	return out.Bytes(), nil
++	return out.Bytes(), err
+ }

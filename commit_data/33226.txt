@@ -13,7 +13,43 @@ Date:   Fri Aug 4 10:36:40 2017 -0700
     Change-Id: I57f2124f14de7f3872b2de9532abab15df95d45a
     Reviewed-on: https://go-review.googlesource.com/53352
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  misc/cgo/errors/ptr.go | 8 ++++++++
  src/runtime/symtab.go  | 5 +++++
  2 files changed, 13 insertions(+)
+
+diff --git a/misc/cgo/errors/ptr.go b/misc/cgo/errors/ptr.go
+index 4dafbdf3c0..3e117666bf 100644
+--- a/misc/cgo/errors/ptr.go
++++ b/misc/cgo/errors/ptr.go
+@@ -343,6 +343,14 @@ var ptrTests = []ptrTest{
+ 		body:    `var b C.char; p := &b; C.f((*C.u)(unsafe.Pointer(&p)))`,
+ 		fail:    false,
+ 	},
++	{
++		// Issue #21306.
++		name:    "preempt-during-call",
++		c:       `void f() {}`,
++		imports: []string{"runtime", "sync"},
++		body:    `var wg sync.WaitGroup; wg.Add(100); for i := 0; i < 100; i++ { go func(i int) { for j := 0; j < 100; j++ { C.f(); runtime.GOMAXPROCS(i) }; wg.Done() }(i) }; wg.Wait()`,
++		fail:    false,
++	},
+ }
+ 
+ func main() {
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 8e410c4560..e1b41ca4ff 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -409,6 +409,11 @@ var modulesSlice unsafe.Pointer // see activeModules
+ //
+ // A module is active once its gcdatamask and gcbssmask have been
+ // assembled and it is usable by the GC.
++//
++// This is nosplit/nowritebarrier because it is called by the
++// cgo pointer checking code.
++//go:nosplit
++//go:nowritebarrier
+ func activeModules() []*moduledata {
+ 	p := (*[]*moduledata)(atomic.Loadp(unsafe.Pointer(&modulesSlice)))
+ 	if p == nil {

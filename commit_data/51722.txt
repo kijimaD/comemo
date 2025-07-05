@@ -768,3 +768,79 @@ Date:   Mon Mar 7 18:27:14 2022 -0500
  test/typeparam/valimp.go                           |    2 +-
  test/typeparam/value.go                            |    2 +-
  760 files changed, 11707 insertions(+), 10910 deletions(-)
+
+diff --cc src/crypto/rand/rand_unix.go
+index 28f2f5b58b,b800ec8fb7..560f195d86
+--- a/src/crypto/rand/rand_unix.go
++++ b/src/crypto/rand/rand_unix.go
+@@@ -22,31 -20,17 +20,23 @@@ import 
+  	"time"
+  )
+  
+ +import "crypto/internal/boring"
+ +
+  const urandomDevice = "/dev/urandom"
+  
+- // Easy implementation: read from /dev/urandom.
+- // This is sufficient on Linux, OS X, and FreeBSD.
+- 
+  func init() {
+ +	if boring.Enabled {
+ +		Reader = boring.RandReader
+ +		return
+ +	}
+- 	if runtime.GOOS == "plan9" {
+- 		Reader = newReader(nil)
+- 	} else {
+- 		Reader = &devReader{name: urandomDevice}
+- 	}
++ 	Reader = &reader{}
+  }
+  
+- // A devReader satisfies reads by reading the file named name.
+- type devReader struct {
+- 	name string
++ // A reader satisfies reads by reading from urandomDevice
++ type reader struct {
+  	f    io.Reader
+  	mu   sync.Mutex
+- 	used int32 // atomic; whether this devReader has been used
++ 	used int32 // atomic; whether this reader has been used
+  }
+  
+  // altGetRandom if non-nil specifies an OS-specific function to get
+@@@ -57,8 -41,7 +47,8 @@@ func warnBlocked() 
+  	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
+  }
+  
+- func (r *devReader) Read(b []byte) (n int, err error) {
++ func (r *reader) Read(b []byte) (n int, err error) {
+ +	boring.Unreachable()
+  	if atomic.CompareAndSwapInt32(&r.used, 0, 1) {
+  		// First use of randomness. Start timer to warn about
+  		// being blocked on entropy not being available.
+diff --cc src/math/big/intmarsh_test.go
+index f82956ceaf,936669b380..8e7d29f9dd
+--- a/src/math/big/intmarsh_test.go
++++ b/src/math/big/intmarsh_test.go
+@@@ -97,6 -97,20 +97,19 @@@ func TestIntJSONEncoding(t *testing.T) 
+  	}
+  }
+  
+ -
++ func TestIntJSONEncodingNil(t *testing.T) {
++ 	var x *Int
++ 	b, err := x.MarshalJSON()
++ 	if err != nil {
++ 		t.Fatalf("marshaling of nil failed: %s", err)
++ 	}
++ 	got := string(b)
++ 	want := "null"
++ 	if got != want {
++ 		t.Fatalf("marshaling of nil failed: got %s want %s", got, want)
++ 	}
++ }
++ 
+  func TestIntXMLEncoding(t *testing.T) {
+  	for _, test := range encodingTests {
+  		for _, sign := range []string{"", "+", "-"} {

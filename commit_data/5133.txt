@@ -16,7 +16,54 @@ Date:   Thu Mar 25 00:23:07 2010 -0700
     R=rsc, kaib
     CC=golang-dev
     https://golang.org/cl/749041
-
+---
  test/arm-pass.txt   | 4 ----
  test/golden-arm.out | 3 ---
  2 files changed, 7 deletions(-)
+
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 2f3b66020e..7b1d311335 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -1,5 +1,4 @@
+ 235.go
+-64bit.go
+ assign.go
+ blank1.go
+ chan/fifo.go
+@@ -220,7 +219,6 @@ func3.go
+ func4.go
+ func5.go
+ gc.go
+-gc1.go
+ hashmap.go
+ helloworld.go
+ if.go
+@@ -251,7 +249,6 @@ interface/returntype.go
+ interface/struct.go
+ iota.go
+ ken/array.go
+-ken/chan.go
+ ken/chan1.go
+ ken/complit.go
+ ken/divmod.go
+@@ -292,7 +289,6 @@ runtime.go
+ sieve.go
+ sigchld.go
+ simassign.go
+-stack.go
+ string_lit.go
+ switch.go
+ switch1.go
+diff --git a/test/golden-arm.out b/test/golden-arm.out
+index 6764f93347..fa89104cac 100644
+--- a/test/golden-arm.out
++++ b/test/golden-arm.out
+@@ -1,7 +1,4 @@
+ 
+-=========== 64bit.go
+-BUG: 64bit
+-
+ =========== chan/nonblock.go
+ PASS
+ 

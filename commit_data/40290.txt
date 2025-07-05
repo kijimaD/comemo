@@ -14,7 +14,66 @@ Date:   Wed May 1 09:39:49 2019 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/os_test.go        |  1 +
  src/time/zoneinfo_ios.go | 31 +++++++++++++++++++++----------
  2 files changed, 22 insertions(+), 10 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index c438508ceb..c101281258 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1204,6 +1204,7 @@ func TestChdirAndGetwd(t *testing.T) {
+ 	case "darwin":
+ 		switch runtime.GOARCH {
+ 		case "arm", "arm64":
++			dirs = nil
+ 			for _, d := range []string{"d1", "d2"} {
+ 				dir, err := ioutil.TempDir("", d)
+ 				if err != nil {
+diff --git a/src/time/zoneinfo_ios.go b/src/time/zoneinfo_ios.go
+index 09383a5b30..f5a97befd8 100644
+--- a/src/time/zoneinfo_ios.go
++++ b/src/time/zoneinfo_ios.go
+@@ -13,20 +13,31 @@ import (
+ )
+ 
+ var zoneSources = []string{
+-	getZipParent() + "/zoneinfo.zip",
+-	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
++	getZoneRoot() + "/zoneinfo.zip",
+ }
+ 
+-func getZipParent() string {
+-	wd, err := syscall.Getwd()
+-	if err != nil {
+-		return "/XXXNOEXIST"
+-	}
+-
++func getZoneRoot() string {
+ 	// The working directory at initialization is the root of the
+ 	// app bundle: "/private/.../bundlename.app". That's where we
+-	// keep zoneinfo.zip.
+-	return wd
++	// keep zoneinfo.zip for tethered iOS builds.
++	// For self-hosted iOS builds, the zoneinfo.zip is in GOROOT.
++	roots := []string{runtime.GOROOT() + "/lib/time"}
++	wd, err := syscall.Getwd()
++	if err == nil {
++		roots = append(roots, wd)
++	}
++	for _, r := range roots {
++		var st syscall.Stat_t
++		fd, err := syscall.Open(r, syscall.O_RDONLY, 0)
++		if err != nil {
++			continue
++		}
++		defer syscall.Close(fd)
++		if err := syscall.Fstat(fd, &st); err == nil {
++			return r
++		}
++	}
++	return "/XXXNOEXIST"
+ }
+ 
+ func initLocal() {

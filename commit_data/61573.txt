@@ -52,7 +52,7 @@ Date:   Thu Feb 8 01:27:16 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-
+---
  src/crypto/aes/_asm/ctr/ctr_amd64_asm.go | 127 ++++++
  src/crypto/aes/_asm/ctr/go.mod           |  11 +
  src/crypto/aes/_asm/ctr/go.sum           |   8 +
@@ -62,3 +62,2008 @@ Date:   Thu Feb 8 01:27:16 2024 +0000
  src/crypto/aes/ctr_asm.go                | 134 ++++++
  src/crypto/cipher/ctr_aes_test.go        | 231 ++++++++++
  8 files changed, 1947 insertions(+)
+
+diff --git a/src/crypto/aes/_asm/ctr/ctr_amd64_asm.go b/src/crypto/aes/_asm/ctr/ctr_amd64_asm.go
+new file mode 100644
+index 0000000000..35e1d8aeb6
+--- /dev/null
++++ b/src/crypto/aes/_asm/ctr/ctr_amd64_asm.go
+@@ -0,0 +1,127 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"sync"
++
++	. "github.com/mmcloughlin/avo/build"
++	. "github.com/mmcloughlin/avo/operand"
++	. "github.com/mmcloughlin/avo/reg"
++)
++
++//go:generate go run . -out ../../ctr_amd64.s
++
++func main() {
++	Package("crypto/aes")
++	ConstraintExpr("!purego")
++
++	ctrBlocks(1)
++	ctrBlocks(2)
++	ctrBlocks(4)
++	ctrBlocks(8)
++
++	Generate()
++}
++
++func ctrBlocks(numBlocks int) {
++	Implement(fmt.Sprintf("ctrBlocks%dAsm", numBlocks))
++
++	rounds := Load(Param("nr"), GP64())
++	xk := Load(Param("xk"), GP64())
++	dst := Load(Param("dst"), GP64())
++	src := Load(Param("src"), GP64())
++	ivlo := Load(Param("ivlo"), GP64())
++	ivhi := Load(Param("ivhi"), GP64())
++
++	bswap := XMM()
++	MOVOU(bswapMask(), bswap)
++
++	blocks := make([]VecVirtual, 0, numBlocks)
++
++	// Lay out counter block plaintext.
++	for i := 0; i < numBlocks; i++ {
++		x := XMM()
++		blocks = append(blocks, x)
++
++		MOVQ(ivlo, x)
++		PINSRQ(Imm(1), ivhi, x)
++		PSHUFB(bswap, x)
++		if i < numBlocks-1 {
++			ADDQ(Imm(1), ivlo)
++			ADCQ(Imm(0), ivhi)
++		}
++	}
++
++	// Initial key add.
++	aesRoundStart(blocks, Mem{Base: xk})
++	ADDQ(Imm(16), xk)
++
++	// Branch based on the number of rounds.
++	SUBQ(Imm(12), rounds)
++	JE(LabelRef("enc192"))
++	JB(LabelRef("enc128"))
++
++	// Two extra rounds for 256-bit keys.
++	aesRound(blocks, Mem{Base: xk})
++	aesRound(blocks, Mem{Base: xk}.Offset(16))
++	ADDQ(Imm(32), xk)
++
++	// Two extra rounds for 192-bit keys.
++	Label("enc192")
++	aesRound(blocks, Mem{Base: xk})
++	aesRound(blocks, Mem{Base: xk}.Offset(16))
++	ADDQ(Imm(32), xk)
++
++	// 10 rounds for 128-bit keys (with special handling for the final round).
++	Label("enc128")
++	for i := 0; i < 9; i++ {
++		aesRound(blocks, Mem{Base: xk}.Offset(16*i))
++	}
++	aesRoundLast(blocks, Mem{Base: xk}.Offset(16*9))
++
++	// XOR state with src and write back to dst.
++	for i, b := range blocks {
++		x := XMM()
++
++		MOVUPS(Mem{Base: src}.Offset(16*i), x)
++		PXOR(b, x)
++		MOVUPS(x, Mem{Base: dst}.Offset(16*i))
++	}
++
++	RET()
++}
++
++func aesRoundStart(blocks []VecVirtual, k Mem) {
++	x := XMM()
++	MOVUPS(k, x)
++	for _, b := range blocks {
++		PXOR(x, b)
++	}
++}
++
++func aesRound(blocks []VecVirtual, k Mem) {
++	x := XMM()
++	MOVUPS(k, x)
++	for _, b := range blocks {
++		AESENC(x, b)
++	}
++}
++
++func aesRoundLast(blocks []VecVirtual, k Mem) {
++	x := XMM()
++	MOVUPS(k, x)
++	for _, b := range blocks {
++		AESENCLAST(x, b)
++	}
++}
++
++var bswapMask = sync.OnceValue(func() Mem {
++	bswapMask := GLOBL("bswapMask", NOPTR|RODATA)
++	DATA(0x00, U64(0x08090a0b0c0d0e0f))
++	DATA(0x08, U64(0x0001020304050607))
++	return bswapMask
++})
+diff --git a/src/crypto/aes/_asm/ctr/go.mod b/src/crypto/aes/_asm/ctr/go.mod
+new file mode 100644
+index 0000000000..7db2198970
+--- /dev/null
++++ b/src/crypto/aes/_asm/ctr/go.mod
+@@ -0,0 +1,11 @@
++module std/crypto/aes/_asm/ctr
++
++go 1.24
++
++require github.com/mmcloughlin/avo v0.6.0
++
++require (
++	golang.org/x/mod v0.20.0 // indirect
++	golang.org/x/sync v0.8.0 // indirect
++	golang.org/x/tools v0.24.0 // indirect
++)
+diff --git a/src/crypto/aes/_asm/ctr/go.sum b/src/crypto/aes/_asm/ctr/go.sum
+new file mode 100644
+index 0000000000..76af484b2e
+--- /dev/null
++++ b/src/crypto/aes/_asm/ctr/go.sum
+@@ -0,0 +1,8 @@
++github.com/mmcloughlin/avo v0.6.0 h1:QH6FU8SKoTLaVs80GA8TJuLNkUYl4VokHKlPhVDg4YY=
++github.com/mmcloughlin/avo v0.6.0/go.mod h1:8CoAGaCSYXtCPR+8y18Y9aB/kxb8JSS6FRI7mSkvD+8=
++golang.org/x/mod v0.20.0 h1:utOm6MM3R3dnawAiJgn0y+xvuYRsm1RKM/4giyfDgV0=
++golang.org/x/mod v0.20.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
++golang.org/x/sync v0.8.0 h1:3NFvSEYkUoMifnESzZl15y791HH1qU2xm6eCJU5ZPXQ=
++golang.org/x/sync v0.8.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
++golang.org/x/tools v0.24.0 h1:J1shsA93PJUEVaUSaay7UXAyE8aimq3GW0pjlolpa24=
++golang.org/x/tools v0.24.0/go.mod h1:YhNqVBIfWHdzvTLs0d8LCuMhkKUgSUKldakyV7W/WDQ=
+diff --git a/src/crypto/aes/ctr_amd64.s b/src/crypto/aes/ctr_amd64.s
+new file mode 100644
+index 0000000000..e6710834dd
+--- /dev/null
++++ b/src/crypto/aes/ctr_amd64.s
+@@ -0,0 +1,494 @@
++// Code generated by command: go run ctr_amd64_asm.go -out ../../ctr_amd64.s. DO NOT EDIT.
++
++//go:build !purego
++
++#include "textflag.h"
++
++// func ctrBlocks1Asm(nr int, xk *[60]uint32, dst *[16]byte, src *[16]byte, ivlo uint64, ivhi uint64)
++// Requires: AES, SSE, SSE2, SSE4.1, SSSE3
++TEXT ·ctrBlocks1Asm(SB), $0-48
++	MOVQ   nr+0(FP), AX
++	MOVQ   xk+8(FP), CX
++	MOVQ   dst+16(FP), DX
++	MOVQ   src+24(FP), BX
++	MOVQ   ivlo+32(FP), SI
++	MOVQ   ivhi+40(FP), DI
++	MOVOU  bswapMask<>+0(SB), X0
++	MOVQ   SI, X1
++	PINSRQ $0x01, DI, X1
++	PSHUFB X0, X1
++	MOVUPS (CX), X0
++	PXOR   X0, X1
++	ADDQ   $0x10, CX
++	SUBQ   $0x0c, AX
++	JE     enc192
++	JB     enc128
++	MOVUPS (CX), X0
++	AESENC X0, X1
++	MOVUPS 16(CX), X0
++	AESENC X0, X1
++	ADDQ   $0x20, CX
++
++enc192:
++	MOVUPS (CX), X0
++	AESENC X0, X1
++	MOVUPS 16(CX), X0
++	AESENC X0, X1
++	ADDQ   $0x20, CX
++
++enc128:
++	MOVUPS     (CX), X0
++	AESENC     X0, X1
++	MOVUPS     16(CX), X0
++	AESENC     X0, X1
++	MOVUPS     32(CX), X0
++	AESENC     X0, X1
++	MOVUPS     48(CX), X0
++	AESENC     X0, X1
++	MOVUPS     64(CX), X0
++	AESENC     X0, X1
++	MOVUPS     80(CX), X0
++	AESENC     X0, X1
++	MOVUPS     96(CX), X0
++	AESENC     X0, X1
++	MOVUPS     112(CX), X0
++	AESENC     X0, X1
++	MOVUPS     128(CX), X0
++	AESENC     X0, X1
++	MOVUPS     144(CX), X0
++	AESENCLAST X0, X1
++	MOVUPS     (BX), X0
++	PXOR       X1, X0
++	MOVUPS     X0, (DX)
++	RET
++
++DATA bswapMask<>+0(SB)/8, $0x08090a0b0c0d0e0f
++DATA bswapMask<>+8(SB)/8, $0x0001020304050607
++GLOBL bswapMask<>(SB), RODATA|NOPTR, $16
++
++// func ctrBlocks2Asm(nr int, xk *[60]uint32, dst *[32]byte, src *[32]byte, ivlo uint64, ivhi uint64)
++// Requires: AES, SSE, SSE2, SSE4.1, SSSE3
++TEXT ·ctrBlocks2Asm(SB), $0-48
++	MOVQ   nr+0(FP), AX
++	MOVQ   xk+8(FP), CX
++	MOVQ   dst+16(FP), DX
++	MOVQ   src+24(FP), BX
++	MOVQ   ivlo+32(FP), SI
++	MOVQ   ivhi+40(FP), DI
++	MOVOU  bswapMask<>+0(SB), X0
++	MOVQ   SI, X1
++	PINSRQ $0x01, DI, X1
++	PSHUFB X0, X1
++	ADDQ   $0x01, SI
++	ADCQ   $0x00, DI
++	MOVQ   SI, X2
++	PINSRQ $0x01, DI, X2
++	PSHUFB X0, X2
++	MOVUPS (CX), X0
++	PXOR   X0, X1
++	PXOR   X0, X2
++	ADDQ   $0x10, CX
++	SUBQ   $0x0c, AX
++	JE     enc192
++	JB     enc128
++	MOVUPS (CX), X0
++	AESENC X0, X1
++	AESENC X0, X2
++	MOVUPS 16(CX), X0
++	AESENC X0, X1
++	AESENC X0, X2
++	ADDQ   $0x20, CX
++
++enc192:
++	MOVUPS (CX), X0
++	AESENC X0, X1
++	AESENC X0, X2
++	MOVUPS 16(CX), X0
++	AESENC X0, X1
++	AESENC X0, X2
++	ADDQ   $0x20, CX
++
++enc128:
++	MOVUPS     (CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	MOVUPS     16(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	MOVUPS     32(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	MOVUPS     48(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	MOVUPS     64(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	MOVUPS     80(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	MOVUPS     96(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	MOVUPS     112(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	MOVUPS     128(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	MOVUPS     144(CX), X0
++	AESENCLAST X0, X1
++	AESENCLAST X0, X2
++	MOVUPS     (BX), X0
++	PXOR       X1, X0
++	MOVUPS     X0, (DX)
++	MOVUPS     16(BX), X0
++	PXOR       X2, X0
++	MOVUPS     X0, 16(DX)
++	RET
++
++// func ctrBlocks4Asm(nr int, xk *[60]uint32, dst *[64]byte, src *[64]byte, ivlo uint64, ivhi uint64)
++// Requires: AES, SSE, SSE2, SSE4.1, SSSE3
++TEXT ·ctrBlocks4Asm(SB), $0-48
++	MOVQ   nr+0(FP), AX
++	MOVQ   xk+8(FP), CX
++	MOVQ   dst+16(FP), DX
++	MOVQ   src+24(FP), BX
++	MOVQ   ivlo+32(FP), SI
++	MOVQ   ivhi+40(FP), DI
++	MOVOU  bswapMask<>+0(SB), X0
++	MOVQ   SI, X1
++	PINSRQ $0x01, DI, X1
++	PSHUFB X0, X1
++	ADDQ   $0x01, SI
++	ADCQ   $0x00, DI
++	MOVQ   SI, X2
++	PINSRQ $0x01, DI, X2
++	PSHUFB X0, X2
++	ADDQ   $0x01, SI
++	ADCQ   $0x00, DI
++	MOVQ   SI, X3
++	PINSRQ $0x01, DI, X3
++	PSHUFB X0, X3
++	ADDQ   $0x01, SI
++	ADCQ   $0x00, DI
++	MOVQ   SI, X4
++	PINSRQ $0x01, DI, X4
++	PSHUFB X0, X4
++	MOVUPS (CX), X0
++	PXOR   X0, X1
++	PXOR   X0, X2
++	PXOR   X0, X3
++	PXOR   X0, X4
++	ADDQ   $0x10, CX
++	SUBQ   $0x0c, AX
++	JE     enc192
++	JB     enc128
++	MOVUPS (CX), X0
++	AESENC X0, X1
++	AESENC X0, X2
++	AESENC X0, X3
++	AESENC X0, X4
++	MOVUPS 16(CX), X0
++	AESENC X0, X1
++	AESENC X0, X2
++	AESENC X0, X3
++	AESENC X0, X4
++	ADDQ   $0x20, CX
++
++enc192:
++	MOVUPS (CX), X0
++	AESENC X0, X1
++	AESENC X0, X2
++	AESENC X0, X3
++	AESENC X0, X4
++	MOVUPS 16(CX), X0
++	AESENC X0, X1
++	AESENC X0, X2
++	AESENC X0, X3
++	AESENC X0, X4
++	ADDQ   $0x20, CX
++
++enc128:
++	MOVUPS     (CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	MOVUPS     16(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	MOVUPS     32(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	MOVUPS     48(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	MOVUPS     64(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	MOVUPS     80(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	MOVUPS     96(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	MOVUPS     112(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	MOVUPS     128(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	MOVUPS     144(CX), X0
++	AESENCLAST X0, X1
++	AESENCLAST X0, X2
++	AESENCLAST X0, X3
++	AESENCLAST X0, X4
++	MOVUPS     (BX), X0
++	PXOR       X1, X0
++	MOVUPS     X0, (DX)
++	MOVUPS     16(BX), X0
++	PXOR       X2, X0
++	MOVUPS     X0, 16(DX)
++	MOVUPS     32(BX), X0
++	PXOR       X3, X0
++	MOVUPS     X0, 32(DX)
++	MOVUPS     48(BX), X0
++	PXOR       X4, X0
++	MOVUPS     X0, 48(DX)
++	RET
++
++// func ctrBlocks8Asm(nr int, xk *[60]uint32, dst *[128]byte, src *[128]byte, ivlo uint64, ivhi uint64)
++// Requires: AES, SSE, SSE2, SSE4.1, SSSE3
++TEXT ·ctrBlocks8Asm(SB), $0-48
++	MOVQ   nr+0(FP), AX
++	MOVQ   xk+8(FP), CX
++	MOVQ   dst+16(FP), DX
++	MOVQ   src+24(FP), BX
++	MOVQ   ivlo+32(FP), SI
++	MOVQ   ivhi+40(FP), DI
++	MOVOU  bswapMask<>+0(SB), X0
++	MOVQ   SI, X1
++	PINSRQ $0x01, DI, X1
++	PSHUFB X0, X1
++	ADDQ   $0x01, SI
++	ADCQ   $0x00, DI
++	MOVQ   SI, X2
++	PINSRQ $0x01, DI, X2
++	PSHUFB X0, X2
++	ADDQ   $0x01, SI
++	ADCQ   $0x00, DI
++	MOVQ   SI, X3
++	PINSRQ $0x01, DI, X3
++	PSHUFB X0, X3
++	ADDQ   $0x01, SI
++	ADCQ   $0x00, DI
++	MOVQ   SI, X4
++	PINSRQ $0x01, DI, X4
++	PSHUFB X0, X4
++	ADDQ   $0x01, SI
++	ADCQ   $0x00, DI
++	MOVQ   SI, X5
++	PINSRQ $0x01, DI, X5
++	PSHUFB X0, X5
++	ADDQ   $0x01, SI
++	ADCQ   $0x00, DI
++	MOVQ   SI, X6
++	PINSRQ $0x01, DI, X6
++	PSHUFB X0, X6
++	ADDQ   $0x01, SI
++	ADCQ   $0x00, DI
++	MOVQ   SI, X7
++	PINSRQ $0x01, DI, X7
++	PSHUFB X0, X7
++	ADDQ   $0x01, SI
++	ADCQ   $0x00, DI
++	MOVQ   SI, X8
++	PINSRQ $0x01, DI, X8
++	PSHUFB X0, X8
++	MOVUPS (CX), X0
++	PXOR   X0, X1
++	PXOR   X0, X2
++	PXOR   X0, X3
++	PXOR   X0, X4
++	PXOR   X0, X5
++	PXOR   X0, X6
++	PXOR   X0, X7
++	PXOR   X0, X8
++	ADDQ   $0x10, CX
++	SUBQ   $0x0c, AX
++	JE     enc192
++	JB     enc128
++	MOVUPS (CX), X0
++	AESENC X0, X1
++	AESENC X0, X2
++	AESENC X0, X3
++	AESENC X0, X4
++	AESENC X0, X5
++	AESENC X0, X6
++	AESENC X0, X7
++	AESENC X0, X8
++	MOVUPS 16(CX), X0
++	AESENC X0, X1
++	AESENC X0, X2
++	AESENC X0, X3
++	AESENC X0, X4
++	AESENC X0, X5
++	AESENC X0, X6
++	AESENC X0, X7
++	AESENC X0, X8
++	ADDQ   $0x20, CX
++
++enc192:
++	MOVUPS (CX), X0
++	AESENC X0, X1
++	AESENC X0, X2
++	AESENC X0, X3
++	AESENC X0, X4
++	AESENC X0, X5
++	AESENC X0, X6
++	AESENC X0, X7
++	AESENC X0, X8
++	MOVUPS 16(CX), X0
++	AESENC X0, X1
++	AESENC X0, X2
++	AESENC X0, X3
++	AESENC X0, X4
++	AESENC X0, X5
++	AESENC X0, X6
++	AESENC X0, X7
++	AESENC X0, X8
++	ADDQ   $0x20, CX
++
++enc128:
++	MOVUPS     (CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	AESENC     X0, X5
++	AESENC     X0, X6
++	AESENC     X0, X7
++	AESENC     X0, X8
++	MOVUPS     16(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	AESENC     X0, X5
++	AESENC     X0, X6
++	AESENC     X0, X7
++	AESENC     X0, X8
++	MOVUPS     32(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	AESENC     X0, X5
++	AESENC     X0, X6
++	AESENC     X0, X7
++	AESENC     X0, X8
++	MOVUPS     48(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	AESENC     X0, X5
++	AESENC     X0, X6
++	AESENC     X0, X7
++	AESENC     X0, X8
++	MOVUPS     64(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	AESENC     X0, X5
++	AESENC     X0, X6
++	AESENC     X0, X7
++	AESENC     X0, X8
++	MOVUPS     80(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	AESENC     X0, X5
++	AESENC     X0, X6
++	AESENC     X0, X7
++	AESENC     X0, X8
++	MOVUPS     96(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	AESENC     X0, X5
++	AESENC     X0, X6
++	AESENC     X0, X7
++	AESENC     X0, X8
++	MOVUPS     112(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	AESENC     X0, X5
++	AESENC     X0, X6
++	AESENC     X0, X7
++	AESENC     X0, X8
++	MOVUPS     128(CX), X0
++	AESENC     X0, X1
++	AESENC     X0, X2
++	AESENC     X0, X3
++	AESENC     X0, X4
++	AESENC     X0, X5
++	AESENC     X0, X6
++	AESENC     X0, X7
++	AESENC     X0, X8
++	MOVUPS     144(CX), X0
++	AESENCLAST X0, X1
++	AESENCLAST X0, X2
++	AESENCLAST X0, X3
++	AESENCLAST X0, X4
++	AESENCLAST X0, X5
++	AESENCLAST X0, X6
++	AESENCLAST X0, X7
++	AESENCLAST X0, X8
++	MOVUPS     (BX), X0
++	PXOR       X1, X0
++	MOVUPS     X0, (DX)
++	MOVUPS     16(BX), X0
++	PXOR       X2, X0
++	MOVUPS     X0, 16(DX)
++	MOVUPS     32(BX), X0
++	PXOR       X3, X0
++	MOVUPS     X0, 32(DX)
++	MOVUPS     48(BX), X0
++	PXOR       X4, X0
++	MOVUPS     X0, 48(DX)
++	MOVUPS     64(BX), X0
++	PXOR       X5, X0
++	MOVUPS     X0, 64(DX)
++	MOVUPS     80(BX), X0
++	PXOR       X6, X0
++	MOVUPS     X0, 80(DX)
++	MOVUPS     96(BX), X0
++	PXOR       X7, X0
++	MOVUPS     X0, 96(DX)
++	MOVUPS     112(BX), X0
++	PXOR       X8, X0
++	MOVUPS     X0, 112(DX)
++	RET
+diff --git a/src/crypto/aes/ctr_arm64.s b/src/crypto/aes/ctr_arm64.s
+new file mode 100644
+index 0000000000..fc4ab4eaad
+--- /dev/null
++++ b/src/crypto/aes/ctr_arm64.s
+@@ -0,0 +1,729 @@
++// Code generated by ctr_arm64_gen.go. DO NOT EDIT.
++
++//go:build !purego
++
++#include "textflag.h"
++
++#define NR R9
++#define XK R10
++#define DST R11
++#define SRC R12
++#define IV_LOW_LE R16
++#define IV_HIGH_LE R17
++#define IV_LOW_BE R19
++#define IV_HIGH_BE R20
++
++// V0.B16 - V7.B16 are for blocks (<=8). See BLOCK_OFFSET.
++// V8.B16 - V22.B16 are for <=15 round keys (<=15). See ROUND_KEY_OFFSET.
++// V23.B16 - V30.B16 are for destinations (<=8). See DST_OFFSET.
++
++// func ctrBlocks1Asm(nr int, xk *[60]uint32, dst *[1*16]byte, src *[1*16]byte, ivlo uint64, ivhi uint64)
++TEXT ·ctrBlocks1Asm(SB), NOSPLIT, $0
++	MOVD nr+0(FP), NR
++	MOVD xk+8(FP), XK
++	MOVD dst+16(FP), DST
++	MOVD src+24(FP), SRC
++	MOVD ivlo+32(FP), IV_LOW_LE
++	MOVD ivhi+40(FP), IV_HIGH_LE
++
++	REV  IV_LOW_LE, IV_LOW_BE
++	REV  IV_HIGH_LE, IV_HIGH_BE
++	VMOV IV_LOW_BE, V0.D[1]
++	VMOV IV_HIGH_BE, V0.D[0]
++
++	CMP $12, NR
++	BLT Lenc128
++	BEQ Lenc192
++
++Lenc256:
++	VLD1.P 32(XK), [V8.B16, V9.B16]
++
++	AESE  V8.B16, V0.B16
++	AESMC V0.B16, V0.B16
++
++	AESE  V9.B16, V0.B16
++	AESMC V0.B16, V0.B16
++
++Lenc192:
++	VLD1.P 32(XK), [V10.B16, V11.B16]
++
++	AESE  V10.B16, V0.B16
++	AESMC V0.B16, V0.B16
++
++	AESE  V11.B16, V0.B16
++	AESMC V0.B16, V0.B16
++
++Lenc128:
++	VLD1.P 64(XK), [V12.B16, V13.B16, V14.B16, V15.B16]
++	VLD1.P 64(XK), [V16.B16, V17.B16, V18.B16, V19.B16]
++	VLD1.P 48(XK), [V20.B16, V21.B16, V22.B16]
++
++	AESE  V12.B16, V0.B16
++	AESMC V0.B16, V0.B16
++
++	AESE  V13.B16, V0.B16
++	AESMC V0.B16, V0.B16
++
++	AESE  V14.B16, V0.B16
++	AESMC V0.B16, V0.B16
++
++	AESE  V15.B16, V0.B16
++	AESMC V0.B16, V0.B16
++
++	AESE  V16.B16, V0.B16
++	AESMC V0.B16, V0.B16
++
++	AESE  V17.B16, V0.B16
++	AESMC V0.B16, V0.B16
++
++	AESE  V18.B16, V0.B16
++	AESMC V0.B16, V0.B16
++
++	AESE  V19.B16, V0.B16
++	AESMC V0.B16, V0.B16
++
++	AESE  V20.B16, V0.B16
++	AESMC V0.B16, V0.B16
++
++	AESE V21.B16, V0.B16
++
++	VEOR V0.B16, V22.B16, V0.B16
++
++	VLD1.P 16(SRC), [V23.B16]
++	VEOR   V23.B16, V0.B16, V23.B16
++	VST1.P [V23.B16], 16(DST)
++
++	RET
++
++// func ctrBlocks2Asm(nr int, xk *[60]uint32, dst *[2*16]byte, src *[2*16]byte, ivlo uint64, ivhi uint64)
++TEXT ·ctrBlocks2Asm(SB), NOSPLIT, $0
++	MOVD nr+0(FP), NR
++	MOVD xk+8(FP), XK
++	MOVD dst+16(FP), DST
++	MOVD src+24(FP), SRC
++	MOVD ivlo+32(FP), IV_LOW_LE
++	MOVD ivhi+40(FP), IV_HIGH_LE
++
++	REV  IV_LOW_LE, IV_LOW_BE
++	REV  IV_HIGH_LE, IV_HIGH_BE
++	VMOV IV_LOW_BE, V0.D[1]
++	VMOV IV_HIGH_BE, V0.D[0]
++	ADDS $1, IV_LOW_LE
++	ADC  $0, IV_HIGH_LE
++
++	REV  IV_LOW_LE, IV_LOW_BE
++	REV  IV_HIGH_LE, IV_HIGH_BE
++	VMOV IV_LOW_BE, V1.D[1]
++	VMOV IV_HIGH_BE, V1.D[0]
++
++	CMP $12, NR
++	BLT Lenc128
++	BEQ Lenc192
++
++Lenc256:
++	VLD1.P 32(XK), [V8.B16, V9.B16]
++
++	AESE  V8.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V8.B16, V1.B16
++	AESMC V1.B16, V1.B16
++
++	AESE  V9.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V9.B16, V1.B16
++	AESMC V1.B16, V1.B16
++
++Lenc192:
++	VLD1.P 32(XK), [V10.B16, V11.B16]
++
++	AESE  V10.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V10.B16, V1.B16
++	AESMC V1.B16, V1.B16
++
++	AESE  V11.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V11.B16, V1.B16
++	AESMC V1.B16, V1.B16
++
++Lenc128:
++	VLD1.P 64(XK), [V12.B16, V13.B16, V14.B16, V15.B16]
++	VLD1.P 64(XK), [V16.B16, V17.B16, V18.B16, V19.B16]
++	VLD1.P 48(XK), [V20.B16, V21.B16, V22.B16]
++
++	AESE  V12.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V12.B16, V1.B16
++	AESMC V1.B16, V1.B16
++
++	AESE  V13.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V13.B16, V1.B16
++	AESMC V1.B16, V1.B16
++
++	AESE  V14.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V14.B16, V1.B16
++	AESMC V1.B16, V1.B16
++
++	AESE  V15.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V15.B16, V1.B16
++	AESMC V1.B16, V1.B16
++
++	AESE  V16.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V16.B16, V1.B16
++	AESMC V1.B16, V1.B16
++
++	AESE  V17.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V17.B16, V1.B16
++	AESMC V1.B16, V1.B16
++
++	AESE  V18.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V18.B16, V1.B16
++	AESMC V1.B16, V1.B16
++
++	AESE  V19.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V19.B16, V1.B16
++	AESMC V1.B16, V1.B16
++
++	AESE  V20.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V20.B16, V1.B16
++	AESMC V1.B16, V1.B16
++
++	AESE V21.B16, V0.B16
++	AESE V21.B16, V1.B16
++
++	VEOR V0.B16, V22.B16, V0.B16
++	VEOR V1.B16, V22.B16, V1.B16
++
++	VLD1.P 32(SRC), [V23.B16, V24.B16]
++	VEOR   V23.B16, V0.B16, V23.B16
++	VEOR   V24.B16, V1.B16, V24.B16
++	VST1.P [V23.B16, V24.B16], 32(DST)
++
++	RET
++
++// func ctrBlocks4Asm(nr int, xk *[60]uint32, dst *[4*16]byte, src *[4*16]byte, ivlo uint64, ivhi uint64)
++TEXT ·ctrBlocks4Asm(SB), NOSPLIT, $0
++	MOVD nr+0(FP), NR
++	MOVD xk+8(FP), XK
++	MOVD dst+16(FP), DST
++	MOVD src+24(FP), SRC
++	MOVD ivlo+32(FP), IV_LOW_LE
++	MOVD ivhi+40(FP), IV_HIGH_LE
++
++	REV  IV_LOW_LE, IV_LOW_BE
++	REV  IV_HIGH_LE, IV_HIGH_BE
++	VMOV IV_LOW_BE, V0.D[1]
++	VMOV IV_HIGH_BE, V0.D[0]
++	ADDS $1, IV_LOW_LE
++	ADC  $0, IV_HIGH_LE
++
++	REV  IV_LOW_LE, IV_LOW_BE
++	REV  IV_HIGH_LE, IV_HIGH_BE
++	VMOV IV_LOW_BE, V1.D[1]
++	VMOV IV_HIGH_BE, V1.D[0]
++	ADDS $1, IV_LOW_LE
++	ADC  $0, IV_HIGH_LE
++
++	REV  IV_LOW_LE, IV_LOW_BE
++	REV  IV_HIGH_LE, IV_HIGH_BE
++	VMOV IV_LOW_BE, V2.D[1]
++	VMOV IV_HIGH_BE, V2.D[0]
++	ADDS $1, IV_LOW_LE
++	ADC  $0, IV_HIGH_LE
++
++	REV  IV_LOW_LE, IV_LOW_BE
++	REV  IV_HIGH_LE, IV_HIGH_BE
++	VMOV IV_LOW_BE, V3.D[1]
++	VMOV IV_HIGH_BE, V3.D[0]
++
++	CMP $12, NR
++	BLT Lenc128
++	BEQ Lenc192
++
++Lenc256:
++	VLD1.P 32(XK), [V8.B16, V9.B16]
++
++	AESE  V8.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V8.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V8.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V8.B16, V3.B16
++	AESMC V3.B16, V3.B16
++
++	AESE  V9.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V9.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V9.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V9.B16, V3.B16
++	AESMC V3.B16, V3.B16
++
++Lenc192:
++	VLD1.P 32(XK), [V10.B16, V11.B16]
++
++	AESE  V10.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V10.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V10.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V10.B16, V3.B16
++	AESMC V3.B16, V3.B16
++
++	AESE  V11.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V11.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V11.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V11.B16, V3.B16
++	AESMC V3.B16, V3.B16
++
++Lenc128:
++	VLD1.P 64(XK), [V12.B16, V13.B16, V14.B16, V15.B16]
++	VLD1.P 64(XK), [V16.B16, V17.B16, V18.B16, V19.B16]
++	VLD1.P 48(XK), [V20.B16, V21.B16, V22.B16]
++
++	AESE  V12.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V12.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V12.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V12.B16, V3.B16
++	AESMC V3.B16, V3.B16
++
++	AESE  V13.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V13.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V13.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V13.B16, V3.B16
++	AESMC V3.B16, V3.B16
++
++	AESE  V14.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V14.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V14.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V14.B16, V3.B16
++	AESMC V3.B16, V3.B16
++
++	AESE  V15.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V15.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V15.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V15.B16, V3.B16
++	AESMC V3.B16, V3.B16
++
++	AESE  V16.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V16.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V16.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V16.B16, V3.B16
++	AESMC V3.B16, V3.B16
++
++	AESE  V17.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V17.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V17.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V17.B16, V3.B16
++	AESMC V3.B16, V3.B16
++
++	AESE  V18.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V18.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V18.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V18.B16, V3.B16
++	AESMC V3.B16, V3.B16
++
++	AESE  V19.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V19.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V19.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V19.B16, V3.B16
++	AESMC V3.B16, V3.B16
++
++	AESE  V20.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V20.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V20.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V20.B16, V3.B16
++	AESMC V3.B16, V3.B16
++
++	AESE V21.B16, V0.B16
++	AESE V21.B16, V1.B16
++	AESE V21.B16, V2.B16
++	AESE V21.B16, V3.B16
++
++	VEOR V0.B16, V22.B16, V0.B16
++	VEOR V1.B16, V22.B16, V1.B16
++	VEOR V2.B16, V22.B16, V2.B16
++	VEOR V3.B16, V22.B16, V3.B16
++
++	VLD1.P 64(SRC), [V23.B16, V24.B16, V25.B16, V26.B16]
++	VEOR   V23.B16, V0.B16, V23.B16
++	VEOR   V24.B16, V1.B16, V24.B16
++	VEOR   V25.B16, V2.B16, V25.B16
++	VEOR   V26.B16, V3.B16, V26.B16
++	VST1.P [V23.B16, V24.B16, V25.B16, V26.B16], 64(DST)
++
++	RET
++
++// func ctrBlocks8Asm(nr int, xk *[60]uint32, dst *[8*16]byte, src *[8*16]byte, ivlo uint64, ivhi uint64)
++TEXT ·ctrBlocks8Asm(SB), NOSPLIT, $0
++	MOVD nr+0(FP), NR
++	MOVD xk+8(FP), XK
++	MOVD dst+16(FP), DST
++	MOVD src+24(FP), SRC
++	MOVD ivlo+32(FP), IV_LOW_LE
++	MOVD ivhi+40(FP), IV_HIGH_LE
++
++	REV  IV_LOW_LE, IV_LOW_BE
++	REV  IV_HIGH_LE, IV_HIGH_BE
++	VMOV IV_LOW_BE, V0.D[1]
++	VMOV IV_HIGH_BE, V0.D[0]
++	ADDS $1, IV_LOW_LE
++	ADC  $0, IV_HIGH_LE
++
++	REV  IV_LOW_LE, IV_LOW_BE
++	REV  IV_HIGH_LE, IV_HIGH_BE
++	VMOV IV_LOW_BE, V1.D[1]
++	VMOV IV_HIGH_BE, V1.D[0]
++	ADDS $1, IV_LOW_LE
++	ADC  $0, IV_HIGH_LE
++
++	REV  IV_LOW_LE, IV_LOW_BE
++	REV  IV_HIGH_LE, IV_HIGH_BE
++	VMOV IV_LOW_BE, V2.D[1]
++	VMOV IV_HIGH_BE, V2.D[0]
++	ADDS $1, IV_LOW_LE
++	ADC  $0, IV_HIGH_LE
++
++	REV  IV_LOW_LE, IV_LOW_BE
++	REV  IV_HIGH_LE, IV_HIGH_BE
++	VMOV IV_LOW_BE, V3.D[1]
++	VMOV IV_HIGH_BE, V3.D[0]
++	ADDS $1, IV_LOW_LE
++	ADC  $0, IV_HIGH_LE
++
++	REV  IV_LOW_LE, IV_LOW_BE
++	REV  IV_HIGH_LE, IV_HIGH_BE
++	VMOV IV_LOW_BE, V4.D[1]
++	VMOV IV_HIGH_BE, V4.D[0]
++	ADDS $1, IV_LOW_LE
++	ADC  $0, IV_HIGH_LE
++
++	REV  IV_LOW_LE, IV_LOW_BE
++	REV  IV_HIGH_LE, IV_HIGH_BE
++	VMOV IV_LOW_BE, V5.D[1]
++	VMOV IV_HIGH_BE, V5.D[0]
++	ADDS $1, IV_LOW_LE
++	ADC  $0, IV_HIGH_LE
++
++	REV  IV_LOW_LE, IV_LOW_BE
++	REV  IV_HIGH_LE, IV_HIGH_BE
++	VMOV IV_LOW_BE, V6.D[1]
++	VMOV IV_HIGH_BE, V6.D[0]
++	ADDS $1, IV_LOW_LE
++	ADC  $0, IV_HIGH_LE
++
++	REV  IV_LOW_LE, IV_LOW_BE
++	REV  IV_HIGH_LE, IV_HIGH_BE
++	VMOV IV_LOW_BE, V7.D[1]
++	VMOV IV_HIGH_BE, V7.D[0]
++
++	CMP $12, NR
++	BLT Lenc128
++	BEQ Lenc192
++
++Lenc256:
++	VLD1.P 32(XK), [V8.B16, V9.B16]
++
++	AESE  V8.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V8.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V8.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V8.B16, V3.B16
++	AESMC V3.B16, V3.B16
++	AESE  V8.B16, V4.B16
++	AESMC V4.B16, V4.B16
++	AESE  V8.B16, V5.B16
++	AESMC V5.B16, V5.B16
++	AESE  V8.B16, V6.B16
++	AESMC V6.B16, V6.B16
++	AESE  V8.B16, V7.B16
++	AESMC V7.B16, V7.B16
++
++	AESE  V9.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V9.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V9.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V9.B16, V3.B16
++	AESMC V3.B16, V3.B16
++	AESE  V9.B16, V4.B16
++	AESMC V4.B16, V4.B16
++	AESE  V9.B16, V5.B16
++	AESMC V5.B16, V5.B16
++	AESE  V9.B16, V6.B16
++	AESMC V6.B16, V6.B16
++	AESE  V9.B16, V7.B16
++	AESMC V7.B16, V7.B16
++
++Lenc192:
++	VLD1.P 32(XK), [V10.B16, V11.B16]
++
++	AESE  V10.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V10.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V10.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V10.B16, V3.B16
++	AESMC V3.B16, V3.B16
++	AESE  V10.B16, V4.B16
++	AESMC V4.B16, V4.B16
++	AESE  V10.B16, V5.B16
++	AESMC V5.B16, V5.B16
++	AESE  V10.B16, V6.B16
++	AESMC V6.B16, V6.B16
++	AESE  V10.B16, V7.B16
++	AESMC V7.B16, V7.B16
++
++	AESE  V11.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V11.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V11.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V11.B16, V3.B16
++	AESMC V3.B16, V3.B16
++	AESE  V11.B16, V4.B16
++	AESMC V4.B16, V4.B16
++	AESE  V11.B16, V5.B16
++	AESMC V5.B16, V5.B16
++	AESE  V11.B16, V6.B16
++	AESMC V6.B16, V6.B16
++	AESE  V11.B16, V7.B16
++	AESMC V7.B16, V7.B16
++
++Lenc128:
++	VLD1.P 64(XK), [V12.B16, V13.B16, V14.B16, V15.B16]
++	VLD1.P 64(XK), [V16.B16, V17.B16, V18.B16, V19.B16]
++	VLD1.P 48(XK), [V20.B16, V21.B16, V22.B16]
++
++	AESE  V12.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V12.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V12.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V12.B16, V3.B16
++	AESMC V3.B16, V3.B16
++	AESE  V12.B16, V4.B16
++	AESMC V4.B16, V4.B16
++	AESE  V12.B16, V5.B16
++	AESMC V5.B16, V5.B16
++	AESE  V12.B16, V6.B16
++	AESMC V6.B16, V6.B16
++	AESE  V12.B16, V7.B16
++	AESMC V7.B16, V7.B16
++
++	AESE  V13.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V13.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V13.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V13.B16, V3.B16
++	AESMC V3.B16, V3.B16
++	AESE  V13.B16, V4.B16
++	AESMC V4.B16, V4.B16
++	AESE  V13.B16, V5.B16
++	AESMC V5.B16, V5.B16
++	AESE  V13.B16, V6.B16
++	AESMC V6.B16, V6.B16
++	AESE  V13.B16, V7.B16
++	AESMC V7.B16, V7.B16
++
++	AESE  V14.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V14.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V14.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V14.B16, V3.B16
++	AESMC V3.B16, V3.B16
++	AESE  V14.B16, V4.B16
++	AESMC V4.B16, V4.B16
++	AESE  V14.B16, V5.B16
++	AESMC V5.B16, V5.B16
++	AESE  V14.B16, V6.B16
++	AESMC V6.B16, V6.B16
++	AESE  V14.B16, V7.B16
++	AESMC V7.B16, V7.B16
++
++	AESE  V15.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V15.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V15.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V15.B16, V3.B16
++	AESMC V3.B16, V3.B16
++	AESE  V15.B16, V4.B16
++	AESMC V4.B16, V4.B16
++	AESE  V15.B16, V5.B16
++	AESMC V5.B16, V5.B16
++	AESE  V15.B16, V6.B16
++	AESMC V6.B16, V6.B16
++	AESE  V15.B16, V7.B16
++	AESMC V7.B16, V7.B16
++
++	AESE  V16.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V16.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V16.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V16.B16, V3.B16
++	AESMC V3.B16, V3.B16
++	AESE  V16.B16, V4.B16
++	AESMC V4.B16, V4.B16
++	AESE  V16.B16, V5.B16
++	AESMC V5.B16, V5.B16
++	AESE  V16.B16, V6.B16
++	AESMC V6.B16, V6.B16
++	AESE  V16.B16, V7.B16
++	AESMC V7.B16, V7.B16
++
++	AESE  V17.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V17.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V17.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V17.B16, V3.B16
++	AESMC V3.B16, V3.B16
++	AESE  V17.B16, V4.B16
++	AESMC V4.B16, V4.B16
++	AESE  V17.B16, V5.B16
++	AESMC V5.B16, V5.B16
++	AESE  V17.B16, V6.B16
++	AESMC V6.B16, V6.B16
++	AESE  V17.B16, V7.B16
++	AESMC V7.B16, V7.B16
++
++	AESE  V18.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V18.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V18.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V18.B16, V3.B16
++	AESMC V3.B16, V3.B16
++	AESE  V18.B16, V4.B16
++	AESMC V4.B16, V4.B16
++	AESE  V18.B16, V5.B16
++	AESMC V5.B16, V5.B16
++	AESE  V18.B16, V6.B16
++	AESMC V6.B16, V6.B16
++	AESE  V18.B16, V7.B16
++	AESMC V7.B16, V7.B16
++
++	AESE  V19.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V19.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V19.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V19.B16, V3.B16
++	AESMC V3.B16, V3.B16
++	AESE  V19.B16, V4.B16
++	AESMC V4.B16, V4.B16
++	AESE  V19.B16, V5.B16
++	AESMC V5.B16, V5.B16
++	AESE  V19.B16, V6.B16
++	AESMC V6.B16, V6.B16
++	AESE  V19.B16, V7.B16
++	AESMC V7.B16, V7.B16
++
++	AESE  V20.B16, V0.B16
++	AESMC V0.B16, V0.B16
++	AESE  V20.B16, V1.B16
++	AESMC V1.B16, V1.B16
++	AESE  V20.B16, V2.B16
++	AESMC V2.B16, V2.B16
++	AESE  V20.B16, V3.B16
++	AESMC V3.B16, V3.B16
++	AESE  V20.B16, V4.B16
++	AESMC V4.B16, V4.B16
++	AESE  V20.B16, V5.B16
++	AESMC V5.B16, V5.B16
++	AESE  V20.B16, V6.B16
++	AESMC V6.B16, V6.B16
++	AESE  V20.B16, V7.B16
++	AESMC V7.B16, V7.B16
++
++	AESE V21.B16, V0.B16
++	AESE V21.B16, V1.B16
++	AESE V21.B16, V2.B16
++	AESE V21.B16, V3.B16
++	AESE V21.B16, V4.B16
++	AESE V21.B16, V5.B16
++	AESE V21.B16, V6.B16
++	AESE V21.B16, V7.B16
++
++	VEOR V0.B16, V22.B16, V0.B16
++	VEOR V1.B16, V22.B16, V1.B16
++	VEOR V2.B16, V22.B16, V2.B16
++	VEOR V3.B16, V22.B16, V3.B16
++	VEOR V4.B16, V22.B16, V4.B16
++	VEOR V5.B16, V22.B16, V5.B16
++	VEOR V6.B16, V22.B16, V6.B16
++	VEOR V7.B16, V22.B16, V7.B16
++
++	VLD1.P 64(SRC), [V23.B16, V24.B16, V25.B16, V26.B16]
++	VLD1.P 64(SRC), [V27.B16, V28.B16, V29.B16, V30.B16]
++	VEOR   V23.B16, V0.B16, V23.B16
++	VEOR   V24.B16, V1.B16, V24.B16
++	VEOR   V25.B16, V2.B16, V25.B16
++	VEOR   V26.B16, V3.B16, V26.B16
++	VEOR   V27.B16, V4.B16, V27.B16
++	VEOR   V28.B16, V5.B16, V28.B16
++	VEOR   V29.B16, V6.B16, V29.B16
++	VEOR   V30.B16, V7.B16, V30.B16
++	VST1.P [V23.B16, V24.B16, V25.B16, V26.B16], 64(DST)
++	VST1.P [V27.B16, V28.B16, V29.B16, V30.B16], 64(DST)
++
++	RET
++
+diff --git a/src/crypto/aes/ctr_arm64_gen.go b/src/crypto/aes/ctr_arm64_gen.go
+new file mode 100644
+index 0000000000..1c032083c3
+--- /dev/null
++++ b/src/crypto/aes/ctr_arm64_gen.go
+@@ -0,0 +1,213 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build ignore
++
++// Generate Go assembly for XORing CTR output to n blocks at once with one key.
++package main
++
++import (
++	"fmt"
++	"os"
++	"strings"
++	"text/template"
++)
++
++// First registers in their groups.
++const (
++	blockOffset    = 0
++	roundKeyOffset = 8
++	dstOffset      = 23
++)
++
++var tmplArm64Str = `
++// Code generated by ctr_arm64_gen.go. DO NOT EDIT.
++
++//go:build !purego
++
++#include "textflag.h"
++
++#define NR R9
++#define XK R10
++#define DST R11
++#define SRC R12
++#define IV_LOW_LE R16
++#define IV_HIGH_LE R17
++#define IV_LOW_BE R19
++#define IV_HIGH_BE R20
++
++// V0.B16 - V7.B16 are for blocks (<=8). See BLOCK_OFFSET.
++// V8.B16 - V22.B16 are for <=15 round keys (<=15). See ROUND_KEY_OFFSET.
++// V23.B16 - V30.B16 are for destinations (<=8). See DST_OFFSET.
++
++{{define "load_keys"}}
++	{{- range regs_batches (round_key_reg $.FirstKey) $.NKeys }}
++		VLD1.P {{ .Size }}(XK), [{{ .Regs }}]
++	{{- end }}
++{{ end }}
++
++{{define "enc"}}
++	{{ range $i := xrange $.N -}}
++		AESE V{{ round_key_reg $.Key}}.B16, V{{ block_reg $i }}.B16
++		{{- if $.WithMc }}
++			AESMC V{{ block_reg $i }}.B16, V{{ block_reg $i }}.B16
++		{{- end }}
++	{{ end }}
++{{ end }}
++
++{{ range $N := $.Sizes }}
++// func ctrBlocks{{$N}}Asm(nr int, xk *[60]uint32, dst *[{{$N}}*16]byte, src *[{{$N}}*16]byte, ivlo uint64, ivhi uint64)
++TEXT ·ctrBlocks{{ $N }}Asm(SB),NOSPLIT,$0
++	MOVD nr+0(FP), NR
++	MOVD xk+8(FP), XK
++	MOVD dst+16(FP), DST
++	MOVD src+24(FP), SRC
++	MOVD ivlo+32(FP), IV_LOW_LE
++	MOVD ivhi+40(FP), IV_HIGH_LE
++
++	{{/* Prepare plain from IV and blockIndex. */}}
++
++	{{/* Copy to plaintext registers. */}}
++	{{ range $i := xrange $N }}
++		REV IV_LOW_LE, IV_LOW_BE
++		REV IV_HIGH_LE, IV_HIGH_BE
++		{{- /* https://developer.arm.com/documentation/dui0801/g/A64-SIMD-Vector-Instructions/MOV--vector--from-general- */}}
++		VMOV IV_LOW_BE, V{{ block_reg $i }}.D[1]
++		VMOV IV_HIGH_BE, V{{ block_reg $i }}.D[0]
++		{{- if ne (add $i 1) $N }}
++			ADDS $1, IV_LOW_LE
++			ADC $0, IV_HIGH_LE
++		{{ end }}
++	{{ end }}
++
++	{{/* Num rounds branching. */}}
++	CMP $12, NR
++	BLT Lenc128
++	BEQ Lenc192
++
++	{{/* 2 extra rounds for 256-bit keys. */}}
++	Lenc256:
++	{{- template "load_keys" (load_keys_args 0 2) }}
++	{{- template "enc" (enc_args 0 $N true) }}
++	{{- template "enc" (enc_args 1 $N true) }}
++
++	{{/* 2 extra rounds for 192-bit keys. */}}
++	Lenc192:
++	{{- template "load_keys" (load_keys_args 2 2) }}
++	{{- template "enc" (enc_args 2 $N true) }}
++	{{- template "enc" (enc_args 3 $N true) }}
++
++	{{/* 10 rounds for 128-bit (with special handling for final). */}}
++	Lenc128:
++	{{- template "load_keys" (load_keys_args 4 11) }}
++	{{- range $r := xrange 9 }}
++		{{- template "enc" (enc_args (add $r 4) $N true) }}
++	{{ end }}
++	{{ template "enc" (enc_args 13 $N false) }}
++
++	{{/* We need to XOR blocks with the last round key (key 14, register V22). */}}
++	{{ range $i := xrange $N }}
++		VEOR V{{ block_reg $i }}.B16, V{{ round_key_reg 14 }}.B16, V{{ block_reg $i }}.B16
++	{{- end }}
++
++	{{/* XOR results to destination. */}}
++	{{- range regs_batches $.DstOffset $N }}
++		VLD1.P {{ .Size }}(SRC), [{{ .Regs }}]
++	{{- end }}
++	{{- range $i := xrange $N }}
++		VEOR V{{ add $.DstOffset $i }}.B16, V{{ block_reg $i }}.B16, V{{ add $.DstOffset $i }}.B16
++	{{- end }}
++	{{- range regs_batches $.DstOffset $N }}
++		VST1.P [{{ .Regs }}], {{ .Size }}(DST)
++	{{- end }}
++
++	RET
++{{ end }}
++`
++
++func main() {
++	type Params struct {
++		DstOffset int
++		Sizes     []int
++	}
++
++	params := Params{
++		DstOffset: dstOffset,
++		Sizes:     []int{1, 2, 4, 8},
++	}
++
++	type RegsBatch struct {
++		Size int
++		Regs string // Comma-separated list of registers.
++	}
++
++	type LoadKeysArgs struct {
++		FirstKey int
++		NKeys    int
++	}
++
++	type EncArgs struct {
++		Key    int
++		N      int
++		WithMc bool
++	}
++
++	funcs := template.FuncMap{
++		"add": func(a, b int) int {
++			return a + b
++		},
++		"xrange": func(n int) []int {
++			result := make([]int, n)
++			for i := 0; i < n; i++ {
++				result[i] = i
++			}
++			return result
++		},
++		"block_reg": func(block int) int {
++			return blockOffset + block
++		},
++		"round_key_reg": func(key int) int {
++			return roundKeyOffset + key
++		},
++		"regs_batches": func(firstReg, nregs int) []RegsBatch {
++			result := make([]RegsBatch, 0)
++			for nregs != 0 {
++				batch := 4
++				if nregs < batch {
++					batch = nregs
++				}
++				regsList := make([]string, 0, batch)
++				for j := firstReg; j < firstReg+batch; j++ {
++					regsList = append(regsList, fmt.Sprintf("V%d.B16", j))
++				}
++				result = append(result, RegsBatch{
++					Size: 16 * batch,
++					Regs: strings.Join(regsList, ", "),
++				})
++				nregs -= batch
++				firstReg += batch
++			}
++			return result
++		},
++		"enc_args": func(key, n int, withMc bool) EncArgs {
++			return EncArgs{
++				Key:    key,
++				N:      n,
++				WithMc: withMc,
++			}
++		},
++		"load_keys_args": func(firstKey, nkeys int) LoadKeysArgs {
++			return LoadKeysArgs{
++				FirstKey: firstKey,
++				NKeys:    nkeys,
++			}
++		},
++	}
++
++	var tmpl = template.Must(template.New("ctr_arm64").Funcs(funcs).Parse(tmplArm64Str))
++
++	if err := tmpl.Execute(os.Stdout, params); err != nil {
++		panic(err)
++	}
++}
+diff --git a/src/crypto/aes/ctr_asm.go b/src/crypto/aes/ctr_asm.go
+new file mode 100644
+index 0000000000..5d293e3eab
+--- /dev/null
++++ b/src/crypto/aes/ctr_asm.go
+@@ -0,0 +1,134 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (amd64 || arm64) && !purego
++
++package aes
++
++import (
++	"crypto/cipher"
++	"crypto/internal/fips/alias"
++	"internal/byteorder"
++	"math/bits"
++)
++
++// Each ctrBlocksNAsm function XORs src with N blocks of counter keystream, and
++// stores it in dst. src is loaded in full before storing dst, so they can
++// overlap even inexactly. The starting counter value is passed in as a pair of
++// little-endian 64-bit integers.
++
++//go:generate sh -c "go run ./ctr_arm64_gen.go | asmfmt > ctr_arm64.s"
++
++//go:noescape
++func ctrBlocks1Asm(nr int, xk *[60]uint32, dst, src *[BlockSize]byte, ivlo, ivhi uint64)
++
++//go:noescape
++func ctrBlocks2Asm(nr int, xk *[60]uint32, dst, src *[2 * BlockSize]byte, ivlo, ivhi uint64)
++
++//go:noescape
++func ctrBlocks4Asm(nr int, xk *[60]uint32, dst, src *[4 * BlockSize]byte, ivlo, ivhi uint64)
++
++//go:noescape
++func ctrBlocks8Asm(nr int, xk *[60]uint32, dst, src *[8 * BlockSize]byte, ivlo, ivhi uint64)
++
++type aesCtrWithIV struct {
++	enc        [60]uint32
++	rounds     int    // 10 for AES-128, 12 for AES-192, 14 for AES-256
++	ivlo, ivhi uint64 // start counter as 64-bit limbs
++	offset     uint64 // for XORKeyStream only
++}
++
++var _ ctrAble = (*aesCipherAsm)(nil)
++
++func (c *aesCipherAsm) NewCTR(iv []byte) cipher.Stream {
++	if len(iv) != BlockSize {
++		panic("bad IV length")
++	}
++
++	return &aesCtrWithIV{
++		enc:    c.enc,
++		rounds: int(c.l/4 - 1),
++		ivlo:   byteorder.BeUint64(iv[8:16]),
++		ivhi:   byteorder.BeUint64(iv[0:8]),
++		offset: 0,
++	}
++}
++
++func (c *aesCtrWithIV) XORKeyStream(dst, src []byte) {
++	c.XORKeyStreamAt(dst, src, c.offset)
++
++	var carry uint64
++	c.offset, carry = bits.Add64(c.offset, uint64(len(src)), 0)
++	if carry != 0 {
++		panic("crypto/aes: counter overflow")
++	}
++}
++
++// XORKeyStreamAt behaves like XORKeyStream but keeps no state, and instead
++// seeks into the keystream by the given bytes offset from the start (ignoring
++// any XORKetStream calls). This allows for random access into the keystream, up
++// to 16 EiB from the start.
++func (c *aesCtrWithIV) XORKeyStreamAt(dst, src []byte, offset uint64) {
++	if len(dst) < len(src) {
++		panic("crypto/aes: len(dst) < len(src)")
++	}
++	dst = dst[:len(src)]
++	if alias.InexactOverlap(dst, src) {
++		panic("crypto/aes: invalid buffer overlap")
++	}
++
++	ivlo, ivhi := add128(c.ivlo, c.ivhi, offset/BlockSize)
++
++	if blockOffset := offset % BlockSize; blockOffset != 0 {
++		// We have a partial block at the beginning.
++		var in, out [BlockSize]byte
++		copy(in[blockOffset:], src)
++		ctrBlocks1Asm(c.rounds, &c.enc, &out, &in, ivlo, ivhi)
++		n := copy(dst, out[blockOffset:])
++		src = src[n:]
++		dst = dst[n:]
++		ivlo, ivhi = add128(ivlo, ivhi, 1)
++	}
++
++	for len(src) >= 8*BlockSize {
++		ctrBlocks8Asm(c.rounds, &c.enc, (*[8 * BlockSize]byte)(dst), (*[8 * BlockSize]byte)(src), ivlo, ivhi)
++		src = src[8*BlockSize:]
++		dst = dst[8*BlockSize:]
++		ivlo, ivhi = add128(ivlo, ivhi, 8)
++	}
++
++	// The tail can have at most 7 = 4 + 2 + 1 blocks.
++	if len(src) >= 4*BlockSize {
++		ctrBlocks4Asm(c.rounds, &c.enc, (*[4 * BlockSize]byte)(dst), (*[4 * BlockSize]byte)(src), ivlo, ivhi)
++		src = src[4*BlockSize:]
++		dst = dst[4*BlockSize:]
++		ivlo, ivhi = add128(ivlo, ivhi, 4)
++	}
++	if len(src) >= 2*BlockSize {
++		ctrBlocks2Asm(c.rounds, &c.enc, (*[2 * BlockSize]byte)(dst), (*[2 * BlockSize]byte)(src), ivlo, ivhi)
++		src = src[2*BlockSize:]
++		dst = dst[2*BlockSize:]
++		ivlo, ivhi = add128(ivlo, ivhi, 2)
++	}
++	if len(src) >= 1*BlockSize {
++		ctrBlocks1Asm(c.rounds, &c.enc, (*[1 * BlockSize]byte)(dst), (*[1 * BlockSize]byte)(src), ivlo, ivhi)
++		src = src[1*BlockSize:]
++		dst = dst[1*BlockSize:]
++		ivlo, ivhi = add128(ivlo, ivhi, 1)
++	}
++
++	if len(src) != 0 {
++		// We have a partial block at the end.
++		var in, out [BlockSize]byte
++		copy(in[:], src)
++		ctrBlocks1Asm(c.rounds, &c.enc, &out, &in, ivlo, ivhi)
++		copy(dst, out[:])
++	}
++}
++
++func add128(lo, hi uint64, x uint64) (uint64, uint64) {
++	lo, c := bits.Add64(lo, x, 0)
++	hi, _ = bits.Add64(hi, 0, c)
++	return lo, hi
++}
+diff --git a/src/crypto/cipher/ctr_aes_test.go b/src/crypto/cipher/ctr_aes_test.go
+index c82a8757ab..057a59e821 100644
+--- a/src/crypto/cipher/ctr_aes_test.go
++++ b/src/crypto/cipher/ctr_aes_test.go
+@@ -14,6 +14,12 @@ import (
+ 	"bytes"
+ 	"crypto/aes"
+ 	"crypto/cipher"
++	"crypto/internal/boring"
++	"encoding/hex"
++	"fmt"
++	"math/rand"
++	"sort"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -100,3 +106,228 @@ func TestCTR_AES(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// This wrapper type disables method NewCTR (interface ctrAble)
++// to force generic implementation.
++type nonCtrAble struct {
++	impl cipher.Block
++}
++
++func (n *nonCtrAble) BlockSize() int {
++	return n.impl.BlockSize()
++}
++
++func (n *nonCtrAble) Encrypt(dst, src []byte) {
++	n.impl.Encrypt(dst, src)
++}
++
++func (n *nonCtrAble) Decrypt(dst, src []byte) {
++	panic("must not be called")
++}
++
++func makeTestingCiphers(aesBlock cipher.Block, iv []byte) (genericCtr, multiblockCtr cipher.Stream) {
++	return cipher.NewCTR(&nonCtrAble{impl: aesBlock}, iv), cipher.NewCTR(aesBlock, iv)
++}
++
++func randBytes(t *testing.T, r *rand.Rand, count int) []byte {
++	t.Helper()
++	buf := make([]byte, count)
++	n, err := r.Read(buf)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if n != count {
++		t.Fatal("short read from Rand")
++	}
++	return buf
++}
++
++const aesBlockSize = 16
++
++type ctrAble interface {
++	NewCTR(iv []byte) cipher.Stream
++}
++
++// Verify that multiblock AES CTR (src/crypto/aes/ctr_*.s)
++// produces the same results as generic single-block implementation.
++// This test runs checks on random IV.
++func TestCTR_AES_multiblock_random_IV(t *testing.T) {
++	r := rand.New(rand.NewSource(54321))
++	iv := randBytes(t, r, aesBlockSize)
++	const Size = 100
++
++	for _, keySize := range []int{16, 24, 32} {
++		keySize := keySize
++		t.Run(fmt.Sprintf("keySize=%d", keySize), func(t *testing.T) {
++			key := randBytes(t, r, keySize)
++			aesBlock, err := aes.NewCipher(key)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if _, ok := aesBlock.(ctrAble); !ok {
++				t.Skip("Skipping the test - multiblock implementation is not available")
++			}
++			genericCtr, _ := makeTestingCiphers(aesBlock, iv)
++
++			plaintext := randBytes(t, r, Size)
++
++			// Generate reference ciphertext.
++			genericCiphertext := make([]byte, len(plaintext))
++			genericCtr.XORKeyStream(genericCiphertext, plaintext)
++
++			// Split the text in 3 parts in all possible ways and encrypt them
++			// individually using multiblock implementation to catch edge cases.
++
++			for part1 := 0; part1 <= Size; part1++ {
++				part1 := part1
++				t.Run(fmt.Sprintf("part1=%d", part1), func(t *testing.T) {
++					for part2 := 0; part2 <= Size-part1; part2++ {
++						part2 := part2
++						t.Run(fmt.Sprintf("part2=%d", part2), func(t *testing.T) {
++							_, multiblockCtr := makeTestingCiphers(aesBlock, iv)
++							multiblockCiphertext := make([]byte, len(plaintext))
++							multiblockCtr.XORKeyStream(multiblockCiphertext[:part1], plaintext[:part1])
++							multiblockCtr.XORKeyStream(multiblockCiphertext[part1:part1+part2], plaintext[part1:part1+part2])
++							multiblockCtr.XORKeyStream(multiblockCiphertext[part1+part2:], plaintext[part1+part2:])
++							if !bytes.Equal(genericCiphertext, multiblockCiphertext) {
++								t.Fatal("multiblock CTR's output does not match generic CTR's output")
++							}
++						})
++					}
++				})
++			}
++		})
++	}
++}
++
++func parseHex(str string) []byte {
++	b, err := hex.DecodeString(strings.ReplaceAll(str, " ", ""))
++	if err != nil {
++		panic(err)
++	}
++	return b
++}
++
++// Verify that multiblock AES CTR (src/crypto/aes/ctr_*.s)
++// produces the same results as generic single-block implementation.
++// This test runs checks on edge cases (IV overflows).
++func TestCTR_AES_multiblock_overflow_IV(t *testing.T) {
++	r := rand.New(rand.NewSource(987654))
++
++	const Size = 4096
++	plaintext := randBytes(t, r, Size)
++
++	ivs := [][]byte{
++		parseHex("00 00 00 00 00 00 00 00   FF FF FF FF FF FF FF FF"),
++		parseHex("FF FF FF FF FF FF FF FF   FF FF FF FF FF FF FF FF"),
++		parseHex("FF FF FF FF FF FF FF FF   00 00 00 00 00 00 00 00"),
++		parseHex("FF FF FF FF FF FF FF FF   FF FF FF FF FF FF FF fe"),
++		parseHex("00 00 00 00 00 00 00 00   FF FF FF FF FF FF FF fe"),
++		parseHex("FF FF FF FF FF FF FF FF   FF FF FF FF FF FF FF 00"),
++		parseHex("00 00 00 00 00 00 00 01   FF FF FF FF FF FF FF 00"),
++		parseHex("00 00 00 00 00 00 00 01   FF FF FF FF FF FF FF FF"),
++		parseHex("00 00 00 00 00 00 00 01   FF FF FF FF FF FF FF fe"),
++		parseHex("00 00 00 00 00 00 00 01   FF FF FF FF FF FF FF 00"),
++	}
++
++	for _, keySize := range []int{16, 24, 32} {
++		keySize := keySize
++		t.Run(fmt.Sprintf("keySize=%d", keySize), func(t *testing.T) {
++			for _, iv := range ivs {
++				key := randBytes(t, r, keySize)
++				aesBlock, err := aes.NewCipher(key)
++				if err != nil {
++					t.Fatal(err)
++				}
++				if _, ok := aesBlock.(ctrAble); !ok {
++					t.Skip("Skipping the test - multiblock implementation is not available")
++				}
++
++				t.Run(fmt.Sprintf("iv=%s", hex.EncodeToString(iv)), func(t *testing.T) {
++					for _, offset := range []int{0, 1, 16, 1024} {
++						offset := offset
++						t.Run(fmt.Sprintf("offset=%d", offset), func(t *testing.T) {
++							genericCtr, multiblockCtr := makeTestingCiphers(aesBlock, iv)
++
++							// Generate reference ciphertext.
++							genericCiphertext := make([]byte, Size)
++							genericCtr.XORKeyStream(genericCiphertext, plaintext)
++
++							multiblockCiphertext := make([]byte, Size)
++							multiblockCtr.XORKeyStream(multiblockCiphertext, plaintext[:offset])
++							multiblockCtr.XORKeyStream(multiblockCiphertext[offset:], plaintext[offset:])
++							if !bytes.Equal(genericCiphertext, multiblockCiphertext) {
++								t.Fatal("multiblock CTR's output does not match generic CTR's output")
++							}
++						})
++					}
++				})
++			}
++		})
++	}
++}
++
++// Check that method XORKeyStreamAt works correctly.
++func TestCTR_AES_multiblock_XORKeyStreamAt(t *testing.T) {
++	if boring.Enabled {
++		t.Skip("XORKeyStreamAt is not available in boring mode")
++	}
++
++	type XORKeyStreamAtable interface {
++		XORKeyStreamAt(dst, src []byte, offset uint64)
++	}
++
++	r := rand.New(rand.NewSource(12345))
++	const Size = 32 * 1024 * 1024
++	plaintext := randBytes(t, r, Size)
++
++	for _, keySize := range []int{16, 24, 32} {
++		keySize := keySize
++		t.Run(fmt.Sprintf("keySize=%d", keySize), func(t *testing.T) {
++			key := randBytes(t, r, keySize)
++			iv := randBytes(t, r, aesBlockSize)
++
++			aesBlock, err := aes.NewCipher(key)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if _, ok := aesBlock.(ctrAble); !ok {
++				t.Skip("Skipping the test - multiblock implementation is not available")
++			}
++			genericCtr, multiblockCtr := makeTestingCiphers(aesBlock, iv)
++			ctrAt, ok := multiblockCtr.(XORKeyStreamAtable)
++			if !ok {
++				t.Fatal("cipher is expected to have method XORKeyStreamAt")
++			}
++
++			// Generate reference ciphertext.
++			genericCiphertext := make([]byte, Size)
++			genericCtr.XORKeyStream(genericCiphertext, plaintext)
++
++			multiblockCiphertext := make([]byte, Size)
++			// Split the range to random slices.
++			const N = 1000
++			boundaries := make([]int, 0, N+2)
++			for i := 0; i < N; i++ {
++				boundaries = append(boundaries, r.Intn(Size))
++			}
++			boundaries = append(boundaries, 0)
++			boundaries = append(boundaries, Size)
++			sort.Ints(boundaries)
++
++			for _, i := range r.Perm(N + 1) {
++				begin := boundaries[i]
++				end := boundaries[i+1]
++				ctrAt.XORKeyStreamAt(
++					multiblockCiphertext[begin:end],
++					plaintext[begin:end],
++					uint64(begin),
++				)
++			}
++
++			if !bytes.Equal(genericCiphertext, multiblockCiphertext) {
++				t.Fatal("multiblock CTR's output does not match generic CTR's output")
++			}
++		})
++	}
++}

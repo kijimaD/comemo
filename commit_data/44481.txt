@@ -44,9 +44,268 @@ Date:   Tue Jul 14 14:46:59 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/asmb.go       |   2 +-
  src/cmd/link/internal/ld/data.go       | 127 ++++++++++++++++++++++++++++++++-
  src/cmd/link/internal/ld/elf.go        |  58 +++++++++++----
  src/cmd/link/internal/loader/loader.go |   4 +-
  4 files changed, 170 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index dc8a96b568..a7b3237b3e 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -19,7 +19,7 @@ import (
+ // This function handles the first part.
+ func asmb(ctxt *Link) {
+ 	ctxt.loader.InitOutData()
+-	if ctxt.IsExternal() {
++	if ctxt.IsExternal() && !(ctxt.IsAMD64() && ctxt.IsELF) {
+ 		ctxt.loader.InitExtRelocs()
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index d9f9ff70d3..8a21f55862 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -159,7 +159,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 	target := st.target
+ 	syms := st.syms
+ 	var extRelocs []loader.ExtReloc
+-	if target.IsExternal() {
++	if target.IsExternal() && !(target.IsAMD64() && target.IsELF) {
+ 		// preallocate a slice conservatively assuming that all
+ 		// relocs will require an external reloc
+ 		extRelocs = st.preallocExtRelocSlice(relocs.Count())
+@@ -592,16 +592,137 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 
+ 	addExtReloc:
+ 		if needExtReloc {
+-			extRelocs = append(extRelocs, rr)
++			if target.IsAMD64() && target.IsELF {
++				extraExtReloc++
++			} else {
++				extRelocs = append(extRelocs, rr)
++			}
+ 		}
+ 	}
+-	if len(extRelocs) != 0 {
++	if target.IsExternal() && target.IsAMD64() && target.IsELF {
++		// On AMD64 ELF, we'll stream out the external relocations in elfrelocsect
++		// and we only need the count here.
++		// TODO: just count, but not compute the external relocations. For now it
++		// is still needed on other platforms, and this keeps the code simple.
++		atomic.AddUint32(&ldr.SymSect(s).Relcount, uint32(extraExtReloc))
++	} else if len(extRelocs) != 0 {
+ 		st.finalizeExtRelocSlice(extRelocs)
+ 		ldr.SetExtRelocs(s, extRelocs)
+ 		atomic.AddUint32(&ldr.SymSect(s).Relcount, uint32(len(extRelocs)+extraExtReloc))
+ 	}
+ }
+ 
++// Convert a Go relocation to an external relocation.
++func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2, ri int) (loader.ExtReloc, bool) {
++	var rr loader.ExtReloc
++	target := ctxt.Target
++	siz := int32(r.Siz())
++	if siz == 0 { // informational relocation - no work to do
++		return rr, false
++	}
++
++	rt := r.Type()
++	if rt >= objabi.ElfRelocOffset {
++		return rr, false
++	}
++
++	rr.Idx = ri
++
++	// TODO(mundaym): remove this special case - see issue 14218.
++	if target.IsS390X() {
++		switch rt {
++		case objabi.R_PCRELDBL:
++			rt = objabi.R_PCREL
++		}
++	}
++
++	switch rt {
++	default:
++		// TODO: handle arch-specific relocations
++		panic("unsupported")
++
++	case objabi.R_TLS_LE, objabi.R_TLS_IE:
++		if target.IsElf() {
++			rs := ldr.ResolveABIAlias(r.Sym())
++			rr.Xsym = rs
++			if rr.Xsym == 0 {
++				rr.Xsym = ctxt.Tlsg
++			}
++			rr.Xadd = r.Add()
++			break
++		}
++		return rr, false
++
++	case objabi.R_ADDR:
++		// set up addend for eventual relocation via outer symbol.
++		rs := ldr.ResolveABIAlias(r.Sym())
++		rs, off := FoldSubSymbolOffset(ldr, rs)
++		rr.Xadd = r.Add() + off
++		rst := ldr.SymType(rs)
++		if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
++			ldr.Errorf(s, "missing section for relocation target %s", ldr.SymName(rs))
++		}
++		rr.Xsym = rs
++
++	case objabi.R_DWARFSECREF:
++		// On most platforms, the external linker needs to adjust DWARF references
++		// as it combines DWARF sections. However, on Darwin, dsymutil does the
++		// DWARF linking, and it understands how to follow section offsets.
++		// Leaving in the relocation records confuses it (see
++		// https://golang.org/issue/22068) so drop them for Darwin.
++		if target.IsDarwin() {
++			return rr, false
++		}
++		rs := ldr.ResolveABIAlias(r.Sym())
++		rr.Xsym = loader.Sym(ldr.SymSect(rs).Sym)
++		rr.Xadd = r.Add() + ldr.SymValue(rs) - int64(ldr.SymSect(rs).Vaddr)
++
++	// r.Sym() can be 0 when CALL $(constant) is transformed from absolute PC to relative PC call.
++	case objabi.R_GOTPCREL, objabi.R_CALL, objabi.R_PCREL:
++		rs := ldr.ResolveABIAlias(r.Sym())
++		if rt == objabi.R_GOTPCREL && target.IsDynlinkingGo() && target.IsDarwin() && rs != 0 {
++			rr.Xadd = r.Add()
++			rr.Xadd -= int64(siz) // relative to address after the relocated chunk
++			rr.Xsym = rs
++			break
++		}
++		if rs != 0 && ldr.SymType(rs) == sym.SUNDEFEXT {
++			// pass through to the external linker.
++			rr.Xadd = 0
++			if target.IsElf() {
++				rr.Xadd -= int64(siz)
++			}
++			rr.Xsym = rs
++			break
++		}
++		if rs != 0 && (ldr.SymSect(rs) != ldr.SymSect(s) || rt == objabi.R_GOTPCREL) {
++			// set up addend for eventual relocation via outer symbol.
++			rs := rs
++			rs, off := FoldSubSymbolOffset(ldr, rs)
++			rr.Xadd = r.Add() + off
++			rr.Xadd -= int64(siz) // relative to address after the relocated chunk
++			rst := ldr.SymType(rs)
++			if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
++				ldr.Errorf(s, "missing section for relocation target %s", ldr.SymName(rs))
++			}
++			rr.Xsym = rs
++			break
++		}
++		return rr, false
++
++	case objabi.R_XCOFFREF:
++		rs := ldr.ResolveABIAlias(r.Sym())
++		rr.Xsym = rs
++		rr.Xadd = r.Add()
++
++	// These reloc types don't need external relocations.
++	case objabi.R_ADDROFF, objabi.R_WEAKADDROFF, objabi.R_METHODOFF, objabi.R_ADDRCUOFF,
++		objabi.R_SIZE, objabi.R_CONST, objabi.R_GOTOFF:
++		return rr, false
++	}
++	return rr, true
++}
++
+ const extRelocSlabSize = 2048
+ 
+ // relocSymState hold state information needed when making a series of
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 022da8aa19..2ba618ed0b 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1372,22 +1372,50 @@ func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym)
+ 			break
+ 		}
+ 
+-		relocs := ldr.ExtRelocs(s)
+-		for ri := 0; ri < relocs.Count(); ri++ {
+-			r := relocs.At(ri)
+-			if r.Xsym == 0 {
+-				ldr.Errorf(s, "missing xsym in relocation")
+-				continue
+-			}
+-			esr := ElfSymForReloc(ctxt, r.Xsym)
+-			if esr == 0 {
+-				ldr.Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Sym()), ldr.SymName(r.Xsym), ldr.SymType(r.Sym()), ldr.SymType(r.Sym()).String())
+-			}
+-			if !ldr.AttrReachable(r.Xsym) {
+-				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Xsym))
++		if ctxt.IsAMD64() {
++			// Compute external relocations on the go, and pass to Elfreloc1
++			// to stream out.
++			relocs := ldr.Relocs(s)
++			for ri := 0; ri < relocs.Count(); ri++ {
++				r := relocs.At2(ri)
++				rr, ok := extreloc(ctxt, ldr, s, r, ri)
++				if !ok {
++					continue
++				}
++				if rr.Xsym == 0 {
++					ldr.Errorf(s, "missing xsym in relocation")
++					continue
++				}
++				esr := ElfSymForReloc(ctxt, rr.Xsym)
++				if esr == 0 {
++					ldr.Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Sym()), ldr.SymName(rr.Xsym), ldr.SymType(r.Sym()), ldr.SymType(r.Sym()).String())
++				}
++				if !ldr.AttrReachable(rr.Xsym) {
++					ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(rr.Xsym))
++				}
++				rv := loader.ExtRelocView{Reloc2: r, ExtReloc: rr}
++				if !thearch.Elfreloc1(ctxt, out, ldr, s, rv, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
++					ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
++				}
+ 			}
+-			if !thearch.Elfreloc1(ctxt, out, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
+-				ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
++		} else {
++			relocs := ldr.ExtRelocs(s)
++			for ri := 0; ri < relocs.Count(); ri++ {
++				r := relocs.At(ri)
++				if r.Xsym == 0 {
++					ldr.Errorf(s, "missing xsym in relocation")
++					continue
++				}
++				esr := ElfSymForReloc(ctxt, r.Xsym)
++				if esr == 0 {
++					ldr.Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Sym()), ldr.SymName(r.Xsym), ldr.SymType(r.Sym()), ldr.SymType(r.Sym()).String())
++				}
++				if !ldr.AttrReachable(r.Xsym) {
++					ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Xsym))
++				}
++				if !thearch.Elfreloc1(ctxt, out, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
++					ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index c8b29d7d9b..6d541af950 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -60,7 +60,7 @@ type ExtReloc struct {
+ // It is not the data structure used to store the payload internally.
+ type ExtRelocView struct {
+ 	Reloc2
+-	*ExtReloc
++	ExtReloc
+ }
+ 
+ // Reloc2 holds a "handle" to access a relocation record from an
+@@ -1909,7 +1909,7 @@ func (ers ExtRelocs) Count() int { return len(ers.es) }
+ 
+ func (ers ExtRelocs) At(j int) ExtRelocView {
+ 	i := ers.es[j].Idx
+-	return ExtRelocView{ers.rs.At2(i), &ers.es[j]}
++	return ExtRelocView{ers.rs.At2(i), ers.es[j]}
+ }
+ 
+ // RelocByOff implements sort.Interface for sorting relocations by offset.

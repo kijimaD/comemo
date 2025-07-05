@@ -7,9 +7,381 @@ Date:   Tue Feb 26 11:55:41 2013 +1100
     R=dr.volker.dobler
     CC=golang-dev
     https://golang.org/cl/7398049
-
+---
  src/pkg/exp/cookiejar/jar.go           |   9 +-
  src/pkg/exp/cookiejar/jar_test.go      |   4 +-
  src/pkg/exp/cookiejar/punycode.go      | 159 ++++++++++++++++++++++++++++++++
  src/pkg/exp/cookiejar/punycode_test.go | 161 +++++++++++++++++++++++++++++++++
  4 files changed, 323 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/exp/cookiejar/jar.go b/src/pkg/exp/cookiejar/jar.go
+index c41851b2b9..8fb6c1d284 100644
+--- a/src/pkg/exp/cookiejar/jar.go
++++ b/src/pkg/exp/cookiejar/jar.go
+@@ -301,18 +301,11 @@ func canonicalHost(host string) (string, error) {
+ 			return "", err
+ 		}
+ 	}
+-
+ 	if strings.HasSuffix(host, ".") {
+ 		// Strip trailing dot from fully qualified domain names.
+ 		host = host[:len(host)-1]
+ 	}
+-
+-	// TODO: the "canonicalized host name" of RFC 6265 requires the idna ToASCII
+-	// transformation. Possible solutions:
+-	//  - promote package idna from go.net to go and import "net/idna"
+-	//  - document behavior as a BUG
+-
+-	return host, nil
++	return toASCII(host)
+ }
+ 
+ // hasPort returns whether host contains a port number. host may be a host
+diff --git a/src/pkg/exp/cookiejar/jar_test.go b/src/pkg/exp/cookiejar/jar_test.go
+index 13f8949a39..286f1c4088 100644
+--- a/src/pkg/exp/cookiejar/jar_test.go
++++ b/src/pkg/exp/cookiejar/jar_test.go
+@@ -49,8 +49,8 @@ var canonicalHostTests = map[string]string{
+ 	"192.168.0.5:8080":        "192.168.0.5",
+ 	"2001:4860:0:2001::68":    "2001:4860:0:2001::68",
+ 	"[2001:4860:0:::68]:8080": "2001:4860:0:::68",
+-	// "www.bücher.de":        "www.xn--bcher-kva.de",  // TODO de-comment once proper idna is available
+-	"www.example.com.": "www.example.com",
++	"www.bücher.de":           "www.xn--bcher-kva.de",
++	"www.example.com.":        "www.example.com",
+ }
+ 
+ func TestCanonicalHost(t *testing.T) {
+diff --git a/src/pkg/exp/cookiejar/punycode.go b/src/pkg/exp/cookiejar/punycode.go
+new file mode 100644
+index 0000000000..ea7ceb5ef3
+--- /dev/null
++++ b/src/pkg/exp/cookiejar/punycode.go
+@@ -0,0 +1,159 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cookiejar
++
++// This file implements the Punycode algorithm from RFC 3492.
++
++import (
++	"fmt"
++	"strings"
++	"unicode/utf8"
++)
++
++// These parameter values are specified in section 5.
++//
++// All computation is done with int32s, so that overflow behavior is identical
++// regardless of whether int is 32-bit or 64-bit.
++const (
++	base        int32 = 36
++	damp        int32 = 700
++	initialBias int32 = 72
++	initialN    int32 = 128
++	skew        int32 = 38
++	tmax        int32 = 26
++	tmin        int32 = 1
++)
++
++// encode encodes a string as specified in section 6.3 and prepends prefix to
++// the result.
++//
++// The "while h < length(input)" line in the specification becomes "for
++// remaining != 0" in the Go code, because len(s) in Go is in bytes, not runes.
++func encode(prefix, s string) (string, error) {
++	output := make([]byte, len(prefix), len(prefix)+1+2*len(s))
++	copy(output, prefix)
++	delta, n, bias := int32(0), initialN, initialBias
++	b, remaining := int32(0), int32(0)
++	for _, r := range s {
++		if r < 0x80 {
++			b++
++			output = append(output, byte(r))
++		} else {
++			remaining++
++		}
++	}
++	h := b
++	if b > 0 {
++		output = append(output, '-')
++	}
++	for remaining != 0 {
++		m := int32(0x7fffffff)
++		for _, r := range s {
++			if m > r && r >= n {
++				m = r
++			}
++		}
++		delta += (m - n) * (h + 1)
++		if delta < 0 {
++			return "", fmt.Errorf("cookiejar: invalid label %q", s)
++		}
++		n = m
++		for _, r := range s {
++			if r < n {
++				delta++
++				if delta < 0 {
++					return "", fmt.Errorf("cookiejar: invalid label %q", s)
++				}
++				continue
++			}
++			if r > n {
++				continue
++			}
++			q := delta
++			for k := base; ; k += base {
++				t := k - bias
++				if t < tmin {
++					t = tmin
++				} else if t > tmax {
++					t = tmax
++				}
++				if q < t {
++					break
++				}
++				output = append(output, encodeDigit(t+(q-t)%(base-t)))
++				q = (q - t) / (base - t)
++			}
++			output = append(output, encodeDigit(q))
++			bias = adapt(delta, h+1, h == b)
++			delta = 0
++			h++
++			remaining--
++		}
++		delta++
++		n++
++	}
++	return string(output), nil
++}
++
++func encodeDigit(digit int32) byte {
++	switch {
++	case 0 <= digit && digit < 26:
++		return byte(digit + 'a')
++	case 26 <= digit && digit < 36:
++		return byte(digit + ('0' - 26))
++	}
++	panic("cookiejar: internal error in punycode encoding")
++}
++
++// adapt is the bias adaptation function specified in section 6.1.
++func adapt(delta, numPoints int32, firstTime bool) int32 {
++	if firstTime {
++		delta /= damp
++	} else {
++		delta /= 2
++	}
++	delta += delta / numPoints
++	k := int32(0)
++	for delta > ((base-tmin)*tmax)/2 {
++		delta /= base - tmin
++		k += base
++	}
++	return k + (base-tmin+1)*delta/(delta+skew)
++}
++
++// Strictly speaking, the remaining code below deals with IDNA (RFC 5890 and
++// friends) and not Punycode (RFC 3492) per se.
++
++// acePrefix is the ASCII Compatible Encoding prefix.
++const acePrefix = "xn--"
++
++// toASCII converts a domain or domain label to its ASCII form. For example,
++// toASCII("bücher.example.com") is "xn--bcher-kva.example.com", and
++// toASCII("golang") is "golang".
++func toASCII(s string) (string, error) {
++	if ascii(s) {
++		return s, nil
++	}
++	labels := strings.Split(s, ".")
++	for i, label := range labels {
++		if !ascii(label) {
++			a, err := encode(acePrefix, label)
++			if err != nil {
++				return "", err
++			}
++			labels[i] = a
++		}
++	}
++	return strings.Join(labels, "."), nil
++}
++
++func ascii(s string) bool {
++	for i := 0; i < len(s); i++ {
++		if s[i] >= utf8.RuneSelf {
++			return false
++		}
++	}
++	return true
++}
+diff --git a/src/pkg/exp/cookiejar/punycode_test.go b/src/pkg/exp/cookiejar/punycode_test.go
+new file mode 100644
+index 0000000000..0301de14e4
+--- /dev/null
++++ b/src/pkg/exp/cookiejar/punycode_test.go
+@@ -0,0 +1,161 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cookiejar
++
++import (
++	"testing"
++)
++
++var punycodeTestCases = [...]struct {
++	s, encoded string
++}{
++	{"", ""},
++	{"-", "--"},
++	{"-a", "-a-"},
++	{"-a-", "-a--"},
++	{"a", "a-"},
++	{"a-", "a--"},
++	{"a-b", "a-b-"},
++	{"books", "books-"},
++	{"bücher", "bcher-kva"},
++	{"Hello世界", "Hello-ck1hg65u"},
++	{"ü", "tda"},
++	{"üý", "tdac"},
++
++	// The test cases below come from RFC 3492 section 7.1 with Errata 3026.
++	{
++		// (A) Arabic (Egyptian).
++		"\u0644\u064A\u0647\u0645\u0627\u0628\u062A\u0643\u0644" +
++			"\u0645\u0648\u0634\u0639\u0631\u0628\u064A\u061F",
++		"egbpdaj6bu4bxfgehfvwxn",
++	},
++	{
++		// (B) Chinese (simplified).
++		"\u4ED6\u4EEC\u4E3A\u4EC0\u4E48\u4E0D\u8BF4\u4E2D\u6587",
++		"ihqwcrb4cv8a8dqg056pqjye",
++	},
++	{
++		// (C) Chinese (traditional).
++		"\u4ED6\u5011\u7232\u4EC0\u9EBD\u4E0D\u8AAA\u4E2D\u6587",
++		"ihqwctvzc91f659drss3x8bo0yb",
++	},
++	{
++		// (D) Czech.
++		"\u0050\u0072\u006F\u010D\u0070\u0072\u006F\u0073\u0074" +
++			"\u011B\u006E\u0065\u006D\u006C\u0075\u0076\u00ED\u010D" +
++			"\u0065\u0073\u006B\u0079",
++		"Proprostnemluvesky-uyb24dma41a",
++	},
++	{
++		// (E) Hebrew.
++		"\u05DC\u05DE\u05D4\u05D4\u05DD\u05E4\u05E9\u05D5\u05D8" +
++			"\u05DC\u05D0\u05DE\u05D3\u05D1\u05E8\u05D9\u05DD\u05E2" +
++			"\u05D1\u05E8\u05D9\u05EA",
++		"4dbcagdahymbxekheh6e0a7fei0b",
++	},
++	{
++		// (F) Hindi (Devanagari).
++		"\u092F\u0939\u0932\u094B\u0917\u0939\u093F\u0928\u094D" +
++			"\u0926\u0940\u0915\u094D\u092F\u094B\u0902\u0928\u0939" +
++			"\u0940\u0902\u092C\u094B\u0932\u0938\u0915\u0924\u0947" +
++			"\u0939\u0948\u0902",
++		"i1baa7eci9glrd9b2ae1bj0hfcgg6iyaf8o0a1dig0cd",
++	},
++	{
++		// (G) Japanese (kanji and hiragana).
++		"\u306A\u305C\u307F\u3093\u306A\u65E5\u672C\u8A9E\u3092" +
++			"\u8A71\u3057\u3066\u304F\u308C\u306A\u3044\u306E\u304B",
++		"n8jok5ay5dzabd5bym9f0cm5685rrjetr6pdxa",
++	},
++	{
++		// (H) Korean (Hangul syllables).
++		"\uC138\uACC4\uC758\uBAA8\uB4E0\uC0AC\uB78C\uB4E4\uC774" +
++			"\uD55C\uAD6D\uC5B4\uB97C\uC774\uD574\uD55C\uB2E4\uBA74" +
++			"\uC5BC\uB9C8\uB098\uC88B\uC744\uAE4C",
++		"989aomsvi5e83db1d2a355cv1e0vak1dwrv93d5xbh15a0dt30a5j" +
++			"psd879ccm6fea98c",
++	},
++	{
++		// (I) Russian (Cyrillic).
++		"\u043F\u043E\u0447\u0435\u043C\u0443\u0436\u0435\u043E" +
++			"\u043D\u0438\u043D\u0435\u0433\u043E\u0432\u043E\u0440" +
++			"\u044F\u0442\u043F\u043E\u0440\u0443\u0441\u0441\u043A" +
++			"\u0438",
++		"b1abfaaepdrnnbgefbadotcwatmq2g4l",
++	},
++	{
++		// (J) Spanish.
++		"\u0050\u006F\u0072\u0071\u0075\u00E9\u006E\u006F\u0070" +
++			"\u0075\u0065\u0064\u0065\u006E\u0073\u0069\u006D\u0070" +
++			"\u006C\u0065\u006D\u0065\u006E\u0074\u0065\u0068\u0061" +
++			"\u0062\u006C\u0061\u0072\u0065\u006E\u0045\u0073\u0070" +
++			"\u0061\u00F1\u006F\u006C",
++		"PorqunopuedensimplementehablarenEspaol-fmd56a",
++	},
++	{
++		// (K) Vietnamese.
++		"\u0054\u1EA1\u0069\u0073\u0061\u006F\u0068\u1ECD\u006B" +
++			"\u0068\u00F4\u006E\u0067\u0074\u0068\u1EC3\u0063\u0068" +
++			"\u1EC9\u006E\u00F3\u0069\u0074\u0069\u1EBF\u006E\u0067" +
++			"\u0056\u0069\u1EC7\u0074",
++		"TisaohkhngthchnitingVit-kjcr8268qyxafd2f1b9g",
++	},
++	{
++		// (L) 3<nen>B<gumi><kinpachi><sensei>.
++		"\u0033\u5E74\u0042\u7D44\u91D1\u516B\u5148\u751F",
++		"3B-ww4c5e180e575a65lsy2b",
++	},
++	{
++		// (M) <amuro><namie>-with-SUPER-MONKEYS.
++		"\u5B89\u5BA4\u5948\u7F8E\u6075\u002D\u0077\u0069\u0074" +
++			"\u0068\u002D\u0053\u0055\u0050\u0045\u0052\u002D\u004D" +
++			"\u004F\u004E\u004B\u0045\u0059\u0053",
++		"-with-SUPER-MONKEYS-pc58ag80a8qai00g7n9n",
++	},
++	{
++		// (N) Hello-Another-Way-<sorezore><no><basho>.
++		"\u0048\u0065\u006C\u006C\u006F\u002D\u0041\u006E\u006F" +
++			"\u0074\u0068\u0065\u0072\u002D\u0057\u0061\u0079\u002D" +
++			"\u305D\u308C\u305E\u308C\u306E\u5834\u6240",
++		"Hello-Another-Way--fc4qua05auwb3674vfr0b",
++	},
++	{
++		// (O) <hitotsu><yane><no><shita>2.
++		"\u3072\u3068\u3064\u5C4B\u6839\u306E\u4E0B\u0032",
++		"2-u9tlzr9756bt3uc0v",
++	},
++	{
++		// (P) Maji<de>Koi<suru>5<byou><mae>
++		"\u004D\u0061\u006A\u0069\u3067\u004B\u006F\u0069\u3059" +
++			"\u308B\u0035\u79D2\u524D",
++		"MajiKoi5-783gue6qz075azm5e",
++	},
++	{
++		// (Q) <pafii>de<runba>
++		"\u30D1\u30D5\u30A3\u30FC\u0064\u0065\u30EB\u30F3\u30D0",
++		"de-jg4avhby1noc0d",
++	},
++	{
++		// (R) <sono><supiido><de>
++		"\u305D\u306E\u30B9\u30D4\u30FC\u30C9\u3067",
++		"d9juau41awczczp",
++	},
++	{
++		// (S) -> $1.00 <-
++		"\u002D\u003E\u0020\u0024\u0031\u002E\u0030\u0030\u0020" +
++			"\u003C\u002D",
++		"-> $1.00 <--",
++	},
++}
++
++func TestPunycode(t *testing.T) {
++	for _, tc := range punycodeTestCases {
++		if got, err := encode("", tc.s); err != nil {
++			t.Errorf(`encode("", %q): %v`, tc.s, err)
++		} else if got != tc.encoded {
++			t.Errorf(`encode("", %q): got %q, want %q`, tc.s, got, tc.encoded)
++		}
++	}
++}

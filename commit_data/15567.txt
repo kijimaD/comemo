@@ -12,7 +12,54 @@ Date:   Mon Mar 4 09:02:45 2013 +1100
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/7434044
-
+---
  src/cmd/godoc/godoc.go | 7 +++++++
  src/cmd/godoc/main.go  | 7 -------
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 74f28835ad..872b0dc1ed 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -83,9 +83,16 @@ var (
+ 	fileServer http.Handler // default file server
+ 	cmdHandler docServer
+ 	pkgHandler docServer
++
++	// which code 'Notes' to show
++	notes = flag.String("notes", "BUG", "comma separated list of Note markers as per pkg:go/doc")
++	// list of 'Notes' to show
++	notesToShow []string
+ )
+ 
+ func initHandlers() {
++	notesToShow = strings.Split(*notes, ",")
++
+ 	fileServer = http.FileServer(&httpFS{fs})
+ 	cmdHandler = docServer{"/cmd/", "/src/cmd"}
+ 	pkgHandler = docServer{"/pkg/", "/src/pkg"}
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 389bb1339d..1344100906 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -71,11 +71,6 @@ var (
+ 
+ 	// command-line searches
+ 	query = flag.Bool("q", false, "arguments are considered search queries")
+-
+-	// which code 'Notes' to show.
+-	notes = flag.String("notes", "BUG", "comma separated list of Note markers as per pkg:go/doc")
+-	// vector of 'Notes' to show.
+-	notesToShow []string
+ )
+ 
+ func serveError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
+@@ -162,8 +157,6 @@ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 
+-	notesToShow = strings.Split(*notes, ",")
+-
+ 	// Check usage: either server and no args, command line and args, or index creation mode
+ 	if (*httpAddr != "" || *urlFlag != "") != (flag.NArg() == 0) && !*writeIndex {
+ 		usage()

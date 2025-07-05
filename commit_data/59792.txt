@@ -13,6 +13,20 @@ Date:   Fri Feb 9 14:11:39 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Austin Clements <austin@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/debug/elf/file.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 6b4de0c56e..398439dcce 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -1434,7 +1434,7 @@ func (f *File) Symbols() ([]Symbol, error) {
+ // will be listed in the order they appear in f.
+ //
+ // If f has a symbol version table, the returned [File.Symbols] will have
+-// initialized [Version] and Library fields.
++// initialized Version and Library fields.
+ //
+ // For compatibility with [File.Symbols], [File.DynamicSymbols] omits the null symbol at index 0.
+ // After retrieving the symbols as symtab, an externally supplied index x

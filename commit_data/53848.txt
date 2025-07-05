@@ -16,6 +16,20 @@ Date:   Sat Sep 3 21:16:49 2022 +0000
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/math/big/prime.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/prime.go b/src/math/big/prime.go
+index d9a5f1ec96..a06378956a 100644
+--- a/src/math/big/prime.go
++++ b/src/math/big/prime.go
+@@ -141,7 +141,7 @@ NextRandom:
+ //
+ // Jacobsen, "Pseudoprime Statistics, Tables, and Data", http://ntheory.org/pseudoprimes.html.
+ //
+-// Nicely, "The Baillie-PSW Primality Test", http://www.trnicely.net/misc/bpsw.html.
++// Nicely, "The Baillie-PSW Primality Test", https://web.archive.org/web/20191121062007/http://www.trnicely.net/misc/bpsw.html.
+ // (Note that Nicely's definition of the "extra strong" test gives the wrong Jacobi condition,
+ // as pointed out by Jacobsen.)
+ //

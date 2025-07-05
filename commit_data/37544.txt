@@ -13,6 +13,19 @@ Date:   Thu Aug 16 09:54:11 2018 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/cmd/go/go_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index debe4867e6..a7be617af9 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1293,6 +1293,7 @@ func TestGetGitDefaultBranch(t *testing.T) {
+ 
+ func TestAccidentalGitCheckout(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	testenv.SkipFlaky(t, 22983) // this test might not have ever worked; see issue.
+ 	if _, err := exec.LookPath("git"); err != nil {
+ 		t.Skip("skipping because git binary not found")
+ 	}

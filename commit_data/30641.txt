@@ -19,7 +19,7 @@ Date:   Sun Nov 6 21:40:57 2016 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go     | 19 ++++++++++++++++
  misc/cgo/testcarchive/main2.c              | 36 +++++++++++++++++++++++++++++-
  misc/cgo/testcarchive/main3.c              |  7 ++++++
@@ -29,3 +29,278 @@ Date:   Sun Nov 6 21:40:57 2016 +0100
  src/os/signal/doc.go                       |  9 ++++----
  src/runtime/signal_unix.go                 | 14 ++++++++----
  8 files changed, 136 insertions(+), 9 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 4999929775..3c768a0ef3 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -265,6 +265,25 @@ func TestSignalForwarding(t *testing.T) {
+ 		t.Logf("%s", out)
+ 		t.Errorf("got %v; expected SIGSEGV", ee)
+ 	}
++
++	// Test SIGPIPE forwarding
++	cmd = exec.Command(bin[0], append(bin[1:], "3")...)
++
++	out, err = cmd.CombinedOutput()
++
++	if err == nil {
++		t.Logf("%s", out)
++		t.Error("test program succeeded unexpectedly")
++	} else if ee, ok := err.(*exec.ExitError); !ok {
++		t.Logf("%s", out)
++		t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
++	} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
++		t.Logf("%s", out)
++		t.Errorf("error.Sys (%v) has type %T; expected syscall.WaitStatus", ee.Sys(), ee.Sys())
++	} else if !ws.Signaled() || ws.Signal() != syscall.SIGPIPE {
++		t.Logf("%s", out)
++		t.Errorf("got %v; expected SIGPIPE", ee)
++	}
+ }
+ 
+ func TestSignalForwardingExternal(t *testing.T) {
+diff --git a/misc/cgo/testcarchive/main2.c b/misc/cgo/testcarchive/main2.c
+index 774e014a16..55625c543a 100644
+--- a/misc/cgo/testcarchive/main2.c
++++ b/misc/cgo/testcarchive/main2.c
+@@ -17,6 +17,7 @@
+ #include <unistd.h>
+ #include <sched.h>
+ #include <time.h>
++#include <errno.h>
+ 
+ #include "libgo2.h"
+ 
+@@ -26,6 +27,7 @@ static void die(const char* msg) {
+ }
+ 
+ static volatile sig_atomic_t sigioSeen;
++static volatile sig_atomic_t sigpipeSeen;
+ 
+ // Use up some stack space.
+ static void recur(int i, char *p) {
+@@ -37,6 +39,11 @@ static void recur(int i, char *p) {
+ 	}
+ }
+ 
++// Signal handler that uses up more stack space than a goroutine will have.
++static void pipeHandler(int signo, siginfo_t* info, void* ctxt) {
++	sigpipeSeen = 1;
++}
++
+ // Signal handler that uses up more stack space than a goroutine will have.
+ static void ioHandler(int signo, siginfo_t* info, void* ctxt) {
+ 	char a[1024];
+@@ -106,6 +113,10 @@ static void init() {
+ 		die("sigaction");
+ 	}
+ 
++	sa.sa_sigaction = pipeHandler;
++	if (sigaction(SIGPIPE, &sa, NULL) < 0) {
++		die("sigaction");
++	}
+ }
+ 
+ int main(int argc, char** argv) {
+@@ -167,7 +178,30 @@ int main(int argc, char** argv) {
+ 		nanosleep(&ts, NULL);
+ 		i++;
+ 		if (i > 5000) {
+-			fprintf(stderr, "looping too long waiting for signal\n");
++			fprintf(stderr, "looping too long waiting for SIGIO\n");
++			exit(EXIT_FAILURE);
++		}
++	}
++
++	if (verbose) {
++		printf("provoking SIGPIPE\n");
++	}
++
++	GoRaiseSIGPIPE();
++
++	if (verbose) {
++		printf("waiting for sigpipeSeen\n");
++	}
++
++	// Wait until the signal has been delivered.
++	i = 0;
++	while (!sigpipeSeen) {
++		ts.tv_sec = 0;
++		ts.tv_nsec = 1000000;
++		nanosleep(&ts, NULL);
++		i++;
++		if (i > 1000) {
++			fprintf(stderr, "looping too long waiting for SIGPIPE\n");
+ 			exit(EXIT_FAILURE);
+ 		}
+ 	}
+diff --git a/misc/cgo/testcarchive/main3.c b/misc/cgo/testcarchive/main3.c
+index 0a6c0d3f74..07d5d1e64e 100644
+--- a/misc/cgo/testcarchive/main3.c
++++ b/misc/cgo/testcarchive/main3.c
+@@ -34,6 +34,13 @@ int main(int argc, char** argv) {
+ 	verbose = argc > 2;
+ 	setvbuf(stdout, NULL, _IONBF, 0);
+ 
++	if (verbose) {
++		printf("raising SIGPIPE\n");
++	}
++
++	// Test that the Go runtime handles SIGPIPE.
++	ProvokeSIGPIPE();
++
+ 	if (verbose) {
+ 		printf("calling sigaction\n");
+ 	}
+diff --git a/misc/cgo/testcarchive/main5.c b/misc/cgo/testcarchive/main5.c
+index 9fadf0801e..2437bf07c5 100644
+--- a/misc/cgo/testcarchive/main5.c
++++ b/misc/cgo/testcarchive/main5.c
+@@ -68,6 +68,24 @@ int main(int argc, char** argv) {
+ 
+ 			break;
+ 		}
++		case 3: {
++			if (verbose) {
++				printf("attempting SIGPIPE\n");
++			}
++
++			int fd[2];
++			if (pipe(fd) != 0) {
++				printf("pipe(2) failed\n");
++				return 0;
++			}
++			// Close the reading end.
++			close(fd[0]);
++			// Expect that write(2) fails (EPIPE)
++			if (write(fd[1], "some data", 9) != -1) {
++				printf("write(2) unexpectedly succeeded\n");
++				return 0;
++			}
++		}
+ 		default:
+ 			printf("Unknown test: %d\n", test);
+ 			return 0;
+diff --git a/misc/cgo/testcarchive/src/libgo2/libgo2.go b/misc/cgo/testcarchive/src/libgo2/libgo2.go
+index fbed493b93..19c8e1a6dc 100644
+--- a/misc/cgo/testcarchive/src/libgo2/libgo2.go
++++ b/misc/cgo/testcarchive/src/libgo2/libgo2.go
+@@ -4,6 +4,30 @@
+ 
+ package main
+ 
++/*
++#include <signal.h>
++#include <unistd.h>
++#include <stdlib.h>
++#include <stdio.h>
++
++// Raise SIGPIPE.
++static void CRaiseSIGPIPE() {
++	int fds[2];
++
++	if (pipe(fds) == -1) {
++		perror("pipe");
++		exit(EXIT_FAILURE);
++	}
++	// Close the reader end
++	close(fds[0]);
++	// Write to the writer end to provoke a SIGPIPE
++	if (write(fds[1], "some data", 9) != -1) {
++		fprintf(stderr, "write to a closed pipe succeeded\n");
++		exit(EXIT_FAILURE);
++	}
++	close(fds[1]);
++}
++*/
+ import "C"
+ 
+ import (
+@@ -46,5 +70,11 @@ func TestSEGV() {
+ func Noop() {
+ }
+ 
++// Raise SIGPIPE.
++//export GoRaiseSIGPIPE
++func GoRaiseSIGPIPE() {
++	C.CRaiseSIGPIPE()
++}
++
+ func main() {
+ }
+diff --git a/misc/cgo/testcarchive/src/libgo3/libgo3.go b/misc/cgo/testcarchive/src/libgo3/libgo3.go
+index 94e5d21c14..19fcc7f346 100644
+--- a/misc/cgo/testcarchive/src/libgo3/libgo3.go
++++ b/misc/cgo/testcarchive/src/libgo3/libgo3.go
+@@ -40,5 +40,17 @@ func SawSIGIO() C.int {
+ 	}
+ }
+ 
++// ProvokeSIGPIPE provokes a kernel-initiated SIGPIPE
++//export ProvokeSIGPIPE
++func ProvokeSIGPIPE() {
++	r, w, err := os.Pipe()
++	if err != nil {
++		panic(err)
++	}
++	r.Close()
++	defer w.Close()
++	w.Write([]byte("some data"))
++}
++
+ func main() {
+ }
+diff --git a/src/os/signal/doc.go b/src/os/signal/doc.go
+index 73b01a2764..16f49c7ab8 100644
+--- a/src/os/signal/doc.go
++++ b/src/os/signal/doc.go
+@@ -181,10 +181,11 @@ If the Go runtime sees an existing signal handler for the SIGCANCEL or
+ SIGSETXID signals (which are used only on GNU/Linux), it will turn on
+ the SA_ONSTACK flag and otherwise keep the signal handler.
+ 
+-For the synchronous signals, the Go runtime will install a signal
+-handler. It will save any existing signal handler. If a synchronous
+-signal arrives while executing non-Go code, the Go runtime will invoke
+-the existing signal handler instead of the Go signal handler.
++For the synchronous signals and SIGPIPE, the Go runtime will install a
++signal handler. It will save any existing signal handler. If a
++synchronous signal arrives while executing non-Go code, the Go runtime
++will invoke the existing signal handler instead of the Go signal
++handler.
+ 
+ Go code built with -buildmode=c-archive or -buildmode=c-shared will
+ not install any other signal handlers by default. If there is an
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 6b85490f75..8b932341a9 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -111,8 +111,8 @@ func sigInstallGoHandler(sig uint32) bool {
+ 	}
+ 
+ 	// When built using c-archive or c-shared, only install signal
+-	// handlers for synchronous signals.
+-	if (isarchive || islibrary) && t.flags&_SigPanic == 0 {
++	// handlers for synchronous signals and SIGPIPE.
++	if (isarchive || islibrary) && t.flags&_SigPanic == 0 && sig != _SIGPIPE {
+ 		return false
+ 	}
+ 
+@@ -492,9 +492,15 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+ 		return true
+ 	}
+ 
+-	// Only forward synchronous signals.
+ 	c := &sigctxt{info, ctx}
+-	if c.sigcode() == _SI_USER || flags&_SigPanic == 0 {
++	// Only forward signals from the kernel.
++	// On Linux and Darwin there is no way to distinguish a SIGPIPE raised by a write
++	// to a closed socket or pipe from a SIGPIPE raised by kill or pthread_kill
++	// so we'll treat every SIGPIPE as kernel-generated.
++	userSig := c.sigcode() == _SI_USER &&
++		(sig != _SIGPIPE || GOOS != "linux" && GOOS != "android" && GOOS != "darwin")
++	// Only forward synchronous signals and SIGPIPE.
++	if userSig || flags&_SigPanic == 0 && sig != _SIGPIPE {
+ 		return false
+ 	}
+ 	// Determine if the signal occurred inside Go code. We test that:

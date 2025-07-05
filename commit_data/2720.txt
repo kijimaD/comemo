@@ -8,6 +8,31 @@ Date:   Wed Jul 15 12:38:50 2009 -0700
     DELTA=5  (4 added, 1 deleted, 0 changed)
     OCL=31690
     CL=31692
-
+---
  src/pkg/rpc/client.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index 122763f4e8..c4e8a6bc7b 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -43,8 +43,8 @@ func (client *Client) send(c *Call) {
+ 	// Register this call.
+ 	client.Lock();
+ 	if client.shutdown != nil {
+-		client.Unlock();
+ 		c.Error = client.shutdown;
++		client.Unlock();
+ 		doNotBlock := c.Done <- c;
+ 		return;
+ 	}
+@@ -72,6 +72,9 @@ func (client *Client) serve() {
+ 		response := new(Response);
+ 		err = client.dec.Decode(response);
+ 		if err != nil {
++			if err == os.EOF {
++				err = io.ErrUnexpectedEOF;
++			}
+ 			break
+ 		}
+ 		seq := response.Seq;

@@ -24,7 +24,42 @@ Date:   Fri Jan 13 11:54:35 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Benjamin Prosnitz <bprosnitz@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/hex/hex.go      | 3 +++
  src/encoding/hex/hex_test.go | 9 +++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/encoding/hex/hex.go b/src/encoding/hex/hex.go
+index 375f583170..5a8243ae80 100644
+--- a/src/encoding/hex/hex.go
++++ b/src/encoding/hex/hex.go
+@@ -75,6 +75,9 @@ func DecodedLen(x int) int { return x / 2 }
+ // If the input is malformed, Decode returns the number
+ // of bytes decoded before the error.
+ func Decode(dst, src []byte) (int, error) {
++	if len(dst) < DecodedLen(len(src)) {
++		return 0, errors.New("encoding/hex: output buffer too small")
++	}
+ 	i, j := 0, 1
+ 	for ; j < len(src); j += 2 {
+ 		p := src[j-1]
+diff --git a/src/encoding/hex/hex_test.go b/src/encoding/hex/hex_test.go
+index a820fe7a15..1eb169cdee 100644
+--- a/src/encoding/hex/hex_test.go
++++ b/src/encoding/hex/hex_test.go
+@@ -55,6 +55,15 @@ func TestDecode(t *testing.T) {
+ 	}
+ }
+ 
++func TestDecode_tooFewDstBytes(t *testing.T) {
++	dst := make([]byte, 1)
++	src := []byte{'0', '1', '2', '3'}
++	_, err := Decode(dst, src)
++	if err == nil {
++		t.Errorf("expected Decode to return an error, but it returned none")
++	}
++}
++
+ func TestEncodeToString(t *testing.T) {
+ 	for i, test := range encDecTests {
+ 		s := EncodeToString(test.dec)

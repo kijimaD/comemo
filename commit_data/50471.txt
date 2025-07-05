@@ -11,6 +11,28 @@ Date:   Wed Oct 27 17:28:36 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index e8de0077d4..c5c6bdf0a5 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -767,6 +767,16 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 	return true
+ }
+ 
++// Structure is exported for the compiler.
++
++// If typ is a type parameter, Structure returns the single underlying
++// type of all types in the corresponding type constraint if it exists,
++// or nil otherwise. If typ is not a type parameter, Structure returns
++// the underlying type.
++func Structure(typ Type) Type {
++	return structure(typ)
++}
++
+ // If typ is a type parameter, structure returns the single underlying
+ // type of all types in the corresponding type constraint if it exists,
+ // or nil otherwise. If typ is not a type parameter, structure returns

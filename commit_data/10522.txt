@@ -7,7 +7,61 @@ Date:   Mon Nov 28 12:29:19 2011 -0500
     R=huin, agl, gustav.paul, cw
     CC=golang-dev
     https://golang.org/cl/5399044
-
+---
  src/pkg/exp/ssh/common.go      | 13 +++++++++++++
  src/pkg/exp/ssh/common_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 39 insertions(+)
+
+diff --git a/src/pkg/exp/ssh/common.go b/src/pkg/exp/ssh/common.go
+index 01c55219d4..6844fb89b7 100644
+--- a/src/pkg/exp/ssh/common.go
++++ b/src/pkg/exp/ssh/common.go
+@@ -224,3 +224,16 @@ func buildDataSignedForAuth(sessionId []byte, req userAuthRequestMsg, algo, pubK
+ 	r = marshalString(r, pubKey)
+ 	return ret
+ }
++
++// safeString sanitises s according to RFC 4251, section 9.2. 
++// All control characters except tab, carriage return and newline are
++// replaced by 0x20.
++func safeString(s string) string {
++	out := []byte(s)
++	for i, c := range out {
++		if c < 0x20 && c != 0xd && c != 0xa && c != 0x9 {
++			out[i] = 0x20
++		}
++	}
++	return string(out)
++}
+diff --git a/src/pkg/exp/ssh/common_test.go b/src/pkg/exp/ssh/common_test.go
+new file mode 100644
+index 0000000000..2f4448a1bd
+--- /dev/null
++++ b/src/pkg/exp/ssh/common_test.go
+@@ -0,0 +1,26 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssh
++
++import (
++	"testing"
++)
++
++var strings = map[string]string{
++	"\x20\x0d\x0a":  "\x20\x0d\x0a",
++	"flibble":       "flibble",
++	"new\x20line":   "new\x20line",
++	"123456\x07789": "123456 789",
++	"\t\t\x10\r\n":  "\t\t \r\n",
++}
++
++func TestSafeString(t *testing.T) {
++	for s, expected := range strings {
++		actual := safeString(s)
++		if expected != actual {
++			t.Errorf("expected: %v, actual: %v", []byte(expected), []byte(actual))
++		}
++	}
++}

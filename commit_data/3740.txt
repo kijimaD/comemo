@@ -7,6 +7,18 @@ Date:   Tue Nov 3 15:10:52 2009 -0800
     R=iant
     CC=go-dev
     http://go/go-review/1016032
-
+---
  doc/go_spec.html | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index aa988354d5..c1b817ee9b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4582,6 +4582,5 @@ The following minimal alignment properties are guaranteed:
+ <h2 id="Implementation_differences"><span class="alert">Implementation differences - TODO</span></h2>
+ <ul>
+ 	<li><span class="alert">Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</span></li>
+-	<li><span class="alert">Gccgo does not implement the blank identifier.</span></li>
+ 	<li><span class="alert">Method expressions are not implemented.</span></li>
+ </ul>

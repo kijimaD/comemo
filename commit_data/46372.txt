@@ -13,6 +13,20 @@ Date:   Mon Dec 21 16:33:55 2020 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index f297477fe0..0113a1be5d 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -1129,7 +1129,7 @@ sometimes required because the standard library code you're modifying
+ might require a newer version than the stable one you have installed).
+ 
+ <pre>
+-$ cd $GODIR/src/hash/sha1
++$ cd $GODIR/src/crypto/sha1
+ $ [make changes...]
+ $ $GODIR/bin/go test .
+ </pre>

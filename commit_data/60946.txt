@@ -14,6 +14,46 @@ Date:   Wed Sep 11 15:48:56 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Tim King <taking@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/html/template/escape.go | 17 +++++------------
  1 file changed, 5 insertions(+), 12 deletions(-)
+
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index 5ab41b0ce9..1f963e61b4 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -10,6 +10,7 @@ import (
+ 	"html"
+ 	"internal/godebug"
+ 	"io"
++	"maps"
+ 	"regexp"
+ 	"text/template"
+ 	"text/template/parse"
+@@ -588,22 +589,14 @@ func (e *escaper) escapeListConditionally(c context, n *parse.ListNode, filter f
+ 	e1 := makeEscaper(e.ns)
+ 	e1.rangeContext = e.rangeContext
+ 	// Make type inferences available to f.
+-	for k, v := range e.output {
+-		e1.output[k] = v
+-	}
++	maps.Copy(e1.output, e.output)
+ 	c = e1.escapeList(c, n)
+ 	ok := filter != nil && filter(&e1, c)
+ 	if ok {
+ 		// Copy inferences and edits from e1 back into e.
+-		for k, v := range e1.output {
+-			e.output[k] = v
+-		}
+-		for k, v := range e1.derived {
+-			e.derived[k] = v
+-		}
+-		for k, v := range e1.called {
+-			e.called[k] = v
+-		}
++		maps.Copy(e.output, e1.output)
++		maps.Copy(e.derived, e1.derived)
++		maps.Copy(e.called, e1.called)
+ 		for k, v := range e1.actionNodeEdits {
+ 			e.editActionNode(k, v)
+ 		}

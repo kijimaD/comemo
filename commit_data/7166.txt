@@ -7,8 +7,197 @@ Date:   Wed Jan 19 15:11:03 2011 -0500
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/3851041
-
+---
  src/pkg/net/dnsclient.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++-
  src/pkg/net/hosts.go     | 31 ++++++++++++++++++++-------
  src/pkg/net/net_test.go  | 37 +++++++++++++++++++++++++++++++++
  3 files changed, 114 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index f1cd47bb19..87d76261f8 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -15,6 +15,8 @@
+ package net
+ 
+ import (
++	"bytes"
++	"fmt"
+ 	"os"
+ 	"rand"
+ 	"sync"
+@@ -357,9 +359,59 @@ func LookupMX(name string) (entries []*MX, err os.Error) {
+ 		return
+ 	}
+ 	entries = make([]*MX, len(records))
+-	for i := 0; i < len(records); i++ {
++	for i := range records {
+ 		r := records[i].(*dnsRR_MX)
+ 		entries[i] = &MX{r.Mx, r.Pref}
+ 	}
+ 	return
+ }
++
++// reverseaddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
++// address addr suitable for rDNS (PTR) record lookup or an error if it fails
++// to parse the IP address.
++func reverseaddr(addr string) (arpa string, err os.Error) {
++	ip := ParseIP(addr)
++	if ip == nil {
++		return "", &DNSError{Error: "unrecognized address", Name: addr}
++	}
++	if ip.To4() != nil {
++		return fmt.Sprintf("%d.%d.%d.%d.in-addr.arpa.", ip[15], ip[14], ip[13], ip[12]), nil
++	}
++	// Must be IPv6
++	var buf bytes.Buffer
++	// Add it, in reverse, to the buffer
++	for i := len(ip) - 1; i >= 0; i-- {
++		s := fmt.Sprintf("%02x", ip[i])
++		buf.WriteByte(s[1])
++		buf.WriteByte('.')
++		buf.WriteByte(s[0])
++		buf.WriteByte('.')
++	}
++	// Append "ip6.arpa." and return (buf already has the final .)
++	return buf.String() + "ip6.arpa.", nil
++}
++
++// LookupAddr performs a reverse lookup for the given address, returning a list
++// of names mapping to that address.
++func LookupAddr(addr string) (name []string, err os.Error) {
++	name = lookupStaticAddr(addr)
++	if len(name) > 0 {
++		return
++	}
++	var arpa string
++	arpa, err = reverseaddr(addr)
++	if err != nil {
++		return
++	}
++	var records []dnsRR
++	_, records, err = lookup(arpa, dnsTypePTR)
++	if err != nil {
++		return
++	}
++	name = make([]string, len(records))
++	for i := range records {
++		r := records[i].(*dnsRR_PTR)
++		name[i] = r.Ptr
++	}
++	return
++}
+diff --git a/src/pkg/net/hosts.go b/src/pkg/net/hosts.go
+index 556d57f112..8525f578d7 100644
+--- a/src/pkg/net/hosts.go
++++ b/src/pkg/net/hosts.go
+@@ -19,16 +19,18 @@ var hostsPath = "/etc/hosts"
+ // Simple cache.
+ var hosts struct {
+ 	sync.Mutex
+-	data map[string][]string
+-	time int64
+-	path string
++	byName map[string][]string
++	byAddr map[string][]string
++	time   int64
++	path   string
+ }
+ 
+ func readHosts() {
+ 	now, _, _ := os.Time()
+ 	hp := hostsPath
+-	if len(hosts.data) == 0 || hosts.time+cacheMaxAge <= now || hosts.path != hp {
++	if len(hosts.byName) == 0 || hosts.time+cacheMaxAge <= now || hosts.path != hp {
+ 		hs := make(map[string][]string)
++		is := make(map[string][]string)
+ 		var file *file
+ 		if file, _ = open(hp); file == nil {
+ 			return
+@@ -45,12 +47,14 @@ func readHosts() {
+ 			for i := 1; i < len(f); i++ {
+ 				h := f[i]
+ 				hs[h] = append(hs[h], f[0])
++				is[f[0]] = append(is[f[0]], h)
+ 			}
+ 		}
+ 		// Update the data cache.
+ 		hosts.time, _, _ = os.Time()
+ 		hosts.path = hp
+-		hosts.data = hs
++		hosts.byName = hs
++		hosts.byAddr = is
+ 		file.close()
+ 	}
+ }
+@@ -60,10 +64,23 @@ func lookupStaticHost(host string) []string {
+ 	hosts.Lock()
+ 	defer hosts.Unlock()
+ 	readHosts()
+-	if len(hosts.data) != 0 {
+-		if ips, ok := hosts.data[host]; ok {
++	if len(hosts.byName) != 0 {
++		if ips, ok := hosts.byName[host]; ok {
+ 			return ips
+ 		}
+ 	}
+ 	return nil
+ }
++
++// rlookupStaticHosts looks up the hosts for the given address from /etc/hosts.
++func lookupStaticAddr(addr string) []string {
++	hosts.Lock()
++	defer hosts.Unlock()
++	readHosts()
++	if len(hosts.byAddr) != 0 {
++		if hosts, ok := hosts.byAddr[addr]; ok {
++			return hosts
++		}
++	}
++	return nil
++}
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index 1de7a856a7..5f60972ace 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -83,3 +83,40 @@ func TestDialError(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var revAddrTests = []struct {
++	Addr      string
++	Reverse   string
++	ErrPrefix string
++}{
++	{"1.2.3.4", "4.3.2.1.in-addr.arpa.", ""},
++	{"245.110.36.114", "114.36.110.245.in-addr.arpa.", ""},
++	{"::ffff:12.34.56.78", "78.56.34.12.in-addr.arpa.", ""},
++	{"::1", "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.", ""},
++	{"1::", "0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.1.0.0.0.ip6.arpa.", ""},
++	{"1234:567::89a:bcde", "e.d.c.b.a.9.8.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.7.6.5.0.4.3.2.1.ip6.arpa.", ""},
++	{"1234:567:fefe:bcbc:adad:9e4a:89a:bcde", "e.d.c.b.a.9.8.0.a.4.e.9.d.a.d.a.c.b.c.b.e.f.e.f.7.6.5.0.4.3.2.1.ip6.arpa.", ""},
++	{"1.2.3", "", "unrecognized address"},
++	{"1.2.3.4.5", "", "unrecognized address"},
++	{"1234:567:bcbca::89a:bcde", "", "unrecognized address"},
++	{"1234:567::bcbc:adad::89a:bcde", "", "unrecognized address"},
++}
++
++func TestReverseAddress(t *testing.T) {
++	for i, tt := range revAddrTests {
++		a, e := reverseaddr(tt.Addr)
++		if len(tt.ErrPrefix) > 0 && e == nil {
++			t.Errorf("#%d: expected %q, got <nil> (error)", i, tt.ErrPrefix)
++			continue
++		}
++		if len(tt.ErrPrefix) == 0 && e != nil {
++			t.Errorf("#%d: expected <nil>, got %q (error)", i, e)
++		}
++		if e != nil && e.(*DNSError).Error != tt.ErrPrefix {
++			t.Errorf("#%d: expected %q, got %q (mismatched error)", i, tt.ErrPrefix, e.(*DNSError).Error)
++		}
++		if a != tt.Reverse {
++			t.Errorf("#%d: expected %q, got %q (reverse address)", i, tt.Reverse, a)
++		}
++	}
++}

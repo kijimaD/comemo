@@ -18,6 +18,52 @@ Date:   Fri Apr 30 01:29:57 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/buildlist.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index e7af892996..7820fcf6f1 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -11,8 +11,10 @@ import (
+ 	"cmd/go/internal/par"
+ 	"context"
+ 	"fmt"
++	"os"
+ 	"reflect"
+ 	"runtime"
++	"runtime/debug"
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
+@@ -232,12 +234,29 @@ type summaryError struct {
+ 	err     error
+ }
+ 
++var readModGraphDebugOnce sync.Once
++
+ // readModGraph reads and returns the module dependency graph starting at the
+ // given roots.
+ //
+ // Unlike LoadModGraph, readModGraph does not attempt to diagnose or update
+ // inconsistent roots.
+ func readModGraph(ctx context.Context, depth modDepth, roots []module.Version) (*ModuleGraph, error) {
++	if depth == lazy {
++		readModGraphDebugOnce.Do(func() {
++			for _, f := range strings.Split(os.Getenv("GODEBUG"), ",") {
++				switch f {
++				case "lazymod=log":
++					debug.PrintStack()
++					fmt.Fprintf(os.Stderr, "go: read full module graph.\n")
++				case "lazymod=strict":
++					debug.PrintStack()
++					base.Fatalf("go: read full module graph (forbidden by GODEBUG=lazymod=strict).")
++				}
++			}
++		})
++	}
++
+ 	var (
+ 		mu       sync.Mutex // guards mg.g and hasError during loading
+ 		hasError bool

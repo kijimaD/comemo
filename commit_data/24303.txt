@@ -11,6 +11,29 @@ Date:   Wed Jul 22 11:54:41 2015 -0400
     Change-Id: I6e1e8861e5ede465c08a2e3f80b976145a8b32d8
     Reviewed-on: https://go-review.googlesource.com/12525
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/trace.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 25fcfe13c2..8cd95893a0 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -127,7 +127,7 @@ type traceBuf struct {
+ // StartTrace enables tracing for the current process.
+ // While tracing, the data will be buffered and available via ReadTrace.
+ // StartTrace returns an error if tracing is already enabled.
+-// Most clients should use the runtime/pprof package or the testing package's
++// Most clients should use the runtime/trace package or the testing package's
+ // -test.trace flag instead of calling StartTrace directly.
+ func StartTrace() error {
+ 	// Stop the world, so that we can take a consistent snapshot
+@@ -347,7 +347,7 @@ func ReadTrace() []byte {
+ 		if raceenabled {
+ 			// Model synchronization on trace.shutdownSema, which race
+ 			// detector does not see. This is required to avoid false
+-			// race reports on writer passed to pprof.StartTrace.
++			// race reports on writer passed to trace.Start.
+ 			racerelease(unsafe.Pointer(&trace.shutdownSema))
+ 		}
+ 		// trace.enabled is already reset, so can call traceable functions.

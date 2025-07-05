@@ -11,7 +11,32 @@ Date:   Wed Oct 11 14:17:57 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/70050
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/deps.go      | 1 +
  src/cmd/dist/deps_test.go | 1 -
  2 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index 6a3d0276bb..4425f7a4d9 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -334,6 +334,7 @@ var builddeps = map[string][]string{
+ 		"container/heap",       // cmd/go/internal/work
+ 		"crypto/sha256",        // cmd/go/internal/work
+ 		"debug/elf",            // cmd/go/internal/work
++		"encoding/json",        // cmd/go/internal/work
+ 		"errors",               // cmd/go/internal/work
+ 		"flag",                 // cmd/go/internal/work
+ 		"fmt",                  // cmd/go/internal/work
+diff --git a/src/cmd/dist/deps_test.go b/src/cmd/dist/deps_test.go
+index 15adafa606..596e89bfa9 100644
+--- a/src/cmd/dist/deps_test.go
++++ b/src/cmd/dist/deps_test.go
+@@ -15,7 +15,6 @@ import (
+ )
+ 
+ func TestDeps(t *testing.T) {
+-	t.Skip("broken - golang.org/issue/21522")
+ 	if testing.Short() && testenv.Builder() == "" {
+ 		t.Skip("skipping in short mode")
+ 	}

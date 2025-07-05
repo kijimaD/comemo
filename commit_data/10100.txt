@@ -9,9 +9,98 @@ Date:   Tue Oct 25 22:21:49 2011 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/5305046
-
+---
  src/pkg/big/int.go      | 6 +++---
  src/pkg/big/nat.go      | 8 ++++----
  src/pkg/big/nat_test.go | 2 +-
  src/pkg/big/rat.go      | 4 ++--
  4 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index b0dde1e6e3..db13d20f71 100644
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -302,7 +302,7 @@ func (x *Int) String() string {
+ 	return x.abs.decimalString()
+ }
+ 
+-func charset(ch int) string {
++func charset(ch rune) string {
+ 	switch ch {
+ 	case 'b':
+ 		return lowercaseDigits[0:2]
+@@ -339,7 +339,7 @@ func writeMultiple(s fmt.State, text string, count int) {
+ // output field width, space or zero padding, and left or
+ // right justification.
+ //
+-func (x *Int) Format(s fmt.State, ch int) {
++func (x *Int) Format(s fmt.State, ch rune) {
+ 	cs := charset(ch)
+ 
+ 	// special cases
+@@ -460,7 +460,7 @@ func (z *Int) scan(r io.RuneScanner, base int) (*Int, int, os.Error) {
+ // Scan is a support routine for fmt.Scanner; it sets z to the value of
+ // the scanned number. It accepts the formats 'b' (binary), 'o' (octal),
+ // 'd' (decimal), 'x' (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
+-func (z *Int) Scan(s fmt.ScanState, ch int) os.Error {
++func (z *Int) Scan(s fmt.ScanState, ch rune) os.Error {
+ 	s.SkipSpace() // skip leading space characters
+ 	base := 0
+ 	switch ch {
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index c0769d88a9..fa0d7e7227 100644
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -589,15 +589,15 @@ func (x nat) bitLen() int {
+ // MaxBase is the largest number base accepted for string conversions.
+ const MaxBase = 'z' - 'a' + 10 + 1 // = hexValue('z') + 1
+ 
+-func hexValue(ch int) Word {
++func hexValue(ch rune) Word {
+ 	d := MaxBase + 1 // illegal base
+ 	switch {
+ 	case '0' <= ch && ch <= '9':
+-		d = ch - '0'
++		d = int(ch - '0')
+ 	case 'a' <= ch && ch <= 'z':
+-		d = ch - 'a' + 10
++		d = int(ch - 'a' + 10)
+ 	case 'A' <= ch && ch <= 'Z':
+-		d = ch - 'A' + 10
++		d = int(ch - 'A' + 10)
+ 	}
+ 	return Word(d)
+ }
+diff --git a/src/pkg/big/nat_test.go b/src/pkg/big/nat_test.go
+index 4f5732824c..ab34c6ec18 100644
+--- a/src/pkg/big/nat_test.go
++++ b/src/pkg/big/nat_test.go
+@@ -231,7 +231,7 @@ var natScanTests = []struct {
+ 	x    nat    // expected nat
+ 	b    int    // expected base
+ 	ok   bool   // expected success
+-	next int    // next character (or 0, if at EOF)
++	next rune   // next character (or 0, if at EOF)
+ }{
+ 	// error: illegal base
+ 	{base: -1},
+diff --git a/src/pkg/big/rat.go b/src/pkg/big/rat.go
+index 6b86062720..1940a05494 100644
+--- a/src/pkg/big/rat.go
++++ b/src/pkg/big/rat.go
+@@ -249,13 +249,13 @@ func (z *Rat) Quo(x, y *Rat) *Rat {
+ 	return z.norm()
+ }
+ 
+-func ratTok(ch int) bool {
++func ratTok(ch rune) bool {
+ 	return strings.IndexRune("+-/0123456789.eE", ch) >= 0
+ }
+ 
+ // Scan is a support routine for fmt.Scanner. It accepts the formats
+ // 'e', 'E', 'f', 'F', 'g', 'G', and 'v'. All formats are equivalent.
+-func (z *Rat) Scan(s fmt.ScanState, ch int) os.Error {
++func (z *Rat) Scan(s fmt.ScanState, ch rune) os.Error {
+ 	tok, err := s.Token(true, ratTok)
+ 	if err != nil {
+ 		return err

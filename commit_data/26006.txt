@@ -13,7 +13,43 @@ Date:   Thu Dec 10 10:24:03 2015 -0800
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/request.go      | 6 ++++++
  src/net/http/request_test.go | 7 +++++++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index c85713c42c..9f740422ed 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -581,6 +581,12 @@ func validMethod(method string) bool {
+ // type's documentation for the difference between inbound and outbound
+ // request fields.
+ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
++	if method == "" {
++		// We document that "" means "GET" for Request.Method, and people have
++		// relied on that from NewRequest, so keep that working.
++		// We still enforce validMethod for non-empty methods.
++		method = "GET"
++	}
+ 	if !validMethod(method) {
+ 		return nil, fmt.Errorf("net/http: invalid method %q", method)
+ 	}
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index a95a1d08c9..ddbf8418e1 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -370,6 +370,13 @@ func TestRequestInvalidMethod(t *testing.T) {
+ 	if err == nil || !strings.Contains(err.Error(), "invalid method") {
+ 		t.Errorf("Transport error = %v; want invalid method", err)
+ 	}
++
++	req, err = NewRequest("", "http://foo.com/", nil)
++	if err != nil {
++		t.Errorf("NewRequest(empty method) = %v; want nil", err)
++	} else if req.Method != "GET" {
++		t.Errorf("NewRequest(empty method) has method %q; want GET", req.Method)
++	}
+ }
+ 
+ func TestNewRequestContentLength(t *testing.T) {

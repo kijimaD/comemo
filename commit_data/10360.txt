@@ -21,7 +21,50 @@ Date:   Sun Nov 13 23:27:20 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5373083
-
+---
  src/pkg/html/parse.go      | 18 ++++++++++++++++++
  src/pkg/html/parse_test.go |  2 +-
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index d6505c6913..e8edcf956f 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -637,6 +637,24 @@ func inBodyIM(p *parser) bool {
+ 			}
+ 			p.popUntil(buttonScopeStopTags, "p")
+ 			p.addElement(p.tok.Data, p.tok.Attr)
++		case "dd", "dt":
++			p.framesetOK = false
++			for i := len(p.oe) - 1; i >= 0; i-- {
++				node := p.oe[i]
++				switch node.Data {
++				case "dd", "dt":
++					p.oe = p.oe[:i]
++				case "address", "div", "p":
++					continue
++				default:
++					if !isSpecialElement[node.Data] {
++						continue
++					}
++				}
++				break
++			}
++			p.popUntil(buttonScopeStopTags, "p")
++			p.addElement(p.tok.Data, p.tok.Attr)
+ 		case "optgroup", "option":
+ 			if p.top().Data == "option" {
+ 				p.oe.pop()
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 13c50a99bc..992f73b060 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -134,7 +134,7 @@ func TestParser(t *testing.T) {
+ 	}{
+ 		// TODO(nigeltao): Process all the test cases from all the .dat files.
+ 		{"tests1.dat", -1},
+-		{"tests2.dat", 0},
++		{"tests2.dat", 10},
+ 		{"tests3.dat", 0},
+ 	}
+ 	for _, tf := range testFiles {

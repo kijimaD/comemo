@@ -23,6 +23,21 @@ Date:   Thu Dec 17 15:35:49 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/18022
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mstkbar.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/mstkbar.go b/src/runtime/mstkbar.go
+index 6b4fc8d4a6..7d7235d259 100644
+--- a/src/runtime/mstkbar.go
++++ b/src/runtime/mstkbar.go
+@@ -305,7 +305,9 @@ func nextBarrierPC() uintptr {
+ //go:nosplit
+ func setNextBarrierPC(pc uintptr) {
+ 	gp := getg()
++	gcLockStackBarriers(gp)
+ 	gp.stkbar[gp.stkbarPos].savedLRVal = pc
++	gcUnlockStackBarriers(gp)
+ }
+ 
+ // gcLockStackBarriers synchronizes with tracebacks of gp's stack

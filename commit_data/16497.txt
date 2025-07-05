@@ -10,6 +10,24 @@ Date:   Wed Jun 5 10:18:06 2013 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/9900044
-
+---
  src/pkg/image/jpeg/reader.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/image/jpeg/reader.go b/src/pkg/image/jpeg/reader.go
+index 862d8dc1b2..356d56220a 100644
+--- a/src/pkg/image/jpeg/reader.go
++++ b/src/pkg/image/jpeg/reader.go
+@@ -174,10 +174,10 @@ func (d *decoder) processSOF(n int) error {
+ 		// values for the Cr and Cb components must be (1, 1).
+ 		if i == 0 {
+ 			if hv != 0x11 && hv != 0x21 && hv != 0x22 && hv != 0x12 {
+-				return UnsupportedError("luma downsample ratio")
++				return UnsupportedError("luma/chroma downsample ratio")
+ 			}
+ 		} else if hv != 0x11 {
+-			return UnsupportedError("chroma downsample ratio")
++			return UnsupportedError("luma/chroma downsample ratio")
+ 		}
+ 	}
+ 	return nil

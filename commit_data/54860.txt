@@ -20,7 +20,7 @@ Date:   Tue Apr 5 15:07:29 2022 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go         | 26 ++++++++++++-----------
  src/cmd/compile/internal/ssa/_gen/AMD64Ops.go | 16 +++++++-------
  src/cmd/compile/internal/ssa/_gen/main.go     |  4 ++++
@@ -31,3 +31,404 @@ Date:   Tue Apr 5 15:07:29 2022 -0700
  src/cmd/compile/internal/ssa/regalloc.go      | 30 +++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/value.go         | 30 ++++++++++++++++++---------
  9 files changed, 95 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 0a95aaabd7..5d62f4acd4 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -600,23 +600,23 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 	case ssa.OpAMD64CMOVQEQF, ssa.OpAMD64CMOVLEQF, ssa.OpAMD64CMOVWEQF:
+ 		// Flag condition: ZERO && !PARITY
+ 		// Generate:
+-		//   MOV      SRC,AX
+-		//   CMOV*NE  DST,AX
+-		//   CMOV*PC  AX,DST
++		//   MOV      SRC,TMP
++		//   CMOV*NE  DST,TMP
++		//   CMOV*PC  TMP,DST
+ 		//
+ 		// TODO(rasky): we could generate:
+ 		//   CMOV*NE  DST,SRC
+ 		//   CMOV*PC  SRC,DST
+ 		// But this requires a way for regalloc to know that SRC might be
+ 		// clobbered by this instruction.
+-		if v.Args[1].Reg() != x86.REG_AX {
+-			opregreg(s, moveByType(v.Type), x86.REG_AX, v.Args[1].Reg())
+-		}
++		t := v.RegTmp()
++		opregreg(s, moveByType(v.Type), t, v.Args[1].Reg())
++
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Reg()
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = x86.REG_AX
++		p.To.Reg = t
+ 		var q *obj.Prog
+ 		if v.Op == ssa.OpAMD64CMOVQEQF {
+ 			q = s.Prog(x86.ACMOVQPC)
+@@ -626,7 +626,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			q = s.Prog(x86.ACMOVWPC)
+ 		}
+ 		q.From.Type = obj.TYPE_REG
+-		q.From.Reg = x86.REG_AX
++		q.From.Reg = t
+ 		q.To.Type = obj.TYPE_REG
+ 		q.To.Reg = v.Reg()
+ 
+@@ -1194,24 +1194,26 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssagen.AddAux(&p.To, v)
+ 
+ 	case ssa.OpAMD64SETNEF:
++		t := v.RegTmp()
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 		q := s.Prog(x86.ASETPS)
+ 		q.To.Type = obj.TYPE_REG
+-		q.To.Reg = x86.REG_AX
++		q.To.Reg = t
+ 		// ORL avoids partial register write and is smaller than ORQ, used by old compiler
+-		opregreg(s, x86.AORL, v.Reg(), x86.REG_AX)
++		opregreg(s, x86.AORL, v.Reg(), t)
+ 
+ 	case ssa.OpAMD64SETEQF:
++		t := v.RegTmp()
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 		q := s.Prog(x86.ASETPC)
+ 		q.To.Type = obj.TYPE_REG
+-		q.To.Reg = x86.REG_AX
++		q.To.Reg = t
+ 		// ANDL avoids partial register write and is smaller than ANDQ, used by old compiler
+-		opregreg(s, x86.AANDL, v.Reg(), x86.REG_AX)
++		opregreg(s, x86.AANDL, v.Reg(), t)
+ 
+ 	case ssa.OpAMD64InvertFlags:
+ 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+index 75c5ab643f..d5489f2675 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+@@ -136,13 +136,11 @@ func init() {
+ 		gp1flags1flags = regInfo{inputs: []regMask{gp, 0}, outputs: []regMask{gp, 0}}
+ 
+ 		readflags = regInfo{inputs: nil, outputs: gponly}
+-		flagsgpax = regInfo{inputs: nil, clobbers: ax, outputs: []regMask{gp &^ ax}}
+ 
+ 		gpload         = regInfo{inputs: []regMask{gpspsbg, 0}, outputs: gponly}
+ 		gp21load       = regInfo{inputs: []regMask{gp, gpspsbg, 0}, outputs: gponly}
+ 		gploadidx      = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}, outputs: gponly}
+ 		gp21loadidx    = regInfo{inputs: []regMask{gp, gpspsbg, gpsp, 0}, outputs: gponly}
+-		gp21pax        = regInfo{inputs: []regMask{gp &^ ax, gp}, outputs: []regMask{gp &^ ax}, clobbers: ax}
+ 		gp21shxload    = regInfo{inputs: []regMask{gpspsbg, gp, 0}, outputs: gponly}
+ 		gp21shxloadidx = regInfo{inputs: []regMask{gpspsbg, gpsp, gp, 0}, outputs: gponly}
+ 
+@@ -563,15 +561,15 @@ func init() {
+ 		// InvertFlags correctly, and to generate special code that handles NaN (unordered flag).
+ 		// NOTE: the fact that CMOV*EQF here is marked to generate CMOV*NE is not a bug. See
+ 		// code generation in amd64/ssa.go.
+-		{name: "CMOVQEQF", argLength: 3, reg: gp21pax, asm: "CMOVQNE", resultInArg0: true},
++		{name: "CMOVQEQF", argLength: 3, reg: gp21, asm: "CMOVQNE", resultInArg0: true, needIntTemp: true},
+ 		{name: "CMOVQNEF", argLength: 3, reg: gp21, asm: "CMOVQNE", resultInArg0: true},
+ 		{name: "CMOVQGTF", argLength: 3, reg: gp21, asm: "CMOVQHI", resultInArg0: true},
+ 		{name: "CMOVQGEF", argLength: 3, reg: gp21, asm: "CMOVQCC", resultInArg0: true},
+-		{name: "CMOVLEQF", argLength: 3, reg: gp21pax, asm: "CMOVLNE", resultInArg0: true},
++		{name: "CMOVLEQF", argLength: 3, reg: gp21, asm: "CMOVLNE", resultInArg0: true, needIntTemp: true},
+ 		{name: "CMOVLNEF", argLength: 3, reg: gp21, asm: "CMOVLNE", resultInArg0: true},
+ 		{name: "CMOVLGTF", argLength: 3, reg: gp21, asm: "CMOVLHI", resultInArg0: true},
+ 		{name: "CMOVLGEF", argLength: 3, reg: gp21, asm: "CMOVLCC", resultInArg0: true},
+-		{name: "CMOVWEQF", argLength: 3, reg: gp21pax, asm: "CMOVWNE", resultInArg0: true},
++		{name: "CMOVWEQF", argLength: 3, reg: gp21, asm: "CMOVWNE", resultInArg0: true, needIntTemp: true},
+ 		{name: "CMOVWNEF", argLength: 3, reg: gp21, asm: "CMOVWNE", resultInArg0: true},
+ 		{name: "CMOVWGTF", argLength: 3, reg: gp21, asm: "CMOVWHI", resultInArg0: true},
+ 		{name: "CMOVWGEF", argLength: 3, reg: gp21, asm: "CMOVWCC", resultInArg0: true},
+@@ -624,10 +622,10 @@ func init() {
+ 		// Need different opcodes for floating point conditions because
+ 		// any comparison involving a NaN is always FALSE and thus
+ 		// the patterns for inverting conditions cannot be used.
+-		{name: "SETEQF", argLength: 1, reg: flagsgpax, asm: "SETEQ", clobberFlags: true}, // extract == condition from arg0
+-		{name: "SETNEF", argLength: 1, reg: flagsgpax, asm: "SETNE", clobberFlags: true}, // extract != condition from arg0
+-		{name: "SETORD", argLength: 1, reg: flagsgp, asm: "SETPC"},                       // extract "ordered" (No Nan present) condition from arg0
+-		{name: "SETNAN", argLength: 1, reg: flagsgp, asm: "SETPS"},                       // extract "unordered" (Nan present) condition from arg0
++		{name: "SETEQF", argLength: 1, reg: flagsgp, asm: "SETEQ", clobberFlags: true, needIntTemp: true}, // extract == condition from arg0
++		{name: "SETNEF", argLength: 1, reg: flagsgp, asm: "SETNE", clobberFlags: true, needIntTemp: true}, // extract != condition from arg0
++		{name: "SETORD", argLength: 1, reg: flagsgp, asm: "SETPC"},                                        // extract "ordered" (No Nan present) condition from arg0
++		{name: "SETNAN", argLength: 1, reg: flagsgp, asm: "SETPS"},                                        // extract "unordered" (Nan present) condition from arg0
+ 
+ 		{name: "SETGF", argLength: 1, reg: flagsgp, asm: "SETHI"},  // extract floating > condition from arg0
+ 		{name: "SETGEF", argLength: 1, reg: flagsgp, asm: "SETCC"}, // extract floating >= condition from arg0
+diff --git a/src/cmd/compile/internal/ssa/_gen/main.go b/src/cmd/compile/internal/ssa/_gen/main.go
+index f37438796c..9251ba5d2d 100644
+--- a/src/cmd/compile/internal/ssa/_gen/main.go
++++ b/src/cmd/compile/internal/ssa/_gen/main.go
+@@ -59,6 +59,7 @@ type opData struct {
+ 	resultInArg0      bool   // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
+ 	resultNotInArgs   bool   // outputs must not be allocated to the same registers as inputs
+ 	clobberFlags      bool   // this op clobbers flags register
++	needIntTemp       bool   // need a temporary free integer register
+ 	call              bool   // is a function call
+ 	tailCall          bool   // is a tail call
+ 	nilCheck          bool   // this op is a nil check on arg0
+@@ -304,6 +305,9 @@ func genOp() {
+ 			if v.clobberFlags {
+ 				fmt.Fprintln(w, "clobberFlags: true,")
+ 			}
++			if v.needIntTemp {
++				fmt.Fprintln(w, "needIntTemp: true,")
++			}
+ 			if v.call {
+ 				fmt.Fprintln(w, "call: true,")
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index c988461a40..281f04ddae 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -46,6 +46,9 @@ type Func struct {
+ 	// when register allocation is done, maps value ids to locations
+ 	RegAlloc []Location
+ 
++	// temporary registers allocated to rare instructions
++	tempRegs map[ID]*Register
++
+ 	// map from LocalSlot to set of Values that we want to store in that slot.
+ 	NamedValues map[LocalSlot][]*Value
+ 	// Names is a copy of NamedValues.Keys. We keep a separate list
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index c3950697d3..7e5a097d7d 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -994,6 +994,9 @@ func (v *Value) LongHTML() string {
+ 	if int(v.ID) < len(r) && r[v.ID] != nil {
+ 		s += " : " + html.EscapeString(r[v.ID].String())
+ 	}
++	if reg := v.Block.Func.tempRegs[v.ID]; reg != nil {
++		s += " tmp=" + reg.String()
++	}
+ 	var names []string
+ 	for name, values := range v.Block.Func.NamedValues {
+ 		for _, value := range values {
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index fed25794e3..9157733cfc 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -33,6 +33,7 @@ type opInfo struct {
+ 	resultInArg0      bool      // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
+ 	resultNotInArgs   bool      // outputs must not be allocated to the same registers as inputs
+ 	clobberFlags      bool      // this op clobbers flags register
++	needIntTemp       bool      // need a temporary free integer register
+ 	call              bool      // is a function call
+ 	tailCall          bool      // is a tail call
+ 	nilCheck          bool      // this op is a nil check on arg0
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 9fb751535d..407ecbb250 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -11565,15 +11565,15 @@ var opcodeTable = [...]opInfo{
+ 		name:         "CMOVQEQF",
+ 		argLen:       3,
+ 		resultInArg0: true,
++		needIntTemp:  true,
+ 		asm:          x86.ACMOVQNE,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+ 				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+ 			},
+-			clobbers: 1, // AX
+ 			outputs: []outputInfo{
+-				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+ 			},
+ 		},
+ 	},
+@@ -11626,15 +11626,15 @@ var opcodeTable = [...]opInfo{
+ 		name:         "CMOVLEQF",
+ 		argLen:       3,
+ 		resultInArg0: true,
++		needIntTemp:  true,
+ 		asm:          x86.ACMOVLNE,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+ 				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+ 			},
+-			clobbers: 1, // AX
+ 			outputs: []outputInfo{
+-				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+ 			},
+ 		},
+ 	},
+@@ -11687,15 +11687,15 @@ var opcodeTable = [...]opInfo{
+ 		name:         "CMOVWEQF",
+ 		argLen:       3,
+ 		resultInArg0: true,
++		needIntTemp:  true,
+ 		asm:          x86.ACMOVWNE,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+ 				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+ 			},
+-			clobbers: 1, // AX
+ 			outputs: []outputInfo{
+-				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+ 			},
+ 		},
+ 	},
+@@ -12120,11 +12120,11 @@ var opcodeTable = [...]opInfo{
+ 		name:         "SETEQF",
+ 		argLen:       1,
+ 		clobberFlags: true,
++		needIntTemp:  true,
+ 		asm:          x86.ASETEQ,
+ 		reg: regInfo{
+-			clobbers: 1, // AX
+ 			outputs: []outputInfo{
+-				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+ 			},
+ 		},
+ 	},
+@@ -12132,11 +12132,11 @@ var opcodeTable = [...]opInfo{
+ 		name:         "SETNEF",
+ 		argLen:       1,
+ 		clobberFlags: true,
++		needIntTemp:  true,
+ 		asm:          x86.ASETNE,
+ 		reg: regInfo{
+-			clobbers: 1, // AX
+ 			outputs: []outputInfo{
+-				{0, 49134}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+ 			},
+ 		},
+ 	},
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 7c339512ce..3cfe7330d1 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -852,6 +852,9 @@ func (s *regAllocState) isGReg(r register) bool {
+ 	return s.f.Config.hasGReg && s.GReg == r
+ }
+ 
++// Dummy value used to represent the value being held in a temporary register.
++var tmpVal Value
++
+ func (s *regAllocState) regalloc(f *Func) {
+ 	regValLiveSet := f.newSparseSet(f.NumValues()) // set of values that may be live in register
+ 	defer f.retSparseSet(regValLiveSet)
+@@ -1266,6 +1269,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 
+ 		// Process all the non-phi values.
+ 		for idx, v := range oldSched {
++			tmpReg := noRegister
+ 			if s.f.pass.debug > regDebug {
+ 				fmt.Printf("  processing %s\n", v.LongString())
+ 			}
+@@ -1550,6 +1554,20 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			}
+ 
+ 		ok:
++			// Pick a temporary register if needed.
++			// It should be distinct from all the input registers, so we
++			// allocate it after all the input registers, but before
++			// the input registers are freed via advanceUses below.
++			// (Not all instructions need that distinct part, but it is conservative.)
++			if opcodeTable[v.Op].needIntTemp {
++				m := s.allocatable & s.f.Config.gpRegMask
++				if m&^desired.avoid != 0 {
++					m &^= desired.avoid
++				}
++				tmpReg = s.allocReg(m, &tmpVal)
++				s.nospill |= regMask(1) << tmpReg
++			}
++
+ 			// Now that all args are in regs, we're ready to issue the value itself.
+ 			// Before we pick a register for the output value, allow input registers
+ 			// to be deallocated. We do this here so that the output can use the
+@@ -1574,6 +1592,11 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				outRegs := noRegisters // TODO if this is costly, hoist and clear incrementally below.
+ 				maxOutIdx := -1
+ 				var used regMask
++				if tmpReg != noRegister {
++					// Ensure output registers are distinct from the temporary register.
++					// (Not all instructions need that distinct part, but it is conservative.)
++					used |= regMask(1) << tmpReg
++				}
+ 				for _, out := range regspec.outputs {
+ 					mask := out.regs & s.allocatable &^ used
+ 					if mask == 0 {
+@@ -1655,6 +1678,13 @@ func (s *regAllocState) regalloc(f *Func) {
+ 						s.assignReg(r, v, v)
+ 					}
+ 				}
++				if tmpReg != noRegister {
++					// Remember the temp register allocation, if any.
++					if s.f.tempRegs == nil {
++						s.f.tempRegs = map[ID]*Register{}
++					}
++					s.f.tempRegs[v.ID] = &s.registers[tmpReg]
++				}
+ 			}
+ 
+ 			// deallocate dead args, if we have not done so
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 9f2f4689e7..643fa36e25 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -148,21 +148,22 @@ func (v *Value) LongString() string {
+ 	for _, a := range v.Args {
+ 		s += fmt.Sprintf(" %v", a)
+ 	}
+-	var r []Location
+-	if v.Block != nil {
+-		r = v.Block.Func.RegAlloc
++	if v.Block == nil {
++		return s
+ 	}
++	r := v.Block.Func.RegAlloc
+ 	if int(v.ID) < len(r) && r[v.ID] != nil {
+ 		s += " : " + r[v.ID].String()
+ 	}
++	if reg := v.Block.Func.tempRegs[v.ID]; reg != nil {
++		s += " tmp=" + reg.String()
++	}
+ 	var names []string
+-	if v.Block != nil {
+-		for name, values := range v.Block.Func.NamedValues {
+-			for _, value := range values {
+-				if value == v {
+-					names = append(names, name.String())
+-					break // drop duplicates.
+-				}
++	for name, values := range v.Block.Func.NamedValues {
++		for _, value := range values {
++			if value == v {
++				names = append(names, name.String())
++				break // drop duplicates.
+ 			}
+ 		}
+ 	}
+@@ -488,6 +489,15 @@ func (v *Value) Reg1() int16 {
+ 	return reg.(*Register).objNum
+ }
+ 
++// RegTmp returns the temporary register assigned to v, in cmd/internal/obj/$ARCH numbering.
++func (v *Value) RegTmp() int16 {
++	reg := v.Block.Func.tempRegs[v.ID]
++	if reg == nil {
++		v.Fatalf("nil tmp register for value: %s\n%s\n", v.LongString(), v.Block.Func)
++	}
++	return reg.objNum
++}
++
+ func (v *Value) RegName() string {
+ 	reg := v.Block.Func.RegAlloc[v.ID]
+ 	if reg == nil {

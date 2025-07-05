@@ -18,7 +18,7 @@ Date:   Mon Jun 5 11:19:03 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/500915
     TryBot-Bypass: Russ Cox <rsc@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/alldocs.go                              |   9 +-
  src/cmd/go/internal/base/base.go                   |  14 +++
  src/cmd/go/internal/base/flag.go                   |  10 +-
@@ -28,3 +28,356 @@ Date:   Mon Jun 5 11:19:03 2023 -0400
  src/cmd/go/testdata/script/chdir.txt               |  10 +-
  .../go/testdata/script/mod_get_exec_toolchain.txt  |  15 +++
  8 files changed, 140 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 05ee094ea7..ccf5605a63 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -104,6 +104,7 @@
+ //		Change to dir before running the command.
+ //		Any files named on the command line are interpreted after
+ //		changing directories.
++//		If used, this flag must be the first one in the command line.
+ //	-a
+ //		force rebuilding of packages that are already up-to-date.
+ //	-n
+@@ -1865,7 +1866,7 @@
+ //
+ // Usage:
+ //
+-//	go vet [-C dir] [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]
++//	go vet [build flags] [-vettool prog] [vet flags] [packages]
+ //
+ // Vet runs the Go vet command on the packages named by the import paths.
+ //
+@@ -1874,10 +1875,6 @@
+ // For a list of checkers and their flags, see 'go tool vet help'.
+ // For details of a specific checker such as 'printf', see 'go tool vet help printf'.
+ //
+-// The -C flag changes to dir before running the 'go vet' command.
+-// The -n flag prints commands that would be executed.
+-// The -x flag prints commands as they are executed.
+-//
+ // The -vettool=prog flag selects a different analysis tool with alternative
+ // or additional checks.
+ // For example, the 'shadow' analyzer can be built and run using these commands:
+@@ -1886,7 +1883,7 @@
+ //	go vet -vettool=$(which shadow)
+ //
+ // The build flags supported by go vet are those that control package resolution
+-// and execution, such as -n, -x, -v, -tags, and -toolexec.
++// and execution, such as -C, -n, -x, -v, -tags, and -toolexec.
+ // For more about these flags, see 'go help build'.
+ //
+ // See also: go fmt, go fix.
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index f3774ae2f0..2171d13909 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -57,6 +57,20 @@ var Go = &Command{
+ 	// Commands initialized in package main
+ }
+ 
++// Lookup returns the subcommand with the given name, if any.
++// Otherwise it returns nil.
++//
++// Lookup ignores subcommands that have len(c.Commands) == 0 and c.Run == nil.
++// Such subcommands are only for use as arguments to "help".
++func (c *Command) Lookup(name string) *Command {
++	for _, sub := range c.Commands {
++		if sub.Name() == name && (len(c.Commands) > 0 || c.Runnable()) {
++			return sub
++		}
++	}
++	return nil
++}
++
+ // hasFlag reports whether a command or any of its subcommands contain the given
+ // flag.
+ func hasFlag(c *Command, name string) bool {
+diff --git a/src/cmd/go/internal/base/flag.go b/src/cmd/go/internal/base/flag.go
+index 9d8d1c0c8d..74e1275cfd 100644
+--- a/src/cmd/go/internal/base/flag.go
++++ b/src/cmd/go/internal/base/flag.go
+@@ -6,7 +6,7 @@ package base
+ 
+ import (
+ 	"flag"
+-	"os"
++	"fmt"
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+@@ -62,7 +62,7 @@ func AddBuildFlagsNX(flags *flag.FlagSet) {
+ func AddChdirFlag(flags *flag.FlagSet) {
+ 	// The usage message is never printed, but it's used in chdir_test.go
+ 	// to identify that the -C flag is from AddChdirFlag.
+-	flags.Func("C", "AddChdirFlag", os.Chdir)
++	flags.Func("C", "AddChdirFlag", ChdirFlag)
+ }
+ 
+ // AddModFlag adds the -mod build flag to the flag set.
+@@ -77,3 +77,9 @@ func AddModCommonFlags(flags *flag.FlagSet) {
+ 	flags.StringVar(&cfg.ModFile, "modfile", "", "")
+ 	flags.StringVar(&fsys.OverlayFile, "overlay", "", "")
+ }
++
++func ChdirFlag(s string) error {
++	// main handles -C by removing it from the command line.
++	// If we see one during flag parsing, that's an error.
++	return fmt.Errorf("-C flag must be first flag on command line")
++}
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index f59994c7c9..2d42097120 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -25,7 +25,7 @@ func init() {
+ 
+ var CmdVet = &base.Command{
+ 	CustomFlags: true,
+-	UsageLine:   "go vet [-C dir] [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]",
++	UsageLine:   "go vet [build flags] [-vettool prog] [vet flags] [packages]",
+ 	Short:       "report likely mistakes in packages",
+ 	Long: `
+ Vet runs the Go vet command on the packages named by the import paths.
+@@ -35,10 +35,6 @@ For more about specifying packages, see 'go help packages'.
+ For a list of checkers and their flags, see 'go tool vet help'.
+ For details of a specific checker such as 'printf', see 'go tool vet help printf'.
+ 
+-The -C flag changes to dir before running the 'go vet' command.
+-The -n flag prints commands that would be executed.
+-The -x flag prints commands as they are executed.
+-
+ The -vettool=prog flag selects a different analysis tool with alternative
+ or additional checks.
+ For example, the 'shadow' analyzer can be built and run using these commands:
+@@ -47,7 +43,7 @@ For example, the 'shadow' analyzer can be built and run using these commands:
+   go vet -vettool=$(which shadow)
+ 
+ The build flags supported by go vet are those that control package resolution
+-and execution, such as -n, -x, -v, -tags, and -toolexec.
++and execution, such as -C, -n, -x, -v, -tags, and -toolexec.
+ For more about these flags, see 'go help build'.
+ 
+ See also: go fmt, go fix.
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index e39e499930..e2e0e07299 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -61,6 +61,7 @@ and test commands:
+ 		Change to dir before running the command.
+ 		Any files named on the command line are interpreted after
+ 		changing directories.
++		If used, this flag must be the first one in the command line.
+ 	-a
+ 		force rebuilding of packages that are already up-to-date.
+ 	-n
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index d050792998..00b0a2b78b 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -18,6 +18,7 @@ import (
+ 	"path/filepath"
+ 	"runtime"
+ 	rtrace "runtime/trace"
++	"slices"
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
+@@ -92,6 +93,7 @@ var _ = go11tag
+ 
+ func main() {
+ 	log.SetFlags(0)
++	handleChdirFlag()
+ 	toolchain.Select()
+ 
+ 	flag.Usage = base.Usage
+@@ -156,43 +158,61 @@ func main() {
+ 		os.Exit(2)
+ 	}
+ 
+-BigCmdLoop:
+-	for bigCmd := base.Go; ; {
+-		for _, cmd := range bigCmd.Commands {
+-			if cmd.Name() != args[0] {
+-				continue
+-			}
+-			if len(cmd.Commands) > 0 {
+-				bigCmd = cmd
+-				args = args[1:]
+-				if len(args) == 0 {
+-					help.PrintUsage(os.Stderr, bigCmd)
+-					base.SetExitStatus(2)
+-					base.Exit()
+-				}
+-				if args[0] == "help" {
+-					// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
+-					help.Help(os.Stdout, append(strings.Split(cfg.CmdName, " "), args[1:]...))
+-					return
+-				}
+-				cfg.CmdName += " " + args[0]
+-				continue BigCmdLoop
+-			}
+-			if !cmd.Runnable() {
+-				continue
+-			}
+-			invoke(cmd, args)
++	cmd, used := lookupCmd(args)
++	cfg.CmdName = strings.Join(args[:used], " ")
++	if len(cmd.Commands) > 0 {
++		if used >= len(args) {
++			help.PrintUsage(os.Stderr, cmd)
++			base.SetExitStatus(2)
++			base.Exit()
++		}
++		if args[used] == "help" {
++			// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
++			help.Help(os.Stdout, append(slices.Clip(args[:used]), args[used+1:]...))
+ 			base.Exit()
+-			return
+ 		}
+ 		helpArg := ""
+-		if i := strings.LastIndex(cfg.CmdName, " "); i >= 0 {
+-			helpArg = " " + cfg.CmdName[:i]
++		if used > 0 {
++			helpArg += " " + strings.Join(args[:used], " ")
+ 		}
+ 		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cfg.CmdName, helpArg)
+ 		base.SetExitStatus(2)
+ 		base.Exit()
+ 	}
++	invoke(cmd, args[used-1:])
++	base.Exit()
++}
++
++// lookupCmd interprets the initial elements of args
++// to find a command to run (cmd.Runnable() == true)
++// or else a command group that ran out of arguments
++// or had an unknown subcommand (len(cmd.Commands) > 0).
++// It returns that command and the number of elements of args
++// that it took to arrive at that command.
++func lookupCmd(args []string) (cmd *base.Command, used int) {
++	cmd = base.Go
++	for used < len(args) {
++		c := cmd.Lookup(args[used])
++		if c == nil {
++			break
++		}
++		if c.Runnable() {
++			cmd = c
++			used++
++			break
++		}
++		if len(c.Commands) > 0 {
++			cmd = c
++			used++
++			if used >= len(args) || args[0] == "help" {
++				break
++			}
++			continue
++		}
++		// len(c.Commands) == 0 && !c.Runnable() => help text; stop at "help"
++		break
++	}
++	return cmd, used
+ }
+ 
+ func invoke(cmd *base.Command, args []string) {
+@@ -271,3 +291,44 @@ func maybeStartTrace(pctx context.Context) context.Context {
+ 
+ 	return ctx
+ }
++
++// handleChdirFlag handles the -C flag before doing anything else.
++// The -C flag must be the first flag on the command line, to make it easy to find
++// even with commands that have custom flag parsing.
++// handleChdirFlag handles the flag by chdir'ing to the directory
++// and then removing that flag from the command line entirely.
++//
++// We have to handle the -C flag this way for two reasons:
++//
++//   1. Toolchain selection needs to be in the right directory to look for go.mod and go.work.
++//
++//   2. A toolchain switch later on reinvokes the new go command with the same arguments.
++//      The parent toolchain has already done the chdir; the child must not try to do it again.
++func handleChdirFlag() {
++	_, used := lookupCmd(os.Args[1:])
++	used++ // because of [1:]
++	if used >= len(os.Args) {
++		return
++	}
++
++	var dir string
++	switch a := os.Args[used]; {
++	default:
++		return
++
++	case a == "-C", a == "--C":
++		if used+1 >= len(os.Args) {
++			return
++		}
++		dir = os.Args[used+1]
++		os.Args = slices.Delete(os.Args, used, used+2)
++
++	case strings.HasPrefix(a, "-C="), strings.HasPrefix(a, "--C="):
++		_, dir, _ = strings.Cut(a, "=")
++		os.Args = slices.Delete(os.Args, used, used+1)
++	}
++
++	if err := os.Chdir(dir); err != nil {
++		base.Fatalf("go: %v", err)
++	}
++}
+diff --git a/src/cmd/go/testdata/script/chdir.txt b/src/cmd/go/testdata/script/chdir.txt
+index 8952d18a72..a6feed6b45 100644
+--- a/src/cmd/go/testdata/script/chdir.txt
++++ b/src/cmd/go/testdata/script/chdir.txt
+@@ -17,15 +17,19 @@ go doc -C ../strings HasPrefix
+ go env -C $OLD/custom GOMOD
+ stdout 'custom[\\/]go.mod'
+ ! go env -C ../nonexist
+-stderr '^invalid value "../nonexist" for flag -C: chdir ../nonexist:.*$'
++stderr '^go: chdir ../nonexist: '
+ 
+ # go test
+-go test -n -C ../strings
++go test -C ../strings -n
+ stderr 'strings\.test'
+ 
+ # go vet
+-go vet -n -C ../strings
++go vet -C ../strings -n
+ stderr strings_test
+ 
++# -C must be first on command line (as of Go 1.21)
++! go test -n -C ../strings
++stderr '^invalid value "../strings" for flag -C: -C flag must be first flag on command line$'
++
+ -- custom/go.mod --
+ module m
+diff --git a/src/cmd/go/testdata/script/mod_get_exec_toolchain.txt b/src/cmd/go/testdata/script/mod_get_exec_toolchain.txt
+index f78d517c87..497fe36f40 100644
+--- a/src/cmd/go/testdata/script/mod_get_exec_toolchain.txt
++++ b/src/cmd/go/testdata/script/mod_get_exec_toolchain.txt
+@@ -122,6 +122,21 @@ stderr '^go: rsc.io/needgo124@v0.0.1 requires go >= 1.24; switching to go1.24rc1
+ stderr '^go: upgraded go 1.1 => 1.24$'
+ stderr '^go: added toolchain go1.24rc1$'
+ 
++# The -C flag should not happen more than once due to switching.
++mkdir dir dir/dir
++cp go.mod.new go.mod
++cp go.mod.new dir/go.mod
++cp go.mod.new dir/dir/go.mod
++cp p.go dir/p.go
++cp p.go dir/dir/p.go
++go get -C dir rsc.io/needgo124
++stderr '^go: rsc.io/needgo124@v0.0.1 requires go >= 1.24; switching to go1.24rc1$'
++stderr '^go: upgraded go 1.1 => 1.24$'
++stderr '^go: added toolchain go1.24rc1$'
++cmp go.mod.new go.mod
++cmp go.mod.new dir/dir/go.mod
++grep 'go 1.24$' dir/go.mod
++
+ -- go.mod.new --
+ module m
+ go 1.1

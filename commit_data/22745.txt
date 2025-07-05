@@ -12,10 +12,131 @@ Date:   Tue Apr 7 11:42:45 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/8527
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  misc/cgo/testso/cgoso.c   |  5 -----
  misc/cgo/testso/cgoso.go  | 19 -------------------
  misc/cgo/testso/cgoso_c.c |  4 ----
  misc/cgo/testso/cgoso_c.h | 17 -----------------
  misc/cgo/testso/test.bat  |  2 +-
  5 files changed, 1 insertion(+), 46 deletions(-)
+
+diff --git a/misc/cgo/testso/cgoso.c b/misc/cgo/testso/cgoso.c
+index 5882b4a7be..917f472d36 100644
+--- a/misc/cgo/testso/cgoso.c
++++ b/misc/cgo/testso/cgoso.c
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "cgoso_c.h"
+ #include "_cgo_export.h"
+ 
+ #ifdef WIN32
+@@ -13,7 +12,3 @@ void init() {
+ #else
+ void init() {}
+ #endif
+-
+-const char* getVar() {
+-    return exported_var;
+-}
+diff --git a/misc/cgo/testso/cgoso.go b/misc/cgo/testso/cgoso.go
+index 36f1dcdad2..ba6218348c 100644
+--- a/misc/cgo/testso/cgoso.go
++++ b/misc/cgo/testso/cgoso.go
+@@ -5,7 +5,6 @@
+ package cgosotest
+ 
+ /*
+-#cgo windows CFLAGS: -DIMPORT_DLL
+ // intentionally write the same LDFLAGS differently
+ // to test correct handling of LDFLAGS.
+ #cgo linux LDFLAGS: -L. -lcgosotest
+@@ -16,32 +15,14 @@ package cgosotest
+ #cgo darwin LDFLAGS: -L. libcgosotest.dylib
+ #cgo windows LDFLAGS: -L. libcgosotest.dll
+ 
+-#include "cgoso_c.h"
+-
+ void init(void);
+ void sofunc(void);
+-const char* getVar(void);
+ */
+ import "C"
+ 
+-import "fmt"
+-
+ func Test() {
+ 	C.init()
+ 	C.sofunc()
+-	testExportedVar()
+-}
+-
+-func testExportedVar() {
+-	const want = "Hello world"
+-	got := C.GoString(C.getVar())
+-	if got != want {
+-		panic(fmt.Sprintf("testExportedVar: got %q, but want %q", got, want))
+-	}
+-	got = C.GoString(C.exported_var)
+-	if got != want {
+-		panic(fmt.Sprintf("testExportedVar: got %q, but want %q", got, want))
+-	}
+ }
+ 
+ //export goCallback
+diff --git a/misc/cgo/testso/cgoso_c.c b/misc/cgo/testso/cgoso_c.c
+index 9c4538498e..7a38022b54 100644
+--- a/misc/cgo/testso/cgoso_c.c
++++ b/misc/cgo/testso/cgoso_c.c
+@@ -4,8 +4,6 @@
+ 
+ // +build ignore
+ 
+-#include "cgoso_c.h"
+-
+ #ifdef WIN32
+ // A Windows DLL is unable to call an arbitrary function in
+ // the main executable. Work around that by making the main
+@@ -30,5 +28,3 @@ void sofunc(void)
+ {
+ 	goCallback();
+ }
+-
+-const char *exported_var = "Hello world";
+diff --git a/misc/cgo/testso/cgoso_c.h b/misc/cgo/testso/cgoso_c.h
+deleted file mode 100644
+index 45073c6a1f..0000000000
+--- a/misc/cgo/testso/cgoso_c.h
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-#ifdef WIN32
+-#if defined(EXPORT_DLL)
+-#    define VAR __declspec(dllexport)
+-#elif defined(IMPORT_DLL)
+-#    define VAR __declspec(dllimport)
+-#endif
+-#else
+-#    define VAR
+-#endif
+-
+-VAR const char *exported_var;
+diff --git a/misc/cgo/testso/test.bat b/misc/cgo/testso/test.bat
+index a5d19dee6f..7bbabea6b9 100644
+--- a/misc/cgo/testso/test.bat
++++ b/misc/cgo/testso/test.bat
+@@ -4,7 +4,7 @@
+ 
+ @echo off
+ 
+-gcc -c cgoso_c.c -DEXPORT_DLL
++gcc -c cgoso_c.c
+ gcc -shared -o libcgosotest.dll cgoso_c.o
+ if not exist libcgosotest.dll goto fail
+ go build main.go

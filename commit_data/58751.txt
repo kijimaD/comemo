@@ -47,7 +47,7 @@ Date:   Wed Dec 6 13:29:03 2023 -0500
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/pgo/irgraph.go    | 15 ++++---
  src/internal/profile/encode.go             |  3 --
  src/internal/profile/profile.go            | 17 ++++++--
@@ -56,3 +56,299 @@ Date:   Wed Dec 6 13:29:03 2023 -0500
  src/net/http/pprof/testdata/delta_mutex.go | 43 ++++++++++++++++++++
  src/runtime/pprof/proto_test.go            | 10 +++--
  7 files changed, 136 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index 54ac650272..96485e33ab 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -46,6 +46,7 @@ import (
+ 	"cmd/compile/internal/pgo/internal/graph"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"errors"
+ 	"fmt"
+ 	"internal/profile"
+ 	"os"
+@@ -145,18 +146,22 @@ func New(profileFile string) (*Profile, error) {
+ 		return nil, fmt.Errorf("error opening profile: %w", err)
+ 	}
+ 	defer f.Close()
+-	profile, err := profile.Parse(f)
+-	if err != nil {
++	p, err := profile.Parse(f)
++	if errors.Is(err, profile.ErrNoData) {
++		// Treat a completely empty file the same as a profile with no
++		// samples: nothing to do.
++		return nil, nil
++	} else if err != nil {
+ 		return nil, fmt.Errorf("error parsing profile: %w", err)
+ 	}
+ 
+-	if len(profile.Sample) == 0 {
++	if len(p.Sample) == 0 {
+ 		// We accept empty profiles, but there is nothing to do.
+ 		return nil, nil
+ 	}
+ 
+ 	valueIndex := -1
+-	for i, s := range profile.SampleType {
++	for i, s := range p.SampleType {
+ 		// Samples count is the raw data collected, and CPU nanoseconds is just
+ 		// a scaled version of it, so either one we can find is fine.
+ 		if (s.Type == "samples" && s.Unit == "count") ||
+@@ -170,7 +175,7 @@ func New(profileFile string) (*Profile, error) {
+ 		return nil, fmt.Errorf(`profile does not contain a sample index with value/type "samples/count" or cpu/nanoseconds"`)
+ 	}
+ 
+-	g := graph.NewGraph(profile, &graph.Options{
++	g := graph.NewGraph(p, &graph.Options{
+ 		SampleValue: func(v []int64) int64 { return v[valueIndex] },
+ 	})
+ 
+diff --git a/src/internal/profile/encode.go b/src/internal/profile/encode.go
+index 72d6fe2fa7..94d04bf094 100644
+--- a/src/internal/profile/encode.go
++++ b/src/internal/profile/encode.go
+@@ -207,9 +207,6 @@ var profileDecoder = []decoder{
+ // suffix X) and populates the corresponding exported fields.
+ // The unexported fields are cleared up to facilitate testing.
+ func (p *Profile) postDecode() error {
+-	if p.Empty() {
+-		return nil
+-	}
+ 	var err error
+ 
+ 	mappings := make(map[uint64]*Mapping)
+diff --git a/src/internal/profile/profile.go b/src/internal/profile/profile.go
+index c779bb2b11..02d1bed3de 100644
+--- a/src/internal/profile/profile.go
++++ b/src/internal/profile/profile.go
+@@ -141,10 +141,14 @@ func Parse(r io.Reader) (*Profile, error) {
+ 		}
+ 		orig = data
+ 	}
+-	if p, err = parseUncompressed(orig); err != nil {
+-		if p, err = parseLegacy(orig); err != nil {
+-			return nil, fmt.Errorf("parsing profile: %v", err)
+-		}
++
++	var lErr error
++	p, pErr := parseUncompressed(orig)
++	if pErr != nil {
++		p, lErr = parseLegacy(orig)
++	}
++	if pErr != nil && lErr != nil {
++		return nil, fmt.Errorf("parsing profile: not a valid proto profile (%w) or legacy profile (%w)", pErr, lErr)
+ 	}
+ 
+ 	if err := p.CheckValid(); err != nil {
+@@ -155,6 +159,7 @@ func Parse(r io.Reader) (*Profile, error) {
+ 
+ var errUnrecognized = fmt.Errorf("unrecognized profile format")
+ var errMalformed = fmt.Errorf("malformed profile format")
++var ErrNoData = fmt.Errorf("empty input file")
+ 
+ func parseLegacy(data []byte) (*Profile, error) {
+ 	parsers := []func([]byte) (*Profile, error){
+@@ -180,6 +185,10 @@ func parseLegacy(data []byte) (*Profile, error) {
+ }
+ 
+ func parseUncompressed(data []byte) (*Profile, error) {
++	if len(data) == 0 {
++		return nil, ErrNoData
++	}
++
+ 	p := &Profile{}
+ 	if err := unmarshal(data, p); err != nil {
+ 		return nil, err
+diff --git a/src/internal/profile/profile_test.go b/src/internal/profile/profile_test.go
+index e1963f3351..84158b6233 100644
+--- a/src/internal/profile/profile_test.go
++++ b/src/internal/profile/profile_test.go
+@@ -5,24 +5,9 @@
+ package profile
+ 
+ import (
+-	"bytes"
+ 	"testing"
+ )
+ 
+-func TestEmptyProfile(t *testing.T) {
+-	var buf bytes.Buffer
+-	p, err := Parse(&buf)
+-	if err != nil {
+-		t.Error("Want no error, got", err)
+-	}
+-	if p == nil {
+-		t.Fatal("Want a valid profile, got <nil>")
+-	}
+-	if !p.Empty() {
+-		t.Errorf("Profile should be empty, got %#v", p)
+-	}
+-}
+-
+ func TestParseContention(t *testing.T) {
+ 	tests := []struct {
+ 		name    string
+diff --git a/src/net/http/pprof/pprof_test.go b/src/net/http/pprof/pprof_test.go
+index f82ad45bf6..24ad59ab39 100644
+--- a/src/net/http/pprof/pprof_test.go
++++ b/src/net/http/pprof/pprof_test.go
+@@ -6,12 +6,14 @@ package pprof
+ 
+ import (
+ 	"bytes"
++	"encoding/base64"
+ 	"fmt"
+ 	"internal/profile"
+ 	"internal/testenv"
+ 	"io"
+ 	"net/http"
+ 	"net/http/httptest"
++	"path/filepath"
+ 	"runtime"
+ 	"runtime/pprof"
+ 	"strings"
+@@ -261,3 +263,64 @@ func seen(p *profile.Profile, fname string) bool {
+ 	}
+ 	return false
+ }
++
++// TestDeltaProfileEmptyBase validates that we still receive a valid delta
++// profile even if the base contains no samples.
++//
++// Regression test for https://go.dev/issue/64566.
++func TestDeltaProfileEmptyBase(t *testing.T) {
++	if testing.Short() {
++		// Delta profile collection has a 1s minimum.
++		t.Skip("skipping in -short mode")
++	}
++
++	testenv.MustHaveGoRun(t)
++
++	gotool, err := testenv.GoTool()
++	if err != nil {
++		t.Fatalf("error finding go tool: %v", err)
++	}
++
++	out, err := testenv.Command(t, gotool, "run", filepath.Join("testdata", "delta_mutex.go")).CombinedOutput()
++	if err != nil {
++		t.Fatalf("error running profile collection: %v\noutput: %s", err, out)
++	}
++
++	// Log the binary output for debugging failures.
++	b64 := make([]byte, base64.StdEncoding.EncodedLen(len(out)))
++	base64.StdEncoding.Encode(b64, out)
++	t.Logf("Output in base64.StdEncoding: %s", b64)
++
++	p, err := profile.Parse(bytes.NewReader(out))
++	if err != nil {
++		t.Fatalf("Parse got err %v want nil", err)
++	}
++
++	t.Logf("Output as parsed Profile: %s", p)
++
++	if len(p.SampleType) != 2 {
++		t.Errorf("len(p.SampleType) got %d want 2", len(p.SampleType))
++	}
++	if p.SampleType[0].Type != "contentions" {
++		t.Errorf(`p.SampleType[0].Type got %q want "contentions"`, p.SampleType[0].Type)
++	}
++	if p.SampleType[0].Unit != "count" {
++		t.Errorf(`p.SampleType[0].Unit got %q want "count"`, p.SampleType[0].Unit)
++	}
++	if p.SampleType[1].Type != "delay" {
++		t.Errorf(`p.SampleType[1].Type got %q want "delay"`, p.SampleType[1].Type)
++	}
++	if p.SampleType[1].Unit != "nanoseconds" {
++		t.Errorf(`p.SampleType[1].Unit got %q want "nanoseconds"`, p.SampleType[1].Unit)
++	}
++
++	if p.PeriodType == nil {
++		t.Fatal("p.PeriodType got nil want not nil")
++	}
++	if p.PeriodType.Type != "contentions" {
++		t.Errorf(`p.PeriodType.Type got %q want "contentions"`, p.PeriodType.Type)
++	}
++	if p.PeriodType.Unit != "count" {
++		t.Errorf(`p.PeriodType.Unit got %q want "count"`, p.PeriodType.Unit)
++	}
++}
+diff --git a/src/net/http/pprof/testdata/delta_mutex.go b/src/net/http/pprof/testdata/delta_mutex.go
+new file mode 100644
+index 0000000000..634069c8a0
+--- /dev/null
++++ b/src/net/http/pprof/testdata/delta_mutex.go
+@@ -0,0 +1,43 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This binary collects a 1s delta mutex profile and dumps it to os.Stdout.
++//
++// This is in a subprocess because we want the base mutex profile to be empty
++// (as a regression test for https://go.dev/issue/64566) and the only way to
++// force reset the profile is to create a new subprocess.
++//
++// This manually collects the HTTP response and dumps to stdout in order to
++// avoid any flakiness around port selection for a real HTTP server.
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"log"
++	"net/http"
++	"net/http/pprof"
++	"net/http/httptest"
++	"runtime"
++)
++
++func main() {
++	// Disable the mutex profiler. This is the default, but that default is
++	// load-bearing for this test, which needs the base profile to be empty.
++	runtime.SetMutexProfileFraction(0)
++
++	h := pprof.Handler("mutex")
++
++	req := httptest.NewRequest("GET", "/debug/pprof/mutex?seconds=1", nil)
++	rec := httptest.NewRecorder()
++	rec.Body = new(bytes.Buffer)
++
++	h.ServeHTTP(rec, req)
++	resp := rec.Result()
++	if resp.StatusCode != http.StatusOK {
++		log.Fatalf("Request failed: %s\n%s", resp.Status, rec.Body)
++	}
++
++	fmt.Print(rec.Body)
++}
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index e1a7f2306d..85cd066946 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -45,7 +45,7 @@ func fmtJSON(x any) string {
+ 	return string(js)
+ }
+ 
+-func TestConvertCPUProfileEmpty(t *testing.T) {
++func TestConvertCPUProfileNoSamples(t *testing.T) {
+ 	// A test server with mock cpu profile data.
+ 	var buf bytes.Buffer
+ 
+@@ -64,9 +64,13 @@ func TestConvertCPUProfileEmpty(t *testing.T) {
+ 	}
+ 
+ 	// Expected PeriodType and SampleType.
+-	sampleType := []*profile.ValueType{{}, {}}
++	periodType := &profile.ValueType{Type: "cpu", Unit: "nanoseconds"}
++	sampleType := []*profile.ValueType{
++		{Type: "samples", Unit: "count"},
++		{Type: "cpu", Unit: "nanoseconds"},
++	}
+ 
+-	checkProfile(t, p, 2000*1000, nil, sampleType, nil, "")
++	checkProfile(t, p, 2000*1000, periodType, sampleType, nil, "")
+ }
+ 
+ func f1() { f1() }

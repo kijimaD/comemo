@@ -15,6 +15,55 @@ Date:   Wed Jul 21 16:03:34 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matt Layher <mdlayher@gmail.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/syscall/netlink_linux.go | 25 ++++++++++++-------------
  1 file changed, 12 insertions(+), 13 deletions(-)
+
+diff --git a/src/syscall/netlink_linux.go b/src/syscall/netlink_linux.go
+index 0937ff797a..2d810705bf 100644
+--- a/src/syscall/netlink_linux.go
++++ b/src/syscall/netlink_linux.go
+@@ -55,14 +55,22 @@ func NetlinkRIB(proto, family int) ([]byte, error) {
+ 		return nil, err
+ 	}
+ 	defer Close(s)
+-	lsa := &SockaddrNetlink{Family: AF_NETLINK}
+-	if err := Bind(s, lsa); err != nil {
++	sa := &SockaddrNetlink{Family: AF_NETLINK}
++	if err := Bind(s, sa); err != nil {
+ 		return nil, err
+ 	}
+ 	wb := newNetlinkRouteRequest(proto, 1, family)
+-	if err := Sendto(s, wb, 0, lsa); err != nil {
++	if err := Sendto(s, wb, 0, sa); err != nil {
+ 		return nil, err
+ 	}
++	lsa, err := Getsockname(s)
++	if err != nil {
++		return nil, err
++	}
++	lsanl, ok := lsa.(*SockaddrNetlink)
++	if !ok {
++		return nil, EINVAL
++	}
+ 	var tab []byte
+ 	rbNew := make([]byte, Getpagesize())
+ done:
+@@ -82,16 +90,7 @@ done:
+ 			return nil, err
+ 		}
+ 		for _, m := range msgs {
+-			lsa, err := Getsockname(s)
+-			if err != nil {
+-				return nil, err
+-			}
+-			switch v := lsa.(type) {
+-			case *SockaddrNetlink:
+-				if m.Header.Seq != 1 || m.Header.Pid != v.Pid {
+-					return nil, EINVAL
+-				}
+-			default:
++			if m.Header.Seq != 1 || m.Header.Pid != lsanl.Pid {
+ 				return nil, EINVAL
+ 			}
+ 			if m.Header.Type == NLMSG_DONE {

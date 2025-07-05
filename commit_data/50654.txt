@@ -16,7 +16,50 @@ Date:   Thu Nov 4 11:14:59 2021 -0700
     Trust: Michael Matloob <matloob@golang.org>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go            | 10 +++++-----
  src/cmd/go/internal/test/test.go | 10 +++++-----
  2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 4420073e52..c9426801c5 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2854,11 +2854,11 @@
+ // 	    exhaustive tests.
+ //
+ // 	-shuffle off,on,N
+-// 		Randomize the execution order of tests and benchmarks.
+-// 		It is off by default. If -shuffle is set to on, then it will seed
+-// 		the randomizer using the system clock. If -shuffle is set to an
+-// 		integer N, then N will be used as the seed value. In both cases,
+-// 		the seed will be reported for reproducibility.
++// 	    Randomize the execution order of tests and benchmarks.
++// 	    It is off by default. If -shuffle is set to on, then it will seed
++// 	    the randomizer using the system clock. If -shuffle is set to an
++// 	    integer N, then N will be used as the seed value. In both cases,
++// 	    the seed will be reported for reproducibility.
+ //
+ // 	-timeout d
+ // 	    If a test binary runs longer than duration d, panic.
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 7dca6b531c..de6525d541 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -307,11 +307,11 @@ control the execution of any test:
+ 	    exhaustive tests.
+ 
+ 	-shuffle off,on,N
+-		Randomize the execution order of tests and benchmarks.
+-		It is off by default. If -shuffle is set to on, then it will seed
+-		the randomizer using the system clock. If -shuffle is set to an
+-		integer N, then N will be used as the seed value. In both cases,
+-		the seed will be reported for reproducibility.
++	    Randomize the execution order of tests and benchmarks.
++	    It is off by default. If -shuffle is set to on, then it will seed
++	    the randomizer using the system clock. If -shuffle is set to an
++	    integer N, then N will be used as the seed value. In both cases,
++	    the seed will be reported for reproducibility.
+ 
+ 	-timeout d
+ 	    If a test binary runs longer than duration d, panic.

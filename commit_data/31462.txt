@@ -34,7 +34,98 @@ Date:   Fri Feb 10 23:41:53 2017 -0700
     Change-Id: I680abc7cdd8444400e234caddf3ff49c2d69f53d
     Reviewed-on: https://go-review.googlesource.com/36806
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 27 ++++++++++++++++++++++-----
  test/fixedbugs/issue19012.go             | 25 +++++++++++++++++++++++++
  2 files changed, 47 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index a6acb6a776..d131825688 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2700,17 +2700,18 @@ out:
+ 
+ notenough:
+ 	if n == nil || !n.Diag {
++		details := errorDetails(nl, tstruct, isddd)
+ 		if call != nil {
+ 			// call is the expression being called, not the overall call.
+ 			// Method expressions have the form T.M, and the compiler has
+ 			// rewritten those to ONAME nodes but left T in Left.
+ 			if call.Op == ONAME && call.Left != nil && call.Left.Op == OTYPE {
+-				yyerror("not enough arguments in call to method expression %v\n\thave %s\n\twant %v", call, nl.retsigerr(isddd), tstruct)
++				yyerror("not enough arguments in call to method expression %v%s", call, details)
+ 			} else {
+-				yyerror("not enough arguments in call to %v\n\thave %s\n\twant %v", call, nl.retsigerr(isddd), tstruct)
++				yyerror("not enough arguments in call to %v%s", call, details)
+ 			}
+ 		} else {
+-			yyerror("not enough arguments to %v\n\thave %s\n\twant %v", op, nl.retsigerr(isddd), tstruct)
++			yyerror("not enough arguments to %v%s", op, details)
+ 		}
+ 		if n != nil {
+ 			n.Diag = true
+@@ -2720,14 +2721,30 @@ notenough:
+ 	goto out
+ 
+ toomany:
++	details := errorDetails(nl, tstruct, isddd)
+ 	if call != nil {
+-		yyerror("too many arguments in call to %v\n\thave %s\n\twant %v", call, nl.retsigerr(isddd), tstruct)
++		yyerror("too many arguments in call to %v%s", call, details)
+ 	} else {
+-		yyerror("too many arguments to %v\n\thave %s\n\twant %v", op, nl.retsigerr(isddd), tstruct)
++		yyerror("too many arguments to %v%s", op, details)
+ 	}
+ 	goto out
+ }
+ 
++func errorDetails(nl Nodes, tstruct *Type, isddd bool) string {
++	// If we don't know any type at a call site, let's suppress any return
++	// message signatures. See Issue https://golang.org/issues/19012.
++	if tstruct == nil {
++		return ""
++	}
++	// If any node has an unknown type, suppress it as well
++	for _, n := range nl.Slice() {
++		if n.Type == nil {
++			return ""
++		}
++	}
++	return fmt.Sprintf("\n\thave %s\n\twant %v", nl.retsigerr(isddd), tstruct)
++}
++
+ // sigrepr is a type's representation to the outside world,
+ // in string representations of return signatures
+ // e.g in error messages about wrong arguments to return.
+diff --git a/test/fixedbugs/issue19012.go b/test/fixedbugs/issue19012.go
+new file mode 100644
+index 0000000000..636bf06e75
+--- /dev/null
++++ b/test/fixedbugs/issue19012.go
+@@ -0,0 +1,25 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 19012: if we have any unknown type at a call site,
++// we must ensure that we return to the user a suppressed
++// error message saying instead of including <T> in
++// the message.
++
++package main
++
++func f(x int, y uint) {
++	if true {
++		return "a" > 10 // ERROR "^too many arguments to return$" "."
++	}
++	return "gopher" == true, 10 // ERROR "^too many arguments to return$" "."
++}
++
++func main() {
++	f(2, 3 < "x", 10) // ERROR "^too many arguments in call to f$" "."
++
++	f(10, 10, "a") // ERROR "too many arguments in call to f\n\thave \(number, number, string\)\n\twant \(int, uint\)"
++}

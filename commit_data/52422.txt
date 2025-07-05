@@ -11,7 +11,32 @@ Date:   Wed Apr 27 10:25:29 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 64ecb0035a..fee1a12118 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1473,6 +1473,7 @@ Yoshiyuki Mineo <yoshiyuki.mineo@gmail.com>
+ Yosuke Akatsuka <yosuke.akatsuka@gmail.com>
+ Yuji Yaginuma <yuuji.yaginuma@gmail.com>
+ Yukihiro Nishinaka <6elpinal@gmail.com>
++YunHao Zhang <zhangyunhao116@gmail.com> <zhangyunhao@bytedance.com>
+ Yury Smolsky <yury@smolsky.by>
+ Yusuke Kagiwada <block.rxckin.beats@gmail.com>
+ Yuusei Kuwana <kuwana@kumama.org>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 0196b319d7..5e44acba8d 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -2818,6 +2818,7 @@ Yuki OKUSHI <huyuumi.dev@gmail.com>
+ Yuki Osaki <yuki.osaki7@gmail.com>
+ Yuki Yugui Sonoda <yugui@google.com>
+ Yukihiro Nishinaka <6elpinal@gmail.com>
++YunHao Zhang <zhangyunhao116@gmail.com> <zhangyunhao@bytedance.com>
+ YunQiang Su <syq@debian.org>
+ Yuntao Wang <ytcoode@gmail.com>
+ Yury Smolsky <yury@smolsky.by>

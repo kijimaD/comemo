@@ -21,7 +21,7 @@ Date:   Mon Apr 25 11:08:38 2016 +0800
     Reviewed-on: https://go-review.googlesource.com/22292
     Reviewed-by: Michael Munday <munday@ca.ibm.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/arm64/galign.go |  2 +
  src/cmd/compile/internal/arm64/ggen.go   | 47 ++++++++++++++++++++
  src/cmd/compile/internal/arm64/gsubr.go  | 12 ------
@@ -34,3 +34,403 @@ Date:   Mon Apr 25 11:08:38 2016 +0800
  src/runtime/vlrt.go                      |  1 -
  test/bench/go1/divconst_test.go          | 73 ++++++++++++++++++++++++++++++++
  11 files changed, 202 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index 17c851cb14..7acc4e08eb 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -29,6 +29,8 @@ func Main() {
+ 
+ 	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Cgen_hmul = cgen_hmul
++	gc.Thearch.AddSetCarry = AddSetCarry
++	gc.Thearch.RightShiftWithCarry = RightShiftWithCarry
+ 	gc.Thearch.Cgen_shift = cgen_shift
+ 	gc.Thearch.Clearfat = clearfat
+ 	gc.Thearch.Defframe = defframe
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index 9abd901d7a..bddfed631a 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -252,6 +252,53 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	}
+ }
+ 
++// RightShiftWithCarry generates a constant unsigned
++// right shift with carry.
++//
++// res = n >> shift // with carry
++func RightShiftWithCarry(n *gc.Node, shift uint, res *gc.Node) {
++	// Extra 1 is for carry bit.
++	maxshift := uint(n.Type.Width*8 + 1)
++	if shift == 0 {
++		gmove(n, res)
++	} else if shift < maxshift {
++		// 1. clear rightmost bit of target
++		var n1 gc.Node
++		gc.Nodconst(&n1, n.Type, 1)
++		gins(optoas(gc.ORSH, n.Type), &n1, n)
++		gins(optoas(gc.OLSH, n.Type), &n1, n)
++		// 2. add carry flag to target
++		var n2 gc.Node
++		gc.Nodconst(&n1, n.Type, 0)
++		gc.Regalloc(&n2, n.Type, nil)
++		gins(optoas(gc.OAS, n.Type), &n1, &n2)
++		gins(arm64.AADC, &n2, n)
++		// 3. right rotate 1 bit
++		gc.Nodconst(&n1, n.Type, 1)
++		gins(arm64.AROR, &n1, n)
++
++		// ARM64 backend doesn't eliminate shifts by 0. It is manually checked here.
++		if shift > 1 {
++			var n3 gc.Node
++			gc.Nodconst(&n3, n.Type, int64(shift-1))
++			cgen_shift(gc.ORSH, true, n, &n3, res)
++		} else {
++			gmove(n, res)
++		}
++		gc.Regfree(&n2)
++	} else {
++		gc.Fatalf("RightShiftWithCarry: shift(%v) is bigger than max size(%v)", shift, maxshift)
++	}
++}
++
++// AddSetCarry generates add and set carry.
++//
++//   res = nl + nr // with carry flag set
++func AddSetCarry(nl *gc.Node, nr *gc.Node, res *gc.Node) {
++	gins(arm64.AADDS, nl, nr)
++	gmove(nr, res)
++}
++
+ /*
+  * generate high multiply:
+  *   res = (nl*nr) >> width
+diff --git a/src/cmd/compile/internal/arm64/gsubr.go b/src/cmd/compile/internal/arm64/gsubr.go
+index efa66a09d3..f193291d01 100644
+--- a/src/cmd/compile/internal/arm64/gsubr.go
++++ b/src/cmd/compile/internal/arm64/gsubr.go
+@@ -890,18 +890,6 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
+ 		ORSH_ | gc.TINT64:
+ 		a = arm64.AASR
+ 
+-		// TODO(minux): handle rotates
+-	//case CASE(ORROTC, TINT8):
+-	//case CASE(ORROTC, TUINT8):
+-	//case CASE(ORROTC, TINT16):
+-	//case CASE(ORROTC, TUINT16):
+-	//case CASE(ORROTC, TINT32):
+-	//case CASE(ORROTC, TUINT32):
+-	//case CASE(ORROTC, TINT64):
+-	//case CASE(ORROTC, TUINT64):
+-	//	a = 0//??? RLDC??
+-	//	break;
+-
+ 	case OHMUL_ | gc.TINT64:
+ 		a = arm64.ASMULH
+ 
+diff --git a/src/cmd/compile/internal/arm64/peep.go b/src/cmd/compile/internal/arm64/peep.go
+index 887353c889..22be1afebc 100644
+--- a/src/cmd/compile/internal/arm64/peep.go
++++ b/src/cmd/compile/internal/arm64/peep.go
+@@ -534,10 +534,13 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		return 0
+ 
+ 	case arm64.AADD, /* read p->from, read p->reg, write p->to */
++		arm64.AADDS,
+ 		arm64.ASUB,
++		arm64.AADC,
+ 		arm64.AAND,
+ 		arm64.AORR,
+ 		arm64.AEOR,
++		arm64.AROR,
+ 		arm64.AMUL,
+ 		arm64.ASMULL,
+ 		arm64.AUMULL,
+diff --git a/src/cmd/compile/internal/arm64/prog.go b/src/cmd/compile/internal/arm64/prog.go
+index 3091c4a840..d504d0f0ee 100644
+--- a/src/cmd/compile/internal/arm64/prog.go
++++ b/src/cmd/compile/internal/arm64/prog.go
+@@ -59,6 +59,9 @@ var progtable = [arm64.ALAST & obj.AMask]obj.ProgInfo{
+ 	arm64.ALSR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	arm64.AASR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	arm64.ACMP & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
++	arm64.AADC & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite | gc.UseCarry},
++	arm64.AROR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	arm64.AADDS & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite | gc.SetCarry},
+ 
+ 	// Floating point.
+ 	arm64.AFADDD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index bb7487c958..8db752ec51 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -2642,9 +2642,9 @@ func cgen_ret(n *Node) {
+ // signed and unsigned high multiplication (OHMUL).
+ func hasHMUL64() bool {
+ 	switch Ctxt.Arch.Family {
+-	case sys.AMD64, sys.S390X:
++	case sys.AMD64, sys.S390X, sys.ARM64:
+ 		return true
+-	case sys.ARM, sys.ARM64, sys.I386, sys.MIPS64, sys.PPC64:
++	case sys.ARM, sys.I386, sys.MIPS64, sys.PPC64:
+ 		return false
+ 	}
+ 	Fatalf("unknown architecture")
+@@ -2664,6 +2664,28 @@ func hasRROTC64() bool {
+ 	return false
+ }
+ 
++func hasRightShiftWithCarry() bool {
++	switch Ctxt.Arch.Family {
++	case sys.ARM64:
++		return true
++	case sys.AMD64, sys.ARM, sys.I386, sys.MIPS64, sys.PPC64, sys.S390X:
++		return false
++	}
++	Fatalf("unknown architecture")
++	return false
++}
++
++func hasAddSetCarry() bool {
++	switch Ctxt.Arch.Family {
++	case sys.ARM64:
++		return true
++	case sys.AMD64, sys.ARM, sys.I386, sys.MIPS64, sys.PPC64, sys.S390X:
++		return false
++	}
++	Fatalf("unknown architecture")
++	return false
++}
++
+ // generate division according to op, one of:
+ //	res = nl / nr
+ //	res = nl % nr
+@@ -2699,8 +2721,9 @@ func cgen_div(op Op, nl *Node, nr *Node, res *Node) {
+ 		// the MSB. For now this needs the RROTC instruction.
+ 		// TODO(mundaym): Hacker's Delight 2nd ed. chapter 10 proposes
+ 		// an alternative sequence of instructions for architectures
+-		// that do not have a shift right with carry instruction.
+-		if m.Ua != 0 && !hasRROTC64() {
++		// (TODO: MIPS64, PPC64, S390X) that do not have a shift
++		// right with carry instruction.
++		if m.Ua != 0 && !hasRROTC64() && !hasRightShiftWithCarry() {
+ 			goto longdiv
+ 		}
+ 		if op == OMOD {
+@@ -2717,12 +2740,20 @@ func cgen_div(op Op, nl *Node, nr *Node, res *Node) {
+ 
+ 		if m.Ua != 0 {
+ 			// Need to add numerator accounting for overflow.
+-			Thearch.Gins(Thearch.Optoas(OADD, nl.Type), &n1, &n3)
++			if hasAddSetCarry() {
++				Thearch.AddSetCarry(&n1, &n3, &n3)
++			} else {
++				Thearch.Gins(Thearch.Optoas(OADD, nl.Type), &n1, &n3)
++			}
+ 
+-			Nodconst(&n2, nl.Type, 1)
+-			Thearch.Gins(Thearch.Optoas(ORROTC, nl.Type), &n2, &n3)
+-			Nodconst(&n2, nl.Type, int64(m.S)-1)
+-			Thearch.Gins(Thearch.Optoas(ORSH, nl.Type), &n2, &n3)
++			if !hasRROTC64() {
++				Thearch.RightShiftWithCarry(&n3, uint(m.S), &n3)
++			} else {
++				Nodconst(&n2, nl.Type, 1)
++				Thearch.Gins(Thearch.Optoas(ORROTC, nl.Type), &n2, &n3)
++				Nodconst(&n2, nl.Type, int64(m.S)-1)
++				Thearch.Gins(Thearch.Optoas(ORSH, nl.Type), &n2, &n3)
++			}
+ 		} else {
+ 			Nodconst(&n2, nl.Type, int64(m.S))
+ 			Thearch.Gins(Thearch.Optoas(ORSH, nl.Type), &n2, &n3) // shift dx
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 87b6121c8e..f9a372dcce 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -378,23 +378,25 @@ type Arch struct {
+ 	MAXWIDTH     int64
+ 	ReservedRegs []int
+ 
+-	AddIndex     func(*Node, int64, *Node) bool // optional
+-	Betypeinit   func()
+-	Bgen_float   func(*Node, bool, int, *obj.Prog) // optional
+-	Cgen64       func(*Node, *Node)                // only on 32-bit systems
+-	Cgenindex    func(*Node, *Node, bool) *obj.Prog
+-	Cgen_bmul    func(Op, *Node, *Node, *Node) bool
+-	Cgen_float   func(*Node, *Node) // optional
+-	Cgen_hmul    func(*Node, *Node, *Node)
+-	Cgen_shift   func(Op, bool, *Node, *Node, *Node)
+-	Clearfat     func(*Node)
+-	Cmp64        func(*Node, *Node, Op, int, *obj.Prog) // only on 32-bit systems
+-	Defframe     func(*obj.Prog)
+-	Dodiv        func(Op, *Node, *Node, *Node)
+-	Excise       func(*Flow)
+-	Expandchecks func(*obj.Prog)
+-	Getg         func(*Node)
+-	Gins         func(obj.As, *Node, *Node) *obj.Prog
++	AddIndex            func(*Node, int64, *Node) bool // optional
++	Betypeinit          func()
++	Bgen_float          func(*Node, bool, int, *obj.Prog) // optional
++	Cgen64              func(*Node, *Node)                // only on 32-bit systems
++	Cgenindex           func(*Node, *Node, bool) *obj.Prog
++	Cgen_bmul           func(Op, *Node, *Node, *Node) bool
++	Cgen_float          func(*Node, *Node) // optional
++	Cgen_hmul           func(*Node, *Node, *Node)
++	RightShiftWithCarry func(*Node, uint, *Node)  // only on systems without RROTC instruction
++	AddSetCarry         func(*Node, *Node, *Node) // only on systems when ADD does not update carry flag
++	Cgen_shift          func(Op, bool, *Node, *Node, *Node)
++	Clearfat            func(*Node)
++	Cmp64               func(*Node, *Node, Op, int, *obj.Prog) // only on 32-bit systems
++	Defframe            func(*obj.Prog)
++	Dodiv               func(Op, *Node, *Node, *Node)
++	Excise              func(*Flow)
++	Expandchecks        func(*obj.Prog)
++	Getg                func(*Node)
++	Gins                func(obj.As, *Node, *Node) *obj.Prog
+ 
+ 	// Ginscmp generates code comparing n1 to n2 and jumping away if op is satisfied.
+ 	// The returned prog should be Patch'ed with the jump target.
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index bce34374e8..cc9a50e6a8 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3424,7 +3424,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
+ 	// if >= 0, nr is 1<<pow // 1 if nr is negative.
+ 
+ 	// TODO(minux)
+-	if Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM64, sys.PPC64) {
++	if Thearch.LinkArch.InFamily(sys.MIPS64, sys.PPC64) {
+ 		return n
+ 	}
+ 
+@@ -3485,6 +3485,16 @@ func walkdiv(n *Node, init *Nodes) *Node {
+ 			goto ret
+ 		}
+ 
++		// TODO(zhongwei) Test shows that TUINT8, TINT8, TUINT16 and TINT16's "quick division" method
++		// on current arm64 backend is slower than hardware div instruction on ARM64 due to unnecessary
++		// data movement between registers. It could be enabled when generated code is good enough.
++		if Thearch.LinkArch.Family == sys.ARM64 {
++			switch Simtype[nl.Type.Etype] {
++			case TUINT8, TINT8, TUINT16, TINT16:
++				return n
++			}
++		}
++
+ 		switch Simtype[nl.Type.Etype] {
+ 		default:
+ 			return n
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 55397132e0..28bebaa3f7 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -155,6 +155,7 @@ var optab = []Optab{
+ 	{AADC, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
+ 	{AADC, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
+ 	{ANEG, C_REG, C_NONE, C_REG, 25, 4, 0, 0, 0},
++	{ANEG, C_NONE, C_NONE, C_REG, 25, 4, 0, 0, 0},
+ 	{ANGC, C_REG, C_NONE, C_REG, 17, 4, 0, 0, 0},
+ 	{ACMP, C_REG, C_REG, C_NONE, 1, 4, 0, 0, 0},
+ 	{AADD, C_ADDCON, C_RSP, C_RSP, 2, 4, 0, 0, 0},
+@@ -2198,6 +2199,9 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = oprrr(ctxt, p.As)
+ 
+ 		rf := int(p.From.Reg)
++		if rf == C_NONE {
++			rf = int(p.To.Reg)
++		}
+ 		rt := int(p.To.Reg)
+ 		o1 |= (uint32(rf&31) << 16) | (REGZERO & 31 << 5) | uint32(rt&31)
+ 
+diff --git a/src/runtime/vlrt.go b/src/runtime/vlrt.go
+index 2419f78ce2..cd37828ae4 100644
+--- a/src/runtime/vlrt.go
++++ b/src/runtime/vlrt.go
+@@ -195,7 +195,6 @@ func dodiv(n, d uint64) (q, r uint64) {
+ 	if GOARCH == "arm" {
+ 		// arm doesn't have a division instruction, so
+ 		// slowdodiv is the best that we can do.
+-		// TODO: revisit for arm64.
+ 		return slowdodiv(n, d)
+ 	}
+ 
+diff --git a/test/bench/go1/divconst_test.go b/test/bench/go1/divconst_test.go
+new file mode 100644
+index 0000000000..3cf6c26094
+--- /dev/null
++++ b/test/bench/go1/divconst_test.go
+@@ -0,0 +1,73 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package go1
++
++import (
++	"testing"
++)
++
++var i64res int64
++
++func BenchmarkDivconstI64(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		i64res = int64(i) / 7
++	}
++}
++
++var u64res uint64
++
++func BenchmarkDivconstU64(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		u64res = uint64(i) / 7
++	}
++}
++
++var i32res int32
++
++func BenchmarkDivconstI32(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		i32res = int32(i) / 7
++	}
++}
++
++var u32res uint32
++
++func BenchmarkDivconstU32(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		u32res = uint32(i) / 7
++	}
++}
++
++var i16res int16
++
++func BenchmarkDivconstI16(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		i16res = int16(i) / 7
++	}
++}
++
++var u16res uint16
++
++func BenchmarkDivconstU16(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		u16res = uint16(i) / 7
++	}
++}
++
++var i8res int8
++
++func BenchmarkDivconstI8(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		i8res = int8(i) / 7
++	}
++}
++
++var u8res uint8
++
++func BenchmarkDivconstU8(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		u8res = uint8(i) / 7
++	}
++}

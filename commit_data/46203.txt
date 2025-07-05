@@ -11,6 +11,37 @@ Date:   Mon Dec 14 16:07:05 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go | 12 +++++++++---
  1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 7ec81e34b0..8ae88a100c 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -114,9 +114,10 @@ func parseFiles(filenames []string) (lines uint) {
+ 			},
+ 		}
+ 		info := types2.Info{
+-			Types: make(map[syntax.Expr]types2.TypeAndValue),
+-			Defs:  make(map[*syntax.Name]types2.Object),
+-			Uses:  make(map[*syntax.Name]types2.Object),
++			Types:      make(map[syntax.Expr]types2.TypeAndValue),
++			Defs:       make(map[*syntax.Name]types2.Object),
++			Uses:       make(map[*syntax.Name]types2.Object),
++			Selections: make(map[*syntax.SelectorExpr]*types2.Selection),
+ 			// expand as needed
+ 		}
+ 		conf.Check(base.Ctxt.Pkgpath, files, &info)
+@@ -283,6 +284,11 @@ func (p *noder) use(x *syntax.Name) types2.Object {
+ 	return p.typeInfo.Uses[x]
+ }
+ 
++// sel returns the selection information for the given selector expression.
++func (p *noder) sel(x *syntax.SelectorExpr) *types2.Selection {
++	return p.typeInfo.Selections[x]
++}
++
+ func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
+ 	oldScope := p.scope
+ 	p.scope = 0

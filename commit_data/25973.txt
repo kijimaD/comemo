@@ -30,7 +30,66 @@ Date:   Sun Oct 4 20:33:02 2015 +0000
     Change-Id: I75e07622fb3af1d104e3a38c89d9e128e3b94522
     Reviewed-on: https://go-review.googlesource.com/15268
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go | 16 ++++++++++++++--
  test/fixedbugs/issue11610.go          | 17 +++++++++++++++++
  2 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 3da648a151..16e0802e3e 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -1738,6 +1738,18 @@ func (p *parser) new_name(sym *Sym) *Node {
+ 	return nil
+ }
+ 
++func (p *parser) dcl_name(sym *Sym) *Node {
++	if trace && Debug['x'] != 0 {
++		defer p.trace("dcl_name")()
++	}
++
++	if sym == nil {
++		yyerrorl(int(prevlineno), "invalid declaration")
++		return nil
++	}
++	return dclname(sym)
++}
++
+ func (p *parser) onew_name() *Node {
+ 	if trace && Debug['x'] != 0 {
+ 		defer p.trace("onew_name")()
+@@ -2736,9 +2748,9 @@ func (p *parser) dcl_name_list() *NodeList {
+ 		defer p.trace("dcl_name_list")()
+ 	}
+ 
+-	l := list1(dclname(p.sym()))
++	l := list1(p.dcl_name(p.sym()))
+ 	for p.got(',') {
+-		l = list(l, dclname(p.sym()))
++		l = list(l, p.dcl_name(p.sym()))
+ 	}
+ 	return l
+ }
+diff --git a/test/fixedbugs/issue11610.go b/test/fixedbugs/issue11610.go
+new file mode 100644
+index 0000000000..a326249ed4
+--- /dev/null
++++ b/test/fixedbugs/issue11610.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test an internal compiler error on ? symbol in declaration
++// following an empty import.
++
++package a
++import""  // ERROR "import path is empty"
++var?      // ERROR "invalid declaration"
++
++var x int // ERROR "unexpected var"
++
++func main() {
++}

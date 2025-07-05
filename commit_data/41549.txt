@@ -10,6 +10,20 @@ Date:   Fri Oct 11 14:12:55 2019 +0100
     Run-TryBot: Johan Brandhorst <johan.brandhorst@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
-
+---
  src/errors/wrap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index 688c585396..272d056b31 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -49,7 +49,7 @@ func Is(err, target error) bool {
+ 		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(target) {
+ 			return true
+ 		}
+-		// TODO: consider supporing target.Is(err). This would allow
++		// TODO: consider supporting target.Is(err). This would allow
+ 		// user-definable predicates, but also may allow for coping with sloppy
+ 		// APIs, thereby making it easier to get away with them.
+ 		if err = Unwrap(err); err == nil {

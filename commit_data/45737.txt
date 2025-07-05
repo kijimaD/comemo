@@ -10,7 +10,48 @@ Date:   Tue Nov 10 13:28:17 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go |  7 +++++++
  test/typeparam/importtest.go         | 16 ++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 14bacc14a8..4ed91035a5 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -95,6 +95,13 @@ func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
+ 			},
+ 			Importer: &gcimports{
+ 				packages: make(map[string]*types2.Package),
++				lookup: func(path string) (io.ReadCloser, error) {
++					file, ok := findpkg(path)
++					if !ok {
++						return nil, fmt.Errorf("can't find import: %q", path)
++					}
++					return os.Open(file)
++				},
+ 			},
+ 		}
+ 		conf.Check(Ctxt.Pkgpath, files, nil)
+diff --git a/test/typeparam/importtest.go b/test/typeparam/importtest.go
+new file mode 100644
+index 0000000000..9cb30e8a7c
+--- /dev/null
++++ b/test/typeparam/importtest.go
+@@ -0,0 +1,16 @@
++// compile -G
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file checks that basic importing works in -G mode.
++
++package p
++
++import "fmt"
++import "math"
++
++func f(x float64) {
++	fmt.Println(math.Sin(x))
++}

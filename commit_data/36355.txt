@@ -54,7 +54,7 @@ Date:   Wed Apr 18 22:57:10 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go   |  16 +--
  src/cmd/compile/internal/gc/bexport.go |  44 +++---
  src/cmd/compile/internal/gc/bimport.go |  11 +-
@@ -66,3 +66,826 @@ Date:   Wed Apr 18 22:57:10 2018 -0700
  src/cmd/compile/internal/gc/subr.go    |  14 +-
  src/cmd/compile/internal/types/type.go |  12 +-
  10 files changed, 171 insertions(+), 234 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index dc2d04a8ed..b47600cfdc 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -36,7 +36,7 @@ func expandiface(t *types.Type) {
+ 		}
+ 
+ 		if !m.Type.IsInterface() {
+-			yyerrorl(asNode(m.Nname).Pos, "interface contains embedded non-interface %v", m.Type)
++			yyerrorl(m.Pos, "interface contains embedded non-interface %v", m.Type)
+ 			m.SetBroke(true)
+ 			t.SetBroke(true)
+ 			// Add to fields so that error messages
+@@ -52,10 +52,10 @@ func expandiface(t *types.Type) {
+ 		// method set.
+ 		for _, t1 := range m.Type.Fields().Slice() {
+ 			f := types.NewField()
++			f.Pos = m.Pos // preserve embedding position
++			f.Sym = t1.Sym
+ 			f.Type = t1.Type
+ 			f.SetBroke(t1.Broke())
+-			f.Sym = t1.Sym
+-			f.Nname = m.Nname // preserve embedding position
+ 			fields = append(fields, f)
+ 		}
+ 	}
+@@ -100,7 +100,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+ 			o = Rnd(o, int64(f.Type.Align))
+ 		}
+ 		f.Offset = o
+-		if asNode(f.Nname) != nil {
++		if n := asNode(f.Nname); n != nil {
+ 			// addrescapes has similar code to update these offsets.
+ 			// Usually addrescapes runs after widstruct,
+ 			// in which case we could drop this,
+@@ -108,11 +108,11 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+ 			// NOTE(rsc): This comment may be stale.
+ 			// It's possible the ordering has changed and this is
+ 			// now the common case. I'm not sure.
+-			if asNode(f.Nname).Name.Param.Stackcopy != nil {
+-				asNode(f.Nname).Name.Param.Stackcopy.Xoffset = o
+-				asNode(f.Nname).Xoffset = 0
++			if n.Name.Param.Stackcopy != nil {
++				n.Name.Param.Stackcopy.Xoffset = o
++				n.Xoffset = 0
+ 			} else {
+-				asNode(f.Nname).Xoffset = o
++				n.Xoffset = o
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 74211588d3..6644827635 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -736,7 +736,7 @@ func (p *exporter) typ(t *types.Type) {
+ 				Fatalf("invalid symbol name: %s (%v)", m.Sym.Name, m.Sym)
+ 			}
+ 
+-			p.pos(asNode(m.Nname).Pos)
++			p.pos(m.Pos)
+ 			p.fieldSym(m.Sym, false)
+ 
+ 			sig := m.Type
+@@ -831,7 +831,7 @@ func (p *exporter) fieldList(t *types.Type) {
+ }
+ 
+ func (p *exporter) field(f *types.Field) {
+-	p.pos(asNode(f.Nname).Pos)
++	p.pos(f.Pos)
+ 	p.fieldName(f)
+ 	p.typ(f.Type)
+ 	p.string(f.Note)
+@@ -856,7 +856,7 @@ func (p *exporter) methodList(t *types.Type) {
+ 		if p.trace {
+ 			p.tracef("\n")
+ 		}
+-		p.pos(asNode(m.Nname).Pos)
++		p.pos(m.Pos)
+ 		p.typ(m.Type)
+ 	}
+ 	if p.trace && len(embeddeds) > 0 {
+@@ -879,11 +879,7 @@ func (p *exporter) methodList(t *types.Type) {
+ }
+ 
+ func (p *exporter) method(m *types.Field) {
+-	if m.Nname != nil {
+-		p.pos(asNode(m.Nname).Pos)
+-	} else {
+-		p.pos(src.NoXPos)
+-	}
++	p.pos(m.Pos)
+ 	p.methodName(m.Sym)
+ 	p.paramList(m.Type.Params(), false)
+ 	p.paramList(m.Type.Results(), false)
+@@ -1001,29 +997,19 @@ func (p *exporter) param(q *types.Field, n int, numbered bool) {
+ }
+ 
+ func parName(f *types.Field, numbered bool) string {
+-	s := f.Sym
++	s := origSym(f.Sym)
+ 	if s == nil {
+ 		return ""
+ 	}
+ 
+-	// Take the name from the original, lest we substituted it with ~r%d or ~b%d.
+-	// ~r%d is a (formerly) unnamed result.
+-	if asNode(f.Nname) != nil {
+-		if asNode(f.Nname).Orig == nil {
+-			return "" // s = nil
+-		}
+-		s = asNode(f.Nname).Orig.Sym
+-		if s != nil && s.Name[0] == '~' {
+-			if s.Name[1] == 'r' { // originally an unnamed result
+-				return "" // s = nil
+-			} else if s.Name[1] == 'b' { // originally the blank identifier _
+-				return "_" // belongs to localpkg
+-			}
+-		}
+-	}
+-
+-	if s == nil {
+-		return ""
++	// The "s != f.Sym" check here is unnecessary and causes blank
++	// input/receiver parameters to receive vargen numbers
++	// below. However, this is consistent with the logic it
++	// replaces, so we keep it for now to appease toolstash-check.
++	//
++	// TODO(mdempsky): Simplify to just "if s.Name == "_"".
++	if s != f.Sym && s.Name == "_" {
++		return "_"
+ 	}
+ 
+ 	// print symbol with Vargen number or not as desired
+@@ -1036,8 +1022,8 @@ func parName(f *types.Field, numbered bool) string {
+ 	// from other names in their context after inlining (i.e., the parameter numbering
+ 	// is a form of parameter rewriting). See issue 4326 for an example and test case.
+ 	if numbered {
+-		if !strings.Contains(name, "·") && asNode(f.Nname) != nil && asNode(f.Nname).Name != nil && asNode(f.Nname).Name.Vargen > 0 {
+-			name = fmt.Sprintf("%s·%d", name, asNode(f.Nname).Name.Vargen) // append Vargen
++		if n := asNode(f.Nname); !strings.Contains(name, "·") && n != nil && n.Name.Vargen > 0 {
++			name = fmt.Sprintf("%s·%d", name, n.Name.Vargen) // append Vargen
+ 		}
+ 	} else {
+ 		if i := strings.Index(name, "·"); i > 0 {
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 9ccc549e69..18e18a90e3 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -642,8 +642,8 @@ func (p *importer) field() *types.Field {
+ 		f.Embedded = 1
+ 	}
+ 
++	f.Pos = pos
+ 	f.Sym = sym
+-	f.Nname = asTypesNode(newnamel(pos, sym))
+ 	f.Type = typ
+ 	f.Note = note
+ 
+@@ -653,8 +653,7 @@ func (p *importer) field() *types.Field {
+ func (p *importer) methodList() (methods []*types.Field) {
+ 	for n := p.int(); n > 0; n-- {
+ 		f := types.NewField()
+-		f.Nname = asTypesNode(newname(nblank.Sym))
+-		asNode(f.Nname).Pos = p.pos()
++		f.Pos = p.pos()
+ 		f.Type = p.typ()
+ 		methods = append(methods, f)
+ 	}
+@@ -673,8 +672,8 @@ func (p *importer) method() *types.Field {
+ 	result := p.paramList()
+ 
+ 	f := types.NewField()
++	f.Pos = pos
+ 	f.Sym = sym
+-	f.Nname = asTypesNode(newnamel(pos, sym))
+ 	f.Type = functypefield(fakeRecvField(), params, result)
+ 	return f
+ }
+@@ -743,6 +742,8 @@ func (p *importer) paramList() []*types.Field {
+ 
+ func (p *importer) param(named bool) *types.Field {
+ 	f := types.NewField()
++	// TODO(mdempsky): Need param position.
++	f.Pos = lineno
+ 	f.Type = p.typ()
+ 	if f.Type.Etype == TDDDFIELD {
+ 		// TDDDFIELD indicates wrapped ... slice type
+@@ -762,8 +763,6 @@ func (p *importer) param(named bool) *types.Field {
+ 			pkg = p.pkg()
+ 		}
+ 		f.Sym = pkg.Lookup(name)
+-		// TODO(mdempsky): Need param position.
+-		f.Nname = asTypesNode(newname(f.Sym))
+ 	}
+ 
+ 	// TODO(gri) This is compiler-specific (escape info).
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 0bb3c530f1..3a744a20c2 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -249,7 +249,7 @@ func typenodl(pos src.XPos, t *types.Type) *Node {
+ }
+ 
+ func anonfield(typ *types.Type) *Node {
+-	return nod(ODCLFIELD, nil, typenod(typ))
++	return symfield(nil, typ)
+ }
+ 
+ func namedfield(s string, typ *types.Type) *Node {
+@@ -257,7 +257,9 @@ func namedfield(s string, typ *types.Type) *Node {
+ }
+ 
+ func symfield(s *types.Sym, typ *types.Type) *Node {
+-	return nod(ODCLFIELD, newname(s), typenod(typ))
++	n := nodSym(ODCLFIELD, nil, s)
++	n.Type = typ
++	return n
+ }
+ 
+ // oldname returns the Node that declares symbol s in the current scope.
+@@ -363,11 +365,11 @@ func colasdefn(left []*Node, defn *Node) {
+ // declare the arguments in an
+ // interface field declaration.
+ func ifacedcl(n *Node) {
+-	if n.Op != ODCLFIELD || n.Right == nil {
++	if n.Op != ODCLFIELD || n.Left == nil {
+ 		Fatalf("ifacedcl")
+ 	}
+ 
+-	if n.Left.isBlank() {
++	if n.Sym.IsBlank() {
+ 		yyerror("methods must have a unique non-blank name")
+ 	}
+ }
+@@ -404,82 +406,63 @@ func funcargs(nt *Node) {
+ 	// re-start the variable generation number
+ 	// we want to use small numbers for the return variables,
+ 	// so let them have the chunk starting at 1.
++	//
++	// TODO(mdempsky): This is ugly, and only necessary because
++	// esc.go uses Vargen to figure out result parameters' index
++	// within the result tuple.
+ 	vargen = nt.Rlist.Len()
+ 
+ 	// declare the receiver and in arguments.
+-	// no n->defn because type checking of func header
+-	// will not fill in the types until later
+ 	if nt.Left != nil {
+-		n := nt.Left
+-		if n.Op != ODCLFIELD {
+-			Fatalf("funcargs receiver %v", n.Op)
+-		}
+-		if n.Left != nil {
+-			n.Left.Op = ONAME
+-			n.Left.Name.Param.Ntype = n.Right
+-			declare(n.Left, PPARAM)
+-			if dclcontext == PAUTO {
+-				vargen++
+-				n.Left.Name.Vargen = int32(vargen)
+-			}
+-		}
++		funcarg(nt.Left, PPARAM)
+ 	}
+-
+ 	for _, n := range nt.List.Slice() {
+-		if n.Op != ODCLFIELD {
+-			Fatalf("funcargs in %v", n.Op)
+-		}
+-		if n.Left != nil {
+-			n.Left.Op = ONAME
+-			n.Left.Name.Param.Ntype = n.Right
+-			declare(n.Left, PPARAM)
+-			if dclcontext == PAUTO {
+-				vargen++
+-				n.Left.Name.Vargen = int32(vargen)
+-			}
+-		}
++		funcarg(n, PPARAM)
+ 	}
+ 
++	oldvargen := vargen
++	vargen = 0
++
+ 	// declare the out arguments.
+ 	gen := nt.List.Len()
+-	var i int = 0
+ 	for _, n := range nt.Rlist.Slice() {
+-		if n.Op != ODCLFIELD {
+-			Fatalf("funcargs out %v", n.Op)
+-		}
+-
+-		if n.Left == nil {
++		if n.Sym == nil {
+ 			// Name so that escape analysis can track it. ~r stands for 'result'.
+-			n.Left = newname(lookupN("~r", gen))
++			n.Sym = lookupN("~r", gen)
+ 			gen++
+ 		}
+-
+-		// TODO: n->left->missing = 1;
+-		n.Left.Op = ONAME
+-
+-		if n.Left.isBlank() {
++		if n.Sym.IsBlank() {
+ 			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
+ 			// The name must be different from ~r above because if you have
+ 			//	func f() (_ int)
+ 			//	func g() int
+ 			// f is allowed to use a plain 'return' with no arguments, while g is not.
+ 			// So the two cases must be distinguished.
+-			// We do not record a pointer to the original node (n->orig).
+-			// Having multiple names causes too much confusion in later passes.
+-			nn := n.Left.copy()
+-			nn.Orig = nn
+-			nn.Sym = lookupN("~b", gen)
++			n.Sym = lookupN("~b", gen)
+ 			gen++
+-			n.Left = nn
+ 		}
+ 
+-		n.Left.Name.Param.Ntype = n.Right
+-		declare(n.Left, PPARAMOUT)
+-		if dclcontext == PAUTO {
+-			i++
+-			n.Left.Name.Vargen = int32(i)
+-		}
++		funcarg(n, PPARAMOUT)
+ 	}
++
++	vargen = oldvargen
++}
++
++func funcarg(n *Node, ctxt Class) {
++	if n.Op != ODCLFIELD {
++		Fatalf("funcarg %v", n.Op)
++	}
++	if n.Sym == nil {
++		return
++	}
++
++	n.Right = newnamel(n.Pos, n.Sym)
++	n.Right.Name.Param.Ntype = n.Left
++	n.Right.SetIsddd(n.Isddd())
++	declare(n.Right, ctxt)
++
++	vargen++
++	n.Right.Name.Vargen = int32(vargen)
+ }
+ 
+ // Same as funcargs, except run over an already constructed TFUNC.
+@@ -490,32 +473,26 @@ func funcargs2(t *types.Type) {
+ 		Fatalf("funcargs2 %v", t)
+ 	}
+ 
+-	for _, ft := range t.Recvs().Fields().Slice() {
+-		if asNode(ft.Nname) == nil || asNode(ft.Nname).Sym == nil {
+-			continue
+-		}
+-		n := asNode(ft.Nname) // no need for newname(ft->nname->sym)
+-		n.Type = ft.Type
+-		declare(n, PPARAM)
++	for _, f := range t.Recvs().Fields().Slice() {
++		funcarg2(f, PPARAM)
+ 	}
+-
+-	for _, ft := range t.Params().Fields().Slice() {
+-		if asNode(ft.Nname) == nil || asNode(ft.Nname).Sym == nil {
+-			continue
+-		}
+-		n := asNode(ft.Nname)
+-		n.Type = ft.Type
+-		declare(n, PPARAM)
++	for _, f := range t.Params().Fields().Slice() {
++		funcarg2(f, PPARAM)
+ 	}
++	for _, f := range t.Results().Fields().Slice() {
++		funcarg2(f, PPARAMOUT)
++	}
++}
+ 
+-	for _, ft := range t.Results().Fields().Slice() {
+-		if asNode(ft.Nname) == nil || asNode(ft.Nname).Sym == nil {
+-			continue
+-		}
+-		n := asNode(ft.Nname)
+-		n.Type = ft.Type
+-		declare(n, PPARAMOUT)
++func funcarg2(f *types.Field, ctxt Class) {
++	if f.Sym == nil {
++		return
+ 	}
++	n := newnamel(f.Pos, f.Sym)
++	f.Nname = asTypesNode(n)
++	n.Type = f.Type
++	n.SetIsddd(f.Isddd())
++	declare(n, ctxt)
+ }
+ 
+ var funcstack []*Node // stack of previous values of Curfn
+@@ -565,26 +542,27 @@ func structfield(n *Node) *types.Field {
+ 	}
+ 
+ 	f := types.NewField()
+-	f.SetIsddd(n.Isddd())
++	f.Pos = n.Pos
++	f.Sym = n.Sym
+ 
+-	if n.Right != nil {
+-		n.Right = typecheck(n.Right, Etype)
+-		n.Type = n.Right.Type
+-		if n.Left != nil {
+-			n.Left.Type = n.Type
+-		}
+-		if n.Embedded() {
+-			checkembeddedtype(n.Type)
+-		}
++	if n.Left != nil {
++		n.Left = typecheck(n.Left, Etype)
++		n.Type = n.Left.Type
++		n.Left = nil
+ 	}
+ 
+-	n.Right = nil
+-
+ 	f.Type = n.Type
+ 	if f.Type == nil {
+ 		f.SetBroke(true)
+ 	}
+ 
++	if n.Embedded() {
++		checkembeddedtype(n.Type)
++		f.Embedded = 1
++	} else {
++		f.Embedded = 0
++	}
++
+ 	switch u := n.Val().U.(type) {
+ 	case string:
+ 		f.Note = u
+@@ -594,16 +572,6 @@ func structfield(n *Node) *types.Field {
+ 		// no-op
+ 	}
+ 
+-	if n.Left != nil && n.Left.Op == ONAME {
+-		f.Nname = asTypesNode(n.Left)
+-		if n.Embedded() {
+-			f.Embedded = 1
+-		} else {
+-			f.Embedded = 0
+-		}
+-		f.Sym = asNode(f.Nname).Sym
+-	}
+-
+ 	lineno = lno
+ 	return f
+ }
+@@ -614,11 +582,11 @@ func checkdupfields(what string, ts ...*types.Type) {
+ 	seen := make(map[*types.Sym]bool)
+ 	for _, t := range ts {
+ 		for _, f := range t.Fields().Slice() {
+-			if f.Sym == nil || f.Sym.IsBlank() || asNode(f.Nname) == nil {
++			if f.Sym == nil || f.Sym.IsBlank() {
+ 				continue
+ 			}
+ 			if seen[f.Sym] {
+-				yyerrorl(asNode(f.Nname).Pos, "duplicate %s %s", what, f.Sym.Name)
++				yyerrorl(f.Pos, "duplicate %s %s", what, f.Sym.Name)
+ 				continue
+ 			}
+ 			seen[f.Sym] = true
+@@ -664,6 +632,11 @@ func tofunargs(l []*Node, funarg types.Funarg) *types.Type {
+ 	for i, n := range l {
+ 		f := structfield(n)
+ 		f.Funarg = funarg
++		f.SetIsddd(n.Isddd())
++		if n.Right != nil {
++			n.Right.Type = f.Type
++			f.Nname = asTypesNode(n.Right)
++		}
+ 		if f.Broke() {
+ 			t.SetBroke(true)
+ 		}
+@@ -698,25 +671,18 @@ func interfacefield(n *Node) *types.Field {
+ 
+ 	// MethodSpec = MethodName Signature | InterfaceTypeName .
+ 	//
+-	// If Left != nil, then Left is MethodName and Right is Signature.
+-	// Otherwise, Right is InterfaceTypeName.
+-
+-	if n.Right != nil {
+-		n.Right = typecheck(n.Right, Etype)
+-		n.Type = n.Right.Type
+-		n.Right = nil
+-	}
++	// If Sym != nil, then Sym is MethodName and Left is Signature.
++	// Otherwise, Left is InterfaceTypeName.
+ 
+-	f := types.NewField()
+ 	if n.Left != nil {
+-		f.Nname = asTypesNode(n.Left)
+-		f.Sym = asNode(f.Nname).Sym
+-	} else {
+-		// Placeholder ONAME just to hold Pos.
+-		// TODO(mdempsky): Add Pos directly to Field instead.
+-		f.Nname = asTypesNode(newname(nblank.Sym))
++		n.Left = typecheck(n.Left, Etype)
++		n.Type = n.Left.Type
++		n.Left = nil
+ 	}
+ 
++	f := types.NewField()
++	f.Pos = n.Pos
++	f.Sym = n.Sym
+ 	f.Type = n.Type
+ 	if f.Type == nil {
+ 		f.SetBroke(true)
+@@ -785,22 +751,16 @@ func functype0(t *types.Type, this *Node, in, out []*Node) {
+ 		rcvr = []*Node{this}
+ 	}
+ 	t.FuncType().Receiver = tofunargs(rcvr, types.FunargRcvr)
+-	t.FuncType().Results = tofunargs(out, types.FunargResults)
+ 	t.FuncType().Params = tofunargs(in, types.FunargParams)
++	t.FuncType().Results = tofunargs(out, types.FunargResults)
+ 
+-	checkdupfields("argument", t.Recvs(), t.Results(), t.Params())
++	checkdupfields("argument", t.Recvs(), t.Params(), t.Results())
+ 
+ 	if t.Recvs().Broke() || t.Results().Broke() || t.Params().Broke() {
+ 		t.SetBroke(true)
+ 	}
+ 
+-	t.FuncType().Outnamed = false
+-	if len(out) > 0 && out[0].Left != nil && out[0].Left.Orig != nil {
+-		s := out[0].Left.Orig.Sym
+-		if s != nil && (s.Name[0] != '~' || s.Name[1] != 'r') { // ~r%d is the name invented for an unnamed result
+-			t.FuncType().Outnamed = true
+-		}
+-	}
++	t.FuncType().Outnamed = t.NumResults() > 0 && origSym(t.Results().Field(0).Sym) != nil
+ }
+ 
+ func functypefield(this *types.Field, in, out []*types.Field) *types.Type {
+@@ -815,16 +775,24 @@ func functypefield0(t *types.Type, this *types.Field, in, out []*types.Field) {
+ 		rcvr = []*types.Field{this}
+ 	}
+ 	t.FuncType().Receiver = tofunargsfield(rcvr, types.FunargRcvr)
+-	t.FuncType().Results = tofunargsfield(out, types.FunargRcvr)
+-	t.FuncType().Params = tofunargsfield(in, types.FunargRcvr)
+-
+-	t.FuncType().Outnamed = false
+-	if len(out) > 0 && asNode(out[0].Nname) != nil && asNode(out[0].Nname).Orig != nil {
+-		s := asNode(out[0].Nname).Orig.Sym
+-		if s != nil && (s.Name[0] != '~' || s.Name[1] != 'r') { // ~r%d is the name invented for an unnamed result
+-			t.FuncType().Outnamed = true
++	t.FuncType().Params = tofunargsfield(in, types.FunargParams)
++	t.FuncType().Results = tofunargsfield(out, types.FunargResults)
++
++	t.FuncType().Outnamed = t.NumResults() > 0 && origSym(t.Results().Field(0).Sym) != nil
++}
++
++// origSym returns the original symbol written by the user.
++func origSym(s *types.Sym) *types.Sym {
++	if s != nil && s.Name[0] == '~' {
++		switch s.Name[1] {
++		case 'r': // originally an unnamed result
++			s = nil
++		case 'b': // originally the blank identifier _
++			// TODO(mdempsky): Does s.Pkg matter here?
++			s = nblank.Sym
+ 		}
+ 	}
++	return s
+ }
+ 
+ // methodSym returns the method symbol representing a method name
+@@ -962,8 +930,8 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.F
+ 	}
+ 
+ 	f := types.NewField()
++	f.Pos = lineno
+ 	f.Sym = msym
+-	f.Nname = asTypesNode(newname(msym))
+ 	f.Type = t
+ 	f.SetNointerface(nointerface)
+ 
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 4c0a4ace1d..8386c7ff3a 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -908,10 +908,10 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
+ 		mode.Fprintf(s, "var %v %v", n.Left.Sym, n.Left.Type)
+ 
+ 	case ODCLFIELD:
+-		if n.Left != nil {
+-			mode.Fprintf(s, "%v %v", n.Left, n.Right)
++		if n.Sym != nil {
++			mode.Fprintf(s, "%v %v", n.Sym, n.Left)
+ 		} else {
+-			mode.Fprintf(s, "%v", n.Right)
++			mode.Fprintf(s, "%v", n.Left)
+ 		}
+ 
+ 	// Don't export "v = <N>" initializing statements, hope they're always
+@@ -1683,21 +1683,9 @@ func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int) string {
+ 	if flag&FmtShort == 0 {
+ 		s := f.Sym
+ 
+-		// Take the name from the original, lest we substituted it with ~r%d or ~b%d.
+-		// ~r%d is a (formerly) unnamed result.
+-		if mode == FErr && asNode(f.Nname) != nil {
+-			if asNode(f.Nname).Orig != nil {
+-				s = asNode(f.Nname).Orig.Sym
+-				if s != nil && s.Name[0] == '~' {
+-					if s.Name[1] == 'r' { // originally an unnamed result
+-						s = nil
+-					} else if s.Name[1] == 'b' { // originally the blank identifier _
+-						s = lookup("_")
+-					}
+-				}
+-			} else {
+-				s = nil
+-			}
++		// Take the name from the original.
++		if mode == FErr {
++			s = origSym(s)
+ 		}
+ 
+ 		if s != nil && f.Embedded == 0 {
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 6e3876f937..88179d7135 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -753,10 +753,10 @@ func mkinlcall(n *Node, fn *Node) *Node {
+ }
+ 
+ func tinlvar(t *types.Field, inlvars map[*Node]*Node) *Node {
+-	if asNode(t.Nname) != nil && !asNode(t.Nname).isBlank() {
+-		inlvar := inlvars[asNode(t.Nname)]
++	if n := asNode(t.Nname); n != nil && !n.isBlank() {
++		inlvar := inlvars[n]
+ 		if inlvar == nil {
+-			Fatalf("missing inlvar for %v\n", asNode(t.Nname))
++			Fatalf("missing inlvar for %v\n", n)
+ 		}
+ 		return inlvar
+ 	}
+@@ -884,12 +884,11 @@ func mkinlcall1(n, fn *Node) *Node {
+ 	var retvars []*Node
+ 	for i, t := range fn.Type.Results().Fields().Slice() {
+ 		var m *Node
+-		var mpos src.XPos
+-		if t != nil && asNode(t.Nname) != nil && !asNode(t.Nname).isBlank() {
+-			mpos = asNode(t.Nname).Pos
+-			m = inlvar(asNode(t.Nname))
++		mpos := t.Pos
++		if n := asNode(t.Nname); n != nil && !n.isBlank() {
++			m = inlvar(n)
+ 			m = typecheck(m, Erv)
+-			inlvars[asNode(t.Nname)] = m
++			inlvars[n] = m
+ 		} else {
+ 			// anonymous return values, synthesize names for use in assignment that replaces return
+ 			m = retvar(t, i)
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 6083870735..ecd039ae78 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -502,13 +502,13 @@ func (p *noder) params(params []*syntax.Field, dddOk bool) []*Node {
+ }
+ 
+ func (p *noder) param(param *syntax.Field, dddOk, final bool) *Node {
+-	var name *Node
++	var name *types.Sym
+ 	if param.Name != nil {
+-		name = p.newname(param.Name)
++		name = p.name(param.Name)
+ 	}
+ 
+ 	typ := p.typeExpr(param.Type)
+-	n := p.nod(param, ODCLFIELD, name, typ)
++	n := p.nodSym(param, ODCLFIELD, typ, name)
+ 
+ 	// rewrite ...T parameter
+ 	if typ.Op == ODDD {
+@@ -771,7 +771,7 @@ func (p *noder) structType(expr *syntax.StructType) *Node {
+ 		if field.Name == nil {
+ 			n = p.embedded(field.Type)
+ 		} else {
+-			n = p.nod(field, ODCLFIELD, p.newname(field.Name), p.typeExpr(field.Type))
++			n = p.nodSym(field, ODCLFIELD, p.typeExpr(field.Type), p.name(field.Name))
+ 		}
+ 		if i < len(expr.TagList) && expr.TagList[i] != nil {
+ 			n.SetVal(p.basicLit(expr.TagList[i]))
+@@ -791,12 +791,12 @@ func (p *noder) interfaceType(expr *syntax.InterfaceType) *Node {
+ 		p.lineno(method)
+ 		var n *Node
+ 		if method.Name == nil {
+-			n = p.nod(method, ODCLFIELD, nil, oldname(p.packname(method.Type)))
++			n = p.nodSym(method, ODCLFIELD, oldname(p.packname(method.Type)), nil)
+ 		} else {
+-			mname := p.newname(method.Name)
++			mname := p.name(method.Name)
+ 			sig := p.typeExpr(method.Type)
+ 			sig.Left = fakeRecv()
+-			n = p.nod(method, ODCLFIELD, mname, sig)
++			n = p.nodSym(method, ODCLFIELD, sig, mname)
+ 			ifacedcl(n)
+ 		}
+ 		l = append(l, n)
+@@ -840,11 +840,11 @@ func (p *noder) embedded(typ syntax.Expr) *Node {
+ 	}
+ 
+ 	sym := p.packname(typ)
+-	n := nod(ODCLFIELD, newname(lookup(sym.Name)), oldname(sym))
++	n := p.nodSym(typ, ODCLFIELD, oldname(sym), lookup(sym.Name))
+ 	n.SetEmbedded(true)
+ 
+ 	if isStar {
+-		n.Right = p.nod(op, OIND, n.Right, nil)
++		n.Left = p.nod(op, OIND, n.Left, nil)
+ 	}
+ 	return n
+ }
+@@ -1354,6 +1354,10 @@ func (p *noder) nod(orig syntax.Node, op Op, left, right *Node) *Node {
+ 	return p.setlineno(orig, nod(op, left, right))
+ }
+ 
++func (p *noder) nodSym(orig syntax.Node, op Op, left *Node, sym *types.Sym) *Node {
++	return p.setlineno(orig, nodSym(op, left, sym))
++}
++
+ func (p *noder) setlineno(src_ syntax.Node, dst *Node) *Node {
+ 	pos := src_.Pos()
+ 	if !pos.IsKnown() {
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 33b71a40c2..076b716247 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -321,22 +321,19 @@ func hiter(t *types.Type) *types.Type {
+ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
+ 	var in []*Node
+ 	if receiver != nil {
+-		d := nod(ODCLFIELD, nil, nil)
+-		d.Type = receiver
++		d := anonfield(receiver)
+ 		in = append(in, d)
+ 	}
+ 
+ 	for _, t := range f.Params().Fields().Slice() {
+-		d := nod(ODCLFIELD, nil, nil)
+-		d.Type = t.Type
++		d := anonfield(t.Type)
+ 		d.SetIsddd(t.Isddd())
+ 		in = append(in, d)
+ 	}
+ 
+ 	var out []*Node
+ 	for _, t := range f.Results().Fields().Slice() {
+-		d := nod(ODCLFIELD, nil, nil)
+-		d.Type = t.Type
++		d := anonfield(t.Type)
+ 		out = append(out, d)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 4d87f0da26..e131d1eafe 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1581,20 +1581,14 @@ func structargs(tl *types.Type, mustname bool) []*Node {
+ 	var args []*Node
+ 	gen := 0
+ 	for _, t := range tl.Fields().Slice() {
+-		var n *Node
+-		if mustname && (t.Sym == nil || t.Sym.Name == "_") {
++		s := t.Sym
++		if mustname && (s == nil || s.Name == "_") {
+ 			// invent a name so that we can refer to it in the trampoline
+-			buf := fmt.Sprintf(".anon%d", gen)
++			s = lookupN(".anon", gen)
+ 			gen++
+-			n = newname(lookup(buf))
+-		} else if t.Sym != nil {
+-			n = newname(t.Sym)
+ 		}
+-		a := nod(ODCLFIELD, n, typenod(t.Type))
++		a := symfield(s, t.Type)
+ 		a.SetIsddd(t.Isddd())
+-		if n != nil {
+-			n.SetIsddd(t.Isddd())
+-		}
+ 		args = append(args, a)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 836ac4965f..a8adb77366 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -322,16 +322,18 @@ type Field struct {
+ 	Embedded uint8 // embedded field
+ 	Funarg   Funarg
+ 
+-	Sym   *Sym
+-	Nname *Node
++	Pos  src.XPos
++	Sym  *Sym
++	Type *Type  // field type
++	Note string // literal string annotation
+ 
+-	Type *Type // field type
++	// For fields that represent function parameters, Nname points
++	// to the associated ONAME Node.
++	Nname *Node
+ 
+ 	// Offset in bytes of this field or method within its enclosing struct
+ 	// or interface Type.
+ 	Offset int64
+-
+-	Note string // literal string annotation
+ }
+ 
+ const (

@@ -22,9 +22,155 @@ Date:   Wed Jul 8 11:17:01 2015 +1000
     Change-Id: I4d363081fe7dabf76ec8e5315770ac3609592f80
     Reviewed-on: https://go-review.googlesource.com/11953
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/doc/main.go   |  5 +++++
  src/cmd/doc/pkg.go    | 20 ++++++++++++++++++--
  src/cmd/go/alldocs.go | 12 +++++++++++-
  src/cmd/go/doc.go     | 12 +++++++++++-
  4 files changed, 45 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index 8d6a0c2fce..dda6aec22c 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -23,6 +23,9 @@
+ // first argument must be a full package path. This is similar to the
+ // command-line usage for the godoc command.
+ //
++// For commands, unless the -cmd flag is present "go doc command"
++// shows only the package-level docs for the package.
++//
+ // For complete documentation, run "go help doc".
+ package main
+ 
+@@ -43,6 +46,7 @@ import (
+ var (
+ 	unexported bool // -u flag
+ 	matchCase  bool // -c flag
++	showCmd    bool // -cmd flag
+ )
+ 
+ // usage is a replacement usage function for the flags package.
+@@ -76,6 +80,7 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
+ 	matchCase = false
+ 	flagSet.BoolVar(&unexported, "u", false, "show unexported symbols as well as exported")
+ 	flagSet.BoolVar(&matchCase, "c", false, "symbol matching honors case (paths not affected)")
++	flagSet.BoolVar(&showCmd, "cmd", false, "show symbols with package docs even if package is a command")
+ 	flagSet.Parse(args)
+ 	buildPackage, userPath, symbol := parseArgs(flagSet.Args())
+ 	symbol, method := parseSymbol(symbol)
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 01268bb52a..5192b028dd 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -200,11 +200,19 @@ func (pkg *Package) oneLineTypeDecl(spec *ast.TypeSpec) {
+ // packageDoc prints the docs for the package (package doc plus one-liners of the rest).
+ func (pkg *Package) packageDoc() {
+ 	defer pkg.flush()
+-	pkg.packageClause(false)
++	if pkg.showInternals() {
++		pkg.packageClause(false)
++	}
+ 
+ 	doc.ToText(&pkg.buf, pkg.doc.Doc, "", "\t", 80)
+-	pkg.newlines(2)
++	pkg.newlines(1)
++
++	if !pkg.showInternals() {
++		// Show only package docs for commands.
++		return
++	}
+ 
++	pkg.newlines(1)
+ 	pkg.valueSummary(pkg.doc.Consts)
+ 	pkg.valueSummary(pkg.doc.Vars)
+ 	pkg.funcSummary(pkg.doc.Funcs)
+@@ -212,6 +220,14 @@ func (pkg *Package) packageDoc() {
+ 	pkg.bugs()
+ }
+ 
++// showInternals reports whether we should show the internals
++// of a package as opposed to just the package docs.
++// Used to decide whether to suppress internals for commands.
++// Called only by Package.packageDoc.
++func (pkg *Package) showInternals() bool {
++	return pkg.pkg.Name != "main" || showCmd
++}
++
+ // packageClause prints the package clause.
+ // The argument boolean, if true, suppresses the output if the
+ // user's argument is identical to the actual package path or
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 1a021fa44d..56c1c0e6d2 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -201,7 +201,9 @@ Given no arguments, that is, when run as
+ 
+ 	go doc
+ 
+-it prints the package documentation for the package in the current directory.
++it prints the package documentation for the package in the current directory.  If
++the package is a command (package main), the exported symbols of the package are
++elided from the presentation unless the -cmd flag is provided.
+ 
+ When run with one argument, the argument is treated as a Go-syntax-like representation
+ of the item to be documented. What the argument selects depends on what is installed
+@@ -249,6 +251,10 @@ Examples:
+ 		Show documentation and method summary for json.Number.
+ 	go doc json.Number.Int64 (or go doc json.number.int64)
+ 		Show documentation for json.Number's Int64 method.
++	go doc cmd/doc
++		Show package docs for the doc command.
++	go doc -cmd cmd/doc
++		Show package docs and exported symbols within the doc command.
+ 	go doc template.new
+ 		Show documentation for html/template's New function.
+ 		(html/template is lexically before text/template)
+@@ -260,6 +266,10 @@ Examples:
+ Flags:
+ 	-c
+ 		Respect case when matching symbols.
++	-cmd
++		Treat a command (package main) like a regular package.
++		Otherwise package main's exported symbols are hidden
++		when showing the package's top-level documentation.
+ 	-u
+ 		Show documentation for unexported as well as exported
+ 		symbols and methods.
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index a9bda4dceb..03c950552e 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -22,7 +22,9 @@ Given no arguments, that is, when run as
+ 
+ 	go doc
+ 
+-it prints the package documentation for the package in the current directory.
++it prints the package documentation for the package in the current directory.  If
++the package is a command (package main), the exported symbols of the package are
++elided from the presentation unless the -cmd flag is provided.
+ 
+ When run with one argument, the argument is treated as a Go-syntax-like representation
+ of the item to be documented. What the argument selects depends on what is installed
+@@ -70,6 +72,10 @@ Examples:
+ 		Show documentation and method summary for json.Number.
+ 	go doc json.Number.Int64 (or go doc json.number.int64)
+ 		Show documentation for json.Number's Int64 method.
++	go doc cmd/doc
++		Show package docs for the doc command.
++	go doc -cmd cmd/doc
++		Show package docs and exported symbols within the doc command.
+ 	go doc template.new
+ 		Show documentation for html/template's New function.
+ 		(html/template is lexically before text/template)
+@@ -81,6 +87,10 @@ Examples:
+ Flags:
+ 	-c
+ 		Respect case when matching symbols.
++	-cmd
++		Treat a command (package main) like a regular package.
++		Otherwise package main's exported symbols are hidden
++		when showing the package's top-level documentation.
+ 	-u
+ 		Show documentation for unexported as well as exported
+ 		symbols and methods.

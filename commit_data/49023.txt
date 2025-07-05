@@ -22,10 +22,175 @@ Date:   Wed Jul 7 16:27:22 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  .../testdata/script/test_fuzz_non_crash_signal.txt | 55 ++++++++++++++++++++++
  src/internal/fuzz/sys_posix.go                     | 41 +++++++++++++++-
  src/internal/fuzz/sys_unimplemented.go             |  8 ++++
  src/internal/fuzz/sys_windows.go                   | 10 ++++
  src/internal/fuzz/worker.go                        |  8 ++++
  5 files changed, 121 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt b/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
+new file mode 100644
+index 0000000000..a67bf63c0b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
+@@ -0,0 +1,55 @@
++# NOTE: this test is skipped on Windows, since there's no concept of signals.
++# When a process terminates another process, it provides an exit code.
++# TODO(jayconrod): support shared memory on more platforms.
++[!darwin] [!freebsd] [!linux] skip
++[short] skip
++
++# FuzzNonCrash sends itself a signal that does not appear to be a crash.
++# We should not save a crasher.
++! go test -fuzz=FuzzNonCrash
++! exists testdata
++! stdout unreachable
++! stderr unreachable
++stdout 'fuzzing process terminated by unexpected signal; no crash will be recorded: signal: killed'
++
++# FuzzCrash sends itself a signal that looks like a crash.
++# We should save a crasher.
++! go test -fuzz=FuzzCrash
++exists testdata/corpus/FuzzCrash
++stdout 'fuzzing process terminated unexpectedly'
++
++-- go.mod --
++module test
++
++go 1.17
++-- fuzz_posix_test.go --
++// +build darwin freebsd linux
++
++package fuzz
++
++import (
++	"syscall"
++	"testing"
++)
++
++func FuzzNonCrash(f *testing.F) {
++	f.Fuzz(func(*testing.T, bool) {
++		pid := syscall.Getpid()
++		if err := syscall.Kill(pid, syscall.SIGKILL); err != nil {
++			panic(err)
++		}
++		// signal may not be received immediately. Wait for it.
++		select{}
++	})
++}
++
++func FuzzCrash(f *testing.F) {
++	f.Fuzz(func(*testing.T, bool) {
++		pid := syscall.Getpid()
++		if err := syscall.Kill(pid, syscall.SIGILL); err != nil {
++			panic(err)
++		}
++		// signal may not be received immediately. Wait for it.
++		select{}
++	})
++}
+diff --git a/src/internal/fuzz/sys_posix.go b/src/internal/fuzz/sys_posix.go
+index 8ea84d2025..2473274ecf 100644
+--- a/src/internal/fuzz/sys_posix.go
++++ b/src/internal/fuzz/sys_posix.go
+@@ -88,5 +88,44 @@ func isInterruptError(err error) bool {
+ 		return false
+ 	}
+ 	status := exitErr.Sys().(syscall.WaitStatus)
+-	return status.Signal() == syscall.SIGINT || status.Signal() == syscall.SIGKILL
++	return status.Signal() == syscall.SIGINT
++}
++
++// terminationSignal checks if err is an exec.ExitError with a signal status.
++// If it is, terminationSignal returns the signal and true.
++// If not, -1 and false.
++func terminationSignal(err error) (os.Signal, bool) {
++	exitErr, ok := err.(*exec.ExitError)
++	if !ok || exitErr.ExitCode() >= 0 {
++		return syscall.Signal(-1), false
++	}
++	status := exitErr.Sys().(syscall.WaitStatus)
++	return status.Signal(), status.Signaled()
++}
++
++// isCrashSignal returns whether a signal was likely to have been caused by an
++// error in the program that received it, triggered by a fuzz input. For
++// example, SIGSEGV would be received after a nil pointer dereference.
++// Other signals like SIGKILL or SIGHUP are more likely to have been sent by
++// another process, and we shouldn't record a crasher if the worker process
++// receives one of these.
++//
++// Note that Go installs its own signal handlers on startup, so some of these
++// signals may only be received if signal handlers are changed. For example,
++// SIGSEGV is normally transformed into a panic that causes the process to exit
++// with status 2 if not recovered, which we handle as a crash.
++func isCrashSignal(signal os.Signal) bool {
++	switch signal {
++	case
++		syscall.SIGILL,  // illegal instruction
++		syscall.SIGTRAP, // breakpoint
++		syscall.SIGABRT, // abort() called
++		syscall.SIGBUS,  // invalid memory access (e.g., misaligned address)
++		syscall.SIGFPE,  // math error, e.g., integer divide by zero
++		syscall.SIGSEGV, // invalid memory access (e.g., write to read-only)
++		syscall.SIGPIPE: // sent data to closed pipe or socket
++		return true
++	default:
++		return false
++	}
+ }
+diff --git a/src/internal/fuzz/sys_unimplemented.go b/src/internal/fuzz/sys_unimplemented.go
+index 5f80379c22..827e36cf32 100644
+--- a/src/internal/fuzz/sys_unimplemented.go
++++ b/src/internal/fuzz/sys_unimplemented.go
+@@ -34,3 +34,11 @@ func getWorkerComm() (comm workerComm, err error) {
+ func isInterruptError(err error) bool {
+ 	panic("not implemented")
+ }
++
++func terminationSignal(err error) (os.Signal, bool) {
++	panic("not implemented")
++}
++
++func isCrashSignal(signal os.Signal) bool {
++	panic("not implemented")
++}
+diff --git a/src/internal/fuzz/sys_windows.go b/src/internal/fuzz/sys_windows.go
+index 286501bc10..fabf954ba7 100644
+--- a/src/internal/fuzz/sys_windows.go
++++ b/src/internal/fuzz/sys_windows.go
+@@ -140,3 +140,13 @@ func isInterruptError(err error) bool {
+ 	// returned by Wait. It looks like an ExitError with status 1.
+ 	return false
+ }
++
++// terminationSignal returns -1 and false because Windows doesn't have signals.
++func terminationSignal(err error) (os.Signal, bool) {
++	return syscall.Signal(-1), false
++}
++
++// isCrashSignal is not implemented because Windows doesn't have signals.
++func isCrashSignal(signal os.Signal) bool {
++	panic("not implemented: no signals on windows")
++}
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index e1fc999104..c3f4d74302 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -160,6 +160,14 @@ func (w *worker) coordinate(ctx context.Context) error {
+ 					// Since we expect I/O errors around interrupts, ignore this error.
+ 					return nil
+ 				}
++				if sig, ok := terminationSignal(w.waitErr); ok && !isCrashSignal(sig) {
++					// Worker terminated by a signal that probably wasn't caused by a
++					// specific input to the fuzz function. For example, on Linux,
++					// the kernel (OOM killer) may send SIGKILL to a process using a lot
++					// of memory. Or the shell might send SIGHUP when the terminal
++					// is closed. Don't record a crasher.
++					return fmt.Errorf("fuzzing process terminated by unexpected signal; no crash will be recorded: %v", w.waitErr)
++				}
+ 				// Unexpected termination. Set error message and fall through.
+ 				// We'll restart the worker on the next iteration.
+ 				resp.Err = fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)

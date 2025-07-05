@@ -11,6 +11,31 @@ Date:   Tue Aug 24 13:04:02 2010 -0400
     R=adg, Martin Neubauer
     CC=golang-dev
     https://golang.org/cl/1933044
-
+---
  src/pkg/runtime/freebsd/386/sys.s | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/freebsd/386/sys.s b/src/pkg/runtime/freebsd/386/sys.s
+index a0860db81b..4b3b474271 100644
+--- a/src/pkg/runtime/freebsd/386/sys.s
++++ b/src/pkg/runtime/freebsd/386/sys.s
+@@ -66,7 +66,18 @@ TEXT	notok(SB),7,$0
+ 	MOVL	$0xf1, 0xf1
+ 	RET
+ 
+-TEXT ·mmap(SB),7,$-4
++TEXT ·mmap(SB),7,$32
++	LEAL arg0+0(FP), SI
++	LEAL	4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVL	$0, AX	// top 64 bits of file offset
++	STOSL
+ 	MOVL	$477, AX
+ 	INT	$0x80
+ 	JAE	2(PC)

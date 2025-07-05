@@ -9,7 +9,7 @@ Date:   Mon Jul 26 15:25:10 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1904041
-
+---
  src/cmd/5g/gobj.c        |  2 +-
  src/cmd/6g/gobj.c        |  2 +-
  src/cmd/8g/gobj.c        |  2 +-
@@ -20,3 +20,290 @@ Date:   Mon Jul 26 15:25:10 2010 -0700
  src/cmd/gc/typecheck.c   |  2 +-
  test/fixedbugs/bug296.go | 82 ++++++++++++++++++++++++++++++++++++++++++++++++
  9 files changed, 121 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index c4564ed665..49c7df1f02 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -705,7 +705,7 @@ out:
+ 	p->to.type = D_OREG;
+ 	p->to.reg = NREG;
+ 	p->to.name = D_EXTERN;
+-	p->to.sym = methodsym(method->sym, ptrto(f->type));
++	p->to.sym = methodsym(method->sym, ptrto(f->type), 0);
+ //print("4. %P\n", p);
+ 
+ 	pc->as = ARET;	// overwrite AEND
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 7c05054b7a..a8e32e9fd5 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -732,7 +732,7 @@ out:
+ 	p = pc;
+ 	gins(AJMP, N, N);
+ 	p->to.type = D_EXTERN;
+-	p->to.sym = methodsym(method->sym, ptrto(f->type));
++	p->to.sym = methodsym(method->sym, ptrto(f->type), 0);
+ //print("6. %P\n", p);
+ 
+ 	pc->as = ARET;	// overwrite AEND
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 1f4b106f74..6ffdcbcc89 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -739,7 +739,7 @@ out:
+ 	p = pc;
+ 	gins(AJMP, N, N);
+ 	p->to.type = D_EXTERN;
+-	p->to.sym = methodsym(method->sym, ptrto(f->type));
++	p->to.sym = methodsym(method->sym, ptrto(f->type), 0);
+ //print("6. %P\n", p);
+ 
+ 	pc->as = ARET;	// overwrite AEND
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index adb1531c3d..05eff966f7 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1017,11 +1017,12 @@ functype(Node *this, NodeList *in, NodeList *out)
+ }
+ 
+ Sym*
+-methodsym(Sym *nsym, Type *t0)
++methodsym(Sym *nsym, Type *t0, int iface)
+ {
+ 	Sym *s;
+ 	char *p;
+ 	Type *t;
++	char *suffix;
+ 
+ 	t = t0;
+ 	if(t == T)
+@@ -1043,7 +1044,13 @@ methodsym(Sym *nsym, Type *t0)
+ 	if(t != t0 && t0->sym)
+ 		t0 = ptrto(t);
+ 
+-	p = smprint("%#hT·%s", t0, nsym->name);
++	suffix = "";
++	if(iface) {
++		dowidth(t0);
++		if(t0->width < types[tptr]->width)
++			suffix = "·i";
++	}
++	p = smprint("%#hT·%s%s", t0, nsym->name, suffix);
+ 	s = pkglookup(p, s->pkg);
+ 	free(p);
+ 	return s;
+@@ -1058,7 +1065,7 @@ methodname(Node *n, Type *t)
+ {
+ 	Sym *s;
+ 
+-	s = methodsym(n->sym, t);
++	s = methodsym(n->sym, t, 0);
+ 	if(s == S)
+ 		return n;
+ 	return newname(s);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 81eece4785..8417872f40 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -858,7 +858,7 @@ int	isifacemethod(Type *f);
+ void	markdcl(void);
+ Node*	methodname(Node *n, Type *t);
+ Node*	methodname1(Node *n, Node *t);
+-Sym*	methodsym(Sym *nsym, Type *t0);
++Sym*	methodsym(Sym *nsym, Type *t0, int iface);
+ Node*	newname(Sym *s);
+ Type*	newtype(Sym *s);
+ Node*	oldname(Sym *s);
+@@ -1061,7 +1061,7 @@ void	flusherrors(void);
+ void	frame(int context);
+ Type*	funcfirst(Iter *s, Type *t);
+ Type*	funcnext(Iter *s);
+-void	genwrapper(Type *rcvr, Type *method, Sym *newnam);
++void	genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface);
+ Type**	getinarg(Type *t);
+ Type*	getinargx(Type *t);
+ Type**	getoutarg(Type *t);
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 467f3615bc..16267ed9d9 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -183,14 +183,14 @@ methods(Type *t)
+ 		a = b;
+ 
+ 		a->name = method->name;
+-		a->isym = methodsym(method, it);
+-		a->tsym = methodsym(method, t);
++		a->isym = methodsym(method, it, 1);
++		a->tsym = methodsym(method, t, 0);
+ 		a->type = methodfunc(f->type, 1);
+ 		a->mtype = methodfunc(f->type, 0);
+ 
+ 		if(!(a->isym->flags & SymSiggen)) {
+ 			a->isym->flags |= SymSiggen;
+-			if(!eqtype(this, it)) {
++			if(!eqtype(this, it) || this->width < types[tptr]->width) {
+ 				if(oldlist == nil)
+ 					oldlist = pc;
+ 				// Is okay to call genwrapper here always,
+@@ -201,7 +201,7 @@ methods(Type *t)
+ 				&& f->embedded && !isifacemethod(f->type))
+ 					genembedtramp(it, f, a->isym);
+ 				else
+-					genwrapper(it, f, a->isym);
++					genwrapper(it, f, a->isym, 1);
+ 			}
+ 		}
+ 
+@@ -214,7 +214,7 @@ methods(Type *t)
+ 				&& f->embedded && !isifacemethod(f->type))
+ 					genembedtramp(t, f, a->tsym);
+ 				else
+-					genwrapper(t, f, a->tsym);
++					genwrapper(t, f, a->tsym, 0);
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 6af406be86..1c0bf1a8cc 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -3043,10 +3043,11 @@ structargs(Type **tl, int mustname)
+  *	newnam - the eventual mangled name of this function
+  */
+ void
+-genwrapper(Type *rcvr, Type *method, Sym *newnam)
++genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ {
+-	Node *this, *fn, *call, *n, *t;
++	Node *this, *fn, *call, *n, *t, *pad;
+ 	NodeList *l, *args, *in, *out;
++	Type *tpad;
+ 
+ 	if(debug['r'])
+ 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
+@@ -3062,8 +3063,21 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
+ 
+ 	fn = nod(ODCLFUNC, N, N);
+ 	fn->nname = newname(newnam);
+-	t = nod(OTFUNC, this, N);
+-	t->list = in;
++	t = nod(OTFUNC, N, N);
++	l = list1(this);
++	if(iface && rcvr->width < types[tptr]->width) {
++		// Building method for interface table and receiver
++		// is smaller than the single pointer-sized word
++		// that the interface call will pass in.
++		// Add a dummy padding argument after the
++		// receiver to make up the difference.
++		tpad = typ(TARRAY);
++		tpad->type = types[TUINT8];
++		tpad->bound = types[tptr]->width - rcvr->width;
++		pad = nod(ODCLFIELD, newname(lookup(".pad")), typenod(tpad));
++		l = list(l, pad);
++	}
++	t->list = concat(l, in);
+ 	t->rlist = out;
+ 	fn->nname->ntype = t;
+ 	funchdr(fn);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 39e5774048..3784c6699e 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -494,7 +494,7 @@ reswitch:
+ 				goto error;
+ 			}
+ 			n->op = ONAME;
+-			n->sym = methodsym(sym, l->type);
++			n->sym = methodsym(sym, l->type, 0);
+ 			n->type = methodfunc(n->type, 1);
+ 			n->xoffset = 0;
+ 			getinargx(n->type)->type->type = l->type;	// fix up receiver
+diff --git a/test/fixedbugs/bug296.go b/test/fixedbugs/bug296.go
+new file mode 100644
+index 0000000000..cfb9c9b6c1
+--- /dev/null
++++ b/test/fixedbugs/bug296.go
+@@ -0,0 +1,82 @@
++package main
++
++type I interface {
++	m(a, b, c, d, e, f, g, h byte)
++}
++
++type Int8 int8
++
++func (x Int8) m(a, b, c, d, e, f, g, h byte) {
++	check("Int8", int64(x), 0x01, a, b, c, d, e, f, g, h)
++}
++
++type Uint8 uint8
++
++func (x Uint8) m(a, b, c, d, e, f, g, h byte) {
++	check("Uint8", int64(x), 0x01, a, b, c, d, e, f, g, h)
++}
++
++type Int16 int16
++
++func (x Int16) m(a, b, c, d, e, f, g, h byte) {
++	check("Int16", int64(x), 0x0102, a, b, c, d, e, f, g, h)
++}
++
++type Uint16 uint16
++
++func (x Uint16) m(a, b, c, d, e, f, g, h byte) {
++	check("Uint16", int64(x), 0x0102, a, b, c, d, e, f, g, h)
++}
++
++type Int32 int32
++
++func (x Int32) m(a, b, c, d, e, f, g, h byte) {
++	check("Int32", int64(x), 0x01020304, a, b, c, d, e, f, g, h)
++}
++
++type Uint32 uint32
++
++func (x Uint32) m(a, b, c, d, e, f, g, h byte) {
++	check("Uint32", int64(x), 0x01020304, a, b, c, d, e, f, g, h)
++}
++
++type Int64 int64
++
++func (x Int64) m(a, b, c, d, e, f, g, h byte) {
++	check("Int64", int64(x), 0x0102030405060708, a, b, c, d, e, f, g, h)
++}
++
++type Uint64 uint64
++
++func (x Uint64) m(a, b, c, d, e, f, g, h byte) {
++	check("Uint64", int64(x), 0x0102030405060708, a, b, c, d, e, f, g, h)
++}
++
++var test = []I{
++	Int8(0x01),
++	Uint8(0x01),
++	Int16(0x0102),
++	Uint16(0x0102),
++	Int32(0x01020304),
++	Uint32(0x01020304),
++	Int64(0x0102030405060708),
++	Uint64(0x0102030405060708),
++}
++
++func main() {
++	for _, t := range test {
++		t.m(0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17)
++	}
++}
++
++var bug = false
++
++func check(desc string, have, want int64, a, b, c, d, e, f, g, h byte) {
++	if have != want || a != 0x10 || b != 0x11 || c != 0x12 || d != 0x13 || e != 0x14 || f != 0x15 || g != 0x16 || h != 0x17 {
++		if !bug {
++			bug = true
++			println("BUG")
++		}
++		println(desc, "check", have, want, a, b, c, d, e, f, g, h)
++	}
++}

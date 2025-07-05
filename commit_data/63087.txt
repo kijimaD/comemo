@@ -16,7 +16,7 @@ Date:   Tue Apr 1 19:38:39 2025 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/gc_test.go                           |   8 +-
  src/runtime/mcheckmark.go                        |  76 ++++++++--
  src/runtime/mcleanup.go                          |  12 +-
@@ -24,3 +24,452 @@ Date:   Tue Apr 1 19:38:39 2025 +0000
  src/runtime/mheap.go                             | 168 +++++++++++++++++++++--
  src/runtime/testdata/testprog/checkfinalizers.go |   8 ++
  6 files changed, 247 insertions(+), 34 deletions(-)
+
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index f29dfe4377..b5e6906235 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -1080,10 +1080,10 @@ func TestDetectFinalizerAndCleanupLeaks(t *testing.T) {
+ 	if len(sp) != 2 {
+ 		t.Fatalf("expected the runtime to throw, got:\n%s", got)
+ 	}
+-	if strings.Count(sp[0], "finalizer") != 1 {
+-		t.Fatalf("expected exactly one leaked finalizer, got:\n%s", got)
++	if strings.Count(sp[0], "is reachable from cleanup or finalizer") != 2 {
++		t.Fatalf("expected exactly two leaked cleanups and/or finalizers, got:\n%s", got)
+ 	}
+-	if strings.Count(sp[0], "cleanup") != 1 {
+-		t.Fatalf("expected exactly one leaked finalizer, got:\n%s", got)
++	if strings.Count(sp[0], "created at: main.DetectFinalizerAndCleanupLeaks") != 2 {
++		t.Fatalf("expected two symbolized locations, got:\n%s", got)
+ 	}
+ }
+diff --git a/src/runtime/mcheckmark.go b/src/runtime/mcheckmark.go
+index 00ea436739..cdd9c48115 100644
+--- a/src/runtime/mcheckmark.go
++++ b/src/runtime/mcheckmark.go
+@@ -148,7 +148,14 @@ func runCheckmark(prepareRootSet func(*gcWork)) {
+ func checkFinalizersAndCleanups() {
+ 	assertWorldStopped()
+ 
+-	failed := false
++	type report struct {
++		ptr uintptr
++		sp  *special
++	}
++	var reports [25]report
++	var nreports int
++	var more bool
++
+ 	forEachSpecial(func(p uintptr, s *mspan, sp *special) bool {
+ 		// We only care about finalizers and cleanups.
+ 		if sp.kind != _KindSpecialFinalizer && sp.kind != _KindSpecialCleanup {
+@@ -174,26 +181,65 @@ func checkFinalizersAndCleanups() {
+ 			return true
+ 		}
+ 		if atomic.Load8(bytep)&mask != 0 {
+-			if !failed {
+-				println("runtime: found possibly unreclaimable objects:")
++			if nreports >= len(reports) {
++				more = true
++				return false
+ 			}
+-			failed = true
+-			kind := "cleanup"
+-			if sp.kind == _KindSpecialFinalizer {
++			reports[nreports] = report{p, sp}
++			nreports++
++		}
++		return true
++	})
++
++	if nreports > 0 {
++		lastPtr := uintptr(0)
++		for _, r := range reports[:nreports] {
++			var ctx *specialCheckFinalizer
++			var kind string
++			if r.sp.kind == _KindSpecialFinalizer {
+ 				kind = "finalizer"
++				ctx = getCleanupContext(r.ptr, 0)
++			} else {
++				kind = "cleanup"
++				ctx = getCleanupContext(r.ptr, ((*specialCleanup)(unsafe.Pointer(r.sp))).id)
++			}
++
++			// N.B. reports is sorted 'enough' that cleanups/finalizers on the same pointer will
++			// appear consecutively because the specials list is sorted.
++			if lastPtr != r.ptr {
++				if lastPtr != 0 {
++					println()
++				}
++				print("runtime: value of type ", toRType(ctx.ptrType).string(), " @ ", hex(r.ptr), " is reachable from cleanup or finalizer\n")
++				println("value reachable from function or argument at one of:")
+ 			}
+-			print("\t0x", hex(p), " leaked due to a ", kind)
+-			if sp.kind == _KindSpecialFinalizer {
+-				spf := (*specialfinalizer)(unsafe.Pointer(sp))
+-				print(" (", (rtype{spf.fint}).string(), ")\n")
++
++			funcInfo := findfunc(ctx.funcPC)
++			if funcInfo.valid() {
++				file, line := funcline(funcInfo, ctx.createPC)
++				print(funcname(funcInfo), " (", kind, ")\n")
++				print("\t", file, ":", line, "\n")
++			} else {
++				print("<bad pc ", hex(ctx.funcPC), ">\n")
++			}
++
++			print("created at: ")
++			createInfo := findfunc(ctx.createPC)
++			if createInfo.valid() {
++				file, line := funcline(createInfo, ctx.createPC)
++				print(funcname(createInfo), "\n")
++				print("\t", file, ":", line, "\n")
+ 			} else {
+-				println()
++				print("<bad pc ", hex(ctx.createPC), ">\n")
+ 			}
++
++			lastPtr = r.ptr
+ 		}
+-		return true
+-	})
+-	if failed {
+-		throw("runtime: detected possible cleanup and/or finalizer leak")
++		println()
++		if more {
++			println("runtime: too many errors")
++		}
++		throw("runtime: detected possible cleanup and/or finalizer leaks")
+ 	}
+ }
+ 
+diff --git a/src/runtime/mcleanup.go b/src/runtime/mcleanup.go
+index ca11028432..058132de77 100644
+--- a/src/runtime/mcleanup.go
++++ b/src/runtime/mcleanup.go
+@@ -121,6 +121,10 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
+ 	}
+ 
+ 	id := addCleanup(unsafe.Pointer(ptr), fv)
++	if debug.checkfinalizers != 0 {
++		cleanupFn := *(**funcval)(unsafe.Pointer(&cleanup))
++		setCleanupContext(unsafe.Pointer(ptr), abi.TypeFor[T](), sys.GetCallerPC(), cleanupFn.fn, id)
++	}
+ 	return Cleanup{
+ 		id:  id,
+ 		ptr: usptr,
+@@ -146,7 +150,7 @@ func (c Cleanup) Stop() {
+ 	}
+ 
+ 	// The following block removes the Special record of type cleanup for the object c.ptr.
+-	span := spanOfHeap(uintptr(unsafe.Pointer(c.ptr)))
++	span := spanOfHeap(c.ptr)
+ 	if span == nil {
+ 		return
+ 	}
+@@ -156,7 +160,7 @@ func (c Cleanup) Stop() {
+ 	mp := acquirem()
+ 	span.ensureSwept()
+ 
+-	offset := uintptr(unsafe.Pointer(c.ptr)) - span.base()
++	offset := c.ptr - span.base()
+ 
+ 	var found *special
+ 	lock(&span.speciallock)
+@@ -197,6 +201,10 @@ func (c Cleanup) Stop() {
+ 	lock(&mheap_.speciallock)
+ 	mheap_.specialCleanupAlloc.free(unsafe.Pointer(found))
+ 	unlock(&mheap_.speciallock)
++
++	if debug.checkfinalizers != 0 {
++		clearCleanupContext(c.ptr, c.id)
++	}
+ }
+ 
+ const cleanupBlockSize = 512
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 4a0e110373..49c0a61a9d 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -472,6 +472,11 @@ func SetFinalizer(obj any, finalizer any) {
+ 		// switch to system stack and remove finalizer
+ 		systemstack(func() {
+ 			removefinalizer(e.data)
++
++			if debug.checkfinalizers != 0 {
++				clearFinalizerContext(uintptr(e.data))
++				KeepAlive(e.data)
++			}
+ 		})
+ 		return
+ 	}
+@@ -519,10 +524,14 @@ okarg:
+ 	// make sure we have a finalizer goroutine
+ 	createfing()
+ 
++	callerpc := sys.GetCallerPC()
+ 	systemstack(func() {
+ 		if !addfinalizer(e.data, (*funcval)(f.data), nret, fint, ot) {
+ 			throw("runtime.SetFinalizer: finalizer already set")
+ 		}
++		if debug.checkfinalizers != 0 {
++			setFinalizerContext(e.data, ot.Elem, callerpc, (*funcval)(f.data).fn)
++		}
+ 	})
+ }
+ 
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 41ac4698f5..66ec06e3b8 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -213,16 +213,17 @@ type mheap struct {
+ 		pad      [(cpu.CacheLinePadSize - unsafe.Sizeof(mcentral{})%cpu.CacheLinePadSize) % cpu.CacheLinePadSize]byte
+ 	}
+ 
+-	spanalloc              fixalloc // allocator for span*
+-	cachealloc             fixalloc // allocator for mcache*
+-	specialfinalizeralloc  fixalloc // allocator for specialfinalizer*
+-	specialCleanupAlloc    fixalloc // allocator for specialcleanup*
+-	specialprofilealloc    fixalloc // allocator for specialprofile*
+-	specialReachableAlloc  fixalloc // allocator for specialReachable
+-	specialPinCounterAlloc fixalloc // allocator for specialPinCounter
+-	specialWeakHandleAlloc fixalloc // allocator for specialWeakHandle
+-	speciallock            mutex    // lock for special record allocators.
+-	arenaHintAlloc         fixalloc // allocator for arenaHints
++	spanalloc                  fixalloc // allocator for span*
++	cachealloc                 fixalloc // allocator for mcache*
++	specialfinalizeralloc      fixalloc // allocator for specialfinalizer*
++	specialCleanupAlloc        fixalloc // allocator for specialCleanup*
++	specialCheckFinalizerAlloc fixalloc // allocator for specialCheckFinalizer*
++	specialprofilealloc        fixalloc // allocator for specialprofile*
++	specialReachableAlloc      fixalloc // allocator for specialReachable
++	specialPinCounterAlloc     fixalloc // allocator for specialPinCounter
++	specialWeakHandleAlloc     fixalloc // allocator for specialWeakHandle
++	speciallock                mutex    // lock for special record allocators.
++	arenaHintAlloc             fixalloc // allocator for arenaHints
+ 
+ 	// User arena state.
+ 	//
+@@ -245,8 +246,8 @@ type mheap struct {
+ 
+ 	// cleanupID is a counter which is incremented each time a cleanup special is added
+ 	// to a span. It's used to create globally unique identifiers for individual cleanup.
+-	// cleanupID is protected by mheap_.lock. It should only be incremented while holding
+-	// the lock.
++	// cleanupID is protected by mheap_.speciallock. It must only be incremented while holding
++	// the lock. ID 0 is reserved. Users should increment first, then read the value.
+ 	cleanupID uint64
+ 
+ 	_ cpu.CacheLinePad
+@@ -791,6 +792,7 @@ func (h *mheap) init() {
+ 	h.cachealloc.init(unsafe.Sizeof(mcache{}), nil, nil, &memstats.mcache_sys)
+ 	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
+ 	h.specialCleanupAlloc.init(unsafe.Sizeof(specialCleanup{}), nil, nil, &memstats.other_sys)
++	h.specialCheckFinalizerAlloc.init(unsafe.Sizeof(specialCheckFinalizer{}), nil, nil, &memstats.other_sys)
+ 	h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
+ 	h.specialReachableAlloc.init(unsafe.Sizeof(specialReachable{}), nil, nil, &memstats.other_sys)
+ 	h.specialPinCounterAlloc.init(unsafe.Sizeof(specialPinCounter{}), nil, nil, &memstats.other_sys)
+@@ -1979,6 +1981,9 @@ const (
+ 	_KindSpecialPinCounter = 5
+ 	// _KindSpecialCleanup is for tracking cleanups.
+ 	_KindSpecialCleanup = 6
++	// _KindSpecialCheckFinalizer adds additional context to a finalizer or cleanup.
++	// Used only if debug.checkfinalizers != 0.
++	_KindSpecialCheckFinalizer = 7
+ )
+ 
+ type special struct {
+@@ -2182,7 +2187,7 @@ type specialCleanup struct {
+ func addCleanup(p unsafe.Pointer, f *funcval) uint64 {
+ 	lock(&mheap_.speciallock)
+ 	s := (*specialCleanup)(mheap_.specialCleanupAlloc.alloc())
+-	mheap_.cleanupID++
++	mheap_.cleanupID++ // Increment first. ID 0 is reserved.
+ 	id := mheap_.cleanupID
+ 	unlock(&mheap_.speciallock)
+ 	s.special.kind = _KindSpecialCleanup
+@@ -2210,6 +2215,138 @@ func addCleanup(p unsafe.Pointer, f *funcval) uint64 {
+ 	return id
+ }
+ 
++// Always paired with a specialCleanup or specialfinalizer, adds context.
++type specialCheckFinalizer struct {
++	_         sys.NotInHeap
++	special   special
++	cleanupID uint64 // Needed to disambiguate cleanups.
++	createPC  uintptr
++	funcPC    uintptr
++	ptrType   *_type
++}
++
++// setFinalizerContext adds a specialCheckFinalizer to ptr. ptr must already have a
++// finalizer special attached.
++func setFinalizerContext(ptr unsafe.Pointer, ptrType *_type, createPC, funcPC uintptr) {
++	setCleanupContext(ptr, ptrType, createPC, funcPC, 0)
++}
++
++// setCleanupContext adds a specialCheckFinalizer to ptr. ptr must already have a
++// finalizer or cleanup special attached. Pass 0 for the cleanupID to indicate
++// a finalizer.
++func setCleanupContext(ptr unsafe.Pointer, ptrType *_type, createPC, funcPC uintptr, cleanupID uint64) {
++	lock(&mheap_.speciallock)
++	s := (*specialCheckFinalizer)(mheap_.specialCheckFinalizerAlloc.alloc())
++	unlock(&mheap_.speciallock)
++	s.special.kind = _KindSpecialCheckFinalizer
++	s.cleanupID = cleanupID
++	s.createPC = createPC
++	s.funcPC = funcPC
++	s.ptrType = ptrType
++
++	mp := acquirem()
++	addspecial(ptr, &s.special, true)
++	releasem(mp)
++	KeepAlive(ptr)
++}
++
++func getCleanupContext(ptr uintptr, cleanupID uint64) *specialCheckFinalizer {
++	assertWorldStopped()
++
++	span := spanOfHeap(ptr)
++	if span == nil {
++		return nil
++	}
++	var found *specialCheckFinalizer
++	offset := ptr - span.base()
++	iter, exists := span.specialFindSplicePoint(offset, _KindSpecialCheckFinalizer)
++	if exists {
++		for {
++			s := *iter
++			if s == nil {
++				// Reached the end of the linked list. Stop searching at this point.
++				break
++			}
++			if offset == uintptr(s.offset) && _KindSpecialCheckFinalizer == s.kind &&
++				(*specialCheckFinalizer)(unsafe.Pointer(s)).cleanupID == cleanupID {
++				// The special is a cleanup and contains a matching cleanup id.
++				*iter = s.next
++				found = (*specialCheckFinalizer)(unsafe.Pointer(s))
++				break
++			}
++			if offset < uintptr(s.offset) || (offset == uintptr(s.offset) && _KindSpecialCheckFinalizer < s.kind) {
++				// The special is outside the region specified for that kind of
++				// special. The specials are sorted by kind.
++				break
++			}
++			// Try the next special.
++			iter = &s.next
++		}
++	}
++	return found
++}
++
++// clearFinalizerContext removes the specialCheckFinalizer for the given pointer, if any.
++func clearFinalizerContext(ptr uintptr) {
++	clearCleanupContext(ptr, 0)
++}
++
++// clearFinalizerContext removes the specialCheckFinalizer for the given pointer and cleanup ID, if any.
++func clearCleanupContext(ptr uintptr, cleanupID uint64) {
++	// The following block removes the Special record of type cleanup for the object c.ptr.
++	span := spanOfHeap(ptr)
++	if span == nil {
++		return
++	}
++	// Ensure that the span is swept.
++	// Sweeping accesses the specials list w/o locks, so we have
++	// to synchronize with it. And it's just much safer.
++	mp := acquirem()
++	span.ensureSwept()
++
++	offset := ptr - span.base()
++
++	var found *special
++	lock(&span.speciallock)
++
++	iter, exists := span.specialFindSplicePoint(offset, _KindSpecialCheckFinalizer)
++	if exists {
++		for {
++			s := *iter
++			if s == nil {
++				// Reached the end of the linked list. Stop searching at this point.
++				break
++			}
++			if offset == uintptr(s.offset) && _KindSpecialCheckFinalizer == s.kind &&
++				(*specialCheckFinalizer)(unsafe.Pointer(s)).cleanupID == cleanupID {
++				// The special is a cleanup and contains a matching cleanup id.
++				*iter = s.next
++				found = s
++				break
++			}
++			if offset < uintptr(s.offset) || (offset == uintptr(s.offset) && _KindSpecialCheckFinalizer < s.kind) {
++				// The special is outside the region specified for that kind of
++				// special. The specials are sorted by kind.
++				break
++			}
++			// Try the next special.
++			iter = &s.next
++		}
++	}
++	if span.specials == nil {
++		spanHasNoSpecials(span)
++	}
++	unlock(&span.speciallock)
++	releasem(mp)
++
++	if found == nil {
++		return
++	}
++	lock(&mheap_.speciallock)
++	mheap_.specialCheckFinalizerAlloc.free(unsafe.Pointer(found))
++	unlock(&mheap_.speciallock)
++}
++
+ // The described object has a weak pointer.
+ //
+ // Weak pointers in the GC have the following invariants:
+@@ -2624,6 +2761,11 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
+ 		lock(&mheap_.speciallock)
+ 		mheap_.specialCleanupAlloc.free(unsafe.Pointer(sc))
+ 		unlock(&mheap_.speciallock)
++	case _KindSpecialCheckFinalizer:
++		sc := (*specialCheckFinalizer)(unsafe.Pointer(s))
++		lock(&mheap_.speciallock)
++		mheap_.specialCheckFinalizerAlloc.free(unsafe.Pointer(sc))
++		unlock(&mheap_.speciallock)
+ 	default:
+ 		throw("bad special kind")
+ 		panic("not reached")
+diff --git a/src/runtime/testdata/testprog/checkfinalizers.go b/src/runtime/testdata/testprog/checkfinalizers.go
+index ef0108a7e0..410a0f6a23 100644
+--- a/src/runtime/testdata/testprog/checkfinalizers.go
++++ b/src/runtime/testdata/testprog/checkfinalizers.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"runtime"
++	"runtime/debug"
+ )
+ 
+ func init() {
+@@ -16,6 +17,8 @@ func init() {
+ func DetectFinalizerAndCleanupLeaks() {
+ 	type T *int
+ 
++	defer debug.SetGCPercent(debug.SetGCPercent(-1))
++
+ 	// Leak a cleanup.
+ 	cLeak := new(T)
+ 	runtime.AddCleanup(cLeak, func(x int) {
+@@ -26,6 +29,11 @@ func DetectFinalizerAndCleanupLeaks() {
+ 	cNoLeak := new(T)
+ 	runtime.AddCleanup(cNoLeak, func(_ int) {}, int(0))
+ 
++	// Add a cleanup that only temporarily leaks cNoLeak.
++	runtime.AddCleanup(cNoLeak, func(x int) {
++		**cNoLeak = x
++	}, int(0)).Stop()
++
+ 	// Leak a finalizer.
+ 	fLeak := new(T)
+ 	runtime.SetFinalizer(fLeak, func(_ *T) {

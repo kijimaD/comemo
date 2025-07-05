@@ -11,7 +11,68 @@ Date:   Sun Dec 16 19:13:25 2018 +0530
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/doc/example.go      |  3 +++
  src/go/doc/example_test.go | 35 +++++++++++++++++++++++++++++++++++
  2 files changed, 38 insertions(+)
+
+diff --git a/src/go/doc/example.go b/src/go/doc/example.go
+index 45350f8fd3..81956f2fdb 100644
+--- a/src/go/doc/example.go
++++ b/src/go/doc/example.go
+@@ -426,6 +426,9 @@ func stripOutputComment(body *ast.BlockStmt, comments []*ast.CommentGroup) (*ast
+ 
+ // lastComment returns the last comment inside the provided block.
+ func lastComment(b *ast.BlockStmt, c []*ast.CommentGroup) (i int, last *ast.CommentGroup) {
++	if b == nil {
++		return
++	}
+ 	pos, end := b.Pos(), b.End()
+ 	for j, cg := range c {
+ 		if cg.Pos() < pos {
+diff --git a/src/go/doc/example_test.go b/src/go/doc/example_test.go
+index 0d2bf72e31..74fd10626d 100644
+--- a/src/go/doc/example_test.go
++++ b/src/go/doc/example_test.go
+@@ -413,6 +413,41 @@ func TestExampleInspectSignature(t *testing.T) {
+ 	}
+ }
+ 
++const exampleEmpty = `
++package p
++func Example() {}
++func Example_a()
++`
++
++const exampleEmptyOutput = `package main
++
++func main() {}
++func main()
++`
++
++func TestExampleEmpty(t *testing.T) {
++	fset := token.NewFileSet()
++	file, err := parser.ParseFile(fset, "test.go", strings.NewReader(exampleEmpty), parser.ParseComments)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	es := doc.Examples(file)
++	if len(es) != 1 {
++		t.Fatalf("wrong number of examples; got %d want 1", len(es))
++	}
++	e := es[0]
++	if e.Name != "" {
++		t.Errorf("got Name == %q, want %q", e.Name, "")
++	}
++	if g, w := formatFile(t, fset, e.Play), exampleEmptyOutput; g != w {
++		t.Errorf("got Play == %q, want %q", g, w)
++	}
++	if g, w := e.Output, ""; g != w {
++		t.Errorf("got Output == %q, want %q", g, w)
++	}
++}
++
+ func formatFile(t *testing.T, fset *token.FileSet, n *ast.File) string {
+ 	if n == nil {
+ 		return "<nil>"

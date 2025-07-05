@@ -9,6 +9,20 @@ Date:   Fri Sep 19 14:13:51 2014 -0700
     R=gri
     CC=golang-codereviews
     https://golang.org/cl/150720043
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index da1e2a5d24..7d86ca863a 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -5252,7 +5252,7 @@ the surrounding function returns, in the reverse order
+ they were deferred.
+ If a deferred function value evaluates
+ to <code>nil</code>, execution <a href="#Handling_panics">panics</a>
+-when the function is invoked not when the "defer" statement is executed.
++when the function is invoked, not when the "defer" statement is executed.
+ </p>
+ 
+ <p>

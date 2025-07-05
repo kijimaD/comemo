@@ -13,6 +13,34 @@ Date:   Wed Mar 15 15:15:04 2023 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/syscall/exec_linux_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 06b9495be2..074a8172d7 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -39,6 +39,8 @@ func isNotSupported(err error) bool {
+ 		switch errno {
+ 		case syscall.ENOSYS, syscall.ENOTSUP:
+ 			// Explicitly not supported.
++			// TODO(#41198): remove these cases when errors.Is reports that they are
++			// equivalent to ErrUnsupported.
+ 			return true
+ 		case syscall.EPERM, syscall.EROFS:
+ 			// User lacks permission: either the call requires root permission and the
+@@ -51,12 +53,10 @@ func isNotSupported(err error) bool {
+ 		}
+ 	}
+ 
+-	if errors.Is(err, fs.ErrPermission) {
++	if errors.Is(err, fs.ErrPermission) || errors.Is(err, errors.ErrUnsupported) {
+ 		return true
+ 	}
+ 
+-	// TODO(#41198): Also return true if errors.Is(err, errors.ErrUnsupported).
+-
+ 	return false
+ }
+ 

@@ -14,7 +14,33 @@ Date:   Wed Apr 3 11:50:36 2024 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/errors/wrap.go      | 2 +-
  src/errors/wrap_test.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index 88ee0a9281..57060517b5 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -42,7 +42,7 @@ func Unwrap(err error) error {
+ // an example in the standard library. An Is method should only shallowly
+ // compare err and the target and not call [Unwrap] on either.
+ func Is(err, target error) bool {
+-	if target == nil {
++	if err == nil || target == nil {
+ 		return err == target
+ 	}
+ 
+diff --git a/src/errors/wrap_test.go b/src/errors/wrap_test.go
+index 0a7bc5d16a..58ed95fd9a 100644
+--- a/src/errors/wrap_test.go
++++ b/src/errors/wrap_test.go
+@@ -30,6 +30,7 @@ func TestIs(t *testing.T) {
+ 		match  bool
+ 	}{
+ 		{nil, nil, true},
++		{nil, err1, false},
+ 		{err1, nil, false},
+ 		{err1, err1, true},
+ 		{erra, err1, true},

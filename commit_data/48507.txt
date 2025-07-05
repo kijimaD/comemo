@@ -11,6 +11,28 @@ Date:   Wed May 26 12:18:32 2021 -0400
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  doc/go1.17.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 5448b2af97..da50935a61 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -496,6 +496,16 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- reflect -->
+ 
++<dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics">runtime/metrics</a></dt>
++  <dd>
++    <p><!-- CL 308933, CL 312431, CL 312909 -->
++      New metrics were added that track total bytes and objects allocated and freed.
++      A new metric tracking the distribution of goroutine scheduling latencies was
++      also added.
++    </p>
++  </dd>
++</dl><!-- runtime/metrics -->
++
+ <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+   <dd>
+     <p><!-- CL 170079 -->

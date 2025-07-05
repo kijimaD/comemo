@@ -14,9 +14,256 @@ Date:   Mon Nov 7 11:45:57 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/run/run.go     |  2 +-
  src/cmd/go/internal/test/test.go   | 12 ++++-----
  src/cmd/go/internal/work/action.go | 52 +++++++++++++++++++++++---------------
  src/cmd/go/internal/work/exec.go   |  4 +--
  4 files changed, 41 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 8221b0395b..137ee1d633 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -177,7 +177,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
+-	a := &work.Action{Mode: "go run", Func: buildRunProgram, Args: cmdArgs, Deps: []*work.Action{a1}}
++	a := &work.Action{Mode: "go run", Actor: work.ActorFunc(buildRunProgram), Args: cmdArgs, Deps: []*work.Action{a1}}
+ 	b.Do(ctx, a)
+ }
+ 
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index c1528debbe..86b66c226f 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -848,7 +848,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	// Ultimately the goal is to print the output.
+-	root := &work.Action{Mode: "go test", Func: printExitStatus, Deps: prints}
++	root := &work.Action{Mode: "go test", Actor: work.ActorFunc(printExitStatus), Deps: prints}
+ 
+ 	// Force the printing of results to happen in order,
+ 	// one at a time.
+@@ -886,7 +886,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
+ 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
+ 		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
+ 		addTestVet(b, p, run, nil)
+-		print := &work.Action{Mode: "test print", Func: builderNoTest, Package: p, Deps: []*work.Action{run}}
++		print := &work.Action{Mode: "test print", Actor: work.ActorFunc(builderNoTest), Package: p, Deps: []*work.Action{run}}
+ 		return build, run, print, nil
+ 	}
+ 
+@@ -999,7 +999,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
+ 			pmain.Target = target
+ 			installAction = &work.Action{
+ 				Mode:    "test build",
+-				Func:    work.BuildInstallFunc,
++				Actor:   work.ActorFunc(work.BuildInstallFunc),
+ 				Deps:    []*work.Action{buildAction},
+ 				Package: pmain,
+ 				Target:  target,
+@@ -1016,7 +1016,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
+ 		c := new(runCache)
+ 		runAction = &work.Action{
+ 			Mode:       "test run",
+-			Func:       c.builderRunTest,
++			Actor:      work.ActorFunc(c.builderRunTest),
+ 			Deps:       []*work.Action{buildAction},
+ 			Package:    p,
+ 			IgnoreFail: true, // run (prepare output) even if build failed
+@@ -1026,7 +1026,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
+ 		vetRunAction = runAction
+ 		cleanAction = &work.Action{
+ 			Mode:       "test clean",
+-			Func:       builderCleanTest,
++			Actor:      work.ActorFunc(builderCleanTest),
+ 			Deps:       []*work.Action{runAction},
+ 			Package:    p,
+ 			IgnoreFail: true, // clean even if test failed
+@@ -1034,7 +1034,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
+ 		}
+ 		printAction = &work.Action{
+ 			Mode:       "test print",
+-			Func:       builderPrintTest,
++			Actor:      work.ActorFunc(builderPrintTest),
+ 			Deps:       []*work.Action{cleanAction},
+ 			Package:    p,
+ 			IgnoreFail: true, // print even if test failed
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index d2f32558fa..fc46d19bc4 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -63,15 +63,27 @@ type Builder struct {
+ // NOTE: Much of Action would not need to be exported if not for test.
+ // Maybe test functionality should move into this package too?
+ 
++// An Actor runs an action.
++type Actor interface {
++	Act(*Builder, context.Context, *Action) error
++}
++
++// An ActorFunc is an Actor that calls the function.
++type ActorFunc func(*Builder, context.Context, *Action) error
++
++func (f ActorFunc) Act(b *Builder, ctx context.Context, a *Action) error {
++	return f(b, ctx, a)
++}
++
+ // An Action represents a single action in the action graph.
+ type Action struct {
+-	Mode       string                                         // description of action operation
+-	Package    *load.Package                                  // the package this action works on
+-	Deps       []*Action                                      // actions that must happen before this one
+-	Func       func(*Builder, context.Context, *Action) error // the action itself (nil = no-op)
+-	IgnoreFail bool                                           // whether to run f even if dependencies fail
+-	TestOutput *bytes.Buffer                                  // test output buffer
+-	Args       []string                                       // additional args for runProgram
++	Mode       string        // description of action operation
++	Package    *load.Package // the package this action works on
++	Deps       []*Action     // actions that must happen before this one
++	Actor      Actor         // the action itself (nil = no-op)
++	IgnoreFail bool          // whether to run f even if dependencies fail
++	TestOutput *bytes.Buffer // test output buffer
++	Args       []string      // additional args for runProgram
+ 
+ 	triggers []*Action // inverse of deps
+ 
+@@ -437,7 +449,7 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
+ 		a := &Action{
+ 			Mode:    "build",
+ 			Package: p,
+-			Func:    (*Builder).build,
++			Actor:   ActorFunc((*Builder).build),
+ 			Objdir:  b.NewObjdir(),
+ 		}
+ 
+@@ -452,7 +464,7 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
+ 			case "builtin", "unsafe":
+ 				// Fake packages - nothing to build.
+ 				a.Mode = "built-in package"
+-				a.Func = nil
++				a.Actor = nil
+ 				return a
+ 			}
+ 
+@@ -461,7 +473,7 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
+ 				// the target name is needed for cgo.
+ 				a.Mode = "gccgo stdlib"
+ 				a.Target = p.Target
+-				a.Func = nil
++				a.Actor = nil
+ 				return a
+ 			}
+ 		}
+@@ -534,12 +546,12 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
+ 			VetxOnly:   true,
+ 			IgnoreFail: true, // it's OK if vet of dependencies "fails" (reports problems)
+ 		}
+-		if a1.Func == nil {
++		if a1.Actor == nil {
+ 			// Built-in packages like unsafe.
+ 			return a
+ 		}
+ 		deps[0].needVet = true
+-		a.Func = (*Builder).vet
++		a.Actor = ActorFunc((*Builder).vet)
+ 		return a
+ 	})
+ 	return a
+@@ -557,7 +569,7 @@ func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
+ 		}
+ 
+ 		a1 := b.CompileAction(ModeBuild, depMode, p)
+-		a.Func = (*Builder).link
++		a.Actor = ActorFunc((*Builder).link)
+ 		a.Deps = []*Action{a1}
+ 		a.Objdir = a1.Objdir
+ 
+@@ -619,7 +631,7 @@ func (b *Builder) installAction(a1 *Action, mode BuildMode) *Action {
+ 	// If there's no actual action to build a1,
+ 	// there's nothing to install either.
+ 	// This happens if a1 corresponds to reusing an already-built object.
+-	if a1.Func == nil {
++	if a1.Actor == nil {
+ 		return a1
+ 	}
+ 
+@@ -645,7 +657,7 @@ func (b *Builder) installAction(a1 *Action, mode BuildMode) *Action {
+ 		// on the install.
+ 		*a1 = Action{
+ 			Mode:    buildAction.Mode + "-install",
+-			Func:    BuildInstallFunc,
++			Actor:   ActorFunc(BuildInstallFunc),
+ 			Package: p,
+ 			Objdir:  buildAction.Objdir,
+ 			Deps:    []*Action{buildAction},
+@@ -736,7 +748,7 @@ func (b *Builder) addInstallHeaderAction(a *Action) {
+ 			Mode:    "install header",
+ 			Package: a.Package,
+ 			Deps:    []*Action{a.Deps[0]},
+-			Func:    (*Builder).installHeader,
++			Actor:   ActorFunc((*Builder).installHeader),
+ 			Objdir:  a.Deps[0].Objdir,
+ 			Target:  hdrTarget,
+ 		}
+@@ -796,7 +808,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
+ 			Mode:    "go build -buildmode=shared",
+ 			Package: p,
+ 			Objdir:  b.NewObjdir(),
+-			Func:    (*Builder).linkShared,
++			Actor:   ActorFunc((*Builder).linkShared),
+ 			Deps:    []*Action{a1},
+ 		}
+ 		a.Target = filepath.Join(a.Objdir, shlib)
+@@ -837,7 +849,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
+ 	})
+ 
+ 	// Install result.
+-	if (mode == ModeInstall || mode == ModeBuggyInstall) && a.Func != nil {
++	if (mode == ModeInstall || mode == ModeBuggyInstall) && a.Actor != nil {
+ 		buildAction := a
+ 
+ 		a = b.cacheAction("install-shlib "+shlib, nil, func() *Action {
+@@ -866,7 +878,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
+ 			a := &Action{
+ 				Mode:   "go install -buildmode=shared",
+ 				Objdir: buildAction.Objdir,
+-				Func:   BuildInstallFunc,
++				Actor:  ActorFunc(BuildInstallFunc),
+ 				Deps:   []*Action{buildAction},
+ 				Target: target,
+ 			}
+@@ -879,7 +891,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
+ 				a.Deps = append(a.Deps, &Action{
+ 					Mode:    "shlibname",
+ 					Package: p,
+-					Func:    (*Builder).installShlibname,
++					Actor:   ActorFunc((*Builder).installShlibname),
+ 					Target:  filepath.Join(pkgTargetRoot, p.ImportPath+".shlibname"),
+ 					Deps:    []*Action{a.Deps[0]},
+ 				})
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 746649f5d9..c060ebd06d 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -129,7 +129,7 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
+ 			a.json.TimeStart = time.Now()
+ 		}
+ 		var err error
+-		if a.Func != nil && (!a.Failed || a.IgnoreFail) {
++		if a.Actor != nil && (!a.Failed || a.IgnoreFail) {
+ 			// TODO(matloob): Better action descriptions
+ 			desc := "Executing action "
+ 			if a.Package != nil {
+@@ -140,7 +140,7 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
+ 			for _, d := range a.Deps {
+ 				trace.Flow(ctx, d.traceSpan, a.traceSpan)
+ 			}
+-			err = a.Func(b, ctx, a)
++			err = a.Actor.Act(b, ctx, a)
+ 			span.Done()
+ 		}
+ 		if a.json != nil {

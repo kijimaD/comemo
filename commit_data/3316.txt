@@ -7,6 +7,11 @@ Date:   Fri Sep 18 12:45:34 2009 -0700
     TBR=r
     OCL=34800
     CL=34800
-
+---
  src/pkg/debug/dwarf/testdata/typedef.macho | Bin 0 -> 4608 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/pkg/debug/dwarf/testdata/typedef.macho b/src/pkg/debug/dwarf/testdata/typedef.macho
+new file mode 100644
+index 0000000000..bf1dfd20ec
+Binary files /dev/null and b/src/pkg/debug/dwarf/testdata/typedef.macho differ

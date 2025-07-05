@@ -16,10 +16,102 @@ Date:   Mon Nov 21 12:10:12 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/operand.go          |  4 ++++
  src/cmd/compile/internal/types2/predicates.go       | 12 ++++++++++++
  src/go/types/operand.go                             |  4 ++++
  src/go/types/predicates.go                          | 12 ++++++++++++
  src/internal/types/testdata/fixedbugs/issue51525.go |  4 ++++
  5 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index bdbbfc1ecb..e49afee987 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -184,6 +184,10 @@ func operandString(x *operand, qf Qualifier) string {
+ 			if tpar, _ := x.typ.(*TypeParam); tpar != nil {
+ 				buf.WriteString(" constrained by ")
+ 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
++				// If we have the type set and it's empty, say so for better error messages.
++				if hasEmptyTypeset(tpar) {
++					buf.WriteString(" with empty type set")
++				}
+ 			}
+ 		} else {
+ 			buf.WriteString(" with invalid type")
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index c4d11dcac4..acc1549084 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -96,6 +96,18 @@ func isTypeParam(t Type) bool {
+ 	return ok
+ }
+ 
++// hasEmptyTypeset reports whether t is a type parameter with an empty type set.
++// The function does not force the computation of the type set and so is safe to
++// use anywhere, but it may report a false negative if the type set has not been
++// computed yet.
++func hasEmptyTypeset(t Type) bool {
++	if tpar, _ := t.(*TypeParam); tpar != nil && tpar.bound != nil {
++		iface, _ := safeUnderlying(tpar.bound).(*Interface)
++		return iface != nil && iface.tset != nil && iface.tset.IsEmpty()
++	}
++	return false
++}
++
+ // isGeneric reports whether a type is a generic, uninstantiated type
+ // (generic signatures are not included).
+ // TODO(gri) should we include signatures or assert that they are not present?
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index e21a51a77b..819c99e684 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -171,6 +171,10 @@ func operandString(x *operand, qf Qualifier) string {
+ 			if tpar, _ := x.typ.(*TypeParam); tpar != nil {
+ 				buf.WriteString(" constrained by ")
+ 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
++				// If we have the type set and it's empty, say so for better error messages.
++				if hasEmptyTypeset(tpar) {
++					buf.WriteString(" with empty type set")
++				}
+ 			}
+ 		} else {
+ 			buf.WriteString(" with invalid type")
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index aaf4dd52fc..e9a0e438d8 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -98,6 +98,18 @@ func isTypeParam(t Type) bool {
+ 	return ok
+ }
+ 
++// hasEmptyTypeset reports whether t is a type parameter with an empty type set.
++// The function does not force the computation of the type set and so is safe to
++// use anywhere, but it may report a false negative if the type set has not been
++// computed yet.
++func hasEmptyTypeset(t Type) bool {
++	if tpar, _ := t.(*TypeParam); tpar != nil && tpar.bound != nil {
++		iface, _ := safeUnderlying(tpar.bound).(*Interface)
++		return iface != nil && iface.tset != nil && iface.tset.IsEmpty()
++	}
++	return false
++}
++
+ // isGeneric reports whether a type is a generic, uninstantiated type
+ // (generic signatures are not included).
+ // TODO(gri) should we include signatures or assert that they are not present?
+diff --git a/src/internal/types/testdata/fixedbugs/issue51525.go b/src/internal/types/testdata/fixedbugs/issue51525.go
+index af1d1e6063..58569056f0 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51525.go
++++ b/src/internal/types/testdata/fixedbugs/issue51525.go
+@@ -9,6 +9,10 @@ func _[T interface {
+ 	string
+ }](x T) {
+ 	_ = x /* ERROR empty type set */ == x
++	_ = x /* ERROR empty type set */ + x
++	<-x /* ERROR empty type set */
++	x <- /* ERROR empty type set */ 0
++	close(x /* ERROR empty type set */)
+ }
+ 
+ func _[T interface{ int | []byte }](x T) {

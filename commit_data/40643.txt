@@ -41,7 +41,43 @@ Date:   Fri Jun 7 10:39:21 2019 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/cmd/go/testdata/script/env_write.txt | 2 +-
  src/os/file.go                           | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/env_write.txt b/src/cmd/go/testdata/script/env_write.txt
+index bdc348c953..e944d09e96 100644
+--- a/src/cmd/go/testdata/script/env_write.txt
++++ b/src/cmd/go/testdata/script/env_write.txt
+@@ -5,7 +5,7 @@ env AppData=$HOME/windowsappdata
+ env home=$HOME/plan9home
+ go env GOENV
+ [aix] stdout $HOME/.config/go/env
+-[darwin] stdout $HOME/Library/Preferences/go/env
++[darwin] stdout $HOME/Library/Application Support/go/env
+ [freebsd] stdout $HOME/.config/go/env
+ [linux] stdout $HOME/.config/go/env
+ [netbsd] stdout $HOME/.config/go/env
+diff --git a/src/os/file.go b/src/os/file.go
+index f835537d51..96df3fb5e9 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -406,7 +406,7 @@ func UserCacheDir() (string, error) {
+ // On Unix systems, it returns $XDG_CONFIG_HOME as specified by
+ // https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html if
+ // non-empty, else $HOME/.config.
+-// On Darwin, it returns $HOME/Library/Preferences.
++// On Darwin, it returns $HOME/Library/Application Support.
+ // On Windows, it returns %AppData%.
+ // On Plan 9, it returns $home/lib.
+ //
+@@ -427,7 +427,7 @@ func UserConfigDir() (string, error) {
+ 		if dir == "" {
+ 			return "", errors.New("$HOME is not defined")
+ 		}
+-		dir += "/Library/Preferences"
++		dir += "/Library/Application Support"
+ 
+ 	case "plan9":
+ 		dir = Getenv("home")

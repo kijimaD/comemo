@@ -10,6 +10,21 @@ Date:   Wed May 11 15:08:38 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/405755
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  doc/go_spec.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 70efddf626..f6e87fe8a4 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1920,7 +1920,8 @@ A value <code>x</code> of type <code>V</code> is <i>assignable</i> to a <a href=
+ </li>
+ <li>
+ <code>V</code> and <code>T</code> have identical
+-<a href="#Underlying_types">underlying types</a> and at least one of <code>V</code>
++<a href="#Underlying_types">underlying types</a>
++but are not type parameters and at least one of <code>V</code>
+ or <code>T</code> is not a <a href="#Types">named type</a>.
+ </li>
+ <li>

@@ -11,10 +11,110 @@ Date:   Fri Mar 12 14:01:52 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/484041
-
+---
  src/pkg/go/printer/nodes.go                    | 15 ++++++++++++---
  src/pkg/go/printer/printer.go                  |  5 +++++
  src/pkg/go/printer/testdata/expressions.golden |  1 +
  src/pkg/go/printer/testdata/expressions.input  |  1 +
  src/pkg/go/printer/testdata/expressions.raw    |  1 +
  5 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index d4f6d9d0e7..9e2a8c8568 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -562,6 +562,15 @@ func diffPrec(expr ast.Expr, prec int) int {
+ }
+ 
+ 
++func reduceDepth(depth int) int {
++	depth--
++	if depth < 1 {
++		depth = 1
++	}
++	return depth
++}
++
++
+ // Format the binary expression: decide the cutoff and then format.
+ // Let's call depth == 1 Normal mode, and depth > 1 Compact mode.
+ // (Algorithm suggestion by Russ Cox.)
+@@ -604,7 +613,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int, multiL
+ 		// Note: The parser inserts an ast.ParenExpr node; thus this case
+ 		//       can only occur if the AST is created in a different way.
+ 		p.print(token.LPAREN)
+-		p.expr0(x, depth-1, multiLine) // parentheses undo one level of depth
++		p.expr0(x, reduceDepth(depth), multiLine) // parentheses undo one level of depth
+ 		p.print(token.RPAREN)
+ 		return
+ 	}
+@@ -707,7 +716,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 
+ 	case *ast.ParenExpr:
+ 		p.print(token.LPAREN)
+-		p.expr0(x.X, depth-1, multiLine) // parentheses undo one level of depth
++		p.expr0(x.X, reduceDepth(depth), multiLine) // parentheses undo one level of depth
+ 		p.print(x.Rparen, token.RPAREN)
+ 
+ 	case *ast.SelectorExpr:
+@@ -925,7 +934,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
+ 
+ 	case *ast.LabeledStmt:
+ 		// a "correcting" unindent immediately following a line break
+-		// is applied before the line break  if there is no comment
++		// is applied before the line break if there is no comment
+ 		// between (see writeWhitespace)
+ 		p.print(unindent)
+ 		p.expr(s.Label, multiLine)
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index f35663eb88..0d5760ff56 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -1002,6 +1002,11 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
+ 			p.expr(n, ignoreMultiLine)
+ 		case ast.Stmt:
+ 			p.useNodeComments = true
++			// A labeled statement will un-indent to position the
++			// label. Set indent to 1 so we don't get indent "underflow".
++			if _, labeledStmt := n.(*ast.LabeledStmt); labeledStmt {
++				p.indent = 1
++			}
+ 			p.stmt(n, ignoreMultiLine)
+ 		case ast.Decl:
+ 			p.useNodeComments = true
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index 6626c546b7..c35efb8303 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -20,6 +20,7 @@ var (
+ 
+ func _() {
+ 	// no spaces around simple or parenthesized expressions
++	_ = (a + 0)
+ 	_ = a + b
+ 	_ = a + b + c
+ 	_ = a + b - c
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index 0b67a763ef..b9fc976a9b 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -20,6 +20,7 @@ var (
+ 
+ func _() {
+ 	// no spaces around simple or parenthesized expressions
++	_ = (a+0)
+ 	_ = a+b
+ 	_ = a+b+c
+ 	_ = a+b-c
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index 406fbf695a..3f3b460bc2 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -20,6 +20,7 @@ var (
+ 
+ func _() {
+ 	// no spaces around simple or parenthesized expressions
++	_ = (a + 0)
+ 	_ = a + b
+ 	_ = a + b + c
+ 	_ = a + b - c

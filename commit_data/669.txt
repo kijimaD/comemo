@@ -9,7 +9,43 @@ Date:   Thu Sep 18 15:06:14 2008 -0700
     DELTA=11  (9 added, 0 deleted, 2 changed)
     OCL=15486
     CL=15486
-
+---
  src/libmach_amd64/executable.c | 4 ++--
  src/libmach_amd64/linux.c      | 9 +++++++++
  2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/libmach_amd64/executable.c b/src/libmach_amd64/executable.c
+index 6c05102ab0..deca13cd87 100644
+--- a/src/libmach_amd64/executable.c
++++ b/src/libmach_amd64/executable.c
+@@ -796,11 +796,11 @@ error:
+ 		read(fd, buf, sh[ep->shstrndx].size);
+ 
+ 		for(i = 0; i < ep->shnum; i++) {
+-			if (sh[i].type == 2 && strcmp(&buf[sh[i].name], ".gosymtab") == 0) {
++			if (strcmp(&buf[sh[i].name], ".gosymtab") == 0) {
+ 				symsize = sh[i].size;
+ 				symoff = sh[i].offset;
+ 			}
+-			if (sh[i].type == 2 && strcmp(&buf[sh[i].name], ".gopclntab") == 0) {
++			if (strcmp(&buf[sh[i].name], ".gopclntab") == 0) {
+ 				if (sh[i].offset != symoff+symsize) {
+ 					werrstr("pc line table not contiguous with symbol table");
+ 					free(buf);
+diff --git a/src/libmach_amd64/linux.c b/src/libmach_amd64/linux.c
+index ee4c8a2177..ff4012081b 100644
+--- a/src/libmach_amd64/linux.c
++++ b/src/libmach_amd64/linux.c
+@@ -523,3 +523,12 @@ ptraceerr:
+ 	werrstr("ptrace %s register laddr=%d pid=%d: %r", isr ? "read" : "write", laddr, map->pid);
+ 	return -1;	
+ }
++
++char*
++procstatus(int pid)
++{
++	if(isstopped(pid))
++		return "Stopped";
++
++	return "Running";
++}

@@ -12,6 +12,20 @@ Date:   Thu Mar 21 16:00:17 2024 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssa/schedule.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index fb38f40d63..4093a380c9 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -562,7 +562,7 @@ func (v *Value) hasFlagInput() bool {
+ 	// PPC64 carry dependencies are conveyed through their final argument,
+ 	// so we treat those operations as taking flags as well.
+ 	switch v.Op {
+-	case OpPPC64SUBE, OpPPC64ADDE, OpPPC64SUBZEzero, OpPPC64ADDZEzero:
++	case OpPPC64SUBE, OpPPC64ADDE, OpPPC64SUBZEzero, OpPPC64ADDZE, OpPPC64ADDZEzero:
+ 		return true
+ 	}
+ 	return false

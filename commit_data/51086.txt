@@ -34,7 +34,7 @@ Date:   Sat Nov 27 10:33:59 2021 -0800
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types2/stdlib_test.go |  2 +
  src/go/types/stdlib_test.go                    |  2 +
  test/directive.go                              | 37 ++-------------
@@ -49,3 +49,532 @@ Date:   Sat Nov 27 10:33:59 2021 -0800
  test/run.go                                    | 18 +++----
  test/shift1.go                                 | 66 +++++++++++++-------------
  13 files changed, 142 insertions(+), 93 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 5ac01ac253..551611da55 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -165,9 +165,11 @@ func TestStdTest(t *testing.T) {
+ 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
+ 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
+ 		"directive.go",   // tests compiler rejection of bad directive placement - ignore
++		"directive2.go",  // tests compiler rejection of bad directive placement - ignore
+ 		"embedfunc.go",   // tests //go:embed
+ 		"embedvers.go",   // tests //go:embed
+ 		"linkname2.go",   // types2 doesn't check validity of //go:xxx directives
++		"linkname3.go",   // types2 doesn't check validity of //go:xxx directives
+ 	)
+ }
+ 
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index c56e0ba428..687b80540a 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -166,9 +166,11 @@ func TestStdTest(t *testing.T) {
+ 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
+ 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
+ 		"directive.go",   // tests compiler rejection of bad directive placement - ignore
++		"directive2.go",  // tests compiler rejection of bad directive placement - ignore
+ 		"embedfunc.go",   // tests //go:embed
+ 		"embedvers.go",   // tests //go:embed
+ 		"linkname2.go",   // go/types doesn't check validity of //go:xxx directives
++		"linkname3.go",   // go/types doesn't check validity of //go:xxx directives
+ 	)
+ }
+ 
+diff --git a/test/directive.go b/test/directive.go
+index 37781c30d5..147e81db2c 100644
+--- a/test/directive.go
++++ b/test/directive.go
+@@ -6,16 +6,11 @@
+ 
+ // Verify that misplaced directives are diagnosed.
+ 
+-// ok
+-//go:build !ignore
+-
+ //go:noinline // ERROR "misplaced compiler directive"
+ 
+ //go:noinline // ERROR "misplaced compiler directive"
+ package main
+ 
+-//go:build bad // ERROR "misplaced compiler directive"
+-
+ //go:nosplit
+ func f1() {}
+ 
+@@ -38,11 +33,10 @@ type T int
+ //go:notinheap
+ type T1 int
+ 
+-//go:notinheap // ERROR "misplaced compiler directive"
+ type (
+ 	//go:notinheap
+ 	//go:noinline // ERROR "misplaced compiler directive"
+-	T2  int //go:notinheap // ERROR "misplaced compiler directive"
++	T2  int
+ 	T2b int
+ 	//go:notinheap
+ 	T2c int
+@@ -50,40 +44,20 @@ type (
+ 	T3 int
+ )
+ 
+-//go:notinheap // ERROR "misplaced compiler directive"
+-type (
+-	//go:notinheap
+-	T4 int
+-)
+-
+-//go:notinheap // ERROR "misplaced compiler directive"
+-type ()
+-
+-type T5 int
+-
+-func g() {} //go:noinline // ERROR "misplaced compiler directive"
+-
+-// ok: attached to f (duplicated yes, but ok)
+-//go:noinline
+-
+ //go:noinline
+ func f() {
+-	//go:noinline // ERROR "misplaced compiler directive"
+ 	x := 1
+ 
+-	//go:noinline // ERROR "misplaced compiler directive"
+ 	{
+-		_ = x //go:noinline // ERROR "misplaced compiler directive"
++		_ = x
+ 	}
+ 	//go:noinline // ERROR "misplaced compiler directive"
+-	var y int //go:noinline // ERROR "misplaced compiler directive"
+-	//go:noinline // ERROR "misplaced compiler directive"
++	var y int
+ 	_ = y
+ 
+ 	//go:noinline // ERROR "misplaced compiler directive"
+ 	const c = 1
+ 
+-	//go:noinline // ERROR "misplaced compiler directive"
+ 	_ = func() {}
+ 
+ 	//go:noinline // ERROR "misplaced compiler directive"
+@@ -95,8 +69,3 @@ func f() {
+ // someday there might be a directive that can apply to type aliases, but go:notinheap doesn't.
+ //go:notinheap // ERROR "misplaced compiler directive"
+ type T6 = int
+-
+-// EOF
+-//go:noinline // ERROR "misplaced compiler directive"
+-
+-//go:build bad // ERROR "misplaced compiler directive"
+diff --git a/test/directive2.go b/test/directive2.go
+new file mode 100644
+index 0000000000..e73e11235d
+--- /dev/null
++++ b/test/directive2.go
+@@ -0,0 +1,63 @@
++// errorcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that misplaced directives are diagnosed.
++
++// ok
++//go:build !ignore
++
++package main
++
++//go:build bad // ERROR "misplaced compiler directive"
++
++//go:notinheap // ERROR "misplaced compiler directive"
++type (
++	T2  int //go:notinheap // ERROR "misplaced compiler directive"
++	T2b int
++	T2c int
++	T3  int
++)
++
++//go:notinheap // ERROR "misplaced compiler directive"
++type (
++	//go:notinheap
++	T4 int
++)
++
++//go:notinheap // ERROR "misplaced compiler directive"
++type ()
++
++type T5 int
++
++func g() {} //go:noinline // ERROR "misplaced compiler directive"
++
++// ok: attached to f (duplicated yes, but ok)
++//go:noinline
++
++//go:noinline
++func f() {
++	//go:noinline // ERROR "misplaced compiler directive"
++	x := 1
++
++	//go:noinline // ERROR "misplaced compiler directive"
++	{
++		_ = x //go:noinline // ERROR "misplaced compiler directive"
++	}
++	var y int //go:noinline // ERROR "misplaced compiler directive"
++	//go:noinline // ERROR "misplaced compiler directive"
++	_ = y
++
++	const c = 1
++
++	_ = func() {}
++
++	// ok:
++	//go:notinheap
++	type T int
++}
++
++// EOF
++//go:noinline // ERROR "misplaced compiler directive"
+diff --git a/test/fixedbugs/issue16428.go b/test/fixedbugs/issue16428.go
+index 5696d186c7..91e1079959 100644
+--- a/test/fixedbugs/issue16428.go
++++ b/test/fixedbugs/issue16428.go
+@@ -7,6 +7,6 @@
+ package p
+ 
+ var (
+-	b = [...]byte("abc") // ERROR "outside of array literal"
++	b = [...]byte("abc") // ERROR "outside of array literal|outside a composite literal"
+ 	s = len(b)
+ )
+diff --git a/test/fixedbugs/issue17645.go b/test/fixedbugs/issue17645.go
+index bb34e4ee97..111fa81e13 100644
+--- a/test/fixedbugs/issue17645.go
++++ b/test/fixedbugs/issue17645.go
+@@ -12,5 +12,5 @@ type Foo struct {
+ 
+ func main() {
+ 	var s []int
+-	var _ string = append(s, Foo{""}) // ERROR "cannot use .. \(type untyped string\) as type int in field value|incompatible type" "cannot use Foo{...} \(type Foo\) as type int in append" "cannot use append\(s\, Foo{...}\) \(type \[\]int\) as type string in assignment"
++	var _ string = append(s, Foo{""}) // ERROR "cannot use .. \(.*untyped string.*\) as .*int.*|incompatible type" "cannot use Foo{.*} \(.*type Foo\) as type int in .*append" "cannot use append\(s\, Foo{.*}\) \(.*type \[\]int\) as type string in (assignment|variable declaration)"
+ }
+diff --git a/test/fixedbugs/issue47201.dir/b.go b/test/fixedbugs/issue47201.dir/b.go
+index 5fd0635af2..ae3ff3f2b8 100644
+--- a/test/fixedbugs/issue47201.dir/b.go
++++ b/test/fixedbugs/issue47201.dir/b.go
+@@ -4,6 +4,6 @@
+ 
+ package main
+ 
+-func Println() {} // ERROR "Println redeclared in this block"
++func Println() {} // ERROR "Println redeclared in this block|Println already declared"
+ 
+ func main() {}
+diff --git a/test/fixedbugs/issue5609.go b/test/fixedbugs/issue5609.go
+index ea770b4865..a39d3fb0c6 100644
+--- a/test/fixedbugs/issue5609.go
++++ b/test/fixedbugs/issue5609.go
+@@ -10,4 +10,4 @@ package pkg
+ 
+ const Large uint64 = 18446744073709551615
+ 
+-var foo [Large]uint64 // ERROR "array bound is too large|array bound overflows"
++var foo [Large]uint64 // ERROR "array bound is too large|array bound overflows|array length.*must be integer"
+diff --git a/test/float_lit3.go b/test/float_lit3.go
+index 850d02c9c7..37a1289fb9 100644
+--- a/test/float_lit3.go
++++ b/test/float_lit3.go
+@@ -29,19 +29,19 @@ const (
+ var x = []interface{}{
+ 	float32(max32 + ulp32/2 - 1),             // ok
+ 	float32(max32 + ulp32/2 - two128/two256), // ok
+-	float32(max32 + ulp32/2),                 // ERROR "constant 3\.40282e\+38 overflows float32"
++	float32(max32 + ulp32/2),                 // ERROR "constant 3\.40282e\+38 overflows float32|cannot convert.*to type float32"
+ 
+ 	float32(-max32 - ulp32/2 + 1),             // ok
+ 	float32(-max32 - ulp32/2 + two128/two256), // ok
+-	float32(-max32 - ulp32/2),                 // ERROR "constant -3\.40282e\+38 overflows float32"
++	float32(-max32 - ulp32/2),                 // ERROR "constant -3\.40282e\+38 overflows float32|cannot convert.*to type float32"
+ 
+ 	// If the compiler's internal floating point representation
+ 	// is shorter than 1024 bits, it cannot distinguish max64+ulp64/2-1 and max64+ulp64/2.
+ 	float64(max64 + ulp64/2 - two1024/two256), // ok
+ 	float64(max64 + ulp64/2 - 1),              // ok
+-	float64(max64 + ulp64/2),                  // ERROR "constant 1\.79769e\+308 overflows float64"
++	float64(max64 + ulp64/2),                  // ERROR "constant 1\.79769e\+308 overflows float64|cannot convert.*to type float64"
+ 
+ 	float64(-max64 - ulp64/2 + two1024/two256), // ok
+ 	float64(-max64 - ulp64/2 + 1),              // ok
+-	float64(-max64 - ulp64/2),                  // ERROR "constant -1\.79769e\+308 overflows float64"
++	float64(-max64 - ulp64/2),                  // ERROR "constant -1\.79769e\+308 overflows float64|cannot convert.*to type float64"
+ }
+diff --git a/test/linkname2.go b/test/linkname2.go
+index cb7f9be345..5eb250f9c4 100644
+--- a/test/linkname2.go
++++ b/test/linkname2.go
+@@ -16,12 +16,6 @@ var x, y int
+ //go:linkname x ok
+ 
+ // ERROR "//go:linkname requires linkname argument or -p compiler flag"
+-// ERROR "//go:linkname must refer to declared function or variable"
+-// ERROR "//go:linkname must refer to declared function or variable"
+-// ERROR "duplicate //go:linkname for x"
+ 
+ //line linkname2.go:18
+ //go:linkname y
+-//go:linkname nonexist nonexist
+-//go:linkname t notvarfunc
+-//go:linkname x duplicate
+diff --git a/test/linkname3.go b/test/linkname3.go
+new file mode 100644
+index 0000000000..df110cd064
+--- /dev/null
++++ b/test/linkname3.go
+@@ -0,0 +1,25 @@
++// errorcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests that errors are reported for misuse of linkname.
++package p
++
++import _ "unsafe"
++
++type t int
++
++var x, y int
++
++//go:linkname x ok
++
++// ERROR "//go:linkname must refer to declared function or variable"
++// ERROR "//go:linkname must refer to declared function or variable"
++// ERROR "duplicate //go:linkname for x"
++
++//line linkname3.go:18
++//go:linkname nonexist nonexist
++//go:linkname t notvarfunc
++//go:linkname x duplicate
+diff --git a/test/run.go b/test/run.go
+index c6e82891da..e17d9729bc 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2115,14 +2115,11 @@ func overlayDir(dstRoot, srcRoot string) error {
+ // List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
+ // Temporary scaffolding until we pass all the tests at which point this map can be removed.
+ var types2Failures = setOf(
+-	"directive.go",    // misplaced compiler directive checks
+-	"float_lit3.go",   // types2 reports extra errors
+ 	"import1.go",      // types2 reports extra errors
+ 	"import6.go",      // issue #43109
+ 	"initializerr.go", // types2 reports extra errors
+-	"linkname2.go",    // error reported by noder (not running for types2 errorcheck test)
+ 	"notinheap.go",    // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
+-	"shift1.go",       // issue #42989
++	"shift1.go",       // mostly just different wording, but reports two new errors.
+ 	"typecheck.go",    // invalid function is not causing errors when called
+ 
+ 	"fixedbugs/bug176.go", // types2 reports all errors (pref: types2)
+@@ -2138,11 +2135,9 @@ var types2Failures = setOf(
+ 	"fixedbugs/issue11610.go",  // types2 not run after syntax errors
+ 	"fixedbugs/issue11614.go",  // types2 reports an extra error
+ 	"fixedbugs/issue14520.go",  // missing import path error by types2
+-	"fixedbugs/issue16428.go",  // types2 reports two instead of one error
+ 	"fixedbugs/issue17038.go",  // types2 doesn't report a follow-on error (pref: types2)
+-	"fixedbugs/issue17645.go",  // multiple errors on same line
+ 	"fixedbugs/issue18331.go",  // missing error about misuse of //go:noescape (irgen needs code from noder)
+-	"fixedbugs/issue18419.go",  // types2 reports
++	"fixedbugs/issue18419.go",  // types2 reports no field or method member, but should say unexported
+ 	"fixedbugs/issue19012.go",  // multiple errors on same line
+ 	"fixedbugs/issue20233.go",  // types2 reports two instead of one error (pref: compiler)
+ 	"fixedbugs/issue20245.go",  // types2 reports two instead of one error (pref: compiler)
+@@ -2156,8 +2151,6 @@ var types2Failures = setOf(
+ 	"fixedbugs/issue4232.go",   // types2 reports (correct) extra errors
+ 	"fixedbugs/issue4452.go",   // types2 reports (correct) extra errors
+ 	"fixedbugs/issue4510.go",   // types2 reports different (but ok) line numbers
+-	"fixedbugs/issue47201.go",  // types2 spells the error message differently
+-	"fixedbugs/issue5609.go",   // types2 needs a better error message
+ 	"fixedbugs/issue7525b.go",  // types2 reports init cycle error on different line - ok otherwise
+ 	"fixedbugs/issue7525c.go",  // types2 reports init cycle error on different line - ok otherwise
+ 	"fixedbugs/issue7525d.go",  // types2 reports init cycle error on different line - ok otherwise
+@@ -2176,9 +2169,10 @@ var g3Failures = setOf(
+ )
+ 
+ var unifiedFailures = setOf(
+-	"closure3.go", // unified IR numbers closures differently than -d=inlfuncswithclosures
+-	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
+-	"inline.go",   // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
++	"closure3.go",  // unified IR numbers closures differently than -d=inlfuncswithclosures
++	"escape4.go",   // unified IR can inline f5 and f6; test doesn't expect this
++	"inline.go",    // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
++	"linkname3.go", // unified IR is missing some linkname errors
+ 
+ 	"fixedbugs/issue42284.go",  // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
+ 	"fixedbugs/issue7921.go",   // prints "… escapes to heap", but test expects "string(…) escapes to heap"
+diff --git a/test/shift1.go b/test/shift1.go
+index d6a6c38839..0dae49a74d 100644
+--- a/test/shift1.go
++++ b/test/shift1.go
+@@ -25,7 +25,7 @@ var (
+ var (
+ 	e1       = g(2.0 << s) // ERROR "invalid|shift of non-integer operand"
+ 	f1       = h(2 << s)   // ERROR "invalid"
+-	g1 int64 = 1.1 << s    // ERROR "truncated"
++	g1 int64 = 1.1 << s    // ERROR "truncated|must be integer"
+ )
+ 
+ // constant shift expressions
+@@ -44,7 +44,7 @@ var (
+ 	b3 = 1<<s + 1 + 1.0 // ERROR "invalid|shift of non-integer operand"
+ 	// issue 5014
+ 	c3     = complex(1<<s, 0) // ERROR "invalid|shift of type float64"
+-	d3 int = complex(1<<s, 3) // ERROR "non-integer|cannot use.*as type int" "shift of type float64"
++	d3 int = complex(1<<s, 3) // ERROR "non-integer|cannot use.*as type int" "shift of type float64|must be integer"
+ 	e3     = real(1 << s)     // ERROR "invalid"
+ 	f3     = imag(1 << s)     // ERROR "invalid"
+ )
+@@ -73,8 +73,8 @@ func _() {
+ 	// non constants arguments trigger a different path
+ 	f2 := 1.2
+ 	s2 := "hi"
+-	_ = f2 << 2 // ERROR "shift of type float64|non-integer"
+-	_ = s2 << 2 // ERROR "shift of type string|non-integer"
++	_ = f2 << 2 // ERROR "shift of type float64|non-integer|must be integer"
++	_ = s2 << 2 // ERROR "shift of type string|non-integer|must be integer"
+ }
+ 
+ // shifts in comparisons w/ untyped operands
+@@ -130,7 +130,7 @@ var (
+ 	x int
+ 	_ = 1<<s == x
+ 	_ = 1.<<s == x
+-	_ = 1.1<<s == x // ERROR "truncated"
++	_ = 1.1<<s == x // ERROR "truncated|must be integer"
+ 
+ 	_ = 1<<s+x == 1
+ 	_ = 1<<s+x == 1.
+@@ -138,13 +138,13 @@ var (
+ 	_ = 1.<<s+x == 1
+ 	_ = 1.<<s+x == 1.
+ 	_ = 1.<<s+x == 1.1  // ERROR "truncated"
+-	_ = 1.1<<s+x == 1   // ERROR "truncated"
+-	_ = 1.1<<s+x == 1.  // ERROR "truncated"
+-	_ = 1.1<<s+x == 1.1 // ERROR "truncated"
++	_ = 1.1<<s+x == 1   // ERROR "truncated|must be integer"
++	_ = 1.1<<s+x == 1.  // ERROR "truncated|must be integer"
++	_ = 1.1<<s+x == 1.1 // ERROR "truncated|must be integer"
+ 
+ 	_ = 1<<s == x<<s
+ 	_ = 1.<<s == x<<s
+-	_ = 1.1<<s == x<<s // ERROR "truncated"
++	_ = 1.1<<s == x<<s // ERROR "truncated|must be integer"
+ )
+ 
+ // shifts as operands in non-arithmetic operations and as arguments
+@@ -159,37 +159,37 @@ func _() {
+ 	_ = make([]int, 1)
+ 	_ = make([]int, 1.)
+ 	_ = make([]int, 1.<<s)
+-	_ = make([]int, 1.1<<s) // ERROR "non-integer|truncated"
++	_ = make([]int, 1.1<<s) // ERROR "non-integer|truncated|must be integer"
+ 
+ 	_ = float32(1)
+-	_ = float32(1 << s) // ERROR "non-integer|shift of type float32"
++	_ = float32(1 << s) // ERROR "non-integer|shift of type float32|must be integer"
+ 	_ = float32(1.)
+-	_ = float32(1. << s)  // ERROR "non-integer|shift of type float32"
+-	_ = float32(1.1 << s) // ERROR "non-integer|shift of type float32"
++	_ = float32(1. << s)  // ERROR "non-integer|shift of type float32|must be integer"
++	_ = float32(1.1 << s) // ERROR "non-integer|shift of type float32|must be integer"
+ 
+ 	_ = append(a, 1<<s)
+ 	_ = append(a, 1.<<s)
+-	_ = append(a, 1.1<<s) // ERROR "truncated"
++	_ = append(a, 1.1<<s) // ERROR "truncated|must be integer"
+ 
+ 	var b []float32
+ 	_ = append(b, 1<<s)   // ERROR "non-integer|type float32"
+ 	_ = append(b, 1.<<s)  // ERROR "non-integer|type float32"
+-	_ = append(b, 1.1<<s) // ERROR "non-integer|type float32"
++	_ = append(b, 1.1<<s) // ERROR "non-integer|type float32|must be integer"
+ 
+-	_ = complex(1.<<s, 0)  // ERROR "non-integer|shift of type float64"
+-	_ = complex(1.1<<s, 0) // ERROR "non-integer|shift of type float64"
+-	_ = complex(0, 1.<<s)  // ERROR "non-integer|shift of type float64"
+-	_ = complex(0, 1.1<<s) // ERROR "non-integer|shift of type float64"
++	_ = complex(1.<<s, 0)  // ERROR "non-integer|shift of type float64|must be integer"
++	_ = complex(1.1<<s, 0) // ERROR "non-integer|shift of type float64|must be integer"
++	_ = complex(0, 1.<<s)  // ERROR "non-integer|shift of type float64|must be integer"
++	_ = complex(0, 1.1<<s) // ERROR "non-integer|shift of type float64|must be integer"
+ 
+ 	var a4 float64
+ 	var b4 int
+-	_ = complex(1<<s, a4) // ERROR "non-integer|shift of type float64"
++	_ = complex(1<<s, a4) // ERROR "non-integer|shift of type float64|must be integer"
+ 	_ = complex(1<<s, b4) // ERROR "invalid|non-integer|"
+ 
+ 	var m1 map[int]string
+ 	delete(m1, 1<<s)
+ 	delete(m1, 1.<<s)
+-	delete(m1, 1.1<<s) // ERROR "truncated|shift of type float64"
++	delete(m1, 1.1<<s) // ERROR "truncated|shift of type float64|must be integer"
+ 
+ 	var m2 map[float32]string
+ 	delete(m2, 1<<s)   // ERROR "invalid|cannot use 1 << s as type float32"
+@@ -202,32 +202,32 @@ func _() {
+ 	var s uint
+ 	_ = 1 << (1 << s)
+ 	_ = 1 << (1. << s)
+-	_ = 1 << (1.1 << s)   // ERROR "non-integer|truncated"
+-	_ = 1. << (1 << s)    // ERROR "non-integer|shift of type float64"
+-	_ = 1. << (1. << s)   // ERROR "non-integer|shift of type float64"
++	_ = 1 << (1.1 << s)   // ERROR "non-integer|truncated|must be integer"
++	_ = 1. << (1 << s)    // ERROR "non-integer|shift of type float64|must be integer"
++	_ = 1. << (1. << s)   // ERROR "non-integer|shift of type float64|must be integer"
+ 	_ = 1.1 << (1.1 << s) // ERROR "invalid|non-integer|truncated"
+ 
+ 	_ = (1 << s) << (1 << s)
+ 	_ = (1 << s) << (1. << s)
+-	_ = (1 << s) << (1.1 << s)   // ERROR "truncated"
+-	_ = (1. << s) << (1 << s)    // ERROR "non-integer|shift of type float64"
+-	_ = (1. << s) << (1. << s)   // ERROR "non-integer|shift of type float64"
++	_ = (1 << s) << (1.1 << s)   // ERROR "truncated|must be integer"
++	_ = (1. << s) << (1 << s)    // ERROR "non-integer|shift of type float64|must be integer"
++	_ = (1. << s) << (1. << s)   // ERROR "non-integer|shift of type float64|must be integer"
+ 	_ = (1.1 << s) << (1.1 << s) // ERROR "invalid|non-integer|truncated"
+ 
+ 	var x int
+ 	x = 1 << (1 << s)
+ 	x = 1 << (1. << s)
+-	x = 1 << (1.1 << s) // ERROR "truncated"
++	x = 1 << (1.1 << s) // ERROR "truncated|must be integer"
+ 	x = 1. << (1 << s)
+ 	x = 1. << (1. << s)
+-	x = 1.1 << (1.1 << s) // ERROR "truncated"
++	x = 1.1 << (1.1 << s) // ERROR "truncated|must be integer"
+ 
+ 	x = (1 << s) << (1 << s)
+ 	x = (1 << s) << (1. << s)
+-	x = (1 << s) << (1.1 << s) // ERROR "truncated"
++	x = (1 << s) << (1.1 << s) // ERROR "truncated|must be integer"
+ 	x = (1. << s) << (1 << s)
+ 	x = (1. << s) << (1. << s)
+-	x = (1.1 << s) << (1.1 << s) // ERROR "truncated"
++	x = (1.1 << s) << (1.1 << s) // ERROR "truncated|must be integer"
+ 
+ 	var y float32
+ 	y = 1 << (1 << s)     // ERROR "non-integer|type float32"
+@@ -241,8 +241,8 @@ func _() {
+ 	z = (1 << s) << (1 << s)     // ERROR "non-integer|type complex128"
+ 	z = (1 << s) << (1. << s)    // ERROR "non-integer|type complex128"
+ 	z = (1 << s) << (1.1 << s)   // ERROR "invalid|truncated|complex128"
+-	z = (1. << s) << (1 << s)    // ERROR "non-integer|type complex128"
+-	z = (1. << s) << (1. << s)   // ERROR "non-integer|type complex128"
++	z = (1. << s) << (1 << s)    // ERROR "non-integer|type complex128|must be integer"
++	z = (1. << s) << (1. << s)   // ERROR "non-integer|type complex128|must be integer"
+ 	z = (1.1 << s) << (1.1 << s) // ERROR "invalid|truncated|complex128"
+ 
+ 	_, _, _ = x, y, z

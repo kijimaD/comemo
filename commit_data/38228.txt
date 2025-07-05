@@ -11,6 +11,23 @@ Date:   Fri Oct 12 11:36:54 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/c/141798
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/file.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 61f37f2489..3e626a023a 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -394,6 +394,11 @@ func UserHomeDir() string {
+ 		return Getenv("home")
+ 	case "nacl", "android":
+ 		return "/"
++	case "darwin":
++		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
++			return "/"
++		}
++		fallthrough
+ 	default:
+ 		return Getenv("HOME")
+ 	}

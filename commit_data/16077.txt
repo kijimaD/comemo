@@ -7,6 +7,19 @@ Date:   Wed Apr 3 11:12:25 2013 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/8253044
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index d08e3428c2..19bcaea520 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -198,6 +198,7 @@ James Meneghello <rawrz0r@gmail.com>
+ James P. Cooper <jamespcooper@gmail.com>
+ James Toy <nil@opensesame.st>
+ James Whitehead <jnwhiteh@gmail.com>
++James Tucker <raggi@google.com>
+ Jamie Gennis <jgennis@google.com> <jgennis@gmail.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>

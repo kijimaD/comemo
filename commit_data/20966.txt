@@ -12,6 +12,24 @@ Date:   Thu Oct 30 11:17:26 2014 -0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/162490044
-
+---
  src/runtime/runtime.c | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index f19f8e4be3..a684142848 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -226,6 +226,12 @@ runtime·check(void)
+ 	if(z != 4)
+ 		runtime·throw("cas4");
+ 
++	z = 0xffffffff;
++	if(!runtime·cas(&z, 0xffffffff, 0xfffffffe))
++		runtime·throw("cas5");
++	if(z != 0xfffffffe)
++		runtime·throw("cas6");
++
+ 	k = (byte*)0xfedcb123;
+ 	if(sizeof(void*) == 8)
+ 		k = (byte*)((uintptr)k<<10);

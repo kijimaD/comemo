@@ -17,7 +17,68 @@ Date:   Mon Jun 29 11:53:51 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/11690
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/path/filepath/path.go      |  9 +++++----
  src/path/filepath/path_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 4 deletions(-)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index f9b041bd46..5dc5cfd49e 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -335,10 +335,11 @@ var SkipDir = errors.New("skip this directory")
+ // If there was a problem walking to the file or directory named by path, the
+ // incoming error will describe the problem and the function can decide how
+ // to handle that error (and Walk will not descend into that directory). If
+-// an error is returned, processing stops. The sole exception is that if path
+-// is a directory and the function returns the special value SkipDir, the
+-// contents of the directory are skipped and processing continues as usual on
+-// the next file.
++// an error is returned, processing stops. The sole exception is when the function
++// returns the special value SkipDir. If the function returns SkipDir when invoked
++// on a directory, Walk skips the directory's contents entirely.
++// If the function returns SkipDir when invoked on a non-directory file,
++// Walk skips the remaining files in the containing directory.
+ type WalkFunc func(path string, info os.FileInfo, err error) error
+ 
+ var lstat = os.Lstat // for testing
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 4ecaada983..91b6493c51 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -510,6 +510,35 @@ func touch(t *testing.T, name string) {
+ 	}
+ }
+ 
++func TestWalkSkipDirOnFile(t *testing.T) {
++	td, err := ioutil.TempDir("", "walktest")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(td)
++
++	if err := os.MkdirAll(filepath.Join(td, "dir"), 0755); err != nil {
++		t.Fatal(err)
++	}
++	touch(t, filepath.Join(td, "dir/foo1"))
++	touch(t, filepath.Join(td, "dir/foo2"))
++
++	sawFoo2 := false
++	filepath.Walk(td, func(path string, info os.FileInfo, err error) error {
++		if strings.HasSuffix(path, "foo2") {
++			sawFoo2 = true
++		}
++		if strings.HasSuffix(path, "foo1") {
++			return filepath.SkipDir
++		}
++		return nil
++	})
++
++	if sawFoo2 {
++		t.Errorf("SkipDir on file foo1 did not block processing of foo2")
++	}
++}
++
+ func TestWalkFileError(t *testing.T) {
+ 	td, err := ioutil.TempDir("", "walktest")
+ 	if err != nil {

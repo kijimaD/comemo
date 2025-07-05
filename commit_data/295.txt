@@ -5,7 +5,7 @@ Date:   Mon Jul 7 10:03:10 2008 -0700
     test cleanup
     
     SVN=126120
-
+---
  test/bugs/bug010.go                |   5 ++
  test/bugs/bug025.go                |   2 +-
  test/{bugs => fixedbugs}/bug006.go |   0
@@ -22,3 +22,436 @@ Date:   Mon Jul 7 10:03:10 2008 -0700
  test/run                           |   3 +-
  test/test0.go                      |  10 ++-
  15 files changed, 62 insertions(+), 108 deletions(-)
+
+diff --git a/test/bugs/bug010.go b/test/bugs/bug010.go
+index 6143ca1cdf..43f68748dd 100644
+--- a/test/bugs/bug010.go
++++ b/test/bugs/bug010.go
+@@ -12,6 +12,11 @@ func f() (i int, f float) {
+ 	f = 8.0;
+ 	return;
+ }
++
++func main() {
++	f(3, float(5))
++}
++
+ /*
+ bug10.go:5: i undefined
+ bug10.go:6: illegal conversion of constant to 020({},<_o001>{<i><int32>INT32;<f><float32>FLOAT32;},{})
+diff --git a/test/bugs/bug025.go b/test/bugs/bug025.go
+index 93c886ae7b..df1c1a7773 100644
+--- a/test/bugs/bug025.go
++++ b/test/bugs/bug025.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// $G $D/$F.go || echo BUG: known to fail incorrectly or at least with a bad message
++// $G $D/$F.go && echo BUG: bad exit status - should be 1 - plus extra newline in message
+ 
+ package main
+ 
+diff --git a/test/bugs/bug006.go b/test/fixedbugs/bug006.go
+similarity index 100%
+rename from test/bugs/bug006.go
+rename to test/fixedbugs/bug006.go
+diff --git a/test/bugs/bug022.go b/test/fixedbugs/bug022.go
+similarity index 89%
+rename from test/bugs/bug022.go
+rename to test/fixedbugs/bug022.go
+index 5215d35899..229f879219 100644
+--- a/test/bugs/bug022.go
++++ b/test/fixedbugs/bug022.go
+@@ -12,6 +12,11 @@ func putint(digits *string) {
+ 	i = digits[7];  // doesn't compile
+ }
+ 
++func main() {
++	s := "asdfasdfasdfasdf";
++	putint(&s);
++}
++
+ /*
+ bug022.go:8: illegal types for operand
+ 	(*<string>*STRING) INDEXPTR (<int32>INT32)
+diff --git a/test/bugs/bug035.go b/test/fixedbugs/bug035.go
+similarity index 100%
+rename from test/bugs/bug035.go
+rename to test/fixedbugs/bug035.go
+diff --git a/test/bugs/bug037.go b/test/fixedbugs/bug037.go
+similarity index 100%
+rename from test/bugs/bug037.go
+rename to test/fixedbugs/bug037.go
+diff --git a/test/bugs/bug039.go b/test/fixedbugs/bug039.go
+similarity index 100%
+rename from test/bugs/bug039.go
+rename to test/fixedbugs/bug039.go
+diff --git a/test/bugs/bug043.go b/test/fixedbugs/bug043.go
+similarity index 82%
+rename from test/bugs/bug043.go
+rename to test/fixedbugs/bug043.go
+index fee8ebe0b1..a0c7eb1e9e 100644
+--- a/test/bugs/bug043.go
++++ b/test/fixedbugs/bug043.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// $G $D/$F.go || echo BUG: compilation should succeed
++// $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+ // Forward declarations
+ 
+@@ -15,7 +15,9 @@ func i (x, y int) ;  // this works
+ func i (x, y int) {}
+ 
+ func g (x int) float ;  // BUG this doesn't
+-func g (x int) float {}
++func g (x int) float { return 0.0 }
+ 
+ func h (x int) (u int, v int) ;  // BUG this doesn't
+ func h (x int) (u int, v int) {}
++
++func main() {}
+diff --git a/test/bugs/bug044.go b/test/fixedbugs/bug044.go
+similarity index 75%
+rename from test/bugs/bug044.go
+rename to test/fixedbugs/bug044.go
+index ea9ace38cf..789237abe6 100644
+--- a/test/bugs/bug044.go
++++ b/test/fixedbugs/bug044.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// $G $D/$F.go || echo BUG: compilation should succeed
++// $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+ package main
+ 
+@@ -24,4 +24,6 @@ func (p *S) M2b() {
+   p.M1b();
+ }
+ 
+-func (p *S) M1b() int {}  // BUG this doesn't
++func (p *S) M1b() int { return 0 }  // BUG this doesn't
++
++func main() {}
+diff --git a/test/bugs/bug051.go b/test/fixedbugs/bug051.go
+similarity index 100%
+rename from test/bugs/bug051.go
+rename to test/fixedbugs/bug051.go
+diff --git a/test/golden.out b/test/golden.out
+index 51ce968a4f..4f567bc727 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -10,7 +10,8 @@
+ =========== ./func.go
+ 
+ =========== ./func1.go
+-BUG: known to succeed incorrectly
++func1.go:10: var a redeclared in this block
++     previous declaration at func1.go:10
+ 
+ =========== ./hashmap.go
+ 
+@@ -44,20 +45,6 @@ BUG: known to fail incorrectly
+ =========== ./switch1.go
+ 
+ =========== ./test0.go
+-test0.go:48: illegal types for operand: AS
+-	(<float32>FLOAT32)
+-	(<int32>INT32)
+-test0.go:49: illegal types for operand: AS
+-	(<float32>FLOAT32)
+-	(<int32>INT32)
+-test0.go:50: error in shape across assignment
+-test0.go:55: illegal types for operand: CALLMETH
+-	(*<Point>{})
+-	(<Point>{<x><int32>INT32;<y><int32>INT32;<Point_Initialize>120({},{}){};<Point_Distance>101({},{}){};})
+-test0.go:54: illegal types for operand: AS
+-	(<Point>{<x><int32>INT32;<y><int32>INT32;<Point_Initialize>120({},{}){};<Point_Distance>101({},{}){};})
+-	({})
+-BUG: known to fail incorrectly
+ 
+ =========== ./turing.go
+ Hello World!
+@@ -118,35 +105,19 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ 
+ =========== ken/strvar.go
+ 
+-=========== bugs/bug006.go
+-zero
+- fail
+-BUG: known to fail incorrectly
+-
+ =========== bugs/bug010.go
+-bugs/bug010.go:7: i: undefined
+-bugs/bug010.go:8: illegal conversion of constant to 002({},{}){}
+-bugs/bug010.go:8: illegal types for operand: AS
+-	(002({},{}){<i><int32>INT32;<f><float32>FLOAT32;})
+-bugs/bug010.go:9: error in shape across assignment
++bugs/bug010.go:13: error in shape across CALL
+ BUG: known to fail incorrectly
+ 
+ =========== bugs/bug015.go
+ BUG: known to succeed incorrectly
+ 
+-=========== bugs/bug022.go
+-bugs/bug022.go:8: illegal types for operand: INDEXPTR
+-	(*<string>*STRING)
+-bugs/bug022.go:8: illegal types for operand: AS
+-	(<uint8>UINT8)
+-BUG: known to fail incorrectly
+-
+ =========== bugs/bug023.go
+ 
+ =========== bugs/bug025.go
+-bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
++bugs/bug025.go:7: variable exported but not defined: Foo
+ 
+-BUG: known to fail incorrectly or at least with a bad message
++BUG: bad exit status - should be 1 - plus extra newline in message
+ 
+ =========== bugs/bug026.go
+ sys·printstring: main·sigs_I: not defined
+@@ -173,30 +144,11 @@ BUG: compilation succeeds incorrectly
+ =========== bugs/bug034.go
+ BUG: compilation succeeds incorrectly
+ 
+-=========== bugs/bug035.go
+-BUG: compilation succeeds incorrectly
+-
+-=========== bugs/bug037.go
+-BUG: compilation succeeds incorrectly
+-
+-=========== bugs/bug039.go
+-BUG: compilation succeeds incorrectly
+-
+ =========== bugs/bug041.go
+ BUG: compilation succeeds incorrectly
+ 
+ =========== bugs/bug042.go
+ bugs/bug042.go:6: syntax error
+-bugs/bug042.go:15: syntax error
+-BUG: compilation should succeed
+-
+-=========== bugs/bug043.go
+-bugs/bug043.go:14: error in shape across assignment
+-bugs/bug043.go:17: error in shape across assignment
+-BUG: compilation should succeed
+-
+-=========== bugs/bug044.go
+-bugs/bug044.go:23: error in shape across assignment
+ BUG: compilation should succeed
+ 
+ =========== bugs/bug046.go
+@@ -229,20 +181,6 @@ bugs/bug050.go:3: package statement must be first
+ sys.6:1 bugs/bug050.go:3: syntax error
+ BUG: segfault
+ 
+-=========== bugs/bug051.go
+-bugs/bug051.go:10: expression must be a constant
+-bugs/bug051.go:10: expression must be a constant
+-bugs/bug051.go:10: expression must be a constant
+-bugs/bug051.go:10: expression must be a constant
+-bugs/bug051.go:10: expression must be a constant
+-bugs/bug051.go:10: expression must be a constant
+-bugs/bug051.go:10: expression must be a constant
+-bugs/bug051.go:10: expression must be a constant
+-bugs/bug051.go:10: expression must be a constant
+-bugs/bug051.go:10: expression must be a constant
+-bugs/bug051.go:10: fatal error: too many errors
+-BUG: infinite loop in error reporting
+-
+ =========== bugs/bug052.go
+ SIGSEGV: segmentation violation
+ Faulting address: 0x1
+@@ -252,27 +190,6 @@ pc: 0x1349
+ 	main·main(1, 0, 1606416464, ...)
+ 	main·main(0x1, 0x7fff5fbff850, 0x1, ...)
+ 
+-rax     0x1
+-rbx     0x7
+-rcx     0x7fff5fbff7e8
+-rdx     0x3
+-rdi     0x7fff5fbff810
+-rsi     0x4950
+-rbp     0x13ffc00
+-rsp     0x7fff5fbff7e0
+-r8      0x0
+-r9      0x0
+-r10     0x0
+-r11     0x216
+-r12     0x0
+-r13     0x0
+-r14     0x0
+-r15     0x68f0
+-rip     0x1349
+-rflags  0x10206
+-cs      0x27
+-fs      0x10
+-gs      0x48
+ BUG: incorrect code for division
+ 
+ =========== bugs/bug053.go
+@@ -317,15 +234,6 @@ BUG: known to succeed incorrectly
+ =========== bugs/bug063.go
+ bugs/bug063.go:5: illegal combination of literals XOR 7
+ bugs/bug063.go:5: expression must be a constant
+-bugs/bug063.go:5: expression must be a constant
+-bugs/bug063.go:5: expression must be a constant
+-bugs/bug063.go:5: expression must be a constant
+-bugs/bug063.go:5: expression must be a constant
+-bugs/bug063.go:5: expression must be a constant
+-bugs/bug063.go:5: expression must be a constant
+-bugs/bug063.go:5: expression must be a constant
+-bugs/bug063.go:5: expression must be a constant
+-bugs/bug063.go:5: fatal error: too many errors
+ BUG: should compile without problems
+ 
+ =========== bugs/bug064.go
+@@ -346,6 +254,8 @@ BUG: compilation should succeed
+ 
+ =========== fixedbugs/bug005.go
+ 
++=========== fixedbugs/bug006.go
++
+ =========== fixedbugs/bug007.go
+ 
+ =========== fixedbugs/bug008.go
+@@ -368,6 +278,8 @@ BUG: compilation should succeed
+ 
+ =========== fixedbugs/bug021.go
+ 
++=========== fixedbugs/bug022.go
++
+ =========== fixedbugs/bug024.go
+ 
+ =========== fixedbugs/bug028.go
+@@ -376,14 +288,35 @@ BUG: compilation should succeed
+ 
+ =========== fixedbugs/bug031.go
+ 
++=========== fixedbugs/bug035.go
++fixedbugs/bug035.go:6: var i redeclared in this block
++     previous declaration at fixedbugs/bug035.go:5
++fixedbugs/bug035.go:7: var f redeclared in this block
++     previous declaration at fixedbugs/bug035.go:5
++
+ =========== fixedbugs/bug036.go
+ 
++=========== fixedbugs/bug037.go
++fixedbugs/bug037.go:6: vlong: undefined
++fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(199) t=<T> nil
++
+ =========== fixedbugs/bug038.go
+ 
++=========== fixedbugs/bug039.go
++fixedbugs/bug039.go:6: var x redeclared in this block
++     previous declaration at fixedbugs/bug039.go:5
++
+ =========== fixedbugs/bug040.go
+ 
++=========== fixedbugs/bug043.go
++
++=========== fixedbugs/bug044.go
++
+ =========== fixedbugs/bug045.go
+ 
++=========== fixedbugs/bug051.go
++fixedbugs/bug051.go:10: expression must be a constant
++
+ =========== fixedbugs/bug056.go
+ 
+ =========== fixedbugs/bug058.go
+diff --git a/test/ken/robfunc.go b/test/ken/robfunc.go
+index c6b1a10c44..d888414065 100644
+--- a/test/ken/robfunc.go
++++ b/test/ken/robfunc.go
+@@ -40,7 +40,7 @@ func f7(a int) (int, float) {
+ }
+ 
+ 
+-func f8(a int) (a int, b float) {
++func f8(a int) (x int, y float) {
+ 	return 8, 8.0;
+ }
+ 
+@@ -53,7 +53,7 @@ func (t *T) m10(a int, b float) int {
+ }
+ 
+ 
+-func f9(a int) (i int, f float) {
++func f9(a int) (in int, fl float) {
+ 	i := 9;
+ 	f := float(9);
+ 	return i, f;
+diff --git a/test/ken/simpconv.go b/test/ken/simpconv.go
+index 895024e5bf..401ae763d4 100644
+--- a/test/ken/simpconv.go
++++ b/test/ken/simpconv.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++type vlong int64;
++
+ func
+ main()
+ {
+diff --git a/test/run b/test/run
+index ee014269ad..a7ce63dde1 100755
+--- a/test/run
++++ b/test/run
+@@ -32,7 +32,8 @@ do
+ 			echo >&2 fail: $i
+ 		fi
+ 	done
+-done > run.out
++done | # clean up some stack noise
++	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x' > run.out
+ 
+ case $failed in
+ 1)
+diff --git a/test/test0.go b/test/test0.go
+index 4d7b0df1f6..a3691fb469 100644
+--- a/test/test0.go
++++ b/test/test0.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package Test0
++package main
+ 
+ const
+   a_const = 0
+@@ -26,8 +26,9 @@ type (
+   Point2 Point
+ )
+ 
+-func (p *Point) Initialize(x, y int) {
++func (p *Point) Initialize(x, y int) *Point {
+   p.x, p.y = x, y;
++  return p;
+ }
+ 
+ func (p *Point) Distance() int {
+@@ -54,7 +55,7 @@ func swap(x, y int) (u, v int) {
+ }
+ 
+ func control_structs() {
+-  var p Point = new(Point).Initialize(2, 3);
++  var p *Point = new(Point).Initialize(2, 3);
+   i := p.Distance();
+   var f float = 0.3;
+   for {}
+@@ -78,3 +79,6 @@ func control_structs() {
+     break;
+   }
+ }
++
++func main() {
++}

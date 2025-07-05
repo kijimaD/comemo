@@ -7,7 +7,32 @@ Date:   Mon Jun 25 17:32:31 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6325058
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index f7130325fa..71432b57b1 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -150,6 +150,7 @@ Michael Elkins <michael.elkins@gmail.com>
+ Michael Gehring <mg@ebfe.org>
+ Michael Hoisie <hoisie@gmail.com>
+ Michael Lewis <mikelikespie@gmail.com>
++Michael Stapelberg <michael@stapelberg.de>
+ Michał Derkacz <ziutek@lnet.pl>
+ Miek Gieben <miek@miek.nl>
+ Mikael Tillenius <mikti42@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 48ac47e59d..fef2faefe0 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -223,6 +223,7 @@ Michael Gehring <mg@ebfe.org>
+ Michael Hoisie <hoisie@gmail.com>
+ Michael Lewis <mikelikespie@gmail.com>
+ Michael Shields <mshields@google.com>
++Michael Stapelberg <michael@stapelberg.de> <mstplbrg@googlemail.com>
+ Michael T. Jones <mtj@google.com> <michael.jones@gmail.com>
+ Michał Derkacz <ziutek@lnet.pl>
+ Miek Gieben <miek@miek.nl> <remigius.gieben@gmail.com>

@@ -24,7 +24,133 @@ Date:   Thu Sep 19 14:58:10 2019 -0700
     Change-Id: I8ce188136c76fa70fba686711167db29a049f46d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/196561
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/types/object_test.go | 44 +++++++++++++++++++++++++++++++++++++++++++-
  src/go/types/typexpr.go     | 33 +++++++++++++++++++++++----------
  2 files changed, 66 insertions(+), 11 deletions(-)
+
+diff --git a/src/go/types/object_test.go b/src/go/types/object_test.go
+index 88cd875741..2b6057bd93 100644
+--- a/src/go/types/object_test.go
++++ b/src/go/types/object_test.go
+@@ -4,7 +4,12 @@
+ 
+ package types
+ 
+-import "testing"
++import (
++	"go/ast"
++	"go/parser"
++	"go/token"
++	"testing"
++)
+ 
+ func TestIsAlias(t *testing.T) {
+ 	check := func(obj *TypeName, want bool) {
+@@ -42,3 +47,40 @@ func TestIsAlias(t *testing.T) {
+ 		check(test.name, test.alias)
+ 	}
+ }
++
++// TestEmbeddedMethod checks that an embedded method is represented by
++// the same Func Object as the original method. See also issue #34421.
++func TestEmbeddedMethod(t *testing.T) {
++	const src = `package p; type I interface { error }`
++
++	// type-check src
++	fset := token.NewFileSet()
++	f, err := parser.ParseFile(fset, "", src, 0)
++	if err != nil {
++		t.Fatalf("parse failed: %s", err)
++	}
++	var conf Config
++	pkg, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
++	if err != nil {
++		t.Fatalf("typecheck failed: %s", err)
++	}
++
++	// get original error.Error method
++	eface := Universe.Lookup("error")
++	orig, _, _ := LookupFieldOrMethod(eface.Type(), false, nil, "Error")
++	if orig == nil {
++		t.Fatalf("original error.Error not found")
++	}
++
++	// get embedded error.Error method
++	iface := pkg.Scope().Lookup("I")
++	embed, _, _ := LookupFieldOrMethod(iface.Type(), false, nil, "Error")
++	if embed == nil {
++		t.Fatalf("embedded error.Error not found")
++	}
++
++	// original and embedded Error object should be identical
++	if orig != embed {
++		t.Fatalf("%s (%p) != %s (%p)", orig, orig, embed, embed)
++	}
++}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 4948b800d1..b0d04f5363 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -557,28 +557,43 @@ func (check *Checker) completeInterface(ityp *Interface) {
+ 
+ 	ityp.allMethods = markComplete // avoid infinite recursion
+ 
+-	var methods []*Func
++	// Methods of embedded interfaces are collected unchanged; i.e., the identity
++	// of a method I.m's Func Object of an interface I is the same as that of
++	// the method m in an interface that embeds interface I. On the other hand,
++	// if a method is embedded via multiple overlapping embedded interfaces, we
++	// don't provide a guarantee which "original m" got chosen for the embedding
++	// interface. See also issue #34421.
++	//
++	// If we don't care to provide this identity guarantee anymore, instead of
++	// reusing the original method in embeddings, we can clone the method's Func
++	// Object and give it the position of a corresponding embedded interface. Then
++	// we can get rid of the mpos map below and simply use the cloned method's
++	// position.
++
+ 	var seen objset
+-	addMethod := func(m *Func, explicit bool) {
++	var methods []*Func
++	mpos := make(map[*Func]token.Pos) // method specification or method embedding position, for good error messages
++	addMethod := func(pos token.Pos, m *Func, explicit bool) {
+ 		switch other := seen.insert(m); {
+ 		case other == nil:
+ 			methods = append(methods, m)
++			mpos[m] = pos
+ 		case explicit:
+-			check.errorf(m.pos, "duplicate method %s", m.name)
+-			check.reportAltDecl(other)
++			check.errorf(pos, "duplicate method %s", m.name)
++			check.errorf(mpos[other.(*Func)], "\tother declaration of %s", m.name) // secondary error, \t indented
+ 		default:
+ 			// check method signatures after all types are computed (issue #33656)
+ 			check.atEnd(func() {
+ 				if !check.identical(m.typ, other.Type()) {
+-					check.errorf(m.pos, "duplicate method %s", m.name)
+-					check.reportAltDecl(other)
++					check.errorf(pos, "duplicate method %s", m.name)
++					check.errorf(mpos[other.(*Func)], "\tother declaration of %s", m.name) // secondary error, \t indented
+ 				}
+ 			})
+ 		}
+ 	}
+ 
+ 	for _, m := range ityp.methods {
+-		addMethod(m, true)
++		addMethod(m.pos, m, true)
+ 	}
+ 
+ 	posList := check.posMap[ityp]
+@@ -587,9 +602,7 @@ func (check *Checker) completeInterface(ityp *Interface) {
+ 		typ := underlying(typ).(*Interface)
+ 		check.completeInterface(typ)
+ 		for _, m := range typ.allMethods {
+-			copy := *m
+-			copy.pos = pos // preserve embedding position
+-			addMethod(&copy, false)
++			addMethod(pos, m, false) // use embedding position pos rather than m.pos
+ 		}
+ 	}
+ 

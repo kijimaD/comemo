@@ -14,7 +14,87 @@ Date:   Fri Aug 4 14:15:39 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 24 ++++++------------------
  src/runtime/runtime2.go                | 15 ++++-----------
  2 files changed, 10 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 9796978f4a..bb67bd6bad 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -5259,20 +5259,14 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		addr := s.addr(d)
+ 
+ 		// Must match deferstruct() below and src/runtime/runtime2.go:_defer.
+-		// 0: started, set in deferprocStack
+-		// 1: heap, set in deferprocStack
+-		// 2: openDefer
+-		// 3: sp, set in deferprocStack
+-		// 4: pc, set in deferprocStack
+-		// 5: fn
++		// 0: heap, set in deferprocStack
++		// 1: sp, set in deferprocStack
++		// 2: pc, set in deferprocStack
++		// 3: fn
+ 		s.store(closure.Type,
+-			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(5), addr),
++			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(3), addr),
+ 			closure)
+-		// 6: panic, set in deferprocStack
+-		// 7: link, set in deferprocStack
+-		// 8: fd
+-		// 9: varp
+-		// 10: framepc
++		// 4: link, set in deferprocStack
+ 
+ 		// Call runtime.deferprocStack with pointer to _defer record.
+ 		ACArgs = append(ACArgs, types.Types[types.TUINTPTR])
+@@ -8113,20 +8107,14 @@ func deferstruct() *types.Type {
+ 	// These fields must match the ones in runtime/runtime2.go:_defer and
+ 	// (*state).call above.
+ 	fields := []*types.Field{
+-		makefield("started", types.Types[types.TBOOL]),
+ 		makefield("heap", types.Types[types.TBOOL]),
+-		makefield("openDefer", types.Types[types.TBOOL]),
+ 		makefield("sp", types.Types[types.TUINTPTR]),
+ 		makefield("pc", types.Types[types.TUINTPTR]),
+ 		// Note: the types here don't really matter. Defer structures
+ 		// are always scanned explicitly during stack copying and GC,
+ 		// so we make them uintptr type even though they are real pointers.
+ 		makefield("fn", types.Types[types.TUINTPTR]),
+-		makefield("_panic", types.Types[types.TUINTPTR]),
+ 		makefield("link", types.Types[types.TUINTPTR]),
+-		makefield("fd", types.Types[types.TUINTPTR]),
+-		makefield("varp", types.Types[types.TUINTPTR]),
+-		makefield("framepc", types.Types[types.TUINTPTR]),
+ 	}
+ 
+ 	// build struct holding the above fields
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 75f009388e..b9547651ee 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -999,18 +999,11 @@ func extendRandom(r []byte, n int) {
+ // initialize them are not required. All defers must be manually scanned,
+ // and for heap defers, marked.
+ type _defer struct {
+-	// TODO(mdempsky): Remove blank fields and update cmd/compile.
+-	_    bool // was started
+ 	heap bool
+-	_    bool           // was openDefer
+-	sp   uintptr        // sp at time of defer
+-	pc   uintptr        // pc at time of defer
+-	fn   func()         // can be nil for open-coded defers
+-	_    unsafe.Pointer // was _panic
+-	link *_defer        // next defer on G; can point to either heap or stack!
+-	_    unsafe.Pointer // was fd
+-	_    uintptr        // was varp
+-	_    uintptr        // was framepc
++	sp   uintptr // sp at time of defer
++	pc   uintptr // pc at time of defer
++	fn   func()  // can be nil for open-coded defers
++	link *_defer // next defer on G; can point to either heap or stack!
+ }
+ 
+ // A _panic holds information about an active panic.

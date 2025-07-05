@@ -17,7 +17,62 @@ Date:   Wed Sep 5 07:07:56 2018 +0200
     Change-Id: Ib8f62dac1e485006b0c2b3ba04f86d733db5ee9a
     Reviewed-on: https://go-review.googlesource.com/133435
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testplugin/src/checkdwarf/main.go | 8 ++++----
  misc/cgo/testplugin/test.bash              | 6 +++++-
  2 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/misc/cgo/testplugin/src/checkdwarf/main.go b/misc/cgo/testplugin/src/checkdwarf/main.go
+index b689c4af15..7886c834e7 100644
+--- a/misc/cgo/testplugin/src/checkdwarf/main.go
++++ b/misc/cgo/testplugin/src/checkdwarf/main.go
+@@ -71,13 +71,13 @@ func main() {
+ 	}
+ 
+ 	if exe == nil {
+-		fmt.Fprintf(os.Stderr, "could not open %s", exePath)
++		fmt.Fprintf(os.Stderr, "could not open %s\n", exePath)
+ 		os.Exit(1)
+ 	}
+ 
+ 	data, err := exe.DWARF()
+ 	if err != nil {
+-		fmt.Fprintf(os.Stderr, "error opening DWARF: %v", err)
++		fmt.Fprintf(os.Stderr, "%s: error opening DWARF: %v\n", exePath, err)
+ 		os.Exit(1)
+ 	}
+ 
+@@ -85,7 +85,7 @@ func main() {
+ 	for {
+ 		e, err := rdr.Next()
+ 		if err != nil {
+-			fmt.Fprintf(os.Stderr, "error reading DWARF: %v", err)
++			fmt.Fprintf(os.Stderr, "%s: error reading DWARF: %v\n", exePath, err)
+ 			os.Exit(1)
+ 		}
+ 		if e == nil {
+@@ -101,6 +101,6 @@ func main() {
+ 		}
+ 	}
+ 
+-	fmt.Fprintf(os.Stderr, "no entry with a name ending in %q was found", dieSuffix)
++	fmt.Fprintf(os.Stderr, "%s: no entry with a name ending in %q was found\n", exePath, dieSuffix)
+ 	os.Exit(1)
+ }
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+index 5a87f5e746..1b94bc4bad 100755
+--- a/misc/cgo/testplugin/test.bash
++++ b/misc/cgo/testplugin/test.bash
+@@ -33,7 +33,11 @@ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o=unnamed2.so u
+ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" host
+ 
+ # test that DWARF sections are emitted for plugins and programs importing "plugin"
+-go run src/checkdwarf/main.go plugin2.so plugin2.UnexportedNameReuse
++if [ $GOOS != "darwin" ]; then
++	# On macOS, for some reason, the linker doesn't add debug sections to .so,
++	# see issue #27502.
++	go run src/checkdwarf/main.go plugin2.so plugin2.UnexportedNameReuse
++fi
+ go run src/checkdwarf/main.go host main.main
+ 
+ LD_LIBRARY_PATH=$(pwd) ./host

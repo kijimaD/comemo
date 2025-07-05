@@ -20,7 +20,42 @@ Date:   Sat Feb 8 23:35:51 2025 +0100
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/AMD64Ops.go | 4 ++--
  src/cmd/compile/internal/ssa/opGen.go         | 1 +
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+index 23fb2361b5..7be70c7737 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+@@ -1156,7 +1156,7 @@ func init() {
+ 		//
+ 		// output[i] = input.
+ 		{name: "PSHUFBbroadcast", argLength: 1, reg: fp11, resultInArg0: true, asm: "PSHUFB"}, // PSHUFB with mask zero, (GOAMD64=v1)
+-		{name: "VPBROADCASTB", argLength: 1, reg: gpfp, asm: "VPBROADCASTB"}, // Broadcast input byte from gp (GOAMD64=v3)
++		{name: "VPBROADCASTB", argLength: 1, reg: gpfp, asm: "VPBROADCASTB"},                  // Broadcast input byte from gp (GOAMD64=v3)
+ 
+ 		// Byte negate/zero/preserve (GOAMD64=v2).
+ 		//
+@@ -1180,7 +1180,7 @@ func init() {
+ 		// } else {
+ 		//   output[i] = 0
+ 		// }
+-		{name: "PCMPEQB", argLength: 2, reg: fp21, resultInArg0: true, asm: "PCMPEQB"},
++		{name: "PCMPEQB", argLength: 2, reg: fp21, resultInArg0: true, asm: "PCMPEQB", commutative: true},
+ 
+ 		// Byte sign mask. Output is a bitmap of sign bits from each input byte.
+ 		//
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index df1ddfa69e..13ec9dc9e3 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -15414,6 +15414,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:         "PCMPEQB",
+ 		argLen:       2,
++		commutative:  true,
+ 		resultInArg0: true,
+ 		asm:          x86.APCMPEQB,
+ 		reg: regInfo{

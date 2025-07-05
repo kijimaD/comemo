@@ -11,7 +11,132 @@ Date:   Thu Feb 9 17:28:41 2012 +1100
     R=golang-dev, r, rsc, rsc
     CC=golang-dev
     https://golang.org/cl/5639068
-
+---
  src/pkg/strings/reader.go      | 31 +++++++++++++++++++++-
  src/pkg/strings/reader_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 88 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/strings/reader.go b/src/pkg/strings/reader.go
+index 8ff851f36a..f27f9ac979 100644
+--- a/src/pkg/strings/reader.go
++++ b/src/pkg/strings/reader.go
+@@ -10,7 +10,7 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// A Reader implements the io.Reader, io.ByteScanner, and
++// A Reader implements the io.Reader, io.Seeker, io.ByteScanner, and
+ // io.RuneScanner interfaces by reading from a string.
+ type Reader struct {
+ 	s        string
+@@ -21,10 +21,16 @@ type Reader struct {
+ // Len returns the number of bytes of the unread portion of the
+ // string.
+ func (r *Reader) Len() int {
++	if r.i >= len(r.s) {
++		return 0
++	}
+ 	return len(r.s) - r.i
+ }
+ 
+ func (r *Reader) Read(b []byte) (n int, err error) {
++	if len(b) == 0 {
++		return 0, nil
++	}
+ 	if r.i >= len(r.s) {
+ 		return 0, io.EOF
+ 	}
+@@ -87,6 +93,29 @@ func (r *Reader) UnreadRune() error {
+ 	return nil
+ }
+ 
++// Seek implements the io.Seeker interface.
++func (r *Reader) Seek(offset int64, whence int) (int64, error) {
++	var abs int64
++	switch whence {
++	case 0:
++		abs = offset
++	case 1:
++		abs = int64(r.i) + offset
++	case 2:
++		abs = int64(len(r.s)) + offset
++	default:
++		return 0, errors.New("strings: invalid whence")
++	}
++	if abs < 0 {
++		return 0, errors.New("strings: negative position")
++	}
++	if abs >= 1<<31 {
++		return 0, errors.New("strings: position out of range")
++	}
++	r.i = int(abs)
++	return abs, nil
++}
++
+ // NewReader returns a new Reader reading from s.
+ // It is similar to bytes.NewBufferString but more efficient and read-only.
+ func NewReader(s string) *Reader { return &Reader{s, 0, -1} }
+diff --git a/src/pkg/strings/reader_test.go b/src/pkg/strings/reader_test.go
+new file mode 100644
+index 0000000000..57987fffd7
+--- /dev/null
++++ b/src/pkg/strings/reader_test.go
+@@ -0,0 +1,58 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strings_test
++
++import (
++	"os"
++	"strings"
++	"testing"
++)
++
++func TestReader(t *testing.T) {
++	r := strings.NewReader("0123456789")
++	tests := []struct {
++		off     int64
++		seek    int
++		n       int
++		want    string
++		wantpos int64
++		seekerr string
++	}{
++		{seek: os.SEEK_SET, off: 0, n: 20, want: "0123456789"},
++		{seek: os.SEEK_SET, off: 1, n: 1, want: "1"},
++		{seek: os.SEEK_CUR, off: 1, wantpos: 3, n: 2, want: "34"},
++		{seek: os.SEEK_SET, off: -1, seekerr: "strings: negative position"},
++		{seek: os.SEEK_SET, off: 1<<31 - 1},
++		{seek: os.SEEK_CUR, off: 1, seekerr: "strings: position out of range"},
++		{seek: os.SEEK_SET, n: 5, want: "01234"},
++		{seek: os.SEEK_CUR, n: 5, want: "56789"},
++		{seek: os.SEEK_END, off: -1, n: 1, wantpos: 9, want: "9"},
++	}
++
++	for i, tt := range tests {
++		pos, err := r.Seek(tt.off, tt.seek)
++		if err == nil && tt.seekerr != "" {
++			t.Errorf("%d. want seek error %q", i, tt.seekerr)
++			continue
++		}
++		if err != nil && err.Error() != tt.seekerr {
++			t.Errorf("%d. seek error = %q; want %q", i, err.Error(), tt.seekerr)
++			continue
++		}
++		if tt.wantpos != 0 && tt.wantpos != pos {
++			t.Errorf("%d. pos = %d, want %d", i, pos, tt.wantpos)
++		}
++		buf := make([]byte, tt.n)
++		n, err := r.Read(buf)
++		if err != nil {
++			t.Errorf("%d. read = %v", i, err)
++			continue
++		}
++		got := string(buf[:n])
++		if got != tt.want {
++			t.Errorf("%d. got %q; want %q", i, got, tt.want)
++		}
++	}
++}

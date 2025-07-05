@@ -10,6 +10,25 @@ Date:   Sun Jul 9 09:01:47 2017 +0900
     Reviewed-by: Avelino <t@avelino.xxx>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 1d053d23b7..23e0e4f2b0 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1166,11 +1166,8 @@ func dosymtype(ctxt *Link) {
+ 		for _, s := range ctxt.Syms.Allsym {
+ 			// Create a new entry in the .init_array section that points to the
+ 			// library initializer function.
+-			switch Buildmode {
+-			case BuildmodeCArchive, BuildmodeCShared:
+-				if s.Name == *flagEntrySymbol {
+-					addinitarrdata(ctxt, s)
+-				}
++			if s.Name == *flagEntrySymbol {
++				addinitarrdata(ctxt, s)
+ 			}
+ 		}
+ 	}

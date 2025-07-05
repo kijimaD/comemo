@@ -17,10 +17,155 @@ Date:   Tue Apr 21 12:47:11 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9168
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/exact/exact.go                    | 25 +++++++++++++++----------
  src/go/exact/exact_test.go               |  6 +++---
  src/go/internal/gcimporter/gcimporter.go |  6 +++---
  src/go/types/expr.go                     |  6 +++---
  src/go/types/operand.go                  |  2 +-
  5 files changed, 25 insertions(+), 20 deletions(-)
+
+diff --git a/src/go/exact/exact.go b/src/go/exact/exact.go
+index e3ceff33a4..f0510ce669 100644
+--- a/src/go/exact/exact.go
++++ b/src/go/exact/exact.go
+@@ -145,9 +145,15 @@ func MakeFloat64(x float64) Value {
+ }
+ 
+ // MakeFromLiteral returns the corresponding integer, floating-point,
+-// imaginary, character, or string value for a Go literal string. The
+-// result is nil if the literal string is invalid.
+-func MakeFromLiteral(lit string, tok token.Token) Value {
++// imaginary, character, or string value for a Go literal string.
++// If prec > 0, prec specifies an upper limit for the precision of
++// a numeric value. If the literal string is invalid, the result is
++// nil.
++// BUG(gri) Only prec == 0 is supported at the moment.
++func MakeFromLiteral(lit string, tok token.Token, prec uint) Value {
++	if prec != 0 {
++		panic("limited precision not supported")
++	}
+ 	switch tok {
+ 	case token.INT:
+ 		if x, err := strconv.ParseInt(lit, 0, 64); err == nil {
+@@ -489,10 +495,10 @@ func is63bit(x int64) bool {
+ 
+ // UnaryOp returns the result of the unary expression op y.
+ // The operation must be defined for the operand.
+-// If size >= 0 it specifies the ^ (xor) result size in bytes.
++// If prec > 0 it specifies the ^ (xor) result size in bits.
+ // If y is Unknown, the result is Unknown.
+ //
+-func UnaryOp(op token.Token, y Value, size int) Value {
++func UnaryOp(op token.Token, y Value, prec uint) Value {
+ 	switch op {
+ 	case token.ADD:
+ 		switch y.(type) {
+@@ -530,11 +536,10 @@ func UnaryOp(op token.Token, y Value, size int) Value {
+ 			goto Error
+ 		}
+ 		// For unsigned types, the result will be negative and
+-		// thus "too large": We must limit the result size to
+-		// the type's size.
+-		if size >= 0 {
+-			s := uint(size) * 8
+-			z.AndNot(&z, new(big.Int).Lsh(big.NewInt(-1), s)) // z &^= (-1)<<s
++		// thus "too large": We must limit the result precision
++		// to the type's precision.
++		if prec > 0 {
++			z.AndNot(&z, new(big.Int).Lsh(big.NewInt(-1), prec)) // z &^= (-1)<<prec
+ 		}
+ 		return normInt(&z)
+ 
+diff --git a/src/go/exact/exact_test.go b/src/go/exact/exact_test.go
+index aa38a896c6..0f170145e2 100644
+--- a/src/go/exact/exact_test.go
++++ b/src/go/exact/exact_test.go
+@@ -227,7 +227,7 @@ func val(lit string) Value {
+ 		}
+ 	}
+ 
+-	return MakeFromLiteral(lit, tok)
++	return MakeFromLiteral(lit, tok, 0)
+ }
+ 
+ var optab = map[string]token.Token{
+@@ -272,7 +272,7 @@ func doOp(x Value, op token.Token, y Value) (z Value) {
+ 	defer panicHandler(&z)
+ 
+ 	if x == nil {
+-		return UnaryOp(op, y, -1)
++		return UnaryOp(op, y, 0)
+ 	}
+ 
+ 	switch op {
+@@ -354,7 +354,7 @@ func TestUnknown(t *testing.T) {
+ 		MakeBool(false), // token.ADD ok below, operation is never considered
+ 		MakeString(""),
+ 		MakeInt64(1),
+-		MakeFromLiteral("-1234567890123456789012345678901234567890", token.INT),
++		MakeFromLiteral("-1234567890123456789012345678901234567890", token.INT, 0),
+ 		MakeFloat64(1.2),
+ 		MakeImag(MakeFloat64(1.2)),
+ 	}
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index b7e2babb60..523edb0bce 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -706,7 +706,7 @@ func (p *parser) parseInt() string {
+ //
+ func (p *parser) parseNumber() (typ *types.Basic, val exact.Value) {
+ 	// mantissa
+-	mant := exact.MakeFromLiteral(p.parseInt(), token.INT)
++	mant := exact.MakeFromLiteral(p.parseInt(), token.INT, 0)
+ 	if mant == nil {
+ 		panic("invalid mantissa")
+ 	}
+@@ -793,13 +793,13 @@ func (p *parser) parseConstDecl() {
+ 	case scanner.Char:
+ 		// rune_lit
+ 		typ = types.Typ[types.UntypedRune]
+-		val = exact.MakeFromLiteral(p.lit, token.CHAR)
++		val = exact.MakeFromLiteral(p.lit, token.CHAR, 0)
+ 		p.next()
+ 
+ 	case scanner.String:
+ 		// string_lit
+ 		typ = types.Typ[types.UntypedString]
+-		val = exact.MakeFromLiteral(p.lit, token.STRING)
++		val = exact.MakeFromLiteral(p.lit, token.STRING, 0)
+ 		p.next()
+ 
+ 	default:
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 2b60a1b305..14674a9539 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -117,11 +117,11 @@ func (check *Checker) unary(x *operand, op token.Token) {
+ 
+ 	if x.mode == constant {
+ 		typ := x.typ.Underlying().(*Basic)
+-		size := -1
++		var prec uint
+ 		if isUnsigned(typ) {
+-			size = int(check.conf.sizeof(typ))
++			prec = uint(check.conf.sizeof(typ) * 8)
+ 		}
+-		x.val = exact.UnaryOp(op, x.val, size)
++		x.val = exact.UnaryOp(op, x.val, prec)
+ 		// Typed constants must be representable in
+ 		// their type after each constant operation.
+ 		if isTyped(typ) {
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 6df72befa7..2714c382a2 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -166,7 +166,7 @@ func (x *operand) String() string {
+ 
+ // setConst sets x to the untyped constant for literal lit.
+ func (x *operand) setConst(tok token.Token, lit string) {
+-	val := exact.MakeFromLiteral(lit, tok)
++	val := exact.MakeFromLiteral(lit, tok, 0)
+ 	if val == nil {
+ 		// TODO(gri) Should we make it an unknown constant instead?
+ 		x.mode = invalid

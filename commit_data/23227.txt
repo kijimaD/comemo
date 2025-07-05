@@ -12,9 +12,120 @@ Date:   Thu Apr 30 12:11:35 2015 -0700
     Change-Id: I26542f5ac6519e45b335ad789713a4d9e356279b
     Reviewed-on: https://go-review.googlesource.com/9537
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/text/template/doc.go            |  4 ++--
  src/text/template/exec_test.go      | 13 +++++++++++++
  src/text/template/parse/lex.go      |  2 +-
  src/text/template/parse/lex_test.go | 29 ++++++++++++++++-------------
  4 files changed, 32 insertions(+), 16 deletions(-)
+
+diff --git a/src/text/template/doc.go b/src/text/template/doc.go
+index 223c595c25..0ce63f66d5 100644
+--- a/src/text/template/doc.go
++++ b/src/text/template/doc.go
+@@ -18,7 +18,7 @@ structure as execution proceeds.
+ The input text for a template is UTF-8-encoded text in any format.
+ "Actions"--data evaluations or control structures--are delimited by
+ "{{" and "}}"; all text outside actions is copied to the output unchanged.
+-Actions may not span newlines, although comments can.
++Except for raw strings, actions may not span newlines, although comments can.
+ 
+ Once parsed, a template may be executed safely in parallel.
+ 
+@@ -106,7 +106,7 @@ An argument is a simple value, denoted by one of the following.
+ 
+ 	- A boolean, string, character, integer, floating-point, imaginary
+ 	  or complex constant in Go syntax. These behave like Go's untyped
+-	  constants, although raw strings may not span newlines.
++	  constants.
+ 	- The keyword nil, representing an untyped Go nil.
+ 	- The character '.' (period):
+ 		.
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 8c4e165f2f..27c74eb44d 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -1095,3 +1095,16 @@ func TestMissingMapKey(t *testing.T) {
+ 		t.Errorf("expected error; got none")
+ 	}
+ }
++
++// Test that the error message for multiline unterminated string
++// refers to the line number of the opening quote.
++func TestUnterminatedStringError(t *testing.T) {
++	_, err := New("X").Parse("hello\n\n{{`unterminated\n\n\n\n}}\n some more\n\n")
++	if err == nil {
++		t.Fatal("expected error")
++	}
++	str := err.Error()
++	if !strings.Contains(str, "X:3: unexpected unterminated raw quoted strin") {
++		t.Fatalf("unexpected error: %s", str)
++	}
++}
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index 1674aaf9cd..b829b7e3b4 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -525,7 +525,7 @@ func lexRawQuote(l *lexer) stateFn {
+ Loop:
+ 	for {
+ 		switch l.next() {
+-		case eof, '\n':
++		case eof:
+ 			return l.errorf("unterminated raw quoted string")
+ 		case '`':
+ 			break Loop
+diff --git a/src/text/template/parse/lex_test.go b/src/text/template/parse/lex_test.go
+index d251ccffb6..a1cda19e67 100644
+--- a/src/text/template/parse/lex_test.go
++++ b/src/text/template/parse/lex_test.go
+@@ -58,18 +58,20 @@ type lexTest struct {
+ }
+ 
+ var (
+-	tEOF      = item{itemEOF, 0, ""}
+-	tFor      = item{itemIdentifier, 0, "for"}
+-	tLeft     = item{itemLeftDelim, 0, "{{"}
+-	tLpar     = item{itemLeftParen, 0, "("}
+-	tPipe     = item{itemPipe, 0, "|"}
+-	tQuote    = item{itemString, 0, `"abc \n\t\" "`}
+-	tRange    = item{itemRange, 0, "range"}
+-	tRight    = item{itemRightDelim, 0, "}}"}
+-	tRpar     = item{itemRightParen, 0, ")"}
+-	tSpace    = item{itemSpace, 0, " "}
+-	raw       = "`" + `abc\n\t\" ` + "`"
+-	tRawQuote = item{itemRawString, 0, raw}
++	tEOF        = item{itemEOF, 0, ""}
++	tFor        = item{itemIdentifier, 0, "for"}
++	tLeft       = item{itemLeftDelim, 0, "{{"}
++	tLpar       = item{itemLeftParen, 0, "("}
++	tPipe       = item{itemPipe, 0, "|"}
++	tQuote      = item{itemString, 0, `"abc \n\t\" "`}
++	tRange      = item{itemRange, 0, "range"}
++	tRight      = item{itemRightDelim, 0, "}}"}
++	tRpar       = item{itemRightParen, 0, ")"}
++	tSpace      = item{itemSpace, 0, " "}
++	raw         = "`" + `abc\n\t\" ` + "`"
++	rawNL       = "`now is{{\n}}the time`" // Contains newline inside raw quote.
++	tRawQuote   = item{itemRawString, 0, raw}
++	tRawQuoteNL = item{itemRawString, 0, rawNL}
+ )
+ 
+ var lexTests = []lexTest{
+@@ -104,6 +106,7 @@ var lexTests = []lexTest{
+ 	{"for", `{{for}}`, []item{tLeft, tFor, tRight, tEOF}},
+ 	{"quote", `{{"abc \n\t\" "}}`, []item{tLeft, tQuote, tRight, tEOF}},
+ 	{"raw quote", "{{" + raw + "}}", []item{tLeft, tRawQuote, tRight, tEOF}},
++	{"raw quote with newline", "{{" + rawNL + "}}", []item{tLeft, tRawQuoteNL, tRight, tEOF}},
+ 	{"numbers", "{{1 02 0x14 -7.2i 1e3 +1.2e-4 4.2i 1+2i}}", []item{
+ 		tLeft,
+ 		{itemNumber, 0, "1"},
+@@ -294,7 +297,7 @@ var lexTests = []lexTest{
+ 		tLeft,
+ 		{itemError, 0, "unterminated quoted string"},
+ 	}},
+-	{"unclosed raw quote", "{{`xx\n`}}", []item{
++	{"unclosed raw quote", "{{`xx}}", []item{
+ 		tLeft,
+ 		{itemError, 0, "unterminated raw quoted string"},
+ 	}},

@@ -16,6 +16,20 @@ Date:   Sun Jun 26 03:27:08 2022 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/html/template/content_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/html/template/content_test.go b/src/html/template/content_test.go
+index 497264ea32..f4af2f2a35 100644
+--- a/src/html/template/content_test.go
++++ b/src/html/template/content_test.go
+@@ -280,7 +280,7 @@ func TestTypedContent(t *testing.T) {
+ 			[]string{
+ 				`#ZgotmplZ`,
+ 				`#ZgotmplZ`,
+-				// Commas are not esacped
++				// Commas are not escaped.
+ 				`Hello,#ZgotmplZ`,
+ 				// Leading spaces are not percent escapes.
+ 				` dir=%22ltr%22`,

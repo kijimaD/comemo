@@ -15,7 +15,148 @@ Date:   Sat Oct 24 03:53:53 2020 +1100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/264657
     Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscvenc.s | 29 ++++++++------
  src/cmd/internal/obj/riscv/obj.go            | 56 ++++++++++++++++++++--------
  2 files changed, 59 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscvenc.s b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+index 8d301f2dd5..e30a576473 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscvenc.s
++++ b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+@@ -297,6 +297,13 @@ start:
+ 	MOVW	X5, (X6)				// 23205300
+ 	MOVW	X5, 4(X6)				// 23225300
+ 
++	MOVB	X5, X6					// 1393820313538343
++	MOVH	X5, X6					// 1393020313530343
++	MOVW	X5, X6					// 1b830200
++	MOVBU	X5, X6					// 13f3f20f
++	MOVHU	X5, X6					// 1393020313530303
++	MOVWU	X5, X6					// 1393020213530302
++
+ 	MOVF	4(X5), F0				// 07a04200
+ 	MOVF	F0, 4(X5)				// 27a20200
+ 	MOVF	F0, F1					// d3000020
+@@ -318,7 +325,7 @@ start:
+ 	// These jumps can get printed as jumps to 2 because they go to the
+ 	// second instruction in the function (the first instruction is an
+ 	// invisible stack pointer adjustment).
+-	JMP	start		// JMP	2		// 6ff01fc5
++	JMP	start		// JMP	2		// 6ff09fc2
+ 	JMP	(X5)					// 67800200
+ 	JMP	4(X5)					// 67804200
+ 
+@@ -331,16 +338,16 @@ start:
+ 	JMP	asmtest(SB)				// 970f0000
+ 
+ 	// Branch pseudo-instructions
+-	BEQZ	X5, start	// BEQZ	X5, 2		// e38a02c2
+-	BGEZ	X5, start	// BGEZ	X5, 2		// e3d802c2
+-	BGT	X5, X6, start	// BGT	X5, X6, 2	// e3c662c2
+-	BGTU	X5, X6, start	// BGTU	X5, X6, 2	// e3e462c2
+-	BGTZ	X5, start	// BGTZ	X5, 2		// e34250c2
+-	BLE	X5, X6, start	// BLE	X5, X6, 2	// e3d062c2
+-	BLEU	X5, X6, start	// BLEU	X5, X6, 2	// e3fe62c0
+-	BLEZ	X5, start	// BLEZ	X5, 2		// e35c50c0
+-	BLTZ	X5, start	// BLTZ	X5, 2		// e3ca02c0
+-	BNEZ	X5, start	// BNEZ	X5, 2		// e39802c0
++	BEQZ	X5, start	// BEQZ	X5, 2		// e38602c0
++	BGEZ	X5, start	// BGEZ	X5, 2		// e3d402c0
++	BGT	X5, X6, start	// BGT	X5, X6, 2	// e3c262c0
++	BGTU	X5, X6, start	// BGTU	X5, X6, 2	// e3e062c0
++	BGTZ	X5, start	// BGTZ	X5, 2		// e34e50be
++	BLE	X5, X6, start	// BLE	X5, X6, 2	// e3dc62be
++	BLEU	X5, X6, start	// BLEU	X5, X6, 2	// e3fa62be
++	BLEZ	X5, start	// BLEZ	X5, 2		// e35850be
++	BLTZ	X5, start	// BLTZ	X5, 2		// e3c602be
++	BNEZ	X5, start	// BNEZ	X5, 2		// e39402be
+ 
+ 	// Set pseudo-instructions
+ 	SEQZ	X15, X15				// 93b71700
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 045c2250b5..7bd3984e51 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -252,19 +252,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
+ 		switch p.To.Type {
+ 		case obj.TYPE_REG:
+ 			switch p.As {
+-			case AMOV: // MOV Ra, Rb -> ADDI $0, Ra, Rb
+-				p.As = AADDI
+-				p.Reg = p.From.Reg
+-				p.From = obj.Addr{Type: obj.TYPE_CONST}
+-
+-			case AMOVF: // MOVF Ra, Rb -> FSGNJS Ra, Ra, Rb
+-				p.As = AFSGNJS
+-				p.Reg = p.From.Reg
+-
+-			case AMOVD: // MOVD Ra, Rb -> FSGNJD Ra, Ra, Rb
+-				p.As = AFSGNJD
+-				p.Reg = p.From.Reg
+-
++			case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
+ 			default:
+ 				ctxt.Diag("unsupported register-register move at %v", p)
+ 			}
+@@ -1805,6 +1793,44 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		}
+ 		ins.imm = p.To.Offset
+ 
++	case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
++		// Handle register to register moves.
++		if p.From.Type != obj.TYPE_REG || p.To.Type != obj.TYPE_REG {
++			break
++		}
++		switch p.As {
++		case AMOV: // MOV Ra, Rb -> ADDI $0, Ra, Rb
++			ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, uint32(p.From.Reg), obj.REG_NONE, 0
++		case AMOVW: // MOVW Ra, Rb -> ADDIW $0, Ra, Rb
++			ins.as, ins.rs1, ins.rs2, ins.imm = AADDIW, uint32(p.From.Reg), obj.REG_NONE, 0
++		case AMOVBU: // MOVBU Ra, Rb -> ANDI $255, Ra, Rb
++			ins.as, ins.rs1, ins.rs2, ins.imm = AANDI, uint32(p.From.Reg), obj.REG_NONE, 255
++		case AMOVF: // MOVF Ra, Rb -> FSGNJS Ra, Ra, Rb
++			ins.as, ins.rs1 = AFSGNJS, uint32(p.From.Reg)
++		case AMOVD: // MOVD Ra, Rb -> FSGNJD Ra, Ra, Rb
++			ins.as, ins.rs1 = AFSGNJD, uint32(p.From.Reg)
++		case AMOVB, AMOVH:
++			// Use SLLI/SRAI to extend.
++			ins.as, ins.rs1, ins.rs2 = ASLLI, uint32(p.From.Reg), obj.REG_NONE
++			if p.As == AMOVB {
++				ins.imm = 56
++			} else if p.As == AMOVH {
++				ins.imm = 48
++			}
++			ins2 := &instruction{as: ASRAI, rd: ins.rd, rs1: ins.rd, imm: ins.imm}
++			inss = append(inss, ins2)
++		case AMOVHU, AMOVWU:
++			// Use SLLI/SRLI to extend.
++			ins.as, ins.rs1, ins.rs2 = ASLLI, uint32(p.From.Reg), obj.REG_NONE
++			if p.As == AMOVHU {
++				ins.imm = 48
++			} else if p.As == AMOVWU {
++				ins.imm = 32
++			}
++			ins2 := &instruction{as: ASRLI, rd: ins.rd, rs1: ins.rd, imm: ins.imm}
++			inss = append(inss, ins2)
++		}
++
+ 	case ALW, ALWU, ALH, ALHU, ALB, ALBU, ALD, AFLW, AFLD:
+ 		if p.From.Type != obj.TYPE_MEM {
+ 			p.Ctxt.Diag("%v requires memory for source", p)
+@@ -1859,13 +1885,13 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		} else {
+ 			ins.as = AFEQD
+ 		}
+-		ins = &instruction{
++		ins2 := &instruction{
+ 			as:  AXORI, // [bit] xor 1 = not [bit]
+ 			rd:  ins.rd,
+ 			rs1: ins.rd,
+ 			imm: 1,
+ 		}
+-		inss = append(inss, ins)
++		inss = append(inss, ins2)
+ 
+ 	case AFSQRTS, AFSQRTD:
+ 		// These instructions expect a zero (i.e. float register 0)

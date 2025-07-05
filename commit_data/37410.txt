@@ -30,7 +30,7 @@ Date:   Fri Jul 20 10:59:57 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/125296
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/go_test.go                             |   7 +-
  src/cmd/go/internal/cfg/cfg.go                    |   8 +-
  src/cmd/go/internal/modload/init.go               |   6 --
@@ -38,3 +38,342 @@ Date:   Fri Jul 20 10:59:57 2018 -0400
  src/cmd/go/testdata/script/mod_gobuild_import.txt |  74 +++++++++++++
  src/go/build/build.go                             | 123 +++++++++++++++++++++-
  6 files changed, 211 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index b894284533..adf17b8bc5 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -105,6 +105,7 @@ var testGOCACHE string
+ 
+ var testGo string
+ var testTmpDir string
++var testBin string
+ 
+ // The TestMain function creates a go command for testing purposes and
+ // deletes it after the tests have been run.
+@@ -133,7 +134,11 @@ func TestMain(m *testing.M) {
+ 	}
+ 
+ 	if canRun {
+-		testGo = filepath.Join(testTmpDir, "testgo"+exeSuffix)
++		testBin = filepath.Join(testTmpDir, "testbin")
++		if err := os.Mkdir(testBin, 0777); err != nil {
++			log.Fatal(err)
++		}
++		testGo = filepath.Join(testBin, "go"+exeSuffix)
+ 		args := []string{"build", "-tags", "testgo", "-o", testGo}
+ 		if race.Enabled {
+ 			args = append(args, "-race")
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 9dd90ee871..c7746b6912 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -20,7 +20,7 @@ import (
+ var (
+ 	BuildA                 bool   // -a flag
+ 	BuildBuildmode         string // -buildmode flag
+-	BuildContext           = build.Default
++	BuildContext           = defaultContext()
+ 	BuildGetmode           string             // -getmode flag
+ 	BuildI                 bool               // -i flag
+ 	BuildLinkshared        bool               // -linkshared flag
+@@ -43,6 +43,12 @@ var (
+ 	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
+ )
+ 
++func defaultContext() build.Context {
++	ctxt := build.Default
++	ctxt.JoinPath = filepath.Join // back door to say "do not use go command"
++	return ctxt
++}
++
+ func init() {
+ 	BuildToolchainCompiler = func() string { return "missing-compiler" }
+ 	BuildToolchainLinker = func() string { return "missing-linker" }
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 759b5a768c..7838af2ba7 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -94,12 +94,6 @@ func Init() {
+ 		}
+ 	}
+ 
+-	// If this is testgo - the test binary during cmd/go tests -
+-	// then do not let it look for a go.mod unless GO111MODULE has an explicit setting or this is 'go mod -init'.
+-	if base := filepath.Base(os.Args[0]); (base == "testgo" || base == "testgo.exe") && env == "" && !CmdModInit {
+-		return
+-	}
+-
+ 	// Disable any prompting for passwords by Git.
+ 	// Only has an effect for 2.3.0 or later, but avoiding
+ 	// the prompt in earlier versions is just too hard.
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index d8bcd07962..263e26fa35 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -85,7 +85,7 @@ func (ts *testScript) setup() {
+ 	ts.cd = filepath.Join(ts.workdir, "gopath/src")
+ 	ts.env = []string{
+ 		"WORK=" + ts.workdir, // must be first for ts.abbrev
+-		"PATH=" + os.Getenv("PATH"),
++		"PATH=" + testBin + string(filepath.ListSeparator) + os.Getenv("PATH"),
+ 		homeEnvName() + "=/no-home",
+ 		"GOARCH=" + runtime.GOARCH,
+ 		"GOCACHE=" + testGOCACHE,
+@@ -702,7 +702,7 @@ func (ts *testScript) check(err error) {
+ // exec runs the given command line (an actual subprocess, not simulated)
+ // in ts.cd with environment ts.env and then returns collected standard output and standard error.
+ func (ts *testScript) exec(command string, args ...string) (stdout, stderr string, err error) {
+-	cmd := exec.Command(testGo, args...)
++	cmd := exec.Command(command, args...)
+ 	cmd.Dir = ts.cd
+ 	cmd.Env = append(ts.env, "PWD="+ts.cd)
+ 	var stdoutBuf, stderrBuf strings.Builder
+diff --git a/src/cmd/go/testdata/script/mod_gobuild_import.txt b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+new file mode 100644
+index 0000000000..932b8b66f9
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+@@ -0,0 +1,74 @@
++# go/build's Import should find modules by invoking the go command
++
++go build -o $WORK/testimport.exe ./testimport
++
++# GO111MODULE=off
++env GO111MODULE=off
++! exec $WORK/testimport.exe x/y/z/w .
++
++# GO111MODULE=auto in GOPATH/src
++env GO111MODULE=
++! exec $WORK/testimport.exe x/y/z/w .
++env GO111MODULE=auto
++! exec $WORK/testimport.exe x/y/z/w .
++
++# GO111MODULE=auto outside GOPATH/src
++cd $GOPATH/other
++env GO111MODULE=
++exec $WORK/testimport.exe other/x/y/z/w .
++stdout w2.go
++
++! exec $WORK/testimport.exe x/y/z/w .
++stderr 'cannot find module providing package x/y/z/w'
++
++cd z
++env GO111MODULE=auto
++exec $WORK/testimport.exe other/x/y/z/w .
++stdout w2.go
++
++# GO111MODULE=on outside GOPATH/src
++env GO111MODULE=on
++exec $WORK/testimport.exe other/x/y/z/w .
++stdout w2.go
++
++# GO111MODULE=on in GOPATH/src
++cd $GOPATH/src
++exec $WORK/testimport.exe x/y/z/w .
++stdout w1.go
++cd w
++exec $WORK/testimport.exe x/y/z/w ..
++stdout w1.go
++
++-- go.mod --
++module x/y/z
++
++-- z.go --
++package z
++
++-- w/w1.go --
++package w
++
++-- testimport/x.go --
++package main
++
++import (
++	"fmt"
++	"go/build"
++	"log"
++	"os"
++	"strings"
++)
++
++func main() {
++	p, err := build.Import(os.Args[1], os.Args[2], 0)
++	if err != nil {
++		log.Fatal(err)
++	}
++	fmt.Printf("%s\n%s\n", p.Dir, strings.Join(p.GoFiles, " "))
++}
++
++-- $GOPATH/other/go.mod --
++module other/x/y
++
++-- $GOPATH/other/z/w/w2.go --
++package w
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index b19df28a63..0ed5b82fa1 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -16,6 +16,7 @@ import (
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
++	"os/exec"
+ 	pathpkg "path"
+ 	"path/filepath"
+ 	"runtime"
+@@ -277,6 +278,8 @@ func defaultGOPATH() string {
+ 	return ""
+ }
+ 
++var defaultReleaseTags []string
++
+ func defaultContext() Context {
+ 	var c Context
+ 
+@@ -297,6 +300,8 @@ func defaultContext() Context {
+ 		c.ReleaseTags = append(c.ReleaseTags, "go1."+strconv.Itoa(i))
+ 	}
+ 
++	defaultReleaseTags = append([]string{}, c.ReleaseTags...) // our own private copy
++
+ 	env := os.Getenv("CGO_ENABLED")
+ 	if env == "" {
+ 		env = defaultCGO_ENABLED
+@@ -583,13 +588,19 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 			return p, fmt.Errorf("import %q: cannot import absolute path", path)
+ 		}
+ 
++		gopath := ctxt.gopath() // needed by both importGo and below; avoid computing twice
++		if err := ctxt.importGo(p, path, srcDir, mode, gopath); err == nil {
++			goto Found
++		} else if err != errNoModules {
++			return p, err
++		}
++
+ 		// tried records the location of unsuccessful package lookups
+ 		var tried struct {
+ 			vendor []string
+ 			goroot string
+ 			gopath []string
+ 		}
+-		gopath := ctxt.gopath()
+ 
+ 		// Vendor directories get first chance to satisfy import.
+ 		if mode&IgnoreVendor == 0 && srcDir != "" {
+@@ -930,6 +941,116 @@ Found:
+ 	return p, pkgerr
+ }
+ 
++var errNoModules = errors.New("not using modules")
++
++// importGo checks whether it can use the go command to find the directory for path.
++// If using the go command is not appopriate, importGo returns errNoModules.
++// Otherwise, importGo tries using the go command and reports whether that succeeded.
++// Using the go command lets build.Import and build.Context.Import find code
++// in Go modules. In the long term we want tools to use go/packages (currently golang.org/x/tools/go/packages),
++// which will also use the go command.
++// Invoking the go command here is not very efficient in that it computes information
++// about the requested package and all dependencies and then only reports about the requested package.
++// Then we reinvoke it for every dependency. But this is still better than not working at all.
++// See golang.org/issue/26504.
++func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, gopath []string) error {
++	const debugImportGo = false
++
++	// To invoke the go command, we must know the source directory,
++	// we must not being doing special things like AllowBinary or IgnoreVendor,
++	// and all the file system callbacks must be nil (we're meant to use the local file system).
++	if srcDir == "" || mode&AllowBinary != 0 || mode&IgnoreVendor != 0 ||
++		ctxt.JoinPath != nil || ctxt.SplitPathList != nil || ctxt.IsAbsPath != nil || ctxt.IsDir != nil || ctxt.HasSubdir != nil || ctxt.ReadDir != nil || ctxt.OpenFile != nil || !equal(ctxt.ReleaseTags, defaultReleaseTags) {
++		return errNoModules
++	}
++
++	// If modules are not enabled, then the in-process code works fine and we should keep using it.
++	switch os.Getenv("GO111MODULE") {
++	case "off":
++		return errNoModules
++	case "on":
++		// ok
++	default: // "", "auto", anything else
++		// Automatic mode: no module use in $GOPATH/src.
++		for _, root := range gopath {
++			sub, ok := ctxt.hasSubdir(root, srcDir)
++			if ok && strings.HasPrefix(sub, "src/") {
++				return errNoModules
++			}
++		}
++	}
++
++	// For efficiency, if path is a standard library package, let the usual lookup code handle it.
++	if ctxt.GOROOT != "" {
++		dir := ctxt.joinPath(ctxt.GOROOT, "src", path)
++		if ctxt.isDir(dir) {
++			return errNoModules
++		}
++	}
++
++	// Look to see if there is a go.mod.
++	abs, err := filepath.Abs(srcDir)
++	if err != nil {
++		return errNoModules
++	}
++	for {
++		info, err := os.Stat(filepath.Join(abs, "go.mod"))
++		if err == nil && !info.IsDir() {
++			break
++		}
++		d := filepath.Dir(abs)
++		if len(d) >= len(abs) {
++			return errNoModules // reached top of file system, no go.mod
++		}
++		abs = d
++	}
++
++	cmd := exec.Command("go", "list", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n", path)
++	cmd.Dir = srcDir
++	var stdout, stderr strings.Builder
++	cmd.Stdout = &stdout
++	cmd.Stderr = &stderr
++
++	cgo := "0"
++	if ctxt.CgoEnabled {
++		cgo = "1"
++	}
++	cmd.Env = append(os.Environ(),
++		"GOOS="+ctxt.GOOS,
++		"GOARCH="+ctxt.GOARCH,
++		"GOROOT="+ctxt.GOROOT,
++		"GOPATH="+ctxt.GOPATH,
++		"CGO_ENABLED="+cgo,
++	)
++
++	if err := cmd.Run(); err != nil {
++		return fmt.Errorf("go/build: importGo %s: %v\n%s\n", path, err, stderr.String())
++	}
++
++	f := strings.Split(stdout.String(), "\n")
++	if len(f) != 5 || f[4] != "" {
++		return fmt.Errorf("go/build: importGo %s: unexpected output:\n%s\n", path, stdout.String())
++	}
++
++	p.Dir = f[0]
++	p.ImportPath = f[1]
++	p.Root = f[2]
++	p.Goroot = f[3] == "true"
++	return nil
++}
++
++func equal(x, y []string) bool {
++	if len(x) != len(y) {
++		return false
++	}
++	for i, xi := range x {
++		if xi != y[i] {
++			return false
++		}
++	}
++	return true
++}
++
+ // hasGoFiles reports whether dir contains any files with names ending in .go.
+ // For a vendor check we must exclude directories that contain no .go files.
+ // Otherwise it is not possible to vendor just a/b/c and still import the

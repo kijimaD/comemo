@@ -13,7 +13,7 @@ Date:   Mon May 2 18:17:05 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go             |  3 +-
  src/cmd/compile/internal/ir/fmt.go              |  7 +----
  src/cmd/compile/internal/ir/node_gen.go         |  6 ----
@@ -21,3 +21,228 @@ Date:   Mon May 2 18:17:05 2022 -0700
  src/cmd/compile/internal/typecheck/iimport.go   |  9 ++----
  src/cmd/compile/internal/typecheck/typecheck.go | 38 -------------------------
  6 files changed, 7 insertions(+), 79 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 78b084341a..086be13afd 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -191,7 +191,6 @@ type ClosureExpr struct {
+ type CompLitExpr struct {
+ 	miniExpr
+ 	origNode
+-	Ntype    Ntype
+ 	List     Nodes // initialized values
+ 	Prealloc *Name
+ 	// For OSLICELIT, Len is the backing array length.
+@@ -205,7 +204,7 @@ func NewCompLitExpr(pos src.XPos, op Op, typ *types.Type, list []Node) *CompLitE
+ 	n.pos = pos
+ 	n.SetOp(op)
+ 	if typ != nil {
+-		n.Ntype = TypeNode(typ)
++		n.SetType(typ)
+ 	}
+ 	n.orig = n
+ 	return n
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 004d698961..681404bc64 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -667,15 +667,10 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 				fmt.Fprintf(s, "%v{%s}", typ, ellipsisIf(len(n.List) != 0))
+ 				return
+ 			}
+-			if n.Ntype != nil {
+-				fmt.Fprintf(s, "%v{%s}", n.Ntype, ellipsisIf(len(n.List) != 0))
+-				return
+-			}
+-
+ 			fmt.Fprint(s, "composite literal")
+ 			return
+ 		}
+-		fmt.Fprintf(s, "(%v{ %.v })", n.Ntype, n.List)
++		fmt.Fprintf(s, "(%v{ %.v })", n.Type(), n.List)
+ 
+ 	case OPTRLIT:
+ 		n := n.(*AddrExpr)
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 8d6fc8c607..cf27f48bfc 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -346,9 +346,6 @@ func (n *CompLitExpr) doChildren(do func(Node) bool) bool {
+ 	if doNodes(n.init, do) {
+ 		return true
+ 	}
+-	if n.Ntype != nil && do(n.Ntype) {
+-		return true
+-	}
+ 	if doNodes(n.List, do) {
+ 		return true
+ 	}
+@@ -359,9 +356,6 @@ func (n *CompLitExpr) doChildren(do func(Node) bool) bool {
+ }
+ func (n *CompLitExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+-	if n.Ntype != nil {
+-		n.Ntype = edit(n.Ntype).(Ntype)
+-	}
+ 	editNodes(n.List, edit)
+ 	if n.Prealloc != nil {
+ 		n.Prealloc = edit(n.Prealloc).(*Name)
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index f0b7b74aed..4d96a7df5c 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -207,24 +207,13 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 		base.Pos = lno
+ 	}()
+ 
+-	if n.Ntype == nil {
+-		base.ErrorfAt(n.Pos(), "missing type in composite literal")
+-		n.SetType(nil)
+-		return n
+-	}
+-
+ 	// Save original node (including n.Right)
+ 	n.SetOrig(ir.Copy(n))
+ 
+-	ir.SetPos(n.Ntype)
++	ir.SetPos(n)
+ 
+-	n.Ntype = typecheckNtype(n.Ntype)
+-	t := n.Ntype.Type()
+-	if t == nil {
+-		n.SetType(nil)
+-		return n
+-	}
+-	n.SetType(t)
++	t := n.Type()
++	base.AssertfAt(t != nil, n.Pos(), "missing type in composite literal")
+ 
+ 	switch t.Kind() {
+ 	default:
+@@ -234,12 +223,10 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 	case types.TARRAY:
+ 		typecheckarraylit(t.Elem(), t.NumElem(), n.List, "array literal")
+ 		n.SetOp(ir.OARRAYLIT)
+-		n.Ntype = nil
+ 
+ 	case types.TSLICE:
+ 		length := typecheckarraylit(t.Elem(), -1, n.List, "slice literal")
+ 		n.SetOp(ir.OSLICELIT)
+-		n.Ntype = nil
+ 		n.Len = length
+ 
+ 	case types.TMAP:
+@@ -253,18 +240,15 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 			l := l.(*ir.KeyExpr)
+ 
+ 			r := l.Key
+-			r = pushtype(r, t.Key())
+ 			r = Expr(r)
+ 			l.Key = AssignConv(r, t.Key(), "map key")
+ 
+ 			r = l.Value
+-			r = pushtype(r, t.Elem())
+ 			r = Expr(r)
+ 			l.Value = AssignConv(r, t.Elem(), "map value")
+ 		}
+ 
+ 		n.SetOp(ir.OMAPLIT)
+-		n.Ntype = nil
+ 
+ 	case types.TSTRUCT:
+ 		// Need valid field offsets for Xoffset below.
+@@ -345,7 +329,6 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 		}
+ 
+ 		n.SetOp(ir.OSTRUCTLIT)
+-		n.Ntype = nil
+ 	}
+ 
+ 	return n
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index cee952b659..962b6cbb12 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1410,23 +1410,18 @@ func (r *importReader) node() ir.Node {
+ 		pos := r.pos()
+ 		typ := r.typ()
+ 		list := r.fieldList()
+-		n := ir.NewCompLitExpr(pos, ir.OSTRUCTLIT, nil, list)
+-		n.SetType(typ)
+-		return n
++		return ir.NewCompLitExpr(pos, ir.OSTRUCTLIT, typ, list)
+ 
+ 	case ir.OCOMPLIT:
+ 		pos := r.pos()
+ 		t := r.typ()
+-		n := ir.NewCompLitExpr(pos, ir.OCOMPLIT, t, r.exprList())
+-		n.SetType(t)
+-		return n
++		return ir.NewCompLitExpr(pos, ir.OCOMPLIT, t, r.exprList())
+ 
+ 	case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
+ 		pos := r.pos()
+ 		typ := r.typ()
+ 		list := r.exprList()
+ 		n := ir.NewCompLitExpr(pos, op, typ, list)
+-		n.SetType(typ)
+ 		if op == ir.OSLICELIT {
+ 			n.Len = int64(r.uint64())
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 6e61d9f309..44a0717fa6 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1451,43 +1451,6 @@ func fielddup(name string, hash map[string]bool) {
+ 	hash[name] = true
+ }
+ 
+-// iscomptype reports whether type t is a composite literal type.
+-func iscomptype(t *types.Type) bool {
+-	switch t.Kind() {
+-	case types.TARRAY, types.TSLICE, types.TSTRUCT, types.TMAP:
+-		return true
+-	default:
+-		return false
+-	}
+-}
+-
+-// pushtype adds elided type information for composite literals if
+-// appropriate, and returns the resulting expression.
+-func pushtype(nn ir.Node, t *types.Type) ir.Node {
+-	if nn == nil || nn.Op() != ir.OCOMPLIT {
+-		return nn
+-	}
+-	n := nn.(*ir.CompLitExpr)
+-	if n.Ntype != nil {
+-		return n
+-	}
+-
+-	switch {
+-	case iscomptype(t):
+-		// For T, return T{...}.
+-		n.Ntype = ir.TypeNode(t)
+-
+-	case t.IsPtr() && iscomptype(t.Elem()):
+-		// For *T, return &T{...}.
+-		n.Ntype = ir.TypeNode(t.Elem())
+-
+-		addr := NodAddrAt(n.Pos(), n)
+-		addr.SetImplicit(true)
+-		return addr
+-	}
+-	return n
+-}
+-
+ // typecheckarraylit type-checks a sequence of slice/array literal elements.
+ func typecheckarraylit(elemType *types.Type, bound int64, elts []ir.Node, ctx string) int64 {
+ 	// If there are key/value pairs, create a map to keep seen
+@@ -1516,7 +1479,6 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []ir.Node, ctx st
+ 			r = elt.Value
+ 		}
+ 
+-		r = pushtype(r, elemType)
+ 		r = Expr(r)
+ 		r = AssignConv(r, elemType, ctx)
+ 		if kv != nil {

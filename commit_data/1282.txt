@@ -7,7 +7,36 @@ Date:   Thu Dec 4 16:05:40 2008 -0800
     R=r
     OCL=20520
     CL=20522
-
+---
  src/cmd/6g/gen.c  | 2 ++
  src/cmd/gc/walk.c | 4 +---
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 980122b0eb..137ad7ae0f 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -536,6 +536,8 @@ swgen(Node *n)
+ 	c1 = listfirst(&save1, &n->nbody);
+ 	while(c1 != N) {
+ 		setlineno(c1);
++		if(c1->op == OEMPTY)
++			break;
+ 		if(c1->op != OCASE) {
+ 			if(s0 == C && dflt == P)
+ 				yyerror("unreachable statements in a switch");
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 1c87e05eb0..da5917aa7f 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -277,9 +277,7 @@ loop:
+ 		if(top != Etop)
+ 			goto nottop;
+ 
+-		if(!casebody(n->nbody))
+-			yyerror("switch statement must have case labels");
+-
++		casebody(n->nbody);
+ 		if(n->ntest == N)
+ 			n->ntest = booltrue;
+ 		walkstate(n->ninit);

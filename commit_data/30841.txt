@@ -10,6 +10,23 @@ Date:   Fri Dec 9 04:08:32 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/34240
     Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/go/build/build.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index f6aabcb3af..ea37bbbcb5 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -76,8 +76,9 @@ type Context struct {
+ 	// If IsDir is nil, Import calls os.Stat and uses the result's IsDir method.
+ 	IsDir func(path string) bool
+ 
+-	// HasSubdir reports whether dir is a subdirectory of
+-	// (perhaps multiple levels below) root.
++	// HasSubdir reports whether dir is lexically a subdirectory of
++	// root, perhaps multiple levels below. It does not try to check
++	// whether dir exists.
+ 	// If so, HasSubdir sets rel to a slash-separated path that
+ 	// can be joined to root to produce a path equivalent to dir.
+ 	// If HasSubdir is nil, Import uses an implementation built on

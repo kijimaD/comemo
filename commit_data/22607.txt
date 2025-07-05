@@ -9,6 +9,20 @@ Date:   Fri Mar 27 15:47:44 2015 +0300
     Change-Id: I3ea2eea0b5f77f3e1a3f75d1a6472507ef2888bb
     Reviewed-on: https://go-review.googlesource.com/8196
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/quick/quick.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/quick/quick.go b/src/testing/quick/quick.go
+index edcaaa091a..35b7b636b4 100644
+--- a/src/testing/quick/quick.go
++++ b/src/testing/quick/quick.go
+@@ -161,7 +161,7 @@ type Config struct {
+ 	Rand *rand.Rand
+ 	// If non-nil, the Values function generates a slice of arbitrary
+ 	// reflect.Values that are congruent with the arguments to the function
+-	// being tested. Otherwise, the top-level Values function is used
++	// being tested. Otherwise, the top-level Value function is used
+ 	// to generate them.
+ 	Values func([]reflect.Value, *rand.Rand)
+ }

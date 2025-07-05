@@ -7,6 +7,27 @@ Date:   Thu Dec 7 23:27:11 2017 +0000
     Change-Id: I28ddb8cd347120c08d5b58ae20f481b60416abc1
     Reviewed-on: https://go-review.googlesource.com/82755
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/go1.10.html | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index c744fa511f..40e6cd0f85 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -1042,11 +1042,11 @@ compute square roots.
+ <dd>
+ <p>
+ Branch cuts and other boundary cases in
+-<a href="/pkg/math/cmplx/#Asin"><code>Asin<code></a>,
+-<a href="/pkg/math/cmplx/#Asinh"><code>Asinh<code></a>,
+-<a href="/pkg/math/cmplx/#Atan"><code>Atan<code></a>,
++<a href="/pkg/math/cmplx/#Asin"><code>Asin</code></a>,
++<a href="/pkg/math/cmplx/#Asinh"><code>Asinh</code></a>,
++<a href="/pkg/math/cmplx/#Atan"><code>Atan</code></a>,
+ and
+-<a href="/pkg/math/cmplx/#Sqrt"><code>Sqrt<code></a>
++<a href="/pkg/math/cmplx/#Sqrt"><code>Sqrt</code></a>
+ have been corrected to match the definitions used in the C99 standard.
+ </p>
+ </dl>

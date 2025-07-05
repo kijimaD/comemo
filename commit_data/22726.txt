@@ -17,9 +17,188 @@ Date:   Thu Mar 12 16:53:57 2015 -0400
     Change-Id: I1bc377cb2e802ef61c2968602b63146d52e7f5db
     Reviewed-on: https://go-review.googlesource.com/8388
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/malloc.go  |  2 +-
  src/runtime/mgc.go     | 15 +++++++++++++++
  src/runtime/mgcmark.go | 22 ++++++++++++++++------
  src/runtime/mgcwork.go | 16 ++++++++++++++++
  4 files changed, 48 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index fde58e2d0c..130866ec03 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -648,7 +648,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 	// a race marking the bit.
+ 	if gcphase == _GCmarktermination {
+ 		systemstack(func() {
+-			gcmarknewobject_m(uintptr(x))
++			gcmarknewobject_m(uintptr(x), size)
+ 		})
+ 	}
+ 
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index d8e80f5eab..8e573aba5d 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -219,6 +219,19 @@ var work struct {
+ 	// totaltime is the CPU nanoseconds spent in GC since the
+ 	// program started if debug.gctrace > 0.
+ 	totaltime int64
++
++	// bytesMarked is the number of bytes marked this cycle. This
++	// includes bytes blackened in scanned objects, noscan objects
++	// that go straight to black, and permagrey objects scanned by
++	// markroot during the concurrent scan phase. This is updated
++	// atomically during the cycle. Updates may be batched
++	// arbitrarily, since the value is only read at the end of the
++	// cycle.
++	//
++	// Because of benign races during marking, this number may not
++	// be the exact number of marked bytes, but it should be very
++	// close.
++	bytesMarked uint64
+ }
+ 
+ // GC runs a garbage collection.
+@@ -323,6 +336,8 @@ func gc(mode int) {
+ 	// reclaimed until the next GC cycle.
+ 	clearpools()
+ 
++	work.bytesMarked = 0
++
+ 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
+ 		systemstack(func() {
+ 			gcphase = _GCscan
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 3a9679e43a..59a3692a58 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -155,6 +155,10 @@ func markroot(desc *parfor, i uint32) {
+ 			restartg(gp)
+ 		}
+ 	}
++
++	// Root aren't part of the heap, so don't count them toward
++	// marked heap bytes.
++	gcw.bytesMarked = 0
+ 	gcw.dispose()
+ }
+ 
+@@ -256,6 +260,9 @@ func scanstack(gp *g) {
+ 	}
+ 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
+ 	tracebackdefers(gp, scanframe, nil)
++	// Stacks aren't part of the heap, so don't count them toward
++	// marked heap bytes.
++	gcw.bytesMarked = 0
+ 	gcw.disposeToCache()
+ 	gp.gcscanvalid = true
+ }
+@@ -465,10 +472,11 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
+ 		}
+ 
+ 		// Mark the object.
+-		if obj, hbits, _ := heapBitsForObject(obj); obj != 0 {
+-			greyobject(obj, b, i, hbits, gcw)
++		if obj, hbits, span := heapBitsForObject(obj); obj != 0 {
++			greyobject(obj, b, i, hbits, span, gcw)
+ 		}
+ 	}
++	gcw.bytesMarked += uint64(n)
+ }
+ 
+ // Shade the object if it isn't already.
+@@ -478,7 +486,7 @@ func shade(b uintptr) {
+ 	if !inheap(b) {
+ 		throw("shade: passed an address not in the heap")
+ 	}
+-	if obj, hbits, _ := heapBitsForObject(b); obj != 0 {
++	if obj, hbits, span := heapBitsForObject(b); obj != 0 {
+ 		// TODO: this would be a great place to put a check to see
+ 		// if we are harvesting and if we are then we should
+ 		// figure out why there is a call to shade when the
+@@ -490,7 +498,7 @@ func shade(b uintptr) {
+ 		// }
+ 
+ 		var gcw gcWork
+-		greyobject(obj, 0, 0, hbits, &gcw)
++		greyobject(obj, 0, 0, hbits, span, &gcw)
+ 		// This is part of the write barrier so put the wbuf back.
+ 		if gcphase == _GCmarktermination {
+ 			gcw.dispose()
+@@ -512,7 +520,7 @@ func shade(b uintptr) {
+ // Return possibly new workbuf to use.
+ // base and off are for debugging only and could be removed.
+ //go:nowritebarrier
+-func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWork) {
++func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork) {
+ 	// obj should be start of allocation, and so must be at least pointer-aligned.
+ 	if obj&(ptrSize-1) != 0 {
+ 		throw("greyobject: obj not pointer-aligned")
+@@ -550,6 +558,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, gcw *gcWork) {
+ 		// If this is a noscan object, fast-track it to black
+ 		// instead of greying it.
+ 		if hbits.typeBits() == typeDead {
++			gcw.bytesMarked += uint64(span.elemsize)
+ 			return
+ 		}
+ 	}
+@@ -588,7 +597,7 @@ func gcDumpObject(label string, obj, off uintptr) {
+ 
+ // When in GCmarkterminate phase we allocate black.
+ //go:nowritebarrier
+-func gcmarknewobject_m(obj uintptr) {
++func gcmarknewobject_m(obj, size uintptr) {
+ 	if gcphase != _GCmarktermination {
+ 		throw("marking new object while not in mark termination phase")
+ 	}
+@@ -597,6 +606,7 @@ func gcmarknewobject_m(obj uintptr) {
+ 	}
+ 
+ 	heapBitsForAddr(obj).setMarked()
++	xadd64(&work.bytesMarked, int64(size))
+ }
+ 
+ // Checkmarking
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index f69d6bb6a1..acd8e48309 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -53,6 +53,10 @@ func (wp wbufptr) ptr() *workbuf {
+ type gcWork struct {
+ 	// Invariant: wbuf is never full or empty
+ 	wbuf wbufptr
++
++	// Bytes marked (blackened) on this gcWork. This is aggregated
++	// into work.bytesMarked by dispose.
++	bytesMarked uint64
+ }
+ 
+ // initFromCache fetches work from this M's currentwbuf cache.
+@@ -152,6 +156,14 @@ func (w *gcWork) dispose() {
+ 		putpartial(wbuf.ptr(), 167)
+ 		w.wbuf = 0
+ 	}
++	if w.bytesMarked != 0 {
++		// dispose happens relatively infrequently. If this
++		// atomic becomes a problem, we should first try to
++		// dispose less and if necessary aggregate in a per-P
++		// counter.
++		xadd64(&work.bytesMarked, int64(w.bytesMarked))
++		w.bytesMarked = 0
++	}
+ }
+ 
+ // disposeToCache returns any cached pointers to this M's currentwbuf.
+@@ -165,6 +177,10 @@ func (w *gcWork) disposeToCache() {
+ 		}
+ 		w.wbuf = 0
+ 	}
++	if w.bytesMarked != 0 {
++		xadd64(&work.bytesMarked, int64(w.bytesMarked))
++		w.bytesMarked = 0
++	}
+ }
+ 
+ // balance moves some work that's cached in this gcWork back on the

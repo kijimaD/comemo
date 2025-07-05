@@ -8,6 +8,22 @@ Date:   Mon Apr 7 12:59:55 2014 -0700
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/85070043
-
+---
  src/cmd/go/build.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index a21c873c85..d7a1d21828 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2522,7 +2522,9 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize stri
+ 	}
+ 	ldflags := stringList(osldflags[goos], cflags, cgoLDFLAGS, cxxlib)
+ 	target := filepath.Join(obj, soname)
+-	b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), "-o", target, gccObj, extraObj, ldflags)
++	if err := b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), "-o", target, gccObj, extraObj, ldflags); err != nil {
++		return "", "", err
++	}
+ 
+ 	return obj + goFile, cObj, nil
+ }

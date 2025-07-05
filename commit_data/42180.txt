@@ -14,7 +14,33 @@ Date:   Tue Nov 12 19:59:02 2019 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/types_linux.go        | 2 +-
  src/syscall/ztypes_linux_arm64.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/types_linux.go b/src/syscall/types_linux.go
+index 9c9c521af4..20abda2473 100644
+--- a/src/syscall/types_linux.go
++++ b/src/syscall/types_linux.go
+@@ -111,7 +111,7 @@ typedef struct {} ptracePer;
+ // The real epoll_event is a union, and godefs doesn't handle it well.
+ struct my_epoll_event {
+ 	uint32_t events;
+-#if defined(__ARM_EABI__) || (defined(__mips__) && _MIPS_SIM == _ABIO32)
++#if defined(__ARM_EABI__) || defined(__aarch64__) || (defined(__mips__) && _MIPS_SIM == _ABIO32)
+ 	// padding is not specified in linux/eventpoll.h but added to conform to the
+ 	// alignment requirements of EABI
+ 	int32_t padFd;
+diff --git a/src/syscall/ztypes_linux_arm64.go b/src/syscall/ztypes_linux_arm64.go
+index d7e3526af6..f63391cdad 100644
+--- a/src/syscall/ztypes_linux_arm64.go
++++ b/src/syscall/ztypes_linux_arm64.go
+@@ -564,6 +564,7 @@ type Ustat_t struct {
+ 
+ type EpollEvent struct {
+ 	Events uint32
++	_      int32
+ 	Fd     int32
+ 	Pad    int32
+ }

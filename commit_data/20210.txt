@@ -9,6 +9,24 @@ Date:   Mon Aug 25 20:26:32 2014 +0400
     R=golang-codereviews
     CC=golang-codereviews, khr, rsc
     https://golang.org/cl/125510045
-
+---
  src/pkg/runtime/chan.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/chan.go b/src/pkg/runtime/chan.go
+index bbf5e7aa83..d3fcc6d13f 100644
+--- a/src/pkg/runtime/chan.go
++++ b/src/pkg/runtime/chan.go
+@@ -33,7 +33,11 @@ func makechan(t *chantype, size int64) *hchan {
+ 
+ 	var c *hchan
+ 	if elem.kind&kindNoPointers != 0 || size == 0 {
+-		// allocate memory in one call
++		// Allocate memory in one call.
++		// Hchan does not contain pointers interesting for GC in this case:
++		// buf points into the same allocation, elemtype is persistent
++		// and SudoG's are referenced from G so can't be collected.
++		// TODO(dvyukov,rlh): Rethink when collector can move allocated objects.
+ 		c = (*hchan)(gomallocgc(hchanSize+uintptr(size)*uintptr(elem.size), nil, flagNoScan))
+ 		if size > 0 && elem.size != 0 {
+ 			c.buf = (*uint8)(add(unsafe.Pointer(c), hchanSize))

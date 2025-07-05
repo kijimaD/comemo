@@ -7,7 +7,45 @@ Date:   Fri Feb 24 16:59:09 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5696054
-
+---
  test/bench/shootout/Makefile  | 14 --------------
  test/bench/shootout/timing.sh |  6 +++++-
  2 files changed, 5 insertions(+), 15 deletions(-)
+
+diff --git a/test/bench/shootout/Makefile b/test/bench/shootout/Makefile
+deleted file mode 100644
+index e1c9b7b80e..0000000000
+--- a/test/bench/shootout/Makefile
++++ /dev/null
+@@ -1,14 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../src/Make.inc
+-
+-all:
+-	@echo "make clean or timing"
+-
+-timing:
+-	./timing.sh
+-
+-clean:
+-	rm -f [568].out *.[568]
+diff --git a/test/bench/shootout/timing.sh b/test/bench/shootout/timing.sh
+index 3e190e15c8..dd3e664f4c 100755
+--- a/test/bench/shootout/timing.sh
++++ b/test/bench/shootout/timing.sh
+@@ -5,7 +5,11 @@
+ 
+ set -e
+ 
+-eval $(gomake --no-print-directory -f ../../../src/Make.inc go-env)
++eval $(go tool dist env)
++O=$GOCHAR
++GC="go tool ${O}g"
++LD="go tool ${O}l"
++
+ PATH=.:$PATH
+ 
+ havegccgo=false

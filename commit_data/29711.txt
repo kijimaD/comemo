@@ -7,6 +7,20 @@ Date:   Tue Oct 4 15:38:46 2016 -0700
     Change-Id: I3f13488605ab62eba5d3c59d5e9df1bcf69dd571
     Reviewed-on: https://go-review.googlesource.com/30355
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cover/cover_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index 826d57d6b7..50a7ce829f 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -90,7 +90,7 @@ func TestCover(t *testing.T) {
+ 	if got, err := regexp.MatchString(".*\n//go:nosplit\nfunc someFunction().*", string(file)); err != nil || !got {
+ 		t.Errorf("misplaced compiler directive: got=(%v, %v); want=(true; nil)", got, err)
+ 	}
+-	// No other comments should be present in generaed code.
++	// No other comments should be present in generated code.
+ 	c := ".*// This comment shouldn't appear in generated go code.*"
+ 	if got, err := regexp.MatchString(c, string(file)); err != nil || got {
+ 		t.Errorf("non compiler directive comment %q found. got=(%v, %v); want=(false; nil)", c, got, err)

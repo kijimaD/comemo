@@ -12,9 +12,92 @@ Date:   Wed Dec 28 06:14:01 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/iprawsock.go       | 12 ++++++++++++
  src/net/iprawsock_posix.go | 12 ------------
  src/net/ipsock.go          |  7 +++++++
  src/net/ipsock_posix.go    |  7 -------
  4 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/net/iprawsock.go b/src/net/iprawsock.go
+index b3cc03e00d..8d84135336 100644
+--- a/src/net/iprawsock.go
++++ b/src/net/iprawsock.go
+@@ -9,6 +9,18 @@ import (
+ 	"syscall"
+ )
+ 
++// BUG(mikio): On every POSIX platform, reads from the "ip4" network
++// using the ReadFrom or ReadFromIP method might not return a complete
++// IPv4 packet, including its header, even if there is space
++// available. This can occur even in cases where Read or ReadMsgIP
++// could return a complete packet. For this reason, it is recommended
++// that you do not uses these methods if it is important to receive a
++// full packet.
++//
++// The Go 1 compatibility guidelines make it impossible for us to
++// change the behavior of these methods; use Read or ReadMsgIP
++// instead.
++
+ // BUG(mikio): On NaCl, Plan 9 and Windows, the ReadMsgIP and
+ // WriteMsgIP methods of IPConn are not implemented.
+ 
+diff --git a/src/net/iprawsock_posix.go b/src/net/iprawsock_posix.go
+index d5e229fb9c..8f4b702e48 100644
+--- a/src/net/iprawsock_posix.go
++++ b/src/net/iprawsock_posix.go
+@@ -11,18 +11,6 @@ import (
+ 	"syscall"
+ )
+ 
+-// BUG(mikio): On every POSIX platform, reads from the "ip4" network
+-// using the ReadFrom or ReadFromIP method might not return a complete
+-// IPv4 packet, including its header, even if there is space
+-// available. This can occur even in cases where Read or ReadMsgIP
+-// could return a complete packet. For this reason, it is recommended
+-// that you do not uses these methods if it is important to receive a
+-// full packet.
+-//
+-// The Go 1 compatibility guidelines make it impossible for us to
+-// change the behavior of these methods; use Read or ReadMsgIP
+-// instead.
+-
+ func sockaddrToIP(sa syscall.Sockaddr) Addr {
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index c91e2017d4..f1394a7ed8 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -10,6 +10,13 @@ import (
+ 	"context"
+ )
+ 
++// BUG(rsc,mikio): On DragonFly BSD and OpenBSD, listening on the
++// "tcp" and "udp" networks does not listen for both IPv4 and IPv6
++// connections. This is due to the fact that IPv4 traffic will not be
++// routed to an IPv6 socket - two separate sockets are required if
++// both address families are to be supported.
++// See inet6(4) for details.
++
+ var (
+ 	// supportsIPv4 reports whether the platform supports IPv4
+ 	// networking functionality.
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index f4fab3f9aa..ff280c3e4e 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -12,13 +12,6 @@ import (
+ 	"syscall"
+ )
+ 
+-// BUG(rsc,mikio): On DragonFly BSD and OpenBSD, listening on the
+-// "tcp" and "udp" networks does not listen for both IPv4 and IPv6
+-// connections. This is due to the fact that IPv4 traffic will not be
+-// routed to an IPv6 socket - two separate sockets are required if
+-// both address families are to be supported.
+-// See inet6(4) for details.
+-
+ func probeIPv4Stack() bool {
+ 	s, err := socketFunc(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+ 	switch err {

@@ -68,7 +68,7 @@ Date:   Fri Jun 11 09:27:09 2021 +0000
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/arm64/ssa.go          |  4 ++++
  src/cmd/compile/internal/ssa/gen/ARM64.rules   |  3 +++
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  3 +++
@@ -77,3 +77,159 @@ Date:   Fri Jun 11 09:27:09 2021 +0000
  src/cmd/compile/internal/ssa/rewriteARM64.go   | 14 ++++++++++++++
  src/cmd/compile/internal/ssagen/ssa.go         |  7 +++++++
  7 files changed, 50 insertions(+)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 9c26d90fd0..96a29224bf 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -1132,6 +1132,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.AGETCALLERPC)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpARM64DMB:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
+ 	case ssa.OpARM64FlagConstant:
+ 		v.Fatalf("FlagConstant op should never make it to codegen %v", v.LongString())
+ 	case ssa.OpARM64InvertFlags:
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 4b66883f26..02fb4e1990 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -568,6 +568,9 @@
+ // Write barrier.
+ (WB ...) => (LoweredWB ...)
+ 
++// Publication barrier (0xe is ST option)
++(PubBarrier mem) => (DMB [0xe] mem)
++
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index e3ebb6e1af..a4a5b9bdcd 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -743,6 +743,9 @@ func init() {
+ 		// Prefetch instruction
+ 		// Do prefetch arg0 address with option aux. arg0=addr, arg1=memory, aux=option.
+ 		{name: "PRFM", argLength: 2, aux: "Int64", reg: prefreg, asm: "PRFM", hasSideEffects: true},
++
++		// Publication barrier
++		{name: "DMB", argLength: 1, aux: "Int64", asm: "DMB", hasSideEffects: true}, // Do data barrier. arg0=memory, aux=option.
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 984552900f..4f133b1ff6 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -617,6 +617,9 @@ var genericOps = []opData{
+ 	{name: "AtomicOr8Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                     // *arg0 |= arg1.  arg2=memory.  Returns memory.
+ 	{name: "AtomicOr32Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                    // *arg0 |= arg1.  arg2=memory.  Returns memory.
+ 
++	// Publication barrier
++	{name: "PubBarrier", argLength: 1, hasSideEffects: true}, // Do data barrier. arg0=memory.
++
+ 	// Clobber experiment op
+ 	{name: "Clobber", argLength: 0, typ: "Void", aux: "SymOff", symEffect: "None"}, // write an invalid pointer value to the given pointer slot of a stack variable
+ 	{name: "ClobberReg", argLength: 0, typ: "Void"},                                // clobber a register
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 32ffd28b6a..128ec1f049 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1633,6 +1633,7 @@ const (
+ 	OpARM64LoweredPanicBoundsB
+ 	OpARM64LoweredPanicBoundsC
+ 	OpARM64PRFM
++	OpARM64DMB
+ 
+ 	OpMIPSADD
+ 	OpMIPSADDconst
+@@ -2949,6 +2950,7 @@ const (
+ 	OpAtomicAnd32Variant
+ 	OpAtomicOr8Variant
+ 	OpAtomicOr32Variant
++	OpPubBarrier
+ 	OpClobber
+ 	OpClobberReg
+ 	OpPrefetchCache
+@@ -21790,6 +21792,14 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "DMB",
++		auxType:        auxInt64,
++		argLen:         1,
++		hasSideEffects: true,
++		asm:            arm64.ADMB,
++		reg:            regInfo{},
++	},
+ 
+ 	{
+ 		name:        "ADD",
+@@ -36739,6 +36749,12 @@ var opcodeTable = [...]opInfo{
+ 		hasSideEffects: true,
+ 		generic:        true,
+ 	},
++	{
++		name:           "PubBarrier",
++		argLen:         1,
++		hasSideEffects: true,
++		generic:        true,
++	},
+ 	{
+ 		name:      "Clobber",
+ 		auxType:   auxSymOff,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 614e71f852..8ad9e400eb 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -920,6 +920,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpPrefetchCache(v)
+ 	case OpPrefetchCacheStreamed:
+ 		return rewriteValueARM64_OpPrefetchCacheStreamed(v)
++	case OpPubBarrier:
++		return rewriteValueARM64_OpPubBarrier(v)
+ 	case OpRotateLeft16:
+ 		return rewriteValueARM64_OpRotateLeft16(v)
+ 	case OpRotateLeft32:
+@@ -25613,6 +25615,18 @@ func rewriteValueARM64_OpPrefetchCacheStreamed(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpPubBarrier(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (PubBarrier mem)
++	// result: (DMB [0xe] mem)
++	for {
++		mem := v_0
++		v.reset(OpARM64DMB)
++		v.AuxInt = int64ToAuxInt(0xe)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueARM64_OpRotateLeft16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 56fc191e5a..1bfbe7ce65 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3856,6 +3856,13 @@ func InitTables() {
+ 		},
+ 		all...)
+ 
++	addF("runtime", "publicationBarrier",
++		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++			s.vars[memVar] = s.newValue1(ssa.OpPubBarrier, types.TypeMem, s.mem())
++			return nil
++		},
++		sys.ARM64)
++
+ 	/******** runtime/internal/sys ********/
+ 	addF("runtime/internal/sys", "Ctz32",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {

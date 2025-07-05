@@ -10,6 +10,22 @@ Date:   Tue Nov 11 17:06:41 2014 -0500
     R=r, dave
     CC=austin, dvyukov, golang-codereviews, iant, khr
     https://golang.org/cl/170320044
-
+---
  src/run.bash | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 3c9430c87e..d9b985fd15 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -243,8 +243,8 @@ rm -f runtest
+ [ "$GOOS" == nacl ] ||
+ (
+ echo
+-echo '# Checking API compatibility.'
+-time go run $GOROOT/src/cmd/api/run.go || exit 1
++echo '# SKIPPING API CHECK UNTIL ALL SYSTEMS BUILD.'
++# time go run $GOROOT/src/cmd/api/run.go || exit 1
+ ) || exit $?
+ 
+ echo

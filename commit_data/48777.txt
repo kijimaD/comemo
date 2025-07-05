@@ -19,8 +19,103 @@ Date:   Tue Jun 15 21:40:49 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/const.go | 20 +++++++++-------
  test/fixedbugs/issue46749.go                | 37 +++++++++++++++++++++++++++++
  test/run.go                                 |  1 +
  3 files changed, 50 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index 5a35eeade9..761b043794 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -633,6 +633,17 @@ func defaultlit2(l ir.Node, r ir.Node, force bool) (ir.Node, ir.Node) {
+ 	if l.Type() == nil || r.Type() == nil {
+ 		return l, r
+ 	}
++
++	if !l.Type().IsInterface() && !r.Type().IsInterface() {
++		// Can't mix bool with non-bool, string with non-string.
++		if l.Type().IsBoolean() != r.Type().IsBoolean() {
++			return l, r
++		}
++		if l.Type().IsString() != r.Type().IsString() {
++			return l, r
++		}
++	}
++
+ 	if !l.Type().IsUntyped() {
+ 		r = convlit(r, l.Type())
+ 		return l, r
+@@ -647,17 +658,10 @@ func defaultlit2(l ir.Node, r ir.Node, force bool) (ir.Node, ir.Node) {
+ 		return l, r
+ 	}
+ 
+-	// Can't mix bool with non-bool, string with non-string, or nil with anything (untyped).
+-	if l.Type().IsBoolean() != r.Type().IsBoolean() {
+-		return l, r
+-	}
+-	if l.Type().IsString() != r.Type().IsString() {
+-		return l, r
+-	}
++	// Can't mix nil with anything untyped.
+ 	if ir.IsNil(l) || ir.IsNil(r) {
+ 		return l, r
+ 	}
+-
+ 	t := defaultType(mixUntyped(l.Type(), r.Type()))
+ 	l = convlit(l, t)
+ 	r = convlit(r, t)
+diff --git a/test/fixedbugs/issue46749.go b/test/fixedbugs/issue46749.go
+new file mode 100644
+index 0000000000..63ed19795e
+--- /dev/null
++++ b/test/fixedbugs/issue46749.go
+@@ -0,0 +1,37 @@
++// errorcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var s string
++var b bool
++var i int
++var iface interface{}
++
++var (
++	_ = "" + b   // ERROR "invalid operation.*mismatched types.*untyped string and bool"
++	_ = "" + i   // ERROR "invalid operation.*mismatched types.*untyped string and int"
++	_ = "" + nil // ERROR "invalid operation.*mismatched types.*untyped string and nil"
++)
++
++var (
++	_ = s + false // ERROR "invalid operation.*mismatched types.*string and untyped bool"
++	_ = s + 1     // ERROR "invalid operation.*mismatched types.*string and untyped int"
++	_ = s + nil   // ERROR "invalid operation.*mismatched types.*string and nil"
++)
++
++var (
++	_ = "" + false // ERROR "invalid operation.*mismatched types.*untyped string and untyped bool"
++	_ = "" + 1     // ERROR "invalid operation.*mismatched types.*untyped string and untyped int"
++)
++
++var (
++	_ = b + 1         // ERROR "invalid operation.*mismatched types.*bool and untyped int"
++	_ = i + false     // ERROR "invalid operation.*mismatched types.*int and untyped bool"
++	_ = iface + 1     // ERROR "invalid operation.*mismatched types.*interface {} and int"
++	_ = iface + 1.0   // ERROR "invalid operation.*mismatched types.*interface {} and float64"
++	_ = iface + false // ERROR "invalid operation.*mismatched types.*interface {} and bool"
++)
+diff --git a/test/run.go b/test/run.go
+index 5e60de7624..d7f5d02391 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2002,4 +2002,5 @@ var excluded = map[string]bool{
+ 	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ 	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ 	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
++	"fixedbugs/issue46749.go":  true, // types2 reports can not convert error instead of type mismatched
+ }

@@ -16,8 +16,224 @@ Date:   Thu Dec 8 17:39:00 2016 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/testsanitizers/test.bash |  1 +
  misc/cgo/testsanitizers/tsan9.go  | 60 ++++++++++++++++++++++++++
  src/runtime/signal_unix.go        | 88 +++++++++++++++++++++++++++++++--------
  3 files changed, 131 insertions(+), 18 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index 01cce956b8..9853875c7e 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -145,6 +145,7 @@ if test "$tsan" = "yes"; then
+     testtsan tsan3.go
+     testtsan tsan4.go
+     testtsan tsan8.go
++    testtsan tsan9.go
+ 
+     # These tests are only reliable using clang or GCC version 7 or later.
+     # Otherwise runtime/cgo/libcgo.h can't tell whether TSAN is in use.
+diff --git a/misc/cgo/testsanitizers/tsan9.go b/misc/cgo/testsanitizers/tsan9.go
+new file mode 100644
+index 0000000000..7cd0ac7dd6
+--- /dev/null
++++ b/misc/cgo/testsanitizers/tsan9.go
+@@ -0,0 +1,60 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// This program failed when run under the C/C++ ThreadSanitizer. The
++// TSAN library was not keeping track of whether signals should be
++// delivered on the alternate signal stack.
++
++/*
++#cgo CFLAGS: -g -fsanitize=thread
++#cgo LDFLAGS: -g -fsanitize=thread
++
++#include <stdlib.h>
++#include <sys/time.h>
++
++void spin() {
++	size_t n;
++	struct timeval tvstart, tvnow;
++	int diff;
++
++	gettimeofday(&tvstart, NULL);
++	for (n = 0; n < 1<<20; n++) {
++		free(malloc(n));
++		gettimeofday(&tvnow, NULL);
++		diff = (tvnow.tv_sec - tvstart.tv_sec) * 1000 * 1000 + (tvnow.tv_usec - tvstart.tv_usec);
++
++		// Profile frequency is 100Hz so we should definitely
++		// get a signal in 50 milliseconds.
++		if (diff > 50 * 1000) {
++			break;
++		}
++	}
++}
++*/
++import "C"
++
++import (
++	"io/ioutil"
++	"runtime/pprof"
++	"time"
++)
++
++func goSpin() {
++	start := time.Now()
++	for n := 0; n < 1<<20; n++ {
++		_ = make([]byte, n)
++		if time.Since(start) > 50*time.Millisecond {
++			break
++		}
++	}
++}
++
++func main() {
++	pprof.StartCPUProfile(ioutil.Discard)
++	go C.spin()
++	goSpin()
++	pprof.StopCPUProfile()
++}
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 19173ac211..49c7579f27 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -212,25 +212,43 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	}
+ 
+ 	// If some non-Go code called sigaltstack, adjust.
++	setStack := false
++	var gsignalStack gsignalStack
+ 	sp := uintptr(unsafe.Pointer(&sig))
+ 	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
+-		var st stackt
+-		sigaltstack(nil, &st)
+-		if st.ss_flags&_SS_DISABLE != 0 {
+-			setg(nil)
+-			needm(0)
+-			noSignalStack(sig)
+-			dropm()
+-		}
+-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+-		if sp < stsp || sp >= stsp+st.ss_size {
+-			setg(nil)
+-			needm(0)
+-			sigNotOnStack(sig)
+-			dropm()
++		if sp >= g.m.g0.stack.lo && sp < g.m.g0.stack.hi {
++			// The signal was delivered on the g0 stack.
++			// This can happen when linked with C code
++			// using the thread sanitizer, which collects
++			// signals then delivers them itself by calling
++			// the signal handler directly when C code,
++			// including C code called via cgo, calls a
++			// TSAN-intercepted function such as malloc.
++			st := stackt{ss_size: g.m.g0.stack.hi - g.m.g0.stack.lo}
++			setSignalstackSP(&st, g.m.g0.stack.lo)
++			setGsignalStack(&st, &gsignalStack)
++			g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
++			setStack = true
++		} else {
++			var st stackt
++			sigaltstack(nil, &st)
++			if st.ss_flags&_SS_DISABLE != 0 {
++				setg(nil)
++				needm(0)
++				noSignalStack(sig)
++				dropm()
++			}
++			stsp := uintptr(unsafe.Pointer(st.ss_sp))
++			if sp < stsp || sp >= stsp+st.ss_size {
++				setg(nil)
++				needm(0)
++				sigNotOnStack(sig)
++				dropm()
++			}
++			setGsignalStack(&st, &gsignalStack)
++			g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
++			setStack = true
+ 		}
+-		setGsignalStack(&st)
+-		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+ 	}
+ 
+ 	setg(g.m.gsignal)
+@@ -238,6 +256,9 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	c.fixsigcode(sig)
+ 	sighandler(sig, info, ctx, g)
+ 	setg(g)
++	if setStack {
++		restoreGsignalStack(&gsignalStack)
++	}
+ }
+ 
+ // sigpanic turns a synchronous signal into a run-time panic.
+@@ -585,7 +606,7 @@ func minitSignalStack() {
+ 		signalstack(&_g_.m.gsignal.stack)
+ 		_g_.m.newSigstack = true
+ 	} else {
+-		setGsignalStack(&st)
++		setGsignalStack(&st, nil)
+ 		_g_.m.newSigstack = false
+ 	}
+ }
+@@ -618,14 +639,32 @@ func unminitSignals() {
+ 	}
+ }
+ 
++// gsignalStack saves the fields of the gsignal stack changed by
++// setGsignalStack.
++type gsignalStack struct {
++	stack       stack
++	stackguard0 uintptr
++	stackguard1 uintptr
++	stackAlloc  uintptr
++	stktopsp    uintptr
++}
++
+ // setGsignalStack sets the gsignal stack of the current m to an
+ // alternate signal stack returned from the sigaltstack system call.
++// It saves the old values in *old for use by restoreGsignalStack.
+ // This is used when handling a signal if non-Go code has set the
+ // alternate signal stack.
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setGsignalStack(st *stackt) {
++func setGsignalStack(st *stackt, old *gsignalStack) {
+ 	g := getg()
++	if old != nil {
++		old.stack = g.m.gsignal.stack
++		old.stackguard0 = g.m.gsignal.stackguard0
++		old.stackguard1 = g.m.gsignal.stackguard1
++		old.stackAlloc = g.m.gsignal.stackAlloc
++		old.stktopsp = g.m.gsignal.stktopsp
++	}
+ 	stsp := uintptr(unsafe.Pointer(st.ss_sp))
+ 	g.m.gsignal.stack.lo = stsp
+ 	g.m.gsignal.stack.hi = stsp + st.ss_size
+@@ -634,6 +673,19 @@ func setGsignalStack(st *stackt) {
+ 	g.m.gsignal.stackAlloc = st.ss_size
+ }
+ 
++// restoreGsignalStack restores the gsignal stack to the value it had
++// before entering the signal handler.
++//go:nosplit
++//go:nowritebarrierrec
++func restoreGsignalStack(st *gsignalStack) {
++	gp := getg().m.gsignal
++	gp.stack = st.stack
++	gp.stackguard0 = st.stackguard0
++	gp.stackguard1 = st.stackguard1
++	gp.stackAlloc = st.stackAlloc
++	gp.stktopsp = st.stktopsp
++}
++
+ // signalstack sets the current thread's alternate signal stack to s.
+ //go:nosplit
+ func signalstack(s *stack) {

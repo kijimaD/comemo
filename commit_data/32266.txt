@@ -7,6 +7,33 @@ Date:   Sun Apr 16 15:20:34 2017 +0000
     Change-Id: I7e4f22a2b6c80dd0787c011703f3f8586ff55a50
     Reviewed-on: https://go-review.googlesource.com/40860
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  doc/security.html | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/doc/security.html b/doc/security.html
+index 5911586923..0d8b5ee526 100644
+--- a/doc/security.html
++++ b/doc/security.html
+@@ -20,7 +20,7 @@ This mail is delivered to a small security team.
+ Your email will be acknowledged within 24 hours, and you'll receive a more
+ detailed response to your email within 72 hours indicating the next steps in
+ handling your report.
+-If you would like, you can encrypt your report using our PGP key (listed below).
++For critical problems, you can encrypt your report using our PGP key (listed below).
+ </p>
+ 
+ <p>
+@@ -118,6 +118,12 @@ If you have any suggestions to improve this policy, please send an email to
+ 
+ <h3>PGP Key for <a href="mailto:security@golang.org">security@golang.org</a></h3>
+ 
++<p>
++We accept PGP-encrypted email, but the majority of the security team
++are not regular PGP users so it's somewhat inconvenient. Please only
++use PGP for critical security reports.
++</p>
++
+ <pre>
+ -----BEGIN PGP PUBLIC KEY BLOCK-----
+ Comment: GPGTools - https://gpgtools.org

@@ -7,6 +7,20 @@ Date:   Fri Dec 16 07:50:08 2016 -0800
     Change-Id: Id10e41fe396156106f63a4b29d673b31bea5358f
     Reviewed-on: https://go-review.googlesource.com/34551
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 2a242a151e..8372283589 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -207,7 +207,7 @@ func profileOk(t *testing.T, need []string, prof bytes.Buffer, duration time.Dur
+ 	// We used to always require at least ideal/4 samples,
+ 	// but that is too hard to guarantee on a loaded system.
+ 	// Now we accept 10 or more samples, which we take to be
+-	// enough to show that at least some profiling is ocurring.
++	// enough to show that at least some profiling is occurring.
+ 	if ideal := uintptr(duration * 100 / time.Second); samples == 0 || (samples < ideal/4 && samples < 10) {
+ 		t.Logf("too few samples; got %d, want at least %d, ideally %d", samples, ideal/4, ideal)
+ 		ok = false

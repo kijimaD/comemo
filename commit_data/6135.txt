@@ -7,6 +7,27 @@ Date:   Mon Aug 30 21:13:01 2010 -0400
     R=golang-dev, rsc1, rsc
     CC=golang-dev
     https://golang.org/cl/2061042
-
+---
  misc/zsh/go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/misc/zsh/go b/misc/zsh/go
+new file mode 100644
+index 0000000000..f17763d93f
+--- /dev/null
++++ b/misc/zsh/go
+@@ -0,0 +1,14 @@
++# install in /etc/zsh/zshrc or your personal .zshrc
++
++# gc
++prefixes=(5 6 8)
++for p in $prefixes; do
++	compctl -g "*.${p}" ${p}l
++	compctl -g "*.go" ${p}g
++done
++
++# standard go tools
++compctl -g "*.go" gofmt
++
++# gccgo
++compctl -g "*.go" gccgo

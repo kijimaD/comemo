@@ -13,7 +13,47 @@ Date:   Wed May 17 10:37:18 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/decodesym.go | 4 ++--
  src/internal/abi/type.go              | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 7fccc7d980..c01d6c1163 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -59,7 +59,7 @@ func decodetypePtrdata(arch *sys.Arch, p []byte) int64 {
+ 
+ // Type.commonType.tflag
+ func decodetypeHasUncommon(arch *sys.Arch, p []byte) bool {
+-	return abi.TFlag(p[2*arch.PtrSize+4])&abi.TFlagUncommon != 0
++	return abi.TFlag(p[abi.TFlagOff(arch.PtrSize)])&abi.TFlagUncommon != 0
+ }
+ 
+ // Type.FuncType.dotdotdot
+@@ -222,7 +222,7 @@ func decodetypeStr(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) string
+ 	relocs := ldr.Relocs(symIdx)
+ 	str := decodetypeName(ldr, symIdx, &relocs, 4*arch.PtrSize+8)
+ 	data := ldr.Data(symIdx)
+-	if data[2*arch.PtrSize+4]&byte(abi.TFlagExtraStar) != 0 {
++	if data[abi.TFlagOff(arch.PtrSize)]&byte(abi.TFlagExtraStar) != 0 {
+ 		return str[1:]
+ 	}
+ 	return str
+diff --git a/src/internal/abi/type.go b/src/internal/abi/type.go
+index ce950c3937..4794f5a51e 100644
+--- a/src/internal/abi/type.go
++++ b/src/internal/abi/type.go
+@@ -675,10 +675,10 @@ func (n Name) Tag() string {
+ 
+ func NewName(n, tag string, exported, embedded bool) Name {
+ 	if len(n) >= 1<<29 {
+-		panic("reflect.nameFrom: name too long: " + n[:1024] + "...")
++		panic("abi.NewName: name too long: " + n[:1024] + "...")
+ 	}
+ 	if len(tag) >= 1<<29 {
+-		panic("reflect.nameFrom: tag too long: " + tag[:1024] + "...")
++		panic("abi.NewName: tag too long: " + tag[:1024] + "...")
+ 	}
+ 	var nameLen [10]byte
+ 	var tagLen [10]byte

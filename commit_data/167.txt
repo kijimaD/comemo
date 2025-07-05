@@ -5,7 +5,7 @@ Date:   Thu Jun 12 21:48:56 2008 -0700
     better import/export
     
     SVN=122584
-
+---
  src/cmd/gc/export.c | 20 +++++++++++++++++---
  src/cmd/gc/go.h     |  2 ++
  src/cmd/gc/go.y     | 17 +++++++++++++++--
@@ -13,3 +13,199 @@ Date:   Thu Jun 12 21:48:56 2008 -0700
  src/cmd/gc/subr.c   |  2 +-
  test/float_lit.go   | 11 +++--------
  6 files changed, 39 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index b1ddfea625..4904855770 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -14,11 +14,13 @@ markexport(Node *n)
+ loop:
+ 	if(n == N)
+ 		return;
++
+ 	if(n->op == OLIST) {
+ 		markexport(n->left);
+ 		n = n->right;
+ 		goto loop;
+ 	}
++
+ 	if(n->op != OEXPORT)
+ 		fatal("markexport: op no OEXPORT: %O", n->op);
+ 
+@@ -252,6 +254,8 @@ dumpexport(void)
+ 	Bprint(bout, "   import\n");
+ 	Bprint(bout, "   ((\n");
+ 
++	Bprint(bout, "    package %s\n", package);
++
+ 	// print it depth first
+ 	for(d=exportlist->forw; d!=D; d=d->forw) {
+ 		dynlineno = d->lineno;
+@@ -266,6 +270,19 @@ dumpexport(void)
+ /*
+  * ******* import *******
+  */
++void
++renamepkg(Node *n)
++{
++	if(n->psym == pkgimportname)
++		if(pkgmyname != S)
++			n->psym = pkgmyname;
++
++	if(n->psym->lexical != LPACK) {
++		warn("%S is becoming a package behind your back", n->psym);
++		n->psym->lexical = LPACK;
++	}
++}
++
+ Sym*
+ getimportsym(Node *ss)
+ {
+@@ -276,9 +293,6 @@ getimportsym(Node *ss)
+ 		fatal("getimportsym: oops1 %N\n", ss);
+ 
+ 	pkg = ss->psym->name;
+-	if(pkgmyname != S)
+-		pkg = pkgmyname->name;
+-
+ 	s = pkglookup(ss->sym->name, pkg);
+ 
+ 	/* botch - need some diagnostic checking for the following assignment */
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 3ccefa8484..5c65a0139b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -333,6 +333,7 @@ EXTERN	Sym*	hash[NHASH];
+ EXTERN	Sym*	dclstack;
+ EXTERN	Sym*	b0stack;
+ EXTERN	Sym*	pkgmyname;	// my name for package
++EXTERN	Sym*	pkgimportname;	// package name from imported package
+ EXTERN	int	tptr;		// either TPTR32 or TPTR64
+ extern	char*	sysimport;
+ 
+@@ -498,6 +499,7 @@ Type*	forwdcl(Sym*);
+ /*
+  *	export.c
+  */
++void	renamepkg(Node*);
+ void	markexport(Node*);
+ void	dumpe(Sym*);
+ void	dumpexport(void);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index ce7c89a810..c206063009 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -86,7 +86,7 @@ import:
+ |	LIMPORT '(' import_stmt_list_r osemi ')'
+ 
+ import_stmt:
+-	import_here import_there
++	import_here import_package import_there
+ 
+ import_here:
+ 	LLITERAL
+@@ -109,6 +109,17 @@ import_here:
+ 		importfile(&$2);
+ 	}
+ 
++import_package:
++	LPACKAGE sym
++	{
++		pkgimportname = $2;
++
++		// if we are not remapping the package name
++		// then the imported package name is LPACK
++		if(pkgmyname == S)
++			pkgimportname->lexical = LPACK;
++	}
++
+ import_there:
+ 	hidden_import_list_r ')' ')'
+ 	{
+@@ -1330,11 +1341,11 @@ hidden_import:
+ isym:
+ 	sym '.' sym
+ 	{
+-		$1->lexical = LPACK;
+ 		$$ = nod(OIMPORT, N, N);
+ 		$$->osym = $1;
+ 		$$->psym = $1;
+ 		$$->sym = $3;
++		renamepkg($$);
+ 	}
+ |	'(' sym ')' sym '.' sym
+ 	{
+@@ -1342,6 +1353,7 @@ isym:
+ 		$$->osym = $2;
+ 		$$->psym = $4;
+ 		$$->sym = $6;
++		renamepkg($$);
+ 	}
+ 
+ hidden_importsym:
+@@ -1349,6 +1361,7 @@ hidden_importsym:
+ |	'!' isym
+ 	{
+ 		$$ = $2;
++		$$->etype = 1;
+ 	}
+ 
+ hidden_importfield:
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 96380c647b..03b7b85927 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -868,6 +868,7 @@ static	struct
+ 	"true",		LTRUE,		Txxx,
+ 	"type",		LTYPE,		Txxx,
+ 	"var",		LVAR,		Txxx,
++	"sys",		LPACK,		Txxx,
+ 
+ 	"notwithstanding",		LIGNORE,	Txxx,
+ 	"thetruthofthematter",		LIGNORE,	Txxx,
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index efbef36c43..919589ac48 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -871,7 +871,7 @@ Tconv(Fmt *fp)
+ 		break;
+ 
+ 	case TMAP:
+-		snprint(buf, sizeof(buf), "[%T]%T", t->down, t->type);
++		snprint(buf, sizeof(buf), "MAP[%T]%T", t->down, t->type);
+ 		break;
+ 
+ 	case TARRAY:
+diff --git a/test/float_lit.go b/test/float_lit.go
+index b43ae58ccf..e5e95e68eb 100644
+--- a/test/float_lit.go
++++ b/test/float_lit.go
+@@ -18,7 +18,7 @@ func
+ close(da double, ia, ib int64, pow int) bool
+ {
+ 	db := double(ia) / double(ib);
+-	db = db*pow10(pow);
++	db *= pow10(pow);
+ 
+ 	if da == 0 {
+ 		if db == 0 {
+@@ -27,17 +27,12 @@ close(da double, ia, ib int64, pow int) bool
+ 		return false;
+ 	}
+ 
+-	dd := da-db;
+-	if dd < 0 {
+-		dd = -dd;
+-	}
+-
+-	de := da;
++	de := (da-db) /da;
+ 	if de < 0 {
+ 		de = -de;
+ 	}
+ 
+-	if de*1.0e-14 > dd {
++	if de < 1.0e-14 {
+ 		return true;
+ 	}
+ 	return false;

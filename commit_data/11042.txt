@@ -7,7 +7,32 @@ Date:   Fri Jan 6 12:38:01 2012 -0500
     R=iant, gri
     CC=golang-dev
     https://golang.org/cl/5517056
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 6b1707cc85..d04a010323 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -165,6 +165,7 @@ Spring Mc <heresy.mc@gmail.com>
+ Stefan Nilsson <snilsson@nada.kth.se>
+ Stephen Weinberg <stephen@q5comm.com>
+ Sven Almgren <sven@tras.se>
++Szabolcs Nagy <nsz@port70.net>
+ Tarmigan Casebolt <tarmigan@gmail.com>
+ Taru Karttunen <taruti@taruti.net>
+ Timo Savola <timo.savola@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 81b86be8c6..0e67669f49 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -246,6 +246,7 @@ Stephen Ma <stephenm@golang.org>
+ Stephen Weinberg <stephen@q5comm.com>
+ Sugu Sougoumarane <ssougou@gmail.com>
+ Sven Almgren <sven@tras.se>
++Szabolcs Nagy <nsz@port70.net>
+ Tarmigan Casebolt <tarmigan@gmail.com>
+ Taru Karttunen <taruti@taruti.net>
+ Timo Savola <timo.savola@gmail.com>

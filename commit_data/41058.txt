@@ -14,6 +14,21 @@ Date:   Thu Aug 29 15:11:55 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/asm.s | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index 6b209b2d1f..c886d4e722 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -12,9 +12,6 @@ DATA runtime·no_pointers_stackmap+0x00(SB)/4, $2
+ DATA runtime·no_pointers_stackmap+0x04(SB)/4, $0
+ GLOBL runtime·no_pointers_stackmap(SB),RODATA, $8
+ 
+-GLOBL runtime·mheap_(SB), NOPTR, $0
+-GLOBL runtime·memstats(SB), NOPTR, $0
+-
+ // NaCl requires that these skips be verifiable machine code.
+ #ifdef GOARCH_amd64
+ #define SKIP4 BYTE $0x90; BYTE $0x90; BYTE $0x90; BYTE $0x90

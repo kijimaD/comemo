@@ -16,6 +16,32 @@ Date:   Tue May 23 17:54:24 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_linux_386.s | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 2eb4b1e665..60618337dc 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -98,15 +98,18 @@ TEXT runtime·usleep(SB),NOSPLIT,$8
+ 	MOVL	$1000000, CX
+ 	DIVL	CX
+ 	MOVL	AX, 0(SP)
++	MOVL	$1000, AX	// usec to nsec
++	MULL	DX
+ 	MOVL	DX, 4(SP)
+ 
+-	// select(0, 0, 0, 0, &tv)
+-	MOVL	$142, AX
++	// pselect6(0, 0, 0, 0, &ts, 0)
++	MOVL	$308, AX
+ 	MOVL	$0, BX
+ 	MOVL	$0, CX
+ 	MOVL	$0, DX
+ 	MOVL	$0, SI
+ 	LEAL	0(SP), DI
++	MOVL	$0, BP
+ 	INVOKE_SYSCALL
+ 	RET
+ 

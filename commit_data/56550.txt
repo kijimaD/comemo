@@ -16,7 +16,7 @@ Date:   Tue Nov 29 00:05:54 2022 -0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go/internal/modload/import.go               |  2 +-
  src/cmd/go/testdata/script/cmd_import_error.txt     |  4 ++--
  src/cmd/go/testdata/script/mod_get_replaced.txt     |  2 +-
@@ -27,3 +27,164 @@ Date:   Tue Nov 29 00:05:54 2022 -0800
  src/cmd/go/testdata/script/mod_vendor.txt           |  2 +-
  src/go/build/build_test.go                          |  4 ++--
  9 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 86091ea34a..cf56d4e21a 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -57,7 +57,7 @@ type ImportMissingError struct {
+ func (e *ImportMissingError) Error() string {
+ 	if e.Module.Path == "" {
+ 		if e.isStd {
+-			msg := fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
++			msg := fmt.Sprintf("package %s is not in std (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
+ 			if e.importerGoVersion != "" {
+ 				msg += fmt.Sprintf("\nnote: imported by a module that requires go %s", e.importerGoVersion)
+ 			}
+diff --git a/src/cmd/go/testdata/script/cmd_import_error.txt b/src/cmd/go/testdata/script/cmd_import_error.txt
+index dea76f4d4b..89e1dbbffd 100644
+--- a/src/cmd/go/testdata/script/cmd_import_error.txt
++++ b/src/cmd/go/testdata/script/cmd_import_error.txt
+@@ -5,10 +5,10 @@ env GO111MODULE=on
+ # a clear error in module mode.
+ 
+ ! go list cmd/unknown
+-stderr '^package cmd/unknown is not in GOROOT \('$GOROOT'[/\\]src[/\\]cmd[/\\]unknown\)$'
++stderr '^package cmd/unknown is not in std \('$GOROOT'[/\\]src[/\\]cmd[/\\]unknown\)$'
+ 
+ go list -f '{{range .DepsErrors}}{{.Err}}{{end}}' x.go
+-stdout '^package cmd/unknown is not in GOROOT \('$GOROOT'[/\\]src[/\\]cmd[/\\]unknown\)$'
++stdout '^package cmd/unknown is not in std \('$GOROOT'[/\\]src[/\\]cmd[/\\]unknown\)$'
+ 
+ -- x.go --
+ package x
+diff --git a/src/cmd/go/testdata/script/mod_get_replaced.txt b/src/cmd/go/testdata/script/mod_get_replaced.txt
+index b1fc8b8056..c31d5be4ef 100644
+--- a/src/cmd/go/testdata/script/mod_get_replaced.txt
++++ b/src/cmd/go/testdata/script/mod_get_replaced.txt
+@@ -80,7 +80,7 @@ stdout '^rsc.io/quote v1.4.0'
+ cp go.mod.orig go.mod
+ 
+ ! go list example
+-stderr '^package example is not in GOROOT \(.*\)$'
++stderr '^package example is not in std \(.*\)$'
+ ! go get example
+ stderr '^go: malformed module path "example": missing dot in first path element$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_goroot_errors.txt b/src/cmd/go/testdata/script/mod_goroot_errors.txt
+index 9d7a94d263..110a196a61 100644
+--- a/src/cmd/go/testdata/script/mod_goroot_errors.txt
++++ b/src/cmd/go/testdata/script/mod_goroot_errors.txt
+@@ -11,24 +11,24 @@ env GO111MODULE=on
+ ! go build -mod=readonly nonexist
+ ! stderr 'import lookup disabled'
+ ! stderr 'missing dot'
+-stderr '^package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
++stderr '^package nonexist is not in std \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+ 
+ ! go build nonexist
+ ! stderr 'import lookup disabled'
+ ! stderr 'missing dot'
+-stderr '^package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
++stderr '^package nonexist is not in std \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+ 
+ # Building a nonexistent std package indirectly should also fail usefully.
+ 
+ ! go build -mod=readonly ./importnonexist
+ ! stderr 'import lookup disabled'
+ ! stderr 'missing dot'
+-stderr '^importnonexist[/\\]x.go:2:8: package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
++stderr '^importnonexist[/\\]x.go:2:8: package nonexist is not in std \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+ 
+ ! go build ./importnonexist
+ ! stderr 'import lookup disabled'
+ ! stderr 'missing dot'
+-stderr '^importnonexist[/\\]x.go:2:8: package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
++stderr '^importnonexist[/\\]x.go:2:8: package nonexist is not in std \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+ 
+ # Building an *actual* std package should fail if GOROOT is set to something bogus.
+ 
+@@ -38,7 +38,7 @@ env GOROOT=$WORK/not-a-valid-goroot
+ ! go build ./importjson
+ ! stderr 'import lookup disabled'
+ ! stderr 'missing dot'
+-stderr 'importjson[/\\]x.go:2:8: package encoding/json is not in GOROOT \('$WORK'[/\\]not-a-valid-goroot[/\\]src[/\\]encoding[/\\]json\)$'
++stderr 'importjson[/\\]x.go:2:8: package encoding/json is not in std \('$WORK'[/\\]not-a-valid-goroot[/\\]src[/\\]encoding[/\\]json\)$'
+ 
+ -- go.mod --
+ module example.com
+diff --git a/src/cmd/go/testdata/script/mod_issue35270.txt b/src/cmd/go/testdata/script/mod_issue35270.txt
+index 6c2587a127..27b922636c 100644
+--- a/src/cmd/go/testdata/script/mod_issue35270.txt
++++ b/src/cmd/go/testdata/script/mod_issue35270.txt
+@@ -10,7 +10,7 @@ stderr '^main.go:4:5: ambiguous import: found package image in multiple director
+ 
+ cd ../c
+ ! go build -mod=vendor
+-stderr 'main.go:4:5: package p is not in GOROOT'
++stderr 'main.go:4:5: package p is not in std'
+ 
+ -- a/go.mod --
+ module image
+diff --git a/src/cmd/go/testdata/script/mod_load_missing_std.txt b/src/cmd/go/testdata/script/mod_load_missing_std.txt
+index bd2508a3e3..10633e99e7 100644
+--- a/src/cmd/go/testdata/script/mod_load_missing_std.txt
++++ b/src/cmd/go/testdata/script/mod_load_missing_std.txt
+@@ -2,7 +2,7 @@
+ # import is missing. See golang.org/issue/48966.
+ 
+ ! go build .
+-stderr '^main.go:3:8: package nonexistent is not in GOROOT \(.*\)$'
++stderr '^main.go:3:8: package nonexistent is not in std \(.*\)$'
+ stderr '^note: imported by a module that requires go 1.99999$'
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_tidy_error.txt b/src/cmd/go/testdata/script/mod_tidy_error.txt
+index 51fc65fa7a..bb1d5e5d6c 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_error.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_error.txt
+@@ -4,12 +4,12 @@ env GO111MODULE=on
+ # 'go mod tidy' and 'go mod vendor' should not hide loading errors.
+ 
+ ! go mod tidy
+-! stderr 'package nonexist is not in GOROOT'
++! stderr 'package nonexist is not in std'
+ stderr '^issue27063 imports\n\tnonexist.example.com: cannot find module providing package nonexist.example.com'
+ stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: cannot find module providing package other.example.com/nonexist'
+ 
+ ! go mod vendor
+-! stderr 'package nonexist is not in GOROOT'
++! stderr 'package nonexist is not in std'
+ stderr '^issue27063 imports\n\tnonexist.example.com: no required module provides package nonexist.example.com; to add it:\n\tgo get nonexist.example.com$'
+ stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: no required module provides package other.example.com/nonexist; to add it:\n\tgo get other.example.com/nonexist$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor.txt b/src/cmd/go/testdata/script/mod_vendor.txt
+index a11d7a1397..b02341d58d 100644
+--- a/src/cmd/go/testdata/script/mod_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_vendor.txt
+@@ -55,7 +55,7 @@ stderr 'go: module diamondright: can''t resolve module using the vendor director
+ go list -mod=mod -f {{.Dir}} w
+ stdout 'src[\\/]w'
+ ! go list -mod=vendor -f {{.Dir}} w
+-stderr 'package w is not in GOROOT'
++stderr 'package w is not in std'
+ 
+ go list -mod=mod -f {{.Dir}} diamondright
+ stdout 'src[\\/]diamondright'
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 34b4f4bca3..cef0230236 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -525,10 +525,10 @@ func TestImportDirNotExist(t *testing.T) {
+ 				errOk := (err != nil && strings.HasPrefix(err.Error(), "cannot find package"))
+ 				wantErr := `"cannot find package" error`
+ 				if test.srcDir == "" {
+-					if err != nil && strings.Contains(err.Error(), "is not in GOROOT") {
++					if err != nil && strings.Contains(err.Error(), "is not in std") {
+ 						errOk = true
+ 					}
+-					wantErr = `"cannot find package" or "is not in GOROOT" error`
++					wantErr = `"cannot find package" or "is not in std" error`
+ 				}
+ 				if !errOk {
+ 					t.Errorf("%s got error: %q, want %s", test.label, err, wantErr)

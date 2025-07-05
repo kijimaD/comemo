@@ -8,6 +8,21 @@ Date:   Wed Mar 18 19:20:54 2009 -0700
     R=ken
     OCL=26526
     CL=26526
-
+---
  src/cmd/gc/walk.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 07af514077..c5442fe76e 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1806,6 +1806,9 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
+ 	while(r != N) {
+ 		defaultlit(r, T);
+ 
++		if(r->type == T)	// type check failed
++			return N;
++
+ 		// generate the next structure field
+ 		t = typ(TFIELD);
+ 		t->type = r->type;

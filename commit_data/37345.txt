@@ -11,6 +11,22 @@ Date:   Thu Jul 19 01:37:21 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/124857
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/script_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 327dc7e8d4..db34252cc1 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -42,6 +42,10 @@ func TestScript(t *testing.T) {
+ 		file := file
+ 		name := strings.TrimSuffix(filepath.Base(file), ".txt")
+ 		t.Run(name, func(t *testing.T) {
++			if strings.HasPrefix(name, "mod_") && runtime.GOOS == "windows" {
++				// Windows is very unhappy about the module proxy.
++				t.Skip("golang.org/issue/26457")
++			}
+ 			t.Parallel()
+ 			ts := &testScript{t: t, name: name, file: file}
+ 			ts.setup()

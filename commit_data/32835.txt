@@ -27,8 +27,183 @@ Date:   Tue Jun 6 18:37:59 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_cgo_test.go                    |  9 +++
  src/runtime/proc.go                              | 22 +++++-
  src/runtime/testdata/testprogcgo/numgoroutine.go | 97 ++++++++++++++++++++++++
  3 files changed, 125 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 3815cccfbc..70f1c1d16e 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -395,3 +395,12 @@ func TestRaceSignal(t *testing.T) {
+ 		t.Errorf("expected %q got %s", want, got)
+ 	}
+ }
++
++func TestCgoNumGoroutine(t *testing.T) {
++	t.Parallel()
++	got := runTestProg(t, "testprogcgo", "NumGoroutine")
++	want := "OK\n"
++	if got != want {
++		t.Errorf("expected %q got %v", want, got)
++	}
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 24a62492e1..099605fe52 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1435,6 +1435,10 @@ func needm(x byte) {
+ 	// Initialize this thread to use the m.
+ 	asminit()
+ 	minit()
++
++	// mp.curg is now a real goroutine.
++	casgstatus(mp.curg, _Gdead, _Gsyscall)
++	atomic.Xadd(&sched.ngsys, -1)
+ }
+ 
+ var earlycgocallback = []byte("fatal error: cgo callback before cgo call\n")
+@@ -1477,9 +1481,11 @@ func oneNewExtraM() {
+ 	gp.stktopsp = gp.sched.sp
+ 	gp.gcscanvalid = true
+ 	gp.gcscandone = true
+-	// malg returns status as Gidle, change to Gsyscall before adding to allg
+-	// where GC will see it.
+-	casgstatus(gp, _Gidle, _Gsyscall)
++	// malg returns status as _Gidle. Change to _Gdead before
++	// adding to allg where GC can see it. We use _Gdead to hide
++	// this from tracebacks and stack scans since it isn't a
++	// "real" goroutine until needm grabs it.
++	casgstatus(gp, _Gidle, _Gdead)
+ 	gp.m = mp
+ 	mp.curg = gp
+ 	mp.locked = _LockInternal
+@@ -1492,6 +1498,12 @@ func oneNewExtraM() {
+ 	// put on allg for garbage collector
+ 	allgadd(gp)
+ 
++	// gp is now on the allg list, but we don't want it to be
++	// counted by gcount. It would be more "proper" to increment
++	// sched.ngfree, but that requires locking. Incrementing ngsys
++	// has the same effect.
++	atomic.Xadd(&sched.ngsys, +1)
++
+ 	// Add m to the extra list.
+ 	mnext := lockextra(true)
+ 	mp.schedlink.set(mnext)
+@@ -1528,6 +1540,10 @@ func dropm() {
+ 	// with no pointer manipulation.
+ 	mp := getg().m
+ 
++	// Return mp.curg to dead state.
++	casgstatus(mp.curg, _Gsyscall, _Gdead)
++	atomic.Xadd(&sched.ngsys, +1)
++
+ 	// Block signals before unminit.
+ 	// Unminit unregisters the signal handling stack (but needs g on some systems).
+ 	// Setg(nil) clears g, which is the signal handler's cue not to run Go handlers.
+diff --git a/src/runtime/testdata/testprogcgo/numgoroutine.go b/src/runtime/testdata/testprogcgo/numgoroutine.go
+new file mode 100644
+index 0000000000..c1ac3eff8a
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/numgoroutine.go
+@@ -0,0 +1,97 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++#include <stddef.h>
++#include <pthread.h>
++
++extern void CallbackNumGoroutine();
++
++static void* thread2(void* arg __attribute__ ((unused))) {
++	CallbackNumGoroutine();
++	return NULL;
++}
++
++static void CheckNumGoroutine() {
++	pthread_t tid;
++	pthread_create(&tid, NULL, thread2, NULL);
++	pthread_join(tid, NULL);
++}
++*/
++import "C"
++
++import (
++	"fmt"
++	"runtime"
++	"strings"
++)
++
++var baseGoroutines int
++
++func init() {
++	register("NumGoroutine", NumGoroutine)
++}
++
++func NumGoroutine() {
++	// Test that there are just the expected number of goroutines
++	// running. Specifically, test that the spare M's goroutine
++	// doesn't show up.
++	//
++	// On non-Windows platforms there's a signal handling thread
++	// started by os/signal.init in addition to the main
++	// goroutine.
++	if runtime.GOOS != "windows" {
++		baseGoroutines = 1
++	}
++	if _, ok := checkNumGoroutine("first", 1+baseGoroutines); !ok {
++		return
++	}
++
++	// Test that the goroutine for a callback from C appears.
++	if C.CheckNumGoroutine(); !callbackok {
++		return
++	}
++
++	// Make sure we're back to the initial goroutines.
++	if _, ok := checkNumGoroutine("third", 1+baseGoroutines); !ok {
++		return
++	}
++
++	fmt.Println("OK")
++}
++
++func checkNumGoroutine(label string, want int) (string, bool) {
++	n := runtime.NumGoroutine()
++	if n != want {
++		fmt.Printf("%s NumGoroutine: want %d; got %d\n", label, want, n)
++		return "", false
++	}
++
++	sbuf := make([]byte, 32<<10)
++	sbuf = sbuf[:runtime.Stack(sbuf, true)]
++	n = strings.Count(string(sbuf), "goroutine ")
++	if n != want {
++		fmt.Printf("%s Stack: want %d; got %d:\n%s\n", label, want, n, string(sbuf))
++		return "", false
++	}
++	return string(sbuf), true
++}
++
++var callbackok bool
++
++//export CallbackNumGoroutine
++func CallbackNumGoroutine() {
++	stk, ok := checkNumGoroutine("second", 2+baseGoroutines)
++	if !ok {
++		return
++	}
++	if !strings.Contains(stk, "CallbackNumGoroutine") {
++		fmt.Printf("missing CallbackNumGoroutine from stack:\n%s\n", stk)
++		return
++	}
++
++	callbackok = true
++}

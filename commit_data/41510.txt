@@ -21,10 +21,120 @@ Date:   Tue Oct 8 14:21:17 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go    | 2 +-
  src/cmd/compile/internal/gc/escape.go | 2 +-
  src/cmd/compile/internal/gc/noder.go  | 3 +--
  src/cmd/compile/internal/gc/order.go  | 6 +++---
  src/cmd/compile/internal/gc/syntax.go | 6 +++---
  5 files changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index fb4550b3f5..0bb666dfaf 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -369,7 +369,7 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
+ 
+ 		// External functions are assumed unsafe, unless
+ 		// //go:noescape is given before the declaration.
+-		if fn.Noescape() {
++		if fn.Func.Pragma&Noescape != 0 {
+ 			if Debug['m'] != 0 && f.Sym != nil {
+ 				Warnl(f.Pos, "%v does not escape", name())
+ 			}
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 4555f6dcca..3d41c83627 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -1293,7 +1293,7 @@ func (e *Escape) finish(fns []*Node) {
+ 			}
+ 			n.Esc = EscNone
+ 			if loc.transient {
+-				n.SetNoescape(true)
++				n.SetTransient(true)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index a4f834b5ab..e3d6a6866f 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -495,7 +495,6 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 
+ 	pragma := fun.Pragma
+ 	f.Func.Pragma = fun.Pragma
+-	f.SetNoescape(pragma&Noescape != 0)
+ 	if pragma&Systemstack != 0 && pragma&Nosplit != 0 {
+ 		yyerrorl(f.Pos, "go:nosplit and go:systemstack cannot be combined")
+ 	}
+@@ -507,7 +506,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 	p.funcBody(f, fun.Body)
+ 
+ 	if fun.Body != nil {
+-		if f.Noescape() {
++		if f.Func.Pragma&Noescape != 0 {
+ 			yyerrorl(f.Pos, "can only use //go:noescape with external func implementations")
+ 		}
+ 	} else {
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 2ab87a2f7b..ec07dcc15f 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1174,7 +1174,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 		}
+ 
+ 	case OCLOSURE:
+-		if n.Noescape() && n.Func.Closure.Func.Cvars.Len() > 0 {
++		if n.Transient() && n.Func.Closure.Func.Cvars.Len() > 0 {
+ 			prealloc[n] = o.newTemp(closureType(n), false)
+ 		}
+ 
+@@ -1183,7 +1183,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 		n.Right = o.expr(n.Right, nil)
+ 		o.exprList(n.List)
+ 		o.exprList(n.Rlist)
+-		if n.Noescape() {
++		if n.Transient() {
+ 			var t *types.Type
+ 			switch n.Op {
+ 			case OSLICELIT:
+@@ -1195,7 +1195,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 		}
+ 
+ 	case ODDDARG:
+-		if n.Noescape() {
++		if n.Transient() {
+ 			// The ddd argument does not live beyond the call it is created for.
+ 			// Allocate a temporary that will be cleaned up when this statement
+ 			// completes. We could be more aggressive and try to arrange for it
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index c1df046654..08edef9496 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -151,7 +151,7 @@ const (
+ 	_, nodeDiag      // already printed error about this
+ 	_, nodeColas     // OAS resulting from :=
+ 	_, nodeNonNil    // guaranteed to be non-nil
+-	_, nodeNoescape  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
++	_, nodeTransient // storage can be reused immediately after this statement
+ 	_, nodeBounded   // bounds check unnecessary
+ 	_, nodeAddable   // addressable
+ 	_, nodeHasCall   // expression contains a function call
+@@ -179,7 +179,7 @@ func (n *Node) IsDDD() bool                 { return n.flags&nodeIsDDD != 0 }
+ func (n *Node) Diag() bool                  { return n.flags&nodeDiag != 0 }
+ func (n *Node) Colas() bool                 { return n.flags&nodeColas != 0 }
+ func (n *Node) NonNil() bool                { return n.flags&nodeNonNil != 0 }
+-func (n *Node) Noescape() bool              { return n.flags&nodeNoescape != 0 }
++func (n *Node) Transient() bool             { return n.flags&nodeTransient != 0 }
+ func (n *Node) Bounded() bool               { return n.flags&nodeBounded != 0 }
+ func (n *Node) Addable() bool               { return n.flags&nodeAddable != 0 }
+ func (n *Node) HasCall() bool               { return n.flags&nodeHasCall != 0 }
+@@ -206,7 +206,7 @@ func (n *Node) SetIsDDD(b bool)                 { n.flags.set(nodeIsDDD, b) }
+ func (n *Node) SetDiag(b bool)                  { n.flags.set(nodeDiag, b) }
+ func (n *Node) SetColas(b bool)                 { n.flags.set(nodeColas, b) }
+ func (n *Node) SetNonNil(b bool)                { n.flags.set(nodeNonNil, b) }
+-func (n *Node) SetNoescape(b bool)              { n.flags.set(nodeNoescape, b) }
++func (n *Node) SetTransient(b bool)             { n.flags.set(nodeTransient, b) }
+ func (n *Node) SetBounded(b bool)               { n.flags.set(nodeBounded, b) }
+ func (n *Node) SetAddable(b bool)               { n.flags.set(nodeAddable, b) }
+ func (n *Node) SetHasCall(b bool)               { n.flags.set(nodeHasCall, b) }

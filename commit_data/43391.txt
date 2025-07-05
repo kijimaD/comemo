@@ -22,8 +22,82 @@ Date:   Fri Mar 27 14:33:54 2020 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go      | 12 ++++++++++--
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  test/fixedbugs/issue38117.go             | 17 +++++++++++++++++
  3 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 0a2a11663e..7c1ab89b78 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -542,7 +542,7 @@ func methtype(t *types.Type) *types.Type {
+ // Is type src assignment compatible to type dst?
+ // If so, return op code to use in conversion.
+ // If not, return OXXX.
+-func assignop(src *types.Type, dst *types.Type, why *string) Op {
++func assignop(src, dst *types.Type, why *string) Op {
+ 	if why != nil {
+ 		*why = ""
+ 	}
+@@ -665,7 +665,8 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
+ // Can we convert a value of type src to a value of type dst?
+ // If so, return op code to use in conversion (maybe OCONVNOP).
+ // If not, return OXXX.
+-func convertop(src *types.Type, dst *types.Type, why *string) Op {
++// srcConstant indicates whether the value of type src is a constant.
++func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
+ 	if why != nil {
+ 		*why = ""
+ 	}
+@@ -741,6 +742,13 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
+ 		return OCONV
+ 	}
+ 
++	// Special case for constant conversions: any numeric
++	// conversion is potentially okay. We'll validate further
++	// within evconst. See #38117.
++	if srcConstant && (src.IsInteger() || src.IsFloat() || src.IsComplex()) && (dst.IsInteger() || dst.IsFloat() || dst.IsComplex()) {
++		return OCONV
++	}
++
+ 	// 6. src is an integer or has type []byte or []rune
+ 	// and dst is a string type.
+ 	if src.IsInteger() && dst.IsString() {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 2ca7f2dbe4..6e04908b46 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1634,7 +1634,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 			return n
+ 		}
+ 		var why string
+-		n.Op = convertop(t, n.Type, &why)
++		n.Op = convertop(n.Left.Op == OLITERAL, t, n.Type, &why)
+ 		if n.Op == 0 {
+ 			if !n.Diag() && !n.Type.Broke() && !n.Left.Diag() {
+ 				yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
+diff --git a/test/fixedbugs/issue38117.go b/test/fixedbugs/issue38117.go
+new file mode 100644
+index 0000000000..11edef7f25
+--- /dev/null
++++ b/test/fixedbugs/issue38117.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// cmd/compile erroneously rejected conversions of constant values
++// between int/float and complex types.
++
++package p
++
++const (
++	_ = int(complex64(int(0)))
++	_ = float64(complex128(float64(0)))
++
++	_ = int8(complex128(1000)) // ERROR "overflow"
++)

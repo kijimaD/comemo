@@ -7,8 +7,58 @@ Date:   Tue Feb 28 13:39:42 2012 +0800
     R=golang-dev, rsc, adg, r, r
     CC=golang-dev
     https://golang.org/cl/5693060
-
+---
  src/pkg/encoding/gob/Makefile | 9 ---------
  src/pkg/encoding/gob/debug.go | 5 +++--
  src/pkg/encoding/gob/dump.go  | 1 +
  3 files changed, 4 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/encoding/gob/Makefile b/src/pkg/encoding/gob/Makefile
+deleted file mode 100644
+index 3de845efcd..0000000000
+--- a/src/pkg/encoding/gob/Makefile
++++ /dev/null
+@@ -1,9 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# Help for debugging.
+-dump:	dump.go
+-	go clean -i  # remove installed copy
+-	go build -t gob-debug -o dump dump.go
+-
+diff --git a/src/pkg/encoding/gob/debug.go b/src/pkg/encoding/gob/debug.go
+index b54ef46f52..31d1351fc4 100644
+--- a/src/pkg/encoding/gob/debug.go
++++ b/src/pkg/encoding/gob/debug.go
+@@ -3,14 +3,15 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Delete the next line to include in the gob package.
+-// +build gob-debug
++// +build ignore
+ 
+ package gob
+ 
+ // This file is not normally included in the gob package.  Used only for debugging the package itself.
+-// Add debug.go to the files listed in the Makefile to add Debug to the gob package.
+ // Except for reading uints, it is an implementation of a reader that is independent of
+ // the one implemented by Decoder.
++// To enable the Debug function, delete the +build ignore line above and do
++//	go install
+ 
+ import (
+ 	"bytes"
+diff --git a/src/pkg/encoding/gob/dump.go b/src/pkg/encoding/gob/dump.go
+index e23a11e48b..17238c98df 100644
+--- a/src/pkg/encoding/gob/dump.go
++++ b/src/pkg/encoding/gob/dump.go
+@@ -7,6 +7,7 @@
+ package main
+ 
+ // Need to compile package gob with debug.go to build this program.
++// See comments in debug.go for how to do this.
+ 
+ import (
+ 	"encoding/gob"

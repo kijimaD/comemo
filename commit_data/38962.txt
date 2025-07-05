@@ -12,6 +12,19 @@ Date:   Wed Aug 29 05:31:46 2018 +0530
     Change-Id: I97e5f1923c410b48f70be8c15938a7e04a178e3f
     Reviewed-on: https://go-review.googlesource.com/c/131975
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/build.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 5e683aef98..0fa67201f8 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -43,6 +43,7 @@ type Context struct {
+ 	// Clients creating a new context may customize BuildTags, which
+ 	// defaults to empty, but it is usually an error to customize ReleaseTags,
+ 	// which defaults to the list of Go releases the current release is compatible with.
++	// BuildTags is not set for the Default build Context.
+ 	// In addition to the BuildTags and ReleaseTags, build constraints
+ 	// consider the values of GOARCH and GOOS as satisfied tags.
+ 	// The last element in ReleaseTags is assumed to be the current release.

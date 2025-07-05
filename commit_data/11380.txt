@@ -7,8 +7,93 @@ Date:   Wed Jan 25 09:54:10 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5575055
-
+---
  src/pkg/go/doc/testdata/b.0.golden |  9 +++++++++
  src/pkg/go/doc/testdata/b.1.golden | 15 +++++++++++++++
  src/pkg/go/doc/testdata/b.go       | 17 +++++++++++++++++
  3 files changed, 41 insertions(+)
+
+diff --git a/src/pkg/go/doc/testdata/b.0.golden b/src/pkg/go/doc/testdata/b.0.golden
+index c5ad0d0fc8..7c33300616 100644
+--- a/src/pkg/go/doc/testdata/b.0.golden
++++ b/src/pkg/go/doc/testdata/b.0.golden
+@@ -24,6 +24,12 @@ FUNCTIONS
+ 	// 
+ 	func F(x int) int
+ 
++	// Always under the package functions list. 
++	func NotAFactory() int
++
++	// Associated with uint type if AllDecls is set. 
++	func UintFactory() uint
++
+ 
+ TYPES
+ 	// 
+@@ -32,3 +38,6 @@ TYPES
+ 	// 
+ 	var V T	// v
+ 
++	// 
++	func (x *T) M()
++
+diff --git a/src/pkg/go/doc/testdata/b.1.golden b/src/pkg/go/doc/testdata/b.1.golden
+index c5ad0d0fc8..f30380516b 100644
+--- a/src/pkg/go/doc/testdata/b.1.golden
++++ b/src/pkg/go/doc/testdata/b.1.golden
+@@ -24,6 +24,9 @@ FUNCTIONS
+ 	// 
+ 	func F(x int) int
+ 
++	// Always under the package functions list. 
++	func NotAFactory() int
++
+ 
+ TYPES
+ 	// 
+@@ -32,3 +35,15 @@ TYPES
+ 	// 
+ 	var V T	// v
+ 
++	// 
++	func (x *T) M()
++
++	// Should only appear if AllDecls is set. 
++	type uint struct{}
++
++	// Associated with uint type if AllDecls is set. 
++	func UintFactory() uint
++
++	// Associated with uint type if AllDecls is set. 
++	func uintFactory() uint
++
+diff --git a/src/pkg/go/doc/testdata/b.go b/src/pkg/go/doc/testdata/b.go
+index cdc77ef784..28660f9be7 100644
+--- a/src/pkg/go/doc/testdata/b.go
++++ b/src/pkg/go/doc/testdata/b.go
+@@ -6,8 +6,25 @@ package b
+ 
+ import "a"
+ 
++// Basic declarations
++
+ const Pi = 3.14   // Pi
+ var MaxInt int    // MaxInt
+ type T struct{}   // T
+ var V T           // v
+ func F(x int) int {} // F
++func (x *T) M()   {} // M
++
++// Corner cases: association with (presumed) predeclared types
++
++// Always under the package functions list.
++func NotAFactory() int {}
++
++// Associated with uint type if AllDecls is set.
++func UintFactory() uint {}
++
++// Associated with uint type if AllDecls is set.
++func uintFactory() uint {}
++
++// Should only appear if AllDecls is set.
++type uint struct{} // overrides a predeclared type uint

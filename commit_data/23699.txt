@@ -17,9 +17,155 @@ Date:   Thu May 21 14:35:02 2015 -0400
     Change-Id: I91e8df94f4c22b2186e81d7f1016b8767d777eac
     Reviewed-on: https://go-review.googlesource.com/10310
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 10 ++++------
  src/cmd/link/internal/ld/pobj.go | 36 +++++++++++++++++++++++++++---------
  test/linkx.go                    |  6 ++++--
  test/linkx_run.go                | 18 ++++++++++++++----
  4 files changed, 49 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 2ffba875c5..52c6f4cd14 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -917,14 +917,12 @@ func strnput(s string, n int) {
+ 	}
+ }
+ 
+-var addstrdata_name string
+-
+ func addstrdata1(arg string) {
+-	if strings.HasPrefix(arg, "VALUE:") {
+-		addstrdata(addstrdata_name, arg[6:])
+-	} else {
+-		addstrdata_name = arg
++	i := strings.Index(arg, "=")
++	if i < 0 {
++		Exitf("-X flag requires argument of the form importpath.name=value")
+ 	}
++	addstrdata(arg[:i], arg[i+1:])
+ }
+ 
+ func addstrdata(name string, value string) {
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+index 60d584fc73..20f060cb05 100644
+--- a/src/cmd/link/internal/ld/pobj.go
++++ b/src/cmd/link/internal/ld/pobj.go
+@@ -102,7 +102,7 @@ func Ldmain() {
+ 	obj.Flagint64("T", "set text segment `address`", &INITTEXT)
+ 	obj.Flagfn0("V", "print version and exit", doversion)
+ 	obj.Flagcount("W", "disassemble input", &Debug['W'])
+-	obj.Flagfn1("X", "set the value of a string variable; the next two arguments are its name and value", addstrdata1)
++	obj.Flagfn1("X", "add string value `definition` of the form importpath.name=value", addstrdata1)
+ 	obj.Flagcount("Z", "clear stack frame on entry", &Debug['Z'])
+ 	obj.Flagcount("a", "disassemble output", &Debug['a'])
+ 	obj.Flagstr("buildid", "record `id` as Go toolchain build id", &buildid)
+@@ -132,21 +132,39 @@ func Ldmain() {
+ 	obj.Flagcount("v", "print link trace", &Debug['v'])
+ 	obj.Flagcount("w", "disable DWARF generation", &Debug['w'])
+ 
+-	// Clumsy hack to preserve old behavior of -X taking two arguments.
++	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
++	obj.Flagstr("memprofile", "write memory profile to `file`", &memprofile)
++	obj.Flagint64("memprofilerate", "set runtime.MemProfileRate to `rate`", &memprofilerate)
++
++	// Clumsy hack to preserve old two-argument -X name val syntax for old scripts.
++	// Rewrite that syntax into new syntax -X name=val.
++	// TODO(rsc): Delete this hack in Go 1.6 or later.
++	var args []string
+ 	for i := 0; i < len(os.Args); i++ {
+ 		arg := os.Args[i]
+-		if (arg == "--X" || arg == "-X") && i+2 < len(os.Args) {
+-			os.Args[i+2] = "-X=VALUE:" + os.Args[i+2]
++		if (arg == "-X" || arg == "--X") && i+2 < len(os.Args) && !strings.Contains(os.Args[i+1], "=") {
++			fmt.Fprintf(os.Stderr, "link: warning: option %s %s %s may not work in future releases; use %s %s=%s\n",
++				arg, os.Args[i+1], os.Args[i+2],
++				arg, os.Args[i+1], os.Args[i+2])
++			args = append(args, arg)
++			args = append(args, os.Args[i+1]+"="+os.Args[i+2])
+ 			i += 2
+-		} else if (strings.HasPrefix(arg, "--X=") || strings.HasPrefix(arg, "-X=")) && i+1 < len(os.Args) {
+-			os.Args[i+1] = "-X=VALUE:" + os.Args[i+1]
++			continue
++		}
++		if (strings.HasPrefix(arg, "-X=") || strings.HasPrefix(arg, "--X=")) && i+1 < len(os.Args) && strings.Count(arg, "=") == 1 {
++			fmt.Fprintf(os.Stderr, "link: warning: option %s %s may not work in future releases; use %s=%s\n",
++				arg, os.Args[i+1],
++				arg, os.Args[i+1])
++			args = append(args, arg+"="+os.Args[i+1])
+ 			i++
++			continue
+ 		}
++		args = append(args, arg)
+ 	}
+-	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
+-	obj.Flagstr("memprofile", "write memory profile to `file`", &memprofile)
+-	obj.Flagint64("memprofilerate", "set runtime.MemProfileRate to `rate`", &memprofilerate)
++	os.Args = args
++
+ 	obj.Flagparse(usage)
++
+ 	startProfile()
+ 	Ctxt.Bso = &Bso
+ 	Ctxt.Debugvlog = int32(Debug['v'])
+diff --git a/test/linkx.go b/test/linkx.go
+index 151b6db1ec..40ec1b99f6 100644
+--- a/test/linkx.go
++++ b/test/linkx.go
+@@ -9,10 +9,12 @@
+ 
+ package main
+ 
++import "fmt"
++
+ var tbd string
+ var overwrite string = "dibs"
+ 
+ func main() {
+-	println(tbd)
+-	println(overwrite)
++	fmt.Println(tbd)
++	fmt.Println(overwrite)
+ }
+diff --git a/test/linkx_run.go b/test/linkx_run.go
+index f3029f50a9..cc0f55cf92 100644
+--- a/test/linkx_run.go
++++ b/test/linkx_run.go
+@@ -10,23 +10,33 @@
+ package main
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"os"
+ 	"os/exec"
+ )
+ 
+ func main() {
++	test(" ") // old deprecated syntax
++	test("=") // new syntax
++}
++
++func test(sep string) {
+ 	// Successful run
+-	cmd := exec.Command("go", "run", "-ldflags=-X main.tbd hello -X main.overwrite trumped -X main.nosuchsymbol neverseen", "linkx.go")
+-	out, err := cmd.CombinedOutput()
++	cmd := exec.Command("go", "run", "-ldflags=-X main.tbd"+sep+"hello -X main.overwrite"+sep+"trumped -X main.nosuchsymbol"+sep+"neverseen", "linkx.go")
++	var out, errbuf bytes.Buffer
++	cmd.Stdout = &out
++	cmd.Stderr = &errbuf
++	err := cmd.Run()
+ 	if err != nil {
+-		fmt.Println(string(out))
++		fmt.Println(errbuf.String())
++		fmt.Println(out.String())
+ 		fmt.Println(err)
+ 		os.Exit(1)
+ 	}
+ 
+ 	want := "hello\ntrumped\n"
+-	got := string(out)
++	got := out.String()
+ 	if got != want {
+ 		fmt.Printf("got %q want %q\n", got, want)
+ 		os.Exit(1)

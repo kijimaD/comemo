@@ -9,6 +9,23 @@ Date:   Wed Dec 14 11:21:30 2011 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5485051
-
+---
  src/cmd/gotest/gotest.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index 7b90bbd6ab..1c67828890 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -131,10 +131,7 @@ func setEnvironment() {
+ 	// Basic environment.
+ 	GOROOT = runtime.GOROOT()
+ 	addEnv("GOROOT", GOROOT)
+-	GOARCH = os.Getenv("GOARCH")
+-	if GOARCH == "" {
+-		GOARCH = runtime.GOARCH
+-	}
++	GOARCH = build.DefaultContext.GOARCH
+ 	addEnv("GOARCH", GOARCH)
+ 	var err error
+ 	O, err = build.ArchChar(GOARCH)

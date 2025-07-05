@@ -13,6 +13,19 @@ Date:   Thu Sep 16 10:34:46 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Julie Qiu <julie@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/internal/fuzz/fuzz.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 7343e17e44..99cf39e100 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -641,6 +641,7 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
+ 	}
+ 
+ 	if len(c.corpus.entries) == 0 {
++		fmt.Fprintf(c.opts.Log, "warning: starting with empty corpus\n")
+ 		var vals []interface{}
+ 		for _, t := range opts.Types {
+ 			vals = append(vals, zeroValue(t))

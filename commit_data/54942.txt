@@ -21,7 +21,7 @@ Date:   Tue Nov 22 12:39:05 2022 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  .../github.com/google/pprof/internal/driver/cli.go |   3 +-
@@ -53,3 +53,2118 @@ Date:   Tue Nov 22 12:39:05 2022 -0500
  .../github.com/google/pprof/profile/prune.go       |  26 +-
  src/cmd/vendor/modules.txt                         |   4 +-
  30 files changed, 1357 insertions(+), 131 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index b1b1e0e584..de652f289f 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,7 +3,7 @@ module cmd
+ go 1.20
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20220729232143-a41b82acbcb1
++	github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26
+ 	golang.org/x/arch v0.1.1-0.20221116201807-1bb480fc256a
+ 	golang.org/x/mod v0.7.0
+ 	golang.org/x/sync v0.1.0
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 3db3e50ebb..432cbde88d 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,5 +1,5 @@
+-github.com/google/pprof v0.0.0-20220729232143-a41b82acbcb1 h1:8pyqKJvrJqUYaKS851Ule26pwWvey6IDMiczaBLDKLQ=
+-github.com/google/pprof v0.0.0-20220729232143-a41b82acbcb1/go.mod h1:gSuNB+gJaOiQKLEZ+q+PK9Mq3SOzhRcw2GsGS/FhYDk=
++github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26 h1:Xim43kblpZXfIBQsbuBVKCudVG457BR2GZFIz3uw3hQ=
++github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26/go.mod h1:dDKJzRmX4S37WGHujM7tX//fmj1uioxKzKxz3lo4HJo=
+ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 h1:rcanfLhLDA8nozr/K289V1zcntHr3V+SHlXwzz1ZI2g=
+ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2/go.mod h1:aYm2/VgdVmcIU8iMfdMvDMsRAQjcfZSKFby6HOFvi/w=
+ golang.org/x/arch v0.1.1-0.20221116201807-1bb480fc256a h1:TpDpIG2bYSheFxm9xw8NNrBKrurU1ZJ59ZMXnpQwPLQ=
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
+index 237cc33233..a9cae92d1b 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
+@@ -363,5 +363,6 @@ var usageMsgVars = "\n\n" +
+ 	"   PPROF_TOOLS        Search path for object-level tools\n" +
+ 	"   PPROF_BINARY_PATH  Search path for local binary files\n" +
+ 	"                      default: $HOME/pprof/binaries\n" +
+-	"                      searches $name, $path, $buildid/$name, $path/$buildid\n" +
++	"                      searches $buildid/$name, $buildid/*, $path/$buildid,\n" +
++	"                      ${buildid:0:2}/${buildid:2}.debug, $name, $path\n" +
+ 	"   * On Windows, %USERPROFILE% is used instead of $HOME"
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+index 6a1e64c600..27681c540f 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+@@ -59,9 +59,8 @@ func PProf(eo *plugin.Options) error {
+ 	return interactive(p, o)
+ }
+ 
++// generateRawReport is allowed to modify p.
+ func generateRawReport(p *profile.Profile, cmd []string, cfg config, o *plugin.Options) (*command, *report.Report, error) {
+-	p = p.Copy() // Prevent modification to the incoming profile.
+-
+ 	// Identify units of numeric tags in profile.
+ 	numLabelUnits := identifyNumLabelUnits(p, o.UI)
+ 
+@@ -110,6 +109,7 @@ func generateRawReport(p *profile.Profile, cmd []string, cfg config, o *plugin.O
+ 	return c, rpt, nil
+ }
+ 
++// generateReport is allowed to modify p.
+ func generateReport(p *profile.Profile, cmd []string, cfg config, o *plugin.Options) error {
+ 	c, rpt, err := generateRawReport(p, cmd, cfg, o)
+ 	if err != nil {
+@@ -201,7 +201,6 @@ func applyCommandOverrides(cmd string, outputFormat int, cfg config) config {
+ 	case report.Proto, report.Raw, report.Callgrind:
+ 		trim = false
+ 		cfg.Granularity = "addresses"
+-		cfg.NoInlines = false
+ 	}
+ 
+ 	if !trim {
+@@ -365,3 +364,23 @@ func valueExtractor(ix int) sampleValueFunc {
+ 		return v[ix]
+ 	}
+ }
++
++// profileCopier can be used to obtain a fresh copy of a profile.
++// It is useful since reporting code may mutate the profile handed to it.
++type profileCopier []byte
++
++func makeProfileCopier(src *profile.Profile) profileCopier {
++	// Pre-serialize the profile. We will deserialize every time a fresh copy is needed.
++	var buf bytes.Buffer
++	src.WriteUncompressed(&buf)
++	return profileCopier(buf.Bytes())
++}
++
++// newCopy returns a new copy of the profile.
++func (c profileCopier) newCopy() *profile.Profile {
++	p, err := profile.ParseUncompressed([]byte(c))
++	if err != nil {
++		panic(err)
++	}
++	return p
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+index 0b361651bc..5ddee33610 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+@@ -18,7 +18,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"net/http"
+ 	"net/url"
+ 	"os"
+@@ -167,7 +166,7 @@ func grabSourcesAndBases(sources, bases []profileSource, fetch plugin.Fetcher, o
+ // a single profile. It fetches a chunk of profiles concurrently, with a maximum
+ // chunk size to limit its memory usage.
+ func chunkedGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI, tr http.RoundTripper) (*profile.Profile, plugin.MappingSources, bool, int, error) {
+-	const chunkSize = 64
++	const chunkSize = 128
+ 
+ 	var p *profile.Profile
+ 	var msrc plugin.MappingSources
+@@ -242,10 +241,22 @@ func concurrentGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.Ob
+ 
+ func combineProfiles(profiles []*profile.Profile, msrcs []plugin.MappingSources) (*profile.Profile, plugin.MappingSources, error) {
+ 	// Merge profiles.
++	//
++	// The merge call below only treats exactly matching sample type lists as
++	// compatible and will fail otherwise. Make the profiles' sample types
++	// compatible for the merge, see CompatibilizeSampleTypes() doc for details.
++	if err := profile.CompatibilizeSampleTypes(profiles); err != nil {
++		return nil, nil, err
++	}
+ 	if err := measurement.ScaleProfiles(profiles); err != nil {
+ 		return nil, nil, err
+ 	}
+ 
++	// Avoid expensive work for the common case of a single profile/src.
++	if len(profiles) == 1 && len(msrcs) == 1 {
++		return profiles[0], msrcs[0], nil
++	}
++
+ 	p, err := profile.Merge(profiles)
+ 	if err != nil {
+ 		return nil, nil, err
+@@ -410,6 +421,10 @@ mapping:
+ 					fileNames = append(fileNames, matches...)
+ 				}
+ 				fileNames = append(fileNames, filepath.Join(path, m.File, m.BuildID)) // perf path format
++				// Llvm buildid protocol: the first two characters of the build id
++				// are used as directory, and the remaining part is in the filename.
++				// e.g. `/ab/cdef0123456.debug`
++				fileNames = append(fileNames, filepath.Join(path, m.BuildID[:2], m.BuildID[2:]+".debug"))
+ 			}
+ 			if m.File != "" {
+ 				// Try both the basename and the full path, to support the same directory
+@@ -507,7 +522,7 @@ func fetchURL(source string, timeout time.Duration, tr http.RoundTripper) (io.Re
+ func statusCodeError(resp *http.Response) error {
+ 	if resp.Header.Get("X-Go-Pprof") != "" && strings.Contains(resp.Header.Get("Content-Type"), "text/plain") {
+ 		// error is from pprof endpoint
+-		if body, err := ioutil.ReadAll(resp.Body); err == nil {
++		if body, err := io.ReadAll(resp.Body); err == nil {
+ 			return fmt.Errorf("server response: %s - %s", resp.Status, body)
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.css b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.css
+index 03755abc0e..e0de53c1e1 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.css
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.css
+@@ -116,6 +116,7 @@ a {
+   box-shadow: 0 1px 5px rgba(0,0,0,.3);
+   font-size: 100%;
+   text-transform: none;
++  white-space: nowrap;
+ }
+ .menu-item, .submenu {
+   user-select: none;
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.js b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.js
+index 4fe3caa442..5282c1b363 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.js
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.js
+@@ -388,7 +388,12 @@ function initConfigManager() {
+   }
+ }
+ 
+-function viewer(baseUrl, nodes) {
++// options if present can contain:
++//   hiliter: function(Number, Boolean): Boolean
++//     Overridable mechanism for highlighting/unhighlighting specified node.
++//   current: function() Map[Number,Boolean]
++//     Overridable mechanism for fetching set of currently selected nodes.
++function viewer(baseUrl, nodes, options) {
+   'use strict';
+ 
+   // Elements
+@@ -403,6 +408,16 @@ function viewer(baseUrl, nodes) {
+   let searchAlarm = null;
+   let buttonsEnabled = true;
+ 
++  // Return current selection.
++  function getSelection() {
++    if (selected.size > 0) {
++      return selected;
++    } else if (options && options.current) {
++      return options.current();
++    }
++    return new Map();
++  }
++
+   function handleDetails(e) {
+     e.preventDefault();
+     const detailsText = document.getElementById('detailsbox');
+@@ -453,7 +468,7 @@ function viewer(baseUrl, nodes) {
+     // drop currently selected items that do not match re.
+     selected.forEach(function(v, n) {
+       if (!match(nodes[n])) {
+-        unselect(n, document.getElementById('node' + n));
++        unselect(n);
+       }
+     })
+ 
+@@ -461,7 +476,7 @@ function viewer(baseUrl, nodes) {
+     if (nodes) {
+       for (let n = 0; n < nodes.length; n++) {
+         if (!selected.has(n) && match(nodes[n])) {
+-          select(n, document.getElementById('node' + n));
++          select(n);
+         }
+       }
+     }
+@@ -482,23 +497,19 @@ function viewer(baseUrl, nodes) {
+     const n = nodeId(elem);
+     if (n < 0) return;
+     if (selected.has(n)) {
+-      unselect(n, elem);
++      unselect(n);
+     } else {
+-      select(n, elem);
++      select(n);
+     }
+     updateButtons();
+   }
+ 
+-  function unselect(n, elem) {
+-    if (elem == null) return;
+-    selected.delete(n);
+-    setBackground(elem, false);
++  function unselect(n) {
++    if (setNodeHighlight(n, false)) selected.delete(n);
+   }
+ 
+   function select(n, elem) {
+-    if (elem == null) return;
+-    selected.set(n, true);
+-    setBackground(elem, true);
++    if (setNodeHighlight(n, true)) selected.set(n, true);
+   }
+ 
+   function nodeId(elem) {
+@@ -511,11 +522,17 @@ function viewer(baseUrl, nodes) {
+     return n;
+   }
+ 
+-  function setBackground(elem, set) {
++  // Change highlighting of node (returns true if node was found).
++  function setNodeHighlight(n, set) {
++    if (options && options.hiliter) return options.hiliter(n, set);
++
++    const elem = document.getElementById('node' + n);
++    if (!elem) return false;
++
+     // Handle table row highlighting.
+     if (elem.nodeName == 'TR') {
+       elem.classList.toggle('hilite', set);
+-      return;
++      return true;
+     }
+ 
+     // Handle svg element highlighting.
+@@ -528,6 +545,8 @@ function viewer(baseUrl, nodes) {
+         p.style.fill = origFill.get(p);
+       }
+     }
++
++    return true;
+   }
+ 
+   function findPolygon(elem) {
+@@ -575,8 +594,8 @@ function viewer(baseUrl, nodes) {
+       // The selection can be in one of two modes: regexp-based or
+       // list-based.  Construct regular expression depending on mode.
+       let re = regexpActive
+-        ? search.value
+-        : Array.from(selected.keys()).map(key => quotemeta(nodes[key])).join('|');
++          ? search.value
++          : Array.from(getSelection().keys()).map(key => quotemeta(nodes[key])).join('|');
+ 
+       setHrefParams(elem, function (params) {
+         if (re != '') {
+@@ -639,7 +658,7 @@ function viewer(baseUrl, nodes) {
+   }
+ 
+   function updateButtons() {
+-    const enable = (search.value != '' || selected.size != 0);
++    const enable = (search.value != '' || getSelection().size != 0);
+     if (buttonsEnabled == enable) return;
+     buttonsEnabled = enable;
+     for (const id of ['focus', 'ignore', 'hide', 'show', 'show-from']) {
+@@ -663,8 +682,8 @@ function viewer(baseUrl, nodes) {
+     toptable.addEventListener('touchstart', handleTopClick);
+   }
+ 
+-  const ids = ['topbtn', 'graphbtn', 'flamegraph', 'peek', 'list', 'disasm',
+-               'focus', 'ignore', 'hide', 'show', 'show-from'];
++  const ids = ['topbtn', 'graphbtn', 'flamegraph', 'flamegraph2', 'peek', 'list',
++	       'disasm', 'focus', 'ignore', 'hide', 'show', 'show-from'];
+   ids.forEach(makeSearchLinkDynamic);
+ 
+   const sampleIDs = [{{range .SampleTypes}}'{{.}}', {{end}}];
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/header.html b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/header.html
+index 66cabbbaa4..39cb55a1d1 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/header.html
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/header.html
+@@ -12,6 +12,7 @@
+       <a title="{{.Help.top}}"  href="./top" id="topbtn">Top</a>
+       <a title="{{.Help.graph}}" href="./" id="graphbtn">Graph</a>
+       <a title="{{.Help.flamegraph}}" href="./flamegraph" id="flamegraph">Flame Graph</a>
++      <a title="{{.Help.flamegraph2}}" href="./flamegraph2" id="flamegraph2">Flame Graph (new)</a>
+       <a title="{{.Help.peek}}" href="./peek" id="peek">Peek</a>
+       <a title="{{.Help.list}}" href="./source" id="list">Source</a>
+       <a title="{{.Help.disasm}}" href="./disasm" id="disasm">Disassemble</a>
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.css b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.css
+new file mode 100644
+index 0000000000..d142aa789c
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.css
+@@ -0,0 +1,80 @@
++body {
++  overflow: hidden; /* Want scrollbar not here, but in #stack-holder */
++}
++/* Scrollable container for flame graph */
++#stack-holder {
++  width: 100%;
++  flex-grow: 1;
++  overflow-y: auto;
++  background: #eee; /* Light grey gives better contrast with boxes */
++  position: relative; /* Allows absolute positioning of child boxes */
++}
++/* Flame graph */
++#stack-chart {
++  width: 100%;
++  position: relative; /* Allows absolute positioning of child boxes */
++}
++/* Shows details of frame that is under the mouse */
++#current-details {
++  position: absolute;
++  top: 5px;
++  right: 5px;
++  z-index: 2;
++  font-size: 12pt;
++}
++/* Background of a single flame-graph frame */
++.boxbg {
++  border-width: 0px;
++  position: absolute;
++  overflow: hidden;
++  box-sizing: border-box;
++}
++/* Not-inlined frames are visually separated from their caller. */
++.not-inlined {
++  border-top: 1px solid black;
++}
++/* Function name */
++.boxtext {
++  position: absolute;
++  width: 100%;
++  padding-left: 2px;
++  line-height: 18px;
++  cursor: default;
++  font-family: "Google Sans", Arial, sans-serif;
++  font-size: 12pt;
++  z-index: 2;
++}
++/* Box highlighting via shadows to avoid size changes */
++.hilite { box-shadow: 0px 0px 0px 2px #000; z-index: 1; }
++.hilite2 { box-shadow: 0px 0px 0px 2px #000; z-index: 1; }
++/* Self-cost region inside a box */
++.self {
++  position: absolute;
++  background: rgba(0,0,0,0.25); /* Darker hue */
++}
++/* Gap left between callers and callees */
++.separator {
++  position: absolute;
++  text-align: center;
++  font-size: 12pt;
++  font-weight: bold;
++}
++/* Ensure that pprof menu is above boxes */
++.submenu { z-index: 3; }
++/* Right-click menu */
++#action-menu {
++  max-width: 15em;
++}
++/* Right-click menu title */
++#action-title {
++  display: block;
++  padding: 0.5em 1em;
++  background: #888;
++  text-overflow: ellipsis;
++  overflow: hidden;
++}
++/* Internal canvas used to measure text size when picking fonts */
++#textsizer {
++  position: absolute;
++  bottom: -100px;
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.html b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.html
+new file mode 100644
+index 0000000000..1ddb7a3a1c
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.html
+@@ -0,0 +1,32 @@
++<!DOCTYPE html>
++<html>
++<head>
++  <meta charset="utf-8">
++  <title>{{.Title}}</title>
++  {{template "css" .}}
++  {{template "stacks_css"}}
++</head>
++<body>
++  {{template "header" .}}
++  <div id="stack-holder">
++    <div id="stack-chart"></div>
++    <div id="current-details"></div>
++  </div>
++  <div id="action-menu" class="submenu">
++    <span id="action-title"></span>
++    <hr>
++    <a title="{{.Help.list}}" id="action-source" href="./source">Show source code</a>
++    <a title="{{.Help.list}}" id="action-source-tab" href="./source" target="_blank">Show source in new tab</a>
++    <hr>
++    <a title="{{.Help.focus}}" id="action-focus" href="?">Focus</a>
++    <a title="{{.Help.ignore}}" id="action-ignore" href="?">Ignore</a>
++    <a title="{{.Help.hide}}" id="action-hide" href="?">Hide</a>
++    <a title="{{.Help.show_from}}" id="action-showfrom" href="?">Show from</a>
++  </div>
++  {{template "script" .}}
++  {{template "stacks_js"}}
++  <script>
++    stackViewer({{.Stacks}}, {{.Nodes}});
++  </script>
++</body>
++</html>
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
+new file mode 100644
+index 0000000000..64229a000a
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
+@@ -0,0 +1,524 @@
++// stackViewer displays a flame-graph like view (extended to show callers).
++//   stacks - report.StackSet
++//   nodes  - List of names for each source in report.StackSet
++function stackViewer(stacks, nodes) {
++  'use strict';
++
++  // Constants used in rendering.
++  const ROW = 20;
++  const PADDING = 2;
++  const MIN_WIDTH = 4;
++  const MIN_TEXT_WIDTH = 16;
++  const TEXT_MARGIN = 2;
++  const FONT_SIZE = 12;
++  const MIN_FONT_SIZE = 8;
++
++  // Mapping from unit to a list of display scales/labels.
++  // List should be ordered by increasing unit size.
++  const UNITS = new Map([
++    ['B', [
++      ['B', 1],
++      ['kB', Math.pow(2, 10)],
++      ['MB', Math.pow(2, 20)],
++      ['GB', Math.pow(2, 30)],
++      ['TB', Math.pow(2, 40)],
++      ['PB', Math.pow(2, 50)]]],
++    ['s', [
++      ['ns', 1e-9],
++      ['µs', 1e-6],
++      ['ms', 1e-3],
++      ['s', 1],
++      ['hrs', 60*60]]]]);
++
++  // Fields
++  let shownTotal = 0;       // Total value of all stacks
++  let pivots = [];          // Indices of currently selected data.Sources entries.
++  let matches = new Set();  // Indices of sources that match search
++  let elems = new Map();    // Mapping from source index to display elements
++  let displayList = [];     // List of boxes to display.
++  let actionMenuOn = false; // Is action menu visible?
++  let actionTarget = null;  // Box on which action menu is operating.
++
++  // Setup to allow measuring text width.
++  const textSizer = document.createElement('canvas');
++  textSizer.id = 'textsizer';
++  const textContext = textSizer.getContext('2d');
++
++  // Get DOM elements.
++  const chart = find('stack-chart');
++  const search = find('search');
++  const actions = find('action-menu');
++  const actionTitle = find('action-title');
++  const detailBox = find('current-details');
++
++  window.addEventListener('resize', render);
++  window.addEventListener('popstate', render);
++  search.addEventListener('keydown', handleSearchKey);
++
++  // Withdraw action menu when clicking outside, or when item selected.
++  document.addEventListener('mousedown', (e) => {
++    if (!actions.contains(e.target)) {
++      hideActionMenu();
++    }
++  });
++  actions.addEventListener('click', hideActionMenu);
++
++  // Initialize menus and other general UI elements.
++  viewer(new URL(window.location.href), nodes, {
++    hiliter: (n, on) => { return hilite(n, on); },
++    current: () => {
++      let r = new Map();
++      for (let p of pivots) {
++        r.set(p, true);
++      }
++      return r;
++    }});
++
++  render();
++
++  // Helper functions follow:
++
++  // hilite changes the highlighting of elements corresponding to specified src.
++  function hilite(src, on) {
++    if (on) {
++      matches.add(src);
++    } else {
++      matches.delete(src);
++    }
++    toggleClass(src, 'hilite', on);
++    return true;
++  }
++
++  // Display action menu (triggered by right-click on a frame)
++  function showActionMenu(e, box) {
++    if (box.src == 0) return; // No action menu for root
++    e.preventDefault(); // Disable browser context menu
++    const src = stacks.Sources[box.src];
++    actionTitle.innerText = src.Display[src.Display.length-1];
++    const menu = actions;
++    menu.style.display = 'block';
++    // Compute position so menu stays visible and near the mouse.
++    const x = Math.min(e.clientX - 10, document.body.clientWidth - menu.clientWidth);
++    const y = Math.min(e.clientY - 10, document.body.clientHeight - menu.clientHeight);
++    menu.style.left = x + 'px';
++    menu.style.top = y + 'px';
++    // Set menu links to operate on clicked box.
++    setHrefParam('action-source', 'f', box.src);
++    setHrefParam('action-source-tab', 'f', box.src);
++    setHrefParam('action-focus', 'f', box.src);
++    setHrefParam('action-ignore', 'i', box.src);
++    setHrefParam('action-hide', 'h', box.src);
++    setHrefParam('action-showfrom', 'sf', box.src);
++    toggleClass(box.src, 'hilite2', true);
++    actionTarget = box;
++    actionMenuOn = true;
++  }
++
++  function hideActionMenu() {
++    actions.style.display = 'none';
++    actionMenuOn = false;
++    if (actionTarget != null) {
++      toggleClass(actionTarget.src, 'hilite2', false);
++    }
++  }
++
++  // setHrefParam updates the specified parameter in the  href of an <a>
++  // element to make it operate on the specified src.
++  function setHrefParam(id, param, src) {
++    const elem = document.getElementById(id);
++    if (!elem) return;
++
++    let url = new URL(elem.href);
++    url.hash = '';
++
++    // Copy params from this page's URL.
++    const params = url.searchParams;
++    for (const p of new URLSearchParams(window.location.search)) {
++      params.set(p[0], p[1]);
++    }
++
++    // Update params to include src.
++    let v = stacks.Sources[src].RE;
++    if (param != 'f' && param != 'sf') { // old f,sf values are overwritten
++      // Add new source to current parameter value.
++      const old = params.get(param);
++      if (old && old != '') {
++        v += '|' + old;
++      }
++    }
++    params.set(param, v);
++
++    elem.href = url.toString();
++  }
++
++  // Capture Enter key in the search box to make it pivot instead of focus.
++  function handleSearchKey(e) {
++    if (e.key != 'Enter') return;
++    e.stopImmediatePropagation();  // Disable normal enter key handling
++    const val = search.value;
++    try {
++      new RegExp(search.value);
++    } catch (error) {
++      return;  // TODO: Display error state in search box
++    }
++    switchPivots(val);
++  }
++
++  function switchPivots(regexp) {
++    // Switch URL without hitting the server.
++    const url = new URL(document.URL);
++    url.searchParams.set('p', regexp);
++    history.pushState('', '', url.toString()); // Makes back-button work
++    matches = new Set();
++    search.value = '';
++    render();
++  }
++
++  function handleEnter(box, div) {
++    if (actionMenuOn) return;
++    const src = stacks.Sources[box.src];
++    const d = details(box);
++    div.title = d + ' ' + src.FullName + (src.Inlined ? "\n(inlined)" : "");
++    detailBox.innerText = d;
++    // Highlight all boxes that have the same source as box.
++    toggleClass(box.src, 'hilite2', true);
++  }
++
++  function handleLeave(box) {
++    if (actionMenuOn) return;
++    detailBox.innerText = '';
++    toggleClass(box.src, 'hilite2', false);
++  }
++
++  // Return list of sources that match the regexp given by the 'p' URL parameter.
++  function urlPivots() {
++    const pivots = [];
++    const params = (new URL(document.URL)).searchParams;
++    const val = params.get('p');
++    if (val !== null && val != '') {
++      try {
++        const re = new RegExp(val);
++        for (let i = 0; i < stacks.Sources.length; i++) {
++          const src = stacks.Sources[i];
++          if (re.test(src.UniqueName) || re.test(src.FileName)) {
++            pivots.push(i);
++          }
++        }
++      } catch (error) {}
++    }
++    if (pivots.length == 0) {
++      pivots.push(0);
++    }
++    return pivots;
++  }
++
++  // render re-generates the stack display.
++  function render() {
++    pivots = urlPivots();
++
++    // Get places where pivots occur.
++    let places = [];
++    for (let pivot of pivots) {
++      const src = stacks.Sources[pivot];
++      for (let p of src.Places) {
++        places.push(p);
++      }
++    }
++
++    const width = chart.clientWidth;
++    elems.clear();
++    actionTarget = null;
++    const total = totalValue(places);
++    const xscale = (width-2*PADDING) / total; // Converts from profile value to X pixels
++    const x = PADDING;
++    const y = 0;
++    shownTotal = total;
++
++    displayList.length = 0;
++    renderStacks(0, xscale, x, y, places, +1);  // Callees
++    renderStacks(0, xscale, x, y-ROW, places, -1);  // Callers (ROW left for separator)
++    display(displayList);
++  }
++
++  // renderStacks creates boxes with top-left at x,y with children drawn as
++  // nested stacks (below or above based on the sign of direction).
++  // Returns the largest y coordinate filled.
++  function renderStacks(depth, xscale, x, y, places, direction) {
++    // Example: suppose we are drawing the following stacks:
++    //   a->b->c
++    //   a->b->d
++    //   a->e->f
++    // After rendering a, we will call renderStacks, with places pointing to
++    // the preceding stacks.
++    //
++    // We first group all places with the same leading entry. In this example
++    // we get [b->c, b->d] and [e->f]. We render the two groups side-by-side.
++    const groups = partitionPlaces(places);
++    for (const g of groups) {
++      renderGroup(depth, xscale, x, y, g, direction);
++      x += xscale*g.sum;
++    }
++  }
++
++  function renderGroup(depth, xscale, x, y, g, direction) {
++    // Skip if not wide enough.
++    const width = xscale * g.sum;
++    if (width < MIN_WIDTH) return;
++
++    // Draw the box for g.src (except for selected element in upwards direction
++    // since that duplicates the box we added in downwards direction).
++    if (depth != 0 || direction > 0) {
++      const box = {
++        x:         x,
++        y:         y,
++        src:       g.src,
++        sum:       g.sum,
++        selfValue: g.self,
++        width:     xscale*g.sum,
++        selfWidth: (direction > 0) ? xscale*g.self : 0,
++      };
++      displayList.push(box);
++      x += box.selfWidth;
++    }
++    y += direction * ROW;
++
++    // Find child or parent stacks.
++    const next = [];
++    for (const place of g.places) {
++      const stack = stacks.Stacks[place.Stack];
++      const nextSlot = place.Pos + direction;
++      if (nextSlot >= 0 && nextSlot < stack.Sources.length) {
++        next.push({Stack: place.Stack, Pos: nextSlot});
++      }
++    }
++    renderStacks(depth+1, xscale, x, y, next, direction);
++  }
++
++  // partitionPlaces partitions a set of places into groups where each group
++  // contains places with the same source. If a stack occurs multiple times
++  // in places, only the outer-most occurrence is kept.
++  function partitionPlaces(places) {
++    // Find outer-most slot per stack (used later to elide duplicate stacks).
++    const stackMap = new Map();  // Map from stack index to outer-most slot#
++    for (const place of places) {
++      const prevSlot = stackMap.get(place.Stack);
++      if (prevSlot && prevSlot <= place.Pos) {
++        // We already have a higher slot in this stack.
++      } else {
++        stackMap.set(place.Stack, place.Pos);
++      }
++    }
++
++    // Now partition the stacks.
++    const groups = [];           // Array of Group {name, src, sum, self, places}
++    const groupMap = new Map();  // Map from Source to Group
++    for (const place of places) {
++      if (stackMap.get(place.Stack) != place.Pos) {
++        continue;
++      }
++
++      const stack = stacks.Stacks[place.Stack];
++      const src = stack.Sources[place.Pos];
++      let group = groupMap.get(src);
++      if (!group) {
++        const name = stacks.Sources[src].FullName;
++        group = {name: name, src: src, sum: 0, self: 0, places: []};
++        groupMap.set(src, group);
++        groups.push(group);
++      }
++      group.sum += stack.Value;
++      group.self += (place.Pos == stack.Sources.length-1) ? stack.Value : 0;
++      group.places.push(place);
++    }
++
++    // Order by decreasing cost (makes it easier to spot heavy functions).
++    // Though alphabetical ordering is a potential alternative that will make
++    // profile comparisons easier.
++    groups.sort(function(a, b) { return b.sum - a.sum; });
++
++    return groups;
++  }
++
++  function display(list) {
++    // Sort boxes so that text selection follows a predictable order.
++    list.sort(function(a, b) {
++      if (a.y != b.y) return a.y - b.y;
++      return a.x - b.x;
++    });
++
++    // Adjust Y coordinates so that zero is at top.
++    let adjust = (list.length > 0) ? list[0].y : 0;
++    adjust -= ROW + 2*PADDING;  // Room for details
++
++    const divs = [];
++    for (const box of list) {
++      box.y -= adjust;
++      divs.push(drawBox(box));
++    }
++    divs.push(drawSep(-adjust));
++
++    const h = (list.length > 0 ?  list[list.length-1].y : 0) + 4*ROW;
++    chart.style.height = h+'px';
++    chart.replaceChildren(...divs);
++  }
++
++  function drawBox(box) {
++    const srcIndex = box.src;
++    const src = stacks.Sources[srcIndex];
++
++    // Background
++    const w = box.width - 1; // Leave 1px gap
++    const r = document.createElement('div');
++    r.style.left = box.x + 'px';
++    r.style.top = box.y + 'px';
++    r.style.width = w + 'px';
++    r.style.height = ROW + 'px';
++    r.classList.add('boxbg');
++    r.style.background = makeColor(src.Color);
++    addElem(srcIndex, r);
++    if (!src.Inlined) {
++      r.classList.add('not-inlined');
++    }
++
++    // Box that shows time spent in self
++    if (box.selfWidth >= MIN_WIDTH) {
++      const s = document.createElement('div');
++      s.style.width = Math.min(box.selfWidth, w)+'px';
++      s.style.height = (ROW-1)+'px';
++      s.classList.add('self');
++      r.appendChild(s);
++    }
++
++    // Label
++    if (box.width >= MIN_TEXT_WIDTH) {
++      const t = document.createElement('div');
++      t.classList.add('boxtext');
++      fitText(t, box.width-2*TEXT_MARGIN, src.Display);
++      r.appendChild(t);
++    }
++
++    r.addEventListener('click', () => { switchPivots(src.RE); });
++    r.addEventListener('mouseenter', () => { handleEnter(box, r); });
++    r.addEventListener('mouseleave', () => { handleLeave(box); });
++    r.addEventListener('contextmenu', (e) => { showActionMenu(e, box); });
++    return r;
++  }
++
++  function drawSep(y) {
++    const m = document.createElement('div');
++    m.innerText = percent(shownTotal, stacks.Total) +
++	'\xa0\xa0\xa0\xa0' +  // Some non-breaking spaces
++	valueString(shownTotal);
++    m.style.top = (y-ROW) + 'px';
++    m.style.left = PADDING + 'px';
++    m.style.width = (chart.clientWidth - PADDING*2) + 'px';
++    m.classList.add('separator');
++    return m;
++  }
++
++  // addElem registers an element that belongs to the specified src.
++  function addElem(src, elem) {
++    let list = elems.get(src);
++    if (!list) {
++      list = [];
++      elems.set(src, list);
++    }
++    list.push(elem);
++    elem.classList.toggle('hilite', matches.has(src));
++  }
++
++  // Adds or removes cl from classList of all elements for the specified source.
++  function toggleClass(src, cl, value) {
++    const list = elems.get(src);
++    if (list) {
++      for (const elem of list) {
++        elem.classList.toggle(cl, value);
++      }
++    }
++  }
++
++  // fitText sets text and font-size clipped to the specified width w.
++  function fitText(t, avail, textList) {
++    // Find first entry in textList that fits.
++    let width = avail;
++    textContext.font = FONT_SIZE + 'pt Arial';
++    for (let i = 0; i < textList.length; i++) {
++      let text = textList[i];
++      width = textContext.measureText(text).width;
++      if (width <= avail) {
++        t.innerText = text;
++        return;
++      }
++    }
++
++    // Try to fit by dropping font size.
++    let text = textList[textList.length-1];
++    const fs = Math.max(MIN_FONT_SIZE, FONT_SIZE * (avail / width));
++    t.style.fontSize = fs + 'pt';
++    t.innerText = text;
++  }
++
++  // totalValue returns the combined sum of the stacks listed in places.
++  function totalValue(places) {
++    const seen = new Set();
++    let result = 0;
++    for (const place of places) {
++      if (seen.has(place.Stack)) continue; // Do not double-count stacks
++      seen.add(place.Stack);
++      const stack = stacks.Stacks[place.Stack];
++      result += stack.Value;
++    }
++    return result;
++  }
++
++  function details(box) {
++    // E.g., 10% 7s
++    // or    10% 7s (3s self
++    let result = percent(box.sum, stacks.Total) + ' ' + valueString(box.sum);
++    if (box.selfValue > 0) {
++      result += ` (${valueString(box.selfValue)} self)`;
++    }
++    return result;
++  }
++
++  function percent(v, total) {
++    return Number(((100.0 * v) / total).toFixed(1)) + '%';
++  }
++
++  // valueString returns a formatted string to display for value.
++  function valueString(value) {
++    let v = value * stacks.Scale;
++    // Rescale to appropriate display unit.
++    let unit = stacks.Unit;
++    const list = UNITS.get(unit);
++    if (list) {
++      // Find first entry in list that is not too small.
++      for (const [name, scale] of list) {
++        if (v <= 100*scale) {
++          v /= scale;
++          unit = name;
++          break;
++        }
++      }
++    }
++    return Number(v.toFixed(2)) + unit;
++  }
++
++  function find(name) {
++    const elem = document.getElementById(name);
++    if (!elem) {
++      throw 'element not found: ' + name
++    }
++    return elem;
++  }
++
++  function makeColor(index) {
++    // Rotate hue around a circle. Multiple by phi to spread things
++    // out better. Use 50% saturation to make subdued colors, and
++    // 80% lightness to have good contrast with black foreground text.
++    const PHI = 1.618033988;
++    const hue = (index+1) * PHI * 2 * Math.PI; // +1 to avoid 0
++    const hsl = `hsl(${hue}rad 50% 80%)`;
++    return hsl;
++  }
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go
+index 777fb90bfb..e6e865f385 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go
+@@ -42,6 +42,7 @@ func interactive(p *profile.Profile, o *plugin.Options) error {
+ 	interactiveMode = true
+ 	shortcuts := profileShortcuts(p)
+ 
++	copier := makeProfileCopier(p)
+ 	greetings(p, o.UI)
+ 	for {
+ 		input, err := o.UI.ReadLine("(pprof) ")
+@@ -110,7 +111,7 @@ func interactive(p *profile.Profile, o *plugin.Options) error {
+ 
+ 			args, cfg, err := parseCommandLine(tokens)
+ 			if err == nil {
+-				err = generateReportWrapper(p, args, cfg, o)
++				err = generateReportWrapper(copier.newCopy(), args, cfg, o)
+ 			}
+ 
+ 			if err != nil {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/settings.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/settings.go
+index 1e9154c5f5..b784618aca 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/settings.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/settings.go
+@@ -3,7 +3,6 @@ package driver
+ import (
+ 	"encoding/json"
+ 	"fmt"
+-	"io/ioutil"
+ 	"net/url"
+ 	"os"
+ 	"path/filepath"
+@@ -33,7 +32,7 @@ func settingsFileName() (string, error) {
+ 
+ // readSettings reads settings from fname.
+ func readSettings(fname string) (*settings, error) {
+-	data, err := ioutil.ReadFile(fname)
++	data, err := os.ReadFile(fname)
+ 	if err != nil {
+ 		if os.IsNotExist(err) {
+ 			return &settings{}, nil
+@@ -64,7 +63,7 @@ func writeSettings(fname string, settings *settings) error {
+ 		return fmt.Errorf("failed to create settings directory: %w", err)
+ 	}
+ 
+-	if err := ioutil.WriteFile(fname, data, 0644); err != nil {
++	if err := os.WriteFile(fname, data, 0644); err != nil {
+ 		return fmt.Errorf("failed to write settings: %w", err)
+ 	}
+ 	return nil
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/stacks.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/stacks.go
+new file mode 100644
+index 0000000000..249dfe0742
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/stacks.go
+@@ -0,0 +1,58 @@
++// Copyright 2022 Google Inc. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package driver
++
++import (
++	"encoding/json"
++	"html/template"
++	"net/http"
++
++	"github.com/google/pprof/internal/report"
++)
++
++// stackView generates the new flamegraph view.
++func (ui *webInterface) stackView(w http.ResponseWriter, req *http.Request) {
++	// Get all data in a report.
++	rpt, errList := ui.makeReport(w, req, []string{"svg"}, func(cfg *config) {
++		cfg.CallTree = true
++		cfg.Trim = false
++		cfg.Granularity = "filefunctions"
++	})
++	if rpt == nil {
++		return // error already reported
++	}
++
++	// Make stack data and generate corresponding JSON.
++	stacks := rpt.Stacks()
++	b, err := json.Marshal(stacks)
++	if err != nil {
++		http.Error(w, "error serializing stacks for flame graph",
++			http.StatusInternalServerError)
++		ui.options.UI.PrintErr(err)
++		return
++	}
++
++	nodes := make([]string, len(stacks.Sources))
++	for i, src := range stacks.Sources {
++		nodes[i] = src.FullName
++	}
++	nodes[0] = "" // root is not a real node
++
++	_, legend := report.TextItems(rpt)
++	ui.render(w, req, "stacks", rpt, errList, legend, webArgs{
++		Stacks: template.JS(b),
++		Nodes:  nodes,
++	})
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/tagroot.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/tagroot.go
+index c43d599982..76a594d9f7 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/tagroot.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/tagroot.go
+@@ -97,6 +97,10 @@ func addLabelNodes(p *profile.Profile, rootKeys, leafKeys []string, outputUnit s
+ 			leafm = true
+ 		}
+ 
++		if len(leavesToAdd)+len(rootsToAdd) == 0 {
++			continue
++		}
++
+ 		var newLocs []*profile.Location
+ 		newLocs = append(newLocs, leavesToAdd...)
+ 		newLocs = append(newLocs, s.Location...)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+index 94f32e3755..55973ffb9f 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+@@ -65,4 +65,7 @@ func addTemplates(templates *template.Template) {
+ 	def("sourcelisting", loadFile("html/source.html"))
+ 	def("plaintext", loadFile("html/plaintext.html"))
+ 	def("flamegraph", loadFile("html/flamegraph.html"))
++	def("stacks", loadFile("html/stacks.html"))
++	def("stacks_css", loadCSS("html/stacks.css"))
++	def("stacks_js", loadJS("html/stacks.js"))
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+index 0f3e8bf93c..8881e39eb2 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+@@ -36,13 +36,14 @@ import (
+ // webInterface holds the state needed for serving a browser based interface.
+ type webInterface struct {
+ 	prof         *profile.Profile
++	copier       profileCopier
+ 	options      *plugin.Options
+ 	help         map[string]string
+ 	templates    *template.Template
+ 	settingsFile string
+ }
+ 
+-func makeWebInterface(p *profile.Profile, opt *plugin.Options) (*webInterface, error) {
++func makeWebInterface(p *profile.Profile, copier profileCopier, opt *plugin.Options) (*webInterface, error) {
+ 	settingsFile, err := settingsFileName()
+ 	if err != nil {
+ 		return nil, err
+@@ -52,6 +53,7 @@ func makeWebInterface(p *profile.Profile, opt *plugin.Options) (*webInterface, e
+ 	report.AddSourceTemplates(templates)
+ 	return &webInterface{
+ 		prof:         p,
++		copier:       copier,
+ 		options:      opt,
+ 		help:         make(map[string]string),
+ 		templates:    templates,
+@@ -86,6 +88,7 @@ type webArgs struct {
+ 	TextBody    string
+ 	Top         []report.TextItem
+ 	FlameGraph  template.JS
++	Stacks      template.JS
+ 	Configs     []configMenuEntry
+ }
+ 
+@@ -95,7 +98,8 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
+ 		return err
+ 	}
+ 	interactiveMode = true
+-	ui, err := makeWebInterface(p, o)
++	copier := makeProfileCopier(p)
++	ui, err := makeWebInterface(p, copier, o)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -107,6 +111,8 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
+ 	}
+ 	ui.help["details"] = "Show information about the profile and this view"
+ 	ui.help["graph"] = "Display profile as a directed graph"
++	ui.help["flamegraph"] = "Display profile as a flame graph"
++	ui.help["flamegraph2"] = "Display profile as a flame graph (experimental version that can display caller info on selection)"
+ 	ui.help["reset"] = "Show the entire profile"
+ 	ui.help["save_config"] = "Save current settings"
+ 
+@@ -125,6 +131,7 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
+ 			"/source":       http.HandlerFunc(ui.source),
+ 			"/peek":         http.HandlerFunc(ui.peek),
+ 			"/flamegraph":   http.HandlerFunc(ui.flamegraph),
++			"/flamegraph2":  http.HandlerFunc(ui.stackView), // Experimental
+ 			"/saveconfig":   http.HandlerFunc(ui.saveConfig),
+ 			"/deleteconfig": http.HandlerFunc(ui.deleteConfig),
+ 			"/download": http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+@@ -262,7 +269,7 @@ func (ui *webInterface) makeReport(w http.ResponseWriter, req *http.Request,
+ 	catcher := &errorCatcher{UI: ui.options.UI}
+ 	options := *ui.options
+ 	options.UI = catcher
+-	_, rpt, err := generateRawReport(ui.prof, cmd, cfg, &options)
++	_, rpt, err := generateRawReport(ui.copier.newCopy(), cmd, cfg, &options)
+ 	if err != nil {
+ 		http.Error(w, err.Error(), http.StatusBadRequest)
+ 		ui.options.UI.PrintErr(err)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/package.go b/src/cmd/vendor/github.com/google/pprof/internal/report/package.go
+new file mode 100644
+index 0000000000..6d538599b0
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/package.go
+@@ -0,0 +1,17 @@
++package report
++
++import "regexp"
++
++// pkgRE extracts package name, It looks for the first "." or "::" that occurs
++// after the last "/". (Searching after the last / allows us to correctly handle
++// names that look like "some.url.com/foo.bar".
++var pkgRE = regexp.MustCompile(`^((.*/)?[\w\d_]+)(\.|::)([^/]*)$`)
++
++// packageName returns the package name of the named symbol, or "" if not found.
++func packageName(name string) string {
++	m := pkgRE.FindStringSubmatch(name)
++	if m == nil {
++		return ""
++	}
++	return m[1]
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/shortnames.go b/src/cmd/vendor/github.com/google/pprof/internal/report/shortnames.go
+new file mode 100644
+index 0000000000..3d9f3f48ea
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/shortnames.go
+@@ -0,0 +1,39 @@
++// Copyright 2022 Google Inc. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package report
++
++import (
++	"regexp"
++
++	"github.com/google/pprof/internal/graph"
++)
++
++var sepRE = regexp.MustCompile(`::|\.`)
++
++// shortNameList returns a non-empty sequence of shortened names
++// (in decreasing preference) that can be used to represent name.
++func shortNameList(name string) []string {
++	name = graph.ShortenFunctionName(name)
++	seps := sepRE.FindAllStringIndex(name, -1)
++	result := make([]string, 0, len(seps)+1)
++	result = append(result, name)
++	for _, sep := range seps {
++		// Suffix starting just after sep
++		if sep[1] < len(name) {
++			result = append(result, name[sep[1]:])
++		}
++	}
++	return result
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/stacks.go b/src/cmd/vendor/github.com/google/pprof/internal/report/stacks.go
+new file mode 100644
+index 0000000000..7db51bc01c
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/stacks.go
+@@ -0,0 +1,194 @@
++// Copyright 2022 Google Inc. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package report
++
++import (
++	"crypto/sha256"
++	"encoding/binary"
++	"fmt"
++	"regexp"
++
++	"github.com/google/pprof/internal/measurement"
++	"github.com/google/pprof/profile"
++)
++
++// StackSet holds a set of stacks corresponding to a profile.
++//
++// Slices in StackSet and the types it contains are always non-nil,
++// which makes Javascript code that uses the JSON encoding less error-prone.
++type StackSet struct {
++	Total   int64         // Total value of the profile.
++	Scale   float64       // Multiplier to generate displayed value
++	Type    string        // Profile type. E.g., "cpu".
++	Unit    string        // One of "B", "s", "GCU", or "" (if unknown)
++	Stacks  []Stack       // List of stored stacks
++	Sources []StackSource // Mapping from source index to info
++}
++
++// Stack holds a single stack instance.
++type Stack struct {
++	Value   int64 // Total value for all samples of this stack.
++	Sources []int // Indices in StackSet.Sources (callers before callees).
++}
++
++// StackSource holds function/location info for a stack entry.
++type StackSource struct {
++	FullName   string
++	FileName   string
++	UniqueName string // Disambiguates functions with same names
++	Inlined    bool   // If true this source was inlined into its caller
++
++	// Alternative names to display (with decreasing lengths) to make text fit.
++	// Guaranteed to be non-empty.
++	Display []string
++
++	// Regular expression (anchored) that matches exactly FullName.
++	RE string
++
++	// Places holds the list of stack slots where this source occurs.
++	// In particular, if [a,b] is an element in Places,
++	// StackSet.Stacks[a].Sources[b] points to this source.
++	//
++	// No stack will be referenced twice in the Places slice for a given
++	// StackSource. In case of recursion, Places will contain the outer-most
++	// entry in the recursive stack. E.g., if stack S has source X at positions
++	// 4,6,9,10, the Places entry for X will contain [S,4].
++	Places []StackSlot
++
++	// Combined count of stacks where this source is the leaf.
++	Self int64
++
++	// Color number to use for this source.
++	// Colors with high numbers than supported may be treated as zero.
++	Color int
++}
++
++// StackSlot identifies a particular StackSlot.
++type StackSlot struct {
++	Stack int // Index in StackSet.Stacks
++	Pos   int // Index in Stack.Sources
++}
++
++// Stacks returns a StackSet for the profile in rpt.
++func (rpt *Report) Stacks() StackSet {
++	// Get scale for converting to default unit of the right type.
++	scale, unit := measurement.Scale(1, rpt.options.SampleUnit, "default")
++	if unit == "default" {
++		unit = ""
++	}
++	if rpt.options.Ratio > 0 {
++		scale *= rpt.options.Ratio
++	}
++	s := &StackSet{
++		Total:   rpt.total,
++		Scale:   scale,
++		Type:    rpt.options.SampleType,
++		Unit:    unit,
++		Stacks:  []Stack{},       // Ensure non-nil
++		Sources: []StackSource{}, // Ensure non-nil
++	}
++	s.makeInitialStacks(rpt)
++	s.fillPlaces()
++	s.assignColors()
++	return *s
++}
++
++func (s *StackSet) makeInitialStacks(rpt *Report) {
++	type key struct {
++		line    profile.Line
++		inlined bool
++	}
++	srcs := map[key]int{} // Sources identified so far.
++	seenFunctions := map[string]bool{}
++	unknownIndex := 1
++	getSrc := func(line profile.Line, inlined bool) int {
++		k := key{line, inlined}
++		if i, ok := srcs[k]; ok {
++			return i
++		}
++		x := StackSource{Places: []StackSlot{}} // Ensure Places is non-nil
++		if fn := line.Function; fn != nil {
++			x.FullName = fn.Name
++			x.FileName = fn.Filename
++			if !seenFunctions[fn.Name] {
++				x.UniqueName = fn.Name
++				seenFunctions[fn.Name] = true
++			} else {
++				// Assign a different name so pivoting picks this function.
++				x.UniqueName = fmt.Sprint(fn.Name, "#", fn.ID)
++			}
++		} else {
++			x.FullName = fmt.Sprintf("?%d?", unknownIndex)
++			x.UniqueName = x.FullName
++			unknownIndex++
++		}
++		x.Inlined = inlined
++		x.RE = "^" + regexp.QuoteMeta(x.UniqueName) + "$"
++		x.Display = shortNameList(x.FullName)
++		s.Sources = append(s.Sources, x)
++		srcs[k] = len(s.Sources) - 1
++		return len(s.Sources) - 1
++	}
++
++	// Synthesized root location that will be placed at the beginning of each stack.
++	s.Sources = []StackSource{{
++		FullName: "root",
++		Display:  []string{"root"},
++		Places:   []StackSlot{},
++	}}
++
++	for _, sample := range rpt.prof.Sample {
++		value := rpt.options.SampleValue(sample.Value)
++		stack := Stack{Value: value, Sources: []int{0}} // Start with the root
++
++		// Note: we need to reverse the order in the produced stack.
++		for i := len(sample.Location) - 1; i >= 0; i-- {
++			loc := sample.Location[i]
++			for j := len(loc.Line) - 1; j >= 0; j-- {
++				line := loc.Line[j]
++				inlined := (j != len(loc.Line)-1)
++				stack.Sources = append(stack.Sources, getSrc(line, inlined))
++			}
++		}
++
++		leaf := stack.Sources[len(stack.Sources)-1]
++		s.Sources[leaf].Self += value
++		s.Stacks = append(s.Stacks, stack)
++	}
++}
++
++func (s *StackSet) fillPlaces() {
++	for i, stack := range s.Stacks {
++		seenSrcs := map[int]bool{}
++		for j, src := range stack.Sources {
++			if seenSrcs[src] {
++				continue
++			}
++			seenSrcs[src] = true
++			s.Sources[src].Places = append(s.Sources[src].Places, StackSlot{i, j})
++		}
++	}
++}
++
++func (s *StackSet) assignColors() {
++	// Assign different color indices to different packages.
++	const numColors = 1048576
++	for i, src := range s.Sources {
++		pkg := packageName(src.FullName)
++		h := sha256.Sum256([]byte(pkg))
++		index := binary.LittleEndian.Uint32(h[:])
++		s.Sources[i].Color = int(index % numColors)
++	}
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+index d243b800a9..87f202bdd4 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+@@ -19,7 +19,7 @@ package symbolizer
+ 
+ import (
+ 	"fmt"
+-	"io/ioutil"
++	"io"
+ 	"net/http"
+ 	"net/url"
+ 	"path/filepath"
+@@ -110,13 +110,13 @@ func postURL(source, post string, tr http.RoundTripper) ([]byte, error) {
+ 	if resp.StatusCode != http.StatusOK {
+ 		return nil, fmt.Errorf("http post %s: %v", source, statusCodeError(resp))
+ 	}
+-	return ioutil.ReadAll(resp.Body)
++	return io.ReadAll(resp.Body)
+ }
+ 
+ func statusCodeError(resp *http.Response) error {
+ 	if resp.Header.Get("X-Go-Pprof") != "" && strings.Contains(resp.Header.Get("Content-Type"), "text/plain") {
+ 		// error is from pprof endpoint
+-		if body, err := ioutil.ReadAll(resp.Body); err == nil {
++		if body, err := io.ReadAll(resp.Body); err == nil {
+ 			return fmt.Errorf("server response: %s - %s", resp.Status, body)
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/transport/transport.go b/src/cmd/vendor/github.com/google/pprof/internal/transport/transport.go
+index b5fb1ddff5..6c3bd0dfd0 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/transport/transport.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/transport/transport.go
+@@ -20,8 +20,8 @@ import (
+ 	"crypto/tls"
+ 	"crypto/x509"
+ 	"fmt"
+-	"io/ioutil"
+ 	"net/http"
++	"os"
+ 	"sync"
+ 
+ 	"github.com/google/pprof/internal/plugin"
+@@ -86,7 +86,7 @@ func (tr *transport) initialize() error {
+ 
+ 	if ca != "" {
+ 		caCertPool := x509.NewCertPool()
+-		caCert, err := ioutil.ReadFile(ca)
++		caCert, err := os.ReadFile(ca)
+ 		if err != nil {
+ 			return fmt.Errorf("could not load CA specified by -tls_ca: %v", err)
+ 		}
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/encode.go b/src/cmd/vendor/github.com/google/pprof/profile/encode.go
+index 96aa271e54..c8a1beb8a8 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/encode.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/encode.go
+@@ -184,12 +184,13 @@ var profileDecoder = []decoder{
+ 	// repeated Location location = 4
+ 	func(b *buffer, m message) error {
+ 		x := new(Location)
+-		x.Line = make([]Line, 0, 8) // Pre-allocate Line buffer
++		x.Line = b.tmpLines[:0] // Use shared space temporarily
+ 		pp := m.(*Profile)
+ 		pp.Location = append(pp.Location, x)
+ 		err := decodeMessage(b, x)
+-		var tmp []Line
+-		x.Line = append(tmp, x.Line...) // Shrink to allocated size
++		b.tmpLines = x.Line[:0]
++		// Copy to shrink size and detach from shared space.
++		x.Line = append([]Line(nil), x.Line...)
+ 		return err
+ 	},
+ 	// repeated Function function = 5
+@@ -307,41 +308,52 @@ func (p *Profile) postDecode() error {
+ 		st.Unit, err = getString(p.stringTable, &st.unitX, err)
+ 	}
+ 
++	// Pre-allocate space for all locations.
++	numLocations := 0
+ 	for _, s := range p.Sample {
+-		labels := make(map[string][]string, len(s.labelX))
+-		numLabels := make(map[string][]int64, len(s.labelX))
+-		numUnits := make(map[string][]string, len(s.labelX))
+-		for _, l := range s.labelX {
+-			var key, value string
+-			key, err = getString(p.stringTable, &l.keyX, err)
+-			if l.strX != 0 {
+-				value, err = getString(p.stringTable, &l.strX, err)
+-				labels[key] = append(labels[key], value)
+-			} else if l.numX != 0 || l.unitX != 0 {
+-				numValues := numLabels[key]
+-				units := numUnits[key]
+-				if l.unitX != 0 {
+-					var unit string
+-					unit, err = getString(p.stringTable, &l.unitX, err)
+-					units = padStringArray(units, len(numValues))
+-					numUnits[key] = append(units, unit)
++		numLocations += len(s.locationIDX)
++	}
++	locBuffer := make([]*Location, numLocations)
++
++	for _, s := range p.Sample {
++		if len(s.labelX) > 0 {
++			labels := make(map[string][]string, len(s.labelX))
++			numLabels := make(map[string][]int64, len(s.labelX))
++			numUnits := make(map[string][]string, len(s.labelX))
++			for _, l := range s.labelX {
++				var key, value string
++				key, err = getString(p.stringTable, &l.keyX, err)
++				if l.strX != 0 {
++					value, err = getString(p.stringTable, &l.strX, err)
++					labels[key] = append(labels[key], value)
++				} else if l.numX != 0 || l.unitX != 0 {
++					numValues := numLabels[key]
++					units := numUnits[key]
++					if l.unitX != 0 {
++						var unit string
++						unit, err = getString(p.stringTable, &l.unitX, err)
++						units = padStringArray(units, len(numValues))
++						numUnits[key] = append(units, unit)
++					}
++					numLabels[key] = append(numLabels[key], l.numX)
+ 				}
+-				numLabels[key] = append(numLabels[key], l.numX)
+ 			}
+-		}
+-		if len(labels) > 0 {
+-			s.Label = labels
+-		}
+-		if len(numLabels) > 0 {
+-			s.NumLabel = numLabels
+-			for key, units := range numUnits {
+-				if len(units) > 0 {
+-					numUnits[key] = padStringArray(units, len(numLabels[key]))
++			if len(labels) > 0 {
++				s.Label = labels
++			}
++			if len(numLabels) > 0 {
++				s.NumLabel = numLabels
++				for key, units := range numUnits {
++					if len(units) > 0 {
++						numUnits[key] = padStringArray(units, len(numLabels[key]))
++					}
+ 				}
++				s.NumUnit = numUnits
+ 			}
+-			s.NumUnit = numUnits
+ 		}
+-		s.Location = make([]*Location, len(s.locationIDX))
++
++		s.Location = locBuffer[:len(s.locationIDX)]
++		locBuffer = locBuffer[len(s.locationIDX):]
+ 		for i, lid := range s.locationIDX {
+ 			if lid < uint64(len(locationIds)) {
+ 				s.Location[i] = locationIds[lid]
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/filter.go b/src/cmd/vendor/github.com/google/pprof/profile/filter.go
+index ea8e66c68d..c794b93906 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/filter.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/filter.go
+@@ -22,6 +22,10 @@ import "regexp"
+ // samples where at least one frame matches focus but none match ignore.
+ // Returns true is the corresponding regexp matched at least one sample.
+ func (p *Profile) FilterSamplesByName(focus, ignore, hide, show *regexp.Regexp) (fm, im, hm, hnm bool) {
++	if focus == nil && ignore == nil && hide == nil && show == nil {
++		fm = true // Missing focus implies a match
++		return
++	}
+ 	focusOrIgnore := make(map[uint64]bool)
+ 	hidden := make(map[uint64]bool)
+ 	for _, l := range p.Location {
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/legacy_profile.go b/src/cmd/vendor/github.com/google/pprof/profile/legacy_profile.go
+index 9ba9a77c92..8d07fd6c27 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/legacy_profile.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/legacy_profile.go
+@@ -865,7 +865,6 @@ func parseThread(b []byte) (*Profile, error) {
+ 	// Recognize each thread and populate profile samples.
+ 	for !isMemoryMapSentinel(line) {
+ 		if strings.HasPrefix(line, "---- no stack trace for") {
+-			line = ""
+ 			break
+ 		}
+ 		if t := threadStartRE.FindStringSubmatch(line); len(t) != 4 {
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/merge.go b/src/cmd/vendor/github.com/google/pprof/profile/merge.go
+index 6fcd11de19..4b66282cb8 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/merge.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/merge.go
+@@ -15,6 +15,7 @@
+ package profile
+ 
+ import (
++	"encoding/binary"
+ 	"fmt"
+ 	"sort"
+ 	"strconv"
+@@ -58,7 +59,7 @@ func Merge(srcs []*Profile) (*Profile, error) {
+ 
+ 	for _, src := range srcs {
+ 		// Clear the profile-specific hash tables
+-		pm.locationsByID = make(map[uint64]*Location, len(src.Location))
++		pm.locationsByID = makeLocationIDMap(len(src.Location))
+ 		pm.functionsByID = make(map[uint64]*Function, len(src.Function))
+ 		pm.mappingsByID = make(map[uint64]mapInfo, len(src.Mapping))
+ 
+@@ -136,7 +137,7 @@ type profileMerger struct {
+ 	p *Profile
+ 
+ 	// Memoization tables within a profile.
+-	locationsByID map[uint64]*Location
++	locationsByID locationIDMap
+ 	functionsByID map[uint64]*Function
+ 	mappingsByID  map[uint64]mapInfo
+ 
+@@ -153,6 +154,16 @@ type mapInfo struct {
+ }
+ 
+ func (pm *profileMerger) mapSample(src *Sample) *Sample {
++	// Check memoization table
++	k := pm.sampleKey(src)
++	if ss, ok := pm.samples[k]; ok {
++		for i, v := range src.Value {
++			ss.Value[i] += v
++		}
++		return ss
++	}
++
++	// Make new sample.
+ 	s := &Sample{
+ 		Location: make([]*Location, len(src.Location)),
+ 		Value:    make([]int64, len(src.Value)),
+@@ -177,52 +188,98 @@ func (pm *profileMerger) mapSample(src *Sample) *Sample {
+ 		s.NumLabel[k] = vv
+ 		s.NumUnit[k] = uu
+ 	}
+-	// Check memoization table. Must be done on the remapped location to
+-	// account for the remapped mapping. Add current values to the
+-	// existing sample.
+-	k := s.key()
+-	if ss, ok := pm.samples[k]; ok {
+-		for i, v := range src.Value {
+-			ss.Value[i] += v
+-		}
+-		return ss
+-	}
+ 	copy(s.Value, src.Value)
+ 	pm.samples[k] = s
+ 	pm.p.Sample = append(pm.p.Sample, s)
+ 	return s
+ }
+ 
+-// key generates sampleKey to be used as a key for maps.
+-func (sample *Sample) key() sampleKey {
+-	ids := make([]string, len(sample.Location))
+-	for i, l := range sample.Location {
+-		ids[i] = strconv.FormatUint(l.ID, 16)
++func (pm *profileMerger) sampleKey(sample *Sample) sampleKey {
++	// Accumulate contents into a string.
++	var buf strings.Builder
++	buf.Grow(64) // Heuristic to avoid extra allocs
++
++	// encode a number
++	putNumber := func(v uint64) {
++		var num [binary.MaxVarintLen64]byte
++		n := binary.PutUvarint(num[:], v)
++		buf.Write(num[:n])
++	}
++
++	// encode a string prefixed with its length.
++	putDelimitedString := func(s string) {
++		putNumber(uint64(len(s)))
++		buf.WriteString(s)
++	}
++
++	for _, l := range sample.Location {
++		// Get the location in the merged profile, which may have a different ID.
++		if loc := pm.mapLocation(l); loc != nil {
++			putNumber(loc.ID)
++		}
+ 	}
++	putNumber(0) // Delimiter
+ 
+-	labels := make([]string, 0, len(sample.Label))
+-	for k, v := range sample.Label {
+-		labels = append(labels, fmt.Sprintf("%q%q", k, v))
++	for _, l := range sortedKeys1(sample.Label) {
++		putDelimitedString(l)
++		values := sample.Label[l]
++		putNumber(uint64(len(values)))
++		for _, v := range values {
++			putDelimitedString(v)
++		}
+ 	}
+-	sort.Strings(labels)
+ 
+-	numlabels := make([]string, 0, len(sample.NumLabel))
+-	for k, v := range sample.NumLabel {
+-		numlabels = append(numlabels, fmt.Sprintf("%q%x%x", k, v, sample.NumUnit[k]))
++	for _, l := range sortedKeys2(sample.NumLabel) {
++		putDelimitedString(l)
++		values := sample.NumLabel[l]
++		putNumber(uint64(len(values)))
++		for _, v := range values {
++			putNumber(uint64(v))
++		}
++		units := sample.NumUnit[l]
++		putNumber(uint64(len(units)))
++		for _, v := range units {
++			putDelimitedString(v)
++		}
+ 	}
+-	sort.Strings(numlabels)
+ 
+-	return sampleKey{
+-		strings.Join(ids, "|"),
+-		strings.Join(labels, ""),
+-		strings.Join(numlabels, ""),
++	return sampleKey(buf.String())
++}
++
++type sampleKey string
++
++// sortedKeys1 returns the sorted keys found in a string->[]string map.
++//
++// Note: this is currently non-generic since github pprof runs golint,
++// which does not support generics. When that issue is fixed, it can
++// be merged with sortedKeys2 and made into a generic function.
++func sortedKeys1(m map[string][]string) []string {
++	if len(m) == 0 {
++		return nil
+ 	}
++	keys := make([]string, 0, len(m))
++	for k := range m {
++		keys = append(keys, k)
++	}
++	sort.Strings(keys)
++	return keys
+ }
+ 
+-type sampleKey struct {
+-	locations string
+-	labels    string
+-	numlabels string
++// sortedKeys2 returns the sorted keys found in a string->[]int64 map.
++//
++// Note: this is currently non-generic since github pprof runs golint,
++// which does not support generics. When that issue is fixed, it can
++// be merged with sortedKeys1 and made into a generic function.
++func sortedKeys2(m map[string][]int64) []string {
++	if len(m) == 0 {
++		return nil
++	}
++	keys := make([]string, 0, len(m))
++	for k := range m {
++		keys = append(keys, k)
++	}
++	sort.Strings(keys)
++	return keys
+ }
+ 
+ func (pm *profileMerger) mapLocation(src *Location) *Location {
+@@ -230,7 +287,7 @@ func (pm *profileMerger) mapLocation(src *Location) *Location {
+ 		return nil
+ 	}
+ 
+-	if l, ok := pm.locationsByID[src.ID]; ok {
++	if l := pm.locationsByID.get(src.ID); l != nil {
+ 		return l
+ 	}
+ 
+@@ -249,10 +306,10 @@ func (pm *profileMerger) mapLocation(src *Location) *Location {
+ 	// account for the remapped mapping ID.
+ 	k := l.key()
+ 	if ll, ok := pm.locations[k]; ok {
+-		pm.locationsByID[src.ID] = ll
++		pm.locationsByID.set(src.ID, ll)
+ 		return ll
+ 	}
+-	pm.locationsByID[src.ID] = l
++	pm.locationsByID.set(src.ID, l)
+ 	pm.locations[k] = l
+ 	pm.p.Location = append(pm.p.Location, l)
+ 	return l
+@@ -480,3 +537,131 @@ func (p *Profile) compatible(pb *Profile) error {
+ func equalValueType(st1, st2 *ValueType) bool {
+ 	return st1.Type == st2.Type && st1.Unit == st2.Unit
+ }
++
++// locationIDMap is like a map[uint64]*Location, but provides efficiency for
++// ids that are densely numbered, which is often the case.
++type locationIDMap struct {
++	dense  []*Location          // indexed by id for id < len(dense)
++	sparse map[uint64]*Location // indexed by id for id >= len(dense)
++}
++
++func makeLocationIDMap(n int) locationIDMap {
++	return locationIDMap{
++		dense:  make([]*Location, n),
++		sparse: map[uint64]*Location{},
++	}
++}
++
++func (lm locationIDMap) get(id uint64) *Location {
++	if id < uint64(len(lm.dense)) {
++		return lm.dense[int(id)]
++	}
++	return lm.sparse[id]
++}
++
++func (lm locationIDMap) set(id uint64, loc *Location) {
++	if id < uint64(len(lm.dense)) {
++		lm.dense[id] = loc
++		return
++	}
++	lm.sparse[id] = loc
++}
++
++// CompatibilizeSampleTypes makes profiles compatible to be compared/merged. It
++// keeps sample types that appear in all profiles only and drops/reorders the
++// sample types as necessary.
++//
++// In the case of sample types order is not the same for given profiles the
++// order is derived from the first profile.
++//
++// Profiles are modified in-place.
++//
++// It returns an error if the sample type's intersection is empty.
++func CompatibilizeSampleTypes(ps []*Profile) error {
++	sTypes := commonSampleTypes(ps)
++	if len(sTypes) == 0 {
++		return fmt.Errorf("profiles have empty common sample type list")
++	}
++	for _, p := range ps {
++		if err := compatibilizeSampleTypes(p, sTypes); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++// commonSampleTypes returns sample types that appear in all profiles in the
++// order how they ordered in the first profile.
++func commonSampleTypes(ps []*Profile) []string {
++	if len(ps) == 0 {
++		return nil
++	}
++	sTypes := map[string]int{}
++	for _, p := range ps {
++		for _, st := range p.SampleType {
++			sTypes[st.Type]++
++		}
++	}
++	var res []string
++	for _, st := range ps[0].SampleType {
++		if sTypes[st.Type] == len(ps) {
++			res = append(res, st.Type)
++		}
++	}
++	return res
++}
++
++// compatibilizeSampleTypes drops sample types that are not present in sTypes
++// list and reorder them if needed.
++//
++// It sets DefaultSampleType to sType[0] if it is not in sType list.
++//
++// It assumes that all sample types from the sTypes list are present in the
++// given profile otherwise it returns an error.
++func compatibilizeSampleTypes(p *Profile, sTypes []string) error {
++	if len(sTypes) == 0 {
++		return fmt.Errorf("sample type list is empty")
++	}
++	defaultSampleType := sTypes[0]
++	reMap, needToModify := make([]int, len(sTypes)), false
++	for i, st := range sTypes {
++		if st == p.DefaultSampleType {
++			defaultSampleType = p.DefaultSampleType
++		}
++		idx := searchValueType(p.SampleType, st)
++		if idx < 0 {
++			return fmt.Errorf("%q sample type is not found in profile", st)
++		}
++		reMap[i] = idx
++		if idx != i {
++			needToModify = true
++		}
++	}
++	if !needToModify && len(sTypes) == len(p.SampleType) {
++		return nil
++	}
++	p.DefaultSampleType = defaultSampleType
++	oldSampleTypes := p.SampleType
++	p.SampleType = make([]*ValueType, len(sTypes))
++	for i, idx := range reMap {
++		p.SampleType[i] = oldSampleTypes[idx]
++	}
++	values := make([]int64, len(sTypes))
++	for _, s := range p.Sample {
++		for i, idx := range reMap {
++			values[i] = s.Value[idx]
++		}
++		s.Value = s.Value[:len(values)]
++		copy(s.Value, values)
++	}
++	return nil
++}
++
++func searchValueType(vts []*ValueType, s string) int {
++	for i, vt := range vts {
++		if vt.Type == s {
++			return i
++		}
++	}
++	return -1
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/profile.go b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+index 5a3807f978..4ec00fe7d9 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/profile.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+@@ -21,7 +21,6 @@ import (
+ 	"compress/gzip"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"math"
+ 	"path/filepath"
+ 	"regexp"
+@@ -153,7 +152,7 @@ type Function struct {
+ // may be a gzip-compressed encoded protobuf or one of many legacy
+ // profile formats which may be unsupported in the future.
+ func Parse(r io.Reader) (*Profile, error) {
+-	data, err := ioutil.ReadAll(r)
++	data, err := io.ReadAll(r)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -168,7 +167,7 @@ func ParseData(data []byte) (*Profile, error) {
+ 	if len(data) >= 2 && data[0] == 0x1f && data[1] == 0x8b {
+ 		gz, err := gzip.NewReader(bytes.NewBuffer(data))
+ 		if err == nil {
+-			data, err = ioutil.ReadAll(gz)
++			data, err = io.ReadAll(gz)
+ 		}
+ 		if err != nil {
+ 			return nil, fmt.Errorf("decompressing profile: %v", err)
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/proto.go b/src/cmd/vendor/github.com/google/pprof/profile/proto.go
+index 539ad3ab33..a15696ba16 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/proto.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/proto.go
+@@ -39,11 +39,12 @@ import (
+ )
+ 
+ type buffer struct {
+-	field int // field tag
+-	typ   int // proto wire type code for field
+-	u64   uint64
+-	data  []byte
+-	tmp   [16]byte
++	field    int // field tag
++	typ      int // proto wire type code for field
++	u64      uint64
++	data     []byte
++	tmp      [16]byte
++	tmpLines []Line // temporary storage used while decoding "repeated Line".
+ }
+ 
+ type decoder func(*buffer, message) error
+@@ -286,7 +287,6 @@ func decodeInt64s(b *buffer, x *[]int64) error {
+ 	if b.typ == 2 {
+ 		// Packed encoding
+ 		data := b.data
+-		tmp := make([]int64, 0, len(data)) // Maximally sized
+ 		for len(data) > 0 {
+ 			var u uint64
+ 			var err error
+@@ -294,9 +294,8 @@ func decodeInt64s(b *buffer, x *[]int64) error {
+ 			if u, data, err = decodeVarint(data); err != nil {
+ 				return err
+ 			}
+-			tmp = append(tmp, int64(u))
++			*x = append(*x, int64(u))
+ 		}
+-		*x = append(*x, tmp...)
+ 		return nil
+ 	}
+ 	var i int64
+@@ -319,7 +318,6 @@ func decodeUint64s(b *buffer, x *[]uint64) error {
+ 	if b.typ == 2 {
+ 		data := b.data
+ 		// Packed encoding
+-		tmp := make([]uint64, 0, len(data)) // Maximally sized
+ 		for len(data) > 0 {
+ 			var u uint64
+ 			var err error
+@@ -327,9 +325,8 @@ func decodeUint64s(b *buffer, x *[]uint64) error {
+ 			if u, data, err = decodeVarint(data); err != nil {
+ 				return err
+ 			}
+-			tmp = append(tmp, u)
++			*x = append(*x, u)
+ 		}
+-		*x = append(*x, tmp...)
+ 		return nil
+ 	}
+ 	var u uint64
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/prune.go b/src/cmd/vendor/github.com/google/pprof/profile/prune.go
+index 02d21a8184..b2f9fd5466 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/prune.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/prune.go
+@@ -62,15 +62,31 @@ func (p *Profile) Prune(dropRx, keepRx *regexp.Regexp) {
+ 	prune := make(map[uint64]bool)
+ 	pruneBeneath := make(map[uint64]bool)
+ 
++	// simplifyFunc can be expensive, so cache results.
++	// Note that the same function name can be encountered many times due
++	// different lines and addresses in the same function.
++	pruneCache := map[string]bool{} // Map from function to whether or not to prune
++	pruneFromHere := func(s string) bool {
++		if r, ok := pruneCache[s]; ok {
++			return r
++		}
++		funcName := simplifyFunc(s)
++		if dropRx.MatchString(funcName) {
++			if keepRx == nil || !keepRx.MatchString(funcName) {
++				pruneCache[s] = true
++				return true
++			}
++		}
++		pruneCache[s] = false
++		return false
++	}
++
+ 	for _, loc := range p.Location {
+ 		var i int
+ 		for i = len(loc.Line) - 1; i >= 0; i-- {
+ 			if fn := loc.Line[i].Function; fn != nil && fn.Name != "" {
+-				funcName := simplifyFunc(fn.Name)
+-				if dropRx.MatchString(funcName) {
+-					if keepRx == nil || !keepRx.MatchString(funcName) {
+-						break
+-					}
++				if pruneFromHere(fn.Name) {
++					break
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index a04ca6308a..e092e672e9 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,5 +1,5 @@
+-# github.com/google/pprof v0.0.0-20220729232143-a41b82acbcb1
+-## explicit; go 1.17
++# github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26
++## explicit; go 1.18
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils
+ github.com/google/pprof/internal/driver

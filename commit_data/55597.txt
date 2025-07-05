@@ -13,7 +13,52 @@ Date:   Thu Feb 23 15:47:44 2023 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/predicates.go | 11 +++++++++++
  src/go/types/predicates.go                    | 11 +++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 2e6067652b..c92c1dc292 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -64,6 +64,17 @@ func hasName(t Type) bool {
+ 	return false
+ }
+ 
++// isTypeLit reports whether t is a type literal.
++// This includes all non-defined types, but also basic types.
++// isTypeLit may be called with types that are not fully set up.
++func isTypeLit(t Type) bool {
++	switch t.(type) {
++	case *Named, *TypeParam:
++		return false
++	}
++	return true
++}
++
+ // isTyped reports whether t is typed; i.e., not an untyped
+ // constant or boolean. isTyped may be called with types that
+ // are not fully set up.
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 903b1445e9..cf02a8cab5 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -66,6 +66,17 @@ func hasName(t Type) bool {
+ 	return false
+ }
+ 
++// isTypeLit reports whether t is a type literal.
++// This includes all non-defined types, but also basic types.
++// isTypeLit may be called with types that are not fully set up.
++func isTypeLit(t Type) bool {
++	switch t.(type) {
++	case *Named, *TypeParam:
++		return false
++	}
++	return true
++}
++
+ // isTyped reports whether t is typed; i.e., not an untyped
+ // constant or boolean. isTyped may be called with types that
+ // are not fully set up.

@@ -13,7 +13,36 @@ Date:   Thu May 25 08:32:13 2023 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/buildall.bash                              | 3 ++-
  src/runtime/internal/wasitest/nonblock_test.go | 3 +++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/buildall.bash b/src/buildall.bash
+index e4e3ec37ec..4e9b15bf4b 100755
+--- a/src/buildall.bash
++++ b/src/buildall.bash
+@@ -36,7 +36,8 @@ fi
+ GOROOT="$(cd .. && pwd)"
+ 
+ gettargets() {
+-	../bin/go tool dist list | sed -e 's|/|-|'
++	../bin/go tool dist list | sed -e 's|/|-|' |
++		egrep -v '^(android|ios)' # need C toolchain even for cross-compiling
+ 	echo linux-arm-arm5
+ }
+ 
+diff --git a/src/runtime/internal/wasitest/nonblock_test.go b/src/runtime/internal/wasitest/nonblock_test.go
+index 887baab33f..d873ef55fb 100644
+--- a/src/runtime/internal/wasitest/nonblock_test.go
++++ b/src/runtime/internal/wasitest/nonblock_test.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Not all systems have syscall.Mkfifo.
++//go:build !aix && !plan9 && !solaris && !wasm && !windows
++
+ package wasi_test
+ 
+ import (

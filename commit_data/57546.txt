@@ -17,8 +17,55 @@ Date:   Wed Aug 16 11:18:02 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/api/api_test.go              | 2 +-
  src/cmd/api/boring_test.go           | 2 +-
  src/cmd/api/{api.go => main_test.go} | 5 +++--
  3 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/api/api_test.go b/src/cmd/api/api_test.go
+index a5ac49ce2d..910e046f12 100644
+--- a/src/cmd/api/api_test.go
++++ b/src/cmd/api/api_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package api
++package main
+ 
+ import (
+ 	"flag"
+diff --git a/src/cmd/api/boring_test.go b/src/cmd/api/boring_test.go
+index a9ec6e6bfe..f0e3575637 100644
+--- a/src/cmd/api/boring_test.go
++++ b/src/cmd/api/boring_test.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build boringcrypto
+ 
+-package api
++package main
+ 
+ import (
+ 	"fmt"
+diff --git a/src/cmd/api/api.go b/src/cmd/api/main_test.go
+similarity index 99%
+rename from src/cmd/api/api.go
+rename to src/cmd/api/main_test.go
+index b07f5db9d4..f3201e92a9 100644
+--- a/src/cmd/api/api.go
++++ b/src/cmd/api/main_test.go
+@@ -2,9 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package api computes the exported API of a set of Go packages.
++// This package computes the exported API of a set of Go packages.
+ // It is only a test, not a command, nor a usefully importable package.
+-package api
++
++package main
+ 
+ import (
+ 	"bufio"

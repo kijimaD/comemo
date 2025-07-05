@@ -10,8 +10,138 @@ Date:   Fri Oct 23 12:34:03 2015 -0400
     Change-Id: I806dd53c045056a0c2d30d641a20fe27fb790539
     Reviewed-on: https://go-review.googlesource.com/16272
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/dom_test.go      |  2 +-
  src/cmd/compile/internal/ssa/export_test.go   |  4 +++-
  src/cmd/compile/internal/ssa/nilcheck_test.go | 20 ++++++++++----------
  3 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/dom_test.go b/src/cmd/compile/internal/ssa/dom_test.go
+index b46dcebc72..eff7205fa3 100644
+--- a/src/cmd/compile/internal/ssa/dom_test.go
++++ b/src/cmd/compile/internal/ssa/dom_test.go
+@@ -160,7 +160,7 @@ func genMaxPredValue(size int) []bloc {
+ var domBenchRes []*Block
+ 
+ func benchmarkDominators(b *testing.B, size int, bg blockGen) {
+-	c := NewConfig("amd64", DummyFrontend{b})
++	c := NewConfig("amd64", DummyFrontend{b}, nil)
+ 	fun := Fun(c, "entry", bg(size)...)
+ 
+ 	CheckFunc(fun.f)
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index c0db5c8d96..76a05f91d9 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/internal/obj"
+ 	"fmt"
+ 	"testing"
+ )
+@@ -15,7 +16,8 @@ var Opt = opt
+ var Deadcode = deadcode
+ 
+ func testConfig(t *testing.T) *Config {
+-	return NewConfig("amd64", DummyFrontend{t})
++	testCtxt := &obj.Link{}
++	return NewConfig("amd64", DummyFrontend{t}, testCtxt)
+ }
+ 
+ // DummyFrontend is a test-only frontend.
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index cbd17e0093..c0a3d8af69 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -40,7 +40,7 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
+ 		Bloc("exit", Exit("mem")),
+ 	)
+ 
+-	c := NewConfig("amd64", DummyFrontend{b})
++	c := NewConfig("amd64", DummyFrontend{b}, nil)
+ 	fun := Fun(c, "entry", blocs...)
+ 
+ 	CheckFunc(fun.f)
+@@ -64,7 +64,7 @@ func isNilCheck(b *Block) bool {
+ // TestNilcheckSimple verifies that a second repeated nilcheck is removed.
+ func TestNilcheckSimple(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := NewConfig("amd64", DummyFrontend{t}, nil)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -101,7 +101,7 @@ func TestNilcheckSimple(t *testing.T) {
+ // on the order of the dominees.
+ func TestNilcheckDomOrder(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := NewConfig("amd64", DummyFrontend{t}, nil)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -137,7 +137,7 @@ func TestNilcheckDomOrder(t *testing.T) {
+ // TestNilcheckAddr verifies that nilchecks of OpAddr constructed values are removed.
+ func TestNilcheckAddr(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := NewConfig("amd64", DummyFrontend{t}, nil)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -170,7 +170,7 @@ func TestNilcheckAddr(t *testing.T) {
+ // TestNilcheckAddPtr verifies that nilchecks of OpAddPtr constructed values are removed.
+ func TestNilcheckAddPtr(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := NewConfig("amd64", DummyFrontend{t}, nil)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -204,7 +204,7 @@ func TestNilcheckAddPtr(t *testing.T) {
+ // non-nil are removed.
+ func TestNilcheckPhi(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := NewConfig("amd64", DummyFrontend{t}, nil)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -248,7 +248,7 @@ func TestNilcheckPhi(t *testing.T) {
+ // are removed, but checks of different pointers are not.
+ func TestNilcheckKeepRemove(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := NewConfig("amd64", DummyFrontend{t}, nil)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -296,7 +296,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
+ // block are *not* removed.
+ func TestNilcheckInFalseBranch(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := NewConfig("amd64", DummyFrontend{t}, nil)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -347,7 +347,7 @@ func TestNilcheckInFalseBranch(t *testing.T) {
+ // wil remove the generated nil check.
+ func TestNilcheckUser(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := NewConfig("amd64", DummyFrontend{t}, nil)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -386,7 +386,7 @@ func TestNilcheckUser(t *testing.T) {
+ // TestNilcheckBug reproduces a bug in nilcheckelim found by compiling math/big
+ func TestNilcheckBug(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := NewConfig("amd64", DummyFrontend{t}, nil)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),

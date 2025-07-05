@@ -10,7 +10,40 @@ Date:   Mon Oct 9 14:18:06 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/533935
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/selection.go | 5 +++++
  src/go/types/selection.go                    | 5 +++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/selection.go b/src/cmd/compile/internal/types2/selection.go
+index 0fa771938d..dfbf3a0191 100644
+--- a/src/cmd/compile/internal/types2/selection.go
++++ b/src/cmd/compile/internal/types2/selection.go
+@@ -135,6 +135,11 @@ func (s *Selection) Index() []int { return s.index }
+ 
+ // Indirect reports whether any pointer indirection was required to get from
+ // x to f in x.f.
++//
++// Beware: Indirect spuriously returns true (Go issue #8353) for a
++// MethodVal selection in which the receiver argument and parameter
++// both have type *T so there is no indirection.
++// Unfortunately, a fix is too risky.
+ func (s *Selection) Indirect() bool { return s.indirect }
+ 
+ func (s *Selection) String() string { return SelectionString(s, nil) }
+diff --git a/src/go/types/selection.go b/src/go/types/selection.go
+index 02615846b8..50d340c738 100644
+--- a/src/go/types/selection.go
++++ b/src/go/types/selection.go
+@@ -137,6 +137,11 @@ func (s *Selection) Index() []int { return s.index }
+ 
+ // Indirect reports whether any pointer indirection was required to get from
+ // x to f in x.f.
++//
++// Beware: Indirect spuriously returns true (Go issue #8353) for a
++// MethodVal selection in which the receiver argument and parameter
++// both have type *T so there is no indirection.
++// Unfortunately, a fix is too risky.
+ func (s *Selection) Indirect() bool { return s.indirect }
+ 
+ func (s *Selection) String() string { return SelectionString(s, nil) }

@@ -11,7 +11,45 @@ Date:   Wed Jan 28 16:42:26 2009 -0800
     R=ken
     OCL=23726
     CL=23726
-
+---
  src/cmd/6g/gsubr.c | 4 +++-
  src/cmd/gc/subr.c  | 4 ++--
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 6934c6f30c..86ba52c3fe 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -554,7 +554,9 @@ gmove(Node *f, Node *t)
+ 		goto st;
+ 
+ 	st:
+-		if(f->op == OCONST) {
++		// 64-bit immediates only allowed for move into registers.
++		// this is not a move into a register.
++		if(f->op == OCONST || (f->op == OLITERAL && !t64)) {
+ 			gins(a, f, t);
+ 			return;
+ 		}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 870a90167a..6cd0384126 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1620,7 +1620,7 @@ signame(Type *t)
+ 	// so that it can be referred to by the runtime.
+ 	if(strcmp(buf, "interface { }") == 0)
+ 		strcpy(buf, "empty");
+-	
++
+ 	// special case: sigi.... is just too hard to read in assembly.
+ 	if(strcmp(buf, "...") == 0)
+ 		strcpy(buf, "dotdotdot");
+@@ -1707,7 +1707,7 @@ eqtype(Type *t1, Type *t2, int d)
+ 					return 0;
+ 				if(ta->etype != TFIELD || tb->etype != TFIELD)
+ 					return 0;
+-				if(!eqtype(ta->type, tb->type, 0))
++				if(!eqtype(ta->type, tb->type, d+1))
+ 					return 0;
+ 				ta = ta->down;
+ 				tb = tb->down;

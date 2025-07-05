@@ -8,6 +8,39 @@ Date:   Mon Sep 22 13:47:59 2008 -0700
     DELTA=9  (7 added, 2 deleted, 0 changed)
     OCL=15628
     CL=15643
-
+---
  src/runtime/rt0_amd64.s | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/rt0_amd64.s b/src/runtime/rt0_amd64.s
+index 9f354a71ae..35448e07cc 100644
+--- a/src/runtime/rt0_amd64.s
++++ b/src/runtime/rt0_amd64.s
+@@ -37,13 +37,14 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	CALL	schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+-
+ 	PUSHQ	$mainstart(SB)		// entry
+ 	PUSHQ	$16			// arg size
+ 	CALL	sys·newproc(SB)
+-	CALL	mstart(SB)
+ 	POPQ	AX
+ 	POPQ	AX
++	
++	// start this M
++	CALL	mstart(SB)
+ 
+ 	CALL	notok(SB)		// never returns
+ 	RET
+@@ -52,6 +53,10 @@ TEXT mainstart(SB),7,$0
+ 	CALL	main·init_function(SB)
+ 	CALL	initdone(SB)
+ 	CALL	main·main(SB)
++	PUSHQ	$0
++	CALL	sys·exit(SB)
++	POPQ	AX
++	CALL	notok(SB)
+ 	RET
+ 
+ TEXT	sys·breakpoint(SB),7,$0

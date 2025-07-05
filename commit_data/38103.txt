@@ -23,6 +23,20 @@ Date:   Tue Oct 2 22:47:28 2018 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/query.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 0921d683f0..4071341313 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -221,7 +221,7 @@ func QueryPackage(path, query string, allowed func(module.Version) bool) (module
+ 	}
+ 
+ 	finalErr := errMissing
+-	for p := path; p != "."; p = pathpkg.Dir(p) {
++	for p := path; p != "." && p != "/"; p = pathpkg.Dir(p) {
+ 		info, err := Query(p, query, allowed)
+ 		if err != nil {
+ 			if _, ok := err.(*codehost.VCSError); ok {

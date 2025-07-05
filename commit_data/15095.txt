@@ -8,6 +8,45 @@ Date:   Sun Feb 3 01:42:17 2013 +0800
     R=alex.brainman, rsc
     CC=golang-dev
     https://golang.org/cl/7174047
-
+---
  src/pkg/syscall/dll_windows.go | 20 ++++++++++++++++----
  1 file changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/syscall/dll_windows.go b/src/pkg/syscall/dll_windows.go
+index 09111ab75c..d29e9921cf 100644
+--- a/src/pkg/syscall/dll_windows.go
++++ b/src/pkg/syscall/dll_windows.go
+@@ -114,8 +114,14 @@ func (p *Proc) Addr() uintptr {
+ 	return p.addr
+ }
+ 
+-// Call executes procedure p with arguments a.
+-func (p *Proc) Call(a ...uintptr) (r1, r2 uintptr, err error) {
++// Call executes procedure p with arguments a. It will panic, if more then 15 arguments
++// are supplied.
++//
++// The returned error is always non-nil, constructed from the result of GetLastError.
++// Callers must inspect the primary return value to decide whether an error occurred
++// (according to the semantics of the specific function being called) before consulting
++// the error. The error will be guaranteed to contain syscall.Errno.
++func (p *Proc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
+ 	switch len(a) {
+ 	case 0:
+ 		return Syscall(p.Addr(), uintptr(len(a)), 0, 0, 0)
+@@ -260,8 +266,14 @@ func (p *LazyProc) Addr() uintptr {
+ 	return p.proc.Addr()
+ }
+ 
+-// Call executes procedure p with arguments a.
+-func (p *LazyProc) Call(a ...uintptr) (r1, r2 uintptr, err error) {
++// Call executes procedure p with arguments a. It will panic, if more then 15 arguments
++// are supplied.
++//
++// The returned error is always non-nil, constructed from the result of GetLastError.
++// Callers must inspect the primary return value to decide whether an error occurred
++// (according to the semantics of the specific function being called) before consulting
++// the error. The error will be guaranteed to contain syscall.Errno.
++func (p *LazyProc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
+ 	p.mustFind()
+ 	return p.proc.Call(a...)
+ }

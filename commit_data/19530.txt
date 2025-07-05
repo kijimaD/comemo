@@ -17,7 +17,47 @@ Date:   Thu Jun 12 16:34:54 2014 -0400
     R=golang-codereviews, minux, iant
     CC=golang-codereviews, r
     https://golang.org/cl/107970043
-
+---
  src/pkg/runtime/asm_arm.s       |  4 ++++
  src/pkg/runtime/traceback_arm.c | 13 +++++++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 024649be07..1aea9036a7 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -394,6 +394,10 @@ TEXT runtime·lessstack(SB), NOSPLIT, $-4-0
+ // 1. grab stored LR for caller
+ // 2. sub 4 bytes to get back to BL deferreturn
+ // 3. B to fn
++// TODO(rsc): Push things on stack and then use pop
++// to load all registers simultaneously, so that a profiling
++// interrupt can never see mismatched SP/LR/PC.
++// (And double-check that pop is atomic in that way.)
+ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
+ 	MOVW	0(SP), LR
+ 	MOVW	$-4(LR), LR	// BL deferreturn
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 8d1fc54266..d15244c2a9 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -110,6 +110,19 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		if(runtime·topofstack(f)) {
+ 			frame.lr = 0;
+ 			flr = nil;
++		} else if(f->entry == (uintptr)runtime·jmpdefer) {
++			// jmpdefer modifies SP/LR/PC non-atomically.
++			// If a profiling interrupt arrives during jmpdefer,
++			// the stack unwind may see a mismatched register set
++			// and get confused. Stop if we see PC within jmpdefer
++			// to avoid that confusion.
++			// See golang.org/issue/8153.
++			// This check can be deleted if jmpdefer is changed
++			// to restore all three atomically using pop.
++			if(callback != nil)
++				runtime·throw("traceback_arm: found jmpdefer when tracing with callback");
++			frame.lr = 0;
++			flr = nil;
+ 		} else {
+ 			if((n == 0 && frame.sp < frame.fp) || frame.lr == 0)
+ 				frame.lr = *(uintptr*)frame.sp;

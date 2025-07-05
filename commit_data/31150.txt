@@ -14,7 +14,7 @@ Date:   Tue Jan 24 12:48:10 2017 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/386.rules    |  2 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules  |  2 +-
  src/cmd/compile/internal/ssa/gen/ARM.rules    |  2 +-
@@ -32,3 +32,334 @@ Date:   Tue Jan 24 12:48:10 2017 -0800
  src/cmd/compile/internal/ssa/rewritePPC64.go  | 14 +++++---------
  src/cmd/compile/internal/ssa/rewriteS390X.go  | 16 +++++-----------
  16 files changed, 50 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index cd4bf9cf8a..173f40bc8e 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -102,7 +102,7 @@
+ 
+ (Signmask x) -> (SARLconst x [31])
+ (Zeromask <t> x) -> (XORLconst [-1] (SBBLcarrymask <t> (CMPLconst x [1])))
+-(Slicemask <t> x) -> (XORLconst [-1] (SARLconst <t> (SUBLconst <t> x [1]) [31]))
++(Slicemask <t> x) -> (SARLconst (NEGL <t> x) [31])
+ 
+ // Lowering truncation
+ // Because we ignore high parts of registers, truncates are just copies.
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 8636118669..a8d31717f2 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -125,7 +125,7 @@
+ (ZeroExt16to64 x) -> (MOVWQZX x)
+ (ZeroExt32to64 x) -> (MOVLQZX x)
+ 
+-(Slicemask <t> x) -> (XORQconst [-1] (SARQconst <t> (SUBQconst <t> x [1]) [63]))
++(Slicemask <t> x) -> (SARQconst (NEGQ <t> x) [63])
+ 
+ // Lowering truncation
+ // Because we ignore high parts of registers, truncates are just copies.
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 28f074fc20..a81f060ef3 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -203,7 +203,7 @@
+ 
+ (Signmask x) -> (SRAconst x [31])
+ (Zeromask x) -> (SRAconst (RSBshiftRL <config.fe.TypeInt32()> x x [1]) [31]) // sign bit of uint32(x)>>1 - x
+-(Slicemask <t> x) -> (MVN (SRAconst <t> (SUBconst <t> x [1]) [31]))
++(Slicemask <t> x) -> (SRAconst (RSBconst <t> [0] x) [31])
+ 
+ // float <-> int conversion
+ (Cvt32to32F x) -> (MOVWF x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 53b364a12b..58ad1ac369 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -202,7 +202,7 @@
+ (ConstNil) -> (MOVDconst [0])
+ (ConstBool [b]) -> (MOVDconst [b])
+ 
+-(Slicemask <t> x) -> (MVN (SRAconst <t> (SUBconst <t> x [1]) [63]))
++(Slicemask <t> x) -> (SRAconst (NEG <t> x) [63])
+ 
+ // truncations
+ // Because we ignore high parts of registers, truncates are just copies.
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index 008f1b1df1..e4aba36b43 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -181,7 +181,7 @@
+ 
+ (Signmask x) -> (SRAconst x [31])
+ (Zeromask x) -> (NEG (SGTU x (MOVWconst [0])))
+-(Slicemask x) -> (NEG (SGT x (MOVWconst [0])))
++(Slicemask <t> x) -> (SRAconst (NEG <t> x) [31])
+ 
+ // float <-> int conversion
+ (Cvt32to32F x) -> (MOVWF x)
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index 7a496be0d8..efa14ef3e2 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -164,7 +164,7 @@
+ (ConstNil) -> (MOVVconst [0])
+ (ConstBool [b]) -> (MOVVconst [b])
+ 
+-(Slicemask <t> x) -> (NORconst [0] (SRAVconst <t> (SUBVconst <t> x [1]) [63]))
++(Slicemask <t> x) -> (SRAVconst (NEGV <t> x) [63])
+ 
+ // truncations
+ // Because we ignore high parts of registers, truncates are just copies.
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index cad753e591..8cca320589 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -790,7 +790,7 @@
+ (Trunc64to16 x) -> (MOVHreg x)
+ (Trunc64to32 x) -> (MOVWreg x)
+ 
+-(Slicemask <t> x) -> (XORconst [-1] (SRADconst <t> (ADDconst <t> x [-1]) [63]))
++(Slicemask <t> x) -> (SRADconst (NEG <t> x) [63])
+ 
+ // Note that MOV??reg returns a 64-bit int, x is not necessarily that wide
+ // This may interact with other patterns in the future. (Compare with arm64)
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index c609d0d8b1..ef5cf6e190 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -152,7 +152,7 @@
+ (ZeroExt16to64 x) -> (MOVHZreg x)
+ (ZeroExt32to64 x) -> (MOVWZreg x)
+ 
+-(Slicemask <t> x) -> (XOR (MOVDconst [-1]) (SRADconst <t> (SUBconst <t> x [1]) [63]))
++(Slicemask <t> x) -> (SRADconst (NEG <t> x) [63])
+ 
+ // Lowering truncation
+ // Because we ignore high parts of registers, truncates are just copies.
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index e05810bb1d..4a369b2897 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -12932,18 +12932,14 @@ func rewriteValue386_OpSlicemask(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Slicemask <t> x)
+ 	// cond:
+-	// result: (XORLconst [-1] (SARLconst <t> (SUBLconst <t> x [1]) [31]))
++	// result: (SARLconst (NEGL <t> x) [31])
+ 	for {
+ 		t := v.Type
+ 		x := v.Args[0]
+-		v.reset(Op386XORLconst)
+-		v.AuxInt = -1
+-		v0 := b.NewValue0(v.Pos, Op386SARLconst, t)
+-		v0.AuxInt = 31
+-		v1 := b.NewValue0(v.Pos, Op386SUBLconst, t)
+-		v1.AuxInt = 1
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
++		v.reset(Op386SARLconst)
++		v.AuxInt = 31
++		v0 := b.NewValue0(v.Pos, Op386NEGL, t)
++		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 680f212bb7..ff65ad5d19 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -20168,18 +20168,14 @@ func rewriteValueAMD64_OpSlicemask(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Slicemask <t> x)
+ 	// cond:
+-	// result: (XORQconst [-1] (SARQconst <t> (SUBQconst <t> x [1]) [63]))
++	// result: (SARQconst (NEGQ <t> x) [63])
+ 	for {
+ 		t := v.Type
+ 		x := v.Args[0]
+-		v.reset(OpAMD64XORQconst)
+-		v.AuxInt = -1
+-		v0 := b.NewValue0(v.Pos, OpAMD64SARQconst, t)
+-		v0.AuxInt = 63
+-		v1 := b.NewValue0(v.Pos, OpAMD64SUBQconst, t)
+-		v1.AuxInt = 1
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
++		v.reset(OpAMD64SARQconst)
++		v.AuxInt = 63
++		v0 := b.NewValue0(v.Pos, OpAMD64NEGQ, t)
++		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index f1cd0d5f5d..f76299e8d3 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -16598,17 +16598,15 @@ func rewriteValueARM_OpSlicemask(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Slicemask <t> x)
+ 	// cond:
+-	// result: (MVN (SRAconst <t> (SUBconst <t> x [1]) [31]))
++	// result: (SRAconst (RSBconst <t> [0] x) [31])
+ 	for {
+ 		t := v.Type
+ 		x := v.Args[0]
+-		v.reset(OpARMMVN)
+-		v0 := b.NewValue0(v.Pos, OpARMSRAconst, t)
+-		v0.AuxInt = 31
+-		v1 := b.NewValue0(v.Pos, OpARMSUBconst, t)
+-		v1.AuxInt = 1
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
++		v.reset(OpARMSRAconst)
++		v.AuxInt = 31
++		v0 := b.NewValue0(v.Pos, OpARMRSBconst, t)
++		v0.AuxInt = 0
++		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 92664b188a..eb1cb00509 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -14480,17 +14480,14 @@ func rewriteValueARM64_OpSlicemask(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Slicemask <t> x)
+ 	// cond:
+-	// result: (MVN (SRAconst <t> (SUBconst <t> x [1]) [63]))
++	// result: (SRAconst (NEG <t> x) [63])
+ 	for {
+ 		t := v.Type
+ 		x := v.Args[0]
+-		v.reset(OpARM64MVN)
+-		v0 := b.NewValue0(v.Pos, OpARM64SRAconst, t)
+-		v0.AuxInt = 63
+-		v1 := b.NewValue0(v.Pos, OpARM64SUBconst, t)
+-		v1.AuxInt = 1
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
++		v.reset(OpARM64SRAconst)
++		v.AuxInt = 63
++		v0 := b.NewValue0(v.Pos, OpARM64NEG, t)
++		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 21dae76f5f..37b4d0a7c5 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -8304,17 +8304,16 @@ func rewriteValueMIPS_OpSignmask(v *Value, config *Config) bool {
+ func rewriteValueMIPS_OpSlicemask(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Slicemask x)
++	// match: (Slicemask <t> x)
+ 	// cond:
+-	// result: (NEG (SGT x (MOVWconst [0])))
++	// result: (SRAconst (NEG <t> x) [31])
+ 	for {
++		t := v.Type
+ 		x := v.Args[0]
+-		v.reset(OpMIPSNEG)
+-		v0 := b.NewValue0(v.Pos, OpMIPSSGT, config.fe.TypeBool())
++		v.reset(OpMIPSSRAconst)
++		v.AuxInt = 31
++		v0 := b.NewValue0(v.Pos, OpMIPSNEG, t)
+ 		v0.AddArg(x)
+-		v1 := b.NewValue0(v.Pos, OpMIPSMOVWconst, config.fe.TypeUInt32())
+-		v1.AuxInt = 0
+-		v0.AddArg(v1)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 5821337c2f..0748013d4f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -8815,18 +8815,14 @@ func rewriteValueMIPS64_OpSlicemask(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Slicemask <t> x)
+ 	// cond:
+-	// result: (NORconst [0] (SRAVconst <t> (SUBVconst <t> x [1]) [63]))
++	// result: (SRAVconst (NEGV <t> x) [63])
+ 	for {
+ 		t := v.Type
+ 		x := v.Args[0]
+-		v.reset(OpMIPS64NORconst)
+-		v.AuxInt = 0
+-		v0 := b.NewValue0(v.Pos, OpMIPS64SRAVconst, t)
+-		v0.AuxInt = 63
+-		v1 := b.NewValue0(v.Pos, OpMIPS64SUBVconst, t)
+-		v1.AuxInt = 1
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
++		v.reset(OpMIPS64SRAVconst)
++		v.AuxInt = 63
++		v0 := b.NewValue0(v.Pos, OpMIPS64NEGV, t)
++		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index c78971f801..95608e1058 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -9084,18 +9084,14 @@ func rewriteValuePPC64_OpSlicemask(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Slicemask <t> x)
+ 	// cond:
+-	// result: (XORconst [-1] (SRADconst <t> (ADDconst <t> x [-1]) [63]))
++	// result: (SRADconst (NEG <t> x) [63])
+ 	for {
+ 		t := v.Type
+ 		x := v.Args[0]
+-		v.reset(OpPPC64XORconst)
+-		v.AuxInt = -1
+-		v0 := b.NewValue0(v.Pos, OpPPC64SRADconst, t)
+-		v0.AuxInt = 63
+-		v1 := b.NewValue0(v.Pos, OpPPC64ADDconst, t)
+-		v1.AuxInt = -1
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
++		v.reset(OpPPC64SRADconst)
++		v.AuxInt = 63
++		v0 := b.NewValue0(v.Pos, OpPPC64NEG, t)
++		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index f689d70161..04e1fe8ec9 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -17290,21 +17290,15 @@ func rewriteValueS390X_OpSlicemask(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Slicemask <t> x)
+ 	// cond:
+-	// result: (XOR (MOVDconst [-1]) (SRADconst <t> (SUBconst <t> x [1]) [63]))
++	// result: (SRADconst (NEG <t> x) [63])
+ 	for {
+ 		t := v.Type
+ 		x := v.Args[0]
+-		v.reset(OpS390XXOR)
+-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, config.fe.TypeUInt64())
+-		v0.AuxInt = -1
++		v.reset(OpS390XSRADconst)
++		v.AuxInt = 63
++		v0 := b.NewValue0(v.Pos, OpS390XNEG, t)
++		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpS390XSRADconst, t)
+-		v1.AuxInt = 63
+-		v2 := b.NewValue0(v.Pos, OpS390XSUBconst, t)
+-		v2.AuxInt = 1
+-		v2.AddArg(x)
+-		v1.AddArg(v2)
+-		v.AddArg(v1)
+ 		return true
+ 	}
+ }

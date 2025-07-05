@@ -11,7 +11,132 @@ Date:   Mon Jan 16 12:57:59 2012 -0800
     R=bradfitz, rsc
     CC=golang-dev, r
     https://golang.org/cl/5544069
-
+---
  src/pkg/net/http/client.go      |  6 +--
  src/pkg/net/http/client_test.go | 87 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 90 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/http/client.go b/src/pkg/net/http/client.go
+index a4f8f19aac..1f16fcf86d 100644
+--- a/src/pkg/net/http/client.go
++++ b/src/pkg/net/http/client.go
+@@ -213,11 +213,11 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err error) {
+ 					break
+ 				}
+ 			}
+-			for _, cookie := range jar.Cookies(req.URL) {
+-				req.AddCookie(cookie)
+-			}
+ 		}
+ 
++		for _, cookie := range jar.Cookies(req.URL) {
++			req.AddCookie(cookie)
++		}
+ 		urlStr = req.URL.String()
+ 		if r, err = send(req, c.Transport); err != nil {
+ 			break
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index 57a9dd9574..c74611011a 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -18,6 +18,7 @@ import (
+ 	"net/url"
+ 	"strconv"
+ 	"strings"
++	"sync"
+ 	"testing"
+ )
+ 
+@@ -236,6 +237,92 @@ func TestRedirects(t *testing.T) {
+ 	}
+ }
+ 
++var expectedCookies = []*Cookie{
++	&Cookie{Name: "ChocolateChip", Value: "tasty"},
++	&Cookie{Name: "First", Value: "Hit"},
++	&Cookie{Name: "Second", Value: "Hit"},
++}
++
++var echoCookiesRedirectHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
++	for _, cookie := range r.Cookies() {
++		SetCookie(w, cookie)
++	}
++	if r.URL.Path == "/" {
++		SetCookie(w, expectedCookies[1])
++		Redirect(w, r, "/second", StatusMovedPermanently)
++	} else {
++		SetCookie(w, expectedCookies[2])
++		w.Write([]byte("hello"))
++	}
++})
++
++// Just enough correctness for our redirect tests. Uses the URL.Host as the
++// scope of all cookies.
++type TestJar struct {
++	m      sync.Mutex
++	perURL map[string][]*Cookie
++}
++
++func (j *TestJar) SetCookies(u *url.URL, cookies []*Cookie) {
++	j.m.Lock()
++	defer j.m.Unlock()
++	j.perURL[u.Host] = cookies
++}
++
++func (j *TestJar) Cookies(u *url.URL) []*Cookie {
++	j.m.Lock()
++	defer j.m.Unlock()
++	return j.perURL[u.Host]
++}
++
++func TestRedirectCookiesOnRequest(t *testing.T) {
++	var ts *httptest.Server
++	ts = httptest.NewServer(echoCookiesRedirectHandler)
++	defer ts.Close()
++	c := &Client{}
++	req, _ := NewRequest("GET", ts.URL, nil)
++	req.AddCookie(expectedCookies[0])
++	// TODO: Uncomment when an implementation of a RFC6265 cookie jar lands.
++	_ = c
++	// resp, _ := c.Do(req)
++	// matchReturnedCookies(t, expectedCookies, resp.Cookies())
++
++	req, _ = NewRequest("GET", ts.URL, nil)
++	// resp, _ = c.Do(req)
++	// matchReturnedCookies(t, expectedCookies[1:], resp.Cookies())
++}
++
++func TestRedirectCookiesJar(t *testing.T) {
++	var ts *httptest.Server
++	ts = httptest.NewServer(echoCookiesRedirectHandler)
++	defer ts.Close()
++	c := &Client{}
++	c.Jar = &TestJar{perURL: make(map[string][]*Cookie)}
++	u, _ := url.Parse(ts.URL)
++	c.Jar.SetCookies(u, []*Cookie{expectedCookies[0]})
++	resp, _ := c.Get(ts.URL)
++	matchReturnedCookies(t, expectedCookies, resp.Cookies())
++}
++
++func matchReturnedCookies(t *testing.T, expected, given []*Cookie) {
++	t.Logf("Received cookies: %v", given)
++	if len(given) != len(expected) {
++		t.Errorf("Expected %d cookies, got %d", len(expected), len(given))
++	}
++	for _, ec := range expected {
++		foundC := false
++		for _, c := range given {
++			if ec.Name == c.Name && ec.Value == c.Value {
++				foundC = true
++				break
++			}
++		}
++		if !foundC {
++			t.Errorf("Missing cookie %v", ec)
++		}
++	}
++}
++
+ func TestStreamingGet(t *testing.T) {
+ 	say := make(chan string)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {

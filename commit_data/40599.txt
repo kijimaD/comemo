@@ -19,7 +19,62 @@ Date:   Fri May 31 20:33:01 2019 +1000
     Reviewed-by: Jean de Klerk <deklerk@google.com>
     Run-TryBot: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/errors/example_test.go | 16 ----------------
  src/errors/wrap_test.go    | 14 ++++++++++++++
  2 files changed, 14 insertions(+), 16 deletions(-)
+
+diff --git a/src/errors/example_test.go b/src/errors/example_test.go
+index d7dd782bef..5dc8841237 100644
+--- a/src/errors/example_test.go
++++ b/src/errors/example_test.go
+@@ -5,9 +5,7 @@
+ package errors_test
+ 
+ import (
+-	"errors"
+ 	"fmt"
+-	"os"
+ 	"time"
+ )
+ 
+@@ -34,17 +32,3 @@ func Example() {
+ 	}
+ 	// Output: 1989-03-15 22:30:00 +0000 UTC: the file system has gone away
+ }
+-
+-func ExampleAs() {
+-	if _, err := os.Open("non-existing"); err != nil {
+-		var pathError *os.PathError
+-		if errors.As(err, &pathError) {
+-			fmt.Println("Failed at path:", pathError.Path)
+-		} else {
+-			fmt.Println(err)
+-		}
+-	}
+-
+-	// Output:
+-	// Failed at path: non-existing
+-}
+diff --git a/src/errors/wrap_test.go b/src/errors/wrap_test.go
+index 2055316756..d349414527 100644
+--- a/src/errors/wrap_test.go
++++ b/src/errors/wrap_test.go
+@@ -218,3 +218,17 @@ func (errorUncomparable) Is(target error) bool {
+ 	_, ok := target.(errorUncomparable)
+ 	return ok
+ }
++
++func ExampleAs() {
++	if _, err := os.Open("non-existing"); err != nil {
++		var pathError *os.PathError
++		if errors.As(err, &pathError) {
++			fmt.Println("Failed at path:", pathError.Path)
++		} else {
++			fmt.Println(err)
++		}
++	}
++
++	// Output:
++	// Failed at path: non-existing
++}

@@ -10,6 +10,22 @@ Date:   Tue Nov 16 15:36:37 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/364254
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Trust: Heschi Kreinick <heschi@google.com>
-
+---
  doc/go1.18.html | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index c6c338984c..6d813dce2e 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -439,7 +439,9 @@ proposal</a>.
+ <dl id="strings"><dt><a href="/pkg/strings/">strings</a></dt>
+   <dd>
+     <p><!-- CL 345849 -->
+-      TODO: <a href="https://golang.org/cl/345849">https://golang.org/cl/345849</a>: add Clone function
++      The new <a href="/pkg/strings/#Clone"><code>Clone</code></a> function copies the input
++      <code>string</code> without the returned cloned <code>string</code> referencing
++      the input string's memory.
+     </p>
+ 
+     <p><!-- CL 332771 -->

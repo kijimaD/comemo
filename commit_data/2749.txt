@@ -15,6 +15,18 @@ Date:   Fri Jul 17 16:12:29 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=31805
     CL=31807
-
+---
  test/interface/explicit.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index 9b90cb7a5e..bd1bd19a96 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -37,5 +37,5 @@ func main() {
+ 	i2 = I2(i);	// ERROR "need explicit|need type assertion"
+ 
+ 	e = E(t);	// ok
+-	t = T(e);	// ERROR "need explicit|need type assertion"
++	t = T(e);	// ERROR "need explicit|need type assertion|incompatible"
+ }

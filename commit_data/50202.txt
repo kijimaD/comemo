@@ -20,6 +20,24 @@ Date:   Thu Oct 7 16:33:43 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/link/internal/ld/pcln.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index ee26ee27a0..465c52b6cf 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -631,9 +631,11 @@ func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, sta
+ 		if thisSect := ldr.SymSect(s); thisSect != prevSect {
+ 			// With multiple text sections, there may be a hole here in the
+ 			// address space. We use an invalid funcoff value to mark the hole.
++			// Use the end PC - 1 to distinguish the end of a section vs. the
++			// start of the next.
+ 			// See also runtime/symtab.go:findfunc
+ 			prevFuncSize := uint32(ldr.SymSize(prevFunc))
+-			sb.SetUint32(ctxt.Arch, int64(funcIndex*2*4), pcOff(prevFunc)+prevFuncSize)
++			sb.SetUint32(ctxt.Arch, int64(funcIndex*2*4), pcOff(prevFunc)+prevFuncSize-1)
+ 			sb.SetUint32(ctxt.Arch, int64((funcIndex*2+1)*4), ^uint32(0))
+ 			funcIndex++
+ 			prevSect = thisSect

@@ -13,7 +13,7 @@ Date:   Sat Jan 27 12:48:15 2018 +0100
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go                  | 12 ++++++------
  src/cmd/compile/internal/gc/walk.go                     |  6 +++---
  src/reflect/type.go                                     |  4 ++--
@@ -22,3 +22,140 @@ Date:   Sat Jan 27 12:48:15 2018 +0100
  src/runtime/{hashmap_fast.go => map_fast.go}            |  0
  src/runtime/map_test.go                                 |  2 +-
  7 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 66b1a8e186..e556409d4b 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -72,7 +72,7 @@ func siglt(a, b *Sig) bool {
+ // the given map type. This type is not visible to users -
+ // we include only enough information to generate a correct GC
+ // program for it.
+-// Make sure this stays in sync with ../../../../runtime/hashmap.go!
++// Make sure this stays in sync with ../../../../runtime/map.go!
+ const (
+ 	BUCKETSIZE = 8
+ 	MAXKEYSIZE = 128
+@@ -156,7 +156,7 @@ func bmap(t *types.Type) *types.Type {
+ 	// buckets can be marked as having no pointers.
+ 	// Arrange for the bucket to have no pointers by changing
+ 	// the type of the overflow field to uintptr in this case.
+-	// See comment on hmap.overflow in ../../../../runtime/hashmap.go.
++	// See comment on hmap.overflow in ../../../../runtime/map.go.
+ 	otyp := types.NewPtr(bucket)
+ 	if !types.Haspointers(valtype) && !types.Haspointers(keytype) {
+ 		otyp = types.Types[TUINTPTR]
+@@ -226,7 +226,7 @@ func bmap(t *types.Type) *types.Type {
+ }
+ 
+ // hmap builds a type representing a Hmap structure for the given map type.
+-// Make sure this stays in sync with ../../../../runtime/hashmap.go.
++// Make sure this stays in sync with ../../../../runtime/map.go.
+ func hmap(t *types.Type) *types.Type {
+ 	if t.MapType().Hmap != nil {
+ 		return t.MapType().Hmap
+@@ -246,7 +246,7 @@ func hmap(t *types.Type) *types.Type {
+ 	//    nevacuate  uintptr
+ 	//    extra      unsafe.Pointer // *mapextra
+ 	// }
+-	// must match ../../../../runtime/hashmap.go:hmap.
++	// must match ../../../../runtime/map.go:hmap.
+ 	fields := []*types.Field{
+ 		makefield("count", types.Types[TINT]),
+ 		makefield("flags", types.Types[TUINT8]),
+@@ -276,7 +276,7 @@ func hmap(t *types.Type) *types.Type {
+ }
+ 
+ // hiter builds a type representing an Hiter structure for the given map type.
+-// Make sure this stays in sync with ../../../../runtime/hashmap.go.
++// Make sure this stays in sync with ../../../../runtime/map.go.
+ func hiter(t *types.Type) *types.Type {
+ 	if t.MapType().Hiter != nil {
+ 		return t.MapType().Hiter
+@@ -303,7 +303,7 @@ func hiter(t *types.Type) *types.Type {
+ 	//    bucket      uintptr
+ 	//    checkBucket uintptr
+ 	// }
+-	// must match ../../../../runtime/hashmap.go:hiter.
++	// must match ../../../../runtime/map.go:hiter.
+ 	fields := []*types.Field{
+ 		makefield("key", types.NewPtr(t.Key())), // Used in range.go for TMAP.
+ 		makefield("val", types.NewPtr(t.Val())), // Used in range.go for TMAP.
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 51def75a33..a0b077b245 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -804,7 +804,7 @@ opswitch:
+ 		//   a = *var
+ 		a := n.List.First()
+ 
+-		if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/hashmap.go:maxZero
++		if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/map.go:maxZero
+ 			fn := mapfn(mapaccess2[fast], t)
+ 			r = mkcall1(fn, fn.Type.Results(), init, typename(t), r.Left, key)
+ 		} else {
+@@ -1178,7 +1178,7 @@ opswitch:
+ 				key = nod(OADDR, key, nil)
+ 			}
+ 
+-			if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/hashmap.go:maxZero
++			if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/map.go:maxZero
+ 				n = mkcall1(mapfn(mapaccess1[fast], t), types.NewPtr(t.Val()), init, typename(t), map_, key)
+ 			} else {
+ 				z := zeroaddr(w)
+@@ -2824,7 +2824,7 @@ var mapassign = mkmapnames("mapassign", "ptr")
+ var mapdelete = mkmapnames("mapdelete", "")
+ 
+ func mapfast(t *types.Type) int {
+-	// Check ../../runtime/hashmap.go:maxValueSize before changing.
++	// Check ../../runtime/map.go:maxValueSize before changing.
+ 	if t.Val().Width > 128 {
+ 		return mapslow
+ 	}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 171fc07bfe..716ab0c9fb 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2154,7 +2154,7 @@ func needKeyUpdate(t *rtype) bool {
+ 	}
+ }
+ 
+-// Make sure these routines stay in sync with ../../runtime/hashmap.go!
++// Make sure these routines stay in sync with ../../runtime/map.go!
+ // These types exist only for GC, so we only fill out GC relevant info.
+ // Currently, that's just size and the GC program. We also fill in string
+ // for possible debugging use.
+@@ -2165,7 +2165,7 @@ const (
+ )
+ 
+ func bucketOf(ktyp, etyp *rtype) *rtype {
+-	// See comment on hmap.overflow in ../runtime/hashmap.go.
++	// See comment on hmap.overflow in ../runtime/map.go.
+ 	var kind uint8
+ 	if ktyp.kind&kindNoPointers != 0 && etyp.kind&kindNoPointers != 0 &&
+ 		ktyp.size <= maxKeySize && etyp.size <= maxValSize {
+diff --git a/src/runtime/hashmap.go b/src/runtime/map.go
+similarity index 100%
+rename from src/runtime/hashmap.go
+rename to src/runtime/map.go
+diff --git a/src/runtime/mapspeed_test.go b/src/runtime/map_benchmark_test.go
+similarity index 100%
+rename from src/runtime/mapspeed_test.go
+rename to src/runtime/map_benchmark_test.go
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/map_fast.go
+similarity index 100%
+rename from src/runtime/hashmap_fast.go
+rename to src/runtime/map_fast.go
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 6ed655de0a..b12b09eeb6 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -620,7 +620,7 @@ func TestMapBuckets(t *testing.T) {
+ 	// have a nil bucket pointer due to starting with preallocated buckets
+ 	// on the stack. Escaping maps start with a non-nil bucket pointer if
+ 	// hint size is above bucketCnt and thereby have more than one bucket.
+-	// These tests depend on bucketCnt and loadFactor* in hashmap.go.
++	// These tests depend on bucketCnt and loadFactor* in map.go.
+ 	t.Run("mapliteral", func(t *testing.T) {
+ 		for _, tt := range mapBucketTests {
+ 			localMap := map[int]int{}

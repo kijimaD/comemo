@@ -15,8 +15,302 @@ Date:   Mon Jan 13 12:17:26 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/proc.go     |  53 +++++++++++++++--------
  src/runtime/runtime2.go |   5 +++
  src/runtime/time.go     | 110 +++++++++++++++++-------------------------------
  3 files changed, 79 insertions(+), 89 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index a7eb05fcba..9e2833fe6a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2621,6 +2621,21 @@ func dropg() {
+ // We pass now in and out to avoid extra calls of nanotime.
+ //go:yeswritebarrierrec
+ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
++	// If there are no timers to adjust, and the first timer on
++	// the heap is not yet ready to run, then there is nothing to do.
++	if atomic.Load(&pp.adjustTimers) == 0 {
++		next := int64(atomic.Load64(&pp.timer0When))
++		if next == 0 {
++			return now, 0, false
++		}
++		if now == 0 {
++			now = nanotime()
++		}
++		if now < next {
++			return now, next, false
++		}
++	}
++
+ 	lock(&pp.timersLock)
+ 
+ 	adjusttimers(pp)
+@@ -4095,6 +4110,7 @@ func (pp *p) destroy() {
+ 		pp.timers = nil
+ 		pp.adjustTimers = 0
+ 		pp.deletedTimers = 0
++		atomic.Store64(&pp.timer0When, 0)
+ 		unlock(&pp.timersLock)
+ 		unlock(&plocal.timersLock)
+ 	}
+@@ -4421,23 +4437,26 @@ func checkdead() {
+ 	}
+ 
+ 	// Maybe jump time forward for playground.
+-	_p_ := timejump()
+-	if _p_ != nil {
+-		for pp := &sched.pidle; *pp != 0; pp = &(*pp).ptr().link {
+-			if (*pp).ptr() == _p_ {
+-				*pp = _p_.link
+-				break
++	if faketime != 0 {
++		when, _p_ := timeSleepUntil()
++		if _p_ != nil {
++			faketime = when
++			for pp := &sched.pidle; *pp != 0; pp = &(*pp).ptr().link {
++				if (*pp).ptr() == _p_ {
++					*pp = _p_.link
++					break
++				}
+ 			}
++			mp := mget()
++			if mp == nil {
++				// There should always be a free M since
++				// nothing is running.
++				throw("checkdead: no m for timer")
++			}
++			mp.nextp.set(_p_)
++			notewakeup(&mp.park)
++			return
+ 		}
+-		mp := mget()
+-		if mp == nil {
+-			// There should always be a free M since
+-			// nothing is running.
+-			throw("checkdead: no m for timer")
+-		}
+-		mp.nextp.set(_p_)
+-		notewakeup(&mp.park)
+-		return
+ 	}
+ 
+ 	// There are no goroutines running, so we can look at the P's.
+@@ -4482,7 +4501,7 @@ func sysmon() {
+ 		}
+ 		usleep(delay)
+ 		now := nanotime()
+-		next := timeSleepUntil()
++		next, _ := timeSleepUntil()
+ 		if debug.schedtrace <= 0 && (sched.gcwaiting != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs)) {
+ 			lock(&sched.lock)
+ 			if atomic.Load(&sched.gcwaiting) != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs) {
+@@ -4504,7 +4523,7 @@ func sysmon() {
+ 						osRelax(false)
+ 					}
+ 					now = nanotime()
+-					next = timeSleepUntil()
++					next, _ = timeSleepUntil()
+ 					lock(&sched.lock)
+ 					atomic.Store(&sched.sysmonwait, 0)
+ 					noteclear(&sched.sysmonnote)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 10d8d8c043..97f0f7a662 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -613,6 +613,11 @@ type p struct {
+ 
+ 	_ uint32 // Alignment for atomic fields below
+ 
++	// The when field of the first entry on the timer heap.
++	// This is updated using atomic functions.
++	// This is 0 if the timer heap is empty.
++	timer0When uint64
++
+ 	// Per-P GC state
+ 	gcAssistTime         int64    // Nanoseconds in assistAlloc
+ 	gcFractionalMarkTime int64    // Nanoseconds in fractional mark worker (atomic)
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 6c34268d88..6c3c1a63c4 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -288,7 +288,11 @@ func doaddtimer(pp *p, t *timer) bool {
+ 	t.pp.set(pp)
+ 	i := len(pp.timers)
+ 	pp.timers = append(pp.timers, t)
+-	return siftupTimer(pp.timers, i)
++	ok := siftupTimer(pp.timers, i)
++	if t == pp.timers[0] {
++		atomic.Store64(&pp.timer0When, uint64(t.when))
++	}
++	return ok
+ }
+ 
+ // deltimer deletes the timer t. It may be on some other P, so we can't
+@@ -363,6 +367,9 @@ func dodeltimer(pp *p, i int) bool {
+ 			ok = false
+ 		}
+ 	}
++	if i == 0 {
++		updateTimer0When(pp)
++	}
+ 	return ok
+ }
+ 
+@@ -386,6 +393,7 @@ func dodeltimer0(pp *p) bool {
+ 	if last > 0 {
+ 		ok = siftdownTimer(pp.timers, 0)
+ 	}
++	updateTimer0When(pp)
+ 	return ok
+ }
+ 
+@@ -729,17 +737,11 @@ func addAdjustedTimers(pp *p, moved []*timer) {
+ // The netpoller M will wake up and adjust timers before sleeping again.
+ //go:nowritebarrierrec
+ func nobarrierWakeTime(pp *p) int64 {
+-	lock(&pp.timersLock)
+-	ret := int64(0)
+-	if len(pp.timers) > 0 {
+-		if atomic.Load(&pp.adjustTimers) > 0 {
+-			ret = nanotime()
+-		} else {
+-			ret = pp.timers[0].when
+-		}
++	if atomic.Load(&pp.adjustTimers) > 0 {
++		return nanotime()
++	} else {
++		return int64(atomic.Load64(&pp.timer0When))
+ 	}
+-	unlock(&pp.timersLock)
+-	return ret
+ }
+ 
+ // runtimer examines the first timer in timers. If it is ready based on now,
+@@ -847,6 +849,7 @@ func runOneTimer(pp *p, t *timer, now int64) {
+ 		if !atomic.Cas(&t.status, timerRunning, timerWaiting) {
+ 			badTimer()
+ 		}
++		updateTimer0When(pp)
+ 	} else {
+ 		// Remove from heap.
+ 		if !dodeltimer0(pp) {
+@@ -958,6 +961,7 @@ nextTimer:
+ 	pp.timers = timers
+ 	atomic.Xadd(&pp.deletedTimers, -cdel)
+ 	atomic.Xadd(&pp.adjustTimers, -cearlier)
++	updateTimer0When(pp)
+ }
+ 
+ // verifyTimerHeap verifies that the timer heap is in a valid state.
+@@ -979,69 +983,22 @@ func verifyTimerHeap(timers []*timer) {
+ 	}
+ }
+ 
+-func timejump() *p {
+-	if faketime == 0 {
+-		return nil
+-	}
+-
+-	// Nothing is running, so we can look at all the P's.
+-	// Determine a timer bucket with minimum when.
+-	var (
+-		minT    *timer
+-		minWhen int64
+-		minP    *p
+-	)
+-	for _, pp := range allp {
+-		if pp.status != _Pidle && pp.status != _Pdead {
+-			throw("non-idle P in timejump")
+-		}
+-		if len(pp.timers) == 0 {
+-			continue
+-		}
+-		c := pp.adjustTimers
+-		for _, t := range pp.timers {
+-			switch s := atomic.Load(&t.status); s {
+-			case timerWaiting:
+-				if minT == nil || t.when < minWhen {
+-					minT = t
+-					minWhen = t.when
+-					minP = pp
+-				}
+-			case timerModifiedEarlier, timerModifiedLater:
+-				if minT == nil || t.nextwhen < minWhen {
+-					minT = t
+-					minWhen = t.nextwhen
+-					minP = pp
+-				}
+-				if s == timerModifiedEarlier {
+-					c--
+-				}
+-			case timerRunning, timerModifying, timerMoving:
+-				badTimer()
+-			}
+-			// The timers are sorted, so we only have to check
+-			// the first timer for each P, unless there are
+-			// some timerModifiedEarlier timers. The number
+-			// of timerModifiedEarlier timers is in the adjustTimers
+-			// field, used to initialize c, above.
+-			if c == 0 {
+-				break
+-			}
+-		}
+-	}
+-
+-	if minT == nil || minWhen <= faketime {
+-		return nil
++// updateTimer0When sets the P's timer0When field.
++// The caller must have locked the timers for pp.
++func updateTimer0When(pp *p) {
++	if len(pp.timers) == 0 {
++		atomic.Store64(&pp.timer0When, 0)
++	} else {
++		atomic.Store64(&pp.timer0When, uint64(pp.timers[0].when))
+ 	}
+-
+-	faketime = minWhen
+-	return minP
+ }
+ 
+-// timeSleepUntil returns the time when the next timer should fire.
+-// This is only called by sysmon.
+-func timeSleepUntil() int64 {
++// timeSleepUntil returns the time when the next timer should fire,
++// and the P that holds the timer heap that that timer is on.
++// This is only called by sysmon and checkdead.
++func timeSleepUntil() (int64, *p) {
+ 	next := int64(maxWhen)
++	var pret *p
+ 
+ 	// Prevent allp slice changes. This is like retake.
+ 	lock(&allpLock)
+@@ -1052,8 +1009,17 @@ func timeSleepUntil() int64 {
+ 			continue
+ 		}
+ 
+-		lock(&pp.timersLock)
+ 		c := atomic.Load(&pp.adjustTimers)
++		if c == 0 {
++			w := int64(atomic.Load64(&pp.timer0When))
++			if w != 0 && w < next {
++				next = w
++				pret = pp
++			}
++			continue
++		}
++
++		lock(&pp.timersLock)
+ 		for _, t := range pp.timers {
+ 			switch s := atomic.Load(&t.status); s {
+ 			case timerWaiting:
+@@ -1088,7 +1054,7 @@ func timeSleepUntil() int64 {
+ 	}
+ 	unlock(&allpLock)
+ 
+-	return next
++	return next, pret
+ }
+ 
+ // Heap maintenance algorithms.

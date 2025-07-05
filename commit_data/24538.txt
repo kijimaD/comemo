@@ -8,6 +8,29 @@ Date:   Mon Aug 3 18:09:13 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/13049
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index c8031d7db7..f7e9908a8a 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -498,7 +498,7 @@ func (c *gcControllerState) endCycle() {
+ 	// Compute next cycle trigger ratio. First, this computes the
+ 	// "error" for this cycle; that is, how far off the trigger
+ 	// was from what it should have been, accounting for both heap
+-	// growth and GC CPU utilization. We computing the actual heap
++	// growth and GC CPU utilization. We compute the actual heap
+ 	// growth during this cycle and scale that by how far off from
+ 	// the goal CPU utilization we were (to estimate the heap
+ 	// growth if we had the desired CPU utilization). The
+@@ -1475,7 +1475,7 @@ func gcMark(start_time int64) {
+ 	} else {
+ 		// This can happen if most of the allocation during
+ 		// the cycle never became reachable from the heap.
+-		// Just set the reachable heap appropriation to 0 and
++		// Just set the reachable heap approximation to 0 and
+ 		// let the heapminimum kick in below.
+ 		memstats.heap_reachable = 0
+ 	}

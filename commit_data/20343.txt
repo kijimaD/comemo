@@ -18,7 +18,129 @@ Date:   Tue Sep 2 09:08:41 2014 -0700
     R=golang-codereviews, gobot, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/116930043
-
+---
  src/pkg/database/sql/sql.go      | 58 +++++++++++++++++++++++-----------------
  src/pkg/database/sql/sql_test.go | 13 ++++-----
  2 files changed, 41 insertions(+), 30 deletions(-)
+
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index 63c6dd6816..90f813d823 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -1326,15 +1326,12 @@ func (s *Stmt) connStmt() (ci *driverConn, releaseConn func(error), si driver.St
+ 		return ci, releaseConn, s.txsi.si, nil
+ 	}
+ 
+-	var cs connStmt
+-	match := false
+ 	for i := 0; i < len(s.css); i++ {
+ 		v := s.css[i]
+ 		_, err := s.db.connIfFree(v.dc)
+ 		if err == nil {
+-			match = true
+-			cs = v
+-			break
++			s.mu.Unlock()
++			return v.dc, v.dc.releaseConn, v.si, nil
+ 		}
+ 		if err == errConnClosed {
+ 			// Lazily remove dead conn from our freelist.
+@@ -1346,28 +1343,41 @@ func (s *Stmt) connStmt() (ci *driverConn, releaseConn func(error), si driver.St
+ 	}
+ 	s.mu.Unlock()
+ 
+-	// Make a new conn if all are busy.
+-	// TODO(bradfitz): or wait for one? make configurable later?
+-	if !match {
+-		dc, err := s.db.conn()
+-		if err != nil {
+-			return nil, nil, nil, err
+-		}
+-		dc.Lock()
+-		si, err := dc.prepareLocked(s.query)
+-		dc.Unlock()
+-		if err != nil {
+-			s.db.putConn(dc, err)
+-			return nil, nil, nil, err
++	// If all connections are busy, either wait for one to become available (if
++	// we've already hit the maximum number of open connections) or create a
++	// new one.
++	//
++	// TODO(bradfitz): or always wait for one? make configurable later?
++	dc, err := s.db.conn()
++	if err != nil {
++		return nil, nil, nil, err
++	}
++
++	// Do another pass over the list to see whether this statement has
++	// already been prepared on the connection assigned to us.
++	s.mu.Lock()
++	for _, v := range s.css {
++		if v.dc == dc {
++			s.mu.Unlock()
++			return dc, dc.releaseConn, v.si, nil
+ 		}
+-		s.mu.Lock()
+-		cs = connStmt{dc, si}
+-		s.css = append(s.css, cs)
+-		s.mu.Unlock()
+ 	}
++	s.mu.Unlock()
++
++	// No luck; we need to prepare the statement on this connection
++	dc.Lock()
++	si, err = dc.prepareLocked(s.query)
++	dc.Unlock()
++	if err != nil {
++		s.db.putConn(dc, err)
++		return nil, nil, nil, err
++	}
++	s.mu.Lock()
++	cs := connStmt{dc, si}
++	s.css = append(s.css, cs)
++	s.mu.Unlock()
+ 
+-	conn := cs.dc
+-	return conn, conn.releaseConn, cs.si, nil
++	return dc, dc.releaseConn, si, nil
+ }
+ 
+ // Query executes a prepared query statement with the given arguments
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index 8849c81c4b..12e5a6fd6f 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -1348,6 +1348,11 @@ func TestErrBadConnReconnect(t *testing.T) {
+ 		return nil
+ 	})
+ 
++	// Provide a way to force a re-prepare of a statement on next execution
++	forcePrepare := func(stmt *Stmt) {
++		stmt.css = nil
++	}
++
+ 	// stmt.Exec
+ 	stmt1, err := db.Prepare("INSERT|t1|name=?,age=?,dead=?")
+ 	if err != nil {
+@@ -1355,9 +1360,7 @@ func TestErrBadConnReconnect(t *testing.T) {
+ 	}
+ 	defer stmt1.Close()
+ 	// make sure we must prepare the stmt first
+-	for _, cs := range stmt1.css {
+-		cs.dc.inUse = true
+-	}
++	forcePrepare(stmt1)
+ 
+ 	stmtExec := func() error {
+ 		_, err := stmt1.Exec("Gopher", 3, false)
+@@ -1373,9 +1376,7 @@ func TestErrBadConnReconnect(t *testing.T) {
+ 	}
+ 	defer stmt2.Close()
+ 	// make sure we must prepare the stmt first
+-	for _, cs := range stmt2.css {
+-		cs.dc.inUse = true
+-	}
++	forcePrepare(stmt2)
+ 
+ 	stmtQuery := func() error {
+ 		rows, err := stmt2.Query()

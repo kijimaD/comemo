@@ -7,7 +7,50 @@ Date:   Mon Dec 9 13:02:56 2013 -0500
     TBR=iant
     CC=golang-dev
     https://golang.org/cl/39540043
-
+---
  src/cmd/gc/go.h  | 1 -
  src/cmd/gc/lex.c | 5 ++---
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ae0a3bb2d5..6faf4c446c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1182,7 +1182,6 @@ char*	expstring(void);
+ void	mkpackage(char* pkgname);
+ void	unimportfile(void);
+ int32	yylex(void);
+-extern	int	windows;
+ extern	int	yylast;
+ extern	int	yyprev;
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index f1df9cc3b6..0ca332fac6 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -14,7 +14,6 @@
+ #define	ungetc	ccungetc
+ 
+ extern int yychar;
+-int windows;
+ int yyprev;
+ int yylast;
+ 
+@@ -548,7 +547,7 @@ islocalname(Strlit *name)
+ {
+ 	if(name->len >= 1 && name->s[0] == '/')
+ 		return 1;
+-	if(windows && name->len >= 3 &&
++	if(ctxt->windows && name->len >= 3 &&
+ 	   yy_isalpha(name->s[0]) && name->s[1] == ':' && name->s[2] == '/')
+ 	   	return 1;
+ 	if(name->len >= 2 && strncmp(name->s, "./", 2) == 0)
+@@ -2342,7 +2341,7 @@ mkpackage(char* pkgname)
+ 
+ 	if(outfile == nil) {
+ 		p = strrchr(infile, '/');
+-		if(windows) {
++		if(ctxt->windows) {
+ 			q = strrchr(infile, '\\');
+ 			if(q > p)
+ 				p = q;

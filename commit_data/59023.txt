@@ -10,8 +10,48 @@ Date:   Fri Feb 2 17:30:03 2024 +0800
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go                         | 2 +-
  src/cmd/compile/internal/inline/inlheur/analyze_func_params.go | 2 +-
  src/cmd/compile/internal/ir/reassign_consistency_check.go      | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index b365008c76..f6f6ad8411 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -919,7 +919,7 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
+ 	return true, 0, metric
+ }
+ 
+-// canInlineCallsite returns true if the call n from caller to callee
++// canInlineCallExpr returns true if the call n from caller to callee
+ // can be inlined, plus the score computed for the call expr in
+ // question. bigCaller indicates that caller is a big function. log
+ // indicates that the 'cannot inline' reason should be logged.
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+index d85d73b2ef..f6bd84c3f5 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+@@ -45,7 +45,7 @@ func addParamsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps, nf
+ 	return analyzers
+ }
+ 
+-// makeParamAnalyzer creates a new helper object to analyze parameters
++// makeParamsAnalyzer creates a new helper object to analyze parameters
+ // of function fn. If the function doesn't have any interesting
+ // params, a nil helper is returned along with a set of default param
+ // flags for the func.
+diff --git a/src/cmd/compile/internal/ir/reassign_consistency_check.go b/src/cmd/compile/internal/ir/reassign_consistency_check.go
+index e4d928d132..06a6c88962 100644
+--- a/src/cmd/compile/internal/ir/reassign_consistency_check.go
++++ b/src/cmd/compile/internal/ir/reassign_consistency_check.go
+@@ -22,7 +22,7 @@ func checkStaticValueResult(n Node, newres Node) {
+ 	}
+ }
+ 
+-// checkStaticValueResult compares the result from ReassignOracle.Reassigned
++// checkReassignedResult compares the result from ReassignOracle.Reassigned
+ // with the corresponding result from ir.Reassigned to make sure they agree.
+ // This method is called only when turned on via build tag.
+ func checkReassignedResult(n *Name, newres bool) {

@@ -17,6 +17,30 @@ Date:   Sun Feb 19 11:05:19 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5674109
-
+---
  src/pkg/runtime/proc.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index eaec093c85..d09f075327 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1103,6 +1103,9 @@ runtime·newstack(void)
+ 	top->argp = m->moreargp;
+ 	top->argsize = argsize;
+ 	top->free = free;
++	m->moreargp = nil;
++	m->morebuf.pc = nil;
++	m->morebuf.sp = nil;
+ 
+ 	// copy flag from panic
+ 	top->panic = g1->ispanic;
+@@ -1114,7 +1117,7 @@ runtime·newstack(void)
+ 	sp = (byte*)top;
+ 	if(argsize > 0) {
+ 		sp -= argsize;
+-		runtime·memmove(sp, m->moreargp, argsize);
++		runtime·memmove(sp, top->argp, argsize);
+ 	}
+ 	if(thechar == '5') {
+ 		// caller would have saved its LR below args.

@@ -9,6 +9,21 @@ Date:   Wed Apr 8 01:24:17 2015 +1000
     Change-Id: I7d082abb8608537f82b03362b687baf2a1d809dc
     Reviewed-on: https://go-review.googlesource.com/8551
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/cmd/internal/gc/racewalk.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/internal/gc/racewalk.go b/src/cmd/internal/gc/racewalk.go
+index e054f47a17..7ae1c55192 100644
+--- a/src/cmd/internal/gc/racewalk.go
++++ b/src/cmd/internal/gc/racewalk.go
+@@ -410,6 +410,9 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 		OLABEL:
+ 		goto ret
+ 
++	case OGETG:
++		Yyerror("racewalk: OGETG can happen only in runtime which we don't instrument")
++
+ 		// does not require instrumentation
+ 	case OPRINT, // don't bother instrumenting it
+ 		OPRINTN,     // don't bother instrumenting it

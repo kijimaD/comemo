@@ -7,9 +7,221 @@ Date:   Fri Mar 30 10:42:56 2012 -0700
     R=golang-dev, adg, bradfitz
     CC=golang-dev
     https://golang.org/cl/5869050
-
+---
  lib/godoc/godoc.html      |  4 +--
  src/cmd/godoc/codewalk.go | 13 ++++---
  src/cmd/godoc/godoc.go    | 86 +++++++++++++++++++++++++++--------------------
  src/cmd/godoc/main.go     |  7 ++--
  4 files changed, 65 insertions(+), 45 deletions(-)
+
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index fd60329273..5330b17d4b 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -45,8 +45,8 @@
+      Do not delete this <div>. */}}
+ <div id="nav"></div>
+ 
+-{{/* Content is HTML-escaped elsewhere */}}
+-{{printf "%s" .Content}}
++{{/* Body is HTML-escaped elsewhere */}}
++{{printf "%s" .Body}}
+ 
+ </div>
+ 
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+index f7f51d0a02..e68c0fa6ba 100644
+--- a/src/cmd/godoc/codewalk.go
++++ b/src/cmd/godoc/codewalk.go
+@@ -68,8 +68,11 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 
+-	b := applyTemplate(codewalkHTML, "codewalk", cw)
+-	servePage(w, cw.Title, "Codewalk: "+cw.Title, "", "", b)
++	servePage(w, Page{
++		Title:    "Codewalk: " + cw.Title,
++		Tabtitle: cw.Title,
++		Body:     applyTemplate(codewalkHTML, "codewalk", cw),
++	})
+ }
+ 
+ // A Codewalk represents a single codewalk read from an XML file.
+@@ -199,8 +202,10 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
+ 		}
+ 	}
+ 
+-	b := applyTemplate(codewalkdirHTML, "codewalkdir", v)
+-	servePage(w, "", "Codewalks", "", "", b)
++	servePage(w, Page{
++		Title: "Codewalks",
++		Body:  applyTemplate(codewalkdirHTML, "codewalkdir", v),
++	})
+ }
+ 
+ // codewalkFileprint serves requests with ?fileprint=f&lo=lo&hi=hi.
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index f6dc678b49..c3a6c0f16a 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -538,31 +538,26 @@ func readTemplates() {
+ // ----------------------------------------------------------------------------
+ // Generic HTML wrapper
+ 
+-func servePage(w http.ResponseWriter, tabtitle, title, subtitle, query string, content []byte) {
+-	if tabtitle == "" {
+-		tabtitle = title
+-	}
+-	d := struct {
+-		Tabtitle  string
+-		Title     string
+-		Subtitle  string
+-		SearchBox bool
+-		Query     string
+-		Version   string
+-		Menu      []byte
+-		Content   []byte
+-	}{
+-		tabtitle,
+-		title,
+-		subtitle,
+-		*indexEnabled,
+-		query,
+-		runtime.Version(),
+-		nil,
+-		content,
+-	}
+-
+-	if err := godocHTML.Execute(w, &d); err != nil {
++// Page describes the contents of the top-level godoc webpage.
++type Page struct {
++	Title    string
++	Tabtitle string
++	Subtitle string
++	Query    string
++	Body     []byte
++
++	// filled in by servePage
++	SearchBox bool
++	Version   string
++}
++
++func servePage(w http.ResponseWriter, page Page) {
++	if page.Tabtitle == "" {
++		page.Tabtitle = page.Title
++	}
++	page.SearchBox = *indexEnabled
++	page.Version = runtime.Version()
++	if err := godocHTML.Execute(w, page); err != nil {
+ 		log.Printf("godocHTML.Execute: %s", err)
+ 	}
+ }
+@@ -627,7 +622,11 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
+ 		src = buf.Bytes()
+ 	}
+ 
+-	servePage(w, "", meta.Title, meta.Subtitle, "", src)
++	servePage(w, Page{
++		Title:    meta.Title,
++		Subtitle: meta.Subtitle,
++		Body:     src,
++	})
+ }
+ 
+ func applyTemplate(t *template.Template, name string, data interface{}) []byte {
+@@ -663,7 +662,11 @@ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, tit
+ 	FormatText(&buf, src, 1, pathpkg.Ext(abspath) == ".go", r.FormValue("h"), rangeSelection(r.FormValue("s")))
+ 	buf.WriteString("</pre>")
+ 
+-	servePage(w, relpath, title+" "+relpath, "", "", buf.Bytes())
++	servePage(w, Page{
++		Title:    title + " " + relpath,
++		Tabtitle: relpath,
++		Body:     buf.Bytes(),
++	})
+ }
+ 
+ func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
+@@ -677,8 +680,11 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath str
+ 		return
+ 	}
+ 
+-	contents := applyTemplate(dirlistHTML, "dirlistHTML", list)
+-	servePage(w, relpath, "Directory "+relpath, "", "", contents)
++	servePage(w, Page{
++		Title:    "Directory " + relpath,
++		Tabtitle: relpath,
++		Body:     applyTemplate(dirlistHTML, "dirlistHTML", list),
++	})
+ }
+ 
+ func serveFile(w http.ResponseWriter, r *http.Request) {
+@@ -1065,8 +1071,7 @@ func (h *docServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 
+ 	if mode&noHtml != 0 {
+-		contents := applyTemplate(packageText, "packageText", info)
+-		serveText(w, contents)
++		serveText(w, applyTemplate(packageText, "packageText", info))
+ 		return
+ 	}
+ 
+@@ -1103,8 +1108,12 @@ func (h *docServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 		tabtitle = "Commands"
+ 	}
+ 
+-	contents := applyTemplate(packageHTML, "packageHTML", info)
+-	servePage(w, tabtitle, title, subtitle, "", contents)
++	servePage(w, Page{
++		Title:    title,
++		Tabtitle: tabtitle,
++		Subtitle: subtitle,
++		Body:     applyTemplate(packageHTML, "packageHTML", info),
++	})
+ }
+ 
+ // ----------------------------------------------------------------------------
+@@ -1181,8 +1190,7 @@ func search(w http.ResponseWriter, r *http.Request) {
+ 	result := lookup(query)
+ 
+ 	if getPageInfoMode(r)&noHtml != 0 {
+-		contents := applyTemplate(searchText, "searchText", result)
+-		serveText(w, contents)
++		serveText(w, applyTemplate(searchText, "searchText", result))
+ 		return
+ 	}
+ 
+@@ -1193,8 +1201,12 @@ func search(w http.ResponseWriter, r *http.Request) {
+ 		title = fmt.Sprintf(`No results found for query %q`, query)
+ 	}
+ 
+-	contents := applyTemplate(searchHTML, "searchHTML", result)
+-	servePage(w, query, title, "", query, contents)
++	servePage(w, Page{
++		Title:    title,
++		Tabtitle: query,
++		Query:    query,
++		Body:     applyTemplate(searchHTML, "searchHTML", result),
++	})
+ }
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index da4fc63b5f..cb6e0530b9 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -71,9 +71,12 @@ var (
+ )
+ 
+ func serveError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
+-	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
+ 	w.WriteHeader(http.StatusNotFound)
+-	servePage(w, relpath, "File "+relpath, "", "", contents)
++	servePage(w, Page{
++		Title:    "File " + relpath,
++		Subtitle: relpath,
++		Body:     applyTemplate(errorHTML, "errorHTML", err), // err may contain an absolute path!
++	})
+ }
+ 
+ func usage() {

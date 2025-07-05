@@ -16,7 +16,147 @@ Date:   Wed Aug 7 22:16:00 2024 +0200
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/prove.go |  8 +--
  test/prove.go                         | 97 +++++++++++++++++++++++++++++++++++
  2 files changed, 101 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index d2880636aa..a2b58a98df 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1648,22 +1648,22 @@ func (ft *factsTable) flowLimit(v *Value) bool {
+ 	case OpCtz64:
+ 		a := ft.limits[v.Args[0].ID]
+ 		if a.nonzero() {
+-			return ft.unsignedMax(v, 63)
++			return ft.unsignedMax(v, uint64(bits.Len64(a.umax)-1))
+ 		}
+ 	case OpCtz32:
+ 		a := ft.limits[v.Args[0].ID]
+ 		if a.nonzero() {
+-			return ft.unsignedMax(v, 31)
++			return ft.unsignedMax(v, uint64(bits.Len32(uint32(a.umax))-1))
+ 		}
+ 	case OpCtz16:
+ 		a := ft.limits[v.Args[0].ID]
+ 		if a.nonzero() {
+-			return ft.unsignedMax(v, 15)
++			return ft.unsignedMax(v, uint64(bits.Len16(uint16(a.umax))-1))
+ 		}
+ 	case OpCtz8:
+ 		a := ft.limits[v.Args[0].ID]
+ 		if a.nonzero() {
+-			return ft.unsignedMax(v, 7)
++			return ft.unsignedMax(v, uint64(bits.Len8(uint8(a.umax))-1))
+ 		}
+ 
+ 	case OpBitLen64:
+diff --git a/test/prove.go b/test/prove.go
+index 3c8395c7f5..1bb2ef0db7 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1196,6 +1196,103 @@ func f22(b bool, x, y int) int {
+ 	return 0
+ }
+ 
++func ctz64(x uint64, ensureBothBranchesCouldHappen bool) int {
++	const max = math.MaxUint64
++	sz := bits.Len64(max)
++
++	log2half := uint64(max) >> (sz / 2)
++	if x >= log2half || x == 0 {
++		return 42
++	}
++
++	y := bits.TrailingZeros64(x) // ERROR "Proved Ctz64 non-zero$""
++
++	z := sz / 2
++	if ensureBothBranchesCouldHappen {
++		if y < z { // ERROR "Proved Less64$"
++			return -42
++		}
++	} else {
++		if y >= z { // ERROR "Disproved Leq64$"
++			return 1337
++		}
++	}
++
++	return y
++}
++func ctz32(x uint32, ensureBothBranchesCouldHappen bool) int {
++	const max = math.MaxUint32
++	sz := bits.Len32(max)
++
++	log2half := uint32(max) >> (sz / 2)
++	if x >= log2half || x == 0 {
++		return 42
++	}
++
++	y := bits.TrailingZeros32(x) // ERROR "Proved Ctz32 non-zero$""
++
++	z := sz / 2
++	if ensureBothBranchesCouldHappen {
++		if y < z { // ERROR "Proved Less64$"
++			return -42
++		}
++	} else {
++		if y >= z { // ERROR "Disproved Leq64$"
++			return 1337
++		}
++	}
++
++	return y
++}
++func ctz16(x uint16, ensureBothBranchesCouldHappen bool) int {
++	const max = math.MaxUint16
++	sz := bits.Len16(max)
++
++	log2half := uint16(max) >> (sz / 2)
++	if x >= log2half || x == 0 {
++		return 42
++	}
++
++	y := bits.TrailingZeros16(x) // ERROR "Proved Ctz16 non-zero$""
++
++	z := sz / 2
++	if ensureBothBranchesCouldHappen {
++		if y < z { // ERROR "Proved Less64$"
++			return -42
++		}
++	} else {
++		if y >= z { // ERROR "Disproved Leq64$"
++			return 1337
++		}
++	}
++
++	return y
++}
++func ctz8(x uint8, ensureBothBranchesCouldHappen bool) int {
++	const max = math.MaxUint8
++	sz := bits.Len8(max)
++
++	log2half := uint8(max) >> (sz / 2)
++	if x >= log2half || x == 0 {
++		return 42
++	}
++
++	y := bits.TrailingZeros8(x) // ERROR "Proved Ctz8 non-zero$""
++
++	z := sz / 2
++	if ensureBothBranchesCouldHappen {
++		if y < z { // ERROR "Proved Less64$"
++			return -42
++		}
++	} else {
++		if y >= z { // ERROR "Disproved Leq64$"
++			return 1337
++		}
++	}
++
++	return y
++}
++
+ func bitLen64(x uint64, ensureBothBranchesCouldHappen bool) int {
+ 	const max = math.MaxUint64
+ 	sz := bits.Len64(max)

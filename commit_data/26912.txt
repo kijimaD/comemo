@@ -9,6 +9,19 @@ Date:   Wed Mar 2 16:16:29 2016 -0800
     Change-Id: I680b523c01576e42f1dbda9131d1f6bb99b3668b
     Reviewed-on: https://go-review.googlesource.com/20138
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/contrib.html | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/contrib.html b/doc/contrib.html
+index 31bb0a42d0..6907c651c8 100644
+--- a/doc/contrib.html
++++ b/doc/contrib.html
+@@ -34,6 +34,7 @@ We encourage all Go users to subscribe to
+ <p>A <a href="/doc/devel/release.html">summary</a> of the changes between Go releases. Notes for the major releases:</p>
+ 
+ <ul>
++	<li><a href="/doc/go1.6">Go 1.6</a> <small>(February 2016)</small></li>
+ 	<li><a href="/doc/go1.5">Go 1.5</a> <small>(August 2015)</small></li>
+ 	<li><a href="/doc/go1.4">Go 1.4</a> <small>(December 2014)</small></li>
+ 	<li><a href="/doc/go1.3">Go 1.3</a> <small>(June 2014)</small></li>

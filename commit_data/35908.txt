@@ -13,7 +13,98 @@ Date:   Sun Mar 18 12:15:55 2018 -0700
     Change-Id: I77ab4655107f61db2e9d21a608b73ace3a230fb2
     Reviewed-on: https://go-review.googlesource.com/101285
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/format/example_test.go | 39 +++++++++++++++++++++++++++++++++++++++
  src/go/format/format_test.go  | 27 ---------------------------
  2 files changed, 39 insertions(+), 27 deletions(-)
+
+diff --git a/src/go/format/example_test.go b/src/go/format/example_test.go
+new file mode 100644
+index 0000000000..5b6789aa65
+--- /dev/null
++++ b/src/go/format/example_test.go
+@@ -0,0 +1,39 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package format_test
++
++import (
++	"bytes"
++	"fmt"
++	"go/format"
++	"go/parser"
++	"go/token"
++	"log"
++)
++
++func ExampleNode() {
++	const expr = "(6+2*3)/4"
++
++	// parser.ParseExpr parses the argument and returns the
++	// corresponding ast.Node.
++	node, err := parser.ParseExpr(expr)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	// Create a FileSet for node. Since the node does not come
++	// from a real source file, fset will be empty.
++	fset := token.NewFileSet()
++
++	var buf bytes.Buffer
++	err = format.Node(&buf, fset, node)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	fmt.Println(buf.String())
++
++	// Output: (6 + 2*3) / 4
++}
+diff --git a/src/go/format/format_test.go b/src/go/format/format_test.go
+index 72b8d5aeeb..b5817a5dd1 100644
+--- a/src/go/format/format_test.go
++++ b/src/go/format/format_test.go
+@@ -6,11 +6,9 @@ package format
+ 
+ import (
+ 	"bytes"
+-	"fmt"
+ 	"go/parser"
+ 	"go/token"
+ 	"io/ioutil"
+-	"log"
+ 	"strings"
+ 	"testing"
+ )
+@@ -145,28 +143,3 @@ func TestPartial(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-func ExampleNode() {
+-	const expr = "(6+2*3)/4"
+-
+-	// parser.ParseExpr parses the argument and returns the
+-	// corresponding ast.Node.
+-	node, err := parser.ParseExpr(expr)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-
+-	// Create a FileSet for node. Since the node does not come
+-	// from a real source file, fset will be empty.
+-	fset := token.NewFileSet()
+-
+-	var buf bytes.Buffer
+-	err = Node(&buf, fset, node)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-
+-	fmt.Println(buf.String())
+-
+-	// Output: (6 + 2*3) / 4
+-}

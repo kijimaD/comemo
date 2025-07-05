@@ -36,7 +36,7 @@ Date:   Fri Feb 28 16:31:19 2020 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/verify.go               | 11 ++--
  src/cmd/go/internal/modfetch/cache.go              | 40 +++++++++++++--
  src/cmd/go/internal/modfetch/fetch.go              | 58 ++++++++++++++--------
@@ -44,3 +44,333 @@ Date:   Fri Feb 28 16:31:19 2020 -0500
  src/cmd/go/internal/robustio/robustio_flaky.go     |  2 +-
  .../go/testdata/script/mod_download_partial.txt    | 54 ++++++++++++++++++++
  6 files changed, 136 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index 831e5cf85b..ac3f1351c8 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -6,6 +6,7 @@ package modcmd
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
+@@ -67,12 +68,10 @@ func verifyMod(mod module.Version) bool {
+ 		_, zipErr = os.Stat(zip)
+ 	}
+ 	dir, dirErr := modfetch.DownloadDir(mod)
+-	if dirErr == nil {
+-		_, dirErr = os.Stat(dir)
+-	}
+ 	data, err := ioutil.ReadFile(zip + "hash")
+ 	if err != nil {
+-		if zipErr != nil && os.IsNotExist(zipErr) && dirErr != nil && os.IsNotExist(dirErr) {
++		if zipErr != nil && errors.Is(zipErr, os.ErrNotExist) &&
++			dirErr != nil && errors.Is(dirErr, os.ErrNotExist) {
+ 			// Nothing downloaded yet. Nothing to verify.
+ 			return true
+ 		}
+@@ -81,7 +80,7 @@ func verifyMod(mod module.Version) bool {
+ 	}
+ 	h := string(bytes.TrimSpace(data))
+ 
+-	if zipErr != nil && os.IsNotExist(zipErr) {
++	if zipErr != nil && errors.Is(zipErr, os.ErrNotExist) {
+ 		// ok
+ 	} else {
+ 		hZ, err := dirhash.HashZip(zip, dirhash.DefaultHash)
+@@ -93,7 +92,7 @@ func verifyMod(mod module.Version) bool {
+ 			ok = false
+ 		}
+ 	}
+-	if dirErr != nil && os.IsNotExist(dirErr) {
++	if dirErr != nil && errors.Is(dirErr, os.ErrNotExist) {
+ 		// ok
+ 	} else {
+ 		hD, err := dirhash.HashDir(dir, mod.Path+"@"+mod.Version, dirhash.DefaultHash)
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 947192bd83..d6ff068e7b 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -7,6 +7,7 @@ package modfetch
+ import (
+ 	"bytes"
+ 	"encoding/json"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -56,8 +57,11 @@ func CachePath(m module.Version, suffix string) (string, error) {
+ 	return filepath.Join(dir, encVer+"."+suffix), nil
+ }
+ 
+-// DownloadDir returns the directory to which m should be downloaded.
+-// Note that the directory may not yet exist.
++// DownloadDir returns the directory to which m should have been downloaded.
++// An error will be returned if the module path or version cannot be escaped.
++// An error satisfying errors.Is(err, os.ErrNotExist) will be returned
++// along with the directory if the directory does not exist or if the directory
++// is not completely populated.
+ func DownloadDir(m module.Version) (string, error) {
+ 	if PkgMod == "" {
+ 		return "", fmt.Errorf("internal error: modfetch.PkgMod not set")
+@@ -76,9 +80,39 @@ func DownloadDir(m module.Version) (string, error) {
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	return filepath.Join(PkgMod, enc+"@"+encVer), nil
++
++	dir := filepath.Join(PkgMod, enc+"@"+encVer)
++	if fi, err := os.Stat(dir); os.IsNotExist(err) {
++		return dir, err
++	} else if err != nil {
++		return dir, &DownloadDirPartialError{dir, err}
++	} else if !fi.IsDir() {
++		return dir, &DownloadDirPartialError{dir, errors.New("not a directory")}
++	}
++	partialPath, err := CachePath(m, "partial")
++	if err != nil {
++		return dir, err
++	}
++	if _, err := os.Stat(partialPath); err == nil {
++		return dir, &DownloadDirPartialError{dir, errors.New("not completely extracted")}
++	} else if !os.IsNotExist(err) {
++		return dir, err
++	}
++	return dir, nil
++}
++
++// DownloadDirPartialError is returned by DownloadDir if a module directory
++// exists but was not completely populated.
++//
++// DownloadDirPartialError is equivalent to os.ErrNotExist.
++type DownloadDirPartialError struct {
++	Dir string
++	Err error
+ }
+ 
++func (e *DownloadDirPartialError) Error() string     { return fmt.Sprintf("%s: %v", e.Dir, e.Err) }
++func (e *DownloadDirPartialError) Is(err error) bool { return err == os.ErrNotExist }
++
+ // lockVersion locks a file within the module cache that guards the downloading
+ // and extraction of the zipfile for the given module version.
+ func lockVersion(mod module.Version) (unlock func(), err error) {
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index e2c463a685..5787e14aa0 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -46,24 +46,27 @@ func Download(mod module.Version) (dir string, err error) {
+ 		err error
+ 	}
+ 	c := downloadCache.Do(mod, func() interface{} {
+-		dir, err := DownloadDir(mod)
++		dir, err := download(mod)
+ 		if err != nil {
+ 			return cached{"", err}
+ 		}
+-		if err := download(mod, dir); err != nil {
+-			return cached{"", err}
+-		}
+ 		checkMod(mod)
+ 		return cached{dir, nil}
+ 	}).(cached)
+ 	return c.dir, c.err
+ }
+ 
+-func download(mod module.Version, dir string) (err error) {
+-	// If the directory exists, the module has already been extracted.
+-	fi, err := os.Stat(dir)
+-	if err == nil && fi.IsDir() {
+-		return nil
++func download(mod module.Version) (dir string, err error) {
++	// If the directory exists, and no .partial file exists,
++	// the module has already been completely extracted.
++	// .partial files may be created when future versions of cmd/go
++	// extract module zip directories in place instead of extracting
++	// to a random temporary directory and renaming.
++	dir, err = DownloadDir(mod)
++	if err == nil {
++		return dir, nil
++	} else if dir == "" || !errors.Is(err, os.ErrNotExist) {
++		return "", err
+ 	}
+ 
+ 	// To avoid cluttering the cache with extraneous files,
+@@ -71,22 +74,24 @@ func download(mod module.Version, dir string) (err error) {
+ 	// Invoke DownloadZip before locking the file.
+ 	zipfile, err := DownloadZip(mod)
+ 	if err != nil {
+-		return err
++		return "", err
+ 	}
+ 
+ 	unlock, err := lockVersion(mod)
+ 	if err != nil {
+-		return err
++		return "", err
+ 	}
+ 	defer unlock()
+ 
+ 	// Check whether the directory was populated while we were waiting on the lock.
+-	fi, err = os.Stat(dir)
+-	if err == nil && fi.IsDir() {
+-		return nil
++	_, dirErr := DownloadDir(mod)
++	if dirErr == nil {
++		return dir, nil
+ 	}
++	_, dirExists := dirErr.(*DownloadDirPartialError)
+ 
+-	// Clean up any remaining temporary directories from previous runs.
++	// Clean up any remaining temporary directories from previous runs, as well
++	// as partially extracted diectories created by future versions of cmd/go.
+ 	// This is only safe to do because the lock file ensures that their writers
+ 	// are no longer active.
+ 	parentDir := filepath.Dir(dir)
+@@ -96,6 +101,19 @@ func download(mod module.Version, dir string) (err error) {
+ 			RemoveAll(path) // best effort
+ 		}
+ 	}
++	if dirExists {
++		if err := RemoveAll(dir); err != nil {
++			return "", err
++		}
++	}
++
++	partialPath, err := CachePath(mod, "partial")
++	if err != nil {
++		return "", err
++	}
++	if err := os.Remove(partialPath); err != nil && !os.IsNotExist(err) {
++		return "", err
++	}
+ 
+ 	// Extract the zip file to a temporary directory, then rename it to the
+ 	// final path. That way, we can use the existence of the source directory to
+@@ -106,11 +124,11 @@ func download(mod module.Version, dir string) (err error) {
+ 	// open files in the temporary directory (antivirus, search indexers, etc.)
+ 	// can cause os.Rename to fail with ERROR_ACCESS_DENIED.
+ 	if err := os.MkdirAll(parentDir, 0777); err != nil {
+-		return err
++		return "", err
+ 	}
+ 	tmpDir, err := ioutil.TempDir(parentDir, tmpPrefix)
+ 	if err != nil {
+-		return err
++		return "", err
+ 	}
+ 	defer func() {
+ 		if err != nil {
+@@ -120,11 +138,11 @@ func download(mod module.Version, dir string) (err error) {
+ 
+ 	if err := modzip.Unzip(tmpDir, mod, zipfile); err != nil {
+ 		fmt.Fprintf(os.Stderr, "-> %s\n", err)
+-		return err
++		return "", err
+ 	}
+ 
+ 	if err := robustio.Rename(tmpDir, dir); err != nil {
+-		return err
++		return "", err
+ 	}
+ 
+ 	if !cfg.ModCacheRW {
+@@ -132,7 +150,7 @@ func download(mod module.Version, dir string) (err error) {
+ 		// os.Rename was observed to fail for read-only directories on macOS.
+ 		makeDirsReadOnly(dir)
+ 	}
+-	return nil
++	return dir, nil
+ }
+ 
+ var downloadZipCache par.Cache
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 454dbf28cf..5f8a2e7e05 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -148,9 +148,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 			}
+ 			dir, err := modfetch.DownloadDir(mod)
+ 			if err == nil {
+-				if info, err := os.Stat(dir); err == nil && info.IsDir() {
+-					m.Dir = dir
+-				}
++				m.Dir = dir
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/robustio/robustio_flaky.go b/src/cmd/go/internal/robustio/robustio_flaky.go
+index e57c8c74c4..d4cb7e6457 100644
+--- a/src/cmd/go/internal/robustio/robustio_flaky.go
++++ b/src/cmd/go/internal/robustio/robustio_flaky.go
+@@ -15,7 +15,7 @@ import (
+ 	"time"
+ )
+ 
+-const arbitraryTimeout = 500 * time.Millisecond
++const arbitraryTimeout = 2000 * time.Millisecond
+ 
+ // retry retries ephemeral errors from f up to an arbitrary timeout
+ // to work around filesystem flakiness on Windows and Darwin.
+diff --git a/src/cmd/go/testdata/script/mod_download_partial.txt b/src/cmd/go/testdata/script/mod_download_partial.txt
+new file mode 100644
+index 0000000000..b035382296
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_download_partial.txt
+@@ -0,0 +1,54 @@
++# Download a module
++go mod download -modcacherw rsc.io/quote
++exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
++
++# 'go mod verify' should fail if we delete a file.
++go mod verify
++rm $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
++! go mod verify
++
++# Create a .partial file to simulate an failure extracting the zip file.
++cp empty $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.partial
++
++# 'go mod verify' should not fail, since the module hasn't been completely
++# ingested into the cache.
++go mod verify
++
++# 'go list' should not load packages from the directory.
++# NOTE: the message "directory $dir outside available modules" is reported
++# for directories not in the main module, active modules in the module cache,
++# or local replacements. In this case, the directory is in the right place,
++# but it's incomplete, so 'go list' acts as if it's not an active module.
++! go list $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
++stderr 'outside available modules'
++
++# 'go list -m' should not print the directory.
++go list -m -f '{{.Dir}}' rsc.io/quote
++! stdout .
++
++# 'go mod download' should re-extract the module and remove the .partial file.
++go mod download -modcacherw rsc.io/quote
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.partial
++exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
++
++# 'go list' should succeed.
++go list $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
++stdout '^rsc.io/quote$'
++
++# 'go list -m' should print the directory.
++go list -m -f '{{.Dir}}' rsc.io/quote
++stdout 'pkg[/\\]mod[/\\]rsc.io[/\\]quote@v1.5.2'
++
++# go mod verify should fail if we delete a file.
++go mod verify
++rm $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
++! go mod verify
++
++-- go.mod --
++module m
++
++go 1.14
++
++require rsc.io/quote v1.5.2
++
++-- empty --

@@ -77,7 +77,7 @@ Date:   Thu Feb 21 11:11:57 2013 -0500
     R=iant, gri
     CC=golang-dev
     https://golang.org/cl/7229074
-
+---
  src/pkg/exp/ssa/blockopt.go | 105 +++++-----
  src/pkg/exp/ssa/builder.go  |   9 +-
  src/pkg/exp/ssa/doc.go      |   9 +-
@@ -90,3 +90,1720 @@ Date:   Thu Feb 21 11:11:57 2013 -0500
  src/pkg/exp/ssa/ssa.go      |  15 +-
  src/pkg/exp/ssa/ssadump.go  |  16 ++
  11 files changed, 1096 insertions(+), 125 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/blockopt.go b/src/pkg/exp/ssa/blockopt.go
+index a81be6aefe..863bef2baa 100644
+--- a/src/pkg/exp/ssa/blockopt.go
++++ b/src/pkg/exp/ssa/blockopt.go
+@@ -1,6 +1,6 @@
+ package ssa
+ 
+-// Simple block optimisations to simplify the control flow graph.
++// Simple block optimizations to simplify the control flow graph.
+ 
+ // TODO(adonovan): instead of creating several "unreachable" blocks
+ // per function in the Builder, reuse a single one (e.g. at Blocks[1])
+@@ -15,47 +15,52 @@ import (
+ // successive iteration of optimizeBlocks.  Very verbose.
+ const debugBlockOpt = false
+ 
+-func hasPhi(b *BasicBlock) bool {
+-	_, ok := b.Instrs[0].(*Phi)
+-	return ok
++// markReachable sets Index=-1 for all blocks reachable from b.
++func markReachable(b *BasicBlock) {
++	b.Index = -1
++	for _, succ := range b.Succs {
++		if succ.Index == 0 {
++			markReachable(succ)
++		}
++	}
+ }
+ 
+-// prune attempts to prune block b if it is unreachable (i.e. has no
+-// predecessors other than itself), disconnecting it from the CFG.
+-// The result is true if the optimisation was applied.  i is the block
+-// index within the function.
++// deleteUnreachableBlocks marks all reachable blocks of f and
++// eliminates (nils) all others, including possibly cyclic subgraphs.
+ //
+-func prune(f *Function, i int, b *BasicBlock) bool {
+-	if i == 0 {
+-		return false // don't prune entry block
+-	}
+-	if len(b.Preds) == 0 || len(b.Preds) == 1 && b.Preds[0] == b {
+-		// Disconnect it from its successors.
+-		for _, c := range b.Succs {
+-			c.removePred(b)
+-		}
+-		if debugBlockOpt {
+-			fmt.Fprintln(os.Stderr, "prune", b.Name)
++func deleteUnreachableBlocks(f *Function) {
++	const white, black = 0, -1
++	// We borrow b.Index temporarily as the mark bit.
++	for _, b := range f.Blocks {
++		b.Index = white
++	}
++	markReachable(f.Blocks[0])
++	for i, b := range f.Blocks {
++		if b.Index == white {
++			for _, c := range b.Succs {
++				if c.Index == black {
++					c.removePred(b) // delete white->black edge
++				}
++			}
++			if debugBlockOpt {
++				fmt.Fprintln(os.Stderr, "unreachable", b)
++			}
++			f.Blocks[i] = nil // delete b
+ 		}
+-
+-		// Delete b.
+-		f.Blocks[i] = nil
+-		return true
+ 	}
+-	return false
++	f.removeNilBlocks()
+ }
+ 
+ // jumpThreading attempts to apply simple jump-threading to block b,
+ // in which a->b->c become a->c if b is just a Jump.
+-// The result is true if the optimisation was applied.
+-// i is the block index within the function.
++// The result is true if the optimization was applied.
+ //
+-func jumpThreading(f *Function, i int, b *BasicBlock) bool {
+-	if i == 0 {
++func jumpThreading(f *Function, b *BasicBlock) bool {
++	if b.Index == 0 {
+ 		return false // don't apply to entry block
+ 	}
+ 	if b.Instrs == nil {
+-		fmt.Println("empty block ", b.Name)
++		fmt.Println("empty block ", b)
+ 		return false
+ 	}
+ 	if _, ok := b.Instrs[0].(*Jump); !ok {
+@@ -65,7 +70,7 @@ func jumpThreading(f *Function, i int, b *BasicBlock) bool {
+ 	if c == b {
+ 		return false // don't apply to degenerate jump-to-self.
+ 	}
+-	if hasPhi(c) {
++	if c.hasPhi() {
+ 		return false // not sound without more effort
+ 	}
+ 	for j, a := range b.Preds {
+@@ -87,16 +92,16 @@ func jumpThreading(f *Function, i int, b *BasicBlock) bool {
+ 		}
+ 
+ 		if debugBlockOpt {
+-			fmt.Fprintln(os.Stderr, "jumpThreading", a.Name, b.Name, c.Name)
++			fmt.Fprintln(os.Stderr, "jumpThreading", a, b, c)
+ 		}
+ 	}
+-	f.Blocks[i] = nil
++	f.Blocks[b.Index] = nil // delete b
+ 	return true
+ }
+ 
+-// fuseBlocks attempts to apply the block fusion optimisation to block
++// fuseBlocks attempts to apply the block fusion optimization to block
+ // a, in which a->b becomes ab if len(a.Succs)==len(b.Preds)==1.
+-// The result is true if the optimisation was applied.
++// The result is true if the optimization was applied.
+ //
+ func fuseBlocks(f *Function, a *BasicBlock) bool {
+ 	if len(a.Succs) != 1 {
+@@ -121,11 +126,10 @@ func fuseBlocks(f *Function, a *BasicBlock) bool {
+ 	}
+ 
+ 	if debugBlockOpt {
+-		fmt.Fprintln(os.Stderr, "fuseBlocks", a.Name, b.Name)
++		fmt.Fprintln(os.Stderr, "fuseBlocks", a, b)
+ 	}
+ 
+-	// Make b unreachable.  Subsequent pruning will reclaim it.
+-	b.Preds = nil
++	f.Blocks[b.Index] = nil // delete b
+ 	return true
+ }
+ 
+@@ -134,6 +138,8 @@ func fuseBlocks(f *Function, a *BasicBlock) bool {
+ // threading.
+ //
+ func optimizeBlocks(f *Function) {
++	deleteUnreachableBlocks(f)
++
+ 	// Loop until no further progress.
+ 	changed := true
+ 	for changed {
+@@ -144,43 +150,24 @@ func optimizeBlocks(f *Function) {
+ 			MustSanityCheck(f, nil)
+ 		}
+ 
+-		for i, b := range f.Blocks {
++		for _, b := range f.Blocks {
+ 			// f.Blocks will temporarily contain nils to indicate
+ 			// deleted blocks; we remove them at the end.
+ 			if b == nil {
+ 				continue
+ 			}
+ 
+-			// Prune unreachable blocks (including all empty blocks).
+-			if prune(f, i, b) {
+-				changed = true
+-				continue // (b was pruned)
+-			}
+-
+ 			// Fuse blocks.  b->c becomes bc.
+ 			if fuseBlocks(f, b) {
+ 				changed = true
+ 			}
+ 
+ 			// a->b->c becomes a->c if b contains only a Jump.
+-			if jumpThreading(f, i, b) {
++			if jumpThreading(f, b) {
+ 				changed = true
+ 				continue // (b was disconnected)
+ 			}
+ 		}
+ 	}
+-
+-	// Eliminate nils from Blocks.
+-	j := 0
+-	for _, b := range f.Blocks {
+-		if b != nil {
+-			f.Blocks[j] = b
+-			j++
+-		}
+-	}
+-	// Nil out b.Blocks[j:] to aid GC.
+-	for i := j; i < len(f.Blocks); i++ {
+-		f.Blocks[i] = nil
+-	}
+-	f.Blocks = f.Blocks[:j]
++	f.removeNilBlocks()
+ }
+diff --git a/src/pkg/exp/ssa/builder.go b/src/pkg/exp/ssa/builder.go
+index 79052b0a68..c8d56486e8 100644
+--- a/src/pkg/exp/ssa/builder.go
++++ b/src/pkg/exp/ssa/builder.go
+@@ -122,6 +122,7 @@ const (
+ 	LogSource                                    // Show source locations as SSA builder progresses
+ 	SanityCheckFunctions                         // Perform sanity checking of function bodies
+ 	UseGCImporter                                // Ignore SourceLoader; use gc-compiled object code for all imports
++	NaiveForm                                    // Build naïve SSA form: don't replace local loads/stores with registers
+ )
+ 
+ // NewBuilder creates and returns a new SSA builder.
+@@ -380,7 +381,7 @@ func (b *Builder) logicalBinop(fn *Function, e *ast.BinaryExpr) Value {
+ 
+ 	// TODO(adonovan): do we need emitConv on each edge?
+ 	// Test with named boolean types.
+-	phi := &Phi{Edges: edges}
++	phi := &Phi{Edges: edges, Comment: e.Op.String()}
+ 	phi.Type_ = phi.Edges[0].Type()
+ 	return done.emit(phi)
+ }
+@@ -1340,7 +1341,7 @@ func (b *Builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
+ 			for i, id := range spec.Names {
+ 				if !isBlankIdent(id) {
+ 					g := b.globals[b.obj(id)].(*Global)
+-					g.spec = nil // just an optimisation
++					g.spec = nil // just an optimization
+ 					emitStore(init, g,
+ 						emitExtract(init, tuple, i, rtypes[i].Type))
+ 				}
+@@ -1419,7 +1420,7 @@ func (b *Builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
+ 		// e.g. x, y = f(), g()
+ 		if len(lhss) == 1 {
+ 			// x = type{...}
+-			// Optimisation: in-place construction
++			// Optimization: in-place construction
+ 			// of composite literals.
+ 			b.exprInPlace(fn, lvals[0], rhss[0])
+ 		} else {
+@@ -1764,7 +1765,7 @@ func (b *Builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
+ func (b *Builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
+ 	// A blocking select of a single case degenerates to a
+ 	// simple send or receive.
+-	// TODO(adonovan): is this optimisation worth its weight?
++	// TODO(adonovan): is this optimization worth its weight?
+ 	if len(s.Body.List) == 1 {
+ 		clause := s.Body.List[0].(*ast.CommClause)
+ 		if clause.Comm != nil {
+diff --git a/src/pkg/exp/ssa/doc.go b/src/pkg/exp/ssa/doc.go
+index a489c31295..221c7971d3 100644
+--- a/src/pkg/exp/ssa/doc.go
++++ b/src/pkg/exp/ssa/doc.go
+@@ -32,10 +32,11 @@
+ //
+ // The builder initially builds a naive SSA form in which all local
+ // variables are addresses of stack locations with explicit loads and
+-// stores.  If desired, registerisation and φ-node insertion using
+-// dominance and dataflow can be performed as a later pass to improve
+-// the accuracy and performance of subsequent analyses; this pass is
+-// not yet implemented.
++// stores.  Registerisation of eligible locals and φ-node insertion
++// using dominance and dataflow are then performed as a second pass
++// called "lifting" to improve the accuracy and performance of
++// subsequent analyses; this pass can be skipped by setting the
++// NaiveForm builder flag.
+ //
+ // The program representation constructed by this package is fully
+ // resolved internally, i.e. it does not rely on the names of Values,
+diff --git a/src/pkg/exp/ssa/dom.go b/src/pkg/exp/ssa/dom.go
+new file mode 100644
+index 0000000000..499ea9ee45
+--- /dev/null
++++ b/src/pkg/exp/ssa/dom.go
+@@ -0,0 +1,296 @@
++package ssa
++
++// This file defines algorithms related to dominance.
++
++// Dominator tree construction ----------------------------------------
++//
++// We use the algorithm described in Lengauer & Tarjan. 1979.  A fast
++// algorithm for finding dominators in a flowgraph.
++// http://doi.acm.org/10.1145/357062.357071
++//
++// We also apply the optimizations to SLT described in Georgiadis et
++// al, Finding Dominators in Practice, JGAA 2006,
++// http://jgaa.info/accepted/2006/GeorgiadisTarjanWerneck2006.10.1.pdf
++// to avoid the need for buckets of size > 1.
++
++import (
++	"fmt"
++	"io"
++	"math/big"
++	"os"
++)
++
++// domNode represents a node in the dominator tree.
++//
++// TODO(adonovan): export this, when ready.
++type domNode struct {
++	Block     *BasicBlock // the basic block; n.Block.dom == n
++	Idom      *domNode    // immediate dominator (parent in dominator tree)
++	Children  []*domNode  // nodes dominated by this one
++	Level     int         // level number of node within tree; zero for root
++	Pre, Post int         // pre- and post-order numbering within dominator tree
++
++	// Working state for Lengauer-Tarjan algorithm
++	// (during which Pre is repurposed for CFG DFS preorder number).
++	// TODO(adonovan): opt: measure allocating these as temps.
++	semi     *domNode // semidominator
++	parent   *domNode // parent in DFS traversal of CFG
++	ancestor *domNode // ancestor with least sdom
++}
++
++// ltDfs implements the depth-first search part of the LT algorithm.
++func ltDfs(v *domNode, i int, preorder []*domNode) int {
++	preorder[i] = v
++	v.Pre = i // For now: DFS preorder of spanning tree of CFG
++	i++
++	v.semi = v
++	v.ancestor = nil
++	for _, succ := range v.Block.Succs {
++		if w := succ.dom; w.semi == nil {
++			w.parent = v
++			i = ltDfs(w, i, preorder)
++		}
++	}
++	return i
++}
++
++// ltEval implements the EVAL part of the LT algorithm.
++func ltEval(v *domNode) *domNode {
++	// TODO(adonovan): opt: do path compression per simple LT.
++	u := v
++	for ; v.ancestor != nil; v = v.ancestor {
++		if v.semi.Pre < u.semi.Pre {
++			u = v
++		}
++	}
++	return u
++}
++
++// ltLink implements the LINK part of the LT algorithm.
++func ltLink(v, w *domNode) {
++	w.ancestor = v
++}
++
++// buildDomTree computes the dominator tree of f using the LT algorithm.
++// Precondition: all blocks are reachable (e.g. optimizeBlocks has been run).
++//
++func buildDomTree(f *Function) {
++	// The step numbers refer to the original LT paper; the
++	// reodering is due to Georgiadis.
++
++	// Initialize domNode nodes.
++	for _, b := range f.Blocks {
++		dom := b.dom
++		if dom == nil {
++			dom = &domNode{Block: b}
++			b.dom = dom
++		} else {
++			dom.Block = b // reuse
++		}
++	}
++
++	// Step 1.  Number vertices by depth-first preorder.
++	n := len(f.Blocks)
++	preorder := make([]*domNode, n)
++	root := f.Blocks[0].dom
++	ltDfs(root, 0, preorder)
++
++	buckets := make([]*domNode, n)
++	copy(buckets, preorder)
++
++	// In reverse preorder...
++	for i := n - 1; i > 0; i-- {
++		w := preorder[i]
++
++		// Step 3. Implicitly define the immediate dominator of each node.
++		for v := buckets[i]; v != w; v = buckets[v.Pre] {
++			u := ltEval(v)
++			if u.semi.Pre < i {
++				v.Idom = u
++			} else {
++				v.Idom = w
++			}
++		}
++
++		// Step 2. Compute the semidominators of all nodes.
++		w.semi = w.parent
++		for _, pred := range w.Block.Preds {
++			v := pred.dom
++			u := ltEval(v)
++			if u.semi.Pre < w.semi.Pre {
++				w.semi = u.semi
++			}
++		}
++
++		ltLink(w.parent, w)
++
++		if w.parent == w.semi {
++			w.Idom = w.parent
++		} else {
++			buckets[i] = buckets[w.semi.Pre]
++			buckets[w.semi.Pre] = w
++		}
++	}
++
++	// The final 'Step 3' is now outside the loop.
++	for v := buckets[0]; v != root; v = buckets[v.Pre] {
++		v.Idom = root
++	}
++
++	// Step 4. Explicitly define the immediate dominator of each
++	// node, in preorder.
++	for _, w := range preorder[1:] {
++		if w == root {
++			w.Idom = nil
++		} else {
++			if w.Idom != w.semi {
++				w.Idom = w.Idom.Idom
++			}
++			// Calculate Children relation as inverse of Idom.
++			w.Idom.Children = append(w.Idom.Children, w)
++		}
++
++		// Clear working state.
++		w.semi = nil
++		w.parent = nil
++		w.ancestor = nil
++	}
++
++	numberDomTree(root, 0, 0, 0)
++
++	// printDomTreeDot(os.Stderr, f)        // debugging
++	// printDomTreeText(os.Stderr, root, 0) // debugging
++
++	if f.Prog.mode&SanityCheckFunctions != 0 {
++		sanityCheckDomTree(f)
++	}
++}
++
++// numberDomTree sets the pre- and post-order numbers of a depth-first
++// traversal of the dominator tree rooted at v.  These are used to
++// answer dominance queries in constant time.  Also, it sets the level
++// numbers (zero for the root) used for frontier computation.
++//
++func numberDomTree(v *domNode, pre, post, level int) (int, int) {
++	v.Level = level
++	level++
++	v.Pre = pre
++	pre++
++	for _, child := range v.Children {
++		pre, post = numberDomTree(child, pre, post, level)
++	}
++	v.Post = post
++	post++
++	return pre, post
++}
++
++// dominates returns true if b dominates c.
++// Requires that dominance information is up-to-date.
++//
++func dominates(b, c *BasicBlock) bool {
++	return b.dom.Pre <= c.dom.Pre && c.dom.Post <= b.dom.Post
++}
++
++// Testing utilities ----------------------------------------
++
++// sanityCheckDomTree checks the correctness of the dominator tree
++// computed by the LT algorithm by comparing against the dominance
++// relation computed by a naive Kildall-style forward dataflow
++// analysis (Algorithm 10.16 from the "Dragon" book).
++//
++func sanityCheckDomTree(f *Function) {
++	n := len(f.Blocks)
++
++	// D[i] is the set of blocks that dominate f.Blocks[i],
++	// represented as a bit-set of block indices.
++	D := make([]big.Int, n)
++
++	one := big.NewInt(1)
++
++	// all is the set of all blocks; constant.
++	var all big.Int
++	all.Set(one).Lsh(&all, uint(n)).Sub(&all, one)
++
++	// Initialization.
++	for i := range f.Blocks {
++		if i == 0 {
++			// The root is dominated only by itself.
++			D[i].SetBit(&D[0], 0, 1)
++		} else {
++			// All other blocks are (initially) dominated
++			// by every block.
++			D[i].Set(&all)
++		}
++	}
++
++	// Iteration until fixed point.
++	for changed := true; changed; {
++		changed = false
++		for i, b := range f.Blocks {
++			if i == 0 {
++				continue
++			}
++			// Compute intersection across predecessors.
++			var x big.Int
++			x.Set(&all)
++			for _, pred := range b.Preds {
++				x.And(&x, &D[pred.Index])
++			}
++			x.SetBit(&x, i, 1) // a block always dominates itself.
++			if D[i].Cmp(&x) != 0 {
++				D[i].Set(&x)
++				changed = true
++			}
++		}
++	}
++
++	// Check the entire relation.  O(n^2).
++	ok := true
++	for i := 0; i < n; i++ {
++		for j := 0; j < n; j++ {
++			b, c := f.Blocks[i], f.Blocks[j]
++			actual := dominates(b, c)
++			expected := D[j].Bit(i) == 1
++			if actual != expected {
++				fmt.Fprintf(os.Stderr, "dominates(%s, %s)==%t, want %t\n", b, c, actual, expected)
++				ok = false
++			}
++		}
++	}
++	if !ok {
++		panic("sanityCheckDomTree failed for " + f.FullName())
++	}
++}
++
++// Printing functions ----------------------------------------
++
++// printDomTree prints the dominator tree as text, using indentation.
++func printDomTreeText(w io.Writer, v *domNode, indent int) {
++	fmt.Fprintf(w, "%*s%s\n", 4*indent, "", v.Block)
++	for _, child := range v.Children {
++		printDomTreeText(w, child, indent+1)
++	}
++}
++
++// printDomTreeDot prints the dominator tree of f in AT&T GraphViz
++// (.dot) format.
++func printDomTreeDot(w io.Writer, f *Function) {
++	fmt.Fprintln(w, "//", f.FullName())
++	fmt.Fprintln(w, "digraph domtree {")
++	for i, b := range f.Blocks {
++		v := b.dom
++		fmt.Fprintf(w, "\tn%d [label=\"%s (%d, %d)\",shape=\"rectangle\"];\n", v.Pre, b, v.Pre, v.Post)
++		// TODO(adonovan): improve appearance of edges
++		// belonging to both dominator tree and CFG.
++
++		// Dominator tree edge.
++		if i != 0 {
++			fmt.Fprintf(w, "\tn%d -> n%d [style=\"solid\",weight=100];\n", v.Idom.Pre, v.Pre)
++		}
++		// CFG edges.
++		for _, pred := range b.Preds {
++			fmt.Fprintf(w, "\tn%d -> n%d [style=\"dotted\",weight=0];\n", pred.dom.Pre, v.Pre)
++		}
++	}
++	fmt.Fprintln(w, "}")
++}
+diff --git a/src/pkg/exp/ssa/func.go b/src/pkg/exp/ssa/func.go
+index f48c66aab9..f31f3edd21 100644
+--- a/src/pkg/exp/ssa/func.go
++++ b/src/pkg/exp/ssa/func.go
+@@ -16,6 +16,13 @@ func addEdge(from, to *BasicBlock) {
+ 	to.Preds = append(to.Preds, from)
+ }
+ 
++// String returns a human-readable label of this block.
++// It is not guaranteed unique within the function.
++//
++func (b *BasicBlock) String() string {
++	return fmt.Sprintf("%d.%s", b.Index, b.Comment)
++}
++
+ // emit appends an instruction to the current basic block.
+ // If the instruction defines a Value, it is returned.
+ //
+@@ -26,6 +33,23 @@ func (b *BasicBlock) emit(i Instruction) Value {
+ 	return v
+ }
+ 
++// predIndex returns the i such that b.Preds[i] == c or panics if
++// there is none.
++func (b *BasicBlock) predIndex(c *BasicBlock) int {
++	for i, pred := range b.Preds {
++		if pred == c {
++			return i
++		}
++	}
++	panic(fmt.Sprintf("no edge %s -> %s", c, b))
++}
++
++// hasPhi returns true if b.Instrs contains φ-nodes.
++func (b *BasicBlock) hasPhi() bool {
++	_, ok := b.Instrs[0].(*Phi)
++	return ok
++}
++
+ // phis returns the prefix of b.Instrs containing all the block's φ-nodes.
+ func (b *BasicBlock) phis() []Instruction {
+ 	for i, instr := range b.Instrs {
+@@ -127,7 +151,7 @@ type funcSyntax struct {
+ func (f *Function) labelledBlock(label *ast.Ident) *lblock {
+ 	lb := f.lblocks[label.Obj]
+ 	if lb == nil {
+-		lb = &lblock{_goto: f.newBasicBlock("label." + label.Name)}
++		lb = &lblock{_goto: f.newBasicBlock(label.Name)}
+ 		f.lblocks[label.Obj] = lb
+ 	}
+ 	return lb
+@@ -147,7 +171,7 @@ func (f *Function) addParam(name string, typ types.Type) *Parameter {
+ 
+ // addSpilledParam declares a parameter that is pre-spilled to the
+ // stack; the function body will load/store the spilled location.
+-// Subsequent registerization will eliminate spills where possible.
++// Subsequent lifting will eliminate spills where possible.
+ //
+ func (f *Function) addSpilledParam(obj types.Object) {
+ 	name := obj.GetName()
+@@ -213,6 +237,34 @@ func (f *Function) start(idents map[*ast.Ident]types.Object) {
+ 	}
+ }
+ 
++// numberRegisters assigns numbers to all SSA registers
++// (value-defining Instructions) in f, to aid debugging.
++// (Non-Instruction Values are named at construction.)
++// NB: named Allocs retain their existing name.
++// TODO(adonovan): when we have source position info,
++// preserve names only for source locals.
++//
++func numberRegisters(f *Function) {
++	a, v := 0, 0
++	for _, b := range f.Blocks {
++		for _, instr := range b.Instrs {
++			switch instr := instr.(type) {
++			case *Alloc:
++				// Allocs may be named at birth.
++				if instr.Name_ == "" {
++					instr.Name_ = fmt.Sprintf("a%d", a)
++					a++
++				}
++			case Value:
++				instr.(interface {
++					setNum(int)
++				}).setNum(v)
++				v++
++			}
++		}
++	}
++}
++
+ // finish() finalizes the function after SSA code generation of its body.
+ func (f *Function) finish() {
+ 	f.objects = nil
+@@ -235,27 +287,6 @@ func (f *Function) finish() {
+ 	}
+ 	f.Locals = f.Locals[:j]
+ 
+-	// Ensure all value-defining Instructions have register names.
+-	// (Non-Instruction Values are named at construction.)
+-	tmp := 0
+-	for _, b := range f.Blocks {
+-		for _, instr := range b.Instrs {
+-			switch instr := instr.(type) {
+-			case *Alloc:
+-				// Local Allocs may already be named.
+-				if instr.Name_ == "" {
+-					instr.Name_ = fmt.Sprintf("t%d", tmp)
+-					tmp++
+-				}
+-			case Value:
+-				instr.(interface {
+-					setNum(int)
+-				}).setNum(tmp)
+-				tmp++
+-			}
+-		}
+-	}
+-
+ 	optimizeBlocks(f)
+ 
+ 	// Build immediate-use (referrers) graph.
+@@ -273,9 +304,20 @@ func (f *Function) finish() {
+ 		}
+ 	}
+ 
++	if f.Prog.mode&NaiveForm == 0 {
++		// For debugging pre-state of lifting pass:
++		// numberRegisters(f)
++		// f.DumpTo(os.Stderr)
++
++		lift(f)
++	}
++
++	numberRegisters(f)
++
+ 	if f.Prog.mode&LogFunctions != 0 {
+ 		f.DumpTo(os.Stderr)
+ 	}
++
+ 	if f.Prog.mode&SanityCheckFunctions != 0 {
+ 		MustSanityCheck(f, nil)
+ 	}
+@@ -284,6 +326,25 @@ func (f *Function) finish() {
+ 	}
+ }
+ 
++// removeNilBlocks eliminates nils from f.Blocks and updates each
++// BasicBlock.Index.  Use this after any pass that may delete blocks.
++//
++func (f *Function) removeNilBlocks() {
++	j := 0
++	for _, b := range f.Blocks {
++		if b != nil {
++			b.Index = j
++			f.Blocks[j] = b
++			j++
++		}
++	}
++	// Nil out f.Blocks[j:] to aid GC.
++	for i := j; i < len(f.Blocks); i++ {
++		f.Blocks[i] = nil
++	}
++	f.Blocks = f.Blocks[:j]
++}
++
+ // addNamedLocal creates a local variable, adds it to function f and
+ // returns it.  Its name and type are taken from obj.  Subsequent
+ // calls to f.lookup(obj) will return the same local.
+@@ -417,6 +478,13 @@ func (f *Function) DumpTo(w io.Writer) {
+ 		}
+ 	}
+ 
++	if len(f.Locals) > 0 {
++		io.WriteString(w, "# Locals:\n")
++		for i, l := range f.Locals {
++			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, l.Name(), indirectType(l.Type()))
++		}
++	}
++
+ 	// Function Signature in declaration syntax; derived from types.Signature.String().
+ 	io.WriteString(w, "func ")
+ 	params := f.Params
+@@ -450,19 +518,24 @@ func (f *Function) DumpTo(w io.Writer) {
+ 	}
+ 	io.WriteString(w, ":\n")
+ 
++	if f.Blocks == nil {
++		io.WriteString(w, "\t(external)\n")
++	}
++
+ 	for _, b := range f.Blocks {
+ 		if b == nil {
+ 			// Corrupt CFG.
+ 			fmt.Fprintf(w, ".nil:\n")
+ 			continue
+ 		}
+-		fmt.Fprintf(w, ".%s:\t\t\t\t\t\t\t       P:%d S:%d\n", b.Name, len(b.Preds), len(b.Succs))
++		fmt.Fprintf(w, ".%s:\t\t\t\t\t\t\t       P:%d S:%d\n", b, len(b.Preds), len(b.Succs))
+ 		if false { // CFG debugging
+-			fmt.Fprintf(w, "\t# CFG: %s --> %s --> %s\n", blockNames(b.Preds), b.Name, blockNames(b.Succs))
++			fmt.Fprintf(w, "\t# CFG: %s --> %s --> %s\n", blockNames(b.Preds), b, blockNames(b.Succs))
+ 		}
+ 		for _, instr := range b.Instrs {
+ 			io.WriteString(w, "\t")
+-			if v, ok := instr.(Value); ok {
++			switch v := instr.(type) {
++			case Value:
+ 				l := 80 // for old time's sake.
+ 				// Left-align the instruction.
+ 				if name := v.Name(); name != "" {
+@@ -475,7 +548,10 @@ func (f *Function) DumpTo(w io.Writer) {
+ 				if t := v.Type(); t != nil {
+ 					fmt.Fprintf(w, "%*s", l-9, t)
+ 				}
+-			} else {
++			case nil:
++				// Be robust against bad transforms.
++				io.WriteString(w, "<deleted>")
++			default:
+ 				io.WriteString(w, instr.String())
+ 			}
+ 			io.WriteString(w, "\n")
+@@ -484,14 +560,15 @@ func (f *Function) DumpTo(w io.Writer) {
+ 	fmt.Fprintf(w, "\n")
+ }
+ 
+-// newBasicBlock adds to f a new basic block with a unique name and
+-// returns it.  It does not automatically become the current block for
+-// subsequent calls to emit.
++// newBasicBlock adds to f a new basic block and returns it.  It does
++// not automatically become the current block for subsequent calls to emit.
++// comment is an optional string for more readable debugging output.
+ //
+-func (f *Function) newBasicBlock(name string) *BasicBlock {
++func (f *Function) newBasicBlock(comment string) *BasicBlock {
+ 	b := &BasicBlock{
+-		Name: fmt.Sprintf("%d.%s", len(f.Blocks), name),
+-		Func: f,
++		Index:   len(f.Blocks),
++		Comment: comment,
++		Func:    f,
+ 	}
+ 	b.Succs = b.succs2[:0]
+ 	f.Blocks = append(f.Blocks, b)
+diff --git a/src/pkg/exp/ssa/lift.go b/src/pkg/exp/ssa/lift.go
+new file mode 100644
+index 0000000000..dbfd895496
+--- /dev/null
++++ b/src/pkg/exp/ssa/lift.go
+@@ -0,0 +1,492 @@
++package ssa
++
++// This file defines the lifting pass which tries to "lift" Alloc
++// cells (new/local variables) into SSA registers, replacing loads
++// with the dominating stored value, eliminating loads and stores, and
++// inserting φ-nodes as needed.
++
++// Cited papers and resources:
++//
++// Ron Cytron et al. 1991. Efficiently computing SSA form...
++// http://doi.acm.org/10.1145/115372.115320
++//
++// Cooper, Harvey, Kennedy.  2001.  A Simple, Fast Dominance Algorithm.
++// Software Practice and Experience 2001, 4:1-10.
++// http://www.hipersoft.rice.edu/grads/publications/dom14.pdf
++//
++// Daniel Berlin, llvmdev mailing list, 2012.
++// http://lists.cs.uiuc.edu/pipermail/llvmdev/2012-January/046638.html
++// (Be sure to expand the whole thread.)
++
++// TODO(adonovan): there are many optimizations worth evaluating, and
++// the conventional wisdom for SSA construction is that a simple
++// algorithm well engineered often beats those of better asymptotic
++// complexity on all but the most egregious inputs.
++//
++// Danny Berlin suggests that the Cooper et al. algorithm for
++// computing the dominance frontier is superior to Cytron et al.
++// Furthermore he recommends that rather than computing the DF for the
++// whole function then renaming all alloc cells, it may be cheaper to
++// compute the DF for each alloc cell separately and throw it away.
++//
++// Consider exploiting liveness information to avoid creating dead
++// φ-nodes which we then immediately remove.
++//
++// Integrate lifting with scalar replacement of aggregates (SRA) since
++// the two are synergistic.
++//
++// Also see many other "TODO: opt" suggestions in the code.
++
++import (
++	"fmt"
++	"go/token"
++	"go/types"
++	"math/big"
++	"os"
++)
++
++// If true, perform sanity checking and show diagnostic information at
++// each step of lifting.  Very verbose.
++const debugLifting = false
++
++// domFrontier maps each block to the set of blocks in its dominance
++// frontier.  The outer slice is conceptually a map keyed by
++// Block.Index.  The inner slice is conceptually a set, possibly
++// containing duplicates.
++//
++// TODO(adonovan): opt: measure impact of dups; consider a packed bit
++// representation, e.g. big.Int, and bitwise parallel operations for
++// the union step in the Children loop.
++//
++// domFrontier's methods mutate the slice's elements but not its
++// length, so their receivers needn't be pointers.
++//
++type domFrontier [][]*BasicBlock
++
++func (df domFrontier) add(u, v *domNode) {
++	p := &df[u.Block.Index]
++	*p = append(*p, v.Block)
++}
++
++// build builds the dominance frontier df for the dominator (sub)tree
++// rooted at u, using the Cytron et al. algorithm.
++//
++// TODO(adonovan): opt: consider Berlin approach, computing pruned SSA
++// by pruning the entire IDF computation, rather than merely pruning
++// the DF -> IDF step.
++func (df domFrontier) build(u *domNode) {
++	// Encounter each node u in postorder of dom tree.
++	for _, child := range u.Children {
++		df.build(child)
++	}
++	for _, vb := range u.Block.Succs {
++		if v := vb.dom; v.Idom != u {
++			df.add(u, v)
++		}
++	}
++	for _, w := range u.Children {
++		for _, vb := range df[w.Block.Index] {
++			// TODO(adonovan): opt: use word-parallel bitwise union.
++			if v := vb.dom; v.Idom != u {
++				df.add(u, v)
++			}
++		}
++	}
++}
++
++func buildDomFrontier(fn *Function) domFrontier {
++	df := make(domFrontier, len(fn.Blocks))
++	df.build(fn.Blocks[0].dom)
++	return df
++}
++
++// lift attempts to replace local and new Allocs accessed only with
++// load/store by SSA registers, inserting φ-nodes where necessary.
++// The result is a program in classical pruned SSA form.
++//
++// Preconditions:
++// - fn has no dead blocks (blockopt has run).
++// - Def/use info (Operands and Referrers) is up-to-date.
++//
++func lift(fn *Function) {
++	// TODO(adonovan): opt: lots of little optimizations may be
++	// worthwhile here, especially if they cause us to avoid
++	// buildDomTree.  For example:
++	//
++	// - Alloc never loaded?  Eliminate.
++	// - Alloc never stored?  Replace all loads with a zero literal.
++	// - Alloc stored once?  Replace loads with dominating store;
++	//   don't forget that an Alloc is itself an effective store
++	//   of zero.
++	// - Alloc used only within a single block?
++	//   Use degenerate algorithm avoiding φ-nodes.
++	// - Consider synergy with scalar replacement of aggregates (SRA).
++	//   e.g. *(&x.f) where x is an Alloc.
++	//   Perhaps we'd get better results if we generated this as x.f
++	//   i.e. Field(x, .f) instead of Load(FieldIndex(x, .f)).
++	//   Unclear.
++	//
++	// But we will start with the simplest correct code to make
++	// life easier for reviewers.
++
++	buildDomTree(fn)
++
++	df := buildDomFrontier(fn)
++
++	if debugLifting {
++		title := false
++		for i, blocks := range df {
++			if blocks != nil {
++				if !title {
++					fmt.Fprintln(os.Stderr, "Dominance frontier:")
++					title = true
++				}
++				fmt.Fprintf(os.Stderr, "\t%s: %s\n", fn.Blocks[i], blocks)
++			}
++		}
++	}
++
++	newPhis := make(newPhiMap)
++
++	// During this pass we will replace some BasicBlock.Instrs
++	// (allocs, loads and stores) with nil, keeping a count in
++	// BasicBlock.gaps.  At the end we will reset Instrs to the
++	// concatenation of all non-dead newPhis and non-nil Instrs
++	// for the block, reusing the original array if space permits.
++
++	// Determine which allocs we can lift and number them densely.
++	// The renaming phase uses this numbering for compact maps.
++	numAllocs := 0
++	for _, b := range fn.Blocks {
++		b.gaps = 0
++		for i, instr := range b.Instrs {
++			if alloc, ok := instr.(*Alloc); ok {
++				if liftAlloc(df, alloc, newPhis) {
++					alloc.index = numAllocs
++					numAllocs++
++					// Delete the alloc.
++					b.Instrs[i] = nil
++					b.gaps++
++				} else {
++					alloc.index = -1
++				}
++			}
++		}
++	}
++
++	// renaming maps an alloc (keyed by index) to its replacement
++	// value.  Initially the renaming contains nil, signifying the
++	// zero literal of the appropriate type; we construct the
++	// Literal lazily at most once on each path through the domtree.
++	// TODO(adonovan): opt: cache per-function not per subtree.
++	renaming := make([]Value, numAllocs)
++
++	// Renaming.
++	rename(fn.Blocks[0], renaming, newPhis)
++
++	// Eliminate dead new phis, then prepend the live ones to each block.
++	for _, b := range fn.Blocks {
++
++		// Compress the newPhis slice to eliminate unused phis.
++		// TODO(adonovan): opt: compute liveness to avoid
++		// placing phis in blocks for which the alloc cell is
++		// not live.
++		nps := newPhis[b]
++		j := 0
++		for _, np := range nps {
++			if len(*np.phi.Referrers()) == 0 {
++				continue // unreferenced phi
++			}
++			nps[j] = np
++			j++
++		}
++		nps = nps[:j]
++
++		if j+b.gaps == 0 {
++			continue // fast path: no new phis and no gaps
++		}
++
++		// Compact nps + non-nil Instrs into a new slice.
++		// TODO(adonovan): opt: compact in situ if there is
++		// sufficient space or slack in the slice.
++		dst := make([]Instruction, j+len(b.Instrs)-b.gaps)
++		for i, np := range nps {
++			dst[i] = np.phi
++		}
++		for _, instr := range b.Instrs {
++			if instr != nil {
++				dst[j] = instr
++				j++
++			}
++		}
++		for i, np := range nps {
++			dst[i] = np.phi
++		}
++		b.Instrs = dst
++	}
++
++	// Remove any fn.Locals that were lifted.
++	j := 0
++	for _, l := range fn.Locals {
++		if l.index == -1 {
++			fn.Locals[j] = l
++			j++
++		}
++	}
++	// Nil out fn.Locals[j:] to aid GC.
++	for i := j; i < len(fn.Locals); i++ {
++		fn.Locals[i] = nil
++	}
++	fn.Locals = fn.Locals[:j]
++}
++
++type blockSet struct{ big.Int } // (inherit methods from Int)
++
++// add adds b to the set and returns true if the set changed.
++func (s *blockSet) add(b *BasicBlock) bool {
++	i := b.Index
++	if s.Bit(i) != 0 {
++		return false
++	}
++	s.SetBit(&s.Int, i, 1)
++	return true
++}
++
++// take removes an arbitrary element from a set s and
++// returns its index, or returns -1 if empty.
++//
++// TODO(adonovan): add this method (optimized) to big.Int.
++func (s *blockSet) take() int {
++	l := s.BitLen()
++	for i := 0; i < l; i++ {
++		if s.Bit(i) == 1 {
++			s.SetBit(&s.Int, i, 0)
++			return i
++		}
++	}
++	return -1
++}
++
++// newPhi is a pair of a newly introduced φ-node and the lifted Alloc
++// it replaces.
++type newPhi struct {
++	phi   *Phi
++	alloc *Alloc
++}
++
++// newPhiMap records for each basic block, the set of newPhis that
++// must be prepended to the block.
++type newPhiMap map[*BasicBlock][]newPhi
++
++// liftAlloc determines whether alloc can be lifted into registers,
++// and if so, it populates newPhis with all the φ-nodes it may require
++// and returns true.
++//
++func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
++	// Don't lift aggregates into registers.
++	// We'll need a separate SRA pass for that.
++	switch underlyingType(indirectType(alloc.Type())).(type) {
++	case *types.Array, *types.Struct:
++		return false
++	}
++
++	// Compute defblocks, the set of blocks containing a
++	// definition of the alloc cell.
++	var defblocks blockSet
++	for _, instr := range *alloc.Referrers() {
++		// Bail out if we discover the alloc is not liftable;
++		// the only operations permitted to use the alloc are
++		// loads/stores into the cell.
++		switch instr := instr.(type) {
++		case *Store:
++			if instr.Val == alloc {
++				return false // address used as value
++			}
++			if instr.Addr != alloc {
++				panic("Alloc.Referrers is inconsistent")
++			}
++			defblocks.add(instr.Block())
++		case *UnOp:
++			if instr.Op != token.MUL {
++				return false // not a load
++			}
++			if instr.X != alloc {
++				panic("Alloc.Referrers is inconsistent")
++			}
++		default:
++			return false // some other instruction
++		}
++	}
++	// The Alloc itself counts as a (zero) definition of the cell.
++	defblocks.add(alloc.Block())
++
++	if debugLifting {
++		fmt.Fprintln(os.Stderr, "liftAlloc: lifting ", alloc, alloc.Name())
++	}
++
++	fn := alloc.Block().Func
++
++	// Φ-insertion.
++	//
++	// What follows is the body of the main loop of the insert-φ
++	// function described by Cytron et al, but instead of using
++	// counter tricks, we just reset the 'hasAlready' and 'work'
++	// sets each iteration.  These are bitmaps so it's pretty cheap.
++	//
++	// TODO(adonovan): opt: recycle slice storage for W,
++	// hasAlready, defBlocks across liftAlloc calls.
++	var hasAlready blockSet
++
++	// Initialize W and work to defblocks.
++	var work blockSet = defblocks // blocks seen
++	var W blockSet                // blocks to do
++	W.Set(&defblocks.Int)
++
++	// Traverse iterated dominance frontier, inserting φ-nodes.
++	for i := W.take(); i != -1; i = W.take() {
++		u := fn.Blocks[i]
++		for _, v := range df[u.Index] {
++			if hasAlready.add(v) {
++				// Create φ-node.
++				// It will be prepended to v.Instrs later, if needed.
++				phi := &Phi{
++					Edges:   make([]Value, len(v.Preds)),
++					Comment: alloc.Name(),
++				}
++				phi.setType(indirectType(alloc.Type()))
++				phi.Block_ = v
++				if debugLifting {
++					fmt.Fprintf(os.Stderr, "place %s = %s at block %s\n", phi.Name(), phi, v)
++				}
++				newPhis[v] = append(newPhis[v], newPhi{phi, alloc})
++
++				if work.add(v) {
++					W.add(v)
++				}
++			}
++		}
++	}
++
++	return true
++}
++
++// replaceAll replaces all intraprocedural uses of x with y,
++// updating x.Referrers and y.Referrers.
++// Precondition: x.Referrers() != nil, i.e. x must be local to some function.
++//
++func replaceAll(x, y Value) {
++	var rands []*Value
++	pxrefs := x.Referrers()
++	pyrefs := y.Referrers()
++	for _, instr := range *pxrefs {
++		rands = instr.Operands(rands[:0]) // recycle storage
++		for _, rand := range rands {
++			if *rand != nil {
++				if *rand == x {
++					*rand = y
++				}
++			}
++		}
++		if pyrefs != nil {
++			*pyrefs = append(*pyrefs, instr) // dups ok
++		}
++	}
++	*pxrefs = nil // x is now unreferenced
++}
++
++// renamed returns the value to which alloc is being renamed,
++// constructing it lazily if it's the implicit zero initialization.
++//
++func renamed(renaming []Value, alloc *Alloc) Value {
++	v := renaming[alloc.index]
++	if v == nil {
++		v = zeroLiteral(indirectType(alloc.Type()))
++		renaming[alloc.index] = v
++	}
++	return v
++}
++
++// rename implements the (Cytron et al) SSA renaming algorithm, a
++// preorder traversal of the dominator tree replacing all loads of
++// Alloc cells with the value stored to that cell by the dominating
++// store instruction.  For lifting, we need only consider loads,
++// stores and φ-nodes.
++//
++// renaming is a map from *Alloc (keyed by index number) to its
++// dominating stored value; newPhis[x] is the set of new φ-nodes to be
++// prepended to block x.
++//
++func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
++	// Each φ-node becomes the new name for its associated Alloc.
++	for _, np := range newPhis[u] {
++		phi := np.phi
++		alloc := np.alloc
++		renaming[alloc.index] = phi
++	}
++
++	// Rename loads and stores of allocs.
++	for i, instr := range u.Instrs {
++		_ = i
++		switch instr := instr.(type) {
++		case *Store:
++			if alloc, ok := instr.Addr.(*Alloc); ok && alloc.index != -1 { // store to Alloc cell
++				// Delete the Store.
++				u.Instrs[i] = nil
++				u.gaps++
++				// Replace dominated loads by the
++				// stored value.
++				renaming[alloc.index] = instr.Val
++				if debugLifting {
++					fmt.Fprintln(os.Stderr, "Kill store ", instr, "; current value is now ", instr.Val.Name())
++				}
++			}
++		case *UnOp:
++			if instr.Op == token.MUL {
++				if alloc, ok := instr.X.(*Alloc); ok && alloc.index != -1 { // load of Alloc cell
++					newval := renamed(renaming, alloc)
++					if debugLifting {
++						fmt.Fprintln(os.Stderr, "Replace refs to load", instr.Name(), "=", instr, "with", newval.Name())
++					}
++					// Replace all references to
++					// the loaded value by the
++					// dominating stored value.
++					replaceAll(instr, newval)
++					// Delete the Load.
++					u.Instrs[i] = nil
++					u.gaps++
++				}
++			}
++		}
++	}
++
++	// For each φ-node in a CFG successor, rename the edge.
++	for _, v := range u.Succs {
++		phis := newPhis[v]
++		if len(phis) == 0 {
++			continue
++		}
++		i := v.predIndex(u)
++		for _, np := range phis {
++			phi := np.phi
++			alloc := np.alloc
++			newval := renamed(renaming, alloc)
++			if debugLifting {
++				fmt.Fprintf(os.Stderr, "setphi %s edge %s -> %s (#%d) (alloc=%s) := %s\n \n",
++					phi.Name(), u, v, i, alloc.Name(), newval.Name())
++			}
++			phi.Edges[i] = newval
++			if prefs := newval.Referrers(); prefs != nil {
++				*prefs = append(*prefs, phi)
++			}
++		}
++	}
++
++	// Continue depth-first recursion over domtree, pushing a
++	// fresh copy of the renaming map for each subtree.
++	for _, v := range u.dom.Children {
++		// TODO(adonovan): opt: avoid copy on final iteration; use destructive update.
++		r := make([]Value, len(renaming))
++		copy(r, renaming)
++		rename(v.Block, r, newPhis)
++	}
++}
+diff --git a/src/pkg/exp/ssa/literal.go b/src/pkg/exp/ssa/literal.go
+index 168178882d..ee909efa7a 100644
+--- a/src/pkg/exp/ssa/literal.go
++++ b/src/pkg/exp/ssa/literal.go
+@@ -9,6 +9,8 @@ import (
+ 	"strconv"
+ )
+ 
++var complexZero = types.Complex{new(big.Rat), new(big.Rat)}
++
+ // newLiteral returns a new literal of the specified value and type.
+ // val must be valid according to the specification of Literal.Value.
+ //
+@@ -28,6 +30,39 @@ func nilLiteral(typ types.Type) *Literal {
+ 	return newLiteral(types.NilType{}, typ)
+ }
+ 
++// zeroLiteral returns a new "zero" literal of the specified type,
++// which must not be an array or struct type: the zero values of
++// aggregates are well-defined but cannot be represented by Literal.
++//
++func zeroLiteral(t types.Type) *Literal {
++	switch t := t.(type) {
++	case *types.Basic:
++		switch {
++		case t.Info&types.IsBoolean != 0:
++			return newLiteral(false, t)
++		case t.Info&types.IsComplex != 0:
++			return newLiteral(complexZero, t)
++		case t.Info&types.IsNumeric != 0:
++			return newLiteral(int64(0), t)
++		case t.Info&types.IsString != 0:
++			return newLiteral("", t)
++		case t.Kind == types.UnsafePointer:
++			fallthrough
++		case t.Kind == types.UntypedNil:
++			return nilLiteral(t)
++		default:
++			panic(fmt.Sprint("zeroLiteral for unexpected type:", t))
++		}
++	case *types.Pointer, *types.Slice, *types.Interface, *types.Chan, *types.Map, *types.Signature:
++		return nilLiteral(t)
++	case *types.NamedType:
++		return newLiteral(zeroLiteral(t.Underlying).Value, t)
++	case *types.Array, *types.Struct:
++		panic(fmt.Sprint("zeroLiteral applied to aggregate:", t))
++	}
++	panic(fmt.Sprint("zeroLiteral: unexpected ", t))
++}
++
+ func (l *Literal) Name() string {
+ 	var s string
+ 	switch x := l.Value.(type) {
+diff --git a/src/pkg/exp/ssa/print.go b/src/pkg/exp/ssa/print.go
+index f503a186ae..69292ec22e 100644
+--- a/src/pkg/exp/ssa/print.go
++++ b/src/pkg/exp/ssa/print.go
+@@ -91,13 +91,21 @@ func (v *Phi) String() string {
+ 		// Be robust against malformed CFG.
+ 		blockname := "?"
+ 		if v.Block_ != nil && i < len(v.Block_.Preds) {
+-			blockname = v.Block_.Preds[i].Name
++			blockname = v.Block_.Preds[i].String()
+ 		}
+ 		b.WriteString(blockname)
+ 		b.WriteString(": ")
+-		b.WriteString(relName(edge, v))
++		edgeVal := "<nil>" // be robust
++		if edge != nil {
++			edgeVal = relName(edge, v)
++		}
++		b.WriteString(edgeVal)
+ 	}
+ 	b.WriteString("]")
++	if v.Comment != "" {
++		b.WriteString(" #")
++		b.WriteString(v.Comment)
++	}
+ 	return b.String()
+ }
+ 
+@@ -255,7 +263,7 @@ func (s *Jump) String() string {
+ 	// Be robust against malformed CFG.
+ 	blockname := "?"
+ 	if s.Block_ != nil && len(s.Block_.Succs) == 1 {
+-		blockname = s.Block_.Succs[0].Name
++		blockname = s.Block_.Succs[0].String()
+ 	}
+ 	return fmt.Sprintf("jump %s", blockname)
+ }
+@@ -264,8 +272,8 @@ func (s *If) String() string {
+ 	// Be robust against malformed CFG.
+ 	tblockname, fblockname := "?", "?"
+ 	if s.Block_ != nil && len(s.Block_.Succs) == 2 {
+-		tblockname = s.Block_.Succs[0].Name
+-		fblockname = s.Block_.Succs[1].Name
++		tblockname = s.Block_.Succs[0].String()
++		fblockname = s.Block_.Succs[1].String()
+ 	}
+ 	return fmt.Sprintf("if %s goto %s else %s", relName(s.Cond, s), tblockname, fblockname)
+ }
+diff --git a/src/pkg/exp/ssa/sanity.go b/src/pkg/exp/ssa/sanity.go
+index bbb30cfcf4..8994f8e6bb 100644
+--- a/src/pkg/exp/ssa/sanity.go
++++ b/src/pkg/exp/ssa/sanity.go
+@@ -1,6 +1,6 @@
+ package ssa
+ 
+-// An optional pass for sanity checking invariants of the SSA representation.
++// An optional pass for sanity-checking invariants of the SSA representation.
+ // Currently it checks CFG invariants but little at the instruction level.
+ 
+ import (
+@@ -50,7 +50,7 @@ func blockNames(blocks []*BasicBlock) string {
+ 		if i > 0 {
+ 			io.WriteString(&buf, ", ")
+ 		}
+-		io.WriteString(&buf, b.Name)
++		io.WriteString(&buf, b.String())
+ 	}
+ 	return buf.String()
+ }
+@@ -58,7 +58,7 @@ func blockNames(blocks []*BasicBlock) string {
+ func (s *sanity) diagnostic(prefix, format string, args ...interface{}) {
+ 	fmt.Fprintf(s.reporter, "%s: function %s", prefix, s.fn.FullName())
+ 	if s.block != nil {
+-		fmt.Fprintf(s.reporter, ", block %s", s.block.Name)
++		fmt.Fprintf(s.reporter, ", block %s", s.block)
+ 	}
+ 	io.WriteString(s.reporter, ": ")
+ 	fmt.Fprintf(s.reporter, format, args...)
+@@ -102,7 +102,7 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
+ 		if idx == 0 {
+ 			// It suffices to apply this check to just the first phi node.
+ 			if dup := findDuplicate(s.block.Preds); dup != nil {
+-				s.errorf("phi node in block with duplicate predecessor %s", dup.Name)
++				s.errorf("phi node in block with duplicate predecessor %s", dup)
+ 			}
+ 		} else {
+ 			prev := s.block.Instrs[idx-1]
+@@ -112,9 +112,29 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
+ 		}
+ 		if ne, np := len(instr.Edges), len(s.block.Preds); ne != np {
+ 			s.errorf("phi node has %d edges but %d predecessors", ne, np)
++
++		} else {
++			for i, e := range instr.Edges {
++				if e == nil {
++					s.errorf("phi node '%s' has no value for edge #%d from %s", instr.Comment, i, s.block.Preds[i])
++				}
++			}
+ 		}
+ 
+ 	case *Alloc:
++		if !instr.Heap {
++			found := false
++			for _, l := range s.fn.Locals {
++				if l == instr {
++					found = true
++					break
++				}
++			}
++			if !found {
++				s.errorf("local alloc %s = %s does not appear in Function.Locals", instr.Name(), instr)
++			}
++		}
++
+ 	case *Call:
+ 	case *BinOp:
+ 	case *UnOp:
+@@ -155,7 +175,7 @@ func (s *sanity) checkFinalInstr(idx int, instr Instruction) {
+ 			return
+ 		}
+ 		if s.block.Succs[0] == s.block.Succs[1] {
+-			s.errorf("If-instruction has same True, False target blocks: %s", s.block.Succs[0].Name)
++			s.errorf("If-instruction has same True, False target blocks: %s", s.block.Succs[0])
+ 			return
+ 		}
+ 
+@@ -177,22 +197,30 @@ func (s *sanity) checkFinalInstr(idx int, instr Instruction) {
+ 	}
+ }
+ 
+-func (s *sanity) checkBlock(b *BasicBlock, isEntry bool) {
++func (s *sanity) checkBlock(b *BasicBlock, index int) {
+ 	s.block = b
+ 
++	if b.Index != index {
++		s.errorf("block has incorrect Index %d", b.Index)
++	}
++	if b.Func != s.fn {
++		s.errorf("block has incorrect Func %s", b.Func.FullName())
++	}
++
+ 	// Check all blocks are reachable.
+ 	// (The entry block is always implicitly reachable.)
+-	if !isEntry && len(b.Preds) == 0 {
++	if index > 0 && len(b.Preds) == 0 {
+ 		s.warnf("unreachable block")
+ 		if b.Instrs == nil {
+ 			// Since this block is about to be pruned,
+ 			// tolerating transient problems in it
+-			// simplifies other optimisations.
++			// simplifies other optimizations.
+ 			return
+ 		}
+ 	}
+ 
+-	// Check predecessor and successor relations are dual.
++	// Check predecessor and successor relations are dual,
++	// and that all blocks in CFG belong to same function.
+ 	for _, a := range b.Preds {
+ 		found := false
+ 		for _, bb := range a.Succs {
+@@ -202,7 +230,10 @@ func (s *sanity) checkBlock(b *BasicBlock, isEntry bool) {
+ 			}
+ 		}
+ 		if !found {
+-			s.errorf("expected successor edge in predecessor %s; found only: %s", a.Name, blockNames(a.Succs))
++			s.errorf("expected successor edge in predecessor %s; found only: %s", a, blockNames(a.Succs))
++		}
++		if a.Func != s.fn {
++			s.errorf("predecessor %s belongs to different function %s", a, a.Func.FullName())
+ 		}
+ 	}
+ 	for _, c := range b.Succs {
+@@ -214,21 +245,32 @@ func (s *sanity) checkBlock(b *BasicBlock, isEntry bool) {
+ 			}
+ 		}
+ 		if !found {
+-			s.errorf("expected predecessor edge in successor %s; found only: %s", c.Name, blockNames(c.Preds))
++			s.errorf("expected predecessor edge in successor %s; found only: %s", c, blockNames(c.Preds))
++		}
++		if c.Func != s.fn {
++			s.errorf("successor %s belongs to different function %s", c, c.Func.FullName())
+ 		}
+ 	}
+ 
+ 	// Check each instruction is sane.
++	// TODO(adonovan): check Instruction invariants:
++	// - check Operands is dual to Value.Referrers.
++	// - check all Operands that are also Instructions belong to s.fn too
++	//   (and for bonus marks, that their block dominates block b).
+ 	n := len(b.Instrs)
+ 	if n == 0 {
+ 		s.errorf("basic block contains no instructions")
+ 	}
+ 	for j, instr := range b.Instrs {
++		if instr == nil {
++			s.errorf("nil instruction at index %d", j)
++			continue
++		}
+ 		if b2 := instr.Block(); b2 == nil {
+ 			s.errorf("nil Block() for instruction at index %d", j)
+ 			continue
+ 		} else if b2 != b {
+-			s.errorf("wrong Block() (%s) for instruction at index %d ", b2.Name, j)
++			s.errorf("wrong Block() (%s) for instruction at index %d ", b2, j)
+ 			continue
+ 		}
+ 		if j < n-1 {
+@@ -241,21 +283,30 @@ func (s *sanity) checkBlock(b *BasicBlock, isEntry bool) {
+ 
+ func (s *sanity) checkFunction(fn *Function) bool {
+ 	// TODO(adonovan): check Function invariants:
+-	// - check owning Package (if any) contains this function.
++	// - check owning Package (if any) contains this (possibly anon) function
+ 	// - check params match signature
+-	// - check locals are all !Heap
+ 	// - check transient fields are nil
+-	// - check block labels are unique (warning)
++	// - warn if any fn.Locals do not appear among block instructions.
+ 	s.fn = fn
+ 	if fn.Prog == nil {
+ 		s.errorf("nil Prog")
+ 	}
++	for i, l := range fn.Locals {
++		if l.Heap {
++			s.errorf("Local %s at index %d has Heap flag set", l.Name(), i)
++		}
++	}
++	if fn.Blocks != nil && len(fn.Blocks) == 0 {
++		// Function _had_ blocks (so it's not external) but
++		// they were "optimized" away, even the entry block.
++		s.errorf("Blocks slice is non-nil but empty")
++	}
+ 	for i, b := range fn.Blocks {
+ 		if b == nil {
+ 			s.warnf("nil *BasicBlock at f.Blocks[%d]", i)
+ 			continue
+ 		}
+-		s.checkBlock(b, i == 0)
++		s.checkBlock(b, i)
+ 	}
+ 	s.block = nil
+ 	s.fn = nil
+diff --git a/src/pkg/exp/ssa/ssa.go b/src/pkg/exp/ssa/ssa.go
+index 110ddd7b19..401c956b27 100644
+--- a/src/pkg/exp/ssa/ssa.go
++++ b/src/pkg/exp/ssa/ssa.go
+@@ -261,11 +261,14 @@ type Function struct {
+ // instructions, respectively).
+ //
+ type BasicBlock struct {
+-	Name         string         // label; no semantic significance
++	Index        int            // index of this block within Func.Blocks
++	Comment      string         // optional label; no semantic significance
+ 	Func         *Function      // containing function
+ 	Instrs       []Instruction  // instructions in order
+ 	Preds, Succs []*BasicBlock  // predecessors and successors
+ 	succs2       [2]*BasicBlock // initial space for Succs.
++	dom          *domNode       // node in dominator tree; optional.
++	gaps         int            // number of nil Instrs (transient).
+ }
+ 
+ // Pure values ----------------------------------------
+@@ -372,6 +375,7 @@ type Alloc struct {
+ 	Type_     types.Type
+ 	Heap      bool
+ 	referrers []Instruction
++	index     int // dense numbering; for lifting
+ }
+ 
+ // Phi represents an SSA φ-node, which combines values that differ
+@@ -383,7 +387,8 @@ type Alloc struct {
+ //
+ type Phi struct {
+ 	Register
+-	Edges []Value // Edges[i] is value for Block().Preds[i]
++	Comment string  // a hint as to its purpose
++	Edges   []Value // Edges[i] is value for Block().Preds[i]
+ }
+ 
+ // Call represents a function or method call.
+@@ -422,6 +427,8 @@ type BinOp struct {
+ // UnOp yields the result of Op X.
+ // ARROW is channel receive.
+ // MUL is pointer indirection (load).
++// XOR is bitwise complement.
++// SUB is negation.
+ //
+ // If CommaOk and Op=ARROW, the result is a 2-tuple of the value above
+ // and a boolean indicating the success of the receive.  The
+@@ -1239,8 +1246,8 @@ func (s *Ret) Operands(rands []*Value) []*Value {
+ }
+ 
+ func (v *Select) Operands(rands []*Value) []*Value {
+-	for _, st := range v.States {
+-		rands = append(rands, &st.Chan, &st.Send)
++	for i := range v.States {
++		rands = append(rands, &v.States[i].Chan, &v.States[i].Send)
+ 	}
+ 	return rands
+ }
+diff --git a/src/pkg/exp/ssa/ssadump.go b/src/pkg/exp/ssa/ssadump.go
+index e2d075a7b9..92e27f4b06 100644
+--- a/src/pkg/exp/ssa/ssadump.go
++++ b/src/pkg/exp/ssa/ssadump.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"log"
+ 	"os"
++	"runtime/pprof"
+ 	"strings"
+ )
+ 
+@@ -22,6 +23,7 @@ P	log [P]ackage inventory.
+ F	log [F]unction SSA code.
+ S	log [S]ource locations as SSA builder progresses.
+ G	use binary object files from gc to provide imports (no code).
++N	build [N]aive SSA form: don't replace local loads/stores with registers.
+ `)
+ 
+ var runFlag = flag.Bool("run", false, "Invokes the SSA interpreter on the program.")
+@@ -41,6 +43,8 @@ Examples:
+ % ssadump -build=FPG hello.go         # quickly dump SSA form of a single package
+ `
+ 
++var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
++
+ func main() {
+ 	flag.Parse()
+ 	args := flag.Args()
+@@ -58,6 +62,8 @@ func main() {
+ 			mode |= ssa.LogSource
+ 		case 'C':
+ 			mode |= ssa.SanityCheckFunctions
++		case 'N':
++			mode |= ssa.NaiveForm
+ 		case 'G':
+ 			mode |= ssa.UseGCImporter
+ 		default:
+@@ -95,6 +101,16 @@ func main() {
+ 		log.Fatal("No *.go source files specified.")
+ 	}
+ 
++	// Profiling support.
++	if *cpuprofile != "" {
++		f, err := os.Create(*cpuprofile)
++		if err != nil {
++			log.Fatal(err)
++		}
++		pprof.StartCPUProfile(f)
++		defer pprof.StopCPUProfile()
++	}
++
+ 	// TODO(adonovan): permit naming a package directly instead of
+ 	// a list of .go files.
+ 

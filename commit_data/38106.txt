@@ -12,7 +12,7 @@ Date:   Thu May 17 13:45:53 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/386.s   |  2 +-
  src/cmd/asm/internal/asm/testdata/ppc64.s |  2 +-
  src/crypto/md5/md5block_386.s             |  2 +-
@@ -67,3 +67,1541 @@ Date:   Thu May 17 13:45:53 2018 +0000
  src/syscall/asm_plan9_386.s               | 20 ++++----
  src/syscall/asm_plan9_amd64.s             | 20 ++++----
  53 files changed, 168 insertions(+), 168 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/386.s b/src/cmd/asm/internal/asm/testdata/386.s
+index 90a66167a1..d524a4c8c1 100644
+--- a/src/cmd/asm/internal/asm/testdata/386.s
++++ b/src/cmd/asm/internal/asm/testdata/386.s
+@@ -70,7 +70,7 @@ label:
+ // LTYPEM spec6	{ outcode(int($1), &$2); }
+ 	MOVL	AX, BX
+ 	MOVL	$4, BX
+-	
++
+ // LTYPEI spec7	{ outcode(int($1), &$2); }
+ 	IMULL	AX
+ 	IMULL	$4, CX
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index ba00b8f6e2..9e8929dac4 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -550,7 +550,7 @@ label1:
+ //	ftsqrt	BF, FRB
+ 	FTSQRT	F2,$7
+ 
+-//	FCFID	
++//	FCFID
+ //	FCFIDS
+ 
+ 	FCFID	F2,F3
+diff --git a/src/crypto/md5/md5block_386.s b/src/crypto/md5/md5block_386.s
+index 8e426d148f..30d4209a62 100644
+--- a/src/crypto/md5/md5block_386.s
++++ b/src/crypto/md5/md5block_386.s
+@@ -122,7 +122,7 @@ loop:
+ 	ROUND2(DX,AX,BX,CX, 7,0xfcefa3f8, 9);
+ 	ROUND2(CX,DX,AX,BX,12,0x676f02d9,14);
+ 	ROUND2(BX,CX,DX,AX, 0,0x8d2a4c8a,20);
+- 
++
+ 	MOVL	(5*4)(SI),	DI
+ 	MOVL	CX,		BP
+ 
+diff --git a/src/crypto/md5/md5block_amd64.s b/src/crypto/md5/md5block_amd64.s
+index a3ae7d97b2..90d932b146 100644
+--- a/src/crypto/md5/md5block_amd64.s
++++ b/src/crypto/md5/md5block_amd64.s
+@@ -99,7 +99,7 @@ loop:
+ 	ROUND2(DX,AX,BX,CX, 7,0xfcefa3f8, 9);
+ 	ROUND2(CX,DX,AX,BX,12,0x676f02d9,14);
+ 	ROUND2(BX,CX,DX,AX, 0,0x8d2a4c8a,20);
+- 
++
+ 	MOVL	(5*4)(SI),	R8
+ 	MOVL	CX,		R9
+ 
+@@ -144,7 +144,7 @@ loop:
+ 	ROLL	$shift,		a; \
+ 	XORL	c,		R9; \
+ 	ADDL	b,		a
+-	
++
+ 	ROUND4(AX,BX,CX,DX, 7,0xf4292244, 6);
+ 	ROUND4(DX,AX,BX,CX,14,0x432aff97,10);
+ 	ROUND4(CX,DX,AX,BX, 5,0xab9423a7,15);
+diff --git a/src/crypto/md5/md5block_amd64p32.s b/src/crypto/md5/md5block_amd64p32.s
+index ee05f8613b..7295942dc8 100644
+--- a/src/crypto/md5/md5block_amd64p32.s
++++ b/src/crypto/md5/md5block_amd64p32.s
+@@ -103,7 +103,7 @@ loop:
+ 	ROUND2(DX,AX,BX,CX, 7,0xfcefa3f8, 9);
+ 	ROUND2(CX,DX,AX,BX,12,0x676f02d9,14);
+ 	ROUND2(BX,CX,DX,AX, 0,0x8d2a4c8a,20);
+- 
++
+ 	MOVL	(5*4)(SI),	R8
+ 	MOVL	CX,		R9
+ 
+@@ -148,7 +148,7 @@ loop:
+ 	ROLL	$shift,		a; \
+ 	XORL	c,		R9; \
+ 	ADDL	b,		a
+-	
++
+ 	ROUND4(AX,BX,CX,DX, 7,0xf4292244, 6);
+ 	ROUND4(DX,AX,BX,CX,14,0x432aff97,10);
+ 	ROUND4(CX,DX,AX,BX, 5,0xab9423a7,15);
+diff --git a/src/crypto/sha1/sha1block_386.s b/src/crypto/sha1/sha1block_386.s
+index 0a7e45a79c..34d023d424 100644
+--- a/src/crypto/sha1/sha1block_386.s
++++ b/src/crypto/sha1/sha1block_386.s
+@@ -105,7 +105,7 @@ TEXT ·block(SB),NOSPLIT,$92-16
+ 	MOVL	p_len+8(FP),	DX
+ 	SHRL	$6,		DX
+ 	SHLL	$6,		DX
+-	
++
+ 	LEAL	(SI)(DX*1),	DI
+ 	MOVL	(0*4)(BP),	AX
+ 	MOVL	(1*4)(BP),	BX
+@@ -148,7 +148,7 @@ loop:
+ 	ROUND1x(DX, BP, AX, BX, CX, 17)
+ 	ROUND1x(CX, DX, BP, AX, BX, 18)
+ 	ROUND1x(BX, CX, DX, BP, AX, 19)
+-	
++
+ 	ROUND2(AX, BX, CX, DX, BP, 20)
+ 	ROUND2(BP, AX, BX, CX, DX, 21)
+ 	ROUND2(DX, BP, AX, BX, CX, 22)
+@@ -169,7 +169,7 @@ loop:
+ 	ROUND2(DX, BP, AX, BX, CX, 37)
+ 	ROUND2(CX, DX, BP, AX, BX, 38)
+ 	ROUND2(BX, CX, DX, BP, AX, 39)
+-	
++
+ 	ROUND3(AX, BX, CX, DX, BP, 40)
+ 	ROUND3(BP, AX, BX, CX, DX, 41)
+ 	ROUND3(DX, BP, AX, BX, CX, 42)
+@@ -190,7 +190,7 @@ loop:
+ 	ROUND3(DX, BP, AX, BX, CX, 57)
+ 	ROUND3(CX, DX, BP, AX, BX, 58)
+ 	ROUND3(BX, CX, DX, BP, AX, 59)
+-	
++
+ 	ROUND4(AX, BX, CX, DX, BP, 60)
+ 	ROUND4(BP, AX, BX, CX, DX, 61)
+ 	ROUND4(DX, BP, AX, BX, CX, 62)
+diff --git a/src/crypto/sha1/sha1block_amd64.s b/src/crypto/sha1/sha1block_amd64.s
+index 135f113898..42f03fb268 100644
+--- a/src/crypto/sha1/sha1block_amd64.s
++++ b/src/crypto/sha1/sha1block_amd64.s
+@@ -60,7 +60,7 @@
+ 	MOVL	b, R9; \
+ 	ANDL	c, R9; \
+ 	ORL	R8, R9
+-	
++
+ #define FUNC4 FUNC2
+ 
+ #define MIX(a, b, c, d, e, const) \
+@@ -102,7 +102,7 @@ TEXT ·blockAMD64(SB),NOSPLIT,$64-32
+ 	MOVQ	p_len+16(FP),	DX
+ 	SHRQ	$6,		DX
+ 	SHLQ	$6,		DX
+-	
++
+ 	LEAQ	(SI)(DX*1),	DI
+ 	MOVL	(0*4)(BP),	AX
+ 	MOVL	(1*4)(BP),	BX
+@@ -141,7 +141,7 @@ loop:
+ 	ROUND1x(DX, BP, AX, BX, CX, 17)
+ 	ROUND1x(CX, DX, BP, AX, BX, 18)
+ 	ROUND1x(BX, CX, DX, BP, AX, 19)
+-	
++
+ 	ROUND2(AX, BX, CX, DX, BP, 20)
+ 	ROUND2(BP, AX, BX, CX, DX, 21)
+ 	ROUND2(DX, BP, AX, BX, CX, 22)
+@@ -162,7 +162,7 @@ loop:
+ 	ROUND2(DX, BP, AX, BX, CX, 37)
+ 	ROUND2(CX, DX, BP, AX, BX, 38)
+ 	ROUND2(BX, CX, DX, BP, AX, 39)
+-	
++
+ 	ROUND3(AX, BX, CX, DX, BP, 40)
+ 	ROUND3(BP, AX, BX, CX, DX, 41)
+ 	ROUND3(DX, BP, AX, BX, CX, 42)
+@@ -183,7 +183,7 @@ loop:
+ 	ROUND3(DX, BP, AX, BX, CX, 57)
+ 	ROUND3(CX, DX, BP, AX, BX, 58)
+ 	ROUND3(BX, CX, DX, BP, AX, 59)
+-	
++
+ 	ROUND4(AX, BX, CX, DX, BP, 60)
+ 	ROUND4(BP, AX, BX, CX, DX, 61)
+ 	ROUND4(DX, BP, AX, BX, CX, 62)
+diff --git a/src/crypto/sha1/sha1block_amd64p32.s b/src/crypto/sha1/sha1block_amd64p32.s
+index e5404e8997..32058ba01d 100644
+--- a/src/crypto/sha1/sha1block_amd64p32.s
++++ b/src/crypto/sha1/sha1block_amd64p32.s
+@@ -55,7 +55,7 @@
+ 	MOVL	b, R9; \
+ 	ANDL	c, R9; \
+ 	ORL	R8, R9
+-	
++
+ #define FUNC4 FUNC2
+ 
+ #define MIX(a, b, c, d, e, const) \
+@@ -97,7 +97,7 @@ TEXT ·block(SB),NOSPLIT,$64-16
+ 	MOVL	p_len+8(FP),	DX
+ 	SHRQ	$6,		DX
+ 	SHLQ	$6,		DX
+-	
++
+ 	LEAQ	(SI)(DX*1),	DI
+ 	MOVL	(0*4)(R14),	AX
+ 	MOVL	(1*4)(R14),	BX
+@@ -131,7 +131,7 @@ loop:
+ 	ROUND1x(DX, BP, AX, BX, CX, 17)
+ 	ROUND1x(CX, DX, BP, AX, BX, 18)
+ 	ROUND1x(BX, CX, DX, BP, AX, 19)
+-	
++
+ 	ROUND2(AX, BX, CX, DX, BP, 20)
+ 	ROUND2(BP, AX, BX, CX, DX, 21)
+ 	ROUND2(DX, BP, AX, BX, CX, 22)
+@@ -152,7 +152,7 @@ loop:
+ 	ROUND2(DX, BP, AX, BX, CX, 37)
+ 	ROUND2(CX, DX, BP, AX, BX, 38)
+ 	ROUND2(BX, CX, DX, BP, AX, 39)
+-	
++
+ 	ROUND3(AX, BX, CX, DX, BP, 40)
+ 	ROUND3(BP, AX, BX, CX, DX, 41)
+ 	ROUND3(DX, BP, AX, BX, CX, 42)
+@@ -173,7 +173,7 @@ loop:
+ 	ROUND3(DX, BP, AX, BX, CX, 57)
+ 	ROUND3(CX, DX, BP, AX, BX, 58)
+ 	ROUND3(BX, CX, DX, BP, AX, 59)
+-	
++
+ 	ROUND4(AX, BX, CX, DX, BP, 60)
+ 	ROUND4(BP, AX, BX, CX, DX, 61)
+ 	ROUND4(DX, BP, AX, BX, CX, 62)
+diff --git a/src/crypto/sha1/sha1block_arm.s b/src/crypto/sha1/sha1block_arm.s
+index 055edc9f3f..2236533ab4 100644
+--- a/src/crypto/sha1/sha1block_arm.s
++++ b/src/crypto/sha1/sha1block_arm.s
+@@ -63,10 +63,10 @@
+ 	ORR	Rt1<<24, Rt0, Rt0	    ; \
+ 	MOVW.P	Rt0, 4(Rw)		    ; \
+ 	ADD	Rt0, Re, Re
+-	
++
+ 	// tmp := w[(i-3)&0xf] ^ w[(i-8)&0xf] ^ w[(i-14)&0xf] ^ w[(i)&0xf]
+ 	// w[i&0xf] = tmp<<1 | tmp>>(32-1)
+-	// e += w[i&0xf] 
++	// e += w[i&0xf]
+ #define SHUFFLE(Re) \
+ 	MOVW	(-16*4)(Rw), Rt0 ; \
+ 	MOVW	(-14*4)(Rw), Rt1 ; \
+@@ -167,7 +167,7 @@ loop1:	ROUND1(Ra, Rb, Rc, Rd, Re)
+ 	ROUND1x(Rd, Re, Ra, Rb, Rc)
+ 	ROUND1x(Rc, Rd, Re, Ra, Rb)
+ 	ROUND1x(Rb, Rc, Rd, Re, Ra)
+-	
++
+ 	MOVW	$0x6ED9EBA1, Rconst
+ 	MOVW	$4, Rctr
+ loop2:	ROUND2(Ra, Rb, Rc, Rd, Re)
+@@ -177,7 +177,7 @@ loop2:	ROUND2(Ra, Rb, Rc, Rd, Re)
+ 	ROUND2(Rb, Rc, Rd, Re, Ra)
+ 	SUB.S	$1, Rctr
+ 	BNE	loop2
+-	
++
+ 	MOVW	$0x8F1BBCDC, Rconst
+ 	MOVW	$4, Rctr
+ loop3:	ROUND3(Ra, Rb, Rc, Rd, Re)
+@@ -187,7 +187,7 @@ loop3:	ROUND3(Ra, Rb, Rc, Rd, Re)
+ 	ROUND3(Rb, Rc, Rd, Re, Ra)
+ 	SUB.S	$1, Rctr
+ 	BNE	loop3
+-	
++
+ 	MOVW	$0xCA62C1D6, Rconst
+ 	MOVW	$4, Rctr
+ loop4:	ROUND4(Ra, Rb, Rc, Rd, Re)
+diff --git a/src/internal/bytealg/compare_amd64.s b/src/internal/bytealg/compare_amd64.s
+index 05bef4aad9..25effbc56f 100644
+--- a/src/internal/bytealg/compare_amd64.s
++++ b/src/internal/bytealg/compare_amd64.s
+@@ -63,7 +63,7 @@ loop:
+ 	ADDQ	$16, DI
+ 	SUBQ	$16, R8
+ 	JMP	loop
+-	
++
+ diff64:
+ 	ADDQ	$48, SI
+ 	ADDQ	$48, DI
+diff --git a/src/internal/bytealg/compare_amd64p32.s b/src/internal/bytealg/compare_amd64p32.s
+index 85ba6fa9ac..4687fd8a04 100644
+--- a/src/internal/bytealg/compare_amd64p32.s
++++ b/src/internal/bytealg/compare_amd64p32.s
+@@ -62,7 +62,7 @@ loop:
+ 	ADDQ	$16, DI
+ 	SUBQ	$16, R8
+ 	JMP	loop
+-	
++
+ 	// AX = bit mask of differences
+ diff16:
+ 	BSFQ	AX, BX	// index of first byte that differs
+diff --git a/src/internal/bytealg/equal_amd64.s b/src/internal/bytealg/equal_amd64.s
+index 5263d3040d..b695d9cf42 100644
+--- a/src/internal/bytealg/equal_amd64.s
++++ b/src/internal/bytealg/equal_amd64.s
+@@ -79,7 +79,7 @@ TEXT memeqbody<>(SB),NOSPLIT,$0-0
+ 	JB	bigloop
+ 	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
+ 	JE	hugeloop_avx2
+-	
++
+ 	// 64 bytes at a time using xmm registers
+ hugeloop:
+ 	CMPQ	BX, $64
+diff --git a/src/internal/bytealg/equal_amd64p32.s b/src/internal/bytealg/equal_amd64p32.s
+index c841f98b2f..9be4274c11 100644
+--- a/src/internal/bytealg/equal_amd64p32.s
++++ b/src/internal/bytealg/equal_amd64p32.s
+@@ -80,7 +80,7 @@ TEXT memeqbody<>(SB),NOSPLIT,$0-0
+ 
+ 	CMPQ	BX, $8
+ 	JB	small
+-	
++
+ 	// 64 bytes at a time using xmm registers
+ hugeloop:
+ 	CMPQ	BX, $64
+diff --git a/src/internal/bytealg/equal_arm.s b/src/internal/bytealg/equal_arm.s
+index 6b0d7deed9..e8a92b3cf2 100644
+--- a/src/internal/bytealg/equal_arm.s
++++ b/src/internal/bytealg/equal_arm.s
+@@ -9,7 +9,7 @@
+ TEXT ·Equal(SB),NOSPLIT,$0-25
+ 	MOVW	a_len+4(FP), R1
+ 	MOVW	b_len+16(FP), R3
+-	
++
+ 	CMP	R1, R3		// unequal lengths are not equal
+ 	B.NE	notequal
+ 
+diff --git a/src/math/big/arith_386.s b/src/math/big/arith_386.s
+index 6c080f074a..864fbc554e 100644
+--- a/src/math/big/arith_386.s
++++ b/src/math/big/arith_386.s
+@@ -183,7 +183,7 @@ L9:	MOVL AX, DX		// w = w1
+ 	SHRL CX, DX:AX		// w>>s | w1<<ŝ
+ 	MOVL DX, (DI)(BX*4)	// z[i] = w>>s | w1<<ŝ
+ 	ADDL $1, BX		// i++
+-	
++
+ E9:	CMPL BX, BP
+ 	JL L9			// i < n-1
+ 
+diff --git a/src/math/big/arith_amd64.s b/src/math/big/arith_amd64.s
+index 1b950a4a25..e9c8887523 100644
+--- a/src/math/big/arith_amd64.s
++++ b/src/math/big/arith_amd64.s
+@@ -324,10 +324,10 @@ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	MOVQ r+56(FP), CX	// c = r
+ 	MOVQ z_len+8(FP), R11
+ 	MOVQ $0, BX		// i = 0
+-	
++
+ 	CMPQ R11, $4
+ 	JL E5
+-	
++
+ U5:	// i+4 <= n
+ 	// regular loop body unrolled 4x
+ 	MOVQ (0*8)(R8)(BX*8), AX
+@@ -355,7 +355,7 @@ U5:	// i+4 <= n
+ 	MOVQ AX, (3*8)(R10)(BX*8)
+ 	MOVQ DX, CX
+ 	ADDQ $4, BX		// i += 4
+-	
++
+ 	LEAQ 4(BX), DX
+ 	CMPQ DX, R11
+ 	JLE U5
+diff --git a/src/math/big/arith_arm.s b/src/math/big/arith_arm.s
+index ba65fd2b1f..33aa36f709 100644
+--- a/src/math/big/arith_arm.s
++++ b/src/math/big/arith_arm.s
+@@ -123,7 +123,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
+ 	MOVW	z_len+4(FP), R5
+ 	TEQ	$0, R5
+ 	BEQ	X7
+-	
++
+ 	MOVW	z+0(FP), R1
+ 	MOVW	x+12(FP), R2
+ 	ADD	R5<<2, R2, R2
+@@ -135,7 +135,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
+ 	MOVW	$32, R4
+ 	SUB	R3, R4
+ 	MOVW	$0, R7
+-	
++
+ 	MOVW.W	-4(R2), R6
+ 	MOVW	R6<<R3, R7
+ 	MOVW	R6>>R4, R6
+diff --git a/src/math/big/arith_s390x.s b/src/math/big/arith_s390x.s
+index 4520d161d7..9156d9debe 100644
+--- a/src/math/big/arith_s390x.s
++++ b/src/math/big/arith_s390x.s
+@@ -54,7 +54,7 @@ TEXT ·divWW(SB),NOSPLIT,$0
+ TEXT ·addVV(SB),NOSPLIT,$0
+ 	MOVD	addvectorfacility+0x00(SB),R1
+ 	BR	(R1)
+-	
++
+ TEXT ·addVV_check(SB),NOSPLIT, $0
+ 	MOVB	·hasVX(SB), R1
+ 	CMPBEQ	R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+@@ -89,7 +89,7 @@ TEXT ·addVV_vec(SB),NOSPLIT,$0
+ 	BLT	v1
+ 	SUB     $12, R3                 // n -= 16
+         BLT     A1                      // if n < 0 goto A1
+-       
++
+ 	MOVD	R8, R5
+ 	MOVD	R9, R6
+ 	MOVD	R2, R7
+@@ -291,7 +291,7 @@ E1n:	NEG	R4, R4
+ TEXT ·subVV(SB),NOSPLIT,$0
+ 	MOVD	subvectorfacility+0x00(SB),R1
+ 	BR	(R1)
+-	
++
+ TEXT ·subVV_check(SB),NOSPLIT,$0
+ 	MOVB	·hasVX(SB), R1
+ 	CMPBEQ	R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+@@ -321,7 +321,7 @@ TEXT ·subVV_vec(SB),NOSPLIT,$0
+ 	MOVD	$0, R4		// c = 0
+ 	MOVD	$0, R0		// make sure it's zero
+ 	MOVD	$0, R10		// i = 0
+-	
++
+ 	// s/JL/JMP/ below to disable the unrolled loop
+ 	SUB	$4, R3		// n -= 4
+ 	BLT	v1		// if n < 0 goto v1
+@@ -413,7 +413,7 @@ UU1:	VLM	0(R5), V1, V4		// 64-bytes into V1..V8
+ 
+ A1:	ADD	$12, R3		// n += 16
+ 	BLT	v1		// if n < 0 goto v1
+-	
++
+ U1:	// n >= 0
+ 	// regular loop body unrolled 4x
+ 	MOVD	0(R8)(R10*1), R5
+@@ -532,7 +532,7 @@ E1:	NEG  R4, R4
+ TEXT ·addVW(SB),NOSPLIT,$0
+ 	MOVD	addwvectorfacility+0x00(SB),R1
+ 	BR	(R1)
+-	
++
+ TEXT ·addVW_check(SB),NOSPLIT,$0
+ 	MOVB	·hasVX(SB), R1
+ 	CMPBEQ	R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+@@ -742,7 +742,7 @@ E4:	MOVD R4, c+56(FP)	// return c
+ TEXT ·subVW(SB),NOSPLIT,$0
+ 	MOVD	subwvectorfacility+0x00(SB),R1
+ 	BR	(R1)
+-	
++
+ TEXT ·subVW_check(SB),NOSPLIT,$0
+ 	MOVB	·hasVX(SB), R1
+ 	CMPBEQ	R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+diff --git a/src/math/expm1_386.s b/src/math/expm1_386.s
+index c1392cd52b..d020296ca7 100644
+--- a/src/math/expm1_386.s
++++ b/src/math/expm1_386.s
+@@ -8,7 +8,7 @@
+ TEXT ·Expm1(SB),NOSPLIT,$0
+ 	FLDLN2               // F0=log(2) = 1/log2(e) ~ 0.693147
+ 	FMOVD   x+0(FP), F0  // F0=x, F1=1/log2(e)
+-	FABS                 // F0=|x|, F1=1/log2(e) 
++	FABS                 // F0=|x|, F1=1/log2(e)
+ 	FUCOMPP F0, F1       // compare F0 to F1
+ 	FSTSW   AX
+ 	SAHF
+@@ -36,7 +36,7 @@ use_exp:
+ 	FSCALE                // F0=e**x, F1=int(x*log2(e))
+ 	FMOVDP  F0, F1        // F0=e**x
+ 	FLD1                  // F0=1, F1=e**x
+-	FSUBDP  F0, F1        // F0=e**x-1 
++	FSUBDP  F0, F1        // F0=e**x-1
+ 	FMOVDP  F0, ret+8(FP)
+ 	RET
+ not_finite:
+diff --git a/src/math/sin_386.s b/src/math/sin_386.s
+index 9d605a1e38..45d12e00c8 100644
+--- a/src/math/sin_386.s
++++ b/src/math/sin_386.s
+@@ -24,7 +24,7 @@ TEXT ·Cos(SB),NOSPLIT,$0
+ 	FCOS                 // F0=cos(reduced_x)
+ 	FMOVDP  F0, ret+8(FP)
+ 	RET
+-	
++
+ // func Sin(x float64) float64
+ TEXT ·Sin(SB),NOSPLIT,$0
+ 	FMOVD   x+0(FP), F0  // F0=x
+diff --git a/src/math/sqrt_386.s b/src/math/sqrt_386.s
+index 402d152785..5a5c33a79a 100644
+--- a/src/math/sqrt_386.s
++++ b/src/math/sqrt_386.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-// func Sqrt(x float64) float64	
++// func Sqrt(x float64) float64
+ TEXT ·Sqrt(SB),NOSPLIT,$0
+ 	FMOVD   x+0(FP),F0
+ 	FSQRT
+diff --git a/src/math/sqrt_arm.s b/src/math/sqrt_arm.s
+index deb6712553..ffc7d1026d 100644
+--- a/src/math/sqrt_arm.s
++++ b/src/math/sqrt_arm.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-// func Sqrt(x float64) float64	
++// func Sqrt(x float64) float64
+ TEXT ·Sqrt(SB),NOSPLIT,$0
+ 	MOVB	runtime·goarm(SB), R11
+ 	CMP	$5, R11
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 7761415ecd..5bc2063bed 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -107,7 +107,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	MOVL	BX, g_stackguard1(BP)
+ 	MOVL	BX, (g_stack+stack_lo)(BP)
+ 	MOVL	SP, (g_stack+stack_hi)(BP)
+-	
++
+ 	// find out information about the processor we're on
+ #ifdef GOOS_nacl // NaCl doesn't like PUSHFL/POPFL
+ 	JMP 	has_cpuid
+@@ -827,7 +827,7 @@ havem:
+ 	MOVL	(g_sched+gobuf_sp)(SI), SP
+ 	MOVL	0(SP), AX
+ 	MOVL	AX, (g_sched+gobuf_sp)(SI)
+-	
++
+ 	// If the m on entry was nil, we called needm above to borrow an m
+ 	// for the duration of the call. Since the call is over, return it with dropm.
+ 	CMPL	DX, $0
+@@ -942,7 +942,7 @@ TEXT runtime·aeshashbody(SB),NOSPLIT,$0-0
+ 	CMPL	BX, $64
+ 	JBE	aes33to64
+ 	JMP	aes65plus
+-	
++
+ aes0to15:
+ 	TESTL	BX, BX
+ 	JE	aes0
+@@ -957,7 +957,7 @@ aes0to15:
+ 	ADDL	BX, BX
+ 	PAND	masks<>(SB)(BX*8), X1
+ 
+-final1:	
++final1:
+ 	AESENC	X0, X1  // scramble input, xor in seed
+ 	AESENC	X1, X1  // scramble combo 2 times
+ 	AESENC	X1, X1
+@@ -987,7 +987,7 @@ aes17to32:
+ 	// make second starting seed
+ 	PXOR	runtime·aeskeysched+16(SB), X1
+ 	AESENC	X1, X1
+-	
++
+ 	// load data to be hashed
+ 	MOVOU	(AX), X2
+ 	MOVOU	-16(AX)(BX*1), X3
+@@ -1015,22 +1015,22 @@ aes33to64:
+ 	AESENC	X1, X1
+ 	AESENC	X2, X2
+ 	AESENC	X3, X3
+-	
++
+ 	MOVOU	(AX), X4
+ 	MOVOU	16(AX), X5
+ 	MOVOU	-32(AX)(BX*1), X6
+ 	MOVOU	-16(AX)(BX*1), X7
+-	
++
+ 	AESENC	X0, X4
+ 	AESENC	X1, X5
+ 	AESENC	X2, X6
+ 	AESENC	X3, X7
+-	
++
+ 	AESENC	X4, X4
+ 	AESENC	X5, X5
+ 	AESENC	X6, X6
+ 	AESENC	X7, X7
+-	
++
+ 	AESENC	X4, X4
+ 	AESENC	X5, X5
+ 	AESENC	X6, X6
+@@ -1052,7 +1052,7 @@ aes65plus:
+ 	AESENC	X1, X1
+ 	AESENC	X2, X2
+ 	AESENC	X3, X3
+-	
++
+ 	// start with last (possibly overlapping) block
+ 	MOVOU	-64(AX)(BX*1), X4
+ 	MOVOU	-48(AX)(BX*1), X5
+@@ -1068,7 +1068,7 @@ aes65plus:
+ 	// compute number of remaining 64-byte blocks
+ 	DECL	BX
+ 	SHRL	$6, BX
+-	
++
+ aesloop:
+ 	// scramble state, xor in a block
+ 	MOVOU	(AX), X0
+@@ -1095,7 +1095,7 @@ aesloop:
+ 	AESENC	X5, X5
+ 	AESENC	X6, X6
+ 	AESENC	X7, X7
+-	
++
+ 	AESENC	X4, X4
+ 	AESENC	X5, X5
+ 	AESENC	X6, X6
+@@ -1132,77 +1132,77 @@ DATA masks<>+0x00(SB)/4, $0x00000000
+ DATA masks<>+0x04(SB)/4, $0x00000000
+ DATA masks<>+0x08(SB)/4, $0x00000000
+ DATA masks<>+0x0c(SB)/4, $0x00000000
+-	
++
+ DATA masks<>+0x10(SB)/4, $0x000000ff
+ DATA masks<>+0x14(SB)/4, $0x00000000
+ DATA masks<>+0x18(SB)/4, $0x00000000
+ DATA masks<>+0x1c(SB)/4, $0x00000000
+-	
++
+ DATA masks<>+0x20(SB)/4, $0x0000ffff
+ DATA masks<>+0x24(SB)/4, $0x00000000
+ DATA masks<>+0x28(SB)/4, $0x00000000
+ DATA masks<>+0x2c(SB)/4, $0x00000000
+-	
++
+ DATA masks<>+0x30(SB)/4, $0x00ffffff
+ DATA masks<>+0x34(SB)/4, $0x00000000
+ DATA masks<>+0x38(SB)/4, $0x00000000
+ DATA masks<>+0x3c(SB)/4, $0x00000000
+-	
++
+ DATA masks<>+0x40(SB)/4, $0xffffffff
+ DATA masks<>+0x44(SB)/4, $0x00000000
+ DATA masks<>+0x48(SB)/4, $0x00000000
+ DATA masks<>+0x4c(SB)/4, $0x00000000
+-	
++
+ DATA masks<>+0x50(SB)/4, $0xffffffff
+ DATA masks<>+0x54(SB)/4, $0x000000ff
+ DATA masks<>+0x58(SB)/4, $0x00000000
+ DATA masks<>+0x5c(SB)/4, $0x00000000
+-	
++
+ DATA masks<>+0x60(SB)/4, $0xffffffff
+ DATA masks<>+0x64(SB)/4, $0x0000ffff
+ DATA masks<>+0x68(SB)/4, $0x00000000
+ DATA masks<>+0x6c(SB)/4, $0x00000000
+-	
++
+ DATA masks<>+0x70(SB)/4, $0xffffffff
+ DATA masks<>+0x74(SB)/4, $0x00ffffff
+ DATA masks<>+0x78(SB)/4, $0x00000000
+ DATA masks<>+0x7c(SB)/4, $0x00000000
+-	
++
+ DATA masks<>+0x80(SB)/4, $0xffffffff
+ DATA masks<>+0x84(SB)/4, $0xffffffff
+ DATA masks<>+0x88(SB)/4, $0x00000000
+ DATA masks<>+0x8c(SB)/4, $0x00000000
+-	
++
+ DATA masks<>+0x90(SB)/4, $0xffffffff
+ DATA masks<>+0x94(SB)/4, $0xffffffff
+ DATA masks<>+0x98(SB)/4, $0x000000ff
+ DATA masks<>+0x9c(SB)/4, $0x00000000
+-	
++
+ DATA masks<>+0xa0(SB)/4, $0xffffffff
+ DATA masks<>+0xa4(SB)/4, $0xffffffff
+ DATA masks<>+0xa8(SB)/4, $0x0000ffff
+ DATA masks<>+0xac(SB)/4, $0x00000000
+-	
++
+ DATA masks<>+0xb0(SB)/4, $0xffffffff
+ DATA masks<>+0xb4(SB)/4, $0xffffffff
+ DATA masks<>+0xb8(SB)/4, $0x00ffffff
+ DATA masks<>+0xbc(SB)/4, $0x00000000
+-	
++
+ DATA masks<>+0xc0(SB)/4, $0xffffffff
+ DATA masks<>+0xc4(SB)/4, $0xffffffff
+ DATA masks<>+0xc8(SB)/4, $0xffffffff
+ DATA masks<>+0xcc(SB)/4, $0x00000000
+-	
++
+ DATA masks<>+0xd0(SB)/4, $0xffffffff
+ DATA masks<>+0xd4(SB)/4, $0xffffffff
+ DATA masks<>+0xd8(SB)/4, $0xffffffff
+ DATA masks<>+0xdc(SB)/4, $0x000000ff
+-	
++
+ DATA masks<>+0xe0(SB)/4, $0xffffffff
+ DATA masks<>+0xe4(SB)/4, $0xffffffff
+ DATA masks<>+0xe8(SB)/4, $0xffffffff
+ DATA masks<>+0xec(SB)/4, $0x0000ffff
+-	
++
+ DATA masks<>+0xf0(SB)/4, $0xffffffff
+ DATA masks<>+0xf4(SB)/4, $0xffffffff
+ DATA masks<>+0xf8(SB)/4, $0xffffffff
+@@ -1217,77 +1217,77 @@ DATA shifts<>+0x00(SB)/4, $0x00000000
+ DATA shifts<>+0x04(SB)/4, $0x00000000
+ DATA shifts<>+0x08(SB)/4, $0x00000000
+ DATA shifts<>+0x0c(SB)/4, $0x00000000
+-	
++
+ DATA shifts<>+0x10(SB)/4, $0xffffff0f
+ DATA shifts<>+0x14(SB)/4, $0xffffffff
+ DATA shifts<>+0x18(SB)/4, $0xffffffff
+ DATA shifts<>+0x1c(SB)/4, $0xffffffff
+-	
++
+ DATA shifts<>+0x20(SB)/4, $0xffff0f0e
+ DATA shifts<>+0x24(SB)/4, $0xffffffff
+ DATA shifts<>+0x28(SB)/4, $0xffffffff
+ DATA shifts<>+0x2c(SB)/4, $0xffffffff
+-	
++
+ DATA shifts<>+0x30(SB)/4, $0xff0f0e0d
+ DATA shifts<>+0x34(SB)/4, $0xffffffff
+ DATA shifts<>+0x38(SB)/4, $0xffffffff
+ DATA shifts<>+0x3c(SB)/4, $0xffffffff
+-	
++
+ DATA shifts<>+0x40(SB)/4, $0x0f0e0d0c
+ DATA shifts<>+0x44(SB)/4, $0xffffffff
+ DATA shifts<>+0x48(SB)/4, $0xffffffff
+ DATA shifts<>+0x4c(SB)/4, $0xffffffff
+-	
++
+ DATA shifts<>+0x50(SB)/4, $0x0e0d0c0b
+ DATA shifts<>+0x54(SB)/4, $0xffffff0f
+ DATA shifts<>+0x58(SB)/4, $0xffffffff
+ DATA shifts<>+0x5c(SB)/4, $0xffffffff
+-	
++
+ DATA shifts<>+0x60(SB)/4, $0x0d0c0b0a
+ DATA shifts<>+0x64(SB)/4, $0xffff0f0e
+ DATA shifts<>+0x68(SB)/4, $0xffffffff
+ DATA shifts<>+0x6c(SB)/4, $0xffffffff
+-	
++
+ DATA shifts<>+0x70(SB)/4, $0x0c0b0a09
+ DATA shifts<>+0x74(SB)/4, $0xff0f0e0d
+ DATA shifts<>+0x78(SB)/4, $0xffffffff
+ DATA shifts<>+0x7c(SB)/4, $0xffffffff
+-	
++
+ DATA shifts<>+0x80(SB)/4, $0x0b0a0908
+ DATA shifts<>+0x84(SB)/4, $0x0f0e0d0c
+ DATA shifts<>+0x88(SB)/4, $0xffffffff
+ DATA shifts<>+0x8c(SB)/4, $0xffffffff
+-	
++
+ DATA shifts<>+0x90(SB)/4, $0x0a090807
+ DATA shifts<>+0x94(SB)/4, $0x0e0d0c0b
+ DATA shifts<>+0x98(SB)/4, $0xffffff0f
+ DATA shifts<>+0x9c(SB)/4, $0xffffffff
+-	
++
+ DATA shifts<>+0xa0(SB)/4, $0x09080706
+ DATA shifts<>+0xa4(SB)/4, $0x0d0c0b0a
+ DATA shifts<>+0xa8(SB)/4, $0xffff0f0e
+ DATA shifts<>+0xac(SB)/4, $0xffffffff
+-	
++
+ DATA shifts<>+0xb0(SB)/4, $0x08070605
+ DATA shifts<>+0xb4(SB)/4, $0x0c0b0a09
+ DATA shifts<>+0xb8(SB)/4, $0xff0f0e0d
+ DATA shifts<>+0xbc(SB)/4, $0xffffffff
+-	
++
+ DATA shifts<>+0xc0(SB)/4, $0x07060504
+ DATA shifts<>+0xc4(SB)/4, $0x0b0a0908
+ DATA shifts<>+0xc8(SB)/4, $0x0f0e0d0c
+ DATA shifts<>+0xcc(SB)/4, $0xffffffff
+-	
++
+ DATA shifts<>+0xd0(SB)/4, $0x06050403
+ DATA shifts<>+0xd4(SB)/4, $0x0a090807
+ DATA shifts<>+0xd8(SB)/4, $0x0e0d0c0b
+ DATA shifts<>+0xdc(SB)/4, $0xffffff0f
+-	
++
+ DATA shifts<>+0xe0(SB)/4, $0x05040302
+ DATA shifts<>+0xe4(SB)/4, $0x09080706
+ DATA shifts<>+0xe8(SB)/4, $0x0d0c0b0a
+ DATA shifts<>+0xec(SB)/4, $0xffff0f0e
+-	
++
+ DATA shifts<>+0xf0(SB)/4, $0x04030201
+ DATA shifts<>+0xf4(SB)/4, $0x08070605
+ DATA shifts<>+0xf8(SB)/4, $0x0c0b0a09
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 2a15910aea..ab891154c8 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -92,7 +92,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	ANDQ	$~15, SP
+ 	MOVQ	AX, 16(SP)
+ 	MOVQ	BX, 24(SP)
+-	
++
+ 	// create istack out of the given (operating system) stack.
+ 	// _cgo_init may update stackguard.
+ 	MOVQ	$runtime·g0(SB), DI
+@@ -273,7 +273,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $16-8
+ // to keep running g.
+ TEXT runtime·mcall(SB), NOSPLIT, $0-8
+ 	MOVQ	fn+0(FP), DI
+-	
++
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX	// save state in g->sched
+ 	MOVQ	0(SP), BX	// caller's PC
+@@ -617,7 +617,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
+ 	MOVQ	m_gsignal(R8), SI
+ 	CMPQ	SI, DI
+ 	JEQ	nosave
+-	
++
+ 	// Switch to system stack.
+ 	MOVQ	m_g0(R8), SI
+ 	CALL	gosave<>(SB)
+@@ -717,7 +717,7 @@ needm:
+ 	get_tls(CX)
+ 	MOVQ	g(CX), BX
+ 	MOVQ	g_m(BX), BX
+-	
++
+ 	// Set m->sched.sp = SP, so that if a panic happens
+ 	// during the function we are about to execute, it will
+ 	// have a valid SP to run on the g0 stack.
+@@ -801,7 +801,7 @@ havem:
+ 	MOVQ	(g_sched+gobuf_sp)(SI), SP
+ 	MOVQ	0(SP), AX
+ 	MOVQ	AX, (g_sched+gobuf_sp)(SI)
+-	
++
+ 	// If the m on entry was nil, we called needm above to borrow an m
+ 	// for the duration of the call. Since the call is over, return it with dropm.
+ 	CMPQ	R8, $0
+@@ -953,7 +953,7 @@ aes17to32:
+ 	// make second starting seed
+ 	PXOR	runtime·aeskeysched+16(SB), X1
+ 	AESENC	X1, X1
+-	
++
+ 	// load data to be hashed
+ 	MOVOU	(AX), X2
+ 	MOVOU	-16(AX)(CX*1), X3
+@@ -985,7 +985,7 @@ aes33to64:
+ 	AESENC	X1, X1
+ 	AESENC	X2, X2
+ 	AESENC	X3, X3
+-	
++
+ 	MOVOU	(AX), X4
+ 	MOVOU	16(AX), X5
+ 	MOVOU	-32(AX)(CX*1), X6
+@@ -995,17 +995,17 @@ aes33to64:
+ 	PXOR	X1, X5
+ 	PXOR	X2, X6
+ 	PXOR	X3, X7
+-	
++
+ 	AESENC	X4, X4
+ 	AESENC	X5, X5
+ 	AESENC	X6, X6
+ 	AESENC	X7, X7
+-	
++
+ 	AESENC	X4, X4
+ 	AESENC	X5, X5
+ 	AESENC	X6, X6
+ 	AESENC	X7, X7
+-	
++
+ 	AESENC	X4, X4
+ 	AESENC	X5, X5
+ 	AESENC	X6, X6
+@@ -1121,7 +1121,7 @@ aes129plus:
+ 	AESENC	X5, X5
+ 	AESENC	X6, X6
+ 	AESENC	X7, X7
+-	
++
+ 	// start with last (possibly overlapping) block
+ 	MOVOU	-128(AX)(CX*1), X8
+ 	MOVOU	-112(AX)(CX*1), X9
+@@ -1141,11 +1141,11 @@ aes129plus:
+ 	PXOR	X5, X13
+ 	PXOR	X6, X14
+ 	PXOR	X7, X15
+-	
++
+ 	// compute number of remaining 128-byte blocks
+ 	DECQ	CX
+ 	SHRQ	$7, CX
+-	
++
+ aesloop:
+ 	// scramble state
+ 	AESENC	X8, X8
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 49958d0c88..7f194d2403 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -18,7 +18,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 
+ 	MOVL	AX, 16(SP)
+ 	MOVL	BX, 24(SP)
+-	
++
+ 	// create istack out of the given (operating system) stack.
+ 	MOVL	$runtime·g0(SB), DI
+ 	LEAL	(-64*1024+104)(SP), BX
+@@ -150,7 +150,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $8-4
+ // to keep running g.
+ TEXT runtime·mcall(SB), NOSPLIT, $0-4
+ 	MOVL	fn+0(FP), DI
+-	
++
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX	// save state in g->sched
+ 	MOVL	0(SP), BX	// caller's PC
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index ace2b6def7..174dc46389 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -514,7 +514,7 @@ TEXT callRet<>(SB), NOSPLIT, $16-0
+ 	MOVW	R1, 12(R13)
+ 	MOVW	R2, 16(R13)
+ 	BL	runtime·reflectcallmove(SB)
+-	RET	
++	RET
+ 
+ CALLFN(·call16, 16)
+ CALLFN(·call32, 32)
+@@ -673,7 +673,7 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$16-16
+ // See cgocall.go for more details.
+ TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-16
+ 	NO_LOCAL_POINTERS
+-	
++
+ 	// Load m and g from thread-local storage.
+ 	MOVB	runtime·iscgo(SB), R0
+ 	CMP	$0, R0
+@@ -855,12 +855,12 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$8
+ 	// callee-save in the gcc calling convention, so save them here.
+ 	MOVW	R11, saveR11-4(SP)
+ 	MOVW	g, saveG-8(SP)
+-	
++
+ 	BL	runtime·load_g(SB)
+ 	MOVW	g_m(g), R0
+ 	MOVW	m_curg(R0), R0
+ 	MOVW	(g_stack+stack_hi)(R0), R0
+-	
++
+ 	MOVW	saveG-8(SP), g
+ 	MOVW	saveR11-4(SP), R11
+ 	RET
+diff --git a/src/runtime/cgo/asm_amd64.s b/src/runtime/cgo/asm_amd64.s
+index 0e33fc4796..06c538b9bc 100644
+--- a/src/runtime/cgo/asm_amd64.s
++++ b/src/runtime/cgo/asm_amd64.s
+@@ -36,9 +36,9 @@ TEXT crosscall2(SB),NOSPLIT,$0x110-0 /* also need to save xmm6 - xmm15 */
+ 	MOVQ	DX, 0x0(SP)	/* arg */
+ 	MOVQ	R8, 0x8(SP)	/* argsize (includes padding) */
+ 	MOVQ	R9, 0x10(SP)	/* ctxt */
+-	
++
+ 	CALL	CX	/* fn */
+-	
++
+ 	MOVQ	0x48(SP), DI
+ 	MOVQ	0x50(SP), SI
+ 	MOVUPS	0x60(SP), X6
+@@ -64,5 +64,5 @@ TEXT crosscall2(SB),NOSPLIT,$0x110-0 /* also need to save xmm6 - xmm15 */
+ 	MOVQ	0x30(SP), R13
+ 	MOVQ	0x38(SP), R14
+ 	MOVQ	0x40(SP), R15
+-	
++
+ 	RET
+diff --git a/src/runtime/cgo/asm_arm.s b/src/runtime/cgo/asm_arm.s
+index 36dab286ae..60132c14a8 100644
+--- a/src/runtime/cgo/asm_arm.s
++++ b/src/runtime/cgo/asm_arm.s
+@@ -8,7 +8,7 @@
+ // func crosscall2(fn func(a unsafe.Pointer, n int32, ctxt uintptr), a unsafe.Pointer, n int32, ctxt uintptr)
+ // Saves C callee-saved registers and calls fn with three arguments.
+ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+-	/* 
++	/*
+ 	 * We still need to save all callee save register as before, and then
+ 	 *  push 3 args for fn (R1, R2, R3).
+ 	 * Also note that at procedure entry in gc world, 4(R13) will be the
+diff --git a/src/runtime/cgo/signal_darwin_arm64.s b/src/runtime/cgo/signal_darwin_arm64.s
+index 60443b64c8..1ae00d13f3 100644
+--- a/src/runtime/cgo/signal_darwin_arm64.s
++++ b/src/runtime/cgo/signal_darwin_arm64.s
+@@ -37,7 +37,7 @@ ongothread:
+ 
+ 	// Build a 32-byte stack frame for us for this call.
+ 	// Saved LR (none available) is at the bottom,
+-	// then the PC argument for setsigsegv, 
++	// then the PC argument for setsigsegv,
+ 	// then a copy of the LR for us to restore.
+ 	MOVD.W $0, -32(RSP)
+ 	MOVD R1, 8(RSP)
+diff --git a/src/runtime/memmove_amd64p32.s b/src/runtime/memmove_amd64p32.s
+index 8e9fdd14c5..114077311c 100644
+--- a/src/runtime/memmove_amd64p32.s
++++ b/src/runtime/memmove_amd64p32.s
+@@ -34,7 +34,7 @@ back:
+ 	ADDL	BX, DI
+ 	ADDL	BX, SI
+ 	STD
+-	
++
+ 	MOVL	BX, CX
+ 	SHRL	$2, CX
+ 	ANDL	$3, BX
+diff --git a/src/runtime/memmove_arm.s b/src/runtime/memmove_arm.s
+index 324b21bf7a..8352fb7860 100644
+--- a/src/runtime/memmove_arm.s
++++ b/src/runtime/memmove_arm.s
+@@ -138,7 +138,7 @@ _f32loop:
+ 	CMP	TMP, TS
+ 	BHS	_f4tail
+ 
+-	MOVM.IA.W (FROM), [R1-R8] 
++	MOVM.IA.W (FROM), [R1-R8]
+ 	MOVM.IA.W [R1-R8], (TS)
+ 	B	_f32loop
+ 
+diff --git a/src/runtime/memmove_plan9_386.s b/src/runtime/memmove_plan9_386.s
+index 7ff01940a2..65dec93f6b 100644
+--- a/src/runtime/memmove_plan9_386.s
++++ b/src/runtime/memmove_plan9_386.s
+@@ -56,7 +56,7 @@ tail:
+ /*
+  * forward copy loop
+  */
+-forward:	
++forward:
+ 	MOVL	BX, CX
+ 	SHRL	$2, CX
+ 	ANDL	$3, BX
+diff --git a/src/runtime/memmove_plan9_amd64.s b/src/runtime/memmove_plan9_amd64.s
+index f18b59f3d2..b729c7c0e7 100644
+--- a/src/runtime/memmove_plan9_amd64.s
++++ b/src/runtime/memmove_plan9_amd64.s
+@@ -73,7 +73,7 @@ back:
+ 	ADDQ	BX, CX
+ 	CMPQ	CX, DI
+ 	JLS	forward
+-	
++
+ /*
+  * whole thing backwards has
+  * adjusted addresses
+diff --git a/src/runtime/rt0_linux_ppc64le.s b/src/runtime/rt0_linux_ppc64le.s
+index 73b9ae392d..54ea9d58f7 100644
+--- a/src/runtime/rt0_linux_ppc64le.s
++++ b/src/runtime/rt0_linux_ppc64le.s
+@@ -12,7 +12,7 @@ TEXT _rt0_ppc64le_linux_lib(SB),NOSPLIT,$-8
+ 	MOVW	CR, R0     // Save CR in caller's frame
+ 	MOVD	R0, 8(R1)
+ 	MOVDU	R1, -320(R1) // Allocate frame.
+-	
++
+ 	// Preserve callee-save registers.
+ 	MOVD	R14, 24(R1)
+ 	MOVD	R15, 32(R1)
+diff --git a/src/runtime/rt0_nacl_amd64p32.s b/src/runtime/rt0_nacl_amd64p32.s
+index 54e4b1de89..38583c58b2 100644
+--- a/src/runtime/rt0_nacl_amd64p32.s
++++ b/src/runtime/rt0_nacl_amd64p32.s
+@@ -11,7 +11,7 @@
+ //	8(DI) - argc
+ //	12(DI) - argv, then 0, then envv, then 0, then auxv
+ // NaCl entry here is almost the same, except that there
+-// is no saved caller PC, so 0(FP) is -8(FP) and so on. 
++// is no saved caller PC, so 0(FP) is -8(FP) and so on.
+ TEXT _rt0_amd64p32_nacl(SB),NOSPLIT,$16
+ 	MOVL	DI, 0(SP)
+ 	CALL	runtime·nacl_sysinfo(SB)
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index b18e967651..b771850aaf 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -9,7 +9,7 @@
+ #include "go_asm.h"
+ #include "go_tls.h"
+ #include "textflag.h"
+-	
++
+ TEXT runtime·sys_umtx_sleep(SB),NOSPLIT,$0
+ 	MOVQ addr+0(FP), DI		// arg 1 - ptr
+ 	MOVL val+8(FP), SI		// arg 2 - value
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index 754689ba05..bc309ba453 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -9,7 +9,7 @@
+ #include "go_asm.h"
+ #include "go_tls.h"
+ #include "textflag.h"
+-	
++
+ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$-4
+ 	MOVL	$454, AX
+ 	INT	$0x80
+@@ -39,7 +39,7 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
+ 	POPAL
+ 	get_tls(CX)
+ 	MOVL	BX, g(CX)
+-	
++
+ 	MOVL	AX, g_m(BX)
+ 	CALL	runtime·stackcheck(SB)		// smashes AX
+ 	CALL	runtime·mstart(SB)
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 7e846371e5..b709f77060 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -608,7 +608,7 @@ TEXT runtime·settls(SB),NOSPLIT,$32
+ 	// Same as in sys_darwin_386.s:/ugliness, different constant.
+ 	// DI currently holds m->tls, which must be fs:0x1d0.
+ 	// See cgo/gcc_android_amd64.c for the derivation of the constant.
+-	SUBQ	$0x1d0, DI  // In android, the tls base 
++	SUBQ	$0x1d0, DI  // In android, the tls base
+ #else
+ 	ADDQ	$8, DI	// ELF wants to use -8(FS)
+ #endif
+diff --git a/src/runtime/sys_nacl_386.s b/src/runtime/sys_nacl_386.s
+index cdc8ff1a02..24eaeb238c 100644
+--- a/src/runtime/sys_nacl_386.s
++++ b/src/runtime/sys_nacl_386.s
+@@ -266,7 +266,7 @@ TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$8
+ 	NACL_SYSCALL(SYS_clock_gettime)
+ 	MOVL AX, ret+8(FP)
+ 	RET
+-	
++
+ TEXT runtime·nanotime(SB),NOSPLIT,$20
+ 	MOVL $0, 0(SP) // real time clock
+ 	LEAL 8(SP), AX
+@@ -308,12 +308,12 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 
+ 	// save g
+ 	MOVL	DI, 20(SP)
+-	
++
+ 	// g = m->gsignal
+ 	MOVL	g_m(DI), BX
+ 	MOVL	m_gsignal(BX), BX
+ 	MOVL	BX, g(CX)
+-	
++
+ 	// copy arguments for sighandler
+ 	MOVL	$11, 0(SP) // signal
+ 	MOVL	$0, 4(SP) // siginfo
+@@ -356,7 +356,7 @@ ret:
+ 	// Today those registers are just PC and SP, but in case additional registers
+ 	// are relevant in the future (for example DX is the Go func context register)
+ 	// we restore as many registers as possible.
+-	// 
++	//
+ 	// We smash BP, because that's what the linker smashes during RET.
+ 	//
+ 	LEAL	ctxt+4(FP), BP
+diff --git a/src/runtime/sys_nacl_amd64p32.s b/src/runtime/sys_nacl_amd64p32.s
+index 4c4d509576..b4a108346d 100644
+--- a/src/runtime/sys_nacl_amd64p32.s
++++ b/src/runtime/sys_nacl_amd64p32.s
+@@ -334,13 +334,13 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$80
+ 	// check that g exists
+ 	get_tls(CX)
+ 	MOVL	g(CX), DI
+-	
++
+ 	CMPL	DI, $0
+ 	JEQ	nog
+ 
+ 	// save g
+ 	MOVL	DI, 20(SP)
+-	
++
+ 	// g = m->gsignal
+ 	MOVL	g_m(DI), BX
+ 	MOVL	m_gsignal(BX), BX
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index 5523659196..531c227a7b 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -23,7 +23,7 @@ TEXT runtime·lwp_create(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
+-	
++
+ 	// Set FS to point at m->tls.
+ 	LEAQ	m_tls(R8), DI
+ 	CALL	runtime·settls(SB)
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 8e34ab497a..d555edb71f 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -295,7 +295,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$12
+ 	CALL	runtime·settls(SB)
+ 	POPL	AX
+ 	POPAL
+-	
++
+ 	// Now segment is established. Initialize m, g.
+ 	get_tls(AX)
+ 	MOVL	DX, g(AX)
+diff --git a/src/runtime/sys_plan9_386.s b/src/runtime/sys_plan9_386.s
+index 47dcb8db04..a7fb9fe6f7 100644
+--- a/src/runtime/sys_plan9_386.s
++++ b/src/runtime/sys_plan9_386.s
+@@ -126,7 +126,7 @@ TEXT runtime·noted(SB),NOSPLIT,$0
+ 	INT	$64
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+-	
++
+ TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
+ 	MOVL	$38, AX
+ 	INT	$64
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index 8077d6d324..4ef4aab376 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -123,7 +123,7 @@ TEXT runtime·noted(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+-	
++
+ TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
+ 	MOVQ	$38, BP
+ 	SYSCALL
+diff --git a/src/runtime/sys_solaris_amd64.s b/src/runtime/sys_solaris_amd64.s
+index 2b6dabab99..930fc88997 100644
+--- a/src/runtime/sys_solaris_amd64.s
++++ b/src/runtime/sys_solaris_amd64.s
+@@ -63,9 +63,9 @@ TEXT runtime·pipe1(SB),NOSPLIT,$0
+ 
+ // Call a library function with SysV calling conventions.
+ // The called function can take a maximum of 6 INTEGER class arguments,
+-// see 
++// see
+ //   Michael Matz, Jan Hubicka, Andreas Jaeger, and Mark Mitchell
+-//   System V Application Binary Interface 
++//   System V Application Binary Interface
+ //   AMD64 Architecture Processor Supplement
+ // section 3.2.3.
+ //
+@@ -119,7 +119,7 @@ skipargs:
+ 	MOVL	0(AX), AX
+ 	MOVQ	AX, libcall_err(DI)
+ 
+-skiperrno2:	
++skiperrno2:
+ 	RET
+ 
+ // uint32 tstart_sysvicall(M *newm);
+@@ -186,7 +186,7 @@ allgood:
+ 	// Save m->libcall and m->scratch. We need to do this because we
+ 	// might get interrupted by a signal in runtime·asmcgocall.
+ 
+-	// save m->libcall 
++	// save m->libcall
+ 	MOVQ	g_m(R10), BP
+ 	LEAQ	m_libcall(BP), R11
+ 	MOVQ	libcall_fn(R11), R10
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 3c091adcb1..babd91c936 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -494,13 +494,13 @@ wall:
+ 	MOVL	(_SYSTEM_TIME+time_hi2), DX
+ 	CMPL	CX, DX
+ 	JNE	wall
+-	
++
+ 	// w = DX:AX
+ 	// convert to Unix epoch (but still 100ns units)
+ 	#define delta 116444736000000000
+ 	SUBL	$(delta & 0xFFFFFFFF), AX
+ 	SBBL $(delta >> 32), DX
+-	
++
+ 	// nano/100 = DX:AX
+ 	// split into two decimal halves by div 1e9.
+ 	// (decimal point is two spots over from correct place,
+@@ -509,7 +509,7 @@ wall:
+ 	DIVL	CX
+ 	MOVL	AX, DI
+ 	MOVL	DX, SI
+-	
++
+ 	// DI = nano/100/1e9 = nano/1e11 = sec/100, DX = SI = nano/100%1e9
+ 	// split DX into seconds and nanoseconds by div 1e7 magic multiply.
+ 	MOVL	DX, AX
+@@ -520,7 +520,7 @@ wall:
+ 	IMULL	$10000000, DX
+ 	MOVL	SI, CX
+ 	SUBL	DX, CX
+-	
++
+ 	// DI = sec/100 (still)
+ 	// BX = (nano/100%1e9)/1e7 = (nano/1e9)%100 = sec%100
+ 	// CX = (nano/100%1e9)%1e7 = (nano%1e9)/100 = nsec/100
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index c9127ac2d2..ec49caa43e 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -89,7 +89,7 @@ TEXT runtime·badsignal2(SB),NOSPLIT|NOFRAME,$48
+ 	MOVQ	$0, 32(SP)	// overlapped
+ 	MOVQ	runtime·_WriteFile(SB), AX
+ 	CALL	AX
+-	
++
+ 	RET
+ 
+ // faster get/set last error
+diff --git a/src/runtime/vlop_arm.s b/src/runtime/vlop_arm.s
+index 729653488f..41d285874d 100644
+--- a/src/runtime/vlop_arm.s
++++ b/src/runtime/vlop_arm.s
+@@ -30,7 +30,7 @@
+ 
+ // func runtime·udiv(n, d uint32) (q, r uint32)
+ // compiler knowns the register usage of this function
+-// Reference: 
++// Reference:
+ // Sloss, Andrew et. al; ARM System Developer's Guide: Designing and Optimizing System Software
+ // Morgan Kaufmann; 1 edition (April 8, 2004), ISBN 978-1558608740
+ #define Rq	R0 // input d, output q
+diff --git a/src/syscall/asm_nacl_386.s b/src/syscall/asm_nacl_386.s
+index 9d1e541c7c..b989171120 100644
+--- a/src/syscall/asm_nacl_386.s
++++ b/src/syscall/asm_nacl_386.s
+@@ -42,4 +42,4 @@ ok:
+ 	MOVL	DX, r2+20(FP)
+ 	MOVL	$0, err+24(FP)
+ 	CALL	runtime·exitsyscall(SB)
+-	RET	
++	RET
+diff --git a/src/syscall/asm_nacl_amd64p32.s b/src/syscall/asm_nacl_amd64p32.s
+index b8c097b539..816f7dccfb 100644
+--- a/src/syscall/asm_nacl_amd64p32.s
++++ b/src/syscall/asm_nacl_amd64p32.s
+@@ -39,4 +39,4 @@ ok:
+ 	MOVL	DX, r2+20(FP)
+ 	MOVL	$0, err+24(FP)
+ 	CALL	runtime·exitsyscall(SB)
+-	RET	
++	RET
+diff --git a/src/syscall/asm_nacl_arm.s b/src/syscall/asm_nacl_arm.s
+index 3e7df1aadf..6092afd9e6 100644
+--- a/src/syscall/asm_nacl_arm.s
++++ b/src/syscall/asm_nacl_arm.s
+@@ -41,4 +41,4 @@ ok:
+ 	MOVW	$0, R2
+ 	MOVW	R2, err+24(FP)
+ 	BL	runtime·exitsyscall(SB)
+-	RET	
++	RET
+diff --git a/src/syscall/asm_plan9_386.s b/src/syscall/asm_plan9_386.s
+index 65ae6c77fb..7a2c2daaaa 100644
+--- a/src/syscall/asm_plan9_386.s
++++ b/src/syscall/asm_plan9_386.s
+@@ -45,11 +45,11 @@ TEXT	·Syscall(SB),NOSPLIT,$148-32
+ 	CALL	runtime·gostring(SB)
+ 	LEAL	str-144(SP), SI
+ 	JMP	copyresult3
+-	
++
+ ok3:
+ 	CALL	runtime·exitsyscall(SB)
+ 	LEAL	·emptystring(SB), SI
+-	
++
+ copyresult3:
+ 	LEAL	err+24(FP), DI
+ 
+@@ -78,7 +78,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$148-44
+ 	MOVL	$0, r2+32(FP)
+ 	CMPL	AX, $-1
+ 	JNE	ok4
+-	
++
+ 	LEAL	errbuf-128(SP), AX
+ 	MOVL	AX, sysargs-144(SP)
+ 	MOVL	$128, sysargs1-140(SP)
+@@ -90,11 +90,11 @@ TEXT	·Syscall6(SB),NOSPLIT,$148-44
+ 	CALL	runtime·gostring(SB)
+ 	LEAL	str-144(SP), SI
+ 	JMP	copyresult4
+-	
++
+ ok4:
+ 	CALL	runtime·exitsyscall(SB)
+ 	LEAL	·emptystring(SB), SI
+-	
++
+ copyresult4:
+ 	LEAL	err+36(FP), DI
+ 
+@@ -144,7 +144,7 @@ TEXT ·seek(SB),NOSPLIT,$24-36
+ 	NO_LOCAL_POINTERS
+ 	LEAL	newoffset+20(FP), AX
+ 	MOVL	AX, placeholder+0(FP)
+-	
++
+ 	// copy args down
+ 	LEAL	placeholder+0(FP), SI
+ 	LEAL	sysargs-20(SP), DI
+@@ -156,19 +156,19 @@ TEXT ·seek(SB),NOSPLIT,$24-36
+ 	MOVSL
+ 	MOVL	$SYS_SEEK, AX	// syscall entry
+ 	INT	$64
+-	
++
+ 	CMPL	AX, $-1
+ 	JNE	ok6
+ 	MOVL	AX, newoffset_lo+20(FP)
+ 	MOVL	AX, newoffset_hi+24(FP)
+-	
++
+ 	CALL	syscall·errstr(SB)
+ 	MOVL	SP, SI
+ 	JMP	copyresult6
+-	
++
+ ok6:
+ 	LEAL	·emptystring(SB), SI
+-	
++
+ copyresult6:
+ 	LEAL	err+28(FP), DI
+ 
+diff --git a/src/syscall/asm_plan9_amd64.s b/src/syscall/asm_plan9_amd64.s
+index bba4012e5c..d5c9f6c63f 100644
+--- a/src/syscall/asm_plan9_amd64.s
++++ b/src/syscall/asm_plan9_amd64.s
+@@ -44,11 +44,11 @@ TEXT	·Syscall(SB),NOSPLIT,$168-64
+ 	CALL	runtime·gostring(SB)
+ 	LEAQ	str-160(SP), SI
+ 	JMP	copyresult3
+-	
++
+ ok3:
+ 	CALL	runtime·exitsyscall(SB)
+ 	LEAQ	·emptystring(SB), SI
+-	
++
+ copyresult3:
+ 	LEAQ	err+48(FP), DI
+ 
+@@ -77,7 +77,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$168-88
+ 	MOVQ	$0, r2+64(FP)
+ 	CMPL	AX, $-1
+ 	JNE	ok4
+-	
++
+ 	LEAQ	errbuf-128(SP), AX
+ 	MOVQ	AX, sysargs-160(SP)
+ 	MOVQ	$128, sysargs1-152(SP)
+@@ -89,11 +89,11 @@ TEXT	·Syscall6(SB),NOSPLIT,$168-88
+ 	CALL	runtime·gostring(SB)
+ 	LEAQ	str-160(SP), SI
+ 	JMP	copyresult4
+-	
++
+ ok4:
+ 	CALL	runtime·exitsyscall(SB)
+ 	LEAQ	·emptystring(SB), SI
+-	
++
+ copyresult4:
+ 	LEAQ	err+72(FP), DI
+ 
+@@ -143,7 +143,7 @@ TEXT ·seek(SB),NOSPLIT,$48-56
+ 	NO_LOCAL_POINTERS
+ 	LEAQ	newoffset+32(FP), AX
+ 	MOVQ	AX, placeholder+0(FP)
+-	
++
+ 	// copy args down
+ 	LEAQ	placeholder+0(FP), SI
+ 	LEAQ	sysargs-40(SP), DI
+@@ -155,18 +155,18 @@ TEXT ·seek(SB),NOSPLIT,$48-56
+ 	MOVSQ
+ 	MOVQ	$SYS_SEEK, BP	// syscall entry
+ 	SYSCALL
+-	
++
+ 	CMPL	AX, $-1
+ 	JNE	ok6
+ 	MOVQ	AX, newoffset+32(FP)
+-	
++
+ 	CALL	syscall·errstr(SB)
+ 	MOVQ	SP, SI
+ 	JMP	copyresult6
+-	
++
+ ok6:
+ 	LEAQ	·emptystring(SB), SI
+-	
++
+ copyresult6:
+ 	LEAQ	err+40(FP), DI
+ 

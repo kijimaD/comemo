@@ -60,7 +60,7 @@ Date:   Tue Jan 18 10:31:59 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/stmt.go            | 40 ++++++++++------------
  .../internal/types2/testdata/check/stmt0.src       |  2 +-
  .../internal/types2/testdata/check/vardecl.src     |  4 +--
@@ -70,3 +70,187 @@ Date:   Tue Jan 18 10:31:59 2022 -0500
  test/fixedbugs/issue4215.go                        |  2 +-
  test/fixedbugs/issue48834.go                       |  2 +-
  8 files changed, 44 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 98244cd5e9..b23d7aeef2 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -474,30 +474,28 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 
+ 	case *syntax.ReturnStmt:
+ 		res := check.sig.results
++		// Return with implicit results allowed for function with named results.
++		// (If one is named, all are named.)
+ 		results := unpackExpr(s.Results)
+-		if res.Len() > 0 {
+-			// function returns results
+-			// (if one, say the first, result parameter is named, all of them are named)
+-			if len(results) == 0 && res.vars[0].name != "" {
+-				// spec: "Implementation restriction: A compiler may disallow an empty expression
+-				// list in a "return" statement if a different entity (constant, type, or variable)
+-				// with the same name as a result parameter is in scope at the place of the return."
+-				for _, obj := range res.vars {
+-					if alt := check.lookup(obj.name); alt != nil && alt != obj {
+-						var err error_
+-						err.errorf(s, "result parameter %s not in scope at return", obj.name)
+-						err.errorf(alt, "inner declaration of %s", obj)
+-						check.report(&err)
+-						// ok to continue
+-					}
++		if len(results) == 0 && res.Len() > 0 && res.vars[0].name != "" {
++			// spec: "Implementation restriction: A compiler may disallow an empty expression
++			// list in a "return" statement if a different entity (constant, type, or variable)
++			// with the same name as a result parameter is in scope at the place of the return."
++			for _, obj := range res.vars {
++				if alt := check.lookup(obj.name); alt != nil && alt != obj {
++					var err error_
++					err.errorf(s, "result parameter %s not in scope at return", obj.name)
++					err.errorf(alt, "inner declaration of %s", obj)
++					check.report(&err)
++					// ok to continue
+ 				}
+-			} else {
+-				// return has results or result parameters are unnamed
+-				check.initVars(res.vars, results, s)
+ 			}
+-		} else if len(results) > 0 {
+-			check.error(results[0], "no result values expected")
+-			check.use(results...)
++		} else {
++			var lhs []*Var
++			if res.Len() > 0 {
++				lhs = res.vars
++			}
++			check.initVars(lhs, results, s)
+ 		}
+ 
+ 	case *syntax.BranchStmt:
+diff --git a/src/cmd/compile/internal/types2/testdata/check/stmt0.src b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+index c4820c9f7f..ed7ce05327 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/stmt0.src
++++ b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+@@ -375,7 +375,7 @@ func continues() {
+ 
+ func returns0() {
+ 	return
+-	return 0 /* ERROR no result values expected */
++	return 0 /* ERROR too many return values */
+ }
+ 
+ func returns1(x float64) (int, *float64) {
+diff --git a/src/cmd/compile/internal/types2/testdata/check/vardecl.src b/src/cmd/compile/internal/types2/testdata/check/vardecl.src
+index 827b9b9d69..c3fe61c3d4 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/vardecl.src
++++ b/src/cmd/compile/internal/types2/testdata/check/vardecl.src
+@@ -177,8 +177,8 @@ func _() {
+ 
+ func _() {
+ 	var x int
+-	return x /* ERROR no result values expected */
+-	return math /* ERROR no result values expected */ .Sin(0)
++	return x /* ERROR too many return values */
++	return math /* ERROR too many return values */ .Sin(0)
+ }
+ 
+ func _() int {
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 0a69789078..802673567d 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -503,27 +503,25 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 
+ 	case *ast.ReturnStmt:
+ 		res := check.sig.results
+-		if res.Len() > 0 {
+-			// function returns results
+-			// (if one, say the first, result parameter is named, all of them are named)
+-			if len(s.Results) == 0 && res.vars[0].name != "" {
+-				// spec: "Implementation restriction: A compiler may disallow an empty expression
+-				// list in a "return" statement if a different entity (constant, type, or variable)
+-				// with the same name as a result parameter is in scope at the place of the return."
+-				for _, obj := range res.vars {
+-					if alt := check.lookup(obj.name); alt != nil && alt != obj {
+-						check.errorf(s, _OutOfScopeResult, "result parameter %s not in scope at return", obj.name)
+-						check.errorf(alt, _OutOfScopeResult, "\tinner declaration of %s", obj)
+-						// ok to continue
+-					}
++		// Return with implicit results allowed for function with named results.
++		// (If one is named, all are named.)
++		if len(s.Results) == 0 && res.Len() > 0 && res.vars[0].name != "" {
++			// spec: "Implementation restriction: A compiler may disallow an empty expression
++			// list in a "return" statement if a different entity (constant, type, or variable)
++			// with the same name as a result parameter is in scope at the place of the return."
++			for _, obj := range res.vars {
++				if alt := check.lookup(obj.name); alt != nil && alt != obj {
++					check.errorf(s, _OutOfScopeResult, "result parameter %s not in scope at return", obj.name)
++					check.errorf(alt, _OutOfScopeResult, "\tinner declaration of %s", obj)
++					// ok to continue
+ 				}
+-			} else {
+-				// return has results or result parameters are unnamed
+-				check.initVars(res.vars, s.Results, s)
+ 			}
+-		} else if len(s.Results) > 0 {
+-			check.error(s.Results[0], _WrongResultCount, "no result values expected")
+-			check.use(s.Results...)
++		} else {
++			var lhs []*Var
++			if res.Len() > 0 {
++				lhs = res.vars
++			}
++			check.initVars(lhs, s.Results, s)
+ 		}
+ 
+ 	case *ast.BranchStmt:
+diff --git a/src/go/types/testdata/check/stmt0.src b/src/go/types/testdata/check/stmt0.src
+index a635af7cbb..ec8bf71013 100644
+--- a/src/go/types/testdata/check/stmt0.src
++++ b/src/go/types/testdata/check/stmt0.src
+@@ -375,7 +375,7 @@ func continues() {
+ 
+ func returns0() {
+ 	return
+-	return 0 /* ERROR no result values expected */
++	return 0 /* ERROR too many return values */
+ }
+ 
+ func returns1(x float64) (int, *float64) {
+diff --git a/src/go/types/testdata/check/vardecl.src b/src/go/types/testdata/check/vardecl.src
+index 787f7878f1..56abf97722 100644
+--- a/src/go/types/testdata/check/vardecl.src
++++ b/src/go/types/testdata/check/vardecl.src
+@@ -169,8 +169,8 @@ func _() {
+ 
+ func _() {
+ 	var x int
+-	return x /* ERROR no result values expected */
+-	return math /* ERROR no result values expected */ .Sin(0)
++	return x /* ERROR too many return values */
++	return math /* ERROR too many return values */ .Sin(0)
+ }
+ 
+ func _() int {
+diff --git a/test/fixedbugs/issue4215.go b/test/fixedbugs/issue4215.go
+index b6ece4bf21..9f32f5b100 100644
+--- a/test/fixedbugs/issue4215.go
++++ b/test/fixedbugs/issue4215.go
+@@ -11,7 +11,7 @@ func foo() (int, int) {
+ }
+ 
+ func foo2() {
+-	return int(2), 2 // ERROR "too many arguments to return\n\thave \(int, number\)\n\twant \(\)|return with value in function with no return type|no result values expected"
++	return int(2), 2 // ERROR "too many (arguments to return|return values)\n\thave \(int, number\)\n\twant \(\)|return with value in function with no return type"
+ }
+ 
+ func foo3(v int) (a, b, c, d int) {
+diff --git a/test/fixedbugs/issue48834.go b/test/fixedbugs/issue48834.go
+index cf97d132c3..584dfa5764 100644
+--- a/test/fixedbugs/issue48834.go
++++ b/test/fixedbugs/issue48834.go
+@@ -20,5 +20,5 @@ func _() int {
+ }
+ 
+ func _() {
+-	return 1 // ERROR "too many arguments to return\n\thave \(number\)\n\twant \(\)|no result values expected"
++	return 1 // ERROR "too many (arguments to return|return values)\n\thave \(number\)\n\twant \(\)"
+ }

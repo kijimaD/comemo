@@ -20,6 +20,29 @@ Date:   Fri Sep 9 08:43:10 2022 +0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/reflect/value.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 6830057d61..917a5a69c9 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2742,6 +2742,8 @@ func (v Value) UnsafePointer() unsafe.Pointer {
+ // Moreover, the Data field is not sufficient to guarantee the data
+ // it references will not be garbage collected, so programs must keep
+ // a separate, correctly typed pointer to the underlying data.
++//
++// Deprecated: Use unsafe.String or unsafe.StringData instead.
+ type StringHeader struct {
+ 	Data uintptr
+ 	Len  int
+@@ -2753,6 +2755,8 @@ type StringHeader struct {
+ // Moreover, the Data field is not sufficient to guarantee the data
+ // it references will not be garbage collected, so programs must keep
+ // a separate, correctly typed pointer to the underlying data.
++//
++// Deprecated: Use unsafe.Slice or unsafe.SliceData instead.
+ type SliceHeader struct {
+ 	Data uintptr
+ 	Len  int

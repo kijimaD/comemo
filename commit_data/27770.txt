@@ -9,6 +9,22 @@ Date:   Tue Apr 12 13:12:54 2016 -0300
     Change-Id: I55423ac643f18542b9fd1386ed98dec47fb678aa
     Reviewed-on: https://go-review.googlesource.com/21890
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/pkcs8.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/x509/pkcs8.go b/src/crypto/x509/pkcs8.go
+index ba19989cba..6e56752c0e 100644
+--- a/src/crypto/x509/pkcs8.go
++++ b/src/crypto/x509/pkcs8.go
+@@ -21,8 +21,8 @@ type pkcs8 struct {
+ 	// optional attributes omitted.
+ }
+ 
+-// ParsePKCS8PrivateKey parses an unencrypted, PKCS#8 private key. See
+-// http://www.rsa.com/rsalabs/node.asp?id=2130 and RFC5208.
++// ParsePKCS8PrivateKey parses an unencrypted, PKCS#8 private key.
++// See RFC 5208.
+ func ParsePKCS8PrivateKey(der []byte) (key interface{}, err error) {
+ 	var privKey pkcs8
+ 	if _, err := asn1.Unmarshal(der, &privKey); err != nil {

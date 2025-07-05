@@ -11,6 +11,28 @@ Date:   Mon May 19 22:39:42 2014 -0400
     R=iant, dave, josharian
     CC=golang-codereviews
     https://golang.org/cl/91500046
-
+---
  src/cmd/ld/data.c | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 24969db55b..55d020710e 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -243,6 +243,16 @@ relocsym(LSym *s)
+ 				break;
+ 			}
+ 			o = symaddr(r->sym) + r->add;
++
++			// On amd64, 4-byte offsets will be sign-extended, so it is impossible to
++			// access more than 2GB of static data; fail at link time is better than
++			// fail at runtime. See http://golang.org/issue/7980.
++			// Instead of special casing only amd64, we treat this as an error on all
++			// 64-bit architectures so as to be future-proof.
++			if((int32)o < 0 && PtrSize > 4 && siz == 4) {
++				diag("non-pc-relative relocation address is too big: %#llux", o);
++				errorexit();
++			}
+ 			break;
+ 		case R_CALL:
+ 		case R_PCREL:

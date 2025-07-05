@@ -7,6 +7,19 @@ Date:   Sat Apr 20 17:20:58 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8887043
-
+---
  api/next.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/api/next.txt b/api/next.txt
+index 2aaca2f7a2..7c92db333a 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -122,6 +122,7 @@ pkg go/printer, type Config struct, Indent int
+ pkg image, const YCbCrSubsampleRatio440 YCbCrSubsampleRatio
+ pkg io, type ByteWriter interface { WriteByte }
+ pkg io, type ByteWriter interface, WriteByte(uint8) error
++pkg io, var ErrNoProgress error
+ pkg log/syslog (darwin-386), const LOG_AUTH Priority
+ pkg log/syslog (darwin-386), const LOG_AUTHPRIV Priority
+ pkg log/syslog (darwin-386), const LOG_CRON Priority

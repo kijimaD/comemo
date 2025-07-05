@@ -8,6 +8,19 @@ Date:   Tue Jul 21 16:38:56 2009 -0700
     R=ken
     OCL=31964
     CL=31964
-
+---
  src/cmd/gc/subr.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 7734bb721c..fbfded77cf 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -112,6 +112,7 @@ setlineno(Node *n)
+ 	case OTYPE:
+ 	case OPACK:
+ 	case OLITERAL:
++	case ONONAME:
+ 		break;
+ 	default:
+ 		lineno = n->lineno;

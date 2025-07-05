@@ -17,7 +17,63 @@ Date:   Wed Nov 16 09:55:24 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  misc/cgo/test/issue17537.go |  2 +-
  src/cmd/cgo/gcc.go          | 17 +++++++++++++++--
  2 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/test/issue17537.go b/misc/cgo/test/issue17537.go
+index a1558bc5ed..debdbfe4c5 100644
+--- a/misc/cgo/test/issue17537.go
++++ b/misc/cgo/test/issue17537.go
+@@ -20,7 +20,7 @@ int I17537(S17537 *p);
+ #define I17537(p) ((p)->i)
+ 
+ // Calling this function used to fail without the cast.
+-int F17537(const char **p) {
++const int F17537(const char **p) {
+ 	return **p;
+ }
+ */
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 5ee06f7f40..f6ddfbeceb 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1476,6 +1476,19 @@ func base(dt dwarf.Type) dwarf.Type {
+ 	return dt
+ }
+ 
++// unqual strips away qualifiers from a DWARF type.
++// In general we don't care about top-level qualifiers.
++func unqual(dt dwarf.Type) dwarf.Type {
++	for {
++		if d, ok := dt.(*dwarf.QualType); ok {
++			dt = d.Type
++		} else {
++			break
++		}
++	}
++	return dt
++}
++
+ // Map from dwarf text names to aliases we use in package "C".
+ var dwarfToName = map[string]string{
+ 	"long int":               "long",
+@@ -1930,7 +1943,7 @@ func isStructUnionClass(x ast.Expr) bool {
+ // FuncArg returns a Go type with the same memory layout as
+ // dtype when used as the type of a C function argument.
+ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
+-	t := c.Type(dtype, pos)
++	t := c.Type(unqual(dtype), pos)
+ 	switch dt := dtype.(type) {
+ 	case *dwarf.ArrayType:
+ 		// Arrays are passed implicitly as pointers in C.
+@@ -1994,7 +2007,7 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType, pos token.Pos) *FuncType {
+ 	if _, ok := dtype.ReturnType.(*dwarf.VoidType); ok {
+ 		gr = []*ast.Field{{Type: c.goVoid}}
+ 	} else if dtype.ReturnType != nil {
+-		r = c.Type(dtype.ReturnType, pos)
++		r = c.Type(unqual(dtype.ReturnType), pos)
+ 		gr = []*ast.Field{{Type: r.Go}}
+ 	}
+ 	return &FuncType{

@@ -13,7 +13,94 @@ Date:   Fri Oct 8 18:52:28 2010 +1100
     R=rsc, iant, brainman
     CC=golang-dev
     https://golang.org/cl/2342045
-
+---
  src/Make.inc      | 22 ++++++++++++++++------
  src/quietgcc.bash |  9 +++++----
  2 files changed, 21 insertions(+), 10 deletions(-)
+
+diff --git a/src/Make.inc b/src/Make.inc
+index 858cb3a683..254140e03b 100644
+--- a/src/Make.inc
++++ b/src/Make.inc
+@@ -21,8 +21,12 @@ endif
+ # Set up GOROOT_FINAL, GOARCH, GOOS if needed.
+ GOROOT_FINAL?=$(GOROOT)
+ 
++ifeq ($(GOHOSTOS),)
++GOHOSTOS:=$(shell uname | tr A-Z a-z | sed 's/mingw/windows/; s/.*windows.*/windows/')
++endif
++
+ ifeq ($(GOOS),)
+-GOOS:=${shell uname | tr A-Z a-z | sed 's/mingw/windows/; s/windows.*/windows/'}
++GOOS:=$(GOHOSTOS)
+ endif
+ 
+ ifeq ($(GOOS),darwin)
+@@ -35,17 +39,21 @@ else
+ $(error Invalid $$GOOS '$(GOOS)'; must be darwin, freebsd, linux, nacl, tiny, or windows)
+ endif
+ 
+-ifeq ($(GOARCH),)
+-ifeq ($(GOOS),darwin)
++ifeq ($(GOHOSTARCH),)
++ifeq ($(GOHOSTOS),darwin)
+ # Even on 64-bit platform, darwin uname -m prints i386.
+ # Check for amd64 with sysctl instead.
+-GOARCH:=${shell if sysctl machdep.cpu.extfeatures | grep EM64T >/dev/null; then echo amd64; else uname -m | sed 's/i386/386/'; fi}
++GOHOSTARCH:=${shell if sysctl machdep.cpu.extfeatures | grep EM64T >/dev/null; then echo amd64; else uname -m | sed 's/i386/386/'; fi}
+ else
+ # Ask uname -m for the processor.
+-GOARCH:=${shell uname -m | sed 's/^..86$$/386/; s/^.86$$/386/; s/x86_64/amd64/; s/arm.*/arm/'}
++GOHOSTARCH:=${shell uname -m | sed 's/^..86$$/386/; s/^.86$$/386/; s/x86_64/amd64/; s/arm.*/arm/'}
+ endif
+ endif
+ 
++ifeq ($(GOARCH),)
++GOARCH:=$(GOHOSTARCH)
++endif
++
+ ifeq ($(GOARCH),386)
+ O:=8
+ else ifeq ($(GOARCH),amd64)
+@@ -63,7 +71,7 @@ $(error Invalid $$GOARCH '$(GOARCH)'; must be 386, amd64, or arm)
+ endif
+ 
+ # Save for recursive make to avoid recomputing.
+-export GOARCH GOOS
++export GOARCH GOOS GOHOSTARCH GOHOSTOS
+ 
+ # ugly hack to deal with whitespaces in $GOROOT
+ nullstring :=
+@@ -101,6 +109,8 @@ export LANG LC_ALL LC_CTYPE GREP_OPTIONS GREP_COLORS
+ go-env:
+ 	@echo export GOARCH=$(GOARCH)
+ 	@echo export GOOS=$(GOOS)
++	@echo export GOHOSTARCH=$(GOHOSTARCH)
++	@echo export GOHOSTOS=$(GOHOSTOS)
+ 	@echo export O=$O
+ 	@echo export AS="$(AS)"
+ 	@echo export CC="$(CC)"
+diff --git a/src/quietgcc.bash b/src/quietgcc.bash
+index ca3bf8f32f..748fc593e0 100755
+--- a/src/quietgcc.bash
++++ b/src/quietgcc.bash
+@@ -22,14 +22,15 @@ if test "$gcc" = "@C""C@"; then
+   gcc=gcc
+ fi
+ 
+-# If this is a 64-bit machine, compile 64-bit versions of
+-# the host tools, to match the native ptrace.
+-case "`uname -m -p`" in
++# Build 64-bit binaries on 64-bit systems, unless GOHOSTARCH=386.
++case "$(uname -m -p)-$GOHOSTARCH" in
++*x86_64*-386 | *amd64*-386)
++	gcc="$gcc -m32"
++	;;
+ *x86_64* | *amd64*)
+ 	gcc="$gcc -m64"
+ esac
+ 
+-
+ # Run gcc, save error status, redisplay output without noise, exit with gcc status.
+ tmp=/tmp/qcc.$$.$USER.out
+ $gcc -Wall -Wno-sign-compare -Wno-missing-braces \

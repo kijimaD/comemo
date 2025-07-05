@@ -7,6 +7,20 @@ Date:   Wed Mar 16 15:20:46 2011 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4290049
-
+---
  src/cmd/gofix/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofix/doc.go b/src/cmd/gofix/doc.go
+index e267d5d7bf..902fe76f22 100644
+--- a/src/cmd/gofix/doc.go
++++ b/src/cmd/gofix/doc.go
+@@ -24,7 +24,7 @@ rewrites are idempotent, so that it is safe to apply gofix to updated
+ or partially updated code even without using the -r flag.
+ 
+ Gofix prints the full list of fixes it can apply in its help output;
+-to see them, run godoc -?.
++to see them, run gofix -?.
+ 
+ Gofix does not make backup copies of the files that it edits.
+ Instead, use a version control system's ``diff'' functionality to inspect

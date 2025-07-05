@@ -15,7 +15,93 @@ Date:   Sat Sep 29 22:10:43 2018 -0700
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go      | 10 +++++----
  src/database/sql/sql_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 58 insertions(+), 4 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 7537f87d47..7c8d46b100 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -1322,11 +1322,13 @@ func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
+ 			err:  err,
+ 		}
+ 		return true
+-	} else if err == nil && !db.closed && db.maxIdleConnsLocked() > len(db.freeConn) {
+-		db.freeConn = append(db.freeConn, dc)
++	} else if err == nil && !db.closed {
++		if db.maxIdleConnsLocked() > len(db.freeConn) {
++			db.freeConn = append(db.freeConn, dc)
++			db.startCleanerLocked()
++			return true
++		}
+ 		db.maxIdleClosed++
+-		db.startCleanerLocked()
+-		return true
+ 	}
+ 	return false
+ }
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index f194744aef..e52091c3af 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -3415,6 +3415,58 @@ func TestConnectionLeak(t *testing.T) {
+ 	wg.Wait()
+ }
+ 
++func TestStatsMaxIdleClosedZero(t *testing.T) {
++	db := newTestDB(t, "people")
++	defer closeDB(t, db)
++
++	db.SetMaxOpenConns(1)
++	db.SetMaxIdleConns(1)
++	db.SetConnMaxLifetime(0)
++
++	preMaxIdleClosed := db.Stats().MaxIdleClosed
++
++	for i := 0; i < 10; i++ {
++		rows, err := db.Query("SELECT|people|name|")
++		if err != nil {
++			t.Fatal(err)
++		}
++		rows.Close()
++	}
++
++	st := db.Stats()
++	maxIdleClosed := st.MaxIdleClosed - preMaxIdleClosed
++	t.Logf("MaxIdleClosed: %d", maxIdleClosed)
++	if maxIdleClosed != 0 {
++		t.Fatal("expected 0 max idle closed conns, got: ", maxIdleClosed)
++	}
++}
++
++func TestStatsMaxIdleClosedTen(t *testing.T) {
++	db := newTestDB(t, "people")
++	defer closeDB(t, db)
++
++	db.SetMaxOpenConns(1)
++	db.SetMaxIdleConns(0)
++	db.SetConnMaxLifetime(0)
++
++	preMaxIdleClosed := db.Stats().MaxIdleClosed
++
++	for i := 0; i < 10; i++ {
++		rows, err := db.Query("SELECT|people|name|")
++		if err != nil {
++			t.Fatal(err)
++		}
++		rows.Close()
++	}
++
++	st := db.Stats()
++	maxIdleClosed := st.MaxIdleClosed - preMaxIdleClosed
++	t.Logf("MaxIdleClosed: %d", maxIdleClosed)
++	if maxIdleClosed != 10 {
++		t.Fatal("expected 0 max idle closed conns, got: ", maxIdleClosed)
++	}
++}
++
+ type nvcDriver struct {
+ 	fakeDriver
+ 	skipNamedValueCheck bool

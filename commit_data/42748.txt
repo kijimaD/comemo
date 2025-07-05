@@ -9,7 +9,42 @@ Date:   Wed Feb 19 11:03:42 2020 -0500
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/link.go        | 3 +--
  src/cmd/internal/obj/sizeof_test.go | 2 +-
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index b96da1ba88..970158076c 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -381,7 +381,6 @@ type LSym struct {
+ 	Type objabi.SymKind
+ 	Attribute
+ 
+-	RefIdx int // Index of this symbol in the symbol reference list.
+ 	Size   int64
+ 	Gotype *LSym
+ 	P      []byte
+@@ -391,7 +390,7 @@ type LSym struct {
+ 
+ 	Pkg    string
+ 	PkgIdx int32
+-	SymIdx int32 // TODO: replace RefIdx
++	SymIdx int32
+ }
+ 
+ // A FuncInfo contains extra fields for STEXT symbols.
+diff --git a/src/cmd/internal/obj/sizeof_test.go b/src/cmd/internal/obj/sizeof_test.go
+index b5e170c694..69e60473f5 100644
+--- a/src/cmd/internal/obj/sizeof_test.go
++++ b/src/cmd/internal/obj/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Addr{}, 32, 48},
+-		{LSym{}, 76, 128},
++		{LSym{}, 72, 120},
+ 		{Prog{}, 132, 200},
+ 	}
+ 

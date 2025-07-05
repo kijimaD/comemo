@@ -37,7 +37,7 @@ Date:   Tue Jan 17 08:15:33 2023 +0100
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/asmb.go                 |  4 ++
  src/cmd/link/internal/ld/data.go                 | 39 +++++++++++++++
  src/cmd/link/internal/ld/lib.go                  |  3 +-
@@ -55,3 +55,487 @@ Date:   Tue Jan 17 08:15:33 2023 +0100
  src/runtime/export_windows_test.go               | 16 ++++++
  src/runtime/runtime-seh_windows_test.go          | 63 ++++++++++++++++++++++++
  16 files changed, 237 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index cd8927b087..fc088be51e 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -60,6 +60,10 @@ func asmb(ctxt *Link) {
+ 
+ 	writeParallel(&wg, dwarfblk, ctxt, Segdwarf.Fileoff, Segdwarf.Vaddr, Segdwarf.Filelen)
+ 
++	if Segpdata.Filelen > 0 {
++		writeParallel(&wg, pdatablk, ctxt, Segpdata.Fileoff, Segpdata.Vaddr, Segpdata.Filelen)
++	}
++
+ 	wg.Wait()
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index d0efcdc052..849629ebe3 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1154,6 +1154,10 @@ func dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
+ 	writeBlocks(ctxt, out, ctxt.outSem, ctxt.loader, syms, addr, size, zeros[:])
+ }
+ 
++func pdatablk(ctxt *Link, out *OutBuf, addr int64, size int64) {
++	writeBlocks(ctxt, out, ctxt.outSem, ctxt.loader, []loader.Sym{sehp.pdata}, addr, size, zeros[:])
++}
++
+ var covCounterDataStartOff, covCounterDataLen uint64
+ 
+ var zeros [512]byte
+@@ -1649,6 +1653,8 @@ func (ctxt *Link) dodata(symGroupType []sym.SymKind) {
+ 	// data/rodata (and related) symbols.
+ 	state.allocateDataSections(ctxt)
+ 
++	state.allocateSEHSections(ctxt)
++
+ 	// Create *sym.Section objects and assign symbols to sections for
+ 	// DWARF symbols.
+ 	state.allocateDwarfSections(ctxt)
+@@ -1676,6 +1682,10 @@ func (ctxt *Link) dodata(symGroupType []sym.SymKind) {
+ 		sect.Extnum = n
+ 		n++
+ 	}
++	for _, sect := range Segpdata.Sections {
++		sect.Extnum = n
++		n++
++	}
+ }
+ 
+ // allocateDataSectionForSym creates a new sym.Section into which a
+@@ -2148,6 +2158,16 @@ func (state *dodataState) allocateDwarfSections(ctxt *Link) {
+ 	}
+ }
+ 
++// allocateSEHSections allocate a sym.Section object for SEH
++// symbols, and assigns symbols to sections.
++func (state *dodataState) allocateSEHSections(ctxt *Link) {
++	if sehp.pdata > 0 {
++		sect := state.allocateDataSectionForSym(&Segpdata, sehp.pdata, 04)
++		state.assignDsymsToSection(sect, []loader.Sym{sehp.pdata}, sym.SRODATA, aligndatsize)
++		state.checkdatsize(sym.SPDATASECT)
++	}
++}
++
+ type symNameSize struct {
+ 	name string
+ 	sz   int64
+@@ -2684,6 +2704,21 @@ func (ctxt *Link) address() []*sym.Segment {
+ 	// simply because right now we know where the BSS starts.
+ 	Segdata.Filelen = bss.Vaddr - Segdata.Vaddr
+ 
++	if len(Segpdata.Sections) > 0 {
++		va = uint64(Rnd(int64(va), int64(*FlagRound)))
++		order = append(order, &Segpdata)
++		Segpdata.Rwx = 04
++		Segpdata.Vaddr = va
++		// Segpdata.Sections is intended to contain just one section.
++		// Loop through the slice anyway for consistency.
++		for _, s := range Segpdata.Sections {
++			va = uint64(Rnd(int64(va), int64(s.Align)))
++			s.Vaddr = va
++			va += s.Length
++		}
++		Segpdata.Length = va - Segpdata.Vaddr
++	}
++
+ 	va = uint64(Rnd(int64(va), int64(*FlagRound)))
+ 	order = append(order, &Segdwarf)
+ 	Segdwarf.Rwx = 06
+@@ -2735,6 +2770,10 @@ func (ctxt *Link) address() []*sym.Segment {
+ 		}
+ 	}
+ 
++	if sect := ldr.SymSect(sehp.pdata); sect != nil {
++		ldr.AddToSymValue(sehp.pdata, int64(sect.Vaddr))
++	}
++
+ 	if ctxt.BuildMode == BuildModeShared {
+ 		s := ldr.LookupOrCreateSym("go:link.abihashbytes", 0)
+ 		sect := ldr.SymSect(ldr.LookupOrCreateSym(".note.go.abihash", 0))
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index c88a955a0c..f1eff33c6e 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -328,8 +328,9 @@ var (
+ 	Segrelrodata sym.Segment
+ 	Segdata      sym.Segment
+ 	Segdwarf     sym.Segment
++	Segpdata     sym.Segment // windows-only
+ 
+-	Segments = []*sym.Segment{&Segtext, &Segrodata, &Segrelrodata, &Segdata, &Segdwarf}
++	Segments = []*sym.Segment{&Segtext, &Segrodata, &Segrelrodata, &Segdata, &Segdwarf, &Segpdata}
+ )
+ 
+ const pkgdef = "__.PKGDEF"
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index a3bb47d232..b07f2763eb 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -433,6 +433,7 @@ type peFile struct {
+ 	dataSect       *peSection
+ 	bssSect        *peSection
+ 	ctorsSect      *peSection
++	pdataSect      *peSection
+ 	nextSectOffset uint32
+ 	nextFileOffset uint32
+ 	symtabOffset   int64 // offset to the start of symbol table
+@@ -498,6 +499,25 @@ func (f *peFile) addDWARF() {
+ 	}
+ }
+ 
++// addSEH adds SEH information to the COFF file f.
++func (f *peFile) addSEH(ctxt *Link) {
++	if Segpdata.Length == 0 {
++		return
++	}
++	d := pefile.addSection(".pdata", int(Segpdata.Length), int(Segpdata.Length))
++	d.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
++	if ctxt.LinkMode == LinkExternal {
++		// Some gcc versions don't honor the default alignment for the .pdata section.
++		d.characteristics |= IMAGE_SCN_ALIGN_4BYTES
++	}
++	pefile.pdataSect = d
++	d.checkSegment(&Segpdata)
++	// TODO: remove extraSize once the dummy unwind info is removed from the .pdata section.
++	const extraSize = 12
++	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].VirtualAddress = d.virtualAddress + extraSize
++	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].Size = d.virtualSize - extraSize
++}
++
+ // addInitArray adds .ctors COFF section to the file f.
+ func (f *peFile) addInitArray(ctxt *Link) *peSection {
+ 	// The size below was determined by the specification for array relocations,
+@@ -593,15 +613,19 @@ func (f *peFile) emitRelocations(ctxt *Link) {
+ 		return int(sect.Rellen / relocLen)
+ 	}
+ 
+-	sects := []struct {
++	type relsect struct {
+ 		peSect *peSection
+ 		seg    *sym.Segment
+ 		syms   []loader.Sym
+-	}{
++	}
++	sects := []relsect{
+ 		{f.textSect, &Segtext, ctxt.Textp},
+ 		{f.rdataSect, &Segrodata, ctxt.datap},
+ 		{f.dataSect, &Segdata, ctxt.datap},
+ 	}
++	if sehp.pdata != 0 {
++		sects = append(sects, relsect{f.pdataSect, &Segpdata, []loader.Sym{sehp.pdata}})
++	}
+ 	for _, s := range sects {
+ 		s.peSect.emitRelocations(ctxt.Out, func() int {
+ 			var n int
+@@ -1595,6 +1619,7 @@ func addPEBaseReloc(ctxt *Link) {
+ func (ctxt *Link) dope() {
+ 	initdynimport(ctxt)
+ 	initdynexport(ctxt)
++	writeSEH(ctxt)
+ }
+ 
+ func setpersrc(ctxt *Link, syms []loader.Sym) {
+@@ -1689,6 +1714,7 @@ func asmbPe(ctxt *Link) {
+ 		pefile.bssSect = b
+ 	}
+ 
++	pefile.addSEH(ctxt)
+ 	pefile.addDWARF()
+ 
+ 	if ctxt.LinkMode == LinkExternal {
+diff --git a/src/cmd/link/internal/ld/seh.go b/src/cmd/link/internal/ld/seh.go
+new file mode 100644
+index 0000000000..b95084751c
+--- /dev/null
++++ b/src/cmd/link/internal/ld/seh.go
+@@ -0,0 +1,54 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import (
++	"cmd/internal/sys"
++	"cmd/link/internal/loader"
++	"cmd/link/internal/sym"
++)
++
++var sehp struct {
++	pdata loader.Sym
++}
++
++func writeSEH(ctxt *Link) {
++	switch ctxt.Arch.Family {
++	case sys.AMD64:
++		writeSEHAMD64(ctxt)
++	}
++}
++
++func writeSEHAMD64(ctxt *Link) {
++	ldr := ctxt.loader
++	mkSecSym := func(name string, kind sym.SymKind) *loader.SymbolBuilder {
++		s := ldr.CreateSymForUpdate(name, 0)
++		s.SetType(kind)
++		s.SetAlign(4)
++		return s
++	}
++	pdata := mkSecSym(".pdata", sym.SPDATASECT)
++	// TODO: the following 12 bytes represent a dummy unwind info,
++	// remove once unwind infos are encoded in the .xdata section.
++	pdata.AddUint64(ctxt.Arch, 0)
++	pdata.AddUint32(ctxt.Arch, 0)
++	for _, s := range ctxt.Textp {
++		if fi := ldr.FuncInfo(s); !fi.Valid() || fi.TopFrame() {
++			continue
++		}
++		uw := ldr.SEHUnwindSym(s)
++		if uw == 0 {
++			continue
++		}
++
++		// Reference:
++		// https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64#struct-runtime_function
++		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, s, 0)
++		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, s, ldr.SymSize(s))
++		// TODO: reference the .xdata symbol.
++		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, pdata.Sym(), 0)
++	}
++	sehp.pdata = pdata.Sym()
++}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index a989d14362..5fcbf160e0 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1646,6 +1646,16 @@ func (l *Loader) WasmImportSym(fnSymIdx Sym) (Sym, bool) {
+ 	return 0, false
+ }
+ 
++// SEHUnwindSym returns the auxiliary SEH unwind symbol associated with
++// a given function symbol.
++func (l *Loader) SEHUnwindSym(fnSymIdx Sym) Sym {
++	if l.SymType(fnSymIdx) != sym.STEXT {
++		log.Fatalf("error: non-function sym %d/%s t=%s passed to SEHUnwindSym", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
++	}
++
++	return l.aux1(fnSymIdx, goobj.AuxSehUnwindInfo)
++}
++
+ // GetFuncDwarfAuxSyms collects and returns the auxiliary DWARF
+ // symbols associated with a given function symbol.  Prior to the
+ // introduction of the loader, this was done purely using name
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index db87212a17..acb96ad0ad 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -126,6 +126,7 @@ const (
+ 
+ 	// SEH symbol types
+ 	SSEHUNWINDINFO
++	SPDATASECT
+ )
+ 
+ // AbiSymKindToSymKind maps values read from object files (which are
+diff --git a/src/cmd/link/internal/sym/symkind_string.go b/src/cmd/link/internal/sym/symkind_string.go
+index 09508ce766..30de0a812f 100644
+--- a/src/cmd/link/internal/sym/symkind_string.go
++++ b/src/cmd/link/internal/sym/symkind_string.go
+@@ -68,11 +68,12 @@ func _() {
+ 	_ = x[SDWARFLOC-57]
+ 	_ = x[SDWARFLINES-58]
+ 	_ = x[SSEHUNWINDINFO-59]
++	_ = x[SPDATASECT-60]
+ }
+ 
+-const _SymKind_name = "SxxxSTEXTSELFRXSECTSMACHOPLTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASXCOFFTOCSBSSSNOPTRBSSSLIBFUZZER_8BIT_COUNTERSCOVERAGE_COUNTERSCOVERAGE_AUXVARSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSDYNIMPORTSHOSTOBJSUNDEFEXTSDWARFSECTSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINESSSEHUNWINDINFO"
++const _SymKind_name = "SxxxSTEXTSELFRXSECTSMACHOPLTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASXCOFFTOCSBSSSNOPTRBSSSLIBFUZZER_8BIT_COUNTERSCOVERAGE_COUNTERSCOVERAGE_AUXVARSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSDYNIMPORTSHOSTOBJSUNDEFEXTSDWARFSECTSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINESSSEHUNWINDINFOSPDATASECT"
+ 
+-var _SymKind_index = [...]uint16{0, 4, 9, 19, 28, 33, 40, 49, 56, 63, 70, 78, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 220, 230, 238, 244, 253, 261, 268, 278, 286, 291, 300, 304, 313, 336, 353, 369, 376, 381, 393, 405, 422, 439, 448, 458, 466, 475, 485, 497, 508, 517, 529, 539, 548, 559, 568, 579, 593}
++var _SymKind_index = [...]uint16{0, 4, 9, 19, 28, 33, 40, 49, 56, 63, 70, 78, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 220, 230, 238, 244, 253, 261, 268, 278, 286, 291, 300, 304, 313, 336, 353, 369, 376, 381, 393, 405, 422, 439, 448, 458, 466, 475, 485, 497, 508, 517, 529, 539, 548, 559, 568, 579, 593, 603}
+ 
+ func (i SymKind) String() string {
+ 	if i >= SymKind(len(_SymKind_index)-1) {
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 4ae9e4f1b2..409b334bcb 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -399,3 +399,5 @@ type FILE_ID_BOTH_DIR_INFO struct {
+ }
+ 
+ //sys	GetVolumeInformationByHandle(file syscall.Handle, volumeNameBuffer *uint16, volumeNameSize uint32, volumeNameSerialNumber *uint32, maximumComponentLength *uint32, fileSystemFlags *uint32, fileSystemNameBuffer *uint16, fileSystemNameSize uint32) (err error) = GetVolumeInformationByHandleW
++
++//sys	RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table *byte) (ret uintptr) = kernel32.RtlLookupFunctionEntry
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 3a7423a304..4a6ca406d1 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -69,6 +69,7 @@ var (
+ 	procModule32NextW                 = modkernel32.NewProc("Module32NextW")
+ 	procMoveFileExW                   = modkernel32.NewProc("MoveFileExW")
+ 	procMultiByteToWideChar           = modkernel32.NewProc("MultiByteToWideChar")
++	procRtlLookupFunctionEntry        = modkernel32.NewProc("RtlLookupFunctionEntry")
+ 	procSetFileInformationByHandle    = modkernel32.NewProc("SetFileInformationByHandle")
+ 	procUnlockFileEx                  = modkernel32.NewProc("UnlockFileEx")
+ 	procVirtualQuery                  = modkernel32.NewProc("VirtualQuery")
+@@ -289,6 +290,12 @@ func MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32,
+ 	return
+ }
+ 
++func RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table *byte) (ret uintptr) {
++	r0, _, _ := syscall.Syscall(procRtlLookupFunctionEntry.Addr(), 3, uintptr(pc), uintptr(unsafe.Pointer(baseAddress)), uintptr(unsafe.Pointer(table)))
++	ret = uintptr(r0)
++	return
++}
++
+ func SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) {
+ 	r1, _, e1 := syscall.Syscall6(procSetFileInformationByHandle.Addr(), 4, uintptr(handle), uintptr(fileInformationClass), uintptr(buf), uintptr(bufsize), 0, 0)
+ 	if r1 == 0 {
+diff --git a/src/runtime/defs_windows_386.go b/src/runtime/defs_windows_386.go
+index 8d6c443a14..b11b15554e 100644
+--- a/src/runtime/defs_windows_386.go
++++ b/src/runtime/defs_windows_386.go
+@@ -56,6 +56,9 @@ func (c *context) set_lr(x uintptr) {}
+ func (c *context) set_ip(x uintptr) { c.eip = uint32(x) }
+ func (c *context) set_sp(x uintptr) { c.esp = uint32(x) }
+ 
++// 386 does not have frame pointer register.
++func (c *context) set_fp(x uintptr) {}
++
+ func prepareContextForSigResume(c *context) {
+ 	c.edx = c.esp
+ 	c.ecx = c.eip
+diff --git a/src/runtime/defs_windows_amd64.go b/src/runtime/defs_windows_amd64.go
+index afa8a657b8..20c9c4d932 100644
+--- a/src/runtime/defs_windows_amd64.go
++++ b/src/runtime/defs_windows_amd64.go
+@@ -69,6 +69,7 @@ func (c *context) set_lr(x uintptr) {}
+ 
+ func (c *context) set_ip(x uintptr) { c.rip = uint64(x) }
+ func (c *context) set_sp(x uintptr) { c.rsp = uint64(x) }
++func (c *context) set_fp(x uintptr) { c.rbp = uint64(x) }
+ 
+ func prepareContextForSigResume(c *context) {
+ 	c.r8 = c.rsp
+diff --git a/src/runtime/defs_windows_arm.go b/src/runtime/defs_windows_arm.go
+index 21c7991519..7a18c95cf1 100644
+--- a/src/runtime/defs_windows_arm.go
++++ b/src/runtime/defs_windows_arm.go
+@@ -58,6 +58,9 @@ func (c *context) set_ip(x uintptr) { c.pc = uint32(x) }
+ func (c *context) set_sp(x uintptr) { c.spr = uint32(x) }
+ func (c *context) set_lr(x uintptr) { c.lrr = uint32(x) }
+ 
++// arm does not have frame pointer register.
++func (c *context) set_fp(x uintptr) {}
++
+ func prepareContextForSigResume(c *context) {
+ 	c.r0 = c.spr
+ 	c.r1 = c.pc
+diff --git a/src/runtime/defs_windows_arm64.go b/src/runtime/defs_windows_arm64.go
+index 6c71133b43..ef2efb1bb3 100644
+--- a/src/runtime/defs_windows_arm64.go
++++ b/src/runtime/defs_windows_arm64.go
+@@ -40,6 +40,7 @@ func (c *context) lr() uintptr { return uintptr(c.x[30]) }
+ func (c *context) set_ip(x uintptr) { c.pc = uint64(x) }
+ func (c *context) set_sp(x uintptr) { c.xsp = uint64(x) }
+ func (c *context) set_lr(x uintptr) { c.x[30] = uint64(x) }
++func (c *context) set_fp(x uintptr) { c.x[29] = uint64(x) }
+ 
+ func prepareContextForSigResume(c *context) {
+ 	c.x[0] = c.xsp
+diff --git a/src/runtime/export_windows_test.go b/src/runtime/export_windows_test.go
+index 332136b586..5b9f08fb79 100644
+--- a/src/runtime/export_windows_test.go
++++ b/src/runtime/export_windows_test.go
+@@ -20,3 +20,19 @@ func NumberOfProcessors() int32 {
+ 	stdcall1(_GetSystemInfo, uintptr(unsafe.Pointer(&info)))
+ 	return int32(info.dwnumberofprocessors)
+ }
++
++type ContextStub struct {
++	context
++}
++
++func (c ContextStub) GetPC() uintptr {
++	return c.ip()
++}
++
++func NewContextStub() ContextStub {
++	var ctx context
++	ctx.set_ip(getcallerpc())
++	ctx.set_sp(getcallersp())
++	ctx.set_fp(getcallerfp())
++	return ContextStub{ctx}
++}
+diff --git a/src/runtime/runtime-seh_windows_test.go b/src/runtime/runtime-seh_windows_test.go
+new file mode 100644
+index 0000000000..23f5b87bf5
+--- /dev/null
++++ b/src/runtime/runtime-seh_windows_test.go
+@@ -0,0 +1,63 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"internal/abi"
++	"internal/syscall/windows"
++	"runtime"
++	"testing"
++)
++
++func sehf1() int {
++	return sehf1()
++}
++
++func sehf2() {}
++
++func TestSehLookupFunctionEntry(t *testing.T) {
++	if runtime.GOARCH != "amd64" {
++		t.Skip("skipping amd64-only test")
++	}
++	// This test checks that Win32 is able to retrieve
++	// function metadata stored in the .pdata section
++	// by the Go linker.
++	// Win32 unwinding will fail if this test fails,
++	// as RtlUnwindEx uses RtlLookupFunctionEntry internally.
++	// If that's the case, don't bother investigating further,
++	// first fix the .pdata generation.
++	sehf1pc := abi.FuncPCABIInternal(sehf1)
++	var fnwithframe func()
++	fnwithframe = func() {
++		fnwithframe()
++	}
++	fnwithoutframe := func() {}
++	tests := []struct {
++		name     string
++		pc       uintptr
++		hasframe bool
++	}{
++		{"no frame func", abi.FuncPCABIInternal(sehf2), false},
++		{"no func", sehf1pc - 1, false},
++		{"func at entry", sehf1pc, true},
++		{"func in prologue", sehf1pc + 1, true},
++		{"anonymous func with frame", abi.FuncPCABIInternal(fnwithframe), true},
++		{"anonymous func without frame", abi.FuncPCABIInternal(fnwithoutframe), false},
++		{"pc at func body", runtime.NewContextStub().GetPC(), true},
++	}
++	for _, tt := range tests {
++		var base uintptr
++		fn := windows.RtlLookupFunctionEntry(tt.pc, &base, nil)
++		if !tt.hasframe {
++			if fn != 0 {
++				t.Errorf("%s: unexpected frame", tt.name)
++			}
++			continue
++		}
++		if fn == 0 {
++			t.Errorf("%s: missing frame", tt.name)
++		}
++	}
++}

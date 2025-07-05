@@ -34,8 +34,98 @@ Date:   Mon Sep 21 20:20:00 2020 -0700
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/inl.go | 18 ++++++++++++++----
  test/closure3.dir/main.go          |  3 +--
  test/inline.go                     | 23 +++++++++++++++++++++++
  3 files changed, 38 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index cac51685df..8630560a9a 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -385,14 +385,11 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 	case OCLOSURE,
+ 		OCALLPART,
+ 		ORANGE,
+-		OFOR,
+-		OFORUNTIL,
+ 		OSELECT,
+ 		OTYPESW,
+ 		OGO,
+ 		ODEFER,
+ 		ODCLTYPE, // can't print yet
+-		OBREAK,
+ 		ORETJMP:
+ 		v.reason = "unhandled op " + n.Op.String()
+ 		return true
+@@ -400,10 +397,23 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 	case OAPPEND:
+ 		v.budget -= inlineExtraAppendCost
+ 
+-	case ODCLCONST, OEMPTY, OFALL, OLABEL:
++	case ODCLCONST, OEMPTY, OFALL:
+ 		// These nodes don't produce code; omit from inlining budget.
+ 		return false
+ 
++	case OLABEL:
++		// TODO(mdempsky): Add support for inlining labeled control statements.
++		if n.labeledControl() != nil {
++			v.reason = "labeled control"
++			return true
++		}
++
++	case OBREAK, OCONTINUE:
++		if n.Sym != nil {
++			// Should have short-circuited due to labeledControl above.
++			Fatalf("unexpected labeled break/continue: %v", n)
++		}
++
+ 	case OIF:
+ 		if Isconst(n.Left, CTBOOL) {
+ 			// This if and the condition cost nothing.
+diff --git a/test/closure3.dir/main.go b/test/closure3.dir/main.go
+index 3ec90139a3..5694673f1e 100644
+--- a/test/closure3.dir/main.go
++++ b/test/closure3.dir/main.go
+@@ -238,8 +238,7 @@ func main() {
+ 				if c != 4 {
+ 					ppanic("c != 4")
+ 				}
+-				for i := 0; i < 10; i++ { // prevent inlining
+-				}
++				recover() // prevent inlining
+ 			}()
+ 		}()
+ 		if c != 4 {
+diff --git a/test/inline.go b/test/inline.go
+index 3edcf2edfd..2f6fc0fe88 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -197,3 +197,26 @@ func gg(x int) { // ERROR "can inline gg"
+ func hh(x int) { // ERROR "can inline hh"
+ 	ff(x - 1) // ERROR "inlining call to ff"  // ERROR "inlining call to gg"
+ }
++
++// Issue #14768 - make sure we can inline for loops.
++func for1(fn func() bool) { // ERROR "can inline for1" "fn does not escape"
++	for {
++		if fn() {
++			break
++		} else {
++			continue
++		}
++	}
++}
++
++// BAD: for2 should be inlineable too.
++func for2(fn func() bool) { // ERROR "fn does not escape"
++Loop:
++	for {
++		if fn() {
++			break Loop
++		} else {
++			continue Loop
++		}
++	}
++}

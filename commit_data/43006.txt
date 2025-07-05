@@ -19,6 +19,32 @@ Date:   Thu Feb 27 11:24:24 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/runtime/pprof/internal/profile/proto.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/pprof/internal/profile/proto.go b/src/runtime/pprof/internal/profile/proto.go
+index 294acfeb92..52cf1ef2b3 100644
+--- a/src/runtime/pprof/internal/profile/proto.go
++++ b/src/runtime/pprof/internal/profile/proto.go
+@@ -21,7 +21,10 @@
+ 
+ package profile
+ 
+-import "errors"
++import (
++	"errors"
++	"fmt"
++)
+ 
+ type buffer struct {
+ 	field int
+@@ -232,7 +235,7 @@ func decodeField(b *buffer, data []byte) ([]byte, error) {
+ 		b.u64 = uint64(le32(data[:4]))
+ 		data = data[4:]
+ 	default:
+-		return nil, errors.New("unknown type: " + string(rune(b.typ)))
++		return nil, fmt.Errorf("unknown wire type: %d", b.typ)
+ 	}
+ 
+ 	return data, nil

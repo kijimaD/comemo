@@ -20,10 +20,394 @@ Date:   Wed Jul 29 14:02:56 2020 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/ed25519/ed25519.go       |   6 +-
  src/crypto/ed25519/ed25519_noasm.go |  15 ----
  src/crypto/ed25519/ed25519_s390x.go |  51 ------------
  src/crypto/ed25519/ed25519_s390x.s  | 161 ------------------------------------
  src/crypto/ed25519/ed25519_test.go  |  44 ++--------
  5 files changed, 8 insertions(+), 269 deletions(-)
+
+diff --git a/src/crypto/ed25519/ed25519.go b/src/crypto/ed25519/ed25519.go
+index 5766970f82..6f59bb5cff 100644
+--- a/src/crypto/ed25519/ed25519.go
++++ b/src/crypto/ed25519/ed25519.go
+@@ -154,7 +154,7 @@ func Sign(privateKey PrivateKey, message []byte) []byte {
+ 	return signature
+ }
+ 
+-func signGeneric(signature, privateKey, message []byte) {
++func sign(signature, privateKey, message []byte) {
+ 	if l := len(privateKey); l != PrivateKeySize {
+ 		panic("ed25519: bad private key length: " + strconv.Itoa(l))
+ 	}
+@@ -201,10 +201,6 @@ func signGeneric(signature, privateKey, message []byte) {
+ // Verify reports whether sig is a valid signature of message by publicKey. It
+ // will panic if len(publicKey) is not PublicKeySize.
+ func Verify(publicKey PublicKey, message, sig []byte) bool {
+-	return verify(publicKey, message, sig)
+-}
+-
+-func verifyGeneric(publicKey PublicKey, message, sig []byte) bool {
+ 	if l := len(publicKey); l != PublicKeySize {
+ 		panic("ed25519: bad public key length: " + strconv.Itoa(l))
+ 	}
+diff --git a/src/crypto/ed25519/ed25519_noasm.go b/src/crypto/ed25519/ed25519_noasm.go
+deleted file mode 100644
+index caa84f74fb..0000000000
+--- a/src/crypto/ed25519/ed25519_noasm.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !s390x
+-
+-package ed25519
+-
+-func sign(signature, privateKey, message []byte) {
+-	signGeneric(signature, privateKey, message)
+-}
+-
+-func verify(publicKey PublicKey, message, sig []byte) bool {
+-	return verifyGeneric(publicKey, message, sig)
+-}
+diff --git a/src/crypto/ed25519/ed25519_s390x.go b/src/crypto/ed25519/ed25519_s390x.go
+deleted file mode 100644
+index c8627a0652..0000000000
+--- a/src/crypto/ed25519/ed25519_s390x.go
++++ /dev/null
+@@ -1,51 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ed25519
+-
+-import (
+-	"internal/cpu"
+-	"strconv"
+-)
+-
+-//go:noescape
+-func kdsaSign(message, signature, privateKey []byte) bool
+-
+-//go:noescape
+-func kdsaVerify(message, signature, publicKey []byte) bool
+-
+-// sign does a check to see if hardware has Edwards Curve instruction available.
+-// If it does, use the hardware implementation. Otherwise, use the generic version.
+-func sign(signature, privateKey, message []byte) {
+-	if cpu.S390X.HasEDDSA {
+-		if l := len(privateKey); l != PrivateKeySize {
+-			panic("ed25519: bad private key length: " + strconv.Itoa(l))
+-		}
+-
+-		ret := kdsaSign(message, signature, privateKey[:32])
+-		if !ret {
+-			panic("ed25519: kdsa sign has a failure")
+-		}
+-		return
+-	}
+-	signGeneric(signature, privateKey, message)
+-}
+-
+-// verify does a check to see if hardware has Edwards Curve instruction available.
+-// If it does, use the hardware implementation for eddsa verfication. Otherwise, the generic
+-// version is used
+-func verify(publicKey PublicKey, message, sig []byte) bool {
+-	if cpu.S390X.HasEDDSA {
+-		if l := len(publicKey); l != PublicKeySize {
+-			panic("ed25519: bad public key length: " + strconv.Itoa(l))
+-		}
+-
+-		if len(sig) != SignatureSize || sig[63]&224 != 0 {
+-			return false
+-		}
+-
+-		return kdsaVerify(message, sig, publicKey)
+-	}
+-	return verifyGeneric(publicKey, message, sig)
+-}
+diff --git a/src/crypto/ed25519/ed25519_s390x.s b/src/crypto/ed25519/ed25519_s390x.s
+deleted file mode 100644
+index 1c77b51a78..0000000000
+--- a/src/crypto/ed25519/ed25519_s390x.s
++++ /dev/null
+@@ -1,161 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func kdsaSign(message, signature, privateKey []byte) bool
+-TEXT ·kdsaSign(SB), $4096-73
+-	// The kdsa instruction takes function code,
+-	// buffer's location, message's location and message len
+-	// as parameters. Out of those, the function code and buffer's location
+-	// should be placed in R0 and R1 respectively. The message's location
+-	// and message length should be placed in an even-odd register pair. (e.g: R2 and R3)
+-
+-	// The content of parameter block(buffer) looks like the following:
+-	// Signature R, Signature S and Private Key all take 32 bytes.
+-	// In the signing case, the signatures(R and S) will be generated by
+-	// the signing instruction and get placed in the locations shown in the parameter block.
+-	//    0 +---------------+
+-	//      |  Signature(R) |
+-	//   32 +---------------+
+-	//      |  Signature(S) |
+-	//   64 +---------------+
+-	//      |  Private Key  |
+-	//   96 +---------------+
+-	//      |   Reserved    |
+-	//   112+---------------+
+-	//      |               |
+-	//      |     ...       |
+-	//      |               |
+-	// 4088 +---------------+
+-
+-	// The following code section setups the buffer from stack:
+-	// Get the address of the buffer stack variable.
+-	MOVD $buffer-4096(SP), R1
+-
+-	// Zero the buffer.
+-	MOVD R1, R2
+-	MOVD $(4096/256), R0 // number of 256 byte chunks to clear
+-
+-clear:
+-	XC    $256, (R2), (R2)
+-	MOVD  $256(R2), R2
+-	BRCTG R0, clear
+-
+-	MOVD $40, R0                   // EDDSA-25519 sign has a function code of 40
+-	LMG  message+0(FP), R2, R3     // R2=base R3=len
+-	LMG  signature+24(FP), R4, R5  // R4=base R5=len
+-	LMG  privateKey+48(FP), R6, R7 // R6=base R7=len
+-
+-	// Checks the length of signature and private key
+-	CMPBNE R5, $64, panic
+-	CMPBNE R7, $32, panic
+-
+-	// The instruction uses RFC 8032's private key, which is the first 32 bytes
+-	// of the private key in this package. So we copy that into the buffer.
+-	MVC $32, (R6), 64(R1)
+-
+-loop:
+-	WORD $0xB93A0002 // The KDSA instruction
+-	BVS  loop        // The instruction is exectued by hardware and can be interrupted. This does a retry when that happens.
+-	BNE  error
+-
+-success:
+-	// The signatures generated are in big-endian form, so we
+-	// need to reverse the bytes of Signature(R) and Signature(S) in the buffers to transform
+-	// them from big-endian to little-endian.
+-
+-	// Transform Signature(R) from big endian to little endian and copy into the signature
+-	MVCIN $32, 31(R1), (R4)
+-
+-	// Transform Signature(S) from big endian to little endian and copy into the signature
+-	MVCIN $32, 63(R1), 32(R4)
+-
+-	MOVB $1, ret+72(FP)
+-	RET
+-
+-error:
+-	// return false
+-	MOVB $0, ret+72(FP)
+-	RET
+-
+-panic:
+-	UNDEF
+-
+-// func kdsaVerify(message, signature, publicKey []byte) bool
+-TEXT ·kdsaVerify(SB), $4096-73
+-	// The kdsa instruction takes function code,
+-	// buffer's location, message's location and message len
+-	// as parameters. Out of those, the function code and buffer's location
+-	// should be placed in R0 and R1 respectively. The message's location
+-	// and message length should be placed in an even-odd register pair. (e.g: R2 and R3)
+-
+-	// The parameter block(buffer) is similar to that of signing, except that
+-	// we use public key for verification, and Signatures(R and S) are provided
+-	// as input parameters to the parameter block.
+-	//    0 +---------------+
+-	//      |  Signature(R) |
+-	//   32 +---------------+
+-	//      |  Signature(S) |
+-	//   64 +---------------+
+-	//      |  Public Key   |
+-	//   96 +---------------+
+-	//      |   Reserved    |
+-	//   112+---------------+
+-	//      |               |
+-	//      |     ...       |
+-	//      |               |
+-	// 4088 +---------------+
+-
+-	// The following code section setups the buffer from stack:
+-	// Get the address of the buffer stack variable.
+-	MOVD $buffer-4096(SP), R1
+-
+-	// Zero the buffer.
+-	MOVD R1, R2
+-	MOVD $(4096/256), R0 // number of 256 byte chunks to clear
+-
+-clear:
+-	XC    $256, (R2), (R2)
+-	MOVD  $256(R2), R2
+-	BRCTG R0, clear
+-
+-	MOVD $32, R0                  // EDDSA-25519 verify has a function code of 32
+-	LMG  message+0(FP), R2, R3    // R2=base R3=len
+-	LMG  signature+24(FP), R4, R5 // R4=base R5=len
+-	LMG  publicKey+48(FP), R6, R7 // R6=base R7=len
+-
+-	// Checks the length of public key and signature
+-	CMPBNE R5, $64, panic
+-	CMPBNE R7, $32, panic
+-
+-verify:
+-	// The instruction needs Signature(R), Signature(S) and public key
+-	// to be in big-endian form during computation. Therefore,
+-	// we do the transformation (from little endian to big endian) and copy those into the buffer.
+-
+-	// Transform Signature(R) from little endian to big endian and copy into the buffer
+-	MVCIN $32, 31(R4), (R1)
+-
+-	// Transform Signature(S) from little endian to big endian and copy into the buffer
+-	MVCIN $32, 63(R4), 32(R1)
+-
+-	// Transform Public Key from little endian to big endian and copy into the buffer
+-	MVCIN $32, 31(R6), 64(R1)
+-
+-verifyLoop:
+-	WORD $0xB93A0002 // KDSA instruction
+-	BVS  verifyLoop  // Retry upon hardware interrupt
+-	BNE  error
+-
+-success:
+-	MOVB $1, ret+72(FP)
+-	RET
+-
+-error:
+-	MOVB $0, ret+72(FP)
+-	RET
+-
+-panic:
+-	UNDEF
+diff --git a/src/crypto/ed25519/ed25519_test.go b/src/crypto/ed25519/ed25519_test.go
+index f77d463721..adb09e409a 100644
+--- a/src/crypto/ed25519/ed25519_test.go
++++ b/src/crypto/ed25519/ed25519_test.go
+@@ -26,14 +26,6 @@ func (zeroReader) Read(buf []byte) (int, error) {
+ 	return len(buf), nil
+ }
+ 
+-// signGenericWrapper is identical to Sign except that it unconditionally calls signGeneric directly
+-// rather than going through the sign function that might call assembly code.
+-func signGenericWrapper(privateKey PrivateKey, msg []byte) []byte {
+-	sig := make([]byte, SignatureSize)
+-	signGeneric(sig, privateKey, msg)
+-	return sig
+-}
+-
+ func TestUnmarshalMarshal(t *testing.T) {
+ 	pub, _, _ := GenerateKey(rand.Reader)
+ 
+@@ -53,33 +45,22 @@ func TestUnmarshalMarshal(t *testing.T) {
+ }
+ 
+ func TestSignVerify(t *testing.T) {
+-	t.Run("Generic", func(t *testing.T) { testSignVerify(t, signGenericWrapper, verifyGeneric) })
+-	t.Run("Native", func(t *testing.T) { testSignVerify(t, Sign, Verify) })
+-}
+-
+-func testSignVerify(t *testing.T, signImpl func(privateKey PrivateKey, message []byte) []byte,
+-	verifyImpl func(publicKey PublicKey, message, sig []byte) bool) {
+ 	var zero zeroReader
+ 	public, private, _ := GenerateKey(zero)
+ 
+ 	message := []byte("test message")
+-	sig := signImpl(private, message)
+-	if !verifyImpl(public, message, sig) {
++	sig := Sign(private, message)
++	if !Verify(public, message, sig) {
+ 		t.Errorf("valid signature rejected")
+ 	}
+ 
+ 	wrongMessage := []byte("wrong message")
+-	if verifyImpl(public, wrongMessage, sig) {
++	if Verify(public, wrongMessage, sig) {
+ 		t.Errorf("signature of different message accepted")
+ 	}
+ }
+ 
+ func TestCryptoSigner(t *testing.T) {
+-	t.Run("Generic", func(t *testing.T) { testCryptoSigner(t, verifyGeneric) })
+-	t.Run("Native", func(t *testing.T) { testCryptoSigner(t, Verify) })
+-}
+-
+-func testCryptoSigner(t *testing.T, verifyImpl func(publicKey PublicKey, message, sig []byte) bool) {
+ 	var zero zeroReader
+ 	public, private, _ := GenerateKey(zero)
+ 
+@@ -102,7 +83,7 @@ func testCryptoSigner(t *testing.T, verifyImpl func(publicKey PublicKey, message
+ 		t.Fatalf("error from Sign(): %s", err)
+ 	}
+ 
+-	if !verifyImpl(public, message, signature) {
++	if !Verify(public, message, signature) {
+ 		t.Errorf("Verify failed on signature from Sign()")
+ 	}
+ }
+@@ -130,12 +111,6 @@ func TestEqual(t *testing.T) {
+ }
+ 
+ func TestGolden(t *testing.T) {
+-	t.Run("Generic", func(t *testing.T) { testGolden(t, signGenericWrapper, verifyGeneric) })
+-	t.Run("Native", func(t *testing.T) { testGolden(t, Sign, Verify) })
+-}
+-
+-func testGolden(t *testing.T, signImpl func(privateKey PrivateKey, message []byte) []byte,
+-	verifyImpl func(publicKey PublicKey, message, sig []byte) bool) {
+ 	// sign.input.gz is a selection of test cases from
+ 	// https://ed25519.cr.yp.to/python/sign.input
+ 	testDataZ, err := os.Open("testdata/sign.input.gz")
+@@ -177,12 +152,12 @@ func testGolden(t *testing.T, signImpl func(privateKey PrivateKey, message []byt
+ 		copy(priv[:], privBytes)
+ 		copy(priv[32:], pubKey)
+ 
+-		sig2 := signImpl(priv[:], msg)
++		sig2 := Sign(priv[:], msg)
+ 		if !bytes.Equal(sig, sig2[:]) {
+ 			t.Errorf("different signature result on line %d: %x vs %x", lineNo, sig, sig2)
+ 		}
+ 
+-		if !verifyImpl(pubKey, msg, sig2) {
++		if !Verify(pubKey, msg, sig2) {
+ 			t.Errorf("signature failed to verify on line %d", lineNo)
+ 		}
+ 
+@@ -206,11 +181,6 @@ func testGolden(t *testing.T, signImpl func(privateKey PrivateKey, message []byt
+ }
+ 
+ func TestMalleability(t *testing.T) {
+-	t.Run("Generic", func(t *testing.T) { testMalleability(t, verifyGeneric) })
+-	t.Run("Native", func(t *testing.T) { testMalleability(t, Verify) })
+-}
+-
+-func testMalleability(t *testing.T, verifyImpl func(publicKey PublicKey, message, sig []byte) bool) {
+ 	// https://tools.ietf.org/html/rfc8032#section-5.1.7 adds an additional test
+ 	// that s be in [0, order). This prevents someone from adding a multiple of
+ 	// order to s and obtaining a second valid signature for the same message.
+@@ -229,7 +199,7 @@ func testMalleability(t *testing.T, verifyImpl func(publicKey PublicKey, message
+ 		0xb1, 0x08, 0xc3, 0xbd, 0xae, 0x36, 0x9e, 0xf5, 0x49, 0xfa,
+ 	}
+ 
+-	if verifyImpl(publicKey, msg, sig) {
++	if Verify(publicKey, msg, sig) {
+ 		t.Fatal("non-canonical signature accepted")
+ 	}
+ }

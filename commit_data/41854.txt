@@ -16,6 +16,25 @@ Date:   Mon Oct 21 23:25:32 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 0e780bad6c..2ec279bf37 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3965,8 +3965,12 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
+ 	// Calling cheapexpr(n, init) below leads to a recursive call
+ 	// to walkexpr, which leads us back here again. Use n.Opt to
+ 	// prevent infinite loops.
+-	if n.Opt() == &walkCheckPtrArithmeticMarker {
++	if opt := n.Opt(); opt == &walkCheckPtrArithmeticMarker {
+ 		return n
++	} else if opt != nil {
++		// We use n.Opt() here because today it's not used for OCONVNOP. If that changes,
++		// there's no guarantee that temporarily replacing it is safe, so just hard fail here.
++		Fatalf("unexpected Opt: %v", opt)
+ 	}
+ 	n.SetOpt(&walkCheckPtrArithmeticMarker)
+ 	defer n.SetOpt(nil)

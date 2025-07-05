@@ -16,9 +16,192 @@ Date:   Thu Apr 18 09:45:40 2019 -0400
     Change-Id: I9b7369ed558a288b56d85170c6f1144daf5228eb
     Reviewed-on: https://go-review.googlesource.com/c/go/+/172603
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/internal/gccgoimporter/importer_test.go     |  1 +
  src/go/internal/gccgoimporter/parser.go            | 46 ++++++++++++++++------
  .../internal/gccgoimporter/testdata/issue31540.go  | 26 ++++++++++++
  .../internal/gccgoimporter/testdata/issue31540.gox | 16 ++++++++
  4 files changed, 76 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index ee01883203..21a3bcbe98 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -92,6 +92,7 @@ var importerTests = [...]importerTest{
+ 	{pkgpath: "nointerface", name: "I", want: "type I int"},
+ 	{pkgpath: "issue29198", name: "FooServer", want: "type FooServer struct{FooServer *FooServer; user string; ctx context.Context}"},
+ 	{pkgpath: "issue30628", name: "Apple", want: "type Apple struct{hey sync.RWMutex; x int; RQ [517]struct{Count uintptr; NumBytes uintptr; Last uintptr}}"},
++	{pkgpath: "issue31540", name: "S", want: "type S struct{b int; map[Y]Z}"},
+ }
+ 
+ func TestGoxImporter(t *testing.T) {
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index d0081ad3b8..5fd913c54a 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -31,6 +31,7 @@ type parser struct {
+ 	typeData []string                  // unparsed type data (v3 and later)
+ 	fixups   []fixupRecord             // fixups to apply at end of parsing
+ 	initdata InitData                  // package init priority data
++	aliases  map[int]string            // maps saved type number to alias name
+ }
+ 
+ // When reading export data it's possible to encounter a defined type
+@@ -57,6 +58,7 @@ func (p *parser) init(filename string, src io.Reader, imports map[string]*types.
+ 	p.scanner = new(scanner.Scanner)
+ 	p.initScanner(filename, src)
+ 	p.imports = imports
++	p.aliases = make(map[int]string)
+ 	p.typeList = make([]types.Type, 1 /* type numbers start at 1 */, 16)
+ }
+ 
+@@ -238,17 +240,22 @@ func deref(typ types.Type) types.Type {
+ // Field = Name Type [string] .
+ func (p *parser) parseField(pkg *types.Package) (field *types.Var, tag string) {
+ 	name := p.parseName()
+-	typ := p.parseType(pkg)
++	typ, n := p.parseTypeExtended(pkg)
+ 	anon := false
+ 	if name == "" {
+ 		anon = true
+-		switch typ := deref(typ).(type) {
+-		case *types.Basic:
+-			name = typ.Name()
+-		case *types.Named:
+-			name = typ.Obj().Name()
+-		default:
+-			p.error("anonymous field expected")
++		// Alias?
++		if aname, ok := p.aliases[n]; ok {
++			name = aname
++		} else {
++			switch typ := deref(typ).(type) {
++			case *types.Basic:
++				name = typ.Name()
++			case *types.Named:
++				name = typ.Obj().Name()
++			default:
++				p.error("anonymous field expected")
++			}
+ 		}
+ 	}
+ 	field = types.NewField(token.NoPos, pkg, name, typ, anon)
+@@ -495,6 +502,7 @@ func (p *parser) parseNamedType(nlist []int) types.Type {
+ 		}
+ 		t := p.parseType(pkg, nlist...)
+ 		obj = types.NewTypeName(token.NoPos, pkg, name, t)
++		p.aliases[nlist[len(nlist)-1]] = name
+ 		scope.Insert(obj)
+ 		return t
+ 	}
+@@ -702,7 +710,8 @@ func (p *parser) parseResultList(pkg *types.Package) *types.Tuple {
+ 		if p.tok == scanner.Ident && p.lit == "inl" {
+ 			return nil
+ 		}
+-		return types.NewTuple(types.NewParam(token.NoPos, pkg, "", p.parseTypeAfterAngle(pkg)))
++		taa, _ := p.parseTypeAfterAngle(pkg)
++		return types.NewTuple(types.NewParam(token.NoPos, pkg, "", taa))
+ 
+ 	case '(':
+ 		params, _ := p.parseParamList(pkg)
+@@ -876,16 +885,18 @@ func lookupBuiltinType(typ int) types.Type {
+ //
+ func (p *parser) parseType(pkg *types.Package, n ...int) types.Type {
+ 	p.expect('<')
+-	return p.parseTypeAfterAngle(pkg, n...)
++	t, _ := p.parseTypeAfterAngle(pkg, n...)
++	return t
+ }
+ 
+ // (*parser).Type after reading the "<".
+-func (p *parser) parseTypeAfterAngle(pkg *types.Package, n ...int) (t types.Type) {
++func (p *parser) parseTypeAfterAngle(pkg *types.Package, n ...int) (t types.Type, n1 int) {
+ 	p.expectKeyword("type")
+ 
++	n1 = 0
+ 	switch p.tok {
+ 	case scanner.Int:
+-		n1 := p.parseInt()
++		n1 = p.parseInt()
+ 		if p.tok == '>' {
+ 			if len(p.typeData) > 0 && p.typeList[n1] == nil {
+ 				p.parseSavedType(pkg, n1, n)
+@@ -908,7 +919,7 @@ func (p *parser) parseTypeAfterAngle(pkg *types.Package, n ...int) (t types.Type
+ 
+ 	default:
+ 		p.errorf("expected type number, got %s (%q)", scanner.TokenString(p.tok), p.lit)
+-		return nil
++		return nil, 0
+ 	}
+ 
+ 	if t == nil || t == reserved {
+@@ -919,6 +930,15 @@ func (p *parser) parseTypeAfterAngle(pkg *types.Package, n ...int) (t types.Type
+ 	return
+ }
+ 
++// parseTypeExtended is identical to parseType, but if the type in
++// question is a saved type, returns the index as well as the type
++// pointer (index returned is zero if we parsed a builtin).
++func (p *parser) parseTypeExtended(pkg *types.Package, n ...int) (t types.Type, n1 int) {
++	p.expect('<')
++	t, n1 = p.parseTypeAfterAngle(pkg, n...)
++	return
++}
++
+ // InlineBody = "<inl:NN>" .{NN}
+ // Reports whether a body was skipped.
+ func (p *parser) skipInlineBody() {
+diff --git a/src/go/internal/gccgoimporter/testdata/issue31540.go b/src/go/internal/gccgoimporter/testdata/issue31540.go
+new file mode 100644
+index 0000000000..2c6799ec40
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/issue31540.go
+@@ -0,0 +1,26 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue31540
++
++type Y struct {
++	q int
++}
++
++type Z map[int]int
++
++type X = map[Y]Z
++
++type A1 = X
++
++type A2 = A1
++
++type S struct {
++	b int
++	A2
++}
++
++func Hallo() S {
++	return S{}
++}
+diff --git a/src/go/internal/gccgoimporter/testdata/issue31540.gox b/src/go/internal/gccgoimporter/testdata/issue31540.gox
+new file mode 100644
+index 0000000000..abdc696caf
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/issue31540.gox
+@@ -0,0 +1,16 @@
++v3;
++package issue31540
++pkgpath issue31540
++types 11 7 23 23 20 22 20 21 57 31 45 36
++type 1 "A1" = <type 4>
++type 2 "A2" = <type 1>
++type 3 "S" <type 7>
++type 4 "X" = <type 8>
++type 5 "Y" <type 9>
++type 6 "Z" <type 10>
++type 7 struct { .go.mapalias.b <type -11>; ? <type 2>; }
++type 8 map [<type 5>] <type 6>
++type 9 struct { .go.mapalias.q <type -11>; }
++type 10 map [<type -11>] <type -11>
++func Hallo () <type 3>
++checksum C3FAF2524A90BC11225EE65D059BF27DFB69134B

@@ -17,7 +17,54 @@ Date:   Sat Sep 25 04:42:57 2021 +0800
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  3 +++
  test/typeparam/issue48604.go              | 25 +++++++++++++++++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index d5fb9f338c..bc142e6985 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1093,6 +1093,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			case ir.OCALL, ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
+ 				transformCall(call)
+ 
++			case ir.OCONVNOP:
++				transformCall(call)
++
+ 			case ir.OFUNCINST:
+ 				// A call with an OFUNCINST will get transformed
+ 				// in stencil() once we have created & attached the
+diff --git a/test/typeparam/issue48604.go b/test/typeparam/issue48604.go
+new file mode 100644
+index 0000000000..1babd3f864
+--- /dev/null
++++ b/test/typeparam/issue48604.go
+@@ -0,0 +1,25 @@
++// build -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Foo[T any] interface {
++	CreateBar() Bar[T]
++}
++
++type Bar[T any] func() Bar[T]
++
++func (f Bar[T]) CreateBar() Bar[T] {
++	return f
++}
++
++func abc[R any]() {
++	var _ Foo[R] = Bar[R](nil)()
++}
++
++func main() {
++	abc[int]()
++}
+\ No newline at end of file

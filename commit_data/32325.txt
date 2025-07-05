@@ -11,6 +11,26 @@ Date:   Wed Apr 19 14:20:52 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index c657d75461..090cbe427a 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -211,12 +211,13 @@ func compile(fn *Node) {
+ 	ssafn := buildssa(fn)
+ 	pp := newProgs(fn)
+ 	genssa(ssafn, pp)
+-	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
+ 	if pp.Text.To.Offset < 1<<31 {
+ 		pp.Flush()
+ 	} else {
+ 		largeStackFrames = append(largeStackFrames, fn.Pos)
+ 	}
++	// fieldtrack must be called after pp.Flush. See issue 20014.
++	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
+ 	pp.Free()
+ }
+ 

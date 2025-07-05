@@ -9,6 +9,24 @@ Date:   Mon Sep 24 12:30:32 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6553066
-
+---
  src/cmd/gc/inl.c | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index 6dda362e7e..1328010b8d 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -111,10 +111,8 @@ typecheckinl(Node *fn)
+ 	lineno = lno;
+ }
+ 
+-// Caninl determines whether fn is inlineable. Currently that means:
+-// fn is exactly 1 statement, either a return or an assignment, and
+-// some temporary constraints marked TODO.  If fn is inlineable, saves
+-// fn->nbody in fn->inl and substitutes it with a copy.
++// Caninl determines whether fn is inlineable.
++// If so, caninl saves fn->nbody in fn->inl and substitutes it with a copy.
+ void
+ caninl(Node *fn)
+ {

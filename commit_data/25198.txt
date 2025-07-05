@@ -11,6 +11,22 @@ Date:   Sat Oct 3 21:54:15 2015 -0400
     Reviewed-by: Damian Gryski <dgryski@gmail.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/big/int_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/big/int_test.go b/src/cmd/compile/internal/big/int_test.go
+index 97874626f3..bf3b832980 100644
+--- a/src/cmd/compile/internal/big/int_test.go
++++ b/src/cmd/compile/internal/big/int_test.go
+@@ -698,7 +698,9 @@ func TestGcd(t *testing.T) {
+ 		testGcd(t, d, x, y, a, b)
+ 	}
+ 
+-	quick.Check(checkGcd, nil)
++	if err := quick.Check(checkGcd, nil); err != nil {
++		t.Error(err)
++	}
+ }
+ 
+ var primes = []string{

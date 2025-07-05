@@ -7,7 +7,28 @@ Date:   Sat Jun 6 19:28:01 2009 -0700
     R=ken
     OCL=29989
     CL=29999
-
+---
  test/{bugs => fixedbugs}/bug140.go | 0
  test/golden.out                    | 5 -----
  2 files changed, 5 deletions(-)
+
+diff --git a/test/bugs/bug140.go b/test/fixedbugs/bug140.go
+similarity index 100%
+rename from test/bugs/bug140.go
+rename to test/fixedbugs/bug140.go
+diff --git a/test/golden.out b/test/golden.out
+index e20b453cef..0cce6f5f4b 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -91,11 +91,6 @@ BUG: compilation succeeds incorrectly
+ =========== bugs/bug136.go
+ BUG: should not compile
+ 
+-=========== bugs/bug140.go
+-bugs/bug140.go:6: syntax error near L1
+-bugs/bug140.go:7: syntax error near L2
+-BUG should compile
+-
+ =========== bugs/bug148.go
+ 2 3
+ 5 7

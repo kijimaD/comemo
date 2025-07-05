@@ -15,10 +15,165 @@ Date:   Mon Nov 21 16:47:39 2022 -0800
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/crypto/x509/internal/macos/corefoundation.go |  7 +++++++
  src/crypto/x509/internal/macos/corefoundation.s  |  2 ++
  src/crypto/x509/internal/macos/security.go       | 19 ++++++++++++++-----
  src/crypto/x509/root_darwin.go                   | 14 ++++++++++++--
  src/crypto/x509/root_darwin_test.go              | 10 +++++-----
  5 files changed, 40 insertions(+), 12 deletions(-)
+
+diff --git a/src/crypto/x509/internal/macos/corefoundation.go b/src/crypto/x509/internal/macos/corefoundation.go
+index 5387c5a015..b4032a5d91 100644
+--- a/src/crypto/x509/internal/macos/corefoundation.go
++++ b/src/crypto/x509/internal/macos/corefoundation.go
+@@ -186,6 +186,13 @@ func CFErrorCopyDescription(errRef CFRef) CFRef {
+ }
+ func x509_CFErrorCopyDescription_trampoline()
+ 
++//go:cgo_import_dynamic x509_CFErrorGetCode CFErrorGetCode "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
++
++func CFErrorGetCode(errRef CFRef) int {
++	return int(syscall(abi.FuncPCABI0(x509_CFErrorGetCode_trampoline), uintptr(errRef), 0, 0, 0, 0, 0))
++}
++func x509_CFErrorGetCode_trampoline()
++
+ //go:cgo_import_dynamic x509_CFStringCreateExternalRepresentation CFStringCreateExternalRepresentation "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+ 
+ func CFStringCreateExternalRepresentation(strRef CFRef) (CFRef, error) {
+diff --git a/src/crypto/x509/internal/macos/corefoundation.s b/src/crypto/x509/internal/macos/corefoundation.s
+index d69f72f795..49cd084467 100644
+--- a/src/crypto/x509/internal/macos/corefoundation.s
++++ b/src/crypto/x509/internal/macos/corefoundation.s
+@@ -37,5 +37,7 @@ TEXT ·x509_CFDataCreate_trampoline(SB),NOSPLIT,$0-0
+ 	JMP x509_CFDataCreate(SB)
+ TEXT ·x509_CFErrorCopyDescription_trampoline(SB),NOSPLIT,$0-0
+ 	JMP x509_CFErrorCopyDescription(SB)
++TEXT ·x509_CFErrorGetCode_trampoline(SB),NOSPLIT,$0-0
++	JMP x509_CFErrorGetCode(SB)
+ TEXT ·x509_CFStringCreateExternalRepresentation_trampoline(SB),NOSPLIT,$0-0
+ 	JMP x509_CFStringCreateExternalRepresentation(SB)
+diff --git a/src/crypto/x509/internal/macos/security.go b/src/crypto/x509/internal/macos/security.go
+index 0fc218c552..a6972c0c09 100644
+--- a/src/crypto/x509/internal/macos/security.go
++++ b/src/crypto/x509/internal/macos/security.go
+@@ -8,7 +8,6 @@ package macOS
+ 
+ import (
+ 	"errors"
+-	"fmt"
+ 	"internal/abi"
+ 	"strconv"
+ 	"unsafe"
+@@ -52,6 +51,15 @@ const (
+ 	SecTrustSettingsDomainSystem
+ )
+ 
++const (
++	// various macOS error codes that can be returned from
++	// SecTrustEvaluateWithError that we can map to Go cert
++	// verification error types.
++	ErrSecCertificateExpired = -67818
++	ErrSecHostNameMismatch   = -67602
++	ErrSecNotTrusted         = -67843
++)
++
+ type OSStatus struct {
+ 	call   string
+ 	status int32
+@@ -191,17 +199,18 @@ func x509_SecTrustGetResult_trampoline()
+ 
+ //go:cgo_import_dynamic x509_SecTrustEvaluateWithError SecTrustEvaluateWithError "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+ 
+-func SecTrustEvaluateWithError(trustObj CFRef) error {
++func SecTrustEvaluateWithError(trustObj CFRef) (int, error) {
+ 	var errRef CFRef
+ 	ret := syscall(abi.FuncPCABI0(x509_SecTrustEvaluateWithError_trampoline), uintptr(trustObj), uintptr(unsafe.Pointer(&errRef)), 0, 0, 0, 0)
+ 	if int32(ret) != 1 {
+ 		errStr := CFErrorCopyDescription(errRef)
+-		err := fmt.Errorf("x509: %s", CFStringToString(errStr))
++		err := errors.New(CFStringToString(errStr))
++		errCode := CFErrorGetCode(errRef)
+ 		CFRelease(errRef)
+ 		CFRelease(errStr)
+-		return err
++		return errCode, err
+ 	}
+-	return nil
++	return 0, nil
+ }
+ func x509_SecTrustEvaluateWithError_trampoline()
+ 
+diff --git a/src/crypto/x509/root_darwin.go b/src/crypto/x509/root_darwin.go
+index 20f627c277..de2ff894a9 100644
+--- a/src/crypto/x509/root_darwin.go
++++ b/src/crypto/x509/root_darwin.go
+@@ -7,6 +7,7 @@ package x509
+ import (
+ 	macOS "crypto/x509/internal/macos"
+ 	"errors"
++	"fmt"
+ )
+ 
+ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
+@@ -57,8 +58,17 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
+ 	// always enforce its SCT requirements, and there are still _some_ people
+ 	// using TLS or OCSP for that.
+ 
+-	if err := macOS.SecTrustEvaluateWithError(trustObj); err != nil {
+-		return nil, err
++	if ret, err := macOS.SecTrustEvaluateWithError(trustObj); err != nil {
++		switch ret {
++		case macOS.ErrSecCertificateExpired:
++			return nil, CertificateInvalidError{c, Expired, err.Error()}
++		case macOS.ErrSecHostNameMismatch:
++			return nil, HostnameError{c, opts.DNSName}
++		case macOS.ErrSecNotTrusted:
++			return nil, UnknownAuthorityError{Cert: c}
++		default:
++			return nil, fmt.Errorf("x509: %s", err)
++		}
+ 	}
+ 
+ 	chain := [][]*Certificate{{}}
+diff --git a/src/crypto/x509/root_darwin_test.go b/src/crypto/x509/root_darwin_test.go
+index 90a464f624..299cecf556 100644
+--- a/src/crypto/x509/root_darwin_test.go
++++ b/src/crypto/x509/root_darwin_test.go
+@@ -42,23 +42,23 @@ func TestPlatformVerifier(t *testing.T) {
+ 		{
+ 			name:        "expired leaf",
+ 			host:        "expired.badssl.com",
+-			expectedErr: "x509: “*.badssl.com” certificate is expired",
++			expectedErr: "x509: certificate has expired or is not yet valid: “*.badssl.com” certificate is expired",
+ 		},
+ 		{
+ 			name:        "wrong host for leaf",
+ 			host:        "wrong.host.badssl.com",
+ 			verifyName:  "wrong.host.badssl.com",
+-			expectedErr: "x509: “*.badssl.com” certificate name does not match input",
++			expectedErr: "x509: certificate is valid for *.badssl.com, badssl.com, not wrong.host.badssl.com",
+ 		},
+ 		{
+ 			name:        "self-signed leaf",
+ 			host:        "self-signed.badssl.com",
+-			expectedErr: "x509: “*.badssl.com” certificate is not trusted",
++			expectedErr: "x509: certificate signed by unknown authority",
+ 		},
+ 		{
+ 			name:        "untrusted root",
+ 			host:        "untrusted-root.badssl.com",
+-			expectedErr: "x509: “BadSSL Untrusted Root Certificate Authority” certificate is not trusted",
++			expectedErr: "x509: certificate signed by unknown authority",
+ 		},
+ 		{
+ 			name:        "revoked leaf",
+@@ -74,7 +74,7 @@ func TestPlatformVerifier(t *testing.T) {
+ 			name:        "expired leaf (custom time)",
+ 			host:        "google.com",
+ 			verifyTime:  time.Time{}.Add(time.Hour),
+-			expectedErr: "x509: “*.google.com” certificate is expired",
++			expectedErr: "x509: certificate has expired or is not yet valid: “*.google.com” certificate is expired",
+ 		},
+ 		{
+ 			name:       "valid chain (custom time)",

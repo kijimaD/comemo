@@ -19,6 +19,37 @@ Date:   Tue Aug 22 15:08:11 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/test/test.go | 19 -------------------
  1 file changed, 19 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 4fd5c0b408..11d1aefc19 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1400,25 +1400,6 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 		cmd.Stdout = stdout
+ 		cmd.Stderr = stdout
+ 
+-		// If there are any local SWIG dependencies, we want to load
+-		// the shared library from the build directory.
+-		if a.Package.UsesSwig() {
+-			env := cmd.Env
+-			found := false
+-			prefix := "LD_LIBRARY_PATH="
+-			for i, v := range env {
+-				if strings.HasPrefix(v, prefix) {
+-					env[i] = v + ":."
+-					found = true
+-					break
+-				}
+-			}
+-			if !found {
+-				env = append(env, "LD_LIBRARY_PATH=.")
+-			}
+-			cmd.Env = env
+-		}
+-
+ 		cmd.Cancel = func() error {
+ 			if base.SignalTrace == nil {
+ 				err := cmd.Process.Kill()

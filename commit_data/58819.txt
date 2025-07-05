@@ -23,6 +23,28 @@ Date:   Mon Dec 18 17:03:19 2023 +0000
     Reviewed-by: Eli Bendersky <eliben@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/metrics_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index fc0321e4c5..d7f41334cd 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"internal/goexperiment"
+ 	"internal/profile"
++	"internal/testenv"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+@@ -947,6 +948,8 @@ func TestSchedPauseMetrics(t *testing.T) {
+ }
+ 
+ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
++	testenv.SkipFlaky(t, 64253)
++
+ 	old := runtime.SetMutexProfileFraction(0) // enabled during sub-tests
+ 	defer runtime.SetMutexProfileFraction(old)
+ 	if old != 0 {

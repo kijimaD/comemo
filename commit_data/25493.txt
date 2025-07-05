@@ -9,7 +9,7 @@ Date:   Tue Nov 3 11:00:37 2015 -0800
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/build/deps_test.go         |  2 +-
  src/net/http/export_test.go       |  2 ++
  src/net/http/httptest/server.go   | 39 ++----------------------
@@ -17,3 +17,295 @@ Date:   Tue Nov 3 11:00:37 2015 -0800
  src/net/http/serve_test.go        | 62 ++++++++++++++++++++++++++++++++++++++-
  src/net/http/server.go            | 43 +++++++++++++++++++++------
  6 files changed, 141 insertions(+), 48 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 9746c167ab..a3fb9208be 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -361,7 +361,7 @@ var pkgDeps = map[string][]string{
+ 	"net/http/cgi":       {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp"},
+ 	"net/http/cookiejar": {"L4", "NET", "net/http"},
+ 	"net/http/fcgi":      {"L4", "NET", "OS", "net/http", "net/http/cgi"},
+-	"net/http/httptest":  {"L4", "NET", "OS", "crypto/tls", "flag", "net/http"},
++	"net/http/httptest":  {"L4", "NET", "OS", "crypto/tls", "flag", "net/http", "net/http/internal"},
+ 	"net/http/httputil":  {"L4", "NET", "OS", "net/http", "net/http/internal"},
+ 	"net/http/pprof":     {"L4", "OS", "html/template", "net/http", "runtime/pprof", "runtime/trace"},
+ 	"net/rpc":            {"L4", "NET", "encoding/gob", "html/template", "net/http"},
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 68fbd43826..e530f7e578 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -132,3 +132,5 @@ var ExportCloseWriteAndWait = (*conn).closeWriteAndWait
+ var ExportErrRequestCanceled = errRequestCanceled
+ 
+ var ExportServeFile = serveFile
++
++func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }
+diff --git a/src/net/http/httptest/server.go b/src/net/http/httptest/server.go
+index 4a45b2b940..fabfeca943 100644
+--- a/src/net/http/httptest/server.go
++++ b/src/net/http/httptest/server.go
+@@ -14,6 +14,7 @@ import (
+ 	"log"
+ 	"net"
+ 	"net/http"
++	"net/http/internal"
+ 	"os"
+ 	"runtime"
+ 	"sync"
+@@ -107,7 +108,7 @@ func (s *Server) StartTLS() {
+ 	if s.URL != "" {
+ 		panic("Server already started")
+ 	}
+-	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
++	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+ 	if err != nil {
+ 		panic(fmt.Sprintf("httptest: NewTLSServer: %v", err))
+ 	}
+@@ -289,39 +290,3 @@ func (s *Server) forgetConn(c net.Conn) {
+ 		s.wg.Done()
+ 	}
+ }
+-
+-// localhostCert is a PEM-encoded TLS cert with SAN IPs
+-// "127.0.0.1" and "[::1]", expiring at Jan 29 16:00:00 2084 GMT.
+-// generated from src/crypto/tls:
+-// go run generate_cert.go  --rsa-bits 1024 --host 127.0.0.1,::1,example.com --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
+-var localhostCert = []byte(`-----BEGIN CERTIFICATE-----
+-MIICEzCCAXygAwIBAgIQMIMChMLGrR+QvmQvpwAU6zANBgkqhkiG9w0BAQsFADAS
+-MRAwDgYDVQQKEwdBY21lIENvMCAXDTcwMDEwMTAwMDAwMFoYDzIwODQwMTI5MTYw
+-MDAwWjASMRAwDgYDVQQKEwdBY21lIENvMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCB
+-iQKBgQDuLnQAI3mDgey3VBzWnB2L39JUU4txjeVE6myuDqkM/uGlfjb9SjY1bIw4
+-iA5sBBZzHi3z0h1YV8QPuxEbi4nW91IJm2gsvvZhIrCHS3l6afab4pZBl2+XsDul
+-rKBxKKtD1rGxlG4LjncdabFn9gvLZad2bSysqz/qTAUStTvqJQIDAQABo2gwZjAO
+-BgNVHQ8BAf8EBAMCAqQwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH/BAUw
+-AwEB/zAuBgNVHREEJzAlggtleGFtcGxlLmNvbYcEfwAAAYcQAAAAAAAAAAAAAAAA
+-AAAAATANBgkqhkiG9w0BAQsFAAOBgQCEcetwO59EWk7WiJsG4x8SY+UIAA+flUI9
+-tyC4lNhbcF2Idq9greZwbYCqTTTr2XiRNSMLCOjKyI7ukPoPjo16ocHj+P3vZGfs
+-h1fIw3cSS2OolhloGw/XM6RWPWtPAlGykKLciQrBru5NAPvCMsb/I1DAceTiotQM
+-fblo6RBxUQ==
+------END CERTIFICATE-----`)
+-
+-// localhostKey is the private key for localhostCert.
+-var localhostKey = []byte(`-----BEGIN RSA PRIVATE KEY-----
+-MIICXgIBAAKBgQDuLnQAI3mDgey3VBzWnB2L39JUU4txjeVE6myuDqkM/uGlfjb9
+-SjY1bIw4iA5sBBZzHi3z0h1YV8QPuxEbi4nW91IJm2gsvvZhIrCHS3l6afab4pZB
+-l2+XsDulrKBxKKtD1rGxlG4LjncdabFn9gvLZad2bSysqz/qTAUStTvqJQIDAQAB
+-AoGAGRzwwir7XvBOAy5tM/uV6e+Zf6anZzus1s1Y1ClbjbE6HXbnWWF/wbZGOpet
+-3Zm4vD6MXc7jpTLryzTQIvVdfQbRc6+MUVeLKwZatTXtdZrhu+Jk7hx0nTPy8Jcb
+-uJqFk541aEw+mMogY/xEcfbWd6IOkp+4xqjlFLBEDytgbIECQQDvH/E6nk+hgN4H
+-qzzVtxxr397vWrjrIgPbJpQvBsafG7b0dA4AFjwVbFLmQcj2PprIMmPcQrooz8vp
+-jy4SHEg1AkEA/v13/5M47K9vCxmb8QeD/asydfsgS5TeuNi8DoUBEmiSJwma7FXY
+-fFUtxuvL7XvjwjN5B30pNEbc6Iuyt7y4MQJBAIt21su4b3sjXNueLKH85Q+phy2U
+-fQtuUE9txblTu14q3N7gHRZB4ZMhFYyDy8CKrN2cPg/Fvyt0Xlp/DoCzjA0CQQDU
+-y2ptGsuSmgUtWj3NM9xuwYPm+Z/F84K6+ARYiZ6PYj013sovGKUFfYAqVXVlxtIX
+-qyUBnu3X9ps8ZfjLZO7BAkEAlT4R5Yl6cGhaJQYZHOde3JEMhNRcVFMO8dJDaFeo
+-f9Oeos0UUothgiDktdQHxdNEwLjQf7lJJBzV+5OtwswCWA==
+------END RSA PRIVATE KEY-----`)
+diff --git a/src/net/http/internal/testcert.go b/src/net/http/internal/testcert.go
+new file mode 100644
+index 0000000000..407890920f
+--- /dev/null
++++ b/src/net/http/internal/testcert.go
+@@ -0,0 +1,41 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package internal
++
++// LocalhostCert is a PEM-encoded TLS cert with SAN IPs
++// "127.0.0.1" and "[::1]", expiring at Jan 29 16:00:00 2084 GMT.
++// generated from src/crypto/tls:
++// go run generate_cert.go  --rsa-bits 1024 --host 127.0.0.1,::1,example.com --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
++var LocalhostCert = []byte(`-----BEGIN CERTIFICATE-----
++MIICEzCCAXygAwIBAgIQMIMChMLGrR+QvmQvpwAU6zANBgkqhkiG9w0BAQsFADAS
++MRAwDgYDVQQKEwdBY21lIENvMCAXDTcwMDEwMTAwMDAwMFoYDzIwODQwMTI5MTYw
++MDAwWjASMRAwDgYDVQQKEwdBY21lIENvMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCB
++iQKBgQDuLnQAI3mDgey3VBzWnB2L39JUU4txjeVE6myuDqkM/uGlfjb9SjY1bIw4
++iA5sBBZzHi3z0h1YV8QPuxEbi4nW91IJm2gsvvZhIrCHS3l6afab4pZBl2+XsDul
++rKBxKKtD1rGxlG4LjncdabFn9gvLZad2bSysqz/qTAUStTvqJQIDAQABo2gwZjAO
++BgNVHQ8BAf8EBAMCAqQwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH/BAUw
++AwEB/zAuBgNVHREEJzAlggtleGFtcGxlLmNvbYcEfwAAAYcQAAAAAAAAAAAAAAAA
++AAAAATANBgkqhkiG9w0BAQsFAAOBgQCEcetwO59EWk7WiJsG4x8SY+UIAA+flUI9
++tyC4lNhbcF2Idq9greZwbYCqTTTr2XiRNSMLCOjKyI7ukPoPjo16ocHj+P3vZGfs
++h1fIw3cSS2OolhloGw/XM6RWPWtPAlGykKLciQrBru5NAPvCMsb/I1DAceTiotQM
++fblo6RBxUQ==
++-----END CERTIFICATE-----`)
++
++// LocalhostKey is the private key for localhostCert.
++var LocalhostKey = []byte(`-----BEGIN RSA PRIVATE KEY-----
++MIICXgIBAAKBgQDuLnQAI3mDgey3VBzWnB2L39JUU4txjeVE6myuDqkM/uGlfjb9
++SjY1bIw4iA5sBBZzHi3z0h1YV8QPuxEbi4nW91IJm2gsvvZhIrCHS3l6afab4pZB
++l2+XsDulrKBxKKtD1rGxlG4LjncdabFn9gvLZad2bSysqz/qTAUStTvqJQIDAQAB
++AoGAGRzwwir7XvBOAy5tM/uV6e+Zf6anZzus1s1Y1ClbjbE6HXbnWWF/wbZGOpet
++3Zm4vD6MXc7jpTLryzTQIvVdfQbRc6+MUVeLKwZatTXtdZrhu+Jk7hx0nTPy8Jcb
++uJqFk541aEw+mMogY/xEcfbWd6IOkp+4xqjlFLBEDytgbIECQQDvH/E6nk+hgN4H
++qzzVtxxr397vWrjrIgPbJpQvBsafG7b0dA4AFjwVbFLmQcj2PprIMmPcQrooz8vp
++jy4SHEg1AkEA/v13/5M47K9vCxmb8QeD/asydfsgS5TeuNi8DoUBEmiSJwma7FXY
++fFUtxuvL7XvjwjN5B30pNEbc6Iuyt7y4MQJBAIt21su4b3sjXNueLKH85Q+phy2U
++fQtuUE9txblTu14q3N7gHRZB4ZMhFYyDy8CKrN2cPg/Fvyt0Xlp/DoCzjA0CQQDU
++y2ptGsuSmgUtWj3NM9xuwYPm+Z/F84K6+ARYiZ6PYj013sovGKUFfYAqVXVlxtIX
++qyUBnu3X9ps8ZfjLZO7BAkEAlT4R5Yl6cGhaJQYZHOde3JEMhNRcVFMO8dJDaFeo
++f9Oeos0UUothgiDktdQHxdNEwLjQf7lJJBzV+5OtwswCWA==
++-----END RSA PRIVATE KEY-----`)
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index f3454848b7..4fe40da9ae 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1069,7 +1069,8 @@ func TestTLSServer(t *testing.T) {
+ 	})
+ }
+ 
+-func TestAutomaticHTTP2(t *testing.T) {
++func TestAutomaticHTTP2_Serve(t *testing.T) {
++	defer afterTest(t)
+ 	ln := newLocalListener(t)
+ 	ln.Close() // immediately (not a defer!)
+ 	var s Server
+@@ -1082,6 +1083,65 @@ func TestAutomaticHTTP2(t *testing.T) {
+ 	}
+ }
+ 
++func TestAutomaticHTTP2_ListenAndServe(t *testing.T) {
++	defer afterTest(t)
++	defer SetTestHookServerServe(nil)
++	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var ok bool
++	var s *Server
++	const maxTries = 5
++	var ln net.Listener
++Try:
++	for try := 0; try < maxTries; try++ {
++		ln = newLocalListener(t)
++		addr := ln.Addr().String()
++		ln.Close()
++		t.Logf("Got %v", addr)
++		lnc := make(chan net.Listener, 1)
++		SetTestHookServerServe(func(s *Server, ln net.Listener) {
++			lnc <- ln
++		})
++		s = &Server{
++			Addr: addr,
++			TLSConfig: &tls.Config{
++				Certificates: []tls.Certificate{cert},
++			},
++		}
++		errc := make(chan error, 1)
++		go func() { errc <- s.ListenAndServeTLS("", "") }()
++		select {
++		case err := <-errc:
++			t.Logf("On try #%v: %v", try+1, err)
++			continue
++		case ln = <-lnc:
++			ok = true
++			t.Logf("Listening on %v", ln.Addr().String())
++			break Try
++		}
++	}
++	if !ok {
++		t.Fatal("Failed to start up after %d tries", maxTries)
++	}
++	defer ln.Close()
++	c, err := tls.Dial("tcp", ln.Addr().String(), &tls.Config{
++		InsecureSkipVerify: true,
++		NextProtos:         []string{"h2", "http/1.1"},
++	})
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c.Close()
++	if got, want := c.ConnectionState().NegotiatedProtocol, "h2"; got != want {
++		t.Errorf("NegotiatedProtocol = %q; want %q", got, want)
++	}
++	if got, want := c.ConnectionState().NegotiatedProtocolIsMutual, true; got != want {
++		t.Errorf("NegotiatedProtocolIsMutual = %v; want %v", got, want)
++	}
++}
++
+ type serverExpectTest struct {
+ 	contentLength    int // of request body
+ 	chunked          bool
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 979b2eb1e5..af3b28fa33 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1899,17 +1899,20 @@ func (srv *Server) ListenAndServe() error {
+ 	return srv.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)})
+ }
+ 
++var testHookServerServe func(*Server, net.Listener) // used if non-nil
++
+ // Serve accepts incoming connections on the Listener l, creating a
+ // new service goroutine for each. The service goroutines read requests and
+ // then call srv.Handler to reply to them.
+ // Serve always returns a non-nil error.
+ func (srv *Server) Serve(l net.Listener) error {
+ 	defer l.Close()
++	if fn := testHookServerServe; fn != nil {
++		fn(srv, l)
++	}
+ 	var tempDelay time.Duration // how long to sleep on accept failure
+-	srv.nextProtoOnce.Do(srv.setNextProtoDefaults)
+-	if srv.nextProtoErr != nil {
+-		// Error from http2 ConfigureServer (e.g. bad ciphersuites)
+-		return srv.nextProtoErr
++	if err := srv.setupHTTP2(); err != nil {
++		return err
+ 	}
+ 	for {
+ 		rw, e := l.Accept()
+@@ -2044,9 +2047,16 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
+ 	if addr == "" {
+ 		addr = ":https"
+ 	}
++
++	// Setup HTTP/2 before srv.Serve, to initialize srv.TLSConfig
++	// before we clone it and create the TLS Listener.
++	if err := srv.setupHTTP2(); err != nil {
++		return err
++	}
++
+ 	config := cloneTLSConfig(srv.TLSConfig)
+-	if config.NextProtos == nil {
+-		config.NextProtos = []string{"http/1.1"}
++	if !strSliceContains(config.NextProtos, "http/1.1") {
++		config.NextProtos = append(config.NextProtos, "http/1.1")
+ 	}
+ 
+ 	if len(config.Certificates) == 0 || certFile != "" || keyFile != "" {
+@@ -2067,9 +2077,15 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
+ 	return srv.Serve(tlsListener)
+ }
+ 
+-// setNextProtoDefaults configures HTTP/2.
+-// It must only be called via srv.nextProtoOnce.
+-func (srv *Server) setNextProtoDefaults() {
++func (srv *Server) setupHTTP2() error {
++	srv.nextProtoOnce.Do(srv.onceSetNextProtoDefaults)
++	return srv.nextProtoErr
++}
++
++// onceSetNextProtoDefaults configures HTTP/2, if the user hasn't
++// configured otherwise. (by setting srv.TLSNextProto non-nil)
++// It must only be called via srv.nextProtoOnce (use srv.setupHTTP2).
++func (srv *Server) onceSetNextProtoDefaults() {
+ 	// Enable HTTP/2 by default if the user hasn't otherwise
+ 	// configured their TLSNextProto map.
+ 	if srv.TLSNextProto == nil {
+@@ -2304,3 +2320,12 @@ func numLeadingCRorLF(v []byte) (n int) {
+ 	return
+ 
+ }
++
++func strSliceContains(ss []string, s string) bool {
++	for _, v := range ss {
++		if v == s {
++			return true
++		}
++	}
++	return false
++}

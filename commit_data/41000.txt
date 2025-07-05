@@ -86,7 +86,7 @@ Date:   Fri Aug 2 02:41:59 2019 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go        |  1 +
  src/cmd/compile/internal/gc/ssa.go         |  2 +-
  src/cmd/compile/internal/ssa/gen/ARM.rules |  1 +
@@ -95,3 +95,128 @@ Date:   Fri Aug 2 02:41:59 2019 +0000
  src/cmd/compile/internal/ssa/rewriteARM.go | 13 +++++++++++++
  test/codegen/math.go                       |  1 +
  7 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 16752977a8..0b798a52b9 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -655,6 +655,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARMSQRTD,
+ 		ssa.OpARMNEGF,
+ 		ssa.OpARMNEGD,
++		ssa.OpARMABSD,
+ 		ssa.OpARMMOVWF,
+ 		ssa.OpARMMOVWD,
+ 		ssa.OpARMMOVFW,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9871e11a09..e1c464b843 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3297,7 +3297,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpAbs, types.Types[TFLOAT64], args[0])
+ 		},
+-		sys.ARM64, sys.PPC64, sys.Wasm)
++		sys.ARM64, sys.ARM, sys.PPC64, sys.Wasm)
+ 	addF("math", "Copysign",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpCopysign, types.Types[TFLOAT64], args[0], args[1])
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 798611446d..87a91b1261 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -56,6 +56,7 @@
+ (Com(32|16|8) x) -> (MVN x)
+ 
+ (Sqrt x) -> (SQRTD x)
++(Abs x) -> (ABSD x)
+ 
+ // TODO: optimize this for ARMv5 and ARMv6
+ (Ctz32NonZero x) -> (Ctz32 x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index d8bdfeb86e..484f6cfe71 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -211,6 +211,7 @@ func init() {
+ 		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"},   // -arg0, float32
+ 		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"},   // -arg0, float64
+ 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
++		{name: "ABSD", argLength: 1, reg: fp11, asm: "ABSD"},   // abs(arg0), float64
+ 
+ 		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},     // count leading zero
+ 		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},     // reverse byte order
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 00e49c97b7..f316ea16e6 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -926,6 +926,7 @@ const (
+ 	OpARMNEGF
+ 	OpARMNEGD
+ 	OpARMSQRTD
++	OpARMABSD
+ 	OpARMCLZ
+ 	OpARMREV
+ 	OpARMREV16
+@@ -12298,6 +12299,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "ABSD",
++		argLen: 1,
++		asm:    arm.AABSD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:   "CLZ",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 6a3237497c..8b569781c5 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -420,6 +420,8 @@ func rewriteValueARM(v *Value) bool {
+ 		return rewriteValueARM_OpARMXORshiftRLreg_0(v)
+ 	case OpARMXORshiftRR:
+ 		return rewriteValueARM_OpARMXORshiftRR_0(v)
++	case OpAbs:
++		return rewriteValueARM_OpAbs_0(v)
+ 	case OpAdd16:
+ 		return rewriteValueARM_OpAdd16_0(v)
+ 	case OpAdd32:
+@@ -17179,6 +17181,17 @@ func rewriteValueARM_OpARMXORshiftRR_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpAbs_0(v *Value) bool {
++	// match: (Abs x)
++	// cond:
++	// result: (ABSD x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMABSD)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM_OpAdd16_0(v *Value) bool {
+ 	// match: (Add16 x y)
+ 	// cond:
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index 597271ce72..36252710d1 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -63,6 +63,7 @@ func abs(x, y float64) {
+ 	// ppc64:"FABS\t"
+ 	// ppc64le:"FABS\t"
+ 	// wasm:"F64Abs"
++	// arm/6:"ABSD\t"
+ 	sink64[0] = math.Abs(x)
+ 
+ 	// amd64:"BTRQ\t[$]63","PXOR"    (TODO: this should be BTSQ)

@@ -8,7 +8,64 @@ Date:   Fri Jun 19 16:03:59 2009 -0700
     DELTA=30  (30 added, 0 deleted, 0 changed)
     OCL=30536
     CL=30536
-
+---
  src/pkg/net/fd.go  | 10 ++++++++++
  src/pkg/net/net.go | 20 ++++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index befcd554fe..17598af466 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -436,3 +436,13 @@ func (fd *netFD) addr() string {
+ 	addr, err1 := sockaddrToString(sa);
+ 	return addr;
+ }
++
++func (fd *netFD) remoteAddr() string {
++	sa, err := syscall.Getpeername(fd.fd);
++	if err != 0 {
++		return "";
++	}
++	// TODO(rsc): woud like to say err not err1 but 6g complains
++	addr, err1 := sockaddrToString(sa);
++	return addr;
++}
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 8d7e7ba328..91d498a3da 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -33,6 +33,12 @@ type Conn interface {
+ 	// Close closes the connection.
+ 	Close() os.Error;
+ 
++	// LocalAddr returns the local network address.
++	LocalAddr() string;
++
++	// RemoteAddr returns the remote network address.
++	RemoteAddr() string;
++
+ 	// For packet-based protocols such as UDP,
+ 	// ReadFrom reads the next packet from the network,
+ 	// returning the number of bytes read and the remote
+@@ -318,6 +324,20 @@ type connBase struct {
+ 	raddr string;
+ }
+ 
++func (c *connBase) LocalAddr() string {
++	if c == nil {
++		return ""
++	}
++	return c.fd.addr();
++}
++
++func (c *connBase) RemoteAddr() string {
++	if c == nil {
++		return ""
++	}
++	return c.fd.remoteAddr();
++}
++
+ func (c *connBase) File() *os.File {
+ 	if c == nil {
+ 		return nil

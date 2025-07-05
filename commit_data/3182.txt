@@ -9,8 +9,1042 @@ Date:   Tue Sep 1 17:21:44 2009 -0700
     DELTA=1003  (1003 added, 0 deleted, 0 changed)
     OCL=34223
     CL=34227
-
+---
  usr/austin/eval/eval_test.go | 333 +++++++++++++++++++++++++++++++++++++++++
  usr/austin/eval/expr_test.go | 345 +++++++++++++++++++++++++++++++++++++++++++
  usr/austin/eval/stmt_test.go | 337 ++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 1015 insertions(+)
+
+diff --git a/usr/austin/eval/eval_test.go b/usr/austin/eval/eval_test.go
+new file mode 100644
+index 0000000000..848bf6d193
+--- /dev/null
++++ b/usr/austin/eval/eval_test.go
+@@ -0,0 +1,333 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package eval
++
++import (
++	"bignum";
++	"fmt";
++	"go/parser";
++	"go/scanner";
++	"go/token";
++	"log";
++	"os";
++	"reflect";
++	"testing";
++)
++
++// Print each statement or expression before parsing it
++const noisy = true
++
++/*
++ * Generic statement/expression test framework
++ */
++
++type test struct {
++	code string;
++	rterr string;
++	exprs []exprTest;
++	cerr string;
++}
++
++type exprTest struct {
++	code string;
++	val interface{};
++	rterr string;
++}
++
++func runTests(t *testing.T, baseName string, tests []test) {
++	for i, test := range tests {
++		name := fmt.Sprintf("%s[%d]", baseName, i);
++		test.run(t, name);
++	}
++}
++
++func (a *test) run(t *testing.T, name string) {
++	sc := newTestScope();
++
++	var fr *Frame;
++	var cerr os.Error;
++
++	if a.code != "" {
++		if noisy {
++			println(a.code);
++		}
++
++		// Compile statements
++		asts, err := parser.ParseStmtList(name, a.code);
++		if err != nil && cerr == nil {
++			cerr = err;
++		}
++		code, err := CompileStmts(sc, asts);
++		if err != nil && cerr == nil {
++			cerr = err;
++		}
++
++		// Execute statements
++		if cerr == nil {
++			fr = sc.NewFrame(nil);
++			rterr := code.Exec(fr);
++			if a.rterr == "" && rterr != nil {
++				t.Errorf("%s: expected %s to run, got runtime error %v", name, a.code, rterr);
++				return;
++			} else if !checkRTError(t, name, a.code, rterr, a.rterr) {
++				return;
++			}
++		}
++	}
++
++	if fr == nil {
++		fr = sc.NewFrame(nil);
++	}
++	for _, e := range a.exprs {
++		if cerr != nil {
++			break;
++		}
++
++		if noisy {
++			println(e.code);
++		}
++
++		// Compile expression
++		ast, err := parser.ParseExpr(name, e.code);
++		if err != nil && cerr == nil {
++			cerr = err;
++		}
++		code, err := CompileExpr(sc, ast);
++		if err != nil && cerr == nil {
++			cerr = err;
++		}
++
++		// Evaluate expression
++		if cerr == nil {
++			val, rterr := code.Eval(fr);
++			if e.rterr == "" && rterr != nil {
++				t.Errorf("%s: expected %q to have value %T(%v), got runtime error %v", name, e.code, e.val, e.val, rterr);
++			} else if !checkRTError(t, name, e.code, rterr, e.rterr) {
++				continue;
++			}
++			if e.val != nil {
++				wantval := toValue(e.val);
++				if !reflect.DeepEqual(val, wantval) {
++					t.Errorf("%s: expected %q to have value %T(%v), got %T(%v)", name, e.code, wantval, wantval, val, val);
++				}
++			}
++		}
++	}
++
++	// Check compile errors
++	switch {
++	case cerr == nil && a.cerr == "":
++		// Good
++	case cerr == nil && a.cerr != "":
++		t.Errorf("%s: expected compile error matching %q, got no errors", name, a.cerr);
++	case cerr != nil && a.cerr == "":
++		t.Errorf("%s: expected no compile error, got error %v", name, cerr);
++	case cerr != nil && a.cerr != "":
++		cerr := cerr.(scanner.ErrorList);
++		if len(cerr) > 1 {
++			t.Errorf("%s: expected 1 compile error matching %q, got %v", name, a.cerr, cerr);
++			break;
++		}
++		m, err := testing.MatchString(a.cerr, cerr.String());
++		if err != "" {
++			t.Fatalf("%s: failed to compile regexp %q: %s", name, a.cerr, err);
++		}
++		if !m {
++			t.Errorf("%s: expected compile error matching %q, got compile error %v", name, a.cerr, cerr);
++		}
++	}
++}
++
++func checkRTError(t *testing.T, name string, code string, rterr os.Error, pat string) bool {
++	switch {
++	case rterr == nil && pat == "":
++		return true;
++		
++	case rterr == nil && pat != "":
++		t.Errorf("%s: expected %s to fail with runtime error matching %q, got no error", name, code, pat);
++		return false;
++
++	case rterr != nil && pat != "":
++		m, err := testing.MatchString(pat, rterr.String());
++		if err != "" {
++			t.Fatalf("%s: failed to compile regexp %q: %s", name, pat, err);
++		}
++		if !m {
++			t.Errorf("%s: expected runtime error matching %q, got runtime error %v", name, pat, rterr);
++			return false;
++		}
++		return true;
++	}
++	panic("rterr != nil && pat == \"\" should have been handled by the caller");
++}
++
++/*
++ * Test constructors
++ */
++
++// Expression compile error
++func EErr(expr string, cerr string) test {
++	return test{"", "", []exprTest{exprTest{expr, nil, ""}}, cerr};
++}
++
++// Expression runtime error
++func ERTErr(expr string, rterr string) test {
++	return test{"", "", []exprTest{exprTest{expr, nil, rterr}}, ""};
++}
++
++// Expression value
++func Val(expr string, val interface{}) test {
++	return test{"", "", []exprTest{exprTest{expr, val, ""}}, ""};
++}
++
++// Statement compile error
++func SErr(stmts string, cerr string) test {
++	return test{stmts, "", nil, cerr};
++}
++
++// Statement runtime error
++func SRTErr(stmts string, rterr string) test {
++	return test{stmts, rterr, nil, ""};
++}
++
++// Statement runs without error
++func SRuns(stmts string) test {
++	return test{stmts, "", nil, ""};
++}
++
++// Statement runs and test one expression's value
++func Val1(stmts string, expr1 string, val1 interface{}) test {
++	return test{stmts, "", []exprTest{exprTest{expr1, val1, ""}}, ""};
++}
++
++// Statement runs and test two expressions' values
++func Val2(stmts string, expr1 string, val1 interface{}, expr2 string, val2 interface{}) test {
++	return test{stmts, "", []exprTest{exprTest{expr1, val1, ""}, exprTest{expr2, val2, ""}}, ""};
++}
++
++/*
++ * Value constructors
++ */
++
++type vstruct []interface{}
++
++type varray []interface{}
++
++type vslice struct {
++	arr varray;
++	len, cap int;
++}
++
++func toValue(val interface{}) Value {
++	switch val := val.(type) {
++	case bool:
++		r := boolV(val);
++		return &r;
++	case uint8:
++		r := uint8V(val);
++		return &r;
++	case uint:
++		r := uintV(val);
++		return &r;
++	case int:
++		r := intV(val);
++		return &r;
++	case *bignum.Integer:
++		return &idealIntV{val};
++	case float:
++		r := floatV(val);
++		return &r;
++	case *bignum.Rational:
++		return &idealFloatV{val};
++	case string:
++		r := stringV(val);
++		return &r;
++	case vstruct:
++		elems := make([]Value, len(val));
++		for i, e := range val {
++			elems[i] = toValue(e);
++		}
++		r := structV(elems);
++		return &r;
++	case varray:
++		elems := make([]Value, len(val));
++		for i, e := range val {
++			elems[i] = toValue(e);
++		}
++		r := arrayV(elems);
++		return &r;
++	case vslice:
++		return &sliceV{Slice{toValue(val.arr).(ArrayValue), int64(val.len), int64(val.cap)}};
++	case Func:
++		return &funcV{val};
++	}
++	log.Crashf("toValue(%T) not implemented", val);
++	panic();
++}
++
++/*
++ * Default test scope
++ */
++
++type testFunc struct {};
++
++func (*testFunc) NewFrame() *Frame {
++	return &Frame{nil, &[2]Value {}};
++}
++
++func (*testFunc) Call(fr *Frame) {
++	n := fr.Vars[0].(IntValue).Get();
++
++	res := n + 1;
++
++	fr.Vars[1].(IntValue).Set(res);
++}
++
++type oneTwoFunc struct {};
++
++func (*oneTwoFunc) NewFrame() *Frame {
++	return &Frame{nil, &[2]Value {}};
++}
++
++func (*oneTwoFunc) Call(fr *Frame) {
++	fr.Vars[0].(IntValue).Set(1);
++	fr.Vars[1].(IntValue).Set(2);
++}
++
++type voidFunc struct {};
++
++func (*voidFunc) NewFrame() *Frame {
++	return &Frame{nil, []Value {}};
++}
++
++func (*voidFunc) Call(fr *Frame) {
++}
++
++func newTestScope() *Scope {
++	sc := universe.ChildScope();
++	p := token.Position{"<testScope>", 0, 0, 0};
++
++	def := func(name string, t Type, val interface{}) {
++		v, _ := sc.DefineVar(name, p, t);
++		v.Init = toValue(val);
++	};
++
++	sc.DefineConst("c", p, IdealIntType, toValue(bignum.Int(1)));
++	def("i", IntType, 1);
++	def("i2", IntType, 2);
++	def("u", UintType, uint(1));
++	def("f", FloatType, 1.0);
++	def("s", StringType, "abc");
++	def("t", NewStructType([]StructField {StructField{"a", IntType, false}}), vstruct{1});
++	def("ai", NewArrayType(2, IntType), varray{1, 2});
++	def("aai", NewArrayType(2, NewArrayType(2, IntType)), varray{varray{1,2}, varray{3,4}});
++	def("aai2", NewArrayType(2, NewArrayType(2, IntType)), varray{varray{5,6}, varray{7,8}});
++	def("fn", NewFuncType([]Type{IntType}, false, []Type {IntType}), &testFunc{});
++	def("oneTwo", NewFuncType([]Type{}, false, []Type {IntType, IntType}), &oneTwoFunc{});
++	def("void", NewFuncType([]Type{}, false, []Type {}), &voidFunc{});
++	def("sli", NewSliceType(IntType), vslice{varray{1, 2, 3}, 2, 3});
++
++	return sc;
++}
+diff --git a/usr/austin/eval/expr_test.go b/usr/austin/eval/expr_test.go
+new file mode 100644
+index 0000000000..2b2dd9d4f1
+--- /dev/null
++++ b/usr/austin/eval/expr_test.go
+@@ -0,0 +1,345 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package eval
++
++import (
++	"bignum";
++	"testing";
++)
++
++var undefined = "undefined"
++var typeAsExpr = "type .* used as expression"
++var badCharLit = "character literal"
++var illegalEscape = "illegal char escape"
++var opTypes = "illegal (operand|argument) type|cannot index into"
++var badAddrOf = "cannot take the address"
++var constantTruncated = "constant [^ ]* truncated"
++var constantUnderflows = "constant [^ ]* underflows"
++var constantOverflows = "constant [^ ]* overflows"
++var implLimit = "implementation limit"
++var mustBeUnsigned = "must be unsigned"
++var divByZero = "divide by zero"
++
++var hugeInteger = bignum.Int(1).Shl(64);
++
++var exprTests = []test {
++	Val("i", 1),
++	EErr("zzz", undefined),
++	// TODO(austin) Test variable in constant context
++	//EErr("t", typeAsExpr),
++
++	Val("'a'", bignum.Int('a')),
++	Val("'\\uffff'", bignum.Int('\uffff')),
++	Val("'\\n'", bignum.Int('\n')),
++	EErr("''+x", badCharLit),
++	// Produces two parse errors
++	//EErr("'''", ""),
++	EErr("'\n'", badCharLit),
++	EErr("'\\z'", illegalEscape),
++	EErr("'ab'", badCharLit),
++
++	Val("1.0", bignum.Rat(1, 1)),
++	Val("1.", bignum.Rat(1, 1)),
++	Val(".1", bignum.Rat(1, 10)),
++	Val("1e2", bignum.Rat(100, 1)),
++
++	Val("\"abc\"", "abc"),
++	Val("\"\"", ""),
++	Val("\"\\n\\\"\"", "\n\""),
++	EErr("\"\\z\"", illegalEscape),
++	EErr("\"abc", "string not terminated"),
++
++	Val("\"abc\" \"def\"", "abcdef"),
++	EErr("\"abc\" \"\\z\"", illegalEscape),
++
++	Val("(i)", 1),
++
++	Val("ai[0]", 1),
++	Val("(&ai)[0]", 1),
++	Val("ai[1]", 2),
++	Val("ai[i]", 2),
++	Val("ai[u]", 2),
++	EErr("ai[f]", opTypes),
++	EErr("ai[0][0]", opTypes),
++	EErr("ai[2]", "index 2 exceeds"),
++	EErr("ai[1+1]", "index 2 exceeds"),
++	EErr("ai[-1]", "negative index"),
++	ERTErr("ai[i+i]", "index 2 exceeds"),
++	ERTErr("ai[-i]", "negative index"),
++	EErr("i[0]", opTypes),
++	EErr("f[0]", opTypes),
++
++	Val("aai[0][0]", 1),
++	Val("aai[1][1]", 4),
++	EErr("aai[2][0]", "index 2 exceeds"),
++	EErr("aai[0][2]", "index 2 exceeds"),
++
++	Val("sli[0]", 1),
++	Val("sli[1]", 2),
++	EErr("sli[-1]", "negative index"),
++	ERTErr("sli[-i]", "negative index"),
++	ERTErr("sli[2]", "index 2 exceeds"),
++
++	Val("s[0]", uint8('a')),
++	Val("s[1]", uint8('b')),
++	EErr("s[-1]", "negative index"),
++	ERTErr("s[-i]", "negative index"),
++	ERTErr("s[3]", "index 3 exceeds"),
++
++	EErr("1(2)", "cannot call"),
++	EErr("fn(1,2)", "too many"),
++	EErr("fn()", "not enough"),
++	EErr("fn(true)", opTypes),
++	EErr("fn(true)", "function call"),
++	// Single argument functions don't say which argument.
++	//EErr("fn(true)", "argument 1"),
++	Val("fn(1)", 2),
++	Val("fn(1.0)", 2),
++	EErr("fn(1.5)", constantTruncated),
++	Val("fn(i)", 2),
++	EErr("fn(u)", opTypes),
++
++	EErr("void()+2", opTypes),
++	EErr("oneTwo()+2", opTypes),
++
++	Val("cap(ai)", 2),
++	Val("cap(&ai)", 2),
++	Val("cap(aai)", 2),
++	Val("cap(sli)", 3),
++	EErr("cap(0)", opTypes),
++	EErr("cap(i)", opTypes),
++	EErr("cap(s)", opTypes),
++
++	Val("len(s)", 3),
++	Val("len(ai)", 2),
++	Val("len(&ai)", 2),
++	Val("len(aai)", 2),
++	Val("len(sli)", 2),
++	// TODO(austin) Test len of map
++	EErr("len(0)", opTypes),
++	EErr("len(i)", opTypes),
++
++	EErr("*i", opTypes),
++	Val("*&i", 1),
++	Val("*&(i)", 1),
++	EErr("&1", badAddrOf),
++	EErr("&c", badAddrOf),
++	Val("*(&ai[0])", 1),
++
++	Val("+1", bignum.Int(+1)),
++	Val("+1.0", bignum.Rat(1, 1)),
++	EErr("+\"x\"", opTypes),
++
++	Val("-42", bignum.Int(-42)),
++	Val("-i", -1),
++	Val("-f", -1.0),
++	// 6g bug?
++	//Val("-(f-1)", -0.0),
++	EErr("-\"x\"", opTypes),
++
++	// TODO(austin) Test unary !
++
++	Val("^2", bignum.Int(^2)),
++	Val("^(-2)", bignum.Int(^(-2))),
++	EErr("^2.0", opTypes),
++	EErr("^2.5", opTypes),
++	Val("^i", ^1),
++	Val("^u", ^uint(1)),
++	EErr("^f", opTypes),
++
++	Val("1+i", 2),
++	Val("1+u", uint(2)),
++	Val("3.0+i", 4),
++	Val("1+1", bignum.Int(2)),
++	Val("f+f", 2.0),
++	Val("1+f", 2.0),
++	Val("1.0+1", bignum.Rat(2, 1)),
++	Val("\"abc\" + \"def\"", "abcdef"),
++	EErr("i+u", opTypes),
++	EErr("-1+u", constantUnderflows),
++	// TODO(austin) Test named types
++
++	Val("2-1", bignum.Int(1)),
++	Val("2.0-1", bignum.Rat(1, 1)),
++	Val("f-2", -1.0),
++	// TOOD(austin) bignum can't do negative 0?
++	//Val("-0.0", XXX),
++	Val("2*2", bignum.Int(4)),
++	Val("2*i", 2),
++	Val("3/2", bignum.Int(1)),
++	Val("3/i", 3),
++	EErr("1/0", divByZero),
++	EErr("1.0/0", divByZero),
++	ERTErr("i/0", divByZero),
++	Val("3%2", bignum.Int(1)),
++	Val("i%2", 1),
++	EErr("3%0", divByZero),
++	EErr("3.0%0", opTypes),
++	ERTErr("i%0", divByZero),
++
++	// Examples from "Arithmetic operators"
++	Val("5/3", bignum.Int(1)),
++	Val("(i+4)/(i+2)", 1),
++	Val("5%3", bignum.Int(2)),
++	Val("(i+4)%(i+2)", 2),
++	Val("-5/3", bignum.Int(-1)),
++	Val("(i-6)/(i+2)", -1),
++	Val("-5%3", bignum.Int(-2)),
++	Val("(i-6)%(i+2)", -2),
++	Val("5/-3", bignum.Int(-1)),
++	Val("(i+4)/(i-4)", -1),
++	Val("5%-3", bignum.Int(2)),
++	Val("(i+4)%(i-4)", 2),
++	Val("-5/-3", bignum.Int(1)),
++	Val("(i-6)/(i-4)", 1),
++	Val("-5%-3", bignum.Int(-2)),
++	Val("(i-6)%(i-4)", -2),
++
++	// Examples from "Arithmetic operators"
++	Val("11/4", bignum.Int(2)),
++	Val("(i+10)/4", 2),
++	Val("11%4", bignum.Int(3)),
++	Val("(i+10)%4", 3),
++	Val("11>>2", bignum.Int(2)),
++	Val("(i+10)>>2", 2),
++	Val("11&3", bignum.Int(3)),
++	Val("(i+10)&3", 3),
++	Val("-11/4", bignum.Int(-2)),
++	Val("(i-12)/4", -2),
++	Val("-11%4", bignum.Int(-3)),
++	Val("(i-12)%4", -3),
++	Val("-11>>2", bignum.Int(-3)),
++	Val("(i-12)>>2", -3),
++	Val("-11&3", bignum.Int(1)),
++	Val("(i-12)&3", 1),
++
++	// TODO(austin) Test bit ops
++
++	// For shift, we try nearly every combination of positive
++	// ideal int, negative ideal int, big ideal int, ideal
++	// fractional float, ideal non-fractional float, int, uint,
++	// and float.
++	Val("2<<2", bignum.Int(2<<2)),
++	EErr("2<<(-1)", constantUnderflows),
++	EErr("2<<0x10000000000000000", constantOverflows),
++	EErr("2<<2.5", constantTruncated),
++	Val("2<<2.0", bignum.Int(2<<2.0)),
++	EErr("2<<i", mustBeUnsigned),
++	Val("2<<u", 2<<1),
++	EErr("2<<f", opTypes),
++
++	Val("-2<<2", bignum.Int(-2<<2)),
++	EErr("-2<<(-1)", constantUnderflows),
++	EErr("-2<<0x10000000000000000", constantOverflows),
++	EErr("-2<<2.5", constantTruncated),
++	Val("-2<<2.0", bignum.Int(-2<<2.0)),
++	EErr("-2<<i", mustBeUnsigned),
++	Val("-2<<u", -2<<1),
++	EErr("-2<<f", opTypes),
++
++	Val("0x10000000000000000<<2", hugeInteger.Shl(2)),
++	EErr("0x10000000000000000<<(-1)", constantUnderflows),
++	EErr("0x10000000000000000<<0x10000000000000000", constantOverflows),
++	EErr("0x10000000000000000<<2.5", constantTruncated),
++	Val("0x10000000000000000<<2.0", hugeInteger.Shl(2)),
++	EErr("0x10000000000000000<<i", mustBeUnsigned),
++	EErr("0x10000000000000000<<u", constantOverflows),
++	EErr("0x10000000000000000<<f", opTypes),
++
++	EErr("2.5<<2", opTypes),
++	EErr("2.0<<2", opTypes),
++
++	Val("i<<2", 1<<2),
++	EErr("i<<(-1)", constantUnderflows),
++	EErr("i<<0x10000000000000000", constantOverflows),
++	EErr("i<<2.5", constantTruncated),
++	Val("i<<2.0", 1<<2),
++	EErr("i<<i", mustBeUnsigned),
++	Val("i<<u", 1<<1),
++	EErr("i<<f", opTypes),
++	Val("i<<u", 1<<1),
++
++	Val("u<<2", uint(1<<2)),
++	EErr("u<<(-1)", constantUnderflows),
++	EErr("u<<0x10000000000000000", constantOverflows),
++	EErr("u<<2.5", constantTruncated),
++	Val("u<<2.0", uint(1<<2)),
++	EErr("u<<i", mustBeUnsigned),
++	Val("u<<u", uint(1<<1)),
++	EErr("u<<f", opTypes),
++	Val("u<<u", uint(1<<1)),
++
++	EErr("f<<2", opTypes),
++
++	// <, <=, >, >=
++	Val("1<2", 1<2),
++	Val("1<=2", 1<=2),
++	Val("2<=2", 2<=2),
++	Val("1>2", 1>2),
++	Val("1>=2", 1>=2),
++	Val("2>=2", 2>=2),
++
++	Val("i<2", 1<2),
++	Val("i<=2", 1<=2),
++	Val("i+1<=2", 2<=2),
++	Val("i>2", 1>2),
++	Val("i>=2", 1>=2),
++	Val("i+1>=2", 2>=2),
++
++	Val("u<2", 1<2),
++	Val("f<2", 1<2),
++
++	Val("s<\"b\"", true),
++	Val("s<\"a\"", false),
++	Val("s<=\"abc\"", true),
++	Val("s>\"aa\"", true),
++	Val("s>\"ac\"", false),
++	Val("s>=\"abc\"", true),
++
++	EErr("i<u", opTypes),
++	EErr("i<f", opTypes),
++	EErr("i<s", opTypes),
++	EErr("&i<&i", opTypes),
++	EErr("ai<ai", opTypes),
++
++	// ==, !=
++	Val("1==1", true),
++	Val("1!=1", false),
++	Val("1==2", false),
++	Val("1!=2", true),
++
++	Val("1.0==1", true),
++	Val("1.5==1", false),
++
++	Val("i==1", true),
++	Val("i!=1", false),
++	Val("i==2", false),
++	Val("i!=2", true),
++
++	Val("u==1", true),
++	Val("f==1", true),
++
++	Val("s==\"abc\"", true),
++	Val("s!=\"abc\"", false),
++	Val("s==\"abcd\"", false),
++	Val("s!=\"abcd\"", true),
++
++	Val("&i==&i", true),
++	Val("&i==&i2", false),
++
++	Val("fn==fn", true),
++	Val("fn==func(int)int{return 0}", false),
++
++	EErr("i==u", opTypes),
++	EErr("i==f", opTypes),
++	EErr("&i==&f", opTypes),
++	EErr("ai==ai", opTypes),
++	EErr("t==t", opTypes),
++	EErr("fn==oneTwo", opTypes),
++}
++
++func TestExpr(t *testing.T) {
++	runTests(t, "exprTests", exprTests);
++}
+diff --git a/usr/austin/eval/stmt_test.go b/usr/austin/eval/stmt_test.go
+new file mode 100644
+index 0000000000..9de269a2d7
+--- /dev/null
++++ b/usr/austin/eval/stmt_test.go
+@@ -0,0 +1,337 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package eval
++
++import "testing"
++
++var atLeastOneDecl = "at least one new variable must be declared";
++
++var stmtTests = []test {
++	// Short declarations
++	Val1("x := i", "x", 1),
++	Val1("x := f", "x", 1.0),
++	// Type defaulting
++	Val1("a := 42", "a", 42),
++	Val1("a := 1.0", "a", 1.0),
++	// Parallel assignment
++	Val2("a, b := 1, 2", "a", 1, "b", 2),
++	Val2("a, i := 1, 2", "a", 1, "i", 2),
++	SErr("a, i := 1, f", opTypes),
++	// TODO(austin) The parser produces an error message for this
++	// one that's inconsistent with the errors I give for other
++	// things
++	//SErr("a, b := 1, 2, 3", "too many"),
++	SErr("a, b := 1, 2, 3", "arity"),
++	SErr("a := 1, 2", "too many"),
++	SErr("a, b := 1", "not enough"),
++	// Mixed declarations
++	SErr("i := 1", atLeastOneDecl),
++	SErr("i, u := 1, 2", atLeastOneDecl),
++	Val2("i, x := 2, f", "i", 2, "x", 1.0),
++	// Various errors
++	SErr("1 := 2", "left side of := must be a name"),
++	SErr("c, a := 1, 1", "cannot assign"),
++	// Unpacking
++	Val2("x, y := oneTwo()", "x", 1, "y", 2),
++	SErr("x := oneTwo()", "too many"),
++	SErr("x, y, z := oneTwo()", "not enough"),
++	SErr("x, y := oneTwo(), 2", "multi-valued"),
++	SErr("x := oneTwo()+2", opTypes),
++	// TOOD(austin) This error message is weird
++	SErr("x := void()", "not enough"),
++	// Placeholders
++	SErr("x := 1+\"x\"; i=x+1", opTypes),
++
++	// Assignment
++	Val1("i = 2", "i", 2),
++	Val1("(i) = 2", "i", 2),
++	SErr("1 = 2", "cannot assign"),
++	SErr("1-1 = 2", "- expression"),
++	Val1("i = 2.0", "i", 2),
++	SErr("i = 2.2", constantTruncated),
++	SErr("u = -2", constantUnderflows),
++	SErr("i = f", opTypes),
++	SErr("i, u = 0, f", opTypes),
++	SErr("i, u = 0, f", "value 2"),
++	Val2("i, i2 = i2, i", "i", 2, "i2", 1),
++	SErr("c = 1", "cannot assign"),
++
++	Val1("x := &i; *x = 2", "i", 2),
++
++	Val1("ai[0] = 42", "ai", varray{ 42, 2 }),
++	Val1("aai[1] = ai; ai[0] = 42", "aai", varray{ varray{1, 2}, varray{1, 2} }),
++	Val1("aai = aai2", "aai", varray{ varray{5, 6}, varray{7, 8} }),
++
++	// Assignment conversions
++	SRuns("var sl []int; sl = &ai"),
++	SErr("type ST []int; type AT *[2]int; var x AT = &ai; var y ST = x", opTypes),
++	SRuns("type ST []int; var y ST = &ai"),
++	SRuns("type AT *[2]int; var x AT = &ai; var y []int = x"),
++
++	// Op-assignment
++	Val1("i += 2", "i", 3),
++	Val1("f += 2", "f", 3.0),
++	SErr("2 += 2", "cannot assign"),
++	SErr("i, j += 2", "cannot be combined"),
++	SErr("i += 2, 3", "cannot be combined"),
++	Val2("s2 := s; s += \"def\"", "s2", "abc", "s", "abcdef"),
++	SErr("s += 1", opTypes),
++	// Single evaluation
++	Val2("ai[func()int{i+=1;return 0}()] *= 3; i2 = ai[0]", "i", 2, "i2", 3),
++
++	// Type declarations
++	// Identifiers
++	SRuns("type T int"),
++	SErr("type T x", "undefined"),
++	SErr("type T c", "constant"),
++	SErr("type T i", "variable"),
++	SErr("type T T", "recursive"),
++	SErr("type T x; type U T; var v U; v = 1", "undefined"),
++	// Pointer types
++	SRuns("type T *int"),
++	SRuns("type T *T"),
++	// Array types
++	SRuns("type T [5]int"),
++	SRuns("type T [c+42/2]int"),
++	SRuns("type T [2.0]int"),
++	SErr("type T [i]int", "constant expression"),
++	SErr("type T [2.5]int", constantTruncated),
++	SErr("type T [-1]int", "negative"),
++	SErr("type T [2]T", "recursive"),
++	// Struct types
++	SRuns("type T struct { a int; b int }"),
++	SRuns("type T struct { a int; int }"),
++	SRuns("type T struct { x *T }"),
++	SRuns("type T int; type U struct { T }"),
++	SErr("type T *int; type U struct { T }", "embedded.*pointer"),
++	SErr("type T *struct { T }", "embedded.*pointer"),
++	SErr("type T struct { a int; a int }", " a .*redeclared.*:1:17"),
++	SErr("type T struct { int; int }", "int .*redeclared.*:1:17"),
++	SErr("type T struct { int int; int }", "int .*redeclared.*:1:17"),
++	SRuns("type T struct { x *struct { T } }"),
++	SErr("type T struct { x struct { T } }", "recursive"),
++	SErr("type T struct { x }; type U struct { T }", "undefined"),
++	// Function types
++	SRuns("type T func()"),
++	SRuns("type T func(a, b int) int"),
++	SRuns("type T func(a, b int) (x int, y int)"),
++	SRuns("type T func(a, a int) (a int, a int)"),
++	SRuns("type T func(a, b int) (x, y int)"),
++	SRuns("type T func(int, int) (int, int)"),
++	SErr("type T func(x); type U T", "undefined"),
++	SErr("type T func(a T)", "recursive"),
++	// Parens
++	SRuns("type T (int)"),
++
++	// Variable declarations
++	Val2("var x int", "i", 1, "x", 0),
++	Val1("var x = 1", "x", 1),
++	Val1("var x = 1.0", "x", 1.0),
++	Val1("var x int = 1.0", "x", 1),
++	// Placeholders
++	SErr("var x foo; x = 1", "undefined"),
++	SErr("var x foo = 1; x = 1", "undefined"),
++	// Redeclaration
++	SErr("var i, x int", " i .*redeclared"),
++	SErr("var x int; var x int", " x .*redeclared.*:1:5"),
++
++	// Expression statements
++	SErr("1-1", "expression statement"),
++	SErr("1-1", "- expression"),
++	Val1("fn(2)", "i", 1),
++
++	// IncDec statements
++	Val1("i++", "i", 2),
++	Val1("i--", "i", 0),
++	Val1("u++", "u", uint(2)),
++	Val1("u--", "u", uint(0)),
++	Val1("f++", "f", 2.0),
++	Val1("f--", "f", 0.0),
++	// Single evaluation
++	Val2("ai[func()int{i+=1;return 0}()]++; i2 = ai[0]", "i", 2, "i2", 2),
++	// Operand types
++	SErr("s++", opTypes),
++	SErr("s++", "'\\+\\+'"),
++	SErr("2++", "cannot assign"),
++	SErr("c++", "cannot assign"),
++
++	// Function scoping
++	Val1("fn1 := func() { i=2 }; fn1()", "i", 2),
++	Val1("fn1 := func() { i:=2 }; fn1()", "i", 1),
++	Val2("fn1 := func() int { i=2; i:=3; i=4; return i }; x := fn1()", "i", 2, "x", 4),
++
++	// Basic returns
++	SErr("fn1 := func() int {}", "return"),
++	SRuns("fn1 := func() {}"),
++	SErr("fn1 := func() (r int) {}", "return"),
++	Val1("fn1 := func() (r int) {return}; i = fn1()", "i", 0),
++	Val1("fn1 := func() (r int) {r = 2; return}; i = fn1()", "i", 2),
++	Val1("fn1 := func() (r int) {return 2}; i = fn1()", "i", 2),
++	Val1("fn1 := func(int) int {return 2}; i = fn1(1)", "i", 2),
++
++	// Multi-valued returns
++	Val2("fn1 := func() (bool, int) {return true, 2}; x, y := fn1()", "x", true, "y", 2),
++	SErr("fn1 := func() int {return}", "not enough values"),
++	SErr("fn1 := func() int {return 1,2}", "too many values"),
++	SErr("fn1 := func() {return 1}", "too many values"),
++	SErr("fn1 := func() (int,int,int) {return 1,2}", "not enough values"),
++	Val2("fn1 := func() (int, int) {return oneTwo()}; x, y := fn1()", "x", 1, "y", 2),
++	SErr("fn1 := func() int {return oneTwo()}", "too many values"),
++	SErr("fn1 := func() (int,int,int) {return oneTwo()}", "not enough values"),
++	Val1("fn1 := func(x,y int) int {return x+y}; x := fn1(oneTwo())", "x", 3),
++
++	// Return control flow
++	Val2("fn1 := func(x *int) bool { *x = 2; return true; *x = 3; }; x := fn1(&i)", "i", 2, "x", true),
++
++	// Break/continue/goto/fallthrough
++	SErr("break", "outside"),
++	SErr("break foo", "break.*foo.*not defined"),
++	SErr("continue", "outside"),
++	SErr("continue foo", "continue.*foo.*not defined"),
++	SErr("fallthrough", "outside"),
++	SErr("goto foo", "foo.*not defined"),
++	SErr(" foo: foo:;", "foo.*redeclared.*:1:2"),
++	Val1("i+=2; goto L; i+=4; L: i+=8", "i", 1+2+8),
++	// Return checking
++	SErr("fn1 := func() int { goto L; return 1; L: }", "return"),
++	SRuns("fn1 := func() int { L: goto L; i = 2 }"),
++	SRuns("fn1 := func() int { return 1; L: goto L }"),
++	// Scope checking
++	SRuns("fn1 := func() { { L: x:=1 } goto L }"),
++	SErr("fn1 := func() { { x:=1; L: } goto L }", "into scope"),
++	SErr("fn1 := func() { goto L; x:=1; L: }", "into scope"),
++	SRuns("fn1 := func() { goto L; { L: x:=1 } }"),
++	SErr("fn1 := func() { goto L; { x:=1; L: } }", "into scope"),
++
++	// Blocks
++	SErr("fn1 := func() int {{}}", "return"),
++	Val1("fn1 := func() bool { { return true } }; b := fn1()", "b", true),
++
++	// If
++	Val2("if true { i = 2 } else { i = 3 }; i2 = 4", "i", 2, "i2", 4),
++	Val2("if false { i = 2 } else { i = 3 }; i2 = 4", "i", 3, "i2", 4),
++	Val2("if i == i2 { i = 2 } else { i = 3 }; i2 = 4", "i", 3, "i2", 4),
++	// Omit optional parts
++	Val2("if { i = 2 } else { i = 3 }; i2 = 4", "i", 2, "i2", 4),
++	Val2("if true { i = 2 }; i2 = 4", "i", 2, "i2", 4),
++	Val2("if false { i = 2 }; i2 = 4", "i", 1, "i2", 4),
++	// Init
++	Val2("if x := true; x { i = 2 } else { i = 3 }; i2 = 4", "i", 2, "i2", 4),
++	Val2("if x := false; x { i = 2 } else { i = 3 }; i2 = 4", "i", 3, "i2", 4),
++	// Statement else
++	Val2("if true { i = 2 } else i = 3; i2 = 4", "i", 2, "i2", 4),
++	Val2("if false { i = 2 } else i = 3; i2 = 4", "i", 3, "i2", 4),
++	// Scoping
++	Val2("if true { i := 2 } else { i := 3 }; i2 = i", "i", 1, "i2", 1),
++	Val2("if false { i := 2 } else { i := 3 }; i2 = i", "i", 1, "i2", 1),
++	Val2("if false { i := 2 } else i := 3; i2 = i", "i", 1, "i2", 1),
++	SErr("if true { x := 2 }; x = 4", undefined),
++	Val2("if i := 2; true { i2 = i; i := 3 }", "i", 1, "i2", 2),
++	Val2("if i := 2; false {} else { i2 = i; i := 3 }", "i", 1, "i2", 2),
++	// Return checking
++	SRuns("fn1 := func() int { if true { return 1 } else { return 2 } }"),
++	SRuns("fn1 := func() int { if true { return 1 } else return 2 }"),
++	SErr("fn1 := func() int { if true { return 1 } else { } }", "return"),
++	SErr("fn1 := func() int { if true { } else { return 1 } }", "return"),
++	SErr("fn1 := func() int { if true { } else return 1 }", "return"),
++	SErr("fn1 := func() int { if true { } else { } }", "return"),
++	SErr("fn1 := func() int { if true { return 1 } }", "return"),
++	SErr("fn1 := func() int { if true { } }", "return"),
++	SRuns("fn1 := func() int { if true { }; return 1 }"),
++	SErr("fn1 := func() int { if { } }", "return"),
++	SErr("fn1 := func() int { if { } else { return 2 } }", "return"),
++	SRuns("fn1 := func() int { if { return 1 } }"),
++	SRuns("fn1 := func() int { if { return 1 } else { } }"),
++	SRuns("fn1 := func() int { if { return 1 } else { } }"),
++
++	// Switch
++	Val1("switch { case false: i += 2; case true: i += 4; default: i += 8 }", "i", 1+4),
++	Val1("switch { default: i += 2; case false: i += 4; case true: i += 8 }", "i", 1+8),
++	SErr("switch { default: i += 2; default: i += 4 }", "more than one"),
++	Val1("switch false { case false: i += 2; case true: i += 4; default: i += 8 }", "i", 1+2),
++	SErr("switch s { case 1: }", opTypes),
++	SErr("switch ai { case ai: i += 2 }", opTypes),
++	Val1("switch 1.0 { case 1: i += 2; case 2: i += 4 }", "i", 1+2),
++	Val1("switch 1.5 { case 1: i += 2; case 2: i += 4 }", "i", 1),
++	SErr("switch oneTwo() {}", "multi-valued expression"),
++	Val1("switch 2 { case 1: i += 2; fallthrough; case 2: i += 4; fallthrough; case 3: i += 8; fallthrough }", "i", 1+4+8),
++	Val1("switch 5 { case 1: i += 2; fallthrough; default: i += 4; fallthrough; case 2: i += 8; fallthrough; case 3: i += 16; fallthrough }", "i", 1+4+8+16),
++	SErr("switch { case true: fallthrough; i += 2 }", "final statement"),
++	Val1("switch { case true: i += 2; fallthrough; ; ; case false: i += 4 }", "i", 1+2+4),
++	Val1("switch 2 { case 0, 1: i += 2; case 2, 3: i += 4 }", "i", 1+4),
++	Val2("switch func()int{i2++;return 5}() { case 1, 2: i += 2; case 4, 5: i += 4 }", "i", 1+4, "i2", 3),
++	SRuns("switch i { case i: }"),
++	// TODO(austin) Why doesn't this fail?
++	SErr("case 1:", "XXX"),
++
++	// For
++	Val2("for x := 1; x < 5; x++ { i+=x }; i2 = 4", "i", 11, "i2", 4),
++	Val2("for x := 1; x < 5; x++ { i+=x; break; i++ }; i2 = 4", "i", 2, "i2", 4),
++	Val2("for x := 1; x < 5; x++ { i+=x; continue; i++ }; i2 = 4", "i", 11, "i2", 4),
++	Val2("for i = 2; false; i = 3 { i = 4 }; i2 = 4", "i", 2, "i2", 4),
++	Val2("for i < 5 { i++ }; i2 = 4", "i", 5, "i2", 4),
++	Val2("for i < 0 { i++ }; i2 = 4", "i", 1, "i2", 4),
++	// Scoping
++	Val2("for i := 2; true; { i2 = i; i := 3; break }", "i", 1, "i2", 2),
++	// Labeled break/continue
++	Val1("L1: for { L2: for { i+=2; break L1; i+=4 } i+=8 }", "i", 1+2),
++	Val1("L1: for { L2: for { i+=2; break L2; i+=4 } i+=8; break; i+=16 }", "i", 1+2+8),
++	SErr("L1: { for { break L1 } }", "break.*not defined"),
++	SErr("L1: for {} for { break L1 }", "break.*not defined"),
++	SErr("L1:; for { break L1 }", "break.*not defined"),
++	Val2("L1: for i = 0; i < 2; i++ { L2: for { i2++; continue L1; i2++ } }", "i", 2, "i2", 4),
++	SErr("L1: { for { continue L1 } }", "continue.*not defined"),
++	SErr("L1:; for { continue L1 }", "continue.*not defined"),
++	// Return checking
++	SRuns("fn1 := func() int{ for {} }"),
++	SErr("fn1 := func() int{ for true {} }", "return"),
++	SErr("fn1 := func() int{ for true {return 1} }", "return"),
++	SErr("fn1 := func() int{ for {break} }", "return"),
++	SRuns("fn1 := func() int{ for { for {break} } }"),
++	SErr("fn1 := func() int{ L1: for { for {break L1} } }", "return"),
++	SRuns("fn1 := func() int{ for true {} return 1 }"),
++
++	// Selectors
++	Val1("var x struct { a int; b int }; x.a = 42; i = x.a", "i", 42),
++	Val1("type T struct { x int }; var y struct { T }; y.x = 42; i = y.x", "i", 42),
++	Val2("type T struct { x int }; var y struct { T; x int }; y.x = 42; i = y.x; i2 = y.T.x", "i", 42, "i2", 0),
++	SRuns("type T struct { x int }; var y struct { *T }; a := func(){i=y.x}"),
++	SErr("type T struct { x int }; var x T; x.y = 42", "no field"),
++	SErr("type T struct { x int }; type U struct { x int }; var y struct { T; U }; y.x = 42", "ambiguous.*\tT\\.x\n\tU\\.x"),
++	SErr("type T struct { *T }; var x T; x.foo", "no field"),
++
++	//Val1("fib := func(int) int{return 0;}; fib = func(v int) int { if v < 2 { return 1 } return fib(v-1)+fib(v-2) }; i = fib(20)", "i", 0),
++
++	// Make slice
++	Val2("x := make([]int, 2); x[0] = 42; i, i2 = x[0], x[1]", "i", 42, "i2", 0),
++	Val2("x := make([]int, 2); x[1] = 42; i, i2 = x[0], x[1]", "i", 0, "i2", 42),
++	SRTErr("x := make([]int, 2); x[-i] = 42", "negative index"),
++	SRTErr("x := make([]int, 2); x[2] = 42", "index 2 exceeds"),
++	Val2("x := make([]int, 2, 3); i, i2 = len(x), cap(x)", "i", 2, "i2", 3),
++	Val2("x := make([]int, 3, 2); i, i2 = len(x), cap(x)", "i", 3, "i2", 3),
++	SRTErr("x := make([]int, -i)", "negative length"),
++	SRTErr("x := make([]int, 2, -i)", "negative capacity"),
++	SRTErr("x := make([]int, 2, 3); x[2] = 42", "index 2 exceeds"),
++	SErr("x := make([]int, 2, 3, 4)", "too many"),
++	SErr("x := make([]int)", "not enough"),
++
++	// TODO(austin) Test make map
++
++	// Maps
++	Val1("x := make(map[int] int); x[1] = 42; i = x[1]", "i", 42),
++	Val2("x := make(map[int] int); x[1] = 42; i, y := x[1]", "i", 42, "y", true),
++	Val2("x := make(map[int] int); x[1] = 42; i, y := x[2]", "i", 0, "y", false),
++	// Not implemented
++	//Val1("x := make(map[int] int); x[1] = 42, true; i = x[1]", "i", 42),
++	//Val2("x := make(map[int] int); x[1] = 42; x[1] = 42, false; i, y := x[1]", "i", 0, "y", false),
++	SRuns("var x int; a := make(map[int] int); a[0], x = 1, 2"),
++	SErr("x := make(map[int] int); (func(a,b int){})(x[0])", "not enough"),
++	SErr("x := make(map[int] int); x[1] = oneTwo()", "too many"),
++	SRTErr("x := make(map[int] int); i = x[1]", "key '1' not found"),
++}
++
++func TestStmt(t *testing.T) {
++	runTests(t, "stmtTests", stmtTests);
++}

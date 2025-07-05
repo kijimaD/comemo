@@ -12,7 +12,7 @@ Date:   Sat Mar 24 18:51:01 2018 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/cgo/callbacks_traceback.go |  2 +-
  src/runtime/cgo/gcc_traceback.c        | 11 +----
  src/runtime/cgo/libcgo.h               | 10 +++++
@@ -23,3 +23,235 @@ Date:   Sat Mar 24 18:51:01 2018 -0400
  src/runtime/sys_darwin_arm.s           |  3 ++
  src/runtime/sys_darwin_arm64.s         |  3 ++
  9 files changed, 110 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/cgo/callbacks_traceback.go b/src/runtime/cgo/callbacks_traceback.go
+index f754846722..cdadf9e66f 100644
+--- a/src/runtime/cgo/callbacks_traceback.go
++++ b/src/runtime/cgo/callbacks_traceback.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux
++// +build darwin linux
+ 
+ package cgo
+ 
+diff --git a/src/runtime/cgo/gcc_traceback.c b/src/runtime/cgo/gcc_traceback.c
+index 667ea4c0cf..d86331c583 100644
+--- a/src/runtime/cgo/gcc_traceback.c
++++ b/src/runtime/cgo/gcc_traceback.c
+@@ -2,17 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-// +build linux
++// +build cgo,darwin cgo,linux
+ 
+ #include <stdint.h>
+-
+-struct cgoTracebackArg {
+-	uintptr_t  Context;
+-	uintptr_t  SigContext;
+-	uintptr_t* Buf;
+-	uintptr_t  Max;
+-};
++#include "libcgo.h"
+ 
+ // Call the user's traceback function and then call sigtramp.
+ // The runtime signal handler will jump to this code.
+diff --git a/src/runtime/cgo/libcgo.h b/src/runtime/cgo/libcgo.h
+index c38fb643ff..60326720a7 100644
+--- a/src/runtime/cgo/libcgo.h
++++ b/src/runtime/cgo/libcgo.h
+@@ -96,6 +96,16 @@ struct context_arg {
+ };
+ extern void (*(_cgo_get_context_function(void)))(struct context_arg*);
+ 
++/*
++ * The argument for the cgo traceback callback. See runtime.SetCgoTraceback.
++ */
++struct cgoTracebackArg {
++	uintptr_t  Context;
++	uintptr_t  SigContext;
++	uintptr_t* Buf;
++	uintptr_t  Max;
++};
++
+ /*
+  * TSAN support.  This is only useful when building with
+  *   CGO_CFLAGS="-fsanitize=thread" CGO_LDFLAGS="-fsanitize=thread" go install
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index b2ee8df1f0..6da8341e84 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -239,8 +239,12 @@ func TestCgoCCodeSIGPROF(t *testing.T) {
+ 
+ func TestCgoCrashTraceback(t *testing.T) {
+ 	t.Parallel()
+-	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le") {
+-		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
++	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
++	case "darwin/amd64":
++	case "linux/amd64":
++	case "linux/ppc64le":
++	default:
++		t.Skipf("not yet supported on %s", platform)
+ 	}
+ 	got := runTestProg(t, "testprogcgo", "CrashTraceback")
+ 	for i := 1; i <= 3; i++ {
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index ff375004a3..d2144edf2e 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -274,7 +274,11 @@ func setsig(i uint32, fn uintptr) {
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = ^uint32(0)
+ 	if fn == funcPC(sighandler) {
+-		fn = funcPC(sigtramp)
++		if iscgo {
++			fn = funcPC(cgoSigtramp)
++		} else {
++			fn = funcPC(sigtramp)
++		}
+ 	}
+ 	*(*uintptr)(unsafe.Pointer(&sa.__sigaction_u)) = fn
+ 	sigaction(i, &sa, nil)
+@@ -283,6 +287,7 @@ func setsig(i uint32, fn uintptr) {
+ // sigtramp is the callback from libc when a signal is received.
+ // It is called with the C calling convention.
+ func sigtramp()
++func cgoSigtramp()
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 09f12283a1..4bfb9b8362 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -326,6 +326,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	ADDL	$28, SP
+ 	RET
+ 
++TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
++	JMP	runtime·sigtramp(SB)
++
+ TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 142933585d..2a2e7379ca 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -215,6 +215,82 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
++// Used instead of sigtramp in programs that use cgo.
++// Arguments from kernel are in DI, SI, DX.
++TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
++	// If no traceback function, do usual sigtramp.
++	MOVQ	runtime·cgoTraceback(SB), AX
++	TESTQ	AX, AX
++	JZ	sigtramp
++
++	// If no traceback support function, which means that
++	// runtime/cgo was not linked in, do usual sigtramp.
++	MOVQ	_cgo_callers(SB), AX
++	TESTQ	AX, AX
++	JZ	sigtramp
++
++	// Figure out if we are currently in a cgo call.
++	// If not, just do usual sigtramp.
++	get_tls(CX)
++	MOVQ	g(CX),AX
++	TESTQ	AX, AX
++	JZ	sigtrampnog     // g == nil
++	MOVQ	g_m(AX), AX
++	TESTQ	AX, AX
++	JZ	sigtramp        // g.m == nil
++	MOVL	m_ncgo(AX), CX
++	TESTL	CX, CX
++	JZ	sigtramp        // g.m.ncgo == 0
++	MOVQ	m_curg(AX), CX
++	TESTQ	CX, CX
++	JZ	sigtramp        // g.m.curg == nil
++	MOVQ	g_syscallsp(CX), CX
++	TESTQ	CX, CX
++	JZ	sigtramp        // g.m.curg.syscallsp == 0
++	MOVQ	m_cgoCallers(AX), R8
++	TESTQ	R8, R8
++	JZ	sigtramp        // g.m.cgoCallers == nil
++	MOVL	m_cgoCallersUse(AX), CX
++	TESTL	CX, CX
++	JNZ	sigtramp	// g.m.cgoCallersUse != 0
++
++	// Jump to a function in runtime/cgo.
++	// That function, written in C, will call the user's traceback
++	// function with proper unwind info, and will then call back here.
++	// The first three arguments, and the fifth, are already in registers.
++	// Set the two remaining arguments now.
++	MOVQ	runtime·cgoTraceback(SB), CX
++	MOVQ	$runtime·sigtramp(SB), R9
++	MOVQ	_cgo_callers(SB), AX
++	JMP	AX
++
++sigtramp:
++	JMP	runtime·sigtramp(SB)
++
++sigtrampnog:
++	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
++	// stack trace.
++	CMPL	DI, $27 // 27 == SIGPROF
++	JNZ	sigtramp
++
++	// Lock sigprofCallersUse.
++	MOVL	$0, AX
++	MOVL	$1, CX
++	MOVQ	$runtime·sigprofCallersUse(SB), R11
++	LOCK
++	CMPXCHGL	CX, 0(R11)
++	JNZ	sigtramp  // Skip stack trace if already locked.
++
++	// Jump to the traceback function in runtime/cgo.
++	// It will call back to sigprofNonGo, which will ignore the
++	// arguments passed in registers.
++	// First three arguments to traceback function are in registers already.
++	MOVQ	runtime·cgoTraceback(SB), CX
++	MOVQ	$runtime·sigprofCallers(SB), R8
++	MOVQ	$runtime·sigprofNonGo(SB), R9
++	MOVQ	_cgo_callers(SB), AX
++	JMP	AX
++
+ TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP			// make a frame; keep stack aligned
+ 	MOVQ	SP, BP
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 9b5c667f45..7a269cf576 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -227,6 +227,9 @@ nog:
+ 
+ 	RET
+ 
++TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
++	JMP	runtime·sigtramp(SB)
++
+ TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
+ 	MOVW	4(R0), R1	// arg 2 new
+ 	MOVW	8(R0), R2	// arg 3 old
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index c324994d26..4f9d0b8d58 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -223,6 +223,9 @@ nog:
+ 
+ 	RET
+ 
++TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
++	JMP	runtime·sigtramp(SB)
++
+ TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
+ 	MOVD	8(R0), R1	// arg 2 new
+ 	MOVD	16(R0), R2	// arg 3 old

@@ -15,8 +15,79 @@ Date:   Fri Jan 8 18:30:04 2016 +0000
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/lex.go        | 14 ++++++++++++++
  src/net/http/request.go    | 18 +++++++++++++++++-
  src/net/http/serve_test.go |  5 ++++-
  3 files changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/lex.go b/src/net/http/lex.go
+index 50b14f8b32..52b6481c14 100644
+--- a/src/net/http/lex.go
++++ b/src/net/http/lex.go
+@@ -167,3 +167,17 @@ func tokenEqual(t1, t2 string) bool {
+ 	}
+ 	return true
+ }
++
++// isLWS reports whether b is linear white space, according
++// to http://www.w3.org/Protocols/rfc2616/rfc2616-sec2.html#sec2.2
++//      LWS            = [CRLF] 1*( SP | HT )
++func isLWS(b byte) bool { return b == ' ' || b == '\t' }
++
++// isCTL reports whether b is a control byte, according
++// to http://www.w3.org/Protocols/rfc2616/rfc2616-sec2.html#sec2.2
++//      CTL            = <any US-ASCII control character
++//                       (octets 0 - 31) and DEL (127)>
++func isCTL(b byte) bool {
++	const del = 0x7f // a CTL
++	return b < ' ' || b == del
++}
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 1a6a97d4d7..c2f5f26a4c 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -1136,10 +1136,26 @@ func validHeaderName(v string) bool {
+ 	return strings.IndexFunc(v, isNotToken) == -1
+ }
+ 
++// validHeaderValue reports whether v is a valid "field-value" according to
++// http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2 :
++//
++//        message-header = field-name ":" [ field-value ]
++//        field-value    = *( field-content | LWS )
++//        field-content  = <the OCTETs making up the field-value
++//                         and consisting of either *TEXT or combinations
++//                         of token, separators, and quoted-string>
++//
++// http://www.w3.org/Protocols/rfc2616/rfc2616-sec2.html#sec2.2 :
++//
++//        TEXT           = <any OCTET except CTLs,
++//                          but including LWS>
++//        LWS            = [CRLF] 1*( SP | HT )
++//        CTL            = <any US-ASCII control character
++//                         (octets 0 - 31) and DEL (127)>
+ func validHeaderValue(v string) bool {
+ 	for i := 0; i < len(v); i++ {
+ 		b := v[i]
+-		if b < ' ' && b != '\t' {
++		if isCTL(b) && !isLWS(b) {
+ 			return false
+ 		}
+ 	}
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index be175f8420..f36bb38ba7 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -3798,7 +3798,10 @@ func TestServerValidatesHeaders(t *testing.T) {
+ 		{"foo\xffbar: foo\r\n", 400}, // binary in header
+ 		{"foo\x00bar: foo\r\n", 400}, // binary in header
+ 
+-		{"foo: foo\x00foo\r\n", 400}, // CTL in value is bad
++		{"foo: foo foo\r\n", 200},    // LWS space is okay
++		{"foo: foo\tfoo\r\n", 200},   // LWS tab is okay
++		{"foo: foo\x00foo\r\n", 400}, // CTL 0x00 in value is bad
++		{"foo: foo\x7ffoo\r\n", 400}, // CTL 0x7f in value is bad
+ 		{"foo: foo\xfffoo\r\n", 200}, // non-ASCII high octets in value are fine
+ 	}
+ 	for _, tt := range tests {

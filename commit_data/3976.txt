@@ -10,6 +10,21 @@ Date:   Tue Nov 10 20:05:24 2009 -0800
     
     R=agl, rsc
     https://golang.org/cl/154044
-
+---
  misc/emacs/go-mode.el | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index feba035ee5..47d790db41 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -470,3 +470,9 @@ Useful for development work."
+   (go-mode))
+ 
+ (provide 'go-mode)
++
++(defun gofmt ()
++  "Pipe the current buffer through the external tool `gofmt`."
++  
++  (interactive)
++  (shell-command-on-region 1 (+ (buffer-size) 1) "gofmt" t t shell-command-default-error-buffer))

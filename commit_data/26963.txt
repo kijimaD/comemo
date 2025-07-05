@@ -15,6 +15,20 @@ Date:   Tue Feb 16 16:05:56 2016 -0600
     Change-Id: Iccc6b9d3df2e604a55f4c1e4890bdd3bb0d77ab0
     Reviewed-on: https://go-review.googlesource.com/19519
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/crypto/cipher/xor.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/cipher/xor.go b/src/crypto/cipher/xor.go
+index f88dc8914a..020c9e1730 100644
+--- a/src/crypto/cipher/xor.go
++++ b/src/crypto/cipher/xor.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ const wordSize = int(unsafe.Sizeof(uintptr(0)))
+-const supportsUnaligned = runtime.GOARCH == "386" || runtime.GOARCH == "amd64"
++const supportsUnaligned = runtime.GOARCH == "386" || runtime.GOARCH == "amd64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le"
+ 
+ // fastXORBytes xors in bulk. It only works on architectures that
+ // support unaligned read/writes.

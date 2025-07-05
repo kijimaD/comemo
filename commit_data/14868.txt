@@ -7,7 +7,7 @@ Date:   Fri Jan 11 14:55:49 2013 -0800
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/7103047
-
+---
  src/pkg/go/types/check.go      |  4 ++--
  src/pkg/go/types/errors.go     |  4 ++--
  src/pkg/go/types/expr.go       | 14 +++++++-------
@@ -16,3 +16,287 @@ Date:   Fri Jan 11 14:55:49 2013 -0800
  src/pkg/go/types/types.go      | 33 +++++++++++++++++++++++++++++----
  src/pkg/go/types/universe.go   |  2 +-
  7 files changed, 54 insertions(+), 42 deletions(-)
+
+diff --git a/src/pkg/go/types/check.go b/src/pkg/go/types/check.go
+index 158941b053..bf28ca12da 100644
+--- a/src/pkg/go/types/check.go
++++ b/src/pkg/go/types/check.go
+@@ -163,7 +163,7 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
+ 		check.valueSpec(spec.Pos(), obj, spec.Names, init.Type, init.Values, iota)
+ 
+ 	case ast.Typ:
+-		typ := &NamedType{obj: obj}
++		typ := &NamedType{AstObj: obj}
+ 		obj.Type = typ // "mark" object so recursion terminates
+ 		typ.Underlying = underlying(check.typ(obj.Decl.(*ast.TypeSpec).Type, cycleOk))
+ 		// typecheck associated method signatures
+@@ -194,7 +194,7 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
+ 				params, _ := check.collectParams(mdecl.Recv, false)
+ 				sig.Recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
+ 				obj.Type = sig
+-				methods = append(methods, &Method{QualifiedName{check.pkg, obj.Name}, sig})
++				methods = append(methods, &Method{QualifiedName{nil, obj.Name}, sig})
+ 				check.later(obj, sig, mdecl.Body)
+ 			}
+ 			typ.Methods = methods
+diff --git a/src/pkg/go/types/errors.go b/src/pkg/go/types/errors.go
+index 96446949b4..b2a66e4dd2 100644
+--- a/src/pkg/go/types/errors.go
++++ b/src/pkg/go/types/errors.go
+@@ -313,10 +313,10 @@ func writeType(buf *bytes.Buffer, typ Type) {
+ 	case *NamedType:
+ 		var s string
+ 		switch {
+-		case t.obj != nil:
+-			s = t.obj.Name
+ 		case t.Obj != nil:
+ 			s = t.Obj.GetName()
++		case t.AstObj != nil:
++			s = t.AstObj.Name
+ 		default:
+ 			s = "<NamedType w/o object>"
+ 		}
+diff --git a/src/pkg/go/types/expr.go b/src/pkg/go/types/expr.go
+index 99a038e26d..c6fa84dda7 100644
+--- a/src/pkg/go/types/expr.go
++++ b/src/pkg/go/types/expr.go
+@@ -84,7 +84,7 @@ func (check *checker) collectMethods(list *ast.FieldList) (methods []*Method) {
+ 				continue
+ 			}
+ 			for _, name := range f.Names {
+-				methods = append(methods, &Method{QualifiedName{check.pkg, name.Name}, sig})
++				methods = append(methods, &Method{QualifiedName{nil, name.Name}, sig})
+ 			}
+ 		} else {
+ 			// embedded interface
+@@ -137,24 +137,24 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
+ 		if len(f.Names) > 0 {
+ 			// named fields
+ 			for _, name := range f.Names {
+-				fields = append(fields, &Field{QualifiedName{check.pkg, name.Name}, typ, tag, false})
++				fields = append(fields, &Field{QualifiedName{nil, name.Name}, typ, tag, false})
+ 			}
+ 		} else {
+ 			// anonymous field
+ 			switch t := deref(typ).(type) {
+ 			case *Basic:
+-				fields = append(fields, &Field{QualifiedName{check.pkg, t.Name}, typ, tag, true})
++				fields = append(fields, &Field{QualifiedName{nil, t.Name}, typ, tag, true})
+ 			case *NamedType:
+ 				var name string
+ 				switch {
+-				case t.obj != nil:
+-					name = t.obj.Name
+ 				case t.Obj != nil:
+ 					name = t.Obj.GetName()
++				case t.AstObj != nil:
++					name = t.AstObj.Name
+ 				default:
+ 					unreachable()
+ 				}
+-				fields = append(fields, &Field{QualifiedName{check.pkg, name}, typ, tag, true})
++				fields = append(fields, &Field{QualifiedName{nil, name}, typ, tag, true})
+ 			default:
+ 				if typ != Typ[Invalid] {
+ 					check.invalidAST(f.Type.Pos(), "anonymous field type %s must be named", typ)
+@@ -913,7 +913,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
+-		mode, typ := lookupField(x.typ, QualifiedName{check.pkg, sel})
++		mode, typ := lookupField(x.typ, QualifiedName{nil, sel})
+ 		if mode == invalid {
+ 			check.invalidOp(e.Pos(), "%s has no single field or method %s", x, sel)
+ 			goto Error
+diff --git a/src/pkg/go/types/operand.go b/src/pkg/go/types/operand.go
+index 77aacacdc9..1c8f35291e 100644
+--- a/src/pkg/go/types/operand.go
++++ b/src/pkg/go/types/operand.go
+@@ -265,11 +265,11 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
+ 			visited[typ] = true
+ 
+ 			// look for a matching attached method
+-			if typ.obj != nil {
+-				assert(typ.obj.Data == nil) // methods must have been moved to typ.Methods
++			if typ.AstObj != nil {
++				assert(typ.AstObj.Data == nil) // methods must have been moved to typ.Methods
+ 			}
+ 			for _, m := range typ.Methods {
+-				if identicalNames(name, m.QualifiedName) {
++				if name.IsSame(m.QualifiedName) {
+ 					assert(m.Type != nil)
+ 					if !potentialMatch(e.multiples, value, m.Type) {
+ 						return // name collision
+@@ -281,7 +281,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
+ 			case *Struct:
+ 				// look for a matching field and collect embedded types
+ 				for _, f := range t.Fields {
+-					if identicalNames(name, f.QualifiedName) {
++					if name.IsSame(f.QualifiedName) {
+ 						assert(f.Type != nil)
+ 						if !potentialMatch(e.multiples, variable, f.Type) {
+ 							return // name collision
+@@ -305,7 +305,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
+ 			case *Interface:
+ 				// look for a matching method
+ 				for _, m := range t.Methods {
+-					if identicalNames(name, m.QualifiedName) {
++					if name.IsSame(m.QualifiedName) {
+ 						assert(m.Type != nil)
+ 						if !potentialMatch(e.multiples, value, m.Type) {
+ 							return // name collision
+@@ -355,11 +355,11 @@ func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
+ 	typ = deref(typ)
+ 
+ 	if t, ok := typ.(*NamedType); ok {
+-		if t.obj != nil {
+-			assert(t.obj.Data == nil) // methods must have been moved to t.Methods
++		if t.AstObj != nil {
++			assert(t.AstObj.Data == nil) // methods must have been moved to t.Methods
+ 		}
+ 		for _, m := range t.Methods {
+-			if identicalNames(name, m.QualifiedName) {
++			if name.IsSame(m.QualifiedName) {
+ 				assert(m.Type != nil)
+ 				return value, m.Type
+ 			}
+@@ -371,7 +371,7 @@ func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
+ 	case *Struct:
+ 		var next []embeddedType
+ 		for _, f := range t.Fields {
+-			if identicalNames(name, f.QualifiedName) {
++			if name.IsSame(f.QualifiedName) {
+ 				return variable, f.Type
+ 			}
+ 			if f.IsAnonymous {
+@@ -388,7 +388,7 @@ func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
+ 
+ 	case *Interface:
+ 		for _, m := range t.Methods {
+-			if identicalNames(name, m.QualifiedName) {
++			if name.IsSame(m.QualifiedName) {
+ 				return value, m.Type
+ 			}
+ 		}
+diff --git a/src/pkg/go/types/predicates.go b/src/pkg/go/types/predicates.go
+index b16b8ce7b0..e8ffb36477 100644
+--- a/src/pkg/go/types/predicates.go
++++ b/src/pkg/go/types/predicates.go
+@@ -6,8 +6,6 @@
+ 
+ package types
+ 
+-import "go/ast"
+-
+ func isNamed(typ Type) bool {
+ 	if _, ok := typ.(*Basic); ok {
+ 		return ok
+@@ -131,7 +129,7 @@ func isIdentical(x, y Type) bool {
+ 			if len(x.Fields) == len(y.Fields) {
+ 				for i, f := range x.Fields {
+ 					g := y.Fields[i]
+-					if !identicalNames(f.QualifiedName, g.QualifiedName) ||
++					if !f.QualifiedName.IsSame(g.QualifiedName) ||
+ 						!isIdentical(f.Type, g.Type) ||
+ 						f.Tag != g.Tag ||
+ 						f.IsAnonymous != g.IsAnonymous {
+@@ -185,10 +183,10 @@ func isIdentical(x, y Type) bool {
+ 		// in the same type declaration.
+ 		if y, ok := y.(*NamedType); ok {
+ 			switch {
+-			case x.obj != nil:
+-				return x.obj == y.obj
+ 			case x.Obj != nil:
+ 				return x.Obj == y.Obj
++			case x.AstObj != nil:
++				return x.AstObj == y.AstObj
+ 			default:
+ 				unreachable()
+ 			}
+@@ -198,17 +196,6 @@ func isIdentical(x, y Type) bool {
+ 	return false
+ }
+ 
+-// identicalNames returns true if the names a and b are equal.
+-func identicalNames(a, b QualifiedName) bool {
+-	if a.Name != b.Name {
+-		return false
+-	}
+-	// a.Name == b.Name
+-	// TODO(gri) Guarantee that packages are canonicalized
+-	//           and then we can compare p == q directly.
+-	return ast.IsExported(a.Name) || a.Pkg.Path == b.Pkg.Path
+-}
+-
+ // identicalTypes returns true if both lists a and b have the
+ // same length and corresponding objects have identical types.
+ func identicalTypes(a, b []*Var) bool {
+diff --git a/src/pkg/go/types/types.go b/src/pkg/go/types/types.go
+index 69ea32701d..fa120fd9e9 100644
+--- a/src/pkg/go/types/types.go
++++ b/src/pkg/go/types/types.go
+@@ -91,12 +91,37 @@ type Slice struct {
+ 	Elt Type
+ }
+ 
+-// A QualifiedName is a name qualified with the package the declared the name.
++// A QualifiedName is a name qualified with the package that declared the name.
+ type QualifiedName struct {
+-	Pkg  *Package // Pkg.Path == "" for current (non-imported) package
++	Pkg  *Package // nil for current (non-imported) package
+ 	Name string   // unqualified type name for anonymous fields
+ }
+ 
++// IsSame reports whether p and q are the same.
++func (p QualifiedName) IsSame(q QualifiedName) bool {
++	// spec:
++	// "Two identifiers are different if they are spelled differently,
++	// or if they appear in different packages and are not exported.
++	// Otherwise, they are the same."
++	if p.Name != q.Name {
++		return false
++	}
++	// p.Name == q.Name
++	if !ast.IsExported(p.Name) {
++		// TODO(gri) just compare packages once we guarantee that they are canonicalized
++		pp := ""
++		if p.Pkg != nil {
++			pp = p.Pkg.Path
++		}
++		qp := ""
++		if q.Pkg != nil {
++			qp = q.Pkg.Path
++		}
++		return pp == qp
++	}
++	return true
++}
++
+ // A Field represents a field of a struct.
+ type Field struct {
+ 	QualifiedName
+@@ -211,9 +236,9 @@ type Chan struct {
+ // A NamedType represents a named type as declared in a type declaration.
+ type NamedType struct {
+ 	implementsType
+-	// TODO(gri) remove obj once we have moved away from ast.Objects
+-	obj        *ast.Object // corresponding declared object (current package)
++	// TODO(gri) remove AstObj once we have moved away from ast.Objects
+ 	Obj        Object      // corresponding declared object (imported package)
++	AstObj     *ast.Object // corresponding declared object (current package)
+ 	Underlying Type        // nil if not fully declared yet; never a *NamedType
+ 	Methods    []*Method   // TODO(gri) consider keeping them in sorted order
+ }
+diff --git a/src/pkg/go/types/universe.go b/src/pkg/go/types/universe.go
+index bbc33795d9..43fe39046a 100644
+--- a/src/pkg/go/types/universe.go
++++ b/src/pkg/go/types/universe.go
+@@ -159,7 +159,7 @@ func def(kind ast.ObjKind, name string, typ Type) *ast.Object {
+ 			obj.Decl = Universe
+ 			obj.Type = typ
+ 			if typ, ok := typ.(*NamedType); ok {
+-				typ.obj = obj
++				typ.AstObj = obj
+ 			}
+ 			if Universe.Insert(obj) != nil {
+ 				panic("internal error: double declaration")

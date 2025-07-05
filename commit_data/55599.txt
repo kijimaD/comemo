@@ -13,9 +13,81 @@ Date:   Tue Feb 21 23:45:13 2023 +0800
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/error_posix.go    | 2 +-
  src/os/export_test.go    | 4 ++++
  src/os/file.go           | 6 ++++++
  src/os/readfrom_linux.go | 4 ++--
  4 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/error_posix.go b/src/os/error_posix.go
+index 5ca2e60e5b..f709d6e344 100644
+--- a/src/os/error_posix.go
++++ b/src/os/error_posix.go
+@@ -9,7 +9,7 @@ package os
+ import "syscall"
+ 
+ // wrapSyscallError takes an error and a syscall name. If the error is
+-// a syscall.Errno, it wraps it in a os.SyscallError using the syscall name.
++// a syscall.Errno, it wraps it in an os.SyscallError using the syscall name.
+ func wrapSyscallError(name string, err error) error {
+ 	if _, ok := err.(syscall.Errno); ok {
+ 		err = NewSyscallError(name, err)
+diff --git a/src/os/export_test.go b/src/os/export_test.go
+index f3cb1a2bef..dc7caae267 100644
+--- a/src/os/export_test.go
++++ b/src/os/export_test.go
+@@ -11,3 +11,7 @@ var LstatP = &lstat
+ var ErrWriteAtInAppendMode = errWriteAtInAppendMode
+ var TestingForceReadDirLstat = &testingForceReadDirLstat
+ var ErrPatternHasSeparator = errPatternHasSeparator
++
++func init() {
++	checkWrapErr = true
++}
+diff --git a/src/os/file.go b/src/os/file.go
+index c41adc7da6..776e885aff 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -353,6 +353,10 @@ func fixCount(n int, err error) (int, error) {
+ 	return n, err
+ }
+ 
++// checkWrapErr is the test hook to enable checking unexpected wrapped errors of poll.ErrFileClosing.
++// It is set to true in the export_test.go for tests (including fuzz tests).
++var checkWrapErr = false
++
+ // wrapErr wraps an error that occurred during an operation on an open file.
+ // It passes io.EOF through unchanged, otherwise converts
+ // poll.ErrFileClosing to ErrClosed and wraps the error in a PathError.
+@@ -362,6 +366,8 @@ func (f *File) wrapErr(op string, err error) error {
+ 	}
+ 	if err == poll.ErrFileClosing {
+ 		err = ErrClosed
++	} else if checkWrapErr && errors.Is(err, poll.ErrFileClosing) {
++		panic("unexpected error wrapping poll.ErrFileClosing: " + err.Error())
+ 	}
+ 	return &PathError{Op: op, Path: f.name, Err: err}
+ }
+diff --git a/src/os/readfrom_linux.go b/src/os/readfrom_linux.go
+index 950a6553a4..2a81b7abfe 100644
+--- a/src/os/readfrom_linux.go
++++ b/src/os/readfrom_linux.go
+@@ -51,7 +51,7 @@ func (f *File) spliceToFile(r io.Reader) (written int64, handled bool, err error
+ 		lr.N = remain - written
+ 	}
+ 
+-	return written, handled, NewSyscallError(syscallName, err)
++	return written, handled, wrapSyscallError(syscallName, err)
+ }
+ 
+ // getPollFD tries to get the poll.FD from the given io.Reader by expecting
+@@ -102,7 +102,7 @@ func (f *File) copyFileRange(r io.Reader) (written int64, handled bool, err erro
+ 	if lr != nil {
+ 		lr.N -= written
+ 	}
+-	return written, handled, NewSyscallError("copy_file_range", err)
++	return written, handled, wrapSyscallError("copy_file_range", err)
+ }
+ 
+ // tryLimitedReader tries to assert the io.Reader to io.LimitedReader, it returns the io.LimitedReader,

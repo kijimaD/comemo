@@ -7,6 +7,29 @@ Date:   Fri Dec 27 08:40:03 2013 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/44200044
-
+---
  src/pkg/strconv/atof.go | 11 -----------
  1 file changed, 11 deletions(-)
+
+diff --git a/src/pkg/strconv/atof.go b/src/pkg/strconv/atof.go
+index 1b3f8fb33d..286206481b 100644
+--- a/src/pkg/strconv/atof.go
++++ b/src/pkg/strconv/atof.go
+@@ -353,17 +353,6 @@ out:
+ 	return bits, overflow
+ }
+ 
+-func (d *decimal) atof32int() float32 {
+-	f := float32(0)
+-	for i := 0; i < d.nd; i++ {
+-		f = f*10 + float32(d.d[i]-'0')
+-	}
+-	if d.neg {
+-		f = -f
+-	}
+-	return f
+-}
+-
+ // Exact powers of 10.
+ var float64pow10 = []float64{
+ 	1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,

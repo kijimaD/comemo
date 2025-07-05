@@ -11,6 +11,33 @@ Date:   Thu Nov 12 15:33:23 2015 +0000
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/method.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/net/http/method.go b/src/net/http/method.go
+new file mode 100644
+index 0000000000..b74f9604d3
+--- /dev/null
++++ b/src/net/http/method.go
+@@ -0,0 +1,20 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package http
++
++// Common HTTP methods.
++//
++// Unless otherwise noted, these are defined in RFC 7231 section 4.3.
++const (
++	MethodGet     = "GET"
++	MethodHead    = "HEAD"
++	MethodPost    = "POST"
++	MethodPut     = "PUT"
++	MethodPatch   = "PATCH" // RFC 5741
++	MethodDelete  = "DELETE"
++	MethodConnect = "CONNECT"
++	MethodOptions = "OPTIONS"
++	MethodTrace   = "TRACE"
++)

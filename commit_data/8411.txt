@@ -7,6 +7,44 @@ Date:   Mon May 16 17:03:51 2011 -0400
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4551042
-
+---
  doc/go_mem.html | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index da45a07d7a..906b858e88 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -1,5 +1,14 @@
+ <!-- The Go Memory Model -->
+ 
++<style>
++p.rule {
++  font-style: italic;
++}
++span.event {
++  font-style: italic;
++}
++</style>
++
+ <h2>Introduction</h2>
+ 
+ <p>
+@@ -213,6 +222,17 @@ the corresponding receive on <code>c</code> completes, which happens before
+ the <code>print</code>.
+ </p>
+ 
++<p class="rule">
++The closing of a channel happens before a receive that returns a zero value
++because the channel is closed.
++</p>
++
++<p>
++In the previous example, replacing
++<code>c &lt;- 0</code> with <code>close(c)</code>
++yields a program with the same guaranteed behavior.
++</p>
++
+ <p class="rule">
+ A receive from an unbuffered channel happens before
+ the send on that channel completes.

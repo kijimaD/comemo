@@ -9,7 +9,7 @@ Date:   Wed Dec 11 14:47:18 2013 +1100
     R=golang-dev, minux.ma, r, dsymonds
     CC=golang-dev
     https://golang.org/cl/39920043
-
+---
  misc/{dist => makerelease}/darwin/Distribution        |   0
  misc/{dist => makerelease}/darwin/Resources/bg.png    | Bin
  misc/{dist => makerelease}/darwin/etc/paths.d/go      |   0
@@ -24,3 +24,127 @@ Date:   Wed Dec 11 14:47:18 2013 +1100
  misc/{dist => makerelease}/windows/images/gopher.ico  | Bin
  misc/{dist => makerelease}/windows/installer.wxs      |   0
  13 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/misc/dist/darwin/Distribution b/misc/makerelease/darwin/Distribution
+similarity index 100%
+rename from misc/dist/darwin/Distribution
+rename to misc/makerelease/darwin/Distribution
+diff --git a/misc/dist/darwin/Resources/bg.png b/misc/makerelease/darwin/Resources/bg.png
+similarity index 100%
+rename from misc/dist/darwin/Resources/bg.png
+rename to misc/makerelease/darwin/Resources/bg.png
+diff --git a/misc/dist/darwin/etc/paths.d/go b/misc/makerelease/darwin/etc/paths.d/go
+similarity index 100%
+rename from misc/dist/darwin/etc/paths.d/go
+rename to misc/makerelease/darwin/etc/paths.d/go
+diff --git a/misc/dist/darwin/scripts/postinstall b/misc/makerelease/darwin/scripts/postinstall
+similarity index 100%
+rename from misc/dist/darwin/scripts/postinstall
+rename to misc/makerelease/darwin/scripts/postinstall
+diff --git a/misc/dist/darwin/scripts/preinstall b/misc/makerelease/darwin/scripts/preinstall
+similarity index 100%
+rename from misc/dist/darwin/scripts/preinstall
+rename to misc/makerelease/darwin/scripts/preinstall
+diff --git a/misc/dist/bindist.go b/misc/makerelease/makerelease.go
+similarity index 97%
+rename from misc/dist/bindist.go
+rename to misc/makerelease/makerelease.go
+index cd0ff7fee7..661f91c579 100644
+--- a/misc/dist/bindist.go
++++ b/misc/makerelease/makerelease.go
+@@ -205,7 +205,7 @@ type Build struct {
+ }
+ 
+ func (b *Build) Do() error {
+-	work, err := ioutil.TempDir("", "bindist")
++	work, err := ioutil.TempDir("", "makerelease")
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -286,13 +286,13 @@ func (b *Build) Do() error {
+ 		version     string // "weekly.2012-03-04"
+ 		fullVersion []byte // "weekly.2012-03-04 9353aa1efdf3"
+ 	)
+-	pat := filepath.Join(b.root, "pkg/tool/*/dist*") // trailing * for .exe
++	pat := filepath.Join(b.root, "pkg/tool/*/makerelease*") // trailing * for .exe
+ 	m, err := filepath.Glob(pat)
+ 	if err != nil {
+ 		return err
+ 	}
+ 	if len(m) == 0 {
+-		return fmt.Errorf("couldn't find dist in %q", pat)
++		return fmt.Errorf("couldn't find makerelease in %q", pat)
+ 	}
+ 	fullVersion, err = b.run("", m[0], "version")
+ 	if err != nil {
+@@ -351,7 +351,7 @@ func (b *Build) Do() error {
+ 
+ 		// build pkg
+ 		// arrange work so it's laid out as the dest filesystem
+-		etc := filepath.Join(b.root, "misc/dist/darwin/etc")
++		etc := filepath.Join(b.root, "misc/makerelease/darwin/etc")
+ 		_, err = b.run(work, "cp", "-r", etc, ".")
+ 		if err != nil {
+ 			return err
+@@ -371,11 +371,11 @@ func (b *Build) Do() error {
+ 			return err
+ 		}
+ 		defer os.RemoveAll(pkgdest)
+-		dist := filepath.Join(runtime.GOROOT(), "misc/dist")
++		makerelease := filepath.Join(runtime.GOROOT(), "misc/makerelease")
+ 		_, err = b.run("", "pkgbuild",
+ 			"--identifier", "com.googlecode.go",
+ 			"--version", version,
+-			"--scripts", filepath.Join(dist, "darwin/scripts"),
++			"--scripts", filepath.Join(makerelease, "darwin/scripts"),
+ 			"--root", work,
+ 			filepath.Join(pkgdest, "com.googlecode.go.pkg"))
+ 		if err != nil {
+@@ -383,8 +383,8 @@ func (b *Build) Do() error {
+ 		}
+ 		targ = base + ".pkg"
+ 		_, err = b.run("", "productbuild",
+-			"--distribution", filepath.Join(dist, "darwin/Distribution"),
+-			"--resources", filepath.Join(dist, "darwin/Resources"),
++			"--distribution", filepath.Join(makerelease, "darwin/Distribution"),
++			"--resources", filepath.Join(makerelease, "darwin/Resources"),
+ 			"--package-path", pkgdest,
+ 			targ)
+ 		if err != nil {
+@@ -404,7 +404,7 @@ func (b *Build) Do() error {
+ 		targs = append(targs, targ)
+ 
+ 		// Create MSI installer.
+-		win := filepath.Join(b.root, "misc/dist/windows")
++		win := filepath.Join(b.root, "misc/makerelease/windows")
+ 		installer := filepath.Join(win, "installer.wxs")
+ 		if *wxsFile != "" {
+ 			installer = *wxsFile
+diff --git a/misc/dist/windows/LICENSE.rtf b/misc/makerelease/windows/LICENSE.rtf
+similarity index 100%
+rename from misc/dist/windows/LICENSE.rtf
+rename to misc/makerelease/windows/LICENSE.rtf
+diff --git a/misc/dist/windows/README.txt b/misc/makerelease/windows/README.txt
+similarity index 100%
+rename from misc/dist/windows/README.txt
+rename to misc/makerelease/windows/README.txt
+diff --git a/misc/dist/windows/images/Banner.jpg b/misc/makerelease/windows/images/Banner.jpg
+similarity index 100%
+rename from misc/dist/windows/images/Banner.jpg
+rename to misc/makerelease/windows/images/Banner.jpg
+diff --git a/misc/dist/windows/images/Dialog.jpg b/misc/makerelease/windows/images/Dialog.jpg
+similarity index 100%
+rename from misc/dist/windows/images/Dialog.jpg
+rename to misc/makerelease/windows/images/Dialog.jpg
+diff --git a/misc/dist/windows/images/DialogLeft.jpg b/misc/makerelease/windows/images/DialogLeft.jpg
+similarity index 100%
+rename from misc/dist/windows/images/DialogLeft.jpg
+rename to misc/makerelease/windows/images/DialogLeft.jpg
+diff --git a/misc/dist/windows/images/gopher.ico b/misc/makerelease/windows/images/gopher.ico
+similarity index 100%
+rename from misc/dist/windows/images/gopher.ico
+rename to misc/makerelease/windows/images/gopher.ico
+diff --git a/misc/dist/windows/installer.wxs b/misc/makerelease/windows/installer.wxs
+similarity index 100%
+rename from misc/dist/windows/installer.wxs
+rename to misc/makerelease/windows/installer.wxs

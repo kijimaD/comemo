@@ -29,7 +29,7 @@ Date:   Thu Jun 1 13:25:56 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/base/base.go         | 23 +++++++++++++++++++++++
  src/cmd/go/internal/clean/clean.go       | 14 +++++++-------
  src/cmd/go/internal/envcmd/env.go        | 14 +++++++-------
@@ -58,3 +58,924 @@ Date:   Thu Jun 1 13:25:56 2023 -0400
  src/cmd/go/internal/workcmd/use.go       |  6 +++---
  src/cmd/go/main.go                       |  2 +-
  27 files changed, 116 insertions(+), 91 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index d4af4dbc4b..f3774ae2f0 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -13,6 +13,7 @@ import (
+ 	"log"
+ 	"os"
+ 	"os/exec"
++	"reflect"
+ 	"strings"
+ 	"sync"
+ 
+@@ -133,6 +134,28 @@ func ExitIfErrors() {
+ 	}
+ }
+ 
++func Error(err error) {
++	// We use errors.Join to return multiple errors from various routines.
++	// If we receive multiple errors joined with a basic errors.Join,
++	// handle each one separately so that they all have the leading "go: " prefix.
++	// A plain interface check is not good enough because there might be
++	// other kinds of structured errors that are logically one unit and that
++	// add other context: only handling the wrapped errors would lose
++	// that context.
++	if err != nil && reflect.TypeOf(err).String() == "*errors.joinError" {
++		for _, e := range err.(interface{ Unwrap() []error }).Unwrap() {
++			Error(e)
++		}
++		return
++	}
++	Errorf("go: %v", err)
++}
++
++func Fatal(err error) {
++	Error(err)
++	Exit()
++}
++
+ var exitStatus = 0
+ var exitMu sync.Mutex
+ 
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 368288f0fc..e0112379c0 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -172,7 +172,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 						// This also mimics what os.RemoveAll(dir) would do.
+ 						if err := os.RemoveAll(d); err != nil && !printedErrors {
+ 							printedErrors = true
+-							base.Errorf("go: %v", err)
++							base.Error(err)
+ 						}
+ 					}
+ 				}
+@@ -185,7 +185,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 			if !cfg.BuildN {
+ 				if err := os.RemoveAll(logFile); err != nil && !printedErrors {
+ 					printedErrors = true
+-					base.Errorf("go: %v", err)
++					base.Error(err)
+ 				}
+ 			}
+ 		}
+@@ -215,7 +215,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 			}
+ 			if err != nil {
+ 				if _, statErr := os.Stat(dir); !os.IsNotExist(statErr) {
+-					base.Errorf("go: %v", err)
++					base.Error(err)
+ 				}
+ 			}
+ 		}
+@@ -230,7 +230,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 		if !cfg.BuildN {
+ 			if err := modfetch.RemoveAll(cfg.GOMODCACHE); err != nil {
+-				base.Errorf("go: %v", err)
++				base.Error(err)
+ 			}
+ 		}
+ 	}
+@@ -242,7 +242,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 		if !cfg.BuildN {
+ 			if err := os.RemoveAll(fuzzDir); err != nil {
+-				base.Errorf("go: %v", err)
++				base.Error(err)
+ 			}
+ 		}
+ 	}
+@@ -372,7 +372,7 @@ func clean(p *load.Package) {
+ 					}
+ 				}
+ 				if err := os.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
+-					base.Errorf("go: %v", err)
++					base.Error(err)
+ 				}
+ 			}
+ 			continue
+@@ -424,5 +424,5 @@ func removeFile(f string) {
+ 			return
+ 		}
+ 	}
+-	base.Errorf("go: %v", err)
++	base.Error(err)
+ }
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 02a5343362..c7c2e83e0f 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -185,7 +185,7 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
+ 	b := work.NewBuilder("")
+ 	defer func() {
+ 		if err := b.Close(); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 	}()
+ 
+@@ -251,7 +251,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	buildcfg.Check()
+ 	if cfg.ExperimentErr != nil {
+-		base.Fatalf("go: %v", cfg.ExperimentErr)
++		base.Fatal(cfg.ExperimentErr)
+ 	}
+ 
+ 	for _, arg := range args {
+@@ -264,7 +264,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 	env = append(env, ExtraEnvVars()...)
+ 
+ 	if err := fsys.Init(base.Cwd()); err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	// Do we need to call ExtraEnvVarsCostly, which is a bit expensive?
+@@ -337,7 +337,7 @@ func runEnvW(args []string) {
+ 			base.Fatalf("go: arguments must be KEY=VALUE: invalid argument: %s", arg)
+ 		}
+ 		if err := checkEnvWrite(key, val); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 		if _, ok := add[key]; ok {
+ 			base.Fatalf("go: multiple values for key: %s", key)
+@@ -349,7 +349,7 @@ func runEnvW(args []string) {
+ 	}
+ 
+ 	if err := checkBuildConfig(add, nil); err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	gotmp, okGOTMP := add["GOTMPDIR"]
+@@ -370,13 +370,13 @@ func runEnvU(args []string) {
+ 	del := make(map[string]bool)
+ 	for _, arg := range args {
+ 		if err := checkEnvWrite(arg, ""); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 		del[arg] = true
+ 	}
+ 
+ 	if err := checkBuildConfig(nil, del); err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	updateEnvFile(nil, del)
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 4a45a2157d..2427b022a1 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"context"
+ 	"encoding/json"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -569,11 +570,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 		if !*listE {
+ 			for _, m := range mods {
+ 				if m.Error != nil {
+-					base.Errorf("go: %v", m.Error.Err)
++					base.Error(errors.New(m.Error.Err))
+ 				}
+ 			}
+ 			if err != nil {
+-				base.Errorf("go: %v", err)
++				base.Error(err)
+ 			}
+ 			base.ExitIfErrors()
+ 		}
+@@ -715,7 +716,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 		defer func() {
+ 			if err := b.Close(); err != nil {
+-				base.Fatalf("go: %v", err)
++				base.Fatal(err)
+ 			}
+ 		}()
+ 
+@@ -847,7 +848,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 			}
+ 			rmods, err := modload.ListModules(ctx, args, mode, *listReuse)
+ 			if err != nil && !*listE {
+-				base.Errorf("go: %v", err)
++				base.Error(err)
+ 			}
+ 			for i, arg := range args {
+ 				rmod := rmods[i]
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index a66df86f5c..65af063059 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -941,7 +941,7 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
+ 					data.p, data.err = rp.Import(cfg.BuildContext, buildMode)
+ 					goto Happy
+ 				} else if !errors.Is(err, modindex.ErrNotIndexed) {
+-					base.Fatalf("go: %v", err)
++					base.Fatal(err)
+ 				}
+ 			}
+ 			data.p, data.err = buildContext.ImportDir(r.dir, buildMode)
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 2fa85e0e21..e49cd9fe0c 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -7,6 +7,7 @@ package modcmd
+ import (
+ 	"context"
+ 	"encoding/json"
++	"errors"
+ 	"os"
+ 	"runtime"
+ 
+@@ -152,7 +153,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 				// 'go mod graph', and similar commands.
+ 				_, err := modload.LoadModGraph(ctx, "")
+ 				if err != nil {
+-					base.Fatalf("go: %v", err)
++					base.Fatal(err)
+ 				}
+ 
+ 				for _, m := range modFile.Require {
+@@ -208,7 +209,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 		// be updated after loading the build list. This may require setting
+ 		// the mode to "mod" or "readonly" depending on haveExplicitArgs.
+ 		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 	}
+ 
+@@ -252,7 +253,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 		for _, m := range mods {
+ 			b, err := json.MarshalIndent(m, "", "\t")
+ 			if err != nil {
+-				base.Fatalf("go: %v", err)
++				base.Fatal(err)
+ 			}
+ 			os.Stdout.Write(append(b, '\n'))
+ 			if m.Error != "" {
+@@ -262,7 +263,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 	} else {
+ 		for _, m := range mods {
+ 			if m.Error != "" {
+-				base.Errorf("go: %v", m.Error)
++				base.Error(errors.New(m.Error))
+ 			}
+ 		}
+ 		base.ExitIfErrors()
+@@ -287,7 +288,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 	// workspace mode; see comment above.
+ 	if haveExplicitArgs || modload.WorkFilePath() != "" {
+ 		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
+-			base.Errorf("go: %v", err)
++			base.Error(err)
+ 		}
+ 	}
+ 
+@@ -295,7 +296,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 	// (after we've written the checksums for the modules that were downloaded
+ 	// successfully).
+ 	if infosErr != nil {
+-		base.Errorf("go: %v", infosErr)
++		base.Error(infosErr)
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index bd22649172..96bd608c01 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -215,7 +215,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	data, err := lockedfile.Read(gomod)
+ 	if err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	modFile, err := modfile.Parse(gomod, data, nil)
+@@ -257,7 +257,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	out, err := modFile.Format()
+ 	if err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	if *editPrint {
+@@ -278,7 +278,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
+ 		return out, nil
+ 	})
+ 	if err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/internal/modcmd/graph.go b/src/cmd/go/internal/modcmd/graph.go
+index 0265a0074c..eb9e314fc4 100644
+--- a/src/cmd/go/internal/modcmd/graph.go
++++ b/src/cmd/go/internal/modcmd/graph.go
+@@ -63,7 +63,7 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
+ 	goVersion := graphGo.String()
+ 	if goVersion != "" && gover.Compare(gover.Local(), goVersion) < 0 {
+ 		toolchain.TryVersion(ctx, goVersion)
+-		base.Fatalf("go: %v", &gover.TooNewError{
++		base.Fatal(&gover.TooNewError{
+ 			What:      "-go flag",
+ 			GoVersion: goVersion,
+ 		})
+@@ -71,7 +71,7 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	mg, err := modload.LoadModGraph(ctx, goVersion)
+ 	if err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	w := bufio.NewWriter(os.Stdout)
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 8f23ae3546..1a0d69eca2 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -92,7 +92,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 		vdir = filepath.Join(modload.VendorDir())
+ 	}
+ 	if err := os.RemoveAll(vdir); err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	modpkgs := make(map[module.Version][]string)
+@@ -194,11 +194,11 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	if err := os.MkdirAll(vdir, 0777); err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	if err := os.WriteFile(filepath.Join(vdir, "modules.txt"), buf.Bytes(), 0666); err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ }
+ 
+@@ -274,7 +274,7 @@ func vendorPkg(vdir, pkg string) {
+ 	embedPatterns := str.StringList(bp.EmbedPatterns, bp.TestEmbedPatterns, bp.XTestEmbedPatterns)
+ 	embeds, err := load.ResolveEmbed(bp.Dir, embedPatterns)
+ 	if err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 	for _, embed := range embeds {
+ 		embedDst := filepath.Join(dst, embed)
+@@ -285,21 +285,21 @@ func vendorPkg(vdir, pkg string) {
+ 		// Copy the file as is done by copyDir below.
+ 		r, err := os.Open(filepath.Join(src, embed))
+ 		if err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 		if err := os.MkdirAll(filepath.Dir(embedDst), 0777); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 		w, err := os.Create(embedDst)
+ 		if err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 		if _, err := io.Copy(w, r); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 		r.Close()
+ 		if err := w.Close(); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 	}
+ }
+@@ -378,7 +378,7 @@ func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
+ 	if strings.HasSuffix(info.Name(), ".go") {
+ 		f, err := fsys.Open(filepath.Join(dir, info.Name()))
+ 		if err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 		defer f.Close()
+ 
+@@ -400,10 +400,10 @@ func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
+ func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, copiedFiles map[string]bool) {
+ 	files, err := os.ReadDir(src)
+ 	if err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 	if err := os.MkdirAll(dst, 0777); err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 	for _, file := range files {
+ 		if file.IsDir() || !file.Type().IsRegular() || !match(src, file) {
+@@ -412,20 +412,20 @@ func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, cop
+ 		copiedFiles[file.Name()] = true
+ 		r, err := os.Open(filepath.Join(src, file.Name()))
+ 		if err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 		dstPath := filepath.Join(dst, file.Name())
+ 		copiedFiles[dstPath] = true
+ 		w, err := os.Create(dstPath)
+ 		if err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 		if _, err := io.Copy(w, r); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 		r.Close()
+ 		if err := w.Close(); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index 3bc6c5a140..4552ed1ba2 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -59,7 +59,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	mg, err := modload.LoadModGraph(ctx, "")
+ 	if err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 	mods := mg.BuildList()[modload.MainModules.Len():]
+ 	// Use a slice of result channels, so that the output is deterministic.
+diff --git a/src/cmd/go/internal/modcmd/why.go b/src/cmd/go/internal/modcmd/why.go
+index 729c88f3f1..198672d806 100644
+--- a/src/cmd/go/internal/modcmd/why.go
++++ b/src/cmd/go/internal/modcmd/why.go
+@@ -85,7 +85,7 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 		mods, err := modload.ListModules(ctx, args, 0, "")
+ 		if err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 
+ 		byModule := make(map[string][]string)
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 0eeb3bf190..42796866ad 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -47,7 +47,7 @@ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
+ 		return "", ErrToolchain
+ 	}
+ 	if err := checkCacheDir(ctx); err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	// The par.Cache here avoids duplicate work.
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 33b9d6b14f..0cf3c1dc84 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -391,7 +391,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 			// TODO(bcmills): modload.EditBuildList should catch this instead.
+ 			toolchain.TryVersion(ctx, tooNew.GoVersion)
+ 		}
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	newReqs := reqsFromGoMod(modload.ModFile())
+@@ -408,7 +408,7 @@ func parseArgs(ctx context.Context, rawArgs []string) (dropToolchain bool, queri
+ 	for _, arg := range search.CleanPatterns(rawArgs) {
+ 		q, err := newQuery(arg)
+ 		if err != nil {
+-			base.Errorf("go: %v", err)
++			base.Error(err)
+ 			continue
+ 		}
+ 
+@@ -495,7 +495,7 @@ func newResolver(ctx context.Context, queries []*query) *resolver {
+ 		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
+ 			toolchain.TryVersion(ctx, tooNew.GoVersion)
+ 		}
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	buildList := mg.BuildList()
+@@ -1332,7 +1332,7 @@ func (r *resolver) applyUpgrades(ctx context.Context, upgrades []pathSet) (chang
+ 	var tentative []module.Version
+ 	for _, cs := range upgrades {
+ 		if cs.err != nil {
+-			base.Errorf("go: %v", cs.err)
++			base.Error(cs.err)
+ 			continue
+ 		}
+ 
+@@ -1670,7 +1670,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
+ 	}
+ 	for _, err := range sumErrs {
+ 		if err != nil {
+-			base.Errorf("go: %v", err)
++			base.Error(err)
+ 		}
+ 	}
+ 	base.ExitIfErrors()
+@@ -1837,12 +1837,12 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
+ 	if err != nil {
+ 		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
+ 			toolchain.TryVersion(ctx, tooNew.GoVersion)
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 
+ 		var constraint *modload.ConstraintError
+ 		if !errors.As(err, &constraint) {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 
+ 		if cfg.BuildV {
+@@ -1886,7 +1886,7 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
+ 		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
+ 			toolchain.TryVersion(ctx, tooNew.GoVersion)
+ 		}
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	r.buildList = mg.BuildList()
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index b63ea48428..bb513ea938 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -105,7 +105,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
+ 	if !ok {
+ 		mg, err := rs.Graph(ctx)
+ 		if err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 		v = mg.Selected(path)
+ 	}
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index dd8e46eaad..d71962dd6b 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -197,7 +197,7 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
+ 				}
+ 			}
+ 			if inconsistent {
+-				base.Fatalf("go: %v", errGoModDirty)
++				base.Fatal(errGoModDirty)
+ 			}
+ 
+ 			// Now we can treat the rest of the module graph as effectively “pruned
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index e1d251204d..737aaa9106 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -399,7 +399,7 @@ func Init() {
+ 	}
+ 
+ 	if err := fsys.Init(base.Cwd()); err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	// Disable any prompting for passwords by Git.
+@@ -451,7 +451,7 @@ func Init() {
+ 				base.Fatalf("go: cannot find main module, but -modfile was set.\n\t-modfile cannot be used to set the module root directory.")
+ 			}
+ 			if RootMode == NeedRoot {
+-				base.Fatalf("go: %v", ErrNoModRoot)
++				base.Fatal(ErrNoModRoot)
+ 			}
+ 			if !mustUseModules {
+ 				// GO111MODULE is 'auto', and we can't find a module root.
+@@ -618,7 +618,7 @@ func die() {
+ 		}
+ 		base.Fatalf("go: cannot find main module, but found %s in %s\n\tto create a module there, run:\n\t%sgo mod init", name, dir, cdCmd)
+ 	}
+-	base.Fatalf("go: %v", ErrNoModRoot)
++	base.Fatal(ErrNoModRoot)
+ }
+ 
+ var ErrNoModRoot = errors.New("go.mod file not found in current directory or any parent directory; see 'go help modules'")
+@@ -672,7 +672,7 @@ func ReadWorkFile(path string) (*modfile.WorkFile, error) {
+ 		return nil, err
+ 	}
+ 	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 && cfg.CmdName != "work edit" {
+-		base.Fatalf("go: %v", &gover.TooNewError{What: base.ShortPath(path), GoVersion: f.Go.Version})
++		base.Fatal(&gover.TooNewError{What: base.ShortPath(path), GoVersion: f.Go.Version})
+ 	}
+ 	return f, nil
+ }
+@@ -855,7 +855,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
+ 		var err error
+ 		rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
+ 		if err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 	}
+ 
+@@ -880,7 +880,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
+ 				var err error
+ 				rs, err = convertPruning(ctx, rs, pruned)
+ 				if err != nil {
+-					base.Fatalf("go: %v", err)
++					base.Fatal(err)
+ 				}
+ 			}
+ 		} else {
+@@ -914,7 +914,7 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 		var err error
+ 		modPath, err = findModulePath(modRoot)
+ 		if err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 	} else if err := module.CheckImportPath(modPath); err != nil {
+ 		if pathErr, ok := err.(*module.InvalidPathError); ok {
+@@ -925,7 +925,7 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 				pathErr.Err = errors.New("is a local import path")
+ 			}
+ 		}
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	} else if _, _, ok := module.SplitPathVersion(modPath); !ok {
+ 		if strings.HasPrefix(modPath, "gopkg.in/") {
+ 			invalidMajorVersionMsg := fmt.Errorf("module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN:\n\tgo mod init %s", suggestGopkgIn(modPath))
+@@ -946,17 +946,17 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 		fmt.Fprintf(os.Stderr, "go: copying requirements from %s\n", base.ShortPath(convertedFrom))
+ 	}
+ 	if err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	rs := requirementsFromModFiles(ctx, nil, []*modfile.File{modFile}, nil)
+ 	rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
+ 	if err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 	requirements = rs
+ 	if err := commitRequirements(ctx, WriteOpts{}); err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	// Suggest running 'go mod tidy' unless the project is empty. Even if we
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 8f1eb1098b..0a06b1b125 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -430,7 +430,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 			// preserve checksums for) additional entities from compatRS, which are
+ 			// only needed for compatibility with ld.TidyCompatibleVersion.
+ 			if err := modfetch.WriteGoSum(ctx, keep, mustHaveCompleteRequirements()); err != nil {
+-				base.Fatalf("go: %v", err)
++				base.Fatal(err)
+ 			}
+ 		}
+ 	}
+@@ -451,7 +451,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 
+ 	if !ExplicitWriteGoMod && opts.ResolveMissingImports {
+ 		if err := commitRequirements(ctx, WriteOpts{}); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 	}
+ 
+@@ -714,7 +714,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
+ 	tags := imports.Tags()
+ 	imports, testImports, err := imports.ScanFiles(gofiles, tags)
+ 	if err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	loaded = loadFromRoots(ctx, loaderParams{
+@@ -734,7 +734,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
+ 
+ 	if !ExplicitWriteGoMod {
+ 		if err := commitRequirements(ctx, WriteOpts{}); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/internal/modload/vendor.go b/src/cmd/go/internal/modload/vendor.go
+index 4bc0dd5725..ffc79bb93f 100644
+--- a/src/cmd/go/internal/modload/vendor.go
++++ b/src/cmd/go/internal/modload/vendor.go
+@@ -112,7 +112,7 @@ func readVendorList(mainModule module.Version) {
+ 						meta.GoVersion = goVersion
+ 						rawGoVersion.Store(mod, meta.GoVersion)
+ 						if gover.Compare(goVersion, gover.Local()) > 0 {
+-							base.Fatalf("go: %v", &gover.TooNewError{What: mod.Path + " in " + base.ShortPath(vendorFile), GoVersion: goVersion})
++							base.Fatal(&gover.TooNewError{What: mod.Path + " in " + base.ShortPath(vendorFile), GoVersion: goVersion})
+ 						}
+ 					}
+ 					// All other tokens are reserved for future use.
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 137ee1d633..4a3dcf0f1a 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -97,7 +97,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 	b := work.NewBuilder("")
+ 	defer func() {
+ 		if err := b.Close(); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 	}()
+ 	b.Print = printStderr
+@@ -125,7 +125,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 			var err error
+ 			pkgs, err = load.PackagesAndErrorsOutsideModule(ctx, pkgOpts, args[:1])
+ 			if err != nil {
+-				base.Fatalf("go: %v", err)
++				base.Fatal(err)
+ 			}
+ 		} else {
+ 			pkgs = load.PackagesAndErrors(ctx, pkgOpts, args[:1])
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 95391c58c7..cb8cb83701 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -840,7 +840,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 	b := work.NewBuilder("")
+ 	defer func() {
+ 		if err := b.Close(); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 	}()
+ 
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index c73fa5b424..f59994c7c9 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -98,7 +98,7 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
+ 	b := work.NewBuilder("")
+ 	defer func() {
+ 		if err := b.Close(); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 	}()
+ 
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index de59c09d1a..0fc85da006 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -344,7 +344,7 @@ func closeBuilders() {
+ 	builderWorkDirs.Range(func(bi, _ any) bool {
+ 		leakedBuilders++
+ 		if err := bi.(*Builder).Close(); err != nil {
+-			base.Errorf("go: %v", err)
++			base.Error(err)
+ 		}
+ 		return true
+ 	})
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 552cc2a6d4..e39e499930 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -459,7 +459,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 	b := NewBuilder("")
+ 	defer func() {
+ 		if err := b.Close(); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 	}()
+ 
+@@ -779,7 +779,7 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
+ 	b := NewBuilder("")
+ 	defer func() {
+ 		if err := b.Close(); err != nil {
+-			base.Fatalf("go: %v", err)
++			base.Fatal(err)
+ 		}
+ 	}()
+ 
+@@ -867,7 +867,7 @@ func installOutsideModule(ctx context.Context, args []string) {
+ 	pkgOpts := load.PackageOpts{MainOnly: true}
+ 	pkgs, err := load.PackagesAndErrorsOutsideModule(ctx, pkgOpts, args)
+ 	if err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 	load.CheckPackageErrors(pkgs)
+ 	patterns := make([]string, len(args))
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 0750351133..29116cb90c 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -37,7 +37,7 @@ func BuildInit() {
+ 	instrumentInit()
+ 	buildModeInit()
+ 	if err := fsys.Init(base.Cwd()); err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 
+ 	// Make sure -pkgdir is absolute, because we run commands
+diff --git a/src/cmd/go/internal/workcmd/sync.go b/src/cmd/go/internal/workcmd/sync.go
+index 1d57a36dbc..2bf76caae5 100644
+--- a/src/cmd/go/internal/workcmd/sync.go
++++ b/src/cmd/go/internal/workcmd/sync.go
+@@ -58,7 +58,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
+ 	workGraph, err := modload.LoadModGraph(ctx, "")
+ 	if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
+ 		toolchain.TryVersion(ctx, tooNew.GoVersion)
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 	_ = workGraph
+ 	mustSelectFor := map[module.Version][]module.Version{}
+@@ -133,10 +133,10 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	wf, err := modload.ReadWorkFile(workFilePath)
+ 	if err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 	modload.UpdateWorkFile(wf)
+ 	if err := modload.WriteWorkFile(workFilePath, wf); err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ }
+diff --git a/src/cmd/go/internal/workcmd/use.go b/src/cmd/go/internal/workcmd/use.go
+index 71f38e2e30..327028e1d6 100644
+--- a/src/cmd/go/internal/workcmd/use.go
++++ b/src/cmd/go/internal/workcmd/use.go
+@@ -59,7 +59,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 	workFile, err := modload.ReadWorkFile(gowork)
+ 	if err != nil {
+-		base.Fatalf("go: %v", err)
++		base.Fatal(err)
+ 	}
+ 	workDir := filepath.Dir(gowork) // Absolute, since gowork itself is absolute.
+ 
+@@ -90,7 +90,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 			if os.IsNotExist(err) {
+ 				keepDirs[absDir] = ""
+ 			} else {
+-				base.Errorf("go: %v", err)
++				base.Error(err)
+ 			}
+ 			return
+ 		}
+@@ -117,7 +117,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 			if os.IsNotExist(err) {
+ 				base.Errorf("go: directory %v does not exist", absArg)
+ 			} else {
+-				base.Errorf("go: %v", err)
++				base.Error(err)
+ 			}
+ 			continue
+ 		} else if !info.IsDir() {
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 03ac15a37d..af13f01240 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -200,7 +200,7 @@ func invoke(cmd *base.Command, args []string) {
+ 	if cmd != envcmd.CmdEnv {
+ 		buildcfg.Check()
+ 		if cfg.ExperimentErr != nil {
+-			base.Fatalf("go: %v", cfg.ExperimentErr)
++			base.Fatal(cfg.ExperimentErr)
+ 		}
+ 	}
+ 

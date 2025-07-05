@@ -10,7 +10,65 @@ Date:   Thu Dec 13 15:23:35 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/c/154120
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/multipart/writer.go      |  8 +++++++-
  src/mime/multipart/writer_test.go | 13 +++++++++++++
  2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/mime/multipart/writer.go b/src/mime/multipart/writer.go
+index 3dd0c8fb13..d1ff151a7d 100644
+--- a/src/mime/multipart/writer.go
++++ b/src/mime/multipart/writer.go
+@@ -72,7 +72,13 @@ func (w *Writer) SetBoundary(boundary string) error {
+ // FormDataContentType returns the Content-Type for an HTTP
+ // multipart/form-data with this Writer's Boundary.
+ func (w *Writer) FormDataContentType() string {
+-	return "multipart/form-data; boundary=" + w.boundary
++	b := w.boundary
++	// We must quote the boundary if it contains any of the
++	// tspecials characters defined by RFC 2045, or space.
++	if strings.ContainsAny(b, `()<>@,;:\"/[]?= `) {
++		b = `"` + b + `"`
++	}
++	return "multipart/form-data; boundary=" + b
+ }
+ 
+ func randomBoundary() string {
+diff --git a/src/mime/multipart/writer_test.go b/src/mime/multipart/writer_test.go
+index 8b1bcd68d8..b89b093fff 100644
+--- a/src/mime/multipart/writer_test.go
++++ b/src/mime/multipart/writer_test.go
+@@ -7,6 +7,7 @@ package multipart
+ import (
+ 	"bytes"
+ 	"io/ioutil"
++	"mime"
+ 	"net/textproto"
+ 	"strings"
+ 	"testing"
+@@ -94,6 +95,7 @@ func TestWriterSetBoundary(t *testing.T) {
+ 		{"my-separator", true},
+ 		{"with space", true},
+ 		{"badspace ", false},
++		{"(boundary)", true},
+ 	}
+ 	for i, tt := range tests {
+ 		var b bytes.Buffer
+@@ -107,6 +109,17 @@ func TestWriterSetBoundary(t *testing.T) {
+ 			if got != tt.b {
+ 				t.Errorf("boundary = %q; want %q", got, tt.b)
+ 			}
++
++			ct := w.FormDataContentType()
++			mt, params, err := mime.ParseMediaType(ct)
++			if err != nil {
++				t.Errorf("could not parse Content-Type %q: %v", ct, err)
++			} else if mt != "multipart/form-data" {
++				t.Errorf("unexpected media type %q; want %q", mt, "multipart/form-data")
++			} else if b := params["boundary"]; b != tt.b {
++				t.Errorf("unexpected boundary parameter %q; want %q", b, tt.b)
++			}
++
+ 			w.Close()
+ 			wantSub := "\r\n--" + tt.b + "--\r\n"
+ 			if got := b.String(); !strings.Contains(got, wantSub) {

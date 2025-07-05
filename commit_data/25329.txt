@@ -18,7 +18,7 @@ Date:   Tue Oct 20 00:35:12 2015 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go |  2 +-
  src/runtime/env_plan9.go          |  4 ++--
  src/runtime/env_posix.go          |  3 +--
@@ -29,3 +29,184 @@ Date:   Tue Oct 20 00:35:12 2015 -0700
  src/runtime/slice.go              |  2 +-
  src/runtime/string.go             | 18 ++++++++++++++----
  9 files changed, 26 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index dcfd6a8e34..40b11b7917 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1187,7 +1187,7 @@ func substitutetype(structdie *DWDie, field string, dwtype *DWDie) {
+ }
+ 
+ func synthesizestringtypes(die *DWDie) {
+-	prototype := walktypedef(defgotype(lookup_or_diag("type.runtime._string")))
++	prototype := walktypedef(defgotype(lookup_or_diag("type.runtime.stringStructDWARF")))
+ 	if prototype == nil {
+ 		return
+ 	}
+diff --git a/src/runtime/env_plan9.go b/src/runtime/env_plan9.go
+index 0e2588b523..2daba0c97e 100644
+--- a/src/runtime/env_plan9.go
++++ b/src/runtime/env_plan9.go
+@@ -40,8 +40,8 @@ func gogetenv(key string) string {
+ 	}
+ 
+ 	var s string
+-	sp := (*_string)(unsafe.Pointer(&s))
+-	sp.str = &p[0]
++	sp := stringStructOf(&s)
++	sp.str = unsafe.Pointer(&p[0])
+ 	sp.len = int(r)
+ 	return s
+ }
+diff --git a/src/runtime/env_posix.go b/src/runtime/env_posix.go
+index 5e49287421..c3b06f713a 100644
+--- a/src/runtime/env_posix.go
++++ b/src/runtime/env_posix.go
+@@ -48,7 +48,6 @@ func syscall_unsetenv_c(k string) {
+ 
+ func cstring(s string) unsafe.Pointer {
+ 	p := make([]byte, len(s)+1)
+-	sp := (*_string)(unsafe.Pointer(&s))
+-	memmove(unsafe.Pointer(&p[0]), unsafe.Pointer(sp.str), uintptr(len(s)))
++	copy(p, s)
+ 	return unsafe.Pointer(&p[0])
+ }
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/hashmap_fast.go
+index f9d7846d7e..de9b267fde 100644
+--- a/src/runtime/hashmap_fast.go
++++ b/src/runtime/hashmap_fast.go
+@@ -184,7 +184,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 	if h == nil || h.count == 0 {
+ 		return atomicloadp(unsafe.Pointer(&zeroptr))
+ 	}
+-	key := (*stringStruct)(unsafe.Pointer(&ky))
++	key := stringStructOf(&ky)
+ 	if h.B == 0 {
+ 		// One-bucket table.
+ 		b := (*bmap)(h.buckets)
+@@ -286,7 +286,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 	if h == nil || h.count == 0 {
+ 		return atomicloadp(unsafe.Pointer(&zeroptr)), false
+ 	}
+-	key := (*stringStruct)(unsafe.Pointer(&ky))
++	key := stringStructOf(&ky)
+ 	if h.B == 0 {
+ 		// One-bucket table.
+ 		b := (*bmap)(h.buckets)
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 48205ea163..96aca9c1b7 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -142,7 +142,7 @@ func dumpslice(b []byte) {
+ }
+ 
+ func dumpstr(s string) {
+-	sp := (*stringStruct)(unsafe.Pointer(&s))
++	sp := stringStructOf(&s)
+ 	dumpmemrange(sp.str, uintptr(sp.len))
+ }
+ 
+@@ -183,8 +183,8 @@ func dumptype(t *_type) {
+ 	if t.x == nil || t.x.pkgpath == nil || t.x.name == nil {
+ 		dumpstr(*t._string)
+ 	} else {
+-		pkgpath := (*stringStruct)(unsafe.Pointer(&t.x.pkgpath))
+-		name := (*stringStruct)(unsafe.Pointer(&t.x.name))
++		pkgpath := stringStructOf(t.x.pkgpath)
++		name := stringStructOf(t.x.name)
+ 		dumpint(uint64(uintptr(pkgpath.len) + 1 + uintptr(name.len)))
+ 		dwrite(pkgpath.str, uintptr(pkgpath.len))
+ 		dwritebyte('.')
+diff --git a/src/runtime/print.go b/src/runtime/print.go
+index 6eff38168d..841e684eca 100644
+--- a/src/runtime/print.go
++++ b/src/runtime/print.go
+@@ -12,8 +12,8 @@ type hex uint64
+ 
+ func bytes(s string) (ret []byte) {
+ 	rp := (*slice)(unsafe.Pointer(&ret))
+-	sp := (*_string)(noescape(unsafe.Pointer(&s)))
+-	rp.array = unsafe.Pointer(sp.str)
++	sp := stringStructOf(&s)
++	rp.array = sp.str
+ 	rp.len = sp.len
+ 	rp.cap = sp.len
+ 	return
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index d95a183f99..97d5ed2752 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -67,11 +67,6 @@ type note struct {
+ 	key uintptr
+ }
+ 
+-type _string struct {
+-	str *byte
+-	len int
+-}
+-
+ type funcval struct {
+ 	fn uintptr
+ 	// variable-size, fn-specific data here
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 5cda11d9b0..b316cdd7b3 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -154,6 +154,6 @@ func slicestringcopy(to []byte, fm string) int {
+ 		racewriterangepc(unsafe.Pointer(&to[0]), uintptr(n), callerpc, pc)
+ 	}
+ 
+-	memmove(unsafe.Pointer(&to[0]), unsafe.Pointer((*stringStruct)(unsafe.Pointer(&fm)).str), uintptr(n))
++	memmove(unsafe.Pointer(&to[0]), unsafe.Pointer(stringStructOf(&fm).str), uintptr(n))
+ 	return n
+ }
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 0b31173b30..680001d8df 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -94,7 +94,7 @@ func slicebytetostring(buf *tmpBuf, b []byte) string {
+ // stringDataOnStack reports whether the string's data is
+ // stored on the current goroutine's stack.
+ func stringDataOnStack(s string) bool {
+-	ptr := uintptr((*stringStruct)(unsafe.Pointer(&s)).str)
++	ptr := uintptr(stringStructOf(&s).str)
+ 	stk := getg().stack
+ 	return stk.lo <= ptr && ptr < stk.hi
+ }
+@@ -147,7 +147,7 @@ func stringtoslicebytetmp(s string) []byte {
+ 	// The only such case today is:
+ 	// for i, c := range []byte(str)
+ 
+-	str := (*stringStruct)(unsafe.Pointer(&s))
++	str := stringStructOf(&s)
+ 	ret := slice{array: unsafe.Pointer(str.str), len: str.len, cap: str.len}
+ 	return *(*[]byte)(unsafe.Pointer(&ret))
+ }
+@@ -207,6 +207,16 @@ type stringStruct struct {
+ 	len int
+ }
+ 
++// Variant with *byte pointer type for DWARF debugging.
++type stringStructDWARF struct {
++	str *byte
++	len int
++}
++
++func stringStructOf(sp *string) *stringStruct {
++	return (*stringStruct)(unsafe.Pointer(sp))
++}
++
+ func intstring(buf *[4]byte, v int64) string {
+ 	var s string
+ 	var b []byte
+@@ -263,8 +273,8 @@ func stringiter2(s string, k int) (int, rune) {
+ func rawstring(size int) (s string, b []byte) {
+ 	p := mallocgc(uintptr(size), nil, flagNoScan|flagNoZero)
+ 
+-	(*stringStruct)(unsafe.Pointer(&s)).str = p
+-	(*stringStruct)(unsafe.Pointer(&s)).len = size
++	stringStructOf(&s).str = p
++	stringStructOf(&s).len = size
+ 
+ 	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, size}
+ 

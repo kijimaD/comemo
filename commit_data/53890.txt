@@ -13,7 +13,103 @@ Date:   Sun Aug 28 06:11:43 2022 +1000
     Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules | 12 +++++--
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 44 ++++++++++++++++++++++++++
  2 files changed, 53 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 385f004b22..fd5bfd36c6 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -609,7 +609,7 @@
+ (BNEZ (SEQZ x) yes no) => (BEQZ x yes no)
+ (BNEZ (SNEZ x) yes no) => (BNEZ x yes no)
+ 
+-// Absorb NEG into branch.
++// Remove redundant NEG from BEQZ/BNEZ.
+ (BEQZ (NEG x) yes no) => (BEQZ x yes no)
+ (BNEZ (NEG x) yes no) => (BNEZ x yes no)
+ 
+@@ -637,11 +637,17 @@
+ (BGE (MOVDconst [0]) cond yes no) => (BLEZ cond yes no)
+ (BGE cond (MOVDconst [0]) yes no) => (BGEZ cond yes no)
+ 
+-// Remove NEG when used with SEQZ/SNEZ.
++// Remove redundant NEG from SEQZ/SNEZ.
+ (SEQZ (NEG x)) => (SEQZ x)
+ (SNEZ (NEG x)) => (SNEZ x)
+ 
+-// Store zero
++// Remove redundant SEQZ/SNEZ.
++(SEQZ (SEQZ x)) => (SNEZ x)
++(SEQZ (SNEZ x)) => (SEQZ x)
++(SNEZ (SEQZ x)) => (SEQZ x)
++(SNEZ (SNEZ x)) => (SNEZ x)
++
++// Store zero.
+ (MOVBstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
+ (MOVHstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVHstorezero [off] {sym} ptr mem)
+ (MOVWstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVWstorezero [off] {sym} ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index ac0770639e..66b729f046 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -5350,6 +5350,28 @@ func rewriteValueRISCV64_OpRISCV64SEQZ(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SEQZ (SEQZ x))
++	// result: (SNEZ x)
++	for {
++		if v_0.Op != OpRISCV64SEQZ {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpRISCV64SNEZ)
++		v.AddArg(x)
++		return true
++	}
++	// match: (SEQZ (SNEZ x))
++	// result: (SEQZ x)
++	for {
++		if v_0.Op != OpRISCV64SNEZ {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpRISCV64SEQZ)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueRISCV64_OpRISCV64SLL(v *Value) bool {
+@@ -5467,6 +5489,28 @@ func rewriteValueRISCV64_OpRISCV64SNEZ(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SNEZ (SEQZ x))
++	// result: (SEQZ x)
++	for {
++		if v_0.Op != OpRISCV64SEQZ {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpRISCV64SEQZ)
++		v.AddArg(x)
++		return true
++	}
++	// match: (SNEZ (SNEZ x))
++	// result: (SNEZ x)
++	for {
++		if v_0.Op != OpRISCV64SNEZ {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpRISCV64SNEZ)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueRISCV64_OpRISCV64SRA(v *Value) bool {

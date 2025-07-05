@@ -16,7 +16,7 @@ Date:   Wed May 15 20:49:39 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/zip/zip_test.go                     |  5 ++--
  src/cmd/dist/test.go                            | 17 ++++++++---
  src/cmd/go/internal/cache/cache_test.go         |  2 +-
@@ -59,3 +59,882 @@ Date:   Wed May 15 20:49:39 2019 -0400
  src/testing/quick/quick_test.go                 |  2 +-
  src/text/template/exec_test.go                  |  3 ++
  41 files changed, 207 insertions(+), 77 deletions(-)
+
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index efdb5bd044..b3a7caac7f 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"hash"
+-	"internal/race"
+ 	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
+@@ -309,7 +308,7 @@ func TestZip64EdgeCase(t *testing.T) {
+ // Tests that we generate a zip64 file if the directory at offset
+ // 0xFFFFFFFF, but not before.
+ func TestZip64DirectoryOffset(t *testing.T) {
+-	if testing.Short() && race.Enabled {
++	if testing.Short() {
+ 		t.Skip("skipping in short mode")
+ 	}
+ 	t.Parallel()
+@@ -354,7 +353,7 @@ func TestZip64DirectoryOffset(t *testing.T) {
+ 
+ // At 16k records, we need to generate a zip64 file.
+ func TestZip64ManyRecords(t *testing.T) {
+-	if testing.Short() && race.Enabled {
++	if testing.Short() {
+ 		t.Skip("skipping in short mode")
+ 	}
+ 	t.Parallel()
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 56ab64b8cf..833baf8f91 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -551,7 +551,9 @@ func (t *tester) registerTests() {
+ 			name:    "nolibgcc:" + pkg,
+ 			heading: "Testing without libgcc.",
+ 			fn: func(dt *distTest) error {
+-				t.addCmd(dt, "src", t.goTest(), "-ldflags=-linkmode=internal -libgcc=none", pkg, t.runFlag(run))
++				// What matters is that the tests build and start up.
++				// Skip expensive tests, especially x509 TestSystemRoots.
++				t.addCmd(dt, "src", t.goTest(), "-ldflags=-linkmode=internal -libgcc=none", "-run=^Test[^CS]", pkg, t.runFlag(run))
+ 				return nil
+ 			},
+ 		})
+@@ -693,7 +695,10 @@ func (t *tester) registerTests() {
+ 	}
+ 
+ 	if goos != "android" && !t.iOS() {
+-		t.registerTest("bench_go1", "../test/bench/go1", t.goTest(), t.timeout(600))
++		// There are no tests in this directory, only benchmarks.
++		// Check that the test binary builds but don't bother running it.
++		// (It has init-time work to set up for the benchmarks that is not worth doing unnecessarily.)
++		t.registerTest("bench_go1", "../test/bench/go1", t.goTest(), "-c", "-o="+os.DevNull)
+ 	}
+ 	if goos != "android" && !t.iOS() {
+ 		// Only start multiple test dir shards on builders,
+@@ -1292,8 +1297,12 @@ func (t *tester) raceTest(dt *distTest) error {
+ 	// TODO(iant): Figure out how to catch this.
+ 	// t.addCmd(dt, "src", t.goTest(),  "-race", "-run=TestParallelTest", "cmd/go")
+ 	if t.cgoEnabled {
+-		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-race")
+-		cmd.Env = append(os.Environ(), "GOTRACEBACK=2")
++		// Building misc/cgo/test takes a long time.
++		// There are already cgo-enabled packages being tested with the race detector.
++		// We shouldn't need to redo all of misc/cgo/test too.
++		// The race buildler will take care of this.
++		// cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-race")
++		// cmd.Env = append(os.Environ(), "GOTRACEBACK=2")
+ 	}
+ 	if t.extLink() {
+ 		// Test with external linking; see issue 9133.
+diff --git a/src/cmd/go/internal/cache/cache_test.go b/src/cmd/go/internal/cache/cache_test.go
+index 7229bc4cec..1988c34502 100644
+--- a/src/cmd/go/internal/cache/cache_test.go
++++ b/src/cmd/go/internal/cache/cache_test.go
+@@ -78,7 +78,7 @@ func TestGrowth(t *testing.T) {
+ 
+ 	n := 10000
+ 	if testing.Short() {
+-		n = 1000
++		n = 10
+ 	}
+ 
+ 	for i := 0; i < n; i++ {
+diff --git a/src/cmd/internal/obj/x86/pcrelative_test.go b/src/cmd/internal/obj/x86/pcrelative_test.go
+index 51b60cf93e..487a65d8dc 100644
+--- a/src/cmd/internal/obj/x86/pcrelative_test.go
++++ b/src/cmd/internal/obj/x86/pcrelative_test.go
+@@ -96,6 +96,9 @@ LOOP:
+ 		for idx := len(data) - 1; idx >= 0; idx-- {
+ 			// check that RET wasn't overwritten.
+ 			if bytes.Index(data[idx], []byte("RET")) != -1 {
++				if testing.Short() {
++					break LOOP
++				}
+ 				continue LOOP
+ 			}
+ 		}
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index 235db39dda..e52e26af49 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -165,8 +165,10 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 
+ func TestDWARF(t *testing.T) {
+ 	testDWARF(t, "", true)
+-	if runtime.GOOS == "darwin" {
+-		testDWARF(t, "c-archive", true)
++	if runtime.GOOS == "darwin" && !testing.Short() {
++		t.Run("c-archive", func(t *testing.T) {
++			testDWARF(t, "c-archive", true)
++		})
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index a783bddc50..29b98e9c32 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -170,7 +170,7 @@ main.x: relocation target main.zero not defined
+ 	}
+ }
+ 
+-func TestBuildFortvOS(t *testing.T) {
++func TestBuildForTvOS(t *testing.T) {
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveGoBuild(t)
+ 
+@@ -178,6 +178,9 @@ func TestBuildFortvOS(t *testing.T) {
+ 	if runtime.GOARCH != "amd64" || runtime.GOOS != "darwin" {
+ 		t.Skip("skipping on non-darwin/amd64 platform")
+ 	}
++	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
++		t.Skip("skipping in -short mode with $GO_BUILDER_NAME empty")
++	}
+ 	if err := exec.Command("xcrun", "--help").Run(); err != nil {
+ 		t.Skipf("error running xcrun, required for iOS cross build: %v", err)
+ 	}
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index b2217c090f..6121bf08c0 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -231,6 +231,9 @@ func TestHello(t *testing.T) {
+ 
+ // Test that pack works with very long lines in PKGDEF.
+ func TestLargeDefs(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in -short mode")
++	}
+ 	testenv.MustHaveGoBuild(t)
+ 
+ 	dir := tmpDir(t)
+diff --git a/src/compress/flate/deflate_test.go b/src/compress/flate/deflate_test.go
+index 079c03c283..4b1ed549a4 100644
+--- a/src/compress/flate/deflate_test.go
++++ b/src/compress/flate/deflate_test.go
+@@ -345,6 +345,9 @@ func testToFromWithLimit(t *testing.T, input []byte, name string, limit [11]int)
+ func TestDeflateInflate(t *testing.T) {
+ 	t.Parallel()
+ 	for i, h := range deflateInflateTests {
++		if testing.Short() && len(h.in) > 10000 {
++			continue
++		}
+ 		testToFromWithLimit(t, h.in, fmt.Sprintf("#%d", i), [11]int{})
+ 	}
+ }
+@@ -591,6 +594,9 @@ func TestBestSpeed(t *testing.T) {
+ 	}
+ 
+ 	for i, tc := range testCases {
++		if i >= 3 && testing.Short() {
++			break
++		}
+ 		for _, firstN := range []int{1, 65534, 65535, 65536, 65537, 131072} {
+ 			tc[0] = firstN
+ 		outer:
+diff --git a/src/container/ring/ring_test.go b/src/container/ring/ring_test.go
+index 552f0e24b5..41d18abf8b 100644
+--- a/src/container/ring/ring_test.go
++++ b/src/container/ring/ring_test.go
+@@ -179,7 +179,7 @@ func TestLink2(t *testing.T) {
+ func TestLink3(t *testing.T) {
+ 	var r Ring
+ 	n := 1
+-	for i := 1; i < 100; i++ {
++	for i := 1; i < 10; i++ {
+ 		n += i
+ 		verify(t, r.Link(New(i)), n, -1)
+ 	}
+diff --git a/src/crypto/cipher/xor_test.go b/src/crypto/cipher/xor_test.go
+index d49f1da77c..40d4e5afa3 100644
+--- a/src/crypto/cipher/xor_test.go
++++ b/src/crypto/cipher/xor_test.go
+@@ -20,6 +20,9 @@ func TestXOR(t *testing.T) {
+ 		testenv.SkipFlaky(t, 31812)
+ 	}
+ 	for j := 1; j <= 1024; j++ {
++		if testing.Short() && j > 16 {
++			break
++		}
+ 		for alignP := 0; alignP < 2; alignP++ {
+ 			for alignQ := 0; alignQ < 2; alignQ++ {
+ 				for alignD := 0; alignD < 2; alignD++ {
+diff --git a/src/crypto/elliptic/fuzz_test.go b/src/crypto/elliptic/fuzz_test.go
+index 10196cf0bc..eaeed0dacc 100644
+--- a/src/crypto/elliptic/fuzz_test.go
++++ b/src/crypto/elliptic/fuzz_test.go
+@@ -22,7 +22,7 @@ func TestFuzz(t *testing.T) {
+ 	var timeout *time.Timer
+ 
+ 	if testing.Short() {
+-		timeout = time.NewTimer(500 * time.Millisecond)
++		timeout = time.NewTimer(10 * time.Millisecond)
+ 	} else {
+ 		timeout = time.NewTimer(2 * time.Second)
+ 	}
+diff --git a/src/crypto/rand/util_test.go b/src/crypto/rand/util_test.go
+index 685624e1b3..e76ce2018a 100644
+--- a/src/crypto/rand/util_test.go
++++ b/src/crypto/rand/util_test.go
+@@ -84,6 +84,9 @@ func TestIntMask(t *testing.T) {
+ 	for max := 1; max <= 256; max++ {
+ 		t.Run(fmt.Sprintf("max=%d", max), func(t *testing.T) {
+ 			for i := 0; i < max; i++ {
++				if testing.Short() && i == 0 {
++					i = max - 1
++				}
+ 				var b bytes.Buffer
+ 				b.WriteByte(byte(i))
+ 				n, err := rand.Int(&b, big.NewInt(int64(max)))
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 40311b0a66..a27f107ba7 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -880,6 +880,9 @@ func TestResumption(t *testing.T) {
+ }
+ 
+ func testResumption(t *testing.T, version uint16) {
++	if testing.Short() {
++		t.Skip("skipping in -short mode")
++	}
+ 	serverConfig := &Config{
+ 		MaxVersion:   version,
+ 		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
+@@ -1727,6 +1730,9 @@ func TestAlertFlushing(t *testing.T) {
+ }
+ 
+ func TestHandshakeRace(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in -short mode")
++	}
+ 	t.Parallel()
+ 	// This test races a Read and Write to try and complete a handshake in
+ 	// order to provide some evidence that there are no races or deadlocks
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 833497d275..171509f7c4 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -1243,6 +1243,9 @@ func TestParsePEMCRL(t *testing.T) {
+ }
+ 
+ func TestImports(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in -short mode")
++	}
+ 	testenv.MustHaveGoRun(t)
+ 
+ 	if out, err := exec.Command(testenv.GoToolPath(t), "run", "x509_test_import.go").CombinedOutput(); err != nil {
+diff --git a/src/debug/gosym/pclntab_test.go b/src/debug/gosym/pclntab_test.go
+index ef644f8454..6baa53defd 100644
+--- a/src/debug/gosym/pclntab_test.go
++++ b/src/debug/gosym/pclntab_test.go
+@@ -196,6 +196,9 @@ func TestLineAline(t *testing.T) {
+ }
+ 
+ func TestPCLine(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in -short mode")
++	}
+ 	dotest(t)
+ 	defer endtest()
+ 
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index cd5eadf3c1..bdf2a9f079 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -580,6 +580,9 @@ func TestStringBytes(t *testing.T) {
+ 	// Test that encodeState.stringBytes and encodeState.string use the same encoding.
+ 	var r []rune
+ 	for i := '\u0000'; i <= unicode.MaxRune; i++ {
++		if testing.Short() && i > 1000 {
++			i = unicode.MaxRune
++		}
+ 		r = append(r, i)
+ 	}
+ 	s := string(r) + "\xff\xff\xffhello" // some invalid UTF-8 too
+@@ -864,6 +867,9 @@ func TestMarshalFloat(t *testing.T) {
+ 
+ 	var digits = "1.2345678901234567890123"
+ 	for i := len(digits); i >= 2; i-- {
++		if testing.Short() && i < len(digits)-4 {
++			break
++		}
+ 		for exp := -30; exp <= 30; exp++ {
+ 			for _, sign := range "+-" {
+ 				for bits := 32; bits <= 64; bits += 32 {
+diff --git a/src/go/internal/srcimporter/srcimporter_test.go b/src/go/internal/srcimporter/srcimporter_test.go
+index 087f97461e..56549434d1 100644
+--- a/src/go/internal/srcimporter/srcimporter_test.go
++++ b/src/go/internal/srcimporter/srcimporter_test.go
+@@ -81,10 +81,10 @@ func TestImportStdLib(t *testing.T) {
+ 		t.Skip("no source code available")
+ 	}
+ 
+-	dt := maxTime
+ 	if testing.Short() && testenv.Builder() == "" {
+-		dt = 500 * time.Millisecond
++		t.Skip("skipping in -short mode")
+ 	}
++	dt := maxTime
+ 	nimports, _ := walkDir(t, "", time.Now().Add(dt)) // installed packages
+ 	t.Logf("tested %d imports", nimports)
+ }
+diff --git a/src/internal/trace/gc_test.go b/src/internal/trace/gc_test.go
+index da1cb90f5c..4f9c77041a 100644
+--- a/src/internal/trace/gc_test.go
++++ b/src/internal/trace/gc_test.go
+@@ -79,6 +79,10 @@ func TestMMU(t *testing.T) {
+ func TestMMUTrace(t *testing.T) {
+ 	// Can't be t.Parallel() because it modifies the
+ 	// testingOneBand package variable.
++	if testing.Short() {
++		// test input too big for all.bash
++		t.Skip("skipping in -short mode")
++	}
+ 
+ 	data, err := ioutil.ReadFile("testdata/stress_1_10_good")
+ 	if err != nil {
+diff --git a/src/internal/trace/parser_test.go b/src/internal/trace/parser_test.go
+index c9afa68c3c..6d87970157 100644
+--- a/src/internal/trace/parser_test.go
++++ b/src/internal/trace/parser_test.go
+@@ -7,6 +7,7 @@ package trace
+ import (
+ 	"bytes"
+ 	"io/ioutil"
++	"os"
+ 	"path/filepath"
+ 	"strings"
+ 	"testing"
+@@ -38,9 +39,17 @@ func TestParseCanned(t *testing.T) {
+ 		t.Fatalf("failed to read ./testdata: %v", err)
+ 	}
+ 	for _, f := range files {
+-		data, err := ioutil.ReadFile(filepath.Join("./testdata", f.Name()))
++		name := filepath.Join("./testdata", f.Name())
++		info, err := os.Stat(name)
+ 		if err != nil {
+-			t.Fatalf("failed to read input file: %v", err)
++			t.Fatal(err)
++		}
++		if testing.Short() && info.Size() > 10000 {
++			continue
++		}
++		data, err := ioutil.ReadFile(name)
++		if err != nil {
++			t.Fatal(err)
+ 		}
+ 		// Instead of Parse that requires a proper binary name for old traces,
+ 		// we use 'parse' that omits symbol lookup if an empty string is given.
+diff --git a/src/math/big/floatmarsh_test.go b/src/math/big/floatmarsh_test.go
+index 5bd906ddae..c056d78b80 100644
+--- a/src/math/big/floatmarsh_test.go
++++ b/src/math/big/floatmarsh_test.go
+@@ -109,6 +109,9 @@ func TestFloatJSONEncoding(t *testing.T) {
+ 	for _, test := range floatVals {
+ 		for _, sign := range []string{"", "+", "-"} {
+ 			for _, prec := range []uint{0, 1, 2, 10, 53, 64, 100, 1000} {
++				if prec > 53 && testing.Short() {
++					continue
++				}
+ 				x := sign + test
+ 				var tx Float
+ 				_, _, err := tx.SetPrec(prec).Parse(x, 0)
+diff --git a/src/math/big/natconv_test.go b/src/math/big/natconv_test.go
+index 9c2acca07e..d390272108 100644
+--- a/src/math/big/natconv_test.go
++++ b/src/math/big/natconv_test.go
+@@ -446,6 +446,9 @@ func TestStringPowers(t *testing.T) {
+ 	var p Word
+ 	for b := 2; b <= 16; b++ {
+ 		for p = 0; p <= 512; p++ {
++			if testing.Short() && p > 10 {
++				break
++			}
+ 			x := nat(nil).expWW(Word(b), p)
+ 			xs := x.utoa(b)
+ 			xs2 := itoa(x, b)
+diff --git a/src/math/big/prime_test.go b/src/math/big/prime_test.go
+index bf50f34419..8596e33a13 100644
+--- a/src/math/big/prime_test.go
++++ b/src/math/big/prime_test.go
+@@ -125,11 +125,11 @@ func cutSpace(r rune) rune {
+ func TestProbablyPrime(t *testing.T) {
+ 	nreps := 20
+ 	if testing.Short() {
+-		nreps = 3
++		nreps = 1
+ 	}
+ 	for i, s := range primes {
+ 		p, _ := new(Int).SetString(s, 10)
+-		if !p.ProbablyPrime(nreps) || !p.ProbablyPrime(1) || !p.ProbablyPrime(0) {
++		if !p.ProbablyPrime(nreps) || nreps != 1 && !p.ProbablyPrime(1) || !p.ProbablyPrime(0) {
+ 			t.Errorf("#%d prime found to be non-prime (%s)", i, s)
+ 		}
+ 	}
+@@ -137,7 +137,7 @@ func TestProbablyPrime(t *testing.T) {
+ 	for i, s := range composites {
+ 		s = strings.Map(cutSpace, s)
+ 		c, _ := new(Int).SetString(s, 10)
+-		if c.ProbablyPrime(nreps) || c.ProbablyPrime(1) || c.ProbablyPrime(0) {
++		if c.ProbablyPrime(nreps) || nreps != 1 && c.ProbablyPrime(1) || c.ProbablyPrime(0) {
+ 			t.Errorf("#%d composite found to be prime (%s)", i, s)
+ 		}
+ 	}
+@@ -197,6 +197,14 @@ func TestLucasPseudoprimes(t *testing.T) {
+ func testPseudoprimes(t *testing.T, name string, cond func(nat) bool, want []int) {
+ 	n := nat{1}
+ 	for i := 3; i < 100000; i += 2 {
++		if testing.Short() {
++			if len(want) == 0 {
++				break
++			}
++			if i < want[0]-2 {
++				i = want[0] - 2
++			}
++		}
+ 		n[0] = Word(i)
+ 		pseudo := cond(n)
+ 		if pseudo && (len(want) == 0 || i != want[0]) {
+diff --git a/src/math/big/sqrt_test.go b/src/math/big/sqrt_test.go
+index 6a412d61fb..d314711d74 100644
+--- a/src/math/big/sqrt_test.go
++++ b/src/math/big/sqrt_test.go
+@@ -15,6 +15,9 @@ import (
+ // behaves like float math.Sqrt.
+ func TestFloatSqrt64(t *testing.T) {
+ 	for i := 0; i < 1e5; i++ {
++		if i == 1e2 && testing.Short() {
++			break
++		}
+ 		r := rand.Float64()
+ 
+ 		got := new(Float).SetPrec(53)
+diff --git a/src/math/rand/rand_test.go b/src/math/rand/rand_test.go
+index e663b84f9f..ee9c8f8e84 100644
+--- a/src/math/rand/rand_test.go
++++ b/src/math/rand/rand_test.go
+@@ -486,7 +486,7 @@ func TestUniformFactorial(t *testing.T) {
+ 	r := New(NewSource(testSeeds[0]))
+ 	top := 6
+ 	if testing.Short() {
+-		top = 4
++		top = 3
+ 	}
+ 	for n := 3; n <= top; n++ {
+ 		t.Run(fmt.Sprintf("n=%d", n), func(t *testing.T) {
+diff --git a/src/mime/multipart/formdata_test.go b/src/mime/multipart/formdata_test.go
+index 105a82c417..7d756c8c24 100644
+--- a/src/mime/multipart/formdata_test.go
++++ b/src/mime/multipart/formdata_test.go
+@@ -176,7 +176,11 @@ func (r *failOnReadAfterErrorReader) Read(p []byte) (n int, err error) {
+ // TestReadForm_NonFileMaxMemory asserts that the ReadForm maxMemory limit is applied
+ // while processing non-file form data as well as file form data.
+ func TestReadForm_NonFileMaxMemory(t *testing.T) {
+-	largeTextValue := strings.Repeat("1", (10<<20)+25)
++	n := 10<<20 + 25
++	if testing.Short() {
++		n = 10<<10 + 25
++	}
++	largeTextValue := strings.Repeat("1", n)
+ 	message := `--MyBoundary
+ Content-Disposition: form-data; name="largetext"
+ 
+@@ -196,6 +200,9 @@ Content-Disposition: form-data; name="largetext"
+ 	}
+ 	for _, tc := range testCases {
+ 		t.Run(tc.name, func(t *testing.T) {
++			if tc.maxMemory == 0 && testing.Short() {
++				t.Skip("skipping in -short mode")
++			}
+ 			b := strings.NewReader(testBody)
+ 			r := NewReader(b, boundary)
+ 			f, err := r.ReadForm(tc.maxMemory)
+diff --git a/src/mime/multipart/multipart_test.go b/src/mime/multipart/multipart_test.go
+index 5a8102b822..5dc74b5ffe 100644
+--- a/src/mime/multipart/multipart_test.go
++++ b/src/mime/multipart/multipart_test.go
+@@ -832,7 +832,10 @@ func partsFromReader(r *Reader) ([]headerBody, error) {
+ 
+ func TestParseAllSizes(t *testing.T) {
+ 	t.Parallel()
+-	const maxSize = 5 << 10
++	maxSize := 5 << 10
++	if testing.Short() {
++		maxSize = 512
++	}
+ 	var buf bytes.Buffer
+ 	body := strings.Repeat("a", maxSize)
+ 	bodyb := []byte(body)
+diff --git a/src/mime/quotedprintable/reader_test.go b/src/mime/quotedprintable/reader_test.go
+index f870bdaa8d..48a7ff6495 100644
+--- a/src/mime/quotedprintable/reader_test.go
++++ b/src/mime/quotedprintable/reader_test.go
+@@ -116,7 +116,11 @@ func TestExhaustive(t *testing.T) {
+ 
+ 	var buf bytes.Buffer
+ 	res := make(map[string]int)
+-	everySequence("", "0A \r\n=", 6, func(s string) {
++	n := 6
++	if testing.Short() {
++		n = 4
++	}
++	everySequence("", "0A \r\n=", n, func(s string) {
+ 		if strings.HasSuffix(s, "=") || strings.Contains(s, "==") {
+ 			return
+ 		}
+@@ -200,6 +204,13 @@ func TestExhaustive(t *testing.T) {
+ invalid bytes after =: 3949
+ quotedprintable: invalid hex byte 0x0d: 2048
+ unexpected EOF: 194`
++	if testing.Short() {
++		want = `OK: 896
++invalid bytes after =: 100
++quotedprintable: invalid hex byte 0x0d: 26
++unexpected EOF: 3`
++	}
++
+ 	if got != want {
+ 		t.Errorf("Got:\n%s\nWant:\n%s", got, want)
+ 	}
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 32ddd3dde9..d774915719 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -5758,8 +5758,12 @@ func TestServerDuplicateBackgroundRead(t *testing.T) {
+ 	setParallel(t)
+ 	defer afterTest(t)
+ 
+-	const goroutines = 5
+-	const requests = 2000
++	goroutines := 5
++	requests := 2000
++	if testing.Short() {
++		goroutines = 3
++		requests = 100
++	}
+ 
+ 	hts := httptest.NewServer(HandlerFunc(NotFound))
+ 	defer hts.Close()
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index f9d73060a3..c9322f6b0f 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -691,6 +691,9 @@ func TestExtraFilesRace(t *testing.T) {
+ 	}
+ 
+ 	for i := 0; i < 10; i++ {
++		if testing.Short() && i >= 3 {
++			break
++		}
+ 		la := listen()
+ 		ca := helperCommand(t, "describefiles")
+ 		ca.ExtraFiles = []*os.File{listenerFile(la)}
+diff --git a/src/runtime/internal/atomic/atomic_test.go b/src/runtime/internal/atomic/atomic_test.go
+index 25ece4354e..0ba75447e8 100644
+--- a/src/runtime/internal/atomic/atomic_test.go
++++ b/src/runtime/internal/atomic/atomic_test.go
+@@ -29,14 +29,18 @@ func runParallel(N, iter int, f func()) {
+ }
+ 
+ func TestXadduintptr(t *testing.T) {
+-	const N = 20
+-	const iter = 100000
++	N := 20
++	iter := 100000
++	if testing.Short() {
++		N = 10
++		iter = 10000
++	}
+ 	inc := uintptr(100)
+ 	total := uintptr(0)
+ 	runParallel(N, iter, func() {
+ 		atomic.Xadduintptr(&total, inc)
+ 	})
+-	if want := uintptr(N * iter * inc); want != total {
++	if want := uintptr(N*iter) * inc; want != total {
+ 		t.Fatalf("xadduintpr error, want %d, got %d", want, total)
+ 	}
+ 	total = 0
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 59dee26867..53496371a0 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -159,12 +159,27 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
+ 		t.Skip("skipping on plan9")
+ 	}
+ 
+-	const maxDuration = 5 * time.Second
++	broken := false
++	switch runtime.GOOS {
++	case "darwin", "dragonfly", "netbsd", "illumos", "solaris":
++		broken = true
++	case "openbsd":
++		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
++			broken = true
++		}
++	}
++
++	maxDuration := 5 * time.Second
++	if testing.Short() && broken {
++		// If it's expected to be broken, no point waiting around.
++		maxDuration /= 10
++	}
++
+ 	// If we're running a long test, start with a long duration
+ 	// for tests that try to make sure something *doesn't* happen.
+ 	duration := 5 * time.Second
+ 	if testing.Short() {
+-		duration = 200 * time.Millisecond
++		duration = 100 * time.Millisecond
+ 	}
+ 
+ 	// Profiling tests are inherently flaky, especially on a
+@@ -190,14 +205,10 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
+ 		}
+ 	}
+ 
+-	switch runtime.GOOS {
+-	case "darwin", "dragonfly", "netbsd", "illumos", "solaris":
+-		t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
+-	case "openbsd":
+-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+-			t.Skipf("ignoring failure on %s/%s; see golang.org/issue/13841", runtime.GOOS, runtime.GOARCH)
+-		}
++	if broken {
++		t.Skipf("ignoring failure on %s/%s; see golang.org/issue/13841", runtime.GOOS, runtime.GOARCH)
+ 	}
++
+ 	// Ignore the failure if the tests are running in a QEMU-based emulator,
+ 	// QEMU is not perfect at emulating everything.
+ 	// IN_QEMU environmental variable is set by some of the Go builders.
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index 4452d51231..bcb4d3386d 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -207,11 +207,11 @@ ffffffffff600000-ffffffffff601000 r-xp 00000090 00:00 0                  [vsysca
+ 7ffc34343000 7ffc34345000 00000000 [vdso]
+ ffffffffff600000 ffffffffff601000 00000090 [vsyscall]
+ 
+-00400000-07000000 r-xp 00000000 00:00 0 
++00400000-07000000 r-xp 00000000 00:00 0
+ 07000000-07093000 r-xp 06c00000 00:2e 536754                             /path/to/gobench_server_main
+ 07093000-0722d000 rw-p 06c92000 00:2e 536754                             /path/to/gobench_server_main
+-0722d000-07b21000 rw-p 00000000 00:00 0 
+-c000000000-c000036000 rw-p 00000000 00:00 0 
++0722d000-07b21000 rw-p 00000000 00:00 0
++c000000000-c000036000 rw-p 00000000 00:00 0
+ ->
+ 07000000 07093000 06c00000 /path/to/gobench_server_main
+ `
+@@ -301,7 +301,7 @@ func TestProcSelfMaps(t *testing.T) {
+ 	})
+ }
+ 
+-// TestMapping checkes the mapping section of CPU profiles
++// TestMapping checks the mapping section of CPU profiles
+ // has the HasFunctions field set correctly. If all PCs included
+ // in the samples are successfully symbolized, the corresponding
+ // mapping entry (in this test case, only one entry) should have
+diff --git a/src/runtime/pprof/testdata/mappingtest/main.go b/src/runtime/pprof/testdata/mappingtest/main.go
+index 7850faab0d..476b9e88a3 100644
+--- a/src/runtime/pprof/testdata/mappingtest/main.go
++++ b/src/runtime/pprof/testdata/mappingtest/main.go
+@@ -69,7 +69,7 @@ func main() {
+ 	if err := pprof.StartCPUProfile(os.Stdout); err != nil {
+ 		log.Fatal("can't start CPU profile: ", err)
+ 	}
+-	time.Sleep(1 * time.Second)
++	time.Sleep(200 * time.Millisecond)
+ 	pprof.StopCPUProfile()
+ 
+ 	if err := os.Stdout.Close(); err != nil {
+diff --git a/src/runtime/semasleep_test.go b/src/runtime/semasleep_test.go
+index b931095619..f5b4a50697 100644
+--- a/src/runtime/semasleep_test.go
++++ b/src/runtime/semasleep_test.go
+@@ -7,11 +7,7 @@
+ package runtime_test
+ 
+ import (
+-	"internal/testenv"
+-	"io/ioutil"
+-	"os"
+ 	"os/exec"
+-	"path/filepath"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+@@ -24,39 +20,14 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
+ 	if *flagQuick {
+ 		t.Skip("-quick")
+ 	}
+-	testenv.MustHaveGoBuild(t)
+-	tempDir, err := ioutil.TempDir("", "issue-27250")
+-	if err != nil {
+-		t.Fatalf("Failed to create the temp directory: %v", err)
+-	}
+-	defer os.RemoveAll(tempDir)
+-
+-	repro := `
+-    package main
+-
+-    import "time"
+ 
+-    func main() {
+-        <-time.After(1 * time.Second)
+-    }
+-    `
+-	mainPath := filepath.Join(tempDir, "main.go")
+-	if err := ioutil.WriteFile(mainPath, []byte(repro), 0644); err != nil {
+-		t.Fatalf("Failed to create temp file for repro.go: %v", err)
+-	}
+-	binaryPath := filepath.Join(tempDir, "binary")
+-
+-	// Build the binary so that we can send the signal to its PID.
+-	out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", binaryPath, mainPath).CombinedOutput()
++	exe, err := buildTestProg(t, "testprog")
+ 	if err != nil {
+-		t.Fatalf("Failed to compile the binary: err: %v\nOutput: %s\n", err, out)
+-	}
+-	if err := os.Chmod(binaryPath, 0755); err != nil {
+-		t.Fatalf("Failed to chmod binary: %v", err)
++		t.Fatal(err)
+ 	}
+ 
+-	// Now run the binary.
+-	cmd := exec.Command(binaryPath)
++	start := time.Now()
++	cmd := exec.Command(exe, "After1")
+ 	if err := cmd.Start(); err != nil {
+ 		t.Fatalf("Failed to start command: %v", err)
+ 	}
+@@ -85,6 +56,9 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatalf("The program returned but unfortunately with an error: %v", err)
+ 			}
++			if time.Since(start) < 100*time.Millisecond {
++				t.Fatalf("The program stopped too quickly.")
++			}
+ 			return
+ 		}
+ 	}
+diff --git a/src/runtime/testdata/testprog/deadlock.go b/src/runtime/testdata/testprog/deadlock.go
+index ca2be57911..5f0d120004 100644
+--- a/src/runtime/testdata/testprog/deadlock.go
++++ b/src/runtime/testdata/testprog/deadlock.go
+@@ -112,12 +112,16 @@ func RecursivePanic() {
+ }
+ 
+ func GoexitExit() {
++	println("t1")
+ 	go func() {
+ 		time.Sleep(time.Millisecond)
+ 	}()
+ 	i := 0
++	println("t2")
+ 	runtime.SetFinalizer(&i, func(p *int) {})
++	println("t3")
+ 	runtime.GC()
++	println("t4")
+ 	runtime.Goexit()
+ }
+ 
+diff --git a/src/runtime/testdata/testprog/sleep.go b/src/runtime/testdata/testprog/sleep.go
+new file mode 100644
+index 0000000000..86e2f6cfe6
+--- /dev/null
++++ b/src/runtime/testdata/testprog/sleep.go
+@@ -0,0 +1,17 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "time"
++
++// for golang.org/issue/27250
++
++func init() {
++	register("After1", After1)
++}
++
++func After1() {
++	<-time.After(1 * time.Second)
++}
+diff --git a/src/runtime/trace/trace_test.go b/src/runtime/trace/trace_test.go
+index e289fa5e12..235845df4e 100644
+--- a/src/runtime/trace/trace_test.go
++++ b/src/runtime/trace/trace_test.go
+@@ -186,6 +186,10 @@ func TestTraceStress(t *testing.T) {
+ 	if IsEnabled() {
+ 		t.Skip("skipping because -test.trace is set")
+ 	}
++	if testing.Short() {
++		t.Skip("skipping in -short mode")
++	}
++
+ 	var wg sync.WaitGroup
+ 	done := make(chan bool)
+ 
+diff --git a/src/sync/pool_test.go b/src/sync/pool_test.go
+index 796a5a0a73..ff1174cc15 100644
+--- a/src/sync/pool_test.go
++++ b/src/sync/pool_test.go
+@@ -105,6 +105,9 @@ func testPool(t *testing.T, drain bool) {
+ 	const N = 100
+ loop:
+ 	for try := 0; try < 3; try++ {
++		if try == 1 && testing.Short() {
++			break
++		}
+ 		var fin, fin1 uint32
+ 		for i := 0; i < N; i++ {
+ 			v := new(string)
+diff --git a/src/syscall/getdirentries_test.go b/src/syscall/getdirentries_test.go
+index b20ae1d1e3..8505a0bb89 100644
+--- a/src/syscall/getdirentries_test.go
++++ b/src/syscall/getdirentries_test.go
+@@ -26,6 +26,9 @@ func TestGetdirentries(t *testing.T) {
+ 	}
+ }
+ func testGetdirentries(t *testing.T, count int) {
++	if count > 100 && testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
++		t.Skip("skipping in -short mode")
++	}
+ 	d, err := ioutil.TempDir("", "getdirentries-test")
+ 	if err != nil {
+ 		t.Fatalf("Tempdir: %v", err)
+diff --git a/src/testing/quick/quick_test.go b/src/testing/quick/quick_test.go
+index 4246cd1d3b..9df6dd4679 100644
+--- a/src/testing/quick/quick_test.go
++++ b/src/testing/quick/quick_test.go
+@@ -319,7 +319,7 @@ func TestInt64(t *testing.T) {
+ 		}
+ 		return true
+ 	}
+-	cfg := &Config{MaxCount: 100000}
++	cfg := &Config{MaxCount: 10000}
+ 	Check(f, cfg)
+ 	if uint64(lo)>>62 == 0 || uint64(hi)>>62 == 0 {
+ 		t.Errorf("int64 returned range %#016x,%#016x; does not look like full range", lo, hi)
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index c45df89d59..63ccd5c3c0 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -1417,6 +1417,9 @@ func TestEvalFieldErrors(t *testing.T) {
+ }
+ 
+ func TestMaxExecDepth(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in -short mode")
++	}
+ 	tmpl := Must(New("tmpl").Parse(`{{template "tmpl" .}}`))
+ 	err := tmpl.Execute(ioutil.Discard, nil)
+ 	got := "<nil>"

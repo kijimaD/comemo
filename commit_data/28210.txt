@@ -11,7 +11,33 @@ Date:   Wed Jan 6 14:37:45 2016 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/conf.go      | 2 +-
  src/net/conf_test.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 48372e5197..eb729167f5 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -220,7 +220,7 @@ func (c *conf) hostLookupOrder(hostname string) (ret hostLookupOrder) {
+ 	var first string
+ 	for _, src := range srcs {
+ 		if src.source == "myhostname" {
+-			if hasDot {
++			if hostname == "" || hasDot {
+ 				continue
+ 			}
+ 			return fallbackOrder
+diff --git a/src/net/conf_test.go b/src/net/conf_test.go
+index 8f39847804..ec8814b845 100644
+--- a/src/net/conf_test.go
++++ b/src/net/conf_test.go
+@@ -257,6 +257,7 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			hostTests: []nssHostTest{
+ 				{"x.com", hostLookupFilesDNS},
+ 				{"somehostname", hostLookupCgo},
++				{"", hostLookupFilesDNS}, // Issue 13623
+ 			},
+ 		},
+ 		{

@@ -23,9 +23,161 @@ Date:   Sun Apr 10 18:12:41 2016 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go      | 24 ------------------
  src/cmd/compile/internal/gc/type.go      |  4 ---
  src/cmd/compile/internal/gc/typecheck.go | 42 +++++++++++++++++++-------------
  test/fixedbugs/issue14988.go             | 13 ++++++++++
  4 files changed, 38 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index ea2db8721a..776eb9c64e 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -372,30 +372,6 @@ func saveorignode(n *Node) {
+ 	n.Orig = norig
+ }
+ 
+-// checkMapKeyType checks that Type key is valid for use as a map key.
+-func checkMapKeyType(key *Type) {
+-	alg, bad := algtype1(key)
+-	if alg != ANOEQ {
+-		return
+-	}
+-	switch bad.Etype {
+-	default:
+-		Yyerror("invalid map key type %v", key)
+-	case TANY:
+-		// Will be resolved later.
+-	case TFORW:
+-		// map[key] used during definition of key.
+-		// postpone check until key is fully defined.
+-		// if there are multiple uses of map[key]
+-		// before key is fully defined, the error
+-		// will only be printed for the first one.
+-		// good enough.
+-		if maplineno[key] == 0 {
+-			maplineno[key] = lineno
+-		}
+-	}
+-}
+-
+ // methcmp sorts by symbol, then by package path for unexported symbols.
+ type methcmp []*Field
+ 
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 25c1bcc203..a44a85bed8 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -429,10 +429,6 @@ func typChan(elem *Type, dir ChanDir) *Type {
+ 
+ // typMap returns a new map Type with key type k and element (aka value) type v.
+ func typMap(k, v *Type) *Type {
+-	if k != nil {
+-		checkMapKeyType(k)
+-	}
+-
+ 	t := typ(TMAP)
+ 	mt := t.MapType()
+ 	mt.Key = k
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index f676b9dd09..7089d7de72 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -416,6 +416,18 @@ OpSwitch:
+ 		}
+ 		n.Op = OTYPE
+ 		n.Type = typMap(l.Type, r.Type)
++
++		// map key validation
++		alg, bad := algtype1(l.Type)
++		if alg == ANOEQ {
++			if bad.Etype == TFORW {
++				// queue check for map until all the types are done settling.
++				mapqueue = append(mapqueue, mapqueueval{l, n.Lineno})
++			} else if bad.Etype != TANY {
++				// no need to queue, key is already bad
++				Yyerror("invalid map key type %v", l.Type)
++			}
++		}
+ 		n.Left = nil
+ 		n.Right = nil
+ 
+@@ -3507,11 +3519,13 @@ func domethod(n *Node) {
+ 	checkwidth(n.Type)
+ }
+ 
+-var (
+-	mapqueue []*Node
+-	// maplineno tracks the line numbers at which types are first used as map keys
+-	maplineno = map[*Type]int32{}
+-)
++type mapqueueval struct {
++	n   *Node
++	lno int32
++}
++
++// tracks the line numbers at which forward types are first used as map keys
++var mapqueue []mapqueueval
+ 
+ func copytype(n *Node, t *Type) {
+ 	if t.Etype == TFORW {
+@@ -3520,7 +3534,6 @@ func copytype(n *Node, t *Type) {
+ 		return
+ 	}
+ 
+-	mapline := maplineno[n.Type]
+ 	embedlineno := n.Type.ForwardType().Embedlineno
+ 	l := n.Type.ForwardType().Copyto
+ 
+@@ -3555,12 +3568,6 @@ func copytype(n *Node, t *Type) {
+ 	}
+ 
+ 	lineno = lno
+-
+-	// Queue check for map until all the types are done settling.
+-	if mapline != 0 {
+-		maplineno[t] = mapline
+-		mapqueue = append(mapqueue, n)
+-	}
+ }
+ 
+ func typecheckdeftype(n *Node) {
+@@ -3605,12 +3612,13 @@ ret:
+ 				domethod(n)
+ 			}
+ 		}
+-
+-		for _, n := range mapqueue {
+-			lineno = maplineno[n.Type]
+-			checkMapKeyType(n.Type)
++		for _, e := range mapqueue {
++			lineno = e.lno
++			if !e.n.Type.IsComparable() {
++				Yyerror("invalid map key type %v", e.n.Type)
++			}
+ 		}
+-
++		mapqueue = nil
+ 		lineno = lno
+ 	}
+ 
+diff --git a/test/fixedbugs/issue14988.go b/test/fixedbugs/issue14988.go
+new file mode 100644
+index 0000000000..4ddc7e728f
+--- /dev/null
++++ b/test/fixedbugs/issue14988.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 14988: defining a map with an invalid forward declaration array
++//              key doesn't cause a fatal.
++
++package main
++
++type m map[k]int // ERROR "invalid map key type"
++type k [1]m

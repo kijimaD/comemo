@@ -11,6 +11,20 @@ Date:   Mon Oct 28 08:14:47 2019 +0000
     GitHub-Pull-Request: golang/go#35203
     Reviewed-on: https://go-review.googlesource.com/c/go/+/203797
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/articles/wiki/final-noclosure.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/articles/wiki/final-noclosure.go b/doc/articles/wiki/final-noclosure.go
+index b4ce255742..e7a5a34519 100644
+--- a/doc/articles/wiki/final-noclosure.go
++++ b/doc/articles/wiki/final-noclosure.go
+@@ -90,7 +90,7 @@ func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
+ 	m := validPath.FindStringSubmatch(r.URL.Path)
+ 	if m == nil {
+ 		http.NotFound(w, r)
+-		return "", errors.New("Invalid Page Title")
++		return "", errors.New("invalid Page Title")
+ 	}
+ 	return m[2], nil // The title is the second subexpression.
+ }

@@ -7,7 +7,64 @@ Date:   Sat Apr 21 14:34:42 2012 +1000
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/6058043
-
+---
  src/pkg/compress/zlib/example_test.go | 37 +++++++++++++++++++++++++++++++++++
  src/pkg/compress/zlib/reader.go       |  2 +-
  2 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/compress/zlib/example_test.go b/src/pkg/compress/zlib/example_test.go
+new file mode 100644
+index 0000000000..b934ffa618
+--- /dev/null
++++ b/src/pkg/compress/zlib/example_test.go
+@@ -0,0 +1,37 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package zlib_test
++
++import (
++	"bytes"
++	"compress/zlib"
++	"fmt"
++	"io"
++	"os"
++)
++
++func ExampleNewWriter() {
++	var b bytes.Buffer
++
++	w := zlib.NewWriter(&b)
++	w.Write([]byte("hello, world\n"))
++	w.Close()
++	fmt.Println(b.Bytes())
++	// Output: [120 156 202 72 205 201 201 215 81 40 207 47 202 73 225 2 4 0 0 255 255 33 231 4 147]
++}
++
++func ExampleNewReader() {
++	buff := []byte{120, 156, 202, 72, 205, 201, 201, 215, 81, 40, 207,
++		47, 202, 73, 225, 2, 4, 0, 0, 255, 255, 33, 231, 4, 147}
++	b := bytes.NewBuffer(buff)
++
++	r, err := zlib.NewReader(b)
++	if err != nil {
++		panic(err)
++	}
++	io.Copy(os.Stdout, r)
++	// Output: hello, world
++	r.Close()
++}
+diff --git a/src/pkg/compress/zlib/reader.go b/src/pkg/compress/zlib/reader.go
+index f38ef5a885..d54746f4c0 100644
+--- a/src/pkg/compress/zlib/reader.go
++++ b/src/pkg/compress/zlib/reader.go
+@@ -11,7 +11,7 @@ and compress during writing.  For example, to write compressed data
+ to a buffer:
+ 
+ 	var b bytes.Buffer
+-	w, err := zlib.NewWriter(&b)
++	w := zlib.NewWriter(&b)
+ 	w.Write([]byte("hello, world\n"))
+ 	w.Close()
+ 

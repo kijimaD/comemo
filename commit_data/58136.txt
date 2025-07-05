@@ -21,7 +21,7 @@ Date:   Mon Sep 4 17:30:08 2023 +0200
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/x86/seh.go        | 36 ++++++++++++++++++----
  src/cmd/link/internal/ld/seh.go        | 13 +++++++-
  src/runtime/asm_amd64.s                | 55 +++++++++++++++++++++++-----------
@@ -38,3 +38,539 @@ Date:   Mon Sep 4 17:30:08 2023 +0200
  src/runtime/sys_windows_amd64.s        | 34 ++++++++++++++++++++-
  src/runtime/testdata/testwinlib/main.c | 20 ++++++++++++-
  15 files changed, 249 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/seh.go b/src/cmd/internal/obj/x86/seh.go
+index e7d3d571b7..71cdd36642 100644
+--- a/src/cmd/internal/obj/x86/seh.go
++++ b/src/cmd/internal/obj/x86/seh.go
+@@ -97,17 +97,32 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
+ 	// https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64#struct-unwind_info
+ 
+ 	const (
+-		UWOP_PUSH_NONVOL = 0
+-		UWOP_SET_FPREG   = 3
+-		SEH_REG_BP       = 5
++		UWOP_PUSH_NONVOL  = 0
++		UWOP_SET_FPREG    = 3
++		SEH_REG_BP        = 5
++		UNW_FLAG_EHANDLER = 1 << 3
+ 	)
+ 
++	var exceptionHandler *obj.LSym
++	var flags uint8
++	if s.Name == "runtime.asmcgocall_landingpad" {
++		// Most cgo calls go through runtime.asmcgocall_landingpad,
++		// we can use it to catch exceptions from C code.
++		// TODO: use a more generic approach to identify which calls need an exception handler.
++		exceptionHandler = ctxt.Lookup("runtime.sehtramp")
++		if exceptionHandler == nil {
++			ctxt.Diag("missing runtime.sehtramp\n")
++			return
++		}
++		flags = UNW_FLAG_EHANDLER
++	}
++
+ 	// Fow now we only support operations which are encoded
+ 	// using a single 2-byte node, so the number of nodes
+ 	// is the number of operations.
+ 	nodes := uint8(2)
+ 	buf := newsehbuf(ctxt, nodes)
+-	buf.write8(1)                    // Flags + version
++	buf.write8(flags | 1)            // Flags + version
+ 	buf.write8(uint8(movbp.Link.Pc)) // Size of prolog
+ 	buf.write8(nodes)                // Count of nodes
+ 	buf.write8(SEH_REG_BP)           // FP register
+@@ -119,8 +134,10 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
+ 	buf.write8(uint8(pushbp.Link.Pc))
+ 	buf.writecode(UWOP_PUSH_NONVOL, SEH_REG_BP)
+ 
+-	// The following 4 bytes reference the RVA of the exception handler,
+-	// in case the function has one. We don't use it for now.
++	// The following 4 bytes reference the RVA of the exception handler.
++	// The value is set to 0 for now, if an exception handler is needed,
++	// it will be updated later with a R_PEIMAGEOFF relocation to the
++	// exception handler.
+ 	buf.write32(0)
+ 
+ 	// The list of unwind infos in a PE binary have very low cardinality
+@@ -134,6 +151,13 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
+ 		s.Type = objabi.SSEHUNWINDINFO
+ 		s.Set(obj.AttrDuplicateOK, true)
+ 		s.Set(obj.AttrLocal, true)
++		if exceptionHandler != nil {
++			r := obj.Addrel(s)
++			r.Off = int32(len(buf.data) - 4)
++			r.Siz = 4
++			r.Sym = exceptionHandler
++			r.Type = objabi.R_PEIMAGEOFF
++		}
+ 		// Note: AttrContentAddressable cannot be set here,
+ 		// because the content-addressable-handling code
+ 		// does not know about aux symbols.
+diff --git a/src/cmd/link/internal/ld/seh.go b/src/cmd/link/internal/ld/seh.go
+index 5379528c30..43b5176a53 100644
+--- a/src/cmd/link/internal/ld/seh.go
++++ b/src/cmd/link/internal/ld/seh.go
+@@ -40,7 +40,7 @@ func writeSEHAMD64(ctxt *Link) {
+ 	// to deduplicate .xdata entries.
+ 	uwcache := make(map[string]int64) // aux symbol name --> .xdata offset
+ 	for _, s := range ctxt.Textp {
+-		if fi := ldr.FuncInfo(s); !fi.Valid() || fi.TopFrame() {
++		if fi := ldr.FuncInfo(s); !fi.Valid() {
+ 			continue
+ 		}
+ 		uw := ldr.SEHUnwindSym(s)
+@@ -53,6 +53,17 @@ func writeSEHAMD64(ctxt *Link) {
+ 			off = xdata.Size()
+ 			uwcache[name] = off
+ 			xdata.AddBytes(ldr.Data(uw))
++			// The SEH unwind data can contain relocations,
++			// make sure those are copied over.
++			rels := ldr.Relocs(uw)
++			for i := 0; i < rels.Count(); i++ {
++				r := rels.At(i)
++				rel, _ := xdata.AddRel(r.Type())
++				rel.SetOff(int32(off) + r.Off())
++				rel.SetSiz(r.Siz())
++				rel.SetSym(r.Sym())
++				rel.SetAdd(r.Add())
++			}
+ 		}
+ 
+ 		// Reference:
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index edf0909a77..ccc2bd21fe 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -825,6 +825,33 @@ TEXT ·asmcgocall_no_g(SB),NOSPLIT,$32-16
+ 	MOVQ	DX, SP
+ 	RET
+ 
++// asmcgocall_landingpad calls AX with BX as argument.
++// Must be called on the system stack.
++TEXT ·asmcgocall_landingpad(SB),NOSPLIT,$0-0
++#ifdef GOOS_windows
++	// Make sure we have enough room for 4 stack-backed fast-call
++	// registers as per Windows amd64 calling convention.
++	ADJSP	$32
++	// On Windows, asmcgocall_landingpad acts as landing pad for exceptions
++	// thrown in the cgo call. Exceptions that reach this function will be
++	// handled by runtime.sehtramp thanks to the SEH metadata added
++	// by the compiler.
++	// Note that runtime.sehtramp can't be attached directly to asmcgocall
++	// because its initial stack pointer can be outside the system stack bounds,
++	// and Windows stops the stack unwinding without calling the exception handler
++	// when it reaches that point.
++	MOVQ	BX, CX		// CX = first argument in Win64
++	CALL	AX
++	// The exception handler is not called if the next instruction is part of
++	// the epilogue, which includes the RET instruction, so we need to add a NOP here.
++	BYTE	$0x90
++	ADJSP	$-32
++	RET
++#endif
++	// Tail call AX on non-Windows, as the extra stack frame is not needed.
++	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
++	JMP	AX
++
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+ // Call fn(arg) on the scheduler stack,
+ // aligned appropriately for the gcc ABI.
+@@ -859,23 +886,19 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
+ 	MOVQ	(g_sched+gobuf_sp)(SI), SP
+ 
+ 	// Now on a scheduling stack (a pthread-created stack).
+-	// Make sure we have enough room for 4 stack-backed fast-call
+-	// registers as per windows amd64 calling convention.
+-	SUBQ	$64, SP
++	SUBQ	$16, SP
+ 	ANDQ	$~15, SP	// alignment for gcc ABI
+-	MOVQ	DI, 48(SP)	// save g
++	MOVQ	DI, 8(SP)	// save g
+ 	MOVQ	(g_stack+stack_hi)(DI), DI
+ 	SUBQ	DX, DI
+-	MOVQ	DI, 40(SP)	// save depth in stack (can't just save SP, as stack might be copied during a callback)
+-	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
+-	MOVQ	BX, CX		// CX = first argument in Win64
+-	CALL	AX
++	MOVQ	DI, 0(SP)	// save depth in stack (can't just save SP, as stack might be copied during a callback)
++	CALL	runtime·asmcgocall_landingpad(SB)
+ 
+ 	// Restore registers, g, stack pointer.
+ 	get_tls(CX)
+-	MOVQ	48(SP), DI
++	MOVQ	8(SP), DI
+ 	MOVQ	(g_stack+stack_hi)(DI), SI
+-	SUBQ	40(SP), SI
++	SUBQ	0(SP), SI
+ 	MOVQ	DI, g(CX)
+ 	MOVQ	SI, SP
+ 
+@@ -893,14 +916,12 @@ nosave:
+ 	// but then the only path through this code would be a rare case on Solaris.
+ 	// Using this code for all "already on system stack" calls exercises it more,
+ 	// which should help keep it correct.
+-	SUBQ	$64, SP
++	SUBQ	$16, SP
+ 	ANDQ	$~15, SP
+-	MOVQ	$0, 48(SP)		// where above code stores g, in case someone looks during debugging
+-	MOVQ	DX, 40(SP)	// save original stack pointer
+-	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
+-	MOVQ	BX, CX		// CX = first argument in Win64
+-	CALL	AX
+-	MOVQ	40(SP), SI	// restore original stack pointer
++	MOVQ	$0, 8(SP)		// where above code stores g, in case someone looks during debugging
++	MOVQ	DX, 0(SP)	// save original stack pointer
++	CALL	runtime·asmcgocall_landingpad(SB)
++	MOVQ	0(SP), SI	// restore original stack pointer
+ 	MOVQ	SI, SP
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+diff --git a/src/runtime/cgo/asm_amd64.s b/src/runtime/cgo/asm_amd64.s
+index f254622f23..48afe4ef62 100644
+--- a/src/runtime/cgo/asm_amd64.s
++++ b/src/runtime/cgo/asm_amd64.s
+@@ -18,7 +18,7 @@ TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
+ // Saves C callee-saved registers and calls cgocallback with three arguments.
+ // fn is the PC of a func(a unsafe.Pointer) function.
+ // This signature is known to SWIG, so we can't change it.
+-TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0-0
++TEXT crosscall2(SB),NOSPLIT,$0-0
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+ 	// Make room for arguments to cgocallback.
+diff --git a/src/runtime/defs_windows.go b/src/runtime/defs_windows.go
+index 56698fa56c..2dbe144689 100644
+--- a/src/runtime/defs_windows.go
++++ b/src/runtime/defs_windows.go
+@@ -41,8 +41,9 @@ const (
+ 	_INFINITE     = 0xffffffff
+ 	_WAIT_TIMEOUT = 0x102
+ 
+-	_EXCEPTION_CONTINUE_EXECUTION = -0x1
+-	_EXCEPTION_CONTINUE_SEARCH    = 0x0
++	_EXCEPTION_CONTINUE_EXECUTION  = -0x1
++	_EXCEPTION_CONTINUE_SEARCH     = 0x0
++	_EXCEPTION_CONTINUE_SEARCH_SEH = 0x1
+ )
+ 
+ type systeminfo struct {
+diff --git a/src/runtime/defs_windows_386.go b/src/runtime/defs_windows_386.go
+index b11b15554e..8cf2bfc307 100644
+--- a/src/runtime/defs_windows_386.go
++++ b/src/runtime/defs_windows_386.go
+@@ -79,3 +79,10 @@ func dumpregs(r *context) {
+ 	print("fs      ", hex(r.segfs), "\n")
+ 	print("gs      ", hex(r.seggs), "\n")
+ }
++
++// _DISPATCHER_CONTEXT is not defined on 386.
++type _DISPATCHER_CONTEXT struct{}
++
++func (c *_DISPATCHER_CONTEXT) ctx() *context {
++	return nil
++}
+diff --git a/src/runtime/defs_windows_amd64.go b/src/runtime/defs_windows_amd64.go
+index 0cf256205f..9dbfb40e63 100644
+--- a/src/runtime/defs_windows_amd64.go
++++ b/src/runtime/defs_windows_amd64.go
+@@ -99,3 +99,18 @@ func dumpregs(r *context) {
+ 	print("fs      ", hex(r.segfs), "\n")
+ 	print("gs      ", hex(r.seggs), "\n")
+ }
++
++type _DISPATCHER_CONTEXT struct {
++	controlPc        uint64
++	imageBase        uint64
++	functionEntry    uintptr
++	establisherFrame uint64
++	targetIp         uint64
++	context          *context
++	languageHandler  uintptr
++	handlerData      uintptr
++}
++
++func (c *_DISPATCHER_CONTEXT) ctx() *context {
++	return c.context
++}
+diff --git a/src/runtime/defs_windows_arm.go b/src/runtime/defs_windows_arm.go
+index 7a18c95cf1..861a88430e 100644
+--- a/src/runtime/defs_windows_arm.go
++++ b/src/runtime/defs_windows_arm.go
+@@ -89,3 +89,18 @@ func dumpregs(r *context) {
+ func stackcheck() {
+ 	// TODO: not implemented on ARM
+ }
++
++type _DISPATCHER_CONTEXT struct {
++	controlPc        uint32
++	imageBase        uint32
++	functionEntry    uintptr
++	establisherFrame uint32
++	targetIp         uint32
++	context          *context
++	languageHandler  uintptr
++	handlerData      uintptr
++}
++
++func (c *_DISPATCHER_CONTEXT) ctx() *context {
++	return c.context
++}
+diff --git a/src/runtime/defs_windows_arm64.go b/src/runtime/defs_windows_arm64.go
+index ef2efb1bb3..70e28d2ae2 100644
+--- a/src/runtime/defs_windows_arm64.go
++++ b/src/runtime/defs_windows_arm64.go
+@@ -87,3 +87,18 @@ func dumpregs(r *context) {
+ func stackcheck() {
+ 	// TODO: not implemented on ARM
+ }
++
++type _DISPATCHER_CONTEXT struct {
++	controlPc        uint64
++	imageBase        uint64
++	functionEntry    uintptr
++	establisherFrame uint64
++	targetIp         uint64
++	context          *context
++	languageHandler  uintptr
++	handlerData      uintptr
++}
++
++func (c *_DISPATCHER_CONTEXT) ctx() *context {
++	return c.context
++}
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index b77efabe70..9d494d1baa 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -44,6 +44,8 @@ const (
+ //go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._RaiseFailFastException RaiseFailFastException%3 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
++//go:cgo_import_dynamic runtime._RtlLookupFunctionEntry RtlLookupFunctionEntry%3 "kernel32.dll"
++//go:cgo_import_dynamic runtime._RtlVirtualUnwind  RtlVirtualUnwind%8 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler%2 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode%1 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._SetEvent SetEvent%1 "kernel32.dll"
+@@ -99,6 +101,8 @@ var (
+ 	_QueryPerformanceCounter,
+ 	_RaiseFailFastException,
+ 	_ResumeThread,
++	_RtlLookupFunctionEntry,
++	_RtlVirtualUnwind,
+ 	_SetConsoleCtrlHandler,
+ 	_SetErrorMode,
+ 	_SetEvent,
+@@ -1066,6 +1070,15 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
+ 	return stdcall(fn)
+ }
+ 
++//go:nosplit
++//go:cgo_unsafe_args
++func stdcall8(fn stdFunction, a0, a1, a2, a3, a4, a5, a6, a7 uintptr) uintptr {
++	mp := getg().m
++	mp.libcall.n = 8
++	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
++	return stdcall(fn)
++}
++
+ // These must run on the system stack only.
+ 
+ //go:nosplit
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 8e0e39cb26..828625b9af 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -44,6 +44,7 @@ func enableWER() {
+ func exceptiontramp()
+ func firstcontinuetramp()
+ func lastcontinuetramp()
++func sehtramp()
+ func sigresume()
+ 
+ func initExceptionHandler() {
+@@ -262,6 +263,43 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	return _EXCEPTION_CONTINUE_EXECUTION
+ }
+ 
++// sehhandler is reached as part of the SEH chain.
++//
++// It is nosplit for the same reason as exceptionhandler.
++//
++//go:nosplit
++func sehhandler(_ *exceptionrecord, _ uint64, _ *context, dctxt *_DISPATCHER_CONTEXT) int32 {
++	g0 := getg()
++	if g0 == nil || g0.m.curg == nil {
++		// No g available, nothing to do here.
++		return _EXCEPTION_CONTINUE_SEARCH_SEH
++	}
++	// The Windows SEH machinery will unwind the stack until it finds
++	// a frame with a handler for the exception or until the frame is
++	// outside the stack boundaries, in which case it will call the
++	// UnhandledExceptionFilter. Unfortunately, it doesn't know about
++	// the goroutine stack, so it will stop unwinding when it reaches the
++	// first frame not running in g0. As a result, neither non-Go exceptions
++	// handlers higher up the stack nor UnhandledExceptionFilter will be called.
++	//
++	// To work around this, manually unwind the stack until the top of the goroutine
++	// stack is reached, and then pass the control back to Windows.
++	gp := g0.m.curg
++	ctxt := dctxt.ctx()
++	var base, sp uintptr
++	for {
++		entry := stdcall3(_RtlLookupFunctionEntry, ctxt.ip(), uintptr(unsafe.Pointer(&base)), 0)
++		if entry == 0 {
++			break
++		}
++		stdcall8(_RtlVirtualUnwind, 0, base, ctxt.ip(), entry, uintptr(unsafe.Pointer(ctxt)), 0, uintptr(unsafe.Pointer(&sp)), 0)
++		if sp < gp.stack.lo || gp.stack.hi <= sp {
++			break
++		}
++	}
++	return _EXCEPTION_CONTINUE_SEARCH_SEH
++}
++
+ // It seems Windows searches ContinueHandler's list even
+ // if ExceptionHandler returns EXCEPTION_CONTINUE_EXECUTION.
+ // firstcontinuehandler will stop that search,
+diff --git a/src/runtime/signal_windows_test.go b/src/runtime/signal_windows_test.go
+index 431c372876..9318ff9c00 100644
+--- a/src/runtime/signal_windows_test.go
++++ b/src/runtime/signal_windows_test.go
+@@ -114,7 +114,13 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("failure while running executable: %s\n%s", err, out)
+ 	}
+-	expectedOutput := "exceptionCount: 1\ncontinueCount: 1\n"
++	var expectedOutput string
++	if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
++		// TODO: remove when windows/arm64 and windows/arm support SEH stack unwinding.
++		expectedOutput = "exceptionCount: 1\ncontinueCount: 1\nunhandledCount: 0\n"
++	} else {
++		expectedOutput = "exceptionCount: 1\ncontinueCount: 1\nunhandledCount: 1\n"
++	}
+ 	// cleaning output
+ 	cleanedOut := strings.ReplaceAll(string(out), "\r\n", "\n")
+ 	if cleanedOut != expectedOutput {
+diff --git a/src/runtime/stubs_amd64.go b/src/runtime/stubs_amd64.go
+index a86a496457..6d0b113740 100644
+--- a/src/runtime/stubs_amd64.go
++++ b/src/runtime/stubs_amd64.go
+@@ -41,6 +41,9 @@ func retpolineR15()
+ //go:noescape
+ func asmcgocall_no_g(fn, arg unsafe.Pointer)
+ 
++//go:systemstack
++func asmcgocall_landingpad()
++
+ // Used by reflectcall and the reflect package.
+ //
+ // Spills/loads arguments in registers to/from an internal/abi.RegArgs
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 6cc8e91952..c1b78e3976 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -102,7 +102,7 @@ TEXT runtime·getlasterror(SB),NOSPLIT,$0
+ // exception record and context pointers.
+ // DX is the kind of sigtramp function.
+ // Return value of sigtrampgo is stored in AX.
+-TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0-0
++TEXT sigtramp<>(SB),NOSPLIT,$0-0
+ 	// Switch from the host ABI to the Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+@@ -155,6 +155,38 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVQ	$const_callbackLastVCH, DX
+ 	JMP	sigtramp<>(SB)
+ 
++TEXT runtime·sehtramp(SB),NOSPLIT,$40-0
++	// CX: PEXCEPTION_RECORD ExceptionRecord
++	// DX: ULONG64 EstablisherFrame
++	// R8: PCONTEXT ContextRecord
++	// R9: PDISPATCHER_CONTEXT DispatcherContext
++	// Switch from the host ABI to the Go ABI.
++	PUSH_REGS_HOST_TO_ABI0()
++
++	get_tls(AX)
++	CMPQ	AX, $0
++	JNE	2(PC)
++	// This shouldn't happen, sehtramp is only attached to functions
++	// called from Go, and exception handlers are only called from
++	// the thread that threw the exception.
++	INT	$3
++
++	// Exception from Go thread, set R14.
++	MOVQ	g(AX), R14
++
++	ADJSP	$40
++	MOVQ	CX, 0(SP)
++	MOVQ	DX, 8(SP)
++	MOVQ	R8, 16(SP)
++	MOVQ	R9, 24(SP)
++	CALL	runtime·sehhandler(SB)
++	MOVL	32(SP), AX
++
++	ADJSP	$-40
++
++	POP_REGS_HOST_TO_ABI0()
++	RET
++
+ TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
+ 	// Construct args vector for cgocallback().
+ 	// By windows/amd64 calling convention first 4 args are in CX, DX, R8, R9
+diff --git a/src/runtime/testdata/testwinlib/main.c b/src/runtime/testdata/testwinlib/main.c
+index 55ee6571d7..e9b5946a31 100644
+--- a/src/runtime/testdata/testwinlib/main.c
++++ b/src/runtime/testdata/testwinlib/main.c
+@@ -4,6 +4,8 @@
+ 
+ int exceptionCount;
+ int continueCount;
++int unhandledCount;
++
+ LONG WINAPI customExceptionHandlder(struct _EXCEPTION_POINTERS *ExceptionInfo)
+ {
+     if (ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT)
+@@ -20,7 +22,10 @@ LONG WINAPI customExceptionHandlder(struct _EXCEPTION_POINTERS *ExceptionInfo)
+ #else
+         c->Pc = c->Lr;
+ #endif
++#ifdef _ARM64_
++        // TODO: remove when windows/arm64 supports SEH stack unwinding.
+         return EXCEPTION_CONTINUE_EXECUTION;
++#endif
+     }
+     return EXCEPTION_CONTINUE_SEARCH;
+ }
+@@ -29,6 +34,14 @@ LONG WINAPI customContinueHandlder(struct _EXCEPTION_POINTERS *ExceptionInfo)
+     if (ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT)
+     {
+         continueCount++;
++    }
++    return EXCEPTION_CONTINUE_SEARCH;
++}
++
++LONG WINAPI unhandledExceptionHandler(struct _EXCEPTION_POINTERS *ExceptionInfo) {
++    if (ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT)
++    {
++        unhandledCount++;
+         return EXCEPTION_CONTINUE_EXECUTION;
+     }
+     return EXCEPTION_CONTINUE_SEARCH;
+@@ -58,10 +71,15 @@ int main()
+         fflush(stdout);
+         return 2;
+     }
++    void *prevUnhandledHandler = SetUnhandledExceptionFilter(unhandledExceptionHandler);
+     CallMeBack(throwFromC);
+     RemoveVectoredContinueHandler(continueHandlerHandle);
+     RemoveVectoredExceptionHandler(exceptionHandlerHandle);
+-    printf("exceptionCount: %d\ncontinueCount: %d\n", exceptionCount, continueCount);
++    if (prevUnhandledHandler != NULL)
++    {
++        SetUnhandledExceptionFilter(prevUnhandledHandler);
++    }
++    printf("exceptionCount: %d\ncontinueCount: %d\nunhandledCount: %d\n", exceptionCount, continueCount, unhandledCount);
+     fflush(stdout);
+     return 0;
+ }

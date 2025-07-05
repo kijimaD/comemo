@@ -27,8 +27,158 @@ Date:   Thu Apr 28 11:31:59 2016 -0700
     Change-Id: I98c8072f2f39e2f2ccd6c55e9e9bd309f5ad68f8
     Reviewed-on: https://go-review.googlesource.com/22571
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dnsclient_unix.go      | 18 +++++++++---------
  src/net/dnsconfig_unix.go      | 15 +++++++++++----
  src/net/dnsconfig_unix_test.go | 14 +++++++-------
  3 files changed, 27 insertions(+), 20 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 12d12eba9c..8f2dff4675 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -361,23 +361,23 @@ func (conf *dnsConfig) nameList(name string) []string {
+ 	if rooted {
+ 		return []string{name}
+ 	}
++
++	hasNdots := count(name, '.') >= conf.ndots
++	name += "."
++
+ 	// Build list of search choices.
+ 	names := make([]string, 0, 1+len(conf.search))
+ 	// If name has enough dots, try unsuffixed first.
+-	if count(name, '.') >= conf.ndots {
+-		names = append(names, name+".")
++	if hasNdots {
++		names = append(names, name)
+ 	}
+ 	// Try suffixes.
+ 	for _, suffix := range conf.search {
+-		suffixed := name + "." + suffix
+-		if suffixed[len(suffixed)-1] != '.' {
+-			suffixed += "."
+-		}
+-		names = append(names, suffixed)
++		names = append(names, name+suffix)
+ 	}
+ 	// Try unsuffixed, if not tried first above.
+-	if count(name, '.') < conf.ndots {
+-		names = append(names, name+".")
++	if !hasNdots {
++		names = append(names, name)
+ 	}
+ 	return names
+ }
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index 88d168d8d2..aec575e854 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -20,7 +20,7 @@ var (
+ 
+ type dnsConfig struct {
+ 	servers    []string      // server addresses (in host:port form) to use
+-	search     []string      // suffixes to append to local name
++	search     []string      // rooted suffixes to append to local name
+ 	ndots      int           // number of dots in name to trigger absolute lookup
+ 	timeout    time.Duration // wait before giving up on a query, including retries
+ 	attempts   int           // lost packets before giving up on server
+@@ -78,13 +78,13 @@ func dnsReadConfig(filename string) *dnsConfig {
+ 
+ 		case "domain": // set search path to just this domain
+ 			if len(f) > 1 {
+-				conf.search = []string{f[1]}
++				conf.search = []string{ensureRooted(f[1])}
+ 			}
+ 
+ 		case "search": // set search path to given servers
+ 			conf.search = make([]string, len(f)-1)
+ 			for i := 0; i < len(conf.search); i++ {
+-				conf.search[i] = f[i+1]
++				conf.search[i] = ensureRooted(f[i+1])
+ 			}
+ 
+ 		case "options": // magic options
+@@ -141,7 +141,7 @@ func dnsDefaultSearch() []string {
+ 		return nil
+ 	}
+ 	if i := byteIndex(hn, '.'); i >= 0 && i < len(hn)-1 {
+-		return []string{hn[i+1:]}
++		return []string{ensureRooted(hn[i+1:])}
+ 	}
+ 	return nil
+ }
+@@ -149,3 +149,10 @@ func dnsDefaultSearch() []string {
+ func hasPrefix(s, prefix string) bool {
+ 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+ }
++
++func ensureRooted(s string) string {
++	if len(s) > 0 && s[len(s)-1] == '.' {
++		return s
++	}
++	return s + "."
++}
+diff --git a/src/net/dnsconfig_unix_test.go b/src/net/dnsconfig_unix_test.go
+index 7e27a72887..9fd6dbf982 100644
+--- a/src/net/dnsconfig_unix_test.go
++++ b/src/net/dnsconfig_unix_test.go
+@@ -22,7 +22,7 @@ var dnsReadConfigTests = []struct {
+ 		name: "testdata/resolv.conf",
+ 		want: &dnsConfig{
+ 			servers:    []string{"8.8.8.8:53", "[2001:4860:4860::8888]:53", "[fe80::1%lo0]:53"},
+-			search:     []string{"localdomain"},
++			search:     []string{"localdomain."},
+ 			ndots:      5,
+ 			timeout:    10 * time.Second,
+ 			attempts:   3,
+@@ -34,7 +34,7 @@ var dnsReadConfigTests = []struct {
+ 		name: "testdata/domain-resolv.conf",
+ 		want: &dnsConfig{
+ 			servers:  []string{"8.8.8.8:53"},
+-			search:   []string{"localdomain"},
++			search:   []string{"localdomain."},
+ 			ndots:    1,
+ 			timeout:  5 * time.Second,
+ 			attempts: 2,
+@@ -44,7 +44,7 @@ var dnsReadConfigTests = []struct {
+ 		name: "testdata/search-resolv.conf",
+ 		want: &dnsConfig{
+ 			servers:  []string{"8.8.8.8:53"},
+-			search:   []string{"test", "invalid"},
++			search:   []string{"test.", "invalid."},
+ 			ndots:    1,
+ 			timeout:  5 * time.Second,
+ 			attempts: 2,
+@@ -57,7 +57,7 @@ var dnsReadConfigTests = []struct {
+ 			ndots:    1,
+ 			timeout:  5 * time.Second,
+ 			attempts: 2,
+-			search:   []string{"domain.local"},
++			search:   []string{"domain.local."},
+ 		},
+ 	},
+ 	{
+@@ -105,7 +105,7 @@ func TestDNSReadMissingFile(t *testing.T) {
+ 		ndots:    1,
+ 		timeout:  5 * time.Second,
+ 		attempts: 2,
+-		search:   []string{"domain.local"},
++		search:   []string{"domain.local."},
+ 	}
+ 	if !reflect.DeepEqual(conf, want) {
+ 		t.Errorf("missing resolv.conf:\ngot: %+v\nwant: %+v", conf, want)
+@@ -119,11 +119,11 @@ var dnsDefaultSearchTests = []struct {
+ }{
+ 	{
+ 		name: "host.long.domain.local",
+-		want: []string{"long.domain.local"},
++		want: []string{"long.domain.local."},
+ 	},
+ 	{
+ 		name: "host.local",
+-		want: []string{"local"},
++		want: []string{"local."},
+ 	},
+ 	{
+ 		name: "host",

@@ -13,7 +13,7 @@ Date:   Sat Jan 8 14:39:43 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/376954
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go            | 43 ++++++++-------------
  src/cmd/compile/internal/types2/check_test.go      | 11 ++++--
  .../internal/types2/testdata/check/typeparams.go2  |  6 +--
@@ -25,3 +25,274 @@ Date:   Sat Jan 8 14:39:43 2022 -0800
  src/go/types/testdata/fixedbugs/issue50417.go2     |  2 +-
  src/go/types/testdata/fixedbugs/issue50516.go2     | 13 +++++++
  10 files changed, 79 insertions(+), 73 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index bd62e825af..1c3bf48b08 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -542,39 +542,26 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 			goto Error
+ 		}
+ 
+-		if isInterfacePtr(x.typ) {
+-			check.errorf(e.Sel, "%s.%s undefined (type %s is pointer to interface, not interface)", x.expr, sel, x.typ)
+-			goto Error
+-		}
+-
+ 		var why string
+-		if tpar, _ := x.typ.(*TypeParam); tpar != nil {
+-			// Type parameter bounds don't specify fields, so don't mention "field".
+-			// TODO(gri) Type constraints may have accessible fields now. Revisit this.
+-			if tname := tpar.iface().obj; tname != nil {
+-				why = check.sprintf("interface %s has no method %s", tname.name, sel)
+-			} else {
+-				why = check.sprintf("type bound for %s has no method %s", x.typ, sel)
+-			}
++		if isInterfacePtr(x.typ) {
++			why = check.sprintf("type %s is pointer to interface, not interface", x.typ)
+ 		} else {
+ 			why = check.sprintf("type %s has no field or method %s", x.typ, sel)
+-		}
+-
+-		// Check if capitalization of sel matters and provide better error message in that case.
+-		// TODO(gri) This code only looks at the first character but LookupFieldOrMethod has an
+-		//           (internal) mechanism for case-insensitive lookup. Should use that instead.
+-		if len(sel) > 0 {
+-			var changeCase string
+-			if r := rune(sel[0]); unicode.IsUpper(r) {
+-				changeCase = string(unicode.ToLower(r)) + sel[1:]
+-			} else {
+-				changeCase = string(unicode.ToUpper(r)) + sel[1:]
+-			}
+-			if obj, _, _ = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
+-				why += ", but does have " + changeCase
++			// Check if capitalization of sel matters and provide better error message in that case.
++			// TODO(gri) This code only looks at the first character but LookupFieldOrMethod has an
++			//           (internal) mechanism for case-insensitive lookup. Should use that instead.
++			if len(sel) > 0 {
++				var changeCase string
++				if r := rune(sel[0]); unicode.IsUpper(r) {
++					changeCase = string(unicode.ToLower(r)) + sel[1:]
++				} else {
++					changeCase = string(unicode.ToUpper(r)) + sel[1:]
++				}
++				if obj, _, _ = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
++					why += ", but does have " + changeCase
++				}
+ 			}
+ 		}
+-
+ 		check.errorf(e.Sel, "%s.%s undefined (%s)", x.expr, sel, why)
+ 		goto Error
+ 	}
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 1868ad0c6e..7efa512164 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -295,10 +295,13 @@ func TestManual(t *testing.T) {
+ 
+ // TODO(gri) go/types has extra TestLongConstants and TestIndexRepresentability tests
+ 
+-func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", 55, false) } // TODO(gri) narrow column tolerance
+-func TestSpec(t *testing.T)      { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/spec", 0, false) }
+-func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", 0, false) }
+-func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", 0, false) }
++func TestCheck(t *testing.T)    { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", 55, false) } // TODO(gri) narrow column tolerance
++func TestSpec(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/spec", 0, false) }
++func TestExamples(t *testing.T) { testDirFiles(t, "testdata/examples", 0, false) }
++func TestFixedbugs(t *testing.T) {
++	DefPredeclaredTestFuncs()
++	testDirFiles(t, "testdata/fixedbugs", 0, false)
++}
+ 
+ func testDirFiles(t *testing.T, dir string, colDelta uint, manual bool) {
+ 	testenv.MustHaveGoBuild(t)
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2 b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+index 007157ea0f..ef58241519 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+@@ -519,13 +519,13 @@ func _[P C[P]] (x P) {
+ type I interface {}
+ 
+ func _[P I] (x P) {
+-	x.m /* ERROR interface I has no method m */ ()
++	x.m /* ERROR type P has no field or method m */ ()
+ }
+ 
+ func _[P interface{}] (x P) {
+-	x.m /* ERROR type bound for P has no method m */ ()
++	x.m /* ERROR type P has no field or method m */ ()
+ }
+ 
+ func _[P any] (x P) {
+-	x.m /* ERROR type bound for P has no method m */ ()
++	x.m /* ERROR type P has no field or method m */ ()
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50417.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50417.go2
+index c05987e5ea..b6454ab003 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50417.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50417.go2
+@@ -58,7 +58,7 @@ type PSfm *Sfm
+ func f3[P interface{ PSfm }](p P) {
+         _ = p.f
+         p.f = 0
+-        p.m /* ERROR type bound for P has no method m */ ()
++        p.m /* ERROR type P has no field or method m */ ()
+ }
+ 
+ var _ = f3[PSfm]
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50516.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50516.go2
+new file mode 100644
+index 0000000000..f73015e2be
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50516.go2
+@@ -0,0 +1,13 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[P struct{ f int }](x P) {
++	_ = x.g // ERROR type P has no field or method g
++}
++
++func _[P struct{ f int } | struct{ g int }](x P) {
++	_ = x.g // ERROR type P has no field or method g
++}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index a904b3df91..4a31ec2586 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -544,40 +544,27 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 			goto Error
+ 		}
+ 
+-		if isInterfacePtr(x.typ) {
+-			check.errorf(e.Sel, _InvalidMethodExpr, "%s.%s undefined (type %s is pointer to interface, not interface)", x.expr, sel, x.typ)
+-			goto Error
+-		}
+-
+ 		var why string
+-		if tpar, _ := x.typ.(*TypeParam); tpar != nil {
+-			// Type parameter bounds don't specify fields, so don't mention "field".
+-			// TODO(gri) Type constraints may have accessible fields now. Revisit this.
+-			if tname := tpar.iface().obj; tname != nil {
+-				why = check.sprintf("interface %s has no method %s", tname.name, sel)
+-			} else {
+-				why = check.sprintf("type bound for %s has no method %s", x.typ, sel)
+-			}
++		if isInterfacePtr(x.typ) {
++			why = check.sprintf("type %s is pointer to interface, not interface", x.typ)
+ 		} else {
+ 			why = check.sprintf("type %s has no field or method %s", x.typ, sel)
+-		}
+-
+-		// Check if capitalization of sel matters and provide better error message in that case.
+-		// TODO(gri) This code only looks at the first character but LookupFieldOrMethod should
+-		//           have an (internal) mechanism for case-insensitive lookup that we should use
+-		//           instead (see types2).
+-		if len(sel) > 0 {
+-			var changeCase string
+-			if r := rune(sel[0]); unicode.IsUpper(r) {
+-				changeCase = string(unicode.ToLower(r)) + sel[1:]
+-			} else {
+-				changeCase = string(unicode.ToUpper(r)) + sel[1:]
+-			}
+-			if obj, _, _ = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
+-				why += ", but does have " + changeCase
++			// Check if capitalization of sel matters and provide better error message in that case.
++			// TODO(gri) This code only looks at the first character but LookupFieldOrMethod should
++			//           have an (internal) mechanism for case-insensitive lookup that we should use
++			//           instead (see types2).
++			if len(sel) > 0 {
++				var changeCase string
++				if r := rune(sel[0]); unicode.IsUpper(r) {
++					changeCase = string(unicode.ToLower(r)) + sel[1:]
++				} else {
++					changeCase = string(unicode.ToUpper(r)) + sel[1:]
++				}
++				if obj, _, _ = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
++					why += ", but does have " + changeCase
++				}
+ 			}
+ 		}
+-
+ 		check.errorf(e.Sel, _MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
+ 		goto Error
+ 	}
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index e296d13be9..81ea81ca4e 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -376,10 +376,13 @@ func TestIssue47243_TypedRHS(t *testing.T) {
+ 	testFiles(t, &StdSizes{4, 4}, []string{"p.go"}, [][]byte{[]byte(src)}, false, nil)
+ }
+ 
+-func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", false) }
+-func TestSpec(t *testing.T)      { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/spec", false) }
+-func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", false) }
+-func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", false) }
++func TestCheck(t *testing.T)    { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", false) }
++func TestSpec(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/spec", false) }
++func TestExamples(t *testing.T) { testDirFiles(t, "testdata/examples", false) }
++func TestFixedbugs(t *testing.T) {
++	DefPredeclaredTestFuncs()
++	testDirFiles(t, "testdata/fixedbugs", false)
++}
+ 
+ func testDirFiles(t *testing.T, dir string, manual bool) {
+ 	testenv.MustHaveGoBuild(t)
+diff --git a/src/go/types/testdata/check/typeparams.go2 b/src/go/types/testdata/check/typeparams.go2
+index e3aca4ccb0..6d63d598d9 100644
+--- a/src/go/types/testdata/check/typeparams.go2
++++ b/src/go/types/testdata/check/typeparams.go2
+@@ -518,13 +518,13 @@ func _[P C[P]] (x P) {
+ type I interface {}
+ 
+ func _[P I] (x P) {
+-	x.m /* ERROR interface I has no method m */ ()
++	x.m /* ERROR type P has no field or method m */ ()
+ }
+ 
+ func _[P interface{}] (x P) {
+-	x.m /* ERROR type bound for P has no method m */ ()
++	x.m /* ERROR type P has no field or method m */ ()
+ }
+ 
+ func _[P any] (x P) {
+-	x.m /* ERROR type bound for P has no method m */ ()
++	x.m /* ERROR type P has no field or method m */ ()
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue50417.go2 b/src/go/types/testdata/fixedbugs/issue50417.go2
+index c05987e5ea..b6454ab003 100644
+--- a/src/go/types/testdata/fixedbugs/issue50417.go2
++++ b/src/go/types/testdata/fixedbugs/issue50417.go2
+@@ -58,7 +58,7 @@ type PSfm *Sfm
+ func f3[P interface{ PSfm }](p P) {
+         _ = p.f
+         p.f = 0
+-        p.m /* ERROR type bound for P has no method m */ ()
++        p.m /* ERROR type P has no field or method m */ ()
+ }
+ 
+ var _ = f3[PSfm]
+diff --git a/src/go/types/testdata/fixedbugs/issue50516.go2 b/src/go/types/testdata/fixedbugs/issue50516.go2
+new file mode 100644
+index 0000000000..f73015e2be
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue50516.go2
+@@ -0,0 +1,13 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[P struct{ f int }](x P) {
++	_ = x.g // ERROR type P has no field or method g
++}
++
++func _[P struct{ f int } | struct{ g int }](x P) {
++	_ = x.g // ERROR type P has no field or method g
++}

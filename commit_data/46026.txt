@@ -21,7 +21,7 @@ Date:   Wed Dec 2 21:38:20 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go   | 15 ++-------------
  src/cmd/compile/internal/gc/iexport.go   |  3 +--
  src/cmd/compile/internal/gc/inl.go       |  3 +++
@@ -30,3 +30,191 @@ Date:   Wed Dec 2 21:38:20 2020 -0800
  src/cmd/compile/internal/ir/expr.go      | 15 ++++++++-------
  src/cmd/compile/internal/ir/fmt.go       |  4 ++--
  7 files changed, 24 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index a5441a037a..01e5a953de 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -427,7 +427,7 @@ func typecheckpartialcall(dot ir.Node, sym *types.Sym) *ir.CallPartExpr {
+ 	fn := makepartialcall(dot, dot.Type(), sym)
+ 	fn.SetWrapper(true)
+ 
+-	return ir.NewCallPartExpr(dot.Pos(), dot.Left(), NewName(sym), fn)
++	return ir.NewCallPartExpr(dot.Pos(), dot.Left(), dot.(*ir.SelectorExpr).Selection, fn)
+ }
+ 
+ // makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
+@@ -565,16 +565,5 @@ func walkpartialcall(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
+ // callpartMethod returns the *types.Field representing the method
+ // referenced by method value n.
+ func callpartMethod(n ir.Node) *types.Field {
+-	if n.Op() != ir.OCALLPART {
+-		base.Fatalf("expected OCALLPART, got %v", n)
+-	}
+-
+-	// TODO(mdempsky): Optimize this. If necessary,
+-	// makepartialcall could save m for us somewhere.
+-	var m *types.Field
+-	if lookdot0(n.Right().Sym(), n.Left().Type(), &m, false) != 1 {
+-		base.Fatalf("failed to find field for OCALLPART")
+-	}
+-
+-	return m
++	return n.(*ir.CallPartExpr).Method
+ }
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 85518bc939..bb6f2b11e6 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1290,8 +1290,7 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		w.op(ir.OXDOT)
+ 		w.pos(n.Pos())
+ 		w.expr(n.Left())
+-		// Right node should be ONAME
+-		w.selector(n.Right().Sym())
++		w.selector(n.Sym())
+ 
+ 	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH:
+ 		w.op(ir.OXDOT)
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 42125f38f3..64f1b062be 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -430,6 +430,9 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
+ 		// In any event, let the visitList(n.List()) below take care of the statements,
+ 		// and don't charge for the OBLOCK itself. The ++ undoes the -- below.
+ 		v.budget++
++
++	case ir.OCALLPART:
++		v.budget-- // Hack for toolstash -cmp.
+ 	}
+ 
+ 	v.budget--
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index b19481311b..e2100481aa 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2385,7 +2385,7 @@ func typecheckMethodExpr(n ir.Node) (res ir.Node) {
+ 	me.SetType(methodfunc(m.Type, n.Left().Type()))
+ 	me.SetOffset(0)
+ 	me.SetClass(ir.PFUNC)
+-	me.SetOpt(m)
++	me.(*ir.MethodExpr).Method = m
+ 
+ 	// Issue 25065. Make sure that we emit the symbol for a local method.
+ 	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == ir.LocalPkg) {
+@@ -2448,10 +2448,8 @@ func lookdot(n ir.Node, t *types.Type, dostrcmp int) *types.Field {
+ 			}
+ 
+ 			n.SetOp(ir.ODOTINTER)
+-		} else {
+-			n.SetOpt(f1)
+ 		}
+-
++		n.(*ir.SelectorExpr).Selection = f1
+ 		return f1
+ 	}
+ 
+@@ -2507,7 +2505,7 @@ func lookdot(n ir.Node, t *types.Type, dostrcmp int) *types.Field {
+ 		n.SetOffset(f2.Offset)
+ 		n.SetType(f2.Type)
+ 		n.SetOp(ir.ODOTMETH)
+-		n.SetOpt(f2)
++		n.(*ir.SelectorExpr).Selection = f2
+ 
+ 		return f2
+ 	}
+@@ -3933,8 +3931,10 @@ func methodExprName(n ir.Node) *ir.Name {
+ // MethodFunc is like MethodName, but returns the types.Field instead.
+ func methodExprFunc(n ir.Node) *types.Field {
+ 	switch n.Op() {
+-	case ir.ODOTMETH, ir.OMETHEXPR:
+-		return n.Opt().(*types.Field)
++	case ir.ODOTMETH:
++		return n.(*ir.SelectorExpr).Selection
++	case ir.OMETHEXPR:
++		return n.(*ir.MethodExpr).Method
+ 	case ir.OCALLPART:
+ 		return callpartMethod(n)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index ce7de1396b..3d22c66d90 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3757,7 +3757,7 @@ func usefield(n ir.Node) {
+ 	if t.IsPtr() {
+ 		t = t.Elem()
+ 	}
+-	field := n.Opt().(*types.Field)
++	field := n.(*ir.SelectorExpr).Selection
+ 	if field == nil {
+ 		base.Fatalf("usefield %v %v without paramfld", n.Left().Type(), n.Sym())
+ 	}
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 412b7a18f0..18d85a01df 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -205,10 +205,10 @@ type CallPartExpr struct {
+ 	miniExpr
+ 	fn     *Func
+ 	X      Node
+-	Method *Name
++	Method *types.Field
+ }
+ 
+-func NewCallPartExpr(pos src.XPos, x Node, method *Name, fn *Func) *CallPartExpr {
++func NewCallPartExpr(pos src.XPos, x Node, method *types.Field, fn *Func) *CallPartExpr {
+ 	n := &CallPartExpr{fn: fn, X: x, Method: method}
+ 	n.op = OCALLPART
+ 	n.pos = pos
+@@ -222,9 +222,8 @@ func (n *CallPartExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *CallPartExpr) rawCopy() Node                 { c := *n; return &c }
+ func (n *CallPartExpr) Func() *Func                   { return n.fn }
+ func (n *CallPartExpr) Left() Node                    { return n.X }
+-func (n *CallPartExpr) Right() Node                   { return n.Method }
++func (n *CallPartExpr) Sym() *types.Sym               { return n.Method.Sym }
+ func (n *CallPartExpr) SetLeft(x Node)                { n.X = x }
+-func (n *CallPartExpr) SetRight(x Node)               { n.Method = x.(*Name) }
+ 
+ // A ClosureExpr is a function literal expression.
+ type ClosureExpr struct {
+@@ -499,6 +498,7 @@ type MethodExpr struct {
+ 	sym    *types.Sym
+ 	offset int64
+ 	class  Class
++	Method *types.Field
+ }
+ 
+ func NewMethodExpr(pos src.XPos, op Op, x, m Node) *MethodExpr {
+@@ -596,9 +596,10 @@ func (n *ResultExpr) SetOffset(x int64)             { n.offset = x }
+ // A SelectorExpr is a selector expression X.Sym.
+ type SelectorExpr struct {
+ 	miniExpr
+-	X      Node
+-	Sel    *types.Sym
+-	offset int64
++	X         Node
++	Sel       *types.Sym
++	offset    int64
++	Selection *types.Field
+ }
+ 
+ func NewSelectorExpr(pos src.XPos, x Node, sel *types.Sym) *SelectorExpr {
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 9486d8b021..45a66a2290 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -1382,11 +1382,11 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
+ 
+ 	case OCALLPART:
+ 		exprFmt(n.Left(), s, nprec, mode)
+-		if n.Right() == nil || n.Right().Sym() == nil {
++		if n.Sym() == nil {
+ 			fmt.Fprint(s, ".<nil>")
+ 			return
+ 		}
+-		mode.Fprintf(s, ".%0S", n.Right().Sym())
++		mode.Fprintf(s, ".%0S", n.Sym())
+ 
+ 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
+ 		exprFmt(n.Left(), s, nprec, mode)

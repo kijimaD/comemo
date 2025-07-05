@@ -17,8 +17,80 @@ Date:   Mon Apr 4 13:07:24 2016 -0400
     Change-Id: Ie5807565ed07d31bc477d20f60e4c0b47144f337
     Reviewed-on: https://go-review.googlesource.com/21457
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 11 +----------
  src/cmd/link/internal/ld/data.go       |  8 ++++++++
  src/cmd/link/internal/ld/decodesym.go  | 12 ++++++++++++
  3 files changed, 21 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index f782ce0974..5031045c64 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -912,16 +912,7 @@ func tracksym(t *Type, f *Field) *Sym {
+ }
+ 
+ func typelinkLSym(t *Type) *obj.LSym {
+-	// %-uT is what the generated Type's string field says.
+-	// It uses (ambiguous) package names instead of import paths.
+-	// %-T is the complete, unambiguous type name.
+-	// We want the types to end up sorted by string field,
+-	// so use that first in the name, and then add :%-T to
+-	// disambiguate. We use a tab character as the separator to
+-	// ensure the types appear sorted by their string field. The
+-	// names are a little long but they are discarded by the linker
+-	// and do not end up in the symbol table of the final binary.
+-	name := "go.typelink." + Tconv(t, FmtLeft|FmtUnsigned) + "\t" + Tconv(t, FmtLeft)
++	name := "go.typelink." + Tconv(t, FmtLeft) // complete, unambiguous type name
+ 	return obj.Linklookup(Ctxt, name, 0)
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 105503f6ef..8e2cf99877 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -32,6 +32,7 @@
+ package ld
+ 
+ import (
++	"bytes"
+ 	"cmd/internal/gcprog"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+@@ -1199,6 +1200,13 @@ func (d dataSlice) Less(i, j int) bool {
+ 		return s1.Size < s2.Size
+ 	}
+ 
++	// Sort typelinks by the string field.
++	if strings.HasPrefix(s1.Name, "go.typelink.") && strings.HasPrefix(s2.Name, "go.typelink.") {
++		s1n := decodetype_string(s1.Lsym.R[0].Sym)
++		s2n := decodetype_string(s2.Lsym.R[0].Sym)
++		return bytes.Compare(s1n, s2n) < 0
++	}
++
+ 	return s1.Name < s2.Name
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 5eb20c2fb2..b1c55cf787 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -211,6 +211,18 @@ func decodetype_structfieldarrayoff(s *LSym, i int) int {
+ 	return off
+ }
+ 
++// decodetype_string returns the contents of an rtype's string field.
++func decodetype_string(s *LSym) []byte {
++	off := 4*SysArch.PtrSize + 8
++	strlen := int64(decode_inuxi(s.P[off+SysArch.PtrSize:], SysArch.IntSize))
++
++	r := decode_reloc(s, int32(off))
++	if r == nil {
++		return nil
++	}
++	return r.Sym.P[r.Add : r.Add+strlen]
++}
++
+ // decodetype_name decodes the name from a reflect.name.
+ func decodetype_name(s *LSym, off int) string {
+ 	r := decode_reloc(s, int32(off))

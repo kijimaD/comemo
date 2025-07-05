@@ -8,8 +8,53 @@ Date:   Sun Nov 9 20:20:06 2014 -0500
     R=r, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/168320043
-
+---
  src/cmd/go/pkg.go    |  1 +
  src/cmd/pprof/README |  8 ++++++++
  src/cmd/pprof/doc.go | 12 ++++++++++++
  3 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 6efeeb1a9c..b71feb7a67 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -399,6 +399,7 @@ var goTools = map[string]targetDir{
+ 	"cmd/nm":                               toTool,
+ 	"cmd/objdump":                          toTool,
+ 	"cmd/pack":                             toTool,
++	"cmd/pprof":                            toTool,
+ 	"cmd/yacc":                             toTool,
+ 	"golang.org/x/tools/cmd/cover":         toTool,
+ 	"golang.org/x/tools/cmd/godoc":         toBin,
+diff --git a/src/cmd/pprof/README b/src/cmd/pprof/README
+new file mode 100644
+index 0000000000..a728ef2353
+--- /dev/null
++++ b/src/cmd/pprof/README
+@@ -0,0 +1,8 @@
++The pprof in this directory is adapted from the pprof used inside Google
++for C++, Java, and Go programs. Because it was developed for that broader
++context, it is overgeneralized when used here for the specific use case
++of profiling standard Go programs. However, we've left the abstractions
++intact in order to share updates between this copy and Google's internal one.
++
++Please do not take the level of abstraction in this program as an example
++to follow in your own.
+diff --git a/src/cmd/pprof/doc.go b/src/cmd/pprof/doc.go
+new file mode 100644
+index 0000000000..c6ff11d102
+--- /dev/null
++++ b/src/cmd/pprof/doc.go
+@@ -0,0 +1,12 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Pprof interprets and displays profiles of Go programs.
++//
++// Usage:
++//
++//	go tool pprof binary profile
++//
++// For more information, see http://blog.golang.org/profiling-go-programs.
++package main

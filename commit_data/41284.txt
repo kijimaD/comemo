@@ -9,6 +9,20 @@ Date:   Fri Sep 20 14:05:20 2019 +0200
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/user/lookup_stubs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/user/lookup_stubs.go b/src/os/user/lookup_stubs.go
+index d3acbddd18..7164514828 100644
+--- a/src/os/user/lookup_stubs.go
++++ b/src/os/user/lookup_stubs.go
+@@ -72,7 +72,7 @@ func current() (*User, error) {
+ 
+ func listGroups(*User) ([]string, error) {
+ 	if runtime.GOOS == "android" || runtime.GOOS == "aix" {
+-		return nil, errors.New(fmt.Sprintf("user: GroupIds not implemented on %s", runtime.GOOS))
++		return nil, fmt.Errorf("user: GroupIds not implemented on %s", runtime.GOOS)
+ 	}
+ 	return nil, errors.New("user: GroupIds requires cgo")
+ }

@@ -64,8 +64,153 @@ Date:   Sat Aug 15 16:20:50 2020 +0200
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/init_test.go             | 26 +++++++++++++++++---------
  src/cmd/go/internal/base/base.go    | 14 ++++++++++++++
  src/cmd/go/internal/base/goflags.go | 37 +++++++------------------------------
  3 files changed, 38 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/go/init_test.go b/src/cmd/go/init_test.go
+index ed90a77841..5a5cbe5293 100644
+--- a/src/cmd/go/init_test.go
++++ b/src/cmd/go/init_test.go
+@@ -7,6 +7,7 @@ package main_test
+ import (
+ 	"internal/testenv"
+ 	"os/exec"
++	"sync/atomic"
+ 	"testing"
+ )
+ 
+@@ -15,20 +16,27 @@ import (
+ // the benchmark if any changes were done.
+ func BenchmarkExecGoEnv(b *testing.B) {
+ 	testenv.MustHaveExec(b)
+-	b.StopTimer()
+ 	gotool, err := testenv.GoTool()
+ 	if err != nil {
+ 		b.Fatal(err)
+ 	}
+-	for i := 0; i < b.N; i++ {
+-		cmd := exec.Command(gotool, "env", "GOARCH")
+ 
+-		b.StartTimer()
+-		err := cmd.Run()
+-		b.StopTimer()
++	// We collect extra metrics.
++	var n, userTime, systemTime int64
+ 
+-		if err != nil {
+-			b.Fatal(err)
++	b.ResetTimer()
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			cmd := exec.Command(gotool, "env", "GOARCH")
++
++			if err := cmd.Run(); err != nil {
++				b.Fatal(err)
++			}
++			atomic.AddInt64(&n, 1)
++			atomic.AddInt64(&userTime, int64(cmd.ProcessState.UserTime()))
++			atomic.AddInt64(&systemTime, int64(cmd.ProcessState.SystemTime()))
+ 		}
+-	}
++	})
++	b.ReportMetric(float64(userTime)/float64(n), "user-ns/op")
++	b.ReportMetric(float64(systemTime)/float64(n), "sys-ns/op")
+ }
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index db3ebef933..004588c732 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -56,6 +56,20 @@ var Go = &Command{
+ 	// Commands initialized in package main
+ }
+ 
++// hasFlag reports whether a command or any of its subcommands contain the given
++// flag.
++func hasFlag(c *Command, name string) bool {
++	if f := c.Flag.Lookup(name); f != nil {
++		return true
++	}
++	for _, sub := range c.Commands {
++		if hasFlag(sub, name) {
++			return true
++		}
++	}
++	return false
++}
++
+ // LongName returns the command's long name: all the words in the usage line between "go" and a flag or argument,
+ func (c *Command) LongName() string {
+ 	name := c.UsageLine
+diff --git a/src/cmd/go/internal/base/goflags.go b/src/cmd/go/internal/base/goflags.go
+index 34766134b0..f11f9a5d33 100644
+--- a/src/cmd/go/internal/base/goflags.go
++++ b/src/cmd/go/internal/base/goflags.go
+@@ -13,15 +13,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ )
+ 
+-var (
+-	goflags   []string                // cached $GOFLAGS list; can be -x or --x form
+-	knownFlag = make(map[string]bool) // flags allowed to appear in $GOFLAGS; no leading dashes
+-)
+-
+-// AddKnownFlag adds name to the list of known flags for use in $GOFLAGS.
+-func AddKnownFlag(name string) {
+-	knownFlag[name] = true
+-}
++var goflags []string // cached $GOFLAGS list; can be -x or --x form
+ 
+ // GOFLAGS returns the flags from $GOFLAGS.
+ // The list can be assumed to contain one string per flag,
+@@ -38,22 +30,12 @@ func InitGOFLAGS() {
+ 		return
+ 	}
+ 
+-	// Build list of all flags for all commands.
+-	// If no command has that flag, then we report the problem.
+-	// This catches typos while still letting users record flags in GOFLAGS
+-	// that only apply to a subset of go commands.
+-	// Commands using CustomFlags can report their flag names
+-	// by calling AddKnownFlag instead.
+-	var walkFlags func(*Command)
+-	walkFlags = func(cmd *Command) {
+-		for _, sub := range cmd.Commands {
+-			walkFlags(sub)
+-		}
+-		cmd.Flag.VisitAll(func(f *flag.Flag) {
+-			knownFlag[f.Name] = true
+-		})
++	goflags = strings.Fields(cfg.Getenv("GOFLAGS"))
++	if len(goflags) == 0 {
++		// nothing to do; avoid work on later InitGOFLAGS call
++		goflags = []string{}
++		return
+ 	}
+-	walkFlags(Go)
+ 
+ 	// Ignore bad flag in go env and go bug, because
+ 	// they are what people reach for when debugging
+@@ -61,11 +43,6 @@ func InitGOFLAGS() {
+ 	// (Both will show the GOFLAGS setting if let succeed.)
+ 	hideErrors := cfg.CmdName == "env" || cfg.CmdName == "bug"
+ 
+-	goflags = strings.Fields(cfg.Getenv("GOFLAGS"))
+-	if goflags == nil {
+-		goflags = []string{} // avoid work on later InitGOFLAGS call
+-	}
+-
+ 	// Each of the words returned by strings.Fields must be its own flag.
+ 	// To set flag arguments use -x=value instead of -x value.
+ 	// For boolean flags, -x is fine instead of -x=true.
+@@ -85,7 +62,7 @@ func InitGOFLAGS() {
+ 		if i := strings.Index(name, "="); i >= 0 {
+ 			name = name[:i]
+ 		}
+-		if !knownFlag[name] {
++		if !hasFlag(Go, name) {
+ 			if hideErrors {
+ 				continue
+ 			}

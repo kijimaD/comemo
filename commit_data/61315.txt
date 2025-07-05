@@ -32,7 +32,7 @@ Date:   Fri Oct 25 11:47:53 2024 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/621416
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/poll/fd_posix.go         |  10 ++
  src/internal/poll/sendfile_bsd.go     |  80 --------------
  src/internal/poll/sendfile_linux.go   |  61 -----------
@@ -43,3 +43,809 @@ Date:   Fri Oct 25 11:47:53 2024 -0700
  src/os/copy_test.go                   | 124 +++++++++++++++++++---
  src/os/zero_copy_solaris.go           |  40 +------
  9 files changed, 327 insertions(+), 299 deletions(-)
+
+diff --git a/src/internal/poll/fd_posix.go b/src/internal/poll/fd_posix.go
+index 5bd333b4da..12f138644b 100644
+--- a/src/internal/poll/fd_posix.go
++++ b/src/internal/poll/fd_posix.go
+@@ -77,3 +77,13 @@ func ignoringEINTR(fn func() error) error {
+ 		}
+ 	}
+ }
++
++// ignoringEINTR2 is ignoringEINTR, but returning an additional value.
++func ignoringEINTR2[T any](fn func() (T, error)) (T, error) {
++	for {
++		v, err := fn()
++		if err != syscall.EINTR {
++			return v, err
++		}
++	}
++}
+diff --git a/src/internal/poll/sendfile_bsd.go b/src/internal/poll/sendfile_bsd.go
+deleted file mode 100644
+index 7f28f0db80..0000000000
+--- a/src/internal/poll/sendfile_bsd.go
++++ /dev/null
+@@ -1,80 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build darwin || dragonfly || freebsd
+-
+-package poll
+-
+-import "syscall"
+-
+-// maxSendfileSize is the largest chunk size we ask the kernel to copy
+-// at a time.
+-// sendfile(2)s on *BSD and Darwin don't have a limit on the size of
+-// data to copy at a time, we pick the typical SSIZE_MAX on 32-bit systems,
+-// which ought to be sufficient for all practical purposes.
+-const maxSendfileSize int = 1<<31 - 1
+-
+-// SendFile wraps the sendfile system call.
+-func SendFile(dstFD *FD, src int, pos, remain int64) (written int64, err error, handled bool) {
+-	defer func() {
+-		TestHookDidSendFile(dstFD, src, written, err, handled)
+-	}()
+-	if err := dstFD.writeLock(); err != nil {
+-		return 0, err, false
+-	}
+-	defer dstFD.writeUnlock()
+-
+-	if err := dstFD.pd.prepareWrite(dstFD.isFile); err != nil {
+-		return 0, err, false
+-	}
+-
+-	dst := dstFD.Sysfd
+-	for remain > 0 {
+-		n := maxSendfileSize
+-		if int64(n) > remain {
+-			n = int(remain)
+-		}
+-		m := n
+-		pos1 := pos
+-		n, err = syscall.Sendfile(dst, src, &pos1, n)
+-		if n > 0 {
+-			pos += int64(n)
+-			written += int64(n)
+-			remain -= int64(n)
+-			// (n, nil) indicates that sendfile(2) has transferred
+-			// the exact number of bytes we requested, or some unretryable
+-			// error have occurred with partial bytes sent. Either way, we
+-			// don't need to go through the following logic to check EINTR
+-			// or fell into dstFD.pd.waitWrite, just continue to send the
+-			// next chunk or break the loop.
+-			if n == m {
+-				continue
+-			} else if err != syscall.EAGAIN &&
+-				err != syscall.EINTR &&
+-				err != syscall.EBUSY {
+-				// Particularly, EPIPE. Errors like that would normally lead
+-				// the subsequent sendfile(2) call to (-1, EBADF).
+-				break
+-			}
+-		} else if err != syscall.EAGAIN && err != syscall.EINTR {
+-			// This includes syscall.ENOSYS (no kernel
+-			// support) and syscall.EINVAL (fd types which
+-			// don't implement sendfile), and other errors.
+-			// We should end the loop when there is no error
+-			// returned from sendfile(2) or it is not a retryable error.
+-			break
+-		}
+-		if err == syscall.EINTR {
+-			continue
+-		}
+-		if err = dstFD.pd.waitWrite(dstFD.isFile); err != nil {
+-			break
+-		}
+-	}
+-	if err == syscall.EAGAIN {
+-		err = nil
+-	}
+-	handled = written != 0 || (err != syscall.ENOSYS && err != syscall.EINVAL)
+-	return
+-}
+diff --git a/src/internal/poll/sendfile_linux.go b/src/internal/poll/sendfile_linux.go
+deleted file mode 100644
+index 7e800a3b7e..0000000000
+--- a/src/internal/poll/sendfile_linux.go
++++ /dev/null
+@@ -1,61 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package poll
+-
+-import "syscall"
+-
+-// maxSendfileSize is the largest chunk size we ask the kernel to copy
+-// at a time.
+-// sendfile(2) on Linux will transfer at most 0x7ffff000 (2,147,479,552)
+-// bytes, which is true on both 32-bit and 64-bit systems.
+-// See https://man7.org/linux/man-pages/man2/sendfile.2.html#NOTES for details.
+-const maxSendfileSize int = 0x7ffff000
+-
+-// SendFile wraps the sendfile system call.
+-func SendFile(dstFD *FD, src int, remain int64) (written int64, err error, handled bool) {
+-	defer func() {
+-		TestHookDidSendFile(dstFD, src, written, err, handled)
+-	}()
+-	if err := dstFD.writeLock(); err != nil {
+-		return 0, err, false
+-	}
+-	defer dstFD.writeUnlock()
+-
+-	if err := dstFD.pd.prepareWrite(dstFD.isFile); err != nil {
+-		return 0, err, false
+-	}
+-
+-	dst := dstFD.Sysfd
+-	for remain > 0 {
+-		n := maxSendfileSize
+-		if int64(n) > remain {
+-			n = int(remain)
+-		}
+-		n, err = syscall.Sendfile(dst, src, nil, n)
+-		if n > 0 {
+-			written += int64(n)
+-			remain -= int64(n)
+-			continue
+-		} else if err != syscall.EAGAIN && err != syscall.EINTR {
+-			// This includes syscall.ENOSYS (no kernel
+-			// support) and syscall.EINVAL (fd types which
+-			// don't implement sendfile), and other errors.
+-			// We should end the loop when there is no error
+-			// returned from sendfile(2) or it is not a retryable error.
+-			break
+-		}
+-		if err == syscall.EINTR {
+-			continue
+-		}
+-		if err = dstFD.pd.waitWrite(dstFD.isFile); err != nil {
+-			break
+-		}
+-	}
+-	if err == syscall.EAGAIN {
+-		err = nil
+-	}
+-	handled = written != 0 || (err != syscall.ENOSYS && err != syscall.EINVAL)
+-	return
+-}
+diff --git a/src/internal/poll/sendfile_solaris.go b/src/internal/poll/sendfile_solaris.go
+index 113214ff39..605323b976 100644
+--- a/src/internal/poll/sendfile_solaris.go
++++ b/src/internal/poll/sendfile_solaris.go
+@@ -4,76 +4,9 @@
+ 
+ package poll
+ 
+-import "syscall"
+-
+ //go:cgo_ldflag "-lsendfile"
+ 
+ // Not strictly needed, but very helpful for debugging, see issue #10221.
+ //
+ //go:cgo_import_dynamic _ _ "libsendfile.so"
+ //go:cgo_import_dynamic _ _ "libsocket.so"
+-
+-// maxSendfileSize is the largest chunk size we ask the kernel to copy
+-// at a time.
+-// sendfile(2)s on SunOS derivatives don't have a limit on the size of
+-// data to copy at a time, we pick the typical SSIZE_MAX on 32-bit systems,
+-// which ought to be sufficient for all practical purposes.
+-const maxSendfileSize int = 1<<31 - 1
+-
+-// SendFile wraps the sendfile system call.
+-func SendFile(dstFD *FD, src int, pos, remain int64) (written int64, err error, handled bool) {
+-	defer func() {
+-		TestHookDidSendFile(dstFD, src, written, err, handled)
+-	}()
+-	if err := dstFD.writeLock(); err != nil {
+-		return 0, err, false
+-	}
+-	defer dstFD.writeUnlock()
+-
+-	if err := dstFD.pd.prepareWrite(dstFD.isFile); err != nil {
+-		return 0, err, false
+-	}
+-
+-	dst := dstFD.Sysfd
+-	for remain > 0 {
+-		n := maxSendfileSize
+-		if int64(n) > remain {
+-			n = int(remain)
+-		}
+-		pos1 := pos
+-		n, err = syscall.Sendfile(dst, src, &pos1, n)
+-		if err == syscall.EAGAIN || err == syscall.EINTR || err == syscall.EINVAL {
+-			// Partial write or other quirks may have occurred.
+-			//
+-			// For EINVAL, this is another quirk on SunOS: sendfile() claims to support
+-			// out_fd as a regular file but returns EINVAL when the out_fd is not a
+-			// socket of SOCK_STREAM, while it actually sends out data anyway and updates
+-			// the file offset.
+-			n = int(pos1 - pos)
+-		}
+-		if n > 0 {
+-			pos += int64(n)
+-			written += int64(n)
+-			remain -= int64(n)
+-			continue
+-		} else if err != syscall.EAGAIN && err != syscall.EINTR {
+-			// This includes syscall.ENOSYS (no kernel
+-			// support) and syscall.EINVAL (fd types which
+-			// don't implement sendfile), and other errors.
+-			// We should end the loop when there is no error
+-			// returned from sendfile(2) or it is not a retryable error.
+-			break
+-		}
+-		if err == syscall.EINTR {
+-			continue
+-		}
+-		if err = dstFD.pd.waitWrite(dstFD.isFile); err != nil {
+-			break
+-		}
+-	}
+-	if err == syscall.EAGAIN {
+-		err = nil
+-	}
+-	handled = written != 0 || (err != syscall.ENOSYS && err != syscall.EINVAL)
+-	return
+-}
+diff --git a/src/internal/poll/sendfile_unix.go b/src/internal/poll/sendfile_unix.go
+new file mode 100644
+index 0000000000..881625ce58
+--- /dev/null
++++ b/src/internal/poll/sendfile_unix.go
+@@ -0,0 +1,189 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin || dragonfly || freebsd || linux || solaris
++
++package poll
++
++import (
++	"runtime"
++	"syscall"
++)
++
++// SendFile wraps the sendfile system call.
++//
++// It copies data from src (a file descriptor) to dstFD,
++// starting at the current position of src.
++// It updates the current position of src to after the
++// copied data.
++//
++// If size is zero, it copies the rest of src.
++// Otherwise, it copies up to size bytes.
++//
++// The handled return parameter indicates whether SendFile
++// was able to handle some or all of the operation.
++// If handled is false, sendfile was unable to perform the copy,
++// has not modified the source or destination,
++// and the caller should perform the copy using a fallback implementation.
++func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool) {
++	if runtime.GOOS == "linux" {
++		// Linux's sendfile doesn't require any setup:
++		// It sends from the current position of the source file,
++		// updates the position of the source after sending,
++		// and sends everything when the size is 0.
++		return sendFile(dstFD, src, nil, size)
++	}
++
++	// Darwin/FreeBSD/DragonFly/Solaris's sendfile implementation
++	// doesn't use the current position of the file --
++	// if you pass it offset 0, it starts from offset 0.
++	// There's no way to tell it "start from current position",
++	// so we have to manage that explicitly.
++	const (
++		seekStart   = 0
++		seekCurrent = 1
++		seekEnd     = 2
++	)
++	start, err := ignoringEINTR2(func() (int64, error) {
++		return syscall.Seek(src, 0, seekCurrent)
++	})
++	if err != nil {
++		return 0, err, false
++	}
++
++	// Solaris requires us to pass a length to send,
++	// rather than accepting 0 as "send everything".
++	//
++	// Seek to the end of the source file to find its length.
++	//
++	// Important: If we ever remove this block
++	// (because Solaris has added a way to send everything, or we discovered a
++	// previously-unknown existing way),
++	// then some of the sendFile function will need updating.
++	//
++	// On Solaris, sendfile can return n>0 and EINVAL when successfully copying to a file.
++	// We ignore the EINVAL in this case.
++	//
++	// On non-Solaris platforms, when size==0 we call sendfile until it returns
++	// n==0 and success, indicating that it has copied the entire source file.
++	// If we were to do this on Solaris, then the final sendfile call could return (0, EINVAL),
++	// which we would treat as an error rather than successful completion of the copy.
++	// This never happens, because when size==0 on Solaris,
++	// we look up the actual file size here.
++	// If we change that, we need to handle the (0, EINVAL) case below.
++	mustReposition := false
++	if runtime.GOOS == "solaris" && size == 0 {
++		end, err := ignoringEINTR2(func() (int64, error) {
++			return syscall.Seek(src, 0, seekEnd)
++		})
++		if err != nil {
++			return 0, err, false
++		}
++		size = end - start
++		mustReposition = true
++	}
++
++	pos := start
++	n, err, handled = sendFile(dstFD, src, &pos, size)
++	if n > 0 || mustReposition {
++		ignoringEINTR2(func() (int64, error) {
++			return syscall.Seek(src, start+n, seekStart)
++		})
++	}
++	return n, err, handled
++}
++
++// sendFile wraps the sendfile system call.
++func sendFile(dstFD *FD, src int, offset *int64, size int64) (written int64, err error, handled bool) {
++	defer func() {
++		TestHookDidSendFile(dstFD, src, written, err, handled)
++	}()
++	if err := dstFD.writeLock(); err != nil {
++		return 0, err, false
++	}
++	defer dstFD.writeUnlock()
++
++	if err := dstFD.pd.prepareWrite(dstFD.isFile); err != nil {
++		return 0, err, false
++	}
++
++	dst := dstFD.Sysfd
++	for {
++		chunk := 0
++		if size > 0 {
++			chunk = int(size - written)
++		}
++		var n int
++		n, err = sendFileChunk(dst, src, offset, chunk)
++		if n > 0 {
++			written += int64(n)
++		}
++		switch err {
++		case nil:
++			// We're done if sendfile copied no bytes
++			// (we're at the end of the source)
++			// or if we have a size limit and have reached it.
++			//
++			// If sendfile copied some bytes and we don't have a size limit,
++			// try again to see if there is more data to copy.
++			if n == 0 || (size > 0 && written >= size) {
++				return written, nil, true
++			}
++		case syscall.EAGAIN:
++			// Darwin can return EAGAIN with n > 0,
++			// so check to see if the write has completed.
++			// So far as we know all other platforms only return EAGAIN when n == 0,
++			// but checking is harmless.
++			if size > 0 && written >= size {
++				return written, nil, true
++			}
++			if err = dstFD.pd.waitWrite(dstFD.isFile); err != nil {
++				return written, err, true
++			}
++		case syscall.EINTR:
++			// Ignore.
++		case syscall.ENOSYS, syscall.EINVAL, syscall.EOPNOTSUPP:
++			// ENOSYS indicates no kernel support for sendfile.
++			// EINVAL indicates a FD type which does not support sendfile.
++			//
++			// On Linux, copy_file_range can return EOPNOTSUPP when copying
++			// to a NFS file (issue #40731); check for it here just in case.
++			return written, err, written > 0
++		default:
++			// Not a retryable error.
++			return written, err, true
++		}
++	}
++}
++
++func sendFileChunk(dst, src int, offset *int64, size int) (n int, err error) {
++	switch runtime.GOOS {
++	case "linux":
++		// The offset is always nil on Linux.
++		n, err = syscall.Sendfile(dst, src, offset, size)
++	case "solaris":
++		// Trust the offset, not the return value from sendfile.
++		start := *offset
++		n, err = syscall.Sendfile(dst, src, offset, size)
++		n = int(*offset - start)
++		// A quirk on Solaris: sendfile() claims to support out_fd
++		// as a regular file but returns EINVAL when the out_fd
++		// is not a socket of SOCK_STREAM, while it actually sends
++		// out data anyway and updates the file offset.
++		if err == syscall.EINVAL && n > 0 {
++			err = nil
++		}
++	default:
++		start := *offset
++		n, err = syscall.Sendfile(dst, src, offset, size)
++		if n > 0 {
++			// The BSD implementations of syscall.Sendfile don't
++			// update the offset parameter (despite it being a *int64).
++			//
++			// Trust the return value from sendfile, not the offset.
++			*offset = start + int64(n)
++		}
++	}
++	return
++}
+diff --git a/src/net/sendfile_test.go b/src/net/sendfile_test.go
+index 4f3411565b..64b33a54e2 100644
+--- a/src/net/sendfile_test.go
++++ b/src/net/sendfile_test.go
+@@ -69,7 +69,10 @@ func expectSendfile(t *testing.T, wantConn Conn, f func()) {
+ 	}
+ }
+ 
+-func TestSendfile(t *testing.T) {
++func TestSendfile(t *testing.T)                        { testSendfile(t, 0) }
++func TestSendfileWithExactLimit(t *testing.T)          { testSendfile(t, newtonLen) }
++func TestSendfileWithLimitLargerThanFile(t *testing.T) { testSendfile(t, newtonLen*2) }
++func testSendfile(t *testing.T, limit int64) {
+ 	ln := newLocalListener(t, "tcp")
+ 	defer ln.Close()
+ 
+@@ -104,7 +107,14 @@ func TestSendfile(t *testing.T) {
+ 				sbytes, err = io.Copy(conn, f)
+ 			default:
+ 				expectSendfile(t, conn, func() {
+-					sbytes, err = io.Copy(conn, f)
++					if limit > 0 {
++						sbytes, err = io.CopyN(conn, f, limit)
++						if err == io.EOF && limit > newtonLen {
++							err = nil
++						}
++					} else {
++						sbytes, err = io.Copy(conn, f)
++					}
+ 				})
+ 			}
+ 			if err != nil {
+diff --git a/src/net/sendfile_unix_alt.go b/src/net/sendfile_unix_alt.go
+index 9e46c4e607..db788753f1 100644
+--- a/src/net/sendfile_unix_alt.go
++++ b/src/net/sendfile_unix_alt.go
+@@ -9,7 +9,6 @@ package net
+ import (
+ 	"internal/poll"
+ 	"io"
+-	"io/fs"
+ 	"syscall"
+ )
+ 
+@@ -23,13 +22,7 @@ const supportsSendfile = true
+ //
+ // if handled == false, sendFile performed no work.
+ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+-	// Darwin, FreeBSD, DragonFly and Solaris use 0 as the "until EOF" value.
+-	// If you pass in more bytes than the file contains, it will
+-	// loop back to the beginning ad nauseam until it's sent
+-	// exactly the number of bytes told to. As such, we need to
+-	// know exactly how many bytes to send.
+-	var remain int64 = 0
+-
++	var remain int64 = 0 // 0 writes the entire file
+ 	lr, ok := r.(*io.LimitedReader)
+ 	if ok {
+ 		remain, r = lr.N, lr.R
+@@ -39,34 +32,11 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 	}
+ 	// r might be an *os.File or an os.fileWithoutWriteTo.
+ 	// Type assert to an interface rather than *os.File directly to handle the latter case.
+-	f, ok := r.(interface {
+-		fs.File
+-		io.Seeker
+-		syscall.Conn
+-	})
++	f, ok := r.(syscall.Conn)
+ 	if !ok {
+ 		return 0, nil, false
+ 	}
+ 
+-	if remain == 0 {
+-		fi, err := f.Stat()
+-		if err != nil {
+-			return 0, err, false
+-		}
+-
+-		remain = fi.Size()
+-	}
+-
+-	// The other quirk with Darwin/FreeBSD/DragonFly/Solaris's sendfile
+-	// implementation is that it doesn't use the current position
+-	// of the file -- if you pass it offset 0, it starts from
+-	// offset 0. There's no way to tell it "start from current
+-	// position", so we have to manage that explicitly.
+-	pos, err := f.Seek(0, io.SeekCurrent)
+-	if err != nil {
+-		return 0, err, false
+-	}
+-
+ 	sc, err := f.SyscallConn()
+ 	if err != nil {
+ 		return 0, nil, false
+@@ -74,7 +44,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 
+ 	var werr error
+ 	err = sc.Read(func(fd uintptr) bool {
+-		written, werr, handled = poll.SendFile(&c.pfd, int(fd), pos, remain)
++		written, werr, handled = poll.SendFile(&c.pfd, int(fd), remain)
+ 		return true
+ 	})
+ 	if err == nil {
+@@ -85,10 +55,5 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 		lr.N = remain - written
+ 	}
+ 
+-	_, err1 := f.Seek(written, io.SeekCurrent)
+-	if err1 != nil && err == nil {
+-		return written, err1, handled
+-	}
+-
+ 	return written, wrapSyscallError("sendfile", err), handled
+ }
+diff --git a/src/os/copy_test.go b/src/os/copy_test.go
+index 82346ca4e5..407a59af42 100644
+--- a/src/os/copy_test.go
++++ b/src/os/copy_test.go
+@@ -7,6 +7,7 @@ package os_test
+ import (
+ 	"bytes"
+ 	"errors"
++	"fmt"
+ 	"io"
+ 	"math/rand/v2"
+ 	"net"
+@@ -70,28 +71,135 @@ func TestLargeCopyViaNetwork(t *testing.T) {
+ 	}
+ }
+ 
++func TestCopyFileToFile(t *testing.T) {
++	const size = 1 * 1024 * 1024
++	dir := t.TempDir()
++
++	src, err := os.Create(dir + "/src")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer src.Close()
++	if _, err := io.CopyN(src, newRandReader(), size); err != nil {
++		t.Fatal(err)
++	}
++	if _, err := src.Seek(0, 0); err != nil {
++		t.Fatal(err)
++	}
++
++	mustSeek := func(f *os.File, offset int64, whence int) int64 {
++		ret, err := f.Seek(offset, whence)
++		if err != nil {
++			t.Fatal(err)
++		}
++		return ret
++	}
++
++	for _, srcStart := range []int64{0, 100, size} {
++		remaining := size - srcStart
++		for _, dstStart := range []int64{0, 200} {
++			for _, limit := range []int64{remaining, remaining - 100, size * 2} {
++				if limit < 0 {
++					continue
++				}
++				name := fmt.Sprintf("srcStart=%v/dstStart=%v/limit=%v", srcStart, dstStart, limit)
++				t.Run(name, func(t *testing.T) {
++					dst, err := os.CreateTemp(dir, "dst")
++					if err != nil {
++						t.Fatal(err)
++					}
++					defer dst.Close()
++					defer os.Remove(dst.Name())
++
++					mustSeek(src, srcStart, io.SeekStart)
++					if _, err := io.CopyN(dst, zeroReader{}, dstStart); err != nil {
++						t.Fatal(err)
++					}
++
++					var copied int64
++					if limit == 0 {
++						copied, err = io.Copy(dst, src)
++					} else {
++						copied, err = io.CopyN(dst, src, limit)
++					}
++					if limit > remaining {
++						if err != io.EOF {
++							t.Errorf("Copy: %v; want io.EOF", err)
++						}
++					} else {
++						if err != nil {
++							t.Errorf("Copy: %v; want nil", err)
++						}
++					}
++
++					wantCopied := remaining
++					if limit != 0 {
++						wantCopied = min(limit, wantCopied)
++					}
++					if copied != wantCopied {
++						t.Errorf("copied %v bytes, want %v", copied, wantCopied)
++					}
++
++					srcPos := mustSeek(src, 0, io.SeekCurrent)
++					wantSrcPos := srcStart + wantCopied
++					if srcPos != wantSrcPos {
++						t.Errorf("source position = %v, want %v", srcPos, wantSrcPos)
++					}
++
++					dstPos := mustSeek(dst, 0, io.SeekCurrent)
++					wantDstPos := dstStart + wantCopied
++					if dstPos != wantDstPos {
++						t.Errorf("destination position = %v, want %v", dstPos, wantDstPos)
++					}
++
++					mustSeek(dst, 0, io.SeekStart)
++					rr := newRandReader()
++					io.CopyN(io.Discard, rr, srcStart)
++					wantReader := io.MultiReader(
++						io.LimitReader(zeroReader{}, dstStart),
++						io.LimitReader(rr, wantCopied),
++					)
++					if err := compareReaders(dst, wantReader); err != nil {
++						t.Fatal(err)
++					}
++				})
++
++			}
++		}
++	}
++}
++
+ func compareReaders(a, b io.Reader) error {
+ 	bufa := make([]byte, 4096)
+ 	bufb := make([]byte, 4096)
++	off := 0
+ 	for {
+ 		na, erra := io.ReadFull(a, bufa)
+-		if erra != nil && erra != io.EOF {
++		if erra != nil && erra != io.EOF && erra != io.ErrUnexpectedEOF {
+ 			return erra
+ 		}
+ 		nb, errb := io.ReadFull(b, bufb)
+-		if errb != nil && errb != io.EOF {
++		if errb != nil && errb != io.EOF && errb != io.ErrUnexpectedEOF {
+ 			return errb
+ 		}
+ 		if !bytes.Equal(bufa[:na], bufb[:nb]) {
+ 			return errors.New("contents mismatch")
+ 		}
+-		if erra == io.EOF && errb == io.EOF {
++		if erra != nil && errb != nil {
+ 			break
+ 		}
++		off += len(bufa)
+ 	}
+ 	return nil
+ }
+ 
++type zeroReader struct{}
++
++func (r zeroReader) Read(p []byte) (int, error) {
++	clear(p)
++	return len(p), nil
++}
++
+ type randReader struct {
+ 	rand *rand.Rand
+ }
+@@ -101,16 +209,8 @@ func newRandReader() *randReader {
+ }
+ 
+ func (r *randReader) Read(p []byte) (int, error) {
+-	var v uint64
+-	var n int
+ 	for i := range p {
+-		if n == 0 {
+-			v = r.rand.Uint64()
+-			n = 8
+-		}
+-		p[i] = byte(v & 0xff)
+-		v >>= 8
+-		n--
++		p[i] = byte(r.rand.Uint32() & 0xff)
+ 	}
+ 	return len(p), nil
+ }
+diff --git a/src/os/zero_copy_solaris.go b/src/os/zero_copy_solaris.go
+index 697a368d21..7fc9ebdada 100644
+--- a/src/os/zero_copy_solaris.go
++++ b/src/os/zero_copy_solaris.go
+@@ -17,13 +17,7 @@ func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
+ 
+ // readFrom is basically a refactor of net.sendFile, but adapted to work for the target of *File.
+ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
+-	// SunOS uses 0 as the "until EOF" value.
+-	// If you pass in more bytes than the file contains, it will
+-	// loop back to the beginning ad nauseam until it's sent
+-	// exactly the number of bytes told to. As such, we need to
+-	// know exactly how many bytes to send.
+ 	var remain int64 = 0
+-
+ 	lr, ok := r.(*io.LimitedReader)
+ 	if ok {
+ 		remain, r = lr.N, lr.R
+@@ -74,25 +68,6 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
+ 		}
+ 	}
+ 
+-	if remain == 0 {
+-		fi, err := src.Stat()
+-		if err != nil {
+-			return 0, false, err
+-		}
+-
+-		remain = fi.Size()
+-	}
+-
+-	// The other quirk with SunOS' sendfile implementation
+-	// is that it doesn't use the current position of the file
+-	// -- if you pass it offset 0, it starts from offset 0.
+-	// There's no way to tell it "start from current position",
+-	// so we have to manage that explicitly.
+-	pos, err := src.Seek(0, io.SeekCurrent)
+-	if err != nil {
+-		return
+-	}
+-
+ 	sc, err := src.SyscallConn()
+ 	if err != nil {
+ 		return
+@@ -103,28 +78,15 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
+ 	// https://docs.oracle.com/cd/E88353_01/html/E37843/sendfile-3c.html and
+ 	// https://illumos.org/man/3EXT/sendfile for more details.
+ 	rerr := sc.Read(func(fd uintptr) bool {
+-		written, err, handled = poll.SendFile(&f.pfd, int(fd), pos, remain)
++		written, err, handled = poll.SendFile(&f.pfd, int(fd), remain)
+ 		return true
+ 	})
+ 	if lr != nil {
+ 		lr.N = remain - written
+ 	}
+-
+-	// This is another quirk on SunOS: sendfile() claims to support
+-	// out_fd as a regular file but returns EINVAL when the out_fd is not a
+-	// socket of SOCK_STREAM, while it actually sends out data anyway and updates
+-	// the file offset. In this case, we can just ignore the error.
+-	if err == syscall.EINVAL && written > 0 {
+-		err = nil
+-	}
+ 	if err == nil {
+ 		err = rerr
+ 	}
+ 
+-	_, err1 := src.Seek(written, io.SeekCurrent)
+-	if err1 != nil && err == nil {
+-		return written, handled, err1
+-	}
+-
+ 	return written, handled, wrapSyscallError("sendfile", err)
+ }

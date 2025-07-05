@@ -14,7 +14,7 @@ Date:   Mon Oct 11 22:38:42 2010 -0400
     R=dsymonds, r
     CC=golang-dev
     https://golang.org/cl/2436041
-
+---
  src/pkg/Makefile                      |   1 -
  src/pkg/container/list/list.go        |  13 --
  src/pkg/container/list/list_test.go   |   7 +-
@@ -23,3 +23,908 @@ Date:   Mon Oct 11 22:38:42 2010 -0400
  src/pkg/exp/iterable/iterable.go      | 344 ------------------------------
  src/pkg/exp/iterable/iterable_test.go | 391 ----------------------------------
  7 files changed, 4 insertions(+), 836 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 58de326a25..e961f37f52 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -63,7 +63,6 @@ DIRS=\
+ 	exp/draw\
+ 	exp/draw/x11\
+ 	exp/eval\
+-	exp/iterable\
+ 	expvar\
+ 	flag\
+ 	fmt\
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+index 16f7a23f1d..55831e8e61 100644
+--- a/src/pkg/container/list/list.go
++++ b/src/pkg/container/list/list.go
+@@ -180,19 +180,6 @@ func (l *List) MoveToBack(e *Element) {
+ // Len returns the number of elements in the list.
+ func (l *List) Len() int { return l.len }
+ 
+-func (l *List) iterate(c chan<- interface{}) {
+-	for e := l.front; e != nil; e = e.next {
+-		c <- e.Value
+-	}
+-	close(c)
+-}
+-
+-func (l *List) Iter() <-chan interface{} {
+-	c := make(chan interface{})
+-	go l.iterate(c)
+-	return c
+-}
+-
+ // PushBackList inserts each element of ol at the back of the list.
+ func (l *List) PushBackList(ol *List) {
+ 	last := ol.Back()
+diff --git a/src/pkg/container/list/list_test.go b/src/pkg/container/list/list_test.go
+index bf35c9dd9a..4538a0dcfd 100644
+--- a/src/pkg/container/list/list_test.go
++++ b/src/pkg/container/list/list_test.go
+@@ -116,8 +116,8 @@ func TestList(t *testing.T) {
+ 
+ 	// Check standard iteration.
+ 	sum := 0
+-	for e := range l.Iter() {
+-		if i, ok := e.(int); ok {
++	for e := l.Front(); e != nil; e = e.Next() {
++		if i, ok := e.Value.(int); ok {
+ 			sum += i
+ 		}
+ 	}
+@@ -141,7 +141,8 @@ func checkList(t *testing.T, l *List, es []interface{}) {
+ 		return
+ 	}
+ 	i := 0
+-	for le := range l.Iter() {
++	for e := l.Front(); e != nil; e = e.Next() {
++		le := e.Value.(int)
+ 		if le != es[i] {
+ 			t.Errorf("elt #%d has value=%v, want %v", i, le, es[i])
+ 		}
+diff --git a/src/pkg/exp/iterable/Makefile b/src/pkg/exp/iterable/Makefile
+deleted file mode 100644
+index cf95dc5adf..0000000000
+--- a/src/pkg/exp/iterable/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=exp/iterable
+-GOFILES=\
+-	array.go\
+-	iterable.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/exp/iterable/array.go b/src/pkg/exp/iterable/array.go
+deleted file mode 100644
+index 3ec7997512..0000000000
+--- a/src/pkg/exp/iterable/array.go
++++ /dev/null
+@@ -1,72 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package iterable
+-
+-// This file implements the Iterable interface on some primitive types.
+-
+-type ByteArray []byte
+-
+-func (a ByteArray) Iter() <-chan interface{} {
+-	ch := make(chan interface{})
+-	go func() {
+-		for _, e := range a {
+-			ch <- e
+-		}
+-		close(ch)
+-	}()
+-	return ch
+-}
+-
+-type IntArray []int
+-
+-func (a IntArray) Iter() <-chan interface{} {
+-	ch := make(chan interface{})
+-	go func() {
+-		for _, e := range a {
+-			ch <- e
+-		}
+-		close(ch)
+-	}()
+-	return ch
+-}
+-
+-type FloatArray []float
+-
+-func (a FloatArray) Iter() <-chan interface{} {
+-	ch := make(chan interface{})
+-	go func() {
+-		for _, e := range a {
+-			ch <- e
+-		}
+-		close(ch)
+-	}()
+-	return ch
+-}
+-
+-type StringArray []string
+-
+-func (a StringArray) Iter() <-chan interface{} {
+-	ch := make(chan interface{})
+-	go func() {
+-		for _, e := range a {
+-			ch <- e
+-		}
+-		close(ch)
+-	}()
+-	return ch
+-}
+-
+-type UintArray []uint
+-
+-func (a UintArray) Iter() <-chan interface{} {
+-	ch := make(chan interface{})
+-	go func() {
+-		for _, e := range a {
+-			ch <- e
+-		}
+-		close(ch)
+-	}()
+-	return ch
+-}
+diff --git a/src/pkg/exp/iterable/iterable.go b/src/pkg/exp/iterable/iterable.go
+deleted file mode 100644
+index ef6b9c4769..0000000000
+--- a/src/pkg/exp/iterable/iterable.go
++++ /dev/null
+@@ -1,344 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// The iterable package provides several traversal and searching methods.
+-// It can be used on anything that satisfies the Iterable interface,
+-// including vector, though certain functions, such as Map, can also be used on
+-// something that would produce an infinite amount of data.
+-package iterable
+-
+-import (
+-	"container/list"
+-	"container/vector"
+-)
+-
+-type Iterable interface {
+-	// Iter should return a fresh channel each time it is called.
+-	Iter() <-chan interface{}
+-}
+-
+-func not(f func(interface{}) bool) func(interface{}) bool {
+-	return func(e interface{}) bool { return !f(e) }
+-}
+-
+-// All tests whether f is true for every element of iter.
+-func All(iter Iterable, f func(interface{}) bool) bool {
+-	for e := range iter.Iter() {
+-		if !f(e) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-// Any tests whether f is true for at least one element of iter.
+-func Any(iter Iterable, f func(interface{}) bool) bool {
+-	return !All(iter, not(f))
+-}
+-
+-// Data returns a slice containing the elements of iter.
+-func Data(iter Iterable) []interface{} {
+-	var v vector.Vector
+-	for e := range iter.Iter() {
+-		v.Push(e)
+-	}
+-	return v
+-}
+-
+-// filteredIterable is a struct that implements Iterable with each element
+-// passed through a filter.
+-type filteredIterable struct {
+-	it Iterable
+-	f  func(interface{}) bool
+-}
+-
+-func (f *filteredIterable) iterate(out chan<- interface{}) {
+-	for e := range f.it.Iter() {
+-		if f.f(e) {
+-			out <- e
+-		}
+-	}
+-	close(out)
+-}
+-
+-func (f *filteredIterable) Iter() <-chan interface{} {
+-	ch := make(chan interface{})
+-	go f.iterate(ch)
+-	return ch
+-}
+-
+-// Filter returns an Iterable that returns the elements of iter that satisfy f.
+-func Filter(iter Iterable, f func(interface{}) bool) Iterable {
+-	return &filteredIterable{iter, f}
+-}
+-
+-// Find returns the first element of iter that satisfies f.
+-// Returns nil if no such element is found.
+-func Find(iter Iterable, f func(interface{}) bool) interface{} {
+-	for e := range Filter(iter, f).Iter() {
+-		return e
+-	}
+-	return nil
+-}
+-
+-// Injector is a type representing a function that takes two arguments,
+-// an accumulated value and an element, and returns the next accumulated value.
+-// See the Inject function.
+-type Injector func(interface{}, interface{}) interface{}
+-
+-// Inject combines the elements of iter by repeatedly calling f with an
+-// accumulated value and each element in order. The starting accumulated value
+-// is initial, and after each call the accumulated value is set to the return
+-// value of f. For instance, to compute a sum:
+-//   var arr IntArray = []int{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+-//   sum := iterable.Inject(arr, 0,
+-//                          func(ax interface {}, x interface {}) interface {} {
+-//                            return ax.(int) + x.(int) }).(int)
+-func Inject(iter Iterable, initial interface{}, f Injector) interface{} {
+-	acc := initial
+-	for e := range iter.Iter() {
+-		acc = f(acc, e)
+-	}
+-	return acc
+-}
+-
+-// mappedIterable is a helper struct that implements Iterable, returned by Map.
+-type mappedIterable struct {
+-	it Iterable
+-	f  func(interface{}) interface{}
+-}
+-
+-func (m *mappedIterable) iterate(out chan<- interface{}) {
+-	for e := range m.it.Iter() {
+-		out <- m.f(e)
+-	}
+-	close(out)
+-}
+-
+-func (m *mappedIterable) Iter() <-chan interface{} {
+-	ch := make(chan interface{})
+-	go m.iterate(ch)
+-	return ch
+-}
+-
+-// Map returns an Iterable that returns the result of applying f to each
+-// element of iter.
+-func Map(iter Iterable, f func(interface{}) interface{}) Iterable {
+-	return &mappedIterable{iter, f}
+-}
+-
+-// Partition(iter, f) returns Filter(iter, f) and Filter(iter, !f).
+-func Partition(iter Iterable, f func(interface{}) bool) (Iterable, Iterable) {
+-	return Filter(iter, f), Filter(iter, not(f))
+-}
+-
+-// A Func is a function that, when called, sends the
+-// iterable values on a channel.
+-type Func func(chan<- interface{})
+-
+-// Iter creates and returns a new channel; it starts a
+-// goroutine running f to send values to the channel.
+-func (f Func) Iter() <-chan interface{} {
+-	ch := make(chan interface{})
+-	go f(ch)
+-	return ch
+-}
+-
+-// Take returns an Iterable that contains the first n elements of iter.
+-func Take(iter Iterable, n int) Iterable { return Slice(iter, 0, n) }
+-
+-// TakeWhile returns an Iterable that contains elements from iter while f is true.
+-func TakeWhile(iter Iterable, f func(interface{}) bool) Iterable {
+-	return Func(func(ch chan<- interface{}) {
+-		for v := range iter.Iter() {
+-			if !f(v) {
+-				break
+-			}
+-			ch <- v
+-		}
+-		close(ch)
+-	})
+-}
+-
+-// Drop returns an Iterable that returns each element of iter after the first n elements.
+-func Drop(iter Iterable, n int) Iterable {
+-	return Func(func(ch chan<- interface{}) {
+-		m := n
+-		for v := range iter.Iter() {
+-			if m > 0 {
+-				m--
+-				continue
+-			}
+-			ch <- v
+-		}
+-		close(ch)
+-	})
+-}
+-
+-// DropWhile returns an Iterable that returns each element of iter after the initial sequence for which f returns true.
+-func DropWhile(iter Iterable, f func(interface{}) bool) Iterable {
+-	return Func(func(ch chan<- interface{}) {
+-		drop := true
+-		for v := range iter.Iter() {
+-			if drop {
+-				if f(v) {
+-					continue
+-				}
+-				drop = false
+-			}
+-			ch <- v
+-		}
+-		close(ch)
+-	})
+-}
+-
+-// Cycle repeats the values of iter in order infinitely.
+-func Cycle(iter Iterable) Iterable {
+-	return Func(func(ch chan<- interface{}) {
+-		for {
+-			for v := range iter.Iter() {
+-				ch <- v
+-			}
+-		}
+-	})
+-}
+-
+-// Chain returns an Iterable that concatenates all values from the specified Iterables.
+-func Chain(args []Iterable) Iterable {
+-	return Func(func(ch chan<- interface{}) {
+-		for _, e := range args {
+-			for v := range e.Iter() {
+-				ch <- v
+-			}
+-		}
+-		close(ch)
+-	})
+-}
+-
+-// Zip returns an Iterable of []interface{} consisting of the next element from
+-// each input Iterable.  The length of the returned Iterable is the minimum of
+-// the lengths of the input Iterables.
+-func Zip(args []Iterable) Iterable {
+-	return Func(func(ch chan<- interface{}) {
+-		defer close(ch)
+-		if len(args) == 0 {
+-			return
+-		}
+-		iters := make([]<-chan interface{}, len(args))
+-		for i := 0; i < len(iters); i++ {
+-			iters[i] = args[i].Iter()
+-		}
+-		for {
+-			out := make([]interface{}, len(args))
+-			for i, v := range iters {
+-				out[i] = <-v
+-				if closed(v) {
+-					return
+-				}
+-			}
+-			ch <- out
+-		}
+-	})
+-}
+-
+-// ZipWith returns an Iterable containing the result of executing f using arguments read from a and b.
+-func ZipWith2(f func(c, d interface{}) interface{}, a, b Iterable) Iterable {
+-	return Map(Zip([]Iterable{a, b}), func(a1 interface{}) interface{} {
+-		arr := a1.([]interface{})
+-		return f(arr[0], arr[1])
+-	})
+-}
+-
+-// ZipWith returns an Iterable containing the result of executing f using arguments read from a, b and c.
+-func ZipWith3(f func(d, e, f interface{}) interface{}, a, b, c Iterable) Iterable {
+-	return Map(Zip([]Iterable{a, b, c}), func(a1 interface{}) interface{} {
+-		arr := a1.([]interface{})
+-		return f(arr[0], arr[1], arr[2])
+-	})
+-}
+-
+-// Slice returns an Iterable that contains the elements from iter
+-// with indexes in [start, stop).
+-func Slice(iter Iterable, start, stop int) Iterable {
+-	return Func(func(ch chan<- interface{}) {
+-		defer close(ch)
+-		i := 0
+-		for v := range iter.Iter() {
+-			switch {
+-			case i >= stop:
+-				return
+-			case i >= start:
+-				ch <- v
+-			}
+-			i++
+-		}
+-	})
+-}
+-
+-// Repeat generates an infinite stream of v.
+-func Repeat(v interface{}) Iterable {
+-	return Func(func(ch chan<- interface{}) {
+-		for {
+-			ch <- v
+-		}
+-	})
+-}
+-
+-// RepeatTimes generates a stream of n copies of v.
+-func RepeatTimes(v interface{}, n int) Iterable {
+-	return Func(func(ch chan<- interface{}) {
+-		for i := 0; i < n; i++ {
+-			ch <- v
+-		}
+-		close(ch)
+-	})
+-}
+-
+-// Group is the type for elements returned by the GroupBy function.
+-type Group struct {
+-	Key  interface{} // key value for matching items
+-	Vals Iterable    // Iterable for receiving values in the group
+-}
+-
+-// Key defines the interface required by the GroupBy function.
+-type Grouper interface {
+-	// Return the key for the given value
+-	Key(interface{}) interface{}
+-
+-	// Compute equality for the given keys
+-	Equal(a, b interface{}) bool
+-}
+-
+-// GroupBy combines sequences of logically identical values from iter using k
+-// to generate a key to compare values.  Each value emitted by the returned
+-// Iterable is of type Group, which contains the key used for matching the
+-// values for the group, and an Iterable for retrieving all the values in the
+-// group.
+-func GroupBy(iter Iterable, k Grouper) Iterable {
+-	return Func(func(ch chan<- interface{}) {
+-		var curkey interface{}
+-		var lst *list.List
+-		// Basic strategy is to read one group at a time into a list prior to emitting the Group value
+-		for v := range iter.Iter() {
+-			kv := k.Key(v)
+-			if lst == nil || !k.Equal(curkey, kv) {
+-				if lst != nil {
+-					ch <- Group{curkey, lst}
+-				}
+-				lst = list.New()
+-				curkey = kv
+-			}
+-			lst.PushBack(v)
+-		}
+-		if lst != nil {
+-			ch <- Group{curkey, lst}
+-		}
+-		close(ch)
+-	})
+-}
+-
+-// Unique removes duplicate values which occur consecutively using id to compute keys.
+-func Unique(iter Iterable, id Grouper) Iterable {
+-	return Map(GroupBy(iter, id), func(v interface{}) interface{} { return v.(Group).Key })
+-}
+diff --git a/src/pkg/exp/iterable/iterable_test.go b/src/pkg/exp/iterable/iterable_test.go
+deleted file mode 100644
+index 23151578c1..0000000000
+--- a/src/pkg/exp/iterable/iterable_test.go
++++ /dev/null
+@@ -1,391 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package iterable
+-
+-import (
+-	"container/vector"
+-	"testing"
+-)
+-
+-func TestArrayTypes(t *testing.T) {
+-	// Test that conversion works correctly.
+-	bytes := ByteArray([]byte{1, 2, 3})
+-	if x := Data(bytes)[1].(byte); x != 2 {
+-		t.Error("Data(bytes)[1].(byte) = %v, want 2", x)
+-	}
+-	uints := UintArray([]uint{1, 2, 3})
+-	if x := Data(uints)[1].(uint); x != 2 {
+-		t.Error("Data(uints)[1].(uint) = %v, want 2", x)
+-	}
+-	ints := IntArray([]int{1, 2, 3})
+-	if x := Data(ints)[2].(int); x != 3 {
+-		t.Error("Data(ints)[2].(int) = %v, want 3", x)
+-	}
+-	floats := FloatArray([]float{1, 2, 3})
+-	if x := Data(floats)[0].(float); x != 1 {
+-		t.Error("Data(floats)[0].(float) = %v, want 1", x)
+-	}
+-	strings := StringArray([]string{"a", "b", "c"})
+-	if x := Data(strings)[1].(string); x != "b" {
+-		t.Error(`Data(strings)[1].(string) = %q, want "b"`, x)
+-	}
+-}
+-
+-var (
+-	oneToFive      = IntArray{1, 2, 3, 4, 5}
+-	sixToTen       = IntArray{6, 7, 8, 9, 10}
+-	elevenToTwenty = IntArray{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
+-)
+-
+-func isNegative(n interface{}) bool     { return n.(int) < 0 }
+-func isPositive(n interface{}) bool     { return n.(int) > 0 }
+-func isAbove3(n interface{}) bool       { return n.(int) > 3 }
+-func isEven(n interface{}) bool         { return n.(int)%2 == 0 }
+-func doubler(n interface{}) interface{} { return n.(int) * 2 }
+-func addOne(n interface{}) interface{}  { return n.(int) + 1 }
+-func adder(acc interface{}, n interface{}) interface{} {
+-	return acc.(int) + n.(int)
+-}
+-
+-// A stream of the natural numbers: 0, 1, 2, 3, ...
+-type integerStream struct{}
+-
+-func (i integerStream) Iter() <-chan interface{} {
+-	ch := make(chan interface{})
+-	go func() {
+-		for i := 0; ; i++ {
+-			ch <- i
+-		}
+-	}()
+-	return ch
+-}
+-
+-func TestAll(t *testing.T) {
+-	if !All(oneToFive, isPositive) {
+-		t.Error("All(oneToFive, isPositive) == false")
+-	}
+-	if All(oneToFive, isAbove3) {
+-		t.Error("All(oneToFive, isAbove3) == true")
+-	}
+-}
+-
+-func TestAny(t *testing.T) {
+-	if Any(oneToFive, isNegative) {
+-		t.Error("Any(oneToFive, isNegative) == true")
+-	}
+-	if !Any(oneToFive, isEven) {
+-		t.Error("Any(oneToFive, isEven) == false")
+-	}
+-}
+-
+-func assertArraysAreEqual(t *testing.T, res []interface{}, expected []int) {
+-	if len(res) != len(expected) {
+-		t.Errorf("len(res) = %v, want %v", len(res), len(expected))
+-		goto missing
+-	}
+-	for i := range res {
+-		if v := res[i].(int); v != expected[i] {
+-			t.Errorf("res[%v] = %v, want %v", i, v, expected[i])
+-			goto missing
+-		}
+-	}
+-	return
+-missing:
+-	t.Errorf("res = %v\nwant  %v", res, expected)
+-}
+-
+-func TestFilter(t *testing.T) {
+-	ints := integerStream{}
+-	moreInts := Filter(ints, isAbove3).Iter()
+-	res := make([]interface{}, 3)
+-	for i := 0; i < 3; i++ {
+-		res[i] = <-moreInts
+-	}
+-	assertArraysAreEqual(t, res, []int{4, 5, 6})
+-}
+-
+-func TestFind(t *testing.T) {
+-	ints := integerStream{}
+-	first := Find(ints, isAbove3)
+-	if first.(int) != 4 {
+-		t.Errorf("Find(ints, isAbove3) = %v, want 4", first)
+-	}
+-}
+-
+-func TestInject(t *testing.T) {
+-	res := Inject(oneToFive, 0, adder)
+-	if res.(int) != 15 {
+-		t.Errorf("Inject(oneToFive, 0, adder) = %v, want 15", res)
+-	}
+-}
+-
+-func TestMap(t *testing.T) {
+-	res := Data(Map(Map(oneToFive, doubler), addOne))
+-	assertArraysAreEqual(t, res, []int{3, 5, 7, 9, 11})
+-}
+-
+-func TestPartition(t *testing.T) {
+-	ti, fi := Partition(oneToFive, isEven)
+-	assertArraysAreEqual(t, Data(ti), []int{2, 4})
+-	assertArraysAreEqual(t, Data(fi), []int{1, 3, 5})
+-}
+-
+-func TestTake(t *testing.T) {
+-	res := Take(oneToFive, 2)
+-	assertArraysAreEqual(t, Data(res), []int{1, 2})
+-	assertArraysAreEqual(t, Data(res), []int{1, 2}) // second test to ensure that .Iter() returns a new channel
+-
+-	// take none
+-	res = Take(oneToFive, 0)
+-	assertArraysAreEqual(t, Data(res), []int{})
+-
+-	// try to take more than available
+-	res = Take(oneToFive, 20)
+-	assertArraysAreEqual(t, Data(res), oneToFive)
+-}
+-
+-func TestTakeWhile(t *testing.T) {
+-	// take some
+-	res := TakeWhile(oneToFive, func(v interface{}) bool { return v.(int) <= 3 })
+-	assertArraysAreEqual(t, Data(res), []int{1, 2, 3})
+-	assertArraysAreEqual(t, Data(res), []int{1, 2, 3}) // second test to ensure that .Iter() returns a new channel
+-
+-	// take none
+-	res = TakeWhile(oneToFive, func(v interface{}) bool { return v.(int) > 3000 })
+-	assertArraysAreEqual(t, Data(res), []int{})
+-
+-	// take all
+-	res = TakeWhile(oneToFive, func(v interface{}) bool { return v.(int) < 3000 })
+-	assertArraysAreEqual(t, Data(res), oneToFive)
+-}
+-
+-func TestDrop(t *testing.T) {
+-	// drop none
+-	res := Drop(oneToFive, 0)
+-	assertArraysAreEqual(t, Data(res), oneToFive)
+-	assertArraysAreEqual(t, Data(res), oneToFive) // second test to ensure that .Iter() returns a new channel
+-
+-	// drop some
+-	res = Drop(oneToFive, 2)
+-	assertArraysAreEqual(t, Data(res), []int{3, 4, 5})
+-	assertArraysAreEqual(t, Data(res), []int{3, 4, 5}) // second test to ensure that .Iter() returns a new channel
+-
+-	// drop more than available
+-	res = Drop(oneToFive, 88)
+-	assertArraysAreEqual(t, Data(res), []int{})
+-}
+-
+-func TestDropWhile(t *testing.T) {
+-	// drop some
+-	res := DropWhile(oneToFive, func(v interface{}) bool { return v.(int) < 3 })
+-	assertArraysAreEqual(t, Data(res), []int{3, 4, 5})
+-	assertArraysAreEqual(t, Data(res), []int{3, 4, 5}) // second test to ensure that .Iter() returns a new channel
+-
+-	// test case where all elements are dropped
+-	res = DropWhile(oneToFive, func(v interface{}) bool { return v.(int) < 100 })
+-	assertArraysAreEqual(t, Data(res), []int{})
+-
+-	// test case where none are dropped
+-	res = DropWhile(oneToFive, func(v interface{}) bool { return v.(int) > 1000 })
+-	assertArraysAreEqual(t, Data(res), oneToFive)
+-}
+-
+-func TestCycle(t *testing.T) {
+-	res := Cycle(oneToFive)
+-	exp := []int{1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4}
+-
+-	// read the first nineteen values from the iterable
+-	out := make([]interface{}, 19)
+-	for i, it := 0, res.Iter(); i < 19; i++ {
+-		out[i] = <-it
+-	}
+-	assertArraysAreEqual(t, out, exp)
+-
+-	res2 := Cycle(sixToTen)
+-	exp2 := []int{6, 7, 8, 9, 10, 6, 7, 8, 9, 10, 6, 7, 8, 9, 10, 6, 7, 8, 9}
+-	for i, it := 0, res2.Iter(); i < 19; i++ {
+-		out[i] = <-it
+-	}
+-	assertArraysAreEqual(t, out, exp2)
+-
+-	// ensure first iterator was not harmed
+-	for i, it := 0, res.Iter(); i < 19; i++ {
+-		out[i] = <-it
+-	}
+-	assertArraysAreEqual(t, out, exp)
+-}
+-
+-func TestChain(t *testing.T) {
+-
+-	exp := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
+-	res := Chain([]Iterable{oneToFive, sixToTen, elevenToTwenty})
+-	assertArraysAreEqual(t, Data(res), exp)
+-
+-	// reusing the same iterator should produce the same result again
+-	assertArraysAreEqual(t, Data(res), exp)
+-
+-	// test short read from Chain
+-	i := 0
+-	out := make([]interface{}, 4)
+-	for v := range res.Iter() {
+-		out[i] = v
+-		i++
+-		if i == len(out) {
+-			break
+-		}
+-	}
+-	assertArraysAreEqual(t, out, exp[0:4])
+-
+-	// test zero length array
+-	res = Chain([]Iterable{})
+-	assertArraysAreEqual(t, Data(res), []int{})
+-}
+-
+-func TestZipWith(t *testing.T) {
+-	exp := []int{7, 9, 11, 13, 15}
+-
+-	// f with 2 args and 1 return value
+-	f := func(a, b interface{}) interface{} { return a.(int) + b.(int) }
+-	res := ZipWith2(f, oneToFive, sixToTen)
+-	assertArraysAreEqual(t, Data(res), exp)
+-
+-	// test again to make sure returns new iter each time
+-	assertArraysAreEqual(t, Data(res), exp)
+-
+-	// test a function with 3 args
+-	f2 := func(a, b, c interface{}) interface{} { return a.(int) + b.(int) + c.(int) }
+-	res = ZipWith3(f2, oneToFive, sixToTen, oneToFive)
+-	exp = []int{8, 11, 14, 17, 20}
+-	assertArraysAreEqual(t, Data(res), exp)
+-
+-	// test a function with multiple values returned
+-	f3 := func(a, b interface{}) interface{} { return ([]interface{}{a.(int) + 1, b.(int) + 1}) }
+-	res = ZipWith2(f3, oneToFive, sixToTen)
+-
+-	exp2 := [][]int{[]int{2, 7}, []int{3, 8}, []int{4, 9}, []int{5, 10}, []int{6, 11}}
+-	i := 0
+-	for v := range res.Iter() {
+-		out := v.([]interface{})
+-		assertArraysAreEqual(t, out, exp2[i])
+-		i++
+-	}
+-
+-	// test different length iterators--should stop after shortest is exhausted
+-	res = ZipWith2(f, elevenToTwenty, oneToFive)
+-	exp = []int{12, 14, 16, 18, 20}
+-	assertArraysAreEqual(t, Data(res), exp)
+-}
+-
+-func TestSlice(t *testing.T) {
+-	out := Data(Slice(elevenToTwenty, 2, 6))
+-	exp := []int{13, 14, 15, 16}
+-	assertArraysAreEqual(t, out, exp)
+-
+-	// entire iterable
+-	out = Data(Slice(elevenToTwenty, 0, len(elevenToTwenty)))
+-	exp = []int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
+-	assertArraysAreEqual(t, out, exp)
+-
+-	// empty slice at offset 0
+-	exp = []int{}
+-	out = Data(Slice(elevenToTwenty, 0, 0))
+-	assertArraysAreEqual(t, out, exp)
+-
+-	// slice upper bound exceeds length of iterable
+-	exp = []int{1, 2, 3, 4, 5}
+-	out = Data(Slice(oneToFive, 0, 88))
+-	assertArraysAreEqual(t, out, exp)
+-
+-	// slice upper bounce is lower than lower bound
+-	exp = []int{}
+-	out = Data(Slice(oneToFive, 93, 4))
+-	assertArraysAreEqual(t, out, exp)
+-
+-	// slice lower bound is greater than len of iterable
+-	exp = []int{}
+-	out = Data(Slice(oneToFive, 93, 108))
+-	assertArraysAreEqual(t, out, exp)
+-}
+-
+-func TestRepeat(t *testing.T) {
+-	res := Repeat(42)
+-	i := 0
+-	for v := range res.Iter() {
+-		if v.(int) != 42 {
+-			t.Fatal("Repeat returned the wrong value")
+-		}
+-		if i == 9 {
+-			break
+-		}
+-		i++
+-	}
+-}
+-
+-func TestRepeatTimes(t *testing.T) {
+-	res := RepeatTimes(84, 9)
+-	exp := []int{84, 84, 84, 84, 84, 84, 84, 84, 84}
+-	assertArraysAreEqual(t, Data(res), exp)
+-	assertArraysAreEqual(t, Data(res), exp) // second time to ensure new iter is returned
+-
+-	// 0 repeat
+-	res = RepeatTimes(7, 0)
+-	exp = []int{}
+-	assertArraysAreEqual(t, Data(res), exp)
+-
+-	// negative repeat
+-	res = RepeatTimes(7, -3)
+-	exp = []int{}
+-	assertArraysAreEqual(t, Data(res), exp)
+-}
+-
+-// a type that implements Key for ints
+-type intkey struct{}
+-
+-func (v intkey) Key(a interface{}) interface{} {
+-	return a
+-}
+-func (v intkey) Equal(a, b interface{}) bool { return a.(int) == b.(int) }
+-
+-func TestGroupBy(t *testing.T) {
+-	in := IntArray{1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5}
+-	exp := [][]int{[]int{1}, []int{2, 2}, []int{3, 3, 3}, []int{4, 4, 4, 4}, []int{5, 5, 5, 5, 5}}
+-	i := 0
+-	for x := range GroupBy(in, intkey{}).Iter() {
+-		gr := x.(Group)
+-		if gr.Key.(int) != i+1 {
+-			t.Fatal("group key wrong; expected", i+1, "but got", gr.Key.(int))
+-		}
+-		vals := Data(gr.Vals)
+-		assertArraysAreEqual(t, vals, exp[i])
+-		i++
+-	}
+-	if i != 5 {
+-		t.Fatal("did not return expected number of groups")
+-	}
+-
+-	// test 0 length Iterable
+-	for _ = range GroupBy(IntArray([]int{}), &intkey{}).Iter() {
+-		t.Fatal("iterator should be empty")
+-	}
+-
+-	// test case with only uniques
+-	var out vector.Vector
+-	for x := range GroupBy(elevenToTwenty, intkey{}).Iter() {
+-		out.Push(x.(Group).Key)
+-	}
+-	assertArraysAreEqual(t, out, elevenToTwenty)
+-}
+-
+-func TestUnique(t *testing.T) {
+-	in := IntArray([]int{1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5})
+-	exp := []int{1, 2, 3, 4, 5}
+-	res := Unique(in, intkey{})
+-	assertArraysAreEqual(t, Data(res), exp)
+-	assertArraysAreEqual(t, Data(res), exp) // second time to ensure new iter is returned
+-
+-	// test case with only uniques
+-	res = Unique(elevenToTwenty, intkey{})
+-	assertArraysAreEqual(t, Data(res), elevenToTwenty)
+-}

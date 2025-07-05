@@ -7,10 +7,163 @@ Date:   Wed Jun 15 17:41:07 2011 -0700
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/4609047
-
+---
  src/pkg/syscall/mksyscall.pl         | 14 ++++++++------
  src/pkg/syscall/mksyscall_windows.pl | 30 ++++++++++++++----------------
  src/pkg/syscall/mksysnum_darwin.pl   |  2 ++
  src/pkg/syscall/mksysnum_freebsd.pl  |  2 ++
  src/pkg/syscall/mksysnum_linux.pl    |  2 ++
  5 files changed, 28 insertions(+), 22 deletions(-)
+
+diff --git a/src/pkg/syscall/mksyscall.pl b/src/pkg/syscall/mksyscall.pl
+index ecf4abdd44..9a474b6ff3 100755
+--- a/src/pkg/syscall/mksyscall.pl
++++ b/src/pkg/syscall/mksyscall.pl
+@@ -19,11 +19,13 @@
+ # block, as otherwise the system call could cause all goroutines to
+ # hang.
+ 
+-$cmdline = "mksyscall.pl " . join(' ', @ARGV);
+-$errors = 0;
+-$_32bit = "";
+-$nacl = 0;
+-$plan9 = 0;
++use strict;
++
++my $cmdline = "mksyscall.pl " . join(' ', @ARGV);
++my $errors = 0;
++my $_32bit = "";
++my $nacl = 0;
++my $plan9 = 0;
+ 
+ if($ARGV[0] eq "-b32") {
+ 	$_32bit = "big-endian";
+@@ -66,7 +68,7 @@ sub parseparam($) {
+ 	return ($1, $2);
+ }
+ 
+-$text = "";
++my $text = "";
+ while(<>) {
+ 	chomp;
+ 	s/\s+/ /g;
+diff --git a/src/pkg/syscall/mksyscall_windows.pl b/src/pkg/syscall/mksyscall_windows.pl
+index 83f5f03b17..c3cb142eda 100755
+--- a/src/pkg/syscall/mksyscall_windows.pl
++++ b/src/pkg/syscall/mksyscall_windows.pl
+@@ -23,9 +23,11 @@
+ #	  //sys LoadLibrary(libname string) (handle uint32, errno int) [failretval==-1] = LoadLibraryA
+ #	  and is [failretval==0] by default.
+ 
+-$cmdline = "mksyscall_windows.pl " . join(' ', @ARGV);
+-$errors = 0;
+-$_32bit = "";
++use strict;
++
++my $cmdline = "mksyscall_windows.pl " . join(' ', @ARGV);
++my $errors = 0;
++my $_32bit = "";
+ 
+ binmode STDOUT;
+ 
+@@ -62,10 +64,10 @@ sub parseparam($) {
+ 	return ($1, $2);
+ }
+ 
+-$text = "";
+-$vars = "";
+-$mods = "";
+-$modnames = "";
++my $text = "";
++my $vars = "";
++my $mods = "";
++my $modnames = "";
+ while(<>) {
+ 	chomp;
+ 	s/\s+/ /g;
+@@ -91,7 +93,7 @@ while(<>) {
+ 	if($modname eq "") {
+ 		$modname = "kernel32";
+ 	}
+-	$modvname = "mod$modname";
++	my $modvname = "mod$modname";
+ 	if($modnames !~ /$modname/) {
+ 		$modnames .= ".$modname";
+ 		$mods .= "\t$modvname = loadDll(\"$modname.dll\")\n";
+@@ -103,7 +105,7 @@ while(<>) {
+ 	}
+ 
+ 	# System call pointer variable name.
+-	$sysvarname = "proc$sysname";
++	my $sysvarname = "proc$sysname";
+ 
+ 	# Returned value when failed
+ 	if($failcond eq "") {
+@@ -111,17 +113,13 @@ while(<>) {
+ 	}
+ 
+ 	# Decide which version of api is used: ascii or unicode.
+-	if($sysname !~ /W$/) {
+-		$strconvfunc = "StringBytePtr";
+-	} else {
+-		$strconvfunc = "StringToUTF16Ptr";
+-	}
++	my $strconvfunc = $sysname !~ /W$/ ? "StringBytePtr" : "StringToUTF16Ptr";
+ 
+ 	# Winapi proc address variable.
+ 	$vars .= sprintf "\t%s = getSysProcAddr(%s, \"%s\")\n", $sysvarname, $modvname, $sysname;
+ 
+ 	# Go function header.
+-	my $out = join(', ', @out);
++	$out = join(', ', @out);
+ 	if($out ne "") {
+ 		$out = " ($out)";
+ 	}
+@@ -242,7 +240,7 @@ while(<>) {
+ 				$failexpr = "$name $failcond";
+ 			}
+ 		}
+-		$failexpr =~ s/(=)([0-9A-Za-z\-+])/\1 \2/;  # gofmt compatible
++		$failexpr =~ s/(=)([0-9A-Za-z\-+])/$1 $2/;  # gofmt compatible
+ 		if($name eq "errno") {
+ 			# Set errno to "last error" only if returned value indicate failure
+ 			$body .= "\tif $failexpr {\n";
+diff --git a/src/pkg/syscall/mksysnum_darwin.pl b/src/pkg/syscall/mksysnum_darwin.pl
+index 7469f2b960..fd4375b2f9 100755
+--- a/src/pkg/syscall/mksysnum_darwin.pl
++++ b/src/pkg/syscall/mksysnum_darwin.pl
+@@ -5,6 +5,8 @@
+ #
+ # Generate system call table for Darwin from sys/syscall.h
+ 
++use strict;
++
+ my $command = "mksysnum_darwin.pl " . join(' ', @ARGV);
+ 
+ print <<EOF;
+diff --git a/src/pkg/syscall/mksysnum_freebsd.pl b/src/pkg/syscall/mksysnum_freebsd.pl
+index 03f7d9e256..54872b2f48 100755
+--- a/src/pkg/syscall/mksysnum_freebsd.pl
++++ b/src/pkg/syscall/mksysnum_freebsd.pl
+@@ -6,6 +6,8 @@
+ # Generate system call table for FreeBSD from master list
+ # (for example, /usr/src/sys/kern/syscalls.master).
+ 
++use strict;
++
+ my $command = "mksysnum_freebsd.pl " . join(' ', @ARGV);
+ 
+ print <<EOF;
+diff --git a/src/pkg/syscall/mksysnum_linux.pl b/src/pkg/syscall/mksysnum_linux.pl
+index e97c87f445..ecf3641885 100755
+--- a/src/pkg/syscall/mksysnum_linux.pl
++++ b/src/pkg/syscall/mksysnum_linux.pl
+@@ -3,6 +3,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++use strict;
++
+ my $command = "mksysnum_linux.pl ". join(' ', @ARGV);
+ 
+ print <<EOF;

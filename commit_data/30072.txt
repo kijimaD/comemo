@@ -13,7 +13,51 @@ Date:   Mon Oct 24 14:19:18 2016 -0500
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 +++
  src/cmd/compile/internal/ssa/rewritePPC64.go | 18 ++++++++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index ba1ffa5e12..005b97a77d 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -267,6 +267,9 @@
+ (OrB x y) -> (OR x y)
+ (Not x) -> (XORconst [1] x)
+ 
++// Use ANDN for AND x NOT y
++(AND x (XORconst [-1] y)) -> (ANDN x y)
++
+ // Lowering comparisons
+ (EqB x y)  -> (ANDconst [1] (EQV x y))
+ // Sign extension dependence on operand sign sets up for sign/zero-extension elision later
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index bea94e44d8..5b4574efd4 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -4471,6 +4471,24 @@ func rewriteValuePPC64_OpPPC64ADDconst(v *Value, config *Config) bool {
+ func rewriteValuePPC64_OpPPC64AND(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (AND x (XORconst [-1] y))
++	// cond:
++	// result: (ANDN x y)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpPPC64XORconst {
++			break
++		}
++		if v_1.AuxInt != -1 {
++			break
++		}
++		y := v_1.Args[0]
++		v.reset(OpPPC64ANDN)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	// match: (AND (MOVDconst [c]) (MOVDconst [d]))
+ 	// cond:
+ 	// result: (MOVDconst [c&d])

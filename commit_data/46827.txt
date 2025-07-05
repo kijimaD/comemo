@@ -13,8 +13,54 @@ Date:   Wed Feb 3 22:34:34 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/289570
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/noder/decl.go             |  4 ----
  src/cmd/compile/internal/types2/decl.go            |  3 +++
  src/cmd/compile/internal/types2/testdata/go1_8.src | 10 ++++++++++
  3 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index 9862f452fd..a1596be4a4 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -102,10 +102,6 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+ 
+ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
+ 	if decl.Alias {
+-		if !types.AllowsGoVersion(types.LocalPkg, 1, 9) {
+-			base.ErrorfAt(g.pos(decl), "type aliases only supported as of -lang=go1.9")
+-		}
+-
+ 		name, _ := g.def(decl.Name)
+ 		g.pragmaFlags(decl.Pragma, 0)
+ 
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 0b7956f287..59d0a112b1 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -629,6 +629,9 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 
+ 	if alias {
+ 		// type alias declaration
++		if !check.allowVersion(obj.pkg, 1, 9) {
++			check.errorf(tdecl, "type aliases requires go1.9 or later")
++		}
+ 
+ 		obj.typ = Typ[Invalid]
+ 		obj.typ = check.anyType(tdecl.Type)
+diff --git a/src/cmd/compile/internal/types2/testdata/go1_8.src b/src/cmd/compile/internal/types2/testdata/go1_8.src
+new file mode 100644
+index 0000000000..0f3ba9443b
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/go1_8.src
+@@ -0,0 +1,10 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check Go language version-specific errors.
++
++package go1_8 // go1.8
++
++// type alias declarations
++type any /* ERROR type aliases requires go1.9 or later */ = interface{}

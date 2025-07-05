@@ -43,10 +43,132 @@ Date:   Mon Mar 5 10:46:44 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/cache.go     |  3 ++-
  src/cmd/compile/internal/ssa/deadstore.go |  3 ++-
  src/cmd/compile/internal/ssa/func.go      | 37 ++++++++++++++++++++++++++-----
  src/cmd/compile/internal/ssa/regalloc.go  |  6 +++--
  src/cmd/compile/internal/ssa/sparsemap.go |  4 ++++
  5 files changed, 43 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/cache.go b/src/cmd/compile/internal/ssa/cache.go
+index e149f6a4c5..b30af6304d 100644
+--- a/src/cmd/compile/internal/ssa/cache.go
++++ b/src/cmd/compile/internal/ssa/cache.go
+@@ -22,7 +22,8 @@ type Cache struct {
+ 	stackAllocState *stackAllocState
+ 
+ 	domblockstore []ID         // scratch space for computing dominators
+-	scrSparse     []*sparseSet // scratch sparse sets to be re-used.
++	scrSparseSet  []*sparseSet // scratch sparse sets to be re-used.
++	scrSparseMap  []*sparseMap // scratch sparse maps to be re-used.
+ 
+ 	ValueToProgAfter []*obj.Prog
+ 	debugState       debugState
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index bbeb990f17..e1ce980e5c 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -19,7 +19,8 @@ func dse(f *Func) {
+ 	defer f.retSparseSet(loadUse)
+ 	storeUse := f.newSparseSet(f.NumValues())
+ 	defer f.retSparseSet(storeUse)
+-	shadowed := newSparseMap(f.NumValues()) // TODO: cache
++	shadowed := f.newSparseMap(f.NumValues())
++	defer f.retSparseMap(shadowed)
+ 	for _, b := range f.Blocks {
+ 		// Find all the stores in this block. Categorize their uses:
+ 		//  loadUse contains stores which are used by a subsequent load.
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 3868ee37d9..bde36a5b3f 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -84,9 +84,9 @@ func (f *Func) NumValues() int {
+ 
+ // newSparseSet returns a sparse set that can store at least up to n integers.
+ func (f *Func) newSparseSet(n int) *sparseSet {
+-	for i, scr := range f.Cache.scrSparse {
++	for i, scr := range f.Cache.scrSparseSet {
+ 		if scr != nil && scr.cap() >= n {
+-			f.Cache.scrSparse[i] = nil
++			f.Cache.scrSparseSet[i] = nil
+ 			scr.clear()
+ 			return scr
+ 		}
+@@ -94,15 +94,40 @@ func (f *Func) newSparseSet(n int) *sparseSet {
+ 	return newSparseSet(n)
+ }
+ 
+-// retSparseSet returns a sparse set to the config's cache of sparse sets to be reused by f.newSparseSet.
++// retSparseSet returns a sparse set to the config's cache of sparse
++// sets to be reused by f.newSparseSet.
+ func (f *Func) retSparseSet(ss *sparseSet) {
+-	for i, scr := range f.Cache.scrSparse {
++	for i, scr := range f.Cache.scrSparseSet {
+ 		if scr == nil {
+-			f.Cache.scrSparse[i] = ss
++			f.Cache.scrSparseSet[i] = ss
+ 			return
+ 		}
+ 	}
+-	f.Cache.scrSparse = append(f.Cache.scrSparse, ss)
++	f.Cache.scrSparseSet = append(f.Cache.scrSparseSet, ss)
++}
++
++// newSparseMap returns a sparse map that can store at least up to n integers.
++func (f *Func) newSparseMap(n int) *sparseMap {
++	for i, scr := range f.Cache.scrSparseMap {
++		if scr != nil && scr.cap() >= n {
++			f.Cache.scrSparseMap[i] = nil
++			scr.clear()
++			return scr
++		}
++	}
++	return newSparseMap(n)
++}
++
++// retSparseMap returns a sparse map to the config's cache of sparse
++// sets to be reused by f.newSparseMap.
++func (f *Func) retSparseMap(ss *sparseMap) {
++	for i, scr := range f.Cache.scrSparseMap {
++		if scr == nil {
++			f.Cache.scrSparseMap[i] = ss
++			return
++		}
++	}
++	f.Cache.scrSparseMap = append(f.Cache.scrSparseMap, ss)
+ }
+ 
+ // newValue allocates a new Value with the given fields and places it at the end of b.Values.
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index abc4e60d7c..ea88da3b9c 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -2183,8 +2183,10 @@ func (s *regAllocState) computeLive() {
+ 	s.desired = make([]desiredState, f.NumBlocks())
+ 	var phis []*Value
+ 
+-	live := newSparseMap(f.NumValues())
+-	t := newSparseMap(f.NumValues())
++	live := f.newSparseMap(f.NumValues())
++	defer f.retSparseMap(live)
++	t := f.newSparseMap(f.NumValues())
++	defer f.retSparseMap(t)
+ 
+ 	// Keep track of which value we want in each register.
+ 	var desired desiredState
+diff --git a/src/cmd/compile/internal/ssa/sparsemap.go b/src/cmd/compile/internal/ssa/sparsemap.go
+index 973ab3d434..c42fb99c7a 100644
+--- a/src/cmd/compile/internal/ssa/sparsemap.go
++++ b/src/cmd/compile/internal/ssa/sparsemap.go
+@@ -26,6 +26,10 @@ func newSparseMap(n int) *sparseMap {
+ 	return &sparseMap{dense: nil, sparse: make([]int32, n)}
+ }
+ 
++func (s *sparseMap) cap() int {
++	return len(s.sparse)
++}
++
+ func (s *sparseMap) size() int {
+ 	return len(s.dense)
+ }

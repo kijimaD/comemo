@@ -12,6 +12,27 @@ Date:   Wed Jun 1 11:07:05 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index c3af650a6b..0bda4e046b 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3186,9 +3186,14 @@ func samesafeexpr(l *Node, r *Node) bool {
+ 	case ODOT, ODOTPTR:
+ 		return l.Sym != nil && r.Sym != nil && l.Sym == r.Sym && samesafeexpr(l.Left, r.Left)
+ 
+-	case OIND:
++	case OIND, OCONVNOP:
+ 		return samesafeexpr(l.Left, r.Left)
+ 
++	case OCONV:
++		// Some conversions can't be reused, such as []byte(str).
++		// Allow only numeric-ish types. This is a bit conservative.
++		return issimple[l.Type.Etype] && samesafeexpr(l.Left, r.Left)
++
+ 	case OINDEX:
+ 		return samesafeexpr(l.Left, r.Left) && samesafeexpr(l.Right, r.Right)
+ 

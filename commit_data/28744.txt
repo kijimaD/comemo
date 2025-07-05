@@ -9,6 +9,19 @@ Date:   Mon Jul 11 12:31:52 2016 -0600
     Change-Id: I0d783a6476f42b6157853cdb34ba69618e3f3fcb
     Reviewed-on: https://go-review.googlesource.com/24844
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/gofmt/gofmt.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index b10b804fd2..f29b6cb83d 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -55,7 +55,6 @@ func report(err error) {
+ func usage() {
+ 	fmt.Fprintf(os.Stderr, "usage: gofmt [flags] [path ...]\n")
+ 	flag.PrintDefaults()
+-	os.Exit(2)
+ }
+ 
+ func initParserMode() {

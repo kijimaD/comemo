@@ -14,7 +14,37 @@ Date:   Wed May 1 10:55:27 2019 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ppc64/galign.go | 2 +-
  src/cmd/compile/internal/ppc64/ggen.go   | 5 +++--
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 8ad3084410..c6866e65e7 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -21,7 +21,7 @@ func Init(arch *gc.Arch) {
+ 	arch.ZeroRange = zerorange
+ 	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
+-	arch.Ginsnopdefer = ginsnop2
++	arch.Ginsnopdefer = ginsnopdefer
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index ea66baa007..a63a0f0f77 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -67,8 +67,9 @@ func ginsnop(pp *gc.Progs) *obj.Prog {
+ 	return p
+ }
+ 
+-func ginsnop2(pp *gc.Progs) *obj.Prog {
+-	// PPC64 is unusual because TWO nops are required
++func ginsnopdefer(pp *gc.Progs) *obj.Prog {
++	// On PPC64 two nops are required in the defer case.
++	//
+ 	// (see gc/cgen.go, gc/plive.go -- copy of comment below)
+ 	//
+ 	// On ppc64, when compiling Go into position

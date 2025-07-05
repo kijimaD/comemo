@@ -34,7 +34,7 @@ Date:   Thu Mar 19 16:25:08 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |  16 +--
  src/cmd/compile/internal/ssa/check.go          |   8 +-
  src/cmd/compile/internal/ssa/config.go         |   2 +-
@@ -46,3 +46,712 @@ Date:   Thu Mar 19 16:25:08 2020 -0700
  src/cmd/compile/internal/ssa/rewriteAMD64.go   |  64 +++++-----
  src/cmd/compile/internal/ssa/rewritegeneric.go |  54 +++++----
  10 files changed, 235 insertions(+), 100 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5f45361980..345aad3961 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -6658,21 +6658,21 @@ func fieldIdx(n *Node) int {
+ // It also exports a bunch of compiler services for the ssa backend.
+ type ssafn struct {
+ 	curfn        *Node
+-	strings      map[string]interface{} // map from constant string to data symbols
+-	scratchFpMem *Node                  // temp for floating point register / memory moves on some architectures
+-	stksize      int64                  // stack size for current frame
+-	stkptrsize   int64                  // prefix of stack containing pointers
+-	log          bool                   // print ssa debug to the stdout
++	strings      map[string]*obj.LSym // map from constant string to data symbols
++	scratchFpMem *Node                // temp for floating point register / memory moves on some architectures
++	stksize      int64                // stack size for current frame
++	stkptrsize   int64                // prefix of stack containing pointers
++	log          bool                 // print ssa debug to the stdout
+ }
+ 
+-// StringData returns a symbol (a *types.Sym wrapped in an interface) which
++// StringData returns a symbol which
+ // is the data component of a global string constant containing s.
+-func (e *ssafn) StringData(s string) interface{} {
++func (e *ssafn) StringData(s string) *obj.LSym {
+ 	if aux, ok := e.strings[s]; ok {
+ 		return aux
+ 	}
+ 	if e.strings == nil {
+-		e.strings = make(map[string]interface{})
++		e.strings = make(map[string]*obj.LSym)
+ 	}
+ 	data := stringsym(e.curfn.Pos, s)
+ 	e.strings[s] = data
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 4c694a03ac..b246bd9c7d 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -119,6 +119,7 @@ func checkFunc(f *Func) {
+ 			// Check to make sure aux values make sense.
+ 			canHaveAux := false
+ 			canHaveAuxInt := false
++			// TODO: enforce types of Aux in this switch (like auxString does below)
+ 			switch opcodeTable[v.Op].auxType {
+ 			case auxNone:
+ 			case auxBool:
+@@ -158,7 +159,12 @@ func checkFunc(f *Func) {
+ 				if math.IsNaN(v.AuxFloat()) {
+ 					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
+ 				}
+-			case auxString, auxSym, auxTyp, auxArchSpecific:
++			case auxString:
++				if _, ok := v.Aux.(string); !ok {
++					f.Fatalf("value %v has Aux type %T, want string", v, v.Aux)
++				}
++				canHaveAux = true
++			case auxSym, auxTyp, auxArchSpecific:
+ 				canHaveAux = true
+ 			case auxSymOff, auxSymValAndOff, auxTypSize:
+ 				canHaveAuxInt = true
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index b51dfcb1f5..fdff3bbdeb 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -135,7 +135,7 @@ type Frontend interface {
+ 	Logger
+ 
+ 	// StringData returns a symbol pointing to the given string's contents.
+-	StringData(string) interface{} // returns *gc.Sym
++	StringData(string) *obj.LSym
+ 
+ 	// Auto returns a Node for an auto variable of the given type.
+ 	// The SSA compiler uses this function to allocate space for spills.
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 32f0bcf290..a94cce48a4 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -90,7 +90,7 @@ func (d *DummyAuto) IsAutoTmp() bool {
+ 	return true
+ }
+ 
+-func (DummyFrontend) StringData(s string) interface{} {
++func (DummyFrontend) StringData(s string) *obj.LSym {
+ 	return nil
+ }
+ func (DummyFrontend) Auto(pos src.XPos, t *types.Type) GCNode {
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index fcee5cb99f..f9ab02a7ab 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -2145,11 +2145,14 @@
+ (CMP(Q|L|W|B) l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l) && clobber(l) -> (CMP(Q|L|W|B)load {sym} [off] ptr x mem)
+ (CMP(Q|L|W|B) x l:(MOV(Q|L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) -> (InvertFlags (CMP(Q|L|W|B)load {sym} [off] ptr x mem))
+ 
+-(CMP(Q|L|W|B)const l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) [c])
++(CMP(Q|L)const l:(MOV(Q|L)load {sym} [off] ptr mem) [c])
+ 	&& l.Uses == 1
+-	&& validValAndOff(c, off)
+-	&& clobber(l) ->
+-  @l.Block (CMP(Q|L|W|B)constload {sym} [makeValAndOff(c,off)] ptr mem)
++	&& clobber(l) =>
++@l.Block (CMP(Q|L)constload {sym} [makeValAndOff32(c,off)] ptr mem)
++(CMP(W|B)const l:(MOV(W|B)load {sym} [off] ptr mem) [c])
++	&& l.Uses == 1
++	&& clobber(l) =>
++@l.Block (CMP(W|B)constload {sym} [makeValAndOff32(int32(c),off)] ptr mem)
+ 
+ (CMPQload {sym} [off] ptr (MOVQconst [c]) mem) && validValAndOff(c,off) -> (CMPQconstload {sym} [makeValAndOff(c,off)] ptr mem)
+ (CMPLload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(c,off) -> (CMPLconstload {sym} [makeValAndOff(c,off)] ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index e12cf4aa1b..7ae34cec56 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -873,20 +873,20 @@
+ // to other passes for optimizations.
+ (StringPtr (StringMake (Addr <t> {s} base) _)) -> (Addr <t> {s} base)
+ (StringLen (StringMake _ (Const64 <t> [c]))) -> (Const64 <t> [c])
+-(ConstString {s}) && config.PtrSize == 4 && s.(string) == "" ->
++(ConstString {str}) && config.PtrSize == 4 && str == "" =>
+   (StringMake (ConstNil) (Const32 <typ.Int> [0]))
+-(ConstString {s}) && config.PtrSize == 8 && s.(string) == "" ->
++(ConstString {str}) && config.PtrSize == 8 && str == "" =>
+   (StringMake (ConstNil) (Const64 <typ.Int> [0]))
+-(ConstString {s}) && config.PtrSize == 4 && s.(string) != "" ->
++(ConstString {str}) && config.PtrSize == 4 && str != "" =>
+   (StringMake
+-    (Addr <typ.BytePtr> {fe.StringData(s.(string))}
++    (Addr <typ.BytePtr> {fe.StringData(str)}
+       (SB))
+-    (Const32 <typ.Int> [int64(len(s.(string)))]))
+-(ConstString {s}) && config.PtrSize == 8 && s.(string) != "" ->
++    (Const32 <typ.Int> [int32(len(str))]))
++(ConstString {str}) && config.PtrSize == 8 && str != "" =>
+   (StringMake
+-    (Addr <typ.BytePtr> {fe.StringData(s.(string))}
++    (Addr <typ.BytePtr> {fe.StringData(str)}
+       (SB))
+-    (Const64 <typ.Int> [int64(len(s.(string)))]))
++    (Const64 <typ.Int> [int64(len(str))]))
+ 
+ // slice ops
+ // Only a few slice rules are provided here.  See dec.rules for
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 3caa06038a..a2dc110ff7 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -35,7 +35,8 @@ import (
+ )
+ 
+ // rule syntax:
+-//  sexpr [&& extra conditions] -> [@block] sexpr
++//  sexpr [&& extra conditions] -> [@block] sexpr  (untyped)
++//  sexpr [&& extra conditions] => [@block] sexpr  (typed)
+ //
+ // sexpr are s-expressions (lisp-like parenthesized groupings)
+ // sexpr ::= [variable:](opcode sexpr*)
+@@ -74,11 +75,14 @@ func normalizeSpaces(s string) string {
+ }
+ 
+ // parse returns the matching part of the rule, additional conditions, and the result.
+-func (r Rule) parse() (match, cond, result string) {
+-	s := strings.Split(r.rule, "->")
+-	if len(s) != 2 {
+-		log.Fatalf("no arrow in %s", r)
+-	}
++// parse also reports whether the generated code should use strongly typed aux and auxint fields.
++func (r Rule) parse() (match, cond, result string, typed bool) {
++	arrow := "->"
++	if strings.Contains(r.rule, "=>") {
++		arrow = "=>"
++		typed = true
++	}
++	s := strings.Split(r.rule, arrow)
+ 	match = normalizeSpaces(s[0])
+ 	result = normalizeSpaces(s[1])
+ 	cond = ""
+@@ -86,7 +90,7 @@ func (r Rule) parse() (match, cond, result string) {
+ 		cond = normalizeSpaces(match[i+2:])
+ 		match = normalizeSpaces(match[:i])
+ 	}
+-	return match, cond, result
++	return match, cond, result, typed
+ }
+ 
+ func genRules(arch arch)          { genRulesSuffix(arch, "") }
+@@ -112,7 +116,7 @@ func genRulesSuffix(arch arch, suff string) {
+ 	scanner := bufio.NewScanner(text)
+ 	rule := ""
+ 	var lineno int
+-	var ruleLineno int // line number of "->"
++	var ruleLineno int // line number of "->" or "=>"
+ 	for scanner.Scan() {
+ 		lineno++
+ 		line := scanner.Text()
+@@ -126,13 +130,13 @@ func genRulesSuffix(arch arch, suff string) {
+ 		if rule == "" {
+ 			continue
+ 		}
+-		if !strings.Contains(rule, "->") {
++		if !strings.Contains(rule, "->") && !strings.Contains(rule, "=>") {
+ 			continue
+ 		}
+ 		if ruleLineno == 0 {
+ 			ruleLineno = lineno
+ 		}
+-		if strings.HasSuffix(rule, "->") {
++		if strings.HasSuffix(rule, "->") || strings.HasSuffix(rule, "=>") {
+ 			continue
+ 		}
+ 		if unbalanced(rule) {
+@@ -147,7 +151,7 @@ func genRulesSuffix(arch arch, suff string) {
+ 				continue
+ 			}
+ 			// Do fancier value op matching.
+-			match, _, _ := r.parse()
++			match, _, _, _ := r.parse()
+ 			op, oparch, _, _, _, _ := parseValue(match, arch, loc)
+ 			opname := fmt.Sprintf("Op%s%s", oparch, op.name)
+ 			oprules[opname] = append(oprules[opname], r)
+@@ -218,7 +222,7 @@ func genRulesSuffix(arch arch, suff string) {
+ 				log.Fatalf("unconditional rule %s is followed by other rules", rr.match)
+ 			}
+ 			rr = &RuleRewrite{loc: rule.loc}
+-			rr.match, rr.cond, rr.result = rule.parse()
++			rr.match, rr.cond, rr.result, rr.typed = rule.parse()
+ 			pos, _ := genMatch(rr, arch, rr.match, fn.arglen >= 0)
+ 			if pos == "" {
+ 				pos = "v.Pos"
+@@ -430,6 +434,8 @@ func (u *unusedInspector) node(node ast.Node) {
+ 		for _, stmt := range node.List {
+ 			u.node(stmt)
+ 		}
++	case *ast.DeclStmt:
++		u.node(node.Decl)
+ 	case *ast.IfStmt:
+ 		if node.Init != nil {
+ 			u.node(node.Init)
+@@ -524,6 +530,8 @@ func (u *unusedInspector) node(node ast.Node) {
+ 			}
+ 		}
+ 	case *ast.BasicLit:
++	case *ast.ValueSpec:
++		u.exprs(node.Values)
+ 	default:
+ 		panic(fmt.Sprintf("unhandled node: %T", node))
+ 	}
+@@ -762,6 +770,7 @@ type (
+ 		alloc        int    // for unique var names
+ 		loc          string // file name & line number of the original rule
+ 		commuteDepth int    // used to track depth of commute loops
++		typed        bool   // aux and auxint fields should be strongly typed
+ 	}
+ 	Declare struct {
+ 		name  string
+@@ -815,7 +824,7 @@ func breakf(format string, a ...interface{}) *CondBreak {
+ 
+ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
+ 	rr := &RuleRewrite{loc: rule.loc}
+-	rr.match, rr.cond, rr.result = rule.parse()
++	rr.match, rr.cond, rr.result, rr.typed = rule.parse()
+ 	_, _, auxint, aux, s := extract(rr.match) // remove parens, then split
+ 
+ 	// check match of control values
+@@ -972,20 +981,56 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int,
+ 	}
+ 
+ 	for _, e := range []struct {
+-		name, field string
++		name, field, dclType string
+ 	}{
+-		{typ, "Type"},
+-		{auxint, "AuxInt"},
+-		{aux, "Aux"},
++		{typ, "Type", "*types.Type"},
++		{auxint, "AuxInt", op.auxIntType()},
++		{aux, "Aux", op.auxType()},
+ 	} {
+ 		if e.name == "" {
+ 			continue
+ 		}
++		if !rr.typed {
++			if !token.IsIdentifier(e.name) || rr.declared(e.name) {
++				// code or variable
++				rr.add(breakf("%s.%s != %s", v, e.field, e.name))
++			} else {
++				rr.add(declf(e.name, "%s.%s", v, e.field))
++			}
++			continue
++		}
++
++		if e.dclType == "" {
++			log.Fatalf("op %s has no declared type for %s", op.name, e.field)
++		}
+ 		if !token.IsIdentifier(e.name) || rr.declared(e.name) {
+-			// code or variable
+-			rr.add(breakf("%s.%s != %s", v, e.field, e.name))
++			switch e.field {
++			case "Aux":
++				if e.dclType == "interface{}" {
++					// see TODO above
++					rr.add(breakf("%s.%s != %s", v, e.field, e.dclType, e.name))
++				} else {
++					rr.add(breakf("%s.%s.(%s) != %s", v, e.field, e.dclType, e.name))
++				}
++			case "AuxInt":
++				rr.add(breakf("%s(%s.%s) != %s", e.dclType, v, e.field, e.name))
++			case "Type":
++				rr.add(breakf("%s.%s != %s", v, e.field, e.name))
++			}
+ 		} else {
+-			rr.add(declf(e.name, "%s.%s", v, e.field))
++			switch e.field {
++			case "Aux":
++				if e.dclType == "interface{}" {
++					// TODO: kind of a hack - allows nil interface through
++					rr.add(declf(e.name, "%s.%s", v, e.field))
++				} else {
++					rr.add(declf(e.name, "%s.%s.(%s)", v, e.field, e.dclType))
++				}
++			case "AuxInt":
++				rr.add(declf(e.name, "%s(%s.%s)", e.dclType, v, e.field))
++			case "Type":
++				rr.add(declf(e.name, "%s.%s", v, e.field))
++			}
+ 		}
+ 	}
+ 
+@@ -1146,10 +1191,22 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
+ 	}
+ 
+ 	if auxint != "" {
+-		rr.add(stmtf("%s.AuxInt = %s", v, auxint))
++		if rr.typed {
++			// Make sure auxint value has the right type.
++			rr.add(stmtf("var _auxint %s = %s", op.auxIntType(), auxint))
++			rr.add(stmtf("%s.AuxInt = int64(_auxint)", v))
++		} else {
++			rr.add(stmtf("%s.AuxInt = %s", v, auxint))
++		}
+ 	}
+ 	if aux != "" {
+-		rr.add(stmtf("%s.Aux = %s", v, aux))
++		if rr.typed {
++			// Make sure aux value has the right type.
++			rr.add(stmtf("var _aux %s = %s", op.auxType(), aux))
++			rr.add(stmtf("%s.Aux = _aux", v))
++		} else {
++			rr.add(stmtf("%s.Aux = %s", v, aux))
++		}
+ 	}
+ 	all := new(strings.Builder)
+ 	for i, arg := range args {
+@@ -1418,7 +1475,7 @@ func excludeFromExpansion(s string, idx []int) bool {
+ 		return true
+ 	}
+ 	right := s[idx[1]:]
+-	if strings.Contains(left, "&&") && strings.Contains(right, "->") {
++	if strings.Contains(left, "&&") && (strings.Contains(right, "->") || strings.Contains(right, "=>")) {
+ 		// Inside && conditions.
+ 		return true
+ 	}
+@@ -1521,6 +1578,7 @@ func normalizeWhitespace(x string) string {
+ 	x = strings.Replace(x, "[ ", "[", -1)
+ 	x = strings.Replace(x, " ]", "]", -1)
+ 	x = strings.Replace(x, ")->", ") ->", -1)
++	x = strings.Replace(x, ")=>", ") =>", -1)
+ 	return x
+ }
+ 
+@@ -1576,7 +1634,7 @@ func parseEllipsisRules(rules []Rule, arch arch) (newop string, ok bool) {
+ 		return "", false
+ 	}
+ 	rule := rules[0]
+-	match, cond, result := rule.parse()
++	match, cond, result, _ := rule.parse()
+ 	if cond != "" || !isEllipsisValue(match) || !isEllipsisValue(result) {
+ 		if strings.Contains(rule.rule, "...") {
+ 			log.Fatalf("%s: found ellipsis in non-ellipsis rule", rule.loc)
+@@ -1601,7 +1659,7 @@ func isEllipsisValue(s string) bool {
+ }
+ 
+ func checkEllipsisRuleCandidate(rule Rule, arch arch) {
+-	match, cond, result := rule.parse()
++	match, cond, result, _ := rule.parse()
+ 	if cond != "" {
+ 		return
+ 	}
+@@ -1653,3 +1711,54 @@ func opByName(arch arch, name string) opData {
+ 	log.Fatalf("failed to find op named %s in arch %s", name, arch.name)
+ 	panic("unreachable")
+ }
++
++// auxType returns the Go type that this operation should store in its aux field.
++func (op opData) auxType() string {
++	switch op.aux {
++	case "String":
++		return "string"
++	case "Sym":
++		// Note: a Sym can be an *obj.LSym, a *gc.Node, or nil.
++		// TODO: provide an interface for this. Use a singleton to
++		// represent "no offset".
++		return "interface{}"
++	case "SymOff":
++		return "interface{}"
++	case "SymValAndOff":
++		return "interface{}"
++	case "Typ":
++		return "*types.Type"
++	case "TypSize":
++		return "*types.Type"
++	default:
++		return "invalid"
++	}
++}
++
++// auxIntType returns the Go type that this operation should store in its auxInt field.
++func (op opData) auxIntType() string {
++	switch op.aux {
++	//case "Bool":
++	case "Int8":
++		return "int8"
++	case "Int16":
++		return "int16"
++	case "Int32":
++		return "int32"
++	case "Int64":
++		return "int64"
++	//case  "Int128":
++	//case  "Float32":
++	//case  "Float64":
++	case "SymOff":
++		return "int32"
++	case "SymValAndOff":
++		return "ValAndOff"
++	case "TypSize":
++		return "int64"
++	case "CCop":
++		return "Op"
++	default:
++		return "invalid"
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index c32f5c730e..c0042f871c 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -154,6 +154,9 @@ func makeValAndOff(val, off int64) int64 {
+ 	}
+ 	return ValAndOff(val<<32 + int64(uint32(off))).Int64()
+ }
++func makeValAndOff32(val, off int32) ValAndOff {
++	return ValAndOff(int64(val)<<32 + int64(uint32(off)))
++}
+ 
+ // offOnly returns the offset half of ValAndOff vo.
+ // It is intended for use in rewrite rules.
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index fd33591471..746ddacc3a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -6937,26 +6937,28 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPBconst l:(MOVBload {sym} [off] ptr mem) [c])
+-	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
+-	// result: @l.Block (CMPBconstload {sym} [makeValAndOff(c,off)] ptr mem)
++	// cond: l.Uses == 1 && clobber(l)
++	// result: @l.Block (CMPBconstload {sym} [makeValAndOff32(int32(c),off)] ptr mem)
+ 	for {
+-		c := v.AuxInt
++		c := int8(v.AuxInt)
+ 		l := v_0
+ 		if l.Op != OpAMD64MOVBload {
+ 			break
+ 		}
+-		off := l.AuxInt
++		off := int32(l.AuxInt)
+ 		sym := l.Aux
+ 		mem := l.Args[1]
+ 		ptr := l.Args[0]
+-		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
++		if !(l.Uses == 1 && clobber(l)) {
+ 			break
+ 		}
+ 		b = l.Block
+ 		v0 := b.NewValue0(l.Pos, OpAMD64CMPBconstload, types.TypeFlags)
+ 		v.copyOf(v0)
+-		v0.AuxInt = makeValAndOff(c, off)
+-		v0.Aux = sym
++		var _auxint ValAndOff = makeValAndOff32(int32(c), off)
++		v0.AuxInt = int64(_auxint)
++		var _aux interface{} = sym
++		v0.Aux = _aux
+ 		v0.AddArg2(ptr, mem)
+ 		return true
+ 	}
+@@ -7322,26 +7324,28 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPLconst l:(MOVLload {sym} [off] ptr mem) [c])
+-	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
+-	// result: @l.Block (CMPLconstload {sym} [makeValAndOff(c,off)] ptr mem)
++	// cond: l.Uses == 1 && clobber(l)
++	// result: @l.Block (CMPLconstload {sym} [makeValAndOff32(c,off)] ptr mem)
+ 	for {
+-		c := v.AuxInt
++		c := int32(v.AuxInt)
+ 		l := v_0
+ 		if l.Op != OpAMD64MOVLload {
+ 			break
+ 		}
+-		off := l.AuxInt
++		off := int32(l.AuxInt)
+ 		sym := l.Aux
+ 		mem := l.Args[1]
+ 		ptr := l.Args[0]
+-		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
++		if !(l.Uses == 1 && clobber(l)) {
+ 			break
+ 		}
+ 		b = l.Block
+ 		v0 := b.NewValue0(l.Pos, OpAMD64CMPLconstload, types.TypeFlags)
+ 		v.copyOf(v0)
+-		v0.AuxInt = makeValAndOff(c, off)
+-		v0.Aux = sym
++		var _auxint ValAndOff = makeValAndOff32(c, off)
++		v0.AuxInt = int64(_auxint)
++		var _aux interface{} = sym
++		v0.Aux = _aux
+ 		v0.AddArg2(ptr, mem)
+ 		return true
+ 	}
+@@ -7887,26 +7891,28 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPQconst l:(MOVQload {sym} [off] ptr mem) [c])
+-	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
+-	// result: @l.Block (CMPQconstload {sym} [makeValAndOff(c,off)] ptr mem)
++	// cond: l.Uses == 1 && clobber(l)
++	// result: @l.Block (CMPQconstload {sym} [makeValAndOff32(c,off)] ptr mem)
+ 	for {
+-		c := v.AuxInt
++		c := int32(v.AuxInt)
+ 		l := v_0
+ 		if l.Op != OpAMD64MOVQload {
+ 			break
+ 		}
+-		off := l.AuxInt
++		off := int32(l.AuxInt)
+ 		sym := l.Aux
+ 		mem := l.Args[1]
+ 		ptr := l.Args[0]
+-		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
++		if !(l.Uses == 1 && clobber(l)) {
+ 			break
+ 		}
+ 		b = l.Block
+ 		v0 := b.NewValue0(l.Pos, OpAMD64CMPQconstload, types.TypeFlags)
+ 		v.copyOf(v0)
+-		v0.AuxInt = makeValAndOff(c, off)
+-		v0.Aux = sym
++		var _auxint ValAndOff = makeValAndOff32(c, off)
++		v0.AuxInt = int64(_auxint)
++		var _aux interface{} = sym
++		v0.Aux = _aux
+ 		v0.AddArg2(ptr, mem)
+ 		return true
+ 	}
+@@ -8257,26 +8263,28 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPWconst l:(MOVWload {sym} [off] ptr mem) [c])
+-	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
+-	// result: @l.Block (CMPWconstload {sym} [makeValAndOff(c,off)] ptr mem)
++	// cond: l.Uses == 1 && clobber(l)
++	// result: @l.Block (CMPWconstload {sym} [makeValAndOff32(int32(c),off)] ptr mem)
+ 	for {
+-		c := v.AuxInt
++		c := int16(v.AuxInt)
+ 		l := v_0
+ 		if l.Op != OpAMD64MOVWload {
+ 			break
+ 		}
+-		off := l.AuxInt
++		off := int32(l.AuxInt)
+ 		sym := l.Aux
+ 		mem := l.Args[1]
+ 		ptr := l.Args[0]
+-		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
++		if !(l.Uses == 1 && clobber(l)) {
+ 			break
+ 		}
+ 		b = l.Block
+ 		v0 := b.NewValue0(l.Pos, OpAMD64CMPWconstload, types.TypeFlags)
+ 		v.copyOf(v0)
+-		v0.AuxInt = makeValAndOff(c, off)
+-		v0.Aux = sym
++		var _auxint ValAndOff = makeValAndOff32(int32(c), off)
++		v0.AuxInt = int64(_auxint)
++		var _aux interface{} = sym
++		v0.Aux = _aux
+ 		v0.AddArg2(ptr, mem)
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index f9ce978c4c..72056b87fa 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -3911,69 +3911,75 @@ func rewriteValuegeneric_OpConstString(v *Value) bool {
+ 	config := b.Func.Config
+ 	fe := b.Func.fe
+ 	typ := &b.Func.Config.Types
+-	// match: (ConstString {s})
+-	// cond: config.PtrSize == 4 && s.(string) == ""
++	// match: (ConstString {str})
++	// cond: config.PtrSize == 4 && str == ""
+ 	// result: (StringMake (ConstNil) (Const32 <typ.Int> [0]))
+ 	for {
+-		s := v.Aux
+-		if !(config.PtrSize == 4 && s.(string) == "") {
++		str := v.Aux.(string)
++		if !(config.PtrSize == 4 && str == "") {
+ 			break
+ 		}
+ 		v.reset(OpStringMake)
+ 		v0 := b.NewValue0(v.Pos, OpConstNil, typ.BytePtr)
+ 		v1 := b.NewValue0(v.Pos, OpConst32, typ.Int)
+-		v1.AuxInt = 0
++		var _auxint int32 = 0
++		v1.AuxInt = int64(_auxint)
+ 		v.AddArg2(v0, v1)
+ 		return true
+ 	}
+-	// match: (ConstString {s})
+-	// cond: config.PtrSize == 8 && s.(string) == ""
++	// match: (ConstString {str})
++	// cond: config.PtrSize == 8 && str == ""
+ 	// result: (StringMake (ConstNil) (Const64 <typ.Int> [0]))
+ 	for {
+-		s := v.Aux
+-		if !(config.PtrSize == 8 && s.(string) == "") {
++		str := v.Aux.(string)
++		if !(config.PtrSize == 8 && str == "") {
+ 			break
+ 		}
+ 		v.reset(OpStringMake)
+ 		v0 := b.NewValue0(v.Pos, OpConstNil, typ.BytePtr)
+ 		v1 := b.NewValue0(v.Pos, OpConst64, typ.Int)
+-		v1.AuxInt = 0
++		var _auxint int64 = 0
++		v1.AuxInt = int64(_auxint)
+ 		v.AddArg2(v0, v1)
+ 		return true
+ 	}
+-	// match: (ConstString {s})
+-	// cond: config.PtrSize == 4 && s.(string) != ""
+-	// result: (StringMake (Addr <typ.BytePtr> {fe.StringData(s.(string))} (SB)) (Const32 <typ.Int> [int64(len(s.(string)))]))
++	// match: (ConstString {str})
++	// cond: config.PtrSize == 4 && str != ""
++	// result: (StringMake (Addr <typ.BytePtr> {fe.StringData(str)} (SB)) (Const32 <typ.Int> [int32(len(str))]))
+ 	for {
+-		s := v.Aux
+-		if !(config.PtrSize == 4 && s.(string) != "") {
++		str := v.Aux.(string)
++		if !(config.PtrSize == 4 && str != "") {
+ 			break
+ 		}
+ 		v.reset(OpStringMake)
+ 		v0 := b.NewValue0(v.Pos, OpAddr, typ.BytePtr)
+-		v0.Aux = fe.StringData(s.(string))
++		var _aux interface{} = fe.StringData(str)
++		v0.Aux = _aux
+ 		v1 := b.NewValue0(v.Pos, OpSB, typ.Uintptr)
+ 		v0.AddArg(v1)
+ 		v2 := b.NewValue0(v.Pos, OpConst32, typ.Int)
+-		v2.AuxInt = int64(len(s.(string)))
++		var _auxint int32 = int32(len(str))
++		v2.AuxInt = int64(_auxint)
+ 		v.AddArg2(v0, v2)
+ 		return true
+ 	}
+-	// match: (ConstString {s})
+-	// cond: config.PtrSize == 8 && s.(string) != ""
+-	// result: (StringMake (Addr <typ.BytePtr> {fe.StringData(s.(string))} (SB)) (Const64 <typ.Int> [int64(len(s.(string)))]))
++	// match: (ConstString {str})
++	// cond: config.PtrSize == 8 && str != ""
++	// result: (StringMake (Addr <typ.BytePtr> {fe.StringData(str)} (SB)) (Const64 <typ.Int> [int64(len(str))]))
+ 	for {
+-		s := v.Aux
+-		if !(config.PtrSize == 8 && s.(string) != "") {
++		str := v.Aux.(string)
++		if !(config.PtrSize == 8 && str != "") {
+ 			break
+ 		}
+ 		v.reset(OpStringMake)
+ 		v0 := b.NewValue0(v.Pos, OpAddr, typ.BytePtr)
+-		v0.Aux = fe.StringData(s.(string))
++		var _aux interface{} = fe.StringData(str)
++		v0.Aux = _aux
+ 		v1 := b.NewValue0(v.Pos, OpSB, typ.Uintptr)
+ 		v0.AddArg(v1)
+ 		v2 := b.NewValue0(v.Pos, OpConst64, typ.Int)
+-		v2.AuxInt = int64(len(s.(string)))
++		var _auxint int64 = int64(len(str))
++		v2.AuxInt = int64(_auxint)
+ 		v.AddArg2(v0, v2)
+ 		return true
+ 	}

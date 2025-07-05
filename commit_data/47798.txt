@@ -24,7 +24,89 @@ Date:   Wed Mar 24 16:24:38 2021 -0400
     Run-TryBot: Julie Qiu <julie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/cache.go         | 34 +++++++++++++++++++++++++--
  src/cmd/go/testdata/script/mod_gomodcache.txt |  7 ++++++
  2 files changed, 39 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index c1303502e5..f3b58a172a 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -347,6 +347,9 @@ func GoMod(path, rev string) ([]byte, error) {
+ 		if _, info, err := readDiskStat(path, rev); err == nil {
+ 			rev = info.Version
+ 		} else {
++			if errors.Is(err, statCacheErr) {
++				return nil, err
++			}
+ 			err := TryProxies(func(proxy string) error {
+ 				info, err := Lookup(proxy, path).Stat(rev)
+ 				if err == nil {
+@@ -706,15 +709,42 @@ func rewriteVersionList(dir string) (err error) {
+ 	return nil
+ }
+ 
++var (
++	statCacheOnce sync.Once
++	statCacheErr  error
++)
++
++// checkCacheDir checks if the directory specified by GOMODCACHE exists. An
++// error is returned if it does not.
+ func checkCacheDir() error {
+ 	if cfg.GOMODCACHE == "" {
+ 		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
+ 		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
+ 		return fmt.Errorf("internal error: cfg.GOMODCACHE not set")
+ 	}
+-
+ 	if !filepath.IsAbs(cfg.GOMODCACHE) {
+ 		return fmt.Errorf("GOMODCACHE entry is relative; must be absolute path: %q.\n", cfg.GOMODCACHE)
+ 	}
+-	return nil
++
++	// os.Stat is slow on Windows, so we only call it once to prevent unnecessary
++	// I/O every time this function is called.
++	statCacheOnce.Do(func() {
++		fi, err := os.Stat(cfg.GOMODCACHE)
++		if err != nil {
++			if !os.IsNotExist(err) {
++				statCacheErr = fmt.Errorf("could not create module cache: %w", err)
++				return
++			}
++			if err := os.MkdirAll(cfg.GOMODCACHE, 0777); err != nil {
++				statCacheErr = fmt.Errorf("could not create module cache: %w", err)
++				return
++			}
++			return
++		}
++		if !fi.IsDir() {
++			statCacheErr = fmt.Errorf("could not create module cache: %q is not a directory", cfg.GOMODCACHE)
++			return
++		}
++	})
++	return statCacheErr
+ }
+diff --git a/src/cmd/go/testdata/script/mod_gomodcache.txt b/src/cmd/go/testdata/script/mod_gomodcache.txt
+index b2143e2093..74a3c79622 100644
+--- a/src/cmd/go/testdata/script/mod_gomodcache.txt
++++ b/src/cmd/go/testdata/script/mod_gomodcache.txt
+@@ -47,6 +47,11 @@ env GOMODCACHE=$WORK/modcache
+ go mod download rsc.io/quote@v1.0.0
+ exists $WORK/modcache/cache/download/rsc.io/quote/@v/v1.0.0.info
+ 
++# Test error when cannot create GOMODCACHE directory
++env GOMODCACHE=$WORK/modcachefile
++! go install example.com/cmd/a@v1.0.0
++stderr 'go: could not create module cache'
++
+ # Test that the following work even with GO111MODULE=off
+ env GO111MODULE=off
+ 
+@@ -58,3 +63,5 @@ go clean -modcache
+ 
+ -- go.mod --
+ module m
++
++-- $WORK/modcachefile --

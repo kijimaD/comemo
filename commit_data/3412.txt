@@ -8,7 +8,7 @@ Date:   Wed Sep 30 13:47:15 2009 -0700
     DELTA=70  (47 added, 4 deleted, 19 changed)
     OCL=35167
     CL=35171
-
+---
  misc/cgo/gmp/Makefile           |  6 ++++++
  src/Make.pkg                    |  9 ++++++---
  src/cmd/8c/swt.c                | 11 +++++++++++
@@ -20,3 +20,282 @@ Date:   Wed Sep 30 13:47:15 2009 -0700
  src/libcgo/Makefile             |  6 ++++--
  src/pkg/runtime/linux/386/rt0.s |  7 +++++++
  10 files changed, 66 insertions(+), 23 deletions(-)
+
+diff --git a/misc/cgo/gmp/Makefile b/misc/cgo/gmp/Makefile
+index 1e521ab7da..b261ff2352 100644
+--- a/misc/cgo/gmp/Makefile
++++ b/misc/cgo/gmp/Makefile
+@@ -10,6 +10,12 @@ CGOFILES=\
+ 
+ CGO_LDFLAGS=-lgmp
+ 
++# To add flags necessary for locating the library or its include files,
++# set CGO_CFLAGS or CGO_LDFLAGS.  For example, to use an
++# alternate installation of the library:
++#	CGO_CFLAGS=-I/home/rsc/gmp32/include
++#	CGO_LDFLAGS+=-L/home/rsc/gmp32/lib
++
+ # Can have plain GOFILES too, but this example doesn't.
+ 
+ include $(GOROOT)/src/Make.pkg
+diff --git a/src/Make.pkg b/src/Make.pkg
+index fadd78e3dd..bc00eeaefd 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -93,18 +93,21 @@ RUNTIME_CFLAGS=-I$(GOROOT)/src/pkg/runtime $(RUNTIME_CFLAGS_$(GOARCH))
+ %.cgo3.$O: %.cgo3.c
+ 	$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) $*.cgo3.c
+ 
++# Have to run gcc with the right size argument on hybrid 32/64 machines.
++_CGO_CFLAGS_386=-m32
++_CGO_CFLAGS_amd64=-m64
++
+ # Compile x.cgo4.c with gcc to make package_x.so.
+ %.cgo4.o: %.cgo4.c
+-	gcc -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo4.c
++	gcc $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo4.c
+ 
+ $(elem)_%.so: %.cgo4.o
+-	gcc -shared -o $@ $*.cgo4.o $(CGO_LDFLAGS)
++	gcc $(_CGO_CFLAGS_$(GOARCH)) -shared -o $@ $*.cgo4.o $(CGO_LDFLAGS)
+ 
+ $(pkgdir)/$(dir)/$(elem)_%.so: $(elem)_%.so
+ 	@test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
+ 	cp $(elem)_$*.so $@
+ 
+-
+ # Generic build rules.
+ # These come last so that the rules above can override them
+ # for more specific file names.
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index dc7caf3ece..76dc199472 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -231,6 +231,17 @@ outcode(void)
+ 	Binit(&b, f, OWRITE);
+ 
+ 	Bprint(&b, "%s\n", thestring);
++	if(ndynld > 0) {
++		int i;
++
++		Bprint(&b, "\n");
++		Bprint(&b, "$$  // exports\n\n");
++		Bprint(&b, "$$  // local types\n\n");
++		Bprint(&b, "$$  // dynld\n", thestring);
++		for(i=0; i<ndynld; i++)
++			Bprint(&b, "dynld %s %s %s\n", dynld[i].local, dynld[i].remote, dynld[i].path);
++		Bprint(&b, "$$\n\n");
++	}
+ 	Bprint(&b, "!\n");
+ 
+ 	outhist(&b);
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index f5a73884d2..627bd25e89 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -333,7 +333,7 @@ doelf(void)
+ 		s = lookup(".dynsym", 0);
+ 		s->type = SDATA;
+ 		s->reachable = 1;
+-		s->value += ELF64SYMSIZE;
++		s->value += ELF32SYMSIZE;
+ 
+ 		/* dynamic string table */
+ 		s = lookup(".dynstr", 0);
+@@ -368,21 +368,20 @@ doelf(void)
+ 				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynldname == nil)
+ 					continue;
+ 
+-				d = lookup(".rela", 0);
++				d = lookup(".rel", 0);
+ 				addaddr(d, s);
+-				adduint64(d, ELF64_R_INFO(nsym, R_X86_64_64));
+-				adduint64(d, 0);
++				adduint32(d, ELF32_R_INFO(nsym, R_386_32));
+ 				nsym++;
+ 
+ 				d = lookup(".dynsym", 0);
+ 				adduint32(d, addstring(lookup(".dynstr", 0), s->dynldname));
++				adduint32(d, 0);	/* value */
++				adduint32(d, 0);	/* size of object */
+ 				t = STB_GLOBAL << 4;
+ 				t |= STT_OBJECT;	// works for func too, empirically
+ 				adduint8(d, t);
+ 				adduint8(d, 0);	/* reserved */
+ 				adduint16(d, SHN_UNDEF);	/* section where symbol is defined */
+-				adduint64(d, 0);	/* value */
+-				adduint64(d, 0);	/* size of object */
+ 
+ 				if(needlib(s->dynldlib))
+ 					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynldlib));
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 29fe55240d..9b122676c8 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -35,6 +35,7 @@ type Prog struct {
+ 	Typedef map[string]ast.Expr;
+ 	Vardef map[string]*Type;
+ 	Funcdef map[string]*FuncType;
++	PtrSize int64;
+ }
+ 
+ // A Type collects information about a type in both the C and Go worlds.
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 27090fdf4f..e3f5268458 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -20,7 +20,7 @@ import (
+ 	"strings";
+ )
+ 
+-func (p *Prog) loadDebugInfo(ptrSize int64) {
++func (p *Prog) loadDebugInfo() {
+ 	// Construct a slice of unique names from p.Crefs.
+ 	m := make(map[string]int);
+ 	for _, c := range p.Crefs {
+@@ -57,7 +57,7 @@ func (p *Prog) loadDebugInfo(ptrSize int64) {
+ 	b.WriteString("}\n");
+ 
+ 	kind := make(map[string]string);
+-	_, stderr := gccDebug(b.Bytes());
++	_, stderr := p.gccDebug(b.Bytes());
+ 	if stderr == "" {
+ 		fatal("gcc produced no output");
+ 	}
+@@ -109,7 +109,7 @@ func (p *Prog) loadDebugInfo(ptrSize int64) {
+ 	for i, n := range names {
+ 		fmt.Fprintf(&b, "typeof(%s) *__cgo__%d;\n", n, i);
+ 	}
+-	d, stderr := gccDebug(b.Bytes());
++	d, stderr := p.gccDebug(b.Bytes());
+ 	if d == nil {
+ 		fatal("gcc failed:\n%s\non input:\n%s", stderr, b.Bytes());
+ 	}
+@@ -158,7 +158,7 @@ func (p *Prog) loadDebugInfo(ptrSize int64) {
+ 
+ 	// Record types and typedef information in Crefs.
+ 	var conv typeConv;
+-	conv.Init(ptrSize);
++	conv.Init(p.PtrSize);
+ 	for _, c := range p.Crefs {
+ 		i := m[c.Name];
+ 		c.TypeName = kind[c.Name] == "type";
+@@ -175,9 +175,9 @@ func (p *Prog) loadDebugInfo(ptrSize int64) {
+ // gccDebug runs gcc -gdwarf-2 over the C program stdin and
+ // returns the corresponding DWARF data and any messages
+ // printed to standard error.
+-func gccDebug(stdin []byte) (*dwarf.Data, string) {
++func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
+ 	machine := "-m32";
+-	if os.Getenv("GOARCH") == "amd64" {
++	if p.PtrSize == 8 {
+ 		machine = "-m64";
+ 	}
+ 
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 0832b3f408..b629f0a22c 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -22,20 +22,34 @@ func usage() {
+ 	flag.PrintDefaults();
+ }
+ 
+-const ptrSize = 8	// TODO
++var ptrSizeMap = map[string]int64 {
++	"386": 4,
++	"amd64": 8,
++	"arm": 4
++}
+ 
+ func main() {
+ 	flag.Usage = usage;
+ 	flag.Parse();
+ 
++	arch := os.Getenv("GOARCH");
++	if arch == "" {
++		fatal("$GOARCH is not set");
++	}
++	ptrSize, ok := ptrSizeMap[arch];
++	if !ok {
++		fatal("unknown architecture %s", arch);
++	}
++
+ 	args := flag.Args();
+ 	if len(args) != 1 {
+ 		usage();
+ 		os.Exit(2);
+ 	}
+ 	p := openProg(args[0]);
++	p.PtrSize = ptrSize;
+ 	p.Preamble = p.Preamble + "\n" + builtinProlog;
+-	p.loadDebugInfo(ptrSize);
++	p.loadDebugInfo();
+ 	p.Vardef = make(map[string]*Type);
+ 	p.Funcdef = make(map[string]*FuncType);
+ 
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 36fbe03490..91473abeb5 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -100,8 +100,8 @@ func (p *Prog) writeOutput(srcfile string) {
+ 			structType += fmt.Sprintf("\t\t%s p%d;\n", t.C, i);
+ 			off += t.Size;
+ 		}
+-		if off%ptrSize != 0 {
+-			pad := ptrSize - off%ptrSize;
++		if off%p.PtrSize != 0 {
++			pad := p.PtrSize - off%p.PtrSize;
+ 			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
+ 			off += pad;
+ 			npad++;
+@@ -116,8 +116,8 @@ func (p *Prog) writeOutput(srcfile string) {
+ 			structType += fmt.Sprintf("\t\t%s r;\n", t.C);
+ 			off += t.Size;
+ 		}
+-		if off%ptrSize != 0 {
+-			pad := ptrSize - off%ptrSize;
++		if off%p.PtrSize != 0 {
++			pad := p.PtrSize - off%p.PtrSize;
+ 			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
+ 			off += pad;
+ 			npad++;
+diff --git a/src/libcgo/Makefile b/src/libcgo/Makefile
+index 6fbfeb0670..ea4ccc7ef7 100644
+--- a/src/libcgo/Makefile
++++ b/src/libcgo/Makefile
+@@ -4,15 +4,17 @@
+ 
+ # not linked into build for now
+ 
++CFLAGS_386=-m32
++
+ TARG=libcgo.so
+ 
+ all: libcgo.so
+ 
+ cgocall.o: cgocall.c
+-	gcc -O2 -fPIC -o cgocall.o -c cgocall.c
++	gcc $(CFLAGS_$(GOARCH)) -O2 -fPIC -o cgocall.o -c cgocall.c
+ 
+ libcgo.so: cgocall.o
+-	gcc -shared -o libcgo.so cgocall.o -lpthread -lm
++	gcc $(CFLAGS_$(GOARCH)) -shared -o libcgo.so cgocall.o -lpthread -lm
+ 
+ install: $(GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so
+ 
+diff --git a/src/pkg/runtime/linux/386/rt0.s b/src/pkg/runtime/linux/386/rt0.s
+index 7717c37e86..d5d270be20 100755
+--- a/src/pkg/runtime/linux/386/rt0.s
++++ b/src/pkg/runtime/linux/386/rt0.s
+@@ -5,4 +5,11 @@
+ // Darwin and Linux use the same linkage to main
+ 
+ TEXT	_rt0_386_linux(SB),7,$0
++	MOVL	initcgo(SB), AX
++	TESTL	AX, AX
++	JZ	2(PC)
++	CALL	AX
++
+ 	JMP	_rt0_386(SB)
++
++GLOBL initcgo(SB), $4

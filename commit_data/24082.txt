@@ -28,7 +28,98 @@ Date:   Mon Jul 6 15:57:35 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/11940
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go      | 21 ++++++++++++++++++++-
  src/net/http/httputil/reverseproxy_test.go | 10 ++++++++++
  2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 5a0c1edfe1..3b7a184d93 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -194,7 +194,6 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		rw.WriteHeader(http.StatusInternalServerError)
+ 		return
+ 	}
+-	defer res.Body.Close()
+ 
+ 	for _, h := range hopHeaders {
+ 		res.Header.Del(h)
+@@ -202,8 +201,28 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 
+ 	copyHeader(rw.Header(), res.Header)
+ 
++	// The "Trailer" header isn't included in the Transport's response,
++	// at least for *http.Transport. Build it up from Trailer.
++	if len(res.Trailer) > 0 {
++		var trailerKeys []string
++		for k := range res.Trailer {
++			trailerKeys = append(trailerKeys, k)
++		}
++		rw.Header().Add("Trailer", strings.Join(trailerKeys, ", "))
++	}
++
+ 	rw.WriteHeader(res.StatusCode)
++	if len(res.Trailer) > 0 {
++		// Force chunking if we saw a response trailer.
++		// This prevents net/http from calculating the length for short
++		// bodies and adding a Content-Length.
++		if fl, ok := rw.(http.Flusher); ok {
++			fl.Flush()
++		}
++	}
+ 	p.copyResponse(rw, res.Body)
++	res.Body.Close() // close now, instead of defer, to populate res.Trailer
++	copyHeader(rw.Header(), res.Trailer)
+ }
+ 
+ func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader) {
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 54d2126aec..758f184962 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"net/url"
++	"reflect"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+@@ -43,6 +44,7 @@ func TestReverseProxy(t *testing.T) {
+ 		if g, e := r.Host, "some-name"; g != e {
+ 			t.Errorf("backend got Host header %q, want %q", g, e)
+ 		}
++		w.Header().Set("Trailer", "X-Trailer")
+ 		w.Header().Set("X-Foo", "bar")
+ 		w.Header().Set("Upgrade", "foo")
+ 		w.Header().Set(fakeHopHeader, "foo")
+@@ -51,6 +53,7 @@ func TestReverseProxy(t *testing.T) {
+ 		http.SetCookie(w, &http.Cookie{Name: "flavor", Value: "chocolateChip"})
+ 		w.WriteHeader(backendStatus)
+ 		w.Write([]byte(backendResponse))
++		w.Header().Set("X-Trailer", "trailer_value")
+ 	}))
+ 	defer backend.Close()
+ 	backendURL, err := url.Parse(backend.URL)
+@@ -85,6 +88,9 @@ func TestReverseProxy(t *testing.T) {
+ 	if g, e := len(res.Header["Set-Cookie"]), 1; g != e {
+ 		t.Fatalf("got %d SetCookies, want %d", g, e)
+ 	}
++	if g, e := res.Trailer, (http.Header{"X-Trailer": nil}); !reflect.DeepEqual(g, e) {
++		t.Errorf("before reading body, Trailer = %#v; want %#v", g, e)
++	}
+ 	if cookie := res.Cookies()[0]; cookie.Name != "flavor" {
+ 		t.Errorf("unexpected cookie %q", cookie.Name)
+ 	}
+@@ -92,6 +98,10 @@ func TestReverseProxy(t *testing.T) {
+ 	if g, e := string(bodyBytes), backendResponse; g != e {
+ 		t.Errorf("got body %q; expected %q", g, e)
+ 	}
++	if g, e := res.Trailer.Get("X-Trailer"), "trailer_value"; g != e {
++		t.Errorf("Trailer(X-Trailer) = %q ; want %q", g, e)
++	}
++
+ }
+ 
+ func TestXForwardedFor(t *testing.T) {

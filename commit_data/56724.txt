@@ -11,7 +11,60 @@ Date:   Tue May 23 12:37:13 2023 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/issues_test.go | 8 ++------
  src/go/types/issues_test.go                    | 8 ++------
  2 files changed, 4 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 6005587645..8bd42a5271 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"regexp"
+-	"runtime"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+@@ -807,11 +806,8 @@ func (S) M5(struct {S;t}) {}
+ }
+ 
+ func TestIssue59944(t *testing.T) {
+-	if runtime.GOARCH == "wasm" {
+-		// While we don't use the cgo tool directly in this test, we must have the
+-		// syscall package.
+-		t.Skip("cgo generated code does not compile on wasm")
+-	}
++	testenv.MustHaveCGO(t)
++
+ 	// The typechecker should resolve methods declared on aliases of cgo types.
+ 	const src = `
+ package p
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index d7f06cd9cb..1a784aae21 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -13,7 +13,6 @@ import (
+ 	"go/token"
+ 	"internal/testenv"
+ 	"regexp"
+-	"runtime"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+@@ -846,11 +845,8 @@ func (S) M5(struct {S;t}) {}
+ }
+ 
+ func TestIssue59944(t *testing.T) {
+-	if runtime.GOARCH == "wasm" {
+-		// While we don't use the cgo tool directly in this test, we must have the
+-		// syscall package.
+-		t.Skip("cgo generated code does not compile on wasm")
+-	}
++	testenv.MustHaveCGO(t)
++
+ 	// The typechecker should resolve methods declared on aliases of cgo types.
+ 	const src = `
+ package p

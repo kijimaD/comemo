@@ -10,6 +10,19 @@ Date:   Wed Oct 1 16:44:52 2014 -0700
     R=rsc, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/145710043
-
+---
  src/time/sleep.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index 33c349de46..61660d14ff 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -43,6 +43,7 @@ func stopTimer(*runtimeTimer) bool
+ // The Timer type represents a single event.
+ // When the Timer expires, the current time will be sent on C,
+ // unless the Timer was created by AfterFunc.
++// A Timer must be created with NewTimer or AfterFunc.
+ type Timer struct {
+ 	C <-chan Time
+ 	r runtimeTimer

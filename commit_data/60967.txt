@@ -22,9 +22,97 @@ Date:   Fri Sep 13 15:32:03 2024 +0800
     Reviewed-by: Meidan Li <limeidan@loongson.cn>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/asm/internal/asm/testdata/loong64enc1.s |  5 +++++
  src/cmd/internal/obj/loong64/a.out.go           |  4 ++++
  src/cmd/internal/obj/loong64/anames.go          |  4 ++++
  src/cmd/internal/obj/loong64/asm.go             | 12 ++++++++++++
  4 files changed, 25 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 45256beb7c..2688f7f22c 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -351,3 +351,8 @@ lable2:
+ 	BSTRPICKV	$0, R4, $0, R5	// 8500c000
+ 	BSTRPICKV	$63, R4, $0, R5	// 8500ff00
+ 	BSTRPICKV	$15, R4, $6, R5	// 8518cf00
++
++	FSCALEBF	F4, F5, F6	// a6901001
++	FSCALEBD	F4, F5, F6	// a6101101
++	FLOGBF		F4, F5		// 85241401
++	FLOGBD		F4, F5		// 85281401
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 60b0a62180..a2a809cbc0 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -462,6 +462,10 @@ const (
+ 	// 3.2.1.7
+ 	AFCOPYSGF
+ 	AFCOPYSGD
++	AFSCALEBF
++	AFSCALEBD
++	AFLOGBF
++	AFLOGBD
+ 
+ 	// 3.2.1.8
+ 	AFCLASSF
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index ddf13eec6e..2dc6319c4b 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -191,6 +191,10 @@ var Anames = []string{
+ 	"FMAXD",
+ 	"FCOPYSGF",
+ 	"FCOPYSGD",
++	"FSCALEBF",
++	"FSCALEBD",
++	"FLOGBF",
++	"FLOGBD",
+ 	"FCLASSF",
+ 	"FCLASSD",
+ 	"FFINTFW",
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 4e5bc15d33..926b9952a2 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1042,6 +1042,8 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ASQRTD, r0)
+ 			opset(AFCLASSF, r0)
+ 			opset(AFCLASSD, r0)
++			opset(AFLOGBF, r0)
++			opset(AFLOGBD, r0)
+ 
+ 		case AMOVVF:
+ 			opset(AMOVVD, r0)
+@@ -1096,6 +1098,8 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AFMAXD, r0)
+ 			opset(AFCOPYSGF, r0)
+ 			opset(AFCOPYSGD, r0)
++			opset(AFSCALEBF, r0)
++			opset(AFSCALEBD, r0)
+ 
+ 		case AAND:
+ 			opset(AOR, r0)
+@@ -1969,6 +1973,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 		return 0x211 << 15 // fmax.s
+ 	case AFMAXD:
+ 		return 0x212 << 15 // fmax.d
++	case AFSCALEBF:
++		return 0x221 << 15 // fscaleb.s
++	case AFSCALEBD:
++		return 0x222 << 15 // fscaleb.d
+ 	case AFCOPYSGF:
+ 		return 0x225 << 15 // fcopysign.s
+ 	case AFCOPYSGD:
+@@ -2071,6 +2079,10 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
+ 		return 0x4511 << 10
+ 	case ASQRTD:
+ 		return 0x4512 << 10
++	case AFLOGBF:
++		return 0x4509 << 10 // flogb.s
++	case AFLOGBD:
++		return 0x450a << 10 // flogb.d
+ 	case AFCLASSF:
+ 		return 0x450d << 10 // fclass.s
+ 	case AFCLASSD:

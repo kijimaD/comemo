@@ -15,6 +15,36 @@ Date:   Mon Nov 15 14:42:42 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/364134
     Trust: Keith Randall <khr@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go1.18.html | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index e266889cad..1ad651ffe8 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -29,6 +29,24 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO: complete this section
+ </p>
+ 
++<h3 id="generics">Generics</h3>
++
++<p>
++Go 1.18 includes an implementation of generics as described
++by <a href="https://go.googlesource.com/proposal/+/refs/heads/master/design/43651-type-parameters.md">the
++proposal</a>.
++</p>
++
++<p>
++  The current generics implementation has the following limitations:
++  <ul>
++    <li><!-- issue 47631 -->
++      The Go compiler cannot currently handle type declarations inside generic functions
++      or methods. We hope to provide support for this feature in Go 1.19.
++    </li>
++  </ul>
++</p>
++
+ <h2 id="ports">Ports</h2>
+ 
+ <h3 id="freebsd">FreeBSD</h3>

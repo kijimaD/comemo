@@ -9,7 +9,32 @@ Date:   Tue Feb 11 17:29:40 2014 +1100
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/61410050
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 2d25b2a325..18e8cb7abb 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -301,6 +301,7 @@ Peter Froehlich <peter.hans.froehlich@gmail.com>
+ Peter Kleiweg <pkleiweg@xs4all.nl>
+ Peter Mundy <go.peter.90@gmail.com>
+ Péter Surányi <speter.go1@gmail.com>
++Péter Szilágyi <peterke@gmail.com>
+ Peter Waller <peter.waller@gmail.com>
+ Peter Williams <pwil3058@gmail.com>
+ Philip K. Warren <pkwarren@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 8bc4ea8433..1407372f3f 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -424,6 +424,7 @@ Peter McKenzie <petermck@google.com>
+ Peter Mundy <go.peter.90@gmail.com>
+ Péter Surányi <speter.go1@gmail.com>
+ Péter Szabó <pts@google.com>
++Péter Szilágyi <peterke@gmail.com>
+ Peter Waller <peter.waller@gmail.com>
+ Peter Weinberger <pjw@golang.org>
+ Peter Williams <pwil3058@gmail.com>

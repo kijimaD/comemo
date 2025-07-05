@@ -13,6 +13,11 @@ Date:   Sun Aug 21 18:34:24 2016 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/{pobj.go => main.go} | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/main.go
+similarity index 100%
+rename from src/cmd/link/internal/ld/pobj.go
+rename to src/cmd/link/internal/ld/main.go

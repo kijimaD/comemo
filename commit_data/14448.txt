@@ -9,6 +9,22 @@ Date:   Wed Nov 21 15:04:22 2012 +1100
     R=mikioh.mikioh, dvyukov
     CC=golang-dev
     https://golang.org/cl/6845062
-
+---
  src/pkg/net/fd_unix.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index 096ad41bbf..d87c51ec66 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -509,10 +509,6 @@ func (fd *netFD) Write(p []byte) (int, error) {
+ 		return 0, err
+ 	}
+ 	defer fd.decref()
+-	if fd.sysfile == nil {
+-		return 0, syscall.EINVAL
+-	}
+-
+ 	var err error
+ 	nn := 0
+ 	for {

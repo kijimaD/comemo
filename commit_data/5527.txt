@@ -9,7 +9,51 @@ Date:   Mon May 24 14:22:54 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1224045
-
+---
  src/cmd/gc/typecheck.c   |  3 +++
  test/fixedbugs/bug278.go | 23 +++++++++++++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index b6940d412b..19155f07ba 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2074,6 +2074,9 @@ islvalue(Node *n)
+ {
+ 	switch(n->op) {
+ 	case OINDEX:
++		if(isfixedarray(n->left->type))
++			return islvalue(n->left);
++		// fall through
+ 	case OIND:
+ 	case ODOTPTR:
+ 		return 1;
+diff --git a/test/fixedbugs/bug278.go b/test/fixedbugs/bug278.go
+new file mode 100644
+index 0000000000..8c804cfe4a
+--- /dev/null
++++ b/test/fixedbugs/bug278.go
+@@ -0,0 +1,23 @@
++// errchk $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This is a test case for issue 804.
++
++package main
++
++func f() [10]int {
++	return [10]int{}
++}
++
++var m map[int][10]int
++
++func main() {
++	f()[1] = 2	// ERROR "cannot"
++	f()[2:3][0] = 4	// ERROR "cannot"
++	var x = "abc"
++	x[2] = 3	// ERROR "cannot"
++	m[0][5] = 6  // ERROR "cannot"
++}

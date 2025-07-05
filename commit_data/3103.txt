@@ -9,7 +9,7 @@ Date:   Thu Aug 27 11:20:15 2009 -0700
     DELTA=45  (13 added, 1 deleted, 31 changed)
     OCL=33923
     CL=33960
-
+---
  src/pkg/bufio/bufio.go           | 45 +++++++++++++++++++++-------------------
  src/pkg/bufio/bufio_test.go      |  4 ++--
  src/pkg/http/request.go          |  2 +-
@@ -21,3 +21,230 @@ Date:   Thu Aug 27 11:20:15 2009 -0700
  test/bench/reverse-complement.go |  2 +-
  usr/austin/sym/binary.go         |  8 +++++--
  10 files changed, 44 insertions(+), 32 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 4f97871035..895dbf6e7f 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -214,13 +214,17 @@ func (b *Reader) Buffered() int {
+ 	return b.w - b.r;
+ }
+ 
+-// ReadLineSlice reads until the first occurrence of delim in the input,
++// ReadSlice reads until the first occurrence of delim in the input,
+ // returning a slice pointing at the bytes in the buffer.
+ // The bytes stop being valid at the next read call.
+-// Fails if the line doesn't fit in the buffer.
+-// For internal or advanced use only; most uses should
+-// call ReadLineString or ReadLineBytes instead.
+-func (b *Reader) ReadLineSlice(delim byte) (line []byte, err os.Error) {
++// If ReadSlice encounters an error before finding a delimiter,
++// it returns all the data in the buffer and the error itself (often os.EOF).
++// ReadSlice fails with error ErrBufferFull if the buffer fills without a delim.
++// Because the data returned from ReadSlice will be overwritten
++// by the next I/O operation, most clients should use
++// ReadBytes or ReadString instead.
++// ReadSlice returns err != nil if and only if line does not end in delim.
++func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
+ 	// Look in buffer.
+ 	if i := findByte(b.buf[b.r:b.w], delim); i >= 0 {
+ 		line1 := b.buf[b.r:b.r+i+1];
+@@ -254,13 +258,13 @@ func (b *Reader) ReadLineSlice(delim byte) (line []byte, err os.Error) {
+ 	panic("not reached");
+ }
+ 
+-// ReadLineBytes reads until the first occurrence of delim in the input,
+-// returning a new byte array containing the line.
+-// If an error happens, returns the data (without a delimiter)
+-// and the error.  (It can't leave the data in the buffer because
+-// it might have read more than the buffer size.)
+-func (b *Reader) ReadLineBytes(delim byte) (line []byte, err os.Error) {
+-	// Use ReadLineSlice to look for array,
++// ReadBytes reads until the first occurrence of delim in the input,
++// returning a string containing the data up to and including the delimiter.
++// If ReadBytes encounters an error before finding a delimiter,
++// it returns the data read before the error and the error itself (often os.EOF).
++// ReadBytes returns err != nil if and only if line does not end in delim.
++func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
++	// Use ReadSlice to look for array,
+ 	// accumulating full buffers.
+ 	var frag []byte;
+ 	var full [][]byte;
+@@ -269,7 +273,7 @@ func (b *Reader) ReadLineBytes(delim byte) (line []byte, err os.Error) {
+ 
+ 	for {
+ 		var e os.Error;
+-		frag, e = b.ReadLineSlice(delim);
++		frag, e = b.ReadSlice(delim);
+ 		if e == nil {	// got final fragment
+ 			break
+ 		}
+@@ -327,14 +331,13 @@ func (b *Reader) ReadLineBytes(delim byte) (line []byte, err os.Error) {
+ 	return buf, err
+ }
+ 
+-// ReadLineString reads until the first occurrence of delim in the input,
+-// returning a new string containing the line.
+-// If savedelim, keep delim in the result; otherwise drop it.
+-func (b *Reader) ReadLineString(delim byte, savedelim bool) (line string, err os.Error) {
+-	bytes, e := b.ReadLineBytes(delim);
+-	if n := len(bytes); !savedelim && n > 0 && bytes[n-1] == delim {
+-		bytes = bytes[0:n-1]
+-	}
++// ReadString reads until the first occurrence of delim in the input,
++// returning a string containing the data up to and including the delimiter.
++// If ReadString encounters an error before finding a delimiter,
++// it returns the data read before the error and the error itself (often os.EOF).
++// ReadString returns err != nil if and only if line does not end in delim.
++func (b *Reader) ReadString(delim byte) (line string, err os.Error) {
++	bytes, e := b.ReadBytes(delim);
+ 	return string(bytes), e;
+ }
+ 
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 389b4097de..7100bcfa5d 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -84,12 +84,12 @@ var readMakers = []readMaker {
+ 	readMaker{ "data+err", iotest.DataErrReader },
+ }
+ 
+-// Call ReadLineString (which ends up calling everything else)
++// Call ReadString (which ends up calling everything else)
+ // to accumulate the text of a file.
+ func readLines(b *Reader) string {
+ 	s := "";
+ 	for {
+-		s1, e := b.ReadLineString('\n', true);
++		s1, e := b.ReadString('\n');
+ 		if e == os.EOF {
+ 			break
+ 		}
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index dabd39d208..e276deeffc 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -204,7 +204,7 @@ func (req *Request) write(w io.Writer) os.Error {
+ // The returned bytes are a pointer into storage in
+ // the bufio, so they are only valid until the next bufio read.
+ func readLineBytes(b *bufio.Reader) (p []byte, err os.Error) {
+-	if p, err = b.ReadLineSlice('\n'); err != nil {
++	if p, err = b.ReadSlice('\n'); err != nil {
+ 		// We always know when EOF is coming.
+ 		// If the caller asked for a line, there should be a line.
+ 		if err == os.EOF {
+diff --git a/src/pkg/log/log_test.go b/src/pkg/log/log_test.go
+index 12f7326325..52be6803d5 100644
+--- a/src/pkg/log/log_test.go
++++ b/src/pkg/log/log_test.go
+@@ -59,10 +59,11 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
+ 	} else {
+ 		l.Log("hello", 23, "world");
+ 	}
+-	line, err3 := buf.ReadLineString('\n', false);
++	line, err3 := buf.ReadString('\n');
+ 	if err3 != nil {
+ 		t.Fatal("log error", err3);
+ 	}
++	line = line[0:len(line)-1];
+ 	pattern = "^"+pattern+"hello 23 world$";
+ 	matched, err4 := regexp.MatchString(pattern, line);
+ 	if err4 != nil{
+diff --git a/src/pkg/net/parse_test.go b/src/pkg/net/parse_test.go
+index 227ae55f1d..c95138896b 100644
+--- a/src/pkg/net/parse_test.go
++++ b/src/pkg/net/parse_test.go
+@@ -28,7 +28,10 @@ func TestReadLine(t *testing.T) {
+ 	lineno := 1;
+ 	byteno := 0;
+ 	for {
+-		bline, berr := br.ReadLineString('\n', false);
++		bline, berr := br.ReadString('\n');
++		if n := len(bline); n > 0 {
++			bline = bline[0:n-1];
++		}
+ 		line, ok := file.readLine();
+ 		if (berr != nil) != !ok || bline != line {
+ 			t.Fatalf("%s:%d (#%d)\nbufio => %q, %v\nnet => %q, %v",
+diff --git a/src/pkg/strconv/fp_test.go b/src/pkg/strconv/fp_test.go
+index 0890b0fad2..c38762dfb7 100644
+--- a/src/pkg/strconv/fp_test.go
++++ b/src/pkg/strconv/fp_test.go
+@@ -104,13 +104,14 @@ func TestFp(t *testing.T) {
+ 
+ 	lineno := 0;
+ 	for {
+-		line, err2 := b.ReadLineString('\n', false);
++		line, err2 := b.ReadString('\n');
+ 		if err2 == os.EOF {
+ 			break;
+ 		}
+ 		if err2 != nil {
+ 			panicln("testfp: read testfp.txt:", err2.String());
+ 		}
++		line = line[0:len(line)-1];
+ 		lineno++;
+ 		if len(line) == 0 || line[0] == '#' {
+ 			continue
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 36e67be1bc..8e91276bf7 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -202,7 +202,7 @@ func main() {
+ 	}
+ 	input := bufio.NewReader(resp.Body);
+ 	for {
+-		line, err := input.ReadLineString('\n', false);
++		line, err := input.ReadString('\n', false);
+ 		if err != nil {
+ 			if err == os.EOF {
+ 				break;
+diff --git a/test/bench/k-nucleotide.go b/test/bench/k-nucleotide.go
+index 1c9ce35bf2..3206774296 100644
+--- a/test/bench/k-nucleotide.go
++++ b/test/bench/k-nucleotide.go
+@@ -114,7 +114,7 @@ func main() {
+ 	buf := new(bytes.Buffer);
+ 	three := strings.Bytes(">THREE ");
+ 	for {
+-		line, err := in.ReadLineSlice('\n');
++		line, err := in.ReadSlice('\n');
+ 		if err != nil {
+ 			fmt.Fprintln(os.Stderr, "ReadLine err:", err);
+ 			os.Exit(2);
+diff --git a/test/bench/reverse-complement.go b/test/bench/reverse-complement.go
+index 3a0964db9b..28feed0941 100644
+--- a/test/bench/reverse-complement.go
++++ b/test/bench/reverse-complement.go
+@@ -96,7 +96,7 @@ func main() {
+ 	buf := make([]byte, 100*1024);
+ 	top := 0;
+ 	for {
+-		line, err := in.ReadLineSlice('\n');
++		line, err := in.ReadSlice('\n');
+ 		if err != nil {
+ 			break
+ 		}
+diff --git a/usr/austin/sym/binary.go b/usr/austin/sym/binary.go
+index d06179cec0..015175d743 100644
+--- a/usr/austin/sym/binary.go
++++ b/usr/austin/sym/binary.go
+@@ -134,12 +134,16 @@ func (r *binaryReader) ReadInt64() int64 {
+ 	return int64(r.ReadUint64());
+ }
+ 
+-// ReadCString reads a NULL-terminated string.
++// ReadCString reads a NUL-terminated string.
+ func (r *binaryReader) ReadCString() string {
+-	str, err := r.Reader.ReadLineString('\x00', false);
++	str, err := r.Reader.ReadString('\x00');
+ 	if r.err == nil && err != nil {
+ 		r.err = err;
+ 	}
++	n := len(str);
++	if n > 0 {
++		str = str[0:n-1];
++	}
+ 	return str;
+ }
+ 

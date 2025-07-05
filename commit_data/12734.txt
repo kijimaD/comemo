@@ -14,7 +14,55 @@ Date:   Fri Mar 23 10:48:51 2012 -0400
     R=golang-dev, r, bradfitz
     CC=golang-dev
     https://golang.org/cl/5857043
-
+---
  src/pkg/crypto/tls/handshake_server.go | 10 ++++++----
  src/pkg/crypto/tls/key_agreement.go    |  4 ++++
  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index 23ec558723..77e56a7545 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -60,21 +60,23 @@ FindCipherSuite:
+ 	for _, id := range clientHello.cipherSuites {
+ 		for _, supported := range config.cipherSuites() {
+ 			if id == supported {
+-				suite = nil
++				var candidate *cipherSuite
++
+ 				for _, s := range cipherSuites {
+ 					if s.id == id {
+-						suite = s
++						candidate = s
+ 						break
+ 					}
+ 				}
+-				if suite == nil {
++				if candidate == nil {
+ 					continue
+ 				}
+ 				// Don't select a ciphersuite which we can't
+ 				// support for this client.
+-				if suite.elliptic && !ellipticOk {
++				if candidate.elliptic && !ellipticOk {
+ 					continue
+ 				}
++				suite = candidate
+ 				break FindCipherSuite
+ 			}
+ 		}
+diff --git a/src/pkg/crypto/tls/key_agreement.go b/src/pkg/crypto/tls/key_agreement.go
+index 75f5c73464..a931d8fb55 100644
+--- a/src/pkg/crypto/tls/key_agreement.go
++++ b/src/pkg/crypto/tls/key_agreement.go
+@@ -130,6 +130,10 @@ Curve:
+ 		}
+ 	}
+ 
++	if curveid == 0 {
++		return nil, errors.New("tls: no supported elliptic curves offered")
++	}
++
+ 	var x, y *big.Int
+ 	var err error
+ 	ka.privateKey, x, y, err = elliptic.GenerateKey(ka.curve, config.rand())

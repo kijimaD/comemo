@@ -17,7 +17,43 @@ Date:   Wed Mar 16 18:22:58 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/20772
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go |  6 ++++++
  test/writebarrier.go                | 10 ++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index b4c38ec12b..69c8390fe0 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2140,6 +2140,12 @@ func needwritebarrier(l *Node, r *Node) bool {
+ 		return false
+ 	}
+ 
++	// No write barrier for storing global function, which is live
++	// no matter what.
++	if r.Op == ONAME && r.Class == PFUNC {
++		return false
++	}
++
+ 	// Otherwise, be conservative and use write barrier.
+ 	return true
+ }
+diff --git a/test/writebarrier.go b/test/writebarrier.go
+index dcd20a0225..e591eaab32 100644
+--- a/test/writebarrier.go
++++ b/test/writebarrier.go
+@@ -158,3 +158,13 @@ func t1(i interface{}) **int {
+ 	}
+ 	return nil
+ }
++
++type T17 struct {
++	f func(*T17)
++}
++
++func f17(x *T17) {
++	// See golang.org/issue/13901
++	x.f = f17                      // no barrier
++	x.f = func(y *T17) { *y = *x } // ERROR "write barrier"
++}

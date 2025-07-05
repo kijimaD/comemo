@@ -13,9 +13,71 @@ Date:   Thu Sep 17 12:39:43 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/256919
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go         | 2 +-
  test/fixedbugs/bug429_run.go | 7 ++++++-
  test/fixedbugs/issue21576.go | 7 ++++++-
  test/nilptr.go               | 3 ++-
  4 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index da894e3eef..abe496fdee 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -903,7 +903,7 @@ func (t *tester) addCmd(dt *distTest, dir string, cmdline ...interface{}) *exec.
+ }
+ 
+ func (t *tester) iOS() bool {
+-	return (goos == "darwin" || goos == "ios") && goarch == "arm64"
++	return goos == "ios"
+ }
+ 
+ func (t *tester) out(v string) {
+diff --git a/test/fixedbugs/bug429_run.go b/test/fixedbugs/bug429_run.go
+index c6a02aae5e..60cc5b62de 100644
+--- a/test/fixedbugs/bug429_run.go
++++ b/test/fixedbugs/bug429_run.go
+@@ -1,6 +1,11 @@
+-// +build !nacl,!js
+ // run
+ 
++// +build !nacl,!js
++// +build !darwin !arm64
++
++// Skip on darwin/arm64 as it requires external linking, which brings in
++// cgo, causing deadlock detection not working.
++
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue21576.go b/test/fixedbugs/issue21576.go
+index b7a32f07ac..3797a8c9ba 100644
+--- a/test/fixedbugs/issue21576.go
++++ b/test/fixedbugs/issue21576.go
+@@ -1,6 +1,11 @@
+-// +build !nacl,!js
+ // run
+ 
++// +build !nacl,!js
++// +build !darwin !arm64
++
++// Skip on darwin/arm64 as it requires external linking, which brings in
++// cgo, causing deadlock detection not working.
++
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/nilptr.go b/test/nilptr.go
+index 90f57c54b6..c9a044dd36 100644
+--- a/test/nilptr.go
++++ b/test/nilptr.go
+@@ -8,7 +8,8 @@
+ // in a large address space.
+ 
+ // +build !aix
+-// Address space starts at 1<<32 on AIX, so dummy is too far.
++// +build !darwin !arm64
++// Address space starts at 1<<32 on AIX and on darwin/arm64, so dummy is too far.
+ 
+ package main
+ 

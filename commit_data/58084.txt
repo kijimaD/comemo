@@ -12,7 +12,7 @@ Date:   Thu Sep 28 08:10:04 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/syscall/unix/net_darwin.go |  1 +
  src/net/cgo_unix.go                     |  4 +++-
  src/net/cgo_unix_cgo.go                 |  1 +
@@ -22,3 +22,161 @@ Date:   Thu Sep 28 08:10:04 2023 +0000
  src/net/lookup_test.go                  |  8 ++++++++
  src/net/lookup_windows.go               | 15 ++++++++++-----
  8 files changed, 32 insertions(+), 11 deletions(-)
+
+diff --git a/src/internal/syscall/unix/net_darwin.go b/src/internal/syscall/unix/net_darwin.go
+index 5601b49750..bbaa94b0d2 100644
+--- a/src/internal/syscall/unix/net_darwin.go
++++ b/src/internal/syscall/unix/net_darwin.go
+@@ -19,6 +19,7 @@ const (
+ 	EAI_AGAIN    = 2
+ 	EAI_NODATA   = 7
+ 	EAI_NONAME   = 8
++	EAI_SERVICE  = 9
+ 	EAI_SYSTEM   = 11
+ 	EAI_OVERFLOW = 14
+ 
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index f10f3ea60b..2a7d1ec3fa 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -120,6 +120,8 @@ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (p
+ 			if err == nil { // see golang.org/issue/6232
+ 				err = syscall.EMFILE
+ 			}
++		case _C_EAI_SERVICE, _C_EAI_NONAME: // Darwin returns EAI_NONAME.
++			return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
+ 		default:
+ 			err = addrinfoErrno(gerrno)
+ 			isTemporary = addrinfoErrno(gerrno).Temporary()
+@@ -140,7 +142,7 @@ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (p
+ 			return int(p[0])<<8 | int(p[1]), nil
+ 		}
+ 	}
+-	return 0, &DNSError{Err: "unknown port", Name: network + "/" + service}
++	return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
+ }
+ 
+ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
+diff --git a/src/net/cgo_unix_cgo.go b/src/net/cgo_unix_cgo.go
+index 78ad36bccd..7c609eddbf 100644
+--- a/src/net/cgo_unix_cgo.go
++++ b/src/net/cgo_unix_cgo.go
+@@ -37,6 +37,7 @@ const (
+ 	_C_EAI_AGAIN    = C.EAI_AGAIN
+ 	_C_EAI_NODATA   = C.EAI_NODATA
+ 	_C_EAI_NONAME   = C.EAI_NONAME
++	_C_EAI_SERVICE  = C.EAI_SERVICE
+ 	_C_EAI_OVERFLOW = C.EAI_OVERFLOW
+ 	_C_EAI_SYSTEM   = C.EAI_SYSTEM
+ 	_C_IPPROTO_TCP  = C.IPPROTO_TCP
+diff --git a/src/net/cgo_unix_syscall.go b/src/net/cgo_unix_syscall.go
+index 2f057ce902..ac9aaa78fe 100644
+--- a/src/net/cgo_unix_syscall.go
++++ b/src/net/cgo_unix_syscall.go
+@@ -19,6 +19,7 @@ const (
+ 	_C_AF_UNSPEC    = syscall.AF_UNSPEC
+ 	_C_EAI_AGAIN    = unix.EAI_AGAIN
+ 	_C_EAI_NONAME   = unix.EAI_NONAME
++	_C_EAI_SERVICE  = unix.EAI_SERVICE
+ 	_C_EAI_NODATA   = unix.EAI_NODATA
+ 	_C_EAI_OVERFLOW = unix.EAI_OVERFLOW
+ 	_C_EAI_SYSTEM   = unix.EAI_SYSTEM
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index a7133b53ac..28532075d4 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -96,8 +96,9 @@ func lookupPortMap(network, service string) (port int, error error) {
+ 		if port, ok := m[string(lowerService[:n])]; ok && n == len(service) {
+ 			return port, nil
+ 		}
++		return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
+ 	}
+-	return 0, &AddrError{Err: "unknown port", Addr: network + "/" + service}
++	return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}
+ }
+ 
+ // ipVersion returns the provided network's IP version: '4', '6' or 0
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index c49b5a5089..c9b4da951c 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -212,15 +212,17 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port
+ 	}
+ 	lines, err := queryCS(ctx, network, "127.0.0.1", toLower(service))
+ 	if err != nil {
++		if stringsHasSuffix(err.Error(), "can't translate service") {
++			return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
++		}
+ 		return
+ 	}
+-	unknownPortError := &AddrError{Err: "unknown port", Addr: network + "/" + service}
+ 	if len(lines) == 0 {
+-		return 0, unknownPortError
++		return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
+ 	}
+ 	f := getFields(lines[0])
+ 	if len(f) < 2 {
+-		return 0, unknownPortError
++		return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
+ 	}
+ 	s := f[1]
+ 	if i := bytealg.IndexByteString(s, '!'); i >= 0 {
+@@ -229,7 +231,7 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port
+ 	if n, _, ok := dtoi(s); ok {
+ 		return n, nil
+ 	}
+-	return 0, unknownPortError
++	return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
+ }
+ 
+ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 85eb1d4d7f..ab68d75836 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -1460,3 +1460,11 @@ func testLookupNoData(t *testing.T, prefix string) {
+ 		return
+ 	}
+ }
++
++func TestLookupPortNotFound(t *testing.T) {
++	_, err := LookupPort("udp", "_-unknown-service-")
++	var dnsErr *DNSError
++	if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
++		t.Fatalf("unexpected error: %v", err)
++	}
++}
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index c370c790be..ce0df7ddd8 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -22,6 +22,7 @@ const cgoAvailable = true
+ const (
+ 	_WSAHOST_NOT_FOUND = syscall.Errno(11001)
+ 	_WSATRY_AGAIN      = syscall.Errno(11002)
++	_WSATYPE_NOT_FOUND = syscall.Errno(10109)
+ )
+ 
+ func winError(call string, err error) error {
+@@ -217,12 +218,16 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
+ 		if port, err := lookupPortMap(network, service); err == nil {
+ 			return port, nil
+ 		}
+-		err := winError("getaddrinfow", e)
+-		dnsError := &DNSError{Err: err.Error(), Name: network + "/" + service}
+-		if err == errNoSuchHost {
+-			dnsError.IsNotFound = true
++
++		// The _WSATYPE_NOT_FOUND error is returned by GetAddrInfoW
++		// when the service name is unknown. We are also checking
++		// for _WSAHOST_NOT_FOUND here to match the cgo (unix) version
++		// cgo_unix.go (cgoLookupServicePort).
++		if e == _WSATYPE_NOT_FOUND || e == _WSAHOST_NOT_FOUND {
++			return 0, &DNSError{Err: "unknown port", Name: network + "/" + service, IsNotFound: true}
+ 		}
+-		return 0, dnsError
++		err := os.NewSyscallError("getaddrinfow", e)
++		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service}
+ 	}
+ 	defer syscall.FreeAddrInfoW(result)
+ 	if result == nil {

@@ -14,6 +14,20 @@ Date:   Mon Apr 20 11:09:16 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 80726d0557..1c6195aa17 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -586,7 +586,7 @@ s%~	%%g
+ */
+ 
+ func symfmt(b *bytes.Buffer, s *types.Sym, flag FmtFlag, mode fmtMode) {
+-	if s.Pkg != nil && flag&FmtShort == 0 {
++	if flag&FmtShort == 0 {
+ 		switch mode {
+ 		case FErr: // This is for the user
+ 			if s.Pkg == builtinpkg || s.Pkg == localpkg {

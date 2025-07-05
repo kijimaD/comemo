@@ -21,8 +21,166 @@ Date:   Fri Jul 9 17:47:15 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/codes.go  |  4 +--
  src/cmd/compile/internal/noder/reader.go | 43 ++++++++++++++++++++++++--------
  src/cmd/compile/internal/noder/writer.go | 34 +++++++++++++++++--------
  3 files changed, 57 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/codes.go b/src/cmd/compile/internal/noder/codes.go
+index 4a6a4e8307..f8cb7729ac 100644
+--- a/src/cmd/compile/internal/noder/codes.go
++++ b/src/cmd/compile/internal/noder/codes.go
+@@ -107,9 +107,7 @@ const (
+ 	exprUnaryOp
+ 	exprBinaryOp
+ 	exprCall
+-
+-	// TODO(mdempsky): Handle in switchStmt directly instead.
+-	exprTypeSwitchGuard
++	exprConvert
+ )
+ 
+ type codeDecl int
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 122bc70f24..19e51d9eba 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1252,7 +1252,7 @@ func (r *reader) assignList() ([]*ir.Name, []ir.Node) {
+ 			continue
+ 		}
+ 
+-		lhs[i] = r.expr()
++		lhs[i] = typecheck.AssignExpr(r.expr0())
+ 	}
+ 
+ 	return names, lhs
+@@ -1351,7 +1351,21 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
+ 	r.openScope()
+ 	pos := r.pos()
+ 	init := r.stmt()
+-	tag := r.expr()
++
++	var tag ir.Node
++	if r.bool() {
++		pos := r.pos()
++		var ident *ir.Ident
++		if r.bool() {
++			pos := r.pos()
++			sym := typecheck.Lookup(r.string())
++			ident = ir.NewIdent(pos, sym)
++		}
++		x := r.expr()
++		tag = ir.NewTypeSwitchGuard(pos, ident, x)
++	} else {
++		tag = r.expr()
++	}
+ 
+ 	tswitch, ok := tag.(*ir.TypeSwitchGuard)
+ 	if ok && tswitch.Tag == nil {
+@@ -1432,7 +1446,19 @@ func (r *reader) initDefn(defn ir.InitNode, names []*ir.Name) bool {
+ 
+ // @@@ Expressions
+ 
++// expr reads and returns a typechecked expression.
+ func (r *reader) expr() ir.Node {
++	n := r.expr0()
++	if n == nil || n.Op() == ir.OTYPE {
++		// TODO(mdempsky): Push this responsibility up to callers?
++		return n
++	}
++	return typecheck.Expr(n)
++}
++
++// expr0 reads and returns an expression, possibly untypechecked.
++// The caller must typecheck the result as appropriate for its context.
++func (r *reader) expr0() ir.Node {
+ 	switch tag := codeExpr(r.code(syncExpr)); tag {
+ 	default:
+ 		panic("unhandled expression")
+@@ -1522,22 +1548,17 @@ func (r *reader) expr() ir.Node {
+ 		return ir.NewBinaryExpr(pos, op, x, y)
+ 
+ 	case exprCall:
+-		fun := r.expr()
++		fun := typecheck.Callee(r.expr0())
+ 		pos := r.pos()
+ 		args := r.exprs()
+ 		dots := r.bool()
+ 		return typecheck.Call(pos, fun, args, dots)
+ 
+-	case exprTypeSwitchGuard:
++	case exprConvert:
++		typ := r.typ()
+ 		pos := r.pos()
+-		var tag *ir.Ident
+-		if r.bool() {
+-			pos := r.pos()
+-			sym := typecheck.Lookup(r.string())
+-			tag = ir.NewIdent(pos, sym)
+-		}
+ 		x := r.expr()
+-		return ir.NewTypeSwitchGuard(pos, tag, x)
++		return ir.NewConvExpr(pos, ir.OCONV, typ, x)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 6348a56741..3f9310514a 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1033,7 +1033,17 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
+ 	w.openScope(stmt.Pos())
+ 	w.pos(stmt)
+ 	w.stmt(stmt.Init)
+-	w.expr(stmt.Tag)
++
++	if guard, ok := stmt.Tag.(*syntax.TypeSwitchGuard); w.bool(ok) {
++		w.pos(guard)
++		if tag := guard.Lhs; w.bool(tag != nil) {
++			w.pos(tag)
++			w.string(tag.Value)
++		}
++		w.expr(guard.X)
++	} else {
++		w.expr(stmt.Tag)
++	}
+ 
+ 	w.len(len(stmt.Body))
+ 	for i, clause := range stmt.Body {
+@@ -1207,6 +1217,19 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		w.expr(expr.Y)
+ 
+ 	case *syntax.CallExpr:
++		tv, ok := w.p.info.Types[expr.Fun]
++		assert(ok)
++		if tv.IsType() {
++			assert(len(expr.ArgList) == 1)
++			assert(!expr.HasDots)
++
++			w.code(exprConvert)
++			w.typ(tv.Type)
++			w.pos(expr)
++			w.expr(expr.ArgList[0])
++			break
++		}
++
+ 		w.code(exprCall)
+ 
+ 		if inf, ok := w.p.info.Inferred[expr]; ok {
+@@ -1223,15 +1246,6 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		w.pos(expr)
+ 		w.exprs(expr.ArgList)
+ 		w.bool(expr.HasDots)
+-
+-	case *syntax.TypeSwitchGuard:
+-		w.code(exprTypeSwitchGuard)
+-		w.pos(expr)
+-		if tag := expr.Lhs; w.bool(tag != nil) {
+-			w.pos(tag)
+-			w.string(tag.Value)
+-		}
+-		w.expr(expr.X)
+ 	}
+ }
+ 

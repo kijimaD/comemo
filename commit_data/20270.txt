@@ -10,7 +10,153 @@ Date:   Thu Aug 28 11:07:46 2014 -0700
     R=ruiu, josharian
     CC=golang-codereviews
     https://golang.org/cl/139780043
-
+---
  src/pkg/mime/type.go      | 60 +++++++++++++++++++++++++++++++++--------------
  src/pkg/mime/type_test.go | 39 ++++++++++++++++++++++--------
  2 files changed, 71 insertions(+), 28 deletions(-)
+
+diff --git a/src/pkg/mime/type.go b/src/pkg/mime/type.go
+index d1e403f022..ffda1f0ce5 100644
+--- a/src/pkg/mime/type.go
++++ b/src/pkg/mime/type.go
+@@ -13,12 +13,7 @@ import (
+ 
+ var (
+ 	mimeLock       sync.RWMutex
+-	mimeTypes      = map[string]string{}
+-	mimeTypesLower = map[string]string{}
+-)
+-
+-func init() {
+-	mimeTypes := map[string]string{
++	mimeTypesLower = map[string]string{
+ 		".css":  "text/css; charset=utf-8",
+ 		".gif":  "image/gif",
+ 		".htm":  "text/html; charset=utf-8",
+@@ -29,12 +24,21 @@ func init() {
+ 		".png":  "image/png",
+ 		".xml":  "text/xml; charset=utf-8",
+ 	}
+-	for ext, typ := range mimeTypes {
+-		AddExtensionType(ext, typ)
++	mimeTypes = clone(mimeTypesLower)
++)
++
++func clone(m map[string]string) map[string]string {
++	m2 := make(map[string]string, len(m))
++	for k, v := range m {
++		m2[k] = v
++		if strings.ToLower(k) != k {
++			panic("keys in mimeTypesLower must be lowercase")
++		}
+ 	}
++	return m2
+ }
+ 
+-var once sync.Once
++var once sync.Once // guards initMime
+ 
+ // TypeByExtension returns the MIME type associated with the file extension ext.
+ // The extension ext should begin with a leading dot, as in ".html".
+@@ -50,21 +54,41 @@ var once sync.Once
+ //   /etc/apache2/mime.types
+ //   /etc/apache/mime.types
+ //
+-// Windows system MIME types are extracted from registry.
++// On Windows, MIME types are extracted from the registry.
+ //
+ // Text types have the charset parameter set to "utf-8" by default.
+ func TypeByExtension(ext string) string {
+ 	once.Do(initMime)
+ 	mimeLock.RLock()
+-	typename := mimeTypes[ext]
+-	mimeLock.RUnlock()
+-	if typename == "" {
+-		lower := strings.ToLower(ext)
+-		mimeLock.RLock()
+-		typename = mimeTypesLower[lower]
+-		mimeLock.RUnlock()
++	defer mimeLock.RUnlock()
++
++	// Case-sensitive lookup.
++	v := mimeTypes[ext]
++	if v != "" {
++		return v
++	}
++
++	// Case-insensitive lookup.
++	// Optimistically assume a short ASCII extension and be
++	// allocation-free in that case.
++	var buf [10]byte
++	lower := buf[:0]
++	const utf8RuneSelf = 0x80 // from utf8 package, but not importing it.
++	for i := 0; i < len(ext); i++ {
++		c := ext[i]
++		if c >= utf8RuneSelf {
++			// Slow path.
++			return mimeTypesLower[strings.ToLower(ext)]
++		}
++		if 'A' <= c && c <= 'Z' {
++			lower = append(lower, c+('a'-'A'))
++		} else {
++			lower = append(lower, c)
++		}
+ 	}
+-	return typename
++	// The conversion from []byte to string doesn't allocate in
++	// a map lookup.
++	return mimeTypesLower[string(lower)]
+ }
+ 
+ // AddExtensionType sets the MIME type associated with
+diff --git a/src/pkg/mime/type_test.go b/src/pkg/mime/type_test.go
+index 3ec86fbb54..d2d254ae9a 100644
+--- a/src/pkg/mime/type_test.go
++++ b/src/pkg/mime/type_test.go
+@@ -19,17 +19,36 @@ func TestTypeByExtension(t *testing.T) {
+ 	}
+ }
+ 
+-func TestCustomExtension(t *testing.T) {
+-	custom := "test/test; charset=iso-8859-1"
+-	if error := AddExtensionType(".tesT", custom); error != nil {
+-		t.Fatalf("error %s for AddExtension(%s)", error, custom)
++func TestTypeByExtensionCase(t *testing.T) {
++	const custom = "test/test; charset=iso-8859-1"
++	const caps = "test/test; WAS=ALLCAPS"
++	if err := AddExtensionType(".TEST", caps); err != nil {
++		t.Fatalf("error %s for AddExtension(%s)", err, custom)
+ 	}
+-	// test with same capitalization
+-	if registered := TypeByExtension(".tesT"); registered != custom {
+-		t.Fatalf("registered %s instead of %s", registered, custom)
++	if err := AddExtensionType(".tesT", custom); err != nil {
++		t.Fatalf("error %s for AddExtension(%s)", err, custom)
+ 	}
+-	// test with different capitalization
+-	if registered := TypeByExtension(".Test"); registered != custom {
+-		t.Fatalf("registered %s instead of %s", registered, custom)
++
++	// case-sensitive lookup
++	if got := TypeByExtension(".tesT"); got != custom {
++		t.Fatalf("for .tesT, got %q; want %q", got, custom)
++	}
++	if got := TypeByExtension(".TEST"); got != caps {
++		t.Fatalf("for .TEST, got %q; want %s", got, caps)
++	}
++
++	// case-insensitive
++	if got := TypeByExtension(".TesT"); got != custom {
++		t.Fatalf("for .TesT, got %q; want %q", got, custom)
++	}
++}
++
++func TestLookupMallocs(t *testing.T) {
++	n := testing.AllocsPerRun(10000, func() {
++		TypeByExtension(".html")
++		TypeByExtension(".HtML")
++	})
++	if n > 0 {
++		t.Errorf("allocs = %v; want 0", n)
+ 	}
+ }

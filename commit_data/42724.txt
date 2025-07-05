@@ -23,6 +23,27 @@ Date:   Fri Feb 7 11:15:11 2020 -0500
     Change-Id: I3c5901e7081acf79125b2d429ec3aa3b58416ed7
     Reviewed-on: https://go-review.googlesource.com/c/go/+/218477
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/doc/doc.go | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/doc/doc.go b/src/go/doc/doc.go
+index 0e50af04f6..79d38998e7 100644
+--- a/src/go/doc/doc.go
++++ b/src/go/doc/doc.go
+@@ -138,9 +138,12 @@ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
+ // NewFromFiles computes documentation for a package.
+ //
+ // The package is specified by a list of *ast.Files and corresponding
+-// file set, which must not be nil. NewFromFiles does not skip files
+-// based on build constraints, so it is the caller's responsibility to
+-// provide only the files that are matched by the build context.
++// file set, which must not be nil.
++// NewFromFiles uses all provided files when computing documentation,
++// so it is the caller's responsibility to provide only the files that
++// match the desired build context. "go/build".Context.MatchFile can
++// be used for determining whether a file matches a build context with
++// the desired GOOS and GOARCH values, and other build constraints.
+ // The import path of the package is specified by importPath.
+ //
+ // Examples found in _test.go files are associated with the corresponding

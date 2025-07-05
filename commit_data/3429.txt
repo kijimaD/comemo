@@ -8,6 +8,30 @@ Date:   Sat Oct 3 10:35:49 2009 -0700
     DELTA=3  (0 added, 0 deleted, 3 changed)
     OCL=35292
     CL=35303
-
+---
  src/pkg/net/net_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index 4efb8bf8e0..d4ca287cec 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -27,15 +27,15 @@ var dialErrorTests = []DialErrorTest {
+ 	},
+ 	DialErrorTest{
+ 		"tcp", "", "no-such-name.google.com.:80",
+-		"dial tcp no-such-name.google.com.:80: lookup no-such-name.google.com.: no such host",
++		"dial tcp no-such-name.google.com.:80: lookup no-such-name.google.com.( on .*)?: no such host",
+ 	},
+ 	DialErrorTest{
+ 		"tcp", "", "no-such-name.no-such-top-level-domain.:80",
+-		"dial tcp no-such-name.no-such-top-level-domain.:80: lookup no-such-name.no-such-top-level-domain.: no such host",
++		"dial tcp no-such-name.no-such-top-level-domain.:80: lookup no-such-name.no-such-top-level-domain.( on .*)?: no such host",
+ 	},
+ 	DialErrorTest{
+ 		"tcp", "", "no-such-name:80",
+-		`dial tcp no-such-name:80: lookup no-such-name\..*\.: no such host`,
++		`dial tcp no-such-name:80: lookup no-such-name\..*\.( on .*)?: no such host`,
+ 	},
+ 	DialErrorTest{
+ 		"tcp", "", "mh/astro/r70:http",

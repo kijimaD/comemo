@@ -5,10 +5,914 @@ Date:   Mon Jul 7 17:27:14 2008 -0700
     - first cut a Go parser in Go
     
     SVN=126242
-
+---
  doc/go_lang.txt             |  11 +-
  usr/gri/src/parser.go       | 705 ++++++++++++++++++++++++++++++++++++++++++++
  usr/gri/src/scanner.go      |  35 ++-
  usr/gri/src/test_parser.go  |  40 +++
  usr/gri/src/test_scanner.go |   4 +-
  5 files changed, 782 insertions(+), 13 deletions(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index b3e824e7ab..eccb673517 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
+ Robert Griesemer, Rob Pike, Ken Thompson
+ 
+ ----
+-(July 3, 2008)
++(July 7, 2008)
+ 
+ This document is a semi-formal specification/proposal for a new
+ systems programming language.  The document is under active
+@@ -314,10 +314,11 @@ Reserved words
+   break         fallthrough       import            return
+   case          false             interface         select
+   const         for               map               struct
+-  continue      func              new               switch
+-  default       go                nil               true
+-  else          goto              package           type
+-  export        if                range             var
++  chan          func              new               switch
++  continue      go                nil               true
++  default       goto              package           type
++  else          if                range             var
++  export
+ 
+ 
+ TODO: "len" is currently also a reserved word - it shouldn't be.
+diff --git a/usr/gri/src/parser.go b/usr/gri/src/parser.go
+new file mode 100644
+index 0000000000..e130bfe6b0
+--- /dev/null
++++ b/usr/gri/src/parser.go
+@@ -0,0 +1,705 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package Parser
++
++import Scanner "scanner"
++
++
++export Parser
++type Parser struct {
++	verbose bool;
++	S *Scanner.Scanner;
++	tok int;  // one token look-ahead
++	beg, end int;  // token position
++};
++
++
++func (P *Parser) Next() {
++	P.tok, P.beg, P.end = P.S.Scan()
++}
++
++
++func (P *Parser) Open(S *Scanner.Scanner, verbose bool) {
++	P.verbose = verbose;
++	P.S = S;
++	P.Next();
++}
++
++
++func (P *Parser) Error(msg string) {
++	print "error: ", msg, "\n";
++}
++
++
++func (P *Parser) Trace(msg string) {
++	if P.verbose {
++		print msg, "\n";
++	}
++}
++
++
++func (P *Parser) Expect(tok int) {
++	if tok != P.tok {
++		P.Error("expected `" + Scanner.TokenName(tok) + "`, found `" + Scanner.TokenName(P.tok) + "`");
++	}
++	P.Next();  // make progress in any case
++}
++
++
++func (P *Parser) ParseType();
++func (P *Parser) ParseExpression();
++
++
++func (P *Parser) ParseIdent() {
++	P.Trace("Ident");
++	P.Expect(Scanner.IDENT);
++}
++
++
++func (P *Parser) ParseIdentList() {
++	P.Trace("IdentList");
++	P.ParseIdent();
++	for P.tok == Scanner.COMMA {
++		P.Next();
++		P.ParseIdent();
++	}
++}
++
++
++func (P *Parser) ParseQualifiedIdent() {
++	P.Trace("QualifiedIdent");
++	P.ParseIdent();
++	if P.tok == Scanner.PERIOD {
++		P.Next();
++		P.ParseIdent();
++	}
++}
++
++
++func (P *Parser) ParseTypeName() {
++	P.Trace("TypeName");
++	P.ParseQualifiedIdent();
++}
++
++
++func (P *Parser) ParseArrayType() {
++	P.Trace("ArrayType");
++	P.Expect(Scanner.LBRACK);
++	if P.tok != Scanner.RBRACK {
++		P.ParseExpression();
++	}
++	P.Expect(Scanner.RBRACK);
++	P.ParseType();
++}
++
++
++func (P *Parser) ParseChannelType() {
++	P.Trace("ChannelType");
++	panic "ChannelType"
++}
++
++
++func (P *Parser) ParseInterfaceType() {
++	P.Trace("InterfaceType");
++	panic "InterfaceType"
++}
++
++
++func (P *Parser) ParseFunctionType() {
++	P.Trace("FunctionType");
++	panic "FunctionType"
++}
++
++
++func (P *Parser) ParseMapType() {
++	P.Trace("MapType");
++	P.Expect(Scanner.MAP);
++	P.Expect(Scanner.LBRACK);
++	P.ParseType();
++	P.Expect(Scanner.RBRACK);
++	P.ParseType();
++}
++
++
++func (P *Parser) ParseFieldDecl() {
++	P.Trace("FieldDecl");
++	P.ParseIdentList();
++	P.ParseType();
++}
++
++
++func (P *Parser) ParseStructType() {
++	P.Trace("StructType");
++	P.Expect(Scanner.STRUCT);
++	P.Expect(Scanner.LBRACE);
++	if P.tok != Scanner.RBRACE {
++		P.ParseFieldDecl();
++		for P.tok == Scanner.SEMICOLON {
++			P.Next();
++			P.ParseFieldDecl();
++		}
++		if P.tok == Scanner.SEMICOLON {
++			P.Next();
++		}
++	}
++	P.Expect(Scanner.RBRACE);
++}
++
++
++func (P *Parser) ParsePointerType() {
++	P.Trace("PointerType");
++	P.Expect(Scanner.MUL);
++	P.ParseType();
++}
++
++
++func (P *Parser) ParseType() {
++	P.Trace("Type");
++	switch P.tok {
++	case Scanner.IDENT:
++		P.ParseTypeName();
++	case Scanner.LBRACK:
++		P.ParseArrayType();
++	case Scanner.CHAN:
++		P.ParseChannelType();
++	case Scanner.INTERFACE:
++		P.ParseInterfaceType();
++	case Scanner.FUNC:
++		P.ParseFunctionType();
++	case Scanner.MAP:
++		P.ParseMapType();
++	case Scanner.STRUCT:
++		P.ParseStructType();
++	case Scanner.MUL:
++		P.ParsePointerType();
++	default:
++		P.Error("type expected");
++	}
++}
++
++
++func (P *Parser) ParseImportSpec() {
++	P.Trace("ImportSpec");
++	if P.tok == Scanner.PERIOD {
++		P.Next();
++	} else if P.tok == Scanner.IDENT {
++		P.Next();
++	}
++	P.Expect(Scanner.STRING);
++}
++
++
++func (P *Parser) ParseImportDecl() {
++	P.Trace("ImportDecl");
++	P.Expect(Scanner.IMPORT);
++	if P.tok == Scanner.LPAREN {
++		P.ParseImportSpec();
++		for P.tok == Scanner.SEMICOLON {
++			P.Next();
++			P.ParseImportSpec();
++		}
++		if P.tok == Scanner.SEMICOLON {
++			P.Next();
++		}
++	} else {
++		P.ParseImportSpec();
++	}
++}
++
++
++func (P *Parser) ParseExpressionList() {
++  P.Trace("ExpressionList");
++	P.ParseExpression();
++	for P.tok == Scanner.COMMA {
++		P.Next();
++		P.ParseExpression();
++	}
++}
++
++
++func (P *Parser) ParseConstSpec() {
++	P.Trace("ConstSpec");
++	P.ParseIdent();
++	// TODO factor this code
++	switch P.tok {
++	case Scanner.IDENT, Scanner.LBRACK, Scanner.CHAN, Scanner.INTERFACE,
++		Scanner.FUNC, Scanner.MAP, Scanner.STRUCT, Scanner.MUL:
++		P.ParseType();
++	default:
++		break;
++	}
++	if P.tok == Scanner.ASSIGN {
++		P.Next();
++		P.ParseExpression();
++	}
++}
++
++
++func (P *Parser) ParseConstDecl() {
++	P.Trace("ConstDecl");
++	P.Expect(Scanner.CONST);
++	if P.tok == Scanner.LPAREN {
++		P.ParseConstSpec();
++		for P.tok == Scanner.SEMICOLON {
++			P.Next();
++			P.ParseConstSpec();
++		}
++		if P.tok == Scanner.SEMICOLON {
++			P.Next();
++		}
++	} else {
++		P.ParseConstSpec();
++	}
++}
++
++
++func (P *Parser) ParseTypeSpec() {
++	P.Trace("TypeSpec");
++	P.ParseIdent();
++	// TODO factor this code
++	switch P.tok {
++	case Scanner.IDENT, Scanner.LBRACK, Scanner.CHAN, Scanner.INTERFACE,
++		Scanner.FUNC, Scanner.MAP, Scanner.STRUCT, Scanner.MUL:
++		P.ParseType();
++	default:
++		break;
++	}
++}
++
++
++func (P *Parser) ParseTypeDecl() {
++	P.Trace("TypeDecl");
++	P.Expect(Scanner.TYPE);
++	if P.tok == Scanner.LPAREN {
++		P.ParseTypeSpec();
++		for P.tok == Scanner.SEMICOLON {
++			P.Next();
++			P.ParseTypeSpec();
++		}
++		if P.tok == Scanner.SEMICOLON {
++			P.Next();
++		}
++	} else {
++		P.ParseTypeSpec();
++	}
++}
++
++
++func (P *Parser) ParseVarSpec() {
++	P.Trace("VarSpec");
++	P.ParseIdentList();
++	if P.tok == Scanner.ASSIGN {
++		P.Next();
++		P.ParseExpressionList();
++	} else {
++		P.ParseType();
++		if P.tok == Scanner.ASSIGN {
++			P.Next();
++			P.ParseExpressionList();
++		}
++	}
++}
++
++
++func (P *Parser) ParseVarDecl() {
++	P.Trace("VarDecl");
++	P.Expect(Scanner.VAR);
++	if P.tok == Scanner.LPAREN {
++		P.ParseVarSpec();
++		for P.tok == Scanner.SEMICOLON {
++			P.Next();
++			P.ParseVarSpec();
++		}
++		if P.tok == Scanner.SEMICOLON {
++			P.Next();
++		}
++	} else {
++		P.ParseVarSpec();
++	}
++}
++
++
++func (P *Parser) ParseParameterSection() {
++	P.Trace("ParameterSection");
++	P.ParseIdentList();
++	P.ParseType();
++}
++
++
++func (P *Parser) ParseParameterList() {
++	P.Trace("ParameterList");
++	P.ParseParameterSection();
++	for P.tok == Scanner.COMMA {
++		P.Next();
++		P.ParseParameterSection();
++	}
++}
++
++
++func (P *Parser) ParseParameters() {
++	P.Trace("Parameters");
++	P.Expect(Scanner.LPAREN);
++	if P.tok != Scanner.RPAREN {
++		P.ParseParameterList();
++	}
++	P.Expect(Scanner.RPAREN);
++}
++
++
++func (P *Parser) ParseResult() {
++	P.Trace("Result");
++	if P.tok == Scanner.LPAREN {
++		// TODO: here we allow empty returns - should proably fix this
++		P.ParseParameters();
++	} else {
++		P.ParseType();
++	}
++}
++
++
++// Named signatures
++//
++//        name (params)
++//        name (params) type
++//        name (params) (results)
++// (recv) name (params)
++// (recv) name (params) type
++// (recv) name (params) (results)
++
++func (P *Parser) ParseNamedSignature() {
++	P.Trace("NamedSignature");
++	if P.tok == Scanner.LPAREN {
++		P.ParseParameters();
++	}
++
++	P.ParseIdent();  // function name
++
++	P.ParseParameters();
++
++	// TODO factor this code
++	switch P.tok {
++	case Scanner.IDENT, Scanner.LBRACK, Scanner.CHAN, Scanner.INTERFACE,
++		Scanner.FUNC, Scanner.MAP, Scanner.STRUCT, Scanner.MUL, Scanner.LPAREN:
++		P.ParseResult();
++	default:
++		break;
++	}
++}
++
++
++func (P *Parser) ParseDeclaration();
++func (P *Parser) ParseStatement();
++func (P *Parser) ParseBlock();
++
++
++func (P *Parser) ParsePrimaryExprList() {
++	P.Trace("PrimaryExprList");
++	panic "PrimaryExprList"
++}
++
++
++func (P *Parser) ParseSimpleStat() {
++	P.Trace("SimpleStat");
++	P.ParseExpression();
++	switch P.tok {
++	case Scanner.ASSIGN:
++		P.Next();
++		P.ParseExpression();
++	case Scanner.COMMA:
++		P.Next();
++		P.ParsePrimaryExprList();
++	case Scanner.INC:
++		P.Next();
++	case Scanner.DEC:
++		P.Next();
++	}
++}
++
++
++func (P *Parser) ParseIfStat() {
++	P.Trace("IfStat");
++	P.Expect(Scanner.IF);
++	if P.tok != Scanner.LBRACE {
++		P.ParseSimpleStat();
++		if P.tok == Scanner.SEMICOLON {
++			P.ParseExpression();
++		}
++	}
++	P.ParseBlock();
++	if P.tok == Scanner.ELSE {
++		P.Next();
++		if P.tok == Scanner.IF {
++			P.ParseIfStat();
++		} else {
++			// TODO should be P.ParseBlock()
++			P.ParseStatement();
++		}
++	}
++}
++
++
++func (P *Parser) ParseForStat() {
++	P.Trace("ForStat");
++	panic "for stat";
++}
++
++
++func (P *Parser) ParseSwitchStat() {
++	P.Trace("SwitchStat");
++	panic "switch stat";
++}
++
++
++func (P *Parser) ParseStatement() {
++	P.Trace("Statement");
++	switch P.tok {
++	case Scanner.CONST: fallthrough;
++	case Scanner.TYPE: fallthrough;
++	case Scanner.VAR: fallthrough;
++	case Scanner.FUNC:
++		P.ParseDeclaration();
++	case Scanner.IDENT:
++		P.ParseSimpleStat();
++	case Scanner.GO:
++		panic "go statement";
++	case Scanner.RETURN:
++		panic "return statement";
++	case Scanner.BREAK:
++		panic "break statement";
++	case Scanner.CONTINUE:
++		panic "continue statement";
++	case Scanner.GOTO:
++		panic "goto statement";
++	case Scanner.LBRACE:
++		P.ParseBlock();
++	case Scanner.IF:
++		P.ParseIfStat();
++	case Scanner.FOR:
++		P.ParseForStat();
++	case Scanner.SWITCH:
++		P.ParseSwitchStat();
++	case Scanner.RANGE:
++		panic "range statement";
++	case Scanner.SELECT:
++		panic "select statement";
++	default:
++		P.Error("statement expected");
++	}
++}
++
++
++func (P *Parser) ParseStatementList() {
++	P.Trace("StatementList");
++	P.ParseStatement();
++	for P.tok == Scanner.SEMICOLON {
++		P.Next();
++		P.ParseStatement();
++	}
++}
++
++
++func (P *Parser) ParseBlock() {
++	P.Trace("Block");
++	P.Expect(Scanner.LBRACE);
++	if P.tok != Scanner.RBRACE && P.tok != Scanner.SEMICOLON {
++		P.ParseStatementList();
++	}
++	if P.tok == Scanner.SEMICOLON {
++		P.Next();
++	}
++	P.Expect(Scanner.RBRACE);
++}
++
++
++func (P *Parser) ParseFuncDecl() {
++	P.Trace("FuncDecl");
++	P.Expect(Scanner.FUNC);
++	P.ParseNamedSignature();
++	if P.tok == Scanner.SEMICOLON {
++		// forward declaration
++		P.Next();
++	} else {
++		P.ParseBlock();
++	}
++}
++
++
++func (P *Parser) ParseExportDecl() {
++	P.Trace("ExportDecl");
++	P.Next();
++}
++
++
++func (P *Parser) ParseDeclaration() {
++	P.Trace("Declaration");
++	switch P.tok {
++	case Scanner.CONST:
++		P.ParseConstDecl();
++	case Scanner.TYPE:
++		P.ParseTypeDecl();
++	case Scanner.VAR:
++		P.ParseVarDecl();
++	case Scanner.FUNC:
++		P.ParseFuncDecl();
++	case Scanner.EXPORT:
++		P.ParseExportDecl();
++	default:
++		P.Error("declaration expected");
++		P.Next();  // make progress
++	}
++}
++
++
++func (P *Parser) ParseOperand() {
++	P.Trace("Operand");
++	P.Next();
++}
++
++
++func (P *Parser) ParseSelectorOrTypeAssertion() {
++	P.Trace("SelectorOrTypeAssertion");
++}
++
++
++func (P *Parser) ParseIndexOrSlice() {
++	P.Trace("IndexOrSlice");
++}
++
++
++func (P *Parser) ParseInvocation() {
++	P.Trace("Invocation");
++}
++
++
++func (P *Parser) ParsePrimaryExpr() {
++	P.Trace("PrimaryExpr");
++	P.ParseOperand();
++	for {
++		switch P.tok {
++		case Scanner.PERIOD:
++			P.ParseSelectorOrTypeAssertion();
++		case Scanner.LBRACK:
++			P.ParseIndexOrSlice();
++		case Scanner.LPAREN:
++			P.ParseInvocation();
++		default:
++			return;
++		}
++	}
++}
++
++
++func (P *Parser) ParseUnaryExpr() {
++	P.Trace("UnaryExpr");
++	switch P.tok {
++	case Scanner.ADD: fallthrough;
++	case Scanner.SUB: fallthrough;
++	case Scanner.NOT: fallthrough;
++	case Scanner.XOR: fallthrough;
++	case Scanner.LSS: fallthrough;
++	case Scanner.GTR: fallthrough;
++	case Scanner.MUL: fallthrough;
++	case Scanner.AND:
++		P.ParseUnaryExpr();
++		return;
++	}
++	P.ParsePrimaryExpr();
++}
++
++
++func (P *Parser) ParseMultiplicativeExpr() {
++	P.Trace("MultiplicativeExpr");
++	P.ParseUnaryExpr();
++	for {
++		switch P.tok {
++		case Scanner.MUL: fallthrough;
++		case Scanner.QUO: fallthrough;
++		case Scanner.REM: fallthrough;
++		case Scanner.SHL: fallthrough;
++		case Scanner.SHR: fallthrough;
++		case Scanner.AND:
++			P.ParseUnaryExpr();
++		default:
++			return;
++		}
++	}
++}
++
++
++func (P *Parser) ParseAdditiveExpr() {
++	P.Trace("AdditiveExpr");
++	P.ParseMultiplicativeExpr();
++	for {
++		switch P.tok {
++		case Scanner.ADD: fallthrough;
++		case Scanner.SUB: fallthrough;
++		case Scanner.OR: fallthrough;
++		case Scanner.XOR:
++			P.ParseMultiplicativeExpr();
++		default:
++			return;
++		}
++	}
++}
++
++
++func (P *Parser) ParseRelationalExpr() {
++	P.Trace("RelationalExpr");
++	P.ParseAdditiveExpr();
++	switch P.tok {
++	case Scanner.EQL: fallthrough;
++	case Scanner.NEQ: fallthrough;
++	case Scanner.LSS: fallthrough;
++	case Scanner.LEQ: fallthrough;
++	case Scanner.GTR: fallthrough;
++	case Scanner.GEQ:
++		P.ParseAdditiveExpr();
++	}
++}
++
++
++func (P *Parser) ParseLANDExpr() {
++	P.Trace("LANDExpr");
++	P.ParseRelationalExpr();
++	for P.tok == Scanner.CAND {
++		P.Next();
++		P.ParseRelationalExpr();
++	}
++}
++
++
++func (P *Parser) ParseLORExpr() {
++	P.Trace("LORExpr");
++	P.ParseLANDExpr();
++	for P.tok == Scanner.COR {
++		P.Next();
++		P.ParseLANDExpr();
++	}
++}
++
++
++func (P *Parser) ParseExpression() {
++	P.Trace("Expression");
++	P.Next();
++}
++
++
++func (P *Parser) ParseProgram() {
++	P.Trace("Program");
++	P.Expect(Scanner.PACKAGE);
++	P.ParseIdent();
++	for P.tok == Scanner.IMPORT {
++		P.ParseImportDecl();
++		if P.tok == Scanner.SEMICOLON {
++			P.Next();
++		}
++	}
++	for P.tok != Scanner.EOF {
++		P.ParseDeclaration();
++		if P.tok == Scanner.SEMICOLON {
++			P.Next();
++		}
++	}
++}
+diff --git a/usr/gri/src/scanner.go b/usr/gri/src/scanner.go
+index 18ffdb4cf6..5fd74cc44e 100644
+--- a/usr/gri/src/scanner.go
++++ b/usr/gri/src/scanner.go
+@@ -4,7 +4,24 @@
+ 
+ package Scanner
+ 
+-export EOF;
++export
++	ILLEGAL, EOF, IDENT, STRING, NUMBER,
++	COMMA, COLON, SEMICOLON, PERIOD,
++	LPAREN, RPAREN, LBRACK, RBRACK, LBRACE, RBRACE,
++	ASSIGN, DEFINE,
++	INC, DEC, NOT,
++	AND, OR, XOR,
++	ADD, SUB, MUL, QUO, REM,
++	EQL, NEQ, LSS, LEQ, GTR, GEQ,
++	SHL, SHR,
++	ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN,
++	AND_ASSIGN, OR_ASSIGN, XOR_ASSIGN, SHL_ASSIGN, SHR_ASSIGN,
++	CAND, COR,
++	BREAK, CASE, CHAN, CONST, CONTINUE, DEFAULT, ELSE, EXPORT, FALLTHROUGH, FALSE,
++	FOR, FUNC, GO, GOTO, IF, IMPORT, INTERFACE, MAP, NEW, NIL, PACKAGE, RANGE,
++	RETURN, SELECT, STRUCT, SWITCH, TRUE, TYPE, VAR
++	
++	
+ const (
+ 	ILLEGAL = iota;
+ 	EOF;
+@@ -71,6 +88,7 @@ const (
+ 	KEYWORDS_BEG;
+ 	BREAK;
+ 	CASE;
++	CHAN;
+ 	CONST;
+ 	CONTINUE;
+ 	DEFAULT;
+@@ -170,6 +188,7 @@ func TokenName(tok int) string {
+ 
+ 	case BREAK: return "break";
+ 	case CASE: return "case";
++	case CHAN: return "chan";
+ 	case CONST: return "const";
+ 	case CONTINUE: return "continue";
+ 	case DEFAULT: return "default";
+@@ -234,6 +253,7 @@ type Scanner struct {
+ }
+ 
+ 
++/*
+ export Token
+ type Token struct {
+ 	val int;
+@@ -245,6 +265,7 @@ type Token struct {
+ func (T *Token) Print () {
+ 	print TokenName(T.val), " [", T.beg, ", ", T.end, "[ ", T.txt, "\n";
+ }
++*/
+ 
+ 
+ // Read the next Unicode char into S.ch.
+@@ -601,12 +622,12 @@ func (S *Scanner) Select4 (tok0, tok1, ch2, tok2, tok3 int) int {
+ }
+ 
+ 
+-func (S *Scanner) Scan (t *Token) (tok, beg, end int) {
++func (S *Scanner) Scan () (tok, beg, end int) {
+ 	S.SkipWhitespace();
+ 	
+-	var tok int = ILLEGAL;
+-	var beg int = S.pos - 1;
+-	var end int = beg;
++	tok = ILLEGAL;
++	beg = S.pos - 1;
++	end = beg;
+ 	
+ 	ch := S.ch;
+ 	switch {
+@@ -641,7 +662,7 @@ func (S *Scanner) Scan (t *Token) (tok, beg, end int) {
+ 			if S.ch == '/' || S.ch == '*' {
+ 				S.SkipComment();
+ 				// cannot simply return because of 6g bug
+-				tok, beg, end = S.Scan(t);
++				tok, beg, end = S.Scan();
+ 				return tok, beg, end;
+ 			}
+ 			tok = S.Select2(QUO, QUO_ASSIGN);
+@@ -659,10 +680,12 @@ func (S *Scanner) Scan (t *Token) (tok, beg, end int) {
+ 	
+ 	end = S.pos - 1;
+ 	
++	/*
+ 	t.val = tok;
+ 	t.beg = beg;
+ 	t.end = end;
+ 	t.txt = S.src[beg : end];
++	*/
+ 	
+ 	return tok, beg, end;
+ }
+diff --git a/usr/gri/src/test_parser.go b/usr/gri/src/test_parser.go
+new file mode 100644
+index 0000000000..a85e9b9272
+--- /dev/null
++++ b/usr/gri/src/test_parser.go
+@@ -0,0 +1,40 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import Scanner "scanner"
++import Parser "parser"
++
++
++func Parse(src string, verbose bool) {
++	S := new(Scanner.Scanner);
++	S.Open(src);
++	
++	P := new(Parser.Parser);
++	P.Open(S, verbose);
++	
++	P.ParseProgram();
++}
++
++
++func main() {
++	verbose := false;
++	for i := 1; i < sys.argc(); i++ {
++		if sys.argv(i) == "-v" {
++			verbose = true;
++			continue;
++		}
++		
++		var src string;
++		var ok bool;
++		src, ok = sys.readfile(sys.argv(i));
++		if ok {
++			print "parsing " + sys.argv(i) + "\n";
++			Parse(src, verbose);
++		} else {
++			print "error: cannot read " + sys.argv(i) + "\n";
++		}
++	}
++}
+diff --git a/usr/gri/src/test_scanner.go b/usr/gri/src/test_scanner.go
+index 00205621a2..f43d126419 100644
+--- a/usr/gri/src/test_scanner.go
++++ b/usr/gri/src/test_scanner.go
+@@ -11,9 +11,9 @@ func Scan(src string) {
+ 	S := new(Scanner.Scanner);
+ 	S.Open(src);
+ 	for {
+-		var t Scanner.Token;
++		//var t Scanner.Token;
+ 		var tok, beg, end int;
+-		tok, beg, end = S.Scan(&t);
++		tok, beg, end = S.Scan(/*&t*/);
+ 		//t.Print();  // TODO  this doesn't compile?
+ 		print Scanner.TokenName(tok), "\t ", src[beg : end], "\n";
+ 		if tok == Scanner.EOF {

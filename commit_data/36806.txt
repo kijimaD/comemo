@@ -9,7 +9,7 @@ Date:   Sat May 26 09:58:26 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/vet/all/whitelist/darwin_386.txt   |   2 -
  src/cmd/vet/all/whitelist/darwin_amd64.txt |   1 -
  src/runtime/sys_darwin.go                  |  10 ++
@@ -21,3 +21,507 @@ Date:   Sat May 26 09:58:26 2018 -0700
  src/runtime/timestub.go                    |   1 -
  src/runtime/timestub2.go                   |   2 +-
  10 files changed, 36 insertions(+), 346 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/darwin_386.txt b/src/cmd/vet/all/whitelist/darwin_386.txt
+index f7645eff1a..934b773f50 100644
+--- a/src/cmd/vet/all/whitelist/darwin_386.txt
++++ b/src/cmd/vet/all/whitelist/darwin_386.txt
+@@ -2,7 +2,5 @@
+ 
+ // Ok
+ 
+-runtime/sys_darwin_386.s: [386] now: function now missing Go declaration
+ runtime/sys_darwin_386.s: [386] sysenter: function sysenter missing Go declaration
+ runtime/sys_darwin_386.s: [386] setldt: function setldt missing Go declaration
+-runtime/sys_darwin_386.s: [386] cannot check cross-package assembly function: now is in package time
+diff --git a/src/cmd/vet/all/whitelist/darwin_amd64.txt b/src/cmd/vet/all/whitelist/darwin_amd64.txt
+index 8423415aea..fcdacb2dc1 100644
+--- a/src/cmd/vet/all/whitelist/darwin_amd64.txt
++++ b/src/cmd/vet/all/whitelist/darwin_amd64.txt
+@@ -1,4 +1,3 @@
+ // darwin/amd64-specific vet whitelist. See readme.txt for details.
+ 
+ runtime/sys_darwin_amd64.s: [amd64] settls: function settls missing Go declaration
+-runtime/sys_darwin_amd64.s: [amd64] cannot check cross-package assembly function: now is in package time
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 124b2fee5e..d8b5441b31 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -170,6 +170,15 @@ func nanotime() int64 {
+ }
+ func nanotime_trampoline()
+ 
++//go:nosplit
++//go:cgo_unsafe_args
++func walltime() (int64, int32) {
++	var t timeval
++	libcCall(unsafe.Pointer(funcPC(walltime_trampoline)), unsafe.Pointer(&t))
++	return int64(t.tv_sec), 1000 * t.tv_usec
++}
++func walltime_trampoline()
++
+ // Not used on Darwin, but must be defined.
+ func exitThread(wait *uint32) {
+ }
+@@ -197,6 +206,7 @@ func exitThread(wait *uint32) {
+ 
+ //go:cgo_import_dynamic libc_mach_timebase_info mach_timebase_info "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_mach_absolute_time mach_absolute_time "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_gettimeofday gettimeofday "/usr/lib/libSystem.B.dylib"
+ 
+ // Magic incantation to get libSystem actually dynamically linked.
+ // TODO: Why does the code require this?  See cmd/compile/internal/ld/go.go:210
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index dc2b84c484..5b29dfe604 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -166,149 +166,16 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
+ 	INT	$0x80
+ 	RET
+ 
+-// OS X comm page time offsets
+-// http://www.opensource.apple.com/source/xnu/xnu-1699.26.8/osfmk/i386/cpu_capabilities.h
+-#define	cpu_capabilities	0x20
+-#define	nt_tsc_base	0x50
+-#define	nt_scale	0x58
+-#define	nt_shift	0x5c
+-#define	nt_ns_base	0x60
+-#define	nt_generation	0x68
+-#define	gtod_generation	0x6c
+-#define	gtod_ns_base	0x70
+-#define	gtod_sec_base	0x78
+-
+-// called from assembly
+-// 64-bit unix nanoseconds returned in DX:AX.
+-// I'd much rather write this in C but we need
+-// assembly for the 96-bit multiply and RDTSC.
+-//
+-// Note that we could arrange to return monotonic time here
+-// as well, but we don't bother, for two reasons:
+-// 1. macOS only supports 64-bit systems, so no one should
+-// be using the 32-bit code in production.
+-// This code is only maintained to make it easier for developers
+-// using Macs to test the 32-bit compiler.
+-// 2. On some (probably now unsupported) CPUs,
+-// the code falls back to the system call always,
+-// so it can't even use the comm page at all. 
+-TEXT runtime·now(SB),NOSPLIT,$40
+-	MOVL	$0xffff0000, BP /* comm page base */
+-	
+-	// Test for slow CPU. If so, the math is completely
+-	// different, and unimplemented here, so use the
+-	// system call.
+-	MOVL	cpu_capabilities(BP), AX
+-	TESTL	$0x4000, AX
+-	JNZ	systime
+-
+-	// Loop trying to take a consistent snapshot
+-	// of the time parameters.
+-timeloop:
+-	MOVL	gtod_generation(BP), BX
+-	TESTL	BX, BX
+-	JZ	systime
+-	MOVL	nt_generation(BP), CX
+-	TESTL	CX, CX
+-	JZ	timeloop
+-	RDTSC
+-	MOVL	nt_tsc_base(BP), SI
+-	MOVL	(nt_tsc_base+4)(BP), DI
+-	MOVL	SI, 0(SP)
+-	MOVL	DI, 4(SP)
+-	MOVL	nt_scale(BP), SI
+-	MOVL	SI, 8(SP)
+-	MOVL	nt_ns_base(BP), SI
+-	MOVL	(nt_ns_base+4)(BP), DI
+-	MOVL	SI, 12(SP)
+-	MOVL	DI, 16(SP)
+-	CMPL	nt_generation(BP), CX
+-	JNE	timeloop
+-	MOVL	gtod_ns_base(BP), SI
+-	MOVL	(gtod_ns_base+4)(BP), DI
+-	MOVL	SI, 20(SP)
+-	MOVL	DI, 24(SP)
+-	MOVL	gtod_sec_base(BP), SI
+-	MOVL	(gtod_sec_base+4)(BP), DI
+-	MOVL	SI, 28(SP)
+-	MOVL	DI, 32(SP)
+-	CMPL	gtod_generation(BP), BX
+-	JNE	timeloop
+-
+-	// Gathered all the data we need. Compute time.
+-	//	((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base - gtod_ns_base + gtod_sec_base*1e9
+-	// The multiply and shift extracts the top 64 bits of the 96-bit product.
+-	SUBL	0(SP), AX // DX:AX = (tsc - nt_tsc_base)
+-	SBBL	4(SP), DX
+-
+-	// We have x = tsc - nt_tsc_base - DX:AX to be
+-	// multiplied by y = nt_scale = 8(SP), keeping the top 64 bits of the 96-bit product.
+-	// x*y = (x&0xffffffff)*y + (x&0xffffffff00000000)*y
+-	// (x*y)>>32 = ((x&0xffffffff)*y)>>32 + (x>>32)*y
+-	MOVL	DX, CX // SI = (x&0xffffffff)*y >> 32
+-	MOVL	$0, DX
+-	MULL	8(SP)
+-	MOVL	DX, SI
+-
+-	MOVL	CX, AX // DX:AX = (x>>32)*y
+-	MOVL	$0, DX
+-	MULL	8(SP)
+-
+-	ADDL	SI, AX	// DX:AX += (x&0xffffffff)*y >> 32
+-	ADCL	$0, DX
+-	
+-	// DX:AX is now ((tsc - nt_tsc_base) * nt_scale) >> 32.
+-	ADDL	12(SP), AX	// DX:AX += nt_ns_base
+-	ADCL	16(SP), DX
+-	SUBL	20(SP), AX	// DX:AX -= gtod_ns_base
+-	SBBL	24(SP), DX
+-	MOVL	AX, SI	// DI:SI = DX:AX
+-	MOVL	DX, DI
+-	MOVL	28(SP), AX	// DX:AX = gtod_sec_base*1e9
+-	MOVL	32(SP), DX
+-	MOVL	$1000000000, CX
+-	MULL	CX
+-	ADDL	SI, AX	// DX:AX += DI:SI
+-	ADCL	DI, DX
+-	RET
+-
+-systime:
+-	// Fall back to system call (usually first call in this thread)
+-	LEAL	16(SP), AX	// must be non-nil, unused
+-	MOVL	AX, 4(SP)
+-	MOVL	$0, 8(SP)	// time zone pointer
+-	MOVL	$0, 12(SP)	// required as of Sierra; Issue 16570
+-	MOVL	$116, AX // SYS_GETTIMEOFDAY
+-	INT	$0x80
+-	CMPL	AX, $0
+-	JNE	inreg
++TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$8, SP
+ 	MOVL	16(SP), AX
+-	MOVL	20(SP), DX
+-inreg:
+-	// sec is in AX, usec in DX
+-	// convert to DX:AX nsec
+-	MOVL	DX, BX
+-	MOVL	$1000000000, CX
+-	MULL	CX
+-	IMULL	$1000, BX
+-	ADDL	BX, AX
+-	ADCL	$0, DX
+-	RET
+-
+-// func now() (sec int64, nsec int32, mono uint64)
+-TEXT time·now(SB),NOSPLIT,$0-20
+-	CALL	runtime·now(SB)
+-	MOVL	AX, BX
+-	MOVL	DX, BP
+-	SUBL	runtime·startNano(SB), BX
+-	SBBL	runtime·startNano+4(SB), BP
+-	MOVL	BX, mono+12(FP)
+-	MOVL	BP, mono+16(FP)
+-	MOVL	$1000000000, CX
+-	DIVL	CX
+-	MOVL	AX, sec+0(FP)
+-	MOVL	$0, sec+4(FP)
+-	MOVL	DX, nsec+8(FP)
++	MOVL	AX, 0(SP)	// *timeval
++	MOVL	$0, 4(SP)	// no timezone needed
++	CALL	libc_gettimeofday(SB)
++	MOVL	BP, SP
++	POPL	BP
+ 	RET
+ 
+ GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 8168415932..320d56499a 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -92,24 +92,6 @@ TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
+ 	POPQ	BP
+ 	RET
+ 
+-// OS X comm page time offsets
+-// https://opensource.apple.com/source/xnu/xnu-4570.1.46/osfmk/i386/cpu_capabilities.h
+-
+-#define	nt_tsc_base	0x50
+-#define	nt_scale	0x58
+-#define	nt_shift	0x5c
+-#define	nt_ns_base	0x60
+-#define	nt_generation	0x68
+-#define	gtod_generation	0x6c  // obsolete since Darwin v17 (High Sierra)
+-#define	gtod_ns_base	0x70  // obsolete since Darwin v17 (High Sierra)
+-#define	gtod_sec_base	0x78  // obsolete since Darwin v17 (High Sierra)
+-
+-#define	v17_gtod_ns_base	0xd0
+-#define	v17_gtod_sec_ofs	0xd8
+-#define	v17_gtod_frac_ofs	0xe0
+-#define	v17_gtod_scale		0xe8
+-#define	v17_gtod_tkspersec	0xf0
+-
+ GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
+ 
+ TEXT runtime·nanotime_trampoline(SB),NOSPLIT,$0
+@@ -141,152 +123,13 @@ initialized:
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT time·now(SB), NOSPLIT, $32-24
+-	// Note: The 32 bytes of stack frame requested on the TEXT line
+-	// are used in the systime fallback, as the timeval address
+-	// filled in by the system call.
+-	MOVQ	$0x7fffffe00000, BP	/* comm page base */
+-	CMPQ	runtime·darwinVersion(SB), $17
+-	JB		legacy /* sierra and older */
+-
+-	// This is the new code, for macOS High Sierra (Darwin v17) and newer.
+-v17:
+-	// Loop trying to take a consistent snapshot
+-	// of the time parameters.
+-timeloop17:
+-	MOVQ 	v17_gtod_ns_base(BP), R12
+-
+-	MOVL	nt_generation(BP), CX
+-	TESTL	CX, CX
+-	JZ		timeloop17
+-	RDTSC
+-	MOVQ	nt_tsc_base(BP), SI
+-	MOVL	nt_scale(BP), DI
+-	MOVQ	nt_ns_base(BP), BX
+-	CMPL	nt_generation(BP), CX
+-	JNE		timeloop17
+-
+-	MOVQ 	v17_gtod_sec_ofs(BP), R8
+-	MOVQ 	v17_gtod_frac_ofs(BP), R9
+-	MOVQ 	v17_gtod_scale(BP), R10
+-	MOVQ 	v17_gtod_tkspersec(BP), R11
+-	CMPQ 	v17_gtod_ns_base(BP), R12
+-	JNE 	timeloop17
+-
+-	// Compute monotonic time
+-	//	mono = ((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base
+-	// The multiply and shift extracts the top 64 bits of the 96-bit product.
+-	SHLQ	$32, DX
+-	ADDQ	DX, AX
+-	SUBQ	SI, AX
+-	MULQ	DI
+-	SHRQ	$32, AX:DX
+-	ADDQ	BX, AX
+-
+-	// Subtract startNano base to return the monotonic runtime timer
+-	// which is an offset from process boot.
+-	MOVQ	AX, BX
+-	MOVQ	runtime·startNano(SB), CX
+-	SUBQ	CX, BX
+-	MOVQ	BX, monotonic+16(FP)
+-
+-	// Now compute the 128-bit wall time:
+-	//  wall = ((mono - gtod_ns_base) * gtod_scale) + gtod_offs
+-	// The parameters are updated every second, so if we found them
+-	// outdated (that is, more than one second is passed from the ns base),
+-	// fallback to the syscall.
+-	TESTQ	R12, R12
+-	JZ		systime
+-	SUBQ	R12, AX
+-	CMPQ	R11, AX
+-	JB		systime
+-	MULQ 	R10
+-	ADDQ	R9, AX
+-	ADCQ	R8, DX
+-
+-	// Convert the 128-bit wall time into (sec,nsec).
+-	// High part (seconds) is already good to go, while low part
+-	// (fraction of seconds) must be converted to nanoseconds.
+-	MOVQ	DX, sec+0(FP)
+-	MOVQ 	$1000000000, CX
+-	MULQ	CX
+-	MOVQ	DX, nsec+8(FP)
+-	RET
+-
+-	// This is the legacy code needed for macOS Sierra (Darwin v16) and older.
+-legacy:
+-	// Loop trying to take a consistent snapshot
+-	// of the time parameters.
+-timeloop:
+-	MOVL	gtod_generation(BP), R8
+-	MOVL	nt_generation(BP), R9
+-	TESTL	R9, R9
+-	JZ	timeloop
+-	RDTSC
+-	MOVQ	nt_tsc_base(BP), R10
+-	MOVL	nt_scale(BP), R11
+-	MOVQ	nt_ns_base(BP), R12
+-	CMPL	nt_generation(BP), R9
+-	JNE	timeloop
+-	MOVQ	gtod_ns_base(BP), R13
+-	MOVQ	gtod_sec_base(BP), R14
+-	CMPL	gtod_generation(BP), R8
+-	JNE	timeloop
+-
+-	// Gathered all the data we need. Compute:
+-	//	monotonic_time = ((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base
+-	// The multiply and shift extracts the top 64 bits of the 96-bit product.
+-	SHLQ	$32, DX
+-	ADDQ	DX, AX
+-	SUBQ	R10, AX
+-	MULQ	R11
+-	SHRQ	$32, AX:DX
+-	ADDQ	R12, AX
+-	MOVQ	AX, BX
+-	MOVQ	runtime·startNano(SB), CX
+-	SUBQ	CX, BX
+-	MOVQ	BX, monotonic+16(FP)
+-
+-	// Compute:
+-	//	wall_time = monotonic time - gtod_ns_base + gtod_sec_base*1e9
+-	// or, if gtod_generation==0, invoke the system call.
+-	TESTL	R8, R8
+-	JZ	systime
+-	SUBQ	R13, AX
+-	IMULQ	$1000000000, R14
+-	ADDQ	R14, AX
+-
+-	// Split wall time into sec, nsec.
+-	// generated code for
+-	//	func f(x uint64) (uint64, uint64) { return x/1e9, x%1e9 }
+-	// adapted to reduce duplication
+-	MOVQ	AX, CX
+-	SHRQ	$9, AX
+-	MOVQ	$19342813113834067, DX
+-	MULQ	DX
+-	SHRQ	$11, DX
+-	MOVQ	DX, sec+0(FP)
+-	IMULQ	$1000000000, DX
+-	SUBQ	DX, CX
+-	MOVL	CX, nsec+8(FP)
+-	RET
+-
+-systime:
+-	// Fall back to system call (usually first call in this thread).
+-	MOVQ	SP, DI
+-	MOVQ	$0, SI
+-	MOVQ	$0, DX  // required as of Sierra; Issue 16570
+-	MOVL	$(0x2000000+116), AX // gettimeofday
+-	SYSCALL
+-	CMPQ	AX, $0
+-	JNE	inreg
+-	MOVQ	0(SP), AX
+-	MOVL	8(SP), DX
+-inreg:
+-	// sec is in AX, usec in DX
+-	IMULQ	$1000, DX
+-	MOVQ	AX, sec+0(FP)
+-	MOVL	DX, nsec+8(FP)
++TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP			// make a frame; keep stack aligned
++	MOVQ	SP, BP
++	// DI already has *timeval
++	XORL	SI, SI // no timezone needed
++	CALL	libc_gettimeofday(SB)
++	POPQ	BP
+ 	RET
+ 
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index fcbcdbc42c..a940d95732 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -124,24 +124,10 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
+ 	SWI	$0x80
+ 	RET
+ 
+-TEXT runtime·walltime(SB), 7, $32
+-	MOVW	$8(R13), R0  // timeval
+-	MOVW	$0, R1  // zone
+-	MOVW	$0, R2	// see issue 16570
+-	MOVW	$SYS_gettimeofday, R12
+-	SWI	$0x80 // Note: R0 is tv_sec, R1 is tv_usec
+-	CMP	$0, R0
+-	BNE	inreg
+-	MOVW	8(R13), R0
+-	MOVW	12(R13), R1
+-inreg:
+-	MOVW    R1, R2  // usec
+-	MOVW	R0, sec_lo+0(FP)
+-	MOVW	$0, R1
+-	MOVW	R1, sec_hi+4(FP)
+-	MOVW	$1000, R3
+-	MUL	R3, R2
+-	MOVW	R2, nsec+8(FP)
++TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
++	// R0 already has *timeval
++	MOVW	$0, R1 // no timezone needed
++	BL	libc_gettimeofday(SB)
+ 	RET
+ 
+ GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index f0d9032a60..d13e44afcf 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -116,22 +116,10 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
+ 	SVC	$0x80
+ 	RET
+ 
+-TEXT runtime·walltime(SB),NOSPLIT,$40-12
+-	MOVD	RSP, R0	// timeval
+-	MOVD	R0, R9	// this is how dyld calls gettimeofday
+-	MOVW	$0, R1	// zone
+-	MOVD	$0, R2	// see issue 16570
+-	MOVW	$SYS_gettimeofday, R16
+-	SVC	$0x80	// Note: x0 is tv_sec, w1 is tv_usec
+-	CMP	$0, R0
+-	BNE	inreg
+-	MOVD	0(RSP), R0
+-	MOVW	8(RSP), R1
+-inreg:
+-	MOVD	R0, sec+0(FP)
+-	MOVW	$1000, R3
+-	MUL	R3, R1
+-	MOVW	R1, nsec+8(FP)
++TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
++	// R0 already has *timeval
++	MOVD	$0, R1 // no timezone needed
++	BL	libc_gettimeofday(SB)
+ 	RET
+ 
+ GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
+diff --git a/src/runtime/timeasm.go b/src/runtime/timeasm.go
+index 7474bec556..5af920c18c 100644
+--- a/src/runtime/timeasm.go
++++ b/src/runtime/timeasm.go
+@@ -6,7 +6,7 @@
+ // Those systems are also expected to have nanotime subtract startNano,
+ // so that time.now and nanotime return the same monotonic clock readings.
+ 
+-// +build darwin,amd64 darwin,386 windows
++// +build windows
+ 
+ package runtime
+ 
+diff --git a/src/runtime/timestub.go b/src/runtime/timestub.go
+index a76a761936..f9230da69f 100644
+--- a/src/runtime/timestub.go
++++ b/src/runtime/timestub.go
+@@ -5,7 +5,6 @@
+ // Declarations for operating systems implementing time.now
+ // indirectly, in terms of walltime and nanotime assembly.
+ 
+-// +build !darwin !amd64,!386
+ // +build !windows
+ 
+ package runtime
+diff --git a/src/runtime/timestub2.go b/src/runtime/timestub2.go
+index 8e15085d21..9ddc6fed91 100644
+--- a/src/runtime/timestub2.go
++++ b/src/runtime/timestub2.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !darwin !amd64,!386
++// +build !darwin
+ // +build !windows
+ // +build !freebsd
+ 

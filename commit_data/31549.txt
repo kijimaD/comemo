@@ -13,7 +13,7 @@ Date:   Fri Feb 17 16:52:16 2017 -0500
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go |   8 +-
  src/cmd/asm/main.go                       |   7 +-
  src/cmd/compile/internal/gc/dcl.go        |   6 --
@@ -24,3 +24,351 @@ Date:   Fri Feb 17 16:52:16 2017 -0500
  src/cmd/internal/obj/objfile.go           |   8 --
  src/cmd/internal/obj/plist.go             | 134 +++++++++++++-----------------
  9 files changed, 74 insertions(+), 108 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 0abcd1f275..d1a35c017c 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -30,7 +30,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
+ 	architecture, ctxt := setArch(goarch)
+ 	lexer := lex.NewLexer(input)
+ 	parser := NewParser(ctxt, architecture, lexer)
+-	pList := obj.Linknewplist(ctxt)
++	pList := new(obj.Plist)
+ 	var ok bool
+ 	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+@@ -179,7 +179,7 @@ Diff:
+ 		t.Errorf(format, args...)
+ 		ok = false
+ 	}
+-	obj.FlushplistNoFree(ctxt)
++	obj.FlushplistNoFree(ctxt, pList)
+ 
+ 	for p := top; p != nil; p = p.Link {
+ 		if p.As == obj.ATEXT {
+@@ -267,7 +267,7 @@ func testErrors(t *testing.T, goarch, file string) {
+ 	architecture, ctxt := setArch(goarch)
+ 	lexer := lex.NewLexer(input)
+ 	parser := NewParser(ctxt, architecture, lexer)
+-	pList := obj.Linknewplist(ctxt)
++	pList := new(obj.Plist)
+ 	var ok bool
+ 	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+@@ -283,7 +283,7 @@ func testErrors(t *testing.T, goarch, file string) {
+ 		errBuf.WriteString(s)
+ 	}
+ 	pList.Firstpc, ok = parser.Parse()
+-	obj.Flushplist(ctxt)
++	obj.Flushplist(ctxt, pList)
+ 	if ok && !failed {
+ 		t.Errorf("asm: %s had no errors", goarch)
+ 	}
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 1e27e1a9bd..0bea3c5f20 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -62,16 +62,17 @@ func main() {
+ 			diag = true
+ 			log.Printf(format, args...)
+ 		}
+-		pList := obj.Linknewplist(ctxt)
++		pList := new(obj.Plist)
+ 		pList.Firstpc, ok = parser.Parse()
+ 		if !ok {
+ 			failedFile = f
+ 			break
+ 		}
++		// reports errors to parser.Errorf
++		obj.Flushplist(ctxt, pList)
+ 	}
+ 	if ok {
+-		// reports errors to parser.Errorf
+-		obj.Writeobjdirect(ctxt, buf)
++		obj.WriteObjFile(ctxt, buf)
+ 	}
+ 	if !ok || diag {
+ 		if failedFile != "" {
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index b6c9bfb150..23fb2cbb9c 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -5,7 +5,6 @@
+ package gc
+ 
+ import (
+-	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"sort"
+@@ -1228,11 +1227,6 @@ func funccompile(n *Node) {
+ 	pc = nil
+ 	funcdepth = 0
+ 	dclcontext = PEXTERN
+-	if nerrors != 0 {
+-		// If we have compile errors, ignore any assembler/linker errors.
+-		Ctxt.DiagFunc = func(string, ...interface{}) {}
+-	}
+-	obj.Flushplist(Ctxt) // convert from Prog list to machine code
+ }
+ 
+ func funcsym(s *Sym) *Sym {
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 3719ccbd55..ad7bf05889 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -161,16 +161,6 @@ func Addrconst(a *obj.Addr, v int64) {
+ 	a.Offset = v
+ }
+ 
+-func newplist() *obj.Plist {
+-	pl := obj.Linknewplist(Ctxt)
+-
+-	pc = Ctxt.NewProg()
+-	Clearp(pc)
+-	pl.Firstpc = pc
+-
+-	return pl
+-}
+-
+ // nodarg returns a Node for the function argument denoted by t,
+ // which is either the entire function argument or result struct (t is a  struct *Type)
+ // or a specific argument (t is a *Field within a struct *Type).
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index bec5d89d75..a7fe469283 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -151,7 +151,7 @@ func dumpobj1(outfile string, mode int) {
+ 		ggloblsym(zero, int32(zerosize), obj.DUPOK|obj.RODATA)
+ 	}
+ 
+-	obj.Writeobjdirect(Ctxt, bout.Writer)
++	obj.WriteObjFile(Ctxt, bout.Writer)
+ 
+ 	if writearchive {
+ 		bout.Flush()
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 519cf02f27..f6d3c42f65 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -368,7 +368,10 @@ func compile(fn *Node) {
+ 		return
+ 	}
+ 
+-	newplist()
++	plist := new(obj.Plist)
++	pc = Ctxt.NewProg()
++	Clearp(pc)
++	plist.Firstpc = pc
+ 
+ 	setlineno(Curfn)
+ 
+@@ -430,6 +433,7 @@ func compile(fn *Node) {
+ 
+ 	genssa(ssafn, ptxt, gcargs, gclocals)
+ 	ssafn.Free()
++	obj.Flushplist(Ctxt, plist) // convert from Prog list to machine code
+ }
+ 
+ func gendebug(fn *obj.LSym, decls []*Node) {
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 7f588b9356..9dd0c14478 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -729,7 +729,6 @@ type Link struct {
+ 	Hash          map[SymVer]*LSym
+ 	PosTable      src.PosTable
+ 	Imports       []string
+-	Plists        []*Plist
+ 	Sym_div       *LSym
+ 	Sym_divu      *LSym
+ 	Sym_mod       *LSym
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 96122fb233..be8b2b40c9 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -119,14 +119,6 @@ import (
+ 	"sort"
+ )
+ 
+-// The Go and C compilers, and the assembler, call writeobj to write
+-// out a Go object file. The linker does not call this; the linker
+-// does not write out object files.
+-func Writeobjdirect(ctxt *Link, b *bufio.Writer) {
+-	Flushplist(ctxt)
+-	WriteObjFile(ctxt, b)
+-}
+-
+ // objWriter writes Go object files.
+ type objWriter struct {
+ 	wr   *bufio.Writer
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 27a24ef100..a74352cdba 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -14,96 +14,83 @@ type Plist struct {
+ 	Firstpc *Prog
+ }
+ 
+-/*
+- * start a new Prog list.
+- */
+-func Linknewplist(ctxt *Link) *Plist {
+-	pl := new(Plist)
+-	ctxt.Plists = append(ctxt.Plists, pl)
+-	return pl
++func Flushplist(ctxt *Link, plist *Plist) {
++	flushplist(ctxt, plist, ctxt.Debugasm == 0)
+ }
+-
+-func Flushplist(ctxt *Link) {
+-	flushplist(ctxt, ctxt.Debugasm == 0)
+-}
+-func FlushplistNoFree(ctxt *Link) {
+-	flushplist(ctxt, false)
++func FlushplistNoFree(ctxt *Link, plist *Plist) {
++	flushplist(ctxt, plist, false)
+ }
+-func flushplist(ctxt *Link, freeProgs bool) {
++func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
+ 	// Build list of symbols, and assign instructions to lists.
+-	// Ignore ctxt->plist boundaries. There are no guarantees there,
+-	// and the assemblers just use one big list.
+ 	var curtext *LSym
+ 	var etext *Prog
+ 	var text []*LSym
+ 
+-	for _, pl := range ctxt.Plists {
+-		var plink *Prog
+-		for p := pl.Firstpc; p != nil; p = plink {
+-			if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
+-				fmt.Printf("obj: %v\n", p)
+-			}
+-			plink = p.Link
+-			p.Link = nil
+-
+-			switch p.As {
+-			case AEND:
+-				continue
++	var plink *Prog
++	for p := plist.Firstpc; p != nil; p = plink {
++		if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
++			fmt.Printf("obj: %v\n", p)
++		}
++		plink = p.Link
++		p.Link = nil
+ 
+-			case ATEXT:
+-				s := p.From.Sym
+-				if s == nil {
+-					// func _() { }
+-					curtext = nil
++		switch p.As {
++		case AEND:
++			continue
+ 
+-					continue
+-				}
++		case ATEXT:
++			s := p.From.Sym
++			if s == nil {
++				// func _() { }
++				curtext = nil
+ 
+-				if s.Text != nil {
+-					log.Fatalf("duplicate TEXT for %s", s.Name)
+-				}
+-				if s.OnList() {
+-					log.Fatalf("symbol %s listed multiple times", s.Name)
+-				}
+-				s.Set(AttrOnList, true)
+-				text = append(text, s)
+-				flag := int(p.From3Offset())
+-				if flag&DUPOK != 0 {
+-					s.Set(AttrDuplicateOK, true)
+-				}
+-				if flag&NOSPLIT != 0 {
+-					s.Set(AttrNoSplit, true)
+-				}
+-				if flag&REFLECTMETHOD != 0 {
+-					s.Set(AttrReflectMethod, true)
+-				}
+-				s.Type = STEXT
+-				s.Text = p
+-				etext = p
+-				curtext = s
+ 				continue
++			}
+ 
+-			case AFUNCDATA:
+-				// Rewrite reference to go_args_stackmap(SB) to the Go-provided declaration information.
+-				if curtext == nil { // func _() {}
+-					continue
+-				}
+-				if p.To.Sym.Name == "go_args_stackmap" {
+-					if p.From.Type != TYPE_CONST || p.From.Offset != FUNCDATA_ArgsPointerMaps {
+-						ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
+-					}
+-					p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", curtext.Name), int(curtext.Version))
+-				}
+-
++			if s.Text != nil {
++				log.Fatalf("duplicate TEXT for %s", s.Name)
++			}
++			if s.OnList() {
++				log.Fatalf("symbol %s listed multiple times", s.Name)
++			}
++			s.Set(AttrOnList, true)
++			text = append(text, s)
++			flag := int(p.From3Offset())
++			if flag&DUPOK != 0 {
++				s.Set(AttrDuplicateOK, true)
+ 			}
++			if flag&NOSPLIT != 0 {
++				s.Set(AttrNoSplit, true)
++			}
++			if flag&REFLECTMETHOD != 0 {
++				s.Set(AttrReflectMethod, true)
++			}
++			s.Type = STEXT
++			s.Text = p
++			etext = p
++			curtext = s
++			continue
+ 
+-			if curtext == nil {
+-				etext = nil
++		case AFUNCDATA:
++			// Rewrite reference to go_args_stackmap(SB) to the Go-provided declaration information.
++			if curtext == nil { // func _() {}
+ 				continue
+ 			}
+-			etext.Link = p
+-			etext = p
++			if p.To.Sym.Name == "go_args_stackmap" {
++				if p.From.Type != TYPE_CONST || p.From.Offset != FUNCDATA_ArgsPointerMaps {
++					ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
++				}
++				p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", curtext.Name), int(curtext.Version))
++			}
++
++		}
++
++		if curtext == nil {
++			etext = nil
++			continue
+ 		}
++		etext.Link = p
++		etext = p
+ 	}
+ 
+ 	// Add reference to Go arguments for C or assembly functions without them.
+@@ -147,7 +134,6 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 	// Add to running list in ctxt.
+ 	ctxt.Text = append(ctxt.Text, text...)
+ 	ctxt.Data = append(ctxt.Data, gendwarf(ctxt, text)...)
+-	ctxt.Plists = nil
+ 	ctxt.Curp = nil
+ 	if freeProgs {
+ 		ctxt.freeProgs()

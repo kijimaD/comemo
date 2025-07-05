@@ -9,7 +9,7 @@ Date:   Mon Jul 12 11:30:11 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1740043
-
+---
  src/pkg/math/Makefile      |   5 ++-
  src/pkg/math/log.go        |   8 ----
  src/pkg/math/log10.go      |  13 ++++++
@@ -19,3 +19,261 @@ Date:   Mon Jul 12 11:30:11 2010 -0700
  src/pkg/math/log_amd64.s   | 109 +++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/math/log_decl.go   |   2 -
  8 files changed, 153 insertions(+), 27 deletions(-)
+
+diff --git a/src/pkg/math/Makefile b/src/pkg/math/Makefile
+index a2d11e43d7..3177a5cd9d 100644
+--- a/src/pkg/math/Makefile
++++ b/src/pkg/math/Makefile
+@@ -10,6 +10,7 @@ OFILES_amd64=\
+ 	exp_amd64.$O\
+ 	fabs_amd64.$O\
+ 	fdim_amd64.$O\
++	log_amd64.$O\
+ 	sqrt_amd64.$O\
+ 
+ OFILES_386=\
+@@ -26,6 +27,7 @@ OFILES_386=\
+ 	hypot_386.$O\
+ 	ldexp_386.$O\
+ 	log_386.$O\
++	log10_386.$O\
+ 	log1p_386.$O\
+ 	modf_386.$O\
+ 	remainder_386.$O\
+@@ -63,11 +65,12 @@ ALLGOFILES=\
+ 	j0.go\
+ 	j1.go\
+ 	jn.go\
+-	logb.go\
+ 	lgamma.go\
+ 	ldexp.go\
+ 	log.go\
++	log10.go\
+ 	log1p.go\
++	logb.go\
+ 	modf.go\
+ 	nextafter.go\
+ 	pow.go\
+diff --git a/src/pkg/math/log.go b/src/pkg/math/log.go
+index 02e767b95a..39d94512d3 100644
+--- a/src/pkg/math/log.go
++++ b/src/pkg/math/log.go
+@@ -121,11 +121,3 @@ func Log(x float64) float64 {
+ 	hfsq := 0.5 * f * f
+ 	return k*Ln2Hi - ((hfsq - (s*(hfsq+R) + k*Ln2Lo)) - f)
+ }
+-
+-// Log10 returns the decimal logarithm of x.
+-// The special cases are the same as for Log.
+-func Log10(x float64) float64 { return Log(x) * (1 / Ln10) }
+-
+-// Log2 returns the binary logarithm of x.
+-// The special cases are the same as for Log.
+-func Log2(x float64) float64 { return Log(x) * (1 / Ln2) }
+diff --git a/src/pkg/math/log10.go b/src/pkg/math/log10.go
+new file mode 100644
+index 0000000000..6d18baae2a
+--- /dev/null
++++ b/src/pkg/math/log10.go
+@@ -0,0 +1,13 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++// Log10 returns the decimal logarithm of x.
++// The special cases are the same as for Log.
++func Log10(x float64) float64 { return Log(x) * (1 / Ln10) }
++
++// Log2 returns the binary logarithm of x.
++// The special cases are the same as for Log.
++func Log2(x float64) float64 { return Log(x) * (1 / Ln2) }
+diff --git a/src/pkg/math/log10_386.s b/src/pkg/math/log10_386.s
+new file mode 100644
+index 0000000000..cc473b424f
+--- /dev/null
++++ b/src/pkg/math/log10_386.s
+@@ -0,0 +1,19 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// func Log10(x float64) float64
++TEXT ·Log10(SB),7,$0
++	FLDLG2               // F0=log10(2)
++	FMOVD   x+0(FP), F0  // F0=x, F1=log10(2)
++	FYL2X                // F0=log10(x)=log2(x)*log10(2)
++	FMOVDP  F0, r+8(FP)
++	RET
++
++// func Log2(x float64) float64
++TEXT ·Log2(SB),7,$0
++	FLD1                 // F0=1
++	FMOVD   x+0(FP), F0  // F0=x, F1=1
++	FYL2X                // F0=log2(x)
++	FMOVDP  F0, r+8(FP)
++	RET
+diff --git a/src/pkg/math/log10_decl.go b/src/pkg/math/log10_decl.go
+new file mode 100644
+index 0000000000..5aec94e1c4
+--- /dev/null
++++ b/src/pkg/math/log10_decl.go
+@@ -0,0 +1,8 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++func Log10(x float64) float64
++func Log2(x float64) float64
+diff --git a/src/pkg/math/log_386.s b/src/pkg/math/log_386.s
+index ae5211e228..6cfbc7605b 100644
+--- a/src/pkg/math/log_386.s
++++ b/src/pkg/math/log_386.s
+@@ -9,19 +9,3 @@ TEXT ·Log(SB),7,$0
+ 	FYL2X                // F0=log(x)=log2(x)*log(2)
+ 	FMOVDP  F0, r+8(FP)
+ 	RET
+-	
+-// func Log10(x float64) float64
+-TEXT ·Log10(SB),7,$0
+-	FLDLG2               // F0=log10(2)
+-	FMOVD   x+0(FP), F0  // F0=x, F1=log10(2)
+-	FYL2X                // F0=log10(x)=log2(x)*log10(2)
+-	FMOVDP  F0, r+8(FP)
+-	RET
+-	
+-// func Log2(x float64) float64
+-TEXT ·Log2(SB),7,$0
+-	FLD1                 // F0=1
+-	FMOVD   x+0(FP), F0  // F0=x, F1=1
+-	FYL2X                // F0=log2(x)
+-	FMOVDP  F0, r+8(FP)
+-	RET
+diff --git a/src/pkg/math/log_amd64.s b/src/pkg/math/log_amd64.s
+new file mode 100644
+index 0000000000..79e35907c5
+--- /dev/null
++++ b/src/pkg/math/log_amd64.s
+@@ -0,0 +1,109 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define HSqrt2 7.07106781186547524401e-01 // sqrt(2)/2
++#define Ln2Hi  6.93147180369123816490e-01 // 0x3fe62e42fee00000
++#define Ln2Lo  1.90821492927058770002e-10 // 0x3dea39ef35793c76
++#define L1     6.666666666666735130e-01   // 0x3FE5555555555593
++#define L2     3.999999999940941908e-01   // 0x3FD999999997FA04
++#define L3     2.857142874366239149e-01   // 0x3FD2492494229359
++#define L4     2.222219843214978396e-01   // 0x3FCC71C51D8E78AF
++#define L5     1.818357216161805012e-01   // 0x3FC7466496CB03DE
++#define L6     1.531383769920937332e-01   // 0x3FC39A09D078C69F
++#define L7     1.479819860511658591e-01   // 0x3FC2F112DF3E5244
++#define NaN    0x7FF0000000000001
++#define NegInf 0xFFF0000000000000
++#define PosInf 0x7FF0000000000000
++
++// func Log(x float64) float64
++TEXT ·Log(SB),7,$0
++	// test bits for special cases
++	MOVQ    x+0(FP), BX
++	MOVQ    $~(1<<63), AX // sign bit mask
++	ANDQ    BX, AX
++	JEQ     isZero
++	MOVQ    $0, AX
++	CMPQ    AX, BX
++	JGT     isNegative
++	MOVQ    $PosInf, AX
++	CMPQ    AX, BX
++	JLE     isInfOrNaN
++	// f1, ki := math.Frexp(x); k := float64(ki)
++	MOVQ    BX, X0
++	MOVQ    $0x000FFFFFFFFFFFFF, AX
++	MOVQ    AX, X2
++	ANDPD   X0, X2
++	MOVSD   $0.5, X0 // 0x3FE0000000000000
++	ORPD    X0, X2 // X2= f1
++	SHRQ    $52, BX
++	ANDL    $0x7FF, BX
++	SUBL    $0x3FE, BX
++	CVTSL2SD BX, X1 // x1= k, x2= f1
++	// if f1 < math.Sqrt2/2 { k -= 1; f1 *= 2 }
++	MOVSD   $HSqrt2, X0 // x0= 0.7071, x1= k, x2= f1
++	CMPSD   X2, X0, 5 // cmpnlt; x0= 0 or ^0, x1= k, x2 = f1
++	MOVSD   $1.0, X3 // x0= 0 or ^0, x1= k, x2 = f1, x3= 1
++	ANDPD   X0, X3 // x0= 0 or ^0, x1= k, x2 = f1, x3= 0 or 1
++	SUBSD   X3, X1 // x0= 0 or ^0, x1= k, x2 = f1, x3= 0 or 1
++	MOVSD   $1.0, X0 // x0= 1, x1= k, x2= f1, x3= 0 or 1
++	ADDSD   X0, X3 // x0= 1, x1= k, x2= f1, x3= 1 or 2
++	MULSD   X3, X2 // x0= 1, x1= k, x2= f1
++	// f := f1 - 1
++	SUBSD   X0, X2 // x1= k, x2= f
++	// s := f / (2 + f)
++	MOVSD   $2.0, X0
++	ADDSD   X2, X0
++	MOVSD   X2, X3
++	DIVSD   X0, X3 // x1=k, x2= f, x3= s
++	// s2 := s * s
++	MOVSD   X3, X4 // x1= k, x2= f, x3= s
++	MULSD   X4, X4 // x1= k, x2= f, x3= s, x4= s2
++	// s4 := s2 * s2
++	MOVSD   X4, X5 // x1= k, x2= f, x3= s, x4= s2
++	MULSD   X5, X5 // x1= k, x2= f, x3= s, x4= s2, x5= s4
++	// t1 := s2 * (L1 + s4*(L3+s4*(L5+s4*L7)))
++	MOVSD   $L7, X6
++	MULSD   X5, X6
++	ADDSD   $L5, X6
++	MULSD   X5, X6
++	ADDSD   $L3, X6
++	MULSD   X5, X6
++	ADDSD   $L1, X6
++	MULSD   X6, X4 // x1= k, x2= f, x3= s, x4= t1, x5= s4
++	// t2 := s4 * (L2 + s4*(L4+s4*L6))
++	MOVSD   $L6, X6
++	MULSD   X5, X6
++	ADDSD   $L4, X6
++	MULSD   X5, X6
++	ADDSD   $L2, X6
++	MULSD   X6, X5 // x1= k, x2= f, x3= s, x4= t1, x5= t2
++	// R := t1 + t2
++	ADDSD   X5, X4 // x1= k, x2= f, x3= s, x4= R
++	// hfsq := 0.5 * f * f
++	MOVSD   $0.5, X0
++	MULSD   X2, X0
++	MULSD   X2, X0 // x0= hfsq, x1= k, x2= f, x3= s, x4= R
++	// return k*Ln2Hi - ((hfsq - (s*(hfsq+R) + k*Ln2Lo)) - f)
++	ADDSD   X0, X4 // x0= hfsq, x1= k, x2= f, x3= s, x4= hfsq+R
++	MULSD   X4, X3 // x0= hfsq, x1= k, x2= f, x3= s*(hfsq+R)
++	MOVSD   $Ln2Lo, X4
++	MULSD   X1, X4 // x4= k*Ln2Lo
++	ADDSD   X4, X3 // x0= hfsq, x1= k, x2= f, x3= s*(hfsq+R)+k*Ln2Lo
++	SUBSD   X3, X0 // x0= hfsq-(s*(hfsq+R)+k*Ln2Lo), x1= k, x2= f
++	SUBSD   X2, X0 // x0= (hfsq-(s*(hfsq+R)+k*Ln2Lo))-f, x1= k
++	MULSD   $Ln2Hi, X1 // x0= (hfsq-(s*(hfsq+R)+k*Ln2Lo))-f, x1= k*Ln2Hi
++	SUBSD   X0, X1 // x1= k*Ln2Hi-((hfsq-(s*(hfsq+R)+k*Ln2Lo))-f)
++  	MOVSD   X1, r+8(FP)
++	RET
++isInfOrNaN:
++	MOVQ    BX, r+8(FP) // +Inf or NaN, return x
++	RET
++isNegative:
++	MOVQ    $NaN, AX
++	MOVQ    AX, r+8(FP) // return NaN
++	RET
++isZero:
++	MOVQ    $NegInf, AX
++	MOVQ    AX, r+8(FP) // return -Inf
++	RET
+diff --git a/src/pkg/math/log_decl.go b/src/pkg/math/log_decl.go
+index 074b0cdb69..deda305dd8 100644
+--- a/src/pkg/math/log_decl.go
++++ b/src/pkg/math/log_decl.go
+@@ -5,5 +5,3 @@
+ package math
+ 
+ func Log(x float64) float64
+-func Log10(x float64) float64
+-func Log2(x float64) float64

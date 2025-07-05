@@ -18,8 +18,78 @@ Date:   Sat Jun 4 09:43:40 2022 -0700
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/text/template/parse/lex.go      | 4 +++-
  src/text/template/parse/lex_test.go | 4 ++--
  src/text/template/parse/parse.go    | 7 ++++---
  3 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index 4c32d261f2..29403dd947 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -211,7 +211,7 @@ func (l *lexer) drain() {
+ }
+ 
+ // lex creates a new scanner for the input string.
+-func lex(name, input, left, right string, emitComment bool) *lexer {
++func lex(name, input, left, right string, emitComment, breakOK, continueOK bool) *lexer {
+ 	if left == "" {
+ 		left = leftDelim
+ 	}
+@@ -224,6 +224,8 @@ func lex(name, input, left, right string, emitComment bool) *lexer {
+ 		leftDelim:   left,
+ 		rightDelim:  right,
+ 		emitComment: emitComment,
++		breakOK:     breakOK,
++		continueOK:  continueOK,
+ 		items:       make(chan item),
+ 		line:        1,
+ 		startLine:   1,
+diff --git a/src/text/template/parse/lex_test.go b/src/text/template/parse/lex_test.go
+index fcb7e8eacd..c5f429667c 100644
+--- a/src/text/template/parse/lex_test.go
++++ b/src/text/template/parse/lex_test.go
+@@ -394,7 +394,7 @@ var lexTests = []lexTest{
+ 
+ // collect gathers the emitted items into a slice.
+ func collect(t *lexTest, left, right string) (items []item) {
+-	l := lex(t.name, t.input, left, right, true)
++	l := lex(t.name, t.input, left, right, true, true, true)
+ 	for {
+ 		item := l.nextItem()
+ 		items = append(items, item)
+@@ -550,7 +550,7 @@ func TestPos(t *testing.T) {
+ func TestShutdown(t *testing.T) {
+ 	// We need to duplicate template.Parse here to hold on to the lexer.
+ 	const text = "erroneous{{define}}{{else}}1234"
+-	lexer := lex("foo", text, "{{", "}}", false)
++	lexer := lex("foo", text, "{{", "}}", false, true, true)
+ 	_, err := New("root").parseLexer(lexer)
+ 	if err == nil {
+ 		t.Fatalf("expected error")
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index 67e2f5b2f4..00c258ad5d 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -224,8 +224,6 @@ func (t *Tree) startParse(funcs []map[string]any, lex *lexer, treeSet map[string
+ 	t.vars = []string{"$"}
+ 	t.funcs = funcs
+ 	t.treeSet = treeSet
+-	lex.breakOK = !t.hasFunction("break")
+-	lex.continueOK = !t.hasFunction("continue")
+ }
+ 
+ // stopParse terminates parsing.
+@@ -244,7 +242,10 @@ func (t *Tree) Parse(text, leftDelim, rightDelim string, treeSet map[string]*Tre
+ 	defer t.recover(&err)
+ 	t.ParseName = t.Name
+ 	emitComment := t.Mode&ParseComments != 0
+-	t.startParse(funcs, lex(t.Name, text, leftDelim, rightDelim, emitComment), treeSet)
++	breakOK := !t.hasFunction("break")
++	continueOK := !t.hasFunction("continue")
++	lexer := lex(t.Name, text, leftDelim, rightDelim, emitComment, breakOK, continueOK)
++	t.startParse(funcs, lexer, treeSet)
+ 	t.text = text
+ 	t.parse()
+ 	t.add()

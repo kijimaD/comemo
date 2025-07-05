@@ -7,6 +7,20 @@ Date:   Tue Feb 23 11:54:57 2010 +1100
     R=adg
     CC=golang-dev
     https://golang.org/cl/210047
-
+---
  src/pkg/xgb/example.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/xgb/example.go b/src/pkg/xgb/example.go
+index 1c5ad75054..c603ea4e23 100644
+--- a/src/pkg/xgb/example.go
++++ b/src/pkg/xgb/example.go
+@@ -32,7 +32,7 @@ func main() {
+ 	fmt.Printf("atom = %d\n", atom.Atom)
+ 
+ 	points := make([]xgb.Point, 2)
+-	points[1] = xgb.Point{5, 5}
++	points[0] = xgb.Point{5, 5}
+ 	points[1] = xgb.Point{100, 120}
+ 
+ 	hosts, _ := c.ListHosts()

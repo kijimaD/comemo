@@ -9,6 +9,24 @@ Date:   Wed Dec 20 15:14:05 2017 -0800
     Change-Id: Ib7aff8043e477af18c448d6b778f159b23fb5a92
     Reviewed-on: https://go-review.googlesource.com/85075
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/types/universe.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index cc3bd5a370..07d7078ae2 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -20,6 +20,12 @@ var (
+ 	universeRune *Basic // int32 alias, but has name "rune"
+ )
+ 
++// Typ contains the predeclared *Basic types indexed by their
++// corresponding BasicKind.
++//
++// The *Basic type for Typ[Byte] will have the name "uint8".
++// Use Universe.Lookup("byte").Type() to obtain the specific
++// alias basic type named "byte" (and analogous for "rune").
+ var Typ = []*Basic{
+ 	Invalid: {Invalid, 0, "invalid type"},
+ 

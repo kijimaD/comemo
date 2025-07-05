@@ -21,7 +21,115 @@ Date:   Fri Oct 21 09:18:44 2022 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/cover/cover.go                             | 27 +++++++++--
  .../testdata/script/cover_test_race_issue56370.txt | 54 ++++++++++++++++++++++
  2 files changed, 76 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 5be64d25c0..60cfcb5bc2 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -20,6 +20,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"sort"
++	"strconv"
+ 	"strings"
+ 
+ 	"cmd/internal/edit"
+@@ -483,13 +484,29 @@ func (f *File) postFunc(fn ast.Node, funcname string, flit bool, body *ast.Block
+ 	}
+ 	funcId := f.mdb.AddFunc(fd)
+ 
+-	// Generate the registration hook for the function, and insert it
+-	// into the prolog.
++	hookWrite := func(cv string, which int, val string) string {
++		return fmt.Sprintf("%s[%d] = %s", cv, which, val)
++	}
++	if *mode == "atomic" {
++		hookWrite = func(cv string, which int, val string) string {
++			return fmt.Sprintf("%s.StoreUint32(&%s[%d], %s)", atomicPackageName,
++				cv, which, val)
++		}
++	}
++
++	// Generate the registration hook sequence for the function. This
++	// sequence looks like
++	//
++	//   counterVar[0] = <num_units>
++	//   counterVar[1] = pkgId
++	//   counterVar[2] = fnId
++	//
+ 	cv := f.fn.counterVar
+-	regHook := fmt.Sprintf("%s[0] = %d ; %s[1] = %s ; %s[2] = %d",
+-		cv, len(f.fn.units), cv, mkPackageIdExpression(), cv, funcId)
++	regHook := hookWrite(cv, 0, strconv.Itoa(len(f.fn.units))) + " ; " +
++		hookWrite(cv, 1, mkPackageIdExpression()) + " ; " +
++		hookWrite(cv, 2, strconv.Itoa(int(funcId)))
+ 
+-	// Insert a function registration sequence into the function.
++	// Insert the registration sequence into the function.
+ 	boff := f.offset(body.Pos())
+ 	ipos := f.fset.File(body.Pos()).Pos(boff + 1)
+ 	f.edit.Insert(f.offset(ipos), regHook+" ; ")
+diff --git a/src/cmd/go/testdata/script/cover_test_race_issue56370.txt b/src/cmd/go/testdata/script/cover_test_race_issue56370.txt
+new file mode 100644
+index 0000000000..2e55f10087
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_test_race_issue56370.txt
+@@ -0,0 +1,54 @@
++[short] skip
++[!race] skip
++
++go test -race -cover issue.56370/filter
++
++-- go.mod --
++module issue.56370
++
++go 1.20
++
++-- filter/filter.go --
++
++package filter
++
++func New() func(error) bool {
++	return func(error) bool {
++		return false
++	}
++}
++
++-- filter/filter_test.go --
++
++package filter_test
++
++import (
++	"testing"
++
++	"issue.56370/filter"
++)
++
++func Test1(t *testing.T) {
++	t.Parallel()
++
++	_ = filter.New()
++}
++
++func Test2(t *testing.T) {
++	t.Parallel()
++
++	_ = filter.New()
++}
++
++func Test3(t *testing.T) {
++	t.Parallel()
++
++	_ = filter.New()
++}
++
++func Test4(t *testing.T) {
++	t.Parallel()
++
++	_ = filter.New()
++}
++

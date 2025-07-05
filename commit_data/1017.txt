@@ -7,10 +7,144 @@ Date:   Fri Oct 31 14:27:34 2008 -0700
     R=r
     OCL=18264
     CL=18264
-
+---
  usr/gri/pretty/parser.go                     | 28 ++++++++++++++--------------
  usr/gri/pretty/printer.go                    |  2 +-
  usr/gri/pretty/selftest0.go                  | 11 +++++++++++
  usr/gri/pretty/{selftest.go => selftest1.go} |  0
  usr/gri/pretty/test.sh                       |  8 ++++----
  5 files changed, 30 insertions(+), 19 deletions(-)
+
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index d669589768..f9bb22a10f 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -326,7 +326,7 @@ func (P *Parser) ParseVarDeclList(list *AST.List, ellipsis_ok bool) {
+ 	// parse a list of types
+ 	i0 := list.len();
+ 	for {
+-		list.Add(P.ParseVarDecl(i0 > 0));
++		list.Add(P.ParseVarDecl(ellipsis_ok /* param list */ && i0 > 0));
+ 		if P.tok == Scanner.COMMA {
+ 			P.Next();
+ 		} else {
+@@ -340,7 +340,7 @@ func (P *Parser) ParseVarDeclList(list *AST.List, ellipsis_ok bool) {
+ 		P.Next();
+ 	}
+ 	
+-	if i0 > 0 && typ == nil {
++	if ellipsis_ok /* param list */ && i0 > 0 && typ == nil {
+ 		// not the first parameter section; we must have a type
+ 		P.Error(P.pos, "type expected");
+ 		typ = AST.BadType;
+@@ -365,18 +365,10 @@ func (P *Parser) ParseVarDeclList(list *AST.List, ellipsis_ok bool) {
+ 	} else {
+ 		// all list entries are types
+ 		// convert all type entries into type expressions
+-		if i0 > 0 {
+-			panic("internal parser error");
+-		}
+-		
+-		for i, n := 0, list.len(); i < n; i++ {
++		for i, n := i0, list.len(); i < n; i++ {
+ 			t := list.at(i).(*AST.Type);
+ 			list.set(i, AST.NewTypeExpr(t));
+ 		}
+-		
+-		if P.tok == Scanner.COMMA {
+-			panic("internal parser error");
+-		}
+ 	}
+ 	
+ 	P.Ecart();
+@@ -514,6 +506,8 @@ func (P *Parser) ParseMapType() *AST.Type {
+ }
+ 
+ 
++func (P *Parser) ParseOperand() *AST.Expr
++
+ func (P *Parser) ParseStructType() *AST.Type {
+ 	P.Trace("StructType");
+ 
+@@ -522,10 +516,16 @@ func (P *Parser) ParseStructType() *AST.Type {
+ 	if P.tok == Scanner.LBRACE {
+ 		P.Next();
+ 		t.list = AST.NewList();
+-		for P.tok == Scanner.IDENT {
++		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+ 			P.ParseVarDeclList(t.list, false);
+-			if P.tok != Scanner.RBRACE {
+-				P.Expect(Scanner.SEMICOLON);
++			if P.tok == Scanner.STRING {
++				// ParseOperand takes care of string concatenation
++				t.list.Add(P.ParseOperand());
++			}
++			if P.tok == Scanner.SEMICOLON {
++				P.Next();
++			} else {
++				break;
+ 			}
+ 		}
+ 		P.OptSemicolon();
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index fb5ceded0e..cd20adb894 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -139,7 +139,7 @@ func (P *Printer) Fields(list *AST.List) {
+ 	for i, n := 0, list.len(); i < n; i++ {
+ 		x := list.at(i).(*AST.Expr);
+ 		if i > 0 {
+-			if prev == Scanner.TYPE {
++			if prev == Scanner.TYPE && x.tok != Scanner.STRING || prev == Scanner.STRING {
+ 				P.semi, P.newl = true, 1;
+ 			} else if prev == x.tok {
+ 				P.String(0, ", ");
+diff --git a/usr/gri/pretty/selftest0.go b/usr/gri/pretty/selftest0.go
+new file mode 100644
+index 0000000000..09b1283db4
+--- /dev/null
++++ b/usr/gri/pretty/selftest0.go
+@@ -0,0 +1,11 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Proto struct {
++	a int "a tag";
++	b, c, d *Proto "bcd" "tag";
++	*Proto "proto tag"
++}
+diff --git a/usr/gri/pretty/selftest.go b/usr/gri/pretty/selftest1.go
+similarity index 100%
+rename from usr/gri/pretty/selftest.go
+rename to usr/gri/pretty/selftest1.go
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index a4ca3ecaa7..141193cf2a 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -21,7 +21,7 @@ count() {
+ apply1() {
+ 	#echo $1 $2
+ 	case `basename $F` in
+-	selftest.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
++	selftest1.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
+ 	bug068.go | bug088.go | bug083.go | bug106.go ) ;;  # skip - files contain syntax errors
+ 	* ) $1 $2; count ;;
+ 	esac
+@@ -120,11 +120,11 @@ runtests() {
+ }
+ 
+ 
+-# run selftest always
+-./pretty -t selftest.go > $TMP1
++# run selftest1 always
++./pretty -t selftest1.go > $TMP1
+ if [ $? != 0 ]; then
+ 	cat $TMP1
+-	echo "Error (selftest): pretty -t selftest.go"
++	echo "Error (selftest1): pretty -t selftest1.go"
+ 	exit 1
+ fi
+ count

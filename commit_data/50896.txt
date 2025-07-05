@@ -12,7 +12,75 @@ Date:   Mon Nov 15 23:29:25 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/builtins.go | 21 ++++++++++++++++++++-
  src/go/types/type.go     | 24 ------------------------
  2 files changed, 20 insertions(+), 25 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index b767128367..c1932232aa 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -339,7 +339,26 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		if y.mode == invalid {
+ 			return
+ 		}
+-		src, _ := structuralString(y.typ).(*Slice)
++		// src, _ := structuralType(y.typ).(*Slice); but also accepts strings
++		var src *Slice
++		var elem Type // == src.elem if valid
++		if underIs(y.typ, func(u Type) bool {
++			switch u := u.(type) {
++			case *Basic:
++				if isString(u) && (elem == nil || Identical(elem, universeByte)) {
++					elem = universeByte
++					return true
++				}
++			case *Slice:
++				if elem == nil || Identical(elem, u.elem) {
++					elem = u.elem
++					return true
++				}
++			}
++			return false
++		}) {
++			src = NewSlice(elem)
++		}
+ 
+ 		if dst == nil || src == nil {
+ 			check.invalidArg(x, _InvalidCopy, "copy expects slice arguments; found %s and %s", x, &y)
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 8f23fb530d..e26d8189d1 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -80,30 +80,6 @@ func structuralType(typ Type) Type {
+ 	return nil
+ }
+ 
+-// structuralString is like structuralType but also considers []byte
+-// and string as "identical". In this case, if successful, the result
+-// is always []byte.
+-func structuralString(typ Type) Type {
+-	var su Type
+-	if underIs(typ, func(u Type) bool {
+-		if isString(u) {
+-			u = NewSlice(universeByte)
+-		}
+-		if su != nil {
+-			u = match(su, u)
+-			if u == nil {
+-				return false
+-			}
+-		}
+-		// su == nil || match(su, u) != nil
+-		su = u
+-		return true
+-	}) {
+-		return su
+-	}
+-	return nil
+-}
+-
+ // If t is a defined type, asNamed returns that type (possibly after resolving it), otherwise it returns nil.
+ func asNamed(t Type) *Named {
+ 	e, _ := t.(*Named)

@@ -9,7 +9,7 @@ Date:   Mon Feb 25 20:34:09 2013 -0800
     R=gri, gri, gary.burd, dsymonds, rsc, kevlar
     CC=golang-dev
     https://golang.org/cl/7341053
-
+---
  lib/godoc/package.html               | 19 +++++--------------
  lib/godoc/package.txt                |  8 ++------
  src/cmd/godoc/godoc.go               | 29 ++++++++++++++++++++++++-----
@@ -22,3 +22,293 @@ Date:   Mon Feb 25 20:34:09 2013 -0800
  src/pkg/go/doc/testdata/a0.go        |  4 ++++
  src/pkg/go/doc/testdata/template.txt |  4 ++--
  11 files changed, 67 insertions(+), 39 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 85c737ec3a..1df1f9151d 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -70,12 +70,9 @@
+ 					<dd>&nbsp; &nbsp; <a href="#{{$tname_html}}.{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
+ 				{{end}}
+ 			{{end}}
+-			{{if .Bugs}}
+-				<dd><a href="#pkg-bugs">Bugs</a></dd>
+-			{{end}}
+-			{{if .Notes}}
+-                                {{range $marker, $item := .Notes}}
+-				<dd><a href="#pkg-{{$marker}}">{{$marker}}</a></dd>
++			{{if $.Notes}}
++                                {{range $marker, $item := $.Notes}}
++				<dd><a href="#pkg-note-{{$marker}}">{{noteTitle $marker | html}}s</a></dd>
+                                 {{end}}
+ 			{{end}}
+ 			</dl>
+@@ -167,15 +164,9 @@
+ 		{{comment_html .Doc}}
+ 	{{end}}
+ 
+-	{{with .Bugs}}
+-		<h2 id="pkg-bugs">Bugs</h2>
+-		{{range .}}
+-		{{comment_html .}}
+-		{{end}}
+-	{{end}}
+-	{{with .Notes}}
++	{{with $.Notes}}
+                 {{range $marker, $content := .}}
+-		    <h2 id="pkg-{{$marker}}">{{$marker}}</h2>
++		    <h2 id="pkg-note-{{$marker}}">{{noteTitle $marker | html}}s</h2>
+ 		    {{range .}}
+ 		    {{comment_html .}}
+                     {{end}}
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index ab9506d65a..94239ca1a5 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -62,13 +62,9 @@ TYPES
+ 
+ ---------------------------------------
+ 
+-*/}}{{with .Bugs}}
+-BUGS
+-
+-{{range .}}{{comment_text . "    " "\t"}}
+-{{end}}{{end}}{{with .Notes}}
++*/}}{{with $.Notes}}
+ {{range $marker, $content := .}}
+-{{$marker}}
++{{noteTitle $marker}}s
+ 
+ {{range $content}}{{comment_text . "    " "\t"}}
+ {{end}}{{end}}{{end}}{{end}}{{/*
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 7ca4f83e0a..74f28835ad 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -446,6 +446,10 @@ func example_suffixFunc(name string) string {
+ 	return suffix
+ }
+ 
++func noteTitle(note string) string {
++	return strings.Title(strings.ToLower(note))
++}
++
+ func splitExampleName(s string) (name, suffix string) {
+ 	i := strings.LastIndex(s, "_")
+ 	if 0 <= i && i < len(s)-1 && !startsWithUppercase(s[i+1:]) {
+@@ -539,6 +543,9 @@ var fmap = template.FuncMap{
+ 	"example_text":   example_textFunc,
+ 	"example_name":   example_nameFunc,
+ 	"example_suffix": example_suffixFunc,
++
++	// formatting of Notes
++	"noteTitle": noteTitle,
+ }
+ 
+ func readTemplate(name string) *template.Template {
+@@ -897,11 +904,12 @@ type PageInfo struct {
+ 	Err     error  // error or nil
+ 
+ 	// package info
+-	FSet     *token.FileSet // nil if no package documentation
+-	PDoc     *doc.Package   // nil if no package documentation
+-	Examples []*doc.Example // nil if no example code
+-	PAst     *ast.File      // nil if no AST with package exports
+-	IsMain   bool           // true for package main
++	FSet     *token.FileSet      // nil if no package documentation
++	PDoc     *doc.Package        // nil if no package documentation
++	Examples []*doc.Example      // nil if no example code
++	Notes    map[string][]string // nil if no package Notes
++	PAst     *ast.File           // nil if no AST with package exports
++	IsMain   bool                // true for package main
+ 
+ 	// directory info
+ 	Dirs    *DirList  // nil if no directory information
+@@ -1082,6 +1090,17 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) (inf
+ 				log.Println("parsing examples:", err)
+ 			}
+ 			info.Examples = collectExamples(pkg, files)
++
++			// collect any notes that we want to show
++			if info.PDoc.Notes != nil {
++				info.Notes = make(map[string][]string)
++				for _, m := range notesToShow {
++					if n := info.PDoc.Notes[m]; n != nil {
++						info.Notes[m] = n
++					}
++				}
++			}
++
+ 		} else {
+ 			// show source code
+ 			// TODO(gri) Consider eliminating export filtering in this mode,
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 1344100906..389bb1339d 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -71,6 +71,11 @@ var (
+ 
+ 	// command-line searches
+ 	query = flag.Bool("q", false, "arguments are considered search queries")
++
++	// which code 'Notes' to show.
++	notes = flag.String("notes", "BUG", "comma separated list of Note markers as per pkg:go/doc")
++	// vector of 'Notes' to show.
++	notesToShow []string
+ )
+ 
+ func serveError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
+@@ -157,6 +162,8 @@ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 
++	notesToShow = strings.Split(*notes, ",")
++
+ 	// Check usage: either server and no args, command line and args, or index creation mode
+ 	if (*httpAddr != "" || *urlFlag != "") != (flag.NArg() == 0) && !*writeIndex {
+ 		usage()
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 6fc98d4951..65b1b83eba 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -17,7 +17,10 @@ type Package struct {
+ 	ImportPath string
+ 	Imports    []string
+ 	Filenames  []string
+-	Bugs       []string
++	// DEPRECATED. For backward compatibility Bugs is still populated,
++	// but all new code should use Notes instead.
++	Bugs []string
++
+ 	// Notes such as TODO(userid): or SECURITY(userid):
+ 	// along the lines of BUG(userid). Any marker with 2 or more upper
+ 	// case [A-Z] letters is recognised.
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index 69c1141167..dd6a57299e 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -412,7 +412,6 @@ func readNote(c *ast.CommentGroup) (marker, annotation string) {
+ 			// non-empty MARKER comment; collect comment without the MARKER prefix
+ 			list := append([]*ast.Comment(nil), c.List...) // make a copy
+ 			list[0].Text = m[2]
+-
+ 			return m[1], (&ast.CommentGroup{List: list}).Text()
+ 		}
+ 	}
+@@ -487,12 +486,9 @@ func (r *reader) readFile(src *ast.File) {
+ 	// collect MARKER(...): annotations
+ 	for _, c := range src.Comments {
+ 		if marker, text := readNote(c); marker != "" {
+-			// Remove r.bugs in a separate CL along with
+-			// any necessary changes to client code.
++			r.notes[marker] = append(r.notes[marker], text)
+ 			if marker == "BUG" {
+ 				r.bugs = append(r.bugs, text)
+-			} else {
+-				r.notes[marker] = append(r.notes[marker], text)
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/go/doc/testdata/a.0.golden b/src/pkg/go/doc/testdata/a.0.golden
+index 04fe885930..ae3756c842 100644
+--- a/src/pkg/go/doc/testdata/a.0.golden
++++ b/src/pkg/go/doc/testdata/a.0.golden
+@@ -8,13 +8,17 @@ FILENAMES
+ 	testdata/a0.go
+ 	testdata/a1.go
+ 
++BUGS .Bugs is now deprecated, please use .Notes instead
++	// bug0 
++	// bug1 
++
+ BUGS
+ 	// bug0 
+ 	// bug1 
+ 
+-SECBUG
++SECBUGS
+ 	// sec hole 0 need to fix asap 
+ 
+-TODO
++TODOS
+ 	// todo0 
+ 	// todo1 
+diff --git a/src/pkg/go/doc/testdata/a.1.golden b/src/pkg/go/doc/testdata/a.1.golden
+index 04fe885930..ae3756c842 100644
+--- a/src/pkg/go/doc/testdata/a.1.golden
++++ b/src/pkg/go/doc/testdata/a.1.golden
+@@ -8,13 +8,17 @@ FILENAMES
+ 	testdata/a0.go
+ 	testdata/a1.go
+ 
++BUGS .Bugs is now deprecated, please use .Notes instead
++	// bug0 
++	// bug1 
++
+ BUGS
+ 	// bug0 
+ 	// bug1 
+ 
+-SECBUG
++SECBUGS
+ 	// sec hole 0 need to fix asap 
+ 
+-TODO
++TODOS
+ 	// todo0 
+ 	// todo1 
+diff --git a/src/pkg/go/doc/testdata/a.2.golden b/src/pkg/go/doc/testdata/a.2.golden
+index 04fe885930..ae3756c842 100644
+--- a/src/pkg/go/doc/testdata/a.2.golden
++++ b/src/pkg/go/doc/testdata/a.2.golden
+@@ -8,13 +8,17 @@ FILENAMES
+ 	testdata/a0.go
+ 	testdata/a1.go
+ 
++BUGS .Bugs is now deprecated, please use .Notes instead
++	// bug0 
++	// bug1 
++
+ BUGS
+ 	// bug0 
+ 	// bug1 
+ 
+-SECBUG
++SECBUGS
+ 	// sec hole 0 need to fix asap 
+ 
+-TODO
++TODOS
+ 	// todo0 
+ 	// todo1 
+diff --git a/src/pkg/go/doc/testdata/a0.go b/src/pkg/go/doc/testdata/a0.go
+index d2bd146df1..71af470eea 100644
+--- a/src/pkg/go/doc/testdata/a0.go
++++ b/src/pkg/go/doc/testdata/a0.go
+@@ -9,5 +9,9 @@ package a
+ 
+ //TODO(uid): todo0
+ 
++// A note with some spaces after it, should be ignored (watch out for
++// emacs modes that remove trailing whitespace).
++//NOTE(uid):
++
+ // SECBUG(uid): sec hole 0
+ // need to fix asap
+diff --git a/src/pkg/go/doc/testdata/template.txt b/src/pkg/go/doc/testdata/template.txt
+index 489b5d4ea7..d3882b6b95 100644
+--- a/src/pkg/go/doc/testdata/template.txt
++++ b/src/pkg/go/doc/testdata/template.txt
+@@ -60,9 +60,9 @@ TYPES
+ {{end}}{{end}}{{end}}{{/*
+ 
+ */}}{{with .Bugs}}
+-BUGS
++BUGS .Bugs is now deprecated, please use .Notes instead
+ {{range .}}	{{synopsis .}}
+ {{end}}{{end}}{{with .Notes}}{{range $marker, $content := .}}
+-{{$marker}}
++{{$marker}}S
+ {{range $content}}	{{synopsis .}}
+ {{end}}{{end}}{{end}}
+\ No newline at end of file

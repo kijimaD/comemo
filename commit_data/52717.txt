@@ -10,6 +10,29 @@ Date:   Thu May 19 10:00:18 2022 +0200
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/netip/netip.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index dedebbe818..eae9c29ea7 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -498,7 +498,7 @@ func (ip Addr) WithZone(zone string) Addr {
+ 	return ip
+ }
+ 
+-// withoutZone unconditionally strips the zone from IP.
++// withoutZone unconditionally strips the zone from ip.
+ // It's similar to WithZone, but small enough to be inlinable.
+ func (ip Addr) withoutZone() Addr {
+ 	if !ip.Is6() {
+@@ -508,7 +508,7 @@ func (ip Addr) withoutZone() Addr {
+ 	return ip
+ }
+ 
+-// hasZone reports whether IP has an IPv6 zone.
++// hasZone reports whether ip has an IPv6 zone.
+ func (ip Addr) hasZone() bool {
+ 	return ip.z != z0 && ip.z != z4 && ip.z != z6noz
+ }

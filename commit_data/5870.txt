@@ -10,7 +10,37 @@ Date:   Thu Jul 22 09:00:34 2010 -0700
     R=kaib
     CC=golang-dev
     https://golang.org/cl/1889041
-
+---
  src/cmd/gc/range.c | 4 +---
  src/libmach/5obj.c | 3 +++
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index b57639b232..dca3a54542 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -115,9 +115,7 @@ walkrange(Node *n)
+ 		v2 = n->list->next->n;
+ 	hv2 = N;
+ 
+-	// TODO(kaib): re-enable this optimization on arm once we are on par with 6g/8g
+-	// see http://code.google.com/p/go/issues/detail?id=943
+-	if(v2 == N && t->etype == TARRAY && thechar != '5') {
++	if(v2 == N && t->etype == TARRAY) {
+ 		// will have just one reference to argument.
+ 		// no need to make a potentially expensive copy.
+ 		ha = a;
+diff --git a/src/libmach/5obj.c b/src/libmach/5obj.c
+index 034deea2c5..e539362b0b 100644
+--- a/src/libmach/5obj.c
++++ b/src/libmach/5obj.c
+@@ -123,6 +123,9 @@ addr(Biobuf *bp)
+ 	case D_PSR:
+ 	case D_FPCR:
+ 		break;
++	case D_REGREG:
++		Bgetc(bp);
++		break;
+ 	case D_CONST2:
+ 		Bgetc(bp);
+ 		Bgetc(bp);

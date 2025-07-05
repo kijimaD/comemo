@@ -11,8 +11,81 @@ Date:   Mon Nov 30 10:29:14 2009 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/161075
-
+---
  src/pkg/template/format.go        | 6 +++++-
  src/pkg/template/template.go      | 3 +++
  src/pkg/template/template_test.go | 9 +++++++++
  3 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/template/format.go b/src/pkg/template/format.go
+index e79469e6f1..f357ab2a1b 100644
+--- a/src/pkg/template/format.go
++++ b/src/pkg/template/format.go
+@@ -18,7 +18,11 @@ import (
+ // You can override the default formatter by storing your default
+ // under the name "" in your custom formatter map.
+ func StringFormatter(w io.Writer, value interface{}, format string) {
+-	fmt.Fprint(w, value)
++	if b, ok := value.([]byte); ok {
++		w.Write(b);
++		return;
++	}
++	fmt.Fprint(w, value);
+ }
+ 
+ var (
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 0a713de52c..9bba532c62 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -847,6 +847,9 @@ func validDelim(d []byte) bool {
+ // s contains the template text.  If any errors occur, Parse returns
+ // the error.
+ func (t *Template) Parse(s string) os.Error {
++	if t.elems == nil {
++		return &Error{1, "template not allocated with New"}
++	}
+ 	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
+ 		return &Error{1, fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)}
+ 	}
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 7384da9e5b..379f0f3425 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"container/vector";
+ 	"fmt";
+ 	"io";
++	"strings";
+ 	"testing";
+ )
+ 
+@@ -41,6 +42,7 @@ type S struct {
+ 	false		bool;
+ 	mp		map[string]string;
+ 	innermap	U;
++	bytes		[]byte;
+ }
+ 
+ var t1 = T{"ItemNumber1", "ValueNumber1"}
+@@ -282,6 +284,12 @@ var tests = []*Test{
+ 		out: "1\n4\n",
+ 	},
+ 
++	&Test{
++		in: "{bytes}",
++
++		out: "hello",
++	},
++
+ 	// Maps
+ 
+ 	&Test{
+@@ -317,6 +325,7 @@ func TestAll(t *testing.T) {
+ 	s.mp["mapkey"] = "Ahoy!";
+ 	s.innermap.mp = make(map[string]int);
+ 	s.innermap.mp["innerkey"] = 55;
++	s.bytes = strings.Bytes("hello");
+ 
+ 	var buf bytes.Buffer;
+ 	for _, test := range tests {

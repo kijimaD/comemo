@@ -18,7 +18,7 @@ Date:   Wed Feb 23 15:42:13 2011 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4222043
-
+---
  src/pkg/runtime/darwin/386/signal.c    | 1 -
  src/pkg/runtime/darwin/amd64/signal.c  | 1 -
  src/pkg/runtime/freebsd/386/signal.c   | 1 -
@@ -27,3 +27,88 @@ Date:   Wed Feb 23 15:42:13 2011 -0500
  src/pkg/runtime/linux/amd64/signal.c   | 1 -
  src/pkg/runtime/windows/386/signal.c   | 1 -
  7 files changed, 7 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/signal.c b/src/pkg/runtime/darwin/386/signal.c
+index dd3050f033..aeef5de3fc 100644
+--- a/src/pkg/runtime/darwin/386/signal.c
++++ b/src/pkg/runtime/darwin/386/signal.c
+@@ -107,7 +107,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		runtime·dumpregs(r);
+ 	}
+ 
+-	runtime·breakpoint();
+ 	runtime·exit(2);
+ }
+ 
+diff --git a/src/pkg/runtime/darwin/amd64/signal.c b/src/pkg/runtime/darwin/amd64/signal.c
+index d12b12f3e6..402ab33ca0 100644
+--- a/src/pkg/runtime/darwin/amd64/signal.c
++++ b/src/pkg/runtime/darwin/amd64/signal.c
+@@ -117,7 +117,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		runtime·dumpregs(r);
+ 	}
+ 
+-	runtime·breakpoint();
+ 	runtime·exit(2);
+ }
+ 
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index bf40c8bd02..8e9d742564 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -103,7 +103,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		runtime·dumpregs(r);
+ 	}
+ 
+-	runtime·breakpoint();
+ 	runtime·exit(2);
+ }
+ 
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+index b2313fad32..f145371b47 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -111,7 +111,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		runtime·dumpregs(r);
+ 	}
+ 
+-	runtime·breakpoint();
+ 	runtime·exit(2);
+ }
+ 
+diff --git a/src/pkg/runtime/linux/386/signal.c b/src/pkg/runtime/linux/386/signal.c
+index 7f20d058b8..bd918c7ea5 100644
+--- a/src/pkg/runtime/linux/386/signal.c
++++ b/src/pkg/runtime/linux/386/signal.c
+@@ -100,7 +100,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		runtime·dumpregs(r);
+ 	}
+ 
+-	runtime·breakpoint();
+ 	runtime·exit(2);
+ }
+ 
+diff --git a/src/pkg/runtime/linux/amd64/signal.c b/src/pkg/runtime/linux/amd64/signal.c
+index 462f9a74d7..ea0932523e 100644
+--- a/src/pkg/runtime/linux/amd64/signal.c
++++ b/src/pkg/runtime/linux/amd64/signal.c
+@@ -110,7 +110,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		runtime·dumpregs(r);
+ 	}
+ 
+-	runtime·breakpoint();
+ 	runtime·exit(2);
+ }
+ 
+diff --git a/src/pkg/runtime/windows/386/signal.c b/src/pkg/runtime/windows/386/signal.c
+index 9036369102..08b32a137b 100644
+--- a/src/pkg/runtime/windows/386/signal.c
++++ b/src/pkg/runtime/windows/386/signal.c
+@@ -85,7 +85,6 @@ runtime·sighandler(ExceptionRecord *info, void *frame, Context *r)
+ 		runtime·dumpregs(r);
+ 	}
+ 
+-	runtime·breakpoint();
+ 	runtime·exit(2);
+ 	return 0;
+ }

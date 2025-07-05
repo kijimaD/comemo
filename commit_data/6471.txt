@@ -7,7 +7,7 @@ Date:   Thu Oct 7 11:13:06 2010 +0200
     R=rsc, ken2, r, rsc1
     CC=golang-dev
     https://golang.org/cl/2297042
-
+---
  src/cmd/5a/a.h     |  5 +++--
  src/cmd/5a/a.y     |  8 ++++++--
  src/cmd/5a/lex.c   | 10 +++++-----
@@ -19,3 +19,321 @@ Date:   Thu Oct 7 11:13:06 2010 +0200
  src/cmd/8a/lex.c   | 10 +++++-----
  src/cmd/ld/dwarf.c | 11 ++++++++---
  10 files changed, 54 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/5a/a.h b/src/cmd/5a/a.h
+index 6cd5af8c6b..bc4f433e13 100644
+--- a/src/cmd/5a/a.h
++++ b/src/cmd/5a/a.h
+@@ -1,7 +1,7 @@
+ // Inferno utils/5a/a.h
+ // http://code.google.com/p/inferno-os/source/browse/utils/5a/a.h
+ //
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Copyright © 1994-1999 Lucent Technologies Inc.	All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+ //	Portions Copyright © 1997-1999 Vita Nuova Limited
+ //	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+@@ -148,6 +148,7 @@ EXTERN	int	pass;
+ EXTERN	char*	pathname;
+ EXTERN	int32	pc;
+ EXTERN	int	peekc;
++EXTERN	int32	stmtline;
+ EXTERN	int	sym;
+ EXTERN	char*	symb;
+ EXTERN	int	thechar;
+@@ -157,7 +158,7 @@ EXTERN	Biobuf	obuf;
+ 
+ void*	alloc(int32);
+ void*	allocn(void*, int32, int32);
+-void    ensuresymb(int32);
++void	ensuresymb(int32);
+ void	errorexit(void);
+ void	pushio(void);
+ void	newio(void);
+diff --git a/src/cmd/5a/a.y b/src/cmd/5a/a.y
+index bb30ac698a..b39c916ab1 100644
+--- a/src/cmd/5a/a.y
++++ b/src/cmd/5a/a.y
+@@ -1,7 +1,7 @@
+ // Inferno utils/5a/a.y
+ // http://code.google.com/p/inferno-os/source/browse/utils/5a/a.y
+ //
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Copyright © 1994-1999 Lucent Technologies Inc.	All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+ //	Portions Copyright © 1997-1999 Vita Nuova Limited
+ //	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+@@ -63,7 +63,11 @@
+ %type	<gen>	imm ximm name oreg ireg nireg ioreg imsr
+ %%
+ prog:
+-|	prog line
++|	prog
++	{
++		stmtline = lineno;
++	}
++	line
+ 
+ line:
+ 	LLAB ':'
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index 2cc0993e47..b36094a784 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -1,7 +1,7 @@
+ // Inferno utils/5a/lex.c
+ // http://code.google.com/p/inferno-os/source/browse/utils/5a/lex.c
+ //
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Copyright © 1994-1999 Lucent Technologies Inc.	All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+ //	Portions Copyright © 1997-1999 Vita Nuova Limited
+ //	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+@@ -658,10 +658,10 @@ jackpot:
+ 	Bputc(&obuf, a);
+ 	Bputc(&obuf, scond);
+ 	Bputc(&obuf, reg);
+-	Bputc(&obuf, lineno);
+-	Bputc(&obuf, lineno>>8);
+-	Bputc(&obuf, lineno>>16);
+-	Bputc(&obuf, lineno>>24);
++	Bputc(&obuf, stmtline);
++	Bputc(&obuf, stmtline>>8);
++	Bputc(&obuf, stmtline>>16);
++	Bputc(&obuf, stmtline>>24);
+ 	zaddr(g1, sf);
+ 	zaddr(g2, st);
+ 
+diff --git a/src/cmd/6a/a.h b/src/cmd/6a/a.h
+index a713acc9f2..9030081ca0 100644
+--- a/src/cmd/6a/a.h
++++ b/src/cmd/6a/a.h
+@@ -1,7 +1,7 @@
+ // Inferno utils/6a/a.h
+ // http://code.google.com/p/inferno-os/source/browse/utils/6a/a.h
+ //
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Copyright © 1994-1999 Lucent Technologies Inc.	All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+ //	Portions Copyright © 1997-1999 Vita Nuova Limited
+ //	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+@@ -50,7 +50,7 @@ typedef	struct	Ref	Ref;
+ typedef	struct	Gen	Gen;
+ typedef	struct	Io	Io;
+ typedef	struct	Hist	Hist;
+-typedef	struct	Gen2 	Gen2;
++typedef	struct	Gen2	Gen2;
+ 
+ #define	MAXALIGN	7
+ #define	FPCHIP		1
+@@ -161,6 +161,7 @@ EXTERN	int	pass;
+ EXTERN	char*	pathname;
+ EXTERN	int32	pc;
+ EXTERN	int	peekc;
++EXTERN	int32	stmtline;
+ EXTERN	int	sym;
+ EXTERN	char*	symb;
+ EXTERN	int	thechar;
+@@ -168,9 +169,9 @@ EXTERN	char*	thestring;
+ EXTERN	int32	thunk;
+ EXTERN	Biobuf	obuf;
+ 
+-void*   alloc(int32);
++void*	alloc(int32);
+ void*	allocn(void*, int32, int32);
+-void    ensuresymb(int32);
++void	ensuresymb(int32);
+ void	errorexit(void);
+ void	pushio(void);
+ void	newio(void);
+diff --git a/src/cmd/6a/a.y b/src/cmd/6a/a.y
+index 6341ba7462..770f676fe5 100644
+--- a/src/cmd/6a/a.y
++++ b/src/cmd/6a/a.y
+@@ -1,7 +1,7 @@
+ // Inferno utils/6a/a.y
+ // http://code.google.com/p/inferno-os/source/browse/utils/6a/a.y
+ //
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Copyright © 1994-1999 Lucent Technologies Inc.	All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+ //	Portions Copyright © 1997-1999 Vita Nuova Limited
+ //	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+@@ -60,7 +60,11 @@
+ %type	<gen2>	spec1 spec2 spec3 spec4 spec5 spec6 spec7 spec8 spec9
+ %%
+ prog:
+-|	prog line
++|	prog 
++	{
++		stmtline = lineno;
++	}
++	line
+ 
+ line:
+ 	LLAB ':'
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 81273b2975..1b8bb63445 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -1,7 +1,7 @@
+ // Inferno utils/6a/lex.c
+ // http://code.google.com/p/inferno-os/source/browse/utils/6a/lex.c
+ //
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Copyright © 1994-1999 Lucent Technologies Inc.	All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+ //	Portions Copyright © 1997-1999 Vita Nuova Limited
+ //	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+@@ -1260,10 +1260,10 @@ jackpot:
+ 	}
+ 	Bputc(&obuf, a);
+ 	Bputc(&obuf, a>>8);
+-	Bputc(&obuf, lineno);
+-	Bputc(&obuf, lineno>>8);
+-	Bputc(&obuf, lineno>>16);
+-	Bputc(&obuf, lineno>>24);
++	Bputc(&obuf, stmtline);
++	Bputc(&obuf, stmtline>>8);
++	Bputc(&obuf, stmtline>>16);
++	Bputc(&obuf, stmtline>>24);
+ 	zaddr(&g2->from, sf);
+ 	zaddr(&g2->to, st);
+ 
+diff --git a/src/cmd/8a/a.h b/src/cmd/8a/a.h
+index 035db25514..fe6b172802 100644
+--- a/src/cmd/8a/a.h
++++ b/src/cmd/8a/a.h
+@@ -1,7 +1,7 @@
+ // Inferno utils/8a/a.h
+ // http://code.google.com/p/inferno-os/source/browse/utils/8a/a.h
+ //
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Copyright © 1994-1999 Lucent Technologies Inc.	All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+ //	Portions Copyright © 1997-1999 Vita Nuova Limited
+ //	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+@@ -50,7 +50,7 @@ typedef	struct	Ref	Ref;
+ typedef	struct	Gen	Gen;
+ typedef	struct	Io	Io;
+ typedef	struct	Hist	Hist;
+-typedef	struct	Gen2 	Gen2;
++typedef	struct	Gen2	Gen2;
+ 
+ #define	MAXALIGN	7
+ #define	FPCHIP		1
+@@ -162,6 +162,7 @@ EXTERN	int	pass;
+ EXTERN	char*	pathname;
+ EXTERN	int32	pc;
+ EXTERN	int	peekc;
++EXTERN	int32	stmtline;
+ EXTERN	int	sym;
+ EXTERN	char*	symb;
+ EXTERN	int	thechar;
+@@ -169,9 +170,9 @@ EXTERN	char*	thestring;
+ EXTERN	int32	thunk;
+ EXTERN	Biobuf	obuf;
+ 
+-void*   alloc(int32);
++void*	alloc(int32);
+ void*	allocn(void*, int32, int32);
+-void    ensuresymb(int32);
++void	ensuresymb(int32);
+ void	errorexit(void);
+ void	pushio(void);
+ void	newio(void);
+diff --git a/src/cmd/8a/a.y b/src/cmd/8a/a.y
+index 8bc96cce53..04662f83d0 100644
+--- a/src/cmd/8a/a.y
++++ b/src/cmd/8a/a.y
+@@ -1,7 +1,7 @@
+ // Inferno utils/8a/a.y
+ // http://code.google.com/p/inferno-os/source/browse/utils/8a/a.y
+ //
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Copyright © 1994-1999 Lucent Technologies Inc.	All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+ //	Portions Copyright © 1997-1999 Vita Nuova Limited
+ //	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+@@ -64,7 +64,11 @@
+ %type	<gen2>	spec1 spec2 spec3 spec4 spec5 spec6 spec7 spec8
+ %%
+ prog:
+-|	prog line
++|	prog
++	{
++		stmtline = lineno;
++	}
++	line
+ 
+ line:
+ 	LLAB ':'
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index c8127bde9c..bf298b2665 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -1,7 +1,7 @@
+ // Inferno utils/8a/lex.c
+ // http://code.google.com/p/inferno-os/source/browse/utils/8a/lex.c
+ //
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Copyright © 1994-1999 Lucent Technologies Inc.	All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+ //	Portions Copyright © 1997-1999 Vita Nuova Limited
+ //	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+@@ -925,10 +925,10 @@ jackpot:
+ 	}
+ 	Bputc(&obuf, a);
+ 	Bputc(&obuf, a>>8);
+-	Bputc(&obuf, lineno);
+-	Bputc(&obuf, lineno>>8);
+-	Bputc(&obuf, lineno>>16);
+-	Bputc(&obuf, lineno>>24);
++	Bputc(&obuf, stmtline);
++	Bputc(&obuf, stmtline>>8);
++	Bputc(&obuf, stmtline>>16);
++	Bputc(&obuf, stmtline>>24);
+ 	zaddr(&g2->from, sf);
+ 	zaddr(&g2->to, st);
+ 
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 0c255544de..500c2fea80 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -436,7 +436,7 @@ decodez(char *s)
+  * The line history itself
+  */
+ 
+-static char **histfile;	   // [0] holds the empty string.
++static char **histfile;	   // [0] holds "<eof>", DW_LNS_set_file arguments must be > 0.
+ static int  histfilesize;
+ static int  histfilecap;
+ 
+@@ -445,7 +445,7 @@ clearhistfile(void)
+ {
+ 	int i;
+ 
+-	// [0] holds the empty string.
++	// [0] holds "<eof>"
+ 	for (i = 1; i < histfilesize; i++)
+ 		free(histfile[i]);
+ 	histfilesize = 0;
+@@ -756,12 +756,17 @@ writelines(void)
+ 		newattr(dwinfo->child, DW_AT_low_pc, DW_CLS_ADDRESS, p->pc, 0);
+ 
+ 		for(q = p; q != P && (q == p || q->as != ATEXT); q = q->link) {
+-                        epc = q->pc;
++			epc = q->pc;
+ 			lh = searchhist(q->line);
+ 			if (lh == nil) {
+ 				diag("corrupt history or bad absolute line: %P", q);
+ 				continue;
+ 			}
++			if (lh->file < 1) {  // 0 is the past-EOF entry.
++				diag("instruction with linenumber past EOF in %s: %P", unitname, q);
++				continue;
++			}
++
+ 			lline = lh->line + q->line - lh->absline;
+ 			if (debug['v'] > 1)
+ 				print("%6llux %s[%lld] %P\n", q->pc, histfile[lh->file], lline, q);

@@ -82,7 +82,7 @@ Date:   Tue Oct 2 09:29:47 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/regexp/all_test.go     |   4 +-
  src/regexp/exec.go         | 113 +++++++++++++++++++++++++++++----------------
  src/regexp/exec_test.go    |   2 +-
@@ -90,3 +90,471 @@ Date:   Tue Oct 2 09:29:47 2018 -0400
  src/regexp/onepass_test.go |  86 +++++++++++++++++-----------------
  src/regexp/regexp.go       |   4 +-
  6 files changed, 131 insertions(+), 102 deletions(-)
+
+diff --git a/src/regexp/all_test.go b/src/regexp/all_test.go
+index 0fabeae59f..8cbc2962cb 100644
+--- a/src/regexp/all_test.go
++++ b/src/regexp/all_test.go
+@@ -550,8 +550,8 @@ func TestOnePassCutoff(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("compile: %v", err)
+ 	}
+-	if compileOnePass(p) != notOnePass {
+-		t.Fatalf("makeOnePass succeeded; wanted notOnePass")
++	if compileOnePass(p) != nil {
++		t.Fatalf("makeOnePass succeeded; wanted nil")
+ 	}
+ }
+ 
+diff --git a/src/regexp/exec.go b/src/regexp/exec.go
+index 271174670e..23908d22d5 100644
+--- a/src/regexp/exec.go
++++ b/src/regexp/exec.go
+@@ -7,6 +7,7 @@ package regexp
+ import (
+ 	"io"
+ 	"regexp/syntax"
++	"sync"
+ )
+ 
+ // A queue is a 'sparse array' holding pending threads of execution.
+@@ -37,7 +38,6 @@ type thread struct {
+ type machine struct {
+ 	re       *Regexp      // corresponding Regexp
+ 	p        *syntax.Prog // compiled program
+-	op       *onePassProg // compiled onepass program, or notOnePass
+ 	q0, q1   queue        // two queues for runq, nextq
+ 	pool     []*thread    // pool of available threads
+ 	matched  bool         // whether a match was found
+@@ -93,8 +93,8 @@ func (i *inputs) init(r io.RuneReader, b []byte, s string) (input, int) {
+ }
+ 
+ // progMachine returns a new machine running the prog p.
+-func progMachine(p *syntax.Prog, op *onePassProg) *machine {
+-	m := &machine{p: p, op: op}
++func progMachine(p *syntax.Prog) *machine {
++	m := &machine{p: p}
+ 	n := len(m.p.Inst)
+ 	m.q0 = queue{make([]uint32, n), make([]entry, 0, n)}
+ 	m.q1 = queue{make([]uint32, n), make([]entry, 0, n)}
+@@ -327,20 +327,47 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
+ 	return t
+ }
+ 
+-// onepass runs the machine over the input starting at pos.
+-// It reports whether a match was found.
+-// If so, m.matchcap holds the submatch information.
+-// ncap is the number of captures.
+-func (m *machine) onepass(i input, pos, ncap int) bool {
+-	startCond := m.re.cond
++type onePassMachine struct {
++	inputs   inputs
++	matchcap []int
++}
++
++var onePassPool sync.Pool
++
++func newOnePassMachine() *onePassMachine {
++	m, ok := onePassPool.Get().(*onePassMachine)
++	if !ok {
++		m = new(onePassMachine)
++	}
++	return m
++}
++
++func freeOnePassMachine(m *onePassMachine) {
++	m.inputs.clear()
++	onePassPool.Put(m)
++}
++
++// doOnePass implements r.doExecute using the one-pass execution engine.
++func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap int, dstCap []int) []int {
++	startCond := re.cond
+ 	if startCond == ^syntax.EmptyOp(0) { // impossible
+-		return false
++		return nil
+ 	}
+-	m.matched = false
+-	m.matchcap = m.matchcap[:ncap]
++
++	m := newOnePassMachine()
++	if cap(m.matchcap) < ncap {
++		m.matchcap = make([]int, ncap)
++	} else {
++		m.matchcap = m.matchcap[:ncap]
++	}
++
++	matched := false
+ 	for i := range m.matchcap {
+ 		m.matchcap[i] = -1
+ 	}
++
++	i, _ := m.inputs.init(ir, ib, is)
++
+ 	r, r1 := endOfText, endOfText
+ 	width, width1 := 0, 0
+ 	r, width = i.step(pos)
+@@ -353,59 +380,59 @@ func (m *machine) onepass(i input, pos, ncap int) bool {
+ 	} else {
+ 		flag = i.context(pos)
+ 	}
+-	pc := m.op.Start
+-	inst := m.op.Inst[pc]
++	pc := re.onepass.Start
++	inst := re.onepass.Inst[pc]
+ 	// If there is a simple literal prefix, skip over it.
+ 	if pos == 0 && syntax.EmptyOp(inst.Arg)&^flag == 0 &&
+-		len(m.re.prefix) > 0 && i.canCheckPrefix() {
++		len(re.prefix) > 0 && i.canCheckPrefix() {
+ 		// Match requires literal prefix; fast search for it.
+-		if !i.hasPrefix(m.re) {
+-			return m.matched
++		if !i.hasPrefix(re) {
++			goto Return
+ 		}
+-		pos += len(m.re.prefix)
++		pos += len(re.prefix)
+ 		r, width = i.step(pos)
+ 		r1, width1 = i.step(pos + width)
+ 		flag = i.context(pos)
+-		pc = int(m.re.prefixEnd)
++		pc = int(re.prefixEnd)
+ 	}
+ 	for {
+-		inst = m.op.Inst[pc]
++		inst = re.onepass.Inst[pc]
+ 		pc = int(inst.Out)
+ 		switch inst.Op {
+ 		default:
+ 			panic("bad inst")
+ 		case syntax.InstMatch:
+-			m.matched = true
++			matched = true
+ 			if len(m.matchcap) > 0 {
+ 				m.matchcap[0] = 0
+ 				m.matchcap[1] = pos
+ 			}
+-			return m.matched
++			goto Return
+ 		case syntax.InstRune:
+ 			if !inst.MatchRune(r) {
+-				return m.matched
++				goto Return
+ 			}
+ 		case syntax.InstRune1:
+ 			if r != inst.Rune[0] {
+-				return m.matched
++				goto Return
+ 			}
+ 		case syntax.InstRuneAny:
+ 			// Nothing
+ 		case syntax.InstRuneAnyNotNL:
+ 			if r == '\n' {
+-				return m.matched
++				goto Return
+ 			}
+ 		// peek at the input rune to see which branch of the Alt to take
+ 		case syntax.InstAlt, syntax.InstAltMatch:
+ 			pc = int(onePassNext(&inst, r))
+ 			continue
+ 		case syntax.InstFail:
+-			return m.matched
++			goto Return
+ 		case syntax.InstNop:
+ 			continue
+ 		case syntax.InstEmptyWidth:
+ 			if syntax.EmptyOp(inst.Arg)&^flag != 0 {
+-				return m.matched
++				goto Return
+ 			}
+ 			continue
+ 		case syntax.InstCapture:
+@@ -424,7 +451,16 @@ func (m *machine) onepass(i input, pos, ncap int) bool {
+ 			r1, width1 = i.step(pos + width)
+ 		}
+ 	}
+-	return m.matched
++
++Return:
++	if !matched {
++		freeOnePassMachine(m)
++		return nil
++	}
++
++	dstCap = append(dstCap, m.matchcap...)
++	freeOnePassMachine(m)
++	return dstCap
+ }
+ 
+ // doMatch reports whether either r, b or s match the regexp.
+@@ -442,25 +478,22 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
+ 		dstCap = arrayNoInts[:0:0]
+ 	}
+ 
+-	if re.onepass == notOnePass && r == nil && len(b)+len(s) < re.maxBitStateLen {
++	if re.onepass != nil {
++		return re.doOnePass(r, b, s, pos, ncap, dstCap)
++	}
++	if r == nil && len(b)+len(s) < re.maxBitStateLen {
+ 		return re.backtrack(b, s, pos, ncap, dstCap)
+ 	}
+ 
+ 	m := re.get()
+ 	i, _ := m.inputs.init(r, b, s)
+ 
+-	if m.op != notOnePass {
+-		if !m.onepass(i, pos, ncap) {
+-			re.put(m)
+-			return nil
+-		}
+-	} else {
+-		m.init(ncap)
+-		if !m.match(i, pos) {
+-			re.put(m)
+-			return nil
+-		}
++	m.init(ncap)
++	if !m.match(i, pos) {
++		re.put(m)
++		return nil
+ 	}
++
+ 	dstCap = append(dstCap, m.matchcap...)
+ 	re.put(m)
+ 	return dstCap
+diff --git a/src/regexp/exec_test.go b/src/regexp/exec_test.go
+index 02258e6e74..1489219328 100644
+--- a/src/regexp/exec_test.go
++++ b/src/regexp/exec_test.go
+@@ -684,7 +684,7 @@ func BenchmarkMatch(b *testing.B) {
+ func BenchmarkMatch_onepass_regex(b *testing.B) {
+ 	isRaceBuilder := strings.HasSuffix(testenv.Builder(), "-race")
+ 	r := MustCompile(`(?s)\A.*\z`)
+-	if r.get().op == notOnePass {
++	if r.onepass == nil {
+ 		b.Fatalf("want onepass regex, but %q is not onepass", r)
+ 	}
+ 	for _, size := range benchSizes {
+diff --git a/src/regexp/onepass.go b/src/regexp/onepass.go
+index 125be59a7d..2f3ce6f9f6 100644
+--- a/src/regexp/onepass.go
++++ b/src/regexp/onepass.go
+@@ -294,12 +294,12 @@ var anyRune = []rune{0, unicode.MaxRune}
+ // makeOnePass creates a onepass Prog, if possible. It is possible if at any alt,
+ // the match engine can always tell which branch to take. The routine may modify
+ // p if it is turned into a onepass Prog. If it isn't possible for this to be a
+-// onepass Prog, the Prog notOnePass is returned. makeOnePass is recursive
++// onepass Prog, the Prog nil is returned. makeOnePass is recursive
+ // to the size of the Prog.
+ func makeOnePass(p *onePassProg) *onePassProg {
+ 	// If the machine is very long, it's not worth the time to check if we can use one pass.
+ 	if len(p.Inst) >= 1000 {
+-		return notOnePass
++		return nil
+ 	}
+ 
+ 	var (
+@@ -446,11 +446,11 @@ func makeOnePass(p *onePassProg) *onePassProg {
+ 		visitQueue.clear()
+ 		pc := instQueue.next()
+ 		if !check(pc, m) {
+-			p = notOnePass
++			p = nil
+ 			break
+ 		}
+ 	}
+-	if p != notOnePass {
++	if p != nil {
+ 		for i := range p.Inst {
+ 			p.Inst[i].Rune = onePassRunes[i]
+ 		}
+@@ -458,20 +458,18 @@ func makeOnePass(p *onePassProg) *onePassProg {
+ 	return p
+ }
+ 
+-var notOnePass *onePassProg = nil
+-
+ // compileOnePass returns a new *syntax.Prog suitable for onePass execution if the original Prog
+-// can be recharacterized as a one-pass regexp program, or syntax.notOnePass if the
++// can be recharacterized as a one-pass regexp program, or syntax.nil if the
+ // Prog cannot be converted. For a one pass prog, the fundamental condition that must
+ // be true is: at any InstAlt, there must be no ambiguity about what branch to  take.
+ func compileOnePass(prog *syntax.Prog) (p *onePassProg) {
+ 	if prog.Start == 0 {
+-		return notOnePass
++		return nil
+ 	}
+ 	// onepass regexp is anchored
+ 	if prog.Inst[prog.Start].Op != syntax.InstEmptyWidth ||
+ 		syntax.EmptyOp(prog.Inst[prog.Start].Arg)&syntax.EmptyBeginText != syntax.EmptyBeginText {
+-		return notOnePass
++		return nil
+ 	}
+ 	// every instruction leading to InstMatch must be EmptyEndText
+ 	for _, inst := range prog.Inst {
+@@ -479,18 +477,18 @@ func compileOnePass(prog *syntax.Prog) (p *onePassProg) {
+ 		switch inst.Op {
+ 		default:
+ 			if opOut == syntax.InstMatch {
+-				return notOnePass
++				return nil
+ 			}
+ 		case syntax.InstAlt, syntax.InstAltMatch:
+ 			if opOut == syntax.InstMatch || prog.Inst[inst.Arg].Op == syntax.InstMatch {
+-				return notOnePass
++				return nil
+ 			}
+ 		case syntax.InstEmptyWidth:
+ 			if opOut == syntax.InstMatch {
+ 				if syntax.EmptyOp(inst.Arg)&syntax.EmptyEndText == syntax.EmptyEndText {
+ 					continue
+ 				}
+-				return notOnePass
++				return nil
+ 			}
+ 		}
+ 	}
+@@ -501,7 +499,7 @@ func compileOnePass(prog *syntax.Prog) (p *onePassProg) {
+ 	// checkAmbiguity on InstAlts, build onepass Prog if possible
+ 	p = makeOnePass(p)
+ 
+-	if p != notOnePass {
++	if p != nil {
+ 		cleanupOnePass(p, prog)
+ 	}
+ 	return p
+diff --git a/src/regexp/onepass_test.go b/src/regexp/onepass_test.go
+index 6b622ac356..a0f2e39048 100644
+--- a/src/regexp/onepass_test.go
++++ b/src/regexp/onepass_test.go
+@@ -134,47 +134,45 @@ func TestMergeRuneSet(t *testing.T) {
+ 	}
+ }
+ 
+-var onePass = &onePassProg{}
+-
+ var onePassTests = []struct {
+-	re      string
+-	onePass *onePassProg
++	re        string
++	isOnePass bool
+ }{
+-	{`^(?:a|(?:a*))$`, notOnePass},
+-	{`^(?:(a)|(?:a*))$`, notOnePass},
+-	{`^(?:(?:(?:.(?:$))?))$`, onePass},
+-	{`^abcd$`, onePass},
+-	{`^(?:(?:a{0,})*?)$`, onePass},
+-	{`^(?:(?:a+)*)$`, onePass},
+-	{`^(?:(?:a|(?:aa)))$`, onePass},
+-	{`^(?:[^\s\S])$`, onePass},
+-	{`^(?:(?:a{3,4}){0,})$`, notOnePass},
+-	{`^(?:(?:(?:a*)+))$`, onePass},
+-	{`^[a-c]+$`, onePass},
+-	{`^[a-c]*$`, onePass},
+-	{`^(?:a*)$`, onePass},
+-	{`^(?:(?:aa)|a)$`, onePass},
+-	{`^[a-c]*`, notOnePass},
+-	{`^...$`, onePass},
+-	{`^(?:a|(?:aa))$`, onePass},
+-	{`^a((b))c$`, onePass},
+-	{`^a.[l-nA-Cg-j]?e$`, onePass},
+-	{`^a((b))$`, onePass},
+-	{`^a(?:(b)|(c))c$`, onePass},
+-	{`^a(?:(b*)|(c))c$`, notOnePass},
+-	{`^a(?:b|c)$`, onePass},
+-	{`^a(?:b?|c)$`, onePass},
+-	{`^a(?:b?|c?)$`, notOnePass},
+-	{`^a(?:b?|c+)$`, onePass},
+-	{`^a(?:b+|(bc))d$`, notOnePass},
+-	{`^a(?:bc)+$`, onePass},
+-	{`^a(?:[bcd])+$`, onePass},
+-	{`^a((?:[bcd])+)$`, onePass},
+-	{`^a(:?b|c)*d$`, onePass},
+-	{`^.bc(d|e)*$`, onePass},
+-	{`^(?:(?:aa)|.)$`, notOnePass},
+-	{`^(?:(?:a{1,2}){1,2})$`, notOnePass},
+-	{`^l` + strings.Repeat("o", 2<<8) + `ng$`, onePass},
++	{`^(?:a|(?:a*))$`, false},
++	{`^(?:(a)|(?:a*))$`, false},
++	{`^(?:(?:(?:.(?:$))?))$`, true},
++	{`^abcd$`, true},
++	{`^(?:(?:a{0,})*?)$`, true},
++	{`^(?:(?:a+)*)$`, true},
++	{`^(?:(?:a|(?:aa)))$`, true},
++	{`^(?:[^\s\S])$`, true},
++	{`^(?:(?:a{3,4}){0,})$`, false},
++	{`^(?:(?:(?:a*)+))$`, true},
++	{`^[a-c]+$`, true},
++	{`^[a-c]*$`, true},
++	{`^(?:a*)$`, true},
++	{`^(?:(?:aa)|a)$`, true},
++	{`^[a-c]*`, false},
++	{`^...$`, true},
++	{`^(?:a|(?:aa))$`, true},
++	{`^a((b))c$`, true},
++	{`^a.[l-nA-Cg-j]?e$`, true},
++	{`^a((b))$`, true},
++	{`^a(?:(b)|(c))c$`, true},
++	{`^a(?:(b*)|(c))c$`, false},
++	{`^a(?:b|c)$`, true},
++	{`^a(?:b?|c)$`, true},
++	{`^a(?:b?|c?)$`, false},
++	{`^a(?:b?|c+)$`, true},
++	{`^a(?:b+|(bc))d$`, false},
++	{`^a(?:bc)+$`, true},
++	{`^a(?:[bcd])+$`, true},
++	{`^a((?:[bcd])+)$`, true},
++	{`^a(:?b|c)*d$`, true},
++	{`^.bc(d|e)*$`, true},
++	{`^(?:(?:aa)|.)$`, false},
++	{`^(?:(?:a{1,2}){1,2})$`, false},
++	{`^l` + strings.Repeat("o", 2<<8) + `ng$`, true},
+ }
+ 
+ func TestCompileOnePass(t *testing.T) {
+@@ -194,9 +192,9 @@ func TestCompileOnePass(t *testing.T) {
+ 			t.Errorf("Compile(%q) got err:%s, want success", test.re, err)
+ 			continue
+ 		}
+-		onePass = compileOnePass(p)
+-		if (onePass == notOnePass) != (test.onePass == notOnePass) {
+-			t.Errorf("CompileOnePass(%q) got %v, expected %v", test.re, onePass, test.onePass)
++		isOnePass := compileOnePass(p) != nil
++		if isOnePass != test.isOnePass {
++			t.Errorf("CompileOnePass(%q) got isOnePass=%v, expected %v", test.re, isOnePass, test.isOnePass)
+ 		}
+ 	}
+ }
+@@ -216,8 +214,8 @@ func TestRunOnePass(t *testing.T) {
+ 			t.Errorf("Compile(%q): got err: %s", test.re, err)
+ 			continue
+ 		}
+-		if re.onepass == notOnePass {
+-			t.Errorf("Compile(%q): got notOnePass, want one-pass", test.re)
++		if re.onepass == nil {
++			t.Errorf("Compile(%q): got nil, want one-pass", test.re)
+ 			continue
+ 		}
+ 		if !re.MatchString(test.match) {
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index dafcfd433d..3730552c13 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -191,7 +191,7 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
+ 			longest:     longest,
+ 		},
+ 	}
+-	if regexp.onepass == notOnePass {
++	if regexp.onepass == nil {
+ 		regexp.prefix, regexp.prefixComplete = prog.Prefix()
+ 		regexp.maxBitStateLen = maxBitStateLen(prog)
+ 	} else {
+@@ -218,7 +218,7 @@ func (re *Regexp) get() *machine {
+ 		return z
+ 	}
+ 	re.mu.Unlock()
+-	z := progMachine(re.prog, re.onepass)
++	z := progMachine(re.prog)
+ 	z.re = re
+ 	return z
+ }

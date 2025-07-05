@@ -10,10 +10,241 @@ Date:   Wed Jun 1 17:02:43 2011 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4527091
-
+---
  src/cmd/gc/closure.c            |  6 ++++-
  src/cmd/gc/dcl.c                |  1 +
  src/cmd/gc/go.h                 | 10 +++++----
  src/cmd/gc/typecheck.c          | 49 ++++++++++++++++++++++++-----------------
  src/pkg/runtime/closure_test.go | 32 +++++++++++++++++++++++++++
  5 files changed, 73 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 091abde622..906dadbc96 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -75,7 +75,7 @@ closurebody(NodeList *body)
+ }
+ 
+ void
+-typecheckclosure(Node *func)
++typecheckclosure(Node *func, int top)
+ {
+ 	Node *oldfn;
+ 	NodeList *l;
+@@ -106,6 +106,10 @@ typecheckclosure(Node *func)
+ 			v->op = 0;
+ 			continue;
+ 		}
++		// For a closure that is called in place, but not
++		// inside a go statement, avoid moving variables to the heap.
++		if ((top & (Ecall|Eproc)) == Ecall)
++			v->heapaddr->etype = 1;
+ 		typecheck(&v->heapaddr, Erv);
+ 		func->enter = list(func->enter, v->heapaddr);
+ 		v->heapaddr = N;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index dfdd11caeb..95013586b8 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -188,6 +188,7 @@ declare(Node *n, int ctxt)
+ 		else if(n->op == ONAME)
+ 			gen = ++vargen;
+ 		pushdcl(s);
++		n->curfn = curfn;
+ 	}
+ 	if(ctxt == PAUTO)
+ 		n->xoffset = BADWIDTH;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index f4ca58b737..f355e53c53 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -254,6 +254,7 @@ struct	Node
+ 	Node*	ntype;
+ 	Node*	defn;
+ 	Node*	pack;	// real package for import . names
++	Node*	curfn;	// function for local variables
+ 
+ 	// ONAME func param with PHEAP
+ 	Node*	heapaddr;	// temp holding heap address of param
+@@ -517,15 +518,16 @@ enum
+ 
+ enum
+ {
+-	Etop = 1<<1,	// evaluated at statement level
+-	Erv = 1<<2,	// evaluated in value context
++	Etop = 1<<1,		// evaluated at statement level
++	Erv = 1<<2,		// evaluated in value context
+ 	Etype = 1<<3,
+-	Ecall = 1<<4,	// call-only expressions are ok
++	Ecall = 1<<4,		// call-only expressions are ok
+ 	Efnstruct = 1<<5,	// multivalue function returns are ok
+ 	Eiota = 1<<6,		// iota is ok
+ 	Easgn = 1<<7,		// assigning to expression
+ 	Eindir = 1<<8,		// indirecting through expression
+ 	Eaddr = 1<<9,		// taking address of expression
++	Eproc = 1<<10,		// inside a go statement
+ };
+ 
+ #define	BITS	5
+@@ -815,7 +817,7 @@ int	bset(Bits a, uint n);
+  */
+ Node*	closurebody(NodeList *body);
+ void	closurehdr(Node *ntype);
+-void	typecheckclosure(Node *func);
++void	typecheckclosure(Node *func, int top);
+ Node*	walkclosure(Node *func, NodeList **init);
+ void	walkcallclosure(Node *n, NodeList **init);
+ 
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 66fc77a973..44d08352da 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -29,8 +29,8 @@ static void	typecheckfunc(Node*);
+ static void	checklvalue(Node*, char*);
+ static void	checkassign(Node*);
+ static void	checkassignlist(NodeList*);
+-static void stringtoarraylit(Node**);
+-static Node* resolve(Node*);
++static void	stringtoarraylit(Node**);
++static Node*	resolve(Node*);
+ static Type*	getforwtype(Node*);
+ 
+ /*
+@@ -780,7 +780,7 @@ reswitch:
+ 			n = r;
+ 			goto reswitch;
+ 		}
+-		typecheck(&n->left, Erv | Etype | Ecall);
++		typecheck(&n->left, Erv | Etype | Ecall |(top&Eproc));
+ 		l = n->left;
+ 		if(l->op == ONAME && l->etype != 0) {
+ 			if(n->isddd && l->etype != OAPPEND)
+@@ -1027,9 +1027,9 @@ reswitch:
+ 		
+ 		// copy([]byte, string)
+ 		if(isslice(n->left->type) && n->right->type->etype == TSTRING) {
+-		        if (n->left->type->type ==types[TUINT8])
+-			        goto ret;
+-		        yyerror("arguments to copy have different element types: %lT and string", n->left->type);
++			if (n->left->type->type == types[TUINT8])
++				goto ret;
++			yyerror("arguments to copy have different element types: %lT and string", n->left->type);
+ 			goto error;
+ 		}
+ 			       
+@@ -1217,7 +1217,7 @@ reswitch:
+ 
+ 	case OCLOSURE:
+ 		ok |= Erv;
+-		typecheckclosure(n);
++		typecheckclosure(n, top);
+ 		if(n->type == T)
+ 			goto error;
+ 		goto ret;
+@@ -1246,11 +1246,15 @@ reswitch:
+ 		goto ret;
+ 
+ 	case ODEFER:
+-	case OPROC:
+ 		ok |= Etop;
+ 		typecheck(&n->left, Etop);
+ 		goto ret;
+ 
++	case OPROC:
++		ok |= Etop;
++		typecheck(&n->left, Etop|Eproc);
++		goto ret;
++
+ 	case OFOR:
+ 		ok |= Etop;
+ 		typechecklist(n->ninit, Etop);
+@@ -2165,7 +2169,9 @@ addrescapes(Node *n)
+ 		if(n->noescape)
+ 			break;
+ 		switch(n->class) {
+-		case PAUTO:
++		case PPARAMREF:
++			addrescapes(n->defn);
++			break;
+ 		case PPARAM:
+ 		case PPARAMOUT:
+ 			// if func param, need separate temporary
+@@ -2173,16 +2179,17 @@ addrescapes(Node *n)
+ 			// the function type has already been checked
+ 			// (we're in the function body)
+ 			// so the param already has a valid xoffset.
+-			if(n->class == PPARAM || n->class == PPARAMOUT) {
+-				// expression to refer to stack copy
+-				n->stackparam = nod(OPARAM, n, N);
+-				n->stackparam->type = n->type;
+-				n->stackparam->addable = 1;
+-				if(n->xoffset == BADWIDTH)
+-					fatal("addrescapes before param assignment");
+-				n->stackparam->xoffset = n->xoffset;
+-				n->xoffset = 0;
+-			}
++
++			// expression to refer to stack copy
++			n->stackparam = nod(OPARAM, n, N);
++			n->stackparam->type = n->type;
++			n->stackparam->addable = 1;
++			if(n->xoffset == BADWIDTH)
++				fatal("addrescapes before param assignment");
++			n->stackparam->xoffset = n->xoffset;
++			n->xoffset = 0;
++			// fallthrough
++		case PAUTO:
+ 
+ 			n->class |= PHEAP;
+ 			n->addable = 0;
+@@ -2195,7 +2202,9 @@ addrescapes(Node *n)
+ 			snprint(buf, sizeof buf, "&%S", n->sym);
+ 			n->heapaddr->sym = lookup(buf);
+ 			n->heapaddr->class = PHEAP-1;	// defer tempname to allocparams
+-			curfn->dcl = list(curfn->dcl, n->heapaddr);
++			n->heapaddr->ullman = 1;
++			n->curfn->dcl = list(n->curfn->dcl, n->heapaddr);
++
+ 			break;
+ 		}
+ 		break;
+diff --git a/src/pkg/runtime/closure_test.go b/src/pkg/runtime/closure_test.go
+index 199016fcf7..ea65fbd5f5 100644
+--- a/src/pkg/runtime/closure_test.go
++++ b/src/pkg/runtime/closure_test.go
+@@ -19,3 +19,35 @@ func BenchmarkCallClosure1(b *testing.B) {
+ 		s += func(ii int) int { return 2*ii + j }(i)
+ 	}
+ }
++
++var ss *int
++
++func BenchmarkCallClosure2(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		j := i
++		s += func() int {
++			ss = &j
++			return 2
++		}()
++	}
++}
++
++func addr1(x int) *int {
++	return func() *int { return &x }()
++}
++
++func BenchmarkCallClosure3(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		ss = addr1(i)
++	}
++}
++
++func addr2() (x int, p *int) {
++	return 0, func() *int { return &x }()
++}
++
++func BenchmarkCallClosure4(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		_, ss = addr2()
++	}
++}

@@ -10,10 +10,175 @@ Date:   Wed Mar 5 14:16:21 2014 -0500
     R=rsc, adonovan, dave
     CC=golang-codereviews
     https://golang.org/cl/13367051
-
+---
  src/cmd/gc/inl.c            |  2 ++
  src/cmd/gc/order.c          |  2 ++
  src/cmd/gc/typecheck.c      | 49 ++++++++++++++++++++++++++++++++++-----------
  src/cmd/gc/walk.c           |  9 +++++++++
  test/fixedbugs/issue5793.go | 36 +++++++++++++++++++++++++++++++++
  5 files changed, 86 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index 6800884a0b..298a4c0d70 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -392,6 +392,8 @@ inlnode(Node **np)
+ 	case OCALLFUNC:
+ 	case OCALLMETH:
+ 	case OCALLINTER:
++	case OAPPEND:
++	case OCOMPLEX:
+ 		// if we just replaced arg in f(arg()) or return arg with an inlined call
+ 		// and arg returns multiple values, glue as list
+ 		if(count(n->list) == 1 && n->list->n->op == OINLCALL && count(n->list->n->rlist) > 1) {
+diff --git a/src/cmd/gc/order.c b/src/cmd/gc/order.c
+index 7552510e90..d54355725c 100644
+--- a/src/cmd/gc/order.c
++++ b/src/cmd/gc/order.c
+@@ -344,6 +344,8 @@ orderexpr(Node **np, NodeList **out)
+ 	case OCALLFUNC:
+ 	case OCALLMETH:
+ 	case OCALLINTER:
++	case OAPPEND:
++	case OCOMPLEX:
+ 		ordercall(n, out);
+ 		n = copyexpr(n, n->type, out);
+ 		break;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 21021def95..5efc8d7913 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1212,17 +1212,29 @@ reswitch:
+ 
+ 	case OCOMPLEX:
+ 		ok |= Erv;
+-		if(twoarg(n) < 0)
+-			goto error;
+-		l = typecheck(&n->left, Erv | (top & Eiota));
+-		r = typecheck(&n->right, Erv | (top & Eiota));
+-		if(l->type == T || r->type == T)
+-			goto error;
+-		defaultlit2(&l, &r, 0);
+-		if(l->type == T || r->type == T)
+-			goto error;
+-		n->left = l;
+-		n->right = r;
++		if(count(n->list) == 1) {
++			typechecklist(n->list, Efnstruct);
++			t = n->list->n->left->type;
++			if(t->outtuple != 2) {
++				yyerror("invalid operation: complex expects two arguments, %N returns %d results", n->list->n, t->outtuple);
++				goto error;
++			}
++			t = n->list->n->type->type;
++			l = t->nname;
++			r = t->down->nname;
++		} else {
++			if(twoarg(n) < 0)
++				goto error;
++			l = typecheck(&n->left, Erv | (top & Eiota));
++			r = typecheck(&n->right, Erv | (top & Eiota));
++			if(l->type == T || r->type == T)
++				goto error;
++			defaultlit2(&l, &r, 0);
++			if(l->type == T || r->type == T)
++				goto error;
++			n->left = l;
++			n->right = r;
++		}
+ 		if(!eqtype(l->type, r->type)) {
+ 			yyerror("invalid operation: %N (mismatched types %T and %T)", n, l->type, r->type);
+ 			goto error;
+@@ -1301,9 +1313,22 @@ reswitch:
+ 			yyerror("missing arguments to append");
+ 			goto error;
+ 		}
+-		typechecklist(args, Erv);
++
++		if(count(args) == 1 && !n->isddd)
++			typecheck(&args->n, Erv | Efnstruct);
++		else
++			typechecklist(args, Erv);
++
+ 		if((t = args->n->type) == T)
+ 			goto error;
++
++		// Unpack multiple-return result before type-checking.
++		if(istype(t, TSTRUCT)) {
++			t = t->type;
++			if(istype(t, TFIELD))
++				t = t->type;
++		}
++
+ 		n->type = t;
+ 		if(!isslice(t)) {
+ 			if(isconst(args->n, CTNIL)) {
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 717c771336..91e87192a4 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -493,6 +493,11 @@ walkexpr(Node **np, NodeList **init)
+ 	case OADD:
+ 	case OCOMPLEX:
+ 	case OLROT:
++		// Use results from call expression as arguments for complex.
++		if(n->op == OCOMPLEX && n->left == N && n->right == N) {
++			n->left = n->list->n;
++			n->right = n->list->next->n;
++		}
+ 		walkexpr(&n->left, init);
+ 		walkexpr(&n->right, init);
+ 		goto ret;
+@@ -2772,6 +2777,10 @@ append(Node *n, NodeList **init)
+ 		l->n = cheapexpr(l->n, init);
+ 
+ 	nsrc = n->list->n;
++
++	// Resolve slice type of multi-valued return.
++	if(istype(nsrc->type, TSTRUCT))
++		nsrc->type = nsrc->type->type->type;
+ 	argc = count(n->list) - 1;
+ 	if (argc < 1) {
+ 		return nsrc;
+diff --git a/test/fixedbugs/issue5793.go b/test/fixedbugs/issue5793.go
+new file mode 100644
+index 0000000000..f5a9965f24
+--- /dev/null
++++ b/test/fixedbugs/issue5793.go
+@@ -0,0 +1,36 @@
++// run
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 5793: calling 2-arg builtin with multiple-result f() call expression gives
++// spurious error.
++
++package main
++
++func complexArgs() (float64, float64) {
++	return 5, 7
++}
++
++func appendArgs() ([]string, string) {
++	return []string{"foo"}, "bar"
++}
++
++func appendMultiArgs() ([]byte, byte, byte) {
++	return []byte{'a', 'b'}, '1', '2'
++}
++
++func main() {
++	if c := complex(complexArgs()); c != 5+7i {
++		panic(c)
++	}
++
++	if s := append(appendArgs()); len(s) != 2 || s[0] != "foo" || s[1] != "bar" {
++		panic(s)
++	}
++
++	if b := append(appendMultiArgs()); len(b) != 4 || b[0] != 'a' || b[1] != 'b' || b[2] != '1' || b[3] != '2' {
++		panic(b)
++	}
++}

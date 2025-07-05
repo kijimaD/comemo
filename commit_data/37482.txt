@@ -18,7 +18,88 @@ Date:   Wed Aug 1 06:38:54 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/127159
     Run-TryBot: Ben Shi <powerman1st@163.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s |  8 ++++++++
  src/cmd/internal/obj/arm64/asm7.go        | 30 ++++++++++++++++++++++++------
  2 files changed, 32 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 859f71a26b..3a4410f10b 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -716,6 +716,14 @@ again:
+ 	STPW	(R3, R4), x(SB)
+ 	STPW	(R3, R4), x+8(SB)
+ 
++// bit field operation
++	BFI	$0, R1, $1, R2      // 220040b3
++	BFIW	$0, R1, $1, R2      // 22000033
++	SBFIZ	$0, R1, $1, R2      // 22004093
++	SBFIZW	$0, R1, $1, R2      // 22000013
++	UBFIZ	$0, R1, $1, R2      // 220040d3
++	UBFIZW	$0, R1, $1, R2      // 22000053
++
+ // END
+ //
+ //	LTYPEE comma
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index ff4b1d7ec1..e3bcce8265 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -3264,10 +3264,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		switch p.As {
+ 		case ABFI:
+-			o1 = c.opbfm(p, ABFM, 64-r, s-1, rf, rt)
++			if r != 0 {
++				r = 64 - r
++			}
++			o1 = c.opbfm(p, ABFM, r, s-1, rf, rt)
+ 
+ 		case ABFIW:
+-			o1 = c.opbfm(p, ABFMW, 32-r, s-1, rf, rt)
++			if r != 0 {
++				r = 32 - r
++			}
++			o1 = c.opbfm(p, ABFMW, r, s-1, rf, rt)
+ 
+ 		case ABFXIL:
+ 			o1 = c.opbfm(p, ABFM, r, r+s-1, rf, rt)
+@@ -3276,10 +3282,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			o1 = c.opbfm(p, ABFMW, r, r+s-1, rf, rt)
+ 
+ 		case ASBFIZ:
+-			o1 = c.opbfm(p, ASBFM, 64-r, s-1, rf, rt)
++			if r != 0 {
++				r = 64 - r
++			}
++			o1 = c.opbfm(p, ASBFM, r, s-1, rf, rt)
+ 
+ 		case ASBFIZW:
+-			o1 = c.opbfm(p, ASBFMW, 32-r, s-1, rf, rt)
++			if r != 0 {
++				r = 32 - r
++			}
++			o1 = c.opbfm(p, ASBFMW, r, s-1, rf, rt)
+ 
+ 		case ASBFX:
+ 			o1 = c.opbfm(p, ASBFM, r, r+s-1, rf, rt)
+@@ -3288,10 +3300,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			o1 = c.opbfm(p, ASBFMW, r, r+s-1, rf, rt)
+ 
+ 		case AUBFIZ:
+-			o1 = c.opbfm(p, AUBFM, 64-r, s-1, rf, rt)
++			if r != 0 {
++				r = 64 - r
++			}
++			o1 = c.opbfm(p, AUBFM, r, s-1, rf, rt)
+ 
+ 		case AUBFIZW:
+-			o1 = c.opbfm(p, AUBFMW, 32-r, s-1, rf, rt)
++			if r != 0 {
++				r = 32 - r
++			}
++			o1 = c.opbfm(p, AUBFMW, r, s-1, rf, rt)
+ 
+ 		case AUBFX:
+ 			o1 = c.opbfm(p, AUBFM, r, r+s-1, rf, rt)

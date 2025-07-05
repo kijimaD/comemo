@@ -11,7 +11,122 @@ Date:   Tue Dec 15 14:17:56 2015 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/constant/value.go      | 54 +++++++++++++++----------------------------
  src/go/constant/value_test.go |  1 +
  2 files changed, 20 insertions(+), 35 deletions(-)
+
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index 04a2ac981e..630581047a 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -249,10 +249,10 @@ func makeComplex(re, im Value) Value {
+ 
+ func makeFloatFromLiteral(lit string) Value {
+ 	if f, ok := newFloat().SetString(lit); ok {
+-		if f.MantExp(nil) < maxExp {
++		if smallRat(f) {
+ 			// ok to use rationals
+ 			r, _ := newRat().SetString(lit)
+-			return makeRat(r)
++			return ratVal{r}
+ 		}
+ 		// otherwise use floats
+ 		return makeFloat(f)
+@@ -260,6 +260,16 @@ func makeFloatFromLiteral(lit string) Value {
+ 	return nil
+ }
+ 
++// smallRat reports whether x would lead to "reasonably"-sized fraction
++// if converted to a *big.Rat.
++func smallRat(x *big.Float) bool {
++	if !x.IsInf() {
++		e := x.MantExp(nil)
++		return -maxExp < e && e < maxExp
++	}
++	return false
++}
++
+ // ----------------------------------------------------------------------------
+ // Factories
+ 
+@@ -572,35 +582,6 @@ func MakeFromBytes(bytes []byte) Value {
+ 	return makeInt(newInt().SetBits(words[:i]))
+ }
+ 
+-// toRat returns the fraction corresponding to x, or nil
+-// if x cannot be represented as a fraction a/b because
+-// its components a or b are too large.
+-func toRat(x *big.Float) *big.Rat {
+-	m := newFloat()
+-	e := x.MantExp(m)
+-
+-	// fail to convert if fraction components are too large
+-	if e <= maxExp || e >= maxExp {
+-		return nil
+-	}
+-
+-	// convert mantissa to big.Int value by shifting by ecorr
+-	ecorr := int(m.MinPrec())
+-	a, _ := m.SetMantExp(m, ecorr).Int(nil)
+-	e -= ecorr // correct exponent
+-
+-	// compute actual fraction
+-	b := big.NewInt(1)
+-	switch {
+-	case e < 0:
+-		b.Lsh(b, uint(-e))
+-	case e > 0:
+-		a.Lsh(a, uint(e))
+-	}
+-
+-	return new(big.Rat).SetFrac(a, b)
+-}
+-
+ // Num returns the numerator of x; x must be Int, Float, or Unknown.
+ // If x is Unknown, or if it is too large or small to represent as a
+ // fraction, the result is Unknown. Otherwise the result is an Int
+@@ -612,7 +593,8 @@ func Num(x Value) Value {
+ 	case ratVal:
+ 		return makeInt(x.val.Num())
+ 	case floatVal:
+-		if r := toRat(x.val); r != nil {
++		if smallRat(x.val) {
++			r, _ := x.val.Rat(nil)
+ 			return makeInt(r.Num())
+ 		}
+ 	case unknownVal:
+@@ -633,7 +615,8 @@ func Denom(x Value) Value {
+ 	case ratVal:
+ 		return makeInt(x.val.Denom())
+ 	case floatVal:
+-		if r := toRat(x.val); r != nil {
++		if smallRat(x.val) {
++			r, _ := x.val.Rat(nil)
+ 			return makeInt(r.Denom())
+ 		}
+ 	case unknownVal:
+@@ -703,8 +686,9 @@ func ToInt(x Value) Value {
+ 
+ 	case floatVal:
+ 		// avoid creation of huge integers
+-		// (existing tests require permitting exponents of at least 1024)
+-		if x.val.MantExp(nil) <= 1024 {
++		// (Existing tests require permitting exponents of at least 1024;
++		// allow any value that would also be permissible as a fraction.)
++		if smallRat(x.val) {
+ 			i := newInt()
+ 			if _, acc := x.val.Int(i); acc == big.Exact {
+ 				return makeInt(i)
+diff --git a/src/go/constant/value_test.go b/src/go/constant/value_test.go
+index 932287ffef..de1ab0267a 100644
+--- a/src/go/constant/value_test.go
++++ b/src/go/constant/value_test.go
+@@ -240,6 +240,7 @@ var stringTests = []struct {
+ 	{"2.1", "2.1", "21/10"},
+ 	{"-2.1", "-2.1", "-21/10"},
+ 	{"1e9999", "1e+9999", "0x.f8d4a9da224650a8cb2959e10d985ad92adbd44c62917e608b1f24c0e1b76b6f61edffeb15c135a4b601637315f7662f325f82325422b244286a07663c9415d2p+33216"},
++	{"1e-9999", "1e-9999", "0x.83b01ba6d8c0425eec1b21e96f7742d63c2653ed0a024cf8a2f9686df578d7b07d7a83d84df6a2ec70a921d1f6cd5574893a7eda4d28ee719e13a5dce2700759p-33215"},
+ 	{"2.71828182845904523536028747135266249775724709369995957496696763", "2.71828", "271828182845904523536028747135266249775724709369995957496696763/100000000000000000000000000000000000000000000000000000000000000"},
+ 
+ 	// Complex

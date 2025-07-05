@@ -9,6 +9,33 @@ Date:   Thu Aug 30 12:22:53 2018 -0600
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/example_test.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/net/http/example_test.go b/src/net/http/example_test.go
+index f5c47d0bd4..2a09f5f6c6 100644
+--- a/src/net/http/example_test.go
++++ b/src/net/http/example_test.go
+@@ -173,3 +173,21 @@ func ExampleHandleFunc() {
+ 
+ 	log.Fatal(http.ListenAndServe(":8080", nil))
+ }
++
++func newPeopleHandler() http.Handler {
++	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		fmt.Fprintln(w, "This is the people handler.")
++	})
++}
++
++func ExampleNotFoundHandler() {
++	mux := http.NewServeMux()
++
++	// Create sample handler to returns 404
++	mux.Handle("/resources", http.NotFoundHandler())
++
++	// Create sample handler that returns 200
++	mux.Handle("/resources/people/", newPeopleHandler())
++
++	log.Fatal(http.ListenAndServe(":8080", mux))
++}

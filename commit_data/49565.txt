@@ -22,8 +22,101 @@ Date:   Wed Aug 11 23:51:09 2021 -0700
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/test/inl_test.go |  1 +
  src/unicode/utf8/utf8.go                  | 26 ++++++++++++++++++++++++++
  src/unicode/utf8/utf8_test.go             | 25 +++++++++++++++++++++++++
  3 files changed, 52 insertions(+)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index bbdbe0c37c..4f20ec1bd1 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -122,6 +122,7 @@ func TestIntendedInlining(t *testing.T) {
+ 			"FullRune",
+ 			"FullRuneInString",
+ 			"RuneLen",
++			"AppendRune",
+ 			"ValidRune",
+ 		},
+ 		"reflect": {
+diff --git a/src/unicode/utf8/utf8.go b/src/unicode/utf8/utf8.go
+index 557e8a7770..6938c7e6a7 100644
+--- a/src/unicode/utf8/utf8.go
++++ b/src/unicode/utf8/utf8.go
+@@ -369,6 +369,32 @@ func EncodeRune(p []byte, r rune) int {
+ 	}
+ }
+ 
++// AppendRune appends the UTF-8 encoding of r to the end of p and
++// returns the extended buffer. If the rune is out of range,
++// it appends the encoding of RuneError.
++func AppendRune(p []byte, r rune) []byte {
++	// This function is inlineable for fast handling of ASCII.
++	if uint32(r) <= rune1Max {
++		return append(p, byte(r))
++	}
++	return appendRuneNonASCII(p, r)
++}
++
++func appendRuneNonASCII(p []byte, r rune) []byte {
++	// Negative values are erroneous. Making it unsigned addresses the problem.
++	switch i := uint32(r); {
++	case i <= rune2Max:
++		return append(p, t2|byte(r>>6), tx|byte(r)&maskx)
++	case i > MaxRune, surrogateMin <= i && i <= surrogateMax:
++		r = RuneError
++		fallthrough
++	case i <= rune3Max:
++		return append(p, t3|byte(r>>12), tx|byte(r>>6)&maskx, tx|byte(r)&maskx)
++	default:
++		return append(p, t4|byte(r>>18), tx|byte(r>>12)&maskx, tx|byte(r>>6)&maskx, tx|byte(r)&maskx)
++	}
++}
++
+ // RuneCount returns the number of runes in p. Erroneous and short
+ // encodings are treated as single runes of width 1 byte.
+ func RuneCount(p []byte) int {
+diff --git a/src/unicode/utf8/utf8_test.go b/src/unicode/utf8/utf8_test.go
+index eaf1b5ffee..a60040ecfd 100644
+--- a/src/unicode/utf8/utf8_test.go
++++ b/src/unicode/utf8/utf8_test.go
+@@ -127,6 +127,17 @@ func TestEncodeRune(t *testing.T) {
+ 	}
+ }
+ 
++func TestAppendRune(t *testing.T) {
++	for _, m := range utf8map {
++		if buf := AppendRune(nil, m.r); string(buf) != m.str {
++			t.Errorf("AppendRune(nil, %#04x) = %s, want %s", m.r, buf, m.str)
++		}
++		if buf := AppendRune([]byte("init"), m.r); string(buf) != "init"+m.str {
++			t.Errorf("AppendRune(nil, %#04x) = %s, want %s", m.r, buf, "init"+m.str)
++		}
++	}
++}
++
+ func TestDecodeRune(t *testing.T) {
+ 	for _, m := range utf8map {
+ 		b := []byte(m.str)
+@@ -583,6 +594,20 @@ func BenchmarkEncodeJapaneseRune(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkAppendASCIIRune(b *testing.B) {
++	buf := make([]byte, UTFMax)
++	for i := 0; i < b.N; i++ {
++		AppendRune(buf[:0], 'a')
++	}
++}
++
++func BenchmarkAppendJapaneseRune(b *testing.B) {
++	buf := make([]byte, UTFMax)
++	for i := 0; i < b.N; i++ {
++		AppendRune(buf[:0], '本')
++	}
++}
++
+ func BenchmarkDecodeASCIIRune(b *testing.B) {
+ 	a := []byte{'a'}
+ 	for i := 0; i < b.N; i++ {

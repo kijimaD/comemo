@@ -9,7 +9,7 @@ Date:   Mon Nov 9 21:23:52 2009 -0800
     
     R=rsc, r
     http://go/go-review/1024041
-
+---
  src/pkg/hash/adler32/adler32.go         |  8 ++--
  src/pkg/hash/crc32/crc32.go             | 10 ++---
  src/pkg/http/client.go                  |  2 +-
@@ -132,3 +132,5320 @@ Date:   Mon Nov 9 21:23:52 2009 -0800
  src/pkg/xml/read.go                     |  6 +--
  src/pkg/xml/xml.go                      | 12 +++---
  121 files changed, 750 insertions(+), 750 deletions(-)
+
+diff --git a/src/pkg/hash/adler32/adler32.go b/src/pkg/hash/adler32/adler32.go
+index 3ac6364f9f..673d5edd47 100644
+--- a/src/pkg/hash/adler32/adler32.go
++++ b/src/pkg/hash/adler32/adler32.go
+@@ -47,7 +47,7 @@ func update(a, b uint32, p []byte) (aa, bb uint32) {
+ 		a += uint32(p[i]);
+ 		b += a;
+ 		// invariant: a <= b
+-		if b > (0xffffffff - 255)/2 {
++		if b > (0xffffffff-255)/2 {
+ 			a %= mod;
+ 			b %= mod;
+ 			// invariant: a < mod && b < mod
+@@ -77,9 +77,9 @@ func (d *digest) Sum32() uint32	{ return finish(d.a, d.b) }
+ func (d *digest) Sum() []byte {
+ 	p := make([]byte, 4);
+ 	s := d.Sum32();
+-	p[0] = byte(s>>24);
+-	p[1] = byte(s>>16);
+-	p[2] = byte(s>>8);
++	p[0] = byte(s >> 24);
++	p[1] = byte(s >> 16);
++	p[2] = byte(s >> 8);
+ 	p[3] = byte(s);
+ 	return p;
+ }
+diff --git a/src/pkg/hash/crc32/crc32.go b/src/pkg/hash/crc32/crc32.go
+index 4e54b09e64..57297abce8 100644
+--- a/src/pkg/hash/crc32/crc32.go
++++ b/src/pkg/hash/crc32/crc32.go
+@@ -41,7 +41,7 @@ func MakeTable(poly uint32) *Table {
+ 		crc := uint32(i);
+ 		for j := 0; j < 8; j++ {
+ 			if crc&1 == 1 {
+-				crc = (crc>>1)^poly
++				crc = (crc >> 1) ^ poly
+ 			} else {
+ 				crc >>= 1
+ 			}
+@@ -75,7 +75,7 @@ func (d *digest) Reset()	{ d.crc = 0 }
+ func update(crc uint32, tab *Table, p []byte) uint32 {
+ 	crc = ^crc;
+ 	for i := 0; i < len(p); i++ {
+-		crc = tab[byte(crc)^p[i]]^(crc>>8)
++		crc = tab[byte(crc)^p[i]] ^ (crc >> 8)
+ 	}
+ 	return ^crc;
+ }
+@@ -90,9 +90,9 @@ func (d *digest) Sum32() uint32	{ return d.crc }
+ func (d *digest) Sum() []byte {
+ 	p := make([]byte, 4);
+ 	s := d.Sum32();
+-	p[0] = byte(s>>24);
+-	p[1] = byte(s>>16);
+-	p[2] = byte(s>>8);
++	p[0] = byte(s >> 24);
++	p[1] = byte(s >> 16);
++	p[2] = byte(s >> 8);
+ 	p[3] = byte(s);
+ 	return p;
+ }
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 1c7f23744b..70fa49fcc2 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -82,7 +82,7 @@ func ReadResponse(r *bufio.Reader) (*Response, os.Error) {
+ 	if len(f) < 3 {
+ 		return nil, &badStringError{"malformed HTTP response", line}
+ 	}
+-	resp.Status = f[1]+" "+f[2];
++	resp.Status = f[1] + " " + f[2];
+ 	resp.StatusCode, err = strconv.Atoi(f[1]);
+ 	if err != nil {
+ 		return nil, &badStringError{"malformed HTTP status code", f[1]}
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 8ee4ba18c8..9ba5dd5c87 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -76,9 +76,9 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+ 	const indexPage = "/index.html";
+ 
+ 	// redirect to strip off any index.html
+-	n := len(name)-len(indexPage);
++	n := len(name) - len(indexPage);
+ 	if n >= 0 && name[n:len(name)] == indexPage {
+-		Redirect(c, name[0 : n+1], StatusMovedPermanently);
++		Redirect(c, name[0:n+1], StatusMovedPermanently);
+ 		return;
+ 	}
+ 
+@@ -108,7 +108,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+ 			}
+ 		} else {
+ 			if url[len(url)-1] == '/' {
+-				Redirect(c, url[0 : len(url)-1], StatusMovedPermanently);
++				Redirect(c, url[0:len(url)-1], StatusMovedPermanently);
+ 				return;
+ 			}
+ 		}
+@@ -177,5 +177,5 @@ func (f *fileHandler) ServeHTTP(c *Conn, r *Request) {
+ 		return;
+ 	}
+ 	path = path[len(f.prefix):len(path)];
+-	serveFileInternal(c, r, f.root + "/" + path, true);
++	serveFileInternal(c, r, f.root+"/"+path, true);
+ }
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 008f965708..c91ca3a00b 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -24,7 +24,7 @@ const (
+ 	maxLineLength	= 1024;	// assumed < bufio.DefaultBufSize
+ 	maxValueLength	= 1024;
+ 	maxHeaderLines	= 1024;
+-	chunkSize	= 4<<10;	// 4 KB chunks
++	chunkSize	= 4 << 10;	// 4 KB chunks
+ )
+ 
+ // HTTP request parsing errors.
+@@ -293,7 +293,7 @@ func readKeyValue(b *bufio.Reader) (key, value string, err os.Error) {
+ 		if line, e = readLineBytes(b); e != nil {
+ 			return "", "", e
+ 		}
+-		value += " "+string(line);
++		value += " " + string(line);
+ 
+ 		if len(value) >= maxValueLength {
+ 			return "", "", &badStringError{"value too long for key", key}
+@@ -360,10 +360,10 @@ func CanonicalHeaderKey(s string) string {
+ 	upper := true;
+ 	for i, v := range a {
+ 		if upper && 'a' <= v && v <= 'z' {
+-			a[i] = v+'A'-'a'
++			a[i] = v + 'A' - 'a'
+ 		}
+ 		if !upper && 'A' <= v && v <= 'Z' {
+-			a[i] = v+'a'-'A'
++			a[i] = v + 'a' - 'A'
+ 		}
+ 		upper = false;
+ 		if v == '-' {
+@@ -422,7 +422,7 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
+ 		}
+ 	}
+ 	if uint64(len(b)) > cr.n {
+-		b = b[0 : cr.n]
++		b = b[0:cr.n]
+ 	}
+ 	n, cr.err = cr.r.Read(b);
+ 	cr.n -= uint64(n);
+@@ -484,7 +484,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 		// to concatenating the values separated by commas.
+ 		oldvalue, present := req.Header[key];
+ 		if present {
+-			req.Header[key] = oldvalue+","+value
++			req.Header[key] = oldvalue + "," + value
+ 		} else {
+ 			req.Header[key] = value
+ 		}
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 9651cee338..d4b23a20f9 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -146,7 +146,7 @@ func (c *Conn) WriteHeader(code int) {
+ 	if !ok {
+ 		text = "status code " + codestring
+ 	}
+-	io.WriteString(c.buf, proto + " " + codestring + " " + text + "\r\n");
++	io.WriteString(c.buf, proto+" "+codestring+" "+text+"\r\n");
+ 	for k, v := range c.header {
+ 		io.WriteString(c.buf, k+": "+v+"\r\n")
+ 	}
+@@ -366,7 +366,7 @@ func Redirect(c *Conn, url string, code int) {
+ 		if url == "" || url[0] != '/' {
+ 			// make relative path absolute
+ 			olddir, _ := path.Split(oldpath);
+-			url = olddir+url;
++			url = olddir + url;
+ 		}
+ 
+ 		// clean up but preserve trailing slash
+@@ -453,7 +453,7 @@ func cleanPath(p string) string {
+ 		return "/"
+ 	}
+ 	if p[0] != '/' {
+-		p = "/"+p
++		p = "/" + p
+ 	}
+ 	np := path.Clean(p);
+ 	// path.Clean removes trailing slash except for root;
+@@ -504,7 +504,7 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
+ 	// If pattern is /tree/, insert permanent redirect for /tree.
+ 	n := len(pattern);
+ 	if n > 0 && pattern[n-1] == '/' {
+-		mux.m[pattern[0 : n-1]] = RedirectHandler(pattern, StatusMovedPermanently)
++		mux.m[pattern[0:n-1]] = RedirectHandler(pattern, StatusMovedPermanently)
+ 	}
+ }
+ 
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index a19e8a5189..9d7ac495f0 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -37,11 +37,11 @@ func ishex(c byte) bool {
+ func unhex(c byte) byte {
+ 	switch {
+ 	case '0' <= c && c <= '9':
+-		return c-'0'
++		return c - '0'
+ 	case 'a' <= c && c <= 'f':
+-		return c-'a'+10
++		return c - 'a' + 10
+ 	case 'A' <= c && c <= 'F':
+-		return c-'A'+10
++		return c - 'A' + 10
+ 	}
+ 	return 0;
+ }
+@@ -97,7 +97,7 @@ func URLUnescape(s string) (string, os.Error) {
+ 		return s, nil
+ 	}
+ 
+-	t := make([]byte, len(s) - 2*n);
++	t := make([]byte, len(s)-2*n);
+ 	j := 0;
+ 	for i := 0; i < len(s); {
+ 		switch s[i] {
+@@ -136,7 +136,7 @@ func URLEscape(s string) string {
+ 		return s
+ 	}
+ 
+-	t := make([]byte, len(s) + 2*hexCount);
++	t := make([]byte, len(s)+2*hexCount);
+ 	j := 0;
+ 	for i := 0; i < len(s); i++ {
+ 		switch c := s[i]; {
+diff --git a/src/pkg/image/color.go b/src/pkg/image/color.go
+index c3c5e50246..bf8eefb60d 100644
+--- a/src/pkg/image/color.go
++++ b/src/pkg/image/color.go
+@@ -18,17 +18,17 @@ type RGBAColor struct {
+ 
+ func (c RGBAColor) RGBA() (r, g, b, a uint32) {
+ 	r = uint32(c.R);
+-	r |= r<<8;
+-	r |= r<<16;
++	r |= r << 8;
++	r |= r << 16;
+ 	g = uint32(c.G);
+-	g |= g<<8;
+-	g |= g<<16;
++	g |= g << 8;
++	g |= g << 16;
+ 	b = uint32(c.B);
+-	b |= b<<8;
+-	b |= b<<16;
++	b |= b << 8;
++	b |= b << 16;
+ 	a = uint32(c.A);
+-	a |= a<<8;
+-	a |= a<<16;
++	a |= a << 8;
++	a |= a << 16;
+ 	return;
+ }
+ 
+@@ -39,13 +39,13 @@ type RGBA64Color struct {
+ 
+ func (c RGBA64Color) RGBA() (r, g, b, a uint32) {
+ 	r = uint32(c.R);
+-	r |= r<<16;
++	r |= r << 16;
+ 	g = uint32(c.G);
+-	g |= g<<16;
++	g |= g << 16;
+ 	b = uint32(c.B);
+-	b |= b<<16;
++	b |= b << 16;
+ 	a = uint32(c.A);
+-	a |= a<<16;
++	a |= a << 16;
+ 	return;
+ }
+ 
+@@ -56,23 +56,23 @@ type NRGBAColor struct {
+ 
+ func (c NRGBAColor) RGBA() (r, g, b, a uint32) {
+ 	r = uint32(c.R);
+-	r |= r<<8;
++	r |= r << 8;
+ 	r *= uint32(c.A);
+ 	r /= 0xff;
+-	r |= r<<16;
++	r |= r << 16;
+ 	g = uint32(c.G);
+-	g |= g<<8;
++	g |= g << 8;
+ 	g *= uint32(c.A);
+ 	g /= 0xff;
+-	g |= g<<16;
++	g |= g << 16;
+ 	b = uint32(c.B);
+-	b |= b<<8;
++	b |= b << 8;
+ 	b *= uint32(c.A);
+ 	b /= 0xff;
+-	b |= b<<16;
++	b |= b << 16;
+ 	a = uint32(c.A);
+-	a |= a<<8;
+-	a |= a<<16;
++	a |= a << 8;
++	a |= a << 16;
+ 	return;
+ }
+ 
+@@ -85,18 +85,18 @@ func (c NRGBA64Color) RGBA() (r, g, b, a uint32) {
+ 	r = uint32(c.R);
+ 	r *= uint32(c.A);
+ 	r /= 0xffff;
+-	r |= r<<16;
++	r |= r << 16;
+ 	g = uint32(c.G);
+ 	g *= uint32(c.A);
+ 	g /= 0xffff;
+-	g |= g<<16;
++	g |= g << 16;
+ 	b = uint32(c.B);
+ 	b *= uint32(c.A);
+ 	b /= 0xffff;
+-	b |= b<<16;
++	b |= b << 16;
+ 	a = uint32(c.A);
+-	a |= a<<8;
+-	a |= a<<16;
++	a |= a << 8;
++	a |= a << 16;
+ 	return;
+ }
+ 
+@@ -121,7 +121,7 @@ func toRGBAColor(c Color) Color {
+ 		return c
+ 	}
+ 	r, g, b, a := c.RGBA();
+-	return RGBAColor{uint8(r>>24), uint8(g>>24), uint8(b>>24), uint8(a>>24)};
++	return RGBAColor{uint8(r >> 24), uint8(g >> 24), uint8(b >> 24), uint8(a >> 24)};
+ }
+ 
+ func toRGBA64Color(c Color) Color {
+@@ -129,7 +129,7 @@ func toRGBA64Color(c Color) Color {
+ 		return c
+ 	}
+ 	r, g, b, a := c.RGBA();
+-	return RGBA64Color{uint16(r>>16), uint16(g>>16), uint16(b>>16), uint16(a>>16)};
++	return RGBA64Color{uint16(r >> 16), uint16(g >> 16), uint16(b >> 16), uint16(a >> 16)};
+ }
+ 
+ func toNRGBAColor(c Color) Color {
+@@ -139,7 +139,7 @@ func toNRGBAColor(c Color) Color {
+ 	r, g, b, a := c.RGBA();
+ 	a >>= 16;
+ 	if a == 0xffff {
+-		return NRGBAColor{uint8(r>>24), uint8(g>>24), uint8(b>>24), 0xff}
++		return NRGBAColor{uint8(r >> 24), uint8(g >> 24), uint8(b >> 24), 0xff}
+ 	}
+ 	if a == 0 {
+ 		return NRGBAColor{0, 0, 0, 0}
+@@ -148,10 +148,10 @@ func toNRGBAColor(c Color) Color {
+ 	g >>= 16;
+ 	b >>= 16;
+ 	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
+-	r = (r*0xffff)/a;
+-	g = (g*0xffff)/a;
+-	b = (b*0xffff)/a;
+-	return NRGBAColor{uint8(r>>8), uint8(g>>8), uint8(b>>8), uint8(a>>8)};
++	r = (r * 0xffff) / a;
++	g = (g * 0xffff) / a;
++	b = (b * 0xffff) / a;
++	return NRGBAColor{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), uint8(a >> 8)};
+ }
+ 
+ func toNRGBA64Color(c Color) Color {
+@@ -170,9 +170,9 @@ func toNRGBA64Color(c Color) Color {
+ 		return NRGBA64Color{0, 0, 0, 0}
+ 	}
+ 	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
+-	r = (r*0xffff)/a;
+-	g = (g*0xffff)/a;
+-	b = (b*0xffff)/a;
++	r = (r * 0xffff) / a;
++	g = (g * 0xffff) / a;
++	b = (b * 0xffff) / a;
+ 	return NRGBA64Color{uint16(r), uint16(g), uint16(b), uint16(a)};
+ }
+ 
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index 49d7f5a4d9..c83258d2c1 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -140,9 +140,9 @@ type PalettedColorModel []Color
+ 
+ func diff(a, b uint32) uint32 {
+ 	if a > b {
+-		return a-b
++		return a - b
+ 	}
+-	return b-a;
++	return b - a;
+ }
+ 
+ // Convert returns the palette color closest to c in Euclidean R,G,B space.
+@@ -166,7 +166,7 @@ func (p PalettedColorModel) Convert(c Color) Color {
+ 		vg >>= 17;
+ 		vb >>= 17;
+ 		dr, dg, db := diff(cr, vr), diff(cg, vg), diff(cb, vb);
+-		ssd := (dr*dr)+(dg*dg)+(db*db);
++		ssd := (dr * dr) + (dg * dg) + (db * db);
+ 		if ssd < bestSSD {
+ 			bestSSD = ssd;
+ 			result = v;
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index e8eba566a9..ac35df8102 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -57,7 +57,7 @@ type decoder struct {
+ 	stage		int;
+ 	idatWriter	io.WriteCloser;
+ 	idatDone	chan os.Error;
+-	tmp		[3*256]byte;
++	tmp		[3 * 256]byte;
+ }
+ 
+ // A FormatError reports that the input is not a valid PNG.
+@@ -118,7 +118,7 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 	if w < 0 || h < 0 {
+ 		return FormatError("negative dimension")
+ 	}
+-	nPixels := int64(w)*int64(h);
++	nPixels := int64(w) * int64(h);
+ 	if nPixels != int64(int(nPixels)) {
+ 		return UnsupportedError("dimension overflow")
+ 	}
+@@ -138,11 +138,11 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ }
+ 
+ func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Error {
+-	np := int(length/3);	// The number of palette entries.
++	np := int(length / 3);	// The number of palette entries.
+ 	if length%3 != 0 || np <= 0 || np > 256 {
+ 		return FormatError("bad PLTE length")
+ 	}
+-	n, err := io.ReadFull(r, d.tmp[0 : 3*np]);
++	n, err := io.ReadFull(r, d.tmp[0:3*np]);
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -151,7 +151,7 @@ func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 	case ctPaletted:
+ 		palette := make([]image.Color, np);
+ 		for i := 0; i < np; i++ {
+-			palette[i] = image.RGBAColor{d.tmp[3*i + 0], d.tmp[3*i + 1], d.tmp[3*i + 2], 0xff}
++			palette[i] = image.RGBAColor{d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff}
+ 		}
+ 		d.image.(*image.Paletted).Palette = image.PalettedColorModel(palette);
+ 	case ctTrueColor, ctTrueColorAlpha:
+@@ -166,10 +166,10 @@ func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 
+ // The Paeth filter function, as per the PNG specification.
+ func paeth(a, b, c uint8) uint8 {
+-	p := int(a)+int(b)-int(c);
+-	pa := abs(p-int(a));
+-	pb := abs(p-int(b));
+-	pc := abs(p-int(c));
++	p := int(a) + int(b) - int(c);
++	pa := abs(p - int(a));
++	pb := abs(p - int(b));
++	pc := abs(p - int(c));
+ 	if pa <= pb && pa <= pc {
+ 		return a
+ 	} else if pb <= pc {
+@@ -198,15 +198,15 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 	case ctPaletted:
+ 		bpp = 1;
+ 		paletted = d.image.(*image.Paletted);
+-		maxPalette = uint8(len(paletted.Palette)-1);
++		maxPalette = uint8(len(paletted.Palette) - 1);
+ 	case ctTrueColorAlpha:
+ 		bpp = 4;
+ 		nrgba = d.image.(*image.NRGBA);
+ 	}
+ 	// cr and pr are the bytes for the current and previous row.
+ 	// The +1 is for the per-row filter type, which is at cr[0].
+-	cr := make([]uint8, 1 + bpp * d.width);
+-	pr := make([]uint8, 1 + bpp * d.width);
++	cr := make([]uint8, 1+bpp*d.width);
++	pr := make([]uint8, 1+bpp*d.width);
+ 
+ 	for y := 0; y < d.height; y++ {
+ 		// Read the decompressed bytes.
+@@ -231,10 +231,10 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 			}
+ 		case ftAverage:
+ 			for i := 0; i < bpp; i++ {
+-				cdat[i] += pdat[i]/2
++				cdat[i] += pdat[i] / 2
+ 			}
+ 			for i := bpp; i < len(cdat); i++ {
+-				cdat[i] += uint8((int(cdat[i-bpp])+int(pdat[i]))/2)
++				cdat[i] += uint8((int(cdat[i-bpp]) + int(pdat[i])) / 2)
+ 			}
+ 		case ftPaeth:
+ 			for i := 0; i < bpp; i++ {
+@@ -251,7 +251,7 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 		switch d.colorType {
+ 		case ctTrueColor:
+ 			for x := 0; x < d.width; x++ {
+-				rgba.Set(x, y, image.RGBAColor{cdat[3*x + 0], cdat[3*x + 1], cdat[3*x + 2], 0xff})
++				rgba.Set(x, y, image.RGBAColor{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
+ 			}
+ 		case ctPaletted:
+ 			for x := 0; x < d.width; x++ {
+@@ -262,7 +262,7 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 			}
+ 		case ctTrueColorAlpha:
+ 			for x := 0; x < d.width; x++ {
+-				nrgba.Set(x, y, image.NRGBAColor{cdat[4*x + 0], cdat[4*x + 1], cdat[4*x + 2], cdat[4*x + 3]})
++				nrgba.Set(x, y, image.NRGBAColor{cdat[4*x+0], cdat[4*x+1], cdat[4*x+2], cdat[4*x+3]})
+ 			}
+ 		}
+ 
+@@ -293,7 +293,7 @@ func (d *decoder) parseIDAT(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 	}
+ 	var buf [4096]byte;
+ 	for length > 0 {
+-		n, err1 := r.Read(buf[0 : min(len(buf), int(length))]);
++		n, err1 := r.Read(buf[0:min(len(buf), int(length))]);
+ 		// We delay checking err1. It is possible to get n bytes and an error,
+ 		// but if the n bytes themselves contain a FormatError, for example, we
+ 		// want to report that error, and not the one that made the Read stop.
+@@ -369,7 +369,7 @@ func (d *decoder) parseChunk(r io.Reader) os.Error {
+ 		// Ignore this chunk (of a known length).
+ 		var ignored [4096]byte;
+ 		for length > 0 {
+-			n, err = io.ReadFull(r, ignored[0 : min(len(ignored), int(length))]);
++			n, err = io.ReadFull(r, ignored[0:min(len(ignored), int(length))]);
+ 			if err != nil {
+ 				return err
+ 			}
+diff --git a/src/pkg/image/png/reader_test.go b/src/pkg/image/png/reader_test.go
+index 97b4e8ec6e..2885b33441 100644
+--- a/src/pkg/image/png/reader_test.go
++++ b/src/pkg/image/png/reader_test.go
+@@ -49,7 +49,7 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
+ 	bitdepth := 8;
+ 
+ 	// Write the filename and IHDR.
+-	io.WriteString(w, "#SNG: from " + filename + ".png\nIHDR {\n");
++	io.WriteString(w, "#SNG: from "+filename+".png\nIHDR {\n");
+ 	fmt.Fprintf(w, "    width: %d; height: %d; bitdepth: %d;\n", png.Width(), png.Height(), bitdepth);
+ 	cm := png.ColorModel();
+ 	var paletted *image.Paletted;
+@@ -122,7 +122,7 @@ func TestReader(t *testing.T) {
+ 		defer piper.Close();
+ 
+ 		// Read the .sng file.
+-		sf, err := os.Open("testdata/pngsuite/" + fn + ".sng", os.O_RDONLY, 0444);
++		sf, err := os.Open("testdata/pngsuite/"+fn+".sng", os.O_RDONLY, 0444);
+ 		if err != nil {
+ 			t.Error(fn, err);
+ 			continue;
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index 8c8a415371..08d09f135a 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -21,15 +21,15 @@ type encoder struct {
+ 	err		os.Error;
+ 	header		[8]byte;
+ 	footer		[4]byte;
+-	tmp		[3*256]byte;
++	tmp		[3 * 256]byte;
+ }
+ 
+ // Big-endian.
+ func writeUint32(b []uint8, u uint32) {
+-	b[0] = uint8(u>>24);
+-	b[1] = uint8(u>>16);
+-	b[2] = uint8(u>>8);
+-	b[3] = uint8(u>>0);
++	b[0] = uint8(u >> 24);
++	b[1] = uint8(u >> 16);
++	b[2] = uint8(u >> 8);
++	b[3] = uint8(u >> 0);
+ }
+ 
+ // Returns whether or not the image is fully opaque.
+@@ -50,7 +50,7 @@ func abs8(d uint8) int {
+ 	if d < 128 {
+ 		return int(d)
+ 	}
+-	return 256-int(d);
++	return 256 - int(d);
+ }
+ 
+ func (e *encoder) writeChunk(b []byte, name string) {
+@@ -105,11 +105,11 @@ func (e *encoder) writePLTE(p image.PalettedColorModel) {
+ 			e.err = UnsupportedError("non-opaque palette color");
+ 			return;
+ 		}
+-		e.tmp[3*i + 0] = uint8(r>>24);
+-		e.tmp[3*i + 1] = uint8(g>>24);
+-		e.tmp[3*i + 2] = uint8(b>>24);
++		e.tmp[3*i+0] = uint8(r >> 24);
++		e.tmp[3*i+1] = uint8(g >> 24);
++		e.tmp[3*i+2] = uint8(b >> 24);
+ 	}
+-	e.writeChunk(e.tmp[0 : 3*len(p)], "PLTE");
++	e.writeChunk(e.tmp[0:3*len(p)], "PLTE");
+ }
+ 
+ // An encoder is an io.Writer that satisfies writes by writing PNG IDAT chunks,
+@@ -148,7 +148,7 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
+ 	// The up filter.
+ 	sum := 0;
+ 	for i := 0; i < n; i++ {
+-		cdat2[i] = cdat0[i]-pdat[i];
++		cdat2[i] = cdat0[i] - pdat[i];
+ 		sum += abs8(cdat2[i]);
+ 	}
+ 	best := sum;
+@@ -192,7 +192,7 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
+ 		sum += abs8(cdat1[i]);
+ 	}
+ 	for i := bpp; i < n; i++ {
+-		cdat1[i] = cdat0[i]-cdat0[i-bpp];
++		cdat1[i] = cdat0[i] - cdat0[i-bpp];
+ 		sum += abs8(cdat1[i]);
+ 		if sum >= best {
+ 			break
+@@ -210,7 +210,7 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
+ 		sum += abs8(cdat3[i]);
+ 	}
+ 	for i := bpp; i < n; i++ {
+-		cdat3[i] = cdat0[i]-uint8((int(cdat0[i-bpp])+int(pdat[i]))/2);
++		cdat3[i] = cdat0[i] - uint8((int(cdat0[i-bpp])+int(pdat[i]))/2);
+ 		sum += abs8(cdat3[i]);
+ 		if sum >= best {
+ 			break
+@@ -249,10 +249,10 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
+ 	// The +1 is for the per-row filter type, which is at cr[*][0].
+ 	var cr [nFilter][]uint8;
+ 	for i := 0; i < len(cr); i++ {
+-		cr[i] = make([]uint8, 1 + bpp * m.Width());
++		cr[i] = make([]uint8, 1+bpp*m.Width());
+ 		cr[i][0] = uint8(i);
+ 	}
+-	pr := make([]uint8, 1 + bpp * m.Width());
++	pr := make([]uint8, 1+bpp*m.Width());
+ 
+ 	for y := 0; y < m.Height(); y++ {
+ 		// Convert from colors to bytes.
+@@ -261,9 +261,9 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
+ 			for x := 0; x < m.Width(); x++ {
+ 				// We have previously verified that the alpha value is fully opaque.
+ 				r, g, b, _ := m.At(x, y).RGBA();
+-				cr[0][3*x + 1] = uint8(r>>24);
+-				cr[0][3*x + 2] = uint8(g>>24);
+-				cr[0][3*x + 3] = uint8(b>>24);
++				cr[0][3*x+1] = uint8(r >> 24);
++				cr[0][3*x+2] = uint8(g >> 24);
++				cr[0][3*x+3] = uint8(b >> 24);
+ 			}
+ 		case ctPaletted:
+ 			for x := 0; x < m.Width(); x++ {
+@@ -273,10 +273,10 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
+ 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
+ 			for x := 0; x < m.Width(); x++ {
+ 				c := image.NRGBAColorModel.Convert(m.At(x, y)).(image.NRGBAColor);
+-				cr[0][4*x + 1] = c.R;
+-				cr[0][4*x + 2] = c.G;
+-				cr[0][4*x + 3] = c.B;
+-				cr[0][4*x + 4] = c.A;
++				cr[0][4*x+1] = c.R;
++				cr[0][4*x+2] = c.G;
++				cr[0][4*x+3] = c.B;
++				cr[0][4*x+4] = c.A;
+ 			}
+ 		}
+ 
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 7b71472add..90f6566ac2 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -183,7 +183,7 @@ func Copyn(dst Writer, src Reader, n int64) (written int64, err os.Error) {
+ 	buf := make([]byte, 32*1024);
+ 	for written < n {
+ 		l := len(buf);
+-		if d := n-written; d < int64(l) {
++		if d := n - written; d < int64(l) {
+ 			l = int(d)
+ 		}
+ 		nr, er := src.Read(buf[0:l]);
+@@ -255,7 +255,7 @@ func (l *limitedReader) Read(p []byte) (n int, err os.Error) {
+ 		return 0, os.EOF
+ 	}
+ 	if int64(len(p)) > l.n {
+-		p = p[0 : l.n]
++		p = p[0:l.n]
+ 	}
+ 	n, err = l.r.Read(p);
+ 	l.n -= int64(n);
+@@ -265,7 +265,7 @@ func (l *limitedReader) Read(p []byte) (n int, err os.Error) {
+ // NewSectionReader returns a SectionReader that reads from r
+ // starting at offset off and stops with os.EOF after n bytes.
+ func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
+-	return &SectionReader{r, off, off, off+n}
++	return &SectionReader{r, off, off, off + n}
+ }
+ 
+ // SectionReader implements Read, Seek, and ReadAt on a section
+@@ -308,7 +308,7 @@ func (s *SectionReader) Seek(offset int64, whence int) (ret int64, err os.Error)
+ }
+ 
+ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err os.Error) {
+-	if off < 0 || off >= s.limit - s.base {
++	if off < 0 || off >= s.limit-s.base {
+ 		return 0, os.EOF
+ 	}
+ 	off += s.base;
+diff --git a/src/pkg/io/pipe_test.go b/src/pkg/io/pipe_test.go
+index 16c49977bc..df83c3adea 100644
+--- a/src/pkg/io/pipe_test.go
++++ b/src/pkg/io/pipe_test.go
+@@ -63,7 +63,7 @@ func TestPipe2(t *testing.T) {
+ 	go reader(t, r, c);
+ 	var buf = make([]byte, 64);
+ 	for i := 0; i < 5; i++ {
+-		p := buf[0 : 5 + i*10];
++		p := buf[0 : 5+i*10];
+ 		n, err := w.Write(p);
+ 		if n != len(p) {
+ 			t.Errorf("wrote %d, got %d", len(p), n)
+diff --git a/src/pkg/io/utils.go b/src/pkg/io/utils.go
+index c98521d802..ccd6115711 100644
+--- a/src/pkg/io/utils.go
++++ b/src/pkg/io/utils.go
+@@ -33,7 +33,7 @@ func ReadFile(filename string) ([]byte, os.Error) {
+ // If the file does not exist, WriteFile creates it with permissions perm;
+ // otherwise WriteFile truncates it before writing.
+ func WriteFile(filename string, data []byte, perm int) os.Error {
+-	f, err := os.Open(filename, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, perm);
++	f, err := os.Open(filename, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, perm);
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/pkg/json/parse.go b/src/pkg/json/parse.go
+index 74208824b4..ac44afca14 100644
+--- a/src/pkg/json/parse.go
++++ b/src/pkg/json/parse.go
+@@ -31,11 +31,11 @@ func _UnHex(p string, r, l int) (v int, ok bool) {
+ 		v *= 16;
+ 		switch {
+ 		case '0' <= p[i] && p[i] <= '9':
+-			v += int(p[i]-'0')
++			v += int(p[i] - '0')
+ 		case 'a' <= p[i] && p[i] <= 'f':
+-			v += int(p[i]-'a'+10)
++			v += int(p[i] - 'a' + 10)
+ 		case 'A' <= p[i] && p[i] <= 'F':
+-			v += int(p[i]-'A'+10)
++			v += int(p[i] - 'A' + 10)
+ 		default:
+ 			return 0, false
+ 		}
+@@ -208,7 +208,7 @@ func skipstring(p string, i int) int {
+ 	if i >= len(p) {
+ 		return i
+ 	}
+-	return i+1;
++	return i + 1;
+ }
+ 
+ func (t *_Lexer) Next() {
+diff --git a/src/pkg/json/struct.go b/src/pkg/json/struct.go
+index 11aaccee9d..3fcf00e897 100644
+--- a/src/pkg/json/struct.go
++++ b/src/pkg/json/struct.go
+@@ -167,7 +167,7 @@ func (b *structBuilder) Elem(i int) Builder {
+ 			v.Set(nv);
+ 		}
+ 		if v.Len() <= i && i < v.Cap() {
+-			v.SetLen(i+1)
++			v.SetLen(i + 1)
+ 		}
+ 		if i < v.Len() {
+ 			return &structBuilder{val: v.Elem(i)}
+diff --git a/src/pkg/log/log.go b/src/pkg/log/log.go
+index 0ace84c0a0..6f07e67bcd 100644
+--- a/src/pkg/log/log.go
++++ b/src/pkg/log/log.go
+@@ -29,7 +29,7 @@ const (
+ 	// order they appear (the order listed here) or the format they present (as
+ 	// described in the comments).  A colon appears after these items:
+ 	//	2009/0123 01:23:23.123123 /a/b/c/d.go:23: message
+-	Ldate		= 1<<iota;	// the date: 2009/0123
++	Ldate		= 1 << iota;	// the date: 2009/0123
+ 	Ltime;		// the time: 01:23:23
+ 	Lmicroseconds;	// microsecond resolution: 01:23:23.123123.  assumes Ltime.
+ 	Llongfile;	// full file name and line number: /a/b/c/d.go:23
+@@ -75,7 +75,7 @@ func itoa(i int, wid int) string {
+ 	for ; u > 0 || wid > 0; u /= 10 {
+ 		bp--;
+ 		wid--;
+-		b[bp] = byte(u%10)+'0';
++		b[bp] = byte(u%10) + '0';
+ 	}
+ 
+ 	return string(b[bp:len(b)]);
+@@ -83,27 +83,27 @@ func itoa(i int, wid int) string {
+ 
+ func (l *Logger) formatHeader(ns int64, calldepth int) string {
+ 	h := l.prefix;
+-	if l.flag & (Ldate | Ltime | Lmicroseconds) != 0 {
+-		t := time.SecondsToLocalTime(ns/1e9);
+-		if l.flag & (Ldate) != 0 {
++	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
++		t := time.SecondsToLocalTime(ns / 1e9);
++		if l.flag&(Ldate) != 0 {
+ 			h += itoa(int(t.Year), 4) + "/" + itoa(t.Month, 2) + "/" + itoa(t.Day, 2) + " "
+ 		}
+-		if l.flag & (Ltime | Lmicroseconds) != 0 {
++		if l.flag&(Ltime|Lmicroseconds) != 0 {
+ 			h += itoa(t.Hour, 2) + ":" + itoa(t.Minute, 2) + ":" + itoa(t.Second, 2);
+-			if l.flag & Lmicroseconds != 0 {
++			if l.flag&Lmicroseconds != 0 {
+ 				h += "." + itoa(int(ns%1e9)/1e3, 6)
+ 			}
+ 			h += " ";
+ 		}
+ 	}
+-	if l.flag & (Lshortfile | Llongfile) != 0 {
++	if l.flag&(Lshortfile|Llongfile) != 0 {
+ 		_, file, line, ok := runtime.Caller(calldepth);
+ 		if ok {
+-			if l.flag & Lshortfile != 0 {
++			if l.flag&Lshortfile != 0 {
+ 				short, ok := shortnames[file];
+ 				if !ok {
+ 					short = file;
+-					for i := len(file)-1; i > 0; i-- {
++					for i := len(file) - 1; i > 0; i-- {
+ 						if file[i] == '/' {
+ 							short = file[i+1 : len(file)];
+ 							break;
+@@ -131,7 +131,7 @@ func (l *Logger) Output(calldepth int, s string) {
+ 	if len(s) > 0 && s[len(s)-1] == '\n' {
+ 		newline = ""
+ 	}
+-	s = l.formatHeader(now, calldepth + 1) + s + newline;
++	s = l.formatHeader(now, calldepth+1) + s + newline;
+ 	io.WriteString(l.out0, s);
+ 	if l.out1 != nil {
+ 		io.WriteString(l.out1, s)
+diff --git a/src/pkg/log/log_test.go b/src/pkg/log/log_test.go
+index 66260935db..921abd612d 100644
+--- a/src/pkg/log/log_test.go
++++ b/src/pkg/log/log_test.go
+@@ -32,8 +32,8 @@ var tests = []tester{
+ 	// individual pieces:
+ 	tester{0, "", ""},
+ 	tester{0, "XXX", "XXX"},
+-	tester{Lok|Ldate, "", Rdate+" "},
+-	tester{Lok|Ltime, "", Rtime+" "},
++	tester{Lok | Ldate, "", Rdate + " "},
++	tester{Lok | Ltime, "", Rtime + " "},
+ 	tester{Lok | Ltime | Lmicroseconds, "", Rtime + Rmicroseconds + " "},
+ 	tester{Lok | Lmicroseconds, "", Rtime + Rmicroseconds + " "},	// microsec implies time
+ 	tester{Lok | Llongfile, "", Rlongfile + " "},
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 7e53044eac..8b4299e7e7 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -155,13 +155,13 @@ var tanh = []float64{
+ }
+ 
+ func tolerance(a, b, e float64) bool {
+-	d := a-b;
++	d := a - b;
+ 	if d < 0 {
+ 		d = -d
+ 	}
+ 
+ 	if a != 0 {
+-		e = e*a;
++		e = e * a;
+ 		if e < 0 {
+ 			e = -e
+ 		}
+@@ -173,7 +173,7 @@ func veryclose(a, b float64) bool	{ return tolerance(a, b, 4e-16) }
+ 
+ func TestAsin(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := Asin(vf[i]/10); !veryclose(asin[i], f) {
++		if f := Asin(vf[i] / 10); !veryclose(asin[i], f) {
+ 			t.Errorf("Asin(%g) = %g, want %g\n", vf[i]/10, f, asin[i])
+ 		}
+ 	}
+@@ -266,7 +266,7 @@ func TestTanh(t *testing.T) {
+ 
+ func TestHypot(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		a := Fabs(tanh[i]*Sqrt(2));
++		a := Fabs(tanh[i] * Sqrt(2));
+ 		if f := Hypot(tanh[i], tanh[i]); !veryclose(a, f) {
+ 			t.Errorf("Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a)
+ 		}
+diff --git a/src/pkg/math/asin.go b/src/pkg/math/asin.go
+index c4696e8e3a..3ba36abf58 100644
+--- a/src/pkg/math/asin.go
++++ b/src/pkg/math/asin.go
+@@ -27,7 +27,7 @@ func Asin(x float64) float64 {
+ 	if x > 0.7 {
+ 		temp = Pi/2 - Atan(temp/x)
+ 	} else {
+-		temp = Atan(x/temp)
++		temp = Atan(x / temp)
+ 	}
+ 
+ 	if sign {
+diff --git a/src/pkg/math/atan.go b/src/pkg/math/atan.go
+index 641f905518..1582031a3b 100644
+--- a/src/pkg/math/atan.go
++++ b/src/pkg/math/atan.go
+@@ -31,10 +31,10 @@ func xatan(arg float64) float64 {
+ 		Q1	= .207933497444540981287275926e4;
+ 		Q0	= .89678597403663861962481162e3;
+ 	)
+-	sq := arg*arg;
+-	value := ((((P4*sq + P3)*sq + P2)*sq + P1)*sq + P0);
+-	value = value/(((((sq+Q4)*sq + Q3)*sq + Q2)*sq + Q1)*sq + Q0);
+-	return value*arg;
++	sq := arg * arg;
++	value := ((((P4*sq+P3)*sq+P2)*sq + P1) * sq + P0);
++	value = value / (((((sq+Q4)*sq+Q3)*sq+Q2)*sq+Q1)*sq + Q0);
++	return value * arg;
+ }
+ 
+ /*
+diff --git a/src/pkg/math/atan2.go b/src/pkg/math/atan2.go
+index 95226b9d8d..7165c539ee 100644
+--- a/src/pkg/math/atan2.go
++++ b/src/pkg/math/atan2.go
+@@ -12,16 +12,16 @@ func Atan2(x, y float64) float64 {
+ 	// Determine the quadrant and call atan.
+ 	if x+y == x {
+ 		if x >= 0 {
+-			return Pi/2
++			return Pi / 2
+ 		}
+ 		return -Pi / 2;
+ 	}
+-	q := Atan(x/y);
++	q := Atan(x / y);
+ 	if y < 0 {
+ 		if q <= 0 {
+-			return q+Pi
++			return q + Pi
+ 		}
+-		return q-Pi;
++		return q - Pi;
+ 	}
+ 	return q;
+ }
+diff --git a/src/pkg/math/bits.go b/src/pkg/math/bits.go
+index b1bf2da46e..5372c68069 100644
+--- a/src/pkg/math/bits.go
++++ b/src/pkg/math/bits.go
+@@ -9,7 +9,7 @@ const (
+ 	uvinf		= 0x7FF0000000000000;
+ 	uvneginf	= 0xFFF0000000000000;
+ 	mask		= 0x7FF;
+-	shift		= 64-11-1;
++	shift		= 64 - 11 - 1;
+ 	bias		= 1022;
+ )
+ 
+@@ -51,9 +51,9 @@ func Frexp(f float64) (frac float64, exp int) {
+ 		return
+ 	}
+ 	x := Float64bits(f);
+-	exp = int((x>>shift)&mask)-bias;
+-	x &^= mask<<shift;
+-	x |= bias<<shift;
++	exp = int((x>>shift)&mask) - bias;
++	x &^= mask << shift;
++	x |= bias << shift;
+ 	frac = Float64frombits(x);
+ 	return;
+ }
+@@ -62,7 +62,7 @@ func Frexp(f float64) (frac float64, exp int) {
+ // It returns frac × 2<sup>exp</sup>.
+ func Ldexp(frac float64, exp int) float64 {
+ 	x := Float64bits(frac);
+-	exp += int(x>>shift)&mask;
++	exp += int(x>>shift) & mask;
+ 	if exp <= 0 {
+ 		return 0	// underflow
+ 	}
+@@ -72,8 +72,8 @@ func Ldexp(frac float64, exp int) float64 {
+ 		}
+ 		return Inf(1);
+ 	}
+-	x &^= mask<<shift;
+-	x |= uint64(exp)<<shift;
++	x &^= mask << shift;
++	x |= uint64(exp) << shift;
+ 	return Float64frombits(x);
+ }
+ 
+@@ -97,6 +97,6 @@ func Modf(f float64) (int float64, frac float64) {
+ 		x &^= 1<<(64-11-e) - 1
+ 	}
+ 	int = Float64frombits(x);
+-	frac = f-int;
++	frac = f - int;
+ 	return;
+ }
+diff --git a/src/pkg/math/const.go b/src/pkg/math/const.go
+index 19fa8fa7e0..68ecefaa98 100644
+--- a/src/pkg/math/const.go
++++ b/src/pkg/math/const.go
+@@ -18,9 +18,9 @@ const (
+ 	SqrtPhi	= 1.27201964951406896425242246173749149171560804184009624861664038;	// A139339
+ 
+ 	Ln2	= 0.693147180559945309417232121458176568075500134360255254120680009;	// A002162
+-	Log2E	= 1/Ln2;
++	Log2E	= 1 / Ln2;
+ 	Ln10	= 2.30258509299404568401799145468436420760110148862877297603332790;	// A002392
+-	Log10E	= 1/Ln10;
++	Log10E	= 1 / Ln10;
+ )
+ 
+ // Floating-point limit values.
+diff --git a/src/pkg/math/exp.go b/src/pkg/math/exp.go
+index a5f562031a..cdee0d70ad 100644
+--- a/src/pkg/math/exp.go
++++ b/src/pkg/math/exp.go
+@@ -101,7 +101,7 @@ func Exp(x float64) float64 {
+ 
+ 		Overflow	= 7.09782712893383973096e+02;
+ 		Underflow	= -7.45133219101941108420e+02;
+-		NearZero	= 1.0/(1<<28);	// 2^-28
++		NearZero	= 1.0 / (1 << 28);	// 2^-28
+ 	)
+ 
+ 	// special cases
+@@ -127,13 +127,13 @@ func Exp(x float64) float64 {
+ 		k = int(Log2e*x + 0.5)
+ 	}
+ 	hi := x - float64(k)*Ln2Hi;
+-	lo := float64(k)*Ln2Lo;
+-	r := hi-lo;
++	lo := float64(k) * Ln2Lo;
++	r := hi - lo;
+ 
+ 	// compute
+-	t := r*r;
+-	c := r - t*(P1 + t*(P2 + t*(P3 + t*(P4 + t*P5))));
+-	y := 1-((lo - (r*c)/(2-c))-hi);
++	t := r * r;
++	c := r - t*(P1+t*(P2+t*(P3+t*(P4+t*P5))));
++	y := 1 - ((lo - (r*c)/(2-c)) - hi);
+ 	// TODO(rsc): make sure Ldexp can handle boundary k
+ 	return Ldexp(y, k);
+ }
+diff --git a/src/pkg/math/floor.go b/src/pkg/math/floor.go
+index 7a999852d7..96532acbd8 100644
+--- a/src/pkg/math/floor.go
++++ b/src/pkg/math/floor.go
+@@ -10,7 +10,7 @@ func Floor(x float64) float64 {
+ 	if x < 0 {
+ 		d, fract := Modf(-x);
+ 		if fract != 0.0 {
+-			d = d+1
++			d = d + 1
+ 		}
+ 		return -d;
+ 	}
+diff --git a/src/pkg/math/fmod.go b/src/pkg/math/fmod.go
+index 34fbfbdb76..9539b2ac1f 100644
+--- a/src/pkg/math/fmod.go
++++ b/src/pkg/math/fmod.go
+@@ -29,7 +29,7 @@ func Fmod(x, y float64) float64 {
+ 	for r >= y {
+ 		rfr, rexp := Frexp(r);
+ 		if rfr < yfr {
+-			rexp = rexp-1
++			rexp = rexp - 1
+ 		}
+ 		r = r - Ldexp(y, rexp-yexp);
+ 	}
+diff --git a/src/pkg/math/hypot.go b/src/pkg/math/hypot.go
+index 7ff8f4badb..9585da4c50 100644
+--- a/src/pkg/math/hypot.go
++++ b/src/pkg/math/hypot.go
+@@ -31,19 +31,19 @@ func Hypot(p, q float64) float64 {
+ 	}
+ 
+ 	pfac := p;
+-	q = q/p;
++	q = q / p;
+ 	r := q;
+ 	p = 1;
+ 	for {
+-		r = r*r;
+-		s := r+4;
++		r = r * r;
++		s := r + 4;
+ 		if s == 4 {
+-			return p*pfac
++			return p * pfac
+ 		}
+-		r = r/s;
++		r = r / s;
+ 		p = p + 2*r*p;
+-		q = q*r;
+-		r = q/p;
++		q = q * r;
++		r = q / p;
+ 	}
+ 	panic("unreachable");
+ }
+diff --git a/src/pkg/math/log.go b/src/pkg/math/log.go
+index bf8b49a7af..e92650131b 100644
+--- a/src/pkg/math/log.go
++++ b/src/pkg/math/log.go
+@@ -103,18 +103,18 @@ func Log(x float64) float64 {
+ 		f1 *= 2;
+ 		ki--;
+ 	}
+-	f := f1-1;
++	f := f1 - 1;
+ 	k := float64(ki);
+ 
+ 	// compute
+-	s := f/(2+f);
+-	s2 := s*s;
+-	s4 := s2*s2;
+-	t1 := s2*(L1 + s4*(L3 + s4*(L5 + s4*L7)));
+-	t2 := s4*(L2 + s4*(L4 + s4*L6));
+-	R := t1+t2;
+-	hfsq := 0.5*f*f;
+-	return k*Ln2Hi - ((hfsq-(s*(hfsq+R) + k*Ln2Lo))-f);
++	s := f / (2 + f);
++	s2 := s * s;
++	s4 := s2 * s2;
++	t1 := s2 * (L1 + s4*(L3+s4*(L5+s4*L7)));
++	t2 := s4 * (L2 + s4*(L4+s4*L6));
++	R := t1 + t2;
++	hfsq := 0.5 * f * f;
++	return k*Ln2Hi - ((hfsq - (s*(hfsq+R) + k*Ln2Lo)) - f);
+ }
+ 
+ // Log10 returns the decimal logarithm of x.
+@@ -123,5 +123,5 @@ func Log10(x float64) float64 {
+ 	if x <= 0 {
+ 		return NaN()
+ 	}
+-	return Log(x)*(1/Ln10);
++	return Log(x) * (1 / Ln10);
+ }
+diff --git a/src/pkg/math/pow.go b/src/pkg/math/pow.go
+index 9754809364..c91dc44ec9 100644
+--- a/src/pkg/math/pow.go
++++ b/src/pkg/math/pow.go
+@@ -20,7 +20,7 @@ func Pow(x, y float64) float64 {
+ 	case y == 0.5:
+ 		return Sqrt(x)
+ 	case y == -0.5:
+-		return 1/Sqrt(x)
++		return 1 / Sqrt(x)
+ 	}
+ 
+ 	absy := y;
+@@ -34,7 +34,7 @@ func Pow(x, y float64) float64 {
+ 		return NaN()
+ 	}
+ 	if yi >= 1<<63 {
+-		return Exp(y*Log(x))
++		return Exp(y * Log(x))
+ 	}
+ 
+ 	// ans = a1 * 2^ae (= 1 for now).
+@@ -47,7 +47,7 @@ func Pow(x, y float64) float64 {
+ 			yf--;
+ 			yi++;
+ 		}
+-		a1 = Exp(yf*Log(x));
++		a1 = Exp(yf * Log(x));
+ 	}
+ 
+ 	// ans *= x^yi
+@@ -72,7 +72,7 @@ func Pow(x, y float64) float64 {
+ 	// if flip { ans = 1 / ans }
+ 	// but in the opposite order
+ 	if flip {
+-		a1 = 1/a1;
++		a1 = 1 / a1;
+ 		ae = -ae;
+ 	}
+ 	return Ldexp(a1, ae);
+diff --git a/src/pkg/math/pow10.go b/src/pkg/math/pow10.go
+index 1ae6dcd738..edba40a7b0 100644
+--- a/src/pkg/math/pow10.go
++++ b/src/pkg/math/pow10.go
+@@ -18,20 +18,20 @@ var pow10tab [70]float64
+ // Pow10 returns 10**x, the base-10 exponential of x.
+ func Pow10(e int) float64 {
+ 	if e < 0 {
+-		return 1/Pow10(-e)
++		return 1 / Pow10(-e)
+ 	}
+ 	if e < len(pow10tab) {
+ 		return pow10tab[e]
+ 	}
+-	m := e/2;
+-	return Pow10(m)*Pow10(e-m);
++	m := e / 2;
++	return Pow10(m) * Pow10(e-m);
+ }
+ 
+ func init() {
+ 	pow10tab[0] = 1.0e0;
+ 	pow10tab[1] = 1.0e1;
+ 	for i := 2; i < len(pow10tab); i++ {
+-		m := i/2;
+-		pow10tab[i] = pow10tab[m]*pow10tab[i-m];
++		m := i / 2;
++		pow10tab[i] = pow10tab[m] * pow10tab[i-m];
+ 	}
+ }
+diff --git a/src/pkg/math/sin.go b/src/pkg/math/sin.go
+index 2c6f0079e5..adff067c24 100644
+--- a/src/pkg/math/sin.go
++++ b/src/pkg/math/sin.go
+@@ -20,33 +20,33 @@ func sinus(x float64, quad int) float64 {
+ 	)
+ 	if x < 0 {
+ 		x = -x;
+-		quad = quad+2;
++		quad = quad + 2;
+ 	}
+-	x = x*(2/Pi);	/* underflow? */
++	x = x * (2 / Pi);	/* underflow? */
+ 	var y float64;
+ 	if x > 32764 {
+ 		var e float64;
+ 		e, y = Modf(x);
+-		e = e+float64(quad);
+-		_, f := Modf(0.25*e);
++		e = e + float64(quad);
++		_, f := Modf(0.25 * e);
+ 		quad = int(e - 4*f);
+ 	} else {
+ 		k := int32(x);
+-		y = x-float64(k);
+-		quad = (quad+int(k))&3;
++		y = x - float64(k);
++		quad = (quad + int(k)) & 3;
+ 	}
+ 
+ 	if quad&1 != 0 {
+-		y = 1-y
++		y = 1 - y
+ 	}
+ 	if quad > 1 {
+ 		y = -y
+ 	}
+ 
+-	yy := y*y;
+-	temp1 := ((((P4*yy + P3)*yy + P2)*yy + P1)*yy + P0)*y;
+-	temp2 := ((((yy+Q3)*yy + Q2)*yy + Q1)*yy + Q0);
+-	return temp1/temp2;
++	yy := y * y;
++	temp1 := ((((P4*yy+P3)*yy+P2)*yy+P1)*yy + P0) * y;
++	temp2 := ((((yy+Q3)*yy+Q2)*yy + Q1) * yy + Q0);
++	return temp1 / temp2;
+ }
+ 
+ // Cos returns the cosine of x.
+diff --git a/src/pkg/math/sinh.go b/src/pkg/math/sinh.go
+index 72775da8fc..968b89b6dc 100644
+--- a/src/pkg/math/sinh.go
++++ b/src/pkg/math/sinh.go
+@@ -39,15 +39,15 @@ func Sinh(x float64) float64 {
+ 	var temp float64;
+ 	switch true {
+ 	case x > 21:
+-		temp = Exp(x)/2
++		temp = Exp(x) / 2
+ 
+ 	case x > 0.5:
+-		temp = (Exp(x)-Exp(-x))/2
++		temp = (Exp(x) - Exp(-x)) / 2
+ 
+ 	default:
+-		sq := x*x;
+-		temp = (((P3*sq + P2)*sq + P1)*sq + P0)*x;
+-		temp = temp/(((sq+Q2)*sq + Q1)*sq + Q0);
++		sq := x * x;
++		temp = (((P3*sq+P2)*sq+P1)*sq + P0) * x;
++		temp = temp / (((sq+Q2)*sq+Q1)*sq + Q0);
+ 	}
+ 
+ 	if sign {
+@@ -62,7 +62,7 @@ func Cosh(x float64) float64 {
+ 		x = -x
+ 	}
+ 	if x > 21 {
+-		return Exp(x)/2
++		return Exp(x) / 2
+ 	}
+-	return (Exp(x)+Exp(-x))/2;
++	return (Exp(x) + Exp(-x)) / 2;
+ }
+diff --git a/src/pkg/math/sqrt.go b/src/pkg/math/sqrt.go
+index 7a5b69a423..63f458b4b3 100644
+--- a/src/pkg/math/sqrt.go
++++ b/src/pkg/math/sqrt.go
+@@ -32,34 +32,34 @@ func Sqrt(x float64) float64 {
+ 
+ 	y, exp := Frexp(x);
+ 	for y < 0.5 {
+-		y = y*2;
+-		exp = exp-1;
++		y = y * 2;
++		exp = exp - 1;
+ 	}
+ 
+ 	if exp&1 != 0 {
+-		y = y*2;
+-		exp = exp-1;
++		y = y * 2;
++		exp = exp - 1;
+ 	}
+-	temp := 0.5*(1+y);
++	temp := 0.5 * (1 + y);
+ 
+ 	for exp > 60 {
+-		temp = temp*float64(1<<30);
+-		exp = exp-60;
++		temp = temp * float64(1<<30);
++		exp = exp - 60;
+ 	}
+ 	for exp < -60 {
+-		temp = temp/float64(1<<30);
+-		exp = exp+60;
++		temp = temp / float64(1<<30);
++		exp = exp + 60;
+ 	}
+ 	if exp >= 0 {
+-		exp = 1<<uint(exp/2);
+-		temp = temp*float64(exp);
++		exp = 1 << uint(exp/2);
++		temp = temp * float64(exp);
+ 	} else {
+-		exp = 1<<uint(-exp / 2);
+-		temp = temp/float64(exp);
++		exp = 1 << uint(-exp/2);
++		temp = temp / float64(exp);
+ 	}
+ 
+ 	for i := 0; i <= 4; i++ {
+-		temp = 0.5*(temp + x/temp)
++		temp = 0.5 * (temp + x/temp)
+ 	}
+ 	return temp;
+ }
+diff --git a/src/pkg/math/tan.go b/src/pkg/math/tan.go
+index cc57155d1b..09ade2da91 100644
+--- a/src/pkg/math/tan.go
++++ b/src/pkg/math/tan.go
+@@ -29,14 +29,14 @@ func Tan(x float64) float64 {
+ 		x = -x;
+ 		sign = true;
+ 	}
+-	x = x*(4/Pi);	/* overflow? */
++	x = x * (4 / Pi);	/* overflow? */
+ 	var e float64;
+ 	e, x = Modf(x);
+ 	i := int32(e);
+ 
+-	switch i&3 {
++	switch i & 3 {
+ 	case 1:
+-		x = 1-x;
++		x = 1 - x;
+ 		flag = true;
+ 
+ 	case 2:
+@@ -44,19 +44,19 @@ func Tan(x float64) float64 {
+ 		flag = true;
+ 
+ 	case 3:
+-		x = 1-x;
++		x = 1 - x;
+ 		sign = !sign;
+ 	}
+ 
+-	xsq := x*x;
+-	temp := ((((P4*xsq + P3)*xsq + P2)*xsq + P1)*xsq + P0)*x;
+-	temp = temp/(((xsq+Q2)*xsq + Q1)*xsq + Q0);
++	xsq := x * x;
++	temp := ((((P4*xsq+P3)*xsq+P2)*xsq+P1)*xsq + P0) * x;
++	temp = temp / (((xsq+Q2)*xsq+Q1)*xsq + Q0);
+ 
+ 	if flag {
+ 		if temp == 0 {
+ 			panic(NaN())
+ 		}
+-		temp = 1/temp;
++		temp = 1 / temp;
+ 	}
+ 	if sign {
+ 		temp = -temp
+diff --git a/src/pkg/math/tanh.go b/src/pkg/math/tanh.go
+index e6d4da87ba..93c68a6e45 100644
+--- a/src/pkg/math/tanh.go
++++ b/src/pkg/math/tanh.go
+@@ -25,5 +25,5 @@ func Tanh(x float64) float64 {
+ 	if x > 21 {
+ 		return 1
+ 	}
+-	return Sinh(x)/Cosh(x);
++	return Sinh(x) / Cosh(x);
+ }
+diff --git a/src/pkg/net/dnsmsg.go b/src/pkg/net/dnsmsg.go
+index 179c0f3542..2bcb88206e 100644
+--- a/src/pkg/net/dnsmsg.go
++++ b/src/pkg/net/dnsmsg.go
+@@ -82,11 +82,11 @@ type __DNS_Header struct {
+ 
+ const (
+ 	// __DNS_Header.Bits
+-	_QR	= 1<<15;	// query/response (response=1)
+-	_AA	= 1<<10;	// authoritative
+-	_TC	= 1<<9;		// truncated
+-	_RD	= 1<<8;		// recursion desired
+-	_RA	= 1<<7;		// recursion available
++	_QR	= 1 << 15;	// query/response (response=1)
++	_AA	= 1 << 10;	// authoritative
++	_TC	= 1 << 9;	// truncated
++	_RD	= 1 << 8;	// recursion desired
++	_RA	= 1 << 7;	// recursion available
+ )
+ 
+ // DNS queries.
+@@ -271,7 +271,7 @@ func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
+ 	// We trade each dot byte for a length byte.
+ 	// There is also a trailing zero.
+ 	// Check that we have all the space we need.
+-	tot := len(s)+1;
++	tot := len(s) + 1;
+ 	if off+tot > len(msg) {
+ 		return len(msg), false
+ 	}
+@@ -283,13 +283,13 @@ func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
+ 			if i-begin >= 1<<6 {	// top two bits of length must be clear
+ 				return len(msg), false
+ 			}
+-			msg[off] = byte(i-begin);
++			msg[off] = byte(i - begin);
+ 			off++;
+ 			for j := begin; j < i; j++ {
+ 				msg[off] = s[j];
+ 				off++;
+ 			}
+-			begin = i+1;
++			begin = i + 1;
+ 		}
+ 	}
+ 	msg[off] = 0;
+@@ -320,7 +320,7 @@ Loop:
+ 		}
+ 		c := int(msg[off]);
+ 		off++;
+-		switch c&0xC0 {
++		switch c & 0xC0 {
+ 		case 0x00:
+ 			if c == 0x00 {
+ 				// end of name
+@@ -330,7 +330,7 @@ Loop:
+ 			if off+c > len(msg) {
+ 				return "", len(msg), false
+ 			}
+-			s += string(msg[off : off+c])+".";
++			s += string(msg[off:off+c]) + ".";
+ 			off += c;
+ 		case 0xC0:
+ 			// pointer to somewhere else in msg.
+@@ -378,7 +378,7 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
+ 			if off+2 > len(msg) {
+ 				return len(msg), false
+ 			}
+-			msg[off] = byte(i>>8);
++			msg[off] = byte(i >> 8);
+ 			msg[off+1] = byte(i);
+ 			off += 2;
+ 		case *reflect.Uint32Value:
+@@ -386,9 +386,9 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
+ 			if off+4 > len(msg) {
+ 				return len(msg), false
+ 			}
+-			msg[off] = byte(i>>24);
+-			msg[off+1] = byte(i>>16);
+-			msg[off+2] = byte(i>>8);
++			msg[off] = byte(i >> 24);
++			msg[off+1] = byte(i >> 16);
++			msg[off+2] = byte(i >> 8);
+ 			msg[off+4] = byte(i);
+ 			off += 4;
+ 		case *reflect.StringValue:
+@@ -535,7 +535,7 @@ func packRR(rr _DNS_RR, msg []byte, off int) (off2 int, ok bool) {
+ 		return len(msg), false
+ 	}
+ 	// pack a third time; redo header with correct data length
+-	rr.Header().Rdlength = uint16(off2-off1);
++	rr.Header().Rdlength = uint16(off2 - off1);
+ 	packStruct(rr.Header(), msg, off);
+ 	return off2, true;
+ }
+@@ -548,7 +548,7 @@ func unpackRR(msg []byte, off int) (rr _DNS_RR, off1 int, ok bool) {
+ 	if off, ok = unpackStruct(&h, msg, off); !ok {
+ 		return nil, len(msg), false
+ 	}
+-	end := off+int(h.Rdlength);
++	end := off + int(h.Rdlength);
+ 
+ 	// make an rr of that type and re-unpack.
+ 	// again inefficient but doesn't need to be fast.
+@@ -657,7 +657,7 @@ func (dns *_DNS_Msg) Unpack(msg []byte) bool {
+ 	}
+ 	dns.id = dh.Id;
+ 	dns.response = (dh.Bits & _QR) != 0;
+-	dns.opcode = int(dh.Bits >> 11)&0xF;
++	dns.opcode = int(dh.Bits>>11) & 0xF;
+ 	dns.authoritative = (dh.Bits & _AA) != 0;
+ 	dns.truncated = (dh.Bits & _TC) != 0;
+ 	dns.recursion_desired = (dh.Bits & _RD) != 0;
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 0f4c30a4b4..a09a7c2fdf 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -134,7 +134,7 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
+ 	}
+ 
+ 	var t int64;
+-	key := intfd<<1;
++	key := intfd << 1;
+ 	if mode == 'r' {
+ 		fd.ncr++;
+ 		t = fd.rdeadline;
+@@ -150,7 +150,7 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
+ }
+ 
+ func (s *pollServer) LookupFD(fd int, mode int) *netFD {
+-	key := fd<<1;
++	key := fd << 1;
+ 	if mode == 'w' {
+ 		key++
+ 	}
+@@ -181,7 +181,7 @@ func (s *pollServer) Now() int64 {
+ 	if err != nil {
+ 		panic("net: os.Time: ", err.String())
+ 	}
+-	nsec += sec*1e9;
++	nsec += sec * 1e9;
+ 	return nsec;
+ }
+ 
+diff --git a/src/pkg/net/fd_darwin.go b/src/pkg/net/fd_darwin.go
+index 36cb513a9a..bf60ca77d2 100644
+--- a/src/pkg/net/fd_darwin.go
++++ b/src/pkg/net/fd_darwin.go
+@@ -50,7 +50,7 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+ 	if e != 0 {
+ 		return os.NewSyscallError("kevent", e)
+ 	}
+-	if n != 1 || (ev.Flags & syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
++	if n != 1 || (ev.Flags&syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
+ 		return os.ErrorString("kqueue phase error")
+ 	}
+ 	if ev.Data != 0 {
+@@ -71,7 +71,7 @@ func (p *pollster) DelFD(fd int, mode int) {
+ 	// EV_DELETE - delete event from kqueue list
+ 	// EV_RECEIPT - generate fake EV_ERROR as result of add,
+ 	//	rather than waiting for real event
+-	syscall.SetKevent(ev, fd, kmode, syscall.EV_DELETE | syscall.EV_RECEIPT);
++	syscall.SetKevent(ev, fd, kmode, syscall.EV_DELETE|syscall.EV_RECEIPT);
+ 	syscall.Kevent(p.kq, &events, &events, nil);
+ }
+ 
+diff --git a/src/pkg/net/fd_linux.go b/src/pkg/net/fd_linux.go
+index ddde33ee41..83d66ac89f 100644
+--- a/src/pkg/net/fd_linux.go
++++ b/src/pkg/net/fd_linux.go
+@@ -73,7 +73,7 @@ func (p *pollster) StopWaiting(fd int, bits uint) {
+ 
+ 	// If syscall.EPOLLONESHOT is not set, the wait
+ 	// is a repeating wait, so don't change it.
+-	if events & syscall.EPOLLONESHOT == 0 {
++	if events&syscall.EPOLLONESHOT == 0 {
+ 		return
+ 	}
+ 
+@@ -81,7 +81,7 @@ func (p *pollster) StopWaiting(fd int, bits uint) {
+ 	// If we're still waiting for other events, modify the fd
+ 	// event in the kernel.  Otherwise, delete it.
+ 	events &= ^uint32(bits);
+-	if int32(events) & ^syscall.EPOLLONESHOT != 0 {
++	if int32(events)&^syscall.EPOLLONESHOT != 0 {
+ 		var ev syscall.EpollEvent;
+ 		ev.Fd = int32(fd);
+ 		ev.Events = events;
+@@ -111,7 +111,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
+ 	ev := &evarray[0];
+ 	var msec int = -1;
+ 	if nsec > 0 {
+-		msec = int((nsec+1e6-1)/1e6)
++		msec = int((nsec + 1e6 - 1) / 1e6)
+ 	}
+ 	n, e := syscall.EpollWait(p.epfd, &evarray, msec);
+ 	for e == syscall.EAGAIN || e == syscall.EINTR {
+@@ -125,18 +125,18 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
+ 	}
+ 	fd = int(ev.Fd);
+ 
+-	if ev.Events & writeFlags != 0 {
++	if ev.Events&writeFlags != 0 {
+ 		p.StopWaiting(fd, writeFlags);
+ 		return fd, 'w', nil;
+ 	}
+-	if ev.Events & readFlags != 0 {
++	if ev.Events&readFlags != 0 {
+ 		p.StopWaiting(fd, readFlags);
+ 		return fd, 'r', nil;
+ 	}
+ 
+ 	// Other events are error conditions - wake whoever is waiting.
+ 	events, _ := p.events[fd];
+-	if events & writeFlags != 0 {
++	if events&writeFlags != 0 {
+ 		p.StopWaiting(fd, writeFlags);
+ 		return fd, 'w', nil;
+ 	}
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index 5d2a1fc859..822cd78a05 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -134,7 +134,7 @@ func (ip IP) Mask(mask IPMask) IP {
+ 	}
+ 	out := make(IP, n);
+ 	for i := 0; i < n; i++ {
+-		out[i] = ip[i]&mask[i]
++		out[i] = ip[i] & mask[i]
+ 	}
+ 	return out;
+ }
+@@ -150,7 +150,7 @@ func itod(i uint) string {
+ 	bp := len(b);
+ 	for ; i > 0; i /= 10 {
+ 		bp--;
+-		b[bp] = byte(i%10)+'0';
++		b[bp] = byte(i%10) + '0';
+ 	}
+ 
+ 	return string(b[bp:len(b)]);
+@@ -221,7 +221,7 @@ func (ip IP) String() string {
+ 		} else if i > 0 {
+ 			s += ":"
+ 		}
+-		s += itox((uint(p[i])<<8)|uint(p[i+1]));
++		s += itox((uint(p[i]) << 8) | uint(p[i+1]));
+ 	}
+ 	return s;
+ }
+@@ -235,7 +235,7 @@ func simpleMaskLength(mask IPMask) int {
+ 			break
+ 		}
+ 	}
+-	n := 8*i;
++	n := 8 * i;
+ 	v := mask[i];
+ 	for v&0x80 != 0 {
+ 		n++;
+@@ -356,7 +356,7 @@ L:	for j < IPv6len {
+ 		}
+ 
+ 		// Save this 16-bit chunk.
+-		p[j] = byte(n>>8);
++		p[j] = byte(n >> 8);
+ 		p[j+1] = byte(n);
+ 		j += 2;
+ 
+@@ -394,11 +394,11 @@ L:	for j < IPv6len {
+ 		if ellipsis < 0 {
+ 			return nil
+ 		}
+-		n := IPv6len-j;
+-		for k := j-1; k >= ellipsis; k-- {
++		n := IPv6len - j;
++		for k := j - 1; k >= ellipsis; k-- {
+ 			p[k+n] = p[k]
+ 		}
+-		for k := ellipsis+n-1; k >= ellipsis; k-- {
++		for k := ellipsis + n - 1; k >= ellipsis; k-- {
+ 			p[k] = 0
+ 		}
+ 	}
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index fc0db9b4ad..2faac1eca2 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -153,7 +153,7 @@ func splitHostPort(hostport string) (host, port string, err os.Error) {
+ 		return;
+ 	}
+ 
+-	host, port = hostport[0:i], hostport[i+1 : len(hostport)];
++	host, port = hostport[0:i], hostport[i+1:len(hostport)];
+ 
+ 	// Can put brackets around host ...
+ 	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
+@@ -173,9 +173,9 @@ func splitHostPort(hostport string) (host, port string, err os.Error) {
+ func joinHostPort(host, port string) string {
+ 	// If host has colons, have to bracket it.
+ 	if byteIndex(host, ':') >= 0 {
+-		return "["+host+"]:"+port
++		return "[" + host + "]:" + port
+ 	}
+-	return host+":"+port;
++	return host + ":" + port;
+ }
+ 
+ // Convert "host:port" into IP address and port.
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 6f75261d3d..c72f5c1fda 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -164,7 +164,7 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
+ 	}
+ 	err = UnknownNetworkError(net);
+ Error:
+-	return nil, &OpError{"dial", net+" "+raddr, nil, err};
++	return nil, &OpError{"dial", net + " " + raddr, nil, err};
+ }
+ 
+ // Listen announces on the local network address laddr.
+diff --git a/src/pkg/net/parse.go b/src/pkg/net/parse.go
+index aa5bbf39d6..cfec46f456 100644
+--- a/src/pkg/net/parse.go
++++ b/src/pkg/net/parse.go
+@@ -27,7 +27,7 @@ func (f *file) getLineFromData() (s string, ok bool) {
+ 			ok = true;
+ 			// move data
+ 			i++;
+-			n := len(data)-i;
++			n := len(data) - i;
+ 			for j := 0; j < n; j++ {
+ 				data[j] = data[i+j]
+ 			}
+@@ -83,7 +83,7 @@ func countAnyByte(s string, t string) int {
+ 
+ // Split s at any bytes in t.
+ func splitAtBytes(s string, t string) []string {
+-	a := make([]string, 1 + countAnyByte(s, t));
++	a := make([]string, 1+countAnyByte(s, t));
+ 	n := 0;
+ 	last := 0;
+ 	for i := 0; i < len(s); i++ {
+@@ -92,7 +92,7 @@ func splitAtBytes(s string, t string) []string {
+ 				a[n] = string(s[last:i]);
+ 				n++;
+ 			}
+-			last = i+1;
++			last = i + 1;
+ 		}
+ 	}
+ 	if last < len(s) {
+@@ -130,13 +130,13 @@ func xtoi(s string, i0 int) (n int, i int, ok bool) {
+ 	for i = i0; i < len(s); i++ {
+ 		if '0' <= s[i] && s[i] <= '9' {
+ 			n *= 16;
+-			n += int(s[i]-'0');
++			n += int(s[i] - '0');
+ 		} else if 'a' <= s[i] && s[i] <= 'f' {
+ 			n *= 16;
+-			n += int(s[i]-'a')+10;
++			n += int(s[i]-'a') + 10;
+ 		} else if 'A' <= s[i] && s[i] <= 'F' {
+ 			n *= 16;
+-			n += int(s[i]-'A')+10;
++			n += int(s[i]-'A') + 10;
+ 		} else {
+ 			break
+ 		}
+diff --git a/src/pkg/net/parse_test.go b/src/pkg/net/parse_test.go
+index ae94a88c48..29b0fc0ceb 100644
+--- a/src/pkg/net/parse_test.go
++++ b/src/pkg/net/parse_test.go
+@@ -41,6 +41,6 @@ func TestReadLine(t *testing.T) {
+ 			break
+ 		}
+ 		lineno++;
+-		byteno += len(line)+1;
++		byteno += len(line) + 1;
+ 	}
+ }
+diff --git a/src/pkg/net/port.go b/src/pkg/net/port.go
+index d43a7347d6..134f9b317b 100644
+--- a/src/pkg/net/port.go
++++ b/src/pkg/net/port.go
+@@ -63,5 +63,5 @@ func LookupPort(network, service string) (port int, err os.Error) {
+ 			return
+ 		}
+ 	}
+-	return 0, &AddrError{"unknown port", network+"/"+service};
++	return 0, &AddrError{"unknown port", network + "/" + service};
+ }
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 21ee92891d..620911e21c 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -48,7 +48,7 @@ func runServe(t *testing.T, network, addr string, listening chan<- string, done
+ func connect(t *testing.T, network, addr string) {
+ 	var laddr string;
+ 	if network == "unixgram" {
+-		laddr = addr+".local"
++		laddr = addr + ".local"
+ 	}
+ 	fd, err := Dial(network, laddr, addr);
+ 	if err != nil {
+@@ -80,7 +80,7 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
+ 	go runServe(t, network, listenaddr, listening, done);
+ 	addr := <-listening;	// wait for server to start
+ 	if network == "tcp" {
+-		dialaddr += addr[strings.LastIndex(addr, ":") : len(addr)]
++		dialaddr += addr[strings.LastIndex(addr, ":"):len(addr)]
+ 	}
+ 	connect(t, network, dialaddr);
+ 	<-done;	// make sure server stopped
+@@ -141,7 +141,7 @@ func doTestPacket(t *testing.T, network, listenaddr, dialaddr string) {
+ 	go runPacket(t, network, listenaddr, listening, done);
+ 	addr := <-listening;	// wait for server to start
+ 	if network == "udp" {
+-		dialaddr += addr[strings.LastIndex(addr, ":") : len(addr)]
++		dialaddr += addr[strings.LastIndex(addr, ":"):len(addr)]
+ 	}
+ 	connect(t, network, dialaddr);
+ 	<-done;	// tell server to stop
+diff --git a/src/pkg/os/dir_darwin.go b/src/pkg/os/dir_darwin.go
+index 74781ae5b4..9b9d02ea8a 100644
+--- a/src/pkg/os/dir_darwin.go
++++ b/src/pkg/os/dir_darwin.go
+@@ -59,7 +59,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 				continue
+ 			}
+ 			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
+-			var name = string(bytes[0 : dirent.Namlen]);
++			var name = string(bytes[0:dirent.Namlen]);
+ 			if name == "." || name == ".." {	// Useless names
+ 				continue
+ 			}
+diff --git a/src/pkg/os/env.go b/src/pkg/os/env.go
+index e858649928..071db0d1d4 100644
+--- a/src/pkg/os/env.go
++++ b/src/pkg/os/env.go
+@@ -78,7 +78,7 @@ func Environ() []string {
+ 		// check i < len(a) for safety,
+ 		// in case env is changing underfoot.
+ 		if i < len(a) {
+-			a[i] = k+"="+v;
++			a[i] = k + "=" + v;
+ 			i++;
+ 		}
+ 	}
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index 80c2913f07..3797d80db8 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -67,7 +67,7 @@ const (
+ 	WNOHANG		= syscall.WNOHANG;	// Don't wait if no process has exited.
+ 	WSTOPPED	= syscall.WSTOPPED;	// If set, status of stopped subprocesses is also reported.
+ 	WUNTRACED	= WSTOPPED;
+-	WRUSAGE		= 1<<20;	// Record resource usage.
++	WRUSAGE		= 1 << 20;	// Record resource usage.
+ )
+ 
+ // WRUSAGE must not be too high a bit, to avoid clashing with Linux's
+@@ -111,7 +111,7 @@ func itod(i int) string {
+ 	bp := len(b);
+ 	for ; u > 0; u /= 10 {
+ 		bp--;
+-		b[bp] = byte(u%10)+'0';
++		b[bp] = byte(u%10) + '0';
+ 	}
+ 
+ 	if i < 0 {
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index d378b70254..f68a33cc48 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -68,7 +68,7 @@ const (
+ // if applicable.  If successful, methods on the returned File can be used for I/O.
+ // It returns the File and an Error, if any.
+ func Open(name string, flag int, perm int) (file *File, err Error) {
+-	r, e := syscall.Open(name, flag | syscall.O_CLOEXEC, perm);
++	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm);
+ 	if e != 0 {
+ 		return nil, &PathError{"open", name, Errno(e)}
+ 	}
+@@ -260,7 +260,7 @@ func Stat(name string) (dir *Dir, err Error) {
+ 		return nil, &PathError{"stat", name, Errno(e)}
+ 	}
+ 	statp := &lstat;
+-	if lstat.Mode & syscall.S_IFMT == syscall.S_IFLNK {
++	if lstat.Mode&syscall.S_IFMT == syscall.S_IFLNK {
+ 		e := syscall.Stat(name, &stat);
+ 		if e == 0 {
+ 			statp = &stat
+@@ -309,7 +309,7 @@ func (file *File) Readdir(count int) (dirs []Dir, err Error) {
+ 	}
+ 	dirs = make([]Dir, len(names));
+ 	for i, filename := range names {
+-		dirp, err := Lstat(dirname+filename);
++		dirp, err := Lstat(dirname + filename);
+ 		if dirp == nil || err != nil {
+ 			dirs[i].Name = filename	// rest is already zeroed out
+ 		} else {
+diff --git a/src/pkg/os/getwd.go b/src/pkg/os/getwd.go
+index 1f7580d227..57f69d12eb 100644
+--- a/src/pkg/os/getwd.go
++++ b/src/pkg/os/getwd.go
+@@ -50,7 +50,7 @@ func Getwd() (string, Error) {
+ 	// and then find name of parent.  Each iteration
+ 	// adds /name to the beginning of pwd.
+ 	pwd = "";
+-	for parent := ".."; ; parent = "../"+parent {
++	for parent := ".."; ; parent = "../" + parent {
+ 		if len(parent) >= 1024 {	// Sanity check
+ 			return "", ENAMETOOLONG
+ 		}
+@@ -66,9 +66,9 @@ func Getwd() (string, Error) {
+ 				return "", err;
+ 			}
+ 			for _, name := range names {
+-				d, _ := Lstat(parent+"/"+name);
++				d, _ := Lstat(parent + "/" + name);
+ 				if d.Dev == dot.Dev && d.Ino == dot.Ino {
+-					pwd = "/"+name+pwd;
++					pwd = "/" + name + pwd;
+ 					goto Found;
+ 				}
+ 			}
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 9eb032768c..3066d57265 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -297,7 +297,7 @@ func TestSymLink(t *testing.T) {
+ 
+ func TestLongSymlink(t *testing.T) {
+ 	s := "0123456789abcdef";
+-	s = s+s+s+s+s+s+s+s+s+s+s+s+s+s+s+s+s;
++	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s;
+ 	from := "longsymlinktestfrom";
+ 	err := Symlink(s, from);
+ 	if err != nil {
+@@ -339,7 +339,7 @@ func checkMode(t *testing.T, path string, mode uint32) {
+ 	if err != nil {
+ 		t.Fatalf("Stat %q (looking for mode %#o): %s", path, mode, err)
+ 	}
+-	if dir.Mode & 0777 != mode {
++	if dir.Mode&0777 != mode {
+ 		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode, 0777)
+ 	}
+ }
+@@ -539,9 +539,9 @@ func TestSeek(t *testing.T) {
+ 		test{5, 0, 5},
+ 		test{0, 2, int64(len(data))},
+ 		test{0, 0, 0},
+-		test{-1, 2, int64(len(data))-1},
+-		test{1<<40, 0, 1<<40},
+-		test{1<<40, 2, 1<<40 + int64(len(data))},
++		test{-1, 2, int64(len(data)) - 1},
++		test{1 << 40, 0, 1 << 40},
++		test{1 << 40, 2, 1<<40 + int64(len(data))},
+ 	};
+ 	for i, tt := range tests {
+ 		off, err := f.Seek(tt.in, tt.whence);
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index 057b20b055..cdaee92d72 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -35,7 +35,7 @@ func MkdirAll(path string, perm int) Error {
+ 
+ 	if j > 0 {
+ 		// Create parent
+-		err = MkdirAll(path[0 : j-1], perm);
++		err = MkdirAll(path[0:j-1], perm);
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -91,7 +91,7 @@ func RemoveAll(path string) Error {
+ 	for {
+ 		names, err1 := fd.Readdirnames(100);
+ 		for _, name := range names {
+-			err1 := RemoveAll(path+"/"+name);
++			err1 := RemoveAll(path + "/" + name);
+ 			if err == nil {
+ 				err = err1
+ 			}
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index 2dce2c5973..0baa90132f 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -25,7 +25,7 @@ func TestMkdirAll(t *testing.T) {
+ 	}
+ 
+ 	// Make file.
+-	fpath := path+"/file";
++	fpath := path + "/file";
+ 	_, err = Open(fpath, O_WRONLY|O_CREAT, 0666);
+ 	if err != nil {
+ 		t.Fatalf("create %q: %s", fpath, err)
+@@ -64,8 +64,8 @@ func TestMkdirAll(t *testing.T) {
+ func TestRemoveAll(t *testing.T) {
+ 	// Work directory.
+ 	path := "_obj/_TestRemoveAll_";
+-	fpath := path+"/file";
+-	dpath := path+"/dir";
++	fpath := path + "/file";
++	dpath := path + "/dir";
+ 
+ 	// Make directory with 1 file and remove.
+ 	if err := MkdirAll(path, 0777); err != nil {
+@@ -109,7 +109,7 @@ func TestRemoveAll(t *testing.T) {
+ 		t.Fatalf("MkdirAll %q: %s", dpath, err)
+ 	}
+ 
+-	for _, s := range []string{fpath, dpath+"/file1", path+"/zzz"} {
++	for _, s := range []string{fpath, dpath + "/file1", path + "/zzz"} {
+ 		fd, err = Open(s, O_WRONLY|O_CREAT, 0666);
+ 		if err != nil {
+ 			t.Fatalf("create %q: %s", s, err)
+@@ -136,7 +136,7 @@ func TestRemoveAll(t *testing.T) {
+ 	if err = Chmod(dpath, 0777); err != nil {
+ 		t.Fatalf("Chmod %q 0777: %s", dpath, err)
+ 	}
+-	for _, s := range []string{fpath, path+"/zzz"} {
++	for _, s := range []string{fpath, path + "/zzz"} {
+ 		if _, err := Lstat(s); err == nil {
+ 			t.Fatalf("Lstat %q succeeded after partial RemoveAll", s)
+ 		}
+diff --git a/src/pkg/os/stat_darwin.go b/src/pkg/os/stat_darwin.go
+index d712ee8e2a..1bdd371136 100644
+--- a/src/pkg/os/stat_darwin.go
++++ b/src/pkg/os/stat_darwin.go
+@@ -7,7 +7,7 @@ package os
+ import "syscall"
+ 
+ func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
++	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
+ }
+ 
+ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+@@ -24,7 +24,7 @@ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+ 	dir.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atimespec));
+ 	dir.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtimespec));
+ 	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctimespec));
+-	for i := len(name)-1; i >= 0; i-- {
++	for i := len(name) - 1; i >= 0; i-- {
+ 		if name[i] == '/' {
+ 			name = name[i+1 : len(name)];
+ 			break;
+diff --git a/src/pkg/os/stat_linux.go b/src/pkg/os/stat_linux.go
+index c63697df72..e19725b22e 100644
+--- a/src/pkg/os/stat_linux.go
++++ b/src/pkg/os/stat_linux.go
+@@ -7,7 +7,7 @@ package os
+ import "syscall"
+ 
+ func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
++	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
+ }
+ 
+ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+@@ -24,7 +24,7 @@ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+ 	dir.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atim));
+ 	dir.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtim));
+ 	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctim));
+-	for i := len(name)-1; i >= 0; i-- {
++	for i := len(name) - 1; i >= 0; i-- {
+ 		if name[i] == '/' {
+ 			name = name[i+1 : len(name)];
+ 			break;
+diff --git a/src/pkg/os/stat_nacl.go b/src/pkg/os/stat_nacl.go
+index a5007d08cd..9a66c671e2 100644
+--- a/src/pkg/os/stat_nacl.go
++++ b/src/pkg/os/stat_nacl.go
+@@ -7,7 +7,7 @@ package os
+ import "syscall"
+ 
+ func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
++	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
+ }
+ 
+ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+@@ -21,10 +21,10 @@ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+ 	dir.Size = uint64(stat.Size);
+ 	dir.Blksize = uint64(stat.Blksize);
+ 	dir.Blocks = uint64(stat.Blocks);
+-	dir.Atime_ns = uint64(stat.Atime)*1e9;
+-	dir.Mtime_ns = uint64(stat.Mtime)*1e9;
+-	dir.Ctime_ns = uint64(stat.Ctime)*1e9;
+-	for i := len(name)-1; i >= 0; i-- {
++	dir.Atime_ns = uint64(stat.Atime) * 1e9;
++	dir.Mtime_ns = uint64(stat.Mtime) * 1e9;
++	dir.Ctime_ns = uint64(stat.Ctime) * 1e9;
++	for i := len(name) - 1; i >= 0; i-- {
+ 		if name[i] == '/' {
+ 			name = name[i+1 : len(name)];
+ 			break;
+diff --git a/src/pkg/os/time.go b/src/pkg/os/time.go
+index a82a39382e..2510b8586a 100644
+--- a/src/pkg/os/time.go
++++ b/src/pkg/os/time.go
+@@ -16,5 +16,5 @@ func Time() (sec int64, nsec int64, err Error) {
+ 	if errno := syscall.Gettimeofday(&tv); errno != 0 {
+ 		return 0, 0, NewSyscallError("gettimeofday", errno)
+ 	}
+-	return int64(tv.Sec), int64(tv.Usec)*1000, err;
++	return int64(tv.Sec), int64(tv.Usec) * 1000, err;
+ }
+diff --git a/src/pkg/patch/git.go b/src/pkg/patch/git.go
+index f9335cc45b..fd5d781a27 100644
+--- a/src/pkg/patch/git.go
++++ b/src/pkg/patch/git.go
+@@ -44,11 +44,11 @@ func (d *GITBinaryLiteral) Apply(old []byte) ([]byte, os.Error) {
+ func unhex(c byte) uint8 {
+ 	switch {
+ 	case '0' <= c && c <= '9':
+-		return c-'0'
++		return c - '0'
+ 	case 'a' <= c && c <= 'f':
+-		return c-'a'+10
++		return c - 'a' + 10
+ 	case 'A' <= c && c <= 'F':
+-		return c-'A'+10
++		return c - 'A' + 10
+ 	}
+ 	return 255;
+ }
+@@ -61,7 +61,7 @@ func getHex(s []byte) (data []byte, rest []byte) {
+ 	n &^= 1;	// Only take an even number of hex digits.
+ 	data = make([]byte, n/2);
+ 	for i := range data {
+-		data[i] = unhex(s[2*i])<<4 | unhex(s[2*i + 1])
++		data[i] = unhex(s[2*i])<<4 | unhex(s[2*i+1])
+ 	}
+ 	rest = s[n:len(s)];
+ 	return;
+diff --git a/src/pkg/patch/textdiff.go b/src/pkg/patch/textdiff.go
+index ddf3b26066..2bfa8815d2 100644
+--- a/src/pkg/patch/textdiff.go
++++ b/src/pkg/patch/textdiff.go
+@@ -112,7 +112,7 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
+ 		if oldLine+delta != newLine {
+ 			return nil, SyntaxError("chunk delta is out of sync with previous chunks")
+ 		}
+-		delta += nnew-nold;
++		delta += nnew - nold;
+ 		c.Line = oldLine;
+ 
+ 		var old, new bytes.Buffer;
+@@ -157,7 +157,7 @@ func (d TextDiff) Apply(data []byte) ([]byte, os.Error) {
+ 	for _, c := range d {
+ 		var ok bool;
+ 		var prefix []byte;
+-		prefix, data, ok = getLine(data, c.Line - line);
++		prefix, data, ok = getLine(data, c.Line-line);
+ 		if !ok || !bytes.HasPrefix(data, c.Old) {
+ 			return nil, ErrPatchFailure
+ 		}
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index b719057129..52ec334a94 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -107,7 +107,7 @@ func Clean(path string) string {
+ // If there is no slash in path, DirFile returns an empty dir and
+ // file set to path.
+ func Split(path string) (dir, file string) {
+-	for i := len(path)-1; i >= 0; i-- {
++	for i := len(path) - 1; i >= 0; i-- {
+ 		if path[i] == '/' {
+ 			return path[0 : i+1], path[i+1 : len(path)]
+ 		}
+@@ -121,7 +121,7 @@ func Join(dir, file string) string {
+ 	if dir == "" {
+ 		return file
+ 	}
+-	return Clean(dir+"/"+file);
++	return Clean(dir + "/" + file);
+ }
+ 
+ // Ext returns the file name extension used by path.
+@@ -129,7 +129,7 @@ func Join(dir, file string) string {
+ // in the final slash-separated element of path;
+ // it is empty if there is no dot.
+ func Ext(path string) string {
+-	for i := len(path)-1; i >= 0 && path[i] != '/'; i-- {
++	for i := len(path) - 1; i >= 0 && path[i] != '/'; i-- {
+ 		if path[i] == '.' {
+ 			return path[i:len(path)]
+ 		}
+diff --git a/src/pkg/rand/exp.go b/src/pkg/rand/exp.go
+index b4b1f01bec..aaa3cc7b04 100644
+--- a/src/pkg/rand/exp.go
++++ b/src/pkg/rand/exp.go
+@@ -31,15 +31,15 @@ const (
+ func (r *Rand) ExpFloat64() float64 {
+ 	for {
+ 		j := r.Uint32();
+-		i := j&0xFF;
+-		x := float64(j)*float64(we[i]);
++		i := j & 0xFF;
++		x := float64(j) * float64(we[i]);
+ 		if j < ke[i] {
+ 			return x
+ 		}
+ 		if i == 0 {
+ 			return re - math.Log(r.Float64())
+ 		}
+-		if fe[i] + float32(r.Float64())*(fe[i-1]-fe[i]) < float32(math.Exp(-x)) {
++		if fe[i]+float32(r.Float64())*(fe[i-1]-fe[i]) < float32(math.Exp(-x)) {
+ 			return x
+ 		}
+ 	}
+diff --git a/src/pkg/rand/normal.go b/src/pkg/rand/normal.go
+index f4444dc68a..25769c7bf3 100644
+--- a/src/pkg/rand/normal.go
++++ b/src/pkg/rand/normal.go
+@@ -38,8 +38,8 @@ func absInt32(i int32) uint32 {
+ func (r *Rand) NormFloat64() float64 {
+ 	for {
+ 		j := int32(r.Uint32());	// Possibly negative
+-		i := j&0x7F;
+-		x := float64(j)*float64(wn[i]);
++		i := j & 0x7F;
++		x := float64(j) * float64(wn[i]);
+ 		if absInt32(j) < kn[i] {
+ 			// This case should be hit better than 99% of the time.
+ 			return x
+@@ -48,18 +48,18 @@ func (r *Rand) NormFloat64() float64 {
+ 		if i == 0 {
+ 			// This extra work is only required for the base strip.
+ 			for {
+-				x = -math.Log(r.Float64()) * (1.0/rn);
++				x = -math.Log(r.Float64()) * (1.0 / rn);
+ 				y := -math.Log(r.Float64());
+ 				if y+y >= x*x {
+ 					break
+ 				}
+ 			}
+ 			if j > 0 {
+-				return rn+x
++				return rn + x
+ 			}
+ 			return -rn - x;
+ 		}
+-		if fn[i] + float32(r.Float64())*(fn[i-1]-fn[i]) < float32(math.Exp(-.5 * x * x)) {
++		if fn[i]+float32(r.Float64())*(fn[i-1]-fn[i]) < float32(math.Exp(-.5*x*x)) {
+ 			return x
+ 		}
+ 	}
+diff --git a/src/pkg/rand/rand.go b/src/pkg/rand/rand.go
+index 0d69490f36..68e6e2c203 100644
+--- a/src/pkg/rand/rand.go
++++ b/src/pkg/rand/rand.go
+@@ -43,7 +43,7 @@ func (r *Rand) Int31() int32	{ return int32(r.Int63() >> 32) }
+ // Int returns a non-negative pseudo-random int.
+ func (r *Rand) Int() int {
+ 	u := uint(r.Int63());
+-	return int(u<<1>>1);	// clear sign bit if int == int32
++	return int(u << 1 >> 1);	// clear sign bit if int == int32
+ }
+ 
+ // Int63n returns, as an int64, a non-negative pseudo-random number in [0,n).
+@@ -51,12 +51,12 @@ func (r *Rand) Int63n(n int64) int64 {
+ 	if n <= 0 {
+ 		return 0
+ 	}
+-	max := int64((1<<63) - 1 - (1<<63)%uint64(n));
++	max := int64((1 << 63) - 1 - (1<<63)%uint64(n));
+ 	v := r.Int63();
+ 	for v > max {
+ 		v = r.Int63()
+ 	}
+-	return v%n;
++	return v % n;
+ }
+ 
+ // Int31n returns, as an int32, a non-negative pseudo-random number in [0,n).
+@@ -66,7 +66,7 @@ func (r *Rand) Int31n(n int32) int32	{ return int32(r.Int63n(int64(n))) }
+ func (r *Rand) Intn(n int) int	{ return int(r.Int63n(int64(n))) }
+ 
+ // Float64 returns, as a float64, a pseudo-random number in [0.0,1.0).
+-func (r *Rand) Float64() float64	{ return float64(r.Int63())/(1<<63) }
++func (r *Rand) Float64() float64	{ return float64(r.Int63()) / (1 << 63) }
+ 
+ // Float32 returns, as a float32, a pseudo-random number in [0.0,1.0).
+ func (r *Rand) Float32() float32	{ return float32(r.Float64()) }
+@@ -81,7 +81,7 @@ func (r *Rand) Perm(n int) []int {
+ 		m[i] = i
+ 	}
+ 	for i := 0; i < n; i++ {
+-		j := r.Intn(i+1);
++		j := r.Intn(i + 1);
+ 		m[i], m[j] = m[j], m[i];
+ 	}
+ 	return m;
+diff --git a/src/pkg/rand/rand_test.go b/src/pkg/rand/rand_test.go
+index 3aea72acd0..5741aca8a2 100644
+--- a/src/pkg/rand/rand_test.go
++++ b/src/pkg/rand/rand_test.go
+@@ -30,11 +30,11 @@ func max(a, b float64) float64 {
+ }
+ 
+ func nearEqual(a, b, closeEnough, maxError float64) bool {
+-	absDiff := math.Fabs(a-b);
++	absDiff := math.Fabs(a - b);
+ 	if absDiff < closeEnough {	// Necessary when one value is zero and one value is close to zero.
+ 		return true
+ 	}
+-	return absDiff / max(math.Fabs(a), math.Fabs(b)) < maxError;
++	return absDiff/max(math.Fabs(a), math.Fabs(b)) < maxError;
+ }
+ 
+ var testSeeds = []int64{1, 1754801282, 1698661970, 1550503961}
+@@ -61,12 +61,12 @@ func getStatsResults(samples []float64) *statsResults {
+ 	for i := range samples {
+ 		sum += samples[i]
+ 	}
+-	res.mean = sum/float64(len(samples));
++	res.mean = sum / float64(len(samples));
+ 	var devsum float64;
+ 	for i := range samples {
+-		devsum += math.Pow(samples[i] - res.mean, 2)
++		devsum += math.Pow(samples[i]-res.mean, 2)
+ 	}
+-	res.stddev = math.Sqrt(devsum/float64(len(samples)));
++	res.stddev = math.Sqrt(devsum / float64(len(samples)));
+ 	return res;
+ }
+ 
+@@ -79,14 +79,14 @@ func checkSampleDistribution(t *testing.T, samples []float64, expected *statsRes
+ }
+ 
+ func checkSampleSliceDistributions(t *testing.T, samples []float64, nslices int, expected *statsResults) {
+-	chunk := len(samples)/nslices;
++	chunk := len(samples) / nslices;
+ 	for i := 0; i < nslices; i++ {
+-		low := i*chunk;
++		low := i * chunk;
+ 		var high int;
+ 		if i == nslices-1 {
+-			high = len(samples)-1
++			high = len(samples) - 1
+ 		} else {
+-			high = (i+1)*chunk
++			high = (i + 1) * chunk
+ 		}
+ 		checkSampleDistribution(t, samples[low:high], expected);
+ 	}
+@@ -100,7 +100,7 @@ func generateNormalSamples(nsamples int, mean, stddev float64, seed int64) []flo
+ 	r := New(NewSource(seed));
+ 	samples := make([]float64, nsamples);
+ 	for i := range samples {
+-		samples[i] = r.NormFloat64() * stddev + mean
++		samples[i] = r.NormFloat64()*stddev + mean
+ 	}
+ 	return samples;
+ }
+@@ -156,7 +156,7 @@ func generateExponentialSamples(nsamples int, rate float64, seed int64) []float6
+ func testExponentialDistribution(t *testing.T, nsamples int, rate float64, seed int64) {
+ 	//fmt.Printf("testing nsamples=%v rate=%v seed=%v\n", nsamples, rate, seed);
+ 
+-	mean := 1/rate;
++	mean := 1 / rate;
+ 	stddev := mean;
+ 
+ 	samples := generateExponentialSamples(nsamples, rate, seed);
+@@ -194,7 +194,7 @@ func TestNonStandardExponentialValues(t *testing.T) {
+ //
+ 
+ func initNorm() (testKn []uint32, testWn, testFn []float32) {
+-	const m1 = 1<<31;
++	const m1 = 1 << 31;
+ 	var (
+ 		dn	float64	= rn;
+ 		tn		= dn;
+@@ -205,25 +205,25 @@ func initNorm() (testKn []uint32, testWn, testFn []float32) {
+ 	testWn = make([]float32, 128);
+ 	testFn = make([]float32, 128);
+ 
+-	q := vn / math.Exp(-0.5 * dn * dn);
+-	testKn[0] = uint32((dn/q)*m1);
++	q := vn / math.Exp(-0.5*dn*dn);
++	testKn[0] = uint32((dn / q) * m1);
+ 	testKn[1] = 0;
+-	testWn[0] = float32(q/m1);
+-	testWn[127] = float32(dn/m1);
++	testWn[0] = float32(q / m1);
++	testWn[127] = float32(dn / m1);
+ 	testFn[0] = 1.0;
+ 	testFn[127] = float32(math.Exp(-0.5 * dn * dn));
+ 	for i := 126; i >= 1; i-- {
+-		dn = math.Sqrt(-2.0 * math.Log(vn/dn + math.Exp(-0.5 * dn * dn)));
+-		testKn[i+1] = uint32((dn/tn)*m1);
++		dn = math.Sqrt(-2.0 * math.Log(vn/dn+math.Exp(-0.5*dn*dn)));
++		testKn[i+1] = uint32((dn / tn) * m1);
+ 		tn = dn;
+ 		testFn[i] = float32(math.Exp(-0.5 * dn * dn));
+-		testWn[i] = float32(dn/m1);
++		testWn[i] = float32(dn / m1);
+ 	}
+ 	return;
+ }
+ 
+ func initExp() (testKe []uint32, testWe, testFe []float32) {
+-	const m2 = 1<<32;
++	const m2 = 1 << 32;
+ 	var (
+ 		de	float64	= re;
+ 		te		= de;
+@@ -235,18 +235,18 @@ func initExp() (testKe []uint32, testWe, testFe []float32) {
+ 	testFe = make([]float32, 256);
+ 
+ 	q := ve / math.Exp(-de);
+-	testKe[0] = uint32((de/q)*m2);
++	testKe[0] = uint32((de / q) * m2);
+ 	testKe[1] = 0;
+-	testWe[0] = float32(q/m2);
+-	testWe[255] = float32(de/m2);
++	testWe[0] = float32(q / m2);
++	testWe[255] = float32(de / m2);
+ 	testFe[0] = 1.0;
+ 	testFe[255] = float32(math.Exp(-de));
+ 	for i := 254; i >= 1; i-- {
+ 		de = -math.Log(ve/de + math.Exp(-de));
+-		testKe[i+1] = uint32((de/te)*m2);
++		testKe[i+1] = uint32((de / te) * m2);
+ 		te = de;
+ 		testFe[i] = float32(math.Exp(-de));
+-		testWe[i] = float32(de/m2);
++		testWe[i] = float32(de / m2);
+ 	}
+ 	return;
+ }
+@@ -257,9 +257,9 @@ func initExp() (testKe []uint32, testWe, testFe []float32) {
+ func compareUint32Slices(s1, s2 []uint32) int {
+ 	if len(s1) != len(s2) {
+ 		if len(s1) > len(s2) {
+-			return len(s2)+1
++			return len(s2) + 1
+ 		}
+-		return len(s1)+1;
++		return len(s1) + 1;
+ 	}
+ 	for i := range s1 {
+ 		if s1[i] != s2[i] {
+@@ -275,9 +275,9 @@ func compareUint32Slices(s1, s2 []uint32) int {
+ func compareFloat32Slices(s1, s2 []float32) int {
+ 	if len(s1) != len(s2) {
+ 		if len(s1) > len(s2) {
+-			return len(s2)+1
++			return len(s2) + 1
+ 		}
+-		return len(s1)+1;
++		return len(s1) + 1;
+ 	}
+ 	for i := range s1 {
+ 		if !nearEqual(float64(s1[i]), float64(s2[i]), 0, 1e-7) {
+diff --git a/src/pkg/rand/rng.go b/src/pkg/rand/rng.go
+index 808e9238c7..a8f7a18b1f 100644
+--- a/src/pkg/rand/rng.go
++++ b/src/pkg/rand/rng.go
+@@ -14,10 +14,10 @@ package rand
+ const (
+ 	_LEN	= 607;
+ 	_TAP	= 273;
+-	_MAX	= 1<<63;
+-	_MASK	= _MAX-1;
++	_MAX	= 1 << 63;
++	_MASK	= _MAX - 1;
+ 	_A	= 48271;
+-	_M	= (1<<31)-1;
++	_M	= (1 << 31) - 1;
+ 	_Q	= 44488;
+ 	_R	= 3399;
+ )
+@@ -190,8 +190,8 @@ type rngSource struct {
+ 
+ // seed rng x[n+1] = 48271 * x[n] mod (2**31 - 1)
+ func seedrand(x int32) int32 {
+-	hi := x/_Q;
+-	lo := x%_Q;
++	hi := x / _Q;
++	lo := x % _Q;
+ 	x = _A*lo - _R*hi;
+ 	if x < 0 {
+ 		x += _M
+@@ -202,9 +202,9 @@ func seedrand(x int32) int32 {
+ // Seed uses the provided seed value to initialize the generator to a deterministic state.
+ func (rng *rngSource) Seed(seed int64) {
+ 	rng.tap = 0;
+-	rng.feed = _LEN-_TAP;
++	rng.feed = _LEN - _TAP;
+ 
+-	seed = seed%_M;
++	seed = seed % _M;
+ 	if seed < 0 {
+ 		seed += _M
+ 	}
+@@ -217,13 +217,13 @@ func (rng *rngSource) Seed(seed int64) {
+ 		x = seedrand(x);
+ 		if i >= 0 {
+ 			var u int64;
+-			u = int64(x)<<40;
++			u = int64(x) << 40;
+ 			x = seedrand(x);
+-			u ^= int64(x)<<20;
++			u ^= int64(x) << 20;
+ 			x = seedrand(x);
+ 			u ^= int64(x);
+ 			u ^= rng_cooked[i];
+-			rng.vec[i] = u&_MASK;
++			rng.vec[i] = u & _MASK;
+ 		}
+ 	}
+ }
+@@ -240,7 +240,7 @@ func (rng *rngSource) Int63() int64 {
+ 		rng.feed += _LEN
+ 	}
+ 
+-	x := (rng.vec[rng.feed] + rng.vec[rng.tap])&_MASK;
++	x := (rng.vec[rng.feed] + rng.vec[rng.tap]) & _MASK;
+ 	rng.vec[rng.feed] = x;
+ 	return x;
+ }
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index b0ed9e4118..b94db00d95 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -966,7 +966,7 @@ type Point struct {
+ 	x, y int;
+ }
+ 
+-func (p Point) Dist(scale int) int	{ return p.x * p.x * scale + p.y * p.y * scale }
++func (p Point) Dist(scale int) int	{ return p.x*p.x*scale + p.y*p.y*scale }
+ 
+ func TestMethod(t *testing.T) {
+ 	// Non-curried method of type.
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index afb146cef1..69bc7d4552 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -161,9 +161,9 @@ type ArrayType struct {
+ type ChanDir int
+ 
+ const (
+-	RecvDir	ChanDir	= 1<<iota;
++	RecvDir	ChanDir	= 1 << iota;
+ 	SendDir;
+-	BothDir	= RecvDir|SendDir;
++	BothDir	= RecvDir | SendDir;
+ )
+ 
+ // ChanType represents a channel type.
+@@ -482,7 +482,7 @@ func (t *StructType) FieldByIndex(index []int) (f StructField) {
+ 	return;
+ }
+ 
+-const inf = 1<<30	// infinity - no struct has that many nesting levels
++const inf = 1 << 30	// infinity - no struct has that many nesting levels
+ 
+ func (t *StructType) fieldByName(name string, mark map[*StructType]bool, depth int) (ff StructField, fd int) {
+ 	fd = inf;	// field depth
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 4ebd49fb2b..add4c4b036 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -25,17 +25,17 @@ func memmove(adst, asrc addr, n uintptr) {
+ 		// careful: i is unsigned
+ 		for i := n; i > 0; {
+ 			i--;
+-			*(*byte)(addr(dst+i)) = *(*byte)(addr(src+i));
++			*(*byte)(addr(dst + i)) = *(*byte)(addr(src + i));
+ 		}
+ 	case (n|src|dst)&(ptrSize-1) != 0:
+ 		// byte copy forward
+ 		for i := uintptr(0); i < n; i++ {
+-			*(*byte)(addr(dst+i)) = *(*byte)(addr(src+i))
++			*(*byte)(addr(dst + i)) = *(*byte)(addr(src + i))
+ 		}
+ 	default:
+ 		// word copy forward
+ 		for i := uintptr(0); i < n; i += ptrSize {
+-			*(*uintptr)(addr(dst+i)) = *(*uintptr)(addr(src+i))
++			*(*uintptr)(addr(dst + i)) = *(*uintptr)(addr(src + i))
+ 		}
+ 	}
+ }
+@@ -472,7 +472,7 @@ func ArrayCopy(dst, src ArrayOrSliceValue) int {
+ 	if xn := src.Len(); n > xn {
+ 		n = xn
+ 	}
+-	memmove(dst.addr(), src.addr(), uintptr(n) * de.Size());
++	memmove(dst.addr(), src.addr(), uintptr(n)*de.Size());
+ 	return n;
+ }
+ 
+@@ -510,7 +510,7 @@ func (v *ArrayValue) Elem(i int) Value {
+ 	if i < 0 || i >= n {
+ 		panic("index", i, "in array len", n)
+ 	}
+-	p := addr(uintptr(v.addr()) + uintptr(i) * typ.Size());
++	p := addr(uintptr(v.addr()) + uintptr(i)*typ.Size());
+ 	return newValue(typ, p, v.canSet);
+ }
+ 
+@@ -575,9 +575,9 @@ func (v *SliceValue) Slice(beg, end int) *SliceValue {
+ 	}
+ 	typ := v.typ.(*SliceType);
+ 	s := new(SliceHeader);
+-	s.Data = uintptr(v.addr()) + uintptr(beg) * typ.Elem().Size();
+-	s.Len = end-beg;
+-	s.Cap = cap-beg;
++	s.Data = uintptr(v.addr()) + uintptr(beg)*typ.Elem().Size();
++	s.Len = end - beg;
++	s.Cap = cap - beg;
+ 	return newValue(typ, addr(s), v.canSet).(*SliceValue);
+ }
+ 
+@@ -588,7 +588,7 @@ func (v *SliceValue) Elem(i int) Value {
+ 	if i < 0 || i >= n {
+ 		panicln("index", i, "in array of length", n)
+ 	}
+-	p := addr(uintptr(v.addr()) + uintptr(i) * typ.Size());
++	p := addr(uintptr(v.addr()) + uintptr(i)*typ.Size());
+ 	return newValue(typ, p, v.canSet);
+ }
+ 
+@@ -670,7 +670,7 @@ func (v *ChanValue) Cap() int {
+ // internal send; non-blocking if b != nil
+ func (v *ChanValue) send(x Value, b *bool) {
+ 	t := v.Type().(*ChanType);
+-	if t.Dir() & SendDir == 0 {
++	if t.Dir()&SendDir == 0 {
+ 		panic("send on recv-only channel")
+ 	}
+ 	typesMustMatch(t.Elem(), x.Type());
+@@ -681,7 +681,7 @@ func (v *ChanValue) send(x Value, b *bool) {
+ // internal recv; non-blocking if b != nil
+ func (v *ChanValue) recv(b *bool) Value {
+ 	t := v.Type().(*ChanType);
+-	if t.Dir() & RecvDir == 0 {
++	if t.Dir()&RecvDir == 0 {
+ 		panic("recv on send-only channel")
+ 	}
+ 	ch := *(**byte)(v.addr);
+@@ -808,14 +808,14 @@ func (fv *FuncValue) Call(in []Value) []Value {
+ 	for i := 0; i < nin; i++ {
+ 		tv := t.In(i);
+ 		a := uintptr(tv.Align());
+-		size = (size+a-1)&^(a-1);
++		size = (size + a - 1) &^ (a - 1);
+ 		size += tv.Size();
+ 	}
+-	size = (size + structAlign - 1)&^(structAlign - 1);
++	size = (size + structAlign - 1) &^ (structAlign - 1);
+ 	for i := 0; i < nout; i++ {
+ 		tv := t.Out(i);
+ 		a := uintptr(tv.Align());
+-		size = (size+a-1)&^(a-1);
++		size = (size + a - 1) &^ (a - 1);
+ 		size += tv.Size();
+ 	}
+ 
+@@ -856,12 +856,12 @@ func (fv *FuncValue) Call(in []Value) []Value {
+ 		tv := v.Type();
+ 		typesMustMatch(t.In(i+delta), tv);
+ 		a := uintptr(tv.Align());
+-		off = (off+a-1)&^(a-1);
++		off = (off + a - 1) &^ (a - 1);
+ 		n := tv.Size();
+ 		memmove(addr(ptr+off), v.getAddr(), n);
+ 		off += n;
+ 	}
+-	off = (off + structAlign - 1)&^(structAlign - 1);
++	off = (off + structAlign - 1) &^ (structAlign - 1);
+ 
+ 	// Call
+ 	call(*(**byte)(fv.addr), (*byte)(addr(ptr)), uint32(size));
+@@ -873,7 +873,7 @@ func (fv *FuncValue) Call(in []Value) []Value {
+ 	for i := 0; i < nout; i++ {
+ 		tv := t.Out(i);
+ 		a := uintptr(tv.Align());
+-		off = (off+a-1)&^(a-1);
++		off = (off + a - 1) &^ (a - 1);
+ 		v := MakeZero(tv);
+ 		n := tv.Size();
+ 		memmove(v.getAddr(), addr(ptr+off), n);
+@@ -938,7 +938,7 @@ func (v *InterfaceValue) Method(i int) *FuncValue {
+ 
+ 	// Interface is two words: itable, data.
+ 	tab := *(**runtime.Itable)(v.addr);
+-	data := &value{Typeof((*byte)(nil)), addr(uintptr(v.addr)+ptrSize), true};
++	data := &value{Typeof((*byte)(nil)), addr(uintptr(v.addr) + ptrSize), true};
+ 
+ 	// Function pointer is at p.perm in the table.
+ 	fn := tab.Fn[p.perm];
+@@ -1141,7 +1141,7 @@ func (v *StructValue) Field(i int) Value {
+ 		return nil
+ 	}
+ 	f := t.Field(i);
+-	return newValue(f.Type, addr(uintptr(v.addr) + f.Offset), v.canSet && f.PkgPath == "");
++	return newValue(f.Type, addr(uintptr(v.addr)+f.Offset), v.canSet && f.PkgPath == "");
+ }
+ 
+ // FieldByIndex returns the nested field corresponding to index.
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index 08f99dd68d..4af5eff7e3 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -101,7 +101,7 @@ func printVec(t *testing.T, m []int) {
+ 	if l == 0 {
+ 		t.Log("\t<no match>")
+ 	} else {
+-		for i := 0; i < l; i = i+2 {
++		for i := 0; i < l; i = i + 2 {
+ 			t.Log("\t", m[i], ",", m[i+1])
+ 		}
+ 	}
+@@ -112,7 +112,7 @@ func printStrings(t *testing.T, m []string) {
+ 	if l == 0 {
+ 		t.Log("\t<no match>")
+ 	} else {
+-		for i := 0; i < l; i = i+2 {
++		for i := 0; i < l; i = i + 2 {
+ 			t.Logf("\t%q", m[i])
+ 		}
+ 	}
+@@ -123,7 +123,7 @@ func printBytes(t *testing.T, b [][]byte) {
+ 	if l == 0 {
+ 		t.Log("\t<no match>")
+ 	} else {
+-		for i := 0; i < l; i = i+2 {
++		for i := 0; i < l; i = i + 2 {
+ 			t.Logf("\t%q", b[i])
+ 		}
+ 	}
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index bc56724a08..ab9465b7df 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -157,7 +157,7 @@ func (cclass *_CharClass) print() {
+ 	}
+ 	for i := 0; i < cclass.ranges.Len(); i += 2 {
+ 		l := cclass.ranges.At(i);
+-		r := cclass.ranges.At(i+1);
++		r := cclass.ranges.At(i + 1);
+ 		if l == r {
+ 			print(" [", string(l), "]")
+ 		} else {
+@@ -173,9 +173,9 @@ func (cclass *_CharClass) addRange(a, b int) {
+ }
+ 
+ func (cclass *_CharClass) matches(c int) bool {
+-	for i := 0; i < cclass.ranges.Len(); i = i+2 {
++	for i := 0; i < cclass.ranges.Len(); i = i + 2 {
+ 		min := cclass.ranges.At(i);
+-		max := cclass.ranges.At(i+1);
++		max := cclass.ranges.At(i + 1);
+ 		if min <= c && c <= max {
+ 			return !cclass.negate
+ 		}
+@@ -262,7 +262,7 @@ func (p *parser) nextc() int {
+ 	if p.pos >= len(p.re.expr) {
+ 		p.ch = endOfFile
+ 	} else {
+-		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos : len(p.re.expr)]);
++		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos:len(p.re.expr)]);
+ 		p.ch = c;
+ 		p.pos += w;
+ 	}
+@@ -680,7 +680,7 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
+ 	for pos <= end {
+ 		if !found {
+ 			// prime the pump if we haven't seen a match yet
+-			match := make([]int, 2*(re.nbra + 1));
++			match := make([]int, 2*(re.nbra+1));
+ 			for i := 0; i < len(match); i++ {
+ 				match[i] = -1	// no match seen; catches cases like "a(b)?c" on "ac"
+ 			}
+@@ -735,12 +735,12 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
+ 				s[in] = addState(s[in], st.inst.next(), st.match);
+ 			case _EBRA:
+ 				n := st.inst.(*_Ebra).n;
+-				st.match[2*n + 1] = pos;
++				st.match[2*n+1] = pos;
+ 				s[in] = addState(s[in], st.inst.next(), st.match);
+ 			case _ALT:
+ 				s[in] = addState(s[in], st.inst.(*_Alt).left, st.match);
+ 				// give other branch a copy of this match vector
+-				s1 := make([]int, 2*(re.nbra + 1));
++				s1 := make([]int, 2*(re.nbra+1));
+ 				for i := 0; i < len(s1); i++ {
+ 					s1[i] = st.match[i]
+ 				}
+@@ -871,7 +871,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
+ 		}
+ 
+ 		// Copy the unmatched characters before this match.
+-		io.WriteString(buf, src[lastMatchEnd : a[0]]);
++		io.WriteString(buf, src[lastMatchEnd:a[0]]);
+ 
+ 		// Now insert a copy of the replacement string, but not for a
+ 		// match of the empty string immediately after another match.
+@@ -883,10 +883,10 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
+ 		lastMatchEnd = a[1];
+ 
+ 		// Advance past this match; always advance at least one character.
+-		_, width := utf8.DecodeRuneInString(src[searchPos : len(src)]);
+-		if searchPos + width > a[1] {
++		_, width := utf8.DecodeRuneInString(src[searchPos:len(src)]);
++		if searchPos+width > a[1] {
+ 			searchPos += width
+-		} else if searchPos + 1 > a[1] {
++		} else if searchPos+1 > a[1] {
+ 			// This clause is only needed at the end of the input
+ 			// string.  In that case, DecodeRuneInString returns width=0.
+ 			searchPos++
+@@ -896,7 +896,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
+ 	}
+ 
+ 	// Copy the unmatched characters after the last match.
+-	io.WriteString(buf, src[lastMatchEnd : len(src)]);
++	io.WriteString(buf, src[lastMatchEnd:len(src)]);
+ 
+ 	return buf.String();
+ }
+@@ -915,7 +915,7 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
+ 		}
+ 
+ 		// Copy the unmatched characters before this match.
+-		buf.Write(src[lastMatchEnd : a[0]]);
++		buf.Write(src[lastMatchEnd:a[0]]);
+ 
+ 		// Now insert a copy of the replacement string, but not for a
+ 		// match of the empty string immediately after another match.
+@@ -927,10 +927,10 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
+ 		lastMatchEnd = a[1];
+ 
+ 		// Advance past this match; always advance at least one character.
+-		_, width := utf8.DecodeRune(src[searchPos : len(src)]);
+-		if searchPos + width > a[1] {
++		_, width := utf8.DecodeRune(src[searchPos:len(src)]);
++		if searchPos+width > a[1] {
+ 			searchPos += width
+-		} else if searchPos + 1 > a[1] {
++		} else if searchPos+1 > a[1] {
+ 			// This clause is only needed at the end of the input
+ 			// string.  In that case, DecodeRuneInString returns width=0.
+ 			searchPos++
+@@ -940,7 +940,7 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
+ 	}
+ 
+ 	// Copy the unmatched characters after the last match.
+-	buf.Write(src[lastMatchEnd : len(src)]);
++	buf.Write(src[lastMatchEnd:len(src)]);
+ 
+ 	return buf.Bytes();
+ }
+@@ -996,7 +996,7 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func(int, int))
+ 			if width > 0 {
+ 				pos += width
+ 			} else {
+-				pos = end+1
++				pos = end + 1
+ 			}
+ 		} else {
+ 			pos = matches[1]
+@@ -1017,7 +1017,7 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func(int, int))
+ // containing the matching substrings.
+ func (re *Regexp) AllMatches(b []byte, n int) [][]byte {
+ 	if n <= 0 {
+-		n = len(b)+1
++		n = len(b) + 1
+ 	}
+ 	result := make([][]byte, n);
+ 	i := 0;
+@@ -1035,7 +1035,7 @@ func (re *Regexp) AllMatches(b []byte, n int) [][]byte {
+ // containing the matching substrings.
+ func (re *Regexp) AllMatchesString(s string, n int) []string {
+ 	if n <= 0 {
+-		n = len(s)+1
++		n = len(s) + 1
+ 	}
+ 	result := make([]string, n);
+ 	i := 0;
+@@ -1053,7 +1053,7 @@ func (re *Regexp) AllMatchesString(s string, n int) []string {
+ // channel that iterates over the matching substrings.
+ func (re *Regexp) AllMatchesIter(b []byte, n int) <-chan []byte {
+ 	if n <= 0 {
+-		n = len(b)+1
++		n = len(b) + 1
+ 	}
+ 	c := make(chan []byte, 10);
+ 	go func() {
+@@ -1070,7 +1070,7 @@ func (re *Regexp) AllMatchesIter(b []byte, n int) <-chan []byte {
+ // channel that iterates over the matching substrings.
+ func (re *Regexp) AllMatchesStringIter(s string, n int) <-chan string {
+ 	if n <= 0 {
+-		n = len(s)+1
++		n = len(s) + 1
+ 	}
+ 	c := make(chan string, 10);
+ 	go func() {
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index f959f53b90..93884d9a71 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -117,7 +117,7 @@ func DialHTTP(network, address string) (*Client, os.Error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	io.WriteString(conn, "CONNECT " + rpcPath + " HTTP/1.0\n\n");
++	io.WriteString(conn, "CONNECT "+rpcPath+" HTTP/1.0\n\n");
+ 
+ 	// Require successful HTTP response
+ 	// before switching to RPC protocol.
+@@ -129,7 +129,7 @@ func DialHTTP(network, address string) (*Client, os.Error) {
+ 		err = os.ErrorString("unexpected HTTP response: " + resp.Status)
+ 	}
+ 	conn.Close();
+-	return nil, &net.OpError{"dial-http", network+" "+address, nil, err};
++	return nil, &net.OpError{"dial-http", network + " " + address, nil, err};
+ }
+ 
+ // Dial connects to an RPC server at the specified network address.
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index c4e9df7633..045e2bb4ee 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -391,7 +391,7 @@ func serveHTTP(c *http.Conn, req *http.Request) {
+ 	if req.Method != "CONNECT" {
+ 		c.SetHeader("Content-Type", "text/plain; charset=utf-8");
+ 		c.WriteHeader(http.StatusMethodNotAllowed);
+-		io.WriteString(c, "405 must CONNECT to " + rpcPath + "\n");
++		io.WriteString(c, "405 must CONNECT to "+rpcPath+"\n");
+ 		return;
+ 	}
+ 	conn, _, err := c.Hijack();
+@@ -399,7 +399,7 @@ func serveHTTP(c *http.Conn, req *http.Request) {
+ 		log.Stderr("rpc hijacking ", c.RemoteAddr, ": ", err.String());
+ 		return;
+ 	}
+-	io.WriteString(conn, "HTTP/1.0 " + connected + "\n\n");
++	io.WriteString(conn, "HTTP/1.0 "+connected+"\n\n");
+ 	server.input(conn);
+ }
+ 
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index ca943d5184..701827b306 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -86,15 +86,15 @@ func TestRPC(t *testing.T) {
+ 	args := &Args{7, 8};
+ 	reply := new(Reply);
+ 	err = client.Call("Arith.Add", args, reply);
+-	if reply.C != args.A + args.B {
+-		t.Errorf("Add: expected %d got %d", reply.C, args.A + args.B)
++	if reply.C != args.A+args.B {
++		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
+ 	}
+ 
+ 	args = &Args{7, 8};
+ 	reply = new(Reply);
+ 	err = client.Call("Arith.Mul", args, reply);
+-	if reply.C != args.A * args.B {
+-		t.Errorf("Mul: expected %d got %d", reply.C, args.A * args.B)
++	if reply.C != args.A*args.B {
++		t.Errorf("Mul: expected %d got %d", reply.C, args.A*args.B)
+ 	}
+ 
+ 	// Out of order.
+@@ -105,13 +105,13 @@ func TestRPC(t *testing.T) {
+ 	addCall := client.Go("Arith.Add", args, addReply, nil);
+ 
+ 	<-addCall.Done;
+-	if addReply.C != args.A + args.B {
+-		t.Errorf("Add: expected %d got %d", addReply.C, args.A + args.B)
++	if addReply.C != args.A+args.B {
++		t.Errorf("Add: expected %d got %d", addReply.C, args.A+args.B)
+ 	}
+ 
+ 	<-mulCall.Done;
+-	if mulReply.C != args.A * args.B {
+-		t.Errorf("Mul: expected %d got %d", mulReply.C, args.A * args.B)
++	if mulReply.C != args.A*args.B {
++		t.Errorf("Mul: expected %d got %d", mulReply.C, args.A*args.B)
+ 	}
+ 
+ 	// Error test
+@@ -138,8 +138,8 @@ func TestHTTPRPC(t *testing.T) {
+ 	args := &Args{7, 8};
+ 	reply := new(Reply);
+ 	err = client.Call("Arith.Add", args, reply);
+-	if reply.C != args.A + args.B {
+-		t.Errorf("Add: expected %d got %d", reply.C, args.A + args.B)
++	if reply.C != args.A+args.B {
++		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+index f700e52963..a8b70be876 100644
+--- a/src/pkg/runtime/type.go
++++ b/src/pkg/runtime/type.go
+@@ -127,9 +127,9 @@ type SliceType struct {
+ type ChanDir int
+ 
+ const (
+-	RecvDir		ChanDir	= 1<<iota;	// <-chan
++	RecvDir		ChanDir	= 1 << iota;	// <-chan
+ 	SendDir;		// chan<-
+-	BothDir			= RecvDir|SendDir;	// chan
++	BothDir			= RecvDir | SendDir;	// chan
+ )
+ 
+ // ChanType represents a channel type.
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index 961ce4bc4c..c9b80356b6 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -28,7 +28,7 @@ func min(a, b int) int {
+ 
+ // Insertion sort
+ func insertionSort(data Interface, a, b int) {
+-	for i := a+1; i < b; i++ {
++	for i := a + 1; i < b; i++ {
+ 		for j := i; j > a && data.Less(j, j-1); j-- {
+ 			data.Swap(j, j-1)
+ 		}
+@@ -63,13 +63,13 @@ func swapRange(data Interface, a, b, n int) {
+ }
+ 
+ func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
+-	m := (lo+hi)/2;
++	m := (lo + hi) / 2;
+ 	if hi-lo > 40 {
+ 		// Tukey's ``Ninther,'' median of three medians of three.
+-		s := (hi-lo)/8;
+-		medianOfThree(data, lo, lo+s, lo + 2*s);
++		s := (hi - lo) / 8;
++		medianOfThree(data, lo, lo+s, lo+2*s);
+ 		medianOfThree(data, m, m-s, m+s);
+-		medianOfThree(data, hi-1, hi-1-s, hi - 1 - 2*s);
++		medianOfThree(data, hi-1, hi-1-s, hi-1-2*s);
+ 	}
+ 	medianOfThree(data, lo, m, hi-1);
+ 
+@@ -118,7 +118,7 @@ func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
+ 	n = min(hi-d, d-c);
+ 	swapRange(data, c, hi-n, n);
+ 
+-	return lo+b-a, hi-(d-c);
++	return lo + b - a, hi - (d - c);
+ }
+ 
+ func quickSort(data Interface, a, b int) {
+@@ -136,7 +136,7 @@ func Sort(data Interface)	{ quickSort(data, 0, data.Len()) }
+ 
+ func IsSorted(data Interface) bool {
+ 	n := data.Len();
+-	for i := n-1; i > 0; i-- {
++	for i := n - 1; i > 0; i-- {
+ 		if data.Less(i, i-1) {
+ 			return false
+ 		}
+diff --git a/src/pkg/sort/sort_test.go b/src/pkg/sort/sort_test.go
+index 93c520c9d9..ae10099b3e 100644
+--- a/src/pkg/sort/sort_test.go
++++ b/src/pkg/sort/sort_test.go
+@@ -147,11 +147,11 @@ func TestBentleyMcIlroy(t *testing.T) {
+ 				for i := 0; i < n; i++ {
+ 					switch dist {
+ 					case _Sawtooth:
+-						data[i] = i%m
++						data[i] = i % m
+ 					case _Rand:
+ 						data[i] = rand.Intn(m)
+ 					case _Stagger:
+-						data[i] = (i*m + i)%n
++						data[i] = (i*m + i) % n
+ 					case _Plateau:
+ 						data[i] = min(i, m)
+ 					case _Shuffle:
+@@ -178,17 +178,17 @@ func TestBentleyMcIlroy(t *testing.T) {
+ 						}
+ 					case _ReverseFirstHalf:
+ 						for i := 0; i < n/2; i++ {
+-							mdata[i] = data[n/2 - i - 1]
++							mdata[i] = data[n/2-i-1]
+ 						}
+-						for i := n/2; i < n; i++ {
++						for i := n / 2; i < n; i++ {
+ 							mdata[i] = data[i]
+ 						}
+ 					case _ReverseSecondHalf:
+ 						for i := 0; i < n/2; i++ {
+ 							mdata[i] = data[i]
+ 						}
+-						for i := n/2; i < n; i++ {
+-							mdata[i] = data[n-(i - n/2)-1]
++						for i := n / 2; i < n; i++ {
++							mdata[i] = data[n-(i-n/2)-1]
+ 						}
+ 					case _Sorted:
+ 						for i := 0; i < n; i++ {
+@@ -204,7 +204,7 @@ func TestBentleyMcIlroy(t *testing.T) {
+ 					}
+ 
+ 					desc := fmt.Sprintf("n=%d m=%d dist=%s mode=%s", n, m, dists[dist], modes[mode]);
+-					d := &testingData{desc, t, mdata[0:n], n*lg(n)*12/10, 0};
++					d := &testingData{desc, t, mdata[0:n], n * lg(n) * 12 / 10, 0};
+ 					Sort(d);
+ 
+ 					// If we were testing C qsort, we'd have to make a copy
+diff --git a/src/pkg/strconv/atof.go b/src/pkg/strconv/atof.go
+index 4629a7e175..30ac128541 100644
+--- a/src/pkg/strconv/atof.go
++++ b/src/pkg/strconv/atof.go
+@@ -94,7 +94,7 @@ func stringToDecimal(s string) (neg bool, d *decimal, trunc bool, ok bool) {
+ 				e = e*10 + int(s[i]) - '0'
+ 			}
+ 		}
+-		b.dp += e*esign;
++		b.dp += e * esign;
+ 	}
+ 
+ 	if i != len(s) {
+@@ -162,13 +162,13 @@ func decimalToFloatBits(neg bool, d *decimal, trunc bool, flt *floatInfo) (b uin
+ 	// Minimum representable exponent is flt.bias+1.
+ 	// If the exponent is smaller, move it up and
+ 	// adjust d accordingly.
+-	if exp < flt.bias + 1 {
++	if exp < flt.bias+1 {
+ 		n := flt.bias + 1 - exp;
+ 		d.Shift(-n);
+ 		exp += n;
+ 	}
+ 
+-	if exp - flt.bias >= 1 << flt.expbits - 1 {
++	if exp-flt.bias >= 1<<flt.expbits-1 {
+ 		goto overflow
+ 	}
+ 
+@@ -176,16 +176,16 @@ func decimalToFloatBits(neg bool, d *decimal, trunc bool, flt *floatInfo) (b uin
+ 	mant = d.Shift(int(1 + flt.mantbits)).RoundedInteger();
+ 
+ 	// Rounding might have added a bit; shift down.
+-	if mant == 2 << flt.mantbits {
++	if mant == 2<<flt.mantbits {
+ 		mant >>= 1;
+ 		exp++;
+-		if exp - flt.bias >= 1 << flt.expbits - 1 {
++		if exp-flt.bias >= 1<<flt.expbits-1 {
+ 			goto overflow
+ 		}
+ 	}
+ 
+ 	// Denormalized?
+-	if mant&(1 << flt.mantbits) == 0 {
++	if mant&(1<<flt.mantbits) == 0 {
+ 		exp = flt.bias
+ 	}
+ 	goto out;
+@@ -193,13 +193,13 @@ func decimalToFloatBits(neg bool, d *decimal, trunc bool, flt *floatInfo) (b uin
+ overflow:
+ 	// ±Inf
+ 	mant = 0;
+-	exp = 1 << flt.expbits - 1 + flt.bias;
++	exp = 1<<flt.expbits - 1 + flt.bias;
+ 	overflow = true;
+ 
+ out:
+ 	// Assemble bits.
+-	bits := mant&(uint64(1) << flt.mantbits - 1);
+-	bits |= uint64((exp - flt.bias)&(1 << flt.expbits - 1)) << flt.mantbits;
++	bits := mant & (uint64(1)<<flt.mantbits - 1);
++	bits |= uint64((exp-flt.bias)&(1<<flt.expbits-1)) << flt.mantbits;
+ 	if neg {
+ 		bits |= 1 << flt.mantbits << flt.expbits
+ 	}
+@@ -211,7 +211,7 @@ out:
+ func decimalAtof64Int(neg bool, d *decimal) float64 {
+ 	f := float64(0);
+ 	for i := 0; i < d.nd; i++ {
+-		f = f*10 + float64(d.d[i] - '0')
++		f = f*10 + float64(d.d[i]-'0')
+ 	}
+ 	if neg {
+ 		f *= -1	// BUG work around 6g f = -f.
+@@ -222,7 +222,7 @@ func decimalAtof64Int(neg bool, d *decimal) float64 {
+ func decimalAtof32Int(neg bool, d *decimal) float32 {
+ 	f := float32(0);
+ 	for i := 0; i < d.nd; i++ {
+-		f = f*10 + float32(d.d[i] - '0')
++		f = f*10 + float32(d.d[i]-'0')
+ 	}
+ 	if neg {
+ 		f *= -1	// BUG work around 6g f = -f.
+@@ -267,9 +267,9 @@ func decimalAtof64(neg bool, d *decimal, trunc bool) (f float64, ok bool) {
+ 		}
+ 		return f * float64pow10[k], true;
+ 
+-	case d.dp < d.nd && d.nd - d.dp <= 22:	// int / 10^k
++	case d.dp < d.nd && d.nd-d.dp <= 22:	// int / 10^k
+ 		f := decimalAtof64Int(neg, d);
+-		return f / float64pow10[d.nd - d.dp], true;
++		return f / float64pow10[d.nd-d.dp], true;
+ 	}
+ 	return;
+ }
+@@ -298,9 +298,9 @@ func decimalAtof32(neg bool, d *decimal, trunc bool) (f float32, ok bool) {
+ 		}
+ 		return f * float32pow10[k], true;
+ 
+-	case d.dp < d.nd && d.nd - d.dp <= 10:	// int / 10^k
++	case d.dp < d.nd && d.nd-d.dp <= 10:	// int / 10^k
+ 		f := decimalAtof32Int(neg, d);
+-		return f / float32pow10[d.nd - d.dp], true;
++		return f / float32pow10[d.nd-d.dp], true;
+ 	}
+ 	return;
+ }
+diff --git a/src/pkg/strconv/atoi.go b/src/pkg/strconv/atoi.go
+index 2194821f3e..a9d03dac17 100644
+--- a/src/pkg/strconv/atoi.go
++++ b/src/pkg/strconv/atoi.go
+@@ -29,7 +29,7 @@ func cutoff64(base int) uint64 {
+ 	if base < 2 {
+ 		return 0
+ 	}
+-	return (1<<64 - 1)/uint64(base) + 1;
++	return (1<<64-1)/uint64(base) + 1;
+ }
+ 
+ // Btoui64 interprets a string s in an arbitrary base b (2 to 36)
+@@ -79,11 +79,11 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
+ 		var v byte;
+ 		switch {
+ 		case '0' <= s[i] && s[i] <= '9':
+-			v = s[i]-'0'
++			v = s[i] - '0'
+ 		case 'a' <= s[i] && s[i] <= 'z':
+-			v = s[i]-'a'+10
++			v = s[i] - 'a' + 10
+ 		case 'A' <= s[i] && s[i] <= 'Z':
+-			v = s[i]-'A'+10
++			v = s[i] - 'A' + 10
+ 		default:
+ 			n = 0;
+ 			err = os.EINVAL;
+@@ -103,7 +103,7 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
+ 		}
+ 		n *= uint64(b);
+ 
+-		n1 := n+uint64(v);
++		n1 := n + uint64(v);
+ 		if n1 < n {
+ 			// n+v overflows
+ 			n = 1<<64 - 1;
+@@ -193,7 +193,7 @@ func Atoi(s string) (i int, err os.Error) {
+ 	i = int(i1);
+ 	if int64(i) != i1 {
+ 		if i1 < 0 {
+-			return -1 << (IntSize-1), &NumError{s, os.ERANGE}
++			return -1 << (IntSize - 1), &NumError{s, os.ERANGE}
+ 		}
+ 		return 1<<(IntSize-1) - 1, &NumError{s, os.ERANGE};
+ 	}
+diff --git a/src/pkg/strconv/atoi_test.go b/src/pkg/strconv/atoi_test.go
+index da9de577b7..58554d3043 100644
+--- a/src/pkg/strconv/atoi_test.go
++++ b/src/pkg/strconv/atoi_test.go
+@@ -48,7 +48,7 @@ var btoui64tests = []atoui64Test{
+ 	atoui64Test{"01777777777777777777777", 1<<64 - 1, nil},
+ 	atoui64Test{"01777777777777777777778", 0, os.EINVAL},
+ 	atoui64Test{"02000000000000000000000", 1<<64 - 1, os.ERANGE},
+-	atoui64Test{"0200000000000000000000", 1<<61, nil},
++	atoui64Test{"0200000000000000000000", 1 << 61, nil},
+ }
+ 
+ type atoi64Test struct {
+@@ -70,7 +70,7 @@ var atoi64tests = []atoi64Test{
+ 	atoi64Test{"98765432100", 98765432100, nil},
+ 	atoi64Test{"-98765432100", -98765432100, nil},
+ 	atoi64Test{"9223372036854775807", 1<<63 - 1, nil},
+-	atoi64Test{"-9223372036854775807", -(1<<63 - 1), nil},
++	atoi64Test{"-9223372036854775807", -(1 << 63 - 1), nil},
+ 	atoi64Test{"9223372036854775808", 1<<63 - 1, os.ERANGE},
+ 	atoi64Test{"-9223372036854775808", -1 << 63, nil},
+ 	atoi64Test{"9223372036854775809", 1<<63 - 1, os.ERANGE},
+@@ -94,7 +94,7 @@ var btoi64tests = []atoi64Test{
+ 	atoi64Test{"98765432100", 98765432100, nil},
+ 	atoi64Test{"-98765432100", -98765432100, nil},
+ 	atoi64Test{"9223372036854775807", 1<<63 - 1, nil},
+-	atoi64Test{"-9223372036854775807", -(1<<63 - 1), nil},
++	atoi64Test{"-9223372036854775807", -(1 << 63 - 1), nil},
+ 	atoi64Test{"9223372036854775808", 1<<63 - 1, os.ERANGE},
+ 	atoi64Test{"-9223372036854775808", -1 << 63, nil},
+ 	atoi64Test{"9223372036854775809", 1<<63 - 1, os.ERANGE},
+@@ -140,7 +140,7 @@ var atoi32tests = []atoi32Test{
+ 	atoi32Test{"987654321", 987654321, nil},
+ 	atoi32Test{"-987654321", -987654321, nil},
+ 	atoi32Test{"2147483647", 1<<31 - 1, nil},
+-	atoi32Test{"-2147483647", -(1<<31 - 1), nil},
++	atoi32Test{"-2147483647", -(1 << 31 - 1), nil},
+ 	atoi32Test{"2147483648", 1<<31 - 1, os.ERANGE},
+ 	atoi32Test{"-2147483648", -1 << 31, nil},
+ 	atoi32Test{"2147483649", 1<<31 - 1, os.ERANGE},
+diff --git a/src/pkg/strconv/decimal.go b/src/pkg/strconv/decimal.go
+index 898a77dc77..d39419bd95 100644
+--- a/src/pkg/strconv/decimal.go
++++ b/src/pkg/strconv/decimal.go
+@@ -42,20 +42,20 @@ func (a *decimal) String() string {
+ 		w++;
+ 		buf[w] = '.';
+ 		w++;
+-		w += digitZero(buf[w : w + -a.dp]);
+-		w += bytes.Copy(buf[w : w + a.nd], a.d[0 : a.nd]);
++		w += digitZero(buf[w : w+-a.dp]);
++		w += bytes.Copy(buf[w:w+a.nd], a.d[0:a.nd]);
+ 
+ 	case a.dp < a.nd:
+ 		// decimal point in middle of digits
+-		w += bytes.Copy(buf[w : w + a.dp], a.d[0 : a.dp]);
++		w += bytes.Copy(buf[w:w+a.dp], a.d[0:a.dp]);
+ 		buf[w] = '.';
+ 		w++;
+-		w += bytes.Copy(buf[w : w + a.nd - a.dp], a.d[a.dp : a.nd]);
++		w += bytes.Copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd]);
+ 
+ 	default:
+ 		// zeros fill space between digits and decimal point
+-		w += bytes.Copy(buf[w : w + a.nd], a.d[0 : a.nd]);
+-		w += digitZero(buf[w : w + a.dp - a.nd]);
++		w += bytes.Copy(buf[w:w+a.nd], a.d[0:a.nd]);
++		w += digitZero(buf[w : w+a.dp-a.nd]);
+ 	}
+ 	return string(buf[0:w]);
+ }
+@@ -78,7 +78,7 @@ func digitZero(dst []byte) int {
+ // (They are meaningless; the decimal point is tracked
+ // independent of the number of digits.)
+ func trim(a *decimal) {
+-	for a.nd > 0 && a.d[a.nd - 1] == '0' {
++	for a.nd > 0 && a.d[a.nd-1] == '0' {
+ 		a.nd--
+ 	}
+ 	if a.nd == 0 {
+@@ -93,9 +93,9 @@ func (a *decimal) Assign(v uint64) {
+ 	// Write reversed decimal in buf.
+ 	n := 0;
+ 	for v > 0 {
+-		v1 := v/10;
+-		v -= 10*v1;
+-		buf[n] = byte(v+'0');
++		v1 := v / 10;
++		v -= 10 * v1;
++		buf[n] = byte(v + '0');
+ 		n++;
+ 		v = v1;
+ 	}
+@@ -135,7 +135,7 @@ func rightShift(a *decimal, k uint) {
+ 				return;
+ 			}
+ 			for n>>k == 0 {
+-				n = n*10;
++				n = n * 10;
+ 				r++;
+ 			}
+ 			break;
+@@ -143,25 +143,25 @@ func rightShift(a *decimal, k uint) {
+ 		c := int(a.d[r]);
+ 		n = n*10 + c - '0';
+ 	}
+-	a.dp -= r-1;
++	a.dp -= r - 1;
+ 
+ 	// Pick up a digit, put down a digit.
+ 	for ; r < a.nd; r++ {
+ 		c := int(a.d[r]);
+-		dig := n>>k;
+-		n -= dig<<k;
+-		a.d[w] = byte(dig+'0');
++		dig := n >> k;
++		n -= dig << k;
++		a.d[w] = byte(dig + '0');
+ 		w++;
+ 		n = n*10 + c - '0';
+ 	}
+ 
+ 	// Put down extra digits.
+ 	for n > 0 {
+-		dig := n>>k;
+-		n -= dig<<k;
+-		a.d[w] = byte(dig+'0');
++		dig := n >> k;
++		n -= dig << k;
++		a.d[w] = byte(dig + '0');
+ 		w++;
+-		n = n*10;
++		n = n * 10;
+ 	}
+ 
+ 	a.nd = w;
+@@ -242,7 +242,7 @@ func prefixIsLessThan(b []byte, s string) bool {
+ // Binary shift left (/ 2) by k bits.  k <= maxShift to avoid overflow.
+ func leftShift(a *decimal, k uint) {
+ 	delta := leftcheats[k].delta;
+-	if prefixIsLessThan(a.d[0 : a.nd], leftcheats[k].cutoff) {
++	if prefixIsLessThan(a.d[0:a.nd], leftcheats[k].cutoff) {
+ 		delta--
+ 	}
+ 
+@@ -252,20 +252,20 @@ func leftShift(a *decimal, k uint) {
+ 
+ 	// Pick up a digit, put down a digit.
+ 	for r--; r >= 0; r-- {
+-		n += (int(a.d[r])-'0')<<k;
+-		quo := n/10;
++		n += (int(a.d[r]) - '0') << k;
++		quo := n / 10;
+ 		rem := n - 10*quo;
+ 		w--;
+-		a.d[w] = byte(rem+'0');
++		a.d[w] = byte(rem + '0');
+ 		n = quo;
+ 	}
+ 
+ 	// Put down extra digits.
+ 	for n > 0 {
+-		quo := n/10;
++		quo := n / 10;
+ 		rem := n - 10*quo;
+ 		w--;
+-		a.d[w] = byte(rem+'0');
++		a.d[w] = byte(rem + '0');
+ 		n = quo;
+ 	}
+ 
+@@ -302,7 +302,7 @@ func shouldRoundUp(a *decimal, nd int) bool {
+ 		return false
+ 	}
+ 	if a.d[nd] == '5' && nd+1 == a.nd {	// exactly halfway - round to even
+-		return (a.d[nd-1] - '0')%2 != 0
++		return (a.d[nd-1]-'0')%2 != 0
+ 	}
+ 	// not halfway - digit tells all
+ 	return a.d[nd] >= '5';
+@@ -339,11 +339,11 @@ func (a *decimal) RoundUp(nd int) *decimal {
+ 	}
+ 
+ 	// round up
+-	for i := nd-1; i >= 0; i-- {
++	for i := nd - 1; i >= 0; i-- {
+ 		c := a.d[i];
+ 		if c < '9' {	// can stop after this digit
+ 			a.d[i]++;
+-			a.nd = i+1;
++			a.nd = i + 1;
+ 			return a;
+ 		}
+ 	}
+@@ -365,7 +365,7 @@ func (a *decimal) RoundedInteger() uint64 {
+ 	var i int;
+ 	n := uint64(0);
+ 	for i = 0; i < a.dp && i < a.nd; i++ {
+-		n = n*10 + uint64(a.d[i] - '0')
++		n = n*10 + uint64(a.d[i]-'0')
+ 	}
+ 	for ; i < a.dp; i++ {
+ 		n *= 10
+diff --git a/src/pkg/strconv/fp_test.go b/src/pkg/strconv/fp_test.go
+index 757041d33c..8fee9f84ce 100644
+--- a/src/pkg/strconv/fp_test.go
++++ b/src/pkg/strconv/fp_test.go
+@@ -16,13 +16,13 @@ import (
+ func pow2(i int) float64 {
+ 	switch {
+ 	case i < 0:
+-		return 1/pow2(-i)
++		return 1 / pow2(-i)
+ 	case i == 0:
+ 		return 1
+ 	case i == 1:
+ 		return 2
+ 	}
+-	return pow2(i/2)*pow2(i - i/2);
++	return pow2(i/2) * pow2(i-i/2);
+ }
+ 
+ // Wrapper around strconv.Atof64.  Handles dddddp+ddd (binary exponent)
+@@ -60,7 +60,7 @@ func myatof64(s string) (f float64, ok bool) {
+ 			}
+ 			return v, true;
+ 		}
+-		return v*pow2(e), true;
++		return v * pow2(e), true;
+ 	}
+ 	f1, err := strconv.Atof64(s);
+ 	if err != nil {
+@@ -84,7 +84,7 @@ func myatof32(s string) (f float32, ok bool) {
+ 			println("bad p", a[1]);
+ 			return 0, false;
+ 		}
+-		return float32(float64(n)*pow2(e)), true;
++		return float32(float64(n) * pow2(e)), true;
+ 	}
+ 	f1, err1 := strconv.Atof32(s);
+ 	if err1 != nil {
+diff --git a/src/pkg/strconv/ftoa.go b/src/pkg/strconv/ftoa.go
+index d31f44142c..a285b64027 100644
+--- a/src/pkg/strconv/ftoa.go
++++ b/src/pkg/strconv/ftoa.go
+@@ -73,12 +73,12 @@ func Ftoa(f float, fmt byte, prec int) string {
+ }
+ 
+ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
+-	neg := bits >> flt.expbits >> flt.mantbits != 0;
+-	exp := int(bits >> flt.mantbits)&(1 << flt.expbits - 1);
+-	mant := bits&(uint64(1) << flt.mantbits - 1);
++	neg := bits>>flt.expbits>>flt.mantbits != 0;
++	exp := int(bits>>flt.mantbits) & (1<<flt.expbits - 1);
++	mant := bits & (uint64(1)<<flt.mantbits - 1);
+ 
+ 	switch exp {
+-	case 1 << flt.expbits - 1:
++	case 1<<flt.expbits - 1:
+ 		// Inf, NaN
+ 		if mant != 0 {
+ 			return "NaN"
+@@ -107,7 +107,7 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
+ 	// The shift is exp - flt.mantbits because mant is a 1-bit integer
+ 	// followed by a flt.mantbits fraction, and we are treating it as
+ 	// a 1+flt.mantbits-bit integer.
+-	d := newDecimal(mant).Shift(exp-int(flt.mantbits));
++	d := newDecimal(mant).Shift(exp - int(flt.mantbits));
+ 
+ 	// Round appropriately.
+ 	// Negative precision means "only as much as needed to be exact."
+@@ -119,14 +119,14 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
+ 		case 'e', 'E':
+ 			prec = d.nd - 1
+ 		case 'f':
+-			prec = max(d.nd - d.dp, 0)
++			prec = max(d.nd-d.dp, 0)
+ 		case 'g', 'G':
+ 			prec = d.nd
+ 		}
+ 	} else {
+ 		switch fmt {
+ 		case 'e', 'E':
+-			d.Round(prec+1)
++			d.Round(prec + 1)
+ 		case 'f':
+ 			d.Round(d.dp + prec)
+ 		case 'g', 'G':
+@@ -158,10 +158,10 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
+ 		if exp < -4 || exp >= eprec {
+ 			return fmtE(neg, d, prec-1, fmt+'e'-'g')
+ 		}
+-		return fmtF(neg, d, max(prec - d.dp, 0));
++		return fmtF(neg, d, max(prec-d.dp, 0));
+ 	}
+ 
+-	return "%"+string(fmt);
++	return "%" + string(fmt);
+ }
+ 
+ // Round d (= mant * 2^exp) to the shortest number of digits
+@@ -186,7 +186,7 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
+ 	// d = mant << (exp - mantbits)
+ 	// Next highest floating point number is mant+1 << exp-mantbits.
+ 	// Our upper bound is halfway inbetween, mant*2+1 << exp-mantbits-1.
+-	upper := newDecimal(mant*2 + 1).Shift(exp-int(flt.mantbits)-1);
++	upper := newDecimal(mant*2 + 1).Shift(exp - int(flt.mantbits) - 1);
+ 
+ 	// d = mant << (exp - mantbits)
+ 	// Next lowest floating point number is mant-1 << exp-mantbits,
+@@ -197,14 +197,14 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
+ 	minexp := flt.bias + 1;	// minimum possible exponent
+ 	var mantlo uint64;
+ 	var explo int;
+-	if mant > 1 << flt.mantbits || exp == minexp {
+-		mantlo = mant-1;
++	if mant > 1<<flt.mantbits || exp == minexp {
++		mantlo = mant - 1;
+ 		explo = exp;
+ 	} else {
+ 		mantlo = mant*2 - 1;
+-		explo = exp-1;
++		explo = exp - 1;
+ 	}
+-	lower := newDecimal(mantlo*2 + 1).Shift(explo-int(flt.mantbits)-1);
++	lower := newDecimal(mantlo*2 + 1).Shift(explo - int(flt.mantbits) - 1);
+ 
+ 	// The upper and lower bounds are possible outputs only if
+ 	// the original mantissa is even, so that IEEE round-to-even
+@@ -239,13 +239,13 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
+ 		// If it's okay to do only one, do it.
+ 		switch {
+ 		case okdown && okup:
+-			d.Round(i+1);
++			d.Round(i + 1);
+ 			return;
+ 		case okdown:
+-			d.RoundDown(i+1);
++			d.RoundDown(i + 1);
+ 			return;
+ 		case okup:
+-			d.RoundUp(i+1);
++			d.RoundUp(i + 1);
+ 			return;
+ 		}
+ 	}
+@@ -253,8 +253,8 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
+ 
+ // %e: -d.ddddde±dd
+ func fmtE(neg bool, d *decimal, prec int, fmt byte) string {
+-	buf := make([]byte, 3 + max(prec, 0) + 30);	// "-0." + prec digits + exp
+-	w := 0;						// write index
++	buf := make([]byte, 3+max(prec, 0)+30);	// "-0." + prec digits + exp
++	w := 0;					// write index
+ 
+ 	// sign
+ 	if neg {
+@@ -323,7 +323,7 @@ func fmtE(neg bool, d *decimal, prec int, fmt byte) string {
+ 
+ // %f: -ddddddd.ddddd
+ func fmtF(neg bool, d *decimal, prec int) string {
+-	buf := make([]byte, 1 + max(d.dp, 1) + 1 + max(prec, 0));
++	buf := make([]byte, 1+max(d.dp, 1)+1+max(prec, 0));
+ 	w := 0;
+ 
+ 	// sign
+@@ -353,10 +353,10 @@ func fmtF(neg bool, d *decimal, prec int) string {
+ 		buf[w] = '.';
+ 		w++;
+ 		for i := 0; i < prec; i++ {
+-			if d.dp + i < 0 || d.dp + i >= d.nd {
++			if d.dp+i < 0 || d.dp+i >= d.nd {
+ 				buf[w] = '0'
+ 			} else {
+-				buf[w] = d.d[d.dp + i]
++				buf[w] = d.d[d.dp+i]
+ 			}
+ 			w++;
+ 		}
+diff --git a/src/pkg/strconv/ftoa_test.go b/src/pkg/strconv/ftoa_test.go
+index 20548e384d..99d8ec5149 100644
+--- a/src/pkg/strconv/ftoa_test.go
++++ b/src/pkg/strconv/ftoa_test.go
+@@ -17,7 +17,7 @@ type ftoaTest struct {
+ 	s	string;
+ }
+ 
+-func fdiv(a, b float64) float64	{ return a/b }	// keep compiler in the dark
++func fdiv(a, b float64) float64	{ return a / b }	// keep compiler in the dark
+ 
+ const (
+ 	below1e23	= 99999999999999974834176;
+diff --git a/src/pkg/strconv/itoa_test.go b/src/pkg/strconv/itoa_test.go
+index f48a5342a6..63e2cf9462 100644
+--- a/src/pkg/strconv/itoa_test.go
++++ b/src/pkg/strconv/itoa_test.go
+@@ -22,30 +22,30 @@ var itob64tests = []itob64Test{
+ 	itob64Test{12345678, 10, "12345678"},
+ 	itob64Test{-987654321, 10, "-987654321"},
+ 	itob64Test{1<<31 - 1, 10, "2147483647"},
+-	itob64Test{-1 << 31 + 1, 10, "-2147483647"},
+-	itob64Test{1<<31, 10, "2147483648"},
++	itob64Test{-1<<31 + 1, 10, "-2147483647"},
++	itob64Test{1 << 31, 10, "2147483648"},
+ 	itob64Test{-1 << 31, 10, "-2147483648"},
+ 	itob64Test{1<<31 + 1, 10, "2147483649"},
+-	itob64Test{-1 << 31 - 1, 10, "-2147483649"},
++	itob64Test{-1<<31 - 1, 10, "-2147483649"},
+ 	itob64Test{1<<32 - 1, 10, "4294967295"},
+-	itob64Test{-1 << 32 + 1, 10, "-4294967295"},
+-	itob64Test{1<<32, 10, "4294967296"},
++	itob64Test{-1<<32 + 1, 10, "-4294967295"},
++	itob64Test{1 << 32, 10, "4294967296"},
+ 	itob64Test{-1 << 32, 10, "-4294967296"},
+ 	itob64Test{1<<32 + 1, 10, "4294967297"},
+-	itob64Test{-1 << 32 - 1, 10, "-4294967297"},
+-	itob64Test{1<<50, 10, "1125899906842624"},
++	itob64Test{-1<<32 - 1, 10, "-4294967297"},
++	itob64Test{1 << 50, 10, "1125899906842624"},
+ 	itob64Test{1<<63 - 1, 10, "9223372036854775807"},
+-	itob64Test{-1 << 63 + 1, 10, "-9223372036854775807"},
++	itob64Test{-1<<63 + 1, 10, "-9223372036854775807"},
+ 	itob64Test{-1 << 63, 10, "-9223372036854775808"},
+ 
+ 	itob64Test{0, 2, "0"},
+ 	itob64Test{10, 2, "1010"},
+ 	itob64Test{-1, 2, "-1"},
+-	itob64Test{1<<15, 2, "1000000000000000"},
++	itob64Test{1 << 15, 2, "1000000000000000"},
+ 
+ 	itob64Test{-8, 8, "-10"},
+ 	itob64Test{057635436545, 8, "57635436545"},
+-	itob64Test{1<<24, 8, "100000000"},
++	itob64Test{1 << 24, 8, "100000000"},
+ 
+ 	itob64Test{16, 16, "10"},
+ 	itob64Test{-0x123456789abcdef, 16, "-123456789abcdef"},
+@@ -53,8 +53,8 @@ var itob64tests = []itob64Test{
+ 
+ 	itob64Test{16, 17, "g"},
+ 	itob64Test{25, 25, "10"},
+-	itob64Test{(((((17*35 + 24)*35 + 21)*35 + 34)*35 + 12)*35 + 24)*35 + 32, 35, "holycow"},
+-	itob64Test{(((((17*36 + 24)*36 + 21)*36 + 34)*36 + 12)*36 + 24)*36 + 32, 36, "holycow"},
++	itob64Test{(((((17*35+24)*35+21)*35+34)*35+12)*35+24)*35 + 32, 35, "holycow"},
++	itob64Test{(((((17*36+24)*36+21)*36+34)*36+12)*36+24)*36 + 32, 36, "holycow"},
+ }
+ 
+ func TestItoa(t *testing.T) {
+@@ -131,7 +131,7 @@ type uitob64Test struct {
+ 
+ var uitob64tests = []uitob64Test{
+ 	uitob64Test{1<<63 - 1, 10, "9223372036854775807"},
+-	uitob64Test{1<<63, 10, "9223372036854775808"},
++	uitob64Test{1 << 63, 10, "9223372036854775808"},
+ 	uitob64Test{1<<63 + 1, 10, "9223372036854775809"},
+ 	uitob64Test{1<<64 - 2, 10, "18446744073709551614"},
+ 	uitob64Test{1<<64 - 1, 10, "18446744073709551615"},
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index c655e2f8c4..2e4ab1c3cb 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -53,12 +53,12 @@ func Quote(s string) string {
+ 			if r < 0x10000 {
+ 				buf.WriteString(`\u`);
+ 				for j := uint(0); j < 4; j++ {
+-					buf.WriteByte(lowerhex[(r>>(12 - 4*j))&0xF])
++					buf.WriteByte(lowerhex[(r>>(12-4*j))&0xF])
+ 				}
+ 			} else {
+ 				buf.WriteString(`\U`);
+ 				for j := uint(0); j < 8; j++ {
+-					buf.WriteByte(lowerhex[(r>>(28 - 4*j))&0xF])
++					buf.WriteByte(lowerhex[(r>>(28-4*j))&0xF])
+ 				}
+ 			}
+ 
+@@ -88,11 +88,11 @@ func unhex(b byte) (v int, ok bool) {
+ 	c := int(b);
+ 	switch {
+ 	case '0' <= c && c <= '9':
+-		return c-'0', true
++		return c - '0', true
+ 	case 'a' <= c && c <= 'f':
+-		return c-'a'+10, true
++		return c - 'a' + 10, true
+ 	case 'A' <= c && c <= 'F':
+-		return c-'A'+10, true
++		return c - 'A' + 10, true
+ 	}
+ 	return;
+ }
+@@ -182,17 +182,17 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string,
+ 		value = v;
+ 		multibyte = true;
+ 	case '0', '1', '2', '3', '4', '5', '6', '7':
+-		v := int(c)-'0';
++		v := int(c) - '0';
+ 		if len(s) < 2 {
+ 			err = os.EINVAL;
+ 			return;
+ 		}
+ 		for j := 0; j < 2; j++ {	// one digit already; two more
+-			x := int(s[j])-'0';
++			x := int(s[j]) - '0';
+ 			if x < 0 || x > 7 {
+ 				return
+ 			}
+-			v = (v<<3)|x;
++			v = (v << 3) | x;
+ 		}
+ 		s = s[2:len(s)];
+ 		if v > 255 {
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 5e1b5b35cc..055d7d1e99 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -41,9 +41,9 @@ func Count(s, sep string) int {
+ 	c := sep[0];
+ 	n := 0;
+ 	for i := 0; i+len(sep) <= len(s); i++ {
+-		if s[i] == c && (len(sep) == 1 || s[i : i+len(sep)] == sep) {
++		if s[i] == c && (len(sep) == 1 || s[i:i+len(sep)] == sep) {
+ 			n++;
+-			i += len(sep)-1;
++			i += len(sep) - 1;
+ 		}
+ 	}
+ 	return n;
+@@ -57,7 +57,7 @@ func Index(s, sep string) int {
+ 	}
+ 	c := sep[0];
+ 	for i := 0; i+n <= len(s); i++ {
+-		if s[i] == c && (n == 1 || s[i : i+n] == sep) {
++		if s[i] == c && (n == 1 || s[i:i+n] == sep) {
+ 			return i
+ 		}
+ 	}
+@@ -71,8 +71,8 @@ func LastIndex(s, sep string) int {
+ 		return len(s)
+ 	}
+ 	c := sep[0];
+-	for i := len(s)-n; i >= 0; i-- {
+-		if s[i] == c && (n == 1 || s[i : i+n] == sep) {
++	for i := len(s) - n; i >= 0; i-- {
++		if s[i] == c && (n == 1 || s[i:i+n] == sep) {
+ 			return i
+ 		}
+ 	}
+@@ -93,11 +93,11 @@ func genSplit(s, sep string, sepSave, n int) []string {
+ 	a := make([]string, n);
+ 	na := 0;
+ 	for i := 0; i+len(sep) <= len(s) && na+1 < n; i++ {
+-		if s[i] == c && (len(sep) == 1 || s[i : i+len(sep)] == sep) {
++		if s[i] == c && (len(sep) == 1 || s[i:i+len(sep)] == sep) {
+ 			a[na] = s[start : i+sepSave];
+ 			na++;
+-			start = i+len(sep);
+-			i += len(sep)-1;
++			start = i + len(sep);
++			i += len(sep) - 1;
+ 		}
+ 	}
+ 	a[na] = s[start:len(s)];
+@@ -125,7 +125,7 @@ func Join(a []string, sep string) string {
+ 	if len(a) == 1 {
+ 		return a[0]
+ 	}
+-	n := len(sep)*(len(a)-1);
++	n := len(sep) * (len(a) - 1);
+ 	for i := 0; i < len(a); i++ {
+ 		n += len(a[i])
+ 	}
+@@ -156,7 +156,7 @@ func HasPrefix(s, prefix string) bool {
+ 
+ // HasSuffix tests whether the string s ends with suffix.
+ func HasSuffix(s, suffix string) bool {
+-	return len(s) >= len(suffix) && s[len(s)-len(suffix) : len(s)] == suffix
++	return len(s) >= len(suffix) && s[len(s)-len(suffix):len(s)] == suffix
+ }
+ 
+ // Map returns a copy of the string s with all its characters modified
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 1aab16eed8..2281458ea2 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -208,7 +208,7 @@ const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
+ var trimSpaceTests = []StringTest{
+ 	StringTest{"", ""},
+ 	StringTest{"abc", "abc"},
+-	StringTest{space+"abc"+space, "abc"},
++	StringTest{space + "abc" + space, "abc"},
+ 	StringTest{" ", ""},
+ 	StringTest{" \t\r\n \t\t\r\r\n\n ", ""},
+ 	StringTest{" \t\r\n x\t\t\r\r\n\n ", "x"},
+@@ -272,7 +272,7 @@ func equal(m string, s1, s2 string, t *testing.T) bool {
+ 
+ func TestCaseConsistency(t *testing.T) {
+ 	// Make a string of all the runes.
+-	a := make([]int, unicode.MaxRune + 1);
++	a := make([]int, unicode.MaxRune+1);
+ 	for i := range a {
+ 		a[i] = i
+ 	}
+@@ -282,10 +282,10 @@ func TestCaseConsistency(t *testing.T) {
+ 	lower := ToLower(s);
+ 
+ 	// Consistency checks
+-	if n := utf8.RuneCountInString(upper); n != unicode.MaxRune + 1 {
++	if n := utf8.RuneCountInString(upper); n != unicode.MaxRune+1 {
+ 		t.Error("rune count wrong in upper:", n)
+ 	}
+-	if n := utf8.RuneCountInString(lower); n != unicode.MaxRune + 1 {
++	if n := utf8.RuneCountInString(lower); n != unicode.MaxRune+1 {
+ 		t.Error("rune count wrong in lower:", n)
+ 	}
+ 	if !equal("ToUpper(upper)", ToUpper(upper), upper, t) {
+diff --git a/src/pkg/sync/mutex.go b/src/pkg/sync/mutex.go
+index c02abc575f..bf19f0dec7 100644
+--- a/src/pkg/sync/mutex.go
++++ b/src/pkg/sync/mutex.go
+@@ -23,7 +23,7 @@ type Mutex struct {
+ func xadd(val *uint32, delta int32) (new uint32) {
+ 	for {
+ 		v := *val;
+-		nv := v+uint32(delta);
++		nv := v + uint32(delta);
+ 		if cas(val, v, nv) {
+ 			return nv
+ 		}
+diff --git a/src/pkg/syscall/errstr.go b/src/pkg/syscall/errstr.go
+index c1935d5b28..136aea9980 100644
+--- a/src/pkg/syscall/errstr.go
++++ b/src/pkg/syscall/errstr.go
+@@ -7,22 +7,22 @@ package syscall
+ 
+ func str(val int) string {	// do it here rather than with fmt to avoid dependency
+ 	if val < 0 {
+-		return "-"+str(-val)
++		return "-" + str(-val)
+ 	}
+ 	var buf [32]byte;	// big enough for int64
+-	i := len(buf)-1;
++	i := len(buf) - 1;
+ 	for val >= 10 {
+ 		buf[i] = byte(val%10 + '0');
+ 		i--;
+ 		val /= 10;
+ 	}
+-	buf[i] = byte(val+'0');
++	buf[i] = byte(val + '0');
+ 	return string(buf[i:len(buf)]);
+ }
+ 
+ func Errstr(errno int) string {
+ 	if errno < 0 || errno >= int(len(errors)) {
+-		return "error "+str(errno)
++		return "error " + str(errno)
+ 	}
+ 	return errors[errno];
+ }
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index 2663c70921..b2e6de7b6c 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -94,13 +94,13 @@ func (w WaitStatus) ExitStatus() int {
+ 	if w&mask != exited {
+ 		return -1
+ 	}
+-	return int(w>>shift);
++	return int(w >> shift);
+ }
+ 
+ func (w WaitStatus) Signaled() bool	{ return w&mask != stopped && w&mask != 0 }
+ 
+ func (w WaitStatus) Signal() int {
+-	sig := int(w&mask);
++	sig := int(w & mask);
+ 	if sig == stopped || sig == 0 {
+ 		return -1
+ 	}
+@@ -117,7 +117,7 @@ func (w WaitStatus) StopSignal() int {
+ 	if !w.Stopped() {
+ 		return -1
+ 	}
+-	return int(w>>shift)&0xFF;
++	return int(w>>shift) & 0xFF;
+ }
+ 
+ func (w WaitStatus) TrapCause() int {
+@@ -220,7 +220,7 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
+ 	if n >= len(sa.raw.Path) || n == 0 {
+ 		return 0, 0, EINVAL
+ 	}
+-	sa.raw.Len = byte(3+n);	// 2 for Family, Len; 1 for NUL
++	sa.raw.Len = byte(3 + n);	// 2 for Family, Len; 1 for NUL
+ 	sa.raw.Family = AF_UNIX;
+ 	for i := 0; i < n; i++ {
+ 		sa.raw.Path[i] = int8(name[i])
+@@ -236,7 +236,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
+ 			return nil, EINVAL
+ 		}
+ 		sa := new(SockaddrUnix);
+-		n := int(pp.Len)-3;	// subtract leading Family, Len, terminating NUL
++		n := int(pp.Len) - 3;	// subtract leading Family, Len, terminating NUL
+ 		for i := 0; i < n; i++ {
+ 			if pp.Path[i] == 0 {
+ 				// found early NUL; assume Len is overestimating
+@@ -392,7 +392,7 @@ func nametomib(name string) (mib []_C_int, errno int) {
+ 	// will silently write 2 words farther than we specify
+ 	// and we'll get memory corruption.
+ 	var buf [CTL_MAXNAME + 2]_C_int;
+-	n := uintptr(CTL_MAXNAME)*siz;
++	n := uintptr(CTL_MAXNAME) * siz;
+ 
+ 	p := (*byte)(unsafe.Pointer(&buf[0]));
+ 	bytes := StringByteSlice(name);
+diff --git a/src/pkg/syscall/syscall_darwin_386.go b/src/pkg/syscall/syscall_darwin_386.go
+index 41b7578e34..a5296fbd76 100644
+--- a/src/pkg/syscall/syscall_darwin_386.go
++++ b/src/pkg/syscall/syscall_darwin_386.go
+@@ -9,8 +9,8 @@ func Getpagesize() int	{ return 4096 }
+ func TimespecToNsec(ts Timespec) int64	{ return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+-	ts.Sec = int32(nsec/1e9);
+-	ts.Nsec = int32(nsec%1e9);
++	ts.Sec = int32(nsec / 1e9);
++	ts.Nsec = int32(nsec % 1e9);
+ 	return;
+ }
+ 
+@@ -18,8 +18,8 @@ func TimevalToNsec(tv Timeval) int64	{ return int64(tv.Sec)*1e9 + int64(tv.Usec)
+ 
+ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	nsec += 999;	// round up to microsecond
+-	tv.Usec = int32(nsec%1e9/1e3);
+-	tv.Sec = int32(nsec/1e9);
++	tv.Usec = int32(nsec % 1e9 / 1e3);
++	tv.Sec = int32(nsec / 1e9);
+ 	return;
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_darwin_amd64.go b/src/pkg/syscall/syscall_darwin_amd64.go
+index 7662b200da..941124fb75 100644
+--- a/src/pkg/syscall/syscall_darwin_amd64.go
++++ b/src/pkg/syscall/syscall_darwin_amd64.go
+@@ -9,8 +9,8 @@ func Getpagesize() int	{ return 4096 }
+ func TimespecToNsec(ts Timespec) int64	{ return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+-	ts.Sec = nsec/1e9;
+-	ts.Nsec = nsec%1e9;
++	ts.Sec = nsec / 1e9;
++	ts.Nsec = nsec % 1e9;
+ 	return;
+ }
+ 
+@@ -18,8 +18,8 @@ func TimevalToNsec(tv Timeval) int64	{ return int64(tv.Sec)*1e9 + int64(tv.Usec)
+ 
+ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	nsec += 999;	// round up to microsecond
+-	tv.Usec = int32(nsec%1e9/1e3);
+-	tv.Sec = int64(nsec/1e9);
++	tv.Usec = int32(nsec % 1e9 / 1e3);
++	tv.Sec = int64(nsec / 1e9);
+ 	return;
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 165d56d35a..930d99be65 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -134,28 +134,28 @@ func (w WaitStatus) ExitStatus() int {
+ 	if !w.Exited() {
+ 		return -1
+ 	}
+-	return int(w>>shift)&0xFF;
++	return int(w>>shift) & 0xFF;
+ }
+ 
+ func (w WaitStatus) Signal() int {
+ 	if !w.Signaled() {
+ 		return -1
+ 	}
+-	return int(w&mask);
++	return int(w & mask);
+ }
+ 
+ func (w WaitStatus) StopSignal() int {
+ 	if !w.Stopped() {
+ 		return -1
+ 	}
+-	return int(w>>shift)&0xFF;
++	return int(w>>shift) & 0xFF;
+ }
+ 
+ func (w WaitStatus) TrapCause() int {
+ 	if w.StopSignal() != SIGTRAP {
+ 		return -1
+ 	}
+-	return int(w>>shift)>>8;
++	return int(w>>shift) >> 8;
+ }
+ 
+ //sys	wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, errno int)
+@@ -242,7 +242,7 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
+ 	}
+ 
+ 	// length is family, name, NUL.
+-	return uintptr(unsafe.Pointer(&sa.raw)), 1+_Socklen(n)+1, 0;
++	return uintptr(unsafe.Pointer(&sa.raw)), 1 + _Socklen(n) + 1, 0;
+ }
+ 
+ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
+@@ -411,12 +411,12 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno in
+ 	// boundary and not get the bytes leading up to the page
+ 	// boundary.
+ 	n := 0;
+-	if addr % sizeofPtr != 0 {
+-		errno = ptrace(req, pid, addr - addr % sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
++	if addr%sizeofPtr != 0 {
++		errno = ptrace(req, pid, addr-addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
+ 		if errno != 0 {
+ 			return 0, errno
+ 		}
+-		n += bytesCopy(out, buf[addr % sizeofPtr : len(buf)]);
++		n += bytesCopy(out, buf[addr%sizeofPtr:len(buf)]);
+ 		out = out[n:len(out)];
+ 	}
+ 
+@@ -450,15 +450,15 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
+ 
+ 	// Leading edge.
+ 	n := 0;
+-	if addr % sizeofPtr != 0 {
++	if addr%sizeofPtr != 0 {
+ 		var buf [sizeofPtr]byte;
+-		errno = ptrace(peekReq, pid, addr - addr % sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
++		errno = ptrace(peekReq, pid, addr-addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
+ 		if errno != 0 {
+ 			return 0, errno
+ 		}
+-		n += bytesCopy(buf[addr % sizeofPtr : len(buf)], data);
++		n += bytesCopy(buf[addr%sizeofPtr:len(buf)], data);
+ 		word := *((*uintptr)(unsafe.Pointer(&buf[0])));
+-		errno = ptrace(pokeReq, pid, addr - addr % sizeofPtr, word);
++		errno = ptrace(pokeReq, pid, addr-addr%sizeofPtr, word);
+ 		if errno != 0 {
+ 			return 0, errno
+ 		}
+@@ -473,7 +473,7 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
+ 			return n, errno
+ 		}
+ 		n += sizeofPtr;
+-		data = data[sizeofPtr : len(data)];
++		data = data[sizeofPtr:len(data)];
+ 	}
+ 
+ 	// Trailing edge.
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index f18309d871..8dbe4c7c9e 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -11,8 +11,8 @@ func Getpagesize() int	{ return 4096 }
+ func TimespecToNsec(ts Timespec) int64	{ return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+-	ts.Sec = int32(nsec/1e9);
+-	ts.Nsec = int32(nsec%1e9);
++	ts.Sec = int32(nsec / 1e9);
++	ts.Nsec = int32(nsec % 1e9);
+ 	return;
+ }
+ 
+@@ -20,8 +20,8 @@ func TimevalToNsec(tv Timeval) int64	{ return int64(tv.Sec)*1e9 + int64(tv.Usec)
+ 
+ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	nsec += 999;	// round up to microsecond
+-	tv.Sec = int32(nsec/1e9);
+-	tv.Usec = int32(nsec%1e9/1e3);
++	tv.Sec = int32(nsec / 1e9);
++	tv.Usec = int32(nsec % 1e9 / 1e3);
+ 	return;
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index 3ad3f3a2bd..e3a3daed66 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -47,8 +47,8 @@ func Getpagesize() int	{ return 4096 }
+ func TimespecToNsec(ts Timespec) int64	{ return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+-	ts.Sec = nsec/1e9;
+-	ts.Nsec = nsec%1e9;
++	ts.Sec = nsec / 1e9;
++	ts.Nsec = nsec % 1e9;
+ 	return;
+ }
+ 
+@@ -56,8 +56,8 @@ func TimevalToNsec(tv Timeval) int64	{ return int64(tv.Sec)*1e9 + int64(tv.Usec)
+ 
+ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	nsec += 999;	// round up to microsecond
+-	tv.Sec = nsec/1e9;
+-	tv.Usec = nsec%1e9/1e3;
++	tv.Sec = nsec / 1e9;
++	tv.Usec = nsec % 1e9 / 1e3;
+ 	return;
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index 36f19906a1..86731bf41e 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -9,15 +9,15 @@ func Getpagesize() int	{ return 4096 }
+ func TimespecToNsec(ts Timespec) int64	{ return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+-	ts.Sec = int32(nsec/1e9);
+-	ts.Nsec = int32(nsec%1e9);
++	ts.Sec = int32(nsec / 1e9);
++	ts.Nsec = int32(nsec % 1e9);
+ 	return;
+ }
+ 
+ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	nsec += 999;	// round up to microsecond
+-	tv.Sec = int32(nsec/1e9);
+-	tv.Usec = int32(nsec%1e9/1e3);
++	tv.Sec = int32(nsec / 1e9);
++	tv.Usec = int32(nsec % 1e9 / 1e3);
+ 	return;
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_nacl.go b/src/pkg/syscall/syscall_nacl.go
+index 0a73939a2d..7bd2b06fe1 100644
+--- a/src/pkg/syscall/syscall_nacl.go
++++ b/src/pkg/syscall/syscall_nacl.go
+@@ -219,7 +219,7 @@ type SockaddrUnix struct {
+ func (*SockaddrUnix) sockaddr()	{}
+ 
+ const (
+-	AF_INET	= 1+iota;
++	AF_INET	= 1 + iota;
+ 	AF_INET6;
+ 	AF_UNIX;
+ 	IPPROTO_TCP;
+diff --git a/src/pkg/syscall/syscall_nacl_386.go b/src/pkg/syscall/syscall_nacl_386.go
+index badc4b25b4..22626cbd3b 100644
+--- a/src/pkg/syscall/syscall_nacl_386.go
++++ b/src/pkg/syscall/syscall_nacl_386.go
+@@ -7,13 +7,13 @@ package syscall
+ func Getpagesize() int	{ return 4096 }
+ 
+ func NsecToTimeval(nsec int64) (tv Timeval) {
+-	tv.Sec = int32(nsec/1e9);
+-	tv.Usec = int32(nsec%1e9/1e3);
++	tv.Sec = int32(nsec / 1e9);
++	tv.Usec = int32(nsec % 1e9 / 1e3);
+ 	return;
+ }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+-	ts.Sec = int32(nsec/1e9);
+-	ts.Nsec = int32(nsec%1e9);
++	ts.Sec = int32(nsec / 1e9);
++	ts.Nsec = int32(nsec % 1e9);
+ 	return;
+ }
+diff --git a/src/pkg/tabwriter/tabwriter.go b/src/pkg/tabwriter/tabwriter.go
+index 98edc4a220..67767f18ca 100644
+--- a/src/pkg/tabwriter/tabwriter.go
++++ b/src/pkg/tabwriter/tabwriter.go
+@@ -138,7 +138,7 @@ func (b *Writer) reset() {
+ const (
+ 	// Ignore html tags and treat entities (starting with '&'
+ 	// and ending in ';') as single characters (width = 1).
+-	FilterHTML	uint	= 1<<iota;
++	FilterHTML	uint	= 1 << iota;
+ 
+ 	// Force right-alignment of cell content.
+ 	// Default is left-alignment.
+@@ -183,7 +183,7 @@ func (b *Writer) Init(output io.Writer, cellwidth, padding int, padchar byte, fl
+ 	b.output = output;
+ 	b.cellwidth = cellwidth;
+ 	b.padding = padding;
+-	for i := len(b.padbytes)-1; i >= 0; i-- {
++	for i := len(b.padbytes) - 1; i >= 0; i-- {
+ 		b.padbytes[i] = padchar
+ 	}
+ 	if padchar == '\t' {
+@@ -238,7 +238,7 @@ func (b *Writer) writePadding(textw, cellw int) os.Error {
+ 		cellw = ((cellw + b.cellwidth - 1) / b.cellwidth) * b.cellwidth
+ 	}
+ 
+-	n := cellw-textw;
++	n := cellw - textw;
+ 	if n < 0 {
+ 		panic("internal error")
+ 	}
+@@ -267,7 +267,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error)
+ 		for j := 0; j < line.Len(); j++ {
+ 			c := line.At(j).(cell);
+ 
+-			if j > 0 && b.flags & Debug != 0 {
++			if j > 0 && b.flags&Debug != 0 {
+ 				if err = b.write0(vbar); err != nil {
+ 					return
+ 				}
+@@ -275,7 +275,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error)
+ 			switch {
+ 			default:	// align left
+ 
+-				if err = b.write0(b.buf.Bytes()[pos : pos + c.size]); err != nil {
++				if err = b.write0(b.buf.Bytes()[pos : pos+c.size]); err != nil {
+ 					return
+ 				}
+ 				pos += c.size;
+@@ -285,14 +285,14 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error)
+ 					}
+ 				}
+ 
+-			case b.flags & AlignRight != 0:	// align right
++			case b.flags&AlignRight != 0:	// align right
+ 
+ 				if j < b.widths.Len() {
+ 					if err = b.writePadding(c.width, b.widths.At(j)); err != nil {
+ 						return
+ 					}
+ 				}
+-				if err = b.write0(b.buf.Bytes()[pos : pos + c.size]); err != nil {
++				if err = b.write0(b.buf.Bytes()[pos : pos+c.size]); err != nil {
+ 					return
+ 				}
+ 				pos += c.size;
+@@ -302,7 +302,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error)
+ 		if i+1 == b.lines.Len() {
+ 			// last buffered line - we don't have a newline, so just write
+ 			// any outstanding buffered data
+-			if err = b.write0(b.buf.Bytes()[pos : pos + b.cell.size]); err != nil {
++			if err = b.write0(b.buf.Bytes()[pos : pos+b.cell.size]); err != nil {
+ 				return
+ 			}
+ 			pos += b.cell.size;
+@@ -328,7 +328,7 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
+ 	for this := line0; this < line1; this++ {
+ 		line := b.line(this);
+ 
+-		if column < line.Len() - 1 {
++		if column < line.Len()-1 {
+ 			// cell exists in this column => this line
+ 			// has more cells than the previous line
+ 			// (the last cell per line is ignored because cells are
+@@ -347,7 +347,7 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
+ 			discardable := true;	// true if all cells in this column are empty and "soft"
+ 			for ; this < line1; this++ {
+ 				line = b.line(this);
+-				if column < line.Len() - 1 {
++				if column < line.Len()-1 {
+ 					// cell exists in this column
+ 					c := line.At(column).(cell);
+ 					// update width
+@@ -365,7 +365,7 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
+ 			// column block end
+ 
+ 			// discard empty columns if necessary
+-			if discardable && b.flags & DiscardEmptyColumns != 0 {
++			if discardable && b.flags&DiscardEmptyColumns != 0 {
+ 				width = 0
+ 			}
+ 
+@@ -392,7 +392,7 @@ func (b *Writer) append(text []byte) {
+ 
+ // Update the cell width.
+ func (b *Writer) updateWidth() {
+-	b.cell.width += utf8.RuneCount(b.buf.Bytes()[b.pos : b.buf.Len()]);
++	b.cell.width += utf8.RuneCount(b.buf.Bytes()[b.pos:b.buf.Len()]);
+ 	b.pos = b.buf.Len();
+ }
+ 
+@@ -490,7 +490,7 @@ func (b *Writer) Write(buf []byte) (n int, err os.Error) {
+ 				// end of cell
+ 				b.append(buf[n:i]);
+ 				b.updateWidth();
+-				n = i+1;	// ch consumed
++				n = i + 1;	// ch consumed
+ 				ncells := b.terminateCell(ch == '\t');
+ 				if ch == '\n' || ch == '\f' {
+ 					// terminate line
+@@ -511,12 +511,12 @@ func (b *Writer) Write(buf []byte) (n int, err os.Error) {
+ 				// start of escaped sequence
+ 				b.append(buf[n:i]);
+ 				b.updateWidth();
+-				n = i+1;	// exclude Escape
++				n = i + 1;	// exclude Escape
+ 				b.startEscape(Escape);
+ 
+ 			case '<', '&':
+ 				// possibly an html tag/entity
+-				if b.flags & FilterHTML != 0 {
++				if b.flags&FilterHTML != 0 {
+ 					// begin of tag/entity
+ 					b.append(buf[n:i]);
+ 					b.updateWidth();
+@@ -529,12 +529,12 @@ func (b *Writer) Write(buf []byte) (n int, err os.Error) {
+ 			// inside escape
+ 			if ch == b.endChar {
+ 				// end of tag/entity
+-				j := i+1;
++				j := i + 1;
+ 				if ch == Escape {
+ 					j = i	// exclude Escape
+ 				}
+ 				b.append(buf[n:j]);
+-				n = i+1;	// ch consumed
++				n = i + 1;	// ch consumed
+ 				b.endEscape();
+ 			}
+ 		}
+diff --git a/src/pkg/tabwriter/tabwriter_test.go b/src/pkg/tabwriter/tabwriter_test.go
+index f6e56882ae..bf9454dbdb 100644
+--- a/src/pkg/tabwriter/tabwriter_test.go
++++ b/src/pkg/tabwriter/tabwriter_test.go
+@@ -79,17 +79,17 @@ func check(t *testing.T, testname string, tabwidth, padding int, padchar byte, f
+ 	// write byte-by-byte
+ 	b.clear();
+ 	for i := 0; i < len(src); i++ {
+-		write(t, testname, &w, src[i : i+1])
++		write(t, testname, &w, src[i:i+1])
+ 	}
+ 	verify(t, testname, &w, &b, src, expected);
+ 
+ 	// write using Fibonacci slice sizes
+ 	b.clear();
+ 	for i, d := 0, 0; i < len(src); {
+-		write(t, testname, &w, src[i : i+d]);
++		write(t, testname, &w, src[i:i+d]);
+ 		i, d = i+d, d+1;
+ 		if i+d > len(src) {
+-			d = len(src)-i
++			d = len(src) - i
+ 		}
+ 	}
+ 	verify(t, testname, &w, &b, src, expected);
+diff --git a/src/pkg/template/format.go b/src/pkg/template/format.go
+index bb1ff915bf..21c11c659e 100644
+--- a/src/pkg/template/format.go
++++ b/src/pkg/template/format.go
+@@ -51,7 +51,7 @@ func HTMLEscape(w io.Writer, s []byte) {
+ 		}
+ 		w.Write(s[last:i]);
+ 		w.Write(esc);
+-		last = i+1;
++		last = i + 1;
+ 	}
+ 	w.Write(s[last:len(s)]);
+ }
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 548c706197..9a819db61e 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -220,7 +220,7 @@ func (t *Template) nextItem() []byte {
+ 	sawLeft := false;	// are we waiting for an opening delimiter?
+ 	special := false;	// is this a {.foo} directive, which means trim white space?
+ 	// Delete surrounding white space if this {.foo} is the only thing on the line.
+-	trim_white := t.p == 0 || t.buf[t.p - 1] == '\n';
++	trim_white := t.p == 0 || t.buf[t.p-1] == '\n';
+ 	only_white := true;	// we have seen only white space so far
+ 	var i int;
+ 	start := t.p;
+@@ -239,7 +239,7 @@ Loop:
+ 				break Loop
+ 			}
+ 			// is it a directive or comment?
+-			j := i+len(t.ldelim);	// position after delimiter
++			j := i + len(t.ldelim);	// position after delimiter
+ 			if j+1 < len(t.buf) && (t.buf[j] == '.' || t.buf[j] == '#') {
+ 				special = true;
+ 				if trim_white && only_white {
+@@ -249,7 +249,7 @@ Loop:
+ 				break Loop
+ 			}
+ 			sawLeft = true;
+-			i = j-1;
++			i = j - 1;
+ 		case equal(t.buf, i, t.rdelim):
+ 			if !sawLeft {
+ 				t.parseError("unmatched closing delimiter");
+@@ -681,13 +681,13 @@ func (t *Template) executeElement(i int, st *state) int {
+ 	switch elem := t.elems.At(i).(type) {
+ 	case *textElement:
+ 		st.wr.Write(elem.text);
+-		return i+1;
++		return i + 1;
+ 	case *literalElement:
+ 		st.wr.Write(elem.text);
+-		return i+1;
++		return i + 1;
+ 	case *variableElement:
+ 		t.writeVariable(elem, st);
+-		return i+1;
++		return i + 1;
+ 	case *sectionElement:
+ 		t.executeSection(elem, st);
+ 		return elem.end;
+@@ -744,7 +744,7 @@ func iter(v reflect.Value) *reflect.ChanValue {
+ 			continue
+ 		}
+ 		ct, ok := ft.Out(0).(*reflect.ChanType);
+-		if !ok || ct.Dir() & reflect.RecvDir == 0 {
++		if !ok || ct.Dir()&reflect.RecvDir == 0 {
+ 			continue
+ 		}
+ 		return fv.Call(nil)[0].(*reflect.ChanValue);
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index a93faced0d..0b95fcff41 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -46,7 +46,7 @@ func uppercase(v interface{}) string {
+ 	for i := 0; i < len(s); i++ {
+ 		c := s[i];
+ 		if 'a' <= c && c <= 'z' {
+-			c = c+'A'-'a'
++			c = c + 'A' - 'a'
+ 		}
+ 		t += string(c);
+ 	}
+@@ -55,7 +55,7 @@ func uppercase(v interface{}) string {
+ 
+ func plus1(v interface{}) string {
+ 	i := v.(int);
+-	return fmt.Sprint(i+1);
++	return fmt.Sprint(i + 1);
+ }
+ 
+ func writer(f func(interface{}) string) (func(io.Writer, interface{}, string)) {
+@@ -387,7 +387,7 @@ func TestCustomDelims(t *testing.T) {
+ 			var b bytes.Buffer;
+ 			err = tmpl.Execute("hello", &b);
+ 			s := b.String();
+-			if s != "template: hello" + ldelim + rdelim {
++			if s != "template: hello"+ldelim+rdelim {
+ 				t.Errorf("failed delim check(%q %q) %q got %q", ldelim, rdelim, text, s)
+ 			}
+ 		}
+diff --git a/src/pkg/testing/quick/quick.go b/src/pkg/testing/quick/quick.go
+index 825fc12e2f..8fe895ee06 100644
+--- a/src/pkg/testing/quick/quick.go
++++ b/src/pkg/testing/quick/quick.go
+@@ -27,7 +27,7 @@ type Generator interface {
+ // randFloat32 generates a random float taking the full range of a float32.
+ func randFloat32(rand *rand.Rand) float32 {
+ 	f := rand.Float64() * math.MaxFloat32;
+-	if rand.Int() & 1 == 1 {
++	if rand.Int()&1 == 1 {
+ 		f = -f
+ 	}
+ 	return float32(f);
+@@ -36,7 +36,7 @@ func randFloat32(rand *rand.Rand) float32 {
+ // randFloat64 generates a random float taking the full range of a float64.
+ func randFloat64(rand *rand.Rand) float64 {
+ 	f := rand.Float64();
+-	if rand.Int() & 1 == 1 {
++	if rand.Int()&1 == 1 {
+ 		f = -f
+ 	}
+ 	return f;
+@@ -59,7 +59,7 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+ 
+ 	switch concrete := t.(type) {
+ 	case *reflect.BoolType:
+-		return reflect.NewValue(rand.Int() & 1 == 0), true
++		return reflect.NewValue(rand.Int()&1 == 0), true
+ 	case *reflect.Float32Type:
+ 		return reflect.NewValue(randFloat32(rand)), true
+ 	case *reflect.Float64Type:
+@@ -262,7 +262,7 @@ func Check(function interface{}, config *Config) (err os.Error) {
+ 		}
+ 
+ 		if !f.Call(arguments)[0].(*reflect.BoolValue).Get() {
+-			err = &CheckError{i+1, toInterfaces(arguments)};
++			err = &CheckError{i + 1, toInterfaces(arguments)};
+ 			return;
+ 		}
+ 	}
+@@ -309,7 +309,7 @@ func CheckEqual(f, g interface{}, config *Config) (err os.Error) {
+ 		yOut := toInterfaces(y.Call(arguments));
+ 
+ 		if !reflect.DeepEqual(xOut, yOut) {
+-			err = &CheckEqualError{CheckError{i+1, toInterfaces(arguments)}, xOut, yOut};
++			err = &CheckEqualError{CheckError{i + 1, toInterfaces(arguments)}, xOut, yOut};
+ 			return;
+ 		}
+ 	}
+diff --git a/src/pkg/testing/regexp.go b/src/pkg/testing/regexp.go
+index 5093d512e3..f708db44b3 100644
+--- a/src/pkg/testing/regexp.go
++++ b/src/pkg/testing/regexp.go
+@@ -183,7 +183,7 @@ func (cclass *_CharClass) addRange(a, b int) {
+ }
+ 
+ func (cclass *_CharClass) matches(c int) bool {
+-	for i := 0; i < len(cclass.ranges); i = i+2 {
++	for i := 0; i < len(cclass.ranges); i = i + 2 {
+ 		min := cclass.ranges[i];
+ 		max := cclass.ranges[i+1];
+ 		if min <= c && c <= max {
+@@ -281,7 +281,7 @@ func (p *parser) nextc() int {
+ 	if p.pos >= len(p.re.expr) {
+ 		p.ch = endOfFile
+ 	} else {
+-		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos : len(p.re.expr)]);
++		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos:len(p.re.expr)]);
+ 		p.ch = c;
+ 		p.pos += w;
+ 	}
+@@ -677,7 +677,7 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
+ 	for pos <= end {
+ 		if !found {
+ 			// prime the pump if we haven't seen a match yet
+-			match := make([]int, 2*(re.nbra + 1));
++			match := make([]int, 2*(re.nbra+1));
+ 			for i := 0; i < len(match); i++ {
+ 				match[i] = -1	// no match seen; catches cases like "a(b)?c" on "ac"
+ 			}
+@@ -732,12 +732,12 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
+ 				s[in] = addState(s[in], st.inst.next(), st.match);
+ 			case _EBRA:
+ 				n := st.inst.(*_Ebra).n;
+-				st.match[2*n + 1] = pos;
++				st.match[2*n+1] = pos;
+ 				s[in] = addState(s[in], st.inst.next(), st.match);
+ 			case _ALT:
+ 				s[in] = addState(s[in], st.inst.(*_Alt).left, st.match);
+ 				// give other branch a copy of this match vector
+-				s1 := make([]int, 2*(re.nbra + 1));
++				s1 := make([]int, 2*(re.nbra+1));
+ 				for i := 0; i < len(s1); i++ {
+ 					s1[i] = st.match[i]
+ 				}
+diff --git a/src/pkg/testing/regexp_test.go b/src/pkg/testing/regexp_test.go
+index 89a214fcae..8f6b20c673 100644
+--- a/src/pkg/testing/regexp_test.go
++++ b/src/pkg/testing/regexp_test.go
+@@ -99,7 +99,7 @@ func printVec(t *T, m []int) {
+ 	if l == 0 {
+ 		t.Log("\t<no match>")
+ 	} else {
+-		for i := 0; i < l; i = i+2 {
++		for i := 0; i < l; i = i + 2 {
+ 			t.Log("\t", m[i], ",", m[i+1])
+ 		}
+ 	}
+@@ -110,7 +110,7 @@ func printStrings(t *T, m []string) {
+ 	if l == 0 {
+ 		t.Log("\t<no match>")
+ 	} else {
+-		for i := 0; i < l; i = i+2 {
++		for i := 0; i < l; i = i + 2 {
+ 			t.Logf("\t%q", m[i])
+ 		}
+ 	}
+@@ -121,7 +121,7 @@ func printBytes(t *T, b [][]byte) {
+ 	if l == 0 {
+ 		t.Log("\t<no match>")
+ 	} else {
+-		for i := 0; i < l; i = i+2 {
++		for i := 0; i < l; i = i + 2 {
+ 			t.Logf("\t%q", b[i])
+ 		}
+ 	}
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 62c79e0b32..1fbc4f4a90 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -32,7 +32,7 @@ func tabify(s string) string {
+ 	}
+ 	for i := 0; i < n-1; i++ {	// -1 to avoid final newline
+ 		if s[i] == '\n' {
+-			return s[0 : i+1]+"\t"+tabify(s[i+1 : n])
++			return s[0:i+1] + "\t" + tabify(s[i+1:n])
+ 		}
+ 	}
+ 	return s;
+@@ -62,12 +62,12 @@ func (t *T) FailNow() {
+ 
+ // Log formats its arguments using default formatting, analogous to Print(),
+ // and records the text in the error log.
+-func (t *T) Log(args ...)	{ t.errors += "\t"+tabify(fmt.Sprintln(args)) }
++func (t *T) Log(args ...)	{ t.errors += "\t" + tabify(fmt.Sprintln(args)) }
+ 
+ // Log formats its arguments according to the format, analogous to Printf(),
+ // and records the text in the error log.
+ func (t *T) Logf(format string, args ...) {
+-	t.errors += "\t"+tabify(fmt.Sprintf(format, args))
++	t.errors += "\t" + tabify(fmt.Sprintf(format, args))
+ }
+ 
+ // Error is equivalent to Log() followed by Fail().
+diff --git a/src/pkg/time/tick.go b/src/pkg/time/tick.go
+index ec526be2ab..cd247d3674 100644
+--- a/src/pkg/time/tick.go
++++ b/src/pkg/time/tick.go
+@@ -40,14 +40,14 @@ func (t *Ticker) ticker(c chan<- int64) {
+ 		// if c <- now took too long, skip ahead
+ 		if when < now {
+ 			// one big step
+-			when += (now-when) / t.ns * t.ns
++			when += (now - when) / t.ns * t.ns
+ 		}
+ 		for when <= now {
+ 			// little steps until when > now
+ 			when += t.ns
+ 		}
+ 
+-		Sleep(when-now);
++		Sleep(when - now);
+ 		now = Nanoseconds();
+ 		if t.shutdown {
+ 			return
+diff --git a/src/pkg/time/tick_test.go b/src/pkg/time/tick_test.go
+index 124c13a531..4d1f717edb 100644
+--- a/src/pkg/time/tick_test.go
++++ b/src/pkg/time/tick_test.go
+@@ -11,7 +11,7 @@ import (
+ 
+ func TestTicker(t *testing.T) {
+ 	const (
+-		Delta	= 100*1e6;
++		Delta	= 100 * 1e6;
+ 		Count	= 10;
+ 	)
+ 	ticker := NewTicker(Delta);
+@@ -21,14 +21,14 @@ func TestTicker(t *testing.T) {
+ 	}
+ 	ticker.Stop();
+ 	t1 := Nanoseconds();
+-	ns := t1-t0;
+-	target := int64(Delta*Count);
+-	slop := target*2/10;
++	ns := t1 - t0;
++	target := int64(Delta * Count);
++	slop := target * 2 / 10;
+ 	if ns < target-slop || ns > target+slop {
+ 		t.Fatalf("%d ticks of %g ns took %g ns, expected %g", Count, float64(Delta), float64(ns), float64(target))
+ 	}
+ 	// Now test that the ticker stopped
+-	Sleep(2*Delta);
++	Sleep(2 * Delta);
+ 	_, received := <-ticker.C;
+ 	if received {
+ 		t.Fatalf("Ticker did not shut down")
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index ea1941c138..9ba6e4ebbb 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -62,7 +62,7 @@ func months(year int64) []int {
+ }
+ 
+ const (
+-	secondsPerDay	= 24*60*60;
++	secondsPerDay	= 24 * 60 * 60;
+ 	daysPer400Years	= 365*400 + 97;
+ 	daysPer100Years	= 365*100 + 24;
+ 	daysPer4Years	= 365*4 + 1;
+@@ -83,12 +83,12 @@ func SecondsToUTC(sec int64) *Time {
+ 	}
+ 
+ 	// Time
+-	t.Hour = int(sec/3600);
+-	t.Minute = int((sec/60)%60);
+-	t.Second = int(sec%60);
++	t.Hour = int(sec / 3600);
++	t.Minute = int((sec / 60) % 60);
++	t.Second = int(sec % 60);
+ 
+ 	// Day 0 = January 1, 1970 was a Thursday
+-	t.Weekday = int((day+Thursday)%7);
++	t.Weekday = int((day + Thursday) % 7);
+ 	if t.Weekday < 0 {
+ 		t.Weekday += 7
+ 	}
+@@ -101,30 +101,30 @@ func SecondsToUTC(sec int64) *Time {
+ 	year := int64(2001);
+ 	if day < 0 {
+ 		// Go back enough 400 year cycles to make day positive.
+-		n := -day / daysPer400Years + 1;
+-		year -= 400*n;
++		n := -day/daysPer400Years + 1;
++		year -= 400 * n;
+ 		day += daysPer400Years * n;
+ 	} else {
+ 		// Cut off 400 year cycles.
+ 		n := day / daysPer400Years;
+-		year += 400*n;
++		year += 400 * n;
+ 		day -= daysPer400Years * n;
+ 	}
+ 
+ 	// Cut off 100-year cycles
+ 	n := day / daysPer100Years;
+-	year += 100*n;
++	year += 100 * n;
+ 	day -= daysPer100Years * n;
+ 
+ 	// Cut off 4-year cycles
+ 	n = day / daysPer4Years;
+-	year += 4*n;
++	year += 4 * n;
+ 	day -= daysPer4Years * n;
+ 
+ 	// Cut off non-leap years.
+-	n = day/365;
++	n = day / 365;
+ 	year += n;
+-	day -= 365*n;
++	day -= 365 * n;
+ 
+ 	t.Year = year;
+ 
+@@ -137,8 +137,8 @@ func SecondsToUTC(sec int64) *Time {
+ 	for m = 0; m < 12 && yday >= months[m]; m++ {
+ 		yday -= months[m]
+ 	}
+-	t.Month = m+1;
+-	t.Day = yday+1;
++	t.Month = m + 1;
++	t.Day = yday + 1;
+ 	t.Zone = "UTC";
+ 
+ 	return t;
+@@ -151,7 +151,7 @@ func UTC() *Time	{ return SecondsToUTC(Seconds()) }
+ // into a parsed Time value in the local time zone.
+ func SecondsToLocalTime(sec int64) *Time {
+ 	z, offset := lookupTimezone(sec);
+-	t := SecondsToUTC(sec+int64(offset));
++	t := SecondsToUTC(sec + int64(offset));
+ 	t.Zone = z;
+ 	t.ZoneOffset = offset;
+ 	return t;
+@@ -173,32 +173,32 @@ func (t *Time) Seconds() int64 {
+ 	year := t.Year;
+ 	if year < 2001 {
+ 		n := (2001-year)/400 + 1;
+-		year += 400*n;
++		year += 400 * n;
+ 		day -= daysPer400Years * n;
+ 	}
+ 
+ 	// Add in days from 400-year cycles.
+-	n := (year-2001)/400;
+-	year -= 400*n;
++	n := (year - 2001) / 400;
++	year -= 400 * n;
+ 	day += daysPer400Years * n;
+ 
+ 	// Add in 100-year cycles.
+-	n = (year-2001)/100;
+-	year -= 100*n;
++	n = (year - 2001) / 100;
++	year -= 100 * n;
+ 	day += daysPer100Years * n;
+ 
+ 	// Add in 4-year cycles.
+-	n = (year-2001)/4;
+-	year -= 4*n;
++	n = (year - 2001) / 4;
++	year -= 4 * n;
+ 	day += daysPer4Years * n;
+ 
+ 	// Add in non-leap years.
+-	n = year-2001;
+-	day += 365*n;
++	n = year - 2001;
++	day += 365 * n;
+ 
+ 	// Add in days this year.
+ 	months := months(t.Year);
+-	for m := 0; m < t.Month - 1; m++ {
++	for m := 0; m < t.Month-1; m++ {
+ 		day += int64(months[m])
+ 	}
+ 	day += int64(t.Day - 1);
+@@ -207,8 +207,8 @@ func (t *Time) Seconds() int64 {
+ 	sec := day * secondsPerDay;
+ 
+ 	// Add in time elapsed today.
+-	sec += int64(t.Hour)*3600;
+-	sec += int64(t.Minute)*60;
++	sec += int64(t.Hour) * 3600;
++	sec += int64(t.Minute) * 60;
+ 	sec += int64(t.Second);
+ 
+ 	// Convert from seconds since 2001 to seconds since 1970.
+@@ -265,7 +265,7 @@ func decimal(dst []byte, n int) {
+ 	if n < 0 {
+ 		n = 0
+ 	}
+-	for i := len(dst)-1; i >= 0; i-- {
++	for i := len(dst) - 1; i >= 0; i-- {
+ 		dst[i] = byte(n%10 + '0');
+ 		n /= 10;
+ 	}
+@@ -273,8 +273,8 @@ func decimal(dst []byte, n int) {
+ 
+ func addString(buf []byte, bp int, s string) int {
+ 	n := len(s);
+-	copy(buf[bp : bp+n], s);
+-	return bp+n;
++	copy(buf[bp:bp+n], s);
++	return bp + n;
+ }
+ 
+ // Just enough of strftime to implement the date formats below.
+@@ -294,30 +294,30 @@ func format(t *Time, fmt string) string {
+ 			case 'b':	// %b abbreviated month name
+ 				bp = addString(buf, bp, shortMonthNames[t.Month])
+ 			case 'd':	// %d day of month (01-31)
+-				decimal(buf[bp : bp+2], t.Day);
++				decimal(buf[bp:bp+2], t.Day);
+ 				bp += 2;
+ 			case 'e':	// %e day of month ( 1-31)
+ 				if t.Day >= 10 {
+-					decimal(buf[bp : bp+2], t.Day)
++					decimal(buf[bp:bp+2], t.Day)
+ 				} else {
+ 					buf[bp] = ' ';
+ 					buf[bp+1] = byte(t.Day + '0');
+ 				}
+ 				bp += 2;
+ 			case 'H':	// %H hour 00-23
+-				decimal(buf[bp : bp+2], t.Hour);
++				decimal(buf[bp:bp+2], t.Hour);
+ 				bp += 2;
+ 			case 'M':	// %M minute 00-59
+-				decimal(buf[bp : bp+2], t.Minute);
++				decimal(buf[bp:bp+2], t.Minute);
+ 				bp += 2;
+ 			case 'S':	// %S second 00-59
+-				decimal(buf[bp : bp+2], t.Second);
++				decimal(buf[bp:bp+2], t.Second);
+ 				bp += 2;
+ 			case 'Y':	// %Y year 2008
+-				decimal(buf[bp : bp+4], int(t.Year));
++				decimal(buf[bp:bp+4], int(t.Year));
+ 				bp += 4;
+ 			case 'y':	// %y year 08
+-				decimal(buf[bp : bp+2], int(t.Year % 100));
++				decimal(buf[bp:bp+2], int(t.Year%100));
+ 				bp += 2;
+ 			case 'Z':
+ 				bp = addString(buf, bp, t.Zone)
+diff --git a/src/pkg/time/zoneinfo.go b/src/pkg/time/zoneinfo.go
+index 8e66e0ca66..4316bbd8b9 100644
+--- a/src/pkg/time/zoneinfo.go
++++ b/src/pkg/time/zoneinfo.go
+@@ -119,19 +119,19 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
+ 	}
+ 
+ 	// Transition times.
+-	txtimes := data{d.read(n[NTime]*4), false};
++	txtimes := data{d.read(n[NTime] * 4), false};
+ 
+ 	// Time zone indices for transition times.
+ 	txzones := d.read(n[NTime]);
+ 
+ 	// Zone info structures
+-	zonedata := data{d.read(n[NZone]*6), false};
++	zonedata := data{d.read(n[NZone] * 6), false};
+ 
+ 	// Time zone abbreviations.
+ 	abbrev := d.read(n[NChar]);
+ 
+ 	// Leap-second time pairs
+-	d.read(n[NLeap]*8);
++	d.read(n[NLeap] * 8);
+ 
+ 	// Whether tx times associated with local time types
+ 	// are specified as standard time or wall time.
+@@ -215,7 +215,7 @@ func setupZone() {
+ 	case err == os.ENOENV:
+ 		zones, _ = readinfofile("/etc/localtime")
+ 	case len(tz) > 0:
+-		zones, _ = readinfofile(zoneDir+tz)
++		zones, _ = readinfofile(zoneDir + tz)
+ 	case len(tz) == 0:
+ 		// do nothing: use UTC
+ 	}
+@@ -230,7 +230,7 @@ func lookupTimezone(sec int64) (zone string, offset int) {
+ 	// Binary search for entry with largest time <= sec
+ 	tz := zones;
+ 	for len(tz) > 1 {
+-		m := len(tz)/2;
++		m := len(tz) / 2;
+ 		if sec < int64(tz[m].time) {
+ 			tz = tz[0:m]
+ 		} else {
+diff --git a/src/pkg/unicode/letter.go b/src/pkg/unicode/letter.go
+index f44ce56398..b249f2389b 100644
+--- a/src/pkg/unicode/letter.go
++++ b/src/pkg/unicode/letter.go
+@@ -48,7 +48,7 @@ type d [MaxCase]int32	// to make the CaseRanges text shorter
+ // this CaseRange represents a sequence of the form (say)
+ // Upper Lower Upper Lower.
+ const (
+-	UpperLower = MaxRune+1;	// (Cannot be a valid delta.)
++	UpperLower = MaxRune + 1;	// (Cannot be a valid delta.)
+ )
+ 
+ // Is tests whether rune is in the specified table of ranges.
+@@ -62,7 +62,7 @@ func Is(ranges []Range, rune int) bool {
+ 			if rune < r.Lo {
+ 				return false
+ 			}
+-			return (rune - r.Lo) % r.Stride == 0;
++			return (rune-r.Lo)%r.Stride == 0;
+ 		}
+ 		return false;
+ 	}
+@@ -74,12 +74,12 @@ func Is(ranges []Range, rune int) bool {
+ 		m := lo + (hi-lo)/2;
+ 		r := ranges[m];
+ 		if r.Lo <= rune && rune <= r.Hi {
+-			return (rune - r.Lo) % r.Stride == 0
++			return (rune-r.Lo)%r.Stride == 0
+ 		}
+ 		if rune < r.Lo {
+ 			hi = m
+ 		} else {
+-			lo = m+1
++			lo = m + 1
+ 		}
+ 	}
+ 	return false;
+@@ -112,7 +112,7 @@ func IsTitle(rune int) bool {
+ // IsLetter reports whether the rune is a letter.
+ func IsLetter(rune int) bool {
+ 	if rune < 0x80 {	// quick ASCII check
+-		rune &^= 'a'-'A';
++		rune &^= 'a' - 'A';
+ 		return 'A' <= rune && rune <= 'Z';
+ 	}
+ 	return Is(Letter, rune);
+@@ -154,14 +154,14 @@ func To(_case int, rune int) int {
+ 				// bit in the sequence offset.
+ 				// The constants UpperCase and TitleCase are even while LowerCase
+ 				// is odd so we take the low bit from _case.
+-				return r.Lo + ((rune - r.Lo)&^1 | _case&1)
++				return r.Lo + ((rune-r.Lo)&^1 | _case&1)
+ 			}
+-			return rune+delta;
++			return rune + delta;
+ 		}
+ 		if rune < r.Lo {
+ 			hi = m
+ 		} else {
+-			lo = m+1
++			lo = m + 1
+ 		}
+ 	}
+ 	return rune;
+@@ -171,7 +171,7 @@ func To(_case int, rune int) int {
+ func ToUpper(rune int) int {
+ 	if rune < 0x80 {	// quick ASCII check
+ 		if 'a' <= rune && rune <= 'z' {
+-			rune -= 'a'-'A'
++			rune -= 'a' - 'A'
+ 		}
+ 		return rune;
+ 	}
+@@ -182,7 +182,7 @@ func ToUpper(rune int) int {
+ func ToLower(rune int) int {
+ 	if rune < 0x80 {	// quick ASCII check
+ 		if 'A' <= rune && rune <= 'Z' {
+-			rune += 'a'-'A'
++			rune += 'a' - 'A'
+ 		}
+ 		return rune;
+ 	}
+@@ -193,7 +193,7 @@ func ToLower(rune int) int {
+ func ToTitle(rune int) int {
+ 	if rune < 0x80 {	// quick ASCII check
+ 		if 'a' <= rune && rune <= 'z' {	// title case is upper case for ASCII
+-			rune -= 'a'-'A'
++			rune -= 'a' - 'A'
+ 		}
+ 		return rune;
+ 	}
+diff --git a/src/pkg/unicode/letter_test.go b/src/pkg/unicode/letter_test.go
+index 3b10caedd1..8e4f5373e8 100644
+--- a/src/pkg/unicode/letter_test.go
++++ b/src/pkg/unicode/letter_test.go
+@@ -114,7 +114,7 @@ var caseTest = []caseT{
+ 	// errors
+ 	caseT{-1, '\n', 0xFFFD},
+ 	caseT{UpperCase, -1, -1},
+-	caseT{UpperCase, 1<<30, 1<<30},
++	caseT{UpperCase, 1 << 30, 1 << 30},
+ 
+ 	// ASCII (special-cased so test carefully)
+ 	caseT{UpperCase, '\n', '\n'},
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 70010ca960..066415f8ff 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -51,7 +51,7 @@ var test = flag.Bool("test",
+ 	"test existing tables; can be used to compare web data with package data")
+ 
+ var scriptRe = regexp.MustCompile(`([0-9A-F]+)(\.\.[0-9A-F]+)? *; ([A-Za-z_]+)`)
+-var die = log.New(os.Stderr, nil, "", log.Lexit | log.Lshortfile)
++var die = log.New(os.Stderr, nil, "", log.Lexit|log.Lshortfile)
+ 
+ var category = map[string]bool{"letter": true}	// Nd Lu etc. letter is a special case
+ 
+@@ -256,7 +256,7 @@ func letterOp(code int) bool {
+ 
+ func loadChars() {
+ 	if *dataURL == "" {
+-		flag.Set("data", *url + "UnicodeData.txt")
++		flag.Set("data", *url+"UnicodeData.txt")
+ 	}
+ 	resp, _, err := http.Get(*dataURL);
+ 	if err != nil {
+@@ -289,7 +289,7 @@ func loadChars() {
+ 			if first == 0 {
+ 				die.Logf("bad state last at U+%04X", lastChar)
+ 			}
+-			for i := first+1; i <= lastChar; i++ {
++			for i := first + 1; i <= lastChar; i++ {
+ 				chars[i] = chars[first];
+ 				chars[i].codePoint = i;
+ 			}
+@@ -414,10 +414,10 @@ func dumpRange(header string, inCategory Op) {
+ 			break;
+ 		}
+ 		// set stride
+-		stride = next-lo;
++		stride = next - lo;
+ 		// check for length of run. next points to first jump in stride
+ 		for i := next; i < len(chars); i++ {
+-			if inCategory(i) == (((i-lo)%stride) == 0) {
++			if inCategory(i) == (((i - lo) % stride) == 0) {
+ 				// accept
+ 				if inCategory(i) {
+ 					hi = i
+@@ -429,7 +429,7 @@ func dumpRange(header string, inCategory Op) {
+ 		}
+ 		fmt.Printf(format, lo, hi, stride);
+ 		// next range: start looking where this range ends
+-		next = hi+1;
++		next = hi + 1;
+ 	}
+ 	fmt.Print("}\n\n");
+ }
+@@ -511,7 +511,7 @@ func foldAdjacent(r []Script) []unicode.Range {
+ 	s := make([]unicode.Range, 0, len(r));
+ 	j := 0;
+ 	for i := 0; i < len(r); i++ {
+-		if j > 0 && int(r[i].lo) == s[j-1].Hi + 1 {
++		if j > 0 && int(r[i].lo) == s[j-1].Hi+1 {
+ 			s[j-1].Hi = int(r[i].hi)
+ 		} else {
+ 			s = s[0 : j+1];
+@@ -575,7 +575,7 @@ func printScriptOrProperty(doProps bool) {
+ 			}
+ 			die.Log(err);
+ 		}
+-		parseScript(line[0 : len(line)-1], table);
++		parseScript(line[0:len(line)-1], table);
+ 	}
+ 	resp.Body.Close();
+ 
+@@ -639,7 +639,7 @@ func printScriptOrProperty(doProps bool) {
+ }
+ 
+ const (
+-	CaseUpper	= 1<<iota;
++	CaseUpper	= 1 << iota;
+ 	CaseLower;
+ 	CaseTitle;
+ 	CaseNone	= 0;	// must be zero
+@@ -660,7 +660,7 @@ func (c *caseState) adjacent(d *caseState) bool {
+ 		c, d = d, c
+ 	}
+ 	switch {
+-	case d.point != c.point + 1:	// code points not adjacent (shouldn't happen)
++	case d.point != c.point+1:	// code points not adjacent (shouldn't happen)
+ 		return false
+ 	case d._case != c._case:	// different cases
+ 		return c.upperLowerAdjacent(d)
+diff --git a/src/pkg/utf8/utf8.go b/src/pkg/utf8/utf8.go
+index 1784a6db4e..f665050089 100644
+--- a/src/pkg/utf8/utf8.go
++++ b/src/pkg/utf8/utf8.go
+@@ -233,7 +233,7 @@ func EncodeRune(rune int, p []byte) int {
+ 	}
+ 
+ 	if rune <= _Rune2Max {
+-		p[0] = _T2|byte(rune>>6);
++		p[0] = _T2 | byte(rune>>6);
+ 		p[1] = _Tx | byte(rune)&_Maskx;
+ 		return 2;
+ 	}
+@@ -243,13 +243,13 @@ func EncodeRune(rune int, p []byte) int {
+ 	}
+ 
+ 	if rune <= _Rune3Max {
+-		p[0] = _T3|byte(rune>>12);
++		p[0] = _T3 | byte(rune>>12);
+ 		p[1] = _Tx | byte(rune>>6)&_Maskx;
+ 		p[2] = _Tx | byte(rune)&_Maskx;
+ 		return 3;
+ 	}
+ 
+-	p[0] = _T4|byte(rune>>18);
++	p[0] = _T4 | byte(rune>>18);
+ 	p[1] = _Tx | byte(rune>>12)&_Maskx;
+ 	p[2] = _Tx | byte(rune>>6)&_Maskx;
+ 	p[3] = _Tx | byte(rune)&_Maskx;
+diff --git a/src/pkg/utf8/utf8_test.go b/src/pkg/utf8/utf8_test.go
+index 6684245d8b..980a74b02d 100644
+--- a/src/pkg/utf8/utf8_test.go
++++ b/src/pkg/utf8/utf8_test.go
+@@ -118,7 +118,7 @@ func TestDecodeRune(t *testing.T) {
+ 		}
+ 		rune, size = DecodeRune(b[0 : len(b)-1]);
+ 		if rune != RuneError || size != wantsize {
+-			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b[0 : len(b)-1], rune, size, RuneError, wantsize)
++			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b[0:len(b)-1], rune, size, RuneError, wantsize)
+ 		}
+ 		s = m.str[0 : len(m.str)-1];
+ 		rune, size = DecodeRuneInString(s);
+diff --git a/src/pkg/xml/read.go b/src/pkg/xml/read.go
+index b51a302b3f..d5f6842584 100644
+--- a/src/pkg/xml/read.go
++++ b/src/pkg/xml/read.go
+@@ -194,7 +194,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 		// Grow slice.
+ 		n := v.Len();
+ 		if n >= v.Cap() {
+-			ncap := 2*n;
++			ncap := 2 * n;
+ 			if ncap < 4 {
+ 				ncap = 4
+ 			}
+@@ -202,7 +202,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 			reflect.ArrayCopy(new, v);
+ 			v.Set(new);
+ 		}
+-		v.SetLen(n+1);
++		v.SetLen(n + 1);
+ 
+ 		// Recur to read element into slice.
+ 		if err := p.unmarshal(v.Elem(n), start); err != nil {
+@@ -231,7 +231,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 				ns := "";
+ 				i := strings.LastIndex(tag, " ");
+ 				if i >= 0 {
+-					ns, tag = tag[0:i], tag[i+1 : len(tag)]
++					ns, tag = tag[0:i], tag[i+1:len(tag)]
+ 				}
+ 				if tag != start.Name.Local {
+ 					return UnmarshalError("expected element type <" + tag + "> but have <" + start.Name.Local + ">")
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index 09dd8217bb..b8809422d8 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -1019,13 +1019,13 @@ var first = []unicode.Range{
+ 	unicode.Range{0x1163, 0x1169, 2},
+ 	unicode.Range{0x116D, 0x116E, 1},
+ 	unicode.Range{0x1172, 0x1173, 1},
+-	unicode.Range{0x1175, 0x119E, 0x119E-0x1175},
+-	unicode.Range{0x11A8, 0x11AB, 0x11AB-0x11A8},
++	unicode.Range{0x1175, 0x119E, 0x119E - 0x1175},
++	unicode.Range{0x11A8, 0x11AB, 0x11AB - 0x11A8},
+ 	unicode.Range{0x11AE, 0x11AF, 1},
+ 	unicode.Range{0x11B7, 0x11B8, 1},
+ 	unicode.Range{0x11BA, 0x11BA, 1},
+ 	unicode.Range{0x11BC, 0x11C2, 1},
+-	unicode.Range{0x11EB, 0x11F0, 0x11F0-0x11EB},
++	unicode.Range{0x11EB, 0x11F0, 0x11F0 - 0x11EB},
+ 	unicode.Range{0x11F9, 0x11F9, 1},
+ 	unicode.Range{0x1E00, 0x1E9B, 1},
+ 	unicode.Range{0x1EA0, 0x1EF9, 1},
+@@ -1034,7 +1034,7 @@ var first = []unicode.Range{
+ 	unicode.Range{0x1F20, 0x1F45, 1},
+ 	unicode.Range{0x1F48, 0x1F4D, 1},
+ 	unicode.Range{0x1F50, 0x1F57, 1},
+-	unicode.Range{0x1F59, 0x1F5B, 0x1F5B-0x1F59},
++	unicode.Range{0x1F59, 0x1F5B, 0x1F5B - 0x1F59},
+ 	unicode.Range{0x1F5D, 0x1F5D, 1},
+ 	unicode.Range{0x1F5F, 0x1F7D, 1},
+ 	unicode.Range{0x1F80, 0x1FB4, 1},
+@@ -1074,7 +1074,7 @@ var second = []unicode.Range{
+ 	unicode.Range{0x05BB, 0x05BD, 1},
+ 	unicode.Range{0x05BF, 0x05BF, 1},
+ 	unicode.Range{0x05C1, 0x05C2, 1},
+-	unicode.Range{0x05C4, 0x0640, 0x0640-0x05C4},
++	unicode.Range{0x05C4, 0x0640, 0x0640 - 0x05C4},
+ 	unicode.Range{0x064B, 0x0652, 1},
+ 	unicode.Range{0x0660, 0x0669, 1},
+ 	unicode.Range{0x0670, 0x0670, 1},
+@@ -1167,7 +1167,7 @@ var second = []unicode.Range{
+ 	unicode.Range{0x0FB1, 0x0FB7, 1},
+ 	unicode.Range{0x0FB9, 0x0FB9, 1},
+ 	unicode.Range{0x20D0, 0x20DC, 1},
+-	unicode.Range{0x20E1, 0x3005, 0x3005-0x20E1},
++	unicode.Range{0x20E1, 0x3005, 0x3005 - 0x20E1},
+ 	unicode.Range{0x302A, 0x302F, 1},
+ 	unicode.Range{0x3031, 0x3035, 1},
+ 	unicode.Range{0x3099, 0x309A, 1},

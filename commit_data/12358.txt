@@ -7,7 +7,34 @@ Date:   Mon Mar 5 11:52:31 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5729061
-
+---
  src/cmd/go/build.go | 2 +-
  src/cmd/go/doc.go   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index cb1774103a..c330bd5de9 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -46,7 +46,7 @@ The build flags are shared by the build, install, run, and test commands:
+ 	-a
+ 		force rebuilding of packages that are already up-to-date.
+ 	-n
+-		print the commands but does not run them.
++		print the commands but do not run them.
+ 	-p n
+ 		the number of builds that can be run in parallel.
+ 		The default is the number of CPUs available.
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 633b117024..51514cb4fb 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -60,7 +60,7 @@ The build flags are shared by the build, install, run, and test commands:
+ 	-a
+ 		force rebuilding of packages that are already up-to-date.
+ 	-n
+-		print the commands but does not run them.
++		print the commands but do not run them.
+ 	-p n
+ 		the number of builds that can be run in parallel.
+ 		The default is the number of CPUs available.

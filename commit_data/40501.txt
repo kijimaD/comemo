@@ -14,9 +14,82 @@ Date:   Mon May 20 15:07:01 2019 +0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/norace.go | 9 ---------
  src/cmd/compile/internal/gc/pgen.go   | 5 +++--
  src/cmd/compile/internal/gc/race.go   | 9 ---------
  src/cmd/dist/buildtool.go             | 1 +
  4 files changed, 4 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/norace.go b/src/cmd/compile/internal/gc/norace.go
+deleted file mode 100644
+index e00f0c4a84..0000000000
+--- a/src/cmd/compile/internal/gc/norace.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !race
+-
+-package gc
+-
+-const raceEnabled = false
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 2ae7452e7d..dd2294e37f 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -13,6 +13,7 @@ import (
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 	"fmt"
++	"internal/race"
+ 	"math/rand"
+ 	"sort"
+ 	"sync"
+@@ -325,7 +326,7 @@ func compileSSA(fn *Node, worker int) {
+ }
+ 
+ func init() {
+-	if raceEnabled {
++	if race.Enabled {
+ 		rand.Seed(time.Now().UnixNano())
+ 	}
+ }
+@@ -336,7 +337,7 @@ func init() {
+ func compileFunctions() {
+ 	if len(compilequeue) != 0 {
+ 		sizeCalculationDisabled = true // not safe to calculate sizes concurrently
+-		if raceEnabled {
++		if race.Enabled {
+ 			// Randomize compilation order to try to shake out races.
+ 			tmp := make([]*Node, len(compilequeue))
+ 			perm := rand.Perm(len(compilequeue))
+diff --git a/src/cmd/compile/internal/gc/race.go b/src/cmd/compile/internal/gc/race.go
+deleted file mode 100644
+index 78e1997cf9..0000000000
+--- a/src/cmd/compile/internal/gc/race.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build race
+-
+-package gc
+-
+-const raceEnabled = true
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 190b592b6e..b434d4f60f 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -90,6 +90,7 @@ var bootstrapDirs = []string{
+ 	"debug/macho",
+ 	"debug/pe",
+ 	"internal/goversion",
++	"internal/race",
+ 	"internal/xcoff",
+ 	"math/big",
+ 	"math/bits",

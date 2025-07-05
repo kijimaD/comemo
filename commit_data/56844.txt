@@ -26,7 +26,7 @@ Date:   Tue May 23 21:12:23 2023 -0400
     Auto-Submit: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/gover/mod.go                   |  19 +---
  src/cmd/go/internal/gover/mod_test.go              |   2 +-
  src/cmd/go/internal/gover/toolchain.go             |   7 ++
@@ -51,3 +51,1348 @@ Date:   Tue May 23 21:12:23 2023 -0400
  src/cmd/go/testdata/script/mod_toolchain.txt       |  75 +++++++++++++
  .../go/testdata/script/work_why_download_graph.txt |   2 +-
  23 files changed, 591 insertions(+), 85 deletions(-)
+
+diff --git a/src/cmd/go/internal/gover/mod.go b/src/cmd/go/internal/gover/mod.go
+index 8b9032f7b8..c68738d46d 100644
+--- a/src/cmd/go/internal/gover/mod.go
++++ b/src/cmd/go/internal/gover/mod.go
+@@ -36,7 +36,7 @@ func ModCompare(path string, x, y string) int {
+ 		return Compare(x, y)
+ 	}
+ 	if path == "toolchain" {
+-		return Compare(untoolchain(x), untoolchain(y))
++		return Compare(maybeToolchainVersion(x), maybeToolchainVersion(y))
+ 	}
+ 	return semver.Compare(x, y)
+ }
+@@ -72,23 +72,14 @@ func ModSort(list []module.Version) {
+ // ModIsValid reports whether vers is a valid version syntax for the module with the given path.
+ func ModIsValid(path, vers string) bool {
+ 	if IsToolchain(path) {
+-		return parse(vers) != (version{})
++		if path == "toolchain" {
++			return IsValid(ToolchainVersion(vers))
++		}
++		return IsValid(vers)
+ 	}
+ 	return semver.IsValid(vers)
+ }
+ 
+-// untoolchain converts a toolchain name like "go1.2.3" to a Go version like "1.2.3".
+-// It also converts "anything-go1.2.3" (for example, "gccgo-go1.2.3") to "1.2.3".
+-func untoolchain(x string) string {
+-	if strings.HasPrefix(x, "go1") {
+-		return x[len("go"):]
+-	}
+-	if i := strings.Index(x, "-go1"); i >= 0 {
+-		return x[i+len("-go"):]
+-	}
+-	return x
+-}
+-
+ // ModIsPrefix reports whether v is a valid version syntax prefix for the module with the given path.
+ // The caller is assumed to have checked that ModIsValid(path, vers) is true.
+ func ModIsPrefix(path, vers string) bool {
+diff --git a/src/cmd/go/internal/gover/mod_test.go b/src/cmd/go/internal/gover/mod_test.go
+index 20dd8ca2d0..c92169cb32 100644
+--- a/src/cmd/go/internal/gover/mod_test.go
++++ b/src/cmd/go/internal/gover/mod_test.go
+@@ -40,7 +40,7 @@ func TestModIsValid(t *testing.T) { test2(t, modIsValidTests, "ModIsValid", ModI
+ var modIsValidTests = []testCase2[string, string, bool]{
+ 	{"go", "1.2", true},
+ 	{"go", "v1.2", false},
+-	{"toolchain", "1.2", true},
++	{"toolchain", "go1.2", true},
+ 	{"toolchain", "v1.2", false},
+ 	{"rsc.io/quote", "v1.2", true},
+ 	{"rsc.io/quote", "1.2", false},
+diff --git a/src/cmd/go/internal/gover/toolchain.go b/src/cmd/go/internal/gover/toolchain.go
+index bf5a64d056..58a4d620f3 100644
+--- a/src/cmd/go/internal/gover/toolchain.go
++++ b/src/cmd/go/internal/gover/toolchain.go
+@@ -29,6 +29,13 @@ func ToolchainVersion(name string) string {
+ 	return v
+ }
+ 
++func maybeToolchainVersion(name string) string {
++	if IsValid(name) {
++		return name
++	}
++	return ToolchainVersion(name)
++}
++
+ // Startup records the information that went into the startup-time version switch.
+ // It is initialized by switchGoToolchain.
+ var Startup struct {
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 842be72185..7734eda869 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -117,6 +117,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	modload.LoadPackages(ctx, modload.PackageOpts{
+ 		GoVersion:                tidyGo.String(),
++		TidyGo:                   tidyGo.String() != "",
+ 		Tags:                     imports.AnyTags(),
+ 		Tidy:                     true,
+ 		TidyCompatibleVersion:    tidyCompat.String(),
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index 861f56b265..0828c4718d 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -14,6 +14,7 @@ import (
+ 	"runtime"
+ 
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+ 
+@@ -86,6 +87,10 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
+ }
+ 
+ func verifyMod(ctx context.Context, mod module.Version) []error {
++	if gover.IsToolchain(mod.Path) {
++		// "go" and "toolchain" have no disk footprint; nothing to verify.
++		return nil
++	}
+ 	var errs []error
+ 	zip, zipErr := modfetch.CachePath(ctx, mod, "zip")
+ 	if zipErr == nil {
+diff --git a/src/cmd/go/internal/modfetch/toolchain.go b/src/cmd/go/internal/modfetch/toolchain.go
+index 0c8fd3b039..13e0d8d2ac 100644
+--- a/src/cmd/go/internal/modfetch/toolchain.go
++++ b/src/cmd/go/internal/modfetch/toolchain.go
+@@ -8,6 +8,7 @@ import (
+ 	"context"
+ 	"fmt"
+ 	"io"
++	"sort"
+ 	"strings"
+ 
+ 	"cmd/go/internal/gover"
+@@ -58,6 +59,16 @@ func (r *toolchainRepo) Versions(ctx context.Context, prefix string) (*Versions,
+ 			list = append(list, goPrefix+v)
+ 		}
+ 	}
++
++	if r.path == "go" {
++		sort.Slice(list, func(i, j int) bool {
++			return gover.Compare(list[i], list[j]) < 0
++		})
++	} else {
++		sort.Slice(list, func(i, j int) bool {
++			return gover.Compare(gover.ToolchainVersion(list[i]), gover.ToolchainVersion(list[j])) < 0
++		})
++	}
+ 	versions.List = list
+ 	return versions, nil
+ }
+@@ -73,9 +84,9 @@ func (r *toolchainRepo) Stat(ctx context.Context, rev string) (*RevInfo, error)
+ 	// Convert rev to DL version and stat that to make sure it exists.
+ 	prefix := ""
+ 	v := rev
++	v = strings.TrimPrefix(v, "go")
+ 	if r.path == "toolchain" {
+ 		prefix = "go"
+-		v = strings.TrimPrefix(v, "go")
+ 	}
+ 	if gover.IsLang(v) {
+ 		return nil, fmt.Errorf("go language version %s is not a toolchain version", rev)
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index f29f632808..3649e372be 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -302,7 +302,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 			"\tor run 'go help get' or 'go help install'.")
+ 	}
+ 
+-	queries := parseArgs(ctx, args)
++	dropToolchain, queries := parseArgs(ctx, args)
+ 
+ 	r := newResolver(ctx, queries)
+ 	r.performLocalQueries(ctx)
+@@ -371,6 +371,10 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 	r.checkPackageProblems(ctx, pkgPatterns)
+ 
++	if dropToolchain {
++		modload.OverrideRoots(ctx, []module.Version{{Path: "toolchain", Version: "none"}})
++	}
++
+ 	// Everything succeeded. Update go.mod.
+ 	oldReqs := reqsFromGoMod(modload.ModFile())
+ 
+@@ -386,10 +390,9 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ //
+ // The command-line arguments are of the form path@version or simply path, with
+ // implicit @upgrade. path@none is "downgrade away".
+-func parseArgs(ctx context.Context, rawArgs []string) []*query {
++func parseArgs(ctx context.Context, rawArgs []string) (dropToolchain bool, queries []*query) {
+ 	defer base.ExitIfErrors()
+ 
+-	var queries []*query
+ 	for _, arg := range search.CleanPatterns(rawArgs) {
+ 		q, err := newQuery(arg)
+ 		if err != nil {
+@@ -397,6 +400,17 @@ func parseArgs(ctx context.Context, rawArgs []string) []*query {
+ 			continue
+ 		}
+ 
++		if q.version == "none" {
++			switch q.pattern {
++			case "go":
++				base.Errorf("go: cannot use go@none", q.pattern)
++				continue
++			case "toolchain":
++				dropToolchain = true
++				continue
++			}
++		}
++
+ 		// If there were no arguments, CleanPatterns returns ".". Set the raw
+ 		// string back to "" for better errors.
+ 		if len(rawArgs) == 0 {
+@@ -420,7 +434,7 @@ func parseArgs(ctx context.Context, rawArgs []string) []*query {
+ 		queries = append(queries, q)
+ 	}
+ 
+-	return queries
++	return dropToolchain, queries
+ }
+ 
+ type resolver struct {
+@@ -1646,6 +1660,9 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
+ 
+ 	// Collect changes in modules matched by command line arguments.
+ 	for path, reason := range r.resolvedVersion {
++		if gover.IsToolchain(path) {
++			continue
++		}
+ 		old := r.initialVersion[path]
+ 		new := reason.version
+ 		if old != new && (old != "" || new != "none") {
+@@ -1655,6 +1672,9 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
+ 
+ 	// Collect changes to explicit requirements in go.mod.
+ 	for _, req := range oldReqs {
++		if gover.IsToolchain(req.Path) {
++			continue
++		}
+ 		path := req.Path
+ 		old := req.Version
+ 		new := r.buildListVersion[path]
+@@ -1663,6 +1683,9 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
+ 		}
+ 	}
+ 	for _, req := range newReqs {
++		if gover.IsToolchain(req.Path) {
++			continue
++		}
+ 		path := req.Path
+ 		old := r.initialVersion[path]
+ 		new := req.Version
+@@ -1671,13 +1694,51 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
+ 		}
+ 	}
+ 
++	// Toolchain diffs are easier than requirements: diff old and new directly.
++	toolchainVersions := func(reqs []module.Version) (goV, toolchain string) {
++		for _, req := range reqs {
++			if req.Path == "go" {
++				goV = req.Version
++			}
++			if req.Path == "toolchain" {
++				toolchain = req.Version
++			}
++		}
++		return
++	}
++	oldGo, oldToolchain := toolchainVersions(oldReqs)
++	newGo, newToolchain := toolchainVersions(newReqs)
++	if oldGo != newGo {
++		changes["go"] = change{"go", oldGo, newGo}
++	}
++	if oldToolchain != newToolchain {
++		changes["toolchain"] = change{"toolchain", oldToolchain, newToolchain}
++	}
++
+ 	sortedChanges := make([]change, 0, len(changes))
+ 	for _, c := range changes {
+ 		sortedChanges = append(sortedChanges, c)
+ 	}
+ 	sort.Slice(sortedChanges, func(i, j int) bool {
+-		return sortedChanges[i].path < sortedChanges[j].path
++		pi := sortedChanges[i].path
++		pj := sortedChanges[j].path
++		if pi == pj {
++			return false
++		}
++		// go first; toolchain second
++		switch {
++		case pi == "go":
++			return true
++		case pj == "go":
++			return false
++		case pi == "toolchain":
++			return true
++		case pj == "toolchain":
++			return false
++		}
++		return pi < pj
+ 	})
++
+ 	for _, c := range sortedChanges {
+ 		if c.old == "" {
+ 			fmt.Fprintf(os.Stderr, "go: added %s %s\n", c.path, c.new)
+@@ -1795,10 +1856,16 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
+ }
+ 
+ func reqsFromGoMod(f *modfile.File) []module.Version {
+-	reqs := make([]module.Version, len(f.Require))
++	reqs := make([]module.Version, len(f.Require), 2+len(f.Require))
+ 	for i, r := range f.Require {
+ 		reqs[i] = r.Mod
+ 	}
++	if f.Go != nil {
++		reqs = append(reqs, module.Version{Path: "go", Version: f.Go.Version})
++	}
++	if f.Toolchain != nil {
++		reqs = append(reqs, module.Version{Path: "toolchain", Version: f.Toolchain.Name})
++	}
+ 	return reqs
+ }
+ 
+diff --git a/src/cmd/go/internal/modget/query.go b/src/cmd/go/internal/modget/query.go
+index d18770e889..6612f9b112 100644
+--- a/src/cmd/go/internal/modget/query.go
++++ b/src/cmd/go/internal/modget/query.go
+@@ -12,6 +12,7 @@ import (
+ 	"sync"
+ 
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/str"
+@@ -229,7 +230,7 @@ func (q *query) isWildcard() bool {
+ 
+ // matchesPath reports whether the given path matches q.pattern.
+ func (q *query) matchesPath(path string) bool {
+-	if q.matchWildcard != nil {
++	if q.matchWildcard != nil && !gover.IsToolchain(path) {
+ 		return q.matchWildcard(path)
+ 	}
+ 	return path == q.pattern
+@@ -241,7 +242,7 @@ func (q *query) canMatchInModule(mPath string) bool {
+ 	if q.canMatchWildcardInModule != nil {
+ 		return q.canMatchWildcardInModule(mPath)
+ 	}
+-	return str.HasPathPrefix(q.pattern, mPath)
++	return str.HasPathPrefix(q.pattern, mPath) && !gover.IsToolchain(mPath)
+ }
+ 
+ // pathOnce invokes f to generate the pathSet for the given path,
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 5da0472bd4..b63ea48428 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -309,6 +309,10 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ 
+ 	// completeFromModCache fills in the extra fields in m using the module cache.
+ 	completeFromModCache := func(m *modinfo.ModulePublic) {
++		if gover.IsToolchain(m.Path) {
++			return
++		}
++
+ 		if old := reuse[module.Version{Path: m.Path, Version: m.Version}]; old != nil {
+ 			if err := checkReuse(ctx, m.Path, old.Origin); err == nil {
+ 				*m = *old
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index d68260e455..7cebb9f265 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -157,7 +157,7 @@ func (rs *Requirements) String() string {
+ func (rs *Requirements) initVendor(vendorList []module.Version) {
+ 	rs.graphOnce.Do(func() {
+ 		mg := &ModuleGraph{
+-			g: mvs.NewGraph(cmpVersion, MainModules.Versions()),
++			g: mvs.NewGraph(cmpVersion, MainModules.GraphRoots()),
+ 		}
+ 
+ 		if MainModules.Len() != 1 {
+@@ -305,7 +305,7 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
+ 		mu       sync.Mutex // guards mg.g and hasError during loading
+ 		hasError bool
+ 		mg       = &ModuleGraph{
+-			g: mvs.NewGraph(cmpVersion, MainModules.Versions()),
++			g: mvs.NewGraph(cmpVersion, MainModules.GraphRoots()),
+ 		}
+ 	)
+ 	if pruning != workspace {
+@@ -605,6 +605,24 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) (chang
+ 	return changed, err
+ }
+ 
++// OverrideRoots edits the global requirement roots by replacing the specific module versions.
++func OverrideRoots(ctx context.Context, replace []module.Version) {
++	rs := requirements
++	drop := make(map[string]bool)
++	for _, m := range replace {
++		drop[m.Path] = true
++	}
++	var roots []module.Version
++	for _, m := range rs.rootModules {
++		if !drop[m.Path] {
++			roots = append(roots, m)
++		}
++	}
++	roots = append(roots, replace...)
++	gover.ModSort(roots)
++	requirements = newRequirements(rs.pruning, roots, rs.direct)
++}
++
+ // A ConstraintError describes inconsistent constraints in EditBuildList
+ type ConstraintError struct {
+ 	// Conflict lists the source of the conflict for each version in mustSelect
+@@ -709,9 +727,9 @@ func (c Conflict) String() string {
+ func tidyRoots(ctx context.Context, rs *Requirements, pkgs []*loadPkg) (*Requirements, error) {
+ 	mainModule := MainModules.mustGetSingleMainModule()
+ 	if rs.pruning == unpruned {
+-		return tidyUnprunedRoots(ctx, mainModule, rs.direct, pkgs)
++		return tidyUnprunedRoots(ctx, mainModule, rs, pkgs)
+ 	}
+-	return tidyPrunedRoots(ctx, mainModule, rs.direct, pkgs)
++	return tidyPrunedRoots(ctx, mainModule, rs, pkgs)
+ }
+ 
+ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements, pkgs []*loadPkg, add []module.Version, rootsImported bool) (*Requirements, error) {
+@@ -757,11 +775,15 @@ func updateWorkspaceRoots(ctx context.Context, rs *Requirements, add []module.Ve
+ // To ensure that the loading process eventually converges, the caller should
+ // add any needed roots from the tidy root set (without removing existing untidy
+ // roots) until the set of roots has converged.
+-func tidyPrunedRoots(ctx context.Context, mainModule module.Version, direct map[string]bool, pkgs []*loadPkg) (*Requirements, error) {
++func tidyPrunedRoots(ctx context.Context, mainModule module.Version, old *Requirements, pkgs []*loadPkg) (*Requirements, error) {
+ 	var (
+ 		roots      []module.Version
+ 		pathIsRoot = map[string]bool{mainModule.Path: true}
+ 	)
++	if v, ok := old.rootSelected("go"); ok {
++		roots = append(roots, module.Version{Path: "go", Version: v})
++		pathIsRoot["go"] = true
++	}
+ 	// We start by adding roots for every package in "all".
+ 	//
+ 	// Once that is done, we may still need to add more roots to cover upgraded or
+@@ -788,7 +810,7 @@ func tidyPrunedRoots(ctx context.Context, mainModule module.Version, direct map[
+ 		queued[pkg] = true
+ 	}
+ 	gover.ModSort(roots)
+-	tidy := newRequirements(pruned, roots, direct)
++	tidy := newRequirements(pruned, roots, old.direct)
+ 
+ 	for len(queue) > 0 {
+ 		roots = tidy.rootModules
+@@ -1197,7 +1219,7 @@ func spotCheckRoots(ctx context.Context, rs *Requirements, mods map[module.Versi
+ // the selected version of every module that provided or lexically could have
+ // provided a package in pkgs, and includes the selected version of every such
+ // module in direct as a root.
+-func tidyUnprunedRoots(ctx context.Context, mainModule module.Version, direct map[string]bool, pkgs []*loadPkg) (*Requirements, error) {
++func tidyUnprunedRoots(ctx context.Context, mainModule module.Version, old *Requirements, pkgs []*loadPkg) (*Requirements, error) {
+ 	var (
+ 		// keep is a set of of modules that provide packages or are needed to
+ 		// disambiguate imports.
+@@ -1225,6 +1247,9 @@ func tidyUnprunedRoots(ctx context.Context, mainModule module.Version, direct ma
+ 		// without its sum. See #47738.
+ 		altMods = map[string]string{}
+ 	)
++	if v, ok := old.rootSelected("go"); ok {
++		keep = append(keep, module.Version{Path: "go", Version: v})
++	}
+ 	for _, pkg := range pkgs {
+ 		if !pkg.fromExternalModule() {
+ 			continue
+@@ -1232,7 +1257,7 @@ func tidyUnprunedRoots(ctx context.Context, mainModule module.Version, direct ma
+ 		if m := pkg.mod; !keptPath[m.Path] {
+ 			keep = append(keep, m)
+ 			keptPath[m.Path] = true
+-			if direct[m.Path] && !inRootPaths[m.Path] {
++			if old.direct[m.Path] && !inRootPaths[m.Path] {
+ 				rootPaths = append(rootPaths, m.Path)
+ 				inRootPaths[m.Path] = true
+ 			}
+@@ -1275,7 +1300,7 @@ func tidyUnprunedRoots(ctx context.Context, mainModule module.Version, direct ma
+ 		}
+ 	}
+ 
+-	return newRequirements(unpruned, min, direct), nil
++	return newRequirements(unpruned, min, old.direct), nil
+ }
+ 
+ // updateUnprunedRoots returns a set of root requirements that includes the selected
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 4f7fed4856..6b4710e268 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -371,6 +371,10 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 	for {
+ 		var sumErrMods, altMods []module.Version
+ 		for prefix := path; prefix != "."; prefix = pathpkg.Dir(prefix) {
++			if gover.IsToolchain(prefix) {
++				// Do not use the synthetic "go" module for "go/ast".
++				continue
++			}
+ 			var (
+ 				v  string
+ 				ok bool
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 86be7da243..a5363c908b 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -133,6 +133,18 @@ func (mms *MainModuleSet) Versions() []module.Version {
+ 	return mms.versions
+ }
+ 
++// GraphRoots returns the graph roots for the main module set.
++// Callers should not modify the returned slice.
++// This function is the same as Versions except that in workspace
++// mode it adds a "go" version from the go.work file.
++func (mms *MainModuleSet) GraphRoots() []module.Version {
++	versions := mms.Versions()
++	if inWorkspaceMode() {
++		versions = append(slices.Clip(versions), module.Version{Path: "go", Version: mms.GoVersion()})
++	}
++	return versions
++}
++
+ func (mms *MainModuleSet) Contains(path string) bool {
+ 	if mms == nil {
+ 		return false
+@@ -606,14 +618,11 @@ func (goModDirtyError) Error() string {
+ 
+ var errGoModDirty error = goModDirtyError{}
+ 
+-func loadWorkFile(path string) (goVersion string, modRoots []string, replaces []*modfile.Replace, err error) {
++func loadWorkFile(path string) (workFile *modfile.WorkFile, modRoots []string, err error) {
+ 	workDir := filepath.Dir(path)
+ 	wf, err := ReadWorkFile(path)
+ 	if err != nil {
+-		return "", nil, nil, err
+-	}
+-	if wf.Go != nil {
+-		goVersion = wf.Go.Version
++		return nil, nil, err
+ 	}
+ 	seen := map[string]bool{}
+ 	for _, d := range wf.Use {
+@@ -623,13 +632,13 @@ func loadWorkFile(path string) (goVersion string, modRoots []string, replaces []
+ 		}
+ 
+ 		if seen[modRoot] {
+-			return "", nil, nil, fmt.Errorf("path %s appears multiple times in workspace", modRoot)
++			return nil, nil, fmt.Errorf("path %s appears multiple times in workspace", modRoot)
+ 		}
+ 		seen[modRoot] = true
+ 		modRoots = append(modRoots, modRoot)
+ 	}
+ 
+-	return goVersion, modRoots, wf.Replace, nil
++	return wf, modRoots, nil
+ }
+ 
+ // ReadWorkFile reads and parses the go.work file at the given path.
+@@ -703,18 +712,19 @@ func UpdateWorkFile(wf *modfile.WorkFile) {
+ // it for global consistency. Most callers outside of the modload package should
+ // use LoadModGraph instead.
+ func LoadModFile(ctx context.Context) *Requirements {
++	return loadModFile(ctx, nil)
++}
++
++func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
+ 	if requirements != nil {
+ 		return requirements
+ 	}
+ 
+ 	Init()
+-	var (
+-		workFileGoVersion string
+-		workFileReplaces  []*modfile.Replace
+-	)
++	var workFile *modfile.WorkFile
+ 	if inWorkspaceMode() {
+ 		var err error
+-		workFileGoVersion, modRoots, workFileReplaces, err = loadWorkFile(workFilePath)
++		workFile, modRoots, err = loadWorkFile(workFilePath)
+ 		if err != nil {
+ 			base.Fatalf("reading go.work: %v", err)
+ 		}
+@@ -794,9 +804,17 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 		}
+ 	}
+ 
+-	MainModules = makeMainModules(mainModules, modRoots, modFiles, indices, workFileGoVersion, workFileReplaces)
++	var wfGoVersion string
++	var wfReplace []*modfile.Replace
++	if workFile != nil && workFile.Go != nil {
++		wfGoVersion = workFile.Go.Version
++	}
++	if workFile != nil {
++		wfReplace = workFile.Replace
++	}
++	MainModules = makeMainModules(mainModules, modRoots, modFiles, indices, wfGoVersion, wfReplace)
+ 	setDefaultBuildMod() // possibly enable automatic vendoring
+-	rs := requirementsFromModFiles(ctx, modFiles)
++	rs := requirementsFromModFiles(ctx, workFile, modFiles, opts)
+ 
+ 	if inWorkspaceMode() {
+ 		// We don't need to do anything for vendor or update the mod file so
+@@ -908,7 +926,7 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+-	rs := requirementsFromModFiles(ctx, []*modfile.File{modFile})
++	rs := requirementsFromModFiles(ctx, nil, []*modfile.File{modFile}, nil)
+ 	rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+@@ -1132,21 +1150,30 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 
+ // requirementsFromModFiles returns the set of non-excluded requirements from
+ // the global modFile.
+-func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Requirements {
++func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, modFiles []*modfile.File, opts *PackageOpts) *Requirements {
+ 	var roots []module.Version
+ 	direct := map[string]bool{}
+ 	var pruning modPruning
+ 	if inWorkspaceMode() {
+ 		pruning = workspace
+-		roots = make([]module.Version, len(MainModules.Versions()))
++		roots = make([]module.Version, len(MainModules.Versions()), 2+len(MainModules.Versions()))
+ 		copy(roots, MainModules.Versions())
++		// Note: Ignoring the 'go' line in the main modules during mod tidy. See note below.
++		if workFile.Go != nil && (opts == nil || !opts.TidyGo) {
++			roots = append(roots, module.Version{Path: "go", Version: workFile.Go.Version})
++			direct["go"] = true
++		}
++		if workFile.Toolchain != nil {
++			roots = append(roots, module.Version{Path: "toolchain", Version: workFile.Toolchain.Name})
++			direct["toolchain"] = true
++		}
+ 	} else {
+ 		pruning = pruningForGoVersion(MainModules.GoVersion())
+ 		if len(modFiles) != 1 {
+ 			panic(fmt.Errorf("requirementsFromModFiles called with %v modfiles outside workspace mode", len(modFiles)))
+ 		}
+ 		modFile := modFiles[0]
+-		roots = make([]module.Version, 0, len(modFile.Require))
++		roots = make([]module.Version, 0, 2+len(modFile.Require))
+ 		mm := MainModules.mustGetSingleMainModule()
+ 		for _, r := range modFile.Require {
+ 			if index := MainModules.Index(mm); index != nil && index.exclude[r.Mod] {
+@@ -1163,6 +1190,17 @@ func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Re
+ 				direct[r.Mod.Path] = true
+ 			}
+ 		}
++		// Note: Ignoring the 'go' line in the main modules during mod tidy -go=
++		// so that we can find out the implied minimum go line from the
++		// dependencies instead. If it is higher than the -go= flag, we report an error in LoadPackages.
++		if modFile.Go != nil && (opts == nil || !opts.TidyGo) {
++			roots = append(roots, module.Version{Path: "go", Version: modFile.Go.Version})
++			direct["go"] = true
++		}
++		if modFile.Toolchain != nil {
++			roots = append(roots, module.Version{Path: "toolchain", Version: modFile.Toolchain.Name})
++			direct["toolchain"] = true
++		}
+ 	}
+ 	gover.ModSort(roots)
+ 	rs := newRequirements(pruning, roots, direct)
+@@ -1276,6 +1314,10 @@ func addGoStmt(modFile *modfile.File, mod module.Version, v string) {
+ 	if modFile.Go != nil && modFile.Go.Version != "" {
+ 		return
+ 	}
++	forceGoStmt(modFile, mod, v)
++}
++
++func forceGoStmt(modFile *modfile.File, mod module.Version, v string) {
+ 	if err := modFile.AddGoStmt(v); err != nil {
+ 		base.Fatalf("go: internal error: %v", err)
+ 	}
+@@ -1503,21 +1545,49 @@ func commitRequirements(ctx context.Context) (err error) {
+ 	modFilePath := modFilePath(MainModules.ModRoot(mainModule))
+ 
+ 	var list []*modfile.Require
++	toolchain := ""
+ 	for _, m := range requirements.rootModules {
++		if m.Path == "go" {
++			forceGoStmt(modFile, mainModule, m.Version)
++			continue
++		}
++		if m.Path == "toolchain" {
++			toolchain = m.Version
++			continue
++		}
+ 		list = append(list, &modfile.Require{
+ 			Mod:      m,
+ 			Indirect: !requirements.direct[m.Path],
+ 		})
+ 	}
++
++	// Update go and toolchain lines.
++	tv := gover.ToolchainVersion(toolchain)
++	// Set go version if missing.
+ 	if modFile.Go == nil || modFile.Go.Version == "" {
+-		modFile.AddGoStmt(modFileGoVersion(modFile))
++		v := modFileGoVersion(modFile)
++		if tv != "" && gover.Compare(v, tv) > 0 {
++			v = tv
++		}
++		modFile.AddGoStmt(v)
+ 	}
+-
+ 	if gover.Compare(modFile.Go.Version, gover.Local()) > 0 {
+ 		// TODO: Reinvoke the newer toolchain if GOTOOLCHAIN=auto.
+ 		base.Fatalf("go: %v", &gover.TooNewError{What: "updating go.mod", GoVersion: modFile.Go.Version})
+ 	}
+ 
++	// If toolchain is older than go version, drop it.
++	if gover.Compare(modFile.Go.Version, tv) >= 0 {
++		toolchain = ""
++	}
++	// Remove or add toolchain as needed.
++	if toolchain == "" {
++		modFile.DropToolchainStmt()
++	} else {
++		modFile.AddToolchainStmt(toolchain)
++	}
++
++	// Update require blocks.
+ 	if gover.Compare(modFileGoVersion(modFile), separateIndirectVersion) < 0 {
+ 		modFile.SetRequire(list)
+ 	} else {
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index 3df8d017ab..a1c2908eed 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -17,6 +17,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/modinfo"
+ 	"cmd/go/internal/search"
+@@ -120,6 +121,9 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
+ 	if len(args) == 0 {
+ 		var ms []*modinfo.ModulePublic
+ 		for _, m := range MainModules.Versions() {
++			if gover.IsToolchain(m.Path) {
++				continue
++			}
+ 			ms = append(ms, moduleInfo(ctx, rs, m, mode, reuse))
+ 		}
+ 		return rs, ms, nil
+@@ -219,9 +223,10 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
+ 		// Module path or pattern.
+ 		var match func(string) bool
+ 		if arg == "all" {
+-			match = func(string) bool { return true }
++			match = func(p string) bool { return !gover.IsToolchain(p) }
+ 		} else if strings.Contains(arg, "...") {
+-			match = pkgpattern.MatchPattern(arg)
++			mp := pkgpattern.MatchPattern(arg)
++			match = func(p string) bool { return mp(p) && !gover.IsToolchain(p) }
+ 		} else {
+ 			var v string
+ 			if mg == nil {
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 6d620de076..9eb9e6ddf8 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -143,6 +143,9 @@ type PackageOpts struct {
+ 	// module.
+ 	GoVersion string
+ 
++	// TidyGo, if true, indicates that GoVersion is from the tidy -go= flag.
++	TidyGo bool
++
+ 	// Tags are the build tags in effect (as interpreted by the
+ 	// cmd/go/internal/imports package).
+ 	// If nil, treated as equivalent to imports.Tags().
+@@ -338,7 +341,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 		}
+ 	}
+ 
+-	initialRS := LoadModFile(ctx)
++	initialRS := loadModFile(ctx, &opts)
+ 
+ 	ld := loadFromRoots(ctx, loaderParams{
+ 		PackageOpts:  opts,
+@@ -407,6 +410,17 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 			}
+ 		}
+ 
++		// Update the go.mod file's Go version if necessary.
++		if modFile := ModFile(); modFile != nil && ld.GoVersion != "" {
++			mg, _ := ld.requirements.Graph(ctx)
++			if ld.TidyGo {
++				if v := mg.Selected("go"); gover.Compare(ld.GoVersion, v) < 0 {
++					base.Fatalf("go: cannot tidy -go=%v: dependencies require %v", ld.GoVersion, v)
++				}
++			}
++			modFile.AddGoStmt(ld.GoVersion)
++		}
++
+ 		if !ExplicitWriteGoMod {
+ 			modfetch.TrimGoSum(keep)
+ 
+@@ -419,11 +433,6 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 				base.Fatalf("go: %v", err)
+ 			}
+ 		}
+-
+-		// Update the go.mod file's Go version if necessary.
+-		if modFile := ModFile(); modFile != nil && ld.GoVersion != "" {
+-			modFile.AddGoStmt(ld.GoVersion)
+-		}
+ 	}
+ 
+ 	// Success! Update go.mod and go.sum (if needed) and return the results.
+@@ -628,6 +637,9 @@ var (
+ // if dir is in the module cache copy of a module in our build list.
+ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string {
+ 	tryMod := func(m module.Version) (string, bool) {
++		if gover.IsToolchain(m.Path) {
++			return "", false
++		}
+ 		var root string
+ 		var err error
+ 		if repl := Replacement(m); repl.Path != "" && repl.Version == "" {
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index cb1101630b..d97eb7cb62 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -52,6 +52,12 @@ const (
+ 	// errors.
+ 	// See https://go.dev/issue/56222.
+ 	tidyGoModSumVersion = "1.21"
++
++	// goStrictVersion is the Go version at which the Go versions
++	// became "strict" in the sense that, restricted to modules at this version
++	// or later, every module must have a go version line ≥ all its dependencies.
++	// It is also the version after which "too new" a version is considered a fatal error.
++	GoStrictVersion = "1.21"
+ )
+ 
+ // ReadModFile reads and parses the mod file at gomod. ReadModFile properly applies the
+@@ -113,6 +119,7 @@ type modFileIndex struct {
+ 	dataNeedsFix bool // true if fixVersion applied a change while parsing data
+ 	module       module.Version
+ 	goVersion    string // Go version (no "v" or "go" prefix)
++	toolchain    string
+ 	require      map[module.Version]requireMeta
+ 	replace      map[module.Version]module.Version
+ 	exclude      map[module.Version]bool
+@@ -455,6 +462,9 @@ func indexModFile(data []byte, modFile *modfile.File, mod module.Version, needsF
+ 		i.goVersion = modFile.Go.Version
+ 		rawGoVersion.Store(mod, modFile.Go.Version)
+ 	}
++	if modFile.Toolchain != nil {
++		i.toolchain = modFile.Toolchain.Name
++	}
+ 
+ 	i.require = make(map[module.Version]requireMeta, len(modFile.Require))
+ 	for _, r := range modFile.Require {
+@@ -492,21 +502,27 @@ func (i *modFileIndex) modFileIsDirty(modFile *modfile.File) bool {
+ 		return true
+ 	}
+ 
+-	if modFile.Go == nil {
+-		if i.goVersion != "" {
+-			return true
+-		}
+-	} else if modFile.Go.Version != i.goVersion {
+-		if i.goVersion == "" && cfg.BuildMod != "mod" {
+-			// go.mod files did not always require a 'go' version, so do not error out
+-			// if one is missing — we may be inside an older module in the module
+-			// cache, and should bias toward providing useful behavior.
+-		} else {
+-			return true
+-		}
++	var goV, toolchain string
++	if modFile.Go != nil {
++		goV = modFile.Go.Version
++	}
++	if modFile.Toolchain != nil {
++		toolchain = modFile.Toolchain.Name
+ 	}
+ 
+-	if len(modFile.Require) != len(i.require) ||
++	// go.mod files did not always require a 'go' version, so do not error out
++	// if one is missing — we may be inside an older module in the module cache
++	// and want to bias toward providing useful behavior.
++	// go lines are required if we need to declare version 1.17 or later.
++	// Note that as of CL 303229, a missing go directive implies 1.16,
++	// not “the latest Go version”.
++	if goV != i.goVersion && i.goVersion == "" && cfg.BuildMod != "mod" && gover.Compare(goV, "1.17") < 0 {
++		goV = ""
++	}
++
++	if goV != i.goVersion ||
++		toolchain != i.toolchain ||
++		len(modFile.Require) != len(i.require) ||
+ 		len(modFile.Replace) != len(i.replace) ||
+ 		len(modFile.Exclude) != len(i.exclude) {
+ 		return true
+@@ -554,6 +570,7 @@ var rawGoVersion sync.Map // map[module.Version]string
+ type modFileSummary struct {
+ 	module     module.Version
+ 	goVersion  string
++	toolchain  string
+ 	pruning    modPruning
+ 	require    []module.Version
+ 	retract    []retraction
+@@ -579,12 +596,12 @@ type retraction struct {
+ //
+ // The caller must not modify the returned summary.
+ func goModSummary(m module.Version) (*modFileSummary, error) {
+-	if m.Path == "go" || m.Path == "toolchain" {
+-		return &modFileSummary{module: m}, nil
+-	}
+ 	if m.Version == "" && !inWorkspaceMode() && MainModules.Contains(m.Path) {
+ 		panic("internal error: goModSummary called on a main module")
+ 	}
++	if gover.IsToolchain(m.Path) {
++		return rawGoModSummary(m)
++	}
+ 
+ 	if cfg.BuildMod == "vendor" {
+ 		summary := &modFileSummary{
+@@ -639,9 +656,10 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ 		// to leave that validation for when we load actual packages from within the
+ 		// module.
+ 		if mpath := summary.module.Path; mpath != m.Path && mpath != actual.Path {
+-			return nil, module.VersionError(actual, fmt.Errorf(`parsing go.mod:
+-	module declares its path as: %s
+-	        but was required as: %s`, mpath, m.Path))
++			return nil, module.VersionError(actual,
++				fmt.Errorf("parsing go.mod:\n"+
++					"\tmodule declares its path as: %s\n"+
++					"\t        but was required as: %s", mpath, m.Path))
+ 		}
+ 	}
+ 
+@@ -680,6 +698,11 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ // rawGoModSummary cannot be used on the main module outside of workspace mode.
+ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 	if gover.IsToolchain(m.Path) {
++		if m.Path == "go" {
++			// Declare that go 1.2.3 requires toolchain 1.2.3,
++			// so that go get knows that downgrading toolchain implies downgrading go.
++			return &modFileSummary{module: m, require: []module.Version{{Path: "toolchain", Version: "go" + m.Version}}}, nil
++		}
+ 		return &modFileSummary{module: m}, nil
+ 	}
+ 	if m.Version == "" && !inWorkspaceMode() && MainModules.Contains(m.Path) {
+@@ -704,15 +727,18 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 			summary.module = f.Module.Mod
+ 			summary.deprecated = f.Module.Deprecated
+ 		}
+-		if f.Go != nil && f.Go.Version != "" {
++		if f.Go != nil {
+ 			rawGoVersion.LoadOrStore(m, f.Go.Version)
+ 			summary.goVersion = f.Go.Version
+ 			summary.pruning = pruningForGoVersion(f.Go.Version)
+ 		} else {
+ 			summary.pruning = unpruned
+ 		}
++		if f.Toolchain != nil {
++			summary.toolchain = f.Toolchain.Name
++		}
+ 		if len(f.Require) > 0 {
+-			summary.require = make([]module.Version, 0, len(f.Require))
++			summary.require = make([]module.Version, 0, len(f.Require)+1)
+ 			for _, req := range f.Require {
+ 				summary.require = append(summary.require, req.Mod)
+ 			}
+@@ -721,6 +747,7 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 			if gover.Compare(summary.goVersion, gover.Local()) > 0 {
+ 				return nil, &gover.TooNewError{What: summary.module.String(), GoVersion: summary.goVersion}
+ 			}
++			summary.require = append(summary.require, module.Version{Path: "go", Version: summary.goVersion})
+ 		}
+ 		if len(f.Retract) > 0 {
+ 			summary.retract = make([]retraction, 0, len(f.Retract))
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 19ba5b0650..038199f286 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -137,7 +137,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 	defer span.Done()
+ 
+ 	if current != "" && current != "none" && !gover.ModIsValid(path, current) {
+-		return nil, fmt.Errorf("invalid previous version %q", current)
++		return nil, fmt.Errorf("invalid previous version %v@%v", path, current)
+ 	}
+ 	if cfg.BuildMod == "vendor" {
+ 		return nil, errQueryDisabled
+@@ -713,6 +713,9 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
+ 				return r, err
+ 			}
+ 			r.Mod.Version = r.Rev.Version
++			if gover.IsToolchain(r.Mod.Path) {
++				return r, nil
++			}
+ 			root, isLocal, err := fetch(ctx, r.Mod)
+ 			if err != nil {
+ 				return r, err
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index 627f91f09c..cb03b697a8 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -19,6 +19,7 @@ import (
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modindex"
+ 	"cmd/go/internal/par"
+@@ -172,7 +173,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 	}
+ 
+ 	for _, mod := range modules {
+-		if !treeCanMatch(mod.Path) {
++		if gover.IsToolchain(mod.Path) || !treeCanMatch(mod.Path) {
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_goline.txt b/src/cmd/go/testdata/script/mod_goline.txt
+new file mode 100644
+index 0000000000..d7aa34f63a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_goline.txt
+@@ -0,0 +1,121 @@
++env TESTGO_VERSION=go1.99
++
++! go list -f '{{.Module.GoVersion}}'
++stderr 'go: updates to go.mod needed'
++stderr 'go mod tidy'
++
++go mod tidy
++cat go.mod
++go list -f '{{.Module.GoVersion}}'
++stdout 1.22
++
++# Adding a@v1.0.01 should upgrade to Go 1.23rc1.
++cp go.mod go.mod1
++go get example.com/a@v1.0.1
++stderr '^go: upgraded go 1.22 => 1.23rc1\ngo: upgraded example.com/a v1.0.0 => v1.0.1\ngo: upgraded example.com/b v1.0.0 => v1.0.1$'
++go list -f '{{.Module.GoVersion}}'
++stdout 1.23rc1
++
++ # would be nice but doesn't work yet
++ # go mod why -m go
++ # stderr xxx
++
++# Repeating the update with go@1.24.0 should use that Go version.
++cp go.mod1 go.mod
++go get example.com/a@v1.0.1 go@1.24.0
++go list -f '{{.Module.GoVersion}}'
++stdout 1.24.0
++
++# Go version-constrained updates should report the problems.
++cp go.mod1 go.mod
++! go get example.com/a@v1.0.2 go@1.24.2
++stderr '^go: example.com/a@v1.0.2 requires go@1.25, not go@1.24.2$'
++! go get example.com/a@v1.0.2 go@1.26.3
++stderr '^go: example.com/a@v1.0.2 indirectly requires go@1.27, not go@1.26.3$'
++go get example.com/a@v1.0.2 go@1.28rc1
++go list -f '{{.Module.GoVersion}}'
++stdout 1.28rc1
++go get go@1.24.2
++stderr '^go: downgraded go 1.28rc1 => 1.24.2$'
++stderr '^go: downgraded example.com/a v1.0.2 => v1.0.1$'
++stderr '^go: downgraded example.com/b v1.0.2 => v1.0.1$'
++go list -f '{{.Module.GoVersion}}'
++stdout 1.24.2
++
++-- go.mod --
++module m
++go 1.21
++
++require (
++	example.com/a v1.0.0
++	example.com/b v0.9.0
++)
++
++replace example.com/a v1.0.0 => ./a100
++replace example.com/a v1.0.1 => ./a101
++replace example.com/a v1.0.2 => ./a102
++replace example.com/b v1.0.1 => ./b101
++replace example.com/b v1.0.2 => ./b102
++replace example.com/b v1.0.0 => ./b100
++replace example.com/b v0.9.0 => ./b100
++
++-- x.go --
++package m
++
++import (
++	_ "example.com/a"
++	_ "example.com/b"
++)
++
++-- a100/go.mod --
++module example.com/a
++go 1.22
++
++require example.com/b v1.0.0
++
++-- a100/a.go --
++package a
++
++-- a101/go.mod --
++// this module is technically invalid, since the dep example.com/b has a newer go line than this module,
++// but we should still be able to handle it.
++module example.com/a
++go 1.22
++
++require example.com/b v1.0.1
++
++-- a101/a.go --
++package a
++
++-- a102/go.mod --
++// this module is technically invalid, since the dep example.com/b has a newer go line than this module,
++// but we should still be able to handle it.
++module example.com/a
++go 1.25
++
++require example.com/b v1.0.2
++
++-- a102/a.go --
++package a
++
++-- b100/go.mod --
++module example.com/b
++go 1.22
++
++-- b100/b.go --
++package b
++
++-- b101/go.mod --
++module example.com/b
++go 1.23rc1
++
++-- b101/b.go --
++package b
++
++-- b102/go.mod --
++module example.com/b
++go 1.27
++
++-- b102/b.go --
++package b
++
+diff --git a/src/cmd/go/testdata/script/mod_goline_old.txt b/src/cmd/go/testdata/script/mod_goline_old.txt
+new file mode 100644
+index 0000000000..bbe611bab7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_goline_old.txt
+@@ -0,0 +1,72 @@
++env TESTGO_VERSION=go1.24
++
++go list -f '{{.Module.GoVersion}}'
++stdout 1.15
++
++go mod tidy
++go list -f '{{.Module.GoVersion}}'
++stdout 1.15
++
++go get example.com/a@v1.0.1
++go list -f '{{.Module.GoVersion}}'
++stdout 1.15
++
++go get example.com/a@v1.0.1 go@1.16
++go list -f '{{.Module.GoVersion}}'
++stdout 1.16
++
++-- go.mod --
++module m
++go 1.15
++
++require (
++	example.com/a v1.0.0
++	example.com/b v1.0.0
++)
++
++replace example.com/a v1.0.0 => ./a100
++replace example.com/a v1.0.1 => ./a101
++replace example.com/b v1.0.1 => ./b101
++replace example.com/b v1.0.0 => ./b100
++replace example.com/b v0.9.0 => ./b100
++
++-- x.go --
++package m
++
++import (
++	_ "example.com/a"
++	_ "example.com/b"
++)
++
++-- a100/go.mod --
++module example.com/a
++go 1.16
++
++require example.com/b v1.0.0
++
++-- a100/a.go --
++package a
++
++-- a101/go.mod --
++module example.com/a
++go 1.17
++
++require example.com/b v1.0.1
++
++-- a101/a.go --
++package a
++
++-- b100/go.mod --
++module example.com/b
++go 1.18
++
++-- b100/b.go --
++package b
++
++-- b101/go.mod --
++module example.com/b
++go 1.19
++
++-- b101/b.go --
++package b
++
+diff --git a/src/cmd/go/testdata/script/mod_indirect_main.txt b/src/cmd/go/testdata/script/mod_indirect_main.txt
+index eeb93f1913..43aaa39064 100644
+--- a/src/cmd/go/testdata/script/mod_indirect_main.txt
++++ b/src/cmd/go/testdata/script/mod_indirect_main.txt
+@@ -60,6 +60,8 @@ golang.org/issue/root
+ golang.org/issue/mirror v0.1.0 => ./mirror-v0.1.0
+ golang.org/issue/pkg v0.1.0 => ./pkg-v0.1.0
+ -- graph.txt --
++golang.org/issue/root go@1.12
+ golang.org/issue/root golang.org/issue/mirror@v0.1.0
++go@1.12 toolchain@go1.12
+ golang.org/issue/mirror@v0.1.0 golang.org/issue/root@v0.1.0
+ golang.org/issue/root@v0.1.0 golang.org/issue/pkg@v0.1.0
+diff --git a/src/cmd/go/testdata/script/mod_skip_write.txt b/src/cmd/go/testdata/script/mod_skip_write.txt
+index 9fdb6fc121..14b1c3728e 100644
+--- a/src/cmd/go/testdata/script/mod_skip_write.txt
++++ b/src/cmd/go/testdata/script/mod_skip_write.txt
+@@ -79,10 +79,12 @@ package use
+ 
+ import _ "rsc.io/quote"
+ -- graph.want --
++m go@1.18
+ m golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c
+ m rsc.io/quote@v1.5.2
+ m rsc.io/sampler@v1.3.0
+ m rsc.io/testonly@v1.0.0
++go@1.18 toolchain@go1.18
+ rsc.io/quote@v1.5.2 rsc.io/sampler@v1.3.0
+ rsc.io/sampler@v1.3.0 golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c
+ -- why.want --
+diff --git a/src/cmd/go/testdata/script/mod_toolchain.txt b/src/cmd/go/testdata/script/mod_toolchain.txt
+new file mode 100644
+index 0000000000..bdaa859bd9
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_toolchain.txt
+@@ -0,0 +1,75 @@
++[!net:golang.org] skip
++
++env GOPROXY=https://proxy.golang.org/
++env TESTGO_VERSION=go1.100
++go get toolchain@go1.20.1
++stderr '^go: added toolchain go1.20.1$'
++! stderr '(added|removed|upgraded|downgraded) go'
++grep 'toolchain go1.20.1' go.mod
++
++go get toolchain@none
++stderr '^go: removed toolchain go1.20.1$'
++! stderr '(added|removed|upgraded|downgraded) go'
++! grep toolchain go.mod
++
++go get toolchain@go1.20.1
++stderr '^go: added toolchain go1.20.1$'
++! stderr '(added|removed|upgraded|downgraded) go'
++grep 'toolchain go1.20.1' go.mod
++
++cat go.mod
++go get go@1.20.3
++stderr '^go: upgraded go 1.10 => 1.20.3$'
++stderr '^go: removed toolchain go1.20.1$'
++grep 'go 1.20.3' go.mod
++! grep toolchain go.mod
++
++go get go@1.20.1 toolchain@go1.20.3
++stderr '^go: downgraded go 1.20.3 => 1.20.1$'
++stderr '^go: added toolchain go1.20.3$'
++grep 'go 1.20.1' go.mod
++grep 'toolchain go1.20.3' go.mod
++
++go get go@1.20.3
++stderr '^go: upgraded go 1.20.1 => 1.20.3$'
++stderr '^go: removed toolchain go1.20.3$'
++grep 'go 1.20.3' go.mod
++! grep toolchain go.mod
++
++go get toolchain@1.20.1
++stderr '^go: downgraded go 1.20.3 => 1.20.1$'
++ # ! stderr toolchain
++grep 'go 1.20.1' go.mod
++
++env TESTGO_VERSION=go1.20.1
++env GOTOOLCHAIN=local
++! go get go@1.20.3
++stderr 'go: updating go.mod requires go 1.20.3 \(running go 1.20.1; GOTOOLCHAIN=local\)$'
++
++go get toolchain@1.20.3
++grep 'toolchain go1.20.3' go.mod
++
++env TESTGO_VERSION=go1.30
++go get go@1.20.1
++grep 'go 1.20.1' go.mod
++go get m2@v1.0.0
++stderr '^go: upgraded go 1.20.1 => 1.22$'
++stderr '^go: added m2 v1.0.0$'
++grep 'go 1.22' go.mod
++
++go mod edit -toolchain=go1.29.0  # cannot go get because it doesn't exist
++go get go@1.28.0
++go get toolchain@none
++stderr '^go: removed toolchain go1.29.0'
++! stderr ' go 1'
++grep 'go 1.28.0' go.mod
++
++-- go.mod --
++module m
++go 1.10
++
++replace m2 v1.0.0 => ./m2
++
++-- m2/go.mod --
++module m2
++go 1.22
+diff --git a/src/cmd/go/testdata/script/work_why_download_graph.txt b/src/cmd/go/testdata/script/work_why_download_graph.txt
+index 8f1aeddf47..b86dc00d43 100644
+--- a/src/cmd/go/testdata/script/work_why_download_graph.txt
++++ b/src/cmd/go/testdata/script/work_why_download_graph.txt
+@@ -25,7 +25,7 @@ go mod why rsc.io/quote
+ stdout '# rsc.io/quote\nexample.com/a\nrsc.io/quote'
+ 
+ go mod graph
+-stdout 'example.com/a rsc.io/quote@v1.5.2\nexample.com/b example.com/c@v1.0.0\nrsc.io/quote@v1.5.2 rsc.io/sampler@v1.3.0\nrsc.io/sampler@v1.3.0 golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c'
++stdout 'example.com/a rsc.io/quote@v1.5.2\nexample.com/b example.com/c@v1.0.0\ngo@1.18 toolchain@go1.18\nrsc.io/quote@v1.5.2 rsc.io/sampler@v1.3.0\nrsc.io/sampler@v1.3.0 golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c'
+ 
+ -- go.work --
+ go 1.18

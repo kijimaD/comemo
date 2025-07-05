@@ -19,7 +19,7 @@ Date:   Wed Oct 23 16:10:55 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/list/list.go                           | 10 +++++++++-
  src/cmd/go/internal/modload/init.go                        |  3 +++
  src/cmd/go/testdata/script/mod_convert_vendor_json.txt     |  2 +-
@@ -28,3 +28,129 @@ Date:   Wed Oct 23 16:10:55 2019 -0400
  src/cmd/go/testdata/script/mod_vendor.txt                  |  2 +-
  src/cmd/go/testdata/script/mod_vendor_auto.txt             | 13 +++++++++++--
  7 files changed, 27 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index d8c75776bb..7965a84f99 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -381,12 +381,20 @@ func runList(cmd *base.Command, args []string) {
+ 			base.Fatalf("go list -test cannot be used with -m")
+ 		}
+ 
++		buildModIsDefault := (cfg.BuildMod == "")
+ 		if modload.Init(); !modload.Enabled() {
+ 			base.Fatalf("go list -m: not using modules")
+ 		}
++
++		modload.InitMod() // Parses go.mod and sets cfg.BuildMod.
+ 		if cfg.BuildMod == "vendor" {
+-			base.Fatalf("go list -m: can't list modules with -mod=vendor\n\tuse -mod=mod or -mod=readonly to ignore the vendor directory")
++			if buildModIsDefault {
++				base.Fatalf("go list -m: can't list modules using the vendor directory\n\tUse -mod=mod or -mod=readonly to ignore it.")
++			} else {
++				base.Fatalf("go list -m: can't list modules with -mod=vendor\n\tUse -mod=mod or -mod=readonly to ignore the vendor directory.")
++			}
+ 		}
++
+ 		modload.LoadBuildList()
+ 
+ 		mods := modload.ListModules(args, *listU, *listVersions)
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index cda6c93652..2f15093158 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -290,6 +290,9 @@ func die() {
+ 
+ // InitMod sets Target and, if there is a main module, parses the initial build
+ // list from its go.mod file, creating and populating that file if needed.
++//
++// As a side-effect, InitMod sets a default for cfg.BuildMod if it does not
++// already have an explicit value.
+ func InitMod() {
+ 	if len(buildList) > 0 {
+ 		return
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_json.txt b/src/cmd/go/testdata/script/mod_convert_vendor_json.txt
+index 47d111d4c1..2f5ccec32c 100644
+--- a/src/cmd/go/testdata/script/mod_convert_vendor_json.txt
++++ b/src/cmd/go/testdata/script/mod_convert_vendor_json.txt
+@@ -10,7 +10,7 @@ stderr '\s*cd \.\. && go mod init'
+ # The command we suggested should succeed.
+ cd ..
+ go mod init
+-go list -m all
++go list -mod=mod -m all
+ stdout '^m$'
+ 
+ -- $WORK/test/vendor/vendor.json --
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt b/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt
+index 68edb9dc29..6f3a145430 100644
+--- a/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt
++++ b/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt
+@@ -10,7 +10,7 @@ stderr '\s*cd \.\. && go mod init'
+ # The command we suggested should succeed.
+ cd ..
+ go mod init
+-go list -m all
++go list -mod=mod -m all
+ stdout '^m$'
+ 
+ -- $WORK/test/vendor/manifest --
+diff --git a/src/cmd/go/testdata/script/mod_getmode_vendor.txt b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+index 21fec5b85f..baa79a083a 100644
+--- a/src/cmd/go/testdata/script/mod_getmode_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+@@ -11,7 +11,7 @@ stdout '^rsc.io/quote v1.5.1 .*vendor[\\/]rsc.io[\\/]quote$'
+ stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text[\\/]language$'
+ 
+ ! go list -mod=vendor -m rsc.io/quote@latest
+-stderr 'go list -m: can''t list modules with -mod=vendor\n\tuse -mod=mod or -mod=readonly to ignore the vendor directory'
++stderr 'go list -m: can''t list modules with -mod=vendor\n\tUse -mod=mod or -mod=readonly to ignore the vendor directory.'
+ ! go get -mod=vendor -u
+ stderr 'flag provided but not defined: -mod'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor.txt b/src/cmd/go/testdata/script/mod_vendor.txt
+index 9b716906e5..17fb2f3c16 100644
+--- a/src/cmd/go/testdata/script/mod_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_vendor.txt
+@@ -35,7 +35,7 @@ stdout 'src[\\/]vendor[\\/]x'
+ # 'go list -mod=vendor -m' does not have enough information to list modules
+ # accurately, and should fail.
+ ! go list -mod=vendor -f {{.Dir}} -m x
+-stderr 'can''t list modules with -mod=vendor\n\tuse -mod=mod or -mod=readonly to ignore the vendor directory'
++stderr 'can''t list modules with -mod=vendor\n\tUse -mod=mod or -mod=readonly to ignore the vendor directory.'
+ 
+ # 'go list -mod=mod' should report packages outside the import graph,
+ # but 'go list -mod=vendor' should error out for them.
+diff --git a/src/cmd/go/testdata/script/mod_vendor_auto.txt b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+index 7abe833f57..6e79f6b994 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_auto.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+@@ -17,10 +17,10 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
+ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+ 
+ ! go list -m all
+-stderr 'can''t list modules with -mod=vendor'
++stderr 'can''t list modules with -mod=vendor\n\tUse -mod=mod or -mod=readonly to ignore the vendor directory.'
+ 
+ ! go list -m -f '{{.Dir}}' all
+-stderr 'can''t list modules with -mod=vendor'
++stderr 'can''t list modules with -mod=vendor\n\tUse -mod=mod or -mod=readonly to ignore the vendor directory.'
+ 
+ # An explicit -mod=mod should force the vendor directory to be ignored.
+ env GOFLAGS=-mod=mod
+@@ -103,6 +103,15 @@ stdout '^'$WORK'[/\\]auto$'
+ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
+ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+ 
++# ...but 'go list -m' should continue to fail, this time without
++# referring to a -mod default that the user didn't set.
++! go list -m all
++stderr 'can''t list modules using the vendor directory\n\tUse -mod=mod or -mod=readonly to ignore it.'
++
++! go list -m -f '{{.Dir}}' all
++stderr 'can''t list modules using the vendor directory\n\tUse -mod=mod or -mod=readonly to ignore it.'
++
++
+ # 'go mod init' should work if there is already a GOPATH-mode vendor directory
+ # present. If there are no module dependencies, -mod=vendor should be used by
+ # default and should not fail the consistency check even though no module

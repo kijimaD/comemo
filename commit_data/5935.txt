@@ -7,7 +7,32 @@ Date:   Tue Aug 3 00:36:44 2010 -0700
     R=adg
     CC=golang-dev, tarm
     https://golang.org/cl/1923041
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 8cfa5ffbb9..104bcd80c4 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -75,6 +75,7 @@ Sergio Luis O. B. Correia <sergio@larces.uece.br>
+ Spring Mc <heresy.mc@gmail.com>
+ Stephen Weinberg <stephen@q5comm.com>
+ Sven Almgren <sven@tras.se>
++Tarmigan Casebolt <tarmigan@gmail.com>
+ Timo Savola <timo.savola@gmail.com>
+ Tor Andersson <tor.andersson@gmail.com>
+ Vinu Rajashekhar <vinutheraj@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 508f4fbd52..5b865828a6 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -123,6 +123,7 @@ Spring Mc <heresy.mc@gmail.com>
+ Stephen Ma <stephenm@golang.org>
+ Stephen Weinberg <stephen@q5comm.com>
+ Sven Almgren <sven@tras.se>
++Tarmigan Casebolt <tarmigan@gmail.com>
+ Tom Szymanski <tgs@google.com>
+ Timo Savola <timo.savola@gmail.com>
+ Tor Andersson <tor.andersson@gmail.com>

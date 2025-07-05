@@ -18,6 +18,29 @@ Date:   Wed Oct 31 14:37:26 2018 +0000
     GitHub-Pull-Request: golang/go#24920
     Reviewed-on: https://go-review.googlesource.com/c/107627
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/common.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index ba47d565a0..9d9137bc68 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -765,10 +765,14 @@ func (c *Config) BuildNameToCertificate() {
+ 	c.NameToCertificate = make(map[string]*Certificate)
+ 	for i := range c.Certificates {
+ 		cert := &c.Certificates[i]
+-		x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+-		if err != nil {
+-			continue
++		if cert.Leaf == nil {
++			x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
++			if err != nil {
++				continue
++			}
++			cert.Leaf = x509Cert
+ 		}
++		x509Cert := cert.Leaf
+ 		if len(x509Cert.Subject.CommonName) > 0 {
+ 			c.NameToCertificate[x509Cert.Subject.CommonName] = cert
+ 		}

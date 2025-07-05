@@ -7,6 +7,19 @@ Date:   Mon Sep 19 15:26:48 2016 -0700
     Change-Id: Icfb38f492ae71432858b7104fcba18a9ba835192
     Reviewed-on: https://go-review.googlesource.com/29410
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.8.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.8.txt b/doc/go1.8.txt
+index 3730644964..cab4c1f542 100644
+--- a/doc/go1.8.txt
++++ b/doc/go1.8.txt
+@@ -12,6 +12,7 @@ Ports:
+ 
+ API additions and behavior changes:
+ 
++cmd/compile: args no longer live until end of function - use runtime.KeepAlive instead (CL 28310)
+ crypto/tls: set Conn.ConnectionState.ServerName unconditionally (CL 22862)
+ crypto/tls: support AES-128-CBC cipher suites with SHA-256 (CL 27315)
+ crypto/tls: don't generate random ticket keys if already set (CL 27317)

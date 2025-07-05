@@ -32,7 +32,50 @@ Date:   Mon Aug 21 13:06:23 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/encoding/json/encode.go      | 4 ++++
  src/encoding/json/encode_test.go | 6 +++---
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 38b98a57f7..9ba717c9ce 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -969,6 +969,10 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
+ 			switch b {
+ 			case '\\', '"':
+ 				dst = append(dst, '\\', b)
++			case '\b':
++				dst = append(dst, '\\', 'b')
++			case '\f':
++				dst = append(dst, '\\', 'f')
+ 			case '\n':
+ 				dst = append(dst, '\\', 'n')
+ 			case '\r':
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index d027972d8a..7972348801 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -113,7 +113,7 @@ func TestRoundtripStringTag(t *testing.T) {
+ 				"BoolStr": "false",
+ 				"IntStr": "0",
+ 				"UintptrStr": "0",
+-				"StrStr": "\"\\u0008\\u000c\\n\\r\\t\\\"\\\\\"",
++				"StrStr": "\"\\b\\f\\n\\r\\t\\\"\\\\\"",
+ 				"NumberStr": "0"
+ 			}`,
+ 		},
+@@ -795,11 +795,11 @@ var encodeStringTests = []struct {
+ 	{"\x05", `"\u0005"`},
+ 	{"\x06", `"\u0006"`},
+ 	{"\x07", `"\u0007"`},
+-	{"\x08", `"\u0008"`},
++	{"\x08", `"\b"`},
+ 	{"\x09", `"\t"`},
+ 	{"\x0a", `"\n"`},
+ 	{"\x0b", `"\u000b"`},
+-	{"\x0c", `"\u000c"`},
++	{"\x0c", `"\f"`},
+ 	{"\x0d", `"\r"`},
+ 	{"\x0e", `"\u000e"`},
+ 	{"\x0f", `"\u000f"`},

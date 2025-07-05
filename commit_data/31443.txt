@@ -9,10 +9,60 @@ Date:   Mon Feb 20 22:54:07 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/vet/all/whitelist/all.txt           | 1 -
  src/cmd/vet/all/whitelist/darwin_386.txt    | 1 +
  src/cmd/vet/all/whitelist/darwin_amd64.txt  | 1 +
  src/cmd/vet/all/whitelist/windows_386.txt   | 1 +
  src/cmd/vet/all/whitelist/windows_amd64.txt | 1 +
  5 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index 1d118b0d58..97e121813b 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -18,7 +18,6 @@ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: c
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Equal is in package bytes
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package bytes
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package strings
+-runtime/sys_GOOS_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: now is in package time
+ 
+ // Legitimate vet complaints in which we are testing for correct runtime behavior
+ // in bad situations that vet can also detect statically.
+diff --git a/src/cmd/vet/all/whitelist/darwin_386.txt b/src/cmd/vet/all/whitelist/darwin_386.txt
+index c5c51d0e3a..d19d7d7bd0 100644
+--- a/src/cmd/vet/all/whitelist/darwin_386.txt
++++ b/src/cmd/vet/all/whitelist/darwin_386.txt
+@@ -6,3 +6,4 @@ runtime/sys_darwin_386.s: [386] now: function now missing Go declaration
+ runtime/sys_darwin_386.s: [386] bsdthread_start: function bsdthread_start missing Go declaration
+ runtime/sys_darwin_386.s: [386] sysenter: function sysenter missing Go declaration
+ runtime/sys_darwin_386.s: [386] setldt: function setldt missing Go declaration
++runtime/sys_darwin_386.s: [386] cannot check cross-package assembly function: now is in package time
+diff --git a/src/cmd/vet/all/whitelist/darwin_amd64.txt b/src/cmd/vet/all/whitelist/darwin_amd64.txt
+index 277abd7b0c..94a4e8fa75 100644
+--- a/src/cmd/vet/all/whitelist/darwin_amd64.txt
++++ b/src/cmd/vet/all/whitelist/darwin_amd64.txt
+@@ -2,3 +2,4 @@
+ 
+ runtime/sys_darwin_amd64.s: [amd64] bsdthread_start: function bsdthread_start missing Go declaration
+ runtime/sys_darwin_amd64.s: [amd64] settls: function settls missing Go declaration
++runtime/sys_darwin_amd64.s: [amd64] cannot check cross-package assembly function: now is in package time
+diff --git a/src/cmd/vet/all/whitelist/windows_386.txt b/src/cmd/vet/all/whitelist/windows_386.txt
+index 7a6d23faf0..788684a49d 100644
+--- a/src/cmd/vet/all/whitelist/windows_386.txt
++++ b/src/cmd/vet/all/whitelist/windows_386.txt
+@@ -7,3 +7,4 @@ runtime/zcallback_windows.s: [386] callbackasm: function callbackasm missing Go
+ runtime/sys_windows_386.s: [386] callbackasm1+0: function callbackasm1+0 missing Go declaration
+ runtime/sys_windows_386.s: [386] tstart: function tstart missing Go declaration
+ runtime/sys_windows_386.s: [386] tstart_stdcall: RET without writing to 4-byte ret+4(FP)
++runtime/sys_windows_386.s: [386] cannot check cross-package assembly function: now is in package time
+diff --git a/src/cmd/vet/all/whitelist/windows_amd64.txt b/src/cmd/vet/all/whitelist/windows_amd64.txt
+index a2e1844e4b..3be4602579 100644
+--- a/src/cmd/vet/all/whitelist/windows_amd64.txt
++++ b/src/cmd/vet/all/whitelist/windows_amd64.txt
+@@ -5,4 +5,5 @@ runtime/sys_windows_amd64.s: [amd64] ctrlhandler: RET without writing to 4-byte
+ runtime/sys_windows_amd64.s: [amd64] callbackasm1: function callbackasm1 missing Go declaration
+ runtime/sys_windows_amd64.s: [amd64] tstart_stdcall: RET without writing to 4-byte ret+8(FP)
+ runtime/sys_windows_amd64.s: [amd64] settls: function settls missing Go declaration
++runtime/sys_windows_amd64.s: [amd64] cannot check cross-package assembly function: now is in package time
+ runtime/zcallback_windows.s: [amd64] callbackasm: function callbackasm missing Go declaration

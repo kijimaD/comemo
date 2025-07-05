@@ -51,10 +51,143 @@ Date:   Mon Apr 26 23:06:53 2021 +0100
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/go/alldocs.go                   |  2 ++
  src/cmd/go/internal/list/list.go        |  2 +-
  src/cmd/go/internal/work/build.go       |  2 ++
  src/cmd/go/internal/work/exec.go        |  5 +++-
  src/cmd/go/testdata/script/toolexec.txt | 51 ++++++++++++++++++++++++++++-----
  5 files changed, 53 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 9d4626769d..103eecf79c 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -198,6 +198,8 @@
+ // 		a program to use to invoke toolchain programs like vet and asm.
+ // 		For example, instead of running asm, the go command will run
+ // 		'cmd args /path/to/asm <arguments for asm>'.
++// 		The TOOLEXEC_IMPORTPATH environment variable will be set,
++// 		matching 'go list -f {{.ImportPath}}' for the package being built.
+ //
+ // The -asmflags, -gccgoflags, -gcflags, and -ldflags flags accept a
+ // space-separated list of arguments to pass to an underlying tool
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 53bf75e27e..53aaf311ec 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -628,7 +628,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 		old := make(map[string]string)
+ 		for _, p := range all {
+ 			if p.ForTest != "" {
+-				new := p.ImportPath + " [" + p.ForTest + ".test]"
++				new := p.Desc()
+ 				old[new] = p.ImportPath
+ 				p.ImportPath = new
+ 			}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index a75ace7d4e..1babbda889 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -152,6 +152,8 @@ and test commands:
+ 		a program to use to invoke toolchain programs like vet and asm.
+ 		For example, instead of running asm, the go command will run
+ 		'cmd args /path/to/asm <arguments for asm>'.
++		The TOOLEXEC_IMPORTPATH environment variable will be set,
++		matching 'go list -f {{.ImportPath}}' for the package being built.
+ 
+ The -asmflags, -gccgoflags, -gcflags, and -ldflags flags accept a
+ space-separated list of arguments to pass to an underlying tool
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 38e826607e..d04ba06901 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2071,8 +2071,11 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...interfa
+ 
+ 	// Add the TOOLEXEC_IMPORTPATH environment variable for -toolexec tools.
+ 	// It doesn't really matter if -toolexec isn't being used.
++	// Note that a.Package.Desc is not really an import path,
++	// but this is consistent with 'go list -f {{.ImportPath}}'.
++	// Plus, it is useful to uniquely identify packages in 'go list -json'.
+ 	if a != nil && a.Package != nil {
+-		cmd.Env = append(cmd.Env, "TOOLEXEC_IMPORTPATH="+a.Package.ImportPath)
++		cmd.Env = append(cmd.Env, "TOOLEXEC_IMPORTPATH="+a.Package.Desc())
+ 	}
+ 
+ 	cmd.Env = append(cmd.Env, env...)
+diff --git a/src/cmd/go/testdata/script/toolexec.txt b/src/cmd/go/testdata/script/toolexec.txt
+index 526234196b..4f26da6d26 100644
+--- a/src/cmd/go/testdata/script/toolexec.txt
++++ b/src/cmd/go/testdata/script/toolexec.txt
+@@ -11,12 +11,37 @@ go build ./cmd/mytool
+ # Finally, note that asm and cgo are run twice.
+ 
+ go build -toolexec=$PWD/mytool
+-[amd64] stderr -count=2 '^asm'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main/withasm$'
+-stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main/withasm$'
+-[cgo] stderr -count=2 '^cgo'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main/withcgo$'
+-[cgo] stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main/withcgo$'
+-stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main$'
+-stderr -count=1 '^link'${GOEXE}' TOOLEXEC_IMPORTPATH=test/main$'
++[amd64] stderr -count=2 '^asm'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withasm"$'
++stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withasm"$'
++[cgo] stderr -count=2 '^cgo'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withcgo"$'
++[cgo] stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withcgo"$'
++stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main"$'
++stderr -count=1 '^link'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main"$'
++
++# Test packages are a little bit trickier.
++# We have four variants of test/main, as reported by 'go list -test':
++#
++#    test/main                        - the regular non-test package
++#    test/main.test                   - the generated test program
++#    test/main [test/main.test]       - the test package for foo_test.go
++#    test/main_test [test/main.test]  - the test package for foo_separate_test.go
++#
++# As such, TOOLEXEC_IMPORTPATH must see the same strings, to be able to uniquely
++# identify each package being built as reported by 'go list -f {{.ImportPath}}'.
++# Note that these are not really "import paths" anymore, but that naming is
++# consistent with 'go list -json' at least.
++
++go test -toolexec=$PWD/mytool
++
++stderr -count=2 '^# test/main\.test$'
++stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main\.test"$'
++stderr -count=1 '^link'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main\.test"$'
++
++stderr -count=1 '^# test/main \[test/main\.test\]$'
++stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main \[test/main\.test\]"$'
++
++stderr -count=1 '^# test/main_test \[test/main\.test\]$'
++stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main_test \[test/main\.test\]"$'
+ 
+ -- go.mod --
+ module test/main
+@@ -32,6 +57,18 @@ import (
+ )
+ 
+ func main() {}
++-- foo_test.go --
++package main
++
++import "testing"
++
++func TestFoo(t *testing.T) {}
++-- foo_separate_test.go --
++package main_test
++
++import "testing"
++
++func TestSeparateFoo(t *testing.T) {}
+ -- withcgo/withcgo.go --
+ package withcgo
+ 
+@@ -71,7 +108,7 @@ func main() {
+ 		// We can't alter the version output.
+ 	} else {
+ 		// Print which tool we're running, and on what package.
+-		fmt.Fprintf(os.Stdout, "%s TOOLEXEC_IMPORTPATH=%s\n", toolName, os.Getenv("TOOLEXEC_IMPORTPATH"))
++		fmt.Fprintf(os.Stdout, "%s TOOLEXEC_IMPORTPATH=%q\n", toolName, os.Getenv("TOOLEXEC_IMPORTPATH"))
+ 	}
+ 
+ 	// Simply run the tool.

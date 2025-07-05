@@ -13,6 +13,19 @@ Date:   Fri Dec 6 14:06:36 2024 +0100
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/internal/goobj/objfile.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index d54fa993d2..a9342427ef 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -55,6 +55,7 @@ import (
+ //       Flag  uint8
+ //       Flag2 uint8
+ //       Size  uint32
++//       Align uint32
+ //    }
+ //    Hashed64Defs [...]struct { // short hashed (content-addressable) symbol definitions
+ //       ... // same as SymbolDefs

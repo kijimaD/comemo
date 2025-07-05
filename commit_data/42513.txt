@@ -15,8 +15,146 @@ Date:   Thu Jan 2 15:47:45 2020 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 42 ---------------------
  .../testrace/race_test.go => script/test_race.txt} | 16 ++++++++
  .../script/test_race_cover_mode_issue20435.txt     | 44 ++++++++++++++++++++++
  3 files changed, 60 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index ddc29fbff9..76566f3c3a 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3092,29 +3092,6 @@ func TestGoTestRaceInstallCgo(t *testing.T) {
+ 	}
+ }
+ 
+-func TestGoTestRaceFailures(t *testing.T) {
+-	tooSlow(t)
+-
+-	if !canRace {
+-		t.Skip("skipping because race detector not supported")
+-	}
+-
+-	tg := testgo(t)
+-	tg.parallel()
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-
+-	tg.run("test", "testrace")
+-
+-	tg.runFail("test", "-race", "testrace")
+-	tg.grepStdout("FAIL: TestRace", "TestRace did not fail")
+-	tg.grepBothNot("PASS", "something passed")
+-
+-	tg.runFail("test", "-race", "testrace", "-run", "XXX", "-bench", ".")
+-	tg.grepStdout("FAIL: BenchmarkRace", "BenchmarkRace did not fail")
+-	tg.grepBothNot("PASS", "something passed")
+-}
+-
+ func TestGoGetUpdate(t *testing.T) {
+ 	// golang.org/issue/9224.
+ 	// The recursive updating was trying to walk to
+@@ -4028,25 +4005,6 @@ func TestCgoFlagContainsSpace(t *testing.T) {
+ 	tg.grepStderrNot(`"-L[^"]+c flags".*"-L[^"]+c flags"`, "found too many quoted ld flags")
+ }
+ 
+-// Issue #20435.
+-func TestGoTestRaceCoverModeFailures(t *testing.T) {
+-	tooSlow(t)
+-	if !canRace {
+-		t.Skip("skipping because race detector not supported")
+-	}
+-
+-	tg := testgo(t)
+-	tg.parallel()
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-
+-	tg.run("test", "testrace")
+-
+-	tg.runFail("test", "-race", "-covermode=set", "testrace")
+-	tg.grepStderr(`-covermode must be "atomic", not "set", when -race is enabled`, "-race -covermode=set was allowed")
+-	tg.grepBothNot("PASS", "something passed")
+-}
+-
+ // Issue 9737: verify that GOARM and GO386 affect the computed build ID.
+ func TestBuildIDContainsArchModeEnv(t *testing.T) {
+ 	if testing.Short() {
+diff --git a/src/cmd/go/testdata/src/testrace/race_test.go b/src/cmd/go/testdata/script/test_race.txt
+similarity index 57%
+rename from src/cmd/go/testdata/src/testrace/race_test.go
+rename to src/cmd/go/testdata/script/test_race.txt
+index 7ec0c6d17a..5d15189e19 100644
+--- a/src/cmd/go/testdata/src/testrace/race_test.go
++++ b/src/cmd/go/testdata/script/test_race.txt
+@@ -1,3 +1,19 @@
++[short] skip
++[!race] skip
++
++go test testrace
++
++! go test -race testrace
++stdout 'FAIL: TestRace'
++! stdout 'PASS'
++! stderr 'PASS'
++
++! go test -race testrace -run XXX -bench .
++stdout 'FAIL: BenchmarkRace'
++! stdout 'PASS'
++! stderr 'PASS'
++
++-- testrace/race_test.go --
+ package testrace
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/script/test_race_cover_mode_issue20435.txt b/src/cmd/go/testdata/script/test_race_cover_mode_issue20435.txt
+new file mode 100644
+index 0000000000..bff9502ac7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_race_cover_mode_issue20435.txt
+@@ -0,0 +1,44 @@
++[short] skip
++[!race] skip
++
++# Make sure test is functional.
++go test testrace
++
++# Now, check that -race -covermode=set is not allowed.
++! go test -race -covermode=set testrace
++stderr '-covermode must be "atomic", not "set", when -race is enabled'
++! stdout PASS
++! stderr PASS
++
++-- testrace/race_test.go --
++package testrace
++
++import "testing"
++
++func TestRace(t *testing.T) {
++	for i := 0; i < 10; i++ {
++		c := make(chan int)
++		x := 1
++		go func() {
++			x = 2
++			c <- 1
++		}()
++		x = 3
++		<-c
++		_ = x
++	}
++}
++
++func BenchmarkRace(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		c := make(chan int)
++		x := 1
++		go func() {
++			x = 2
++			c <- 1
++		}()
++		x = 3
++		<-c
++		_ = x
++	}
++}

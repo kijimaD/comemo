@@ -14,9 +14,154 @@ Date:   Fri Mar 4 11:29:55 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/crash_cgo_test.go             |  8 ++++++
  src/runtime/panic.go                      | 17 +++++++++++
  src/runtime/symtab.go                     |  2 +-
  src/runtime/testdata/testprogcgo/aprof.go | 48 +++++++++++++++++++++++++++++++
  4 files changed, 74 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 00686ee755..2f7591a8d3 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -201,3 +201,11 @@ func TestCgoPanicDeadlock(t *testing.T) {
+ 		t.Fatalf("output does not start with %q:\n%s", want, got)
+ 	}
+ }
++
++func TestCgoCCodeSIGPROF(t *testing.T) {
++	got := runTestProg(t, "testprogcgo", "CgoCCodeSIGPROF")
++	want := "OK\n"
++	if got != want {
++		t.Errorf("expected %q got %v", want, got)
++	}
++}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 10065c1803..59fbc83369 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -9,39 +9,56 @@ import (
+ 	"unsafe"
+ )
+ 
++// Calling panic with one of the errors below will call errorString.Error
++// which will call mallocgc to concatenate strings. That will fail if
++// malloc is locked, causing a confusing error message. Throw a better
++// error message instead.
++func panicCheckMalloc(err error) {
++	gp := getg()
++	if gp != nil && gp.m != nil && gp.m.mallocing != 0 {
++		throw(string(err.(errorString)))
++	}
++}
++
+ var indexError = error(errorString("index out of range"))
+ 
+ func panicindex() {
++	panicCheckMalloc(indexError)
+ 	panic(indexError)
+ }
+ 
+ var sliceError = error(errorString("slice bounds out of range"))
+ 
+ func panicslice() {
++	panicCheckMalloc(sliceError)
+ 	panic(sliceError)
+ }
+ 
+ var divideError = error(errorString("integer divide by zero"))
+ 
+ func panicdivide() {
++	panicCheckMalloc(divideError)
+ 	panic(divideError)
+ }
+ 
+ var overflowError = error(errorString("integer overflow"))
+ 
+ func panicoverflow() {
++	panicCheckMalloc(overflowError)
+ 	panic(overflowError)
+ }
+ 
+ var floatError = error(errorString("floating point error"))
+ 
+ func panicfloat() {
++	panicCheckMalloc(floatError)
+ 	panic(floatError)
+ }
+ 
+ var memoryError = error(errorString("invalid memory address or nil pointer dereference"))
+ 
+ func panicmem() {
++	panicCheckMalloc(memoryError)
+ 	panic(memoryError)
+ }
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index f1df93f9e4..cd328eb899 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -277,7 +277,7 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
+ 
+ func findmoduledatap(pc uintptr) *moduledata {
+ 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+-		if datap.minpc <= pc && pc <= datap.maxpc {
++		if datap.minpc <= pc && pc < datap.maxpc {
+ 			return datap
+ 		}
+ 	}
+diff --git a/src/runtime/testdata/testprogcgo/aprof.go b/src/runtime/testdata/testprogcgo/aprof.go
+new file mode 100644
+index 0000000000..cf52107a30
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/aprof.go
+@@ -0,0 +1,48 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Test that SIGPROF received in C code does not crash the process
++// looking for the C code's func pointer.
++
++// The test fails when the function is the first C function.
++// The exported functions are the first C functions, so we use that.
++
++// extern void GoNop();
++import "C"
++
++import (
++	"bytes"
++	"fmt"
++	"runtime/pprof"
++)
++
++func init() {
++	register("CgoCCodeSIGPROF", CgoCCodeSIGPROF)
++}
++
++//export GoNop
++func GoNop() {}
++
++func CgoCCodeSIGPROF() {
++	c := make(chan bool)
++	go func() {
++		for {
++			<-c
++			for i := 0; i < 1e7; i++ {
++				C.GoNop()
++			}
++			c <- true
++		}
++	}()
++
++	var buf bytes.Buffer
++	pprof.StartCPUProfile(&buf)
++	c <- true
++	<-c
++	pprof.StopCPUProfile()
++
++	fmt.Println("OK")
++}

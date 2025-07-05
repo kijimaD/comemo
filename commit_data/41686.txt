@@ -38,7 +38,280 @@ Date:   Wed Aug 1 23:22:46 2018 -0400
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/math/all_test.go |  75 +++++++++++++++++++++++
  src/math/fma.go      | 169 +++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 244 insertions(+)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 208c8233e0..e8fa2b8b66 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -2005,6 +2005,64 @@ var logbBC = []float64{
+ 	1023,
+ }
+ 
++// Test cases were generated with Berkeley TestFloat-3e/testfloat_gen.
++// http://www.jhauser.us/arithmetic/TestFloat.html.
++// The default rounding mode is selected (nearest/even), and exception flags are ignored.
++var fmaC = []struct{ x, y, z, want float64 }{
++	// Large exponent spread
++	{-3.999999999999087, -1.1123914289620494e-16, -7.999877929687506, -7.999877929687505},
++	{-262112.0000004768, -0.06251525855623184, 1.1102230248837136e-16, 16385.99945072085},
++	{-6.462348523533467e-27, -2.3763644720331857e-211, 4.000000000931324, 4.000000000931324},
++
++	// Effective addition
++	{-2.0000000037252907, 6.7904383376e-313, -3.3951933161e-313, -1.697607001654e-312},
++	{-0.12499999999999999, 512.007568359375, -1.4193627164960366e-16, -64.00094604492188},
++	{-2.7550648847397148e-39, -3.4028301595800694e+38, 0.9960937495343386, 1.9335955376735676},
++	{5.723369164769208e+24, 3.8149300927159385e-06, 1.84489958778182e+19, 4.028324913621874e+19},
++	{-0.4843749999990904, -3.6893487872543293e+19, 9.223653786709391e+18, 2.7093936974938993e+19},
++	{-3.8146972665201165e-06, 4.2949672959999385e+09, -2.2204460489938386e-16, -16384.000003844263},
++	{6.98156394130982e-309, -1.1072962560000002e+09, -4.4414561548793455e-308, -7.73065965765153e-300},
++
++	// Effective subtraction
++	{5e-324, 4.5, -2e-323, 0},
++	{5e-324, 7, -3.5e-323, 0},
++	{5e-324, 0.5000000000000001, -5e-324, Copysign(0, -1)},
++	{-2.1240680525e-314, -1.233647078189316e+308, -0.25781249999954525, -0.25780987964919844},
++	{8.579992955364441e-308, 0.6037391876780558, -4.4501307410480706e-308, 7.29947236107098e-309},
++	{-4.450143471986689e-308, -0.9960937499927239, -4.450419332475649e-308, -1.7659233458788e-310},
++	{1.4932076393918112, -2.2248022430460833e-308, 4.449875571054211e-308, 1.127783865601762e-308},
++
++	// Overflow
++	{-2.288020632214759e+38, -8.98846570988901e+307, 1.7696041796300924e+308, Inf(0)},
++	{1.4888652783208255e+308, -9.007199254742012e+15, -6.807282911929205e+38, Inf(-1)},
++	{9.142703268902826e+192, -1.3504889569802838e+296, -1.9082200803806996e-89, Inf(-1)},
++
++	// Finite x and y, but non-finite z.
++	{31.99218749627471, -1.7976930544991702e+308, Inf(0), Inf(0)},
++	{-1.7976931281784667e+308, -2.0009765625002265, Inf(-1), Inf(-1)},
++
++	// Special
++	{0, 0, 0, 0},
++	{-1.1754226043408471e-38, NaN(), Inf(0), NaN()},
++	{0, 0, 2.22507385643494e-308, 2.22507385643494e-308},
++	{-8.65697792e+09, NaN(), -7.516192799999999e+09, NaN()},
++	{-0.00012207403779029757, 3.221225471996093e+09, NaN(), NaN()},
++	{Inf(-1), 0.1252441407414153, -1.387184532981584e-76, Inf(-1)},
++	{Inf(0), 1.525878907671432e-05, -9.214364835452549e+18, Inf(0)},
++
++	// Random
++	{0.1777916152213626, -32.000015266239636, -2.2204459148334633e-16, -5.689334401293007},
++	{-2.0816681711722314e-16, -0.4997558592585846, -0.9465627129124969, -0.9465627129124968},
++	{-1.9999997615814211, 1.8518819259933516e+19, 16.874999999999996, -3.703763410463646e+19},
++	{-0.12499994039717421, 32767.99999976135, -2.0752587082923246e+19, -2.075258708292325e+19},
++	{7.705600568510257e-34, -1.801432979000528e+16, -0.17224197722973714, -0.17224197722973716},
++	{3.8988133103758913e-308, -0.9848632812499999, 3.893879244098556e-308, 5.40811742605814e-310},
++	{-0.012651981190687427, 6.911985574912436e+38, 6.669240527007144e+18, -8.745031148409496e+36},
++	{4.612811918325842e+18, 1.4901161193847641e-08, 2.6077032311277997e-08, 6.873625395187494e+10},
++	{-9.094947033611148e-13, 4.450691014249257e-308, 2.086006742350485e-308, 2.086006742346437e-308},
++	{-7.751454006381804e-05, 5.588653777189071e-308, -2.2207280111272877e-308, -2.2211612130544025e-308},
++}
++
+ func tolerance(a, b, e float64) bool {
+ 	// Multiplying by e here can underflow denormal values to zero.
+ 	// Check a==b so that at least if a and b are small and identical
+@@ -2995,6 +3053,15 @@ func TestYn(t *testing.T) {
+ 	}
+ }
+ 
++func TestFma(t *testing.T) {
++	for _, c := range fmaC {
++		got := Fma(c.x, c.y, c.z)
++		if !alike(got, c.want) {
++			t.Errorf("Fma(%g,%g,%g) == %g; want %g", c.x, c.y, c.z, got, c.want)
++		}
++	}
++}
++
+ // Check that math functions of high angle values
+ // return accurate results. [Since (vf[i] + large) - large != vf[i],
+ // testing for Trig(vf[i] + large) == Trig(vf[i]), where large is
+@@ -3725,3 +3792,11 @@ func BenchmarkFloat32frombits(b *testing.B) {
+ 	}
+ 	GlobalF = float64(x)
+ }
++
++func BenchmarkFma(b *testing.B) {
++	x := 0.0
++	for i := 0; i < b.N; i++ {
++		x = Fma(E, Pi, x)
++	}
++	GlobalF = x
++}
+diff --git a/src/math/fma.go b/src/math/fma.go
+new file mode 100644
+index 0000000000..76249229b2
+--- /dev/null
++++ b/src/math/fma.go
+@@ -0,0 +1,169 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++import "math/bits"
++
++func zero(x uint64) uint64 {
++	if x == 0 {
++		return 1
++	}
++	return 0
++	// branchless:
++	// return ((x>>1 | x&1) - 1) >> 63
++}
++
++func nonzero(x uint64) uint64 {
++	if x != 0 {
++		return 1
++	}
++	return 0
++	// branchless:
++	// return 1 - ((x>>1|x&1)-1)>>63
++}
++
++func shl(u1, u2 uint64, n uint) (r1, r2 uint64) {
++	r1 = u1<<n | u2>>(64-n) | u2<<(n-64)
++	r2 = u2 << n
++	return
++}
++
++func shr(u1, u2 uint64, n uint) (r1, r2 uint64) {
++	r2 = u2>>n | u1<<(64-n) | u1>>(n-64)
++	r1 = u1 >> n
++	return
++}
++
++// shrcompress compresses the bottom n+1 bits of the two-word
++// value into a single bit. the result is equal to the value
++// shifted to the right by n, except the result's 0th bit is
++// set to the bitwise OR of the bottom n+1 bits.
++func shrcompress(u1, u2 uint64, n uint) (r1, r2 uint64) {
++	// TODO: Performance here is really sensitive to the
++	// order/placement of these branches. n == 0 is common
++	// enough to be in the fast path. Perhaps more measurement
++	// needs to be done to find the optimal order/placement?
++	switch {
++	case n == 0:
++		return u1, u2
++	case n == 64:
++		return 0, u1 | nonzero(u2)
++	case n >= 128:
++		return 0, nonzero(u1 | u2)
++	case n < 64:
++		r1, r2 = shr(u1, u2, n)
++		r2 |= nonzero(u2 & (1<<n - 1))
++	case n < 128:
++		r1, r2 = shr(u1, u2, n)
++		r2 |= nonzero(u1&(1<<(n-64)-1) | u2)
++	}
++	return
++}
++
++func lz(u1, u2 uint64) (l int32) {
++	l = int32(bits.LeadingZeros64(u1))
++	if l == 64 {
++		l += int32(bits.LeadingZeros64(u2))
++	}
++	return l
++}
++
++// split splits b into sign, biased exponent, and mantissa.
++// It adds the implicit 1 bit to the mantissa for normal values,
++// and normalizes subnormal values.
++func split(b uint64) (sign uint32, exp int32, mantissa uint64) {
++	sign = uint32(b >> 63)
++	exp = int32(b>>52) & mask
++	mantissa = b & fracMask
++
++	if exp == 0 {
++		// Normalize value if subnormal.
++		shift := uint(bits.LeadingZeros64(mantissa) - 11)
++		mantissa <<= shift
++		exp = 1 - int32(shift)
++	} else {
++		// Add implicit 1 bit
++		mantissa |= 1 << 52
++	}
++	return
++}
++
++// Fma returns x * y + z, computed with only one rounding.
++func Fma(x, y, z float64) float64 {
++	bx, by, bz := Float64bits(x), Float64bits(y), Float64bits(z)
++
++	// Inf or NaN or zero involved. At most one rounding will occur.
++	if x == 0.0 || y == 0.0 || z == 0.0 || bx&uvinf == uvinf || by&uvinf == uvinf {
++		return x*y + z
++	}
++	// Handle non-finite z separately. Evaluating x*y+z where
++	// x and y are finite, but z is infinite, should always result in z.
++	if bz&uvinf == uvinf {
++		return z
++	}
++
++	// Inputs are (sub)normal.
++	// Split x, y, z into sign, exponent, mantissa.
++	xs, xe, xm := split(bx)
++	ys, ye, ym := split(by)
++	zs, ze, zm := split(bz)
++
++	// Compute product p = x*y as sign, exponent, two-word mantissa.
++	// Start with exponent. "is normal" bit isn't subtracted yet.
++	pe := xe + ye - bias + 1
++
++	// pm1:pm2 is the double-word mantissa for the product p.
++	// Shift left to leave top bit in product. Effectively
++	// shifts the 106-bit product to the left by 21.
++	pm1, pm2 := bits.Mul64(xm<<10, ym<<11)
++	zm1, zm2 := zm<<10, uint64(0)
++	ps := xs ^ ys // product sign
++
++	// normalize to 62nd bit
++	is62zero := uint((^pm1 >> 62) & 1)
++	pm1, pm2 = shl(pm1, pm2, is62zero)
++	pe -= int32(is62zero)
++
++	// Swap addition operands so |p| >= |z|
++	if pe < ze || (pe == ze && (pm1 < zm1 || (pm1 == zm1 && pm2 < zm2))) {
++		ps, pe, pm1, pm2, zs, ze, zm1, zm2 = zs, ze, zm1, zm2, ps, pe, pm1, pm2
++	}
++
++	// Align significands
++	zm1, zm2 = shrcompress(zm1, zm2, uint(pe-ze))
++
++	// Compute resulting significands, normalizing if necessary.
++	var m, c uint64
++	if ps == zs {
++		// Adding (pm1:pm2) + (zm1:zm2)
++		pm2, c = bits.Add64(pm2, zm2, 0)
++		pm1, _ = bits.Add64(pm1, zm1, c)
++		pe -= int32(^pm1 >> 63)
++		pm1, m = shrcompress(pm1, pm2, uint(64+pm1>>63))
++	} else {
++		// Subtracting (pm1:pm2) - (zm1:zm2)
++		// TODO: should we special-case cancellation?
++		pm2, c = bits.Sub64(pm2, zm2, 0)
++		pm1, _ = bits.Sub64(pm1, zm1, c)
++		nz := lz(pm1, pm2)
++		pe -= nz
++		m, pm2 = shl(pm1, pm2, uint(nz-1))
++		m |= nonzero(pm2)
++	}
++
++	// Round and break ties to even
++	if pe > 1022+bias || pe == 1022+bias && (m+1<<9)>>63 == 1 {
++		// rounded value overflows exponent range
++		return Float64frombits(uint64(ps)<<63 | uvinf)
++	}
++	if pe < 0 {
++		n := uint(-pe)
++		m = m>>n | nonzero(m&(1<<n-1))
++		pe = 0
++	}
++	m = ((m + 1<<9) >> 10) & ^zero((m&(1<<10-1))^1<<9)
++	pe &= -int32(nonzero(m))
++	return Float64frombits(uint64(ps)<<63 + uint64(pe)<<52 + m)
++}

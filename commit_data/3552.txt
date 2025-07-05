@@ -11,8 +11,339 @@ Date:   Thu Oct 15 10:41:07 2009 -0700
     DELTA=227  (198 added, 6 deleted, 23 changed)
     OCL=35772
     CL=35774
-
+---
  src/pkg/go/printer/printer.go               |  29 ++---
  src/pkg/go/printer/printer_test.go          |  40 ++++--
  src/pkg/go/printer/testdata/expressions.raw | 181 ++++++++++++++++++++++++++++
  3 files changed, 221 insertions(+), 29 deletions(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 36400ca42d..bddb73b4d4 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -971,16 +971,10 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 		}
+ 
+ 	case *ast.BasicLit:
+-		if p.mode & RawFormat == 0 {
+-			// tabwriter is used: escape all literals
+-			// so they pass through unchanged
+-			// (note that a legal Go program cannot contain an '\xff' byte in
+-			// literal source text since '\xff' is not a legal byte in correct
+-			// UTF-8 encoded text)
+-			p.print(esc, x.Value, esc);
+-		} else {
+-			p.print(x.Value);
+-		}
++		// escape all literals so they pass through unchanged
++		// (note that valid Go programs cannot contain esc ('\xff')
++		// bytes since they do not appear in legal UTF-8 sequences)
++		p.print(esc, x.Value, esc);
+ 
+ 	case *ast.StringList:
+ 		p.stringList(x.Strings);
+@@ -1536,9 +1530,10 @@ func (p *printer) file(src *ast.File) {
+ // ----------------------------------------------------------------------------
+ // Trimmer
+ 
+-// A trimmer is an io.Writer filter for stripping trailing blanks
+-// and tabs, and for converting formfeed and vtab characters into
+-// newlines and htabs (in case no tabwriter is used).
++// A trimmer is an io.Writer filter for stripping tabwriter.Escape
++// characters, trailing blanks and tabs, and for converting formfeed
++// and vtab characters into newlines and htabs (in case no tabwriter
++// is used).
+ //
+ type trimmer struct {
+ 	output io.Writer;
+@@ -1577,7 +1572,7 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
+ 			b = '\t';  // convert to htab
+ 			fallthrough;
+ 
+-		case '\t', ' ':
++		case '\t', ' ', tabwriter.Escape:
+ 			// write any pending (non-whitespace) data
+ 			if m >= 0 {
+ 				if _, err = p.output.Write(data[m:n]); err != nil {
+@@ -1585,8 +1580,10 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
+ 				}
+ 				m = -1;
+ 			}
+-			// collect whitespace
+-			p.buf.WriteByte(b);  // WriteByte returns no errors
++			// collect whitespace but discard tabrwiter.Escapes.
++			if b != tabwriter.Escape {
++				p.buf.WriteByte(b);  // WriteByte returns no errors
++			}
+ 
+ 		case '\f', '\n':
+ 			// discard whitespace
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index df42c398eb..9fbc1ad233 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -33,7 +33,14 @@ func lineString(text []byte, i int) string {
+ }
+ 
+ 
+-func check(t *testing.T, source, golden string, exports bool) {
++type checkMode uint;
++const (
++	export checkMode = 1<<iota;
++	rawFormat;
++)
++
++
++func check(t *testing.T, source, golden string, mode checkMode) {
+ 	// parse source
+ 	prog, err := parser.ParseFile(source, nil, parser.ParseComments);
+ 	if err != nil {
+@@ -42,14 +49,20 @@ func check(t *testing.T, source, golden string, exports bool) {
+ 	}
+ 
+ 	// filter exports if necessary
+-	if exports {
++	if mode&export != 0 {
+ 		ast.FileExports(prog);  // ignore result
+ 		prog.Comments = nil;  // don't print comments that are not in AST
+ 	}
+ 
++	// determine printer mode
++	var pmode uint;
++	if mode&rawFormat != 0 {
++		pmode |= RawFormat;
++	}
++
+ 	// format source
+ 	var buf bytes.Buffer;
+-	if _, err := Fprint(&buf, prog, 0, tabwidth); err != nil {
++	if _, err := Fprint(&buf, prog, pmode, tabwidth); err != nil {
+ 		t.Error(err);
+ 	}
+ 	res := buf.Bytes();
+@@ -93,18 +106,19 @@ func check(t *testing.T, source, golden string, exports bool) {
+ 
+ type entry struct {
+ 	source, golden string;
+-	exports bool;
++	mode checkMode;
+ }
+ 
+ // Use gotest -update to create/update the respective golden files.
+ var data = []entry{
+-	entry{ "empty.go", "empty.golden", false },
+-	entry{ "comments.go", "comments.golden", false },
+-	entry{ "comments.go", "comments.x", true },
+-	entry{ "linebreaks.go", "linebreaks.golden", false },
+-	entry{ "expressions.go", "expressions.golden", false },
+-	entry{ "declarations.go", "declarations.golden", false },
+-	entry{ "statements.go", "statements.golden", false },
++	entry{ "empty.go", "empty.golden", 0 },
++	entry{ "comments.go", "comments.golden", 0 },
++	entry{ "comments.go", "comments.x", export },
++	entry{ "linebreaks.go", "linebreaks.golden", 0 },
++	entry{ "expressions.go", "expressions.golden", 0 },
++	entry{ "expressions.go", "expressions.raw", rawFormat },
++	entry{ "declarations.go", "declarations.golden", 0 },
++	entry{ "statements.go", "statements.golden", 0 },
+ }
+ 
+ 
+@@ -112,8 +126,8 @@ func Test(t *testing.T) {
+ 	for _, e := range data {
+ 		source := path.Join(dataDir, e.source);
+ 		golden := path.Join(dataDir, e.golden);
+-		check(t, source, golden, e.exports);
++		check(t, source, golden, e.mode);
+ 		// TODO(gri) check that golden is idempotent
+-		//check(t, golden, golden, e.exports);
++		//check(t, golden, golden, e.mode);
+ 	}
+ }
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+new file mode 100644
+index 0000000000..2d80ffac2d
+--- /dev/null
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -0,0 +1,181 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package expressions
++
++type T struct {
++	x, y, z int;
++}
++
++var (
++	a, b, c, d, e	int;
++	under_bar	int;
++	longIdentifier1, longIdentifier2, longIdentifier3	int;
++	t0, t1, t2	T;
++	s	string;
++	p	*int;
++)
++
++
++func _() {
++	// no spaces around simple or parenthesized expressions
++	_ = a+b;
++	_ = a+b+c;
++	_ = a+b-c;
++	_ = a-b-c;
++	_ = a+(b*c);
++	_ = a+(b/c);
++	_ = a-(b%c);
++	_ = 1+a;
++	_ = a+1;
++	_ = a+b+1;
++	_ = s[1:2];
++	_ = s[a:b];
++	_ = s[0:len(s)];
++	_ = s[0]<<1;
++	_ = (s[0]<<1)&0xf;
++	_ = s[0]<<2 | s[1]>>4;
++	_ = "foo"+s;
++	_ = s+"foo";
++	_ = 'a'+'b';
++	_ = len(s)/2;
++	_ = len(t0.x)/a;
++
++	// spaces around expressions of different precedence or expressions containing spaces
++	_ = a + -b;
++	_ = a - ^b;
++	_ = a / *p;
++	_ = a + b*c;
++	_ = 1 + b*c;
++	_ = a + 2*c;
++	_ = a + c*2;
++	_ = 1 + 2*3;
++	_ = s[1 : 2*3];
++	_ = s[a : b-c];
++	_ = s[a+b : len(s)];
++	_ = s[len(s) : -a];
++	_ = s[a : len(s)+1];
++	_ = s[a : len(s)+1]+s;
++
++	// spaces around operators with equal or lower precedence than comparisons
++	_ = a == b;
++	_ = a != b;
++	_ = a > b;
++	_ = a >= b;
++	_ = a < b;
++	_ = a <= b;
++	_ = a < b && c > d;
++	_ = a < b || c > d;
++
++	// spaces around "long" operands
++	_ = a + longIdentifier1;
++	_ = longIdentifier1 + a;
++	_ = longIdentifier1 + longIdentifier2 * longIdentifier3;
++	_ = s + "a longer string";
++
++	// some selected cases
++	_ = a + t0.x;
++	_ = a + t0.x + t1.x * t2.x;
++	_ = a + b + c + d + e + 2*3;
++	_ = a + b + c + 2*3 + d + e;
++	_ = (a+b+c)*2;
++	_ = a - b + c - d + (a+b+c) + d&e;
++	_ = under_bar - 1;
++	_ = Open(dpath+"/file", O_WRONLY|O_CREAT, 0666);
++	_ = int(c0&_Mask4)<<18 | int(c1&_Maskx)<<12 | int(c2&_Maskx)<<6 | int(c3&_Maskx);
++}
++
++
++func _() {
++	_ = T{};
++	_ = struct{}{};
++	_ = [10]T{};
++	_ = [...]T{};
++	_ = []T{};
++	_ = map[int]T{};
++
++	_ = (T){};
++	_ = (struct{}){};
++	_ = ([10]T){};
++	_ = ([...]T){};
++	_ = ([]T){};
++	_ = (map[int]T){};
++}
++
++
++func _() {
++	// do not modify literals
++	_ = "tab1	tab2	tab3	end";	// string contains 3 tabs
++	_ = "tab1 tab2 tab3 end";	// same string with 3 blanks - may be unaligned because editors see tabs in strings
++	_ = "";	// this comment should be aligned with the one on the previous line
++	_ = ``;
++	_ = `
++`;
++	_ = `foo
++		bar`;
++}
++
++
++func _() {
++	// not not add extra indentation to multi-line string lists
++	_ = "foo" "bar";
++	_ = "foo"
++	"bar"
++	"bah";
++	_ = []string{
++		"abc"
++		"def",
++		"foo"
++		"bar",
++	};
++}
++
++
++func _() {
++	// respect source lines in multi-line expressions
++	_ = a +
++		b +
++		c;
++	_ = a < b ||
++		b < a;
++	_ = "1234567890"
++	"1234567890";
++	// this comment should be indented
++}
++
++
++func same(t, u *Time) bool {
++	// respect source lines in multi-line expressions
++	return t.Year == u.Year &&
++		t.Month == u.Month &&
++		t.Day == u.Day &&
++		t.Hour == u.Hour &&
++		t.Minute == u.Minute &&
++		t.Second == u.Second &&
++		t.Weekday == u.Weekday &&
++		t.ZoneOffset == u.ZoneOffset &&
++		t.Zone == u.Zone;
++}
++
++
++func (p *parser) charClass() {
++	// respect source lines in multi-line expressions
++	if cc.negate && len(cc.ranges) == 2 &&
++		cc.ranges[0] == '\n' && cc.ranges[1] == '\n' {
++		nl := new(_NotNl);
++		p.re.add(nl);
++	}
++}
++
++
++func addState(s []state, inst instr, match []int) {
++	// handle comments correctly in multi-line expressions
++	for i := 0; i < l; i++ {
++		if s[i].inst.index() == index &&
++				// same instruction
++			s[i].match[0] < pos {	// earlier match already going; leftmost wins
++			return s;
++		}
++	}
++}

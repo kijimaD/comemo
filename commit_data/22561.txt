@@ -12,6 +12,23 @@ Date:   Tue Mar 10 03:26:37 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/7282
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/rt0_windows_386.s | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/rt0_windows_386.s b/src/runtime/rt0_windows_386.s
+index 3c2deda903..03f95d12ec 100644
+--- a/src/runtime/rt0_windows_386.s
++++ b/src/runtime/rt0_windows_386.s
+@@ -10,9 +10,9 @@ TEXT _rt0_386_windows(SB),NOSPLIT,$12
+ 	MOVL	AX, 4(SP)
+ 	MOVL	BX, 8(SP)
+ 	MOVL	$-1, 0(SP) // return PC for main
+-	JMP	main(SB)
++	JMP	_main(SB)
+ 
+-TEXT main(SB),NOSPLIT,$0
++TEXT _main(SB),NOSPLIT,$0
+ 	JMP	runtime·rt0_go(SB)
+ 
+ 

@@ -6,7 +6,7 @@ Date:   Wed Nov 18 09:19:29 2009 -0800
     
     R=rsc
     https://golang.org/cl/156077
-
+---
  src/pkg/bignum/bignum.go            | 0
  src/pkg/container/list/list.go      | 0
  src/pkg/container/list/list_test.go | 0
@@ -22,3 +22,46 @@ Date:   Wed Nov 18 09:19:29 2009 -0800
  src/pkg/runtime/nacl/386/rt0.s      | 0
  src/pkg/runtime/nacl/386/sys.s      | 0
  14 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/pkg/bignum/bignum.go b/src/pkg/bignum/bignum.go
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/container/list/list_test.go b/src/pkg/container/list/list_test.go
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/runtime/386/vlop.s b/src/pkg/runtime/386/vlop.s
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/runtime/386/vlrt.c b/src/pkg/runtime/386/vlrt.c
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/runtime/arm/vlrt.c b/src/pkg/runtime/arm/vlrt.c
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/runtime/darwin/386/rt0.s b/src/pkg/runtime/darwin/386/rt0.s
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/runtime/freebsd/386/rt0.s b/src/pkg/runtime/freebsd/386/rt0.s
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/runtime/linux/386/defs.h b/src/pkg/runtime/linux/386/defs.h
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/runtime/linux/386/rt0.s b/src/pkg/runtime/linux/386/rt0.s
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/runtime/nacl/386/defs.h b/src/pkg/runtime/nacl/386/defs.h
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/runtime/nacl/386/rt0.s b/src/pkg/runtime/nacl/386/rt0.s
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/runtime/nacl/386/sys.s b/src/pkg/runtime/nacl/386/sys.s
+old mode 100755
+new mode 100644

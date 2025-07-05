@@ -8,7 +8,7 @@ Date:   Wed Aug 6 00:25:52 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/120220043
-
+---
  src/cmd/5l/asm.c  |  74 +++++---------------------------------
  src/cmd/5l/l.h    |  29 ---------------
  src/cmd/6l/l.h    |  10 ------
@@ -16,3 +16,370 @@ Date:   Wed Aug 6 00:25:52 2014 -0400
  src/cmd/ld/lib.h  |   4 +++
  src/cmd/ld/pass.c | 104 ------------------------------------------------------
  6 files changed, 12 insertions(+), 216 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 2943442d51..02b4c78f11 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -648,14 +648,14 @@ asmb(void)
+ 	switch(HEADTYPE) {
+ 	default:
+ 	case Hplan9:	/* plan 9 */
+-		lput(0x647);			/* magic */
+-		lput(segtext.filelen);			/* sizes */
+-		lput(segdata.filelen);
+-		lput(segdata.len - segdata.filelen);
+-		lput(symsize);			/* nsyms */
+-		lput(entryvalue());		/* va of entry */
+-		lput(0L);
+-		lput(lcsize);
++		LPUT(0x647);			/* magic */
++		LPUT(segtext.filelen);			/* sizes */
++		LPUT(segdata.filelen);
++		LPUT(segdata.len - segdata.filelen);
++		LPUT(symsize);			/* nsyms */
++		LPUT(entryvalue());		/* va of entry */
++		LPUT(0L);
++		LPUT(lcsize);
+ 		break;
+ 	case Hlinux:
+ 	case Hfreebsd:
+@@ -676,64 +676,6 @@ asmb(void)
+ 	}
+ }
+ 
+-/*
+-void
+-cput(int32 c)
+-{
+-	*cbp++ = c;
+-	if(--cbc <= 0)
+-		cflush();
+-}
+-*/
+-
+-void
+-wput(int32 l)
+-{
+-
+-	cbp[0] = l>>8;
+-	cbp[1] = l;
+-	cbp += 2;
+-	cbc -= 2;
+-	if(cbc <= 0)
+-		cflush();
+-}
+-
+-
+-void
+-hput(int32 l)
+-{
+-
+-	cbp[0] = l>>8;
+-	cbp[1] = l;
+-	cbp += 2;
+-	cbc -= 2;
+-	if(cbc <= 0)
+-		cflush();
+-}
+-
+-void
+-lput(int32 l)
+-{
+-
+-	cbp[0] = l>>24;
+-	cbp[1] = l>>16;
+-	cbp[2] = l>>8;
+-	cbp[3] = l;
+-	cbp += 4;
+-	cbc -= 4;
+-	if(cbc <= 0)
+-		cflush();
+-}
+-
+-void
+-nopstat(char *f, Count *c)
+-{
+-	if(c->outof)
+-	Bprint(&bso, "%s delay %d/%d (%.2f)\n", f,
+-		c->outof - c->count, c->outof,
+-		(double)(c->outof - c->count)/c->outof);
+-}
+-
+ int32
+ rnd(int32 v, int32 r)
+ {
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 491dc8f859..2a7200e758 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -48,23 +48,8 @@ enum
+ #define	EXTERN	extern
+ #endif
+ 
+-/* do not undefine this - code will be removed eventually */
+-#define	CALLEEBX
+-
+-#define	dynptrsize	0
+-
+ #define	P		((Prog*)0)
+ #define	S		((LSym*)0)
+-#define	TNAME		(ctxt->cursym?ctxt->cursym->name:noname)
+-
+-#define SIGNINTERN	(1729*325*1729)
+-
+-typedef	struct	Count	Count;
+-struct	Count
+-{
+-	int32	count;
+-	int32	outof;
+-};
+ 
+ enum
+ {
+@@ -73,11 +58,6 @@ enum
+ 	LABEL		= 1<<1,
+ 	LEAF		= 1<<2,
+ 
+-	STRINGSZ	= 200,
+-	MINSIZ		= 64,
+-	NENT		= 100,
+-	MAXIO		= 8192,
+-	MAXHIST		= 40,	/* limit of path elements for history symbols */
+ 	MINLC	= 4,
+ 
+ 	C_NONE		= 0,
+@@ -127,8 +107,6 @@ enum
+ 	C_GOK,
+ };
+ 
+-#ifndef COFFCVT
+-
+ EXTERN	int32	autosize;
+ EXTERN	LSym*	datap;
+ EXTERN	int	debug[128];
+@@ -152,25 +130,18 @@ void	adddynrela(LSym *rel, LSym *s, Reloc *r);
+ void	adddynsym(Link *ctxt, LSym *s);
+ int	archreloc(Reloc *r, LSym *s, vlong *val);
+ void	asmb(void);
+-void	cput(int32 c);
+ int	elfreloc1(Reloc *r, vlong sectoff);
+ void	elfsetupplt(void);
+-void	hput(int32 l);
+ void	listinit(void);
+-void	lput(int32 l);
+ int	machoreloc1(Reloc *r, vlong sectoff);
+ void	main(int argc, char *argv[]);
+-void	nopstat(char *f, Count *c);
+ int32	rnd(int32 v, int32 r);
+-void	wput(int32 l);
+ 
+ /* Native is little-endian */
+ #define	LPUT(a)	lputl(a)
+ #define	WPUT(a)	wputl(a)
+ #define	VPUT(a)	abort()
+ 
+-#endif
+-
+ /* Used by ../ld/dwarf.c */
+ enum
+ {
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 7303910a6e..ff2e69452e 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -68,14 +68,9 @@ EXTERN	int	RegSize;
+ 
+ #define	P		((Prog*)0)
+ #define	S		((LSym*)0)
+-#define	TNAME		(ctxt->cursym?ctxt->cursym->name:noname)
+ enum
+ {
+-	MINSIZ		= 8,
+-	STRINGSZ	= 200,
+ 	MINLC		= 1,
+-	MAXIO		= 8192,
+-	MAXHIST		= 40,				/* limit of path elements for history symbols */
+ };
+ 
+ #pragma	varargck	type	"I"	uchar*
+@@ -89,9 +84,6 @@ EXTERN	int32	spsize;
+ EXTERN	LSym*	symlist;
+ EXTERN	int32	symsize;
+ 
+-EXTERN	vlong	textstksiz;
+-EXTERN	vlong	textarg;
+-
+ int	Iconv(Fmt *fp);
+ void	adddynlib(char *lib);
+ void	adddynrel(LSym *s, Reloc *r);
+@@ -103,8 +95,6 @@ int	elfreloc1(Reloc *r, vlong sectoff);
+ void	elfsetupplt(void);
+ void	listinit(void);
+ int	machoreloc1(Reloc *r, vlong sectoff);
+-void	main(int argc, char *argv[]);
+-void	parsetextconst(vlong arg);
+ vlong	rnd(vlong v, vlong r);
+ 
+ /* Native is little-endian */
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index c9695ade0a..70d3a4bb4f 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -50,15 +50,10 @@ enum
+ 
+ #define	P		((Prog*)0)
+ #define	S		((LSym*)0)
+-#define	TNAME		(ctxt->cursym?ctxt->cursym->name:noname)
+ 
+ enum
+ {
+-	MINSIZ		= 4,
+-	STRINGSZ	= 200,
+ 	MINLC		= 1,
+-	MAXIO		= 8192,
+-	MAXHIST		= 40,				/* limit of path elements for history symbols */
+ };
+ 
+ #pragma	varargck	type	"I"	uchar*
+@@ -72,7 +67,6 @@ EXTERN	char*	rpath;
+ EXTERN	int32	spsize;
+ EXTERN	LSym*	symlist;
+ EXTERN	int32	symsize;
+-EXTERN	int32	textsize;
+ 
+ int	Iconv(Fmt *fp);
+ void	adddynlib(char *lib);
+@@ -85,7 +79,6 @@ int	elfreloc1(Reloc *r, vlong sectoff);
+ void	elfsetupplt(void);
+ void	listinit(void);
+ int	machoreloc1(Reloc *r, vlong sectoff);
+-void	main(int argc, char *argv[]);
+ int32	rnd(int32 v, int32 r);
+ void	s8put(char *n);
+ char*	xsymname(LSym *s);
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 6ce880ea9e..4094dfa6b1 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -33,6 +33,10 @@
+ // A section further describes the pieces of that block for
+ // use in debuggers and such.
+ 
++enum {
++	MAXIO		= 8192,
++};
++
+ typedef struct Segment Segment;
+ typedef struct Section Section;
+ 
+diff --git a/src/cmd/ld/pass.c b/src/cmd/ld/pass.c
+deleted file mode 100644
+index 788b7c75a6..0000000000
+--- a/src/cmd/ld/pass.c
++++ /dev/null
+@@ -1,104 +0,0 @@
+-// Inferno utils/6l/pass.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/pass.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-// Code and data passes.
+-
+-#include	"l.h"
+-#include	"../ld/lib.h"
+-#include "../../pkg/runtime/stack.h"
+-
+-void
+-follow(void)
+-{
+-	LSym *s;
+-
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f follow\n", cputime());
+-	Bflush(&bso);
+-	
+-	for(s = ctxt->textp; s != nil; s = s->next)
+-		ctxt->arch->follow(ctxt, s);
+-}
+-
+-void
+-patch(void)
+-{
+-	LSym *s;
+-
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f mkfwd\n", cputime());
+-	Bflush(&bso);
+-	for(s = ctxt->textp; s != nil; s = s->next)
+-		mkfwd(s);
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f patch\n", cputime());
+-	Bflush(&bso);
+-
+-	if(flag_shared) {
+-		s = linklookup(ctxt, "init_array", 0);
+-		s->type = SINITARR;
+-		s->reachable = 1;
+-		s->hide = 1;
+-		addaddr(ctxt, s, linklookup(ctxt, INITENTRY, 0));
+-	}
+-	
+-	for(s = ctxt->textp; s != nil; s = s->next)
+-		linkpatch(ctxt, s);
+-}
+-
+-void
+-dostkoff(void)
+-{
+-	LSym *s;
+-
+-	for(s = ctxt->textp; s != nil; s = s->next)
+-		ctxt->arch->addstacksplit(ctxt, s);
+-}
+-
+-void
+-span(void)
+-{
+-	LSym *s;
+-
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f span\n", cputime());
+-
+-	for(s = ctxt->textp; s != nil; s = s->next)
+-		ctxt->arch->assemble(ctxt, s);
+-}
+-
+-void
+-pcln(void)
+-{
+-	LSym *s;
+-
+-	for(s = ctxt->textp; s != nil; s = s->next)
+-		linkpcln(ctxt, s);
+-}

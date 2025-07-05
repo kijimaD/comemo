@@ -7,6 +7,20 @@ Date:   Tue Aug 28 03:57:27 2012 +0800
     R=golang-dev, tobias.columbus, bradfitz
     CC=golang-dev
     https://golang.org/cl/6483058
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 1c9d736828..0102768d2c 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -308,7 +308,7 @@ Tarmigan Casebolt <tarmigan@gmail.com>
+ Taru Karttunen <taruti@taruti.net>
+ Thomas Alan Copeland <talan.copeland@gmail.com>
+ Timo Savola <timo.savola@gmail.com>
+-Tobias Columbus <tobias.columbus@gmail.com>
++Tobias Columbus <tobias.columbus@gmail.com> <tobias.columbus@googlemail.com>
+ Tom Szymanski <tgs@google.com>
+ Tor Andersson <tor.andersson@gmail.com>
+ Trevor Strohman <trevor.strohman@gmail.com>

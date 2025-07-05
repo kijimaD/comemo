@@ -15,6 +15,35 @@ Date:   Sat Jan 11 12:48:33 2025 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/encoding/json/decode_test.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index d08d9a4e0a..3905a054ce 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -1170,6 +1170,23 @@ var unmarshalTests = []struct {
+ 			N Number `json:",string"`
+ 		}{"5"},
+ 	},
++
++	// Verify that syntactic errors are immediately fatal,
++	// while semantic errors are lazily reported
++	// (i.e., allow processing to continue).
++	{
++		CaseName: Name(""),
++		in:       `[1,2,true,4,5}`,
++		ptr:      new([]int),
++		err:      &SyntaxError{msg: "invalid character '}' after array element", Offset: 14},
++	},
++	{
++		CaseName: Name(""),
++		in:       `[1,2,true,4,5]`,
++		ptr:      new([]int),
++		out:      []int{1, 2, 0, 4, 5},
++		err:      &UnmarshalTypeError{Value: "bool", Type: reflect.TypeFor[int](), Offset: 9},
++	},
+ }
+ 
+ func TestMarshal(t *testing.T) {

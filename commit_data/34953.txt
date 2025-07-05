@@ -33,7 +33,54 @@ Date:   Tue Nov 21 14:16:04 2017 +0100
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/int_test.go | 20 ++++++++++++++++++++
  src/math/big/nat.go      |  4 ++--
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index d72cad29a5..270fec6b36 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -1625,6 +1625,26 @@ func TestSqrt(t *testing.T) {
+ 	}
+ }
+ 
++// We can't test this together with the other Exp tests above because
++// it requires a different receiver setup.
++func TestIssue22830(t *testing.T) {
++	one := new(Int).SetInt64(1)
++	base, _ := new(Int).SetString("84555555300000000000", 10)
++	mod, _ := new(Int).SetString("66666670001111111111", 10)
++	want, _ := new(Int).SetString("17888885298888888889", 10)
++
++	var tests = []int64{
++		0, 1, -1,
++	}
++
++	for _, n := range tests {
++		m := NewInt(n)
++		if got := m.Exp(base, one, mod); got.Cmp(want) != 0 {
++			t.Errorf("(%v).Exp(%s, 1, %s) = %s, want %s", n, base, mod, got, want)
++		}
++	}
++}
++
+ func BenchmarkSqrt(b *testing.B) {
+ 	n, _ := new(Int).SetString("1"+strings.Repeat("0", 1001), 10)
+ 	b.ResetTimer()
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 17d5b8ae2b..3bb818f5f2 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -621,8 +621,8 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 	// determine if z can be reused
+ 	// TODO(gri) should find a better solution - this if statement
+ 	//           is very costly (see e.g. time pidigits -s -n 10000)
+-	if alias(z, uIn) || alias(z, v) {
+-		z = nil // z is an alias for uIn or v - cannot reuse
++	if alias(z, u) || alias(z, uIn) || alias(z, v) {
++		z = nil // z is an alias for u or uIn or v - cannot reuse
+ 	}
+ 	q = z.make(m + 1)
+ 

@@ -17,6 +17,24 @@ Date:   Mon Apr 5 20:03:02 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/307549
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/sizes.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/sizes.go b/src/cmd/compile/internal/noder/sizes.go
+index 7cda6da9a6..23f2062675 100644
+--- a/src/cmd/compile/internal/noder/sizes.go
++++ b/src/cmd/compile/internal/noder/sizes.go
+@@ -115,10 +115,10 @@ func (s *gcSizes) Sizeof(T types2.Type) int64 {
+ 		}
+ 		offsets := s.Offsetsof(fields)
+ 
+-		// gc: The last field of a struct is not allowed to
++		// gc: The last field of a non-zero-sized struct is not allowed to
+ 		// have size 0.
+ 		last := s.Sizeof(fields[n-1].Type())
+-		if last == 0 {
++		if last == 0 && offsets[n-1] > 0 {
+ 			last = 1
+ 		}
+ 

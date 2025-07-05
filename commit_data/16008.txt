@@ -12,7 +12,44 @@ Date:   Fri Mar 29 13:49:14 2013 -0700
     R=golang-dev, gri, robryk
     CC=golang-dev
     https://golang.org/cl/8173043
-
+---
  src/pkg/bytes/buffer.go      | 8 +++++---
  src/pkg/bytes/buffer_test.go | 6 ++++--
  2 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index 0328f4c2d8..69ac6cc014 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -87,9 +87,11 @@ func (b *Buffer) grow(n int) int {
+ 		var buf []byte
+ 		if b.buf == nil && n <= len(b.bootstrap) {
+ 			buf = b.bootstrap[0:]
+-		} else if m+n <= cap(b.buf) {
+-			// We can slide things down instead of
+-			// allocating a new slice.
++		} else if m+n <= cap(b.buf)/2 {
++			// We can slide things down instead of allocating a new
++			// slice. We only need m+n <= cap(b.buf) to slide, but
++			// we instead let capacity get twice as large so we
++			// don't spend all our time copying.
+ 			copy(b.buf[:], b.buf[b.off:])
+ 			buf = b.buf[:m]
+ 		} else {
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index d629809b57..5b0b8b50cf 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -490,8 +490,10 @@ func TestBufferGrowth(t *testing.T) {
+ 		}
+ 	}
+ 	cap1 := b.Cap()
+-	if cap1 > cap0 {
+-		t.Errorf("buffer cap = %d; too big", cap1)
++	// (*Buffer).grow allows for 2x capacity slop before sliding,
++	// so set our error threshold at 3x.
++	if cap1 > cap0*3 {
++		t.Errorf("buffer cap = %d; too big (grew from %d)", cap1, cap0)
+ 	}
+ }
+ 

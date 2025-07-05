@@ -7,7 +7,100 @@ Date:   Mon Feb 22 15:21:13 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/218050
-
+---
  src/pkg/xml/read.go     | 11 ++++++-----
  src/pkg/xml/xml_test.go | 17 +++++++++++++----
  2 files changed, 19 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/xml/read.go b/src/pkg/xml/read.go
+index c85b697025..dedf689446 100644
+--- a/src/pkg/xml/read.go
++++ b/src/pkg/xml/read.go
+@@ -105,7 +105,8 @@ import (
+ // Unmarshal maps an XML element to a slice by extending the length
+ // of the slice and mapping the element to the newly created value.
+ //
+-// Unmarshal maps an XML element to a bool by setting the bool to true.
++// Unmarshal maps an XML element to a bool by setting it true if the
++// string value is "true" or "1", or false otherwise.
+ //
+ // Unmarshal maps an XML element to an integer or floating-point
+ // field by setting the field to the result of interpreting the string
+@@ -208,9 +209,6 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 	default:
+ 		return os.ErrorString("unknown type " + v.Type().String())
+ 
+-	case *reflect.BoolValue:
+-		v.Set(true)
+-
+ 	case *reflect.SliceValue:
+ 		typ := v.Type().(*reflect.SliceType)
+ 		if _, ok := typ.Elem().(*reflect.Uint8Type); ok {
+@@ -244,7 +242,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 		*reflect.IntValue, *reflect.UintValue, *reflect.UintptrValue,
+ 		*reflect.Int8Value, *reflect.Int16Value, *reflect.Int32Value, *reflect.Int64Value,
+ 		*reflect.Uint8Value, *reflect.Uint16Value, *reflect.Uint32Value, *reflect.Uint64Value,
+-		*reflect.FloatValue, *reflect.Float32Value, *reflect.Float64Value:
++		*reflect.FloatValue, *reflect.Float32Value, *reflect.Float64Value, *reflect.BoolValue:
+ 		saveData = v
+ 
+ 	case *reflect.StructValue:
+@@ -474,6 +472,9 @@ Loop:
+ 			return err
+ 		}
+ 		t.Set(ftmp)
++	case *reflect.BoolValue:
++		btmp := strings.TrimSpace(string(data))
++		t.Set(strings.ToLower(btmp) == "true" || btmp == "1")
+ 	case *reflect.StringValue:
+ 		t.Set(string(data))
+ 	case *reflect.SliceValue:
+diff --git a/src/pkg/xml/xml_test.go b/src/pkg/xml/xml_test.go
+index a4c55b73dc..47a3db1e82 100644
+--- a/src/pkg/xml/xml_test.go
++++ b/src/pkg/xml/xml_test.go
+@@ -215,7 +215,10 @@ func TestSyntax(t *testing.T) {
+ }
+ 
+ type allScalars struct {
+-	Bool    bool
++	True1   bool
++	True2   bool
++	False1  bool
++	False2  bool
+ 	Int     int
+ 	Int8    int8
+ 	Int16   int16
+@@ -234,7 +237,10 @@ type allScalars struct {
+ }
+ 
+ var all = allScalars{
+-	Bool: true,
++	True1: true,
++	True2: true,
++	False1: false,
++	False2: false,
+ 	Int: 1,
+ 	Int8: -2,
+ 	Int16: 3,
+@@ -253,7 +259,10 @@ var all = allScalars{
+ }
+ 
+ const testScalarsInput = `<allscalars>
+-	<bool/>
++	<true1>true</true1>
++	<true2>1</true2>
++	<false1>false</false1>
++	<false2>0</false2>
+ 	<int>1</int>
+ 	<int8>-2</int8>
+ 	<int16>3</int16>
+@@ -280,7 +289,7 @@ func TestAllScalars(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	if !reflect.DeepEqual(a, all) {
+-		t.Errorf("expected %+v got %+v", a, all)
++		t.Errorf("expected %+v got %+v", all, a)
+ 	}
+ }
+ 

@@ -15,8 +15,48 @@ Date:   Fri Sep 30 06:11:15 2022 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/encoding/asn1/asn1.go | 2 +-
  src/encoding/gob/error.go | 2 +-
  src/encoding/gob/type.go  | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 4408352cff..6a7aa473a5 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -111,7 +111,7 @@ func parseInt64(bytes []byte) (ret int64, err error) {
+ 	return
+ }
+ 
+-// parseInt treats the given bytes as a big-endian, signed integer and returns
++// parseInt32 treats the given bytes as a big-endian, signed integer and returns
+ // the result.
+ func parseInt32(bytes []byte) (int32, error) {
+ 	if err := checkInteger(bytes); err != nil {
+diff --git a/src/encoding/gob/error.go b/src/encoding/gob/error.go
+index 3c9515b5ed..9c614e3e3f 100644
+--- a/src/encoding/gob/error.go
++++ b/src/encoding/gob/error.go
+@@ -24,7 +24,7 @@ func errorf(format string, args ...any) {
+ 	error_(fmt.Errorf("gob: "+format, args...))
+ }
+ 
+-// error wraps the argument error and uses it as the argument to panic.
++// error_ wraps the argument error and uses it as the argument to panic.
+ func error_(err error) {
+ 	panic(gobError{err})
+ }
+diff --git a/src/encoding/gob/type.go b/src/encoding/gob/type.go
+index 9eec08615e..3114cb0f98 100644
+--- a/src/encoding/gob/type.go
++++ b/src/encoding/gob/type.go
+@@ -38,7 +38,7 @@ const (
+ 
+ var userTypeCache sync.Map // map[reflect.Type]*userTypeInfo
+ 
+-// validType returns, and saves, the information associated with user-provided type rt.
++// validUserType returns, and saves, the information associated with user-provided type rt.
+ // If the user type is not valid, err will be non-nil. To be used when the error handler
+ // is not set up.
+ func validUserType(rt reflect.Type) (*userTypeInfo, error) {

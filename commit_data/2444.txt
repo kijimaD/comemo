@@ -10,6 +10,35 @@ Date:   Thu Jun 11 15:55:03 2009 -0700
     DELTA=4  (0 added, 0 deleted, 4 changed)
     OCL=30178
     CL=30210
-
+---
  src/pkg/http/client_test.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index e9354fc40d..6cde4a41ca 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -16,9 +16,9 @@ import (
+ 
+ func TestClient(t *testing.T) {
+ 	// TODO: add a proper test suite.  Current test merely verifies that
+-	// we can retrieve the Google home page.
+-	
+-	r, url, err := Get("http://www.google.com");
++	// we can retrieve the Google robots.txt file.
++
++	r, url, err := Get("http://www.google.com/robots.txt");
+ 	var b []byte;
+ 	if err == nil {
+ 		b, err = io.ReadAll(r.Body);
+@@ -33,8 +33,8 @@ func TestClient(t *testing.T) {
+ 		t.Errorf("Error fetching URL: %v", err);
+ 	} else {
+ 		s := string(b);
+-		if (!strings.HasPrefix(s, "<html>")) {
+-			t.Errorf("Incorrect page body (did not begin with <html>): %q", s);
++		if (!strings.HasPrefix(s, "User-agent:")) {
++			t.Errorf("Incorrect page body (did not begin with User-agent): %q", s);
+ 		}
+ 	}
+ }

@@ -9,7 +9,34 @@ Date:   Tue Jan 20 15:36:57 2009 -0800
     R=ken
     OCL=23138
     CL=23140
-
+---
  src/cmd/6g/obj.c  | 2 +-
  src/cmd/gc/subr.c | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index fa2c59dddd..fb2d382a3c 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -537,7 +537,7 @@ genembedtramp(Type *t, Sig *b)
+ 		if(c == 1)
+ 			goto out;
+ 	}
+-	fatal("genembedtramp");
++	fatal("genembedtramp %T.%s", t, b->name);
+ 
+ out:
+ 	if(d == 0)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 428e705519..40912bce67 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2489,6 +2489,8 @@ expand0(Type *t)
+ 	u = methtype(t);
+ 	if(u != T) {
+ 		for(f=u->method; f!=T; f=f->down) {
++			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
++				continue;
+ 			if(f->sym->uniq)
+ 				continue;
+ 			f->sym->uniq = 1;

@@ -15,6 +15,41 @@ Date:   Mon May 21 13:21:26 2018 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/log/syslog/syslog_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/log/syslog/syslog_test.go b/src/log/syslog/syslog_test.go
+index 6da3edd555..447654a874 100644
+--- a/src/log/syslog/syslog_test.go
++++ b/src/log/syslog/syslog_test.go
+@@ -214,6 +214,9 @@ func TestNew(t *testing.T) {
+ 
+ 	s, err := New(LOG_INFO|LOG_USER, "the_tag")
+ 	if err != nil {
++		if err.Error() == "Unix syslog delivery error" {
++			t.Skip("skipping: syslogd not running")
++		}
+ 		t.Fatalf("New() failed: %s", err)
+ 	}
+ 	// Don't send any messages.
+@@ -226,6 +229,9 @@ func TestNewLogger(t *testing.T) {
+ 	}
+ 	f, err := NewLogger(LOG_USER|LOG_INFO, 0)
+ 	if f == nil {
++		if err.Error() == "Unix syslog delivery error" {
++			t.Skip("skipping: syslogd not running")
++		}
+ 		t.Error(err)
+ 	}
+ }
+@@ -244,6 +250,9 @@ func TestDial(t *testing.T) {
+ 	}
+ 	l, err := Dial("", "", LOG_USER|LOG_ERR, "syslog_test")
+ 	if err != nil {
++		if err.Error() == "Unix syslog delivery error" {
++			t.Skip("skipping: syslogd not running")
++		}
+ 		t.Fatalf("Dial() failed: %s", err)
+ 	}
+ 	l.Close()

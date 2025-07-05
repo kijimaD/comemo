@@ -7,8 +7,55 @@ Date:   Sat Feb 19 10:41:57 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4178065
-
+---
  src/pkg/crypto/openpgp/packet/encrypted_key.go | 4 ++--
  src/pkg/crypto/openpgp/packet/literal.go       | 4 ++--
  src/pkg/crypto/openpgp/packet/packet.go        | 2 +-
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/packet/encrypted_key.go b/src/pkg/crypto/openpgp/packet/encrypted_key.go
+index 4a926cdb11..b11a9b8301 100644
+--- a/src/pkg/crypto/openpgp/packet/encrypted_key.go
++++ b/src/pkg/crypto/openpgp/packet/encrypted_key.go
+@@ -20,8 +20,8 @@ type EncryptedKey struct {
+ 	KeyId      uint64
+ 	Algo       PublicKeyAlgorithm
+ 	Encrypted  []byte
+-	CipherFunc CipherFunction // only valid after a sucessful Decrypt
+-	Key        []byte         // only valid after a sucessful Decrypt
++	CipherFunc CipherFunction // only valid after a successful Decrypt
++	Key        []byte         // only valid after a successful Decrypt
+ }
+ 
+ func (e *EncryptedKey) parse(r io.Reader) (err os.Error) {
+diff --git a/src/pkg/crypto/openpgp/packet/literal.go b/src/pkg/crypto/openpgp/packet/literal.go
+index 5f72d6a2cd..04f50e53e1 100644
+--- a/src/pkg/crypto/openpgp/packet/literal.go
++++ b/src/pkg/crypto/openpgp/packet/literal.go
+@@ -14,11 +14,11 @@ import (
+ type LiteralData struct {
+ 	IsBinary bool
+ 	FileName string
+-	Time     uint32 // Unix epoc time. Either creation time or modification time. 0 means undefined.
++	Time     uint32 // Unix epoch time. Either creation time or modification time. 0 means undefined.
+ 	Body     io.Reader
+ }
+ 
+-// ForEyesOnly return whether the contents of the LiteralData have been marked
++// ForEyesOnly returns whether the contents of the LiteralData have been marked
+ // as especially sensitive.
+ func (l *LiteralData) ForEyesOnly() bool {
+ 	return l.FileName == "_CONSOLE"
+diff --git a/src/pkg/crypto/openpgp/packet/packet.go b/src/pkg/crypto/openpgp/packet/packet.go
+index 80e25e250f..be8ce75f5f 100644
+--- a/src/pkg/crypto/openpgp/packet/packet.go
++++ b/src/pkg/crypto/openpgp/packet/packet.go
+@@ -300,7 +300,7 @@ type SignatureType uint8
+ 
+ const (
+ 	SigTypeBinary        SignatureType = 0
+-	SigTypeText          SignatureType = 1
++	SigTypeText          = 1
+ 	SigTypeGenericCert   = 0x10
+ 	SigTypePersonaCert   = 0x11
+ 	SigTypeCasualCert    = 0x12

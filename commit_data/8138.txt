@@ -10,6 +10,22 @@ Date:   Mon Apr 18 11:19:47 2011 -0400
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/4445045
-
+---
  src/pkg/net/dialgoogle_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index bec4ad794c..316ba3c2d3 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -62,8 +62,8 @@ func TestLookupCNAME(t *testing.T) {
+ 		return
+ 	}
+ 	cname, err := LookupCNAME("www.google.com")
+-	if cname != "www.l.google.com." || err != nil {
+-		t.Errorf(`LookupCNAME("www.google.com.") = %q, %v, want "www.l.google.com.", nil`, cname, err)
++	if !strings.HasSuffix(cname, ".l.google.com.") || err != nil {
++		t.Errorf(`LookupCNAME("www.google.com.") = %q, %v, want "*.l.google.com.", nil`, cname, err)
+ 	}
+ }
+ 

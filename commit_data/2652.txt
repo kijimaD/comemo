@@ -7,6 +7,22 @@ Date:   Thu Jul 9 11:41:06 2009 -0700
     R=rsc
     OCL=31396
     CL=31396
-
+---
  src/cmd/gc/walk.c | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 08be5bfcb4..65313bcbce 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -790,6 +790,10 @@ loop:
+ 		if(top != Erv)
+ 			goto nottop;
+ 		walktype(n->left, Erv);
++		if(n->left == N) {
++			yyerror("missing argument to len");
++			goto ret;
++		}
+ 		defaultlit(n->left, T);
+ 		implicitstar(&n->left);
+ 		t = n->left->type;

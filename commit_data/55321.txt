@@ -17,7 +17,49 @@ Date:   Fri Jan 27 15:43:52 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go |  2 +-
  test/fixedbugs/issue54159.go           | 22 ++++++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 781dae1396..5b855252c0 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -195,7 +195,7 @@ func InlineDecls(p *pgo.Profile, decls []ir.Node, doInline bool) {
+ 				// across more than one function.
+ 				CanInline(n, p)
+ 			} else {
+-				if base.Flag.LowerM > 1 {
++				if base.Flag.LowerM > 1 && n.OClosure == nil {
+ 					fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Nname)
+ 				}
+ 			}
+diff --git a/test/fixedbugs/issue54159.go b/test/fixedbugs/issue54159.go
+new file mode 100644
+index 0000000000..8ef0e68483
+--- /dev/null
++++ b/test/fixedbugs/issue54159.go
+@@ -0,0 +1,22 @@
++// errorcheck -0 -m=2
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func run() { // ERROR "cannot inline run: recursive"
++	f := func() { // ERROR "can inline run.func1 with cost .* as:.*" "func literal does not escape"
++		g() // ERROR "inlining call to g"
++	}
++	f() // ERROR "inlining call to run.func1" "inlining call to g"
++	run()
++}
++
++func g() { // ERROR "can inline g with cost .* as:.*"
++}
++
++func main() { // ERROR "can inline main with cost .* as:.*"
++	run()
++}

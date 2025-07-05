@@ -28,6 +28,19 @@ Date:   Tue Jul 12 03:43:05 2016 +0000
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/regexp/exec_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/regexp/exec_test.go b/src/regexp/exec_test.go
+index 576862860a..69f187e38a 100644
+--- a/src/regexp/exec_test.go
++++ b/src/regexp/exec_test.go
+@@ -682,7 +682,6 @@ var benchData = []struct{ name, re string }{
+ 	{"Medium", "[XYZ]ABCDEFGHIJKLMNOPQRSTUVWXYZ$"},
+ 	{"Hard", "[ -~]*ABCDEFGHIJKLMNOPQRSTUVWXYZ$"},
+ 	{"Hard1", "ABCD|CDEF|EFGH|GHIJ|IJKL|KLMN|MNOP|OPQR|QRST|STUV|UVWX|WXYZ"},
+-	{"Fanout", "(?:[\\x{80}-\\x{10FFFF}]?){100}[\\x{80}-\\x{10FFFF}]"},
+ }
+ 
+ var benchSizes = []struct {

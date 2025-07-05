@@ -11,8 +11,77 @@ Date:   Thu May 5 12:44:28 2016 +1000
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/syscall/windows/syscall_windows.go |  1 +
  src/os/os_windows_test.go                       | 11 +++++++++++
  src/os/stat_windows.go                          | 19 ++++++++++++++++++-
  3 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index c4e59b28bd..4a30afbbfc 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -7,6 +7,7 @@ package windows
+ import "syscall"
+ 
+ const (
++	ERROR_SHARING_VIOLATION      syscall.Errno = 32
+ 	ERROR_NO_UNICODE_TRANSLATION syscall.Errno = 1113
+ )
+ 
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 741df3ff1e..1a7946ae9f 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -630,3 +630,14 @@ func TestReadStdin(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestStatPagefile(t *testing.T) {
++	_, err := os.Stat(`c:\pagefile.sys`)
++	if err == nil {
++		return
++	}
++	if os.IsNotExist(err) {
++		t.Skip(`skipping because c:\pagefile.sys is not found`)
++	}
++	t.Fatal(err)
++}
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index c14abc7c41..694ff540bb 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"internal/syscall/windows"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -95,7 +96,23 @@ func Lstat(name string) (FileInfo, error) {
+ 	}
+ 	e = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fs.sys)))
+ 	if e != nil {
+-		return nil, &PathError{"GetFileAttributesEx", name, e}
++		if e != windows.ERROR_SHARING_VIOLATION {
++			return nil, &PathError{"GetFileAttributesEx", name, e}
++		}
++		// try FindFirstFile now that GetFileAttributesEx failed
++		var fd syscall.Win32finddata
++		h, e2 := syscall.FindFirstFile(namep, &fd)
++		if e2 != nil {
++			return nil, &PathError{"FindFirstFile", name, e}
++		}
++		syscall.FindClose(h)
++
++		fs.sys.FileAttributes = fd.FileAttributes
++		fs.sys.CreationTime = fd.CreationTime
++		fs.sys.LastAccessTime = fd.LastAccessTime
++		fs.sys.LastWriteTime = fd.LastWriteTime
++		fs.sys.FileSizeHigh = fd.FileSizeHigh
++		fs.sys.FileSizeLow = fd.FileSizeLow
+ 	}
+ 	fs.path = name
+ 	if !isAbs(fs.path) {

@@ -16,7 +16,7 @@ Date:   Mon Dec 30 18:18:07 2019 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                           | 11 -----------
  src/cmd/go/testdata/src/testcycle/p1/p1.go      |  7 -------
  src/cmd/go/testdata/src/testcycle/p1/p1_test.go |  6 ------
@@ -26,3 +26,110 @@ Date:   Mon Dec 30 18:18:07 2019 -0500
  src/cmd/go/testdata/src/testcycle/q1/q1.go      |  1 -
  src/cmd/go/testdata/src/testcycle/q1/q1_test.go |  6 ------
  8 files changed, 53 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 2533c058fe..95c6202edd 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2653,17 +2653,6 @@ func TestGoBuildTestOnly(t *testing.T) {
+ 	tg.run("install", "./testonly...")
+ }
+ 
+-func TestGoTestDetectsTestOnlyImportCycles(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.runFail("test", "-c", "testcycle/p3")
+-	tg.grepStderr("import cycle not allowed in test", "go test testcycle/p3 produced unexpected error")
+-
+-	tg.runFail("test", "-c", "testcycle/q1")
+-	tg.grepStderr("import cycle not allowed in test", "go test testcycle/q1 produced unexpected error")
+-}
+-
+ func TestGoTestFooTestWorks(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/src/testcycle/p1/p1.go b/src/cmd/go/testdata/src/testcycle/p1/p1.go
+deleted file mode 100644
+index 65ab76d4e1..0000000000
+--- a/src/cmd/go/testdata/src/testcycle/p1/p1.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package p1
+-
+-import _ "testcycle/p2"
+-
+-func init() {
+-	println("p1 init")
+-}
+diff --git a/src/cmd/go/testdata/src/testcycle/p1/p1_test.go b/src/cmd/go/testdata/src/testcycle/p1/p1_test.go
+deleted file mode 100644
+index 75abb13e6d..0000000000
+--- a/src/cmd/go/testdata/src/testcycle/p1/p1_test.go
++++ /dev/null
+@@ -1,6 +0,0 @@
+-package p1
+-
+-import "testing"
+-
+-func Test(t *testing.T) {
+-}
+diff --git a/src/cmd/go/testdata/src/testcycle/p2/p2.go b/src/cmd/go/testdata/src/testcycle/p2/p2.go
+deleted file mode 100644
+index 7e26cdf19c..0000000000
+--- a/src/cmd/go/testdata/src/testcycle/p2/p2.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package p2
+-
+-import _ "testcycle/p3"
+-
+-func init() {
+-	println("p2 init")
+-}
+diff --git a/src/cmd/go/testdata/src/testcycle/p3/p3.go b/src/cmd/go/testdata/src/testcycle/p3/p3.go
+deleted file mode 100644
+index bb0a2f4f65..0000000000
+--- a/src/cmd/go/testdata/src/testcycle/p3/p3.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-package p3
+-
+-func init() {
+-	println("p3 init")
+-}
+diff --git a/src/cmd/go/testdata/src/testcycle/p3/p3_test.go b/src/cmd/go/testdata/src/testcycle/p3/p3_test.go
+deleted file mode 100644
+index 9b4b0757f8..0000000000
+--- a/src/cmd/go/testdata/src/testcycle/p3/p3_test.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-package p3
+-
+-import (
+-	"testing"
+-
+-	_ "testcycle/p1"
+-)
+-
+-func Test(t *testing.T) {
+-}
+diff --git a/src/cmd/go/testdata/src/testcycle/q1/q1.go b/src/cmd/go/testdata/src/testcycle/q1/q1.go
+deleted file mode 100644
+index 7a471f0cc0..0000000000
+--- a/src/cmd/go/testdata/src/testcycle/q1/q1.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package q1
+diff --git a/src/cmd/go/testdata/src/testcycle/q1/q1_test.go b/src/cmd/go/testdata/src/testcycle/q1/q1_test.go
+deleted file mode 100644
+index ca81bd2bf8..0000000000
+--- a/src/cmd/go/testdata/src/testcycle/q1/q1_test.go
++++ /dev/null
+@@ -1,6 +0,0 @@
+-package q1
+-
+-import "testing"
+-import _ "testcycle/q1"
+-
+-func Test(t *testing.T) {}

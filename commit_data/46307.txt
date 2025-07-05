@@ -16,10 +16,136 @@ Date:   Thu Dec 17 20:17:04 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/universe.go |  9 +++------
  src/cmd/compile/internal/ir/expr.go     | 19 +++++++++++++++++++
  src/cmd/compile/internal/ir/name.go     | 11 +++++++++++
  src/cmd/compile/internal/ir/node_gen.go | 15 +++++++++++++++
  src/cmd/compile/internal/ir/val.go      |  7 +------
  5 files changed, 49 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index c988c575dc..e11c0eb92c 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
++	"go/constant"
+ )
+ 
+ var basicTypes = [...]struct {
+@@ -163,14 +164,10 @@ func initUniverse() {
+ 	}
+ 
+ 	s = types.BuiltinPkg.Lookup("true")
+-	b := nodbool(true)
+-	b.(*ir.Name).SetSym(lookup("true"))
+-	s.Def = b
++	s.Def = ir.NewConstAt(src.NoXPos, s, types.UntypedBool, constant.MakeBool(true))
+ 
+ 	s = types.BuiltinPkg.Lookup("false")
+-	b = nodbool(false)
+-	b.(*ir.Name).SetSym(lookup("false"))
+-	s.Def = b
++	s.Def = ir.NewConstAt(src.NoXPos, s, types.UntypedBool, constant.MakeBool(false))
+ 
+ 	s = lookup("_")
+ 	types.BlankSym = s
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index d74e7f8763..5937798bd4 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -136,6 +136,25 @@ func (n *AddrExpr) SetOp(op Op) {
+ 	}
+ }
+ 
++// A BasicLit is a literal of basic type.
++type BasicLit struct {
++	miniExpr
++	val constant.Value
++}
++
++func NewBasicLit(pos src.XPos, val constant.Value) Node {
++	n := &BasicLit{val: val}
++	n.op = OLITERAL
++	n.pos = pos
++	if k := val.Kind(); k != constant.Unknown {
++		n.SetType(idealType(k))
++	}
++	return n
++}
++
++func (n *BasicLit) Val() constant.Value       { return n.val }
++func (n *BasicLit) SetVal(val constant.Value) { n.val = val }
++
+ // A BinaryExpr is a binary expression X Op Y,
+ // or Op(X, Y) for builtin functions that do not become calls.
+ type BinaryExpr struct {
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 9cf959b23d..b0b33cccfa 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -179,6 +179,17 @@ func NewDeclNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
+ 	return newNameAt(pos, op, sym)
+ }
+ 
++// NewConstAt returns a new OLITERAL Node associated with symbol s at position pos.
++func NewConstAt(pos src.XPos, sym *types.Sym, typ *types.Type, val constant.Value) *Name {
++	if sym == nil {
++		base.Fatalf("NewConstAt nil")
++	}
++	n := newNameAt(pos, OLITERAL, sym)
++	n.SetType(typ)
++	n.SetVal(val)
++	return n
++}
++
+ // newNameAt is like NewNameAt but allows sym == nil.
+ func newNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
+ 	n := new(Name)
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index a0fae2b949..a5959ea26f 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -116,6 +116,21 @@ func (n *AssignStmt) editChildren(edit func(Node) Node) {
+ 	n.Y = maybeEdit(n.Y, edit)
+ }
+ 
++func (n *BasicLit) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *BasicLit) copy() Node {
++	c := *n
++	c.init = c.init.Copy()
++	return &c
++}
++func (n *BasicLit) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	return err
++}
++func (n *BasicLit) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++}
++
+ func (n *BinaryExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *BinaryExpr) copy() Node {
+ 	c := *n
+diff --git a/src/cmd/compile/internal/ir/val.go b/src/cmd/compile/internal/ir/val.go
+index 5b0506c0d0..ff45f31074 100644
+--- a/src/cmd/compile/internal/ir/val.go
++++ b/src/cmd/compile/internal/ir/val.go
+@@ -92,12 +92,7 @@ func ValidTypeForConst(t *types.Type, v constant.Value) bool {
+ 
+ // nodlit returns a new untyped constant with value v.
+ func NewLiteral(v constant.Value) Node {
+-	n := newNameAt(base.Pos, OLITERAL, nil)
+-	if k := v.Kind(); k != constant.Unknown {
+-		n.SetType(idealType(k))
+-		n.SetVal(v)
+-	}
+-	return n
++	return NewBasicLit(base.Pos, v)
+ }
+ 
+ func idealType(ct constant.Kind) *types.Type {

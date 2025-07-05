@@ -11,7 +11,86 @@ Date:   Fri Jul 29 14:52:42 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/cpuprof.go | 9 ++++-----
  src/runtime/proc.go    | 6 +++---
  2 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index 2f7f6b4153..221e021a37 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -14,7 +14,6 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -106,7 +105,7 @@ func SetCPUProfileRate(hz int) {
+ //go:nowritebarrierrec
+ func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
+ 	// Simple cas-lock to coordinate with setcpuprofilerate.
+-	for !atomic.Cas(&prof.signalLock, 0, 1) {
++	for !prof.signalLock.CompareAndSwap(0, 1) {
+ 		// TODO: Is it safe to osyield here? https://go.dev/issue/52672
+ 		osyield()
+ 	}
+@@ -123,7 +122,7 @@ func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
+ 		cpuprof.log.write(tagPtr, nanotime(), hdr[:], stk)
+ 	}
+ 
+-	atomic.Store(&prof.signalLock, 0)
++	prof.signalLock.Store(0)
+ }
+ 
+ // addNonGo adds the non-Go stack trace to the profile.
+@@ -143,7 +142,7 @@ func (p *cpuProfile) addNonGo(stk []uintptr) {
+ 	// process at a time. If not, this lock will serialize those too.
+ 	// The use of timer_create(2) on Linux to request process-targeted
+ 	// signals may have changed this.)
+-	for !atomic.Cas(&prof.signalLock, 0, 1) {
++	for !prof.signalLock.CompareAndSwap(0, 1) {
+ 		// TODO: Is it safe to osyield here? https://go.dev/issue/52672
+ 		osyield()
+ 	}
+@@ -157,7 +156,7 @@ func (p *cpuProfile) addNonGo(stk []uintptr) {
+ 		cpuprof.lostExtra++
+ 	}
+ 
+-	atomic.Store(&prof.signalLock, 0)
++	prof.signalLock.Store(0)
+ }
+ 
+ // addExtra adds the "extra" profiling events,
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c3144b4dde..a673e45071 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4474,7 +4474,7 @@ func mcount() int32 {
+ }
+ 
+ var prof struct {
+-	signalLock uint32
++	signalLock atomic.Uint32
+ 	hz         int32
+ }
+ 
+@@ -4628,14 +4628,14 @@ func setcpuprofilerate(hz int32) {
+ 	// it would deadlock.
+ 	setThreadCPUProfiler(0)
+ 
+-	for !atomic.Cas(&prof.signalLock, 0, 1) {
++	for !prof.signalLock.CompareAndSwap(0, 1) {
+ 		osyield()
+ 	}
+ 	if prof.hz != hz {
+ 		setProcessCPUProfiler(hz)
+ 		prof.hz = hz
+ 	}
+-	atomic.Store(&prof.signalLock, 0)
++	prof.signalLock.Store(0)
+ 
+ 	lock(&sched.lock)
+ 	sched.profilehz = hz

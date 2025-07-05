@@ -12,8 +12,51 @@ Date:   Wed May 19 15:51:45 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api.go                 | 2 +-
  src/go/types/api_typeparams_test.go | 2 +-
  src/go/types/sanitize.go            | 4 ++--
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 8c0d9d22bf..30f8ded744 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -255,7 +255,7 @@ func (tv TypeAndValue) HasOk() bool {
+ // _Inferred reports the _Inferred type arguments and signature
+ // for a parameterized function call that uses type inference.
+ type _Inferred struct {
+-	Targs []Type
++	TArgs []Type
+ 	Sig   *Signature
+ }
+ 
+diff --git a/src/go/types/api_typeparams_test.go b/src/go/types/api_typeparams_test.go
+index 15c9bf09f9..517c58505b 100644
+--- a/src/go/types/api_typeparams_test.go
++++ b/src/go/types/api_typeparams_test.go
+@@ -109,7 +109,7 @@ func TestInferredInfo(t *testing.T) {
+ 				panic(fmt.Sprintf("unexpected call expression type %T", call))
+ 			}
+ 			if ExprString(fun) == test.fun {
+-				targs = inf.Targs
++				targs = inf.TArgs
+ 				sig = inf.Sig
+ 				break
+ 			}
+diff --git a/src/go/types/sanitize.go b/src/go/types/sanitize.go
+index 727ec173ea..f167cdd8b6 100644
+--- a/src/go/types/sanitize.go
++++ b/src/go/types/sanitize.go
+@@ -27,9 +27,9 @@ func sanitizeInfo(info *Info) {
+ 	inferred := getInferred(info)
+ 	for e, inf := range inferred {
+ 		changed := false
+-		for i, targ := range inf.Targs {
++		for i, targ := range inf.TArgs {
+ 			if typ := s.typ(targ); typ != targ {
+-				inf.Targs[i] = typ
++				inf.TArgs[i] = typ
+ 				changed = true
+ 			}
+ 		}

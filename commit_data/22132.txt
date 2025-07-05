@@ -10,8 +10,93 @@ Date:   Mon Feb 23 15:45:40 2015 -0800
     Change-Id: Ic739f626fcc79ace1eaf646c5dfdd96da59df165
     Reviewed-on: https://go-review.googlesource.com/5693
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go          |  3 +++
  src/cmd/asm/internal/asm/operand_test.go | 16 ++++++++++++++++
  src/cmd/asm/internal/asm/parse.go        | 18 ++++++++++++++----
  3 files changed, 33 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index f0cf117f05..f6a2501ca2 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -369,6 +369,9 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
+ 		if p.arch.Thechar == '9' && target.Offset == 0 {
+ 			prog.To.Type = obj.TYPE_REG
+ 		}
++	case target.Type == obj.TYPE_CONST:
++		// JMP $4
++		prog.To = a[0]
+ 	default:
+ 		p.errorf("cannot assemble jump %+v", target)
+ 	}
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index 1c4d983cf9..c99bcd6c3d 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -55,6 +55,21 @@ func testX86RegisterPair(t *testing.T, parser *Parser) {
+ 	if want != addr {
+ 		t.Errorf("AX:DX: expected %+v got %+v", want, addr)
+ 	}
++	// Special case for foo(SB):DX, which is really two operands so isn't printed correctly
++	// by Aconv, but is OK by the -S output.
++	parser.start(lex.Tokenize("foo+4(SB):AX"))
++	addr = obj.Addr{}
++	parser.operand(&addr)
++	want = obj.Addr{
++		Type:   obj.TYPE_MEM,
++		Name:   obj.NAME_EXTERN,
++		Offset: 4,
++		Sym:    obj.Linklookup(parser.linkCtxt, "foo", 0),
++		Class:  int8(parser.arch.Register["AX"]), // TODO: clean up how this is encoded in parse.go
++	}
++	if want != addr {
++		t.Errorf("foo+4(SB):AX: expected %+v got %+v", want, addr)
++	}
+ }
+ 
+ func TestAMD64OperandParser(t *testing.T) {
+@@ -229,6 +244,7 @@ var x86OperandTests = []operandTest{
+ 	{"(BP*8)", "(NONE)(BP*8)"}, // TODO: odd printout.
+ 	{"(BX)", "(BX)"},
+ 	{"(SP)", "(SP)"},
++	{"*AX", "AX"},                             // TODO: Should make * illegal here; a simple alias for JMP AX.
+ 	{"*runtime·_GetStdHandle(SB)", "type=16"}, // TODO: bizarre
+ 	{"-(4+12)(DI)", "-16(DI)"},
+ 	{"-1(DI)(BX*1)", "-1(DI)(BX*1)"},
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 14539dc911..26a39defcc 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -362,8 +362,18 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 		// fmt.Printf("offset %d \n", a.Offset)
+ 	}
+ 
+-	// Register indirection: (reg) or (index*scale). We are on the opening paren.
+-	p.registerIndirect(a, prefix)
++	// Odd x86 case: sym+4(SB):AX. Have name, colon, register.
++	if p.peek() == ':' && a.Name != obj.NAME_NONE && a.Class == 0 && (p.arch.Thechar == '6' || p.arch.Thechar == '8') {
++		p.get(':')
++		r2, ok := p.registerReference(p.next().String())
++		if !ok {
++			return false
++		}
++		a.Class = int8(r2) // TODO: See comment about Class above.
++	} else {
++		// Register indirection: (reg) or (index*scale). We are on the opening paren.
++		p.registerIndirect(a, prefix)
++	}
+ 	// fmt.Printf("DONE %s\n", p.arch.Dconv(&emptyProg, 0, a))
+ 
+ 	p.expect(scanner.EOF)
+@@ -434,8 +444,8 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
+ 	if !ok {
+ 		return
+ 	}
+-	if prefix != 0 {
+-		p.errorf("prefix %c not allowed for register: $%s", prefix, name)
++	if prefix != 0 && prefix != '*' { // *AX is OK.
++		p.errorf("prefix %c not allowed for register: %c%s", prefix, prefix, name)
+ 	}
+ 	c := p.peek()
+ 	if c == ':' || c == ',' || c == '+' {

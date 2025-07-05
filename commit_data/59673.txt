@@ -17,7 +17,80 @@ Date:   Tue Apr 9 03:56:40 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/577495
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/malloc.go  | 30 +++++++++++++++++-------------
  src/runtime/mbitmap.go |  4 ++++
  2 files changed, 21 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 3879bfa9d7..48cace9171 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1165,17 +1165,15 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		size = span.elemsize
+ 		x = unsafe.Pointer(span.base())
+ 		if needzero && span.needzero != 0 {
+-			if noscan {
+-				delayedZeroing = true
+-			} else {
+-				memclrNoHeapPointers(x, size)
+-			}
++			delayedZeroing = true
+ 		}
+ 		if !noscan {
++			// Tell the GC not to look at this yet.
++			span.largeType = nil
+ 			header = &span.largeType
+ 		}
+ 	}
+-	if !noscan {
++	if !noscan && !delayedZeroing {
+ 		c.scanAlloc += heapSetType(uintptr(x), dataSize, typ, header, span)
+ 	}
+ 
+@@ -1243,17 +1241,23 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	mp.mallocing = 0
+ 	releasem(mp)
+ 
+-	// Pointerfree data can be zeroed late in a context where preemption can occur.
++	// Objects can be zeroed late in a context where preemption can occur.
++	// If the object contains pointers, its pointer data must be cleared
++	// or otherwise indicate that the GC shouldn't scan it.
+ 	// x will keep the memory alive.
+ 	if delayedZeroing {
+-		if !noscan {
+-			throw("delayed zeroing on data that may contain pointers")
+-		}
+-		if header != nil {
+-			throw("unexpected malloc header in delayed zeroing of large object")
+-		}
+ 		// N.B. size == fullSize always in this case.
+ 		memclrNoHeapPointersChunked(size, x) // This is a possible preemption point: see #47302
++
++		// Finish storing the type information for this case.
++		if !noscan {
++			mp := acquirem()
++			getMCache(mp).scanAlloc += heapSetType(uintptr(x), dataSize, typ, header, span)
++
++			// Publish the type information with the zeroed memory.
++			publicationBarrier()
++			releasem(mp)
++		}
+ 	}
+ 
+ 	if debug.malloc {
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index d2ab89edb4..e7a712377b 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -192,6 +192,10 @@ func (span *mspan) typePointersOfUnchecked(addr uintptr) typePointers {
+ 		addr += mallocHeaderSize
+ 	} else {
+ 		typ = span.largeType
++		if typ == nil {
++			// Allow a nil type here for delayed zeroing. See mallocgc.
++			return typePointers{}
++		}
+ 	}
+ 	gcdata := typ.GCData
+ 	return typePointers{elem: addr, addr: addr, mask: readUintptr(gcdata), typ: typ}

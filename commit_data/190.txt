@@ -5,7 +5,64 @@ Date:   Tue Jun 17 18:07:40 2008 -0700
     assign nil to interface
     
     SVN=123256
-
+---
  src/cmd/6g/gen.c  |  2 +-
  src/cmd/gc/walk.c | 11 +++++------
  2 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index e1b596f1ab..b6120d7755 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -729,7 +729,7 @@ cgen_as(Node *nl, Node *nr, int op)
+ 	if(tl == T)
+ 		return;
+ 
+-	if(nr == N) {
++	if(nr == N || isnil(nr)) {
+ 		if(isfat(tl)) {
+ 			/* clear a fat object */
+ 			if(debug['g'])
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index c40cabd8f4..16f0c2ce3e 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -43,9 +43,8 @@ loop:
+ 	if(n->op != ONAME)
+ 		dynlineno = n->lineno;	// for diagnostics
+ 
+-	if(debug['w'] > 1 && top == Etop)
+-		if(n->op != OLIST)
+-			dump("walk-before", n);
++	if(debug['w'] > 1 && top == Etop && n->op != OLIST)
++		dump("walk-before", n);
+ 
+ 	t = T;
+ 	et = Txxx;
+@@ -218,7 +217,6 @@ loop:
+ 
+ 		walktype(l, Elv);
+ 		walktype(r, Erv);
+-
+ 		if(l == N || l->type == T)
+ 			goto ret;
+ 
+@@ -233,6 +231,7 @@ loop:
+ 			}
+ 			goto ret;
+ 		}
++
+ 		l = ascompatee(n->op, &n->left, &n->right);
+ 		if(l != N)
+ 			*n = *reorder3(l);
+@@ -662,8 +661,8 @@ badt:
+ 	goto ret;
+ 
+ ret:
+-	if(debug['w'] && top == Etop)
+-		dump("walk-after", n);
++	if(debug['w'] && top == Etop && n != N)
++		dump("walk", n);
+ 
+ 	ullmancalc(n);
+ 	dynlineno = lno;

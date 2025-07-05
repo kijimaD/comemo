@@ -14,7 +14,34 @@ Date:   Fri Jun 12 12:16:07 2015 +0200
     Change-Id: Icef5d4ab76774905854e46665ac1166d26d35f46
     Reviewed-on: https://go-review.googlesource.com/10970
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go | 2 +-
  src/cmd/go/test.go    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 6fe434de86..9001562e5a 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1103,7 +1103,7 @@ The 'go test' command takes both flags that apply to 'go test' itself
+ and flags that apply to the resulting test binary.
+ 
+ Several of the flags control profiling and write an execution profile
+-suitable for "go tool pprof"; run "go tool pprof help" for more
++suitable for "go tool pprof"; run "go tool pprof -h" for more
+ information.  The --alloc_space, --alloc_objects, and --show_bytes
+ options of pprof control how the information is presented.
+ 
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 9746bbd3af..b89ab7570e 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -107,7 +107,7 @@ The 'go test' command takes both flags that apply to 'go test' itself
+ and flags that apply to the resulting test binary.
+ 
+ Several of the flags control profiling and write an execution profile
+-suitable for "go tool pprof"; run "go tool pprof help" for more
++suitable for "go tool pprof"; run "go tool pprof -h" for more
+ information.  The --alloc_space, --alloc_objects, and --show_bytes
+ options of pprof control how the information is presented.
+ 

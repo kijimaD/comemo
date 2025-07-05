@@ -18,6 +18,25 @@ Date:   Thu Mar 30 14:59:53 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index ba7cf9cb14..9f59d8fa75 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -552,6 +552,13 @@ func (c *gcControllerState) revise() {
+ // endCycle updates the GC controller state at the end of the
+ // concurrent part of the GC cycle.
+ func (c *gcControllerState) endCycle() {
++	if work.userForced {
++		// Forced GC means this cycle didn't start at the
++		// trigger, so where it finished isn't good
++		// information about how to adjust the trigger.
++		return
++	}
++
+ 	h_t := c.triggerRatio // For debugging
+ 
+ 	// Proportional response gain for the trigger controller. Must

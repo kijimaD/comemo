@@ -49,6 +49,24 @@ Date:   Wed Sep 25 17:27:24 2024 +0800
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/internal/obj/loong64/obj.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/internal/obj/loong64/obj.go b/src/cmd/internal/obj/loong64/obj.go
+index 9ade234897..681802a18d 100644
+--- a/src/cmd/internal/obj/loong64/obj.go
++++ b/src/cmd/internal/obj/loong64/obj.go
+@@ -320,6 +320,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				autosize += int32(c.ctxt.Arch.FixedFrameSize)
+ 			}
+ 
++			if p.Mark&LEAF != 0 && autosize < abi.StackSmall {
++				// A leaf function with a small stack can be marked
++				// NOSPLIT, avoiding a stack check.
++				p.From.Sym.Set(obj.AttrNoSplit, true)
++			}
++
+ 			if autosize&4 != 0 {
+ 				autosize += 4
+ 			}

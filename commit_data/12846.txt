@@ -10,7 +10,48 @@ Date:   Thu Apr 5 13:23:08 2012 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5970050
-
+---
  src/pkg/net/url/url.go      | 8 ++++----
  src/pkg/net/url/url_test.go | 4 ++--
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 88ff7ebfef..b6e79adc29 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -61,16 +61,16 @@ func (e EscapeError) Error() string {
+ }
+ 
+ // Return true if the specified character should be escaped when
+-// appearing in a URL string, according to RFC 2396.
++// appearing in a URL string, according to RFC 3986.
+ // When 'all' is true the full range of reserved characters are matched.
+ func shouldEscape(c byte, mode encoding) bool {
+-	// RFC 2396 §2.3 Unreserved characters (alphanum)
++	// §2.3 Unreserved characters (alphanum)
+ 	if 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' {
+ 		return false
+ 	}
+-	// TODO: Update the character sets after RFC 3986.
++
+ 	switch c {
+-	case '-', '_', '.', '!', '~', '*', '\'', '(', ')': // §2.3 Unreserved characters (mark)
++	case '-', '_', '.', '~': // §2.3 Unreserved characters (mark)
+ 		return false
+ 
+ 	case '$', '&', '+', ',', '/', ':', ';', '=', '?', '@': // §2.2 Reserved characters (reserved)
+diff --git a/src/pkg/net/url/url_test.go b/src/pkg/net/url/url_test.go
+index 2d911ed505..d8b253142f 100644
+--- a/src/pkg/net/url/url_test.go
++++ b/src/pkg/net/url/url_test.go
+@@ -394,8 +394,8 @@ var escapeTests = []EscapeTest{
+ 		nil,
+ 	},
+ 	{
+-		" ?&=#+%!<>#\"{}|\\^[]`☺\t",
+-		"+%3F%26%3D%23%2B%25!%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%98%BA%09",
++		" ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;",
++		"+%3F%26%3D%23%2B%25%21%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%98%BA%09%3A%2F%40%24%27%28%29%2A%2C%3B",
+ 		nil,
+ 	},
+ }

@@ -15,10 +15,225 @@ Date:   Wed Aug 9 15:43:25 2017 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        | 23 ++++++++
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  7 +++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 10 ++--
  src/cmd/compile/internal/ssa/opGen.go        | 30 +++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 78 ++++++++++++++++++++++++++++
  5 files changed, 144 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 0b2b9c2003..a79021f7d4 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -614,6 +614,29 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Scale = 1
+ 		p.To.Index = i
+ 		gc.AddAux(&p.To, v)
++	case ssa.OpAMD64ADDQconstmem, ssa.OpAMD64ADDLconstmem:
++		sc := v.AuxValAndOff()
++		off := sc.Off()
++		val := sc.Val()
++		if val == 1 {
++			var asm obj.As
++			if v.Op == ssa.OpAMD64ADDQconstmem {
++				asm = x86.AINCQ
++			} else {
++				asm = x86.AINCL
++			}
++			p := s.Prog(asm)
++			p.To.Type = obj.TYPE_MEM
++			p.To.Reg = v.Args[0].Reg()
++			gc.AddAux2(&p.To, v, off)
++		} else {
++			p := s.Prog(v.Op.Asm())
++			p.From.Type = obj.TYPE_CONST
++			p.From.Offset = val
++			p.To.Type = obj.TYPE_MEM
++			p.To.Reg = v.Args[0].Reg()
++			gc.AddAux2(&p.To, v, off)
++		}
+ 	case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index c31c7ced02..fff894c571 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -2429,3 +2429,10 @@
+ (MOVWQZX x:(MOVWQZX _)) -> x
+ (MOVWQZX x:(MOVBQZX _)) -> x
+ (MOVBQZX x:(MOVBQZX _)) -> x
++
++(MOVQstore [off] {sym} ptr a:(ADDQconst [c] l:(MOVQload [off] {sym} ptr2 mem)) mem)
++	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c,off) ->
++	(ADDQconstmem {sym} [makeValAndOff(c,off)] ptr mem)
++(MOVLstore [off] {sym} ptr a:(ADDLconst [c] l:(MOVLload [off] {sym} ptr2 mem)) mem)
++	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c,off) ->
++	(ADDLconstmem {sym} [makeValAndOff(c,off)] ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index d4e5a6a225..da38eba678 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -187,10 +187,12 @@ func init() {
+ 		{name: "MULSDmem", argLength: 3, reg: fp21load, asm: "MULSD", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, symEffect: "Read"}, // fp64 arg0 * tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
+ 
+ 		// binary ops
+-		{name: "ADDQ", argLength: 2, reg: gp21sp, asm: "ADDQ", commutative: true, clobberFlags: true},                // arg0 + arg1
+-		{name: "ADDL", argLength: 2, reg: gp21sp, asm: "ADDL", commutative: true, clobberFlags: true},                // arg0 + arg1
+-		{name: "ADDQconst", argLength: 1, reg: gp11sp, asm: "ADDQ", aux: "Int64", typ: "UInt64", clobberFlags: true}, // arg0 + auxint
+-		{name: "ADDLconst", argLength: 1, reg: gp11sp, asm: "ADDL", aux: "Int32", clobberFlags: true},                // arg0 + auxint
++		{name: "ADDQ", argLength: 2, reg: gp21sp, asm: "ADDQ", commutative: true, clobberFlags: true},                                                           // arg0 + arg1
++		{name: "ADDL", argLength: 2, reg: gp21sp, asm: "ADDL", commutative: true, clobberFlags: true},                                                           // arg0 + arg1
++		{name: "ADDQconst", argLength: 1, reg: gp11sp, asm: "ADDQ", aux: "Int64", typ: "UInt64", clobberFlags: true},                                            // arg0 + auxint
++		{name: "ADDLconst", argLength: 1, reg: gp11sp, asm: "ADDL", aux: "Int32", clobberFlags: true},                                                           // arg0 + auxint
++		{name: "ADDQconstmem", argLength: 2, reg: gpstoreconst, asm: "ADDQ", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"}, // add ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
++		{name: "ADDLconstmem", argLength: 2, reg: gpstoreconst, asm: "ADDL", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"}, // add ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
+ 
+ 		{name: "SUBQ", argLength: 2, reg: gp21, asm: "SUBQ", resultInArg0: true, clobberFlags: true},                    // arg0 - arg1
+ 		{name: "SUBL", argLength: 2, reg: gp21, asm: "SUBL", resultInArg0: true, clobberFlags: true},                    // arg0 - arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index ef2b6fdae9..81fbf72998 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -441,6 +441,8 @@ const (
+ 	OpAMD64ADDL
+ 	OpAMD64ADDQconst
+ 	OpAMD64ADDLconst
++	OpAMD64ADDQconstmem
++	OpAMD64ADDLconstmem
+ 	OpAMD64SUBQ
+ 	OpAMD64SUBL
+ 	OpAMD64SUBQconst
+@@ -4863,6 +4865,34 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "ADDQconstmem",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		symEffect:      SymWrite,
++		asm:            x86.AADDQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:           "ADDLconstmem",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		symEffect:      SymWrite,
++		asm:            x86.AADDL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
+ 	{
+ 		name:         "SUBQ",
+ 		argLen:       2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 4ce6415ba5..302812b170 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -7442,6 +7442,45 @@ func rewriteValueAMD64_OpAMD64MOVLstore_10(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVLstore [off] {sym} ptr a:(ADDLconst [c] l:(MOVLload [off] {sym} ptr2 mem)) mem)
++	// cond: isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c,off)
++	// result: (ADDLconstmem {sym} [makeValAndOff(c,off)] ptr mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		a := v.Args[1]
++		if a.Op != OpAMD64ADDLconst {
++			break
++		}
++		c := a.AuxInt
++		l := a.Args[0]
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		if l.AuxInt != off {
++			break
++		}
++		if l.Aux != sym {
++			break
++		}
++		_ = l.Args[1]
++		ptr2 := l.Args[0]
++		mem := l.Args[1]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c, off)) {
++			break
++		}
++		v.reset(OpAMD64ADDLconstmem)
++		v.AuxInt = makeValAndOff(c, off)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVLstoreconst_0(v *Value) bool {
+@@ -9006,6 +9045,45 @@ func rewriteValueAMD64_OpAMD64MOVQstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVQstore [off] {sym} ptr a:(ADDQconst [c] l:(MOVQload [off] {sym} ptr2 mem)) mem)
++	// cond: isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c,off)
++	// result: (ADDQconstmem {sym} [makeValAndOff(c,off)] ptr mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		a := v.Args[1]
++		if a.Op != OpAMD64ADDQconst {
++			break
++		}
++		c := a.AuxInt
++		l := a.Args[0]
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		if l.AuxInt != off {
++			break
++		}
++		if l.Aux != sym {
++			break
++		}
++		_ = l.Args[1]
++		ptr2 := l.Args[0]
++		mem := l.Args[1]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c, off)) {
++			break
++		}
++		v.reset(OpAMD64ADDQconstmem)
++		v.AuxInt = makeValAndOff(c, off)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVQstoreconst_0(v *Value) bool {

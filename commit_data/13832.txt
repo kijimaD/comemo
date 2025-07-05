@@ -8,6 +8,20 @@ Date:   Mon Sep 17 01:08:41 2012 +0800
     R=golang-dev, devon.odell, r
     CC=golang-dev
     https://golang.org/cl/6490118
-
+---
  src/pkg/runtime/os_freebsd.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/os_freebsd.h b/src/pkg/runtime/os_freebsd.h
+index 5e8de5434a..b440bfeec6 100644
+--- a/src/pkg/runtime/os_freebsd.h
++++ b/src/pkg/runtime/os_freebsd.h
+@@ -15,7 +15,7 @@ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ void	runtime·raisesigpipe(void);
+ 
+ #define	NSIG 33
+-#define	SI_USER	0
++#define	SI_USER	0x10001
+ 
+ #define RLIMIT_AS 10
+ typedef struct Rlimit Rlimit;

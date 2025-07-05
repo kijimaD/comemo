@@ -12,6 +12,27 @@ Date:   Tue Dec 12 21:32:10 2023 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  doc/go1.22.html | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 9cea5ba8c2..1ac0e7e6ee 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -728,8 +728,13 @@ defer func() {
+       in favor of <a href="/pkg/reflect/#PointerTo"><code>PointerTo</code></a>.
+     </p>
+ 
+-    <p><!-- https://go.dev/issue/60088 -->
+-      TODO: <a href="https://go.dev/issue/60088">https://go.dev/issue/60088</a>: reflect: add TypeFor
++    <p><!-- https://go.dev/issue/60088, CL 513478 -->
++      The new function <a href="/pkg/reflect/#TypeFor"><code>TypeFor</code></a>
++      returns the <a href="/pkg/reflect/#Type"><code>Type</code></a> that represents
++      the type argument T.
++      Previously, to get the <code>reflect.Type</code> value for a type, one had to use
++      <code>reflect.TypeOf((*T)(nil)).Elem()</code>.
++      This may now be written as <code>reflect.TypeFor[T]()</code>.
+     </p>
+   </dd>
+ </dl><!-- reflect -->

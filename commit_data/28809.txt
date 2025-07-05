@@ -13,6 +13,20 @@ Date:   Wed Jul 27 16:46:51 2016 -0400
     Change-Id: Ia7e7f2ca217ddae9af314d346af5406bbafb68e8
     Reviewed-on: https://go-review.googlesource.com/25302
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/arm64/prog.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/arm64/prog.go b/src/cmd/compile/internal/arm64/prog.go
+index 4192db04b1..49aaa64c37 100644
+--- a/src/cmd/compile/internal/arm64/prog.go
++++ b/src/cmd/compile/internal/arm64/prog.go
+@@ -44,7 +44,7 @@ var progtable = [arm64.ALAST & obj.AMask]obj.ProgInfo{
+ 	// Integer
+ 	arm64.AADD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	arm64.ASUB & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	arm64.ANEG & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite},
++	arm64.ANEG & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite}, // why RegRead? revisit once the old backend gone
+ 	arm64.AAND & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	arm64.AORR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	arm64.AEOR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},

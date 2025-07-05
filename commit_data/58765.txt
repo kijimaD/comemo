@@ -21,7 +21,53 @@ Date:   Sat Dec 9 14:32:10 2023 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/os/os_test.go  | 24 ++++++++++++++++++++++++
  src/os/tempfile.go |  2 +-
  2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 7e0e0b90be..2f5b117bd9 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -3330,3 +3330,27 @@ func TestPipeCloseRace(t *testing.T) {
+ 		t.Errorf("got nils %d errs %d, want 2 2", nils, errs)
+ 	}
+ }
++
++func TestRandomLen(t *testing.T) {
++	for range 5 {
++		dir, err := MkdirTemp(t.TempDir(), "*")
++		if err != nil {
++			t.Fatal(err)
++		}
++		base := filepath.Base(dir)
++		if len(base) > 10 {
++			t.Errorf("MkdirTemp returned len %d: %s", len(base), base)
++		}
++	}
++	for range 5 {
++		f, err := CreateTemp(t.TempDir(), "*")
++		if err != nil {
++			t.Fatal(err)
++		}
++		base := filepath.Base(f.Name())
++		f.Close()
++		if len(base) > 10 {
++			t.Errorf("CreateTemp returned len %d: %s", len(base), base)
++		}
++	}
++}
+diff --git a/src/os/tempfile.go b/src/os/tempfile.go
+index 7f2b6a883c..66c65e6c78 100644
+--- a/src/os/tempfile.go
++++ b/src/os/tempfile.go
+@@ -19,7 +19,7 @@ import (
+ func runtime_rand() uint64
+ 
+ func nextRandom() string {
+-	return itoa.Uitoa(uint(runtime_rand()))
++	return itoa.Uitoa(uint(uint32(runtime_rand())))
+ }
+ 
+ // CreateTemp creates a new temporary file in the directory dir,

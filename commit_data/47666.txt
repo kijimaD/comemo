@@ -14,6 +14,20 @@ Date:   Mon Apr 5 12:38:12 2021 +0000
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 0a49ca214d..8275d2ec9c 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1803,7 +1803,7 @@ func (s *state) stmt(n ir.Node) {
+ 				b.AddEdgeTo(bCond)
+ 				// It can happen that bIncr ends in a block containing only VARKILL,
+ 				// and that muddles the debugging experience.
+-				if n.Op() != ir.OFORUNTIL && b.Pos == src.NoXPos {
++				if b.Pos == src.NoXPos {
+ 					b.Pos = bCond.Pos
+ 				}
+ 			}

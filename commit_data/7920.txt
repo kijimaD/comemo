@@ -9,9 +9,93 @@ Date:   Tue Mar 29 14:23:36 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4321045
-
+---
  src/pkg/os/file_unix.go    | 18 ++++++++++++++++++
  src/pkg/os/stat_darwin.go  |  8 +-------
  src/pkg/os/stat_freebsd.go |  8 +-------
  src/pkg/os/stat_linux.go   |  8 +-------
  4 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index df5894459e..9edfaddfcd 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -102,3 +102,21 @@ func Truncate(name string, size int64) Error {
+ 	}
+ 	return nil
+ }
++
++// basename removes trailing slashes and the leading directory name from path name
++func basename(name string) string {
++	i := len(name) - 1
++	// Remove trailing slashes
++	for ; i > 0 && name[i] == '/'; i-- {
++		name = name[:i]
++	}
++	// Remove leading directory name
++	for i--; i >= 0; i-- {
++		if name[i] == '/' {
++			name = name[i+1:]
++			break
++		}
++	}
++
++	return name
++}
+diff --git a/src/pkg/os/stat_darwin.go b/src/pkg/os/stat_darwin.go
+index 8f4e6bafae..0661a6d591 100644
+--- a/src/pkg/os/stat_darwin.go
++++ b/src/pkg/os/stat_darwin.go
+@@ -24,13 +24,7 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
+ 	fi.Atime_ns = syscall.TimespecToNsec(stat.Atimespec)
+ 	fi.Mtime_ns = syscall.TimespecToNsec(stat.Mtimespec)
+ 	fi.Ctime_ns = syscall.TimespecToNsec(stat.Ctimespec)
+-	for i := len(name) - 1; i >= 0; i-- {
+-		if name[i] == '/' {
+-			name = name[i+1:]
+-			break
+-		}
+-	}
+-	fi.Name = name
++	fi.Name = basename(name)
+ 	if isSymlink(lstat) && !isSymlink(stat) {
+ 		fi.FollowedSymlink = true
+ 	}
+diff --git a/src/pkg/os/stat_freebsd.go b/src/pkg/os/stat_freebsd.go
+index aa15d4b63d..454165d4e0 100644
+--- a/src/pkg/os/stat_freebsd.go
++++ b/src/pkg/os/stat_freebsd.go
+@@ -24,13 +24,7 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
+ 	fi.Atime_ns = syscall.TimespecToNsec(stat.Atimespec)
+ 	fi.Mtime_ns = syscall.TimespecToNsec(stat.Mtimespec)
+ 	fi.Ctime_ns = syscall.TimespecToNsec(stat.Ctimespec)
+-	for i := len(name) - 1; i >= 0; i-- {
+-		if name[i] == '/' {
+-			name = name[i+1:]
+-			break
+-		}
+-	}
+-	fi.Name = name
++	fi.Name = basename(name)
+ 	if isSymlink(lstat) && !isSymlink(stat) {
+ 		fi.FollowedSymlink = true
+ 	}
+diff --git a/src/pkg/os/stat_linux.go b/src/pkg/os/stat_linux.go
+index ebfa1721c0..7a3cf794d6 100644
+--- a/src/pkg/os/stat_linux.go
++++ b/src/pkg/os/stat_linux.go
+@@ -24,13 +24,7 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
+ 	fi.Atime_ns = syscall.TimespecToNsec(stat.Atim)
+ 	fi.Mtime_ns = syscall.TimespecToNsec(stat.Mtim)
+ 	fi.Ctime_ns = syscall.TimespecToNsec(stat.Ctim)
+-	for i := len(name) - 1; i >= 0; i-- {
+-		if name[i] == '/' {
+-			name = name[i+1:]
+-			break
+-		}
+-	}
+-	fi.Name = name
++	fi.Name = basename(name)
+ 	if isSymlink(lstat) && !isSymlink(stat) {
+ 		fi.FollowedSymlink = true
+ 	}

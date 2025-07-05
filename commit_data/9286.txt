@@ -7,7 +7,80 @@ Date:   Thu Aug 4 14:39:44 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4801076
-
+---
  src/pkg/gob/encode.go         | 24 ++++++++++++++++++++++++
  src/pkg/gob/gobencdec_test.go | 22 ++++++++++++++++++++++
  2 files changed, 46 insertions(+)
+
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index c4c8219cf3..576a83df0f 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -466,6 +466,27 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
+ 	enc.freeEncoderState(state)
+ }
+ 
++// isZero returns whether the value is the zero of its type.
++func isZero(val reflect.Value) bool {
++	switch val.Kind() {
++	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
++		return val.Len() == 0
++	case reflect.Bool:
++		return !val.Bool()
++	case reflect.Complex64, reflect.Complex128:
++		return val.Complex() == 0
++	case reflect.Chan, reflect.Func, reflect.Ptr:
++		return val.IsNil()
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++		return val.Int() == 0
++	case reflect.Float32, reflect.Float64:
++		return val.Float() == 0
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
++		return val.Uint() == 0
++	}
++	panic("unknown type in isZero" + val.Type().String())
++}
++
+ // encGobEncoder encodes a value that implements the GobEncoder interface.
+ // The data is sent as a byte array.
+ func (enc *Encoder) encodeGobEncoder(b *bytes.Buffer, v reflect.Value) {
+@@ -614,6 +635,9 @@ func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
+ 		} else {
+ 			v = reflect.ValueOf(unsafe.Unreflect(rt, p))
+ 		}
++		if !state.sendZero && isZero(v) {
++			return
++		}
+ 		state.update(i)
+ 		state.enc.encodeGobEncoder(state.b, v)
+ 	}
+diff --git a/src/pkg/gob/gobencdec_test.go b/src/pkg/gob/gobencdec_test.go
+index 25cb5d11b8..371a43c8f5 100644
+--- a/src/pkg/gob/gobencdec_test.go
++++ b/src/pkg/gob/gobencdec_test.go
+@@ -466,3 +466,25 @@ func TestGobEncoderIgnoreNonStructField(t *testing.T) {
+ 		t.Errorf("expected 17 got %c", x.X)
+ 	}
+ }
++
++func TestGobEncoderIgnoreNilEncoder(t *testing.T) {
++	b := new(bytes.Buffer)
++	// First a field that's a structure.
++	enc := NewEncoder(b)
++	err := enc.Encode(GobTest0{X: 18}) // G is nil
++	if err != nil {
++		t.Fatal("encode error:", err)
++	}
++	dec := NewDecoder(b)
++	x := new(GobTest0)
++	err = dec.Decode(x)
++	if err != nil {
++		t.Fatal("decode error:", err)
++	}
++	if x.X != 18 {
++		t.Errorf("expected x.X = 18, got %v", x.X)
++	}
++	if x.G != nil {
++		t.Errorf("expected x.G = nil, got %v", x.G)
++	}
++}

@@ -14,8 +14,54 @@ Date:   Thu Jan 20 12:46:38 2022 +0100
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  misc/cgo/errors/errors_test.go         |  1 +
  misc/cgo/errors/testdata/issue50710.go | 14 ++++++++++++++
  src/cmd/cgo/gcc.go                     |  2 +-
  3 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/errors/errors_test.go b/misc/cgo/errors/errors_test.go
+index e90ed1e058..9718b7f9fb 100644
+--- a/misc/cgo/errors/errors_test.go
++++ b/misc/cgo/errors/errors_test.go
+@@ -112,6 +112,7 @@ func TestReportsTypeErrors(t *testing.T) {
+ 		"issue18889.go",
+ 		"issue28721.go",
+ 		"issue33061.go",
++		"issue50710.go",
+ 	} {
+ 		check(t, file)
+ 	}
+diff --git a/misc/cgo/errors/testdata/issue50710.go b/misc/cgo/errors/testdata/issue50710.go
+new file mode 100644
+index 0000000000..dffea22903
+--- /dev/null
++++ b/misc/cgo/errors/testdata/issue50710.go
+@@ -0,0 +1,14 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// size_t StrLen(_GoString_ s) {
++// 	return _GoStringLen(s);
++// }
++import "C"
++
++func main() {
++	C.StrLen1() // ERROR HERE
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 3cb01ba382..d89bff287b 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -488,7 +488,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 		// Check if compiling the preamble by itself causes any errors,
+ 		// because the messages we've printed out so far aren't helpful
+ 		// to users debugging preamble mistakes. See issue 8442.
+-		preambleErrors := p.gccErrors([]byte(f.Preamble))
++		preambleErrors := p.gccErrors([]byte(builtinProlog + f.Preamble))
+ 		if len(preambleErrors) > 0 {
+ 			error_(token.NoPos, "\n%s errors for preamble:\n%s", gccBaseCmd[0], preambleErrors)
+ 		}

@@ -17,7 +17,118 @@ Date:   Wed Oct 20 15:06:35 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/357413
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go        | 59 ++++++++++++++++------
  .../internal/types2/testdata/check/builtins.go2    | 10 +++-
  2 files changed, 52 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index cb4d93c6c4..154395cddb 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -325,33 +325,22 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _Copy:
+ 		// copy(x, y []T) int
+-		var dst Type
+-		if t := asSlice(x.typ); t != nil {
+-			dst = t.elem
+-		}
++		dst, _ := singleUnder(x.typ).(*Slice)
+ 
+ 		var y operand
+ 		arg(&y, 1)
+ 		if y.mode == invalid {
+ 			return
+ 		}
+-		var src Type
+-		switch t := optype(y.typ).(type) {
+-		case *Basic:
+-			if isString(y.typ) {
+-				src = universeByte
+-			}
+-		case *Slice:
+-			src = t.elem
+-		}
++		src, _ := singleUnderString(y.typ).(*Slice)
+ 
+ 		if dst == nil || src == nil {
+ 			check.errorf(x, invalidArg+"copy expects slice arguments; found %s and %s", x, &y)
+ 			return
+ 		}
+ 
+-		if !Identical(dst, src) {
+-			check.errorf(x, invalidArg+"arguments to copy %s and %s have different element types %s and %s", x, &y, dst, src)
++		if !Identical(dst.elem, src.elem) {
++			check.errorf(x, invalidArg+"arguments to copy %s and %s have different element types %s and %s", x, &y, dst.elem, src.elem)
+ 			return
+ 		}
+ 
+@@ -774,6 +763,46 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 	return true
+ }
+ 
++// If typ is a type parameter, single under returns the single underlying
++// type of all types in the corresponding type constraint if it exists, or
++// nil if it doesn't exist. If typ is not a type parameter, singleUnder
++// just returns the underlying type.
++func singleUnder(typ Type) Type {
++	var su Type
++	if underIs(typ, func(u Type) bool {
++		if su != nil && !Identical(su, u) {
++			return false
++		}
++		// su == nil || Identical(su, u)
++		su = u
++		return true
++	}) {
++		return su
++	}
++	return nil
++}
++
++// singleUnderString is like singleUnder but also considers []byte and
++// string as "identical". In this case, if successful, the result is always
++// []byte.
++func singleUnderString(typ Type) Type {
++	var su Type
++	if underIs(typ, func(u Type) bool {
++		if isString(u) {
++			u = NewSlice(universeByte)
++		}
++		if su != nil && !Identical(su, u) {
++			return false
++		}
++		// su == nil || Identical(su, u)
++		su = u
++		return true
++	}) {
++		return su
++	}
++	return nil
++}
++
+ // hasVarSize reports if the size of type t is variable due to type parameters.
+ func hasVarSize(t Type) bool {
+ 	switch t := under(t).(type) {
+diff --git a/src/cmd/compile/internal/types2/testdata/check/builtins.go2 b/src/cmd/compile/internal/types2/testdata/check/builtins.go2
+index 243e888ff7..8376440439 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/builtins.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/builtins.go2
+@@ -78,8 +78,14 @@ func _[T ~string](x []byte, y T) {
+ 
+ func _[T ~[]byte|~string](x T, y []byte) {
+ 	copy(x /* ERROR expects slice arguments */ , y)
+-	// TODO(gri) should this be valid?
+-	copy(y /* ERROR expects slice arguments */ , x)
++	copy(y, x)
++}
++
++type L0 []int
++type L1 []int
++
++func _[T L0 | L1](x, y T) {
++	copy(x, y)
+ }
+ 
+ // delete

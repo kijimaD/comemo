@@ -15,6 +15,19 @@ Date:   Tue Mar 19 01:09:54 2024 +0000
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/go/internal/modget/get.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index d9f0c6ae68..c77321e778 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -1673,7 +1673,6 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
+ 			base.Error(err)
+ 		}
+ 	}
+-	base.ExitIfErrors()
+ }
+ 
+ // reportChanges logs version changes to os.Stderr.

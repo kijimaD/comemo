@@ -15,9 +15,213 @@ Date:   Wed Jul 11 13:51:39 2018 -0700
     Change-Id: I0cea50ba31007d88e70c067b4680009ede69bab9
     Reviewed-on: https://go-review.googlesource.com/123395
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/error.go         | 33 ++++++++++++++++-------------
  src/runtime/iface.go         | 16 ++++++---------
  src/runtime/type.go          | 19 +++++++++++++++++
  test/fixedbugs/issue26094.go | 49 ++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 93 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index 1f77c0a0b5..9a2beaeb95 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -19,32 +19,37 @@ type Error interface {
+ 
+ // A TypeAssertionError explains a failed type assertion.
+ type TypeAssertionError struct {
+-	interfaceString string
+-	concreteString  string
+-	assertedString  string
+-	missingMethod   string // one method needed by Interface, missing from Concrete
++	_interface    *_type
++	concrete      *_type
++	asserted      *_type
++	missingMethod string // one method needed by Interface, missing from Concrete
+ }
+ 
+ func (*TypeAssertionError) RuntimeError() {}
+ 
+ func (e *TypeAssertionError) Error() string {
+-	inter := e.interfaceString
+-	if inter == "" {
+-		inter = "interface"
++	inter := "interface"
++	if e._interface != nil {
++		inter = e._interface.string()
+ 	}
+-	if e.concreteString == "" {
+-		return "interface conversion: " + inter + " is nil, not " + e.assertedString
++	as := e.asserted.string()
++	if e.concrete == nil {
++		return "interface conversion: " + inter + " is nil, not " + as
+ 	}
++	cs := e.concrete.string()
+ 	if e.missingMethod == "" {
+-		msg := "interface conversion: " + inter + " is " + e.concreteString +
+-			", not " + e.assertedString
+-		if e.concreteString == e.assertedString {
++		msg := "interface conversion: " + inter + " is " + cs + ", not " + as
++		if cs == as {
+ 			// provide slightly clearer error message
+-			msg += " (types from different packages)"
++			if e.concrete.pkgpath() != e.asserted.pkgpath() {
++				msg += " (types from different packages)"
++			} else {
++				msg += " (types from different scopes)"
++			}
+ 		}
+ 		return msg
+ 	}
+-	return "interface conversion: " + e.concreteString + " is not " + e.assertedString +
++	return "interface conversion: " + cs + " is not " + as +
+ 		": missing method " + e.missingMethod
+ }
+ 
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 15c412c4e6..7ab731151e 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -41,7 +41,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 			return nil
+ 		}
+ 		name := inter.typ.nameOff(inter.mhdr[0].name)
+-		panic(&TypeAssertionError{"", typ.string(), inter.typ.string(), name.name()})
++		panic(&TypeAssertionError{nil, typ, &inter.typ, name.name()})
+ 	}
+ 
+ 	var m *itab
+@@ -82,7 +82,7 @@ finish:
+ 	// The cached result doesn't record which
+ 	// interface function was missing, so initialize
+ 	// the itab again to get the missing function name.
+-	panic(&TypeAssertionError{concreteString: typ.string(), assertedString: inter.typ.string(), missingMethod: m.init()})
++	panic(&TypeAssertionError{concrete: typ, asserted: &inter.typ, missingMethod: m.init()})
+ }
+ 
+ // find finds the given interface/type pair in t.
+@@ -245,11 +245,7 @@ func itabsinit() {
+ // want = the static type we're trying to convert to.
+ // iface = the static type we're converting from.
+ func panicdottypeE(have, want, iface *_type) {
+-	haveString := ""
+-	if have != nil {
+-		haveString = have.string()
+-	}
+-	panic(&TypeAssertionError{iface.string(), haveString, want.string(), ""})
++	panic(&TypeAssertionError{iface, have, want, ""})
+ }
+ 
+ // panicdottypeI is called when doing an i.(T) conversion and the conversion fails.
+@@ -265,7 +261,7 @@ func panicdottypeI(have *itab, want, iface *_type) {
+ // panicnildottype is called when doing a i.(T) conversion and the interface i is nil.
+ // want = the static type we're trying to convert to.
+ func panicnildottype(want *_type) {
+-	panic(&TypeAssertionError{"", "", want.string(), ""})
++	panic(&TypeAssertionError{nil, nil, want, ""})
+ 	// TODO: Add the static type we're converting from as well.
+ 	// It might generate a better error message.
+ 	// Just to match other nil conversion errors, we don't for now.
+@@ -516,7 +512,7 @@ func assertI2I(inter *interfacetype, i iface) (r iface) {
+ 	tab := i.tab
+ 	if tab == nil {
+ 		// explicit conversions require non-nil interface value.
+-		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
++		panic(&TypeAssertionError{nil, nil, &inter.typ, ""})
+ 	}
+ 	if tab.inter == inter {
+ 		r.tab = tab
+@@ -549,7 +545,7 @@ func assertE2I(inter *interfacetype, e eface) (r iface) {
+ 	t := e._type
+ 	if t == nil {
+ 		// explicit conversions require non-nil interface value.
+-		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
++		panic(&TypeAssertionError{nil, nil, &inter.typ, ""})
+ 	}
+ 	r.tab = getitab(inter, t, false)
+ 	r.data = e.data
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index d87d6e1507..4b38c351c7 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -131,6 +131,25 @@ func (t *_type) name() string {
+ 	return s[i+1:]
+ }
+ 
++// pkgpath returns the path of the package where t was defined, if
++// available. This is not the same as the reflect package's PkgPath
++// method, in that it returns the package path for struct and interface
++// types, not just named types.
++func (t *_type) pkgpath() string {
++	if u := t.uncommon(); u != nil {
++		return t.nameOff(u.pkgpath).name()
++	}
++	switch t.kind & kindMask {
++	case kindStruct:
++		st := (*structtype)(unsafe.Pointer(t))
++		return st.pkgPath.name()
++	case kindInterface:
++		it := (*interfacetype)(unsafe.Pointer(t))
++		return it.pkgpath.name()
++	}
++	return ""
++}
++
+ // reflectOffs holds type offsets defined at run time by the reflect package.
+ //
+ // When a type is defined at run time, its *rtype data lives on the heap.
+diff --git a/test/fixedbugs/issue26094.go b/test/fixedbugs/issue26094.go
+new file mode 100644
+index 0000000000..7af8fac6b3
+--- /dev/null
++++ b/test/fixedbugs/issue26094.go
+@@ -0,0 +1,49 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "strings"
++
++var X interface{}
++
++type T struct{}
++
++func scopes() {
++	p, ok := recover().(error)
++	if ok && strings.Contains(p.Error(), "different scopes") {
++		return
++	}
++	panic(p)
++}
++
++func F1() {
++	type T struct{}
++	X = T{}
++}
++
++func F2() {
++	type T struct{}
++	defer scopes()
++	_ = X.(T)
++}
++
++func F3() {
++	defer scopes()
++	_ = X.(T)
++}
++
++func F4() {
++	X = T{}
++}
++
++func main() {
++	F1() // set X to F1's T
++	F2() // check that X is not F2's T
++	F3() // check that X is not package T
++	F4() // set X to package T
++	F2() // check that X is not F2's T
++}

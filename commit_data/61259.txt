@@ -15,6 +15,22 @@ Date:   Wed Oct 23 11:33:13 2024 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/next/7-ports.md | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/next/7-ports.md b/doc/next/7-ports.md
+index 2b564bf889..b8631378e8 100644
+--- a/doc/next/7-ports.md
++++ b/doc/next/7-ports.md
+@@ -1,5 +1,10 @@
+ ## Ports {#ports}
+ 
++### Linux {#linux}
++
++As [announced](go1.23#linux) in the Go 1.23 release notes, Go 1.24 requires Linux
++kernel version 3.2 or later.
++
+ ### WebAssembly {#wasm}
+ 
+ The support files for WebAssembly have been moved to `lib/wasm` from `misc/wasm`.

@@ -12,6 +12,20 @@ Date:   Fri Nov 10 16:05:07 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/trace/v2/trace_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/internal/trace/v2/trace_test.go b/src/internal/trace/v2/trace_test.go
+index af0d639dc8..7823b01e93 100644
+--- a/src/internal/trace/v2/trace_test.go
++++ b/src/internal/trace/v2/trace_test.go
+@@ -85,6 +85,8 @@ func TestTraceAnnotationsStress(t *testing.T) {
+ }
+ 
+ func TestTraceCgoCallback(t *testing.T) {
++	testenv.MustHaveCGO(t)
++
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+ 		t.Skipf("cgo callback test requires pthreads and is not supported on %s", runtime.GOOS)

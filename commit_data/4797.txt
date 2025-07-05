@@ -7,7 +7,88 @@ Date:   Fri Feb 5 02:39:33 2010 -0800
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/198049
-
+---
  src/pkg/path/path.go      | 14 ++++++++------
  src/pkg/path/path_test.go | 36 ++++++++++++++++++++++++++----------
  2 files changed, 34 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index e03f2ecf60..c45f77be55 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -115,13 +115,15 @@ func Split(path string) (dir, file string) {
+ 	return "", path
+ }
+ 
+-// Join joins dir and file into a single path, adding a separating
+-// slash if necessary.  If dir is empty, it returns file.
+-func Join(dir, file string) string {
+-	if dir == "" {
+-		return file
++// Join joins any number of path elemets into a single path, adding a
++// separating slash if necessary.  All empty strings are ignored.
++func Join(elem ...string) string {
++	for i, e := range elem {
++		if e != "" {
++			return Clean(strings.Join(elem[i:], "/"))
++		}
+ 	}
+-	return Clean(dir + "/" + file)
++	return ""
+ }
+ 
+ // Ext returns the file name extension used by path.
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index 296712e522..cd5978c156 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -92,23 +92,39 @@ func TestSplit(t *testing.T) {
+ }
+ 
+ type JoinTest struct {
+-	dir, file, path string
++	elem []string
++	path string
+ }
+ 
+ var jointests = []JoinTest{
+-	JoinTest{"a", "b", "a/b"},
+-	JoinTest{"a", "", "a"},
+-	JoinTest{"", "b", "b"},
+-	JoinTest{"/", "a", "/a"},
+-	JoinTest{"/", "", "/"},
+-	JoinTest{"a/", "b", "a/b"},
+-	JoinTest{"a/", "", "a"},
++	// zero parameters
++	JoinTest{[]string{}, ""},
++
++	// one parameter
++	JoinTest{[]string{""}, ""},
++	JoinTest{[]string{"a"}, "a"},
++
++	// two parameters
++	JoinTest{[]string{"a", "b"}, "a/b"},
++	JoinTest{[]string{"a", ""}, "a"},
++	JoinTest{[]string{"", "b"}, "b"},
++	JoinTest{[]string{"/", "a"}, "/a"},
++	JoinTest{[]string{"/", ""}, "/"},
++	JoinTest{[]string{"a/", "b"}, "a/b"},
++	JoinTest{[]string{"a/", ""}, "a"},
++	JoinTest{[]string{"", ""}, ""},
++}
++
++// join takes a []string and passes it to Join.
++func join(elem []string, args ...string) string {
++	args = elem
++	return Join(args)
+ }
+ 
+ func TestJoin(t *testing.T) {
+ 	for _, test := range jointests {
+-		if p := Join(test.dir, test.file); p != test.path {
+-			t.Errorf("Join(%q, %q) = %q, want %q", test.dir, test.file, p, test.path)
++		if p := join(test.elem); p != test.path {
++			t.Errorf("join(%q) = %q, want %q", test.elem, p, test.path)
+ 		}
+ 	}
+ }

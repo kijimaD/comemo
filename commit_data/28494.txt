@@ -12,8 +12,159 @@ Date:   Mon May 23 17:43:09 2016 -0700
     Change-Id: I0751befb222c86d46225377a674f6bad2990349e
     Reviewed-on: https://go-review.googlesource.com/23442
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/api_test.go  | 41 +++++++++++++++++++++++++++++++++++++++++
  src/go/types/initorder.go | 45 +++++++++++++++++++++++++++++++++------------
  src/go/types/resolver.go  |  2 +-
  3 files changed, 75 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 8b8ae1bb5d..035ffd6f39 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -572,6 +572,47 @@ func TestInitOrderInfo(t *testing.T) {
+ 		`, []string{
+ 			"a = next()", "b = next()", "c = next()", "d = next()", "e = next()", "f = next()", "_ = makeOrder()",
+ 		}},
++		// test case for issue 10709
++		// TODO(gri) enable once the issue is fixed
++		// {`package p13
++
++		// var (
++		//     v = t.m()
++		//     t = makeT(0)
++		// )
++
++		// type T struct{}
++
++		// func (T) m() int { return 0 }
++
++		// func makeT(n int) T {
++		//     if n > 0 {
++		//         return makeT(n-1)
++		//     }
++		//     return T{}
++		// }`, []string{
++		// 	"t = makeT(0)", "v = t.m()",
++		// }},
++		// test case for issue 10709: same as test before, but variable decls swapped
++		{`package p14
++
++		var (
++		    t = makeT(0)
++		    v = t.m()
++		)
++
++		type T struct{}
++
++		func (T) m() int { return 0 }
++
++		func makeT(n int) T {
++		    if n > 0 {
++		        return makeT(n-1)
++		    }
++		    return T{}
++		}`, []string{
++			"t = makeT(0)", "v = t.m()",
++		}},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/go/types/initorder.go b/src/go/types/initorder.go
+index ac9016b46e..cf9b8709d8 100644
+--- a/src/go/types/initorder.go
++++ b/src/go/types/initorder.go
+@@ -15,25 +15,40 @@ func (check *Checker) initOrder() {
+ 	// built from several calls to (*Checker).Files. Clear it.
+ 	check.Info.InitOrder = check.Info.InitOrder[:0]
+ 
+-	// compute the object dependency graph and
+-	// initialize a priority queue with the list
+-	// of graph nodes
++	// Compute the transposed object dependency graph and initialize
++	// a priority queue with the list of graph nodes.
+ 	pq := nodeQueue(dependencyGraph(check.objMap))
+ 	heap.Init(&pq)
+ 
+ 	const debug = false
+ 	if debug {
+-		fmt.Printf("package %s: object dependency graph\n", check.pkg.Name())
++		fmt.Printf("Computing initialization order for %s\n\n", check.pkg)
++		fmt.Println("Object dependency graph:")
++		for obj, d := range check.objMap {
++			if len(d.deps) > 0 {
++				fmt.Printf("\t%s depends on\n", obj.Name())
++				for dep := range d.deps {
++					fmt.Printf("\t\t%s\n", dep.Name())
++				}
++			} else {
++				fmt.Printf("\t%s has no dependencies\n", obj.Name())
++			}
++		}
++		fmt.Println()
++
++		fmt.Println("Transposed object dependency graph:")
+ 		for _, n := range pq {
+-			for _, o := range n.out {
+-				fmt.Printf("\t%s -> %s\n", n.obj.Name(), o.obj.Name())
++			fmt.Printf("\t%s depends on %d nodes\n", n.obj.Name(), n.in)
++			for _, out := range n.out {
++				fmt.Printf("\t\t%s is dependent\n", out.obj.Name())
+ 			}
+ 		}
+ 		fmt.Println()
+-		fmt.Printf("package %s: initialization order\n", check.pkg.Name())
++
++		fmt.Println("Processing nodes:")
+ 	}
+ 
+-	// determine initialization order by removing the highest priority node
++	// Determine initialization order by removing the highest priority node
+ 	// (the one with the fewest dependencies) and its edges from the graph,
+ 	// repeatedly, until there are no nodes left.
+ 	// In a valid Go program, those nodes always have zero dependencies (after
+@@ -45,6 +60,11 @@ func (check *Checker) initOrder() {
+ 		// get the next node
+ 		n := heap.Pop(&pq).(*objNode)
+ 
++		if debug {
++			fmt.Printf("\t%s (src pos %d) depends on %d nodes now\n",
++				n.obj.Name(), n.obj.order(), n.in)
++		}
++
+ 		// if n still depends on other nodes, we have a cycle
+ 		if n.in > 0 {
+ 			mark++ // mark nodes using a different value each time
+@@ -86,14 +106,15 @@ func (check *Checker) initOrder() {
+ 		}
+ 		init := &Initializer{infoLhs, info.init}
+ 		check.Info.InitOrder = append(check.Info.InitOrder, init)
+-
+-		if debug {
+-			fmt.Printf("\t%s\n", init)
+-		}
+ 	}
+ 
+ 	if debug {
+ 		fmt.Println()
++		fmt.Println("Initialization order:")
++		for _, init := range check.Info.InitOrder {
++			fmt.Printf("\t%s\n", init)
++		}
++		fmt.Println()
+ 	}
+ }
+ 
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 992188f0ff..cb8e72e4a6 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -32,7 +32,7 @@ func (d *declInfo) hasInitializer() bool {
+ 	return d.init != nil || d.fdecl != nil && d.fdecl.Body != nil
+ }
+ 
+-// addDep adds obj as a dependency to d.
++// addDep adds obj to the set of objects d's init expression depends on.
+ func (d *declInfo) addDep(obj Object) {
+ 	m := d.deps
+ 	if m == nil {

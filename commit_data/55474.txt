@@ -20,7 +20,7 @@ Date:   Wed Feb 8 16:51:58 2023 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/infer.go  | 19 +++++++--------
  src/cmd/compile/internal/types2/infer2.go | 40 ++++++++++++++++++-------------
  src/cmd/compile/internal/types2/unify.go  | 25 ++++++++-----------
@@ -28,3 +28,408 @@ Date:   Wed Feb 8 16:51:58 2023 -0800
  src/go/types/infer2.go                    | 40 ++++++++++++++++++-------------
  src/go/types/unify.go                     | 25 ++++++++-----------
  6 files changed, 86 insertions(+), 82 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 6bf7c55434..7be647fdd3 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -91,8 +91,8 @@ func (check *Checker) infer1(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 			return
+ 		}
+ 		// provide a better error message if we can
+-		targs, index := u.inferred()
+-		if index == 0 {
++		targs := u.inferred(tparams)
++		if targs[0] == nil {
+ 			// The first type parameter couldn't be inferred.
+ 			// If none of them could be inferred, don't try
+ 			// to provide the inferred type in the error msg.
+@@ -156,9 +156,8 @@ func (check *Checker) infer1(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	}
+ 
+ 	// If we've got all type arguments, we're done.
+-	var index int
+-	targs, index = u.inferred()
+-	if index < 0 {
++	targs = u.inferred(tparams)
++	if u.unknowns() == 0 {
+ 		return targs
+ 	}
+ 
+@@ -166,7 +165,7 @@ func (check *Checker) infer1(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	// See how far we get with constraint type inference.
+ 	// Note that even if we don't have any type arguments, constraint type inference
+ 	// may produce results for constraints that explicitly specify a type.
+-	targs, index = check.inferB(tparams, targs)
++	targs, index := check.inferB(tparams, targs)
+ 	if targs == nil || index < 0 {
+ 		return targs
+ 	}
+@@ -193,8 +192,8 @@ func (check *Checker) infer1(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	}
+ 
+ 	// If we've got all type arguments, we're done.
+-	targs, index = u.inferred()
+-	if index < 0 {
++	targs = u.inferred(tparams)
++	if u.unknowns() == 0 {
+ 		return targs
+ 	}
+ 
+@@ -496,14 +495,14 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 		n = nn
+ 	}
+ 
+-	// u.inferred() now contains the incoming type arguments plus any additional type
++	// u.inferred(tparams) now contains the incoming type arguments plus any additional type
+ 	// arguments which were inferred from core terms. The newly inferred non-nil
+ 	// entries may still contain references to other type parameters.
+ 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
+ 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
+ 	// remaining type parameters by substituting the type parameters in this type list
+ 	// until nothing changes anymore.
+-	types, _ = u.inferred()
++	types = u.inferred(tparams)
+ 	if debug {
+ 		for i, targ := range targs {
+ 			assert(targ == nil || types[i] == targ)
+diff --git a/src/cmd/compile/internal/types2/infer2.go b/src/cmd/compile/internal/types2/infer2.go
+index f8a96c9cd8..b322676adf 100644
+--- a/src/cmd/compile/internal/types2/infer2.go
++++ b/src/cmd/compile/internal/types2/infer2.go
+@@ -11,6 +11,10 @@ import (
+ 	. "internal/types/errors"
+ )
+ 
++// If compareWithInfer1, infer2 results must match infer1 results.
++// Disable before releasing Go 1.21.
++const compareWithInfer1 = true
++
+ // infer attempts to infer the complete set of type arguments for generic function instantiation/call
+ // based on the given type parameters tparams, type arguments targs, function parameters params, and
+ // function arguments args, if any. There must be at least one type parameter, no more type arguments
+@@ -19,18 +23,22 @@ import (
+ // type parameter. Otherwise the result is nil and appropriate errors will be reported.
+ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) []Type {
+ 	r2 := check.infer2(pos, tparams, targs, params, args)
+-	r1 := check.infer1(pos, tparams, targs, params, args, r2 == nil) // be silent on errors if infer2 failed
+-	assert(len(r2) == len(r1))
+-	for i, targ2 := range r2 {
+-		targ1 := r1[i]
+-		var c comparer
+-		c.ignoreInvalids = true
+-		if !c.identical(targ2, targ1, nil) {
+-			tpar := tparams[i]
+-			check.dump("%v: type argument for %s: infer1: %s, infer2: %s", tpar.Obj().Pos(), tpar, targ1, targ2)
+-			panic("inconsistent type inference")
++
++	if compareWithInfer1 {
++		r1 := check.infer1(pos, tparams, targs, params, args, r2 == nil) // be silent on errors if infer2 failed
++		assert(len(r2) == len(r1))
++		for i, targ2 := range r2 {
++			targ1 := r1[i]
++			var c comparer
++			c.ignoreInvalids = true
++			if !c.identical(targ2, targ1, nil) {
++				tpar := tparams[i]
++				check.dump("%v: type argument for %s: infer1: %s, infer2: %s", tpar.Obj().Pos(), tpar, targ1, targ2)
++				panic("inconsistent type inference")
++			}
+ 		}
+ 	}
++
+ 	return r2
+ }
+ 
+@@ -99,8 +107,8 @@ func (check *Checker) infer2(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 
+ 	errorf := func(kind string, tpar, targ Type, arg *operand) {
+ 		// provide a better error message if we can
+-		targs, index := u.inferred()
+-		if index == 0 {
++		targs := u.inferred(tparams)
++		if targs[0] == nil {
+ 			// The first type parameter couldn't be inferred.
+ 			// If none of them could be inferred, don't try
+ 			// to provide the inferred type in the error msg.
+@@ -170,7 +178,7 @@ func (check *Checker) infer2(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	}
+ 
+ 	if traceInference {
+-		inferred, _ := u.inferred()
++		inferred := u.inferred(tparams)
+ 		u.tracef("=> %s ➞ %s\n", tparams, inferred)
+ 	}
+ 
+@@ -261,7 +269,7 @@ func (check *Checker) infer2(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	}
+ 
+ 	if traceInference {
+-		inferred, _ := u.inferred()
++		inferred := u.inferred(tparams)
+ 		u.tracef("=> %s ➞ %s\n", tparams, inferred)
+ 	}
+ 
+@@ -302,14 +310,14 @@ func (check *Checker) infer2(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 
+ 	// --- simplify ---
+ 
+-	// u.inferred() now contains the incoming type arguments plus any additional type
++	// u.inferred(tparams) now contains the incoming type arguments plus any additional type
+ 	// arguments which were inferred. The inferred non-nil entries may still contain
+ 	// references to other type parameters found in constraints.
+ 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
+ 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
+ 	// remaining type parameters by substituting the type parameters in this type list
+ 	// until nothing changes anymore.
+-	inferred, _ = u.inferred()
++	inferred = u.inferred(tparams)
+ 	if debug {
+ 		for i, targ := range targs {
+ 			assert(targ == nil || inferred[i] == targ)
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index e73fd8045b..fd9c71b1ec 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -41,7 +41,7 @@ const (
+ // A unifier is created by calling newUnifier.
+ type unifier struct {
+ 	// tparams is the initial list of type parameters provided.
+-	// Only used to print/return types in reproducible order.
++	// Only used to print types in reproducible order.
+ 	tparams []*TypeParam
+ 	// handles maps each type parameter to its inferred type through
+ 	// an indirection *Type called (inferred type) "handle".
+@@ -181,21 +181,16 @@ func (u *unifier) unknowns() int {
+ 	return n
+ }
+ 
+-// inferred returns the list of inferred types (via unification) for the type parameters
+-// recorded with u, and an index. If all types were inferred, the returned index is < 0.
+-// Otherwise, it is the index of the first type parameter which couldn't be inferred;
+-// i.e., for which list[index] is nil.
+-func (u *unifier) inferred() (list []Type, index int) {
+-	list = make([]Type, len(u.tparams))
+-	index = -1
+-	for i, x := range u.tparams {
+-		t := u.at(x)
+-		list[i] = t
+-		if index < 0 && t == nil {
+-			index = i
+-		}
++// inferred returns the list of inferred types for the given type parameter list.
++// The result is never nil and has the same length as tparams; result types that
++// could not be inferred are nil. Corresponding type parameters and result types
++// have identical indices.
++func (u *unifier) inferred(tparams []*TypeParam) []Type {
++	list := make([]Type, len(tparams))
++	for i, x := range tparams {
++		list[i] = u.at(x)
+ 	}
+-	return
++	return list
+ }
+ 
+ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index a65cdce840..089ba0cc25 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -93,8 +93,8 @@ func (check *Checker) infer1(posn positioner, tparams []*TypeParam, targs []Type
+ 			return
+ 		}
+ 		// provide a better error message if we can
+-		targs, index := u.inferred()
+-		if index == 0 {
++		targs := u.inferred(tparams)
++		if targs[0] == nil {
+ 			// The first type parameter couldn't be inferred.
+ 			// If none of them could be inferred, don't try
+ 			// to provide the inferred type in the error msg.
+@@ -158,9 +158,8 @@ func (check *Checker) infer1(posn positioner, tparams []*TypeParam, targs []Type
+ 	}
+ 
+ 	// If we've got all type arguments, we're done.
+-	var index int
+-	targs, index = u.inferred()
+-	if index < 0 {
++	targs = u.inferred(tparams)
++	if u.unknowns() == 0 {
+ 		return targs
+ 	}
+ 
+@@ -168,7 +167,7 @@ func (check *Checker) infer1(posn positioner, tparams []*TypeParam, targs []Type
+ 	// See how far we get with constraint type inference.
+ 	// Note that even if we don't have any type arguments, constraint type inference
+ 	// may produce results for constraints that explicitly specify a type.
+-	targs, index = check.inferB(tparams, targs)
++	targs, index := check.inferB(tparams, targs)
+ 	if targs == nil || index < 0 {
+ 		return targs
+ 	}
+@@ -195,8 +194,8 @@ func (check *Checker) infer1(posn positioner, tparams []*TypeParam, targs []Type
+ 	}
+ 
+ 	// If we've got all type arguments, we're done.
+-	targs, index = u.inferred()
+-	if index < 0 {
++	targs = u.inferred(tparams)
++	if u.unknowns() == 0 {
+ 		return targs
+ 	}
+ 
+@@ -498,14 +497,14 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 		n = nn
+ 	}
+ 
+-	// u.inferred() now contains the incoming type arguments plus any additional type
++	// u.inferred(tparams) now contains the incoming type arguments plus any additional type
+ 	// arguments which were inferred from core terms. The newly inferred non-nil
+ 	// entries may still contain references to other type parameters.
+ 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
+ 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
+ 	// remaining type parameters by substituting the type parameters in this type list
+ 	// until nothing changes anymore.
+-	types, _ = u.inferred()
++	types = u.inferred(tparams)
+ 	if debug {
+ 		for i, targ := range targs {
+ 			assert(targ == nil || types[i] == targ)
+diff --git a/src/go/types/infer2.go b/src/go/types/infer2.go
+index d763e3b7ae..d0471832e0 100644
+--- a/src/go/types/infer2.go
++++ b/src/go/types/infer2.go
+@@ -13,6 +13,10 @@ import (
+ 	. "internal/types/errors"
+ )
+ 
++// If compareWithInfer1, infer2 results must match infer1 results.
++// Disable before releasing Go 1.21.
++const compareWithInfer1 = true
++
+ // infer attempts to infer the complete set of type arguments for generic function instantiation/call
+ // based on the given type parameters tparams, type arguments targs, function parameters params, and
+ // function arguments args, if any. There must be at least one type parameter, no more type arguments
+@@ -21,18 +25,22 @@ import (
+ // type parameter. Otherwise the result is nil and appropriate errors will be reported.
+ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) []Type {
+ 	r2 := check.infer2(posn, tparams, targs, params, args)
+-	r1 := check.infer1(posn, tparams, targs, params, args, r2 == nil) // be silent on errors if infer2 failed
+-	assert(len(r2) == len(r1))
+-	for i, targ2 := range r2 {
+-		targ1 := r1[i]
+-		var c comparer
+-		c.ignoreInvalids = true
+-		if !c.identical(targ2, targ1, nil) {
+-			tpar := tparams[i]
+-			check.dump("%v: type argument for %s: infer1: %s, infer2: %s", tpar.Obj().Pos(), tpar, targ1, targ2)
+-			panic("inconsistent type inference")
++
++	if compareWithInfer1 {
++		r1 := check.infer1(posn, tparams, targs, params, args, r2 == nil) // be silent on errors if infer2 failed
++		assert(len(r2) == len(r1))
++		for i, targ2 := range r2 {
++			targ1 := r1[i]
++			var c comparer
++			c.ignoreInvalids = true
++			if !c.identical(targ2, targ1, nil) {
++				tpar := tparams[i]
++				check.dump("%v: type argument for %s: infer1: %s, infer2: %s", tpar.Obj().Pos(), tpar, targ1, targ2)
++				panic("inconsistent type inference")
++			}
+ 		}
+ 	}
++
+ 	return r2
+ }
+ 
+@@ -101,8 +109,8 @@ func (check *Checker) infer2(posn positioner, tparams []*TypeParam, targs []Type
+ 
+ 	errorf := func(kind string, tpar, targ Type, arg *operand) {
+ 		// provide a better error message if we can
+-		targs, index := u.inferred()
+-		if index == 0 {
++		targs := u.inferred(tparams)
++		if targs[0] == nil {
+ 			// The first type parameter couldn't be inferred.
+ 			// If none of them could be inferred, don't try
+ 			// to provide the inferred type in the error msg.
+@@ -172,7 +180,7 @@ func (check *Checker) infer2(posn positioner, tparams []*TypeParam, targs []Type
+ 	}
+ 
+ 	if traceInference {
+-		inferred, _ := u.inferred()
++		inferred := u.inferred(tparams)
+ 		u.tracef("=> %s ➞ %s\n", tparams, inferred)
+ 	}
+ 
+@@ -263,7 +271,7 @@ func (check *Checker) infer2(posn positioner, tparams []*TypeParam, targs []Type
+ 	}
+ 
+ 	if traceInference {
+-		inferred, _ := u.inferred()
++		inferred := u.inferred(tparams)
+ 		u.tracef("=> %s ➞ %s\n", tparams, inferred)
+ 	}
+ 
+@@ -304,14 +312,14 @@ func (check *Checker) infer2(posn positioner, tparams []*TypeParam, targs []Type
+ 
+ 	// --- simplify ---
+ 
+-	// u.inferred() now contains the incoming type arguments plus any additional type
++	// u.inferred(tparams) now contains the incoming type arguments plus any additional type
+ 	// arguments which were inferred. The inferred non-nil entries may still contain
+ 	// references to other type parameters found in constraints.
+ 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
+ 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
+ 	// remaining type parameters by substituting the type parameters in this type list
+ 	// until nothing changes anymore.
+-	inferred, _ = u.inferred()
++	inferred = u.inferred(tparams)
+ 	if debug {
+ 		for i, targ := range targs {
+ 			assert(targ == nil || inferred[i] == targ)
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 2e341b3807..863a5c1093 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -43,7 +43,7 @@ const (
+ // A unifier is created by calling newUnifier.
+ type unifier struct {
+ 	// tparams is the initial list of type parameters provided.
+-	// Only used to print/return types in reproducible order.
++	// Only used to print types in reproducible order.
+ 	tparams []*TypeParam
+ 	// handles maps each type parameter to its inferred type through
+ 	// an indirection *Type called (inferred type) "handle".
+@@ -183,21 +183,16 @@ func (u *unifier) unknowns() int {
+ 	return n
+ }
+ 
+-// inferred returns the list of inferred types (via unification) for the type parameters
+-// recorded with u, and an index. If all types were inferred, the returned index is < 0.
+-// Otherwise, it is the index of the first type parameter which couldn't be inferred;
+-// i.e., for which list[index] is nil.
+-func (u *unifier) inferred() (list []Type, index int) {
+-	list = make([]Type, len(u.tparams))
+-	index = -1
+-	for i, x := range u.tparams {
+-		t := u.at(x)
+-		list[i] = t
+-		if index < 0 && t == nil {
+-			index = i
+-		}
++// inferred returns the list of inferred types for the given type parameter list.
++// The result is never nil and has the same length as tparams; result types that
++// could not be inferred are nil. Corresponding type parameters and result types
++// have identical indices.
++func (u *unifier) inferred(tparams []*TypeParam) []Type {
++	list := make([]Type, len(tparams))
++	for i, x := range tparams {
++		list[i] = u.at(x)
+ 	}
+-	return
++	return list
+ }
+ 
+ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {

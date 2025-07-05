@@ -5133,3 +5133,509 @@ Date:   Fri May 14 10:40:29 2021 -0400
  test/used.go                                       |   165 +-
  test/varerr.go                                     |     2 +-
  3553 files changed, 173139 insertions(+), 67459 deletions(-)
+
+diff --cc api/next.txt
+index e7d6bee824,9e996005c6..564f672c69
+--- a/api/next.txt
++++ b/api/next.txt
+@@@ -1,33 -1,99 +1,133 @@@
++ pkg compress/lzw, method (*Reader) Close() error
++ pkg compress/lzw, method (*Reader) Read([]uint8) (int, error)
++ pkg compress/lzw, method (*Reader) Reset(io.Reader, Order, int)
++ pkg compress/lzw, method (*Writer) Close() error
++ pkg compress/lzw, method (*Writer) Reset(io.Writer, Order, int)
++ pkg compress/lzw, method (*Writer) Write([]uint8) (int, error)
++ pkg compress/lzw, type Reader struct
++ pkg compress/lzw, type Writer struct
++ pkg crypto/tls, method (*CertificateRequestInfo) Context() context.Context
++ pkg crypto/tls, method (*ClientHelloInfo) Context() context.Context
++ pkg crypto/tls, method (*Conn) HandshakeContext(context.Context) error
++ pkg debug/elf, const SHT_MIPS_ABIFLAGS = 1879048234
++ pkg debug/elf, const SHT_MIPS_ABIFLAGS SectionType
++ pkg encoding/csv, method (*Reader) FieldPos(int) (int, int)
++ pkg go/ast, method (*FuncDecl) IsMethod() bool
++ pkg go/build, type Context struct, ToolTags []string
++ pkg go/parser, const SkipObjectResolution = 64
++ pkg go/parser, const SkipObjectResolution Mode
++ pkg go/types, type Config struct, GoVersion string
++ pkg io/fs, func FileInfoToDirEntry(FileInfo) DirEntry
++ pkg net, method (*ParseError) Temporary() bool
++ pkg net, method (*ParseError) Timeout() bool
++ pkg net, method (IP) IsPrivate() bool
++ pkg reflect, func VisibleFields(Type) []StructField
++ pkg reflect, method (Method) IsExported() bool
++ pkg reflect, method (StructField) IsExported() bool
++ pkg runtime/cgo (darwin-amd64-cgo), func NewHandle(interface{}) Handle
++ pkg runtime/cgo (darwin-amd64-cgo), method (Handle) Delete()
++ pkg runtime/cgo (darwin-amd64-cgo), method (Handle) Value() interface{}
++ pkg runtime/cgo (darwin-amd64-cgo), type Handle uintptr
++ pkg runtime/cgo (freebsd-386-cgo), func NewHandle(interface{}) Handle
++ pkg runtime/cgo (freebsd-386-cgo), method (Handle) Delete()
++ pkg runtime/cgo (freebsd-386-cgo), method (Handle) Value() interface{}
++ pkg runtime/cgo (freebsd-386-cgo), type Handle uintptr
++ pkg runtime/cgo (freebsd-amd64-cgo), func NewHandle(interface{}) Handle
++ pkg runtime/cgo (freebsd-amd64-cgo), method (Handle) Delete()
++ pkg runtime/cgo (freebsd-amd64-cgo), method (Handle) Value() interface{}
++ pkg runtime/cgo (freebsd-amd64-cgo), type Handle uintptr
++ pkg runtime/cgo (freebsd-arm-cgo), func NewHandle(interface{}) Handle
++ pkg runtime/cgo (freebsd-arm-cgo), method (Handle) Delete()
++ pkg runtime/cgo (freebsd-arm-cgo), method (Handle) Value() interface{}
++ pkg runtime/cgo (freebsd-arm-cgo), type Handle uintptr
++ pkg runtime/cgo (linux-386-cgo), func NewHandle(interface{}) Handle
++ pkg runtime/cgo (linux-386-cgo), method (Handle) Delete()
++ pkg runtime/cgo (linux-386-cgo), method (Handle) Value() interface{}
++ pkg runtime/cgo (linux-386-cgo), type Handle uintptr
++ pkg runtime/cgo (linux-amd64-cgo), func NewHandle(interface{}) Handle
++ pkg runtime/cgo (linux-amd64-cgo), method (Handle) Delete()
++ pkg runtime/cgo (linux-amd64-cgo), method (Handle) Value() interface{}
++ pkg runtime/cgo (linux-amd64-cgo), type Handle uintptr
++ pkg runtime/cgo (linux-arm-cgo), func NewHandle(interface{}) Handle
++ pkg runtime/cgo (linux-arm-cgo), method (Handle) Delete()
++ pkg runtime/cgo (linux-arm-cgo), method (Handle) Value() interface{}
++ pkg runtime/cgo (linux-arm-cgo), type Handle uintptr
++ pkg runtime/cgo (netbsd-386-cgo), func NewHandle(interface{}) Handle
++ pkg runtime/cgo (netbsd-386-cgo), method (Handle) Delete()
++ pkg runtime/cgo (netbsd-386-cgo), method (Handle) Value() interface{}
++ pkg runtime/cgo (netbsd-386-cgo), type Handle uintptr
++ pkg runtime/cgo (netbsd-amd64-cgo), func NewHandle(interface{}) Handle
++ pkg runtime/cgo (netbsd-amd64-cgo), method (Handle) Delete()
++ pkg runtime/cgo (netbsd-amd64-cgo), method (Handle) Value() interface{}
++ pkg runtime/cgo (netbsd-amd64-cgo), type Handle uintptr
++ pkg runtime/cgo (netbsd-arm-cgo), func NewHandle(interface{}) Handle
++ pkg runtime/cgo (netbsd-arm-cgo), method (Handle) Delete()
++ pkg runtime/cgo (netbsd-arm-cgo), method (Handle) Value() interface{}
++ pkg runtime/cgo (netbsd-arm-cgo), type Handle uintptr
++ pkg runtime/cgo (netbsd-arm64-cgo), func NewHandle(interface{}) Handle
++ pkg runtime/cgo (netbsd-arm64-cgo), method (Handle) Delete()
++ pkg runtime/cgo (netbsd-arm64-cgo), method (Handle) Value() interface{}
++ pkg runtime/cgo (netbsd-arm64-cgo), type Handle uintptr
++ pkg runtime/cgo (openbsd-386-cgo), func NewHandle(interface{}) Handle
++ pkg runtime/cgo (openbsd-386-cgo), method (Handle) Delete()
++ pkg runtime/cgo (openbsd-386-cgo), method (Handle) Value() interface{}
++ pkg runtime/cgo (openbsd-386-cgo), type Handle uintptr
++ pkg runtime/cgo (openbsd-amd64-cgo), func NewHandle(interface{}) Handle
++ pkg runtime/cgo (openbsd-amd64-cgo), method (Handle) Delete()
++ pkg runtime/cgo (openbsd-amd64-cgo), method (Handle) Value() interface{}
++ pkg runtime/cgo (openbsd-amd64-cgo), type Handle uintptr
++ pkg syscall (openbsd-386), const MSG_CMSG_CLOEXEC = 2048
++ pkg syscall (openbsd-386), const MSG_CMSG_CLOEXEC ideal-int
++ pkg syscall (openbsd-386-cgo), const MSG_CMSG_CLOEXEC = 2048
++ pkg syscall (openbsd-386-cgo), const MSG_CMSG_CLOEXEC ideal-int
++ pkg syscall (openbsd-amd64), const MSG_CMSG_CLOEXEC = 2048
++ pkg syscall (openbsd-amd64), const MSG_CMSG_CLOEXEC ideal-int
++ pkg syscall (openbsd-amd64-cgo), const MSG_CMSG_CLOEXEC = 2048
++ pkg syscall (openbsd-amd64-cgo), const MSG_CMSG_CLOEXEC ideal-int
++ pkg syscall (windows-386), type SysProcAttr struct, AdditionalInheritedHandles []Handle
++ pkg syscall (windows-386), type SysProcAttr struct, ParentProcess Handle
++ pkg syscall (windows-amd64), type SysProcAttr struct, AdditionalInheritedHandles []Handle
++ pkg syscall (windows-amd64), type SysProcAttr struct, ParentProcess Handle
++ pkg testing, method (*B) Setenv(string, string)
+ +pkg testing, func Fuzz(func(*F)) FuzzResult
+ +pkg testing, func MainStart(testDeps, []InternalTest, []InternalBenchmark, []InternalFuzzTarget, []InternalExample) *M
+ +pkg testing, func RunFuzzTargets(func(string, string) (bool, error), []InternalFuzzTarget) bool
+ +pkg testing, func RunFuzzing(func(string, string) (bool, error), []InternalFuzzTarget) bool
+ +pkg testing, method (*F) Add(...interface{})
+ +pkg testing, method (*F) Cleanup(func())
+ +pkg testing, method (*F) Error(...interface{})
+ +pkg testing, method (*F) Errorf(string, ...interface{})
+ +pkg testing, method (*F) Fail()
+ +pkg testing, method (*F) FailNow()
+ +pkg testing, method (*F) Failed() bool
+ +pkg testing, method (*F) Fatal(...interface{})
+ +pkg testing, method (*F) Fatalf(string, ...interface{})
+ +pkg testing, method (*F) Fuzz(interface{})
+ +pkg testing, method (*F) Helper()
+ +pkg testing, method (*F) Log(...interface{})
+ +pkg testing, method (*F) Logf(string, ...interface{})
+ +pkg testing, method (*F) Name() string
+ +pkg testing, method (*F) Skip(...interface{})
+ +pkg testing, method (*F) SkipNow()
+ +pkg testing, method (*F) Skipf(string, ...interface{})
+ +pkg testing, method (*F) Skipped() bool
+ +pkg testing, method (*F) TempDir() string
++ pkg testing, method (*T) Setenv(string, string)
+ +pkg testing, method (FuzzResult) String() string
+ +pkg testing, type F struct
+ +pkg testing, type FuzzResult struct
+ +pkg testing, type FuzzResult struct, Crasher entry
+ +pkg testing, type FuzzResult struct, Error error
+ +pkg testing, type FuzzResult struct, N int
+ +pkg testing, type FuzzResult struct, T time.Duration
+ +pkg testing, type InternalFuzzTarget struct
+ +pkg testing, type InternalFuzzTarget struct, Fn func(*F)
+ +pkg testing, type InternalFuzzTarget struct, Name string
++ pkg text/template/parse, const SkipFuncCheck = 2
++ pkg text/template/parse, const SkipFuncCheck Mode
++ pkg time, func UnixMicro(int64) Time
++ pkg time, func UnixMilli(int64) Time
++ pkg time, method (*Time) IsDST() bool
++ pkg time, method (Time) UnixMicro() int64
++ pkg time, method (Time) UnixMilli() int64
+++>>>>>>> origin/master
+diff --cc src/cmd/go/internal/load/pkg.go
+index acd34d59ea,a3b96702ce..193a27a713
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@@ -206,7 -210,7 +210,8 @@@ type PackageInternal struct 
+  	BuildInfo         string               // add this info to package main
+  	TestmainGo        *[]byte              // content for _testmain.go
+  	Embed             map[string][]string  // //go:embed comment mapping
+ +	FlagsSet          bool                 // whether the flags have been set
++ 	OrigImportPath    string               // original import path before adding '_test' suffix
+  
+  	Asmflags   []string // -asmflags for this package
+  	Gcflags    []string // -gcflags for this package
+@@@ -2492,16 -2551,82 +2552,90 @@@ func CheckPackageErrors(pkgs []*Package
+  	base.ExitIfErrors()
+  }
+  
++ // mainPackagesOnly filters out non-main packages matched only by arguments
++ // containing "..." and returns the remaining main packages.
++ //
++ // Packages with missing, invalid, or ambiguous names may be treated as
++ // possibly-main packages.
++ //
++ // mainPackagesOnly sets a non-main package's Error field and returns it if it
++ // is named by a literal argument.
++ //
++ // mainPackagesOnly prints warnings for non-literal arguments that only match
++ // non-main packages.
++ func mainPackagesOnly(pkgs []*Package, matches []*search.Match) []*Package {
++ 	treatAsMain := map[string]bool{}
++ 	for _, m := range matches {
++ 		if m.IsLiteral() {
++ 			for _, path := range m.Pkgs {
++ 				treatAsMain[path] = true
++ 			}
++ 		}
++ 	}
++ 
++ 	var mains []*Package
++ 	for _, pkg := range pkgs {
++ 		if pkg.Name == "main" {
++ 			treatAsMain[pkg.ImportPath] = true
++ 			mains = append(mains, pkg)
++ 			continue
++ 		}
++ 
++ 		if len(pkg.InvalidGoFiles) > 0 { // TODO(#45999): && pkg.Name == "", but currently go/build sets pkg.Name arbitrarily if it is ambiguous.
++ 			// The package has (or may have) conflicting names, and we can't easily
++ 			// tell whether one of them is "main". So assume that it could be, and
++ 			// report an error for the package.
++ 			treatAsMain[pkg.ImportPath] = true
++ 		}
++ 		if treatAsMain[pkg.ImportPath] {
++ 			if pkg.Error == nil {
++ 				pkg.Error = &PackageError{Err: &mainPackageError{importPath: pkg.ImportPath}}
++ 			}
++ 			mains = append(mains, pkg)
++ 		}
++ 	}
++ 
++ 	for _, m := range matches {
++ 		if m.IsLiteral() || len(m.Pkgs) == 0 {
++ 			continue
++ 		}
++ 		foundMain := false
++ 		for _, path := range m.Pkgs {
++ 			if treatAsMain[path] {
++ 				foundMain = true
++ 				break
++ 			}
++ 		}
++ 		if !foundMain {
++ 			fmt.Fprintf(os.Stderr, "go: warning: %q matched only non-main packages\n", m.Pattern())
++ 		}
++ 	}
++ 
++ 	return mains
++ }
++ 
++ type mainPackageError struct {
++ 	importPath string
++ }
++ 
++ func (e *mainPackageError) Error() string {
++ 	return fmt.Sprintf("package %s is not a main package", e.importPath)
++ }
++ 
++ func (e *mainPackageError) ImportPath() string {
++ 	return e.importPath
++ }
++ 
+  func setToolFlags(pkgs ...*Package) {
+  	for _, p := range PackageList(pkgs) {
+ +		// TODO(jayconrod,katiehockman): See if there's a better way to do this.
+ +		if p.Internal.FlagsSet {
+ +			// The flags have already been set, so don't re-run this and
+ +			// potentially clear existing flags.
+ +			continue
+ +		} else {
+ +			p.Internal.FlagsSet = true
+ +		}
+  		p.Internal.Asmflags = BuildAsmflags.For(p)
+  		p.Internal.Gcflags = BuildGcflags.For(p)
+  		p.Internal.Ldflags = BuildLdflags.For(p)
+diff --cc src/cmd/go/internal/test/testflag.go
+index b3e77594db,08f1efa2c0..6a7b2a608b
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@@ -67,11 -67,11 +68,12 @@@ func init() 
+  	cf.String("run", "", "")
+  	cf.Bool("short", false, "")
+  	cf.DurationVar(&testTimeout, "timeout", 10*time.Minute, "")
+ +	cf.String("fuzztime", "", "")
+  	cf.StringVar(&testTrace, "trace", "", "")
+  	cf.BoolVar(&testV, "v", false, "")
++ 	cf.Var(&testShuffle, "shuffle", "")
+  
+- 	for name, _ := range passFlagToTest {
++ 	for name := range passFlagToTest {
+  		cf.Var(cf.Lookup(name).Value, "test."+name, "")
+  	}
+  }
+diff --cc src/cmd/go/internal/work/init.go
+index 81ebb750ad,37a3e2d0ff..5f53c20245
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@@ -47,30 -45,8 +45,16 @@@ func BuildInit() 
+  			base.Fatalf("go %s: %s environment variable is relative; must be absolute path: %s\n", flag.Args()[0], key, path)
+  		}
+  	}
+- 
+- 	// For each experiment that has been enabled in the toolchain, define a
+- 	// build tag with the same name but prefixed by "goexperiment." which can be
+- 	// used for compiling alternative files for the experiment. This allows
+- 	// changes for the experiment, like extra struct fields in the runtime,
+- 	// without affecting the base non-experiment code at all. [2:] strips the
+- 	// leading "X:" from objabi.Expstring().
+- 	exp := objabi.Expstring()[2:]
+- 	if exp != "none" {
+- 		experiments := strings.Split(exp, ",")
+- 		for _, expt := range experiments {
+- 			cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "goexperiment."+expt)
+- 		}
+- 	}
+  }
+  
+ +func FuzzInstrumentFlags() []string {
+ +	if cfg.Goarch != "amd64" && cfg.Goarch != "arm64" {
+ +		// Instrumentation is only supported on 64-bit architectures.
+ +		return nil
+ +	}
+ +	return []string{"-d=libfuzzer"}
+ +}
+ +
+  func instrumentInit() {
+  	if !cfg.BuildRace && !cfg.BuildMSan {
+  		return
+diff --cc src/go/build/deps_test.go
+index a370bc9ac9,5d1cf7f4c9..67989d2e38
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@@ -498,13 -506,10 +506,13 @@@ var depsRules = 
+  	FMT, flag, math/rand
+  	< testing/quick;
+  
+- 	FMT, flag, runtime/debug, runtime/trace, internal/sysinfo
++ 	FMT, flag, runtime/debug, runtime/trace, internal/sysinfo, math/rand
+  	< testing;
+  
+ -	internal/testlog, runtime/pprof, regexp
+ +	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token, math/rand, encoding/hex, crypto/sha256
+ +	< internal/fuzz;
+ +
+ +	internal/fuzz, internal/testlog, runtime/pprof, regexp
+  	< testing/internal/testdeps;
+  
+  	OS, flag, testing, internal/cfg
+diff --cc src/internal/fuzz/sys_windows.go
+index de6af81d94,0000000000..286501bc10
+mode 100644,000000..100644
+--- a/src/internal/fuzz/sys_windows.go
++++ b/src/internal/fuzz/sys_windows.go
+@@@ -1,141 -1,0 +1,142 @@@
+ +// Copyright 2020 The Go Authors. All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +package fuzz
+ +
+ +import (
+ +	"fmt"
+ +	"os"
+ +	"os/exec"
+ +	"reflect"
+ +	"syscall"
+ +	"unsafe"
+ +)
+ +
+ +type sharedMemSys struct {
+ +	mapObj syscall.Handle
+ +}
+ +
+ +func sharedMemMapFile(f *os.File, size int, removeOnClose bool) (mem *sharedMem, err error) {
+ +	defer func() {
+ +		if err != nil {
+ +			err = fmt.Errorf("mapping temporary file %s: %w", f.Name(), err)
+ +		}
+ +	}()
+ +
+ +	// Create a file mapping object. The object itself is not shared.
+ +	mapObj, err := syscall.CreateFileMapping(
+ +		syscall.Handle(f.Fd()), // fhandle
+ +		nil,                    // sa
+ +		syscall.PAGE_READWRITE, // prot
+ +		0,                      // maxSizeHigh
+ +		0,                      // maxSizeLow
+ +		nil,                    // name
+ +	)
+ +	if err != nil {
+ +		return nil, err
+ +	}
+ +
+ +	// Create a view from the file mapping object.
+ +	access := uint32(syscall.FILE_MAP_READ | syscall.FILE_MAP_WRITE)
+ +	addr, err := syscall.MapViewOfFile(
+ +		mapObj,        // handle
+ +		access,        // access
+ +		0,             // offsetHigh
+ +		0,             // offsetLow
+ +		uintptr(size), // length
+ +	)
+ +	if err != nil {
+ +		syscall.CloseHandle(mapObj)
+ +		return nil, err
+ +	}
+ +
+ +	var region []byte
+ +	header := (*reflect.SliceHeader)(unsafe.Pointer(&region))
+ +	header.Data = addr
+ +	header.Len = size
+ +	header.Cap = size
+ +	return &sharedMem{
+ +		f:             f,
+ +		region:        region,
+ +		removeOnClose: removeOnClose,
+ +		sys:           sharedMemSys{mapObj: mapObj},
+ +	}, nil
+ +}
+ +
+ +// Close unmaps the shared memory and closes the temporary file. If this
+ +// sharedMem was created with sharedMemTempFile, Close also removes the file.
+ +func (m *sharedMem) Close() error {
+ +	// Attempt all operations, even if we get an error for an earlier operation.
+ +	// os.File.Close may fail due to I/O errors, but we still want to delete
+ +	// the temporary file.
+ +	var errs []error
+ +	errs = append(errs,
+ +		syscall.UnmapViewOfFile(uintptr(unsafe.Pointer(&m.region[0]))),
+ +		syscall.CloseHandle(m.sys.mapObj),
+ +		m.f.Close())
+ +	if m.removeOnClose {
+ +		errs = append(errs, os.Remove(m.f.Name()))
+ +	}
+ +	for _, err := range errs {
+ +		if err != nil {
+ +			return err
+ +		}
+ +	}
+ +	return nil
+ +}
+ +
+ +// setWorkerComm configures communciation channels on the cmd that will
+ +// run a worker process.
+ +func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
+ +	mem := <-comm.memMu
+ +	memName := mem.f.Name()
+ +	comm.memMu <- mem
+ +	syscall.SetHandleInformation(syscall.Handle(comm.fuzzIn.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
+ +	syscall.SetHandleInformation(syscall.Handle(comm.fuzzOut.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
+ +	cmd.Env = append(cmd.Env, fmt.Sprintf("GO_TEST_FUZZ_WORKER_HANDLES=%x,%x,%q", comm.fuzzIn.Fd(), comm.fuzzOut.Fd(), memName))
+++	cmd.SysProcAttr = &syscall.SysProcAttr{AdditionalInheritedHandles: []syscall.Handle{syscall.Handle(comm.fuzzIn.Fd()), syscall.Handle(comm.fuzzOut.Fd())}}
+ +}
+ +
+ +// getWorkerComm returns communication channels in the worker process.
+ +func getWorkerComm() (comm workerComm, err error) {
+ +	v := os.Getenv("GO_TEST_FUZZ_WORKER_HANDLES")
+ +	if v == "" {
+ +		return workerComm{}, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES not set")
+ +	}
+ +	var fuzzInFD, fuzzOutFD uintptr
+ +	var memName string
+ +	if _, err := fmt.Sscanf(v, "%x,%x,%q", &fuzzInFD, &fuzzOutFD, &memName); err != nil {
+ +		return workerComm{}, fmt.Errorf("parsing GO_TEST_FUZZ_WORKER_HANDLES=%s: %v", v, err)
+ +	}
+ +
+ +	fuzzIn := os.NewFile(fuzzInFD, "fuzz_in")
+ +	fuzzOut := os.NewFile(fuzzOutFD, "fuzz_out")
+ +	tmpFile, err := os.OpenFile(memName, os.O_RDWR, 0)
+ +	if err != nil {
+ +		return workerComm{}, fmt.Errorf("worker opening temp file: %w", err)
+ +	}
+ +	fi, err := tmpFile.Stat()
+ +	if err != nil {
+ +		return workerComm{}, fmt.Errorf("worker checking temp file size: %w", err)
+ +	}
+ +	size := int(fi.Size())
+ +	if int64(size) != fi.Size() {
+ +		return workerComm{}, fmt.Errorf("fuzz temp file exceeds maximum size")
+ +	}
+ +	removeOnClose := false
+ +	mem, err := sharedMemMapFile(tmpFile, size, removeOnClose)
+ +	if err != nil {
+ +		return workerComm{}, err
+ +	}
+ +	memMu := make(chan *sharedMem, 1)
+ +	memMu <- mem
+ +
+ +	return workerComm{fuzzIn: fuzzIn, fuzzOut: fuzzOut, memMu: memMu}, nil
+ +}
+ +
+ +func isInterruptError(err error) bool {
+ +	// On Windows, we can't tell whether the process was interrupted by the error
+ +	// returned by Wait. It looks like an ExitError with status 1.
+ +	return false
+ +}
+diff --cc src/testing/testing.go
+index da26dec6fb,85a7fec65f..1877ce3ba4
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@@ -242,8 -242,8 +242,9 @@@ import 
+  	"fmt"
+  	"internal/race"
+  	"io"
++ 	"math/rand"
+  	"os"
+ +	"reflect"
+  	"runtime"
+  	"runtime/debug"
+  	"runtime/trace"
+@@@ -300,9 -300,9 +301,10 @@@ func Init() 
+  	cpuListStr = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
+  	parallel = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
+  	testlog = flag.String("test.testlogfile", "", "write test action log to `file` (for use only by cmd/go)")
++ 	shuffle = flag.String("test.shuffle", "off", "randomize the execution order of tests and benchmarks")
+  
+  	initBenchmarkFlags()
+ +	initFuzzFlags()
+  }
+  
+  var (
+@@@ -1038,13 -1059,10 +1070,16 @@@ func (t *T) Parallel() 
+  	if t.isParallel {
+  		panic("testing: t.Parallel called multiple times")
+  	}
++ 	if t.isEnvSet {
++ 		panic("testing: t.Parallel called after t.Setenv; cannot set environment variables in parallel tests")
++ 	}
+  	t.isParallel = true
+ +	if t.parent.barrier == nil {
+ +		// T.Parallel has no effect when fuzzing.
+ +		// Multiple processes may run in parallel, but only one input can run at a
+ +		// time per process so we can attribute crashes to specific inputs.
+ +		return
+ +	}
+  
+  	// We don't want to include the time we spend waiting for serial tests
+  	// in the test duration. Record the elapsed time thus far and reset the

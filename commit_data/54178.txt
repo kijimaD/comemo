@@ -10,7 +10,7 @@ Date:   Wed Sep 28 02:34:31 2022 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/435617
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules | 2 +-
  src/cmd/compile/internal/typecheck/iimport.go  | 2 +-
  src/cmd/link/internal/ppc64/asm.go             | 2 +-
@@ -19,3 +19,95 @@ Date:   Wed Sep 28 02:34:31 2022 +0000
  src/os/exec/lp_linux_test.go                   | 2 +-
  src/runtime/libfuzzer_amd64.s                  | 2 +-
  7 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 8f29871218..ad46cf30da 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -613,7 +613,7 @@
+ (BEQZ (NEG x) yes no) => (BEQZ x yes no)
+ (BNEZ (NEG x) yes no) => (BNEZ x yes no)
+ 
+-// Negate comparision with FNES/FNED.
++// Negate comparison with FNES/FNED.
+ (BEQZ (FNES <t> x y) yes no) => (BNEZ (FEQS <t> x y) yes no)
+ (BNEZ (FNES <t> x y) yes no) => (BEQZ (FEQS <t> x y) yes no)
+ (BEQZ (FNED <t> x y) yes no) => (BNEZ (FEQD <t> x y) yes no)
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 533ee99c21..c55b409390 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -84,7 +84,7 @@ func ImportBody(fn *ir.Func) {
+ // HaveInlineBody reports whether we have fn's inline body available
+ // for inlining.
+ //
+-// It's a function literal so that it can be overriden for
++// It's a function literal so that it can be overridden for
+ // GOEXPERIMENT=unified.
+ var HaveInlineBody = func(fn *ir.Func) bool {
+ 	if fn.Inl == nil {
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 70d2cf3f0b..22df49cc49 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -143,7 +143,7 @@ func genstubs(ctxt *ld.Link, ldr *loader.Loader) {
+ 			if r := relocs.At(i); r.Type() == objabi.ElfRelocOffset+objabi.RelocType(elf.R_PPC64_REL24) {
+ 				switch ldr.SymType(r.Sym()) {
+ 				case sym.SDYNIMPORT:
+-					// This call goes throught the PLT, generate and call through a PLT stub.
++					// This call goes through the PLT, generate and call through a PLT stub.
+ 					if sym, firstUse := genpltstub(ctxt, ldr, r, s); firstUse {
+ 						stubs = append(stubs, sym)
+ 					}
+diff --git a/src/internal/coverage/defs.go b/src/internal/coverage/defs.go
+index 4ffbb91bb8..4a41f57efd 100644
+--- a/src/internal/coverage/defs.go
++++ b/src/internal/coverage/defs.go
+@@ -363,7 +363,7 @@ func Round4(x int) int {
+ // where "numCtrs" is the number of blocks / coverable units within the
+ // function, "pkgid" is the unique index assigned to this package by
+ // the runtime, "funcid" is the index of this function within its containing
+-// packge, and "counterArray" stores the actual counters.
++// package, and "counterArray" stores the actual counters.
+ //
+ // The counter variable itself is created not as a struct but as a flat
+ // array of uint32's; we then use the offsets below to index into it.
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 0e5d86719f..27e9eb30ee 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -1207,7 +1207,7 @@ func TestRequestCookie(t *testing.T) {
+ 			t.Errorf("got %v, want %v", err, tt.expectedErr)
+ 		}
+ 
+-		// skip if error occured.
++		// skip if error occurred.
+ 		if err != nil {
+ 			continue
+ 		}
+diff --git a/src/os/exec/lp_linux_test.go b/src/os/exec/lp_linux_test.go
+index 5d77427d89..7ab19602e9 100644
+--- a/src/os/exec/lp_linux_test.go
++++ b/src/os/exec/lp_linux_test.go
+@@ -24,7 +24,7 @@ func TestFindExecutableVsNoexec(t *testing.T) {
+ 	err := syscall.Mount("tmpfs", tmp, "tmpfs", 0, "")
+ 	if err != nil {
+ 		// Usually this means lack of CAP_SYS_ADMIN, but there might be
+-		// other reasons, expecially in restricted test environments.
++		// other reasons, especially in restricted test environments.
+ 		t.Skipf("requires ability to mount tmpfs (%v)", err)
+ 	}
+ 	t.Cleanup(func() {
+diff --git a/src/runtime/libfuzzer_amd64.s b/src/runtime/libfuzzer_amd64.s
+index 65ac7a325d..435536986b 100644
+--- a/src/runtime/libfuzzer_amd64.s
++++ b/src/runtime/libfuzzer_amd64.s
+@@ -52,7 +52,7 @@ call:
+ // manipulating the return address so that libfuzzer's integer compare hooks
+ // work
+ // libFuzzer's compare hooks obtain the caller's address from the compiler
+-// builtin __builtin_return_adress. Since we invoke the hooks always
++// builtin __builtin_return_address. Since we invoke the hooks always
+ // from the same native function, this builtin would always return the same
+ // value. Internally, the libFuzzer hooks call through to the always inlined
+ // HandleCmp and thus can't be mimicked without patching libFuzzer.

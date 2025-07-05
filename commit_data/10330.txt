@@ -8,7 +8,54 @@ Date:   Wed Nov 9 16:14:18 2011 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5370049
-
+---
  doc/effective_go.html | 12 ++++++++++++
  doc/effective_go.tmpl | 12 ++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index bec95e5fb6..f0d0ffa53b 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2719,6 +2719,18 @@ for try := 0; try &lt; 2; try++ {
+ }
+ </pre>
+ 
++<p>
++The second <code>if</code> statement here is idiomatic Go.
++The type assertion <code>err.(*os.PathError)</code> is
++checked with the "comma ok" idiom (mentioned <a href="#maps">earlier</a>
++in the context of examining maps).
++If the type assertion fails, <code>ok</code> will be false, and <code>e</code>
++will be <code>nil</code>.
++If it succeeds,  <code>ok</code> will be true, which means the
++error was of type <code>*os.PathError</code>, and then so is <code>e</code>,
++which we can examine for more information about the error.
++</p>
++
+ <h3 id="panic">Panic</h3>
+ 
+ <p>
+diff --git a/doc/effective_go.tmpl b/doc/effective_go.tmpl
+index 69a16239a1..b9ba469d41 100644
+--- a/doc/effective_go.tmpl
++++ b/doc/effective_go.tmpl
+@@ -2657,6 +2657,18 @@ for try := 0; try &lt; 2; try++ {
+ }
+ </pre>
+ 
++<p>
++The second <code>if</code> statement here is idiomatic Go.
++The type assertion <code>err.(*os.PathError)</code> is
++checked with the "comma ok" idiom (mentioned <a href="#maps">earlier</a>
++in the context of examining maps).
++If the type assertion fails, <code>ok</code> will be false, and <code>e</code>
++will be <code>nil</code>.
++If it succeeds,  <code>ok</code> will be true, which means the
++error was of type <code>*os.PathError</code>, and then so is <code>e</code>,
++which we can examine for more information about the error.
++</p>
++
+ <h3 id="panic">Panic</h3>
+ 
+ <p>

@@ -10,7 +10,7 @@ Date:   Mon Mar 14 14:05:53 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/392759
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/stmt.go              | 16 ++++++++++++----
  .../compile/internal/types2/testdata/check/stmt0.src |  2 +-
  .../internal/types2/testdata/fixedbugs/issue51533.go | 20 ++++++++++++++++++++
@@ -18,3 +18,184 @@ Date:   Mon Mar 14 14:05:53 2022 -0700
  src/go/types/testdata/check/stmt0.src                |  2 +-
  src/go/types/testdata/fixedbugs/issue51533.go        | 20 ++++++++++++++++++++
  6 files changed, 67 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 4c8eac725f..819b7c2463 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -95,6 +95,7 @@ const (
+ 
+ 	// additional context information
+ 	finalSwitchCase
++	inTypeSwitch
+ )
+ 
+ func (check *Checker) simpleStmt(s syntax.Stmt) {
+@@ -370,7 +371,9 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 	// process collected function literals before scope changes
+ 	defer check.processDelayed(len(check.delayed))
+ 
+-	inner := ctxt &^ (fallthroughOk | finalSwitchCase)
++	// reset context for statements of inner blocks
++	inner := ctxt &^ (fallthroughOk | finalSwitchCase | inTypeSwitch)
++
+ 	switch s := s.(type) {
+ 	case *syntax.EmptyStmt:
+ 		// ignore
+@@ -523,9 +526,14 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 			}
+ 		case syntax.Fallthrough:
+ 			if ctxt&fallthroughOk == 0 {
+-				msg := "fallthrough statement out of place"
+-				if ctxt&finalSwitchCase != 0 {
++				var msg string
++				switch {
++				case ctxt&finalSwitchCase != 0:
+ 					msg = "cannot fallthrough final case in switch"
++				case ctxt&inTypeSwitch != 0:
++					msg = "cannot fallthrough in type switch"
++				default:
++					msg = "fallthrough statement out of place"
+ 				}
+ 				check.error(s, msg)
+ 			}
+@@ -572,7 +580,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		check.simpleStmt(s.Init)
+ 
+ 		if g, _ := s.Tag.(*syntax.TypeSwitchGuard); g != nil {
+-			check.typeSwitchStmt(inner, s, g)
++			check.typeSwitchStmt(inner|inTypeSwitch, s, g)
+ 		} else {
+ 			check.switchStmt(inner, s)
+ 		}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/stmt0.src b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+index 90ef09511f..e5b6f5dff7 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/stmt0.src
++++ b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+@@ -542,7 +542,7 @@ func switches1() {
+ 	var y interface{}
+ 	switch y.(type) {
+ 	case int:
+-		fallthrough /* ERROR "fallthrough statement out of place" */ ; ; ;
++		fallthrough /* ERROR "cannot fallthrough in type switch" */ ; ; ;
+ 	default:
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51533.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51533.go
+new file mode 100644
+index 0000000000..bf46f755f9
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51533.go
+@@ -0,0 +1,20 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _(x any) {
++	switch x {
++	case 0:
++		fallthrough // ERROR fallthrough statement out of place
++		_ = x
++	default:
++	}
++
++	switch x.(type) {
++	case int:
++		fallthrough // ERROR cannot fallthrough in type switch
++	default:
++	}
++}
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 9ebfbb6d63..2aa65a6e36 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -96,6 +96,7 @@ const (
+ 
+ 	// additional context information
+ 	finalSwitchCase
++	inTypeSwitch
+ )
+ 
+ func (check *Checker) simpleStmt(s ast.Stmt) {
+@@ -375,7 +376,9 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 	// process collected function literals before scope changes
+ 	defer check.processDelayed(len(check.delayed))
+ 
+-	inner := ctxt &^ (fallthroughOk | finalSwitchCase)
++	// reset context for statements of inner blocks
++	inner := ctxt &^ (fallthroughOk | finalSwitchCase | inTypeSwitch)
++
+ 	switch s := s.(type) {
+ 	case *ast.BadStmt, *ast.EmptyStmt:
+ 		// ignore
+@@ -541,12 +544,16 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			}
+ 		case token.FALLTHROUGH:
+ 			if ctxt&fallthroughOk == 0 {
+-				msg := "fallthrough statement out of place"
+-				code := _MisplacedFallthrough
+-				if ctxt&finalSwitchCase != 0 {
++				var msg string
++				switch {
++				case ctxt&finalSwitchCase != 0:
+ 					msg = "cannot fallthrough final case in switch"
++				case ctxt&inTypeSwitch != 0:
++					msg = "cannot fallthrough in type switch"
++				default:
++					msg = "fallthrough statement out of place"
+ 				}
+-				check.error(s, code, msg)
++				check.error(s, _MisplacedFallthrough, msg)
+ 			}
+ 		default:
+ 			check.invalidAST(s, "branch statement: %s", s.Tok)
+@@ -627,7 +634,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		}
+ 
+ 	case *ast.TypeSwitchStmt:
+-		inner |= breakOk
++		inner |= breakOk | inTypeSwitch
+ 		check.openScope(s, "type switch")
+ 		defer check.closeScope()
+ 
+diff --git a/src/go/types/testdata/check/stmt0.src b/src/go/types/testdata/check/stmt0.src
+index 7795a442aa..0f164d36c8 100644
+--- a/src/go/types/testdata/check/stmt0.src
++++ b/src/go/types/testdata/check/stmt0.src
+@@ -542,7 +542,7 @@ func switches1() {
+ 	var y interface{}
+ 	switch y.(type) {
+ 	case int:
+-		fallthrough /* ERROR "fallthrough statement out of place" */ ; ; ;
++		fallthrough /* ERROR "cannot fallthrough in type switch" */ ; ; ;
+ 	default:
+ 	}
+ 
+diff --git a/src/go/types/testdata/fixedbugs/issue51533.go b/src/go/types/testdata/fixedbugs/issue51533.go
+new file mode 100644
+index 0000000000..bf46f755f9
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51533.go
+@@ -0,0 +1,20 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _(x any) {
++	switch x {
++	case 0:
++		fallthrough // ERROR fallthrough statement out of place
++		_ = x
++	default:
++	}
++
++	switch x.(type) {
++	case int:
++		fallthrough // ERROR cannot fallthrough in type switch
++	default:
++	}
++}

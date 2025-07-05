@@ -7,6 +7,20 @@ Date:   Sun Feb 10 17:55:27 2019 -0800
     Change-Id: If9332bae87449c94fc14710133614fcd84d2815c
     Reviewed-on: https://go-review.googlesource.com/c/161726
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/handshake_client_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 7441e5b556..62479d840c 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -28,7 +28,7 @@ import (
+ 
+ func init() {
+ 	// TLS 1.3 cipher suites preferences are not configurable and change based
+-	// on the architecture. Force them to the version with AES accelleration for
++	// on the architecture. Force them to the version with AES acceleration for
+ 	// test consistency.
+ 	once.Do(initDefaultCipherSuites)
+ 	varDefaultCipherSuitesTLS13 = []uint16{

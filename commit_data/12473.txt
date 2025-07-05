@@ -9,6 +9,23 @@ Date:   Wed Mar 7 11:44:47 2012 -0500
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5769043
-
+---
  src/cmd/cgo/doc.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 109b666bdc..2c261b5f45 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -44,6 +44,11 @@ For example:
+ 	// #include <png.h>
+ 	import "C"
+ 
++The CGO_CFLAGS and CGO_LDFLAGS environment variables are added
++to the flags derived from these directives.  Package-specific flags should
++be set using the directives, not the environment variables, so that builds
++work in unmodified environments.
++
+ Within the Go file, C identifiers or field names that are keywords in Go
+ can be accessed by prefixing them with an underscore: if x points at a C
+ struct with a field named "type", x._type accesses the field.

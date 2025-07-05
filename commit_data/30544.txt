@@ -11,8 +11,50 @@ Date:   Fri Nov 11 08:39:33 2016 -0800
     Change-Id: I67b4f1c09bd1a2eb1844207d5514f08a9f525ff9
     Reviewed-on: https://go-review.googlesource.com/33138
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/gofmt/doc.go                    | 4 ++--
  src/crypto/tls/handshake_client.go      | 2 +-
  src/crypto/tls/handshake_client_test.go | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index 805e5fbdcf..8b22f03f65 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -32,8 +32,8 @@ The flags are:
+ 	-w
+ 		Do not print reformatted sources to standard output.
+ 		If a file's formatting is different from gofmt's, overwrite it
+-		with gofmt's version. If an error occured during overwriting,
+-		the orginal file is restored from an automatic backup.
++		with gofmt's version. If an error occurred during overwriting,
++		the original file is restored from an automatic backup.
+ 
+ Debugging support:
+ 	-cpuprofile filename
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 89bdd5944d..6eda18dbfc 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -115,7 +115,7 @@ NextCipherSuite:
+ 
+ 	// Session resumption is not allowed if renegotiating because
+ 	// renegotiation is primarily used to allow a client to send a client
+-	// certificate, which would be skipped if session resumption occured.
++	// certificate, which would be skipped if session resumption occurred.
+ 	if sessionCache != nil && c.handshakes == 0 {
+ 		// Try to resume a previously negotiated TLS session, if
+ 		// available.
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 69ac15ba5f..5851f897f9 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -359,7 +359,7 @@ func (test *clientTest) run(t *testing.T, write bool) {
+ 				}
+ 
+ 				if expected := i + 1; client.handshakes != expected {
+-					t.Errorf("client should have recorded %d handshakes, but believes that %d have occured", expected, client.handshakes)
++					t.Errorf("client should have recorded %d handshakes, but believes that %d have occurred", expected, client.handshakes)
+ 				}
+ 			}()
+ 

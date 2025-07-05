@@ -12,6 +12,20 @@ Date:   Thu Aug 26 10:59:02 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/342791
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/common.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index d561e61707..610a5162dd 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -659,7 +659,7 @@ type Config struct {
+ 	// cipher suite based on logic that takes into account inferred client
+ 	// hardware, server hardware, and security.
+ 	//
+-	// Deprected: PreferServerCipherSuites is ignored.
++	// Deprecated: PreferServerCipherSuites is ignored.
+ 	PreferServerCipherSuites bool
+ 
+ 	// SessionTicketsDisabled may be set to true to disable session ticket and

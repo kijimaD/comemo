@@ -17,6 +17,20 @@ Date:   Thu Jan 26 01:05:20 2023 +0000
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go/internal/vcs/vcs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index ef54c6626d..2ef115da31 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -1270,7 +1270,7 @@ func urlForImportPath(importPath string) (*urlpkg.URL, error) {
+ }
+ 
+ // repoRootForImportDynamic finds a *RepoRoot for a custom domain that's not
+-// statically known by repoRootForImportPathStatic.
++// statically known by repoRootFromVCSPaths.
+ //
+ // This handles custom import paths like "name.tld/pkg/foo" or just "name.tld".
+ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.SecurityMode) (*RepoRoot, error) {

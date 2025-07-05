@@ -11,6 +11,36 @@ Date:   Wed Aug 5 13:39:07 2015 -0400
     Change-Id: I2ad5369017dde6db25f0c0514bc27c33d0a8bf54
     Reviewed-on: https://go-review.googlesource.com/13251
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/clean.bash | 17 +++++++++++------
  1 file changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 8c23e010e8..39fe36d46d 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -5,13 +5,18 @@
+ 
+ set -e
+ 
+-eval $(go tool dist env)
++if [ ! -f run.bash ]; then
++	echo 'clean.bash must be run from $GOROOT/src' 1>&2
++	exit 1
++fi
++export GOROOT="$(cd .. && pwd)"
+ 
+-if [ ! -x $GOTOOLDIR/dist ]; then
+-	echo 'cannot find $GOTOOLDIR/dist; nothing to clean' >&2
++gobin="${GOBIN:-../bin}"
++if ! "$gobin"/go help >/dev/null 2>&1; then
++	echo 'cannot find go command; nothing to clean' >&2
+ 	exit 1
+ fi
+ 
+-"$GOBIN/go" clean -i std
+-"$GOBIN/go" tool dist clean
+-"$GOBIN/go" clean -i cmd
++"$gobin/go" clean -i std
++"$gobin/go" tool dist clean
++"$gobin/go" clean -i cmd

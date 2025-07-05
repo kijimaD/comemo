@@ -17,6 +17,37 @@ Date:   Fri Mar 6 15:04:17 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/7280
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/debug/dwarf/entry.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index 2742ae0eab..5a21da0e9e 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -102,6 +102,25 @@ type Entry struct {
+ }
+ 
+ // A Field is a single attribute/value pair in an Entry.
++//
++// A value can be one of several "attribute classes" defined by DWARF.
++// The Go types corresponding to each class are:
++//
++//    Class             Go type
++//    -----             -------
++//    address           uint64
++//    block             []byte
++//    constant          int64
++//    flag              bool
++//    reference
++//      to info         dwarf.Offset (for use with Reader.Seek)
++//      to type unit    uint64 (type signature)
++//    string            string
++//    exprloc           []byte
++//    lineptr           int64
++//    loclistptr        int64
++//    macptr            int64
++//    rangelistptr      int64
+ type Field struct {
+ 	Attr Attr
+ 	Val  interface{}

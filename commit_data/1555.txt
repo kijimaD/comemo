@@ -12,7 +12,95 @@ Date:   Mon Jan 26 11:10:14 2009 -0800
     DELTA=10  (0 added, 0 deleted, 10 changed)
     OCL=23451
     CL=23486
-
+---
  src/lib/net/fd.go     |  8 ++++----
  src/lib/os/os_file.go | 12 ++++++------
  2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/lib/net/fd.go b/src/lib/net/fd.go
+index ce18ccabb2..2b126843bd 100644
+--- a/src/lib/net/fd.go
++++ b/src/lib/net/fd.go
+@@ -84,19 +84,19 @@ func _NewPollServer() (s *_PollServer, err *os.Error) {
+ 	if s.pr, s.pw, err = os.Pipe(); err != nil {
+ 		return nil, err
+ 	}
+-	if err = _SetNonblock(s.pr.fd); err != nil {
++	if err = _SetNonblock(s.pr.Fd); err != nil {
+ 	Error:
+ 		s.pr.Close();
+ 		s.pw.Close();
+ 		return nil, err
+ 	}
+-	if err = _SetNonblock(s.pw.fd); err != nil {
++	if err = _SetNonblock(s.pw.Fd); err != nil {
+ 		goto Error
+ 	}
+ 	if s.poll, err = NewPollster(); err != nil {
+ 		goto Error
+ 	}
+-	if err = s.poll.AddFD(s.pr.fd, 'r', true); err != nil {
++	if err = s.poll.AddFD(s.pr.Fd, 'r', true); err != nil {
+ 		s.poll.Close();
+ 		goto Error
+ 	}
+@@ -142,7 +142,7 @@ func (s *_PollServer) Run() {
+ 			print("_PollServer WaitFD: ", err.String(), "\n");
+ 			return
+ 		}
+-		if fd == s.pr.fd {
++		if fd == s.pr.Fd {
+ 			// Drain our wakeup pipe.
+ 			for nn, e := s.pr.Read(scratch); nn > 0; {
+ 				nn, e = s.pr.Read(scratch)
+diff --git a/src/lib/os/os_file.go b/src/lib/os/os_file.go
+index 71fbbec9cf..6c516ff76f 100644
+--- a/src/lib/os/os_file.go
++++ b/src/lib/os/os_file.go
+@@ -9,7 +9,7 @@ import os "os"
+ 
+ // FDs are wrappers for file descriptors
+ type FD struct {
+-	fd int64
++	Fd int64
+ }
+ 
+ func NewFD(fd int64) *FD {
+@@ -48,8 +48,8 @@ func (fd *FD) Close() *Error {
+ 	if fd == nil {
+ 		return EINVAL
+ 	}
+-	r, e := syscall.Close(fd.fd);
+-	fd.fd = -1;  // so it can't be closed again
++	r, e := syscall.Close(fd.Fd);
++	fd.Fd = -1;  // so it can't be closed again
+ 	return ErrnoToError(e)
+ }
+ 
+@@ -59,7 +59,7 @@ func (fd *FD) Read(b []byte) (ret int, err *Error) {
+ 	}
+ 	var r, e int64;
+ 	if len(b) > 0 {  // because we access b[0]
+-		r, e = syscall.Read(fd.fd, &b[0], int64(len(b)));
++		r, e = syscall.Read(fd.Fd, &b[0], int64(len(b)));
+ 		if r < 0 {
+ 			r = 0
+ 		}
+@@ -73,7 +73,7 @@ func (fd *FD) Write(b []byte) (ret int, err *Error) {
+ 	}
+ 	var r, e int64;
+ 	if len(b) > 0 {  // because we access b[0]
+-		r, e = syscall.Write(fd.fd, &b[0], int64(len(b)));
++		r, e = syscall.Write(fd.Fd, &b[0], int64(len(b)));
+ 		if r < 0 {
+ 			r = 0
+ 		}
+@@ -89,7 +89,7 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
+ 	if !syscall.StringToBytes(b, s) {
+ 		return 0, EINVAL
+ 	}
+-	r, e := syscall.Write(fd.fd, &b[0], int64(len(s)));
++	r, e := syscall.Write(fd.Fd, &b[0], int64(len(s)));
+ 	if r < 0 {
+ 		r = 0
+ 	}

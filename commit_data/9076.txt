@@ -17,9 +17,324 @@ Date:   Thu Jul 14 11:34:53 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4670053
-
+---
  src/cmd/godoc/doc.go        |   2 +
  src/cmd/godoc/filesystem.go |  20 ++++-
  src/cmd/godoc/main.go       |  19 ++++-
  src/cmd/godoc/zip.go        | 199 ++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 233 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index 26d436d724..a8fcd22d64 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -73,6 +73,8 @@ The flags are:
+ 		filter file containing permitted package directory paths
+ 	-filter_minutes=0
+ 		filter file update interval in minutes; update is disabled if <= 0
++	-zip=""
++		zip file providing the file system to serve; disabled if empty
+ 
+ The -path flag accepts a list of colon-separated paths; unrooted paths are relative
+ to the current working directory. Each path is considered as an additional root for
+diff --git a/src/cmd/godoc/filesystem.go b/src/cmd/godoc/filesystem.go
+index bf68378d48..62430e3844 100644
+--- a/src/cmd/godoc/filesystem.go
++++ b/src/cmd/godoc/filesystem.go
+@@ -2,11 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file defines abstract file system access.
++// This file defines types for abstract file system access and
++// provides an implementation accessing the file system of the
++// underlying OS.
+ 
+ package main
+ 
+ import (
++	"fmt"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -62,7 +65,18 @@ func (fi osFI) Size() int64 {
+ type osFS struct{}
+ 
+ func (osFS) Open(path string) (io.ReadCloser, os.Error) {
+-	return os.Open(path)
++	f, err := os.Open(path)
++	if err != nil {
++		return nil, err
++	}
++	fi, err := f.Stat()
++	if err != nil {
++		return nil, err
++	}
++	if fi.IsDirectory() {
++		return nil, fmt.Errorf("Open: %s is a directory", path)
++	}
++	return f, nil
+ }
+ 
+ 
+@@ -79,7 +93,7 @@ func (osFS) Stat(path string) (FileInfo, os.Error) {
+ 
+ 
+ func (osFS) ReadDir(path string) ([]FileInfo, os.Error) {
+-	l0, err := ioutil.ReadDir(path)
++	l0, err := ioutil.ReadDir(path) // l0 is sorted
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 51fcf8dd05..6455ec235d 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -26,6 +26,7 @@
+ package main
+ 
+ import (
++	"archive/zip"
+ 	"bytes"
+ 	_ "expvar" // to serve /debug/vars
+ 	"flag"
+@@ -47,6 +48,10 @@ import (
+ const defaultAddr = ":6060" // default webserver address
+ 
+ var (
++	// file system to serve
++	// (with e.g.: zip -r go.zip $GOROOT -i \*.go -i \*.html -i \*.css -i \*.js -i \*.txt -i \*.c -i \*.h -i \*.s -i \*.png -i \*.jpg -i \*.sh)
++	zipfile = flag.String("zip", "", "zip file providing the file system to serve; disabled if empty")
++
+ 	// periodic sync
+ 	syncCmd   = flag.String("sync", "", "sync command; disabled if empty")
+ 	syncMin   = flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0")
+@@ -223,13 +228,19 @@ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 
+-	// Determine file system to use.
+-	// TODO(gri) Complete this - for now we only have one.
+-	fs = OS
+-
+ 	// Clean goroot: normalize path separator.
+ 	*goroot = filepath.Clean(*goroot)
+ 
++	// Determine file system to use.
++	fs = OS
++	if *zipfile != "" {
++		rc, err := zip.OpenReader(*zipfile)
++		if err != nil {
++			log.Fatalf("%s: %s\n", *zipfile, err)
++		}
++		fs = NewZipFS(rc)
++	}
++
+ 	// Check usage: either server and no args, or command line and args
+ 	if (*httpAddr != "") != (flag.NArg() == 0) {
+ 		usage()
+diff --git a/src/cmd/godoc/zip.go b/src/cmd/godoc/zip.go
+new file mode 100644
+index 0000000000..84f36d0e22
+--- /dev/null
++++ b/src/cmd/godoc/zip.go
+@@ -0,0 +1,199 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file provides an implementation of the FileSystem
++// interface based on the contents of a .zip file.
++//
++// Assumptions:
++//
++// - The file paths stored in the zip file must use a slash ('/') as path
++//   separator; and they must be relative (i.e., they must not start with
++//   a '/' - this is usually the case if the file was created w/o special
++//   options).
++// - The zip file system treats the file paths found in the zip internally
++//   like absolute paths w/o a leading '/'; i.e., the paths are considered
++//   relative to the root of the file system.
++// - All path arguments to file system methods must be absolute paths.
++
++package main
++
++import (
++	"archive/zip"
++	"fmt"
++	"io"
++	"io/ioutil"
++	"os"
++	"path"
++	"sort"
++	"strings"
++)
++
++
++// zipFI is the zip-file based implementation of FileInfo
++type zipFI struct {
++	name string    // directory-local name
++	file *zip.File // nil for a directory
++}
++
++
++func (fi zipFI) Name() string {
++	return fi.name
++}
++
++
++func (fi zipFI) Size() int64 {
++	if fi.file != nil {
++		return int64(fi.file.UncompressedSize)
++	}
++	return 0 // directory
++}
++
++
++func (fi zipFI) IsDirectory() bool {
++	return fi.file == nil
++}
++
++
++func (fi zipFI) IsRegular() bool {
++	return fi.file != nil
++}
++
++
++// zipFS is the zip-file based implementation of FileSystem
++type zipFS struct {
++	*zip.ReadCloser
++	list zipList
++}
++
++
++func (fs *zipFS) Close() os.Error {
++	fs.list = nil
++	return fs.ReadCloser.Close()
++}
++
++
++func zipPath(name string) string {
++	if !path.IsAbs(name) {
++		panic(fmt.Sprintf("stat: not an absolute path: %s", name))
++	}
++	return name[1:] // strip '/'
++}
++
++
++func (fs *zipFS) stat(abspath string) (int, zipFI, os.Error) {
++	i := fs.list.lookup(abspath)
++	if i < 0 {
++		return -1, zipFI{}, fmt.Errorf("file not found: %s", abspath)
++	}
++	var file *zip.File
++	if abspath == fs.list[i].Name {
++		file = fs.list[i] // exact match found - must be a file
++	}
++	_, name := path.Split(abspath)
++	return i, zipFI{name, file}, nil
++}
++
++
++func (fs *zipFS) Open(abspath string) (io.ReadCloser, os.Error) {
++	_, fi, err := fs.stat(zipPath(abspath))
++	if err != nil {
++		return nil, err
++	}
++	if fi.IsDirectory() {
++		return nil, fmt.Errorf("Open: %s is a directory", abspath)
++	}
++	return fi.file.Open()
++}
++
++
++func (fs *zipFS) Lstat(abspath string) (FileInfo, os.Error) {
++	_, fi, err := fs.stat(zipPath(abspath))
++	return fi, err
++}
++
++
++func (fs *zipFS) Stat(abspath string) (FileInfo, os.Error) {
++	_, fi, err := fs.stat(zipPath(abspath))
++	return fi, err
++}
++
++
++func (fs *zipFS) ReadDir(abspath string) ([]FileInfo, os.Error) {
++	path := zipPath(abspath)
++	i, fi, err := fs.stat(path)
++	if err != nil {
++		return nil, err
++	}
++	if !fi.IsDirectory() {
++		return nil, fmt.Errorf("ReadDir: %s is not a directory", abspath)
++	}
++
++	var list []FileInfo
++	dirname := path + "/"
++	prevname := ""
++	for _, e := range fs.list[i:] {
++		if !strings.HasPrefix(e.Name, dirname) {
++			break // not in the same directory anymore
++		}
++		name := e.Name[len(dirname):] // local name
++		file := e
++		if i := strings.IndexRune(name, '/'); i >= 0 {
++			// We infer directories from files in subdirectories.
++			// If we have x/y, return a directory entry for x.
++			name = name[0:i] // keep local directory name only
++			file = nil
++		}
++		// If we have x/y and x/z, don't return two directory entries for x.
++		// TODO(gri): It should be possible to do this more efficiently
++		// by determining the (fs.list) range of local directory entries
++		// (via two binary searches).
++		if name != prevname {
++			list = append(list, zipFI{name, file})
++			prevname = name
++		}
++	}
++
++	return list, nil
++}
++
++
++func (fs *zipFS) ReadFile(abspath string) ([]byte, os.Error) {
++	rc, err := fs.Open(abspath)
++	if err != nil {
++		return nil, err
++	}
++	return ioutil.ReadAll(rc)
++}
++
++
++func NewZipFS(rc *zip.ReadCloser) FileSystem {
++	list := make(zipList, len(rc.File))
++	copy(list, rc.File) // sort a copy of rc.File
++	sort.Sort(list)
++	return &zipFS{rc, list}
++}
++
++
++type zipList []*zip.File
++
++// zipList implements sort.Interface
++func (z zipList) Len() int           { return len(z) }
++func (z zipList) Less(i, j int) bool { return z[i].Name < z[j].Name }
++func (z zipList) Swap(i, j int)      { z[i], z[j] = z[j], z[i] }
++
++
++// lookup returns the first index in the zipList
++// of a path equal to name or beginning with name/.
++func (z zipList) lookup(name string) int {
++	i := sort.Search(len(z), func(i int) bool {
++		return name <= z[i].Name
++	})
++	if i >= 0 {
++		iname := z[i].Name
++		if strings.HasPrefix(iname, name) && (len(name) == len(iname) || iname[len(name)] == '/') {
++			return i
++		}
++	}
++	return -1 // no match
++}

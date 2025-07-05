@@ -8,7 +8,38 @@ Date:   Fri Jan 30 11:14:48 2009 -0800
     DELTA=4  (0 added, 0 deleted, 4 changed)
     OCL=23896
     CL=23928
-
+---
  doc/progs/server.go  | 4 ++--
  doc/progs/server1.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/progs/server.go b/doc/progs/server.go
+index ab860891af..c3f772bf90 100644
+--- a/doc/progs/server.go
++++ b/doc/progs/server.go
+@@ -12,8 +12,8 @@ type request struct {
+ type binOp (a, b int) int;
+ 
+ func run(op *binOp, req *request) {
+-	result := op(req.a, req.b);
+-	req.replyc <- result;
++	reply := op(req.a, req.b);
++	req.replyc <- reply;
+ }
+ 
+ func server(op *binOp, service chan *request) {
+diff --git a/doc/progs/server1.go b/doc/progs/server1.go
+index fe04eb4137..51362502d3 100644
+--- a/doc/progs/server1.go
++++ b/doc/progs/server1.go
+@@ -12,8 +12,8 @@ type request struct {
+ type binOp (a, b int) int;
+ 
+ func run(op *binOp, req *request) {
+-	result := op(req.a, req.b);
+-	req.replyc <- result;
++	reply := op(req.a, req.b);
++	req.replyc <- reply;
+ }
+ 
+ func server(op *binOp, service chan *request, quit chan bool) {

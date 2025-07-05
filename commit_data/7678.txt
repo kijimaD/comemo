@@ -30,6 +30,38 @@ Date:   Mon Mar 7 12:09:00 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4266046
-
+---
  src/pkg/rpc/server.go | 13 -------------
  1 file changed, 13 deletions(-)
+
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index f185cd16e5..aa51f452f2 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -166,12 +166,6 @@ type Response struct {
+ 	Error         string // error, if any.
+ }
+ 
+-// ClientInfo records information about an RPC client connection.
+-type ClientInfo struct {
+-	LocalAddr  string
+-	RemoteAddr string
+-}
+-
+ // Server represents an RPC Server.
+ type Server struct {
+ 	sync.Mutex // protects the serviceMap
+@@ -269,13 +263,6 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
+ 			log.Println(mname, "reply type not exported:", replyType)
+ 			continue
+ 		}
+-		if mtype.NumIn() == 4 {
+-			t := mtype.In(3)
+-			if t != reflect.Typeof((*ClientInfo)(nil)) {
+-				log.Println(mname, "last argument not *ClientInfo")
+-				continue
+-			}
+-		}
+ 		// Method needs one out: os.Error.
+ 		if mtype.NumOut() != 1 {
+ 			log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())

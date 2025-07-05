@@ -22,7 +22,7 @@ Date:   Tue Nov 11 17:06:22 2014 -0500
     R=r, aram
     CC=austin, dvyukov, golang-codereviews, iant, khr
     https://golang.org/cl/168510043
-
+---
  src/runtime/asm.s                 |  5 +++++
  src/runtime/asm_386.s             | 18 +++++++++++++-----
  src/runtime/asm_amd64.s           | 17 ++++++++++++-----
@@ -59,3 +59,684 @@ Date:   Tue Nov 11 17:06:22 2014 -0500
  src/runtime/tls_arm.s             |  3 ++-
  src/runtime/vlop_arm.s            |  3 ++-
  35 files changed, 124 insertions(+), 49 deletions(-)
+
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index e6d782f37e..f1c812b90f 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -12,3 +12,8 @@ DATA runtime·no_pointers_stackmap+0x00(SB)/4, $2
+ DATA runtime·no_pointers_stackmap+0x04(SB)/4, $0
+ GLOBL runtime·no_pointers_stackmap(SB),RODATA, $8
+ 
++TEXT runtime·nop(SB),NOSPLIT,$0-0
++	RET
++
++GLOBL runtime·mheap_(SB), NOPTR, $0
++GLOBL runtime·memstats(SB), NOPTR, $0
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index b4b81d7397..45c8e4e6be 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "funcdata.h"
+ #include "textflag.h"
+ 
+@@ -49,7 +50,7 @@ nocpuinfo:
+ 	// update stackguard after _cgo_init
+ 	MOVL	$runtime·g0(SB), CX
+ 	MOVL	(g_stack+stack_lo)(CX), AX
+-	ADDL	$const_StackGuard, AX
++	ADDL	$const__StackGuard, AX
+ 	MOVL	AX, g_stackguard0(CX)
+ 	MOVL	AX, g_stackguard1(CX)
+ 
+@@ -502,7 +503,7 @@ cas64_fail:
+ //		return 1;
+ //	}else
+ //		return 0;
+-TEXT runtime·casp(SB), NOSPLIT, $0-13
++TEXT runtime·casp1(SB), NOSPLIT, $0-13
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	old+4(FP), AX
+ 	MOVL	new+8(FP), CX
+@@ -537,7 +538,7 @@ TEXT runtime·xchg(SB), NOSPLIT, $0-12
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·xchgp(SB), NOSPLIT, $0-12
++TEXT runtime·xchgp1(SB), NOSPLIT, $0-12
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	new+4(FP), AX
+ 	XCHGL	AX, 0(BX)
+@@ -555,7 +556,7 @@ again:
+ 	JNZ	again
+ 	RET
+ 
+-TEXT runtime·atomicstorep(SB), NOSPLIT, $0-8
++TEXT runtime·atomicstorep1(SB), NOSPLIT, $0-8
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	val+4(FP), AX
+ 	XCHGL	AX, 0(BX)
+@@ -2290,3 +2291,10 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
+ TEXT runtime·goexit(SB),NOSPLIT,$0-0
+ 	BYTE	$0x90	// NOP
+ 	CALL	runtime·goexit1(SB)	// does not return
++
++TEXT runtime·getg(SB),NOSPLIT,$0-4
++	get_tls(CX)
++	MOVL	g(CX), AX
++	MOVL	AX, ret+0(FP)
++	RET
++
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 39d7c78f23..9a74a5310b 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "funcdata.h"
+ #include "textflag.h"
+ 
+@@ -47,7 +48,7 @@ nocpuinfo:
+ 	// update stackguard after _cgo_init
+ 	MOVQ	$runtime·g0(SB), CX
+ 	MOVQ	(g_stack+stack_lo)(CX), AX
+-	ADDQ	$const_StackGuard, AX
++	ADDQ	$const__StackGuard, AX
+ 	MOVQ	AX, g_stackguard0(CX)
+ 	MOVQ	AX, g_stackguard1(CX)
+ 
+@@ -489,7 +490,7 @@ TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-16
+ //		return 1;
+ //	} else
+ //		return 0;
+-TEXT runtime·casp(SB), NOSPLIT, $0-25
++TEXT runtime·casp1(SB), NOSPLIT, $0-25
+ 	MOVQ	ptr+0(FP), BX
+ 	MOVQ	old+8(FP), AX
+ 	MOVQ	new+16(FP), CX
+@@ -541,7 +542,7 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
+ 	MOVQ	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·xchgp(SB), NOSPLIT, $0-24
++TEXT runtime·xchgp1(SB), NOSPLIT, $0-24
+ 	MOVQ	ptr+0(FP), BX
+ 	MOVQ	new+8(FP), AX
+ 	XCHGQ	AX, 0(BX)
+@@ -559,7 +560,7 @@ again:
+ 	JNZ	again
+ 	RET
+ 
+-TEXT runtime·atomicstorep(SB), NOSPLIT, $0-16
++TEXT runtime·atomicstorep1(SB), NOSPLIT, $0-16
+ 	MOVQ	ptr+0(FP), BX
+ 	MOVQ	val+8(FP), AX
+ 	XCHGQ	AX, 0(BX)
+@@ -2235,3 +2236,9 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
+ TEXT runtime·goexit(SB),NOSPLIT,$0-0
+ 	BYTE	$0x90	// NOP
+ 	CALL	runtime·goexit1(SB)	// does not return
++
++TEXT runtime·getg(SB),NOSPLIT,$0-8
++	get_tls(CX)
++	MOVQ	g(CX), AX
++	MOVQ	AX, ret+0(FP)
++	RET
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index a1116b5d47..99c8569bc9 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "funcdata.h"
+ #include "textflag.h"
+ 
+@@ -460,7 +461,7 @@ cas64_fail:
+ //		return 1;
+ //	} else
+ //		return 0;
+-TEXT runtime·casp(SB), NOSPLIT, $0-17
++TEXT runtime·casp1(SB), NOSPLIT, $0-17
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	old+4(FP), AX
+ 	MOVL	new+8(FP), CX
+@@ -512,7 +513,7 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
+ 	MOVQ	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·xchgp(SB), NOSPLIT, $0-12
++TEXT runtime·xchgp1(SB), NOSPLIT, $0-12
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	new+4(FP), AX
+ 	XCHGL	AX, 0(BX)
+@@ -530,7 +531,7 @@ again:
+ 	JNZ	again
+ 	RET
+ 
+-TEXT runtime·atomicstorep(SB), NOSPLIT, $0-8
++TEXT runtime·atomicstorep1(SB), NOSPLIT, $0-8
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	val+4(FP), AX
+ 	XCHGL	AX, 0(BX)
+@@ -1085,3 +1086,9 @@ TEXT runtime·return0(SB), NOSPLIT, $0
+ TEXT runtime·goexit(SB),NOSPLIT,$0-0
+ 	BYTE	$0x90	// NOP
+ 	CALL	runtime·goexit1(SB)	// does not return
++
++TEXT runtime·getg(SB),NOSPLIT,$0-4
++	get_tls(CX)
++	MOVL	g(CX), AX
++	MOVL	AX, ret+0(FP)
++	RET
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 0f3b5eeb8b..e883d7e586 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "funcdata.h"
+ #include "textflag.h"
+ 
+@@ -1326,3 +1327,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$8
+ TEXT runtime·goexit(SB),NOSPLIT,$-4-0
+ 	MOVW	R0, R0	// NOP
+ 	BL	runtime·goexit1(SB)	// does not return
++
++TEXT runtime·getg(SB),NOSPLIT,$-4-4
++	MOVW	g, ret+0(FP)
++	RET
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index bdea28c7c0..429591b551 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -4,7 +4,8 @@
+ 
+ // +build race
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "funcdata.h"
+ #include "textflag.h"
+ 
+diff --git a/src/runtime/rt0_windows_amd64.s b/src/runtime/rt0_windows_amd64.s
+index 197f52e113..df956ba36e 100644
+--- a/src/runtime/rt0_windows_amd64.s
++++ b/src/runtime/rt0_windows_amd64.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index a961c71a83..042c35eecd 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -6,7 +6,8 @@
+ // See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
+ // or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ // Exit the entire program (like C exit)
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index bd397d72a7..7f58baf63b 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -11,7 +11,8 @@
+ // The high 8 bits specify the kind of system call: 1=Mach, 2=BSD, 3=Machine-Dependent.
+ //
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ // Exit the entire program (like C exit)
+diff --git a/src/runtime/sys_dragonfly_386.s b/src/runtime/sys_dragonfly_386.s
+index 161eaec19d..1eb5cbe205 100644
+--- a/src/runtime/sys_dragonfly_386.s
++++ b/src/runtime/sys_dragonfly_386.s
+@@ -6,7 +6,8 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 	
+ TEXT runtime·sys_umtx_sleep(SB),NOSPLIT,$-4
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 2c756018c2..db07ed7032 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -6,7 +6,8 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 	
+ TEXT runtime·sys_umtx_sleep(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index 2c40fc433b..677791301c 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -6,7 +6,8 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 	
+ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$-4
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 65f8c1a6ee..84cee51d8c 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -6,7 +6,8 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ // FreeBSD 8, FreeBSD 9, and older versions that I have checked
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index d875138b62..198b427bf7 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -6,7 +6,8 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ // for EABI, as we don't support OABI
+@@ -362,7 +363,7 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	SWI $0
+ 	RET
+ 
+-TEXT runtime·casp(SB),NOSPLIT,$0
++TEXT runtime·casp1(SB),NOSPLIT,$0
+ 	B	runtime·cas(SB)
+ 
+ // TODO(minux): this is only valid for ARMv6+
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 0f6d4bbb5e..1861f237f5 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -6,7 +6,8 @@
+ // System calls and other sys.stuff for 386, Linux
+ //
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 33b91e872f..661492c171 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -6,7 +6,8 @@
+ // System calls and other sys.stuff for AMD64, Linux
+ //
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0-4
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index bd285f3998..9624fb22f2 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -6,7 +6,8 @@
+ // System calls and other sys.stuff for arm, Linux
+ //
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ // for EABI, as we don't support OABI
+@@ -391,7 +392,7 @@ cascheck:
+ 	MOVB	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·casp(SB),NOSPLIT,$0
++TEXT runtime·casp1(SB),NOSPLIT,$0
+ 	B	runtime·cas(SB)
+ 
+ TEXT runtime·osyield(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_nacl_386.s b/src/runtime/sys_nacl_386.s
+index 47985f31f5..03447c6630 100644
+--- a/src/runtime/sys_nacl_386.s
++++ b/src/runtime/sys_nacl_386.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ #include "syscall_nacl.h"
+ 
+diff --git a/src/runtime/sys_nacl_amd64p32.s b/src/runtime/sys_nacl_amd64p32.s
+index 4eb4aacdd5..dd1c4f7d5e 100644
+--- a/src/runtime/sys_nacl_amd64p32.s
++++ b/src/runtime/sys_nacl_amd64p32.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ #include "syscall_nacl.h"
+ 
+diff --git a/src/runtime/sys_nacl_arm.s b/src/runtime/sys_nacl_arm.s
+index d354ab4837..1f388f4a8f 100644
+--- a/src/runtime/sys_nacl_arm.s
++++ b/src/runtime/sys_nacl_arm.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ #include "syscall_nacl.h"
+ 
+@@ -301,7 +302,7 @@ nog:
+ TEXT runtime·nacl_sysinfo(SB),NOSPLIT,$16
+ 	RET
+ 
+-TEXT runtime·casp(SB),NOSPLIT,$0
++TEXT runtime·casp1(SB),NOSPLIT,$0
+ 	B	runtime·cas(SB)
+ 
+ // This is only valid for ARMv6+, however, NaCl/ARM is only defined
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index 23f2f6bd14..509d6d4a85 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -6,7 +6,8 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ // Exit the entire program (like C exit)
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index eb9766d3f5..e26d606671 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -6,7 +6,8 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ // int32 lwp_create(void *context, uintptr flags, void *lwpid)
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index 039a0832e0..fa9bc577ac 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -6,7 +6,8 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ // Exit the entire program (like C exit)
+@@ -330,7 +331,7 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	SWI $0xa0005c	// sys_fcntl
+ 	RET
+ 
+-TEXT runtime·casp(SB),NOSPLIT,$0
++TEXT runtime·casp1(SB),NOSPLIT,$0
+ 	B	runtime·cas(SB)
+ 
+ // TODO(minux): this is only valid for ARMv6+
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 5cda7768ae..4e856e398e 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -6,7 +6,8 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ #define	CLOCK_MONOTONIC	$3
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index 4e9db23908..9dc0fb6857 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -6,7 +6,8 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ #define CLOCK_MONOTONIC	$3
+diff --git a/src/runtime/sys_plan9_386.s b/src/runtime/sys_plan9_386.s
+index a41b56258a..b9db8cbf1a 100644
+--- a/src/runtime/sys_plan9_386.s
++++ b/src/runtime/sys_plan9_386.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ // setldt(int entry, int address, int limit)
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index 3a96c2bf91..02c7c8743e 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ // setldt(int entry, int address, int limit)
+diff --git a/src/runtime/sys_solaris_amd64.s b/src/runtime/sys_solaris_amd64.s
+index 0ebdab6ee2..3b63b49888 100644
+--- a/src/runtime/sys_solaris_amd64.s
++++ b/src/runtime/sys_solaris_amd64.s
+@@ -6,7 +6,8 @@
+ // /usr/include/sys/syscall.h for syscall numbers.
+ //
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ // This is needed by asm_amd64.s
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 932fe9dd24..4628efb6a0 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ // void runtime·asmstdcall(void *c);
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index e6190ce684..fc8476d541 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ // maxargs should be divisible by 2, as Windows stack
+diff --git a/src/runtime/thunk.s b/src/runtime/thunk.s
+index 0a0f147c4b..c201325af3 100644
+--- a/src/runtime/thunk.s
++++ b/src/runtime/thunk.s
+@@ -4,7 +4,6 @@
+ 
+ // This file exposes various internal runtime functions to other packages in std lib.
+ 
+-#include "zasm_GOOS_GOARCH.h"
+ #include "textflag.h"
+ 
+ #ifdef GOARCH_arm
+@@ -181,3 +180,18 @@ TEXT syscall·runtime_envs(SB),NOSPLIT,$0-0
+ 
+ TEXT os·runtime_args(SB),NOSPLIT,$0-0
+ 	JMP	runtime·runtime_args(SB)
++
++TEXT sync·runtime_procUnpin(SB),NOSPLIT,$0-0
++	JMP	runtime·sync_procUnpin(SB)
++
++TEXT sync·runtime_procPin(SB),NOSPLIT,$0-0
++	JMP	runtime·sync_procPin(SB)
++
++TEXT syscall·runtime_BeforeFork(SB),NOSPLIT,$0-0
++	JMP	runtime·syscall_BeforeFork(SB)
++
++TEXT syscall·runtime_AfterFork(SB),NOSPLIT,$0-0
++	JMP	runtime·syscall_AfterFork(SB)
++
++TEXT reflect·typelinks(SB),NOSPLIT,$0-0
++	JMP	runtime·typelinks(SB)
+diff --git a/src/runtime/thunk_solaris_amd64.s b/src/runtime/thunk_solaris_amd64.s
+index f61188c140..1dc9e746d1 100644
+--- a/src/runtime/thunk_solaris_amd64.s
++++ b/src/runtime/thunk_solaris_amd64.s
+@@ -4,7 +4,8 @@
+ 
+ // This file exposes various external library functions to Go code in the runtime.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ TEXT runtime·libc_chdir(SB),NOSPLIT,$0
+diff --git a/src/runtime/thunk_windows.s b/src/runtime/thunk_windows.s
+index 7ccb98fd4d..b1d5d5753b 100644
+--- a/src/runtime/thunk_windows.s
++++ b/src/runtime/thunk_windows.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ TEXT syscall·Syscall(SB),NOSPLIT,$0-0
+diff --git a/src/runtime/tls_arm.s b/src/runtime/tls_arm.s
+index 85c3940bf2..7c5c0e215e 100644
+--- a/src/runtime/tls_arm.s
++++ b/src/runtime/tls_arm.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "funcdata.h"
+ #include "textflag.h"
+ 
+diff --git a/src/runtime/vlop_arm.s b/src/runtime/vlop_arm.s
+index b4b905bb7a..9184cee161 100644
+--- a/src/runtime/vlop_arm.s
++++ b/src/runtime/vlop_arm.s
+@@ -23,7 +23,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include "zasm_GOOS_GOARCH.h"
++#include "go_asm.h"
++#include "go_tls.h"
+ #include "textflag.h"
+ 
+ arg=0

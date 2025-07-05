@@ -15,6 +15,22 @@ Date:   Mon Apr 19 13:58:07 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/311489
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/asm_amd64.s | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index ca6b1501d1..1e6d8189c9 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -302,8 +302,10 @@ goodm:
+ 	get_tls(CX)		// Set G in TLS
+ 	MOVQ	R14, g(CX)
+ 	MOVQ	(g_sched+gobuf_sp)(R14), SP	// sp = g0.sched.sp
++	PUSHQ	AX	// open up space for fn's arg spill slot
+ 	MOVQ	0(DX), R12
+ 	CALL	R12		// fn(g)
++	POPQ	AX
+ 	JMP	runtime·badmcall2(SB)
+ 	RET
+ #else

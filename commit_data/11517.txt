@@ -19,7 +19,7 @@ Date:   Tue Jan 31 09:48:10 2012 -0800
     R=rsc, rsc
     CC=golang-dev
     https://golang.org/cl/5576057
-
+---
  src/cmd/api/goapi.go                     |   2 +-
  src/pkg/go/doc/doc.go                    |   1 -
  src/pkg/go/doc/doc_test.go               |   1 +
@@ -35,3 +35,587 @@ Date:   Tue Jan 31 09:48:10 2012 -0800
  src/pkg/go/doc/testdata/e.go             |  13 +++
  src/pkg/go/doc/testdata/testing.2.golden | 156 +++++++++++++++++++++++++++++++
  14 files changed, 453 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index c862280b2c..d05f90df3b 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -264,7 +264,7 @@ func (w *Walker) WalkPackage(name string) {
+ 	// (functions and methods). This is done here because
+ 	// go/doc is destructive.  We can't use the
+ 	// *ast.Package after this.
+-	dpkg := doc.New(apkg, name, 0)
++	dpkg := doc.New(apkg, name, doc.AllMethods)
+ 
+ 	for _, t := range dpkg.Types {
+ 		// Move funcs up to the top-level, not hiding in the Types.
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 42f6264137..9c606315d4 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -78,7 +78,6 @@ const (
+ // New takes ownership of the AST pkg and may edit or overwrite it.
+ //
+ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
+-	mode |= AllMethods // TODO(gri) remove this to enable flag
+ 	var r reader
+ 	r.readPackage(pkg, mode)
+ 	r.computeMethodSets()
+diff --git a/src/pkg/go/doc/doc_test.go b/src/pkg/go/doc/doc_test.go
+index d9ffe47b61..9ffe72032c 100644
+--- a/src/pkg/go/doc/doc_test.go
++++ b/src/pkg/go/doc/doc_test.go
+@@ -118,4 +118,5 @@ func test(t *testing.T, mode Mode) {
+ func Test(t *testing.T) {
+ 	test(t, 0)
+ 	test(t, AllDecls)
++	test(t, AllMethods)
+ }
+diff --git a/src/pkg/go/doc/exports.go b/src/pkg/go/doc/exports.go
+index 95de2baf4d..68dd3841be 100644
+--- a/src/pkg/go/doc/exports.go
++++ b/src/pkg/go/doc/exports.go
+@@ -141,6 +141,10 @@ func (r *reader) filterDecl(decl ast.Decl) bool {
+ 		d.Specs = r.filterSpecList(d.Specs)
+ 		return len(d.Specs) > 0
+ 	case *ast.FuncDecl:
++		// ok to filter these methods early because any
++		// conflicting method will be filtered here, too -
++		// thus, removing these methods early will not lead
++		// to the false removal of possible conflicts
+ 		return ast.IsExported(d.Name.Name)
+ 	}
+ 	return false
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index c6dd351993..3c30d1a07b 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -708,8 +708,13 @@ func sortedFuncs(m methodSet, allMethods bool) []*Func {
+ 	list := make([]*Func, len(m))
+ 	i := 0
+ 	for _, m := range m {
+-		// exclude conflict entries
+-		if m.Decl != nil && (allMethods || ast.IsExported(removeStar(m.Orig))) {
++		// determine which methods to include
++		switch {
++		case m.Decl == nil:
++			// exclude conflict entry
++		case allMethods, m.Level == 0, !ast.IsExported(removeStar(m.Orig)):
++			// forced inclusion, method not embedded, or method
++			// embedded but original receiver type not exported
+ 			list[i] = m
+ 			i++
+ 		}
+diff --git a/src/pkg/go/doc/testdata/a.2.golden b/src/pkg/go/doc/testdata/a.2.golden
+new file mode 100644
+index 0000000000..24db02d348
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/a.2.golden
+@@ -0,0 +1,13 @@
++// comment 0  comment 1 
++PACKAGE a
++
++IMPORTPATH
++	testdata/a
++
++FILENAMES
++	testdata/a0.go
++	testdata/a1.go
++
++BUGS
++	// bug0 
++	// bug1 
+diff --git a/src/pkg/go/doc/testdata/b.2.golden b/src/pkg/go/doc/testdata/b.2.golden
+new file mode 100644
+index 0000000000..7c33300616
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/b.2.golden
+@@ -0,0 +1,43 @@
++// 
++PACKAGE b
++
++IMPORTPATH
++	testdata/b
++
++IMPORTS
++	a
++
++FILENAMES
++	testdata/b.go
++
++CONSTANTS
++	// 
++	const Pi = 3.14	// Pi
++
++
++VARIABLES
++	// 
++	var MaxInt int	// MaxInt
++
++
++FUNCTIONS
++	// 
++	func F(x int) int
++
++	// Always under the package functions list. 
++	func NotAFactory() int
++
++	// Associated with uint type if AllDecls is set. 
++	func UintFactory() uint
++
++
++TYPES
++	// 
++	type T struct{}	// T
++
++	// 
++	var V T	// v
++
++	// 
++	func (x *T) M()
++
+diff --git a/src/pkg/go/doc/testdata/c.2.golden b/src/pkg/go/doc/testdata/c.2.golden
+new file mode 100644
+index 0000000000..e21959b195
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/c.2.golden
+@@ -0,0 +1,48 @@
++// 
++PACKAGE c
++
++IMPORTPATH
++	testdata/c
++
++IMPORTS
++	a
++
++FILENAMES
++	testdata/c.go
++
++TYPES
++	// A (should see this) 
++	type A struct{}
++
++	// B (should see this) 
++	type B struct{}
++
++	// C (should see this) 
++	type C struct{}
++
++	// D (should see this) 
++	type D struct{}
++
++	// E1 (should see this) 
++	type E1 struct{}
++
++	// E (should see this for E2 and E3) 
++	type E2 struct{}
++
++	// E (should see this for E2 and E3) 
++	type E3 struct{}
++
++	// E4 (should see this) 
++	type E4 struct{}
++
++	// 
++	type T1 struct{}
++
++	// 
++	func (t1 *T1) M()
++
++	// T2 must not show methods of local T1 
++	type T2 struct {
++		a.T1	// not the same as locally declared T1
++	}
++
+diff --git a/src/pkg/go/doc/testdata/d.2.golden b/src/pkg/go/doc/testdata/d.2.golden
+new file mode 100644
+index 0000000000..c005199533
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/d.2.golden
+@@ -0,0 +1,104 @@
++// 
++PACKAGE d
++
++IMPORTPATH
++	testdata/d
++
++FILENAMES
++	testdata/d1.go
++	testdata/d2.go
++
++CONSTANTS
++	// CBx constants should appear before CAx constants. 
++	const (
++		CB2	= iota	// before CB1
++		CB1		// before CB0
++		CB0		// at end
++	)
++
++	// CAx constants should appear after CBx constants. 
++	const (
++		CA2	= iota	// before CA1
++		CA1		// before CA0
++		CA0		// at end
++	)
++
++	// C0 should be first. 
++	const C0 = 0
++
++	// C1 should be second. 
++	const C1 = 1
++
++	// C2 should be third. 
++	const C2 = 2
++
++	// 
++	const (
++		// Single const declarations inside ()'s are considered ungrouped
++		// and show up in sorted order.
++		Cungrouped = 0
++	)
++
++
++VARIABLES
++	// VBx variables should appear before VAx variables. 
++	var (
++		VB2	int	// before VB1
++		VB1	int	// before VB0
++		VB0	int	// at end
++	)
++
++	// VAx variables should appear after VBx variables. 
++	var (
++		VA2	int	// before VA1
++		VA1	int	// before VA0
++		VA0	int	// at end
++	)
++
++	// V0 should be first. 
++	var V0 uintptr
++
++	// V1 should be second. 
++	var V1 uint
++
++	// V2 should be third. 
++	var V2 int
++
++	// 
++	var (
++		// Single var declarations inside ()'s are considered ungrouped
++		// and show up in sorted order.
++		Vungrouped = 0
++	)
++
++
++FUNCTIONS
++	// F0 should be first. 
++	func F0()
++
++	// F1 should be second. 
++	func F1()
++
++	// F2 should be third. 
++	func F2()
++
++
++TYPES
++	// T0 should be first. 
++	type T0 struct{}
++
++	// T1 should be second. 
++	type T1 struct{}
++
++	// T2 should be third. 
++	type T2 struct{}
++
++	// TG0 should be first. 
++	type TG0 struct{}
++
++	// TG1 should be second. 
++	type TG1 struct{}
++
++	// TG2 should be third. 
++	type TG2 struct{}
++
+diff --git a/src/pkg/go/doc/testdata/e.0.golden b/src/pkg/go/doc/testdata/e.0.golden
+index 05b0cc94e5..096a50ff41 100644
+--- a/src/pkg/go/doc/testdata/e.0.golden
++++ b/src/pkg/go/doc/testdata/e.0.golden
+@@ -29,9 +29,14 @@ TYPES
+ 	// T3.M should appear as method of T3. 
+ 	func (T3) M()
+ 
+-	// T1 has no embedded (level 1) M method due to conflict. 
+-	type T4 struct {
+-		T2
+-		// contains filtered or unexported fields
++	// 
++	type T4 struct{}
++
++	// T4.M should appear as method of T5 only if AllMethods is set. 
++	func (*T4) M()
++
++	// 
++	type T5 struct {
++		T4
+ 	}
+ 
+diff --git a/src/pkg/go/doc/testdata/e.1.golden b/src/pkg/go/doc/testdata/e.1.golden
+index 68a3e68a48..28be74a1fd 100644
+--- a/src/pkg/go/doc/testdata/e.1.golden
++++ b/src/pkg/go/doc/testdata/e.1.golden
+@@ -31,10 +31,15 @@ TYPES
+ 	// T3.M should appear as method of T3. 
+ 	func (T3) M()
+ 
+-	// T1 has no embedded (level 1) M method due to conflict. 
+-	type T4 struct {
+-		t2
+-		T2
++	// 
++	type T4 struct{}
++
++	// T4.M should appear as method of T5 only if AllMethods is set. 
++	func (*T4) M()
++
++	// 
++	type T5 struct {
++		T4
+ 	}
+ 
+ 	// 
+diff --git a/src/pkg/go/doc/testdata/e.2.golden b/src/pkg/go/doc/testdata/e.2.golden
+new file mode 100644
+index 0000000000..f9a2b81677
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/e.2.golden
+@@ -0,0 +1,45 @@
++// The package e is a go/doc test for embedded methods. 
++PACKAGE e
++
++IMPORTPATH
++	testdata/e
++
++FILENAMES
++	testdata/e.go
++
++TYPES
++	// T1 has no embedded (level 1) M method due to conflict. 
++	type T1 struct {
++		// contains filtered or unexported fields
++	}
++
++	// T2 has only M as top-level method. 
++	type T2 struct {
++		// contains filtered or unexported fields
++	}
++
++	// T2.M should appear as method of T2. 
++	func (T2) M()
++
++	// T3 has only M as top-level method. 
++	type T3 struct {
++		// contains filtered or unexported fields
++	}
++
++	// T3.M should appear as method of T3. 
++	func (T3) M()
++
++	// 
++	type T4 struct{}
++
++	// T4.M should appear as method of T5 only if AllMethods is set. 
++	func (*T4) M()
++
++	// 
++	type T5 struct {
++		T4
++	}
++
++	// T4.M should appear as method of T5 only if AllMethods is set. 
++	func (*T5) M()
++
+diff --git a/src/pkg/go/doc/testdata/e.go b/src/pkg/go/doc/testdata/e.go
+index 6f8b4a7734..526a91f4f0 100644
+--- a/src/pkg/go/doc/testdata/e.go
++++ b/src/pkg/go/doc/testdata/e.go
+@@ -64,3 +64,16 @@ type T4 struct {
+ 	t2
+ 	T2
+ }
++
++// ----------------------------------------------------------------------------
++// Don't show embedded methods of exported anonymous fields unless AllMethods
++// is set.
++
++type T4 struct{}
++
++// T4.M should appear as method of T5 only if AllMethods is set.
++func (*T4) M() {}
++
++type T5 struct {
++	T4
++}
+diff --git a/src/pkg/go/doc/testdata/testing.2.golden b/src/pkg/go/doc/testdata/testing.2.golden
+new file mode 100644
+index 0000000000..15a9039866
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/testing.2.golden
+@@ -0,0 +1,156 @@
++// Package testing provides support for automated testing of Go ...
++PACKAGE testing
++
++IMPORTPATH
++	testdata/testing
++
++IMPORTS
++	bytes
++	flag
++	fmt
++	io
++	os
++	runtime
++	runtime/pprof
++	strconv
++	strings
++	time
++
++FILENAMES
++	testdata/benchmark.go
++	testdata/example.go
++	testdata/testing.go
++
++FUNCTIONS
++	// An internal function but exported because it is cross-package; ...
++	func Main(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample)
++
++	// An internal function but exported because it is cross-package; ...
++	func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark)
++
++	// 
++	func RunExamples(examples []InternalExample) (ok bool)
++
++	// 
++	func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool)
++
++	// Short reports whether the -test.short flag is set. 
++	func Short() bool
++
++
++TYPES
++	// B is a type passed to Benchmark functions to manage benchmark ...
++	type B struct {
++		N int
++		// contains filtered or unexported fields
++	}
++
++	// Error is equivalent to Log() followed by Fail(). 
++	func (c *B) Error(args ...interface{})
++
++	// Errorf is equivalent to Logf() followed by Fail(). 
++	func (c *B) Errorf(format string, args ...interface{})
++
++	// Fail marks the function as having failed but continues ...
++	func (c *B) Fail()
++
++	// FailNow marks the function as having failed and stops its ...
++	func (c *B) FailNow()
++
++	// Failed returns whether the function has failed. 
++	func (c *B) Failed() bool
++
++	// Fatal is equivalent to Log() followed by FailNow(). 
++	func (c *B) Fatal(args ...interface{})
++
++	// Fatalf is equivalent to Logf() followed by FailNow(). 
++	func (c *B) Fatalf(format string, args ...interface{})
++
++	// Log formats its arguments using default formatting, analogous ...
++	func (c *B) Log(args ...interface{})
++
++	// Logf formats its arguments according to the format, analogous ...
++	func (c *B) Logf(format string, args ...interface{})
++
++	// ResetTimer sets the elapsed benchmark time to zero. It does not ...
++	func (b *B) ResetTimer()
++
++	// SetBytes records the number of bytes processed in a single ...
++	func (b *B) SetBytes(n int64)
++
++	// StartTimer starts timing a test.  This function is called ...
++	func (b *B) StartTimer()
++
++	// StopTimer stops timing a test.  This can be used to pause the ...
++	func (b *B) StopTimer()
++
++	// The results of a benchmark run. 
++	type BenchmarkResult struct {
++		N	int		// The number of iterations.
++		T	time.Duration	// The total time taken.
++		Bytes	int64		// Bytes processed in one iteration.
++	}
++
++	// Benchmark benchmarks a single function. Useful for creating ...
++	func Benchmark(f func(b *B)) BenchmarkResult
++
++	// 
++	func (r BenchmarkResult) NsPerOp() int64
++
++	// 
++	func (r BenchmarkResult) String() string
++
++	// An internal type but exported because it is cross-package; part ...
++	type InternalBenchmark struct {
++		Name	string
++		F	func(b *B)
++	}
++
++	// 
++	type InternalExample struct {
++		Name	string
++		F	func()
++		Output	string
++	}
++
++	// An internal type but exported because it is cross-package; part ...
++	type InternalTest struct {
++		Name	string
++		F	func(*T)
++	}
++
++	// T is a type passed to Test functions to manage test state and ...
++	type T struct {
++		// contains filtered or unexported fields
++	}
++
++	// Error is equivalent to Log() followed by Fail(). 
++	func (c *T) Error(args ...interface{})
++
++	// Errorf is equivalent to Logf() followed by Fail(). 
++	func (c *T) Errorf(format string, args ...interface{})
++
++	// Fail marks the function as having failed but continues ...
++	func (c *T) Fail()
++
++	// FailNow marks the function as having failed and stops its ...
++	func (c *T) FailNow()
++
++	// Failed returns whether the function has failed. 
++	func (c *T) Failed() bool
++
++	// Fatal is equivalent to Log() followed by FailNow(). 
++	func (c *T) Fatal(args ...interface{})
++
++	// Fatalf is equivalent to Logf() followed by FailNow(). 
++	func (c *T) Fatalf(format string, args ...interface{})
++
++	// Log formats its arguments using default formatting, analogous ...
++	func (c *T) Log(args ...interface{})
++
++	// Logf formats its arguments according to the format, analogous ...
++	func (c *T) Logf(format string, args ...interface{})
++
++	// Parallel signals that this test is to be run in parallel with ...
++	func (t *T) Parallel()
++

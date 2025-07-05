@@ -15,10 +15,289 @@ Date:   Tue Jun 16 19:20:18 2015 -0400
     Change-Id: Ia2a5991ce2c9f43ba06ae1c7032f7c898dc990e0
     Reviewed-on: https://go-review.googlesource.com/11089
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgc.go      |   2 +-
  src/runtime/mgcmark.go  |  57 +-------------------------
  src/runtime/proc1.go    | 107 +++++++++++++++++++++++-------------------------
  src/runtime/runtime2.go |   2 +-
  src/runtime/stack1.go   |  11 +++--
  5 files changed, 62 insertions(+), 117 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index b7b9ac1323..5103739497 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1450,7 +1450,7 @@ func gcResetGState() (numgs int) {
+ 	// allgs doesn't change.
+ 	lock(&allglock)
+ 	for _, gp := range allgs {
+-		gp.gcworkdone = false  // set to true in gcphasework
++		gp.gcscandone = false  // set to true in gcphasework
+ 		gp.gcscanvalid = false // stack has not been scanned
+ 		gp.gcalloc = 0
+ 		gp.gcscanwork = 0
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index f5fa52dd73..b2fbc97615 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -40,7 +40,7 @@ func gcscan_m() {
+ 	// Check that gc work is done.
+ 	for i := 0; i < local_allglen; i++ {
+ 		gp := allgs[i]
+-		if !gp.gcworkdone {
++		if !gp.gcscandone {
+ 			throw("scan missed a g")
+ 		}
+ 	}
+@@ -130,35 +130,8 @@ func markroot(desc *parfor, i uint32) {
+ 			// non-STW phases.
+ 			shrinkstack(gp)
+ 		}
+-		if readgstatus(gp) == _Gdead {
+-			gp.gcworkdone = true
+-		} else {
+-			gp.gcworkdone = false
+-		}
+-		restart := stopg(gp)
+ 
+-		// goroutine will scan its own stack when it stops running.
+-		// Wait until it has.
+-		for readgstatus(gp) == _Grunning && !gp.gcworkdone {
+-		}
+-
+-		// scanstack(gp) is done as part of gcphasework
+-		// But to make sure we finished we need to make sure that
+-		// the stack traps have all responded so drop into
+-		// this while loop until they respond.
+-		for !gp.gcworkdone {
+-			status = readgstatus(gp)
+-			if status == _Gdead {
+-				gp.gcworkdone = true // scan is a noop
+-				break
+-			}
+-			if status == _Gwaiting || status == _Grunnable {
+-				restart = stopg(gp)
+-			}
+-		}
+-		if restart {
+-			restartg(gp)
+-		}
++		scang(gp)
+ 	}
+ 
+ 	gcw.dispose()
+@@ -254,32 +227,6 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 	})
+ }
+ 
+-// The gp has been moved to a GC safepoint. GC phase specific
+-// work is done here.
+-//go:nowritebarrier
+-func gcphasework(gp *g) {
+-	if gp.gcworkdone {
+-		return
+-	}
+-	switch gcphase {
+-	default:
+-		throw("gcphasework in bad gcphase")
+-	case _GCoff, _GCstw, _GCsweep:
+-		// No work.
+-	case _GCscan:
+-		// scan the stack, mark the objects, put pointers in work buffers
+-		// hanging off the P where this is being run.
+-		// Indicate that the scan is valid until the goroutine runs again
+-		scanstack(gp)
+-	case _GCmark:
+-		// No work.
+-	case _GCmarktermination:
+-		scanstack(gp)
+-		// All available mark work will be emptied before returning.
+-	}
+-	gp.gcworkdone = true
+-}
+-
+ //go:nowritebarrier
+ func scanstack(gp *g) {
+ 	if gp.gcscanvalid {
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index c179c5aea7..8f1b62b24b 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -359,67 +359,76 @@ func casgcopystack(gp *g) uint32 {
+ 	}
+ }
+ 
+-// stopg ensures that gp is stopped at a GC safe point where its stack can be scanned
+-// or in the context of a moving collector the pointers can be flipped from pointing
+-// to old object to pointing to new objects.
+-// If stopg returns true, the caller knows gp is at a GC safe point and will remain there until
+-// the caller calls restartg.
+-// If stopg returns false, the caller is not responsible for calling restartg. This can happen
+-// if another thread, either the gp itself or another GC thread is taking the responsibility
+-// to do the GC work related to this thread.
+-func stopg(gp *g) bool {
+-	for {
+-		if gp.gcworkdone {
+-			return false
+-		}
+-
++// scang blocks until gp's stack has been scanned.
++// It might be scanned by scang or it might be scanned by the goroutine itself.
++// Either way, the stack scan has completed when scang returns.
++func scang(gp *g) {
++	// Invariant; we (the caller, markroot for a specific goroutine) own gp.gcscandone.
++	// Nothing is racing with us now, but gcscandone might be set to true left over
++	// from an earlier round of stack scanning (we scan twice per GC).
++	// We use gcscandone to record whether the scan has been done during this round.
++	// It is important that the scan happens exactly once: if called twice,
++	// the installation of stack barriers will detect the double scan and die.
++
++	gp.gcscandone = false
++
++	// Endeavor to get gcscandone set to true,
++	// either by doing the stack scan ourselves or by coercing gp to scan itself.
++	// gp.gcscandone can transition from false to true when we're not looking
++	// (if we asked for preemption), so any time we lock the status using
++	// castogscanstatus we have to double-check that the scan is still not done.
++	for !gp.gcscandone {
+ 		switch s := readgstatus(gp); s {
+ 		default:
+ 			dumpgstatus(gp)
+-			throw("stopg: gp->atomicstatus is not valid")
++			throw("stopg: invalid status")
+ 
+ 		case _Gdead:
+-			return false
++			// No stack.
++			gp.gcscandone = true
+ 
+ 		case _Gcopystack:
+-			// Loop until a new stack is in place.
++			// Stack being switched. Go around again.
+ 
+-		case _Grunnable,
+-			_Gsyscall,
+-			_Gwaiting:
++		case _Grunnable, _Gsyscall, _Gwaiting:
+ 			// Claim goroutine by setting scan bit.
+-			if !castogscanstatus(gp, s, s|_Gscan) {
+-				break
++			// Racing with execution or readying of gp.
++			// The scan bit keeps them from running
++			// the goroutine until we're done.
++			if castogscanstatus(gp, s, s|_Gscan) {
++				if !gp.gcscandone {
++					scanstack(gp)
++					gp.gcscandone = true
++				}
++				restartg(gp)
+ 			}
+-			// In scan state, do work.
+-			gcphasework(gp)
+-			return true
+ 
+-		case _Gscanrunnable,
+-			_Gscanwaiting,
+-			_Gscansyscall:
+-			// Goroutine already claimed by another GC helper.
+-			return false
++		case _Gscanwaiting:
++			// newstack is doing a scan for us right now. Wait.
+ 
+ 		case _Grunning:
+-			// Claim goroutine, so we aren't racing with a status
+-			// transition away from Grunning.
+-			if !castogscanstatus(gp, _Grunning, _Gscanrunning) {
++			// Goroutine running. Try to preempt execution so it can scan itself.
++			// The preemption handler (in newstack) does the actual scan.
++
++			// Optimization: if there is already a pending preemption request
++			// (from the previous loop iteration), don't bother with the atomics.
++			if gp.preemptscan && gp.preempt && gp.stackguard0 == stackPreempt {
+ 				break
+ 			}
+ 
+-			// Mark gp for preemption.
+-			if !gp.gcworkdone {
+-				gp.preemptscan = true
+-				gp.preempt = true
+-				gp.stackguard0 = stackPreempt
++			// Ask for preemption and self scan.
++			if castogscanstatus(gp, _Grunning, _Gscanrunning) {
++				if !gp.gcscandone {
++					gp.preemptscan = true
++					gp.preempt = true
++					gp.stackguard0 = stackPreempt
++				}
++				casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
+ 			}
+-
+-			// Unclaim.
+-			casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
+-			return false
+ 		}
+ 	}
++
++	gp.preemptscan = false // cancel scan request if no longer needed
+ }
+ 
+ // The GC requests that this routine be moved from a scanmumble state to a mumble state.
+@@ -451,20 +460,6 @@ func restartg(gp *g) {
+ 	}
+ }
+ 
+-func stopscanstart(gp *g) {
+-	_g_ := getg()
+-	if _g_ == gp {
+-		throw("GC not moved to G0")
+-	}
+-	if stopg(gp) {
+-		if !isscanstatus(readgstatus(gp)) {
+-			dumpgstatus(gp)
+-			throw("GC not in scan state")
+-		}
+-		restartg(gp)
+-	}
+-}
+-
+ // stopTheWorld stops all P's from executing goroutines, interrupting
+ // all goroutines at GC safe points and records reason as the reason
+ // for the stop. On return, only the current goroutine's P is running.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 55d153bc15..4f6a8ec7e3 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -237,7 +237,7 @@ type g struct {
+ 	preempt      bool // preemption signal, duplicates stackguard0 = stackpreempt
+ 	paniconfault bool // panic (instead of crash) on unexpected fault address
+ 	preemptscan  bool // preempted g does scan for gc
+-	gcworkdone   bool // debug: cleared at beginning of gc work phase cycle, set by gcphasework, tested at end of cycle
++	gcscandone   bool // g has scanned stack; protected by _Gscan bit in status
+ 	gcscanvalid  bool // false at start of gc cycle, true if G has not run since last scan
+ 	throwsplit   bool // must not split stack
+ 	raceignore   int8 // ignore race detection events
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index cb2110efb6..c5ffb0e130 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -756,13 +756,16 @@ func newstack() {
+ 				// be set and gcphasework will simply
+ 				// return.
+ 			}
+-			gcphasework(gp)
++			if !gp.gcscandone {
++				scanstack(gp)
++				gp.gcscandone = true
++			}
++			gp.preemptscan = false
++			gp.preempt = false
+ 			casfrom_Gscanstatus(gp, _Gscanwaiting, _Gwaiting)
+ 			casgstatus(gp, _Gwaiting, _Grunning)
+ 			gp.stackguard0 = gp.stack.lo + _StackGuard
+-			gp.preempt = false
+-			gp.preemptscan = false // Tells the GC premption was successful.
+-			gogo(&gp.sched)        // never return
++			gogo(&gp.sched) // never return
+ 		}
+ 
+ 		// Act like goroutine called runtime.Gosched.

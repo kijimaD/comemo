@@ -9,6 +9,24 @@ Date:   Mon Sep 9 15:50:11 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/13507044
-
+---
  src/pkg/time/internal_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/internal_test.go b/src/pkg/time/internal_test.go
+index 4e5557d6a0..87fdd3216f 100644
+--- a/src/pkg/time/internal_test.go
++++ b/src/pkg/time/internal_test.go
+@@ -35,7 +35,11 @@ func CheckRuntimeTimerOverflow() error {
+ 	}
+ 	startTimer(r)
+ 
+-	const timeout = 100 * Millisecond
++	timeout := 100 * Millisecond
++	if runtime.GOOS == "windows" {
++		// Allow more time for gobuilder to succeed.
++		timeout = Second
++	}
+ 
+ 	// Start a goroutine that should send on t.C before the timeout.
+ 	t := NewTimer(1)

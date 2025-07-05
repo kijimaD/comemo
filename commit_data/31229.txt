@@ -14,8 +14,93 @@ Date:   Tue Feb 7 09:31:58 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go  |  9 ---------
  src/cmd/compile/internal/gc/walk.go | 31 -------------------------------
  src/cmd/internal/obj/pass.go        | 11 -----------
  3 files changed, 51 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 02ecb98d6a..f290ea9663 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1411,15 +1411,6 @@ func (s *state) ssaShiftOp(op Op, t *Type, u *Type) ssa.Op {
+ 	return x
+ }
+ 
+-func (s *state) ssaRotateOp(op Op, t *Type) ssa.Op {
+-	etype1 := s.concreteEtype(t)
+-	x, ok := opToSSA[opAndType{op, etype1}]
+-	if !ok {
+-		s.Fatalf("unhandled rotate op %v etype=%s", op, etype1)
+-	}
+-	return x
+-}
+-
+ // expr converts the expression n to ssa, adds it to s and returns the ssa result.
+ func (s *state) expr(n *Node) *ssa.Value {
+ 	if !(n.Op == ONAME || n.Op == OLITERAL && n.Sym != nil) {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 11b5f3ec3c..7e1da4d51d 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3234,37 +3234,6 @@ func finishcompare(n, r *Node, init *Nodes) *Node {
+ 	return nn
+ }
+ 
+-func samecheap(a *Node, b *Node) bool {
+-	var ar *Node
+-	var br *Node
+-	for a != nil && b != nil && a.Op == b.Op {
+-		switch a.Op {
+-		default:
+-			return false
+-
+-		case ONAME:
+-			return a == b
+-
+-		case ODOT, ODOTPTR:
+-			if a.Sym != b.Sym {
+-				return false
+-			}
+-
+-		case OINDEX:
+-			ar = a.Right
+-			br = b.Right
+-			if !Isconst(ar, CTINT) || !Isconst(br, CTINT) || ar.Val().U.(*Mpint).Cmp(br.Val().U.(*Mpint)) != 0 {
+-				return false
+-			}
+-		}
+-
+-		a = a.Left
+-		b = b.Left
+-	}
+-
+-	return false
+-}
+-
+ // isIntOrdering reports whether n is a <, ≤, >, or ≥ ordering between integers.
+ func (n *Node) isIntOrdering() bool {
+ 	switch n.Op {
+diff --git a/src/cmd/internal/obj/pass.go b/src/cmd/internal/obj/pass.go
+index 1d2f74b9fe..dbc437deb5 100644
+--- a/src/cmd/internal/obj/pass.go
++++ b/src/cmd/internal/obj/pass.go
+@@ -32,17 +32,6 @@ package obj
+ 
+ // Code and data passes.
+ 
+-func Brchain(ctxt *Link, p *Prog) *Prog {
+-	for i := 0; i < 20; i++ {
+-		if p == nil || p.As != AJMP || p.Pcond == nil {
+-			return p
+-		}
+-		p = p.Pcond
+-	}
+-
+-	return nil
+-}
+-
+ func brloop(ctxt *Link, p *Prog) *Prog {
+ 	var q *Prog
+ 

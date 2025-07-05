@@ -9,8 +9,54 @@ Date:   Thu May 7 02:12:23 2015 -0400
     Change-Id: I7a2c580b87749225668fbd7a005412c8eee6824d
     Reviewed-on: https://go-review.googlesource.com/9823
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/clean.bash | 3 ++-
  src/clean.bat  | 5 +++--
  src/clean.rc   | 3 ++-
  3 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index f36260240a..8c23e010e8 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -13,4 +13,5 @@ if [ ! -x $GOTOOLDIR/dist ]; then
+ fi
+ 
+ "$GOBIN/go" clean -i std
+-$GOTOOLDIR/dist clean
++"$GOBIN/go" tool dist clean
++"$GOBIN/go" clean -i cmd
+diff --git a/src/clean.bat b/src/clean.bat
+index dcf54ea3a3..3cc6a689bc 100644
+--- a/src/clean.bat
++++ b/src/clean.bat
+@@ -7,7 +7,7 @@ setlocal
+ 
+ set GOBUILDFAIL=0
+ 
+-go tool dist env -wp >env.bat
++go tool dist env -w -p >env.bat
+ if errorlevel 1 goto fail
+ call env.bat
+ del env.bat
+@@ -19,7 +19,8 @@ goto fail
+ :distok
+ 
+ "%GOBIN%\go" clean -i std
+-%GOTOOLDIR%\dist clean
++"%GOBIN%\go" tool dist clean
++"%GOBIN%\go" clean -i cmd
+ 
+ goto end
+ 
+diff --git a/src/clean.rc b/src/clean.rc
+index 41cab613e3..23bbd60326 100755
+--- a/src/clean.rc
++++ b/src/clean.rc
+@@ -11,4 +11,5 @@ if(! test -x $GOTOOLDIR/dist){
+ }
+ 
+ $GOBIN/go clean -i std
+-$GOTOOLDIR/dist clean
++$GOBIN/go tool dist clean
++$GOBIN/go clean -i cmd

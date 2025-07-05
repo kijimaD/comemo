@@ -23,9 +23,187 @@ Date:   Thu Feb 5 13:35:41 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/3967
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/mgc.go      | 27 +++++++++++++++------------
  src/runtime/panic.go    | 46 +++++++++++++++++++++++++++++++++++++++-------
  src/runtime/proc1.go    |  9 +++++++++
  src/runtime/runtime2.go |  8 +++++++-
  4 files changed, 70 insertions(+), 20 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 5417d3a291..af1615376e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -641,6 +641,21 @@ func clearpools() {
+ 	sched.sudogcache = nil
+ 	unlock(&sched.sudoglock)
+ 
++	// Clear central defer pools.
++	// Leave per-P pools alone, they have strictly bounded size.
++	lock(&sched.deferlock)
++	for i := range sched.deferpool {
++		// disconnect cached list before dropping it on the floor,
++		// so that a dangling ref to one entry does not pin all of them.
++		var d, dlink *_defer
++		for d = sched.deferpool[i]; d != nil; d = dlink {
++			dlink = d.link
++			d.link = nil
++		}
++		sched.deferpool[i] = nil
++	}
++	unlock(&sched.deferlock)
++
+ 	for _, p := range &allp {
+ 		if p == nil {
+ 			break
+@@ -650,18 +665,6 @@ func clearpools() {
+ 			c.tiny = nil
+ 			c.tinyoffset = 0
+ 		}
+-
+-		// clear defer pools
+-		for i := range p.deferpool {
+-			// disconnect cached list before dropping it on the floor,
+-			// so that a dangling ref to one entry does not pin all of them.
+-			var d, dlink *_defer
+-			for d = p.deferpool[i]; d != nil; d = dlink {
+-				dlink = d.link
+-				d.link = nil
+-			}
+-			p.deferpool[i] = nil
+-		}
+ 	}
+ }
+ 
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index e2a5c629da..9507384b92 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -166,9 +166,20 @@ func newdefer(siz int32) *_defer {
+ 	mp := acquirem()
+ 	if sc < uintptr(len(p{}.deferpool)) {
+ 		pp := mp.p
+-		d = pp.deferpool[sc]
+-		if d != nil {
+-			pp.deferpool[sc] = d.link
++		if len(pp.deferpool[sc]) == 0 && sched.deferpool[sc] != nil {
++			lock(&sched.deferlock)
++			for len(pp.deferpool[sc]) < cap(pp.deferpool[sc])/2 && sched.deferpool[sc] != nil {
++				d := sched.deferpool[sc]
++				sched.deferpool[sc] = d.link
++				d.link = nil
++				pp.deferpool[sc] = append(pp.deferpool[sc], d)
++			}
++			unlock(&sched.deferlock)
++		}
++		if ln := len(pp.deferpool[sc]); ln > 0 {
++			d = pp.deferpool[sc][ln-1]
++			pp.deferpool[sc][ln-1] = nil
++			pp.deferpool[sc] = pp.deferpool[sc][:ln-1]
+ 		}
+ 	}
+ 	if d == nil {
+@@ -196,7 +207,6 @@ func newdefer(siz int32) *_defer {
+ 
+ // Free the given defer.
+ // The defer cannot be used after this call.
+-//go:nosplit
+ func freedefer(d *_defer) {
+ 	if d._panic != nil {
+ 		freedeferpanic()
+@@ -214,9 +224,28 @@ func freedefer(d *_defer) {
+ 	if sc < uintptr(len(p{}.deferpool)) {
+ 		mp := acquirem()
+ 		pp := mp.p
++		if len(pp.deferpool[sc]) == cap(pp.deferpool[sc]) {
++			// Transfer half of local cache to the central cache.
++			var first, last *_defer
++			for len(pp.deferpool[sc]) > cap(pp.deferpool[sc])/2 {
++				ln := len(pp.deferpool[sc])
++				d := pp.deferpool[sc][ln-1]
++				pp.deferpool[sc][ln-1] = nil
++				pp.deferpool[sc] = pp.deferpool[sc][:ln-1]
++				if first == nil {
++					first = d
++				} else {
++					last.link = d
++				}
++				last = d
++			}
++			lock(&sched.deferlock)
++			last.link = sched.deferpool[sc]
++			sched.deferpool[sc] = first
++			unlock(&sched.deferlock)
++		}
+ 		*d = _defer{}
+-		d.link = pp.deferpool[sc]
+-		pp.deferpool[sc] = d
++		pp.deferpool[sc] = append(pp.deferpool[sc], d)
+ 		releasem(mp)
+ 	}
+ }
+@@ -267,7 +296,10 @@ func deferreturn(arg0 uintptr) {
+ 	fn := d.fn
+ 	d.fn = nil
+ 	gp._defer = d.link
+-	freedefer(d)
++	// Switch to systemstack merely to save nosplit stack space.
++	systemstack(func() {
++		freedefer(d)
++	})
+ 	releasem(mp)
+ 	jmpdefer(fn, uintptr(unsafe.Pointer(&arg0)))
+ }
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 906528c0ab..7ecf60ee5e 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -2484,6 +2484,9 @@ func procresize(nprocs int32) *p {
+ 			pp.id = i
+ 			pp.status = _Pgcstop
+ 			pp.sudogcache = pp.sudogbuf[:0]
++			for i := range pp.deferpool {
++				pp.deferpool[i] = pp.deferpoolbuf[i][:0]
++			}
+ 			atomicstorep(unsafe.Pointer(&allp[i]), unsafe.Pointer(pp))
+ 		}
+ 		if pp.mcache == nil {
+@@ -2526,6 +2529,12 @@ func procresize(nprocs int32) *p {
+ 			p.sudogbuf[i] = nil
+ 		}
+ 		p.sudogcache = p.sudogbuf[:0]
++		for i := range p.deferpool {
++			for j := range p.deferpoolbuf[i] {
++				p.deferpoolbuf[i][j] = nil
++			}
++			p.deferpool[i] = p.deferpoolbuf[i][:0]
++		}
+ 		freemcache(p.mcache)
+ 		p.mcache = nil
+ 		gfpurge(p)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 81d39fb48e..94fbb5253a 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -314,7 +314,9 @@ type p struct {
+ 	syscalltick uint32 // incremented on every system call
+ 	m           *m     // back-link to associated m (nil if idle)
+ 	mcache      *mcache
+-	deferpool   [5]*_defer // pool of available defer structs of different sizes (see panic.c)
++
++	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.c)
++	deferpoolbuf [5][32]*_defer
+ 
+ 	// Cache of goroutine ids, amortizes accesses to runtime·sched.goidgen.
+ 	goidcache    uint64
+@@ -372,6 +374,10 @@ type schedt struct {
+ 	sudoglock  mutex
+ 	sudogcache *sudog
+ 
++	// Central pool of available defer structs of different sizes.
++	deferlock mutex
++	deferpool [5]*_defer
++
+ 	gcwaiting  uint32 // gc is waiting to run
+ 	stopwait   int32
+ 	stopnote   note

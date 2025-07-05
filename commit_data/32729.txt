@@ -16,7 +16,121 @@ Date:   Sun May 21 19:51:46 2017 -0700
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go      | 20 ++++++++++++++------
  src/database/sql/sql_test.go | 41 ++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 54 insertions(+), 7 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 35a74bbdb3..b7433f2374 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2029,8 +2029,12 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (Result, er
+ 	defer s.closemu.RUnlock()
+ 
+ 	var res Result
+-	for i := 0; i < maxBadConnRetries; i++ {
+-		dc, releaseConn, ds, err := s.connStmt(ctx)
++	strategy := cachedOrNewConn
++	for i := 0; i < maxBadConnRetries+1; i++ {
++		if i == maxBadConnRetries {
++			strategy = alwaysNewConn
++		}
++		dc, releaseConn, ds, err := s.connStmt(ctx, strategy)
+ 		if err != nil {
+ 			if err == driver.ErrBadConn {
+ 				continue
+@@ -2098,7 +2102,7 @@ func (s *Stmt) removeClosedStmtLocked() {
+ // connStmt returns a free driver connection on which to execute the
+ // statement, a function to call to release the connection, and a
+ // statement bound to that connection.
+-func (s *Stmt) connStmt(ctx context.Context) (ci *driverConn, releaseConn func(error), ds *driverStmt, err error) {
++func (s *Stmt) connStmt(ctx context.Context, strategy connReuseStrategy) (ci *driverConn, releaseConn func(error), ds *driverStmt, err error) {
+ 	if err = s.stickyErr; err != nil {
+ 		return
+ 	}
+@@ -2124,7 +2128,7 @@ func (s *Stmt) connStmt(ctx context.Context) (ci *driverConn, releaseConn func(e
+ 	s.removeClosedStmtLocked()
+ 	s.mu.Unlock()
+ 
+-	dc, err := s.db.conn(ctx, cachedOrNewConn)
++	dc, err := s.db.conn(ctx, strategy)
+ 	if err != nil {
+ 		return nil, nil, nil, err
+ 	}
+@@ -2171,8 +2175,12 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*Rows, er
+ 	defer s.closemu.RUnlock()
+ 
+ 	var rowsi driver.Rows
+-	for i := 0; i < maxBadConnRetries; i++ {
+-		dc, releaseConn, ds, err := s.connStmt(ctx)
++	strategy := cachedOrNewConn
++	for i := 0; i < maxBadConnRetries+1; i++ {
++		if i == maxBadConnRetries {
++			strategy = alwaysNewConn
++		}
++		dc, releaseConn, ds, err := s.connStmt(ctx, strategy)
+ 		if err != nil {
+ 			if err == driver.ErrBadConn {
+ 				continue
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index b7fdc8eb6c..f5bacc4324 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -2334,9 +2334,13 @@ func TestStmtCloseOrder(t *testing.T) {
+ // Test cases where there's more than maxBadConnRetries bad connections in the
+ // pool (issue 8834)
+ func TestManyErrBadConn(t *testing.T) {
+-	manyErrBadConnSetup := func() *DB {
++	manyErrBadConnSetup := func(first ...func(db *DB)) *DB {
+ 		db := newTestDB(t, "people")
+ 
++		for _, f := range first {
++			f(db)
++		}
++
+ 		nconn := maxBadConnRetries + 1
+ 		db.SetMaxIdleConns(nconn)
+ 		db.SetMaxOpenConns(nconn)
+@@ -2405,6 +2409,41 @@ func TestManyErrBadConn(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
++	// Stmt.Exec
++	db = manyErrBadConnSetup(func(db *DB) {
++		stmt, err = db.Prepare("INSERT|people|name=Julia,age=19")
++		if err != nil {
++			t.Fatal(err)
++		}
++	})
++	defer closeDB(t, db)
++	_, err = stmt.Exec()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err = stmt.Close(); err != nil {
++		t.Fatal(err)
++	}
++
++	// Stmt.Query
++	db = manyErrBadConnSetup(func(db *DB) {
++		stmt, err = db.Prepare("SELECT|people|age,name|")
++		if err != nil {
++			t.Fatal(err)
++		}
++	})
++	defer closeDB(t, db)
++	rows, err = stmt.Query()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err = rows.Close(); err != nil {
++		t.Fatal(err)
++	}
++	if err = stmt.Close(); err != nil {
++		t.Fatal(err)
++	}
++
+ 	// Conn
+ 	db = manyErrBadConnSetup()
+ 	defer closeDB(t, db)

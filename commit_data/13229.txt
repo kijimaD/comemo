@@ -9,6 +9,19 @@ Date:   Wed May 30 17:01:25 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6250078
-
+---
  src/cmd/5l/asm.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 22695b0716..6d9d0b3f21 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -1791,6 +1791,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
+ 			o1 |= (-p->from.offset) & 0xfff;
+ 		} else
+ 			o1 |= p->from.offset & 0xfff;
++		break;
+ 	case 96:	/* UNDEF */
+ 		// This is supposed to be something that stops execution.
+ 		// It's not supposed to be reached, ever, but if it is, we'd

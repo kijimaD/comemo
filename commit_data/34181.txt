@@ -11,6 +11,20 @@ Date:   Sun Oct 8 16:53:18 2017 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 74897c7f6f..6cc7f49802 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -549,6 +549,8 @@ func TestSIGPROF(t *testing.T) {
+ 	switch GOOS {
+ 	case "windows", "plan9":
+ 		t.Skipf("skipping SIGPROF test on %s", GOOS)
++	case "darwin":
++		t.Skipf("skipping SIGPROF test on %s; see https://golang.org/issue/19320", GOOS)
+ 	}
+ 
+ 	t.Parallel()

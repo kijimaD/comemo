@@ -12,7 +12,32 @@ Date:   Fri Feb 4 12:22:19 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/security.go      | 1 +
  src/cmd/go/internal/work/security_test.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index e9b9f6c6c0..d1e2c673fa 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -131,6 +131,7 @@ var validCompilerFlagsWithNextArg = []string{
+ 	"-D",
+ 	"-U",
+ 	"-I",
++	"-F",
+ 	"-framework",
+ 	"-include",
+ 	"-isysroot",
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index 8d4be0abfc..d2aeb54e0c 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -15,6 +15,7 @@ var goodCompilerFlags = [][]string{
+ 	{"-Ufoo"},
+ 	{"-Ufoo1"},
+ 	{"-F/Qt"},
++	{"-F", "/Qt"},
+ 	{"-I/"},
+ 	{"-I/etc/passwd"},
+ 	{"-I."},

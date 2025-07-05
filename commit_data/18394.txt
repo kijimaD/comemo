@@ -10,7 +10,32 @@ Date:   Sun Feb 2 12:49:59 2014 +0100
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/59420043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 567ef69bd7..010251fab2 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -12,6 +12,7 @@ Aaron France <aaron.l.france@gmail.com>
+ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adrian Nos <nos.adrian@gmail.com>
+ Adrian O'Grady <elpollouk@gmail.com>
++Adrien Bustany <adrien-xx-google@bustany.org>
+ Akshat Kumar <seed@mail.nanosouffle.net>
+ Albert Strasheim <fullung@gmail.com>
+ Alberto García Hierro <alberto@garciahierro.com> <alberto.garcia.hierro@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e01fe3d0eb..3a5f412c54 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -37,6 +37,7 @@ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adam Langley <agl@golang.org>
+ Adrian Nos <nos.adrian@gmail.com>
+ Adrian O'Grady <elpollouk@gmail.com>
++Adrien Bustany <adrien-xx-google@bustany.org>
+ Akshat Kumar <seed@mail.nanosouffle.net>
+ Alan Donovan <adonovan@google.com>
+ Albert Strasheim <fullung@gmail.com>

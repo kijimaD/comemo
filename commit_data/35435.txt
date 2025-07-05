@@ -16,7 +16,7 @@ Date:   Thu Nov 30 08:30:53 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arch.go         | 19 ++++++++++
  src/cmd/asm/internal/asm/testdata/arm64.s |  6 ++++
  src/cmd/internal/obj/arm64/a.out.go       | 18 ++++++++++
@@ -24,3 +24,245 @@ Date:   Thu Nov 30 08:30:53 2017 +0000
  src/cmd/internal/obj/arm64/doc.go         |  8 +++++
  src/cmd/internal/obj/arm64/list7.go       | 36 +++++++++++++++++++
  6 files changed, 144 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index b4ce2fd8ae..cd028f6bee 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -260,6 +260,25 @@ func archArm64() *Arch {
+ 	register["SPSel"] = arm64.REG_SPSel
+ 	register["DAIFSet"] = arm64.REG_DAIFSet
+ 	register["DAIFClr"] = arm64.REG_DAIFClr
++	register["PLDL1KEEP"] = arm64.REG_PLDL1KEEP
++	register["PLDL1STRM"] = arm64.REG_PLDL1STRM
++	register["PLDL2KEEP"] = arm64.REG_PLDL2KEEP
++	register["PLDL2STRM"] = arm64.REG_PLDL2STRM
++	register["PLDL3KEEP"] = arm64.REG_PLDL3KEEP
++	register["PLDL3STRM"] = arm64.REG_PLDL3STRM
++	register["PLIL1KEEP"] = arm64.REG_PLIL1KEEP
++	register["PLIL1STRM"] = arm64.REG_PLIL1STRM
++	register["PLIL2KEEP"] = arm64.REG_PLIL2KEEP
++	register["PLIL2STRM"] = arm64.REG_PLIL2STRM
++	register["PLIL3KEEP"] = arm64.REG_PLIL3KEEP
++	register["PLIL3STRM"] = arm64.REG_PLIL3STRM
++	register["PSTL1KEEP"] = arm64.REG_PSTL1KEEP
++	register["PSTL1STRM"] = arm64.REG_PSTL1STRM
++	register["PSTL2KEEP"] = arm64.REG_PSTL2KEEP
++	register["PSTL2STRM"] = arm64.REG_PSTL2STRM
++	register["PSTL3KEEP"] = arm64.REG_PSTL3KEEP
++	register["PSTL3STRM"] = arm64.REG_PSTL3STRM
++
+ 	// Conditional operators, like EQ, NE, etc.
+ 	register["EQ"] = arm64.COND_EQ
+ 	register["NE"] = arm64.COND_NE
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index cb563bb996..18527037b3 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -135,6 +135,12 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	VMOVS	(R0), V20                                       // 140040bd
+ 	VMOVS.P	8(R0), V20                                      // 148440bc
+ 	VMOVS.W	8(R0), V20                                      // 148c40bc
++	PRFM	(R2), PLDL1KEEP                                 // 400080f9
++	PRFM	16(R2), PLDL1KEEP                               // 400880f9
++	PRFM	48(R6), PSTL2STRM                               // d31880f9
++	PRFM	8(R12), PLIL3STRM                               // 8d0580f9
++	PRFM	(R8), $25                                       // 190180f9
++	PRFM	8(R9), $30                                      // 3e0580f9
+ 
+ 	// small offset fits into instructions
+ 	MOVB	1(R1), R2 // 22048039
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 6087b74acf..e8be3cd4a3 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -208,6 +208,24 @@ const (
+ 	REG_SPSel
+ 	REG_DAIFSet
+ 	REG_DAIFClr
++	REG_PLDL1KEEP
++	REG_PLDL1STRM
++	REG_PLDL2KEEP
++	REG_PLDL2STRM
++	REG_PLDL3KEEP
++	REG_PLDL3STRM
++	REG_PLIL1KEEP
++	REG_PLIL1STRM
++	REG_PLIL2KEEP
++	REG_PLIL2STRM
++	REG_PLIL3KEEP
++	REG_PLIL3STRM
++	REG_PSTL1KEEP
++	REG_PSTL1STRM
++	REG_PSTL2KEEP
++	REG_PSTL2STRM
++	REG_PSTL3KEEP
++	REG_PSTL3STRM
+ )
+ 
+ // Register assignments:
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index ca81238c93..362fd9367d 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -305,6 +305,8 @@ var optab = []Optab{
+ 	{ACSEL, C_COND, C_REG, C_REG, 18, 4, 0, 0, 0}, /* from3 optional */
+ 	{ACSET, C_COND, C_NONE, C_REG, 18, 4, 0, 0, 0},
+ 	{ACCMN, C_COND, C_REG, C_VCON, 19, 4, 0, 0, 0}, /* from3 either C_REG or C_VCON */
++	{APRFM, C_UOREG32K, C_NONE, C_SPR, 91, 4, 0, 0, 0},
++	{APRFM, C_UOREG32K, C_NONE, C_LCON, 91, 4, 0, 0, 0},
+ 
+ 	/* scaled 12-bit unsigned displacement store */
+ 	{AMOVB, C_REG, C_NONE, C_UAUTO4K, 20, 4, REGSP, 0, 0},
+@@ -628,6 +630,30 @@ var systemreg = []struct {
+ 	{REG_ELR_EL1, 8<<16 | 4<<12 | 1<<5},
+ }
+ 
++var prfopfield = []struct {
++	reg int16
++	enc uint32
++}{
++	{REG_PLDL1KEEP, 0},
++	{REG_PLDL1STRM, 1},
++	{REG_PLDL2KEEP, 2},
++	{REG_PLDL2STRM, 3},
++	{REG_PLDL3KEEP, 4},
++	{REG_PLDL3STRM, 5},
++	{REG_PLIL1KEEP, 8},
++	{REG_PLIL1STRM, 9},
++	{REG_PLIL2KEEP, 10},
++	{REG_PLIL2STRM, 11},
++	{REG_PLIL3KEEP, 12},
++	{REG_PLIL3STRM, 13},
++	{REG_PSTL1KEEP, 16},
++	{REG_PSTL1STRM, 17},
++	{REG_PSTL2KEEP, 18},
++	{REG_PSTL2STRM, 19},
++	{REG_PSTL3KEEP, 20},
++	{REG_PSTL3STRM, 21},
++}
++
+ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	p := cursym.Func.Text
+ 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
+@@ -2106,7 +2132,8 @@ func buildop(ctxt *obj.Link) {
+ 			AVST1,
+ 			AVDUP,
+ 			AVMOVS,
+-			AVMOVI:
++			AVMOVI,
++			APRFM:
+ 			break
+ 
+ 		case obj.ANOP,
+@@ -3731,8 +3758,32 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = 0xbea71700
+ 
+ 		break
+-	}
+ 
++	case 91: /* prfm imm(Rn), <prfop | $imm5> */
++		imm := uint32(p.From.Offset)
++		r := p.From.Reg
++		v := uint32(0xff)
++		if p.To.Type == obj.TYPE_CONST {
++			v = uint32(p.To.Offset)
++			if v > 31 {
++				c.ctxt.Diag("illegal prefetch operation\n%v", p)
++			}
++		} else {
++			for i := 0; i < len(prfopfield); i++ {
++				if prfopfield[i].reg == p.To.Reg {
++					v = prfopfield[i].enc
++					break
++				}
++			}
++			if v == 0xff {
++				c.ctxt.Diag("illegal prefetch operation:\n%v", p)
++			}
++		}
++
++		o1 = c.opldrpp(p, p.As)
++		o1 |= (uint32(r&31) << 5) | (uint32((imm>>3)&0xfff) << 10) | (uint32(v & 31))
++
++	}
+ 	out[0] = o1
+ 	out[1] = o2
+ 	out[2] = o3
+@@ -4993,6 +5044,10 @@ func (c *ctxt7) opldrpp(p *obj.Prog, a obj.As) uint32 {
+ 
+ 	case AVMOVS:
+ 		return 2<<30 | 7<<27 | 1<<26 | 0<<24 | 1<<22
++
++	case APRFM:
++		return 0xf9<<24 | 2<<22
++
+ 	}
+ 
+ 	c.ctxt.Diag("bad opldr %v\n%v", a, p)
+diff --git a/src/cmd/internal/obj/arm64/doc.go b/src/cmd/internal/obj/arm64/doc.go
+index f75f49fb9c..d3d43b1f42 100644
+--- a/src/cmd/internal/obj/arm64/doc.go
++++ b/src/cmd/internal/obj/arm64/doc.go
+@@ -10,6 +10,14 @@ Go Assembly for ARM64 Reference Manual
+ 
+ 1. Alphabetical list of basic instructions
+     // TODO
++    PRFM: Prefetch Memory (immediate)
++     PRFM	imm(Rn), <prfop>
++      prfop is the prefetch operation and can have the following values:
++      PLDL1KEEP, PLDL1STRM, PLDL2KEEP, PLDL2STRM, PLDL3KEEP, PLDL3STRM,
++      PLIL1KEEP, PLIL1STRM, PLIL2KEEP, PLIL2STRM, PLIL3KEEP, PLIL3STRM,
++      PSTL1KEEP, PSTL1STRM, PSTL2KEEP, PSTL2STRM, PSTL3KEEP, PSTL3STRM.
++     PRFM	imm(Rn), $imm
++      $imm prefetch operation is encoded as an immediate.
+ 
+ 2. Alphabetical list of float-point instructions
+     // TODO
+diff --git a/src/cmd/internal/obj/arm64/list7.go b/src/cmd/internal/obj/arm64/list7.go
+index 9a9f4b45b7..cf92120cbb 100644
+--- a/src/cmd/internal/obj/arm64/list7.go
++++ b/src/cmd/internal/obj/arm64/list7.go
+@@ -134,6 +134,42 @@ func rconv(r int) string {
+ 		return "DAIFSet"
+ 	case r == REG_DAIFClr:
+ 		return "DAIFClr"
++	case r == REG_PLDL1KEEP:
++		return "PLDL1KEEP"
++	case r == REG_PLDL1STRM:
++		return "PLDL1STRM"
++	case r == REG_PLDL2KEEP:
++		return "PLDL2KEEP"
++	case r == REG_PLDL2STRM:
++		return "PLDL2STRM"
++	case r == REG_PLDL3KEEP:
++		return "PLDL3KEEP"
++	case r == REG_PLDL3STRM:
++		return "PLDL3STRM"
++	case r == REG_PLIL1KEEP:
++		return "PLIL1KEEP"
++	case r == REG_PLIL1STRM:
++		return "PLIL1STRM"
++	case r == REG_PLIL2KEEP:
++		return "PLIL2KEEP"
++	case r == REG_PLIL2STRM:
++		return "PLIL2STRM"
++	case r == REG_PLIL3KEEP:
++		return "PLIL3KEEP"
++	case r == REG_PLIL3STRM:
++		return "PLIL3STRM"
++	case r == REG_PSTL1KEEP:
++		return "PSTL1KEEP"
++	case r == REG_PSTL1STRM:
++		return "PSTL1STRM"
++	case r == REG_PSTL2KEEP:
++		return "PSTL2KEEP"
++	case r == REG_PSTL2STRM:
++		return "PSTL2STRM"
++	case r == REG_PSTL3KEEP:
++		return "PSTL3KEEP"
++	case r == REG_PSTL3STRM:
++		return "PSTL3STRM"
+ 	case REG_UXTB <= r && r < REG_UXTH:
+ 		if (r>>5)&7 != 0 {
+ 			return fmt.Sprintf("R%d.UXTB<<%d", r&31, (r>>5)&7)

@@ -22,7 +22,57 @@ Date:   Sun Aug 21 02:36:24 2022 -0700
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/time/format.go      |  2 +-
  src/time/format_test.go | 18 ++++++++++--------
  2 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 80495c0266..ed2a0a8fc6 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -1278,7 +1278,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			// Take any number of digits, even more than asked for,
+ 			// because it is what the stdSecond case would do.
+ 			i := 0
+-			for i < 9 && i+1 < len(value) && '0' <= value[i+1] && value[i+1] <= '9' {
++			for i+1 < len(value) && '0' <= value[i+1] && value[i+1] <= '9' {
+ 				i++
+ 			}
+ 			nsec, rangeErrString, err = parseNanoseconds(value, 1+i)
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index fa8c846686..0e5b92440e 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -863,7 +863,7 @@ func TestFormatFractionalSecondSeparators(t *testing.T) {
+ 	}
+ }
+ 
+-// Issue 48685
++// Issue 48685 and 54567.
+ func TestParseFractionalSecondsLongerThanNineDigits(t *testing.T) {
+ 	tests := []struct {
+ 		s    string
+@@ -893,13 +893,15 @@ func TestParseFractionalSecondsLongerThanNineDigits(t *testing.T) {
+ 	}
+ 
+ 	for _, tt := range tests {
+-		tm, err := Parse(RFC3339, tt.s)
+-		if err != nil {
+-			t.Errorf("Unexpected error: %v", err)
+-			continue
+-		}
+-		if got := tm.Nanosecond(); got != tt.want {
+-			t.Errorf("Parse(%q) = got %d, want %d", tt.s, got, tt.want)
++		for _, format := range []string{RFC3339, RFC3339Nano} {
++			tm, err := Parse(format, tt.s)
++			if err != nil {
++				t.Errorf("Parse(%q, %q) error: %v", format, tt.s, err)
++				continue
++			}
++			if got := tm.Nanosecond(); got != tt.want {
++				t.Errorf("Parse(%q, %q) = got %d, want %d", format, tt.s, got, tt.want)
++			}
+ 		}
+ 	}
+ }

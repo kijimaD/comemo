@@ -7,7 +7,7 @@ Date:   Tue Jan 10 11:46:57 2012 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5531062
-
+---
  src/pkg/runtime/thread_darwin.c  | 10 ++++++++--
  src/pkg/runtime/thread_freebsd.c | 10 ++++++++--
  src/pkg/runtime/thread_linux.c   | 10 ++++++++--
@@ -15,3 +15,151 @@ Date:   Tue Jan 10 11:46:57 2012 -0800
  src/pkg/runtime/thread_openbsd.c | 10 ++++++++--
  src/pkg/runtime/thread_windows.c |  5 ++++-
  6 files changed, 44 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/thread_darwin.c b/src/pkg/runtime/thread_darwin.c
+index 12e79afda0..22800e2e89 100644
+--- a/src/pkg/runtime/thread_darwin.c
++++ b/src/pkg/runtime/thread_darwin.c
+@@ -382,13 +382,19 @@ runtime·sigpanic(void)
+ {
+ 	switch(g->sig) {
+ 	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000) {
++			if(g->sigpc == 0)
++				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
++		}
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000)
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000) {
++			if(g->sigpc == 0)
++				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
++		}
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGFPE:
+diff --git a/src/pkg/runtime/thread_freebsd.c b/src/pkg/runtime/thread_freebsd.c
+index 53c1b1bbfa..1c48865a23 100644
+--- a/src/pkg/runtime/thread_freebsd.c
++++ b/src/pkg/runtime/thread_freebsd.c
+@@ -128,13 +128,19 @@ runtime·sigpanic(void)
+ {
+ 	switch(g->sig) {
+ 	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000) {
++			if(g->sigpc == 0)
++				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
++		}
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000)
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000) {
++			if(g->sigpc == 0)
++				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
++		}
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGFPE:
+diff --git a/src/pkg/runtime/thread_linux.c b/src/pkg/runtime/thread_linux.c
+index d72e9cb435..d18574145b 100644
+--- a/src/pkg/runtime/thread_linux.c
++++ b/src/pkg/runtime/thread_linux.c
+@@ -184,13 +184,19 @@ runtime·sigpanic(void)
+ {
+ 	switch(g->sig) {
+ 	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000) {
++			if(g->sigpc == 0)
++				runtime·panicstring("call of nil func value");
++			}
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000)
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000) {
++			if(g->sigpc == 0)
++				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
++		}
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGFPE:
+diff --git a/src/pkg/runtime/thread_netbsd.c b/src/pkg/runtime/thread_netbsd.c
+index 0aba02720e..cba7adecf5 100644
+--- a/src/pkg/runtime/thread_netbsd.c
++++ b/src/pkg/runtime/thread_netbsd.c
+@@ -175,13 +175,19 @@ runtime·sigpanic(void)
+ {
+ 	switch(g->sig) {
+ 	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000) {
++			if(g->sigpc == 0)
++				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
++		}
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000)
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000) {
++			if(g->sigpc == 0)
++				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
++		}
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGFPE:
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/thread_openbsd.c
+index e1cd5bf2e4..efe03e3711 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -175,13 +175,19 @@ runtime·sigpanic(void)
+ {
+ 	switch(g->sig) {
+ 	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000) {
++			if(g->sigpc == 0)
++				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
++		}
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000)
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000) {
++			if(g->sigpc == 0)
++				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
++		}
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case SIGFPE:
+diff --git a/src/pkg/runtime/thread_windows.c b/src/pkg/runtime/thread_windows.c
+index ad66c93a64..516d1d0d18 100644
+--- a/src/pkg/runtime/thread_windows.c
++++ b/src/pkg/runtime/thread_windows.c
+@@ -270,8 +270,11 @@ runtime·sigpanic(void)
+ {
+ 	switch(g->sig) {
+ 	case EXCEPTION_ACCESS_VIOLATION:
+-		if(g->sigcode1 < 0x1000)
++		if(g->sigcode1 < 0x1000) {
++			if(g->sigpc == 0)
++				runtime·panicstring("call of nil func value");
+ 			runtime·panicstring("invalid memory address or nil pointer dereference");
++		}
+ 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
+ 	case EXCEPTION_INT_DIVIDE_BY_ZERO:

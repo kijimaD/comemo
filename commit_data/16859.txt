@@ -7,6 +7,20 @@ Date:   Wed Jul 24 17:48:13 2013 +0900
     R=dvyukov, r
     CC=golang-dev
     https://golang.org/cl/11761043
-
+---
  src/pkg/runtime/netpoll.goc | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/netpoll.goc b/src/pkg/runtime/netpoll.goc
+index 66557cc238..2e855556c3 100644
+--- a/src/pkg/runtime/netpoll.goc
++++ b/src/pkg/runtime/netpoll.goc
+@@ -253,7 +253,7 @@ netpollblock(PollDesc *pd, int32 mode)
+ 		return true;
+ 	}
+ 	if(*gpp != nil)
+-		runtime·throw("epoll: double wait");
++		runtime·throw("netpollblock: double wait");
+ 	*gpp = g;
+ 	runtime·park(runtime·unlock, &pd->Lock, "IO wait");
+ 	runtime·lock(pd);

@@ -11,7 +11,66 @@ Date:   Tue Jul 2 08:44:25 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/10679050
-
+---
  doc/godocs.js          |  2 +-
  lib/godoc/package.html | 27 ++++++++++++++++++---------
  2 files changed, 19 insertions(+), 10 deletions(-)
+
+diff --git a/doc/godocs.js b/doc/godocs.js
+index 6875f74d8c..d824510476 100644
+--- a/doc/godocs.js
++++ b/doc/godocs.js
+@@ -182,7 +182,7 @@ function fixFocus() {
+ function toggleHash() {
+     var hash = $(window.location.hash);
+     if (hash.is('.toggle')) {
+-      hash.addClass('toggleVisible').removeClass('toggle');
++      hash.find('.toggleButton').first().click();
+     }
+ }
+ 
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index aefbef9fd7..d71e953ec5 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -231,15 +231,8 @@ $(document).ready(function() {
+ 	'use strict';
+ 	// Set up playground when each element is toggled.
+ 	$('div.play').each(function (i, el) {
+-		var built = false;
+-		$(el).closest('.toggle').click(function() {
+-			// Only set up playground once.
+-			if (built) {
+-				return;
+-			}
+-			built = true;
+-
+-			// Set up playground.
++		// Set up playground for this example.
++		var setup = function() {
+ 			var code = $('.code', el);
+ 			playground({
+ 				'codeEl':   code,
+@@ -260,6 +253,22 @@ $(document).ready(function() {
+ 			code.on('keydown', resize);
+ 			code.on('keyup', resize);
+ 			code.keyup(); // resize now.
++		};
++		
++		// If example already visible, set up playground now.
++		if ($(el).is(':visible')) {
++			setup();
++			return;
++		}
++
++		// Otherwise, set up playground when example is expanded.
++		var built = false;
++		$(el).closest('.toggle').click(function() {
++			// Only set up once.
++			if (!built) {
++				setup();
++				built = true;
++			}
+ 		});
+ 	});
+ });

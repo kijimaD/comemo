@@ -20,7 +20,96 @@ Date:   Thu Oct 8 20:32:50 2020 +0000
     Trust: Ian Lance Taylor <iant@golang.org>
     Trust: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/httputil/reverseproxy.go      | 16 ++++++++++------
  src/net/http/httputil/reverseproxy_test.go | 19 +++++++++++++++++--
  2 files changed, 27 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 3f48fab544..46e5f68a84 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -58,9 +58,9 @@ type ReverseProxy struct {
+ 	// A negative value means to flush immediately
+ 	// after each write to the client.
+ 	// The FlushInterval is ignored when ReverseProxy
+-	// recognizes a response as a streaming response;
+-	// for such responses, writes are flushed to the client
+-	// immediately.
++	// recognizes a response as a streaming response, or
++	// if its ContentLength is -1; for such responses, writes
++	// are flushed to the client immediately.
+ 	FlushInterval time.Duration
+ 
+ 	// ErrorLog specifies an optional logger for errors
+@@ -325,7 +325,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 
+ 	rw.WriteHeader(res.StatusCode)
+ 
+-	err = p.copyResponse(rw, res.Body, p.flushInterval(req, res))
++	err = p.copyResponse(rw, res.Body, p.flushInterval(res))
+ 	if err != nil {
+ 		defer res.Body.Close()
+ 		// Since we're streaming the response, if we run into an error all we can do
+@@ -397,7 +397,7 @@ func removeConnectionHeaders(h http.Header) {
+ 
+ // flushInterval returns the p.FlushInterval value, conditionally
+ // overriding its value for a specific request/response.
+-func (p *ReverseProxy) flushInterval(req *http.Request, res *http.Response) time.Duration {
++func (p *ReverseProxy) flushInterval(res *http.Response) time.Duration {
+ 	resCT := res.Header.Get("Content-Type")
+ 
+ 	// For Server-Sent Events responses, flush immediately.
+@@ -406,7 +406,11 @@ func (p *ReverseProxy) flushInterval(req *http.Request, res *http.Response) time
+ 		return -1 // negative means immediately
+ 	}
+ 
+-	// TODO: more specific cases? e.g. res.ContentLength == -1?
++	// We might have the case of streaming for which Content-Length might be unset.
++	if res.ContentLength == -1 {
++		return -1
++	}
++
+ 	return p.FlushInterval
+ }
+ 
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 764939fb0f..ea786864d8 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -1067,7 +1067,6 @@ func TestSelectFlushInterval(t *testing.T) {
+ 	tests := []struct {
+ 		name string
+ 		p    *ReverseProxy
+-		req  *http.Request
+ 		res  *http.Response
+ 		want time.Duration
+ 	}{
+@@ -1097,10 +1096,26 @@ func TestSelectFlushInterval(t *testing.T) {
+ 			p:    &ReverseProxy{FlushInterval: 0},
+ 			want: -1,
+ 		},
++		{
++			name: "Content-Length: -1, overrides non-zero",
++			res: &http.Response{
++				ContentLength: -1,
++			},
++			p:    &ReverseProxy{FlushInterval: 123},
++			want: -1,
++		},
++		{
++			name: "Content-Length: -1, overrides zero",
++			res: &http.Response{
++				ContentLength: -1,
++			},
++			p:    &ReverseProxy{FlushInterval: 0},
++			want: -1,
++		},
+ 	}
+ 	for _, tt := range tests {
+ 		t.Run(tt.name, func(t *testing.T) {
+-			got := tt.p.flushInterval(tt.req, tt.res)
++			got := tt.p.flushInterval(tt.res)
+ 			if got != tt.want {
+ 				t.Errorf("flushLatency = %v; want %v", got, tt.want)
+ 			}

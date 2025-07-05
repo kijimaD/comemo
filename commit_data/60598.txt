@@ -21,9 +21,100 @@ Date:   Wed Jun 5 10:52:08 2024 +0800
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/asm/internal/asm/testdata/loong64enc1.s |  5 +++++
  src/cmd/internal/obj/loong64/a.out.go           |  8 ++++++++
  src/cmd/internal/obj/loong64/anames.go          |  4 ++++
  src/cmd/internal/obj/loong64/asm.go             | 12 ++++++++++++
  4 files changed, 29 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index e16bd78fee..7aeb2920bd 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -278,3 +278,8 @@ lable2:
+ 	FMAXF	F4, F5			// a5900801
+ 	FMAXD	F4, F5, F6		// a6100901
+ 	FMAXD	F4, F5			// a5100901
++
++	FCOPYSGF	F4, F5, F6	// a6901201
++	FCOPYSGD	F4, F5, F6	// a6101301
++	FCLASSF		F4, F5		// 85341401
++	FCLASSD		F4, F5		// 85381401
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index e48160eaa2..878f148f15 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -446,6 +446,14 @@ const (
+ 	AFMAXF
+ 	AFMAXD
+ 
++	// 3.2.1.7
++	AFCOPYSGF
++	AFCOPYSGD
++
++	// 3.2.1.8
++	AFCLASSF
++	AFCLASSD
++
+ 	ALAST
+ 
+ 	// aliases
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index 42d9ea4d18..aac8ac92b8 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -183,5 +183,9 @@ var Anames = []string{
+ 	"FMIND",
+ 	"FMAXF",
+ 	"FMAXD",
++	"FCOPYSGF",
++	"FCOPYSGD",
++	"FCLASSF",
++	"FCLASSD",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index c0f9dee380..6ac02df988 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1028,6 +1028,8 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ATRUNCFW, r0)
+ 			opset(ASQRTF, r0)
+ 			opset(ASQRTD, r0)
++			opset(AFCLASSF, r0)
++			opset(AFCLASSD, r0)
+ 
+ 		case AMOVVF:
+ 			opset(AMOVVD, r0)
+@@ -1056,6 +1058,8 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AFMIND, r0)
+ 			opset(AFMAXF, r0)
+ 			opset(AFMAXD, r0)
++			opset(AFCOPYSGF, r0)
++			opset(AFCOPYSGD, r0)
+ 
+ 		case AAND:
+ 			opset(AOR, r0)
+@@ -1884,6 +1888,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 		return 0x211 << 15 // fmax.s
+ 	case AFMAXD:
+ 		return 0x212 << 15 // fmax.d
++	case AFCOPYSGF:
++		return 0x225 << 15 // fcopysign.s
++	case AFCOPYSGD:
++		return 0x226 << 15 // fcopysign.d
+ 	}
+ 
+ 	if a < 0 {
+@@ -1952,6 +1960,10 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
+ 		return 0x4511 << 10
+ 	case ASQRTD:
+ 		return 0x4512 << 10
++	case AFCLASSF:
++		return 0x450d << 10 // fclass.s
++	case AFCLASSD:
++		return 0x450e << 10 // fclass.d
+ 	}
+ 
+ 	c.ctxt.Diag("bad rr opcode %v", a)

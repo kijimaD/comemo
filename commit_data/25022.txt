@@ -10,10 +10,371 @@ Date:   Thu Sep 10 13:53:27 2015 -0700
     Change-Id: Ia252bc8648293a2d460f63c41f1591785543a1e9
     Reviewed-on: https://go-review.googlesource.com/14493
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |   9 +-
  src/cmd/compile/internal/ssa/gen/generic.rules |  13 ++-
  src/cmd/compile/internal/ssa/gen/genericOps.go |  20 ++--
  src/cmd/compile/internal/ssa/opGen.go          |  18 +++-
  src/cmd/compile/internal/ssa/rewritegeneric.go | 142 ++++++++++++-------------
  5 files changed, 103 insertions(+), 99 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5cd074b0c6..30c3f2f88c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -950,8 +950,8 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OEQ, TUINT32}:    ssa.OpEq32,
+ 	opAndType{OEQ, TINT64}:     ssa.OpEq64,
+ 	opAndType{OEQ, TUINT64}:    ssa.OpEq64,
+-	opAndType{OEQ, TINTER}:     ssa.OpEqFat, // e == nil only
+-	opAndType{OEQ, TARRAY}:     ssa.OpEqFat, // slice only; a == nil only
++	opAndType{OEQ, TINTER}:     ssa.OpEqInter,
++	opAndType{OEQ, TARRAY}:     ssa.OpEqSlice,
+ 	opAndType{OEQ, TFUNC}:      ssa.OpEqPtr,
+ 	opAndType{OEQ, TMAP}:       ssa.OpEqPtr,
+ 	opAndType{OEQ, TCHAN}:      ssa.OpEqPtr,
+@@ -970,8 +970,8 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{ONE, TUINT32}:    ssa.OpNeq32,
+ 	opAndType{ONE, TINT64}:     ssa.OpNeq64,
+ 	opAndType{ONE, TUINT64}:    ssa.OpNeq64,
+-	opAndType{ONE, TINTER}:     ssa.OpNeqFat, // e != nil only
+-	opAndType{ONE, TARRAY}:     ssa.OpNeqFat, // slice only; a != nil only
++	opAndType{ONE, TINTER}:     ssa.OpNeqInter,
++	opAndType{ONE, TARRAY}:     ssa.OpNeqSlice,
+ 	opAndType{ONE, TFUNC}:      ssa.OpNeqPtr,
+ 	opAndType{ONE, TMAP}:       ssa.OpNeqPtr,
+ 	opAndType{ONE, TCHAN}:      ssa.OpNeqPtr,
+@@ -1522,7 +1522,6 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			default:
+ 				s.Fatalf("ordered complex compare %s", opnames[n.Op])
+ 			}
+-
+ 		}
+ 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), Types[TBOOL], a, b)
+ 	case OMUL:
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index b704014287..f54496e8a8 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -66,13 +66,12 @@
+ (EqPtr (ConstNil) p) -> (Not (IsNonNil p))
+ 
+ // slice and interface comparisons
+-// the frontend ensures that we can only compare against nil
+-// start by putting nil on the right to simplify the other rules
+-(EqFat x y) && x.Op == OpConstNil && y.Op != OpConstNil -> (EqFat y x)
+-(NeqFat x y) && x.Op == OpConstNil && y.Op != OpConstNil -> (NeqFat y x)
+-// it suffices to check the first word (backing array for slices, dynamic type for interfaces)
+-(EqFat (Load ptr mem) (ConstNil)) -> (EqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr [0]))
+-(NeqFat (Load ptr mem) (ConstNil)) -> (NeqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr [0]))
++// The frontend ensures that we can only compare against nil,
++// so we need only compare the first word (interface type or slice ptr).
++(EqInter x y)  -> (EqPtr  (ITab x) (ITab y))
++(NeqInter x y) -> (NeqPtr (ITab x) (ITab y))
++(EqSlice x y)  -> (EqPtr  (SlicePtr x) (SlicePtr y))
++(NeqSlice x y) -> (NeqPtr (SlicePtr x) (SlicePtr y))
+ 
+ // indexing operations
+ // Note: bounds check has already been done
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index dcaff959c3..71683c16bd 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -160,7 +160,8 @@ var genericOps = []opData{
+ 	{name: "Eq32"},
+ 	{name: "Eq64"},
+ 	{name: "EqPtr"},
+-	{name: "EqFat"}, // slice/interface; arg0 or arg1 is nil; other cases handled by frontend
++	{name: "EqInter"}, // arg0 or arg1 is nil; other cases handled by frontend
++	{name: "EqSlice"}, // arg0 or arg1 is nil; other cases handled by frontend
+ 	{name: "Eq32F"},
+ 	{name: "Eq64F"},
+ 
+@@ -169,7 +170,8 @@ var genericOps = []opData{
+ 	{name: "Neq32"},
+ 	{name: "Neq64"},
+ 	{name: "NeqPtr"},
+-	{name: "NeqFat"}, // slice/interface; arg0 or arg1 is nil; other cases handled by frontend
++	{name: "NeqInter"}, // arg0 or arg1 is nil; other cases handled by frontend
++	{name: "NeqSlice"}, // arg0 or arg1 is nil; other cases handled by frontend
+ 	{name: "Neq32F"},
+ 	{name: "Neq64F"},
+ 
+@@ -334,10 +336,10 @@ var genericOps = []opData{
+ 	{name: "StructSelect"}, // arg0=struct, auxint=field offset.  Returns field at that offset (size=size of result type)
+ 
+ 	// Slices
+-	{name: "SliceMake"}, // arg0=ptr, arg1=len, arg2=cap
+-	{name: "SlicePtr"},  // ptr(arg0)
+-	{name: "SliceLen"},  // len(arg0)
+-	{name: "SliceCap"},  // cap(arg0)
++	{name: "SliceMake"},                // arg0=ptr, arg1=len, arg2=cap
++	{name: "SlicePtr", typ: "Uintptr"}, // ptr(arg0)
++	{name: "SliceLen"},                 // len(arg0)
++	{name: "SliceCap"},                 // cap(arg0)
+ 
+ 	// Complex (part/whole)
+ 	{name: "ComplexMake"}, // arg0=real, arg1=imag
+@@ -350,9 +352,9 @@ var genericOps = []opData{
+ 	{name: "StringLen"},  // len(arg0)
+ 
+ 	// Interfaces
+-	{name: "IMake"}, // arg0=itab, arg1=data
+-	{name: "ITab"},  // arg0=interface, returns itable field
+-	{name: "IData"}, // arg0=interface, returns data field
++	{name: "IMake"},                // arg0=itab, arg1=data
++	{name: "ITab", typ: "Uintptr"}, // arg0=interface, returns itable field
++	{name: "IData"},                // arg0=interface, returns data field
+ 
+ 	// Spill&restore ops for the register allocator.  These are
+ 	// semantically identical to OpCopy; they do not take/return
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index f7f1ca3068..0a7e8c75c7 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -387,7 +387,8 @@ const (
+ 	OpEq32
+ 	OpEq64
+ 	OpEqPtr
+-	OpEqFat
++	OpEqInter
++	OpEqSlice
+ 	OpEq32F
+ 	OpEq64F
+ 	OpNeq8
+@@ -395,7 +396,8 @@ const (
+ 	OpNeq32
+ 	OpNeq64
+ 	OpNeqPtr
+-	OpNeqFat
++	OpNeqInter
++	OpNeqSlice
+ 	OpNeq32F
+ 	OpNeq64F
+ 	OpLess8
+@@ -3576,7 +3578,11 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "EqFat",
++		name:    "EqInter",
++		generic: true,
++	},
++	{
++		name:    "EqSlice",
+ 		generic: true,
+ 	},
+ 	{
+@@ -3608,7 +3614,11 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "NeqFat",
++		name:    "NeqInter",
++		generic: true,
++	},
++	{
++		name:    "NeqSlice",
+ 		generic: true,
+ 	},
+ 	{
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 0334c0cd95..afca4cfed9 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -427,56 +427,29 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		goto enda66da0d3e7e51624ee46527727c48a9a
+ 	enda66da0d3e7e51624ee46527727c48a9a:
+ 		;
+-	case OpEqFat:
+-		// match: (EqFat x y)
+-		// cond: x.Op == OpConstNil && y.Op != OpConstNil
+-		// result: (EqFat y x)
++	case OpEqInter:
++		// match: (EqInter x y)
++		// cond:
++		// result: (EqPtr (ITab x) (ITab y))
+ 		{
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+-			if !(x.Op == OpConstNil && y.Op != OpConstNil) {
+-				goto endcea7f7399afcff860c54d82230a9a934
+-			}
+-			v.Op = OpEqFat
+-			v.AuxInt = 0
+-			v.Aux = nil
+-			v.resetArgs()
+-			v.AddArg(y)
+-			v.AddArg(x)
+-			return true
+-		}
+-		goto endcea7f7399afcff860c54d82230a9a934
+-	endcea7f7399afcff860c54d82230a9a934:
+-		;
+-		// match: (EqFat (Load ptr mem) (ConstNil))
+-		// cond:
+-		// result: (EqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr [0]))
+-		{
+-			if v.Args[0].Op != OpLoad {
+-				goto end6f10fb57a906a2c23667c770acb6abf9
+-			}
+-			ptr := v.Args[0].Args[0]
+-			mem := v.Args[0].Args[1]
+-			if v.Args[1].Op != OpConstNil {
+-				goto end6f10fb57a906a2c23667c770acb6abf9
+-			}
+ 			v.Op = OpEqPtr
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
++			v0 := b.NewValue0(v.Line, OpITab, TypeInvalid)
++			v0.AddArg(x)
+ 			v0.Type = config.fe.TypeUintptr()
+-			v0.AddArg(ptr)
+-			v0.AddArg(mem)
+ 			v.AddArg(v0)
+-			v1 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+-			v1.AuxInt = 0
++			v1 := b.NewValue0(v.Line, OpITab, TypeInvalid)
++			v1.AddArg(y)
+ 			v1.Type = config.fe.TypeUintptr()
+ 			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto end6f10fb57a906a2c23667c770acb6abf9
+-	end6f10fb57a906a2c23667c770acb6abf9:
++		goto endfcedc545b9bbbe3790786c8981b12d32
++	endfcedc545b9bbbe3790786c8981b12d32:
+ 		;
+ 	case OpEqPtr:
+ 		// match: (EqPtr p (ConstNil))
+@@ -521,6 +494,30 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		goto end7cdc0d5c38fbffe6287c8928803b038e
+ 	end7cdc0d5c38fbffe6287c8928803b038e:
+ 		;
++	case OpEqSlice:
++		// match: (EqSlice x y)
++		// cond:
++		// result: (EqPtr (SlicePtr x) (SlicePtr y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpEqPtr
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
++			v0.AddArg(x)
++			v0.Type = config.fe.TypeUintptr()
++			v.AddArg(v0)
++			v1 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
++			v1.AddArg(y)
++			v1.Type = config.fe.TypeUintptr()
++			v.AddArg(v1)
++			return true
++		}
++		goto end2937092dca53f896cd527e59e92cab1d
++	end2937092dca53f896cd527e59e92cab1d:
++		;
+ 	case OpIData:
+ 		// match: (IData (IMake _ data))
+ 		// cond:
+@@ -953,56 +950,29 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		goto end09a0deaf3c42627d0d2d3efa96e30745
+ 	end09a0deaf3c42627d0d2d3efa96e30745:
+ 		;
+-	case OpNeqFat:
+-		// match: (NeqFat x y)
+-		// cond: x.Op == OpConstNil && y.Op != OpConstNil
+-		// result: (NeqFat y x)
++	case OpNeqInter:
++		// match: (NeqInter x y)
++		// cond:
++		// result: (NeqPtr (ITab x) (ITab y))
+ 		{
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+-			if !(x.Op == OpConstNil && y.Op != OpConstNil) {
+-				goto end94c68f7dc30c66ed42e507e01c4e5dc7
+-			}
+-			v.Op = OpNeqFat
+-			v.AuxInt = 0
+-			v.Aux = nil
+-			v.resetArgs()
+-			v.AddArg(y)
+-			v.AddArg(x)
+-			return true
+-		}
+-		goto end94c68f7dc30c66ed42e507e01c4e5dc7
+-	end94c68f7dc30c66ed42e507e01c4e5dc7:
+-		;
+-		// match: (NeqFat (Load ptr mem) (ConstNil))
+-		// cond:
+-		// result: (NeqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr [0]))
+-		{
+-			if v.Args[0].Op != OpLoad {
+-				goto end3ffd7685735a83eaee8dc2577ae89d79
+-			}
+-			ptr := v.Args[0].Args[0]
+-			mem := v.Args[0].Args[1]
+-			if v.Args[1].Op != OpConstNil {
+-				goto end3ffd7685735a83eaee8dc2577ae89d79
+-			}
+ 			v.Op = OpNeqPtr
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
++			v0 := b.NewValue0(v.Line, OpITab, TypeInvalid)
++			v0.AddArg(x)
+ 			v0.Type = config.fe.TypeUintptr()
+-			v0.AddArg(ptr)
+-			v0.AddArg(mem)
+ 			v.AddArg(v0)
+-			v1 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+-			v1.AuxInt = 0
++			v1 := b.NewValue0(v.Line, OpITab, TypeInvalid)
++			v1.AddArg(y)
+ 			v1.Type = config.fe.TypeUintptr()
+ 			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto end3ffd7685735a83eaee8dc2577ae89d79
+-	end3ffd7685735a83eaee8dc2577ae89d79:
++		goto end17b2333bf57e9fe81a671be02f9c4c14
++	end17b2333bf57e9fe81a671be02f9c4c14:
+ 		;
+ 	case OpNeqPtr:
+ 		// match: (NeqPtr p (ConstNil))
+@@ -1041,6 +1011,30 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		goto enddd95e9c3606d9fd48034f1a703561e45
+ 	enddd95e9c3606d9fd48034f1a703561e45:
+ 		;
++	case OpNeqSlice:
++		// match: (NeqSlice x y)
++		// cond:
++		// result: (NeqPtr (SlicePtr x) (SlicePtr y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpNeqPtr
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
++			v0.AddArg(x)
++			v0.Type = config.fe.TypeUintptr()
++			v.AddArg(v0)
++			v1 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
++			v1.AddArg(y)
++			v1.Type = config.fe.TypeUintptr()
++			v.AddArg(v1)
++			return true
++		}
++		goto endc6bc83c506e491236ca66ea1081231a2
++	endc6bc83c506e491236ca66ea1081231a2:
++		;
+ 	case OpOr16:
+ 		// match: (Or16 x x)
+ 		// cond:

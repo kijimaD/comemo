@@ -27,7 +27,7 @@ Date:   Wed Mar 17 22:13:16 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/302757
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api.go             |   3 +-
  src/cmd/compile/internal/types2/assignments.go     |  28 ++-
  src/cmd/compile/internal/types2/builtins.go        |  32 +--
@@ -52,3 +52,1076 @@ Date:   Wed Mar 17 22:13:16 2021 -0700
  test/fixedbugs/issue6402.go                        |   2 +-
  test/fixedbugs/issue7153.go                        |   2 +-
  23 files changed, 300 insertions(+), 275 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 30f0430ff1..acb196a336 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -415,7 +415,8 @@ func AssertableTo(V *Interface, T Type) bool {
+ // AssignableTo reports whether a value of type V is assignable to a variable of type T.
+ func AssignableTo(V, T Type) bool {
+ 	x := operand{mode: value, typ: V}
+-	return x.assignableTo(nil, T, nil) // check not needed for non-constant x
++	ok, _ := x.assignableTo(nil, T, nil) // check not needed for non-constant x
++	return ok
+ }
+ 
+ // ConvertibleTo reports whether a value of type V is convertible to a value of type T.
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 18ae0ddf62..272e2fee6e 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -33,8 +33,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 		// spec: "If an untyped constant is assigned to a variable of interface
+ 		// type or the blank identifier, the constant is first converted to type
+ 		// bool, rune, int, float64, complex128 or string respectively, depending
+-		// on whether the value is a boolean, rune, integer, floating-point, complex,
+-		// or string constant."
++		// on whether the value is a boolean, rune, integer, floating-point,
++		// complex, or string constant."
+ 		if x.isNil() {
+ 			if T == nil {
+ 				check.errorf(x, "use of untyped nil in %s", context)
+@@ -44,10 +44,27 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 		} else if T == nil || IsInterface(T) {
+ 			target = Default(x.typ)
+ 		}
+-		check.convertUntyped(x, target)
+-		if x.mode == invalid {
++		newType, val, code := check.implicitTypeAndValue(x, target)
++		if code != 0 {
++			msg := check.sprintf("cannot use %s as %s value in %s", x, target, context)
++			switch code {
++			case _TruncatedFloat:
++				msg += " (truncated)"
++			case _NumericOverflow:
++				msg += " (overflows)"
++			}
++			check.error(x, msg)
++			x.mode = invalid
+ 			return
+ 		}
++		if val != nil {
++			x.val = val
++			check.updateExprVal(x.expr, val)
++		}
++		if newType != x.typ {
++			x.typ = newType
++			check.updateExprType(x.expr, newType, false)
++		}
+ 	}
+ 	// x.typ is typed
+ 
+@@ -63,7 +80,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 		return
+ 	}
+ 
+-	if reason := ""; !x.assignableTo(check, T, &reason) {
++	reason := ""
++	if ok, _ := x.assignableTo(check, T, &reason); !ok {
+ 		if check.conf.CompilerErrorMessages {
+ 			check.errorf(x, "incompatible type: cannot use %s as %s value", x, T)
+ 		} else {
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 55a9d69b30..f0fd216b13 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -95,23 +95,25 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// spec: "As a special case, append also accepts a first argument assignable
+ 		// to type []byte with a second argument of string type followed by ... .
+ 		// This form appends the bytes of the string.
+-		if nargs == 2 && call.HasDots && x.assignableTo(check, NewSlice(universeByte), nil) {
+-			arg(x, 1)
+-			if x.mode == invalid {
+-				return
+-			}
+-			if isString(x.typ) {
+-				if check.Types != nil {
+-					sig := makeSig(S, S, x.typ)
+-					sig.variadic = true
+-					check.recordBuiltinType(call.Fun, sig)
++		if nargs == 2 && call.HasDots {
++			if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
++				arg(x, 1)
++				if x.mode == invalid {
++					return
++				}
++				if isString(x.typ) {
++					if check.Types != nil {
++						sig := makeSig(S, S, x.typ)
++						sig.variadic = true
++						check.recordBuiltinType(call.Fun, sig)
++					}
++					x.mode = value
++					x.typ = S
++					break
+ 				}
+-				x.mode = value
+-				x.typ = S
+-				break
++				alist = append(alist, *x)
++				// fallthrough
+ 			}
+-			alist = append(alist, *x)
+-			// fallthrough
+ 		}
+ 
+ 		// check general case by creating custom signature
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 2ee22c8a19..18737e45a0 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -426,7 +426,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
+ 
+ 	// check arguments
+ 	for i, a := range args {
+-		check.assignment(a, sigParams.vars[i].typ, "argument")
++		check.assignment(a, sigParams.vars[i].typ, check.sprintf("argument to %s", call.Fun))
+ 	}
+ 
+ 	return
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index d04ccec411..eabed7ba9b 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -83,7 +83,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ // exported API call, i.e., when all methods have been type-checked.
+ func (x *operand) convertibleTo(check *Checker, T Type) bool {
+ 	// "x is assignable to T"
+-	if x.assignableTo(check, T, nil) {
++	if ok, _ := x.assignableTo(check, T, nil); ok {
+ 		return true
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/examples/methods.go2 b/src/cmd/compile/internal/types2/examples/methods.go2
+index 7b6b13ddaa..b34baef457 100644
+--- a/src/cmd/compile/internal/types2/examples/methods.go2
++++ b/src/cmd/compile/internal/types2/examples/methods.go2
+@@ -40,7 +40,7 @@ func (t T1[[ /* ERROR must be an identifier */ ]int]) m2() {}
+ // and usually should be avoided. There are some notable exceptions; e.g.,
+ // sometimes it makes sense to use the identifier "copy" which happens to
+ // also be the name of a predeclared built-in function.
+-func (t T1[int]) m3() { var _ int = 42 /* ERROR cannot convert 42 .* to int */ }
++func (t T1[int]) m3() { var _ int = 42 /* ERROR cannot use 42 .* as int */ }
+ 
+ // The names of the type parameters used in a parameterized receiver
+ // type don't have to match the type parameter names in the declaration
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 4cdec84604..3706185817 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -145,11 +145,11 @@ func opName(e *syntax.Operation) string {
+ 	return ""
+ }
+ 
+-// Entries must be "" or end with a space.
+ var op2str1 = [...]string{
+ 	syntax.Xor: "bitwise complement",
+ }
+ 
++// This is only used for operations that may cause overflow.
+ var op2str2 = [...]string{
+ 	syntax.Add: "addition",
+ 	syntax.Sub: "subtraction",
+@@ -410,11 +410,51 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
+ 	return false
+ }
+ 
+-// representable checks that a constant operand is representable in the given basic type.
++// An errorCode is a (constant) value uniquely identifing a specific error.
++type errorCode int
++
++// The following error codes are "borrowed" from go/types which codes for
++// all errors. Here we list the few codes currently needed by the various
++// conversion checking functions.
++// Eventually we will switch to reporting codes for all errors, using a
++// an error code table shared between types2 and go/types.
++const (
++	_ = errorCode(iota)
++	_TruncatedFloat
++	_NumericOverflow
++	_InvalidConstVal
++	_InvalidUntypedConversion
++
++	// The following error codes are only returned by operand.assignableTo
++	// and none of its callers use the error. Still, we keep returning the
++	// error codes to make the transition to reporting error codes all the
++	// time easier in the future.
++	_IncompatibleAssign
++	_InvalidIfaceAssign
++	_InvalidChanAssign
++)
++
++// representable checks that a constant operand is representable in the given
++// basic type.
+ func (check *Checker) representable(x *operand, typ *Basic) {
++	v, code := check.representation(x, typ)
++	if code != 0 {
++		check.invalidConversion(code, x, typ)
++		x.mode = invalid
++		return
++	}
++	assert(v != nil)
++	x.val = v
++}
++
++// representation returns the representation of the constant operand x as the
++// basic type typ.
++//
++// If no such representation is possible, it returns a non-zero error code.
++func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, errorCode) {
+ 	assert(x.mode == constant_)
+-	if !representableConst(x.val, check, typ, &x.val) {
+-		var msg string
++	v := x.val
++	if !representableConst(x.val, check, typ, &v) {
+ 		if isNumeric(x.typ) && isNumeric(typ) {
+ 			// numeric conversion : error msg
+ 			//
+@@ -424,16 +464,25 @@ func (check *Checker) representable(x *operand, typ *Basic) {
+ 			// float   -> float   : overflows
+ 			//
+ 			if !isInteger(x.typ) && isInteger(typ) {
+-				msg = "%s truncated to %s"
++				return nil, _TruncatedFloat
+ 			} else {
+-				msg = "%s overflows %s"
++				return nil, _NumericOverflow
+ 			}
+-		} else {
+-			msg = "cannot convert %s to %s"
+ 		}
+-		check.errorf(x, msg, x, typ)
+-		x.mode = invalid
++		return nil, _InvalidConstVal
+ 	}
++	return v, 0
++}
++
++func (check *Checker) invalidConversion(code errorCode, x *operand, target Type) {
++	msg := "cannot convert %s to %s"
++	switch code {
++	case _TruncatedFloat:
++		msg = "%s truncated to %s"
++	case _NumericOverflow:
++		msg = "%s overflows %s"
++	}
++	check.errorf(x, msg, x, target)
+ }
+ 
+ // updateExprType updates the type of x to typ and invokes itself
+@@ -592,13 +641,33 @@ func (check *Checker) updateExprVal(x syntax.Expr, val constant.Value) {
+ 
+ // convertUntyped attempts to set the type of an untyped value to the target type.
+ func (check *Checker) convertUntyped(x *operand, target Type) {
+-	target = expand(target)
+-	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
++	newType, val, code := check.implicitTypeAndValue(x, target)
++	if code != 0 {
++		check.invalidConversion(code, x, target.Underlying())
++		x.mode = invalid
+ 		return
+ 	}
++	if val != nil {
++		x.val = val
++		check.updateExprVal(x.expr, val)
++	}
++	if newType != x.typ {
++		x.typ = newType
++		check.updateExprType(x.expr, newType, false)
++	}
++}
+ 
+-	// TODO(gri) Sloppy code - clean up. This function is central
+-	//           to assignment and expression checking.
++// implicitTypeAndValue returns the implicit type of x when used in a context
++// where the target type is expected. If no such implicit conversion is
++// possible, it returns a nil Type and non-zero error code.
++//
++// If x is a constant operand, the returned constant.Value will be the
++// representation of x in this context.
++func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, constant.Value, errorCode) {
++	target = expand(target)
++	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
++		return x.typ, nil, 0
++	}
+ 
+ 	if isUntyped(target) {
+ 		// both x and target are untyped
+@@ -606,129 +675,84 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
+ 		tkind := target.(*Basic).kind
+ 		if isNumeric(x.typ) && isNumeric(target) {
+ 			if xkind < tkind {
+-				x.typ = target
+-				check.updateExprType(x.expr, target, false)
++				return target, nil, 0
+ 			}
+ 		} else if xkind != tkind {
+-			goto Error
++			return nil, nil, _InvalidUntypedConversion
+ 		}
+-		return
++		return x.typ, nil, 0
+ 	}
+ 
+-	// In case of a type parameter, conversion must succeed against
+-	// all types enumerated by the type parameter bound.
+-	// TODO(gri) We should not need this because we have the code
+-	// for Sum types in convertUntypedInternal. But at least one
+-	// test fails. Investigate.
+-	if t := asTypeParam(target); t != nil {
+-		types := t.Bound().allTypes
+-		if types == nil {
+-			goto Error
+-		}
+-
+-		for _, t := range unpack(types) {
+-			x := *x // make a copy; convertUntypedInternal modifies x
+-			check.convertUntypedInternal(&x, t, false)
+-			if x.mode == invalid {
+-				goto Error
+-			}
+-		}
+-
+-		x.typ = target
+-		check.updateExprType(x.expr, target, true)
+-		return
+-	}
+-
+-	check.convertUntypedInternal(x, target, true)
+-	return
+-
+-Error:
+-	// TODO(gri) better error message (explain cause)
+-	check.errorf(x, "cannot convert %s to %s", x, target)
+-	x.mode = invalid
+-}
+-
+-// convertUntypedInternal should only be called by convertUntyped.
+-func (check *Checker) convertUntypedInternal(x *operand, target Type, update bool) {
+-	assert(isTyped(target))
+-
+ 	if x.isNil() {
+ 		assert(isUntyped(x.typ))
+ 		if hasNil(target) {
+-			goto OK
++			return target, nil, 0
+ 		}
+-		goto Error
++		return nil, nil, _InvalidUntypedConversion
+ 	}
+ 
+-	// typed target
+ 	switch t := optype(target).(type) {
+ 	case *Basic:
+ 		if x.mode == constant_ {
+-			check.representable(x, t)
+-			if x.mode == invalid {
+-				return
++			v, code := check.representation(x, t)
++			if code != 0 {
++				return nil, nil, code
+ 			}
+-			// expression value may have been rounded - update if needed
+-			if update {
+-				check.updateExprVal(x.expr, x.val)
++			return target, v, code
++		}
++		// Non-constant untyped values may appear as the
++		// result of comparisons (untyped bool), intermediate
++		// (delayed-checked) rhs operands of shifts, and as
++		// the value nil.
++		switch x.typ.(*Basic).kind {
++		case UntypedBool:
++			if !isBoolean(target) {
++				return nil, nil, _InvalidUntypedConversion
+ 			}
+-		} else {
+-			// Non-constant untyped values may appear as the
+-			// result of comparisons (untyped bool), intermediate
+-			// (delayed-checked) rhs operands of shifts, and as
+-			// the value nil. Nil was handled upfront.
+-			switch x.typ.(*Basic).kind {
+-			case UntypedBool:
+-				if !isBoolean(target) {
+-					goto Error
+-				}
+-			case UntypedInt, UntypedRune, UntypedFloat, UntypedComplex:
+-				if !isNumeric(target) {
+-					goto Error
+-				}
+-			case UntypedString:
+-				// Non-constant untyped string values are not
+-				// permitted by the spec and should not occur.
+-				unreachable()
+-			default:
+-				goto Error
++		case UntypedInt, UntypedRune, UntypedFloat, UntypedComplex:
++			if !isNumeric(target) {
++				return nil, nil, _InvalidUntypedConversion
++			}
++		case UntypedString:
++			// Non-constant untyped string values are not permitted by the spec and
++			// should not occur during normal typechecking passes, but this path is
++			// reachable via the AssignableTo API.
++			if !isString(target) {
++				return nil, nil, _InvalidUntypedConversion
+ 			}
++		default:
++			return nil, nil, _InvalidUntypedConversion
+ 		}
+ 	case *Sum:
+-		t.is(func(t Type) bool {
+-			check.convertUntypedInternal(x, t, false)
+-			return x.mode != invalid
++		ok := t.is(func(t Type) bool {
++			target, _, _ := check.implicitTypeAndValue(x, t)
++			return target != nil
+ 		})
++		if !ok {
++			return nil, nil, _InvalidUntypedConversion
++		}
+ 	case *Interface:
+-		// Update operand types to the default type rather then the target
++		// Update operand types to the default type rather than the target
+ 		// (interface) type: values must have concrete dynamic types.
+ 		// Untyped nil was handled upfront.
+ 		check.completeInterface(nopos, t)
+ 		if !t.Empty() {
+-			goto Error // cannot assign untyped values to non-empty interfaces
++			return nil, nil, _InvalidUntypedConversion // cannot assign untyped values to non-empty interfaces
+ 		}
+-		target = Default(x.typ)
++		return Default(x.typ), nil, 0 // default type for nil is nil
+ 	default:
+-		goto Error
+-	}
+-
+-OK:
+-	x.typ = target
+-	if update {
+-		check.updateExprType(x.expr, target, true)
++		return nil, nil, _InvalidUntypedConversion
+ 	}
+-	return
+-
+-Error:
+-	check.errorf(x, "cannot convert %s to %s", x, target)
+-	x.mode = invalid
++	return target, nil, 0
+ }
+ 
+ func (check *Checker) comparison(x, y *operand, op syntax.Operator) {
+ 	// spec: "In any comparison, the first operand must be assignable
+ 	// to the type of the second operand, or vice versa."
+ 	err := ""
+-	if x.assignableTo(check, y.typ, nil) || y.assignableTo(check, x.typ, nil) {
++	xok, _ := x.assignableTo(check, y.typ, nil)
++	yok, _ := y.assignableTo(check, x.typ, nil)
++	if xok || yok {
+ 		defined := false
+ 		switch op {
+ 		case syntax.Eql, syntax.Neq:
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 001e905a7b..61ad0d00f8 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -236,65 +236,45 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
+ // isNil reports whether x is a typed or the untyped nil value.
+ func (x *operand) isNil() bool { return x.mode == nilvalue }
+ 
+-// TODO(gri) The functions operand.assignableTo, checker.convertUntyped,
+-//           checker.representable, and checker.assignment are
+-//           overlapping in functionality. Need to simplify and clean up.
+-
+-// assignableTo reports whether x is assignable to a variable of type T.
+-// If the result is false and a non-nil reason is provided, it may be set
+-// to a more detailed explanation of the failure (result != "").
+-// The check parameter may be nil if assignableTo is invoked through
+-// an exported API call, i.e., when all methods have been type-checked.
+-func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
++// assignableTo reports whether x is assignable to a variable of type T. If the
++// result is false and a non-nil reason is provided, it may be set to a more
++// detailed explanation of the failure (result != ""). The returned error code
++// is only valid if the (first) result is false. The check parameter may be nil
++// if assignableTo is invoked through an exported API call, i.e., when all
++// methods have been type-checked.
++func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, errorCode) {
+ 	if x.mode == invalid || T == Typ[Invalid] {
+-		return true // avoid spurious errors
++		return true, 0 // avoid spurious errors
+ 	}
+ 
+ 	V := x.typ
+ 
+ 	// x's type is identical to T
+ 	if check.identical(V, T) {
+-		return true
++		return true, 0
+ 	}
+ 
+ 	Vu := optype(V)
+ 	Tu := optype(T)
+ 
+-	// x is an untyped value representable by a value of type T
+-	// TODO(gri) This is borrowing from checker.convertUntyped and
+-	//           checker.representable. Need to clean up.
++	// x is an untyped value representable by a value of type T.
+ 	if isUntyped(Vu) {
+-		switch t := Tu.(type) {
+-		case *Basic:
+-			if x.isNil() && t.kind == UnsafePointer {
+-				return true
+-			}
+-			if x.mode == constant_ {
+-				return representableConst(x.val, check, t, nil)
+-			}
+-			// The result of a comparison is an untyped boolean,
+-			// but may not be a constant.
+-			if Vb, _ := Vu.(*Basic); Vb != nil {
+-				return Vb.kind == UntypedBool && isBoolean(Tu)
+-			}
+-		case *Sum:
++		if t, ok := Tu.(*Sum); ok {
+ 			return t.is(func(t Type) bool {
+ 				// TODO(gri) this could probably be more efficient
+-				return x.assignableTo(check, t, reason)
+-			})
+-		case *Interface:
+-			check.completeInterface(nopos, t)
+-			return x.isNil() || t.Empty()
+-		case *Pointer, *Signature, *Slice, *Map, *Chan:
+-			return x.isNil()
++				ok, _ := x.assignableTo(check, t, reason)
++				return ok
++			}), _IncompatibleAssign
+ 		}
++		newType, _, _ := check.implicitTypeAndValue(x, Tu)
++		return newType != nil, _IncompatibleAssign
+ 	}
+ 	// Vu is typed
+ 
+ 	// x's type V and T have identical underlying types
+ 	// and at least one of V or T is not a named type
+ 	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
+-		return true
++		return true, 0
+ 	}
+ 
+ 	// T is an interface type and x implements T
+@@ -312,9 +292,9 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
+ 					*reason = "missing method " + m.Name()
+ 				}
+ 			}
+-			return false
++			return false, _InvalidIfaceAssign
+ 		}
+-		return true
++		return true, 0
+ 	}
+ 
+ 	// x is a bidirectional channel value, T is a channel
+@@ -322,11 +302,11 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
+ 	// and at least one of V or T is not a named type
+ 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
+ 		if Tc, ok := Tu.(*Chan); ok && check.identical(Vc.elem, Tc.elem) {
+-			return !isNamed(V) || !isNamed(T)
++			return !isNamed(V) || !isNamed(T), _InvalidChanAssign
+ 		}
+ 	}
+ 
+-	return false
++	return false, _IncompatibleAssign
+ }
+ 
+ // kind2tok translates syntax.LitKinds into token.Tokens.
+diff --git a/src/cmd/compile/internal/types2/testdata/builtins.src b/src/cmd/compile/internal/types2/testdata/builtins.src
+index f866ef059f..6d1f47129b 100644
+--- a/src/cmd/compile/internal/types2/testdata/builtins.src
++++ b/src/cmd/compile/internal/types2/testdata/builtins.src
+@@ -35,9 +35,9 @@ func append1() {
+ 	type S []byte
+ 	type T string
+ 	var t T
+-	_ = append(s, "foo" /* ERROR cannot convert */ )
++	_ = append(s, "foo" /* ERROR cannot use .* in argument to append */ )
+ 	_ = append(s, "foo"...)
+-	_ = append(S(s), "foo" /* ERROR cannot convert */ )
++	_ = append(S(s), "foo" /* ERROR cannot use .* in argument to append */ )
+ 	_ = append(S(s), "foo"...)
+ 	_ = append(s, t /* ERROR cannot use t */ )
+ 	_ = append(s, t...)
+@@ -283,7 +283,7 @@ func delete1() {
+ 	delete() // ERROR not enough arguments
+ 	delete(1) // ERROR not enough arguments
+ 	delete(1, 2, 3) // ERROR too many arguments
+-	delete(m, 0 /* ERROR cannot convert */)
++	delete(m, 0 /* ERROR cannot use */)
+ 	delete(m, s)
+ 	_ = delete /* ERROR used as value */ (m, s)
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/constdecl.src b/src/cmd/compile/internal/types2/testdata/constdecl.src
+index 1a7ed003a4..cb155ab35d 100644
+--- a/src/cmd/compile/internal/types2/testdata/constdecl.src
++++ b/src/cmd/compile/internal/types2/testdata/constdecl.src
+@@ -111,13 +111,13 @@ func _() {
+ const (
+ 	_ byte = 255 + iota
+ 	/* some gap */
+-	_ // ERROR overflows byte
++	_ // ERROR overflows
+ 	/* some gap */
+-	/* some gap */ _ /* ERROR overflows byte */; _ /* ERROR overflows byte */
++	/* some gap */ _ /* ERROR overflows */; _ /* ERROR overflows */
+ 	/* some gap */
+ 	_ = 255 + iota
+-	_ = byte /* ERROR overflows byte */ (255) + iota
+-	_ /* ERROR overflows byte */
++	_ = byte /* ERROR overflows */ (255) + iota
++	_ /* ERROR overflows */
+ )
+ 
+ // Test cases from issue.
+diff --git a/src/cmd/compile/internal/types2/testdata/decls2/decls2b.src b/src/cmd/compile/internal/types2/testdata/decls2/decls2b.src
+index 8e82c6dcde..7b3229cadc 100644
+--- a/src/cmd/compile/internal/types2/testdata/decls2/decls2b.src
++++ b/src/cmd/compile/internal/types2/testdata/decls2/decls2b.src
+@@ -40,17 +40,17 @@ func f_double /* ERROR "redeclared" */ () {}
+ // Verify by checking that errors are reported.
+ func (T /* ERROR "undeclared" */ ) _() {}
+ func (T1) _(undeclared /* ERROR "undeclared" */ ) {}
+-func (T1) _() int { return "foo" /* ERROR "cannot convert" */ }
++func (T1) _() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
+ 
+ // Methods with undeclared receiver type can still be checked.
+ // Verify by checking that errors are reported.
+ func (Foo /* ERROR "undeclared" */ ) m() {}
+ func (Foo /* ERROR "undeclared" */ ) m(undeclared /* ERROR "undeclared" */ ) {}
+-func (Foo /* ERROR "undeclared" */ ) m() int { return "foo" /* ERROR "cannot convert" */ }
++func (Foo /* ERROR "undeclared" */ ) m() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
+ 
+ func (Foo /* ERROR "undeclared" */ ) _() {}
+ func (Foo /* ERROR "undeclared" */ ) _(undeclared /* ERROR "undeclared" */ ) {}
+-func (Foo /* ERROR "undeclared" */ ) _() int { return "foo" /* ERROR "cannot convert" */ }
++func (Foo /* ERROR "undeclared" */ ) _() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
+ 
+ // Receiver declarations are regular parameter lists;
+ // receiver types may use parentheses, and the list
+diff --git a/src/cmd/compile/internal/types2/testdata/expr3.src b/src/cmd/compile/internal/types2/testdata/expr3.src
+index 6d0ac6cd94..d1be806cfd 100644
+--- a/src/cmd/compile/internal/types2/testdata/expr3.src
++++ b/src/cmd/compile/internal/types2/testdata/expr3.src
+@@ -95,7 +95,7 @@ func indexes() {
+ 	_ = &s /* ERROR "cannot take address" */ [:10]
+ 
+ 	var m map[string]int
+-	_ = m[0 /* ERROR "cannot convert" */ ]
++	_ = m[0 /* ERROR "cannot use .* in map index" */ ]
+ 	_ = m /* ERROR "cannot slice" */ ["foo" : "bar"]
+ 	_ = m["foo"]
+ 	// ok is of type bool
+@@ -103,7 +103,7 @@ func indexes() {
+ 	var ok mybool
+ 	_, ok = m["bar"]
+ 	_ = ok
+-	_ = m[0 /* ERROR "cannot convert 0" */ ] + "foo" // ERROR "cannot convert"
++	_ = m[0 /* ERROR "cannot use 0" */ ] + "foo" // ERROR "cannot convert"
+ 
+ 	var t string
+ 	_ = t[- /* ERROR "negative" */ 1]
+@@ -186,7 +186,7 @@ func struct_literals() {
+ 	_ = T1{aa /* ERROR "unknown field" */ : 0}
+ 	_ = T1{1 /* ERROR "invalid field name" */ : 0}
+ 	_ = T1{a: 0, s: "foo", u: 0, a /* ERROR "duplicate field" */: 10}
+-	_ = T1{a: "foo" /* ERROR "cannot convert" */ }
++	_ = T1{a: "foo" /* ERROR "cannot use .* in struct literal" */ }
+ 	_ = T1{c /* ERROR "unknown field" */ : 0}
+ 	_ = T1{T0: { /* ERROR "missing type" */ }} // struct literal element type may not be elided
+ 	_ = T1{T0: T0{}}
+@@ -197,7 +197,7 @@ func struct_literals() {
+ 	_ = T0{1, b /* ERROR "mixture" */ : 2, 3}
+ 	_ = T0{1, 2} /* ERROR "too few values" */
+ 	_ = T0{1, 2, 3, 4  /* ERROR "too many values" */ }
+-	_ = T0{1, "foo" /* ERROR "cannot convert" */, 3.4  /* ERROR "truncated" */}
++	_ = T0{1, "foo" /* ERROR "cannot use .* in struct literal" */, 3.4  /* ERROR "cannot use .*\(truncated\)" */}
+ 
+ 	// invalid type
+ 	type P *struct{
+@@ -237,7 +237,7 @@ func array_literals() {
+ 	_ = A1{5: 5, 6, 7, 4: 4, 1 /* ERROR "overflows" */ <<100: 4}
+ 	_ = A1{2.0}
+ 	_ = A1{2.1 /* ERROR "truncated" */ }
+-	_ = A1{"foo" /* ERROR "cannot convert" */ }
++	_ = A1{"foo" /* ERROR "cannot use .* in array or slice literal" */ }
+ 
+ 	// indices must be integer constants
+ 	i := 1
+@@ -303,7 +303,7 @@ func slice_literals() {
+ 	_ = S0{5: 5, 6, 7, 4: 4, 1 /* ERROR "overflows" */ <<100: 4}
+ 	_ = S0{2.0}
+ 	_ = S0{2.1 /* ERROR "truncated" */ }
+-	_ = S0{"foo" /* ERROR "cannot convert" */ }
++	_ = S0{"foo" /* ERROR "cannot use .* in array or slice literal" */ }
+ 
+ 	// indices must be resolved correctly
+ 	const index1 = 1
+@@ -356,8 +356,8 @@ func map_literals() {
+ 
+ 	_ = M0{}
+ 	_ = M0{1 /* ERROR "missing key" */ }
+-	_ = M0{1 /* ERROR "cannot convert" */ : 2}
+-	_ = M0{"foo": "bar" /* ERROR "cannot convert" */ }
++	_ = M0{1 /* ERROR "cannot use .* in map literal" */ : 2}
++	_ = M0{"foo": "bar" /* ERROR "cannot use .* in map literal" */ }
+ 	_ = M0{"foo": 1, "bar": 2, "foo" /* ERROR "duplicate key" */ : 3 }
+ 
+ 	_ = map[interface{}]int{2: 1, 2 /* ERROR "duplicate key" */ : 1}
+diff --git a/src/cmd/compile/internal/types2/testdata/issues.src b/src/cmd/compile/internal/types2/testdata/issues.src
+index 1bfc7fec75..940d204084 100644
+--- a/src/cmd/compile/internal/types2/testdata/issues.src
++++ b/src/cmd/compile/internal/types2/testdata/issues.src
+@@ -354,10 +354,10 @@ func issue26234c() {
+ 
+ func issue35895() {
+ 	// T is defined in this package, don't qualify its name with the package name.
+-	var _ T = 0 // ERROR cannot convert 0 \(untyped int constant\) to T
++	var _ T = 0 // ERROR cannot use 0 \(untyped int constant\) as T
+ 
+ 	// There is only one package with name syntax imported, only use the (global) package name in error messages.
+-	var _ *syn.File = 0 // ERROR cannot convert 0 \(untyped int constant\) to \*syntax.File
++	var _ *syn.File = 0 // ERROR cannot use 0 \(untyped int constant\) as \*syntax.File
+ 
+ 	// Because both t1 and t2 have the same global package name (template),
+ 	// qualify packages with full path name in this case.
+diff --git a/src/cmd/compile/internal/types2/testdata/stmt0.src b/src/cmd/compile/internal/types2/testdata/stmt0.src
+index 77d4ba1bfe..022883040b 100644
+--- a/src/cmd/compile/internal/types2/testdata/stmt0.src
++++ b/src/cmd/compile/internal/types2/testdata/stmt0.src
+@@ -69,10 +69,10 @@ func assignments1() {
+ 
+ 	// test cases for issue 5800
+ 	var (
+-		_ int = nil /* ERROR "cannot convert untyped nil" */
+-		_ [10]int = nil /* ERROR "cannot convert untyped nil" */
++		_ int = nil /* ERROR "untyped nil" */
++		_ [10]int = nil /* ERROR "untyped nil" */
+ 		_ []byte = nil
+-		_ struct{} = nil /* ERROR "cannot convert untyped nil" */
++		_ struct{} = nil /* ERROR "untyped nil" */
+ 		_ func() = nil
+ 		_ map[int]string = nil
+ 		_ chan int = nil
+@@ -182,7 +182,7 @@ func sends() {
+ 	var x int
+ 	x <- /* ERROR "cannot send" */ x
+ 	rch <- /* ERROR "cannot send" */ x
+-	ch <- "foo" /* ERROR "cannot convert" */
++	ch <- "foo" /* ERROR "cannot use .* in send" */
+ 	ch <- x
+ }
+ 
+@@ -381,13 +381,13 @@ func returns0() {
+ func returns1(x float64) (int, *float64) {
+ 	return 0, &x
+ 	return /* ERROR wrong number of return values */
+-	return "foo" /* ERROR "cannot convert" */, x /* ERROR "cannot use .* in return statement" */
++	return "foo" /* ERROR "cannot .* in return statement" */, x /* ERROR "cannot use .* in return statement" */
+ 	return /* ERROR wrong number of return values */ 0, &x, 1
+ }
+ 
+ func returns2() (a, b int) {
+ 	return
+-	return 1, "foo" /* ERROR cannot convert */
++	return 1, "foo" /* ERROR cannot use .* in return statement */
+ 	return /* ERROR wrong number of return values */ 1, 2, 3
+ 	{
+ 		type a int
+@@ -609,7 +609,7 @@ func switches2() {
+ 	// untyped constants are converted to default types
+ 	switch 1<<63-1 {
+ 	}
+-	switch 1 /* ERROR "overflows int" */ << 63 {
++	switch 1 /* ERROR "cannot use .* as int value.*\(overflows\)" */ << 63 {
+ 	}
+ 	var x int
+ 	switch 1.0 {
+@@ -631,9 +631,9 @@ func switches2() {
+ }
+ 
+ func issue11667() {
+-	switch 9223372036854775808 /* ERROR "overflows int" */ {
++	switch 9223372036854775808 /* ERROR "cannot use .* as int value.*\(overflows\)" */ {
+ 	}
+-	switch 9223372036854775808 /* ERROR "overflows int" */ {
++	switch 9223372036854775808 /* ERROR "cannot use .* as int value.*\(overflows\)" */ {
+ 	case 9223372036854775808:
+ 	}
+ 	var x int
+diff --git a/src/cmd/compile/internal/types2/testdata/typeparams.go2 b/src/cmd/compile/internal/types2/testdata/typeparams.go2
+index 41306b6e23..badda01105 100644
+--- a/src/cmd/compile/internal/types2/testdata/typeparams.go2
++++ b/src/cmd/compile/internal/types2/testdata/typeparams.go2
+@@ -37,7 +37,7 @@ var _ = reverse /* ERROR cannot use generic function reverse */
+ var _ = reverse[int, float32 /* ERROR got 2 type arguments */ ] ([]int{1, 2, 3})
+ var _ = reverse[int]([ /* ERROR cannot use */ ]float32{1, 2, 3})
+ var f = reverse[chan int]
+-var _ = f(0 /* ERROR cannot convert 0 .* to \[\]chan int */ )
++var _ = f(0 /* ERROR cannot use 0 .* as \[\]chan int */ )
+ 
+ func swap[A, B any](a A, b B) (B, A) { return b, a }
+ 
+@@ -310,7 +310,7 @@ func (_ R1[A, B]) _[A /* ERROR redeclared */ any](B)
+ func _() {
+         var r R1[int, string]
+         r.m1[rune](42, "foo", 'a')
+-        r.m1[rune](42, "foo", 1.2 /* ERROR truncated to rune */)
++        r.m1[rune](42, "foo", 1.2 /* ERROR cannot use .* as rune .* \(truncated\) */)
+         r.m1(42, "foo", 1.2) // using type inference
+         var _ float64 = r.m1(42, "foo", 1.2)
+ }
+diff --git a/test/convlit.go b/test/convlit.go
+index 9d2eee79c5..8bf9928c70 100644
+--- a/test/convlit.go
++++ b/test/convlit.go
+@@ -34,7 +34,7 @@ var bad4 = "a" + 1   // ERROR "literals|incompatible|convert|invalid"
+ var bad5 = "a" + 'a' // ERROR "literals|incompatible|convert|invalid"
+ 
+ var bad6 int = 1.5       // ERROR "convert|truncate"
+-var bad7 int = 1e100     // ERROR "overflow|truncated to int"
++var bad7 int = 1e100     // ERROR "overflow|truncated to int|truncated"
+ var bad8 float32 = 1e200 // ERROR "overflow"
+ 
+ // but these implicit conversions are okay
+diff --git a/test/fixedbugs/bug205.go b/test/fixedbugs/bug205.go
+index 789696df0c..165020ea66 100644
+--- a/test/fixedbugs/bug205.go
++++ b/test/fixedbugs/bug205.go
+@@ -13,6 +13,6 @@ var m map[string]int;
+ func main() {
+ 	println(t["hi"]); // ERROR "non-integer slice index|must be integer|cannot convert"
+ 	println(s["hi"]); // ERROR "non-integer string index|must be integer|cannot convert"
+-	println(m[0]);    // ERROR "cannot use.*as type string|cannot convert"
++	println(m[0]);    // ERROR "cannot use.*as type string|cannot convert|cannot use"
+ }
+ 
+diff --git a/test/fixedbugs/bug397.go b/test/fixedbugs/bug397.go
+index bf3a5fffc8..5f1476adf7 100644
+--- a/test/fixedbugs/bug397.go
++++ b/test/fixedbugs/bug397.go
+@@ -9,5 +9,5 @@ package main
+ // Issue 2623
+ var m = map[string]int{
+ 	"abc": 1,
+-	1:     2, // ERROR "cannot use 1.*as type string in map key|incompatible type|cannot convert"
++	1:     2, // ERROR "cannot use 1.*as type string in map key|incompatible type|cannot convert|cannot use"
+ }
+diff --git a/test/fixedbugs/issue11326.go b/test/fixedbugs/issue11326.go
+index 7f08e7fa3c..4ce25c5e8b 100644
+--- a/test/fixedbugs/issue11326.go
++++ b/test/fixedbugs/issue11326.go
+@@ -18,14 +18,14 @@ func main() {
+ 
+ 	// Any implementation must be able to handle these constants at
+ 	// compile time (even though they cannot be assigned to a float64).
+-	var _ = 1e646456992  // ERROR "1e\+646456992 overflows float64|floating-point constant overflow|exponent too large|overflows float64"
+-	var _ = 1e64645699   // ERROR "1e\+64645699 overflows float64|floating-point constant overflow|exponent too large|overflows float64"
+-	var _ = 1e6464569    // ERROR "1e\+6464569 overflows float64|floating-point constant overflow|exponent too large|overflows float64"
+-	var _ = 1e646456     // ERROR "1e\+646456 overflows float64|floating-point constant overflow|exponent too large|overflows float64"
+-	var _ = 1e64645      // ERROR "1e\+64645 overflows float64|floating-point constant overflow|exponent too large|overflows float64"
+-	var _ = 1e6464       // ERROR "1e\+6464 overflows float64|floating-point constant overflow|overflows float64"
+-	var _ = 1e646        // ERROR "1e\+646 overflows float64|floating-point constant overflow|overflows float64"
+-	var _ = 1e309        // ERROR "1e\+309 overflows float64|floating-point constant overflow|overflows float64"
++	var _ = 1e646456992  // ERROR "1e\+646456992 overflows float64|floating-point constant overflow|exponent too large|overflows float64|overflows"
++	var _ = 1e64645699   // ERROR "1e\+64645699 overflows float64|floating-point constant overflow|exponent too large|overflows float64|overflows"
++	var _ = 1e6464569    // ERROR "1e\+6464569 overflows float64|floating-point constant overflow|exponent too large|overflows float64|overflows"
++	var _ = 1e646456     // ERROR "1e\+646456 overflows float64|floating-point constant overflow|exponent too large|overflows float64|overflows"
++	var _ = 1e64645      // ERROR "1e\+64645 overflows float64|floating-point constant overflow|exponent too large|overflows float64|overflows"
++	var _ = 1e6464       // ERROR "1e\+6464 overflows float64|floating-point constant overflow|overflows float64|overflows"
++	var _ = 1e646        // ERROR "1e\+646 overflows float64|floating-point constant overflow|overflows float64|overflows"
++	var _ = 1e309        // ERROR "1e\+309 overflows float64|floating-point constant overflow|overflows float64|overflows"
+ 
+ 	var _ = 1e308
+ }
+diff --git a/test/fixedbugs/issue11371.go b/test/fixedbugs/issue11371.go
+index 0965e88d74..bc10ca6627 100644
+--- a/test/fixedbugs/issue11371.go
++++ b/test/fixedbugs/issue11371.go
+@@ -9,9 +9,9 @@
+ 
+ package issue11371
+ 
+-const a int = 1.1        // ERROR "constant 1.1 truncated to integer|floating-point constant truncated to integer|truncated to int"
+-const b int = 1e20       // ERROR "overflows int|integer constant overflow|truncated to int"
+-const c int = 1 + 1e-70  // ERROR "constant truncated to integer|truncated to int"
+-const d int = 1 - 1e-70  // ERROR "constant truncated to integer|truncated to int"
+-const e int = 1.00000001 // ERROR "constant truncated to integer|truncated to int"
+-const f int = 0.00000001 // ERROR "constant 1e-08 truncated to integer|floating-point constant truncated to integer|truncated to int"
++const a int = 1.1        // ERROR "constant 1.1 truncated to integer|floating-point constant truncated to integer|truncated to int|truncated"
++const b int = 1e20       // ERROR "overflows int|integer constant overflow|truncated to int|truncated"
++const c int = 1 + 1e-70  // ERROR "constant truncated to integer|truncated to int|truncated"
++const d int = 1 - 1e-70  // ERROR "constant truncated to integer|truncated to int|truncated"
++const e int = 1.00000001 // ERROR "constant truncated to integer|truncated to int|truncated"
++const f int = 0.00000001 // ERROR "constant 1e-08 truncated to integer|floating-point constant truncated to integer|truncated to int|truncated"
+diff --git a/test/fixedbugs/issue13559.go b/test/fixedbugs/issue13559.go
+index 07cf2ca211..cc139d58d2 100644
+--- a/test/fixedbugs/issue13559.go
++++ b/test/fixedbugs/issue13559.go
+@@ -10,80 +10,80 @@
+ package p
+ 
+ // failure case in issue
+-const _ int64 = 1e-10000 // ERROR "1e\-10000 truncated|.* truncated to int64"
++const _ int64 = 1e-10000 // ERROR "1e\-10000 truncated|.* truncated to int64|truncated"
+ 
+ const (
+-	_ int64 = 1e10000000 // ERROR "integer too large|truncated to int64"
+-	_ int64 = 1e1000000  // ERROR "integer too large|truncated to int64"
+-	_ int64 = 1e100000   // ERROR "integer too large|truncated to int64"
+-	_ int64 = 1e10000    // ERROR "integer too large|truncated to int64"
+-	_ int64 = 1e1000     // ERROR "integer too large|truncated to int64"
+-	_ int64 = 1e100      // ERROR "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows|truncated to int64"
++	_ int64 = 1e10000000 // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = 1e1000000  // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = 1e100000   // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = 1e10000    // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = 1e1000     // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = 1e100      // ERROR "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows|truncated to int64|truncated"
+ 	_ int64 = 1e10
+ 	_ int64 = 1e1
+ 	_ int64 = 1e0
+-	_ int64 = 1e-1       // ERROR "0\.1 truncated|.* truncated to int64"
+-	_ int64 = 1e-10      // ERROR "1e\-10 truncated|.* truncated to int64"
+-	_ int64 = 1e-100     // ERROR "1e\-100 truncated|.* truncated to int64"
+-	_ int64 = 1e-1000    // ERROR "1e\-1000 truncated|.* truncated to int64"
+-	_ int64 = 1e-10000   // ERROR "1e\-10000 truncated|.* truncated to int64"
+-	_ int64 = 1e-100000  // ERROR "1e\-100000 truncated|.* truncated to int64"
+-	_ int64 = 1e-1000000 // ERROR "1e\-1000000 truncated|.* truncated to int64"
++	_ int64 = 1e-1       // ERROR "0\.1 truncated|.* truncated to int64|truncated"
++	_ int64 = 1e-10      // ERROR "1e\-10 truncated|.* truncated to int64|truncated"
++	_ int64 = 1e-100     // ERROR "1e\-100 truncated|.* truncated to int64|truncated"
++	_ int64 = 1e-1000    // ERROR "1e\-1000 truncated|.* truncated to int64|truncated"
++	_ int64 = 1e-10000   // ERROR "1e\-10000 truncated|.* truncated to int64|truncated"
++	_ int64 = 1e-100000  // ERROR "1e\-100000 truncated|.* truncated to int64|truncated"
++	_ int64 = 1e-1000000 // ERROR "1e\-1000000 truncated|.* truncated to int64|truncated"
+ )
+ 
+ const (
+-	_ int64 = -1e10000000 // ERROR "integer too large|truncated to int64"
+-	_ int64 = -1e1000000  // ERROR "integer too large|truncated to int64"
+-	_ int64 = -1e100000   // ERROR "integer too large|truncated to int64"
+-	_ int64 = -1e10000    // ERROR "integer too large|truncated to int64"
+-	_ int64 = -1e1000     // ERROR "integer too large|truncated to int64"
+-	_ int64 = -1e100      // ERROR "\-10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows|truncated to int64"
++	_ int64 = -1e10000000 // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = -1e1000000  // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = -1e100000   // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = -1e10000    // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = -1e1000     // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = -1e100      // ERROR "\-10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows|truncated to int64|truncated"
+ 	_ int64 = -1e10
+ 	_ int64 = -1e1
+ 	_ int64 = -1e0
+-	_ int64 = -1e-1       // ERROR "\-0\.1 truncated|.* truncated to int64"
+-	_ int64 = -1e-10      // ERROR "\-1e\-10 truncated|.* truncated to int64"
+-	_ int64 = -1e-100     // ERROR "\-1e\-100 truncated|.* truncated to int64"
+-	_ int64 = -1e-1000    // ERROR "\-1e\-1000 truncated|.* truncated to int64"
+-	_ int64 = -1e-10000   // ERROR "\-1e\-10000 truncated|.* truncated to int64"
+-	_ int64 = -1e-100000  // ERROR "\-1e\-100000 truncated|.* truncated to int64"
+-	_ int64 = -1e-1000000 // ERROR "\-1e\-1000000 truncated|.* truncated to int64"
++	_ int64 = -1e-1       // ERROR "\-0\.1 truncated|.* truncated to int64|truncated"
++	_ int64 = -1e-10      // ERROR "\-1e\-10 truncated|.* truncated to int64|truncated"
++	_ int64 = -1e-100     // ERROR "\-1e\-100 truncated|.* truncated to int64|truncated"
++	_ int64 = -1e-1000    // ERROR "\-1e\-1000 truncated|.* truncated to int64|truncated"
++	_ int64 = -1e-10000   // ERROR "\-1e\-10000 truncated|.* truncated to int64|truncated"
++	_ int64 = -1e-100000  // ERROR "\-1e\-100000 truncated|.* truncated to int64|truncated"
++	_ int64 = -1e-1000000 // ERROR "\-1e\-1000000 truncated|.* truncated to int64|truncated"
+ )
+ 
+ const (
+-	_ int64 = 1.23456789e10000000 // ERROR "integer too large|truncated to int64"
+-	_ int64 = 1.23456789e1000000  // ERROR "integer too large|truncated to int64"
+-	_ int64 = 1.23456789e100000   // ERROR "integer too large|truncated to int64"
+-	_ int64 = 1.23456789e10000    // ERROR "integer too large|truncated to int64"
+-	_ int64 = 1.23456789e1000     // ERROR "integer too large|truncated to int64"
+-	_ int64 = 1.23456789e100      // ERROR "12345678900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows|truncated to int64"
++	_ int64 = 1.23456789e10000000 // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = 1.23456789e1000000  // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = 1.23456789e100000   // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = 1.23456789e10000    // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = 1.23456789e1000     // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = 1.23456789e100      // ERROR "12345678900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows|truncated to int64|truncated"
+ 	_ int64 = 1.23456789e10
+-	_ int64 = 1.23456789e1        // ERROR "12\.3457 truncated|.* truncated to int64"
+-	_ int64 = 1.23456789e0        // ERROR "1\.23457 truncated|.* truncated to int64"
+-	_ int64 = 1.23456789e-1       // ERROR "0\.123457 truncated|.* truncated to int64"
+-	_ int64 = 1.23456789e-10      // ERROR "1\.23457e\-10 truncated|.* truncated to int64"
+-	_ int64 = 1.23456789e-100     // ERROR "1\.23457e\-100 truncated|.* truncated to int64"
+-	_ int64 = 1.23456789e-1000    // ERROR "1\.23457e\-1000 truncated|.* truncated to int64"
+-	_ int64 = 1.23456789e-10000   // ERROR "1\.23457e\-10000 truncated|.* truncated to int64"
+-	_ int64 = 1.23456789e-100000  // ERROR "1\.23457e\-100000 truncated|.* truncated to int64"
+-	_ int64 = 1.23456789e-1000000 // ERROR "1\.23457e\-1000000 truncated|.* truncated to int64"
++	_ int64 = 1.23456789e1        // ERROR "12\.3457 truncated|.* truncated to int64|truncated"
++	_ int64 = 1.23456789e0        // ERROR "1\.23457 truncated|.* truncated to int64|truncated"
++	_ int64 = 1.23456789e-1       // ERROR "0\.123457 truncated|.* truncated to int64|truncated"
++	_ int64 = 1.23456789e-10      // ERROR "1\.23457e\-10 truncated|.* truncated to int64|truncated"
++	_ int64 = 1.23456789e-100     // ERROR "1\.23457e\-100 truncated|.* truncated to int64|truncated"
++	_ int64 = 1.23456789e-1000    // ERROR "1\.23457e\-1000 truncated|.* truncated to int64|truncated"
++	_ int64 = 1.23456789e-10000   // ERROR "1\.23457e\-10000 truncated|.* truncated to int64|truncated"
++	_ int64 = 1.23456789e-100000  // ERROR "1\.23457e\-100000 truncated|.* truncated to int64|truncated"
++	_ int64 = 1.23456789e-1000000 // ERROR "1\.23457e\-1000000 truncated|.* truncated to int64|truncated"
+ )
+ 
+ const (
+-	_ int64 = -1.23456789e10000000 // ERROR "integer too large|truncated to int64"
+-	_ int64 = -1.23456789e1000000  // ERROR "integer too large|truncated to int64"
+-	_ int64 = -1.23456789e100000   // ERROR "integer too large|truncated to int64"
+-	_ int64 = -1.23456789e10000    // ERROR "integer too large|truncated to int64"
+-	_ int64 = -1.23456789e1000     // ERROR "integer too large|truncated to int64"
+-	_ int64 = -1.23456789e100      // ERROR "\-12345678900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows|truncated to int64"
++	_ int64 = -1.23456789e10000000 // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = -1.23456789e1000000  // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = -1.23456789e100000   // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = -1.23456789e10000    // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = -1.23456789e1000     // ERROR "integer too large|truncated to int64|truncated"
++	_ int64 = -1.23456789e100      // ERROR "\-12345678900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows|truncated to int64|truncated"
+ 	_ int64 = -1.23456789e10
+-	_ int64 = -1.23456789e1        // ERROR "\-12\.3457 truncated|.* truncated to int64"
+-	_ int64 = -1.23456789e0        // ERROR "\-1\.23457 truncated|.* truncated to int64"
+-	_ int64 = -1.23456789e-1       // ERROR "\-0\.123457 truncated|.* truncated to int64"
+-	_ int64 = -1.23456789e-10      // ERROR "\-1\.23457e\-10 truncated|.* truncated to int64"
+-	_ int64 = -1.23456789e-100     // ERROR "\-1\.23457e\-100 truncated|.* truncated to int64"
+-	_ int64 = -1.23456789e-1000    // ERROR "\-1\.23457e\-1000 truncated|.* truncated to int64"
+-	_ int64 = -1.23456789e-10000   // ERROR "\-1\.23457e\-10000 truncated|.* truncated to int64"
+-	_ int64 = -1.23456789e-100000  // ERROR "\-1\.23457e\-100000 truncated|.* truncated to int64"
+-	_ int64 = -1.23456789e-1000000 // ERROR "\-1\.23457e\-1000000 truncated|.* truncated to int64"
++	_ int64 = -1.23456789e1        // ERROR "\-12\.3457 truncated|.* truncated to int64|truncated"
++	_ int64 = -1.23456789e0        // ERROR "\-1\.23457 truncated|.* truncated to int64|truncated"
++	_ int64 = -1.23456789e-1       // ERROR "\-0\.123457 truncated|.* truncated to int64|truncated"
++	_ int64 = -1.23456789e-10      // ERROR "\-1\.23457e\-10 truncated|.* truncated to int64|truncated"
++	_ int64 = -1.23456789e-100     // ERROR "\-1\.23457e\-100 truncated|.* truncated to int64|truncated"
++	_ int64 = -1.23456789e-1000    // ERROR "\-1\.23457e\-1000 truncated|.* truncated to int64|truncated"
++	_ int64 = -1.23456789e-10000   // ERROR "\-1\.23457e\-10000 truncated|.* truncated to int64|truncated"
++	_ int64 = -1.23456789e-100000  // ERROR "\-1\.23457e\-100000 truncated|.* truncated to int64|truncated"
++	_ int64 = -1.23456789e-1000000 // ERROR "\-1\.23457e\-1000000 truncated|.* truncated to int64|truncated"
+ )
+diff --git a/test/fixedbugs/issue6402.go b/test/fixedbugs/issue6402.go
+index cd8fb218ac..39cb9ac3f0 100644
+--- a/test/fixedbugs/issue6402.go
++++ b/test/fixedbugs/issue6402.go
+@@ -9,5 +9,5 @@
+ package p
+ 
+ func f() uintptr {
+-	return nil // ERROR "cannot use nil as type uintptr in return argument|incompatible type|cannot convert untyped nil"
++	return nil // ERROR "cannot use nil as type uintptr in return argument|incompatible type|cannot use untyped nil"
+ }
+diff --git a/test/fixedbugs/issue7153.go b/test/fixedbugs/issue7153.go
+index 12cd62b653..0b29ec779b 100644
+--- a/test/fixedbugs/issue7153.go
++++ b/test/fixedbugs/issue7153.go
+@@ -8,4 +8,4 @@
+ 
+ package p
+ 
+-var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type untyped bool\) as type int in slice literal|undefined name .*a|incompatible type|cannot convert"
++var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type untyped bool\) as type int in slice literal|undefined name .*a|incompatible type|cannot use"

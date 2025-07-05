@@ -7,7 +7,80 @@ Date:   Tue May 24 15:00:42 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4550077
-
+---
  src/pkg/go/scanner/scanner.go      | 33 ++-------------------------------
  src/pkg/go/scanner/scanner_test.go |  3 ++-
  2 files changed, 4 insertions(+), 32 deletions(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 07b7454c87..82b9aba0d6 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -22,6 +22,7 @@ package scanner
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"go/token"
+ 	"path/filepath"
+ 	"strconv"
+@@ -134,36 +135,6 @@ func (S *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode uint
+ }
+ 
+ 
+-func charString(ch int) string {
+-	var s string
+-	switch ch {
+-	case -1:
+-		return `EOF`
+-	case '\a':
+-		s = `\a`
+-	case '\b':
+-		s = `\b`
+-	case '\f':
+-		s = `\f`
+-	case '\n':
+-		s = `\n`
+-	case '\r':
+-		s = `\r`
+-	case '\t':
+-		s = `\t`
+-	case '\v':
+-		s = `\v`
+-	case '\\':
+-		s = `\\`
+-	case '\'':
+-		s = `\'`
+-	default:
+-		s = string(ch)
+-	}
+-	return "'" + s + "' (U+" + strconv.Itob(ch, 16) + ")"
+-}
+-
+-
+ func (S *Scanner) error(offs int, msg string) {
+ 	if S.err != nil {
+ 		S.err.Error(S.file.Position(S.file.Pos(offs)), msg)
+@@ -700,7 +671,7 @@ scanAgain:
+ 			tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
+ 		default:
+ 			if S.mode&AllowIllegalChars == 0 {
+-				S.error(offs, "illegal character "+charString(ch))
++				S.error(offs, fmt.Sprintf("illegal character '%c' (%U)", ch, ch))
+ 			}
+ 			insertSemi = S.insertSemi // preserve insertSemi info
+ 		}
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 2d56bfb252..657e85122e 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -650,7 +650,8 @@ var errors = []struct {
+ 	pos int
+ 	err string
+ }{
+-	{`#`, token.ILLEGAL, 0, "illegal character '#' (U+23)"},
++	{"\a", token.ILLEGAL, 0, "illegal character '\a' (U+0007)"},
++	{`#`, token.ILLEGAL, 0, "illegal character '#' (U+0023)"},
+ 	{`' '`, token.CHAR, 0, ""},
+ 	{`''`, token.CHAR, 0, "illegal character literal"},
+ 	{`'\8'`, token.CHAR, 2, "unknown escape sequence"},

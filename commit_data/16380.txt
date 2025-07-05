@@ -9,6 +9,20 @@ Date:   Wed May 22 13:05:31 2013 -0700
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/9663045
-
+---
  doc/go1.1.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index 6256ae2010..f13858927c 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -159,7 +159,7 @@ The GCC release schedule does not coincide with the Go release schedule, so some
+ <code>gccgo</code>'s releases.
+ The 4.8.0 version of GCC shipped in March, 2013 and includes a nearly-Go 1.1 version of <code>gccgo</code>.
+ Its library is a little behind the release, but the biggest difference is that method values are not implemented.
+-Sometime around May 2013, we expect 4.8.1 of GCC to ship with a <code>gccgo</code>
++Sometime around July 2013, we expect 4.8.2 of GCC to ship with a <code>gccgo</code>
+ providing a complete Go 1.1 implementaiton.
+ </p>
+ 

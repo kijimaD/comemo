@@ -6,6 +6,20 @@ Date:   Mon Nov 30 21:23:58 2009 -0800
     
     R=golang-dev, rsc
     https://golang.org/cl/164052
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 8a247461da..fc3fbaf30a 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4402,7 +4402,7 @@ func generate(ch chan&lt;- int) {
+ 	}
+ }
+ 
+-// Copy the values from channel 'in' to channel 'out',
++// Copy the values from channel 'src' to channel 'dst',
+ // removing those divisible by 'prime'.
+ func filter(src &lt;-chan int, dst chan&lt;- int, prime int) {
+ 	for i := range src {	// Loop over values received from 'src'.

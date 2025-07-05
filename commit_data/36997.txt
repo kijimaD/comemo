@@ -11,6 +11,23 @@ Date:   Fri Jun 15 00:08:26 2018 +0200
     Change-Id: I4d360df82989d9b40cd31bb4508a6d057534443e
     Reviewed-on: https://go-review.googlesource.com/118977
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/wasm/wasm_exec.js | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index ada6f0cd92..e0759a7ce1 100755
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -41,6 +41,11 @@
+ 				}
+ 				return buf.length;
+ 			},
++			openSync(path, flags, mode) {
++				const err = new Error("not implemented");
++				err.code = "ENOSYS";
++				throw err;
++			},
+ 		};
+ 	}
+ 

@@ -14,7 +14,44 @@ Date:   Wed May 15 17:57:05 2024 +0900
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/script/{cmds_other.go => cmds_nonunix.go} | 3 ++-
  src/cmd/go/internal/script/{cmds_posix.go => cmds_unix.go}    | 2 +-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/script/cmds_other.go b/src/cmd/go/internal/script/cmds_nonunix.go
+similarity index 75%
+rename from src/cmd/go/internal/script/cmds_other.go
+rename to src/cmd/go/internal/script/cmds_nonunix.go
+index 847b225ae6..07bf284fa9 100644
+--- a/src/cmd/go/internal/script/cmds_other.go
++++ b/src/cmd/go/internal/script/cmds_nonunix.go
+@@ -2,10 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !(unix || windows)
++//go:build !unix
+ 
+ package script
+ 
+ func isETXTBSY(err error) bool {
++	// syscall.ETXTBSY is only meaningful on Unix platforms.
+ 	return false
+ }
+diff --git a/src/cmd/go/internal/script/cmds_posix.go b/src/cmd/go/internal/script/cmds_unix.go
+similarity index 91%
+rename from src/cmd/go/internal/script/cmds_posix.go
+rename to src/cmd/go/internal/script/cmds_unix.go
+index 2525f6e752..94a16b5e9a 100644
+--- a/src/cmd/go/internal/script/cmds_posix.go
++++ b/src/cmd/go/internal/script/cmds_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || windows
++//go:build unix
+ 
+ package script
+ 

@@ -17,7 +17,7 @@ Date:   Mon Jun 6 10:35:46 2011 -0400
     R=bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/4532115
-
+---
  src/pkg/Makefile                           |   3 +-
  src/pkg/crypto/ocsp/ocsp.go                |  23 +-
  src/pkg/crypto/rsa/rsa.go                  |   2 +-
@@ -31,3 +31,1216 @@ Date:   Mon Jun 6 10:35:46 2011 -0400
  src/pkg/crypto/x509/x509_test.go           | 102 +++++++-
  src/pkg/http/httptest/server.go            |  33 ++-
  12 files changed, 438 insertions(+), 421 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index a1f509c88c..2d6b3d0146 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -59,7 +59,7 @@ DIRS=\
+ 	crypto/tls\
+ 	crypto/twofish\
+ 	crypto/x509\
+-	crypto/x509/crl\
++	crypto/x509/pkix\
+ 	crypto/xtea\
+ 	debug/dwarf\
+ 	debug/macho\
+@@ -184,6 +184,7 @@ endif
+ NOTEST+=\
+ 	crypto\
+ 	crypto/openpgp/error\
++	crypto/x509/pkix\
+ 	debug/proc\
+ 	exp/gui\
+ 	exp/gui/x11\
+diff --git a/src/pkg/crypto/ocsp/ocsp.go b/src/pkg/crypto/ocsp/ocsp.go
+index acd75b8b06..57dbe7d2d9 100644
+--- a/src/pkg/crypto/ocsp/ocsp.go
++++ b/src/pkg/crypto/ocsp/ocsp.go
+@@ -13,6 +13,7 @@ import (
+ 	"crypto/rsa"
+ 	_ "crypto/sha1"
+ 	"crypto/x509"
++	"crypto/x509/pkix"
+ 	"os"
+ 	"time"
+ )
+@@ -32,21 +33,9 @@ const (
+ 	ocspUnauthorized  = 5
+ )
+ 
+-type rdnSequence []relativeDistinguishedNameSET
+-
+-type relativeDistinguishedNameSET []attributeTypeAndValue
+-
+-type attributeTypeAndValue struct {
+-	Type  asn1.ObjectIdentifier
+-	Value interface{}
+-}
+-
+-type algorithmIdentifier struct {
+-	Algorithm asn1.ObjectIdentifier
+-}
+ 
+ type certID struct {
+-	HashAlgorithm algorithmIdentifier
++	HashAlgorithm pkix.AlgorithmIdentifier
+ 	NameHash      []byte
+ 	IssuerKeyHash []byte
+ 	SerialNumber  asn1.RawValue
+@@ -64,16 +53,16 @@ type responseBytes struct {
+ 
+ type basicResponse struct {
+ 	TBSResponseData    responseData
+-	SignatureAlgorithm algorithmIdentifier
++	SignatureAlgorithm pkix.AlgorithmIdentifier
+ 	Signature          asn1.BitString
+ 	Certificates       []asn1.RawValue "explicit,tag:0,optional"
+ }
+ 
+ type responseData struct {
+ 	Raw           asn1.RawContent
+-	Version       int         "optional,default:1,explicit,tag:0"
+-	RequestorName rdnSequence "optional,explicit,tag:1"
+-	KeyHash       []byte      "optional,explicit,tag:2"
++	Version       int              "optional,default:1,explicit,tag:0"
++	RequestorName pkix.RDNSequence "optional,explicit,tag:1"
++	KeyHash       []byte           "optional,explicit,tag:2"
+ 	ProducedAt    *time.Time
+ 	Responses     []singleResponse
+ }
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index 6bfe6c4e52..380f715701 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -64,7 +64,7 @@ func (priv *PrivateKey) Validate() os.Error {
+ 	// easy for an attack to generate composites that pass this test.
+ 	for _, prime := range priv.Primes {
+ 		if !big.ProbablyPrime(prime, 20) {
+-			return os.ErrorString("Prime factor is composite")
++			return os.ErrorString("prime factor is composite")
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index 7d0bb9f34b..9e5c9270a7 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -159,7 +159,7 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (cert Certificate, err os.Err
+ 
+ 	key, err := x509.ParsePKCS1PrivateKey(keyDERBlock.Bytes)
+ 	if err != nil {
+-		err = os.ErrorString("crypto/tls: failed to parse key")
++		err = os.ErrorString("crypto/tls: failed to parse key: " + err.String())
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/crypto/x509/cert_pool.go b/src/pkg/crypto/x509/cert_pool.go
+index c295fd97e8..16cd92efc3 100644
+--- a/src/pkg/crypto/x509/cert_pool.go
++++ b/src/pkg/crypto/x509/cert_pool.go
+@@ -5,6 +5,7 @@
+ package x509
+ 
+ import (
++	"crypto/x509/pkix"
+ 	"encoding/pem"
+ 	"strings"
+ )
+@@ -25,7 +26,7 @@ func NewCertPool() *CertPool {
+ 	}
+ }
+ 
+-func nameToKey(name *Name) string {
++func nameToKey(name *pkix.Name) string {
+ 	return strings.Join(name.Country, ",") + "/" + strings.Join(name.Organization, ",") + "/" + strings.Join(name.OrganizationalUnit, ",") + "/" + name.CommonName
+ }
+ 
+diff --git a/src/pkg/crypto/x509/crl/crl.go b/src/pkg/crypto/x509/crl/crl.go
+deleted file mode 100644
+index c79c797c7e..0000000000
+--- a/src/pkg/crypto/x509/crl/crl.go
++++ /dev/null
+@@ -1,96 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package crl exposes low-level details of PKIX Certificate Revocation Lists
+-// as specified in RFC 5280, section 5.
+-package crl
+-
+-import (
+-	"asn1"
+-	"bytes"
+-	"encoding/pem"
+-	"os"
+-	"time"
+-)
+-
+-// CertificateList represents the ASN.1 structure of the same name. See RFC
+-// 5280, section 5.1. Use crypto/x509/Certificate.CheckCRLSignature to verify
+-// the signature.
+-type CertificateList struct {
+-	TBSCertList        TBSCertificateList
+-	SignatureAlgorithm AlgorithmIdentifier
+-	SignatureValue     asn1.BitString
+-}
+-
+-// HasExpired returns true iff currentTimeSeconds is past the expiry time of
+-// certList.
+-func (certList *CertificateList) HasExpired(currentTimeSeconds int64) bool {
+-	return certList.TBSCertList.NextUpdate.Seconds() <= currentTimeSeconds
+-}
+-
+-// TBSCertificateList represents the ASN.1 structure of the same name. See RFC
+-// 5280, section 5.1.
+-type TBSCertificateList struct {
+-	Raw                 asn1.RawContent
+-	Version             int "optional,default:2"
+-	Signature           AlgorithmIdentifier
+-	Issuer              asn1.RawValue
+-	ThisUpdate          *time.Time
+-	NextUpdate          *time.Time
+-	RevokedCertificates []RevokedCertificate "optional"
+-	Extensions          []Extension          "tag:0,optional,explicit"
+-}
+-
+-// AlgorithmIdentifier represents the ASN.1 structure of the same name. See RFC
+-// 5280, section 4.1.1.2.
+-type AlgorithmIdentifier struct {
+-	Algo   asn1.ObjectIdentifier
+-	Params asn1.RawValue "optional"
+-}
+-
+-// AlgorithmIdentifier represents the ASN.1 structure of the same name. See RFC
+-// 5280, section 5.1.
+-type RevokedCertificate struct {
+-	SerialNumber   asn1.RawValue
+-	RevocationTime *time.Time
+-	Extensions     []Extension "optional"
+-}
+-
+-// AlgorithmIdentifier represents the ASN.1 structure of the same name. See RFC
+-// 5280, section 4.2.
+-type Extension struct {
+-	Id        asn1.ObjectIdentifier
+-	IsCritial bool "optional"
+-	Value     []byte
+-}
+-
+-// pemCRLPrefix is the magic string that indicates that we have a PEM encoded
+-// CRL.
+-var pemCRLPrefix = []byte("-----BEGIN X509 CRL")
+-// pemType is the type of a PEM encoded CRL.
+-var pemType = "X509 CRL"
+-
+-// Parse parses a CRL from the given bytes. It's often the case that PEM
+-// encoded CRLs will appear where they should be DER encoded, so this function
+-// will transparently handle PEM encoding as long as there isn't any leading
+-// garbage.
+-func Parse(crlBytes []byte) (certList *CertificateList, err os.Error) {
+-	if bytes.HasPrefix(crlBytes, pemCRLPrefix) {
+-		block, _ := pem.Decode(crlBytes)
+-		if block != nil && block.Type == pemType {
+-			crlBytes = block.Bytes
+-		}
+-	}
+-	return ParseDER(crlBytes)
+-}
+-
+-// ParseDER parses a DER encoded CRL from the given bytes.
+-func ParseDER(derBytes []byte) (certList *CertificateList, err os.Error) {
+-	certList = new(CertificateList)
+-	_, err = asn1.Unmarshal(derBytes, certList)
+-	if err != nil {
+-		certList = nil
+-	}
+-	return
+-}
+diff --git a/src/pkg/crypto/x509/crl/crl_test.go b/src/pkg/crypto/x509/crl/crl_test.go
+deleted file mode 100644
+index 62d8dc1957..0000000000
+--- a/src/pkg/crypto/x509/crl/crl_test.go
++++ /dev/null
+@@ -1,63 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package crl
+-
+-import (
+-	"encoding/base64"
+-	"testing"
+-)
+-
+-func fromBase64(in string) []byte {
+-	out := make([]byte, base64.StdEncoding.DecodedLen(len(in)))
+-	_, err := base64.StdEncoding.Decode(out, []byte(in))
+-	if err != nil {
+-		panic("failed to base64 decode")
+-	}
+-	return out
+-}
+-
+-func TestParseDER(t *testing.T) {
+-	derBytes := fromBase64(derCRLBase64)
+-	certList, err := ParseDER(derBytes)
+-	if err != nil {
+-		t.Errorf("error parsing: %s", err)
+-		return
+-	}
+-	numCerts := len(certList.TBSCertList.RevokedCertificates)
+-	expected := 88
+-	if numCerts != expected {
+-		t.Errorf("bad number of revoked certificates. got: %d want: %d", numCerts, expected)
+-	}
+-
+-	if certList.HasExpired(1302517272) {
+-		t.Errorf("CRL has expired (but shouldn't have)")
+-	}
+-
+-	// Can't check the signature here without a package cycle.
+-}
+-
+-func TestParsePEM(t *testing.T) {
+-	pemBytes := fromBase64(pemCRLBase64)
+-	certList, err := Parse(pemBytes)
+-	if err != nil {
+-		t.Errorf("error parsing: %s", err)
+-		return
+-	}
+-	numCerts := len(certList.TBSCertList.RevokedCertificates)
+-	expected := 2
+-	if numCerts != expected {
+-		t.Errorf("bad number of revoked certificates. got: %d want: %d", numCerts, expected)
+-	}
+-
+-	if certList.HasExpired(1302517272) {
+-		t.Errorf("CRL has expired (but shouldn't have)")
+-	}
+-
+-	// Can't check the signature here without a package cycle.
+-}
+-
+-const derCRLBase64 = "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"
+-
+-const pemCRLBase64 = "LS0tLS1CRUdJTiBYNTA5IENSTC0tLS0tDQpNSUlCOWpDQ0FWOENBUUV3RFFZSktvWklodmNOQVFFRkJRQXdiREVhTUJnR0ExVUVDaE1SVWxOQklGTmxZM1Z5DQphWFI1SUVsdVl5NHhIakFjQmdOVkJBTVRGVkpUUVNCUWRXSnNhV01nVW05dmRDQkRRU0IyTVRFdU1Dd0dDU3FHDQpTSWIzRFFFSkFSWWZjbk5oYTJWdmJuSnZiM1J6YVdkdVFISnpZWE5sWTNWeWFYUjVMbU52YlJjTk1URXdNakl6DQpNVGt5T0RNd1doY05NVEV3T0RJeU1Ua3lPRE13V2pDQmpEQktBaEVBckRxb2g5RkhKSFhUN09QZ3V1bjQrQmNODQpNRGt4TVRBeU1UUXlOekE1V2pBbU1Bb0dBMVVkRlFRRENnRUpNQmdHQTFVZEdBUVJHQTh5TURBNU1URXdNakUwDQpNalExTlZvd1BnSVJBTEd6blowOTVQQjVhQU9MUGc1N2ZNTVhEVEF5TVRBeU16RTBOVEF4TkZvd0dqQVlCZ05WDQpIUmdFRVJnUE1qQXdNakV3TWpNeE5EVXdNVFJhb0RBd0xqQWZCZ05WSFNNRUdEQVdnQlQxVERGNlVRTS9MTmVMDQpsNWx2cUhHUXEzZzltekFMQmdOVkhSUUVCQUlDQUlRd0RRWUpLb1pJaHZjTkFRRUZCUUFEZ1lFQUZVNUFzNk16DQpxNVBSc2lmYW9iUVBHaDFhSkx5QytNczVBZ2MwYld5QTNHQWR4dXI1U3BQWmVSV0NCamlQL01FSEJXSkNsQkhQDQpHUmNxNXlJZDNFakRrYUV5eFJhK2k2N0x6dmhJNmMyOUVlNks5cFNZd2ppLzdSVWhtbW5Qclh0VHhsTDBsckxyDQptUVFKNnhoRFJhNUczUUE0Q21VZHNITnZicnpnbUNZcHZWRT0NCi0tLS0tRU5EIFg1MDkgQ1JMLS0tLS0NCg0K"
+diff --git a/src/pkg/crypto/x509/crl/Makefile b/src/pkg/crypto/x509/pkix/Makefile
+similarity index 87%
+rename from src/pkg/crypto/x509/crl/Makefile
+rename to src/pkg/crypto/x509/pkix/Makefile
+index d780af38e8..e29b74c013 100644
+--- a/src/pkg/crypto/x509/crl/Makefile
++++ b/src/pkg/crypto/x509/pkix/Makefile
+@@ -4,8 +4,8 @@
+ 
+ include ../../../../Make.inc
+ 
+-TARG=crypto/x509/crl
++TARG=crypto/x509/pkix
+ GOFILES=\
+-	crl.go\
++	pkix.go\
+ 
+ include ../../../../Make.pkg
+diff --git a/src/pkg/crypto/x509/pkix/pkix.go b/src/pkg/crypto/x509/pkix/pkix.go
+new file mode 100644
+index 0000000000..7806b2a2eb
+--- /dev/null
++++ b/src/pkg/crypto/x509/pkix/pkix.go
+@@ -0,0 +1,167 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package pkix contains shared, low level structures used for ASN.1 parsing
++// and serialization of X.509 certificates, CRL and OCSP.
++package pkix
++
++import (
++	"asn1"
++	"big"
++	"time"
++)
++
++// AlgorithmIdentifier represents the ASN.1 structure of the same name. See RFC
++// 5280, section 4.1.1.2.
++type AlgorithmIdentifier struct {
++	Algorithm  asn1.ObjectIdentifier
++	Parameters asn1.RawValue "optional"
++}
++
++type RDNSequence []RelativeDistinguishedNameSET
++
++type RelativeDistinguishedNameSET []AttributeTypeAndValue
++
++type AttributeTypeAndValue struct {
++	Type  asn1.ObjectIdentifier
++	Value interface{}
++}
++
++// Extension represents the ASN.1 structure of the same name. See RFC
++// 5280, section 4.2.
++type Extension struct {
++	Id       asn1.ObjectIdentifier
++	Critical bool "optional"
++	Value    []byte
++}
++
++// Name represents an X.509 distinguished name. This only includes the common
++// elements of a DN.  Additional elements in the name are ignored.
++type Name struct {
++	Country, Organization, OrganizationalUnit []string
++	Locality, Province                        []string
++	StreetAddress, PostalCode                 []string
++	SerialNumber, CommonName                  string
++}
++
++func (n *Name) FillFromRDNSequence(rdns *RDNSequence) {
++	for _, rdn := range *rdns {
++		if len(rdn) == 0 {
++			continue
++		}
++		atv := rdn[0]
++		value, ok := atv.Value.(string)
++		if !ok {
++			continue
++		}
++
++		t := atv.Type
++		if len(t) == 4 && t[0] == 2 && t[1] == 5 && t[2] == 4 {
++			switch t[3] {
++			case 3:
++				n.CommonName = value
++			case 5:
++				n.SerialNumber = value
++			case 6:
++				n.Country = append(n.Country, value)
++			case 7:
++				n.Locality = append(n.Locality, value)
++			case 8:
++				n.Province = append(n.Province, value)
++			case 9:
++				n.StreetAddress = append(n.StreetAddress, value)
++			case 10:
++				n.Organization = append(n.Organization, value)
++			case 11:
++				n.OrganizationalUnit = append(n.OrganizationalUnit, value)
++			case 17:
++				n.PostalCode = append(n.PostalCode, value)
++			}
++		}
++	}
++}
++
++var (
++	oidCountry            = []int{2, 5, 4, 6}
++	oidOrganization       = []int{2, 5, 4, 10}
++	oidOrganizationalUnit = []int{2, 5, 4, 11}
++	oidCommonName         = []int{2, 5, 4, 3}
++	oidSerialNumber       = []int{2, 5, 4, 5}
++	oidLocality           = []int{2, 5, 4, 7}
++	oidProvince           = []int{2, 5, 4, 8}
++	oidStreetAddress      = []int{2, 5, 4, 9}
++	oidPostalCode         = []int{2, 5, 4, 17}
++)
++
++// appendRDNs appends a relativeDistinguishedNameSET to the given RDNSequence
++// and returns the new value. The relativeDistinguishedNameSET contains an
++// attributeTypeAndValue for each of the given values. See RFC 5280, A.1, and
++// search for AttributeTypeAndValue.
++func appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentifier) RDNSequence {
++	if len(values) == 0 {
++		return in
++	}
++
++	s := make([]AttributeTypeAndValue, len(values))
++	for i, value := range values {
++		s[i].Type = oid
++		s[i].Value = value
++	}
++
++	return append(in, s)
++}
++
++func (n Name) ToRDNSequence() (ret RDNSequence) {
++	ret = appendRDNs(ret, n.Country, oidCountry)
++	ret = appendRDNs(ret, n.Organization, oidOrganization)
++	ret = appendRDNs(ret, n.OrganizationalUnit, oidOrganizationalUnit)
++	ret = appendRDNs(ret, n.Locality, oidLocality)
++	ret = appendRDNs(ret, n.Province, oidProvince)
++	ret = appendRDNs(ret, n.StreetAddress, oidStreetAddress)
++	ret = appendRDNs(ret, n.PostalCode, oidPostalCode)
++	if len(n.CommonName) > 0 {
++		ret = appendRDNs(ret, []string{n.CommonName}, oidCommonName)
++	}
++	if len(n.SerialNumber) > 0 {
++		ret = appendRDNs(ret, []string{n.SerialNumber}, oidSerialNumber)
++	}
++
++	return ret
++}
++
++// CertificateList represents the ASN.1 structure of the same name. See RFC
++// 5280, section 5.1. Use Certificate.CheckCRLSignature to verify the
++// signature.
++type CertificateList struct {
++	TBSCertList        TBSCertificateList
++	SignatureAlgorithm AlgorithmIdentifier
++	SignatureValue     asn1.BitString
++}
++
++// HasExpired returns true iff currentTimeSeconds is past the expiry time of
++// certList.
++func (certList *CertificateList) HasExpired(currentTimeSeconds int64) bool {
++	return certList.TBSCertList.NextUpdate.Seconds() <= currentTimeSeconds
++}
++
++// TBSCertificateList represents the ASN.1 structure of the same name. See RFC
++// 5280, section 5.1.
++type TBSCertificateList struct {
++	Raw                 asn1.RawContent
++	Version             int "optional,default:2"
++	Signature           AlgorithmIdentifier
++	Issuer              RDNSequence
++	ThisUpdate          *time.Time
++	NextUpdate          *time.Time
++	RevokedCertificates []RevokedCertificate "optional"
++	Extensions          []Extension          "tag:0,optional,explicit"
++}
++
++// RevokedCertificate represents the ASN.1 structure of the same name. See RFC
++// 5280, section 5.1.
++type RevokedCertificate struct {
++	SerialNumber   *big.Int
++	RevocationTime *time.Time
++	Extensions     []Extension "optional"
++}
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 6ae1f8e395..b10ffb0a2e 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -14,7 +14,8 @@ import (
+ 	"crypto/dsa"
+ 	"crypto/rsa"
+ 	"crypto/sha1"
+-	"crypto/x509/crl"
++	"crypto/x509/pkix"
++	"encoding/pem"
+ 	"io"
+ 	"os"
+ 	"time"
+@@ -23,30 +24,25 @@ import (
+ // pkcs1PrivateKey is a structure which mirrors the PKCS#1 ASN.1 for an RSA private key.
+ type pkcs1PrivateKey struct {
+ 	Version int
+-	N       asn1.RawValue
++	N       *big.Int
+ 	E       int
+-	D       asn1.RawValue
+-	P       asn1.RawValue
+-	Q       asn1.RawValue
++	D       *big.Int
++	P       *big.Int
++	Q       *big.Int
+ 	// We ignore these values, if present, because rsa will calculate them.
+-	Dp   asn1.RawValue "optional"
+-	Dq   asn1.RawValue "optional"
+-	Qinv asn1.RawValue "optional"
++	Dp   *big.Int "optional"
++	Dq   *big.Int "optional"
++	Qinv *big.Int "optional"
+ 
+ 	AdditionalPrimes []pkcs1AdditionalRSAPrime "optional"
+ }
+ 
+ type pkcs1AdditionalRSAPrime struct {
+-	Prime asn1.RawValue
++	Prime *big.Int
+ 
+ 	// We ignore these values because rsa will calculate them.
+-	Exp   asn1.RawValue
+-	Coeff asn1.RawValue
+-}
+-
+-// rawValueIsInteger returns true iff the given ASN.1 RawValue is an INTEGER type.
+-func rawValueIsInteger(raw *asn1.RawValue) bool {
+-	return raw.Class == 0 && raw.Tag == 2 && raw.IsCompound == false
++	Exp   *big.Int
++	Coeff *big.Int
+ }
+ 
+ // ParsePKCS1PrivateKey returns an RSA private key from its ASN.1 PKCS#1 DER encoded form.
+@@ -65,29 +61,25 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
+ 		return nil, os.ErrorString("x509: unsupported private key version")
+ 	}
+ 
+-	if !rawValueIsInteger(&priv.N) ||
+-		!rawValueIsInteger(&priv.D) ||
+-		!rawValueIsInteger(&priv.P) ||
+-		!rawValueIsInteger(&priv.Q) {
+-		err = asn1.StructuralError{"tags don't match"}
+-		return
++	if priv.N.Sign() <= 0 || priv.D.Sign() <= 0 || priv.P.Sign() <= 0 || priv.Q.Sign() <= 0 {
++		return nil, os.ErrorString("private key contains zero or negative value")
+ 	}
+ 
+ 	key = new(rsa.PrivateKey)
+ 	key.PublicKey = rsa.PublicKey{
+ 		E: priv.E,
+-		N: new(big.Int).SetBytes(priv.N.Bytes),
++		N: priv.N,
+ 	}
+ 
+-	key.D = new(big.Int).SetBytes(priv.D.Bytes)
++	key.D = priv.D
+ 	key.Primes = make([]*big.Int, 2+len(priv.AdditionalPrimes))
+-	key.Primes[0] = new(big.Int).SetBytes(priv.P.Bytes)
+-	key.Primes[1] = new(big.Int).SetBytes(priv.Q.Bytes)
++	key.Primes[0] = priv.P
++	key.Primes[1] = priv.Q
+ 	for i, a := range priv.AdditionalPrimes {
+-		if !rawValueIsInteger(&a.Prime) {
+-			return nil, asn1.StructuralError{"tags don't match"}
++		if a.Prime.Sign() <= 0 {
++			return nil, os.ErrorString("private key contains zero or negative prime")
+ 		}
+-		key.Primes[i+2] = new(big.Int).SetBytes(a.Prime.Bytes)
++		key.Primes[i+2] = a.Prime
+ 		// We ignore the other two values because rsa will calculate
+ 		// them as needed.
+ 	}
+@@ -101,19 +93,6 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
+ 	return
+ }
+ 
+-// rawValueForBig returns an asn1.RawValue which represents the given integer.
+-func rawValueForBig(n *big.Int) asn1.RawValue {
+-	b := n.Bytes()
+-	if n.Sign() >= 0 && len(b) > 0 && b[0]&0x80 != 0 {
+-		// This positive number would be interpreted as a negative
+-		// number in ASN.1 because the MSB is set.
+-		padded := make([]byte, len(b)+1)
+-		copy(padded[1:], b)
+-		b = padded
+-	}
+-	return asn1.RawValue{Tag: 2, Bytes: b}
+-}
+-
+ // MarshalPKCS1PrivateKey converts a private key to ASN.1 DER encoded form.
+ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
+ 	key.Precompute()
+@@ -125,21 +104,21 @@ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
+ 
+ 	priv := pkcs1PrivateKey{
+ 		Version: version,
+-		N:       rawValueForBig(key.N),
++		N:       key.N,
+ 		E:       key.PublicKey.E,
+-		D:       rawValueForBig(key.D),
+-		P:       rawValueForBig(key.Primes[0]),
+-		Q:       rawValueForBig(key.Primes[1]),
+-		Dp:      rawValueForBig(key.Precomputed.Dp),
+-		Dq:      rawValueForBig(key.Precomputed.Dq),
+-		Qinv:    rawValueForBig(key.Precomputed.Qinv),
++		D:       key.D,
++		P:       key.Primes[0],
++		Q:       key.Primes[1],
++		Dp:      key.Precomputed.Dp,
++		Dq:      key.Precomputed.Dq,
++		Qinv:    key.Precomputed.Qinv,
+ 	}
+ 
+ 	priv.AdditionalPrimes = make([]pkcs1AdditionalRSAPrime, len(key.Precomputed.CRTValues))
+ 	for i, values := range key.Precomputed.CRTValues {
+-		priv.AdditionalPrimes[i].Prime = rawValueForBig(key.Primes[2+i])
+-		priv.AdditionalPrimes[i].Exp = rawValueForBig(values.Exp)
+-		priv.AdditionalPrimes[i].Coeff = rawValueForBig(values.Coeff)
++		priv.AdditionalPrimes[i].Prime = key.Primes[2+i]
++		priv.AdditionalPrimes[i].Exp = values.Exp
++		priv.AdditionalPrimes[i].Coeff = values.Coeff
+ 	}
+ 
+ 	b, _ := asn1.Marshal(priv)
+@@ -151,44 +130,30 @@ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
+ type certificate struct {
+ 	Raw                asn1.RawContent
+ 	TBSCertificate     tbsCertificate
+-	SignatureAlgorithm algorithmIdentifier
++	SignatureAlgorithm pkix.AlgorithmIdentifier
+ 	SignatureValue     asn1.BitString
+ }
+ 
+ type tbsCertificate struct {
+ 	Raw                asn1.RawContent
+ 	Version            int "optional,explicit,default:1,tag:0"
+-	SerialNumber       asn1.RawValue
+-	SignatureAlgorithm algorithmIdentifier
+-	Issuer             rdnSequence
++	SerialNumber       *big.Int
++	SignatureAlgorithm pkix.AlgorithmIdentifier
++	Issuer             pkix.RDNSequence
+ 	Validity           validity
+-	Subject            rdnSequence
++	Subject            pkix.RDNSequence
+ 	PublicKey          publicKeyInfo
+-	UniqueId           asn1.BitString "optional,tag:1"
+-	SubjectUniqueId    asn1.BitString "optional,tag:2"
+-	Extensions         []extension    "optional,explicit,tag:3"
++	UniqueId           asn1.BitString   "optional,tag:1"
++	SubjectUniqueId    asn1.BitString   "optional,tag:2"
++	Extensions         []pkix.Extension "optional,explicit,tag:3"
+ }
+ 
+ type dsaAlgorithmParameters struct {
+-	P, Q, G asn1.RawValue
++	P, Q, G *big.Int
+ }
+ 
+ type dsaSignature struct {
+-	R, S asn1.RawValue
+-}
+-
+-type algorithmIdentifier struct {
+-	Algorithm  asn1.ObjectIdentifier
+-	Parameters asn1.RawValue "optional"
+-}
+-
+-type rdnSequence []relativeDistinguishedNameSET
+-
+-type relativeDistinguishedNameSET []attributeTypeAndValue
+-
+-type attributeTypeAndValue struct {
+-	Type  asn1.ObjectIdentifier
+-	Value interface{}
++	R, S *big.Int
+ }
+ 
+ type validity struct {
+@@ -197,16 +162,10 @@ type validity struct {
+ 
+ type publicKeyInfo struct {
+ 	Raw       asn1.RawContent
+-	Algorithm algorithmIdentifier
++	Algorithm pkix.AlgorithmIdentifier
+ 	PublicKey asn1.BitString
+ }
+ 
+-type extension struct {
+-	Id       asn1.ObjectIdentifier
+-	Critical bool "optional"
+-	Value    []byte
+-}
+-
+ // RFC 5280,  4.2.1.1
+ type authKeyId struct {
+ 	Id []byte "optional,tag:0"
+@@ -234,100 +193,6 @@ const (
+ 	DSA
+ )
+ 
+-// Name represents an X.509 distinguished name. This only includes the common
+-// elements of a DN.  Additional elements in the name are ignored.
+-type Name struct {
+-	Country, Organization, OrganizationalUnit []string
+-	Locality, Province                        []string
+-	StreetAddress, PostalCode                 []string
+-	SerialNumber, CommonName                  string
+-}
+-
+-func (n *Name) fillFromRDNSequence(rdns *rdnSequence) {
+-	for _, rdn := range *rdns {
+-		if len(rdn) == 0 {
+-			continue
+-		}
+-		atv := rdn[0]
+-		value, ok := atv.Value.(string)
+-		if !ok {
+-			continue
+-		}
+-
+-		t := atv.Type
+-		if len(t) == 4 && t[0] == 2 && t[1] == 5 && t[2] == 4 {
+-			switch t[3] {
+-			case 3:
+-				n.CommonName = value
+-			case 5:
+-				n.SerialNumber = value
+-			case 6:
+-				n.Country = append(n.Country, value)
+-			case 7:
+-				n.Locality = append(n.Locality, value)
+-			case 8:
+-				n.Province = append(n.Province, value)
+-			case 9:
+-				n.StreetAddress = append(n.StreetAddress, value)
+-			case 10:
+-				n.Organization = append(n.Organization, value)
+-			case 11:
+-				n.OrganizationalUnit = append(n.OrganizationalUnit, value)
+-			case 17:
+-				n.PostalCode = append(n.PostalCode, value)
+-			}
+-		}
+-	}
+-}
+-
+-var (
+-	oidCountry            = []int{2, 5, 4, 6}
+-	oidOrganization       = []int{2, 5, 4, 10}
+-	oidOrganizationalUnit = []int{2, 5, 4, 11}
+-	oidCommonName         = []int{2, 5, 4, 3}
+-	oidSerialNumber       = []int{2, 5, 4, 5}
+-	oidLocality           = []int{2, 5, 4, 7}
+-	oidProvince           = []int{2, 5, 4, 8}
+-	oidStreetAddress      = []int{2, 5, 4, 9}
+-	oidPostalCode         = []int{2, 5, 4, 17}
+-)
+-
+-// appendRDNs appends a relativeDistinguishedNameSET to the given rdnSequence
+-// and returns the new value. The relativeDistinguishedNameSET contains an
+-// attributeTypeAndValue for each of the given values. See RFC 5280, A.1, and
+-// search for AttributeTypeAndValue.
+-func appendRDNs(in rdnSequence, values []string, oid asn1.ObjectIdentifier) rdnSequence {
+-	if len(values) == 0 {
+-		return in
+-	}
+-
+-	s := make([]attributeTypeAndValue, len(values))
+-	for i, value := range values {
+-		s[i].Type = oid
+-		s[i].Value = value
+-	}
+-
+-	return append(in, s)
+-}
+-
+-func (n Name) toRDNSequence() (ret rdnSequence) {
+-	ret = appendRDNs(ret, n.Country, oidCountry)
+-	ret = appendRDNs(ret, n.Organization, oidOrganization)
+-	ret = appendRDNs(ret, n.OrganizationalUnit, oidOrganizationalUnit)
+-	ret = appendRDNs(ret, n.Locality, oidLocality)
+-	ret = appendRDNs(ret, n.Province, oidProvince)
+-	ret = appendRDNs(ret, n.StreetAddress, oidStreetAddress)
+-	ret = appendRDNs(ret, n.PostalCode, oidPostalCode)
+-	if len(n.CommonName) > 0 {
+-		ret = appendRDNs(ret, []string{n.CommonName}, oidCommonName)
+-	}
+-	if len(n.SerialNumber) > 0 {
+-		ret = appendRDNs(ret, []string{n.SerialNumber}, oidSerialNumber)
+-	}
+-
+-	return ret
+-}
+-
+ // OIDs for signature algorithms
+ //
+ // pkcs-1 OBJECT IDENTIFIER ::= {
+@@ -483,9 +348,9 @@ type Certificate struct {
+ 	PublicKey          interface{}
+ 
+ 	Version             int
+-	SerialNumber        []byte
+-	Issuer              Name
+-	Subject             Name
++	SerialNumber        *big.Int
++	Issuer              pkix.Name
++	Subject             pkix.Name
+ 	NotBefore, NotAfter *time.Time // Validity bounds.
+ 	KeyUsage            KeyUsage
+ 
+@@ -591,12 +456,10 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature
+ 		if _, err := asn1.Unmarshal(signature, dsaSig); err != nil {
+ 			return err
+ 		}
+-		if !rawValueIsInteger(&dsaSig.R) || !rawValueIsInteger(&dsaSig.S) {
+-			return asn1.StructuralError{"tags don't match"}
++		if dsaSig.R.Sign() <= 0 || dsaSig.S.Sign() <= 0 {
++			return os.ErrorString("DSA signature contained zero or negative values")
+ 		}
+-		r := new(big.Int).SetBytes(dsaSig.R.Bytes)
+-		s := new(big.Int).SetBytes(dsaSig.S.Bytes)
+-		if !dsa.Verify(pub, digest, r, s) {
++		if !dsa.Verify(pub, digest, dsaSig.R, dsaSig.S) {
+ 			return os.ErrorString("DSA verification failure")
+ 		}
+ 		return
+@@ -605,8 +468,8 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature
+ }
+ 
+ // CheckCRLSignature checks that the signature in crl is from c.
+-func (c *Certificate) CheckCRLSignature(crl *crl.CertificateList) (err os.Error) {
+-	algo := getSignatureAlgorithmFromOID(crl.SignatureAlgorithm.Algo)
++func (c *Certificate) CheckCRLSignature(crl *pkix.CertificateList) (err os.Error) {
++	algo := getSignatureAlgorithmFromOID(crl.SignatureAlgorithm.Algorithm)
+ 	return c.CheckSignature(algo, crl.TBSCertList.Raw, crl.SignatureValue.RightAlign())
+ }
+ 
+@@ -622,7 +485,7 @@ type basicConstraints struct {
+ }
+ 
+ type rsaPublicKey struct {
+-	N asn1.RawValue
++	N *big.Int
+ 	E int
+ }
+ 
+@@ -654,42 +517,33 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
+ 			return nil, err
+ 		}
+ 
+-		if !rawValueIsInteger(&p.N) {
+-			return nil, asn1.StructuralError{"tags don't match"}
+-		}
+-
+ 		pub := &rsa.PublicKey{
+ 			E: p.E,
+-			N: new(big.Int).SetBytes(p.N.Bytes),
++			N: p.N,
+ 		}
+ 		return pub, nil
+ 	case DSA:
+-		p := new(asn1.RawValue)
+-		_, err := asn1.Unmarshal(asn1Data, p)
++		var p *big.Int
++		_, err := asn1.Unmarshal(asn1Data, &p)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		if !rawValueIsInteger(p) {
+-			return nil, asn1.StructuralError{"tags don't match"}
+-		}
+ 		paramsData := keyData.Algorithm.Parameters.FullBytes
+ 		params := new(dsaAlgorithmParameters)
+ 		_, err = asn1.Unmarshal(paramsData, params)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		if !rawValueIsInteger(&params.P) ||
+-			!rawValueIsInteger(&params.Q) ||
+-			!rawValueIsInteger(&params.G) {
+-			return nil, asn1.StructuralError{"tags don't match"}
++		if p.Sign() <= 0 || params.P.Sign() <= 0 || params.Q.Sign() <= 0 || params.G.Sign() <= 0 {
++			return nil, os.ErrorString("zero or negative DSA parameter")
+ 		}
+ 		pub := &dsa.PublicKey{
+ 			Parameters: dsa.Parameters{
+-				P: new(big.Int).SetBytes(params.P.Bytes),
+-				Q: new(big.Int).SetBytes(params.Q.Bytes),
+-				G: new(big.Int).SetBytes(params.G.Bytes),
++				P: params.P,
++				Q: params.Q,
++				G: params.G,
+ 			},
+-			Y: new(big.Int).SetBytes(p.Bytes),
++			Y: p,
+ 		}
+ 		return pub, nil
+ 	default:
+@@ -716,10 +570,14 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
+ 		return nil, err
+ 	}
+ 
++	if in.TBSCertificate.SerialNumber.Sign() < 0 {
++		return nil, os.ErrorString("negative serial number")
++	}
++
+ 	out.Version = in.TBSCertificate.Version + 1
+-	out.SerialNumber = in.TBSCertificate.SerialNumber.Bytes
+-	out.Issuer.fillFromRDNSequence(&in.TBSCertificate.Issuer)
+-	out.Subject.fillFromRDNSequence(&in.TBSCertificate.Subject)
++	out.SerialNumber = in.TBSCertificate.SerialNumber
++	out.Issuer.FillFromRDNSequence(&in.TBSCertificate.Issuer)
++	out.Subject.FillFromRDNSequence(&in.TBSCertificate.Subject)
+ 	out.NotBefore = in.TBSCertificate.Validity.NotBefore
+ 	out.NotAfter = in.TBSCertificate.Validity.NotAfter
+ 
+@@ -977,8 +835,8 @@ var (
+ 	oidExtensionNameConstraints     = []int{2, 5, 29, 30}
+ )
+ 
+-func buildExtensions(template *Certificate) (ret []extension, err os.Error) {
+-	ret = make([]extension, 7 /* maximum number of elements. */ )
++func buildExtensions(template *Certificate) (ret []pkix.Extension, err os.Error) {
++	ret = make([]pkix.Extension, 7 /* maximum number of elements. */ )
+ 	n := 0
+ 
+ 	if template.KeyUsage != 0 {
+@@ -1095,7 +953,7 @@ var (
+ // The returned slice is the certificate in DER encoding.
+ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.PublicKey, priv *rsa.PrivateKey) (cert []byte, err os.Error) {
+ 	asn1PublicKey, err := asn1.Marshal(rsaPublicKey{
+-		N: asn1.RawValue{Tag: 2, Bytes: pub.N.Bytes()},
++		N: pub.N,
+ 		E: pub.E,
+ 	})
+ 	if err != nil {
+@@ -1114,12 +972,12 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
+ 	encodedPublicKey := asn1.BitString{BitLength: len(asn1PublicKey) * 8, Bytes: asn1PublicKey}
+ 	c := tbsCertificate{
+ 		Version:            2,
+-		SerialNumber:       asn1.RawValue{Bytes: template.SerialNumber, Tag: 2},
+-		SignatureAlgorithm: algorithmIdentifier{Algorithm: oidSHA1WithRSA},
+-		Issuer:             parent.Subject.toRDNSequence(),
++		SerialNumber:       template.SerialNumber,
++		SignatureAlgorithm: pkix.AlgorithmIdentifier{Algorithm: oidSHA1WithRSA},
++		Issuer:             parent.Subject.ToRDNSequence(),
+ 		Validity:           validity{template.NotBefore, template.NotAfter},
+-		Subject:            template.Subject.toRDNSequence(),
+-		PublicKey:          publicKeyInfo{nil, algorithmIdentifier{Algorithm: oidRSA}, encodedPublicKey},
++		Subject:            template.Subject.ToRDNSequence(),
++		PublicKey:          publicKeyInfo{nil, pkix.AlgorithmIdentifier{Algorithm: oidRSA}, encodedPublicKey},
+ 		Extensions:         extensions,
+ 	}
+ 
+@@ -1142,8 +1000,75 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
+ 	cert, err = asn1.Marshal(certificate{
+ 		nil,
+ 		c,
+-		algorithmIdentifier{Algorithm: oidSHA1WithRSA},
++		pkix.AlgorithmIdentifier{Algorithm: oidSHA1WithRSA},
+ 		asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
+ 	})
+ 	return
+ }
++
++// pemCRLPrefix is the magic string that indicates that we have a PEM encoded
++// CRL.
++var pemCRLPrefix = []byte("-----BEGIN X509 CRL")
++// pemType is the type of a PEM encoded CRL.
++var pemType = "X509 CRL"
++
++// ParseCRL parses a CRL from the given bytes. It's often the case that PEM
++// encoded CRLs will appear where they should be DER encoded, so this function
++// will transparently handle PEM encoding as long as there isn't any leading
++// garbage.
++func ParseCRL(crlBytes []byte) (certList *pkix.CertificateList, err os.Error) {
++	if bytes.HasPrefix(crlBytes, pemCRLPrefix) {
++		block, _ := pem.Decode(crlBytes)
++		if block != nil && block.Type == pemType {
++			crlBytes = block.Bytes
++		}
++	}
++	return ParseDERCRL(crlBytes)
++}
++
++// ParseDERCRL parses a DER encoded CRL from the given bytes.
++func ParseDERCRL(derBytes []byte) (certList *pkix.CertificateList, err os.Error) {
++	certList = new(pkix.CertificateList)
++	_, err = asn1.Unmarshal(derBytes, certList)
++	if err != nil {
++		certList = nil
++	}
++	return
++}
++
++// CreateCRL returns a DER encoded CRL, signed by this Certificate, that
++// contains the given list of revoked certificates.
++func (c *Certificate) CreateCRL(rand io.Reader, priv *rsa.PrivateKey, revokedCerts []pkix.RevokedCertificate, now, expiry *time.Time) (crlBytes []byte, err os.Error) {
++	tbsCertList := pkix.TBSCertificateList{
++		Version: 2,
++		Signature: pkix.AlgorithmIdentifier{
++			Algorithm: oidSignatureSHA1WithRSA,
++		},
++		Issuer:              c.Subject.ToRDNSequence(),
++		ThisUpdate:          now,
++		NextUpdate:          expiry,
++		RevokedCertificates: revokedCerts,
++	}
++
++	tbsCertListContents, err := asn1.Marshal(tbsCertList)
++	if err != nil {
++		return
++	}
++
++	h := sha1.New()
++	h.Write(tbsCertListContents)
++	digest := h.Sum()
++
++	signature, err := rsa.SignPKCS1v15(rand, priv, crypto.SHA1, digest)
++	if err != nil {
++		return
++	}
++
++	return asn1.Marshal(pkix.CertificateList{
++		TBSCertList: tbsCertList,
++		SignatureAlgorithm: pkix.AlgorithmIdentifier{
++			Algorithm: oidSignatureSHA1WithRSA,
++		},
++		SignatureValue: asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
++	})
++}
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index fd137a6f5e..dc216505ef 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -10,6 +10,8 @@ import (
+ 	"crypto/dsa"
+ 	"crypto/rand"
+ 	"crypto/rsa"
++	"crypto/x509/pkix"
++	"encoding/base64"
+ 	"encoding/hex"
+ 	"encoding/pem"
+ 	"testing"
+@@ -207,8 +209,8 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 	}
+ 
+ 	template := Certificate{
+-		SerialNumber: []byte{1},
+-		Subject: Name{
++		SerialNumber: big.NewInt(1),
++		Subject: pkix.Name{
+ 			CommonName:   "test.example.com",
+ 			Organization: []string{"Acme Co"},
+ 		},
+@@ -331,3 +333,99 @@ func TestVerifyCertificateWithDSASignature(t *testing.T) {
+ 		t.Fatalf("DSA Certificate verfication failed: %s", err)
+ 	}
+ }
++
++const pemCertificate = `-----BEGIN CERTIFICATE-----
++MIIB5DCCAZCgAwIBAgIBATALBgkqhkiG9w0BAQUwLTEQMA4GA1UEChMHQWNtZSBDbzEZMBcGA1UE
++AxMQdGVzdC5leGFtcGxlLmNvbTAeFw03MDAxMDEwMDE2NDBaFw03MDAxMDIwMzQ2NDBaMC0xEDAO
++BgNVBAoTB0FjbWUgQ28xGTAXBgNVBAMTEHRlc3QuZXhhbXBsZS5jb20wWjALBgkqhkiG9w0BAQED
++SwAwSAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0fd7Ai2KW5ToIwzFo
++fvJcS/STa6HA5gQenRUCAwEAAaOBnjCBmzAOBgNVHQ8BAf8EBAMCAAQwDwYDVR0TAQH/BAUwAwEB
++/zANBgNVHQ4EBgQEAQIDBDAPBgNVHSMECDAGgAQBAgMEMBsGA1UdEQQUMBKCEHRlc3QuZXhhbXBs
++ZS5jb20wDwYDVR0gBAgwBjAEBgIqAzAqBgNVHR4EIzAhoB8wDoIMLmV4YW1wbGUuY29tMA2CC2V4
++YW1wbGUuY29tMAsGCSqGSIb3DQEBBQNBAHKZKoS1wEQOGhgklx4+/yFYQlnqwKXvar/ZecQvJwui
++0seMQnwBhwdBkHfVIU2Fu5VUMRyxlf0ZNaDXcpU581k=
++-----END CERTIFICATE-----`
++
++func TestCRLCreation(t *testing.T) {
++	block, _ := pem.Decode([]byte(pemPrivateKey))
++	priv, _ := ParsePKCS1PrivateKey(block.Bytes)
++	block, _ = pem.Decode([]byte(pemCertificate))
++	cert, _ := ParseCertificate(block.Bytes)
++
++	now := time.SecondsToUTC(1000)
++	expiry := time.SecondsToUTC(10000)
++
++	revokedCerts := []pkix.RevokedCertificate{
++		{
++			SerialNumber:   big.NewInt(1),
++			RevocationTime: now,
++		},
++		{
++			SerialNumber:   big.NewInt(42),
++			RevocationTime: now,
++		},
++	}
++
++	crlBytes, err := cert.CreateCRL(rand.Reader, priv, revokedCerts, now, expiry)
++	if err != nil {
++		t.Errorf("error creating CRL: %s", err)
++	}
++
++	_, err = ParseDERCRL(crlBytes)
++	if err != nil {
++		t.Errorf("error reparsing CRL: %s", err)
++	}
++}
++
++func fromBase64(in string) []byte {
++	out := make([]byte, base64.StdEncoding.DecodedLen(len(in)))
++	_, err := base64.StdEncoding.Decode(out, []byte(in))
++	if err != nil {
++		panic("failed to base64 decode")
++	}
++	return out
++}
++
++func TestParseDERCRL(t *testing.T) {
++	derBytes := fromBase64(derCRLBase64)
++	certList, err := ParseDERCRL(derBytes)
++	if err != nil {
++		t.Errorf("error parsing: %s", err)
++		return
++	}
++	numCerts := len(certList.TBSCertList.RevokedCertificates)
++	expected := 88
++	if numCerts != expected {
++		t.Errorf("bad number of revoked certificates. got: %d want: %d", numCerts, expected)
++	}
++
++	if certList.HasExpired(1302517272) {
++		t.Errorf("CRL has expired (but shouldn't have)")
++	}
++
++	// Can't check the signature here without a package cycle.
++}
++
++func TestParsePEMCRL(t *testing.T) {
++	pemBytes := fromBase64(pemCRLBase64)
++	certList, err := ParseCRL(pemBytes)
++	if err != nil {
++		t.Errorf("error parsing: %s", err)
++		return
++	}
++	numCerts := len(certList.TBSCertList.RevokedCertificates)
++	expected := 2
++	if numCerts != expected {
++		t.Errorf("bad number of revoked certificates. got: %d want: %d", numCerts, expected)
++	}
++
++	if certList.HasExpired(1302517272) {
++		t.Errorf("CRL has expired (but shouldn't have)")
++	}
++
++	// Can't check the signature here without a package cycle.
++}
++
++const derCRLBase64 = "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"
++
++const pemCRLBase64 = "LS0tLS1CRUdJTiBYNTA5IENSTC0tLS0tDQpNSUlCOWpDQ0FWOENBUUV3RFFZSktvWklodmNOQVFFRkJRQXdiREVhTUJnR0ExVUVDaE1SVWxOQklGTmxZM1Z5DQphWFI1SUVsdVl5NHhIakFjQmdOVkJBTVRGVkpUUVNCUWRXSnNhV01nVW05dmRDQkRRU0IyTVRFdU1Dd0dDU3FHDQpTSWIzRFFFSkFSWWZjbk5oYTJWdmJuSnZiM1J6YVdkdVFISnpZWE5sWTNWeWFYUjVMbU52YlJjTk1URXdNakl6DQpNVGt5T0RNd1doY05NVEV3T0RJeU1Ua3lPRE13V2pDQmpEQktBaEVBckRxb2g5RkhKSFhUN09QZ3V1bjQrQmNODQpNRGt4TVRBeU1UUXlOekE1V2pBbU1Bb0dBMVVkRlFRRENnRUpNQmdHQTFVZEdBUVJHQTh5TURBNU1URXdNakUwDQpNalExTlZvd1BnSVJBTEd6blowOTVQQjVhQU9MUGc1N2ZNTVhEVEF5TVRBeU16RTBOVEF4TkZvd0dqQVlCZ05WDQpIUmdFRVJnUE1qQXdNakV3TWpNeE5EVXdNVFJhb0RBd0xqQWZCZ05WSFNNRUdEQVdnQlQxVERGNlVRTS9MTmVMDQpsNWx2cUhHUXEzZzltekFMQmdOVkhSUUVCQUlDQUlRd0RRWUpLb1pJaHZjTkFRRUZCUUFEZ1lFQUZVNUFzNk16DQpxNVBSc2lmYW9iUVBHaDFhSkx5QytNczVBZ2MwYld5QTNHQWR4dXI1U3BQWmVSV0NCamlQL01FSEJXSkNsQkhQDQpHUmNxNXlJZDNFakRrYUV5eFJhK2k2N0x6dmhJNmMyOUVlNks5cFNZd2ppLzdSVWhtbW5Qclh0VHhsTDBsckxyDQptUVFKNnhoRFJhNUczUUE0Q21VZHNITnZicnpnbUNZcHZWRT0NCi0tLS0tRU5EIFg1MDkgQ1JMLS0tLS0NCg0K"
+diff --git a/src/pkg/http/httptest/server.go b/src/pkg/http/httptest/server.go
+index 8e385d045a..879f04f33c 100644
+--- a/src/pkg/http/httptest/server.go
++++ b/src/pkg/http/httptest/server.go
+@@ -108,29 +108,24 @@ func (s *Server) CloseClientConnections() {
+ // "127.0.0.1" and "[::1]", expiring at the last second of 2049 (the end
+ // of ASN.1 time).
+ var localhostCert = []byte(`-----BEGIN CERTIFICATE-----
+-MIIBwTCCASugAwIBAgIBADALBgkqhkiG9w0BAQUwADAeFw0xMTAzMzEyMDI1MDda
+-Fw00OTEyMzEyMzU5NTlaMAAwggCdMAsGCSqGSIb3DQEBAQOCAIwAMIIAhwKCAIB6
+-oy4iT42G6qk+GGn5VL5JlnJT6ZG5cqaMNFaNGlIxNb6CPUZLKq2sM3gRaimsktIw
+-nNAcNwQGHpe1tZo+J/Pl04JTt71Y/TTAxy7OX27aZf1Rpt0SjdZ7vTPnFDPNsHGe
+-KBKvPt55l2+YKjkZmV7eRevsVbpkNvNGB+T5d4Ge/wIBA6NPME0wDgYDVR0PAQH/
+-BAQDAgCgMA0GA1UdDgQGBAQBAgMEMA8GA1UdIwQIMAaABAECAwQwGwYDVR0RBBQw
+-EoIJMTI3LjAuMC4xggVbOjoxXTALBgkqhkiG9w0BAQUDggCBAHC3gbdvc44vs+wD
+-g2kONiENnx8WKc0UTGg/TOXS3gaRb+CUIQtHWja65l8rAfclEovjHgZ7gx8brO0W
+-JuC6p3MUAKsgOssIrrRIx2rpnfcmFVMzguCmrMNVmKUAalw18Yp0F72xYAIitVQl
+-kJrLdIhBajcJRYu/YGltHQRaXuVt
++MIIBOTCB5qADAgECAgEAMAsGCSqGSIb3DQEBBTAAMB4XDTcwMDEwMTAwMDAwMFoX
++DTQ5MTIzMTIzNTk1OVowADBaMAsGCSqGSIb3DQEBAQNLADBIAkEAsuA5mAFMj6Q7
++qoBzcvKzIq4kzuT5epSp2AkcQfyBHm7K13Ws7u+0b5Vb9gqTf5cAiIKcrtrXVqkL
++8i1UQF6AzwIDAQABo08wTTAOBgNVHQ8BAf8EBAMCACQwDQYDVR0OBAYEBAECAwQw
++DwYDVR0jBAgwBoAEAQIDBDAbBgNVHREEFDASggkxMjcuMC4wLjGCBVs6OjFdMAsG
++CSqGSIb3DQEBBQNBAJH30zjLWRztrWpOCgJL8RQWLaKzhK79pVhAx6q/3NrF16C7
+++l1BRZstTwIGdoGId8BRpErK1TXkniFb95ZMynM=
+ -----END CERTIFICATE-----
+ `)
+ 
+ // localhostKey is the private key for localhostCert.
+ var localhostKey = []byte(`-----BEGIN RSA PRIVATE KEY-----
+-MIIBkgIBAQKCAIB6oy4iT42G6qk+GGn5VL5JlnJT6ZG5cqaMNFaNGlIxNb6CPUZL
+-Kq2sM3gRaimsktIwnNAcNwQGHpe1tZo+J/Pl04JTt71Y/TTAxy7OX27aZf1Rpt0S
+-jdZ7vTPnFDPNsHGeKBKvPt55l2+YKjkZmV7eRevsVbpkNvNGB+T5d4Ge/wIBAwKC
+-AIBRwh7Bil5Z8cYpZZv7jdQxDvbim7Z7ocRdeDmzZuF2I9RW04QyHHPIIlALnBvI
+-YeF1veASz1gEFGUjzmbUGqKYSbCoTzXoev+F4bmbRxcX9sOmtslqvhMSHRSzA5NH
+-aDVI3Hn4wvBVD8gePu8ACWqvPGbCiql11OKCMfjlPn2uuwJAx/24/F5DjXZ6hQQ7
+-HxScOxKrpx5WnA9r1wZTltOTZkhRRzuLc21WJeE3M15QUdWi3zZxCKRFoth65HEs
+-jy9YHQJAnPueRI44tz79b5QqVbeaOMUr7ZCb1Kp0uo6G+ANPLdlfliAupwij2eIz
+-mHRJOWk0jBtXfRft1McH2H51CpXAyw==
++MIIBPQIBAAJBALLgOZgBTI+kO6qAc3LysyKuJM7k+XqUqdgJHEH8gR5uytd1rO7v
++tG+VW/YKk3+XAIiCnK7a11apC/ItVEBegM8CAwEAAQJBAI5sxq7naeR9ahyqRkJi
++SIv2iMxLuPEHaezf5CYOPWjSjBPyVhyRevkhtqEjF/WkgL7C2nWpYHsUcBDBQVF0
++3KECIQDtEGB2ulnkZAahl3WuJziXGLB+p8Wgx7wzSM6bHu1c6QIhAMEp++CaS+SJ
++/TrU0zwY/fW4SvQeb49BPZUF3oqR8Xz3AiEA1rAJHBzBgdOQKdE3ksMUPcnvNJSN
++poCcELmz2clVXtkCIQCLytuLV38XHToTipR4yMl6O+6arzAjZ56uq7m7ZRV0TwIh
++AM65XAOw8Dsg9Kq78aYXiOEDc5DL0sbFUu/SlmRcCg93
+ -----END RSA PRIVATE KEY-----
+ `)

@@ -29,9 +29,133 @@ Date:   Mon Jan 22 16:34:41 2024 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/trace/v2/order.go                     |  7 +++
  .../trace/v2/testdata/testprog/wait-on-pipe.go     | 66 ++++++++++++++++++++++
  src/internal/trace/v2/trace_test.go                |  9 +++
  src/runtime/trace2.go                              |  2 +-
  4 files changed, 83 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/trace/v2/order.go b/src/internal/trace/v2/order.go
+index 24da41a35e..cedb29726e 100644
+--- a/src/internal/trace/v2/order.go
++++ b/src/internal/trace/v2/order.go
+@@ -302,6 +302,13 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 			// Otherwise, we're talking about a G sitting in a syscall on an M.
+ 			// Validate the named M.
+ 			if mid == curCtx.M {
++				if gen != o.initialGen && curCtx.G != gid {
++					// If this isn't the first generation, we *must* have seen this
++					// binding occur already. Even if the G was blocked in a syscall
++					// for multiple generations since trace start, we would have seen
++					// a previous GoStatus event that bound the goroutine to an M.
++					return curCtx, false, fmt.Errorf("inconsistent thread for syscalling goroutine %d: thread has goroutine %d", gid, curCtx.G)
++				}
+ 				newCtx.G = gid
+ 				break
+ 			}
+diff --git a/src/internal/trace/v2/testdata/testprog/wait-on-pipe.go b/src/internal/trace/v2/testdata/testprog/wait-on-pipe.go
+new file mode 100644
+index 0000000000..912f5dd3bc
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/testprog/wait-on-pipe.go
+@@ -0,0 +1,66 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests a goroutine sitting blocked in a syscall for
++// an entire generation. This is a regression test for
++// #65196.
++
++//go:build ignore
++
++package main
++
++import (
++	"log"
++	"os"
++	"runtime/trace"
++	"syscall"
++	"time"
++)
++
++func main() {
++	// Create a pipe to block on.
++	var p [2]int
++	if err := syscall.Pipe(p[:]); err != nil {
++		log.Fatalf("failed to create pipe: %v", err)
++	}
++	rfd, wfd := p[0], p[1]
++
++	// Create a goroutine that blocks on the pipe.
++	done := make(chan struct{})
++	go func() {
++		var data [1]byte
++		_, err := syscall.Read(rfd, data[:])
++		if err != nil {
++			log.Fatalf("failed to read from pipe: %v", err)
++		}
++		done <- struct{}{}
++	}()
++
++	// Give the goroutine ample chance to block on the pipe.
++	time.Sleep(10 * time.Millisecond)
++
++	// Start tracing.
++	if err := trace.Start(os.Stdout); err != nil {
++		log.Fatalf("failed to start tracing: %v", err)
++	}
++
++	// This isn't enough to have a full generation pass by default,
++	// but it is generally enough in stress mode.
++	time.Sleep(100 * time.Millisecond)
++
++	// Write to the pipe to unblock it.
++	if _, err := syscall.Write(wfd, []byte{10}); err != nil {
++		log.Fatalf("failed to write to pipe: %v", err)
++	}
++
++	// Wait for the goroutine to unblock and start running.
++	// This is helpful to catch incorrect information written
++	// down for the syscall-blocked goroutine, since it'll start
++	// executing, and that execution information will be
++	// inconsistent.
++	<-done
++
++	// Stop tracing.
++	trace.Stop()
++}
+diff --git a/src/internal/trace/v2/trace_test.go b/src/internal/trace/v2/trace_test.go
+index 3300c00fe8..65ae3d8362 100644
+--- a/src/internal/trace/v2/trace_test.go
++++ b/src/internal/trace/v2/trace_test.go
+@@ -521,6 +521,15 @@ func TestTraceManyStartStop(t *testing.T) {
+ 	testTraceProg(t, "many-start-stop.go", nil)
+ }
+ 
++func TestTraceWaitOnPipe(t *testing.T) {
++	switch runtime.GOOS {
++	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
++		testTraceProg(t, "wait-on-pipe.go", nil)
++		return
++	}
++	t.Skip("no applicable syscall.Pipe on " + runtime.GOOS)
++}
++
+ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace, stderr []byte, stress bool)) {
+ 	testenv.MustHaveGoRun(t)
+ 
+diff --git a/src/runtime/trace2.go b/src/runtime/trace2.go
+index 26e9867f08..3639adaa15 100644
+--- a/src/runtime/trace2.go
++++ b/src/runtime/trace2.go
+@@ -335,7 +335,7 @@ func traceAdvance(stopTrace bool) {
+ 			if !s.dead {
+ 				ug.goid = s.g.goid
+ 				if s.g.m != nil {
+-					ug.mid = s.g.m.id
++					ug.mid = int64(s.g.m.procid)
+ 				}
+ 				ug.status = readgstatus(s.g) &^ _Gscan
+ 				ug.waitreason = s.g.waitreason

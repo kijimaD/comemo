@@ -15,7 +15,89 @@ Date:   Fri Jan 5 21:35:51 2018 +0000
     Change-Id: I68caab078839b9d2bf645a7bbed8405a5a30cd22
     Reviewed-on: https://go-review.googlesource.com/86435
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go      | 21 ++++++++-------------
  src/net/http/httputil/reverseproxy_test.go | 29 -----------------------------
  2 files changed, 8 insertions(+), 42 deletions(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index aa22d5a2fd..b96bb21019 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -191,11 +191,10 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	}
+ 
+ 	res, err := transport.RoundTrip(outreq)
+-	if res == nil {
+-		res = &http.Response{
+-			StatusCode: http.StatusBadGateway,
+-			Body:       http.NoBody,
+-		}
++	if err != nil {
++		p.logf("http: proxy error: %v", err)
++		rw.WriteHeader(http.StatusBadGateway)
++		return
+ 	}
+ 
+ 	removeConnectionHeaders(res.Header)
+@@ -205,16 +204,12 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	}
+ 
+ 	if p.ModifyResponse != nil {
+-		if err != nil {
++		if err := p.ModifyResponse(res); err != nil {
+ 			p.logf("http: proxy error: %v", err)
++			rw.WriteHeader(http.StatusBadGateway)
++			res.Body.Close()
++			return
+ 		}
+-		err = p.ModifyResponse(res)
+-	}
+-	if err != nil {
+-		p.logf("http: proxy error: %v", err)
+-		rw.WriteHeader(http.StatusBadGateway)
+-		res.Body.Close()
+-		return
+ 	}
+ 
+ 	copyHeader(rw.Header(), res.Header)
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 822828e5c0..2232042d3e 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -631,35 +631,6 @@ func TestReverseProxyModifyResponse(t *testing.T) {
+ 	}
+ }
+ 
+-// Issue 21255. Test ModifyResponse when an error from transport.RoundTrip
+-// occurs, and that the proxy returns StatusOK.
+-func TestReverseProxyModifyResponse_OnError(t *testing.T) {
+-	// Always returns an error
+-	errBackend := httptest.NewUnstartedServer(nil)
+-	errBackend.Config.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+-	defer errBackend.Close()
+-
+-	rpURL, _ := url.Parse(errBackend.URL)
+-	rproxy := NewSingleHostReverseProxy(rpURL)
+-	rproxy.ModifyResponse = func(resp *http.Response) error {
+-		// Will be set for a non-nil error
+-		resp.StatusCode = http.StatusOK
+-		return nil
+-	}
+-
+-	frontend := httptest.NewServer(rproxy)
+-	defer frontend.Close()
+-
+-	resp, err := http.Get(frontend.URL)
+-	if err != nil {
+-		t.Fatalf("failed to reach proxy: %v", err)
+-	}
+-	if resp.StatusCode != http.StatusOK {
+-		t.Errorf("err != nil: got res.StatusCode %d; expected %d", resp.StatusCode, http.StatusOK)
+-	}
+-	resp.Body.Close()
+-}
+-
+ // Issue 16659: log errors from short read
+ func TestReverseProxy_CopyBuffer(t *testing.T) {
+ 	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

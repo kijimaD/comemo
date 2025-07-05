@@ -11,7 +11,7 @@ Date:   Tue May 17 11:22:52 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4538069
-
+---
  src/pkg/go/ast/ast.go               |  8 ++--
  src/pkg/go/ast/resolve.go           | 73 ++++++++++++++----------------
  src/pkg/go/ast/scope.go             | 11 +++++
@@ -20,3 +20,543 @@ Date:   Tue May 17 11:22:52 2011 -0700
  src/pkg/go/types/gcimporter_test.go |  7 ++-
  src/pkg/go/types/universe.go        | 16 ++++---
  7 files changed, 131 insertions(+), 95 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index d7221b3321..31602ec850 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -945,10 +945,10 @@ func (f *File) End() token.Pos {
+ // collectively building a Go package.
+ //
+ type Package struct {
+-	Name    string            // package name
+-	Scope   *Scope            // package scope across all files
+-	Imports map[string]*Scope // map of import path -> package scope
+-	Files   map[string]*File  // Go source files by filename
++	Name    string             // package name
++	Scope   *Scope             // package scope across all files
++	Imports map[string]*Object // map of package id -> package object
++	Files   map[string]*File   // Go source files by filename
+ }
+ 
+ 
+diff --git a/src/pkg/go/ast/resolve.go b/src/pkg/go/ast/resolve.go
+index a2ff620dae..ecd2e8a7c3 100644
+--- a/src/pkg/go/ast/resolve.go
++++ b/src/pkg/go/ast/resolve.go
+@@ -58,11 +58,16 @@ func resolve(scope *Scope, ident *Ident) bool {
+ }
+ 
+ 
+-// NewPackage uses an Importer to resolve imports. Given an importPath,
+-// an importer returns the imported package's name, its scope of exported
+-// objects, and an error, if any.
+-//
+-type Importer func(path string) (name string, scope *Scope, err os.Error)
++// An Importer resolves import paths to package Objects.
++// The imports map records the packages already imported,
++// indexed by package id (canonical import path).
++// An Importer must determine the canonical import path and
++// check the map to see if it is already present in the imports map.
++// If so, the Importer can return the map entry.  Otherwise, the
++// Importer should load the package data for the given path into 
++// a new *Object (pkg), record pkg in the imports map, and then
++// return pkg.
++type Importer func(imports map[string]*Object, path string) (pkg *Object, err os.Error)
+ 
+ 
+ // NewPackage creates a new Package node from a set of File nodes. It resolves
+@@ -97,14 +102,8 @@ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer,
+ 		}
+ 	}
+ 
+-	// imports maps import paths to package names and scopes
+-	// TODO(gri): Eventually we like to get to the import scope from
+-	//            a package object. Then we can have a map path -> Obj.
+-	type importedPkg struct {
+-		name  string
+-		scope *Scope
+-	}
+-	imports := make(map[string]*importedPkg)
++	// package global mapping of imported package ids to package objects
++	imports := make(map[string]*Object)
+ 
+ 	// complete file scopes with imports and resolve identifiers
+ 	for _, file := range files {
+@@ -118,41 +117,41 @@ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer,
+ 		importErrors := false
+ 		fileScope := NewScope(pkgScope)
+ 		for _, spec := range file.Imports {
+-			// add import to global map of imports
++			if importer == nil {
++				importErrors = true
++				continue
++			}
+ 			path, _ := strconv.Unquote(string(spec.Path.Value))
+-			pkg := imports[path]
+-			if pkg == nil {
+-				if importer == nil {
+-					importErrors = true
+-					continue
+-				}
+-				name, scope, err := importer(path)
+-				if err != nil {
+-					p.errorf(spec.Path.Pos(), "could not import %s (%s)", path, err)
+-					importErrors = true
+-					continue
+-				}
+-				pkg = &importedPkg{name, scope}
+-				imports[path] = pkg
+-				// TODO(gri) If a local package name != "." is provided,
+-				// global identifier resolution could proceed even if the
+-				// import failed. Consider adjusting the logic here a bit.
++			pkg, err := importer(imports, path)
++			if err != nil {
++				p.errorf(spec.Path.Pos(), "could not import %s (%s)", path, err)
++				importErrors = true
++				continue
+ 			}
++			// TODO(gri) If a local package name != "." is provided,
++			// global identifier resolution could proceed even if the
++			// import failed. Consider adjusting the logic here a bit.
++
+ 			// local name overrides imported package name
+-			name := pkg.name
++			name := pkg.Name
+ 			if spec.Name != nil {
+ 				name = spec.Name.Name
+ 			}
++
+ 			// add import to file scope
+ 			if name == "." {
+ 				// merge imported scope with file scope
+-				for _, obj := range pkg.scope.Objects {
++				for _, obj := range pkg.Data.(*Scope).Objects {
+ 					p.declare(fileScope, pkgScope, obj)
+ 				}
+ 			} else {
+ 				// declare imported package object in file scope
++				// (do not re-use pkg in the file scope but create
++				// a new object instead; the Decl field is different
++				// for different files)
+ 				obj := NewObj(Pkg, name)
+ 				obj.Decl = spec
++				obj.Data = pkg.Data
+ 				p.declare(fileScope, pkgScope, obj)
+ 			}
+ 		}
+@@ -178,11 +177,5 @@ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer,
+ 		pkgScope.Outer = universe // reset universe scope
+ 	}
+ 
+-	// collect all import paths and respective package scopes
+-	importedScopes := make(map[string]*Scope)
+-	for path, pkg := range imports {
+-		importedScopes[path] = pkg.scope
+-	}
+-
+-	return &Package{pkgName, pkgScope, importedScopes, files}, p.GetError(scanner.Sorted)
++	return &Package{pkgName, pkgScope, imports, files}, p.GetError(scanner.Sorted)
+ }
+diff --git a/src/pkg/go/ast/scope.go b/src/pkg/go/ast/scope.go
+index 830d88aef4..b966f786fb 100644
+--- a/src/pkg/go/ast/scope.go
++++ b/src/pkg/go/ast/scope.go
+@@ -70,13 +70,24 @@ func (s *Scope) String() string {
+ // ----------------------------------------------------------------------------
+ // Objects
+ 
++// TODO(gri) Consider replacing the Object struct with an interface
++//           and a corresponding set of object implementations.
++
+ // An Object describes a named language entity such as a package,
+ // constant, type, variable, function (incl. methods), or label.
+ //
++// The Data fields contains object-specific data:
++//
++//	Kind    Data type    Data value
++//	Pkg	*Scope       package scope
++//	Con     int          iota for the respective declaration
++//	Con     != nil       constant value
++//
+ type Object struct {
+ 	Kind ObjKind
+ 	Name string      // declared name
+ 	Decl interface{} // corresponding Field, XxxSpec, FuncDecl, or LabeledStmt; or nil
++	Data interface{} // object-specific data; or nil
+ 	Type interface{} // place holder for type information; may be nil
+ }
+ 
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 2bc550bac7..da1e0390b6 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -131,13 +131,14 @@ func (p *parser) closeLabelScope() {
+ }
+ 
+ 
+-func (p *parser) declare(decl interface{}, scope *ast.Scope, kind ast.ObjKind, idents ...*ast.Ident) {
++func (p *parser) declare(decl, data interface{}, scope *ast.Scope, kind ast.ObjKind, idents ...*ast.Ident) {
+ 	for _, ident := range idents {
+ 		assert(ident.Obj == nil, "identifier already declared or resolved")
+ 		obj := ast.NewObj(kind, ident.Name)
+ 		// remember the corresponding declaration for redeclaration
+ 		// errors and global variable resolution/typechecking phase
+ 		obj.Decl = decl
++		obj.Data = data
+ 		ident.Obj = obj
+ 		if ident.Name != "_" {
+ 			if alt := scope.Insert(obj); alt != nil && p.mode&DeclarationErrors != 0 {
+@@ -596,7 +597,7 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
+ 	p.expectSemi() // call before accessing p.linecomment
+ 
+ 	field := &ast.Field{doc, idents, typ, tag, p.lineComment}
+-	p.declare(field, scope, ast.Var, idents...)
++	p.declare(field, nil, scope, ast.Var, idents...)
+ 
+ 	return field
+ }
+@@ -707,7 +708,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
+ 		params = append(params, field)
+ 		// Go spec: The scope of an identifier denoting a function
+ 		// parameter or result variable is the function body.
+-		p.declare(field, scope, ast.Var, idents...)
++		p.declare(field, nil, scope, ast.Var, idents...)
+ 		if p.tok == token.COMMA {
+ 			p.next()
+ 		}
+@@ -719,7 +720,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
+ 			params = append(params, field)
+ 			// Go spec: The scope of an identifier denoting a function
+ 			// parameter or result variable is the function body.
+-			p.declare(field, scope, ast.Var, idents...)
++			p.declare(field, nil, scope, ast.Var, idents...)
+ 			if p.tok != token.COMMA {
+ 				break
+ 			}
+@@ -823,7 +824,7 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
+ 	p.expectSemi() // call before accessing p.linecomment
+ 
+ 	spec := &ast.Field{doc, idents, typ, nil, p.lineComment}
+-	p.declare(spec, scope, ast.Fun, idents...)
++	p.declare(spec, nil, scope, ast.Fun, idents...)
+ 
+ 	return spec
+ }
+@@ -1477,7 +1478,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ 			// in which it is declared and excludes the body of any nested
+ 			// function.
+ 			stmt := &ast.LabeledStmt{label, colon, p.parseStmt()}
+-			p.declare(stmt, p.labelScope, ast.Lbl, label)
++			p.declare(stmt, nil, p.labelScope, ast.Lbl, label)
+ 			return stmt
+ 		}
+ 		p.error(x[0].Pos(), "illegal label declaration")
+@@ -2001,7 +2002,7 @@ func parseConstSpec(p *parser, doc *ast.CommentGroup, iota int) ast.Spec {
+ 	// the end of the innermost containing block.
+ 	// (Global identifiers are resolved in a separate phase after parsing.)
+ 	spec := &ast.ValueSpec{doc, idents, typ, values, p.lineComment}
+-	p.declare(spec, p.topScope, ast.Con, idents...)
++	p.declare(spec, iota, p.topScope, ast.Con, idents...)
+ 
+ 	return spec
+ }
+@@ -2019,7 +2020,7 @@ func parseTypeSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
+ 	// containing block.
+ 	// (Global identifiers are resolved in a separate phase after parsing.)
+ 	spec := &ast.TypeSpec{doc, ident, nil, nil}
+-	p.declare(spec, p.topScope, ast.Typ, ident)
++	p.declare(spec, nil, p.topScope, ast.Typ, ident)
+ 
+ 	spec.Type = p.parseType()
+ 	p.expectSemi() // call before accessing p.linecomment
+@@ -2048,7 +2049,7 @@ func parseVarSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
+ 	// the end of the innermost containing block.
+ 	// (Global identifiers are resolved in a separate phase after parsing.)
+ 	spec := &ast.ValueSpec{doc, idents, typ, values, p.lineComment}
+-	p.declare(spec, p.topScope, ast.Var, idents...)
++	p.declare(spec, nil, p.topScope, ast.Var, idents...)
+ 
+ 	return spec
+ }
+@@ -2140,7 +2141,7 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
+ 		// init() functions cannot be referred to and there may
+ 		// be more than one - don't put them in the pkgScope
+ 		if ident.Name != "init" {
+-			p.declare(decl, p.pkgScope, ast.Fun, ident)
++			p.declare(decl, nil, p.pkgScope, ast.Fun, ident)
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/go/types/gcimporter.go b/src/pkg/go/types/gcimporter.go
+index 5acaf8ceaf..377c45ad65 100644
+--- a/src/pkg/go/types/gcimporter.go
++++ b/src/pkg/go/types/gcimporter.go
+@@ -74,15 +74,14 @@ func findPkg(path string) (filename, id string) {
+ // object/archive file and populates its scope with the results.
+ type gcParser struct {
+ 	scanner scanner.Scanner
+-	tok     int                   // current token
+-	lit     string                // literal string; only valid for Ident, Int, String tokens
+-	id      string                // package id of imported package
+-	scope   *ast.Scope            // scope of imported package; alias for deps[id]
+-	deps    map[string]*ast.Scope // package id -> package scope
++	tok     int                    // current token
++	lit     string                 // literal string; only valid for Ident, Int, String tokens
++	id      string                 // package id of imported package
++	imports map[string]*ast.Object // package id -> package object
+ }
+ 
+ 
+-func (p *gcParser) init(filename, id string, src io.Reader) {
++func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*ast.Object) {
+ 	p.scanner.Init(src)
+ 	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
+ 	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
+@@ -90,8 +89,7 @@ func (p *gcParser) init(filename, id string, src io.Reader) {
+ 	p.scanner.Filename = filename // for good error messages
+ 	p.next()
+ 	p.id = id
+-	p.scope = ast.NewScope(nil)
+-	p.deps = map[string]*ast.Scope{"unsafe": Unsafe, id: p.scope}
++	p.imports = imports
+ }
+ 
+ 
+@@ -110,9 +108,9 @@ func (p *gcParser) next() {
+ 
+ 
+ // GcImporter implements the ast.Importer signature.
+-func GcImporter(path string) (name string, scope *ast.Scope, err os.Error) {
++func GcImporter(imports map[string]*ast.Object, path string) (pkg *ast.Object, err os.Error) {
+ 	if path == "unsafe" {
+-		return path, Unsafe, nil
++		return Unsafe, nil
+ 	}
+ 
+ 	defer func() {
+@@ -130,6 +128,10 @@ func GcImporter(path string) (name string, scope *ast.Scope, err os.Error) {
+ 		return
+ 	}
+ 
++	if pkg = imports[id]; pkg != nil {
++		return // package was imported before
++	}
++
+ 	buf, err := ExportData(filename)
+ 	if err != nil {
+ 		return
+@@ -137,13 +139,12 @@ func GcImporter(path string) (name string, scope *ast.Scope, err os.Error) {
+ 	defer buf.Close()
+ 
+ 	if trace {
+-		fmt.Printf("importing %s\n", filename)
++		fmt.Printf("importing %s (%s)\n", id, filename)
+ 	}
+ 
+ 	var p gcParser
+-	p.init(filename, id, buf)
+-	name, scope = p.parseExport()
+-
++	p.init(filename, id, buf, imports)
++	pkg = p.parseExport()
+ 	return
+ }
+ 
+@@ -214,21 +215,31 @@ func (p *gcParser) expectKeyword(keyword string) {
+ 
+ // ImportPath = string_lit .
+ //
+-func (p *gcParser) parsePkgId() *ast.Scope {
++func (p *gcParser) parsePkgId() *ast.Object {
+ 	id, err := strconv.Unquote(p.expect(scanner.String))
+ 	if err != nil {
+ 		p.error(err)
+ 	}
+ 
+-	scope := p.scope // id == "" stands for the imported package id
+-	if id != "" {
+-		if scope = p.deps[id]; scope == nil {
+-			scope = ast.NewScope(nil)
+-			p.deps[id] = scope
+-		}
++	switch id {
++	case "":
++		// id == "" stands for the imported package id
++		// (only known at time of package installation)
++		id = p.id
++	case "unsafe":
++		// package unsafe is not in the imports map - handle explicitly
++		return Unsafe
++	}
++
++	pkg := p.imports[id]
++	if pkg == nil {
++		scope = ast.NewScope(nil)
++		pkg = ast.NewObj(ast.Pkg, "")
++		pkg.Data = scope
++		p.imports[id] = pkg
+ 	}
+ 
+-	return scope
++	return pkg
+ }
+ 
+ 
+@@ -253,13 +264,14 @@ func (p *gcParser) parseDotIdent() string {
+ // ExportedName = ImportPath "." dotIdentifier .
+ //
+ func (p *gcParser) parseExportedName(kind ast.ObjKind) *ast.Object {
+-	scope := p.parsePkgId()
++	pkg := p.parsePkgId()
+ 	p.expect('.')
+ 	name := p.parseDotIdent()
+ 
+ 	// a type may have been declared before - if it exists
+ 	// already in the respective package scope, return that
+ 	// type
++	scope := pkg.Data.(*ast.Scope)
+ 	if kind == ast.Typ {
+ 		if obj := scope.Lookup(name); obj != nil {
+ 			assert(obj.Kind == ast.Typ)
+@@ -598,9 +610,10 @@ func (p *gcParser) parseImportDecl() {
+ 	// The identifier has no semantic meaning in the import data.
+ 	// It exists so that error messages can print the real package
+ 	// name: binary.ByteOrder instead of "encoding/binary".ByteOrder.
+-	// TODO(gri): Save package id -> package name mapping.
+-	p.expect(scanner.Ident)
+-	p.parsePkgId()
++	name := p.expect(scanner.Ident)
++	pkg := p.parsePkgId()
++	assert(pkg.Name == "" || pkg.Name == name)
++	pkg.Name = name
+ }
+ 
+ 
+@@ -701,7 +714,7 @@ func (p *gcParser) parseConstDecl() {
+ 	if obj.Type == nil {
+ 		obj.Type = typ
+ 	}
+-	_ = x // TODO(gri) store x somewhere
++	obj.Data = x
+ }
+ 
+ 
+@@ -710,12 +723,18 @@ func (p *gcParser) parseConstDecl() {
+ func (p *gcParser) parseTypeDecl() {
+ 	p.expectKeyword("type")
+ 	obj := p.parseExportedName(ast.Typ)
++
++	// The type object may have been imported before and thus already
++	// have a type associated with it. We still need to parse the type
++	// structure, but throw it away if the object already has a type.
++	// This ensures that all imports refer to the same type object for
++	// a given type declaration.
+ 	typ := p.parseType()
+ 
+-	name := obj.Type.(*Name)
+-	assert(name.Underlying == nil)
+-	assert(Underlying(typ) == typ)
+-	name.Underlying = typ
++	if name := obj.Type.(*Name); name.Underlying == nil {
++		assert(Underlying(typ) == typ)
++		name.Underlying = typ
++	}
+ }
+ 
+ 
+@@ -780,7 +799,7 @@ func (p *gcParser) parseDecl() {
+ // Export        = "PackageClause { Decl } "$$" .
+ // PackageClause = "package" identifier [ "safe" ] "\n" .
+ //
+-func (p *gcParser) parseExport() (string, *ast.Scope) {
++func (p *gcParser) parseExport() *ast.Object {
+ 	p.expectKeyword("package")
+ 	name := p.expect(scanner.Ident)
+ 	if p.tok != '\n' {
+@@ -791,6 +810,11 @@ func (p *gcParser) parseExport() (string, *ast.Scope) {
+ 	}
+ 	p.expect('\n')
+ 
++	assert(p.imports[p.id] == nil)
++	pkg := ast.NewObj(ast.Pkg, name)
++	pkg.Data = ast.NewScope(nil)
++	p.imports[p.id] = pkg
++
+ 	for p.tok != '$' && p.tok != scanner.EOF {
+ 		p.parseDecl()
+ 	}
+@@ -805,5 +829,5 @@ func (p *gcParser) parseExport() (string, *ast.Scope) {
+ 		p.errorf("expected no scanner errors, got %d", n)
+ 	}
+ 
+-	return name, p.scope
++	return pkg
+ }
+diff --git a/src/pkg/go/types/gcimporter_test.go b/src/pkg/go/types/gcimporter_test.go
+index 556e761df2..50e70f29c5 100644
+--- a/src/pkg/go/types/gcimporter_test.go
++++ b/src/pkg/go/types/gcimporter_test.go
+@@ -6,6 +6,7 @@ package types
+ 
+ import (
+ 	"exec"
++	"go/ast"
+ 	"io/ioutil"
+ 	"path/filepath"
+ 	"runtime"
+@@ -57,8 +58,12 @@ func compile(t *testing.T, dirname, filename string) {
+ }
+ 
+ 
++// Use the same global imports map for all tests. The effect is
++// as if all tested packages were imported into a single package.
++var imports = make(map[string]*ast.Object)
++
+ func testPath(t *testing.T, path string) bool {
+-	_, _, err := GcImporter(path)
++	_, err := GcImporter(imports, path)
+ 	if err != nil {
+ 		t.Errorf("testPath(%s): %s", path, err)
+ 		return false
+diff --git a/src/pkg/go/types/universe.go b/src/pkg/go/types/universe.go
+index 2a54a8ac12..96005cff5e 100644
+--- a/src/pkg/go/types/universe.go
++++ b/src/pkg/go/types/universe.go
+@@ -11,9 +11,9 @@ import "go/ast"
+ 
+ 
+ var (
+-	scope, // current scope to use for initialization
+-	Universe,
+-	Unsafe *ast.Scope
++	scope    *ast.Scope // current scope to use for initialization
++	Universe *ast.Scope
++	Unsafe   *ast.Object // package unsafe
+ )
+ 
+ 
+@@ -56,8 +56,8 @@ var (
+ 
+ 
+ func init() {
+-	Universe = ast.NewScope(nil)
+-	scope = Universe
++	scope = ast.NewScope(nil)
++	Universe = scope
+ 
+ 	Bool = defType("bool")
+ 	defType("byte") // TODO(gri) should be an alias for uint8
+@@ -98,8 +98,10 @@ func init() {
+ 	defFun("real")
+ 	defFun("recover")
+ 
+-	Unsafe = ast.NewScope(nil)
+-	scope = Unsafe
++	scope = ast.NewScope(nil)
++	Unsafe = ast.NewObj(ast.Pkg, "unsafe")
++	Unsafe.Data = scope
++
+ 	defType("Pointer")
+ 
+ 	defFun("Alignof")

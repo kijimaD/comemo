@@ -7,6 +7,20 @@ Date:   Mon Jun 8 13:22:01 2015 -0700
     Change-Id: I0512e461de1f25cb2a1cb7f23e7a77d00700667c
     Reviewed-on: https://go-review.googlesource.com/10803
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mbitmap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 11bfcd1b27..a4090b9a08 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -388,7 +388,7 @@ func heapBitsBulkBarrier(p, size uintptr) {
+ 		// unwinding the stack barriers between the current SP
+ 		// and p's frame.
+ 		gp := getg().m.curg
+-		if gp.stack.lo <= p && p < gp.stack.hi {
++		if gp != nil && gp.stack.lo <= p && p < gp.stack.hi {
+ 			// Run on the system stack to give it more
+ 			// stack space.
+ 			systemstack(func() {

@@ -13,6 +13,15 @@ Date:   Sat Feb 6 00:55:51 2021 +0100
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  codereview.cfg | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/codereview.cfg b/codereview.cfg
+new file mode 100644
+index 0000000000..4157a7260b
+--- /dev/null
++++ b/codereview.cfg
+@@ -0,0 +1,2 @@
++branch: dev.boringcrypto
++parent-branch: master

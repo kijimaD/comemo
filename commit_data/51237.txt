@@ -12,7 +12,7 @@ Date:   Wed Dec 15 16:13:05 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/instantiate.go     | 25 ++++++++++------------
  .../internal/types2/testdata/check/issues.go2      |  6 +++---
  .../types2/testdata/fixedbugs/issue47411.go2       |  6 +++---
@@ -22,3 +22,248 @@ Date:   Wed Dec 15 16:13:05 2021 -0800
  src/go/types/testdata/fixedbugs/issue47411.go2     |  6 +++---
  src/go/types/testdata/fixedbugs/issue49112.go2     | 15 +++++++++++++
  8 files changed, 64 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index cda6c7baf4..b2e1087c41 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -192,17 +192,7 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 		return errorf("cannot implement %s (empty type set)", T)
+ 	}
+ 
+-	// If T is comparable, V must be comparable.
+-	// TODO(gri) the error messages could be better, here
+-	if Ti.IsComparable() && !Comparable(V) {
+-		if Vi != nil && Vi.Empty() {
+-			return errorf("empty interface %s does not implement %s", V, T)
+-		}
+-		return errorf("%s does not implement comparable", V)
+-	}
+-
+-	// V must implement T (methods)
+-	// - check only if we have methods
++	// V must implement T's methods, if any.
+ 	if Ti.NumMethods() > 0 {
+ 		if m, wrong := check.missingMethod(V, Ti, true); m != nil {
+ 			// TODO(gri) needs to print updated name to avoid major confusion in error message!
+@@ -220,10 +210,17 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 		}
+ 	}
+ 
++	// If T is comparable, V must be comparable.
++	// Remember as a pending error and report only if we don't have a more specific error.
++	var pending error
++	if Ti.IsComparable() && !Comparable(V) {
++		pending = errorf("%s does not implement comparable", V)
++	}
++
+ 	// V must also be in the set of types of T, if any.
+ 	// Constraints with empty type sets were already excluded above.
+ 	if !Ti.typeSet().hasTerms() {
+-		return nil // nothing to do
++		return pending // nothing to do
+ 	}
+ 
+ 	// If V is itself an interface, each of its possible types must be in the set
+@@ -234,7 +231,7 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 			// TODO(gri) report which type is missing
+ 			return errorf("%s does not implement %s", V, T)
+ 		}
+-		return nil
++		return pending
+ 	}
+ 
+ 	// Otherwise, V's type must be included in the iface type set.
+@@ -262,5 +259,5 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 		}
+ 	}
+ 
+-	return nil
++	return pending
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.go2 b/src/cmd/compile/internal/types2/testdata/check/issues.go2
+index 76f9cc5010..5b6eebd4fd 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.go2
+@@ -58,7 +58,7 @@ func _() {
+ type T1[P interface{~uint}] struct{}
+ 
+ func _[P any]() {
+-    _ = T1[P /* ERROR empty interface P does not implement interface{~uint} */ ]{}
++    _ = T1[P /* ERROR P does not implement interface{~uint} */ ]{}
+ }
+ 
+ // This is the original (simplified) program causing the same issue.
+@@ -74,8 +74,8 @@ func (u T2[U]) Add1() U {
+     return u.s + 1
+ }
+ 
+-func NewT2[U any]() T2[U /* ERROR empty interface U does not implement Unsigned */ ] {
+-    return T2[U /* ERROR empty interface U does not implement Unsigned */ ]{}
++func NewT2[U any]() T2[U /* ERROR U does not implement Unsigned */ ] {
++    return T2[U /* ERROR U does not implement Unsigned */ ]{}
+ }
+ 
+ func _() {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go2
+index ce5db0a615..3f405baed7 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go2
+@@ -16,11 +16,11 @@ func _[P comparable,
+         _ = f[P]
+         _ = f[Q]
+         _ = f[func( /* ERROR does not implement comparable */ )]
+-        _ = f[R /* ERROR empty interface R does not implement comparable */ ]
++        _ = f[R /* ERROR R does not implement comparable */ ]
+ 
+         _ = g[int]
+         _ = g[P /* ERROR P does not implement interface{interface{comparable; ~int\|~string} */ ]
+         _ = g[Q]
+-        _ = g[func( /* ERROR does not implement comparable */ )]
+-        _ = g[R /* ERROR empty interface R does not implement interface{interface{comparable; ~int\|~string} */ ]
++        _ = g[func( /* ERROR func\(\) does not implement interface{interface{comparable; ~int\|~string}} */ )]
++        _ = g[R /* ERROR R does not implement interface{interface{comparable; ~int\|~string} */ ]
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49112.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49112.go2
+new file mode 100644
+index 0000000000..0efc9066ec
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49112.go2
+@@ -0,0 +1,15 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f[P int](P) {}
++
++func _() {
++        _ = f[int]
++        _ = f[[ /* ERROR \[\]int does not implement int */ ]int]
++
++        f(0)
++        f( /* ERROR \[\]int does not implement int */ []int{})
++}
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index e8748975c9..e6a5cbf8ae 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -192,17 +192,7 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 		return errorf("cannot implement %s (empty type set)", T)
+ 	}
+ 
+-	// If T is comparable, V must be comparable.
+-	// TODO(gri) the error messages could be better, here
+-	if Ti.IsComparable() && !Comparable(V) {
+-		if Vi != nil && Vi.Empty() {
+-			return errorf("empty interface %s does not implement %s", V, T)
+-		}
+-		return errorf("%s does not implement comparable", V)
+-	}
+-
+-	// V must implement T (methods)
+-	// - check only if we have methods
++	// V must implement T's methods, if any.
+ 	if Ti.NumMethods() > 0 {
+ 		if m, wrong := check.missingMethod(V, Ti, true); m != nil {
+ 			// TODO(gri) needs to print updated name to avoid major confusion in error message!
+@@ -221,10 +211,17 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 		}
+ 	}
+ 
++	// If T is comparable, V must be comparable.
++	// Remember as a pending error and report only if we don't have a more specific error.
++	var pending error
++	if Ti.IsComparable() && !Comparable(V) {
++		pending = errorf("%s does not implement comparable", V)
++	}
++
+ 	// V must also be in the set of types of T, if any.
+ 	// Constraints with empty type sets were already excluded above.
+ 	if !Ti.typeSet().hasTerms() {
+-		return nil // nothing to do
++		return pending // nothing to do
+ 	}
+ 
+ 	// If V is itself an interface, each of its possible types must be in the set
+@@ -235,7 +232,7 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 			// TODO(gri) report which type is missing
+ 			return errorf("%s does not implement %s", V, T)
+ 		}
+-		return nil
++		return pending
+ 	}
+ 
+ 	// Otherwise, V's type must be included in the iface type set.
+@@ -263,5 +260,5 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 		}
+ 	}
+ 
+-	return nil
++	return pending
+ }
+diff --git a/src/go/types/testdata/check/issues.go2 b/src/go/types/testdata/check/issues.go2
+index 371856eea3..cec1ccb0cc 100644
+--- a/src/go/types/testdata/check/issues.go2
++++ b/src/go/types/testdata/check/issues.go2
+@@ -58,7 +58,7 @@ func _() {
+ type T1[P interface{~uint}] struct{}
+ 
+ func _[P any]() {
+-    _ = T1[P /* ERROR empty interface P does not implement interface{~uint} */ ]{}
++    _ = T1[P /* ERROR P does not implement interface{~uint} */ ]{}
+ }
+ 
+ // This is the original (simplified) program causing the same issue.
+@@ -74,8 +74,8 @@ func (u T2[U]) Add1() U {
+     return u.s + 1
+ }
+ 
+-func NewT2[U any]() T2[U /* ERROR empty interface U does not implement Unsigned */ ] {
+-    return T2[U /* ERROR empty interface U does not implement Unsigned */ ]{}
++func NewT2[U any]() T2[U /* ERROR U does not implement Unsigned */ ] {
++    return T2[U /* ERROR U does not implement Unsigned */ ]{}
+ }
+ 
+ func _() {
+diff --git a/src/go/types/testdata/fixedbugs/issue47411.go2 b/src/go/types/testdata/fixedbugs/issue47411.go2
+index d6c34be8db..db5fb32483 100644
+--- a/src/go/types/testdata/fixedbugs/issue47411.go2
++++ b/src/go/types/testdata/fixedbugs/issue47411.go2
+@@ -16,11 +16,11 @@ func _[P comparable,
+         _ = f[P]
+         _ = f[Q]
+         _ = f[func /* ERROR does not implement comparable */ ()]
+-        _ = f[R /* ERROR empty interface R does not implement comparable */ ]
++        _ = f[R /* ERROR R does not implement comparable */ ]
+ 
+         _ = g[int]
+         _ = g[P /* ERROR P does not implement interface{interface{comparable; ~int\|~string} */ ]
+         _ = g[Q]
+-        _ = g[func /* ERROR does not implement comparable */ ()]
+-        _ = g[R /* ERROR empty interface R does not implement interface{interface{comparable; ~int\|~string} */ ]
++        _ = g[func /* ERROR func\(\) does not implement interface{interface{comparable; ~int\|~string}} */ ()]
++        _ = g[R /* ERROR R does not implement interface{interface{comparable; ~int\|~string} */ ]
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue49112.go2 b/src/go/types/testdata/fixedbugs/issue49112.go2
+new file mode 100644
+index 0000000000..61b757ccb2
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue49112.go2
+@@ -0,0 +1,15 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f[P int](P) {}
++
++func _() {
++        _ = f[int]
++        _ = f[[ /* ERROR \[\]int does not implement int */ ]int]
++
++        f(0)
++        f/* ERROR \[\]int does not implement int */ ([]int{})
++}

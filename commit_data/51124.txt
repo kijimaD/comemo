@@ -23,6 +23,24 @@ Date:   Mon Dec 6 22:09:12 2021 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/serve_test.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 82c1a6716f..d46400ef75 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -5998,11 +5998,7 @@ func TestServerHijackGetsBackgroundByte_big(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	select {
+-	case <-done:
+-	case <-time.After(2 * time.Second):
+-		t.Error("timeout")
+-	}
++	<-done
+ }
+ 
+ // Issue 18319: test that the Server validates the request method.

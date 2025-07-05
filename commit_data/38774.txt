@@ -22,8 +22,74 @@ Date:   Mon Nov 26 14:33:32 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go  | 11 ++++++++++-
  src/cmd/compile/internal/gc/syntax.go |  2 +-
  test/fixedbugs/issue23780.go          | 17 +++++++++++++++++
  3 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 28ea72b715..acd8550ee3 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -612,6 +612,15 @@ func getdyn(n *Node, top bool) initGenType {
+ 		if !top {
+ 			return initDynamic
+ 		}
++		if n.Right.Int64()/4 > int64(n.List.Len()) {
++			// <25% of entries have explicit values.
++			// Very rough estimation, it takes 4 bytes of instructions
++			// to initialize 1 byte of result. So don't use a static
++			// initializer if the dynamic initialization code would be
++			// smaller than the static value.
++			// See issue 23780.
++			return initDynamic
++		}
+ 
+ 	case OARRAYLIT, OSTRUCTLIT:
+ 	}
+@@ -902,7 +911,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 			continue
+ 		}
+ 
+-		if isLiteral(value) {
++		if vstat != nil && isLiteral(value) { // already set by copy from static value
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 0be52f1271..c7becf53e5 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -622,7 +622,7 @@ const (
+ 	OMAPLIT    // Type{List} (composite literal, Type is map)
+ 	OSTRUCTLIT // Type{List} (composite literal, Type is struct)
+ 	OARRAYLIT  // Type{List} (composite literal, Type is array)
+-	OSLICELIT  // Type{List} (composite literal, Type is slice)
++	OSLICELIT  // Type{List} (composite literal, Type is slice) Right.Int64() = slice length.
+ 	OPTRLIT    // &Left (left is composite literal)
+ 	OCONV      // Type(Left) (type conversion)
+ 	OCONVIFACE // Type(Left) (type conversion, to interface)
+diff --git a/test/fixedbugs/issue23780.go b/test/fixedbugs/issue23780.go
+new file mode 100644
+index 0000000000..71fc2d9ed6
+--- /dev/null
++++ b/test/fixedbugs/issue23780.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	_ = []byte{1 << 30: 1}
++}
++
++func g() {
++	sink = []byte{1 << 30: 1}
++}
++
++var sink []byte

@@ -17,6 +17,22 @@ Date:   Mon Jan 31 22:47:42 2022 +0000
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/time/sys_windows.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/time/sys_windows.go b/src/time/sys_windows.go
+index 481aea562e..78e182d4c5 100644
+--- a/src/time/sys_windows.go
++++ b/src/time/sys_windows.go
+@@ -16,6 +16,10 @@ func interrupt() {
+ func open(name string) (uintptr, error) {
+ 	fd, err := syscall.Open(name, syscall.O_RDONLY, 0)
+ 	if err != nil {
++		// This condition solves issue https://go.dev/issue/50248
++		if err == syscall.ERROR_PATH_NOT_FOUND {
++			err = syscall.ENOENT
++		}
+ 		return 0, err
+ 	}
+ 	return uintptr(fd), nil

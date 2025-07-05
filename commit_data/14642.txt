@@ -8,6 +8,21 @@ Date:   Fri Dec 14 02:19:33 2012 +0800
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/6946044
-
+---
  test/nil.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/test/nil.go b/test/nil.go
+index 9f7bcbb59f..6d90f5053a 100644
+--- a/test/nil.go
++++ b/test/nil.go
+@@ -151,9 +151,6 @@ func maptest() {
+ 	shouldPanic(func() {
+ 		m[2] = 3
+ 	})
+-	shouldPanic(func() {
+-		delete(m, 2)
+-	})
+ }
+ 
+ // nil slice

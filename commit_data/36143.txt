@@ -9,6 +9,29 @@ Date:   Fri Apr 6 22:54:29 2018 +0400
     Change-Id: I349e80a8c083688539bb4267564f02e3d7913da5
     Reviewed-on: https://go-review.googlesource.com/105195
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/sleep_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index 9af39c0d03..a31494d47b 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -359,7 +359,7 @@ func TestSleepZeroDeadlock(t *testing.T) {
+ func testReset(d Duration) error {
+ 	t0 := NewTimer(2 * d)
+ 	Sleep(d)
+-	if t0.Reset(3*d) != true {
++	if !t0.Reset(3 * d) {
+ 		return errors.New("resetting unfired timer returned false")
+ 	}
+ 	Sleep(2 * d)
+@@ -375,7 +375,7 @@ func testReset(d Duration) error {
+ 		return errors.New("reset timer did not fire")
+ 	}
+ 
+-	if t0.Reset(50*Millisecond) != false {
++	if t0.Reset(50 * Millisecond) {
+ 		return errors.New("resetting expired timer returned true")
+ 	}
+ 	return nil

@@ -7,7 +7,7 @@ Date:   Tue Dec 9 14:40:40 2014 -0800
     Change-Id: I0e95f8a5962c547da20e19a356ae1cf8375c9107
     Reviewed-on: https://go-review.googlesource.com/1270
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/alg.go              | 14 +-------------
  src/runtime/os1_darwin.go       | 12 +++---------
  src/runtime/os1_dragonfly.go    | 12 +++---------
@@ -22,3 +22,372 @@ Date:   Tue Dec 9 14:40:40 2014 -0800
  src/runtime/runtime2.go         | 31 ++++++++++++++++++++++++-------
  src/runtime/vdso_linux_amd64.go |  3 +--
  13 files changed, 59 insertions(+), 113 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index e367bc5b2f..6e53f817a0 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -332,18 +332,6 @@ func init() {
+ 		algarray[alg_MEM128].hash = aeshash
+ 		algarray[alg_STRING].hash = aeshashstr
+ 		// Initialize with random data so hash collisions will be hard to engineer.
+-		var rnd unsafe.Pointer
+-		var n int32
+-		get_random_data(&rnd, &n)
+-		if n > hashRandomBytes {
+-			n = hashRandomBytes
+-		}
+-		memmove(unsafe.Pointer(&aeskeysched[0]), rnd, uintptr(n))
+-		if n < hashRandomBytes {
+-			// Not very random, but better than nothing.
+-			for t := nanotime(); n < hashRandomBytes; n++ {
+-				aeskeysched[n] = byte(t >> uint(8*(n%8)))
+-			}
+-		}
++		getRandomData(aeskeysched[:])
+ 	}
+ }
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index 2fbf2cae04..12642aa121 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -45,20 +45,14 @@ func osinit() {
+ 	}
+ }
+ 
+-var urandom_data [_HashRandomBytes]byte
+ var urandom_dev = []byte("/dev/random\x00")
+ 
+ //go:nosplit
+-func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
++func getRandomData(r []byte) {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+-	if read(fd, unsafe.Pointer(&urandom_data), _HashRandomBytes) == _HashRandomBytes {
+-		*rnd = unsafe.Pointer(&urandom_data[0])
+-		*rnd_len = _HashRandomBytes
+-	} else {
+-		*rnd = nil
+-		*rnd_len = 0
+-	}
++	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	close(fd)
++	extendRandom(r, int(n))
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os1_dragonfly.go b/src/runtime/os1_dragonfly.go
+index 82bb45b9b7..d02e925ec5 100644
+--- a/src/runtime/os1_dragonfly.go
++++ b/src/runtime/os1_dragonfly.go
+@@ -97,20 +97,14 @@ func osinit() {
+ 	ncpu = getncpu()
+ }
+ 
+-var urandom_data [_HashRandomBytes]byte
+ var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ //go:nosplit
+-func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
++func getRandomData(r []byte) {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+-	if read(fd, unsafe.Pointer(&urandom_data), _HashRandomBytes) == _HashRandomBytes {
+-		*rnd = unsafe.Pointer(&urandom_data[0])
+-		*rnd_len = _HashRandomBytes
+-	} else {
+-		*rnd = nil
+-		*rnd_len = 0
+-	}
++	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	close(fd)
++	extendRandom(r, int(n))
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index 2cacfbae61..80e4532439 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -96,20 +96,14 @@ func osinit() {
+ 	ncpu = getncpu()
+ }
+ 
+-var urandom_data [_HashRandomBytes]byte
+ var urandom_dev = []byte("/dev/random\x00")
+ 
+ //go:nosplit
+-func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
++func getRandomData(r []byte) {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+-	if read(fd, unsafe.Pointer(&urandom_data), _HashRandomBytes) == _HashRandomBytes {
+-		*rnd = unsafe.Pointer(&urandom_data[0])
+-		*rnd_len = _HashRandomBytes
+-	} else {
+-		*rnd = nil
+-		*rnd_len = 0
+-	}
++	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	close(fd)
++	extendRandom(r, int(n))
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index 67fa6391e1..2e12d74f44 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -145,30 +145,18 @@ func osinit() {
+ 	ncpu = getproccount()
+ }
+ 
+-// Random bytes initialized at startup.  These come
+-// from the ELF AT_RANDOM auxiliary vector (vdso_linux_amd64.c).
+-// byte*	runtime·startup_random_data;
+-// uint32	runtime·startup_random_data_len;
+-
+-var urandom_data [_HashRandomBytes]byte
+ var urandom_dev = []byte("/dev/random\x00")
+ 
+-//go:nosplit
+-func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
+-	if startup_random_data != nil {
+-		*rnd = unsafe.Pointer(startup_random_data)
+-		*rnd_len = int32(startup_random_data_len)
++func getRandomData(r []byte) {
++	if startupRandomData != nil {
++		n := copy(r, startupRandomData)
++		extendRandom(r, n)
+ 		return
+ 	}
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+-	if read(fd, unsafe.Pointer(&urandom_data), _HashRandomBytes) == _HashRandomBytes {
+-		*rnd = unsafe.Pointer(&urandom_data[0])
+-		*rnd_len = _HashRandomBytes
+-	} else {
+-		*rnd = nil
+-		*rnd_len = 0
+-	}
++	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	close(fd)
++	extendRandom(r, int(n))
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os1_netbsd.go b/src/runtime/os1_netbsd.go
+index 493be30fa5..b5068629ba 100644
+--- a/src/runtime/os1_netbsd.go
++++ b/src/runtime/os1_netbsd.go
+@@ -170,20 +170,14 @@ func osinit() {
+ 	ncpu = getncpu()
+ }
+ 
+-var urandom_data [_HashRandomBytes]byte
+ var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ //go:nosplit
+-func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
++func getRandomData(r []byte) {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+-	if read(fd, unsafe.Pointer(&urandom_data), _HashRandomBytes) == _HashRandomBytes {
+-		*rnd = unsafe.Pointer(&urandom_data[0])
+-		*rnd_len = _HashRandomBytes
+-	} else {
+-		*rnd = nil
+-		*rnd_len = 0
+-	}
++	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	close(fd)
++	extendRandom(r, int(n))
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os1_openbsd.go
+index d5ffe10a81..b1a16d582b 100644
+--- a/src/runtime/os1_openbsd.go
++++ b/src/runtime/os1_openbsd.go
+@@ -138,20 +138,14 @@ func osinit() {
+ 	ncpu = getncpu()
+ }
+ 
+-var urandom_data [_HashRandomBytes]byte
+ var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ //go:nosplit
+-func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
++func getRandomData(r []byte) {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+-	if read(fd, unsafe.Pointer(&urandom_data), _HashRandomBytes) == _HashRandomBytes {
+-		*rnd = unsafe.Pointer(&urandom_data[0])
+-		*rnd_len = _HashRandomBytes
+-	} else {
+-		*rnd = nil
+-		*rnd_len = 0
+-	}
++	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	close(fd)
++	extendRandom(r, int(n))
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index 0f8da03f2b..9581f0cb67 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -85,20 +85,14 @@ func crash() {
+ 	*(*int)(nil) = 0
+ }
+ 
+-var random_data [_HashRandomBytes]byte
+ var random_dev = []byte("/dev/random\x00")
+ 
+ //go:nosplit
+-func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
++func getRandomData(r []byte) {
+ 	fd := open(&random_dev[0], 0 /* O_RDONLY */, 0)
+-	if read(fd, unsafe.Pointer(&random_data), _HashRandomBytes) == _HashRandomBytes {
+-		*rnd = unsafe.Pointer(&random_data[0])
+-		*rnd_len = _HashRandomBytes
+-	} else {
+-		*rnd = nil
+-		*rnd_len = 0
+-	}
++	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	close(fd)
++	extendRandom(r, int(n))
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 57ea050f26..a78eeace15 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -148,24 +148,21 @@ func osinit() {
+ 	}
+ }
+ 
+-var random_data [_HashRandomBytes]byte
+-
+ //go:nosplit
+-func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
++func getRandomData(r []byte) {
+ 	const (
+ 		prov_rsa_full       = 1
+ 		crypt_verifycontext = 0xF0000000
+ 	)
+ 	var handle uintptr
+-	*rnd = nil
+-	*rnd_len = 0
++	n := 0
+ 	if stdcall5(_CryptAcquireContextW, uintptr(unsafe.Pointer(&handle)), 0, 0, prov_rsa_full, crypt_verifycontext) != 0 {
+-		if stdcall3(_CryptGenRandom, handle, _HashRandomBytes, uintptr(unsafe.Pointer(&random_data[0]))) != 0 {
+-			*rnd = unsafe.Pointer(&random_data[0])
+-			*rnd_len = _HashRandomBytes
++		if stdcall3(_CryptGenRandom, handle, uintptr(len(r)), uintptr(unsafe.Pointer(&r[0]))) != 0 {
++			n = len(r)
+ 		}
+ 		stdcall2(_CryptReleaseContext, handle, 0)
+ 	}
++	extendRandom(r, n)
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 1df74faad2..6ccbbe29ee 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -165,20 +165,14 @@ func newosproc(mp *m, _ unsafe.Pointer) {
+ 	}
+ }
+ 
+-var urandom_data [_HashRandomBytes]byte
+ var urandom_dev = []byte("/dev/random\x00")
+ 
+ //go:nosplit
+-func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
++func getRandomData(r []byte) {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+-	if read(fd, unsafe.Pointer(&urandom_data), _HashRandomBytes) == _HashRandomBytes {
+-		*rnd = unsafe.Pointer(&urandom_data[0])
+-		*rnd_len = _HashRandomBytes
+-	} else {
+-		*rnd = nil
+-		*rnd_len = 0
+-	}
++	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	close(fd)
++	extendRandom(r, int(n))
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/os_linux_386.go b/src/runtime/os_linux_386.go
+index adcd5a1c4e..e2120da905 100644
+--- a/src/runtime/os_linux_386.go
++++ b/src/runtime/os_linux_386.go
+@@ -29,8 +29,7 @@ func sysargs(argc int32, argv **byte) {
+ 			_vdso = auxv[i+1]
+ 
+ 		case _AT_RANDOM:
+-			startup_random_data = (*byte)(unsafe.Pointer(uintptr(auxv[i+1])))
+-			startup_random_data_len = 16
++			startupRandomData = (*[16]byte)(unsafe.Pointer(uintptr(auxv[i+1])))[:]
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index d18178d093..e0d23e722f 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -475,16 +475,33 @@ const (
+ 	_Structrnd = regSize
+ )
+ 
+-var startup_random_data *byte
+-var startup_random_data_len uint32
++// startup_random_data holds random bytes initialized at startup.  These come from
++// the ELF AT_RANDOM auxiliary vector (vdso_linux_amd64.go or os_linux_386.go).
++var startupRandomData []byte
++
++// extendRandom extends the random numbers in r[:n] to the whole slice r.
++// Treats n<0 as n==0.
++func extendRandom(r []byte, n int) {
++	if n < 0 {
++		n = 0
++	}
++	for n < len(r) {
++		// Extend random bits using hash function & time seed
++		w := n
++		if w > 16 {
++			w = 16
++		}
++		h := memhash(unsafe.Pointer(&r[n-w]), uintptr(w), uintptr(nanotime()))
++		for i := 0; i < ptrSize && n < len(r); i++ {
++			r[n] = byte(h)
++			n++
++			h >>= 8
++		}
++	}
++}
+ 
+ var invalidptr int32
+ 
+-const (
+-	// hashinit wants this many random bytes
+-	_HashRandomBytes = 32
+-)
+-
+ /*
+  * deferred subroutine calls
+  */
+diff --git a/src/runtime/vdso_linux_amd64.go b/src/runtime/vdso_linux_amd64.go
+index 7eb6988118..244001590a 100644
+--- a/src/runtime/vdso_linux_amd64.go
++++ b/src/runtime/vdso_linux_amd64.go
+@@ -321,8 +321,7 @@ func sysargs(argc int32, argv **byte) {
+ 			vdso_parse_symbols(info1, vdso_find_version(info1, &linux26))
+ 
+ 		case _AT_RANDOM:
+-			startup_random_data = (*byte)(unsafe.Pointer(uintptr(av.a_val)))
+-			startup_random_data_len = 16
++			startupRandomData = (*[16]byte)(unsafe.Pointer(uintptr(av.a_val)))[:]
+ 		}
+ 	}
+ }

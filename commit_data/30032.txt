@@ -11,6 +11,21 @@ Date:   Fri Oct 21 18:03:49 2016 -0700
     Change-Id: I13c3018b1584f152b53f8576dd16ebef98aa5182
     Reviewed-on: https://go-review.googlesource.com/31720
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/lookup.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index 28e23fa1c1..8b5cab0894 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -307,6 +307,9 @@ func (r *Resolver) LookupTXT(ctx context.Context, name string) ([]string, error)
+ 
+ // LookupAddr performs a reverse lookup for the given address, returning a list
+ // of names mapping to that address.
++//
++// When using the host C library resolver, at most one result will be
++// returned. To bypass the host resolver, use a custom Resolver.
+ func LookupAddr(addr string) (names []string, err error) {
+ 	return DefaultResolver.lookupAddr(context.Background(), addr)
+ }

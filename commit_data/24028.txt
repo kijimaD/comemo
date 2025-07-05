@@ -18,7 +18,41 @@ Date:   Sat Jun 27 14:50:39 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/11611
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/rsa/rsa.go        | 4 ++++
  src/crypto/x509/x509_test.go | 7 +++++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 8a6014a5dc..1293b78367 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -146,6 +146,10 @@ func (priv *PrivateKey) Validate() error {
+ 	// Check that Πprimes == n.
+ 	modulus := new(big.Int).Set(bigOne)
+ 	for _, prime := range priv.Primes {
++		// Any primes ≤ 1 will cause divide-by-zero panics later.
++		if prime.Cmp(bigOne) <= 0 {
++			return errors.New("crypto/rsa: invalid prime value")
++		}
+ 		modulus.Mul(modulus, prime)
+ 	}
+ 	if modulus.Cmp(priv.N) != 0 {
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index d83147bb29..f4f9fa2f7f 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -41,6 +41,13 @@ func TestParsePKCS1PrivateKey(t *testing.T) {
+ 		priv.Primes[1].Cmp(rsaPrivateKey.Primes[1]) != 0 {
+ 		t.Errorf("got:%+v want:%+v", priv, rsaPrivateKey)
+ 	}
++
++	// This private key includes an invalid prime that
++	// rsa.PrivateKey.Validate should reject.
++	data := []byte("0\x16\x02\x00\x02\x02\u007f\x00\x02\x0200\x02\x0200\x02\x02\x00\x01\x02\x02\u007f\x00")
++	if _, err := ParsePKCS1PrivateKey(data); err == nil {
++		t.Errorf("parsing invalid private key did not result in an error")
++	}
+ }
+ 
+ func TestParsePKIXPublicKey(t *testing.T) {

@@ -14,6 +14,29 @@ Date:   Thu Jun 16 10:49:32 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/x86/obj6.go | 11 -----------
  1 file changed, 11 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index b400d45767..512342550b 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -686,17 +686,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(autoffset)
+ 		p.Spadj = autoffset
+-	} else {
+-		// zero-byte stack adjustment.
+-		// Insert a fake non-zero adjustment so that stkcheck can
+-		// recognize the end of the stack-splitting prolog.
+-		p = obj.Appendp(ctxt, p)
+-
+-		p.As = obj.ANOP
+-		p.Spadj = int32(-ctxt.Arch.PtrSize)
+-		p = obj.Appendp(ctxt, p)
+-		p.As = obj.ANOP
+-		p.Spadj = int32(ctxt.Arch.PtrSize)
+ 	}
+ 
+ 	deltasp := autoffset

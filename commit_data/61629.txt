@@ -16,7 +16,63 @@ Date:   Sun Nov 17 16:52:25 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/629199
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go             | 17 +++++++++++++----
  src/cmd/go/testdata/script/build_overlay.txt |  2 ++
  2 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 2fa950f13b..70d9a588cc 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -858,7 +858,7 @@ OverlayLoop:
+ 		embed.Patterns = p.Internal.Embed
+ 		embed.Files = make(map[string]string)
+ 		for _, file := range p.EmbedFiles {
+-			embed.Files[file] = filepath.Join(p.Dir, file)
++			embed.Files[file] = fsys.Actual(filepath.Join(p.Dir, file))
+ 		}
+ 		js, err := json.MarshalIndent(&embed, "", "\t")
+ 		if err != nil {
+@@ -1175,9 +1175,9 @@ func buildVetConfig(a *Action, srcfiles []string) {
+ 		ID:           a.Package.ImportPath,
+ 		Compiler:     cfg.BuildToolchainName,
+ 		Dir:          a.Package.Dir,
+-		GoFiles:      mkAbsFiles(a.Package.Dir, gofiles),
+-		NonGoFiles:   mkAbsFiles(a.Package.Dir, nongofiles),
+-		IgnoredFiles: mkAbsFiles(a.Package.Dir, ignored),
++		GoFiles:      actualFiles(mkAbsFiles(a.Package.Dir, gofiles)),
++		NonGoFiles:   actualFiles(mkAbsFiles(a.Package.Dir, nongofiles)),
++		IgnoredFiles: actualFiles(mkAbsFiles(a.Package.Dir, ignored)),
+ 		ImportPath:   a.Package.ImportPath,
+ 		ImportMap:    make(map[string]string),
+ 		PackageFile:  make(map[string]string),
+@@ -3383,6 +3383,15 @@ func mkAbsFiles(dir string, files []string) []string {
+ 	return abs
+ }
+ 
++// actualFiles applies fsys.Actual to the list of files.
++func actualFiles(files []string) []string {
++	a := make([]string, len(files))
++	for i, f := range files {
++		a[i] = fsys.Actual(f)
++	}
++	return a
++}
++
+ // passLongArgsInResponseFiles modifies cmd such that, for
+ // certain programs, long arguments are passed in "response files", a
+ // file on disk with the arguments, with one arg per line. An actual
+diff --git a/src/cmd/go/testdata/script/build_overlay.txt b/src/cmd/go/testdata/script/build_overlay.txt
+index b64bc02614..1111d119ba 100644
+--- a/src/cmd/go/testdata/script/build_overlay.txt
++++ b/src/cmd/go/testdata/script/build_overlay.txt
+@@ -22,6 +22,8 @@ go build -overlay overlay.json -o print_abspath$GOEXE ./printpath
+ exec ./print_abspath$GOEXE
+ stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
+ 
++go vet -overlay overlay.json ./printpath
++
+ go build -overlay overlay.json -o print_trimpath$GOEXE -trimpath ./printpath
+ exec ./print_trimpath$GOEXE
+ stdout ^m[/\\]printpath[/\\]main.go

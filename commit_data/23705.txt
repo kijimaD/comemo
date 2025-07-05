@@ -7,6 +7,20 @@ Date:   Fri Jun 5 09:58:47 2015 -0400
     Change-Id: I0e6f1a39b3d6b15d05891c8b25ab6644356bde5f
     Reviewed-on: https://go-review.googlesource.com/10751
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/pkg.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index d2d4da1af9..bc099a8d31 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -1166,7 +1166,7 @@ var (
+ 	goBuildPrefix = []byte("\xff Go build ID: \"")
+ 	goBuildEnd    = []byte("\"\n \xff")
+ 
+-	elfPrefix = []byte("ELF\x7F")
++	elfPrefix = []byte("\x7fELF")
+ )
+ 
+ // readBuildIDFromBinary reads the build ID from a binary.

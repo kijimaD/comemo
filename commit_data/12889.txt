@@ -10,7 +10,35 @@ Date:   Fri Apr 13 09:28:37 2012 +1000
     R=golang-dev, dave, dsymonds
     CC=golang-dev
     https://golang.org/cl/6011057
-
+---
  src/pkg/fmt/fmt_test.go | 3 +++
  src/pkg/fmt/format.go   | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 758fc50d08..de0342967c 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -461,6 +461,9 @@ var fmttests = []struct {
+ 	// zero reflect.Value, which formats as <nil>.
+ 	// This test is just to check that it shows the two NaNs at all.
+ 	{"%v", map[float64]int{math.NaN(): 1, math.NaN(): 2}, "map[NaN:<nil> NaN:<nil>]"},
++
++	// Used to crash because nByte didn't allow for a sign.
++	{"%b", int64(-1 << 63), "-1000000000000000000000000000000000000000000000000000000000000000"},
+ }
+ 
+ func TestSprintf(t *testing.T) {
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 2186f334b9..caf900d5c3 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ const (
+-	nByte = 64
++	nByte = 65 // %b of an int64, plus a sign.
+ 
+ 	ldigits = "0123456789abcdef"
+ 	udigits = "0123456789ABCDEF"

@@ -14,6 +14,46 @@ Date:   Thu May 4 19:30:53 2023 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: shuang cui <imcusg@gmail.com>
-
+---
  src/cmd/covdata/argsmerge.go | 15 ++-------------
  1 file changed, 2 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/covdata/argsmerge.go b/src/cmd/covdata/argsmerge.go
+index f591e3abd4..8af1432d62 100644
+--- a/src/cmd/covdata/argsmerge.go
++++ b/src/cmd/covdata/argsmerge.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"fmt"
++	"slices"
+ 	"strconv"
+ )
+ 
+@@ -20,25 +21,13 @@ type argstate struct {
+ 	initialized bool
+ }
+ 
+-func ssleq(s1 []string, s2 []string) bool {
+-	if len(s1) != len(s2) {
+-		return false
+-	}
+-	for i := range s1 {
+-		if s1[i] != s2[i] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ func (a *argstate) Merge(state argvalues) {
+ 	if !a.initialized {
+ 		a.state = state
+ 		a.initialized = true
+ 		return
+ 	}
+-	if !ssleq(a.state.osargs, state.osargs) {
++	if !slices.Equal(a.state.osargs, state.osargs) {
+ 		a.state.osargs = nil
+ 	}
+ 	if state.goos != a.state.goos {

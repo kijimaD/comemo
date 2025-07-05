@@ -16,7 +16,57 @@ Date:   Fri Sep 9 10:22:10 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcmark.go | 17 +++++++++++++++--
  src/runtime/mheap.go   |  9 +++++++++
  2 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 003073f42f..aa107ee65c 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1320,9 +1320,22 @@ func gcDumpObject(label string, obj, off uintptr) {
+ 		print(" s=nil\n")
+ 		return
+ 	}
+-	print(" s.base()=", hex(s.base()), " s.limit=", hex(s.limit), " s.sizeclass=", s.sizeclass, " s.elemsize=", s.elemsize, "\n")
++	print(" s.base()=", hex(s.base()), " s.limit=", hex(s.limit), " s.sizeclass=", s.sizeclass, " s.elemsize=", s.elemsize, " s.state=")
++	if 0 <= s.state && int(s.state) < len(mSpanStateNames) {
++		print(mSpanStateNames[s.state], "\n")
++	} else {
++		print("unknown(", s.state, ")\n")
++	}
++
+ 	skipped := false
+-	for i := uintptr(0); i < s.elemsize; i += sys.PtrSize {
++	size := s.elemsize
++	if s.state == _MSpanStack && size == 0 {
++		// We're printing something from a stack frame. We
++		// don't know how big it is, so just show up to an
++		// including off.
++		size = off + sys.PtrSize
++	}
++	for i := uintptr(0); i < size; i += sys.PtrSize {
+ 		// For big objects, just print the beginning (because
+ 		// that usually hints at the object's type) and the
+ 		// fields around off.
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 808f141946..cc2de012ff 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -111,6 +111,15 @@ const (
+ 	_MSpanDead
+ )
+ 
++// mSpanStateNames are the names of the span states, indexed by
++// mSpanState.
++var mSpanStateNames = []string{
++	"_MSpanInUse",
++	"_MSpanStack",
++	"_MSpanFree",
++	"_MSpanDead",
++}
++
+ // mSpanList heads a linked list of spans.
+ //
+ // Linked list structure is based on BSD's "tail queue" data structure.

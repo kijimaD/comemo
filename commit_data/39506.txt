@@ -14,6 +14,47 @@ Date:   Sun Mar 3 18:33:34 2019 +0100
     Change-Id: Ibf9dacd710e72886f14ad0b7415fea1e8d25b83a
     Reviewed-on: https://go-review.googlesource.com/c/164977
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.12.html | 22 +++++++++++-----------
  1 file changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index ec2783f479..2945eb1c43 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -611,17 +611,6 @@ for {
+ 
+ </dl><!-- io -->
+ 
+-<dl id="lib/time"><dt><a href="/pkg/lib/time/">lib/time</a></dt>
+-  <dd>
+-    <p><!-- CL 151299 -->
+-      The time zone database in <code>$GOROOT/lib/time/zoneinfo.zip</code>
+-      has been updated to version 2018i. Note that this ZIP file is
+-      only used if a time zone database is not provided by the operating
+-      system.
+-    </p>
+-
+-</dl><!-- lib/time -->
+-
+ <dl id="math"><dt><a href="/pkg/math/">math</a></dt>
+   <dd>
+     <p><!-- CL 153059 -->
+@@ -935,6 +924,17 @@ for {
+     </p>
+ </dl><!-- text/template -->
+ 
++<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
++  <dd>
++    <p><!-- CL 151299 -->
++      The time zone database in <code>$GOROOT/lib/time/zoneinfo.zip</code>
++      has been updated to version 2018i. Note that this ZIP file is
++      only used if a time zone database is not provided by the operating
++      system.
++    </p>
++
++</dl><!-- time -->
++
+ <dl id="unsafe"><dt><a href="/pkg/unsafe/">unsafe</a></dt>
+   <dd>
+     <p><!-- CL 146058 -->

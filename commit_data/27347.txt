@@ -70,7 +70,7 @@ Date:   Sun Mar 20 08:03:31 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/20959
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  16 +-
  src/cmd/compile/internal/gc/bexport.go   |   4 +-
  src/cmd/compile/internal/gc/cgen.go      |   8 +-
@@ -94,3 +94,6039 @@ Date:   Sun Mar 20 08:03:31 2016 -0700
  src/cmd/compile/internal/gc/unsafe.go    |   8 +-
  src/cmd/compile/internal/gc/walk.go      | 535 +++++++++++++-------------
  22 files changed, 971 insertions(+), 942 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 460c538977..d07a1529d0 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -186,7 +186,7 @@ func genhash(sym *Sym, t *Type) {
+ 	tfn.Rlist.Append(n)
+ 
+ 	funchdr(fn)
+-	typecheck(&fn.Func.Nname.Name.Param.Ntype, Etype)
++	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, Etype)
+ 
+ 	// genhash is only called for types that have equality but
+ 	// cannot be handled by the standard algorithms,
+@@ -281,7 +281,7 @@ func genhash(sym *Sym, t *Type) {
+ 	funcbody(fn)
+ 	Curfn = fn
+ 	fn.Func.Dupok = true
+-	typecheck(&fn, Etop)
++	fn = typecheck(fn, Etop)
+ 	typecheckslice(fn.Nbody.Slice(), Etop)
+ 	Curfn = nil
+ 	popdcl()
+@@ -331,7 +331,7 @@ func hashfor(t *Type) *Node {
+ 	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+ 	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+ 	tfn.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+-	typecheck(&tfn, Etype)
++	tfn = typecheck(tfn, Etype)
+ 	n.Type = tfn.Type
+ 	return n
+ }
+@@ -365,7 +365,7 @@ func geneq(sym *Sym, t *Type) {
+ 	tfn.Rlist.Append(n)
+ 
+ 	funchdr(fn)
+-	typecheck(&fn.Func.Nname.Name.Param.Ntype, Etype)
++	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, Etype)
+ 
+ 	// geneq is only called for types that have equality but
+ 	// cannot be handled by the standard algorithms,
+@@ -474,7 +474,7 @@ func geneq(sym *Sym, t *Type) {
+ 	funcbody(fn)
+ 	Curfn = fn
+ 	fn.Func.Dupok = true
+-	typecheck(&fn, Etop)
++	fn = typecheck(fn, Etop)
+ 	typecheckslice(fn.Nbody.Slice(), Etop)
+ 	Curfn = nil
+ 	popdcl()
+@@ -516,8 +516,8 @@ func eqmem(p *Node, q *Node, field *Sym, size int64) *Node {
+ 	nx.Etype = 1 // does not escape
+ 	ny := Nod(OADDR, NodSym(OXDOT, q, field), nil)
+ 	ny.Etype = 1 // does not escape
+-	typecheck(&nx, Erv)
+-	typecheck(&ny, Erv)
++	nx = typecheck(nx, Erv)
++	ny = typecheck(ny, Erv)
+ 
+ 	fn, needsize := eqmemfunc(size, nx.Type.Type)
+ 	call := Nod(OCALL, fn, nil)
+@@ -540,7 +540,7 @@ func eqmemfunc(size int64, t *Type) (fn *Node, needsize bool) {
+ 		fn = syslook(buf)
+ 	}
+ 
+-	substArgTypes(&fn, t, t)
++	fn = substArgTypes(fn, t, t)
+ 	return fn, needsize
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index ece2d60a24..4457ff31ba 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -193,7 +193,7 @@ func Export(out *obj.Biobuf, trace bool) int {
+ 			switch n := sym.Def; n.Op {
+ 			case OLITERAL:
+ 				// constant
+-				typecheck(&n, Erv)
++				n = typecheck(n, Erv)
+ 				if n == nil || n.Op != OLITERAL {
+ 					Fatalf("exporter: dumpexportconst: oconst nil: %v", sym)
+ 				}
+@@ -201,7 +201,7 @@ func Export(out *obj.Biobuf, trace bool) int {
+ 
+ 			case ONAME:
+ 				// variable or function
+-				typecheck(&n, Erv|Ecall)
++				n = typecheck(n, Erv|Ecall)
+ 				if n == nil || n.Type == nil {
+ 					Fatalf("exporter: variable/function exported but not defined: %v", sym)
+ 				}
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 3a204dc64c..b22e82a347 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -391,7 +391,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 	case OMINUS:
+ 		if Isfloat[nl.Type.Etype] {
+ 			nr = Nodintconst(-1)
+-			convlit(&nr, n.Type)
++			nr = convlit(nr, n.Type)
+ 			a = Thearch.Optoas(OMUL, nl.Type)
+ 			goto sbop
+ 		}
+@@ -803,7 +803,7 @@ func cgen_wbptr(n, res *Node) {
+ 
+ 	wbVar := syslook("writeBarrier")
+ 	wbEnabled := NodSym(ODOT, wbVar, wbVar.Type.Field(0).Sym)
+-	wbEnabled = typecheck(&wbEnabled, Erv)
++	wbEnabled = typecheck(wbEnabled, Erv)
+ 	pbr := Thearch.Ginscmp(ONE, Types[TUINT8], wbEnabled, Nodintconst(0), -1)
+ 	Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, &dst)
+ 	pjmp := Gbranch(obj.AJMP, nil, 0)
+@@ -1784,7 +1784,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	Genlist(n.Ninit)
+ 
+ 	if n.Type == nil {
+-		convlit(&n, Types[TBOOL])
++		n = convlit(n, Types[TBOOL])
+ 		if n.Type == nil {
+ 			return
+ 		}
+@@ -2866,7 +2866,7 @@ func cgen_append(n, res *Node) {
+ 	Regfree(&rlen)
+ 
+ 	fn := syslook("growslice")
+-	substArgTypes(&fn, res.Type.Type, res.Type.Type)
++	fn = substArgTypes(fn, res.Type.Type, res.Type.Type)
+ 	Ginscall(fn, 0)
+ 
+ 	if Widthptr == 4 && Widthreg == 8 {
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index e8db234db1..46b263fb8e 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -97,7 +97,7 @@ func typecheckclosure(func_ *Node, top int) {
+ 	}
+ 
+ 	oldfn := Curfn
+-	typecheck(&func_.Func.Ntype, Etype)
++	func_.Func.Ntype = typecheck(func_.Func.Ntype, Etype)
+ 	func_.Type = func_.Func.Ntype.Type
+ 	func_.Func.Top = top
+ 
+@@ -197,7 +197,7 @@ func makeclosure(func_ *Node) *Node {
+ 	if len(xfunc.Nbody.Slice()) == 0 {
+ 		Fatalf("empty body - won't generate any code")
+ 	}
+-	typecheck(&xfunc, Etop)
++	xfunc = typecheck(xfunc, Etop)
+ 
+ 	xfunc.Func.Closure = func_
+ 	func_.Func.Closure = xfunc
+@@ -262,7 +262,7 @@ func capturevars(xfunc *Node) {
+ 			Warnl(v.Lineno, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, v.Name.Param.Closure.Addrtaken, v.Name.Param.Closure.Assigned, int32(v.Type.Width))
+ 		}
+ 
+-		typecheck(&outer, Erv)
++		outer = typecheck(outer, Erv)
+ 		func_.Func.Enter.Append(outer)
+ 	}
+ 
+@@ -442,7 +442,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
+ 
+ 	clos.Type = func_.Type
+ 
+-	typecheck(&clos, Erv)
++	clos = typecheck(clos, Erv)
+ 
+ 	// typecheck will insert a PTRLIT node under CONVNOP,
+ 	// tag it with escape analysis result.
+@@ -457,7 +457,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
+ 		delete(prealloc, func_)
+ 	}
+ 
+-	walkexpr(&clos, init)
++	clos = walkexpr(clos, init)
+ 
+ 	return clos
+ }
+@@ -608,7 +608,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+ 
+ 	xfunc.Nbody.Set(body)
+ 
+-	typecheck(&xfunc, Etop)
++	xfunc = typecheck(xfunc, Etop)
+ 	sym.Def = xfunc
+ 	xtop = append(xtop, xfunc)
+ 	Curfn = savecurfn
+@@ -647,7 +647,7 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
+ 
+ 	clos.Type = n.Type
+ 
+-	typecheck(&clos, Erv)
++	clos = typecheck(clos, Erv)
+ 
+ 	// typecheck will insert a PTRLIT node under CONVNOP,
+ 	// tag it with escape analysis result.
+@@ -662,7 +662,7 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
+ 		delete(prealloc, n)
+ 	}
+ 
+-	walkexpr(&clos, init)
++	clos = walkexpr(clos, init)
+ 
+ 	return clos
+ }
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 876ad130fd..a1271163ab 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -91,33 +91,35 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
+ // NegOne returns a Node of type t with value -1.
+ func NegOne(t *Type) *Node {
+ 	n := Nodintconst(-1)
+-	convlit(&n, t)
++	n = convlit(n, t)
+ 	return n
+ }
+ 
+ // convert n, if literal, to type t.
+ // implicit conversion.
+-func convlit(np **Node, t *Type) {
+-	convlit1(np, t, false)
++// The result of convlit MUST be assigned back to n, e.g.
++// 	n.Left = convlit(n.Left, t)
++func convlit(n *Node, t *Type) *Node {
++	return convlit1(n, t, false)
+ }
+ 
+ // convert n, if literal, to type t.
+ // return a new node if necessary
+-//(if n is a named constant, can't edit n->type directly).
+-func convlit1(np **Node, t *Type, explicit bool) {
+-	n := *np
++// (if n is a named constant, can't edit n->type directly).
++// The result of convlit1 MUST be assigned back to n, e.g.
++// 	n.Left = convlit1(n.Left, t, explicit)
++func convlit1(n *Node, t *Type, explicit bool) *Node {
+ 	if n == nil || t == nil || n.Type == nil || isideal(t) || n.Type == t {
+-		return
++		return n
+ 	}
+ 	if !explicit && !isideal(n.Type) {
+-		return
++		return n
+ 	}
+ 
+ 	if n.Op == OLITERAL {
+ 		nn := Nod(OXXX, nil, nil)
+ 		*nn = *n
+ 		n = nn
+-		*np = n
+ 	}
+ 
+ 	switch n.Op {
+@@ -131,23 +133,22 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 		}
+ 
+ 		if n.Type.Etype == TIDEAL {
+-			convlit(&n.Left, t)
+-			convlit(&n.Right, t)
++			n.Left = convlit(n.Left, t)
++			n.Right = convlit(n.Right, t)
+ 			n.Type = t
+ 		}
+ 
+-		return
++		return n
+ 
+ 		// target is invalid type for a constant?  leave alone.
+ 	case OLITERAL:
+ 		if !okforconst[t.Etype] && n.Type.Etype != TNIL {
+-			defaultlit(&n, nil)
+-			*np = n
+-			return
++			n = defaultlit(n, nil)
++			return n
+ 		}
+ 
+ 	case OLSH, ORSH:
+-		convlit1(&n.Left, t, explicit && isideal(n.Left.Type))
++		n.Left = convlit1(n.Left, t, explicit && isideal(n.Left.Type))
+ 		t = n.Left.Type
+ 		if t != nil && t.Etype == TIDEAL && n.Val().Ctype() != CTINT {
+ 			n.SetVal(toint(n.Val()))
+@@ -158,7 +159,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 		}
+ 
+ 		n.Type = t
+-		return
++		return n
+ 
+ 	case OCOMPLEX:
+ 		if n.Type.Etype == TIDEAL {
+@@ -173,22 +174,22 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 			case TCOMPLEX128:
+ 				n.Type = t
+ 
+-				convlit(&n.Left, Types[TFLOAT64])
+-				convlit(&n.Right, Types[TFLOAT64])
++				n.Left = convlit(n.Left, Types[TFLOAT64])
++				n.Right = convlit(n.Right, Types[TFLOAT64])
+ 
+ 			case TCOMPLEX64:
+ 				n.Type = t
+-				convlit(&n.Left, Types[TFLOAT32])
+-				convlit(&n.Right, Types[TFLOAT32])
++				n.Left = convlit(n.Left, Types[TFLOAT32])
++				n.Right = convlit(n.Right, Types[TFLOAT32])
+ 			}
+ 		}
+ 
+-		return
++		return n
+ 	}
+ 
+ 	// avoided repeated calculations, errors
+ 	if Eqtype(n.Type, t) {
+-		return
++		return n
+ 	}
+ 
+ 	ct := consttype(n)
+@@ -201,11 +202,11 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 	if et == TINTER {
+ 		if ct == CTNIL && n.Type == Types[TNIL] {
+ 			n.Type = t
+-			return
++			return n
+ 		}
+ 
+-		defaultlit(np, nil)
+-		return
++		n = defaultlit(n, nil)
++		return n
+ 	}
+ 
+ 	switch ct {
+@@ -220,7 +221,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 
+ 			// let normal conversion code handle it
+ 		case TSTRING:
+-			return
++			return n
+ 
+ 		case TARRAY:
+ 			if !Isslice(t) {
+@@ -301,7 +302,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 	}
+ 
+ 	n.Type = t
+-	return
++	return n
+ 
+ bad:
+ 	if n.Diag == 0 {
+@@ -312,9 +313,9 @@ bad:
+ 	}
+ 
+ 	if isideal(n.Type) {
+-		defaultlit(&n, nil)
+-		*np = n
++		n = defaultlit(n, nil)
+ 	}
++	return n
+ }
+ 
+ func copyval(v Val) Val {
+@@ -667,7 +668,7 @@ func evconst(n *Node) {
+ 			OCONV_ | CTFLT_,
+ 			OCONV_ | CTSTR_,
+ 			OCONV_ | CTBOOL_:
+-			convlit1(&nl, n.Type, true)
++			nl = convlit1(nl, n.Type, true)
+ 
+ 			v = nl.Val()
+ 
+@@ -748,12 +749,12 @@ func evconst(n *Node) {
+ 	// ideal const mixes with anything but otherwise must match.
+ 	default:
+ 		if nl.Type.Etype != TIDEAL {
+-			defaultlit(&nr, nl.Type)
++			nr = defaultlit(nr, nl.Type)
+ 			n.Right = nr
+ 		}
+ 
+ 		if nr.Type.Etype != TIDEAL {
+-			defaultlit(&nl, nr.Type)
++			nl = defaultlit(nl, nr.Type)
+ 			n.Left = nl
+ 		}
+ 
+@@ -764,7 +765,7 @@ func evconst(n *Node) {
+ 		// right must be unsigned.
+ 	// left can be ideal.
+ 	case OLSH, ORSH:
+-		defaultlit(&nr, Types[TUINT])
++		nr = defaultlit(nr, Types[TUINT])
+ 
+ 		n.Right = nr
+ 		if nr.Type != nil && (Issigned[nr.Type.Etype] || !Isint[nr.Type.Etype]) {
+@@ -1244,17 +1245,17 @@ func idealkind(n *Node) Ctype {
+ 	}
+ }
+ 
+-func defaultlit(np **Node, t *Type) {
+-	n := *np
++// The result of defaultlit MUST be assigned back to n, e.g.
++// 	n.Left = defaultlit(n.Left, t)
++func defaultlit(n *Node, t *Type) *Node {
+ 	if n == nil || !isideal(n.Type) {
+-		return
++		return n
+ 	}
+ 
+ 	if n.Op == OLITERAL {
+ 		nn := Nod(OXXX, nil, nil)
+ 		*nn = *n
+ 		n = nn
+-		*np = n
+ 	}
+ 
+ 	lno := setlineno(n)
+@@ -1263,8 +1264,8 @@ func defaultlit(np **Node, t *Type) {
+ 	switch ctype {
+ 	default:
+ 		if t != nil {
+-			convlit(np, t)
+-			return
++			n = convlit(n, t)
++			return n
+ 		}
+ 
+ 		if n.Val().Ctype() == CTNIL {
+@@ -1280,7 +1281,7 @@ func defaultlit(np **Node, t *Type) {
+ 
+ 		if n.Val().Ctype() == CTSTR {
+ 			t1 := Types[TSTRING]
+-			convlit(np, t1)
++			n = convlit(n, t1)
+ 			break
+ 		}
+ 
+@@ -1294,7 +1295,7 @@ func defaultlit(np **Node, t *Type) {
+ 		if t != nil && t.Etype == TBOOL {
+ 			t1 = t
+ 		}
+-		convlit(np, t1)
++		n = convlit(n, t1)
+ 
+ 	case CTINT:
+ 		t1 = Types[TINT]
+@@ -1314,7 +1315,7 @@ func defaultlit(np **Node, t *Type) {
+ 	}
+ 
+ 	lineno = lno
+-	return
++	return n
+ 
+ num:
+ 	// Note: n.Val().Ctype() can be CTxxx (not a constant) here
+@@ -1339,62 +1340,64 @@ num:
+ 	if n.Val().Ctype() != CTxxx {
+ 		overflow(n.Val(), t1)
+ 	}
+-	convlit(np, t1)
++	n = convlit(n, t1)
+ 	lineno = lno
+-	return
++	return n
+ }
+ 
+ // defaultlit on both nodes simultaneously;
+ // if they're both ideal going in they better
+ // get the same type going out.
+ // force means must assign concrete (non-ideal) type.
+-func defaultlit2(lp **Node, rp **Node, force bool) {
+-	l := *lp
+-	r := *rp
++// The results of defaultlit2 MUST be assigned back to l and r, e.g.
++// 	n.Left, n.Right = defaultlit2(n.Left, n.Right, force)
++func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
+ 	if l.Type == nil || r.Type == nil {
+-		return
++		return l, r
+ 	}
+ 	if !isideal(l.Type) {
+-		convlit(rp, l.Type)
+-		return
++		r = convlit(r, l.Type)
++		return l, r
+ 	}
+ 
+ 	if !isideal(r.Type) {
+-		convlit(lp, r.Type)
+-		return
++		l = convlit(l, r.Type)
++		return l, r
+ 	}
+ 
+ 	if !force {
+-		return
++		return l, r
+ 	}
+ 
+ 	if l.Type.Etype == TBOOL {
+-		convlit(lp, Types[TBOOL])
+-		convlit(rp, Types[TBOOL])
++		l = convlit(l, Types[TBOOL])
++		r = convlit(r, Types[TBOOL])
+ 	}
+ 
+ 	lkind := idealkind(l)
+ 	rkind := idealkind(r)
+ 	if lkind == CTCPLX || rkind == CTCPLX {
+-		convlit(lp, Types[TCOMPLEX128])
+-		convlit(rp, Types[TCOMPLEX128])
+-		return
++		l = convlit(l, Types[TCOMPLEX128])
++		r = convlit(r, Types[TCOMPLEX128])
++		return l, r
+ 	}
+ 
+ 	if lkind == CTFLT || rkind == CTFLT {
+-		convlit(lp, Types[TFLOAT64])
+-		convlit(rp, Types[TFLOAT64])
+-		return
++		l = convlit(l, Types[TFLOAT64])
++		r = convlit(r, Types[TFLOAT64])
++		return l, r
+ 	}
+ 
+ 	if lkind == CTRUNE || rkind == CTRUNE {
+-		convlit(lp, runetype)
+-		convlit(rp, runetype)
+-		return
++		l = convlit(l, runetype)
++		r = convlit(r, runetype)
++		return l, r
+ 	}
+ 
+-	convlit(lp, Types[TINT])
+-	convlit(rp, Types[TINT])
++	l = convlit(l, Types[TINT])
++	r = convlit(r, Types[TINT])
++
++	return l, r
+ }
+ 
+ // strlit returns the value of a literal string Node as a string.
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 0107d437b1..e06720728d 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -750,7 +750,7 @@ func structfield(n *Node) *Field {
+ 	f.Isddd = n.Isddd
+ 
+ 	if n.Right != nil {
+-		typecheck(&n.Right, Etype)
++		n.Right = typecheck(n.Right, Etype)
+ 		n.Type = n.Right.Type
+ 		if n.Left != nil {
+ 			n.Left.Type = n.Type
+@@ -904,7 +904,7 @@ func interfacefield(n *Node) *Field {
+ 				f.Sym = f.Nname.Sym
+ 			}
+ 		} else {
+-			typecheck(&n.Right, Etype)
++			n.Right = typecheck(n.Right, Etype)
+ 			n.Type = n.Right.Type
+ 
+ 			if n.Embedded != 0 {
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 19fc6330e2..31ba300d7f 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -912,7 +912,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 				a = Nod(OADDR, a, nil)
+ 				a.Lineno = v.Lineno
+ 				e.nodeEscState(a).Escloopdepth = e.loopdepth
+-				typecheck(&a, Erv)
++				a = typecheck(a, Erv)
+ 			}
+ 
+ 			escassignNilWhy(e, n, a, "captured by a closure")
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index db46d6b6ce..d1ec784e93 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -226,7 +226,7 @@ func reexportdep(n *Node) {
+ 
+ func dumpexportconst(s *Sym) {
+ 	n := s.Def
+-	typecheck(&n, Erv)
++	n = typecheck(n, Erv)
+ 	if n == nil || n.Op != OLITERAL {
+ 		Fatalf("dumpexportconst: oconst nil: %v", s)
+ 	}
+@@ -243,7 +243,7 @@ func dumpexportconst(s *Sym) {
+ 
+ func dumpexportvar(s *Sym) {
+ 	n := s.Def
+-	typecheck(&n, Erv|Ecall)
++	n = typecheck(n, Erv|Ecall)
+ 	if n == nil || n.Type == nil {
+ 		Yyerror("variable exported but not defined: %v", s)
+ 		return
+@@ -511,7 +511,7 @@ func importimport(s *Sym, path string) {
+ 
+ func importconst(s *Sym, t *Type, n *Node) {
+ 	importsym(s, OLITERAL)
+-	convlit(&n, t)
++	n = convlit(n, t)
+ 
+ 	if s.Def != nil { // TODO: check if already the same.
+ 		return
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 345d8eb480..d355a46557 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -177,7 +177,7 @@ func fninit(n []*Node) {
+ 	funcbody(fn)
+ 
+ 	Curfn = fn
+-	typecheck(&fn, Etop)
++	fn = typecheck(fn, Etop)
+ 	typecheckslice(r, Etop)
+ 	Curfn = nil
+ 	funccompile(fn)
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 890eeade5f..fa4dfb33f2 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -269,7 +269,7 @@ func inlcopy(n *Node) *Node {
+ func inlcalls(fn *Node) {
+ 	savefn := Curfn
+ 	Curfn = fn
+-	inlnode(&fn)
++	fn = inlnode(fn)
+ 	if fn != Curfn {
+ 		Fatalf("inlnode replaced curfn")
+ 	}
+@@ -288,11 +288,12 @@ func inlconv2stmt(n *Node) {
+ }
+ 
+ // Turn an OINLCALL into a single valued expression.
+-func inlconv2expr(np **Node) {
+-	n := *np
++// The result of inlconv2expr MUST be assigned back to n, e.g.
++// 	n.Left = inlconv2expr(n.Left)
++func inlconv2expr(n *Node) *Node {
+ 	r := n.Rlist.First()
+-	addinit(&r, append(n.Ninit.Slice(), n.Nbody.Slice()...))
+-	*np = r
++	r = addinit(r, append(n.Ninit.Slice(), n.Nbody.Slice()...))
++	return r
+ }
+ 
+ // Turn the rlist (with the return values) of the OINLCALL in
+@@ -306,14 +307,14 @@ func inlconv2list(n *Node) []*Node {
+ 	}
+ 
+ 	s := n.Rlist.Slice()
+-	addinit(&s[0], append(n.Ninit.Slice(), n.Nbody.Slice()...))
++	s[0] = addinit(s[0], append(n.Ninit.Slice(), n.Nbody.Slice()...))
+ 	return s
+ }
+ 
+ func inlnodelist(l Nodes) {
+ 	s := l.Slice()
+ 	for i := range s {
+-		inlnode(&s[i])
++		s[i] = inlnode(s[i])
+ 	}
+ }
+ 
+@@ -328,13 +329,13 @@ func inlnodelist(l Nodes) {
+ // have to edit /this/ n, so you'd have to push that one down as well,
+ // but then you may as well do it here.  so this is cleaner and
+ // shorter and less complicated.
+-func inlnode(np **Node) {
+-	if *np == nil {
+-		return
++// The result of inlnode MUST be assigned back to n, e.g.
++// 	n.Left = inlnode(n.Left)
++func inlnode(n *Node) *Node {
++	if n == nil {
++		return n
+ 	}
+ 
+-	n := *np
+-
+ 	switch n.Op {
+ 	// inhibit inlining of their argument
+ 	case ODEFER, OPROC:
+@@ -348,7 +349,7 @@ func inlnode(np **Node) {
+ 		// TODO do them here (or earlier),
+ 	// so escape analysis can avoid more heapmoves.
+ 	case OCLOSURE:
+-		return
++		return n
+ 	}
+ 
+ 	lno := setlineno(n)
+@@ -360,17 +361,17 @@ func inlnode(np **Node) {
+ 		}
+ 	}
+ 
+-	inlnode(&n.Left)
++	n.Left = inlnode(n.Left)
+ 	if n.Left != nil && n.Left.Op == OINLCALL {
+-		inlconv2expr(&n.Left)
++		n.Left = inlconv2expr(n.Left)
+ 	}
+ 
+-	inlnode(&n.Right)
++	n.Right = inlnode(n.Right)
+ 	if n.Right != nil && n.Right.Op == OINLCALL {
+ 		if n.Op == OFOR {
+ 			inlconv2stmt(n.Right)
+ 		} else {
+-			inlconv2expr(&n.Right)
++			n.Right = inlconv2expr(n.Right)
+ 		}
+ 	}
+ 
+@@ -401,7 +402,7 @@ func inlnode(np **Node) {
+ 		s := n.List.Slice()
+ 		for i1, n1 := range s {
+ 			if n1.Op == OINLCALL {
+-				inlconv2expr(&s[i1])
++				s[i1] = inlconv2expr(s[i1])
+ 			}
+ 		}
+ 	}
+@@ -413,7 +414,7 @@ func inlnode(np **Node) {
+ 			n.Rlist.Set(inlconv2list(n.Rlist.First()))
+ 			n.Op = OAS2
+ 			n.Typecheck = 0
+-			typecheck(np, Etop)
++			n = typecheck(n, Etop)
+ 			break
+ 		}
+ 		fallthrough
+@@ -425,7 +426,7 @@ func inlnode(np **Node) {
+ 				if n.Op == OIF {
+ 					inlconv2stmt(n1)
+ 				} else {
+-					inlconv2expr(&s[i1])
++					s[i1] = inlconv2expr(s[i1])
+ 				}
+ 			}
+ 		}
+@@ -445,7 +446,7 @@ func inlnode(np **Node) {
+ 	case OCALLFUNC, OCALLMETH:
+ 		// TODO(marvin): Fix Node.EType type union.
+ 		if n.Etype == EType(OPROC) || n.Etype == EType(ODEFER) {
+-			return
++			return n
+ 		}
+ 	}
+ 
+@@ -455,10 +456,10 @@ func inlnode(np **Node) {
+ 			fmt.Printf("%v:call to func %v\n", n.Line(), Nconv(n.Left, FmtSign))
+ 		}
+ 		if n.Left.Func != nil && len(n.Left.Func.Inl.Slice()) != 0 { // normal case
+-			mkinlcall(np, n.Left, n.Isddd)
++			n = mkinlcall(n, n.Left, n.Isddd)
+ 		} else if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
+ 			if n.Left.Sym.Def != nil {
+-				mkinlcall(np, n.Left.Sym.Def, n.Isddd)
++				n = mkinlcall(n, n.Left.Sym.Def, n.Isddd)
+ 			}
+ 		}
+ 
+@@ -476,13 +477,16 @@ func inlnode(np **Node) {
+ 			Fatalf("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, FmtSign))
+ 		}
+ 
+-		mkinlcall(np, n.Left.Type.Nname, n.Isddd)
++		n = mkinlcall(n, n.Left.Type.Nname, n.Isddd)
+ 	}
+ 
+ 	lineno = lno
++	return n
+ }
+ 
+-func mkinlcall(np **Node, fn *Node, isddd bool) {
++// The result of mkinlcall MUST be assigned back to n, e.g.
++// 	n.Left = mkinlcall(n.Left, fn, isddd)
++func mkinlcall(n *Node, fn *Node, isddd bool) *Node {
+ 	save_safemode := safemode
+ 
+ 	// imported functions may refer to unsafe as long as the
+@@ -492,8 +496,9 @@ func mkinlcall(np **Node, fn *Node, isddd bool) {
+ 	if pkg != localpkg && pkg != nil {
+ 		safemode = 0
+ 	}
+-	mkinlcall1(np, fn, isddd)
++	n = mkinlcall1(n, fn, isddd)
+ 	safemode = save_safemode
++	return n
+ }
+ 
+ func tinlvar(t *Field) *Node {
+@@ -504,7 +509,7 @@ func tinlvar(t *Field) *Node {
+ 		return t.Nname.Name.Inlvar
+ 	}
+ 
+-	typecheck(&nblank, Erv|Easgn)
++	nblank = typecheck(nblank, Erv|Easgn)
+ 	return nblank
+ }
+ 
+@@ -514,22 +519,22 @@ var inlgen int
+ // On return ninit has the parameter assignments, the nbody is the
+ // inlined function body and list, rlist contain the input, output
+ // parameters.
+-func mkinlcall1(np **Node, fn *Node, isddd bool) {
++// The result of mkinlcall1 MUST be assigned back to n, e.g.
++// 	n.Left = mkinlcall1(n.Left, fn, isddd)
++func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 	// For variadic fn.
+ 	if len(fn.Func.Inl.Slice()) == 0 {
+-		return
++		return n
+ 	}
+ 
+ 	if fn == Curfn || fn.Name.Defn == Curfn {
+-		return
++		return n
+ 	}
+ 
+ 	if Debug['l'] < 2 {
+ 		typecheckinl(fn)
+ 	}
+ 
+-	n := *np
+-
+ 	// Bingo, we have a function node, and it has an inlineable body
+ 	if Debug['m'] > 1 {
+ 		fmt.Printf("%v: inlining call to %v %v { %v }\n", n.Line(), fn.Sym, Tconv(fn.Type, FmtSharp), Hconv(fn.Func.Inl, FmtSharp))
+@@ -566,7 +571,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 			ln.Name.Inlvar = inlvar(ln)
+ 
+ 			// Typecheck because inlvar is not necessarily a function parameter.
+-			typecheck(&ln.Name.Inlvar, Erv)
++			ln.Name.Inlvar = typecheck(ln.Name.Inlvar, Erv)
+ 
+ 			if ln.Class&^PHEAP != PAUTO {
+ 				ninit.Append(Nod(ODCL, ln.Name.Inlvar, nil)) // otherwise gen won't emit the allocations for heapallocs
+@@ -579,7 +584,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	for _, t := range fn.Type.Results().Fields().Slice() {
+ 		if t != nil && t.Nname != nil && !isblank(t.Nname) {
+ 			m = inlvar(t.Nname)
+-			typecheck(&m, Erv)
++			m = typecheck(m, Erv)
+ 			t.Nname.Name.Inlvar = m
+ 		} else {
+ 			// anonymous return values, synthesize names for use in assignment that replaces return
+@@ -607,7 +612,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 		}
+ 		as := Nod(OAS, tinlvar(t), n.Left.Left)
+ 		if as != nil {
+-			typecheck(&as, Etop)
++			as = typecheck(as, Etop)
+ 			ninit.Append(as)
+ 		}
+ 	}
+@@ -734,7 +739,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	}
+ 
+ 	if as.Rlist.Len() != 0 {
+-		typecheck(&as, Etop)
++		as = typecheck(as, Etop)
+ 		ninit.Append(as)
+ 	}
+ 
+@@ -754,14 +759,14 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 			as.Right = Nod(OSLICE, as.Right, Nod(OKEY, nil, nil))
+ 		}
+ 
+-		typecheck(&as, Etop)
++		as = typecheck(as, Etop)
+ 		ninit.Append(as)
+ 	}
+ 
+ 	// zero the outparams
+ 	for _, n := range retvars {
+ 		as = Nod(OAS, n, nil)
+-		typecheck(&as, Etop)
++		as = typecheck(as, Etop)
+ 		ninit.Append(as)
+ 	}
+ 
+@@ -801,7 +806,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 
+ 	//dumplist("call body", body);
+ 
+-	*np = call
++	n = call
+ 
+ 	// transitive inlining
+ 	// might be nice to do this before exporting the body,
+@@ -820,8 +825,10 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	fn.Func.Inl.Set(body)
+ 
+ 	if Debug['m'] > 2 {
+-		fmt.Printf("%v: After inlining %v\n\n", n.Line(), Nconv(*np, FmtSign))
++		fmt.Printf("%v: After inlining %v\n\n", n.Line(), Nconv(n, FmtSign))
+ 	}
++
++	return n
+ }
+ 
+ // Every time we expand a function we generate a new set of tmpnames,
+@@ -945,12 +952,12 @@ func (subst *inlsubst) node(n *Node) *Node {
+ 				as.List.Append(n)
+ 			}
+ 			as.Rlist.Set(subst.list(n.List))
+-			typecheck(&as, Etop)
++			as = typecheck(as, Etop)
+ 			m.Ninit.Append(as)
+ 		}
+ 
+ 		typecheckslice(m.Ninit.Slice(), Etop)
+-		typecheck(&m, Etop)
++		m = typecheck(m, Etop)
+ 
+ 		//		dump("Return after substitution", m);
+ 		return m
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index e7011646c3..92589a8e0e 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -371,7 +371,7 @@ func Main() {
+ 	// Don't use range--typecheck can add closures to xtop.
+ 	for i := 0; i < len(xtop); i++ {
+ 		if xtop[i].Op != ODCL && xtop[i].Op != OAS && xtop[i].Op != OAS2 {
+-			typecheck(&xtop[i], Etop)
++			xtop[i] = typecheck(xtop[i], Etop)
+ 		}
+ 	}
+ 
+@@ -381,7 +381,7 @@ func Main() {
+ 	// Don't use range--typecheck can add closures to xtop.
+ 	for i := 0; i < len(xtop); i++ {
+ 		if xtop[i].Op == ODCL || xtop[i].Op == OAS || xtop[i].Op == OAS2 {
+-			typecheck(&xtop[i], Etop)
++			xtop[i] = typecheck(xtop[i], Etop)
+ 		}
+ 	}
+ 	resumecheckwidth()
+@@ -488,7 +488,7 @@ func Main() {
+ 	// Phase 9: Check external declarations.
+ 	for i, n := range externdcl {
+ 		if n.Op == ONAME {
+-			typecheck(&externdcl[i], Erv)
++			externdcl[i] = typecheck(externdcl[i], Erv)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index fa2cea7fbf..95802835c0 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -63,7 +63,7 @@ func ordertemp(t *Type, order *Order, clear bool) *Node {
+ 	var_ := temp(t)
+ 	if clear {
+ 		a := Nod(OAS, var_, nil)
+-		typecheck(&a, Etop)
++		a = typecheck(a, Etop)
+ 		order.out = append(order.out, a)
+ 	}
+ 
+@@ -86,7 +86,7 @@ func ordertemp(t *Type, order *Order, clear bool) *Node {
+ func ordercopyexpr(n *Node, t *Type, order *Order, clear int) *Node {
+ 	var_ := ordertemp(t, order, clear != 0)
+ 	a := Nod(OAS, var_, n)
+-	typecheck(&a, Etop)
++	a = typecheck(a, Etop)
+ 	order.out = append(order.out, a)
+ 	return var_
+ }
+@@ -111,7 +111,7 @@ func ordercheapexpr(n *Node, order *Order) *Node {
+ 		*a = *n
+ 		a.Orig = a
+ 		a.Left = l
+-		typecheck(&a, Erv)
++		a = typecheck(a, Erv)
+ 		return a
+ 	}
+ 
+@@ -139,7 +139,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
+ 		*a = *n
+ 		a.Orig = a
+ 		a.Left = l
+-		typecheck(&a, Erv)
++		a = typecheck(a, Erv)
+ 		return a
+ 
+ 	case ODOTPTR, OIND:
+@@ -151,7 +151,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
+ 		*a = *n
+ 		a.Orig = a
+ 		a.Left = l
+-		typecheck(&a, Erv)
++		a = typecheck(a, Erv)
+ 		return a
+ 
+ 	case OINDEX, OINDEXMAP:
+@@ -170,7 +170,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
+ 		a.Orig = a
+ 		a.Left = l
+ 		a.Right = r
+-		typecheck(&a, Erv)
++		a = typecheck(a, Erv)
+ 		return a
+ 	}
+ 
+@@ -199,12 +199,11 @@ func isaddrokay(n *Node) bool {
+ // Orderaddrtemp ensures that *np is okay to pass by address to runtime routines.
+ // If the original argument *np is not okay, orderaddrtemp creates a tmp, emits
+ // tmp = *np, and then sets *np to the tmp variable.
+-func orderaddrtemp(np **Node, order *Order) {
+-	n := *np
++func orderaddrtemp(n *Node, order *Order) *Node {
+ 	if isaddrokay(n) {
+-		return
++		return n
+ 	}
+-	*np = ordercopyexpr(n, n.Type, order, 0)
++	return ordercopyexpr(n, n.Type, order, 0)
+ }
+ 
+ type ordermarker int
+@@ -232,11 +231,11 @@ func cleantempnopop(mark ordermarker, order *Order, out *[]*Node) {
+ 			n.Name.Keepalive = false
+ 			n.Addrtaken = true // ensure SSA keeps the n variable
+ 			kill = Nod(OVARLIVE, n, nil)
+-			typecheck(&kill, Etop)
++			kill = typecheck(kill, Etop)
+ 			*out = append(*out, kill)
+ 		}
+ 		kill = Nod(OVARKILL, n, nil)
+-		typecheck(&kill, Etop)
++		kill = typecheck(kill, Etop)
+ 		*out = append(*out, kill)
+ 	}
+ }
+@@ -277,28 +276,29 @@ func orderblockNodes(n *Nodes) {
+ 
+ // Orderexprinplace orders the side effects in *np and
+ // leaves them as the init list of the final *np.
+-func orderexprinplace(np **Node, outer *Order) {
+-	n := *np
++// The result of orderexprinplace MUST be assigned back to n, e.g.
++// 	n.Left = orderexprinplace(n.Left, outer)
++func orderexprinplace(n *Node, outer *Order) *Node {
+ 	var order Order
+-	orderexpr(&n, &order, nil)
+-	addinit(&n, order.out)
++	n = orderexpr(n, &order, nil)
++	n = addinit(n, order.out)
+ 
+ 	// insert new temporaries from order
+ 	// at head of outer list.
+ 	outer.temp = append(outer.temp, order.temp...)
+-
+-	*np = n
++	return n
+ }
+ 
+ // Orderstmtinplace orders the side effects of the single statement *np
+ // and replaces it with the resulting statement list.
+-func orderstmtinplace(np **Node) {
+-	n := *np
++// The result of orderstmtinplace MUST be assigned back to n, e.g.
++// 	n.Left = orderstmtinplace(n.Left)
++func orderstmtinplace(n *Node) *Node {
+ 	var order Order
+ 	mark := marktemp(&order)
+ 	orderstmt(n, &order)
+ 	cleantemp(mark, &order)
+-	*np = liststmt(order.out)
++	return liststmt(order.out)
+ }
+ 
+ // Orderinit moves n's init list to order->out.
+@@ -347,7 +347,7 @@ func copyret(n *Node, order *Order) []*Node {
+ 	as := Nod(OAS2, nil, nil)
+ 	as.List.Set(l1)
+ 	as.Rlist.Set1(n)
+-	typecheck(&as, Etop)
++	as = typecheck(as, Etop)
+ 	orderstmt(as, order)
+ 
+ 	return l2
+@@ -366,8 +366,8 @@ func ordercallargs(l *Nodes, order *Order) {
+ // Ordercall orders the call expression n.
+ // n->op is OCALLMETH/OCALLFUNC/OCALLINTER or a builtin like OCOPY.
+ func ordercall(n *Node, order *Order) {
+-	orderexpr(&n.Left, order, nil)
+-	orderexpr(&n.Right, order, nil) // ODDDARG temp
++	n.Left = orderexpr(n.Left, order, nil)
++	n.Right = orderexpr(n.Right, order, nil) // ODDDARG temp
+ 	ordercallargs(&n.List, order)
+ 
+ 	if n.Op == OCALLFUNC {
+@@ -434,7 +434,7 @@ func ordermapassign(n *Node, order *Order) {
+ 			m := n.Left
+ 			n.Left = ordertemp(m.Type, order, false)
+ 			a := Nod(OAS, m, n.Left)
+-			typecheck(&a, Etop)
++			a = typecheck(a, Etop)
+ 			order.out = append(order.out, a)
+ 		}
+ 
+@@ -453,14 +453,14 @@ func ordermapassign(n *Node, order *Order) {
+ 				}
+ 				n.List.SetIndex(i1, ordertemp(m.Type, order, false))
+ 				a = Nod(OAS, m, n.List.Index(i1))
+-				typecheck(&a, Etop)
++				a = typecheck(a, Etop)
+ 				post = append(post, a)
+ 			} else if instrumenting && n.Op == OAS2FUNC && !isblank(n.List.Index(i1)) {
+ 				m = n.List.Index(i1)
+ 				t := ordertemp(m.Type, order, false)
+ 				n.List.SetIndex(i1, t)
+ 				a = Nod(OAS, m, t)
+-				typecheck(&a, Etop)
++				a = typecheck(a, Etop)
+ 				post = append(post, a)
+ 			}
+ 		}
+@@ -491,8 +491,8 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 	case OAS:
+ 		t := marktemp(order)
+-		orderexpr(&n.Left, order, nil)
+-		orderexpr(&n.Right, order, n.Left)
++		n.Left = orderexpr(n.Left, order, nil)
++		n.Right = orderexpr(n.Right, order, n.Left)
+ 		ordermapassign(n, order)
+ 		cleantemp(t, order)
+ 
+@@ -504,8 +504,8 @@ func orderstmt(n *Node, order *Order) {
+ 		ORECOVER,
+ 		ORECV:
+ 		t := marktemp(order)
+-		orderexpr(&n.Left, order, nil)
+-		orderexpr(&n.Right, order, nil)
++		n.Left = orderexpr(n.Left, order, nil)
++		n.Right = orderexpr(n.Right, order, nil)
+ 		orderexprlist(n.List, order)
+ 		orderexprlist(n.Rlist, order)
+ 		switch n.Op {
+@@ -524,7 +524,7 @@ func orderstmt(n *Node, order *Order) {
+ 		// a map index expression.
+ 		t := marktemp(order)
+ 
+-		orderexpr(&n.Left, order, nil)
++		n.Left = orderexpr(n.Left, order, nil)
+ 		n.Left = ordersafeexpr(n.Left, order)
+ 		tmp1 := treecopy(n.Left, 0)
+ 		if tmp1.Op == OINDEXMAP {
+@@ -533,8 +533,8 @@ func orderstmt(n *Node, order *Order) {
+ 		tmp1 = ordercopyexpr(tmp1, n.Left.Type, order, 0)
+ 		// TODO(marvin): Fix Node.EType type union.
+ 		n.Right = Nod(Op(n.Etype), tmp1, n.Right)
+-		typecheck(&n.Right, Erv)
+-		orderexpr(&n.Right, order, nil)
++		n.Right = typecheck(n.Right, Erv)
++		n.Right = orderexpr(n.Right, order, nil)
+ 		n.Etype = 0
+ 		n.Op = OAS
+ 		ordermapassign(n, order)
+@@ -547,14 +547,14 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 		orderexprlist(n.List, order)
+ 		r := n.Rlist.First()
+-		orderexpr(&r.Left, order, nil)
+-		orderexpr(&r.Right, order, nil)
++		r.Left = orderexpr(r.Left, order, nil)
++		r.Right = orderexpr(r.Right, order, nil)
+ 
+ 		// See case OINDEXMAP below.
+ 		if r.Right.Op == OARRAYBYTESTR {
+ 			r.Right.Op = OARRAYBYTESTRTMP
+ 		}
+-		orderaddrtemp(&r.Right, order)
++		r.Right = orderaddrtemp(r.Right, order)
+ 		ordermapassign(n, order)
+ 		cleantemp(t, order)
+ 
+@@ -574,7 +574,7 @@ func orderstmt(n *Node, order *Order) {
+ 		t := marktemp(order)
+ 
+ 		orderexprlist(n.List, order)
+-		orderexpr(&n.Rlist.First().Left, order, nil) // i in i.(T)
++		n.Rlist.First().Left = orderexpr(n.Rlist.First().Left, order, nil) // i in i.(T)
+ 		if isblank(n.List.First()) {
+ 			order.out = append(order.out, n)
+ 		} else {
+@@ -582,7 +582,7 @@ func orderstmt(n *Node, order *Order) {
+ 			tmp1 := ordertemp(typ, order, haspointers(typ))
+ 			order.out = append(order.out, n)
+ 			r := Nod(OAS, n.List.First(), tmp1)
+-			typecheck(&r, Etop)
++			r = typecheck(r, Etop)
+ 			ordermapassign(r, order)
+ 			n.List.Set([]*Node{tmp1, n.List.Second()})
+ 		}
+@@ -595,7 +595,7 @@ func orderstmt(n *Node, order *Order) {
+ 		t := marktemp(order)
+ 
+ 		orderexprlist(n.List, order)
+-		orderexpr(&n.Rlist.First().Left, order, nil) // arg to recv
++		n.Rlist.First().Left = orderexpr(n.Rlist.First().Left, order, nil) // arg to recv
+ 		ch := n.Rlist.First().Left.Type
+ 		tmp1 := ordertemp(ch.Type, order, haspointers(ch.Type))
+ 		var tmp2 *Node
+@@ -606,10 +606,10 @@ func orderstmt(n *Node, order *Order) {
+ 		}
+ 		order.out = append(order.out, n)
+ 		r := Nod(OAS, n.List.First(), tmp1)
+-		typecheck(&r, Etop)
++		r = typecheck(r, Etop)
+ 		ordermapassign(r, order)
+ 		r = Nod(OAS, n.List.Second(), tmp2)
+-		typecheck(&r, Etop)
++		r = typecheck(r, Etop)
+ 		ordermapassign(r, order)
+ 		n.List.Set([]*Node{tmp1, tmp2})
+ 		cleantemp(t, order)
+@@ -664,9 +664,9 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 	case ODELETE:
+ 		t := marktemp(order)
+-		orderexpr(n.List.Addr(0), order, nil)
+-		orderexpr(n.List.Addr(1), order, nil)
+-		orderaddrtemp(n.List.Addr(1), order) // map key
++		n.List.SetIndex(0, orderexpr(n.List.Index(0), order, nil))
++		n.List.SetIndex(1, orderexpr(n.List.Index(1), order, nil))
++		n.List.SetIndex(1, orderaddrtemp(n.List.Index(1), order)) // map key
+ 		order.out = append(order.out, n)
+ 		cleantemp(t, order)
+ 
+@@ -675,12 +675,12 @@ func orderstmt(n *Node, order *Order) {
+ 	case OFOR:
+ 		t := marktemp(order)
+ 
+-		orderexprinplace(&n.Left, order)
++		n.Left = orderexprinplace(n.Left, order)
+ 		var l []*Node
+ 		cleantempnopop(t, order, &l)
+ 		n.Nbody.Set(append(l, n.Nbody.Slice()...))
+ 		orderblockNodes(&n.Nbody)
+-		orderstmtinplace(&n.Right)
++		n.Right = orderstmtinplace(n.Right)
+ 		order.out = append(order.out, n)
+ 		cleantemp(t, order)
+ 
+@@ -689,7 +689,7 @@ func orderstmt(n *Node, order *Order) {
+ 	case OIF:
+ 		t := marktemp(order)
+ 
+-		orderexprinplace(&n.Left, order)
++		n.Left = orderexprinplace(n.Left, order)
+ 		var l []*Node
+ 		cleantempnopop(t, order, &l)
+ 		n.Nbody.Set(append(l, n.Nbody.Slice()...))
+@@ -706,9 +706,9 @@ func orderstmt(n *Node, order *Order) {
+ 	case OPANIC:
+ 		t := marktemp(order)
+ 
+-		orderexpr(&n.Left, order, nil)
++		n.Left = orderexpr(n.Left, order, nil)
+ 		if !Isinter(n.Left.Type) {
+-			orderaddrtemp(&n.Left, order)
++			n.Left = orderaddrtemp(n.Left, order)
+ 		}
+ 		order.out = append(order.out, n)
+ 		cleantemp(t, order)
+@@ -724,7 +724,7 @@ func orderstmt(n *Node, order *Order) {
+ 	case ORANGE:
+ 		t := marktemp(order)
+ 
+-		orderexpr(&n.Right, order, nil)
++		n.Right = orderexpr(n.Right, order, nil)
+ 		switch n.Type.Etype {
+ 		default:
+ 			Fatalf("orderstmt range %v", n.Type)
+@@ -751,7 +751,7 @@ func orderstmt(n *Node, order *Order) {
+ 			if r.Type.Etype == TSTRING && r.Type != Types[TSTRING] {
+ 				r = Nod(OCONV, r, nil)
+ 				r.Type = Types[TSTRING]
+-				typecheck(&r, Erv)
++				r = typecheck(r, Erv)
+ 			}
+ 
+ 			n.Right = ordercopyexpr(r, r.Type, order, 0)
+@@ -768,7 +768,7 @@ func orderstmt(n *Node, order *Order) {
+ 			prealloc[n] = ordertemp(Types[TUINT8], order, true)
+ 		}
+ 		for i := range n.List.Slice() {
+-			orderexprinplace(n.List.Addr(i), order)
++			n.List.SetIndex(i, orderexprinplace(n.List.Index(i), order))
+ 		}
+ 		orderblockNodes(&n.Nbody)
+ 		order.out = append(order.out, n)
+@@ -839,7 +839,7 @@ func orderstmt(n *Node, order *Order) {
+ 					// r->left is x, r->ntest is ok, r->right is ORECV, r->right->left is c.
+ 					// r->left == N means 'case <-c'.
+ 					// c is always evaluated; x and ok are only evaluated when assigned.
+-					orderexpr(&r.Right.Left, order, nil)
++					r.Right.Left = orderexpr(r.Right.Left, order, nil)
+ 
+ 					if r.Right.Left.Op != ONAME {
+ 						r.Right.Left = ordercopyexpr(r.Right.Left, r.Right.Left.Type, order, 0)
+@@ -862,13 +862,13 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 						if r.Colas {
+ 							tmp2 = Nod(ODCL, tmp1, nil)
+-							typecheck(&tmp2, Etop)
++							tmp2 = typecheck(tmp2, Etop)
+ 							n2.Ninit.Append(tmp2)
+ 						}
+ 
+ 						r.Left = ordertemp(r.Right.Left.Type.Type, order, haspointers(r.Right.Left.Type.Type))
+ 						tmp2 = Nod(OAS, tmp1, r.Left)
+-						typecheck(&tmp2, Etop)
++						tmp2 = typecheck(tmp2, Etop)
+ 						n2.Ninit.Append(tmp2)
+ 					}
+ 
+@@ -879,13 +879,13 @@ func orderstmt(n *Node, order *Order) {
+ 						tmp1 = r.List.First()
+ 						if r.Colas {
+ 							tmp2 = Nod(ODCL, tmp1, nil)
+-							typecheck(&tmp2, Etop)
++							tmp2 = typecheck(tmp2, Etop)
+ 							n2.Ninit.Append(tmp2)
+ 						}
+ 
+ 						r.List.Set1(ordertemp(tmp1.Type, order, false))
+ 						tmp2 = Nod(OAS, tmp1, r.List.First())
+-						typecheck(&tmp2, Etop)
++						tmp2 = typecheck(tmp2, Etop)
+ 						n2.Ninit.Append(tmp2)
+ 					}
+ 					n2.Ninit.Set(orderblock(n2.Ninit))
+@@ -898,12 +898,12 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 					// case c <- x
+ 					// r->left is c, r->right is x, both are always evaluated.
+-					orderexpr(&r.Left, order, nil)
++					r.Left = orderexpr(r.Left, order, nil)
+ 
+ 					if !istemp(r.Left) {
+ 						r.Left = ordercopyexpr(r.Left, r.Left.Type, order, 0)
+ 					}
+-					orderexpr(&r.Right, order, nil)
++					r.Right = orderexpr(r.Right, order, nil)
+ 					if !istemp(r.Right) {
+ 						r.Right = ordercopyexpr(r.Right, r.Right.Type, order, 0)
+ 					}
+@@ -929,9 +929,9 @@ func orderstmt(n *Node, order *Order) {
+ 	case OSEND:
+ 		t := marktemp(order)
+ 
+-		orderexpr(&n.Left, order, nil)
+-		orderexpr(&n.Right, order, nil)
+-		orderaddrtemp(&n.Right, order)
++		n.Left = orderexpr(n.Left, order, nil)
++		n.Right = orderexpr(n.Right, order, nil)
++		n.Right = orderaddrtemp(n.Right, order)
+ 		order.out = append(order.out, n)
+ 		cleantemp(t, order)
+ 
+@@ -945,7 +945,7 @@ func orderstmt(n *Node, order *Order) {
+ 	case OSWITCH:
+ 		t := marktemp(order)
+ 
+-		orderexpr(&n.Left, order, nil)
++		n.Left = orderexpr(n.Left, order, nil)
+ 		for _, n4 := range n.List.Slice() {
+ 			if n4.Op != OXCASE {
+ 				Fatalf("order switch case %v", Oconv(n4.Op, 0))
+@@ -965,7 +965,7 @@ func orderstmt(n *Node, order *Order) {
+ func orderexprlist(l Nodes, order *Order) {
+ 	s := l.Slice()
+ 	for i := range s {
+-		orderexpr(&s[i], order, nil)
++		s[i] = orderexpr(s[i], order, nil)
+ 	}
+ }
+ 
+@@ -974,7 +974,7 @@ func orderexprlist(l Nodes, order *Order) {
+ func orderexprlistinplace(l Nodes, order *Order) {
+ 	s := l.Slice()
+ 	for i := range s {
+-		orderexprinplace(&s[i], order)
++		s[i] = orderexprinplace(s[i], order)
+ 	}
+ }
+ 
+@@ -986,10 +986,11 @@ var prealloc = map[*Node]*Node{}
+ // If this is part of an assignment lhs = *np, lhs is given.
+ // Otherwise lhs == nil. (When lhs != nil it may be possible
+ // to avoid copying the result of the expression to a temporary.)
+-func orderexpr(np **Node, order *Order, lhs *Node) {
+-	n := *np
++// The result of orderexpr MUST be assigned back to n, e.g.
++// 	n.Left = orderexpr(n.Left, order, lhs)
++func orderexpr(n *Node, order *Order, lhs *Node) *Node {
+ 	if n == nil {
+-		return
++		return n
+ 	}
+ 
+ 	lno := setlineno(n)
+@@ -997,8 +998,8 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 
+ 	switch n.Op {
+ 	default:
+-		orderexpr(&n.Left, order, nil)
+-		orderexpr(&n.Right, order, nil)
++		n.Left = orderexpr(n.Left, order, nil)
++		n.Right = orderexpr(n.Right, order, nil)
+ 		orderexprlist(n.List, order)
+ 		orderexprlist(n.Rlist, order)
+ 
+@@ -1039,8 +1040,8 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 		}
+ 
+ 	case OCMPSTR:
+-		orderexpr(&n.Left, order, nil)
+-		orderexpr(&n.Right, order, nil)
++		n.Left = orderexpr(n.Left, order, nil)
++		n.Right = orderexpr(n.Right, order, nil)
+ 
+ 		// Mark string(byteSlice) arguments to reuse byteSlice backing
+ 		// buffer during conversion. String comparison does not
+@@ -1054,9 +1055,9 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 
+ 		// key must be addressable
+ 	case OINDEXMAP:
+-		orderexpr(&n.Left, order, nil)
++		n.Left = orderexpr(n.Left, order, nil)
+ 
+-		orderexpr(&n.Right, order, nil)
++		n.Right = orderexpr(n.Right, order, nil)
+ 
+ 		// For x = m[string(k)] where k is []byte, the allocation of
+ 		// backing bytes for the string can be avoided by reusing
+@@ -1072,7 +1073,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 			n.Right.Op = OARRAYBYTESTRTMP
+ 		}
+ 
+-		orderaddrtemp(&n.Right, order)
++		n.Right = orderaddrtemp(n.Right, order)
+ 		if n.Etype == 0 {
+ 			// use of value (not being assigned);
+ 			// make copy in temporary.
+@@ -1082,15 +1083,15 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 		// concrete type (not interface) argument must be addressable
+ 	// temporary to pass to runtime.
+ 	case OCONVIFACE:
+-		orderexpr(&n.Left, order, nil)
++		n.Left = orderexpr(n.Left, order, nil)
+ 
+ 		if !Isinter(n.Left.Type) {
+-			orderaddrtemp(&n.Left, order)
++			n.Left = orderaddrtemp(n.Left, order)
+ 		}
+ 
+ 	case OANDAND, OOROR:
+ 		mark := marktemp(order)
+-		orderexpr(&n.Left, order, nil)
++		n.Left = orderexpr(n.Left, order, nil)
+ 
+ 		// Clean temporaries from first branch at beginning of second.
+ 		// Leave them on the stack so that they can be killed in the outer
+@@ -1099,7 +1100,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 
+ 		cleantempnopop(mark, order, &s)
+ 		n.Right.Ninit.Set(append(s, n.Right.Ninit.Slice()...))
+-		orderexprinplace(&n.Right, order)
++		n.Right = orderexprinplace(n.Right, order)
+ 
+ 	case OCALLFUNC,
+ 		OCALLINTER,
+@@ -1130,22 +1131,22 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 		}
+ 
+ 	case OSLICE, OSLICEARR, OSLICESTR:
+-		orderexpr(&n.Left, order, nil)
+-		orderexpr(&n.Right.Left, order, nil)
++		n.Left = orderexpr(n.Left, order, nil)
++		n.Right.Left = orderexpr(n.Right.Left, order, nil)
+ 		n.Right.Left = ordercheapexpr(n.Right.Left, order)
+-		orderexpr(&n.Right.Right, order, nil)
++		n.Right.Right = orderexpr(n.Right.Right, order, nil)
+ 		n.Right.Right = ordercheapexpr(n.Right.Right, order)
+ 		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.Left) {
+ 			n = ordercopyexpr(n, n.Type, order, 0)
+ 		}
+ 
+ 	case OSLICE3, OSLICE3ARR:
+-		orderexpr(&n.Left, order, nil)
+-		orderexpr(&n.Right.Left, order, nil)
++		n.Left = orderexpr(n.Left, order, nil)
++		n.Right.Left = orderexpr(n.Right.Left, order, nil)
+ 		n.Right.Left = ordercheapexpr(n.Right.Left, order)
+-		orderexpr(&n.Right.Right.Left, order, nil)
++		n.Right.Right.Left = orderexpr(n.Right.Right.Left, order, nil)
+ 		n.Right.Right.Left = ordercheapexpr(n.Right.Right.Left, order)
+-		orderexpr(&n.Right.Right.Right, order, nil)
++		n.Right.Right.Right = orderexpr(n.Right.Right.Right, order, nil)
+ 		n.Right.Right.Right = ordercheapexpr(n.Right.Right.Right, order)
+ 		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.Left) {
+ 			n = ordercopyexpr(n, n.Type, order, 0)
+@@ -1157,8 +1158,8 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 		}
+ 
+ 	case OARRAYLIT, OCALLPART:
+-		orderexpr(&n.Left, order, nil)
+-		orderexpr(&n.Right, order, nil)
++		n.Left = orderexpr(n.Left, order, nil)
++		n.Right = orderexpr(n.Right, order, nil)
+ 		orderexprlist(n.List, order)
+ 		orderexprlist(n.Rlist, order)
+ 		if n.Noescape {
+@@ -1175,7 +1176,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 		}
+ 
+ 	case ODOTTYPE, ODOTTYPE2:
+-		orderexpr(&n.Left, order, nil)
++		n.Left = orderexpr(n.Left, order, nil)
+ 		// TODO(rsc): The Isfat is for consistency with componentgen and walkexpr.
+ 		// It needs to be removed in all three places.
+ 		// That would allow inlining x.(struct{*int}) the same as x.(*int).
+@@ -1184,22 +1185,21 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 		}
+ 
+ 	case ORECV:
+-		orderexpr(&n.Left, order, nil)
++		n.Left = orderexpr(n.Left, order, nil)
+ 		n = ordercopyexpr(n, n.Type, order, 1)
+ 
+ 	case OEQ, ONE:
+-		orderexpr(&n.Left, order, nil)
+-		orderexpr(&n.Right, order, nil)
++		n.Left = orderexpr(n.Left, order, nil)
++		n.Right = orderexpr(n.Right, order, nil)
+ 		t := n.Left.Type
+ 		if t.Etype == TSTRUCT || Isfixedarray(t) {
+ 			// for complex comparisons, we need both args to be
+ 			// addressable so we can pass them to the runtime.
+-			orderaddrtemp(&n.Left, order)
+-			orderaddrtemp(&n.Right, order)
++			n.Left = orderaddrtemp(n.Left, order)
++			n.Right = orderaddrtemp(n.Right, order)
+ 		}
+ 	}
+ 
+ 	lineno = lno
+-
+-	*np = n
++	return n
+ }
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 6be4da8da7..1636011197 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -380,7 +380,7 @@ func compile(fn *Node) {
+ 		for _, t := range Curfn.Type.Results().Fields().Slice() {
+ 			if t.Nname != nil {
+ 				n := Nod(OAS, t.Nname, nil)
+-				typecheck(&n, Etop)
++				n = typecheck(n, Etop)
+ 				Curfn.Nbody.Set(append([]*Node{n}, Curfn.Nbody.Slice()...))
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index ccddfc4870..35a2cf035d 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -228,7 +228,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 			n1 := Nod(OCONVNOP, n.Left, nil)
+ 			n1.Type = Ptrto(Types[TUINT8])
+ 			n1 = Nod(OIND, n1, nil)
+-			typecheck(&n1, Erv)
++			n1 = typecheck(n1, Erv)
+ 			callinstr(&n1, init, 0, skip)
+ 		}
+ 
+@@ -581,12 +581,12 @@ func detachexpr(n *Node, init *Nodes) *Node {
+ 	addr := Nod(OADDR, n, nil)
+ 	l := temp(Ptrto(n.Type))
+ 	as := Nod(OAS, l, addr)
+-	typecheck(&as, Etop)
+-	walkexpr(&as, init)
++	as = typecheck(as, Etop)
++	as = walkexpr(as, init)
+ 	init.Append(as)
+ 	ind := Nod(OIND, l, nil)
+-	typecheck(&ind, Erv)
+-	walkexpr(&ind, init)
++	ind = typecheck(ind, Erv)
++	ind = walkexpr(ind, init)
+ 	return ind
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index a702010f18..75315aadf9 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -24,7 +24,7 @@ func typecheckrange(n *Node) {
+ 	// 3. typecheck body.
+ 	// 4. decldepth--.
+ 
+-	typecheck(&n.Right, Erv)
++	n.Right = typecheck(n.Right, Erv)
+ 
+ 	t := n.Right.Type
+ 	if t == nil {
+@@ -34,7 +34,7 @@ func typecheckrange(n *Node) {
+ 	ls = n.List.Slice()
+ 	for i1, n1 := range ls {
+ 		if n1.Name == nil || n1.Name.Defn != n {
+-			typecheck(&ls[i1], Erv|Easgn)
++			ls[i1] = typecheck(ls[i1], Erv|Easgn)
+ 		}
+ 	}
+ 
+@@ -122,7 +122,7 @@ out:
+ 	ls = n.List.Slice()
+ 	for i1, n1 := range ls {
+ 		if n1.Typecheck == 0 {
+-			typecheck(&ls[i1], Erv|Easgn)
++			ls[i1] = typecheck(ls[i1], Erv|Easgn)
+ 		}
+ 	}
+ 
+@@ -213,7 +213,7 @@ func walkrange(n *Node) {
+ 			tmp.Right.Type = Types[Tptr]
+ 			tmp.Right.Typecheck = 1
+ 			a = Nod(OAS, hp, tmp)
+-			typecheck(&a, Etop)
++			a = typecheck(a, Etop)
+ 			n.Right.Ninit.Set1(a)
+ 		}
+ 
+@@ -231,12 +231,12 @@ func walkrange(n *Node) {
+ 
+ 		fn := syslook("mapiterinit")
+ 
+-		substArgTypes(&fn, t.Key(), t.Type, th)
++		fn = substArgTypes(fn, t.Key(), t.Type, th)
+ 		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
+ 		n.Left = Nod(ONE, NodSym(ODOT, hit, keysym), nodnil())
+ 
+ 		fn = syslook("mapiternext")
+-		substArgTypes(&fn, th)
++		fn = substArgTypes(fn, th)
+ 		n.Right = mkcall1(fn, nil, nil, Nod(OADDR, hit, nil))
+ 
+ 		key := NodSym(ODOT, hit, keysym)
+@@ -316,11 +316,11 @@ func walkrange(n *Node) {
+ 	typecheckslice(init, Etop)
+ 	n.Ninit.Append(init...)
+ 	typecheckslice(n.Left.Ninit.Slice(), Etop)
+-	typecheck(&n.Left, Erv)
+-	typecheck(&n.Right, Etop)
++	n.Left = typecheck(n.Left, Erv)
++	n.Right = typecheck(n.Right, Etop)
+ 	typecheckslice(body, Etop)
+ 	n.Nbody.Set(append(body, n.Nbody.Slice()...))
+-	walkstmt(&n)
++	n = walkstmt(n)
+ 
+ 	lineno = lno
+ }
+@@ -398,8 +398,8 @@ func memclrrange(n, v1, v2, a *Node) bool {
+ 
+ 	n.Nbody.Append(v1)
+ 
+-	typecheck(&n.Left, Erv)
++	n.Left = typecheck(n.Left, Erv)
+ 	typecheckslice(n.Nbody.Slice(), Etop)
+-	walkstmt(&n)
++	n = walkstmt(n)
+ 	return true
+ }
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 9b88c38a4e..22c716f9ce 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -31,7 +31,8 @@ func typecheckselect(sel *Node) {
+ 		} else if ncase.List.Len() > 1 {
+ 			Yyerror("select cases cannot be lists")
+ 		} else {
+-			n = typecheck(ncase.List.Addr(0), Etop)
++			ncase.List.SetIndex(0, typecheck(ncase.List.Index(0), Etop))
++			n = ncase.List.Index(0)
+ 			ncase.Left = n
+ 			ncase.List.Set(nil)
+ 			setlineno(n)
+@@ -137,7 +138,7 @@ func walkselect(sel *Node) {
+ 				}
+ 
+ 				if n.Left == nil {
+-					typecheck(&nblank, Erv|Easgn)
++					nblank = typecheck(nblank, Erv|Easgn)
+ 					n.Left = nblank
+ 				}
+ 
+@@ -147,7 +148,7 @@ func walkselect(sel *Node) {
+ 				n.Right = nil
+ 				n.Left = nil
+ 				n.Typecheck = 0
+-				typecheck(&n, Etop)
++				n = typecheck(n, Etop)
+ 			}
+ 
+ 			// if ch == nil { block() }; n;
+@@ -158,7 +159,7 @@ func walkselect(sel *Node) {
+ 			ln.Set(l)
+ 			a.Nbody.Set1(mkcall("block", nil, &ln))
+ 			l = ln.Slice()
+-			typecheck(&a, Etop)
++			a = typecheck(a, Etop)
+ 			l = append(l, a)
+ 			l = append(l, n)
+ 		}
+@@ -179,7 +180,7 @@ func walkselect(sel *Node) {
+ 		switch n.Op {
+ 		case OSEND:
+ 			n.Right = Nod(OADDR, n.Right, nil)
+-			typecheck(&n.Right, Erv)
++			n.Right = typecheck(n.Right, Erv)
+ 
+ 		case OSELRECV, OSELRECV2:
+ 			if n.Op == OSELRECV2 && n.List.Len() == 0 {
+@@ -187,14 +188,14 @@ func walkselect(sel *Node) {
+ 			}
+ 			if n.Op == OSELRECV2 {
+ 				n.List.SetIndex(0, Nod(OADDR, n.List.First(), nil))
+-				typecheck(n.List.Addr(0), Erv)
++				n.List.SetIndex(0, typecheck(n.List.Index(0), Erv))
+ 			}
+ 
+ 			if n.Left == nil {
+ 				n.Left = nodnil()
+ 			} else {
+ 				n.Left = Nod(OADDR, n.Left, nil)
+-				typecheck(&n.Left, Erv)
++				n.Left = typecheck(n.Left, Erv)
+ 			}
+ 		}
+ 	}
+@@ -242,7 +243,7 @@ func walkselect(sel *Node) {
+ 			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, n.List.First(), ch)
+ 		}
+ 
+-		typecheck(&r.Left, Erv)
++		r.Left = typecheck(r.Left, Erv)
+ 		r.Nbody.Set(cas.Nbody.Slice())
+ 		r.Rlist.Set(append(dflt.Ninit.Slice(), dflt.Nbody.Slice()...))
+ 		sel.Nbody.Set1(r)
+@@ -257,11 +258,11 @@ func walkselect(sel *Node) {
+ 
+ 	selv = temp(selecttype(int32(sel.Xoffset)))
+ 	r = Nod(OAS, selv, nil)
+-	typecheck(&r, Etop)
++	r = typecheck(r, Etop)
+ 	init = append(init, r)
+ 	var_ = conv(conv(Nod(OADDR, selv, nil), Types[TUNSAFEPTR]), Ptrto(Types[TUINT8]))
+ 	r = mkcall("newselect", nil, nil, var_, Nodintconst(selv.Type.Width), Nodintconst(sel.Xoffset))
+-	typecheck(&r, Etop)
++	r = typecheck(r, Etop)
+ 	init = append(init, r)
+ 	// register cases
+ 	for _, cas := range sel.List.Slice() {
+@@ -330,7 +331,7 @@ func selecttype(size int32) *Type {
+ 	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("so")), typenod(Types[TUINT16])))
+ 	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("receivedp")), typenod(Ptrto(Types[TUINT8]))))
+ 	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
+-	typecheck(&scase, Etype)
++	scase = typecheck(scase, Etype)
+ 	scase.Type.Noalg = true
+ 	scase.Type.Local = true
+ 
+@@ -345,7 +346,7 @@ func selecttype(size int32) *Type {
+ 	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("lockorderarr")), arr))
+ 	arr = Nod(OTARRAY, Nodintconst(int64(size)), typenod(Types[TUINT16]))
+ 	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("pollorderarr")), arr))
+-	typecheck(&sel, Etype)
++	sel = typecheck(sel, Etype)
+ 	sel.Type.Noalg = true
+ 	sel.Type.Local = true
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 5beb750bcc..3485ebfe5e 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -520,8 +520,8 @@ func (n *Node) isSimpleName() bool {
+ 
+ func litas(l *Node, r *Node, init *Nodes) {
+ 	a := Nod(OAS, l, r)
+-	typecheck(&a, Etop)
+-	walkexpr(&a, init)
++	a = typecheck(a, Etop)
++	a = walkexpr(a, init)
+ 	init.Append(a)
+ }
+ 
+@@ -608,16 +608,16 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ 		a = NodSym(ODOT, var_, index.Sym)
+ 
+ 		a = Nod(OAS, a, value)
+-		typecheck(&a, Etop)
++		a = typecheck(a, Etop)
+ 		if pass == 1 {
+-			walkexpr(&a, init) // add any assignments in r to top
++			a = walkexpr(a, init) // add any assignments in r to top
+ 			if a.Op != OAS {
+ 				Fatalf("structlit: not as")
+ 			}
+ 			a.Dodata = 2
+ 		} else {
+-			orderstmtinplace(&a)
+-			walkstmt(&a)
++			a = orderstmtinplace(a)
++			a = walkstmt(a)
+ 		}
+ 
+ 		init.Append(a)
+@@ -672,16 +672,16 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ 		a = Nod(OINDEX, var_, index)
+ 
+ 		a = Nod(OAS, a, value)
+-		typecheck(&a, Etop)
++		a = typecheck(a, Etop)
+ 		if pass == 1 {
+-			walkexpr(&a, init)
++			a = walkexpr(a, init)
+ 			if a.Op != OAS {
+ 				Fatalf("arraylit: not as")
+ 			}
+ 			a.Dodata = 2
+ 		} else {
+-			orderstmtinplace(&a)
+-			walkstmt(&a)
++			a = orderstmtinplace(a)
++			a = walkstmt(a)
+ 		}
+ 
+ 		init.Append(a)
+@@ -708,7 +708,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		a := Nod(OSLICE, vstat, Nod(OKEY, nil, nil))
+ 
+ 		a = Nod(OAS, var_, a)
+-		typecheck(&a, Etop)
++		a = typecheck(a, Etop)
+ 		a.Dodata = 2
+ 		init.Append(a)
+ 		return
+@@ -754,7 +754,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 
+ 		if vstat == nil {
+ 			a = Nod(OAS, x, nil)
+-			typecheck(&a, Etop)
++			a = typecheck(a, Etop)
+ 			init.Append(a) // zero new temp
+ 		}
+ 
+@@ -763,7 +763,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		a = temp(t)
+ 		if vstat == nil {
+ 			a = Nod(OAS, temp(t), nil)
+-			typecheck(&a, Etop)
++			a = typecheck(a, Etop)
+ 			init.Append(a) // zero new temp
+ 			a = a.Left
+ 		}
+@@ -775,8 +775,8 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 	}
+ 
+ 	a = Nod(OAS, vauto, a)
+-	typecheck(&a, Etop)
+-	walkexpr(&a, init)
++	a = typecheck(a, Etop)
++	a = walkexpr(a, init)
+ 	init.Append(a)
+ 
+ 	if vstat != nil {
+@@ -784,17 +784,17 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		a = Nod(OIND, vauto, nil)
+ 
+ 		a = Nod(OAS, a, vstat)
+-		typecheck(&a, Etop)
+-		walkexpr(&a, init)
++		a = typecheck(a, Etop)
++		a = walkexpr(a, init)
+ 		init.Append(a)
+ 	}
+ 
+ 	// make slice out of heap (5)
+ 	a = Nod(OAS, var_, Nod(OSLICE, vauto, Nod(OKEY, nil, nil)))
+ 
+-	typecheck(&a, Etop)
+-	orderstmtinplace(&a)
+-	walkstmt(&a)
++	a = typecheck(a, Etop)
++	a = orderstmtinplace(a)
++	a = walkstmt(a)
+ 	init.Append(a)
+ 	// put dynamics into slice (6)
+ 	for _, r := range n.List.Slice() {
+@@ -829,9 +829,9 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		setlineno(value)
+ 		a = Nod(OAS, a, value)
+ 
+-		typecheck(&a, Etop)
+-		orderstmtinplace(&a)
+-		walkstmt(&a)
++		a = typecheck(a, Etop)
++		a = orderstmtinplace(a)
++		a = walkstmt(a)
+ 		init.Append(a)
+ 	}
+ }
+@@ -906,8 +906,8 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 				a = Nod(OINDEX, vstat, a)
+ 				a = NodSym(ODOT, a, syma)
+ 				a = Nod(OAS, a, index)
+-				typecheck(&a, Etop)
+-				walkexpr(&a, init)
++				a = typecheck(a, Etop)
++				a = walkexpr(a, init)
+ 				a.Dodata = 2
+ 				init.Append(a)
+ 
+@@ -918,8 +918,8 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 				a = Nod(OINDEX, vstat, a)
+ 				a = NodSym(ODOT, a, symb)
+ 				a = Nod(OAS, a, value)
+-				typecheck(&a, Etop)
+-				walkexpr(&a, init)
++				a = typecheck(a, Etop)
++				a = walkexpr(a, init)
+ 				a.Dodata = 2
+ 				init.Append(a)
+ 
+@@ -951,8 +951,8 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		a.Left = Nod(OLT, index, Nodintconst(tarr.Bound))
+ 		a.Right = Nod(OAS, index, Nod(OADD, index, Nodintconst(1)))
+ 
+-		typecheck(&a, Etop)
+-		walkstmt(&a)
++		a = typecheck(a, Etop)
++		a = walkstmt(a)
+ 		init.Append(a)
+ 	}
+ 
+@@ -978,19 +978,19 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 
+ 		setlineno(r.Left)
+ 		a = Nod(OAS, key, r.Left)
+-		typecheck(&a, Etop)
+-		walkstmt(&a)
++		a = typecheck(a, Etop)
++		a = walkstmt(a)
+ 		init.Append(a)
+ 		setlineno(r.Right)
+ 		a = Nod(OAS, val, r.Right)
+-		typecheck(&a, Etop)
+-		walkstmt(&a)
++		a = typecheck(a, Etop)
++		a = walkstmt(a)
+ 		init.Append(a)
+ 
+ 		setlineno(val)
+ 		a = Nod(OAS, Nod(OINDEX, var_, key), val)
+-		typecheck(&a, Etop)
+-		walkstmt(&a)
++		a = typecheck(a, Etop)
++		a = walkstmt(a)
+ 		init.Append(a)
+ 
+ 		if nerr != nerrors {
+@@ -1000,10 +1000,10 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 
+ 	if key != nil {
+ 		a = Nod(OVARKILL, key, nil)
+-		typecheck(&a, Etop)
++		a = typecheck(a, Etop)
+ 		init.Append(a)
+ 		a = Nod(OVARKILL, val, nil)
+-		typecheck(&a, Etop)
++		a = typecheck(a, Etop)
+ 		init.Append(a)
+ 	}
+ }
+@@ -1022,7 +1022,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		var r *Node
+ 		if n.Right != nil {
+ 			r = Nod(OADDR, n.Right, nil)
+-			typecheck(&r, Erv)
++			r = typecheck(r, Erv)
+ 		} else {
+ 			r = Nod(ONEW, nil, nil)
+ 			r.Typecheck = 1
+@@ -1030,14 +1030,14 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 			r.Esc = n.Esc
+ 		}
+ 
+-		walkexpr(&r, init)
++		r = walkexpr(r, init)
+ 		a := Nod(OAS, var_, r)
+ 
+-		typecheck(&a, Etop)
++		a = typecheck(a, Etop)
+ 		init.Append(a)
+ 
+ 		var_ = Nod(OIND, var_, nil)
+-		typecheck(&var_, Erv|Easgn)
++		var_ = typecheck(var_, Erv|Easgn)
+ 		anylit(ctxt, n.Left, var_, init)
+ 
+ 	case OSTRUCTLIT:
+@@ -1055,8 +1055,8 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 				// copy static to var
+ 				a := Nod(OAS, var_, vstat)
+ 
+-				typecheck(&a, Etop)
+-				walkexpr(&a, init)
++				a = typecheck(a, Etop)
++				a = walkexpr(a, init)
+ 				init.Append(a)
+ 
+ 				// add expressions to automatic
+@@ -1073,8 +1073,8 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		// initialize of not completely specified
+ 		if var_.isSimpleName() || n.List.Len() < t.NumFields() {
+ 			a := Nod(OAS, var_, nil)
+-			typecheck(&a, Etop)
+-			walkexpr(&a, init)
++			a = typecheck(a, Etop)
++			a = walkexpr(a, init)
+ 			init.Append(a)
+ 		}
+ 
+@@ -1099,8 +1099,8 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 				// copy static to automatic
+ 				a := Nod(OAS, var_, vstat)
+ 
+-				typecheck(&a, Etop)
+-				walkexpr(&a, init)
++				a = typecheck(a, Etop)
++				a = walkexpr(a, init)
+ 				init.Append(a)
+ 
+ 				// add expressions to automatic
+@@ -1117,8 +1117,8 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		// initialize of not completely specified
+ 		if var_.isSimpleName() || int64(n.List.Len()) < t.Bound {
+ 			a := Nod(OAS, var_, nil)
+-			typecheck(&a, Etop)
+-			walkexpr(&a, init)
++			a = typecheck(a, Etop)
++			a = walkexpr(a, init)
+ 			init.Append(a)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 0fa6c8f6da..8790e94ed1 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -484,7 +484,7 @@ func Nodbool(b bool) *Node {
+ 
+ func aindex(b *Node, t *Type) *Type {
+ 	bound := int64(-1) // open bound
+-	typecheck(&b, Erv)
++	b = typecheck(b, Erv)
+ 	if b != nil {
+ 		switch consttype(b) {
+ 		default:
+@@ -1042,7 +1042,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
+ 
+ 	old := n
+ 	old.Diag++ // silence errors about n; we'll issue one below
+-	defaultlit(&n, t)
++	n = defaultlit(n, t)
+ 	old.Diag--
+ 	if t.Etype == TBLANK {
+ 		return n
+@@ -1082,10 +1082,11 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
+ // substArgTypes substitutes the given list of types for
+ // successive occurrences of the "any" placeholder in the
+ // type syntax expression n.Type.
+-func substArgTypes(np **Node, types ...*Type) {
+-	n := Nod(0, nil, nil)
+-	*n = **np
+-	*np = n
++// The result of substArgTypes MUST be assigned back to old, e.g.
++// 	n.Left = substArgTypes(n.Left, t1, t2)
++func substArgTypes(old *Node, types ...*Type) *Node {
++	n := Nod(OXXX, nil, nil)
++	*n = *old // make shallow copy
+ 
+ 	for _, t := range types {
+ 		dowidth(t)
+@@ -1094,6 +1095,7 @@ func substArgTypes(np **Node, types ...*Type) {
+ 	if len(types) > 0 {
+ 		Fatalf("substArgTypes: too many argument types")
+ 	}
++	return n
+ }
+ 
+ // substAny walks t, replacing instances of "any" with successive
+@@ -1478,8 +1480,8 @@ func safeexpr(n *Node, init *Nodes) *Node {
+ 		r := Nod(OXXX, nil, nil)
+ 		*r = *n
+ 		r.Left = l
+-		typecheck(&r, Erv)
+-		walkexpr(&r, init)
++		r = typecheck(r, Erv)
++		r = walkexpr(r, init)
+ 		return r
+ 
+ 	case ODOTPTR, OIND:
+@@ -1490,7 +1492,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
+ 		a := Nod(OXXX, nil, nil)
+ 		*a = *n
+ 		a.Left = l
+-		walkexpr(&a, init)
++		a = walkexpr(a, init)
+ 		return a
+ 
+ 	case OINDEX, OINDEXMAP:
+@@ -1503,7 +1505,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
+ 		*a = *n
+ 		a.Left = l
+ 		a.Right = r
+-		walkexpr(&a, init)
++		a = walkexpr(a, init)
+ 		return a
+ 	}
+ 
+@@ -1517,8 +1519,8 @@ func safeexpr(n *Node, init *Nodes) *Node {
+ func copyexpr(n *Node, t *Type, init *Nodes) *Node {
+ 	l := temp(t)
+ 	a := Nod(OAS, l, n)
+-	typecheck(&a, Etop)
+-	walkexpr(&a, init)
++	a = typecheck(a, Etop)
++	a = walkexpr(a, init)
+ 	init.Append(a)
+ 	return l
+ }
+@@ -1684,7 +1686,7 @@ func dotpath(s *Sym, t *Type, save **Field, ignorecase bool) (path []Dlist, ambi
+ // will give shortest unique addressing.
+ // modify the tree with missing type names.
+ func adddot(n *Node) *Node {
+-	typecheck(&n.Left, Etype|Erv)
++	n.Left = typecheck(n.Left, Etype|Erv)
+ 	n.Diag |= n.Left.Diag
+ 	t := n.Left.Type
+ 	if t == nil {
+@@ -2018,7 +2020,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 	if rcvr.Etype == TSTRUCT || rcvr.Etype == TINTER || Isptr[rcvr.Etype] && rcvr.Type.Etype == TSTRUCT {
+ 		fn.Func.Dupok = true
+ 	}
+-	typecheck(&fn, Etop)
++	fn = typecheck(fn, Etop)
+ 	typecheckslice(fn.Nbody.Slice(), Etop)
+ 
+ 	inlcalls(fn)
+@@ -2038,7 +2040,7 @@ func hashmem(t *Type) *Node {
+ 	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+ 	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+ 	tfn.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+-	typecheck(&tfn, Etype)
++	tfn = typecheck(tfn, Etype)
+ 	n.Type = tfn.Type
+ 	return n
+ }
+@@ -2305,25 +2307,25 @@ func mkpkg(path string) *Pkg {
+ 	return p
+ }
+ 
+-func addinit(np **Node, init []*Node) {
++// The result of addinit MUST be assigned back to n, e.g.
++// 	n.Left = addinit(n.Left, init)
++func addinit(n *Node, init []*Node) *Node {
+ 	if len(init) == 0 {
+-		return
++		return n
+ 	}
+ 
+-	n := *np
+ 	switch n.Op {
+ 	// There may be multiple refs to this node;
+ 	// introduce OCONVNOP to hold init list.
+ 	case ONAME, OLITERAL:
+ 		n = Nod(OCONVNOP, n, nil)
+-
+ 		n.Type = n.Left.Type
+ 		n.Typecheck = 1
+-		*np = n
+ 	}
+ 
+ 	n.Ninit.Set(append(init, n.Ninit.Slice()...))
+ 	n.Ullman = UINF
++	return n
+ }
+ 
+ var reservedimports = []string{
+@@ -2377,7 +2379,7 @@ func isbadimport(path string) bool {
+ func checknil(x *Node, init *Nodes) {
+ 	if Isinter(x.Type) {
+ 		x = Nod(OITAB, x, nil)
+-		typecheck(&x, Erv)
++		x = typecheck(x, Erv)
+ 	}
+ 
+ 	n := Nod(OCHECKNIL, x, nil)
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 81a991a691..84513e5d51 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -67,7 +67,7 @@ func typecheckswitch(n *Node) {
+ 	if n.Left != nil && n.Left.Op == OTYPESW {
+ 		// type switch
+ 		top = Etype
+-		typecheck(&n.Left.Right, Erv)
++		n.Left.Right = typecheck(n.Left.Right, Erv)
+ 		t = n.Left.Right.Type
+ 		if t != nil && t.Etype != TINTER {
+ 			Yyerror("cannot type switch on non-interface value %v", Nconv(n.Left.Right, FmtLong))
+@@ -76,8 +76,8 @@ func typecheckswitch(n *Node) {
+ 		// expression switch
+ 		top = Erv
+ 		if n.Left != nil {
+-			typecheck(&n.Left, Erv)
+-			defaultlit(&n.Left, nil)
++			n.Left = typecheck(n.Left, Erv)
++			n.Left = defaultlit(n.Left, nil)
+ 			t = n.Left.Type
+ 		} else {
+ 			t = Types[TBOOL]
+@@ -117,7 +117,7 @@ func typecheckswitch(n *Node) {
+ 			ls := ncase.List.Slice()
+ 			for i1, n1 := range ls {
+ 				setlineno(n1)
+-				typecheck(&ls[i1], Erv|Etype)
++				ls[i1] = typecheck(ls[i1], Erv|Etype)
+ 				n1 = ls[i1]
+ 				if n1.Type == nil || t == nil {
+ 					continue
+@@ -126,7 +126,7 @@ func typecheckswitch(n *Node) {
+ 				switch top {
+ 				// expression switch
+ 				case Erv:
+-					defaultlit(&ls[i1], t)
++					ls[i1] = defaultlit(ls[i1], t)
+ 					n1 = ls[i1]
+ 					switch {
+ 					case n1.Op == OTYPE:
+@@ -177,7 +177,7 @@ func typecheckswitch(n *Node) {
+ 					nvar.Name.Param.Ntype = typenod(n.Type)
+ 				}
+ 
+-				typecheck(&nvar, Erv|Easgn)
++				nvar = typecheck(nvar, Erv|Easgn)
+ 				ncase.Rlist.SetIndex(0, nvar)
+ 			}
+ 		}
+@@ -193,7 +193,7 @@ func walkswitch(sw *Node) {
+ 	// convert switch {...} to switch true {...}
+ 	if sw.Left == nil {
+ 		sw.Left = Nodbool(true)
+-		typecheck(&sw.Left, Erv)
++		sw.Left = typecheck(sw.Left, Erv)
+ 	}
+ 
+ 	if sw.Left.Op == OTYPESW {
+@@ -224,7 +224,7 @@ func (s *exprSwitch) walk(sw *Node) {
+ 		}
+ 	}
+ 
+-	walkexpr(&cond, &sw.Ninit)
++	cond = walkexpr(cond, &sw.Ninit)
+ 	t := sw.Type
+ 	if t == nil {
+ 		return
+@@ -296,13 +296,13 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
+ 			a := Nod(OIF, nil, nil)
+ 			if (s.kind != switchKindTrue && s.kind != switchKindFalse) || assignop(n.Left.Type, s.exprname.Type, nil) == OCONVIFACE || assignop(s.exprname.Type, n.Left.Type, nil) == OCONVIFACE {
+ 				a.Left = Nod(OEQ, s.exprname, n.Left) // if name == val
+-				typecheck(&a.Left, Erv)
++				a.Left = typecheck(a.Left, Erv)
+ 			} else if s.kind == switchKindTrue {
+ 				a.Left = n.Left // if val
+ 			} else {
+ 				// s.kind == switchKindFalse
+ 				a.Left = Nod(ONOT, n.Left, nil) // if !val
+-				typecheck(&a.Left, Erv)
++				a.Left = typecheck(a.Left, Erv)
+ 			}
+ 			a.Nbody.Set1(n.Right) // goto l
+ 
+@@ -325,7 +325,7 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
+ 	} else {
+ 		a.Left = le
+ 	}
+-	typecheck(&a.Left, Erv)
++	a.Left = typecheck(a.Left, Erv)
+ 	a.Nbody.Set1(s.walkCases(cc[:half]))
+ 	a.Rlist.Set1(s.walkCases(cc[half:]))
+ 	return a
+@@ -526,7 +526,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 		return
+ 	}
+ 
+-	walkexpr(&cond.Right, &sw.Ninit)
++	cond.Right = walkexpr(cond.Right, &sw.Ninit)
+ 	if !Istype(cond.Right.Type, TINTER) {
+ 		Yyerror("type switch must be on an interface")
+ 		return
+@@ -538,14 +538,14 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	s.facename = temp(cond.Right.Type)
+ 
+ 	a := Nod(OAS, s.facename, cond.Right)
+-	typecheck(&a, Etop)
++	a = typecheck(a, Etop)
+ 	cas = append(cas, a)
+ 
+ 	s.okname = temp(Types[TBOOL])
+-	typecheck(&s.okname, Erv)
++	s.okname = typecheck(s.okname, Erv)
+ 
+ 	s.hashname = temp(Types[TUINT32])
+-	typecheck(&s.hashname, Erv)
++	s.hashname = typecheck(s.hashname, Erv)
+ 
+ 	// set up labels and jumps
+ 	casebody(sw, s.facename)
+@@ -590,7 +590,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 		blk.List.Set([]*Node{Nod(OLABEL, lbl, nil), def})
+ 		def = blk
+ 	}
+-	typecheck(&i.Left, Erv)
++	i.Left = typecheck(i.Left, Erv)
+ 	cas = append(cas, i)
+ 
+ 	if !isnilinter(cond.Right.Type) {
+@@ -608,7 +608,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	h.Xoffset = int64(2 * Widthptr) // offset of hash in runtime._type
+ 	h.Bounded = true                // guaranteed not to fault
+ 	a = Nod(OAS, s.hashname, h)
+-	typecheck(&a, Etop)
++	a = typecheck(a, Etop)
+ 	cas = append(cas, a)
+ 
+ 	// insert type equality check into each case block
+@@ -680,12 +680,12 @@ func (s *typeSwitch) typeone(t *Node) *Node {
+ 	var init []*Node
+ 	if t.Rlist.Len() == 0 {
+ 		name = nblank
+-		typecheck(&nblank, Erv|Easgn)
++		nblank = typecheck(nblank, Erv|Easgn)
+ 	} else {
+ 		name = t.Rlist.First()
+ 		init = []*Node{Nod(ODCL, name, nil)}
+ 		a := Nod(OAS, name, nil)
+-		typecheck(&a, Etop)
++		a = typecheck(a, Etop)
+ 		init = append(init, a)
+ 	}
+ 
+@@ -694,7 +694,7 @@ func (s *typeSwitch) typeone(t *Node) *Node {
+ 	b := Nod(ODOTTYPE, s.facename, nil)
+ 	b.Type = t.Left.Type // interface.(type)
+ 	a.Rlist.Set1(b)
+-	typecheck(&a, Etop)
++	a = typecheck(a, Etop)
+ 	init = append(init, a)
+ 
+ 	c := Nod(OIF, nil, nil)
+@@ -715,7 +715,7 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
+ 			}
+ 			a := Nod(OIF, nil, nil)
+ 			a.Left = Nod(OEQ, s.hashname, Nodintconst(int64(c.hash)))
+-			typecheck(&a.Left, Erv)
++			a.Left = typecheck(a.Left, Erv)
+ 			a.Nbody.Set1(n.Right)
+ 			cas = append(cas, a)
+ 		}
+@@ -726,7 +726,7 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
+ 	half := len(cc) / 2
+ 	a := Nod(OIF, nil, nil)
+ 	a.Left = Nod(OLE, s.hashname, Nodintconst(int64(cc[half-1].hash)))
+-	typecheck(&a.Left, Erv)
++	a.Left = typecheck(a.Left, Erv)
+ 	a.Nbody.Set1(s.walkCases(cc[:half]))
+ 	a.Rlist.Set1(s.walkCases(cc[half:]))
+ 	return a
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 680c8bb088..76b6f39a41 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -36,7 +36,7 @@ func resolve(n *Node) *Node {
+ 
+ func typecheckslice(l []*Node, top int) {
+ 	for i := range l {
+-		typecheck(&l[i], top)
++		l[i] = typecheck(l[i], top)
+ 	}
+ }
+ 
+@@ -102,16 +102,15 @@ func sprint_depchain(fmt_ *string, stack []*Node, cur *Node, first *Node) {
+ 
+ var typecheck_tcstack []*Node
+ 
+-// typecheck type checks node *np.
+-// It replaces *np with a new pointer in some cases.
+-// It returns the final value of *np as a convenience.
+-func typecheck(np **Node, top int) *Node {
++// typecheck type checks node n.
++// The result of typecheck MUST be assigned back to n, e.g.
++// 	n.Left = typecheck(n.Left, top)
++func typecheck(n *Node, top int) *Node {
+ 	// cannot type check until all the source has been parsed
+ 	if !typecheckok {
+ 		Fatalf("early typecheck")
+ 	}
+ 
+-	n := *np
+ 	if n == nil {
+ 		return nil
+ 	}
+@@ -126,8 +125,6 @@ func typecheck(np **Node, top int) *Node {
+ 	// Resolve definition of name and value of iota lazily.
+ 	n = resolve(n)
+ 
+-	*np = n
+-
+ 	// Skip typecheck if already done.
+ 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
+ 	if n.Typecheck == 1 {
+@@ -177,8 +174,7 @@ func typecheck(np **Node, top int) *Node {
+ 	n.Typecheck = 2
+ 
+ 	typecheck_tcstack = append(typecheck_tcstack, n)
+-	typecheck1(&n, top)
+-	*np = n
++	n = typecheck1(n, top)
+ 
+ 	n.Typecheck = 1
+ 
+@@ -227,25 +223,24 @@ func callrecvlist(l Nodes) bool {
+ // array/slice indexes. It is equivalent to defaultlit
+ // except for constants of numerical kind, which are acceptable
+ // whenever they can be represented by a value of type int.
+-func indexlit(np **Node) {
+-	n := *np
++// The result of indexlit MUST be assigned back to n, e.g.
++// 	n.Left = indexlit(n.Left)
++func indexlit(n *Node) *Node {
+ 	if n == nil || !isideal(n.Type) {
+-		return
++		return n
+ 	}
+ 	switch consttype(n) {
+ 	case CTINT, CTRUNE, CTFLT, CTCPLX:
+-		defaultlit(np, Types[TINT])
++		n = defaultlit(n, Types[TINT])
+ 	}
+ 
+-	defaultlit(np, nil)
++	n = defaultlit(n, nil)
++	return n
+ }
+ 
+-func typecheck1(np **Node, top int) {
+-	n := *np
+-	defer func() {
+-		*np = n
+-	}()
+-
++// The result of typecheck1 MUST be assigned back to n, e.g.
++// 	n.Left = typecheck1(n.Left, top)
++func typecheck1(n *Node, top int) *Node {
+ 	switch n.Op {
+ 	case OXDOT, ODOT, ODOTPTR, ODOTMETH, ODOTINTER:
+ 		// n.Sym is a field/method name, not a variable.
+@@ -254,13 +249,13 @@ func typecheck1(np **Node, top int) {
+ 			if n.Op == ONAME && n.Etype != 0 && top&Ecall == 0 {
+ 				Yyerror("use of builtin %v not in function call", n.Sym)
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			typecheckdef(n)
+ 			if n.Op == ONONAME {
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 		}
+ 	}
+@@ -301,7 +296,7 @@ OpSwitch:
+ 			if isblank(n) {
+ 				Yyerror("cannot use _ as value")
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			n.Used = true
+@@ -310,7 +305,7 @@ OpSwitch:
+ 		if top&Ecall == 0 && isunsafebuiltin(n) {
+ 			Yyerror("%v is not an expression, must be called", n)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		ok |= Erv
+@@ -319,7 +314,7 @@ OpSwitch:
+ 	case OPACK:
+ 		Yyerror("use of package %v without selector", n.Sym)
+ 		n.Type = nil
+-		return
++		return n
+ 
+ 	case ODDD:
+ 		break
+@@ -330,7 +325,7 @@ OpSwitch:
+ 
+ 		if n.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 	case OTARRAY:
+@@ -348,7 +343,8 @@ OpSwitch:
+ 				Yyerror("use of [...] array outside of array literal")
+ 			}
+ 		} else {
+-			l := typecheck(&n.Left, Erv)
++			n.Left = typecheck(n.Left, Erv)
++			l := n.Left
+ 			var v Val
+ 			switch consttype(l) {
+ 			case CTINT, CTRUNE:
+@@ -364,25 +360,25 @@ OpSwitch:
+ 					Yyerror("invalid array bound %v", l)
+ 				}
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			t.Bound = v.U.(*Mpint).Int64()
+ 			if doesoverflow(v, Types[TINT]) {
+ 				Yyerror("array bound is too large")
+ 				n.Type = nil
+-				return
++				return n
+ 			} else if t.Bound < 0 {
+ 				Yyerror("array bound must be non-negative")
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 		}
+ 
+-		typecheck(&r, Etype)
++		r = typecheck(r, Etype)
+ 		if r.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		t.Type = r.Type
+ 		n.Op = OTYPE
+@@ -395,11 +391,13 @@ OpSwitch:
+ 
+ 	case OTMAP:
+ 		ok |= Etype
+-		l := typecheck(&n.Left, Etype)
+-		r := typecheck(&n.Right, Etype)
++		n.Left = typecheck(n.Left, Etype)
++		n.Right = typecheck(n.Right, Etype)
++		l := n.Left
++		r := n.Right
+ 		if l.Type == nil || r.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		n.Op = OTYPE
+ 		n.Type = maptype(l.Type, r.Type)
+@@ -408,10 +406,11 @@ OpSwitch:
+ 
+ 	case OTCHAN:
+ 		ok |= Etype
+-		l := typecheck(&n.Left, Etype)
++		n.Left = typecheck(n.Left, Etype)
++		l := n.Left
+ 		if l.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		t := typ(TCHAN)
+ 		t.Type = l.Type
+@@ -428,7 +427,7 @@ OpSwitch:
+ 		n.Type = tostruct(n.List.Slice())
+ 		if n.Type == nil || n.Type.Broke {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		n.List.Set(nil)
+ 
+@@ -438,7 +437,7 @@ OpSwitch:
+ 		n.Type = tointerface(n.List.Slice())
+ 		if n.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 	case OTFUNC:
+@@ -447,7 +446,7 @@ OpSwitch:
+ 		n.Type = functype(n.Left, n.List.Slice(), n.Rlist.Slice())
+ 		if n.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 	// type or expr
+@@ -458,11 +457,12 @@ OpSwitch:
+ 			ntop |= Eindir
+ 		}
+ 		ntop |= top & Ecomplit
+-		l := typecheck(&n.Left, ntop)
++		n.Left = typecheck(n.Left, ntop)
++		l := n.Left
+ 		t := l.Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		if l.Op == OTYPE {
+ 			ok |= Etype
+@@ -476,7 +476,7 @@ OpSwitch:
+ 			if top&(Erv|Etop) != 0 {
+ 				Yyerror("invalid indirect of %v", Nconv(n.Left, FmtLong))
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			break OpSwitch
+@@ -513,45 +513,49 @@ OpSwitch:
+ 		var r *Node
+ 		if n.Op == OASOP {
+ 			ok |= Etop
+-			l = typecheck(&n.Left, Erv)
+-			r = typecheck(&n.Right, Erv)
++			n.Left = typecheck(n.Left, Erv)
++			n.Right = typecheck(n.Right, Erv)
++			l = n.Left
++			r = n.Right
+ 			checkassign(n, n.Left)
+ 			if l.Type == nil || r.Type == nil {
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 			if n.Implicit && !okforarith[l.Type.Etype] {
+ 				Yyerror("invalid operation: %v (non-numeric type %v)", n, l.Type)
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 			// TODO(marvin): Fix Node.EType type union.
+ 			op = Op(n.Etype)
+ 		} else {
+ 			ok |= Erv
+-			l = typecheck(&n.Left, Erv|top&Eiota)
+-			r = typecheck(&n.Right, Erv|top&Eiota)
++			n.Left = typecheck(n.Left, Erv|top&Eiota)
++			n.Right = typecheck(n.Right, Erv|top&Eiota)
++			l = n.Left
++			r = n.Right
+ 			if l.Type == nil || r.Type == nil {
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 			op = n.Op
+ 		}
+ 		if op == OLSH || op == ORSH {
+-			defaultlit(&r, Types[TUINT])
++			r = defaultlit(r, Types[TUINT])
+ 			n.Right = r
+ 			t := r.Type
+ 			if !Isint[t.Etype] || Issigned[t.Etype] {
+ 				Yyerror("invalid operation: %v (shift count type %v, must be unsigned integer)", n, r.Type)
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			t = l.Type
+ 			if t != nil && t.Etype != TIDEAL && !Isint[t.Etype] {
+ 				Yyerror("invalid operation: %v (shift of type %v)", n, t)
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			// no defaultlit for left
+@@ -562,13 +566,13 @@ OpSwitch:
+ 		}
+ 
+ 		// ideal mixed with non-ideal
+-		defaultlit2(&l, &r, false)
++		l, r = defaultlit2(l, r, false)
+ 
+ 		n.Left = l
+ 		n.Right = r
+ 		if l.Type == nil || r.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		t := l.Type
+ 		if t.Etype == TIDEAL {
+@@ -593,7 +597,7 @@ OpSwitch:
+ 					if Isinter(r.Type) && !Isinter(l.Type) && algtype1(l.Type, nil) == ANOEQ {
+ 						Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(op, 0), typekind(l.Type))
+ 						n.Type = nil
+-						return
++						return n
+ 					}
+ 
+ 					dowidth(l.Type)
+@@ -615,7 +619,7 @@ OpSwitch:
+ 					if Isinter(l.Type) && !Isinter(r.Type) && algtype1(r.Type, nil) == ANOEQ {
+ 						Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(op, 0), typekind(r.Type))
+ 						n.Type = nil
+-						return
++						return n
+ 					}
+ 
+ 					dowidth(r.Type)
+@@ -635,18 +639,18 @@ OpSwitch:
+ 		}
+ 
+ 		if t.Etype != TIDEAL && !Eqtype(l.Type, r.Type) {
+-			defaultlit2(&l, &r, true)
++			l, r = defaultlit2(l, r, true)
+ 			if Isinter(r.Type) == Isinter(l.Type) || aop == 0 {
+ 				Yyerror("invalid operation: %v (mismatched types %v and %v)", n, l.Type, r.Type)
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 		}
+ 
+ 		if !okfor[op][et] {
+ 			Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(op, 0), typekind(t))
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		// okfor allows any array == array, map == map, func == func.
+@@ -654,32 +658,32 @@ OpSwitch:
+ 		if Isfixedarray(l.Type) && algtype1(l.Type, nil) == ANOEQ {
+ 			Yyerror("invalid operation: %v (%v cannot be compared)", n, l.Type)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if Isslice(l.Type) && !isnil(l) && !isnil(r) {
+ 			Yyerror("invalid operation: %v (slice can only be compared to nil)", n)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if l.Type.Etype == TMAP && !isnil(l) && !isnil(r) {
+ 			Yyerror("invalid operation: %v (map can only be compared to nil)", n)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if l.Type.Etype == TFUNC && !isnil(l) && !isnil(r) {
+ 			Yyerror("invalid operation: %v (func can only be compared to nil)", n)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		var badtype *Type
+ 		if l.Type.Etype == TSTRUCT && algtype1(l.Type, &badtype) == ANOEQ {
+ 			Yyerror("invalid operation: %v (struct containing %v cannot be compared)", n, badtype)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		t = l.Type
+@@ -687,7 +691,7 @@ OpSwitch:
+ 			evconst(n)
+ 			t = idealbool
+ 			if n.Op != OLITERAL {
+-				defaultlit2(&l, &r, true)
++				l, r = defaultlit2(l, r, true)
+ 				n.Left = l
+ 				n.Right = r
+ 			}
+@@ -736,7 +740,7 @@ OpSwitch:
+ 			if r.Val().U.(*Mpint).CmpInt64(0) == 0 {
+ 				Yyerror("division by zero")
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 		}
+ 
+@@ -745,16 +749,17 @@ OpSwitch:
+ 
+ 	case OCOM, OMINUS, ONOT, OPLUS:
+ 		ok |= Erv
+-		l := typecheck(&n.Left, Erv|top&Eiota)
++		n.Left = typecheck(n.Left, Erv|top&Eiota)
++		l := n.Left
+ 		t := l.Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		if !okfor[n.Op][t.Etype] {
+ 			Yyerror("invalid operation: %v %v", Oconv(n.Op, 0), t)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		n.Type = t
+@@ -764,10 +769,10 @@ OpSwitch:
+ 	case OADDR:
+ 		ok |= Erv
+ 
+-		typecheck(&n.Left, Erv|Eaddr)
++		n.Left = typecheck(n.Left, Erv|Eaddr)
+ 		if n.Left.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		checklvalue(n.Left, "take the address of")
+ 		r := outervalue(n.Left)
+@@ -786,22 +791,22 @@ OpSwitch:
+ 		if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
+ 			l.Name.Param.Closure.Addrtaken = true
+ 		}
+-		defaultlit(&n.Left, nil)
++		n.Left = defaultlit(n.Left, nil)
+ 		l = n.Left
+ 		t := l.Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		n.Type = Ptrto(t)
+ 		break OpSwitch
+ 
+ 	case OCOMPLIT:
+ 		ok |= Erv
+-		typecheckcomplit(&n)
++		n = typecheckcomplit(n)
+ 		if n.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		break OpSwitch
+ 
+@@ -811,19 +816,19 @@ OpSwitch:
+ 			n.Op = ODOT
+ 			if n.Left == nil {
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 		}
+ 
+-		typecheck(&n.Left, Erv|Etype)
++		n.Left = typecheck(n.Left, Erv|Etype)
+ 
+-		defaultlit(&n.Left, nil)
++		n.Left = defaultlit(n.Left, nil)
+ 
+ 		t := n.Left.Type
+ 		if t == nil {
+ 			adderrorname(n)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		s := n.Sym
+@@ -836,14 +841,14 @@ OpSwitch:
+ 					Yyerror("%v undefined (type %v has no method %v)", n, t, n.Sym)
+ 				}
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			if n.Type.Etype != TFUNC || n.Type.Recv() == nil {
+ 				Yyerror("type %v has no method %v", n.Left.Type, Sconv(n.Right.Sym, FmtShort))
+ 				n.Type = nil
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			n.Op = ONAME
+@@ -862,7 +867,7 @@ OpSwitch:
+ 			t = t.Type
+ 			if t == nil {
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 			n.Op = ODOTPTR
+ 			checkwidth(t)
+@@ -871,7 +876,7 @@ OpSwitch:
+ 		if isblanksym(n.Sym) {
+ 			Yyerror("cannot refer to blank field or method")
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if lookdot(n, t, 0) == nil {
+@@ -896,7 +901,7 @@ OpSwitch:
+ 				}
+ 			}
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		switch n.Op {
+@@ -916,26 +921,26 @@ OpSwitch:
+ 
+ 	case ODOTTYPE:
+ 		ok |= Erv
+-		typecheck(&n.Left, Erv)
+-		defaultlit(&n.Left, nil)
++		n.Left = typecheck(n.Left, Erv)
++		n.Left = defaultlit(n.Left, nil)
+ 		l := n.Left
+ 		t := l.Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		if !Isinter(t) {
+ 			Yyerror("invalid type assertion: %v (non-interface type %v on left)", n, t)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if n.Right != nil {
+-			typecheck(&n.Right, Etype)
++			n.Right = typecheck(n.Right, Etype)
+ 			n.Type = n.Right.Type
+ 			n.Right = nil
+ 			if n.Type == nil {
+-				return
++				return n
+ 			}
+ 		}
+ 
+@@ -953,7 +958,7 @@ OpSwitch:
+ 					Yyerror("impossible type assertion:\n\t%v does not implement %v (missing %v method)", n.Type, t, missing.Sym)
+ 				}
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 		}
+ 
+@@ -961,25 +966,25 @@ OpSwitch:
+ 
+ 	case OINDEX:
+ 		ok |= Erv
+-		typecheck(&n.Left, Erv)
+-		defaultlit(&n.Left, nil)
+-		implicitstar(&n.Left)
++		n.Left = typecheck(n.Left, Erv)
++		n.Left = defaultlit(n.Left, nil)
++		n.Left = implicitstar(n.Left)
+ 		l := n.Left
+-		typecheck(&n.Right, Erv)
++		n.Right = typecheck(n.Right, Erv)
+ 		r := n.Right
+ 		t := l.Type
+ 		if t == nil || r.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		switch t.Etype {
+ 		default:
+ 			Yyerror("invalid operation: %v (type %v does not support indexing)", n, t)
+ 			n.Type = nil
+-			return
++			return n
+ 
+ 		case TSTRING, TARRAY:
+-			indexlit(&n.Right)
++			n.Right = indexlit(n.Right)
+ 			if t.Etype == TSTRING {
+ 				n.Type = bytetype
+ 			} else {
+@@ -1014,7 +1019,7 @@ OpSwitch:
+ 
+ 		case TMAP:
+ 			n.Etype = 0
+-			defaultlit(&n.Right, t.Key())
++			n.Right = defaultlit(n.Right, t.Key())
+ 			if n.Right.Type != nil {
+ 				n.Right = assignconv(n.Right, t.Key(), "map index")
+ 			}
+@@ -1026,24 +1031,24 @@ OpSwitch:
+ 
+ 	case ORECV:
+ 		ok |= Etop | Erv
+-		typecheck(&n.Left, Erv)
+-		defaultlit(&n.Left, nil)
++		n.Left = typecheck(n.Left, Erv)
++		n.Left = defaultlit(n.Left, nil)
+ 		l := n.Left
+ 		t := l.Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		if t.Etype != TCHAN {
+ 			Yyerror("invalid operation: %v (receive from non-chan type %v)", n, t)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if t.Chan&Crecv == 0 {
+ 			Yyerror("invalid operation: %v (receive from send-only type %v)", n, t)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		n.Type = t.Type
+@@ -1051,32 +1056,33 @@ OpSwitch:
+ 
+ 	case OSEND:
+ 		ok |= Etop
+-		l := typecheck(&n.Left, Erv)
+-		typecheck(&n.Right, Erv)
+-		defaultlit(&n.Left, nil)
++		n.Left = typecheck(n.Left, Erv)
++		l := n.Left
++		n.Right = typecheck(n.Right, Erv)
++		n.Left = defaultlit(n.Left, nil)
+ 		l = n.Left
+ 		t := l.Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		if t.Etype != TCHAN {
+ 			Yyerror("invalid operation: %v (send to non-chan type %v)", n, t)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if t.Chan&Csend == 0 {
+ 			Yyerror("invalid operation: %v (send to receive-only type %v)", n, t)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+-		defaultlit(&n.Right, t.Type)
++		n.Right = defaultlit(n.Right, t.Type)
+ 		r := n.Right
+ 		if r.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		n.Right = assignconv(r, l.Type.Type, "send")
+ 
+@@ -1088,30 +1094,30 @@ OpSwitch:
+ 
+ 	case OSLICE:
+ 		ok |= Erv
+-		typecheck(&n.Left, top)
+-		typecheck(&n.Right.Left, Erv)
+-		typecheck(&n.Right.Right, Erv)
+-		defaultlit(&n.Left, nil)
+-		indexlit(&n.Right.Left)
+-		indexlit(&n.Right.Right)
++		n.Left = typecheck(n.Left, top)
++		n.Right.Left = typecheck(n.Right.Left, Erv)
++		n.Right.Right = typecheck(n.Right.Right, Erv)
++		n.Left = defaultlit(n.Left, nil)
++		n.Right.Left = indexlit(n.Right.Left)
++		n.Right.Right = indexlit(n.Right.Right)
+ 		l := n.Left
+ 		if Isfixedarray(l.Type) {
+ 			if !islvalue(n.Left) {
+ 				Yyerror("invalid operation %v (slice of unaddressable value)", n)
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			n.Left = Nod(OADDR, n.Left, nil)
+ 			n.Left.Implicit = true
+-			typecheck(&n.Left, Erv)
++			n.Left = typecheck(n.Left, Erv)
+ 			l = n.Left
+ 		}
+ 
+ 		t := l.Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		var tp *Type
+ 		if Istype(t, TSTRING) {
+@@ -1129,58 +1135,58 @@ OpSwitch:
+ 		} else {
+ 			Yyerror("cannot slice %v (type %v)", l, t)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		lo := n.Right.Left
+ 		if lo != nil && !checksliceindex(l, lo, tp) {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		hi := n.Right.Right
+ 		if hi != nil && !checksliceindex(l, hi, tp) {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		if !checksliceconst(lo, hi) {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		break OpSwitch
+ 
+ 	case OSLICE3:
+ 		ok |= Erv
+-		typecheck(&n.Left, top)
+-		typecheck(&n.Right.Left, Erv)
+-		typecheck(&n.Right.Right.Left, Erv)
+-		typecheck(&n.Right.Right.Right, Erv)
+-		defaultlit(&n.Left, nil)
+-		indexlit(&n.Right.Left)
+-		indexlit(&n.Right.Right.Left)
+-		indexlit(&n.Right.Right.Right)
++		n.Left = typecheck(n.Left, top)
++		n.Right.Left = typecheck(n.Right.Left, Erv)
++		n.Right.Right.Left = typecheck(n.Right.Right.Left, Erv)
++		n.Right.Right.Right = typecheck(n.Right.Right.Right, Erv)
++		n.Left = defaultlit(n.Left, nil)
++		n.Right.Left = indexlit(n.Right.Left)
++		n.Right.Right.Left = indexlit(n.Right.Right.Left)
++		n.Right.Right.Right = indexlit(n.Right.Right.Right)
+ 		l := n.Left
+ 		if Isfixedarray(l.Type) {
+ 			if !islvalue(n.Left) {
+ 				Yyerror("invalid operation %v (slice of unaddressable value)", n)
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			n.Left = Nod(OADDR, n.Left, nil)
+ 			n.Left.Implicit = true
+-			typecheck(&n.Left, Erv)
++			n.Left = typecheck(n.Left, Erv)
+ 			l = n.Left
+ 		}
+ 
+ 		t := l.Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		if Istype(t, TSTRING) {
+ 			Yyerror("invalid operation %v (3-index slice of string)", n)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		var tp *Type
+@@ -1196,27 +1202,27 @@ OpSwitch:
+ 		} else {
+ 			Yyerror("cannot slice %v (type %v)", l, t)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		lo := n.Right.Left
+ 		if lo != nil && !checksliceindex(l, lo, tp) {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		mid := n.Right.Right.Left
+ 		if mid != nil && !checksliceindex(l, mid, tp) {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		hi := n.Right.Right.Right
+ 		if hi != nil && !checksliceindex(l, hi, tp) {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		if !checksliceconst(lo, hi) || !checksliceconst(lo, mid) || !checksliceconst(mid, hi) {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		break OpSwitch
+ 
+@@ -1231,12 +1237,12 @@ OpSwitch:
+ 					Yyerror("invalid use of ... with builtin %v", l)
+ 				}
+ 				n = r
+-				typecheck1(&n, top)
+-				return
++				n = typecheck1(n, top)
++				return n
+ 			}
+ 		}
+ 
+-		typecheck(&n.Left, Erv|Etype|Ecall|top&Eproc)
++		n.Left = typecheck(n.Left, Erv|Etype|Ecall|top&Eproc)
+ 		n.Diag |= n.Left.Diag
+ 		l = n.Left
+ 		if l.Op == ONAME && l.Etype != 0 {
+@@ -1251,11 +1257,11 @@ OpSwitch:
+ 
+ 			n.Left = n.Right
+ 			n.Right = nil
+-			typecheck1(&n, top)
+-			return
++			n = typecheck1(n, top)
++			return n
+ 		}
+ 
+-		defaultlit(&n.Left, nil)
++		n.Left = defaultlit(n.Left, nil)
+ 		l = n.Left
+ 		if l.Op == OTYPE {
+ 			if n.Isddd || l.Type.Bound == -100 {
+@@ -1275,21 +1281,21 @@ OpSwitch:
+ 			n.Type = l.Type
+ 			if !onearg(n, "conversion to %v", l.Type) {
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+-			typecheck1(&n, top)
+-			return
++			n = typecheck1(n, top)
++			return n
+ 		}
+ 
+ 		if n.List.Len() == 1 && !n.Isddd {
+-			typecheck(n.List.Addr(0), Erv|Efnstruct)
++			n.List.SetIndex(0, typecheck(n.List.Index(0), Erv|Efnstruct))
+ 		} else {
+ 			typecheckslice(n.List.Slice(), Erv)
+ 		}
+ 		t := l.Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		checkwidth(t)
+ 
+@@ -1315,7 +1321,7 @@ OpSwitch:
+ 			if t.Etype != TFUNC {
+ 				Yyerror("cannot call non-function %v (type %v)", l, t)
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 		}
+ 
+@@ -1355,16 +1361,16 @@ OpSwitch:
+ 		ok |= Erv
+ 		if !onearg(n, "%v", Oconv(n.Op, 0)) {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+-		typecheck(&n.Left, Erv)
+-		defaultlit(&n.Left, nil)
+-		implicitstar(&n.Left)
++		n.Left = typecheck(n.Left, Erv)
++		n.Left = defaultlit(n.Left, nil)
++		n.Left = implicitstar(n.Left)
+ 		l := n.Left
+ 		t := l.Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		switch n.Op {
+ 		case OCAP:
+@@ -1424,7 +1430,7 @@ OpSwitch:
+ 	badcall1:
+ 		Yyerror("invalid argument %v for %v", Nconv(n.Left, FmtLong), Oconv(n.Op, 0))
+ 		n.Type = nil
+-		return
++		return n
+ 
+ 	case OCOMPLEX:
+ 		ok |= Erv
+@@ -1435,14 +1441,14 @@ OpSwitch:
+ 			if n.List.First().Op != OCALLFUNC && n.List.First().Op != OCALLMETH {
+ 				Yyerror("invalid operation: complex expects two arguments")
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			t := n.List.First().Left.Type
+ 			if t.Results().NumFields() != 2 {
+ 				Yyerror("invalid operation: complex expects two arguments, %v returns %d results", n.List.First(), t.Results().NumFields())
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			t = n.List.First().Type
+@@ -1451,18 +1457,20 @@ OpSwitch:
+ 		} else {
+ 			if !twoarg(n) {
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+-			l = typecheck(&n.Left, Erv|top&Eiota)
+-			r = typecheck(&n.Right, Erv|top&Eiota)
++			n.Left = typecheck(n.Left, Erv|top&Eiota)
++			n.Right = typecheck(n.Right, Erv|top&Eiota)
++			l = n.Left
++			r = n.Right
+ 			if l.Type == nil || r.Type == nil {
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+-			defaultlit2(&l, &r, false)
++			l, r = defaultlit2(l, r, false)
+ 			if l.Type == nil || r.Type == nil {
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 			n.Left = l
+ 			n.Right = r
+@@ -1471,7 +1479,7 @@ OpSwitch:
+ 		if !Eqtype(l.Type, r.Type) {
+ 			Yyerror("invalid operation: %v (mismatched types %v and %v)", n, l.Type, r.Type)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		var t *Type
+@@ -1479,7 +1487,7 @@ OpSwitch:
+ 		default:
+ 			Yyerror("invalid operation: %v (arguments have type %v, expected floating-point)", n, l.Type)
+ 			n.Type = nil
+-			return
++			return n
+ 
+ 		case TIDEAL:
+ 			t = Types[TIDEAL]
+@@ -1505,26 +1513,26 @@ OpSwitch:
+ 	case OCLOSE:
+ 		if !onearg(n, "%v", Oconv(n.Op, 0)) {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+-		typecheck(&n.Left, Erv)
+-		defaultlit(&n.Left, nil)
++		n.Left = typecheck(n.Left, Erv)
++		n.Left = defaultlit(n.Left, nil)
+ 		l := n.Left
+ 		t := l.Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		if t.Etype != TCHAN {
+ 			Yyerror("invalid operation: %v (non-chan type %v)", n, t)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if t.Chan&Csend == 0 {
+ 			Yyerror("invalid operation: %v (cannot close receive-only channel)", n)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		ok |= Etop
+@@ -1535,19 +1543,19 @@ OpSwitch:
+ 		if args.Len() == 0 {
+ 			Yyerror("missing arguments to delete")
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if args.Len() == 1 {
+ 			Yyerror("missing second (key) argument to delete")
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if args.Len() != 2 {
+ 			Yyerror("too many arguments to delete")
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		ok |= Etop
+@@ -1557,7 +1565,7 @@ OpSwitch:
+ 		if l.Type != nil && l.Type.Etype != TMAP {
+ 			Yyerror("first argument to delete must be map; have %v", Tconv(l.Type, FmtLong))
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		args.SetIndex(1, assignconv(r, l.Type.Key(), "delete"))
+@@ -1569,11 +1577,11 @@ OpSwitch:
+ 		if args.Len() == 0 {
+ 			Yyerror("missing arguments to append")
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if args.Len() == 1 && !n.Isddd {
+-			typecheck(args.Addr(0), Erv|Efnstruct)
++			args.SetIndex(0, typecheck(args.Index(0), Erv|Efnstruct))
+ 		} else {
+ 			typecheckslice(args.Slice(), Erv)
+ 		}
+@@ -1581,7 +1589,7 @@ OpSwitch:
+ 		t := args.First().Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		// Unpack multiple-return result before type-checking.
+@@ -1596,29 +1604,29 @@ OpSwitch:
+ 			if Isconst(args.First(), CTNIL) {
+ 				Yyerror("first argument to append must be typed slice; have untyped nil")
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			Yyerror("first argument to append must be slice; have %v", Tconv(t, FmtLong))
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if n.Isddd {
+ 			if args.Len() == 1 {
+ 				Yyerror("cannot use ... on first argument to append")
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			if args.Len() != 2 {
+ 				Yyerror("too many arguments to append")
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			if Istype(t.Type, TUINT8) && Istype(args.Second().Type, TSTRING) {
+-				defaultlit(args.Addr(1), Types[TSTRING])
++				args.SetIndex(1, defaultlit(args.Index(1), Types[TSTRING]))
+ 				break OpSwitch
+ 			}
+ 
+@@ -1651,30 +1659,30 @@ OpSwitch:
+ 		if args.Len() < 2 {
+ 			Yyerror("missing arguments to copy")
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if args.Len() > 2 {
+ 			Yyerror("too many arguments to copy")
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		n.Left = args.First()
+ 		n.Right = args.Second()
+ 		n.List.Set(nil)
+ 		n.Type = Types[TINT]
+-		typecheck(&n.Left, Erv)
+-		typecheck(&n.Right, Erv)
++		n.Left = typecheck(n.Left, Erv)
++		n.Right = typecheck(n.Right, Erv)
+ 		if n.Left.Type == nil || n.Right.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+-		defaultlit(&n.Left, nil)
+-		defaultlit(&n.Right, nil)
++		n.Left = defaultlit(n.Left, nil)
++		n.Right = defaultlit(n.Right, nil)
+ 		if n.Left.Type == nil || n.Right.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		// copy([]byte, string)
+@@ -1684,7 +1692,7 @@ OpSwitch:
+ 			}
+ 			Yyerror("arguments to copy have different element types: %v and string", Tconv(n.Left.Type, FmtLong))
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if !Isslice(n.Left.Type) || !Isslice(n.Right.Type) {
+@@ -1696,13 +1704,13 @@ OpSwitch:
+ 				Yyerror("second argument to copy should be slice or string; have %v", Tconv(n.Right.Type, FmtLong))
+ 			}
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if !Eqtype(n.Left.Type.Type, n.Right.Type.Type) {
+ 			Yyerror("arguments to copy have different element types: %v and %v", Tconv(n.Left.Type, FmtLong), Tconv(n.Right.Type, FmtLong))
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		break OpSwitch
+@@ -1710,12 +1718,12 @@ OpSwitch:
+ 	case OCONV:
+ 		ok |= Erv
+ 		saveorignode(n)
+-		typecheck(&n.Left, Erv|top&(Eindir|Eiota))
+-		convlit1(&n.Left, n.Type, true)
++		n.Left = typecheck(n.Left, Erv|top&(Eindir|Eiota))
++		n.Left = convlit1(n.Left, n.Type, true)
+ 		t := n.Left.Type
+ 		if t == nil || n.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		var why string
+ 		n.Op = convertop(t, n.Type, &why)
+@@ -1746,7 +1754,7 @@ OpSwitch:
+ 
+ 		case OSTRARRAYRUNE:
+ 			if n.Left.Op == OLITERAL {
+-				stringtoarraylit(&n)
++				n = stringtoarraylit(n)
+ 			}
+ 		}
+ 
+@@ -1758,16 +1766,16 @@ OpSwitch:
+ 		if len(args) == 0 {
+ 			Yyerror("missing argument to make")
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		n.List.Set(nil)
+ 		l := args[0]
+-		typecheck(&l, Etype)
++		l = typecheck(l, Etype)
+ 		t := l.Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		i := 1
+@@ -1775,43 +1783,43 @@ OpSwitch:
+ 		default:
+ 			Yyerror("cannot make type %v", t)
+ 			n.Type = nil
+-			return
++			return n
+ 
+ 		case TARRAY:
+ 			if !Isslice(t) {
+ 				Yyerror("cannot make type %v", t)
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			if i >= len(args) {
+ 				Yyerror("missing len argument to make(%v)", t)
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			l = args[i]
+ 			i++
+-			typecheck(&l, Erv)
++			l = typecheck(l, Erv)
+ 			var r *Node
+ 			if i < len(args) {
+ 				r = args[i]
+ 				i++
+-				typecheck(&r, Erv)
++				r = typecheck(r, Erv)
+ 			}
+ 
+ 			if l.Type == nil || (r != nil && r.Type == nil) {
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 			if !checkmake(t, "len", l) || r != nil && !checkmake(t, "cap", r) {
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 			if Isconst(l, CTINT) && r != nil && Isconst(r, CTINT) && l.Val().U.(*Mpint).Cmp(r.Val().U.(*Mpint)) > 0 {
+ 				Yyerror("len larger than cap in make(%v)", t)
+ 				n.Type = nil
+-				return
++				return n
+ 			}
+ 
+ 			n.Left = l
+@@ -1822,15 +1830,15 @@ OpSwitch:
+ 			if i < len(args) {
+ 				l = args[i]
+ 				i++
+-				typecheck(&l, Erv)
+-				defaultlit(&l, Types[TINT])
++				l = typecheck(l, Erv)
++				l = defaultlit(l, Types[TINT])
+ 				if l.Type == nil {
+ 					n.Type = nil
+-					return
++					return n
+ 				}
+ 				if !checkmake(t, "size", l) {
+ 					n.Type = nil
+-					return
++					return n
+ 				}
+ 				n.Left = l
+ 			} else {
+@@ -1843,15 +1851,15 @@ OpSwitch:
+ 			if i < len(args) {
+ 				l = args[i]
+ 				i++
+-				typecheck(&l, Erv)
+-				defaultlit(&l, Types[TINT])
++				l = typecheck(l, Erv)
++				l = defaultlit(l, Types[TINT])
+ 				if l.Type == nil {
+ 					n.Type = nil
+-					return
++					return n
+ 				}
+ 				if !checkmake(t, "buffer", l) {
+ 					n.Type = nil
+-					return
++					return n
+ 				}
+ 				n.Left = l
+ 			} else {
+@@ -1864,7 +1872,7 @@ OpSwitch:
+ 			Yyerror("too many arguments to make(%v)", t)
+ 			n.Op = OMAKE
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		n.Type = t
+@@ -1876,20 +1884,20 @@ OpSwitch:
+ 		if args.Len() == 0 {
+ 			Yyerror("missing argument to new")
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		l := args.First()
+-		typecheck(&l, Etype)
++		l = typecheck(l, Etype)
+ 		t := l.Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		if args.Len() > 1 {
+ 			Yyerror("too many arguments to new(%v)", t)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		n.Left = l
+@@ -1903,9 +1911,9 @@ OpSwitch:
+ 		for i1, n1 := range ls {
+ 			// Special case for print: int constant is int64, not int.
+ 			if Isconst(n1, CTINT) {
+-				defaultlit(&ls[i1], Types[TINT64])
++				ls[i1] = defaultlit(ls[i1], Types[TINT64])
+ 			} else {
+-				defaultlit(&ls[i1], nil)
++				ls[i1] = defaultlit(ls[i1], nil)
+ 			}
+ 		}
+ 
+@@ -1915,13 +1923,13 @@ OpSwitch:
+ 		ok |= Etop
+ 		if !onearg(n, "panic") {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+-		typecheck(&n.Left, Erv)
+-		defaultlit(&n.Left, Types[TINTER])
++		n.Left = typecheck(n.Left, Erv)
++		n.Left = defaultlit(n.Left, Types[TINTER])
+ 		if n.Left.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		break OpSwitch
+ 
+@@ -1930,7 +1938,7 @@ OpSwitch:
+ 		if n.List.Len() != 0 {
+ 			Yyerror("too many arguments to recover")
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		n.Type = Types[TINTER]
+@@ -1941,17 +1949,17 @@ OpSwitch:
+ 		typecheckclosure(n, top)
+ 		if n.Type == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		break OpSwitch
+ 
+ 	case OITAB:
+ 		ok |= Erv
+-		typecheck(&n.Left, Erv)
++		n.Left = typecheck(n.Left, Erv)
+ 		t := n.Left.Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		if t.Etype != TINTER {
+ 			Fatalf("OITAB of %v", t)
+@@ -1961,11 +1969,11 @@ OpSwitch:
+ 
+ 	case OSPTR:
+ 		ok |= Erv
+-		typecheck(&n.Left, Erv)
++		n.Left = typecheck(n.Left, Erv)
+ 		t := n.Left.Type
+ 		if t == nil {
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 		if !Isslice(t) && t.Etype != TSTRING {
+ 			Fatalf("OSPTR of %v", t)
+@@ -1983,13 +1991,13 @@ OpSwitch:
+ 
+ 	case OCFUNC:
+ 		ok |= Erv
+-		typecheck(&n.Left, Erv)
++		n.Left = typecheck(n.Left, Erv)
+ 		n.Type = Types[TUINTPTR]
+ 		break OpSwitch
+ 
+ 	case OCONVNOP:
+ 		ok |= Erv
+-		typecheck(&n.Left, Erv)
++		n.Left = typecheck(n.Left, Erv)
+ 		break OpSwitch
+ 
+ 	// statements
+@@ -2027,7 +2035,7 @@ OpSwitch:
+ 
+ 	case ODEFER:
+ 		ok |= Etop
+-		typecheck(&n.Left, Etop|Erv)
++		n.Left = typecheck(n.Left, Etop|Erv)
+ 		if n.Left.Diag == 0 {
+ 			checkdefergo(n)
+ 		}
+@@ -2035,7 +2043,7 @@ OpSwitch:
+ 
+ 	case OPROC:
+ 		ok |= Etop
+-		typecheck(&n.Left, Etop|Eproc|Erv)
++		n.Left = typecheck(n.Left, Etop|Eproc|Erv)
+ 		checkdefergo(n)
+ 		break OpSwitch
+ 
+@@ -2043,14 +2051,14 @@ OpSwitch:
+ 		ok |= Etop
+ 		typecheckslice(n.Ninit.Slice(), Etop)
+ 		decldepth++
+-		typecheck(&n.Left, Erv)
++		n.Left = typecheck(n.Left, Erv)
+ 		if n.Left != nil {
+ 			t := n.Left.Type
+ 			if t != nil && t.Etype != TBOOL {
+ 				Yyerror("non-bool %v used as for condition", Nconv(n.Left, FmtLong))
+ 			}
+ 		}
+-		typecheck(&n.Right, Etop)
++		n.Right = typecheck(n.Right, Etop)
+ 		typecheckslice(n.Nbody.Slice(), Etop)
+ 		decldepth--
+ 		break OpSwitch
+@@ -2058,7 +2066,7 @@ OpSwitch:
+ 	case OIF:
+ 		ok |= Etop
+ 		typecheckslice(n.Ninit.Slice(), Etop)
+-		typecheck(&n.Left, Erv)
++		n.Left = typecheck(n.Left, Erv)
+ 		if n.Left != nil {
+ 			t := n.Left.Type
+ 			if t != nil && t.Etype != TBOOL {
+@@ -2079,7 +2087,7 @@ OpSwitch:
+ 		if Curfn == nil {
+ 			Yyerror("return outside function")
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		if Curfn.Type.Outnamed && n.List.Len() == 0 {
+@@ -2110,7 +2118,7 @@ OpSwitch:
+ 	case OTYPESW:
+ 		Yyerror("use of .(type) outside type switch")
+ 		n.Type = nil
+-		return
++		return n
+ 
+ 	case OXCASE:
+ 		ok |= Etop
+@@ -2125,12 +2133,12 @@ OpSwitch:
+ 
+ 	case ODCLCONST:
+ 		ok |= Etop
+-		typecheck(&n.Left, Erv)
++		n.Left = typecheck(n.Left, Erv)
+ 		break OpSwitch
+ 
+ 	case ODCLTYPE:
+ 		ok |= Etop
+-		typecheck(&n.Left, Etype)
++		n.Left = typecheck(n.Left, Etype)
+ 		if incannedimport == 0 {
+ 			checkwidth(n.Left.Type)
+ 		}
+@@ -2161,20 +2169,20 @@ OpSwitch:
+ 	if n.Op == OTYPE && top&Etype == 0 {
+ 		Yyerror("type %v is not an expression", n.Type)
+ 		n.Type = nil
+-		return
++		return n
+ 	}
+ 
+ 	if top&(Erv|Etype) == Etype && n.Op != OTYPE {
+ 		Yyerror("%v is not a type", n)
+ 		n.Type = nil
+-		return
++		return n
+ 	}
+ 
+ 	// TODO(rsc): simplify
+ 	if (top&(Ecall|Erv|Etype) != 0) && top&Etop == 0 && ok&(Erv|Etype|Ecall) == 0 {
+ 		Yyerror("%v used as value", n)
+ 		n.Type = nil
+-		return
++		return n
+ 	}
+ 
+ 	if (top&Etop != 0) && top&(Ecall|Erv|Etype) == 0 && ok&Etop == 0 {
+@@ -2184,13 +2192,14 @@ OpSwitch:
+ 		}
+ 
+ 		n.Type = nil
+-		return
++		return n
+ 	}
+ 
+ 	/* TODO
+ 	if(n->type == T)
+ 		fatal("typecheck nil type");
+ 	*/
++	return n
+ }
+ 
+ func checksliceindex(l *Node, r *Node, tp *Type) bool {
+@@ -2285,25 +2294,25 @@ func checkdefergo(n *Node) {
+ 	}
+ }
+ 
+-func implicitstar(nn **Node) {
++// The result of implicitstar MUST be assigned back to n, e.g.
++// 	n.Left = implicitstar(n.Left)
++func implicitstar(n *Node) *Node {
+ 	// insert implicit * if needed for fixed array
+-	n := *nn
+-
+ 	t := n.Type
+ 	if t == nil || !Isptr[t.Etype] {
+-		return
++		return n
+ 	}
+ 	t = t.Type
+ 	if t == nil {
+-		return
++		return n
+ 	}
+ 	if !Isfixedarray(t) {
+-		return
++		return n
+ 	}
+ 	n = Nod(OIND, n, nil)
+ 	n.Implicit = true
+-	typecheck(&n, Erv)
+-	*nn = n
++	n = typecheck(n, Erv)
++	return n
+ }
+ 
+ func onearg(n *Node, f string, args ...interface{}) bool {
+@@ -2482,7 +2491,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 			if Isptr[n.Left.Type.Etype] {
+ 				n.Left = Nod(OIND, n.Left, nil) // implicitstar
+ 				n.Left.Implicit = true
+-				typecheck(&n.Left, Erv)
++				n.Left = typecheck(n.Left, Erv)
+ 			}
+ 
+ 			n.Op = ODOTINTER
+@@ -2504,11 +2513,11 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 				checklvalue(n.Left, "call pointer method on")
+ 				n.Left = Nod(OADDR, n.Left, nil)
+ 				n.Left.Implicit = true
+-				typecheck(&n.Left, Etype|Erv)
++				n.Left = typecheck(n.Left, Etype|Erv)
+ 			} else if tt.Etype == Tptr && rcvr.Etype != Tptr && Eqtype(tt.Type, rcvr) {
+ 				n.Left = Nod(OIND, n.Left, nil)
+ 				n.Left.Implicit = true
+-				typecheck(&n.Left, Etype|Erv)
++				n.Left = typecheck(n.Left, Etype|Erv)
+ 			} else if tt.Etype == Tptr && tt.Type.Etype == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
+ 				Yyerror("calling method %v with receiver %v requires explicit dereference", n.Sym, Nconv(n.Left, FmtLong))
+ 				for tt.Etype == Tptr {
+@@ -2518,7 +2527,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 					}
+ 					n.Left = Nod(OIND, n.Left, nil)
+ 					n.Left.Implicit = true
+-					typecheck(&n.Left, Etype|Erv)
++					n.Left = typecheck(n.Left, Etype|Erv)
+ 					tt = tt.Type
+ 				}
+ 			} else {
+@@ -2867,7 +2876,7 @@ func pushtype(n *Node, t *Type) {
+ 		n.Implicit = true       // don't print
+ 		n.Right.Implicit = true // * is okay
+ 	} else if Debug['s'] != 0 {
+-		typecheck(&n.Right, Etype)
++		n.Right = typecheck(n.Right, Etype)
+ 		if n.Right.Type != nil && Eqtype(n.Right.Type, t) {
+ 			fmt.Printf("%v: redundant type: %v\n", n.Line(), t)
+ 		}
+@@ -2879,12 +2888,12 @@ func pushtype(n *Node, t *Type) {
+ // TODO(mdempsky): Find a nicer solution.
+ var structkey = typ(Txxx)
+ 
+-func typecheckcomplit(np **Node) {
+-	n := *np
++// The result of typecheckcomplit MUST be assigned back to n, e.g.
++// 	n.Left = typecheckcomplit(n.Left)
++func typecheckcomplit(n *Node) *Node {
+ 	lno := lineno
+ 	defer func() {
+ 		lineno = lno
+-		*np = n
+ 	}()
+ 
+ 	if n.Right == nil {
+@@ -2893,7 +2902,7 @@ func typecheckcomplit(np **Node) {
+ 		}
+ 		Yyerror("missing type in composite literal")
+ 		n.Type = nil
+-		return
++		return n
+ 	}
+ 
+ 	// Save original node (including n->right)
+@@ -2902,11 +2911,12 @@ func typecheckcomplit(np **Node) {
+ 	*norig = *n
+ 
+ 	setlineno(n.Right)
+-	l := typecheck(&n.Right, Etype|Ecomplit) // sic
++	n.Right = typecheck(n.Right, Etype|Ecomplit)
++	l := n.Right // sic
+ 	t := l.Type
+ 	if t == nil {
+ 		n.Type = nil
+-		return
++		return n
+ 	}
+ 	nerr := nerrors
+ 	n.Type = t
+@@ -2917,14 +2927,14 @@ func typecheckcomplit(np **Node) {
+ 		if !n.Right.Implicit {
+ 			Yyerror("invalid pointer type %v for composite literal (use &%v instead)", t, t.Type)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		// Also, the underlying type must be a struct, map, slice, or array.
+ 		if !iscomptype(t) {
+ 			Yyerror("invalid pointer type %v for composite literal", t)
+ 			n.Type = nil
+-			return
++			return n
+ 		}
+ 
+ 		t = t.Type
+@@ -2957,7 +2967,7 @@ func typecheckcomplit(np **Node) {
+ 				n.List.SetIndex(i2, l)
+ 			}
+ 
+-			typecheck(&l.Left, Erv)
++			l.Left = typecheck(l.Left, Erv)
+ 			evconst(l.Left)
+ 			i = nonnegconst(l.Left)
+ 			if i < 0 && l.Left.Diag == 0 {
+@@ -2981,8 +2991,8 @@ func typecheckcomplit(np **Node) {
+ 
+ 			r = l.Right
+ 			pushtype(r, t.Type)
+-			typecheck(&r, Erv)
+-			defaultlit(&r, t.Type)
++			r = typecheck(r, Erv)
++			r = defaultlit(r, t.Type)
+ 			l.Right = assignconv(r, t.Type, "array or slice literal")
+ 		}
+ 
+@@ -3001,15 +3011,15 @@ func typecheckcomplit(np **Node) {
+ 			l = n3
+ 			setlineno(l)
+ 			if l.Op != OKEY {
+-				typecheck(n.List.Addr(i3), Erv)
++				n.List.SetIndex(i3, typecheck(n.List.Index(i3), Erv))
+ 				Yyerror("missing key in map literal")
+ 				continue
+ 			}
+ 
+ 			r = l.Left
+ 			pushtype(r, t.Key())
+-			typecheck(&r, Erv)
+-			defaultlit(&r, t.Key())
++			r = typecheck(r, Erv)
++			r = defaultlit(r, t.Key())
+ 			l.Left = assignconv(r, t.Key(), "map key")
+ 			if l.Left.Op != OCONV {
+ 				keydup(l.Left, hash)
+@@ -3017,8 +3027,8 @@ func typecheckcomplit(np **Node) {
+ 
+ 			r = l.Right
+ 			pushtype(r, t.Type)
+-			typecheck(&r, Erv)
+-			defaultlit(&r, t.Type)
++			r = typecheck(r, Erv)
++			r = defaultlit(r, t.Type)
+ 			l.Right = assignconv(r, t.Type, "map value")
+ 		}
+ 
+@@ -3037,7 +3047,7 @@ func typecheckcomplit(np **Node) {
+ 			ls := n.List.Slice()
+ 			for i1, n1 := range ls {
+ 				setlineno(n1)
+-				typecheck(&ls[i1], Erv)
++				ls[i1] = typecheck(ls[i1], Erv)
+ 				n1 = ls[i1]
+ 				if f == nil {
+ 					if bad == 0 {
+@@ -3076,14 +3086,14 @@ func typecheckcomplit(np **Node) {
+ 						Yyerror("mixture of field:value and value initializers")
+ 					}
+ 					bad++
+-					typecheck(&ls[i], Erv)
++					ls[i] = typecheck(ls[i], Erv)
+ 					continue
+ 				}
+ 
+ 				s := l.Left.Sym
+ 				if s == nil {
+ 					Yyerror("invalid field name %v in struct initializer", l.Left)
+-					typecheck(&l.Right, Erv)
++					l.Right = typecheck(l.Right, Erv)
+ 					continue
+ 				}
+ 
+@@ -3112,7 +3122,7 @@ func typecheckcomplit(np **Node) {
+ 				r = l.Right
+ 
+ 				// No pushtype allowed here. Tried and rejected.
+-				typecheck(&r, Erv)
++				r = typecheck(r, Erv)
+ 
+ 				l.Right = assignconv(r, f.Type, "field value")
+ 			}
+@@ -3123,7 +3133,7 @@ func typecheckcomplit(np **Node) {
+ 
+ 	if nerr != nerrors {
+ 		n.Type = nil
+-		return
++		return n
+ 	}
+ 
+ 	n.Orig = norig
+@@ -3136,7 +3146,7 @@ func typecheckcomplit(np **Node) {
+ 	}
+ 
+ 	n.Orig = norig
+-	return
++	return n
+ }
+ 
+ // lvalue etc
+@@ -3252,10 +3262,10 @@ func typecheckas(n *Node) {
+ 	n.Left = resolve(n.Left)
+ 
+ 	if n.Left.Name == nil || n.Left.Name.Defn != n || n.Left.Name.Param.Ntype != nil {
+-		typecheck(&n.Left, Erv|Easgn)
++		n.Left = typecheck(n.Left, Erv|Easgn)
+ 	}
+ 
+-	typecheck(&n.Right, Erv)
++	n.Right = typecheck(n.Right, Erv)
+ 	checkassign(n, n.Left)
+ 	if n.Right != nil && n.Right.Type != nil {
+ 		if n.Left.Type != nil {
+@@ -3264,7 +3274,7 @@ func typecheckas(n *Node) {
+ 	}
+ 
+ 	if n.Left.Name != nil && n.Left.Name.Defn == n && n.Left.Name.Param.Ntype == nil {
+-		defaultlit(&n.Right, nil)
++		n.Right = defaultlit(n.Right, nil)
+ 		n.Left.Type = n.Right.Type
+ 	}
+ 
+@@ -3274,7 +3284,7 @@ func typecheckas(n *Node) {
+ 	n.Typecheck = 1
+ 
+ 	if n.Left.Typecheck == 0 {
+-		typecheck(&n.Left, Erv|Easgn)
++		n.Left = typecheck(n.Left, Erv|Easgn)
+ 	}
+ }
+ 
+@@ -3295,14 +3305,14 @@ func typecheckas2(n *Node) {
+ 		ls[i1] = n1
+ 
+ 		if n1.Name == nil || n1.Name.Defn != n || n1.Name.Param.Ntype != nil {
+-			typecheck(&ls[i1], Erv|Easgn)
++			ls[i1] = typecheck(ls[i1], Erv|Easgn)
+ 		}
+ 	}
+ 
+ 	cl := n.List.Len()
+ 	cr := n.Rlist.Len()
+ 	if cl > 1 && cr == 1 {
+-		typecheck(n.Rlist.Addr(0), Erv|Efnstruct)
++		n.Rlist.SetIndex(0, typecheck(n.Rlist.Index(0), Erv|Efnstruct))
+ 	} else {
+ 		typecheckslice(n.Rlist.Slice(), Erv)
+ 	}
+@@ -3320,7 +3330,7 @@ func typecheckas2(n *Node) {
+ 				rs[il] = assignconv(nr, nl.Type, "assignment")
+ 			}
+ 			if nl.Name != nil && nl.Name.Defn == n && nl.Name.Param.Ntype == nil {
+-				defaultlit(&rs[il], nil)
++				rs[il] = defaultlit(rs[il], nil)
+ 				nl.Type = rs[il].Type
+ 			}
+ 		}
+@@ -3406,14 +3416,14 @@ out:
+ 	ls = n.List.Slice()
+ 	for i1, n1 := range ls {
+ 		if n1.Typecheck == 0 {
+-			typecheck(&ls[i1], Erv|Easgn)
++			ls[i1] = typecheck(ls[i1], Erv|Easgn)
+ 		}
+ 	}
+ }
+ 
+ // type check function definition
+ func typecheckfunc(n *Node) {
+-	typecheck(&n.Func.Nname, Erv|Easgn)
++	n.Func.Nname = typecheck(n.Func.Nname, Erv|Easgn)
+ 	t := n.Func.Nname.Type
+ 	if t == nil {
+ 		return
+@@ -3432,8 +3442,9 @@ func typecheckfunc(n *Node) {
+ 	}
+ }
+ 
+-func stringtoarraylit(np **Node) {
+-	n := *np
++// The result of stringtoarraylit MUST be assigned back to n, e.g.
++// 	n.Left = stringtoarraylit(n.Left)
++func stringtoarraylit(n *Node) *Node {
+ 	if n.Left.Op != OLITERAL || n.Left.Val().Ctype() != CTSTR {
+ 		Fatalf("stringtoarraylit %v", n)
+ 	}
+@@ -3456,8 +3467,8 @@ func stringtoarraylit(np **Node) {
+ 
+ 	nn := Nod(OCOMPLIT, nil, typenod(n.Type))
+ 	nn.List.Set(l)
+-	typecheck(&nn, Erv)
+-	*np = nn
++	nn = typecheck(nn, Erv)
++	return nn
+ }
+ 
+ var ntypecheckdeftype int
+@@ -3466,7 +3477,7 @@ var methodqueue []*Node
+ 
+ func domethod(n *Node) {
+ 	nt := n.Type.Nname
+-	typecheck(&nt, Etype)
++	nt = typecheck(nt, Etype)
+ 	if nt.Type == nil {
+ 		// type check failed; leave empty func
+ 		// TODO(mdempsky): Fix Type rekinding.
+@@ -3555,7 +3566,7 @@ func typecheckdeftype(n *Node) {
+ 	setlineno(n)
+ 	n.Type.Sym = n.Sym
+ 	n.Typecheck = 1
+-	typecheck(&n.Name.Param.Ntype, Etype)
++	n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, Etype)
+ 	t := n.Name.Param.Ntype.Type
+ 	if t == nil {
+ 		n.Diag = 1
+@@ -3663,7 +3674,7 @@ func typecheckdef(n *Node) *Node {
+ 
+ 	case OLITERAL:
+ 		if n.Name.Param.Ntype != nil {
+-			typecheck(&n.Name.Param.Ntype, Etype)
++			n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, Etype)
+ 			n.Type = n.Name.Param.Ntype.Type
+ 			n.Name.Param.Ntype = nil
+ 			if n.Type == nil {
+@@ -3680,7 +3691,7 @@ func typecheckdef(n *Node) *Node {
+ 			Yyerror("xxx")
+ 		}
+ 
+-		typecheck(&e, Erv|Eiota)
++		e = typecheck(e, Erv|Eiota)
+ 		if Isconst(e, CTNIL) {
+ 			Yyerror("const initializer cannot be nil")
+ 			goto ret
+@@ -3707,7 +3718,7 @@ func typecheckdef(n *Node) *Node {
+ 				goto ret
+ 			}
+ 
+-			convlit(&e, t)
++			e = convlit(e, t)
+ 		}
+ 
+ 		n.SetVal(e.Val())
+@@ -3715,7 +3726,7 @@ func typecheckdef(n *Node) *Node {
+ 
+ 	case ONAME:
+ 		if n.Name.Param.Ntype != nil {
+-			typecheck(&n.Name.Param.Ntype, Etype)
++			n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, Etype)
+ 			n.Type = n.Name.Param.Ntype.Type
+ 			if n.Type == nil {
+ 				n.Diag = 1
+@@ -3742,12 +3753,12 @@ func typecheckdef(n *Node) *Node {
+ 		}
+ 
+ 		if n.Name.Defn.Op == ONAME {
+-			typecheck(&n.Name.Defn, Erv)
++			n.Name.Defn = typecheck(n.Name.Defn, Erv)
+ 			n.Type = n.Name.Defn.Type
+ 			break
+ 		}
+ 
+-		typecheck(&n.Name.Defn, Etop) // fills in n->type
++		n.Name.Defn = typecheck(n.Name.Defn, Etop) // fills in n->type
+ 
+ 	case OTYPE:
+ 		if Curfn != nil {
+@@ -3806,7 +3817,7 @@ func checkmake(t *Type, arg string, n *Node) bool {
+ 
+ 			// Delay defaultlit until after we've checked range, to avoid
+ 			// a redundant "constant NNN overflows int" error.
+-			defaultlit(&n, Types[TINT])
++			n = defaultlit(n, Types[TINT])
+ 
+ 			return true
+ 
+@@ -3821,7 +3832,7 @@ func checkmake(t *Type, arg string, n *Node) bool {
+ 	}
+ 
+ 	// Defaultlit still necessary for non-constant: n might be 1<<k.
+-	defaultlit(&n, Types[TINT])
++	n = defaultlit(n, Types[TINT])
+ 
+ 	return true
+ }
+diff --git a/src/cmd/compile/internal/gc/unsafe.go b/src/cmd/compile/internal/gc/unsafe.go
+index 6d56b0aed7..338f3c0eae 100644
+--- a/src/cmd/compile/internal/gc/unsafe.go
++++ b/src/cmd/compile/internal/gc/unsafe.go
+@@ -30,8 +30,8 @@ func unsafenmagic(nn *Node) *Node {
+ 	var v int64
+ 	switch s.Name {
+ 	case "Alignof", "Sizeof":
+-		typecheck(&r, Erv)
+-		defaultlit(&r, nil)
++		r = typecheck(r, Erv)
++		r = defaultlit(r, nil)
+ 		tr := r.Type
+ 		if tr == nil {
+ 			goto bad
+@@ -52,10 +52,10 @@ func unsafenmagic(nn *Node) *Node {
+ 		// Remember base of selector to find it back after dot insertion.
+ 		// Since r->left may be mutated by typechecking, check it explicitly
+ 		// first to track it correctly.
+-		typecheck(&r.Left, Erv)
++		r.Left = typecheck(r.Left, Erv)
+ 		base := r.Left
+ 
+-		typecheck(&r, Erv)
++		r = typecheck(r, Erv)
+ 		switch r.Op {
+ 		case ODOT, ODOTPTR:
+ 			break
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 5faf3b8fb0..cc3971cd66 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -29,7 +29,7 @@ func walk(fn *Node) {
+ 	// It's hard to be on the heap when not-used, but best to be consistent about &~PHEAP here and below.
+ 	for i, ln := range fn.Func.Dcl {
+ 		if ln.Op == ONAME && ln.Class&^PHEAP == PAUTO {
+-			typecheck(&ln, Erv|Easgn)
++			ln = typecheck(ln, Erv|Easgn)
+ 			fn.Func.Dcl[i] = ln
+ 		}
+ 	}
+@@ -77,7 +77,7 @@ func walk(fn *Node) {
+ 
+ func walkstmtlist(s []*Node) {
+ 	for i := range s {
+-		walkstmt(&s[i])
++		s[i] = walkstmt(s[i])
+ 	}
+ }
+ 
+@@ -139,13 +139,14 @@ func adjustargs(n *Node, adjust int) {
+ 	}
+ }
+ 
+-func walkstmt(np **Node) {
+-	n := *np
++// The result of walkstmt MUST be assigned back to n, e.g.
++// 	n.Left = walkstmt(n.Left)
++func walkstmt(n *Node) *Node {
+ 	if n == nil {
+-		return
++		return n
+ 	}
+ 	if n.Dodata == 2 { // don't walk, generated by anylit.
+-		return
++		return n
+ 	}
+ 
+ 	setlineno(n)
+@@ -185,11 +186,12 @@ func walkstmt(np **Node) {
+ 		if n.Typecheck == 0 {
+ 			Fatalf("missing typecheck: %v", Nconv(n, FmtSign))
+ 		}
++		wascopy := n.Op == OCOPY
+ 		init := n.Ninit
+ 		n.Ninit.Set(nil)
+-		walkexpr(&n, &init)
+-		addinit(&n, init.Slice())
+-		if (*np).Op == OCOPY && n.Op == OCONVNOP {
++		n = walkexpr(n, &init)
++		n = addinit(n, init.Slice())
++		if wascopy && n.Op == OCONVNOP {
+ 			n.Op = OEMPTY // don't leave plain values as statements.
+ 		}
+ 
+@@ -202,11 +204,11 @@ func walkstmt(np **Node) {
+ 		init := n.Ninit
+ 		n.Ninit.Set(nil)
+ 
+-		walkexpr(&n.Left, &init)
++		n.Left = walkexpr(n.Left, &init)
+ 		n = mkcall1(chanfn("chanrecv1", 2, n.Left.Type), nil, &init, typename(n.Left.Type), n.Left, nodnil())
+-		walkexpr(&n, &init)
++		n = walkexpr(n, &init)
+ 
+-		addinit(&n, init.Slice())
++		n = addinit(n, init.Slice())
+ 
+ 	case OBREAK,
+ 		ODCL,
+@@ -230,19 +232,19 @@ func walkstmt(np **Node) {
+ 		fallthrough
+ 
+ 	case OCASE:
+-		walkstmt(&n.Right)
++		n.Right = walkstmt(n.Right)
+ 
+ 	case ODEFER:
+ 		hasdefer = true
+ 		switch n.Left.Op {
+ 		case OPRINT, OPRINTN:
+-			walkprintfunc(&n.Left, &n.Ninit)
++			n.Left = walkprintfunc(n.Left, &n.Ninit)
+ 
+ 		case OCOPY:
+ 			n.Left = copyany(n.Left, &n.Ninit, true)
+ 
+ 		default:
+-			walkexpr(&n.Left, &n.Ninit)
++			n.Left = walkexpr(n.Left, &n.Ninit)
+ 		}
+ 
+ 		// make room for size & fn arguments.
+@@ -253,28 +255,28 @@ func walkstmt(np **Node) {
+ 			walkstmtlist(n.Left.Ninit.Slice())
+ 			init := n.Left.Ninit
+ 			n.Left.Ninit.Set(nil)
+-			walkexpr(&n.Left, &init)
+-			addinit(&n.Left, init.Slice())
++			n.Left = walkexpr(n.Left, &init)
++			n.Left = addinit(n.Left, init.Slice())
+ 		}
+ 
+-		walkstmt(&n.Right)
++		n.Right = walkstmt(n.Right)
+ 		walkstmtlist(n.Nbody.Slice())
+ 
+ 	case OIF:
+-		walkexpr(&n.Left, &n.Ninit)
++		n.Left = walkexpr(n.Left, &n.Ninit)
+ 		walkstmtlist(n.Nbody.Slice())
+ 		walkstmtlist(n.Rlist.Slice())
+ 
+ 	case OPROC:
+ 		switch n.Left.Op {
+ 		case OPRINT, OPRINTN:
+-			walkprintfunc(&n.Left, &n.Ninit)
++			n.Left = walkprintfunc(n.Left, &n.Ninit)
+ 
+ 		case OCOPY:
+ 			n.Left = copyany(n.Left, &n.Ninit, true)
+ 
+ 		default:
+-			walkexpr(&n.Left, &n.Ninit)
++			n.Left = walkexpr(n.Left, &n.Ninit)
+ 		}
+ 
+ 		// make room for size & fn arguments.
+@@ -349,8 +351,7 @@ func walkstmt(np **Node) {
+ 	if n.Op == ONAME {
+ 		Fatalf("walkstmt ended up with name: %v", Nconv(n, FmtSign))
+ 	}
+-
+-	*np = n
++	return n
+ }
+ 
+ func isSmallMakeSlice(n *Node) bool {
+@@ -374,21 +375,21 @@ func isSmallMakeSlice(n *Node) bool {
+ // complex side effects like statements are appended to init
+ func walkexprlist(s []*Node, init *Nodes) {
+ 	for i := range s {
+-		walkexpr(&s[i], init)
++		s[i] = walkexpr(s[i], init)
+ 	}
+ }
+ 
+ func walkexprlistsafe(s []*Node, init *Nodes) {
+ 	for i, n := range s {
+ 		s[i] = safeexpr(n, init)
+-		walkexpr(&s[i], init)
++		s[i] = walkexpr(s[i], init)
+ 	}
+ }
+ 
+ func walkexprlistcheap(s []*Node, init *Nodes) {
+ 	for i, n := range s {
+ 		s[i] = cheapexpr(n, init)
+-		walkexpr(&s[i], init)
++		s[i] = walkexpr(s[i], init)
+ 	}
+ }
+ 
+@@ -449,11 +450,11 @@ func assertFuncName(from, to *Type, with2suffix bool) string {
+ 	panic("unreachable")
+ }
+ 
+-func walkexpr(np **Node, init *Nodes) {
+-	n := *np
+-
++// The result of walkexpr MUST be assigned back to n, e.g.
++// 	n.Left = walkexpr(n.Left, init)
++func walkexpr(n *Node, init *Nodes) *Node {
+ 	if n == nil {
+-		return
++		return n
+ 	}
+ 
+ 	if init == &n.Ninit {
+@@ -470,9 +471,9 @@ func walkexpr(np **Node, init *Nodes) {
+ 
+ 	// annoying case - not typechecked
+ 	if n.Op == OKEY {
+-		walkexpr(&n.Left, init)
+-		walkexpr(&n.Right, init)
+-		return
++		n.Left = walkexpr(n.Left, init)
++		n.Right = walkexpr(n.Right, init)
++		return n
+ 	}
+ 
+ 	lno := setlineno(n)
+@@ -506,14 +507,14 @@ opswitch:
+ 		OIMAG,
+ 		ODOTMETH,
+ 		ODOTINTER:
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 
+ 	case OIND:
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 
+ 	case ODOT:
+ 		usefield(n)
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 
+ 	case ODOTPTR:
+ 		usefield(n)
+@@ -524,17 +525,17 @@ opswitch:
+ 			checknil(n.Left, init)
+ 		}
+ 
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 
+ 	case OEFACE:
+-		walkexpr(&n.Left, init)
+-		walkexpr(&n.Right, init)
++		n.Left = walkexpr(n.Left, init)
++		n.Right = walkexpr(n.Right, init)
+ 
+ 	case OSPTR, OITAB:
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 
+ 	case OLEN, OCAP:
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 
+ 		// replace len(*[10]int) with 10.
+ 		// delayed until now to preserve side effects.
+@@ -550,8 +551,8 @@ opswitch:
+ 		}
+ 
+ 	case OLSH, ORSH:
+-		walkexpr(&n.Left, init)
+-		walkexpr(&n.Right, init)
++		n.Left = walkexpr(n.Left, init)
++		n.Right = walkexpr(n.Right, init)
+ 		t := n.Left.Type
+ 		n.Bounded = bounded(n.Right, 8*t.Width)
+ 		if Debug['m'] != 0 && n.Etype != 0 && !Isconst(n.Right, CTINT) {
+@@ -574,17 +575,17 @@ opswitch:
+ 			n.Right = n.List.Second()
+ 		}
+ 
+-		walkexpr(&n.Left, init)
+-		walkexpr(&n.Right, init)
++		n.Left = walkexpr(n.Left, init)
++		n.Right = walkexpr(n.Right, init)
+ 
+ 	case OOR, OXOR:
+-		walkexpr(&n.Left, init)
+-		walkexpr(&n.Right, init)
+-		walkrotate(&n)
++		n.Left = walkexpr(n.Left, init)
++		n.Right = walkexpr(n.Right, init)
++		n = walkrotate(n)
+ 
+ 	case OEQ, ONE:
+-		walkexpr(&n.Left, init)
+-		walkexpr(&n.Right, init)
++		n.Left = walkexpr(n.Left, init)
++		n.Right = walkexpr(n.Right, init)
+ 
+ 		// Disable safemode while compiling this code: the code we
+ 		// generate internally can refer to unsafe.Pointer.
+@@ -594,19 +595,19 @@ opswitch:
+ 		old_safemode := safemode
+ 
+ 		safemode = 0
+-		walkcompare(&n, init)
++		n = walkcompare(n, init)
+ 		safemode = old_safemode
+ 
+ 	case OANDAND, OOROR:
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 
+ 		// cannot put side effects from n.Right on init,
+ 		// because they cannot run before n.Left is checked.
+ 		// save elsewhere and store on the eventual n.Right.
+ 		var ll Nodes
+ 
+-		walkexpr(&n.Right, &ll)
+-		addinit(&n.Right, ll.Slice())
++		n.Right = walkexpr(n.Right, &ll)
++		n.Right = addinit(n.Right, ll.Slice())
+ 
+ 	case OPRINT, OPRINTN:
+ 		walkexprlist(n.List.Slice(), init)
+@@ -635,7 +636,7 @@ opswitch:
+ 		if n.List.Len() != 0 && n.List.First().Op == OAS {
+ 			break
+ 		}
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 		walkexprlist(n.List.Slice(), init)
+ 		ll := ascompatte(n.Op, n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
+ 		n.List.Set(reorder1(ll))
+@@ -667,7 +668,7 @@ opswitch:
+ 			break
+ 		}
+ 
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 		walkexprlist(n.List.Slice(), init)
+ 
+ 		if n.Left.Op == ONAME && n.Left.Sym.Name == "Sqrt" && n.Left.Sym.Pkg.Path == "math" {
+@@ -688,7 +689,7 @@ opswitch:
+ 		if n.List.Len() != 0 && n.List.First().Op == OAS {
+ 			break
+ 		}
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 		walkexprlist(n.List.Slice(), init)
+ 		ll := ascompatte(n.Op, n, false, t.Recvs(), []*Node{n.Left.Left}, 0, init)
+ 		lr := ascompatte(n.Op, n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
+@@ -700,7 +701,7 @@ opswitch:
+ 	case OAS:
+ 		init.AppendNodes(&n.Ninit)
+ 
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 		n.Left = safeexpr(n.Left, init)
+ 
+ 		if oaslit(n, init) {
+@@ -713,7 +714,7 @@ opswitch:
+ 
+ 		switch n.Right.Op {
+ 		default:
+-			walkexpr(&n.Right, init)
++			n.Right = walkexpr(n.Right, init)
+ 
+ 		case ODOTTYPE:
+ 			// TODO(rsc): The Isfat is for consistency with componentgen and orderexpr.
+@@ -721,13 +722,13 @@ opswitch:
+ 			// That would allow inlining x.(struct{*int}) the same as x.(*int).
+ 			if isdirectiface(n.Right.Type) && !Isfat(n.Right.Type) && !instrumenting {
+ 				// handled directly during cgen
+-				walkexpr(&n.Right, init)
++				n.Right = walkexpr(n.Right, init)
+ 				break
+ 			}
+ 
+ 			// x = i.(T); n.Left is x, n.Right.Left is i.
+ 			// orderstmt made sure x is addressable.
+-			walkexpr(&n.Right.Left, init)
++			n.Right.Left = walkexpr(n.Right.Left, init)
+ 
+ 			n1 := Nod(OADDR, n.Left, nil)
+ 			r := n.Right // i.(T)
+@@ -737,21 +738,21 @@ opswitch:
+ 			}
+ 
+ 			fn := syslook(assertFuncName(r.Left.Type, r.Type, false))
+-			substArgTypes(&fn, r.Left.Type, r.Type)
++			fn = substArgTypes(fn, r.Left.Type, r.Type)
+ 
+ 			n = mkcall1(fn, nil, init, typename(r.Type), r.Left, n1)
+-			walkexpr(&n, init)
++			n = walkexpr(n, init)
+ 			break opswitch
+ 
+ 		case ORECV:
+ 			// x = <-c; n.Left is x, n.Right.Left is c.
+ 			// orderstmt made sure x is addressable.
+-			walkexpr(&n.Right.Left, init)
++			n.Right.Left = walkexpr(n.Right.Left, init)
+ 
+ 			n1 := Nod(OADDR, n.Left, nil)
+ 			r := n.Right.Left // the channel
+ 			n = mkcall1(chanfn("chanrecv1", 2, r.Type), nil, init, typename(r.Type), r, n1)
+-			walkexpr(&n, init)
++			n = walkexpr(n, init)
+ 			break opswitch
+ 
+ 		case OAPPEND:
+@@ -796,7 +797,7 @@ opswitch:
+ 
+ 		r := n.Rlist.First()
+ 		walkexprlistsafe(n.List.Slice(), init)
+-		walkexpr(&r, init)
++		r = walkexpr(r, init)
+ 
+ 		ll := ascompatet(n.Op, n.List, r.Type, 0, init)
+ 		for i, n := range ll {
+@@ -811,7 +812,7 @@ opswitch:
+ 
+ 		r := n.Rlist.First()
+ 		walkexprlistsafe(n.List.Slice(), init)
+-		walkexpr(&r.Left, init)
++		r.Left = walkexpr(r.Left, init)
+ 		var n1 *Node
+ 		if isblank(n.List.First()) {
+ 			n1 = nodnil()
+@@ -822,7 +823,7 @@ opswitch:
+ 		fn := chanfn("chanrecv2", 2, r.Left.Type)
+ 		r = mkcall1(fn, n.List.Second().Type, init, typename(r.Left.Type), r.Left, n1)
+ 		n = Nod(OAS, n.List.Second(), r)
+-		typecheck(&n, Etop)
++		n = typecheck(n, Etop)
+ 
+ 		// a,b = m[i];
+ 	case OAS2MAPR:
+@@ -830,8 +831,8 @@ opswitch:
+ 
+ 		r := n.Rlist.First()
+ 		walkexprlistsafe(n.List.Slice(), init)
+-		walkexpr(&r.Left, init)
+-		walkexpr(&r.Right, init)
++		r.Left = walkexpr(r.Left, init)
++		r.Right = walkexpr(r.Right, init)
+ 		t := r.Left.Type
+ 		p := ""
+ 		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
+@@ -881,13 +882,13 @@ opswitch:
+ 			var_ := temp(Ptrto(t.Type))
+ 			var_.Typecheck = 1
+ 			n.List.SetIndex(0, var_)
+-			walkexpr(&n, init)
++			n = walkexpr(n, init)
+ 			init.Append(n)
+ 			n = Nod(OAS, a, Nod(OIND, var_, nil))
+ 		}
+ 
+-		typecheck(&n, Etop)
+-		walkexpr(&n, init)
++		n = typecheck(n, Etop)
++		n = walkexpr(n, init)
+ 
+ 		// TODO: ptr is always non-nil, so disable nil check for this OIND op.
+ 
+@@ -895,8 +896,8 @@ opswitch:
+ 		init.AppendNodes(&n.Ninit)
+ 		map_ := n.List.First()
+ 		key := n.List.Second()
+-		walkexpr(&map_, init)
+-		walkexpr(&key, init)
++		map_ = walkexpr(map_, init)
++		key = walkexpr(key, init)
+ 
+ 		// orderstmt made sure key is addressable.
+ 		key = Nod(OADDR, key, nil)
+@@ -912,7 +913,7 @@ opswitch:
+ 		if isdirectiface(e.Type) && !Isfat(e.Type) && !instrumenting {
+ 			// handled directly during gen.
+ 			walkexprlistsafe(n.List.Slice(), init)
+-			walkexpr(&e.Left, init)
++			e.Left = walkexpr(e.Left, init)
+ 			break
+ 		}
+ 
+@@ -921,7 +922,7 @@ opswitch:
+ 		init.AppendNodes(&n.Ninit)
+ 
+ 		walkexprlistsafe(n.List.Slice(), init)
+-		walkexpr(&e.Left, init)
++		e.Left = walkexpr(e.Left, init)
+ 		t := e.Type    // T
+ 		from := e.Left // i
+ 
+@@ -955,7 +956,7 @@ opswitch:
+ 					Warn("type assertion (ok only) inlined")
+ 				}
+ 				n = Nod(OAS, ok, fast)
+-				typecheck(&n, Etop)
++				n = typecheck(n, Etop)
+ 				break
+ 			}
+ 		}
+@@ -972,19 +973,19 @@ opswitch:
+ 			Warn("type assertion not inlined")
+ 		}
+ 		fn := syslook(assertFuncName(from.Type, t, true))
+-		substArgTypes(&fn, from.Type, t)
++		fn = substArgTypes(fn, from.Type, t)
+ 		call := mkcall1(fn, oktype, init, typename(t), from, resptr)
+ 		n = Nod(OAS, ok, call)
+-		typecheck(&n, Etop)
++		n = typecheck(n, Etop)
+ 
+ 	case ODOTTYPE, ODOTTYPE2:
+ 		if !isdirectiface(n.Type) || Isfat(n.Type) {
+ 			Fatalf("walkexpr ODOTTYPE") // should see inside OAS only
+ 		}
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 
+ 	case OCONVIFACE:
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 
+ 		// Optimize convT2E as a two-word copy when T is pointer-shaped.
+ 		if isnilinter(n.Type) && isdirectiface(n.Left.Type) {
+@@ -1032,20 +1033,20 @@ opswitch:
+ 				l := temp(Ptrto(Types[TUINT8]))
+ 
+ 				n1 := Nod(OAS, l, sym.Def)
+-				typecheck(&n1, Etop)
++				n1 = typecheck(n1, Etop)
+ 				init.Append(n1)
+ 
+ 				fn := syslook("typ2Itab")
+ 				n1 = Nod(OCALL, fn, nil)
+ 				n1.List.Set(ll)
+-				typecheck(&n1, Erv)
+-				walkexpr(&n1, init)
++				n1 = typecheck(n1, Erv)
++				n1 = walkexpr(n1, init)
+ 
+ 				n2 := Nod(OIF, nil, nil)
+ 				n2.Left = Nod(OEQ, l, nodnil())
+ 				n2.Nbody.Set1(Nod(OAS, l, n1))
+ 				n2.Likely = -1
+-				typecheck(&n2, Etop)
++				n2 = typecheck(n2, Etop)
+ 				init.Append(n2)
+ 
+ 				l = Nod(OEFACE, l, n.Left)
+@@ -1076,25 +1077,25 @@ opswitch:
+ 				// Allocate stack buffer for value stored in interface.
+ 				r = temp(n.Left.Type)
+ 				r = Nod(OAS, r, nil) // zero temp
+-				typecheck(&r, Etop)
++				r = typecheck(r, Etop)
+ 				init.Append(r)
+ 				r = Nod(OADDR, r.Left, nil)
+-				typecheck(&r, Erv)
++				r = typecheck(r, Erv)
+ 			}
+ 			ll = append(ll, r)
+ 		}
+ 
+ 		fn := syslook(convFuncName(n.Left.Type, n.Type))
+ 		if !Isinter(n.Left.Type) {
+-			substArgTypes(&fn, n.Left.Type, n.Left.Type, n.Type)
++			fn = substArgTypes(fn, n.Left.Type, n.Left.Type, n.Type)
+ 		} else {
+-			substArgTypes(&fn, n.Left.Type, n.Type)
++			fn = substArgTypes(fn, n.Left.Type, n.Type)
+ 		}
+ 		dowidth(fn.Type)
+ 		n = Nod(OCALL, fn, nil)
+ 		n.List.Set(ll)
+-		typecheck(&n, Erv)
+-		walkexpr(&n, init)
++		n = typecheck(n, Erv)
++		n = walkexpr(n, init)
+ 
+ 	case OCONV, OCONVNOP:
+ 		if Thearch.Thechar == '5' {
+@@ -1123,23 +1124,23 @@ opswitch:
+ 			}
+ 		}
+ 
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 
+ 	case OANDNOT:
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 		n.Op = OAND
+ 		n.Right = Nod(OCOM, n.Right, nil)
+-		typecheck(&n.Right, Erv)
+-		walkexpr(&n.Right, init)
++		n.Right = typecheck(n.Right, Erv)
++		n.Right = walkexpr(n.Right, init)
+ 
+ 	case OMUL:
+-		walkexpr(&n.Left, init)
+-		walkexpr(&n.Right, init)
+-		walkmul(&n, init)
++		n.Left = walkexpr(n.Left, init)
++		n.Right = walkexpr(n.Right, init)
++		n = walkmul(n, init)
+ 
+ 	case ODIV, OMOD:
+-		walkexpr(&n.Left, init)
+-		walkexpr(&n.Right, init)
++		n.Left = walkexpr(n.Left, init)
++		n.Right = walkexpr(n.Right, init)
+ 
+ 		// rewrite complex div into function call.
+ 		et := n.Left.Type.Etype
+@@ -1157,7 +1158,7 @@ opswitch:
+ 		}
+ 
+ 		// Try rewriting as shifts or magic multiplies.
+-		walkdiv(&n, init)
++		n = walkdiv(n, init)
+ 
+ 		// rewrite 64-bit div and mod into function calls
+ 		// on 32-bit architectures.
+@@ -1181,13 +1182,13 @@ opswitch:
+ 		}
+ 
+ 	case OINDEX:
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 
+ 		// save the original node for bounds checking elision.
+ 		// If it was a ODIV/OMOD walk might rewrite it.
+ 		r := n.Right
+ 
+-		walkexpr(&n.Right, init)
++		n.Right = walkexpr(n.Right, init)
+ 
+ 		// if range of type cannot exceed static array bound,
+ 		// disable bounds check.
+@@ -1236,8 +1237,8 @@ opswitch:
+ 		if n.Etype == 1 {
+ 			break
+ 		}
+-		walkexpr(&n.Left, init)
+-		walkexpr(&n.Right, init)
++		n.Left = walkexpr(n.Left, init)
++		n.Right = walkexpr(n.Right, init)
+ 
+ 		t := n.Left.Type
+ 		p := ""
+@@ -1273,24 +1274,24 @@ opswitch:
+ 		Fatalf("walkexpr ORECV") // should see inside OAS only
+ 
+ 	case OSLICE, OSLICEARR, OSLICESTR:
+-		walkexpr(&n.Left, init)
+-		walkexpr(&n.Right.Left, init)
++		n.Left = walkexpr(n.Left, init)
++		n.Right.Left = walkexpr(n.Right.Left, init)
+ 		if n.Right.Left != nil && iszero(n.Right.Left) {
+ 			// Reduce x[0:j] to x[:j].
+ 			n.Right.Left = nil
+ 		}
+-		walkexpr(&n.Right.Right, init)
++		n.Right.Right = walkexpr(n.Right.Right, init)
+ 		n = reduceSlice(n)
+ 
+ 	case OSLICE3, OSLICE3ARR:
+-		walkexpr(&n.Left, init)
+-		walkexpr(&n.Right.Left, init)
++		n.Left = walkexpr(n.Left, init)
++		n.Right.Left = walkexpr(n.Right.Left, init)
+ 		if n.Right.Left != nil && iszero(n.Right.Left) {
+ 			// Reduce x[0:j:k] to x[:j:k].
+ 			n.Right.Left = nil
+ 		}
+-		walkexpr(&n.Right.Right.Left, init)
+-		walkexpr(&n.Right.Right.Right, init)
++		n.Right.Right.Left = walkexpr(n.Right.Right.Left, init)
++		n.Right.Right.Right = walkexpr(n.Right.Right.Right, init)
+ 
+ 		r := n.Right.Right.Right
+ 		if r != nil && r.Op == OCAP && samesafeexpr(n.Left, r.Left) {
+@@ -1305,7 +1306,7 @@ opswitch:
+ 		}
+ 
+ 	case OADDR:
+-		walkexpr(&n.Left, init)
++		n.Left = walkexpr(n.Left, init)
+ 
+ 	case ONEW:
+ 		if n.Esc == EscNone {
+@@ -1314,10 +1315,10 @@ opswitch:
+ 			}
+ 			r := temp(n.Type.Type)
+ 			r = Nod(OAS, r, nil) // zero temp
+-			typecheck(&r, Etop)
++			r = typecheck(r, Etop)
+ 			init.Append(r)
+ 			r = Nod(OADDR, r.Left, nil)
+-			typecheck(&r, Erv)
++			r = typecheck(r, Erv)
+ 			n = r
+ 		} else {
+ 			n = callnew(n.Type.Type)
+@@ -1330,8 +1331,8 @@ opswitch:
+ 		if (Isconst(n.Left, CTSTR) && len(n.Left.Val().U.(string)) == 0) || (Isconst(n.Right, CTSTR) && len(n.Right.Val().U.(string)) == 0) {
+ 			// TODO(marvin): Fix Node.EType type union.
+ 			r := Nod(Op(n.Etype), Nod(OLEN, n.Left, nil), Nod(OLEN, n.Right, nil))
+-			typecheck(&r, Erv)
+-			walkexpr(&r, init)
++			r = typecheck(r, Erv)
++			r = walkexpr(r, init)
+ 			r.Type = n.Type
+ 			n = r
+ 			break
+@@ -1341,8 +1342,8 @@ opswitch:
+ 		if (Op(n.Etype) == OEQ || Op(n.Etype) == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && n.Left.List.Len() == 2 && Isconst(n.Left.List.Second(), CTSTR) && strlit(n.Right) == strlit(n.Left.List.Second()) {
+ 			// TODO(marvin): Fix Node.EType type union.
+ 			r := Nod(Op(n.Etype), Nod(OLEN, n.Left.List.First(), nil), Nodintconst(0))
+-			typecheck(&r, Erv)
+-			walkexpr(&r, init)
++			r = typecheck(r, Erv)
++			r = walkexpr(r, init)
+ 			r.Type = n.Type
+ 			n = r
+ 			break
+@@ -1371,8 +1372,8 @@ opswitch:
+ 				r = Nod(OOROR, Nod(ONE, Nod(OLEN, n.Left, nil), Nod(OLEN, n.Right, nil)), r)
+ 			}
+ 
+-			typecheck(&r, Erv)
+-			walkexpr(&r, nil)
++			r = typecheck(r, Erv)
++			r = walkexpr(r, nil)
+ 		} else {
+ 			// sys_cmpstring(s1, s2) :: 0
+ 			r = mkcall("cmpstring", Types[TINT], init, conv(n.Left, Types[TSTRING]), conv(n.Right, Types[TSTRING]))
+@@ -1381,7 +1382,7 @@ opswitch:
+ 			r = Nod(Op(n.Etype), r, Nodintconst(0))
+ 		}
+ 
+-		typecheck(&r, Erv)
++		r = typecheck(r, Erv)
+ 		if n.Type.Etype != TBOOL {
+ 			Fatalf("cmp %v", n.Type)
+ 		}
+@@ -1402,7 +1403,7 @@ opswitch:
+ 	case OCLOSE:
+ 		fn := syslook("closechan")
+ 
+-		substArgTypes(&fn, n.Left.Type)
++		fn = substArgTypes(fn, n.Left.Type)
+ 		n = mkcall1(fn, nil, init, n.Left)
+ 
+ 	case OMAKECHAN:
+@@ -1418,7 +1419,7 @@ opswitch:
+ 			var_ := temp(hmap(t))
+ 
+ 			a = Nod(OAS, var_, nil) // zero temp
+-			typecheck(&a, Etop)
++			a = typecheck(a, Etop)
+ 			init.Append(a)
+ 			a = Nod(OADDR, var_, nil)
+ 
+@@ -1428,13 +1429,13 @@ opswitch:
+ 			var_ = temp(mapbucket(t))
+ 
+ 			r = Nod(OAS, var_, nil) // zero temp
+-			typecheck(&r, Etop)
++			r = typecheck(r, Etop)
+ 			init.Append(r)
+ 			r = Nod(OADDR, var_, nil)
+ 		}
+ 
+ 		fn := syslook("makemap")
+-		substArgTypes(&fn, hmap(t), mapbucket(t), t.Key(), t.Type)
++		fn = substArgTypes(fn, hmap(t), mapbucket(t), t.Key(), t.Type)
+ 		n = mkcall1(fn, n.Type, init, typename(n.Type), conv(n.Left, Types[TINT64]), a, r)
+ 
+ 	case OMAKESLICE:
+@@ -1454,18 +1455,18 @@ opswitch:
+ 			t = aindex(r, t.Type) // [r]T
+ 			var_ := temp(t)
+ 			a := Nod(OAS, var_, nil) // zero temp
+-			typecheck(&a, Etop)
++			a = typecheck(a, Etop)
+ 			init.Append(a)
+ 			r := Nod(OSLICE, var_, Nod(OKEY, nil, l)) // arr[:l]
+ 			r = conv(r, n.Type)                       // in case n.Type is named.
+-			typecheck(&r, Erv)
+-			walkexpr(&r, init)
++			r = typecheck(r, Erv)
++			r = walkexpr(r, init)
+ 			n = r
+ 		} else {
+ 			// makeslice(t *Type, nel int64, max int64) (ary []any)
+ 			fn := syslook("makeslice")
+ 
+-			substArgTypes(&fn, t.Type) // any-1
++			fn = substArgTypes(fn, t.Type) // any-1
+ 			n = mkcall1(fn, n.Type, init, typename(n.Type), conv(l, Types[TINT64]), conv(r, Types[TINT64]))
+ 		}
+ 
+@@ -1553,7 +1554,7 @@ opswitch:
+ 
+ 		n.Right = cheapexpr(n.Right, init)
+ 		n.Left = cheapexpr(n.Left, init)
+-		substArgTypes(&fn, n.Right.Type, n.Left.Type)
++		fn = substArgTypes(fn, n.Right.Type, n.Left.Type)
+ 		r := mkcall1(fn, n.Type, init, n.Left, n.Right)
+ 		// TODO(marvin): Fix Node.EType type union.
+ 		if Op(n.Etype) == ONE {
+@@ -1567,8 +1568,8 @@ opswitch:
+ 		} else {
+ 			r = Nod(OOROR, Nod(ONE, Nod(OITAB, n.Left, nil), Nod(OITAB, n.Right, nil)), r)
+ 		}
+-		typecheck(&r, Erv)
+-		walkexpr(&r, init)
++		r = typecheck(r, Erv)
++		r = walkexpr(r, init)
+ 		r.Type = n.Type
+ 		n = r
+ 
+@@ -1580,7 +1581,7 @@ opswitch:
+ 	case OSEND:
+ 		n1 := n.Right
+ 		n1 = assignconv(n1, n.Left.Type.Type, "chan send")
+-		walkexpr(&n1, init)
++		n1 = walkexpr(n1, init)
+ 		n1 = Nod(OADDR, n1, nil)
+ 		n = mkcall1(chanfn("chansend1", 2, n.Left.Type), nil, init, typename(n.Left.Type), n.Left, n1)
+ 
+@@ -1601,7 +1602,7 @@ opswitch:
+ 	evconst(n)
+ 	n.Type = t
+ 	if n.Op == OLITERAL {
+-		typecheck(&n, Erv)
++		n = typecheck(n, Erv)
+ 	}
+ 
+ 	ullmancalc(n)
+@@ -1611,7 +1612,7 @@ opswitch:
+ 	}
+ 
+ 	lineno = lno
+-	*np = n
++	return n
+ }
+ 
+ func reduceSlice(n *Node) *Node {
+@@ -1720,7 +1721,7 @@ func ascompatet(op Op, nl Nodes, nr *Type, fp int, init *Nodes) []*Node {
+ 		// have been pulled from the output arguments
+ 		if fncall(l, r.Type) {
+ 			tmp := temp(r.Type)
+-			typecheck(&tmp, Erv)
++			tmp = typecheck(tmp, Erv)
+ 			a := Nod(OAS, l, tmp)
+ 			a = convas(a, init)
+ 			mm = append(mm, a)
+@@ -1771,11 +1772,11 @@ func mkdotargslice(lr0, nn []*Node, l *Field, fp int, init *Nodes, ddd *Node) []
+ 		}
+ 		n.List.Set(lr0)
+ 		n.Esc = esc
+-		typecheck(&n, Erv)
++		n = typecheck(n, Erv)
+ 		if n.Type == nil {
+ 			Fatalf("mkdotargslice: typecheck failed")
+ 		}
+-		walkexpr(&n, init)
++		n = walkexpr(n, init)
+ 	}
+ 
+ 	a := Nod(OAS, nodarg(l, fp), n)
+@@ -1848,8 +1849,8 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
+ 		a := Nod(OAS2, nil, nil)
+ 		a.List.Set(alist)
+ 		a.Rlist.Set(lr)
+-		typecheck(&a, Etop)
+-		walkstmt(&a)
++		a = typecheck(a, Etop)
++		a = walkstmt(a)
+ 		init.Append(a)
+ 		lr = alist
+ 		r = lr[0]
+@@ -1945,20 +1946,20 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 		if n.Op == OLITERAL {
+ 			switch n.Val().Ctype() {
+ 			case CTRUNE:
+-				defaultlit(&n, runetype)
++				n = defaultlit(n, runetype)
+ 
+ 			case CTINT:
+-				defaultlit(&n, Types[TINT64])
++				n = defaultlit(n, Types[TINT64])
+ 
+ 			case CTFLT:
+-				defaultlit(&n, Types[TFLOAT64])
++				n = defaultlit(n, Types[TFLOAT64])
+ 			}
+ 		}
+ 
+ 		if n.Op != OLITERAL && n.Type != nil && n.Type.Etype == TIDEAL {
+-			defaultlit(&n, Types[TINT64])
++			n = defaultlit(n, Types[TINT64])
+ 		}
+-		defaultlit(&n, nil)
++		n = defaultlit(n, nil)
+ 		all.SetIndex(i1, n)
+ 		if n.Type == nil || n.Type.Etype == TFORW {
+ 			continue
+@@ -1972,13 +1973,13 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 			} else {
+ 				on = syslook("printiface")
+ 			}
+-			substArgTypes(&on, n.Type) // any-1
++			on = substArgTypes(on, n.Type) // any-1
+ 		} else if Isptr[et] || et == TCHAN || et == TMAP || et == TFUNC || et == TUNSAFEPTR {
+ 			on = syslook("printpointer")
+-			substArgTypes(&on, n.Type) // any-1
++			on = substArgTypes(on, n.Type) // any-1
+ 		} else if Isslice(n.Type) {
+ 			on = syslook("printslice")
+-			substArgTypes(&on, n.Type) // any-1
++			on = substArgTypes(on, n.Type) // any-1
+ 		} else if Isint[et] {
+ 			if et == TUINT64 {
+ 				if (t.Sym.Pkg == Runtimepkg || compiling_runtime != 0) && t.Sym.Name == "hex" {
+@@ -2024,8 +2025,8 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 	walkexprlist(calls, init)
+ 
+ 	r = Nod(OEMPTY, nil, nil)
+-	typecheck(&r, Etop)
+-	walkexpr(&r, init)
++	r = typecheck(r, Etop)
++	r = walkexpr(r, init)
+ 	r.Ninit.Set(calls)
+ 	return r
+ }
+@@ -2033,7 +2034,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ func callnew(t *Type) *Node {
+ 	dowidth(t)
+ 	fn := syslook("newobject")
+-	substArgTypes(&fn, t)
++	fn = substArgTypes(fn, t)
+ 	return mkcall1(fn, Ptrto(t), nil, typename(t))
+ }
+ 
+@@ -2181,7 +2182,7 @@ func convas(n *Node, init *Nodes) *Node {
+ 	}
+ 
+ 	if isblank(n.Left) {
+-		defaultlit(&n.Right, nil)
++		n.Right = defaultlit(n.Right, nil)
+ 		goto out
+ 	}
+ 
+@@ -2189,9 +2190,9 @@ func convas(n *Node, init *Nodes) *Node {
+ 		map_ := n.Left.Left
+ 		key := n.Left.Right
+ 		val := n.Right
+-		walkexpr(&map_, init)
+-		walkexpr(&key, init)
+-		walkexpr(&val, init)
++		map_ = walkexpr(map_, init)
++		key = walkexpr(key, init)
++		val = walkexpr(val, init)
+ 
+ 		// orderexpr made sure key and val are addressable.
+ 		key = Nod(OADDR, key, nil)
+@@ -2203,7 +2204,7 @@ func convas(n *Node, init *Nodes) *Node {
+ 
+ 	if !Eqtype(lt, rt) {
+ 		n.Right = assignconv(n.Right, lt, "assignment")
+-		walkexpr(&n.Right, init)
++		n.Right = walkexpr(n.Right, init)
+ 	}
+ 
+ out:
+@@ -2296,7 +2297,7 @@ func reorder3(all []*Node) []*Node {
+ 			}
+ 
+ 			if l.Op == OINDEX && Isfixedarray(l.Left.Type) {
+-				reorder3save(&l.Right, all, i, &early)
++				l.Right = reorder3save(l.Right, all, i, &early)
+ 				l = l.Left
+ 				continue
+ 			}
+@@ -2312,18 +2313,18 @@ func reorder3(all []*Node) []*Node {
+ 			break
+ 
+ 		case OINDEX, OINDEXMAP:
+-			reorder3save(&l.Left, all, i, &early)
+-			reorder3save(&l.Right, all, i, &early)
++			l.Left = reorder3save(l.Left, all, i, &early)
++			l.Right = reorder3save(l.Right, all, i, &early)
+ 			if l.Op == OINDEXMAP {
+ 				all[i] = convas(all[i], &mapinit)
+ 			}
+ 
+ 		case OIND, ODOTPTR:
+-			reorder3save(&l.Left, all, i, &early)
++			l.Left = reorder3save(l.Left, all, i, &early)
+ 		}
+ 
+ 		// Save expression on right side.
+-		reorder3save(&all[i].Right, all, i, &early)
++		all[i].Right = reorder3save(all[i].Right, all, i, &early)
+ 	}
+ 
+ 	early = append(mapinit.Slice(), early...)
+@@ -2334,17 +2335,18 @@ func reorder3(all []*Node) []*Node {
+ // assignments in all up to but not including the ith assignment,
+ // copy into a temporary during *early and
+ // replace *np with that temp.
+-func reorder3save(np **Node, all []*Node, i int, early *[]*Node) {
+-	n := *np
++// The result of reorder3save MUST be assigned back to n, e.g.
++// 	n.Left = reorder3save(n.Left, all, i, early)
++func reorder3save(n *Node, all []*Node, i int, early *[]*Node) *Node {
+ 	if !aliased(n, all, i) {
+-		return
++		return n
+ 	}
+ 
+ 	q := temp(n.Type)
+ 	q = Nod(OAS, q, n)
+-	typecheck(&q, Etop)
++	q = typecheck(q, Etop)
+ 	*early = append(*early, q)
+-	*np = q.Left
++	return q.Left
+ }
+ 
+ // what's the outer value that a write to n affects?
+@@ -2590,7 +2592,7 @@ func paramstoheap(params *Type, out bool) []*Node {
+ 		if v.Class&^PHEAP != PPARAMOUT {
+ 			as := Nod(OAS, v, v.Name.Param.Stackparam)
+ 			v.Name.Param.Stackparam.Typecheck = 1
+-			typecheck(&as, Etop)
++			as = typecheck(as, Etop)
+ 			as = applywritebarrier(as)
+ 			nn = append(nn, as)
+ 		}
+@@ -2639,11 +2641,11 @@ func vmkcall(fn *Node, t *Type, init *Nodes, va []*Node) *Node {
+ 	r := Nod(OCALL, fn, nil)
+ 	r.List.Set(va[:n])
+ 	if fn.Type.Results().NumFields() > 0 {
+-		typecheck(&r, Erv|Efnstruct)
++		r = typecheck(r, Erv|Efnstruct)
+ 	} else {
+-		typecheck(&r, Etop)
++		r = typecheck(r, Etop)
+ 	}
+-	walkexpr(&r, init)
++	r = walkexpr(r, init)
+ 	r.Type = t
+ 	return r
+ }
+@@ -2662,7 +2664,7 @@ func conv(n *Node, t *Type) *Node {
+ 	}
+ 	n = Nod(OCONV, n, nil)
+ 	n.Type = t
+-	typecheck(&n, Erv)
++	n = typecheck(n, Erv)
+ 	return n
+ }
+ 
+@@ -2675,9 +2677,9 @@ func chanfn(name string, n int, t *Type) *Node {
+ 	default:
+ 		Fatalf("chanfn %d", n)
+ 	case 1:
+-		substArgTypes(&fn, t.Type)
++		fn = substArgTypes(fn, t.Type)
+ 	case 2:
+-		substArgTypes(&fn, t.Type, t.Type)
++		fn = substArgTypes(fn, t.Type, t.Type)
+ 	}
+ 	return fn
+ }
+@@ -2687,7 +2689,7 @@ func mapfn(name string, t *Type) *Node {
+ 		Fatalf("mapfn %v", t)
+ 	}
+ 	fn := syslook(name)
+-	substArgTypes(&fn, t.Key(), t.Type, t.Key(), t.Type)
++	fn = substArgTypes(fn, t.Key(), t.Type, t.Key(), t.Type)
+ 	return fn
+ }
+ 
+@@ -2696,13 +2698,13 @@ func mapfndel(name string, t *Type) *Node {
+ 		Fatalf("mapfn %v", t)
+ 	}
+ 	fn := syslook(name)
+-	substArgTypes(&fn, t.Key(), t.Type, t.Key())
++	fn = substArgTypes(fn, t.Key(), t.Type, t.Key())
+ 	return fn
+ }
+ 
+ func writebarrierfn(name string, l *Type, r *Type) *Node {
+ 	fn := syslook(name)
+-	substArgTypes(&fn, l, r)
++	fn = substArgTypes(fn, l, r)
+ 	return fn
+ }
+ 
+@@ -2763,8 +2765,8 @@ func addstr(n *Node, init *Nodes) *Node {
+ 	cat := syslook(fn)
+ 	r := Nod(OCALL, cat, nil)
+ 	r.List.Set(args)
+-	typecheck(&r, Erv)
+-	walkexpr(&r, init)
++	r = typecheck(r, Erv)
++	r = walkexpr(r, init)
+ 	r.Type = n.Type
+ 
+ 	return r
+@@ -2816,7 +2818,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 
+ 	// instantiate growslice(Type*, []any, int) []any
+ 	fn := syslook("growslice")
+-	substArgTypes(&fn, s.Type.Type, s.Type.Type)
++	fn = substArgTypes(fn, s.Type.Type, s.Type.Type)
+ 
+ 	// s = growslice(T, s, n)
+ 	nif.Nbody.Set1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nn)))
+@@ -2834,7 +2836,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 		nptr1.Etype = 1
+ 		nptr2 := l2
+ 		fn := syslook("typedslicecopy")
+-		substArgTypes(&fn, l1.Type, l2.Type)
++		fn = substArgTypes(fn, l1.Type, l2.Type)
+ 		var ln Nodes
+ 		ln.Set(l)
+ 		nt := mkcall1(fn, Types[TINT], &ln, typename(l1.Type.Type), nptr1, nptr2)
+@@ -2852,7 +2854,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 		} else {
+ 			fn = syslook("slicecopy")
+ 		}
+-		substArgTypes(&fn, l1.Type, l2.Type)
++		fn = substArgTypes(fn, l1.Type, l2.Type)
+ 		var ln Nodes
+ 		ln.Set(l)
+ 		nt := mkcall1(fn, Types[TINT], &ln, nptr1, nptr2, Nodintconst(s.Type.Type.Width))
+@@ -2867,7 +2869,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 		nptr2 := Nod(OSPTR, l2, nil)
+ 
+ 		fn := syslook("memmove")
+-		substArgTypes(&fn, s.Type.Type, s.Type.Type)
++		fn = substArgTypes(fn, s.Type.Type, s.Type.Type)
+ 
+ 		var ln Nodes
+ 		ln.Set(l)
+@@ -2908,7 +2910,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ 	if !samesafeexpr(dst, n.List.First()) {
+ 		n.List.SetIndex(0, safeexpr(n.List.Index(0), init))
+-		walkexpr(n.List.Addr(0), init)
++		n.List.SetIndex(0, walkexpr(n.List.Index(0), init))
+ 	}
+ 	walkexprlistsafe(n.List.Slice()[1:], init)
+ 
+@@ -2950,7 +2952,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ 	nx.Left = Nod(OLT, Nod(OSUB, Nod(OCAP, ns, nil), Nod(OLEN, ns, nil)), na)
+ 
+ 	fn := syslook("growslice") //   growslice(<type>, old []T, mincap int) (ret []T)
+-	substArgTypes(&fn, ns.Type.Type, ns.Type.Type)
++	fn = substArgTypes(fn, ns.Type.Type, ns.Type.Type)
+ 
+ 	nx.Nbody.Set1(Nod(OAS, ns,
+ 		mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns,
+@@ -3005,12 +3007,12 @@ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
+ 		} else {
+ 			fn = syslook("slicecopy")
+ 		}
+-		substArgTypes(&fn, n.Left.Type, n.Right.Type)
++		fn = substArgTypes(fn, n.Left.Type, n.Right.Type)
+ 		return mkcall1(fn, n.Type, init, n.Left, n.Right, Nodintconst(n.Left.Type.Type.Width))
+ 	}
+ 
+-	walkexpr(&n.Left, init)
+-	walkexpr(&n.Right, init)
++	n.Left = walkexpr(n.Left, init)
++	n.Right = walkexpr(n.Right, init)
+ 	nl := temp(n.Left.Type)
+ 	nr := temp(n.Right.Type)
+ 	var l []*Node
+@@ -3035,7 +3037,7 @@ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
+ 	// Call memmove.
+ 	fn := syslook("memmove")
+ 
+-	substArgTypes(&fn, nl.Type.Type, nl.Type.Type)
++	fn = substArgTypes(fn, nl.Type.Type, nl.Type.Type)
+ 	nwid := temp(Types[TUINTPTR])
+ 	l = append(l, Nod(OAS, nwid, conv(nlen, Types[TUINTPTR])))
+ 	nwid = Nod(OMUL, nwid, Nodintconst(nl.Type.Type.Width))
+@@ -3060,7 +3062,7 @@ func eqfor(t *Type, needsize *int) *Node {
+ 
+ 	if a == AMEM {
+ 		n := syslook("memequal")
+-		substArgTypes(&n, t, t)
++		n = substArgTypes(n, t, t)
+ 		*needsize = 1
+ 		return n
+ 	}
+@@ -3072,15 +3074,15 @@ func eqfor(t *Type, needsize *int) *Node {
+ 	ntype.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+ 	ntype.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+ 	ntype.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TBOOL])))
+-	typecheck(&ntype, Etype)
++	ntype = typecheck(ntype, Etype)
+ 	n.Type = ntype.Type
+ 	*needsize = 0
+ 	return n
+ }
+ 
+-func walkcompare(np **Node, init *Nodes) {
+-	n := *np
+-
++// The result of walkcompare MUST be assigned back to n, e.g.
++// 	n.Left = walkcompare(n.Left, init)
++func walkcompare(n *Node, init *Nodes) *Node {
+ 	// Given interface value l and concrete value r, rewrite
+ 	//   l == r
+ 	// to
+@@ -3103,7 +3105,7 @@ func walkcompare(np **Node, init *Nodes) {
+ 		x := temp(r.Type)
+ 		if haspointers(r.Type) {
+ 			a := Nod(OAS, x, nil)
+-			typecheck(&a, Etop)
++			a = typecheck(a, Etop)
+ 			init.Append(a)
+ 		}
+ 		ok := temp(Types[TBOOL])
+@@ -3119,8 +3121,8 @@ func walkcompare(np **Node, init *Nodes) {
+ 		expr.List.Append(x)
+ 		expr.List.Append(ok)
+ 		expr.Rlist.Append(a)
+-		typecheck(&expr, Etop)
+-		walkexpr(&expr, init)
++		expr = typecheck(expr, Etop)
++		expr = walkexpr(expr, init)
+ 
+ 		if n.Op == OEQ {
+ 			r = Nod(OANDAND, ok, Nod(OEQ, x, r))
+@@ -3128,8 +3130,8 @@ func walkcompare(np **Node, init *Nodes) {
+ 			r = Nod(OOROR, Nod(ONOT, ok, nil), Nod(ONE, x, r))
+ 		}
+ 		init.Append(expr)
+-		finishcompare(np, n, r, init)
+-		return
++		n = finishcompare(n, n, r, init)
++		return n
+ 	}
+ 
+ 	// Must be comparison of array or struct.
+@@ -3138,11 +3140,11 @@ func walkcompare(np **Node, init *Nodes) {
+ 
+ 	switch t.Etype {
+ 	default:
+-		return
++		return n
+ 
+ 	case TARRAY:
+ 		if Isslice(t) {
+-			return
++			return n
+ 		}
+ 
+ 	case TSTRUCT:
+@@ -3165,13 +3167,13 @@ func walkcompare(np **Node, init *Nodes) {
+ 	l = temp(Ptrto(t))
+ 	a := Nod(OAS, l, Nod(OADDR, cmpl, nil))
+ 	a.Right.Etype = 1 // addr does not escape
+-	typecheck(&a, Etop)
++	a = typecheck(a, Etop)
+ 	init.Append(a)
+ 
+ 	r = temp(Ptrto(t))
+ 	a = Nod(OAS, r, Nod(OADDR, cmpr, nil))
+ 	a.Right.Etype = 1 // addr does not escape
+-	typecheck(&a, Etop)
++	a = typecheck(a, Etop)
+ 	init.Append(a)
+ 
+ 	var andor Op = OANDAND
+@@ -3199,22 +3201,22 @@ func walkcompare(np **Node, init *Nodes) {
+ 		if expr == nil {
+ 			expr = Nodbool(n.Op == OEQ)
+ 		}
+-		finishcompare(np, n, expr, init)
+-		return
++		n = finishcompare(n, n, expr, init)
++		return n
+ 	}
+ 
+ 	if t.Etype == TARRAY {
+ 		// Zero- or single-element array, of any type.
+ 		switch t.Bound {
+ 		case 0:
+-			finishcompare(np, n, Nodbool(n.Op == OEQ), init)
+-			return
++			n = finishcompare(n, n, Nodbool(n.Op == OEQ), init)
++			return n
+ 		case 1:
+ 			l0 := Nod(OINDEX, l, Nodintconst(0))
+ 			r0 := Nod(OINDEX, r, Nodintconst(0))
+ 			a := Nod(n.Op, l0, r0)
+-			finishcompare(np, n, a, init)
+-			return
++			n = finishcompare(n, n, a, init)
++			return n
+ 		}
+ 	}
+ 
+@@ -3240,8 +3242,8 @@ func walkcompare(np **Node, init *Nodes) {
+ 		if expr == nil {
+ 			expr = Nodbool(n.Op == OEQ)
+ 		}
+-		finishcompare(np, n, expr, init)
+-		return
++		n = finishcompare(n, n, expr, init)
++		return n
+ 	}
+ 
+ 	// Chose not to inline. Call equality function directly.
+@@ -3258,22 +3260,25 @@ func walkcompare(np **Node, init *Nodes) {
+ 		r = Nod(ONOT, r, nil)
+ 	}
+ 
+-	finishcompare(np, n, r, init)
+-	return
++	n = finishcompare(n, n, r, init)
++	return n
+ }
+ 
+-func finishcompare(np **Node, n, r *Node, init *Nodes) {
+-	// Using np here to avoid passing &r to typecheck.
+-	*np = r
+-	typecheck(np, Erv)
+-	walkexpr(np, init)
+-	r = *np
++// The result of finishcompare MUST be assigned back to nn, e.g.
++// 	n.Left = finishcompare(n.Left, x, r, init)
++func finishcompare(nn *Node, n, r *Node, init *Nodes) *Node {
++	// Use nn here to avoid passing r to typecheck.
++	nn = r
++	nn = typecheck(nn, Erv)
++	nn = walkexpr(nn, init)
++	r = nn
+ 	if r.Type != n.Type {
+ 		r = Nod(OCONVNOP, r, nil)
+ 		r.Type = n.Type
+ 		r.Typecheck = 1
+-		*np = r
++		nn = r
+ 	}
++	return nn
+ }
+ 
+ func samecheap(a *Node, b *Node) bool {
+@@ -3307,24 +3312,24 @@ func samecheap(a *Node, b *Node) bool {
+ 	return false
+ }
+ 
+-func walkrotate(np **Node) {
++// The result of walkrotate MUST be assigned back to n, e.g.
++// 	n.Left = walkrotate(n.Left)
++func walkrotate(n *Node) *Node {
+ 	if Thearch.Thechar == '0' || Thearch.Thechar == '7' || Thearch.Thechar == '9' {
+-		return
++		return n
+ 	}
+ 
+-	n := *np
+-
+ 	// Want << | >> or >> | << or << ^ >> or >> ^ << on unsigned value.
+ 	l := n.Left
+ 
+ 	r := n.Right
+ 	if (n.Op != OOR && n.Op != OXOR) || (l.Op != OLSH && l.Op != ORSH) || (r.Op != OLSH && r.Op != ORSH) || n.Type == nil || Issigned[n.Type.Etype] || l.Op == r.Op {
+-		return
++		return n
+ 	}
+ 
+ 	// Want same, side effect-free expression on lhs of both shifts.
+ 	if !samecheap(l.Left, r.Left) {
+-		return
++		return n
+ 	}
+ 
+ 	// Constants adding to width?
+@@ -3349,23 +3354,22 @@ func walkrotate(np **Node) {
+ 				if s == 0 || s == w {
+ 					n = n.Left
+ 				}
+-
+-				*np = n
+-				return
++				return n
+ 			}
+ 		}
+-		return
++		return n
+ 	}
+ 
+ 	// TODO: Could allow s and 32-s if s is bounded (maybe s&31 and 32-s&31).
+-	return
++	return n
+ }
+ 
+ // walkmul rewrites integer multiplication by powers of two as shifts.
+-func walkmul(np **Node, init *Nodes) {
+-	n := *np
++// The result of walkmul MUST be assigned back to n, e.g.
++// 	n.Left = walkmul(n.Left, init)
++func walkmul(n *Node, init *Nodes) *Node {
+ 	if !Isint[n.Type.Etype] {
+-		return
++		return n
+ 	}
+ 
+ 	var nr *Node
+@@ -3377,7 +3381,7 @@ func walkmul(np **Node, init *Nodes) {
+ 		nl = n.Right
+ 		nr = n.Left
+ 	} else {
+-		return
++		return n
+ 	}
+ 
+ 	neg := 0
+@@ -3395,7 +3399,7 @@ func walkmul(np **Node, init *Nodes) {
+ 	pow = powtwo(nr)
+ 
+ 	if pow < 0 {
+-		return
++		return n
+ 	}
+ 	if pow >= 1000 {
+ 		// negative power of 2, like -16
+@@ -3406,7 +3410,7 @@ func walkmul(np **Node, init *Nodes) {
+ 
+ 	w = int(nl.Type.Width * 8)
+ 	if pow+1 >= w { // too big, shouldn't happen
+-		return
++		return n
+ 	}
+ 
+ 	nl = cheapexpr(nl, init)
+@@ -3425,24 +3429,25 @@ ret:
+ 		n = Nod(OMINUS, n, nil)
+ 	}
+ 
+-	typecheck(&n, Erv)
+-	walkexpr(&n, init)
+-	*np = n
++	n = typecheck(n, Erv)
++	n = walkexpr(n, init)
++	return n
+ }
+ 
+ // walkdiv rewrites division by a constant as less expensive
+ // operations.
+-func walkdiv(np **Node, init *Nodes) {
++// The result of walkdiv MUST be assigned back to n, e.g.
++// 	n.Left = walkdiv(n.Left, init)
++func walkdiv(n *Node, init *Nodes) *Node {
+ 	// if >= 0, nr is 1<<pow // 1 if nr is negative.
+ 
+ 	// TODO(minux)
+ 	if Thearch.Thechar == '0' || Thearch.Thechar == '7' || Thearch.Thechar == '9' {
+-		return
++		return n
+ 	}
+ 
+-	n := *np
+ 	if n.Right.Op != OLITERAL {
+-		return
++		return n
+ 	}
+ 
+ 	// nr is a constant.
+@@ -3465,7 +3470,7 @@ func walkdiv(np **Node, init *Nodes) {
+ 
+ 	if pow+1 >= w {
+ 		// divisor too large.
+-		return
++		return n
+ 	}
+ 
+ 	if pow < 0 {
+@@ -3484,7 +3489,7 @@ func walkdiv(np **Node, init *Nodes) {
+ 		}
+ 
+ 		if m.Bad != 0 {
+-			return
++			return n
+ 		}
+ 
+ 		// We have a quick division method so use it
+@@ -3500,7 +3505,7 @@ func walkdiv(np **Node, init *Nodes) {
+ 
+ 		switch Simtype[nl.Type.Etype] {
+ 		default:
+-			return
++			return n
+ 
+ 			// n1 = nl * magic >> w (HMUL)
+ 		case TUINT8, TUINT16, TUINT32:
+@@ -3508,13 +3513,13 @@ func walkdiv(np **Node, init *Nodes) {
+ 
+ 			Nodconst(nc, nl.Type, int64(m.Um))
+ 			n1 := Nod(OHMUL, nl, nc)
+-			typecheck(&n1, Erv)
++			n1 = typecheck(n1, Erv)
+ 			if m.Ua != 0 {
+ 				// Select a Go type with (at least) twice the width.
+ 				var twide *Type
+ 				switch Simtype[nl.Type.Etype] {
+ 				default:
+-					return
++					return n
+ 
+ 				case TUINT8, TUINT16:
+ 					twide = Types[TUINT32]
+@@ -3552,7 +3557,7 @@ func walkdiv(np **Node, init *Nodes) {
+ 
+ 			Nodconst(nc, nl.Type, m.Sm)
+ 			n1 := Nod(OHMUL, nl, nc)
+-			typecheck(&n1, Erv)
++			n1 = typecheck(n1, Erv)
+ 			if m.Sm < 0 {
+ 				// add the numerator.
+ 				n1 = Nod(OADD, n1, nl)
+@@ -3606,7 +3611,7 @@ func walkdiv(np **Node, init *Nodes) {
+ 				Nodconst(nc, Types[Simtype[TUINT]], int64(w)-1)
+ 				n1 := Nod(ORSH, nl, nc) // n1 = -1 iff nl < 0.
+ 				if pow == 1 {
+-					typecheck(&n1, Erv)
++					n1 = typecheck(n1, Erv)
+ 					n1 = cheapexpr(n1, init)
+ 
+ 					// n = (nl+ε)&1 -ε where ε=1 iff nl<0.
+@@ -3622,7 +3627,7 @@ func walkdiv(np **Node, init *Nodes) {
+ 
+ 					Nodconst(nc, nl.Type, (1<<uint(pow))-1)
+ 					n2 := Nod(OAND, n1, nc) // n2 = 2^pow-1 iff nl<0.
+-					typecheck(&n2, Erv)
++					n2 = typecheck(n2, Erv)
+ 					n2 = cheapexpr(n2, init)
+ 
+ 					n3 := Nod(OADD, nl, n2)
+@@ -3686,9 +3691,9 @@ func walkdiv(np **Node, init *Nodes) {
+ 	goto ret
+ 
+ ret:
+-	typecheck(&n, Erv)
+-	walkexpr(&n, init)
+-	*np = n
++	n = typecheck(n, Erv)
++	n = walkexpr(n, init)
++	return n
+ }
+ 
+ // return 1 if integer n must be in range [0, max), 0 otherwise
+@@ -3954,9 +3959,9 @@ func candiscard(n *Node) bool {
+ 
+ var walkprintfunc_prgen int
+ 
+-func walkprintfunc(np **Node, init *Nodes) {
+-	n := *np
+-
++// The result of walkprintfunc MUST be assigned back to n, e.g.
++// 	n.Left = walkprintfunc(n.Left, init)
++func walkprintfunc(n *Node, init *Nodes) *Node {
+ 	if n.Ninit.Len() != 0 {
+ 		walkstmtlist(n.Ninit.Slice())
+ 		init.AppendNodes(&n.Ninit)
+@@ -3989,14 +3994,14 @@ func walkprintfunc(np **Node, init *Nodes) {
+ 
+ 	a = Nod(n.Op, nil, nil)
+ 	a.List.Set(printargs)
+-	typecheck(&a, Etop)
+-	walkstmt(&a)
++	a = typecheck(a, Etop)
++	a = walkstmt(a)
+ 
+ 	fn.Nbody.Set1(a)
+ 
+ 	funcbody(fn)
+ 
+-	typecheck(&fn, Etop)
++	fn = typecheck(fn, Etop)
+ 	typecheckslice(fn.Nbody.Slice(), Etop)
+ 	xtop = append(xtop, fn)
+ 	Curfn = oldfn
+@@ -4004,7 +4009,7 @@ func walkprintfunc(np **Node, init *Nodes) {
+ 	a = Nod(OCALL, nil, nil)
+ 	a.Left = fn.Func.Nname
+ 	a.List.Set(n.List.Slice())
+-	typecheck(&a, Etop)
+-	walkexpr(&a, init)
+-	*np = a
++	a = typecheck(a, Etop)
++	a = walkexpr(a, init)
++	return a
+ }

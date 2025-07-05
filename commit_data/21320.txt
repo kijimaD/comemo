@@ -9,6 +9,28 @@ Date:   Mon Dec 22 07:58:26 2014 -0800
     Change-Id: I044fa1d26d972f012f00388a84c4d0f143cf4f63
     Reviewed-on: https://go-review.googlesource.com/1970
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 3b67f307f6..fc8242ca53 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of November 11, 2014",
++	"Subtitle": "Version of December 22, 2014",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -1981,7 +1981,7 @@ with no explicit type.
+ </p>
+ 
+ <pre>
+-var d = math.Sin(0.5)  // d is int64
++var d = math.Sin(0.5)  // d is float64
+ var i = 42             // i is int
+ var t, ok = x.(T)      // t is T, ok is bool
+ var n = nil            // illegal

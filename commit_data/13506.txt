@@ -19,6 +19,20 @@ Date:   Thu Jul 26 22:46:20 2012 -0700
     R=rsc, r, minux.ma, bradfitz
     CC=golang-dev
     https://golang.org/cl/6455050
-
+---
  src/pkg/runtime/signals_linux.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/signals_linux.h b/src/pkg/runtime/signals_linux.h
+index 345a6c5d11..9c35670075 100644
+--- a/src/pkg/runtime/signals_linux.h
++++ b/src/pkg/runtime/signals_linux.h
+@@ -42,7 +42,7 @@ SigTab runtime·sigtab[] = {
+ 	/* 30 */	N, "SIGPWR: power failure restart",
+ 	/* 31 */	N, "SIGSYS: bad system call",
+ 	/* 32 */	N, "signal 32",
+-	/* 33 */	N, "signal 33",
++	/* 33 */	0, "signal 33", /* SIGSETXID; see issue 3871 */
+ 	/* 34 */	N, "signal 34",
+ 	/* 35 */	N, "signal 35",
+ 	/* 36 */	N, "signal 36",

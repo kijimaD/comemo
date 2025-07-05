@@ -10,7 +10,33 @@ Date:   Tue Jan 24 21:04:40 2012 -0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5570052
-
+---
  src/pkg/encoding/xml/marshal.go | 1 +
  src/pkg/encoding/xml/read.go    | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/pkg/encoding/xml/marshal.go b/src/pkg/encoding/xml/marshal.go
+index 77413cb573..4ef2a50eac 100644
+--- a/src/pkg/encoding/xml/marshal.go
++++ b/src/pkg/encoding/xml/marshal.go
+@@ -48,6 +48,7 @@ type Marshaler interface {
+ // The XML element for a struct contains marshalled elements for each of the
+ // exported fields of the struct, with these exceptions:
+ //     - the XMLName field, described above, is omitted.
++//     - a field with tag "-" is omitted.
+ //     - a field with tag "name,attr" becomes an attribute with
+ //       the given name in the XML element.
+ //     - a field with tag ",attr" becomes an attribute with the
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index 8b23fd58a0..871fe059cf 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -132,6 +132,8 @@ import (
+ //      of the above rules and the struct has a field with tag ",any",
+ //      unmarshal maps the sub-element to that struct field.
+ //
++//   * A struct field with tag "-" is never unmarshalled into.
++//
+ // Unmarshal maps an XML element to a string or []byte by saving the
+ // concatenation of that element's character data in the string or
+ // []byte. The saved []byte is never nil.

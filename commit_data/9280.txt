@@ -8,9 +8,203 @@ Date:   Wed Aug 3 16:46:35 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4815071
-
+---
  misc/vim/ftplugin/go/godoc.vim |  13 +++++
  misc/vim/plugin/godoc.vim      | 123 +++++++++++++++++++++++++++++++++++++++++
  misc/vim/readme.txt            |  11 ++++
  misc/vim/syntax/godoc.vim      |  20 +++++++
  4 files changed, 167 insertions(+)
+
+diff --git a/misc/vim/ftplugin/go/godoc.vim b/misc/vim/ftplugin/go/godoc.vim
+new file mode 100644
+index 0000000000..55195a674d
+--- /dev/null
++++ b/misc/vim/ftplugin/go/godoc.vim
+@@ -0,0 +1,13 @@
++" Copyright 2011 The Go Authors. All rights reserved.
++" Use of this source code is governed by a BSD-style
++" license that can be found in the LICENSE file.
++"
++" godoc.vim: Vim command to see godoc.
++
++if exists("b:did_ftplugin")
++    finish
++endif
++
++silent! nmap <buffer> <silent> K <Plug>(godoc-keyword)
++
++" vim:ts=4:sw=4:et
+diff --git a/misc/vim/plugin/godoc.vim b/misc/vim/plugin/godoc.vim
+new file mode 100644
+index 0000000000..5d7ce14ad3
+--- /dev/null
++++ b/misc/vim/plugin/godoc.vim
+@@ -0,0 +1,123 @@
++" Copyright 2011 The Go Authors. All rights reserved.
++" Use of this source code is governed by a BSD-style
++" license that can be found in the LICENSE file.
++"
++" godoc.vim: Vim command to see godoc.
++
++if exists("g:loaded_godoc")
++  finish
++endif
++let g:loaded_godoc = 1
++
++let s:buf_nr = -1
++let s:last_word = ''
++let s:goos = $GOOS
++let s:goarch = $GOARCH
++
++function! s:GodocView()
++  if !bufexists(s:buf_nr)
++    leftabove new
++    file `="[Godoc]"`
++    let s:buf_nr = bufnr('%')
++  elseif bufwinnr(s:buf_nr) == -1
++    leftabove split
++    execute s:buf_nr . 'buffer'
++    delete _
++  elseif bufwinnr(s:buf_nr) != bufwinnr('%')
++    execute bufwinnr(s:buf_nr) . 'wincmd w'
++  endif
++
++  setlocal filetype=godoc
++  setlocal bufhidden=delete
++  setlocal buftype=nofile
++  setlocal noswapfile
++  setlocal nobuflisted
++  setlocal modifiable
++  setlocal nocursorline
++  setlocal nocursorcolumn
++  setlocal iskeyword+=:
++  setlocal iskeyword-=-
++
++  nnoremap <buffer> <silent> K :Godoc<cr>
++
++  au BufHidden <buffer> call let <SID>buf_nr = -1
++endfunction
++
++function! s:GodocWord(word)
++  let word = a:word
++  silent! let content = system('godoc ' . word)
++  if v:shell_error || !len(content)
++    if len(s:last_word)
++      silent! let content = system('godoc ' . s:last_word.'/'.word)
++      if v:shell_error || !len(content)
++        echo 'No documentation found for "' . word . '".'
++        return
++      endif
++      let word = s:last_word.'/'.word
++    else
++      echo 'No documentation found for "' . word . '".'
++      return
++    endif
++  endif
++  let s:last_word = word
++  silent! call s:GodocView()
++  setlocal modifiable
++  silent! %d _
++  silent! put! =content
++  silent! normal gg
++  setlocal nomodifiable
++  setfiletype godoc
++endfunction
++
++function! s:Godoc(...)
++  let word = join(a:000, ' ')
++  if !len(word)
++    let word = expand('<cword>')
++  endif
++  let word = substitute(word, '[^a-zA-Z0-9\/]', '', 'g')
++  if !len(word)
++    return
++  endif
++  call s:GodocWord(word)
++endfunction
++
++function! s:GodocComplete(ArgLead, CmdLine, CursorPos)
++  if len($GOROOT) == 0
++    return []
++  endif
++  if len(s:goos) == 0
++    if exists('g:godoc_goos')
++      let s:goos = g:godoc_goos
++    elseif has('win32') || has('win64')
++      let s:goos = 'windows'
++    elseif has('macunix')
++      let s:goos = 'darwin'
++    else
++      let s:goos = '*'
++    endif
++  endif
++  if len(s:goarch) == 0
++    if exists('g:godoc_goarch')
++      let s:goarch = g:godoc_goarch
++    else
++      let s:goarch = g:godoc_goarch
++    endif
++  endif
++  let ret = {}
++  let root = expand($GOROOT.'/pkg/'.s:goos.'_'.s:goarch)
++  for i in split(globpath(root, a:ArgLead.'*'), "\n")
++    if isdirectory(i)
++      let i .= '/'
++    elseif i !~ '\.a$'
++      continue
++    endif
++    let i = substitute(substitute(i[len(root)+1:], '[\\]', '/', 'g'), '\.a$', '', 'g')
++    let ret[i] = i
++  endfor
++  return sort(keys(ret))
++endfunction
++
++command! -nargs=* -range -complete=customlist,s:GodocComplete Godoc :call s:Godoc(<q-args>)
++nnoremap <silent> <Plug>(godoc-keyword) :<C-u>call <SID>Godoc('')<CR>
++
++" vim:ts=4:sw=4:et
+diff --git a/misc/vim/readme.txt b/misc/vim/readme.txt
+index 3c3255113b..e6bdf0e116 100644
+--- a/misc/vim/readme.txt
++++ b/misc/vim/readme.txt
+@@ -48,3 +48,14 @@ To install automatic indentation for Go:
+   3. Add the following line to your .vimrc file (normally $HOME/.vimrc):
+ 
+      filetype indent on
++
++
++Godoc plugin
++============
++
++To install godoc plugin:
++
++  1. Same as 1 above.
++  2. Copy or link plugin/godoc.vim to $HOME/.vim/plugin/godoc,
++     syntax/godoc.vim to $HOME/.vim/syntax/godoc.vim,
++     and ftplugin/go/godoc.vim to $HOME/.vim/ftplugin/go/godoc.vim.
+diff --git a/misc/vim/syntax/godoc.vim b/misc/vim/syntax/godoc.vim
+new file mode 100644
+index 0000000000..82f78aa3c3
+--- /dev/null
++++ b/misc/vim/syntax/godoc.vim
+@@ -0,0 +1,20 @@
++" Copyright 2011 The Go Authors. All rights reserved.
++" Use of this source code is governed by a BSD-style
++" license that can be found in the LICENSE file.
++
++if exists("b:current_syntax")
++  finish
++endif
++
++syn case match
++syn match  godocTitle "^\([A-Z]*\)$"
++
++command -nargs=+ HiLink hi def link <args>
++
++HiLink godocTitle Title
++
++delcommand HiLink
++
++let b:current_syntax = "godoc"
++
++" vim:ts=4 sts=2 sw=2:

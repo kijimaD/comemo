@@ -11,6 +11,27 @@ Date:   Sat Jul 29 07:25:39 2017 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Avelino <t@avelino.xxx>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/rand/rand_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/math/rand/rand_test.go b/src/math/rand/rand_test.go
+index 55d2902c69..da065159d9 100644
+--- a/src/math/rand/rand_test.go
++++ b/src/math/rand/rand_test.go
+@@ -74,6 +74,7 @@ func getStatsResults(samples []float64) *statsResults {
+ }
+ 
+ func checkSampleDistribution(t *testing.T, samples []float64, expected *statsResults) {
++	t.Helper()
+ 	actual := getStatsResults(samples)
+ 	err := actual.checkSimilarDistribution(expected)
+ 	if err != nil {
+@@ -82,6 +83,7 @@ func checkSampleDistribution(t *testing.T, samples []float64, expected *statsRes
+ }
+ 
+ func checkSampleSliceDistributions(t *testing.T, samples []float64, nslices int, expected *statsResults) {
++	t.Helper()
+ 	chunk := len(samples) / nslices
+ 	for i := 0; i < nslices; i++ {
+ 		low := i * chunk

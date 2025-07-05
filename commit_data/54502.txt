@@ -19,8 +19,84 @@ Date:   Wed Oct 19 09:20:21 2022 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/base/goflags.go    | 23 ++++++++++++++++-------
  src/cmd/go/internal/work/exec.go       |  2 +-
  src/cmd/go/testdata/script/goflags.txt |  5 +++++
  3 files changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/goflags.go b/src/cmd/go/internal/base/goflags.go
+index 267006be7a..eced2c5d58 100644
+--- a/src/cmd/go/internal/base/goflags.go
++++ b/src/cmd/go/internal/base/goflags.go
+@@ -11,6 +11,7 @@ import (
+ 	"strings"
+ 
+ 	"cmd/go/internal/cfg"
++	"cmd/internal/quoted"
+ )
+ 
+ var goflags []string // cached $GOFLAGS list; can be -x or --x form
+@@ -30,19 +31,27 @@ func InitGOFLAGS() {
+ 		return
+ 	}
+ 
+-	goflags = strings.Fields(cfg.Getenv("GOFLAGS"))
+-	if len(goflags) == 0 {
+-		// nothing to do; avoid work on later InitGOFLAGS call
+-		goflags = []string{}
+-		return
+-	}
+-
+ 	// Ignore bad flag in go env and go bug, because
+ 	// they are what people reach for when debugging
+ 	// a problem, and maybe they're debugging GOFLAGS.
+ 	// (Both will show the GOFLAGS setting if let succeed.)
+ 	hideErrors := cfg.CmdName == "env" || cfg.CmdName == "bug"
+ 
++	var err error
++	goflags, err = quoted.Split(cfg.Getenv("GOFLAGS"))
++	if err != nil {
++		if hideErrors {
++			return
++		}
++		Fatalf("go: parsing $GOFLAGS: %v", err)
++	}
++
++	if len(goflags) == 0 {
++		// nothing to do; avoid work on later InitGOFLAGS call
++		goflags = []string{}
++		return
++	}
++
+ 	// Each of the words returned by strings.Fields must be its own flag.
+ 	// To set flag arguments use -x=value instead of -x value.
+ 	// For boolean flags, -x is fine instead of -x=true.
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index fb1a9bbc14..79d5615f89 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2822,7 +2822,7 @@ func (b *Builder) gccArchArgs() []string {
+ // into fields, using the default value when the variable is empty.
+ //
+ // The environment variable must be quoted correctly for
+-// str.SplitQuotedFields. This should be done before building
++// quoted.Split. This should be done before building
+ // anything, for example, in BuildInit.
+ func envList(key, def string) []string {
+ 	v := cfg.Getenv(key)
+diff --git a/src/cmd/go/testdata/script/goflags.txt b/src/cmd/go/testdata/script/goflags.txt
+index f4872ffd35..112086059c 100644
+--- a/src/cmd/go/testdata/script/goflags.txt
++++ b/src/cmd/go/testdata/script/goflags.txt
+@@ -55,5 +55,10 @@ go list -tags=magic
+ go test -tags=magic -c -o $devnull
+ go vet -tags=magic
+ 
++# GOFLAGS uses the same quoting rules (quoted.Split) as the rest of
++# the go command env variables
++env GOFLAGS='"-tags=magic wizardry"'
++go list
++
+ -- foo_test.go --
+ package foo

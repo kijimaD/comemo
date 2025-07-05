@@ -14,8 +14,87 @@ Date:   Wed Oct 26 13:34:55 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/32174
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/mime/quotedprintable/example_test.go |  4 ++--
  src/mime/quotedprintable/reader.go       |  7 +++++++
  src/mime/quotedprintable/reader_test.go  | 13 +++++--------
  3 files changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/src/mime/quotedprintable/example_test.go b/src/mime/quotedprintable/example_test.go
+index 1ef841ed5c..5a9ab450a3 100644
+--- a/src/mime/quotedprintable/example_test.go
++++ b/src/mime/quotedprintable/example_test.go
+@@ -15,7 +15,7 @@ import (
+ func ExampleNewReader() {
+ 	for _, s := range []string{
+ 		`=48=65=6C=6C=6F=2C=20=47=6F=70=68=65=72=73=21`,
+-		`invalid escape: =B`,
++		`invalid escape: <b style="font-size: 200%">hello</b>`,
+ 		"Hello, Gophers! This symbol will be unescaped: =3D and this will be written in =\r\none line.",
+ 	} {
+ 		b, err := ioutil.ReadAll(quotedprintable.NewReader(strings.NewReader(s)))
+@@ -23,7 +23,7 @@ func ExampleNewReader() {
+ 	}
+ 	// Output:
+ 	// Hello, Gophers! <nil>
+-	// invalid escape:  unexpected EOF
++	// invalid escape: <b style="font-size: 200%">hello</b> <nil>
+ 	// Hello, Gophers! This symbol will be unescaped: = and this will be written in one line. <nil>
+ }
+ 
+diff --git a/src/mime/quotedprintable/reader.go b/src/mime/quotedprintable/reader.go
+index 7645777ab2..b142240343 100644
+--- a/src/mime/quotedprintable/reader.go
++++ b/src/mime/quotedprintable/reader.go
+@@ -77,6 +77,8 @@ func (r *Reader) Read(p []byte) (n int, err error) {
+ 	// 3. it accepts soft line-break (=) at end of message (issue 15486); i.e.
+ 	//    the final byte read from the underlying reader is allowed to be '=',
+ 	//    and it will be silently ignored.
++	// 4. it takes = as literal = if not followed by two hex digits
++	//    but not at end of line (issue 13219).
+ 	for len(p) > 0 {
+ 		if len(r.line) == 0 {
+ 			if r.rerr != nil {
+@@ -111,6 +113,11 @@ func (r *Reader) Read(p []byte) (n int, err error) {
+ 		case b == '=':
+ 			b, err = readHexByte(r.line[1:])
+ 			if err != nil {
++				if len(r.line) >= 2 && r.line[1] != '\r' && r.line[1] != '\n' {
++					// Take the = as a literal =.
++					b = '='
++					break
++				}
+ 				return n, err
+ 			}
+ 			r.line = r.line[2:] // 2 of the 3; other 1 is done below
+diff --git a/src/mime/quotedprintable/reader_test.go b/src/mime/quotedprintable/reader_test.go
+index 966f33e6c0..ca016f969a 100644
+--- a/src/mime/quotedprintable/reader_test.go
++++ b/src/mime/quotedprintable/reader_test.go
+@@ -30,7 +30,7 @@ func TestReader(t *testing.T) {
+ 		{in: "foo bar=3d", want: "foo bar="}, // lax.
+ 		{in: "foo bar=\n", want: "foo bar"},
+ 		{in: "foo bar\n", want: "foo bar\n"}, // somewhat lax.
+-		{in: "foo bar=0", want: "foo bar", err: io.ErrUnexpectedEOF},
++		{in: "foo bar=0", want: "foo bar=0"}, // lax
+ 		{in: "foo bar=0D=0A", want: "foo bar\r\n"},
+ 		{in: " A B        \r\n C ", want: " A B\r\n C"},
+ 		{in: " A B =\r\n C ", want: " A B  C"},
+@@ -194,13 +194,10 @@ func TestExhaustive(t *testing.T) {
+ 	}
+ 	sort.Strings(outcomes)
+ 	got := strings.Join(outcomes, "\n")
+-	want := `OK: 21576
+-invalid bytes after =: 3397
+-quotedprintable: invalid hex byte 0x0a: 1400
+-quotedprintable: invalid hex byte 0x0d: 2700
+-quotedprintable: invalid hex byte 0x20: 2490
+-quotedprintable: invalid hex byte 0x3d: 440
+-unexpected EOF: 3122`
++	want := `OK: 28934
++invalid bytes after =: 3949
++quotedprintable: invalid hex byte 0x0d: 2048
++unexpected EOF: 194`
+ 	if got != want {
+ 		t.Errorf("Got:\n%s\nWant:\n%s", got, want)
+ 	}

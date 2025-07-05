@@ -8,6 +8,19 @@ Date:   Wed Mar 12 14:23:40 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/72640043
-
+---
  doc/go1.3.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.3.txt b/doc/go1.3.txt
+index f66d2d2680..dd2c52aeac 100644
+--- a/doc/go1.3.txt
++++ b/doc/go1.3.txt
+@@ -18,6 +18,7 @@ net/http: use TCP keep-alives for ListenAndServe and ListenAndServeTLS (CL 48300
+ net: add Dialer.KeepAlive option (CL 68380043)
+ net: enable fast socket creation using SOCK_CLOEXEC and Accept4 on FreeBSD 10 (69100043)
+ os/exec: fix Command with relative paths (CL 59580044)
++regexp: add one-pass optimization from RE2 (CL 13345046)
+ runtime/debug: add SetPanicOnFault (CL 66590044)
+ runtime: output how long goroutines are blocked (CL 50420043)
+ sync: add Pool (CL 41860043, 46010043)

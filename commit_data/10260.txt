@@ -7,7 +7,52 @@ Date:   Sat Nov 5 11:28:23 2011 +1100
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5347041
-
+---
  src/cmd/gofix/netudpgroup.go      |  2 +-
  src/cmd/gofix/netudpgroup_test.go | 20 ++++++++++++++++++++
  2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofix/netudpgroup.go b/src/cmd/gofix/netudpgroup.go
+index 12a2efa287..b54beb0de3 100644
+--- a/src/cmd/gofix/netudpgroup.go
++++ b/src/cmd/gofix/netudpgroup.go
+@@ -30,7 +30,7 @@ func netudpgroup(f *ast.File) bool {
+ 	fixed := false
+ 	for _, d := range f.Decls {
+ 		fd, ok := d.(*ast.FuncDecl)
+-		if !ok {
++		if !ok || fd.Body == nil {
+ 			continue
+ 		}
+ 		walk(fd.Body, func(n interface{}) {
+diff --git a/src/cmd/gofix/netudpgroup_test.go b/src/cmd/gofix/netudpgroup_test.go
+index 24f4abc167..88c0e093fc 100644
+--- a/src/cmd/gofix/netudpgroup_test.go
++++ b/src/cmd/gofix/netudpgroup_test.go
+@@ -28,6 +28,26 @@ func f() {
+ 	err := x.JoinGroup(nil, gaddr)
+ 	err = y.LeaveGroup(nil, gaddr)
+ }
++`,
++	},
++	// Innocent function with no body.
++	{
++		Name: "netudpgroup.1",
++		In: `package main
++
++import "net"
++
++func f()
++
++var _ net.IP
++`,
++		Out: `package main
++
++import "net"
++
++func f()
++
++var _ net.IP
+ `,
+ 	},
+ }

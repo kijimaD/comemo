@@ -12,6 +12,28 @@ Date:   Tue Dec 10 14:06:26 2013 -0500
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/40340043
-
+---
  src/pkg/crypto/x509/verify.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/x509/verify.go b/src/pkg/crypto/x509/verify.go
+index 8327463ca8..5fd8e37174 100644
+--- a/src/pkg/crypto/x509/verify.go
++++ b/src/pkg/crypto/x509/verify.go
+@@ -425,6 +425,7 @@ func checkChainForKeyUsage(chain []*Certificate, keyUsages []ExtKeyUsage) bool {
+ 	// by each certificate. If we cross out all the usages, then the chain
+ 	// is unacceptable.
+ 
++NextCert:
+ 	for i := len(chain) - 1; i >= 0; i-- {
+ 		cert := chain[i]
+ 		if len(cert.ExtKeyUsage) == 0 && len(cert.UnknownExtKeyUsage) == 0 {
+@@ -435,7 +436,7 @@ func checkChainForKeyUsage(chain []*Certificate, keyUsages []ExtKeyUsage) bool {
+ 		for _, usage := range cert.ExtKeyUsage {
+ 			if usage == ExtKeyUsageAny {
+ 				// The certificate is explicitly good for any usage.
+-				continue
++				continue NextCert
+ 			}
+ 		}
+ 

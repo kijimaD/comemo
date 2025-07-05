@@ -20,7 +20,7 @@ Date:   Mon Jan 14 09:36:18 2019 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        |  24 ++++++
  src/cmd/compile/internal/gc/ssa.go           |   4 +-
  src/cmd/compile/internal/ssa/gen/ARM64.rules |   6 ++
@@ -30,3 +30,531 @@ Date:   Mon Jan 14 09:36:18 2019 +0000
  src/math/bits/bits_test.go                   |  25 ++++++
  test/codegen/mathbits.go                     |  10 +++
  8 files changed, 277 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 75cf1d0bd9..98cd6c3b03 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -246,6 +246,30 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpARM64ADDSconstflags:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
++		p.Reg = v.Args[0].Reg()
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg0()
++	case ssa.OpARM64ADCzerocarry:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = arm64.REGZERO
++		p.Reg = arm64.REGZERO
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
++	case ssa.OpARM64ADCSflags:
++		r := v.Reg0()
++		r1 := v.Args[0].Reg()
++		r2 := v.Args[1].Reg()
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r2
++		p.Reg = r1
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
+ 	case ssa.OpARM64EXTRconst,
+ 		ssa.OpARM64EXTRWconst:
+ 		p := s.Prog(v.Op.Asm())
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 031c3c072c..aa2e2c19c9 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3562,8 +3562,8 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+ 		},
+-		sys.AMD64)
+-	alias("math/bits", "Add", "math/bits", "Add64", sys.ArchAMD64)
++		sys.AMD64, sys.ARM64)
++	alias("math/bits", "Add", "math/bits", "Add64", sys.ArchAMD64, sys.ArchARM64)
+ 	addF("math/bits", "Sub64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 35126835d2..df841e5546 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -144,6 +144,12 @@
+ (UMOD <typ.UInt64> x y) -> (MSUB <typ.UInt64> x y (UDIV <typ.UInt64> x y))
+ (UMODW <typ.UInt32> x y) -> (MSUBW <typ.UInt32> x y (UDIVW <typ.UInt32> x y))
+ 
++// 64-bit addition with carry.
++(Select0 (Add64carry x y c)) -> (Select0 <typ.UInt64> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c))))
++(Select1 (Add64carry x y c)) -> (ADCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c)))))
++// The carry flag of c doesn't change.
++(ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (ADCzerocarry <typ.UInt64> c)))) -> (ADCSflags x y c)
++
+ // boolean ops -- booleans are represented with 0=false, 1=true
+ (AndB x y) -> (AND x y)
+ (OrB x y) -> (OR x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 04c4b3f517..05d57fa8ca 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -137,60 +137,66 @@ func init() {
+ 	)
+ 	// Common regInfo
+ 	var (
+-		gp01      = regInfo{inputs: nil, outputs: []regMask{gp}}
+-		gp11      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
+-		gp11sp    = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
+-		gp1flags  = regInfo{inputs: []regMask{gpg}}
+-		gp1flags1 = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
+-		gp21      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
+-		gp31      = regInfo{inputs: []regMask{gpg, gpg, gpg}, outputs: []regMask{gp}}
+-		gp21nog   = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
+-		gp2flags  = regInfo{inputs: []regMask{gpg, gpg}}
+-		gp2flags1 = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
+-		gp22      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
+-		gpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
+-		gp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+-		gpstore   = regInfo{inputs: []regMask{gpspsbg, gpg}}
+-		gpstore0  = regInfo{inputs: []regMask{gpspsbg}}
+-		gpstore2  = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}}
+-		gpxchg    = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+-		gpcas     = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
+-		fp01      = regInfo{inputs: nil, outputs: []regMask{fp}}
+-		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+-		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
+-		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
+-		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+-		fp31      = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
+-		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
+-		fp1flags  = regInfo{inputs: []regMask{fp}}
+-		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
+-		fp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{fp}}
+-		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}}
+-		fpstore2  = regInfo{inputs: []regMask{gpspsbg, gpg, fp}}
+-		readflags = regInfo{inputs: nil, outputs: []regMask{gp}}
++		gp01           = regInfo{inputs: nil, outputs: []regMask{gp}}
++		gp0flags1      = regInfo{inputs: []regMask{0}, outputs: []regMask{gp}}
++		gp11           = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
++		gp11sp         = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
++		gp1flags       = regInfo{inputs: []regMask{gpg}}
++		gp1flags1      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
++		gp11flags      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp, 0}}
++		gp21           = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
++		gp21nog        = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
++		gp2flags       = regInfo{inputs: []regMask{gpg, gpg}}
++		gp2flags1      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
++		gp2flags1flags = regInfo{inputs: []regMask{gp, gp, 0}, outputs: []regMask{gp, 0}}
++		gp2load        = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
++		gp22           = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
++		gp31           = regInfo{inputs: []regMask{gpg, gpg, gpg}, outputs: []regMask{gp}}
++		gpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
++		gpstore        = regInfo{inputs: []regMask{gpspsbg, gpg}}
++		gpstore0       = regInfo{inputs: []regMask{gpspsbg}}
++		gpstore2       = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}}
++		gpxchg         = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
++		gpcas          = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
++		fp01           = regInfo{inputs: nil, outputs: []regMask{fp}}
++		fp11           = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
++		fpgp           = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
++		gpfp           = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
++		fp21           = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
++		fp31           = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
++		fp2flags       = regInfo{inputs: []regMask{fp, fp}}
++		fp1flags       = regInfo{inputs: []regMask{fp}}
++		fpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
++		fp2load        = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{fp}}
++		fpstore        = regInfo{inputs: []regMask{gpspsbg, fp}}
++		fpstore2       = regInfo{inputs: []regMask{gpspsbg, gpg, fp}}
++		readflags      = regInfo{inputs: nil, outputs: []regMask{gp}}
+ 	)
+ 	ops := []opData{
+ 		// binary ops
+-		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1
+-		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADD", aux: "Int64"},   // arg0 + auxInt
+-		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                        // arg0 - arg1
+-		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int64"},     // arg0 - auxInt
+-		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},     // arg0 * arg1
+-		{name: "MULW", argLength: 2, reg: gp21, asm: "MULW", commutative: true},   // arg0 * arg1, 32-bit
+-		{name: "MNEG", argLength: 2, reg: gp21, asm: "MNEG", commutative: true},   // -arg0 * arg1
+-		{name: "MNEGW", argLength: 2, reg: gp21, asm: "MNEGW", commutative: true}, // -arg0 * arg1, 32-bit
+-		{name: "MULH", argLength: 2, reg: gp21, asm: "SMULH", commutative: true},  // (arg0 * arg1) >> 64, signed
+-		{name: "UMULH", argLength: 2, reg: gp21, asm: "UMULH", commutative: true}, // (arg0 * arg1) >> 64, unsigned
+-		{name: "MULL", argLength: 2, reg: gp21, asm: "SMULL", commutative: true},  // arg0 * arg1, signed, 32-bit mult results in 64-bit
+-		{name: "UMULL", argLength: 2, reg: gp21, asm: "UMULL", commutative: true}, // arg0 * arg1, unsigned, 32-bit mult results in 64-bit
+-		{name: "DIV", argLength: 2, reg: gp21, asm: "SDIV"},                       // arg0 / arg1, signed
+-		{name: "UDIV", argLength: 2, reg: gp21, asm: "UDIV"},                      // arg0 / arg1, unsighed
+-		{name: "DIVW", argLength: 2, reg: gp21, asm: "SDIVW"},                     // arg0 / arg1, signed, 32 bit
+-		{name: "UDIVW", argLength: 2, reg: gp21, asm: "UDIVW"},                    // arg0 / arg1, unsighed, 32 bit
+-		{name: "MOD", argLength: 2, reg: gp21, asm: "REM"},                        // arg0 % arg1, signed
+-		{name: "UMOD", argLength: 2, reg: gp21, asm: "UREM"},                      // arg0 % arg1, unsigned
+-		{name: "MODW", argLength: 2, reg: gp21, asm: "REMW"},                      // arg0 % arg1, signed, 32 bit
+-		{name: "UMODW", argLength: 2, reg: gp21, asm: "UREMW"},                    // arg0 % arg1, unsigned, 32 bit
++		{name: "ADCSflags", argLength: 3, reg: gp2flags1flags, typ: "(UInt64,Flags)", asm: "ADCS", commutative: true}, // arg0+arg1+carry, set flags.
++		{name: "ADCzerocarry", argLength: 1, reg: gp0flags1, typ: "UInt64", asm: "ADC"},                               // ZR+ZR+carry
++		{name: "ADDSconstflags", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "ADDS", aux: "Int64"},      // arg0+auxint, set flags.
++		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},                                         // arg0 + arg1
++		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADD", aux: "Int64"},                                       // arg0 + auxInt
++		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                                                            // arg0 - arg1
++		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int64"},                                         // arg0 - auxInt
++		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},                                         // arg0 * arg1
++		{name: "MULW", argLength: 2, reg: gp21, asm: "MULW", commutative: true},                                       // arg0 * arg1, 32-bit
++		{name: "MNEG", argLength: 2, reg: gp21, asm: "MNEG", commutative: true},                                       // -arg0 * arg1
++		{name: "MNEGW", argLength: 2, reg: gp21, asm: "MNEGW", commutative: true},                                     // -arg0 * arg1, 32-bit
++		{name: "MULH", argLength: 2, reg: gp21, asm: "SMULH", commutative: true},                                      // (arg0 * arg1) >> 64, signed
++		{name: "UMULH", argLength: 2, reg: gp21, asm: "UMULH", commutative: true},                                     // (arg0 * arg1) >> 64, unsigned
++		{name: "MULL", argLength: 2, reg: gp21, asm: "SMULL", commutative: true},                                      // arg0 * arg1, signed, 32-bit mult results in 64-bit
++		{name: "UMULL", argLength: 2, reg: gp21, asm: "UMULL", commutative: true},                                     // arg0 * arg1, unsigned, 32-bit mult results in 64-bit
++		{name: "DIV", argLength: 2, reg: gp21, asm: "SDIV"},                                                           // arg0 / arg1, signed
++		{name: "UDIV", argLength: 2, reg: gp21, asm: "UDIV"},                                                          // arg0 / arg1, unsighed
++		{name: "DIVW", argLength: 2, reg: gp21, asm: "SDIVW"},                                                         // arg0 / arg1, signed, 32 bit
++		{name: "UDIVW", argLength: 2, reg: gp21, asm: "UDIVW"},                                                        // arg0 / arg1, unsighed, 32 bit
++		{name: "MOD", argLength: 2, reg: gp21, asm: "REM"},                                                            // arg0 % arg1, signed
++		{name: "UMOD", argLength: 2, reg: gp21, asm: "UREM"},                                                          // arg0 % arg1, unsigned
++		{name: "MODW", argLength: 2, reg: gp21, asm: "REMW"},                                                          // arg0 % arg1, signed, 32 bit
++		{name: "UMODW", argLength: 2, reg: gp21, asm: "UREMW"},                                                        // arg0 % arg1, unsigned, 32 bit
+ 
+ 		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true},   // arg0 + arg1
+ 		{name: "FADDD", argLength: 2, reg: fp21, asm: "FADDD", commutative: true},   // arg0 + arg1
+@@ -214,6 +220,7 @@ func init() {
+ 		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                    // arg0 | ^arg1
+ 
+ 		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, returns (hi, lo)
++
+ 		// unary ops
+ 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},         // ^arg0
+ 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},         // -arg0
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index c5e88e853e..92d161480a 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1141,6 +1141,9 @@ const (
+ 	OpARMInvertFlags
+ 	OpARMLoweredWB
+ 
++	OpARM64ADCSflags
++	OpARM64ADCzerocarry
++	OpARM64ADDSconstflags
+ 	OpARM64ADD
+ 	OpARM64ADDconst
+ 	OpARM64SUB
+@@ -15137,6 +15140,47 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 
++	{
++		name:        "ADCSflags",
++		argLen:      3,
++		commutative: true,
++		asm:         arm64.AADCS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++				{1, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
++	{
++		name:   "ADCzerocarry",
++		argLen: 1,
++		asm:    arm64.AADC,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
++	{
++		name:    "ADDSconstflags",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     arm64.AADDS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++			},
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
+ 	{
+ 		name:        "ADD",
+ 		argLen:      2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 499c5bbbd4..7cc85b66cd 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -17,6 +17,8 @@ var _ = types.TypeMem // in case not otherwise used
+ 
+ func rewriteValueARM64(v *Value) bool {
+ 	switch v.Op {
++	case OpARM64ADCSflags:
++		return rewriteValueARM64_OpARM64ADCSflags_0(v)
+ 	case OpARM64ADD:
+ 		return rewriteValueARM64_OpARM64ADD_0(v) || rewriteValueARM64_OpARM64ADD_10(v) || rewriteValueARM64_OpARM64ADD_20(v)
+ 	case OpARM64ADDconst:
+@@ -873,6 +875,10 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpRsh8x64_0(v)
+ 	case OpRsh8x8:
+ 		return rewriteValueARM64_OpRsh8x8_0(v)
++	case OpSelect0:
++		return rewriteValueARM64_OpSelect0_0(v)
++	case OpSelect1:
++		return rewriteValueARM64_OpSelect1_0(v)
+ 	case OpSignExt16to32:
+ 		return rewriteValueARM64_OpSignExt16to32_0(v)
+ 	case OpSignExt16to64:
+@@ -948,6 +954,46 @@ func rewriteValueARM64(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64ADCSflags_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (ADCzerocarry <typ.UInt64> c))))
++	// cond:
++	// result: (ADCSflags x y c)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpSelect1 {
++			break
++		}
++		if v_2.Type != types.TypeFlags {
++			break
++		}
++		v_2_0 := v_2.Args[0]
++		if v_2_0.Op != OpARM64ADDSconstflags {
++			break
++		}
++		if v_2_0.AuxInt != -1 {
++			break
++		}
++		v_2_0_0 := v_2_0.Args[0]
++		if v_2_0_0.Op != OpARM64ADCzerocarry {
++			break
++		}
++		if v_2_0_0.Type != typ.UInt64 {
++			break
++		}
++		c := v_2_0_0.Args[0]
++		v.reset(OpARM64ADCSflags)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(c)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64ADD_0(v *Value) bool {
+ 	// match: (ADD x (MOVDconst [c]))
+ 	// cond:
+@@ -36794,6 +36840,68 @@ func rewriteValueARM64_OpRsh8x8_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpSelect0_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Select0 (Add64carry x y c))
++	// cond:
++	// result: (Select0 <typ.UInt64> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c))))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAdd64carry {
++			break
++		}
++		c := v_0.Args[2]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpSelect0)
++		v.Type = typ.UInt64
++		v0 := b.NewValue0(v.Pos, OpARM64ADCSflags, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v1 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v2 := b.NewValue0(v.Pos, OpARM64ADDSconstflags, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v2.AuxInt = -1
++		v2.AddArg(c)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpSelect1_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Select1 (Add64carry x y c))
++	// cond:
++	// result: (ADCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c)))))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAdd64carry {
++			break
++		}
++		c := v_0.Args[2]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpARM64ADCzerocarry)
++		v.Type = typ.UInt64
++		v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v1 := b.NewValue0(v.Pos, OpARM64ADCSflags, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v1.AddArg(x)
++		v1.AddArg(y)
++		v2 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v3 := b.NewValue0(v.Pos, OpARM64ADDSconstflags, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v3.AuxInt = -1
++		v3.AddArg(c)
++		v2.AddArg(v3)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpSignExt16to32_0(v *Value) bool {
+ 	// match: (SignExt16to32 x)
+ 	// cond:
+diff --git a/src/math/bits/bits_test.go b/src/math/bits/bits_test.go
+index 1ec5107ae1..bfd0e287fa 100644
+--- a/src/math/bits/bits_test.go
++++ b/src/math/bits/bits_test.go
+@@ -736,6 +736,13 @@ func TestAddSubUint(t *testing.T) {
+ 		test("Add symmetric", Add, a.y, a.x, a.c, a.z, a.cout)
+ 		test("Sub", Sub, a.z, a.x, a.c, a.y, a.cout)
+ 		test("Sub symmetric", Sub, a.z, a.y, a.c, a.x, a.cout)
++		// The above code can't test intrinsic implementation, because the passed function is not called directly.
++		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
++		test("Add intrinsic", func(x, y, c uint) (uint, uint) { return Add(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
++		test("Add intrinsic symmetric", func(x, y, c uint) (uint, uint) { return Add(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
++		test("Sub intrinsic", func(x, y, c uint) (uint, uint) { return Sub(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
++		test("Add intrinsic symmetric", func(x, y, c uint) (uint, uint) { return Sub(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
++
+ 	}
+ }
+ 
+@@ -790,6 +797,12 @@ func TestAddSubUint64(t *testing.T) {
+ 		test("Add64 symmetric", Add64, a.y, a.x, a.c, a.z, a.cout)
+ 		test("Sub64", Sub64, a.z, a.x, a.c, a.y, a.cout)
+ 		test("Sub64 symmetric", Sub64, a.z, a.y, a.c, a.x, a.cout)
++		// The above code can't test intrinsic implementation, because the passed function is not called directly.
++		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
++		test("Add64 intrinsic", func(x, y, c uint64) (uint64, uint64) { return Add64(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
++		test("Add64 intrinsic symmetric", func(x, y, c uint64) (uint64, uint64) { return Add64(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
++		test("Sub64 intrinsic", func(x, y, c uint64) (uint64, uint64) { return Sub64(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
++		test("Add64 intrinsic symmetric", func(x, y, c uint64) (uint64, uint64) { return Sub64(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
+ 	}
+ }
+ 
+@@ -817,6 +830,12 @@ func TestMulDiv(t *testing.T) {
+ 		testMul("Mul symmetric", Mul, a.y, a.x, a.hi, a.lo)
+ 		testDiv("Div", Div, a.hi, a.lo+a.r, a.y, a.x, a.r)
+ 		testDiv("Div symmetric", Div, a.hi, a.lo+a.r, a.x, a.y, a.r)
++		// The above code can't test intrinsic implementation, because the passed function is not called directly.
++		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
++		testMul("Mul intrinsic", func(x, y uint) (uint, uint) { return Mul(x, y) }, a.x, a.y, a.hi, a.lo)
++		testMul("Mul intrinsic symmetric", func(x, y uint) (uint, uint) { return Mul(x, y) }, a.y, a.x, a.hi, a.lo)
++		testDiv("Div intrinsic", func(hi, lo, y uint) (uint, uint) { return Div(hi, lo, y) }, a.hi, a.lo+a.r, a.y, a.x, a.r)
++		testDiv("Div intrinsic symmetric", func(hi, lo, y uint) (uint, uint) { return Div(hi, lo, y) }, a.hi, a.lo+a.r, a.x, a.y, a.r)
+ 	}
+ }
+ 
+@@ -873,6 +892,12 @@ func TestMulDiv64(t *testing.T) {
+ 		testMul("Mul64 symmetric", Mul64, a.y, a.x, a.hi, a.lo)
+ 		testDiv("Div64", Div64, a.hi, a.lo+a.r, a.y, a.x, a.r)
+ 		testDiv("Div64 symmetric", Div64, a.hi, a.lo+a.r, a.x, a.y, a.r)
++		// The above code can't test intrinsic implementation, because the passed function is not called directly.
++		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
++		testMul("Mul64 intrinsic", func(x, y uint64) (uint64, uint64) { return Mul64(x, y) }, a.x, a.y, a.hi, a.lo)
++		testMul("Mul64 intrinsic symmetric", func(x, y uint64) (uint64, uint64) { return Mul64(x, y) }, a.y, a.x, a.hi, a.lo)
++		testDiv("Div64 intrinsic", func(hi, lo, y uint64) (uint64, uint64) { return Div64(hi, lo, y) }, a.hi, a.lo+a.r, a.y, a.x, a.r)
++		testDiv("Div64 intrinsic symmetric", func(hi, lo, y uint64) (uint64, uint64) { return Div64(hi, lo, y) }, a.hi, a.lo+a.r, a.x, a.y, a.r)
+ 	}
+ }
+ 
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 3d5f1f64c8..9a3b00cab7 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -367,21 +367,25 @@ func IterateBits8(n uint8) int {
+ // --------------- //
+ 
+ func Add(x, y, ci uint) (r, co uint) {
++	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
+ 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
+ 	return bits.Add(x, y, ci)
+ }
+ 
+ func AddC(x, ci uint) (r, co uint) {
++	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
+ 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
+ 	return bits.Add(x, 7, ci)
+ }
+ 
+ func AddZ(x, y uint) (r, co uint) {
++	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
+ 	// amd64:"ADDQ","SBBQ","NEGQ",-"NEGL",-"ADCQ"
+ 	return bits.Add(x, y, 0)
+ }
+ 
+ func AddR(x, y, ci uint) uint {
++	// arm64:"ADDS","ADCS",-"ADD\t",-"CMP"
+ 	// amd64:"NEGL","ADCQ",-"SBBQ",-"NEGQ"
+ 	r, _ := bits.Add(x, y, ci)
+ 	return r
+@@ -389,27 +393,32 @@ func AddR(x, y, ci uint) uint {
+ func AddM(p, q, r *[3]uint) {
+ 	var c uint
+ 	r[0], c = bits.Add(p[0], q[0], c)
++	// arm64:"ADCS",-"ADD\t",-"CMP"
+ 	// amd64:"ADCQ",-"NEGL",-"SBBQ",-"NEGQ"
+ 	r[1], c = bits.Add(p[1], q[1], c)
+ 	r[2], c = bits.Add(p[2], q[2], c)
+ }
+ 
+ func Add64(x, y, ci uint64) (r, co uint64) {
++	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
+ 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
+ 	return bits.Add64(x, y, ci)
+ }
+ 
+ func Add64C(x, ci uint64) (r, co uint64) {
++	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
+ 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
+ 	return bits.Add64(x, 7, ci)
+ }
+ 
+ func Add64Z(x, y uint64) (r, co uint64) {
++	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
+ 	// amd64:"ADDQ","SBBQ","NEGQ",-"NEGL",-"ADCQ"
+ 	return bits.Add64(x, y, 0)
+ }
+ 
+ func Add64R(x, y, ci uint64) uint64 {
++	// arm64:"ADDS","ADCS",-"ADD\t",-"CMP"
+ 	// amd64:"NEGL","ADCQ",-"SBBQ",-"NEGQ"
+ 	r, _ := bits.Add64(x, y, ci)
+ 	return r
+@@ -417,6 +426,7 @@ func Add64R(x, y, ci uint64) uint64 {
+ func Add64M(p, q, r *[3]uint64) {
+ 	var c uint64
+ 	r[0], c = bits.Add64(p[0], q[0], c)
++	// arm64:"ADCS",-"ADD\t",-"CMP"
+ 	// amd64:"ADCQ",-"NEGL",-"SBBQ",-"NEGQ"
+ 	r[1], c = bits.Add64(p[1], q[1], c)
+ 	r[2], c = bits.Add64(p[2], q[2], c)

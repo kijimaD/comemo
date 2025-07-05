@@ -9,6 +9,20 @@ Date:   Fri Dec 13 11:11:11 2019 -0500
     Change-Id: If262d1501cf73b404361f832a2e3e17aaa0db78b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/211299
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/modules.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/modules.md b/doc/modules.md
+index caf5ac3f17..15e24dbc49 100644
+--- a/doc/modules.md
++++ b/doc/modules.md
+@@ -449,7 +449,7 @@ using [minimal version selection](#glos-minimal-version-selection). The build
+ list contains versions for all modules in the [module
+ graph](#glos-module-graph), not just those relevant to a specific command.
+ 
+-<a id="glos-canonical-version">
++<a id="glos-canonical-version"></a>
+ **canonical version:** A correctly formatted [version](#glos-version) without
+ a build metadata suffix other than `+incompatible`. For example, `v1.2.3`
+ is a canonical version, but `v1.2.3+meta` is not.

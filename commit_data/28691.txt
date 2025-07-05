@@ -14,7 +14,7 @@ Date:   Fri Jun 24 14:37:17 2016 -0500
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |   13 +
  src/cmd/compile/internal/ppc64/galign.go     |    5 +
  src/cmd/compile/internal/ppc64/prog.go       |    2 +
@@ -26,3 +26,4886 @@ Date:   Fri Jun 24 14:37:17 2016 -0500
  src/cmd/compile/internal/ssa/rewritePPC64.go | 2845 ++++++++++++++++++++++++++
  src/cmd/internal/obj/ppc64/a.out.go          |    9 +
  10 files changed, 4682 insertions(+), 84 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f3f7388ea7..33cd2e9c0b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4134,6 +4134,19 @@ func SSAGenFPJump(s *SSAGenState, b, next *ssa.Block, jumps *[2][2]FloatingEQNEJ
+ 	}
+ }
+ 
++func AuxOffset(v *ssa.Value) (offset int64) {
++	if v.Aux == nil {
++		return 0
++	}
++	switch sym := v.Aux.(type) {
++
++	case *ssa.AutoSymbol:
++		n := sym.Node.(*Node)
++		return n.Xoffset
++	}
++	return 0
++}
++
+ // AddAux adds the offset in the aux fields (AuxInt and Aux) of v to a.
+ func AddAux(a *obj.Addr, v *ssa.Value) {
+ 	AddAux2(a, v, v.AuxInt)
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index a83dff9a8b..4c984d81c2 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -66,6 +66,11 @@ func Main() {
+ 	gc.Thearch.Doregbits = doregbits
+ 	gc.Thearch.Regnames = regnames
+ 
++	gc.Thearch.SSARegToReg = ssaRegToReg
++	gc.Thearch.SSAMarkMoves = ssaMarkMoves
++	gc.Thearch.SSAGenValue = ssaGenValue
++	gc.Thearch.SSAGenBlock = ssaGenBlock
++
+ 	initvariants()
+ 	initproginfo()
+ 
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index e2d81ae6c5..757be6f079 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -58,6 +58,8 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
+ 	ppc64.ASRAD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.ACMP & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead},
+ 	ppc64.ACMPU & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead},
++	ppc64.ACMPW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
++	ppc64.ACMPWU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
+ 	ppc64.ATD & obj.AMask:     {Flags: gc.SizeQ | gc.RightRead},
+ 
+ 	// Floating point.
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+new file mode 100644
+index 0000000000..f48ca1d15e
+--- /dev/null
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -0,0 +1,288 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ppc64
++
++import (
++	"cmd/compile/internal/gc"
++	"cmd/compile/internal/ssa"
++	"cmd/internal/obj"
++	"cmd/internal/obj/ppc64"
++)
++
++var ssaRegToReg = []int16{
++	ppc64.REGZERO,
++	ppc64.REGSP,
++	ppc64.REG_R2,
++	ppc64.REG_R3,
++	ppc64.REG_R4,
++	ppc64.REG_R5,
++	ppc64.REG_R6,
++	ppc64.REG_R7,
++	ppc64.REG_R8,
++	ppc64.REG_R9,
++	ppc64.REG_R10,
++	ppc64.REGCTXT,
++	ppc64.REG_R12,
++	ppc64.REG_R13,
++	ppc64.REG_R14,
++	ppc64.REG_R15,
++	ppc64.REG_R16,
++	ppc64.REG_R17,
++	ppc64.REG_R18,
++	ppc64.REG_R19,
++	ppc64.REG_R20,
++	ppc64.REG_R21,
++	ppc64.REG_R22,
++	ppc64.REG_R23,
++	ppc64.REG_R24,
++	ppc64.REG_R25,
++	ppc64.REG_R26,
++	ppc64.REG_R27,
++	ppc64.REG_R28,
++	ppc64.REG_R29,
++	ppc64.REGG,
++	ppc64.REGTMP,
++}
++
++// Associated condition bit
++var condBits = map[ssa.Op]uint8{
++	ssa.OpPPC64Equal:        ppc64.C_COND_EQ,
++	ssa.OpPPC64NotEqual:     ppc64.C_COND_EQ,
++	ssa.OpPPC64LessThan:     ppc64.C_COND_LT,
++	ssa.OpPPC64GreaterEqual: ppc64.C_COND_LT,
++	ssa.OpPPC64GreaterThan:  ppc64.C_COND_GT,
++	ssa.OpPPC64LessEqual:    ppc64.C_COND_GT,
++}
++
++// Is the condition bit set? 1=yes 0=no
++var condBitSet = map[ssa.Op]uint8{
++	ssa.OpPPC64Equal:        1,
++	ssa.OpPPC64NotEqual:     0,
++	ssa.OpPPC64LessThan:     1,
++	ssa.OpPPC64GreaterEqual: 0,
++	ssa.OpPPC64GreaterThan:  1,
++	ssa.OpPPC64LessEqual:    0,
++}
++
++// markMoves marks any MOVXconst ops that need to avoid clobbering flags.
++func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
++	//	flive := b.FlagsLiveAtEnd
++	//	if b.Control != nil && b.Control.Type.IsFlags() {
++	//		flive = true
++	//	}
++	//	for i := len(b.Values) - 1; i >= 0; i-- {
++	//		v := b.Values[i]
++	//		if flive && (v.Op == ssa.OpPPC64MOVWconst || v.Op == ssa.OpPPC64MOVDconst) {
++	//			// The "mark" is any non-nil Aux value.
++	//			v.Aux = v
++	//		}
++	//		if v.Type.IsFlags() {
++	//			flive = false
++	//		}
++	//		for _, a := range v.Args {
++	//			if a.Type.IsFlags() {
++	//				flive = true
++	//			}
++	//		}
++	//	}
++}
++
++func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
++	s.SetLineno(v.Line)
++	switch v.Op {
++	case ssa.OpInitMem:
++		// memory arg needs no code
++	case ssa.OpArg:
++		// input args need no code
++	case ssa.OpSP, ssa.OpSB:
++		// nothing to do
++	case ssa.OpCopy:
++	case ssa.OpLoadReg:
++		// TODO: by type
++		p := gc.Prog(ppc64.AMOVD)
++		n, off := gc.AutoVar(v.Args[0])
++		p.From.Type = obj.TYPE_MEM
++		p.From.Node = n
++		p.From.Sym = gc.Linksym(n.Sym)
++		p.From.Offset = off
++		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
++			p.From.Name = obj.NAME_PARAM
++			p.From.Offset += n.Xoffset
++		} else {
++			p.From.Name = obj.NAME_AUTO
++		}
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++
++	case ssa.OpStoreReg:
++		// TODO: by type
++		p := gc.Prog(ppc64.AMOVD)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		n, off := gc.AutoVar(v)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Node = n
++		p.To.Sym = gc.Linksym(n.Sym)
++		p.To.Offset = off
++		if n.Class == gc.PPARAM || n.Class == gc.PPARAMOUT {
++			p.To.Name = obj.NAME_PARAM
++			p.To.Offset += n.Xoffset
++		} else {
++			p.To.Name = obj.NAME_AUTO
++		}
++	case ssa.OpPPC64ADD, ssa.OpPPC64FADD, ssa.OpPPC64FADDS, ssa.OpPPC64SUB, ssa.OpPPC64FSUB, ssa.OpPPC64FSUBS, ssa.OpPPC64MULLD, ssa.OpPPC64MULLW, ssa.OpPPC64FMUL, ssa.OpPPC64FMULS, ssa.OpPPC64FDIV, ssa.OpPPC64FDIVS, ssa.OpPPC64AND, ssa.OpPPC64OR, ssa.OpPPC64XOR:
++		r := gc.SSARegNum(v)
++		r1 := gc.SSARegNum(v.Args[0])
++		r2 := gc.SSARegNum(v.Args[1])
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r1
++		p.Reg = r2
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++	case ssa.OpPPC64NEG:
++		r := gc.SSARegNum(v)
++		p := gc.Prog(v.Op.Asm())
++		if r != gc.SSARegNum(v.Args[0]) {
++			v.Fatalf("input[0] and output not in same register %s", v.LongString())
++		}
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++	case ssa.OpPPC64ADDconst, ssa.OpPPC64ANDconst, ssa.OpPPC64ORconst, ssa.OpPPC64XORconst:
++		p := gc.Prog(v.Op.Asm())
++		p.Reg = gc.SSARegNum(v.Args[0])
++		if v.Aux != nil {
++			p.From.Type = obj.TYPE_CONST
++			p.From.Offset = gc.AuxOffset(v)
++		} else {
++			p.From.Type = obj.TYPE_CONST
++			p.From.Offset = v.AuxInt
++		}
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpPPC64MOVDconst, ssa.OpPPC64MOVWconst, ssa.OpPPC64MOVHconst, ssa.OpPPC64MOVBconst, ssa.OpPPC64FMOVDconst, ssa.OpPPC64FMOVSconst:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++
++	case ssa.OpPPC64FCMPU:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[1])
++		p.Reg = gc.SSARegNum(v.Args[0])
++
++	case ssa.OpPPC64CMP, ssa.OpPPC64CMPW, ssa.OpPPC64CMPU, ssa.OpPPC64CMPWU:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[1])
++		p.Reg = gc.SSARegNum(v.Args[0])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v.Args[0])
++
++	case ssa.OpPPC64CMPconst:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
++		p.Reg = gc.SSARegNum(v.Args[0])
++
++	case ssa.OpPPC64MOVBreg, ssa.OpPPC64MOVBZreg, ssa.OpPPC64MOVHreg, ssa.OpPPC64MOVHZreg, ssa.OpPPC64MOVWreg, ssa.OpPPC64MOVWZreg:
++		// Shift in register to required size
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		p.To.Reg = gc.SSARegNum(v.Args[0])
++		p.To.Type = obj.TYPE_REG
++
++	case ssa.OpPPC64MOVDload, ssa.OpPPC64MOVWload, ssa.OpPPC64MOVBload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux(&p.From, v)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpPPC64FMOVDload, ssa.OpPPC64FMOVSload:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux(&p.From, v)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpPPC64MOVDstoreconst, ssa.OpPPC64MOVWstoreconst, ssa.OpPPC64MOVHstoreconst, ssa.OpPPC64MOVBstoreconst:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_CONST
++		sc := v.AuxValAndOff()
++		p.From.Offset = sc.Val()
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux2(&p.To, v, sc.Off())
++	case ssa.OpPPC64MOVDstore, ssa.OpPPC64MOVWstore, ssa.OpPPC64MOVHstore, ssa.OpPPC64MOVBstore:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[1])
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux(&p.To, v)
++	case ssa.OpPPC64FMOVDstore, ssa.OpPPC64FMOVSstore:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[1])
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux(&p.To, v)
++	case ssa.OpPPC64CALLstatic:
++		// TODO: deferreturn
++		p := gc.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Linksym(v.Aux.(*gc.Sym))
++		if gc.Maxarg < v.AuxInt {
++			gc.Maxarg = v.AuxInt
++		}
++	case ssa.OpVarDef:
++		gc.Gvardef(v.Aux.(*gc.Node))
++	case ssa.OpVarKill:
++		gc.Gvarkill(v.Aux.(*gc.Node))
++	case ssa.OpVarLive:
++		gc.Gvarlive(v.Aux.(*gc.Node))
++	case ssa.OpPPC64Equal,
++		ssa.OpPPC64NotEqual,
++		ssa.OpPPC64LessThan,
++		ssa.OpPPC64LessEqual,
++		ssa.OpPPC64GreaterThan,
++		ssa.OpPPC64GreaterEqual:
++		v.Fatalf("pseudo-op made it to output: %s", v.LongString())
++	case ssa.OpPhi:
++		// just check to make sure regalloc and stackalloc did it right
++		if v.Type.IsMemory() {
++			return
++		}
++		f := v.Block.Func
++		loc := f.RegAlloc[v.ID]
++		for _, a := range v.Args {
++			if aloc := f.RegAlloc[a.ID]; aloc != loc { // TODO: .Equal() instead?
++				v.Fatalf("phi arg at different location than phi: %v @ %v, but arg %v @ %v\n%s\n", v, loc, a, aloc, v.Block.Func)
++			}
++		}
++	default:
++		v.Unimplementedf("genValue not implemented: %s", v.LongString())
++	}
++}
++
++func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
++	s.SetLineno(b.Line)
++
++	switch b.Kind {
++	case ssa.BlockCall:
++		if b.Succs[0].Block() != next {
++			p := gc.Prog(obj.AJMP)
++			p.To.Type = obj.TYPE_BRANCH
++			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
++		}
++	case ssa.BlockRet:
++		gc.Prog(obj.ARET)
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index ce3d8ec623..a27b6ce798 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -155,6 +155,15 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 		c.flagRegMask = flagRegMaskARM
+ 		c.FPReg = framepointerRegARM
+ 		c.hasGReg = true
++	case "ppc64le":
++		c.IntSize = 8
++		c.PtrSize = 8
++		c.lowerBlock = rewriteBlockPPC64
++		c.lowerValue = rewriteValuePPC64
++		c.registers = registersPPC64[:]
++		c.gpRegMask = gpRegMaskPPC64
++		c.fpRegMask = fpRegMaskPPC64
++		c.FPReg = framepointerRegPPC64
+ 	default:
+ 		fe.Unimplementedf(0, "arch %s not implemented", arch)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+new file mode 100644
+index 0000000000..5a249f9b62
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -0,0 +1,218 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Lowering arithmetic
++(Add64  x y) -> (ADD  x y)
++(AddPtr x y) -> (ADD  x y)
++(Add32  x y) -> (ADD (SignExt32to64 x) (SignExt32to64 y))
++(Add16  x y) -> (ADD (SignExt16to64 x) (SignExt16to64 y))
++(Add8   x y) -> (ADD (SignExt8to64 x) (SignExt8to64 y))
++(Add64F x y) -> (FADD x y)
++(Add32F x y) -> (FADDS x y)
++
++(Sub64  x y) -> (SUB  x y)
++(SubPtr x y) -> (SUB  x y)
++(Sub32  x y) -> (SUB x y)
++(Sub16  x y) -> (SUB (SignExt16to64 x) (SignExt16to64 y))
++(Sub8   x y) -> (SUB (SignExt8to64 x) (SignExt8to64 y))
++(Sub32F x y) -> (FSUBS x y)
++(Sub64F x y) -> (FSUB x y)
++
++(Mul64  x y) -> (MULLD  x y)
++(Mul32  x y) -> (MULLW  x y)
++(Mul16  x y) -> (MULLW (SignExt16to32 x) (SignExt16to32 y))
++(Mul8   x y) -> (MULLW (SignExt8to32  x) (SignExt8to32 y))
++(Mul32F x y) -> (FMULS x y)
++(Mul64F x y) -> (FMUL x y)
++
++(Div32F x y) -> (FDIVS x y)
++(Div64F x y) -> (FDIV x y)
++
++// Lowering constants
++(Const8   [val]) -> (MOVWconst [val])
++(Const16  [val]) -> (MOVWconst [val])
++(Const32  [val]) -> (MOVWconst [val])
++(Const64  [val]) -> (MOVDconst [val])
++(Const32F [val]) -> (FMOVSconst [val])
++(Const64F [val]) -> (FMOVDconst [val])
++(ConstNil) -> (MOVDconst [0])
++(ConstBool [b]) -> (MOVBconst [b])
++
++(Addr {sym} base) -> (ADDconst {sym} base)
++(OffPtr [off] ptr) -> (ADD (MOVDconst <config.Frontend().TypeInt64()> [off]) ptr)
++(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
++
++(And64 x y) -> (AND x y)
++(And32 x y) -> (AND (ZeroExt32to64 x) (ZeroExt32to64 y)) // Or?  (AND (ZeroExt32to64 x) (ZeroExt32to64 y))
++(And16 x y) -> (AND (ZeroExt16to64 x) (ZeroExt16to64 y))
++(And8  x y) -> (AND (ZeroExt8to64 x) (ZeroExt8to64 y))
++
++(Or64 x y) -> (OR x y)
++(Or32 x y) -> (OR (ZeroExt32to64 x) (ZeroExt32to64 y))
++(Or16 x y) -> (OR (ZeroExt16to64 x) (ZeroExt16to64 y))
++(Or8  x y) -> (OR (ZeroExt8to64 x) (ZeroExt8to64 y))
++
++(Xor64 x y) -> (XOR x y)
++(Xor32 x y) -> (XOR (ZeroExt32to64 x) (ZeroExt32to64 y))
++(Xor16 x y) -> (XOR (ZeroExt16to64 x) (ZeroExt16to64 y))
++(Xor8  x y) -> (XOR (ZeroExt8to64 x) (ZeroExt8to64 y))
++
++(Neg64  x) -> (NEG x)
++(Neg32  x) -> (NEG (ZeroExt32to64 x))
++(Neg16  x) -> (NEG (ZeroExt16to64 x))
++(Neg8   x) -> (NEG (ZeroExt8to64 x))
++
++// Lowering comparisons
++(Eq8 x y)  -> (Equal (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
++(Eq16 x y) -> (Equal (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
++(Eq32 x y) -> (Equal (CMPW x y))
++(Eq64 x y) -> (Equal (CMP x y))
++(EqPtr x y) -> (Equal (CMP x y))
++
++(Neq8 x y)  -> (NotEqual (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
++(Neq16 x y) -> (NotEqual (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
++(Neq32 x y) -> (NotEqual (CMPW x y))
++(Neq64 x y) -> (NotEqual (CMP x y))
++(NeqPtr x y) -> (NotEqual (CMP x y))
++
++(Less8 x y)  -> (LessThan (CMPW (SignExt8to32 x) (SignExt8to32 y)))
++(Less16 x y) -> (LessThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
++(Less32 x y) -> (LessThan (CMPW x y))
++(Less64 x y) -> (LessThan (CMP x y))
++
++(Less8U x y)  -> (LessThan (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
++(Less16U x y) -> (LessThan (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
++(Less32U x y) -> (LessThan (CMPWU x y))
++(Less64U x y) -> (LessThan (CMPU x y))
++
++(Leq8 x y)  -> (LessEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
++(Leq16 x y) -> (LessEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
++(Leq32 x y) -> (LessEqual (CMPW x y))
++(Leq64 x y) -> (LessEqual (CMP x y))
++
++(Leq8U x y)  -> (LessEqual (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
++(Leq16U x y) -> (LessEqual (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
++(Leq32U x y) -> (LessEqual (CMPWU x y))
++(Leq64U x y) -> (LessEqual (CMPU x y))
++
++(Greater8 x y)  -> (GreaterThan (CMPW (SignExt8to32 x) (SignExt8to32 y)))
++(Greater16 x y) -> (GreaterThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
++(Greater32 x y) -> (GreaterThan (CMPW x y))
++(Greater64 x y) -> (GreaterThan (CMP x y))
++
++(Greater8U x y)  -> (GreaterThan (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
++(Greater16U x y) -> (GreaterThan (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
++(Greater32U x y) -> (GreaterThan (CMPWU x y))
++(Greater64U x y) -> (GreaterThan (CMPU x y))
++
++(Geq8 x y)  -> (GreaterEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
++(Geq16 x y) -> (GreaterEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
++(Geq32 x y) -> (GreaterEqual (CMPW x y))
++(Geq64 x y) -> (GreaterEqual (CMP x y))
++
++(Geq8U x y)  -> (GreaterEqual (CMPU (ZeroExt8to32 x) (ZeroExt8to32 y)))
++(Geq16U x y) -> (GreaterEqual (CMPU (ZeroExt16to32 x) (ZeroExt16to32 y)))
++(Geq32U x y) -> (GreaterEqual (CMPU x y))
++(Geq64U x y) -> (GreaterEqual (CMPU x y))
++
++(Less64F x y) -> (LessThan (FCMPU x y))
++
++(Leq64F x y) -> (LessEqual (FCMPU x y)) // ??
++
++(Eq64F x y) -> (Equal (FCMPU x y))
++
++(Neq64F x y) -> (NotEqual (FCMPU x y))
++
++// Absorb pseudo-ops into blocks.
++(If (Equal cc) yes no) -> (EQ cc yes no)
++(If (NotEqual cc) yes no) -> (NE cc yes no)
++(If (LessThan cc) yes no) -> (LT cc yes no)
++(If (LessEqual cc) yes no) -> (LE cc yes no)
++(If (GreaterThan cc) yes no) -> (GT cc yes no)
++(If (GreaterEqual cc) yes no) -> (GE cc yes no)
++
++(If cond yes no) -> (NE (CMPconst [0] cond) yes no)
++
++// Absorb boolean tests into block
++(NE (CMPconst [0] (Equal cc)) yes no) -> (EQ cc yes no)
++(NE (CMPconst [0] (NotEqual cc)) yes no) -> (NE cc yes no)
++(NE (CMPconst [0] (LessThan cc)) yes no) -> (LT cc yes no)
++(NE (CMPconst [0] (LessEqual cc)) yes no) -> (LE cc yes no)
++(NE (CMPconst [0] (GreaterThan cc)) yes no) -> (GT cc yes no)
++(NE (CMPconst [0] (GreaterEqual cc)) yes no) -> (GE cc yes no)
++
++// Lowering loads
++(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVDload ptr mem)
++(Load <t> ptr mem) && is32BitInt(t) && isSigned(t) -> (MOVWload ptr mem)
++(Load <t> ptr mem) && is32BitInt(t) && !isSigned(t) -> (MOVWZload ptr mem)
++(Load <t> ptr mem) && is16BitInt(t) && isSigned(t) -> (MOVHload ptr mem)
++(Load <t> ptr mem) && is16BitInt(t) && !isSigned(t) -> (MOVHZload ptr mem)
++(Load <t> ptr mem) && (t.IsBoolean() || (is8BitInt(t) && !isSigned(t))) -> (MOVBload ptr mem)
++(Load <t> ptr mem) && is8BitInt(t) && !isSigned(t) -> (MOVBZload ptr mem)
++(Load <t> ptr mem) && is32BitFloat(t) -> (FMOVSload ptr mem)
++(Load <t> ptr mem) && is64BitFloat(t) -> (FMOVDload ptr mem)
++
++(Store [8] ptr val mem) -> (MOVDstore ptr val mem)
++(Store [4] ptr val mem) -> (MOVWstore ptr val mem)
++(Store [2] ptr val mem) -> (MOVHstore ptr val mem)
++(Store [1] ptr val mem) -> (MOVBstore ptr val mem)
++
++(Zero [0] _ mem) -> mem
++(Zero [1] destptr mem) -> (MOVBstoreconst [0] destptr mem)
++(Zero [2] destptr mem) -> (MOVHstoreconst [0] destptr mem)
++(Zero [4] destptr mem) -> (MOVWstoreconst [0] destptr mem)
++(Zero [8] destptr mem) -> (MOVDstoreconst [0] destptr mem)
++
++(Zero [3] destptr mem) ->
++        (MOVBstoreconst [makeValAndOff(0,2)] destptr
++                (MOVHstoreconst [0] destptr mem))
++(Zero [5] destptr mem) ->
++        (MOVBstoreconst [makeValAndOff(0,4)] destptr
++                (MOVWstoreconst [0] destptr mem))
++(Zero [6] destptr mem) ->
++        (MOVHstoreconst [makeValAndOff(0,4)] destptr
++                (MOVWstoreconst [0] destptr mem))
++
++// Zero small numbers of words directly.
++(Zero [16] destptr mem) ->
++	(MOVDstoreconst [makeValAndOff(0,8)] destptr
++                (MOVDstoreconst [0] destptr mem))
++(Zero [24] destptr mem) ->
++	(MOVDstoreconst [makeValAndOff(0,16)] destptr
++		(MOVDstoreconst [makeValAndOff(0,8)] destptr
++			(MOVDstoreconst [0] destptr mem)))
++(Zero [32] destptr mem) ->
++	(MOVDstoreconst [makeValAndOff(0,24)] destptr
++		(MOVDstoreconst [makeValAndOff(0,16)] destptr
++			(MOVDstoreconst [makeValAndOff(0,8)] destptr
++				(MOVDstoreconst [0] destptr mem))))
++
++// Optimizations
++
++(ADD (MOVDconst [c]) x) -> (ADDconst [c] x)
++(ADD x (MOVDconst [c])) -> (ADDconst [c] x)
++
++// Lowering extension
++// Note: we always extend to 64 bits even though some ops don't need that many result bits.
++(SignExt8to16  x) -> (MOVBreg x)
++(SignExt8to32  x) -> (MOVBreg x)
++(SignExt8to64  x) -> (MOVBreg x)
++(SignExt16to32 x) -> (MOVHreg x)
++(SignExt16to64 x) -> (MOVHreg x)
++(SignExt32to64 x) -> (MOVWreg x)
++
++(ZeroExt8to16  x) -> (MOVBZreg x)
++(ZeroExt8to32  x) -> (MOVBZreg x)
++(ZeroExt8to64  x) -> (MOVBZreg x)
++(ZeroExt16to32 x) -> (MOVHZreg x)
++(ZeroExt16to64 x) -> (MOVHZreg x)
++(ZeroExt32to64 x) -> (MOVWZreg x)
++
++(Trunc16to8  x) -> (MOVBreg x)
++(Trunc32to8  x) -> (MOVBreg x)
++(Trunc32to16 x) -> (MOVHreg x)
++(Trunc64to8  x) -> (MOVBreg x)
++(Trunc64to16 x) -> (MOVHreg x)
++(Trunc64to32 x) -> (MOVWreg x)
++
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+new file mode 100644
+index 0000000000..4e22e43f73
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -0,0 +1,218 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++package main
++
++import "strings"
++
++var regNamesPPC64 = []string{
++	"R0", // REGZERO
++	"SP", // REGSP
++	"SB", // REGSB
++	"R3",
++	"R4",
++	"R5",
++	"R6",
++	"R7",
++	"R8",
++	"R9",
++	"R10",
++	"R11", // REGCTXT for closures
++	"R12",
++	"R13", // REGTLS
++	"R14",
++	"R15",
++	"R16",
++	"R17",
++	"R18",
++	"R19",
++	"R20",
++	"R21",
++	"R22",
++	"R23",
++	"R24",
++	"R25",
++	"R26",
++	"R27",
++	"R28",
++	"R29",
++	"R30", // REGG
++	"R31", // REGTMP
++	"F0",
++	"F1",
++	"F2",
++	"F3",
++	"F4",
++	"F5",
++	"F6",
++	"F7",
++	"F8",
++	"F9",
++	"F10",
++	"F11",
++	"F12",
++	"F13",
++	"F14",
++	"F15",
++	"F16",
++	"F17",
++	"F18",
++	"F19",
++	"F20",
++	"F21",
++	"F22",
++	"F23",
++	"F24",
++	"F25",
++	"F26",
++	"CR",
++}
++
++func init() {
++	// Make map from reg names to reg integers.
++	if len(regNamesPPC64) > 64 {
++		panic("too many registers")
++	}
++	num := map[string]int{}
++	for i, name := range regNamesPPC64 {
++		num[name] = i
++	}
++	buildReg := func(s string) regMask {
++		m := regMask(0)
++		for _, r := range strings.Split(s, " ") {
++			if n, ok := num[r]; ok {
++				m |= regMask(1) << uint(n)
++				continue
++			}
++			panic("register " + r + " not found")
++		}
++		return m
++	}
++
++	var (
++		gp = buildReg("R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29")
++		fp = buildReg("F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26")
++		sp = buildReg("SP")
++		//		sb	= buildReg("SB")
++		//		gg	= buildReg("R30")
++		cr = buildReg("CR")
++		//		tmp	= buildReg("R31")
++		//		ctxt	= buildReg("R11")
++		//		tls	= buildReg("R13")
++		gp01         = regInfo{inputs: []regMask{}, outputs: []regMask{gp}}
++		gp11         = regInfo{inputs: []regMask{gp | sp}, outputs: []regMask{gp}}
++		gp21         = regInfo{inputs: []regMask{gp | sp, gp | sp}, outputs: []regMask{gp}}
++		gp1cr        = regInfo{inputs: []regMask{gp | sp}, outputs: []regMask{cr}}
++		gp2cr        = regInfo{inputs: []regMask{gp | sp, gp | sp}, outputs: []regMask{cr}}
++		crgp         = regInfo{inputs: []regMask{cr}, outputs: []regMask{gp}}
++		gpload       = regInfo{inputs: []regMask{gp | sp}, outputs: []regMask{gp}}
++		gpstore      = regInfo{inputs: []regMask{gp | sp, gp | sp}, outputs: []regMask{}}
++		gpstoreconst = regInfo{inputs: []regMask{gp | sp, 0}, outputs: []regMask{}}
++		fp01         = regInfo{inputs: []regMask{}, outputs: []regMask{fp}}
++		//		fp11	   = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
++		fp21       = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
++		fp2cr      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{cr}}
++		fpload     = regInfo{inputs: []regMask{gp | sp}, outputs: []regMask{fp}}
++		fpstore    = regInfo{inputs: []regMask{fp, gp | sp}, outputs: []regMask{}}
++		callerSave = regMask(gp | fp)
++	)
++	ops := []opData{
++		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},       // arg0 + arg1
++		{name: "ADDconst", argLength: 1, reg: gp11, asm: "ADD", aux: "SymOff"},      // arg0 + auxInt + aux.(*gc.Sym)
++		{name: "FADD", argLength: 2, reg: fp21, asm: "FADD", commutative: true},     // arg0+arg1
++		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true},   // arg0+arg1
++		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                          // arg0-arg1
++		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                        // arg0-arg1
++		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                      // arg0-arg1
++		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", commutative: true},   // arg0*arg1
++		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", commutative: true},   // arg0*arg1
++		{name: "FMUL", argLength: 2, reg: fp21, asm: "FMUL", commutative: true},     // arg0*arg1
++		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true},   // arg0*arg1
++		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV"},                        // arg0/arg1
++		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS"},                      // arg0/arg1
++		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},       // arg0&arg1
++		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"},       // arg0&arg1 ??
++		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},         // arg0|arg1
++		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int32"},         // arg0|arg1 ??
++		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true},       // arg0^arg1
++		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int32"},       // arg0|arg1 ??
++		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                          // ^arg0
++		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},                     // sign extend int8 to int64
++		{name: "MOVBZreg", argLength: 1, reg: gp11, asm: "MOVBZ"},                   // zero extend uint8 to uint64
++		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVH"},                     // sign extend int16 to int64
++		{name: "MOVHZreg", argLength: 1, reg: gp11, asm: "MOVHZ"},                   // zero extend uint16 to uint64
++		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW"},                     // sign extend int32 to int64
++		{name: "MOVWZreg", argLength: 1, reg: gp11, asm: "MOVWZ"},                   // zero extend uint32 to uint64
++		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVB", typ: "Int8"},     // sign extend int8 to int64
++		{name: "MOVBZload", argLength: 2, reg: gpload, asm: "MOVBZ", typ: "UInt8"},  // zero extend uint8 to uint64
++		{name: "MOVHload", argLength: 2, reg: gpload, asm: "MOVH", typ: "Int16"},    // sign extend int16 to int64
++		{name: "MOVHZload", argLength: 2, reg: gpload, asm: "MOVHZ", typ: "UInt16"}, // zero extend uint16 to uint64
++		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVW", typ: "Int32"},    // sign extend int32 to int64
++		{name: "MOVWZload", argLength: 2, reg: gpload, asm: "MOVWZ", typ: "UInt32"}, // zero extend uint32 to uint64
++		{name: "MOVDload", argLength: 2, reg: gpload, asm: "MOVD", typ: "UInt64"},
++		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "FMOVD", typ: "Fload64"},
++		{name: "FMOVSload", argLength: 2, reg: fpload, asm: "FMOVS", typ: "Float32"},
++		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem"},
++		{name: "MOVHstore", argLength: 3, reg: gpstore, asm: "MOVH", aux: "SymOff", typ: "Mem"},
++		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem"},
++		{name: "MOVDstore", argLength: 3, reg: gpstore, asm: "MOVD", aux: "SymOff", typ: "Mem"},
++		{name: "FMOVDstore", argLength: 3, reg: fpstore, asm: "FMOVD", aux: "SymOff", typ: "Mem"},
++		{name: "FMOVSstore", argLength: 3, reg: fpstore, asm: "FMOVS", aux: "SymOff", typ: "Mem"},
++
++		{name: "MOVBstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVB", aux: "SymValAndOff", typ: "Mem"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
++		{name: "MOVHstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVH", aux: "SymValAndOff", typ: "Mem"}, // store low 2 bytes of ...
++		{name: "MOVWstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem"}, // store low 4 bytes of ...
++		{name: "MOVDstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVD", aux: "SymValAndOff", typ: "Mem"}, // store 8 bytes of ...
++
++		{name: "MOVDconst", argLength: 0, reg: gp01, aux: "Int64", asm: "MOVD", rematerializeable: true},     //
++		{name: "MOVWconst", argLength: 0, reg: gp01, aux: "Int32", asm: "MOVW", rematerializeable: true},     // 32 low bits of auxint
++		{name: "MOVHconst", argLength: 0, reg: gp01, aux: "Int16", asm: "MOVH", rematerializeable: true},     // 16 low bits of auxint
++		{name: "MOVBconst", argLength: 0, reg: gp01, aux: "Int8", asm: "MOVB", rematerializeable: true},      // 8 low bits of auxint
++		{name: "FMOVDconst", argLength: 0, reg: fp01, aux: "Float64", asm: "FMOVD", rematerializeable: true}, //
++		{name: "FMOVSconst", argLength: 0, reg: fp01, aux: "Float32", asm: "FMOVS", rematerializeable: true}, //
++		{name: "FCMPU", argLength: 2, reg: fp2cr, asm: "FCMPU", typ: "Flags"},
++
++		{name: "CMP", argLength: 2, reg: gp2cr, asm: "CMP", typ: "Flags"},     // arg0 compare to arg1
++		{name: "CMPU", argLength: 2, reg: gp2cr, asm: "CMPU", typ: "Flags"},   // arg0 compare to arg1
++		{name: "CMPW", argLength: 2, reg: gp2cr, asm: "CMPW", typ: "Flags"},   // arg0 compare to arg1
++		{name: "CMPWU", argLength: 2, reg: gp2cr, asm: "CMPWU", typ: "Flags"}, // arg0 compare to arg1
++		{name: "CMPconst", argLength: 1, reg: gp1cr, asm: "CMP", aux: "Int32", typ: "Flags"},
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff"}, // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
++
++		// pseudo-ops
++		{name: "Equal", argLength: 1, reg: crgp},        // bool, true flags encode x==y false otherwise.
++		{name: "NotEqual", argLength: 1, reg: crgp},     // bool, true flags encode x!=y false otherwise.
++		{name: "LessThan", argLength: 1, reg: crgp},     // bool, true flags encode signed x<y false otherwise.
++		{name: "LessEqual", argLength: 1, reg: crgp},    // bool, true flags encode signed x<=y false otherwise.
++		{name: "GreaterThan", argLength: 1, reg: crgp},  // bool, true flags encode signed x>y false otherwise.
++		{name: "GreaterEqual", argLength: 1, reg: crgp}, // bool, true flags encode signed x>=y false otherwise.
++	}
++
++	blocks := []blockData{
++		{name: "EQ"},
++		{name: "NE"},
++		{name: "LT"},
++		{name: "LE"},
++		{name: "GT"},
++		{name: "GE"},
++		{name: "ULT"},
++		{name: "ULE"},
++		{name: "UGT"},
++		{name: "UGE"},
++	}
++
++	archs = append(archs, arch{
++		name:            "PPC64",
++		pkg:             "cmd/internal/obj/ppc64",
++		genfile:         "../../ppc64/ssa.go",
++		ops:             ops,
++		blocks:          blocks,
++		regnames:        regNamesPPC64,
++		gpregmask:       gp,
++		fpregmask:       fp,
++		framepointerreg: int8(num["SP"]),
++	})
++}
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 84d5a94b92..aeb4557cfd 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -6,6 +6,7 @@ package ssa
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
++	"cmd/internal/obj/ppc64"
+ 	"cmd/internal/obj/x86"
+ )
+ 
+@@ -47,6 +48,17 @@ const (
+ 	BlockRetJmp
+ 	BlockExit
+ 	BlockFirst
++
++	BlockPPC64EQ
++	BlockPPC64NE
++	BlockPPC64LT
++	BlockPPC64LE
++	BlockPPC64GT
++	BlockPPC64GE
++	BlockPPC64ULT
++	BlockPPC64ULE
++	BlockPPC64UGT
++	BlockPPC64UGE
+ )
+ 
+ var blockString = [...]string{
+@@ -87,6 +99,17 @@ var blockString = [...]string{
+ 	BlockRetJmp: "RetJmp",
+ 	BlockExit:   "Exit",
+ 	BlockFirst:  "First",
++
++	BlockPPC64EQ:  "EQ",
++	BlockPPC64NE:  "NE",
++	BlockPPC64LT:  "LT",
++	BlockPPC64LE:  "LE",
++	BlockPPC64GT:  "GT",
++	BlockPPC64GE:  "GE",
++	BlockPPC64ULT: "ULT",
++	BlockPPC64ULE: "ULE",
++	BlockPPC64UGT: "UGT",
++	BlockPPC64UGE: "UGE",
+ }
+ 
+ func (k BlockKind) String() string { return blockString[k] }
+@@ -736,6 +759,71 @@ const (
+ 	OpCvt64Fto32U
+ 	OpSelect0
+ 	OpSelect1
++
++	OpPPC64ADD
++	OpPPC64ADDconst
++	OpPPC64FADD
++	OpPPC64FADDS
++	OpPPC64SUB
++	OpPPC64FSUB
++	OpPPC64FSUBS
++	OpPPC64MULLD
++	OpPPC64MULLW
++	OpPPC64FMUL
++	OpPPC64FMULS
++	OpPPC64FDIV
++	OpPPC64FDIVS
++	OpPPC64AND
++	OpPPC64ANDconst
++	OpPPC64OR
++	OpPPC64ORconst
++	OpPPC64XOR
++	OpPPC64XORconst
++	OpPPC64NEG
++	OpPPC64MOVBreg
++	OpPPC64MOVBZreg
++	OpPPC64MOVHreg
++	OpPPC64MOVHZreg
++	OpPPC64MOVWreg
++	OpPPC64MOVWZreg
++	OpPPC64MOVBload
++	OpPPC64MOVBZload
++	OpPPC64MOVHload
++	OpPPC64MOVHZload
++	OpPPC64MOVWload
++	OpPPC64MOVWZload
++	OpPPC64MOVDload
++	OpPPC64FMOVDload
++	OpPPC64FMOVSload
++	OpPPC64MOVBstore
++	OpPPC64MOVHstore
++	OpPPC64MOVWstore
++	OpPPC64MOVDstore
++	OpPPC64FMOVDstore
++	OpPPC64FMOVSstore
++	OpPPC64MOVBstoreconst
++	OpPPC64MOVHstoreconst
++	OpPPC64MOVWstoreconst
++	OpPPC64MOVDstoreconst
++	OpPPC64MOVDconst
++	OpPPC64MOVWconst
++	OpPPC64MOVHconst
++	OpPPC64MOVBconst
++	OpPPC64FMOVDconst
++	OpPPC64FMOVSconst
++	OpPPC64FCMPU
++	OpPPC64CMP
++	OpPPC64CMPU
++	OpPPC64CMPW
++	OpPPC64CMPWU
++	OpPPC64CMPconst
++	OpPPC64CALLstatic
++	OpPPC64Equal
++	OpPPC64NotEqual
++	OpPPC64LessThan
++	OpPPC64LessEqual
++	OpPPC64GreaterThan
++	OpPPC64GreaterEqual
+ )
+ 
+ var opcodeTable = [...]opInfo{
+@@ -6951,88 +7039,991 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+-}
+ 
+-func (o Op) Asm() obj.As    { return opcodeTable[o].asm }
+-func (o Op) String() string { return opcodeTable[o].name }
+-
+-var registersAMD64 = [...]Register{
+-	{0, "AX"},
+-	{1, "CX"},
+-	{2, "DX"},
+-	{3, "BX"},
+-	{4, "SP"},
+-	{5, "BP"},
+-	{6, "SI"},
+-	{7, "DI"},
+-	{8, "R8"},
+-	{9, "R9"},
+-	{10, "R10"},
+-	{11, "R11"},
+-	{12, "R12"},
+-	{13, "R13"},
+-	{14, "R14"},
+-	{15, "R15"},
+-	{16, "X0"},
+-	{17, "X1"},
+-	{18, "X2"},
+-	{19, "X3"},
+-	{20, "X4"},
+-	{21, "X5"},
+-	{22, "X6"},
+-	{23, "X7"},
+-	{24, "X8"},
+-	{25, "X9"},
+-	{26, "X10"},
+-	{27, "X11"},
+-	{28, "X12"},
+-	{29, "X13"},
+-	{30, "X14"},
+-	{31, "X15"},
+-	{32, "SB"},
+-	{33, "FLAGS"},
+-}
+-var gpRegMaskAMD64 = regMask(65519)
+-var fpRegMaskAMD64 = regMask(4294901760)
+-var flagRegMaskAMD64 = regMask(8589934592)
+-var framepointerRegAMD64 = int8(5)
+-var registersARM = [...]Register{
+-	{0, "R0"},
+-	{1, "R1"},
+-	{2, "R2"},
+-	{3, "R3"},
+-	{4, "R4"},
+-	{5, "R5"},
+-	{6, "R6"},
+-	{7, "R7"},
+-	{8, "R8"},
+-	{9, "R9"},
+-	{10, "g"},
+-	{11, "R11"},
+-	{12, "R12"},
+-	{13, "SP"},
+-	{14, "R14"},
+-	{15, "R15"},
+-	{16, "F0"},
+-	{17, "F1"},
+-	{18, "F2"},
+-	{19, "F3"},
+-	{20, "F4"},
+-	{21, "F5"},
+-	{22, "F6"},
+-	{23, "F7"},
+-	{24, "F8"},
+-	{25, "F9"},
+-	{26, "F10"},
+-	{27, "F11"},
+-	{28, "F12"},
+-	{29, "F13"},
+-	{30, "F14"},
+-	{31, "F15"},
+-	{32, "FLAGS"},
+-	{33, "SB"},
+-}
+-var gpRegMaskARM = regMask(5119)
+-var fpRegMaskARM = regMask(4294901760)
+-var flagRegMaskARM = regMask(4294967296)
+-var framepointerRegARM = int8(-1)
++	{
++		name:        "ADD",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AADD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "ADDconst",
++		auxType: auxSymOff,
++		argLen:  1,
++		asm:     ppc64.AADD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:        "FADD",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AFADD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:        "FADDS",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AFADDS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "SUB",
++		argLen: 2,
++		asm:    ppc64.ASUB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "FSUB",
++		argLen: 2,
++		asm:    ppc64.AFSUB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FSUBS",
++		argLen: 2,
++		asm:    ppc64.AFSUBS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:        "MULLD",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AMULLD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:        "MULLW",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AMULLW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:        "FMUL",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AFMUL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:        "FMULS",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AFMULS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FDIV",
++		argLen: 2,
++		asm:    ppc64.AFDIV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FDIVS",
++		argLen: 2,
++		asm:    ppc64.AFDIVS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:        "AND",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AAND,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "ANDconst",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     ppc64.AAND,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:        "OR",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AOR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "ORconst",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     ppc64.AOR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:        "XOR",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AXOR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "XORconst",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     ppc64.AXOR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "NEG",
++		argLen: 1,
++		asm:    ppc64.ANEG,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MOVBreg",
++		argLen: 1,
++		asm:    ppc64.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MOVBZreg",
++		argLen: 1,
++		asm:    ppc64.AMOVBZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MOVHreg",
++		argLen: 1,
++		asm:    ppc64.AMOVH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MOVHZreg",
++		argLen: 1,
++		asm:    ppc64.AMOVHZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MOVWreg",
++		argLen: 1,
++		asm:    ppc64.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MOVWZreg",
++		argLen: 1,
++		asm:    ppc64.AMOVWZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MOVBload",
++		argLen: 2,
++		asm:    ppc64.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MOVBZload",
++		argLen: 2,
++		asm:    ppc64.AMOVBZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MOVHload",
++		argLen: 2,
++		asm:    ppc64.AMOVH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MOVHZload",
++		argLen: 2,
++		asm:    ppc64.AMOVHZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MOVWload",
++		argLen: 2,
++		asm:    ppc64.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MOVWZload",
++		argLen: 2,
++		asm:    ppc64.AMOVWZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "MOVDload",
++		argLen: 2,
++		asm:    ppc64.AMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "FMOVDload",
++		argLen: 2,
++		asm:    ppc64.AFMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FMOVSload",
++		argLen: 2,
++		asm:    ppc64.AFMOVS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:    "MOVBstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     ppc64.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "MOVHstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     ppc64.AMOVH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "MOVWstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     ppc64.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "MOVDstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     ppc64.AMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "FMOVDstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     ppc64.AFMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 1073731578},         // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "FMOVSstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     ppc64.AFMOVS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 1073731578},         // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "MOVBstoreconst",
++		auxType: auxSymValAndOff,
++		argLen:  2,
++		asm:     ppc64.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "MOVHstoreconst",
++		auxType: auxSymValAndOff,
++		argLen:  2,
++		asm:     ppc64.AMOVH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "MOVWstoreconst",
++		auxType: auxSymValAndOff,
++		argLen:  2,
++		asm:     ppc64.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "MOVDstoreconst",
++		auxType: auxSymValAndOff,
++		argLen:  2,
++		asm:     ppc64.AMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:              "MOVDconst",
++		auxType:           auxInt64,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               ppc64.AMOVD,
++		reg: regInfo{
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:              "MOVWconst",
++		auxType:           auxInt32,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               ppc64.AMOVW,
++		reg: regInfo{
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:              "MOVHconst",
++		auxType:           auxInt16,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               ppc64.AMOVH,
++		reg: regInfo{
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:              "MOVBconst",
++		auxType:           auxInt8,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               ppc64.AMOVB,
++		reg: regInfo{
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:              "FMOVDconst",
++		auxType:           auxFloat64,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               ppc64.AFMOVD,
++		reg: regInfo{
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:              "FMOVSconst",
++		auxType:           auxFloat32,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               ppc64.AFMOVS,
++		reg: regInfo{
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FCMPU",
++		argLen: 2,
++		asm:    ppc64.AFCMPU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460752303423488, // CR
++			},
++		},
++	},
++	{
++		name:   "CMP",
++		argLen: 2,
++		asm:    ppc64.ACMP,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				576460752303423488, // CR
++			},
++		},
++	},
++	{
++		name:   "CMPU",
++		argLen: 2,
++		asm:    ppc64.ACMPU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				576460752303423488, // CR
++			},
++		},
++	},
++	{
++		name:   "CMPW",
++		argLen: 2,
++		asm:    ppc64.ACMPW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				576460752303423488, // CR
++			},
++		},
++	},
++	{
++		name:   "CMPWU",
++		argLen: 2,
++		asm:    ppc64.ACMPWU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				576460752303423488, // CR
++			},
++		},
++	},
++	{
++		name:    "CMPconst",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     ppc64.ACMP,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				576460752303423488, // CR
++			},
++		},
++	},
++	{
++		name:    "CALLstatic",
++		auxType: auxSymOff,
++		argLen:  1,
++		reg: regInfo{
++			clobbers: 576460744787220472, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++		},
++	},
++	{
++		name:   "Equal",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460752303423488}, // CR
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "NotEqual",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460752303423488}, // CR
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "LessThan",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460752303423488}, // CR
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "LessEqual",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460752303423488}, // CR
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "GreaterThan",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460752303423488}, // CR
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "GreaterEqual",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460752303423488}, // CR
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++}
++
++func (o Op) Asm() obj.As    { return opcodeTable[o].asm }
++func (o Op) String() string { return opcodeTable[o].name }
++
++var registersAMD64 = [...]Register{
++	{0, "AX"},
++	{1, "CX"},
++	{2, "DX"},
++	{3, "BX"},
++	{4, "SP"},
++	{5, "BP"},
++	{6, "SI"},
++	{7, "DI"},
++	{8, "R8"},
++	{9, "R9"},
++	{10, "R10"},
++	{11, "R11"},
++	{12, "R12"},
++	{13, "R13"},
++	{14, "R14"},
++	{15, "R15"},
++	{16, "X0"},
++	{17, "X1"},
++	{18, "X2"},
++	{19, "X3"},
++	{20, "X4"},
++	{21, "X5"},
++	{22, "X6"},
++	{23, "X7"},
++	{24, "X8"},
++	{25, "X9"},
++	{26, "X10"},
++	{27, "X11"},
++	{28, "X12"},
++	{29, "X13"},
++	{30, "X14"},
++	{31, "X15"},
++	{32, "SB"},
++	{33, "FLAGS"},
++}
++var gpRegMaskAMD64 = regMask(65519)
++var fpRegMaskAMD64 = regMask(4294901760)
++var flagRegMaskAMD64 = regMask(8589934592)
++var framepointerRegAMD64 = int8(5)
++var registersARM = [...]Register{
++	{0, "R0"},
++	{1, "R1"},
++	{2, "R2"},
++	{3, "R3"},
++	{4, "R4"},
++	{5, "R5"},
++	{6, "R6"},
++	{7, "R7"},
++	{8, "R8"},
++	{9, "R9"},
++	{10, "g"},
++	{11, "R11"},
++	{12, "R12"},
++	{13, "SP"},
++	{14, "R14"},
++	{15, "R15"},
++	{16, "F0"},
++	{17, "F1"},
++	{18, "F2"},
++	{19, "F3"},
++	{20, "F4"},
++	{21, "F5"},
++	{22, "F6"},
++	{23, "F7"},
++	{24, "F8"},
++	{25, "F9"},
++	{26, "F10"},
++	{27, "F11"},
++	{28, "F12"},
++	{29, "F13"},
++	{30, "F14"},
++	{31, "F15"},
++	{32, "FLAGS"},
++	{33, "SB"},
++}
++var gpRegMaskARM = regMask(5119)
++var fpRegMaskARM = regMask(4294901760)
++var flagRegMaskARM = regMask(4294967296)
++var framepointerRegARM = int8(-1)
++var registersPPC64 = [...]Register{
++	{0, "R0"},
++	{1, "SP"},
++	{2, "SB"},
++	{3, "R3"},
++	{4, "R4"},
++	{5, "R5"},
++	{6, "R6"},
++	{7, "R7"},
++	{8, "R8"},
++	{9, "R9"},
++	{10, "R10"},
++	{11, "R11"},
++	{12, "R12"},
++	{13, "R13"},
++	{14, "R14"},
++	{15, "R15"},
++	{16, "R16"},
++	{17, "R17"},
++	{18, "R18"},
++	{19, "R19"},
++	{20, "R20"},
++	{21, "R21"},
++	{22, "R22"},
++	{23, "R23"},
++	{24, "R24"},
++	{25, "R25"},
++	{26, "R26"},
++	{27, "R27"},
++	{28, "R28"},
++	{29, "R29"},
++	{30, "R30"},
++	{31, "R31"},
++	{32, "F0"},
++	{33, "F1"},
++	{34, "F2"},
++	{35, "F3"},
++	{36, "F4"},
++	{37, "F5"},
++	{38, "F6"},
++	{39, "F7"},
++	{40, "F8"},
++	{41, "F9"},
++	{42, "F10"},
++	{43, "F11"},
++	{44, "F12"},
++	{45, "F13"},
++	{46, "F14"},
++	{47, "F15"},
++	{48, "F16"},
++	{49, "F17"},
++	{50, "F18"},
++	{51, "F19"},
++	{52, "F20"},
++	{53, "F21"},
++	{54, "F22"},
++	{55, "F23"},
++	{56, "F24"},
++	{57, "F25"},
++	{58, "F26"},
++	{59, "CR"},
++}
++var gpRegMaskPPC64 = regMask(1073731576)
++var fpRegMaskPPC64 = regMask(576460743713488896)
++var flagRegMaskPPC64 = regMask(0)
++var framepointerRegPPC64 = int8(1)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+new file mode 100644
+index 0000000000..a83dbdf9d0
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -0,0 +1,2845 @@
++// autogenerated from gen/PPC64.rules: do not edit!
++// generated with: cd gen; go run *.go
++
++package ssa
++
++import "math"
++
++var _ = math.MinInt8 // in case not otherwise used
++func rewriteValuePPC64(v *Value, config *Config) bool {
++	switch v.Op {
++	case OpPPC64ADD:
++		return rewriteValuePPC64_OpPPC64ADD(v, config)
++	case OpAdd16:
++		return rewriteValuePPC64_OpAdd16(v, config)
++	case OpAdd32:
++		return rewriteValuePPC64_OpAdd32(v, config)
++	case OpAdd32F:
++		return rewriteValuePPC64_OpAdd32F(v, config)
++	case OpAdd64:
++		return rewriteValuePPC64_OpAdd64(v, config)
++	case OpAdd64F:
++		return rewriteValuePPC64_OpAdd64F(v, config)
++	case OpAdd8:
++		return rewriteValuePPC64_OpAdd8(v, config)
++	case OpAddPtr:
++		return rewriteValuePPC64_OpAddPtr(v, config)
++	case OpAddr:
++		return rewriteValuePPC64_OpAddr(v, config)
++	case OpAnd16:
++		return rewriteValuePPC64_OpAnd16(v, config)
++	case OpAnd32:
++		return rewriteValuePPC64_OpAnd32(v, config)
++	case OpAnd64:
++		return rewriteValuePPC64_OpAnd64(v, config)
++	case OpAnd8:
++		return rewriteValuePPC64_OpAnd8(v, config)
++	case OpConst16:
++		return rewriteValuePPC64_OpConst16(v, config)
++	case OpConst32:
++		return rewriteValuePPC64_OpConst32(v, config)
++	case OpConst32F:
++		return rewriteValuePPC64_OpConst32F(v, config)
++	case OpConst64:
++		return rewriteValuePPC64_OpConst64(v, config)
++	case OpConst64F:
++		return rewriteValuePPC64_OpConst64F(v, config)
++	case OpConst8:
++		return rewriteValuePPC64_OpConst8(v, config)
++	case OpConstBool:
++		return rewriteValuePPC64_OpConstBool(v, config)
++	case OpConstNil:
++		return rewriteValuePPC64_OpConstNil(v, config)
++	case OpDiv32F:
++		return rewriteValuePPC64_OpDiv32F(v, config)
++	case OpDiv64F:
++		return rewriteValuePPC64_OpDiv64F(v, config)
++	case OpEq16:
++		return rewriteValuePPC64_OpEq16(v, config)
++	case OpEq32:
++		return rewriteValuePPC64_OpEq32(v, config)
++	case OpEq64:
++		return rewriteValuePPC64_OpEq64(v, config)
++	case OpEq64F:
++		return rewriteValuePPC64_OpEq64F(v, config)
++	case OpEq8:
++		return rewriteValuePPC64_OpEq8(v, config)
++	case OpEqPtr:
++		return rewriteValuePPC64_OpEqPtr(v, config)
++	case OpGeq16:
++		return rewriteValuePPC64_OpGeq16(v, config)
++	case OpGeq16U:
++		return rewriteValuePPC64_OpGeq16U(v, config)
++	case OpGeq32:
++		return rewriteValuePPC64_OpGeq32(v, config)
++	case OpGeq32U:
++		return rewriteValuePPC64_OpGeq32U(v, config)
++	case OpGeq64:
++		return rewriteValuePPC64_OpGeq64(v, config)
++	case OpGeq64U:
++		return rewriteValuePPC64_OpGeq64U(v, config)
++	case OpGeq8:
++		return rewriteValuePPC64_OpGeq8(v, config)
++	case OpGeq8U:
++		return rewriteValuePPC64_OpGeq8U(v, config)
++	case OpGreater16:
++		return rewriteValuePPC64_OpGreater16(v, config)
++	case OpGreater16U:
++		return rewriteValuePPC64_OpGreater16U(v, config)
++	case OpGreater32:
++		return rewriteValuePPC64_OpGreater32(v, config)
++	case OpGreater32U:
++		return rewriteValuePPC64_OpGreater32U(v, config)
++	case OpGreater64:
++		return rewriteValuePPC64_OpGreater64(v, config)
++	case OpGreater64U:
++		return rewriteValuePPC64_OpGreater64U(v, config)
++	case OpGreater8:
++		return rewriteValuePPC64_OpGreater8(v, config)
++	case OpGreater8U:
++		return rewriteValuePPC64_OpGreater8U(v, config)
++	case OpLeq16:
++		return rewriteValuePPC64_OpLeq16(v, config)
++	case OpLeq16U:
++		return rewriteValuePPC64_OpLeq16U(v, config)
++	case OpLeq32:
++		return rewriteValuePPC64_OpLeq32(v, config)
++	case OpLeq32U:
++		return rewriteValuePPC64_OpLeq32U(v, config)
++	case OpLeq64:
++		return rewriteValuePPC64_OpLeq64(v, config)
++	case OpLeq64F:
++		return rewriteValuePPC64_OpLeq64F(v, config)
++	case OpLeq64U:
++		return rewriteValuePPC64_OpLeq64U(v, config)
++	case OpLeq8:
++		return rewriteValuePPC64_OpLeq8(v, config)
++	case OpLeq8U:
++		return rewriteValuePPC64_OpLeq8U(v, config)
++	case OpLess16:
++		return rewriteValuePPC64_OpLess16(v, config)
++	case OpLess16U:
++		return rewriteValuePPC64_OpLess16U(v, config)
++	case OpLess32:
++		return rewriteValuePPC64_OpLess32(v, config)
++	case OpLess32U:
++		return rewriteValuePPC64_OpLess32U(v, config)
++	case OpLess64:
++		return rewriteValuePPC64_OpLess64(v, config)
++	case OpLess64F:
++		return rewriteValuePPC64_OpLess64F(v, config)
++	case OpLess64U:
++		return rewriteValuePPC64_OpLess64U(v, config)
++	case OpLess8:
++		return rewriteValuePPC64_OpLess8(v, config)
++	case OpLess8U:
++		return rewriteValuePPC64_OpLess8U(v, config)
++	case OpLoad:
++		return rewriteValuePPC64_OpLoad(v, config)
++	case OpMul16:
++		return rewriteValuePPC64_OpMul16(v, config)
++	case OpMul32:
++		return rewriteValuePPC64_OpMul32(v, config)
++	case OpMul32F:
++		return rewriteValuePPC64_OpMul32F(v, config)
++	case OpMul64:
++		return rewriteValuePPC64_OpMul64(v, config)
++	case OpMul64F:
++		return rewriteValuePPC64_OpMul64F(v, config)
++	case OpMul8:
++		return rewriteValuePPC64_OpMul8(v, config)
++	case OpNeg16:
++		return rewriteValuePPC64_OpNeg16(v, config)
++	case OpNeg32:
++		return rewriteValuePPC64_OpNeg32(v, config)
++	case OpNeg64:
++		return rewriteValuePPC64_OpNeg64(v, config)
++	case OpNeg8:
++		return rewriteValuePPC64_OpNeg8(v, config)
++	case OpNeq16:
++		return rewriteValuePPC64_OpNeq16(v, config)
++	case OpNeq32:
++		return rewriteValuePPC64_OpNeq32(v, config)
++	case OpNeq64:
++		return rewriteValuePPC64_OpNeq64(v, config)
++	case OpNeq64F:
++		return rewriteValuePPC64_OpNeq64F(v, config)
++	case OpNeq8:
++		return rewriteValuePPC64_OpNeq8(v, config)
++	case OpNeqPtr:
++		return rewriteValuePPC64_OpNeqPtr(v, config)
++	case OpOffPtr:
++		return rewriteValuePPC64_OpOffPtr(v, config)
++	case OpOr16:
++		return rewriteValuePPC64_OpOr16(v, config)
++	case OpOr32:
++		return rewriteValuePPC64_OpOr32(v, config)
++	case OpOr64:
++		return rewriteValuePPC64_OpOr64(v, config)
++	case OpOr8:
++		return rewriteValuePPC64_OpOr8(v, config)
++	case OpSignExt16to32:
++		return rewriteValuePPC64_OpSignExt16to32(v, config)
++	case OpSignExt16to64:
++		return rewriteValuePPC64_OpSignExt16to64(v, config)
++	case OpSignExt32to64:
++		return rewriteValuePPC64_OpSignExt32to64(v, config)
++	case OpSignExt8to16:
++		return rewriteValuePPC64_OpSignExt8to16(v, config)
++	case OpSignExt8to32:
++		return rewriteValuePPC64_OpSignExt8to32(v, config)
++	case OpSignExt8to64:
++		return rewriteValuePPC64_OpSignExt8to64(v, config)
++	case OpStaticCall:
++		return rewriteValuePPC64_OpStaticCall(v, config)
++	case OpStore:
++		return rewriteValuePPC64_OpStore(v, config)
++	case OpSub16:
++		return rewriteValuePPC64_OpSub16(v, config)
++	case OpSub32:
++		return rewriteValuePPC64_OpSub32(v, config)
++	case OpSub32F:
++		return rewriteValuePPC64_OpSub32F(v, config)
++	case OpSub64:
++		return rewriteValuePPC64_OpSub64(v, config)
++	case OpSub64F:
++		return rewriteValuePPC64_OpSub64F(v, config)
++	case OpSub8:
++		return rewriteValuePPC64_OpSub8(v, config)
++	case OpSubPtr:
++		return rewriteValuePPC64_OpSubPtr(v, config)
++	case OpTrunc16to8:
++		return rewriteValuePPC64_OpTrunc16to8(v, config)
++	case OpTrunc32to16:
++		return rewriteValuePPC64_OpTrunc32to16(v, config)
++	case OpTrunc32to8:
++		return rewriteValuePPC64_OpTrunc32to8(v, config)
++	case OpTrunc64to16:
++		return rewriteValuePPC64_OpTrunc64to16(v, config)
++	case OpTrunc64to32:
++		return rewriteValuePPC64_OpTrunc64to32(v, config)
++	case OpTrunc64to8:
++		return rewriteValuePPC64_OpTrunc64to8(v, config)
++	case OpXor16:
++		return rewriteValuePPC64_OpXor16(v, config)
++	case OpXor32:
++		return rewriteValuePPC64_OpXor32(v, config)
++	case OpXor64:
++		return rewriteValuePPC64_OpXor64(v, config)
++	case OpXor8:
++		return rewriteValuePPC64_OpXor8(v, config)
++	case OpZero:
++		return rewriteValuePPC64_OpZero(v, config)
++	case OpZeroExt16to32:
++		return rewriteValuePPC64_OpZeroExt16to32(v, config)
++	case OpZeroExt16to64:
++		return rewriteValuePPC64_OpZeroExt16to64(v, config)
++	case OpZeroExt32to64:
++		return rewriteValuePPC64_OpZeroExt32to64(v, config)
++	case OpZeroExt8to16:
++		return rewriteValuePPC64_OpZeroExt8to16(v, config)
++	case OpZeroExt8to32:
++		return rewriteValuePPC64_OpZeroExt8to32(v, config)
++	case OpZeroExt8to64:
++		return rewriteValuePPC64_OpZeroExt8to64(v, config)
++	}
++	return false
++}
++func rewriteValuePPC64_OpPPC64ADD(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ADD (MOVDconst [c]) x)
++	// cond:
++	// result: (ADDconst [c] x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64MOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		v.reset(OpPPC64ADDconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	// match: (ADD x (MOVDconst [c]))
++	// cond:
++	// result: (ADDconst [c] x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpPPC64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpPPC64ADDconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpAdd16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add16  x y)
++	// cond:
++	// result: (ADD (SignExt16to64 x) (SignExt16to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64ADD)
++		v0 := b.NewValue0(v.Line, OpSignExt16to64, config.fe.TypeInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt16to64, config.fe.TypeInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAdd32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add32  x y)
++	// cond:
++	// result: (ADD (SignExt32to64 x) (SignExt32to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64ADD)
++		v0 := b.NewValue0(v.Line, OpSignExt32to64, config.fe.TypeInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt32to64, config.fe.TypeInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAdd32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add32F x y)
++	// cond:
++	// result: (FADDS x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64FADDS)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAdd64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add64  x y)
++	// cond:
++	// result: (ADD  x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64ADD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAdd64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add64F x y)
++	// cond:
++	// result: (FADD x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64FADD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAdd8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add8   x y)
++	// cond:
++	// result: (ADD (SignExt8to64 x) (SignExt8to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64ADD)
++		v0 := b.NewValue0(v.Line, OpSignExt8to64, config.fe.TypeInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt8to64, config.fe.TypeInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAddPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AddPtr x y)
++	// cond:
++	// result: (ADD  x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64ADD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAddr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Addr {sym} base)
++	// cond:
++	// result: (ADDconst {sym} base)
++	for {
++		sym := v.Aux
++		base := v.Args[0]
++		v.reset(OpPPC64ADDconst)
++		v.Aux = sym
++		v.AddArg(base)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAnd16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (And16 x y)
++	// cond:
++	// result: (AND (ZeroExt16to64 x) (ZeroExt16to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64AND)
++		v0 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAnd32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (And32 x y)
++	// cond:
++	// result: (AND (ZeroExt32to64 x) (ZeroExt32to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64AND)
++		v0 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAnd64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (And64 x y)
++	// cond:
++	// result: (AND x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64AND)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpAnd8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (And8  x y)
++	// cond:
++	// result: (AND (ZeroExt8to64 x) (ZeroExt8to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64AND)
++		v0 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpConst16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Const16  [val])
++	// cond:
++	// result: (MOVWconst [val])
++	for {
++		val := v.AuxInt
++		v.reset(OpPPC64MOVWconst)
++		v.AuxInt = val
++		return true
++	}
++}
++func rewriteValuePPC64_OpConst32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Const32  [val])
++	// cond:
++	// result: (MOVWconst [val])
++	for {
++		val := v.AuxInt
++		v.reset(OpPPC64MOVWconst)
++		v.AuxInt = val
++		return true
++	}
++}
++func rewriteValuePPC64_OpConst32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Const32F [val])
++	// cond:
++	// result: (FMOVSconst [val])
++	for {
++		val := v.AuxInt
++		v.reset(OpPPC64FMOVSconst)
++		v.AuxInt = val
++		return true
++	}
++}
++func rewriteValuePPC64_OpConst64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Const64  [val])
++	// cond:
++	// result: (MOVDconst [val])
++	for {
++		val := v.AuxInt
++		v.reset(OpPPC64MOVDconst)
++		v.AuxInt = val
++		return true
++	}
++}
++func rewriteValuePPC64_OpConst64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Const64F [val])
++	// cond:
++	// result: (FMOVDconst [val])
++	for {
++		val := v.AuxInt
++		v.reset(OpPPC64FMOVDconst)
++		v.AuxInt = val
++		return true
++	}
++}
++func rewriteValuePPC64_OpConst8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Const8   [val])
++	// cond:
++	// result: (MOVWconst [val])
++	for {
++		val := v.AuxInt
++		v.reset(OpPPC64MOVWconst)
++		v.AuxInt = val
++		return true
++	}
++}
++func rewriteValuePPC64_OpConstBool(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ConstBool [b])
++	// cond:
++	// result: (MOVBconst [b])
++	for {
++		b := v.AuxInt
++		v.reset(OpPPC64MOVBconst)
++		v.AuxInt = b
++		return true
++	}
++}
++func rewriteValuePPC64_OpConstNil(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ConstNil)
++	// cond:
++	// result: (MOVDconst [0])
++	for {
++		v.reset(OpPPC64MOVDconst)
++		v.AuxInt = 0
++		return true
++	}
++}
++func rewriteValuePPC64_OpDiv32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Div32F x y)
++	// cond:
++	// result: (FDIVS x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64FDIVS)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpDiv64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Div64F x y)
++	// cond:
++	// result: (FDIV x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64FDIV)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpEq16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Eq16 x y)
++	// cond:
++	// result: (Equal (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64Equal)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpEq32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Eq32 x y)
++	// cond:
++	// result: (Equal (CMPW x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64Equal)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpEq64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Eq64 x y)
++	// cond:
++	// result: (Equal (CMP x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64Equal)
++		v0 := b.NewValue0(v.Line, OpPPC64CMP, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpEq64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Eq64F x y)
++	// cond:
++	// result: (Equal (FCMPU x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64Equal)
++		v0 := b.NewValue0(v.Line, OpPPC64FCMPU, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpEq8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Eq8 x y)
++	// cond:
++	// result: (Equal (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64Equal)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpEqPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (EqPtr x y)
++	// cond:
++	// result: (Equal (CMP x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64Equal)
++		v0 := b.NewValue0(v.Line, OpPPC64CMP, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGeq16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq16 x y)
++	// cond:
++	// result: (GreaterEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGeq16U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq16U x y)
++	// cond:
++	// result: (GreaterEqual (CMPU (ZeroExt16to32 x) (ZeroExt16to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPU, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGeq32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq32 x y)
++	// cond:
++	// result: (GreaterEqual (CMPW x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGeq32U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq32U x y)
++	// cond:
++	// result: (GreaterEqual (CMPU x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPU, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGeq64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq64 x y)
++	// cond:
++	// result: (GreaterEqual (CMP x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMP, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGeq64U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq64U x y)
++	// cond:
++	// result: (GreaterEqual (CMPU x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPU, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGeq8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq8 x y)
++	// cond:
++	// result: (GreaterEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGeq8U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq8U x y)
++	// cond:
++	// result: (GreaterEqual (CMPU (ZeroExt8to32 x) (ZeroExt8to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPU, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGreater16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater16 x y)
++	// cond:
++	// result: (GreaterThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGreater16U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater16U x y)
++	// cond:
++	// result: (GreaterThan (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPWU, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGreater32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater32 x y)
++	// cond:
++	// result: (GreaterThan (CMPW x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGreater32U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater32U x y)
++	// cond:
++	// result: (GreaterThan (CMPWU x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPWU, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGreater64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater64 x y)
++	// cond:
++	// result: (GreaterThan (CMP x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMP, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGreater64U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater64U x y)
++	// cond:
++	// result: (GreaterThan (CMPU x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPU, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGreater8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater8 x y)
++	// cond:
++	// result: (GreaterThan (CMPW (SignExt8to32 x) (SignExt8to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGreater8U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater8U x y)
++	// cond:
++	// result: (GreaterThan (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64GreaterThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPWU, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLeq16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq16 x y)
++	// cond:
++	// result: (LessEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLeq16U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq16U x y)
++	// cond:
++	// result: (LessEqual (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPWU, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLeq32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq32 x y)
++	// cond:
++	// result: (LessEqual (CMPW x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLeq32U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq32U x y)
++	// cond:
++	// result: (LessEqual (CMPWU x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPWU, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLeq64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq64 x y)
++	// cond:
++	// result: (LessEqual (CMP x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMP, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLeq64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq64F x y)
++	// cond:
++	// result: (LessEqual (FCMPU x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64FCMPU, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLeq64U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq64U x y)
++	// cond:
++	// result: (LessEqual (CMPU x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPU, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLeq8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq8 x y)
++	// cond:
++	// result: (LessEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLeq8U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq8U x y)
++	// cond:
++	// result: (LessEqual (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPWU, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLess16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less16 x y)
++	// cond:
++	// result: (LessThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLess16U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less16U x y)
++	// cond:
++	// result: (LessThan (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPWU, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLess32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less32 x y)
++	// cond:
++	// result: (LessThan (CMPW x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLess32U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less32U x y)
++	// cond:
++	// result: (LessThan (CMPWU x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPWU, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLess64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less64 x y)
++	// cond:
++	// result: (LessThan (CMP x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMP, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLess64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less64F x y)
++	// cond:
++	// result: (LessThan (FCMPU x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessThan)
++		v0 := b.NewValue0(v.Line, OpPPC64FCMPU, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLess64U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less64U x y)
++	// cond:
++	// result: (LessThan (CMPU x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPU, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLess8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less8 x y)
++	// cond:
++	// result: (LessThan (CMPW (SignExt8to32 x) (SignExt8to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLess8U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less8U x y)
++	// cond:
++	// result: (LessThan (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LessThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPWU, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpLoad(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Load <t> ptr mem)
++	// cond: (is64BitInt(t) || isPtr(t))
++	// result: (MOVDload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is64BitInt(t) || isPtr(t)) {
++			break
++		}
++		v.reset(OpPPC64MOVDload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: is32BitInt(t) && isSigned(t)
++	// result: (MOVWload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is32BitInt(t) && isSigned(t)) {
++			break
++		}
++		v.reset(OpPPC64MOVWload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: is32BitInt(t) && !isSigned(t)
++	// result: (MOVWZload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is32BitInt(t) && !isSigned(t)) {
++			break
++		}
++		v.reset(OpPPC64MOVWZload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: is16BitInt(t) && isSigned(t)
++	// result: (MOVHload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is16BitInt(t) && isSigned(t)) {
++			break
++		}
++		v.reset(OpPPC64MOVHload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: is16BitInt(t) && !isSigned(t)
++	// result: (MOVHZload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is16BitInt(t) && !isSigned(t)) {
++			break
++		}
++		v.reset(OpPPC64MOVHZload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: (t.IsBoolean() || (is8BitInt(t) && !isSigned(t)))
++	// result: (MOVBload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(t.IsBoolean() || (is8BitInt(t) && !isSigned(t))) {
++			break
++		}
++		v.reset(OpPPC64MOVBload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: is8BitInt(t) && !isSigned(t)
++	// result: (MOVBZload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is8BitInt(t) && !isSigned(t)) {
++			break
++		}
++		v.reset(OpPPC64MOVBZload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: is32BitFloat(t)
++	// result: (FMOVSload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is32BitFloat(t)) {
++			break
++		}
++		v.reset(OpPPC64FMOVSload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: is64BitFloat(t)
++	// result: (FMOVDload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is64BitFloat(t)) {
++			break
++		}
++		v.reset(OpPPC64FMOVDload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpMul16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul16  x y)
++	// cond:
++	// result: (MULLW (SignExt16to32 x) (SignExt16to32 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64MULLW)
++		v0 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpMul32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul32  x y)
++	// cond:
++	// result: (MULLW  x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64MULLW)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpMul32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul32F x y)
++	// cond:
++	// result: (FMULS x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64FMULS)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpMul64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul64  x y)
++	// cond:
++	// result: (MULLD  x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64MULLD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpMul64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul64F x y)
++	// cond:
++	// result: (FMUL x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64FMUL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpMul8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul8   x y)
++	// cond:
++	// result: (MULLW (SignExt8to32  x) (SignExt8to32 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64MULLW)
++		v0 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpNeg16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg16  x)
++	// cond:
++	// result: (NEG (ZeroExt16to64 x))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64NEG)
++		v0 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpNeg32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg32  x)
++	// cond:
++	// result: (NEG (ZeroExt32to64 x))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64NEG)
++		v0 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpNeg64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg64  x)
++	// cond:
++	// result: (NEG x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64NEG)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpNeg8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg8   x)
++	// cond:
++	// result: (NEG (ZeroExt8to64 x))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64NEG)
++		v0 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpNeq16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq16 x y)
++	// cond:
++	// result: (NotEqual (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64NotEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpNeq32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq32 x y)
++	// cond:
++	// result: (NotEqual (CMPW x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64NotEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpNeq64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq64 x y)
++	// cond:
++	// result: (NotEqual (CMP x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64NotEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMP, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpNeq64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq64F x y)
++	// cond:
++	// result: (NotEqual (FCMPU x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64NotEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64FCMPU, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpNeq8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq8 x y)
++	// cond:
++	// result: (NotEqual (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64NotEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpNeqPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (NeqPtr x y)
++	// cond:
++	// result: (NotEqual (CMP x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64NotEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMP, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpOffPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (OffPtr [off] ptr)
++	// cond:
++	// result: (ADD (MOVDconst <config.Frontend().TypeInt64()> [off]) ptr)
++	for {
++		off := v.AuxInt
++		ptr := v.Args[0]
++		v.reset(OpPPC64ADD)
++		v0 := b.NewValue0(v.Line, OpPPC64MOVDconst, config.Frontend().TypeInt64())
++		v0.AuxInt = off
++		v.AddArg(v0)
++		v.AddArg(ptr)
++		return true
++	}
++}
++func rewriteValuePPC64_OpOr16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Or16 x y)
++	// cond:
++	// result: (OR (ZeroExt16to64 x) (ZeroExt16to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64OR)
++		v0 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpOr32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Or32 x y)
++	// cond:
++	// result: (OR (ZeroExt32to64 x) (ZeroExt32to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64OR)
++		v0 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpOr64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Or64 x y)
++	// cond:
++	// result: (OR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64OR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpOr8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Or8  x y)
++	// cond:
++	// result: (OR (ZeroExt8to64 x) (ZeroExt8to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64OR)
++		v0 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpSignExt16to32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SignExt16to32 x)
++	// cond:
++	// result: (MOVHreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVHreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpSignExt16to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SignExt16to64 x)
++	// cond:
++	// result: (MOVHreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVHreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpSignExt32to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SignExt32to64 x)
++	// cond:
++	// result: (MOVWreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVWreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpSignExt8to16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SignExt8to16  x)
++	// cond:
++	// result: (MOVBreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVBreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpSignExt8to32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SignExt8to32  x)
++	// cond:
++	// result: (MOVBreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVBreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpSignExt8to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SignExt8to64  x)
++	// cond:
++	// result: (MOVBreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVBreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpStaticCall(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (StaticCall [argwid] {target} mem)
++	// cond:
++	// result: (CALLstatic [argwid] {target} mem)
++	for {
++		argwid := v.AuxInt
++		target := v.Aux
++		mem := v.Args[0]
++		v.reset(OpPPC64CALLstatic)
++		v.AuxInt = argwid
++		v.Aux = target
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpStore(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Store [8] ptr val mem)
++	// cond:
++	// result: (MOVDstore ptr val mem)
++	for {
++		if v.AuxInt != 8 {
++			break
++		}
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpPPC64MOVDstore)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Store [4] ptr val mem)
++	// cond:
++	// result: (MOVWstore ptr val mem)
++	for {
++		if v.AuxInt != 4 {
++			break
++		}
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpPPC64MOVWstore)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Store [2] ptr val mem)
++	// cond:
++	// result: (MOVHstore ptr val mem)
++	for {
++		if v.AuxInt != 2 {
++			break
++		}
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpPPC64MOVHstore)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Store [1] ptr val mem)
++	// cond:
++	// result: (MOVBstore ptr val mem)
++	for {
++		if v.AuxInt != 1 {
++			break
++		}
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpPPC64MOVBstore)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpSub16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub16  x y)
++	// cond:
++	// result: (SUB (SignExt16to64 x) (SignExt16to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64SUB)
++		v0 := b.NewValue0(v.Line, OpSignExt16to64, config.fe.TypeInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt16to64, config.fe.TypeInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpSub32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub32  x y)
++	// cond:
++	// result: (SUB x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64SUB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpSub32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub32F x y)
++	// cond:
++	// result: (FSUBS x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64FSUBS)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpSub64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub64  x y)
++	// cond:
++	// result: (SUB  x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64SUB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpSub64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub64F x y)
++	// cond:
++	// result: (FSUB x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64FSUB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpSub8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub8   x y)
++	// cond:
++	// result: (SUB (SignExt8to64 x) (SignExt8to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64SUB)
++		v0 := b.NewValue0(v.Line, OpSignExt8to64, config.fe.TypeInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt8to64, config.fe.TypeInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpSubPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SubPtr x y)
++	// cond:
++	// result: (SUB  x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64SUB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpTrunc16to8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc16to8  x)
++	// cond:
++	// result: (MOVBreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVBreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpTrunc32to16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc32to16 x)
++	// cond:
++	// result: (MOVHreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVHreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpTrunc32to8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc32to8  x)
++	// cond:
++	// result: (MOVBreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVBreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpTrunc64to16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc64to16 x)
++	// cond:
++	// result: (MOVHreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVHreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpTrunc64to32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc64to32 x)
++	// cond:
++	// result: (MOVWreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVWreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpTrunc64to8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc64to8  x)
++	// cond:
++	// result: (MOVBreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVBreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpXor16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Xor16 x y)
++	// cond:
++	// result: (XOR (ZeroExt16to64 x) (ZeroExt16to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64XOR)
++		v0 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt16to64, config.fe.TypeUInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpXor32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Xor32 x y)
++	// cond:
++	// result: (XOR (ZeroExt32to64 x) (ZeroExt32to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64XOR)
++		v0 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt32to64, config.fe.TypeUInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpXor64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Xor64 x y)
++	// cond:
++	// result: (XOR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64XOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValuePPC64_OpXor8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Xor8  x y)
++	// cond:
++	// result: (XOR (ZeroExt8to64 x) (ZeroExt8to64 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64XOR)
++		v0 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt8to64, config.fe.TypeUInt64())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValuePPC64_OpZero(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Zero [0] _ mem)
++	// cond:
++	// result: mem
++	for {
++		if v.AuxInt != 0 {
++			break
++		}
++		mem := v.Args[1]
++		v.reset(OpCopy)
++		v.Type = mem.Type
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Zero [1] destptr mem)
++	// cond:
++	// result: (MOVBstoreconst [0] destptr mem)
++	for {
++		if v.AuxInt != 1 {
++			break
++		}
++		destptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64MOVBstoreconst)
++		v.AuxInt = 0
++		v.AddArg(destptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Zero [2] destptr mem)
++	// cond:
++	// result: (MOVHstoreconst [0] destptr mem)
++	for {
++		if v.AuxInt != 2 {
++			break
++		}
++		destptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64MOVHstoreconst)
++		v.AuxInt = 0
++		v.AddArg(destptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Zero [4] destptr mem)
++	// cond:
++	// result: (MOVWstoreconst [0] destptr mem)
++	for {
++		if v.AuxInt != 4 {
++			break
++		}
++		destptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64MOVWstoreconst)
++		v.AuxInt = 0
++		v.AddArg(destptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Zero [8] destptr mem)
++	// cond:
++	// result: (MOVDstoreconst [0] destptr mem)
++	for {
++		if v.AuxInt != 8 {
++			break
++		}
++		destptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64MOVDstoreconst)
++		v.AuxInt = 0
++		v.AddArg(destptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Zero [3] destptr mem)
++	// cond:
++	// result: (MOVBstoreconst [makeValAndOff(0,2)] destptr                 (MOVHstoreconst [0] destptr mem))
++	for {
++		if v.AuxInt != 3 {
++			break
++		}
++		destptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64MOVBstoreconst)
++		v.AuxInt = makeValAndOff(0, 2)
++		v.AddArg(destptr)
++		v0 := b.NewValue0(v.Line, OpPPC64MOVHstoreconst, TypeMem)
++		v0.AuxInt = 0
++		v0.AddArg(destptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Zero [5] destptr mem)
++	// cond:
++	// result: (MOVBstoreconst [makeValAndOff(0,4)] destptr                 (MOVWstoreconst [0] destptr mem))
++	for {
++		if v.AuxInt != 5 {
++			break
++		}
++		destptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64MOVBstoreconst)
++		v.AuxInt = makeValAndOff(0, 4)
++		v.AddArg(destptr)
++		v0 := b.NewValue0(v.Line, OpPPC64MOVWstoreconst, TypeMem)
++		v0.AuxInt = 0
++		v0.AddArg(destptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Zero [6] destptr mem)
++	// cond:
++	// result: (MOVHstoreconst [makeValAndOff(0,4)] destptr                 (MOVWstoreconst [0] destptr mem))
++	for {
++		if v.AuxInt != 6 {
++			break
++		}
++		destptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64MOVHstoreconst)
++		v.AuxInt = makeValAndOff(0, 4)
++		v.AddArg(destptr)
++		v0 := b.NewValue0(v.Line, OpPPC64MOVWstoreconst, TypeMem)
++		v0.AuxInt = 0
++		v0.AddArg(destptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Zero [16] destptr mem)
++	// cond:
++	// result: (MOVDstoreconst [makeValAndOff(0,8)] destptr                 (MOVDstoreconst [0] destptr mem))
++	for {
++		if v.AuxInt != 16 {
++			break
++		}
++		destptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64MOVDstoreconst)
++		v.AuxInt = makeValAndOff(0, 8)
++		v.AddArg(destptr)
++		v0 := b.NewValue0(v.Line, OpPPC64MOVDstoreconst, TypeMem)
++		v0.AuxInt = 0
++		v0.AddArg(destptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Zero [24] destptr mem)
++	// cond:
++	// result: (MOVDstoreconst [makeValAndOff(0,16)] destptr 		(MOVDstoreconst [makeValAndOff(0,8)] destptr 			(MOVDstoreconst [0] destptr mem)))
++	for {
++		if v.AuxInt != 24 {
++			break
++		}
++		destptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64MOVDstoreconst)
++		v.AuxInt = makeValAndOff(0, 16)
++		v.AddArg(destptr)
++		v0 := b.NewValue0(v.Line, OpPPC64MOVDstoreconst, TypeMem)
++		v0.AuxInt = makeValAndOff(0, 8)
++		v0.AddArg(destptr)
++		v1 := b.NewValue0(v.Line, OpPPC64MOVDstoreconst, TypeMem)
++		v1.AuxInt = 0
++		v1.AddArg(destptr)
++		v1.AddArg(mem)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Zero [32] destptr mem)
++	// cond:
++	// result: (MOVDstoreconst [makeValAndOff(0,24)] destptr 		(MOVDstoreconst [makeValAndOff(0,16)] destptr 			(MOVDstoreconst [makeValAndOff(0,8)] destptr 				(MOVDstoreconst [0] destptr mem))))
++	for {
++		if v.AuxInt != 32 {
++			break
++		}
++		destptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64MOVDstoreconst)
++		v.AuxInt = makeValAndOff(0, 24)
++		v.AddArg(destptr)
++		v0 := b.NewValue0(v.Line, OpPPC64MOVDstoreconst, TypeMem)
++		v0.AuxInt = makeValAndOff(0, 16)
++		v0.AddArg(destptr)
++		v1 := b.NewValue0(v.Line, OpPPC64MOVDstoreconst, TypeMem)
++		v1.AuxInt = makeValAndOff(0, 8)
++		v1.AddArg(destptr)
++		v2 := b.NewValue0(v.Line, OpPPC64MOVDstoreconst, TypeMem)
++		v2.AuxInt = 0
++		v2.AddArg(destptr)
++		v2.AddArg(mem)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpZeroExt16to32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ZeroExt16to32 x)
++	// cond:
++	// result: (MOVHZreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVHZreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpZeroExt16to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ZeroExt16to64 x)
++	// cond:
++	// result: (MOVHZreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVHZreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpZeroExt32to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ZeroExt32to64 x)
++	// cond:
++	// result: (MOVWZreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVWZreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpZeroExt8to16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ZeroExt8to16  x)
++	// cond:
++	// result: (MOVBZreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVBZreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpZeroExt8to32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ZeroExt8to32  x)
++	// cond:
++	// result: (MOVBZreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVBZreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuePPC64_OpZeroExt8to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ZeroExt8to64  x)
++	// cond:
++	// result: (MOVBZreg x)
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64MOVBZreg)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteBlockPPC64(b *Block) bool {
++	switch b.Kind {
++	case BlockIf:
++		// match: (If (Equal cc) yes no)
++		// cond:
++		// result: (EQ cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64Equal {
++				break
++			}
++			cc := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64EQ
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (If (NotEqual cc) yes no)
++		// cond:
++		// result: (NE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64NotEqual {
++				break
++			}
++			cc := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64NE
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (If (LessThan cc) yes no)
++		// cond:
++		// result: (LT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64LessThan {
++				break
++			}
++			cc := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64LT
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (If (LessEqual cc) yes no)
++		// cond:
++		// result: (LE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64LessEqual {
++				break
++			}
++			cc := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64LE
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (If (GreaterThan cc) yes no)
++		// cond:
++		// result: (GT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64GreaterThan {
++				break
++			}
++			cc := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64GT
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (If (GreaterEqual cc) yes no)
++		// cond:
++		// result: (GE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64GreaterEqual {
++				break
++			}
++			cc := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64GE
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (If cond yes no)
++		// cond:
++		// result: (NE (CMPconst [0] cond) yes no)
++		for {
++			v := b.Control
++			cond := b.Control
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64NE
++			v0 := b.NewValue0(v.Line, OpPPC64CMPconst, TypeFlags)
++			v0.AuxInt = 0
++			v0.AddArg(cond)
++			b.SetControl(v0)
++			_ = yes
++			_ = no
++			return true
++		}
++	case BlockPPC64NE:
++		// match: (NE (CMPconst [0] (Equal cc)) yes no)
++		// cond:
++		// result: (EQ cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpPPC64Equal {
++				break
++			}
++			cc := v_0.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64EQ
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (NE (CMPconst [0] (NotEqual cc)) yes no)
++		// cond:
++		// result: (NE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpPPC64NotEqual {
++				break
++			}
++			cc := v_0.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64NE
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (NE (CMPconst [0] (LessThan cc)) yes no)
++		// cond:
++		// result: (LT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpPPC64LessThan {
++				break
++			}
++			cc := v_0.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64LT
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (NE (CMPconst [0] (LessEqual cc)) yes no)
++		// cond:
++		// result: (LE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpPPC64LessEqual {
++				break
++			}
++			cc := v_0.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64LE
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (NE (CMPconst [0] (GreaterThan cc)) yes no)
++		// cond:
++		// result: (GT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpPPC64GreaterThan {
++				break
++			}
++			cc := v_0.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64GT
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (NE (CMPconst [0] (GreaterEqual cc)) yes no)
++		// cond:
++		// result: (GE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpPPC64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpPPC64GreaterEqual {
++				break
++			}
++			cc := v_0.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockPPC64GE
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 8e58c59238..460243f8c6 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -185,6 +185,15 @@ const (
+ 	NOSCHED = 1 << 9
+ )
+ 
++// Bit settings from the CR
++
++const (
++	C_COND_LT = iota // 0 result is negative
++	C_COND_GT        // 1 result is positive
++	C_COND_EQ        // 2 result is zero
++	C_COND_SO        // 3 summary overflow
++)
++
+ const (
+ 	C_NONE = iota
+ 	C_REG

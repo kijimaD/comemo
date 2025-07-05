@@ -11,6 +11,30 @@ Date:   Tue Mar 3 15:50:32 2015 -0800
     Change-Id: Ibffd1ecfee4a888605ed54196f53956ae42e591c
     Reviewed-on: https://go-review.googlesource.com/6700
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/dist/test.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 1817837587..555855edae 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -287,12 +287,12 @@ func (t *tester) registerTests() {
+ 		} else if t.hasBash() {
+ 			t.registerTest("testso", "../misc/cgo/testso", "./test.bash")
+ 		}
+-	}
+-	if t.gohostos == "linux" && t.goarch == "amd64" {
+-		t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
+-	}
+-	if t.hasBash() && cgo && t.gohostos != "windows" {
+-		t.registerTest("cgo_errors", "../misc/cgo/errors", "./test.bash")
++		if t.gohostos == "linux" && t.goarch == "amd64" {
++			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
++		}
++		if t.hasBash() && t.gohostos != "windows" {
++			t.registerTest("cgo_errors", "../misc/cgo/errors", "./test.bash")
++		}
+ 	}
+ 	if t.hasBash() && t.goos != "nacl" && t.goos != "android" {
+ 		t.registerTest("doc_progs", "../doc/progs", "time", "./run")

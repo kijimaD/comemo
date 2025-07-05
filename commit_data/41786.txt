@@ -9,7 +9,34 @@ Date:   Fri Oct 25 21:16:24 2019 +0800
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/defs2_linux.go | 2 +-
  src/runtime/defs_linux.go  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/defs2_linux.go b/src/runtime/defs2_linux.go
+index b08c0dafe1..87e19c1598 100644
+--- a/src/runtime/defs2_linux.go
++++ b/src/runtime/defs2_linux.go
+@@ -61,7 +61,7 @@ const (
+ 	MADV_DONTNEED   = C.MADV_DONTNEED
+ 	MADV_FREE       = C.MADV_FREE
+ 	MADV_HUGEPAGE   = C.MADV_HUGEPAGE
+-	MADV_NOHUGEPAGE = C.MADV_HNOUGEPAGE
++	MADV_NOHUGEPAGE = C.MADV_NOHUGEPAGE
+ 
+ 	SA_RESTART  = C.SA_RESTART
+ 	SA_ONSTACK  = C.SA_ONSTACK
+diff --git a/src/runtime/defs_linux.go b/src/runtime/defs_linux.go
+index 5b46cb42a2..7b14063386 100644
+--- a/src/runtime/defs_linux.go
++++ b/src/runtime/defs_linux.go
+@@ -51,7 +51,7 @@ const (
+ 	MADV_DONTNEED   = C.MADV_DONTNEED
+ 	MADV_FREE       = C.MADV_FREE
+ 	MADV_HUGEPAGE   = C.MADV_HUGEPAGE
+-	MADV_NOHUGEPAGE = C.MADV_HNOUGEPAGE
++	MADV_NOHUGEPAGE = C.MADV_NOHUGEPAGE
+ 
+ 	SA_RESTART = C.SA_RESTART
+ 	SA_ONSTACK = C.SA_ONSTACK

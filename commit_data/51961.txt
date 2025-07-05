@@ -10,7 +10,7 @@ Date:   Fri Mar 18 18:49:39 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/bytealg/compare_ppc64x.s   | 98 ++++++++-------------------------
  src/internal/bytealg/count_ppc64x.s     | 37 +++----------
  src/internal/bytealg/equal_ppc64x.s     | 29 +++-------
@@ -21,3 +21,781 @@ Date:   Fri Mar 18 18:49:39 2022 -0400
  src/runtime/memmove_ppc64x.s            |  8 +--
  src/runtime/race_ppc64le.s              | 30 ++--------
  9 files changed, 76 insertions(+), 327 deletions(-)
+
+diff --git a/src/internal/bytealg/compare_ppc64x.s b/src/internal/bytealg/compare_ppc64x.s
+index 2793e44e8b..fc6f170ca8 100644
+--- a/src/internal/bytealg/compare_ppc64x.s
++++ b/src/internal/bytealg/compare_ppc64x.s
+@@ -8,24 +8,16 @@
+ #include "textflag.h"
+ 
+ TEXT ·Compare<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-56
+-#ifdef GOEXPERIMENT_regabiargs
+-// incoming:
+-// R3 a addr -> R5
+-// R4 a len  -> R3
+-// R5 a cap unused
+-// R6 b addr -> R6
+-// R7 b len  -> R4
+-// R8 b cap unused
++	// incoming:
++	// R3 a addr -> R5
++	// R4 a len  -> R3
++	// R5 a cap unused
++	// R6 b addr -> R6
++	// R7 b len  -> R4
++	// R8 b cap unused
+ 	MOVD	R3, R5
+ 	MOVD	R4, R3
+ 	MOVD	R7, R4
+-#else
+-	MOVD	a_base+0(FP), R5
+-	MOVD	b_base+24(FP), R6
+-	MOVD	a_len+8(FP), R3
+-	MOVD	b_len+32(FP), R4
+-	MOVD	$ret+48(FP), R7
+-#endif
+ 	CMP     R5,R6,CR7
+ 	CMP	R3,R4,CR6
+ 	BEQ	CR7,equal
+@@ -40,39 +32,23 @@ equal:
+ 	BGT	CR6,greater
+ 	NEG	R8
+ greater:
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOVD	R8, R3
+-#else
+-	MOVD	R8, (R7)
+-#endif
+ 	RET
+ done:
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOVD	$0, R3
+-#else
+-	MOVD	$0, (R7)
+-#endif
+ 	RET
+ 
+ TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
+-#ifdef GOEXPERIMENT_regabiargs
+-// incoming:
+-// R3 a addr -> R5
+-// R4 a len  -> R3
+-// R5 b addr -> R6
+-// R6 b len  -> R4
++	// incoming:
++	// R3 a addr -> R5
++	// R4 a len  -> R3
++	// R5 b addr -> R6
++	// R6 b len  -> R4
+ 	MOVD	R6, R7
+ 	MOVD	R5, R6
+ 	MOVD	R3, R5
+ 	MOVD	R4, R3
+ 	MOVD	R7, R4
+-#else
+-	MOVD	a_base+0(FP), R5
+-	MOVD	b_base+16(FP), R6
+-	MOVD	a_len+8(FP), R3
+-	MOVD	b_len+24(FP), R4
+-	MOVD	$ret+32(FP), R7
+-#endif
+ 	CMP     R5,R6,CR7
+ 	CMP	R3,R4,CR6
+ 	BEQ	CR7,equal
+@@ -87,19 +63,11 @@ equal:
+ 	BGT	CR6,greater
+ 	NEG	R8
+ greater:
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOVD	R8, R3
+-#else
+-	MOVD	R8, (R7)
+-#endif
+ 	RET
+ 
+ done:
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOVD	$0, R3
+-#else
+-	MOVD	$0, (R7)
+-#endif
+ 	RET
+ 
+ // Do an efficient memcmp for ppc64le
+@@ -107,7 +75,8 @@ done:
+ // R4 = b len
+ // R5 = a addr
+ // R6 = b addr
+-// R7 = addr of return value if not regabi
++// On exit:
++// R3 = return value
+ TEXT cmpbodyLE<>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	R3,R8		// set up length
+ 	CMP	R3,R4,CR2	// unequal?
+@@ -126,8 +95,8 @@ setup32a:
+ 	SRADCC	$5,R8,R9	// number of 32 byte chunks
+ 	MOVD	R9,CTR
+ 
+-        // Special processing for 32 bytes or longer.
+-        // Loading this way is faster and correct as long as the
++	// Special processing for 32 bytes or longer.
++	// Loading this way is faster and correct as long as the
+ 	// doublewords being compared are equal. Once they
+ 	// are found unequal, reload them in proper byte order
+ 	// to determine greater or less than.
+@@ -201,23 +170,13 @@ cmpne:				// only here is not equal
+ 	CMPU	R8,R9		// compare correct endianness
+ 	BGT	greater		// here only if NE
+ less:
+-	MOVD	$-1,R3
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	R3,(R7)		// return value if A < B
+-#endif
++	MOVD	$-1, R3		// return value if A < B
+ 	RET
+ equal:
+-#ifdef GOEXPERIMENT_regabiargs
+-	MOVD	$0, R3
+-#else
+-	MOVD	$0,(R7)		// return value if A == B
+-#endif
++	MOVD	$0, R3		// return value if A == B
+ 	RET
+ greater:
+-	MOVD	$1,R3
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	R3,(R7)		// return value if A > B
+-#endif
++	MOVD	$1, R3		// return value if A > B
+ 	RET
+ 
+ // Do an efficient memcmp for ppc64 (BE)
+@@ -225,7 +184,8 @@ greater:
+ // R4 = b len
+ // R5 = a addr
+ // R6 = b addr
+-// R7 = addr of return value
++// On exit:
++// R3 = return value
+ TEXT cmpbodyBE<>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	R3,R8		// set up length
+ 	CMP	R3,R4,CR2	// unequal?
+@@ -308,21 +268,11 @@ simple:
+ 	BC	12,10,equal	// test CR2 for length comparison
+ 	BC	12,9,greater	// 2nd len > 1st len
+ less:
+-	MOVD	$-1,R3
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD    R3,(R7)		// return value if A < B
+-#endif
++	MOVD	$-1, R3		// return value if A < B
+ 	RET
+ equal:
+-#ifdef GOEXPERIMENT_regabiargs
+-	MOVD	$0, R3
+-#else
+-	MOVD    $0,(R7)		// return value if A == B
+-#endif
++	MOVD	$0, R3		// return value if A == B
+ 	RET
+ greater:
+-	MOVD	$1,R3
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	R3,(R7)		// return value if A > B
+-#endif
++	MOVD	$1, R3		// return value if A > B
+ 	RET
+diff --git a/src/internal/bytealg/count_ppc64x.s b/src/internal/bytealg/count_ppc64x.s
+index 43d547bb8a..2d2490b024 100644
+--- a/src/internal/bytealg/count_ppc64x.s
++++ b/src/internal/bytealg/count_ppc64x.s
+@@ -8,36 +8,22 @@
+ #include "textflag.h"
+ 
+ TEXT ·Count<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
+-#ifdef GOEXPERIMENT_regabiargs
+-// R3 = byte array pointer 
+-// R4 = length
+-        MOVBZ R6,R5               // R5 = byte
+-#else
+-
+-	MOVD  b_base+0(FP), R3    // R3 = byte array pointer
+-	MOVD  b_len+8(FP), R4     // R4 = length
+-	MOVBZ c+24(FP), R5        // R5 = byte
+-	MOVD  $ret+32(FP), R14    // R14 = &ret
+-#endif
++	// R3 = byte array pointer 
++	// R4 = length
++	MOVBZ R6, R5              // R5 = byte
+ 	BR    countbytebody<>(SB)
+ 
+ TEXT ·CountString<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-32
+-#ifdef GOEXPERIMENT_regabiargs
+-// R3 = byte array pointer
+-// R4 = length
+-        MOVBZ R5,R5               // R5 = byte
+-#else
+-	MOVD  s_base+0(FP), R3    // R3 = string
+-	MOVD  s_len+8(FP), R4     // R4 = length
+-	MOVBZ c+16(FP), R5        // R5 = byte
+-	MOVD  $ret+24(FP), R14    // R14 = &ret
+-#endif
++	// R3 = byte array pointer
++	// R4 = length
++	MOVBZ R5, R5              // R5 = byte
+ 	BR    countbytebody<>(SB)
+ 
+ // R3: addr of string
+ // R4: len of string
+ // R5: byte to count
+-// R14: addr for return value when not regabi
++// On exit:
++// R3: return value
+ // endianness shouldn't matter since we are just counting and order
+ // is irrelevant
+ TEXT countbytebody<>(SB), NOSPLIT|NOFRAME, $0-0
+@@ -106,10 +92,5 @@ next2:
+ 	BR  small
+ 
+ done:
+-#ifdef GOEXPERIMENT_regabiargs
+-        MOVD R18, R3    // return count
+-#else
+-	MOVD R18, (R14) // return count
+-#endif
+-
++	MOVD R18, R3    // return count
+ 	RET
+diff --git a/src/internal/bytealg/equal_ppc64x.s b/src/internal/bytealg/equal_ppc64x.s
+index bd8caa7f18..8c9443d6fd 100644
+--- a/src/internal/bytealg/equal_ppc64x.s
++++ b/src/internal/bytealg/equal_ppc64x.s
+@@ -9,37 +9,29 @@
+ 
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD    a+0(FP), R3
+-	MOVD    b+8(FP), R4
+-	MOVD    size+16(FP), R5
+-	MOVD    $ret+24(FP), R10
+-#endif
++	// R3 = a
++	// R4 = b
++	// R5 = size
+ 	BR	memeqbody<>(SB)
+ 
+ // memequal_varlen(a, b unsafe.Pointer) bool
+ TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-17
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	a+0(FP), R3
+-	MOVD	b+8(FP), R4
+-	MOVD    $ret+16(FP), R10
+-#endif
++	// R3 = a
++	// R4 = b
+ 	CMP	R3, R4
+ 	BEQ	eq
+ 	MOVD	8(R11), R5    // compiler stores size at offset 8 in the closure
+ 	BR	memeqbody<>(SB)
+ eq:
+ 	MOVD	$1, R3
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVB	R3, ret+16(FP)
+-#endif
+ 	RET
+ 
+ // Do an efficient memequal for ppc64
+ // R3 = s1
+ // R4 = s2
+ // R5 = len
+-// R10 = addr of return value (byte) when not regabi
++// On exit:
++// R3 = return value
+ TEXT memeqbody<>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD    R5,CTR
+ 	CMP     R5,$8		// only optimize >=8
+@@ -98,16 +90,9 @@ simple:
+ 	BNE	noteq
+ 	BR	equal
+ noteq:
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOVD	$0, R3
+-#else
+-	MOVB    $0, (R10)
+-#endif
+ 	RET
+ equal:
+ 	MOVD	$1, R3
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVB	R3, (R10)
+-#endif
+ 	RET
+ 
+diff --git a/src/internal/bytealg/index_ppc64x.s b/src/internal/bytealg/index_ppc64x.s
+index 2d2a7146f1..18e57fb033 100644
+--- a/src/internal/bytealg/index_ppc64x.s
++++ b/src/internal/bytealg/index_ppc64x.s
+@@ -46,39 +46,25 @@ DATA byteswap<>+8(SB)/8, $0x0f0e0d0c0b0a0908
+ GLOBL byteswap<>+0(SB), RODATA, $16
+ 
+ TEXT ·Index<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-56
+-#ifdef GOEXPERIMENT_regabiargs 
+-// R3 = byte array pointer 
+-// R4 = length 
+-        MOVD R6,R5             // R5 = separator pointer
+-        MOVD R7,R6             // R6 = separator length 
+-#else
+-	MOVD a_base+0(FP), R3  // R3 = byte array pointer
+-	MOVD a_len+8(FP), R4   // R4 = length
+-	MOVD b_base+24(FP), R5 // R5 = separator pointer
+-	MOVD b_len+32(FP), R6  // R6 = separator length
+-	MOVD $ret+48(FP), R14  // R14 = &ret
+-#endif
+-
++	// R3 = byte array pointer 
++	// R4 = length 
++	MOVD R6, R5             // R5 = separator pointer
++	MOVD R7, R6             // R6 = separator length
+ 
+ #ifdef GOARCH_ppc64le
+ 	MOVBZ internal∕cpu·PPC64+const_offsetPPC64HasPOWER9(SB), R7
+ 	CMP   R7, $1
+ 	BNE   power8
+ 	BR    indexbodyp9<>(SB)
+-
+ #endif
+ power8:
+ 	BR indexbody<>(SB)
+ 
+ TEXT ·IndexString<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD a_base+0(FP), R3  // R3 = string
+-	MOVD a_len+8(FP), R4   // R4 = length
+-	MOVD b_base+16(FP), R5 // R5 = separator pointer
+-	MOVD b_len+24(FP), R6  // R6 = separator length
+-	MOVD $ret+32(FP), R14  // R14 = &ret
+-#endif
+-
++	// R3 = string
++	// R4 = length
++	// R5 = separator pointer
++	// R6 = separator length
+ 
+ #ifdef GOARCH_ppc64le
+ 	MOVBZ internal∕cpu·PPC64+const_offsetPPC64HasPOWER9(SB), R7
+@@ -430,12 +416,7 @@ next17:
+ 	BR         index17to32loop // Continue
+ 
+ notfound:
+-#ifdef GOEXPERIMENT_regabiargs
+-        MOVD $-1, R3   // Return -1 if not found
+-#else
+-	MOVD $-1, R8   // Return -1 if not found
+-	MOVD R8, (R14)
+-#endif
++	MOVD $-1, R3   // Return -1 if not found
+ 	RET
+ 
+ index33plus:
+@@ -446,20 +427,12 @@ foundR25:
+ 	SRD  $3, R25   // Convert from bits to bytes
+ 	ADD  R25, R7   // Add to current string address
+ 	SUB  R3, R7    // Subtract from start of string
+-#ifdef GOEXPERIMENT_regabiargs
+-        MOVD R7, R3    // Return byte where found
+-#else
+-	MOVD R7, (R14) // Return byte where found
+-#endif
++	MOVD R7, R3    // Return byte where found
+ 	RET
+ 
+ found:
+ 	SUB  R3, R7    // Return byte where found
+-#ifdef GOEXPERIMENT_regabiargs
+-        MOVD R7, R3
+-#else
+-	MOVD R7, (R14)
+-#endif
++	MOVD R7, R3
+ 	RET
+ 
+ TEXT indexbodyp9<>(SB), NOSPLIT|NOFRAME, $0
+@@ -768,12 +741,7 @@ next17:
+ 	BR         index17to32loop // Continue
+ 
+ notfound:
+-#ifdef GOEXPERIMENT_regabiargs
+-        MOVD $-1, R3   // Return -1 if not found
+-#else
+-	MOVD $-1, R8   // Return -1 if not found
+-	MOVD R8, (R14)
+-#endif
++	MOVD $-1, R3   // Return -1 if not found
+ 	RET
+ 
+ index33plus:
+@@ -784,19 +752,10 @@ foundR25:
+ 	SRD  $3, R25   // Convert from bits to bytes
+ 	ADD  R25, R7   // Add to current string address
+ 	SUB  R3, R7    // Subtract from start of string
+-#ifdef GOEXPERIMENT_regabiargs
+-        MOVD R7, R3    // Return byte where found
+-#else
+-	MOVD R7, (R14) // Return byte where found
+-#endif
++	MOVD R7, R3    // Return byte where found
+ 	RET
+ 
+ found:
+ 	SUB  R3, R7    // Return byte where found
+-#ifdef GOEXPERIMENT_regabiargs
+-        MOVD R7, R3
+-#else
+-	MOVD R7, (R14)
+-#endif
++	MOVD R7, R3
+ 	RET
+-
+diff --git a/src/internal/bytealg/indexbyte_ppc64x.s b/src/internal/bytealg/indexbyte_ppc64x.s
+index 87ef8ecffc..4cc2b44087 100644
+--- a/src/internal/bytealg/indexbyte_ppc64x.s
++++ b/src/internal/bytealg/indexbyte_ppc64x.s
+@@ -8,28 +8,22 @@
+ #include "textflag.h"
+ 
+ TEXT ·IndexByte<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	b_base+0(FP), R3	// R3 = byte array pointer
+-	MOVD	b_len+8(FP), R4		// R4 = length
+-	MOVBZ	c+24(FP), R5		// R5 = byte
+-	MOVD	$ret+32(FP), R14	// R14 = &ret
+-#else
+-	MOVD	R6, R5
+-#endif
++	// R3 = byte array pointer
++	// R4 = length
++	MOVD	R6, R5		// R5 = byte
+ 	BR	indexbytebody<>(SB)
+ 
+ TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	s_base+0(FP), R3  // R3 = string
+-	MOVD	s_len+8(FP), R4	  // R4 = length
+-	MOVBZ	c+16(FP), R5	  // R5 = byte
+-	MOVD	$ret+24(FP), R14  // R14 = &ret
+-#endif
++	// R3 = string
++	// R4 = length
++	// R5 = byte
+ 	BR	indexbytebody<>(SB)
++
+ // R3 = addr of string
+ // R4 = len of string
+ // R5 = byte to find
+-// R14 = addr of return value when not regabi
++// On exit:
++// R3 = return value
+ TEXT indexbytebody<>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	R3,R17		// Save base address for calculating the index later.
+ 	RLDICR	$0,R3,$60,R8	// Align address to doubleword boundary in R8.
+@@ -193,10 +187,7 @@ tail:
+ 	BNE	    CR6,found_qw_align
+ 
+ notfound:
+-	MOVD	$-1,R3
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	R3,(R14)
+-#endif
++	MOVD	$-1, R3
+ 	RET
+ 
+ found:
+@@ -238,10 +229,7 @@ found:
+ 	ADD	R8,R11,R3	// Calculate byte address
+ 
+ return:
+-	SUB	R17,R3
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	R3,(R14)
+-#endif
++	SUB	R17, R3
+ 	RET
+ 
+ found_qw_align:
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 45e0c8240a..1d292b4e60 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -167,11 +167,7 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+ TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
+ 	// Save caller state in g->sched
+ 	// R11 should be safe across save_g??
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOVD	R3, R11
+-#else
+-	MOVD	fn+0(FP), R11
+-#endif
+ 	MOVD	R1, (g_sched+gobuf_sp)(g)
+ 	MOVD	LR, R31
+ 	MOVD	R31, (g_sched+gobuf_pc)(g)
+@@ -788,7 +784,6 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+ 	MOVD	R3, ret+0(FP)
+ 	RET
+ 
+-#ifdef GOEXPERIMENT_regabiargs
+ // spillArgs stores return values from registers to a *internal/abi.RegArgs in R20.
+ TEXT runtime·spillArgs(SB),NOSPLIT,$0-0
+ 	MOVD    R3, 0(R20)
+@@ -844,14 +839,6 @@ TEXT runtime·unspillArgs(SB),NOSPLIT,$0-0
+ 	FMOVD	176(R20), F11
+ 	FMOVD	184(R20), F12
+ 	RET
+-#else
+-
+-TEXT runtime·spillArgs(SB),NOSPLIT,$0-0
+-        RET
+-
+-TEXT runtime·unspillArgs(SB),NOSPLIT,$0-0
+-        RET
+-#endif
+ 
+ // AES hashing not implemented for ppc64
+ TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
+@@ -1009,137 +996,58 @@ flush:
+ // then tail call to the corresponding runtime handler.
+ // The tail call makes these stubs disappear in backtraces.
+ TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	R3, x+0(FP)
+-	MOVD	R4, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicIndex<ABIInternal>(SB)
+ TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	R3, x+0(FP)
+-	MOVD	R4, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
+ TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOVD	R4, R3
+ 	MOVD	R5, R4
+-#else
+-	MOVD	R4, x+0(FP)
+-	MOVD	R5, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSliceAlen<ABIInternal>(SB)
+ TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOVD	R4, R3
+ 	MOVD	R5, R4
+-#else
+-	MOVD	R4, x+0(FP)
+-	MOVD	R5, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSliceAlenU<ABIInternal>(SB)
+ TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOVD	R4, R3
+ 	MOVD	R5, R4
+-#else
+-	MOVD	R4, x+0(FP)
+-	MOVD	R5, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSliceAcap<ABIInternal>(SB)
+ TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOVD	R4, R3
+ 	MOVD	R5, R4
+-#else
+-	MOVD	R4, x+0(FP)
+-	MOVD	R5, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
+ TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	R3, x+0(FP)
+-	MOVD	R4, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSliceB<ABIInternal>(SB)
+ TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	R3, x+0(FP)
+-	MOVD	R4, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
+ TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOVD	R5, R3
+ 	MOVD	R6, R4
+-#else
+-	MOVD	R5, x+0(FP)
+-	MOVD	R6, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3Alen<ABIInternal>(SB)
+ TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef	GOEXPERIMENT_regabiargs
+ 	MOVD	R5, R3
+ 	MOVD	R6, R4
+-#else
+-	MOVD	R5, x+0(FP)
+-	MOVD	R6, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3AlenU<ABIInternal>(SB)
+ TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef	GOEXPERIMENT_regabiargs
+ 	MOVD	R5, R3
+ 	MOVD	R6, R4
+-#else
+-	MOVD	R5, x+0(FP)
+-	MOVD	R6, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3Acap<ABIInternal>(SB)
+ TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef	GOEXPERIMENT_regabiargs
+ 	MOVD	R5, R3
+ 	MOVD	R6, R4
+-#else
+-	MOVD	R5, x+0(FP)
+-	MOVD	R6, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3AcapU<ABIInternal>(SB)
+ TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef	GOEXPERIMENT_regabiargs
+ 	MOVD	R4, R3
+ 	MOVD	R5, R4
+-#else
+-	MOVD	R4, x+0(FP)
+-	MOVD	R5, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3B<ABIInternal>(SB)
+ TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef	GOEXPERIMENT_regabiargs
+ 	MOVD	R4, R3
+ 	MOVD	R5, R4
+-#else
+-	MOVD	R4, x+0(FP)
+-	MOVD	R5, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
+ TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	R3, x+0(FP)
+-	MOVD	R4, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3C<ABIInternal>(SB)
+ TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	R3, x+0(FP)
+-	MOVD	R4, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
+ TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef	GOEXPERIMENT_regabiargs
+ 	MOVD	R5, R3
+ 	MOVD	R6, R4
+-#else
+-	MOVD	R5, x+0(FP)
+-	MOVD	R6, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)
+diff --git a/src/runtime/memclr_ppc64x.s b/src/runtime/memclr_ppc64x.s
+index 64132cee96..ad84ea9600 100644
+--- a/src/runtime/memclr_ppc64x.s
++++ b/src/runtime/memclr_ppc64x.s
+@@ -10,10 +10,8 @@
+ 
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-16
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD ptr+0(FP), R3
+-	MOVD n+8(FP), R4
+-#endif
++	// R3 = ptr
++	// R4 = n
+ 
+ 	// Determine if there are doublewords to clear
+ check:
+diff --git a/src/runtime/memmove_ppc64x.s b/src/runtime/memmove_ppc64x.s
+index 2152fb4f69..25101a28c7 100644
+--- a/src/runtime/memmove_ppc64x.s
++++ b/src/runtime/memmove_ppc64x.s
+@@ -28,11 +28,9 @@
+ #define QWORDS R10
+ 
+ TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-24
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	to+0(FP), TGT
+-	MOVD	from+8(FP), SRC
+-	MOVD	n+16(FP), LEN
+-#endif
++	// R3 = TGT = to
++	// R4 = SRC = from
++	// R5 = LEN = n
+ 
+ 	// Determine if there are doublewords to
+ 	// copy so a more efficient move can be done
+diff --git a/src/runtime/race_ppc64le.s b/src/runtime/race_ppc64le.s
+index 68cc5c8805..0d8aaa01c1 100644
+--- a/src/runtime/race_ppc64le.s
++++ b/src/runtime/race_ppc64le.s
+@@ -43,11 +43,7 @@
+ // func runtime·RaceRead(addr uintptr)
+ // Called from instrumented Go code
+ TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	addr+0(FP), R4
+-#else
+-	MOVD	R3, R4
+-#endif
++	MOVD	R3, R4 // addr
+ 	MOVD	LR, R5 // caller of this?
+ 	// void __tsan_read(ThreadState *thr, void *addr, void *pc);
+ 	MOVD	$__tsan_read(SB), R8
+@@ -68,11 +64,7 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
+ // func runtime·RaceWrite(addr uintptr)
+ // Called from instrumented Go code
+ TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	addr+0(FP), R4
+-#else
+-	MOVD	R3, R4
+-#endif
++	MOVD	R3, R4 // addr
+ 	MOVD	LR, R5 // caller has set LR via BL inst
+ 	// void __tsan_write(ThreadState *thr, void *addr, void *pc);
+ 	MOVD	$__tsan_write(SB), R8
+@@ -93,13 +85,8 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
+ // func runtime·RaceReadRange(addr, size uintptr)
+ // Called from instrumented Go code.
+ TEXT	runtime·racereadrange<ABIInternal>(SB), NOSPLIT, $0-16
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	addr+0(FP), R4
+-	MOVD	size+8(FP), R5
+-#else
+-	MOVD	R4, R5
+-	MOVD	R3, R4
+-#endif
++	MOVD	R4, R5 // size
++	MOVD	R3, R4 // addr
+ 	MOVD	LR, R6
+ 	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
+ 	MOVD	$__tsan_read_range(SB), R8
+@@ -121,13 +108,8 @@ TEXT    runtime·RaceReadRange(SB), NOSPLIT, $0-16
+ // func runtime·RaceWriteRange(addr, size uintptr)
+ // Called from instrumented Go code.
+ TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVD	addr+0(FP), R4
+-	MOVD	size+8(FP), R5
+-#else
+-	MOVD	R4, R5
+-	MOVD	R3, R4
+-#endif
++	MOVD	R4, R5 // size
++	MOVD	R3, R4 // addr
+ 	MOVD	LR, R6
+ 	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
+ 	MOVD	$__tsan_write_range(SB), R8

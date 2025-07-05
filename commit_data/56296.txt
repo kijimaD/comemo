@@ -24,7 +24,35 @@ Date:   Mon Apr 24 14:26:39 2023 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/cmd/dist/test.go   | 4 +---
  src/testing/testing.go | 1 -
  2 files changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index f58b49e028..cc96223aa6 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -317,9 +317,7 @@ func (opts *goTest) bgCommand(t *tester) *exec.Cmd {
+ 	// Combine the flags.
+ 	args := append([]string{"test"}, build...)
+ 	if t.compileOnly {
+-		// We can't pass -c with multiple packages, so run the tests but
+-		// tell them not to do anything.
+-		args = append(args, "-run=^$")
++		args = append(args, "-c", "-o", os.DevNull)
+ 	} else {
+ 		args = append(args, run...)
+ 	}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index c970d05256..fcf7048f23 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1934,7 +1934,6 @@ func (m *M) Run() (code int) {
+ 				// in which case every test will run nothing and succeed,
+ 				// with no obvious way to detect this problem (since no tests are running).
+ 				// So make 'no tests to run' a hard failure when testing package testing itself.
+-				// The compile-only builders use -run=^$ to run no tests, so allow that.
+ 				fmt.Print(chatty.prefix(), "FAIL: package testing must run tests\n")
+ 				testOk = false
+ 			}

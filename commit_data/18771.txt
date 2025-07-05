@@ -10,6 +10,26 @@ Date:   Thu Mar 6 13:15:09 2014 +1100
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/71610044
-
+---
  doc/go_faq.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index e292bc879c..fb2d929bd6 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -957,6 +957,14 @@ compendium of do's and don'ts that allows interpretation.
+ All the Go code in the repository has been run through <code>gofmt</code>.
+ </p>
+ 
++<p>
++The document titled
++<a href="http://golang.org/s/comments">Go Code Review Comments</a>
++is a collection of very short essays about details of Go idiom that are often
++missed by programmers.
++It is a handy reference for people doing code reviews for Go projects.
++</p>
++
+ <h3 id="How_do_I_submit_patches_to_the_Go_libraries">
+ How do I submit patches to the Go libraries?</h3>
+ 

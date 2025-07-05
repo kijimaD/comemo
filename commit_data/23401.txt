@@ -10,7 +10,7 @@ Date:   Wed May 6 12:28:19 2015 -0400
     Change-Id: I283ec1d694f2dd84eba22e5eb4aad78a2d2d9eb0
     Reviewed-on: https://go-review.googlesource.com/9810
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/5g/cgen.go          | 22 -------------
  src/cmd/5g/galign.go        |  1 +
  src/cmd/5g/ggen.go          | 18 +++++++++++
@@ -26,3 +26,537 @@ Date:   Wed May 6 12:28:19 2015 -0400
  src/cmd/internal/gc/gen.go  | 12 +++----
  src/cmd/internal/gc/go.go   | 15 ++++++++-
  14 files changed, 183 insertions(+), 99 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.go b/src/cmd/5g/cgen.go
+index 2e922391cb..c0d7651584 100644
+--- a/src/cmd/5g/cgen.go
++++ b/src/cmd/5g/cgen.go
+@@ -53,28 +53,6 @@ func igenindex(n *gc.Node, res *gc.Node, bounded bool) *obj.Prog {
+ 	return cgenindex(n, res, bounded)
+ }
+ 
+-func gencmp0(n *gc.Node, t *gc.Type, o int, likely int, to *obj.Prog) {
+-	var n1 gc.Node
+-
+-	gc.Regalloc(&n1, t, nil)
+-	gc.Cgen(n, &n1)
+-	a := optoas(gc.OCMP, t)
+-	if a != arm.ACMP {
+-		var n2 gc.Node
+-		gc.Nodconst(&n2, t, 0)
+-		var n3 gc.Node
+-		gc.Regalloc(&n3, t, nil)
+-		gmove(&n2, &n3)
+-		gins(a, &n1, &n3)
+-		gc.Regfree(&n3)
+-	} else {
+-		gins(arm.ATST, &n1, nil)
+-	}
+-	a = optoas(o, t)
+-	gc.Patch(gc.Gbranch(a, t, likely), to)
+-	gc.Regfree(&n1)
+-}
+-
+ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	// determine alignment.
+ 	// want to avoid unaligned access, so have to use
+diff --git a/src/cmd/5g/galign.go b/src/cmd/5g/galign.go
+index 3c8ba519eb..55782e1dae 100644
+--- a/src/cmd/5g/galign.go
++++ b/src/cmd/5g/galign.go
+@@ -65,6 +65,7 @@ func main() {
+ 	gc.Thearch.Expandchecks = expandchecks
+ 	gc.Thearch.Getg = getg
+ 	gc.Thearch.Gins = gins
++	gc.Thearch.Ginscmp = ginscmp
+ 	gc.Thearch.Ginscon = ginscon
+ 	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Gmove = gmove
+diff --git a/src/cmd/5g/ggen.go b/src/cmd/5g/ggen.go
+index 0cf0d9299c..ade4bd6096 100644
+--- a/src/cmd/5g/ggen.go
++++ b/src/cmd/5g/ggen.go
+@@ -479,6 +479,24 @@ func ginscon(as int, c int64, n *gc.Node) {
+ 	gc.Regfree(&n2)
+ }
+ 
++func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
++	var r1, r2, g1, g2 gc.Node
++	gc.Regalloc(&r1, t, n1)
++	gc.Regalloc(&g1, n1.Type, &r1)
++	gc.Cgen(n1, &g1)
++	gmove(&g1, &r1)
++	gc.Regalloc(&r2, t, n2)
++	gc.Regalloc(&g2, n1.Type, &r2)
++	gc.Cgen(n2, &g2)
++	gmove(&g2, &r2)
++	gins(optoas(gc.OCMP, t), &r1, &r2)
++	gc.Regfree(&g1)
++	gc.Regfree(&r1)
++	gc.Regfree(&g2)
++	gc.Regfree(&r2)
++	return gc.Gbranch(optoas(op, t), nil, likely)
++}
++
+ // addr += index*width if possible.
+ func addindex(index *gc.Node, width int64, addr *gc.Node) bool {
+ 	switch width {
+diff --git a/src/cmd/6g/galign.go b/src/cmd/6g/galign.go
+index 0ca87537ff..17d78f399d 100644
+--- a/src/cmd/6g/galign.go
++++ b/src/cmd/6g/galign.go
+@@ -101,6 +101,7 @@ func main() {
+ 	gc.Thearch.Getg = getg
+ 	gc.Thearch.Gins = gins
+ 	gc.Thearch.Ginsboolval = ginsboolval
++	gc.Thearch.Ginscmp = ginscmp
+ 	gc.Thearch.Ginscon = ginscon
+ 	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Gmove = gmove
+diff --git a/src/cmd/6g/gsubr.go b/src/cmd/6g/gsubr.go
+index 53d0f038d9..14e1a57cbd 100644
+--- a/src/cmd/6g/gsubr.go
++++ b/src/cmd/6g/gsubr.go
+@@ -99,6 +99,42 @@ func ginscon(as int, c int64, n2 *gc.Node) {
+ 	gins(as, &n1, n2)
+ }
+ 
++func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
++	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && gc.Smallintconst(n1) && n2.Op != gc.OLITERAL {
++		// Reverse comparison to place constant last.
++		op = gc.Brrev(op)
++		n1, n2 = n2, n1
++	}
++	// General case.
++	var r1, r2, g1, g2 gc.Node
++	if n1.Op == gc.ONAME && n1.Class&gc.PHEAP == 0 || n1.Op == gc.OINDREG {
++		r1 = *n1
++	} else {
++		gc.Regalloc(&r1, t, n1)
++		gc.Regalloc(&g1, n1.Type, &r1)
++		gc.Cgen(n1, &g1)
++		gmove(&g1, &r1)
++	}
++	if n2.Op == gc.OLITERAL && gc.Isint[t.Etype] && gc.Smallintconst(n2) {
++		r2 = *n2
++	} else {
++		gc.Regalloc(&r2, t, n2)
++		gc.Regalloc(&g2, n1.Type, &r2)
++		gc.Cgen(n2, &g2)
++		gmove(&g2, &r2)
++	}
++	gins(optoas(gc.OCMP, t), &r1, &r2)
++	if r1.Op == gc.OREGISTER {
++		gc.Regfree(&g1)
++		gc.Regfree(&r1)
++	}
++	if r2.Op == gc.OREGISTER {
++		gc.Regfree(&g2)
++		gc.Regfree(&r2)
++	}
++	return gc.Gbranch(optoas(op, t), nil, likely)
++}
++
+ func ginsboolval(a int, n *gc.Node) {
+ 	gins(jmptoset(a), nil, n)
+ }
+diff --git a/src/cmd/7g/galign.go b/src/cmd/7g/galign.go
+index 34b4ab6142..8a6184efd0 100644
+--- a/src/cmd/7g/galign.go
++++ b/src/cmd/7g/galign.go
+@@ -65,6 +65,7 @@ func main() {
+ 	gc.Thearch.Expandchecks = expandchecks
+ 	gc.Thearch.Getg = getg
+ 	gc.Thearch.Gins = gins
++	gc.Thearch.Ginscmp = ginscmp
+ 	gc.Thearch.Ginscon = ginscon
+ 	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Gmove = gmove
+diff --git a/src/cmd/7g/gsubr.go b/src/cmd/7g/gsubr.go
+index a34a4306ae..60c3a7ad44 100644
+--- a/src/cmd/7g/gsubr.go
++++ b/src/cmd/7g/gsubr.go
+@@ -102,6 +102,34 @@ func ginscon2(as int, n2 *gc.Node, c int64) {
+ 	gc.Regfree(&ntmp)
+ }
+ 
++func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
++	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && n2.Op != gc.OLITERAL {
++		// Reverse comparison to place constant last.
++		op = gc.Brrev(op)
++		n1, n2 = n2, n1
++	}
++
++	var r1, r2, g1, g2 gc.Node
++	gc.Regalloc(&r1, t, n1)
++	gc.Regalloc(&g1, n1.Type, &r1)
++	gc.Cgen(n1, &g1)
++	gmove(&g1, &r1)
++	if gc.Isint[t.Etype] && gc.Isconst(n2, gc.CTINT) {
++		ginscon2(optoas(gc.OCMP, t), &r1, gc.Mpgetfix(n2.Val.U.Xval))
++	} else {
++		gc.Regalloc(&r2, t, n2)
++		gc.Regalloc(&g2, n1.Type, &r2)
++		gc.Cgen(n2, &g2)
++		gmove(&g2, &r2)
++		gcmp(optoas(gc.OCMP, t), &r1, &r2)
++		gc.Regfree(&g2)
++		gc.Regfree(&r2)
++	}
++	gc.Regfree(&g1)
++	gc.Regfree(&r1)
++	return gc.Gbranch(optoas(op, t), nil, likely)
++}
++
+ /*
+  * generate move:
+  *	t = f
+diff --git a/src/cmd/8g/galign.go b/src/cmd/8g/galign.go
+index e96b628dcc..3651f509c9 100644
+--- a/src/cmd/8g/galign.go
++++ b/src/cmd/8g/galign.go
+@@ -81,6 +81,7 @@ func main() {
+ 	gc.Thearch.Expandchecks = expandchecks
+ 	gc.Thearch.Getg = getg
+ 	gc.Thearch.Gins = gins
++	gc.Thearch.Ginscmp = ginscmp
+ 	gc.Thearch.Ginscon = ginscon
+ 	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Gmove = gmove
+diff --git a/src/cmd/8g/gsubr.go b/src/cmd/8g/gsubr.go
+index 34ddfe0619..d1134d2c74 100644
+--- a/src/cmd/8g/gsubr.go
++++ b/src/cmd/8g/gsubr.go
+@@ -582,6 +582,45 @@ func ginscon(as int, c int64, n2 *gc.Node) {
+ 	gins(as, &n1, n2)
+ }
+ 
++func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
++	if gc.Isint[t.Etype] || int(t.Etype) == gc.Tptr {
++		if (n1.Op == gc.OLITERAL || n1.Op == gc.OADDR && n1.Left.Op == gc.ONAME) && n2.Op != gc.OLITERAL {
++			// Reverse comparison to place constant (including address constant) last.
++			op = gc.Brrev(op)
++			n1, n2 = n2, n1
++		}
++	}
++
++	// General case.
++	var r1, r2, g1, g2 gc.Node
++	if n1.Op == gc.ONAME && n1.Class&gc.PHEAP == 0 || n1.Op == gc.OINDREG {
++		r1 = *n1
++	} else {
++		gc.Regalloc(&r1, t, n1)
++		gc.Regalloc(&g1, n1.Type, &r1)
++		gc.Cgen(n1, &g1)
++		gmove(&g1, &r1)
++	}
++	if n2.Op == gc.OLITERAL && gc.Isint[t.Etype] || n2.Op == gc.OADDR && n2.Left.Op == gc.ONAME && n2.Left.Class == gc.PEXTERN {
++		r2 = *n2
++	} else {
++		gc.Regalloc(&r2, t, n2)
++		gc.Regalloc(&g2, n1.Type, &r2)
++		gc.Cgen(n2, &g2)
++		gmove(&g2, &r2)
++	}
++	gins(optoas(gc.OCMP, t), &r1, &r2)
++	if r1.Op == gc.OREGISTER {
++		gc.Regfree(&g1)
++		gc.Regfree(&r1)
++	}
++	if r2.Op == gc.OREGISTER {
++		gc.Regfree(&g2)
++		gc.Regfree(&r2)
++	}
++	return gc.Gbranch(optoas(op, t), nil, likely)
++}
++
+ /*
+  * swap node contents
+  */
+diff --git a/src/cmd/9g/galign.go b/src/cmd/9g/galign.go
+index a2f4a0ef89..6e1612007b 100644
+--- a/src/cmd/9g/galign.go
++++ b/src/cmd/9g/galign.go
+@@ -72,6 +72,7 @@ func main() {
+ 	gc.Thearch.Expandchecks = expandchecks
+ 	gc.Thearch.Getg = getg
+ 	gc.Thearch.Gins = gins
++	gc.Thearch.Ginscmp = ginscmp
+ 	gc.Thearch.Ginscon = ginscon
+ 	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Gmove = gmove
+diff --git a/src/cmd/9g/gsubr.go b/src/cmd/9g/gsubr.go
+index 8223fe70b1..61ba87ee3e 100644
+--- a/src/cmd/9g/gsubr.go
++++ b/src/cmd/9g/gsubr.go
+@@ -116,6 +116,34 @@ func ginscon2(as int, n2 *gc.Node, c int64) {
+ 	gc.Regfree(&ntmp)
+ }
+ 
++func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
++	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && n2.Op != gc.OLITERAL {
++		// Reverse comparison to place constant last.
++		op = gc.Brrev(op)
++		n1, n2 = n2, n1
++	}
++
++	var r1, r2, g1, g2 gc.Node
++	gc.Regalloc(&r1, t, n1)
++	gc.Regalloc(&g1, n1.Type, &r1)
++	gc.Cgen(n1, &g1)
++	gmove(&g1, &r1)
++	if gc.Isint[t.Etype] && gc.Isconst(n2, gc.CTINT) {
++		ginscon2(optoas(gc.OCMP, t), &r1, gc.Mpgetfix(n2.Val.U.Xval))
++	} else {
++		gc.Regalloc(&r2, t, n2)
++		gc.Regalloc(&g2, n1.Type, &r2)
++		gc.Cgen(n2, &g2)
++		gmove(&g2, &r2)
++		rawgins(optoas(gc.OCMP, t), &r1, &r2)
++		gc.Regfree(&g2)
++		gc.Regfree(&r2)
++	}
++	gc.Regfree(&g1)
++	gc.Regfree(&r1)
++	return gc.Gbranch(optoas(op, t), nil, likely)
++}
++
+ /*
+  * set up nodes representing 2^63
+  */
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index 6f8187d953..92a670d2fc 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -569,8 +569,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 
+ 			var n2 Node
+ 			Nodconst(&n2, Types[Tptr], 0)
+-			Thearch.Gins(Thearch.Optoas(OCMP, Types[Tptr]), &n1, &n2)
+-			p1 := Gbranch(Thearch.Optoas(OEQ, Types[Tptr]), nil, 0)
++			p1 := Thearch.Ginscmp(OEQ, Types[Tptr], &n1, &n2, 0)
+ 
+ 			n2 = n1
+ 			n2.Op = OINDREG
+@@ -610,8 +609,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 
+ 			var n2 Node
+ 			Nodconst(&n2, Types[Tptr], 0)
+-			Thearch.Gins(Thearch.Optoas(OCMP, Types[Tptr]), &n1, &n2)
+-			p1 := Gbranch(Thearch.Optoas(OEQ, Types[Tptr]), nil, 0)
++			p1 := Thearch.Ginscmp(OEQ, Types[Tptr], &n1, &n2, 0)
+ 
+ 			n2 = n1
+ 			n2.Op = OINDREG
+@@ -804,19 +802,7 @@ func cgen_wbptr(n, res *Node) {
+ 	}
+ 
+ 	wbEnabled := syslook("writeBarrierEnabled", 0)
+-	switch Ctxt.Arch.Thechar {
+-	default:
+-		Fatal("cgen_wbptr: unknown architecture")
+-	case '5', '7', '9':
+-		var tmp Node
+-		Regalloc(&tmp, Types[TUINT8], nil)
+-		Thearch.Gmove(wbEnabled, &tmp)
+-		Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT8]), &tmp, Nodintconst(0))
+-		Regfree(&tmp)
+-	case '6', '8':
+-		Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT8]), wbEnabled, Nodintconst(0))
+-	}
+-	pbr := Gbranch(Thearch.Optoas(ONE, Types[TUINT8]), nil, -1)
++	pbr := Thearch.Ginscmp(ONE, Types[TUINT8], wbEnabled, Nodintconst(0), -1)
+ 	Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, &dst)
+ 	pjmp := Gbranch(obj.AJMP, nil, 0)
+ 	Patch(pbr, Pc)
+@@ -1055,13 +1041,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 						n1.Op = OINDREG
+ 						n1.Type = Types[Tptr]
+ 						n1.Xoffset = int64(Array_nel)
+-						var n4 Node
+-						Regalloc(&n4, n1.Type, nil)
+-						Thearch.Gmove(&n1, &n4)
+-						Nodconst(&n2, Types[TUINT32], int64(v))
+-						Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT32]), &n4, &n2)
+-						Regfree(&n4)
+-						p1 := Gbranch(Thearch.Optoas(OGT, Types[TUINT32]), nil, +1)
++						p1 := Thearch.Ginscmp(OGT, Types[TUINT32], &n1, &n2, +1)
+ 						Ginscall(Panicindex, -1)
+ 						Patch(p1, Pc)
+ 					}
+@@ -1099,12 +1079,10 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 				} else {
+ 					Nodconst(&n4, Types[TUINT32], nl.Type.Bound)
+ 				}
+-
+-				Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT32]), &n2, &n4)
++				p1 := Thearch.Ginscmp(OLT, Types[TUINT32], &n2, &n4, +1)
+ 				if n4.Op == OREGISTER {
+ 					Regfree(&n4)
+ 				}
+-				p1 := Gbranch(Thearch.Optoas(OLT, Types[TUINT32]), nil, +1)
+ 				if p2 != nil {
+ 					Patch(p2, Pc)
+ 				}
+@@ -1213,8 +1191,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 						nlen.Type = Types[TUINT32]
+ 						nlen.Xoffset += int64(Array_nel)
+ 						Nodconst(&n2, Types[TUINT32], int64(v))
+-						Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT32]), &nlen, &n2)
+-						p1 := Gbranch(Thearch.Optoas(OGT, Types[TUINT32]), nil, +1)
++						p1 := Thearch.Ginscmp(OGT, Types[TUINT32], &nlen, &n2, +1)
+ 						Ginscall(Panicindex, -1)
+ 						Patch(p1, Pc)
+ 					}
+@@ -1261,8 +1238,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 					Nodconst(&nlen, t, nl.Type.Bound)
+ 				}
+ 
+-				Thearch.Gins(Thearch.Optoas(OCMP, t), &n2, &nlen)
+-				p1 := Gbranch(Thearch.Optoas(OLT, t), nil, +1)
++				p1 := Thearch.Ginscmp(OLT, t, &n2, &nlen, +1)
+ 				if p2 != nil {
+ 					Patch(p2, Pc)
+ 				}
+@@ -1401,25 +1377,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			v := uint64(Mpgetfix(nr.Val.U.Xval))
+ 			if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+ 				if Debug['B'] == 0 && !n.Bounded {
+-					if nlen.Op != OREGISTER && (Ctxt.Arch.Thechar == '7' || Ctxt.Arch.Thechar == '9') {
+-						var tmp2 Node
+-						Regalloc(&tmp2, Types[Simtype[TUINT]], nil)
+-						Thearch.Gmove(&nlen, &tmp2)
+-						Regfree(&nlen) // in case it is OINDREG
+-						nlen = tmp2
+-					}
+-					var n2 Node
+-					Nodconst(&n2, Types[Simtype[TUINT]], int64(v))
+-					if Smallintconst(nr) {
+-						Thearch.Gins(Thearch.Optoas(OCMP, Types[Simtype[TUINT]]), &nlen, &n2)
+-					} else {
+-						Regalloc(&tmp, Types[Simtype[TUINT]], nil)
+-						Thearch.Gmove(&n2, &tmp)
+-						Thearch.Gins(Thearch.Optoas(OCMP, Types[Simtype[TUINT]]), &nlen, &tmp)
+-						Regfree(&tmp)
+-					}
+-
+-					p1 := Gbranch(Thearch.Optoas(OGT, Types[Simtype[TUINT]]), nil, +1)
++					p1 := Thearch.Ginscmp(OGT, Types[Simtype[TUINT]], &nlen, Nodintconst(int64(v)), +1)
+ 					Ginscall(Panicindex, -1)
+ 					Patch(p1, Pc)
+ 				}
+@@ -1456,26 +1414,12 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			if Isconst(nl, CTSTR) {
+ 				Nodconst(&nlen, t, int64(len(nl.Val.U.Sval)))
+ 			} else if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+-				if Is64(nr.Type) || Ctxt.Arch.Thechar == '7' || Ctxt.Arch.Thechar == '9' {
+-					var n5 Node
+-					Regalloc(&n5, t, nil)
+-					Thearch.Gmove(&nlen, &n5)
+-					Regfree(&nlen)
+-					nlen = n5
+-				}
++				// nlen already initialized
+ 			} else {
+ 				Nodconst(&nlen, t, nl.Type.Bound)
+-				if !Smallintconst(&nlen) {
+-					var n5 Node
+-					Regalloc(&n5, t, nil)
+-					Thearch.Gmove(&nlen, &n5)
+-					nlen = n5
+-					freelen = 1
+-				}
+ 			}
+ 
+-			Thearch.Gins(Thearch.Optoas(OCMP, t), &n2, &nlen)
+-			p1 := Gbranch(Thearch.Optoas(OLT, t), nil, +1)
++			p1 := Thearch.Ginscmp(OLT, t, &n2, &nlen, +1)
+ 			Ginscall(Panicindex, -1)
+ 			Patch(p1, Pc)
+ 		}
+@@ -2446,8 +2390,7 @@ func Ginscall(f *Node, proc int) {
+ 
+ 		if proc == 2 {
+ 			Nodreg(&reg, Types[TINT32], Thearch.REGRETURN)
+-			Thearch.Gins(Thearch.Optoas(OCMP, Types[TINT32]), &reg, Nodintconst(0))
+-			p := Gbranch(Thearch.Optoas(OEQ, Types[TINT32]), nil, +1)
++			p := Thearch.Ginscmp(OEQ, Types[TINT32], &reg, Nodintconst(0), +1)
+ 			cgen_ret(nil)
+ 			Patch(p, Pc)
+ 		}
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/internal/gc/gen.go
+index e6af897033..76e9a82392 100644
+--- a/src/cmd/internal/gc/gen.go
++++ b/src/cmd/internal/gc/gen.go
+@@ -428,8 +428,7 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
+ 	Cgen(&iface, &r1)
+ 	if !isnilinter(n.Left.Type) {
+ 		// Holding itab, want concrete type in second word.
+-		Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, Nodintconst(0))
+-		p := Gbranch(Thearch.Optoas(OEQ, byteptr), nil, -1)
++		p := Thearch.Ginscmp(OEQ, byteptr, &r1, Nodintconst(0), -1)
+ 		r2 = r1
+ 		r2.Op = OINDREG
+ 		r2.Xoffset = int64(Widthptr)
+@@ -438,8 +437,7 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
+ 	}
+ 	Regalloc(&r2, byteptr, nil)
+ 	Cgen(typename(n.Type), &r2)
+-	Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, &r2)
+-	p := Gbranch(Thearch.Optoas(ONE, byteptr), nil, -1)
++	p := Thearch.Ginscmp(ONE, byteptr, &r1, &r2, -1)
+ 	Regfree(&r2) // not needed for success path; reclaimed on one failure path
+ 	iface.Xoffset += int64(Widthptr)
+ 	Cgen(&iface, &r1)
+@@ -521,8 +519,7 @@ func Cgen_As2dottype(n, res, resok *Node) {
+ 	Cgen(&iface, &r1)
+ 	if !isnilinter(n.Left.Type) {
+ 		// Holding itab, want concrete type in second word.
+-		Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, Nodintconst(0))
+-		p := Gbranch(Thearch.Optoas(OEQ, byteptr), nil, -1)
++		p := Thearch.Ginscmp(OEQ, byteptr, &r1, Nodintconst(0), -1)
+ 		r2 = r1
+ 		r2.Op = OINDREG
+ 		r2.Xoffset = int64(Widthptr)
+@@ -531,8 +528,7 @@ func Cgen_As2dottype(n, res, resok *Node) {
+ 	}
+ 	Regalloc(&r2, byteptr, nil)
+ 	Cgen(typename(n.Type), &r2)
+-	Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, &r2)
+-	p := Gbranch(Thearch.Optoas(ONE, byteptr), nil, -1)
++	p := Thearch.Ginscmp(ONE, byteptr, &r1, &r2, -1)
+ 	iface.Type = n.Type
+ 	iface.Xoffset += int64(Widthptr)
+ 	Cgen(&iface, &r1)
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 71bce0bf2c..404dcbb4ff 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -778,13 +778,26 @@ type Arch struct {
+ 	Expandchecks func(*obj.Prog)
+ 	Getg         func(*Node)
+ 	Gins         func(int, *Node, *Node) *obj.Prog
++
++	// Ginscmp generates code comparing n1 to n2 and jumping away if op is satisfied.
++	// The returned prog should be Patch'ed with the jump target.
++	// If op is not satisfied, code falls through to the next emitted instruction.
++	// Likely is the branch prediction hint: +1 for likely, -1 for unlikely, 0 for no opinion.
++	//
++	// Ginscmp must be able to handle all kinds of arguments for n1 and n2,
++	// not just simple registers, although it can assume that there are no
++	// function calls needed during the evaluation, so no in-memory temporaries
++	// are necessary.
++	Ginscmp func(op int, t *Type, n1, n2 *Node, likely int) *obj.Prog
++
+ 	// Ginsboolval inserts instructions to convert the result
+ 	// of a just-completed comparison to a boolean value.
+ 	// The first argument is the conditional jump instruction
+ 	// corresponding to the desired value.
+ 	// The second argument is the destination.
+ 	// If not present, Ginsboolval will be emulated with jumps.
+-	Ginsboolval  func(int, *Node)
++	Ginsboolval func(int, *Node)
++
+ 	Ginscon      func(int, int64, *Node)
+ 	Ginsnop      func()
+ 	Gmove        func(*Node, *Node)

@@ -13,6 +13,22 @@ Date:   Mon Sep 13 16:23:28 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/location.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/location.go b/src/cmd/compile/internal/ssa/location.go
+index 252c47cdeb..b575febd72 100644
+--- a/src/cmd/compile/internal/ssa/location.go
++++ b/src/cmd/compile/internal/ssa/location.go
+@@ -91,8 +91,8 @@ func (t LocPair) String() string {
+ type LocResults []Location
+ 
+ func (t LocResults) String() string {
+-	s := "<"
+-	a := ""
++	s := ""
++	a := "<"
+ 	for _, r := range t {
+ 		a += s
+ 		s = ","

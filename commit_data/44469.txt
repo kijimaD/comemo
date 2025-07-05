@@ -75,3 +75,110 @@ Date:   Fri Jul 10 14:54:13 2020 -0400
  .../golang.org/x/net/dns/dnsmessage/message.go     |    3 +-
  src/vendor/modules.txt                             |    4 +-
  67 files changed, 1209 insertions(+), 679 deletions(-)
+
+diff --cc src/cmd/link/internal/ld/lib.go
+index 02ae26ec8d,b0a9613e4f..4121124eb0
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@@ -97,38 -100,78 +97,40 @@@ import 
+  // relocation.  Rather than allowing them universal access to all symbols,
+  // we keep a subset for relocation application.
+  type ArchSyms struct {
+ -	TOC    *sym.Symbol
+ -	DotTOC []*sym.Symbol // for each version
+ -
+ -	GOT    *sym.Symbol
+ -	PLT    *sym.Symbol
+ -	GOTPLT *sym.Symbol
+ -
+ -	Tlsg      *sym.Symbol
+ -	Tlsoffset int
+ -
+ -	Dynamic *sym.Symbol
+ -	DynSym  *sym.Symbol
+ -	DynStr  *sym.Symbol
+ -
+ -	// Elf specific
+ -	Rel     *sym.Symbol
+ -	Rela    *sym.Symbol
+ -	RelPLT  *sym.Symbol
+ -	RelaPLT *sym.Symbol
+ +	Rel     loader.Sym
+ +	Rela    loader.Sym
+ +	RelPLT  loader.Sym
+ +	RelaPLT loader.Sym
+  
+ -	// Darwin symbols
+ -	LinkEditGOT *sym.Symbol
+ -	LinkEditPLT *sym.Symbol
+ +	LinkEditGOT loader.Sym
+ +	LinkEditPLT loader.Sym
+  
+ -	// ----- loader.Sym equivalents -----
+ +	TOC    loader.Sym
+ +	DotTOC []loader.Sym // for each version
+  
+ -	Rel2     loader.Sym
+ -	Rela2    loader.Sym
+ -	RelPLT2  loader.Sym
+ -	RelaPLT2 loader.Sym
+ +	GOT    loader.Sym
+ +	PLT    loader.Sym
+ +	GOTPLT loader.Sym
+  
+ -	LinkEditGOT2 loader.Sym
+ -	LinkEditPLT2 loader.Sym
+ -
+ -	TOC2    loader.Sym
+ -	DotTOC2 []loader.Sym // for each version
+ -
+ -	GOT2    loader.Sym
+ -	PLT2    loader.Sym
+ -	GOTPLT2 loader.Sym
+ -
+ -	Tlsg2 loader.Sym
+ +	Tlsg      loader.Sym
+ +	Tlsoffset int
+  
+ -	Dynamic2 loader.Sym
+ -	DynSym2  loader.Sym
+ -	DynStr2  loader.Sym
+ +	Dynamic loader.Sym
+ +	DynSym  loader.Sym
+ +	DynStr  loader.Sym
+  }
+  
+ -const BeforeLoadlibFull = 1
+ -const AfterLoadlibFull = 2
+ -
+ -// mkArchSym is a helper for setArchSyms, invoked once before loadlibfull
+ -// and once after. On the first call it creates a loader.Sym with the
+ -// specified name, and on the second call a corresponding sym.Symbol.
+ -func (ctxt *Link) mkArchSym(which int, name string, ver int, ls *loader.Sym, ss **sym.Symbol) {
+ -	if which == BeforeLoadlibFull {
+ -		*ls = ctxt.loader.LookupOrCreateSym(name, ver)
+ -		ctxt.loader.SetAttrReachable(*ls, true)
+ -	} else {
+ -		*ss = ctxt.loader.Syms[*ls]
+ -	}
+ +// mkArchSym is a helper for setArchSyms, to set up a special symbol.
+ +func (ctxt *Link) mkArchSym(name string, ver int, ls *loader.Sym) {
+ +	*ls = ctxt.loader.LookupOrCreateSym(name, ver)
+++	ctxt.loader.SetAttrReachable(*ls, true)
+  }
+  
+  // mkArchVecSym is similar to  setArchSyms, but operates on elements within
+  // a slice, where each element corresponds to some symbol version.
+ -func (ctxt *Link) mkArchSymVec(which int, name string, ver int, ls []loader.Sym, ss []*sym.Symbol) {
+ -	if which == BeforeLoadlibFull {
+ -		ls[ver] = ctxt.loader.LookupOrCreateSym(name, ver)
+ -		ctxt.loader.SetAttrReachable(ls[ver], true)
+ -	} else if ls[ver] != 0 {
+ -		ss[ver] = ctxt.loader.Syms[ls[ver]]
+ -	}
+ +func (ctxt *Link) mkArchSymVec(name string, ver int, ls []loader.Sym) {
+ +	ls[ver] = ctxt.loader.LookupOrCreateSym(name, ver)
+++	ctxt.loader.SetAttrReachable(ls[ver], true)
+  }
+  
+  // setArchSyms sets up the ArchSyms structure, and must be called before

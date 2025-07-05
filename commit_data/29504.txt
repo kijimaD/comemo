@@ -13,7 +13,7 @@ Date:   Fri Sep 16 13:50:18 2016 -0700
     Change-Id: I9b5b58af06830bd120afbee9cfab395a0a2f74b2
     Reviewed-on: https://go-review.googlesource.com/29356
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/block.go         |  3 ++
  src/cmd/compile/internal/ssa/check.go         |  3 +-
  src/cmd/compile/internal/ssa/compile.go       |  7 ----
@@ -33,3 +33,539 @@ Date:   Fri Sep 16 13:50:18 2016 -0700
  src/cmd/compile/internal/ssa/sparsetreemap.go |  2 +-
  src/cmd/compile/internal/ssa/stackalloc.go    |  2 +-
  18 files changed, 83 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 49c1304057..b5bedd3912 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -144,6 +144,7 @@ func (b *Block) AddEdgeTo(c *Block) {
+ 	j := len(c.Preds)
+ 	b.Succs = append(b.Succs, Edge{c, j})
+ 	c.Preds = append(c.Preds, Edge{b, i})
++	b.Func.invalidateCFG()
+ }
+ 
+ // removePred removes the ith input edge from b.
+@@ -159,6 +160,7 @@ func (b *Block) removePred(i int) {
+ 	}
+ 	b.Preds[n] = Edge{}
+ 	b.Preds = b.Preds[:n]
++	b.Func.invalidateCFG()
+ }
+ 
+ // removeSucc removes the ith output edge from b.
+@@ -174,6 +176,7 @@ func (b *Block) removeSucc(i int) {
+ 	}
+ 	b.Succs[n] = Edge{}
+ 	b.Succs = b.Succs[:n]
++	b.Func.invalidateCFG()
+ }
+ 
+ func (b *Block) swapSuccessors() {
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 38cf581497..74b8dd5561 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -255,8 +255,7 @@ func checkFunc(f *Func) {
+ 	if f.RegAlloc == nil {
+ 		// Note: regalloc introduces non-dominating args.
+ 		// See TODO in regalloc.go.
+-		idom := dominators(f)
+-		sdom := newSparseTree(f, idom)
++		sdom := f.sdom()
+ 		for _, b := range f.Blocks {
+ 			for _, v := range b.Values {
+ 				for i, arg := range v.Args {
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 30d8eea1eb..e0a04c35ad 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -250,7 +250,6 @@ var passes = [...]pass{
+ 	{name: "opt", fn: opt, required: true},               // TODO: split required rules and optimizing rules
+ 	{name: "zero arg cse", fn: zcse, required: true},     // required to merge OpSB values
+ 	{name: "opt deadcode", fn: deadcode, required: true}, // remove any blocks orphaned during opt
+-	{name: "generic domtree", fn: domTree},
+ 	{name: "generic cse", fn: cse},
+ 	{name: "phiopt", fn: phiopt},
+ 	{name: "nilcheckelim", fn: nilcheckelim},
+@@ -308,12 +307,6 @@ var passOrder = [...]constraint{
+ 	{"opt", "nilcheckelim"},
+ 	// tighten should happen before lowering to avoid splitting naturally paired instructions such as CMP/SET
+ 	{"tighten", "lower"},
+-	// cse, phiopt, nilcheckelim, prove and loopbce share idom.
+-	{"generic domtree", "generic cse"},
+-	{"generic domtree", "phiopt"},
+-	{"generic domtree", "nilcheckelim"},
+-	{"generic domtree", "prove"},
+-	{"generic domtree", "loopbce"},
+ 	// tighten will be most effective when as many values have been removed as possible
+ 	{"generic deadcode", "tighten"},
+ 	{"generic cse", "tighten"},
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index c0ddc83681..795950e75d 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -131,13 +131,13 @@ func cse(f *Func) {
+ 		}
+ 	}
+ 
+-	// Dominator tree (f.sdom) is computed by the generic domtree pass.
++	sdom := f.sdom()
+ 
+ 	// Compute substitutions we would like to do. We substitute v for w
+ 	// if v and w are in the same equivalence class and v dominates w.
+ 	rewrite := make([]*Value, f.NumValues())
+ 	for _, e := range partition {
+-		sort.Sort(partitionByDom{e, f.sdom})
++		sort.Sort(partitionByDom{e, sdom})
+ 		for i := 0; i < len(e)-1; i++ {
+ 			// e is sorted by domorder, so a maximal dominant element is first in the slice
+ 			v := e[i]
+@@ -152,7 +152,7 @@ func cse(f *Func) {
+ 				if w == nil {
+ 					continue
+ 				}
+-				if f.sdom.isAncestorEq(v.Block, w.Block) {
++				if sdom.isAncestorEq(v.Block, w.Block) {
+ 					rewrite[w.ID] = v
+ 					e[j] = nil
+ 				} else {
+diff --git a/src/cmd/compile/internal/ssa/cse_test.go b/src/cmd/compile/internal/ssa/cse_test.go
+index d5be2b52ec..905939fc32 100644
+--- a/src/cmd/compile/internal/ssa/cse_test.go
++++ b/src/cmd/compile/internal/ssa/cse_test.go
+@@ -44,7 +44,6 @@ func TestCSEAuxPartitionBug(t *testing.T) {
+ 			Exit("rstore")))
+ 
+ 	CheckFunc(fun.f)
+-	domTree(fun.f)
+ 	cse(fun.f)
+ 	deadcode(fun.f)
+ 	CheckFunc(fun.f)
+diff --git a/src/cmd/compile/internal/ssa/dom.go b/src/cmd/compile/internal/ssa/dom.go
+index 0c532c87ff..4790e3383a 100644
+--- a/src/cmd/compile/internal/ssa/dom.go
++++ b/src/cmd/compile/internal/ssa/dom.go
+@@ -247,7 +247,7 @@ func dominatorsSimple(f *Func) []*Block {
+ 	idom := make([]*Block, f.NumBlocks())
+ 
+ 	// Compute postorder walk
+-	post := postorder(f)
++	post := f.postorder()
+ 
+ 	// Make map from block id to order index (for intersect call)
+ 	postnum := make([]int, f.NumBlocks())
+@@ -306,9 +306,3 @@ func intersect(b, c *Block, postnum []int, idom []*Block) *Block {
+ 	}
+ 	return b
+ }
+-
+-// build immediate dominators.
+-func domTree(f *Func) {
+-	f.idom = dominators(f)
+-	f.sdom = newSparseTree(f, f.idom)
+-}
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+index 5d1ced42b4..24b6a0ec89 100644
+--- a/src/cmd/compile/internal/ssa/flagalloc.go
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -11,14 +11,10 @@ func flagalloc(f *Func) {
+ 	// Compute the in-register flag value we want at the end of
+ 	// each block. This is basically a best-effort live variable
+ 	// analysis, so it can be much simpler than a full analysis.
+-	// TODO: do we really need to keep flag values live across blocks?
+-	// Could we force the flags register to be unused at basic block
+-	// boundaries?  Then we wouldn't need this computation.
+ 	end := make([]*Value, f.NumBlocks())
++	po := f.postorder()
+ 	for n := 0; n < 2; n++ {
+-		// Walk blocks backwards. Poor-man's postorder traversal.
+-		for i := len(f.Blocks) - 1; i >= 0; i-- {
+-			b := f.Blocks[i]
++		for _, b := range po {
+ 			// Walk values backwards to figure out what flag
+ 			// value we want in the flag register at the start
+ 			// of the block.
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index ff332ef867..759e19d8e6 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -36,8 +36,10 @@ type Func struct {
+ 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
+ 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
+ 
+-	idom []*Block   // precomputed immediate dominators
+-	sdom SparseTree // precomputed dominator tree
++	cachedPostorder []*Block   // cached postorder traversal
++	cachedIdom      []*Block   // cached immediate dominators
++	cachedSdom      SparseTree // cached dominator tree
++	cachedLoopnest  *loopnest  // cached loop nest information
+ 
+ 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
+ }
+@@ -166,6 +168,7 @@ func (f *Func) NewBlock(kind BlockKind) *Block {
+ 	b.Succs = b.succstorage[:0]
+ 	b.Values = b.valstorage[:0]
+ 	f.Blocks = append(f.Blocks, b)
++	f.invalidateCFG()
+ 	return b
+ }
+ 
+@@ -409,6 +412,9 @@ func (f *Func) Log() bool                              { return f.Config.Log() }
+ func (f *Func) Fatalf(msg string, args ...interface{}) { f.Config.Fatalf(f.Entry.Line, msg, args...) }
+ 
+ func (f *Func) Free() {
++	// Clear cached CFG info.
++	f.invalidateCFG()
++
+ 	// Clear values.
+ 	n := f.vid.num()
+ 	if n > len(f.Config.values) {
+@@ -436,3 +442,45 @@ func (f *Func) Free() {
+ 	f.Config.curFunc = nil
+ 	*f = Func{} // just in case
+ }
++
++// postorder returns the reachable blocks in f in a postorder traversal.
++func (f *Func) postorder() []*Block {
++	if f.cachedPostorder == nil {
++		f.cachedPostorder = postorder(f)
++	}
++	return f.cachedPostorder
++}
++
++// idom returns a map from block ID to the immediate dominator of that block.
++// f.Entry.ID maps to nil. Unreachable blocks map to nil as well.
++func (f *Func) idom() []*Block {
++	if f.cachedIdom == nil {
++		f.cachedIdom = dominators(f)
++	}
++	return f.cachedIdom
++}
++
++// sdom returns a sparse tree representing the dominator relationships
++// among the blocks of f.
++func (f *Func) sdom() SparseTree {
++	if f.cachedSdom == nil {
++		f.cachedSdom = newSparseTree(f, f.idom())
++	}
++	return f.cachedSdom
++}
++
++// loopnest returns the loop nest information for f.
++func (f *Func) loopnest() *loopnest {
++	if f.cachedLoopnest == nil {
++		f.cachedLoopnest = loopnestfor(f)
++	}
++	return f.cachedLoopnest
++}
++
++// invalidateCFG tells f that its CFG has changed.
++func (f *Func) invalidateCFG() {
++	f.cachedPostorder = nil
++	f.cachedIdom = nil
++	f.cachedSdom = nil
++	f.cachedLoopnest = nil
++}
+diff --git a/src/cmd/compile/internal/ssa/likelyadjust.go b/src/cmd/compile/internal/ssa/likelyadjust.go
+index 2c3e02bd30..38a5e81f91 100644
+--- a/src/cmd/compile/internal/ssa/likelyadjust.go
++++ b/src/cmd/compile/internal/ssa/likelyadjust.go
+@@ -120,8 +120,8 @@ func likelyadjust(f *Func) {
+ 	certain := make([]int8, f.NumBlocks()) // In the long run, all outcomes are at least this bad. Mainly for Exit
+ 	local := make([]int8, f.NumBlocks())   // for our immediate predecessors.
+ 
+-	nest := loopnestfor(f)
+-	po := nest.po
++	po := f.postorder()
++	nest := f.loopnest()
+ 	b2l := nest.b2l
+ 
+ 	for _, b := range po {
+@@ -260,9 +260,8 @@ func (l *loop) nearestOuterLoop(sdom SparseTree, b *Block) *loop {
+ }
+ 
+ func loopnestfor(f *Func) *loopnest {
+-	po := postorder(f)
+-	dom := dominators(f)
+-	sdom := newSparseTree(f, dom)
++	po := f.postorder()
++	sdom := f.sdom()
+ 	b2l := make([]*loop, f.NumBlocks())
+ 	loops := make([]*loop, 0)
+ 
+diff --git a/src/cmd/compile/internal/ssa/loopbce.go b/src/cmd/compile/internal/ssa/loopbce.go
+index e94781b5b6..14d8834d7d 100644
+--- a/src/cmd/compile/internal/ssa/loopbce.go
++++ b/src/cmd/compile/internal/ssa/loopbce.go
+@@ -33,6 +33,7 @@ type indVar struct {
+ // TODO: handle 32 bit operations
+ func findIndVar(f *Func) []indVar {
+ 	var iv []indVar
++	sdom := f.sdom()
+ 
+ nextb:
+ 	for _, b := range f.Blocks {
+@@ -110,7 +111,7 @@ nextb:
+ 
+ 		// Second condition: b.Succs[entry] dominates nxt so that
+ 		// nxt is computed when inc < max, meaning nxt <= max.
+-		if !f.sdom.isAncestorEq(b.Succs[entry].b, nxt.Block) {
++		if !sdom.isAncestorEq(b.Succs[entry].b, nxt.Block) {
+ 			// inc+ind can only be reached through the branch that enters the loop.
+ 			continue
+ 		}
+@@ -172,6 +173,7 @@ func loopbce(f *Func) {
+ 
+ // removesBoundsChecks remove IsInBounds and IsSliceInBounds based on the induction variables.
+ func removeBoundsChecks(f *Func, m map[*Value]indVar) {
++	sdom := f.sdom()
+ 	for _, b := range f.Blocks {
+ 		if b.Kind != BlockIf {
+ 			continue
+@@ -200,7 +202,7 @@ func removeBoundsChecks(f *Func, m map[*Value]indVar) {
+ 				goto skip1
+ 			}
+ 
+-			if iv, has := m[ind]; has && f.sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
++			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
+ 				if v.Args[1] == iv.max {
+ 					if f.pass.debug > 0 {
+ 						f.Config.Warnl(b.Line, "Found redundant %s", v.Op)
+@@ -227,7 +229,7 @@ func removeBoundsChecks(f *Func, m map[*Value]indVar) {
+ 				goto skip2
+ 			}
+ 
+-			if iv, has := m[ind]; has && f.sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
++			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
+ 				if v.Args[1].Op == OpSliceCap && iv.max.Op == OpSliceLen && v.Args[1].Args[0] == iv.max.Args[0] {
+ 					if f.pass.debug > 0 {
+ 						f.Config.Warnl(b.Line, "Found redundant %s (len promoted to cap)", v.Op)
+@@ -248,7 +250,7 @@ func removeBoundsChecks(f *Func, m map[*Value]indVar) {
+ 			}
+ 
+ 			// ind + add >= 0 <-> min + add >= 0 <-> min >= -add
+-			if iv, has := m[ind]; has && f.sdom.isAncestorEq(iv.entry, b) && isGreaterOrEqualThan(iv.min, -add) {
++			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isGreaterOrEqualThan(iv.min, -add) {
+ 				if !v.Args[1].isGenericIntConst() || !iv.max.isGenericIntConst() {
+ 					goto skip3
+ 				}
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index d893a9abb0..dd94611e37 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -10,7 +10,7 @@ func nilcheckelim(f *Func) {
+ 	// A nil check is redundant if the same nil check was successful in a
+ 	// dominating block. The efficacy of this pass depends heavily on the
+ 	// efficacy of the cse pass.
+-	idom := f.idom
++	idom := f.idom()
+ 	domTree := make([][]*Block, f.NumBlocks())
+ 
+ 	// Create a block ID -> [dominees] mapping
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index af6cbe864a..f12c68cf19 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -49,7 +49,6 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
+ 	b.ReportAllocs()
+ 
+ 	for i := 0; i < b.N; i++ {
+-		domTree(fun.f)
+ 		nilcheckelim(fun.f)
+ 	}
+ }
+@@ -84,7 +83,6 @@ func TestNilcheckSimple(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
+-	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -122,7 +120,6 @@ func TestNilcheckDomOrder(t *testing.T) {
+ 			Goto("exit")))
+ 
+ 	CheckFunc(fun.f)
+-	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -156,7 +153,6 @@ func TestNilcheckAddr(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
+-	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -191,7 +187,6 @@ func TestNilcheckAddPtr(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
+-	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -236,7 +231,6 @@ func TestNilcheckPhi(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
+-	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -278,7 +272,6 @@ func TestNilcheckKeepRemove(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
+-	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -326,7 +319,6 @@ func TestNilcheckInFalseBranch(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
+-	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -378,7 +370,6 @@ func TestNilcheckUser(t *testing.T) {
+ 	CheckFunc(fun.f)
+ 	// we need the opt here to rewrite the user nilcheck
+ 	opt(fun.f)
+-	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -423,7 +414,6 @@ func TestNilcheckBug(t *testing.T) {
+ 	CheckFunc(fun.f)
+ 	// we need the opt here to rewrite the user nilcheck
+ 	opt(fun.f)
+-	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+diff --git a/src/cmd/compile/internal/ssa/passbm_test.go b/src/cmd/compile/internal/ssa/passbm_test.go
+index 87069abc3b..e4bb0b8eb6 100644
+--- a/src/cmd/compile/internal/ssa/passbm_test.go
++++ b/src/cmd/compile/internal/ssa/passbm_test.go
+@@ -35,7 +35,6 @@ func benchFnPass(b *testing.B, fn passFunc, size int, bg blockGen) {
+ 	b.ReportAllocs()
+ 	c := NewConfig("amd64", DummyFrontend{b}, nil, true)
+ 	fun := Fun(c, "entry", bg(size)...)
+-	domTree(fun.f)
+ 	CheckFunc(fun.f)
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+@@ -51,7 +50,6 @@ func benchFnBlock(b *testing.B, fn passFunc, bg blockGen) {
+ 	b.ReportAllocs()
+ 	c := NewConfig("amd64", DummyFrontend{b}, nil, true)
+ 	fun := Fun(c, "entry", bg(b.N)...)
+-	domTree(fun.f)
+ 	CheckFunc(fun.f)
+ 	b.ResetTimer()
+ 	for i := 0; i < passCount; i++ {
+diff --git a/src/cmd/compile/internal/ssa/phiopt.go b/src/cmd/compile/internal/ssa/phiopt.go
+index fd40eb593e..3e9f195d81 100644
+--- a/src/cmd/compile/internal/ssa/phiopt.go
++++ b/src/cmd/compile/internal/ssa/phiopt.go
+@@ -24,6 +24,7 @@ package ssa
+ //
+ // In this case we can replace x with a copy of b.
+ func phiopt(f *Func) {
++	sdom := f.sdom()
+ 	for _, b := range f.Blocks {
+ 		if len(b.Preds) != 2 || len(b.Values) == 0 {
+ 			// TODO: handle more than 2 predecessors, e.g. a || b || c.
+@@ -92,7 +93,7 @@ func phiopt(f *Func) {
+ 			// value is always computed. This guarantees that the side effects
+ 			// of value are not seen if a is false.
+ 			if v.Args[reverse].Op == OpConstBool && v.Args[reverse].AuxInt == 1 {
+-				if tmp := v.Args[1-reverse]; f.sdom.isAncestorEq(tmp.Block, b) {
++				if tmp := v.Args[1-reverse]; sdom.isAncestorEq(tmp.Block, b) {
+ 					v.reset(OpOrB)
+ 					v.SetArgs2(b0.Control, tmp)
+ 					if f.pass.debug > 0 {
+@@ -108,7 +109,7 @@ func phiopt(f *Func) {
+ 			// value is always computed. This guarantees that the side effects
+ 			// of value are not seen if a is false.
+ 			if v.Args[1-reverse].Op == OpConstBool && v.Args[1-reverse].AuxInt == 0 {
+-				if tmp := v.Args[reverse]; f.sdom.isAncestorEq(tmp.Block, b) {
++				if tmp := v.Args[reverse]; sdom.isAncestorEq(tmp.Block, b) {
+ 					v.reset(OpAndB)
+ 					v.SetArgs2(b0.Control, tmp)
+ 					if f.pass.debug > 0 {
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 4416fa2cf3..659d38ede8 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -463,13 +463,15 @@ func prove(f *Func) {
+ 	})
+ 
+ 	ft := newFactsTable()
++	idom := f.idom()
++	sdom := f.sdom()
+ 
+ 	// DFS on the dominator tree.
+ 	for len(work) > 0 {
+ 		node := work[len(work)-1]
+ 		work = work[:len(work)-1]
+-		parent := f.idom[node.block.ID]
+-		branch := getBranch(f.sdom, parent, node.block)
++		parent := idom[node.block.ID]
++		branch := getBranch(sdom, parent, node.block)
+ 
+ 		switch node.state {
+ 		case descend:
+@@ -488,7 +490,7 @@ func prove(f *Func) {
+ 				block: node.block,
+ 				state: simplify,
+ 			})
+-			for s := f.sdom.Child(node.block); s != nil; s = f.sdom.Sibling(s) {
++			for s := sdom.Child(node.block); s != nil; s = sdom.Sibling(s) {
+ 				work = append(work, bp{
+ 					block: s,
+ 					state: descend,
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index db07d083d6..cd4fd2c854 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -2195,8 +2195,8 @@ func (s *regAllocState) computeLive() {
+ 	// Walk the dominator tree from end to beginning, just once, treating SCC
+ 	// components as single blocks, duplicated calculated liveness information
+ 	// out to all of them.
+-	s.loopnest = loopnestfor(f)
+-	po := s.loopnest.po
++	po := f.postorder()
++	s.loopnest = f.loopnest()
+ 	for {
+ 		changed := false
+ 
+diff --git a/src/cmd/compile/internal/ssa/sparsetreemap.go b/src/cmd/compile/internal/ssa/sparsetreemap.go
+index 3e6f296796..b7624ada55 100644
+--- a/src/cmd/compile/internal/ssa/sparsetreemap.go
++++ b/src/cmd/compile/internal/ssa/sparsetreemap.go
+@@ -57,7 +57,7 @@ type SparseTreeHelper struct {
+ // NewSparseTreeHelper returns a SparseTreeHelper for use
+ // in the gc package, for example in phi-function placement.
+ func NewSparseTreeHelper(f *Func) *SparseTreeHelper {
+-	dom := dominators(f)
++	dom := f.idom()
+ 	ponums := make([]int32, f.NumBlocks())
+ 	po := postorderWithNumbering(f, ponums)
+ 	return makeSparseTreeHelper(newSparseTree(f, dom), dom, po, ponums)
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 83f65d093b..dc2fd7d33b 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -273,7 +273,7 @@ func (s *stackAllocState) computeLive(spillLive [][]ID) {
+ 	// Instead of iterating over f.Blocks, iterate over their postordering.
+ 	// Liveness information flows backward, so starting at the end
+ 	// increases the probability that we will stabilize quickly.
+-	po := postorder(s.f)
++	po := s.f.postorder()
+ 	for {
+ 		changed := false
+ 		for _, b := range po {

@@ -12,9 +12,75 @@ Date:   Tue Jul 25 21:44:11 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os_linux.go        |  2 ++
  src/runtime/stubs.go           |  1 -
  src/runtime/sys_darwin_arm.s   | 10 ----------
  src/runtime/sys_darwin_arm64.s |  1 -
  4 files changed, 2 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 78899737b6..dac4de4985 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -193,6 +193,8 @@ const (
+ 
+ var procAuxv = []byte("/proc/self/auxv\x00")
+ 
++func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
++
+ func sysargs(argc int32, argv **byte) {
+ 	n := argc + 1
+ 
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index d9a7aa0966..e1f43a5cf0 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -131,7 +131,6 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
+ func cgocallback(fn, frame unsafe.Pointer, framesize, ctxt uintptr)
+ func gogo(buf *gobuf)
+ func gosave(buf *gobuf)
+-func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
+ 
+ //go:noescape
+ func jmpdefer(fv *funcval, argp uintptr)
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index ea559b5f3e..5def7766b0 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -19,7 +19,6 @@
+ #define	SYS_mmap           197
+ #define	SYS_munmap         73
+ #define	SYS_madvise        75
+-#define	SYS_mincore        78
+ #define	SYS_gettimeofday   116
+ #define	SYS_kill           37
+ #define	SYS_getpid         20
+@@ -150,15 +149,6 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
+ 	SWI	$0x80
+ 	RET
+ 
+-TEXT runtime·mincore(SB),NOSPLIT,$0
+-	MOVW	addr+0(FP), R0
+-	MOVW	n+4(FP), R1
+-	MOVW	dst+8(FP), R2
+-	MOVW	$SYS_mincore, R12
+-	SWI	$0x80
+-	MOVW	R0, ret+12(FP)
+-	RET
+-
+ TEXT runtime·walltime(SB), 7, $32
+ 	MOVW	$8(R13), R0  // timeval
+ 	MOVW	$0, R1  // zone
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index 0e91d5bd10..34fb1f3086 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -19,7 +19,6 @@
+ #define	SYS_mmap           197
+ #define	SYS_munmap         73
+ #define	SYS_madvise        75
+-#define	SYS_mincore        78
+ #define	SYS_gettimeofday   116
+ #define	SYS_kill           37
+ #define	SYS_getpid         20

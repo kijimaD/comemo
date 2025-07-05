@@ -7,6 +7,51 @@ Date:   Fri Feb 27 19:54:09 2015 -0500
     Change-Id: Iee25f4b0a31ece0aae79c68aec809e1e4308f865
     Reviewed-on: https://go-review.googlesource.com/6311
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/file_darwin_arm.go | 38 ++++++++++++++++++++++++++++++++++++++
  1 file changed, 38 insertions(+)
+
+diff --git a/src/os/file_darwin_arm.go b/src/os/file_darwin_arm.go
+new file mode 100644
+index 0000000000..6304c39c96
+--- /dev/null
++++ b/src/os/file_darwin_arm.go
+@@ -0,0 +1,38 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++/*
++#cgo CFLAGS: -x objective-c
++#cgo LDFLAGS: -framework CoreFoundation -framework Foundation
++
++#include <sys/param.h>
++#include <CoreFoundation/CFString.h>
++#include <Foundation/NSPathUtilities.h>
++
++char tmpdir[MAXPATHLEN];
++
++char* loadtmpdir() {
++	tmpdir[0] = 0;
++	CFStringRef path = (CFStringRef)NSTemporaryDirectory();
++	CFStringGetCString(path, tmpdir, sizeof(tmpdir), kCFStringEncodingUTF8);
++	return tmpdir;
++}
++*/
++import "C"
++
++func init() {
++	if Getenv("TEMPDIR") != "" {
++		return
++	}
++	dir := C.GoString(C.loadtmpdir())
++	if len(dir) == 0 {
++		return
++	}
++	if dir[len(dir)-1] == '/' {
++		dir = dir[:len(dir)-1]
++	}
++	Setenv("TMPDIR", dir)
++}

@@ -9,6 +9,21 @@ Date:   Mon May 3 13:17:04 2021 +0930
     Trust: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Trust: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-
+---
  src/crypto/subtle/constant_time.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/subtle/constant_time.go b/src/crypto/subtle/constant_time.go
+index 7c3cf05c46..4e0527f9d5 100644
+--- a/src/crypto/subtle/constant_time.go
++++ b/src/crypto/subtle/constant_time.go
+@@ -8,7 +8,8 @@ package subtle
+ 
+ // ConstantTimeCompare returns 1 if the two slices, x and y, have equal contents
+ // and 0 otherwise. The time taken is a function of the length of the slices and
+-// is independent of the contents.
++// is independent of the contents. If the lengths of x and y do not match it
++// returns 0 immediately.
+ func ConstantTimeCompare(x, y []byte) int {
+ 	if len(x) != len(y) {
+ 		return 0

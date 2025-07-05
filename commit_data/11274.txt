@@ -7,8 +7,81 @@ Date:   Thu Jan 19 20:15:55 2012 -0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5542052
-
+---
  src/pkg/encoding/xml/marshal_test.go | 17 +++++++++++++++++
  src/pkg/encoding/xml/read.go         |  4 ++++
  src/pkg/encoding/xml/typeinfo.go     |  4 +++-
  3 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index bec53761e1..f23b2cb7e0 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -150,6 +150,10 @@ type XMLNameWithoutTag struct {
+ 	Value   string ",chardata"
+ }
+ 
++type NameInField struct {
++	Foo Name `xml:"ns foo"`
++}
++
+ type AttrTest struct {
+ 	Int   int     `xml:",attr"`
+ 	Lower int     `xml:"int,attr"`
+@@ -483,6 +487,19 @@ var marshalTests = []struct {
+ 		UnmarshalOnly: true,
+ 	},
+ 
++	// xml.Name works in a plain field as well.
++	{
++		Value:     &NameInField{Name{Space: "ns", Local: "foo"}},
++		ExpectXML: `<NameInField><foo xmlns="ns"></foo></NameInField>`,
++	},
++
++	// Marshaling zero xml.Name uses the tag or field name.
++	{
++		Value:       &NameInField{},
++		ExpectXML:   `<NameInField><foo xmlns="ns"></foo></NameInField>`,
++		MarshalOnly: true,
++	},
++
+ 	// Test attributes
+ 	{
+ 		Value: &AttrTest{
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index dde68de3e7..4419ed1e47 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -271,6 +271,10 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) error {
+ 	case reflect.Struct:
+ 		sv = v
+ 		typ := sv.Type()
++		if typ == nameType {
++			v.Set(reflect.ValueOf(start.Name))
++			break
++		}
+ 		tinfo, err = getTypeInfo(typ)
+ 		if err != nil {
+ 			return err
+diff --git a/src/pkg/encoding/xml/typeinfo.go b/src/pkg/encoding/xml/typeinfo.go
+index 8f79c4e78b..36b35ed2ee 100644
+--- a/src/pkg/encoding/xml/typeinfo.go
++++ b/src/pkg/encoding/xml/typeinfo.go
+@@ -46,6 +46,8 @@ const (
+ var tinfoMap = make(map[reflect.Type]*typeInfo)
+ var tinfoLock sync.RWMutex
+ 
++var nameType = reflect.TypeOf(Name{})
++
+ // getTypeInfo returns the typeInfo structure with details necessary
+ // for marshalling and unmarshalling typ.
+ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
+@@ -56,7 +58,7 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
+ 		return tinfo, nil
+ 	}
+ 	tinfo = &typeInfo{}
+-	if typ.Kind() == reflect.Struct {
++	if typ.Kind() == reflect.Struct && typ != nameType {
+ 		n := typ.NumField()
+ 		for i := 0; i < n; i++ {
+ 			f := typ.Field(i)

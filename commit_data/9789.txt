@@ -8,6 +8,20 @@ Date:   Sun Sep 25 14:19:08 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5129041
-
+---
  src/pkg/rpc/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 7450744286..f03710061a 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -97,7 +97,7 @@
+ 		if err != nil {
+ 			log.Fatal("arith error:", err)
+ 		}
+-		fmt.Printf("Arith: %d*%d=%d", args.A, args.B, *reply)
++		fmt.Printf("Arith: %d*%d=%d", args.A, args.B, reply)
+ 
+ 	or
+ 

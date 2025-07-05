@@ -10,9 +10,86 @@ Date:   Tue Jun 7 13:39:56 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/410954
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  .../internal/types2/testdata/fixedbugs/issue42881.go     | 16 ++++++++++++++++
  src/cmd/compile/internal/types2/typexpr.go               |  4 ++--
  src/go/types/testdata/fixedbugs/issue42881.go            | 16 ++++++++++++++++
  src/go/types/typexpr.go                                  |  4 ++--
  4 files changed, 36 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42881.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42881.go
+new file mode 100644
+index 0000000000..7122d1c787
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42881.go
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type (
++	T1 interface{ comparable }
++	T2 interface{ int }
++)
++
++var (
++	_ comparable // ERROR cannot use type comparable outside a type constraint: interface is \(or embeds\) comparable
++	_ T1         // ERROR cannot use type T1 outside a type constraint: interface is \(or embeds\) comparable
++	_ T2         // ERROR cannot use type T2 outside a type constraint: interface contains type constraints
++)
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index f0cd236050..692feb9751 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -167,9 +167,9 @@ func (check *Checker) validVarType(e syntax.Expr, typ Type) {
+ 			tset := computeInterfaceTypeSet(check, pos, t) // TODO(gri) is this the correct position?
+ 			if !tset.IsMethodSet() {
+ 				if tset.comparable {
+-					check.softErrorf(pos, "interface is (or embeds) comparable")
++					check.softErrorf(pos, "cannot use type %s outside a type constraint: interface is (or embeds) comparable", typ)
+ 				} else {
+-					check.softErrorf(pos, "interface contains type constraints")
++					check.softErrorf(pos, "cannot use type %s outside a type constraint: interface contains type constraints", typ)
+ 				}
+ 			}
+ 		}
+diff --git a/src/go/types/testdata/fixedbugs/issue42881.go b/src/go/types/testdata/fixedbugs/issue42881.go
+new file mode 100644
+index 0000000000..7122d1c787
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue42881.go
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type (
++	T1 interface{ comparable }
++	T2 interface{ int }
++)
++
++var (
++	_ comparable // ERROR cannot use type comparable outside a type constraint: interface is \(or embeds\) comparable
++	_ T1         // ERROR cannot use type T1 outside a type constraint: interface is \(or embeds\) comparable
++	_ T2         // ERROR cannot use type T2 outside a type constraint: interface contains type constraints
++)
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index a881d33654..b02929df22 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -163,9 +163,9 @@ func (check *Checker) validVarType(e ast.Expr, typ Type) {
+ 			tset := computeInterfaceTypeSet(check, e.Pos(), t) // TODO(gri) is this the correct position?
+ 			if !tset.IsMethodSet() {
+ 				if tset.comparable {
+-					check.softErrorf(e, _MisplacedConstraintIface, "interface is (or embeds) comparable")
++					check.softErrorf(e, _MisplacedConstraintIface, "cannot use type %s outside a type constraint: interface is (or embeds) comparable", typ)
+ 				} else {
+-					check.softErrorf(e, _MisplacedConstraintIface, "interface contains type constraints")
++					check.softErrorf(e, _MisplacedConstraintIface, "cannot use type %s outside a type constraint: interface contains type constraints", typ)
+ 				}
+ 			}
+ 		}

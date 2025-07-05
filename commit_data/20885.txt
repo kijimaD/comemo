@@ -8,6 +8,22 @@ Date:   Wed Oct 22 20:41:13 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/163760043
-
+---
  doc/gccgo_install.html | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/doc/gccgo_install.html b/doc/gccgo_install.html
+index 4c1a8c2f57..acb315a0ac 100644
+--- a/doc/gccgo_install.html
++++ b/doc/gccgo_install.html
+@@ -42,6 +42,10 @@ identical to Go 1.1.  The GCC 4.8.2 release includes a complete Go
+ 1.1.2 implementation.
+ </p>
+ 
++<p>
++The GCC 4.9 releases include a complete Go 1.2 implementation.
++</p>
++
+ <h2 id="Source_code">Source code</h2>
+ 
+ <p>

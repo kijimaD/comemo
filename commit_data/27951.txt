@@ -70,7 +70,74 @@ Date:   Wed Mar 30 17:02:23 2016 -0400
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/malloc.go |  4 ++--
  src/runtime/mgc.go    | 20 ++++++++++++++------
  2 files changed, 16 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 9e1f47e1e6..081d1419cb 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -690,11 +690,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		publicationBarrier()
+ 	}
+ 
+-	// GCmarkterminate allocates black
++	// Allocate black during GC.
+ 	// All slots hold nil so no scanning is needed.
+ 	// This may be racing with GC so do it atomically if there can be
+ 	// a race marking the bit.
+-	if gcphase == _GCmarktermination || gcBlackenPromptly {
++	if gcphase != _GCoff {
+ 		gcmarknewobject(uintptr(x), size, scanSize)
+ 	}
+ 
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index d120dae05a..194439337b 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -24,6 +24,10 @@
+ // Hudson, R., and Moss, J.E.B. Copying Garbage Collection without stopping the world.
+ // Concurrency and Computation: Practice and Experience 15(3-5), 2003.
+ //
++// TODO(austin): The rest of this comment is woefully out of date and
++// needs to be rewritten. There is no distinct scan phase any more and
++// we allocate black during GC.
++//
+ //  0. Set phase = GCscan from GCoff.
+ //  1. Wait for all P's to acknowledge phase change.
+ //         At this point all goroutines have passed through a GC safepoint and
+@@ -244,7 +248,7 @@ var gcBlackenPromptly bool
+ 
+ const (
+ 	_GCoff             = iota // GC not running; sweeping in background, write barrier disabled
+-	_GCmark                   // GC marking roots and workbufs, write barrier ENABLED
++	_GCmark                   // GC marking roots and workbufs: allocate black, write barrier ENABLED
+ 	_GCmarktermination        // GC mark termination: allocate black, P's help GC, write barrier ENABLED
+ )
+ 
+@@ -467,14 +471,18 @@ func (c *gcControllerState) startCycle() {
+ // It should only be called when gcBlackenEnabled != 0 (because this
+ // is when assists are enabled and the necessary statistics are
+ // available).
++//
++// TODO: Consider removing the periodic controller update altogether.
++// Since we switched to allocating black, in theory we shouldn't have
++// to change the assist ratio. However, this is still a useful hook
++// that we've found many uses for when experimenting.
+ func (c *gcControllerState) revise() {
+ 	// Compute the expected scan work remaining.
+ 	//
+-	// Note that the scannable heap size is likely to increase
+-	// during the GC cycle. This is why it's important to revise
+-	// the assist ratio throughout the cycle: if the scannable
+-	// heap size increases, the assist ratio based on the initial
+-	// scannable heap size may target too little scan work.
++	// Note that we currently count allocations during GC as both
++	// scannable heap (heap_scan) and scan work completed
++	// (scanWork), so this difference won't be changed by
++	// allocations during GC.
+ 	//
+ 	// This particular estimate is a strict upper bound on the
+ 	// possible remaining scan work for the current heap.

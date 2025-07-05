@@ -8,7 +8,58 @@ Date:   Mon May 21 23:29:30 2012 -0400
     R=rsc, golang-dev
     CC=golang-dev
     https://golang.org/cl/6195074
-
+---
  src/pkg/debug/elf/file.go      | 3 +++
  src/pkg/debug/elf/file_test.go | 4 ++--
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index 184ca8375b..241430e5c6 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -31,6 +31,7 @@ type FileHeader struct {
+ 	ByteOrder  binary.ByteOrder
+ 	Type       Type
+ 	Machine    Machine
++	Entry      uint64
+ }
+ 
+ // A File represents an open ELF file.
+@@ -240,6 +241,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		}
+ 		f.Type = Type(hdr.Type)
+ 		f.Machine = Machine(hdr.Machine)
++		f.Entry = uint64(hdr.Entry)
+ 		if v := Version(hdr.Version); v != f.Version {
+ 			return nil, &FormatError{0, "mismatched ELF version", v}
+ 		}
+@@ -258,6 +260,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		}
+ 		f.Type = Type(hdr.Type)
+ 		f.Machine = Machine(hdr.Machine)
++		f.Entry = uint64(hdr.Entry)
+ 		if v := Version(hdr.Version); v != f.Version {
+ 			return nil, &FormatError{0, "mismatched ELF version", v}
+ 		}
+diff --git a/src/pkg/debug/elf/file_test.go b/src/pkg/debug/elf/file_test.go
+index 98f2723c86..6ec5f4f62c 100644
+--- a/src/pkg/debug/elf/file_test.go
++++ b/src/pkg/debug/elf/file_test.go
+@@ -24,7 +24,7 @@ type fileTest struct {
+ var fileTests = []fileTest{
+ 	{
+ 		"testdata/gcc-386-freebsd-exec",
+-		FileHeader{ELFCLASS32, ELFDATA2LSB, EV_CURRENT, ELFOSABI_FREEBSD, 0, binary.LittleEndian, ET_EXEC, EM_386},
++		FileHeader{ELFCLASS32, ELFDATA2LSB, EV_CURRENT, ELFOSABI_FREEBSD, 0, binary.LittleEndian, ET_EXEC, EM_386, 0x80483cc},
+ 		[]SectionHeader{
+ 			{"", SHT_NULL, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+ 			{".interp", SHT_PROGBITS, SHF_ALLOC, 0x80480d4, 0xd4, 0x15, 0x0, 0x0, 0x1, 0x0},
+@@ -67,7 +67,7 @@ var fileTests = []fileTest{
+ 	},
+ 	{
+ 		"testdata/gcc-amd64-linux-exec",
+-		FileHeader{ELFCLASS64, ELFDATA2LSB, EV_CURRENT, ELFOSABI_NONE, 0, binary.LittleEndian, ET_EXEC, EM_X86_64},
++		FileHeader{ELFCLASS64, ELFDATA2LSB, EV_CURRENT, ELFOSABI_NONE, 0, binary.LittleEndian, ET_EXEC, EM_X86_64, 0x4003e0},
+ 		[]SectionHeader{
+ 			{"", SHT_NULL, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+ 			{".interp", SHT_PROGBITS, SHF_ALLOC, 0x400200, 0x200, 0x1c, 0x0, 0x0, 0x1, 0x0},

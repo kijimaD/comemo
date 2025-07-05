@@ -9,6 +9,21 @@ Date:   Mon Sep 19 14:14:45 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index f656d70872..4344d84702 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -413,7 +413,8 @@ func buildModeInit() {
+ 		} else {
+ 			switch platform {
+ 			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386",
+-				"android/amd64", "android/arm", "android/arm64", "android/386":
++				"android/amd64", "android/arm", "android/arm64", "android/386",
++				"darwin/amd64":
+ 			default:
+ 				fatalf("-buildmode=plugin not supported on %s\n", platform)
+ 			}

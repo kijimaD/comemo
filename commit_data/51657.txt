@@ -39,7 +39,126 @@ Date:   Wed Jan 5 09:20:15 2022 -0500
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Alex Rakoczy <alex@golang.org>
-
+---
  src/unicode/utf8/utf8.go      |  5 ++++
  src/unicode/utf8/utf8_test.go | 58 +++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 63 insertions(+)
+
+diff --git a/src/unicode/utf8/utf8.go b/src/unicode/utf8/utf8.go
+index 6938c7e6a7..1e9f666e23 100644
+--- a/src/unicode/utf8/utf8.go
++++ b/src/unicode/utf8/utf8.go
+@@ -475,6 +475,11 @@ func RuneStart(b byte) bool { return b&0xC0 != 0x80 }
+ 
+ // Valid reports whether p consists entirely of valid UTF-8-encoded runes.
+ func Valid(p []byte) bool {
++	// This optimization avoids the need to recompute the capacity
++	// when generating code for p[8:], bringing it to parity with
++	// ValidString, which was 20% faster on long ASCII strings.
++	p = p[:len(p):len(p)]
++
+ 	// Fast path. Check for and skip 8 bytes of ASCII characters per iteration.
+ 	for len(p) >= 8 {
+ 		// Combining two 32 bit loads allows the same code to be used
+diff --git a/src/unicode/utf8/utf8_test.go b/src/unicode/utf8/utf8_test.go
+index e9be4d2d63..e7c31222cc 100644
+--- a/src/unicode/utf8/utf8_test.go
++++ b/src/unicode/utf8/utf8_test.go
+@@ -6,6 +6,7 @@ package utf8_test
+ 
+ import (
+ 	"bytes"
++	"strings"
+ 	"testing"
+ 	"unicode"
+ 	. "unicode/utf8"
+@@ -554,6 +555,8 @@ func BenchmarkRuneCountInStringTenJapaneseChars(b *testing.B) {
+ 	}
+ }
+ 
++var ascii100000 = strings.Repeat("0123456789", 10000)
++
+ func BenchmarkValidTenASCIIChars(b *testing.B) {
+ 	s := []byte("0123456789")
+ 	for i := 0; i < b.N; i++ {
+@@ -561,12 +564,32 @@ func BenchmarkValidTenASCIIChars(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkValid100KASCIIChars(b *testing.B) {
++	s := []byte(ascii100000)
++	for i := 0; i < b.N; i++ {
++		Valid(s)
++	}
++}
++
+ func BenchmarkValidTenJapaneseChars(b *testing.B) {
+ 	s := []byte("日本語日本語日本語日")
+ 	for i := 0; i < b.N; i++ {
+ 		Valid(s)
+ 	}
+ }
++func BenchmarkValidLongMostlyASCII(b *testing.B) {
++	longMostlyASCII := []byte(longStringMostlyASCII)
++	for i := 0; i < b.N; i++ {
++		Valid(longMostlyASCII)
++	}
++}
++
++func BenchmarkValidLongJapanese(b *testing.B) {
++	longJapanese := []byte(longStringJapanese)
++	for i := 0; i < b.N; i++ {
++		Valid(longJapanese)
++	}
++}
+ 
+ func BenchmarkValidStringTenASCIIChars(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+@@ -574,12 +597,47 @@ func BenchmarkValidStringTenASCIIChars(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkValidString100KASCIIChars(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		ValidString(ascii100000)
++	}
++}
++
+ func BenchmarkValidStringTenJapaneseChars(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		ValidString("日本語日本語日本語日")
+ 	}
+ }
+ 
++func BenchmarkValidStringLongMostlyASCII(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		ValidString(longStringMostlyASCII)
++	}
++}
++
++func BenchmarkValidStringLongJapanese(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		ValidString(longStringJapanese)
++	}
++}
++
++var longStringMostlyASCII string // ~100KB, ~97% ASCII
++var longStringJapanese string    // ~100KB, non-ASCII
++
++func init() {
++	const japanese = "日本語日本語日本語日"
++	var b bytes.Buffer
++	for i := 0; b.Len() < 100_000; i++ {
++		if i%100 == 0 {
++			b.WriteString(japanese)
++		} else {
++			b.WriteString("0123456789")
++		}
++	}
++	longStringMostlyASCII = b.String()
++	longStringJapanese = strings.Repeat(japanese, 100_000/len(japanese))
++}
++
+ func BenchmarkEncodeASCIIRune(b *testing.B) {
+ 	buf := make([]byte, UTFMax)
+ 	for i := 0; i < b.N; i++ {

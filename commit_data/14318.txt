@@ -9,6 +9,21 @@ Date:   Tue Nov 6 20:11:49 2012 +0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6811083
-
+---
  src/cmd/go/build.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e9e25bc31d..78d7c907bd 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -876,6 +876,9 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
+ 				dir = filepath.Join(dir, "gccgo")
+ 			} else {
+ 				dir = filepath.Join(dir, goos+"_"+goarch)
++				if buildRace {
++					dir += "_race"
++				}
+ 			}
+ 			inc = append(inc, flag, dir)
+ 		}

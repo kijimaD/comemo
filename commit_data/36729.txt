@@ -19,7 +19,201 @@ Date:   Thu Apr 19 15:56:19 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/bv.go    | 95 ++++++++++++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/plive.go | 70 +++-----------------------
  2 files changed, 101 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bv.go b/src/cmd/compile/internal/gc/bv.go
+index db0185e5a8..7f5a432249 100644
+--- a/src/cmd/compile/internal/gc/bv.go
++++ b/src/cmd/compile/internal/gc/bv.go
+@@ -201,3 +201,98 @@ func (bv bvec) Clear() {
+ 		bv.b[i] = 0
+ 	}
+ }
++
++// FNV-1 hash function constants.
++const (
++	H0 = 2166136261
++	Hp = 16777619
++)
++
++func hashbitmap(h uint32, bv bvec) uint32 {
++	n := int((bv.n + 31) / 32)
++	for i := 0; i < n; i++ {
++		w := bv.b[i]
++		h = (h * Hp) ^ (w & 0xff)
++		h = (h * Hp) ^ ((w >> 8) & 0xff)
++		h = (h * Hp) ^ ((w >> 16) & 0xff)
++		h = (h * Hp) ^ ((w >> 24) & 0xff)
++	}
++
++	return h
++}
++
++// bvecSet is a set of bvecs, in initial insertion order.
++type bvecSet struct {
++	index []int  // hash -> uniq index. -1 indicates empty slot.
++	uniq  []bvec // unique bvecs, in insertion order
++}
++
++func newBvecSet(size int) bvecSet {
++	// bvecSet is a linear probing hash table.
++	// The hash table has 4n entries to keep the linear
++	// scan short.
++	index := make([]int, size*4)
++	for i := range index {
++		index[i] = -1
++	}
++	return bvecSet{index, nil}
++}
++
++func (m *bvecSet) grow() {
++	// Allocate new index.
++	n := len(m.index) * 2
++	if n == 0 {
++		n = 32
++	}
++	newIndex := make([]int, n)
++	for i := range newIndex {
++		newIndex[i] = -1
++	}
++
++	// Rehash into newIndex.
++	for i, bv := range m.uniq {
++		h := hashbitmap(H0, bv) % uint32(len(newIndex))
++		for {
++			j := newIndex[h]
++			if j < 0 {
++				newIndex[h] = i
++				break
++			}
++			h++
++			if h == uint32(len(newIndex)) {
++				h = 0
++			}
++		}
++	}
++	m.index = newIndex
++}
++
++// add adds bv to the set and returns its index in m.uniq.
++// The caller must not modify bv after this.
++func (m *bvecSet) add(bv bvec) int {
++	if len(m.uniq)*4 >= len(m.index) {
++		m.grow()
++	}
++
++	index := m.index
++	h := hashbitmap(H0, bv) % uint32(len(index))
++	for {
++		j := index[h]
++		if j < 0 {
++			// New bvec.
++			index[h] = len(m.uniq)
++			m.uniq = append(m.uniq, bv)
++			return len(m.uniq) - 1
++		}
++		jlive := m.uniq[j]
++		if bv.Eq(jlive) {
++			// Existing bvec.
++			return j
++		}
++
++		h++
++		if h == uint32(len(index)) {
++			h = 0
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 47bc1a98a5..f63530235f 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1292,25 +1292,6 @@ func (lv *Liveness) avarinitanyall(b *ssa.Block, any, all bvec) {
+ 	}
+ }
+ 
+-// FNV-1 hash function constants.
+-const (
+-	H0 = 2166136261
+-	Hp = 16777619
+-)
+-
+-func hashbitmap(h uint32, bv bvec) uint32 {
+-	n := int((bv.n + 31) / 32)
+-	for i := 0; i < n; i++ {
+-		w := bv.b[i]
+-		h = (h * Hp) ^ (w & 0xff)
+-		h = (h * Hp) ^ ((w >> 8) & 0xff)
+-		h = (h * Hp) ^ ((w >> 16) & 0xff)
+-		h = (h * Hp) ^ ((w >> 24) & 0xff)
+-	}
+-
+-	return h
+-}
+-
+ // Compact liveness information by coalescing identical per-call-site bitmaps.
+ // The merging only happens for a single function, not across the entire binary.
+ //
+@@ -1326,53 +1307,14 @@ func hashbitmap(h uint32, bv bvec) uint32 {
+ // PCDATA tables cost about 100k. So for now we keep using a single index for
+ // both bitmap lists.
+ func (lv *Liveness) compact() {
+-	// Linear probing hash table of bitmaps seen so far.
+-	// The hash table has 4n entries to keep the linear
+-	// scan short. An entry of -1 indicates an empty slot.
+-	n := len(lv.livevars)
+-
+-	tablesize := 4 * n
+-	table := make([]int, tablesize)
+-	for i := range table {
+-		table[i] = -1
+-	}
+-
+-	// remap[i] = the new index of the old bit vector #i.
+-	remap := make([]int, n)
+-	for i := range remap {
+-		remap[i] = -1
+-	}
+-
+-	// Consider bit vectors in turn.
+-	// If new, assign next number using uniq,
+-	// record in remap, record in lv.livevars
+-	// under the new index, and add entry to hash table.
+-	// If already seen, record earlier index in remap.
+-Outer:
++	// Compact livevars.
++	// remap[i] = the index in lv.stackMaps of for bitmap lv.livevars[i].
++	remap := make([]int, len(lv.livevars))
++	set := newBvecSet(len(lv.livevars))
+ 	for i, live := range lv.livevars {
+-		h := hashbitmap(H0, live.vars) % uint32(tablesize)
+-
+-		for {
+-			j := table[h]
+-			if j < 0 {
+-				break
+-			}
+-			jlive := lv.stackMaps[j]
+-			if live.vars.Eq(jlive) {
+-				remap[i] = j
+-				continue Outer
+-			}
+-
+-			h++
+-			if h == uint32(tablesize) {
+-				h = 0
+-			}
+-		}
+-
+-		table[h] = len(lv.stackMaps)
+-		remap[i] = len(lv.stackMaps)
+-		lv.stackMaps = append(lv.stackMaps, live.vars)
++		remap[i] = set.add(live.vars)
+ 	}
++	lv.stackMaps = set.uniq
+ 
+ 	// Compact register maps.
+ 	remapRegs := make([]int, len(lv.livevars))

@@ -20,7 +20,69 @@ Date:   Thu Jun 30 13:39:57 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modindex/read.go      | 11 ++++++++---
  src/cmd/go/testdata/script/issue53586.txt | 18 ++++++++++++++++++
  2 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 65a1ecf6dc..2603ade0fb 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -73,6 +73,10 @@ func moduleHash(modroot string, ismodcache bool) (cache.ActionID, error) {
+ 	}
+ 
+ 	h := cache.NewHash("moduleIndex")
++	// TODO(bcmills): Since modules in the index are checksummed, we could
++	// probably improve the cache hit rate by keying off of the module
++	// path@version (perhaps including the checksum?) instead of the module root
++	// directory.
+ 	fmt.Fprintf(h, "module index %s %s %v\n", runtime.Version(), indexVersion, modroot)
+ 	return h.Sum(), nil
+ }
+@@ -81,8 +85,9 @@ const modTimeCutoff = 2 * time.Second
+ 
+ // dirHash returns an ActionID corresponding to the state of the package
+ // located at filesystem path pkgdir.
+-func dirHash(pkgdir string) (cache.ActionID, error) {
++func dirHash(modroot, pkgdir string) (cache.ActionID, error) {
+ 	h := cache.NewHash("moduleIndex")
++	fmt.Fprintf(h, "modroot %s\n", modroot)
+ 	fmt.Fprintf(h, "package %s %s %v\n", runtime.Version(), indexVersion, pkgdir)
+ 	entries, err := fsys.ReadDir(pkgdir)
+ 	if err != nil {
+@@ -206,8 +211,8 @@ func openIndexPackage(modroot, pkgdir string) (*IndexPackage, error) {
+ 		pkg *IndexPackage
+ 		err error
+ 	}
+-	r := pcache.Do(pkgdir, func() any {
+-		id, err := dirHash(pkgdir)
++	r := pcache.Do([2]string{modroot, pkgdir}, func() any {
++		id, err := dirHash(modroot, pkgdir)
+ 		if err != nil {
+ 			return result{nil, err}
+ 		}
+diff --git a/src/cmd/go/testdata/script/issue53586.txt b/src/cmd/go/testdata/script/issue53586.txt
+new file mode 100644
+index 0000000000..db405cd9e4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/issue53586.txt
+@@ -0,0 +1,18 @@
++[short] skip  # sleeps to make mtime cacheable
++
++go mod init example
++
++cd subdir
++go mod init example/subdir
++sleep 2s  # allow go.mod mtime to be cached
++
++go list -f '{{.Dir}}: {{.ImportPath}}' ./pkg
++stdout $PWD${/}pkg': example/subdir/pkg$'
++
++rm go.mod  # expose ../go.mod
++
++go list -f '{{.Dir}}: {{.ImportPath}}' ./pkg
++stdout $PWD${/}pkg': example/subdir/pkg$'
++
++-- subdir/pkg/pkg.go --
++package pkg

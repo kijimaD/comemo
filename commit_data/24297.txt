@@ -11,7 +11,63 @@ Date:   Wed Jul 22 12:54:00 2015 -0400
     Reviewed-by: Adam Langley <agl@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/tls/conn.go     |  3 +++
  src/crypto/tls/tls_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index b5df3dbf2d..e3dcf15400 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -1025,5 +1025,8 @@ func (c *Conn) VerifyHostname(host string) error {
+ 	if !c.handshakeComplete {
+ 		return errors.New("tls: handshake has not yet been performed")
+ 	}
++	if len(c.verifiedChains) == 0 {
++		return errors.New("tls: handshake did not verify certificate chain")
++	}
+ 	return c.peerCertificates[0].VerifyHostname(host)
+ }
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index eb709644a1..8e22c9cafa 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -7,6 +7,7 @@ package tls
+ import (
+ 	"bytes"
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"net"
+ 	"strings"
+@@ -280,3 +281,29 @@ func TestTLSUniqueMatches(t *testing.T) {
+ 		t.Error("client and server channel bindings differ when session resumption is used")
+ 	}
+ }
++
++func TestVerifyHostname(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	c, err := Dial("tcp", "www.google.com:https", nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := c.VerifyHostname("www.google.com"); err != nil {
++		t.Fatalf("verify www.google.com: %v", err)
++	}
++	if err := c.VerifyHostname("www.yahoo.com"); err == nil {
++		t.Fatalf("verify www.yahoo.com succeeded")
++	}
++
++	c, err = Dial("tcp", "www.google.com:https", &Config{InsecureSkipVerify: true})
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := c.VerifyHostname("www.google.com"); err == nil {
++		t.Fatalf("verify www.google.com succeeded with InsecureSkipVerify=true")
++	}
++	if err := c.VerifyHostname("www.yahoo.com"); err == nil {
++		t.Fatalf("verify www.google.com succeeded with InsecureSkipVerify=true")
++	}
++}

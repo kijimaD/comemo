@@ -9,6 +9,48 @@ Date:   Fri Feb 26 16:09:54 2016 -0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/test.go | 19 +++++++++++++++----
  1 file changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index e23f939255..1d39a72197 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -1352,14 +1352,16 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
+ 			t.TestMain = &testFunc{pkg, name, ""}
+ 			*doImport, *seen = true, true
+ 		case isTest(name, "Test"):
+-			if !isTestFunc(n, "T") {
+-				return fmt.Errorf("wrong type for %s", name)
++			err := checkTestFunc(n, "T")
++			if err != nil {
++				return err
+ 			}
+ 			t.Tests = append(t.Tests, testFunc{pkg, name, ""})
+ 			*doImport, *seen = true, true
+ 		case isTest(name, "Benchmark"):
+-			if !isTestFunc(n, "B") {
+-				return fmt.Errorf("wrong type for %s", name)
++			err := checkTestFunc(n, "B")
++			if err != nil {
++				return err
+ 			}
+ 			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, ""})
+ 			*doImport, *seen = true, true
+@@ -1379,6 +1381,15 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
+ 	return nil
+ }
+ 
++func checkTestFunc(fn *ast.FuncDecl, arg string) error {
++	if !isTestFunc(fn, arg) {
++		name := fn.Name.String()
++		pos := testFileSet.Position(fn.Pos())
++		return fmt.Errorf("%s: wrong signature for %s, must be: func %s(%s *testing.%s)", pos, name, name, strings.ToLower(arg), arg)
++	}
++	return nil
++}
++
+ type byOrder []*doc.Example
+ 
+ func (x byOrder) Len() int           { return len(x) }

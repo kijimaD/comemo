@@ -11,8 +11,55 @@ Date:   Sun Jul 20 10:28:51 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/118000043
-
+---
  test/fixedbugs/bug488.dir/a.go |  7 +++++++
  test/fixedbugs/bug488.dir/b.go |  9 +++++++++
  test/fixedbugs/bug488.go       | 12 ++++++++++++
  3 files changed, 28 insertions(+)
+
+diff --git a/test/fixedbugs/bug488.dir/a.go b/test/fixedbugs/bug488.dir/a.go
+new file mode 100644
+index 0000000000..94eaf7f1ea
+--- /dev/null
++++ b/test/fixedbugs/bug488.dir/a.go
+@@ -0,0 +1,7 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++var p2 = Printf		// ERROR "undefined"
+diff --git a/test/fixedbugs/bug488.dir/b.go b/test/fixedbugs/bug488.dir/b.go
+new file mode 100644
+index 0000000000..21b4c5b541
+--- /dev/null
++++ b/test/fixedbugs/bug488.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import . "fmt"
++
++var p1 = Print
+diff --git a/test/fixedbugs/bug488.go b/test/fixedbugs/bug488.go
+new file mode 100644
+index 0000000000..63a601ed93
+--- /dev/null
++++ b/test/fixedbugs/bug488.go
+@@ -0,0 +1,12 @@
++// errorcheckdir
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The gccgo compiler had a bug: if one file in a package did a dot
++// import, then an earlier file in the package would incorrectly
++// resolve to the imported names rather than reporting undefined
++// errors.
++
++package ignored

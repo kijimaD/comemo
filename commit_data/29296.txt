@@ -24,9 +24,112 @@ Date:   Tue Sep 6 10:38:16 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/export_test.go |  3 ---
  src/runtime/print.go       |  4 ----
  src/runtime/string.go      | 20 ++------------------
  src/runtime/string_test.go | 13 -------------
  4 files changed, 2 insertions(+), 38 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 199a049431..a24d7188f3 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -167,9 +167,6 @@ func GostringW(w []uint16) (s string) {
+ 	return
+ }
+ 
+-var Gostringnocopy = gostringnocopy
+-var Maxstring = &maxstring
+-
+ type Uintreg sys.Uintreg
+ 
+ var Open = open
+diff --git a/src/runtime/print.go b/src/runtime/print.go
+index 32626c1e9d..5f82335244 100644
+--- a/src/runtime/print.go
++++ b/src/runtime/print.go
+@@ -199,10 +199,6 @@ func printpointer(p unsafe.Pointer) {
+ }
+ 
+ func printstring(s string) {
+-	if uintptr(len(s)) > maxstring {
+-		gwrite(bytes("[string too long]"))
+-		return
+-	}
+ 	gwrite(bytes(s))
+ }
+ 
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 5512f33ea8..2263e16410 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -4,10 +4,7 @@
+ 
+ package runtime
+ 
+-import (
+-	"runtime/internal/atomic"
+-	"unsafe"
+-)
++import "unsafe"
+ 
+ // The constant is known to the compiler.
+ // There is no fundamental theory behind this number.
+@@ -253,12 +250,7 @@ func rawstring(size int) (s string, b []byte) {
+ 
+ 	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, size}
+ 
+-	for {
+-		ms := maxstring
+-		if uintptr(size) <= ms || atomic.Casuintptr((*uintptr)(unsafe.Pointer(&maxstring)), ms, uintptr(size)) {
+-			return
+-		}
+-	}
++	return
+ }
+ 
+ // rawbyteslice allocates a new byte slice. The byte slice is not zeroed.
+@@ -371,18 +363,10 @@ func findnullw(s *uint16) int {
+ 	return l
+ }
+ 
+-var maxstring uintptr = 256 // a hint for print
+-
+ //go:nosplit
+ func gostringnocopy(str *byte) string {
+ 	ss := stringStruct{str: unsafe.Pointer(str), len: findnull(str)}
+ 	s := *(*string)(unsafe.Pointer(&ss))
+-	for {
+-		ms := maxstring
+-		if uintptr(len(s)) <= ms || atomic.Casuintptr(&maxstring, ms, uintptr(len(s))) {
+-			break
+-		}
+-	}
+ 	return s
+ }
+ 
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index b1757f0721..6aab0ed764 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -162,19 +162,6 @@ func TestLargeStringConcat(t *testing.T) {
+ 	}
+ }
+ 
+-func TestGostringnocopy(t *testing.T) {
+-	max := *runtime.Maxstring
+-	b := make([]byte, max+10)
+-	for i := uintptr(0); i < max+9; i++ {
+-		b[i] = 'a'
+-	}
+-	_ = runtime.Gostringnocopy(&b[0])
+-	newmax := *runtime.Maxstring
+-	if newmax != max+9 {
+-		t.Errorf("want %d, got %d", max+9, newmax)
+-	}
+-}
+-
+ func TestCompareTempString(t *testing.T) {
+ 	s := strings.Repeat("x", sizeNoStack)
+ 	b := []byte(s)

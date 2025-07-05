@@ -7,6 +7,35 @@ Date:   Mon Aug 1 09:02:06 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4838044
-
+---
  src/pkg/exp/template/helper.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/exp/template/helper.go b/src/pkg/exp/template/helper.go
+index 4187897171..440f878745 100644
+--- a/src/pkg/exp/template/helper.go
++++ b/src/pkg/exp/template/helper.go
+@@ -97,6 +97,7 @@ func (s *Set) ParseFile(filenames ...string) (*Set, os.Error) {
+ // named files. Each file must be individually parseable.
+ func ParseSetFile(filenames ...string) (*Set, os.Error) {
+ 	s := new(Set)
++	s.init()
+ 	for _, filename := range filenames {
+ 		b, err := ioutil.ReadFile(filename)
+ 		if err != nil {
+@@ -193,6 +194,7 @@ func (s *Set) ParseTemplateFiles(pattern string) (*Set, os.Error) {
+ // encountered.
+ func ParseTemplateFile(filenames ...string) (*Set, os.Error) {
+ 	set := new(Set)
++	set.init()
+ 	for _, filename := range filenames {
+ 		t, err := ParseFile(filename)
+ 		if err != nil {
+@@ -217,6 +219,7 @@ func ParseTemplateFile(filenames ...string) (*Set, os.Error) {
+ // encountered.
+ func ParseTemplateFiles(pattern string) (*Set, os.Error) {
+ 	set := new(Set)
++	set.init()
+ 	filenames, err := filepath.Glob(pattern)
+ 	if err != nil {
+ 		return set, err

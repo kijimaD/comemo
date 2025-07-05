@@ -17,6 +17,20 @@ Date:   Thu Jun 3 14:50:10 2021 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/pe.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 3540c07da1..8eb4231c3a 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -475,7 +475,7 @@ func (f *peFile) addDWARFSection(name string, size int) *peSection {
+ 	off := f.stringTable.add(name)
+ 	h := f.addSection(name, size, size)
+ 	h.shortName = fmt.Sprintf("/%d", off)
+-	h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE | IMAGE_SCN_CNT_INITIALIZED_DATA
++	h.characteristics = IMAGE_SCN_ALIGN_1BYTES | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE | IMAGE_SCN_CNT_INITIALIZED_DATA
+ 	return h
+ }
+ 

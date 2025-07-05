@@ -17,6 +17,22 @@ Date:   Fri Apr 1 16:43:43 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21427
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 6576daadac..77e6c4e1c0 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2893,10 +2893,6 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ 
+ 	nsrc := n.List.First()
+ 
+-	// Resolve slice type of multi-valued return.
+-	if nsrc.Type.IsStruct() {
+-		nsrc.Type = nsrc.Type.Elem().Elem()
+-	}
+ 	argc := n.List.Len() - 1
+ 	if argc < 1 {
+ 		return nsrc

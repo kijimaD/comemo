@@ -9,9 +9,96 @@ Date:   Thu Apr 23 22:46:11 2020 -0700
     Change-Id: Iebcdc35f1a2112d5384c70eb3fdbd92ebb3d248e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/229689
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  4 ++--
  src/cmd/compile/internal/ssa/gen/genericOps.go |  2 ++
  src/cmd/compile/internal/ssa/rewrite.go        |  2 +-
  src/cmd/compile/internal/ssa/rewritegeneric.go | 12 ++++++------
  4 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 3883840a51..13f37d84d8 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -2009,8 +2009,8 @@
+ // Note that (ITab (IMake)) doesn't get
+ // rewritten until after the first opt pass,
+ // so this rule should trigger reliably.
+-(InterCall [argsize] (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem) && devirt(v, itab, off) != nil ->
+-	(StaticCall [argsize] {devirt(v, itab, off)} mem)
++(InterCall [argsize] (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem) && devirt(v, itab, off) != nil =>
++	(StaticCall [int32(argsize)] {devirt(v, itab, off)} mem)
+ 
+ // Move and Zero optimizations.
+ // Move source and destination may overlap.
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 8946654ff3..b9d7d20ba3 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -385,6 +385,8 @@ var genericOps = []opData{
+ 	// Function calls. Arguments to the call have already been written to the stack.
+ 	// Return values appear on the stack. The method receiver, if any, is treated
+ 	// as a phantom first argument.
++	// TODO(josharian): ClosureCall and InterCall should have Int32 aux
++	// to match StaticCall's 32 bit arg size limit.
+ 	{name: "ClosureCall", argLength: 3, aux: "Int64", call: true},                    // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
+ 	{name: "StaticCall", argLength: 1, aux: "SymOff", call: true, symEffect: "None"}, // call function aux.(*obj.LSym), arg0=memory.  auxint=arg size.  Returns memory.
+ 	{name: "InterCall", argLength: 2, aux: "Int64", call: true},                      // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 0e2d7eb5aa..59e06faf0c 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -695,7 +695,7 @@ func uaddOvf(a, b int64) bool {
+ 
+ // de-virtualize an InterCall
+ // 'sym' is the symbol for the itab
+-func devirt(v *Value, sym interface{}, offset int64) *obj.LSym {
++func devirt(v *Value, sym Sym, offset int64) *obj.LSym {
+ 	f := v.Block.Func
+ 	n, ok := sym.(*obj.LSym)
+ 	if !ok {
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 0ac3f17bce..fde4ffdf76 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -8697,9 +8697,9 @@ func rewriteValuegeneric_OpInterCall(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (InterCall [argsize] (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem)
+ 	// cond: devirt(v, itab, off) != nil
+-	// result: (StaticCall [argsize] {devirt(v, itab, off)} mem)
++	// result: (StaticCall [int32(argsize)] {devirt(v, itab, off)} mem)
+ 	for {
+-		argsize := v.AuxInt
++		argsize := auxIntToInt64(v.AuxInt)
+ 		if v_0.Op != OpLoad {
+ 			break
+ 		}
+@@ -8707,7 +8707,7 @@ func rewriteValuegeneric_OpInterCall(v *Value) bool {
+ 		if v_0_0.Op != OpOffPtr {
+ 			break
+ 		}
+-		off := v_0_0.AuxInt
++		off := auxIntToInt64(v_0_0.AuxInt)
+ 		v_0_0_0 := v_0_0.Args[0]
+ 		if v_0_0_0.Op != OpITab {
+ 			break
+@@ -8720,7 +8720,7 @@ func rewriteValuegeneric_OpInterCall(v *Value) bool {
+ 		if v_0_0_0_0_0.Op != OpAddr {
+ 			break
+ 		}
+-		itab := v_0_0_0_0_0.Aux
++		itab := auxToSym(v_0_0_0_0_0.Aux)
+ 		v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
+ 		if v_0_0_0_0_0_0.Op != OpSB {
+ 			break
+@@ -8730,8 +8730,8 @@ func rewriteValuegeneric_OpInterCall(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpStaticCall)
+-		v.AuxInt = argsize
+-		v.Aux = devirt(v, itab, off)
++		v.AuxInt = int32ToAuxInt(int32(argsize))
++		v.Aux = symToAux(devirt(v, itab, off))
+ 		v.AddArg(mem)
+ 		return true
+ 	}

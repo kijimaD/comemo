@@ -662,6 +662,22 @@ Date:   Thu Nov 22 09:51:36 2018 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/nat.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 5f5cf5c3e4..1e4a3b09cf 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -58,6 +58,10 @@ func (z nat) make(n int) nat {
+ 	if n <= cap(z) {
+ 		return z[:n] // reuse z
+ 	}
++	if n == 1 {
++		// Most nats start small and stay that way; don't over-allocate.
++		return make(nat, 1)
++	}
+ 	// Choosing a good value for e has significant performance impact
+ 	// because it increases the chance that a value can be reused.
+ 	const e = 4 // extra capacity

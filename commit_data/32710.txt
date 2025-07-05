@@ -13,6 +13,32 @@ Date:   Thu May 18 22:50:35 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/file_unix.go | 14 ++++++++------
  1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index f790b6e910..7f5c84f4bd 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -20,12 +20,14 @@ func fixLongPath(path string) string {
+ func rename(oldname, newname string) error {
+ 	fi, err := Lstat(newname)
+ 	if err == nil && fi.IsDir() {
+-		// if we cannot stat oldname we should
+-		// return that error in favor of EEXIST
+-		fi, err = Lstat(oldname)
+-		if err != nil {
+-			if pErr, ok := err.(*PathError); ok {
+-				err = pErr.Err
++		// There are two independent errors this function can return:
++		// one for a bad oldname, and one for a bad newname.
++		// At this point we've determined the newname is bad.
++		// But just in case oldname is also bad, prioritize returning
++		// the oldname error because that's what we did historically.
++		if _, err := Lstat(oldname); err != nil {
++			if pe, ok := err.(*PathError); ok {
++				err = pe.Err
+ 			}
+ 			return &LinkError{"rename", oldname, newname, err}
+ 		}

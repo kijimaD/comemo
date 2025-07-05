@@ -31,7 +31,50 @@ Date:   Mon Nov 28 17:39:31 2016 -0500
     Change-Id: I0ee531ef2e6cc276db6fb12602b25a46d6d5db21
     Reviewed-on: https://go-review.googlesource.com/33671
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go |  5 ++---
  test/inline_variadic.go            | 19 +++++++++++++++++++
  2 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 59a047fdf2..d8f1f24536 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -781,10 +781,9 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 			as.Right = nodnil()
+ 			as.Right.Type = varargtype
+ 		} else {
+-			vararrtype := typArray(varargtype.Elem(), int64(varargcount))
+-			as.Right = nod(OCOMPLIT, nil, typenod(vararrtype))
++			varslicetype := typSlice(varargtype.Elem())
++			as.Right = nod(OCOMPLIT, nil, typenod(varslicetype))
+ 			as.Right.List.Set(varargs)
+-			as.Right = nod(OSLICE, as.Right, nil)
+ 		}
+ 
+ 		as = typecheck(as, Etop)
+diff --git a/test/inline_variadic.go b/test/inline_variadic.go
+new file mode 100644
+index 0000000000..6466c2b093
+--- /dev/null
++++ b/test/inline_variadic.go
+@@ -0,0 +1,19 @@
++// errorcheck -0 -m -l=3
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test more aggressive inlining (-l=3 allows variadic functions)
++// See issue #18116.
++
++package foo
++
++func head(xs ...string) string { // ERROR "can inline head" "leaking param: xs to result"
++	return xs[0]
++}
++
++func f() string { // ERROR "can inline f"
++	x := head("hello", "world") // ERROR "inlining call to head" "\[\]string literal does not escape"
++	return x
++}

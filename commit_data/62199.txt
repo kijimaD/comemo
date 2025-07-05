@@ -15,6 +15,19 @@ Date:   Mon Feb 10 23:54:56 2025 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/trace/reader.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/trace/reader.go b/src/internal/trace/reader.go
+index 75b88f7bac..f5f871763f 100644
+--- a/src/internal/trace/reader.go
++++ b/src/internal/trace/reader.go
+@@ -154,6 +154,7 @@ func (r *Reader) ReadEvent() (e Event, err error) {
+ 		// Read the next generation.
+ 		r.gen, r.spill, r.spillErr = readGeneration(r.r, r.spill)
+ 		if r.gen == nil {
++			r.syncs++
+ 			return syncEvent(nil, r.lastTs, r.syncs), nil
+ 		}
+ 

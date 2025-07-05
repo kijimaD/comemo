@@ -11,7 +11,72 @@ Date:   Tue Feb 12 20:45:45 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/cmd.html            |  8 +++-----
  doc/install-source.html | 20 +-------------------
  2 files changed, 4 insertions(+), 24 deletions(-)
+
+diff --git a/doc/cmd.html b/doc/cmd.html
+index c590f4d3ec..e30684793a 100644
+--- a/doc/cmd.html
++++ b/doc/cmd.html
+@@ -18,10 +18,8 @@ underlying binary with arguments appropriate to package-level processing.
+ 
+ <p>
+ The programs can also be run as stand-alone binaries, with unmodified arguments,
+-using the go <code>tool</code> subcommand, such as <code>go tool vet</code>.
+-This style of invocation allows, for instance, checking a single source file
+-rather than an entire package: <code>go tool vet myprogram.go</code> as
+-compared to <code>go vet mypackage</code>.
++using the go <code>tool</code> subcommand, such as <code>go tool cgo</code>.
++For most commands this is mainly useful for debugging.
+ Some of the commands, such as <code>pprof</code>, are accessible only through
+ the go <code>tool</code> subcommand.
+ </p>
+@@ -76,7 +74,7 @@ and rewrites them to use newer ones.</td>
+ </tr>
+ 
+ <tr>
+-<td><a href="/cmd/go/">fmt</a></td>
++<td><a href="/cmd/gofmt/">fmt</a></td>
+ <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+ <td>Fmt formats Go packages, it is also available as an independent <a href="/cmd/gofmt/">
+ gofmt</a> command with more general options.</td>
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 6d416d33f1..bbe7cdfd00 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -349,15 +349,7 @@ provides <b>essential setup instructions</b> for using the Go tools.
+ <p>
+ The source code for several Go tools (including <a href="/cmd/godoc/">godoc</a>)
+ is kept in <a href="https://golang.org/x/tools">the go.tools repository</a>.
+-To install all of them, run the <code>go</code> <code>get</code> command:
+-</p>
+-
+-<pre>
+-$ go get golang.org/x/tools/cmd/...
+-</pre>
+-
+-<p>
+-Or if you just want to install a specific command (<code>godoc</code> in this case):
++To install one of the tools (<code>godoc</code> in this case):
+ </p>
+ 
+ <pre>
+@@ -374,16 +366,6 @@ You must also have a workspace (<code>GOPATH</code>) set up;
+ see <a href="/doc/code.html">How to Write Go Code</a> for the details.
+ </p>
+ 
+-<p>
+-<b>Note</b>: The <code>go</code> command will install the <code>godoc</code>
+-binary to <code>$GOROOT/bin</code> (or <code>$GOBIN</code>) and the
+-<code>cover</code> and <code>vet</code> binaries to
+-<code>$GOROOT/pkg/tool/$GOOS_$GOARCH</code>.
+-You can access the latter commands with
+-"<code>go</code> <code>tool</code> <code>cover</code>" and
+-"<code>go</code> <code>tool</code> <code>vet</code>".
+-</p>
+-
+ <h2 id="community">Community resources</h2>
+ 
+ <p>

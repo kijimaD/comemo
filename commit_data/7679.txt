@@ -11,6 +11,64 @@ Date:   Mon Mar 7 12:53:39 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4259057
-
+---
  src/cmd/goinstall/make.go | 28 ++++++++++++++--------------
  1 file changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+index 5e3523767a..ceb119e5a4 100644
+--- a/src/cmd/goinstall/make.go
++++ b/src/cmd/goinstall/make.go
+@@ -52,12 +52,6 @@ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
+ 		return nil, err
+ 	}
+ 
+-	if len(dirInfo.cgoFiles) == 0 && len(dirInfo.cFiles) > 0 {
+-		// When using cgo, .c files are compiled with gcc.  Without cgo,
+-		// they may be intended for 6c.  Just error out for now.
+-		return nil, os.ErrorString("C files found in non-cgo package")
+-	}
+-
+ 	cgoFiles := dirInfo.cgoFiles
+ 	isCgo := make(map[string]bool, len(cgoFiles))
+ 	for _, file := range cgoFiles {
+@@ -67,25 +61,31 @@ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
+ 		isCgo[file] = true
+ 	}
+ 
+-	cgoOFiles := make([]string, 0, len(dirInfo.cFiles))
+-	for _, file := range dirInfo.cFiles {
++	goFiles := make([]string, 0, len(dirInfo.goFiles))
++	for _, file := range dirInfo.goFiles {
+ 		if !safeName(file) {
+ 			return nil, os.ErrorString("unsafe name: " + file)
+ 		}
+-		cgoOFiles = append(cgoOFiles, file[:len(file)-2]+".o")
++		if !isCgo[file] {
++			goFiles = append(goFiles, file)
++		}
+ 	}
+ 
+-	goFiles := make([]string, 0, len(dirInfo.goFiles))
+-	for _, file := range dirInfo.goFiles {
++	oFiles := make([]string, 0, len(dirInfo.cFiles)+len(dirInfo.sFiles))
++	cgoOFiles := make([]string, 0, len(dirInfo.cFiles))
++	for _, file := range dirInfo.cFiles {
+ 		if !safeName(file) {
+ 			return nil, os.ErrorString("unsafe name: " + file)
+ 		}
+-		if !isCgo[file] {
+-			goFiles = append(goFiles, file)
++		// When cgo is in use, C files are compiled with gcc,
++		// otherwise they're compiled with gc.
++		if len(cgoFiles) > 0 {
++			cgoOFiles = append(cgoOFiles, file[:len(file)-2]+".o")
++		} else {
++			oFiles = append(oFiles, file[:len(file)-2]+".$O")
+ 		}
+ 	}
+ 
+-	oFiles := make([]string, 0, len(dirInfo.sFiles))
+ 	for _, file := range dirInfo.sFiles {
+ 		if !safeName(file) {
+ 			return nil, os.ErrorString("unsafe name: " + file)

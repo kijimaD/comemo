@@ -9,7 +9,46 @@ Date:   Thu Feb 19 21:10:00 2015 -0800
     Change-Id: Ic8cdae4d3bfd626c6bbe0ce49fce28b53db2ad1c
     Reviewed-on: https://go-review.googlesource.com/5420
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/arch/ppc64.go | 6 ++++++
  src/cmd/asm/internal/asm/asm.go    | 4 +++-
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/arch/ppc64.go b/src/cmd/asm/internal/arch/ppc64.go
+index f2b32f5c9d..74368b4eb3 100644
+--- a/src/cmd/asm/internal/arch/ppc64.go
++++ b/src/cmd/asm/internal/arch/ppc64.go
+@@ -20,12 +20,18 @@ func jumpPPC64(word string) bool {
+ 
+ // IsPPC64RLD reports whether the op (as defined by an ppc64.A* constant) is
+ // one of the RLD-like instructions that require special handling.
++// The FMADD-like instructions behave similarly.
+ func IsPPC64RLD(op int) bool {
+ 	switch op {
+ 	case ppc64.ARLDC, ppc64.ARLDCCC, ppc64.ARLDCL, ppc64.ARLDCLCC,
+ 		ppc64.ARLDCR, ppc64.ARLDCRCC, ppc64.ARLDMI, ppc64.ARLDMICC,
+ 		ppc64.ARLWMI, ppc64.ARLWMICC, ppc64.ARLWNM, ppc64.ARLWNMCC:
+ 		return true
++	case ppc64.AFMADD, ppc64.AFMADDCC, ppc64.AFMADDS, ppc64.AFMADDSCC,
++		ppc64.AFMSUB, ppc64.AFMSUBCC, ppc64.AFMSUBS, ppc64.AFMSUBSCC,
++		ppc64.AFNMADD, ppc64.AFNMADDCC, ppc64.AFNMADDS, ppc64.AFNMADDSCC,
++		ppc64.AFNMSUB, ppc64.AFNMSUBCC, ppc64.AFNMSUBS, ppc64.AFNMSUBSCC:
++		return true
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index af7366dba5..31e643ffb9 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -549,7 +549,9 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 			break
+ 		}
+ 		if p.arch.Thechar == '9' && arch.IsPPC64RLD(op) {
+-			// 2nd operand is always a register.
++			// 2nd operand must always be a register.
++			// TODO: Do we need to guard this with the instruction type?
++			// That is, are there 4-operand instructions without this property?
+ 			prog.From = a[0]
+ 			prog.Reg = p.getRegister(prog, op, &a[1])
+ 			prog.From3 = a[2]

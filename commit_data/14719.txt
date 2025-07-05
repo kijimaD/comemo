@@ -11,7 +11,36 @@ Date:   Sat Dec 22 11:14:56 2012 -0500
     R=franciscossouza, rsc
     CC=golang-dev
     https://golang.org/cl/6931049
-
+---
  src/pkg/regexp/all_test.go | 4 ++++
  src/pkg/regexp/regexp.go   | 2 +-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index 3596573b4f..9c4d64f582 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -196,6 +196,10 @@ var replaceTests = []ReplaceTest{
+ 	{"a+", "${oops", "aaa", "${oops"},
+ 	{"a+", "$$", "aaa", "$"},
+ 	{"a+", "$", "aaa", "$"},
++
++	// Substitution when subexpression isn't found
++	{"(x)?", "$1", "123", "123"},
++	{"abc", "$1", "123", "123"},
+ }
+ 
+ var replaceLiteralTests = []ReplaceTest{
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index bcf354b44d..c516a1566f 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -767,7 +767,7 @@ func (re *Regexp) expand(dst []byte, template string, bsrc []byte, src string, m
+ 		}
+ 		template = rest
+ 		if num >= 0 {
+-			if 2*num+1 < len(match) {
++			if 2*num+1 < len(match) && match[2*num] >= 0 {
+ 				if bsrc != nil {
+ 					dst = append(dst, bsrc[match[2*num]:match[2*num+1]]...)
+ 				} else {

@@ -9,6 +9,27 @@ Date:   Wed Jun 24 12:34:06 2015 +0200
     Change-Id: Icd94bbe430a3ef333248425449b5fc678edb0343
     Reviewed-on: https://go-review.googlesource.com/11410
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/request.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 43d9de378a..cd50cb9459 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -878,6 +878,7 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
+ // POST and PUT body parameters take precedence over URL query string values.
+ // FormValue calls ParseMultipartForm and ParseForm if necessary and ignores
+ // any errors returned by these functions.
++// If key is not present, FormValue returns the empty string.
+ // To access multiple values of the same key, call ParseForm and
+ // then inspect Request.Form directly.
+ func (r *Request) FormValue(key string) string {
+@@ -894,6 +895,7 @@ func (r *Request) FormValue(key string) string {
+ // or PUT request body. URL query parameters are ignored.
+ // PostFormValue calls ParseMultipartForm and ParseForm if necessary and ignores
+ // any errors returned by these functions.
++// If key is not present, PostFormValue returns the empty string.
+ func (r *Request) PostFormValue(key string) string {
+ 	if r.PostForm == nil {
+ 		r.ParseMultipartForm(defaultMaxMemory)

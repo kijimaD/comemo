@@ -19,6 +19,41 @@ Date:   Wed May 15 15:10:32 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/177419
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/testing.go | 11 ++++-------
  1 file changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 2f05203f27..753de9f27c 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -367,11 +367,9 @@ func Short() bool {
+ 	if short == nil {
+ 		panic("testing: Short called before Init")
+ 	}
+-	// Catch code that calls this from TestMain without first
+-	// calling flag.Parse. This shouldn't really be a panic.
++	// Catch code that calls this from TestMain without first calling flag.Parse.
+ 	if !flag.Parsed() {
+-		fmt.Fprintf(os.Stderr, "testing: Short called before flag.Parse\n")
+-		os.Exit(2)
++		panic("testing: Short called before Parse")
+ 	}
+ 
+ 	return *short
+@@ -386,13 +384,12 @@ func CoverMode() string {
+ 
+ // Verbose reports whether the -test.v flag is set.
+ func Verbose() bool {
++	// Same as in Short.
+ 	if chatty == nil {
+ 		panic("testing: Verbose called before Init")
+ 	}
+-	// Same as in Short.
+ 	if !flag.Parsed() {
+-		fmt.Fprintf(os.Stderr, "testing: Verbose called before flag.Parse\n")
+-		os.Exit(2)
++		panic("testing: Verbose called before Parse")
+ 	}
+ 	return *chatty
+ }

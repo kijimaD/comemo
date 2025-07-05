@@ -15,6 +15,29 @@ Date:   Tue Dec 29 12:31:17 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/stmt.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index de152fec72..1301e65e26 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -112,7 +112,6 @@ func (n *AssignStmt) SetOp(op Op) {
+ // An AssignOpStmt is an AsOp= assignment statement: X AsOp= Y.
+ type AssignOpStmt struct {
+ 	miniStmt
+-	typ    *types.Type
+ 	X      Node
+ 	AsOp   Op // OADD etc
+ 	Y      Node
+@@ -126,9 +125,6 @@ func NewAssignOpStmt(pos src.XPos, asOp Op, x, y Node) *AssignOpStmt {
+ 	return n
+ }
+ 
+-func (n *AssignOpStmt) Type() *types.Type     { return n.typ }
+-func (n *AssignOpStmt) SetType(x *types.Type) { n.typ = x }
+-
+ // A BlockStmt is a block: { List }.
+ type BlockStmt struct {
+ 	miniStmt

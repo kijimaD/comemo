@@ -12,6 +12,23 @@ Date:   Mon Apr 21 00:02:21 2014 -0400
     R=golang-codereviews, iant, matrixik
     CC=golang-codereviews
     https://golang.org/cl/89230044
-
+---
  src/cmd/go/testflag.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index adfc2d9216..8c45e5c1b2 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -160,6 +160,11 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 			if err != nil {
+ 				fatalf("invalid flag argument for -%s: %v", f.name, err)
+ 			}
++		case "ccflags":
++			buildCcflags, err = splitQuotedFields(value)
++			if err != nil {
++				fatalf("invalid flag argument for -%s: %v", f.name, err)
++			}
+ 		case "gcflags":
+ 			buildGcflags, err = splitQuotedFields(value)
+ 			if err != nil {

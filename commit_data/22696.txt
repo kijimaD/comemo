@@ -9,7 +9,42 @@ Date:   Wed Apr 1 22:46:12 2015 +0900
     Change-Id: Id5894d65e1a92297cc16803cc5e4d4eef0b4b099
     Reviewed-on: https://go-review.googlesource.com/8391
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/ipsock.go | 6 ------
  src/net/net.go    | 6 ++++++
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index 98d2dbffb7..c54b94da40 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -26,12 +26,6 @@ var (
+ 	supportsIPv4map bool
+ )
+ 
+-func init() {
+-	sysInit()
+-	supportsIPv4 = probeIPv4Stack()
+-	supportsIPv6, supportsIPv4map = probeIPv6Stack()
+-}
+-
+ // A netaddr represents a network endpoint address or a list of
+ // network endpoint addresses.
+ type netaddr interface {
+diff --git a/src/net/net.go b/src/net/net.go
+index 339c972906..3b06e6b489 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -46,6 +46,12 @@ import (
+ 	"time"
+ )
+ 
++func init() {
++	sysInit()
++	supportsIPv4 = probeIPv4Stack()
++	supportsIPv6, supportsIPv4map = probeIPv6Stack()
++}
++
+ // Addr represents a network end point address.
+ type Addr interface {
+ 	Network() string // name of the network

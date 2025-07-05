@@ -9,6 +9,20 @@ Date:   Sat Feb 20 23:24:27 2016 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d1f5088b50..389917916f 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2406,7 +2406,7 @@ func entersyscallblock_handoff() {
+ // The goroutine g exited its system call.
+ // Arrange for it to run on a cpu again.
+ // This is called only from the go syscall library, not
+-// from the low-level system calls used by the
++// from the low-level system calls used by the runtime.
+ //go:nosplit
+ func exitsyscall(dummy int32) {
+ 	_g_ := getg()

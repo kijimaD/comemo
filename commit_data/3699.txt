@@ -8,7 +8,47 @@ Date:   Sun Nov 1 16:13:37 2009 -0800
     R=rsc
     CC=go-dev
     http://go/go-review/1018015
-
+---
  src/make.bash     |  3 ++-
  src/quietgcc.bash | 14 +++++---------
  2 files changed, 7 insertions(+), 10 deletions(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 60e3f62dc8..b223d23b72 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -16,7 +16,8 @@ fi
+ bash clean.bash
+ 
+ rm -f $GOBIN/quietgcc
+-cp quietgcc.bash $GOBIN/quietgcc
++CC=${CC:-gcc}
++sed -e "s|@CC@|$CC|" < quietgcc.bash > $GOBIN/quietgcc
+ chmod +x $GOBIN/quietgcc
+ 
+ for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
+diff --git a/src/quietgcc.bash b/src/quietgcc.bash
+index d0476f3459..29f22ee0ae 100755
+--- a/src/quietgcc.bash
++++ b/src/quietgcc.bash
+@@ -16,15 +16,11 @@ ignore=$ignore'|: At top level: '
+ ignore=$ignore'|In file included from'
+ ignore=$ignore'|        from'
+ 
+-# Figure out which cc to run.
+-# Can use plain cc on real 64-bit machines
+-# and on OS X, but have to use crosstool on
+-# mixed64-32 machines like thresher.
+-gcc=gcc
+-case "`uname -a`" in
+-*mixed64-32*)
+-	gcc=/usr/crosstool/v10/gcc-4.2.1-glibc-2.3.2/x86_64-unknown-linux-gnu/x86_64-unknown-linux-gnu/bin/gcc
+-esac
++# Figure out which cc to run; this is set by make.bash.
++gcc=@CC@
++if test "$gcc" = "@C""C@"; then
++  gcc=gcc
++fi
+ 
+ # If this is a 64-bit machine, compile 64-bit versions of
+ # the host tools, to match the native ptrace.

@@ -13,7 +13,37 @@ Date:   Tue Feb 2 13:23:32 2016 -0800
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/vet/cgo.go           | 3 +++
  src/cmd/vet/testdata/cgo2.go | 9 +++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/vet/cgo.go b/src/cmd/vet/cgo.go
+index 8807952b48..1985a86fe0 100644
+--- a/src/cmd/vet/cgo.go
++++ b/src/cmd/vet/cgo.go
+@@ -72,6 +72,9 @@ func cgoBaseType(f *File, arg ast.Expr) types.Type {
+ 		}
+ 		// Here arg is *f(v).
+ 		t := f.pkg.types[call.Fun].Type
++		if t == nil {
++			break
++		}
+ 		ptr, ok := t.Underlying().(*types.Pointer)
+ 		if !ok {
+ 			break
+diff --git a/src/cmd/vet/testdata/cgo2.go b/src/cmd/vet/testdata/cgo2.go
+new file mode 100644
+index 0000000000..276aea9619
+--- /dev/null
++++ b/src/cmd/vet/testdata/cgo2.go
+@@ -0,0 +1,9 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test the cgo checker on a file that doesn't use cgo.
++
++package testdata
++
++var _ = C.f(*p(**p))

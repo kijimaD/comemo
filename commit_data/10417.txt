@@ -11,8 +11,173 @@ Date:   Wed Nov 16 09:32:52 2011 -0800
     R=mikesamuel, r
     CC=golang-dev
     https://golang.org/cl/5370098
-
+---
  src/pkg/html/template/content.go     | 21 ++++++++++++++++++++-
  src/pkg/html/template/escape_test.go | 35 ++++++++++++++++++++++++++++++++++-
  src/pkg/html/template/js.go          | 20 ++++++++++++++++++--
  3 files changed, 72 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/html/template/content.go b/src/pkg/html/template/content.go
+index d720d4ba68..3fb15a6e93 100644
+--- a/src/pkg/html/template/content.go
++++ b/src/pkg/html/template/content.go
+@@ -6,6 +6,7 @@ package template
+ 
+ import (
+ 	"fmt"
++	"reflect"
+ )
+ 
+ // Strings of content from a trusted source.
+@@ -70,10 +71,25 @@ const (
+ 	contentTypeUnsafe
+ )
+ 
++// indirect returns the value, after dereferencing as many times
++// as necessary to reach the base type (or nil).
++func indirect(a interface{}) interface{} {
++	if t := reflect.TypeOf(a); t.Kind() != reflect.Ptr {
++		// Avoid creating a reflect.Value if it's not a pointer.
++		return a
++	}
++	v := reflect.ValueOf(a)
++	for v.Kind() == reflect.Ptr && !v.IsNil() {
++		v = v.Elem()
++	}
++	return v.Interface()
++}
++
+ // stringify converts its arguments to a string and the type of the content.
++// All pointers are dereferenced, as in the text/template package.
+ func stringify(args ...interface{}) (string, contentType) {
+ 	if len(args) == 1 {
+-		switch s := args[0].(type) {
++		switch s := indirect(args[0]).(type) {
+ 		case string:
+ 			return s, contentTypePlain
+ 		case CSS:
+@@ -90,5 +106,8 @@ func stringify(args ...interface{}) (string, contentType) {
+ 			return string(s), contentTypeURL
+ 		}
+ 	}
++	for i, arg := range args {
++		args[i] = indirect(arg)
++	}
+ 	return fmt.Sprint(args...), contentTypePlain
+ }
+diff --git a/src/pkg/html/template/escape_test.go b/src/pkg/html/template/escape_test.go
+index d8bfa32112..4af583097b 100644
+--- a/src/pkg/html/template/escape_test.go
++++ b/src/pkg/html/template/escape_test.go
+@@ -28,7 +28,7 @@ func (x *goodMarshaler) MarshalJSON() ([]byte, error) {
+ }
+ 
+ func TestEscape(t *testing.T) {
+-	var data = struct {
++	data := struct {
+ 		F, T    bool
+ 		C, G, H string
+ 		A, E    []string
+@@ -50,6 +50,7 @@ func TestEscape(t *testing.T) {
+ 		Z: nil,
+ 		W: HTML(`&iexcl;<b class="foo">Hello</b>, <textarea>O'World</textarea>!`),
+ 	}
++	pdata := &data
+ 
+ 	tests := []struct {
+ 		name   string
+@@ -668,6 +669,15 @@ func TestEscape(t *testing.T) {
+ 			t.Errorf("%s: escaped output: want\n\t%q\ngot\n\t%q", test.name, w, g)
+ 			continue
+ 		}
++		b.Reset()
++		if err := tmpl.Execute(b, pdata); err != nil {
++			t.Errorf("%s: template execution failed for pointer: %s", test.name, err)
++			continue
++		}
++		if w, g := test.output, b.String(); w != g {
++			t.Errorf("%s: escaped output for pointer: want\n\t%q\ngot\n\t%q", test.name, w, g)
++			continue
++		}
+ 	}
+ }
+ 
+@@ -1605,6 +1615,29 @@ func TestRedundantFuncs(t *testing.T) {
+ 	}
+ }
+ 
++func TestIndirectPrint(t *testing.T) {
++	a := 3
++	ap := &a
++	b := "hello"
++	bp := &b
++	bpp := &bp
++	tmpl := Must(New("t").Parse(`{{.}}`))
++	var buf bytes.Buffer
++	err := tmpl.Execute(&buf, ap)
++	if err != nil {
++		t.Errorf("Unexpected error: %s", err)
++	} else if buf.String() != "3" {
++		t.Errorf(`Expected "3"; got %q`, buf.String())
++	}
++	buf.Reset()
++	err = tmpl.Execute(&buf, bpp)
++	if err != nil {
++		t.Errorf("Unexpected error: %s", err)
++	} else if buf.String() != "hello" {
++		t.Errorf(`Expected "hello"; got %q`, buf.String())
++	}
++}
++
+ func BenchmarkEscapedExecute(b *testing.B) {
+ 	tmpl := Must(New("t").Parse(`<a onclick="alert('{{.}}')">{{.}}</a>`))
+ 	var buf bytes.Buffer
+diff --git a/src/pkg/html/template/js.go b/src/pkg/html/template/js.go
+index 68c53e5ca3..0e632df422 100644
+--- a/src/pkg/html/template/js.go
++++ b/src/pkg/html/template/js.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"encoding/json"
+ 	"fmt"
++	"reflect"
+ 	"strings"
+ 	"unicode/utf8"
+ )
+@@ -117,12 +118,24 @@ var regexpPrecederKeywords = map[string]bool{
+ 	"void":       true,
+ }
+ 
++var jsonMarshalType = reflect.TypeOf((*json.Marshaler)(nil)).Elem()
++
++// indirectToJSONMarshaler returns the value, after dereferencing as many times
++// as necessary to reach the base type (or nil) or an implementation of json.Marshal.
++func indirectToJSONMarshaler(a interface{}) interface{} {
++	v := reflect.ValueOf(a)
++	for !v.Type().Implements(jsonMarshalType) && v.Kind() == reflect.Ptr && !v.IsNil() {
++		v = v.Elem()
++	}
++	return v.Interface()
++}
++
+ // jsValEscaper escapes its inputs to a JS Expression (section 11.14) that has
+-// nether side-effects nor free variables outside (NaN, Infinity).
++// neither side-effects nor free variables outside (NaN, Infinity).
+ func jsValEscaper(args ...interface{}) string {
+ 	var a interface{}
+ 	if len(args) == 1 {
+-		a = args[0]
++		a = indirectToJSONMarshaler(args[0])
+ 		switch t := a.(type) {
+ 		case JS:
+ 			return string(t)
+@@ -135,6 +148,9 @@ func jsValEscaper(args ...interface{}) string {
+ 			a = t.String()
+ 		}
+ 	} else {
++		for i, arg := range args {
++			args[i] = indirectToJSONMarshaler(arg)
++		}
+ 		a = fmt.Sprint(args...)
+ 	}
+ 	// TODO: detect cycles before calling Marshal which loops infinitely on

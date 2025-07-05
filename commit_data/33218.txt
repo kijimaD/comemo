@@ -13,6 +13,28 @@ Date:   Fri Aug 4 08:27:56 2017 +0100
     Change-Id: I52c126987a5d0abc4153c0e71b535529c46cd457
     Reviewed-on: https://go-review.googlesource.com/53290
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.9.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index 967d79b93e..aafd03c51f 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -773,6 +773,16 @@ version of gccgo.
+ 
+ </dl><!-- net/http/httptest -->
+ 
++<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
++  <dd>
++    <p><!-- CL 43712 -->
++      The <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
++      now proxies all HTTP/2 response trailers, even those not declared in the initial response
++      header. Such undeclared trailers are used by the gRPC protocol.
++    </p>
++
++</dl><!-- net/http/httputil -->
++
+ <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+   <dd>
+     <p><!-- CL 36800 -->

@@ -7,6 +7,20 @@ Date:   Sat Jan 28 10:08:10 2017 +0000
     Change-Id: Iad5ff820a95f5082b75aa5260e40c33c7b0ecf22
     Reviewed-on: https://go-review.googlesource.com/35990
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  test/fixedbugs/issue10607a.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue10607a.go b/test/fixedbugs/issue10607a.go
+index 18bf1a2ef3..51399e4ecf 100644
+--- a/test/fixedbugs/issue10607a.go
++++ b/test/fixedbugs/issue10607a.go
+@@ -35,7 +35,7 @@ func main() {
+ 
+ 		d, err := s.Data()
+ 		if err != nil {
+-			fmt.Fprintln(os.Stderr, "reading data of note section %d: %v", i, err)
++			fmt.Fprintf(os.Stderr, "reading data of note section %d: %v\n", i, err)
+ 			continue
+ 		}
+ 

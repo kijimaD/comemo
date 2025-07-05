@@ -12,7 +12,7 @@ Date:   Fri Oct 16 17:42:39 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/263153
     Reviewed-by: Katie Hockman <katie@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz_mutate.txt | 153 ++++++++++++++++++++++++
  src/internal/fuzz/fuzz.go                       |  59 +++++----
  src/internal/fuzz/mem.go                        | 107 +++++++++++++++++
@@ -22,3 +22,911 @@ Date:   Fri Oct 16 17:42:39 2020 -0400
  src/internal/fuzz/worker.go                     |  87 +++++++++-----
  src/testing/fuzz.go                             |  27 ++---
  8 files changed, 555 insertions(+), 91 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate.txt b/src/cmd/go/testdata/script/test_fuzz_mutate.txt
+new file mode 100644
+index 0000000000..b881292dc8
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate.txt
+@@ -0,0 +1,153 @@
++# Test basic fuzzing mutator behavior.
++#
++# fuzz_test.go has two fuzz targets (FuzzA, FuzzB) which both add a seed value.
++# Each fuzz function writes the input to a log file. The coordinator and worker
++# use separate log files. check_logs.go verifies that the coordinator only
++# tests seed values and the worker tests mutated values on the fuzz target.
++
++[short] skip
++
++go test -fuzz=FuzzA -parallel=1 -log=fuzz
++go run check_logs.go fuzz fuzz.worker
++
++-- go.mod --
++module m
++
++go 1.16
++-- fuzz_test.go --
++package fuzz_test
++
++import (
++	"flag"
++	"fmt"
++	"os"
++	"testing"
++)
++
++var (
++	logPath = flag.String("log", "", "path to log file")
++	logFile *os.File
++)
++
++func TestMain(m *testing.M) {
++	flag.Parse()
++	var err error
++	logFile, err = os.OpenFile(*logPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
++	if os.IsExist(err) {
++		*logPath += ".worker"
++		logFile, err = os.OpenFile(*logPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
++	}
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++	os.Exit(m.Run())
++}
++
++func FuzzA(f *testing.F) {
++	f.Add([]byte("seed"))
++	f.Fuzz(func(t *testing.T, b []byte) {
++		fmt.Fprintf(logFile, "FuzzA %q\n", b)
++	})
++}
++
++func FuzzB(f *testing.F) {
++	f.Add([]byte("seed"))
++	f.Fuzz(func(t *testing.T, b []byte) {
++		fmt.Fprintf(logFile, "FuzzB %q\n", b)
++	})
++}
++
++-- check_logs.go --
++// +build ignore
++
++package main
++
++import (
++	"bufio"
++	"fmt"
++	"io"
++	"os"
++	"strings"
++)
++
++func main() {
++	coordPath, workerPath := os.Args[1], os.Args[2]
++
++	coordLog, err := os.Open(coordPath)
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++	defer coordLog.Close()
++	if err := checkCoordLog(coordLog); err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++
++	workerLog, err := os.Open(workerPath)
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++	defer workerLog.Close()
++	if err := checkWorkerLog(workerLog); err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++}
++
++func checkCoordLog(r io.Reader) error {
++	scan := bufio.NewScanner(r)
++	var sawASeed, sawBSeed bool
++	for scan.Scan() {
++		line := scan.Text()
++		switch {
++		case line == `FuzzA "seed"`:
++			if sawASeed {
++				return fmt.Errorf("coordinator: tested FuzzA seed multiple times")
++			}
++			sawASeed = true
++
++		case line == `FuzzB "seed"`:
++			if sawBSeed {
++				return fmt.Errorf("coordinator: tested FuzzB seed multiple times")
++			}
++			sawBSeed = true
++
++		default:
++			return fmt.Errorf("coordinator: tested something other than seeds: %s", line)
++		}
++	}
++	if err := scan.Err(); err != nil {
++		return err
++	}
++	if !sawASeed {
++		return fmt.Errorf("coordinator: did not test FuzzA seed")
++	}
++	if !sawBSeed {
++		return fmt.Errorf("coordinator: did not test FuzzB seed")
++	}
++	return nil
++}
++
++func checkWorkerLog(r io.Reader) error {
++	scan := bufio.NewScanner(r)
++	var sawAMutant bool
++	for scan.Scan() {
++		line := scan.Text()
++		if !strings.HasPrefix(line, "FuzzA ") {
++			return fmt.Errorf("worker: tested something other than target: %s", line)
++		}
++		if strings.TrimPrefix(line, "FuzzA ") != `"seed"` {
++			sawAMutant = true
++		}
++	}
++	if err := scan.Err(); err != nil {
++		return err
++	}
++	if !sawAMutant {
++		return fmt.Errorf("worker: did not test any mutants")
++	}
++	return nil
++}
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index d7187d043e..b72106b337 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -40,6 +40,22 @@ func CoordinateFuzzing(parallel int, seed [][]byte) error {
+ 	// interrupts.
+ 	duration := 5 * time.Second
+ 
++	var corpus corpus
++	var maxSeedLen int
++	if len(seed) == 0 {
++		corpus.entries = []corpusEntry{{b: []byte{}}}
++		maxSeedLen = 0
++	} else {
++		corpus.entries = make([]corpusEntry, len(seed))
++		for i, v := range seed {
++			corpus.entries[i].b = v
++			if len(v) > maxSeedLen {
++				maxSeedLen = len(v)
++			}
++		}
++	}
++	// TODO(jayconrod,katiehockman): read corpus from GOFUZZCACHE.
++
+ 	// TODO(jayconrod): do we want to support fuzzing different binaries?
+ 	dir := "" // same as self
+ 	binPath := os.Args[0]
+@@ -51,38 +67,41 @@ func CoordinateFuzzing(parallel int, seed [][]byte) error {
+ 		inputC: make(chan corpusEntry),
+ 	}
+ 
+-	newWorker := func() *worker {
++	newWorker := func() (*worker, error) {
++		mem, err := sharedMemTempFile(maxSeedLen)
++		if err != nil {
++			return nil, err
++		}
+ 		return &worker{
+ 			dir:         dir,
+ 			binPath:     binPath,
+ 			args:        args,
+ 			env:         env,
+ 			coordinator: c,
+-		}
+-	}
+-
+-	corpus := corpus{entries: make([]corpusEntry, len(seed))}
+-	for i, v := range seed {
+-		corpus.entries[i].b = v
+-	}
+-	if len(corpus.entries) == 0 {
+-		// TODO(jayconrod,katiehockman): pick a good starting corpus when one is
+-		// missing or very small.
+-		corpus.entries = append(corpus.entries, corpusEntry{b: []byte{0}})
++			mem:         mem,
++		}, nil
+ 	}
+ 
+-	// TODO(jayconrod,katiehockman): read corpus from GOFUZZCACHE.
+-
+ 	// Start workers.
+ 	workers := make([]*worker, parallel)
+-	runErrs := make([]error, parallel)
++	for i := range workers {
++		var err error
++		workers[i], err = newWorker()
++		if err != nil {
++			return err
++		}
++	}
++
++	workerErrs := make([]error, len(workers))
+ 	var wg sync.WaitGroup
+-	wg.Add(parallel)
+-	for i := 0; i < parallel; i++ {
++	wg.Add(len(workers))
++	for i := range workers {
+ 		go func(i int) {
+ 			defer wg.Done()
+-			workers[i] = newWorker()
+-			runErrs[i] = workers[i].runFuzzing()
++			workerErrs[i] = workers[i].runFuzzing()
++			if cleanErr := workers[i].cleanup(); workerErrs[i] == nil {
++				workerErrs[i] = cleanErr
++			}
+ 		}(i)
+ 	}
+ 
+@@ -102,7 +121,7 @@ func CoordinateFuzzing(parallel int, seed [][]byte) error {
+ 		case <-c.doneC:
+ 			// Wait for workers to stop and return.
+ 			wg.Wait()
+-			for _, err := range runErrs {
++			for _, err := range workerErrs {
+ 				if err != nil {
+ 					return err
+ 				}
+diff --git a/src/internal/fuzz/mem.go b/src/internal/fuzz/mem.go
+new file mode 100644
+index 0000000000..2bb5736cf5
+--- /dev/null
++++ b/src/internal/fuzz/mem.go
+@@ -0,0 +1,107 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fuzz
++
++import (
++	"fmt"
++	"io/ioutil"
++	"os"
++	"unsafe"
++)
++
++// sharedMem manages access to a region of virtual memory mapped from a file,
++// shared between multiple processes. The region includes space for a header and
++// a value of variable length.
++//
++// When fuzzing, the coordinator creates a sharedMem from a temporary file for
++// each worker. This buffer is used to pass values to fuzz between processes.
++//
++// Care must be taken to synchronize access to shared memory across processes.
++// For example, workerClient and workerServer use an RPC protocol over pipes:
++// workerServer may access shared memory when handling an RPC; workerClient may
++// access shared memory at other times.
++type sharedMem struct {
++	// f is the file mapped into memory.
++	f *os.File
++
++	// region is the mapped region of virtual memory for f. The content of f may
++	// be read or written through this slice.
++	region []byte
++
++	// removeOnClose is true if the file should be deleted by Close.
++	removeOnClose bool
++
++	// sys contains OS-specific information.
++	sys sharedMemSys
++}
++
++// sharedMemHeader stores metadata in shared memory.
++type sharedMemHeader struct {
++	length int
++}
++
++// sharedMemSize returns the size needed for a shared memory buffer that can
++// contain values of the given size.
++func sharedMemSize(valueSize int) int {
++	// TODO(jayconrod): set a reasonable maximum size per platform.
++	return int(unsafe.Sizeof(sharedMemHeader{})) + valueSize
++}
++
++// sharedMemTempFile creates a new temporary file large enough to hold a value
++// of the given size, then maps it into memory. The file will be removed when
++// the Close method is called.
++func sharedMemTempFile(valueSize int) (m *sharedMem, err error) {
++	// Create a temporary file.
++	f, err := ioutil.TempFile("", "fuzz-*")
++	if err != nil {
++		return nil, err
++	}
++	defer func() {
++		if err != nil {
++			f.Close()
++			os.Remove(f.Name())
++		}
++	}()
++
++	// Resize it to the correct size.
++	totalSize := sharedMemSize(valueSize)
++	if err := f.Truncate(int64(totalSize)); err != nil {
++		return nil, err
++	}
++
++	// Map the file into memory.
++	removeOnClose := true
++	return sharedMemMapFile(f, totalSize, removeOnClose)
++}
++
++// header returns a pointer to metadata within the shared memory region.
++func (m *sharedMem) header() *sharedMemHeader {
++	return (*sharedMemHeader)(unsafe.Pointer(&m.region[0]))
++}
++
++// value returns the value currently stored in shared memory. The returned slice
++// points to shared memory; it is not a copy.
++func (m *sharedMem) value() []byte {
++	length := m.header().length
++	valueOffset := int(unsafe.Sizeof(sharedMemHeader{}))
++	return m.region[valueOffset : valueOffset+length]
++}
++
++// setValue copies the data in b into the shared memory buffer and sets
++// the length. len(b) must be less than or equal to the capacity of the buffer
++// (as returned by cap(m.value())).
++func (m *sharedMem) setValue(b []byte) {
++	v := m.value()
++	if len(b) > cap(v) {
++		panic(fmt.Sprintf("value length %d larger than shared memory capacity %d", len(b), cap(v)))
++	}
++	m.header().length = len(b)
++	copy(v[:cap(v)], b)
++}
++
++// TODO(jayconrod): add method to resize the buffer. We'll need that when the
++// mutator can increase input length. Only the coordinator will be able to
++// do it, since we'll need to send a message to the worker telling it to
++// remap the file.
+diff --git a/src/internal/fuzz/sys_posix.go b/src/internal/fuzz/sys_posix.go
+index 259caa8a59..ec27b4bf00 100644
+--- a/src/internal/fuzz/sys_posix.go
++++ b/src/internal/fuzz/sys_posix.go
+@@ -2,24 +2,74 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !windows
++// +build darwin linux
+ 
+ package fuzz
+ 
+ import (
++	"fmt"
+ 	"os"
+ 	"os/exec"
++	"syscall"
+ )
+ 
++type sharedMemSys struct{}
++
++func sharedMemMapFile(f *os.File, size int, removeOnClose bool) (*sharedMem, error) {
++	prot := syscall.PROT_READ | syscall.PROT_WRITE
++	flags := syscall.MAP_FILE | syscall.MAP_SHARED
++	region, err := syscall.Mmap(int(f.Fd()), 0, size, prot, flags)
++	if err != nil {
++		return nil, err
++	}
++
++	return &sharedMem{f: f, region: region, removeOnClose: removeOnClose}, nil
++}
++
++// Close unmaps the shared memory and closes the temporary file. If this
++// sharedMem was created with sharedMemTempFile, Close also removes the file.
++func (m *sharedMem) Close() error {
++	// Attempt all operations, even if we get an error for an earlier operation.
++	// os.File.Close may fail due to I/O errors, but we still want to delete
++	// the temporary file.
++	var errs []error
++	errs = append(errs,
++		syscall.Munmap(m.region),
++		m.f.Close())
++	if m.removeOnClose {
++		errs = append(errs, os.Remove(m.f.Name()))
++	}
++	for _, err := range errs {
++		if err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
+ // setWorkerComm configures communciation channels on the cmd that will
+ // run a worker process.
+-func setWorkerComm(cmd *exec.Cmd, fuzzIn, fuzzOut *os.File) {
+-	cmd.ExtraFiles = []*os.File{fuzzIn, fuzzOut}
++func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
++	cmd.ExtraFiles = []*os.File{comm.fuzzIn, comm.fuzzOut, comm.mem.f}
+ }
+ 
+ // getWorkerComm returns communication channels in the worker process.
+-func getWorkerComm() (fuzzIn, fuzzOut *os.File, err error) {
+-	fuzzIn = os.NewFile(3, "fuzz_in")
+-	fuzzOut = os.NewFile(4, "fuzz_out")
+-	return fuzzIn, fuzzOut, nil
++func getWorkerComm() (comm workerComm, err error) {
++	fuzzIn := os.NewFile(3, "fuzz_in")
++	fuzzOut := os.NewFile(4, "fuzz_out")
++	memFile := os.NewFile(5, "fuzz_mem")
++	fi, err := memFile.Stat()
++	if err != nil {
++		return workerComm{}, err
++	}
++	size := int(fi.Size())
++	if int64(size) != fi.Size() {
++		return workerComm{}, fmt.Errorf("fuzz temp file exceeds maximum size")
++	}
++	removeOnClose := false
++	mem, err := sharedMemMapFile(memFile, size, removeOnClose)
++	if err != nil {
++		return workerComm{}, err
++	}
++	return workerComm{fuzzIn: fuzzIn, fuzzOut: fuzzOut, mem: mem}, nil
+ }
+diff --git a/src/internal/fuzz/sys_unimplemented.go b/src/internal/fuzz/sys_unimplemented.go
+new file mode 100644
+index 0000000000..dbb380ef67
+--- /dev/null
++++ b/src/internal/fuzz/sys_unimplemented.go
+@@ -0,0 +1,31 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO(jayconrod): support more platforms.
++// +build !darwin,!linux,!windows
++
++package fuzz
++
++import (
++	"os"
++	"os/exec"
++)
++
++type sharedMemSys struct{}
++
++func sharedMemMapFile(f *os.File, size int, removeOnClose bool) (*sharedMem, error) {
++	panic("not implemented")
++}
++
++func (m *sharedMem) Close() error {
++	panic("not implemented")
++}
++
++func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
++	panic("not implemented")
++}
++
++func getWorkerComm() (comm workerComm, err error) {
++	panic("not implemented")
++}
+diff --git a/src/internal/fuzz/sys_windows.go b/src/internal/fuzz/sys_windows.go
+index a67548477b..286634c692 100644
+--- a/src/internal/fuzz/sys_windows.go
++++ b/src/internal/fuzz/sys_windows.go
+@@ -2,48 +2,132 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build windows
+-
+ package fuzz
+ 
+ import (
+ 	"fmt"
+ 	"os"
+ 	"os/exec"
++	"reflect"
+ 	"strconv"
+ 	"strings"
+ 	"syscall"
++	"unsafe"
+ )
+ 
++type sharedMemSys struct {
++	mapObj syscall.Handle
++}
++
++func sharedMemMapFile(f *os.File, size int, removeOnClose bool) (*sharedMem, error) {
++	// Create a file mapping object. The object itself is not shared.
++	mapObj, err := syscall.CreateFileMapping(
++		syscall.Handle(f.Fd()), // fhandle
++		nil,                    // sa
++		syscall.PAGE_READWRITE, // prot
++		0,                      // maxSizeHigh
++		0,                      // maxSizeLow
++		nil,                    // name
++	)
++	if err != nil {
++		return nil, err
++	}
++
++	// Create a view from the file mapping object.
++	access := uint32(syscall.FILE_MAP_READ | syscall.FILE_MAP_WRITE)
++	addr, err := syscall.MapViewOfFile(
++		mapObj,        // handle
++		access,        // access
++		0,             // offsetHigh
++		0,             // offsetLow
++		uintptr(size), // length
++	)
++	if err != nil {
++		syscall.CloseHandle(mapObj)
++		return nil, err
++	}
++
++	var region []byte
++	header := (*reflect.SliceHeader)(unsafe.Pointer(&region))
++	header.Data = addr
++	header.Len = size
++	header.Cap = size
++	return &sharedMem{
++		f:             f,
++		region:        region,
++		removeOnClose: removeOnClose,
++		sys:           sharedMemSys{mapObj: mapObj},
++	}, nil
++}
++
++// Close unmaps the shared memory and closes the temporary file. If this
++// sharedMem was created with sharedMemTempFile, Close also removes the file.
++func (m *sharedMem) Close() error {
++	// Attempt all operations, even if we get an error for an earlier operation.
++	// os.File.Close may fail due to I/O errors, but we still want to delete
++	// the temporary file.
++	var errs []error
++	errs = append(errs,
++		syscall.UnmapViewOfFile(uintptr(unsafe.Pointer(&m.region[0]))),
++		syscall.CloseHandle(m.sys.mapObj),
++		m.f.Close())
++	if m.removeOnClose {
++		errs = append(errs, os.Remove(m.f.Name()))
++	}
++	for _, err := range errs {
++		if err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
+ // setWorkerComm configures communciation channels on the cmd that will
+ // run a worker process.
+-func setWorkerComm(cmd *exec.Cmd, fuzzIn, fuzzOut *os.File) {
+-	syscall.SetHandleInformation(syscall.Handle(fuzzIn.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
+-	syscall.SetHandleInformation(syscall.Handle(fuzzOut.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
+-	cmd.Env = append(cmd.Env, fmt.Sprintf("GO_TEST_FUZZ_WORKER_HANDLES=%x,%x", fuzzIn.Fd(), fuzzOut.Fd()))
++func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
++	syscall.SetHandleInformation(syscall.Handle(comm.fuzzIn.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
++	syscall.SetHandleInformation(syscall.Handle(comm.fuzzOut.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
++	syscall.SetHandleInformation(syscall.Handle(comm.mem.f.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
++	cmd.Env = append(cmd.Env, fmt.Sprintf("GO_TEST_FUZZ_WORKER_HANDLES=%x,%x,%x", comm.fuzzIn.Fd(), comm.fuzzOut.Fd(), comm.mem.f.Fd()))
+ }
+ 
+ // getWorkerComm returns communication channels in the worker process.
+-func getWorkerComm() (fuzzIn *os.File, fuzzOut *os.File, err error) {
++func getWorkerComm() (comm workerComm, err error) {
+ 	v := os.Getenv("GO_TEST_FUZZ_WORKER_HANDLES")
+ 	if v == "" {
+-		return nil, nil, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES not set")
++		return workerComm{}, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES not set")
+ 	}
+ 	parts := strings.Split(v, ",")
+-	if len(parts) != 2 {
+-		return nil, nil, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES has invalid value")
++	if len(parts) != 3 {
++		return workerComm{}, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES has invalid value")
+ 	}
+ 	base := 16
+ 	bitSize := 64
+-	in, err := strconv.ParseInt(parts[0], base, bitSize)
++	handles := make([]syscall.Handle, len(parts))
++	for i, s := range parts {
++		h, err := strconv.ParseInt(s, base, bitSize)
++		if err != nil {
++			return workerComm{}, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES has invalid value: %v", err)
++		}
++		handles[i] = syscall.Handle(h)
++	}
++
++	fuzzIn := os.NewFile(uintptr(handles[0]), "fuzz_in")
++	fuzzOut := os.NewFile(uintptr(handles[1]), "fuzz_out")
++	tmpFile := os.NewFile(uintptr(handles[2]), "fuzz_mem")
++	fi, err := tmpFile.Stat()
+ 	if err != nil {
+-		return nil, nil, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES has invalid value: %v", err)
++		return workerComm{}, err
+ 	}
+-	out, err := strconv.ParseInt(parts[1], base, bitSize)
++	size := int(fi.Size())
++	if int64(size) != fi.Size() {
++		return workerComm{}, fmt.Errorf("fuzz temp file exceeds maximum size")
++	}
++	removeOnClose := false
++	mem, err := sharedMemMapFile(tmpFile, size, removeOnClose)
+ 	if err != nil {
+-		return nil, nil, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES has invalid value: %v", err)
++		return workerComm{}, err
+ 	}
+-	fuzzIn = os.NewFile(uintptr(in), "fuzz_in")
+-	fuzzOut = os.NewFile(uintptr(out), "fuzz_out")
+-	return fuzzIn, fuzzOut, nil
++
++	return workerComm{fuzzIn: fuzzIn, fuzzOut: fuzzOut, mem: mem}, nil
+ }
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 0aa7015c66..a194a5f9be 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -26,7 +26,10 @@ const (
+ 	workerTimeoutDuration = 1 * time.Second
+ )
+ 
+-// worker manages a worker process running a test binary.
++// worker manages a worker process running a test binary. The worker object
++// exists only in the coordinator (the process started by 'go test -fuzz').
++// workerClient is used by the coordinator to send RPCs to the worker process,
++// which handles them with workerServer.
+ type worker struct {
+ 	dir     string   // working directory, same as package directory
+ 	binPath string   // path to test executable
+@@ -35,12 +38,24 @@ type worker struct {
+ 
+ 	coordinator *coordinator
+ 
++	mem *sharedMem // shared memory with worker; persists across processes.
++
+ 	cmd     *exec.Cmd     // current worker process
+ 	client  *workerClient // used to communicate with worker process
+ 	waitErr error         // last error returned by wait, set before termC is closed.
+ 	termC   chan struct{} // closed by wait when worker process terminates
+ }
+ 
++// cleanup releases persistent resources associated with the worker.
++func (w *worker) cleanup() error {
++	if w.mem == nil {
++		return nil
++	}
++	err := w.mem.Close()
++	w.mem = nil
++	return err
++}
++
+ // runFuzzing runs the test binary to perform fuzzing.
+ //
+ // This function loops until w.coordinator.doneC is closed or some
+@@ -69,28 +84,27 @@ func (w *worker) runFuzzing() error {
+ 		case <-w.termC:
+ 			// Worker process terminated unexpectedly.
+ 			// TODO(jayconrod,katiehockman): handle crasher.
+-
+-			// Restart the process.
+-			if err := w.start(); err != nil {
+-				close(w.coordinator.doneC)
+-				return err
++			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
++			err := w.stop()
++			if err == nil {
++				err = fmt.Errorf("worker exited unexpectedly")
+ 			}
++			close(w.coordinator.doneC)
++			return err
+ 
+ 		case input := <-inputC:
+ 			// Received input from coordinator.
+ 			inputC = nil // block new inputs until we finish with this one.
+ 			go func() {
+-				args := fuzzArgs{
+-					Value:    input.b,
+-					Duration: workerFuzzDuration,
+-				}
+-				_, err := w.client.fuzz(args)
++				args := fuzzArgs{Duration: workerFuzzDuration}
++				_, err := w.client.fuzz(input.b, args)
+ 				if err != nil {
+ 					// TODO(jayconrod): if we get an error here, something failed between
+ 					// main and the call to testing.F.Fuzz. The error here won't
+ 					// be useful. Collect stderr, clean it up, and return that.
+ 					// TODO(jayconrod): what happens if testing.F.Fuzz is never called?
+ 					// TODO(jayconrod): time out if the test process hangs.
++					fmt.Fprintf(os.Stderr, "communicating with worker: %v\n", err)
+ 				}
+ 
+ 				fuzzC <- struct{}{}
+@@ -154,7 +168,7 @@ func (w *worker) start() (err error) {
+ 		return err
+ 	}
+ 	defer fuzzOutW.Close()
+-	setWorkerComm(cmd, fuzzInR, fuzzOutW)
++	setWorkerComm(cmd, workerComm{fuzzIn: fuzzInR, fuzzOut: fuzzOutW, mem: w.mem})
+ 
+ 	// Start the worker process.
+ 	if err := cmd.Start(); err != nil {
+@@ -168,7 +182,7 @@ func (w *worker) start() (err error) {
+ 	// called later by stop.
+ 	w.cmd = cmd
+ 	w.termC = make(chan struct{})
+-	w.client = newWorkerClient(fuzzInW, fuzzOutR)
++	w.client = newWorkerClient(workerComm{fuzzIn: fuzzInW, fuzzOut: fuzzOutR, mem: w.mem})
+ 
+ 	go func() {
+ 		w.waitErr = w.cmd.Wait()
+@@ -266,12 +280,12 @@ func (w *worker) stop() error {
+ // RunFuzzWorker returns an error if it could not communicate with the
+ // coordinator process.
+ func RunFuzzWorker(fn func([]byte) error) error {
+-	fuzzIn, fuzzOut, err := getWorkerComm()
++	comm, err := getWorkerComm()
+ 	if err != nil {
+ 		return err
+ 	}
+-	srv := &workerServer{fn: fn}
+-	return srv.serve(fuzzIn, fuzzOut)
++	srv := &workerServer{workerComm: comm, fn: fn}
++	return srv.serve()
+ }
+ 
+ // call is serialized and sent from the coordinator on fuzz_in. It acts as
+@@ -282,7 +296,6 @@ type call struct {
+ }
+ 
+ type fuzzArgs struct {
+-	Value    []byte
+ 	Duration time.Duration
+ }
+ 
+@@ -291,8 +304,16 @@ type fuzzResponse struct {
+ 	Err     string
+ }
+ 
++// workerComm holds objects needed for the worker client and server
++// to communicate.
++type workerComm struct {
++	fuzzIn, fuzzOut *os.File
++	mem             *sharedMem
++}
++
+ // workerServer is a minimalist RPC server, run in fuzz worker processes.
+ type workerServer struct {
++	workerComm
+ 	fn func([]byte) error
+ }
+ 
+@@ -300,9 +321,9 @@ type workerServer struct {
+ //
+ // serve returns errors communicating over the pipes. It does not return
+ // errors from methods; those are passed through response values.
+-func (ws *workerServer) serve(fuzzIn io.ReadCloser, fuzzOut io.WriteCloser) error {
+-	enc := json.NewEncoder(fuzzOut)
+-	dec := json.NewDecoder(fuzzIn)
++func (ws *workerServer) serve() error {
++	enc := json.NewEncoder(ws.fuzzOut)
++	dec := json.NewDecoder(ws.fuzzIn)
+ 	for {
+ 		var c call
+ 		if err := dec.Decode(&c); err == io.EOF {
+@@ -314,7 +335,8 @@ func (ws *workerServer) serve(fuzzIn io.ReadCloser, fuzzOut io.WriteCloser) erro
+ 		var resp interface{}
+ 		switch {
+ 		case c.Fuzz != nil:
+-			resp = ws.fuzz(*c.Fuzz)
++			value := ws.mem.value()
++			resp = ws.fuzz(value, *c.Fuzz)
+ 		default:
+ 			return errors.New("no arguments provided for any call")
+ 		}
+@@ -328,14 +350,14 @@ func (ws *workerServer) serve(fuzzIn io.ReadCloser, fuzzOut io.WriteCloser) erro
+ // fuzz runs the test function on random variations of a given input value for
+ // a given amount of time. fuzz returns early if it finds an input that crashes
+ // the fuzz function or an input that expands coverage.
+-func (ws *workerServer) fuzz(args fuzzArgs) fuzzResponse {
++func (ws *workerServer) fuzz(value []byte, args fuzzArgs) fuzzResponse {
+ 	t := time.NewTimer(args.Duration)
+ 	for {
+ 		select {
+ 		case <-t.C:
+ 			return fuzzResponse{}
+ 		default:
+-			b := mutate(args.Value)
++			b := mutate(value)
+ 			if err := ws.fn(b); err != nil {
+ 				return fuzzResponse{Crasher: b, Err: err.Error()}
+ 			}
+@@ -346,18 +368,16 @@ func (ws *workerServer) fuzz(args fuzzArgs) fuzzResponse {
+ 
+ // workerClient is a minimalist RPC client, run in the fuzz coordinator.
+ type workerClient struct {
+-	fuzzIn  io.WriteCloser
+-	fuzzOut io.ReadCloser
+-	enc     *json.Encoder
+-	dec     *json.Decoder
++	workerComm
++	enc *json.Encoder
++	dec *json.Decoder
+ }
+ 
+-func newWorkerClient(fuzzIn io.WriteCloser, fuzzOut io.ReadCloser) *workerClient {
++func newWorkerClient(comm workerComm) *workerClient {
+ 	return &workerClient{
+-		fuzzIn:  fuzzIn,
+-		fuzzOut: fuzzOut,
+-		enc:     json.NewEncoder(fuzzIn),
+-		dec:     json.NewDecoder(fuzzOut),
++		workerComm: comm,
++		enc:        json.NewEncoder(comm.fuzzIn),
++		dec:        json.NewDecoder(comm.fuzzOut),
+ 	}
+ }
+ 
+@@ -382,7 +402,8 @@ func (wc *workerClient) Close() error {
+ }
+ 
+ // fuzz tells the worker to call the fuzz method. See workerServer.fuzz.
+-func (wc *workerClient) fuzz(args fuzzArgs) (fuzzResponse, error) {
++func (wc *workerClient) fuzz(value []byte, args fuzzArgs) (fuzzResponse, error) {
++	wc.mem.setValue(value)
+ 	c := call{Fuzz: &args}
+ 	if err := wc.enc.Encode(c); err != nil {
+ 		return fuzzResponse{}, err
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index ce66000a3a..100075ca2c 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -338,29 +338,28 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool)
+ 		},
+ 		context: ctx,
+ 	}
+-	var (
+-		ft    InternalFuzzTarget
+-		found int
+-	)
+-	for _, ft = range fuzzTargets {
++	var target *InternalFuzzTarget
++	for i := range fuzzTargets {
++		ft := &fuzzTargets[i]
+ 		testName, matched, _ := ctx.fuzzMatch.fullName(&f.common, ft.Name)
+-		if matched {
+-			found++
+-			if found > 1 {
+-				fmt.Fprintln(os.Stderr, "testing: warning: -fuzz matches more than one target, won't fuzz")
+-				return false, true
+-			}
+-			f.name = testName
++		if !matched {
++			continue
++		}
++		if target != nil {
++			fmt.Fprintln(os.Stderr, "testing: warning: -fuzz matches more than one target, won't fuzz")
++			return false, true
+ 		}
++		target = ft
++		f.name = testName
+ 	}
+-	if found == 0 {
++	if target == nil {
+ 		return false, true
+ 	}
+ 	if Verbose() {
+ 		f.chatty = newChattyPrinter(f.w)
+ 		f.chatty.Updatef(f.name, "--- FUZZ: %s\n", f.name)
+ 	}
+-	go f.runTarget(ft.Fn)
++	go f.runTarget(target.Fn)
+ 	<-f.signal
+ 	return f.ran, !f.failed
+ }

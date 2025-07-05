@@ -9,6 +9,29 @@ Date:   Fri Jun 26 14:31:35 2015 -0700
     Change-Id: If406d2efcc81965825a63c76f5448d544ba2a740
     Reviewed-on: https://go-review.googlesource.com/11590
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/archive/tar/tar_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index d63c072eb9..715884a45f 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"os"
+ 	"path"
+ 	"reflect"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -135,6 +136,9 @@ type headerRoundTripTest struct {
+ }
+ 
+ func TestHeaderRoundTrip(t *testing.T) {
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
++		t.Skipf("skipping on %s; issue 11426", runtime.GOOS)
++	}
+ 	golden := []headerRoundTripTest{
+ 		// regular file.
+ 		{

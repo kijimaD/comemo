@@ -11,6 +11,23 @@ Date:   Mon Dec 19 22:55:53 2016 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgcsweep.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index e74a451d0d..fb5c488ffc 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -405,7 +405,10 @@ func reimburseSweepCredit(unusableBytes uintptr) {
+ 		// Nobody cares about the credit. Avoid the atomic.
+ 		return
+ 	}
+-	if int64(atomic.Xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))) < 0 {
++	nval := atomic.Xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))
++	if int64(nval) < 0 {
++		// Debugging for #18043.
++		print("runtime: bad spanBytesAlloc=", nval, " (was ", nval+uint64(unusableBytes), ") unusableBytes=", unusableBytes, " sweepPagesPerByte=", mheap_.sweepPagesPerByte, "\n")
+ 		throw("spanBytesAlloc underflow")
+ 	}
+ }

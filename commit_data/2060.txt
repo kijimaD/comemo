@@ -8,6 +8,19 @@ Date:   Mon Apr 20 15:23:21 2009 -0700
     DELTA=1  (1 added, 0 deleted, 0 changed)
     OCL=27633
     CL=27639
-
+---
  test/declbad.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/declbad.go b/test/declbad.go
+index 8115b2cf6e..755450788e 100644
+--- a/test/declbad.go
++++ b/test/declbad.go
+@@ -17,6 +17,7 @@ func main() {
+ 		// simple redeclaration
+ 		i := f1();
+ 		i := f1();	// ERROR "redeclared"
++	}
+ 	{
+ 		// change of type for f
+ 		i, f, s := f3();

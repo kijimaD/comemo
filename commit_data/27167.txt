@@ -12,6 +12,70 @@ Date:   Sun Mar 13 21:57:31 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 42 ++++++------------------------------
  1 file changed, 7 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index bd600e08fc..e54f7e1c97 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -512,28 +512,11 @@ func staticname(t *Type, ctxt int) *Node {
+ 
+ func isliteral(n *Node) bool {
+ 	// Treat nils as zeros rather than literals.
+-	if n.Op == OLITERAL {
+-		if n.Val().Ctype() != CTNIL {
+-			return true
+-		}
+-	}
+-	return false
++	return n.Op == OLITERAL && n.Val().Ctype() != CTNIL
+ }
+ 
+ func simplename(n *Node) bool {
+-	if n.Op != ONAME {
+-		return false
+-	}
+-	if !n.Addable {
+-		return false
+-	}
+-	if n.Class&PHEAP != 0 {
+-		return false
+-	}
+-	if n.Class == PPARAMREF {
+-		return false
+-	}
+-	return true
++	return n.Op == ONAME && n.Addable && n.Class&PHEAP == 0 && n.Class != PPARAMREF
+ }
+ 
+ func litas(l *Node, r *Node, init *Nodes) {
+@@ -1442,22 +1425,11 @@ func gen_as_init(n *Node, reportOnly bool) bool {
+ 	default:
+ 		goto no
+ 
+-	case TBOOL,
+-		TINT8,
+-		TUINT8,
+-		TINT16,
+-		TUINT16,
+-		TINT32,
+-		TUINT32,
+-		TINT64,
+-		TUINT64,
+-		TINT,
+-		TUINT,
+-		TUINTPTR,
+-		TPTR32,
+-		TPTR64,
+-		TFLOAT32,
+-		TFLOAT64:
++	case TBOOL, TINT8, TUINT8, TINT16, TUINT16,
++		TINT32, TUINT32, TINT64, TUINT64,
++		TINT, TUINT, TUINTPTR,
++		TPTR32, TPTR64,
++		TFLOAT32, TFLOAT64:
+ 		if !reportOnly {
+ 			gdata(&nam, nr, int(nr.Type.Width))
+ 		}

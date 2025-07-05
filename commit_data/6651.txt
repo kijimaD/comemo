@@ -10,6 +10,23 @@ Date:   Thu Oct 28 08:44:25 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2753043
-
+---
  src/pkg/go/doc/comment.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index f54a672db5..9ff0bd536a 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -78,10 +78,8 @@ func CommentText(comment *ast.CommentGroup) string {
+ 	lines = lines[0:n]
+ 
+ 	// Add final "" entry to get trailing newline from Join.
+-	// The original loop always leaves room for one more.
+ 	if n > 0 && lines[n-1] != "" {
+-		lines = lines[0 : n+1]
+-		lines[n] = ""
++		lines = append(lines, "")
+ 	}
+ 
+ 	return strings.Join(lines, "\n")

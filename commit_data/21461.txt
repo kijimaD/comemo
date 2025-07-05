@@ -7,6 +7,29 @@ Date:   Sun Dec 14 14:32:56 2014 +0800
     Change-Id: I7238ae84d637534a345e5d077b8c63466148bd75
     Reviewed-on: https://go-review.googlesource.com/1521
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/contribute.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index efd5040097..63d477462c 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -154,7 +154,7 @@ Git, note that you still need the commit hooks that the git-codereview command
+ configures; those hooks add a Gerrit <code>Change-Id</code> line to the commit
+ message and check that all Go source files have been formatted with gofmt. Even
+ if you intend to use plain Git for daily work, install the hooks in a new Git
+-checkout by running <code>git-codereview</code> <code>hooks</code>).
++checkout by running <code>git-codereview</code> <code>hooks</code>.
+ </p>
+ 
+ <h3>Set up git aliases</h3>
+@@ -461,7 +461,7 @@ $ git sync
+ </pre>
+ 
+ <p>
+-(In git terms, git sync runs
++(In git terms, <code>git</code> <code>sync</code> runs
+ <code>git</code> <code>pull</code> <code>-r</code>.)
+ </p>
+ 

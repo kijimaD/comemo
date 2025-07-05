@@ -14,6 +14,20 @@ Date:   Thu Aug 30 15:39:45 2018 -0600
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/fmt/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/fmt/example_test.go b/src/fmt/example_test.go
+index 7b7eacafb4..a600ebcafb 100644
+--- a/src/fmt/example_test.go
++++ b/src/fmt/example_test.go
+@@ -32,7 +32,7 @@ func ExampleSprintf() {
+ func ExampleFprintln() {
+ 	n, err := fmt.Fprintln(os.Stdout, "there", "are", 99, "gophers")
+ 	if err != nil {
+-		panic("failed writing to stdout, someting is seriously wrong")
++		panic(err)
+ 	}
+ 	fmt.Print(n)
+ 	// Output:

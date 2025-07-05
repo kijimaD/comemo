@@ -12,6 +12,24 @@ Date:   Wed Nov 28 18:52:35 2018 +0000
     Change-Id: I632b25272fdb2f789c5259dd1685d517f45fd435
     Reviewed-on: https://go-review.googlesource.com/c/151539
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/HACKING.md | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/HACKING.md b/src/runtime/HACKING.md
+index 72ba61970b..993edc67d8 100644
+--- a/src/runtime/HACKING.md
++++ b/src/runtime/HACKING.md
+@@ -205,8 +205,10 @@ marked `//go:notinheap` (see below).
+ Objects that are allocated in unmanaged memory **must not** contain
+ heap pointers unless the following rules are also obeyed:
+ 
+-1. Any pointers from unmanaged memory to the heap must be added as
+-   explicit garbage collection roots in `runtime.markroot`.
++1. Any pointers from unmanaged memory to the heap must be garbage
++   collection roots. More specifically, any pointer must either be
++   accessible through a global variable or be added as an explicit
++   garbage collection root in `runtime.markroot`.
+ 
+ 2. If the memory is reused, the heap pointers must be zero-initialized
+    before they become visible as GC roots. Otherwise, the GC may

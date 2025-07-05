@@ -7,7 +7,32 @@ Date:   Sun May 3 01:29:52 2015 -0400
     Change-Id: I3e839587626832da069d95a7d7389ea6bb2318da
     Reviewed-on: https://go-review.googlesource.com/9674
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/internal/gcimporter/gcimporter_test.go | 1 +
  src/go/types/api_test.go                      | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index edd33bf844..5d4de39712 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -25,6 +25,7 @@ func skipSpecialPlatforms(t *testing.T) {
+ 	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
+ 	case "nacl-amd64p32",
+ 		"nacl-386",
++		"nacl-arm",
+ 		"darwin-arm",
+ 		"darwin-arm64":
+ 		t.Skipf("no compiled packages available for import on %s", platform)
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 48fe3c2da0..3ab909c8dd 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -25,6 +25,7 @@ func skipSpecialPlatforms(t *testing.T) {
+ 	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
+ 	case "nacl-amd64p32",
+ 		"nacl-386",
++		"nacl-arm",
+ 		"darwin-arm",
+ 		"darwin-arm64":
+ 		t.Skipf("no compiled packages available for import on %s", platform)

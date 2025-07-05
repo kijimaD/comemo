@@ -13,7 +13,7 @@ Date:   Thu Sep 18 15:06:43 2008 -0700
     DELTA=90  (39 added, 37 deleted, 14 changed)
     OCL=15485
     CL=15487
-
+---
  src/clean.bash         |  2 +-
  src/cmd/6a/Makefile    |  5 ++++-
  src/cmd/cc/Makefile    |  5 ++++-
@@ -30,3 +30,282 @@ Date:   Thu Sep 18 15:06:43 2008 -0700
  src/pkg/make.bash      |  2 ++
  src/syscall/Makefile   |  3 +++
  15 files changed, 49 insertions(+), 50 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index dd727ac608..cba2129cfa 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in lib9 libbio libmach_amd64 syscall
++for i in lib9 libbio libmach_amd64 libregexp syscall
+ do
+ 	cd $i
+ 	make clean
+diff --git a/src/cmd/6a/Makefile b/src/cmd/6a/Makefile
+index be34e99d36..d4bfd210cb 100644
+--- a/src/cmd/6a/Makefile
++++ b/src/cmd/6a/Makefile
+@@ -29,9 +29,12 @@ $(OFILES): $(HFILES)
+ 
+ lex.$O:	../cc/macbody ../cc/lexbody
+ 
+-y.tab.c: $(YFILES)
++y.tab.h: $(YFILES)
+ 	yacc $(YFLAGS) $(YFILES)
+ 
++y.tab.c: y.tab.h
++	# do nothing
++
+ clean:
+ 	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c
+ 
+diff --git a/src/cmd/cc/Makefile b/src/cmd/cc/Makefile
+index 5d21241c43..4247a8b971 100644
+--- a/src/cmd/cc/Makefile
++++ b/src/cmd/cc/Makefile
+@@ -38,9 +38,12 @@ $(LIB): $(OFILES)
+ 
+ $(OFILES): $(HFILES)
+ 
+-y.tab.c: $(YFILES)
++y.tab.h: $(YFILES)
+ 	yacc $(YFLAGS) $(YFILES)
+ 
++y.tab.c: y.tab.h
++	# do nothing
++
+ clean:
+ 	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
+ 
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index e516e872ca..3537b835c1 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in 6l 6a 6c 6g gc cc ar db
++for i in 6l 6a 6c 6g gc cc ar db nm acid
+ do
+ 	cd $i
+ 	make clean
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 9c3f2e977e..4a7445a91d 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -33,9 +33,12 @@ $(LIB): $(OFILES)
+ 
+ $(OFILES): $(HFILES)
+ 
+-y.tab.c: $(YFILES)
++y.tab.h: $(YFILES)
+ 	yacc $(YFLAGS) $(YFILES)
+ 
++y.tab.c: y.tab.h
++	# do nothing
++
+ sysimport.c:	sys.go mksys.bash
+ 	bash mksys.bash
+ 
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index 84332440d0..be8df76001 100644
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -3,6 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++set -e
+ 
+ bash clean.bash
+ 
+@@ -11,47 +12,10 @@ bash mkenam
+ make enam.o
+ cd ..
+ 
+-echo; echo; echo %%%% making cc %%%%; echo
+-cd cc
+-make install
+-cd ..
+-
+-echo; echo; echo %%%% making 6l %%%%; echo
+-cd 6l
+-make install
+-cd ..
+-
+-echo; echo; echo %%%% making 6a %%%%; echo
+-cd 6a
+-make install
+-cd ..
+-
+-echo; echo; echo %%%% making 6c %%%%; echo
+-cd 6c
+-make install
+-cd ..
+-
+-echo; echo; echo %%%% making gc %%%%; echo
+-cd gc
+-make install
+-cd ..
+-
+-echo; echo; echo %%%% making 6g %%%%; echo
+-cd 6g
+-make install
+-cd ..
+-
+-echo; echo; echo %%%% making ar %%%%; echo
+-cd ar
+-make install
+-cd ..
+-
+-echo; echo; echo %%%% making db %%%%; echo
+-cd db
+-make install
+-cd ..
+-
+-echo; echo; echo %%%% making nm %%%%; echo
+-cd nm
+-make install
+-cd ..
++for i in cc 6l 6a 6c gc 6g ar db nm acid
++do
++	echo; echo; echo %%%% making $i %%%%; echo
++	cd $i
++	make install
++	cd ..
++done
+diff --git a/src/lib/make.bash b/src/lib/make.bash
+index 6537f01647..5714954fa8 100755
+--- a/src/lib/make.bash
++++ b/src/lib/make.bash
+@@ -4,6 +4,8 @@
+ 
+ #!/bin/bash
+ 
++set -e
++
+ echo; echo; echo %%%% making lib %%%%; echo
+ 
+ for i in os math
+diff --git a/src/lib/math/Makefile b/src/lib/math/Makefile
+index f1f24263c1..f66cc4161d 100644
+--- a/src/lib/math/Makefile
++++ b/src/lib/math/Makefile
+@@ -37,6 +37,11 @@ a3: $(O3)
+ a4: $(O4)
+ 	$(O)ar grc $(PKG) $(O4)
+ 
++$(O1): nuke
++$(O2): a1
++$(O3): a2
++$(O4): a3
++
+ nuke:
+ 	rm -f *.$(O) *.a $(PKG)
+ 
+diff --git a/src/lib/math/make.bash b/src/lib/math/make.bash
+index cdc9a92682..66062b3fa6 100644
+--- a/src/lib/math/make.bash
++++ b/src/lib/math/make.bash
+@@ -4,6 +4,8 @@
+ 
+ #!/bin/bash
+ 
++set -e
++
+ make install
+ 
+ # old way: bash g1 && cp math.a $GOROOT/pkg/math.a
+diff --git a/src/lib/net/Makefile b/src/lib/net/Makefile
+index 5d0802173f..4788e84e12 100644
+--- a/src/lib/net/Makefile
++++ b/src/lib/net/Makefile
+@@ -22,8 +22,11 @@ $(NET): $(NETO)
+ 
+ $(NETO): $(IP) $(SOCKET)
+ 
++$(SOCKETO): $(IP)
++
+ $(SOCKET): $(SOCKETO)
+ 	$(O)ar grc $(SOCKET) $(SOCKETO)
++	rm $(SOCKETO)
+ 
+ $(GOROOT)/pkg/%.$O: %.$O
+ 	cp $*.$O $(GOROOT)/pkg/$*.$O
+diff --git a/src/lib/os/Makefile b/src/lib/os/Makefile
+index 16b8030319..130f62c863 100644
+--- a/src/lib/os/Makefile
++++ b/src/lib/os/Makefile
+@@ -23,6 +23,9 @@ a1: 	$(O1)
+ a2: 	$(O2)
+ 	$(O)ar grc $(PKG) $(O2)
+ 
++$(O1): nuke
++$(O2): a1
++
+ nuke:
+ 	rm -f *.$(O) *.a $(PKG)
+ 
+diff --git a/src/lib/time/Makefile b/src/lib/time/Makefile
+index f0a6f132e5..d397be1f36 100644
+--- a/src/lib/time/Makefile
++++ b/src/lib/time/Makefile
+@@ -22,6 +22,9 @@ a1: 	$(O1)
+ a2: 	$(O2)
+ 	$(O)ar grc $(PKG) $(O2)
+ 
++$(O1): nuke
++$(O2): a1
++
+ nuke:
+ 	rm -f *.$(O) *.a $(PKG)
+ 
+diff --git a/src/make.bash b/src/make.bash
+index 5eeb370a1b..b36d515a8b 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -3,9 +3,12 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++set -e
++export MAKEFLAGS=-j4
++
+ bash clean.bash
+ 
+-for i in lib9 libbio libmach_amd64
++for i in lib9 libbio libmach_amd64 libregexp
+ do
+ 	cd $i
+ 	make install
+diff --git a/src/pkg/make.bash b/src/pkg/make.bash
+index 71d6ccd021..3efc5a86c9 100644
+--- a/src/pkg/make.bash
++++ b/src/pkg/make.bash
+@@ -4,6 +4,8 @@
+ 
+ #!/bin/bash
+ 
++set -e
++
+ # clean
+ rm -f *.6 6.out test_integer
+ 
+diff --git a/src/syscall/Makefile b/src/syscall/Makefile
+index 6c30d0c3e4..a34c96adf3 100644
+--- a/src/syscall/Makefile
++++ b/src/syscall/Makefile
+@@ -32,6 +32,9 @@ a2: 	$(O2)
+ 	$(O)ar grc $(PKG) $(O2)
+ 	rm *.6
+ 
++$(O1): nuke
++$(O2): a1
++
+ nuke:
+ 	rm -f *.$(O) *.a $(PKG)
+ 

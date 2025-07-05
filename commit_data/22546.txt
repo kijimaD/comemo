@@ -17,7 +17,7 @@ Date:   Tue Feb 17 22:23:16 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/5130
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/syscall2_solaris.go |   2 +
  src/runtime/syscall_solaris.go  |  12 +++
  src/syscall/asm_solaris_amd64.s |   3 +
@@ -26,3 +26,479 @@ Date:   Tue Feb 17 22:23:16 2015 -0500
  src/syscall/exec_solaris.go     |  35 +++++--
  src/syscall/exec_unix_test.go   | 217 ++++++++++++++++++++++++++++++++++++++++
  7 files changed, 317 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/syscall2_solaris.go b/src/runtime/syscall2_solaris.go
+index cbf2a95329..1b415166a4 100644
+--- a/src/runtime/syscall2_solaris.go
++++ b/src/runtime/syscall2_solaris.go
+@@ -15,6 +15,7 @@ import _ "unsafe" // for go:linkname
+ //go:cgo_import_dynamic libc_execve execve "libc.so"
+ //go:cgo_import_dynamic libc_fcntl fcntl "libc.so"
+ //go:cgo_import_dynamic libc_gethostname gethostname "libc.so"
++//go:cgo_import_dynamic libc_getpid getpid "libc.so"
+ //go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
+ //go:cgo_import_dynamic libc_pipe pipe "libc.so"
+ //go:cgo_import_dynamic libc_setgid setgid "libc.so"
+@@ -35,6 +36,7 @@ import _ "unsafe" // for go:linkname
+ //go:linkname libc_execve libc_execve
+ //go:linkname libc_fcntl libc_fcntl
+ //go:linkname libc_gethostname libc_gethostname
++//go:linkname libc_getpid libc_getpid
+ //go:linkname libc_ioctl libc_ioctl
+ //go:linkname libc_pipe libc_pipe
+ //go:linkname libc_setgid libc_setgid
+diff --git a/src/runtime/syscall_solaris.go b/src/runtime/syscall_solaris.go
+index 9b99716747..440421d94c 100644
+--- a/src/runtime/syscall_solaris.go
++++ b/src/runtime/syscall_solaris.go
+@@ -16,6 +16,7 @@ var (
+ 	libc_fcntl,
+ 	libc_forkx,
+ 	libc_gethostname,
++	libc_getpid,
+ 	libc_ioctl,
+ 	libc_pipe,
+ 	libc_setgid,
+@@ -183,6 +184,17 @@ func syscall_gethostname() (name string, err uintptr) {
+ 	return gostringnocopy(&cname[0]), 0
+ }
+ 
++//go:nosplit
++func syscall_getpid() (pid, err uintptr) {
++	call := libcall{
++		fn:   uintptr(unsafe.Pointer(libc_getpid)),
++		n:    0,
++		args: uintptr(unsafe.Pointer(libc_getpid)), // it's unused but must be non-nil, otherwise crashes
++	}
++	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
++	return call.r1, call.err
++}
++
+ //go:nosplit
+ func syscall_ioctl(fd, req, arg uintptr) (err uintptr) {
+ 	call := libcall{
+diff --git a/src/syscall/asm_solaris_amd64.s b/src/syscall/asm_solaris_amd64.s
+index d0d271c76b..cc69caa7d2 100644
+--- a/src/syscall/asm_solaris_amd64.s
++++ b/src/syscall/asm_solaris_amd64.s
+@@ -47,6 +47,9 @@ TEXT ·forkx(SB),NOSPLIT,$0
+ TEXT ·gethostname(SB),NOSPLIT,$0
+ 	JMP	runtime·syscall_gethostname(SB)
+ 
++TEXT ·getpid(SB),NOSPLIT,$0
++	JMP	runtime·syscall_getpid(SB)
++
+ TEXT ·ioctl(SB),NOSPLIT,$0
+ 	JMP	runtime·syscall_ioctl(SB)
+ 
+diff --git a/src/syscall/exec_bsd.go b/src/syscall/exec_bsd.go
+index ff78f197f1..4b5774b492 100644
+--- a/src/syscall/exec_bsd.go
++++ b/src/syscall/exec_bsd.go
+@@ -16,9 +16,12 @@ type SysProcAttr struct {
+ 	Credential *Credential // Credential.
+ 	Ptrace     bool        // Enable tracing.
+ 	Setsid     bool        // Create session.
+-	Setpgid    bool        // Set process group ID to new pid (SYSV setpgrp)
+-	Setctty    bool        // Set controlling terminal to fd 0
++	Setpgid    bool        // Set process group ID to Pgid, or, if Pgid == 0, to new pid.
++	Setctty    bool        // Set controlling terminal to fd Ctty
+ 	Noctty     bool        // Detach fd 0 from controlling terminal
++	Ctty       int         // Controlling TTY fd
++	Foreground bool        // Place child's process group in foreground. (Implies Setpgid. Uses Ctty as fd of controlling TTY)
++	Pgid       int         // Child's process group ID if Setpgid.
+ }
+ 
+ // Implemented in runtime package.
+@@ -101,8 +104,27 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 
+ 	// Set process group
+-	if sys.Setpgid {
+-		_, _, err1 = RawSyscall(SYS_SETPGID, 0, 0, 0)
++	if sys.Setpgid || sys.Foreground {
++		// Place child in process group.
++		_, _, err1 = RawSyscall(SYS_SETPGID, 0, uintptr(sys.Pgid), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	if sys.Foreground {
++		pgrp := sys.Pgid
++		if pgrp == 0 {
++			r1, _, err1 = RawSyscall(SYS_GETPID, 0, 0, 0)
++			if err1 != 0 {
++				goto childerror
++			}
++
++			pgrp = int(r1)
++		}
++
++		// Place process group in foreground.
++		_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(sys.Ctty), uintptr(TIOCSPGRP), uintptr(unsafe.Pointer(&pgrp)))
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
+@@ -210,9 +232,9 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		}
+ 	}
+ 
+-	// Make fd 0 the tty
++	// Set the controlling TTY to Ctty
+ 	if sys.Setctty {
+-		_, _, err1 = RawSyscall(SYS_IOCTL, 0, uintptr(TIOCSCTTY), 0)
++		_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(sys.Ctty), uintptr(TIOCSCTTY), 0)
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 2e0577cecc..02474fc459 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -23,10 +23,12 @@ type SysProcAttr struct {
+ 	Credential  *Credential    // Credential.
+ 	Ptrace      bool           // Enable tracing.
+ 	Setsid      bool           // Create session.
+-	Setpgid     bool           // Set process group ID to new pid (SYSV setpgrp)
++	Setpgid     bool           // Set process group ID to Pgid, or, if Pgid == 0, to new pid.
+ 	Setctty     bool           // Set controlling terminal to fd Ctty (only meaningful if Setsid is set)
+ 	Noctty      bool           // Detach fd 0 from controlling terminal
+-	Ctty        int            // Controlling TTY fd (Linux only)
++	Ctty        int            // Controlling TTY fd
++	Foreground  bool           // Place child's process group in foreground. (Implies Setpgid. Uses Ctty as fd of controlling TTY)
++	Pgid        int            // Child's process group ID if Setpgid.
+ 	Pdeathsig   Signal         // Signal that the process will get when its parent dies (Linux only)
+ 	Cloneflags  uintptr        // Flags for clone calls (Linux only)
+ 	UidMappings []SysProcIDMap // User ID mappings for user namespaces.
+@@ -167,8 +169,27 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 
+ 	// Set process group
+-	if sys.Setpgid {
+-		_, _, err1 = RawSyscall(SYS_SETPGID, 0, 0, 0)
++	if sys.Setpgid || sys.Foreground {
++		// Place child in process group.
++		_, _, err1 = RawSyscall(SYS_SETPGID, 0, uintptr(sys.Pgid), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	if sys.Foreground {
++		pgrp := sys.Pgid
++		if pgrp == 0 {
++			r1, _, err1 = RawSyscall(SYS_GETPID, 0, 0, 0)
++			if err1 != 0 {
++				goto childerror
++			}
++
++			pgrp = int(r1)
++		}
++
++		// Place process group in foreground.
++		_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(sys.Ctty), uintptr(TIOCSPGRP), uintptr(unsafe.Pointer(&pgrp)))
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
+@@ -277,7 +298,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 
+ 	// Set the controlling TTY to Ctty
+-	if sys.Setctty && sys.Ctty >= 0 {
++	if sys.Setctty {
+ 		_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(sys.Ctty), uintptr(TIOCSCTTY), 0)
+ 		if err1 != 0 {
+ 			goto childerror
+diff --git a/src/syscall/exec_solaris.go b/src/syscall/exec_solaris.go
+index 2052a66528..3e949f1ba1 100644
+--- a/src/syscall/exec_solaris.go
++++ b/src/syscall/exec_solaris.go
+@@ -12,9 +12,12 @@ type SysProcAttr struct {
+ 	Chroot     string      // Chroot.
+ 	Credential *Credential // Credential.
+ 	Setsid     bool        // Create session.
+-	Setpgid    bool        // Set process group ID to new pid (SYSV setpgrp)
+-	Setctty    bool        // Set controlling terminal to fd 0
++	Setpgid    bool        // Set process group ID to Pgid, or, if Pgid == 0, to new pid.
++	Setctty    bool        // Set controlling terminal to fd Ctty
+ 	Noctty     bool        // Detach fd 0 from controlling terminal
++	Ctty       int         // Controlling TTY fd
++	Foreground bool        // Place child's process group in foreground. (Implies Setpgid. Uses Ctty as fd of controlling TTY)
++	Pgid       int         // Child's process group ID if Setpgid.
+ }
+ 
+ // Implemented in runtime package.
+@@ -28,6 +31,7 @@ func execve(path uintptr, argv uintptr, envp uintptr) (err Errno)
+ func exit(code uintptr)
+ func fcntl1(fd uintptr, cmd uintptr, arg uintptr) (val uintptr, err Errno)
+ func forkx(flags uintptr) (pid uintptr, err Errno)
++func getpid() (pid uintptr, err Errno)
+ func ioctl(fd uintptr, req uintptr, arg uintptr) (err Errno)
+ func setgid(gid uintptr) (err Errno)
+ func setgroups1(ngid uintptr, gid uintptr) (err Errno)
+@@ -97,8 +101,27 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 
+ 	// Set process group
+-	if sys.Setpgid {
+-		err1 = setpgid(0, 0)
++	if sys.Setpgid || sys.Foreground {
++		// Place child in process group.
++		err1 = setpgid(0, uintptr(sys.Pgid))
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	if sys.Foreground {
++		pgrp := sys.Pgid
++		if pgrp == 0 {
++			r1, err1 = getpid()
++			if err1 != 0 {
++				goto childerror
++			}
++
++			pgrp = int(r1)
++		}
++
++		// Place process group in foreground.
++		err1 = ioctl(uintptr(sys.Ctty), uintptr(TIOCSPGRP), uintptr(unsafe.Pointer(&pgrp)))
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
+@@ -206,9 +229,9 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		}
+ 	}
+ 
+-	// Make fd 0 the tty
++	// Set the controlling TTY to Ctty
+ 	if sys.Setctty {
+-		err1 = ioctl(0, uintptr(TIOCSCTTY), 0)
++		err1 = ioctl(uintptr(sys.Ctty), uintptr(TIOCSCTTY), 0)
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
+diff --git a/src/syscall/exec_unix_test.go b/src/syscall/exec_unix_test.go
+new file mode 100644
+index 0000000000..6b942fc4ac
+--- /dev/null
++++ b/src/syscall/exec_unix_test.go
+@@ -0,0 +1,217 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package syscall_test
++
++import (
++	"io"
++	"os"
++	"os/exec"
++	"os/signal"
++	"syscall"
++	"testing"
++	"unsafe"
++)
++
++type command struct {
++	pipe io.WriteCloser
++	proc *exec.Cmd
++	test *testing.T
++}
++
++func (c *command) Info() (pid, pgrp int) {
++	pid = c.proc.Process.Pid
++
++	pgrp, err := syscall.Getpgid(pid)
++	if err != nil {
++		c.test.Fatal(err)
++	}
++
++	return
++}
++
++func (c *command) Start() {
++	c.proc.Start()
++}
++
++func (c *command) Stop() {
++	c.pipe.Close()
++	c.proc.Wait()
++}
++
++func create(t *testing.T) *command {
++	proc := exec.Command("cat")
++	stdin, err := proc.StdinPipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	return &command{stdin, proc, t}
++}
++
++func parent() (pid, pgrp int) {
++	return syscall.Getpid(), syscall.Getpgrp()
++}
++
++func TestZeroSysProcAttr(t *testing.T) {
++	ppid, ppgrp := parent()
++
++	cmd := create(t)
++
++	cmd.Start()
++	defer cmd.Stop()
++
++	cpid, cpgrp := cmd.Info()
++
++	if cpid == ppid {
++		t.Fatalf("Parent and child have the same process ID")
++	}
++
++	if cpgrp != ppgrp {
++		t.Fatalf("Child is not in parent's process group")
++	}
++}
++
++func TestSetpgid(t *testing.T) {
++	ppid, ppgrp := parent()
++
++	cmd := create(t)
++
++	cmd.proc.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
++	cmd.Start()
++	defer cmd.Stop()
++
++	cpid, cpgrp := cmd.Info()
++
++	if cpid == ppid {
++		t.Fatalf("Parent and child have the same process ID")
++	}
++
++	if cpgrp == ppgrp {
++		t.Fatalf("Parent and child are in the same process group")
++	}
++
++	if cpid != cpgrp {
++		t.Fatalf("Child's process group is not the child's process ID")
++	}
++}
++
++func TestPgid(t *testing.T) {
++	ppid, ppgrp := parent()
++
++	cmd1 := create(t)
++
++	cmd1.proc.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
++	cmd1.Start()
++	defer cmd1.Stop()
++
++	cpid1, cpgrp1 := cmd1.Info()
++
++	if cpid1 == ppid {
++		t.Fatalf("Parent and child 1 have the same process ID")
++	}
++
++	if cpgrp1 == ppgrp {
++		t.Fatalf("Parent and child 1 are in the same process group")
++	}
++
++	if cpid1 != cpgrp1 {
++		t.Fatalf("Child 1's process group is not its process ID")
++	}
++
++	cmd2 := create(t)
++
++	cmd2.proc.SysProcAttr = &syscall.SysProcAttr{
++		Setpgid: true,
++		Pgid:    cpgrp1,
++	}
++	cmd2.Start()
++	defer cmd2.Stop()
++
++	cpid2, cpgrp2 := cmd2.Info()
++
++	if cpid2 == ppid {
++		t.Fatalf("Parent and child 2 have the same process ID")
++	}
++
++	if cpgrp2 == ppgrp {
++		t.Fatalf("Parent and child 2 are in the same process group")
++	}
++
++	if cpid2 == cpgrp2 {
++		t.Fatalf("Child 2's process group is its process ID")
++	}
++
++	if cpid1 == cpid2 {
++		t.Fatalf("Child 1 and 2 have the same process ID")
++	}
++
++	if cpgrp1 != cpgrp2 {
++		t.Fatalf("Child 1 and 2 are not in the same process group")
++	}
++}
++
++func TestForeground(t *testing.T) {
++	signal.Ignore(syscall.SIGTTIN, syscall.SIGTTOU)
++
++	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
++	if err != nil {
++		t.Skipf("Can't test Foreground. Couldn't open /dev/tty: %s",
++			err)
++	}
++
++	fpgrp := 0
++
++	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
++		tty.Fd(),
++		syscall.TIOCGPGRP,
++		uintptr(unsafe.Pointer(&fpgrp)))
++
++	if errno != 0 {
++		t.Fatalf("TIOCGPGRP failed with error code: %s", errno)
++	}
++
++	if fpgrp == 0 {
++		t.Fatalf("Foreground process group is zero")
++	}
++
++	ppid, ppgrp := parent()
++
++	cmd := create(t)
++
++	cmd.proc.SysProcAttr = &syscall.SysProcAttr{
++		Ctty:       int(tty.Fd()),
++		Foreground: true,
++	}
++	cmd.Start()
++
++	cpid, cpgrp := cmd.Info()
++
++	if cpid == ppid {
++		t.Fatalf("Parent and child have the same process ID")
++	}
++
++	if cpgrp == ppgrp {
++		t.Fatalf("Parent and child are in the same process group")
++	}
++
++	if cpid != cpgrp {
++		t.Fatalf("Child's process group is not the child's process ID")
++	}
++
++	cmd.Stop()
++
++	_, _, errno = syscall.Syscall(syscall.SYS_IOCTL,
++		tty.Fd(),
++		syscall.TIOCSPGRP,
++		uintptr(unsafe.Pointer(&fpgrp)))
++
++	if errno != 0 {
++		t.Fatalf("TIOCSPGRP failed with error code: %s", errno)
++	}
++
++	signal.Reset()
++}

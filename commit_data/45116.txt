@@ -33,6 +33,17 @@ Date:   Sat Oct 3 16:44:22 2020 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/stubs32.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/stubs32.go b/src/runtime/stubs32.go
+index a7f52f6b9e..c4715fe989 100644
+--- a/src/runtime/stubs32.go
++++ b/src/runtime/stubs32.go
+@@ -11,4 +11,4 @@ import "unsafe"
+ // Declarations for runtime services implemented in C or assembly that
+ // are only present on 32 bit systems.
+ 
+-func call16(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call16(typ, fn, arg unsafe.Pointer, n, retoffset uint32)

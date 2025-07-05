@@ -13,7 +13,7 @@ Date:   Sun Mar 8 22:25:21 2015 +1300
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/5g/gsubr.go         |  5 -----
  src/cmd/6g/gsubr.go         |  5 -----
  src/cmd/7g/gsubr.go         |  5 -----
@@ -23,3 +23,172 @@ Date:   Sun Mar 8 22:25:21 2015 +1300
  src/cmd/internal/gc/popt.go | 17 ++++++++---------
  src/cmd/internal/gc/subr.go |  4 ----
  8 files changed, 8 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.go b/src/cmd/5g/gsubr.go
+index ed72a9a8a6..c274097997 100644
+--- a/src/cmd/5g/gsubr.go
++++ b/src/cmd/5g/gsubr.go
+@@ -37,11 +37,6 @@ import (
+ 	"fmt"
+ )
+ 
+-// TODO(rsc): Can make this bigger if we move
+-// the text segment up higher in 5l for all GOOS.
+-// At the same time, can raise StackBig in ../../runtime/stack.h.
+-var unmappedzero int = 4096
+-
+ var resvd = []int{
+ 	arm.REG_R9,  // formerly reserved for m; might be okay to reuse now; not sure about NaCl
+ 	arm.REG_R10, // reserved for g
+diff --git a/src/cmd/6g/gsubr.go b/src/cmd/6g/gsubr.go
+index e2fad6f901..c10519890d 100644
+--- a/src/cmd/6g/gsubr.go
++++ b/src/cmd/6g/gsubr.go
+@@ -37,11 +37,6 @@ import (
+ 	"fmt"
+ )
+ 
+-// TODO(rsc): Can make this bigger if we move
+-// the text segment up higher in 6l for all GOOS.
+-// At the same time, can raise StackBig in ../../runtime/stack.h.
+-var unmappedzero int64 = 4096
+-
+ var resvd = []int{
+ 	x86.REG_DI, // for movstring
+ 	x86.REG_SI, // for movstring
+diff --git a/src/cmd/7g/gsubr.go b/src/cmd/7g/gsubr.go
+index cea1e9205f..02554b01db 100644
+--- a/src/cmd/7g/gsubr.go
++++ b/src/cmd/7g/gsubr.go
+@@ -37,11 +37,6 @@ import (
+ 	"fmt"
+ )
+ 
+-// TODO(rsc): Can make this bigger if we move
+-// the text segment up higher in 6l for all GOOS.
+-// At the same time, can raise StackBig in ../../runtime/stack.h.
+-var unmappedzero int64 = 4096
+-
+ var resvd = []int{
+ 	arm64.REGTMP,
+ 	arm64.REGG,
+diff --git a/src/cmd/9g/gsubr.go b/src/cmd/9g/gsubr.go
+index 5a6fd29327..86b6f86361 100644
+--- a/src/cmd/9g/gsubr.go
++++ b/src/cmd/9g/gsubr.go
+@@ -37,11 +37,6 @@ import (
+ 	"fmt"
+ )
+ 
+-// TODO(rsc): Can make this bigger if we move
+-// the text segment up higher in 6l for all GOOS.
+-// At the same time, can raise StackBig in ../../runtime/stack.h.
+-var unmappedzero int64 = 4096
+-
+ var resvd = []int{
+ 	ppc64.REGZERO,
+ 	ppc64.REGSP, // reserved for SP
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index a6faaa5f91..803703e818 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -205,7 +205,6 @@ type Label struct {
+ 
+ type InitEntry struct {
+ 	Xoffset int64 // struct, array only
+-	Key     *Node // map only
+ 	Expr    *Node // bytes of run-time computed expressions
+ }
+ 
+@@ -245,8 +244,6 @@ type Iter struct {
+ 	Done  int
+ 	Tfunc *Type
+ 	T     *Type
+-	An    **Node
+-	N     *Node
+ }
+ 
+ const (
+@@ -501,8 +498,6 @@ var Runtimepkg *Pkg // package runtime
+ 
+ var racepkg *Pkg // package runtime/race
+ 
+-var stringpkg *Pkg // fake package for C strings
+-
+ var typepkg *Pkg // fake package for runtime type info (headers)
+ 
+ var typelinkpkg *Pkg // fake package for runtime type info (data)
+@@ -513,8 +508,6 @@ var unsafepkg *Pkg // package unsafe
+ 
+ var trackpkg *Pkg // fake package for field tracking
+ 
+-var rawpkg *Pkg // fake package for raw symbol names
+-
+ var Tptr int // either TPTR32 or TPTR64
+ 
+ var myimportpath string
+@@ -673,8 +666,6 @@ var breakpc *obj.Prog
+ 
+ var Pc *obj.Prog
+ 
+-var firstpc *obj.Prog
+-
+ var nodfp *Node
+ 
+ var Disable_checknil int
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 5eede0ba8c..774b9a6245 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -23,8 +23,6 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-var yychar_lex int
+-
+ var yyprev int
+ 
+ var yylast int
+diff --git a/src/cmd/internal/gc/popt.go b/src/cmd/internal/gc/popt.go
+index 099a0b68ac..57d57c5ab2 100644
+--- a/src/cmd/internal/gc/popt.go
++++ b/src/cmd/internal/gc/popt.go
+@@ -517,15 +517,14 @@ func Uniqs(r *Flow) *Flow {
+ // ACM TOPLAS 1999.
+ 
+ type TempVar struct {
+-	node     *Node
+-	def      *Flow    // definition of temp var
+-	use      *Flow    // use list, chained through Flow.data
+-	freelink *TempVar // next free temp in Type.opt list
+-	merge    *TempVar // merge var with this one
+-	start    int64    // smallest Prog.pc in live range
+-	end      int64    // largest Prog.pc in live range
+-	addr     uint8    // address taken - no accurate end
+-	removed  uint8    // removed from program
++	node    *Node
++	def     *Flow    // definition of temp var
++	use     *Flow    // use list, chained through Flow.data
++	merge   *TempVar // merge var with this one
++	start   int64    // smallest Prog.pc in live range
++	end     int64    // largest Prog.pc in live range
++	addr    uint8    // address taken - no accurate end
++	removed uint8    // removed from program
+ }
+ 
+ type startcmp []*TempVar
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index f01cda1d9d..3b8ced9c53 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -25,10 +25,6 @@ type Error struct {
+ 
+ var errors []Error
+ 
+-var nerr int
+-
+-var merr int
+-
+ func errorexit() {
+ 	Flusherrors()
+ 	if outfile != "" {

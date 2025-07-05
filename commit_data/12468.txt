@@ -7,6 +7,20 @@ Date:   Wed Mar 7 10:21:56 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5752073
-
+---
  test/fixedbugs/bug424.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug424.go b/test/fixedbugs/bug424.go
+index 7ed324a095..c401af0b1d 100644
+--- a/test/fixedbugs/bug424.go
++++ b/test/fixedbugs/bug424.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Tests that method calls through an interface always
+-// call the the locally defined method localT.m independent
++// call the locally defined method localT.m independent
+ // at which embedding level it is and in which order
+ // embedding is done.
+ 

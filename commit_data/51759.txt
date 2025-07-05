@@ -15,6 +15,20 @@ Date:   Wed Mar 9 17:08:37 2022 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/crash_cgo_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 37509b1292..5e58712297 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -629,7 +629,7 @@ func TestSegv(t *testing.T) {
+ 					testenv.SkipFlaky(t, 50504)
+ 				}
+ 			}
+-			if test == "SegvInCgo" && strings.Contains(got, "runtime: unknown pc") {
++			if test == "SegvInCgo" && strings.Contains(got, "unknown pc") {
+ 				testenv.SkipFlaky(t, 50979)
+ 			}
+ 

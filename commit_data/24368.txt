@@ -23,9 +23,252 @@ Date:   Thu Jul 23 12:42:18 2015 -0400
     Change-Id: Ie216303c2515bbf1b6fb717d530a0636e271cb6d
     Reviewed-on: https://go-review.googlesource.com/12576
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/build.go     |  2 +-
  src/go/build/deps_test.go | 79 +++++++++++++++++++++++++++++------------------
  src/go/build/read.go      | 20 ++++++++----
  src/go/build/read_test.go |  6 ++--
  4 files changed, 67 insertions(+), 40 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 6496414f26..eaa7a4c54c 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -968,7 +968,7 @@ func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map
+ 	}
+ 
+ 	if strings.HasSuffix(filename, ".go") {
+-		data, err = readImports(f, false)
++		data, err = readImports(f, false, nil)
+ 	} else {
+ 		data, err = readComments(f)
+ 	}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 1c2f33639c..feef159be7 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -8,10 +8,14 @@
+ package build
+ 
+ import (
++	"bytes"
++	"fmt"
++	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+ 	"sort"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ )
+@@ -259,6 +263,9 @@ var pkgDeps = map[string][]string{
+ 	// that shows up in programs that use cgo.
+ 	"C": {},
+ 
++	// Race detector uses cgo.
++	"runtime/race": {"C"},
++
+ 	// Plan 9 alone needs io/ioutil and os.
+ 	"os/user": {"L4", "CGO", "io/ioutil", "os", "syscall"},
+ 
+@@ -449,53 +456,65 @@ func TestDependencies(t *testing.T) {
+ 
+ 	test := func(mustImport bool) {
+ 		for _, pkg := range all {
+-			if pkg == "runtime/cgo" && !ctxt.CgoEnabled {
+-				continue
+-			}
+-			p, err := ctxt.Import(pkg, "", 0)
++			imports, err := findImports(pkg)
+ 			if err != nil {
+-				if _, ok := err.(*NoGoError); ok {
+-					continue
+-				}
+-				if allowedErrors[osPkg{ctxt.GOOS, pkg}] {
+-					continue
+-				}
+-				if !ctxt.CgoEnabled && pkg == "runtime/cgo" {
+-					continue
+-				}
+-				// Some of the combinations we try might not
+-				// be reasonable (like arm,plan9,cgo), so ignore
+-				// errors for the auto-generated combinations.
+-				if !mustImport {
+-					continue
+-				}
+-				t.Errorf("%s/%s/cgo=%v %v", ctxt.GOOS, ctxt.GOARCH, ctxt.CgoEnabled, err)
++				t.Error(err)
+ 				continue
+ 			}
+ 			ok := allowed(pkg)
+ 			var bad []string
+-			for _, imp := range p.Imports {
++			for _, imp := range imports {
+ 				if !ok[imp] {
+ 					bad = append(bad, imp)
+ 				}
+ 			}
+ 			if bad != nil {
+-				t.Errorf("%s/%s/cgo=%v unexpected dependency: %s imports %v", ctxt.GOOS, ctxt.GOARCH, ctxt.CgoEnabled, pkg, bad)
++				t.Errorf("unexpected dependency: %s imports %v", pkg, bad)
+ 			}
+ 		}
+ 	}
+ 	test(true)
++}
+ 
+-	if testing.Short() {
+-		t.Logf("skipping other systems")
+-		return
+-	}
++var buildIgnore = []byte("\n// +build ignore")
+ 
+-	for _, ctxt.GOOS = range geese {
+-		for _, ctxt.GOARCH = range goarches {
+-			for _, ctxt.CgoEnabled = range bools {
+-				test(false)
++func findImports(pkg string) ([]string, error) {
++	dir := filepath.Join(Default.GOROOT, "src", pkg)
++	files, err := ioutil.ReadDir(dir)
++	if err != nil {
++		return nil, err
++	}
++	var imports []string
++	var haveImport = map[string]bool{}
++	for _, file := range files {
++		name := file.Name()
++		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
++			continue
++		}
++		f, err := os.Open(filepath.Join(dir, name))
++		if err != nil {
++			return nil, err
++		}
++		var imp []string
++		data, err := readImports(f, false, &imp)
++		f.Close()
++		if err != nil {
++			return nil, fmt.Errorf("reading %v: %v", name, err)
++		}
++		if bytes.Contains(data, buildIgnore) {
++			continue
++		}
++		for _, quoted := range imp {
++			path, err := strconv.Unquote(quoted)
++			if err != nil {
++				continue
++			}
++			if !haveImport[path] {
++				haveImport[path] = true
++				imports = append(imports, path)
+ 			}
+ 		}
+ 	}
++	sort.Strings(imports)
++	return imports, nil
+ }
+diff --git a/src/go/build/read.go b/src/go/build/read.go
+index c8079dfd15..1049ac50d9 100644
+--- a/src/go/build/read.go
++++ b/src/go/build/read.go
+@@ -146,11 +146,15 @@ func (r *importReader) readIdent() {
+ 
+ // readString reads a quoted string literal from the input.
+ // If an identifier is not present, readString records a syntax error.
+-func (r *importReader) readString() {
++func (r *importReader) readString(save *[]string) {
+ 	switch r.nextByte(true) {
+ 	case '`':
++		start := len(r.buf) - 1
+ 		for r.err == nil {
+ 			if r.nextByte(false) == '`' {
++				if save != nil {
++					*save = append(*save, string(r.buf[start:]))
++				}
+ 				break
+ 			}
+ 			if r.eof {
+@@ -158,9 +162,13 @@ func (r *importReader) readString() {
+ 			}
+ 		}
+ 	case '"':
++		start := len(r.buf) - 1
+ 		for r.err == nil {
+ 			c := r.nextByte(false)
+ 			if c == '"' {
++				if save != nil {
++					*save = append(*save, string(r.buf[start:]))
++				}
+ 				break
+ 			}
+ 			if r.eof || c == '\n' {
+@@ -177,14 +185,14 @@ func (r *importReader) readString() {
+ 
+ // readImport reads an import clause - optional identifier followed by quoted string -
+ // from the input.
+-func (r *importReader) readImport() {
++func (r *importReader) readImport(imports *[]string) {
+ 	c := r.peekByte(true)
+ 	if c == '.' {
+ 		r.peek = 0
+ 	} else if isIdent(c) {
+ 		r.readIdent()
+ 	}
+-	r.readString()
++	r.readString(imports)
+ }
+ 
+ // readComments is like ioutil.ReadAll, except that it only reads the leading
+@@ -201,7 +209,7 @@ func readComments(f io.Reader) ([]byte, error) {
+ 
+ // readImports is like ioutil.ReadAll, except that it expects a Go file as input
+ // and stops reading the input once the imports have completed.
+-func readImports(f io.Reader, reportSyntaxError bool) ([]byte, error) {
++func readImports(f io.Reader, reportSyntaxError bool, imports *[]string) ([]byte, error) {
+ 	r := &importReader{b: bufio.NewReader(f)}
+ 
+ 	r.readKeyword("package")
+@@ -211,11 +219,11 @@ func readImports(f io.Reader, reportSyntaxError bool) ([]byte, error) {
+ 		if r.peekByte(true) == '(' {
+ 			r.nextByte(false)
+ 			for r.peekByte(true) != ')' && r.err == nil {
+-				r.readImport()
++				r.readImport(imports)
+ 			}
+ 			r.nextByte(false)
+ 		} else {
+-			r.readImport()
++			r.readImport(imports)
+ 		}
+ 	}
+ 
+diff --git a/src/go/build/read_test.go b/src/go/build/read_test.go
+index 2dcc1208f7..326960bdc9 100644
+--- a/src/go/build/read_test.go
++++ b/src/go/build/read_test.go
+@@ -131,7 +131,7 @@ func testRead(t *testing.T, tests []readTest, read func(io.Reader) ([]byte, erro
+ }
+ 
+ func TestReadImports(t *testing.T) {
+-	testRead(t, readImportsTests, func(r io.Reader) ([]byte, error) { return readImports(r, true) })
++	testRead(t, readImportsTests, func(r io.Reader) ([]byte, error) { return readImports(r, true, nil) })
+ }
+ 
+ func TestReadComments(t *testing.T) {
+@@ -207,7 +207,7 @@ var readFailuresTests = []readTest{
+ 
+ func TestReadFailures(t *testing.T) {
+ 	// Errors should be reported (true arg to readImports).
+-	testRead(t, readFailuresTests, func(r io.Reader) ([]byte, error) { return readImports(r, true) })
++	testRead(t, readFailuresTests, func(r io.Reader) ([]byte, error) { return readImports(r, true, nil) })
+ }
+ 
+ func TestReadFailuresIgnored(t *testing.T) {
+@@ -222,5 +222,5 @@ func TestReadFailuresIgnored(t *testing.T) {
+ 			tt.err = ""
+ 		}
+ 	}
+-	testRead(t, tests, func(r io.Reader) ([]byte, error) { return readImports(r, false) })
++	testRead(t, tests, func(r io.Reader) ([]byte, error) { return readImports(r, false, nil) })
+ }

@@ -12,10 +12,156 @@ Date:   Fri Feb 2 19:20:06 2024 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go.mod                                  |  2 +-
  src/cmd/go.sum                                  |  4 +--
  src/cmd/vendor/golang.org/x/mod/modfile/rule.go |  7 ++--
  src/cmd/vendor/golang.org/x/mod/sumdb/client.go | 47 +------------------------
  src/cmd/vendor/modules.txt                      |  2 +-
  5 files changed, 9 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 7b548c79bd..0426e34e3b 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,7 +6,7 @@ require (
+ 	github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17
+ 	golang.org/x/arch v0.7.0
+ 	golang.org/x/build v0.0.0-20240201175143-3ee44a092755
+-	golang.org/x/mod v0.14.0
++	golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3
+ 	golang.org/x/sync v0.6.0
+ 	golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f
+ 	golang.org/x/telemetry v0.0.0-20240131160148-1cb064e7d4f2
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 572492d22f..0f05b696f2 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -10,8 +10,8 @@ golang.org/x/arch v0.7.0 h1:pskyeJh/3AmoQ8CPE95vxHLqp1G1GfGNXTmcl9NEKTc=
+ golang.org/x/arch v0.7.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+ golang.org/x/build v0.0.0-20240201175143-3ee44a092755 h1:irSM9p93GT4I3+Pu/grZlkwIjrXA3GfyKwlSosVbmtU=
+ golang.org/x/build v0.0.0-20240201175143-3ee44a092755/go.mod h1:RHSzqFUzT4+buJlGik6WptO5NxLQiR/ewD2uz3fgWuA=
+-golang.org/x/mod v0.14.0 h1:dGoOF9QVLYng8IHTm7BAyWqCqSheQ5pYWGhzW00YJr0=
+-golang.org/x/mod v0.14.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
++golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3 h1:/p/VemLWiTsjHqHwME1Iu+xIu8s9fBtwBk8bU/ejA1A=
++golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/sync v0.6.0 h1:5BMeUDZ7vkXGfEr1x9B4bRcTH4lpkTkpdh0T/J+qjbQ=
+ golang.org/x/sync v0.6.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f h1:GvGFYRZ5kIldzXQj3UmUiUTMe5spPODuLKQvP38A+Qc=
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index 35fd1f534c..26acaa5f7c 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -308,6 +308,7 @@ var laxGoVersionRE = lazyregexp.New(`^v?(([1-9][0-9]*)\.(0|[1-9][0-9]*))([^0-9].
+ 
+ // Toolchains must be named beginning with `go1`,
+ // like "go1.20.3" or "go1.20.3-gccgo". As a special case, "default" is also permitted.
++// TODO(samthanawalla): Replace regex with https://pkg.go.dev/go/version#IsValid in 1.23+
+ var ToolchainRE = lazyregexp.New(`^default$|^go1($|\.)`)
+ 
+ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
+@@ -384,7 +385,7 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
+ 			errorf("toolchain directive expects exactly one argument")
+ 			return
+ 		} else if strict && !ToolchainRE.MatchString(args[0]) {
+-			errorf("invalid toolchain version '%s': must match format go1.23.0 or local", args[0])
++			errorf("invalid toolchain version '%s': must match format go1.23.0 or default", args[0])
+ 			return
+ 		}
+ 		f.Toolchain = &Toolchain{Syntax: line}
+@@ -630,7 +631,7 @@ func (f *WorkFile) add(errs *ErrorList, line *Line, verb string, args []string,
+ 			errorf("go directive expects exactly one argument")
+ 			return
+ 		} else if !GoVersionRE.MatchString(args[0]) {
+-			errorf("invalid go version '%s': must match format 1.23", args[0])
++			errorf("invalid go version '%s': must match format 1.23.0", args[0])
+ 			return
+ 		}
+ 
+@@ -646,7 +647,7 @@ func (f *WorkFile) add(errs *ErrorList, line *Line, verb string, args []string,
+ 			errorf("toolchain directive expects exactly one argument")
+ 			return
+ 		} else if !ToolchainRE.MatchString(args[0]) {
+-			errorf("invalid toolchain version '%s': must match format go1.23 or local", args[0])
++			errorf("invalid toolchain version '%s': must match format go1.23.0 or default", args[0])
+ 			return
+ 		}
+ 
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/client.go b/src/cmd/vendor/golang.org/x/mod/sumdb/client.go
+index aecdc68849..04c6e24d0e 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/client.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/client.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
+-	"path"
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
+@@ -193,51 +192,7 @@ func (c *Client) SetGONOSUMDB(list string) {
+ var ErrGONOSUMDB = errors.New("skipped (listed in GONOSUMDB)")
+ 
+ func (c *Client) skip(target string) bool {
+-	return globsMatchPath(c.nosumdb, target)
+-}
+-
+-// globsMatchPath reports whether any path prefix of target
+-// matches one of the glob patterns (as defined by path.Match)
+-// in the comma-separated globs list.
+-// It ignores any empty or malformed patterns in the list.
+-func globsMatchPath(globs, target string) bool {
+-	for globs != "" {
+-		// Extract next non-empty glob in comma-separated list.
+-		var glob string
+-		if i := strings.Index(globs, ","); i >= 0 {
+-			glob, globs = globs[:i], globs[i+1:]
+-		} else {
+-			glob, globs = globs, ""
+-		}
+-		if glob == "" {
+-			continue
+-		}
+-
+-		// A glob with N+1 path elements (N slashes) needs to be matched
+-		// against the first N+1 path elements of target,
+-		// which end just before the N+1'th slash.
+-		n := strings.Count(glob, "/")
+-		prefix := target
+-		// Walk target, counting slashes, truncating at the N+1'th slash.
+-		for i := 0; i < len(target); i++ {
+-			if target[i] == '/' {
+-				if n == 0 {
+-					prefix = target[:i]
+-					break
+-				}
+-				n--
+-			}
+-		}
+-		if n > 0 {
+-			// Not enough prefix elements.
+-			continue
+-		}
+-		matched, _ := path.Match(glob, prefix)
+-		if matched {
+-			return true
+-		}
+-	}
+-	return false
++	return module.MatchPrefixPatterns(c.nosumdb, target)
+ }
+ 
+ // Lookup returns the go.sum lines for the given module path and version.
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index abafaf30ba..74bcaeb752 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -26,7 +26,7 @@ golang.org/x/arch/x86/x86asm
+ # golang.org/x/build v0.0.0-20240201175143-3ee44a092755
+ ## explicit; go 1.21
+ golang.org/x/build/relnote
+-# golang.org/x/mod v0.14.0
++# golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3
+ ## explicit; go 1.18
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

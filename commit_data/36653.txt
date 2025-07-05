@@ -19,8 +19,106 @@ Date:   Sat May 12 22:13:44 2018 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/fmt_test.go                |  3 +++
  src/cmd/compile/internal/ssa/poset.go      | 26 +++++++++++++++++---------
  src/cmd/compile/internal/ssa/poset_test.go |  1 -
  3 files changed, 20 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 5dd2fa50be..d224e67ea4 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -608,6 +608,8 @@ var knownFormats = map[string]string{
+ 	"[]byte %x":                                       "",
+ 	"[]cmd/compile/internal/ssa.Edge %v":              "",
+ 	"[]cmd/compile/internal/ssa.ID %v":                "",
++	"[]cmd/compile/internal/ssa.posetNode %v":         "",
++	"[]cmd/compile/internal/ssa.posetUndo %v":         "",
+ 	"[]cmd/compile/internal/syntax.token %s":          "",
+ 	"[]string %v":                                     "",
+ 	"[]uint32 %v":                                     "",
+@@ -718,6 +720,7 @@ var knownFormats = map[string]string{
+ 	"uint16 %v":                                                            "",
+ 	"uint16 %x":                                                            "",
+ 	"uint32 %d":                                                            "",
++	"uint32 %v":                                                            "",
+ 	"uint32 %x":                                                            "",
+ 	"uint64 %08x":                                                          "",
+ 	"uint64 %d":                                                            "",
+diff --git a/src/cmd/compile/internal/ssa/poset.go b/src/cmd/compile/internal/ssa/poset.go
+index 22826b92bb..26a689404d 100644
+--- a/src/cmd/compile/internal/ssa/poset.go
++++ b/src/cmd/compile/internal/ssa/poset.go
+@@ -679,13 +679,24 @@ func (po *poset) CheckIntegrity() (err error) {
+ // It can be used for debugging purposes, as a poset is supposed to
+ // be empty after it's fully rolled back through Undo.
+ func (po *poset) CheckEmpty() error {
+-	// Check that the poset is completely empty
++	if len(po.nodes) != 1 {
++		return fmt.Errorf("non-empty nodes list: %v", po.nodes)
++	}
+ 	if len(po.values) != 0 {
+ 		return fmt.Errorf("non-empty value map: %v", po.values)
+ 	}
+ 	if len(po.roots) != 0 {
+ 		return fmt.Errorf("non-empty root list: %v", po.roots)
+ 	}
++	if len(po.constants) != 0 {
++		return fmt.Errorf("non-empty constants: %v", po.constants)
++	}
++	if len(po.undo) != 0 {
++		return fmt.Errorf("non-empty undo list: %v", po.undo)
++	}
++	if po.lastidx != 0 {
++		return fmt.Errorf("lastidx index is not zero: %v", po.lastidx)
++	}
+ 	for _, bs := range po.noneq {
+ 		for _, x := range bs {
+ 			if x != 0 {
+@@ -693,14 +704,6 @@ func (po *poset) CheckEmpty() error {
+ 			}
+ 		}
+ 	}
+-	for idx, n := range po.nodes {
+-		if n.l|n.r != 0 {
+-			return fmt.Errorf("non-empty node %v->[%d,%d]", idx, n.l.Target(), n.r.Target())
+-		}
+-	}
+-	if len(po.constants) != 0 {
+-		return fmt.Errorf("non-empty constant")
+-	}
+ 	return nil
+ }
+ 
+@@ -1123,6 +1126,9 @@ func (po *poset) Undo() {
+ 			po.noneq[pass.ID].Clear(pass.idx)
+ 
+ 		case undoNewNode:
++			if pass.idx != po.lastidx {
++				panic("invalid newnode index")
++			}
+ 			if pass.ID != 0 {
+ 				if po.values[pass.ID] != pass.idx {
+ 					panic("invalid newnode undo pass")
+@@ -1131,6 +1137,8 @@ func (po *poset) Undo() {
+ 			}
+ 			po.setchl(pass.idx, 0)
+ 			po.setchr(pass.idx, 0)
++			po.nodes = po.nodes[:pass.idx]
++			po.lastidx--
+ 
+ 			// If it was the last inserted constant, remove it
+ 			nc := len(po.constants)
+diff --git a/src/cmd/compile/internal/ssa/poset_test.go b/src/cmd/compile/internal/ssa/poset_test.go
+index 899ac1ba06..89635ce54d 100644
+--- a/src/cmd/compile/internal/ssa/poset_test.go
++++ b/src/cmd/compile/internal/ssa/poset_test.go
+@@ -626,7 +626,6 @@ func TestPosetConst(t *testing.T) {
+ 
+ func TestPosetNonEqual(t *testing.T) {
+ 	testPosetOps(t, false, []posetTestOp{
+-		{Checkpoint, 0, 0},
+ 		{Equal_Fail, 10, 20},
+ 		{NonEqual_Fail, 10, 20},
+ 

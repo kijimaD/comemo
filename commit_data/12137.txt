@@ -10,7 +10,7 @@ Date:   Wed Feb 22 01:30:04 2012 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/5689067
-
+---
  src/cmd/5l/asm.c    |  4 ++++
  src/cmd/6l/asm.c    |  4 ++++
  src/cmd/8l/asm.c    |  2 ++
@@ -18,3 +18,188 @@ Date:   Wed Feb 22 01:30:04 2012 -0500
  src/cmd/ld/lib.h    |  1 +
  src/cmd/ld/symtab.c | 14 ++++++++------
  6 files changed, 44 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 5edc27011a..b36a982d1b 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -1850,6 +1850,8 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 			case SSTRING:
+ 			case SGOSTRING:
+ 			case SNOPTRDATA:
++			case SSYMTAB:
++			case SPCLNTAB:
+ 				if(!s->reachable)
+ 					continue;
+ 				put(s, s->name, 'D', s->value, s->size, s->version, s->gotype);
+@@ -1859,6 +1861,8 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 			case SNOPTRBSS:
+ 				if(!s->reachable)
+ 					continue;
++				if(s->np > 0)
++					diag("%s should not be bss (size=%d type=%d special=%d)", s->name, (int)s->np, s->type, s->special);
+ 				put(s, s->name, 'B', s->value, s->size, s->version, s->gotype);
+ 				continue;
+ 
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index d5954ea517..ee31a05cdc 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -1170,6 +1170,8 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 		switch(s->type&~SSUB) {
+ 		case SCONST:
+ 		case SRODATA:
++		case SSYMTAB:
++		case SPCLNTAB:
+ 		case SDATA:
+ 		case SNOPTRDATA:
+ 		case SELFROSECT:
+@@ -1187,6 +1189,8 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 		case SNOPTRBSS:
+ 			if(!s->reachable)
+ 				continue;
++			if(s->np > 0)
++				diag("%s should not be bss (size=%d type=%d special=%d)", s->name, (int)s->np, s->type, s->special);
+ 			put(s, s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
+ 			continue;
+ 
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 2b8137fb3a..25ffc786fc 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -1259,6 +1259,8 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 			case SGOSTRING:
+ 			case SWINDOWS:
+ 			case SNOPTRDATA:
++			case SSYMTAB:
++			case SPCLNTAB:
+ 				if(!s->reachable)
+ 					continue;
+ 				put(s, s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 5ed8568ff3..397ae83b23 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -414,13 +414,13 @@ savedata(Sym *s, Prog *p, char *pn)
+ }
+ 
+ static void
+-blk(Sym *allsym, int32 addr, int32 size)
++blk(Sym *start, int32 addr, int32 size)
+ {
+ 	Sym *sym;
+ 	int32 eaddr;
+ 	uchar *p, *ep;
+ 
+-	for(sym = allsym; sym != nil; sym = sym->next)
++	for(sym = start; sym != nil; sym = sym->next)
+ 		if(!(sym->type&SSUB) && sym->value >= addr)
+ 			break;
+ 
+@@ -778,6 +778,21 @@ addsize(Sym *s, Sym *t)
+ 	return i;
+ }
+ 
++void
++dosymtype(void)
++{
++	Sym *s;
++
++	for(s = allsym; s != nil; s = s->allsym) {
++		if(s->np > 0) {
++			if(s->type == SBSS)
++				s->type = SDATA;
++			if(s->type == SNOPTRBSS)
++				s->type = SNOPTRDATA;
++		}
++	}
++}
++
+ void
+ dodata(void)
+ {
+@@ -806,17 +821,12 @@ dodata(void)
+ 	}
+ 
+ 	for(s = datap; s != nil; s = s->next) {
+-		if(s->np > 0) {
+-			if(s->type == SBSS)
+-				s->type = SDATA;
+-			if(s->type == SNOPTRBSS)
+-				s->type = SNOPTRDATA;
+-		}
+ 		if(s->np > s->size)
+ 			diag("%s: initialize bounds (%lld < %d)",
+ 				s->name, (vlong)s->size, s->np);
+ 	}
+-	
++
++
+ 	/*
+ 	 * now that we have the datap list, but before we start
+ 	 * to assign addresses, record all the necessary
+@@ -1088,13 +1098,13 @@ address(void)
+ 	xdefine("esymtab", SRODATA, symtab->vaddr + symtab->len);
+ 	xdefine("pclntab", SRODATA, pclntab->vaddr);
+ 	xdefine("epclntab", SRODATA, pclntab->vaddr + pclntab->len);
+-	xdefine("noptrdata", SBSS, noptr->vaddr);
+-	xdefine("enoptrdata", SBSS, noptr->vaddr + noptr->len);
++	xdefine("noptrdata", SNOPTRDATA, noptr->vaddr);
++	xdefine("enoptrdata", SNOPTRDATA, noptr->vaddr + noptr->len);
+ 	xdefine("bss", SBSS, bss->vaddr);
+ 	xdefine("ebss", SBSS, bss->vaddr + bss->len);
+-	xdefine("data", SBSS, data->vaddr);
+-	xdefine("edata", SBSS, data->vaddr + data->len);
+-	xdefine("noptrbss", SBSS, noptrbss->vaddr);
+-	xdefine("enoptrbss", SBSS, noptrbss->vaddr + noptrbss->len);
++	xdefine("data", SDATA, data->vaddr);
++	xdefine("edata", SDATA, data->vaddr + data->len);
++	xdefine("noptrbss", SNOPTRBSS, noptrbss->vaddr);
++	xdefine("enoptrbss", SNOPTRBSS, noptrbss->vaddr + noptrbss->len);
+ 	xdefine("end", SBSS, segdata.vaddr + segdata.len);
+ }
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index f5881b5d6f..9e39c74703 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -196,6 +196,7 @@ void	asmelfsym(void);
+ void	asmplan9sym(void);
+ void	strnput(char*, int);
+ void	dodata(void);
++void	dosymtype(void);
+ void	address(void);
+ void	textaddress(void);
+ void	genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*));
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 6d76e9e775..129b13ea08 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -324,20 +324,22 @@ symtab(void)
+ {
+ 	Sym *s;
+ 
++	dosymtype();
++
+ 	// Define these so that they'll get put into the symbol table.
+ 	// data.c:/^address will provide the actual values.
+ 	xdefine("text", STEXT, 0);
+ 	xdefine("etext", STEXT, 0);
+ 	xdefine("rodata", SRODATA, 0);
+ 	xdefine("erodata", SRODATA, 0);
+-	xdefine("noptrdata", SBSS, 0);
+-	xdefine("enoptrdata", SBSS, 0);
+-	xdefine("data", SBSS, 0);
+-	xdefine("edata", SBSS, 0);
++	xdefine("noptrdata", SNOPTRDATA, 0);
++	xdefine("enoptrdata", SNOPTRDATA, 0);
++	xdefine("data", SDATA, 0);
++	xdefine("edata", SDATA, 0);
+ 	xdefine("bss", SBSS, 0);
+ 	xdefine("ebss", SBSS, 0);
+-	xdefine("noptrbss", SBSS, 0);
+-	xdefine("enoptrbss", SBSS, 0);
++	xdefine("noptrbss", SNOPTRBSS, 0);
++	xdefine("enoptrbss", SNOPTRBSS, 0);
+ 	xdefine("end", SBSS, 0);
+ 	xdefine("epclntab", SRODATA, 0);
+ 	xdefine("esymtab", SRODATA, 0);

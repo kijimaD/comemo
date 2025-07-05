@@ -9,7 +9,7 @@ Date:   Fri Jun 26 04:08:20 2009 -0700
     DELTA=72  (12 added, 52 deleted, 8 changed)
     OCL=30748
     CL=30793
-
+---
  src/cmd/5g/galign.c |  3 +++
  src/cmd/5g/ggen.c   |  1 +
  src/cmd/5g/gobj.c   | 10 +++++-----
@@ -18,3 +18,211 @@ Date:   Fri Jun 26 04:08:20 2009 -0700
  src/cmd/5l/5.out.h  |  3 ++-
  src/cmd/5l/span.c   |  4 ++--
  7 files changed, 20 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/5g/galign.c b/src/cmd/5g/galign.c
+index 9a367797aa..6f1e957d05 100644
+--- a/src/cmd/5g/galign.c
++++ b/src/cmd/5g/galign.c
+@@ -29,8 +29,11 @@ betypeinit(void)
+ 
+ 	zprog.link = P;
+ 	zprog.as = AGOK;
++	zprog.scond = C_SCOND_NONE;
++	zprog.reg = NREG;
+ 	zprog.from.type = D_NONE;
+ 	zprog.from.index = D_NONE;
++	zprog.from.reg = NREG;
+ 	zprog.from.scale = 0;
+ 	zprog.to = zprog.from;
+ 
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 9a73480a71..0e9d469259 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -84,6 +84,7 @@ compile(Node *fn)
+ 
+ 	// fill in argument size
+ 	ptxt->to.type = D_CONST2;
++	ptxt->reg = 0; // flags
+ 	ptxt->to.offset2 = rnd(curfn->type->argwid, maxround);
+ 
+ 	// fill in final stack size
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 6f2c94b2b0..4531e116fa 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -64,8 +64,8 @@ zhist(Biobuf *b, int line, vlong offset)
+ 	Addr a;
+ 
+ 	Bputc(b, AHISTORY);
+-	Bputc(b, 0);
+-	Bputc(b, 0);
++	Bputc(b, C_SCOND_NONE);
++	Bputc(b, NREG);
+ 	Bputc(b, line);
+ 	Bputc(b, line>>8);
+ 	Bputc(b, line>>16);
+@@ -89,8 +89,8 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 
+ 	switch(a->type) {
+ 	case D_STATIC:
+-	case D_EXTERN:
+ 	case D_AUTO:
++	case D_EXTERN:
+ 	case D_PARAM:
+ 		Bputc(b, D_OREG);
+ 		Bputc(b, a->reg);
+@@ -112,8 +112,6 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 	case D_REG:
+ 	case D_FREG:
+ 	case D_PSR:
+-	case D_EXTERN:
+-	case D_PARAM:
+ 		break;
+ 
+ 	case D_CONST2:
+@@ -128,6 +126,8 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 	case D_SHIFT:
+ 	case D_STATIC:
+ 	case D_AUTO:
++	case D_EXTERN:
++	case D_PARAM:
+ 		l = a->offset;
+ 		Bputc(b, l);
+ 		Bputc(b, l>>8);
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index fe83abbb2b..48eaa16021 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -34,10 +34,14 @@ void
+ clearp(Prog *p)
+ {
+ 	p->as = AEND;
++	p->reg = NREG;
++	p->scond = C_SCOND_NONE;
+ 	p->from.type = D_NONE;
+ 	p->from.index = D_NONE;
++	p->from.reg = NREG;
+ 	p->to.type = D_NONE;
+ 	p->to.index = D_NONE;
++	p->to.reg = NREG;
+ 	p->loc = pcloc;
+ 	pcloc++;
+ }
+diff --git a/src/cmd/5g/list.c b/src/cmd/5g/list.c
+index ab8256ca51..b46188a73f 100644
+--- a/src/cmd/5g/list.c
++++ b/src/cmd/5g/list.c
+@@ -38,7 +38,6 @@ listinit(void)
+ 	fmtinstall('A', Aconv);		// as
+ 	fmtinstall('P', Pconv);		// Prog*
+ 	fmtinstall('D', Dconv);		// Addr*
+-	fmtinstall('R', Rconv);		// reg
+ 	fmtinstall('Y', Yconv);		// sconst
+ }
+ 
+@@ -80,21 +79,13 @@ Dconv(Fmt *fp)
+ 
+ 	a = va_arg(fp->args, Addr*);
+ 	i = a->type;
+-	// TODO(kaib): Add back
+-//	if(i >= D_INDIR) {
+-//		if(a->offset)
+-//			snprint(str, sizeof(str), "%d(%R)", a->offset, i-D_INDIR);
+-//		else
+-//			snprint(str, sizeof(str), "(%R)", i-D_INDIR);
+-//		goto brk;
+-//	}
+ 	switch(i) {
+ 
+ 	default:
+-		if(a->offset)
+-			snprint(str, sizeof(str), "$%d,%R", a->offset, i);
++		if(a->type == D_OREG)
++			snprint(str, sizeof(str), "$%d(R%d)", a->offset, a->reg);
+ 		else
+-			snprint(str, sizeof(str), "%R", i);
++			snprint(str, sizeof(str), "R%d", a->reg);
+ 		break;
+ 
+ 	case D_NONE:
+@@ -149,50 +140,10 @@ Dconv(Fmt *fp)
+ //		a->type = D_ADDR;
+ //		goto conv;
+ 	}
+-brk:
+-	if(a->index != D_NONE) {
+-		snprint(s, sizeof(s), "(%R*%d)", (int)a->index, (int)a->scale);
+-		strcat(str, s);
+-	}
+ conv:
+ 	return fmtstrcpy(fp, str);
+ }
+ 
+-static	char*	regstr[] =
+-{
+-	"R0",
+-	"R1",
+-	"R2",
+-	"R3",
+-	"R4",
+-	"R5",
+-	"R6",
+-	"R7",
+-	"R8",
+-	"R9",
+-	"R10",
+-	"R11",
+-	"R12",
+-	"R13",
+-	"R14",
+-	"R15",
+-	"NONE",
+-};
+-
+-int
+-Rconv(Fmt *fp)
+-{
+-	char str[STRINGSZ];
+-	int r;
+-
+-	r = va_arg(fp->args, int);
+-	if(r < 0 || r >= nelem(regstr) || regstr[r] == nil) {
+-		snprint(str, sizeof(str), "BAD_R(%d)", r);
+-		return fmtstrcpy(fp, str);
+-	}
+-	return fmtstrcpy(fp, regstr[r]);
+-}
+-
+ int
+ Aconv(Fmt *fp)
+ {
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 45f30fa5d5..29dd4d3679 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -200,7 +200,8 @@ enum	as
+ #define C_SCOND_LT	11
+ #define C_SCOND_GT	12
+ #define C_SCOND_LE	13
+-#define C_SCOND_N	15
++#define C_SCOND_NONE	14
++#define C_SCOND_NV	15
+ 
+ /* type/name */
+ #define	D_GOK	0
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index 4ca8e01f74..bf7bd34a48 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -864,8 +864,8 @@ oplook(Prog *p)
+ 			p->optab = (o-otab)+1;
+ 			return o;
+ 		}
+-	diag("illegal combination %A %d %d %d",
+-		p->as, a1, a2, a3);
++	diag("illegal combination %A %d %d %d, %d %d",
++		p->as, a1, a2, a3, p->from.type, p->to.type);
+ 	prasm(p);
+ 	if(o == 0)
+ 		o = otab;

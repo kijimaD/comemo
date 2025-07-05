@@ -15,8 +15,59 @@ Date:   Fri Sep 30 11:51:48 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/alg.go            | 14 ++------------
  src/cmd/compile/internal/typecheck/_builtin/runtime.go |  2 +-
  src/cmd/compile/internal/typecheck/builtin.go          |  2 +-
  3 files changed, 4 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index 4577e9cfc4..4f174a3bb8 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -595,17 +595,7 @@ func anyCall(fn *ir.Func) bool {
+ }
+ 
+ func hashmem(t *types.Type) ir.Node {
+-	sym := ir.Pkgs.Runtime.Lookup("memhash")
+-
+-	// TODO(austin): This creates an ir.Name with a nil Func.
+-	n := typecheck.NewName(sym)
+-	ir.MarkFunc(n)
+-	n.SetType(types.NewSignature(nil, []*types.Field{
+-		types.NewField(base.Pos, nil, types.NewPtr(t)),
+-		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+-		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+-	}, []*types.Field{
+-		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+-	}))
++	n := typecheck.LookupRuntime("memhash")
++	n = typecheck.SubstArgTypes(n, t)
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/typecheck/_builtin/runtime.go b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+index 69c456a557..3b32044756 100644
+--- a/src/cmd/compile/internal/typecheck/_builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+@@ -207,7 +207,7 @@ func strequal(p, q unsafe.Pointer) bool
+ func interequal(p, q unsafe.Pointer) bool
+ func nilinterequal(p, q unsafe.Pointer) bool
+ 
+-func memhash(p unsafe.Pointer, h uintptr, size uintptr) uintptr
++func memhash(x *any, h uintptr, size uintptr) uintptr
+ func memhash0(p unsafe.Pointer, h uintptr) uintptr
+ func memhash8(p unsafe.Pointer, h uintptr) uintptr
+ func memhash16(p unsafe.Pointer, h uintptr) uintptr
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 6aa5e391fc..9be354e38d 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -361,7 +361,7 @@ func runtimeTypes() []*types.Type {
+ 	typs[123] = newSig(params(typs[3], typs[3], typs[5]), params(typs[6]))
+ 	typs[124] = newSig(params(typs[3], typs[3]), params(typs[6]))
+ 	typs[125] = newSig(params(typs[7], typs[7]), params(typs[6]))
+-	typs[126] = newSig(params(typs[7], typs[5], typs[5]), params(typs[5]))
++	typs[126] = newSig(params(typs[3], typs[5], typs[5]), params(typs[5]))
+ 	typs[127] = newSig(params(typs[7], typs[5]), params(typs[5]))
+ 	typs[128] = newSig(params(typs[22], typs[22]), params(typs[22]))
+ 	typs[129] = newSig(params(typs[24], typs[24]), params(typs[24]))

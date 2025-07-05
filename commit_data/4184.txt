@@ -6,6 +6,20 @@ Date:   Fri Nov 20 13:46:47 2009 -0800
     
     R=rsc, dho
     https://golang.org/cl/157116
-
+---
  src/pkg/runtime/freebsd/386/signal.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index 96eaa55296..75445cacf7 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -55,7 +55,7 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 	printf("\n");
+ 
+ 	if(gotraceback()){
+-		traceback((void*)sc->sc_eip, (void*)mc->mc_esp, m->curg);
++		traceback((void*)mc->mc_eip, (void*)mc->mc_esp, m->curg);
+ 		tracebackothers(m->curg);
+ 		dumpregs(mc);
+ 	}

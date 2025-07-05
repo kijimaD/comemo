@@ -7,7 +7,48 @@ Date:   Wed Oct 15 17:51:23 2008 -0700
     R=ken
     OCL=17253
     CL=17253
-
+---
  src/cmd/gc/export.c |  7 +++++++
  test/export.go      | 16 ++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 8a6d779be4..c8b50a074e 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -125,6 +125,13 @@ dumpexporttype(Sym *s)
+ 	Bprint(bout, "\t");
+ 	if(s->export != 0)
+ 		Bprint(bout, "export ");
++	switch (s->otype->etype) {
++	case TFORW:
++	case TFORWSTRUCT:
++	case TFORWINTER:
++		yyerror("export of incomplete type %T", s->otype);
++		return;
++	}
+ 	Bprint(bout, "type %lS %l#T\n",  s, s->otype);
+ }
+ 
+diff --git a/test/export.go b/test/export.go
+new file mode 100644
+index 0000000000..7ac0424421
+--- /dev/null
++++ b/test/export.go
+@@ -0,0 +1,16 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// errchk $G $D/$F.go
++
++package main
++
++export type A struct		// ERROR "incomplete"
++export type B interface	// ERROR "incomplete"
++
++export type C struct
++export type D interface
++
++type C struct { }
++type D interface { }

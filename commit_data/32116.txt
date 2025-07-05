@@ -14,7 +14,37 @@ Date:   Thu Apr 6 12:24:58 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/fs.go      | 2 +-
  src/net/http/fs_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index c331cb5ac4..90a3729cbd 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -315,7 +315,7 @@ func scanETag(s string) (etag string, remain string) {
+ 		case c == '"':
+ 			return string(s[:i+1]), s[i+1:]
+ 		default:
+-			break
++			return "", ""
+ 		}
+ 	}
+ 	return "", ""
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index b682e779a4..1bb24d3060 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -1264,10 +1264,10 @@ func Test_scanETag(t *testing.T) {
+ 		{`"etag-2"`, `"etag-2"`, ""},
+ 		{`"etag-1", "etag-2"`, `"etag-1"`, `, "etag-2"`},
+ 		{"", "", ""},
+-		{"", "", ""},
+ 		{"W/", "", ""},
+ 		{`W/"truc`, "", ""},
+ 		{`w/"case-sensitive"`, "", ""},
++		{`"spaced etag"`, "", ""},
+ 	}
+ 	for _, test := range tests {
+ 		etag, remain := ExportScanETag(test.in)

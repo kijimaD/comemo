@@ -13,7 +13,73 @@ Date:   Sat Jun 11 19:55:34 2016 +0900
     Change-Id: I0f0737372fce6df89d090fe9847305749b79eb4c
     Reviewed-on: https://go-review.googlesource.com/24021
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/wait_unimp.go |  2 +-
  src/os/wait_wait6.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 47 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/wait_unimp.go b/src/os/wait_unimp.go
+index 254bf7ec17..7059e59ab2 100644
+--- a/src/os/wait_unimp.go
++++ b/src/os/wait_unimp.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd nacl netbsd openbsd solaris
++// +build dragonfly nacl netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/os/wait_wait6.go b/src/os/wait_wait6.go
+new file mode 100644
+index 0000000000..279c6f2804
+--- /dev/null
++++ b/src/os/wait_wait6.go
+@@ -0,0 +1,46 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd
++
++package os
++
++import (
++	"runtime"
++	"syscall"
++)
++
++const _P_PID = 0
++
++// blockUntilWaitable attempts to block until a call to p.Wait will
++// succeed immediately, and returns whether it has done so.
++// It does not actually call p.Wait.
++func (p *Process) blockUntilWaitable() (bool, error) {
++	var errno syscall.Errno
++	switch runtime.GOARCH {
++	case "386", "arm":
++		// The arguments on 32-bit FreeBSD look like the
++		// following:
++		// - freebsd32_wait6_args{ idtype, id1, id2, status, options, wrusage, info } or
++		// - freebsd32_wait6_args{ idtype, pad, id1, id2, status, options, wrusage, info } when PAD64_REQUIRED=1 on MIPS or PowerPC
++		_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, 0, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0, 0)
++	default:
++		_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0)
++	}
++	if errno != 0 {
++		// The wait6 system call is supported only on FreeBSD
++		// 9.3 and above, so it may return an ENOSYS error.
++		// Also the system call may return an ECHILD error
++		// when the child process has not finished the
++		// transformation using execve system call.
++		// In both cases, we just leave the care of child
++		// process to the following wait4 system call in
++		// Process.wait.
++		if errno == syscall.ENOSYS || errno == syscall.ECHILD {
++			return false, nil
++		}
++		return false, NewSyscallError("wait6", errno)
++	}
++	return true, nil
++}

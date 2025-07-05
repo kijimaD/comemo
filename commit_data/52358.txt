@@ -16,7 +16,7 @@ Date:   Thu Apr 28 12:58:32 2022 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/sys_aix_ppc64.s       | 2 +-
  src/runtime/sys_darwin_amd64.s    | 2 +-
  src/runtime/sys_darwin_arm64.s    | 2 +-
@@ -36,3 +36,238 @@ Date:   Thu Apr 28 12:58:32 2022 -0400
  src/runtime/sys_openbsd_mips64.s  | 2 +-
  src/runtime/sys_solaris_amd64.s   | 2 +-
  18 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/sys_aix_ppc64.s b/src/runtime/sys_aix_ppc64.s
+index 217ebb8878..772f357ca9 100644
+--- a/src/runtime/sys_aix_ppc64.s
++++ b/src/runtime/sys_aix_ppc64.s
+@@ -101,7 +101,7 @@ GLOBL	runtime·sigtramp(SB), NOPTR, $24
+ // This function must not have any frame as we want to control how
+ // every registers are used.
+ // TODO(aix): Implement SetCgoTraceback handler.
+-TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
++TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+ 	MOVD	LR, R0
+ 	MOVD	R0, 16(R1)
+ 	// initialize essential registers (just in case)
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 8e75a38bd2..ba81fcc35c 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -214,7 +214,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ // This is the function registered during sigaction and is invoked when
+ // a signal is received. It just redirects to the Go function sigtrampgo.
+ // Called using C ABI.
+-TEXT runtime·sigtramp(SB),NOSPLIT,$0
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index dc7c9bffa8..bf0dc9d8cc 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -176,7 +176,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	BL	(R11)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$176
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$176
+ 	// Save callee-save registers in the case of signal forwarding.
+ 	// Please refer to https://golang.org/issue/31827 .
+ 	SAVE_R19_TO_R28(8*4)
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 48b04ff979..602d5e9b76 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -222,7 +222,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	RET
+ 
+ // Called using C ABI.
+-TEXT runtime·sigtramp(SB),NOSPLIT,$0
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index aceb6fe1bf..9e5210b0db 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -253,7 +253,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+ 	RET
+ 
+ // Called by OS using C ABI.
+-TEXT runtime·sigtramp(SB),NOSPLIT,$12
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$12
+ 	NOP	SP	// tell vet SP changed - stop checking offsets
+ 	MOVL	16(SP), BX	// signo
+ 	MOVL	BX, 0(SP)
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 159f5c66ab..94341f6d4e 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -224,7 +224,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	RET
+ 
+ // Called using C ABI.
+-TEXT runtime·sigtramp(SB),NOSPLIT,$0
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 88ab0fc795..cbee34d13b 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -231,7 +231,7 @@ TEXT runtime·asmSigaction(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$0
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
+ 	// Reserve space for callee-save registers and arguments.
+ 	MOVM.DB.W [R4-R11], (R13)
+ 	SUB	$16, R13
+diff --git a/src/runtime/sys_freebsd_arm64.s b/src/runtime/sys_freebsd_arm64.s
+index a4f12eb3b9..5dcdf375ab 100644
+--- a/src/runtime/sys_freebsd_arm64.s
++++ b/src/runtime/sys_freebsd_arm64.s
+@@ -280,7 +280,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	RET
+ 
+ // func sigtramp()
+-TEXT runtime·sigtramp(SB),NOSPLIT,$176
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$176
+ 	// Save callee-save registers in the case of signal forwarding.
+ 	// Please refer to https://golang.org/issue/31827 .
+ 	SAVE_R19_TO_R28(8*4)
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index b7d4645af1..581b4fc9b6 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -290,7 +290,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+ 	RET
+ 
+ // Called by OS using C ABI.
+-TEXT runtime·sigtramp(SB),NOSPLIT,$28
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$28
+ 	NOP	SP	// tell vet SP changed - stop checking offsets
+ 	// Save callee-saved C registers, since the caller may be a C signal handler.
+ 	MOVL	BX, bx-4(SP)
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index ade11366e5..ab11f6ff66 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -305,7 +305,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	RET
+ 
+ // Called using C ABI.
+-TEXT runtime·sigtramp(SB),NOSPLIT,$0
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index bbca040994..dbe3dbcffc 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -288,7 +288,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+ 	MOVW	R4, R13
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$0
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
+ 	// Reserve space for callee-save registers and arguments.
+ 	MOVM.DB.W [R4-R11], (R13)
+ 	SUB	$16, R13
+diff --git a/src/runtime/sys_netbsd_arm64.s b/src/runtime/sys_netbsd_arm64.s
+index 6bcd3445d3..fc126cad7d 100644
+--- a/src/runtime/sys_netbsd_arm64.s
++++ b/src/runtime/sys_netbsd_arm64.s
+@@ -295,7 +295,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	BL	(R11)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$176
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$176
+ 	// Save callee-save registers in the case of signal forwarding.
+ 	// Please refer to https://golang.org/issue/31827 .
+ 	SAVE_R19_TO_R28(8*4)
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 890b96b673..963678a2c3 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -69,7 +69,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+ 	RET
+ 
+ // Called by OS using C ABI.
+-TEXT runtime·sigtramp(SB),NOSPLIT,$28
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$28
+ 	NOP	SP	// tell vet SP changed - stop checking offsets
+ 	// Save callee-saved C registers, since the caller may be a C signal handler.
+ 	MOVL	BX, bx-4(SP)
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index f71f5ccead..2c026c8d0d 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -58,7 +58,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	RET
+ 
+ // Called using C ABI.
+-TEXT runtime·sigtramp(SB),NOSPLIT,$0
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index a9cb1fbafe..e03cfb52f6 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -61,7 +61,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+ 	MOVW	R9, R13
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$0
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
+ 	// Reserve space for callee-save registers and arguments.
+ 	MOVM.DB.W [R4-R11], (R13)
+ 	SUB	$16, R13
+diff --git a/src/runtime/sys_openbsd_arm64.s b/src/runtime/sys_openbsd_arm64.s
+index 4a3f2fc3a2..db92326efb 100644
+--- a/src/runtime/sys_openbsd_arm64.s
++++ b/src/runtime/sys_openbsd_arm64.s
+@@ -51,7 +51,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	BL	(R11)			// Alignment for ELF ABI?
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$192
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$192
+ 	// Save callee-save registers in the case of signal forwarding.
+ 	// Please refer to https://golang.org/issue/31827 .
+ 	SAVE_R19_TO_R28(8*4)
+diff --git a/src/runtime/sys_openbsd_mips64.s b/src/runtime/sys_openbsd_mips64.s
+index 3b18bdda7a..c2b2092053 100644
+--- a/src/runtime/sys_openbsd_mips64.s
++++ b/src/runtime/sys_openbsd_mips64.s
+@@ -237,7 +237,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	CALL	(R25)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$192
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$192
+ 	// initialize REGSB = PC&0xffffffff00000000
+ 	BGEZAL	R0, 1(PC)
+ 	SRLV	$32, R31, RSB
+diff --git a/src/runtime/sys_solaris_amd64.s b/src/runtime/sys_solaris_amd64.s
+index 24d2d61df0..7376e065a0 100644
+--- a/src/runtime/sys_solaris_amd64.s
++++ b/src/runtime/sys_solaris_amd64.s
+@@ -121,7 +121,7 @@ TEXT runtime·tstart_sysvicall(SB),NOSPLIT,$0
+ 
+ // Careful, this is called by __sighndlr, a libc function. We must preserve
+ // registers as per AMD 64 ABI.
+-TEXT runtime·sigtramp(SB),NOSPLIT,$0
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
+ 	// Note that we are executing on altsigstack here, so we have
+ 	// more stack available than NOSPLIT would have us believe.
+ 	// To defeat the linker, we make our own stack frame with

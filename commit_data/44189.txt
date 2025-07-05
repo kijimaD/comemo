@@ -7,6 +7,20 @@ Date:   Sat May 23 16:23:04 2020 +0900
     Change-Id: I94c385243c37589f56aadaa30336b400adf31308
     Reviewed-on: https://go-review.googlesource.com/c/go/+/234959
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/file.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 93ba4d78ad..a2b71cb61a 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -384,7 +384,7 @@ func TempDir() string {
+ // within this one and use that.
+ //
+ // On Unix systems, it returns $XDG_CACHE_HOME as specified by
+-// https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html if
++// https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html if
+ // non-empty, else $HOME/.cache.
+ // On Darwin, it returns $HOME/Library/Caches.
+ // On Windows, it returns %LocalAppData%.

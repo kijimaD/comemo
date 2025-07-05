@@ -11,7 +11,7 @@ Date:   Thu Sep 15 01:42:58 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/prog.go  | 102 +++++++++++---------------------
  src/cmd/compile/internal/amd64/reg.go   |  52 ----------------
  src/cmd/compile/internal/arm/prog.go    |  15 ++---
@@ -31,3 +31,1164 @@ Date:   Thu Sep 15 01:42:58 2016 -0700
  src/cmd/internal/obj/link.go            |  13 ----
  src/cmd/internal/obj/sizeof_test.go     |   2 +-
  18 files changed, 103 insertions(+), 641 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/prog.go b/src/cmd/compile/internal/amd64/prog.go
+index 8087718ee4..bd95f46a4c 100644
+--- a/src/cmd/compile/internal/amd64/prog.go
++++ b/src/cmd/compile/internal/amd64/prog.go
+@@ -22,7 +22,7 @@ const (
+ // Instructions not generated need not be listed.
+ // As an exception to that rule, we typically write down all the
+ // size variants of an operation even if we just use a subset.
+-var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
++var progtable = [x86.ALAST & obj.AMask]gc.ProgInfo{
+ 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+@@ -60,9 +60,9 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.ABSWAPQ & obj.AMask: {Flags: gc.SizeQ | RightRdwr},
+ 
+ 	obj.ACALL & obj.AMask: {Flags: gc.RightAddr | gc.Call | gc.KillCarry},
+-	x86.ACDQ & obj.AMask:  {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
+-	x86.ACQO & obj.AMask:  {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
+-	x86.ACWD & obj.AMask:  {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
++	x86.ACDQ & obj.AMask:  {Flags: gc.OK},
++	x86.ACQO & obj.AMask:  {Flags: gc.OK},
++	x86.ACWD & obj.AMask:  {Flags: gc.OK},
+ 	x86.ACLD & obj.AMask:  {Flags: gc.OK},
+ 	x86.ASTD & obj.AMask:  {Flags: gc.OK},
+ 
+@@ -99,17 +99,17 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.ADECL & obj.AMask:      {Flags: gc.SizeL | RightRdwr},
+ 	x86.ADECQ & obj.AMask:      {Flags: gc.SizeQ | RightRdwr},
+ 	x86.ADECW & obj.AMask:      {Flags: gc.SizeW | RightRdwr},
+-	x86.ADIVB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
+-	x86.ADIVL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.ADIVQ & obj.AMask:      {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.ADIVW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
++	x86.ADIVB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry},
++	x86.ADIVL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry},
++	x86.ADIVQ & obj.AMask:      {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry},
++	x86.ADIVW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry},
+ 	x86.ADIVSD & obj.AMask:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+ 	x86.ADIVSS & obj.AMask:     {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+-	x86.AIDIVB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
+-	x86.AIDIVL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.AIDIVQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.AIDIVW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.AIMULB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
++	x86.AIDIVB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry},
++	x86.AIDIVL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry},
++	x86.AIDIVQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry},
++	x86.AIDIVW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry},
++	x86.AIMULB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry},
+ 	x86.AIMULL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
+ 	x86.AIMULQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
+ 	x86.AIMULW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
+@@ -156,20 +156,20 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.AMOVQ & obj.AMask:      {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
+ 	x86.AMOVW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move},
+ 	x86.AMOVUPS & obj.AMask:    {Flags: gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMOVSB & obj.AMask:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+-	x86.AMOVSL & obj.AMask:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+-	x86.AMOVSQ & obj.AMask:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+-	x86.AMOVSW & obj.AMask:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+-	obj.ADUFFCOPY & obj.AMask:  {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI | X0},
++	x86.AMOVSB & obj.AMask:     {Flags: gc.OK},
++	x86.AMOVSL & obj.AMask:     {Flags: gc.OK},
++	x86.AMOVSQ & obj.AMask:     {Flags: gc.OK},
++	x86.AMOVSW & obj.AMask:     {Flags: gc.OK},
++	obj.ADUFFCOPY & obj.AMask:  {Flags: gc.OK},
+ 	x86.AMOVSD & obj.AMask:     {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+ 	x86.AMOVSS & obj.AMask:     {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move},
+ 
+ 	// We use&obj.AMask MOVAPD as a faster synonym for MOVSD.
+ 	x86.AMOVAPD & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMULB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
+-	x86.AMULL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
+-	x86.AMULQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
+-	x86.AMULW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
++	x86.AMULB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry},
++	x86.AMULL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry},
++	x86.AMULQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry},
++	x86.AMULW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry},
+ 	x86.AMULSD & obj.AMask:    {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+ 	x86.AMULSS & obj.AMask:    {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+ 	x86.ANEGB & obj.AMask:     {Flags: gc.SizeB | RightRdwr | gc.SetCarry},
+@@ -195,8 +195,8 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.ARCRL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+ 	x86.ARCRQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+ 	x86.ARCRW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.AREP & obj.AMask:      {Flags: gc.OK, Reguse: CX, Regset: CX},
+-	x86.AREPN & obj.AMask:     {Flags: gc.OK, Reguse: CX, Regset: CX},
++	x86.AREP & obj.AMask:      {Flags: gc.OK},
++	x86.AREPN & obj.AMask:     {Flags: gc.OK},
+ 	obj.ARET & obj.AMask:      {Flags: gc.Break | gc.KillCarry},
+ 	x86.AROLB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+ 	x86.AROLL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+@@ -243,11 +243,11 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.ASHRQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+ 	x86.ASHRW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+ 	x86.ASQRTSD & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+-	x86.ASTOSB & obj.AMask:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	x86.ASTOSL & obj.AMask:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	x86.ASTOSQ & obj.AMask:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	x86.ASTOSW & obj.AMask:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	obj.ADUFFZERO & obj.AMask: {Flags: gc.OK, Reguse: X0 | DI, Regset: DI},
++	x86.ASTOSB & obj.AMask:    {Flags: gc.OK},
++	x86.ASTOSL & obj.AMask:    {Flags: gc.OK},
++	x86.ASTOSQ & obj.AMask:    {Flags: gc.OK},
++	x86.ASTOSW & obj.AMask:    {Flags: gc.OK},
++	obj.ADUFFZERO & obj.AMask: {Flags: gc.OK},
+ 	x86.ASUBB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
+ 	x86.ASUBL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
+ 	x86.ASUBQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},
+@@ -273,49 +273,15 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.AXORPS & obj.AMask:    {Flags: gc.LeftRead | RightRdwr},
+ }
+ 
+-func proginfo(p *obj.Prog) {
+-	info := &p.Info
+-	*info = progtable[p.As&obj.AMask]
++func proginfo(p *obj.Prog) gc.ProgInfo {
++	info := progtable[p.As&obj.AMask]
+ 	if info.Flags == 0 {
+ 		gc.Fatalf("unknown instruction %v", p)
+ 	}
+ 
+-	if (info.Flags&gc.ShiftCX != 0) && p.From.Type != obj.TYPE_CONST {
+-		info.Reguse |= CX
++	if info.Flags&gc.ImulAXDX != 0 && p.To.Type != obj.TYPE_NONE {
++		info.Flags |= RightRdwr
+ 	}
+ 
+-	if info.Flags&gc.ImulAXDX != 0 {
+-		if p.To.Type == obj.TYPE_NONE {
+-			info.Reguse |= AX
+-			info.Regset |= AX | DX
+-		} else {
+-			info.Flags |= RightRdwr
+-		}
+-	}
+-
+-	// Addressing makes some registers used.
+-	if p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_NONE {
+-		info.Regindex |= RtoB(int(p.From.Reg))
+-	}
+-	if p.From.Index != x86.REG_NONE {
+-		info.Regindex |= RtoB(int(p.From.Index))
+-	}
+-	if p.To.Type == obj.TYPE_MEM && p.To.Name == obj.NAME_NONE {
+-		info.Regindex |= RtoB(int(p.To.Reg))
+-	}
+-	if p.To.Index != x86.REG_NONE {
+-		info.Regindex |= RtoB(int(p.To.Index))
+-	}
+-	if gc.Ctxt.Flag_dynlink {
+-		// When -dynlink is passed, many operations on external names (and
+-		// also calling duffzero/duffcopy) use R15 as a scratch register.
+-		if p.As == x86.ALEAQ || info.Flags == gc.Pseudo || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
+-			return
+-		}
+-		if p.As == obj.ADUFFZERO || p.As == obj.ADUFFCOPY || (p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local) || (p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local) {
+-			info.Reguse |= R15
+-			info.Regset |= R15
+-			return
+-		}
+-	}
++	return info
+ }
+diff --git a/src/cmd/compile/internal/amd64/reg.go b/src/cmd/compile/internal/amd64/reg.go
+deleted file mode 100644
+index bff70a2964..0000000000
+--- a/src/cmd/compile/internal/amd64/reg.go
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// Derived from Inferno utils/6c/reg.c
+-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/reg.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package amd64
+-
+-import "cmd/internal/obj/x86"
+-
+-// For ProgInfo.
+-const (
+-	AX  = 1 << (x86.REG_AX - x86.REG_AX)
+-	BX  = 1 << (x86.REG_BX - x86.REG_AX)
+-	CX  = 1 << (x86.REG_CX - x86.REG_AX)
+-	DX  = 1 << (x86.REG_DX - x86.REG_AX)
+-	DI  = 1 << (x86.REG_DI - x86.REG_AX)
+-	SI  = 1 << (x86.REG_SI - x86.REG_AX)
+-	R15 = 1 << (x86.REG_R15 - x86.REG_AX)
+-	X0  = 1 << 16
+-)
+-
+-func RtoB(r int) uint64 {
+-	if r < x86.REG_AX || r > x86.REG_R15 {
+-		return 0
+-	}
+-	return 1 << uint(r-x86.REG_AX)
+-}
+diff --git a/src/cmd/compile/internal/arm/prog.go b/src/cmd/compile/internal/arm/prog.go
+index 9a7fa9bdda..1dd7c98e38 100644
+--- a/src/cmd/compile/internal/arm/prog.go
++++ b/src/cmd/compile/internal/arm/prog.go
+@@ -21,7 +21,7 @@ const (
+ // Instructions not generated need not be listed.
+ // As an exception to that rule, we typically write down all the
+ // size variants of an operation even if we just use a subset.
+-var progtable = [arm.ALAST & obj.AMask]obj.ProgInfo{
++var progtable = [arm.ALAST & obj.AMask]gc.ProgInfo{
+ 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+@@ -135,9 +135,8 @@ var progtable = [arm.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.ARET:             {Flags: gc.Break},
+ }
+ 
+-func proginfo(p *obj.Prog) {
+-	info := &p.Info
+-	*info = progtable[p.As&obj.AMask]
++func proginfo(p *obj.Prog) gc.ProgInfo {
++	info := progtable[p.As&obj.AMask]
+ 	if info.Flags == 0 {
+ 		gc.Fatalf("unknown instruction %v", p)
+ 	}
+@@ -156,11 +155,5 @@ func proginfo(p *obj.Prog) {
+ 		info.Flags |= gc.RightRead
+ 	}
+ 
+-	switch p.As {
+-	case arm.ADIV,
+-		arm.ADIVU,
+-		arm.AMOD,
+-		arm.AMODU:
+-		info.Regset |= RtoB(arm.REG_R12)
+-	}
++	return info
+ }
+diff --git a/src/cmd/compile/internal/arm/reg.go b/src/cmd/compile/internal/arm/reg.go
+deleted file mode 100644
+index 53de6943c5..0000000000
+--- a/src/cmd/compile/internal/arm/reg.go
++++ /dev/null
+@@ -1,65 +0,0 @@
+-// Inferno utils/5c/reg.c
+-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5c/reg.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package arm
+-
+-import "cmd/internal/obj/arm"
+-
+-/*
+- *	bit	reg
+- *	0	R0
+- *	1	R1
+- *	...	...
+- *	10	R10
+- *	12  R12
+- *
+- *	bit	reg
+- *	18	F2
+- *	19	F3
+- *	...	...
+- *	31	F15
+- */
+-func RtoB(r int) uint64 {
+-	if arm.REG_R0 <= r && r <= arm.REG_R15 {
+-		if r >= arm.REGTMP-2 && r != arm.REG_R12 { // excluded R9 and R10 for m and g, but not R12
+-			return 0
+-		}
+-		return 1 << uint(r-arm.REG_R0)
+-	}
+-
+-	if arm.REG_F0 <= r && r <= arm.REG_F15 {
+-		if r < arm.REG_F2 || r > arm.REG_F0+arm.NFREG-1 {
+-			return 0
+-		}
+-		return 1 << uint((r-arm.REG_F0)+16)
+-	}
+-
+-	return 0
+-}
+diff --git a/src/cmd/compile/internal/arm64/prog.go b/src/cmd/compile/internal/arm64/prog.go
+index c6ff0899cb..4ba6faff23 100644
+--- a/src/cmd/compile/internal/arm64/prog.go
++++ b/src/cmd/compile/internal/arm64/prog.go
+@@ -24,7 +24,7 @@ const (
+ // size variants of an operation even if we just use a subset.
+ //
+ // The table is formatted for 8-space tabs.
+-var progtable = [arm64.ALAST & obj.AMask]obj.ProgInfo{
++var progtable = [arm64.ALAST & obj.AMask]gc.ProgInfo{
+ 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+@@ -162,9 +162,8 @@ var progtable = [arm64.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.ADUFFCOPY:           {Flags: gc.Call},
+ }
+ 
+-func proginfo(p *obj.Prog) {
+-	info := &p.Info
+-	*info = progtable[p.As&obj.AMask]
++func proginfo(p *obj.Prog) gc.ProgInfo {
++	info := progtable[p.As&obj.AMask]
+ 	if info.Flags == 0 {
+ 		gc.Fatalf("proginfo: unknown instruction %v", p)
+ 	}
+@@ -174,34 +173,10 @@ func proginfo(p *obj.Prog) {
+ 		info.Flags |= gc.RightRead /*CanRegRead |*/
+ 	}
+ 
+-	if (p.From.Type == obj.TYPE_MEM || p.From.Type == obj.TYPE_ADDR) && p.From.Reg != 0 {
+-		info.Regindex |= RtoB(int(p.From.Reg))
+-		if p.Scond != 0 {
+-			info.Regset |= RtoB(int(p.From.Reg))
+-		}
+-	}
+-
+-	if (p.To.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_ADDR) && p.To.Reg != 0 {
+-		info.Regindex |= RtoB(int(p.To.Reg))
+-		if p.Scond != 0 {
+-			info.Regset |= RtoB(int(p.To.Reg))
+-		}
+-	}
+-
+ 	if p.From.Type == obj.TYPE_ADDR && p.From.Sym != nil && (info.Flags&gc.LeftRead != 0) {
+ 		info.Flags &^= gc.LeftRead
+ 		info.Flags |= gc.LeftAddr
+ 	}
+ 
+-	if p.As == obj.ADUFFZERO {
+-		info.Reguse |= RtoB(arm64.REGRT1)
+-		info.Regset |= RtoB(arm64.REGRT1)
+-	}
+-
+-	if p.As == obj.ADUFFCOPY {
+-		// TODO(austin) Revisit when duffcopy is implemented
+-		info.Reguse |= RtoB(arm64.REGRT1) | RtoB(arm64.REGRT2) | RtoB(arm64.REG_R5)
+-
+-		info.Regset |= RtoB(arm64.REGRT1) | RtoB(arm64.REGRT2)
+-	}
++	return info
+ }
+diff --git a/src/cmd/compile/internal/arm64/reg.go b/src/cmd/compile/internal/arm64/reg.go
+deleted file mode 100644
+index 0df68b6ee2..0000000000
+--- a/src/cmd/compile/internal/arm64/reg.go
++++ /dev/null
+@@ -1,55 +0,0 @@
+-// Derived from Inferno utils/6c/reg.c
+-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/reg.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package arm64
+-
+-import "cmd/internal/obj/arm64"
+-
+-/*
+- * track register variables including external registers:
+- *	bit	reg
+- *	0	R0
+- *	1	R1
+- *	...	...
+- *	31	R31
+- *	32+0	F0
+- *	32+1	F1
+- *	...	...
+- *	32+31	F31
+- */
+-func RtoB(r int) uint64 {
+-	if r >= arm64.REG_R0 && r <= arm64.REG_R31 {
+-		return 1 << uint(r-arm64.REG_R0)
+-	}
+-	if r >= arm64.REG_F0 && r <= arm64.REG_F31 {
+-		return 1 << uint(32+r-arm64.REG_F0)
+-	}
+-	return 0
+-}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index ccf2a86bb3..ab51488e07 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -345,8 +345,8 @@ type Arch struct {
+ 	MAXWIDTH int64
+ 
+ 	Defframe func(*obj.Prog)
+-	Proginfo func(*obj.Prog) // fills in Prog.Info
+-	Use387   bool            // should 8g use 387 FP instructions instead of sse2.
++	Proginfo func(*obj.Prog) ProgInfo
++	Use387   bool // should 8g use 387 FP instructions instead of sse2.
+ 
+ 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
+ 	SSAMarkMoves func(*SSAGenState, *ssa.Block)
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 38811bd2a3..ab7ed5cc14 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -96,6 +96,14 @@ type Liveness struct {
+ 	livepointers     []bvec
+ }
+ 
++// ProgInfo holds information about the instruction for use
++// by clients such as the compiler. The exact meaning of this
++// data is up to the client and is not interpreted by the cmd/internal/obj/... packages.
++type ProgInfo struct {
++	_     struct{} // to prevent unkeyed literals. Trailing zero-sized field will take space.
++	Flags uint32   // flag bits
++}
++
+ // Constructs a new basic block containing a single instruction.
+ func newblock(prog *obj.Prog) *BasicBlock {
+ 	if prog == nil {
+@@ -400,7 +408,6 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
+ 	bb := newblock(firstp)
+ 	cfg = append(cfg, bb)
+ 	for p := firstp; p != nil && p.As != obj.AEND; p = p.Link {
+-		Thearch.Proginfo(p)
+ 		if p.To.Type == obj.TYPE_BRANCH {
+ 			if p.To.Val == nil {
+ 				Fatalf("prog branch to nil")
+@@ -594,7 +601,9 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
+ 		return
+ 	}
+ 
+-	if prog.Info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
++	info := Thearch.Proginfo(prog)
++
++	if info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
+ 		from := &prog.From
+ 		if from.Node != nil && from.Sym != nil {
+ 			n := from.Node.(*Node)
+@@ -602,10 +611,10 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
+ 				if n.Addrtaken {
+ 					bvset(avarinit, pos)
+ 				} else {
+-					if prog.Info.Flags&(LeftRead|LeftAddr) != 0 {
++					if info.Flags&(LeftRead|LeftAddr) != 0 {
+ 						bvset(uevar, pos)
+ 					}
+-					if prog.Info.Flags&LeftWrite != 0 {
++					if info.Flags&LeftWrite != 0 {
+ 						if !isfat(n.Type) {
+ 							bvset(varkill, pos)
+ 						}
+@@ -615,7 +624,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
+ 		}
+ 	}
+ 
+-	if prog.Info.Flags&(RightRead|RightWrite|RightAddr) != 0 {
++	if info.Flags&(RightRead|RightWrite|RightAddr) != 0 {
+ 		to := &prog.To
+ 		if to.Node != nil && to.Sym != nil {
+ 			n := to.Node.(*Node)
+@@ -636,10 +645,10 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
+ 					// It is not a read. It is equivalent to RightWrite except that
+ 					// having the RightAddr bit set keeps the registerizer from
+ 					// trying to substitute a register for the memory location.
+-					if (prog.Info.Flags&RightRead != 0) || prog.Info.Flags&(RightAddr|RightWrite) == RightAddr {
++					if (info.Flags&RightRead != 0) || info.Flags&(RightAddr|RightWrite) == RightAddr {
+ 						bvset(uevar, pos)
+ 					}
+-					if prog.Info.Flags&RightWrite != 0 {
++					if info.Flags&RightWrite != 0 {
+ 						if !isfat(n.Type) || prog.As == obj.AVARDEF {
+ 							bvset(varkill, pos)
+ 						}
+diff --git a/src/cmd/compile/internal/mips64/prog.go b/src/cmd/compile/internal/mips64/prog.go
+index 9404c0384a..74c735c587 100644
+--- a/src/cmd/compile/internal/mips64/prog.go
++++ b/src/cmd/compile/internal/mips64/prog.go
+@@ -24,7 +24,7 @@ const (
+ // size variants of an operation even if we just use a subset.
+ //
+ // The table is formatted for 8-space tabs.
+-var progtable = [mips.ALAST & obj.AMask]obj.ProgInfo{
++var progtable = [mips.ALAST & obj.AMask]gc.ProgInfo{
+ 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+@@ -134,9 +134,8 @@ var progtable = [mips.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.ADUFFCOPY:          {Flags: gc.Call},
+ }
+ 
+-func proginfo(p *obj.Prog) {
+-	info := &p.Info
+-	*info = progtable[p.As&obj.AMask]
++func proginfo(p *obj.Prog) gc.ProgInfo {
++	info := progtable[p.As&obj.AMask]
+ 	if info.Flags == 0 {
+ 		gc.Fatalf("proginfo: unknown instruction %v", p)
+ 	}
+@@ -146,28 +145,10 @@ func proginfo(p *obj.Prog) {
+ 		info.Flags |= gc.RightRead /*CanRegRead |*/
+ 	}
+ 
+-	if (p.From.Type == obj.TYPE_MEM || p.From.Type == obj.TYPE_ADDR) && p.From.Reg != 0 {
+-		info.Regindex |= RtoB(int(p.From.Reg))
+-	}
+-
+-	if (p.To.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_ADDR) && p.To.Reg != 0 {
+-		info.Regindex |= RtoB(int(p.To.Reg))
+-	}
+-
+ 	if p.From.Type == obj.TYPE_ADDR && p.From.Sym != nil && (info.Flags&gc.LeftRead != 0) {
+ 		info.Flags &^= gc.LeftRead
+ 		info.Flags |= gc.LeftAddr
+ 	}
+ 
+-	if p.As == obj.ADUFFZERO {
+-		info.Reguse |= 1<<0 | RtoB(mips.REGRT1)
+-		info.Regset |= RtoB(mips.REGRT1)
+-	}
+-
+-	if p.As == obj.ADUFFCOPY {
+-		// TODO(austin) Revisit when duffcopy is implemented
+-		info.Reguse |= RtoB(mips.REGRT1) | RtoB(mips.REGRT2) | RtoB(mips.REG_R3)
+-
+-		info.Regset |= RtoB(mips.REGRT1) | RtoB(mips.REGRT2)
+-	}
++	return info
+ }
+diff --git a/src/cmd/compile/internal/mips64/reg.go b/src/cmd/compile/internal/mips64/reg.go
+deleted file mode 100644
+index 8655f5b5a0..0000000000
+--- a/src/cmd/compile/internal/mips64/reg.go
++++ /dev/null
+@@ -1,55 +0,0 @@
+-// Derived from Inferno utils/6c/reg.c
+-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/reg.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package mips64
+-
+-import "cmd/internal/obj/mips"
+-
+-/*
+- * track register variables including external registers:
+- *	bit	reg
+- *	0	R0
+- *	1	R1
+- *	...	...
+- *	31	R31
+- *	32+0	F0
+- *	32+1	F1
+- *	...	...
+- *	32+31	F31
+- */
+-func RtoB(r int) uint64 {
+-	if r > mips.REG_R0 && r <= mips.REG_R31 {
+-		return 1 << uint(r-mips.REG_R0)
+-	}
+-	if r >= mips.REG_F0 && r <= mips.REG_F31 {
+-		return 1 << uint(32+r-mips.REG_F0)
+-	}
+-	return 0
+-}
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index b5d9d29ffc..269bf02ab5 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -24,7 +24,7 @@ const (
+ // size variants of an operation even if we just use a subset.
+ //
+ // The table is formatted for 8-space tabs.
+-var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
++var progtable = [ppc64.ALAST & obj.AMask]gc.ProgInfo{
+ 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+@@ -146,9 +146,8 @@ func initproginfo() {
+ 	}
+ }
+ 
+-func proginfo(p *obj.Prog) {
+-	info := &p.Info
+-	*info = progtable[p.As&obj.AMask]
++func proginfo(p *obj.Prog) gc.ProgInfo {
++	info := progtable[p.As&obj.AMask]
+ 	if info.Flags == 0 {
+ 		gc.Fatalf("proginfo: unknown instruction %v", p)
+ 	}
+@@ -158,36 +157,12 @@ func proginfo(p *obj.Prog) {
+ 		info.Flags |= gc.RightRead /*CanRegRead |*/
+ 	}
+ 
+-	if (p.From.Type == obj.TYPE_MEM || p.From.Type == obj.TYPE_ADDR) && p.From.Reg != 0 {
+-		info.Regindex |= RtoB(int(p.From.Reg))
+-		if info.Flags&gc.PostInc != 0 {
+-			info.Regset |= RtoB(int(p.From.Reg))
+-		}
+-	}
+-
+-	if (p.To.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_ADDR) && p.To.Reg != 0 {
+-		info.Regindex |= RtoB(int(p.To.Reg))
+-		if info.Flags&gc.PostInc != 0 {
+-			info.Regset |= RtoB(int(p.To.Reg))
+-		}
+-	}
+-
+ 	if p.From.Type == obj.TYPE_ADDR && p.From.Sym != nil && (info.Flags&gc.LeftRead != 0) {
+ 		info.Flags &^= gc.LeftRead
+ 		info.Flags |= gc.LeftAddr
+ 	}
+ 
+-	if p.As == obj.ADUFFZERO {
+-		info.Reguse |= 1<<0 | RtoB(ppc64.REG_R3)
+-		info.Regset |= RtoB(ppc64.REG_R3)
+-	}
+-
+-	if p.As == obj.ADUFFCOPY {
+-		// TODO(austin) Revisit when duffcopy is implemented
+-		info.Reguse |= RtoB(ppc64.REG_R3) | RtoB(ppc64.REG_R4) | RtoB(ppc64.REG_R5)
+-
+-		info.Regset |= RtoB(ppc64.REG_R3) | RtoB(ppc64.REG_R4)
+-	}
++	return info
+ }
+ 
+ // Instruction variants table, populated by initvariants via Main.
+diff --git a/src/cmd/compile/internal/ppc64/reg.go b/src/cmd/compile/internal/ppc64/reg.go
+deleted file mode 100644
+index 2dce8cda9d..0000000000
+--- a/src/cmd/compile/internal/ppc64/reg.go
++++ /dev/null
+@@ -1,55 +0,0 @@
+-// Derived from Inferno utils/6c/reg.c
+-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/reg.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package ppc64
+-
+-import "cmd/internal/obj/ppc64"
+-
+-/*
+- * track register variables including external registers:
+- *	bit	reg
+- *	0	R0
+- *	1	R1
+- *	...	...
+- *	31	R31
+- *	32+0	F0
+- *	32+1	F1
+- *	...	...
+- *	32+31	F31
+- */
+-func RtoB(r int) uint64 {
+-	if r > ppc64.REG_R0 && r <= ppc64.REG_R31 {
+-		return 1 << uint(r-ppc64.REG_R0)
+-	}
+-	if r >= ppc64.REG_F0 && r <= ppc64.REG_F31 {
+-		return 1 << uint(32+r-ppc64.REG_F0)
+-	}
+-	return 0
+-}
+diff --git a/src/cmd/compile/internal/s390x/prog.go b/src/cmd/compile/internal/s390x/prog.go
+index 1dd5740f82..055dd436e9 100644
+--- a/src/cmd/compile/internal/s390x/prog.go
++++ b/src/cmd/compile/internal/s390x/prog.go
+@@ -17,7 +17,7 @@ import (
+ // Instructions not generated need not be listed.
+ // As an exception to that rule, we typically write down all the
+ // size variants of an operation even if we just use a subset.
+-var progtable = [s390x.ALAST & obj.AMask]obj.ProgInfo{
++var progtable = [s390x.ALAST & obj.AMask]gc.ProgInfo{
+ 	obj.ATYPE & obj.AMask:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT & obj.AMask:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA & obj.AMask: {Flags: gc.Pseudo},
+@@ -167,9 +167,8 @@ var progtable = [s390x.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.ARET & obj.AMask: {Flags: gc.Break},
+ }
+ 
+-func proginfo(p *obj.Prog) {
+-	info := &p.Info
+-	*info = progtable[p.As&obj.AMask]
++func proginfo(p *obj.Prog) gc.ProgInfo {
++	info := progtable[p.As&obj.AMask]
+ 	if info.Flags == 0 {
+ 		gc.Fatalf("proginfo: unknown instruction %v", p)
+ 	}
+@@ -179,29 +178,10 @@ func proginfo(p *obj.Prog) {
+ 		info.Flags |= gc.RightRead /*CanRegRead |*/
+ 	}
+ 
+-	if (p.From.Type == obj.TYPE_MEM || p.From.Type == obj.TYPE_ADDR) && p.From.Reg != 0 {
+-		info.Regindex |= RtoB(int(p.From.Reg))
+-	}
+-
+-	if (p.To.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_ADDR) && p.To.Reg != 0 {
+-		info.Regindex |= RtoB(int(p.To.Reg))
+-	}
+-
+ 	if p.From.Type == obj.TYPE_ADDR && p.From.Sym != nil && (info.Flags&gc.LeftRead != 0) {
+ 		info.Flags &^= gc.LeftRead
+ 		info.Flags |= gc.LeftAddr
+ 	}
+ 
+-	switch p.As {
+-	// load multiple sets a range of registers
+-	case s390x.ALMG, s390x.ALMY:
+-		for r := p.Reg; r <= p.To.Reg; r++ {
+-			info.Regset |= RtoB(int(r))
+-		}
+-	// store multiple reads a range of registers
+-	case s390x.ASTMG, s390x.ASTMY:
+-		for r := p.From.Reg; r <= p.Reg; r++ {
+-			info.Reguse |= RtoB(int(r))
+-		}
+-	}
++	return info
+ }
+diff --git a/src/cmd/compile/internal/s390x/reg.go b/src/cmd/compile/internal/s390x/reg.go
+deleted file mode 100644
+index 835abc12ec..0000000000
+--- a/src/cmd/compile/internal/s390x/reg.go
++++ /dev/null
+@@ -1,54 +0,0 @@
+-// Derived from Inferno utils/6c/reg.c
+-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/reg.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package s390x
+-
+-import "cmd/internal/obj/s390x"
+-
+-/*
+- * track register variables including external registers:
+- *	bit	reg
+- *	0	R0
+- *	...	...
+- *	15	R15
+- *	16+0	F0
+- *	16+1	F1
+- *	...	...
+- *	16+15	F15
+- */
+-func RtoB(r int) uint64 {
+-	if r >= s390x.REG_R0 && r <= s390x.REG_R15 {
+-		return 1 << uint(r-s390x.REG_R0)
+-	}
+-	if r >= s390x.REG_F0 && r <= s390x.REG_F15 {
+-		return 1 << uint(16+r-s390x.REG_F0)
+-	}
+-	return 0
+-}
+diff --git a/src/cmd/compile/internal/x86/prog.go b/src/cmd/compile/internal/x86/prog.go
+index b09b844c86..e46bdb7f23 100644
+--- a/src/cmd/compile/internal/x86/prog.go
++++ b/src/cmd/compile/internal/x86/prog.go
+@@ -10,13 +10,7 @@ import (
+ 	"cmd/internal/obj/x86"
+ )
+ 
+-var (
+-	AX               = RtoB(x86.REG_AX)
+-	BX               = RtoB(x86.REG_BX)
+-	CX               = RtoB(x86.REG_CX)
+-	DX               = RtoB(x86.REG_DX)
+-	DI               = RtoB(x86.REG_DI)
+-	SI               = RtoB(x86.REG_SI)
++const (
+ 	LeftRdwr  uint32 = gc.LeftRead | gc.LeftWrite
+ 	RightRdwr uint32 = gc.RightRead | gc.RightWrite
+ )
+@@ -30,7 +24,7 @@ var (
+ // size variants of an operation even if we just use a subset.
+ //
+ // The table is formatted for 8-space tabs.
+-var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
++var progtable = [x86.ALAST & obj.AMask]gc.ProgInfo{
+ 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+@@ -55,8 +49,8 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.AANDL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
+ 	x86.AANDW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
+ 	obj.ACALL:                  {Flags: gc.RightAddr | gc.Call | gc.KillCarry},
+-	x86.ACDQ & obj.AMask:       {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
+-	x86.ACWD & obj.AMask:       {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
++	x86.ACDQ & obj.AMask:       {Flags: gc.OK},
++	x86.ACWD & obj.AMask:       {Flags: gc.OK},
+ 	x86.ACLD & obj.AMask:       {Flags: gc.OK},
+ 	x86.ASTD & obj.AMask:       {Flags: gc.OK},
+ 	x86.ACMPB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | gc.RightRead | gc.SetCarry},
+@@ -75,9 +69,9 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.ADECB & obj.AMask:      {Flags: gc.SizeB | RightRdwr},
+ 	x86.ADECL & obj.AMask:      {Flags: gc.SizeL | RightRdwr},
+ 	x86.ADECW & obj.AMask:      {Flags: gc.SizeW | RightRdwr},
+-	x86.ADIVB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
+-	x86.ADIVL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.ADIVW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
++	x86.ADIVB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry},
++	x86.ADIVL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry},
++	x86.ADIVW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry},
+ 	x86.ADIVSD & obj.AMask:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+ 	x86.ADIVSS & obj.AMask:     {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+ 	x86.AFLDCW & obj.AMask:     {Flags: gc.SizeW | gc.LeftAddr},
+@@ -130,10 +124,10 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.AFMULD & obj.AMask:   {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
+ 	x86.AFMULDP & obj.AMask:  {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
+ 	x86.AFMULF & obj.AMask:   {Flags: gc.SizeF | gc.LeftAddr | RightRdwr},
+-	x86.AIDIVB & obj.AMask:   {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
+-	x86.AIDIVL & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.AIDIVW & obj.AMask:   {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+-	x86.AIMULB & obj.AMask:   {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
++	x86.AIDIVB & obj.AMask:   {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry},
++	x86.AIDIVL & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry},
++	x86.AIDIVW & obj.AMask:   {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry},
++	x86.AIMULB & obj.AMask:   {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry},
+ 	x86.AIMULL & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
+ 	x86.AIMULW & obj.AMask:   {Flags: gc.SizeW | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
+ 	x86.AINCB & obj.AMask:    {Flags: gc.SizeB | RightRdwr},
+@@ -167,18 +161,18 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.AMOVB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move},
+ 	x86.AMOVL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
+ 	x86.AMOVW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMOVSB & obj.AMask:   {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+-	x86.AMOVSL & obj.AMask:   {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+-	x86.AMOVSW & obj.AMask:   {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+-	obj.ADUFFCOPY:            {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI | CX},
++	x86.AMOVSB & obj.AMask:   {Flags: gc.OK},
++	x86.AMOVSL & obj.AMask:   {Flags: gc.OK},
++	x86.AMOVSW & obj.AMask:   {Flags: gc.OK},
++	obj.ADUFFCOPY:            {Flags: gc.OK},
+ 	x86.AMOVSD & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+ 	x86.AMOVSS & obj.AMask:   {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move},
+ 
+ 	// We use MOVAPD as a faster synonym for MOVSD.
+ 	x86.AMOVAPD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+-	x86.AMULB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
+-	x86.AMULL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
+-	x86.AMULW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
++	x86.AMULB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry},
++	x86.AMULL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry},
++	x86.AMULW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry},
+ 	x86.AMULSD & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+ 	x86.AMULSS & obj.AMask:   {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+ 	x86.ANEGB & obj.AMask:    {Flags: gc.SizeB | RightRdwr | gc.SetCarry},
+@@ -199,8 +193,8 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.ARCRB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+ 	x86.ARCRL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+ 	x86.ARCRW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
+-	x86.AREP & obj.AMask:     {Flags: gc.OK, Reguse: CX, Regset: CX},
+-	x86.AREPN & obj.AMask:    {Flags: gc.OK, Reguse: CX, Regset: CX},
++	x86.AREP & obj.AMask:     {Flags: gc.OK},
++	x86.AREPN & obj.AMask:    {Flags: gc.OK},
+ 	obj.ARET:                 {Flags: gc.Break | gc.KillCarry},
+ 	x86.AROLB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+ 	x86.AROLL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+@@ -208,7 +202,7 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.ARORB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+ 	x86.ARORL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+ 	x86.ARORW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASAHF & obj.AMask:    {Flags: gc.OK, Reguse: AX, Regset: AX},
++	x86.ASAHF & obj.AMask:    {Flags: gc.OK},
+ 	x86.ASALB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+ 	x86.ASALL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+ 	x86.ASALW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+@@ -240,10 +234,10 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.ASHRB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+ 	x86.ASHRL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+ 	x86.ASHRW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
+-	x86.ASTOSB & obj.AMask:   {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	x86.ASTOSL & obj.AMask:   {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	x86.ASTOSW & obj.AMask:   {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	obj.ADUFFZERO:            {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
++	x86.ASTOSB & obj.AMask:   {Flags: gc.OK},
++	x86.ASTOSL & obj.AMask:   {Flags: gc.OK},
++	x86.ASTOSW & obj.AMask:   {Flags: gc.OK},
++	obj.ADUFFZERO:            {Flags: gc.OK},
+ 	x86.ASUBB & obj.AMask:    {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
+ 	x86.ASUBL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
+ 	x86.ASUBW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
+@@ -262,37 +256,15 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.AXORW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
+ }
+ 
+-func proginfo(p *obj.Prog) {
+-	info := &p.Info
+-	*info = progtable[p.As&obj.AMask]
++func proginfo(p *obj.Prog) gc.ProgInfo {
++	info := progtable[p.As&obj.AMask]
+ 	if info.Flags == 0 {
+ 		gc.Fatalf("unknown instruction %v", p)
+ 	}
+ 
+-	if (info.Flags&gc.ShiftCX != 0) && p.From.Type != obj.TYPE_CONST {
+-		info.Reguse |= CX
++	if info.Flags&gc.ImulAXDX != 0 && p.To.Type != obj.TYPE_NONE {
++		info.Flags |= RightRdwr
+ 	}
+ 
+-	if info.Flags&gc.ImulAXDX != 0 {
+-		if p.To.Type == obj.TYPE_NONE {
+-			info.Reguse |= AX
+-			info.Regset |= AX | DX
+-		} else {
+-			info.Flags |= RightRdwr
+-		}
+-	}
+-
+-	// Addressing makes some registers used.
+-	if p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_NONE {
+-		info.Regindex |= RtoB(int(p.From.Reg))
+-	}
+-	if p.From.Index != x86.REG_NONE {
+-		info.Regindex |= RtoB(int(p.From.Index))
+-	}
+-	if p.To.Type == obj.TYPE_MEM && p.To.Name == obj.NAME_NONE {
+-		info.Regindex |= RtoB(int(p.To.Reg))
+-	}
+-	if p.To.Index != x86.REG_NONE {
+-		info.Regindex |= RtoB(int(p.To.Index))
+-	}
++	return info
+ }
+diff --git a/src/cmd/compile/internal/x86/reg.go b/src/cmd/compile/internal/x86/reg.go
+deleted file mode 100644
+index af9da3f3ec..0000000000
+--- a/src/cmd/compile/internal/x86/reg.go
++++ /dev/null
+@@ -1,40 +0,0 @@
+-// Derived from Inferno utils/6c/reg.c
+-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/reg.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package x86
+-
+-import "cmd/internal/obj/x86"
+-
+-func RtoB(r int) uint64 {
+-	if r < x86.REG_AX || r > x86.REG_DI {
+-		return 0
+-	}
+-	return 1 << uint(r-x86.REG_AX)
+-}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index e9b020c561..43d5f98100 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -229,8 +229,6 @@ type Prog struct {
+ 	Tt     uint8
+ 	Isize  uint8 // size of the instruction in bytes (x86 only)
+ 	Mode   int8
+-
+-	Info ProgInfo
+ }
+ 
+ // From3Type returns From3.Type, or TYPE_NONE when From3 is nil.
+@@ -249,17 +247,6 @@ func (p *Prog) From3Offset() int64 {
+ 	return p.From3.Offset
+ }
+ 
+-// ProgInfo holds information about the instruction for use
+-// by clients such as the compiler. The exact meaning of this
+-// data is up to the client and is not interpreted by the cmd/internal/obj/... packages.
+-type ProgInfo struct {
+-	_        struct{} // to prevent unkeyed literals. Trailing zero-sized field will take space.
+-	Flags    uint32   // flag bits
+-	Reguse   uint64   // registers implicitly used by this instruction
+-	Regset   uint64   // registers implicitly set by this instruction
+-	Regindex uint64   // registers used by addressing mode
+-}
+-
+ // An As denotes an assembler opcode.
+ // There are some portable opcodes, declared here in package obj,
+ // that are common to all architectures.
+diff --git a/src/cmd/internal/obj/sizeof_test.go b/src/cmd/internal/obj/sizeof_test.go
+index 6fe99739c9..6cf8275630 100644
+--- a/src/cmd/internal/obj/sizeof_test.go
++++ b/src/cmd/internal/obj/sizeof_test.go
+@@ -24,7 +24,7 @@ func TestSizeof(t *testing.T) {
+ 	}{
+ 		{Addr{}, 44, 72},
+ 		{LSym{}, 80, 136},
+-		{Prog{}, 180, 272},
++		{Prog{}, 152, 240},
+ 	}
+ 
+ 	for _, tt := range tests {

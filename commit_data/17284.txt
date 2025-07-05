@@ -14,8 +14,57 @@ Date:   Fri Aug 16 12:40:02 2013 +1000
     R=golang-dev, remyoudompheng, rsc
     CC=golang-dev
     https://golang.org/cl/12973043
-
+---
  src/cmd/gc/const.c     | 2 +-
  src/cmd/gc/fmt.c       | 4 ++--
  src/cmd/gc/typecheck.c | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index e9d99df18b..cfb1f0adef 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -1056,7 +1056,7 @@ nodcplxlit(Val r, Val i)
+ }
+ 
+ // idealkind returns a constant kind like consttype
+-// but for an arbitrary "ideal" expression.
++// but for an arbitrary "ideal" (untyped constant) expression.
+ static int
+ idealkind(Node *n)
+ {
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index ded78628e4..8673b39ce6 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -577,7 +577,7 @@ basicnames[] =
+ 	[TANY]		= "any",
+ 	[TSTRING]	= "string",
+ 	[TNIL]		= "nil",
+-	[TIDEAL]	= "ideal",
++	[TIDEAL]	= "untyped number",
+ 	[TBLANK]	= "blank",
+ };
+ 
+@@ -619,7 +619,7 @@ typefmt(Fmt *fp, Type *t)
+ 
+ 	if(t->etype < nelem(basicnames) && basicnames[t->etype] != nil) {
+ 		if(fmtmode == FErr && (t == idealbool || t == idealstring))
+-			fmtstrcpy(fp, "ideal ");
++			fmtstrcpy(fp, "untyped ");
+ 		return fmtstrcpy(fp, basicnames[t->etype]);
+ 	}
+ 
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index f232efdaf8..9b5a784eb1 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -90,7 +90,7 @@ static char* _typekind[] = {
+ 	[TARRAY]	= "array",
+ 	[TFUNC]		= "func",
+ 	[TNIL]		= "nil",
+-	[TIDEAL]	= "ideal number",
++	[TIDEAL]	= "untyped number",
+ };
+ 
+ static char*

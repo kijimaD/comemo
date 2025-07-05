@@ -7,10 +7,83 @@ Date:   Fri Mar 2 11:15:45 2012 -0800
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/5720044
-
+---
  src/cmd/go/build.go                   | 2 +-
  src/pkg/crypto/ecdsa/ecdsa.go         | 2 +-
  src/pkg/go/printer/testdata/parser.go | 2 +-
  src/pkg/io/pipe.go                    | 2 +-
  src/pkg/syscall/exec_plan9.go         | 4 ++--
  5 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 382f61e89b..2323195120 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -992,7 +992,7 @@ func relPaths(paths []string) []string {
+ var errPrintedOutput = errors.New("already printed output - no need to show error")
+ 
+ // run runs the command given by cmdline in the directory dir.
+-// If the commnd fails, run prints information about the failure
++// If the command fails, run prints information about the failure
+ // and returns a non-nil error.
+ func (b *builder) run(dir, shortenDir string, desc string, cmdargs ...interface{}) error {
+ 	out, err := b.runOut(dir, desc, cmdargs...)
+diff --git a/src/pkg/crypto/ecdsa/ecdsa.go b/src/pkg/crypto/ecdsa/ecdsa.go
+index d2f7d8f9bb..b28239b786 100644
+--- a/src/pkg/crypto/ecdsa/ecdsa.go
++++ b/src/pkg/crypto/ecdsa/ecdsa.go
+@@ -7,7 +7,7 @@
+ package ecdsa
+ 
+ // References:
+-//   [NSA]: Suite B implementor's guide to FIPS 186-3,
++//   [NSA]: Suite B implementer's guide to FIPS 186-3,
+ //     http://www.nsa.gov/ia/_files/ecdsa.pdf
+ //   [SECG]: SECG, SEC1
+ //     http://www.secg.org/download/aid-780/sec1-v2.pdf
+diff --git a/src/pkg/go/printer/testdata/parser.go b/src/pkg/go/printer/testdata/parser.go
+index c85297f583..dba8bbd435 100644
+--- a/src/pkg/go/printer/testdata/parser.go
++++ b/src/pkg/go/printer/testdata/parser.go
+@@ -52,7 +52,7 @@ type parser struct {
+ 	// Non-syntactic parser control
+ 	exprLev int // < 0: in control clause, >= 0: in expression
+ 
+-	// Ordinary identifer scopes
++	// Ordinary identifier scopes
+ 	pkgScope   *ast.Scope        // pkgScope.Outer == nil
+ 	topScope   *ast.Scope        // top-most scope; may be pkgScope
+ 	unresolved []*ast.Ident      // unresolved identifiers
+diff --git a/src/pkg/io/pipe.go b/src/pkg/io/pipe.go
+index 69f90510f7..f3f0f17570 100644
+--- a/src/pkg/io/pipe.go
++++ b/src/pkg/io/pipe.go
+@@ -178,7 +178,7 @@ func (w *PipeWriter) CloseWithError(err error) error {
+ // It is safe to call Read and Write in parallel with each other or with
+ // Close. Close will complete once pending I/O is done. Parallel calls to
+ // Read, and parallel calls to Write, are also safe:
+-// the invidual calls will be gated sequentially.
++// the individual calls will be gated sequentially.
+ func Pipe() (*PipeReader, *PipeWriter) {
+ 	p := new(pipe)
+ 	p.rwait.L = &p.l
+diff --git a/src/pkg/syscall/exec_plan9.go b/src/pkg/syscall/exec_plan9.go
+index c6c975c7ec..7e4e180fa1 100644
+--- a/src/pkg/syscall/exec_plan9.go
++++ b/src/pkg/syscall/exec_plan9.go
+@@ -71,13 +71,13 @@ func StringSlicePtr(ss []string) []*byte {
+ 	return bb
+ }
+ 
+-// gbit16 reads a 16-bit numeric value from a 9P protocol message strored in b,
++// gbit16 reads a 16-bit numeric value from a 9P protocol message stored in b,
+ // returning the value and the remaining slice of b.
+ func gbit16(b []byte) (uint16, []byte) {
+ 	return uint16(b[0]) | uint16(b[1])<<8, b[2:]
+ }
+ 
+-// gstring reads a string from a 9P protocol message strored in b,
++// gstring reads a string from a 9P protocol message stored in b,
+ // returning the value as a Go string and the remaining slice of b.
+ func gstring(b []byte) (string, []byte) {
+ 	n, b := gbit16(b)

@@ -19,7 +19,7 @@ Date:   Sun Apr 3 16:21:18 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/doc/comment/testdata/doclink.txt |   4 +-
  src/go/doc/comment/testdata/link2.txt   |   4 +-
  src/go/doc/comment/testdata/link6.txt   |   7 +-
@@ -32,3 +32,619 @@ Date:   Sun Apr 3 16:21:18 2022 -0400
  src/go/doc/comment/text.go              | 193 +++++++++++++++++++++++++++++++-
  src/go/doc/comment/wrap_test.go         | 141 +++++++++++++++++++++++
  11 files changed, 488 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/doc/comment/testdata/doclink.txt b/src/go/doc/comment/testdata/doclink.txt
+index c4e772dd07..a9323471fd 100644
+--- a/src/go/doc/comment/testdata/doclink.txt
++++ b/src/go/doc/comment/testdata/doclink.txt
+@@ -9,7 +9,9 @@ There is no [Undef] or [Undef.Method].
+ See also the [comment] package,
+ especially [comment.Doc] and [comment.Parser.Parse].
+ -- text --
+-In this package, see Doc and Parser.Parse. There is no [Undef] or [Undef.Method]. See also the comment package, especially comment.Doc and comment.Parser.Parse.
++In this package, see Doc and Parser.Parse. There is no [Undef] or
++[Undef.Method]. See also the comment package, especially comment.Doc and
++comment.Parser.Parse.
+ -- markdown --
+ In this package, see [Doc](#Doc) and [Parser.Parse](#Parser.Parse). There is no \[Undef] or \[Undef.Method]. See also the [comment](/go/doc/comment) package, especially [comment.Doc](/go/doc/comment#Doc) and [comment.Parser.Parse](/go/doc/comment#Parser.Parse).
+ -- html --
+diff --git a/src/go/doc/comment/testdata/link2.txt b/src/go/doc/comment/testdata/link2.txt
+index a19835c4f6..8637a32f01 100644
+--- a/src/go/doc/comment/testdata/link2.txt
++++ b/src/go/doc/comment/testdata/link2.txt
+@@ -15,7 +15,9 @@ https://☺ is not a link.
+ https://:80 is not a link.
+ 
+ -- text --
+-The Go home page is https://go.dev/. It used to be https://golang.org. https:// is not a link. Nor is https:// https://☺ is not a link. https://:80 is not a link.
++The Go home page is https://go.dev/. It used to be https://golang.org. https://
++is not a link. Nor is https:// https://☺ is not a link. https://:80 is not a
++link.
+ 
+ -- markdown --
+ The Go home page is [https://go.dev/](https://go.dev/). It used to be [https://golang.org](https://golang.org). https:// is not a link. Nor is https:// https://☺ is not a link. https://:80 is not a link.
+diff --git a/src/go/doc/comment/testdata/link6.txt b/src/go/doc/comment/testdata/link6.txt
+index 579b35d211..ff629b4573 100644
+--- a/src/go/doc/comment/testdata/link6.txt
++++ b/src/go/doc/comment/testdata/link6.txt
+@@ -23,9 +23,12 @@ And https://example.com/)baz{foo}.
+ [And https://example.com/].
+ 
+ -- text --
+-URLs with punctuation are hard. We don't want to consume the end-of-sentence punctuation.
++URLs with punctuation are hard. We don't want to consume the end-of-sentence
++punctuation.
+ 
+-For example, https://en.wikipedia.org/wiki/John_Adams_(miniseries). And https://example.com/[foo]/bar{. And https://example.com/(foo)/bar! And https://example.com/{foo}/bar{. And https://example.com/)baz{foo}.
++For example, https://en.wikipedia.org/wiki/John_Adams_(miniseries).
++And https://example.com/[foo]/bar{. And https://example.com/(foo)/bar! And
++https://example.com/{foo}/bar{. And https://example.com/)baz{foo}.
+ 
+ [And https://example.com/].
+ 
+diff --git a/src/go/doc/comment/testdata/quote.txt b/src/go/doc/comment/testdata/quote.txt
+new file mode 100644
+index 0000000000..799663af80
+--- /dev/null
++++ b/src/go/doc/comment/testdata/quote.txt
+@@ -0,0 +1,12 @@
++-- input --
++Doubled single quotes like `` and '' turn into Unicode double quotes,
++but single quotes ` and ' do not.
++-- gofmt --
++Doubled single quotes like “ and ” turn into Unicode double quotes,
++but single quotes ` and ' do not.
++-- text --
++Doubled single quotes like “ and ” turn into Unicode double quotes, but single
++quotes ` and ' do not.
++-- html --
++<p>Doubled single quotes like “ and ” turn into Unicode double quotes,
++but single quotes ` and &apos; do not.
+diff --git a/src/go/doc/comment/testdata/text3.txt b/src/go/doc/comment/testdata/text3.txt
+new file mode 100644
+index 0000000000..75d2c3765c
+--- /dev/null
++++ b/src/go/doc/comment/testdata/text3.txt
+@@ -0,0 +1,28 @@
++{"TextWidth": 30}
++-- input --
++Package gob manages streams of gobs - binary values exchanged between an
++Encoder (transmitter) and a Decoder (receiver). A typical use is
++transporting arguments and results of remote procedure calls (RPCs) such as
++those provided by package "net/rpc".
++
++The implementation compiles a custom codec for each data type in the stream
++and is most efficient when a single Encoder is used to transmit a stream of
++values, amortizing the cost of compilation.
++-- text --
++Package gob manages streams
++of gobs - binary values
++exchanged between an Encoder
++(transmitter) and a Decoder
++(receiver). A typical use is
++transporting arguments and
++results of remote procedure
++calls (RPCs) such as those
++provided by package "net/rpc".
++
++The implementation compiles
++a custom codec for each data
++type in the stream and is
++most efficient when a single
++Encoder is used to transmit a
++stream of values, amortizing
++the cost of compilation.
+diff --git a/src/go/doc/comment/testdata/text4.txt b/src/go/doc/comment/testdata/text4.txt
+new file mode 100644
+index 0000000000..e429985077
+--- /dev/null
++++ b/src/go/doc/comment/testdata/text4.txt
+@@ -0,0 +1,29 @@
++{"TextWidth": 29}
++-- input --
++Package gob manages streams of gobs - binary values exchanged between an
++Encoder (transmitter) and a Decoder (receiver). A typical use is
++transporting arguments and results of remote procedure calls (RPCs) such as
++those provided by package "net/rpc".
++
++The implementation compiles a custom codec for each data type in the stream
++and is most efficient when a single Encoder is used to transmit a stream of
++values, amortizing the cost of compilation.
++-- text --
++Package gob manages streams
++of gobs - binary values
++exchanged between an Encoder
++(transmitter) and a Decoder
++(receiver). A typical use
++is transporting arguments
++and results of remote
++procedure calls (RPCs) such
++as those provided by package
++"net/rpc".
++
++The implementation compiles
++a custom codec for each data
++type in the stream and is
++most efficient when a single
++Encoder is used to transmit a
++stream of values, amortizing
++the cost of compilation.
+diff --git a/src/go/doc/comment/testdata/text5.txt b/src/go/doc/comment/testdata/text5.txt
+new file mode 100644
+index 0000000000..2408fc559d
+--- /dev/null
++++ b/src/go/doc/comment/testdata/text5.txt
+@@ -0,0 +1,38 @@
++{"TextWidth": 20}
++-- input --
++Package gob manages streams of gobs - binary values exchanged between an
++Encoder (transmitter) and a Decoder (receiver). A typical use is
++transporting arguments and results of remote procedure calls (RPCs) such as
++those provided by package "net/rpc".
++
++The implementation compiles a custom codec for each data type in the stream
++and is most efficient when a single Encoder is used to transmit a stream of
++values, amortizing the cost of compilation.
++-- text --
++Package gob
++manages streams
++of gobs - binary
++values exchanged
++between an Encoder
++(transmitter) and a
++Decoder (receiver).
++A typical use
++is transporting
++arguments and
++results of remote
++procedure calls
++(RPCs) such as those
++provided by package
++"net/rpc".
++
++The implementation
++compiles a custom
++codec for each
++data type in the
++stream and is most
++efficient when a
++single Encoder is
++used to transmit a
++stream of values,
++amortizing the cost
++of compilation.
+diff --git a/src/go/doc/comment/testdata/text6.txt b/src/go/doc/comment/testdata/text6.txt
+new file mode 100644
+index 0000000000..d6deff52cf
+--- /dev/null
++++ b/src/go/doc/comment/testdata/text6.txt
+@@ -0,0 +1,18 @@
++-- input --
++Package gob manages streams of gobs - binary values exchanged between an
++Encoder (transmitter) and a Decoder (receiver). A typical use is
++transporting arguments and results of remote procedure calls (RPCs) such as
++those provided by package "net/rpc".
++
++The implementation compiles a custom codec for each data type in the stream
++and is most efficient when a single Encoder is used to transmit a stream of
++values, amortizing the cost of compilation.
++-- text --
++Package gob manages streams of gobs - binary values exchanged between an Encoder
++(transmitter) and a Decoder (receiver). A typical use is transporting arguments
++and results of remote procedure calls (RPCs) such as those provided by package
++"net/rpc".
++
++The implementation compiles a custom codec for each data type in the stream and
++is most efficient when a single Encoder is used to transmit a stream of values,
++amortizing the cost of compilation.
+diff --git a/src/go/doc/comment/testdata/text7.txt b/src/go/doc/comment/testdata/text7.txt
+new file mode 100644
+index 0000000000..c9fb6d3754
+--- /dev/null
++++ b/src/go/doc/comment/testdata/text7.txt
+@@ -0,0 +1,21 @@
++{"TextPrefix": "                    "}
++-- input --
++Package gob manages streams of gobs - binary values exchanged between an
++Encoder (transmitter) and a Decoder (receiver). A typical use is
++transporting arguments and results of remote procedure calls (RPCs) such as
++those provided by package "net/rpc".
++
++The implementation compiles a custom codec for each data type in the stream
++and is most efficient when a single Encoder is used to transmit a stream of
++values, amortizing the cost of compilation.
++-- text --
++                    Package gob manages streams of gobs - binary values
++                    exchanged between an Encoder (transmitter) and a Decoder
++                    (receiver). A typical use is transporting arguments and
++                    results of remote procedure calls (RPCs) such as those
++                    provided by package "net/rpc".
++
++                    The implementation compiles a custom codec for each data
++                    type in the stream and is most efficient when a single
++                    Encoder is used to transmit a stream of values, amortizing
++                    the cost of compilation.
+diff --git a/src/go/doc/comment/text.go b/src/go/doc/comment/text.go
+index e9941bc957..d6d651b5d6 100644
+--- a/src/go/doc/comment/text.go
++++ b/src/go/doc/comment/text.go
+@@ -7,13 +7,17 @@ package comment
+ import (
+ 	"bytes"
+ 	"fmt"
++	"sort"
+ 	"strings"
++	"unicode/utf8"
+ )
+ 
+ // A textPrinter holds the state needed for printing a Doc as plain text.
+ type textPrinter struct {
+ 	*Printer
+-	long bytes.Buffer
++	long   bytes.Buffer
++	prefix string
++	width  int
+ }
+ 
+ // Text returns a textual formatting of the Doc.
+@@ -21,7 +25,13 @@ type textPrinter struct {
+ func (p *Printer) Text(d *Doc) []byte {
+ 	tp := &textPrinter{
+ 		Printer: p,
++		prefix:  p.TextPrefix,
++		width:   p.TextWidth,
+ 	}
++	if tp.width == 0 {
++		tp.width = 80 - utf8.RuneCountInString(tp.prefix)
++	}
++
+ 	var out bytes.Buffer
+ 	for i, x := range d.Content {
+ 		if i > 0 && blankBefore(x) {
+@@ -69,6 +79,7 @@ func (p *textPrinter) block(out *bytes.Buffer, x Block) {
+ 		fmt.Fprintf(out, "?%T\n", x)
+ 
+ 	case *Paragraph:
++		out.WriteString(p.prefix)
+ 		p.text(out, x.Text)
+ 	}
+ }
+@@ -77,9 +88,27 @@ func (p *textPrinter) block(out *bytes.Buffer, x Block) {
+ // TODO: Wrap lines.
+ func (p *textPrinter) text(out *bytes.Buffer, x []Text) {
+ 	p.oneLongLine(&p.long, x)
+-	out.WriteString(strings.ReplaceAll(p.long.String(), "\n", " "))
++	words := strings.Fields(p.long.String())
+ 	p.long.Reset()
+-	writeNL(out)
++
++	var seq []int
++	if p.width < 0 {
++		seq = []int{0, len(words)} // one long line
++	} else {
++		seq = wrap(words, p.width)
++	}
++	for i := 0; i+1 < len(seq); i++ {
++		if i > 0 {
++			out.WriteString(p.prefix)
++		}
++		for j, w := range words[seq[i]:seq[i+1]] {
++			if j > 0 {
++				out.WriteString(" ")
++			}
++			out.WriteString(w)
++		}
++		writeNL(out)
++	}
+ }
+ 
+ // oneLongLine prints the text sequence x to out as one long line,
+@@ -99,3 +128,161 @@ func (p *textPrinter) oneLongLine(out *bytes.Buffer, x []Text) {
+ 		}
+ 	}
+ }
++
++// wrap wraps words into lines of at most max runes,
++// minimizing the sum of the squares of the leftover lengths
++// at the end of each line (except the last, of course),
++// with a preference for ending lines at punctuation (.,:;).
++//
++// The returned slice gives the indexes of the first words
++// on each line in the wrapped text with a final entry of len(words).
++// Thus the lines are words[seq[0]:seq[1]], words[seq[1]:seq[2]],
++// ..., words[seq[len(seq)-2]:seq[len(seq)-1]].
++//
++// The implementation runs in O(n log n) time, where n = len(words),
++// using the algorithm described in D. S. Hirschberg and L. L. Larmore,
++// “[The least weight subsequence problem],” FOCS 1985, pp. 137-143.
++//
++// [The least weight subsequence problem]: https://doi.org/10.1109/SFCS.1985.60
++func wrap(words []string, max int) (seq []int) {
++	// The algorithm requires that our scoring function be concave,
++	// meaning that for all i₀ ≤ i₁ < j₀ ≤ j₁,
++	// weight(i₀, j₀) + weight(i₁, j₁) ≤ weight(i₀, j₁) + weight(i₁, j₀).
++	//
++	// Our weights are two-element pairs [hi, lo]
++	// ordered by elementwise comparison.
++	// The hi entry counts the weight for lines that are longer than max,
++	// and the lo entry counts the weight for lines that are not.
++	// This forces the algorithm to first minimize the number of lines
++	// that are longer than max, which correspond to lines with
++	// single very long words. Having done that, it can move on to
++	// minimizing the lo score, which is more interesting.
++	//
++	// The lo score is the sum for each line of the square of the
++	// number of spaces remaining at the end of the line and a
++	// penalty of 64 given out for not ending the line in a
++	// punctuation character (.,:;).
++	// The penalty is somewhat arbitrarily chosen by trying
++	// different amounts and judging how nice the wrapped text looks.
++	// Roughly speaking, using 64 means that we are willing to
++	// end a line with eight blank spaces in order to end at a
++	// punctuation character, even if the next word would fit in
++	// those spaces.
++	//
++	// We care about ending in punctuation characters because
++	// it makes the text easier to skim if not too many sentences
++	// or phrases begin with a single word on the previous line.
++
++	// A score is the score (also called weight) for a given line.
++	// add and cmp add and compare scores.
++	type score struct {
++		hi int64
++		lo int64
++	}
++	add := func(s, t score) score { return score{s.hi + t.hi, s.lo + t.lo} }
++	cmp := func(s, t score) int {
++		switch {
++		case s.hi < t.hi:
++			return -1
++		case s.hi > t.hi:
++			return +1
++		case s.lo < t.lo:
++			return -1
++		case s.lo > t.lo:
++			return +1
++		}
++		return 0
++	}
++
++	// total[j] is the total number of runes
++	// (including separating spaces) in words[:j].
++	total := make([]int, len(words)+1)
++	total[0] = 0
++	for i, s := range words {
++		total[1+i] = total[i] + utf8.RuneCountInString(s) + 1
++	}
++
++	// weight returns weight(i, j).
++	weight := func(i, j int) score {
++		// On the last line, there is zero weight for being too short.
++		n := total[j] - 1 - total[i]
++		if j == len(words) && n <= max {
++			return score{0, 0}
++		}
++
++		// Otherwise the weight is the penalty plus the square of the number of
++		// characters remaining on the line or by which the line goes over.
++		// In the latter case, that value goes in the hi part of the score.
++		// (See note above.)
++		p := wrapPenalty(words[j-1])
++		v := int64(max-n) * int64(max-n)
++		if n > max {
++			return score{v, p}
++		}
++		return score{0, v + p}
++	}
++
++	// The rest of this function is “The Basic Algorithm” from
++	// Hirschberg and Larmore's conference paper,
++	// using the same names as in the paper.
++	f := []score{{0, 0}}
++	g := func(i, j int) score { return add(f[i], weight(i, j)) }
++
++	bridge := func(a, b, c int) bool {
++		k := c + sort.Search(len(words)+1-c, func(k int) bool {
++			k += c
++			return cmp(g(a, k), g(b, k)) > 0
++		})
++		if k > len(words) {
++			return true
++		}
++		return cmp(g(c, k), g(b, k)) <= 0
++	}
++
++	// d is a one-ended deque implemented as a slice.
++	d := make([]int, 1, len(words))
++	d[0] = 0
++	bestleft := make([]int, 1, len(words))
++	bestleft[0] = -1
++	for m := 1; m < len(words); m++ {
++		f = append(f, g(d[0], m))
++		bestleft = append(bestleft, d[0])
++		for len(d) > 1 && cmp(g(d[1], m+1), g(d[0], m+1)) <= 0 {
++			d = d[1:] // “Retire”
++		}
++		for len(d) > 1 && bridge(d[len(d)-2], d[len(d)-1], m) {
++			d = d[:len(d)-1] // “Fire”
++		}
++		if cmp(g(m, len(words)), g(d[len(d)-1], len(words))) < 0 {
++			d = append(d, m) // “Hire”
++			// The next few lines are not in the paper but are necessary
++			// to handle two-word inputs correctly. It appears to be
++			// just a bug in the paper's pseudocode.
++			if len(d) == 2 && cmp(g(d[1], m+1), g(d[0], m+1)) <= 0 {
++				d = d[1:]
++			}
++		}
++	}
++	bestleft = append(bestleft, d[0])
++
++	// Recover least weight sequence from bestleft.
++	n := 1
++	for m := len(words); m > 0; m = bestleft[m] {
++		n++
++	}
++	seq = make([]int, n)
++	for m := len(words); m > 0; m = bestleft[m] {
++		n--
++		seq[n] = m
++	}
++	return seq
++}
++
++// wrapPenalty is the penalty for inserting a line break after word s.
++func wrapPenalty(s string) int64 {
++	switch s[len(s)-1] {
++	case '.', ',', ':', ';':
++		return 0
++	}
++	return 64
++}
+diff --git a/src/go/doc/comment/wrap_test.go b/src/go/doc/comment/wrap_test.go
+new file mode 100644
+index 0000000000..f9802c9c44
+--- /dev/null
++++ b/src/go/doc/comment/wrap_test.go
+@@ -0,0 +1,141 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package comment
++
++import (
++	"flag"
++	"fmt"
++	"math/rand"
++	"testing"
++	"time"
++	"unicode/utf8"
++)
++
++var wrapSeed = flag.Int64("wrapseed", 0, "use `seed` for wrap test (default auto-seeds)")
++
++func TestWrap(t *testing.T) {
++	if *wrapSeed == 0 {
++		*wrapSeed = time.Now().UnixNano()
++	}
++	t.Logf("-wrapseed=%#x\n", *wrapSeed)
++	r := rand.New(rand.NewSource(*wrapSeed))
++
++	// Generate words of random length.
++	s := "1234567890αβcdefghijklmnopqrstuvwxyz"
++	sN := utf8.RuneCountInString(s)
++	var words []string
++	for i := 0; i < 100; i++ {
++		n := 1 + r.Intn(sN-1)
++		if n >= 12 {
++			n++ // extra byte for β
++		}
++		if n >= 11 {
++			n++ // extra byte for α
++		}
++		words = append(words, s[:n])
++	}
++
++	for n := 1; n <= len(words) && !t.Failed(); n++ {
++		t.Run(fmt.Sprint("n=", n), func(t *testing.T) {
++			words := words[:n]
++			t.Logf("words: %v", words)
++			for max := 1; max < 100 && !t.Failed(); max++ {
++				t.Run(fmt.Sprint("max=", max), func(t *testing.T) {
++					seq := wrap(words, max)
++
++					// Compute score for seq.
++					start := 0
++					score := int64(0)
++					if len(seq) == 0 {
++						t.Fatalf("wrap seq is empty")
++					}
++					if seq[0] != 0 {
++						t.Fatalf("wrap seq does not start with 0")
++					}
++					for _, n := range seq[1:] {
++						if n <= start {
++							t.Fatalf("wrap seq is non-increasing: %v", seq)
++						}
++						if n > len(words) {
++							t.Fatalf("wrap seq contains %d > %d: %v", n, len(words), seq)
++						}
++						size := -1
++						for _, s := range words[start:n] {
++							size += 1 + utf8.RuneCountInString(s)
++						}
++						if n-start == 1 && size >= max {
++							// no score
++						} else if size > max {
++							t.Fatalf("wrap used overlong line %d:%d: %v", start, n, words[start:n])
++						} else if n != len(words) {
++							score += int64(max-size)*int64(max-size) + wrapPenalty(words[n-1])
++						}
++						start = n
++					}
++					if start != len(words) {
++						t.Fatalf("wrap seq does not use all words (%d < %d): %v", start, len(words), seq)
++					}
++
++					// Check that score matches slow reference implementation.
++					slowSeq, slowScore := wrapSlow(words, max)
++					if score != slowScore {
++						t.Fatalf("wrap score = %d != wrapSlow score %d\nwrap: %v\nslow: %v", score, slowScore, seq, slowSeq)
++					}
++				})
++			}
++		})
++	}
++}
++
++// wrapSlow is an O(n²) reference implementation for wrap.
++// It returns a minimal-score sequence along with the score.
++// It is OK if wrap returns a different sequence as long as that
++// sequence has the same score.
++func wrapSlow(words []string, max int) (seq []int, score int64) {
++	// Quadratic dynamic programming algorithm for line wrapping problem.
++	// best[i] tracks the best score possible for words[:i],
++	// assuming that for i < len(words) the line breaks after those words.
++	// bestleft[i] tracks the previous line break for best[i].
++	best := make([]int64, len(words)+1)
++	bestleft := make([]int, len(words)+1)
++	best[0] = 0
++	for i, w := range words {
++		if utf8.RuneCountInString(w) >= max {
++			// Overlong word must appear on line by itself. No effect on score.
++			best[i+1] = best[i]
++			continue
++		}
++		best[i+1] = 1e18
++		p := wrapPenalty(w)
++		n := -1
++		for j := i; j >= 0; j-- {
++			n += 1 + utf8.RuneCountInString(words[j])
++			if n > max {
++				break
++			}
++			line := int64(n-max)*int64(n-max) + p
++			if i == len(words)-1 {
++				line = 0 // no score for final line being too short
++			}
++			s := best[j] + line
++			if best[i+1] > s {
++				best[i+1] = s
++				bestleft[i+1] = j
++			}
++		}
++	}
++
++	// Recover least weight sequence from bestleft.
++	n := 1
++	for m := len(words); m > 0; m = bestleft[m] {
++		n++
++	}
++	seq = make([]int, n)
++	for m := len(words); m > 0; m = bestleft[m] {
++		n--
++		seq[n] = m
++	}
++	return seq, best[len(words)]
++}

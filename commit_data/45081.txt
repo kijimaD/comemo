@@ -749,3 +749,35 @@ Date:   Wed Sep 30 17:57:14 2020 -0400
  test/notinheap.go                                  |   26 +-
  test/notinheap2.go                                 |   40 +-
  737 files changed, 33447 insertions(+), 19583 deletions(-)
+
+diff --cc src/cmd/internal/obj/objfile.go
+index a2bbdff24e,186016c970..fa60c9ad6d
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@@ -376,19 -372,13 +376,26 @@@ func contentHash64(s *LSym) goobj.Hash6
+  // hashed symbols.
+  func (w *writer) contentHash(s *LSym) goobj.HashType {
+  	h := sha1.New()
+ +	var tmp [14]byte
+ +
+ +	// Include the size of the symbol in the hash.
+ +	// This preserves the length of symbols, preventing the following two symbols
+ +	// from hashing the same:
+ +	//
+ +	//    [2]int{1,2} ≠ [10]int{1,2,0,0,0...}
+ +	//
+ +	// In this case, if the smaller symbol is alive, the larger is not kept unless
+ +	// needed.
+ +	binary.LittleEndian.PutUint64(tmp[:8], uint64(s.Size))
+ +	h.Write(tmp[:8])
+ +
++ 	// Don't dedup type symbols with others, as they are in a different
++ 	// section.
++ 	if strings.HasPrefix(s.Name, "type.") {
++ 		h.Write([]byte{'T'})
++ 	} else {
++ 		h.Write([]byte{0})
++ 	}
+  	// The compiler trims trailing zeros _sometimes_. We just do
+  	// it always.
+  	h.Write(bytes.TrimRight(s.P, "\x00"))

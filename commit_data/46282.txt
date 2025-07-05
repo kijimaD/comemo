@@ -13,6 +13,25 @@ Date:   Sat Dec 19 13:46:49 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  test/fixedbugs/issue11656.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/test/fixedbugs/issue11656.go b/test/fixedbugs/issue11656.go
+index 62b36cf790..5018263364 100644
+--- a/test/fixedbugs/issue11656.go
++++ b/test/fixedbugs/issue11656.go
+@@ -27,6 +27,13 @@ import (
+ )
+ 
+ func main() {
++	// This test is currently failing on some architectures.
++	// See issue #43283.
++	switch runtime.GOARCH {
++	case "ppc64", "mips", "mipsle", "mips64", "mips64le":
++		return
++	}
++
+ 	debug.SetPanicOnFault(true)
+ 	defer func() {
+ 		if err := recover(); err == nil {

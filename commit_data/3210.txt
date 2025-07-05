@@ -8,7 +8,54 @@ Date:   Thu Sep 3 15:45:43 2009 -0700
     DELTA=13  (5 added, 6 deleted, 2 changed)
     OCL=34337
     CL=34343
-
+---
  src/pkg/reflect/all_test.go  |  2 ++
  src/pkg/reflect/deepequal.go | 13 +++++--------
  2 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 2a30ddd875..0702513fd9 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -378,6 +378,8 @@ var deepEqualTests = []DeepEqualTest {
+ 	DeepEqualTest{ map[int]string{ 1:"one", 2:"txo" }, map[int]string{ 2:"two", 1:"one" }, false },
+ 	DeepEqualTest{ map[int]string{ 1:"one", }, map[int]string{ 2:"two", 1:"one" }, false },
+ 	DeepEqualTest{ map[int]string{ 2:"two", 1:"one" }, map[int]string{ 1:"one", }, false },
++	DeepEqualTest{ nil, 1, false },
++	DeepEqualTest{ 1, nil, false },
+ 
+ 	// Mismatched types
+ 	DeepEqualTest{ 1, 1.0, false },
+diff --git a/src/pkg/reflect/deepequal.go b/src/pkg/reflect/deepequal.go
+index 86da3c6ee9..60539bfd80 100644
+--- a/src/pkg/reflect/deepequal.go
++++ b/src/pkg/reflect/deepequal.go
+@@ -22,11 +22,8 @@ type visit struct {
+ // comparisons that have already been seen, which allows short circuiting on
+ // recursive types.
+ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
+-	if v1 == nil {
+-		return v2 == nil
+-	}
+-	if v2 == nil {
+-		return false
++	if v1 == nil || v2 == nil {
++		return v1 == v2
+ 	}
+ 	if v1.Type() != v2.Type() {
+ 		return false;
+@@ -126,11 +123,11 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
+ // but will scan members of arrays, slices, and fields of structs. It correctly
+ // handles recursive types.
+ func DeepEqual(a1, a2 interface{}) bool {
++	if a1 == nil || a2 == nil {
++		return a1 == a2;
++	}
+ 	v1 := NewValue(a1);
+ 	v2 := NewValue(a2);
+-	if v1 == nil {
+-		return v1 == v2;
+-	}
+ 	if v1.Type() != v2.Type() {
+ 		return false;
+ 	}

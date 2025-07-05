@@ -20,7 +20,7 @@ Date:   Tue Mar 22 22:11:42 2016 -0500
     Change-Id: Ib1c19dfa4b50d9732d7a453de3784c8141e1cbb3
     Reviewed-on: https://go-review.googlesource.com/21006
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 123 +++++++++++++++++++++++++++++++++
  misc/cgo/testcarchive/main5.c          |  63 +++++++++++++++++
  src/runtime/os1_nacl.go                |  16 +++++
@@ -33,3 +33,429 @@ Date:   Tue Mar 22 22:11:42 2016 -0500
  src/runtime/sigqueue.go                |  18 +----
  src/runtime/sys_solaris_amd64.s        |   5 ++
  11 files changed, 249 insertions(+), 23 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index d5cd433913..b941397cf1 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -5,6 +5,7 @@
+ package carchive_test
+ 
+ import (
++	"bufio"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
+@@ -12,6 +13,7 @@ import (
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
++	"syscall"
+ 	"testing"
+ 	"unicode"
+ )
+@@ -221,6 +223,127 @@ func TestEarlySignalHandler(t *testing.T) {
+ 	}
+ }
+ 
++func TestSignalForwarding(t *testing.T) {
++	switch runtime.GOOS {
++	case "darwin":
++		switch runtime.GOARCH {
++		case "arm", "arm64":
++			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", runtime.GOOS, runtime.GOARCH)
++		}
++	case "windows":
++		t.Skip("skipping signal test on Windows")
++	}
++
++	defer func() {
++		os.Remove("libgo2.a")
++		os.Remove("libgo2.h")
++		os.Remove("testp")
++		os.RemoveAll("pkg")
++	}()
++
++	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo2.a", "libgo2")
++	cmd.Env = gopathEnv
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main5.c", "libgo2.a")
++	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	cmd = exec.Command(bin[0], append(bin[1:], "1")...)
++
++	out, err := cmd.CombinedOutput()
++
++	if err == nil {
++		t.Logf("%s", out)
++		t.Error("test program succeeded unexpectedly")
++	} else if ee, ok := err.(*exec.ExitError); !ok {
++		t.Logf("%s", out)
++		t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
++	} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
++		t.Logf("%s", out)
++		t.Errorf("error.Sys (%v) has type %T; expected syscall.WaitStatus", ee.Sys(), ee.Sys())
++	} else if !ws.Signaled() || ws.Signal() != syscall.SIGSEGV {
++		t.Logf("%s", out)
++		t.Errorf("got %v; expected SIGSEGV", ee)
++	}
++}
++
++func TestSignalForwardingExternal(t *testing.T) {
++	switch runtime.GOOS {
++	case "darwin":
++		switch runtime.GOARCH {
++		case "arm", "arm64":
++			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", runtime.GOOS, runtime.GOARCH)
++		}
++	case "windows":
++		t.Skip("skipping signal test on Windows")
++	}
++
++	defer func() {
++		os.Remove("libgo2.a")
++		os.Remove("libgo2.h")
++		os.Remove("testp")
++		os.RemoveAll("pkg")
++	}()
++
++	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo2.a", "libgo2")
++	cmd.Env = gopathEnv
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main5.c", "libgo2.a")
++	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	cmd = exec.Command(bin[0], append(bin[1:], "2")...)
++
++	stderr, err := cmd.StderrPipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer stderr.Close()
++
++	r := bufio.NewReader(stderr)
++
++	err = cmd.Start()
++
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// Wait for trigger to ensure that the process is started.
++	ok, err := r.ReadString('\n')
++
++	// Verify trigger.
++	if err != nil || ok != "OK\n" {
++		t.Fatalf("Did not receive OK signal")
++	}
++
++	// Trigger an interrupt external to the process.
++	cmd.Process.Signal(syscall.SIGSEGV)
++
++	err = cmd.Wait()
++
++	if err == nil {
++		t.Error("test program succeeded unexpectedly")
++	} else if ee, ok := err.(*exec.ExitError); !ok {
++		t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
++	} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
++		t.Errorf("error.Sys (%v) has type %T; expected syscall.WaitStatus", ee.Sys(), ee.Sys())
++	} else if !ws.Signaled() || ws.Signal() != syscall.SIGSEGV {
++		t.Errorf("got %v; expected SIGSEGV", ee)
++	}
++}
++
+ func TestOsSignal(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "windows":
+diff --git a/misc/cgo/testcarchive/main5.c b/misc/cgo/testcarchive/main5.c
+new file mode 100644
+index 0000000000..556abdfe1c
+--- /dev/null
++++ b/misc/cgo/testcarchive/main5.c
+@@ -0,0 +1,63 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test for verifying that the Go runtime properly forwards
++// signals when non-Go signals are raised.
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <unistd.h>
++
++#include "libgo2.h"
++
++int main(int argc, char** argv) {
++	int verbose;
++	int test;
++
++	if (argc < 2) {
++		printf("Missing argument");
++		return 1;
++	}
++
++	test = atoi(argv[1]);
++
++	verbose = (argc > 2);
++
++	if (verbose) {
++		printf("calling RunGoroutines\n");
++	}
++
++	RunGoroutines();
++
++	switch (test) {
++		case 1: {
++			if (verbose) {
++				printf("attempting segfault\n");
++			}
++
++			volatile int crash = *(int *) 0;
++			break;
++		}
++
++		case 2: {
++			if (verbose) {
++				printf("attempting external signal test\n");
++			}
++
++			fprintf(stderr, "OK\n");
++			fflush(stderr);
++
++			// The program should be interrupted before this sleep finishes.
++			sleep(60);
++
++			break;
++		}
++		default:
++			printf("Unknown test: %d\n", test);
++			return 0;
++	}
++
++	printf("FAIL\n");
++	return 0;
++}
+diff --git a/src/runtime/os1_nacl.go b/src/runtime/os1_nacl.go
+index 6fc2819cdd..622755119d 100644
+--- a/src/runtime/os1_nacl.go
++++ b/src/runtime/os1_nacl.go
+@@ -172,6 +172,22 @@ func memlimit() uintptr {
+ 	return 0
+ }
+ 
++// This runs on a foreign stack, without an m or a g. No stack split.
++//go:nosplit
++//go:norace
++//go:nowritebarrierrec
++func badsignal(sig uintptr) {
++	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++}
++
++func badsignalgo(sig uintptr) {
++	if !sigsend(uint32(sig)) {
++		// A foreign thread received the signal sig, and the
++		// Go code does not want to handle it.
++		raisebadsignal(int32(sig))
++	}
++}
++
+ // This runs on a foreign stack, without an m or a g. No stack split.
+ //go:nosplit
+ func badsignal2() {
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index 8e4d425fde..31c1f2c4e5 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -6,7 +6,10 @@
+ 
+ package runtime
+ 
+-import "runtime/internal/sys"
++import (
++	"runtime/internal/sys"
++	"unsafe"
++)
+ 
+ const (
+ 	_SIG_DFL uintptr = 0
+@@ -197,7 +200,7 @@ func dieFromSignal(sig int32) {
+ // raisebadsignal is called when a signal is received on a non-Go
+ // thread, and the Go program does not want to handle it (that is, the
+ // program has not called os/signal.Notify for the signal).
+-func raisebadsignal(sig int32) {
++func raisebadsignal(sig int32, c *sigctxt) {
+ 	if sig == _SIGPROF {
+ 		// Ignore profiling signals that arrive on non-Go threads.
+ 		return
+@@ -220,6 +223,18 @@ func raisebadsignal(sig int32) {
+ 	// again.
+ 	unblocksig(sig)
+ 	setsig(sig, handler, false)
++
++	// If we're linked into a non-Go program we want to try to
++	// avoid modifying the original context in which the signal
++	// was raised. If the handler is the default, we know it
++	// is non-recoverable, so we don't have to worry about
++	// re-installing sighandler. At this point we can just
++	// return and the signal will be re-raised and caught by
++	// the default handler with the correct context.
++	if (isarchive || islibrary) && handler == _SIG_DFL && c.sigcode() != _SI_USER {
++		return
++	}
++
+ 	raise(sig)
+ 
+ 	// If the signal didn't cause the program to exit, restore the
+@@ -307,3 +322,19 @@ func sigNotOnStack(sig uint32) {
+ 	println("signal", sig, "received but handler not on signal stack")
+ 	throw("non-Go code set up signal handler without SA_ONSTACK flag")
+ }
++
++// This runs on a foreign stack, without an m or a g. No stack split.
++//go:nosplit
++//go:norace
++//go:nowritebarrierrec
++func badsignal(sig uintptr, c *sigctxt) {
++	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig)+unsafe.Sizeof(c))
++}
++
++func badsignalgo(sig uintptr, c *sigctxt) {
++	if !sigsend(uint32(sig)) {
++		// A foreign thread received the signal sig, and the
++		// Go code does not want to handle it.
++		raisebadsignal(int32(sig), c)
++	}
++}
+diff --git a/src/runtime/signal_darwin.go b/src/runtime/signal_darwin.go
+index 8d43724e2f..c8534ff09b 100644
+--- a/src/runtime/signal_darwin.go
++++ b/src/runtime/signal_darwin.go
+@@ -58,7 +58,7 @@ func sigtrampgo(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Poi
+ 	}
+ 	g := getg()
+ 	if g == nil {
+-		badsignal(uintptr(sig))
++		badsignal(uintptr(sig), &sigctxt{info, ctx})
+ 		sigreturn(ctx, infostyle)
+ 		return
+ 	}
+diff --git a/src/runtime/signal_freebsd.go b/src/runtime/signal_freebsd.go
+index f3411aac6a..cd2068a62c 100644
+--- a/src/runtime/signal_freebsd.go
++++ b/src/runtime/signal_freebsd.go
+@@ -55,7 +55,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	}
+ 	g := getg()
+ 	if g == nil {
+-		badsignal(uintptr(sig))
++		badsignal(uintptr(sig), &sigctxt{info, ctx})
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/signal_openbsd.go b/src/runtime/signal_openbsd.go
+index d0239b1d91..3c50190da4 100644
+--- a/src/runtime/signal_openbsd.go
++++ b/src/runtime/signal_openbsd.go
+@@ -55,7 +55,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	}
+ 	g := getg()
+ 	if g == nil {
+-		badsignal(uintptr(sig))
++		badsignal(uintptr(sig), &sigctxt{info, ctx})
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/signal_sigtramp.go b/src/runtime/signal_sigtramp.go
+index 00ab03846e..18fc375e24 100644
+--- a/src/runtime/signal_sigtramp.go
++++ b/src/runtime/signal_sigtramp.go
+@@ -18,7 +18,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	}
+ 	g := getg()
+ 	if g == nil {
+-		badsignal(uintptr(sig))
++		badsignal(uintptr(sig), &sigctxt{info, ctx})
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/signal_solaris_amd64.go b/src/runtime/signal_solaris_amd64.go
+index a577c8c199..7ba368f25b 100644
+--- a/src/runtime/signal_solaris_amd64.go
++++ b/src/runtime/signal_solaris_amd64.go
+@@ -11,6 +11,10 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++func makesigctxt(info *siginfo, ctxt unsafe.Pointer) *sigctxt {
++	return &sigctxt{info, ctxt}
++}
++
+ func (c *sigctxt) regs() *mcontext {
+ 	return (*mcontext)(unsafe.Pointer(&(*ucontext)(c.ctxt).uc_mcontext))
+ }
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index e86e6a5636..0162ffa04f 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -30,7 +30,7 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
+-	"unsafe"
++	_ "unsafe" // for go:linkname
+ )
+ 
+ var sig struct {
+@@ -176,19 +176,3 @@ func signal_ignore(s uint32) {
+ func signal_ignored(s uint32) bool {
+ 	return sig.ignored[s/32]&(1<<(s&31)) != 0
+ }
+-
+-// This runs on a foreign stack, without an m or a g. No stack split.
+-//go:nosplit
+-//go:norace
+-//go:nowritebarrierrec
+-func badsignal(sig uintptr) {
+-	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
+-}
+-
+-func badsignalgo(sig uintptr) {
+-	if !sigsend(uint32(sig)) {
+-		// A foreign thread received the signal sig, and the
+-		// Go code does not want to handle it.
+-		raisebadsignal(int32(sig))
+-	}
+-}
+diff --git a/src/runtime/sys_solaris_amd64.s b/src/runtime/sys_solaris_amd64.s
+index 09f22636a9..f8b7da5c62 100644
+--- a/src/runtime/sys_solaris_amd64.s
++++ b/src/runtime/sys_solaris_amd64.s
+@@ -173,7 +173,12 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	MOVQ	g(BX), R10
+ 	CMPQ	R10, $0
+ 	JNE	allgood
++	MOVQ	SI, 0(SP)
++	MOVQ	DX, 8(SP)
++	CALL	runtime·makesigctxt(SB)
++	MOVQ	16(SP), AX
+ 	MOVQ	DI, 0(SP)
++	MOVQ	AX, 8(SP)
+ 	MOVQ	$runtime·badsignal(SB), AX
+ 	CALL	AX
+ 	JMP	exit

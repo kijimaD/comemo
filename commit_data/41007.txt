@@ -18,7 +18,105 @@ Date:   Wed Aug 7 11:14:38 2019 +0000
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/io/pipe.go      | 35 +++++++++++++++++++++++------------
  src/io/pipe_test.go |  8 ++++----
  2 files changed, 27 insertions(+), 16 deletions(-)
+
+diff --git a/src/io/pipe.go b/src/io/pipe.go
+index 4efaf2f8e4..b5343bb6b7 100644
+--- a/src/io/pipe.go
++++ b/src/io/pipe.go
+@@ -10,19 +10,26 @@ package io
+ import (
+ 	"errors"
+ 	"sync"
+-	"sync/atomic"
+ )
+ 
+-// atomicError is a type-safe atomic value for errors.
+-// We use a struct{ error } to ensure consistent use of a concrete type.
+-type atomicError struct{ v atomic.Value }
++// onceError is an object that will only store an error once.
++type onceError struct {
++	sync.Mutex // guards following
++	err        error
++}
+ 
+-func (a *atomicError) Store(err error) {
+-	a.v.Store(struct{ error }{err})
++func (a *onceError) Store(err error) {
++	a.Lock()
++	defer a.Unlock()
++	if a.err != nil {
++		return
++	}
++	a.err = err
+ }
+-func (a *atomicError) Load() error {
+-	err, _ := a.v.Load().(struct{ error })
+-	return err.error
++func (a *onceError) Load() error {
++	a.Lock()
++	defer a.Unlock()
++	return a.err
+ }
+ 
+ // ErrClosedPipe is the error used for read or write operations on a closed pipe.
+@@ -36,8 +43,8 @@ type pipe struct {
+ 
+ 	once sync.Once // Protects closing done
+ 	done chan struct{}
+-	rerr atomicError
+-	werr atomicError
++	rerr onceError
++	werr onceError
+ }
+ 
+ func (p *pipe) Read(b []byte) (n int, err error) {
+@@ -135,6 +142,9 @@ func (r *PipeReader) Close() error {
+ 
+ // CloseWithError closes the reader; subsequent writes
+ // to the write half of the pipe will return the error err.
++//
++// CloseWithError never overwrites the previous error if it exists
++// and always returns nil.
+ func (r *PipeReader) CloseWithError(err error) error {
+ 	return r.p.CloseRead(err)
+ }
+@@ -163,7 +173,8 @@ func (w *PipeWriter) Close() error {
+ // read half of the pipe will return no bytes and the error err,
+ // or EOF if err is nil.
+ //
+-// CloseWithError always returns nil.
++// CloseWithError never overwrites the previous error if it exists
++// and always returns nil.
+ func (w *PipeWriter) CloseWithError(err error) error {
+ 	return w.p.CloseWrite(err)
+ }
+diff --git a/src/io/pipe_test.go b/src/io/pipe_test.go
+index f18b1c45f8..8973360740 100644
+--- a/src/io/pipe_test.go
++++ b/src/io/pipe_test.go
+@@ -326,8 +326,8 @@ func TestPipeCloseError(t *testing.T) {
+ 		t.Errorf("Write error: got %T, want testError1", err)
+ 	}
+ 	r.CloseWithError(testError2{})
+-	if _, err := w.Write(nil); err != (testError2{}) {
+-		t.Errorf("Write error: got %T, want testError2", err)
++	if _, err := w.Write(nil); err != (testError1{}) {
++		t.Errorf("Write error: got %T, want testError1", err)
+ 	}
+ 
+ 	r, w = Pipe()
+@@ -336,8 +336,8 @@ func TestPipeCloseError(t *testing.T) {
+ 		t.Errorf("Read error: got %T, want testError1", err)
+ 	}
+ 	w.CloseWithError(testError2{})
+-	if _, err := r.Read(nil); err != (testError2{}) {
+-		t.Errorf("Read error: got %T, want testError2", err)
++	if _, err := r.Read(nil); err != (testError1{}) {
++		t.Errorf("Read error: got %T, want testError1", err)
+ 	}
+ }
+ 

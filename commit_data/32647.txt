@@ -11,6 +11,19 @@ Date:   Wed May 10 12:05:20 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/go.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 8c72dd74cc..2930a6b24f 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -360,6 +360,7 @@ func fieldtrack(ctxt *Link) {
+ 		return
+ 	}
+ 	addstrdata(ctxt, *flagFieldTrack, buf.String())
++	s.Type = SDATA
+ }
+ 
+ func (ctxt *Link) addexport() {

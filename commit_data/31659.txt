@@ -19,7 +19,39 @@ Date:   Mon Mar 6 12:57:44 2017 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go   | 4 +---
  src/cmd/compile/internal/gc/typecheck.go | 2 +-
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 34cb70d9c8..d6a25515df 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -404,12 +404,10 @@ func (p *importer) newtyp(etype EType) *Type {
+ // importtype declares that pt, an imported named type, has underlying type t.
+ func (p *importer) importtype(pt, t *Type) {
+ 	if pt.Etype == TFORW {
+-		n := pt.nod
+ 		copytype(pt.nod, t)
+-		pt.nod = n // unzero nod
+ 		pt.Sym.Importdef = importpkg
+ 		pt.Sym.Lastlineno = lineno
+-		declare(n, PEXTERN)
++		declare(pt.nod, PEXTERN)
+ 		checkwidth(pt)
+ 	} else {
+ 		// pt.Orig and t must be identical.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 4923c3ec8a..180bd70cc1 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3566,7 +3566,7 @@ func copytype(n *Node, t *Type) {
+ 	}
+ 	t.methods = Fields{}
+ 	t.allMethods = Fields{}
+-	t.nod = nil
++	t.nod = n
+ 	t.SetDeferwidth(false)
+ 	t.ptrTo = ptrTo
+ 	t.sliceOf = sliceOf

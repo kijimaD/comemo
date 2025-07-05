@@ -31,7 +31,7 @@ Date:   Tue Mar 25 14:11:34 2014 -0700
     R=golang-codereviews, bradfitz, rsc
     CC=golang-codereviews
     https://golang.org/cl/76380043
-
+---
  src/cmd/cc/pgen.c              | 10 ++++--
  src/cmd/gc/plive.c             | 41 +++++++++++++++------
  src/pkg/runtime/extern.go      |  3 ++
@@ -42,3 +42,451 @@ Date:   Tue Mar 25 14:11:34 2014 -0700
  src/pkg/runtime/runtime.h      |  1 +
  src/pkg/runtime/stack.c        | 58 +++++++++++++++++++++---------
  9 files changed, 218 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index d63e90c24b..d3fc4193e0 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -661,7 +661,9 @@ walktype1(Type *t, int32 offset, Bvec *bv, int param)
+ {
+ 	Type *t1;
+ 	int32 o;
++	int32 widthptr;
+ 
++	widthptr = ewidth[TIND];
+ 	switch(t->etype) {
+ 	case TCHAR:
+ 	case TUCHAR:
+@@ -676,14 +678,16 @@ walktype1(Type *t, int32 offset, Bvec *bv, int param)
+ 	case TFLOAT:
+ 	case TDOUBLE:
+ 		// non-pointer types
++		for(o = 0; o < t->width; o++)
++			bvset(bv, ((offset + t->offset + o) / widthptr) * BitsPerPointer); // 1 = live scalar
+ 		break;
+ 
+ 	case TIND:
+ 	pointer:
+ 		// pointer types
+-		if((offset + t->offset) % ewidth[TIND] != 0)
++		if((offset + t->offset) % widthptr != 0)
+ 			yyerror("unaligned pointer");
+-		bvset(bv, ((offset + t->offset) / ewidth[TIND])*BitsPerPointer);
++		bvset(bv, ((offset + t->offset) / widthptr)*BitsPerPointer + 1); // 2 = live ptr
+ 		break;
+ 
+ 	case TARRAY:
+@@ -735,7 +739,7 @@ dumpgcargs(Type *fn, Sym *sym)
+ 		// argument is a pointer.
+ 		if(argoffset != ewidth[TIND])
+ 			yyerror("passbyptr arg not the right size");
+-		bvset(bv, 0);
++		bvset(bv, 1); // 2 = live ptr
+ 	}
+ 	for(t = fn->down; t != T; t = t->down) {
+ 		if(t->etype == TVOID)
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index a6a1d48d79..369b913f6d 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -1065,6 +1065,9 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
+ 	case TFLOAT64:
+ 	case TCOMPLEX64:
+ 	case TCOMPLEX128:
++		for(i = 0; i < t->width; i++) {
++			bvset(bv, ((*xoffset + i) / widthptr) * BitsPerPointer); // 1 = live scalar
++		}
+ 		*xoffset += t->width;
+ 		break;
+ 
+@@ -1076,7 +1079,7 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
+ 	case TMAP:
+ 		if((*xoffset & (widthptr-1)) != 0)
+ 			fatal("twobitwalktype1: invalid alignment, %T", t);
+-		bvset(bv, (*xoffset / widthptr) * BitsPerPointer);
++		bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1); // 2 = live ptr
+ 		*xoffset += t->width;
+ 		break;
+ 
+@@ -1084,7 +1087,8 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
+ 		// struct { byte *str; intgo len; }
+ 		if((*xoffset & (widthptr-1)) != 0)
+ 			fatal("twobitwalktype1: invalid alignment, %T", t);
+-		bvset(bv, (*xoffset / widthptr) * BitsPerPointer);
++		bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 0);
++		bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1); // 3:0 = multiword:string
+ 		*xoffset += t->width;
+ 		break;
+ 
+@@ -1094,9 +1098,15 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
+ 		// struct { Type *type; union { void *ptr, uintptr val } data; }
+ 		if((*xoffset & (widthptr-1)) != 0)
+ 			fatal("twobitwalktype1: invalid alignment, %T", t);
+-		bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 1);
+-		if(isnilinter(t))
+-			bvset(bv, ((*xoffset / widthptr) * BitsPerPointer));
++		bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 0);
++		bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 1); // 3 = multiword
++		// next word contains 2 = Iface, 3 = Eface
++		if(isnilinter(t)) {
++			bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 2);
++			bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 3);
++		} else {
++			bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 3);
++		}
+ 		*xoffset += t->width;
+ 		break;
+ 
+@@ -1109,11 +1119,20 @@ twobitwalktype1(Type *t, vlong *xoffset, Bvec *bv)
+ 			// struct { byte *array; uintgo len; uintgo cap; }
+ 			if((*xoffset & (widthptr-1)) != 0)
+ 				fatal("twobitwalktype1: invalid TARRAY alignment, %T", t);
+-			bvset(bv, (*xoffset / widthptr) * BitsPerPointer);
++			if(0) {
++				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 0);
++				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1);
++				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 2); // 3:1 = multiword/slice
++			} else {
++				// Until bug 7564 is fixed, we consider a slice as
++				// a separate pointer and integer.
++				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 1);  // 2 = live ptr
++				bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 2);  // 1 = live scalar
++			}
++			// mark capacity as live
++			bvset(bv, (*xoffset / widthptr) * BitsPerPointer + 4);  // 1 = live scalar
+ 			*xoffset += t->width;
+-		} else if(!haspointers(t->type))
+-				*xoffset += t->width;
+-		else
++		} else
+ 			for(i = 0; i < t->bound; i++)
+ 				twobitwalktype1(t->type, xoffset, bv);
+ 		break;
+@@ -1164,14 +1183,14 @@ twobitlivepointermap(Liveness *lv, Bvec *liveout, Array *vars, Bvec *args, Bvec
+ 		node = *(Node**)arrayget(vars, i);
+ 		switch(node->class) {
+ 		case PAUTO:
+-			if(bvget(liveout, i) && haspointers(node->type)) {
++			if(bvget(liveout, i)) {
+ 				xoffset = node->xoffset + stkptrsize;
+ 				twobitwalktype1(node->type, &xoffset, locals);
+ 			}
+ 			break;
+ 		case PPARAM:
+ 		case PPARAMOUT:
+-			if(bvget(liveout, i) && haspointers(node->type)) {
++			if(bvget(liveout, i)) {
+ 				xoffset = node->xoffset;
+ 				twobitwalktype1(node->type, &xoffset, args);
+ 			}
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 30fc34c0ba..0c5041d38b 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -36,6 +36,9 @@ a comma-separated list of name=val pairs. Supported names are:
+ 	length of the pause. Setting gctrace=2 emits the same summary but also
+ 	repeats each collection.
+ 
++	gcdead: setting gcdead=1 causes the garbage collector to clobber all stack slots
++	that it thinks are dead.
++
+ 	scheddetail: setting schedtrace=X and scheddetail=1 causes the scheduler to emit
+ 	detailed multiline info every X milliseconds, describing state of the scheduler,
+ 	processors, threads and goroutines.
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index ca6289174e..97b5a924fe 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -606,8 +606,14 @@ struct StackMap
+ enum {
+ 	// Pointer map
+ 	BitsPerPointer = 2,
+-	BitsNoPointer = 0,
+-	BitsPointer = 1,
++	BitsDead = 0,
++	BitsScalar = 1,
++	BitsPointer = 2,
++	BitsMultiWord = 3,
++	// BitsMultiWord will be set for the first word of a multi-word item.
++	// When it is set, one of the following will be set for the second word.
++	BitsString = 0,
++	BitsSlice = 1,
+ 	BitsIface = 2,
+ 	BitsEface = 3,
+ };
+diff --git a/src/pkg/runtime/mfinal_test.go b/src/pkg/runtime/mfinal_test.go
+index 32f26a6b29..41213138d2 100644
+--- a/src/pkg/runtime/mfinal_test.go
++++ b/src/pkg/runtime/mfinal_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"runtime"
+ 	"testing"
+ 	"time"
++	"unsafe"
+ )
+ 
+ type Tintptr *int // assignable to *int
+@@ -135,3 +136,83 @@ func BenchmarkFinalizerRun(b *testing.B) {
+ 		}
+ 	})
+ }
++
++// One chunk must be exactly one sizeclass in size.
++// It should be a sizeclass not used much by others, so we
++// have a greater chance of finding adjacent ones.
++// size class 19: 320 byte objects, 25 per page, 1 page alloc at a time
++const objsize = 320
++
++type objtype [objsize]byte
++
++func adjChunks() (*objtype, *objtype) {
++	var s []*objtype
++
++	for {
++		c := new(objtype)
++		for _, d := range s {
++			if uintptr(unsafe.Pointer(c))+unsafe.Sizeof(*c) == uintptr(unsafe.Pointer(d)) {
++				return c, d
++			}
++			if uintptr(unsafe.Pointer(d))+unsafe.Sizeof(*c) == uintptr(unsafe.Pointer(c)) {
++				return d, c
++			}
++		}
++		s = append(s, c)
++	}
++}
++
++// Make sure an empty slice on the stack doesn't pin the next object in memory.
++func TestEmptySlice(t *testing.T) {
++	if true { // disable until bug 7564 is fixed.
++		return
++	}
++	x, y := adjChunks()
++
++	// the pointer inside xs points to y.
++	xs := x[objsize:] // change objsize to objsize-1 and the test passes
++
++	fin := make(chan bool, 1)
++	runtime.SetFinalizer(y, func(z *objtype) { fin <- true })
++	runtime.GC()
++	select {
++	case <-fin:
++	case <-time.After(4 * time.Second):
++		t.Errorf("finalizer of next object in memory didn't run")
++	}
++	xsglobal = xs // keep empty slice alive until here
++}
++
++var xsglobal []byte
++
++func adjStringChunk() (string, *objtype) {
++	b := make([]byte, objsize)
++	for {
++		s := string(b)
++		t := new(objtype)
++		p := *(*uintptr)(unsafe.Pointer(&s))
++		q := uintptr(unsafe.Pointer(t))
++		if p+objsize == q {
++			return s, t
++		}
++	}
++}
++
++// Make sure an empty string on the stack doesn't pin the next object in memory.
++func TestEmptyString(t *testing.T) {
++	x, y := adjStringChunk()
++
++	ss := x[objsize:] // change objsize to objsize-1 and the test passes
++	fin := make(chan bool, 1)
++	// set finalizer on string contents of y
++	runtime.SetFinalizer(y, func(z *objtype) { fin <- true })
++	runtime.GC()
++	select {
++	case <-fin:
++	case <-time.After(4 * time.Second):
++		t.Errorf("finalizer of next string in memory didn't run")
++	}
++	ssglobal = ss // keep 0-length string live until here
++}
++
++var ssglobal string
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 166c52b2ad..04dd93608a 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1489,6 +1489,7 @@ scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
+ 	uintptr word, bits;
+ 	uint32 *wordp;
+ 	int32 i, remptrs;
++	byte *p;
+ 
+ 	wordp = bv->data;
+ 	for(remptrs = bv->n; remptrs > 0; remptrs -= 32) {
+@@ -1500,11 +1501,52 @@ scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
+ 		i /= BitsPerPointer;
+ 		for(; i > 0; i--) {
+ 			bits = word & 3;
+-			if(bits != BitsNoPointer && *(void**)scanp != nil)
+-				if(bits == BitsPointer)
++			switch(bits) {
++			case BitsDead:
++				if(runtime·debug.gcdead)
++					*(uintptr*)scanp = (uintptr)0x6969696969696969LL;
++				break;
++			case BitsScalar:
++				break;
++			case BitsPointer:
++				p = *(byte**)scanp;
++				if(p != nil)
+ 					enqueue1(wbufp, (Obj){scanp, PtrSize, 0});
+-				else
+-					scaninterfacedata(bits, scanp, afterprologue, wbufp);
++				break;
++			case BitsMultiWord:
++				p = *(byte**)scanp;
++				if(p != nil) {
++					word >>= BitsPerPointer;
++					scanp += PtrSize;
++					i--;
++					if(i == 0) {
++						// Get next chunk of bits
++						remptrs -= 32;
++						word = *wordp++;
++						if(remptrs < 32)
++							i = remptrs;
++						else
++							i = 32;
++						i /= BitsPerPointer;
++					}
++					switch(word & 3) {
++					case BitsString:
++						if(((String*)(scanp - PtrSize))->len != 0)
++							markonly(p);
++						break;
++					case BitsSlice:
++						if(((Slice*)(scanp - PtrSize))->cap < ((Slice*)(scanp - PtrSize))->len)
++							runtime·throw("slice capacity smaller than length");
++						if(((Slice*)(scanp - PtrSize))->cap != 0)
++							enqueue1(wbufp, (Obj){scanp - PtrSize, PtrSize, 0});
++						break;
++					case BitsIface:
++					case BitsEface:
++						scaninterfacedata(word & 3, scanp - PtrSize, afterprologue, wbufp);
++						break;
++					}
++				}
++			}
+ 			word >>= BitsPerPointer;
+ 			scanp += PtrSize;
+ 		}
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 2198bc6850..d77ff08af4 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -314,6 +314,7 @@ static struct {
+ 	{"allocfreetrace", &runtime·debug.allocfreetrace},
+ 	{"efence", &runtime·debug.efence},
+ 	{"gctrace", &runtime·debug.gctrace},
++	{"gcdead", &runtime·debug.gcdead},
+ 	{"scheddetail", &runtime·debug.scheddetail},
+ 	{"schedtrace", &runtime·debug.schedtrace},
+ };
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 9cb6960c62..7bd45d1a24 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -578,6 +578,7 @@ struct DebugVars
+ 	int32	allocfreetrace;
+ 	int32	efence;
+ 	int32	gctrace;
++	int32	gcdead;
+ 	int32	scheddetail;
+ 	int32	schedtrace;
+ };
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index c73991470e..6e5d9f1f58 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -354,7 +354,11 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
+ 		if(StackDebug >= 4)
+ 			runtime·printf("        %p:%s:%p\n", &scanp[i], mapnames[bv->data[i / (32 / BitsPerPointer)] >> (i * BitsPerPointer & 31) & 3], scanp[i]);
+ 		switch(bv->data[i / (32 / BitsPerPointer)] >> (i * BitsPerPointer & 31) & 3) {
+-		case BitsNoPointer:
++		case BitsDead:
++			if(runtime·debug.gcdead)
++				scanp[i] = (byte*)0x6868686868686868LL;
++			break;
++		case BitsScalar:
+ 			break;
+ 		case BitsPointer:
+ 			p = scanp[i];
+@@ -370,33 +374,53 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
+ 				scanp[i] = p + delta;
+ 			}
+ 			break;
+-		case BitsEface:
+-			t = (Type*)scanp[i];
+-			if(t != nil && (t->size > PtrSize || (t->kind & KindNoPointers) == 0)) {
+-				p = scanp[i+1];
++		case BitsMultiWord:
++			switch(bv->data[(i+1) / (32 / BitsPerPointer)] >> ((i+1) * BitsPerPointer & 31) & 3) {
++			case BitsString:
++				// string referents are never on the stack, never need to be adjusted
++				i++; // skip len
++				break;
++			case BitsSlice:
++				p = scanp[i];
+ 				if(minp <= p && p < maxp) {
+ 					if(StackDebug >= 3)
+-						runtime·printf("adjust eface %p\n", p);
+-					if(t->size > PtrSize) // currently we always allocate such objects on the heap
+-						runtime·throw("large interface value found on stack");
+-					scanp[i+1] = p + delta;
++						runtime·printf("adjust slice %p\n", p);
++					scanp[i] = p + delta;
+ 				}
+-			}
+-			break;
+-		case BitsIface:
+-			tab = (Itab*)scanp[i];
+-			if(tab != nil) {
+-				t = tab->type;
+-				if(t->size > PtrSize || (t->kind & KindNoPointers) == 0) {
++				i += 2; // skip len, cap
++				break;
++			case BitsEface:
++				t = (Type*)scanp[i];
++				if(t != nil && (t->size > PtrSize || (t->kind & KindNoPointers) == 0)) {
+ 					p = scanp[i+1];
+ 					if(minp <= p && p < maxp) {
+ 						if(StackDebug >= 3)
+-							runtime·printf("adjust iface %p\n", p);
++							runtime·printf("adjust eface %p\n", p);
+ 						if(t->size > PtrSize) // currently we always allocate such objects on the heap
+ 							runtime·throw("large interface value found on stack");
+ 						scanp[i+1] = p + delta;
+ 					}
+ 				}
++				i++;
++				break;
++			case BitsIface:
++				tab = (Itab*)scanp[i];
++				if(tab != nil) {
++					t = tab->type;
++					//runtime·printf("          type=%p\n", t);
++					if(t->size > PtrSize || (t->kind & KindNoPointers) == 0) {
++						p = scanp[i+1];
++						if(minp <= p && p < maxp) {
++							if(StackDebug >= 3)
++								runtime·printf("adjust iface %p\n", p);
++							if(t->size > PtrSize) // currently we always allocate such objects on the heap
++								runtime·throw("large interface value found on stack");
++							scanp[i+1] = p + delta;
++						}
++					}
++				}
++				i++;
++				break;
+ 			}
+ 			break;
+ 		}

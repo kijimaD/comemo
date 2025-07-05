@@ -14,7 +14,292 @@ Date:   Fri Dec 19 14:28:44 2014 -0500
     Change-Id: Icc4805001bba0b3cb7200e0b0a7f87b14a9e9439
     Reviewed-on: https://go-review.googlesource.com/1886
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/math/big/int.go      | 118 ++++++++++++++++++++++++++++++++++++++++
  src/math/big/int_test.go | 137 +++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 255 insertions(+)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 7b419bf688..5e3125375b 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -583,6 +583,124 @@ func (z *Int) ModInverse(g, n *Int) *Int {
+ 	return z
+ }
+ 
++// Jacobi returns the Jacobi symbol (x/y), either +1, -1, or 0.
++// The y argument must be an odd integer.
++func Jacobi(x, y *Int) int {
++	if len(y.abs) == 0 || y.abs[0]&1 == 0 {
++		panic(fmt.Sprintf("big: invalid 2nd argument to Int.Jacobi: need odd integer but got %s", y))
++	}
++
++	// We use the formulation described in chapter 2, section 2.4,
++	// "The Yacas Book of Algorithms":
++	// http://yacas.sourceforge.net/Algo.book.pdf
++
++	var a, b, c Int
++	a.Set(x)
++	b.Set(y)
++	j := 1
++
++	if b.neg {
++		if a.neg {
++			j = -1
++		}
++		b.neg = false
++	}
++
++	for {
++		if b.Cmp(intOne) == 0 {
++			return j
++		}
++		if len(a.abs) == 0 {
++			return 0
++		}
++		a.Mod(&a, &b)
++		if len(a.abs) == 0 {
++			return 0
++		}
++		// a > 0
++
++		// handle factors of 2 in 'a'
++		s := a.abs.trailingZeroBits()
++		if s&1 != 0 {
++			bmod8 := b.abs[0] & 7
++			if bmod8 == 3 || bmod8 == 5 {
++				j = -j
++			}
++		}
++		c.Rsh(&a, s) // a = 2^s*c
++
++		// swap numerator and denominator
++		if b.abs[0]&3 == 3 && c.abs[0]&3 == 3 {
++			j = -j
++		}
++		a.Set(&b)
++		b.Set(&c)
++	}
++}
++
++// ModSqrt sets z to a square root of x mod p if such a square root exists, and
++// returns z. The modulus p must be an odd prime. If x is not a square mod p,
++// ModSqrt leaves z unchanged and returns nil. This function panics if p is
++// not an odd integer.
++func (z *Int) ModSqrt(x, p *Int) *Int {
++	switch Jacobi(x, p) {
++	case -1:
++		return nil // x is not a square mod p
++	case 0:
++		return z.SetInt64(0) // sqrt(0) mod p = 0
++	case 1:
++		break
++	}
++	if x.neg || x.Cmp(p) >= 0 { // ensure 0 <= x < p
++		x = new(Int).Mod(x, p)
++	}
++
++	// Break p-1 into s*2^e such that s is odd.
++	var s Int
++	s.Sub(p, intOne)
++	e := s.abs.trailingZeroBits()
++	s.Rsh(&s, e)
++
++	// find some non-square n
++	var n Int
++	n.SetInt64(2)
++	for Jacobi(&n, p) != -1 {
++		n.Add(&n, intOne)
++	}
++
++	// Core of the Tonelli-Shanks algorithm. Follows the description in
++	// section 6 of "Square roots from 1; 24, 51, 10 to Dan Shanks" by Ezra
++	// Brown:
++	// https://www.maa.org/sites/default/files/pdf/upload_library/22/Polya/07468342.di020786.02p0470a.pdf
++	var y, b, g, t Int
++	y.Add(&s, intOne)
++	y.Rsh(&y, 1)
++	y.Exp(x, &y, p)  // y = x^((s+1)/2)
++	b.Exp(x, &s, p)  // b = x^s
++	g.Exp(&n, &s, p) // g = n^s
++	r := e
++	for {
++		// find the least m such that ord_p(b) = 2^m
++		var m uint
++		t.Set(&b)
++		for t.Cmp(intOne) != 0 {
++			t.Mul(&t, &t).Mod(&t, p)
++			m++
++		}
++
++		if m == 0 {
++			return z.Set(&y)
++		}
++
++		t.SetInt64(0).SetBit(&t, int(r-m-1), 1).Exp(&g, &t, p)
++		// t = g^(2^(r-m-1)) mod p
++		g.Mul(&t, &t).Mod(&g, p) // g = g^(2^(r-m)) mod p
++		y.Mul(&y, &t).Mod(&y, p)
++		b.Mul(&b, &g).Mod(&b, p)
++		r = m
++	}
++}
++
+ // Lsh sets z = x << n and returns z.
+ func (z *Int) Lsh(x *Int, n uint) *Int {
+ 	z.abs = z.abs.shl(x.abs, n)
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index fa4ae2d311..c19e88addb 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -704,6 +704,13 @@ var primes = []string{
+ 	"230975859993204150666423538988557839555560243929065415434980904258310530753006723857139742334640122533598517597674807096648905501653461687601339782814316124971547968912893214002992086353183070342498989426570593",
+ 	"5521712099665906221540423207019333379125265462121169655563495403888449493493629943498064604536961775110765377745550377067893607246020694972959780839151452457728855382113555867743022746090187341871655890805971735385789993",
+ 	"203956878356401977405765866929034577280193993314348263094772646453283062722701277632936616063144088173312372882677123879538709400158306567338328279154499698366071906766440037074217117805690872792848149112022286332144876183376326512083574821647933992961249917319836219304274280243803104015000563790123",
++
++	// ECC primes: http://tools.ietf.org/html/draft-ladd-safecurves-02
++	"3618502788666131106986593281521497120414687020801267626233049500247285301239",                                                                                  // Curve1174: 2^251-9
++	"57896044618658097711785492504343953926634992332820282019728792003956564819949",                                                                                 // Curve25519: 2^255-19
++	"9850501549098619803069760025035903451269934817616361666987073351061430442874302652853566563721228910201656997576599",                                           // E-382: 2^382-105
++	"42307582002575910332922579714097346549017899709713998034217522897561970639123926132812109468141778230245837569601494931472367",                                 // Curve41417: 2^414-17
++	"6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151", // E-521: 2^521-1
+ }
+ 
+ var composites = []string{
+@@ -1249,6 +1256,136 @@ func TestModInverse(t *testing.T) {
+ 	}
+ }
+ 
++// testModSqrt is a helper for TestModSqrt,
++// which checks that ModSqrt can compute a square-root of elt^2.
++func testModSqrt(t *testing.T, elt, mod, sq, sqrt *Int) bool {
++	var sqChk, sqrtChk, sqrtsq Int
++	sq.Mul(elt, elt)
++	sq.Mod(sq, mod)
++	z := sqrt.ModSqrt(sq, mod)
++	if z != sqrt {
++		t.Errorf("ModSqrt returned wrong value %s", z)
++	}
++
++	// test ModSqrt arguments outside the range [0,mod)
++	sqChk.Add(sq, mod)
++	z = sqrtChk.ModSqrt(&sqChk, mod)
++	if z != &sqrtChk || z.Cmp(sqrt) != 0 {
++		t.Errorf("ModSqrt returned inconsistent value %s", z)
++	}
++	sqChk.Sub(sq, mod)
++	z = sqrtChk.ModSqrt(&sqChk, mod)
++	if z != &sqrtChk || z.Cmp(sqrt) != 0 {
++		t.Errorf("ModSqrt returned inconsistent value %s", z)
++	}
++
++	// make sure we actually got a square root
++	if sqrt.Cmp(elt) == 0 {
++		return true // we found the "desired" square root
++	}
++	sqrtsq.Mul(sqrt, sqrt) // make sure we found the "other" one
++	sqrtsq.Mod(&sqrtsq, mod)
++	return sq.Cmp(&sqrtsq) == 0
++}
++
++func TestModSqrt(t *testing.T) {
++	var elt, mod, modx4, sq, sqrt Int
++	r := rand.New(rand.NewSource(9))
++	for i, s := range primes[1:] { // skip 2, use only odd primes
++		mod.SetString(s, 10)
++		modx4.Lsh(&mod, 2)
++
++		// test a few random elements per prime
++		for x := 1; x < 5; x++ {
++			elt.Rand(r, &modx4)
++			elt.Sub(&elt, &mod) // test range [-mod, 3*mod)
++			if !testModSqrt(t, &elt, &mod, &sq, &sqrt) {
++				t.Errorf("#%d: failed (sqrt(e) = %s)", i, &sqrt)
++			}
++		}
++	}
++
++	// exhaustive test for small values
++	for n := 3; n < 100; n++ {
++		mod.SetInt64(int64(n))
++		if !mod.ProbablyPrime(10) {
++			continue
++		}
++		isSquare := make([]bool, n)
++
++		// test all the squares
++		for x := 1; x < n; x++ {
++			elt.SetInt64(int64(x))
++			if !testModSqrt(t, &elt, &mod, &sq, &sqrt) {
++				t.Errorf("#%d: failed (sqrt(%d,%d) = %s)", x, &elt, &mod, &sqrt)
++			}
++			isSquare[sq.Uint64()] = true
++		}
++
++		// test all non-squares
++		for x := 1; x < n; x++ {
++			sq.SetInt64(int64(x))
++			z := sqrt.ModSqrt(&sq, &mod)
++			if !isSquare[x] && z != nil {
++				t.Errorf("#%d: failed (sqrt(%d,%d) = nil)", x, &sqrt, &mod)
++			}
++		}
++	}
++}
++
++func TestJacobi(t *testing.T) {
++	testCases := []struct {
++		x, y   int64
++		result int
++	}{
++		{0, 1, 1},
++		{0, -1, 1},
++		{1, 1, 1},
++		{1, -1, 1},
++		{0, 5, 0},
++		{1, 5, 1},
++		{2, 5, -1},
++		{-2, 5, -1},
++		{2, -5, -1},
++		{-2, -5, 1},
++		{3, 5, -1},
++		{5, 5, 0},
++		{-5, 5, 0},
++		{6, 5, 1},
++		{6, -5, 1},
++		{-6, 5, 1},
++		{-6, -5, -1},
++	}
++
++	var x, y Int
++
++	for i, test := range testCases {
++		x.SetInt64(test.x)
++		y.SetInt64(test.y)
++		expected := test.result
++		actual := Jacobi(&x, &y)
++		if actual != expected {
++			t.Errorf("#%d: Jacobi(%d, %d) = %d, but expected %d", i, test.x, test.y, actual, expected)
++		}
++	}
++}
++
++func TestJacobiPanic(t *testing.T) {
++	const failureMsg = "test failure"
++	defer func() {
++		msg := recover()
++		if msg == nil || msg == failureMsg {
++			panic(msg)
++		}
++		t.Log(msg)
++	}()
++	x := NewInt(1)
++	y := NewInt(2)
++	// Jacobi should panic when the second argument is even.
++	Jacobi(x, y)
++	panic(failureMsg)
++}
++
+ var encodingTests = []string{
+ 	"-539345864568634858364538753846587364875430589374589",
+ 	"-678645873",

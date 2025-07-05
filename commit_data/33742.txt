@@ -13,6 +13,23 @@ Date:   Thu Aug 31 13:26:40 2017 +0200
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/stat_unix.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/archive/tar/stat_unix.go b/src/archive/tar/stat_unix.go
+index aa6d82b1c6..ba7d83d24f 100644
+--- a/src/archive/tar/stat_unix.go
++++ b/src/archive/tar/stat_unix.go
+@@ -61,6 +61,11 @@ func statUnix(fi os.FileInfo, h *Header) error {
+ 			minor := uint32((dev & 0x00000000000000ff) >> 0)
+ 			minor |= uint32((dev & 0x00000ffffff00000) >> 12)
+ 			h.Devmajor, h.Devminor = int64(major), int64(minor)
++		case "darwin":
++			// Copied from golang.org/x/sys/unix/dev_darwin.go.
++			major := uint32((dev >> 24) & 0xff)
++			minor := uint32(dev & 0xffffff)
++			h.Devmajor, h.Devminor = int64(major), int64(minor)
+ 		default:
+ 			// TODO: Implement others (see https://golang.org/issue/8106)
+ 		}

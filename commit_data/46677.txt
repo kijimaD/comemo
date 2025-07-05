@@ -20,7 +20,36 @@ Date:   Wed Jan 20 17:03:36 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/builtins.go           | 4 ++--
  src/cmd/compile/internal/types2/testdata/builtins.src | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 43da6a1529..bd1ea0fdc1 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -368,8 +368,8 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			return
+ 		}
+ 
+-		if !x.assignableTo(check, m.key, nil) {
+-			check.invalidArgf(x, "%s is not assignable to %s", x, m.key)
++		check.assignment(x, m.key, "argument to delete")
++		if x.mode == invalid {
+ 			return
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/builtins.src b/src/cmd/compile/internal/types2/testdata/builtins.src
+index 69cc48798e..e473bd1df2 100644
+--- a/src/cmd/compile/internal/types2/testdata/builtins.src
++++ b/src/cmd/compile/internal/types2/testdata/builtins.src
+@@ -283,7 +283,7 @@ func delete1() {
+ 	delete() // ERROR not enough arguments
+ 	delete(1) // ERROR not enough arguments
+ 	delete(1, 2, 3) // ERROR too many arguments
+-	delete(m, 0 /* ERROR not assignable */)
++	delete(m, 0 /* ERROR cannot convert */)
+ 	delete(m, s)
+ 	_ = delete /* ERROR used as value */ (m, s)
+ 

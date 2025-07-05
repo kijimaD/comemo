@@ -18,7 +18,38 @@ Date:   Fri Jan 13 10:21:56 2023 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/testdata/script/src_file.txt | 9 +++++++++
  src/internal/goroot/gc.go               | 4 ++--
  2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/src_file.txt b/src/cmd/go/testdata/script/src_file.txt
+new file mode 100644
+index 0000000000..8d5c20bc97
+--- /dev/null
++++ b/src/cmd/go/testdata/script/src_file.txt
+@@ -0,0 +1,9 @@
++# Files in src should not be treated as packages
++
++exists $GOROOT/src/regexp/testdata/README
++go list -f '{{.Dir}}' regexp/testdata/README
++
++-- go.mod --
++module regexp/testdata/README
++-- p.go --
++package p
+diff --git a/src/internal/goroot/gc.go b/src/internal/goroot/gc.go
+index 79403d29fc..c0216f4ea5 100644
+--- a/src/internal/goroot/gc.go
++++ b/src/internal/goroot/gc.go
+@@ -20,8 +20,8 @@ func IsStandardPackage(goroot, compiler, path string) bool {
+ 	switch compiler {
+ 	case "gc":
+ 		dir := filepath.Join(goroot, "src", path)
+-		_, err := os.Stat(dir)
+-		return err == nil
++		info, err := os.Stat(dir)
++		return err == nil && info.IsDir()
+ 	case "gccgo":
+ 		return gccgoSearch.isStandard(path)
+ 	default:

@@ -19,8 +19,82 @@ Date:   Mon Apr 5 19:13:34 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/objabi/funcid.go |  2 ++
  src/runtime/panic.go              |  6 +++++-
  src/runtime/symtab.go             | 13 +++++++++++++
  3 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/objabi/funcid.go b/src/cmd/internal/objabi/funcid.go
+index fa28609e4d..4229ae2c02 100644
+--- a/src/cmd/internal/objabi/funcid.go
++++ b/src/cmd/internal/objabi/funcid.go
+@@ -24,6 +24,7 @@ type FuncID uint8
+ // Note: this list must match the list in runtime/symtab.go.
+ const (
+ 	FuncID_normal FuncID = iota // not a special function
++	FuncID_abort
+ 	FuncID_asmcgocall
+ 	FuncID_asyncPreempt
+ 	FuncID_cgocallback
+@@ -49,6 +50,7 @@ const (
+ )
+ 
+ var funcIDs = map[string]FuncID{
++	"abort":                 FuncID_abort,
+ 	"asmcgocall":            FuncID_asmcgocall,
+ 	"asyncPreempt":          FuncID_asyncPreempt,
+ 	"cgocallback":           FuncID_cgocallback,
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index bbf3ea473a..d33441a0d8 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1484,5 +1484,9 @@ func shouldPushSigpanic(gp *g, pc, lr uintptr) bool {
+ //
+ //go:nosplit
+ func isAbortPC(pc uintptr) bool {
+-	return pc == funcPC(abort) || ((GOARCH == "arm" || GOARCH == "arm64") && pc == funcPC(abort)+sys.PCQuantum)
++	f := findfunc(pc)
++	if !f.valid() {
++		return false
++	}
++	return f.funcID == funcID_abort
+ }
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 8430ca87ec..3d1f6126a6 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -310,6 +310,7 @@ type funcID uint8
+ 
+ const (
+ 	funcID_normal funcID = iota // not a special function
++	funcID_abort
+ 	funcID_asmcgocall
+ 	funcID_asyncPreempt
+ 	funcID_cgocallback
+@@ -669,6 +670,12 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
+ 	return file, int(line32)
+ }
+ 
++// findmoduledatap looks up the moduledata for a PC.
++//
++// It is nosplit because it's part of the isgoexception
++// implementation.
++//
++//go:nosplit
+ func findmoduledatap(pc uintptr) *moduledata {
+ 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+ 		if datap.minpc <= pc && pc < datap.maxpc {
+@@ -691,6 +698,12 @@ func (f funcInfo) _Func() *Func {
+ 	return (*Func)(unsafe.Pointer(f._func))
+ }
+ 
++// findfunc looks up function metadata for a PC.
++//
++// It is nosplit because it's part of the isgoexception
++// implementation.
++//
++//go:nosplit
+ func findfunc(pc uintptr) funcInfo {
+ 	datap := findmoduledatap(pc)
+ 	if datap == nil {

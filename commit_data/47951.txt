@@ -13,6 +13,19 @@ Date:   Wed Apr 14 12:37:04 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/internal/buildcfg/exp.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index bf4a8fa977..f3903be862 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -27,6 +27,7 @@ var regabiSupported = GOARCH == "amd64" && (GOOS == "linux" || GOOS == "darwin"
+ // configuration and any variation from this is an experiment.
+ var experimentBaseline = goexperiment.Flags{
+ 	RegabiWrappers: regabiSupported,
++	RegabiG:        regabiSupported,
+ }
+ 
+ // FramePointerEnabled enables the use of platform conventions for

@@ -11,6 +11,22 @@ Date:   Wed Jul 21 09:40:08 2010 -0700
     R=rsc, brainman
     CC=golang-dev
     https://golang.org/cl/1868043
-
+---
  src/pkg/syscall/syscall_windows.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index a7f03add44..6aef0ded0e 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -142,8 +142,9 @@ func Errstr(errno int) string {
+ 	if errno == EWINDOWS {
+ 		return "not supported by windows"
+ 	}
++	var flags uint32 = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_IGNORE_INSERTS
+ 	b := make([]uint16, 300)
+-	n, err := FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_ARGUMENT_ARRAY, 0, uint32(errno), 0, b, nil)
++	n, err := FormatMessage(flags, 0, uint32(errno), 0, b, nil)
+ 	if err != 0 {
+ 		return "error " + str(errno) + " (FormatMessage failed with err=" + str(err) + ")"
+ 	}

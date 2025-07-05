@@ -14,8 +14,73 @@ Date:   Tue Jun 8 17:06:26 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1593042
-
+---
  src/pkg/go/parser/parser.go                   | 5 ++---
  src/pkg/go/printer/nodes.go                   | 6 +++---
  src/pkg/go/printer/testdata/statements.golden | 8 ++++----
  3 files changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index f9264f03bb..c1914005a9 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1716,8 +1716,7 @@ func (p *parser) parseForStmt() ast.Stmt {
+ 		var key, value ast.Expr
+ 		switch len(as.Lhs) {
+ 		case 2:
+-			value = as.Lhs[1]
+-			fallthrough
++			key, value = as.Lhs[0], as.Lhs[1]
+ 		case 1:
+ 			key = as.Lhs[0]
+ 		default:
+@@ -1785,8 +1784,8 @@ func (p *parser) parseStmt() (s ast.Stmt) {
+ 	case token.FOR:
+ 		s = p.parseForStmt()
+ 	case token.SEMICOLON:
++		s = &ast.EmptyStmt{p.pos}
+ 		p.next()
+-		fallthrough
+ 	case token.RBRACE:
+ 		// a semicolon may be omitted before a closing "}"
+ 		s = &ast.EmptyStmt{p.pos}
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 77287f82bd..a48a40790e 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -1030,12 +1030,12 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
+ 		// a "correcting" unindent immediately following a line break
+ 		// is applied before the line break if there is no comment
+ 		// between (see writeWhitespace)
+-		p.print(unindent, s.Pos())
++		p.print(unindent)
+ 		p.expr(s.Label, multiLine)
+ 		p.print(token.COLON, indent)
+-		if _, isEmpty := s.Stmt.(*ast.EmptyStmt); isEmpty {
++		if e, isEmpty := s.Stmt.(*ast.EmptyStmt); isEmpty {
+ 			if !nextIsRBrace {
+-				p.print(newline, s.Stmt.Pos(), token.SEMICOLON)
++				p.print(newline, e.Pos(), token.SEMICOLON)
+ 				break
+ 			}
+ 		} else {
+diff --git a/src/pkg/go/printer/testdata/statements.golden b/src/pkg/go/printer/testdata/statements.golden
+index 9087390e7c..73a3e12368 100644
+--- a/src/pkg/go/printer/testdata/statements.golden
++++ b/src/pkg/go/printer/testdata/statements.golden
+@@ -259,11 +259,11 @@ L:	// no semicolon needed
+ func _() {
+ 	switch 0 {
+ 	case 0:
+-	L0:	// semicolon required
+-		;
++	L0:
++		;	// semicolon required
+ 	case 1:
+-	L1:	// semicolon required
+-		;
++	L1:
++		;	// semicolon required
+ 	default:
+ 	L2:	// no semicolon needed
+ 	}

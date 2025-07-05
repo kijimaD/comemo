@@ -13,7 +13,194 @@ Date:   Thu Nov 20 09:35:22 2014 -0800
     R=adonovan, r
     CC=golang-codereviews
     https://golang.org/cl/180920043
-
+---
  src/go/parser/error_test.go  | 27 +++++++++++++--------------
  src/go/parser/parser_test.go | 20 +++++++++-----------
  2 files changed, 22 insertions(+), 25 deletions(-)
+
+diff --git a/src/go/parser/error_test.go b/src/go/parser/error_test.go
+index 48fb53e5b0..1a08d5a6b1 100644
+--- a/src/go/parser/error_test.go
++++ b/src/go/parser/error_test.go
+@@ -34,11 +34,9 @@ import (
+ 
+ const testdata = "testdata"
+ 
+-var fsetErrs = token.NewFileSet()
+-
+ // getFile assumes that each filename occurs at most once
+-func getFile(filename string) (file *token.File) {
+-	fsetErrs.Iterate(func(f *token.File) bool {
++func getFile(fset *token.FileSet, filename string) (file *token.File) {
++	fset.Iterate(func(f *token.File) bool {
+ 		if f.Name() == filename {
+ 			if file != nil {
+ 				panic(filename + " used multiple times")
+@@ -50,8 +48,8 @@ func getFile(filename string) (file *token.File) {
+ 	return file
+ }
+ 
+-func getPos(filename string, offset int) token.Pos {
+-	if f := getFile(filename); f != nil {
++func getPos(fset *token.FileSet, filename string, offset int) token.Pos {
++	if f := getFile(fset, filename); f != nil {
+ 		return f.Pos(offset)
+ 	}
+ 	return token.NoPos
+@@ -68,14 +66,14 @@ var errRx = regexp.MustCompile(`^/\* *ERROR *(HERE)? *"([^"]*)" *\*/$`)
+ // expectedErrors collects the regular expressions of ERROR comments found
+ // in files and returns them as a map of error positions to error messages.
+ //
+-func expectedErrors(t *testing.T, filename string, src []byte) map[token.Pos]string {
++func expectedErrors(t *testing.T, fset *token.FileSet, filename string, src []byte) map[token.Pos]string {
+ 	errors := make(map[token.Pos]string)
+ 
+ 	var s scanner.Scanner
+ 	// file was parsed already - do not add it again to the file
+ 	// set otherwise the position information returned here will
+ 	// not match the position information collected by the parser
+-	s.Init(getFile(filename), src, nil, scanner.ScanComments)
++	s.Init(getFile(fset, filename), src, nil, scanner.ScanComments)
+ 	var prev token.Pos // position of last non-comment, non-semicolon token
+ 	var here token.Pos // position immediately after the token at position prev
+ 
+@@ -109,11 +107,11 @@ func expectedErrors(t *testing.T, filename string, src []byte) map[token.Pos]str
+ // compareErrors compares the map of expected error messages with the list
+ // of found errors and reports discrepancies.
+ //
+-func compareErrors(t *testing.T, expected map[token.Pos]string, found scanner.ErrorList) {
++func compareErrors(t *testing.T, fset *token.FileSet, expected map[token.Pos]string, found scanner.ErrorList) {
+ 	for _, error := range found {
+ 		// error.Pos is a token.Position, but we want
+ 		// a token.Pos so we can do a map lookup
+-		pos := getPos(error.Pos.Filename, error.Pos.Offset)
++		pos := getPos(fset, error.Pos.Filename, error.Pos.Offset)
+ 		if msg, found := expected[pos]; found {
+ 			// we expect a message at pos; check if it matches
+ 			rx, err := regexp.Compile(msg)
+@@ -140,7 +138,7 @@ func compareErrors(t *testing.T, expected map[token.Pos]string, found scanner.Er
+ 	if len(expected) > 0 {
+ 		t.Errorf("%d errors not reported:", len(expected))
+ 		for pos, msg := range expected {
+-			t.Errorf("%s: %s\n", fsetErrs.Position(pos), msg)
++			t.Errorf("%s: %s\n", fset.Position(pos), msg)
+ 		}
+ 	}
+ }
+@@ -152,7 +150,8 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
+ 		return
+ 	}
+ 
+-	_, err = ParseFile(fsetErrs, filename, src, DeclarationErrors|AllErrors)
++	fset := token.NewFileSet()
++	_, err = ParseFile(fset, filename, src, DeclarationErrors|AllErrors)
+ 	found, ok := err.(scanner.ErrorList)
+ 	if err != nil && !ok {
+ 		t.Error(err)
+@@ -162,10 +161,10 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
+ 
+ 	// we are expecting the following errors
+ 	// (collect these after parsing a file so that it is found in the file set)
+-	expected := expectedErrors(t, filename, src)
++	expected := expectedErrors(t, fset, filename, src)
+ 
+ 	// verify errors returned by the parser
+-	compareErrors(t, expected, found)
++	compareErrors(t, fset, expected, found)
+ }
+ 
+ func TestErrors(t *testing.T) {
+diff --git a/src/go/parser/parser_test.go b/src/go/parser/parser_test.go
+index 85065fd182..51ce1a9337 100644
+--- a/src/go/parser/parser_test.go
++++ b/src/go/parser/parser_test.go
+@@ -14,8 +14,6 @@ import (
+ 	"testing"
+ )
+ 
+-var fset = token.NewFileSet()
+-
+ var validFiles = []string{
+ 	"parser.go",
+ 	"parser_test.go",
+@@ -25,7 +23,7 @@ var validFiles = []string{
+ 
+ func TestParse(t *testing.T) {
+ 	for _, filename := range validFiles {
+-		_, err := ParseFile(fset, filename, nil, DeclarationErrors)
++		_, err := ParseFile(token.NewFileSet(), filename, nil, DeclarationErrors)
+ 		if err != nil {
+ 			t.Fatalf("ParseFile(%s): %v", filename, err)
+ 		}
+@@ -46,7 +44,7 @@ func dirFilter(f os.FileInfo) bool { return nameFilter(f.Name()) }
+ 
+ func TestParseDir(t *testing.T) {
+ 	path := "."
+-	pkgs, err := ParseDir(fset, path, dirFilter, 0)
++	pkgs, err := ParseDir(token.NewFileSet(), path, dirFilter, 0)
+ 	if err != nil {
+ 		t.Fatalf("ParseDir(%s): %v", path, err)
+ 	}
+@@ -131,7 +129,7 @@ func TestParseExpr(t *testing.T) {
+ }
+ 
+ func TestColonEqualsScope(t *testing.T) {
+-	f, err := ParseFile(fset, "", `package p; func f() { x, y, z := x, y, z }`, 0)
++	f, err := ParseFile(token.NewFileSet(), "", `package p; func f() { x, y, z := x, y, z }`, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -153,7 +151,7 @@ func TestColonEqualsScope(t *testing.T) {
+ }
+ 
+ func TestVarScope(t *testing.T) {
+-	f, err := ParseFile(fset, "", `package p; func f() { var x, y, z = x, y, z }`, 0)
++	f, err := ParseFile(token.NewFileSet(), "", `package p; func f() { var x, y, z = x, y, z }`, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -183,7 +181,7 @@ var x int
+ func f() { L: }
+ `
+ 
+-	f, err := ParseFile(fset, "", src, 0)
++	f, err := ParseFile(token.NewFileSet(), "", src, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -221,7 +219,7 @@ func f() { L: }
+ }
+ 
+ func TestUnresolved(t *testing.T) {
+-	f, err := ParseFile(fset, "", `
++	f, err := ParseFile(token.NewFileSet(), "", `
+ package p
+ //
+ func f1a(int)
+@@ -316,7 +314,7 @@ var imports = map[string]bool{
+ func TestImports(t *testing.T) {
+ 	for path, isValid := range imports {
+ 		src := fmt.Sprintf("package p; import %s", path)
+-		_, err := ParseFile(fset, "", src, 0)
++		_, err := ParseFile(token.NewFileSet(), "", src, 0)
+ 		switch {
+ 		case err != nil && isValid:
+ 			t.Errorf("ParseFile(%s): got %v; expected no error", src, err)
+@@ -327,7 +325,7 @@ func TestImports(t *testing.T) {
+ }
+ 
+ func TestCommentGroups(t *testing.T) {
+-	f, err := ParseFile(fset, "", `
++	f, err := ParseFile(token.NewFileSet(), "", `
+ package p /* 1a */ /* 1b */      /* 1c */ // 1d
+ /* 2a
+ */
+@@ -421,7 +419,7 @@ func checkFieldComments(t *testing.T, file *ast.File, fieldname, lead, line stri
+ }
+ 
+ func TestLeadAndLineComments(t *testing.T) {
+-	f, err := ParseFile(fset, "", `
++	f, err := ParseFile(token.NewFileSet(), "", `
+ package p
+ type T struct {
+ 	/* F1 lead comment */

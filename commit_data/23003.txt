@@ -12,7 +12,7 @@ Date:   Thu Apr 16 11:26:44 2015 +0900
     Change-Id: I4208ab6a0650455ad7d70a80a2d6169351d6055f
     Reviewed-on: https://go-review.googlesource.com/8993
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/error_test.go      | 40 ++++++++++++++++++++++++++++++++++++++++
  src/net/fd_unix.go         | 13 +++----------
  src/net/fd_windows.go      | 12 +++---------
@@ -25,3 +25,488 @@ Date:   Thu Apr 16 11:26:44 2015 +0900
  src/net/unixsock_plan9.go  |  6 +++---
  src/net/unixsock_posix.go  | 24 ++++++++++++++++--------
  11 files changed, 126 insertions(+), 60 deletions(-)
+
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 4b57d9e457..5668027d98 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -292,3 +292,43 @@ third:
+ 	}
+ 	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
+ }
++
++// parseWriteError parses nestedErr and reports whether it is a valid
++// error value from Write functions.
++// It returns nil when nestedErr is valid.
++func parseWriteError(nestedErr error) error {
++	if nestedErr == nil {
++		return nil
++	}
++
++	switch err := nestedErr.(type) {
++	case *OpError:
++		if err := err.isValid(); err != nil {
++			return err
++		}
++		nestedErr = err.Err
++		goto second
++	}
++	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)
++
++second:
++	if isPlatformError(nestedErr) {
++		return nil
++	}
++	switch err := nestedErr.(type) {
++	case *os.SyscallError:
++		nestedErr = err.Err
++		goto third
++	}
++	switch nestedErr {
++	case errClosing, errTimeout, ErrWriteToConnected, io.ErrUnexpectedEOF:
++		return nil
++	}
++	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
++
++third:
++	if isPlatformError(nestedErr) {
++		return nil
++	}
++	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
++}
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 08c8568a80..99d7a939d6 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -298,7 +298,7 @@ func (fd *netFD) Write(p []byte) (nn int, err error) {
+ 	}
+ 	defer fd.writeUnlock()
+ 	if err := fd.pd.PrepareWrite(); err != nil {
+-		return 0, &OpError{"write", fd.net, fd.raddr, err}
++		return 0, err
+ 	}
+ 	for {
+ 		var n int
+@@ -323,9 +323,6 @@ func (fd *netFD) Write(p []byte) (nn int, err error) {
+ 			break
+ 		}
+ 	}
+-	if err != nil {
+-		err = &OpError{"write", fd.net, fd.raddr, err}
+-	}
+ 	return nn, err
+ }
+ 
+@@ -335,7 +332,7 @@ func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
+ 	}
+ 	defer fd.writeUnlock()
+ 	if err := fd.pd.PrepareWrite(); err != nil {
+-		return 0, &OpError{"write", fd.net, fd.raddr, err}
++		return 0, err
+ 	}
+ 	for {
+ 		err = syscall.Sendto(fd.sysfd, p, 0, sa)
+@@ -348,8 +345,6 @@ func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
+ 	}
+ 	if err == nil {
+ 		n = len(p)
+-	} else {
+-		err = &OpError{"write", fd.net, fd.raddr, err}
+ 	}
+ 	return
+ }
+@@ -360,7 +355,7 @@ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
+ 	}
+ 	defer fd.writeUnlock()
+ 	if err := fd.pd.PrepareWrite(); err != nil {
+-		return 0, 0, &OpError{"write", fd.net, fd.raddr, err}
++		return 0, 0, err
+ 	}
+ 	for {
+ 		n, err = syscall.SendmsgN(fd.sysfd, p, oob, sa, 0)
+@@ -373,8 +368,6 @@ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
+ 	}
+ 	if err == nil {
+ 		oobn = len(oob)
+-	} else {
+-		err = &OpError{"write", fd.net, fd.raddr, err}
+ 	}
+ 	return
+ }
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 5bb048c178..e4038b90fa 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -491,7 +491,7 @@ func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
+ 
+ func (fd *netFD) Write(buf []byte) (int, error) {
+ 	if err := fd.writeLock(); err != nil {
+-		return 0, &OpError{Op: "write", Net: fd.net, Addr: fd.raddr, Err: err}
++		return 0, err
+ 	}
+ 	defer fd.writeUnlock()
+ 	if raceenabled {
+@@ -502,9 +502,6 @@ func (fd *netFD) Write(buf []byte) (int, error) {
+ 	n, err := wsrv.ExecIO(o, "WSASend", func(o *operation) error {
+ 		return syscall.WSASend(o.fd.sysfd, &o.buf, 1, &o.qty, 0, &o.o, nil)
+ 	})
+-	if err != nil {
+-		err = &OpError{Op: "write", Net: fd.net, Addr: fd.raddr, Err: err}
+-	}
+ 	return n, err
+ }
+ 
+@@ -513,7 +510,7 @@ func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+ 		return 0, nil
+ 	}
+ 	if err := fd.writeLock(); err != nil {
+-		return 0, &OpError{Op: "write", Net: fd.net, Addr: fd.laddr, Err: err}
++		return 0, err
+ 	}
+ 	defer fd.writeUnlock()
+ 	o := &fd.wop
+@@ -522,9 +519,6 @@ func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+ 	n, err := wsrv.ExecIO(o, "WSASendto", func(o *operation) error {
+ 		return syscall.WSASendto(o.fd.sysfd, &o.buf, 1, &o.qty, 0, o.sa, &o.o, nil)
+ 	})
+-	if err != nil {
+-		err = &OpError{Op: "write", Net: fd.net, Addr: fd.laddr, Err: err}
+-	}
+ 	return n, err
+ }
+ 
+@@ -627,5 +621,5 @@ func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
+ }
+ 
+ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
+-	return 0, 0, &OpError{Op: "write", Net: fd.net, Addr: fd.laddr, Err: syscall.EWINDOWS}
++	return 0, 0, syscall.EWINDOWS
+ }
+diff --git a/src/net/iprawsock_plan9.go b/src/net/iprawsock_plan9.go
+index bdb0d9770f..a3d8649606 100644
+--- a/src/net/iprawsock_plan9.go
++++ b/src/net/iprawsock_plan9.go
+@@ -47,19 +47,19 @@ func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err
+ // SetWriteDeadline.  On packet-oriented connections, write timeouts
+ // are rare.
+ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
+-	return 0, syscall.EPLAN9
++	return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EPLAN9}
+ }
+ 
+ // WriteTo implements the PacketConn WriteTo method.
+ func (c *IPConn) WriteTo(b []byte, addr Addr) (int, error) {
+-	return 0, syscall.EPLAN9
++	return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EPLAN9}
+ }
+ 
+ // WriteMsgIP writes a packet to addr via c, copying the payload from
+ // b and the associated out-of-band data from oob.  It returns the
+ // number of payload and out-of-band bytes written.
+ func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error) {
+-	return 0, 0, syscall.EPLAN9
++	return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EPLAN9}
+ }
+ 
+ // DialIP connects to the remote address raddr on the network protocol
+diff --git a/src/net/iprawsock_posix.go b/src/net/iprawsock_posix.go
+index 3c9d711b65..26ef05ff57 100644
+--- a/src/net/iprawsock_posix.go
++++ b/src/net/iprawsock_posix.go
+@@ -154,9 +154,13 @@ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
+ 	}
+ 	sa, err := addr.sockaddr(c.fd.family)
+ 	if err != nil {
+-		return 0, &OpError{"write", c.fd.net, addr, err}
++		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
+ 	}
+-	return c.fd.writeTo(b, sa)
++	n, err := c.fd.writeTo(b, sa)
++	if err != nil {
++		err = &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
++	}
++	return n, err
+ }
+ 
+ // WriteTo implements the PacketConn WriteTo method.
+@@ -166,7 +170,7 @@ func (c *IPConn) WriteTo(b []byte, addr Addr) (int, error) {
+ 	}
+ 	a, ok := addr.(*IPAddr)
+ 	if !ok {
+-		return 0, &OpError{"write", c.fd.net, addr, syscall.EINVAL}
++		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EINVAL}
+ 	}
+ 	return c.WriteToIP(b, a)
+ }
+@@ -184,11 +188,16 @@ func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error
+ 	if addr == nil {
+ 		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
+ 	}
+-	sa, err := addr.sockaddr(c.fd.family)
++	var sa syscall.Sockaddr
++	sa, err = addr.sockaddr(c.fd.family)
+ 	if err != nil {
+-		return 0, 0, &OpError{"write", c.fd.net, addr, err}
++		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
+ 	}
+-	return c.fd.writeMsg(b, oob, sa)
++	n, oobn, err = c.fd.writeMsg(b, oob, sa)
++	if err != nil {
++		err = &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
++	}
++	return
+ }
+ 
+ // DialIP connects to the remote address raddr on the network protocol
+diff --git a/src/net/net.go b/src/net/net.go
+index 252a225f26..38375cc8a0 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -138,7 +138,16 @@ func (c *conn) Write(b []byte) (int, error) {
+ 	if !c.ok() {
+ 		return 0, syscall.EINVAL
+ 	}
+-	return c.fd.Write(b)
++	n, err := c.fd.Write(b)
++	if err != nil {
++		err = &OpError{Op: "write", Net: c.fd.net, Err: err}
++		if c.fd.raddr != nil {
++			err.(*OpError).Addr = c.fd.raddr
++		} else {
++			err.(*OpError).Addr = c.fd.laddr // for unconnected-mode sockets
++		}
++	}
++	return n, err
+ }
+ 
+ // Close closes the connection.
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 7ccfef0cc5..fd5658ae5f 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -211,6 +211,9 @@ func TestWriteTimeout(t *testing.T) {
+ 	writeUntilTimeout := func() {
+ 		for {
+ 			_, err := c.Write(buf)
++			if perr := parseWriteError(err); perr != nil {
++				t.Error(perr)
++			}
+ 			if err != nil {
+ 				if isTimeoutError(err) {
+ 					return
+@@ -241,15 +244,9 @@ func TestWriteTimeout(t *testing.T) {
+ 	default:
+ 	}
+ 	c.Close()
+-	switch nerr := <-errc; err := nerr.(type) {
+-	case *OpError:
+-		if err.Err != errClosing {
+-			t.Fatalf("Write: expected err %v, got %v", errClosing, err)
+-		}
+-	default:
+-		if err != errClosing {
+-			t.Fatalf("Write: expected err %v, got %v", errClosing, err)
+-		}
++	err = <-errc
++	if perr := parseWriteError(err); perr != nil {
++		t.Error(perr)
+ 	}
+ }
+ 
+@@ -676,6 +673,9 @@ func TestWriteDeadlineBufferAvailable(t *testing.T) {
+ 	if res.n != 0 {
+ 		t.Errorf("Write = %d; want 0", res.n)
+ 	}
++	if perr := parseWriteError(res.err); perr != nil {
++		t.Error(perr)
++	}
+ 	if !isTimeoutError(res.err) {
+ 		t.Errorf("Write error = %v; want timeout", res.err)
+ 	}
+diff --git a/src/net/udpsock_plan9.go b/src/net/udpsock_plan9.go
+index ddaaa72093..4749dab8f1 100644
+--- a/src/net/udpsock_plan9.go
++++ b/src/net/udpsock_plan9.go
+@@ -86,7 +86,11 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
+ 	buf := make([]byte, udpHeaderSize+len(b))
+ 	i := copy(buf, h.Bytes())
+ 	copy(buf[i:], b)
+-	return c.fd.data.Write(buf)
++	n, err := c.fd.data.Write(buf)
++	if err != nil {
++		err = &OpError{Op: "write", Net: c.fd.dir, Addr: addr, Err: err}
++	}
++	return n, err
+ }
+ 
+ // WriteTo implements the PacketConn WriteTo method.
+@@ -96,7 +100,7 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
+ 	}
+ 	a, ok := addr.(*UDPAddr)
+ 	if !ok {
+-		return 0, &OpError{"write", c.fd.dir, addr, syscall.EINVAL}
++		return 0, &OpError{Op: "write", Net: c.fd.dir, Addr: addr, Err: syscall.EINVAL}
+ 	}
+ 	return c.WriteToUDP(b, a)
+ }
+@@ -107,7 +111,7 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
+ // out-of-band data is copied from oob.  It returns the number of
+ // payload and out-of-band bytes written.
+ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {
+-	return 0, 0, syscall.EPLAN9
++	return 0, 0, &OpError{Op: "write", Net: c.fd.dir, Addr: addr, Err: syscall.EPLAN9}
+ }
+ 
+ // DialUDP connects to the remote address raddr on the network net,
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index 05a11032ce..c4bd0bc06a 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -118,16 +118,20 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
+ 		return 0, syscall.EINVAL
+ 	}
+ 	if c.fd.isConnected {
+-		return 0, &OpError{"write", c.fd.net, addr, ErrWriteToConnected}
++		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: ErrWriteToConnected}
+ 	}
+ 	if addr == nil {
+ 		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
+ 	}
+ 	sa, err := addr.sockaddr(c.fd.family)
+ 	if err != nil {
+-		return 0, &OpError{"write", c.fd.net, addr, err}
++		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
+ 	}
+-	return c.fd.writeTo(b, sa)
++	n, err := c.fd.writeTo(b, sa)
++	if err != nil {
++		err = &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
++	}
++	return n, err
+ }
+ 
+ // WriteTo implements the PacketConn WriteTo method.
+@@ -137,7 +141,7 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
+ 	}
+ 	a, ok := addr.(*UDPAddr)
+ 	if !ok {
+-		return 0, &OpError{"write", c.fd.net, addr, syscall.EINVAL}
++		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EINVAL}
+ 	}
+ 	return c.WriteToUDP(b, a)
+ }
+@@ -152,16 +156,21 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
+ 		return 0, 0, syscall.EINVAL
+ 	}
+ 	if c.fd.isConnected && addr != nil {
+-		return 0, 0, &OpError{"write", c.fd.net, addr, ErrWriteToConnected}
++		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: ErrWriteToConnected}
+ 	}
+ 	if !c.fd.isConnected && addr == nil {
+ 		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
+ 	}
+-	sa, err := addr.sockaddr(c.fd.family)
++	var sa syscall.Sockaddr
++	sa, err = addr.sockaddr(c.fd.family)
+ 	if err != nil {
+-		return 0, 0, &OpError{"write", c.fd.net, addr, err}
++		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
+ 	}
+-	return c.fd.writeMsg(b, oob, sa)
++	n, oobn, err = c.fd.writeMsg(b, oob, sa)
++	if err != nil {
++		err = &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
++	}
++	return
+ }
+ 
+ // DialUDP connects to the remote address raddr on the network net,
+diff --git a/src/net/unixsock_plan9.go b/src/net/unixsock_plan9.go
+index a122a3dcbe..bb8c4dd609 100644
+--- a/src/net/unixsock_plan9.go
++++ b/src/net/unixsock_plan9.go
+@@ -47,19 +47,19 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
+ // SetWriteDeadline.  On packet-oriented connections, write timeouts
+ // are rare.
+ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (int, error) {
+-	return 0, syscall.EPLAN9
++	return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EPLAN9}
+ }
+ 
+ // WriteTo implements the PacketConn WriteTo method.
+ func (c *UnixConn) WriteTo(b []byte, addr Addr) (int, error) {
+-	return 0, syscall.EPLAN9
++	return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EPLAN9}
+ }
+ 
+ // WriteMsgUnix writes a packet to addr via c, copying the payload
+ // from b and the associated out-of-band data from oob.  It returns
+ // the number of payload and out-of-band bytes written.
+ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err error) {
+-	return 0, 0, syscall.EPLAN9
++	return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EPLAN9}
+ }
+ 
+ // CloseRead shuts down the reading side of the Unix domain connection.
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index 07b6134b48..d51599f3bb 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -170,7 +170,7 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
+ // Timeout() == true after a fixed time limit; see SetDeadline and
+ // SetWriteDeadline.  On packet-oriented connections, write timeouts
+ // are rare.
+-func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
++func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (int, error) {
+ 	if !c.ok() {
+ 		return 0, syscall.EINVAL
+ 	}
+@@ -181,10 +181,14 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
+ 		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: nil, Err: errMissingAddress}
+ 	}
+ 	if addr.Net != sotypeToNet(c.fd.sotype) {
+-		return 0, syscall.EAFNOSUPPORT
++		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EAFNOSUPPORT}
+ 	}
+ 	sa := &syscall.SockaddrUnix{Name: addr.Name}
+-	return c.fd.writeTo(b, sa)
++	n, err := c.fd.writeTo(b, sa)
++	if err != nil {
++		err = &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
++	}
++	return n, err
+ }
+ 
+ // WriteTo implements the PacketConn WriteTo method.
+@@ -194,7 +198,7 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err error) {
+ 	}
+ 	a, ok := addr.(*UnixAddr)
+ 	if !ok {
+-		return 0, &OpError{"write", c.fd.net, addr, syscall.EINVAL}
++		return 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EINVAL}
+ 	}
+ 	return c.WriteToUnix(b, a)
+ }
+@@ -209,14 +213,18 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
+ 	if c.fd.sotype == syscall.SOCK_DGRAM && c.fd.isConnected {
+ 		return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: ErrWriteToConnected}
+ 	}
++	var sa syscall.Sockaddr
+ 	if addr != nil {
+ 		if addr.Net != sotypeToNet(c.fd.sotype) {
+-			return 0, 0, syscall.EAFNOSUPPORT
++			return 0, 0, &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: syscall.EAFNOSUPPORT}
+ 		}
+-		sa := &syscall.SockaddrUnix{Name: addr.Name}
+-		return c.fd.writeMsg(b, oob, sa)
++		sa = &syscall.SockaddrUnix{Name: addr.Name}
+ 	}
+-	return c.fd.writeMsg(b, oob, nil)
++	n, oobn, err = c.fd.writeMsg(b, oob, sa)
++	if err != nil {
++		err = &OpError{Op: "write", Net: c.fd.net, Addr: addr, Err: err}
++	}
++	return
+ }
+ 
+ // CloseRead shuts down the reading side of the Unix domain connection.

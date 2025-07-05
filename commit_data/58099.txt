@@ -23,7 +23,7 @@ Date:   Wed Jul 5 11:56:03 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  api/next/61619.txt                |   1 +
  src/html/template/context.go      |  24 +++----
  src/html/template/error.go        |   4 ++
@@ -33,3 +33,518 @@ Date:   Wed Jul 5 11:56:03 2023 -0700
  src/html/template/state_string.go |   6 +-
  src/html/template/transition.go   |  63 ++++++++++++++++--
  8 files changed, 253 insertions(+), 58 deletions(-)
+
+diff --git a/api/next/61619.txt b/api/next/61619.txt
+new file mode 100644
+index 0000000000..c63a3140e8
+--- /dev/null
++++ b/api/next/61619.txt
+@@ -0,0 +1 @@
++pkg html/template, const ErrJSTemplate //deprecated #61619
+diff --git a/src/html/template/context.go b/src/html/template/context.go
+index 16b5e65317..63d5c31b01 100644
+--- a/src/html/template/context.go
++++ b/src/html/template/context.go
+@@ -17,14 +17,16 @@ import (
+ // https://www.w3.org/TR/html5/syntax.html#the-end
+ // where the context element is null.
+ type context struct {
+-	state   state
+-	delim   delim
+-	urlPart urlPart
+-	jsCtx   jsCtx
+-	attr    attr
+-	element element
+-	n       parse.Node // for range break/continue
+-	err     *Error
++	state           state
++	delim           delim
++	urlPart         urlPart
++	jsCtx           jsCtx
++	jsTmplExprDepth int
++	jsBraceDepth    int
++	attr            attr
++	element         element
++	n               parse.Node // for range break/continue
++	err             *Error
+ }
+ 
+ func (c context) String() string {
+@@ -120,8 +122,8 @@ const (
+ 	stateJSDqStr
+ 	// stateJSSqStr occurs inside a JavaScript single quoted string.
+ 	stateJSSqStr
+-	// stateJSBqStr occurs inside a JavaScript back quoted string.
+-	stateJSBqStr
++	// stateJSTmplLit occurs inside a JavaScript back quoted string.
++	stateJSTmplLit
+ 	// stateJSRegexp occurs inside a JavaScript regexp literal.
+ 	stateJSRegexp
+ 	// stateJSBlockCmt occurs inside a JavaScript /* block comment */.
+@@ -182,7 +184,7 @@ func isInScriptLiteral(s state) bool {
+ 	// stateJSHTMLOpenCmt, stateJSHTMLCloseCmt) because their content is already
+ 	// omitted from the output.
+ 	switch s {
+-	case stateJSDqStr, stateJSSqStr, stateJSBqStr, stateJSRegexp:
++	case stateJSDqStr, stateJSSqStr, stateJSTmplLit, stateJSRegexp:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/html/template/error.go b/src/html/template/error.go
+index a763924d4a..805a788bfc 100644
+--- a/src/html/template/error.go
++++ b/src/html/template/error.go
+@@ -221,6 +221,10 @@ const (
+ 	// Discussion:
+ 	//   Package html/template does not support actions inside of JS template
+ 	//   literals.
++	//
++	// Deprecated: ErrJSTemplate is no longer returned when an action is present
++	// in a JS template literal. Actions inside of JS template literals are now
++	// escaped as expected.
+ 	ErrJSTemplate
+ )
+ 
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index 01f6303a44..1eace16e25 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -62,22 +62,23 @@ func evalArgs(args ...any) string {
+ 
+ // funcMap maps command names to functions that render their inputs safe.
+ var funcMap = template.FuncMap{
+-	"_html_template_attrescaper":     attrEscaper,
+-	"_html_template_commentescaper":  commentEscaper,
+-	"_html_template_cssescaper":      cssEscaper,
+-	"_html_template_cssvaluefilter":  cssValueFilter,
+-	"_html_template_htmlnamefilter":  htmlNameFilter,
+-	"_html_template_htmlescaper":     htmlEscaper,
+-	"_html_template_jsregexpescaper": jsRegexpEscaper,
+-	"_html_template_jsstrescaper":    jsStrEscaper,
+-	"_html_template_jsvalescaper":    jsValEscaper,
+-	"_html_template_nospaceescaper":  htmlNospaceEscaper,
+-	"_html_template_rcdataescaper":   rcdataEscaper,
+-	"_html_template_srcsetescaper":   srcsetFilterAndEscaper,
+-	"_html_template_urlescaper":      urlEscaper,
+-	"_html_template_urlfilter":       urlFilter,
+-	"_html_template_urlnormalizer":   urlNormalizer,
+-	"_eval_args_":                    evalArgs,
++	"_html_template_attrescaper":      attrEscaper,
++	"_html_template_commentescaper":   commentEscaper,
++	"_html_template_cssescaper":       cssEscaper,
++	"_html_template_cssvaluefilter":   cssValueFilter,
++	"_html_template_htmlnamefilter":   htmlNameFilter,
++	"_html_template_htmlescaper":      htmlEscaper,
++	"_html_template_jsregexpescaper":  jsRegexpEscaper,
++	"_html_template_jsstrescaper":     jsStrEscaper,
++	"_html_template_jstmpllitescaper": jsTmplLitEscaper,
++	"_html_template_jsvalescaper":     jsValEscaper,
++	"_html_template_nospaceescaper":   htmlNospaceEscaper,
++	"_html_template_rcdataescaper":    rcdataEscaper,
++	"_html_template_srcsetescaper":    srcsetFilterAndEscaper,
++	"_html_template_urlescaper":       urlEscaper,
++	"_html_template_urlfilter":        urlFilter,
++	"_html_template_urlnormalizer":    urlNormalizer,
++	"_eval_args_":                     evalArgs,
+ }
+ 
+ // escaper collects type inferences about templates and changes needed to make
+@@ -227,16 +228,8 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 		c.jsCtx = jsCtxDivOp
+ 	case stateJSDqStr, stateJSSqStr:
+ 		s = append(s, "_html_template_jsstrescaper")
+-	case stateJSBqStr:
+-		if debugAllowActionJSTmpl.Value() == "1" {
+-			debugAllowActionJSTmpl.IncNonDefault()
+-			s = append(s, "_html_template_jsstrescaper")
+-		} else {
+-			return context{
+-				state: stateError,
+-				err:   errorf(ErrJSTemplate, n, n.Line, "%s appears in a JS template literal", n),
+-			}
+-		}
++	case stateJSTmplLit:
++		s = append(s, "_html_template_jstmpllitescaper")
+ 	case stateJSRegexp:
+ 		s = append(s, "_html_template_jsregexpescaper")
+ 	case stateCSS:
+@@ -395,6 +388,9 @@ var redundantFuncs = map[string]map[string]bool{
+ 	"_html_template_jsstrescaper": {
+ 		"_html_template_attrescaper": true,
+ 	},
++	"_html_template_jstmpllitescaper": {
++		"_html_template_attrescaper": true,
++	},
+ 	"_html_template_urlescaper": {
+ 		"_html_template_urlnormalizer": true,
+ 	},
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 8a4f62e92f..9e2f4fe922 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -30,14 +30,14 @@ func (x *goodMarshaler) MarshalJSON() ([]byte, error) {
+ 
+ func TestEscape(t *testing.T) {
+ 	data := struct {
+-		F, T    bool
+-		C, G, H string
+-		A, E    []string
+-		B, M    json.Marshaler
+-		N       int
+-		U       any  // untyped nil
+-		Z       *int // typed nil
+-		W       HTML
++		F, T       bool
++		C, G, H, I string
++		A, E       []string
++		B, M       json.Marshaler
++		N          int
++		U          any  // untyped nil
++		Z          *int // typed nil
++		W          HTML
+ 	}{
+ 		F: false,
+ 		T: true,
+@@ -52,6 +52,7 @@ func TestEscape(t *testing.T) {
+ 		U: nil,
+ 		Z: nil,
+ 		W: HTML(`&iexcl;<b class="foo">Hello</b>, <textarea>O'World</textarea>!`),
++		I: "${ asd `` }",
+ 	}
+ 	pdata := &data
+ 
+@@ -718,6 +719,21 @@ func TestEscape(t *testing.T) {
+ 			"<p name=\"{{.U}}\">",
+ 			"<p name=\"\">",
+ 		},
++		{
++			"JS template lit special characters",
++			"<script>var a = `{{.I}}`</script>",
++			"<script>var a = `\\u0024\\u007b asd \\u0060\\u0060 \\u007d`</script>",
++		},
++		{
++			"JS template lit special characters, nested lit",
++			"<script>var a = `${ `{{.I}}` }`</script>",
++			"<script>var a = `${ `\\u0024\\u007b asd \\u0060\\u0060 \\u007d` }`</script>",
++		},
++		{
++			"JS template lit, nested JS",
++			"<script>var a = `${ var a = \"{{\"a \\\" d\"}}\" }`</script>",
++			"<script>var a = `${ var a = \"a \\u0022 d\" }`</script>",
++		},
+ 	}
+ 
+ 	for _, test := range tests {
+@@ -976,6 +992,31 @@ func TestErrors(t *testing.T) {
+ 			"<script>var a = `${a+b}`</script>`",
+ 			"",
+ 		},
++		{
++			"<script>var tmpl = `asd`;</script>",
++			``,
++		},
++		{
++			"<script>var tmpl = `${1}`;</script>",
++			``,
++		},
++		{
++			"<script>var tmpl = `${return ``}`;</script>",
++			``,
++		},
++		{
++			"<script>var tmpl = `${return {{.}} }`;</script>",
++			``,
++		},
++		{
++			"<script>var tmpl = `${ let a = {1:1} {{.}} }`;</script>",
++			``,
++		},
++		{
++			"<script>var tmpl = `asd ${return \"{\"}`;</script>",
++			``,
++		},
++
+ 		// Error cases.
+ 		{
+ 			"{{if .Cond}}<a{{end}}",
+@@ -1122,10 +1163,26 @@ func TestErrors(t *testing.T) {
+ 			// html is allowed since it is the last command in the pipeline, but urlquery is not.
+ 			`predefined escaper "urlquery" disallowed in template`,
+ 		},
+-		{
+-			"<script>var tmpl = `asd {{.}}`;</script>",
+-			`{{.}} appears in a JS template literal`,
+-		},
++		// {
++		// 	"<script>var tmpl = `asd {{.}}`;</script>",
++		// 	`{{.}} appears in a JS template literal`,
++		// },
++		// {
++		// 	"<script>var v = `${function(){return `{{.V}}+1`}()}`;</script>",
++		// 	`{{.V}} appears in a JS template literal`,
++		// },
++		// {
++		// 	"<script>var a = `asd ${function(){b = {1:2}; return`{{.}}`}}`</script>",
++		// 	`{{.}} appears in a JS template literal`,
++		// },
++		// {
++		// 	"<script>var tmpl = `${return `{{.}}`}`;</script>",
++		// 	`{{.}} appears in a JS template literal`,
++		// },
++		// {
++		// 	"<script>var tmpl = `${return {`{{.}}`}`;</script>",
++		// 	`{{.}} appears in a JS template literal`,
++		// },
+ 	}
+ 	for _, test := range tests {
+ 		buf := new(bytes.Buffer)
+@@ -1349,7 +1406,7 @@ func TestEscapeText(t *testing.T) {
+ 		},
+ 		{
+ 			"<a onclick=\"`foo",
+-			context{state: stateJSBqStr, delim: delimDoubleQuote, attr: attrScript},
++			context{state: stateJSTmplLit, delim: delimDoubleQuote, attr: attrScript},
+ 		},
+ 		{
+ 			`<A ONCLICK="'`,
+@@ -1691,6 +1748,58 @@ func TestEscapeText(t *testing.T) {
+ 			`<svg:a svg:onclick="x()">`,
+ 			context{},
+ 		},
++		{
++			"<script>var a = `",
++			context{state: stateJSTmplLit, element: elementScript},
++		},
++		{
++			"<script>var a = `${",
++			context{state: stateJS, element: elementScript},
++		},
++		{
++			"<script>var a = `${}",
++			context{state: stateJSTmplLit, element: elementScript},
++		},
++		{
++			"<script>var a = `${`",
++			context{state: stateJSTmplLit, element: elementScript},
++		},
++		{
++			"<script>var a = `${var a = \"",
++			context{state: stateJSDqStr, element: elementScript},
++		},
++		{
++			"<script>var a = `${var a = \"`",
++			context{state: stateJSDqStr, element: elementScript},
++		},
++		{
++			"<script>var a = `${var a = \"}",
++			context{state: stateJSDqStr, element: elementScript},
++		},
++		{
++			"<script>var a = `${``",
++			context{state: stateJS, element: elementScript},
++		},
++		{
++			"<script>var a = `${`}",
++			context{state: stateJSTmplLit, element: elementScript},
++		},
++		{
++			"<script>`${ {} } asd`</script><script>`${ {} }",
++			context{state: stateJSTmplLit, element: elementScript},
++		},
++		{
++			"<script>var foo = `${ (_ => { return \"x\" })() + \"${",
++			context{state: stateJSDqStr, element: elementScript},
++		},
++		{
++			"<script>var a = `${ {</script><script>var b = `${ x }",
++			context{state: stateJSTmplLit, element: elementScript, jsCtx: jsCtxDivOp},
++		},
++		{
++			"<script>var foo = `x` + \"${",
++			context{state: stateJSDqStr, element: elementScript},
++		},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index 717de4300c..b159af8e4b 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -238,6 +238,11 @@ func jsStrEscaper(args ...any) string {
+ 	return replace(s, jsStrReplacementTable)
+ }
+ 
++func jsTmplLitEscaper(args ...any) string {
++	s, _ := stringify(args...)
++	return replace(s, jsBqStrReplacementTable)
++}
++
+ // jsRegexpEscaper behaves like jsStrEscaper but escapes regular expression
+ // specials so the result is treated literally when included in a regular
+ // expression literal. /foo{{.X}}bar/ matches the string "foo" followed by
+@@ -324,6 +329,31 @@ var jsStrReplacementTable = []string{
+ 	'\\': `\\`,
+ }
+ 
++// jsBqStrReplacementTable is like jsStrReplacementTable except it also contains
++// the special characters for JS template literals: $, {, and }.
++var jsBqStrReplacementTable = []string{
++	0:    `\u0000`,
++	'\t': `\t`,
++	'\n': `\n`,
++	'\v': `\u000b`, // "\v" == "v" on IE 6.
++	'\f': `\f`,
++	'\r': `\r`,
++	// Encode HTML specials as hex so the output can be embedded
++	// in HTML attributes without further encoding.
++	'"':  `\u0022`,
++	'`':  `\u0060`,
++	'&':  `\u0026`,
++	'\'': `\u0027`,
++	'+':  `\u002b`,
++	'/':  `\/`,
++	'<':  `\u003c`,
++	'>':  `\u003e`,
++	'\\': `\\`,
++	'$':  `\u0024`,
++	'{':  `\u007b`,
++	'}':  `\u007d`,
++}
++
+ // jsStrNormReplacementTable is like jsStrReplacementTable but does not
+ // overencode existing escapes since this table has no entry for `\`.
+ var jsStrNormReplacementTable = []string{
+diff --git a/src/html/template/state_string.go b/src/html/template/state_string.go
+index be7a920511..eed1e8bcc0 100644
+--- a/src/html/template/state_string.go
++++ b/src/html/template/state_string.go
+@@ -21,7 +21,7 @@ func _() {
+ 	_ = x[stateJS-10]
+ 	_ = x[stateJSDqStr-11]
+ 	_ = x[stateJSSqStr-12]
+-	_ = x[stateJSBqStr-13]
++	_ = x[stateJSTmplLit-13]
+ 	_ = x[stateJSRegexp-14]
+ 	_ = x[stateJSBlockCmt-15]
+ 	_ = x[stateJSLineCmt-16]
+@@ -39,9 +39,9 @@ func _() {
+ 	_ = x[stateDead-28]
+ }
+ 
+-const _state_name = "stateTextstateTagstateAttrNamestateAfterNamestateBeforeValuestateHTMLCmtstateRCDATAstateAttrstateURLstateSrcsetstateJSstateJSDqStrstateJSSqStrstateJSBqStrstateJSRegexpstateJSBlockCmtstateJSLineCmtstateJSHTMLOpenCmtstateJSHTMLCloseCmtstateCSSstateCSSDqStrstateCSSSqStrstateCSSDqURLstateCSSSqURLstateCSSURLstateCSSBlockCmtstateCSSLineCmtstateErrorstateDead"
++const _state_name = "stateTextstateTagstateAttrNamestateAfterNamestateBeforeValuestateHTMLCmtstateRCDATAstateAttrstateURLstateSrcsetstateJSstateJSDqStrstateJSSqStrstateJSTmplLitstateJSRegexpstateJSBlockCmtstateJSLineCmtstateJSHTMLOpenCmtstateJSHTMLCloseCmtstateCSSstateCSSDqStrstateCSSSqStrstateCSSDqURLstateCSSSqURLstateCSSURLstateCSSBlockCmtstateCSSLineCmtstateErrorstateDead"
+ 
+-var _state_index = [...]uint16{0, 9, 17, 30, 44, 60, 72, 83, 92, 100, 111, 118, 130, 142, 154, 167, 182, 196, 214, 233, 241, 254, 267, 280, 293, 304, 320, 335, 345, 354}
++var _state_index = [...]uint16{0, 9, 17, 30, 44, 60, 72, 83, 92, 100, 111, 118, 130, 142, 156, 169, 184, 198, 216, 235, 243, 256, 269, 282, 295, 306, 322, 337, 347, 356}
+ 
+ func (i state) String() string {
+ 	if i >= state(len(_state_index)-1) {
+diff --git a/src/html/template/transition.go b/src/html/template/transition.go
+index 432c365d3c..4ea803e428 100644
+--- a/src/html/template/transition.go
++++ b/src/html/template/transition.go
+@@ -27,8 +27,8 @@ var transitionFunc = [...]func(context, []byte) (context, int){
+ 	stateJS:             tJS,
+ 	stateJSDqStr:        tJSDelimited,
+ 	stateJSSqStr:        tJSDelimited,
+-	stateJSBqStr:        tJSDelimited,
+ 	stateJSRegexp:       tJSDelimited,
++	stateJSTmplLit:      tJSTmpl,
+ 	stateJSBlockCmt:     tBlockCmt,
+ 	stateJSLineCmt:      tLineCmt,
+ 	stateJSHTMLOpenCmt:  tLineCmt,
+@@ -270,7 +270,7 @@ func tURL(c context, s []byte) (context, int) {
+ 
+ // tJS is the context transition function for the JS state.
+ func tJS(c context, s []byte) (context, int) {
+-	i := bytes.IndexAny(s, "\"`'/<-#")
++	i := bytes.IndexAny(s, "\"`'/{}<-#")
+ 	if i == -1 {
+ 		// Entire input is non string, comment, regexp tokens.
+ 		c.jsCtx = nextJSCtx(s, c.jsCtx)
+@@ -283,7 +283,7 @@ func tJS(c context, s []byte) (context, int) {
+ 	case '\'':
+ 		c.state, c.jsCtx = stateJSSqStr, jsCtxRegexp
+ 	case '`':
+-		c.state, c.jsCtx = stateJSBqStr, jsCtxRegexp
++		c.state, c.jsCtx = stateJSTmplLit, jsCtxRegexp
+ 	case '/':
+ 		switch {
+ 		case i+1 < len(s) && s[i+1] == '/':
+@@ -320,12 +320,67 @@ func tJS(c context, s []byte) (context, int) {
+ 		if i+1 < len(s) && s[i+1] == '!' {
+ 			c.state, i = stateJSLineCmt, i+1
+ 		}
++	case '{':
++		c.jsBraceDepth++
++	case '}':
++		if c.jsTmplExprDepth == 0 {
++			return c, i + 1
++		}
++		for j := 0; j <= i; j++ {
++			switch s[j] {
++			case '\\':
++				j++
++			case '{':
++				c.jsBraceDepth++
++			case '}':
++				c.jsBraceDepth--
++			}
++		}
++		if c.jsBraceDepth >= 0 {
++			return c, i + 1
++		}
++		c.jsTmplExprDepth--
++		c.jsBraceDepth = 0
++		c.state = stateJSTmplLit
+ 	default:
+ 		panic("unreachable")
+ 	}
+ 	return c, i + 1
+ }
+ 
++func tJSTmpl(c context, s []byte) (context, int) {
++	var k int
++	for {
++		i := k + bytes.IndexAny(s[k:], "`\\$")
++		if i < k {
++			break
++		}
++		switch s[i] {
++		case '\\':
++			i++
++			if i == len(s) {
++				return context{
++					state: stateError,
++					err:   errorf(ErrPartialEscape, nil, 0, "unfinished escape sequence in JS string: %q", s),
++				}, len(s)
++			}
++		case '$':
++			if len(s) >= i+2 && s[i+1] == '{' {
++				c.jsTmplExprDepth++
++				c.state = stateJS
++				return c, i + 2
++			}
++		case '`':
++			// end
++			c.state = stateJS
++			return c, i + 1
++		}
++		k = i + 1
++	}
++
++	return c, len(s)
++}
++
+ // tJSDelimited is the context transition function for the JS string and regexp
+ // states.
+ func tJSDelimited(c context, s []byte) (context, int) {
+@@ -333,8 +388,6 @@ func tJSDelimited(c context, s []byte) (context, int) {
+ 	switch c.state {
+ 	case stateJSSqStr:
+ 		specials = `\'`
+-	case stateJSBqStr:
+-		specials = "`\\"
+ 	case stateJSRegexp:
+ 		specials = `\/[]`
+ 	}

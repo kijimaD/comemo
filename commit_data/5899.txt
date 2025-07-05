@@ -7,10 +7,471 @@ Date:   Wed Jul 28 15:58:35 2010 +0300
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1692057
-
+---
  src/cmd/5g/gsubr.c              | 56 +++++++++++++++++++++++++++++++++++------
  src/pkg/runtime/arm/softfloat.c | 53 ++++++++++++++++++++++++++++++++------
  test/arm-pass.txt               | 38 +++++++++++++++++-----------
  test/golden-arm.out             | 50 ++++++++++++++++++++++++++----------
  test/literal.go                 | 23 ++++++++++++++---
  5 files changed, 173 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 700602c350..8c5ddbb099 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -715,10 +715,20 @@ gmove(Node *f, Node *t)
+ 	* float to integer
+ 	*/
+ 	case CASE(TFLOAT32, TINT8):
+-	case CASE(TFLOAT32, TINT16):
+-	case CASE(TFLOAT32, TINT32):
+ 	case CASE(TFLOAT32, TUINT8):
++		fa = AMOVF;
++		a = AMOVFW;
++		ta = AMOVB;
++		goto fltconv;
++
++	case CASE(TFLOAT32, TINT16):
+ 	case CASE(TFLOAT32, TUINT16):
++		fa = AMOVF;
++		a = AMOVFW;
++		ta = AMOVH;
++		goto fltconv;
++
++	case CASE(TFLOAT32, TINT32):
+ 	case CASE(TFLOAT32, TUINT32):
+ 		fa = AMOVF;
+ 		a = AMOVFW;
+@@ -726,10 +736,20 @@ gmove(Node *f, Node *t)
+ 		goto fltconv;
+ 
+ 	case CASE(TFLOAT64, TINT8):
+-	case CASE(TFLOAT64, TINT16):
+-	case CASE(TFLOAT64, TINT32):
+ 	case CASE(TFLOAT64, TUINT8):
++		fa = AMOVD;
++		a = AMOVDW;
++		ta = AMOVB;
++		goto fltconv;
++
++	case CASE(TFLOAT64, TINT16):
+ 	case CASE(TFLOAT64, TUINT16):
++		fa = AMOVD;
++		a = AMOVDW;
++		ta = AMOVH;
++		goto fltconv;
++
++	case CASE(TFLOAT64, TINT32):
+ 	case CASE(TFLOAT64, TUINT32):
+ 		fa = AMOVD;
+ 		a = AMOVDW;
+@@ -745,10 +765,20 @@ gmove(Node *f, Node *t)
+ 	 * integer to float
+ 	 */
+ 	case CASE(TINT8, TFLOAT32):
+-	case CASE(TINT16, TFLOAT32):
+-	case CASE(TINT32, TFLOAT32):
+ 	case CASE(TUINT8, TFLOAT32):
++		fa = AMOVB;
++		a = AMOVWF;
++		ta = AMOVF;
++		goto fltconv;
++
++	case CASE(TINT16, TFLOAT32):
+ 	case CASE(TUINT16, TFLOAT32):
++		fa = AMOVH;
++		a = AMOVWF;
++		ta = AMOVF;
++		goto fltconv;
++
++	case CASE(TINT32, TFLOAT32):
+ 	case CASE(TUINT32, TFLOAT32):
+ 		fa = AMOVW;
+ 		a = AMOVWF;
+@@ -756,10 +786,20 @@ gmove(Node *f, Node *t)
+ 		goto fltconv;
+ 
+ 	case CASE(TINT8, TFLOAT64):
+-	case CASE(TINT16, TFLOAT64):
+-	case CASE(TINT32, TFLOAT64):
+ 	case CASE(TUINT8, TFLOAT64):
++		fa = AMOVB;
++		a = AMOVWD;
++		ta = AMOVD;
++		goto fltconv;
++
++	case CASE(TINT16, TFLOAT64):
+ 	case CASE(TUINT16, TFLOAT64):
++		fa = AMOVH;
++		a = AMOVWD;
++		ta = AMOVD;
++		goto fltconv;
++
++	case CASE(TINT32, TFLOAT64):
+ 	case CASE(TUINT32, TFLOAT64):
+ 		fa = AMOVW;
+ 		a = AMOVWD;
+diff --git a/src/pkg/runtime/arm/softfloat.c b/src/pkg/runtime/arm/softfloat.c
+index 4f046d734e..fe8ff234d6 100644
+--- a/src/pkg/runtime/arm/softfloat.c
++++ b/src/pkg/runtime/arm/softfloat.c
+@@ -19,15 +19,19 @@ static uint32 doabort = 0;
+ static uint32 trace = 0;
+ 
+ #define DOUBLE_EXPBIAS 1023
+-#define DOUBLE_MANT_MASK 0xfffffffffffffll
+-#define DOUBLE_MANT_TOP_BIT 0x10000000000000ll
+-#define DZERO 0x0000000000000000ll
+-#define DNZERO 0x8000000000000000ll
+-#define DONE 0x3ff0000000000000ll
+-#define DINF 0x7ff0000000000000ll
+-#define DNINF 0xfff0000000000000ll
++#define DOUBLE_MANT_MASK 0xfffffffffffffull
++#define DOUBLE_MANT_TOP_BIT 0x10000000000000ull
++#define DZERO 0x0000000000000000ull
++#define DNZERO 0x8000000000000000ull
++#define DONE 0x3ff0000000000000ull
++#define DINF 0x7ff0000000000000ull
++#define DNINF 0xfff0000000000000ull
++#define DNAN 0x7FF0000000000001ull
+ 
+ #define SINGLE_EXPBIAS 127
++#define FINF 0x7f800000ul
++#define FNINF 0xff800000ul
++#define FNAN 0x7f800000ul
+ 
+ 
+ static const int8* opnames[] = {
+@@ -141,6 +145,14 @@ fprint(void)
+ static uint32
+ d2s(uint64 d)
+ {
++	if ((d & ~(1ull << 63)) == 0)
++		return (uint32)(d>>32);
++	if (d == DINF)
++		return FINF;
++	if (d == DNINF)
++		return FNINF;
++	if ((d & ~(1ull << 63)) == DNAN)
++		return FNAN;
+ 	return (d>>32 & 0x80000000) |	//sign
+ 		((uint32)(fexp(d) + SINGLE_EXPBIAS) & 0xff) << 23 |	// exponent
+ 		(d >> 29 & 0x7fffff);	// mantissa
+@@ -149,6 +161,14 @@ d2s(uint64 d)
+ static uint64
+ s2d(uint32 s)
+ {
++	if ((s & ~(1ul << 31)) == 0)
++		return (uint64)(s) << 32;
++	if (s == FINF)
++		return DINF;
++	if (s == FNINF)
++		return DNINF;
++	if ((s & ~(1ul << 31)) == FNAN)
++		return DNAN;
+ 	return (uint64)(s & 0x80000000) << 63 |	// sign
+ 		(uint64)((s >> 23 &0xff) + (DOUBLE_EXPBIAS - SINGLE_EXPBIAS)) << 52  |	// exponent
+ 		(uint64)(s & 0x7fffff) << 29;	// mantissa
+@@ -199,6 +219,10 @@ dataprocess(uint32* pc)
+ 	} else {
+ 		fraw0 = m->freg[lhs];
+ 		fraw1 = frhs(rhs);
++		if (isNaN(float64frombits(fraw0)) || isNaN(float64frombits(fraw1))) {
++			m->freg[dest] = DNAN;
++			goto ret;
++		}
+ 		switch (opcode) {
+ 		case 2: // suf
+ 			fraw1 ^= 0x1ll << 63;
+@@ -236,6 +260,10 @@ dataprocess(uint32* pc)
+ 				if (0x1ll<<expd & fsd)
+ 					break;
+ 			}
++			if (expd - 52 < 0)
++				fsd <<= -(expd - 52);
++			else
++				fsd >>= expd - 52;
+ 			if (exp0 > exp1)
+ 				exp = expd + exp0 - 52;
+ 			else
+@@ -255,6 +283,15 @@ dataprocess(uint32* pc)
+ 			goto ret;
+ 
+ 		case 4: //dvf
++			if ((fraw1 & ~(1ull<<63)) == 0) {
++				if ((fraw0 & ~(1ull<<63)) == 0) {
++					m->freg[dest] = DNAN;
++				} else {
++					sign = fraw0 & 1ull<<63 ^ fraw1 & 1ull<<63;
++					m->freg[dest] = sign | DINF;
++				}
++				goto ret;
++			}
+ 			// reciprocal for fraw1
+ 			if (fraw1 == DONE)
+ 				goto muf;
+@@ -558,7 +595,7 @@ stepflt(uint32 *pc, uint32 *regs)
+ 		if (i & 0x00800000) {
+ 			return 0;
+ 		}
+-		return i & 0x007ffffff + 2;
++		return (i & 0x007fffff) + 2;
+ 	}
+ 	
+ 	c = i >> 25 & 7;
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 4d19904f0f..39db7c6a25 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -18,7 +18,7 @@
+ ./cmp4.go
+ ./cmp5.go
+ ./cmplx.go
+-# ./cmplxdivide.go	# fail
++# ./cmplxdivide.go	# fail, BUG
+ ./cmplxdivide1.go
+ ./complit.go
+ ./compos.go
+@@ -42,8 +42,8 @@
+ ./empty.go
+ ./env.go
+ ./escape.go
+-# ./float_lit.go	# fail
+-# ./floatcmp.go	# fail
++./float_lit.go
++# ./floatcmp.go	# fail, BUG
+ ./for.go
+ ./func.go
+ ./func1.go
+@@ -65,13 +65,13 @@
+ ./indirect.go
+ ./indirect1.go
+ ./initcomma.go
+-# ./initialize.go	# fail
++# ./initialize.go	# fail, BUG
+ ./initializerr.go
+ ./initsyscall.go
+ ./int_lit.go
+ ./intcvt.go
+ ./iota.go
+-# ./literal.go	# fail
++./literal.go
+ ./malloc1.go
+ # ./mallocfin.go	# fail
+ ./mallocrand.go
+@@ -82,14 +82,14 @@
+ ./method1.go
+ ./method2.go
+ ./method3.go
+-# ./named.go	# fail
++./named.go
+ ./named1.go
+ ./nil.go
+ ./nul1.go
+ ./parentype.go
+ ./peano.go
+ ./printbig.go
+-# ./range.go	# fail
++./range.go
+ ./recover.go
+ ./recover1.go
+ ./recover2.go
+@@ -106,7 +106,6 @@
+ ./stringrange.go
+ ./switch.go
+ ./switch1.go
+-./test.go
+ ./test0.go
+ ./turing.go
+ ./typeswitch.go
+@@ -117,7 +116,7 @@
+ ./varerr.go
+ ./varinit.go
+ ./vectors.go
+-# ./zerodivide.go	# fail
++./zerodivide.go
+ ken/array.go
+ ken/chan.go
+ ken/chan1.go
+@@ -126,7 +125,7 @@ ken/cplx0.go
+ # ken/cplx1.go	# fail
+ # ken/cplx2.go	# fail
+ ken/cplx3.go
+-# ken/cplx4.go	# fail
++# ken/cplx4.go	# fail, BUG
+ ken/cplx5.go
+ ken/divconst.go
+ ken/divmod.go
+@@ -148,9 +147,9 @@ ken/robfor.go
+ ken/robfunc.go
+ ken/robif.go
+ ken/shift.go
+-# ken/simparray.go	# fail
++ken/simparray.go
+ ken/simpbool.go
+-# ken/simpconv.go	# fail
++ken/simpconv.go
+ ken/simpfun.go
+ ken/simpprint.go
+ ken/simpswitch.go
+@@ -168,6 +167,7 @@ chan/powser1.go
+ chan/powser2.go
+ chan/select.go
+ chan/select2.go
++# chan/select3.go	# fail
+ chan/sieve1.go
+ chan/sieve2.go
+ interface/bigdata.go
+@@ -460,6 +460,7 @@ fixedbugs/bug270.go
+ fixedbugs/bug271.go
+ # fixedbugs/bug272.go	# fail
+ fixedbugs/bug273.go
++fixedbugs/bug274.go
+ fixedbugs/bug275.go
+ fixedbugs/bug276.go
+ fixedbugs/bug277.go
+@@ -471,8 +472,17 @@ fixedbugs/bug282.go
+ fixedbugs/bug283.go
+ fixedbugs/bug284.go
+ fixedbugs/bug285.go
++fixedbugs/bug286.go
+ fixedbugs/bug287.go
+ fixedbugs/bug288.go
++fixedbugs/bug289.go
++fixedbugs/bug290.go
++fixedbugs/bug291.go
++fixedbugs/bug292.go
++fixedbugs/bug293.go
++fixedbugs/bug294.go
++fixedbugs/bug295.go
++fixedbugs/bug296.go
++fixedbugs/bug297.go
++fixedbugs/bug298.go
+ # bugs/bug260.go	# fail, BUG
+-# bugs/bug274.go	# fail, BUG
+-# bugs/bug286.go	# fail, BUG
+diff --git a/test/golden-arm.out b/test/golden-arm.out
+index a8628fe1b6..a0c7a9a8b4 100644
+--- a/test/golden-arm.out
++++ b/test/golden-arm.out
+@@ -21,7 +21,7 @@ panic PC=xxx
+ 
+ =========== ./deferprint.go
+ printing: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+-42 true false true +1.755561e+000 world 0x0 [0/0]0x0 0x0 0x0 255
++42 true false true +1.500000e+000 world 0x0 [0/0]0x0 0x0 0x0 255
+ 
+ =========== ./helloworld.go
+ hello, world
+@@ -51,25 +51,49 @@ FAIL
+ =========== ./turing.go
+ Hello World!
+ 
++=========== ./zerodivide.go
++int 0/0: expected "divide"; got no error
++int8 0/0: expected "divide"; got no error
++int16 0/0: expected "divide"; got no error
++int32 0/0: expected "divide"; got no error
++int64 0/0: expected "divide"; got no error
++int 1/0: expected "divide"; got no error
++int8 1/0: expected "divide"; got no error
++int16 1/0: expected "divide"; got no error
++int32 1/0: expected "divide"; got no error
++int64 1/0: expected "divide"; got no error
++uint 0/0: expected "divide"; got no error
++uint8 0/0: expected "divide"; got no error
++uint16 0/0: expected "divide"; got no error
++uint32 0/0: expected "divide"; got no error
++uint64 0/0: expected "divide"; got no error
++uintptr 0/0: expected "divide"; got no error
++uint 1/0: expected "divide"; got no error
++uint8 1/0: expected "divide"; got no error
++uint16 1/0: expected "divide"; got no error
++uint32 1/0: expected "divide"; got no error
++uint64 1/0: expected "divide"; got no error
++uintptr 1/0: expected "divide"; got no error
++
+ =========== ken/cplx0.go
+-(+1.066132e-308+1.313303e-308i)
+-(+1.066132e-308+1.066132e-308i)
+-(+1.066132e-308+1.313303e-308i)
+-(+1.066132e-308+1.066132e-308i)
++(+1.112538e-308+1.278303e-308i)
++(+1.112538e-308+1.112538e-308i)
++(+1.112538e-308+1.278303e-308i)
++(+1.112538e-308+1.112538e-308i)
+ 
+ =========== ken/cplx3.go
+-(+1.362661e-308+2.270313e+000i)
+-(+1.362661e-308+2.270313e+000i)
++(+1.436040e-308+2.250626e+000i)
++(+1.436040e-308+2.250626e+000i)
+ 64
+ 
+ =========== ken/cplx5.go
+ (+0.000000e+000+0.000000e+000i)
+-(+1.066132e-308+1.066132e-308i)
+-(+1.066132e-308+2.272661e+000i)
+-(+2.270313e+000+2.272661e+000i)
+-(+2.270313e+000+2.272661e+000i)
+-(+1.313272e-308+0.000000e+000i)
+-(+1.313272e-308+0.000000e+000i)
++(+1.112550e-308+1.112550e-308i)
++(+1.112537e-308+2.382812e+000i)
++(+2.250015e+000+2.382812e+000i)
++(+2.250015e+000+2.382812e+000i)
++(+1.251430e-308+0.000000e+000i)
++(+1.251430e-308+0.000000e+000i)
+ 
+ =========== ken/intervar.go
+  print 1 bio 2 file 3 -- abc
+diff --git a/test/literal.go b/test/literal.go
+index bd231eae22..b1e1626bac 100644
+--- a/test/literal.go
++++ b/test/literal.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "os"
++
+ var nbad int
+ 
+ func assert(cond bool, msg string) {
+@@ -18,6 +20,19 @@ func assert(cond bool, msg string) {
+ 	}
+ }
+ 
++func equal(a, b float) bool {
++	if os.Getenv("GOARCH") != "arm" {
++		return a == b
++	}
++	d := a-b
++	if a > b {
++		return d < a * 1.0e-7
++	}
++	d = -d
++	return d < b * 1.0e-7
++}
++
++
+ func main() {
+ 	// bool
+ 	var t bool = true;
+@@ -134,12 +149,12 @@ func main() {
+ 	assert(f04 == f05, "f04");
+ 	assert(f05 == f06, "f05");
+ 	assert(f07 == -f08, "f07");
+-	assert(f09 == 1/f10, "f09");
++	assert(equal(f09, 1/f10), "f09");
+ 	assert(f11 == f09, "f11");
+ 	assert(f12 == f10, "f12");
+-	assert(f13 == f09/10.0, "f13");
+-	assert(f14 == f12/10.0, "f14");
+-	assert(f15 == f16/1e20, "f15");
++	assert(equal(f13, f09/10.0), "f13");
++	assert(equal(f14, f12/10.0), "f14");
++	assert(equal(f15, f16/1e20), "f15");
+ 
+ 	// character
+ 	var c0 uint8 = 'a';

@@ -8,6 +8,20 @@ Date:   Tue Jun 15 17:40:47 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1680042
-
+---
  src/pkg/bytes/buffer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index 32571d8d8e..01e6aef674 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -134,7 +134,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err os.Error) {
+ 			b.off = 0
+ 		}
+ 		m, e := r.Read(b.buf[len(b.buf):cap(b.buf)])
+-		b.buf = b.buf[b.off : len(b.buf)+m]
++		b.buf = b.buf[0 : len(b.buf)+m]
+ 		n += int64(m)
+ 		if e == os.EOF {
+ 			break

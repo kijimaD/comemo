@@ -7,9 +7,159 @@ Date:   Thu Sep 15 08:09:43 2011 +1000
     R=adg, r, edsrzf, rsc, r
     CC=golang-dev
     https://golang.org/cl/4962052
-
+---
  src/pkg/json/decode.go      | 46 +++++++++++++++++++++++----------------------
  src/pkg/json/decode_test.go |  4 ++++
  src/pkg/json/encode.go      | 16 ++++++++++++----
  src/pkg/json/encode_test.go |  2 ++
  4 files changed, 42 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index b7129f9846..268747dc60 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -391,11 +391,6 @@ func (d *decodeState) array(v reflect.Value) {
+ 	}
+ }
+ 
+-// matchName returns true if key should be written to a field named name.
+-func matchName(key, name string) bool {
+-	return strings.ToLower(key) == strings.ToLower(name)
+-}
+-
+ // object consumes an object from d.data[d.off-1:], decoding into the value v.
+ // the first byte of the object ('{') has been read already.
+ func (d *decodeState) object(v reflect.Value) {
+@@ -485,24 +480,31 @@ func (d *decodeState) object(v reflect.Value) {
+ 			var f reflect.StructField
+ 			var ok bool
+ 			st := sv.Type()
+-			// First try for field with that tag.
+-			if isValidTag(key) {
+-				for i := 0; i < sv.NumField(); i++ {
+-					f = st.Field(i)
+-					tagName, _ := parseTag(f.Tag.Get("json"))
+-					if tagName == key {
+-						ok = true
+-						break
+-					}
++			for i := 0; i < sv.NumField(); i++ {
++				sf := st.Field(i)
++				tag := sf.Tag.Get("json")
++				if tag == "-" {
++					// Pretend this field doesn't exist.
++					continue
++				}
++				// First, tag match
++				tagName, _ := parseTag(tag)
++				if tagName == key {
++					f = sf
++					ok = true
++					break // no better match possible
++				}
++				// Second, exact field name match
++				if sf.Name == key {
++					f = sf
++					ok = true
++				}
++				// Third, case-insensitive field name match,
++				// but only if a better match hasn't already been seen
++				if !ok && strings.ToLower(sf.Name) == strings.ToLower(key) {
++					f = sf
++					ok = true
+ 				}
+-			}
+-			if !ok {
+-				// Second, exact match.
+-				f, ok = st.FieldByName(key)
+-			}
+-			if !ok {
+-				// Third, case-insensitive match.
+-				f, ok = st.FieldByNameFunc(func(s string) bool { return matchName(key, s) })
+ 			}
+ 
+ 			// Extract value; name must be exported.
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index c6d4fa0591..2c7cbc4a29 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -15,6 +15,7 @@ import (
+ type T struct {
+ 	X string
+ 	Y int
++	Z int `json:"-"`
+ }
+ 
+ type tx struct {
+@@ -68,6 +69,9 @@ var unmarshalTests = []unmarshalTest{
+ 	{`{"X": [1,2,3], "Y": 4}`, new(T), T{Y: 4}, &UnmarshalTypeError{"array", reflect.TypeOf("")}},
+ 	{`{"x": 1}`, new(tx), tx{}, &UnmarshalFieldError{"x", txType, txType.Field(0)}},
+ 
++	// Z has a "-" tag.
++	{`{"Y": 1, "Z": 2}`, new(T), T{Y: 1}, nil},
++
+ 	// syntax errors
+ 	{`{"X": "foo", "Y"}`, nil, nil, &SyntaxError{"invalid character '}' after object key", 17}},
+ 
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index 16be5e2af1..71d927d638 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -40,18 +40,23 @@ import (
+ // []byte encodes as a base64-encoded string.
+ //
+ // Struct values encode as JSON objects. Each exported struct field
+-// becomes a member of the object unless the field is empty and its tag
+-// specifies the "omitempty" option. The empty values are false, 0, any
++// becomes a member of the object unless
++//   - the field's tag is "-", or
++//   - the field is empty and its tag specifies the "omitempty" option.
++// The empty values are false, 0, any
+ // nil pointer or interface value, and any array, slice, map, or string of
+ // length zero. The object's default key string is the struct field name
+ // but can be specified in the struct field's tag value. The "json" key in
+ // struct field's tag value is the key name, followed by an optional comma
+ // and options. Examples:
+ //
+-//   // Specifies that Field appears in JSON as key "myName"
++//   // Field is ignored by this package.
++//   Field int `json:"-"`
++//
++//   // Field appears in JSON as key "myName".
+ //   Field int `json:"myName"`
+ //
+-//   // Specifies that Field appears in JSON as key "myName" and
++//   // Field appears in JSON as key "myName" and
+ //   // the field is omitted from the object if its value is empty,
+ //   // as defined above.
+ //   Field int `json:"myName,omitempty"`
+@@ -298,6 +303,9 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
+ 			}
+ 			tag, omitEmpty, quoted := f.Name, false, false
+ 			if tv := f.Tag.Get("json"); tv != "" {
++				if tv == "-" {
++					continue
++				}
+ 				name, opts := parseTag(tv)
+ 				if isValidTag(name) {
+ 					tag = name
+diff --git a/src/pkg/json/encode_test.go b/src/pkg/json/encode_test.go
+index 012e9f143b..f85bb6216a 100644
+--- a/src/pkg/json/encode_test.go
++++ b/src/pkg/json/encode_test.go
+@@ -13,6 +13,7 @@ import (
+ type Optionals struct {
+ 	Sr string `json:"sr"`
+ 	So string `json:"so,omitempty"`
++	Sw string `json:"-"`
+ 
+ 	Ir int `json:"omitempty"` // actually named omitempty, not an option
+ 	Io int `json:"io,omitempty"`
+@@ -33,6 +34,7 @@ var optionalsExpected = `{
+ 
+ func TestOmitEmpty(t *testing.T) {
+ 	var o Optionals
++	o.Sw = "something"
+ 	o.Mr = map[string]interface{}{}
+ 	o.Mo = map[string]interface{}{}
+ 

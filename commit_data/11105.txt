@@ -16,7 +16,7 @@ Date:   Wed Jan 11 08:35:32 2012 -0500
     R=bradfitz, r
     CC=golang-dev
     https://golang.org/cl/5528044
-
+---
  src/pkg/crypto/openpgp/armor/armor.go              |   4 +-
  src/pkg/crypto/openpgp/{error => errors}/Makefile  |   4 +-
  .../openpgp/{error/error.go => errors/errors.go}   |   4 +-
@@ -38,3 +38,1515 @@ Date:   Wed Jan 11 08:35:32 2012 -0500
  src/pkg/crypto/openpgp/s2k/s2k.go                  |   8 +-
  src/pkg/crypto/openpgp/write.go                    |  20 ++--
  20 files changed, 244 insertions(+), 169 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/armor/armor.go b/src/pkg/crypto/openpgp/armor/armor.go
+index 3bbb5dc351..96957ab1b4 100644
+--- a/src/pkg/crypto/openpgp/armor/armor.go
++++ b/src/pkg/crypto/openpgp/armor/armor.go
+@@ -9,7 +9,7 @@ package armor
+ import (
+ 	"bufio"
+ 	"bytes"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	"encoding/base64"
+ 	"io"
+ )
+@@ -35,7 +35,7 @@ type Block struct {
+ 	oReader openpgpReader
+ }
+ 
+-var ArmorCorrupt error = error_.StructuralError("armor invalid")
++var ArmorCorrupt error = errors.StructuralError("armor invalid")
+ 
+ const crc24Init = 0xb704ce
+ const crc24Poly = 0x1864cfb
+diff --git a/src/pkg/crypto/openpgp/error/Makefile b/src/pkg/crypto/openpgp/errors/Makefile
+similarity index 85%
+rename from src/pkg/crypto/openpgp/error/Makefile
+rename to src/pkg/crypto/openpgp/errors/Makefile
+index 8c370a0894..4611cd0fff 100644
+--- a/src/pkg/crypto/openpgp/error/Makefile
++++ b/src/pkg/crypto/openpgp/errors/Makefile
+@@ -4,8 +4,8 @@
+ 
+ include ../../../../Make.inc
+ 
+-TARG=crypto/openpgp/error
++TARG=crypto/openpgp/errors
+ GOFILES=\
+-	error.go\
++	errors.go\
+ 
+ include ../../../../Make.pkg
+diff --git a/src/pkg/crypto/openpgp/error/error.go b/src/pkg/crypto/openpgp/errors/errors.go
+similarity index 94%
+rename from src/pkg/crypto/openpgp/error/error.go
+rename to src/pkg/crypto/openpgp/errors/errors.go
+index ceeb054194..c434b764c9 100644
+--- a/src/pkg/crypto/openpgp/error/error.go
++++ b/src/pkg/crypto/openpgp/errors/errors.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package error contains common error types for the OpenPGP packages.
+-package error
++// Package errors contains common error types for the OpenPGP packages.
++package errors
+ 
+ import (
+ 	"strconv"
+diff --git a/src/pkg/crypto/openpgp/keys.go b/src/pkg/crypto/openpgp/keys.go
+index 74e7d239e0..624a5ea8a7 100644
+--- a/src/pkg/crypto/openpgp/keys.go
++++ b/src/pkg/crypto/openpgp/keys.go
+@@ -7,8 +7,9 @@ package openpgp
+ import (
+ 	"crypto"
+ 	"crypto/openpgp/armor"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	"crypto/openpgp/packet"
++	"crypto/rand"
+ 	"crypto/rsa"
+ 	"io"
+ 	"time"
+@@ -181,13 +182,13 @@ func (el EntityList) DecryptionKeys() (keys []Key) {
+ func ReadArmoredKeyRing(r io.Reader) (EntityList, error) {
+ 	block, err := armor.Decode(r)
+ 	if err == io.EOF {
+-		return nil, error_.InvalidArgumentError("no armored data found")
++		return nil, errors.InvalidArgumentError("no armored data found")
+ 	}
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	if block.Type != PublicKeyType && block.Type != PrivateKeyType {
+-		return nil, error_.InvalidArgumentError("expected public or private key block, got: " + block.Type)
++		return nil, errors.InvalidArgumentError("expected public or private key block, got: " + block.Type)
+ 	}
+ 
+ 	return ReadKeyRing(block.Body)
+@@ -203,7 +204,7 @@ func ReadKeyRing(r io.Reader) (el EntityList, err error) {
+ 		var e *Entity
+ 		e, err = readEntity(packets)
+ 		if err != nil {
+-			if _, ok := err.(error_.UnsupportedError); ok {
++			if _, ok := err.(errors.UnsupportedError); ok {
+ 				lastUnsupportedError = err
+ 				err = readToNextPublicKey(packets)
+ 			}
+@@ -235,7 +236,7 @@ func readToNextPublicKey(packets *packet.Reader) (err error) {
+ 		if err == io.EOF {
+ 			return
+ 		} else if err != nil {
+-			if _, ok := err.(error_.UnsupportedError); ok {
++			if _, ok := err.(errors.UnsupportedError); ok {
+ 				err = nil
+ 				continue
+ 			}
+@@ -266,14 +267,14 @@ func readEntity(packets *packet.Reader) (*Entity, error) {
+ 	if e.PrimaryKey, ok = p.(*packet.PublicKey); !ok {
+ 		if e.PrivateKey, ok = p.(*packet.PrivateKey); !ok {
+ 			packets.Unread(p)
+-			return nil, error_.StructuralError("first packet was not a public/private key")
++			return nil, errors.StructuralError("first packet was not a public/private key")
+ 		} else {
+ 			e.PrimaryKey = &e.PrivateKey.PublicKey
+ 		}
+ 	}
+ 
+ 	if !e.PrimaryKey.PubKeyAlgo.CanSign() {
+-		return nil, error_.StructuralError("primary key cannot be used for signatures")
++		return nil, errors.StructuralError("primary key cannot be used for signatures")
+ 	}
+ 
+ 	var current *Identity
+@@ -303,12 +304,12 @@ EachPacket:
+ 
+ 				sig, ok := p.(*packet.Signature)
+ 				if !ok {
+-					return nil, error_.StructuralError("user ID packet not followed by self-signature")
++					return nil, errors.StructuralError("user ID packet not followed by self-signature")
+ 				}
+ 
+ 				if (sig.SigType == packet.SigTypePositiveCert || sig.SigType == packet.SigTypeGenericCert) && sig.IssuerKeyId != nil && *sig.IssuerKeyId == e.PrimaryKey.KeyId {
+ 					if err = e.PrimaryKey.VerifyUserIdSignature(pkt.Id, sig); err != nil {
+-						return nil, error_.StructuralError("user ID self-signature invalid: " + err.Error())
++						return nil, errors.StructuralError("user ID self-signature invalid: " + err.Error())
+ 					}
+ 					current.SelfSignature = sig
+ 					break
+@@ -317,7 +318,7 @@ EachPacket:
+ 			}
+ 		case *packet.Signature:
+ 			if current == nil {
+-				return nil, error_.StructuralError("signature packet found before user id packet")
++				return nil, errors.StructuralError("signature packet found before user id packet")
+ 			}
+ 			current.Signatures = append(current.Signatures, pkt)
+ 		case *packet.PrivateKey:
+@@ -344,7 +345,7 @@ EachPacket:
+ 	}
+ 
+ 	if len(e.Identities) == 0 {
+-		return nil, error_.StructuralError("entity without any identities")
++		return nil, errors.StructuralError("entity without any identities")
+ 	}
+ 
+ 	return e, nil
+@@ -359,19 +360,19 @@ func addSubkey(e *Entity, packets *packet.Reader, pub *packet.PublicKey, priv *p
+ 		return io.ErrUnexpectedEOF
+ 	}
+ 	if err != nil {
+-		return error_.StructuralError("subkey signature invalid: " + err.Error())
++		return errors.StructuralError("subkey signature invalid: " + err.Error())
+ 	}
+ 	var ok bool
+ 	subKey.Sig, ok = p.(*packet.Signature)
+ 	if !ok {
+-		return error_.StructuralError("subkey packet not followed by signature")
++		return errors.StructuralError("subkey packet not followed by signature")
+ 	}
+ 	if subKey.Sig.SigType != packet.SigTypeSubkeyBinding {
+-		return error_.StructuralError("subkey signature with wrong type")
++		return errors.StructuralError("subkey signature with wrong type")
+ 	}
+ 	err = e.PrimaryKey.VerifyKeySignature(subKey.PublicKey, subKey.Sig)
+ 	if err != nil {
+-		return error_.StructuralError("subkey signature invalid: " + err.Error())
++		return errors.StructuralError("subkey signature invalid: " + err.Error())
+ 	}
+ 	e.Subkeys = append(e.Subkeys, subKey)
+ 	return nil
+@@ -385,7 +386,7 @@ const defaultRSAKeyBits = 2048
+ func NewEntity(rand io.Reader, currentTime time.Time, name, comment, email string) (*Entity, error) {
+ 	uid := packet.NewUserId(name, comment, email)
+ 	if uid == nil {
+-		return nil, error_.InvalidArgumentError("user id field contained invalid characters")
++		return nil, errors.InvalidArgumentError("user id field contained invalid characters")
+ 	}
+ 	signingPriv, err := rsa.GenerateKey(rand, defaultRSAKeyBits)
+ 	if err != nil {
+@@ -397,8 +398,8 @@ func NewEntity(rand io.Reader, currentTime time.Time, name, comment, email strin
+ 	}
+ 
+ 	e := &Entity{
+-		PrimaryKey: packet.NewRSAPublicKey(currentTime, &signingPriv.PublicKey, false /* not a subkey */ ),
+-		PrivateKey: packet.NewRSAPrivateKey(currentTime, signingPriv, false /* not a subkey */ ),
++		PrimaryKey: packet.NewRSAPublicKey(currentTime, &signingPriv.PublicKey),
++		PrivateKey: packet.NewRSAPrivateKey(currentTime, signingPriv),
+ 		Identities: make(map[string]*Identity),
+ 	}
+ 	isPrimaryId := true
+@@ -420,8 +421,8 @@ func NewEntity(rand io.Reader, currentTime time.Time, name, comment, email strin
+ 
+ 	e.Subkeys = make([]Subkey, 1)
+ 	e.Subkeys[0] = Subkey{
+-		PublicKey:  packet.NewRSAPublicKey(currentTime, &encryptingPriv.PublicKey, true /* is a subkey */ ),
+-		PrivateKey: packet.NewRSAPrivateKey(currentTime, encryptingPriv, true /* is a subkey */ ),
++		PublicKey:  packet.NewRSAPublicKey(currentTime, &encryptingPriv.PublicKey),
++		PrivateKey: packet.NewRSAPrivateKey(currentTime, encryptingPriv),
+ 		Sig: &packet.Signature{
+ 			CreationTime:              currentTime,
+ 			SigType:                   packet.SigTypeSubkeyBinding,
+@@ -433,6 +434,8 @@ func NewEntity(rand io.Reader, currentTime time.Time, name, comment, email strin
+ 			IssuerKeyId:               &e.PrimaryKey.KeyId,
+ 		},
+ 	}
++	e.Subkeys[0].PublicKey.IsSubkey = true
++	e.Subkeys[0].PrivateKey.IsSubkey = true
+ 
+ 	return e, nil
+ }
+@@ -450,7 +453,7 @@ func (e *Entity) SerializePrivate(w io.Writer) (err error) {
+ 		if err != nil {
+ 			return
+ 		}
+-		err = ident.SelfSignature.SignUserId(ident.UserId.Id, e.PrimaryKey, e.PrivateKey)
++		err = ident.SelfSignature.SignUserId(rand.Reader, ident.UserId.Id, e.PrimaryKey, e.PrivateKey)
+ 		if err != nil {
+ 			return
+ 		}
+@@ -464,7 +467,7 @@ func (e *Entity) SerializePrivate(w io.Writer) (err error) {
+ 		if err != nil {
+ 			return
+ 		}
+-		err = subkey.Sig.SignKey(subkey.PublicKey, e.PrivateKey)
++		err = subkey.Sig.SignKey(rand.Reader, subkey.PublicKey, e.PrivateKey)
+ 		if err != nil {
+ 			return
+ 		}
+@@ -518,14 +521,14 @@ func (e *Entity) Serialize(w io.Writer) error {
+ // necessary.
+ func (e *Entity) SignIdentity(identity string, signer *Entity) error {
+ 	if signer.PrivateKey == nil {
+-		return error_.InvalidArgumentError("signing Entity must have a private key")
++		return errors.InvalidArgumentError("signing Entity must have a private key")
+ 	}
+ 	if signer.PrivateKey.Encrypted {
+-		return error_.InvalidArgumentError("signing Entity's private key must be decrypted")
++		return errors.InvalidArgumentError("signing Entity's private key must be decrypted")
+ 	}
+ 	ident, ok := e.Identities[identity]
+ 	if !ok {
+-		return error_.InvalidArgumentError("given identity string not found in Entity")
++		return errors.InvalidArgumentError("given identity string not found in Entity")
+ 	}
+ 
+ 	sig := &packet.Signature{
+@@ -535,7 +538,7 @@ func (e *Entity) SignIdentity(identity string, signer *Entity) error {
+ 		CreationTime: time.Now(),
+ 		IssuerKeyId:  &signer.PrivateKey.KeyId,
+ 	}
+-	if err := sig.SignKey(e.PrimaryKey, signer.PrivateKey); err != nil {
++	if err := sig.SignKey(rand.Reader, e.PrimaryKey, signer.PrivateKey); err != nil {
+ 		return err
+ 	}
+ 	ident.Signatures = append(ident.Signatures, sig)
+diff --git a/src/pkg/crypto/openpgp/packet/compressed.go b/src/pkg/crypto/openpgp/packet/compressed.go
+index f80d798cfe..36736e34a0 100644
+--- a/src/pkg/crypto/openpgp/packet/compressed.go
++++ b/src/pkg/crypto/openpgp/packet/compressed.go
+@@ -7,7 +7,7 @@ package packet
+ import (
+ 	"compress/flate"
+ 	"compress/zlib"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	"io"
+ 	"strconv"
+ )
+@@ -31,7 +31,7 @@ func (c *Compressed) parse(r io.Reader) error {
+ 	case 2:
+ 		c.Body, err = zlib.NewReader(r)
+ 	default:
+-		err = error_.UnsupportedError("unknown compression algorithm: " + strconv.Itoa(int(buf[0])))
++		err = errors.UnsupportedError("unknown compression algorithm: " + strconv.Itoa(int(buf[0])))
+ 	}
+ 
+ 	return err
+diff --git a/src/pkg/crypto/openpgp/packet/encrypted_key.go b/src/pkg/crypto/openpgp/packet/encrypted_key.go
+index b24fa3a3fd..479a643935 100644
+--- a/src/pkg/crypto/openpgp/packet/encrypted_key.go
++++ b/src/pkg/crypto/openpgp/packet/encrypted_key.go
+@@ -6,7 +6,7 @@ package packet
+ 
+ import (
+ 	"crypto/openpgp/elgamal"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	"crypto/rand"
+ 	"crypto/rsa"
+ 	"encoding/binary"
+@@ -35,7 +35,7 @@ func (e *EncryptedKey) parse(r io.Reader) (err error) {
+ 		return
+ 	}
+ 	if buf[0] != encryptedKeyVersion {
+-		return error_.UnsupportedError("unknown EncryptedKey version " + strconv.Itoa(int(buf[0])))
++		return errors.UnsupportedError("unknown EncryptedKey version " + strconv.Itoa(int(buf[0])))
+ 	}
+ 	e.KeyId = binary.BigEndian.Uint64(buf[1:9])
+ 	e.Algo = PublicKeyAlgorithm(buf[9])
+@@ -77,7 +77,7 @@ func (e *EncryptedKey) Decrypt(priv *PrivateKey) error {
+ 		c2 := new(big.Int).SetBytes(e.encryptedMPI2)
+ 		b, err = elgamal.Decrypt(priv.PrivateKey.(*elgamal.PrivateKey), c1, c2)
+ 	default:
+-		err = error_.InvalidArgumentError("cannot decrypted encrypted session key with private key of type " + strconv.Itoa(int(priv.PubKeyAlgo)))
++		err = errors.InvalidArgumentError("cannot decrypted encrypted session key with private key of type " + strconv.Itoa(int(priv.PubKeyAlgo)))
+ 	}
+ 
+ 	if err != nil {
+@@ -89,7 +89,7 @@ func (e *EncryptedKey) Decrypt(priv *PrivateKey) error {
+ 	expectedChecksum := uint16(b[len(b)-2])<<8 | uint16(b[len(b)-1])
+ 	checksum := checksumKeyMaterial(e.Key)
+ 	if checksum != expectedChecksum {
+-		return error_.StructuralError("EncryptedKey checksum incorrect")
++		return errors.StructuralError("EncryptedKey checksum incorrect")
+ 	}
+ 
+ 	return nil
+@@ -116,16 +116,16 @@ func SerializeEncryptedKey(w io.Writer, rand io.Reader, pub *PublicKey, cipherFu
+ 	case PubKeyAlgoElGamal:
+ 		return serializeEncryptedKeyElGamal(w, rand, buf, pub.PublicKey.(*elgamal.PublicKey), keyBlock)
+ 	case PubKeyAlgoDSA, PubKeyAlgoRSASignOnly:
+-		return error_.InvalidArgumentError("cannot encrypt to public key of type " + strconv.Itoa(int(pub.PubKeyAlgo)))
++		return errors.InvalidArgumentError("cannot encrypt to public key of type " + strconv.Itoa(int(pub.PubKeyAlgo)))
+ 	}
+ 
+-	return error_.UnsupportedError("encrypting a key to public key of type " + strconv.Itoa(int(pub.PubKeyAlgo)))
++	return errors.UnsupportedError("encrypting a key to public key of type " + strconv.Itoa(int(pub.PubKeyAlgo)))
+ }
+ 
+ func serializeEncryptedKeyRSA(w io.Writer, rand io.Reader, header [10]byte, pub *rsa.PublicKey, keyBlock []byte) error {
+ 	cipherText, err := rsa.EncryptPKCS1v15(rand, pub, keyBlock)
+ 	if err != nil {
+-		return error_.InvalidArgumentError("RSA encryption failed: " + err.Error())
++		return errors.InvalidArgumentError("RSA encryption failed: " + err.Error())
+ 	}
+ 
+ 	packetLen := 10 /* header length */ + 2 /* mpi size */ + len(cipherText)
+@@ -144,7 +144,7 @@ func serializeEncryptedKeyRSA(w io.Writer, rand io.Reader, header [10]byte, pub
+ func serializeEncryptedKeyElGamal(w io.Writer, rand io.Reader, header [10]byte, pub *elgamal.PublicKey, keyBlock []byte) error {
+ 	c1, c2, err := elgamal.Encrypt(rand, pub, keyBlock)
+ 	if err != nil {
+-		return error_.InvalidArgumentError("ElGamal encryption failed: " + err.Error())
++		return errors.InvalidArgumentError("ElGamal encryption failed: " + err.Error())
+ 	}
+ 
+ 	packetLen := 10 /* header length */
+diff --git a/src/pkg/crypto/openpgp/packet/one_pass_signature.go b/src/pkg/crypto/openpgp/packet/one_pass_signature.go
+index 13e6aa5aff..822cfe9b8f 100644
+--- a/src/pkg/crypto/openpgp/packet/one_pass_signature.go
++++ b/src/pkg/crypto/openpgp/packet/one_pass_signature.go
+@@ -6,7 +6,7 @@ package packet
+ 
+ import (
+ 	"crypto"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	"crypto/openpgp/s2k"
+ 	"encoding/binary"
+ 	"io"
+@@ -33,13 +33,13 @@ func (ops *OnePassSignature) parse(r io.Reader) (err error) {
+ 		return
+ 	}
+ 	if buf[0] != onePassSignatureVersion {
+-		err = error_.UnsupportedError("one-pass-signature packet version " + strconv.Itoa(int(buf[0])))
++		err = errors.UnsupportedError("one-pass-signature packet version " + strconv.Itoa(int(buf[0])))
+ 	}
+ 
+ 	var ok bool
+ 	ops.Hash, ok = s2k.HashIdToHash(buf[2])
+ 	if !ok {
+-		return error_.UnsupportedError("hash function: " + strconv.Itoa(int(buf[2])))
++		return errors.UnsupportedError("hash function: " + strconv.Itoa(int(buf[2])))
+ 	}
+ 
+ 	ops.SigType = SignatureType(buf[1])
+@@ -57,7 +57,7 @@ func (ops *OnePassSignature) Serialize(w io.Writer) error {
+ 	var ok bool
+ 	buf[2], ok = s2k.HashToHashId(ops.Hash)
+ 	if !ok {
+-		return error_.UnsupportedError("hash type: " + strconv.Itoa(int(ops.Hash)))
++		return errors.UnsupportedError("hash type: " + strconv.Itoa(int(ops.Hash)))
+ 	}
+ 	buf[3] = uint8(ops.PubKeyAlgo)
+ 	binary.BigEndian.PutUint64(buf[4:12], ops.KeyId)
+diff --git a/src/pkg/crypto/openpgp/packet/packet.go b/src/pkg/crypto/openpgp/packet/packet.go
+index 778df15c0b..f7c1964fd4 100644
+--- a/src/pkg/crypto/openpgp/packet/packet.go
++++ b/src/pkg/crypto/openpgp/packet/packet.go
+@@ -10,7 +10,7 @@ import (
+ 	"crypto/aes"
+ 	"crypto/cast5"
+ 	"crypto/cipher"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	"io"
+ 	"math/big"
+ )
+@@ -162,7 +162,7 @@ func readHeader(r io.Reader) (tag packetType, length int64, contents io.Reader,
+ 		return
+ 	}
+ 	if buf[0]&0x80 == 0 {
+-		err = error_.StructuralError("tag byte does not have MSB set")
++		err = errors.StructuralError("tag byte does not have MSB set")
+ 		return
+ 	}
+ 	if buf[0]&0x40 == 0 {
+@@ -337,7 +337,7 @@ func Read(r io.Reader) (p Packet, err error) {
+ 		se.MDC = true
+ 		p = se
+ 	default:
+-		err = error_.UnknownPacketTypeError(tag)
++		err = errors.UnknownPacketTypeError(tag)
+ 	}
+ 	if p != nil {
+ 		err = p.parse(contents)
+diff --git a/src/pkg/crypto/openpgp/packet/packet_test.go b/src/pkg/crypto/openpgp/packet/packet_test.go
+index 53266413c8..e4b8691419 100644
+--- a/src/pkg/crypto/openpgp/packet/packet_test.go
++++ b/src/pkg/crypto/openpgp/packet/packet_test.go
+@@ -6,7 +6,7 @@ package packet
+ 
+ import (
+ 	"bytes"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	"encoding/hex"
+ 	"fmt"
+ 	"io"
+@@ -152,7 +152,7 @@ func TestReadHeader(t *testing.T) {
+ 	for i, test := range readHeaderTests {
+ 		tag, length, contents, err := readHeader(readerFromHex(test.hexInput))
+ 		if test.structuralError {
+-			if _, ok := err.(error_.StructuralError); ok {
++			if _, ok := err.(errors.StructuralError); ok {
+ 				continue
+ 			}
+ 			t.Errorf("%d: expected StructuralError, got:%s", i, err)
+diff --git a/src/pkg/crypto/openpgp/packet/private_key.go b/src/pkg/crypto/openpgp/packet/private_key.go
+index d67e968861..5a90d0625f 100644
+--- a/src/pkg/crypto/openpgp/packet/private_key.go
++++ b/src/pkg/crypto/openpgp/packet/private_key.go
+@@ -9,7 +9,7 @@ import (
+ 	"crypto/cipher"
+ 	"crypto/dsa"
+ 	"crypto/openpgp/elgamal"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	"crypto/openpgp/s2k"
+ 	"crypto/rsa"
+ 	"crypto/sha1"
+@@ -28,14 +28,21 @@ type PrivateKey struct {
+ 	encryptedData []byte
+ 	cipher        CipherFunction
+ 	s2k           func(out, in []byte)
+-	PrivateKey    interface{} // An *rsa.PrivateKey.
++	PrivateKey    interface{} // An *rsa.PrivateKey or *dsa.PrivateKey.
+ 	sha1Checksum  bool
+ 	iv            []byte
+ }
+ 
+-func NewRSAPrivateKey(currentTime time.Time, priv *rsa.PrivateKey, isSubkey bool) *PrivateKey {
++func NewRSAPrivateKey(currentTime time.Time, priv *rsa.PrivateKey) *PrivateKey {
+ 	pk := new(PrivateKey)
+-	pk.PublicKey = *NewRSAPublicKey(currentTime, &priv.PublicKey, isSubkey)
++	pk.PublicKey = *NewRSAPublicKey(currentTime, &priv.PublicKey)
++	pk.PrivateKey = priv
++	return pk
++}
++
++func NewDSAPrivateKey(currentTime time.Time, priv *dsa.PrivateKey) *PrivateKey {
++	pk := new(PrivateKey)
++	pk.PublicKey = *NewDSAPublicKey(currentTime, &priv.PublicKey)
+ 	pk.PrivateKey = priv
+ 	return pk
+ }
+@@ -72,13 +79,13 @@ func (pk *PrivateKey) parse(r io.Reader) (err error) {
+ 			pk.sha1Checksum = true
+ 		}
+ 	default:
+-		return error_.UnsupportedError("deprecated s2k function in private key")
++		return errors.UnsupportedError("deprecated s2k function in private key")
+ 	}
+ 
+ 	if pk.Encrypted {
+ 		blockSize := pk.cipher.blockSize()
+ 		if blockSize == 0 {
+-			return error_.UnsupportedError("unsupported cipher in private key: " + strconv.Itoa(int(pk.cipher)))
++			return errors.UnsupportedError("unsupported cipher in private key: " + strconv.Itoa(int(pk.cipher)))
+ 		}
+ 		pk.iv = make([]byte, blockSize)
+ 		_, err = readFull(r, pk.iv)
+@@ -121,8 +128,10 @@ func (pk *PrivateKey) Serialize(w io.Writer) (err error) {
+ 	switch priv := pk.PrivateKey.(type) {
+ 	case *rsa.PrivateKey:
+ 		err = serializeRSAPrivateKey(privateKeyBuf, priv)
++	case *dsa.PrivateKey:
++		err = serializeDSAPrivateKey(privateKeyBuf, priv)
+ 	default:
+-		err = error_.InvalidArgumentError("non-RSA private key")
++		err = errors.InvalidArgumentError("unknown private key type")
+ 	}
+ 	if err != nil {
+ 		return
+@@ -172,6 +181,10 @@ func serializeRSAPrivateKey(w io.Writer, priv *rsa.PrivateKey) error {
+ 	return writeBig(w, priv.Precomputed.Qinv)
+ }
+ 
++func serializeDSAPrivateKey(w io.Writer, priv *dsa.PrivateKey) error {
++	return writeBig(w, priv.X)
++}
++
+ // Decrypt decrypts an encrypted private key using a passphrase.
+ func (pk *PrivateKey) Decrypt(passphrase []byte) error {
+ 	if !pk.Encrypted {
+@@ -188,18 +201,18 @@ func (pk *PrivateKey) Decrypt(passphrase []byte) error {
+ 
+ 	if pk.sha1Checksum {
+ 		if len(data) < sha1.Size {
+-			return error_.StructuralError("truncated private key data")
++			return errors.StructuralError("truncated private key data")
+ 		}
+ 		h := sha1.New()
+ 		h.Write(data[:len(data)-sha1.Size])
+ 		sum := h.Sum(nil)
+ 		if !bytes.Equal(sum, data[len(data)-sha1.Size:]) {
+-			return error_.StructuralError("private key checksum failure")
++			return errors.StructuralError("private key checksum failure")
+ 		}
+ 		data = data[:len(data)-sha1.Size]
+ 	} else {
+ 		if len(data) < 2 {
+-			return error_.StructuralError("truncated private key data")
++			return errors.StructuralError("truncated private key data")
+ 		}
+ 		var sum uint16
+ 		for i := 0; i < len(data)-2; i++ {
+@@ -207,7 +220,7 @@ func (pk *PrivateKey) Decrypt(passphrase []byte) error {
+ 		}
+ 		if data[len(data)-2] != uint8(sum>>8) ||
+ 			data[len(data)-1] != uint8(sum) {
+-			return error_.StructuralError("private key checksum failure")
++			return errors.StructuralError("private key checksum failure")
+ 		}
+ 		data = data[:len(data)-2]
+ 	}
+diff --git a/src/pkg/crypto/openpgp/packet/public_key.go b/src/pkg/crypto/openpgp/packet/public_key.go
+index 28d7d5420d..ba178b519e 100644
+--- a/src/pkg/crypto/openpgp/packet/public_key.go
++++ b/src/pkg/crypto/openpgp/packet/public_key.go
+@@ -7,7 +7,7 @@ package packet
+ import (
+ 	"crypto/dsa"
+ 	"crypto/openpgp/elgamal"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	"crypto/rsa"
+ 	"crypto/sha1"
+ 	"encoding/binary"
+@@ -39,12 +39,11 @@ func fromBig(n *big.Int) parsedMPI {
+ }
+ 
+ // NewRSAPublicKey returns a PublicKey that wraps the given rsa.PublicKey.
+-func NewRSAPublicKey(creationTime time.Time, pub *rsa.PublicKey, isSubkey bool) *PublicKey {
++func NewRSAPublicKey(creationTime time.Time, pub *rsa.PublicKey) *PublicKey {
+ 	pk := &PublicKey{
+ 		CreationTime: creationTime,
+ 		PubKeyAlgo:   PubKeyAlgoRSA,
+ 		PublicKey:    pub,
+-		IsSubkey:     isSubkey,
+ 		n:            fromBig(pub.N),
+ 		e:            fromBig(big.NewInt(int64(pub.E))),
+ 	}
+@@ -53,6 +52,22 @@ func NewRSAPublicKey(creationTime time.Time, pub *rsa.PublicKey, isSubkey bool)
+ 	return pk
+ }
+ 
++// NewDSAPublicKey returns a PublicKey that wraps the given rsa.PublicKey.
++func NewDSAPublicKey(creationTime time.Time, pub *dsa.PublicKey) *PublicKey {
++	pk := &PublicKey{
++		CreationTime: creationTime,
++		PubKeyAlgo:   PubKeyAlgoDSA,
++		PublicKey:    pub,
++		p:            fromBig(pub.P),
++		q:            fromBig(pub.Q),
++		g:            fromBig(pub.G),
++		y:            fromBig(pub.Y),
++	}
++
++	pk.setFingerPrintAndKeyId()
++	return pk
++}
++
+ func (pk *PublicKey) parse(r io.Reader) (err error) {
+ 	// RFC 4880, section 5.5.2
+ 	var buf [6]byte
+@@ -61,7 +76,7 @@ func (pk *PublicKey) parse(r io.Reader) (err error) {
+ 		return
+ 	}
+ 	if buf[0] != 4 {
+-		return error_.UnsupportedError("public key version")
++		return errors.UnsupportedError("public key version")
+ 	}
+ 	pk.CreationTime = time.Unix(int64(uint32(buf[1])<<24|uint32(buf[2])<<16|uint32(buf[3])<<8|uint32(buf[4])), 0)
+ 	pk.PubKeyAlgo = PublicKeyAlgorithm(buf[5])
+@@ -73,7 +88,7 @@ func (pk *PublicKey) parse(r io.Reader) (err error) {
+ 	case PubKeyAlgoElGamal:
+ 		err = pk.parseElGamal(r)
+ 	default:
+-		err = error_.UnsupportedError("public key type: " + strconv.Itoa(int(pk.PubKeyAlgo)))
++		err = errors.UnsupportedError("public key type: " + strconv.Itoa(int(pk.PubKeyAlgo)))
+ 	}
+ 	if err != nil {
+ 		return
+@@ -105,7 +120,7 @@ func (pk *PublicKey) parseRSA(r io.Reader) (err error) {
+ 	}
+ 
+ 	if len(pk.e.bytes) > 3 {
+-		err = error_.UnsupportedError("large public exponent")
++		err = errors.UnsupportedError("large public exponent")
+ 		return
+ 	}
+ 	rsa := &rsa.PublicKey{
+@@ -255,7 +270,7 @@ func (pk *PublicKey) serializeWithoutHeaders(w io.Writer) (err error) {
+ 	case PubKeyAlgoElGamal:
+ 		return writeMPIs(w, pk.p, pk.g, pk.y)
+ 	}
+-	return error_.InvalidArgumentError("bad public-key algorithm")
++	return errors.InvalidArgumentError("bad public-key algorithm")
+ }
+ 
+ // CanSign returns true iff this public key can generate signatures
+@@ -267,18 +282,18 @@ func (pk *PublicKey) CanSign() bool {
+ // public key, of the data hashed into signed. signed is mutated by this call.
+ func (pk *PublicKey) VerifySignature(signed hash.Hash, sig *Signature) (err error) {
+ 	if !pk.CanSign() {
+-		return error_.InvalidArgumentError("public key cannot generate signatures")
++		return errors.InvalidArgumentError("public key cannot generate signatures")
+ 	}
+ 
+ 	signed.Write(sig.HashSuffix)
+ 	hashBytes := signed.Sum(nil)
+ 
+ 	if hashBytes[0] != sig.HashTag[0] || hashBytes[1] != sig.HashTag[1] {
+-		return error_.SignatureError("hash tag doesn't match")
++		return errors.SignatureError("hash tag doesn't match")
+ 	}
+ 
+ 	if pk.PubKeyAlgo != sig.PubKeyAlgo {
+-		return error_.InvalidArgumentError("public key and signature use different algorithms")
++		return errors.InvalidArgumentError("public key and signature use different algorithms")
+ 	}
+ 
+ 	switch pk.PubKeyAlgo {
+@@ -286,7 +301,7 @@ func (pk *PublicKey) VerifySignature(signed hash.Hash, sig *Signature) (err erro
+ 		rsaPublicKey, _ := pk.PublicKey.(*rsa.PublicKey)
+ 		err = rsa.VerifyPKCS1v15(rsaPublicKey, sig.Hash, hashBytes, sig.RSASignature.bytes)
+ 		if err != nil {
+-			return error_.SignatureError("RSA verification failure")
++			return errors.SignatureError("RSA verification failure")
+ 		}
+ 		return nil
+ 	case PubKeyAlgoDSA:
+@@ -297,7 +312,7 @@ func (pk *PublicKey) VerifySignature(signed hash.Hash, sig *Signature) (err erro
+ 			hashBytes = hashBytes[:subgroupSize]
+ 		}
+ 		if !dsa.Verify(dsaPublicKey, hashBytes, new(big.Int).SetBytes(sig.DSASigR.bytes), new(big.Int).SetBytes(sig.DSASigS.bytes)) {
+-			return error_.SignatureError("DSA verification failure")
++			return errors.SignatureError("DSA verification failure")
+ 		}
+ 		return nil
+ 	default:
+@@ -311,7 +326,7 @@ func (pk *PublicKey) VerifySignature(signed hash.Hash, sig *Signature) (err erro
+ func keySignatureHash(pk, signed *PublicKey, sig *Signature) (h hash.Hash, err error) {
+ 	h = sig.Hash.New()
+ 	if h == nil {
+-		return nil, error_.UnsupportedError("hash function")
++		return nil, errors.UnsupportedError("hash function")
+ 	}
+ 
+ 	// RFC 4880, section 5.2.4
+@@ -337,7 +352,7 @@ func (pk *PublicKey) VerifyKeySignature(signed *PublicKey, sig *Signature) (err
+ func userIdSignatureHash(id string, pk *PublicKey, sig *Signature) (h hash.Hash, err error) {
+ 	h = sig.Hash.New()
+ 	if h == nil {
+-		return nil, error_.UnsupportedError("hash function")
++		return nil, errors.UnsupportedError("hash function")
+ 	}
+ 
+ 	// RFC 4880, section 5.2.4
+diff --git a/src/pkg/crypto/openpgp/packet/reader.go b/src/pkg/crypto/openpgp/packet/reader.go
+index e3d733cb02..1a3e8e2313 100644
+--- a/src/pkg/crypto/openpgp/packet/reader.go
++++ b/src/pkg/crypto/openpgp/packet/reader.go
+@@ -5,7 +5,7 @@
+ package packet
+ 
+ import (
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	"io"
+ )
+ 
+@@ -34,7 +34,7 @@ func (r *Reader) Next() (p Packet, err error) {
+ 			r.readers = r.readers[:len(r.readers)-1]
+ 			continue
+ 		}
+-		if _, ok := err.(error_.UnknownPacketTypeError); !ok {
++		if _, ok := err.(errors.UnknownPacketTypeError); !ok {
+ 			return nil, err
+ 		}
+ 	}
+diff --git a/src/pkg/crypto/openpgp/packet/signature.go b/src/pkg/crypto/openpgp/packet/signature.go
+index d32b12b1ab..c3ffb3a6fb 100644
+--- a/src/pkg/crypto/openpgp/packet/signature.go
++++ b/src/pkg/crypto/openpgp/packet/signature.go
+@@ -7,9 +7,8 @@ package packet
+ import (
+ 	"crypto"
+ 	"crypto/dsa"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	"crypto/openpgp/s2k"
+-	"crypto/rand"
+ 	"crypto/rsa"
+ 	"encoding/binary"
+ 	"hash"
+@@ -61,7 +60,7 @@ func (sig *Signature) parse(r io.Reader) (err error) {
+ 		return
+ 	}
+ 	if buf[0] != 4 {
+-		err = error_.UnsupportedError("signature packet version " + strconv.Itoa(int(buf[0])))
++		err = errors.UnsupportedError("signature packet version " + strconv.Itoa(int(buf[0])))
+ 		return
+ 	}
+ 
+@@ -74,14 +73,14 @@ func (sig *Signature) parse(r io.Reader) (err error) {
+ 	switch sig.PubKeyAlgo {
+ 	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly, PubKeyAlgoDSA:
+ 	default:
+-		err = error_.UnsupportedError("public key algorithm " + strconv.Itoa(int(sig.PubKeyAlgo)))
++		err = errors.UnsupportedError("public key algorithm " + strconv.Itoa(int(sig.PubKeyAlgo)))
+ 		return
+ 	}
+ 
+ 	var ok bool
+ 	sig.Hash, ok = s2k.HashIdToHash(buf[2])
+ 	if !ok {
+-		return error_.UnsupportedError("hash function " + strconv.Itoa(int(buf[2])))
++		return errors.UnsupportedError("hash function " + strconv.Itoa(int(buf[2])))
+ 	}
+ 
+ 	hashedSubpacketsLength := int(buf[3])<<8 | int(buf[4])
+@@ -153,7 +152,7 @@ func parseSignatureSubpackets(sig *Signature, subpackets []byte, isHashed bool)
+ 	}
+ 
+ 	if sig.CreationTime.IsZero() {
+-		err = error_.StructuralError("no creation time in signature")
++		err = errors.StructuralError("no creation time in signature")
+ 	}
+ 
+ 	return
+@@ -164,7 +163,7 @@ type signatureSubpacketType uint8
+ const (
+ 	creationTimeSubpacket        signatureSubpacketType = 2
+ 	signatureExpirationSubpacket signatureSubpacketType = 3
+-	keyExpirySubpacket           signatureSubpacketType = 9
++	keyExpirationSubpacket       signatureSubpacketType = 9
+ 	prefSymmetricAlgosSubpacket  signatureSubpacketType = 11
+ 	issuerSubpacket              signatureSubpacketType = 16
+ 	prefHashAlgosSubpacket       signatureSubpacketType = 21
+@@ -207,7 +206,7 @@ func parseSignatureSubpacket(sig *Signature, subpacket []byte, isHashed bool) (r
+ 	rest = subpacket[length:]
+ 	subpacket = subpacket[:length]
+ 	if len(subpacket) == 0 {
+-		err = error_.StructuralError("zero length signature subpacket")
++		err = errors.StructuralError("zero length signature subpacket")
+ 		return
+ 	}
+ 	packetType = signatureSubpacketType(subpacket[0] & 0x7f)
+@@ -217,37 +216,33 @@ func parseSignatureSubpacket(sig *Signature, subpacket []byte, isHashed bool) (r
+ 	switch packetType {
+ 	case creationTimeSubpacket:
+ 		if !isHashed {
+-			err = error_.StructuralError("signature creation time in non-hashed area")
++			err = errors.StructuralError("signature creation time in non-hashed area")
+ 			return
+ 		}
+ 		if len(subpacket) != 4 {
+-			err = error_.StructuralError("signature creation time not four bytes")
++			err = errors.StructuralError("signature creation time not four bytes")
+ 			return
+ 		}
+ 		t := binary.BigEndian.Uint32(subpacket)
+-		if t == 0 {
+-			sig.CreationTime = time.Time{}
+-		} else {
+-			sig.CreationTime = time.Unix(int64(t), 0)
+-		}
++		sig.CreationTime = time.Unix(int64(t), 0)
+ 	case signatureExpirationSubpacket:
+ 		// Signature expiration time, section 5.2.3.10
+ 		if !isHashed {
+ 			return
+ 		}
+ 		if len(subpacket) != 4 {
+-			err = error_.StructuralError("expiration subpacket with bad length")
++			err = errors.StructuralError("expiration subpacket with bad length")
+ 			return
+ 		}
+ 		sig.SigLifetimeSecs = new(uint32)
+ 		*sig.SigLifetimeSecs = binary.BigEndian.Uint32(subpacket)
+-	case keyExpirySubpacket:
++	case keyExpirationSubpacket:
+ 		// Key expiration time, section 5.2.3.6
+ 		if !isHashed {
+ 			return
+ 		}
+ 		if len(subpacket) != 4 {
+-			err = error_.StructuralError("key expiration subpacket with bad length")
++			err = errors.StructuralError("key expiration subpacket with bad length")
+ 			return
+ 		}
+ 		sig.KeyLifetimeSecs = new(uint32)
+@@ -262,7 +257,7 @@ func parseSignatureSubpacket(sig *Signature, subpacket []byte, isHashed bool) (r
+ 	case issuerSubpacket:
+ 		// Issuer, section 5.2.3.5
+ 		if len(subpacket) != 8 {
+-			err = error_.StructuralError("issuer subpacket with bad length")
++			err = errors.StructuralError("issuer subpacket with bad length")
+ 			return
+ 		}
+ 		sig.IssuerKeyId = new(uint64)
+@@ -287,7 +282,7 @@ func parseSignatureSubpacket(sig *Signature, subpacket []byte, isHashed bool) (r
+ 			return
+ 		}
+ 		if len(subpacket) != 1 {
+-			err = error_.StructuralError("primary user id subpacket with bad length")
++			err = errors.StructuralError("primary user id subpacket with bad length")
+ 			return
+ 		}
+ 		sig.IsPrimaryId = new(bool)
+@@ -300,7 +295,7 @@ func parseSignatureSubpacket(sig *Signature, subpacket []byte, isHashed bool) (r
+ 			return
+ 		}
+ 		if len(subpacket) == 0 {
+-			err = error_.StructuralError("empty key flags subpacket")
++			err = errors.StructuralError("empty key flags subpacket")
+ 			return
+ 		}
+ 		sig.FlagsValid = true
+@@ -319,14 +314,14 @@ func parseSignatureSubpacket(sig *Signature, subpacket []byte, isHashed bool) (r
+ 
+ 	default:
+ 		if isCritical {
+-			err = error_.UnsupportedError("unknown critical signature subpacket type " + strconv.Itoa(int(packetType)))
++			err = errors.UnsupportedError("unknown critical signature subpacket type " + strconv.Itoa(int(packetType)))
+ 			return
+ 		}
+ 	}
+ 	return
+ 
+ Truncated:
+-	err = error_.StructuralError("signature subpacket truncated")
++	err = errors.StructuralError("signature subpacket truncated")
+ 	return
+ }
+ 
+@@ -401,7 +396,7 @@ func (sig *Signature) buildHashSuffix() (err error) {
+ 	sig.HashSuffix[3], ok = s2k.HashToHashId(sig.Hash)
+ 	if !ok {
+ 		sig.HashSuffix = nil
+-		return error_.InvalidArgumentError("hash cannot be represented in OpenPGP: " + strconv.Itoa(int(sig.Hash)))
++		return errors.InvalidArgumentError("hash cannot be represented in OpenPGP: " + strconv.Itoa(int(sig.Hash)))
+ 	}
+ 	sig.HashSuffix[4] = byte(hashedSubpacketsLen >> 8)
+ 	sig.HashSuffix[5] = byte(hashedSubpacketsLen)
+@@ -431,7 +426,7 @@ func (sig *Signature) signPrepareHash(h hash.Hash) (digest []byte, err error) {
+ // Sign signs a message with a private key. The hash, h, must contain
+ // the hash of the message to be signed and will be mutated by this function.
+ // On success, the signature is stored in sig. Call Serialize to write it out.
+-func (sig *Signature) Sign(h hash.Hash, priv *PrivateKey) (err error) {
++func (sig *Signature) Sign(rand io.Reader, h hash.Hash, priv *PrivateKey) (err error) {
+ 	sig.outSubpackets = sig.buildSubpackets()
+ 	digest, err := sig.signPrepareHash(h)
+ 	if err != nil {
+@@ -440,7 +435,7 @@ func (sig *Signature) Sign(h hash.Hash, priv *PrivateKey) (err error) {
+ 
+ 	switch priv.PubKeyAlgo {
+ 	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly:
+-		sig.RSASignature.bytes, err = rsa.SignPKCS1v15(rand.Reader, priv.PrivateKey.(*rsa.PrivateKey), sig.Hash, digest)
++		sig.RSASignature.bytes, err = rsa.SignPKCS1v15(rand, priv.PrivateKey.(*rsa.PrivateKey), sig.Hash, digest)
+ 		sig.RSASignature.bitLength = uint16(8 * len(sig.RSASignature.bytes))
+ 	case PubKeyAlgoDSA:
+ 		dsaPriv := priv.PrivateKey.(*dsa.PrivateKey)
+@@ -450,7 +445,7 @@ func (sig *Signature) Sign(h hash.Hash, priv *PrivateKey) (err error) {
+ 		if len(digest) > subgroupSize {
+ 			digest = digest[:subgroupSize]
+ 		}
+-		r, s, err := dsa.Sign(rand.Reader, dsaPriv, digest)
++		r, s, err := dsa.Sign(rand, dsaPriv, digest)
+ 		if err == nil {
+ 			sig.DSASigR.bytes = r.Bytes()
+ 			sig.DSASigR.bitLength = uint16(8 * len(sig.DSASigR.bytes))
+@@ -458,7 +453,7 @@ func (sig *Signature) Sign(h hash.Hash, priv *PrivateKey) (err error) {
+ 			sig.DSASigS.bitLength = uint16(8 * len(sig.DSASigS.bytes))
+ 		}
+ 	default:
+-		err = error_.UnsupportedError("public key algorithm: " + strconv.Itoa(int(sig.PubKeyAlgo)))
++		err = errors.UnsupportedError("public key algorithm: " + strconv.Itoa(int(sig.PubKeyAlgo)))
+ 	}
+ 
+ 	return
+@@ -467,22 +462,22 @@ func (sig *Signature) Sign(h hash.Hash, priv *PrivateKey) (err error) {
+ // SignUserId computes a signature from priv, asserting that pub is a valid
+ // key for the identity id.  On success, the signature is stored in sig. Call
+ // Serialize to write it out.
+-func (sig *Signature) SignUserId(id string, pub *PublicKey, priv *PrivateKey) error {
++func (sig *Signature) SignUserId(rand io.Reader, id string, pub *PublicKey, priv *PrivateKey) error {
+ 	h, err := userIdSignatureHash(id, pub, sig)
+ 	if err != nil {
+ 		return nil
+ 	}
+-	return sig.Sign(h, priv)
++	return sig.Sign(rand, h, priv)
+ }
+ 
+ // SignKey computes a signature from priv, asserting that pub is a subkey.  On
+ // success, the signature is stored in sig. Call Serialize to write it out.
+-func (sig *Signature) SignKey(pub *PublicKey, priv *PrivateKey) error {
++func (sig *Signature) SignKey(rand io.Reader, pub *PublicKey, priv *PrivateKey) error {
+ 	h, err := keySignatureHash(&priv.PublicKey, pub, sig)
+ 	if err != nil {
+ 		return err
+ 	}
+-	return sig.Sign(h, priv)
++	return sig.Sign(rand, h, priv)
+ }
+ 
+ // Serialize marshals sig to w. SignRSA or SignDSA must have been called first.
+@@ -491,7 +486,7 @@ func (sig *Signature) Serialize(w io.Writer) (err error) {
+ 		sig.outSubpackets = sig.rawSubpackets
+ 	}
+ 	if sig.RSASignature.bytes == nil && sig.DSASigR.bytes == nil {
+-		return error_.InvalidArgumentError("Signature: need to call SignRSA or SignDSA before Serialize")
++		return errors.InvalidArgumentError("Signature: need to call SignRSA or SignDSA before Serialize")
+ 	}
+ 
+ 	sigLength := 0
+@@ -563,5 +558,54 @@ func (sig *Signature) buildSubpackets() (subpackets []outputSubpacket) {
+ 		subpackets = append(subpackets, outputSubpacket{true, issuerSubpacket, false, keyId})
+ 	}
+ 
++	if sig.SigLifetimeSecs != nil && *sig.SigLifetimeSecs != 0 {
++		sigLifetime := make([]byte, 4)
++		binary.BigEndian.PutUint32(sigLifetime, *sig.SigLifetimeSecs)
++		subpackets = append(subpackets, outputSubpacket{true, signatureExpirationSubpacket, true, sigLifetime})
++	}
++
++	// Key flags may only appear in self-signatures or certification signatures.
++
++	if sig.FlagsValid {
++		var flags byte
++		if sig.FlagCertify {
++			flags |= 1
++		}
++		if sig.FlagSign {
++			flags |= 2
++		}
++		if sig.FlagEncryptCommunications {
++			flags |= 4
++		}
++		if sig.FlagEncryptStorage {
++			flags |= 8
++		}
++		subpackets = append(subpackets, outputSubpacket{true, keyFlagsSubpacket, false, []byte{flags}})
++	}
++
++	// The following subpackets may only appear in self-signatures
++
++	if sig.KeyLifetimeSecs != nil && *sig.KeyLifetimeSecs != 0 {
++		keyLifetime := make([]byte, 4)
++		binary.BigEndian.PutUint32(keyLifetime, *sig.KeyLifetimeSecs)
++		subpackets = append(subpackets, outputSubpacket{true, keyExpirationSubpacket, true, keyLifetime})
++	}
++
++	if sig.IsPrimaryId != nil && *sig.IsPrimaryId {
++		subpackets = append(subpackets, outputSubpacket{true, primaryUserIdSubpacket, false, []byte{1}})
++	}
++
++	if len(sig.PreferredSymmetric) > 0 {
++		subpackets = append(subpackets, outputSubpacket{true, prefSymmetricAlgosSubpacket, false, sig.PreferredSymmetric})
++	}
++
++	if len(sig.PreferredHash) > 0 {
++		subpackets = append(subpackets, outputSubpacket{true, prefHashAlgosSubpacket, false, sig.PreferredHash})
++	}
++
++	if len(sig.PreferredCompression) > 0 {
++		subpackets = append(subpackets, outputSubpacket{true, prefCompressionSubpacket, false, sig.PreferredCompression})
++	}
++
+ 	return
+ }
+diff --git a/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted.go b/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted.go
+index 76d5151379..94e0705040 100644
+--- a/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted.go
++++ b/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted.go
+@@ -7,7 +7,7 @@ package packet
+ import (
+ 	"bytes"
+ 	"crypto/cipher"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	"crypto/openpgp/s2k"
+ 	"io"
+ 	"strconv"
+@@ -37,12 +37,12 @@ func (ske *SymmetricKeyEncrypted) parse(r io.Reader) (err error) {
+ 		return
+ 	}
+ 	if buf[0] != symmetricKeyEncryptedVersion {
+-		return error_.UnsupportedError("SymmetricKeyEncrypted version")
++		return errors.UnsupportedError("SymmetricKeyEncrypted version")
+ 	}
+ 	ske.CipherFunc = CipherFunction(buf[1])
+ 
+ 	if ske.CipherFunc.KeySize() == 0 {
+-		return error_.UnsupportedError("unknown cipher: " + strconv.Itoa(int(buf[1])))
++		return errors.UnsupportedError("unknown cipher: " + strconv.Itoa(int(buf[1])))
+ 	}
+ 
+ 	ske.s2k, err = s2k.Parse(r)
+@@ -60,7 +60,7 @@ func (ske *SymmetricKeyEncrypted) parse(r io.Reader) (err error) {
+ 	err = nil
+ 	if n != 0 {
+ 		if n == maxSessionKeySizeInBytes {
+-			return error_.UnsupportedError("oversized encrypted session key")
++			return errors.UnsupportedError("oversized encrypted session key")
+ 		}
+ 		ske.encryptedKey = encryptedKey[:n]
+ 	}
+@@ -89,13 +89,13 @@ func (ske *SymmetricKeyEncrypted) Decrypt(passphrase []byte) error {
+ 		c.XORKeyStream(ske.encryptedKey, ske.encryptedKey)
+ 		ske.CipherFunc = CipherFunction(ske.encryptedKey[0])
+ 		if ske.CipherFunc.blockSize() == 0 {
+-			return error_.UnsupportedError("unknown cipher: " + strconv.Itoa(int(ske.CipherFunc)))
++			return errors.UnsupportedError("unknown cipher: " + strconv.Itoa(int(ske.CipherFunc)))
+ 		}
+ 		ske.CipherFunc = CipherFunction(ske.encryptedKey[0])
+ 		ske.Key = ske.encryptedKey[1:]
+ 		if len(ske.Key)%ske.CipherFunc.blockSize() != 0 {
+ 			ske.Key = nil
+-			return error_.StructuralError("length of decrypted key not a multiple of block size")
++			return errors.StructuralError("length of decrypted key not a multiple of block size")
+ 		}
+ 	}
+ 
+@@ -110,7 +110,7 @@ func (ske *SymmetricKeyEncrypted) Decrypt(passphrase []byte) error {
+ func SerializeSymmetricKeyEncrypted(w io.Writer, rand io.Reader, passphrase []byte, cipherFunc CipherFunction) (key []byte, err error) {
+ 	keySize := cipherFunc.KeySize()
+ 	if keySize == 0 {
+-		return nil, error_.UnsupportedError("unknown cipher: " + strconv.Itoa(int(cipherFunc)))
++		return nil, errors.UnsupportedError("unknown cipher: " + strconv.Itoa(int(cipherFunc)))
+ 	}
+ 
+ 	s2kBuf := new(bytes.Buffer)
+diff --git a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go
+index dff776e3eb..e99a23b9fb 100644
+--- a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go
++++ b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go
+@@ -6,8 +6,7 @@ package packet
+ 
+ import (
+ 	"crypto/cipher"
+-	error_ "crypto/openpgp/error"
+-	"crypto/rand"
++	"crypto/openpgp/errors"
+ 	"crypto/sha1"
+ 	"crypto/subtle"
+ 	"hash"
+@@ -35,7 +34,7 @@ func (se *SymmetricallyEncrypted) parse(r io.Reader) error {
+ 			return err
+ 		}
+ 		if buf[0] != symmetricallyEncryptedVersion {
+-			return error_.UnsupportedError("unknown SymmetricallyEncrypted version")
++			return errors.UnsupportedError("unknown SymmetricallyEncrypted version")
+ 		}
+ 	}
+ 	se.contents = r
+@@ -48,10 +47,10 @@ func (se *SymmetricallyEncrypted) parse(r io.Reader) error {
+ func (se *SymmetricallyEncrypted) Decrypt(c CipherFunction, key []byte) (io.ReadCloser, error) {
+ 	keySize := c.KeySize()
+ 	if keySize == 0 {
+-		return nil, error_.UnsupportedError("unknown cipher: " + strconv.Itoa(int(c)))
++		return nil, errors.UnsupportedError("unknown cipher: " + strconv.Itoa(int(c)))
+ 	}
+ 	if len(key) != keySize {
+-		return nil, error_.InvalidArgumentError("SymmetricallyEncrypted: incorrect key length")
++		return nil, errors.InvalidArgumentError("SymmetricallyEncrypted: incorrect key length")
+ 	}
+ 
+ 	if se.prefix == nil {
+@@ -61,7 +60,7 @@ func (se *SymmetricallyEncrypted) Decrypt(c CipherFunction, key []byte) (io.Read
+ 			return nil, err
+ 		}
+ 	} else if len(se.prefix) != c.blockSize()+2 {
+-		return nil, error_.InvalidArgumentError("can't try ciphers with different block lengths")
++		return nil, errors.InvalidArgumentError("can't try ciphers with different block lengths")
+ 	}
+ 
+ 	ocfbResync := cipher.OCFBResync
+@@ -72,7 +71,7 @@ func (se *SymmetricallyEncrypted) Decrypt(c CipherFunction, key []byte) (io.Read
+ 
+ 	s := cipher.NewOCFBDecrypter(c.new(key), se.prefix, ocfbResync)
+ 	if s == nil {
+-		return nil, error_.KeyIncorrectError
++		return nil, errors.KeyIncorrectError
+ 	}
+ 
+ 	plaintext := cipher.StreamReader{S: s, R: se.contents}
+@@ -181,7 +180,7 @@ const mdcPacketTagByte = byte(0x80) | 0x40 | 19
+ 
+ func (ser *seMDCReader) Close() error {
+ 	if ser.error {
+-		return error_.SignatureError("error during reading")
++		return errors.SignatureError("error during reading")
+ 	}
+ 
+ 	for !ser.eof {
+@@ -192,18 +191,18 @@ func (ser *seMDCReader) Close() error {
+ 			break
+ 		}
+ 		if err != nil {
+-			return error_.SignatureError("error during reading")
++			return errors.SignatureError("error during reading")
+ 		}
+ 	}
+ 
+ 	if ser.trailer[0] != mdcPacketTagByte || ser.trailer[1] != sha1.Size {
+-		return error_.SignatureError("MDC packet not found")
++		return errors.SignatureError("MDC packet not found")
+ 	}
+ 	ser.h.Write(ser.trailer[:2])
+ 
+ 	final := ser.h.Sum(nil)
+ 	if subtle.ConstantTimeCompare(final, ser.trailer[2:]) != 1 {
+-		return error_.SignatureError("hash mismatch")
++		return errors.SignatureError("hash mismatch")
+ 	}
+ 	return nil
+ }
+@@ -253,9 +252,9 @@ func (c noOpCloser) Close() error {
+ // SerializeSymmetricallyEncrypted serializes a symmetrically encrypted packet
+ // to w and returns a WriteCloser to which the to-be-encrypted packets can be
+ // written.
+-func SerializeSymmetricallyEncrypted(w io.Writer, c CipherFunction, key []byte) (contents io.WriteCloser, err error) {
++func SerializeSymmetricallyEncrypted(w io.Writer, rand io.Reader, c CipherFunction, key []byte) (contents io.WriteCloser, err error) {
+ 	if c.KeySize() != len(key) {
+-		return nil, error_.InvalidArgumentError("SymmetricallyEncrypted.Serialize: bad key length")
++		return nil, errors.InvalidArgumentError("SymmetricallyEncrypted.Serialize: bad key length")
+ 	}
+ 	writeCloser := noOpCloser{w}
+ 	ciphertext, err := serializeStreamHeader(writeCloser, packetTypeSymmetricallyEncryptedMDC)
+@@ -271,7 +270,7 @@ func SerializeSymmetricallyEncrypted(w io.Writer, c CipherFunction, key []byte)
+ 	block := c.new(key)
+ 	blockSize := block.BlockSize()
+ 	iv := make([]byte, blockSize)
+-	_, err = rand.Reader.Read(iv)
++	_, err = rand.Read(iv)
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go
+index 8eee971398..f7d133d0bb 100644
+--- a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go
++++ b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go
+@@ -6,7 +6,8 @@ package packet
+ 
+ import (
+ 	"bytes"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
++	"crypto/rand"
+ 	"crypto/sha1"
+ 	"encoding/hex"
+ 	"io"
+@@ -70,7 +71,7 @@ func testMDCReader(t *testing.T) {
+ 	err = mdcReader.Close()
+ 	if err == nil {
+ 		t.Error("corruption: no error")
+-	} else if _, ok := err.(*error_.SignatureError); !ok {
++	} else if _, ok := err.(*errors.SignatureError); !ok {
+ 		t.Errorf("corruption: expected SignatureError, got: %s", err)
+ 	}
+ }
+@@ -82,7 +83,7 @@ func TestSerialize(t *testing.T) {
+ 	c := CipherAES128
+ 	key := make([]byte, c.KeySize())
+ 
+-	w, err := SerializeSymmetricallyEncrypted(buf, c, key)
++	w, err := SerializeSymmetricallyEncrypted(buf, rand.Reader, c, key)
+ 	if err != nil {
+ 		t.Errorf("error from SerializeSymmetricallyEncrypted: %s", err)
+ 		return
+diff --git a/src/pkg/crypto/openpgp/read.go b/src/pkg/crypto/openpgp/read.go
+index 76fb1ead9f..1d23434704 100644
+--- a/src/pkg/crypto/openpgp/read.go
++++ b/src/pkg/crypto/openpgp/read.go
+@@ -8,7 +8,7 @@ package openpgp
+ import (
+ 	"crypto"
+ 	"crypto/openpgp/armor"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	"crypto/openpgp/packet"
+ 	_ "crypto/sha256"
+ 	"hash"
+@@ -27,7 +27,7 @@ func readArmored(r io.Reader, expectedType string) (body io.Reader, err error) {
+ 	}
+ 
+ 	if block.Type != expectedType {
+-		return nil, error_.InvalidArgumentError("expected '" + expectedType + "', got: " + block.Type)
++		return nil, errors.InvalidArgumentError("expected '" + expectedType + "', got: " + block.Type)
+ 	}
+ 
+ 	return block.Body, nil
+@@ -130,7 +130,7 @@ ParsePackets:
+ 		case *packet.Compressed, *packet.LiteralData, *packet.OnePassSignature:
+ 			// This message isn't encrypted.
+ 			if len(symKeys) != 0 || len(pubKeys) != 0 {
+-				return nil, error_.StructuralError("key material not followed by encrypted message")
++				return nil, errors.StructuralError("key material not followed by encrypted message")
+ 			}
+ 			packets.Unread(p)
+ 			return readSignedMessage(packets, nil, keyring)
+@@ -161,7 +161,7 @@ FindKey:
+ 					continue
+ 				}
+ 				decrypted, err = se.Decrypt(pk.encryptedKey.CipherFunc, pk.encryptedKey.Key)
+-				if err != nil && err != error_.KeyIncorrectError {
++				if err != nil && err != errors.KeyIncorrectError {
+ 					return nil, err
+ 				}
+ 				if decrypted != nil {
+@@ -179,11 +179,11 @@ FindKey:
+ 		}
+ 
+ 		if len(candidates) == 0 && len(symKeys) == 0 {
+-			return nil, error_.KeyIncorrectError
++			return nil, errors.KeyIncorrectError
+ 		}
+ 
+ 		if prompt == nil {
+-			return nil, error_.KeyIncorrectError
++			return nil, errors.KeyIncorrectError
+ 		}
+ 
+ 		passphrase, err := prompt(candidates, len(symKeys) != 0)
+@@ -197,7 +197,7 @@ FindKey:
+ 				err = s.Decrypt(passphrase)
+ 				if err == nil && !s.Encrypted {
+ 					decrypted, err = se.Decrypt(s.CipherFunc, s.Key)
+-					if err != nil && err != error_.KeyIncorrectError {
++					if err != nil && err != errors.KeyIncorrectError {
+ 						return nil, err
+ 					}
+ 					if decrypted != nil {
+@@ -237,7 +237,7 @@ FindLiteralData:
+ 			packets.Push(p.Body)
+ 		case *packet.OnePassSignature:
+ 			if !p.IsLast {
+-				return nil, error_.UnsupportedError("nested signatures")
++				return nil, errors.UnsupportedError("nested signatures")
+ 			}
+ 
+ 			h, wrappedHash, err = hashForSignature(p.Hash, p.SigType)
+@@ -281,7 +281,7 @@ FindLiteralData:
+ func hashForSignature(hashId crypto.Hash, sigType packet.SignatureType) (hash.Hash, hash.Hash, error) {
+ 	h := hashId.New()
+ 	if h == nil {
+-		return nil, nil, error_.UnsupportedError("hash not available: " + strconv.Itoa(int(hashId)))
++		return nil, nil, errors.UnsupportedError("hash not available: " + strconv.Itoa(int(hashId)))
+ 	}
+ 
+ 	switch sigType {
+@@ -291,7 +291,7 @@ func hashForSignature(hashId crypto.Hash, sigType packet.SignatureType) (hash.Ha
+ 		return h, NewCanonicalTextHash(h), nil
+ 	}
+ 
+-	return nil, nil, error_.UnsupportedError("unsupported signature type: " + strconv.Itoa(int(sigType)))
++	return nil, nil, errors.UnsupportedError("unsupported signature type: " + strconv.Itoa(int(sigType)))
+ }
+ 
+ // checkReader wraps an io.Reader from a LiteralData packet. When it sees EOF
+@@ -333,7 +333,7 @@ func (scr *signatureCheckReader) Read(buf []byte) (n int, err error) {
+ 
+ 		var ok bool
+ 		if scr.md.Signature, ok = p.(*packet.Signature); !ok {
+-			scr.md.SignatureError = error_.StructuralError("LiteralData not followed by Signature")
++			scr.md.SignatureError = errors.StructuralError("LiteralData not followed by Signature")
+ 			return
+ 		}
+ 
+@@ -363,16 +363,16 @@ func CheckDetachedSignature(keyring KeyRing, signed, signature io.Reader) (signe
+ 
+ 	sig, ok := p.(*packet.Signature)
+ 	if !ok {
+-		return nil, error_.StructuralError("non signature packet found")
++		return nil, errors.StructuralError("non signature packet found")
+ 	}
+ 
+ 	if sig.IssuerKeyId == nil {
+-		return nil, error_.StructuralError("signature doesn't have an issuer")
++		return nil, errors.StructuralError("signature doesn't have an issuer")
+ 	}
+ 
+ 	keys := keyring.KeysById(*sig.IssuerKeyId)
+ 	if len(keys) == 0 {
+-		return nil, error_.UnknownIssuerError
++		return nil, errors.UnknownIssuerError
+ 	}
+ 
+ 	h, wrappedHash, err := hashForSignature(sig.Hash, sig.SigType)
+@@ -399,7 +399,7 @@ func CheckDetachedSignature(keyring KeyRing, signed, signature io.Reader) (signe
+ 		return
+ 	}
+ 
+-	return nil, error_.UnknownIssuerError
++	return nil, errors.UnknownIssuerError
+ }
+ 
+ // CheckArmoredDetachedSignature performs the same actions as
+diff --git a/src/pkg/crypto/openpgp/read_test.go b/src/pkg/crypto/openpgp/read_test.go
+index 1be900b157..d1ecad3817 100644
+--- a/src/pkg/crypto/openpgp/read_test.go
++++ b/src/pkg/crypto/openpgp/read_test.go
+@@ -6,7 +6,7 @@ package openpgp
+ 
+ import (
+ 	"bytes"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	_ "crypto/sha512"
+ 	"encoding/hex"
+ 	"io"
+@@ -161,18 +161,18 @@ func TestSignedEncryptedMessage(t *testing.T) {
+ 		prompt := func(keys []Key, symmetric bool) ([]byte, error) {
+ 			if symmetric {
+ 				t.Errorf("prompt: message was marked as symmetrically encrypted")
+-				return nil, error_.KeyIncorrectError
++				return nil, errors.KeyIncorrectError
+ 			}
+ 
+ 			if len(keys) == 0 {
+ 				t.Error("prompt: no keys requested")
+-				return nil, error_.KeyIncorrectError
++				return nil, errors.KeyIncorrectError
+ 			}
+ 
+ 			err := keys[0].PrivateKey.Decrypt([]byte("passphrase"))
+ 			if err != nil {
+ 				t.Errorf("prompt: error decrypting key: %s", err)
+-				return nil, error_.KeyIncorrectError
++				return nil, errors.KeyIncorrectError
+ 			}
+ 
+ 			return nil, nil
+@@ -296,7 +296,7 @@ func TestReadingArmoredPrivateKey(t *testing.T) {
+ 
+ func TestNoArmoredData(t *testing.T) {
+ 	_, err := ReadArmoredKeyRing(bytes.NewBufferString("foo"))
+-	if _, ok := err.(error_.InvalidArgumentError); !ok {
++	if _, ok := err.(errors.InvalidArgumentError); !ok {
+ 		t.Errorf("error was not an InvalidArgumentError: %s", err)
+ 	}
+ }
+diff --git a/src/pkg/crypto/openpgp/s2k/s2k.go b/src/pkg/crypto/openpgp/s2k/s2k.go
+index 8bc0bb320b..39479a1f1c 100644
+--- a/src/pkg/crypto/openpgp/s2k/s2k.go
++++ b/src/pkg/crypto/openpgp/s2k/s2k.go
+@@ -8,7 +8,7 @@ package s2k
+ 
+ import (
+ 	"crypto"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	"hash"
+ 	"io"
+ 	"strconv"
+@@ -89,11 +89,11 @@ func Parse(r io.Reader) (f func(out, in []byte), err error) {
+ 
+ 	hash, ok := HashIdToHash(buf[1])
+ 	if !ok {
+-		return nil, error_.UnsupportedError("hash for S2K function: " + strconv.Itoa(int(buf[1])))
++		return nil, errors.UnsupportedError("hash for S2K function: " + strconv.Itoa(int(buf[1])))
+ 	}
+ 	h := hash.New()
+ 	if h == nil {
+-		return nil, error_.UnsupportedError("hash not available: " + strconv.Itoa(int(hash)))
++		return nil, errors.UnsupportedError("hash not available: " + strconv.Itoa(int(hash)))
+ 	}
+ 
+ 	switch buf[0] {
+@@ -123,7 +123,7 @@ func Parse(r io.Reader) (f func(out, in []byte), err error) {
+ 		return f, nil
+ 	}
+ 
+-	return nil, error_.UnsupportedError("S2K function")
++	return nil, errors.UnsupportedError("S2K function")
+ }
+ 
+ // Serialize salts and stretches the given passphrase and writes the resulting
+diff --git a/src/pkg/crypto/openpgp/write.go b/src/pkg/crypto/openpgp/write.go
+index bdee57d767..73daa11312 100644
+--- a/src/pkg/crypto/openpgp/write.go
++++ b/src/pkg/crypto/openpgp/write.go
+@@ -7,7 +7,7 @@ package openpgp
+ import (
+ 	"crypto"
+ 	"crypto/openpgp/armor"
+-	error_ "crypto/openpgp/error"
++	"crypto/openpgp/errors"
+ 	"crypto/openpgp/packet"
+ 	"crypto/openpgp/s2k"
+ 	"crypto/rand"
+@@ -58,10 +58,10 @@ func armoredDetachSign(w io.Writer, signer *Entity, message io.Reader, sigType p
+ 
+ func detachSign(w io.Writer, signer *Entity, message io.Reader, sigType packet.SignatureType) (err error) {
+ 	if signer.PrivateKey == nil {
+-		return error_.InvalidArgumentError("signing key doesn't have a private key")
++		return errors.InvalidArgumentError("signing key doesn't have a private key")
+ 	}
+ 	if signer.PrivateKey.Encrypted {
+-		return error_.InvalidArgumentError("signing key is encrypted")
++		return errors.InvalidArgumentError("signing key is encrypted")
+ 	}
+ 
+ 	sig := new(packet.Signature)
+@@ -77,7 +77,7 @@ func detachSign(w io.Writer, signer *Entity, message io.Reader, sigType packet.S
+ 	}
+ 	io.Copy(wrappedHash, message)
+ 
+-	err = sig.Sign(h, signer.PrivateKey)
++	err = sig.Sign(rand.Reader, h, signer.PrivateKey)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -111,7 +111,7 @@ func SymmetricallyEncrypt(ciphertext io.Writer, passphrase []byte, hints *FileHi
+ 	if err != nil {
+ 		return
+ 	}
+-	w, err := packet.SerializeSymmetricallyEncrypted(ciphertext, packet.CipherAES128, key)
++	w, err := packet.SerializeSymmetricallyEncrypted(ciphertext, rand.Reader, packet.CipherAES128, key)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -156,7 +156,7 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
+ 	if signed != nil {
+ 		signer = signed.signingKey().PrivateKey
+ 		if signer == nil || signer.Encrypted {
+-			return nil, error_.InvalidArgumentError("signing key must be decrypted")
++			return nil, errors.InvalidArgumentError("signing key must be decrypted")
+ 		}
+ 	}
+ 
+@@ -183,7 +183,7 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
+ 	for i := range to {
+ 		encryptKeys[i] = to[i].encryptionKey()
+ 		if encryptKeys[i].PublicKey == nil {
+-			return nil, error_.InvalidArgumentError("cannot encrypt a message to key id " + strconv.FormatUint(to[i].PrimaryKey.KeyId, 16) + " because it has no encryption keys")
++			return nil, errors.InvalidArgumentError("cannot encrypt a message to key id " + strconv.FormatUint(to[i].PrimaryKey.KeyId, 16) + " because it has no encryption keys")
+ 		}
+ 
+ 		sig := to[i].primaryIdentity().SelfSignature
+@@ -201,7 +201,7 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
+ 	}
+ 
+ 	if len(candidateCiphers) == 0 || len(candidateHashes) == 0 {
+-		return nil, error_.InvalidArgumentError("cannot encrypt because recipient set shares no common algorithms")
++		return nil, errors.InvalidArgumentError("cannot encrypt because recipient set shares no common algorithms")
+ 	}
+ 
+ 	cipher := packet.CipherFunction(candidateCiphers[0])
+@@ -217,7 +217,7 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
+ 		}
+ 	}
+ 
+-	encryptedData, err := packet.SerializeSymmetricallyEncrypted(ciphertext, cipher, symKey)
++	encryptedData, err := packet.SerializeSymmetricallyEncrypted(ciphertext, rand.Reader, cipher, symKey)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -287,7 +287,7 @@ func (s signatureWriter) Close() error {
+ 		IssuerKeyId:  &s.signer.KeyId,
+ 	}
+ 
+-	if err := sig.Sign(s.h, s.signer); err != nil {
++	if err := sig.Sign(rand.Reader, s.h, s.signer); err != nil {
+ 		return err
+ 	}
+ 	if err := s.literalData.Close(); err != nil {
